@@ -1,0 +1,83 @@
+# Dependencies
+node_modules/
+
+# Miscellaneous
+*.class
+*.log
+*.pyc
+*.swp
+.DS_Store
+.atom/
+.build/
+.buildlog/
+.history
+.svn/
+.swiftpm/
+migrate_working_dir/
+
+# IntelliJ related
+*.iml
+*.ipr
+*.iws
+.idea/
+
+# The .vscode folder contains launch configuration and tasks you configure in
+# VS Code which you may wish to be included in version control, so this line
+# is commented out by default.
+#.vscode/
+
+# Flutter/Dart/Pub related
+# Libraries should not include pubspec.lock, per https://dart.dev/guides/libraries/private-files#pubspeclock.
+/pubspec.lock
+**/doc/api/
+.dart_tool/
+.flutter-plugins-dependencies
+/build/
+/coverage/
+
+# C 引擎构建产物(仓库根即 C 插件)
+build/
+
+# WASM bundles (wasm/*.js) are now tracked — regenerate with `npm run build`
+# (wasm/build.mjs appends the wrapper to the committed engine .mjs).
+*.o
+*.a
+*.obj
+*.dll
+*.lib
+*.pdb
+*.exp
+*.map
+*.exe
+tools/__pycache__/
+
+# 编译产物(DLL/so/dylib)不入库
+*.so
+*.dylib
+
+# C 库 Android 跨平台编译输出(本地 make cross，不入库)
+build_arm64/
+build_armeabi/
+build_x86_64/
+
+# 本地工具/编辑器配置(.claude/skills 仍跟踪)
+.claude/settings.json
+.claude/settings.local.json
+
+# Gradle 缓存
+**/.gradle/
+
+# 示例的 windows 桌面脚手架(按需 flutter create 再生)
+/example/windows/
+
+# Flutter ephemeral 目录(flutter pub get/build 自动生成)
+**/flutter/ephemeral/
+
+# 本地环境配置(含机器相关路径，绝不入库)
+example/android/local.properties
+
+# 备份文件
+*.bak
+
+# npm pack output
+*.tgz

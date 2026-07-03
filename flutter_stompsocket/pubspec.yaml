@@ -1,0 +1,19 @@
+name: flutter_stompsocket
+description: "Production-ready STOMP-over-WebSocket client for Flutter: shared-parse callbacks, auto re-subscribe on reconnect, offline send buffering, auto/manual ack."
+version: 0.1.0
+repository: https://github.com/icodejoo/flutter_stompsocket
+issue_tracker: https://github.com/icodejoo/flutter_stompsocket/issues
+
+environment:
+  sdk: ^3.7.0
+  flutter: ">=3.29.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  stomp_dart_client: ^3.0.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0

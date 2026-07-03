@@ -1,0 +1,22 @@
+name: getquery
+description: "TanStack-Query-style data fetching for GetX: Rx-backed useQuery/useMutation over flutter_query — no HookWidget, render with Obx — plus auto-disposing view models."
+version: 0.1.0
+repository: https://github.com/icodejoo/getquery
+issue_tracker: https://github.com/icodejoo/getquery/issues
+
+environment:
+  sdk: ^3.5.0
+  flutter: ">=3.24.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  flutter_query: ^0.10.0
+  get: ^4.7.3
+  connectivity_plus: ^7.0.0
+  meta: ^1.15.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
