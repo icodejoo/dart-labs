@@ -1,0 +1,20 @@
+name: ffuzzy_example
+description: Example app for the ffuzzy fuzzy matcher Flutter plugin.
+publish_to: none
+version: 1.0.0
+
+environment:
+  sdk: ^3.4.0
+  flutter: '>=3.10.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+  ffuzzy:
+    path: ../
+
+dev_dependencies:
+  flutter_lints: ^4.0.0
+
+flutter:
+  uses-material-design: true
