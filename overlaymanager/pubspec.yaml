@@ -1,0 +1,28 @@
+name: overlaymanager
+description: "Flutter-native overlay queue manager: serial one-at-a-time queueing with priority, replace, overlap, cooldown and two-phase close; also orchestrates showDialog / GetX / bot_toast."
+version: 0.0.1
+homepage: https://github.com/icodejoo/dart-labs/tree/main/overlaymanager
+repository: https://github.com/icodejoo/dart-labs
+issue_tracker: https://github.com/icodejoo/dart-labs/issues
+
+topics:
+  - overlay
+  - dialog
+  - toast
+  - queue
+  - snackbar
+
+environment:
+  sdk: ^3.12.2
+  flutter: ">=1.17.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+
+flutter:
