@@ -69,12 +69,31 @@ Flutter**:真实 `OverlayEntry` 插入 `OverlayManagerScope` 自有 Overlay 层,
   请求(真 OS 深链冷启动/热启动、Web 地址栏变化)——这是真前置否决,但 app 内代码调 `Navigator.push`/
   `Get.to`/`context.go` 完全不走这条路径。`didPopRoute` 能拦**系统触发**的返回(硬件/手势返回键)。两者
   都不能解决"拦截任意 app 内导航、不改调用点"这个组合——本轮**没做**,留给以后真要接系统级深链再捡。
+- **发布前 `/code-review` 抓到 6 个真问题**(2026-07-04,scope 限定在 0.0.1→0.1.0 的新增 diff,均已修+补
+  回归,细节见 SKILL.md 不变量 #12-16):①`OverlayNavigatorObserver` 原来监听的是 legacy 四件套
+  (`didPush`/`didPop`/`didRemove`/`didReplace`)——`didRemove`/`didReplace` 报告的是"被改动那个位置"的
+  route,不一定是真正最顶层(可能被压在别的路由下面);改用 Flutter 自己文档明确的"永远给最新顶层路由"的
+  `didChangeTop`,顺带覆盖了 go_router 那类声明式 `Navigator(pages:)` 场景(legacy 四件套接不到)。
+  ②`OverlayManager` 加 `isDisposed`,observer 的延迟回调前后都查——防止导航事件已排队、但 app 重启
+  disposed 了 manager,回调再跑时调用一个已 dispose 的 ChangeNotifier 崩溃。③`pathOf` 现在包一层
+  try/catch,抛出经 `FlutterError.reportError` 上报而不是直接从 NavigatorObserver 回调里冒出去炸导航。
+  ④真机验证到:`MaterialApp.home` 的隐式路由名字是 `'/'`(Flutter 自己的 `Navigator.defaultRouteName`),
+  不是 `null` 也不是 `'/home'`——demo 之前手动 `setContext({'route':'/home'})` 装上 observer 后第一帧就被
+  盖成 `'/'`;修法是 demo 改用 `initialRoute`/`routes` 显式命名首页,不在引擎里"修"这个(这是正确的
+  Flutter 行为,不是缺陷)。⑤发现并记录(不修,只写文档):`presentRouteDialog` 那套 recipe 给弹窗路由起的
+  `RouteSettings(name:'om://$id')` 会被同一个 observer 观察到,弹窗开着的时候 `route` 会短暂变成那个合成
+  名字——这是 Flutter 模型下正确行为(弹窗确实在最顶层),不做特殊过滤(会悄悄破坏想拿弹窗路由做条件的场景)。
+  ⑥3 个独立 agent 收敛到同一处重复(`pauseAll`/`resumeAll`/`_updateRouteZone` 里手写的"记前值→翻转→按边沿
+  调 freeze/release"逻辑),提炼成共享的 `_applyPauseTransition(before)`;`pauseOnRoutes` 与 `open()` 的
+  `route` 参数类型校验也从两份手写 union 收敛成共享的 `_isRoutePattern`。
 
 ## 验收基线(2026-07-04)
 
-- 单测 `flutter test`:**79 全绿**(0.1.0 新增 9 条:pauseOnRoutes 组合语义 3 条 + `OverlayNavigatorObserver`
-  5 条 + `currentRoute` 1 条);`flutter analyze` 干净;`flutter pub publish --dry-run` 0 warnings。
-- 真机集成 **17 全绿**(新增 1 条:进 `/zone` 自动冻结队列、离开自动恢复,零手动 setContext/pauseAll)。
+- 单测 `flutter test`:**80 全绿**(0.1.0 新增 10 条:pauseOnRoutes 组合语义 3 条 + `OverlayNavigatorObserver`
+  7 条,含 disposed-manager 与 throwing-pathOf 两条 code-review 回归);`flutter analyze` 干净;
+  `flutter pub publish --dry-run` 0 warnings。
+- 真机集成 **17 全绿**(`/zone` 自动冻结队列 1 条 + `/promo` 往返真机断言路由标签文本(而不只是
+  activeIds/queuedIds)验证 `/home` 命名修复)。
 - **第二轮 code-review 又抓到 3 个真 bug**(2026-07-04,均补回归):①displace 一个带 `resolve` 的已开项,
   resume 时会**重跑 resolver**(重复副作用,若第二次返回 null 会把正显示的项静默丢弃)→加 `resolved` 标记,
   `_activate` 对已 resolved 项跳过 resolver 直接复用旧 data;②对 displaced-pending 项调用 `close()` 完全

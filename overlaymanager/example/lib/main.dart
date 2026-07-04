@@ -70,7 +70,11 @@ class _AppRootState extends State<AppRoot> {
         context,
         OverlayManagerScope(manager: om, child: child!),
       ),
-      home: HomePage(key: ValueKey(_gen)),
+      // `home:` would leave the initial route named '/' (Flutter's own
+      // Navigator.defaultRouteName, not '/home') — named `initialRoute` +
+      // `routes` gives it the real name the rest of this demo assumes.
+      initialRoute: '/home',
+      routes: {'/home': (_) => HomePage(key: ValueKey(_gen))},
     );
   }
 }

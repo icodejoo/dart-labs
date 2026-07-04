@@ -218,6 +218,18 @@ route with no resolvable path (an anonymous `MaterialPageRoute` with no
 `settings.name`) reports `null` — conditions simply don't match `null`,
 Flutter gives us no other notion of "path" for anonymous routes.
 
+Two things Flutter itself does that are easy to miss:
+
+- **`MaterialApp.home`'s implicit route is named `'/'`**, not `null` and not
+  `'/home'` — that's Flutter's own `Navigator.defaultRouteName`. If you want
+  to gate on the home page by a specific string, give it one explicitly via
+  `initialRoute`/`routes` (or a named `RouteSettings`) instead of `home:`.
+- **A route-backed dialog pushed onto the same `Navigator`** (the
+  `showDialog`/`Get.dialog` recipe above needs a unique route name for
+  targeted close) genuinely *is* the topmost route while it's shown, so
+  `route` reflects its name for that window — not a bug, just worth knowing
+  if you combine route-backed dialogs with `route`-gated overlays elsewhere.
+
 `pauseOnRoutes` builds a "no-overlay zone" on top of this: entering a matching
 route freezes the whole queue (exactly like `pauseAll()` — nothing new
 activates); leaving it resumes (like `resumeAll()`). It composes with manual
@@ -597,6 +609,7 @@ OverlayManager({
 | `Object? get currentRoute` | The `route` context key last set via `setContext` (`null` if never set). |
 | `bool get isAttached` | Whether an `OverlayState` is attached (builtin rendering). |
 | `bool get isPaused` | Whether the queue is frozen — via `pauseAll` or a matching `pauseOnRoutes` pattern. |
+| `bool get isDisposed` | Whether `dispose()` has been called — lets a deferred callback avoid calling into a torn-down manager. |
 | `List<String> get activeIds` | Ids currently shown (resolving/open/closing), serial + overlaps. |
 | `List<String> get queuedIds` | Ids waiting in queues. |
 | `bool isShowing(String id)` | Whether `id` is currently active. |
@@ -678,10 +691,16 @@ OverlayNavigatorObserver(
 })
 ```
 
-Add to `navigatorObservers`; feeds every push/pop/replace/remove into
-`manager.setContext({'route': ...})` automatically (deferred to a post-frame
-callback, so it's safe even if navigation happens mid-build). Router-agnostic
-— works under vanilla `Navigator`, GetX and go_router.
+Add to `navigatorObservers`; listens to `didChangeTop` (the current topmost
+route — covers cold start, push, pop, replace and declarative
+`Navigator(pages:)` rebuilds in one signal, unlike the legacy push/pop/
+replace/remove callbacks) and feeds it into `manager.setContext({'route':
+...})` automatically. Deferred to a post-frame callback (safe even if
+navigation happens mid-build) and guarded by `manager.isDisposed` both before
+scheduling and inside the callback. A throwing `pathOf` is reported via
+`FlutterError.reportError` instead of propagating; the route is then treated
+as unresolvable (`null`). Router-agnostic — works under vanilla `Navigator`,
+GetX and go_router.
 
 ### `OverlayPhase` (enum)
 
@@ -937,6 +956,16 @@ MaterialApp(
 再维护一份镜像。path 默认取 `route.settings.name`;路由库存法不同就传 `pathOf` 覆盖。
 匿名路由(没设 `settings.name`)会上报 `null`——条件天然匹配不到 `null`,这是 Flutter
 对匿名路由没有"path"概念的结构性限制,不是我们的能力缺陷。
+
+两个容易踩的 Flutter 自身行为:
+
+- **`MaterialApp.home` 的隐式路由名字是 `'/'`**,不是 `null`,也不是 `'/home'`——这是
+  Flutter 自己的 `Navigator.defaultRouteName`。想让首页按某个特定字符串匹配条件,得用
+  `initialRoute`/`routes`(或带名字的 `RouteSettings`)显式命名,别指望 `home:`。
+- **推到同一个 `Navigator` 上的路由型弹窗**(上面 `showDialog`/`Get.dialog` 的 recipe
+  为了定向关闭需要一个唯一路由名)在它显示期间**确实**是最顶层路由,`route` 会短暂反映
+  它的名字——这不是 bug,只是如果你同时用了路由型弹窗和别处的 `route` 条件门控,值得
+  知道这个交互。
 
 `pauseOnRoutes` 在这基础上加了个"免打扰区":进入匹配路由会冻结整条队列(和
 `pauseAll()` 效果一样,不激活新的);离开会恢复(和 `resumeAll()` 一样)。它跟手动
