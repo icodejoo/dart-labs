@@ -898,6 +898,20 @@ void main() {
 
       manager.dispose();
     });
+
+    testWidgets('currentRoute mirrors the route key set via setContext',
+        (tester) async {
+      final manager = OverlayManager();
+      expect(manager.currentRoute, isNull);
+
+      manager.setContext({'route': '/checkout'});
+      expect(manager.currentRoute, '/checkout');
+
+      manager.setContext({'route': null});
+      expect(manager.currentRoute, isNull);
+
+      manager.dispose();
+    });
   });
 
   group('external presenter (orchestrating third-party overlay systems)', () {
@@ -1258,6 +1272,204 @@ void main() {
       await tester.pump(const Duration(milliseconds: 500));
       await tester.pump();
       expect(manager.isShowing('p'), isFalse); // resumed with remaining time
+
+      manager.dispose();
+    });
+  });
+
+  group('pauseOnRoutes — route-zone auto pause/resume', () {
+    testWidgets('entering a matching route pauses the queue; leaving resumes',
+        (tester) async {
+      final manager = OverlayManager(pauseOnRoutes: const ['/checkout']);
+      await pumpHost(tester, manager);
+
+      manager.setContext({'route': '/checkout'});
+      manager.open(id: 'a', builder: (c, h) => label('A'));
+      await tester.pump();
+      expect(find.text('A'), findsNothing); // route zone froze activation
+      expect(manager.isPaused, isTrue);
+
+      manager.setContext({'route': '/home'});
+      await tester.pump();
+      expect(find.text('A'), findsOneWidget); // left the zone -> resumed
+      expect(manager.isPaused, isFalse);
+
+      manager.dispose();
+    });
+
+    testWidgets('route zone does not undo an unrelated manual pauseAll',
+        (tester) async {
+      final manager = OverlayManager(pauseOnRoutes: const ['/checkout']);
+      await pumpHost(tester, manager);
+
+      manager.pauseAll();
+      manager.setContext({'route': '/checkout'}); // enters zone too
+      manager.open(id: 'a', builder: (c, h) => label('A'));
+      await tester.pump();
+      expect(find.text('A'), findsNothing);
+
+      manager.setContext({'route': '/home'}); // leaves zone; still manual-paused
+      await tester.pump();
+      expect(find.text('A'), findsNothing); // still frozen
+      expect(manager.isPaused, isTrue);
+
+      manager.resumeAll();
+      await tester.pump();
+      expect(find.text('A'), findsOneWidget);
+
+      manager.dispose();
+    });
+
+    testWidgets('manual resumeAll does not undo an active route zone',
+        (tester) async {
+      final manager = OverlayManager(pauseOnRoutes: const ['/checkout']);
+      await pumpHost(tester, manager);
+
+      manager.setContext({'route': '/checkout'}); // zone active
+      manager.pauseAll(); // also manually paused (redundant but legal)
+      manager.resumeAll(); // clears the MANUAL pause only
+      manager.open(id: 'a', builder: (c, h) => label('A'));
+      await tester.pump();
+      expect(find.text('A'), findsNothing); // route zone still holds it
+      expect(manager.isPaused, isTrue);
+
+      manager.setContext({'route': '/home'});
+      await tester.pump();
+      expect(find.text('A'), findsOneWidget);
+
+      manager.dispose();
+    });
+  });
+
+  group('OverlayNavigatorObserver — auto route context', () {
+    // Every observer callback defers its setContext to a post-frame callback
+    // (see the class doc) — pumpAndSettle flushes that plus the extra frame
+    // the resulting OverlayEntry insertion/removal needs to actually render.
+    testWidgets('didPush makes route-conditioned overlays eligible',
+        (tester) async {
+      final manager = OverlayManager();
+      await pumpHost(tester, manager);
+      final observer = OverlayNavigatorObserver(manager);
+
+      manager.open(id: 'a', route: '/checkout', builder: (c, h) => label('A'));
+      await tester.pump();
+      expect(find.text('A'), findsNothing); // no route observed yet
+
+      observer.didPush(
+        MaterialPageRoute<void>(
+          settings: const RouteSettings(name: '/checkout'),
+          builder: (_) => const SizedBox(),
+        ),
+        null,
+      );
+      await tester.pumpAndSettle();
+      expect(find.text('A'), findsOneWidget);
+
+      manager.dispose();
+    });
+
+    testWidgets("didPop restores the previous route's path", (tester) async {
+      final manager = OverlayManager();
+      await pumpHost(tester, manager);
+      final observer = OverlayNavigatorObserver(manager);
+
+      final home = MaterialPageRoute<void>(
+        settings: const RouteSettings(name: '/home'),
+        builder: (_) => const SizedBox(),
+      );
+      final checkout = MaterialPageRoute<void>(
+        settings: const RouteSettings(name: '/checkout'),
+        builder: (_) => const SizedBox(),
+      );
+      observer.didPush(home, null);
+      observer.didPush(checkout, home);
+      await tester.pumpAndSettle();
+
+      manager.open(id: 'a', route: '/home', builder: (c, h) => label('A'));
+      await tester.pump();
+      expect(find.text('A'), findsNothing); // currently on /checkout
+
+      observer.didPop(checkout, home); // back to /home
+      await tester.pumpAndSettle();
+      expect(find.text('A'), findsOneWidget);
+
+      manager.dispose();
+    });
+
+    testWidgets("didReplace uses the new route's path", (tester) async {
+      final manager = OverlayManager();
+      await pumpHost(tester, manager);
+      final observer = OverlayNavigatorObserver(manager);
+
+      final splash = MaterialPageRoute<void>(
+        settings: const RouteSettings(name: '/splash'),
+        builder: (_) => const SizedBox(),
+      );
+      final home = MaterialPageRoute<void>(
+        settings: const RouteSettings(name: '/home'),
+        builder: (_) => const SizedBox(),
+      );
+      observer.didPush(splash, null);
+      observer.didReplace(newRoute: home, oldRoute: splash);
+      await tester.pumpAndSettle();
+
+      manager.open(id: 'a', route: '/home', builder: (c, h) => label('A'));
+      await tester.pumpAndSettle();
+      expect(find.text('A'), findsOneWidget);
+
+      manager.dispose();
+    });
+
+    testWidgets('an anonymous route (no settings.name) clears the route '
+        'context — dismissWhenUnmet pulls the shown overlay down',
+        (tester) async {
+      final manager = OverlayManager();
+      await pumpHost(tester, manager);
+      final observer = OverlayNavigatorObserver(manager);
+
+      observer.didPush(
+        MaterialPageRoute<void>(
+          settings: const RouteSettings(name: '/home'),
+          builder: (_) => const SizedBox(),
+        ),
+        null,
+      );
+      await tester.pumpAndSettle();
+      manager.open(id: 'a', route: '/home', builder: (c, h) => label('A'));
+      await tester.pumpAndSettle();
+      expect(find.text('A'), findsOneWidget);
+
+      observer.didPush(
+        MaterialPageRoute<void>(builder: (_) => const SizedBox()), // no name
+        null,
+      );
+      await tester.pumpAndSettle();
+      expect(find.text('A'), findsNothing);
+
+      manager.dispose();
+    });
+
+    testWidgets('custom pathOf overrides the default RouteSettings.name lookup',
+        (tester) async {
+      final manager = OverlayManager();
+      await pumpHost(tester, manager);
+      final observer = OverlayNavigatorObserver(
+        manager,
+        pathOf: (route) => route.settings.arguments as String?,
+      );
+
+      manager.open(id: 'a', route: '/via-args', builder: (c, h) => label('A'));
+      await tester.pump();
+
+      observer.didPush(
+        MaterialPageRoute<void>(
+          settings: const RouteSettings(name: '/ignored', arguments: '/via-args'),
+          builder: (_) => const SizedBox(),
+        ),
+        null,
+      );
+      await tester.pumpAndSettle();
+      expect(find.text('A'), findsOneWidget);
 
       manager.dispose();
     });

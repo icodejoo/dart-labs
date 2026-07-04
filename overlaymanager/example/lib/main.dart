@@ -10,16 +10,13 @@ import 'package:layerman/layerman.dart';
 /// `showDialog` / `Get.dialog`), GetX snackbars and bot_toast toasts.
 OverlayManager om = _newManager();
 
-OverlayManager _newManager() =>
-    OverlayManager(gap: const Duration(milliseconds: 300));
-
-/// Demo-side mirror of the manager's route context (for the state line).
-final ValueNotifier<String> routeLabel = ValueNotifier<String>('/home');
-
-void setRoute(String route) {
-  routeLabel.value = route;
-  om.setContext({'route': route});
-}
+/// `/zone` is a "no-overlay zone": entering it pauses the whole queue (no new
+/// overlay activates) via [OverlayNavigatorObserver], leaving it resumes —
+/// zero manual `setContext`/`pauseAll` calls anywhere in this page's code.
+OverlayManager _newManager() => OverlayManager(
+      gap: const Duration(milliseconds: 300),
+      pauseOnRoutes: const ['/zone'],
+    );
 
 /// Lets [restartApp] reach the running [_AppRootState].
 final GlobalKey<_AppRootState> _appRootKey = GlobalKey<_AppRootState>();
@@ -32,7 +29,7 @@ final GlobalKey<_AppRootState> _appRootKey = GlobalKey<_AppRootState>();
 void restartApp() => _appRootKey.currentState?.restart();
 
 void main() {
-  om.setContext({'route': '/home'});
+  om.setContext({'route': '/home'}); // initial state before any navigation
   runApp(AppRoot(key: _appRootKey));
 }
 
@@ -50,7 +47,7 @@ class _AppRootState extends State<AppRoot> {
     setState(() {
       om.dispose(); // clears every active/queued overlay
       om = _newManager();
-      setRoute('/home'); // reuse the one "set route" path (context + label)
+      om.setContext({'route': '/home'}); // initial state before any navigation
       _gen++; // remounts HomePage (resets its local state + rebinds to new om)
     });
   }
@@ -60,7 +57,12 @@ class _AppRootState extends State<AppRoot> {
     final botToastBuilder = BotToastInit();
     return GetMaterialApp(
       title: 'layerman × GetX × bot_toast',
-      navigatorObservers: [BotToastNavigatorObserver()],
+      // OverlayNavigatorObserver feeds every push/pop/replace into om's route
+      // context automatically — no more manual setContext calls per page.
+      navigatorObservers: [
+        BotToastNavigatorObserver(),
+        OverlayNavigatorObserver(om),
+      ],
       // bot_toast paints above everything; our Scope sits between it and the
       // Navigator, so: toasts > managed builtin entries > routes/dialogs.
       // The Scope re-attaches to the new manager on swap (didUpdateWidget).
@@ -73,30 +75,11 @@ class _AppRootState extends State<AppRoot> {
   }
 }
 
-/// A real page: entering pushes route '/promo' into the manager context,
-/// leaving restores '/home' — the host feeds REAL navigation into setContext.
-class PromoPage extends StatefulWidget {
+/// A real page: entering pushes route '/promo' automatically via
+/// [OverlayNavigatorObserver] (no manual setContext call in this widget —
+/// entering/leaving used to need initState/dispose boilerplate, gone now).
+class PromoPage extends StatelessWidget {
   const PromoPage({super.key});
-
-  @override
-  State<PromoPage> createState() => _PromoPageState();
-}
-
-class _PromoPageState extends State<PromoPage> {
-  @override
-  void initState() {
-    super.initState();
-    // setContext notifies + may insert overlay entries — never during build.
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) setRoute('/promo');
-    });
-  }
-
-  @override
-  void dispose() {
-    WidgetsBinding.instance.addPostFrameCallback((_) => setRoute('/home'));
-    super.dispose();
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -105,6 +88,26 @@ class _PromoPageState extends State<PromoPage> {
       body: const Center(
         child: Text('这里是 /promo 页面\n(条件卡只在此路由有资格显示)',
             textAlign: TextAlign.center),
+      ),
+    );
+  }
+}
+
+/// A "no-overlay zone" page: while shown, `pauseOnRoutes: ['/zone']` freezes
+/// the whole queue automatically (no new overlay activates) — leaving resumes
+/// it. Also no manual pauseAll/resumeAll calls anywhere in this widget.
+class NoOverlayZonePage extends StatelessWidget {
+  const NoOverlayZonePage({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('免打扰区 /zone')),
+      body: const Center(
+        child: Text(
+          '这里是免打扰区\n(pauseOnRoutes 自动冻结队列,离开后自动恢复)',
+          textAlign: TextAlign.center,
+        ),
       ),
     );
   }
@@ -144,9 +147,10 @@ class _HomePageState extends State<HomePage> {
   int updN = 0;
 
   // Built once per HomePage mount (HomePage remounts on restart via its _gen
-  // key, so this rebinds to the fresh manager) — avoids re-allocating the merge
-  // and re-subscribing every rebuild.
-  late final Listenable _stateListenable = Listenable.merge([om, routeLabel]);
+  // key, so this rebinds to the fresh manager) — avoids re-allocating and
+  // re-subscribing every rebuild. No separate route mirror needed anymore:
+  // om.currentRoute is read directly (om already notifies on every setContext).
+  late final Listenable _stateListenable = om;
 
   /// A centered card overlay. [offset] positions stacked cards so several stay
   /// visible at once. [actions] are in-card buttons — multi-overlay interplay
@@ -404,6 +408,16 @@ class _HomePageState extends State<HomePage> {
                     builder: (_) => const PromoPage(),
                   ));
                 }),
+                _btn('btn-queue-in-zone', '免打扰区内排一张卡', () {
+                  om.open(id: 'zone-card', builder: (c, h) => _card('ZONE',
+                      h, hint: '在 /zone 时不会弹出;离开后自动显示'));
+                }),
+                _btn('btn-goto-zone', '跳转免打扰区(/zone)', () {
+                  Navigator.of(context).push(MaterialPageRoute<void>(
+                    settings: const RouteSettings(name: '/zone'),
+                    builder: (_) => const NoOverlayZonePage(),
+                  ));
+                }),
                 _btn('btn-cond', '入队条件卡(仅/promo)', () {
                   om.open(
                     id: 'cond',
@@ -484,7 +498,7 @@ class _HomePageState extends State<HomePage> {
             AnimatedBuilder(
               animation: _stateListenable,
               builder: (context, _) => Text(
-                '路由: ${routeLabel.value}${om.isPaused ? "  [已暂停]" : ""}\n'
+                '路由: ${om.currentRoute ?? "(未知)"}${om.isPaused ? "  [已暂停]" : ""}\n'
                 '活跃: ${om.activeIds.join(", ")}\n'
                 '队列: ${om.queuedIds.join(", ")}',
                 key: const Key('state'),
