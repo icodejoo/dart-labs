@@ -234,6 +234,41 @@ void main() {
     expect(app.om.activeIds, isEmpty);
   });
 
+  testWidgets(
+      'pauseOnRoutes: /zone auto-freezes the queue via OverlayNavigatorObserver '
+      '— zero manual setContext/pauseAll calls anywhere in app code',
+      (tester) async {
+    await boot(tester);
+
+    await tester.tap(find.byKey(const Key('btn-queue-in-zone')));
+    await tester.pumpAndSettle();
+    expect(find.text('ZONE'), findsOneWidget); // shows immediately on /home
+
+    await tester.tap(find.text('close ZONE'));
+    await advance(tester);
+    expect(app.om.activeIds, isEmpty);
+
+    await tester.tap(find.byKey(const Key('btn-goto-zone')));
+    await tester.pumpAndSettle();
+    expect(find.text('免打扰区 /zone'), findsOneWidget); // real page covers HomePage
+    expect(app.om.isPaused, isTrue); // auto-frozen by entering /zone
+
+    // btn-queue-in-zone lives on HomePage, now covered by the pushed /zone
+    // route — call the manager directly (equivalent effect, no UI needed).
+    app.om.open(id: 'zone-card', builder: (c, h) => const Text('ZONE'));
+    await tester.pumpAndSettle();
+    expect(find.text('ZONE'), findsNothing); // queued, not shown while frozen
+    expect(app.om.queuedIds, contains('zone-card'));
+
+    await tester.pageBack(); // leave /zone
+    await tester.pumpAndSettle();
+    expect(app.om.isPaused, isFalse); // auto-resumed
+    expect(find.text('ZONE'), findsOneWidget); // now shows
+
+    app.om.close('zone-card');
+    await advance(tester);
+  });
+
   testWidgets('cooldown session=1 blocks the second show', (tester) async {
     await boot(tester);
 

@@ -188,6 +188,50 @@ manager.open(
 `route` reserves the context key `route`; `requiresAuth` reserves `auth`.
 Everything else is free-form for `when` predicates.
 
+### Auto route awareness (`OverlayNavigatorObserver` + `pauseOnRoutes`)
+
+Feeding `route` into `setContext` by hand (in every navigable page's lifecycle)
+is boilerplate. `OverlayNavigatorObserver` does it for you — add it to
+`navigatorObservers` and it works under vanilla `Navigator`, GetX and
+go_router alike, since all three ultimately drive a real Flutter `Navigator`
+and this is a standard `NavigatorObserver`. It's purely observational: it
+never pushes, pops, or otherwise touches navigation.
+
+```dart
+MaterialApp(
+  navigatorObservers: [OverlayNavigatorObserver(manager)],
+  ...
+);
+```
+
+Once attached, treat it as the sole writer of the `route` context key — a
+manual `setContext({'route': ...})` call is just overwritten by the next
+navigation event. Read the tracked value back with `manager.currentRoute`
+instead of maintaining your own mirror. Path defaults to
+`route.settings.name`; pass `pathOf` if your router stores it elsewhere. A
+route with no resolvable path (an anonymous `MaterialPageRoute` with no
+`settings.name`) reports `null` — conditions simply don't match `null`,
+Flutter gives us no other notion of "path" for anonymous routes.
+
+`pauseOnRoutes` builds a "no-overlay zone" on top of this: entering a matching
+route freezes the whole queue (exactly like `pauseAll()` — nothing new
+activates); leaving it resumes (like `resumeAll()`). It composes with manual
+`pauseAll`/`resumeAll` rather than fighting them — leaving the zone doesn't
+override an unrelated manual pause, and a manual `resumeAll()` doesn't
+override an active zone.
+
+```dart
+final manager = OverlayManager(pauseOnRoutes: ['/checkout']);
+// While the tracked route is '/checkout', no new overlay shows — queued ones
+// wait and activate the moment the route changes away.
+```
+
+Whether an *already-shown* overlay should close when you navigate into a zone
+is deliberately not a blanket rule — use the same `route`/`when` +
+`dismissWhenUnmet` conditions covered above (backend-agnostic: it works
+identically for `builder:` and `present:` entries), or lean on a specific
+backend's own navigation-aware close option if it has one.
+
 ### Cooldown (frequency caps + persistence)
 
 ```dart
@@ -405,6 +449,35 @@ manager.open<void>(
 > your main dialog queue (that is the usual UX). Put it on the **default slot**
 > instead if you want it strictly serialized behind dialogs.
 
+### A navigated page as a queue entry
+
+A pushed `Route` is just another external presenter — `Navigator.push`
+returns a `Future<T?>` that completes on pop, exactly like `showDialog`. Wrap
+it the same way to make the page participate in the queue (occupy a slot,
+respect `priority`/`replace`, block other overlays while it's up) without
+writing a `builder:` at all — the push itself only happens once the queue
+grants the slot:
+
+```dart
+manager.open<void>(
+  id: 'checkout',
+  present: (ctx) {
+    final future = navigatorKey.currentState!.push(MaterialPageRoute<void>(
+      settings: const RouteSettings(name: '/checkout'),
+      builder: (_) => const CheckoutPage(),
+    ));
+    return PresentedOverlay<void>(
+      dismissed: future,
+      dismiss: ([_]) async => navigatorKey.currentState!.pop(),
+    );
+  },
+);
+```
+
+(`navigatorKey` is a `GlobalKey<NavigatorState>` passed to `MaterialApp`,
+needed because `present`'s callback only gets a [`PresentContext`](#full-api-reference),
+not a `BuildContext` — the same requirement every `present:` recipe above has.)
+
 ### bot_toast
 
 Disarm its own competing semantics: `onlyOne: false` and a dedicated
@@ -507,6 +580,7 @@ OverlayManager({
   OverlayCooldownStorage? cooldownStorage, // default MemoryCooldownStorage
   String storageKey = 'layerman:cooldown',
   DateTime Function()? now,                // injectable clock (tests)
+  List<Object> pauseOnRoutes = const [],   // String / List<String> / RegExp patterns
 })
 ```
 
@@ -515,8 +589,9 @@ OverlayManager({
 | `final Duration gap` | Delay inserted between one overlay closing and the next showing. |
 | `final Duration exitDuration` | Default time in `closing` before removal (per-overlay overridable). |
 | `Future<void> ready()` | Completes when the cooldown store has hydrated. Await before the first cooldown-gated open. |
+| `Object? get currentRoute` | The `route` context key last set via `setContext` (`null` if never set). |
 | `bool get isAttached` | Whether an `OverlayState` is attached (builtin rendering). |
-| `bool get isPaused` | Whether `pauseAll` is in effect. |
+| `bool get isPaused` | Whether the queue is frozen — via `pauseAll` or a matching `pauseOnRoutes` pattern. |
 | `List<String> get activeIds` | Ids currently shown (resolving/open/closing), serial + overlaps. |
 | `List<String> get queuedIds` | Ids waiting in queues. |
 | `bool isShowing(String id)` | Whether `id` is currently active. |
@@ -588,6 +663,20 @@ Passed to your `builder`; also lets you close/observe the overlay.
 | `final Widget child` | Your app subtree (rendered under the overlay layer). |
 | `static OverlayManager of(BuildContext)` | Nearest manager (asserts if absent). |
 | `static OverlayManager? maybeOf(BuildContext)` | Nearest manager or `null`. |
+
+### `OverlayNavigatorObserver` (a `NavigatorObserver`)
+
+```dart
+OverlayNavigatorObserver(
+  OverlayManager manager, {
+  String? Function(Route<dynamic> route)? pathOf, // default: route.settings.name
+})
+```
+
+Add to `navigatorObservers`; feeds every push/pop/replace/remove into
+`manager.setContext({'route': ...})` automatically (deferred to a post-frame
+callback, so it's safe even if navigation happens mid-build). Router-agnostic
+— works under vanilla `Navigator`, GetX and go_router.
 
 ### `OverlayPhase` (enum)
 
@@ -820,6 +909,41 @@ manager.open(
 
 `route` 保留上下文键 `route`;`requiresAuth` 保留 `auth`;其余键随你在 `when` 里用。
 
+### 自动路由感知(`OverlayNavigatorObserver` + `pauseOnRoutes`)
+
+手动在每个可导航页面的生命周期里写 `setContext({'route': ...})` 是样板代码。
+`OverlayNavigatorObserver` 自动帮你做:塞进 `navigatorObservers` 就行,GetX/
+go_router/vanilla Navigator 都能用(三者底层最终都是同一个 Flutter Navigator,
+这就是标准 `NavigatorObserver`)。纯观察,不 push、不 pop、不碰导航本身。
+
+```dart
+MaterialApp(
+  navigatorObservers: [OverlayNavigatorObserver(manager)],
+  ...
+);
+```
+
+装上之后,把它当作 `route` 这个上下文键的**唯一写入方**——手动 `setContext({'route': ...})`
+只会被下一次导航覆盖掉。想读当前追踪到的路由,用 `manager.currentRoute`,不用自己
+再维护一份镜像。path 默认取 `route.settings.name`;路由库存法不同就传 `pathOf` 覆盖。
+匿名路由(没设 `settings.name`)会上报 `null`——条件天然匹配不到 `null`,这是 Flutter
+对匿名路由没有"path"概念的结构性限制,不是我们的能力缺陷。
+
+`pauseOnRoutes` 在这基础上加了个"免打扰区":进入匹配路由会冻结整条队列(和
+`pauseAll()` 效果一样,不激活新的);离开会恢复(和 `resumeAll()` 一样)。它跟手动
+`pauseAll`/`resumeAll` 是**组合**关系不是互斥——离开免打扰区不会顶掉一次无关的手动
+暂停,手动 `resumeAll()` 也不会顶掉一次仍生效的免打扰区。
+
+```dart
+final manager = OverlayManager(pauseOnRoutes: ['/checkout']);
+// 追踪到的路由是 '/checkout' 期间,不会有新浮层显示——排队的等着,
+// 路由一变就立刻激活。
+```
+
+进入免打扰区时"已经在显示的浮层"要不要自动关——**刻意不做统一规则**,用上面同一套
+`route`/`when` + `dismissWhenUnmet`(后端无关:`builder:` 和 `present:` 一视同仁),
+或者依赖某个具体后端自己的路由感知关闭能力。
+
 ### 冷却(频次上限 + 持久化)
 
 ```dart
@@ -1003,6 +1127,33 @@ manager.open<void>(
 > 提示:放在**独立 slot** 的 toast/snackbar 会**故意**与主 dialog 队列并行(这是常见
 > UX)。若要严格排在 dialog 之后,把它放到**默认 slot**。
 
+### 把导航到的页面也塞进队列
+
+一个被 push 的 `Route`本质上就是另一种外部 presenter——`Navigator.push` 本来就
+返回一个 pop 时 resolve 的 `Future<T?>`,跟 `showDialog` 一模一样。用同样的方式包
+一层,就能让这个页面参与队列(占 slot、受 `priority`/`replace` 管辖、显示期间挡住
+其它浮层),完全不用写 `builder:`——push 这个动作只有轮到才会真正执行:
+
+```dart
+manager.open<void>(
+  id: 'checkout',
+  present: (ctx) {
+    final future = navigatorKey.currentState!.push(MaterialPageRoute<void>(
+      settings: const RouteSettings(name: '/checkout'),
+      builder: (_) => const CheckoutPage(),
+    ));
+    return PresentedOverlay<void>(
+      dismissed: future,
+      dismiss: ([_]) async => navigatorKey.currentState!.pop(),
+    );
+  },
+);
+```
+
+(`navigatorKey` 是传给 `MaterialApp` 的 `GlobalKey<NavigatorState>`——`present`
+回调拿到的是 `PresentContext`,不是 `BuildContext`,跟上面所有 `present:` recipe
+的要求一样。)
+
 ### bot_toast
 
 缴械它自带的竞争语义:`onlyOne: false` + 专属 `groupKey`;`onClose` 是唯一的「已完全
@@ -1079,10 +1230,12 @@ manager.open<void>(
 ## 完整 API 参考
 
 见上文英文的 [Full API reference](#full-api-reference) 表格,列出了所有导出符号:
-`OverlayManager`(构造 + 全部方法/getter)、`open<T>` 的每个参数、`OverlayHandle<T>`、
-`OverlayManagerScope`、`OverlayPhase`、`OverlayCooldown`、`OverlayCooldownStorage` /
-`MemoryCooldownStorage`、`OverlayRecord`、`Present` / `PresentContext` /
-`PresentedOverlay`、`OverlayContentBuilder` / `OverlayPredicate`。
+`OverlayManager`(构造 + 全部方法/getter,含 `pauseOnRoutes`/`currentRoute`)、
+`open<T>` 的每个参数、`OverlayHandle<T>`、`OverlayManagerScope`、
+`OverlayNavigatorObserver`、`OverlayPhase`、`OverlayCooldown`、
+`OverlayCooldownStorage` / `MemoryCooldownStorage`、`OverlayRecord`、
+`Present` / `PresentContext` / `PresentedOverlay`、
+`OverlayContentBuilder` / `OverlayPredicate`。
 
 ## 与 TS 版的刻意差异
 

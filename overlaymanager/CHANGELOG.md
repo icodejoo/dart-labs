@@ -1,3 +1,22 @@
+## 0.1.0
+
+* **`OverlayNavigatorObserver`** — a `NavigatorObserver` that feeds real
+  navigation into `setContext`'s `route` key automatically (deferred to a
+  post-frame callback, safe even if navigation happens mid-build). Works
+  under vanilla `Navigator`, GetX and go_router alike; purely observational,
+  never touches navigation itself. Removes the need to call
+  `setContext({'route': ...})` by hand in every page's lifecycle.
+* **`OverlayManager.currentRoute`** — reads the tracked `route` context value
+  back, so hosts don't need to maintain their own route mirror.
+* **`OverlayManager({pauseOnRoutes: [...]})`** — declares "no-overlay zone"
+  route patterns: entering a match freezes the whole queue (like `pauseAll`),
+  leaving resumes it (like `resumeAll`). Composes correctly with manual
+  `pauseAll`/`resumeAll` — neither one overrides the other; the queue only
+  actually thaws once both are clear.
+* README: new "Auto route awareness" section and a "navigated page as a queue
+  entry" recipe (wrapping `Navigator.push` in `present:` — a page route is
+  just another external presenter, no `builder:` needed).
+
 ## 0.0.1
 
 Initial public release.

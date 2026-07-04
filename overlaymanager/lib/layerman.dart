@@ -22,3 +22,4 @@ export 'src/overlay_manager.dart'
         PresentedOverlay,
         Present;
 export 'src/overlay_manager_scope.dart' show OverlayManagerScope;
+export 'src/overlay_navigator_observer.dart' show OverlayNavigatorObserver;

@@ -5,12 +5,14 @@ description: >-
   slots, priority/replace/affix/overlap, conditions + cooldown, resolve, beforeClose,
   pause, Future<T?> results, two-phase close) that renders real OverlayEntrys AND can
   orchestrate external overlay systems (showDialog / GetX / bot_toast) through the
-  Present/PresentedOverlay adapter. Read BEFORE modifying lib/src/, the tests, or the
+  Present/PresentedOverlay adapter, plus auto route-awareness via OverlayNavigatorObserver
+  and pauseOnRoutes "no-overlay zones". Read BEFORE modifying lib/src/, the tests, or the
   example. Covers the engine architecture, the non-obvious invariants tests depend on,
   the external-presenter rules of engagement, and the verify workflow (unit + real-device
   Windows integration). Triggers on: overlay, dialog queue, OverlayManager, OverlayManagerScope,
   replace, affix, overlap, cooldown, setContext, dismissWhenUnmet, resolve, beforeClose,
-  PresentedOverlay, Get.dialog, Get.snackbar, bot_toast, barrier, pauseAll.
+  PresentedOverlay, Get.dialog, Get.snackbar, bot_toast, barrier, pauseAll, pauseOnRoutes,
+  OverlayNavigatorObserver, currentRoute, deep link, route guard.
 ---
 
 # overlaymanager (dart-labs)
@@ -22,13 +24,14 @@ philosophy: **it embraces Flutter** — inserts real `OverlayEntry`s into an att
 `OverlayState` (via `OverlayManagerScope`'s own `Overlay` layer, independent of the
 Navigator), and `open<T>()` returns `Future<T?>` like `showDialog`.
 
-Engine is one file: `lib/src/overlay_manager.dart` (~1100 lines). `lib/src/overlay_manager_scope.dart`
-is the host widget (`of`/`maybeOf`, post-frame `attach`). Tests: `test/overlaymanager_test.dart`
-(70 widget tests). Example app + real-device integration: `example/` (16 tests on Windows).
+Engine is one file: `lib/src/overlay_manager.dart` (~1150 lines). `lib/src/overlay_manager_scope.dart`
+is the host widget (`of`/`maybeOf`, post-frame `attach`). `lib/src/overlay_navigator_observer.dart`
+is the auto route-awareness `NavigatorObserver`. Tests: `test/overlaymanager_test.dart`
+(79 widget tests). Example app + real-device integration: `example/` (17 tests on Windows).
 
 > **The public show method is `open<T>()`** (renamed from `show` at 0.0.1 — `show` no longer
 > exists). Published to pub.dev as **`layerman`** (pub.dev rejected `overlaymanager` as too
-> similar to the existing `overlay_manager`), versioned from **0.0.1** (MIT). The barrel file
+> similar to the existing `overlay_manager`), versioned from **0.1.0** (MIT). The barrel file
 > is `lib/layerman.dart` (renamed to match); the repo folder/skill name stay `overlaymanager` —
 > only the pub.dev package identity changed.
 
@@ -63,6 +66,27 @@ is the host widget (`of`/`maybeOf`, post-frame `attach`). Tests: `test/overlayma
 - **pause**: `pauseAll` = FULL freeze (no activation, replace won't displace, overlaps held
   in `_pendingOverlaps`, durations frozen with remaining time via `now`); `resumeAll`
   releases + re-schedules. `pause(id)/resume(id)` freeze one duration countdown.
+  Internally `pauseAll`/`resumeAll` only flip `_manualPaused`; the effective `_paused` getter
+  is `_manualPaused || _routeZonePaused`, and `_applyFreeze`/`_applyRelease` (extracted bodies)
+  are shared with `_updateRouteZone` (see below) — neither side undoes the other.
+- **`pauseOnRoutes`** (constructor param, `String`/`List<String>`/`RegExp` patterns): a
+  "no-overlay zone". `setContext` calls `_updateRouteZone()` on every invocation, which
+  matches `_context['route']` against the patterns and flips `_routeZonePaused`, calling
+  `_applyFreeze`/`_applyRelease` only when the EFFECTIVE `_paused` actually changes.
+- **`OverlayNavigatorObserver`** (`overlay_navigator_observer.dart`): a `NavigatorObserver`
+  that maps `didPush`/`didPop`/`didRemove`/`didReplace` to `manager.setContext({'route': path})`
+  (path via `route.settings.name`, overridable with `pathOf`). Router-agnostic — GetX/
+  go_router/vanilla Navigator all surface the same `NavigatorObserver` API underneath.
+  Deferred to `WidgetsBinding.instance.addPostFrameCallback` (some routers trigger
+  didPush mid-build; `setContext` mutating the Overlay tree then would throw) — **and it
+  explicitly calls `WidgetsBinding.instance.scheduleFrame()` right after registering**, not
+  just `addPostFrameCallback` alone. Without that explicit `scheduleFrame()`, a postFrameCallback
+  registered when nothing else is dirty can sit forever unflushed — caught by a `flutter test`
+  unit test (bare `pump()`/`pumpAndSettle()` under `AutomatedTestWidgetsFlutterBinding` do NOT
+  force a frame when nothing is scheduled; a real device's `IntegrationTestWidgetsFlutterBinding`
+  usually masks this since navigation transition animations schedule frames on their own).
+- **`OverlayManager.currentRoute`** — reads `_context['route']` back; lets a host avoid
+  keeping its own separate route mirror (the demo used to keep `routeLabel`, now gone).
 
 ## Non-obvious invariants — do NOT break
 
@@ -119,6 +143,15 @@ is the host widget (`of`/`maybeOf`, post-frame `attach`). Tests: `test/overlayma
    `overlayEntry?.markNeedsBuild()` — builders read `handle.data` at build time.
 9. **No `stackIndex/isTopmost`** (deliberate TS difference): self-rendering means z-order IS
    Overlay insertion order. No cross-isolate cooldown sync (share a storage backend).
+10. **`OverlayNavigatorObserver` must `scheduleFrame()` after `addPostFrameCallback`** — do not
+    "simplify" this away. Registering the callback alone is not enough; without an explicit
+    frame request, navigation that happens to coincide with an otherwise-idle frame can leave
+    the route update pending indefinitely (real risk in production, not just a test artifact —
+    found via a `flutter test` unit test failing while the real-device integration test passed).
+11. **`pauseOnRoutes`/manual `pauseAll` compose via OR, never overwrite each other** — leaving a
+    route zone while manually paused must NOT call `_applyRelease`; a manual `resumeAll` while
+    still inside a zone must NOT call it either. Always check the effective `_paused` (both
+    before AND after flipping the specific flag) before calling `_applyFreeze`/`_applyRelease`.
 
 ## External backends — rules of engagement (issue-history-proven)
 
@@ -137,11 +170,11 @@ is the host widget (`of`/`maybeOf`, post-frame `attach`). Tests: `test/overlayma
 ```bash
 cd D:/workspaces/dart-labs/overlaymanager
 flutter analyze                                   # must be clean
-flutter test                                      # 70 widget tests — the unit gate
+flutter test                                      # 79 widget tests — the unit gate
 
 cd example
-flutter test integration_test/orchestration_test.dart -d windows   # 16 tests, REAL window
-flutter run -d windows                            # interactive demo (~24 buttons + state line)
+flutter test integration_test/orchestration_test.dart -d windows   # 17 tests, REAL window
+flutter run -d windows                            # interactive demo (25 buttons + state line)
 ```
 
 Integration-test gotchas (learned the hard way):
@@ -154,15 +187,28 @@ Integration-test gotchas (learned the hard way):
   (in-card `_card(actions: ...)`); barrier(mask)-close via `tapAt` far from the card.
 - After a queue advance: `pump(700ms)` (exit 200 + gap 300) then `pumpAndSettle`.
 - **Never call `setContext` from `initState`/`dispose` directly** — it notifies and may
-  insert OverlayEntries during build → `markNeedsBuild during build`. The demo's
-  `PromoPage` defers via `addPostFrameCallback` (conditions ride REAL navigation: page
-  enter pushes route '/promo', leave restores '/home').
+  insert OverlayEntries during build → `markNeedsBuild during build`. The demo no longer
+  needs this workaround at all: `PromoPage`/`NoOverlayZonePage` are plain `StatelessWidget`s
+  with zero lifecycle code — `OverlayNavigatorObserver` (wired into `navigatorObservers` in
+  `AppRoot`) feeds route context automatically, deferred safely inside the observer itself.
+- **Testing `OverlayNavigatorObserver` (or anything relying on its deferred update) in a plain
+  `flutter test` widget test**: `pumpAndSettle()`/bare `pump()` DO flush it correctly — but
+  only because the observer calls `scheduleFrame()` itself (invariant #10 above). If you ever
+  call `manager.setContext(...)` from your OWN deferred callback without a matching
+  `scheduleFrame()`, the exact same class of unit test will hang silently on `pump()`/
+  `pumpAndSettle()` with no exception, just a `findsNothing` where you expected `findsOneWidget`.
 - The demo supports **in-app restart** (`btn-restart` → `_AppRootState.restart()`:
   `setState` disposes `om`, builds a fresh one, bumps a generation key so `HomePage`
   remounts). Do NOT re-`runApp` for restart — a second `GetMaterialApp`/`BotToastInit`
   is init-once and silently no-ops (that was the "重启没反应" bug). The Scope re-attaches
   to the new manager via `didUpdateWidget`. `om` is a mutable global; async callbacks
   guard with `identical(m, om)` before touching it.
+- **A HomePage button is unreachable once a pushed page covers it** (`btn-goto-zone`
+  pushes `NoOverlayZonePage`, which covers `HomePage` — `btn-queue-in-zone` lives on
+  `HomePage`). To exercise "queue something while on `/zone`" from an integration test,
+  call `app.om.open(...)`/`app.om.close(...)` directly rather than trying to tap a button
+  that's no longer in the tree — same trick as the earlier tests that read `app.om.*`
+  state directly instead of only driving the UI.
 
 When changing behavior: add/adjust a unit test AND (if observable) an integration test,
 run both gates, update README + CHANGELOG, bump pubspec version.

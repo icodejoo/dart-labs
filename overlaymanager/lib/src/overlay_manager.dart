@@ -543,7 +543,15 @@ class OverlayManager extends ChangeNotifier {
     OverlayCooldownStorage? cooldownStorage,
     String storageKey = 'layerman:cooldown',
     DateTime Function()? now,
-  }) : _now = now ?? DateTime.now {
+    List<Object> pauseOnRoutes = const <Object>[],
+  })  : assert(
+          pauseOnRoutes.every(
+            (p) => p is String || p is List<String> || p is RegExp,
+          ),
+          'each pauseOnRoutes pattern must be a String, List<String> or RegExp',
+        ),
+        _pauseOnRoutes = pauseOnRoutes,
+        _now = now ?? DateTime.now {
     _cooldowns =
         _CooldownStore(cooldownStorage ?? MemoryCooldownStorage(), storageKey);
     _ready = _cooldowns.hydrate();
@@ -566,16 +574,33 @@ class OverlayManager extends ChangeNotifier {
   final Map<String, _Entry> _byId = <String, _Entry>{};
   final Map<String, Object?> _context = <String, Object?>{};
   int _seqCounter = 0;
-  bool _paused = false;
+  final List<Object> _pauseOnRoutes;
+
+  /// Explicit [pauseAll]/[resumeAll] state — independent of [_routeZonePaused];
+  /// the effective [_paused] is their OR, so leaving a route zone doesn't
+  /// override a still-active manual pause, and vice versa.
+  bool _manualPaused = false;
+
+  /// True while `_context['route']` matches one of [_pauseOnRoutes] — kept in
+  /// sync by [_updateRouteZone], called from every [setContext].
+  bool _routeZonePaused = false;
+
+  bool get _paused => _manualPaused || _routeZonePaused;
 
   /// Completes when persisted cooldown counters have been hydrated. Await it
   /// before relying on `total`/`day`/... caps across restarts.
   Future<void> ready() => _ready;
 
+  /// The `route` context key last set via [setContext] (`null` if never set).
+  /// Typically kept in sync automatically by an `OverlayNavigatorObserver` —
+  /// read this instead of maintaining a separate route mirror in the host.
+  Object? get currentRoute => _context['route'];
+
   /// Whether an [OverlayState] is currently attached.
   bool get isAttached => _overlay != null;
 
-  /// Whether [pauseAll] is in effect.
+  /// Whether the queue is currently frozen — via [pauseAll] or because the
+  /// tracked route matches a `pauseOnRoutes` pattern.
   bool get isPaused => _paused;
 
   /// Ids currently waiting in any queue (observability/debugging).
@@ -649,6 +674,7 @@ class OverlayManager extends ChangeNotifier {
   /// (bool). Everything else is free-form for `when` predicates.
   void setContext(Map<String, Object?> partial) {
     _context.addAll(partial);
+    _updateRouteZone();
     final shown = <_Entry>[
       for (final s in _slots.values)
         if (s.active != null) s.active!,
@@ -665,12 +691,43 @@ class OverlayManager extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Re-check `_context['route']` against [_pauseOnRoutes] and flip
+  /// [_routeZonePaused] on entry/exit — freezing/releasing exactly like a
+  /// manual [pauseAll]/[resumeAll], but composed with it via [_paused]'s OR so
+  /// leaving the zone doesn't undo an unrelated manual pause.
+  void _updateRouteZone() {
+    if (_pauseOnRoutes.isEmpty) return;
+    final current = _context['route'];
+    final matches = _pauseOnRoutes.any((p) => _routeMatches(p, current));
+    if (matches == _routeZonePaused) return;
+    final wasEffectivelyPaused = _paused;
+    _routeZonePaused = matches;
+    if (matches) {
+      if (!wasEffectivelyPaused) _applyFreeze();
+    } else {
+      if (!_paused) _applyRelease();
+    }
+  }
+
   /// Freeze everything: no new activation (serial, overlap, replace) and all
   /// running `duration` timers pause. Explicit [close]/[remove]/[clear] still
   /// work. [resumeAll] releases held overlaps and re-schedules.
   void pauseAll() {
-    if (_paused) return;
-    _paused = true;
+    if (_manualPaused) return;
+    final wasEffectivelyPaused = _paused;
+    _manualPaused = true;
+    if (!wasEffectivelyPaused) _applyFreeze();
+  }
+
+  /// Undo [pauseAll]: release overlaps held while paused (if still eligible),
+  /// thaw `duration` timers and re-schedule every slot.
+  void resumeAll() {
+    if (!_manualPaused) return;
+    _manualPaused = false;
+    if (!_paused) _applyRelease();
+  }
+
+  void _applyFreeze() {
     for (final s in _slots.values) {
       _cancelCooldownTimer(s);
     }
@@ -680,11 +737,7 @@ class OverlayManager extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// Undo [pauseAll]: release overlaps held while paused (if still eligible),
-  /// thaw `duration` timers and re-schedule every slot.
-  void resumeAll() {
-    if (!_paused) return;
-    _paused = false;
+  void _applyRelease() {
     final held = List<_Entry>.of(_pendingOverlaps);
     _pendingOverlaps.clear();
     for (final e in held) {
