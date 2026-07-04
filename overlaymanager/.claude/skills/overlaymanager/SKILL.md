@@ -27,7 +27,10 @@ is the host widget (`of`/`maybeOf`, post-frame `attach`). Tests: `test/overlayma
 (70 widget tests). Example app + real-device integration: `example/` (16 tests on Windows).
 
 > **The public show method is `open<T>()`** (renamed from `show` at 0.0.1 — `show` no longer
-> exists). Published to pub.dev as `overlaymanager`, versioned from **0.0.1** (MIT).
+> exists). Published to pub.dev as **`layerman`** (pub.dev rejected `overlaymanager` as too
+> similar to the existing `overlay_manager`), versioned from **0.0.1** (MIT). The barrel file
+> is `lib/layerman.dart` (renamed to match); the repo folder/skill name stay `overlaymanager` —
+> only the pub.dev package identity changed.
 
 ## Architecture map (lib/src/overlay_manager.dart)
 
