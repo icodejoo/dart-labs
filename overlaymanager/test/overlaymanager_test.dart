@@ -2,7 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:overlaymanager/overlaymanager.dart';
+import 'package:layerman/layerman.dart';
 
 /// Pump an [OverlayManagerScope] hosting [manager] and run the post-frame
 /// attach so the manager is ready to render.

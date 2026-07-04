@@ -3,7 +3,7 @@ import 'dart:async';
 import 'package:bot_toast/bot_toast.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:overlaymanager/overlaymanager.dart';
+import 'package:layerman/layerman.dart';
 
 /// One manager orchestrates everything: builtin cards in
 /// [OverlayManagerScope]'s own layer, route-backed dialogs (native
@@ -59,7 +59,7 @@ class _AppRootState extends State<AppRoot> {
   Widget build(BuildContext context) {
     final botToastBuilder = BotToastInit();
     return GetMaterialApp(
-      title: 'overlaymanager × GetX × bot_toast',
+      title: 'layerman × GetX × bot_toast',
       navigatorObservers: [BotToastNavigatorObserver()],
       // bot_toast paints above everything; our Scope sits between it and the
       // Navigator, so: toasts > managed builtin entries > routes/dialogs.
@@ -196,7 +196,7 @@ class _HomePageState extends State<HomePage> {
 
   Widget _dialog(String title, String okKey) => AlertDialog(
         title: Text(title),
-        content: const Text('scheduled by overlaymanager'),
+        content: const Text('scheduled by layerman'),
         actions: [
           Builder(
             builder: (context) => TextButton(
@@ -252,7 +252,7 @@ class _HomePageState extends State<HomePage> {
       present: (ctx) {
         final c = Get.snackbar(
           'Saved',
-          'scheduled by overlaymanager',
+          'scheduled by layerman',
           duration: const Duration(seconds: 1),
           animationDuration: const Duration(milliseconds: 300),
         );
@@ -345,7 +345,7 @@ class _HomePageState extends State<HomePage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('overlaymanager 全功能真机演示')),
+      appBar: AppBar(title: const Text('layerman 全功能真机演示')),
       body: Padding(
         padding: const EdgeInsets.all(12),
         child: Column(

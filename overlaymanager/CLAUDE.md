@@ -37,6 +37,12 @@ Flutter**:真实 `OverlayEntry` 插入 `OverlayManagerScope` 自有 Overlay 层,
   重写为**中英双语 + 100% API 覆盖 + 接入 showDialog/GetX/bot_toast/fluttertoast 的 recipe**。
   `flutter pub publish --dry-run` = **0 warnings / 75KB**(勿加根级 `.pubignore`——它会覆盖根
   `.gitignore` 反而把 root `build/` 卷进去,archive 暴涨到 14MB)。
+- **包名改 `layerman`**(2026-07-04):真发布时 pub.dev 拒绝 `overlaymanager`(与已有包
+  `overlay_manager` 太相似)。pubspec `name`、barrel 文件 `lib/overlaymanager.dart→lib/layerman.dart`、
+  `test`/`example` 里的 `package:overlaymanager/...` import、`example/pubspec.yaml` 的依赖 key 与
+  `example` 自身包名(`overlaymanager_example→layerman_example`)、`main.dart` 里硬编码的 UI 文案
+  (标题/toast 文本)、README 安装片段与 `storageKey` 默认值示例、SKILL.md 的发布名一并同步。**仓库文件夹
+  名与 `.claude/skills/overlaymanager/` 技能目录名保持不变**(只是本地路径,不是 pub.dev 包标识)。
 
 ## 验收基线(2026-07-04)
 

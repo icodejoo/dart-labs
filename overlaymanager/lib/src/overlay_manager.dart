@@ -541,7 +541,7 @@ class OverlayManager extends ChangeNotifier {
     this.gap = Duration.zero,
     this.exitDuration = const Duration(milliseconds: 200),
     OverlayCooldownStorage? cooldownStorage,
-    String storageKey = 'overlaymanager:cooldown',
+    String storageKey = 'layerman:cooldown',
     DateTime Function()? now,
   }) : _now = now ?? DateTime.now {
     _cooldowns =
