@@ -64,6 +64,11 @@ Flutter**:真实 `OverlayEntry` 插入 `OverlayManagerScope` 自有 Overlay 层,
   掩盖了这个问题(导航过渡动画自己会排帧)。修法:在 `addPostFrameCallback` 之后显式补一句
   `WidgetsBinding.instance.scheduleFrame()`——这不是测试变通,是真实生产环境也需要的健壮性修复
   (若导航发生时应用恰好完全静止、没有其它东西要重绘,同样的悬挂会在真机上发生)。
+- **评估过 `WidgetsBindingObserver` 能否拦截导航,结论:能,但跟 `OverlayNavigatorObserver` 是两件事**
+  (细节见 SKILL.md「Considered and deferred」)。`didPushRouteInformation` 能拦**系统/平台发起**的路由
+  请求(真 OS 深链冷启动/热启动、Web 地址栏变化)——这是真前置否决,但 app 内代码调 `Navigator.push`/
+  `Get.to`/`context.go` 完全不走这条路径。`didPopRoute` 能拦**系统触发**的返回(硬件/手势返回键)。两者
+  都不能解决"拦截任意 app 内导航、不改调用点"这个组合——本轮**没做**,留给以后真要接系统级深链再捡。
 
 ## 验收基线(2026-07-04)
 

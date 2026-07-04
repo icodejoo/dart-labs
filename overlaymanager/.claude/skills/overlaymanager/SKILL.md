@@ -153,6 +153,27 @@ is the auto route-awareness `NavigatorObserver`. Tests: `test/overlaymanager_tes
     still inside a zone must NOT call it either. Always check the effective `_paused` (both
     before AND after flipping the specific flag) before calling `_applyFreeze`/`_applyRelease`.
 
+## Considered and deferred: `WidgetsBindingObserver` for OS-level deep links
+
+`OverlayNavigatorObserver` only sees IN-APP `Navigator` state changes (any trigger — vanilla,
+GetX, go_router — but only once Flutter's own Navigator has already processed the change).
+`WidgetsBindingObserver` gives two DIFFERENT, narrower hooks that are genuine pre-navigation
+interception points, evaluated during this feature's brainstorm and NOT built (out of scope
+for this round, not a technical dead end — pick this up if "real OS deep link" support is
+ever requested):
+- **`didPushRouteInformation`** (née `didPushRoute`) — fires when the OS/platform hands Flutter
+  a route request (URL scheme / universal link cold- or warm-starting the app, or a Flutter Web
+  address-bar change) BEFORE Flutter's own router processes it. You can inspect the target path
+  and choose not to forward it — genuine veto, but ONLY for platform-originated requests; a
+  button calling `Navigator.push`/`Get.to`/`context.go` from already-running app code never goes
+  through this path at all.
+- **`didPopRoute`** — fires on a SYSTEM-triggered pop request (Android hardware back / predictive
+  back gesture); returning `true` vetoes the default pop. Only for system-triggered pops, not
+  `Navigator.pop()` called from app code.
+Neither hook solves "intercept arbitrary in-app navigation, regardless of trigger, without
+changing call sites" — that combination remains structurally impossible in Flutter (confirmed
+independently via this reasoning and via the `OverlayNavigatorObserver` design work above).
+
 ## External backends — rules of engagement (issue-history-proven)
 
 1. Manager owns the truth — never poll `Get.isDialogOpen`/`isSnackbarOpen`.
