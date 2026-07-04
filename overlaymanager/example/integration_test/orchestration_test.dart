@@ -215,6 +215,13 @@ void main() {
   testWidgets('conditions ride REAL navigation to /promo and back',
       (tester) async {
     await boot(tester);
+    // Regression coverage for a real bug found in code review: MaterialApp's
+    // implicit `home:` route reports as '/' (Flutter's own
+    // Navigator.defaultRouteName), not '/home' — main.dart now uses a named
+    // `initialRoute`/`routes` to give it a real name. Assert the actual label
+    // text (not just activeIds/queuedIds) so a regression shows up here.
+    expect(app.om.currentRoute, '/home');
+    expect(find.textContaining('路由: /home'), findsOneWidget);
 
     await tester.tap(find.byKey(const Key('btn-cond'))); // on /home: gated
     await tester.pumpAndSettle();
@@ -225,6 +232,7 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('PROMO PAGE'), findsOneWidget); // real page
     expect(find.text('COND'), findsOneWidget); // route matched -> shown
+    expect(app.om.currentRoute, '/promo');
 
     await tester.pageBack(); // leave /promo
     await tester.pumpAndSettle();
@@ -232,6 +240,8 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('COND'), findsNothing); // dismissWhenUnmet pulled it down
     expect(app.om.activeIds, isEmpty);
+    expect(app.om.currentRoute, '/home'); // back to the REAL '/home', not '/'
+    expect(find.textContaining('路由: /home'), findsOneWidget);
   });
 
   testWidgets(

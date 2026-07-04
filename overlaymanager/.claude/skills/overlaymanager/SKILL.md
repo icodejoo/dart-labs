@@ -27,7 +27,7 @@ Navigator), and `open<T>()` returns `Future<T?>` like `showDialog`.
 Engine is one file: `lib/src/overlay_manager.dart` (~1150 lines). `lib/src/overlay_manager_scope.dart`
 is the host widget (`of`/`maybeOf`, post-frame `attach`). `lib/src/overlay_navigator_observer.dart`
 is the auto route-awareness `NavigatorObserver`. Tests: `test/overlaymanager_test.dart`
-(79 widget tests). Example app + real-device integration: `example/` (17 tests on Windows).
+(80 widget tests). Example app + real-device integration: `example/` (17 tests on Windows).
 
 > **The public show method is `open<T>()`** (renamed from `show` at 0.0.1 — `show` no longer
 > exists). Published to pub.dev as **`layerman`** (pub.dev rejected `overlaymanager` as too
@@ -74,17 +74,27 @@ is the auto route-awareness `NavigatorObserver`. Tests: `test/overlaymanager_tes
   matches `_context['route']` against the patterns and flips `_routeZonePaused`, calling
   `_applyFreeze`/`_applyRelease` only when the EFFECTIVE `_paused` actually changes.
 - **`OverlayNavigatorObserver`** (`overlay_navigator_observer.dart`): a `NavigatorObserver`
-  that maps `didPush`/`didPop`/`didRemove`/`didReplace` to `manager.setContext({'route': path})`
-  (path via `route.settings.name`, overridable with `pathOf`). Router-agnostic — GetX/
-  go_router/vanilla Navigator all surface the same `NavigatorObserver` API underneath.
-  Deferred to `WidgetsBinding.instance.addPostFrameCallback` (some routers trigger
-  didPush mid-build; `setContext` mutating the Overlay tree then would throw) — **and it
-  explicitly calls `WidgetsBinding.instance.scheduleFrame()` right after registering**, not
-  just `addPostFrameCallback` alone. Without that explicit `scheduleFrame()`, a postFrameCallback
+  that overrides ONLY `didChangeTop` (NOT the legacy `didPush`/`didPop`/`didRemove`/`didReplace`
+  quartet — code review round 2 found `didRemove`/`didReplace` report the route AT THE POSITION
+  THAT CHANGED, not necessarily the topmost/displayed one, if the change targeted a route buried
+  in history; `didChangeTop` is the hook Flutter documents as always giving the true current top,
+  and it also covers cold start and declarative `Navigator(pages:)` rebuilds — go_router's model —
+  that don't map cleanly onto the legacy four at all). Maps `topRoute` to
+  `manager.setContext({'route': path})` (path via `route.settings.name`, overridable with
+  `pathOf`). Router-agnostic — GetX/go_router/vanilla Navigator all surface the same
+  `NavigatorObserver` API underneath. Deferred to `WidgetsBinding.instance.addPostFrameCallback`
+  (some routers trigger this mid-build; `setContext` mutating the Overlay tree then would throw)
+  — **and it explicitly calls `WidgetsBinding.instance.scheduleFrame()` right after registering**,
+  not just `addPostFrameCallback` alone. Without that explicit `scheduleFrame()`, a postFrameCallback
   registered when nothing else is dirty can sit forever unflushed — caught by a `flutter test`
   unit test (bare `pump()`/`pumpAndSettle()` under `AutomatedTestWidgetsFlutterBinding` do NOT
   force a frame when nothing is scheduled; a real device's `IntegrationTestWidgetsFlutterBinding`
   usually masks this since navigation transition animations schedule frames on their own).
+  Guarded by `manager.isDisposed` both before scheduling and inside the deferred callback (an
+  app-level restart that disposes+swaps the manager between a nav event and the next frame must
+  not call `notifyListeners()` on a disposed `ChangeNotifier`). A throwing `pathOf` is caught and
+  reported via `FlutterError.reportError` — never propagates out of the observer callback, and
+  the route is treated as unresolvable (`null`) rather than left stale.
 - **`OverlayManager.currentRoute`** — reads `_context['route']` back; lets a host avoid
   keeping its own separate route mirror (the demo used to keep `routeLabel`, now gone).
 
@@ -151,7 +161,37 @@ is the auto route-awareness `NavigatorObserver`. Tests: `test/overlaymanager_tes
 11. **`pauseOnRoutes`/manual `pauseAll` compose via OR, never overwrite each other** — leaving a
     route zone while manually paused must NOT call `_applyRelease`; a manual `resumeAll` while
     still inside a zone must NOT call it either. Always check the effective `_paused` (both
-    before AND after flipping the specific flag) before calling `_applyFreeze`/`_applyRelease`.
+    before AND after flipping the specific flag) before calling `_applyFreeze`/`_applyRelease`
+    (extracted into the shared `_applyPauseTransition(before)` helper — 3 independent code-review
+    agents converged on the same duplication, worth trusting that signal).
+12. **`OverlayNavigatorObserver` overrides `didChangeTop`, NOT the legacy quartet** — do not add
+    back `didPush`/`didPop`/`didRemove`/`didReplace` overrides "for completeness"; `didRemove`/
+    `didReplace` report the route at the position that changed, which can be buried under a
+    still-topmost different route, corrupting `route` context. `didChangeTop` is Flutter's own
+    documented "always the true current top" signal and is a strict superset for this purpose
+    (verified empirically: fires on cold start with `previousTopRoute == null`, and on every
+    push/pop). Existing unit tests call `observer.didChangeTop(...)` directly, not the legacy
+    methods — if you see a test calling `.didPush(...)` on this class, it's stale, fix the test.
+13. **`OverlayNavigatorObserver` must check `manager.isDisposed`** both before scheduling the
+    post-frame callback AND inside it — a manager can be disposed (app-level restart swapping
+    managers) between a navigation event firing and the deferred callback running; without the
+    guard, `setContext`'s `notifyListeners()` throws on a disposed `ChangeNotifier`.
+14. **A throwing `pathOf` must be caught, not left to propagate** — it runs synchronously inside
+    the `NavigatorObserver` callback (before the defer), and an uncaught throw there propagates
+    straight out through Flutter's Navigator internals. Report via `FlutterError.reportError`
+    and treat the route as unresolvable (`null`), same as an anonymous route.
+15. **`MaterialApp.home`'s implicit route is named `'/'`** (Flutter's own
+    `Navigator.defaultRouteName`), never `null` and never `'/home'` — confirmed empirically with
+    a throwaway `flutter_test`. The demo used to silently rely on the wrong assumption (manual
+    `setContext({'route': '/home'})` got clobbered to `'/'` on the very first frame once the
+    observer was wired in); fixed by giving the demo's home page a real name via
+    `initialRoute`/`routes` instead of `home:`. Document this for consumers, don't try to paper
+    over it in the engine — it's correct Flutter behavior, not a bug to "fix" generically.
+16. **A route-backed dialog (the `showDialog`/`Get.dialog` external-presenter recipe) pushed on
+    the SAME `Navigator` the observer watches genuinely IS the topmost route while shown** — its
+    synthetic `RouteSettings(name: 'om://$id')` will show up in `route` for that window. This is
+    correct per Flutter's own model, not a bug; don't add filtering logic to hide it (that would
+    silently break an app that legitimately wants to gate on dialog routes) — document it instead.
 
 ## Considered and deferred: `WidgetsBindingObserver` for OS-level deep links
 
@@ -191,7 +231,7 @@ independently via this reasoning and via the `OverlayNavigatorObserver` design w
 ```bash
 cd D:/workspaces/dart-labs/overlaymanager
 flutter analyze                                   # must be clean
-flutter test                                      # 79 widget tests — the unit gate
+flutter test                                      # 80 widget tests — the unit gate
 
 cd example
 flutter test integration_test/orchestration_test.dart -d windows   # 17 tests, REAL window

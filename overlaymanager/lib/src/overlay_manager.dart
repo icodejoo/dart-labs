@@ -545,9 +545,7 @@ class OverlayManager extends ChangeNotifier {
     DateTime Function()? now,
     List<Object> pauseOnRoutes = const <Object>[],
   })  : assert(
-          pauseOnRoutes.every(
-            (p) => p is String || p is List<String> || p is RegExp,
-          ),
+          pauseOnRoutes.every(_isRoutePattern),
           'each pauseOnRoutes pattern must be a String, List<String> or RegExp',
         ),
         _pauseOnRoutes = pauseOnRoutes,
@@ -700,13 +698,9 @@ class OverlayManager extends ChangeNotifier {
     final current = _context['route'];
     final matches = _pauseOnRoutes.any((p) => _routeMatches(p, current));
     if (matches == _routeZonePaused) return;
-    final wasEffectivelyPaused = _paused;
+    final before = _paused;
     _routeZonePaused = matches;
-    if (matches) {
-      if (!wasEffectivelyPaused) _applyFreeze();
-    } else {
-      if (!_paused) _applyRelease();
-    }
+    _applyPauseTransition(before);
   }
 
   /// Freeze everything: no new activation (serial, overlap, replace) and all
@@ -714,17 +708,33 @@ class OverlayManager extends ChangeNotifier {
   /// work. [resumeAll] releases held overlaps and re-schedules.
   void pauseAll() {
     if (_manualPaused) return;
-    final wasEffectivelyPaused = _paused;
+    final before = _paused;
     _manualPaused = true;
-    if (!wasEffectivelyPaused) _applyFreeze();
+    _applyPauseTransition(before);
   }
 
   /// Undo [pauseAll]: release overlaps held while paused (if still eligible),
   /// thaw `duration` timers and re-schedule every slot.
   void resumeAll() {
     if (!_manualPaused) return;
+    final before = _paused;
     _manualPaused = false;
-    if (!_paused) _applyRelease();
+    _applyPauseTransition(before);
+  }
+
+  /// Shared edge-trigger for the two independent pause sources
+  /// ([_manualPaused] / [_routeZonePaused]): call `_applyFreeze`/`_applyRelease`
+  /// only when the EFFECTIVE `_paused` actually crossed, so a source that
+  /// flips while the other is already holding the queue paused (or open)
+  /// doesn't double-freeze or release out from under it.
+  void _applyPauseTransition(bool before) {
+    final after = _paused;
+    if (after == before) return;
+    if (after) {
+      _applyFreeze();
+    } else {
+      _applyRelease();
+    }
   }
 
   void _applyFreeze() {
@@ -851,7 +861,7 @@ class OverlayManager extends ChangeNotifier {
       'Provide exactly one of builder or present',
     );
     assert(
-      route == null || route is String || route is List<String> || route is RegExp,
+      route == null || _isRoutePattern(route),
       'route must be a String, List<String> or RegExp',
     );
     final resolvedId = id ?? 'overlay:${++_seqCounter}';
@@ -1060,6 +1070,9 @@ class OverlayManager extends ChangeNotifier {
     if (pattern is RegExp) return pattern.hasMatch(current);
     return false;
   }
+
+  static bool _isRoutePattern(Object o) =>
+      o is String || o is List<String> || o is RegExp;
 
   bool _cooldownPass(_Entry e) {
     // A displaced entry already showed once under this cooldown; let it resume
@@ -1478,6 +1491,14 @@ class OverlayManager extends ChangeNotifier {
       s.cooldownTimer?.cancel();
     }
     clear();
+    _disposed = true;
     super.dispose();
   }
+
+  bool _disposed = false;
+
+  /// Whether [dispose] has been called. Lets a deferred callback (e.g.
+  /// `OverlayNavigatorObserver`'s post-frame `setContext`) check it's not
+  /// about to call into a manager that was torn down in the meantime.
+  bool get isDisposed => _disposed;
 }

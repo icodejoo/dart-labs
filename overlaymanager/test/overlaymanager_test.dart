@@ -1342,10 +1342,18 @@ void main() {
   });
 
   group('OverlayNavigatorObserver — auto route context', () {
-    // Every observer callback defers its setContext to a post-frame callback
-    // (see the class doc) — pumpAndSettle flushes that plus the extra frame
-    // the resulting OverlayEntry insertion/removal needs to actually render.
-    testWidgets('didPush makes route-conditioned overlays eligible',
+    // Every callback defers its setContext to a post-frame callback (see the
+    // class doc) — pumpAndSettle flushes that plus the extra frame the
+    // resulting OverlayEntry insertion/removal needs to actually render.
+    // The observer listens to didChangeTop (the CURRENT topmost route),
+    // not the legacy didPush/didPop/didReplace/didRemove quartet.
+    MaterialPageRoute<void> route(String? name, {Object? arguments}) =>
+        MaterialPageRoute<void>(
+          settings: RouteSettings(name: name, arguments: arguments),
+          builder: (_) => const SizedBox(),
+        );
+
+    testWidgets('didChangeTop makes route-conditioned overlays eligible',
         (tester) async {
       final manager = OverlayManager();
       await pumpHost(tester, manager);
@@ -1355,65 +1363,30 @@ void main() {
       await tester.pump();
       expect(find.text('A'), findsNothing); // no route observed yet
 
-      observer.didPush(
-        MaterialPageRoute<void>(
-          settings: const RouteSettings(name: '/checkout'),
-          builder: (_) => const SizedBox(),
-        ),
-        null,
-      );
+      observer.didChangeTop(route('/checkout'), null);
       await tester.pumpAndSettle();
       expect(find.text('A'), findsOneWidget);
 
       manager.dispose();
     });
 
-    testWidgets("didPop restores the previous route's path", (tester) async {
+    testWidgets('a later didChangeTop (e.g. after a pop) restores the '
+        'previous path', (tester) async {
       final manager = OverlayManager();
       await pumpHost(tester, manager);
       final observer = OverlayNavigatorObserver(manager);
 
-      final home = MaterialPageRoute<void>(
-        settings: const RouteSettings(name: '/home'),
-        builder: (_) => const SizedBox(),
-      );
-      final checkout = MaterialPageRoute<void>(
-        settings: const RouteSettings(name: '/checkout'),
-        builder: (_) => const SizedBox(),
-      );
-      observer.didPush(home, null);
-      observer.didPush(checkout, home);
+      final home = route('/home');
+      final checkout = route('/checkout');
+      observer.didChangeTop(home, null);
+      observer.didChangeTop(checkout, home);
       await tester.pumpAndSettle();
 
       manager.open(id: 'a', route: '/home', builder: (c, h) => label('A'));
       await tester.pump();
       expect(find.text('A'), findsNothing); // currently on /checkout
 
-      observer.didPop(checkout, home); // back to /home
-      await tester.pumpAndSettle();
-      expect(find.text('A'), findsOneWidget);
-
-      manager.dispose();
-    });
-
-    testWidgets("didReplace uses the new route's path", (tester) async {
-      final manager = OverlayManager();
-      await pumpHost(tester, manager);
-      final observer = OverlayNavigatorObserver(manager);
-
-      final splash = MaterialPageRoute<void>(
-        settings: const RouteSettings(name: '/splash'),
-        builder: (_) => const SizedBox(),
-      );
-      final home = MaterialPageRoute<void>(
-        settings: const RouteSettings(name: '/home'),
-        builder: (_) => const SizedBox(),
-      );
-      observer.didPush(splash, null);
-      observer.didReplace(newRoute: home, oldRoute: splash);
-      await tester.pumpAndSettle();
-
-      manager.open(id: 'a', route: '/home', builder: (c, h) => label('A'));
+      observer.didChangeTop(home, checkout); // back to /home
       await tester.pumpAndSettle();
       expect(find.text('A'), findsOneWidget);
 
@@ -1427,22 +1400,14 @@ void main() {
       await pumpHost(tester, manager);
       final observer = OverlayNavigatorObserver(manager);
 
-      observer.didPush(
-        MaterialPageRoute<void>(
-          settings: const RouteSettings(name: '/home'),
-          builder: (_) => const SizedBox(),
-        ),
-        null,
-      );
+      final home = route('/home');
+      observer.didChangeTop(home, null);
       await tester.pumpAndSettle();
       manager.open(id: 'a', route: '/home', builder: (c, h) => label('A'));
       await tester.pumpAndSettle();
       expect(find.text('A'), findsOneWidget);
 
-      observer.didPush(
-        MaterialPageRoute<void>(builder: (_) => const SizedBox()), // no name
-        null,
-      );
+      observer.didChangeTop(route(null), home); // no name
       await tester.pumpAndSettle();
       expect(find.text('A'), findsNothing);
 
@@ -1455,23 +1420,64 @@ void main() {
       await pumpHost(tester, manager);
       final observer = OverlayNavigatorObserver(
         manager,
-        pathOf: (route) => route.settings.arguments as String?,
+        pathOf: (r) => r.settings.arguments as String?,
       );
 
       manager.open(id: 'a', route: '/via-args', builder: (c, h) => label('A'));
       await tester.pump();
 
-      observer.didPush(
-        MaterialPageRoute<void>(
-          settings: const RouteSettings(name: '/ignored', arguments: '/via-args'),
-          builder: (_) => const SizedBox(),
-        ),
+      observer.didChangeTop(
+        route('/ignored', arguments: '/via-args'),
         null,
       );
       await tester.pumpAndSettle();
       expect(find.text('A'), findsOneWidget);
 
       manager.dispose();
+    });
+
+    testWidgets('a throwing pathOf is reported, not propagated — route '
+        'treated as unresolvable', (tester) async {
+      final manager = OverlayManager();
+      await pumpHost(tester, manager);
+      final observer = OverlayNavigatorObserver(
+        manager,
+        pathOf: (r) => throw StateError('bad extractor'),
+      );
+
+      manager.open(id: 'a', route: '/checkout', builder: (c, h) => label('A'));
+      await tester.pump();
+
+      // A thrown pathOf reports via FlutterError.reportError instead of
+      // propagating — swap in a no-op handler for this call so the test
+      // framework doesn't treat the (expected, handled) report as a failure.
+      final originalOnError = FlutterError.onError;
+      FlutterError.onError = (details) {};
+      try {
+        observer.didChangeTop(route('/checkout'), null); // must not throw
+      } finally {
+        FlutterError.onError = originalOnError;
+      }
+      await tester.pumpAndSettle();
+      expect(find.text('A'), findsNothing); // treated as unresolvable, not '/checkout'
+      expect(manager.currentRoute, isNull);
+
+      manager.dispose();
+    });
+
+    testWidgets('a manager disposed before the deferred frame runs is never '
+        'called into (no ChangeNotifier-after-dispose)', (tester) async {
+      final manager = OverlayManager();
+      await pumpHost(tester, manager);
+      final observer = OverlayNavigatorObserver(manager);
+
+      observer.didChangeTop(route('/checkout'), null); // queues a post-frame callback
+      manager.dispose(); // disposed BEFORE the callback gets a chance to fire
+      expect(manager.isDisposed, isTrue);
+
+      // Must not throw ("used after being disposed"): the deferred callback
+      // checks isDisposed and no-ops instead of calling setContext.
+      await tester.pumpAndSettle();
     });
   });
 
