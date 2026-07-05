@@ -1,7 +1,7 @@
 name: layerman
 description: "Flutter-native overlay queue manager: serial one-at-a-time queueing with priority, replace, overlap, cooldown and two-phase close; also orchestrates showDialog / GetX / bot_toast."
 version: 0.1.0
-homepage: https://github.com/icodejoo/dart-labs/tree/main/overlaymanager
+homepage: https://github.com/icodejoo/dart-labs/tree/main/layerman
 repository: https://github.com/icodejoo/dart-labs
 issue_tracker: https://github.com/icodejoo/dart-labs/issues
 
