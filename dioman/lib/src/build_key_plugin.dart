@@ -92,6 +92,13 @@ class BuildKeyPlugin extends DioPlugin {
       if (filtered.isNotEmpty) buf.write(':${_encode(filtered)}');
     } else if (data is String && data.isNotEmpty) {
       buf.write(':$data');
+    } else if (data != null) {
+      // Non-serialisable body (FormData / bytes / stream, etc.): there's no
+      // stable content representation, so fold in object identity. Two
+      // distinct bodies then get distinct keys (never falsely deduped or
+      // cached as one), while the SAME object reused across a retry keeps a
+      // stable key.
+      buf.write(':#${identityHashCode(data)}');
     }
 
     return buf.toString();

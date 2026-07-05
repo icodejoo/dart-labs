@@ -58,6 +58,19 @@ class MockPlugin extends DioPlugin {
   final MockFallbackDecider _fallbackWhen;
   final Map<String, MockHandler> _routes;
 
+  // Bare Dio reused for mock-server redirects. `_rewriteUrl` produces an
+  // absolute URL, so no baseUrl is needed and a single shared instance works
+  // for every mockUrl — avoiding a fresh HttpClient per redirected request.
+  // Closed in [dispose].
+  Dio? _redirectDio;
+  Dio get _redirect => _redirectDio ??= Dio();
+
+  // Decodes an inline handler's raw ResponseBody the same way dio's own
+  // dispatch path would (JSON/text decode) — constructing a Response
+  // directly from an undecoded ResponseBody would leave `.data` holding the
+  // raw stream wrapper instead of the parsed payload.
+  static final _transformer = FusedTransformer();
+
   @override
   String get name => 'mock';
 
@@ -75,17 +88,30 @@ class MockPlugin extends DioPlugin {
     if (options.extra['mock'] == false) return handler.next(options);
 
     // 1. Try inline handler first.
-    final routeKey = '${options.method.toUpperCase()}:${options.path}';
+    // Uses the resolved path (matching BuildKeyPlugin's key scheme) so route
+    // registration is consistent regardless of absolute vs relative URLs.
+    final routeKey = '${options.method.toUpperCase()}:${options.uri.path}';
     final inlineHandler = _routes[routeKey];
     if (inlineHandler != null) {
       try {
         final body = await inlineHandler(options);
-        return handler.resolve(Response<dynamic>(
-          requestOptions: options,
-          data: body,
-          statusCode: body.statusCode,
-          statusMessage: 'Mock',
-        ));
+        final headers = Headers.fromMap(body.headers);
+        body.headers = headers.map;
+        final data = await _transformer.transformResponse(options, body);
+        // callFollowingResponseInterceptor: true — a mock hit must still run
+        // onResponse of normalize/cache/share (installed earlier in the
+        // chain) so the shared-request completer settles and the envelope
+        // is unwrapped the same way a real response would be.
+        return handler.resolve(
+          Response<dynamic>(
+            requestOptions: options,
+            data: data,
+            headers: headers,
+            statusCode: body.statusCode,
+            statusMessage: 'Mock',
+          ),
+          true,
+        );
       } on DioException catch (e) {
         return handler.reject(e);
       }
@@ -95,15 +121,20 @@ class MockPlugin extends DioPlugin {
     final url = _resolveMockUrl(options);
     if (url == null) return handler.next(options); // no mock URL → passthrough
 
-    final mockOptions = options.copyWith(path: _rewriteUrl(options.uri, url));
-    final mockDio = Dio(BaseOptions(baseUrl: url));
+    // queryParameters: {} — _rewriteUrl already folds the original query
+    // string into the rewritten path; leaving the map populated would make
+    // dio append it a second time when it builds the request URI.
+    final mockOptions = options.copyWith(
+      path: _rewriteUrl(options.uri, url),
+      queryParameters: {},
+    );
 
     try {
-      final resp = await mockDio.fetch<dynamic>(mockOptions);
+      final resp = await _redirect.fetch<dynamic>(mockOptions);
       if (_fallbackWhen(response: resp)) {
         return handler.next(options); // fallback to real API
       }
-      handler.resolve(resp);
+      handler.resolve(resp, true);
     } on DioException catch (e) {
       if (_fallbackWhen(error: e)) {
         return handler.next(options); // mock server unreachable → real API
@@ -125,6 +156,12 @@ class MockPlugin extends DioPlugin {
     final path = '/${original.path.replaceAll(RegExp(r'^/+'), '')}';
     final query = original.hasQuery ? '?${original.query}' : '';
     return '$stripped$path$query';
+  }
+
+  @override
+  void dispose() {
+    _redirectDio?.close(force: true);
+    _redirectDio = null;
   }
 }
 

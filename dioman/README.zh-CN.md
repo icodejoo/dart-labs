@@ -1,8 +1,8 @@
-# dioplus
+# dioman
 
 > English: [README.md](./README.md)
 
-[![pub](https://img.shields.io/pub/v/dioplus.svg)](https://pub.dev/packages/dioplus)
+[![pub](https://img.shields.io/pub/v/dioman.svg)](https://pub.dev/packages/dioman)
 
 一组**可组合、各自独立**的 [`dio`](https://pub.dev/packages/dio) 拦截器*插件*——鉴权、缓存、重试、并发去重、mock、信封拆包、路径变量、加载态、取消、日志——每个只做一件事；并给出把它们串起来的**正确安装顺序**。
 
@@ -43,11 +43,11 @@
 
 ```yaml
 dependencies:
-  dioplus: ^0.1.0
+  dioman: ^0.1.0
 ```
 
 ```dart
-import 'package:dioplus/dioplus.dart';
+import 'package:dioman/dioman.dart';
 ```
 
 ## 快速上手
@@ -76,7 +76,7 @@ dio.interceptors.addAll(<DioPlugin>[
 final res = await dio.get('/users/{id}', queryParameters: {'id': 42});
 ```
 
-一份完整可运行的接线（含内存版 token 管理器，及注释里的完整排序依据）见 [`example/dioplus_example.dart`](./example/dioplus_example.dart)。
+一份完整可运行的接线（含内存版 token 管理器，及注释里的完整排序依据）见 [`example/dioman_example.dart`](./example/dioman_example.dart)。
 
 ## 推荐顺序
 
@@ -109,6 +109,23 @@ final res = await dio.get('/users/{id}', queryParameters: {'id': 42});
 - **`cache`/`share`/`mock` 在 `cancel` 与 `loading` 之前**——短路会跳过其后的响应拦截器；若把括号类插件放在它们前面，`onRequest` 里 +1/注入了却永远等不到清理。
 - **`cancel` 与 `loading` 在 `auth` 与 `retry` 之前**——401（auth）或网络重试时，这两个插件会 `resolve` 错误并中断正向 `onError` 链；括号必须先跑完，才能把计数减回、把 token 释放。
 
+## 装配：`Dioman.install`
+
+上面的安装顺序是硬约束。与其手工排序，不如把要用的插件传给 `Dioman.install`，它会按 canonical 顺序装配（未传的自动跳过），并返回一个 `DiomanHandle` 用于查找（`handle.plugin<AuthPlugin>()`）与统一销毁（`handle.dispose()` 会摘除所有插件**并**调用每个插件自己的 `dispose()`——这一步没有别处会自动做）。
+
+```dart
+final handle = Dioman.install(
+  dio,
+  buildKey: const BuildKeyPlugin(),
+  normalize: const NormalizePlugin(),
+  cache: CachePlugin(),
+  auth: AuthPlugin(tokenManager: tm, onRefresh: ..., onAccessExpired: ...),
+  log: const LogPlugin(),
+);
+// ……稍后：
+handle.dispose();
+```
+
 ## 插件详解
 
 每个插件都提供 `String get name`（用于查找/去重）与 `dispose()`。多数支持从 `options.extra` 读单请求级开关（见[单请求级覆盖](#单请求级覆盖)）。
@@ -134,15 +151,15 @@ EnvsPlugin(dio: dio, [
 
 ### BuildKeyPlugin
 
-`BuildKeyPlugin({bool fastMode = false, ignoreParams, ignoreDataKeys, builder})`——写入 `extra['_key']`。`fastMode` → `METHOD:path`；默认（deep）还会拼入排序后的 query 与 body。可用 `extra['key']` 单请求覆盖。
+`BuildKeyPlugin({bool fastMode = false, ignoreParams, ignoreDataKeys, builder})`——写入 `extra['_key']`。`fastMode` → `METHOD:path`；默认（deep）还会拼入排序后的 query 与 body。不可序列化的 body（FormData / bytes / stream）会拼入对象 identity，保证两个不同 body 不会得到相同 key（不会被误去重/误缓存）。可用 `extra['key']` 单请求覆盖。
 
 ### NormalizePlugin
 
-`NormalizePlugin({dataKey='data', codeKey='code', messageKey='message', isSuccess, shouldNormalize})`——成功信封时把 `response.data` 换成内层负载；非成功 `code` 则以 `ApiException` reject，让错误处理统一到拦截器层。默认仅当 body 是含 `codeKey` 的 `Map` 时才处理，`isSuccess` 默认为 `code == 0`。
+`NormalizePlugin({dataKey='data', codeKey='code', messageKey='message', isSuccess, shouldNormalize})`——成功信封时把 `response.data` 换成内层负载；非成功 `code` 则以 `ApiException` reject，让错误处理统一到拦截器层。默认仅当 body 是含 `codeKey` **且**含 `dataKey` 或 `messageKey` 的 `Map` 时才处理（避免把仅仅带 `code` 字段的普通负载误判成信封），`isSuccess` 默认为 `code == 0`。
 
 ### CachePlugin
 
-`CachePlugin({int expires = 60000, CacheClone clone = none, shouldCache})`——**毫秒**级 TTL 缓存，以 `extra['_key']` 为键（需 `BuildKeyPlugin`）。默认只缓存 `GET`。`CacheClone` 控制命中数据的可变安全性（`none`/`shallow`/`deep`）。管理接口：`remove(key)`、`removeWhere(test)`、`clear()`、`size`。
+`CachePlugin({int expires = 60000, CacheClone clone = shallow, maxEntries = 500, shouldCache, now})`——**毫秒**级 TTL 缓存，以 `extra['_key']` 为键（需 `BuildKeyPlugin`）。默认只缓存 `GET`。命中会**提升为最近使用**，因此超过 `maxEntries`（`0` 关闭上限）时按真正的 LRU 淘汰。`CacheClone` 控制命中数据的可变安全性，默认 `shallow`（命中方改顶层字段不会污染缓存；嵌套改用 `deep`，只读零拷贝用 `none`）。`now` 可注入时钟做确定性 TTL 测试。管理接口：`remove(key)`、`removeWhere(test)`、`clear()`、`size`。
 
 ### SharePlugin
 
@@ -170,7 +187,16 @@ EnvsPlugin(dio: dio, [
 
 ### AuthPlugin
 
-`AuthPlugin({required tokenManager, required onRefresh, required onAccessExpired, onAccessDenied, onFailure, ready, isProtected, headerKey = 'Authorization', buildHeader, enable = true})`——注入 token，并在 401/403 时路由到五种 `AuthFailureAction`（`refresh` / `replay` / `deny` / `expired` / `others`），且**共享单个刷新窗口**（并发请求只触发一次刷新，其余等待）。实现 `ITokenManager`（`accessToken`、`refreshToken`、`canRefresh`、`clear()`）来对接。默认保护所有请求；用 `isProtected` 或 `extra['protected'] = false` 排除公开接口。
+`AuthPlugin({required tokenManager, required onRefresh, required onAccessExpired, onAccessDenied, onFailure, ready, isProtected, expiresAt, refreshLeeway = Duration.zero, headerKey = 'Authorization', buildHeader, enable = true})`——注入 token，并在 401/403 时路由到五种 `AuthFailureAction`（`refresh` / `replay` / `deny` / `expired` / `others`），且**共享单个刷新窗口**（并发请求只触发一次刷新，其余等待）。实现 `ITokenManager`（`accessToken`、`refreshToken`、`canRefresh`、`clear()`）来对接。默认保护所有请求；用 `isProtected` 或 `extra['protected'] = false` 排除公开接口。
+
+**主动刷新（可选开启）。** 传入 `expiresAt: (token) => DateTime?`（例如解 JWT 的 `exp`），插件会在**发送前**刷新已过期的 token（含 `refreshLeeway` 提前量），让请求带着新 token 一次发出，省掉一轮 401 往返。并发的过期请求会收敛到同一个共享刷新窗口（只刷一次、其余等待、全部注入新 token），因此**无需 `QueuedInterceptor`/串行化**。不传 `expiresAt` 时行为纯被动（与原来一致）——401 路径仍覆盖客户端无法预判的服务端吊销。对无法判断过期的 token，让 `expiresAt` 返回 `null`。
+
+> **`expiresAt` 是普通运行时开关，不是模式切换。** `AuthPlugin` 始终是普通（并行）`Interceptor`；传 `expiresAt` 只是给 `onRequest` 加一段发送前过期预检，「只刷一次」两种情况下都靠共享 `_refreshing` future 保证——从不靠把拦截器串行化。
+>
+> **何时开启。** 这是**靶向优化**，不是通用改进——不划算就别开：
+> - **仅当**token 带**可信**过期时间（JWT `exp`、时钟正常）**且**命中以下之一才开：token 边界的突发并发（如 App 息屏后恢复，一次并发多请求）、延迟敏感的 idle 后首个请求（省约 1 个 RTT）、对 401 噪音敏感的基建（WAF/限流/告警）。
+> - **保持关闭**：opaque/无 `exp` 的 token、低并发应用、或服务端可能提前吊销的 token——被动 401 路径更简单也够用，且它本来就一直在跑。
+> - **需权衡的失败模式**：若 `expiresAt` 判「已过期」但服务端其实还认（客户端时钟偏快，或服务端有 grace 期），你会白刷一次 + 该请求被刷新拖慢，而被动路径本可直接成功。`refreshLeeway` 保持小值。
 
 ### RetryPlugin
 

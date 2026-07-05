@@ -44,17 +44,31 @@ class _Entry {
 class CachePlugin extends DioPlugin {
   CachePlugin({
     this.expires = 60000, // milliseconds
-    this.clone = CacheClone.none,
+    this.clone = CacheClone.shallow,
+    this.maxEntries = 500,
     bool Function(RequestOptions)? shouldCache,
-  })  : _shouldCache = shouldCache ?? _defaultShouldCache;
+    DateTime Function() now = DateTime.now,
+  })  : _shouldCache = shouldCache ?? _defaultShouldCache,
+        _now = now;
 
   /// Default TTL in **milliseconds**.
   final int expires;
 
-  /// Default clone strategy.
+  /// Default clone strategy. Defaults to [CacheClone.shallow] so a caller that
+  /// reassigns top-level fields on a cache hit can't corrupt the stored entry;
+  /// use [CacheClone.deep] if callers mutate nested objects, or
+  /// [CacheClone.none] for zero-copy when the result is treated as read-only.
   final CacheClone clone;
 
+  /// Maximum number of cached entries (LRU-evicted once exceeded). Without a
+  /// cap, keys that vary per request (e.g. deep [BuildKeyPlugin] mode on
+  /// paginated/search endpoints) accumulate forever, since an entry is only
+  /// otherwise removed when its *exact* key is requested again after expiry.
+  /// Set to `0` to disable the cap.
+  final int maxEntries;
+
   final bool Function(RequestOptions) _shouldCache;
+  final DateTime Function() _now;
   final _store = <String, _Entry>{};
 
   static bool _defaultShouldCache(RequestOptions o) =>
@@ -73,8 +87,12 @@ class CachePlugin extends DioPlugin {
 
     final entry = _store[key];
     if (entry != null) {
-      if (entry.expiresAt > DateTime.now().millisecondsSinceEpoch) {
-        // Fresh hit.
+      if (entry.expiresAt > _now().millisecondsSinceEpoch) {
+        // Fresh hit — move to the end so eviction is true LRU (most-recently
+        // *used*, not merely most-recently-written); otherwise a hot but old
+        // entry would be evicted ahead of a colder, newer one.
+        _store.remove(key);
+        _store[key] = entry;
         return handler.resolve(
           Response<dynamic>(
             requestOptions: options,
@@ -102,12 +120,24 @@ class CachePlugin extends DioPlugin {
         (response.statusCode ?? 0) >= 200 &&
         (response.statusCode ?? 0) < 300) {
       final ttl = opts.extra['_cache_ttl'] as int? ?? expires;
+      // Remove-then-reinsert moves this key to the end of iteration order
+      // (Dart's default Map is insertion-ordered), so eviction below always
+      // drops the least-recently-written entry first.
+      _store.remove(key);
       _store[key] = _Entry(
         response.data,
-        DateTime.now().millisecondsSinceEpoch + ttl,
+        _now().millisecondsSinceEpoch + ttl,
       );
+      _evictIfNeeded();
     }
     handler.next(response);
+  }
+
+  void _evictIfNeeded() {
+    if (maxEntries <= 0) return;
+    while (_store.length > maxEntries) {
+      _store.remove(_store.keys.first);
+    }
   }
 
   // ── Cache management ──────────────────────────────────────────────────────
@@ -141,8 +171,12 @@ class CachePlugin extends DioPlugin {
       case CacheClone.none:
         return data;
       case CacheClone.shallow:
-        if (data is Map) return Map<dynamic, dynamic>.from(data);
-        if (data is List) return List<dynamic>.from(data);
+        // Preserve the concrete generic type — a JSON body is
+        // Map<String, dynamic> / List<dynamic>, and downcasting it to
+        // dynamic keys here would break a typed `dio.get<Map<String, dynamic>>`.
+        if (data is Map<String, dynamic>) return Map<String, dynamic>.of(data);
+        if (data is Map) return Map.of(data);
+        if (data is List) return List.of(data);
         return data;
       case CacheClone.deep:
         return _deepCopy(data);
@@ -150,8 +184,13 @@ class CachePlugin extends DioPlugin {
   }
 
   static dynamic _deepCopy(dynamic v) {
-    if (v is Map) return Map.fromEntries(v.entries.map((e) => MapEntry(e.key, _deepCopy(e.value))));
-    if (v is List) return v.map(_deepCopy).toList();
+    if (v is Map<String, dynamic>) {
+      return <String, dynamic>{for (final e in v.entries) e.key: _deepCopy(e.value)};
+    }
+    if (v is Map) {
+      return {for (final e in v.entries) e.key: _deepCopy(e.value)};
+    }
+    if (v is List) return [for (final e in v) _deepCopy(e)];
     return v;
   }
 

@@ -20,6 +20,8 @@ class LoadingPlugin extends DioPlugin {
   LoadingPlugin({required void Function(bool loading) onChanged})
       : _onChanged = onChanged;
 
+  static const _kBracketed = '_loading_bracketed';
+
   final void Function(bool loading) _onChanged;
   int _count = 0;
 
@@ -32,6 +34,7 @@ class LoadingPlugin extends DioPlugin {
   @override
   void onRequest(RequestOptions options, RequestInterceptorHandler handler) {
     if (options.extra['loading'] != false) {
+      options.extra[_kBracketed] = true;
       if (_count++ == 0) _onChanged(true);
     }
     handler.next(options);
@@ -49,8 +52,14 @@ class LoadingPlugin extends DioPlugin {
     handler.next(err);
   }
 
+  // Only decrement for a request this plugin actually incremented for. An
+  // earlier interceptor's onRequest can short-circuit (cache/share/mock hit)
+  // before this plugin's onRequest ever runs — if that resolve is later
+  // propagated with `callFollowingResponseInterceptor: true`, this onResponse
+  // still fires and, without this guard, would decrement a counter it never
+  // incremented (stealing a slot from an unrelated in-flight request).
   void _decrement(RequestOptions options) {
-    if (options.extra['loading'] != false) {
+    if (options.extra.remove(_kBracketed) == true) {
       if (_count > 0 && --_count == 0) _onChanged(false);
     }
   }

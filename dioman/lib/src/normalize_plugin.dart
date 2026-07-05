@@ -68,9 +68,15 @@ class NormalizePlugin extends DioPlugin {
   bool _shouldNormalize(RequestOptions options, Response<dynamic> response) {
     if (options.extra['normalize'] == false) return false;
     if (shouldNormalize != null) return shouldNormalize!(options, response);
-    // Default: only process JSON bodies that look like envelopes.
-    return response.data is Map &&
-        (response.data as Map).containsKey(codeKey);
+    // Default: only process JSON bodies that look like an envelope. Require
+    // BOTH the status [codeKey] AND either the payload [dataKey] or the
+    // [messageKey] — a plain resource that merely happens to carry a `code`
+    // field (e.g. a country/error code as data) would otherwise be mistaken
+    // for an envelope and wrongly rejected as an ApiException.
+    final data = response.data;
+    if (data is! Map) return false;
+    return data.containsKey(codeKey) &&
+        (data.containsKey(dataKey) || data.containsKey(messageKey));
   }
 
   @override

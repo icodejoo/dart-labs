@@ -1,4 +1,4 @@
-/// dioplus — a set of composable, self-contained [Dio] interceptor plugins,
+/// dioman — a set of composable, self-contained [Dio] interceptor plugins,
 /// plus the *correct* install order to wire them together.
 ///
 /// Every plugin extends [DioPlugin] (a named [Interceptor]) and can be used on
@@ -6,6 +6,7 @@
 library;
 
 export 'src/dio_plugin.dart';
+export 'src/dioman.dart';
 export 'src/envs_plugin.dart';
 export 'src/repath_plugin.dart';
 export 'src/normalize_request_plugin.dart';

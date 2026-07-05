@@ -70,6 +70,7 @@ class RetryPlugin extends DioPlugin {
   @override
   void onResponse(Response<dynamic> response, ResponseInterceptorHandler handler) async {
     final config = response.requestOptions;
+    if (config.extra['retry'] == false) return handler.next(response);
     final isException = _resolveException(config);
     if (isException == null || !isException(response)) return handler.next(response);
 
@@ -82,6 +83,7 @@ class RetryPlugin extends DioPlugin {
     }
     config.extra[_kCount] = count + 1;
     await Future<void>.delayed(_delay(count));
+    if (config.cancelToken?.isCancelled == true) return handler.next(response);
     try {
       handler.resolve(await _dio.fetch<dynamic>(config));
     } catch (_) {
@@ -105,6 +107,7 @@ class RetryPlugin extends DioPlugin {
     }
     config.extra[_kCount] = count + 1;
     await Future<void>.delayed(_delay(count));
+    if (config.cancelToken?.isCancelled == true) return handler.next(err);
     try {
       handler.resolve(await _dio.fetch<dynamic>(config));
     } catch (_) {

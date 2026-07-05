@@ -28,7 +28,20 @@ class CancelPlugin extends DioPlugin {
 
   @override
   void onRequest(RequestOptions options, RequestInterceptorHandler handler) {
-    if (options.cancelToken != null) return handler.next(options); // user-supplied
+    final existing = options.cancelToken;
+    if (existing != null) {
+      // RetryPlugin re-dispatches through the full chain via the app's own
+      // Dio, reusing the same RequestOptions (and thus the same CancelToken
+      // this plugin injected on the first attempt). _release already
+      // deregistered it after that attempt's error, so without this it would
+      // stay untracked — and uncancellable via cancelAll — for every
+      // subsequent retry. Only re-register tokens this plugin itself
+      // injected (never a caller-supplied one) and that aren't already spent.
+      if (options.extra[_kToken] == existing && !existing.isCancelled) {
+        _tokens.add(existing);
+      }
+      return handler.next(options);
+    }
 
     final token = CancelToken();
     options.cancelToken = token;

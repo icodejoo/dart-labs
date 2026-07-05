@@ -1,7 +1,7 @@
 // ignore_for_file: avoid_print
 
 import 'package:dio/dio.dart';
-import 'package:dioplus/dioplus.dart';
+import 'package:dioman/dioman.dart';
 
 /// A minimal in-memory [ITokenManager] for the example.
 /// In a real app back this with secure storage / your auth service.
