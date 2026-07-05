@@ -61,7 +61,14 @@ class EnvsPlugin extends DioPlugin {
       if (c.receiveTimeout != null) dio.options.receiveTimeout = c.receiveTimeout;
       if (c.sendTimeout != null) dio.options.sendTimeout = c.sendTimeout;
       if (c.headers.isNotEmpty) dio.options.headers.addAll(c.headers);
-      dio.options.responseType = c.responseType;
+      // BaseOptions.responseType is non-nullable and defaults to json, so it
+      // can't be null-checked like the fields above — only apply it when the
+      // rule explicitly set something other than that default, otherwise a
+      // rule that only configures e.g. baseUrl would silently reset a
+      // user-configured bytes/stream responseType back to json.
+      if (c.responseType != ResponseType.json) {
+        dio.options.responseType = c.responseType;
+      }
       return;
     }
   }

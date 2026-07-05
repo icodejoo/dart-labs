@@ -1,6 +1,6 @@
-# dioplus
+# dioman
 
-[![pub](https://img.shields.io/pub/v/dioplus.svg)](https://pub.dev/packages/dioplus)
+[![pub](https://img.shields.io/pub/v/dioman.svg)](https://pub.dev/packages/dioman)
 
 > 中文文档：[README.zh-CN.md](./README.zh-CN.md)
 
@@ -43,11 +43,11 @@ Every plugin extends `DioPlugin` (a named `Interceptor` with a `dispose()` hook)
 
 ```yaml
 dependencies:
-  dioplus: ^0.1.0
+  dioman: ^0.1.0
 ```
 
 ```dart
-import 'package:dioplus/dioplus.dart';
+import 'package:dioman/dioman.dart';
 ```
 
 ## Quick start
@@ -76,7 +76,7 @@ dio.interceptors.addAll(<DioPlugin>[
 final res = await dio.get('/users/{id}', queryParameters: {'id': 42});
 ```
 
-A complete, runnable wiring (with an in-memory token manager and the full ordering rationale in comments) is in [`example/dioplus_example.dart`](./example/dioplus_example.dart).
+A complete, runnable wiring (with an in-memory token manager and the full ordering rationale in comments) is in [`example/dioman_example.dart`](./example/dioman_example.dart).
 
 ## Recommended order
 
@@ -109,6 +109,23 @@ Because Dio is forward-order for **all** phases, one list must satisfy request, 
 - **`cache`/`share`/`mock` before `cancel` & `loading`** — a short-circuit skips following response interceptors, so a bracket placed *before* it would increment/inject on `onRequest` and never clean up.
 - **`cancel` & `loading` before `auth` & `retry`** — on a 401 (auth) or a network retry, those plugins `resolve()` the error and halt the forward `onError` chain; the brackets must have already run so the counter is decremented and the token released.
 
+## Wiring: `Dioman.install`
+
+The install order above is a hard constraint. Rather than ordering plugins by hand, pass the ones you want to `Dioman.install` and they're slotted into the canonical sequence (omitted plugins are skipped). It returns a `DiomanHandle` for lookup (`handle.plugin<AuthPlugin>()`) and coordinated teardown (`handle.dispose()` ejects every plugin **and** calls each one's `dispose()` — nothing else does that automatically).
+
+```dart
+final handle = Dioman.install(
+  dio,
+  buildKey: const BuildKeyPlugin(),
+  normalize: const NormalizePlugin(),
+  cache: CachePlugin(),
+  auth: AuthPlugin(tokenManager: tm, onRefresh: ..., onAccessExpired: ...),
+  log: const LogPlugin(),
+);
+// ...later:
+handle.dispose();
+```
+
 ## Plugins
 
 Every plugin exposes a `String get name` (for lookup/dedup) and a `dispose()` hook. Most read a per-request flag from `options.extra` (see [Per-request overrides](#per-request-overrides)).
@@ -134,15 +151,15 @@ EnvsPlugin(dio: dio, [
 
 ### BuildKeyPlugin
 
-`BuildKeyPlugin({bool fastMode = false, ignoreParams, ignoreDataKeys, builder})` — writes `extra['_key']`. `fastMode` → `METHOD:path`; default (deep) also folds sorted query params and body. Override per request with `extra['key']`.
+`BuildKeyPlugin({bool fastMode = false, ignoreParams, ignoreDataKeys, builder})` — writes `extra['_key']`. `fastMode` → `METHOD:path`; default (deep) also folds sorted query params and body. A non-serialisable body (FormData / bytes / stream) folds in object identity so two distinct bodies never key identically (never falsely deduped/cached). Override per request with `extra['key']`.
 
 ### NormalizePlugin
 
-`NormalizePlugin({dataKey='data', codeKey='code', messageKey='message', isSuccess, shouldNormalize})` — on a success envelope replaces `response.data` with the inner payload; on a non-success `code` it rejects with an `ApiException` so all error handling is unified at the interceptor layer. By default only kicks in when the body is a `Map` containing `codeKey`, and `isSuccess` is `code == 0`.
+`NormalizePlugin({dataKey='data', codeKey='code', messageKey='message', isSuccess, shouldNormalize})` — on a success envelope replaces `response.data` with the inner payload; on a non-success `code` it rejects with an `ApiException` so all error handling is unified at the interceptor layer. By default only kicks in when the body is a `Map` containing `codeKey` **and** either `dataKey` or `messageKey` (so a plain payload that merely carries a `code` field isn't mistaken for an envelope), and `isSuccess` is `code == 0`.
 
 ### CachePlugin
 
-`CachePlugin({int expires = 60000, CacheClone clone = none, shouldCache})` — TTL cache in **milliseconds**, keyed by `extra['_key']` (needs `BuildKeyPlugin`). Defaults to caching `GET` only. `CacheClone` controls mutation safety of a hit (`none`/`shallow`/`deep`). Management: `remove(key)`, `removeWhere(test)`, `clear()`, `size`.
+`CachePlugin({int expires = 60000, CacheClone clone = shallow, maxEntries = 500, shouldCache, now})` — TTL cache in **milliseconds**, keyed by `extra['_key']` (needs `BuildKeyPlugin`). Defaults to caching `GET` only. A cache **hit is promoted to most-recently-used**, so eviction (past `maxEntries`, `0` disables) is true LRU. `CacheClone` controls mutation safety of a hit and defaults to `shallow` (a hit reader can't corrupt the store by reassigning top-level fields; use `deep` for nested mutation, `none` for zero-copy read-only). `now` injects a clock for deterministic TTL tests. Management: `remove(key)`, `removeWhere(test)`, `clear()`, `size`.
 
 ### SharePlugin
 
@@ -170,7 +187,16 @@ EnvsPlugin(dio: dio, [
 
 ### AuthPlugin
 
-`AuthPlugin({required tokenManager, required onRefresh, required onAccessExpired, onAccessDenied, onFailure, ready, isProtected, headerKey = 'Authorization', buildHeader, enable = true})` — injects the token, and on 401/403 routes to one of five `AuthFailureAction`s (`refresh` / `replay` / `deny` / `expired` / `others`) with a **single shared refresh window** (concurrent requests wait for one refresh). Implement `ITokenManager` (`accessToken`, `refreshToken`, `canRefresh`, `clear()`) to back it. By default every request is protected; exclude public endpoints via `isProtected` or `extra['protected'] = false`.
+`AuthPlugin({required tokenManager, required onRefresh, required onAccessExpired, onAccessDenied, onFailure, ready, isProtected, expiresAt, refreshLeeway = Duration.zero, headerKey = 'Authorization', buildHeader, enable = true})` — injects the token, and on 401/403 routes to one of five `AuthFailureAction`s (`refresh` / `replay` / `deny` / `expired` / `others`) with a **single shared refresh window** (concurrent requests wait for one refresh). Implement `ITokenManager` (`accessToken`, `refreshToken`, `canRefresh`, `clear()`) to back it. By default every request is protected; exclude public endpoints via `isProtected` or `extra['protected'] = false`.
+
+**Proactive refresh (opt-in).** Supply `expiresAt: (token) => DateTime?` (e.g. decode a JWT `exp`) and the plugin refreshes a token that is already expired — within `refreshLeeway` — *before* sending, so the request goes out once with a fresh token instead of eating a 401 round-trip. Concurrent expiring requests collapse onto the same shared refresh window (one refresh, the rest wait, all inject the new token), so no `QueuedInterceptor`/serialization is needed. With no `expiresAt` the behaviour is purely reactive (unchanged) — the 401 path still covers server-side revocation the client can't predict. Return `null` from `expiresAt` for tokens whose expiry you can't determine.
+
+> **`expiresAt` is a plain runtime flag, not a mode switch.** `AuthPlugin` is always an ordinary (parallel) `Interceptor`; passing `expiresAt` only adds a pre-send expiry check to `onRequest`, and the single-refresh guarantee comes from the shared `_refreshing` future either way — never from serializing the interceptor.
+>
+> **When to turn it on.** This is a *targeted* optimization, not a general win — leave it off unless it pays for itself:
+> - **Enable** only when the token carries a **trustworthy** expiry (JWT `exp`, sane clocks) **and** you hit one of: bursty concurrency at the token boundary (e.g. app resume after idle fires many parallel requests), latency-sensitive first-request-after-idle (saves ~1 RTT), or infra that penalizes 401 noise (WAF/rate-limit/alerting).
+> - **Leave off** for opaque/no-`exp` tokens, low-concurrency apps, or tokens the server may revoke early — the reactive 401 path is simpler and sufficient, and it always runs anyway.
+> - **Failure mode to weigh:** if `expiresAt` says "expired" but the server would still accept it (client clock ahead, or a server grace window), you pay one wasted refresh + added latency on a request that reactive would have served directly. Keep `refreshLeeway` small.
 
 ### RetryPlugin
 

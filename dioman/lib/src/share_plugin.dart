@@ -26,7 +26,14 @@ enum SharePolicy {
 }
 
 class _Entry {
-  _Entry() : completer = Completer<Response<dynamic>>();
+  _Entry() : completer = Completer<Response<dynamic>>() {
+    // A lone leader (no followers ever attached) or an already-settled
+    // completer under end/race can complete with an error that nobody
+    // listens to — that raises an unhandled zone error. `ignore()` only
+    // marks this future as intentionally unhandled; real listeners attached
+    // elsewhere (via .then) still receive the value/error independently.
+    completer.future.ignore();
+  }
   final Completer<Response<dynamic>> completer;
   int seq = 0;       // used by [end]
   int inFlight = 0;  // used by [race]
@@ -64,7 +71,15 @@ class SharePlugin extends DioPlugin {
 
   final _active = <String, _Entry>{};
 
-  static const _kLeader = '_share_leader';
+  // Bare Dio reused for policy=retry re-issues — no interceptors, so retries
+  // never re-enter this chain. Lazily created and reused across retries (and
+  // across the retry loop's iterations) instead of a fresh `Dio()` each time,
+  // so the HttpClient / connection pool isn't reallocated per attempt. Closed
+  // in [dispose].
+  Dio? _retryDio;
+  Dio get _retry => _retryDio ??= Dio();
+
+  static const _kEntry  = '_share_entry';
   static const _kSeq    = '_share_seq';
   static const _kPolicy = '_share_policy';
 
@@ -104,23 +119,26 @@ class SharePlugin extends DioPlugin {
     String key,
     SharePolicy p,
   ) {
-    if (!_active.containsKey(key)) {
+    final existing = _active[key];
+    if (existing == null) {
       final entry = _Entry();
       _active[key] = entry;
-      options.extra[_kLeader] = true;
+      options.extra[_kEntry] = entry;
       if (p == SharePolicy.retry) {
         options.extra['_share_retries_left'] = retries;
       }
       handler.next(options);
     } else {
-      _active[key]!.completer.future.then(
+      existing.completer.future.then(
         (r) => handler.resolve(r),
         onError: (Object e) => handler.reject(e as DioException),
       );
     }
   }
 
-  // end: every caller bumps the sequence; only the last one settles
+  // end: every caller bumps the sequence. Only the highest-seq response
+  // settles the shared promise; every other caller (older or superseded)
+  // waits for that settlement instead of returning its own stale result.
   void _handleEnd(
     RequestOptions options,
     RequestInterceptorHandler handler,
@@ -130,12 +148,12 @@ class SharePlugin extends DioPlugin {
     _active[key] = entry;
     entry.seq++;
     options.extra[_kSeq] = entry.seq;
-    options.extra[_kLeader] = true;
-    handler.next(options); // everyone proceeds
-    // Settle is gated by seq match in onResponse/onError
+    options.extra[_kEntry] = entry;
+    handler.next(options); // everyone proceeds; settlement gated by seq match
   }
 
-  // race: everyone proceeds, first success wins
+  // race: everyone proceeds, first success (or last error) wins for all —
+  // including callers whose own attempt lost the race.
   void _handleRace(
     RequestOptions options,
     RequestInterceptorHandler handler,
@@ -144,8 +162,8 @@ class SharePlugin extends DioPlugin {
     final entry = _active[key] ?? _Entry();
     _active[key] = entry;
     entry.inFlight++;
-    options.extra[_kLeader] = true;
     options.extra[_kSeq] = entry.inFlight; // unique id per in-flight request
+    options.extra[_kEntry] = entry;
     handler.next(options);
   }
 
@@ -154,94 +172,120 @@ class SharePlugin extends DioPlugin {
   @override
   void onResponse(Response<dynamic> response, ResponseInterceptorHandler handler) {
     final opts = response.requestOptions;
-    final key = opts.extra[kRequestKey] as String?;
-    final isLeader = opts.extra[_kLeader] == true;
-
-    if (key == null || !isLeader) return handler.next(response);
-
-    final p = opts.extra[_kPolicy] as SharePolicy? ?? SharePolicy.start;
-    final entry = _active[key];
+    // Read the entry directly off this request rather than re-looking it up
+    // in `_active` — the shared entry may already have been removed (settled
+    // by a sibling) by the time a superseded/losing caller's response lands.
+    final entry = opts.extra[_kEntry] as _Entry?;
     if (entry == null) return handler.next(response);
+
+    final key = opts.extra[kRequestKey] as String?;
+    final p = opts.extra[_kPolicy] as SharePolicy? ?? SharePolicy.start;
 
     switch (p) {
       case SharePolicy.end:
         final mySeq = opts.extra[_kSeq] as int?;
         if (mySeq == entry.seq) {
-          // Last request: settle and clean up
-          _active.remove(key);
-          entry.completer.complete(response);
+          _settle(key, entry);
+          if (!entry.completer.isCompleted) entry.completer.complete(response);
+          return handler.next(response);
         }
-        // Older requests: response goes to caller but doesn't settle shared promise
+        // Superseded by a newer request — deliver the eventual winner's
+        // result instead of this stale one.
+        return _awaitEntry(entry, handler);
 
       case SharePolicy.race:
-        // First success settles
         if (!entry.completer.isCompleted) {
-          _active.remove(key);
+          _settle(key, entry);
           entry.completer.complete(response);
+          return handler.next(response);
         }
-        // Subsequent successes are silently discarded
+        // Another in-flight attempt already won the race.
+        return _awaitEntry(entry, handler);
 
       default: // start, retry
-        _active.remove(key);
-        entry.completer.complete(response);
+        _settle(key, entry);
+        if (!entry.completer.isCompleted) entry.completer.complete(response);
+        handler.next(response);
     }
-
-    handler.next(response);
   }
 
   @override
   void onError(DioException err, ErrorInterceptorHandler handler) async {
     final opts = err.requestOptions;
-    final key = opts.extra[kRequestKey] as String?;
-    final isLeader = opts.extra[_kLeader] == true;
-
-    if (key == null || !isLeader) return handler.next(err);
-
-    final p = opts.extra[_kPolicy] as SharePolicy? ?? SharePolicy.start;
-    final entry = _active[key];
+    final entry = opts.extra[_kEntry] as _Entry?;
     if (entry == null) return handler.next(err);
+
+    final key = opts.extra[kRequestKey] as String?;
+    final p = opts.extra[_kPolicy] as SharePolicy? ?? SharePolicy.start;
 
     switch (p) {
       case SharePolicy.retry:
-        final left = (opts.extra['_share_retries_left'] as int? ?? 0) - 1;
-        if (left >= 0) {
+        var left = opts.extra['_share_retries_left'] as int? ?? 0;
+        Response<dynamic>? success;
+        Object lastError = err;
+        while (left > 0) {
+          left--;
           opts.extra['_share_retries_left'] = left;
           if (interval > Duration.zero) await Future<void>.delayed(interval);
           try {
-            handler.resolve(await Dio().fetch<dynamic>(opts));
+            success = await _retry.fetch<dynamic>(opts);
+            break;
           } catch (e) {
-            _active.remove(key);
-            entry.completer.completeError(err);
-            handler.next(err);
+            lastError = e;
           }
-          return;
         }
-        _active.remove(key);
-        entry.completer.completeError(err);
+        _settle(key, entry);
+        if (success != null) {
+          if (!entry.completer.isCompleted) entry.completer.complete(success);
+          return handler.resolve(success);
+        }
+        final finalErr = lastError is DioException
+            ? lastError
+            : DioException(requestOptions: opts, error: lastError);
+        if (!entry.completer.isCompleted) entry.completer.completeError(finalErr);
+        return handler.next(finalErr);
 
       case SharePolicy.end:
         final mySeq = opts.extra[_kSeq] as int?;
         if (mySeq == entry.seq) {
-          _active.remove(key);
-          entry.completer.completeError(err);
+          _settle(key, entry);
+          if (!entry.completer.isCompleted) entry.completer.completeError(err);
+          return handler.next(err);
         }
+        return _awaitEntry(entry, handler);
 
       case SharePolicy.race:
         entry.inFlight--;
-        if (entry.inFlight <= 0 && !entry.completer.isCompleted) {
-          _active.remove(key);
+        if (!entry.completer.isCompleted && entry.inFlight <= 0) {
+          _settle(key, entry);
           entry.completer.completeError(err);
+          return handler.next(err);
         }
+        return _awaitEntry(entry, handler);
 
       default: // start
-        _active.remove(key);
-        entry.completer.completeError(err);
+        _settle(key, entry);
+        if (!entry.completer.isCompleted) entry.completer.completeError(err);
+        handler.next(err);
     }
-
-    handler.next(err);
   }
 
   // ── Helpers ───────────────────────────────────────────────────────────────
+
+  /// Removes [entry] from `_active[key]` — but only if it's still the entry
+  /// registered there (a new burst may already have installed a fresh one).
+  void _settle(String? key, _Entry entry) {
+    if (key != null && identical(_active[key], entry)) _active.remove(key);
+  }
+
+  /// Delivers whatever [entry]'s completer eventually settles with to this
+  /// caller, instead of this caller's own (superseded/losing) result.
+  void _awaitEntry(_Entry entry, dynamic handler) {
+    entry.completer.future.then(
+      (r) => handler.resolve(r),
+      onError: (Object e) => handler.reject(e as DioException),
+    );
+  }
 
   SharePolicy _resolvePolicy(RequestOptions opts) {
     final v = opts.extra['share'];
@@ -251,5 +295,22 @@ class SharePlugin extends DioPlugin {
   }
 
   @override
-  void dispose() => _active.clear();
+  void dispose() {
+    // Complete any waiters before dropping the entries — a bare `_active.clear()`
+    // would leave followers attached to `entry.completer.future` hanging
+    // forever, since nothing else ever settles those completers.
+    for (final entry in _active.values) {
+      if (!entry.completer.isCompleted) {
+        entry.completer.completeError(
+          DioException(
+            requestOptions: RequestOptions(path: ''),
+            message: '[share] plugin disposed before the shared request settled',
+          ),
+        );
+      }
+    }
+    _active.clear();
+    _retryDio?.close(force: true);
+    _retryDio = null;
+  }
 }
