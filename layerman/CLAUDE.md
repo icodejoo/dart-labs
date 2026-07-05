@@ -1,6 +1,6 @@
-# overlaymanager — 项目记忆
+# layerman — 项目记忆
 
-**先读 `/overlaymanager` 技能**(`.claude/skills/overlaymanager/SKILL.md`)再改代码——架构图、
+**先读 `/layerman` 技能**(`.claude/skills/layerman/SKILL.md`)再改代码——架构图、
 不变量、外部后端纪律、验收流程都在那里,此处只记背景与决策史。
 
 ## 是什么
@@ -42,7 +42,13 @@ Flutter**:真实 `OverlayEntry` 插入 `OverlayManagerScope` 自有 Overlay 层,
   `test`/`example` 里的 `package:overlaymanager/...` import、`example/pubspec.yaml` 的依赖 key 与
   `example` 自身包名(`overlaymanager_example→layerman_example`)、`main.dart` 里硬编码的 UI 文案
   (标题/toast 文本)、README 安装片段与 `storageKey` 默认值示例、SKILL.md 的发布名一并同步。**仓库文件夹
-  名与 `.claude/skills/overlaymanager/` 技能目录名保持不变**(只是本地路径,不是 pub.dev 包标识)。
+  名与 `.claude/skills/overlaymanager/` 技能目录名当时保持不变**(只是本地路径,不是 pub.dev 包标识)。
+- **仓库文件夹/技能目录也改 `layerman`**(2026-07-05):补上第二步——`overlaymanager/` 文件夹 →
+  `layerman/`、`.claude/skills/overlaymanager/` → `.claude/skills/layerman/`(含 SKILL.md `name`)、
+  `test/overlaymanager_test.dart` → `test/layerman_test.dart`、pubspec `homepage` 的 `tree/main/overlaymanager`
+  → `tree/main/layerman`、example/README 标题、本记忆头部与 `/layerman` 技能引用一并同步。**仍保留不动**:
+  公开类 `OverlayManager` 与 `lib/src/overlay_manager.dart`(是描述性 API,不是 `overlaymanager` 单词包名),
+  以及 README 里指向 TS 姊妹包的 `@codejoo/overlaymanager`(那是另一个包)。
 
 - **0.1.0 深度链接/自动路由感知**(2026-07-04,brainstorm 多轮收敛):最初提议"捕获即将跳转的 path、
   拦截/阻断导航"——经讨论排除:①Flutter 无"push 前拦截"钩子,只有事后 `NavigatorObserver`;②真拦截

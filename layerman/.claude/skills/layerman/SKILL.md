@@ -1,7 +1,7 @@
 ---
-name: overlaymanager
+name: layerman
 description: >-
-  Work on overlaymanager — the Flutter-native overlay QUEUE manager (serial one-at-a-time
+  Work on layerman — the Flutter-native overlay QUEUE manager (serial one-at-a-time
   slots, priority/replace/affix/overlap, conditions + cooldown, resolve, beforeClose,
   pause, Future<T?> results, two-phase close) that renders real OverlayEntrys AND can
   orchestrate external overlay systems (showDialog / GetX / bot_toast) through the
@@ -15,9 +15,9 @@ description: >-
   OverlayNavigatorObserver, currentRoute, deep link, route guard.
 ---
 
-# overlaymanager (dart-labs)
+# layerman (dart-labs)
 
-`D:/workspaces/dart-labs/overlaymanager` — a **Flutter-native overlay queue manager**,
+`D:/workspaces/dart-labs/layerman` — a **Flutter-native overlay queue manager**,
 the Flutter sibling of the headless TS package `@codejoo/overlaymanager`
 (`D:/workspaces/codejoo/apps/overlay-manager`). Same orchestration semantics; different
 philosophy: **it embraces Flutter** — inserts real `OverlayEntry`s into an attached
@@ -26,14 +26,14 @@ Navigator), and `open<T>()` returns `Future<T?>` like `showDialog`.
 
 Engine is one file: `lib/src/overlay_manager.dart` (~1150 lines). `lib/src/overlay_manager_scope.dart`
 is the host widget (`of`/`maybeOf`, post-frame `attach`). `lib/src/overlay_navigator_observer.dart`
-is the auto route-awareness `NavigatorObserver`. Tests: `test/overlaymanager_test.dart`
+is the auto route-awareness `NavigatorObserver`. Tests: `test/layerman_test.dart`
 (80 widget tests). Example app + real-device integration: `example/` (17 tests on Windows).
 
 > **The public show method is `open<T>()`** (renamed from `show` at 0.0.1 — `show` no longer
 > exists). Published to pub.dev as **`layerman`** (pub.dev rejected `overlaymanager` as too
 > similar to the existing `overlay_manager`), versioned from **0.1.0** (MIT). The barrel file
-> is `lib/layerman.dart` (renamed to match); the repo folder/skill name stay `overlaymanager` —
-> only the pub.dev package identity changed.
+> is `lib/layerman.dart`. The repo folder and skill are now `layerman` too (renamed
+> 2026-07-05 to match the pub.dev identity).
 
 ## Architecture map (lib/src/overlay_manager.dart)
 
@@ -229,7 +229,7 @@ independently via this reasoning and via the `OverlayNavigatorObserver` design w
 ## Verify workflow
 
 ```bash
-cd D:/workspaces/dart-labs/overlaymanager
+cd D:/workspaces/dart-labs/layerman
 flutter analyze                                   # must be clean
 flutter test                                      # 80 widget tests — the unit gate
 
