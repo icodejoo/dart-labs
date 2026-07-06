@@ -1,9 +1,38 @@
+## 0.3.0
+
+- Feature: `DiomanHandle.remove<T>()` ejects a single installed plugin from `dio.interceptors`
+  and calls its own `dispose()`, leaving the rest of the chain untouched — the single-plugin
+  counterpart to `dispose()`'s teardown-everything. Returns the removed plugin, or `null` (a
+  no-op) if that type was never installed.
+
+Breaking changes to every plugin's `extra` key:
+
+- Every plugin with a per-request `extra` option now exposes it as a mutable
+  `static String configProperty` (e.g. `LoadingPlugin.configProperty`) instead of a hardcoded
+  string literal — read/write `options.extra[XxxPlugin.configProperty]`, and reassign the static
+  field to remap the key if it collides with another package's `extra` usage. Defaults:
+  `AuthPlugin` → `dioman:auth`, `KeyPlugin` → `dioman:qid`, `CachePlugin` → `dioman:cache`,
+  `SharePlugin` → `dioman:share`, `MockPlugin` → `dioman:mock`, `LoadingPlugin` → `dioman:loading`,
+  `LogPlugin` → `dioman:log`, `RetryPlugin` → `dioman:retry`, `FilterPlugin` → `dioman:filter`,
+  `RepathPlugin` → `dioman:repath`, `NormalizePlugin` → `dioman:normalize`.
+- All internal (plugin-private / cross-plugin coordination) `extra` keys dropped their
+  underscore-prefixed form (`_key`, `_cache_ttl`, `__auth_decision`, ...) in favor of a namespaced
+  `dioman:<plugin>:<detail>` form (`dioman:cache:ttl`, `dioman:auth:decision`, ...); the cross-plugin
+  request key (`kRequestKey`) is now `'dioman:key'`.
+- `ReqkeyPlugin` renamed to `KeyPlugin` (`reqkey_plugin.dart` → `key_plugin.dart`, `name: 'reqkey'`
+  → `'key'`, `Dioman.install(reqkey: ...)` → `Dioman.install(key: ...)`).
+- `ReqcleanPlugin` renamed to `FilterPlugin` (`reqclean_plugin.dart` → `filter_plugin.dart`,
+  `name: 'reqclean'` → `'filter'`, `Dioman.install(reqclean: ...)` → `Dioman.install(filter: ...)`).
+
+See the [Quick start](./README.md#every-plugins-extra-option-in-one-place) for full per-plugin
+usage.
+
 ## 0.2.0
 
 First release of `dioman` — a set of composable, self-contained [Dio] interceptor plugins, all
 extending a common `DioPlugin` base (a named `Interceptor` with `dispose`), plus the documented
 correct install order (Dio runs `onRequest`/`onResponse`/`onError` in forward add-order for all
-phases). Plugins: `EnvsPlugin`, `RepathPlugin`, `ReqcleanPlugin`, `ReqkeyPlugin`,
+phases). Plugins: `EnvsPlugin`, `RepathPlugin`, `FilterPlugin`, `KeyPlugin`,
 `NormalizePlugin`, `CachePlugin`, `SharePlugin`, `MockPlugin`, `CancelPlugin`, `LoadingPlugin`,
 `AuthPlugin`, `RetryPlugin`, `LogPlugin`. Wire them with `Dioman.install` or by hand.
 
@@ -22,7 +51,7 @@ Notable capabilities and behaviors:
   `now` clock for deterministic TTL tests.
 - `NormalizePlugin`: default envelope detection now requires `codeKey` **and** (`dataKey` or
   `messageKey`), so a plain payload that merely carries a `code` field isn't mistaken for an envelope.
-- `ReqkeyPlugin`: a non-serialisable body (FormData/bytes/stream) now folds in object identity, so
+- `KeyPlugin`: a non-serialisable body (FormData/bytes/stream) now folds in object identity, so
   two distinct bodies never key identically (no false dedup/cache).
 - `AuthPlugin`/`SharePlugin`/`MockPlugin` now reuse a single bare `Dio` for replays/retries/redirects
   (instead of allocating one per call) and close it on `dispose`.
@@ -46,7 +75,7 @@ Notable capabilities and behaviors:
   `.data` held the raw undecoded stream wrapper); mock hits now propagate through
   normalize/cache/share (`callFollowingResponseInterceptor: true`) so envelopes are unwrapped and
   shared-request followers don't hang; the mock-server redirect no longer duplicates query
-  parameters; the route key now matches `ReqkeyPlugin`'s resolved-path scheme.
+  parameters; the route key now matches `KeyPlugin`'s resolved-path scheme.
 - Fix: `RetryPlugin` now honors `extra['retry'] == false` on the business-retry (`onResponse`) path
   too, and gives up immediately after the back-off delay if the request was cancelled.
 - Fix: `CancelPlugin` re-registers a token it previously injected when `RetryPlugin` re-dispatches
@@ -55,5 +84,5 @@ Notable capabilities and behaviors:
 - Fix: `EnvsPlugin` no longer resets a user-configured `responseType` back to the `json` default
   when an applied rule didn't explicitly set one.
 - `CachePlugin` gained `maxEntries` (default 500) to LRU-bound the store, which previously grew
-  without limit under deep `ReqkeyPlugin` keys.
+  without limit under deep `KeyPlugin` keys.
 - Added `test/dioman_test.dart`, a fake-adapter regression suite covering all of the above.

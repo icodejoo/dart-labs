@@ -71,16 +71,16 @@ AuthFailureAction defaultAuthFailure(
 // ── Plugin ────────────────────────────────────────────────────────────────────
 
 // extra keys — plain strings so they survive Dio's mergeConfig on replay
-const _kDecision  = '__auth_decision';
-const _kProtected = '__auth_protected';
-const _kRefreshed = '__auth_refreshed';
-const _kDenied    = '__auth_denied';
-const _kTokenUsed = '__auth_token_used';
+const _kDecision  = 'dioman:auth:decision';
+const _kProtected = 'dioman:auth:protected';
+const _kRefreshed = 'dioman:auth:refreshed';
+const _kDenied    = 'dioman:auth:denied';
+const _kTokenUsed = 'dioman:auth:tokenUsed';
 
 /// Full-featured auth plugin — token injection, single-window refresh, and
 /// five-action failure routing (Refresh / Replay / Deny / Expired / Others).
 ///
-/// Pairs with [ReqkeyPlugin] / other plugins independently.
+/// Pairs with [KeyPlugin] / other plugins independently.
 ///
 /// ## Ordering
 ///
@@ -96,9 +96,13 @@ const _kTokenUsed = '__auth_token_used';
 /// ## Per-request opt-out
 ///
 /// ```dart
-/// dio.get('/public', options: Options(extra: {'protected': false}));
+/// dio.get('/public', options: Options(extra: {AuthPlugin.configProperty: false}));
 /// ```
 class AuthPlugin extends DioPlugin {
+  /// The `extra` key callers use to mark a single request as
+  /// protected/unprotected. Change this to remap it.
+  static String configProperty = 'dioman:auth';
+
   AuthPlugin({
     required ITokenManager tokenManager,
     required Future<void> Function(ITokenManager tm, Response<dynamic> resp) onRefresh,
@@ -367,7 +371,7 @@ class AuthPlugin extends DioPlugin {
     final cached = opts.extra[_kDecision];
     if (cached is bool) return cached; // replay: reuse first decision
 
-    final perRequest = opts.extra['protected'];
+    final perRequest = opts.extra[AuthPlugin.configProperty];
     if (perRequest is bool) return perRequest;
     if (perRequest is Function) {
       final r = perRequest(opts);

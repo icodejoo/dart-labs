@@ -8,17 +8,21 @@ import 'dio_plugin.dart';
 /// **Default predicate**: drops `null`, empty string `''` (after trim).
 /// Provide a custom [predicate] to change what "empty" means.
 ///
-/// Per-request opt-out: `options.extra['filter'] = false`.
-/// Per-request options: `options.extra['filter'] = {'ignoreKeys': ['page']}`.
+/// Per-request opt-out: `options.extra[FilterPlugin.configProperty] = false`.
+/// Per-request options: `options.extra[FilterPlugin.configProperty] = {'ignoreKeys': ['page']}`.
 ///
 /// ```dart
-/// dio.interceptors.add(ReqcleanPlugin(
+/// dio.interceptors.add(FilterPlugin(
 ///   ignoreKeys: ['timestamp'],   // keep even if null/empty
 ///   ignoreValues: [0, false],    // keep these specific values
 /// ));
 /// ```
-class ReqcleanPlugin extends DioPlugin {
-  const ReqcleanPlugin({
+class FilterPlugin extends DioPlugin {
+  /// The `extra` key callers use to opt out of / reconfigure filtering for
+  /// a single request. Change this to remap it.
+  static String configProperty = 'dioman:filter';
+
+  const FilterPlugin({
     bool Function(String key, dynamic value)? predicate,
     this.ignoreKeys = const [],
     this.ignoreValues = const [],
@@ -34,7 +38,7 @@ class ReqcleanPlugin extends DioPlugin {
   final List<dynamic> ignoreValues;
 
   @override
-  String get name => 'reqclean';
+  String get name => 'filter';
 
   static bool _defaultPredicate(String key, dynamic value) {
     if (value == null) return true;
@@ -44,7 +48,7 @@ class ReqcleanPlugin extends DioPlugin {
 
   @override
   void onRequest(RequestOptions options, RequestInterceptorHandler handler) {
-    final filter = options.extra['filter'];
+    final filter = options.extra[FilterPlugin.configProperty];
     if (filter == false) return handler.next(options);
 
     // Resolve per-request overrides.

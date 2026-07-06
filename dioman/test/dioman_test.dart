@@ -368,7 +368,7 @@ void main() {
       final adapter = FakeAdapter((_) => jsonBody({'fail': true}, 500));
       dio.httpClientAdapter = adapter;
       dio.interceptors.addAll([
-        const ReqkeyPlugin(),
+        const KeyPlugin(),
         SharePlugin(policy: SharePolicy.retry, retries: 0),
       ]);
 
@@ -394,7 +394,7 @@ void main() {
         return jsonBody({'seq': n}, 200);
       });
       dio.interceptors.addAll([
-        const ReqkeyPlugin(),
+        const KeyPlugin(),
         SharePlugin(policy: SharePolicy.end),
       ]);
 
@@ -431,7 +431,7 @@ void main() {
         return jsonBody({'winner': true}, 200);
       });
       dio.interceptors.addAll([
-        const ReqkeyPlugin(),
+        const KeyPlugin(),
         SharePlugin(policy: SharePolicy.race),
       ]);
 
@@ -470,7 +470,7 @@ void main() {
               },
             ));
       dio.interceptors.addAll([
-        const ReqkeyPlugin(),
+        const KeyPlugin(),
         const NormalizePlugin(),
         SharePlugin(),
         mock,
@@ -524,7 +524,7 @@ void main() {
 
       final res = await dio.get<Map<String, dynamic>>(
         '/data',
-        options: Options(extra: {'retry': false}),
+        options: Options(extra: {RetryPlugin.configProperty: false}),
       );
 
       expect(res.data!['code'], 1);
@@ -540,7 +540,7 @@ void main() {
       final adapter = FakeAdapter((o) => jsonBody({'path': o.path}, 200));
       dio.httpClientAdapter = adapter;
       final cache = CachePlugin(maxEntries: 2);
-      dio.interceptors.addAll([const ReqkeyPlugin(), cache]);
+      dio.interceptors.addAll([const KeyPlugin(), cache]);
 
       await dio.get<void>('/a');
       await dio.get<void>('/b');
@@ -640,7 +640,7 @@ void main() {
       final dio = Dio(BaseOptions(baseUrl: 'http://test'));
       final adapter = FakeAdapter((o) => jsonBody({'p': o.path}, 200));
       dio.httpClientAdapter = adapter;
-      dio.interceptors.addAll([const ReqkeyPlugin(), CachePlugin(maxEntries: 2)]);
+      dio.interceptors.addAll([const KeyPlugin(), CachePlugin(maxEntries: 2)]);
 
       await dio.get<void>('/a'); // store: [a]
       await dio.get<void>('/b'); // store: [a, b]
@@ -661,7 +661,7 @@ void main() {
         'the stored entry by reassigning top-level fields', () async {
       final dio = Dio(BaseOptions(baseUrl: 'http://test'));
       dio.httpClientAdapter = FakeAdapter((_) => jsonBody({'v': 1}, 200));
-      dio.interceptors.addAll([const ReqkeyPlugin(), CachePlugin()]);
+      dio.interceptors.addAll([const KeyPlugin(), CachePlugin()]);
 
       await dio.get<Map<String, dynamic>>('/x'); // network → store
       final hit1 = await dio.get<Map<String, dynamic>>('/x'); // cache hit
@@ -675,16 +675,16 @@ void main() {
     });
   });
 
-  group('ReqkeyPlugin non-serialisable body', () {
+  group('KeyPlugin non-serialisable body', () {
     test('two requests with distinct non-map bodies get distinct keys '
         '(never falsely deduped/cached as one)', () async {
       final dio = Dio(BaseOptions(baseUrl: 'http://test'));
       final keys = <String>[];
       dio.httpClientAdapter = FakeAdapter((o) {
-        keys.add(o.extra['_key'] as String);
+        keys.add(o.extra[kRequestKey] as String);
         return jsonBody({}, 200);
       });
-      dio.interceptors.add(const ReqkeyPlugin()); // deep mode
+      dio.interceptors.add(const KeyPlugin()); // deep mode
 
       await dio.post<void>('/upload', data: <int>[1, 2, 3]);
       await dio.post<void>('/upload', data: <int>[4, 5, 6]);
@@ -705,18 +705,18 @@ void main() {
       final loadingStates = <bool>[];
       final handle = Dioman.install(
         dio,
-        reqkey: const ReqkeyPlugin(),
+        key: const KeyPlugin(),
         share: SharePlugin(), // exercises SharePlugin.dispose() teardown too
         cancel: CancelPlugin(),
         loading: LoadingPlugin(onChanged: loadingStates.add),
         log: const LogPlugin(logRequest: false, logResponse: false, logError: false),
       );
 
-      // Canonical order: reqkey → share → cancel → loading → log
+      // Canonical order: key → share → cancel → loading → log
       // (envs..auth/retry omitted).
       final names =
           dio.interceptors.whereType<DioPlugin>().map((p) => p.name).toList();
-      expect(names, ['reqkey', 'share', 'cancel', 'loading', 'log']);
+      expect(names, ['key', 'share', 'cancel', 'loading', 'log']);
       expect(handle.plugin<CancelPlugin>(), isNotNull);
       expect(handle.plugin<AuthPlugin>(), isNull);
 
@@ -731,6 +731,40 @@ void main() {
           reason: 'dispose must eject every installed plugin');
       expect(loadingStates, [true, false, false],
           reason: 'LoadingPlugin.dispose fires onChanged(false)');
+    });
+
+    test('remove<T>() ejects only the targeted plugin, runs its dispose, '
+        'and is a no-op for a type that was never installed', () async {
+      final dio = Dio(BaseOptions(baseUrl: 'http://test'));
+      dio.httpClientAdapter = FakeAdapter((_) => jsonBody({}, 200));
+
+      final loadingStates = <bool>[];
+      final handle = Dioman.install(
+        dio,
+        key: const KeyPlugin(),
+        cancel: CancelPlugin(),
+        loading: LoadingPlugin(onChanged: loadingStates.add),
+        log: const LogPlugin(logRequest: false, logResponse: false, logError: false),
+      );
+
+      expect(handle.remove<AuthPlugin>(), isNull,
+          reason: 'AuthPlugin was never installed — nothing to remove');
+
+      final removed = handle.remove<LoadingPlugin>();
+      expect(removed, isNotNull);
+      expect(loadingStates, [false],
+          reason: 'remove() must call the plugin\'s own dispose()');
+      expect(handle.plugin<LoadingPlugin>(), isNull);
+      expect(dio.interceptors.contains(removed), isFalse,
+          reason: 'remove() must eject the plugin from dio.interceptors');
+
+      // The rest of the chain is untouched.
+      final names =
+          dio.interceptors.whereType<DioPlugin>().map((p) => p.name).toList();
+      expect(names, ['key', 'cancel', 'log']);
+      expect(handle.plugins.map((p) => p.name), ['key', 'cancel', 'log']);
+
+      await dio.get<void>('/x'); // still works without the removed plugin
     });
   });
 }

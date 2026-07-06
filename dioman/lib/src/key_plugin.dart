@@ -3,11 +3,13 @@ import 'package:dio/dio.dart';
 import 'dio_plugin.dart';
 
 /// The key in [RequestOptions.extra] where the computed key is stored.
-/// Other plugins (cache, share) read from this slot.
-const kRequestKey = '_key';
+/// Other plugins (cache, share) read from this slot. Fixed — not meant to be
+/// reconfigured (it's the cross-plugin wire protocol between key, cache
+/// and share, not a caller-facing option).
+const kRequestKey = 'dioman:key';
 
 /// Generates a unique key for each request and stores it in
-/// `options.extra['_key']`. Cache and share plugins depend on this key.
+/// `options.extra[kRequestKey]`. Cache and share plugins depend on this key.
 ///
 /// Two modes:
 /// - **fast** (`fastMode: true`): `METHOD:url` — cheapest, good for most cases.
@@ -15,22 +17,27 @@ const kRequestKey = '_key';
 ///   request body into the key. Use when the same URL is called with different
 ///   payloads and you want them cached/deduped independently.
 ///
-/// Per-request key override: `options.extra['key'] = 'my-key'`. Set to `false`
-/// to skip key generation for that request.
+/// Per-request key override: `options.extra[KeyPlugin.configProperty] =
+/// 'my-key'`. Set to `false` to skip key generation for that request.
 ///
 /// ```dart
 /// // Install before cache and share:
 /// dio.interceptors
-///   ..add(ReqkeyPlugin())
+///   ..add(KeyPlugin())
 ///   ..add(CachePlugin())
 ///   ..add(SharePlugin());
 ///
 /// // Override per request:
-/// dio.get('/list', options: Options(extra: {'key': 'product-list'}));
-/// dio.get('/list', options: Options(extra: {'key': false})); // skip
+/// dio.get('/list', options: Options(extra: {KeyPlugin.configProperty: 'product-list'}));
+/// dio.get('/list', options: Options(extra: {KeyPlugin.configProperty: false})); // skip
 /// ```
-class ReqkeyPlugin extends DioPlugin {
-  const ReqkeyPlugin({
+class KeyPlugin extends DioPlugin {
+  /// The `extra` key callers use to override/skip key generation for a
+  /// single request. Change this to remap it, e.g. if it collides with
+  /// another package's `extra` usage.
+  static String configProperty = 'dioman:qid';
+
+  const KeyPlugin({
     this.fastMode = false,
     this.ignoreParams = const [],
     this.ignoreDataKeys = const [],
@@ -49,12 +56,12 @@ class ReqkeyPlugin extends DioPlugin {
   final String Function(RequestOptions)? _builder;
 
   @override
-  String get name => 'reqkey';
+  String get name => 'key';
 
   @override
   void onRequest(RequestOptions options, RequestInterceptorHandler handler) {
     // Honour per-request override.
-    final raw = options.extra['key'];
+    final raw = options.extra[KeyPlugin.configProperty];
     if (raw == false) return handler.next(options); // explicit skip
     if (raw is String && raw.isNotEmpty) {
       options.extra[kRequestKey] = raw;

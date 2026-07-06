@@ -8,7 +8,7 @@ import 'dio_plugin.dart';
 /// [onChanged](false) when the last one completes. This makes it trivial
 /// to drive a global loading indicator without any Rx dependency.
 ///
-/// Per-request opt-out: `options.extra['loading'] = false`.
+/// Per-request opt-out: `options.extra[LoadingPlugin.configProperty] = false`.
 ///
 /// ```dart
 /// final loading = LoadingPlugin(
@@ -20,7 +20,11 @@ class LoadingPlugin extends DioPlugin {
   LoadingPlugin({required void Function(bool loading) onChanged})
       : _onChanged = onChanged;
 
-  static const _kBracketed = '_loading_bracketed';
+  /// The `extra` key callers use to opt this request out of the loading
+  /// counter. Change this to remap it.
+  static String configProperty = 'dioman:loading';
+
+  static const _kBracketed = 'dioman:loading:bracketed';
 
   final void Function(bool loading) _onChanged;
   int _count = 0;
@@ -33,7 +37,7 @@ class LoadingPlugin extends DioPlugin {
 
   @override
   void onRequest(RequestOptions options, RequestInterceptorHandler handler) {
-    if (options.extra['loading'] != false) {
+    if (options.extra[LoadingPlugin.configProperty] != false) {
       options.extra[_kBracketed] = true;
       if (_count++ == 0) _onChanged(true);
     }

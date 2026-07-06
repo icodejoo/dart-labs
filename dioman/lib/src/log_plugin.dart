@@ -9,13 +9,17 @@ typedef LogWriter = void Function(String message, {Object? error});
 /// Zero dependencies — uses plain [print] by default; inject [writer] to
 /// route output to any logging framework.
 ///
-/// Per-request opt-out: `options.extra['log'] = false`.
+/// Per-request opt-out: `options.extra[LogPlugin.configProperty] = false`.
 ///
 /// ```dart
 /// final log = LogPlugin(logHeaders: true, maxBodyLength: 500);
 /// dio.interceptors.add(log);
 /// ```
 class LogPlugin extends DioPlugin {
+  /// The `extra` key callers use to opt a single request out of logging.
+  /// Change this to remap it.
+  static String configProperty = 'dioman:log';
+
   const LogPlugin({
     this.logRequest = true,
     this.logResponse = true,
@@ -60,7 +64,7 @@ class LogPlugin extends DioPlugin {
 
   @override
   void onRequest(RequestOptions options, RequestInterceptorHandler handler) {
-    if (logRequest && options.extra['log'] != false) {
+    if (logRequest && options.extra[LogPlugin.configProperty] != false) {
       final buf = StringBuffer()
         ..writeln(_tag('→ ${options.method.toUpperCase()} ${options.uri}'));
       if (logHeaders && options.headers.isNotEmpty) {
@@ -76,7 +80,7 @@ class LogPlugin extends DioPlugin {
 
   @override
   void onResponse(Response<dynamic> response, ResponseInterceptorHandler handler) {
-    if (logResponse && response.requestOptions.extra['log'] != false) {
+    if (logResponse && response.requestOptions.extra[LogPlugin.configProperty] != false) {
       final buf = StringBuffer()
         ..writeln(_tag(
             '← ${response.statusCode} ${response.requestOptions.method.toUpperCase()} ${response.requestOptions.uri}'));
@@ -93,7 +97,7 @@ class LogPlugin extends DioPlugin {
 
   @override
   void onError(DioException err, ErrorInterceptorHandler handler) {
-    if (logError && err.requestOptions.extra['log'] != false) {
+    if (logError && err.requestOptions.extra[LogPlugin.configProperty] != false) {
       final status = err.response?.statusCode;
       final label = status != null
           ? '✗ $status ${err.requestOptions.method.toUpperCase()} ${err.requestOptions.uri}'

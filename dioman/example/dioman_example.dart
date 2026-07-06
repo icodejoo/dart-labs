@@ -47,7 +47,7 @@ class InMemoryTokenManager implements ITokenManager {
 //      first one to `resolve()` (auth-401-replay, retry) stops the rest.
 //
 // Resulting hard constraints:
-//   • reqkey ─ before cache & share               (they read `extra['_key']`)
+//   • key ─ before cache & share               (they read `extra[kRequestKey]`)
 //   • normalize ─ before cache                     (cache must store, and a hit
 //                                                    must return, the UNWRAPPED
 //                                                    payload — else cached vs
@@ -66,8 +66,8 @@ class InMemoryTokenManager implements ITokenManager {
 //  ── ──────────────────  ─────────────────────   ────────────────────────────
 //  1  envs                (install-time apply)     —
 //  2  repath              rewrite {id}/:id path    —
-//  3  reqclean            strip empty params/data  —
-//  4  reqkey              compute request key      —
+//  3  filter              strip empty params/data  —
+//  4  key                 compute request key      —
 //  5  normalize           —                        unwrap envelope / reject biz-err
 //  6  cache               serve from cache         store unwrapped payload
 //  7  share               dedup concurrent         settle waiters
@@ -83,7 +83,8 @@ class InMemoryTokenManager implements ITokenManager {
 // already unwrapped the body before retry (#12) sees it. Network-level retry is
 // unaffected. If you need envelope-based retry, move RetryPlugin ahead of
 // NormalizePlugin — but be aware that reintroduces the loading/cancel leak on a
-// retried request, so pair it with `extra['loading'] = false` on those calls.
+// retried request, so pair it with `extra[LoadingPlugin.configProperty] = false`
+// on those calls.
 // ═════════════════════════════════════════════════════════════════════════════
 
 /// Builds a fully-wired [Dio] instance with every plugin installed in order.
@@ -124,8 +125,8 @@ Dio createHttp({
     // ── request pre-processing ────────────────────────────────────────────
     envs, //                                                              (1)
     RepathPlugin(), //                                                    (2)
-    const ReqcleanPlugin(), //                                            (3)
-    const ReqkeyPlugin(), //                                              (4)
+    const FilterPlugin(), //                                              (3)
+    const KeyPlugin(), //                                                 (4)
     // ── response shaping / caching / dedup ────────────────────────────────
     const NormalizePlugin(), //                                           (5)
     CachePlugin(), //                                                     (6)
@@ -170,7 +171,7 @@ Future<void> main() async {
     onSessionExpired: () async => print('session expired → go to login'),
   );
 
-  // Path variables via RepathPlugin; empty params stripped by ReqcleanPlugin;
+  // Path variables via RepathPlugin; empty params stripped by FilterPlugin;
   // GET is cached (CachePlugin) and deduped (SharePlugin); token injected (AuthPlugin).
   try {
     final res = await http.get(
@@ -186,9 +187,9 @@ Future<void> main() async {
   await http.get(
     '/public/config',
     options: Options(extra: {
-      'protected': false, // AuthPlugin: no token required
-      'cache': false, //    CachePlugin: skip cache
-      'loading': false, //  LoadingPlugin: don't count toward the indicator
+      AuthPlugin.configProperty: false, // no token required
+      CachePlugin.configProperty: false, // skip cache
+      LoadingPlugin.configProperty: false, // don't count toward the indicator
     }),
   );
 
