@@ -47,7 +47,7 @@ class InMemoryTokenManager implements ITokenManager {
 //      first one to `resolve()` (auth-401-replay, retry) stops the rest.
 //
 // Resulting hard constraints:
-//   • build-key ─ before cache & share            (they read `extra['_key']`)
+//   • reqkey ─ before cache & share               (they read `extra['_key']`)
 //   • normalize ─ before cache                     (cache must store, and a hit
 //                                                    must return, the UNWRAPPED
 //                                                    payload — else cached vs
@@ -66,8 +66,8 @@ class InMemoryTokenManager implements ITokenManager {
 //  ── ──────────────────  ─────────────────────   ────────────────────────────
 //  1  envs                (install-time apply)     —
 //  2  repath              rewrite {id}/:id path    —
-//  3  normalize-request   strip empty params/data  —
-//  4  build-key           compute request key      —
+//  3  reqclean            strip empty params/data  —
+//  4  reqkey              compute request key      —
 //  5  normalize           —                        unwrap envelope / reject biz-err
 //  6  cache               serve from cache         store unwrapped payload
 //  7  share               dedup concurrent         settle waiters
@@ -124,8 +124,8 @@ Dio createHttp({
     // ── request pre-processing ────────────────────────────────────────────
     envs, //                                                              (1)
     RepathPlugin(), //                                                    (2)
-    const NormalizeRequestPlugin(), //                                    (3)
-    const BuildKeyPlugin(), //                                            (4)
+    const ReqcleanPlugin(), //                                            (3)
+    const ReqkeyPlugin(), //                                              (4)
     // ── response shaping / caching / dedup ────────────────────────────────
     const NormalizePlugin(), //                                           (5)
     CachePlugin(), //                                                     (6)
@@ -170,7 +170,7 @@ Future<void> main() async {
     onSessionExpired: () async => print('session expired → go to login'),
   );
 
-  // Path variables via RepathPlugin; empty params stripped by NormalizeRequestPlugin;
+  // Path variables via RepathPlugin; empty params stripped by ReqcleanPlugin;
   // GET is cached (CachePlugin) and deduped (SharePlugin); token injected (AuthPlugin).
   try {
     final res = await http.get(

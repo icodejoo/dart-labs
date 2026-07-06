@@ -1,9 +1,9 @@
-## 0.1.0
+## 0.2.0
 
 First release of `dioman` — a set of composable, self-contained [Dio] interceptor plugins, all
 extending a common `DioPlugin` base (a named `Interceptor` with `dispose`), plus the documented
 correct install order (Dio runs `onRequest`/`onResponse`/`onError` in forward add-order for all
-phases). Plugins: `EnvsPlugin`, `RepathPlugin`, `NormalizeRequestPlugin`, `BuildKeyPlugin`,
+phases). Plugins: `EnvsPlugin`, `RepathPlugin`, `ReqcleanPlugin`, `ReqkeyPlugin`,
 `NormalizePlugin`, `CachePlugin`, `SharePlugin`, `MockPlugin`, `CancelPlugin`, `LoadingPlugin`,
 `AuthPlugin`, `RetryPlugin`, `LogPlugin`. Wire them with `Dioman.install` or by hand.
 
@@ -22,7 +22,7 @@ Notable capabilities and behaviors:
   `now` clock for deterministic TTL tests.
 - `NormalizePlugin`: default envelope detection now requires `codeKey` **and** (`dataKey` or
   `messageKey`), so a plain payload that merely carries a `code` field isn't mistaken for an envelope.
-- `BuildKeyPlugin`: a non-serialisable body (FormData/bytes/stream) now folds in object identity, so
+- `ReqkeyPlugin`: a non-serialisable body (FormData/bytes/stream) now folds in object identity, so
   two distinct bodies never key identically (no false dedup/cache).
 - `AuthPlugin`/`SharePlugin`/`MockPlugin` now reuse a single bare `Dio` for replays/retries/redirects
   (instead of allocating one per call) and close it on `dispose`.
@@ -46,7 +46,7 @@ Notable capabilities and behaviors:
   `.data` held the raw undecoded stream wrapper); mock hits now propagate through
   normalize/cache/share (`callFollowingResponseInterceptor: true`) so envelopes are unwrapped and
   shared-request followers don't hang; the mock-server redirect no longer duplicates query
-  parameters; the route key now matches `BuildKeyPlugin`'s resolved-path scheme.
+  parameters; the route key now matches `ReqkeyPlugin`'s resolved-path scheme.
 - Fix: `RetryPlugin` now honors `extra['retry'] == false` on the business-retry (`onResponse`) path
   too, and gives up immediately after the back-off delay if the request was cancelled.
 - Fix: `CancelPlugin` re-registers a token it previously injected when `RetryPlugin` re-dispatches
@@ -55,5 +55,5 @@ Notable capabilities and behaviors:
 - Fix: `EnvsPlugin` no longer resets a user-configured `responseType` back to the `json` default
   when an applied rule didn't explicitly set one.
 - `CachePlugin` gained `maxEntries` (default 500) to LRU-bound the store, which previously grew
-  without limit under deep `BuildKeyPlugin` keys.
+  without limit under deep `ReqkeyPlugin` keys.
 - Added `test/dioman_test.dart`, a fake-adapter regression suite covering all of the above.

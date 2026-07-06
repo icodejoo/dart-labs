@@ -368,7 +368,7 @@ void main() {
       final adapter = FakeAdapter((_) => jsonBody({'fail': true}, 500));
       dio.httpClientAdapter = adapter;
       dio.interceptors.addAll([
-        const BuildKeyPlugin(),
+        const ReqkeyPlugin(),
         SharePlugin(policy: SharePolicy.retry, retries: 0),
       ]);
 
@@ -394,7 +394,7 @@ void main() {
         return jsonBody({'seq': n}, 200);
       });
       dio.interceptors.addAll([
-        const BuildKeyPlugin(),
+        const ReqkeyPlugin(),
         SharePlugin(policy: SharePolicy.end),
       ]);
 
@@ -431,7 +431,7 @@ void main() {
         return jsonBody({'winner': true}, 200);
       });
       dio.interceptors.addAll([
-        const BuildKeyPlugin(),
+        const ReqkeyPlugin(),
         SharePlugin(policy: SharePolicy.race),
       ]);
 
@@ -470,7 +470,7 @@ void main() {
               },
             ));
       dio.interceptors.addAll([
-        const BuildKeyPlugin(),
+        const ReqkeyPlugin(),
         const NormalizePlugin(),
         SharePlugin(),
         mock,
@@ -540,7 +540,7 @@ void main() {
       final adapter = FakeAdapter((o) => jsonBody({'path': o.path}, 200));
       dio.httpClientAdapter = adapter;
       final cache = CachePlugin(maxEntries: 2);
-      dio.interceptors.addAll([const BuildKeyPlugin(), cache]);
+      dio.interceptors.addAll([const ReqkeyPlugin(), cache]);
 
       await dio.get<void>('/a');
       await dio.get<void>('/b');
@@ -640,7 +640,7 @@ void main() {
       final dio = Dio(BaseOptions(baseUrl: 'http://test'));
       final adapter = FakeAdapter((o) => jsonBody({'p': o.path}, 200));
       dio.httpClientAdapter = adapter;
-      dio.interceptors.addAll([const BuildKeyPlugin(), CachePlugin(maxEntries: 2)]);
+      dio.interceptors.addAll([const ReqkeyPlugin(), CachePlugin(maxEntries: 2)]);
 
       await dio.get<void>('/a'); // store: [a]
       await dio.get<void>('/b'); // store: [a, b]
@@ -661,7 +661,7 @@ void main() {
         'the stored entry by reassigning top-level fields', () async {
       final dio = Dio(BaseOptions(baseUrl: 'http://test'));
       dio.httpClientAdapter = FakeAdapter((_) => jsonBody({'v': 1}, 200));
-      dio.interceptors.addAll([const BuildKeyPlugin(), CachePlugin()]);
+      dio.interceptors.addAll([const ReqkeyPlugin(), CachePlugin()]);
 
       await dio.get<Map<String, dynamic>>('/x'); // network → store
       final hit1 = await dio.get<Map<String, dynamic>>('/x'); // cache hit
@@ -675,7 +675,7 @@ void main() {
     });
   });
 
-  group('BuildKeyPlugin non-serialisable body', () {
+  group('ReqkeyPlugin non-serialisable body', () {
     test('two requests with distinct non-map bodies get distinct keys '
         '(never falsely deduped/cached as one)', () async {
       final dio = Dio(BaseOptions(baseUrl: 'http://test'));
@@ -684,7 +684,7 @@ void main() {
         keys.add(o.extra['_key'] as String);
         return jsonBody({}, 200);
       });
-      dio.interceptors.add(const BuildKeyPlugin()); // deep mode
+      dio.interceptors.add(const ReqkeyPlugin()); // deep mode
 
       await dio.post<void>('/upload', data: <int>[1, 2, 3]);
       await dio.post<void>('/upload', data: <int>[4, 5, 6]);
@@ -705,18 +705,18 @@ void main() {
       final loadingStates = <bool>[];
       final handle = Dioman.install(
         dio,
-        buildKey: const BuildKeyPlugin(),
+        reqkey: const ReqkeyPlugin(),
         share: SharePlugin(), // exercises SharePlugin.dispose() teardown too
         cancel: CancelPlugin(),
         loading: LoadingPlugin(onChanged: loadingStates.add),
         log: const LogPlugin(logRequest: false, logResponse: false, logError: false),
       );
 
-      // Canonical order: build-key → share → cancel → loading → log
+      // Canonical order: reqkey → share → cancel → loading → log
       // (envs..auth/retry omitted).
       final names =
           dio.interceptors.whereType<DioPlugin>().map((p) => p.name).toList();
-      expect(names, ['build-key', 'share', 'cancel', 'loading', 'log']);
+      expect(names, ['reqkey', 'share', 'cancel', 'loading', 'log']);
       expect(handle.plugin<CancelPlugin>(), isNotNull);
       expect(handle.plugin<AuthPlugin>(), isNull);
 

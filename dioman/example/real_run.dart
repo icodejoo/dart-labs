@@ -55,7 +55,7 @@ Future<void> main() async {
 
   final handle = Dioman.install(
     dio,
-    buildKey: const BuildKeyPlugin(),
+    reqkey: const ReqkeyPlugin(),
     normalize: const NormalizePlugin(),
     cache: CachePlugin(),
     share: SharePlugin(policy: SharePolicy.start),

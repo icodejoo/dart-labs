@@ -2,7 +2,7 @@
 name: dioman
 description: >-
   Work on dioman — composable, self-contained Dio interceptor plugins (auth, cache, retry, share/
-  dedup, mock, normalize, repath, build-key, loading, cancel, envs, log) plus the correct install
+  dedup, mock, normalize, repath, reqclean, reqkey, loading, cancel, envs, log) plus the correct install
   order. Pure Dart, dio-only, no Flutter. Read BEFORE modifying anything under lib/src/, adding a
   plugin, or reordering the chain. Covers the forward-order execution model, the install-order
   constraints, per-plugin implementation invariants, the extra[...] key registry, and how to verify.
@@ -38,10 +38,10 @@ load-bearing:
 
 ### Recommended order (and the hard constraints)
 
-`envs → repath → normalize-request → build-key → normalize → cache → share → mock → cancel →
+`envs → repath → reqclean → reqkey → normalize → cache → share → mock → cancel →
 loading → auth → retry → log`
 
-- **build-key before cache & share** — they key off `extra['_key']`; no key ⇒ they no-op (treat
+- **reqkey before cache & share** — they key off `extra['_key']`; no key ⇒ they no-op (treat
   request as independent). This is a hard dependency.
 - **normalize before cache** — cache must store/return the *unwrapped* payload; `normalize` mutates
   `response.data` in place on success, so anything after it sees the payload not the envelope.
@@ -106,7 +106,7 @@ loading → auth → retry → log`
   the result corrupts the cache. Default `shouldCache` = GET only. Bounded by `maxEntries` (default
   500, `0` disables the cap) — LRU-evicted via remove-then-reinsert on write (Dart's default `Map` is
   insertion-ordered, so `_store.keys.first` is always the least-recently-written entry); without this,
-  deep `BuildKeyPlugin` keys that vary per query/body (paginated/search endpoints) would accumulate
+  deep `ReqkeyPlugin` keys that vary per query/body (paginated/search endpoints) would accumulate
   forever since an entry is otherwise only removed when its *exact* key is re-requested after expiry.
 - **NormalizePlugin** (`normalize_plugin.dart`, `name: 'normalize'`, `const` ctor, `onResponse`
   only). Default detects an envelope by `data is Map && containsKey(codeKey)`; success (`code==0`)
@@ -125,12 +125,12 @@ loading → auth → retry → log`
   call. Business-retry (`isExceptionRequest` on a 2xx) can't fire in the recommended order because
   `normalize` unwraps before retry sees the body — move retry ahead of normalize to enable it (and
   pair with `extra['loading']=false` to avoid the bracket leak).
-- **BuildKeyPlugin** (`build_key_plugin.dart`, `name: 'build-key'`, `const` ctor). Exports
+- **ReqkeyPlugin** (`reqkey_plugin.dart`, `name: 'reqkey'`, `const` ctor). Exports
   `const kRequestKey = '_key'`. `extra['key']==false` ⇒ no key written (request treated independent
   by cache/share). fast = `METHOD:uri.path`; deep also folds **sorted** query params + body.
   `_encode` sorts map keys for determinism — breaking the sort breaks cache/share hit correctness.
 - **MockPlugin** (`mock_plugin.dart`, `name: 'mock'`). `enabled=false` ⇒ passthrough. Route key
-  `'METHOD:${options.uri.path}'` — matches `BuildKeyPlugin`'s fast-key scheme (resolved path, not the
+  `'METHOD:${options.uri.path}'` — matches `ReqkeyPlugin`'s fast-key scheme (resolved path, not the
   raw `options.path`, so absolute-URL and baseUrl-relative requests key consistently). Inline handler
   → decodes the returned `ResponseBody` via a shared `FusedTransformer` (mirroring what dio's own
   dispatch path does) before resolving — constructing the `Response` straight from the raw
@@ -169,8 +169,8 @@ loading → auth → retry → log`
 
 ## The `extra[...]` key registry (single source of coordination)
 
-User-facing (per-request overrides): `protected` (auth), `key` (build-key), `cache`, `share`,
-`mock`, `loading`, `log`, `retry`, `filter` (normalize-request), `repath`, `normalize`.
+User-facing (per-request overrides): `protected` (auth), `key` (reqkey), `cache`, `share`,
+`mock`, `loading`, `log`, `retry`, `filter` (reqclean), `repath`, `normalize`.
 Internal (do not collide): `_key`, `_cache_key`/`_cache_ttl`/`_cache_clone`,
 `_share_entry`/`_share_seq`/`_share_policy`/`_share_retries_left`, `_retry_count`, `_cancel_token`,
 `_loading_bracketed`,
