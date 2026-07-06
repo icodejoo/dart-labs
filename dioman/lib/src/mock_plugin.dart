@@ -23,8 +23,8 @@ bool defaultFallback({Response<dynamic>? response, DioException? error}) {
 /// If no route matches **or** the handler returns a 404 / network error,
 /// the request falls back to the real API automatically.
 ///
-/// Per-request opt-out: `options.extra['mock'] = false`.
-/// Per-request override: `options.extra['mock'] = {'mockUrl': 'http://...'}`.
+/// Per-request opt-out: `options.extra[MockPlugin.configProperty] = false`.
+/// Per-request override: `options.extra[MockPlugin.configProperty] = {'mockUrl': 'http://...'}`.
 ///
 /// ```dart
 /// final mock = MockPlugin(
@@ -40,6 +40,10 @@ bool defaultFallback({Response<dynamic>? response, DioException? error}) {
 /// ));
 /// ```
 class MockPlugin extends DioPlugin {
+  /// The `extra` key callers use to opt out of / override mocking for a
+  /// single request. Change this to remap it.
+  static String configProperty = 'dioman:mock';
+
   MockPlugin({
     this.enabled = false,
     this.mockUrl,
@@ -85,10 +89,10 @@ class MockPlugin extends DioPlugin {
   @override
   void onRequest(RequestOptions options, RequestInterceptorHandler handler) async {
     if (!enabled) return handler.next(options);
-    if (options.extra['mock'] == false) return handler.next(options);
+    if (options.extra[MockPlugin.configProperty] == false) return handler.next(options);
 
     // 1. Try inline handler first.
-    // Uses the resolved path (matching ReqkeyPlugin's key scheme) so route
+    // Uses the resolved path (matching KeyPlugin's key scheme) so route
     // registration is consistent regardless of absolute vs relative URLs.
     final routeKey = '${options.method.toUpperCase()}:${options.uri.path}';
     final inlineHandler = _routes[routeKey];
@@ -146,7 +150,7 @@ class MockPlugin extends DioPlugin {
   // ── Helpers ───────────────────────────────────────────────────────────────
 
   String? _resolveMockUrl(RequestOptions opts) {
-    final v = opts.extra['mock'];
+    final v = opts.extra[MockPlugin.configProperty];
     if (v is Map) return (v['mockUrl'] as String?) ?? mockUrl;
     return mockUrl;
   }

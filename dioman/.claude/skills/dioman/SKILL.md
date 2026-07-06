@@ -2,7 +2,7 @@
 name: dioman
 description: >-
   Work on dioman — composable, self-contained Dio interceptor plugins (auth, cache, retry, share/
-  dedup, mock, normalize, repath, reqclean, reqkey, loading, cancel, envs, log) plus the correct install
+  dedup, mock, normalize, repath, filter, key, loading, cancel, envs, log) plus the correct install
   order. Pure Dart, dio-only, no Flutter. Read BEFORE modifying anything under lib/src/, adding a
   plugin, or reordering the chain. Covers the forward-order execution model, the install-order
   constraints, per-plugin implementation invariants, the extra[...] key registry, and how to verify.
@@ -38,10 +38,10 @@ load-bearing:
 
 ### Recommended order (and the hard constraints)
 
-`envs → repath → reqclean → reqkey → normalize → cache → share → mock → cancel →
+`envs → repath → filter → key → normalize → cache → share → mock → cancel →
 loading → auth → retry → log`
 
-- **reqkey before cache & share** — they key off `extra['_key']`; no key ⇒ they no-op (treat
+- **key before cache & share** — they key off `extra[kRequestKey]`; no key ⇒ they no-op (treat
   request as independent). This is a hard dependency.
 - **normalize before cache** — cache must store/return the *unwrapped* payload; `normalize` mutates
   `response.data` in place on success, so anything after it sees the payload not the envelope.
@@ -62,23 +62,24 @@ loading → auth → retry → log`
   a replayed response bypasses normalize (envelope stays wrapped) — a known, accepted trade-off of
   that design, not something replay tries to fix. Before every replay (refresh or bare replay),
   `_injectToken` re-applies the CURRENT token (via `ready` or `buildHeader`) so a replay after a
-  successful refresh doesn't carry the stale pre-refresh header. The `__auth_refreshed` one-shot flag
-  is the ONLY thing preventing an infinite refresh→401→refresh loop — never remove it.
+  successful refresh doesn't carry the stale pre-refresh header. The `dioman:auth:refreshed`
+  one-shot flag is the ONLY thing preventing an infinite refresh→401→refresh loop — never remove it.
   `defaultAuthFailure` distinguishes "I must refresh" from "someone already did" by comparing the
   request's carried token against the current store token — compared via the RAW token stashed in
-  `extra['__auth_token_used']` at injection time, not the formatted header (`buildHeader` may wrap it,
-  e.g. `'Bearer $t'`, which would never equal the raw store token); falls back to parsing the header
-  only when a custom `ready` callback bypassed the stash. Both onRequest `reject()` calls
+  `extra['dioman:auth:tokenUsed']` at injection time, not the formatted header (`buildHeader` may
+  wrap it, e.g. `'Bearer $t'`, which would never equal the raw store token); falls back to parsing
+  the header only when a custom `ready` callback bypassed the stash. Both onRequest `reject()` calls
   (refresh-in-progress-failed, no-token-denied) pass `callFollowingErrorInterceptor: true` so
   brackets installed before auth (cancel/loading/share) still get their `onError` to release state —
   the default `false` would skip the entire error chain and leak them. 5 `AuthFailureAction`s:
   `refresh/replay/deny/expired/others`. `ITokenManager` interface: `accessToken`, `refreshToken`,
   `canRefresh`, `clear()` (note: only `accessToken`/`clear` are read; refresh is delegated to the
-  `onRefresh` callback). Default: **every request protected** unless `extra['protected']==false` /
-  `isProtected` says otherwise. Auth's `__`-prefixed extra constants are plain strings on purpose so
-  they survive Dio's `mergeConfig` on replay.
-- **SharePlugin** (`share_plugin.dart`, `name: 'share'`). Completer-per-`_key` in `_active`, referenced
-  directly off each request via `extra['_share_entry']` (not re-looked-up from `_active` in
+  `onRefresh` callback). Default: **every request protected** unless
+  `extra[AuthPlugin.configProperty]==false` (default key `'dioman:auth'`) / `isProtected` says
+  otherwise. Auth's internal `dioman:auth:*` extra constants are plain strings on purpose so they
+  survive Dio's `mergeConfig` on replay.
+- **SharePlugin** (`share_plugin.dart`, `name: 'share'`). Completer-per-key in `_active`, referenced
+  directly off each request via `extra['dioman:share:entry']` (not re-looked-up from `_active` in
   onResponse/onError — the shared entry may already be removed by a sibling by the time a
   superseded/losing caller's response lands). No key ⇒ pass through independent. Followers attach to
   `entry.completer.future` and never hit the network. `start`/`retry`: one leader, rest wait. `end`:
@@ -99,14 +100,14 @@ loading → auth → retry → log`
   both settle correctly — reproduced with the original unmodified code too, so it predates any of
   this file's fixes. Root cause not yet isolated; avoid relying on `start`/`retry` followers
   observing an error until this is investigated.
-- **CachePlugin** (`cache_plugin.dart`, `name: 'cache'`). TTL store keyed by `extra['_key']`, TTL in
+- **CachePlugin** (`cache_plugin.dart`, `name: 'cache'`). TTL store keyed by `extra[kRequestKey]`, TTL in
   **milliseconds** (default 60000). Hit ⇒ `handler.resolve(Response(...,'OK (cached)'))`. Stores only
   **2xx** `response.data` (post-normalize). `CacheClone` (`none`/`shallow`/`deep`) is applied **on
   read**, not write — the store holds the live `response.data` reference, so a `none` reader mutating
   the result corrupts the cache. Default `shouldCache` = GET only. Bounded by `maxEntries` (default
   500, `0` disables the cap) — LRU-evicted via remove-then-reinsert on write (Dart's default `Map` is
   insertion-ordered, so `_store.keys.first` is always the least-recently-written entry); without this,
-  deep `ReqkeyPlugin` keys that vary per query/body (paginated/search endpoints) would accumulate
+  deep `KeyPlugin` keys that vary per query/body (paginated/search endpoints) would accumulate
   forever since an entry is otherwise only removed when its *exact* key is re-requested after expiry.
 - **NormalizePlugin** (`normalize_plugin.dart`, `name: 'normalize'`, `const` ctor, `onResponse`
   only). Default detects an envelope by `data is Map && containsKey(codeKey)`; success (`code==0`)
@@ -118,19 +119,22 @@ loading → auth → retry → log`
 - **RetryPlugin** (`retry_plugin.dart`, `name: 'retry'`). Back-off `1000*(1<<attempt)` ms = 1s/2s/4s.
   Default `retryIf` = timeouts + connectionError + `statusCode>=500 && !=501`. **Re-issues via the
   INJECTED app `_dio.fetch` (re-runs the full chain)** — unlike auth/share which use a throwaway Dio.
-  On reaching `max` it resets `extra['_retry_count']` to 0 (so reusing the same `RequestOptions`
-  starts fresh). `extra['retry']==false` is honored on BOTH the onResponse (business-retry) and
-  onError (network-retry) paths. After the back-off delay and before re-fetching, checks
+  On reaching `max` it resets `extra['dioman:retry:count']` to 0 (so reusing the same
+  `RequestOptions` starts fresh). `extra[RetryPlugin.configProperty]==false` (default key
+  `'dioman:retry'`) is honored on BOTH the onResponse (business-retry) and onError (network-retry)
+  paths. After the back-off delay and before re-fetching, checks
   `config.cancelToken?.isCancelled` and gives up immediately rather than issuing a doomed network
   call. Business-retry (`isExceptionRequest` on a 2xx) can't fire in the recommended order because
   `normalize` unwraps before retry sees the body — move retry ahead of normalize to enable it (and
-  pair with `extra['loading']=false` to avoid the bracket leak).
-- **ReqkeyPlugin** (`reqkey_plugin.dart`, `name: 'reqkey'`, `const` ctor). Exports
-  `const kRequestKey = '_key'`. `extra['key']==false` ⇒ no key written (request treated independent
-  by cache/share). fast = `METHOD:uri.path`; deep also folds **sorted** query params + body.
+  pair with `extra[LoadingPlugin.configProperty]=false` to avoid the bracket leak).
+- **KeyPlugin** (`key_plugin.dart`, `name: 'key'`, `const` ctor). Exports
+  `const kRequestKey = 'dioman:key'` — fixed, cross-plugin protocol key (reqkey writes, cache/share
+  read), NOT the caller-facing override. `extra[KeyPlugin.configProperty]==false` (default key
+  `'dioman:qid'`) ⇒ no key written (request treated independent by cache/share). fast =
+  `METHOD:uri.path`; deep also folds **sorted** query params + body.
   `_encode` sorts map keys for determinism — breaking the sort breaks cache/share hit correctness.
 - **MockPlugin** (`mock_plugin.dart`, `name: 'mock'`). `enabled=false` ⇒ passthrough. Route key
-  `'METHOD:${options.uri.path}'` — matches `ReqkeyPlugin`'s fast-key scheme (resolved path, not the
+  `'METHOD:${options.uri.path}'` — matches `KeyPlugin`'s fast-key scheme (resolved path, not the
   raw `options.path`, so absolute-URL and baseUrl-relative requests key consistently). Inline handler
   → decodes the returned `ResponseBody` via a shared `FusedTransformer` (mirroring what dio's own
   dispatch path does) before resolving — constructing the `Response` straight from the raw
@@ -148,15 +152,16 @@ loading → auth → retry → log`
   Cancel injects a `CancelToken` only if the request lacks one **it didn't itself inject before** —
   `RetryPlugin` re-dispatches through the full chain reusing the same `RequestOptions`/`CancelToken`,
   and `_release` deregisters that token after each failed attempt, so onRequest re-registers it
-  (checked via `extra['_cancel_token'] == options.cancelToken`) rather than treating it as
+  (checked via `extra['dioman:cancel:token'] == options.cancelToken`) rather than treating it as
   user-supplied and leaving it untracked for the rest of the retries; `cancelAll([reason])` + top-level
   `cancelAll(dio,[reason])`; `dispose()` cancels all. Loading is a 0↔1 edge-triggered counter calling
-  `onChanged(bool)`; increment marks the request as bracketed via `extra['_loading_bracketed']` and
-  decrement only fires if that request was actually the one that incremented — needed because a mock
-  hit resolving with `callFollowingResponseInterceptor: true` runs loading's `onResponse` even though
-  loading's own `onRequest` (later in the chain) never got to run for that short-circuited request; a
-  plain `extra['loading']!=false` recheck would decrement an unrelated in-flight request's counter.
-  `dispose()` force-resets to 0 and fires `onChanged(false)`.
+  `onChanged(bool)`; increment marks the request as bracketed via `extra['dioman:loading:bracketed']`
+  and decrement only fires if that request was actually the one that incremented — needed because a
+  mock hit resolving with `callFollowingResponseInterceptor: true` runs loading's `onResponse` even
+  though loading's own `onRequest` (later in the chain) never got to run for that short-circuited
+  request; a plain `extra[LoadingPlugin.configProperty]!=false` recheck would decrement an unrelated
+  in-flight request's counter. `dispose()` force-resets to 0 and fires `onChanged(false)`. Cancel has
+  no per-request `extra` opt-out — it always injects unless the caller already supplied a token.
 - **EnvsPlugin** (`envs_plugin.dart`, `name: 'envs'`). Install-time only (`onRequest` no-op). First
   matching `EnvRule` wins. `apply` only overwrites `responseType` when the rule's `BaseOptions`
   explicitly sets something other than the `ResponseType.json` default — since `responseType` is
@@ -169,13 +174,33 @@ loading → auth → retry → log`
 
 ## The `extra[...]` key registry (single source of coordination)
 
-User-facing (per-request overrides): `protected` (auth), `key` (reqkey), `cache`, `share`,
-`mock`, `loading`, `log`, `retry`, `filter` (reqclean), `repath`, `normalize`.
-Internal (do not collide): `_key`, `_cache_key`/`_cache_ttl`/`_cache_clone`,
-`_share_entry`/`_share_seq`/`_share_policy`/`_share_retries_left`, `_retry_count`, `_cancel_token`,
-`_loading_bracketed`,
-`__auth_decision`/`__auth_protected`/`__auth_refreshed`/`__auth_denied`/`__auth_token_used`. There
-are no collisions — preserve that when adding a plugin.
+**No hardcoded string keys.** Every plugin with a caller-facing per-request option exposes it as a
+mutable `static String configProperty` on the plugin class (default value shown below) — callers
+read/write `options.extra[XxxPlugin.configProperty]`, and can reassign the static field itself to
+remap the key (e.g. to dodge a collision with another package's `extra` usage). Do this for any new
+plugin that takes a per-request option; don't hardcode the literal in `onRequest`/`onResponse`.
+
+User-facing (`configProperty`, default value): `AuthPlugin.configProperty` (`dioman:auth`),
+`KeyPlugin.configProperty` (`dioman:qid`), `CachePlugin.configProperty` (`dioman:cache`),
+`SharePlugin.configProperty` (`dioman:share`), `MockPlugin.configProperty` (`dioman:mock`),
+`LoadingPlugin.configProperty` (`dioman:loading`), `LogPlugin.configProperty` (`dioman:log`),
+`RetryPlugin.configProperty` (`dioman:retry`), `FilterPlugin.configProperty` (`dioman:filter`),
+`RepathPlugin.configProperty` (`dioman:repath`), `NormalizePlugin.configProperty`
+(`dioman:normalize`). `CancelPlugin` and `EnvsPlugin` have none.
+
+Internal (fixed literals, not exposed as a `configProperty` — cross-plugin protocol or
+single-plugin bookkeeping, never meant to be reconfigured): `kRequestKey` = `'dioman:key'`
+(key writes, cache/share read — the one genuinely cross-plugin key, kept as a public top-level
+const for that reason), `dioman:cache:key`/`dioman:cache:ttl`/`dioman:cache:clone`,
+`dioman:share:entry`/`dioman:share:seq`/`dioman:share:policy`/`dioman:share:retriesLeft`,
+`dioman:retry:count`, `dioman:cancel:token`, `dioman:loading:bracketed`,
+`dioman:auth:decision`/`dioman:auth:protected`/`dioman:auth:refreshed`/`dioman:auth:denied`/
+`dioman:auth:tokenUsed`. All internal keys are namespaced `dioman:<plugin>:<detail>` — no leading
+underscore, no bare word — specifically so they can never collide with a `configProperty` default
+(which is always a single, unnamespaced segment like `dioman:cache`). Internal keys stay as a
+`static const` (or top-level `const` for `kRequestKey`) local to their own plugin file — **do not**
+hoist them into a shared cross-plugin constants file; that would recreate the coupling the
+self-contained-plugin design avoids. There are no collisions — preserve that when adding a plugin.
 
 ## Cross-cutting rules when editing
 

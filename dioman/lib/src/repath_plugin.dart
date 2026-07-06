@@ -13,7 +13,7 @@ import 'dio_plugin.dart';
 /// source map after substitution so it is not sent as a query param / body
 /// field as well.
 ///
-/// Per-request opt-out: `options.extra['repath'] = false`.
+/// Per-request opt-out: `options.extra[RepathPlugin.configProperty] = false`.
 ///
 /// ```dart
 /// dio.interceptors.add(RepathPlugin());
@@ -25,6 +25,10 @@ import 'dio_plugin.dart';
 /// // → GET /user/42/posts/7?page=1
 /// ```
 class RepathPlugin extends DioPlugin {
+  /// The `extra` key callers use to opt a single request out of path
+  /// substitution. Change this to remap it.
+  static String configProperty = 'dioman:repath';
+
   RepathPlugin({
     this.removeKey = true,
     RegExp? pattern,
@@ -42,7 +46,7 @@ class RepathPlugin extends DioPlugin {
 
   @override
   void onRequest(RequestOptions options, RequestInterceptorHandler handler) {
-    if (options.extra['repath'] == false) return handler.next(options);
+    if (options.extra[RepathPlugin.configProperty] == false) return handler.next(options);
 
     options.path = options.path.replaceAllMapped(pattern, (m) {
       final key = m.group(1) ?? m.group(2) ?? m.group(3);

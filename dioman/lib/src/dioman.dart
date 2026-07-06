@@ -1,7 +1,7 @@
 import 'package:dio/dio.dart';
 
 import 'auth_plugin.dart';
-import 'reqkey_plugin.dart';
+import 'key_plugin.dart';
 import 'cache_plugin.dart';
 import 'cancel_plugin.dart';
 import 'dio_plugin.dart';
@@ -10,7 +10,7 @@ import 'loading_plugin.dart';
 import 'log_plugin.dart';
 import 'mock_plugin.dart';
 import 'normalize_plugin.dart';
-import 'reqclean_plugin.dart';
+import 'filter_plugin.dart';
 import 'repath_plugin.dart';
 import 'retry_plugin.dart';
 import 'share_plugin.dart';
@@ -26,7 +26,7 @@ import 'share_plugin.dart';
 /// ```dart
 /// final handle = Dioman.install(
 ///   dio,
-///   reqkey: const ReqkeyPlugin(),
+///   key: const KeyPlugin(),
 ///   normalize: const NormalizePlugin(),
 ///   cache: CachePlugin(),
 ///   auth: AuthPlugin(tokenManager: tm, onRefresh: ..., onAccessExpired: ...),
@@ -43,8 +43,8 @@ abstract final class Dioman {
     Dio dio, {
     EnvsPlugin? envs,
     RepathPlugin? repath,
-    ReqcleanPlugin? reqclean,
-    ReqkeyPlugin? reqkey,
+    FilterPlugin? filter,
+    KeyPlugin? key,
     NormalizePlugin? normalize,
     CachePlugin? cache,
     SharePlugin? share,
@@ -55,13 +55,13 @@ abstract final class Dioman {
     RetryPlugin? retry,
     LogPlugin? log,
   }) {
-    // envs → repath → reqclean → reqkey → normalize → cache →
+    // envs → repath → filter → key → normalize → cache →
     // share → mock → cancel → loading → auth → retry → log
     final ordered = <DioPlugin?>[
       envs,
       repath,
-      reqclean,
-      reqkey,
+      filter,
+      key,
       normalize,
       cache,
       share,
@@ -98,6 +98,19 @@ class DiomanHandle {
       if (p is T) return p;
     }
     return null;
+  }
+
+  /// Ejects the installed plugin of type [T] from [_dio] and calls its
+  /// [DioPlugin.dispose] — the single-plugin counterpart to [dispose]'s
+  /// teardown-everything. Returns the removed plugin, or null if [T] was
+  /// never installed (a no-op in that case).
+  T? remove<T extends DioPlugin>() {
+    final p = plugin<T>();
+    if (p == null) return null;
+    _dio.interceptors.remove(p);
+    _plugins.remove(p);
+    p.dispose();
+    return p;
   }
 
   /// Ejects every installed plugin from [_dio] and calls its [DioPlugin.dispose]

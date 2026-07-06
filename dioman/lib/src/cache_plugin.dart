@@ -1,6 +1,6 @@
 // ignore_for_file: prefer_initializing_formals
 import 'package:dio/dio.dart';
-import 'reqkey_plugin.dart';
+import 'key_plugin.dart';
 import 'dio_plugin.dart';
 
 /// Clone strategy for cache hits.
@@ -24,24 +24,28 @@ class _Entry {
 
 /// TTL-based response cache.
 ///
-/// **Depends on [ReqkeyPlugin]** for the request key. Install that first.
+/// **Depends on [KeyPlugin]** for the request key. Install that first.
 ///
-/// Per-request control via `options.extra['cache']`:
+/// Per-request control via `options.extra[CachePlugin.configProperty]`:
 /// - `false` → skip cache for this request
 /// - `true`  → enable with plugin defaults
 /// - `{expires: int, clone: CacheClone}` → custom per-request settings
 ///
 /// ```dart
 /// dio.interceptors
-///   ..add(ReqkeyPlugin())
+///   ..add(KeyPlugin())
 ///   ..add(CachePlugin(expires: 30000)); // 30 s
 ///
 /// // Per-request:
 /// dio.get('/list', options: Options(extra: {
-///   'cache': {'expires': 5000, 'clone': CacheClone.shallow},
+///   CachePlugin.configProperty: {'expires': 5000, 'clone': CacheClone.shallow},
 /// }));
 /// ```
 class CachePlugin extends DioPlugin {
+  /// The `extra` key callers use to opt out of / reconfigure caching for a
+  /// single request. Change this to remap it.
+  static String configProperty = 'dioman:cache';
+
   CachePlugin({
     this.expires = 60000, // milliseconds
     this.clone = CacheClone.shallow,
@@ -61,7 +65,7 @@ class CachePlugin extends DioPlugin {
   final CacheClone clone;
 
   /// Maximum number of cached entries (LRU-evicted once exceeded). Without a
-  /// cap, keys that vary per request (e.g. deep [ReqkeyPlugin] mode on
+  /// cap, keys that vary per request (e.g. deep [KeyPlugin] mode on
   /// paginated/search endpoints) accumulate forever, since an entry is only
   /// otherwise removed when its *exact* key is requested again after expiry.
   /// Set to `0` to disable the cap.
@@ -70,6 +74,10 @@ class CachePlugin extends DioPlugin {
   final bool Function(RequestOptions) _shouldCache;
   final DateTime Function() _now;
   final _store = <String, _Entry>{};
+
+  static const _kCacheKey = 'dioman:cache:key';
+  static const _kCacheTtl = 'dioman:cache:ttl';
+  static const _kCacheClone = 'dioman:cache:clone';
 
   static bool _defaultShouldCache(RequestOptions o) =>
       o.method.toUpperCase() == 'GET';
@@ -106,20 +114,20 @@ class CachePlugin extends DioPlugin {
     }
 
     // Mark for writing on response.
-    options.extra['_cache_key'] = key;
-    options.extra['_cache_ttl'] = cacheOpt.expires;
-    options.extra['_cache_clone'] = cacheOpt.clone;
+    options.extra[_kCacheKey] = key;
+    options.extra[_kCacheTtl] = cacheOpt.expires;
+    options.extra[_kCacheClone] = cacheOpt.clone;
     handler.next(options);
   }
 
   @override
   void onResponse(Response<dynamic> response, ResponseInterceptorHandler handler) {
     final opts = response.requestOptions;
-    final key = opts.extra['_cache_key'] as String?;
+    final key = opts.extra[_kCacheKey] as String?;
     if (key != null &&
         (response.statusCode ?? 0) >= 200 &&
         (response.statusCode ?? 0) < 300) {
-      final ttl = opts.extra['_cache_ttl'] as int? ?? expires;
+      final ttl = opts.extra[_kCacheTtl] as int? ?? expires;
       // Remove-then-reinsert moves this key to the end of iteration order
       // (Dart's default Map is insertion-ordered), so eviction below always
       // drops the least-recently-written entry first.
@@ -154,7 +162,7 @@ class CachePlugin extends DioPlugin {
 
   ({int expires, CacheClone clone})? _resolve(RequestOptions opts) {
     if (!_shouldCache(opts)) return null;
-    final v = opts.extra['cache'];
+    final v = opts.extra[CachePlugin.configProperty];
     if (v == false) return null;
     if (v == true || v == null) return (expires: expires, clone: clone);
     if (v is Map) {

@@ -22,7 +22,7 @@ class ApiException implements Exception {
 /// On a non-success code, rejects with an [ApiException] so error handling
 /// is unified at the interceptor layer.
 ///
-/// Per-request opt-out: `options.extra['normalize'] = false`.
+/// Per-request opt-out: `options.extra[NormalizePlugin.configProperty] = false`.
 ///
 /// ```dart
 /// // Server response: {"code": 0, "data": {...}, "message": "ok"}
@@ -34,6 +34,10 @@ class ApiException implements Exception {
 /// // res.data == the inner {...} object, code/message stripped
 /// ```
 class NormalizePlugin extends DioPlugin {
+  /// The `extra` key callers use to opt a single request out of envelope
+  /// unwrapping. Change this to remap it.
+  static String configProperty = 'dioman:normalize';
+
   const NormalizePlugin({
     this.dataKey = 'data',
     this.codeKey = 'code',
@@ -66,7 +70,7 @@ class NormalizePlugin extends DioPlugin {
       isSuccess != null ? isSuccess!(code) : code == 0;
 
   bool _shouldNormalize(RequestOptions options, Response<dynamic> response) {
-    if (options.extra['normalize'] == false) return false;
+    if (options.extra[NormalizePlugin.configProperty] == false) return false;
     if (shouldNormalize != null) return shouldNormalize!(options, response);
     // Default: only process JSON bodies that look like an envelope. Require
     // BOTH the status [codeKey] AND either the payload [dataKey] or the

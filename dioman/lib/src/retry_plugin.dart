@@ -3,7 +3,7 @@ import 'dart:async';
 import 'package:dio/dio.dart';
 import 'dio_plugin.dart';
 
-const _kCount = '_retry_count';
+const _kCount = 'dioman:retry:count';
 
 /// Retries failed requests with configurable back-off.
 ///
@@ -12,7 +12,7 @@ const _kCount = '_retry_count';
 /// - **Business-level errors** (`isExceptionRequest`) — treat a 200 response
 ///   as a failure based on the response body (e.g. `code != 0`).
 ///
-/// Per-request configuration via `options.extra['retry']`:
+/// Per-request configuration via `options.extra[RetryPlugin.configProperty]`:
 /// - `int`                        → max retry count
 /// - `{'max': int, 'isException': fn}` → full config
 /// - `false`                      → skip retry for this request
@@ -26,6 +26,10 @@ const _kCount = '_retry_count';
 /// dio.interceptors.add(retry);
 /// ```
 class RetryPlugin extends DioPlugin {
+  /// The `extra` key callers use to reconfigure/skip retry for a single
+  /// request. Change this to remap it.
+  static String configProperty = 'dioman:retry';
+
   RetryPlugin({
     required Dio dio,
     this.max = 0,
@@ -70,7 +74,7 @@ class RetryPlugin extends DioPlugin {
   @override
   void onResponse(Response<dynamic> response, ResponseInterceptorHandler handler) async {
     final config = response.requestOptions;
-    if (config.extra['retry'] == false) return handler.next(response);
+    if (config.extra[RetryPlugin.configProperty] == false) return handler.next(response);
     final isException = _resolveException(config);
     if (isException == null || !isException(response)) return handler.next(response);
 
@@ -96,7 +100,7 @@ class RetryPlugin extends DioPlugin {
   @override
   void onError(DioException err, ErrorInterceptorHandler handler) async {
     final config = err.requestOptions;
-    if (config.extra['retry'] == false) return handler.next(err);
+    if (config.extra[RetryPlugin.configProperty] == false) return handler.next(err);
     if (!_retryIf(err)) return handler.next(err);
 
     final m = _resolveMax(config);
@@ -118,14 +122,14 @@ class RetryPlugin extends DioPlugin {
   // ── Helpers ───────────────────────────────────────────────────────────────
 
   int _resolveMax(RequestOptions opts) {
-    final v = opts.extra['retry'];
+    final v = opts.extra[RetryPlugin.configProperty];
     if (v is int) return v;
     if (v is Map && v['max'] is int) return v['max'] as int;
     return max;
   }
 
   bool Function(Response<dynamic>)? _resolveException(RequestOptions opts) {
-    final v = opts.extra['retry'];
+    final v = opts.extra[RetryPlugin.configProperty];
     if (v is Map && v['isException'] is Function) {
       return v['isException'] as bool Function(Response<dynamic>);
     }

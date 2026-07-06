@@ -1,6 +1,6 @@
 import 'dart:async';
 import 'package:dio/dio.dart';
-import 'reqkey_plugin.dart';
+import 'key_plugin.dart';
 import 'dio_plugin.dart';
 
 /// How concurrent requests sharing the same key are handled.
@@ -40,25 +40,29 @@ class _Entry {
 }
 
 /// Deduplicates or shares concurrent requests with the **same key**
-/// (produced by [ReqkeyPlugin]) using one of four strategies.
+/// (produced by [KeyPlugin]) using one of four strategies.
 ///
-/// **Install [ReqkeyPlugin] first** — without a key, every request
+/// **Install [KeyPlugin] first** — without a key, every request
 /// is treated as independent (policy = none).
 ///
-/// Per-request override via `options.extra['share']`:
+/// Per-request override via `options.extra[SharePlugin.configProperty]`:
 /// - `false` / `SharePolicy.none` → skip sharing
 /// - A [SharePolicy] value → use that policy for this request
 ///
 /// ```dart
 /// dio.interceptors
-///   ..add(ReqkeyPlugin())
+///   ..add(KeyPlugin())
 ///   ..add(SharePlugin(policy: SharePolicy.start));
 ///
 /// // Override per request:
-/// dio.get('/data', options: Options(extra: {'share': SharePolicy.race}));
-/// dio.get('/data', options: Options(extra: {'share': false})); // bypass
+/// dio.get('/data', options: Options(extra: {SharePlugin.configProperty: SharePolicy.race}));
+/// dio.get('/data', options: Options(extra: {SharePlugin.configProperty: false})); // bypass
 /// ```
 class SharePlugin extends DioPlugin {
+  /// The `extra` key callers use to opt out of / override the sharing policy
+  /// for a single request. Change this to remap it.
+  static String configProperty = 'dioman:share';
+
   SharePlugin({
     this.policy = SharePolicy.start,
     this.retries = 3,
@@ -79,9 +83,10 @@ class SharePlugin extends DioPlugin {
   Dio? _retryDio;
   Dio get _retry => _retryDio ??= Dio();
 
-  static const _kEntry  = '_share_entry';
-  static const _kSeq    = '_share_seq';
-  static const _kPolicy = '_share_policy';
+  static const _kEntry  = 'dioman:share:entry';
+  static const _kSeq    = 'dioman:share:seq';
+  static const _kPolicy = 'dioman:share:policy';
+  static const _kRetriesLeft = 'dioman:share:retriesLeft';
 
   @override
   String get name => 'share';
@@ -125,7 +130,7 @@ class SharePlugin extends DioPlugin {
       _active[key] = entry;
       options.extra[_kEntry] = entry;
       if (p == SharePolicy.retry) {
-        options.extra['_share_retries_left'] = retries;
+        options.extra[_kRetriesLeft] = retries;
       }
       handler.next(options);
     } else {
@@ -220,12 +225,12 @@ class SharePlugin extends DioPlugin {
 
     switch (p) {
       case SharePolicy.retry:
-        var left = opts.extra['_share_retries_left'] as int? ?? 0;
+        var left = opts.extra[_kRetriesLeft] as int? ?? 0;
         Response<dynamic>? success;
         Object lastError = err;
         while (left > 0) {
           left--;
-          opts.extra['_share_retries_left'] = left;
+          opts.extra[_kRetriesLeft] = left;
           if (interval > Duration.zero) await Future<void>.delayed(interval);
           try {
             success = await _retry.fetch<dynamic>(opts);
@@ -288,7 +293,7 @@ class SharePlugin extends DioPlugin {
   }
 
   SharePolicy _resolvePolicy(RequestOptions opts) {
-    final v = opts.extra['share'];
+    final v = opts.extra[SharePlugin.configProperty];
     if (v == false) return SharePolicy.none;
     if (v is SharePolicy) return v;
     return policy;

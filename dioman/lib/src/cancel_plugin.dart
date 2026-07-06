@@ -2,7 +2,7 @@ import 'package:dio/dio.dart';
 import 'dio_plugin.dart';
 
 // Internal slot for the injected CancelToken.
-const _kToken = '_cancel_token';
+const _kToken = 'dioman:cancel:token';
 
 /// Injects a [CancelToken] into every request that does not already
 /// have one, and maintains a registry so [cancelAll] can abort all
