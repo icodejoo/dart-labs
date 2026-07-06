@@ -27,8 +27,8 @@ Every plugin extends `DioPlugin` (a named `Interceptor` with a `dispose()` hook)
 |---|---|
 | `EnvsPlugin` | Apply per-environment `BaseOptions` (baseUrl/timeouts/headers) once at install time. |
 | `RepathPlugin` | Substitute path variables `{id}` / `:id` / `[id]` from query params or body. |
-| `NormalizeRequestPlugin` | Strip `null`/empty fields from query params and body before sending. |
-| `BuildKeyPlugin` | Compute a stable per-request key (`extra['_key']`) for cache & dedup. |
+| `ReqcleanPlugin` | Strip `null`/empty fields from query params and body before sending. |
+| `ReqkeyPlugin` | Compute a stable per-request key (`extra['_key']`) for cache & dedup. |
 | `NormalizePlugin` | Unwrap a `{code,data,message}` envelope; reject non-success as an `ApiException`. |
 | `CachePlugin` | TTL response cache with `none`/`shallow`/`deep` clone strategies. |
 | `SharePlugin` | Deduplicate concurrent same-key requests (`start`/`end`/`race`/`retry`). |
@@ -43,7 +43,7 @@ Every plugin extends `DioPlugin` (a named `Interceptor` with a `dispose()` hook)
 
 ```yaml
 dependencies:
-  dioman: ^0.1.0
+  dioman: ^0.2.0
 ```
 
 ```dart
@@ -57,8 +57,8 @@ final dio = Dio(BaseOptions(baseUrl: 'https://api.example.com'));
 
 dio.interceptors.addAll(<DioPlugin>[
   RepathPlugin(),                 // /users/{id}  → /users/42
-  const NormalizeRequestPlugin(), // drop empty params
-  const BuildKeyPlugin(),         // key for cache/share
+  const ReqcleanPlugin(), // drop empty params
+  const ReqkeyPlugin(),         // key for cache/share
   const NormalizePlugin(),        // {code,data,message} → data
   CachePlugin(),                  // TTL cache (GET)
   SharePlugin(),                  // dedup concurrent
@@ -89,8 +89,8 @@ Because Dio is forward-order for **all** phases, one list must satisfy request, 
 |---|---|---|---|
 | 1 | `envs` | (install-time apply) | — |
 | 2 | `repath` | rewrite `{id}`/`:id` path | — |
-| 3 | `normalize-request` | strip empty params/data | — |
-| 4 | `build-key` | compute request key | — |
+| 3 | `reqclean` | strip empty params/data | — |
+| 4 | `reqkey` | compute request key | — |
 | 5 | `normalize` | — | unwrap envelope / reject biz-error |
 | 6 | `cache` | serve from cache | store **unwrapped** payload |
 | 7 | `share` | dedup concurrent | settle waiters |
@@ -103,7 +103,7 @@ Because Dio is forward-order for **all** phases, one list must satisfy request, 
 
 **Why these positions (the hard constraints):**
 
-- **`build-key` before `cache` & `share`** — they read `extra['_key']`.
+- **`reqkey` before `cache` & `share`** — they read `extra['_key']`.
 - **`normalize` before `cache`** — the cache must store, and a hit must return, the *unwrapped* payload; otherwise a cached response differs in shape from a live one (a hit resolves with `resolve(false)`, skipping `normalize`).
 - **`normalize` before `auth`** — `auth` assumes a business error is already an exception.
 - **`cache`/`share`/`mock` before `cancel` & `loading`** — a short-circuit skips following response interceptors, so a bracket placed *before* it would increment/inject on `onRequest` and never clean up.
@@ -116,7 +116,7 @@ The install order above is a hard constraint. Rather than ordering plugins by ha
 ```dart
 final handle = Dioman.install(
   dio,
-  buildKey: const BuildKeyPlugin(),
+  reqkey: const ReqkeyPlugin(),
   normalize: const NormalizePlugin(),
   cache: CachePlugin(),
   auth: AuthPlugin(tokenManager: tm, onRefresh: ..., onAccessExpired: ...),
@@ -145,13 +145,13 @@ EnvsPlugin(dio: dio, [
 
 `RepathPlugin({bool removeKey = true, RegExp? pattern})` — replaces `{id}`, `:id`, `[id]` in the path with values from `queryParameters` (then `data`). By default the consumed key is removed so it isn't also sent as a param.
 
-### NormalizeRequestPlugin
+### ReqcleanPlugin
 
-`NormalizeRequestPlugin({predicate, ignoreKeys, ignoreValues})` — drops "empty" fields (default: `null` and blank strings) from `queryParameters` and a `Map` body. Keep specific keys/values via `ignoreKeys`/`ignoreValues`.
+`ReqcleanPlugin({predicate, ignoreKeys, ignoreValues})` — drops "empty" fields (default: `null` and blank strings) from `queryParameters` and a `Map` body. Keep specific keys/values via `ignoreKeys`/`ignoreValues`.
 
-### BuildKeyPlugin
+### ReqkeyPlugin
 
-`BuildKeyPlugin({bool fastMode = false, ignoreParams, ignoreDataKeys, builder})` — writes `extra['_key']`. `fastMode` → `METHOD:path`; default (deep) also folds sorted query params and body. A non-serialisable body (FormData / bytes / stream) folds in object identity so two distinct bodies never key identically (never falsely deduped/cached). Override per request with `extra['key']`.
+`ReqkeyPlugin({bool fastMode = false, ignoreParams, ignoreDataKeys, builder})` — writes `extra['_key']`. `fastMode` → `METHOD:path`; default (deep) also folds sorted query params and body. A non-serialisable body (FormData / bytes / stream) folds in object identity so two distinct bodies never key identically (never falsely deduped/cached). Override per request with `extra['key']`.
 
 ### NormalizePlugin
 
@@ -159,7 +159,7 @@ EnvsPlugin(dio: dio, [
 
 ### CachePlugin
 
-`CachePlugin({int expires = 60000, CacheClone clone = shallow, maxEntries = 500, shouldCache, now})` — TTL cache in **milliseconds**, keyed by `extra['_key']` (needs `BuildKeyPlugin`). Defaults to caching `GET` only. A cache **hit is promoted to most-recently-used**, so eviction (past `maxEntries`, `0` disables) is true LRU. `CacheClone` controls mutation safety of a hit and defaults to `shallow` (a hit reader can't corrupt the store by reassigning top-level fields; use `deep` for nested mutation, `none` for zero-copy read-only). `now` injects a clock for deterministic TTL tests. Management: `remove(key)`, `removeWhere(test)`, `clear()`, `size`.
+`CachePlugin({int expires = 60000, CacheClone clone = shallow, maxEntries = 500, shouldCache, now})` — TTL cache in **milliseconds**, keyed by `extra['_key']` (needs `ReqkeyPlugin`). Defaults to caching `GET` only. A cache **hit is promoted to most-recently-used**, so eviction (past `maxEntries`, `0` disables) is true LRU. `CacheClone` controls mutation safety of a hit and defaults to `shallow` (a hit reader can't corrupt the store by reassigning top-level fields; use `deep` for nested mutation, `none` for zero-copy read-only). `now` injects a clock for deterministic TTL tests. Management: `remove(key)`, `removeWhere(test)`, `clear()`, `size`.
 
 ### SharePlugin
 
@@ -213,14 +213,14 @@ Pass `options.extra` on a single call to opt out of / reconfigure a plugin:
 | Key | Plugin | Effect |
 |---|---|---|
 | `protected` | auth | `false` → no token required for this call. |
-| `key` | build-key | a `String` overrides the key; `false` skips key generation. |
+| `key` | reqkey | a `String` overrides the key; `false` skips key generation. |
 | `cache` | cache | `false` skip; `true` default; `{expires, clone}` per-call. |
 | `share` | share | `false`/`SharePolicy.none` opt out; a `SharePolicy` overrides. |
 | `mock` | mock | `false` skip; `{mockUrl: ...}` override target. |
 | `loading` | loading | `false` → don't count toward the indicator. |
 | `log` | log | `false` → don't log this call. |
 | `retry` | retry | an `int` max; `{max, isException}`; `false` skip. |
-| `filter` | normalize-request | `false` skip; `{ignoreKeys, ignoreValues}`. |
+| `filter` | reqclean | `false` skip; `{ignoreKeys, ignoreValues}`. |
 | `repath` | repath | `false` skip substitution. |
 | `normalize` | normalize | `false` skip envelope unwrapping. |
 

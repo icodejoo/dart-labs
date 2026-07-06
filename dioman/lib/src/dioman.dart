@@ -1,7 +1,7 @@
 import 'package:dio/dio.dart';
 
 import 'auth_plugin.dart';
-import 'build_key_plugin.dart';
+import 'reqkey_plugin.dart';
 import 'cache_plugin.dart';
 import 'cancel_plugin.dart';
 import 'dio_plugin.dart';
@@ -10,7 +10,7 @@ import 'loading_plugin.dart';
 import 'log_plugin.dart';
 import 'mock_plugin.dart';
 import 'normalize_plugin.dart';
-import 'normalize_request_plugin.dart';
+import 'reqclean_plugin.dart';
 import 'repath_plugin.dart';
 import 'retry_plugin.dart';
 import 'share_plugin.dart';
@@ -26,7 +26,7 @@ import 'share_plugin.dart';
 /// ```dart
 /// final handle = Dioman.install(
 ///   dio,
-///   buildKey: const BuildKeyPlugin(),
+///   reqkey: const ReqkeyPlugin(),
 ///   normalize: const NormalizePlugin(),
 ///   cache: CachePlugin(),
 ///   auth: AuthPlugin(tokenManager: tm, onRefresh: ..., onAccessExpired: ...),
@@ -43,8 +43,8 @@ abstract final class Dioman {
     Dio dio, {
     EnvsPlugin? envs,
     RepathPlugin? repath,
-    NormalizeRequestPlugin? normalizeRequest,
-    BuildKeyPlugin? buildKey,
+    ReqcleanPlugin? reqclean,
+    ReqkeyPlugin? reqkey,
     NormalizePlugin? normalize,
     CachePlugin? cache,
     SharePlugin? share,
@@ -55,13 +55,13 @@ abstract final class Dioman {
     RetryPlugin? retry,
     LogPlugin? log,
   }) {
-    // envs → repath → normalize-request → build-key → normalize → cache →
+    // envs → repath → reqclean → reqkey → normalize → cache →
     // share → mock → cancel → loading → auth → retry → log
     final ordered = <DioPlugin?>[
       envs,
       repath,
-      normalizeRequest,
-      buildKey,
+      reqclean,
+      reqkey,
       normalize,
       cache,
       share,

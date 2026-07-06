@@ -80,7 +80,7 @@ const _kTokenUsed = '__auth_token_used';
 /// Full-featured auth plugin — token injection, single-window refresh, and
 /// five-action failure routing (Refresh / Replay / Deny / Expired / Others).
 ///
-/// Pairs with [BuildKeyPlugin] / other plugins independently.
+/// Pairs with [ReqkeyPlugin] / other plugins independently.
 ///
 /// ## Ordering
 ///

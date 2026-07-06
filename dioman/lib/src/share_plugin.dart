@@ -1,6 +1,6 @@
 import 'dart:async';
 import 'package:dio/dio.dart';
-import 'build_key_plugin.dart';
+import 'reqkey_plugin.dart';
 import 'dio_plugin.dart';
 
 /// How concurrent requests sharing the same key are handled.
@@ -40,9 +40,9 @@ class _Entry {
 }
 
 /// Deduplicates or shares concurrent requests with the **same key**
-/// (produced by [BuildKeyPlugin]) using one of four strategies.
+/// (produced by [ReqkeyPlugin]) using one of four strategies.
 ///
-/// **Install [BuildKeyPlugin] first** — without a key, every request
+/// **Install [ReqkeyPlugin] first** — without a key, every request
 /// is treated as independent (policy = none).
 ///
 /// Per-request override via `options.extra['share']`:
@@ -51,7 +51,7 @@ class _Entry {
 ///
 /// ```dart
 /// dio.interceptors
-///   ..add(BuildKeyPlugin())
+///   ..add(ReqkeyPlugin())
 ///   ..add(SharePlugin(policy: SharePolicy.start));
 ///
 /// // Override per request:

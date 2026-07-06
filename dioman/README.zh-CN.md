@@ -27,8 +27,8 @@
 |---|---|
 | `EnvsPlugin` | 安装时一次性套用分环境的 `BaseOptions`（baseUrl/超时/头）。 |
 | `RepathPlugin` | 用 query/body 里的值替换路径变量 `{id}` / `:id` / `[id]`。 |
-| `NormalizeRequestPlugin` | 发送前剔除 query 与 body 里的 `null`/空字段。 |
-| `BuildKeyPlugin` | 计算稳定的单请求 key（`extra['_key']`），供缓存与去重使用。 |
+| `ReqcleanPlugin` | 发送前剔除 query 与 body 里的 `null`/空字段。 |
+| `ReqkeyPlugin` | 计算稳定的单请求 key（`extra['_key']`），供缓存与去重使用。 |
 | `NormalizePlugin` | 拆 `{code,data,message}` 信封；非成功码转成 `ApiException` 抛出。 |
 | `CachePlugin` | 带 TTL 的响应缓存，支持 `none`/`shallow`/`deep` 克隆策略。 |
 | `SharePlugin` | 同 key 并发请求去重（`start`/`end`/`race`/`retry`）。 |
@@ -43,7 +43,7 @@
 
 ```yaml
 dependencies:
-  dioman: ^0.1.0
+  dioman: ^0.2.0
 ```
 
 ```dart
@@ -57,8 +57,8 @@ final dio = Dio(BaseOptions(baseUrl: 'https://api.example.com'));
 
 dio.interceptors.addAll(<DioPlugin>[
   RepathPlugin(),                 // /users/{id}  → /users/42
-  const NormalizeRequestPlugin(), // 剔除空参数
-  const BuildKeyPlugin(),         // 缓存/去重的 key
+  const ReqcleanPlugin(), // 剔除空参数
+  const ReqkeyPlugin(),         // 缓存/去重的 key
   const NormalizePlugin(),        // {code,data,message} → data
   CachePlugin(),                  // TTL 缓存（GET）
   SharePlugin(),                  // 并发去重
@@ -89,8 +89,8 @@ final res = await dio.get('/users/{id}', queryParameters: {'id': 42});
 |---|---|---|---|
 | 1 | `envs` | （安装时套用配置） | — |
 | 2 | `repath` | 替换 `{id}`/`:id` 路径 | — |
-| 3 | `normalize-request` | 剔除空参数/数据 | — |
-| 4 | `build-key` | 计算请求 key | — |
+| 3 | `reqclean` | 剔除空参数/数据 | — |
+| 4 | `reqkey` | 计算请求 key | — |
 | 5 | `normalize` | — | 拆信封 / 业务错转异常 |
 | 6 | `cache` | 命中即返回 | 存**拆包后**的数据 |
 | 7 | `share` | 并发去重 | 唤醒等待者 |
@@ -103,7 +103,7 @@ final res = await dio.get('/users/{id}', queryParameters: {'id': 42});
 
 **为什么是这些位置（硬约束）：**
 
-- **`build-key` 在 `cache` 与 `share` 之前**——它们读 `extra['_key']`。
+- **`reqkey` 在 `cache` 与 `share` 之前**——它们读 `extra['_key']`。
 - **`normalize` 在 `cache` 之前**——缓存存入、命中返回的都必须是*拆包后*的数据；否则缓存命中的结构会与实时响应不一致（命中是 `resolve(false)`，会跳过 `normalize`）。
 - **`normalize` 在 `auth` 之前**——`auth` 假设业务错误此时已是异常。
 - **`cache`/`share`/`mock` 在 `cancel` 与 `loading` 之前**——短路会跳过其后的响应拦截器；若把括号类插件放在它们前面，`onRequest` 里 +1/注入了却永远等不到清理。
@@ -116,7 +116,7 @@ final res = await dio.get('/users/{id}', queryParameters: {'id': 42});
 ```dart
 final handle = Dioman.install(
   dio,
-  buildKey: const BuildKeyPlugin(),
+  reqkey: const ReqkeyPlugin(),
   normalize: const NormalizePlugin(),
   cache: CachePlugin(),
   auth: AuthPlugin(tokenManager: tm, onRefresh: ..., onAccessExpired: ...),
@@ -145,13 +145,13 @@ EnvsPlugin(dio: dio, [
 
 `RepathPlugin({bool removeKey = true, RegExp? pattern})`——用 `queryParameters`（再 `data`）里的值替换路径中的 `{id}`、`:id`、`[id]`。默认替换后从源 map 删除该键，避免又被当参数发出去。
 
-### NormalizeRequestPlugin
+### ReqcleanPlugin
 
-`NormalizeRequestPlugin({predicate, ignoreKeys, ignoreValues})`——从 `queryParameters` 与 `Map` body 中剔除“空”字段（默认 `null` 与空白字符串）。用 `ignoreKeys`/`ignoreValues` 保留特定键/值。
+`ReqcleanPlugin({predicate, ignoreKeys, ignoreValues})`——从 `queryParameters` 与 `Map` body 中剔除“空”字段（默认 `null` 与空白字符串）。用 `ignoreKeys`/`ignoreValues` 保留特定键/值。
 
-### BuildKeyPlugin
+### ReqkeyPlugin
 
-`BuildKeyPlugin({bool fastMode = false, ignoreParams, ignoreDataKeys, builder})`——写入 `extra['_key']`。`fastMode` → `METHOD:path`；默认（deep）还会拼入排序后的 query 与 body。不可序列化的 body（FormData / bytes / stream）会拼入对象 identity，保证两个不同 body 不会得到相同 key（不会被误去重/误缓存）。可用 `extra['key']` 单请求覆盖。
+`ReqkeyPlugin({bool fastMode = false, ignoreParams, ignoreDataKeys, builder})`——写入 `extra['_key']`。`fastMode` → `METHOD:path`；默认（deep）还会拼入排序后的 query 与 body。不可序列化的 body（FormData / bytes / stream）会拼入对象 identity，保证两个不同 body 不会得到相同 key（不会被误去重/误缓存）。可用 `extra['key']` 单请求覆盖。
 
 ### NormalizePlugin
 
@@ -159,7 +159,7 @@ EnvsPlugin(dio: dio, [
 
 ### CachePlugin
 
-`CachePlugin({int expires = 60000, CacheClone clone = shallow, maxEntries = 500, shouldCache, now})`——**毫秒**级 TTL 缓存，以 `extra['_key']` 为键（需 `BuildKeyPlugin`）。默认只缓存 `GET`。命中会**提升为最近使用**，因此超过 `maxEntries`（`0` 关闭上限）时按真正的 LRU 淘汰。`CacheClone` 控制命中数据的可变安全性，默认 `shallow`（命中方改顶层字段不会污染缓存；嵌套改用 `deep`，只读零拷贝用 `none`）。`now` 可注入时钟做确定性 TTL 测试。管理接口：`remove(key)`、`removeWhere(test)`、`clear()`、`size`。
+`CachePlugin({int expires = 60000, CacheClone clone = shallow, maxEntries = 500, shouldCache, now})`——**毫秒**级 TTL 缓存，以 `extra['_key']` 为键（需 `ReqkeyPlugin`）。默认只缓存 `GET`。命中会**提升为最近使用**，因此超过 `maxEntries`（`0` 关闭上限）时按真正的 LRU 淘汰。`CacheClone` 控制命中数据的可变安全性，默认 `shallow`（命中方改顶层字段不会污染缓存；嵌套改用 `deep`，只读零拷贝用 `none`）。`now` 可注入时钟做确定性 TTL 测试。管理接口：`remove(key)`、`removeWhere(test)`、`clear()`、`size`。
 
 ### SharePlugin
 
@@ -213,14 +213,14 @@ EnvsPlugin(dio: dio, [
 | 键 | 插件 | 效果 |
 |---|---|---|
 | `protected` | auth | `false` → 本次不需要 token。 |
-| `key` | build-key | `String` 覆盖 key；`false` 跳过生成。 |
+| `key` | reqkey | `String` 覆盖 key；`false` 跳过生成。 |
 | `cache` | cache | `false` 跳过；`true` 默认；`{expires, clone}` 单次配置。 |
 | `share` | share | `false`/`SharePolicy.none` 关闭；传 `SharePolicy` 覆盖。 |
 | `mock` | mock | `false` 跳过；`{mockUrl: ...}` 覆盖目标。 |
 | `loading` | loading | `false` → 不计入指示器。 |
 | `log` | log | `false` → 本次不记日志。 |
 | `retry` | retry | `int` 最大次数；`{max, isException}`；`false` 跳过。 |
-| `filter` | normalize-request | `false` 跳过；`{ignoreKeys, ignoreValues}`。 |
+| `filter` | reqclean | `false` 跳过；`{ignoreKeys, ignoreValues}`。 |
 | `repath` | repath | `false` 跳过替换。 |
 | `normalize` | normalize | `false` 跳过拆信封。 |
 

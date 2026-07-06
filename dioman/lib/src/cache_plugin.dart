@@ -1,6 +1,6 @@
 // ignore_for_file: prefer_initializing_formals
 import 'package:dio/dio.dart';
-import 'build_key_plugin.dart';
+import 'reqkey_plugin.dart';
 import 'dio_plugin.dart';
 
 /// Clone strategy for cache hits.
@@ -24,7 +24,7 @@ class _Entry {
 
 /// TTL-based response cache.
 ///
-/// **Depends on [BuildKeyPlugin]** for the request key. Install that first.
+/// **Depends on [ReqkeyPlugin]** for the request key. Install that first.
 ///
 /// Per-request control via `options.extra['cache']`:
 /// - `false` → skip cache for this request
@@ -33,7 +33,7 @@ class _Entry {
 ///
 /// ```dart
 /// dio.interceptors
-///   ..add(BuildKeyPlugin())
+///   ..add(ReqkeyPlugin())
 ///   ..add(CachePlugin(expires: 30000)); // 30 s
 ///
 /// // Per-request:
@@ -61,7 +61,7 @@ class CachePlugin extends DioPlugin {
   final CacheClone clone;
 
   /// Maximum number of cached entries (LRU-evicted once exceeded). Without a
-  /// cap, keys that vary per request (e.g. deep [BuildKeyPlugin] mode on
+  /// cap, keys that vary per request (e.g. deep [ReqkeyPlugin] mode on
   /// paginated/search endpoints) accumulate forever, since an entry is only
   /// otherwise removed when its *exact* key is requested again after expiry.
   /// Set to `0` to disable the cap.

@@ -12,13 +12,13 @@ import 'dio_plugin.dart';
 /// Per-request options: `options.extra['filter'] = {'ignoreKeys': ['page']}`.
 ///
 /// ```dart
-/// dio.interceptors.add(NormalizeRequestPlugin(
+/// dio.interceptors.add(ReqcleanPlugin(
 ///   ignoreKeys: ['timestamp'],   // keep even if null/empty
 ///   ignoreValues: [0, false],    // keep these specific values
 /// ));
 /// ```
-class NormalizeRequestPlugin extends DioPlugin {
-  const NormalizeRequestPlugin({
+class ReqcleanPlugin extends DioPlugin {
+  const ReqcleanPlugin({
     bool Function(String key, dynamic value)? predicate,
     this.ignoreKeys = const [],
     this.ignoreValues = const [],
@@ -34,7 +34,7 @@ class NormalizeRequestPlugin extends DioPlugin {
   final List<dynamic> ignoreValues;
 
   @override
-  String get name => 'normalize-request';
+  String get name => 'reqclean';
 
   static bool _defaultPredicate(String key, dynamic value) {
     if (value == null) return true;

@@ -88,7 +88,7 @@ class MockPlugin extends DioPlugin {
     if (options.extra['mock'] == false) return handler.next(options);
 
     // 1. Try inline handler first.
-    // Uses the resolved path (matching BuildKeyPlugin's key scheme) so route
+    // Uses the resolved path (matching ReqkeyPlugin's key scheme) so route
     // registration is consistent regardless of absolute vs relative URLs.
     final routeKey = '${options.method.toUpperCase()}:${options.uri.path}';
     final inlineHandler = _routes[routeKey];

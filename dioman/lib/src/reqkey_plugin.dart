@@ -21,7 +21,7 @@ const kRequestKey = '_key';
 /// ```dart
 /// // Install before cache and share:
 /// dio.interceptors
-///   ..add(BuildKeyPlugin())
+///   ..add(ReqkeyPlugin())
 ///   ..add(CachePlugin())
 ///   ..add(SharePlugin());
 ///
@@ -29,8 +29,8 @@ const kRequestKey = '_key';
 /// dio.get('/list', options: Options(extra: {'key': 'product-list'}));
 /// dio.get('/list', options: Options(extra: {'key': false})); // skip
 /// ```
-class BuildKeyPlugin extends DioPlugin {
-  const BuildKeyPlugin({
+class ReqkeyPlugin extends DioPlugin {
+  const ReqkeyPlugin({
     this.fastMode = false,
     this.ignoreParams = const [],
     this.ignoreDataKeys = const [],
@@ -49,7 +49,7 @@ class BuildKeyPlugin extends DioPlugin {
   final String Function(RequestOptions)? _builder;
 
   @override
-  String get name => 'build-key';
+  String get name => 'reqkey';
 
   @override
   void onRequest(RequestOptions options, RequestInterceptorHandler handler) {
