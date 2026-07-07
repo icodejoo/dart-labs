@@ -280,9 +280,14 @@ class DiomanShare extends DiomanPlugin {
       }
       handler.next(options);
     } else {
+      // callFollowingResponseInterceptor: true — a follower resolving here
+      // (onRequest side) must still run onResponse of everything installed
+      // after share (mock, cancel, loading, auth, retry, log, normalize),
+      // same as the leader's own response does, so e.g. DiomanNormalize
+      // still unwraps the envelope for the follower too.
       existing.completer.future.then(
-        (r) => handler.resolve(r),
-        onError: (Object e) => handler.reject(e as DioException),
+        (r) => handler.resolve(r, true),
+        onError: (Object e) => handler.reject(e as DioException, true),
       );
     }
   }
@@ -457,7 +462,7 @@ class DiomanShare extends DiomanPlugin {
   void _awaitEntry(_Entry entry, dynamic handler) {
     entry.completer.future.then(
       (r) => handler.resolve(r),
-      onError: (Object e) => handler.reject(e as DioException),
+      onError: (Object e) => handler.reject(e as DioException, true),
     );
   }
 

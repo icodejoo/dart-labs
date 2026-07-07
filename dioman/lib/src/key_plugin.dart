@@ -173,8 +173,13 @@ class DiomanKey extends DiomanPlugin {
     // Body.
     final data = o.data;
     if (data is Map) {
-      final filtered = Map<String, dynamic>.from(data)
-        ..removeWhere((k, _) => ignoreKeys.contains(k));
+      // Keys may not be String (e.g. `Map<int, dynamic>` bodies) — stringify
+      // before comparing/collecting instead of `Map<String, dynamic>.from`,
+      // which throws a CastError on the first non-String key.
+      final filtered = <String, dynamic>{
+        for (final e in data.entries)
+          if (!ignoreKeys.contains('${e.key}')) '${e.key}': e.value,
+      };
       if (filtered.isNotEmpty) buf.write(':${_encode(filtered)}');
     } else if (data is String && data.isNotEmpty) {
       buf.write(':$data');
