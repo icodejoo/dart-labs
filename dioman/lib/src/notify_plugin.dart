@@ -11,7 +11,7 @@ class DiomanNotify<T> extends DiomanPlugin {
     required this.stringify,
   });
   Function(String message) notify;
-  Function(T? data, String message, int status, RequestOptions options)
+  String Function(T? data, String message, int status, RequestOptions options)
       stringify;
 
   @override
@@ -19,14 +19,17 @@ class DiomanNotify<T> extends DiomanPlugin {
 
   @override
   void onResponse(Response response, ResponseInterceptorHandler handler) {
-    _convert(response, null, response.requestOptions);
+    try {
+      _convert(response, null, response.requestOptions);
+    } catch (_) {}
     handler.next(response);
   }
 
   @override
   void onError(DioException err, ErrorInterceptorHandler handler) {
-    _convert(err.response, err.message, err.requestOptions);
-
+    try {
+      _convert(err.response, err.message, err.requestOptions);
+    } catch (_) {}
     handler.next(err);
   }
 
@@ -38,7 +41,7 @@ class DiomanNotify<T> extends DiomanPlugin {
       r?.requestOptions ?? options,
     );
 
-    if ($message) {
+    if ($message.isNotEmpty) {
       notify($message);
     }
   }

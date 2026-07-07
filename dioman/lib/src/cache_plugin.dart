@@ -195,6 +195,10 @@ class DiomanCache extends DiomanPlugin {
         // entry would be evicted ahead of a colder, newer one.
         _store.remove(key);
         _store[key] = entry;
+        // callFollowingResponseInterceptor: true — a cache hit must still
+        // run onResponse of everything installed after cache (share, mock,
+        // cancel, loading, auth, retry, log, normalize), same as a real
+        // response, so e.g. DiomanNormalize still unwraps a cached envelope.
         return handler.resolve(
           Response<dynamic>(
             requestOptions: options,
@@ -202,6 +206,7 @@ class DiomanCache extends DiomanPlugin {
             statusCode: 200,
             statusMessage: 'OK (cached)',
           ),
+          true,
         );
       }
       _store.remove(key); // expired

@@ -1,3 +1,17 @@
+## 0.4.1
+
+Fixed: a `DiomanCache` hit and a `DiomanShare` follower's `resolve()` now both pass
+`callFollowingResponseInterceptor: true`, matching `DiomanMock`'s existing behavior. Previously
+a cache hit or a share follower skipped `onResponse` of everything installed after it — most
+notably, `DiomanNormalize` never unwrapped a cached or follower response even though a live
+network response was unwrapped correctly. Both now flow through the rest of the chain exactly
+like a real response.
+
+Significantly expanded automated test coverage (line coverage ~84% → ~99%), including full
+exercise of `DiomanEnvs` rule matching, `DiomanRepath` substitution, `DiomanMock`'s
+`mockUrl`-redirect path, and `DiomanShare`'s `end`/`race` policies, none of which had dedicated
+tests before.
+
 ## 0.4.0
 
 Breaking: every plugin class renamed `XxxPlugin` → `DiomanXxx` (`DioPlugin` base →

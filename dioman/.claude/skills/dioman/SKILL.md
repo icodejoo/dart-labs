@@ -17,14 +17,29 @@ Dio interceptor plugins**, each extending `DiomanPlugin` (a named `Interceptor` 
 and a `dispose()` hook — `lib/src/dioman_plugin.dart`), PLUS the documented correct install order.
 Entry `lib/dioman.dart` re-exports all 13 plugins. Each plugin lives in its own `lib/src/*.dart`.
 
-Acceptance = **`dart analyze` clean** + `dart test` (`test/dioman_test.dart` + `test/
-dioman_combinations_test.dart`, both against a REAL `dart:io HttpServer` via `test/support/
-test_server.dart` — `TestServer.start(handler)` + `respondJson(req, data, status)` — not a fake
-adapter; this matters because it lets throwaway-Dio re-issues (auth replay, share/retry re-issues)
-actually reach the test server instead of the live internet) + the runnable
+Acceptance = **`dart analyze` clean** + `dart test` (`test/dioman_test.dart`, `test/
+dioman_combinations_test.dart`, `test/dioman_coverage_test.dart`, `test/
+dioman_powerset_test.dart` — all four against a REAL `dart:io HttpServer` via `test/support/
+test_server.dart` — `TestServer.start(handler)` + `respondJson(req, data, status)` — never a
+fake/mock `HttpClientAdapter` and never a hardcoded address like `127.0.0.1:1` for an
+"unreachable" endpoint; this matters because it lets throwaway-Dio re-issues (auth replay,
+share/retry re-issues) actually reach the test server instead of the live internet, and keeps
+every test exercising the real dio transport instead of a stand-in for it) + the runnable
 `example/dioman_example.dart` (needs real network; expect it to fail offline). The two READMEs
-(`README.md` EN, `README.zh-CN.md` ZH) are the canonical spec and are extremely detailed — read the
-relevant section before changing behavior, and keep both in sync on any public API change.
+(`README.md` EN, `README.zh-CN.md` ZH) are the canonical usage docs — read the relevant section
+before changing behavior, and keep both in sync on any public API change. They intentionally do
+NOT carry design rationale, trade-off writeups, or "why we chose X" prose — that history lives in
+git log / this skill file, not in user-facing docs.
+
+**Every test, no exceptions, goes through `test_server.dart`'s real `HttpServer`.** Never a fake/
+mock `HttpClientAdapter`, never a hand-picked "probably nothing's listening" address (`127.0.0.1:1`,
+`example.invalid`). Need a genuinely unreachable endpoint? Start a `TestServer`, grab its
+`baseUrl`, then `await server.close()` — the connection-refused you get back is real, not
+simulated. This is a hard rule, not a style preference: it's what lets a throwaway-Dio re-issue
+(auth replay, retry/share's own re-dispatch) actually land somewhere instead of silently no-op'ing
+against a fake adapter that doesn't model per-instance `HttpClient` behavior — a bug in exactly
+that interaction (cache/share's `resolve()` missing `callFollowingResponseInterceptor: true`) was
+only caught because the coverage sweep used a real server end-to-end.
 
 ## The one idea everything follows from
 
@@ -144,20 +159,32 @@ the wire, whether or not `normalize` is even installed.
   unaffected — only the error path crashes. Avoid relying on `start`/`retry`/`end`/`race` followers
   observing an error until this is investigated.
 - **DiomanCache** (`cache_plugin.dart`, `name: 'dioman:cache'`). TTL store keyed by `extra[kRequestKey]`, TTL in
-  **milliseconds** (default 60000). Hit ⇒ `handler.resolve(Response(...,'OK (cached)'))`. Stores only
-  **2xx** `response.data`, RAW (not normalize-unwrapped — `normalize` runs LAST, after this plugin;
-  see the order note above). `CacheClone` (`none`/`shallow`/`deep`) is applied **on
+  **milliseconds** (default 60000). Hit ⇒ `handler.resolve(Response(...,'OK (cached)'), true)` — the
+  trailing `true` (`callFollowingResponseInterceptor`) is required so a cache hit still runs
+  `onResponse` of everything installed after cache (share, mock, cancel, loading, auth, retry, log,
+  normalize), same as a real response; dropping it would make a cache hit skip `DiomanNormalize`
+  entirely (a real, previously-shipped bug — a cache hit returned the raw envelope even with
+  `normalize` installed, while a live response correctly got unwrapped). One side effect: it also
+  means a cached entry now gets a chance at `DiomanRetry` recovery too (see the Gotcha below).
+  Stores only **2xx** `response.data`, RAW (not normalize-unwrapped — `normalize` runs LAST, after
+  this plugin; see the order note above). `CacheClone` (`none`/`shallow`/`deep`) is applied **on
   read**, not write — the store holds the live `response.data` reference, so a `none` reader mutating
   the result corrupts the cache. Default `shouldCache` = GET only. Bounded by `maxEntries` (default
   500, `0` disables the cap) — LRU-evicted via remove-then-reinsert on write (Dart's default `Map` is
   insertion-ordered, so `_store.keys.first` is always the least-recently-written entry); without this,
   deep `DiomanKey` keys that vary per query/body (paginated/search endpoints) would accumulate
   forever since an entry is otherwise only removed when its *exact* key is re-requested after expiry.
-  Gotcha this plugin does NOT solve: it has no concept of "business failure" — a 200 that
+  Gotcha this plugin does NOT fully solve: it has no concept of "business failure" — a 200 that
   `DiomanRetry.isExceptionRequest` considers a failure still gets cached here (this plugin runs
-  first), so a LATER, unrelated caller for the same key can still get served that stale failure from
-  cache until it expires — `DiomanRetry`'s own re-issue no longer reads it back (bare Dio, doesn't
-  touch this plugin at all), so the retry itself is unaffected, but the cache entry is still wrong.
+  first), so a LATER, unrelated caller for the same key still hits the poisoned entry — but since the
+  cache-hit resolve now runs the full following chain, if that later caller's `DiomanRetry` has
+  `isExceptionRequest` configured, it sees the poisoned data on the cache hit too and recovers it via
+  its own re-issue, same as it would for a live response — so the caller gets the CORRECT data, just
+  not a fast cache hit. The poisoned entry itself is still never evicted/overwritten (the recovery
+  re-issue doesn't write back to cache), so every future caller repeats the recovery dance rather than
+  getting a cheap hit, until the entry expires. `DiomanRetry`'s own re-issue (the bare Dio from ITS
+  OWN prior attempt) never reads this plugin back either way (bare Dio, doesn't touch this plugin at
+  all).
 - **DiomanNormalize** (`normalize_plugin.dart`, `name: 'dioman:normalize'`, `const` ctor, `onResponse`
   only). **Optional, business-specific, install LAST** — after `log`, at the very end (also where
   `Dioman.install` places it regardless of argument order) — see its class doc and the order note
@@ -352,9 +379,15 @@ design avoids. There are no collisions — preserve that when adding a plugin.
 ```bash
 cd D:/workspaces/dart-labs/dioman
 dart analyze          # acceptance gate — must be "No issues found!"
-dart test             # real-HttpServer regression suite (dioman_test.dart + dioman_combinations_test.dart) — must be "All tests passed!"
+# Fast loop while iterating — everything except the paced power-set sweep:
+dart test test/dioman_test.dart test/dioman_combinations_test.dart test/dioman_coverage_test.dart
+# Full acceptance gate before calling something done — includes dioman_powerset_test.dart's
+# paced exception-path sweep, which is deliberately slow (~8 min) to stay under the local
+# ephemeral-port budget (see that file's own doc). Must be "All tests passed!".
+dart test
 dart run example/dioman_example.dart   # exercise the wired chain (needs real network)
 ```
 
 Always re-run `dart analyze` + `dart test` and update BOTH READMEs for any public API or ordering
-change.
+change. New tests always go in one of the four files above, always against `test_server.dart`'s
+real server — see the hard rule above.

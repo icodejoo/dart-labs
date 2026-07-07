@@ -218,18 +218,26 @@ void main() {
 
     // The ORIGINAL attempt (unlike the retry re-issue) is still a normal
     // pass through the full chain — DiomanCache still writes its 200
-    // response, business failure or not, exactly as before. What's fixed is
-    // narrower than "cache never sees a business failure": it's specifically
-    // that the RETRY no longer reads that poisoned entry back and gets
-    // fooled by it. The entry itself still poisons the cache for any OTHER,
-    // unrelated later caller, until it expires.
+    // response, business failure or not, exactly as before.
+    //
+    // FIXED (cache_plugin.dart): a cache hit's resolve now passes
+    // callFollowingResponseInterceptor: true, so it still runs onResponse of
+    // everything installed after cache — including DiomanRetry. That means
+    // a DIFFERENT, later caller who hits the poisoned entry no longer just
+    // gets the stale failure back silently: DiomanRetry's own onResponse
+    // (if the caller configured isExceptionRequest, as here) sees it, judges
+    // it a business failure, and retries it via its own bare-Dio re-issue —
+    // same recovery a live request would get. The poisoned entry itself is
+    // still never evicted/overwritten (retry's re-issue doesn't write back
+    // to cache, same as the original attempt's own retry above), so every
+    // future caller repeats this recovery dance rather than getting a fast
+    // cache hit — but every caller now ends up with the CORRECT data instead
+    // of the stale failure.
     test(
-        "the retry re-issue no longer reads back the cache entry the "
-        "ORIGINAL failed attempt poisoned — it reaches the network on its "
-        "own — but that poisoned entry still exists and still serves stale "
-        'data to a DIFFERENT later caller for the same key, because the '
-        "original attempt (not the retry) is what wrote it, and nothing "
-        'evicts it now', () async {
+        "FIXED: a cache hit landing on the entry the ORIGINAL failed attempt "
+        "poisoned still gets a chance to recover via DiomanRetry — a "
+        'DIFFERENT, later caller for the same key ends up with the correct '
+        'data, not the stale failure', () async {
       var attempts = 0;
       final server = await TestServer.start((req) async {
         attempts++;
@@ -261,14 +269,15 @@ void main() {
               'unchanged by this redesign');
 
       final later = await dio.get<Map<String, dynamic>>('/data');
-      expect(later.data!['code'], 1,
-          reason: 'BUG (pre-existing, narrower than before): a completely '
-              'different, later caller for the same key still gets the '
-              "STALE, FAILED response from cache — DiomanCache has no way "
-              "to know the entry it wrote was a business failure, and "
-              "nothing ever evicted it (only the retry's own re-issue used "
-              'to accidentally interact with it before)');
-      expect(attempts, 2, reason: 'the later caller was a cache hit');
+      expect(later.data!['code'], 0,
+          reason: 'FIXED: the cache hit ran onResponse of DiomanRetry too, '
+              "which caught the poisoned entry's business failure and "
+              "recovered it via its own re-issue — this caller gets the "
+              'correct data instead of the stale failure');
+      expect(attempts, 3,
+          reason: 'the cache hit itself made no network call, but '
+              "DiomanRetry's recovery re-issue for it did — one more real "
+              'attempt than before');
     });
   });
 
