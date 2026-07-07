@@ -85,7 +85,7 @@ Future<void> main() async {
       },
       onAccessExpired: (_, __) async => print('  [auth] session expired'),
     ),
-    retry: DiomanRetry(dio: dio, max: 1),
+    retry: DiomanRetry(max: 1),
     log: const DiomanLog(logRequest: false, logResponse: false, logError: true),
   );
   dio.interceptors.add(net); // after log → counts true outbound

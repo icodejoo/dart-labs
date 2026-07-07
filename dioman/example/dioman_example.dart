@@ -154,7 +154,7 @@ Dio createHttp({
       },
       onAccessExpired: (_, __) async => onSessionExpired?.call(),
     ), //                                                                 (11)
-    DiomanRetry(dio: dio, max: retryMax), //                             (12)
+    DiomanRetry(max: retryMax), //                                      (12)
     // ── observability (last: sees the fully-processed request) ────────────
     const DiomanLog(logHeaders: true), //                               (13)
   ]);

@@ -29,7 +29,6 @@ Every plugin extends `DiomanPlugin` (a named `Interceptor` with a `dispose()` ho
 | `DiomanRepath` | Substitute path variables `{id}` / `:id` / `[id]` from query params or body. |
 | `DiomanFilter` | Strip `null`/empty fields from query params and body before sending. |
 | `DiomanKey` | Compute a stable per-request key (`extra[kRequestKey]`) for cache & dedup. |
-| `DiomanNormalize` | Unwrap a `{code,data,message}` envelope; reject non-success as an `ApiException`. |
 | `DiomanCache` | TTL response cache with `none`/`shallow`/`deep` clone strategies. |
 | `DiomanShare` | Deduplicate concurrent same-key requests (`start`/`end`/`race`/`retry`). |
 | `DiomanMock` | Route-based mock (inline handlers or a mock server) with real-API fallback. |
@@ -38,6 +37,7 @@ Every plugin extends `DiomanPlugin` (a named `Interceptor` with a `dispose()` ho
 | `DiomanAuth` | Token injection + single-window 401/403 refresh & replay (5 failure actions). |
 | `DiomanRetry` | Retry network (and optionally business) failures with back-off. |
 | `DiomanLog` | Dependency-free request/response/error logging with a pluggable sink. |
+| `DiomanNormalize` | *(optional, install last)* Unwrap a `{code,data,message}` envelope; reject non-success as an `ApiException`. |
 
 ## Install
 
@@ -52,38 +52,43 @@ import 'package:dioman/dioman.dart';
 
 ## Quick start
 
-Plugins are listed below in the **canonical order** (see [Recommended order](#recommended-order)) —
-copy this as-is and it's already correctly sequenced; add/remove plugins in place without
-reordering the rest.
+Pass the plugins you want to `Dioman.install` — it slots each one into the **canonical
+order** (see [Recommended order](#recommended-order)) for you, so you never have to think
+about ordering, and it auto-wires `DiomanRetry`/`DiomanAuth` to a `share:`/`cancel:` you
+also pass (see [Wiring: `Dioman.install`](#wiring-dionaminstall)).
 
 ```dart
 final dio = Dio(BaseOptions(baseUrl: 'https://api.example.com'));
 
-// envs → repath → filter → key → normalize → cache →
-// share → mock → cancel → loading → auth → retry → log
-dio.interceptors.addAll(<DiomanPlugin>[
-  DiomanEnvs(dio: dio, [
+final handle = Dioman.install(
+  dio,
+  envs: DiomanEnvs(dio: dio, [
     EnvRule(rule: () => true, config: BaseOptions(baseUrl: 'https://api.example.com')),
   ]),
-  DiomanRepath(),                 // /users/{id}  → /users/42
-  const DiomanFilter(), // drop empty params
-  const DiomanKey(),         // key for cache/share
-  const DiomanNormalize(),        // {code,data,message} → data
-  DiomanCache(),                  // TTL cache (GET)
-  DiomanShare(),                  // dedup concurrent
-  DiomanMock(),                   // enabled: false by default — dev only
-  DiomanCancel(),
-  DiomanLoading(onChanged: (busy) => showSpinner(busy)),
-  DiomanAuth(
+  repath: DiomanRepath(),                 // /users/{id}  → /users/42
+  filter: const DiomanFilter(),           // drop empty params
+  key: const DiomanKey(),                 // key for cache/share
+  cache: DiomanCache(),                   // TTL cache (GET)
+  share: DiomanShare(),                   // dedup concurrent
+  mock: DiomanMock(),                     // enabled: false by default — dev only
+  cancel: DiomanCancel(),
+  loading: DiomanLoading(onChanged: (busy) => showSpinner(busy)),
+  auth: DiomanAuth(
     tokenManager: myTokenManager,
     onRefresh: (tokenManager, _) async { /* refresh + save */ },
     onAccessExpired: (tokenManager, _) async { /* go to login */ },
   ),
-  DiomanRetry(dio: dio, max: 2),
-  const DiomanLog(),
-]);
+  retry: DiomanRetry(max: 2),
+  log: const DiomanLog(),
+  // normalize: const DiomanNormalize(), // optional, business-specific —
+  // see its own section below. install() places it last regardless of
+  // where you pass it among these named arguments.
+);
 
 final res = await dio.get('/users/{id}', queryParameters: {'id': 42});
+
+// Later — eject every installed plugin and release its resources:
+// handle.dispose();
 ```
 
 A complete, runnable wiring (with an in-memory token manager and the full ordering rationale in comments) is in [`example/dioman_example.dart`](./example/dioman_example.dart).
@@ -128,36 +133,37 @@ Because Dio is forward-order for **all** phases, one list must satisfy request, 
 | 2 | `repath` | rewrite `{id}`/`:id` path | — |
 | 3 | `filter` | strip empty params/data | — |
 | 4 | `key` | compute request key | — |
-| 5 | `normalize` | — | unwrap envelope / reject biz-error |
-| 6 | `cache` | serve from cache | store **unwrapped** payload |
-| 7 | `share` | dedup concurrent | settle waiters |
-| 8 | `mock` | dev override / fallback | — |
-| 9 | `cancel` | inject `CancelToken` | release token |
-| 10 | `loading` | count++ | count-- (bracket) |
-| 11 | `auth` | inject token / wait for refresh | 401 → refresh + replay |
-| 12 | `retry` | — | retry network failures |
-| 13 | `log` | log request | log response / error |
+| 5 | `cache` | serve from cache | store raw payload |
+| 6 | `share` | dedup concurrent | settle waiters |
+| 7 | `mock` | dev override / fallback | — |
+| 8 | `cancel` | inject `CancelToken` | release token |
+| 9 | `loading` | count++ | count-- (bracket) |
+| 10 | `auth` | inject token / wait for refresh | 401 → refresh + replay |
+| 11 | `retry` | — | retry network/business failures |
+| 12 | `log` | log request | log response / error |
+| 13 | `normalize` *(optional)* | — | unwrap envelope / reject biz-error |
 
 **Why these positions (the hard constraints):**
 
 - **`key` before `cache` & `share`** — they read `extra[kRequestKey]`.
-- **`normalize` before `cache`** — the cache must store, and a hit must return, the *unwrapped* payload; otherwise a cached response differs in shape from a live one (a hit resolves with `resolve(false)`, skipping `normalize`).
-- **`normalize` before `auth`** — `auth` assumes a business error is already an exception.
 - **`cache`/`share`/`mock` before `cancel` & `loading`** — a short-circuit skips following response interceptors, so a bracket placed *before* it would increment/inject on `onRequest` and never clean up.
 - **`cancel` & `loading` before `auth` & `retry`** — on a 401 (auth) or a network retry, those plugins `resolve()` the error and halt the forward `onError` chain; the brackets must have already run so the counter is decremented and the token released.
+- **`normalize` LAST, after everything (including `log`)** — it's optional and business-specific (see its own section below), not a transport concern. Running it last means every other plugin — `cache`'s stored payload, `retry`'s `isExceptionRequest`, `log`'s dump — always sees the response exactly as it came off the wire, whether or not you use `normalize` at all. `DiomanRetry`'s own re-issue (see its section) is a throwaway Dio that bypasses this whole list anyway, so its `isExceptionRequest` always sees the raw body regardless.
 
 ## Wiring: `Dioman.install`
 
 The install order above is a hard constraint. Rather than ordering plugins by hand, pass the ones you want to `Dioman.install` and they're slotted into the canonical sequence (omitted plugins are skipped). It returns a `DiomanHandle` for lookup (`handle.plugin<DiomanAuth>()`), removing a single plugin (`handle.remove<DiomanAuth>()` ejects it from `dio.interceptors` and calls its own `dispose()`, leaving the rest of the chain untouched — a no-op, returning `null`, if that type isn't installed), and coordinated teardown (`handle.dispose()` ejects **every** plugin and calls each one's `dispose()` — nothing else does that automatically).
 
+`install` also wires `DiomanRetry.share`/`.cancel` and `DiomanAuth.share`/`.cancel` for you: pass the same `share:`/`cancel:` instance you pass to `retry:`/`auth:`, and `install` sets those properties after adding all the plugins — see [DiomanRetry](#diomanretry) for why that reference matters. Wiring it by hand (setting `retry.share = share` etc.) is only needed if you add the plugins to `dio.interceptors` yourself instead of going through `install`.
+
 ```dart
 final handle = Dioman.install(
   dio,
   key: const DiomanKey(),
-  normalize: const DiomanNormalize(),
   cache: DiomanCache(),
   auth: DiomanAuth(tokenManager: tm, onRefresh: ..., onAccessExpired: ...),
   log: const DiomanLog(),
+  normalize: const DiomanNormalize(), // optional — install places it last regardless of argument order
 );
 
 // Remove a single plugin later (e.g. logging out — drop DiomanAuth only):
@@ -194,7 +200,11 @@ DiomanEnvs(dio: dio, [
 
 `DiomanKey({bool fastMode = false, List<String> ignoreKeys = const [], bool enabled = true, String Function(RequestOptions)? builder})` — writes `extra[kRequestKey]` (fixed, cross-plugin protocol key — `'dioman:key'`). `fastMode` → `METHOD:path`; default (`fastMode: false`, deep) also folds sorted query params and body — `ignoreKeys` excludes names from both. A non-serialisable body (FormData / bytes / stream) folds in object identity so two distinct bodies never key identically (never falsely deduped/cached). Override per request with `extra['dioman:qid'] = const DiomanKeyOptions(key: '...')` (or `enabled: false` to skip).
 
-### DiomanNormalize
+### DiomanNormalize — optional, business-specific, install LAST
+
+Unlike every other plugin in this package, `DiomanNormalize` isn't a transport concern — it's a convenience for **one specific** envelope convention (`{code, data, message}`), and not every API uses one. Use it if it fits; skip it entirely if your backend doesn't wrap responses, or wraps them differently and you'd rather unwrap by hand. It's deliberately left out of [Quick start](#quick-start) and the [Recommended order](#recommended-order) hard-constraint list for this reason.
+
+**If you do use it, install it last** — after `log`, at the very end of the chain (this is also where `Dioman.install` places it, regardless of where you pass `normalize:` among its named arguments). That way every other plugin sees the response exactly as it came off the wire, not already unwrapped.
 
 `DiomanNormalize({String dataKey = 'data', String codeKey = 'code', String messageKey = 'message', bool enabled = true, bool Function(dynamic)? isSuccess, bool Function(RequestOptions, Response)? shouldNormalize})` — on a success envelope replaces `response.data` with the inner payload; on a non-success `code` it rejects with an `ApiException` so all error handling is unified at the interceptor layer. By default only kicks in when the body is a `Map` containing `codeKey` **and** either `dataKey` or `messageKey` (so a plain payload that merely carries a `code` field isn't mistaken for an envelope), and `isSuccess` is `code == 0`.
 
@@ -241,7 +251,9 @@ DiomanEnvs(dio: dio, [
 
 ### DiomanRetry
 
-`DiomanRetry({required Dio dio, int max = 0, Duration Function(int attempt)? delay, bool enabled = true, bool Function(DioException)? retryIf, bool Function(Response)? isExceptionRequest})` — `delay` defaults to exponential back-off (`1s, 2s, 4s`); `retryIf` defaults to timeouts + connection errors + `statusCode >= 500 && != 501`. Retries on the `onError` path. Optionally treats a 2xx whose body fails `isExceptionRequest` as a failure (business-level retry — see [Behavior notes](#behavior-notes)).
+`DiomanRetry({int max = 0, Duration Function(int attempt)? delay, bool enabled = true, bool Function(DioException)? retryIf, bool Function(Response)? isExceptionRequest, void Function(int attempt)? onRetry})` — `delay` defaults to exponential back-off (`1s, 2s, 4s`); `retryIf` defaults to timeouts + connection errors + `statusCode >= 500 && != 501`. Retries on the `onError` path, and optionally treats a 2xx whose body fails `isExceptionRequest` as a failure too (business-level retry, checked against the **raw** response body — see [DiomanNormalize](#diomannormalize--optional-business-specific-install-last)).
+
+The re-issue goes through a throwaway, interceptor-less `Dio()` — same pattern as `DiomanAuth`'s replay and `DiomanShare`'s own `policy=retry`. It never re-enters this chain, so a retried response is **not** re-cached, re-deduped, or re-normalized, and `DiomanAuth` doesn't get a chance to refresh the token again for it. `share`/`cancel` are settable properties (not constructor params) — set them to the same instances installed elsewhere on the chain to keep `DiomanShare` dedup and `cancelAll()` correctly aware of an in-flight retry; `Dioman.install` does this for you automatically whenever you pass both a `share:`/`cancel:` and a `retry:`, so you only need the setters when wiring the chain by hand. `onRetry` is a lightweight `(attempt) {}` hook for your own logging, since the re-issue never reaches `DiomanLog` either.
 
 ### DiomanLog
 
@@ -304,7 +316,7 @@ Then slot it into the list at the position its request/response roles imply (see
 ## Behavior notes
 
 - **Dio is forward-order, not onion.** `onRequest`, `onResponse`, and `onError` all iterate interceptors in add order. The whole [Recommended order](#recommended-order) follows from this plus the short-circuit / error-resolve rules above.
-- **Business-level retry vs normalize.** In the recommended order, `DiomanRetry.isExceptionRequest` (which inspects the envelope `code`) can't fire, because `normalize` (#5) unwraps the body before `retry` (#12) sees it. Network-level retry is unaffected. If you need envelope-based retry, move `DiomanRetry` ahead of `DiomanNormalize` — but that reintroduces a loading/cancel leak on a retried request, so pair it with `extra['dioman:loading'] = const DiomanLoadingOptions(enabled: false)` on those calls.
+- **`DiomanRetry`'s re-issue is a throwaway Dio, not a re-entry.** It never re-enters this chain — see its own section above for what that means for `DiomanCache`/`DiomanShare`/`DiomanAuth`/`DiomanLog` and why `isExceptionRequest` always sees the raw (pre-`DiomanNormalize`) body.
 - **Short-circuits skip response interceptors.** A cache/share/mock `resolve()` (with the default `false`) returns straight to the caller without running any following `onResponse`. That's why brackets (`cancel`/`loading`) sit *after* them — so they never increment on a hit.
 - **Single refresh window.** Concurrent 401s trigger exactly one `onRefresh`; the others await it, then replay.
 

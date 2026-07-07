@@ -63,19 +63,28 @@ class DiomanCancel extends DiomanPlugin {
 
     final existing = options.cancelToken;
     if (existing != null) {
-      // DiomanRetry re-dispatches through the full chain via the app's own
-      // Dio, reusing the same RequestOptions (and thus the same CancelToken
-      // this plugin injected on the first attempt). _release already
-      // deregistered it after that attempt's error, so without this it would
-      // stay untracked — and uncancellable via cancelAll — for every
-      // subsequent retry. Only re-register tokens this plugin itself
-      // injected (never a caller-supplied one) and that aren't already spent.
+      // Covers a RequestOptions object re-entering this onRequest a second
+      // time still carrying the token this plugin injected on an earlier
+      // pass (e.g. a caller manually re-dispatching the same RequestOptions
+      // through this same Dio). _release already deregistered it after that
+      // earlier pass's response/error, so without this it would stay
+      // untracked — and uncancellable via cancelAll — from here on. Only
+      // re-register tokens this plugin itself injected (never a
+      // caller-supplied one) and that aren't already spent. None of
+      // DiomanRetry/DiomanAuth/DiomanShare's own internal re-issues hit this
+      // branch — they all go through a throwaway, interceptor-less Dio that
+      // never reaches this onRequest at all (see [track]/[untrack] for how
+      // they stay trackable instead).
       //
-      // DiomanRetry通过应用自己的Dio重新分发整个拦截器链，复用同一个
-      // RequestOptions（从而复用本插件第一次注入的同一个CancelToken）。
-      // _release已经在那次失败后把它注销了，若不这样重新注册，之后每次重试
-      // 它都会处于未被追踪、无法被cancelAll中断的状态。只重新注册本插件自己
-      // 注入过的token（绝不是调用方自带的），且必须还没被用掉。
+      // 应对同一个RequestOptions对象第二次进到这个onRequest，且身上还带着
+      // 本插件上一轮注入的token（比如调用方手动把同一个RequestOptions再次
+      // 通过这同一个Dio分发一次）。_release已经在上一轮响应/错误之后把它
+      // 注销了，若不这样重新注册，从此它就会一直处于未被追踪、无法被
+      // cancelAll中断的状态。只重新注册本插件自己注入过的token（绝不是
+      // 调用方自带的），且必须还没被用掉。DiomanRetry/DiomanAuth/DiomanShare
+      // 自己内部的重新发起都不会走到这个分支——它们都是通过一个一次性、
+      // 不带拦截器的裸Dio发出，根本不会到达这个onRequest（它们靠
+      // [track]/[untrack]保持可追踪，见那两个方法）。
       if (options.extra[_kToken] == existing && !existing.isCancelled) {
         _tokens.add(existing);
       }

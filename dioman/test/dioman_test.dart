@@ -654,7 +654,6 @@ void main() {
       addTearDown(server.close);
       final dio = Dio(BaseOptions(baseUrl: server.baseUrl));
       dio.interceptors.add(DiomanRetry(
-        dio: dio,
         max: 3,
         isExceptionRequest: (r) => (r.data as Map)['code'] != 0,
       ));
@@ -702,8 +701,11 @@ void main() {
 
   group('DiomanCancel + DiomanRetry', () {
     test(
-        'a token this plugin injected stays trackable by cancelAll() '
-        'across a retry re-dispatch', () async {
+        "a token this plugin injected stays trackable by cancelAll() while "
+        "DiomanRetry's re-issue (a throwaway, interceptor-less Dio) is in "
+        'flight — because DiomanRetry was given a `cancel` reference, not '
+        "because the re-issue reaches this plugin's own onRequest (it "
+        "never does)", () async {
       final secondAttemptStarted = Completer<void>();
       var attempt = 0;
       final server = await TestServer.start((req) async {
@@ -717,9 +719,10 @@ void main() {
       });
       addTearDown(server.close);
       final dio = Dio(BaseOptions(baseUrl: server.baseUrl));
+      final cancel = DiomanCancel();
       dio.interceptors.addAll([
-        DiomanCancel(),
-        DiomanRetry(dio: dio, max: 1, delay: (_) => Duration.zero),
+        cancel,
+        DiomanRetry(max: 1, delay: (_) => Duration.zero)..cancel = cancel,
       ]);
 
       final call = dio.get<void>('/data');
@@ -740,29 +743,31 @@ void main() {
   });
 
   group('DiomanShare + DiomanRetry', () {
-    // dio 5.10.0 runs request/response/error interceptors in plain FIFO
-    // (add) order for all three — see dio_mixin.dart:505-549 ("Build a
-    // request flow in which the processors(interceptors) execute in FIFO
-    // order"). It is NOT reversed for response/error, despite that being
-    // the commonly-cited mental model elsewhere. Verified empirically with
-    // interceptors added as [key, share, retry]: DiomanShare.onError always
-    // fires BEFORE DiomanRetry.onError for the same failed attempt.
+    // DiomanRetry's re-issue goes through a throwaway, interceptor-less Dio
+    // (see retry_plugin.dart) — it never re-enters DiomanShare.onRequest at
+    // all. Without wiring the `share` setter into DiomanRetry, the two plugins simply
+    // don't coordinate: DiomanShare's dedup window covers only the FIRST
+    // attempt (settled — and the entry removed — as soon as it fails), and
+    // the retry that follows is completely invisible to it.
     test(
-        'a solo caller is unaffected by DiomanShare settling its entry '
-        "before the retry runs — it still gets the retry's correct final "
-        'result via its own handler chain, and the re-dispatched retry '
-        "attempt re-establishes its own (fresh) entry, so a THIRD caller "
-        'arriving mid-retry still dedupes against it (no 3rd network call)',
-        () async {
+        'without wiring the `share` setter into DiomanRetry, a solo caller still gets '
+        'the correct retried result, but a NEW caller arriving while the '
+        "retry is in flight does NOT dedupe against it — it starts its own "
+        'independent request, because the retry is invisible to '
+        'DiomanShare', () async {
       final retryInFlight = Completer<void>();
       var attempts = 0;
       final server = await TestServer.start((req) async {
-        attempts++;
-        if (attempts == 1) {
+        final n = ++attempts;
+        if (n == 1) {
           await respondJson(req, {'fail': true}, 500);
           return;
         }
-        retryInFlight.complete();
+        // Only A's retry (n=2) needs to signal this — C's own request (n=3)
+        // also lands in this branch, and completing an already-completed
+        // Completer throws (crashing this handler, which TestServer then
+        // reports as a spurious 500 — a real trap, not a hypothetical one).
+        if (!retryInFlight.isCompleted) retryInFlight.complete();
         await Future<void>.delayed(const Duration(milliseconds: 50));
         await respondJson(req, {'from': 'retry'}, 200);
       });
@@ -772,49 +777,41 @@ void main() {
         const DiomanKey(),
         DiomanShare(policy: DiomanSharePolicy.start),
       ]);
-      dio.interceptors.add(
-        DiomanRetry(dio: dio, max: 1, delay: (_) => Duration.zero),
-      );
+      dio.interceptors.add(DiomanRetry(max: 1, delay: (_) => Duration.zero));
 
       final a = dio.get<Map<String, dynamic>>('/data');
-      await retryInFlight.future; // A's retry attempt is now mid-flight,
-      // under a FRESH entry DiomanShare created when the retry's re-dispatch
-      // re-entered onRequest (the original entry was already removed when
-      // the first attempt's 500 settled it, before the retry ever started).
+      await retryInFlight.future; // A's retry is mid-flight, on a throwaway
+      // Dio DiomanShare never sees — its own entry for this key was already
+      // removed when the first attempt's 500 settled it, well before the
+      // retry started.
 
       final c = await dio
           .get<Map<String, dynamic>>('/data')
           .timeout(const Duration(seconds: 3));
       expect(c.data, {'from': 'retry'},
-          reason: "C joins the retry attempt's fresh entry rather than "
-              'triggering its own network call');
-      expect(attempts, 2, reason: "no 3rd call — C deduped against A's retry");
+          reason: 'C still gets the right eventual data, but only because '
+              "it triggered its OWN successful request — attempts proves "
+              "it wasn't deduped");
+      expect(attempts, 3,
+          reason: "C's own independent call is the 3rd — see the "
+              '"pairwise: share + retry" group in dioman_combinations_test.dart '
+              'for what wiring the `share` setter into DiomanRetry changes here (C '
+              'would dedupe instead, no 3rd call)');
 
       final aResult = await a.timeout(const Duration(seconds: 3));
       expect(aResult.data, {'from': 'retry'},
-          reason: 'A (the original caller) still gets the correct retried '
-              'result via its own handler chain, independent of the entry '
-              "DiomanShare already settled (with A's now-discarded first "
-              'attempt) before the retry ran');
+          reason: "A still gets its own correct retried result regardless "
+              "— DiomanRetry's success/failure never depended on "
+              'DiomanShare in the first place');
     });
 
-    // NOT proven by an automated test here, but demonstrated via manual
-    // tracing (share.onError firing before retry.onError, per the FIFO-order
-    // note above) and reproduced twice against genuinely CONCURRENT callers
-    // (policy=start's `_handleStart` else-branch, and policy=end's
-    // `_awaitEntry`): a caller that was already waiting on the shared entry
-    // *before* the leader's first attempt failed never observes the
-    // leader's eventual retried outcome — DiomanShare settles that entry
-    // with the pre-retry result first. Both attempts to assert this
-    // automatically hit a SEPARATE, pre-existing dio interceptor-zone quirk
-    // (also flagged on the policy=retry test above): the completer-based
-    // `entry.completer.future.then(resolve, onError: reject)` used by both
-    // `_handleStart`'s else-branch and `_awaitEntry` crashes with an
-    // unhandled zone error instead of cleanly resolving/rejecting the
-    // waiting caller — so in practice this compounds into a hang/crash
-    // rather than silently-wrong data, which is real but not something a
-    // clean `expect()` can pin down without first fixing that zone quirk.
-    // Flagged here rather than encoded as a flaky test.
+    // The concurrent-follower-ends-up-with-a-final-ERROR case (as opposed
+    // to a final success) still isn't provable with a clean `expect()` —
+    // see the "pairwise: share + auth" group in dioman_combinations_test.dart
+    // for why: it hits a SEPARATE, pre-existing dio interceptor-zone quirk
+    // in `_handleStart`'s else-branch / `_awaitEntry` (a completer-based
+    // `handler.reject` from inside a `.then()` callback crashes instead of
+    // cleanly rejecting), unrelated to DiomanRetry specifically.
   });
 
   group('DiomanNormalize detection', () {
@@ -1425,8 +1422,7 @@ void main() {
       });
       addTearDown(server.close);
       final dio = Dio(BaseOptions(baseUrl: server.baseUrl));
-      dio.interceptors
-          .add(DiomanRetry(dio: dio, max: 2)); // default retryIf ignores 418
+      dio.interceptors.add(DiomanRetry(max: 2)); // default retryIf ignores 418
 
       await expectLater(
         dio.get<void>(

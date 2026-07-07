@@ -182,10 +182,12 @@ void main() {
   });
 
   group('pairwise: cache + retry', () {
+    // DiomanRetry's re-issue goes through a throwaway, interceptor-less Dio
+    // (see retry_plugin.dart) — it never re-enters DiomanCache at all, in
+    // either direction. Two consequences, both by design:
     test(
-        "a successful retried response IS cached (DiomanRetry's re-dispatch "
-        "is a full independent pass through the chain, including cache's "
-        'own onResponse)', () async {
+        "a retried response is NOT cached — the retry re-issue never "
+        "reaches DiomanCache.onResponse", () async {
       var attempts = 0;
       final server = await TestServer.start((req) async {
         attempts++;
@@ -195,8 +197,7 @@ void main() {
       addTearDown(server.close);
       final dio = Dio(BaseOptions(baseUrl: server.baseUrl));
       installStateful(dio, cache: DiomanCache());
-      dio.interceptors
-          .add(DiomanRetry(dio: dio, max: 1, delay: (_) => Duration.zero));
+      dio.interceptors.add(DiomanRetry(max: 1, delay: (_) => Duration.zero));
 
       final r1 = await dio.get<Map<String, dynamic>>('/data');
       expect(r1.data, {'v': 'retried'});
@@ -204,57 +205,31 @@ void main() {
 
       final r2 = await dio.get<Map<String, dynamic>>('/data');
       expect(r2.data, {'v': 'retried'});
-      expect(attempts, 2, reason: 'the retried result was cached; the 500 '
-          'from the failed first attempt never pollutes the cache');
+      expect(attempts, 3,
+          reason: 'NOT a cache hit — the retried response was never '
+              'written to the cache, so this second call goes to the '
+              'network again. A real trade-off (see retry_plugin.dart\'s '
+              'class doc): it also means the business-level cache-poisoning '
+              'bug this used to have (a failed 200 getting cached, then '
+              "read straight back by the retry itself) can't happen "
+              'anymore — there is no `cache:` param on DiomanRetry at all, '
+              'because there is nothing for it to coordinate with.');
     });
 
-    // DiomanCache sits BEFORE DiomanRetry in the canonical chain, and cache
-    // only understands HTTP status (200-299), not DiomanRetry's
-    // BUSINESS-level failure concept (`isExceptionRequest`). A 200 response
-    // that retry considers a failure is, as far as cache is concerned, a
-    // perfectly normal successful response — so cache.onResponse writes it
-    // BEFORE retry.onResponse ever gets a chance to reject it.
+    // The ORIGINAL attempt (unlike the retry re-issue) is still a normal
+    // pass through the full chain — DiomanCache still writes its 200
+    // response, business failure or not, exactly as before. What's fixed is
+    // narrower than "cache never sees a business failure": it's specifically
+    // that the RETRY no longer reads that poisoned entry back and gets
+    // fooled by it. The entry itself still poisons the cache for any OTHER,
+    // unrelated later caller, until it expires.
     test(
-        'without wiring DiomanRetry to the DiomanCache instance, a '
-        "business-level failure (200 + custom failure code) still poisons "
-        "the cache with the FAILED response, and DiomanRetry's own "
-        're-dispatch then reads that poisoned cache entry right back '
-        'instead of hitting the network', () async {
-      var attempts = 0;
-      final server = await TestServer.start((req) async {
-        attempts++;
-        if (attempts == 1) {
-          return respondJson(req, {'code': 1, 'data': null, 'message': 'fail'}, 200);
-        }
-        return respondJson(req, {'code': 0, 'data': {'v': 'ok'}, 'message': ''}, 200);
-      });
-      addTearDown(server.close);
-      final dio = Dio(BaseOptions(baseUrl: server.baseUrl));
-      installStateful(dio, cache: DiomanCache());
-      dio.interceptors.add(DiomanRetry(
-        dio: dio,
-        max: 1,
-        delay: (_) => Duration.zero,
-        isExceptionRequest: (r) => (r.data as Map)['code'] != 0,
-        // NOTE: no `cache:` — this is the unfixed, opt-out-by-omission case.
-      ));
-
-      final r = await dio.get<Map<String, dynamic>>('/data');
-      expect(r.data!['code'], 1,
-          reason: 'the caller receives the FAILED first response — '
-              "DiomanRetry's re-dispatch hit the cache (poisoned by that "
-              'same failed response) instead of the network, since it was '
-              "never told about that cache instance");
-      expect(attempts, 1,
-          reason: "the network was only ever hit once — the retry's "
-              're-dispatch was fully absorbed by the poisoned cache entry');
-    });
-
-    test(
-        'FIX: passing the same DiomanCache instance to DiomanRetry evicts '
-        'the poisoned entry before retrying, so the re-dispatch reaches the '
-        'network and the caller gets the real, eventually-successful result',
-        () async {
+        "the retry re-issue no longer reads back the cache entry the "
+        "ORIGINAL failed attempt poisoned — it reaches the network on its "
+        "own — but that poisoned entry still exists and still serves stale "
+        'data to a DIFFERENT later caller for the same key, because the '
+        "original attempt (not the retry) is what wrote it, and nothing "
+        'evicts it now', () async {
       var attempts = 0;
       final server = await TestServer.start((req) async {
         attempts++;
@@ -268,8 +243,6 @@ void main() {
       final cache = DiomanCache();
       installStateful(dio, cache: cache);
       dio.interceptors.add(DiomanRetry(
-        dio: dio,
-        cache: cache,
         max: 1,
         delay: (_) => Duration.zero,
         isExceptionRequest: (r) => (r.data as Map)['code'] != 0,
@@ -277,14 +250,25 @@ void main() {
 
       final r = await dio.get<Map<String, dynamic>>('/data');
       expect(r.data!['code'], 0,
-          reason: 'the poisoned entry was evicted before the re-dispatch, '
-              'so the retry actually reached the network this time');
-      expect(attempts, 2, reason: 'first attempt (failure) + real retry');
+          reason: 'the caller for THIS request still correctly gets the '
+              "retried, successful result — the retry's own re-issue "
+              'reached the network directly, never consulting the cache');
+      expect(attempts, 2);
+      expect(cache.size, 1,
+          reason: 'the ORIGINAL (failed) attempt still wrote its 200 '
+              "response to the cache — that part of DiomanCache's behavior "
+              "is unrelated to DiomanRetry's re-issue mechanism and "
+              'unchanged by this redesign');
 
-      final r2 = await dio.get<Map<String, dynamic>>('/data');
-      expect(r2.data!['code'], 0);
-      expect(attempts, 2,
-          reason: 'the SUCCESSFUL retried response is now the one cached');
+      final later = await dio.get<Map<String, dynamic>>('/data');
+      expect(later.data!['code'], 1,
+          reason: 'BUG (pre-existing, narrower than before): a completely '
+              'different, later caller for the same key still gets the '
+              "STALE, FAILED response from cache — DiomanCache has no way "
+              "to know the entry it wrote was a business failure, and "
+              "nothing ever evicted it (only the retry's own re-issue used "
+              'to accidentally interact with it before)');
+      expect(attempts, 2, reason: 'the later caller was a cache hit');
     });
   });
 
@@ -382,7 +366,7 @@ void main() {
 
   group('pairwise: share + retry', () {
     // FIXED (see share_plugin.dart / retry_plugin.dart): passing the SAME
-    // DiomanShare instance to DiomanRetry's `share:` param registers retry
+    // DiomanShare instance to DiomanRetry's `share` setter registers retry
     // as the entry's settler. DiomanShare then defers its own onError
     // settlement, so a concurrent follower stays bound to the (not yet
     // completed) shared completer instead of being delivered the pre-retry
@@ -411,11 +395,9 @@ void main() {
       final share = DiomanShare(policy: DiomanSharePolicy.start);
       installStateful(dio, share: share);
       dio.interceptors.add(DiomanRetry(
-        dio: dio,
-        share: share,
         max: 1,
         delay: (_) => Duration.zero,
-      ));
+      )..share = share);
 
       final leader = dio.get<Map<String, dynamic>>('/data');
       await Future<void>.delayed(const Duration(milliseconds: 10));
@@ -453,11 +435,9 @@ void main() {
       final share = DiomanShare(policy: DiomanSharePolicy.start);
       installStateful(dio, share: share);
       dio.interceptors.add(DiomanRetry(
-        dio: dio,
-        share: share,
         max: 1,
         delay: (_) => Duration.zero,
-      ));
+      )..share = share);
 
       final a = dio.get<Map<String, dynamic>>('/data');
       await retryInFlight.future;
@@ -508,7 +488,7 @@ void main() {
     });
 
     // FIXED (same mechanism as "share + retry" above): passing the SAME
-    // DiomanShare instance to DiomanAuth's `share:` param registers auth as
+    // DiomanShare instance to DiomanAuth's `share` setter registers auth as
     // the entry's settler for this key, so a concurrent follower gets the
     // REFRESHED result instead of the stale pre-refresh 401.
     test(
@@ -537,10 +517,9 @@ void main() {
       installStateful(dio, share: share);
       dio.interceptors.add(DiomanAuth(
         tokenManager: tm,
-        share: share,
         onRefresh: (_, __) async => tm.set('t1'),
         onAccessExpired: (_, __) async {},
-      ));
+      )..share = share);
 
       final leader = dio.get<Map<String, dynamic>>('/data');
       await Future<void>.delayed(const Duration(milliseconds: 10));
@@ -633,7 +612,7 @@ void main() {
           tokenManager: tm,
           onRefresh: (_, __) async => tm.set('t1'),
           onAccessExpired: (_, __) async {},
-          // NOTE: no `cancel:` — this is the unfixed, opt-out-by-omission
+          // NOTE: no `cancel` setter — this is the unfixed, opt-out-by-omission
           // case.
         ),
       );
@@ -669,10 +648,9 @@ void main() {
         cancel: cancel,
         auth: DiomanAuth(
           tokenManager: tm,
-          cancel: cancel,
           onRefresh: (_, __) async => tm.set('t1'),
           onAccessExpired: (_, __) async {},
-        ),
+        )..cancel = cancel,
       );
 
       final call = dio.get<void>('/data');
@@ -738,13 +716,14 @@ void main() {
   });
 
   group('pairwise: loading + retry', () {
+    // FIXED as a side effect of DiomanRetry's bare-dio redesign (see
+    // retry_plugin.dart's class doc) — the retry re-issue never re-enters
+    // DiomanLoading.onRequest/onError at all anymore, so there's nothing
+    // left to cause the flicker this test used to demonstrate.
     test(
-        'BUG (verification, not yet fixed): the loading counter flickers '
-        '0→1→0→1→0 across a retry instead of staying steady at 1, because '
-        'loading (installed before retry) decrements on the FIRST failed '
-        'attempt — before the retry even starts — and increments again '
-        "when the retry's re-dispatch re-enters loading.onRequest",
-        () async {
+        "the loading counter stays steady at 1 across a retry — the "
+        "re-issue never touches DiomanLoading, so there's no 0→1 flicker "
+        'mid-retry', () async {
       var attempts = 0;
       final server = await TestServer.start((req) async {
         attempts++;
@@ -756,28 +735,39 @@ void main() {
       final states = <bool>[];
       installStateful(dio, loading: DiomanLoading(onChanged: states.add));
       dio.interceptors
-          .add(DiomanRetry(dio: dio, max: 1, delay: (_) => Duration.zero));
+          .add(DiomanRetry(max: 1, delay: (_) => Duration.zero));
 
       final r = await dio.get<Map<String, dynamic>>('/data');
       expect(r.data, {'v': 'ok'});
-      expect(states, [true, false, true, false],
-          reason: 'BUG: a caller driving a global spinner off this callback '
-              'sees it flash off and back on mid-retry, instead of staying '
-              'on continuously for the one logical request the caller made');
+      expect(states, [true, false],
+          reason: 'a single 0→1→0 edge for the whole logical request — the '
+              'retry, on its own throwaway Dio, never bumps the counter '
+              'again mid-flight');
     });
   });
 
   group('3-way: share + retry + auth', () {
+    // Unlike the old same-dio design, DiomanAuth does NOT get a chance to
+    // re-inject/refresh the token on DiomanRetry's re-issue (bare dio, no
+    // interceptors) — the re-issue just carries whatever header the
+    // ORIGINAL attempt already had. That's fine for what DiomanRetry is
+    // actually for (network-level failures, business-level failures) —
+    // neither implies the token specifically went bad; if it truly expired
+    // mid-flight, that's DiomanAuth's own reactive 401 handling to catch on
+    // a LATER request, not something the retry needs to solve.
     test(
-        'auth still runs (and can refresh) for the LEADER on a retried '
-        'attempt, since each DiomanRetry re-dispatch is a full independent '
-        'pass through the chain including auth.onRequest', () async {
+        'the retry re-issue carries the SAME auth header the original '
+        "attempt had — auth's own token refresh never gets a chance to run "
+        'again for it, but the combo still works correctly end to end',
+        () async {
       final tm = FakeTokenManager('t0');
       var attempts = 0;
+      final headersSeen = <String?>[];
       final server = await TestServer.start((req) async {
         attempts++;
+        headersSeen.add(req.headers.value('authorization'));
         if (attempts == 1) return respondJson(req, {'fail': true}, 500);
-        return respondJson(req, {'v': 'ok', 'usedToken': 't0'}, 200);
+        return respondJson(req, {'v': 'ok'}, 200);
       });
       addTearDown(server.close);
       final dio = Dio(BaseOptions(baseUrl: server.baseUrl));
@@ -791,11 +781,15 @@ void main() {
         ),
       );
       dio.interceptors
-          .add(DiomanRetry(dio: dio, max: 1, delay: (_) => Duration.zero));
+          .add(DiomanRetry(max: 1, delay: (_) => Duration.zero));
 
       final r = await dio.get<Map<String, dynamic>>('/data');
       expect(r.data!['v'], 'ok');
       expect(attempts, 2);
+      expect(headersSeen, ['Bearer t0', 'Bearer t0'],
+          reason: "both attempts carry the SAME header — auth's onRequest "
+              "never ran again for the retry's re-issue to refresh it, "
+              'even though `tm` would have handed out a different token');
     });
   });
 
@@ -822,13 +816,15 @@ void main() {
   group('full stateful stack (all 6): cache+share+cancel+loading+auth+retry',
       () {
     // Deliberately uses a NETWORK-level (500) failure, not a business-level
-    // one — the "pairwise: cache + retry" business-level test above already
-    // shows that combo is broken (cache poisoned by the failed 200). A
-    // network-level failure never reaches cache.onResponse at all (it's
-    // routed through onError, not onResponse), so it doesn't hit that bug.
+    // one — the "pairwise: cache + retry" business-level test above covers
+    // that combo's (narrower, now) remaining caveat. A network-level
+    // failure never reaches cache.onResponse at all (it's routed through
+    // onError, not onResponse), so there's nothing to poison here either
+    // way.
     test('a network-level failure (500) still retries and eventually '
-        'succeeds through the entire stack, and the successful result gets '
-        'cached for a later caller', () async {
+        'succeeds through the entire stack — cleanly, since DiomanRetry\'s '
+        'bare-dio re-issue never touches cache/share/cancel/loading/auth/log '
+        'along the way', () async {
       final tm = FakeTokenManager('t0');
       var attempts = 0;
       final server = await TestServer.start((req) async {
@@ -850,7 +846,7 @@ void main() {
           onRefresh: (_, __) async => tm.set('t1'),
           onAccessExpired: (_, __) async {},
         ),
-        retry: DiomanRetry(dio: dio, max: 1, delay: (_) => Duration.zero),
+        retry: DiomanRetry(max: 1, delay: (_) => Duration.zero),
       );
 
       final r = await dio
@@ -859,14 +855,19 @@ void main() {
       expect(r.data!['code'], 0);
       expect(attempts, 2);
       expect(cancelAll(dio), 0, reason: 'nothing left in flight');
-      expect(states, [true, false, true, false],
-          reason: 'the loading counter flickers across the retry — same '
-              'root cause as the dedicated "loading + retry" bug test '
-              'above, still present with the rest of the stack installed');
+      expect(states, [true, false],
+          reason: 'a single steady 0→1→0 edge — the bare-dio re-issue never '
+              'touches DiomanLoading, so there\'s no flicker mid-retry, even '
+              'with the rest of the stack installed');
 
+      // A later, independent call is NOT a cache hit — the retried
+      // response never reached DiomanCache.onResponse (bare-dio re-issue),
+      // and the original 500 never reached it either (errors route through
+      // onError, not onResponse). This is a real, deliberate trade-off —
+      // see retry_plugin.dart's class doc.
       final r2 = await dio.get<Map<String, dynamic>>('/data');
       expect(r2.data!['code'], 0);
-      expect(attempts, 2, reason: 'second call is a cache hit');
+      expect(attempts, 3, reason: 'a fresh network hit, not a cache hit');
     });
   });
 
@@ -899,7 +900,7 @@ void main() {
           onRefresh: (_, __) async {},
           onAccessExpired: (_, __) async {},
         ),
-        retry: DiomanRetry(dio: dio, max: 1, delay: (_) => Duration.zero),
+        retry: DiomanRetry(max: 1, delay: (_) => Duration.zero),
         log: DiomanLog(writer: (m, {error}) => logs.add(m)),
       );
 

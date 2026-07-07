@@ -29,7 +29,6 @@
 | `DiomanRepath` | 用 query/body 里的值替换路径变量 `{id}` / `:id` / `[id]`。 |
 | `DiomanFilter` | 发送前剔除 query 与 body 里的 `null`/空字段。 |
 | `DiomanKey` | 计算稳定的单请求 key（`extra[kRequestKey]`），供缓存与去重使用。 |
-| `DiomanNormalize` | 拆 `{code,data,message}` 信封；非成功码转成 `ApiException` 抛出。 |
 | `DiomanCache` | 带 TTL 的响应缓存，支持 `none`/`shallow`/`deep` 克隆策略。 |
 | `DiomanShare` | 同 key 并发请求去重（`start`/`end`/`race`/`retry`）。 |
 | `DiomanMock` | 基于路由的 mock（内联处理器或 mock 服务器），失败自动回落真实 API。 |
@@ -38,6 +37,7 @@
 | `DiomanAuth` | 注入 token + 单窗口 401/403 刷新重放（5 种失败动作）。 |
 | `DiomanRetry` | 按退避重试网络（可选业务）失败。 |
 | `DiomanLog` | 零依赖的请求/响应/错误日志，输出方式可注入。 |
+| `DiomanNormalize` | *（可选，装在最后）* 拆 `{code,data,message}` 信封；非成功码转成 `ApiException` 抛出。 |
 
 ## 安装
 
@@ -52,36 +52,41 @@ import 'package:dioman/dioman.dart';
 
 ## 快速上手
 
-下面按**canonical 顺序**（见[推荐顺序](#推荐顺序)）排列插件——直接复制即已是正确顺序；增删插件时原地改，不用挪动其余的。
+把要用的插件传给`Dioman.install`——它会自动按**canonical 顺序**（见[推荐顺序](#推荐顺序)）排位置，
+不用自己操心顺序；同时传了`share:`/`cancel:`的话，也会自动帮`DiomanRetry`/`DiomanAuth`接好线
+（见[装配：`Dioman.install`](#装配dioman-install)）。
 
 ```dart
 final dio = Dio(BaseOptions(baseUrl: 'https://api.example.com'));
 
-// envs → repath → filter → key → normalize → cache →
-// share → mock → cancel → loading → auth → retry → log
-dio.interceptors.addAll(<DiomanPlugin>[
-  DiomanEnvs(dio: dio, [
+final handle = Dioman.install(
+  dio,
+  envs: DiomanEnvs(dio: dio, [
     EnvRule(rule: () => true, config: BaseOptions(baseUrl: 'https://api.example.com')),
   ]),
-  DiomanRepath(),                 // /users/{id}  → /users/42
-  const DiomanFilter(), // 剔除空参数
-  const DiomanKey(),         // 缓存/去重的 key
-  const DiomanNormalize(),        // {code,data,message} → data
-  DiomanCache(),                  // TTL 缓存（GET）
-  DiomanShare(),                  // 并发去重
-  DiomanMock(),                   // 默认 enabled: false——仅开发用
-  DiomanCancel(),
-  DiomanLoading(onChanged: (busy) => showSpinner(busy)),
-  DiomanAuth(
+  repath: DiomanRepath(),                 // /users/{id}  → /users/42
+  filter: const DiomanFilter(),           // 剔除空参数
+  key: const DiomanKey(),                 // 缓存/去重的 key
+  cache: DiomanCache(),                   // TTL 缓存（GET）
+  share: DiomanShare(),                   // 并发去重
+  mock: DiomanMock(),                     // 默认 enabled: false——仅开发用
+  cancel: DiomanCancel(),
+  loading: DiomanLoading(onChanged: (busy) => showSpinner(busy)),
+  auth: DiomanAuth(
     tokenManager: myTokenManager,
     onRefresh: (tokenManager, _) async { /* 刷新并保存 */ },
     onAccessExpired: (tokenManager, _) async { /* 跳登录 */ },
   ),
-  DiomanRetry(dio: dio, max: 2),
-  const DiomanLog(),
-]);
+  retry: DiomanRetry(max: 2),
+  log: const DiomanLog(),
+  // normalize: const DiomanNormalize(), // 可选、跟业务相关——见下面单独一节。
+  // install()不管你在这些具名参数里传在第几个，都会把它放最后。
+);
 
 final res = await dio.get('/users/{id}', queryParameters: {'id': 42});
+
+// 稍后——摘除所有已安装插件并释放资源：
+// handle.dispose();
 ```
 
 一份完整可运行的接线（含内存版 token 管理器，及注释里的完整排序依据）见 [`example/dioman_example.dart`](./example/dioman_example.dart)。
@@ -123,36 +128,37 @@ await dio.get('/x', options: Options(extra: {
 | 2 | `repath` | 替换 `{id}`/`:id` 路径 | — |
 | 3 | `filter` | 剔除空参数/数据 | — |
 | 4 | `key` | 计算请求 key | — |
-| 5 | `normalize` | — | 拆信封 / 业务错转异常 |
-| 6 | `cache` | 命中即返回 | 存**拆包后**的数据 |
-| 7 | `share` | 并发去重 | 唤醒等待者 |
-| 8 | `mock` | 开发覆盖 / 回落 | — |
-| 9 | `cancel` | 注入 `CancelToken` | 释放 token |
-| 10 | `loading` | 计数 +1 | 计数 -1（括号） |
-| 11 | `auth` | 注入 token / 等刷新 | 401 → 刷新 + 重放 |
-| 12 | `retry` | — | 重试网络失败 |
-| 13 | `log` | 记录请求 | 记录响应 / 错误 |
+| 5 | `cache` | 命中即返回 | 存原始数据 |
+| 6 | `share` | 并发去重 | 唤醒等待者 |
+| 7 | `mock` | 开发覆盖 / 回落 | — |
+| 8 | `cancel` | 注入 `CancelToken` | 释放 token |
+| 9 | `loading` | 计数 +1 | 计数 -1（括号） |
+| 10 | `auth` | 注入 token / 等刷新 | 401 → 刷新 + 重放 |
+| 11 | `retry` | — | 重试网络/业务失败 |
+| 12 | `log` | 记录请求 | 记录响应 / 错误 |
+| 13 | `normalize` *（可选）* | — | 拆信封 / 业务错转异常 |
 
 **为什么是这些位置（硬约束）：**
 
 - **`key` 在 `cache` 与 `share` 之前**——它们读 `extra[kRequestKey]`。
-- **`normalize` 在 `cache` 之前**——缓存存入、命中返回的都必须是*拆包后*的数据；否则缓存命中的结构会与实时响应不一致（命中是 `resolve(false)`，会跳过 `normalize`）。
-- **`normalize` 在 `auth` 之前**——`auth` 假设业务错误此时已是异常。
 - **`cache`/`share`/`mock` 在 `cancel` 与 `loading` 之前**——短路会跳过其后的响应拦截器；若把括号类插件放在它们前面，`onRequest` 里 +1/注入了却永远等不到清理。
 - **`cancel` 与 `loading` 在 `auth` 与 `retry` 之前**——401（auth）或网络重试时，这两个插件会 `resolve` 错误并中断正向 `onError` 链；括号必须先跑完，才能把计数减回、把 token 释放。
+- **`normalize` 排最后，在所有插件（包括 `log`）之后**——它可选、跟业务相关（见下面单独一节），不是传输层的事。放最后意味着其它每个插件——`cache`存的数据、`retry`的`isExceptionRequest`、`log`的dump——看到的永远是响应在线路上原本的样子，不管有没有装`normalize`。`DiomanRetry`自己的重新发起（见它那一节）走的是绕开整条链的裸Dio，所以它的`isExceptionRequest`本来就永远看到原始body。
 
 ## 装配：`Dioman.install`
 
 上面的安装顺序是硬约束。与其手工排序，不如把要用的插件传给 `Dioman.install`，它会按 canonical 顺序装配（未传的自动跳过），并返回一个 `DiomanHandle` 用于查找（`handle.plugin<DiomanAuth>()`）、单独移除某个插件（`handle.remove<DiomanAuth>()` 会把它从 `dio.interceptors` 摘除并调用它自己的 `dispose()`，链上其余插件不受影响；若该类型没装过则是空操作，返回 `null`），以及统一销毁（`handle.dispose()` 会摘除**所有**插件并调用每个插件自己的 `dispose()`——这一步没有别处会自动做）。
 
+`install`还会自动帮你接好`DiomanRetry.share`/`.cancel`跟`DiomanAuth.share`/`.cancel`——把跟`retry:`/`auth:`同一个`share:`/`cancel:`实例传进去，`install`装完所有插件后会自动去设那两个属性——为什么这个引用重要见[DiomanRetry](#diomanretry)那一节。只有自己手动往`dio.interceptors`加插件（不走`install`）时，才需要手动设置（`retry.share = share`这样）。
+
 ```dart
 final handle = Dioman.install(
   dio,
   key: const DiomanKey(),
-  normalize: const DiomanNormalize(),
   cache: DiomanCache(),
   auth: DiomanAuth(tokenManager: tm, onRefresh: ..., onAccessExpired: ...),
   log: const DiomanLog(),
+  normalize: const DiomanNormalize(), // 可选——install不管参数顺序，都会把它放最后
 );
 
 // 稍后只移除某一个插件（例如登出——只摘 DiomanAuth）：
@@ -189,7 +195,11 @@ DiomanEnvs(dio: dio, [
 
 `DiomanKey({bool fastMode = false, List<String> ignoreKeys = const [], bool enabled = true, String Function(RequestOptions)? builder})`——写入 `extra[kRequestKey]`（固定的跨插件协议 key，值为 `'dioman:key'`）。`fastMode` → `METHOD:path`；默认（`fastMode: false`，deep）还会拼入排序后的 query 与 body——`ignoreKeys` 同时从两者中排除指定名字。不可序列化的 body（FormData / bytes / stream）会拼入对象 identity，保证两个不同 body 不会得到相同 key（不会被误去重/误缓存）。可用 `extra['dioman:qid'] = const DiomanKeyOptions(key: '...')` 单请求覆盖（或 `enabled: false` 跳过）。
 
-### DiomanNormalize
+### DiomanNormalize——可选、跟业务相关，装在最后
+
+跟本包其它插件不一样，`DiomanNormalize` 不是传输层的事——它只是针对**某一种**信封约定（`{code, data, message}`）的便利转换，不是每个 API 都这么包。适合就用，不适合（后端不封装，或者封装方式不一样、想自己手动拆）就完全不装。正因如此，它被刻意排除在[快速上手](#快速上手)和[推荐顺序](#推荐顺序)的硬约束列表之外。
+
+**如果要用，装在最后**——排在 `log` 后面，整条链的最末尾（这也是 `Dioman.install` 放置它的位置，不管你在 `normalize:` 这个具名参数传在调用的第几个）。这样其它所有插件看到的都是响应在线路上原本的样子，不是已经被解包过的。
 
 `DiomanNormalize({String dataKey = 'data', String codeKey = 'code', String messageKey = 'message', bool enabled = true, bool Function(dynamic)? isSuccess, bool Function(RequestOptions, Response)? shouldNormalize})`——成功信封时把 `response.data` 换成内层负载；非成功 `code` 则以 `ApiException` reject，让错误处理统一到拦截器层。默认仅当 body 是含 `codeKey` **且**含 `dataKey` 或 `messageKey` 的 `Map` 时才处理（避免把仅仅带 `code` 字段的普通负载误判成信封），`isSuccess` 默认为 `code == 0`。
 
@@ -236,7 +246,9 @@ DiomanEnvs(dio: dio, [
 
 ### DiomanRetry
 
-`DiomanRetry({required Dio dio, int max = 0, Duration Function(int attempt)? delay, bool enabled = true, bool Function(DioException)? retryIf, bool Function(Response)? isExceptionRequest})`——`delay` 默认指数退避（`1s, 2s, 4s`）；`retryIf` 默认网络超时、连接错误、`statusCode >= 500 && != 501`。在 `onError` 路径重试。可选地把 body 不满足 `isExceptionRequest` 的 2xx 视为失败（业务级重试——见[行为说明](#行为与语义说明)）。
+`DiomanRetry({int max = 0, Duration Function(int attempt)? delay, bool enabled = true, bool Function(DioException)? retryIf, bool Function(Response)? isExceptionRequest, void Function(int attempt)? onRetry})`——`delay` 默认指数退避（`1s, 2s, 4s`）；`retryIf` 默认网络超时、连接错误、`statusCode >= 500 && != 501`。在 `onError` 路径重试，也可选地把 body 不满足 `isExceptionRequest` 的 2xx 视为失败（业务级重试，判断的是**原始**响应体——见[DiomanNormalize](#diomannormalize可选跟业务相关装在最后)）。
+
+重新发起走的是一个一次性、不带拦截器的裸 `Dio()`——跟 `DiomanAuth` 的重放、`DiomanShare` 自己的 `policy=retry` 是同一套模式。它永远不会重新进入这条链，所以重试出来的响应**不会**被重新缓存、去重、或重新 normalize，`DiomanAuth` 也没机会为它再刷新一次 token。`share`/`cancel` 是可设置的属性（不是构造参数）——设成链上其它位置装的同一个实例，能让 `DiomanShare` 去重、`cancelAll()` 正确感知到正在重试中的请求；只要同时给 `Dioman.install` 传了 `share:`/`cancel:` 和 `retry:`，`install` 会自动帮你设好，只有自己手动接线时才需要手动调这两个 setter。`onRetry` 是个轻量的 `(attempt) {}` 钩子，给你自己接日志用的，因为重新发起根本不会经过 `DiomanLog`。
 
 ### DiomanLog
 
@@ -298,7 +310,7 @@ class TimingPlugin extends DiomanPlugin {
 ## 行为与语义说明
 
 - **Dio 是正向顺序，不是洋葱。** `onRequest`、`onResponse`、`onError` 都按添加顺序遍历。整份[推荐顺序](#推荐顺序)都由这一点加上上面的“短路 / 错误 resolve”规则推导而来。
-- **业务级重试 vs normalize。** 在推荐顺序下，`DiomanRetry.isExceptionRequest`（靠信封 `code` 判断）无法触发，因为 `normalize`（#5）已在 `retry`（#12）看到之前拆了包。网络级重试不受影响。若确需信封级重试，把 `DiomanRetry` 移到 `DiomanNormalize` 前——但这会让被重试的请求重新出现 loading/cancel 泄漏，需对这些调用设 `extra['dioman:loading'] = const DiomanLoadingOptions(enabled: false)`。
+- **`DiomanRetry` 的重新发起是裸Dio，不是重入。** 它永远不会重新进入这条链——具体对`DiomanCache`/`DiomanShare`/`DiomanAuth`/`DiomanLog`意味着什么、以及为什么`isExceptionRequest`永远看到的是原始（未经`DiomanNormalize`处理的）body，见它自己那一节。
 - **短路会跳过响应拦截器。** cache/share/mock 的 `resolve()`（默认 `false`）直接把结果返回调用方，不再走后续任何 `onResponse`。这正是括号类插件（`cancel`/`loading`）放在它们**之后**的原因——命中时它们根本不会 +1。
 - **单刷新窗口。** 并发的 401 只触发一次 `onRefresh`，其余等待后重放。
 
