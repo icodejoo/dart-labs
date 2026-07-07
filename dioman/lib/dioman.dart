@@ -20,3 +20,4 @@ export 'src/loading_plugin.dart';
 export 'src/auth_plugin.dart';
 export 'src/retry_plugin.dart';
 export 'src/log_plugin.dart';
+export 'src/notify_plugin.dart';
