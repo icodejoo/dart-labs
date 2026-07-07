@@ -7,8 +7,8 @@ import 'package:dio/dio.dart';
 ///
 /// [dispose] is called when the plugin is ejected — use it to cancel
 /// timers, close streams, or reset state.
-abstract class DioPlugin extends Interceptor {
-  const DioPlugin();
+abstract class DiomanPlugin extends Interceptor {
+  const DiomanPlugin();
 
   /// Unique identifier. Used by the plugin manager for lookup and dedup.
   String get name;

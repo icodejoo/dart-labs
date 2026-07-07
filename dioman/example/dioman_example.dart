@@ -3,9 +3,9 @@
 import 'package:dio/dio.dart';
 import 'package:dioman/dioman.dart';
 
-/// A minimal in-memory [ITokenManager] for the example.
+/// A minimal in-memory [DiomanTokenManager] for the example.
 /// In a real app back this with secure storage / your auth service.
-class InMemoryTokenManager implements ITokenManager {
+class InMemoryTokenManager implements DiomanTokenManager {
   InMemoryTokenManager({String? access, String? refresh})
       : _access = access,
         _refresh = refresh;
@@ -78,12 +78,12 @@ class InMemoryTokenManager implements ITokenManager {
 //  12 retry               —                        retry network failures
 //  13 log                 log request              log response / error
 //
-// Known trade-off: business-level retry (RetryPlugin.isExceptionRequest, which
+// Known trade-off: business-level retry (DiomanRetry.isExceptionRequest, which
 // inspects the envelope `code`) is unavailable here because normalize (#5) has
 // already unwrapped the body before retry (#12) sees it. Network-level retry is
-// unaffected. If you need envelope-based retry, move RetryPlugin ahead of
-// NormalizePlugin — but be aware that reintroduces the loading/cancel leak on a
-// retried request, so pair it with `extra[LoadingPlugin.configProperty] = false`
+// unaffected. If you need envelope-based retry, move DiomanRetry ahead of
+// DiomanNormalize — but be aware that reintroduces the loading/cancel leak on a
+// retried request, so pair it with `extra['dioman:loading'] = const DiomanLoadingOptions(enabled: false)`
 // on those calls.
 // ═════════════════════════════════════════════════════════════════════════════
 
@@ -92,7 +92,7 @@ Dio createHttp({
   String baseUrl = 'https://api.example.com',
   Duration connectTimeout = const Duration(seconds: 15),
   Duration receiveTimeout = const Duration(seconds: 15),
-  required ITokenManager tokenManager,
+  required DiomanTokenManager tokenManager,
   void Function(bool loading)? onLoading,
   Future<void> Function()? onSessionExpired,
   bool enableMock = false,
@@ -110,7 +110,7 @@ Dio createHttp({
 
   // 1. envs — resolved once at install time; passing `dio` applies the matching
   //    rule to dio.options right here in the constructor.
-  final envs = EnvsPlugin(dio: dio, [
+  final envs = DiomanEnvs(dio: dio, [
     EnvRule(
       rule: () => const bool.fromEnvironment('dart.vm.product') == false,
       config: BaseOptions(baseUrl: baseUrl), // dev
@@ -121,27 +121,28 @@ Dio createHttp({
     ),
   ]);
 
-  dio.interceptors.addAll(<DioPlugin>[
+  dio.interceptors.addAll(<DiomanPlugin>[
     // ── request pre-processing ────────────────────────────────────────────
     envs, //                                                              (1)
-    RepathPlugin(), //                                                    (2)
-    const FilterPlugin(), //                                              (3)
-    const KeyPlugin(), //                                                 (4)
+    DiomanRepath(), //                                                    (2)
+    const DiomanFilter(), //                                              (3)
+    const DiomanKey(), //                                                 (4)
     // ── response shaping / caching / dedup ────────────────────────────────
-    const NormalizePlugin(), //                                           (5)
-    CachePlugin(), //                                                     (6)
-    SharePlugin(), //                                                     (7)
-    MockPlugin(enabled: enableMock, mockUrl: mockUrl), //                 (8)
+    const DiomanNormalize(), //                                           (5)
+    DiomanCache(), //                                                     (6)
+    DiomanShare(), //                                                     (7)
+    DiomanMock(enabled: enableMock, mockUrl: mockUrl), //                 (8)
     // ── lifecycle brackets (must precede auth & retry) ────────────────────
-    CancelPlugin(), //                                                    (9)
-    LoadingPlugin(onChanged: onLoading ?? (l) => print('[http] loading=$l')),
+    DiomanCancel(), //                                                    (9)
+    DiomanLoading(onChanged: onLoading ?? (l) => print('[http] loading=$l')),
     // ── auth & retry (may resolve the error chain) ────────────────────────
-    AuthPlugin(
+    DiomanAuth(
       tokenManager: tokenManager,
       isProtected: (o) => !o.path.contains('/auth/'), // public auth endpoints
       onRefresh: (tm, _) async {
         // Refresh with a bare Dio (no interceptors → no recursion).
-        final res = await Dio(BaseOptions(baseUrl: baseUrl)).post<Map<String, dynamic>>(
+        final res =
+            await Dio(BaseOptions(baseUrl: baseUrl)).post<Map<String, dynamic>>(
           '/auth/refresh-token',
           data: {'refreshToken': tm.refreshToken},
         );
@@ -153,16 +154,17 @@ Dio createHttp({
       },
       onAccessExpired: (_, __) async => onSessionExpired?.call(),
     ), //                                                                 (11)
-    RetryPlugin(dio: dio, max: retryMax), //                             (12)
+    DiomanRetry(dio: dio, max: retryMax), //                             (12)
     // ── observability (last: sees the fully-processed request) ────────────
-    const LogPlugin(logHeaders: true), //                               (13)
+    const DiomanLog(logHeaders: true), //                               (13)
   ]);
 
   return dio;
 }
 
 Future<void> main() async {
-  final tokens = InMemoryTokenManager(access: 'demo-access', refresh: 'demo-refresh');
+  final tokens =
+      InMemoryTokenManager(access: 'demo-access', refresh: 'demo-refresh');
 
   final http = createHttp(
     baseUrl: 'https://api.example.com',
@@ -171,8 +173,8 @@ Future<void> main() async {
     onSessionExpired: () async => print('session expired → go to login'),
   );
 
-  // Path variables via RepathPlugin; empty params stripped by FilterPlugin;
-  // GET is cached (CachePlugin) and deduped (SharePlugin); token injected (AuthPlugin).
+  // Path variables via DiomanRepath; empty params stripped by DiomanFilter;
+  // GET is cached (DiomanCache) and deduped (DiomanShare); token injected (DiomanAuth).
   try {
     final res = await http.get(
       '/users/{id}',
@@ -187,9 +189,11 @@ Future<void> main() async {
   await http.get(
     '/public/config',
     options: Options(extra: {
-      AuthPlugin.configProperty: false, // no token required
-      CachePlugin.configProperty: false, // skip cache
-      LoadingPlugin.configProperty: false, // don't count toward the indicator
+      'dioman:auth':
+          const DiomanAuthOptions(enabled: false), // no token required
+      'dioman:cache': const DiomanCacheOptions(enabled: false), // skip cache
+      'dioman:loading': const DiomanLoadingOptions(
+          enabled: false), // don't count toward the indicator
     }),
   );
 

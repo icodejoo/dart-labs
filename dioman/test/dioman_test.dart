@@ -1,45 +1,19 @@
 // Regression tests for the code-review fixes to the dioman plugin chain.
-// Uses a fake [HttpClientAdapter] so no real network is needed.
+// Uses a real dart:io HttpServer (see test/support/test_server.dart) so
+// requests go over a real TCP loopback connection with real DNS/connect/
+// cancel semantics — including for plugins that internally re-dispatch via a
+// bare `Dio()` (DiomanAuth's replay, DiomanShare's retry policy), which now
+// reach the real test server instead of the live internet.
 import 'dart:async';
 import 'dart:convert';
-import 'dart:typed_data';
 
 import 'package:dio/dio.dart';
 import 'package:dioman/dioman.dart';
 import 'package:test/test.dart';
 
-/// Fake transport — every request is answered by [handler] instead of going
-/// over the network.
-class FakeAdapter implements HttpClientAdapter {
-  FakeAdapter(this.handler);
-  final FutureOr<ResponseBody> Function(RequestOptions options) handler;
-  int calls = 0;
-  final requests = <RequestOptions>[];
+import 'support/test_server.dart';
 
-  @override
-  Future<ResponseBody> fetch(
-    RequestOptions options,
-    Stream<Uint8List>? requestStream,
-    Future<void>? cancelFuture,
-  ) async {
-    calls++;
-    requests.add(options);
-    return handler(options);
-  }
-
-  @override
-  void close({bool force = false}) {}
-}
-
-ResponseBody jsonBody(Object data, int status) => ResponseBody.fromString(
-      jsonEncode(data),
-      status,
-      headers: {
-        Headers.contentTypeHeader: ['application/json'],
-      },
-    );
-
-class FakeTokenManager implements ITokenManager {
+class FakeTokenManager implements DiomanTokenManager {
   FakeTokenManager(this._access);
   String? _access;
   @override
@@ -54,7 +28,7 @@ class FakeTokenManager implements ITokenManager {
 
 /// Token manager whose access token can be swapped by an `onRefresh` callback,
 /// so the proactive-refresh tests can observe the fresh token being injected.
-class RefreshableTokenManager implements ITokenManager {
+class RefreshableTokenManager implements DiomanTokenManager {
   RefreshableTokenManager(this._access);
   String? _access;
   void setToken(String? t) => _access = t;
@@ -69,22 +43,24 @@ class RefreshableTokenManager implements ITokenManager {
 }
 
 void main() {
-  group('AuthPlugin', () {
-    // AuthPlugin's post-failure replay deliberately uses a throwaway `Dio()`
-    // (see SKILL.md) so it never re-enters the interceptor chain — that also
-    // means it bypasses this test's FakeAdapter and goes out over the real
-    // network. These tests therefore only assert on what's observable
-    // without depending on that replay's network outcome: which
-    // AuthFailureAction was chosen, and that the original 401 still
-    // surfaces once the (real, failing) replay gives up.
-    test('401 with the default Bearer header triggers a refresh action, not '
+  group('DiomanAuth', () {
+    // DiomanAuth's post-failure replay deliberately uses a throwaway `Dio()`
+    // (see SKILL.md) so it never re-enters the interceptor chain. Against a
+    // real TestServer that throwaway Dio's `.fetch()` still lands on our
+    // test server (RequestOptions carries its own already-resolved
+    // baseUrl), so the replay path is now genuinely observable end-to-end
+    // instead of only via which AuthFailureAction was chosen.
+    test(
+        '401 with the default Bearer header triggers a refresh action, not '
         'replay/expire (regression: comparing the formatted header against '
         'the raw store token made the refresh branch unreachable)', () async {
       final tm = FakeTokenManager('old-token');
       var refreshCalls = 0;
-      final dio = Dio(BaseOptions(baseUrl: 'http://test'));
-      dio.httpClientAdapter = FakeAdapter((_) => jsonBody({'error': 'expired'}, 401));
-      dio.interceptors.add(AuthPlugin(
+      final server = await TestServer.start(
+          (req) => respondJson(req, {'error': 'expired'}, 401));
+      addTearDown(server.close);
+      final dio = Dio(BaseOptions(baseUrl: server.baseUrl));
+      dio.interceptors.add(DiomanAuth(
         tokenManager: tm,
         onRefresh: (t, _) async => refreshCalls++,
         onAccessExpired: (_, __) async {},
@@ -99,25 +75,29 @@ void main() {
               'and never called onRefresh at all');
     });
 
-    test('a denied request (no token) still releases the loading/cancel'
+    test(
+        'a denied request (no token) still releases the loading/cancel'
         ' brackets installed before auth', () async {
       final tm = FakeTokenManager(null);
-      final dio = Dio(BaseOptions(baseUrl: 'http://test'));
-      dio.httpClientAdapter = FakeAdapter((_) => jsonBody({}, 200));
+      final server =
+          await TestServer.start((req) => respondJson(req, {}, 200));
+      addTearDown(server.close);
+      final dio = Dio(BaseOptions(baseUrl: server.baseUrl));
 
       final loadingStates = <bool>[];
-      final cancelPlugin = CancelPlugin();
+      final cancelPlugin = DiomanCancel();
       dio.interceptors.addAll([
         cancelPlugin,
-        LoadingPlugin(onChanged: loadingStates.add),
-        AuthPlugin(
+        DiomanLoading(onChanged: loadingStates.add),
+        DiomanAuth(
           tokenManager: tm,
           onRefresh: (_, __) async {},
           onAccessExpired: (_, __) async {},
         ),
       ]);
 
-      await expectLater(dio.get<void>('/protected'), throwsA(isA<DioException>()));
+      await expectLater(
+          dio.get<void>('/protected'), throwsA(isA<DioException>()));
 
       expect(loadingStates, [true, false],
           reason: 'loading bracket must release even though auth denied '
@@ -131,27 +111,31 @@ void main() {
     // With an `expiresAt` callback, an already-expired token is refreshed in
     // onRequest BEFORE sending, so requests go out once with a fresh token —
     // no doomed 401 round-trip. Unlike the reactive replay, this path does hit
-    // the FakeAdapter (it's a normal onRequest → send), so the injected header
-    // and network call count are directly observable.
+    // the real test server (it's a normal onRequest → send), so the injected
+    // header and network call count are directly observable.
 
     DateTime? expiresAtFn(String token) => token == 'new'
         ? DateTime.now().add(const Duration(hours: 1)) // fresh
         : DateTime.now().subtract(const Duration(seconds: 1)); // expired
 
-    test('proactive refresh: N concurrent requests with an expired token '
+    test(
+        'proactive refresh: N concurrent requests with an expired token '
         'trigger exactly ONE refresh and all go out with the fresh token '
         '(zero doomed 401s), collapsing on the shared refresh window',
         () async {
       final tm = RefreshableTokenManager('old');
       var refreshCalls = 0;
+      var calls = 0;
       final sentAuth = <String>[];
 
-      final dio = Dio(BaseOptions(baseUrl: 'http://test'));
-      dio.httpClientAdapter = FakeAdapter((o) {
-        sentAuth.add(o.headers['Authorization']?.toString() ?? '<none>');
-        return jsonBody({'ok': true}, 200);
+      final server = await TestServer.start((req) async {
+        calls++;
+        sentAuth.add(req.headers.value('authorization') ?? '<none>');
+        await respondJson(req, {'ok': true}, 200);
       });
-      dio.interceptors.add(AuthPlugin(
+      addTearDown(server.close);
+      final dio = Dio(BaseOptions(baseUrl: server.baseUrl));
+      dio.interceptors.add(DiomanAuth(
         tokenManager: tm,
         expiresAt: expiresAtFn,
         onRefresh: (_, __) async {
@@ -170,25 +154,27 @@ void main() {
       expect(refreshCalls, 1,
           reason: 'concurrent expiring requests must collapse to a single '
               'refresh via the shared `_refreshing` window');
-      expect((dio.httpClientAdapter as FakeAdapter).calls, 3);
+      expect(calls, 3);
       expect(sentAuth, everyElement('Bearer new'),
           reason: 'every request must be sent with the refreshed token — a '
               'zero-doomed-round outcome; none should carry Bearer old');
       expect(sentAuth, isNot(contains('Bearer old')));
     });
 
-    test('proactive refresh is opt-in: with no expiresAt callback the token '
+    test(
+        'proactive refresh is opt-in: with no expiresAt callback the token '
         'is used as-is and onRefresh is never called', () async {
       final tm = RefreshableTokenManager('old');
       var refreshCalls = 0;
       final sentAuth = <String>[];
 
-      final dio = Dio(BaseOptions(baseUrl: 'http://test'));
-      dio.httpClientAdapter = FakeAdapter((o) {
-        sentAuth.add(o.headers['Authorization']?.toString() ?? '<none>');
-        return jsonBody({'ok': true}, 200);
+      final server = await TestServer.start((req) async {
+        sentAuth.add(req.headers.value('authorization') ?? '<none>');
+        await respondJson(req, {'ok': true}, 200);
       });
-      dio.interceptors.add(AuthPlugin(
+      addTearDown(server.close);
+      final dio = Dio(BaseOptions(baseUrl: server.baseUrl));
+      dio.interceptors.add(DiomanAuth(
         tokenManager: tm,
         onRefresh: (_, __) async => refreshCalls++,
         onAccessExpired: (_, __) async {},
@@ -201,15 +187,20 @@ void main() {
       expect(sentAuth, ['Bearer old']);
     });
 
-    test('proactive refresh failure clears the session and rejects before '
+    test(
+        'proactive refresh failure clears the session and rejects before '
         'the request is ever sent', () async {
       final tm = RefreshableTokenManager('old');
       var expiredCalls = 0;
+      var calls = 0;
 
-      final dio = Dio(BaseOptions(baseUrl: 'http://test'));
-      final adapter = FakeAdapter((_) => jsonBody({'ok': true}, 200));
-      dio.httpClientAdapter = adapter;
-      dio.interceptors.add(AuthPlugin(
+      final server = await TestServer.start((req) async {
+        calls++;
+        await respondJson(req, {'ok': true}, 200);
+      });
+      addTearDown(server.close);
+      final dio = Dio(BaseOptions(baseUrl: server.baseUrl));
+      dio.interceptors.add(DiomanAuth(
         tokenManager: tm,
         expiresAt: expiresAtFn,
         onRefresh: (_, __) async => throw StateError('refresh boom'),
@@ -224,8 +215,9 @@ void main() {
       expect(expiredCalls, 1,
           reason: 'a failed proactive refresh must run onAccessExpired');
       expect(tm.accessToken, isNull, reason: 'session must be cleared');
-      expect(adapter.calls, 0,
-          reason: 'the request must never reach the network with a dead token');
+      expect(calls, 0,
+          reason:
+              'the request must never reach the network with a dead token');
     });
 
     // ── Reactive single-window refresh under concurrency ──────────────────
@@ -233,27 +225,51 @@ void main() {
     // SCRAMBLED order must collapse onto ONE refresh (the `_refreshing ??=`
     // shared window). Once the refresh lands a new token, the later-arriving
     // 401s see carried-token != current-token and route to *replay*, not a
-    // second refresh. (Replays re-issue via a throwaway Dio that bypasses the
-    // FakeAdapter and fails offline — expected; we assert only the refresh
-    // count and that every request was actually attempted.)
-    test('concurrent, out-of-order 401s trigger the refresh EXACTLY ONCE '
+    // second refresh.
+    //
+    // Replays re-issue via a throwaway Dio that now genuinely reaches the
+    // TestServer (see file header). The server therefore MUST honour the
+    // refreshed token (respond success once it sees `Bearer new`) rather
+    // than 401 unconditionally: discovered while converting this test off
+    // FakeAdapter — if every replay also 401s, `_handleFailure` calls
+    // `_expire()` on that failure, which clears the *shared* token manager.
+    // Because the replays race each other in real wall-clock time, whichever
+    // one fails first can null out the store out from under a still-pending
+    // sibling, flipping that sibling's action from `replay` to `expired`
+    // (observed non-deterministically: 9, then 11, distinct total call
+    // counts across two otherwise-identical runs). That race is an artifact
+    // of a test server that never lets any replay succeed, not something
+    // this test intends to exercise, so the server now answers success once
+    // the refreshed token is presented — matching how a real backend would
+    // behave and removing the race. With that, every one of the 6 requests
+    // deterministically performs exactly one initial dispatch (401) and
+    // exactly one post-refresh replay (success) — 12 total network hits.
+    test(
+        'concurrent, out-of-order 401s trigger the refresh EXACTLY ONCE '
         '(single shared window); late 401s replay instead of re-refreshing',
         () async {
       final tm = RefreshableTokenManager('old');
       var refreshCount = 0;
+      var calls = 0;
       final refreshOrder = <int>[];
 
-      final dio = Dio(BaseOptions(baseUrl: 'http://test'));
-      final adapter = FakeAdapter((o) async {
-        // Answer 401 for everyone, but in a scrambled order: request id=1
-        // resolves LAST, id=5 FIRST — so 401s arrive out of issue order.
-        final id = o.extra['id'] as int;
+      final server = await TestServer.start((req) async {
+        calls++;
+        final id = int.parse(req.uri.path.substring(2)); // '/p3' → 3
+        if (req.headers.value('authorization') == 'Bearer new') {
+          // Replay with the refreshed token succeeds immediately.
+          await respondJson(req, {'ok': true}, 200);
+          return;
+        }
+        // Still on the stale token — 401, in a scrambled order: request
+        // id=1 resolves LAST, id=5 FIRST — so 401s arrive out of issue order.
         refreshOrder.add(id);
         await Future<void>.delayed(Duration(milliseconds: (6 - id) * 15));
-        return jsonBody({'error': 'unauthorized'}, 401);
+        await respondJson(req, {'error': 'unauthorized'}, 401);
       });
-      dio.httpClientAdapter = adapter;
-      dio.interceptors.add(AuthPlugin(
+      addTearDown(server.close);
+      final dio = Dio(BaseOptions(baseUrl: server.baseUrl));
+      dio.interceptors.add(DiomanAuth(
         tokenManager: tm,
         onRefresh: (m, _) async {
           refreshCount++;
@@ -269,17 +285,22 @@ void main() {
         for (var i = 1; i <= 6; i++)
           dio.get<void>('/p$i', options: Options(extra: {'id': i}))
       ];
-      // Every request ultimately throws (its post-refresh replay hits the
-      // throwaway Dio → http://test → fails offline). Swallow per-future.
+      // Every request now ultimately succeeds via its replay. Swallow
+      // per-future anyway so a regression that reintroduces a failure
+      // doesn't turn into an unhandled-rejection crash instead of a clean
+      // assertion failure below.
       await Future.wait(
-        futures.map((f) => f.then<String>((_) => 'ok').catchError((Object _) => 'err')),
+        futures.map((f) =>
+            f.then<String>((_) => 'ok').catchError((Object _) => 'err')),
       ).timeout(const Duration(seconds: 30));
 
       expect(refreshCount, 1,
           reason: 'all concurrent out-of-order 401s must collapse to ONE '
               'onRefresh — the single shared refresh window');
-      expect(adapter.calls, 6,
-          reason: 'every request must have actually been sent and 401d');
+      expect(calls, 12,
+          reason: 'every one of the 6 requests must have been sent and '
+              '401d once, then replayed (and accepted) exactly once more '
+              'now that the replay genuinely reaches the server — 6 + 6 = 12');
     });
 
     // ── The specific ordering the reviewer asked about ────────────────────
@@ -288,27 +309,38 @@ void main() {
     // a gate). Because the shared window is already gone, b can't join it; the
     // guard that must save us is the carried-vs-current token comparison:
     //   b carried 'old', store is now 'new' ⇒ REPLAY, not a 2nd refresh.
-    test('a 401s and refreshes; b 401s only AFTER the refresh window closed → '
+    test(
+        'a 401s and refreshes; b 401s only AFTER the refresh window closed → '
         'b replays with the new token, does NOT trigger a second refresh',
         () async {
       final tm = RefreshableTokenManager('old');
       var refreshCount = 0;
       final refreshDone = Completer<void>();
-      final actions = <String, AuthFailureAction>{};
+      final actions = <String, DiomanAuthFailureAction>{};
 
-      final dio = Dio(BaseOptions(baseUrl: 'http://test'));
-      final adapter = FakeAdapter((o) async {
-        final id = o.extra['id'] as String;
+      final server = await TestServer.start((req) async {
+        final id = req.uri.path.substring(1); // '/a' → 'a', '/b' → 'b'
         if (id == 'b') {
           // b's 401 is held back until the refresh (triggered by a) is fully
           // finished and `_refreshing` has been reset to null.
           await refreshDone.future;
           await Future<void>.delayed(const Duration(milliseconds: 10));
         }
-        return jsonBody({'error': 'unauthorized', 'id': id}, 401);
+        if (req.headers.value('authorization') == 'Bearer new') {
+          // Both a's and b's replay carry the refreshed token — accept it.
+          // (If the server kept 401ing here instead, a's replay failure
+          // would call `_expire()` and clear the shared token manager,
+          // which can race ahead of b's still-pending failure-routing and
+          // flip its action from `replay` to `expired` — see the note on
+          // the concurrent 6-request test above for the full explanation.)
+          await respondJson(req, {'ok': true}, 200);
+          return;
+        }
+        await respondJson(req, {'error': 'unauthorized', 'id': id}, 401);
       });
-      dio.httpClientAdapter = adapter;
-      dio.interceptors.add(AuthPlugin(
+      addTearDown(server.close);
+      final dio = Dio(BaseOptions(baseUrl: server.baseUrl));
+      dio.interceptors.add(DiomanAuth(
         tokenManager: tm,
         onFailure: (m, resp) {
           final id = resp.requestOptions.extra['id'] as String;
@@ -334,42 +366,90 @@ void main() {
       expect(refreshCount, 1,
           reason: 'b must NOT start a second refresh — the refresh already '
               'rotated the token');
-      expect(actions['a'], AuthFailureAction.refresh,
+      expect(actions['a'], DiomanAuthFailureAction.refresh,
           reason: 'a carried the then-current token → refresh');
-      expect(actions['b'], AuthFailureAction.replay,
+      expect(actions['b'], DiomanAuthFailureAction.replay,
           reason: 'b carried the stale pre-refresh token while the store now '
               'holds the new one → replay, not refresh');
     });
+
+    // ── Now observable end-to-end: refresh + replay success ───────────────
+    // With a real TestServer, the throwaway replay Dio genuinely reaches the
+    // server. Unlike the tests above (server always 401s), here the server
+    // stops 401ing after the refresh, so we can assert on the full
+    // refresh → replay → success path, not just which action was chosen.
+    test(
+        'a 401, successful refresh, and replay deliver the replayed '
+        'response to the original caller', () async {
+      final tm = RefreshableTokenManager('old');
+      var refreshCalls = 0;
+
+      final server = await TestServer.start((req) async {
+        final auth = req.headers.value('authorization');
+        if (auth == 'Bearer new') {
+          await respondJson(req, {'ok': true}, 200);
+        } else {
+          await respondJson(req, {'error': 'expired'}, 401);
+        }
+      });
+      addTearDown(server.close);
+      final dio = Dio(BaseOptions(baseUrl: server.baseUrl));
+      dio.interceptors.add(DiomanAuth(
+        tokenManager: tm,
+        onRefresh: (_, __) async {
+          refreshCalls++;
+          tm.setToken('new');
+        },
+        onAccessExpired: (_, __) async {},
+      ));
+
+      final res = await dio
+          .get<Map<String, dynamic>>('/data')
+          .timeout(const Duration(seconds: 5));
+
+      expect(refreshCalls, 1);
+      expect(res.data!['ok'], true,
+          reason: 'the replay must actually reach the real server with the '
+              'refreshed token and deliver its success response back to '
+              'the original caller — this path used to be untestable '
+              'offline because the throwaway replay Dio bypassed the fake '
+              'adapter');
+    });
   });
 
-  group('SharePlugin', () {
+  group('DiomanShare', () {
     // SharePolicy.retry's internal re-issue deliberately uses a throwaway
-    // `Dio()` (see SKILL.md), which bypasses this test's FakeAdapter and
-    // goes out over the real network — so the "successful retry" path isn't
-    // directly observable offline. `retries: 0` exercises the exhausted-retry
-    // give-up path instead (zero throwaway-Dio calls), which shares the same
-    // settle/cleanup code as the success path and is what was actually
-    // broken: the old code left the shared entry dangling on that path,
-    // deadlocking every waiter forever.
+    // `Dio()` (see SKILL.md) so it never re-enters this chain. Against a
+    // real TestServer that throwaway Dio's `.fetch()` still lands on our
+    // test server (RequestOptions carries its own already-resolved
+    // baseUrl), so both the exhausted-retry give-up path AND the
+    // successful-retry path are now directly observable — see the two
+    // tests below.
     //
-    // NOTE: this test only issues a solo request, not a concurrent
-    // leader+follower pair. While investigating this fix a SEPARATE,
-    // pre-existing issue surfaced (present in the original code too, verified
-    // via `git stash`): a concurrent follower attached via `_handleStart`
-    // (onRequest's `RequestInterceptorHandler.reject`) hangs forever when the
-    // shared request ultimately errors — the follower's own dio.get() never
-    // settles, even though the leader and the shared completer both settle
-    // correctly. That looks like a dio interceptor-zone interaction distinct
-    // from anything in this review; flagged separately, not fixed here.
-    test('policy=retry: a solo request is settled with the error (no hang) '
+    // NOTE: the first test below only issues a solo request, not a
+    // concurrent leader+follower pair. While investigating this fix a
+    // SEPARATE, pre-existing issue surfaced (present in the original code
+    // too, verified via `git stash`): a concurrent follower attached via
+    // `_handleStart` (onRequest's `RequestInterceptorHandler.reject`) hangs
+    // forever when the shared request ultimately errors — the follower's
+    // own dio.get() never settles, even though the leader and the shared
+    // completer both settle correctly. That looks like a dio
+    // interceptor-zone interaction distinct from anything in this review;
+    // flagged separately, not fixed here.
+    test(
+        'policy=retry: a solo request is settled with the error (no hang) '
         'once retries are exhausted, and the entry is cleared so a later '
         'request with the same key hits the network again', () async {
-      final dio = Dio(BaseOptions(baseUrl: 'http://test'));
-      final adapter = FakeAdapter((_) => jsonBody({'fail': true}, 500));
-      dio.httpClientAdapter = adapter;
+      var calls = 0;
+      final server = await TestServer.start((req) async {
+        calls++;
+        await respondJson(req, {'fail': true}, 500);
+      });
+      addTearDown(server.close);
+      final dio = Dio(BaseOptions(baseUrl: server.baseUrl));
       dio.interceptors.addAll([
-        const KeyPlugin(),
-        SharePlugin(policy: SharePolicy.retry, retries: 0),
+        const DiomanKey(),
+        DiomanShare(policy: DiomanSharePolicy.retry, retries: 0),
       ]);
 
       await expectLater(
@@ -378,74 +458,113 @@ void main() {
         reason: 'must settle with the error, not hang',
       );
 
-      final callsBefore = adapter.calls;
-      await expectLater(dio.get<void>('/shared'), throwsA(isA<DioException>()));
-      expect(adapter.calls, greaterThan(callsBefore),
+      final callsBefore = calls;
+      await expectLater(
+          dio.get<void>('/shared'), throwsA(isA<DioException>()));
+      expect(calls, greaterThan(callsBefore),
           reason: 'the settled entry must have been removed from `_active`; '
               'a dangling entry would silently reuse the old dead completer '
               'instead of ever hitting the network again');
     });
 
-    test('policy=end: every caller — including superseded ones — receives '
-        'the LAST request\'s result', () async {
-      final dio = Dio(BaseOptions(baseUrl: 'http://test'));
-      dio.httpClientAdapter = FakeAdapter((o) {
-        final n = o.extra['seq'] as int;
-        return jsonBody({'seq': n}, 200);
+    test(
+        'policy=retry: with retries available, a successful retry resolves '
+        "through the internal throwaway Dio hitting the real test server "
+        '(this success path could only be exercised offline via a failure '
+        'before — see note above)', () async {
+      var attempt = 0;
+      final server = await TestServer.start((req) async {
+        attempt++;
+        if (attempt == 1) {
+          await respondJson(req, {'fail': true}, 500);
+        } else {
+          await respondJson(req, {'ok': true, 'attempt': attempt}, 200);
+        }
       });
+      addTearDown(server.close);
+      final dio = Dio(BaseOptions(baseUrl: server.baseUrl));
       dio.interceptors.addAll([
-        const KeyPlugin(),
-        SharePlugin(policy: SharePolicy.end),
+        const DiomanKey(),
+        DiomanShare(policy: DiomanSharePolicy.retry, retries: 2),
+      ]);
+
+      final res = await dio
+          .get<Map<String, dynamic>>('/shared-ok')
+          .timeout(const Duration(seconds: 5));
+
+      expect(res.data!['ok'], true,
+          reason: 'the internal retry Dio must be able to reach the real '
+              'server and deliver the eventual success to the caller');
+      expect(attempt, 2,
+          reason: 'one failed attempt, then one successful internal retry');
+    });
+
+    test(
+        'policy=end: every caller — including superseded ones — receives '
+        'the LAST request\'s result', () async {
+      final server = await TestServer.start((req) async {
+        final n = int.parse(req.headers.value('x-test-seq')!);
+        await respondJson(req, {'seq': n}, 200);
+      });
+      addTearDown(server.close);
+      final dio = Dio(BaseOptions(baseUrl: server.baseUrl));
+      dio.interceptors.addAll([
+        const DiomanKey(),
+        DiomanShare(policy: DiomanSharePolicy.end),
       ]);
 
       final first = dio.get<Map<String, dynamic>>(
         '/data',
-        options: Options(extra: {'seq': 1}),
+        options: Options(headers: {'X-Test-Seq': '1'}),
       );
       final second = dio.get<Map<String, dynamic>>(
         '/data',
-        options: Options(extra: {'seq': 2}),
+        options: Options(headers: {'X-Test-Seq': '2'}),
       );
 
-      final results =
-          await Future.wait([first, second]).timeout(const Duration(seconds: 5));
+      final results = await Future.wait([first, second])
+          .timeout(const Duration(seconds: 5));
 
       expect(results[0].data!['seq'], 2,
           reason: 'the superseded first caller must get the last response');
       expect(results[1].data!['seq'], 2);
     });
 
-    test('policy=race: a caller whose own request failed still gets the '
+    test(
+        'policy=race: a caller whose own request failed still gets the '
         'winning sibling\'s successful result', () async {
-      final dio = Dio(BaseOptions(baseUrl: 'http://test'));
       final loserStarted = Completer<void>();
-      dio.httpClientAdapter = FakeAdapter((o) async {
-        final id = o.extra['id'] as int;
+      final server = await TestServer.start((req) async {
+        final id = int.parse(req.headers.value('x-test-id')!);
         if (id == 1) {
           loserStarted.complete();
           // Let the winner (id 2) settle the shared completer first.
           await Future<void>.delayed(const Duration(milliseconds: 50));
-          throw DioException(requestOptions: o, type: DioExceptionType.connectionError);
+          req.response.statusCode = 500;
+          await req.response.close();
+          return;
         }
         await loserStarted.future;
-        return jsonBody({'winner': true}, 200);
+        await respondJson(req, {'winner': true}, 200);
       });
+      addTearDown(server.close);
+      final dio = Dio(BaseOptions(baseUrl: server.baseUrl));
       dio.interceptors.addAll([
-        const KeyPlugin(),
-        SharePlugin(policy: SharePolicy.race),
+        const DiomanKey(),
+        DiomanShare(policy: DiomanSharePolicy.race),
       ]);
 
       final loser = dio.get<Map<String, dynamic>>(
         '/data',
-        options: Options(extra: {'id': 1}),
+        options: Options(headers: {'X-Test-Id': '1'}),
       );
       final winner = dio.get<Map<String, dynamic>>(
         '/data',
-        options: Options(extra: {'id': 2}),
+        options: Options(headers: {'X-Test-Id': '2'}),
       );
 
-      final results =
-          await Future.wait([loser, winner]).timeout(const Duration(seconds: 5));
+      final results = await Future.wait([loser, winner])
+          .timeout(const Duration(seconds: 5));
 
       expect(results[0].data!['winner'], true,
           reason: 'the caller whose own request errored must still receive '
@@ -454,43 +573,54 @@ void main() {
     });
   });
 
-  group('MockPlugin', () {
-    test('a mock hit still runs onResponse of normalize and share, so the '
+  group('DiomanMock', () {
+    test(
+        'a mock hit still runs onResponse of normalize and share, so the '
         'envelope is unwrapped and a concurrent follower does not hang',
         () async {
-      final dio = Dio(BaseOptions(baseUrl: 'http://test'));
-      dio.httpClientAdapter =
-          FakeAdapter((_) => jsonBody({'should': 'not be called'}, 200));
-      final mock = MockPlugin(enabled: true)
-        ..add('GET:/mocked', (o) async => ResponseBody.fromString(
-              jsonEncode({'code': 0, 'data': {'x': 1}, 'message': 'ok'}),
-              200,
-              headers: {
-                Headers.contentTypeHeader: ['application/json'],
-              },
-            ));
+      final server = await TestServer.start(
+          (req) => respondJson(req, {'should': 'not be called'}, 200));
+      addTearDown(server.close);
+      final dio = Dio(BaseOptions(baseUrl: server.baseUrl));
+      final mock = DiomanMock(enabled: true)
+        ..add(
+            'GET:/mocked',
+            (o) async => ResponseBody.fromString(
+                  jsonEncode({
+                    'code': 0,
+                    'data': {'x': 1},
+                    'message': 'ok'
+                  }),
+                  200,
+                  headers: {
+                    Headers.contentTypeHeader: ['application/json'],
+                  },
+                ));
       dio.interceptors.addAll([
-        const KeyPlugin(),
-        const NormalizePlugin(),
-        SharePlugin(),
+        const DiomanKey(),
+        const DiomanNormalize(),
+        DiomanShare(),
         mock,
       ]);
 
       final leader = dio.get<Map<String, dynamic>>('/mocked');
       final follower = dio.get<Map<String, dynamic>>('/mocked');
 
-      final results =
-          await Future.wait([leader, follower]).timeout(const Duration(seconds: 5));
+      final results = await Future.wait([leader, follower])
+          .timeout(const Duration(seconds: 5));
 
       expect(results[0].data, {'x': 1},
-          reason: 'normalize must unwrap the mocked envelope, same as a real response');
+          reason:
+              'normalize must unwrap the mocked envelope, same as a real response');
       expect(results[1].data, {'x': 1},
-          reason: 'the follower must not hang — share must settle on a mock hit');
+          reason:
+              'the follower must not hang — share must settle on a mock hit');
     });
 
-    test('the mock-server redirect does not duplicate query parameters '
+    test(
+        'the mock-server redirect does not duplicate query parameters '
         'in the composed URI (regression for the copyWith fix)', () {
-      // Mirrors MockPlugin._rewriteUrl's contract: the rewritten absolute
+      // Mirrors DiomanMock._rewriteUrl's contract: the rewritten absolute
       // path already folds in the original query string, so the
       // queryParameters map handed to the redirect request must be cleared —
       // otherwise dio's RequestOptions.uri appends the same params again.
@@ -507,16 +637,23 @@ void main() {
         queryParameters: {},
       );
       expect(withFix.uri.query, 'type=cat',
-          reason: 'clearing queryParameters (the actual fix) avoids the duplication');
+          reason:
+              'clearing queryParameters (the actual fix) avoids the duplication');
     });
   });
 
-  group('RetryPlugin', () {
-    test('extra["retry"]=false is honoured on the business-retry '
+  group('DiomanRetry', () {
+    test(
+        'DiomanRetryOptions(enabled: false) is honoured on the business-retry '
         '(onResponse) path, not just the network-error path', () async {
-      final dio = Dio(BaseOptions(baseUrl: 'http://test'));
-      dio.httpClientAdapter = FakeAdapter((_) => jsonBody({'code': 1}, 200));
-      dio.interceptors.add(RetryPlugin(
+      var calls = 0;
+      final server = await TestServer.start((req) async {
+        calls++;
+        await respondJson(req, {'code': 1}, 200);
+      });
+      addTearDown(server.close);
+      final dio = Dio(BaseOptions(baseUrl: server.baseUrl));
+      dio.interceptors.add(DiomanRetry(
         dio: dio,
         max: 3,
         isExceptionRequest: (r) => (r.data as Map)['code'] != 0,
@@ -524,23 +661,30 @@ void main() {
 
       final res = await dio.get<Map<String, dynamic>>(
         '/data',
-        options: Options(extra: {RetryPlugin.configProperty: false}),
+        options: Options(
+            extra: {'dioman:retry': const DiomanRetryOptions(enabled: false)}),
       );
 
       expect(res.data!['code'], 1);
-      expect((dio.httpClientAdapter as FakeAdapter).calls, 1,
-          reason: 'retry:false must skip business-level retry, not just network retry');
+      expect(calls, 1,
+          reason:
+              'enabled:false must skip business-level retry, not just network retry');
     });
   });
 
-  group('CachePlugin', () {
-    test('maxEntries bounds the store via LRU eviction instead of growing '
+  group('DiomanCache', () {
+    test(
+        'maxEntries bounds the store via LRU eviction instead of growing '
         'without limit', () async {
-      final dio = Dio(BaseOptions(baseUrl: 'http://test'));
-      final adapter = FakeAdapter((o) => jsonBody({'path': o.path}, 200));
-      dio.httpClientAdapter = adapter;
-      final cache = CachePlugin(maxEntries: 2);
-      dio.interceptors.addAll([const KeyPlugin(), cache]);
+      var calls = 0;
+      final server = await TestServer.start((req) async {
+        calls++;
+        await respondJson(req, {'path': req.uri.path}, 200);
+      });
+      addTearDown(server.close);
+      final dio = Dio(BaseOptions(baseUrl: server.baseUrl));
+      final cache = DiomanCache(maxEntries: 2);
+      dio.interceptors.addAll([const DiomanKey(), cache]);
 
       await dio.get<void>('/a');
       await dio.get<void>('/b');
@@ -549,29 +693,33 @@ void main() {
       expect(cache.size, 2);
 
       await dio.get<void>('/a'); // must miss cache → real network hit again
-      expect(adapter.calls, 4);
+      expect(calls, 4);
 
       await dio.get<void>('/c'); // still cached → no new network hit
-      expect(adapter.calls, 4);
+      expect(calls, 4);
     });
   });
 
-  group('CancelPlugin + RetryPlugin', () {
-    test('a token this plugin injected stays trackable by cancelAll() '
+  group('DiomanCancel + DiomanRetry', () {
+    test(
+        'a token this plugin injected stays trackable by cancelAll() '
         'across a retry re-dispatch', () async {
-      final dio = Dio(BaseOptions(baseUrl: 'http://test'));
       final secondAttemptStarted = Completer<void>();
-      final never = Completer<ResponseBody>(); // never completes on its own
       var attempt = 0;
-      dio.httpClientAdapter = FakeAdapter((_) async {
+      final server = await TestServer.start((req) async {
         attempt++;
-        if (attempt == 1) return jsonBody({}, 500);
+        if (attempt == 1) {
+          await respondJson(req, {}, 500);
+          return;
+        }
         secondAttemptStarted.complete();
-        return never.future; // hangs until cancelled
+        await Completer<void>().future; // hangs until cancelled
       });
+      addTearDown(server.close);
+      final dio = Dio(BaseOptions(baseUrl: server.baseUrl));
       dio.interceptors.addAll([
-        CancelPlugin(),
-        RetryPlugin(dio: dio, max: 1, delay: (_) => Duration.zero),
+        DiomanCancel(),
+        DiomanRetry(dio: dio, max: 1, delay: (_) => Duration.zero),
       ]);
 
       final call = dio.get<void>('/data');
@@ -591,13 +739,93 @@ void main() {
     });
   });
 
-  group('NormalizePlugin detection', () {
-    test('a plain payload that merely carries a `code` field (no data/message) '
+  group('DiomanShare + DiomanRetry', () {
+    // dio 5.10.0 runs request/response/error interceptors in plain FIFO
+    // (add) order for all three — see dio_mixin.dart:505-549 ("Build a
+    // request flow in which the processors(interceptors) execute in FIFO
+    // order"). It is NOT reversed for response/error, despite that being
+    // the commonly-cited mental model elsewhere. Verified empirically with
+    // interceptors added as [key, share, retry]: DiomanShare.onError always
+    // fires BEFORE DiomanRetry.onError for the same failed attempt.
+    test(
+        'a solo caller is unaffected by DiomanShare settling its entry '
+        "before the retry runs — it still gets the retry's correct final "
+        'result via its own handler chain, and the re-dispatched retry '
+        "attempt re-establishes its own (fresh) entry, so a THIRD caller "
+        'arriving mid-retry still dedupes against it (no 3rd network call)',
+        () async {
+      final retryInFlight = Completer<void>();
+      var attempts = 0;
+      final server = await TestServer.start((req) async {
+        attempts++;
+        if (attempts == 1) {
+          await respondJson(req, {'fail': true}, 500);
+          return;
+        }
+        retryInFlight.complete();
+        await Future<void>.delayed(const Duration(milliseconds: 50));
+        await respondJson(req, {'from': 'retry'}, 200);
+      });
+      addTearDown(server.close);
+      final dio = Dio(BaseOptions(baseUrl: server.baseUrl));
+      dio.interceptors.addAll([
+        const DiomanKey(),
+        DiomanShare(policy: DiomanSharePolicy.start),
+      ]);
+      dio.interceptors.add(
+        DiomanRetry(dio: dio, max: 1, delay: (_) => Duration.zero),
+      );
+
+      final a = dio.get<Map<String, dynamic>>('/data');
+      await retryInFlight.future; // A's retry attempt is now mid-flight,
+      // under a FRESH entry DiomanShare created when the retry's re-dispatch
+      // re-entered onRequest (the original entry was already removed when
+      // the first attempt's 500 settled it, before the retry ever started).
+
+      final c = await dio
+          .get<Map<String, dynamic>>('/data')
+          .timeout(const Duration(seconds: 3));
+      expect(c.data, {'from': 'retry'},
+          reason: "C joins the retry attempt's fresh entry rather than "
+              'triggering its own network call');
+      expect(attempts, 2, reason: "no 3rd call — C deduped against A's retry");
+
+      final aResult = await a.timeout(const Duration(seconds: 3));
+      expect(aResult.data, {'from': 'retry'},
+          reason: 'A (the original caller) still gets the correct retried '
+              'result via its own handler chain, independent of the entry '
+              "DiomanShare already settled (with A's now-discarded first "
+              'attempt) before the retry ran');
+    });
+
+    // NOT proven by an automated test here, but demonstrated via manual
+    // tracing (share.onError firing before retry.onError, per the FIFO-order
+    // note above) and reproduced twice against genuinely CONCURRENT callers
+    // (policy=start's `_handleStart` else-branch, and policy=end's
+    // `_awaitEntry`): a caller that was already waiting on the shared entry
+    // *before* the leader's first attempt failed never observes the
+    // leader's eventual retried outcome — DiomanShare settles that entry
+    // with the pre-retry result first. Both attempts to assert this
+    // automatically hit a SEPARATE, pre-existing dio interceptor-zone quirk
+    // (also flagged on the policy=retry test above): the completer-based
+    // `entry.completer.future.then(resolve, onError: reject)` used by both
+    // `_handleStart`'s else-branch and `_awaitEntry` crashes with an
+    // unhandled zone error instead of cleanly resolving/rejecting the
+    // waiting caller — so in practice this compounds into a hang/crash
+    // rather than silently-wrong data, which is real but not something a
+    // clean `expect()` can pin down without first fixing that zone quirk.
+    // Flagged here rather than encoded as a flaky test.
+  });
+
+  group('DiomanNormalize detection', () {
+    test(
+        'a plain payload that merely carries a `code` field (no data/message) '
         'is NOT mistaken for an envelope and rejected', () async {
-      final dio = Dio(BaseOptions(baseUrl: 'http://test'));
-      dio.httpClientAdapter =
-          FakeAdapter((_) => jsonBody({'code': 86, 'name': 'CN'}, 200));
-      dio.interceptors.add(const NormalizePlugin());
+      final server = await TestServer.start(
+          (req) => respondJson(req, {'code': 86, 'name': 'CN'}, 200));
+      addTearDown(server.close);
+      final dio = Dio(BaseOptions(baseUrl: server.baseUrl));
+      dio.interceptors.add(const DiomanNormalize());
 
       final res = await dio.get<Map<String, dynamic>>('/country');
       expect(res.data, {'code': 86, 'name': 'CN'},
@@ -605,12 +833,14 @@ void main() {
               'or rejected as an ApiException');
     });
 
-    test('a real error envelope (code + message) is still rejected as an '
+    test(
+        'a real error envelope (code + message) is still rejected as an '
         'ApiException', () async {
-      final dio = Dio(BaseOptions(baseUrl: 'http://test'));
-      dio.httpClientAdapter =
-          FakeAdapter((_) => jsonBody({'code': 1, 'message': 'boom'}, 200));
-      dio.interceptors.add(const NormalizePlugin());
+      final server = await TestServer.start(
+          (req) => respondJson(req, {'code': 1, 'message': 'boom'}, 200));
+      addTearDown(server.close);
+      final dio = Dio(BaseOptions(baseUrl: server.baseUrl));
+      dio.interceptors.add(const DiomanNormalize());
 
       await expectLater(
         dio.get<void>('/x'),
@@ -623,68 +853,88 @@ void main() {
     });
 
     test('a real success envelope (code + data) is still unwrapped', () async {
-      final dio = Dio(BaseOptions(baseUrl: 'http://test'));
-      dio.httpClientAdapter = FakeAdapter(
-          (_) => jsonBody({'code': 0, 'data': {'x': 1}, 'message': 'ok'}, 200));
-      dio.interceptors.add(const NormalizePlugin());
+      final server = await TestServer.start((req) => respondJson(req, {
+            'code': 0,
+            'data': {'x': 1},
+            'message': 'ok'
+          }, 200));
+      addTearDown(server.close);
+      final dio = Dio(BaseOptions(baseUrl: server.baseUrl));
+      dio.interceptors.add(const DiomanNormalize());
 
       final res = await dio.get<Map<String, dynamic>>('/x');
       expect(res.data, {'x': 1});
     });
   });
 
-  group('CachePlugin LRU', () {
-    test('a cache HIT promotes the entry to most-recently-used, so eviction '
+  group('DiomanCache LRU', () {
+    test(
+        'a cache HIT promotes the entry to most-recently-used, so eviction '
         'drops the genuinely least-recently-USED key (not merely oldest write)',
         () async {
-      final dio = Dio(BaseOptions(baseUrl: 'http://test'));
-      final adapter = FakeAdapter((o) => jsonBody({'p': o.path}, 200));
-      dio.httpClientAdapter = adapter;
-      dio.interceptors.addAll([const KeyPlugin(), CachePlugin(maxEntries: 2)]);
+      var calls = 0;
+      final server = await TestServer.start((req) async {
+        calls++;
+        await respondJson(req, {'p': req.uri.path}, 200);
+      });
+      addTearDown(server.close);
+      final dio = Dio(BaseOptions(baseUrl: server.baseUrl));
+      dio.interceptors.addAll([const DiomanKey(), DiomanCache(maxEntries: 2)]);
 
       await dio.get<void>('/a'); // store: [a]
       await dio.get<void>('/b'); // store: [a, b]
       await dio.get<void>('/a'); // HIT → promote a → store: [b, a]
       await dio.get<void>('/c'); // write c, evict LRU = b → store: [a, c]
-      expect(adapter.calls, 3, reason: 'the /a re-read was a cache hit');
+      expect(calls, 3, reason: 'the /a re-read was a cache hit');
 
       await dio.get<void>('/a'); // still cached → no network
-      expect(adapter.calls, 3,
+      expect(calls, 3,
           reason: '/a survived eviction because the hit promoted it');
 
       await dio.get<void>('/b'); // evicted → network
-      expect(adapter.calls, 4,
+      expect(calls, 4,
           reason: '/b was the least-recently-used and must have been evicted');
     });
 
-    test('default clone (shallow) prevents a cache-hit reader from corrupting '
+    test(
+        'default clone (shallow) prevents a cache-hit reader from corrupting '
         'the stored entry by reassigning top-level fields', () async {
-      final dio = Dio(BaseOptions(baseUrl: 'http://test'));
-      dio.httpClientAdapter = FakeAdapter((_) => jsonBody({'v': 1}, 200));
-      dio.interceptors.addAll([const KeyPlugin(), CachePlugin()]);
+      final server =
+          await TestServer.start((req) => respondJson(req, {'v': 1}, 200));
+      addTearDown(server.close);
+      final dio = Dio(BaseOptions(baseUrl: server.baseUrl));
+      dio.interceptors.addAll([const DiomanKey(), DiomanCache()]);
 
       await dio.get<Map<String, dynamic>>('/x'); // network → store
       final hit1 = await dio.get<Map<String, dynamic>>('/x'); // cache hit
       hit1.data!['v'] = 999; // mutate the returned copy
       hit1.data!['injected'] = true;
 
-      final hit2 = await dio.get<Map<String, dynamic>>('/x'); // cache hit again
+      final hit2 =
+          await dio.get<Map<String, dynamic>>('/x'); // cache hit again
       expect(hit2.data, {'v': 1},
           reason: 'shallow clone default must isolate the store from a '
               "reader's top-level mutations");
     });
   });
 
-  group('KeyPlugin non-serialisable body', () {
-    test('two requests with distinct non-map bodies get distinct keys '
+  group('DiomanKey non-serialisable body', () {
+    test(
+        'two requests with distinct non-map bodies get distinct keys '
         '(never falsely deduped/cached as one)', () async {
-      final dio = Dio(BaseOptions(baseUrl: 'http://test'));
+      final server =
+          await TestServer.start((req) => respondJson(req, {}, 200));
+      addTearDown(server.close);
+      final dio = Dio(BaseOptions(baseUrl: server.baseUrl));
       final keys = <String>[];
-      dio.httpClientAdapter = FakeAdapter((o) {
-        keys.add(o.extra[kRequestKey] as String);
-        return jsonBody({}, 200);
-      });
-      dio.interceptors.add(const KeyPlugin()); // deep mode
+      dio.interceptors.add(const DiomanKey()); // deep mode
+      // The computed key lives in RequestOptions.extra — dio-side only, not
+      // observable over the wire — so capture it via an interceptor placed
+      // right after DiomanKey, same as the other kKey-capturing tests below.
+      dio.interceptors.add(InterceptorsWrapper(onRequest: (o, h) {
+        keys.add(o.extra[kKey] as String);
+        h.next(o);
+      }));
 
       await dio.post<void>('/upload', data: <int>[1, 2, 3]);
       await dio.post<void>('/upload', data: <int>[4, 5, 6]);
@@ -699,72 +949,703 @@ void main() {
   group('Dioman.install', () {
     test('adds plugins in canonical order and the handle disposes them all',
         () async {
-      final dio = Dio(BaseOptions(baseUrl: 'http://test'));
-      dio.httpClientAdapter = FakeAdapter((_) => jsonBody({}, 200));
+      final server =
+          await TestServer.start((req) => respondJson(req, {}, 200));
+      addTearDown(server.close);
+      final dio = Dio(BaseOptions(baseUrl: server.baseUrl));
 
       final loadingStates = <bool>[];
       final handle = Dioman.install(
         dio,
-        key: const KeyPlugin(),
-        share: SharePlugin(), // exercises SharePlugin.dispose() teardown too
-        cancel: CancelPlugin(),
-        loading: LoadingPlugin(onChanged: loadingStates.add),
-        log: const LogPlugin(logRequest: false, logResponse: false, logError: false),
+        key: const DiomanKey(),
+        share: DiomanShare(), // exercises DiomanShare.dispose() teardown too
+        cancel: DiomanCancel(),
+        loading: DiomanLoading(onChanged: loadingStates.add),
+        log: const DiomanLog(
+            logRequest: false, logResponse: false, logError: false),
       );
 
       // Canonical order: key → share → cancel → loading → log
       // (envs..auth/retry omitted).
-      final names =
-          dio.interceptors.whereType<DioPlugin>().map((p) => p.name).toList();
-      expect(names, ['key', 'share', 'cancel', 'loading', 'log']);
-      expect(handle.plugin<CancelPlugin>(), isNotNull);
-      expect(handle.plugin<AuthPlugin>(), isNull);
+      final names = dio.interceptors
+          .whereType<DiomanPlugin>()
+          .map((p) => p.name)
+          .toList();
+      expect(names, [
+        'dioman:qid',
+        'dioman:share',
+        'dioman:cancel',
+        'dioman:loading',
+        'dioman:log'
+      ]);
+      expect(handle.plugin<DiomanCancel>(), isNotNull);
+      expect(handle.plugin<DiomanAuth>(), isNull);
 
       await dio.get<void>('/x');
       expect(loadingStates, [true, false]);
 
       // dispose() must eject every plugin AND run each plugin's own dispose()
-      // (SharePlugin's teardown, LoadingPlugin's onChanged(false), etc.)
+      // (DiomanShare's teardown, DiomanLoading's onChanged(false), etc.)
       // without throwing.
       expect(handle.dispose, returnsNormally);
-      expect(dio.interceptors.whereType<DioPlugin>(), isEmpty,
+      expect(dio.interceptors.whereType<DiomanPlugin>(), isEmpty,
           reason: 'dispose must eject every installed plugin');
       expect(loadingStates, [true, false, false],
-          reason: 'LoadingPlugin.dispose fires onChanged(false)');
+          reason: 'DiomanLoading.dispose fires onChanged(false)');
     });
 
-    test('remove<T>() ejects only the targeted plugin, runs its dispose, '
+    test(
+        'remove<T>() ejects only the targeted plugin, runs its dispose, '
         'and is a no-op for a type that was never installed', () async {
-      final dio = Dio(BaseOptions(baseUrl: 'http://test'));
-      dio.httpClientAdapter = FakeAdapter((_) => jsonBody({}, 200));
+      final server =
+          await TestServer.start((req) => respondJson(req, {}, 200));
+      addTearDown(server.close);
+      final dio = Dio(BaseOptions(baseUrl: server.baseUrl));
 
       final loadingStates = <bool>[];
       final handle = Dioman.install(
         dio,
-        key: const KeyPlugin(),
-        cancel: CancelPlugin(),
-        loading: LoadingPlugin(onChanged: loadingStates.add),
-        log: const LogPlugin(logRequest: false, logResponse: false, logError: false),
+        key: const DiomanKey(),
+        cancel: DiomanCancel(),
+        loading: DiomanLoading(onChanged: loadingStates.add),
+        log: const DiomanLog(
+            logRequest: false, logResponse: false, logError: false),
       );
 
-      expect(handle.remove<AuthPlugin>(), isNull,
-          reason: 'AuthPlugin was never installed — nothing to remove');
+      expect(handle.remove<DiomanAuth>(), isNull,
+          reason: 'DiomanAuth was never installed — nothing to remove');
 
-      final removed = handle.remove<LoadingPlugin>();
+      final removed = handle.remove<DiomanLoading>();
       expect(removed, isNotNull);
       expect(loadingStates, [false],
           reason: 'remove() must call the plugin\'s own dispose()');
-      expect(handle.plugin<LoadingPlugin>(), isNull);
+      expect(handle.plugin<DiomanLoading>(), isNull);
       expect(dio.interceptors.contains(removed), isFalse,
           reason: 'remove() must eject the plugin from dio.interceptors');
 
       // The rest of the chain is untouched.
-      final names =
-          dio.interceptors.whereType<DioPlugin>().map((p) => p.name).toList();
-      expect(names, ['key', 'cancel', 'log']);
-      expect(handle.plugins.map((p) => p.name), ['key', 'cancel', 'log']);
+      final names = dio.interceptors
+          .whereType<DiomanPlugin>()
+          .map((p) => p.name)
+          .toList();
+      expect(names, ['dioman:qid', 'dioman:cancel', 'dioman:log']);
+      expect(handle.plugins.map((p) => p.name),
+          ['dioman:qid', 'dioman:cancel', 'dioman:log']);
 
       await dio.get<void>('/x'); // still works without the removed plugin
+    });
+  });
+
+  group('Per-request Options overrides', () {
+    test('DiomanCacheOptions(enabled: false) skips caching for that request',
+        () async {
+      var calls = 0;
+      final server = await TestServer.start((req) async {
+        calls++;
+        await respondJson(req, {'n': calls}, 200);
+      });
+      addTearDown(server.close);
+      final dio = Dio(BaseOptions(baseUrl: server.baseUrl));
+      dio.interceptors.addAll([const DiomanKey(), DiomanCache()]);
+
+      await dio.get<void>('/x');
+      await dio.get<void>(
+        '/x',
+        options: Options(
+            extra: {'dioman:cache': const DiomanCacheOptions(enabled: false)}),
+      );
+
+      expect(calls, 2, reason: 'the second call must bypass the cache hit');
+    });
+
+    test('DiomanShareOptions(enabled: false) bypasses dedup for that request',
+        () async {
+      var calls = 0;
+      final server = await TestServer.start((req) async {
+        calls++;
+        await Future<void>.delayed(const Duration(milliseconds: 20));
+        await respondJson(req, {}, 200);
+      });
+      addTearDown(server.close);
+      final dio = Dio(BaseOptions(baseUrl: server.baseUrl));
+      dio.interceptors.addAll([const DiomanKey(), DiomanShare()]);
+
+      await Future.wait([
+        dio.get<void>('/x'),
+        dio.get<void>(
+          '/x',
+          options: Options(extra: {
+            'dioman:share': const DiomanShareOptions(enabled: false)
+          }),
+        ),
+      ]);
+
+      expect(calls, 2, reason: 'the opted-out call must issue its own request');
+    });
+
+    test(
+        'DiomanFilterOptions ignoreKeys override keeps a field the plugin '
+        'default would otherwise strip', () async {
+      final server =
+          await TestServer.start((req) => respondJson(req, {}, 200));
+      addTearDown(server.close);
+      final dio = Dio(BaseOptions(baseUrl: server.baseUrl));
+      Map<String, dynamic>? seenParams;
+      dio.interceptors.add(const DiomanFilter()); // default: drops null/empty
+      dio.interceptors.add(InterceptorsWrapper(onRequest: (o, h) {
+        seenParams = o.queryParameters;
+        h.next(o);
+      }));
+
+      await dio.get<void>(
+        '/x',
+        queryParameters: {'page': null},
+        options: Options(
+          extra: {
+            'dioman:filter': const DiomanFilterOptions(ignoreKeys: ['page'])
+          },
+        ),
+      );
+
+      expect(seenParams, containsPair('page', null),
+          reason:
+              'per-request ignoreKeys must override the plugin default predicate');
+    });
+
+    test('DiomanKeyOptions(key: ...) overrides the computed key', () async {
+      final server =
+          await TestServer.start((req) => respondJson(req, {}, 200));
+      addTearDown(server.close);
+      final dio = Dio(BaseOptions(baseUrl: server.baseUrl));
+      dio.interceptors.add(const DiomanKey());
+
+      final captured = <String?>[];
+      dio.interceptors.add(InterceptorsWrapper(onRequest: (o, h) {
+        captured.add(o.extra[kKey] as String?);
+        h.next(o);
+      }));
+
+      await dio.get<void>(
+        '/a',
+        options: Options(
+            extra: {'dioman:qid': const DiomanKeyOptions(key: 'fixed-key')}),
+      );
+
+      expect(captured, ['fixed-key']);
+    });
+
+    test('DiomanMockOptions(enabled: false) skips mocking for that request',
+        () async {
+      final server = await TestServer.start(
+          (req) => respondJson(req, {'real': true}, 200));
+      addTearDown(server.close);
+      final dio = Dio(BaseOptions(baseUrl: server.baseUrl));
+      final mock = DiomanMock(enabled: true);
+      mock.add(
+          'GET:/x',
+          (opts) async => ResponseBody.fromString(
+                jsonEncode({'real': false}),
+                200,
+                headers: {
+                  Headers.contentTypeHeader: ['application/json'],
+                },
+              ));
+      dio.interceptors.add(mock);
+
+      final res = await dio.get<Map<String, dynamic>>(
+        '/x',
+        options: Options(
+            extra: {'dioman:mock': const DiomanMockOptions(enabled: false)}),
+      );
+
+      expect(res.data!['real'], true,
+          reason: 'enabled:false must fall through to the real network call');
+    });
+
+    test('DiomanAuthOptions(enabled: false) marks a request unprotected',
+        () async {
+      final server =
+          await TestServer.start((req) => respondJson(req, {}, 200));
+      addTearDown(server.close);
+      final dio = Dio(BaseOptions(baseUrl: server.baseUrl));
+      dio.interceptors.add(DiomanAuth(
+        tokenManager: FakeTokenManager(null), // no token
+        onRefresh: (_, __) async {},
+        onAccessExpired: (_, __) async {},
+      ));
+
+      // With no token, a protected call would be denied; enabled:false must
+      // let it through untouched.
+      final res = await dio.get<void>(
+        '/public',
+        options: Options(
+            extra: {'dioman:auth': const DiomanAuthOptions(enabled: false)}),
+      );
+
+      expect(res.statusCode, 200);
+    });
+  });
+
+  group('Constructor-level enabled flag', () {
+    test('DiomanFilter(enabled: false) leaves every request untouched',
+        () async {
+      final server =
+          await TestServer.start((req) => respondJson(req, {}, 200));
+      addTearDown(server.close);
+      final dio = Dio(BaseOptions(baseUrl: server.baseUrl));
+      Map<String, dynamic>? seenParams;
+      dio.interceptors.add(const DiomanFilter(enabled: false));
+      dio.interceptors.add(InterceptorsWrapper(onRequest: (o, h) {
+        seenParams = o.queryParameters;
+        h.next(o);
+      }));
+
+      await dio.get<void>('/x', queryParameters: {'page': null});
+
+      expect(seenParams, containsPair('page', null),
+          reason: 'a disabled plugin must never filter anything');
+    });
+
+    test(
+        'DiomanCache(enabled: false) never caches, even across identical '
+        'requests', () async {
+      var calls = 0;
+      final server = await TestServer.start((req) async {
+        calls++;
+        await respondJson(req, {}, 200);
+      });
+      addTearDown(server.close);
+      final dio = Dio(BaseOptions(baseUrl: server.baseUrl));
+      dio.interceptors.addAll([const DiomanKey(), DiomanCache(enabled: false)]);
+
+      await dio.get<void>('/x');
+      await dio.get<void>('/x');
+
+      expect(calls, 2, reason: 'a disabled cache must never serve a hit');
+    });
+  });
+
+  group('Options merge semantics (not override)', () {
+    test(
+        'DiomanFilterOptions.ignoreKeys UNIONS with the plugin default '
+        'instead of replacing it', () async {
+      final server =
+          await TestServer.start((req) => respondJson(req, {}, 200));
+      addTearDown(server.close);
+      final dio = Dio(BaseOptions(baseUrl: server.baseUrl));
+      Map<String, dynamic>? seenParams;
+      dio.interceptors.add(const DiomanFilter(ignoreKeys: ['a']));
+      dio.interceptors.add(InterceptorsWrapper(onRequest: (o, h) {
+        seenParams = o.queryParameters;
+        h.next(o);
+      }));
+
+      await dio.get<void>(
+        '/x',
+        queryParameters: {'a': null, 'b': null},
+        options: Options(
+          extra: {
+            'dioman:filter': const DiomanFilterOptions(ignoreKeys: ['b'])
+          },
+        ),
+      );
+
+      expect(
+          seenParams, allOf(containsPair('a', null), containsPair('b', null)),
+          reason: "plugin default 'a' must survive alongside per-request 'b', "
+              'not be replaced by it');
+    });
+
+    test('DiomanKeyOptions.ignoreKeys UNIONS with the plugin default',
+        () async {
+      final server =
+          await TestServer.start((req) => respondJson(req, {}, 200));
+      addTearDown(server.close);
+      final dio = Dio(BaseOptions(baseUrl: server.baseUrl));
+      final keys = <String>[];
+      dio.interceptors.add(const DiomanKey(ignores: ['a']));
+      dio.interceptors.add(InterceptorsWrapper(onRequest: (o, h) {
+        keys.add(o.extra[kKey] as String);
+        h.next(o);
+      }));
+
+      final override = Options(
+        extra: {
+          'dioman:qid': const DiomanKeyOptions(ignores: ['b'])
+        },
+      );
+      await dio.get<void>('/x',
+          queryParameters: {'a': '1', 'b': '2'}, options: override);
+      await dio.get<void>('/x',
+          queryParameters: {'a': '99', 'b': '2'}, options: override);
+
+      expect(keys[0], keys[1],
+          reason: "both 'a' and 'b' must be excluded from the key (union of "
+              "plugin default 'a' and per-request 'b'), so varying only 'a' "
+              'must not change the key when both calls carry the same '
+              'per-request override');
+    });
+
+    test(
+        'DiomanMockOptions.routes merges with the plugin\'s registered '
+        "routes without dropping them", () async {
+      final server = await TestServer.start(
+          (req) => respondJson(req, {'real': true}, 200));
+      addTearDown(server.close);
+      final dio = Dio(BaseOptions(baseUrl: server.baseUrl));
+      final mock = DiomanMock(enabled: true);
+      mock.add(
+          'GET:/existing',
+          (opts) async => ResponseBody.fromString(
+                jsonEncode({'from': 'existing'}),
+                200,
+                headers: {
+                  Headers.contentTypeHeader: ['application/json'],
+                },
+              ));
+      dio.interceptors.add(mock);
+
+      final extraRoute = {
+        'dioman:mock': DiomanMockOptions(routes: {
+          'GET:/extra': (opts) async => ResponseBody.fromString(
+                jsonEncode({'from': 'extra'}),
+                200,
+                headers: {
+                  Headers.contentTypeHeader: ['application/json'],
+                },
+              ),
+        }),
+      };
+
+      final r1 = await dio.get<Map<String, dynamic>>('/existing',
+          options: Options(extra: extraRoute));
+      final r2 = await dio.get<Map<String, dynamic>>('/extra',
+          options: Options(extra: extraRoute));
+
+      expect(r1.data!['from'], 'existing',
+          reason: "the plugin's own registered route must still work");
+      expect(r2.data!['from'], 'extra',
+          reason: 'the per-request route must be reachable too');
+    });
+  });
+
+  group('enabled inherits from the constructor when not overridden', () {
+    test(
+        'a per-request DiomanLoadingOptions that omits enabled does NOT '
+        're-enable a plugin constructed with enabled: false', () async {
+      final server =
+          await TestServer.start((req) => respondJson(req, {}, 200));
+      addTearDown(server.close);
+      final dio = Dio(BaseOptions(baseUrl: server.baseUrl));
+      final states = <bool>[];
+      dio.interceptors
+          .add(DiomanLoading(onChanged: states.add, enabled: false));
+
+      await dio.get<void>(
+        '/x',
+        options: Options(extra: {
+          'dioman:loading': const DiomanLoadingOptions(onChanged: null),
+        }),
+      );
+
+      expect(states, isEmpty,
+          reason: 'enabled:null on the override must inherit the '
+              "constructor's enabled:false, not silently default to true");
+    });
+
+    test(
+        'a per-request DiomanCacheOptions that only sets expires does NOT '
+        're-enable a plugin constructed with enabled: false', () async {
+      var calls = 0;
+      final server = await TestServer.start((req) async {
+        calls++;
+        await respondJson(req, {}, 200);
+      });
+      addTearDown(server.close);
+      final dio = Dio(BaseOptions(baseUrl: server.baseUrl));
+      dio.interceptors.addAll([const DiomanKey(), DiomanCache(enabled: false)]);
+
+      await dio.get<void>('/x',
+          options: Options(
+              extra: {'dioman:cache': const DiomanCacheOptions(expires: 999)}));
+      await dio.get<void>('/x',
+          options: Options(
+              extra: {'dioman:cache': const DiomanCacheOptions(expires: 999)}));
+
+      expect(calls, 2,
+          reason: 'a per-request override that only sets expires must not '
+              "silently re-enable a cache constructed with enabled: false");
+    });
+  });
+
+  group('Newly wired Options fields (full constructor↔Options parity)', () {
+    test(
+        'DiomanAuthOptions.headerKey/buildHeader override the plugin '
+        'defaults for a single call', () async {
+      String? customAuth;
+      var hasAuthorization = false;
+      final server = await TestServer.start((req) async {
+        customAuth = req.headers.value('x-custom-auth');
+        hasAuthorization = req.headers.value('authorization') != null;
+        await respondJson(req, {}, 200);
+      });
+      addTearDown(server.close);
+      final dio = Dio(BaseOptions(baseUrl: server.baseUrl));
+      dio.interceptors.add(DiomanAuth(
+        tokenManager: FakeTokenManager('tok'),
+        onRefresh: (_, __) async {},
+        onAccessExpired: (_, __) async {},
+      ));
+
+      await dio.get<void>(
+        '/x',
+        options: Options(extra: {
+          'dioman:auth': DiomanAuthOptions(
+            headerKey: 'X-Custom-Auth',
+            buildHeader: (t) => 'Token $t',
+          ),
+        }),
+      );
+
+      expect(customAuth, 'Token tok',
+          reason: 'per-request headerKey/buildHeader must be honoured');
+      expect(hasAuthorization, isFalse,
+          reason: 'the default header key must not also be set');
+    });
+
+    test(
+        'DiomanRetryOptions.retryIf overrides the plugin default network '
+        'retry check for a single call', () async {
+      var calls = 0;
+      final server = await TestServer.start((req) async {
+        calls++;
+        // Not in [200,300) → dio's default validateStatus rejects it and
+        // synthesizes a DioException(type: badResponse) for onError.
+        await respondJson(req, {}, 418);
+      });
+      addTearDown(server.close);
+      final dio = Dio(BaseOptions(baseUrl: server.baseUrl));
+      dio.interceptors
+          .add(DiomanRetry(dio: dio, max: 2)); // default retryIf ignores 418
+
+      await expectLater(
+        dio.get<void>(
+          '/x',
+          options: Options(
+            extra: {'dioman:retry': DiomanRetryOptions(retryIf: (e) => true)},
+          ),
+        ),
+        throwsA(isA<DioException>()),
+      );
+
+      expect(calls, 3,
+          reason: 'a per-request retryIf that accepts 418 must '
+              'drive max+1 attempts, even though the plugin default would not '
+              'retry a 418 at all');
+    });
+
+    test(
+        'DiomanNormalizeOptions.dataKey/codeKey/messageKey override the '
+        "plugin's envelope keys for a single call", () async {
+      final server = await TestServer.start((req) => respondJson(req, {
+            'status': 0,
+            'payload': {'ok': true},
+            'msg': 'fine'
+          }, 200));
+      addTearDown(server.close);
+      final dio = Dio(BaseOptions(baseUrl: server.baseUrl));
+      dio.interceptors
+          .add(const DiomanNormalize()); // default keys: code/data/message
+
+      final res = await dio.get<Map<String, dynamic>>(
+        '/x',
+        options: Options(extra: {
+          'dioman:normalize': const DiomanNormalizeOptions(
+            codeKey: 'status',
+            dataKey: 'payload',
+            messageKey: 'msg',
+          ),
+        }),
+      );
+
+      expect(res.data, {'ok': true},
+          reason: 'per-request envelope keys must be used instead of the '
+              'plugin defaults, which would not recognise this envelope at all');
+    });
+
+    test(
+        'DiomanKeyOptions.builder overrides the computed key for a single '
+        'call', () async {
+      final server =
+          await TestServer.start((req) => respondJson(req, {}, 200));
+      addTearDown(server.close);
+      final dio = Dio(BaseOptions(baseUrl: server.baseUrl));
+      dio.interceptors.add(const DiomanKey());
+
+      final captured = <String?>[];
+      dio.interceptors.add(InterceptorsWrapper(onRequest: (o, h) {
+        captured.add(o.extra[kKey] as String?);
+        h.next(o);
+      }));
+
+      await dio.get<void>(
+        '/x',
+        options: Options(extra: {
+          'dioman:qid': DiomanKeyOptions(builder: (o) => 'custom:${o.path}'),
+        }),
+      );
+
+      expect(captured, ['custom:/x']);
+    });
+
+    test(
+        'DiomanCacheOptions.shouldCache overrides the plugin default '
+        'caching decision for a single call (allows POST to be cached)',
+        () async {
+      var calls = 0;
+      final server = await TestServer.start((req) async {
+        calls++;
+        await respondJson(req, {}, 200);
+      });
+      addTearDown(server.close);
+      final dio = Dio(BaseOptions(baseUrl: server.baseUrl));
+      dio.interceptors
+          .addAll([const DiomanKey(), DiomanCache()]); // default: GET-only
+
+      final alwaysCache = Options(
+        extra: {'dioman:cache': DiomanCacheOptions(shouldCache: (o) => true)},
+      );
+      await dio.post<void>('/x', options: alwaysCache);
+      await dio.post<void>('/x', options: alwaysCache);
+
+      expect(calls, 1,
+          reason: 'per-request shouldCache must allow a POST to be cached, '
+              'even though the plugin default is GET-only');
+    });
+
+    test(
+        'DiomanLogOptions.writer overrides the plugin default sink for a '
+        'single call', () async {
+      final server =
+          await TestServer.start((req) => respondJson(req, {}, 200));
+      addTearDown(server.close);
+      final dio = Dio(BaseOptions(baseUrl: server.baseUrl));
+      dio.interceptors
+          .add(const DiomanLog(logResponse: false, logError: false));
+
+      final captured = <String>[];
+      await dio.get<void>(
+        '/x',
+        options: Options(extra: {
+          'dioman:log':
+              DiomanLogOptions(writer: (msg, {error}) => captured.add(msg)),
+        }),
+      );
+
+      expect(captured, isNotEmpty,
+          reason: 'per-request writer must receive the request log line');
+    });
+  });
+
+  group('DiomanLoadingOptions.onChanged (edge-triggered, not additive)', () {
+    test(
+        'a solo request with its own onChanged fires it at the 0→1→0 edge '
+        'instead of the plugin default, and still participates in the '
+        'shared counter', () async {
+      final server =
+          await TestServer.start((req) => respondJson(req, {}, 200));
+      addTearDown(server.close);
+      final dio = Dio(BaseOptions(baseUrl: server.baseUrl));
+      final defaultStates = <bool>[];
+      final loading = DiomanLoading(onChanged: defaultStates.add);
+      dio.interceptors.add(loading);
+
+      final ownStates = <bool>[];
+      await dio.get<void>(
+        '/x',
+        options: Options(
+          extra: {
+            'dioman:loading': DiomanLoadingOptions(onChanged: ownStates.add)
+          },
+        ),
+      );
+
+      expect(ownStates, [true, false],
+          reason: 'a request alone in the batch causes both edges, so its '
+              'own onChanged must fire for both');
+      expect(defaultStates, isEmpty,
+          reason: "the plugin's default onChanged must NOT also fire — only "
+              'one callback is invoked per edge');
+      expect(loading.activeCount, 0,
+          reason: 'the request must still have incremented/decremented the '
+              'shared counter like any other request');
+    });
+
+    test(
+        "a request's own onChanged does not fire if it doesn't land on the "
+        'batch edge (another request is already keeping the counter above '
+        'zero) — counting is still accurate either way', () async {
+      final completers = <String, Completer<void>>{
+        '/first': Completer<void>(),
+        '/second': Completer<void>(),
+      };
+      final server = await TestServer.start((req) async {
+        await completers[req.uri.path]!.future;
+        await respondJson(req, {}, 200);
+      });
+      addTearDown(server.close);
+      final dio = Dio(BaseOptions(baseUrl: server.baseUrl));
+      final defaultStates = <bool>[];
+      final loading = DiomanLoading(onChanged: defaultStates.add);
+      dio.interceptors.add(loading);
+
+      // Start the first request (causes the 0→1 edge, default onChanged).
+      final f1 = dio.get<void>('/first');
+      await Future<void>.delayed(
+          const Duration(milliseconds: 20)); // let onRequest run
+      expect(loading.activeCount, 1);
+
+      // Start a second request with its own onChanged — count is already 1,
+      // so this does NOT land on an edge; its own callback never fires.
+      final ownStates = <bool>[];
+      final f2 = dio.get<void>(
+        '/second',
+        options: Options(
+          extra: {
+            'dioman:loading': DiomanLoadingOptions(onChanged: ownStates.add)
+          },
+        ),
+      );
+      await Future<void>.delayed(const Duration(milliseconds: 20));
+      expect(loading.activeCount, 2,
+          reason: 'the second request is still counted even though its own '
+              'onChanged never got to fire');
+
+      // First request finishes (2→1, not an edge) — the request finishing
+      // isn't the second one, so its own onChanged is irrelevant here and
+      // the default isn't called either (no edge).
+      completers['/first']!.complete();
+      await f1;
+      expect(ownStates, isEmpty,
+          reason: 'the first request finishing (2→1) is not an edge at all');
+      expect(defaultStates, [true],
+          reason: 'still just the one true from the initial 0→1 edge');
+
+      // Second request finishes (1→0, the final edge) — the callback
+      // invoked at an edge is resolved from whichever request's OWN
+      // RequestOptions is currently decrementing, which is this one. So its
+      // own onChanged fires `false` here — NOT the plugin default, even
+      // though this request's own onChanged never got to fire `true`
+      // (asymmetric pairing is the documented trade-off of resolving the
+      // callback per-request instead of per-counter).
+      completers['/second']!.complete();
+      await f2;
+      expect(ownStates, [false],
+          reason: "the second request's own onChanged fires for the final "
+              'edge, since IT is the one whose onResponse is decrementing');
+      expect(defaultStates, [true],
+          reason: 'the default never sees the closing `false` — that edge '
+              "belongs to the second request's own callback instead");
     });
   });
 }
