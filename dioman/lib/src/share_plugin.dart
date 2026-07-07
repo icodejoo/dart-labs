@@ -225,20 +225,6 @@ class DiomanShare extends DiomanPlugin {
   static const _kRetriesLeft = '$_name:retriesLeft';
   static const _kInterval = '$_name:interval';
 
-  // Set by DiomanRetry on `config.extra` right before it re-dispatches the
-  // SAME RequestOptions through the full chain (`_dio.fetch(config)`). Only
-  // relevant when [_pendingSettlers] > 0 (settlement deferred to
-  // DiomanRetry/DiomanAuth) — in that mode this plugin's entry for `key`
-  // is deliberately NOT removed on the first failure (DiomanRetry needs to
-  // find it later, via [settle]), so without this marker the re-dispatch's
-  // own onRequest would see that still-active entry and treat ITSELF as a
-  // follower of its own leader — under policy=start that means it never
-  // even calls handler.next, so the retry attempt would never reach the
-  // network at all. This marker makes the re-dispatch skip the dedup
-  // decision entirely and just proceed, exactly as if DiomanShare weren't
-  // installed for this specific pass.
-  static const _kRetryReentry = 'dioman:retry:reentry';
-
   @override
   String get name => _name;
 
@@ -246,16 +232,6 @@ class DiomanShare extends DiomanPlugin {
 
   @override
   void onRequest(RequestOptions options, RequestInterceptorHandler handler) {
-    // Only honored while settlement is deferred (see [_pendingSettlers]) —
-    // when nobody downstream is registered, this plugin already removes the
-    // entry immediately on the first failure (below), so by the time a
-    // retry re-dispatch reaches here `_active[key]` is already empty and
-    // the normal dedup logic correctly starts a fresh entry on its own,
-    // exactly as before this marker existed.
-    if (_pendingSettlers > 0 && options.extra[_kRetryReentry] == true) {
-      return handler.next(options);
-    }
-
     final override = options.extra[name];
     final $resolved = _resolve(override);
     if (!$resolved.enabled) return handler.next(options);

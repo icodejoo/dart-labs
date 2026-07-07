@@ -250,8 +250,6 @@ class DiomanAuth extends DiomanPlugin {
     DateTime Function() now = DateTime.now,
     String headerKey = 'Authorization',
     String Function(String token)? buildHeader,
-    DiomanCancel? cancel,
-    DiomanShare? share,
     this.enabled = true,
   })  : _tokenManager = tokenManager,
         _onRefresh = onRefresh,
@@ -264,11 +262,7 @@ class DiomanAuth extends DiomanPlugin {
         _refreshLeeway = refreshLeeway,
         _now = now,
         _headerKey = headerKey,
-        _buildHeader = buildHeader ?? _defaultBearer,
-        _cancel = cancel,
-        _share = share {
-    share?.registerDownstreamSettler();
-  }
+        _buildHeader = buildHeader ?? _defaultBearer;
 
   // Core dependency — deliberately NOT overridable per request; see
   // [DiomanAuthOptions] doc for why.
@@ -364,36 +358,53 @@ class DiomanAuth extends DiomanPlugin {
   /// `false`时插件整体失效——所有请求原样通过，不受保护。
   final bool enabled;
 
-  /// The [DiomanCancel] instance installed on the same [Dio], if any. Pass
+  /// The [DiomanCancel] instance installed on the same [Dio], if any. Set
   /// this whenever [DiomanCancel] and [DiomanAuth] are combined —
   /// [_replay] is a bare, interceptor-less Dio, so a replay never re-enters
   /// [DiomanCancel]'s onRequest (which is what re-registers a token across a
   /// [DiomanRetry] re-dispatch). Without this reference, `cancelAll()` can't
   /// see — let alone abort — a request currently being replayed.
   ///
+  /// [Dioman.install] wires this automatically when both a `cancel:` and an
+  /// `auth:` plugin are passed to it.
+  ///
   /// 同一个[Dio]上安装的[DiomanCancel]实例（如果有）。[DiomanCancel]和
-  /// [DiomanAuth]搭配使用时务必传入——[_replay]是个不带拦截器的裸Dio，重放
+  /// [DiomanAuth]搭配使用时务必设置——[_replay]是个不带拦截器的裸Dio，重放
   /// 永远不会重新进入[DiomanCancel]的onRequest（那正是[DiomanRetry]重新分发时
   /// 用来重新登记token的地方）。没有这个引用，`cancelAll()`根本看不到、
   /// 更谈不上中断一个正在重放中的请求。
-  final DiomanCancel? _cancel;
+  ///
+  /// [Dioman.install]同时收到`cancel:`和`auth:`时会自动完成这层接线。
+  DiomanCancel? _cancel;
 
-  /// The [DiomanShare] instance installed on the same [Dio], if any. Pass
+  set cancel(DiomanCancel? value) => _cancel = value;
+
+  /// The [DiomanShare] instance installed on the same [Dio], if any. Set
   /// this whenever [DiomanShare] and [DiomanAuth] are combined — [DiomanShare]
   /// sits BEFORE [DiomanAuth] in the canonical chain, so its own
   /// onResponse/onError would otherwise settle the shared entry with the
   /// pre-refresh failure, before this plugin ever gets a chance to
-  /// refresh+replay. Providing [share] registers this plugin as (one of)
+  /// refresh+replay. Setting [share] registers this plugin as (one of)
   /// the settler(s) instead — see [DiomanShare.registerDownstreamSettler] /
   /// [DiomanShare.settle].
   ///
+  /// [Dioman.install] wires this automatically when both a `share:` and an
+  /// `auth:` plugin are passed to it.
+  ///
   /// 同一个[Dio]上安装的[DiomanShare]实例（如果有）。[DiomanShare]和
-  /// [DiomanAuth]搭配使用时务必传入——[DiomanShare]在canonical链条上排在
+  /// [DiomanAuth]搭配使用时务必设置——[DiomanShare]在canonical链条上排在
   /// [DiomanAuth]前面，它自己的onResponse/onError原本会用刷新前的失败结算
-  /// 共享entry，本插件还没来得及刷新+重放。传入[share]会把本插件登记为
+  /// 共享entry，本插件还没来得及刷新+重放。设置[share]会把本插件登记为
   /// （其中一个）结算者——见[DiomanShare.registerDownstreamSettler]/
   /// [DiomanShare.settle]。
-  final DiomanShare? _share;
+  ///
+  /// [Dioman.install]同时收到`share:`和`auth:`时会自动完成这层接线。
+  DiomanShare? _share;
+
+  set share(DiomanShare? value) {
+    _share = value;
+    value?.registerDownstreamSettler();
+  }
 
   Future<bool>? _refreshing; // shared window; bool = success
   // 共享刷新窗口；bool表示是否成功
@@ -613,7 +624,7 @@ class DiomanAuth extends DiomanPlugin {
 
   /// Settles the shared [DiomanShare] entry for [opts] with [error] — but
   /// only if this plugin is the ONLY registered settler. If
-  /// [DiomanRetry] is ALSO registered (via its own `share:` param), it
+  /// [DiomanRetry] is ALSO registered (via its own `share` setter), it
   /// always runs after this plugin in the canonical chain and always
   /// settles unconditionally, so deferring to it here avoids delivering a
   /// pre-retry outcome to a caller dedup'd via [DiomanShare].
@@ -627,10 +638,11 @@ class DiomanAuth extends DiomanPlugin {
     Response<dynamic>? response,
     DioException? error,
   }) {
-    if (_share == null) return;
+    final share = _share;
+    if (share == null) return;
     final key = opts.extra[kKey] as String?;
     if (key == null) return;
-    _share.settle(key, response: response, error: error);
+    share.settle(key, response: response, error: error);
   }
 
   // ── Failure routing ───────────────────────────────────────────────────────

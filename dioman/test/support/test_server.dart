@@ -44,6 +44,14 @@ class TestServer {
 }
 
 /// Writes a JSON [data] body with [status] and closes the response.
+///
+/// Forces `Connection: close` — dio doesn't necessarily drain a non-2xx
+/// response body before it's done with the request (it errors out as soon
+/// as it sees the status), so a client that then reuses a keep-alive
+/// connection for a LATER, unrelated request can read leftover bytes from
+/// THIS response instead of the new one. Closing the connection per request
+/// sidesteps that entirely — tests don't need connection-pooling
+/// performance, just correctness.
 Future<void> respondJson(
   HttpRequest request,
   Object? data,
@@ -51,6 +59,7 @@ Future<void> respondJson(
 ) async {
   request.response.statusCode = status;
   request.response.headers.contentType = ContentType.json;
+  request.response.headers.set(HttpHeaders.connectionHeader, 'close');
   request.response.write(jsonEncode(data));
   await request.response.close();
 }

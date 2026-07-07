@@ -27,10 +27,10 @@ import 'share_plugin.dart';
 /// final handle = Dioman.install(
 ///   dio,
 ///   key: const DiomanKey(),
-///   normalize: const DiomanNormalize(),
 ///   cache: DiomanCache(),
 ///   auth: DiomanAuth(tokenManager: tm, onRefresh: ..., onAccessExpired: ...),
 ///   log: const DiomanLog(),
+///   normalize: const DiomanNormalize(), // optional, business-specific — see its own doc
 /// );
 ///
 /// // Later — eject every installed plugin and release its resources:
@@ -45,7 +45,6 @@ abstract final class Dioman {
     DiomanRepath? repath,
     DiomanFilter? filter,
     DiomanKey? key,
-    DiomanNormalize? normalize,
     DiomanCache? cache,
     DiomanShare? share,
     DiomanMock? mock,
@@ -54,15 +53,21 @@ abstract final class Dioman {
     DiomanAuth? auth,
     DiomanRetry? retry,
     DiomanLog? log,
+    DiomanNormalize? normalize,
   }) {
-    // envs → repath → filter → key → normalize → cache →
-    // share → mock → cancel → loading → auth → retry → log
+    // envs → repath → filter → key → cache → share → mock → cancel →
+    // loading → auth → retry → log → normalize
+    //
+    // DiomanNormalize is last on purpose (see its own class doc): it's an
+    // optional, business-specific envelope-unwrapping convenience, not a
+    // transport concern like everything before it. Running it last means
+    // every other plugin (cache, share, retry's isExceptionRequest, ...)
+    // sees the response exactly as it came off the wire.
     final ordered = <DiomanPlugin?>[
       envs,
       repath,
       filter,
       key,
-      normalize,
       cache,
       share,
       mock,
@@ -71,12 +76,29 @@ abstract final class Dioman {
       auth,
       retry,
       log,
+      normalize,
     ];
     final plugins = <DiomanPlugin>[
       for (final p in ordered)
         if (p != null) p,
     ];
     dio.interceptors.addAll(plugins);
+
+    // Wire the settle-deferral hand-off (see DiomanShare.registerDownstreamSettler)
+    // and the cancel-tracking hand-off automatically — the caller no longer
+    // needs to pass `share:`/`cancel:` into DiomanRetry/DiomanAuth by hand.
+    //
+    // 自动完成结算推迟（见DiomanShare.registerDownstreamSettler）和取消追踪
+    // 的接线——调用方不用再手动把`share:`/`cancel:`传进DiomanRetry/DiomanAuth。
+    if (share != null) {
+      retry?.share = share;
+      auth?.share = share;
+    }
+    if (cancel != null) {
+      retry?.cancel = cancel;
+      auth?.cancel = cancel;
+    }
+
     return DiomanHandle._(dio, plugins);
   }
 }

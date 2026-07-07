@@ -87,13 +87,42 @@ class ApiException implements Exception {
 ///
 /// 非成功code时，以[ApiException] reject，让错误处理统一在拦截器层完成。
 ///
+/// ## Optional, business-specific — install LAST
+///
+/// Unlike every other dioman plugin, this one isn't a transport concern —
+/// it's a convenience for ONE specific envelope convention, and not every
+/// API uses one. Use it if it fits; skip it entirely if your backend
+/// doesn't wrap responses, or wraps them differently and you'd rather
+/// unwrap by hand.
+///
+/// If you do use it, install it LAST — after `log`, at the very end of the
+/// chain (this is also where [Dioman.install] places it when you pass
+/// `normalize:`). That way every OTHER plugin (cache, share, mock,
+/// DiomanRetry's `isExceptionRequest`, DiomanLog's dump, ...) sees the
+/// response exactly as it came off the wire, not already unwrapped —
+/// consistent regardless of which of them happen to be installed.
+///
+/// ## 可选、跟业务相关——装在最后
+///
+/// 跟dioman其它插件不一样，这个不是传输层的事——它只是针对**某一种**信封
+/// 约定的便利转换，不是每个API都这么包。适合就用，不适合（后端不封装，
+/// 或者封装方式不一样、想自己手动拆）就完全不装。
+///
+/// 如果要用，装在最后——排在`log`后面，整条链的最末尾（这也是
+/// [Dioman.install]传入`normalize:`时放置的位置）。这样其它所有插件
+/// （cache、share、mock、DiomanRetry的`isExceptionRequest`、DiomanLog的
+/// dump……）看到的都是响应在线路上原本的样子，不是已经被解包过的——不管
+/// 装了哪些插件，行为都一致。
+///
 /// Per-request opt-out: `options.extra['dioman:normalize'] = const DiomanNormalizeOptions(enabled: false)`.
 ///
 /// ```dart
 /// // Server response: {"code": 0, "data": {...}, "message": "ok"}
 ///
-/// final normalize = DiomanNormalize();
-/// dio.interceptors.add(normalize);
+/// dio.interceptors.addAll([
+///   // ... cache, share, auth, retry, log, whatever else you use ...
+///   const DiomanNormalize(), // last
+/// ]);
 ///
 /// final res = await dio.get('/user/1');
 /// // res.data == the inner {...} object, code/message stripped
