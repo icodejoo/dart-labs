@@ -1,11 +1,11 @@
 /// dioman — a set of composable, self-contained [Dio] interceptor plugins,
 /// plus the *correct* install order to wire them together.
 ///
-/// Every plugin extends [DioPlugin] (a named [Interceptor]) and can be used on
+/// Every plugin extends [DiomanPlugin] (a named [Interceptor]) and can be used on
 /// its own. See the README for the recommended ordering and why it matters.
 library;
 
-export 'src/dio_plugin.dart';
+export 'src/dioman_plugin.dart';
 export 'src/dioman.dart';
 export 'src/envs_plugin.dart';
 export 'src/repath_plugin.dart';

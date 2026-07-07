@@ -1,13 +1,71 @@
-import 'package:dio/dio.dart';
-import 'dio_plugin.dart';
+﻿import 'package:dio/dio.dart';
+import 'dioman_plugin.dart';
 
-/// Thrown when [NormalizePlugin] receives a response whose [codeKey] value
+/// Per-request override for [DiomanNormalize], read from `extra['dioman:normalize']`.
+///
+/// [DiomanNormalize]的单请求覆盖，从`extra['dioman:normalize']`读取。
+class DiomanNormalizeOptions {
+  const DiomanNormalizeOptions({
+    this.enabled,
+    this.dataKey,
+    this.codeKey,
+    this.messageKey,
+    this.isSuccess,
+    this.shouldNormalize,
+  });
+
+  /// `false` skips envelope unwrapping for this request. `null` (default)
+  /// inherits [DiomanNormalize.enabled].
+  ///
+  /// `false`表示本次请求跳过拆信封。`null`（默认）沿用[DiomanNormalize.enabled]。
+  final bool? enabled;
+
+  /// Overrides the plugin's default `dataKey` for this request only.
+  ///
+  /// 仅本次请求覆盖插件默认的`dataKey`。
+  final String? dataKey;
+
+  /// Overrides the plugin's default `codeKey` for this request only.
+  ///
+  /// 仅本次请求覆盖插件默认的`codeKey`。
+  final String? codeKey;
+
+  /// Overrides the plugin's default `messageKey` for this request only.
+  ///
+  /// 仅本次请求覆盖插件默认的`messageKey`。
+  final String? messageKey;
+
+  /// Overrides the plugin's default `isSuccess` for this request only.
+  ///
+  /// 仅本次请求覆盖插件默认的`isSuccess`判定函数。
+  final bool Function(dynamic code)? isSuccess;
+
+  /// Overrides the plugin's default `shouldNormalize` for this request only.
+  ///
+  /// 仅本次请求覆盖插件默认的`shouldNormalize`判定函数。
+  final bool Function(RequestOptions options, Response<dynamic> response)? shouldNormalize;
+}
+
+/// Thrown when [DiomanNormalize] receives a response whose [codeKey] value
 /// does not satisfy [isSuccess].
+///
+/// [DiomanNormalize]收到一个[codeKey]值不满足[isSuccess]的响应时抛出。
 class ApiException implements Exception {
   const ApiException({required this.code, required this.message, this.data});
 
+  /// The business-logic status code from the envelope.
+  ///
+  /// 信封里的业务状态码。
   final dynamic code;
+
+  /// The human-readable message from the envelope.
+  ///
+  /// 信封里的人类可读消息。
   final String message;
+
+  /// The raw payload from the envelope (may be null).
+  ///
+  /// 信封里的原始负载（可能为null）。
   final dynamic data;
 
   @override
@@ -16,85 +74,144 @@ class ApiException implements Exception {
 
 /// Unwraps a standard API envelope `{ code, data, message }`.
 ///
+/// 拆开标准API信封`{ code, data, message }`。
+///
 /// On a successful envelope, replaces `response.data` with the inner [dataKey]
 /// value so downstream code works directly with the payload.
+///
+/// 信封成功时，把`response.data`替换成内层的[dataKey]值，方便下游代码直接
+/// 处理payload。
 ///
 /// On a non-success code, rejects with an [ApiException] so error handling
 /// is unified at the interceptor layer.
 ///
-/// Per-request opt-out: `options.extra[NormalizePlugin.configProperty] = false`.
+/// 非成功code时，以[ApiException] reject，让错误处理统一在拦截器层完成。
+///
+/// Per-request opt-out: `options.extra['dioman:normalize'] = const DiomanNormalizeOptions(enabled: false)`.
 ///
 /// ```dart
 /// // Server response: {"code": 0, "data": {...}, "message": "ok"}
 ///
-/// final normalize = NormalizePlugin();
+/// final normalize = DiomanNormalize();
 /// dio.interceptors.add(normalize);
 ///
 /// final res = await dio.get('/user/1');
 /// // res.data == the inner {...} object, code/message stripped
 /// ```
-class NormalizePlugin extends DioPlugin {
-  /// The `extra` key callers use to opt a single request out of envelope
-  /// unwrapping. Change this to remap it.
-  static String configProperty = 'dioman:normalize';
-
-  const NormalizePlugin({
+class DiomanNormalize extends DiomanPlugin {
+  const DiomanNormalize({
     this.dataKey = 'data',
     this.codeKey = 'code',
     this.messageKey = 'message',
+    this.enabled = true,
     this.isSuccess,
     this.shouldNormalize,
   });
 
   /// The key that holds the actual payload inside the envelope.
+  /// Overridable per request via [DiomanNormalizeOptions.dataKey].
+  ///
+  /// 信封里存放实际payload的键名。可通过[DiomanNormalizeOptions.dataKey]按请求覆盖。
   final String dataKey;
 
   /// The key that holds the business-logic status code.
+  /// Overridable per request via [DiomanNormalizeOptions.codeKey].
+  ///
+  /// 信封里存放业务状态码的键名。可通过[DiomanNormalizeOptions.codeKey]按请求覆盖。
   final String codeKey;
 
   /// The key that holds the human-readable message.
+  /// Overridable per request via [DiomanNormalizeOptions.messageKey].
+  ///
+  /// 信封里存放人类可读消息的键名。可通过[DiomanNormalizeOptions.messageKey]按请求覆盖。
   final String messageKey;
 
-  /// Returns true if [code] represents success. Defaults to `code == 0`.
+  /// `false` disables the plugin entirely — every envelope stays wrapped.
+  ///
+  /// `false`时插件整体失效——所有信封都不拆包。
+  final bool enabled;
+
+  /// Returns true if `code` represents success. Defaults to `code == 0`.
+  /// Overridable per request via [DiomanNormalizeOptions.isSuccess].
+  ///
+  /// 返回true表示该`code`代表成功，默认`code == 0`。可通过
+  /// [DiomanNormalizeOptions.isSuccess]按请求覆盖。
   final bool Function(dynamic code)? isSuccess;
 
   /// Additional condition for applying normalization.
-  /// Defaults to responses with JSON content-type.
+  /// Defaults to responses with JSON content-type. Overridable per request
+  /// via [DiomanNormalizeOptions.shouldNormalize].
+  ///
+  /// 是否要走拆包逻辑的附加条件，默认针对JSON内容类型的响应。可通过
+  /// [DiomanNormalizeOptions.shouldNormalize]按请求覆盖。
   final bool Function(RequestOptions options, Response<dynamic> response)?
       shouldNormalize;
 
+  static const _name = 'dioman:normalize';
+
   @override
-  String get name => 'normalize';
+  String get name => _name;
 
-  bool _isSuccess(dynamic code) =>
-      isSuccess != null ? isSuccess!(code) : code == 0;
+  bool _isSuccess(dynamic code, bool Function(dynamic)? $isSuccess) =>
+      $isSuccess != null ? $isSuccess(code) : code == 0;
 
-  bool _shouldNormalize(RequestOptions options, Response<dynamic> response) {
-    if (options.extra[NormalizePlugin.configProperty] == false) return false;
-    if (shouldNormalize != null) return shouldNormalize!(options, response);
+  bool _shouldNormalize(
+    RequestOptions options,
+    Response<dynamic> response,
+    bool $enabled,
+    String $dataKey,
+    String $codeKey,
+    String $messageKey,
+    bool Function(RequestOptions, Response<dynamic>)? $shouldNormalize,
+  ) {
+    if (!$enabled) return false;
+    if ($shouldNormalize != null) return $shouldNormalize(options, response);
     // Default: only process JSON bodies that look like an envelope. Require
     // BOTH the status [codeKey] AND either the payload [dataKey] or the
     // [messageKey] — a plain resource that merely happens to carry a `code`
     // field (e.g. a country/error code as data) would otherwise be mistaken
     // for an envelope and wrongly rejected as an ApiException.
+    //
+    // 默认：只处理看起来像信封的JSON body。要求同时含状态[codeKey]，且含
+    // [dataKey]或[messageKey]之一——避免把碰巧带`code`字段的普通资源
+    // （比如国家码/错误码当数据）误判成信封而错误地以ApiException拒绝。
     final data = response.data;
     if (data is! Map) return false;
-    return data.containsKey(codeKey) &&
-        (data.containsKey(dataKey) || data.containsKey(messageKey));
+    return data.containsKey($codeKey) &&
+        (data.containsKey($dataKey) || data.containsKey($messageKey));
   }
 
   @override
   void onResponse(Response<dynamic> response, ResponseInterceptorHandler handler) {
-    if (!_shouldNormalize(response.requestOptions, response)) {
+    final options = response.requestOptions;
+    final override = options.extra[name];
+    final o = override is DiomanNormalizeOptions ? override : null;
+
+    final $enabled = o?.enabled ?? enabled;
+    final $dataKey = o?.dataKey ?? dataKey;
+    final $codeKey = o?.codeKey ?? codeKey;
+    final $messageKey = o?.messageKey ?? messageKey;
+    final $isSuccess = o?.isSuccess ?? isSuccess;
+    final $shouldNormalize = o?.shouldNormalize ?? shouldNormalize;
+
+    if (!_shouldNormalize(
+      options,
+      response,
+      $enabled,
+      $dataKey,
+      $codeKey,
+      $messageKey,
+      $shouldNormalize,
+    )) {
       return handler.next(response);
     }
 
     final envelope = response.data as Map;
-    final code = envelope[codeKey];
-    final message = '${envelope[messageKey] ?? ''}';
-    final data = envelope[dataKey];
+    final code = envelope[$codeKey];
+    final message = '${envelope[$messageKey] ?? ''}';
+    final data = envelope[$dataKey];
 
-    if (_isSuccess(code)) {
+    if (_isSuccess(code, $isSuccess)) {
       // Replace data with the inner payload.
       response.data = data;
       return handler.next(response);

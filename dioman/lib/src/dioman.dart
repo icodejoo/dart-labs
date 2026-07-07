@@ -4,7 +4,7 @@ import 'auth_plugin.dart';
 import 'key_plugin.dart';
 import 'cache_plugin.dart';
 import 'cancel_plugin.dart';
-import 'dio_plugin.dart';
+import 'dioman_plugin.dart';
 import 'envs_plugin.dart';
 import 'loading_plugin.dart';
 import 'log_plugin.dart';
@@ -26,11 +26,11 @@ import 'share_plugin.dart';
 /// ```dart
 /// final handle = Dioman.install(
 ///   dio,
-///   key: const KeyPlugin(),
-///   normalize: const NormalizePlugin(),
-///   cache: CachePlugin(),
-///   auth: AuthPlugin(tokenManager: tm, onRefresh: ..., onAccessExpired: ...),
-///   log: const LogPlugin(),
+///   key: const DiomanKey(),
+///   normalize: const DiomanNormalize(),
+///   cache: DiomanCache(),
+///   auth: DiomanAuth(tokenManager: tm, onRefresh: ..., onAccessExpired: ...),
+///   log: const DiomanLog(),
 /// );
 ///
 /// // Later — eject every installed plugin and release its resources:
@@ -41,23 +41,23 @@ abstract final class Dioman {
   /// [DiomanHandle] for later lookup / teardown. Omitted plugins are skipped.
   static DiomanHandle install(
     Dio dio, {
-    EnvsPlugin? envs,
-    RepathPlugin? repath,
-    FilterPlugin? filter,
-    KeyPlugin? key,
-    NormalizePlugin? normalize,
-    CachePlugin? cache,
-    SharePlugin? share,
-    MockPlugin? mock,
-    CancelPlugin? cancel,
-    LoadingPlugin? loading,
-    AuthPlugin? auth,
-    RetryPlugin? retry,
-    LogPlugin? log,
+    DiomanEnvs? envs,
+    DiomanRepath? repath,
+    DiomanFilter? filter,
+    DiomanKey? key,
+    DiomanNormalize? normalize,
+    DiomanCache? cache,
+    DiomanShare? share,
+    DiomanMock? mock,
+    DiomanCancel? cancel,
+    DiomanLoading? loading,
+    DiomanAuth? auth,
+    DiomanRetry? retry,
+    DiomanLog? log,
   }) {
     // envs → repath → filter → key → normalize → cache →
     // share → mock → cancel → loading → auth → retry → log
-    final ordered = <DioPlugin?>[
+    final ordered = <DiomanPlugin?>[
       envs,
       repath,
       filter,
@@ -72,7 +72,7 @@ abstract final class Dioman {
       retry,
       log,
     ];
-    final plugins = <DioPlugin>[
+    final plugins = <DiomanPlugin>[
       for (final p in ordered)
         if (p != null) p,
     ];
@@ -87,13 +87,13 @@ class DiomanHandle {
   DiomanHandle._(this._dio, this._plugins);
 
   final Dio _dio;
-  final List<DioPlugin> _plugins;
+  final List<DiomanPlugin> _plugins;
 
   /// The plugins installed, in chain order.
-  List<DioPlugin> get plugins => List.unmodifiable(_plugins);
+  List<DiomanPlugin> get plugins => List.unmodifiable(_plugins);
 
   /// Returns the installed plugin of type [T], or null if not installed.
-  T? plugin<T extends DioPlugin>() {
+  T? plugin<T extends DiomanPlugin>() {
     for (final p in _plugins) {
       if (p is T) return p;
     }
@@ -101,10 +101,10 @@ class DiomanHandle {
   }
 
   /// Ejects the installed plugin of type [T] from [_dio] and calls its
-  /// [DioPlugin.dispose] — the single-plugin counterpart to [dispose]'s
+  /// [DiomanPlugin.dispose] — the single-plugin counterpart to [dispose]'s
   /// teardown-everything. Returns the removed plugin, or null if [T] was
   /// never installed (a no-op in that case).
-  T? remove<T extends DioPlugin>() {
+  T? remove<T extends DiomanPlugin>() {
     final p = plugin<T>();
     if (p == null) return null;
     _dio.interceptors.remove(p);
@@ -113,7 +113,7 @@ class DiomanHandle {
     return p;
   }
 
-  /// Ejects every installed plugin from [_dio] and calls its [DioPlugin.dispose]
+  /// Ejects every installed plugin from [_dio] and calls its [DiomanPlugin.dispose]
   /// (which nothing else does automatically) so timers, cancel tokens, shared
   /// refresh windows and reused Dio clients are released. Idempotent.
   void dispose() {
