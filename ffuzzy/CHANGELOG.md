@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.5.1
+
+- **Fix: Windows debug build (`error D8016: '/O2' and '/RTC1' command-line
+  options are incompatible`).** The root `CMakeLists.txt` selected `/Od` vs
+  `/O2` by string-matching `CMAKE_BUILD_TYPE`, which is empty at configure
+  time under multi-config generators (e.g. Ninja Multi-Config), so Debug
+  builds silently got `/O2` and clashed with Flutter's Debug-only `/RTC1`.
+  Now gated with `$<CONFIG:Debug>` generator expressions, which resolve
+  correctly per-config regardless of generator. (#1)
+
 ## 0.5.0
 
 - **New: raw-object search.** Every match mode gains a `…Raws` variant that

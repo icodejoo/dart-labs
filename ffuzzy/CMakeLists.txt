@@ -77,11 +77,16 @@ endif()
 if(MSVC)
   target_compile_options(ffz PRIVATE /Zi)              # always emit a PDB sidecar
   target_link_options(ffz PRIVATE /DEBUG /OPT:REF /OPT:ICF)
-  if(FFZ_BT STREQUAL "DEBUG")
-    target_compile_options(ffz PRIVATE /Od)
-  else()
-    target_compile_options(ffz PRIVATE /O2)            # profile + release
-  endif()
+  # Generator expressions (not CMAKE_BUILD_TYPE) here: Flutter's Windows CMake
+  # integration can use a multi-config generator (e.g. Ninja Multi-Config),
+  # where CMAKE_BUILD_TYPE is empty at configure time and the FFZ_BT check
+  # above would silently fall through to /O2 for a Debug build too. Flutter
+  # injects /RTC1 for Debug via a generator expression, and MSVC rejects
+  # /RTC1 + /O2 together (error D8016), so /O2 must likewise be gated by
+  # $<CONFIG:...> to stay mutually exclusive with /Od at build time.
+  target_compile_options(ffz PRIVATE
+    $<$<CONFIG:Debug>:/Od>
+    $<$<NOT:$<CONFIG:Debug>>:/O2>)            # profile + release
 else()
   # -g always: in locatable builds it stays in the .so; in release it is split
   # to the .debug sidecar and then stripped (so the sidecar is non-empty).
