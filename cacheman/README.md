@@ -1,5 +1,9 @@
 # cacheman
 
+> 简体中文: [README.zh-CN.md](./README.zh-CN.md)
+
+[![pub](https://img.shields.io/pub/v/cacheman.svg)](https://pub.dev/packages/cacheman)
+
 A tiny, type-safe wrapper over [`get_storage`](https://pub.dev/packages/get_storage) (persistent) and an
 in-memory store, with one unified API: TTL & absolute expiry, sliding renewal, namespaces, pluggable
 serialization, an optional codec hook, and a key-bound shortcut helper. The Dart/Flutter sibling of
@@ -81,6 +85,16 @@ Decrypted snapshot of every owned entry, `{ "namespace:key": value }` — see `l
 `CacheEntity <-> String` shape) as `CachemanOptions.serialize`/`deserialize` — `decode<T>` casts the
 result to `T` (e.g. `Jsonx.decode<Map<String, dynamic>>(s)`). Not round-trippable, by design: custom
 `Enum`s and `Map`s with non-`String` keys — see `lib/src/jsonx.dart`'s doc comment.
+
+## Example
+
+A complete, runnable app exercising every feature above (`ls`/`ss`, ttl, sliding, namespace,
+batch ops, `fast`/`lazy`/`batchFast`, `debug()`, `codeable`/`enckey`, `Jsonx`, `raw`/`readonly`)
+is in [`example/cacheman_example.dart`](./example/cacheman_example.dart):
+
+```bash
+flutter run example/cacheman_example.dart
+```
 
 ## Differences from `@codejoo/storage` (the TS sibling)
 
