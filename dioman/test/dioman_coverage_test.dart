@@ -576,8 +576,8 @@ void main() {
       final dio = Dio(BaseOptions(baseUrl: server.baseUrl));
       dio.interceptors.add(DiomanRetry(
         max: 2,
-        delay: (_) => Duration.zero,
-        isExceptionRequest: (r) => (r.data as Map)['code'] != 0,
+        delay: (_, __, ___, ____) => Duration.zero,
+        shouldRetry: (err, response) => (response?.data as Map)['code'] != 0,
       ));
 
       final r = await dio.get<Map<String, dynamic>>('/data');
@@ -597,7 +597,7 @@ void main() {
       addTearDown(server.close);
       final dio = Dio(BaseOptions(baseUrl: server.baseUrl));
       dio.interceptors
-          .add(DiomanRetry(max: 2, delay: (_) => Duration.zero, enabled: false));
+          .add(DiomanRetry(max: 2, delay: (_, __, ___, ____) => Duration.zero, enabled: false));
 
       await expectLater(
         dio.get<void>('/data'),
@@ -606,7 +606,7 @@ void main() {
       expect(attempts, 1, reason: 'disabled ⇒ no retry attempted');
     });
 
-    test('an error retryIf rejects (e.g. a plain 404) is passed straight '
+    test('an error shouldRetry rejects (e.g. a plain 404) is passed straight '
         'through without retrying', () async {
       var attempts = 0;
       final server = await TestServer.start((req) async {
@@ -615,7 +615,7 @@ void main() {
       });
       addTearDown(server.close);
       final dio = Dio(BaseOptions(baseUrl: server.baseUrl));
-      dio.interceptors.add(DiomanRetry(max: 2, delay: (_) => Duration.zero));
+      dio.interceptors.add(DiomanRetry(max: 2, delay: (_, __, ___, ____) => Duration.zero));
 
       await expectLater(
         dio.get<void>('/data'),
@@ -624,7 +624,7 @@ void main() {
       );
       expect(attempts, 1,
           reason: '404 is not >=500 (and not a timeout/connectionError) — '
-              "the default retryIf doesn't match it");
+              "the default shouldRetry doesn't match it");
     });
   });
 

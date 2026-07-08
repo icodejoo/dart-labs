@@ -78,7 +78,7 @@ class InMemoryTokenManager implements DiomanTokenManager {
 //  12 retry               —                        retry network failures
 //  13 log                 log request              log response / error
 //
-// Known trade-off: business-level retry (DiomanRetry.isExceptionRequest, which
+// Known trade-off: business-level retry (DiomanRetry.shouldRetry, which
 // inspects the envelope `code`) is unavailable here because normalize (#5) has
 // already unwrapped the body before retry (#12) sees it. Network-level retry is
 // unaffected. If you need envelope-based retry, move DiomanRetry ahead of

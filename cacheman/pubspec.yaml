@@ -1,0 +1,20 @@
+name: cacheman
+description: "A tiny, type-safe wrapper over get_storage (persistent) and an in-memory store with one unified API: TTL & absolute expiry, sliding renewal, namespaces, pluggable serialization, an optional codec hook, and a key-bound shortcut helper."
+version: 0.1.0
+repository: https://github.com/icodejoo/dart-labs/tree/main/cacheman
+issue_tracker: https://github.com/icodejoo/dart-labs/issues
+
+environment:
+  sdk: ^3.5.0
+  flutter: ">=3.0.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  get_storage: ^2.1.1
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^5.0.0
+  path_provider_platform_interface: ^2.1.2

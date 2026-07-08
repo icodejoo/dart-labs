@@ -104,7 +104,7 @@ await dio.get('/x', options: Options(extra: {
   'dioman:share':     const DiomanShareOptions(policy: SharePolicy.race),            // or `enabled: false` to opt out
   'dioman:mock':      const DiomanMockOptions(mockUrl: 'http://localhost:9999'),     // or `enabled: false` to skip
   'dioman:loading':   const DiomanLoadingOptions(enabled: false),                    // don't count toward the indicator
-  'dioman:retry':     DiomanRetryOptions(max: 1, isException: (Response r) => false), // or `enabled: false`
+  'dioman:retry':     DiomanRetryOptions(max: 1, shouldRetry: (err, r) => false),     // or `enabled: false`
   'dioman:filter':    const DiomanFilterOptions(ignoreKeys: ['page']),               // or `enabled: false` to skip
   'dioman:repath':    const DiomanRepathOptions(enabled: false),                     // skip `{id}` substitution
   'dioman:normalize': const DiomanNormalizeOptions(enabled: false),                  // leave the envelope wrapped
@@ -163,6 +163,13 @@ Pass the plugins you want; they're slotted into the canonical order above (omitt
 skipped). Returns a `DiomanHandle` for lookup (`handle.plugin<DiomanAuth>()`), removing a single
 plugin (`handle.remove<DiomanAuth>()`), and coordinated teardown (`handle.dispose()` ejects
 every plugin and calls each one's `dispose()`).
+
+Need a plugin `install` doesn't know about (a custom one, or reordering relative to the canonical
+chain)? `handle.insertBefore(anchor, p)` / `handle.insertAfter(anchor, p)` slot `p` next to an
+already-installed `anchor` plugin; `handle.prepend(p)` / `handle.append(p)` slot it at the very
+front/back of the chain. All four manage `p` on both `dio.interceptors` and the handle itself, so
+it's visible to `plugin<T>()`/`remove<T>()`/`dispose()` afterwards. `insertBefore`/`insertAfter`
+throw `ArgumentError` if `anchor` isn't installed on this handle.
 
 `install` also wires `DiomanRetry.share`/`.cancel` and `DiomanAuth.share`/`.cancel` for you when
 you pass the same `share:`/`cancel:` instance to `retry:`/`auth:` (see
@@ -255,7 +262,7 @@ Not a transport concern — a convenience for **one specific** envelope conventi
 
 ### DiomanRetry
 
-`DiomanRetry({int max = 0, Duration Function(int attempt)? delay, bool enabled = true, bool Function(DioException)? retryIf, bool Function(Response)? isExceptionRequest, void Function(int attempt)? onRetry})` — `delay` defaults to exponential back-off (`1s, 2s, 4s`); `retryIf` defaults to timeouts + connection errors + `statusCode >= 500 && != 501`. Retries on the `onError` path, and optionally treats a 2xx whose body fails `isExceptionRequest` as a failure too (business-level retry, checked against the raw response body).
+`DiomanRetry({int max = 0, List<String>? methods, DiomanShouldRetry? shouldRetry, List<int>? statusCodes, DiomanRetryDelay? delay, Object? jitter, Duration? delayMax, bool enabled = true, bool respectRetryAfter = true, List<int>? afterStatusCodes, Duration? retryAfterMax, void Function(int attempt)? onRetry})` — `methods` (default `[GET,PUT,HEAD,DELETE,OPTIONS,TRACE]`) is checked first and is a hard veto `shouldRetry` can't override. `delay` defaults to a flat `3000ms`; `jitter` (`true` or a `Duration Function(Duration)`) and `delayMax` layer on top. `shouldRetry` has no built-in default — an exact `true`/`false` wins, `null` falls through to `statusCodes` (default `[408,429,500,502,503,504]`), and only with no HTTP status at all (a pure network failure) further falls back to a timeout/connection-error check. Called as `shouldRetry(err, err.response)` on the `onError` path (network-level retry) and as `shouldRetry(null, response)` on the `onResponse` path (business-level retry — a 2xx whose body it flags as a failure, checked against the raw response body). A response's `Retry-After` header (seconds or an RFC 1123 HTTP-date) wins over `delay` when its status is in `afterStatusCodes` (default `[413,429,503]`) and `respectRetryAfter` is true (default), capped by `retryAfterMax`.
 
 `share`/`cancel` are settable properties (not constructor params) — set them to the same instances installed elsewhere on the chain so `DiomanShare` dedup and `cancelAll()` stay correctly aware of an in-flight retry; `Dioman.install` does this for you automatically. `onRetry` is a lightweight `(attempt) {}` hook for your own logging.
 
@@ -279,7 +286,7 @@ usage example:
 | `dioman:mock` | mock | `DiomanMockOptions` | `enabled: false` skip; `mockUrl` overrides target. |
 | `dioman:loading` | loading | `DiomanLoadingOptions` | `enabled: false` → don't count toward the indicator. |
 | `dioman:log` | log | `DiomanLogOptions` | `enabled: false` → don't log this call. |
-| `dioman:retry` | retry | `DiomanRetryOptions` | `max`/`isException` per-call; `enabled: false` skip. |
+| `dioman:retry` | retry | `int` \| `false` \| `DiomanRetryOptions` | `int` overrides `max` only; `false` disables (highest-priority veto); the options object overrides any field (`max`/`methods`/`shouldRetry`/`statusCodes`/`delay`/`jitter`/`delayMax`/`respectRetryAfter`/`afterStatusCodes`/`retryAfterMax`/`enabled`). |
 | `dioman:filter` | filter | `DiomanFilterOptions` | `enabled: false` skip; `ignoreKeys`/`ignoreValues` per-call. |
 | `dioman:repath` | repath | `DiomanRepathOptions` | `enabled: false` skip substitution. |
 | `dioman:normalize` | normalize | `DiomanNormalizeOptions` | `enabled: false` skip envelope unwrapping. |

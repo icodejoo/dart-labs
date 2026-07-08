@@ -61,7 +61,7 @@ abstract final class Dioman {
     // DiomanNormalize is last on purpose (see its own class doc): it's an
     // optional, business-specific envelope-unwrapping convenience, not a
     // transport concern like everything before it. Running it last means
-    // every other plugin (cache, share, retry's isExceptionRequest, ...)
+    // every other plugin (cache, share, retry's shouldRetry, ...)
     // sees the response exactly as it came off the wire.
     final ordered = <DiomanPlugin?>[
       envs,
@@ -133,6 +133,48 @@ class DiomanHandle {
     _plugins.remove(p);
     p.dispose();
     return p;
+  }
+
+  /// Inserts [p] immediately before [anchor] — for slotting a custom plugin
+  /// into the canonical chain without hand-managing `dio.interceptors`
+  /// indices. [p] becomes managed by this handle (visible to
+  /// [plugins]/[plugin]/[remove]/[dispose]). Throws [ArgumentError] if
+  /// [anchor] isn't installed on this handle.
+  void insertBefore(DiomanPlugin anchor, DiomanPlugin p) {
+    _checkAnchor(anchor);
+    _plugins.insert(_plugins.indexOf(anchor), p);
+    _dio.interceptors.insert(_dio.interceptors.indexOf(anchor), p);
+  }
+
+  /// Inserts [p] immediately after [anchor] — the counterpart to
+  /// [insertBefore]. Throws [ArgumentError] if [anchor] isn't installed on
+  /// this handle.
+  void insertAfter(DiomanPlugin anchor, DiomanPlugin p) {
+    _checkAnchor(anchor);
+    _plugins.insert(_plugins.indexOf(anchor) + 1, p);
+    _dio.interceptors.insert(_dio.interceptors.indexOf(anchor) + 1, p);
+  }
+
+  /// Inserts [p] at the very front of the chain — before every plugin and
+  /// any other interceptor already on [_dio]. [p] becomes managed by this
+  /// handle.
+  void prepend(DiomanPlugin p) {
+    _plugins.insert(0, p);
+    _dio.interceptors.insert(0, p);
+  }
+
+  /// Inserts [p] at the very end of the chain. [p] becomes managed by this
+  /// handle.
+  void append(DiomanPlugin p) {
+    _plugins.add(p);
+    _dio.interceptors.add(p);
+  }
+
+  void _checkAnchor(DiomanPlugin anchor) {
+    if (!_plugins.contains(anchor)) {
+      throw ArgumentError.value(
+          anchor, 'anchor', 'is not installed on this handle');
+    }
   }
 
   /// Ejects every installed plugin from [_dio] and calls its [DiomanPlugin.dispose]

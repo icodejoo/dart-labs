@@ -70,10 +70,10 @@ the wire, whether or not `normalize` is even installed.
 - **cancel & loading before auth & retry** — on a 401 (auth) or network retry, those `resolve()` the
   error and halt the forward `onError` chain; the brackets must already have run (counter
   decremented, token released) by then.
-- **normalize dead last** — so `cache`'s stored payload, `retry`'s `isExceptionRequest`, and
+- **normalize dead last** — so `cache`'s stored payload, `retry`'s `shouldRetry`, and
   `log`'s dump all see the RAW response regardless of whether `normalize` is installed. Also means
   `normalize` catches a business failure via its own `reject(...)` (see its bullet below) only for
-  envelopes `retry`'s own `isExceptionRequest` didn't already claim — the two mechanisms are
+  envelopes `retry`'s own `shouldRetry` didn't already claim — the two mechanisms are
   independent, not stacked, since `retry` runs first.
 
 ## Per-plugin implementation invariants (do NOT break)
@@ -175,10 +175,10 @@ the wire, whether or not `normalize` is even installed.
   deep `DiomanKey` keys that vary per query/body (paginated/search endpoints) would accumulate
   forever since an entry is otherwise only removed when its *exact* key is re-requested after expiry.
   Gotcha this plugin does NOT fully solve: it has no concept of "business failure" — a 200 that
-  `DiomanRetry.isExceptionRequest` considers a failure still gets cached here (this plugin runs
+  `DiomanRetry.shouldRetry` considers a failure still gets cached here (this plugin runs
   first), so a LATER, unrelated caller for the same key still hits the poisoned entry — but since the
-  cache-hit resolve now runs the full following chain, if that later caller's `DiomanRetry` has
-  `isExceptionRequest` configured, it sees the poisoned data on the cache hit too and recovers it via
+  cache-hit resolve now runs the full following chain, if that later caller's `DiomanRetry` has a
+  `shouldRetry` configured, it sees the poisoned data on the cache hit too and recovers it via
   its own re-issue, same as it would for a live response — so the caller gets the CORRECT data, just
   not a fast cache hit. The poisoned entry itself is still never evicted/overwritten (the recovery
   re-issue doesn't write back to cache), so every future caller repeats the recovery dance rather than
@@ -195,18 +195,34 @@ the wire, whether or not `normalize` is even installed.
   `true` ("call following error interceptors") is required** so anything installed after it (nothing,
   normally, since it's last) would still see the converted business error; dropping it stops error
   propagation. `ApiException implements Exception` with `code`/`message`/`data`.
-- **DiomanRetry** (`retry_plugin.dart`, `name: 'dioman:retry'`). Back-off `1000*(1<<attempt)` ms = 1s/2s/4s.
-  Default `retryIf` = timeouts + connectionError + `statusCode>=500 && !=501`. **Re-issues via a
-  throwaway, interceptor-less `Dio()`** (lazily created `_retryDio`, closed in `dispose()`) — same
-  pattern as auth/share-retry, NOT the injected app dio (that was the OLD design; changing this back
-  reintroduces the cache-poisoning and share-reentry-deadlock bugs it was specifically changed to
+- **DiomanRetry** (`retry_plugin.dart`, `name: 'dioman:retry'`). Ported/aligned with the same
+  rewrite in `@codejoo/axp`'s `retry.ts` (this monorepo's TS/axios counterpart) — see its class doc
+  and `CHANGELOG.md`'s `0.5.0` entry for the full field list. Flat 3000ms default `delay` (was
+  exponential `1000*(1<<attempt)` = 1s/2s/4s) — `delay` is now `Duration Function(int current, int
+  max, Response? response, DioException? err)` (was `Duration Function(int attempt)`), with
+  `jitter`/`delayMax` layered on top (never applied to a `Retry-After`-derived wait). `methods` (a
+  `List<String>` whitelist, default idempotent verbs excluding post/patch) is checked FIRST and is
+  a hard veto `shouldRetry` cannot override. `shouldRetry(DioException? err, Response? response)`
+  now returns `bool?` (was `bool`) and has NO built-in default — an exact `true`/`false` wins
+  outright, `null` (including when `shouldRetry` isn't set) falls through to `statusCodes` (default
+  `[408,429,500,502,503,504]`), and only when there's no HTTP status at all does it fall further to
+  a timeout/connectionError `DioException` type check (pure network failures still retry by
+  default). Respects a response's `Retry-After` header (numeric seconds or RFC 1123 HTTP-date) over
+  the computed `delay`, gated by `respectRetryAfter`/`afterStatusCodes` (default `[413,429,503]`)
+  and capped by `retryAfterMax`. The wait races `RequestOptions.cancelToken`'s `whenCancel`, so a
+  cancel mid-wait stops it immediately instead of idling out the full delay. `extra['dioman:retry']`
+  now accepts `int` (max override) / `false` (hard-disable veto) / `DiomanRetryOptions` (full
+  per-field override), not just the options object. **Re-issues via a throwaway,
+  interceptor-less `Dio()`** (lazily created `_retryDio`, closed in `dispose()`) —
+  same pattern as auth/share-retry, NOT the injected app dio (that was the OLD design; changing this
+  back reintroduces the cache-poisoning and share-reentry-deadlock bugs it was specifically changed to
   avoid — see git history / conversation for the full trade-off analysis). Because the re-issue never
   re-enters this chain, the WHOLE retry loop (up to `max` attempts) has to live inside ONE
-  onResponse/onError invocation — an explicit `for` loop, re-checking `isExceptionRequest`/`retryIf`
+  onResponse/onError invocation — an explicit `for` loop, re-checking `shouldRetry`
   against EVERY subsequent attempt's own outcome (do not "simplify" this back to a single-shot
   `_reissue` + rely on recursion; there is no recursion anymore, the loop IS the retry mechanism).
   No more `extra['dioman:retry:count']` — state doesn't need to persist across separate onError
-  invocations now that there's only ever one per top-level failure. `isExceptionRequest` always sees
+  invocations now that there's only ever one per top-level failure. `shouldRetry` always sees
   the RAW response body (`normalize`, if used, is LAST — see order note above — so it never runs
   before this plugin). Optional `share`/`cancel` SETTERS (not constructor params — both call the
   OTHER plugin's public cross-plugin API — `DiomanShare.registerDownstreamSettler()`/`settle()`,

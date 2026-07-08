@@ -132,7 +132,7 @@ DiomanHandle _install(Dio dio, int mask, _MutableTokenManager tm) {
             onAccessExpired: (_, __) async {},
           )
         : null,
-    retry: has(10) ? DiomanRetry(max: 1, delay: (_) => Duration.zero) : null,
+    retry: has(10) ? DiomanRetry(max: 1, delay: (_, __, ___, ____) => Duration.zero) : null,
     log: has(11) ? DiomanLog(writer: (m, {error}) {}) : null,
     normalize: has(12) ? const DiomanNormalize() : null,
   );

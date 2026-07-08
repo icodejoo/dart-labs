@@ -1,3 +1,37 @@
+## 0.5.0
+
+`DiomanRetry` overhaul, ported from the same rewrite in this monorepo's `@codejoo/axp` (its
+TypeScript/axios counterpart) — new capabilities and a few breaking signature changes:
+
+- Breaking: `shouldRetry`'s return type is now `bool?` (was `bool`) — an exact `true`/`false`
+  still wins outright, but `null` (including when `shouldRetry` isn't set at all) now falls
+  through to the new `statusCodes` table instead of a hardcoded "≥500 or a timeout/connection
+  error" default. `statusCodes` defaults to `[408,429,500,502,503,504]`; the timeout/connection-error
+  fallback still applies, but only when there's no HTTP status at all (a pure network failure).
+- Breaking: `delay`'s function signature is now `Duration Function(int current, int max,
+  Response<dynamic>? response, DioException? err)` (was `Duration Function(int attempt)`), and
+  its default changed from exponential back-off (1s/2s/4s) to a flat 3000ms — matching axp's
+  `IRetryOptions.delay`. Existing `delay: (_) => ...` callbacks need an extra three params.
+- Feature: `methods` — a `List<String>` whitelist of HTTP methods eligible for retry (case
+  insensitive), checked BEFORE `shouldRetry` and unconditional — even an explicit `shouldRetry`
+  `true` can't retry a method outside it. Defaults to idempotent verbs, excluding post/patch:
+  `[GET,PUT,HEAD,DELETE,OPTIONS,TRACE]`.
+- Feature: `jitter` (`true` for uniform-random in `[Duration.zero, delay)`, or a
+  `DiomanJitter` function) and `delayMax` (a cap applied after jitter) — both apply only to this
+  plugin's own computed `delay`, never to a `Retry-After`-derived wait.
+- Feature: `Retry-After` response-header support — `respectRetryAfter` (default `true`),
+  `afterStatusCodes` (default `[413,429,503]`, restricting which statuses trust the header even
+  though they're otherwise retry-eligible), and `retryAfterMax` (an uncapped-by-default cap on
+  the header-derived wait). Parses both a numeric-seconds value and an RFC 1123 HTTP-date.
+- Feature: the wait before a retry now races `RequestOptions.cancelToken`'s `whenCancel` —
+  cancelling mid-wait stops it immediately instead of idling until the timer fires only to find
+  the request was already cancelled.
+- `DiomanRetryOptions` (the per-request `extra['dioman:retry']` override) gained matching
+  `methods`/`statusCodes`/`jitter`/`delayMax`/`respectRetryAfter`/`afterStatusCodes`/
+  `retryAfterMax` fields; `extra['dioman:retry']` also now accepts a plain `int` (overrides `max`
+  only) or `false` (disables retry for this request, highest-priority veto), not just a
+  `DiomanRetryOptions` object.
+
 ## 0.4.1
 
 Fixed: a `DiomanCache` hit and a `DiomanShare` follower's `resolve()` now both pass

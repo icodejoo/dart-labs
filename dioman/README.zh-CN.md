@@ -100,7 +100,7 @@ await dio.get('/x', options: Options(extra: {
   'dioman:share':     const DiomanShareOptions(policy: SharePolicy.race),            // 或 `enabled: false` 关闭
   'dioman:mock':      const DiomanMockOptions(mockUrl: 'http://localhost:9999'),      // 或 `enabled: false` 跳过
   'dioman:loading':   const DiomanLoadingOptions(enabled: false),                     // 不计入指示器
-  'dioman:retry':     DiomanRetryOptions(max: 1, isException: (Response r) => false), // 或 `enabled: false`
+  'dioman:retry':     DiomanRetryOptions(max: 1, shouldRetry: (err, r) => false),      // 或 `enabled: false`
   'dioman:filter':    const DiomanFilterOptions(ignoreKeys: ['page']),                // 或 `enabled: false` 跳过
   'dioman:repath':    const DiomanRepathOptions(enabled: false),                      // 跳过 `{id}` 替换
   'dioman:normalize': const DiomanNormalizeOptions(enabled: false),                   // 保留信封不拆包
@@ -144,6 +144,8 @@ envs → repath → filter → key → cache → share → mock → cancel → l
 ## 装配：`Dioman.install`
 
 把要用的插件传进去，会按上面的 canonical 顺序装配（未传的自动跳过）。返回一个 `DiomanHandle` 用于查找（`handle.plugin<DiomanAuth>()`）、单独移除某个插件（`handle.remove<DiomanAuth>()`），以及统一销毁（`handle.dispose()` 摘除所有插件并调用每个插件自己的 `dispose()`）。
+
+需要装一个 `install` 不认识的插件（自定义插件，或想相对 canonical 链条调整顺序）？`handle.insertBefore(anchor, p)`/`handle.insertAfter(anchor, p)` 把 `p` 插到已装好的 `anchor` 插件前/后；`handle.prepend(p)`/`handle.append(p)` 把它插到整条链的最前/最后。这四个方法都会同时把 `p` 接管到 `dio.interceptors` 和 handle 自身上，之后 `plugin<T>()`/`remove<T>()`/`dispose()` 都能看到它。`anchor` 若不是这个 handle 装的插件，`insertBefore`/`insertAfter` 会抛 `ArgumentError`。
 
 `install` 还会在你把同一个 `share:`/`cancel:` 实例也传给 `retry:`/`auth:` 时，自动帮你接好 `DiomanRetry.share`/`.cancel` 跟 `DiomanAuth.share`/`.cancel`（见 [DiomanRetry](#diomanretry)/[DiomanShare](#diomanshare)）。只有自己手动往 `dio.interceptors` 加插件（不走 `install`）时，才需要手动设置那两个 setter。
 
@@ -233,7 +235,7 @@ DiomanEnvs(dio: dio, [
 
 ### DiomanRetry
 
-`DiomanRetry({int max = 0, Duration Function(int attempt)? delay, bool enabled = true, bool Function(DioException)? retryIf, bool Function(Response)? isExceptionRequest, void Function(int attempt)? onRetry})`——`delay` 默认指数退避（`1s, 2s, 4s`）；`retryIf` 默认网络超时、连接错误、`statusCode >= 500 && != 501`。在 `onError` 路径重试，也可选地把 body 不满足 `isExceptionRequest` 的 2xx 视为失败（业务级重试，判断的是原始响应体）。
+`DiomanRetry({int max = 0, List<String>? methods, DiomanShouldRetry? shouldRetry, List<int>? statusCodes, DiomanRetryDelay? delay, Object? jitter, Duration? delayMax, bool enabled = true, bool respectRetryAfter = true, List<int>? afterStatusCodes, Duration? retryAfterMax, void Function(int attempt)? onRetry})`——`methods`（默认`[GET,PUT,HEAD,DELETE,OPTIONS,TRACE]`）最先检查，是`shouldRetry`说了也不算的硬性否决。`delay`默认固定`3000ms`；`jitter`（`true`或`Duration Function(Duration)`）和`delayMax`叠加在其上。`shouldRetry`不设默认值——返回明确的`true`/`false`直接采用，返回`null`退回`statusCodes`（默认`[408,429,500,502,503,504]`），只有完全没有HTTP状态码时（纯网络失败）才进一步退回超时/连接错误判定。`onError`路径以`shouldRetry(err, err.response)`调用（网络级重试），`onResponse`路径以`shouldRetry(null, response)`调用（业务级重试——把body判定为失败的2xx也视为失败，判断的是原始响应体）。响应带`Retry-After`头（数字秒或RFC 1123格式HTTP-date）且状态码在`afterStatusCodes`内（默认`[413,429,503]`）、`respectRetryAfter`为true（默认）时，优先听它而不算`delay`，由`retryAfterMax`封顶。
 
 `share`/`cancel` 是可设置的属性（不是构造参数）——设成链上其它位置装的同一个实例，能让 `DiomanShare` 去重、`cancelAll()` 正确感知到正在重试中的请求；只要同时给 `Dioman.install` 传了 `share:`/`cancel:` 和 `retry:`，会自动帮你设好。`onRetry` 是个轻量的 `(attempt) {}` 钩子，给你自己接日志用。
 
@@ -256,7 +258,7 @@ DiomanEnvs(dio: dio, [
 | `dioman:mock` | mock | `DiomanMockOptions` | `enabled: false` 跳过；`mockUrl` 覆盖目标。 |
 | `dioman:loading` | loading | `DiomanLoadingOptions` | `enabled: false` → 不计入指示器。 |
 | `dioman:log` | log | `DiomanLogOptions` | `enabled: false` → 本次不记日志。 |
-| `dioman:retry` | retry | `DiomanRetryOptions` | `max`/`isException` 单次配置；`enabled: false` 跳过。 |
+| `dioman:retry` | retry | `int` \| `false` \| `DiomanRetryOptions` | `int`只覆盖`max`；`false`禁用（最高优先级否决）；对象形式覆盖任意字段（`max`/`methods`/`shouldRetry`/`statusCodes`/`delay`/`jitter`/`delayMax`/`respectRetryAfter`/`afterStatusCodes`/`retryAfterMax`/`enabled`）。 |
 | `dioman:filter` | filter | `DiomanFilterOptions` | `enabled: false` 跳过；`ignoreKeys`/`ignoreValues` 单次配置。 |
 | `dioman:repath` | repath | `DiomanRepathOptions` | `enabled: false` 跳过替换。 |
 | `dioman:normalize` | normalize | `DiomanNormalizeOptions` | `enabled: false` 跳过拆信封。 |

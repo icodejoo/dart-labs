@@ -197,7 +197,7 @@ void main() {
       addTearDown(server.close);
       final dio = Dio(BaseOptions(baseUrl: server.baseUrl));
       installStateful(dio, cache: DiomanCache());
-      dio.interceptors.add(DiomanRetry(max: 1, delay: (_) => Duration.zero));
+      dio.interceptors.add(DiomanRetry(max: 1, delay: (_, __, ___, ____) => Duration.zero));
 
       final r1 = await dio.get<Map<String, dynamic>>('/data');
       expect(r1.data, {'v': 'retried'});
@@ -225,7 +225,7 @@ void main() {
     // everything installed after cache — including DiomanRetry. That means
     // a DIFFERENT, later caller who hits the poisoned entry no longer just
     // gets the stale failure back silently: DiomanRetry's own onResponse
-    // (if the caller configured isExceptionRequest, as here) sees it, judges
+    // (if the caller configured shouldRetry, as here) sees it, judges
     // it a business failure, and retries it via its own bare-Dio re-issue —
     // same recovery a live request would get. The poisoned entry itself is
     // still never evicted/overwritten (retry's re-issue doesn't write back
@@ -252,8 +252,8 @@ void main() {
       installStateful(dio, cache: cache);
       dio.interceptors.add(DiomanRetry(
         max: 1,
-        delay: (_) => Duration.zero,
-        isExceptionRequest: (r) => (r.data as Map)['code'] != 0,
+        delay: (_, __, ___, ____) => Duration.zero,
+        shouldRetry: (err, response) => (response?.data as Map)['code'] != 0,
       ));
 
       final r = await dio.get<Map<String, dynamic>>('/data');
@@ -405,7 +405,7 @@ void main() {
       installStateful(dio, share: share);
       dio.interceptors.add(DiomanRetry(
         max: 1,
-        delay: (_) => Duration.zero,
+        delay: (_, __, ___, ____) => Duration.zero,
       )..share = share);
 
       final leader = dio.get<Map<String, dynamic>>('/data');
@@ -445,7 +445,7 @@ void main() {
       installStateful(dio, share: share);
       dio.interceptors.add(DiomanRetry(
         max: 1,
-        delay: (_) => Duration.zero,
+        delay: (_, __, ___, ____) => Duration.zero,
       )..share = share);
 
       final a = dio.get<Map<String, dynamic>>('/data');
@@ -744,7 +744,7 @@ void main() {
       final states = <bool>[];
       installStateful(dio, loading: DiomanLoading(onChanged: states.add));
       dio.interceptors
-          .add(DiomanRetry(max: 1, delay: (_) => Duration.zero));
+          .add(DiomanRetry(max: 1, delay: (_, __, ___, ____) => Duration.zero));
 
       final r = await dio.get<Map<String, dynamic>>('/data');
       expect(r.data, {'v': 'ok'});
@@ -790,7 +790,7 @@ void main() {
         ),
       );
       dio.interceptors
-          .add(DiomanRetry(max: 1, delay: (_) => Duration.zero));
+          .add(DiomanRetry(max: 1, delay: (_, __, ___, ____) => Duration.zero));
 
       final r = await dio.get<Map<String, dynamic>>('/data');
       expect(r.data!['v'], 'ok');
@@ -855,7 +855,7 @@ void main() {
           onRefresh: (_, __) async => tm.set('t1'),
           onAccessExpired: (_, __) async {},
         ),
-        retry: DiomanRetry(max: 1, delay: (_) => Duration.zero),
+        retry: DiomanRetry(max: 1, delay: (_, __, ___, ____) => Duration.zero),
       );
 
       final r = await dio
@@ -909,7 +909,7 @@ void main() {
           onRefresh: (_, __) async {},
           onAccessExpired: (_, __) async {},
         ),
-        retry: DiomanRetry(max: 1, delay: (_) => Duration.zero),
+        retry: DiomanRetry(max: 1, delay: (_, __, ___, ____) => Duration.zero),
         log: DiomanLog(writer: (m, {error}) => logs.add(m)),
       );
 
