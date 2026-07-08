@@ -24,6 +24,10 @@ class Memory implements Store {
   /// 不限制。`set` 导致总量超限时，按最早插入顺序淘汰（覆写已存在的 key 不
   /// 会改变它的位置）。单条 entry 本身就超过上限时，写入后会被立刻淘汰
   /// （等效丢弃，附警告）。
+  ///
+  /// **注意**：覆写不重置位置意味着"很早插入、一直没删"的 key 突然写入一个
+  /// 大值，可能因总量超限而被自己刚写的这次 `set` 立刻淘汰掉——即使这条
+  /// entry 本身没有超过 `cap`。这是纯按插入顺序（非 LRU）淘汰的设计取舍。
   final int? cap;
 
   final LinkedHashMap<String, String> _store = LinkedHashMap<String, String>();
@@ -64,10 +68,10 @@ class Memory implements Store {
     if (old != null) _size -= _entrySize(key, old);
     _store[key] = value;
     _size += _entrySize(key, value);
-    _evictIfNeeded(key);
+    _evictIfNeeded(key, _entrySize(key, value));
   }
 
-  void _evictIfNeeded(String justSetKey) {
+  void _evictIfNeeded(String justSetKey, int justSetSize) {
     final maxCap = cap;
     if (maxCap == null || _size <= maxCap) return;
     while (_size > maxCap && _store.isNotEmpty) {
@@ -76,8 +80,15 @@ class Memory implements Store {
       _size -= _entrySize(oldestKey, oldestValue);
     }
     if (!_store.containsKey(justSetKey)) {
-      // ignore: avoid_print
-      print('[cacheman] entry "$justSetKey" exceeds ss cap ($maxCap) on its own; dropped');
+      if (justSetSize > maxCap) {
+        // ignore: avoid_print
+        print('[cacheman] entry "$justSetKey" exceeds ss cap ($maxCap) on its own; dropped');
+      } else {
+        // ignore: avoid_print
+        print('[cacheman] entry "$justSetKey" evicted immediately: total size exceeded ss cap '
+            '($maxCap) and this key was oldest by insertion order (overwrites keep original '
+            'position, see the `cap` doc above)');
+      }
     }
   }
 }

@@ -230,6 +230,35 @@ void main() {
       expect(b.get<int>('y'), 2);
     });
 
+    test('keys()/length() stay accurate as entries are added and removed (owned-key cache)', () {
+      final backend = FakeStore();
+      final a = engine(namespace: 'a', store: backend);
+      final b = engine(namespace: 'b', store: backend);
+      a.set('x', 1);
+      a.set('y', 2);
+      b.set('z', 3);
+      expect(a.keys()..sort(), ['x', 'y']);
+      expect(a.length, 2);
+      a.remove('x');
+      expect(a.keys(), ['y']);
+      expect(a.length, 1);
+      b.set('w', 4);
+      expect(b.keys()..sort(), ['w', 'z']);
+      expect(a.length, 1); // unaffected by b's writes to a different namespace
+    });
+
+    test('setNamespace invalidates the owned-key cache so keys() reflects the new namespace', () {
+      final e = engine(namespace: 'a');
+      e.set('x', 1);
+      expect(e.keys(), ['x']); // builds the owned-key cache under namespace 'a'
+      e.setNamespace('b');
+      expect(e.keys(), isEmpty); // nothing written under 'b' yet — not stale from 'a'
+      e.set('y', 2);
+      expect(e.keys(), ['y']);
+      e.setNamespace('a');
+      expect(e.keys(), ['x']); // back to 'a', cache rebuilt fresh
+    });
+
     test('setNamespace switches the prefix in place and clears memo', () {
       final e = engine(memoized: true);
       e.set('token', 'v1');
@@ -497,6 +526,21 @@ void main() {
       expect(m.get('k4'), 'vvvvv');
     });
 
+    test('overwriting the oldest key with a bigger value can evict that very write (self-eviction)', () {
+      final m = Memory(cap: 20);
+      m.set('a', '12'); // size 3, position 0 (oldest)
+      m.set('b', '12'); // size 3, position 1
+      m.set('c', '12'); // size 3, position 2
+      // Overwrite 'a' with a value that alone fits under cap (size 17 <= 20),
+      // but combined total (3+3+17=23) exceeds it. Overwrite keeps 'a' at
+      // position 0, so FIFO eviction removes 'a' first — the very write that
+      // just happened, even though it wasn't oversized on its own.
+      m.set('a', '1234567890123456');
+      expect(m.get('a'), isNull);
+      expect(m.get('b'), '12');
+      expect(m.get('c'), '12');
+    });
+
     test('a single entry larger than the cap is dropped entirely', () {
       final m = Memory(cap: 5);
       m.set('k1', 'this-value-is-way-too-long');
@@ -555,6 +599,22 @@ void main() {
       expect(cache.ss.get<String>('k0'), isNull); // evicted long ago
       expect(cache.ss.get<String>('k19'), isNotNull); // most recent survives
       expect(cache.ls.get<String>('k0'), isNotNull); // ls has no cap
+      await cache.destroy();
+    });
+
+    test('ls.key(index)/length walk get_storage directly without materializing keys()', () async {
+      final cache = await Cacheman.create(container: 'cacheman_test_ls_key', path: tempDir.path);
+      cache.ls.set('a', 1);
+      cache.ls.set('b', 2);
+      cache.ls.set('c', 3);
+      expect(cache.ls.length, 3);
+      expect(cache.ls.key(0), 'a');
+      expect(cache.ls.key(1), 'b');
+      expect(cache.ls.key(2), 'c');
+      expect(cache.ls.key(3), isNull); // out of range
+      cache.ls.remove('b');
+      expect(cache.ls.length, 2);
+      expect(cache.ls.key(1), 'c'); // 'c' shifted into 'b''s old slot
       await cache.destroy();
     });
 
