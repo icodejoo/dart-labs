@@ -209,22 +209,24 @@ Future<void> main() async {
       'the second call returns the FIRST call\'s cached payload (id ${k1.data['id']})');
   print('');
 
-  // ── 8. DiomanRetryOptions(retryIf: ...): forces a retry on a 404, which the
-  //       plugin default (5xx-only) would never retry ───────────────────────
-  print('[8] DiomanRetryOptions(retryIf: ...)');
+  // ── 8. DiomanRetryOptions(shouldRetry: ...): forces a retry on a 404, which
+  //       the plugin default (5xx-only) would never retry ───────────────────
+  print('[8] DiomanRetryOptions(shouldRetry: ...)');
   final beforeRetry = net.count;
   try {
     await dio.get<dynamic>(
       '/todos/999999', // jsonplaceholder 404s this
       options: Options(
-        extra: {'dioman:retry': DiomanRetryOptions(retryIf: (e) => true)},
+        extra: {
+          'dioman:retry': DiomanRetryOptions(shouldRetry: (err, response) => true)
+        },
       ),
     );
   } on DioException catch (_) {
     // Expected — jsonplaceholder genuinely 404s; we only care how many times.
   }
   _check(net.count - beforeRetry == 2,
-      'retryIf:true drives max(1)+1=2 attempts on a 404 the default retryIf ignores');
+      'shouldRetry:true drives max(1)+1=2 attempts on a 404 the default shouldRetry ignores');
   print('');
 
   // ── 9. DiomanLogOptions(writer: ...): captures this call's log line ───────

@@ -98,7 +98,7 @@ class ApiException implements Exception {
 /// If you do use it, install it LAST — after `log`, at the very end of the
 /// chain (this is also where [Dioman.install] places it when you pass
 /// `normalize:`). That way every OTHER plugin (cache, share, mock,
-/// DiomanRetry's `isExceptionRequest`, DiomanLog's dump, ...) sees the
+/// DiomanRetry's `shouldRetry`, DiomanLog's dump, ...) sees the
 /// response exactly as it came off the wire, not already unwrapped —
 /// consistent regardless of which of them happen to be installed.
 ///
@@ -110,7 +110,7 @@ class ApiException implements Exception {
 ///
 /// 如果要用，装在最后——排在`log`后面，整条链的最末尾（这也是
 /// [Dioman.install]传入`normalize:`时放置的位置）。这样其它所有插件
-/// （cache、share、mock、DiomanRetry的`isExceptionRequest`、DiomanLog的
+/// （cache、share、mock、DiomanRetry的`shouldRetry`、DiomanLog的
 /// dump……）看到的都是响应在线路上原本的样子，不是已经被解包过的——不管
 /// 装了哪些插件，行为都一致。
 ///

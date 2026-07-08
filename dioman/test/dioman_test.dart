@@ -42,6 +42,24 @@ class RefreshableTokenManager implements DiomanTokenManager {
   void clear() => _access = null;
 }
 
+/// Minimal DiomanPlugin that records its own [name] into [onRun] whenever
+/// [onRequest] fires — used to prove a manually-inserted plugin actually
+/// runs at its inserted chain position, not just that it appears in the
+/// plugin/interceptor lists.
+class _RecordingPlugin extends DiomanPlugin {
+  _RecordingPlugin(this._name, this.onRun);
+  final String _name;
+  final void Function(String) onRun;
+  @override
+  String get name => _name;
+  @override
+  void onRequest(
+      RequestOptions options, RequestInterceptorHandler handler) {
+    onRun(_name);
+    handler.next(options);
+  }
+}
+
 void main() {
   group('DiomanAuth', () {
     // DiomanAuth's post-failure replay deliberately uses a throwaway `Dio()`
@@ -655,7 +673,7 @@ void main() {
       final dio = Dio(BaseOptions(baseUrl: server.baseUrl));
       dio.interceptors.add(DiomanRetry(
         max: 3,
-        isExceptionRequest: (r) => (r.data as Map)['code'] != 0,
+        shouldRetry: (err, response) => (response?.data as Map)['code'] != 0,
       ));
 
       final res = await dio.get<Map<String, dynamic>>(
@@ -722,7 +740,7 @@ void main() {
       final cancel = DiomanCancel();
       dio.interceptors.addAll([
         cancel,
-        DiomanRetry(max: 1, delay: (_) => Duration.zero)..cancel = cancel,
+        DiomanRetry(max: 1, delay: (_, __, ___, ____) => Duration.zero)..cancel = cancel,
       ]);
 
       final call = dio.get<void>('/data');
@@ -777,7 +795,7 @@ void main() {
         const DiomanKey(),
         DiomanShare(policy: DiomanSharePolicy.start),
       ]);
-      dio.interceptors.add(DiomanRetry(max: 1, delay: (_) => Duration.zero));
+      dio.interceptors.add(DiomanRetry(max: 1, delay: (_, __, ___, ____) => Duration.zero));
 
       final a = dio.get<Map<String, dynamic>>('/data');
       await retryInFlight.future; // A's retry is mid-flight, on a throwaway
@@ -1030,6 +1048,70 @@ void main() {
           ['dioman:qid', 'dioman:cancel', 'dioman:log']);
 
       await dio.get<void>('/x'); // still works without the removed plugin
+    });
+
+    test(
+        'insertBefore/insertAfter/prepend/append slot a custom plugin into '
+        'both the handle and dio.interceptors, in the right position and '
+        'execution order', () async {
+      final server =
+          await TestServer.start((req) => respondJson(req, {}, 200));
+      addTearDown(server.close);
+      final dio = Dio(BaseOptions(baseUrl: server.baseUrl));
+
+      final order = <String>[];
+      _RecordingPlugin custom(String name) =>
+          _RecordingPlugin(name, order.add);
+
+      final handle = Dioman.install(
+        dio,
+        key: const DiomanKey(),
+        cancel: DiomanCancel(),
+        loading: DiomanLoading(onChanged: (_) {}),
+      );
+      final cancelPlugin = handle.plugin<DiomanCancel>()!;
+
+      final before = custom('before');
+      final after = custom('after');
+      final first = custom('first');
+      final last = custom('last');
+      handle.insertBefore(cancelPlugin, before);
+      handle.insertAfter(cancelPlugin, after);
+      handle.prepend(first);
+      handle.append(last);
+
+      final expectedNames = [
+        'first',
+        'dioman:qid',
+        'before',
+        'dioman:cancel',
+        'after',
+        'dioman:loading',
+        'last',
+      ];
+      expect(handle.plugins.map((p) => p.name), expectedNames);
+      expect(dio.interceptors.whereType<DiomanPlugin>().map((p) => p.name),
+          expectedNames);
+
+      await dio.get<void>('/x');
+      expect(order, ['first', 'before', 'after', 'last'],
+          reason: 'inserted plugins must actually run in chain position');
+
+      expect(
+        () => handle.insertBefore(_RecordingPlugin('orphan', order.add),
+            custom('x')),
+        throwsArgumentError,
+        reason: 'anchor not installed on this handle',
+      );
+      expect(
+        () => handle.insertAfter(_RecordingPlugin('orphan', order.add),
+            custom('y')),
+        throwsArgumentError,
+      );
+
+      // dispose() must also eject/dispose the manually-inserted plugins.
+      handle.dispose();
+      expect(dio.interceptors.whereType<DiomanPlugin>(), isEmpty);
     });
   });
 
@@ -1411,7 +1493,7 @@ void main() {
     });
 
     test(
-        'DiomanRetryOptions.retryIf overrides the plugin default network '
+        'DiomanRetryOptions.shouldRetry overrides the plugin default network '
         'retry check for a single call', () async {
       var calls = 0;
       final server = await TestServer.start((req) async {
@@ -1422,20 +1504,26 @@ void main() {
       });
       addTearDown(server.close);
       final dio = Dio(BaseOptions(baseUrl: server.baseUrl));
-      dio.interceptors.add(DiomanRetry(max: 2)); // default retryIf ignores 418
+      dio.interceptors.add(DiomanRetry(
+        max: 2,
+        delay: (_, __, ___, ____) => Duration.zero,
+      )); // default shouldRetry ignores 418
 
       await expectLater(
         dio.get<void>(
           '/x',
           options: Options(
-            extra: {'dioman:retry': DiomanRetryOptions(retryIf: (e) => true)},
+            extra: {
+              'dioman:retry':
+                  DiomanRetryOptions(shouldRetry: (err, response) => true)
+            },
           ),
         ),
         throwsA(isA<DioException>()),
       );
 
       expect(calls, 3,
-          reason: 'a per-request retryIf that accepts 418 must '
+          reason: 'a per-request shouldRetry that accepts 418 must '
               'drive max+1 attempts, even though the plugin default would not '
               'retry a 418 at all');
     });
