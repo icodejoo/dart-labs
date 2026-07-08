@@ -205,6 +205,7 @@ class Engine {
   void setNamespace([String? ns]) {
     _memo.clear();
     _ns = _initialNs(ns);
+    _ownedKeysCache = null; // ownership predicate (_owns) just changed — stale under the old ns
   }
 
   // ── key helpers ──────────────────────────────────────────────────────────
@@ -290,9 +291,41 @@ class Engine {
   void _del(String storageKey) {
     _memo.remove(storageKey);
     _store.remove(storageKey);
+    _untrackOwned(storageKey);
   }
 
-  List<String> _ownKeys() => _store.keys().where(_owns).toList(growable: false);
+  /// Lazily-built, incrementally-maintained cache of this instance's own
+  /// storage keys — avoids re-scanning the whole (possibly shared) backend on
+  /// every [keys]/[length]/[key]/[clear]/[purge] call. Built once on first
+  /// access via a full scan, then kept in sync by [_trackOwned]/
+  /// [_untrackOwned] as this instance writes/deletes. Invalidated wholesale on
+  /// [setNamespace] (the ownership predicate changed).
+  ///
+  /// **Caveat**: only writes/deletes made *through this instance* update the
+  /// cache. A different [Engine] instance sharing the same namespace on the
+  /// same backend (e.g. two `Cacheman.create()` calls for the same
+  /// container+namespace) can drift this cache stale — the original
+  /// always-full-scan behavior didn't have that limitation. Fine when each
+  /// namespace is owned by exactly one live instance, which is the normal
+  /// per-account-isolation use case.
+  ///
+  /// 懒建、增量维护的"本实例自有 key"缓存——避免每次 [keys]/[length]/[key]/
+  /// [clear]/[purge] 都把（可能是共享的）后端整个扫一遍。首次访问时全扫建一
+  /// 次，之后靠 [_trackOwned]/[_untrackOwned] 随本实例的写入/删除增量维护。
+  /// [setNamespace] 时整体失效（所有权判定变了）。
+  ///
+  /// **注意**：只有经过本实例的写入/删除才会更新缓存。如果同一个 namespace
+  /// 在同一个 backend 上被另一个 [Engine] 实例同时使用（比如同一个
+  /// container+namespace 建了两个 `Cacheman.create()`），这个缓存可能读不到
+  /// 对方的变更而过期——原来的每次全扫版本没有这个限制。正常的"每个
+  /// namespace 只有一个存活实例"用法（比如按账号隔离）下没问题。
+  Set<String>? _ownedKeysCache;
+
+  void _trackOwned(String storageKey) => _ownedKeysCache?.add(storageKey);
+
+  void _untrackOwned(String storageKey) => _ownedKeysCache?.remove(storageKey);
+
+  List<String> _ownKeys() => (_ownedKeysCache ??= _store.keys().where(_owns).toSet()).toList(growable: false);
 
   bool _isExpired(CacheEntity? e, int now) => e != null && e.expireAt != null && e.createdAt != null && now >= e.expireAt!;
 
@@ -309,6 +342,7 @@ class Engine {
   bool _persist(String storageKey, String str) {
     try {
       _store.set(storageKey, str);
+      _trackOwned(storageKey);
       return true;
     } catch (e) {
       if (!_opts.force) {
@@ -318,6 +352,7 @@ class Engine {
       _purgeExpired();
       try {
         _store.set(storageKey, str);
+        _trackOwned(storageKey);
         return true;
       } catch (e2) {
         _reportError(storageKey, e2);
@@ -491,10 +526,12 @@ class Engine {
     _memo.clear();
     if (_ns.isEmpty && !_enckey) {
       _store.clear();
+      _ownedKeysCache = <String>{};
       return;
     }
     for (final k in _ownKeys()) {
       _store.remove(k);
+      _untrackOwned(k);
     }
   }
 

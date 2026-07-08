@@ -84,13 +84,33 @@ class GetStorageAdapter implements Store {
   @override
   List<String> keys() => _gs.getKeys<Iterable<dynamic>>().map((k) => k.toString()).toList(growable: false);
 
+  /// Walks `get_storage`'s key iterable directly instead of going through
+  /// [keys] — [keys] allocates a full `toString()`'d, materialized `List` for
+  /// every key just to then index into it once. get_storage exposes no
+  /// positional-access API, so this is still O(index) (can't do better than a
+  /// walk), but it skips the wasted full-list allocation [keys] would do.
+  ///
+  /// 直接遍历 get_storage 的 key 迭代器，不经过 [keys]——[keys] 会把每个 key
+  /// 都 `toString()` 一遍、物化成完整 `List`，只为了取其中一个下标。
+  /// get_storage 没有按下标直接访问的 API，所以这里仍是 O(index)（避不开
+  /// 遍历），但省掉了 [keys] 那次浪费的整表分配。
   @override
   String? key(int index) {
-    final ks = keys();
-    if (index < 0 || index >= ks.length) return null;
-    return ks[index];
+    if (index < 0) return null;
+    var i = 0;
+    for (final k in _gs.getKeys<Iterable<dynamic>>()) {
+      if (i == index) return k.toString();
+      i++;
+    }
+    return null;
   }
 
+  /// Counts the key iterable directly instead of `keys().length` — same
+  /// rationale as [key]: no need to `toString()`/materialize every key just
+  /// to count them.
+  ///
+  /// 直接数 key 迭代器的元素个数，不走 `keys().length`——理由同 [key]：数个数
+  /// 用不着把每个 key 都 `toString()`/物化一遍。
   @override
-  int get length => keys().length;
+  int get length => _gs.getKeys<Iterable<dynamic>>().length;
 }
