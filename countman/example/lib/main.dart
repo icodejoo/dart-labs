@@ -1,5 +1,7 @@
 ﻿import 'package:flutter/material.dart';
 import 'package:countman/countman.dart';
+import 'card_demo_page.dart';
+import 'countdown_demo_page.dart';
 import 'digit_test_page.dart';
 import 'perf_page.dart';
 
@@ -11,11 +13,13 @@ class DemoApp extends StatelessWidget {
   Widget build(BuildContext context) => MaterialApp(
         title: 'Countman Demo',
         theme: ThemeData.dark(useMaterial3: true),
-        initialRoute: '/digit',
+        initialRoute: '/card',
         routes: {
-          '/':      (_) => const DemoPage(),
-          '/perf':  (_) => const PerfPage(),
-          '/digit': (_) => const DigitTestPage(),
+          '/':          (_) => const DemoPage(),
+          '/perf':      (_) => const PerfPage(),
+          '/digit':     (_) => const DigitTestPage(),
+          '/countdown': (_) => const CountdownDemoPage(),
+          '/card':      (_) => const CardDemoPage(),
         },
       );
 }
@@ -29,7 +33,7 @@ class DemoPage extends StatefulWidget {
 }
 
 class _DemoPageState extends State<DemoPage> {
-  final _ctrl = CounterController(initialValue: 0);
+  final _ctrl = AnimatedCounterController(initialValue: 0);
   double _t = 0;
 
   void _toggle() {
@@ -50,92 +54,92 @@ class _DemoPageState extends State<DemoPage> {
     final ts = const TextStyle(fontSize: 11, fontWeight: FontWeight.bold);
 
     final sections = <_Section>[
-      _Section('AnimatedCountup — Transitions', [
-        _c('roll',       AnimatedCountup(value: _t, textStyle: ts, duration: 10000.ms)),
-        _c('fade',       AnimatedCountup(value: _t, textStyle: ts, duration: 10000.ms, transitionType: CounterTransitionType.fade)),
-        _c('scale',      AnimatedCountup(value: _t, textStyle: ts, duration: 10000.ms, transitionType: CounterTransitionType.scale)),
-        _c('fadeScale',  AnimatedCountup(value: _t, textStyle: ts, duration: 10000.ms, transitionType: CounterTransitionType.fadeScale)),
-        _c('rotate',     AnimatedCountup(value: _t, textStyle: ts, duration: 10000.ms, transitionType: CounterTransitionType.rotate)),
-        _c('flip',       AnimatedCountup(value: _t, textStyle: ts, duration: 10000.ms, transitionType: CounterTransitionType.flip)),
-        _c('blur',       AnimatedCountup(value: _t, textStyle: ts, duration: 10000.ms, transitionType: CounterTransitionType.blur)),
+      _Section('AnimatedCounter — Transitions', [
+        _c('roll',       AnimatedCounter(value: _t, textStyle: ts, duration: 10000.ms)),
+        _c('fade',       AnimatedCounter(value: _t, textStyle: ts, duration: 10000.ms, transitionType: CounterTransitionType.fade)),
+        _c('scale',      AnimatedCounter(value: _t, textStyle: ts, duration: 10000.ms, transitionType: CounterTransitionType.scale)),
+        _c('fadeScale',  AnimatedCounter(value: _t, textStyle: ts, duration: 10000.ms, transitionType: CounterTransitionType.fadeScale)),
+        _c('rotate',     AnimatedCounter(value: _t, textStyle: ts, duration: 10000.ms, transitionType: CounterTransitionType.rotate)),
+        _c('flip',       AnimatedCounter(value: _t, textStyle: ts, duration: 10000.ms, transitionType: CounterTransitionType.flip)),
+        _c('blur',       AnimatedCounter(value: _t, textStyle: ts, duration: 10000.ms, transitionType: CounterTransitionType.blur)),
       ]),
-      _Section('AnimatedCountup — Flip Direction', [
-        _c('↑ up',    AnimatedCountup(value: _t, textStyle: ts, duration: 10000.ms, flipDirection: AxisDirection.up)),
-        _c('↓ down',  AnimatedCountup(value: _t, textStyle: ts, duration: 10000.ms, flipDirection: AxisDirection.down)),
-        _c('← left',  AnimatedCountup(value: _t, textStyle: ts, duration: 10000.ms, flipDirection: AxisDirection.left)),
-        _c('→ right', AnimatedCountup(value: _t, textStyle: ts, duration: 10000.ms, flipDirection: AxisDirection.right)),
+      _Section('AnimatedCounter — Flip Direction', [
+        _c('↑ up',    AnimatedCounter(value: _t, textStyle: ts, duration: 10000.ms, flipDirection: AxisDirection.up)),
+        _c('↓ down',  AnimatedCounter(value: _t, textStyle: ts, duration: 10000.ms, flipDirection: AxisDirection.down)),
+        _c('← left',  AnimatedCounter(value: _t, textStyle: ts, duration: 10000.ms, flipDirection: AxisDirection.left)),
+        _c('→ right', AnimatedCounter(value: _t, textStyle: ts, duration: 10000.ms, flipDirection: AxisDirection.right)),
       ]),
-      _Section('AnimatedCountup — Stagger', [
-        _c('rightToLeft (ones先)', AnimatedCountup(value: _t, textStyle: ts,
+      _Section('AnimatedCounter — Stagger', [
+        _c('rightToLeft (ones先)', AnimatedCounter(value: _t, textStyle: ts,
             duration: 10000.ms, staggerDelay: 80.ms, staggerDirection: StaggerDirection.rightToLeft)),
-        _c('leftToRight (高位先)', AnimatedCountup(value: _t, textStyle: ts,
+        _c('leftToRight (高位先)', AnimatedCounter(value: _t, textStyle: ts,
             duration: 10000.ms, staggerDelay: 80.ms, staggerDirection: StaggerDirection.leftToRight)),
       ]),
-      _Section('AnimatedCountup — Curve & Duration', [
-        _c('easeOut 600ms',     AnimatedCountup(value: _t, textStyle: ts, duration: 10000.ms,  curve: Curves.easeOut)),
-        _c('easeInOut 1200ms',  AnimatedCountup(value: _t, textStyle: ts, duration: 10000.ms, curve: Curves.easeInOut)),
-        _c('bounceOut 1500ms',  AnimatedCountup(value: _t, textStyle: ts, duration: 10000.ms, curve: Curves.bounceOut)),
-        _c('elasticOut 1500ms', AnimatedCountup(value: _t, textStyle: ts, duration: 10000.ms, curve: Curves.elasticOut)),
-        _c('speedMultiplier 2×',AnimatedCountup(value: _t, textStyle: ts, duration: 10000.ms, speedMultiplier: 2.0)),
-        _c('startDelay 600ms',  AnimatedCountup(value: _t, textStyle: ts, duration: 10000.ms,  startDelay: 10000.ms)),
-        _c('reverseCurve easeIn', AnimatedCountup(value: _t, textStyle: ts, duration: 10000.ms,
+      _Section('AnimatedCounter — Curve & Duration', [
+        _c('easeOut 600ms',     AnimatedCounter(value: _t, textStyle: ts, duration: 10000.ms,  curve: Curves.easeOut)),
+        _c('easeInOut 1200ms',  AnimatedCounter(value: _t, textStyle: ts, duration: 10000.ms, curve: Curves.easeInOut)),
+        _c('bounceOut 1500ms',  AnimatedCounter(value: _t, textStyle: ts, duration: 10000.ms, curve: Curves.bounceOut)),
+        _c('elasticOut 1500ms', AnimatedCounter(value: _t, textStyle: ts, duration: 10000.ms, curve: Curves.elasticOut)),
+        _c('speedMultiplier 2×',AnimatedCounter(value: _t, textStyle: ts, duration: 10000.ms, speedMultiplier: 2.0)),
+        _c('startDelay 600ms',  AnimatedCounter(value: _t, textStyle: ts, duration: 10000.ms,  startDelay: 10000.ms)),
+        _c('reverseCurve easeIn', AnimatedCounter(value: _t, textStyle: ts, duration: 10000.ms,
             curve: Curves.easeOut, reverseCurve: Curves.easeIn, reverseDuration: 10000.ms)),
       ]),
-      _Section('AnimatedCountup — Format', [
-        _c('fractionDigits: 2', AnimatedCountup(value: _t / 100, textStyle: ts,
+      _Section('AnimatedCounter — Format', [
+        _c('fractionDigits: 2', AnimatedCounter(value: _t / 100, textStyle: ts,
             duration: 10000.ms, fractionDigits: 2, decimalSeparator: '.')),
-        _c('thousandSeparator', AnimatedCountup(value: _t, textStyle: ts,
+        _c('thousandSeparator', AnimatedCounter(value: _t, textStyle: ts,
             duration: 10000.ms, thousandSeparator: ',')),
-        _c('wholeDigits: 6',    AnimatedCountup(value: _t, textStyle: ts,
+        _c('wholeDigits: 6',    AnimatedCounter(value: _t, textStyle: ts,
             duration: 10000.ms, wholeDigits: 6)),
-        _c('hideLeadingZeroes: false', AnimatedCountup(value: _t, textStyle: ts,
+        _c('hideLeadingZeroes: false', AnimatedCounter(value: _t, textStyle: ts,
             duration: 10000.ms, wholeDigits: 6, hideLeadingZeroes: false)),
-        _c('compact K/M/B',     AnimatedCountup(value: _t * 1000, textStyle: ts,
+        _c('compact K/M/B',     AnimatedCounter(value: _t * 1000, textStyle: ts,
             duration: 10000.ms, compactNotation: true)),
-        _c('compact fraction:2',AnimatedCountup(value: _t * 1000, textStyle: ts,
+        _c('compact fraction:2',AnimatedCounter(value: _t * 1000, textStyle: ts,
             duration: 10000.ms, compactNotation: true, compactFractionDigits: 2)),
-        _c('custom abbr 千/万',  AnimatedCountup(value: _t * 1000, textStyle: ts,
+        _c('custom abbr 千/万',  AnimatedCounter(value: _t * 1000, textStyle: ts,
             duration: 10000.ms, compactNotation: true,
             compactAbbreviations: {1e3: '千', 1e6: '百万'})),
-        _c('minValue/maxValue', AnimatedCountup(value: _t, textStyle: ts,
+        _c('minValue/maxValue', AnimatedCounter(value: _t, textStyle: ts,
             duration: 10000.ms, minValue: 5000, maxValue: 10000)),
       ]),
-      _Section('AnimatedCountup — Prefix / Suffix / Sign', [
-        _c('prefix ¥ suffix 元',AnimatedCountup(value: _t, textStyle: ts, duration: 10000.ms, prefix: '¥', suffix: '元')),
-        _c('infix (after sign)',AnimatedCountup(value: -_t, textStyle: ts, duration: 10000.ms, infix: r'$')),
-        _c('showPositiveSign',  AnimatedCountup(value: _t, duration: 10000.ms, showPositiveSign: true,
+      _Section('AnimatedCounter — Prefix / Suffix / Sign', [
+        _c('prefix ¥ suffix 元',AnimatedCounter(value: _t, textStyle: ts, duration: 10000.ms, prefix: '¥', suffix: '元')),
+        _c('infix (after sign)',AnimatedCounter(value: -_t, textStyle: ts, duration: 10000.ms, infix: r'$')),
+        _c('showPositiveSign',  AnimatedCounter(value: _t, duration: 10000.ms, showPositiveSign: true,
             textStyle: ts.copyWith(color: Colors.greenAccent))),
-        _c('prefixWidget',      AnimatedCountup(value: _t, textStyle: ts, duration: 10000.ms,
+        _c('prefixWidget',      AnimatedCounter(value: _t, textStyle: ts, duration: 10000.ms,
             prefixWidget: const Icon(Icons.currency_yen, size: 20, color: Colors.amber))),
-        _c('suffixWidget',      AnimatedCountup(value: _t, textStyle: ts, duration: 10000.ms,
+        _c('suffixWidget',      AnimatedCounter(value: _t, textStyle: ts, duration: 10000.ms,
             suffixWidget: const Text(' pt', style: TextStyle(fontSize: 12, color: Colors.grey)))),
-        _c('separatorStyle',    AnimatedCountup(value: _t, textStyle: ts, duration: 10000.ms,
+        _c('separatorStyle',    AnimatedCounter(value: _t, textStyle: ts, duration: 10000.ms,
             thousandSeparator: ',',
             separatorStyle: const TextStyle(fontSize: 16, color: Colors.grey))),
       ]),
-      _Section('AnimatedCountup — Color', [
-        _c('increasingColor ↑', AnimatedCountup(value: _t, textStyle: ts, duration: 10000.ms,
+      _Section('AnimatedCounter — Color', [
+        _c('increasingColor ↑', AnimatedCounter(value: _t, textStyle: ts, duration: 10000.ms,
             increasingColor: Colors.greenAccent, decreasingColor: Colors.redAccent)),
-        _c('decreasingColor ↓', AnimatedCountup(
+        _c('decreasingColor ↓', AnimatedCounter(
             value: _t == 0 ? 999999999 : 0,
             initialValue: _t == 9999 ? 9999 : 100,
             textStyle: ts, duration: 10000.ms,
             increasingColor: Colors.greenAccent, decreasingColor: Colors.redAccent)),
       ]),
-      _Section('AnimatedCountup — Custom Builders', [
-        _c('digitBuilder rainbow', AnimatedCountup(value: _t, textStyle: ts, duration: 10000.ms,
+      _Section('AnimatedCounter — Custom Builders', [
+        _c('digitBuilder rainbow', AnimatedCounter(value: _t, textStyle: ts, duration: 10000.ms,
             digitBuilder: (_, digit, style) {
               const c = [Colors.red, Colors.orange, Colors.yellow, Colors.green,
                 Colors.blue, Colors.indigo, Colors.purple, Colors.pink, Colors.teal, Colors.cyan];
               return Text('$digit', textAlign: TextAlign.center,
                   style: style.copyWith(color: c[digit % c.length]));
             })),
-        _c('digitTransitionBuilder', AnimatedCountup(value: _t, textStyle: ts, duration: 10000.ms,
+        _c('digitTransitionBuilder', AnimatedCounter(value: _t, textStyle: ts, duration: 10000.ms,
             digitTransitionBuilder: (_, cur, nxt, p, sz) => Stack(alignment: Alignment.center, children: [
               Transform.scale(scale: 1 - p, child: Opacity(opacity: 1 - p, child: cur)),
               Transform.scale(scale: p,     child: Opacity(opacity: p,     child: nxt)),
             ]))),
-        _c('digitWrapperBuilder', AnimatedCountup(value: _t, duration: 10000.ms,
+        _c('digitWrapperBuilder', AnimatedCounter(value: _t, duration: 10000.ms,
             textStyle: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
             padding: const EdgeInsets.symmetric(horizontal: 3, vertical: 2),
             digitWrapperBuilder: (_, idx, child) => Container(
@@ -143,46 +147,46 @@ class _DemoPageState extends State<DemoPage> {
               decoration: BoxDecoration(color: Colors.white10, borderRadius: BorderRadius.circular(3)),
               child: child))),
       ]),
-      _Section('AnimatedCountup — Numeral Systems', [
-        _c('latin',        AnimatedCountup(value: _t % 1000, textStyle: ts, duration: 10000.ms, numeralSystem: NumeralSystem.latin)),
-        _c('easternArabic',AnimatedCountup(value: _t % 1000, textStyle: ts, duration: 10000.ms, numeralSystem: NumeralSystem.easternArabic)),
-        _c('persian',      AnimatedCountup(value: _t % 1000, textStyle: ts, duration: 10000.ms, numeralSystem: NumeralSystem.persian)),
-        _c('devanagari',   AnimatedCountup(value: _t % 1000, textStyle: ts, duration: 10000.ms, numeralSystem: NumeralSystem.devanagari)),
-        _c('bengali',      AnimatedCountup(value: _t % 1000, textStyle: ts, duration: 10000.ms, numeralSystem: NumeralSystem.bengali)),
-        _c('numeralMapper 罗马', AnimatedCountup(value: _t % 10, textStyle: ts, duration: 10000.ms,
+      _Section('AnimatedCounter — Numeral Systems', [
+        _c('latin',        AnimatedCounter(value: _t % 1000, textStyle: ts, duration: 10000.ms, numeralSystem: NumeralSystem.latin)),
+        _c('easternArabic',AnimatedCounter(value: _t % 1000, textStyle: ts, duration: 10000.ms, numeralSystem: NumeralSystem.easternArabic)),
+        _c('persian',      AnimatedCounter(value: _t % 1000, textStyle: ts, duration: 10000.ms, numeralSystem: NumeralSystem.persian)),
+        _c('devanagari',   AnimatedCounter(value: _t % 1000, textStyle: ts, duration: 10000.ms, numeralSystem: NumeralSystem.devanagari)),
+        _c('bengali',      AnimatedCounter(value: _t % 1000, textStyle: ts, duration: 10000.ms, numeralSystem: NumeralSystem.bengali)),
+        _c('numeralMapper 罗马', AnimatedCounter(value: _t % 10, textStyle: ts, duration: 10000.ms,
             numeralMapper: (d) => ['Ⅰ','Ⅱ','Ⅲ','Ⅳ','Ⅴ','Ⅵ','Ⅶ','Ⅷ','Ⅸ','Ⅹ'][d])),
       ]),
-      _Section('AnimatedCountup — Locale Factories', [
-        _c('USD',AnimatedCountup.usd(value: _t, textStyle: ts, duration: 10000.ms)),
-        _c('CNY',AnimatedCountup.cny(value: _t, textStyle: ts, duration: 10000.ms)),
-        _c('INR',AnimatedCountup.inr(value: _t * 10, textStyle: ts, duration: 10000.ms)),
+      _Section('AnimatedCounter — Locale Factories', [
+        _c('USD',AnimatedCounter.usd(value: _t, textStyle: ts, duration: 10000.ms)),
+        _c('CNY',AnimatedCounter.cny(value: _t, textStyle: ts, duration: 10000.ms)),
+        _c('INR',AnimatedCounter.inr(value: _t * 10, textStyle: ts, duration: 10000.ms)),
       ]),
-      _Section('AnimatedCountup — Controller', [
-        _c('CounterController', AnimatedCountup(controller: _ctrl,
+      _Section('AnimatedCounter — Controller', [
+        _c('AnimatedCounterController', AnimatedCounter(controller: _ctrl,
             thousandSeparator: ',', textStyle: ts, duration: 10000.ms)),
       ]),
-      _Section('CountupText', [
-        _c('default',           CountupText(to: _t, duration: 10000.ms, style: ts)),
-        _c('prefix/suffix',     CountupText(to: _t, prefix: '¥ ', suffix: '元', style: ts, duration: 10000.ms)),
-        _c('prefixWidget',      CountupText(to: _t, prefixWidget: const Icon(Icons.star, color: Colors.amber, size: 22),
+      _Section('CounterText', [
+        _c('default',           CounterText(to: _t, duration: 10000.ms, style: ts)),
+        _c('prefix/suffix',     CounterText(to: _t, prefix: '¥ ', suffix: '元', style: ts, duration: 10000.ms)),
+        _c('prefixWidget',      CounterText(to: _t, prefixWidget: const Icon(Icons.star, color: Colors.amber, size: 22),
             suffix: ' pts', style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold), duration: 10000.ms)),
-        _c('formatter 千分位',  CountupText(to: _t, duration: 10000.ms, style: ts,
+        _c('formatter 千分位',  CounterText(to: _t, duration: 10000.ms, style: ts,
             formatter: (v) { final s=v.toInt().toString(); final b=StringBuffer();
               for(var i=0;i<s.length;i++){if(i>0&&(s.length-i)%3==0)b.write(',');b.write(s[i]);}
               return b.toString(); })),
-        _c('bounceOut',         CountupText(to: _t, curve: Curves.bounceOut, duration: 10000.ms, style: ts)),
-        _c('elasticOut',        CountupText(to: _t, curve: Curves.elasticOut, duration: 10000.ms, style: ts)),
-        _c('from: 5000',        CountupText(from: 5000, to: _t, duration: 10000.ms, style: ts)),
-        _c('duration 300ms',    CountupText(to: _t, duration: 300.ms, style: ts)),
+        _c('bounceOut',         CounterText(to: _t, curve: Curves.bounceOut, duration: 10000.ms, style: ts)),
+        _c('elasticOut',        CounterText(to: _t, curve: Curves.elasticOut, duration: 10000.ms, style: ts)),
+        _c('from: 5000',        CounterText(from: 5000, to: _t, duration: 10000.ms, style: ts)),
+        _c('duration 300ms',    CounterText(to: _t, duration: 300.ms, style: ts)),
       ]),
-      _Section('CountupBuilder', [
-        _c('color by progress', CountupBuilder(to: _t, duration: 10000.ms,
+      _Section('CounterBuilder', [
+        _c('color by progress', CounterBuilder(to: _t, duration: 10000.ms,
             builder: (_, v) { final t=(v/_t).clamp(0.0,1.0); return Text(v.toInt().toString(),
                 style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Color.lerp(Colors.red,Colors.green,t))); })),
-        _c('decimal .2f',       CountupBuilder(to: _t, duration: 10000.ms,
+        _c('decimal .2f',       CounterBuilder(to: _t, duration: 10000.ms,
             builder: (_, v) => Text(v.toStringAsFixed(2),
                 style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)))),
-        _c('progress bar',      CountupBuilder(to: _t, duration: 10000.ms,
+        _c('progress bar',      CounterBuilder(to: _t, duration: 10000.ms,
             builder: (_, v) => Column(mainAxisSize: MainAxisSize.min, children: [
               Text(v.toInt().toString(), style: ts),
               const SizedBox(height: 2),
@@ -190,22 +194,22 @@ class _DemoPageState extends State<DemoPage> {
                   minHeight: 3, borderRadius: BorderRadius.circular(2)),
             ]))),
       ]),
-      _Section('CountupOdometer', [
-        _c('default',       CountupOdometer(to: _t, duration: 10000.ms, letterWidth: 20, verticalOffset: 24, numberTextStyle: ts)),
-        _c('prefix ¥',      CountupOdometer(to: _t, prefix: '¥', duration: 10000.ms, letterWidth: 20, verticalOffset: 24, numberTextStyle: ts)),
-        _c('suffix 元',     CountupOdometer(to: _t, suffix: '元', duration: 10000.ms, letterWidth: 20, verticalOffset: 24, numberTextStyle: ts)),
-        _c('prefixWidget',  CountupOdometer(to: _t, duration: 10000.ms, letterWidth: 20, verticalOffset: 24, numberTextStyle: ts,
+      _Section('CounterOdometer', [
+        _c('default',       CounterOdometer(to: _t, duration: 10000.ms, letterWidth: 20, verticalOffset: 24, numberTextStyle: ts)),
+        _c('prefix ¥',      CounterOdometer(to: _t, prefix: '¥', duration: 10000.ms, letterWidth: 20, verticalOffset: 24, numberTextStyle: ts)),
+        _c('suffix 元',     CounterOdometer(to: _t, suffix: '元', duration: 10000.ms, letterWidth: 20, verticalOffset: 24, numberTextStyle: ts)),
+        _c('prefixWidget',  CounterOdometer(to: _t, duration: 10000.ms, letterWidth: 20, verticalOffset: 24, numberTextStyle: ts,
             prefixWidget: const Icon(Icons.monetization_on, size: 20, color: Colors.amber))),
-        _c('groupSeparator',CountupOdometer(to: _t, duration: 10000.ms, letterWidth: 20, verticalOffset: 24, numberTextStyle: ts,
+        _c('groupSeparator',CounterOdometer(to: _t, duration: 10000.ms, letterWidth: 20, verticalOffset: 24, numberTextStyle: ts,
             groupSeparator: Text(',', style: ts))),
-        _c('bounceOut',     CountupOdometer(to: _t, curve: Curves.bounceOut, duration: 10000.ms, letterWidth: 20, verticalOffset: 24, numberTextStyle: ts)),
-        _c('递减无补零',     CountupOdometer(from: _t==0?999999999:0, to: _t==0?999999999:0,
+        _c('bounceOut',     CounterOdometer(to: _t, curve: Curves.bounceOut, duration: 10000.ms, letterWidth: 20, verticalOffset: 24, numberTextStyle: ts)),
+        _c('递减无补零',     CounterOdometer(from: _t==0?999999999:0, to: _t==0?999999999:0,
             duration: 10000.ms, letterWidth: 20, verticalOffset: 24,
             numberTextStyle: ts.copyWith(color: Colors.redAccent))),
       ]),
       _Section('Stress — 20 并发 (shared ticker)', [
         for (var i = 1; i <= 20; i++)
-          _c('#$i', AnimatedCountup(
+          _c('#$i', AnimatedCounter(
               value: _t * i / 20,
               duration: Duration(milliseconds: 400 + i * 40),
               textStyle: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),

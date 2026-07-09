@@ -1,5 +1,7 @@
+import 'package:countman/src/core/plugin_base.dart';
 import 'package:countman/src/core/ticker.dart';
-import 'package:countman/src/core/types.dart';
+import 'package:flutter/foundation.dart';
+
 import 'types.dart';
 
 /// Returned by [Countdown.add].
@@ -11,39 +13,42 @@ class CountdownHandle {
 
   /// Freeze the countdown at its current remaining time.
   void pause() {
-    final task = _plugin._tasks[_id];
+    final task = _plugin.task(_id);
     if (task == null || task.done || task.isPaused) return;
     task.pausedRemaining = task.remaining;
+    task.onPause?.call();
   }
 
   /// Resume a paused countdown. Restarts the ticker if it had stopped.
   void resume() {
-    final task = _plugin._tasks[_id];
+    final task = _plugin.task(_id);
     if (task == null || task.done || !task.isPaused) return;
     task.endTime = countdownClock().add(task.pausedRemaining!);
     task.pausedRemaining = null;
     task.started = false; // re-anchor: next interval renders without consuming time
-    _plugin._ctx.requestFrame();
+    task.onResume?.call();
+    _plugin.requestFrame();
   }
 
   /// Reset remaining to [duration] (or the original duration if null),
   /// then resume. No-op if already completed.
   void reset({Duration? duration}) {
-    final task = _plugin._tasks[_id];
+    final task = _plugin.task(_id);
     if (task == null || task.done) return;
     if (duration != null) task.total = duration;
     task.endTime = countdownClock().add(task.total);
     task.pausedRemaining = null;
     task.started = false;
-    _plugin._ctx.requestFrame();
+    task.thresholdFired = false;
+    _plugin.requestFrame();
   }
 
   /// Remove the task immediately.
-  void cancel() => _plugin._tasks.remove(_id);
+  void cancel() => _plugin.removeTask(_id);
 
-  Duration get remaining => _plugin._tasks[_id]?.remaining ?? Duration.zero;
-  bool get isPaused      => _plugin._tasks[_id]?.isPaused ?? false;
-  bool get isDone        => _plugin._tasks[_id]?.done ?? true;
+  Duration get remaining => _plugin.task(_id)?.remaining ?? Duration.zero;
+  bool get isPaused      => _plugin.task(_id)?.isPaused ?? false;
+  bool get isDone        => _plugin.task(_id)?.done ?? true;
 }
 
 /// Countdown engine — drives [Duration]-based timers on the shared ticker.
@@ -73,96 +78,61 @@ class CountdownHandle {
 /// Countman.use(precise);
 /// CountdownWidget(duration: ..., plugin: precise, builder: ...)
 /// ```
-class Countdown implements CountmanPlugin {
-  Countdown({String? name, this.interval = 1000})
-      : name = name ?? 'countdown';
+class Countdown extends ClockPlugin<CountdownTask> {
+  Countdown({String? name, int interval = 1000})
+      : super(name ?? 'countdown', interval: interval);
+
+  // ── ClockPlugin domain hooks ──────────────────────────────────────
 
   @override
-  final String name;
-
-  /// Processing interval in milliseconds. 0 = every frame.
-  final int interval;
-
-  late CountmanContext _ctx;
-  final _tasks = <int, CountdownTask>{};
-  int _uid = 0;
-  double _accumMs = 0;
-
-  // ── CountmanPlugin ────────────────────────────────────────────────
+  Duration valueOf(CountdownTask task) => task.remaining;
 
   @override
-  void onAttach(CountmanContext ctx) => _ctx = ctx;
+  Duration? totalOf(CountdownTask task) => task.total;
 
   @override
-  bool tick(Duration elapsed, Duration dt) {
-    if (_tasks.isEmpty) return false;
+  bool isComplete(CountdownTask task) => task.remaining <= Duration.zero;
 
-    _accumMs += dt.inMicroseconds / 1000.0;
-    final shouldProcess = interval <= 0 || _accumMs >= interval;
-    if (shouldProcess) {
-      if (interval > 0) {
-        _accumMs -= interval; // carry remainder for next cycle
-      } else {
-        _accumMs = 0; // prevent unbounded growth at interval=0
-      }
-    }
+  @override
+  bool thresholdCrossed(CountdownTask task) => task.remaining <= task.threshold!;
 
-    var busy = false;
-    final done = <int>[];
-
-    for (final task in _tasks.values) {
-      if (task.done || task.isPaused) continue;
-
-      if (!task.started) {
-        // First appearance: render initial remaining immediately, skip interval.
-        task.started = true;
-        task.onUpdate?.call(task.remaining);
-        busy = true;
-        continue;
-      }
-
-      if (!shouldProcess) {
-        busy = true; // active but interval not reached yet
-        continue;
-      }
-
-      final remaining = task.remaining;
-      if (remaining <= Duration.zero) {
-        task.done = true;
-        task.onUpdate?.call(Duration.zero);
-        done.add(task.id);
-        task.onDone?.call();
-        // task is done — do NOT set busy for it
-      } else {
-        task.onUpdate?.call(remaining);
-        busy = true;
-      }
-    }
-
-    for (final id in done) {
-      _tasks.remove(id);
-    }
-    return busy;
+  @override
+  void onComplete(CountdownTask task) {
+    task.parts.set(Duration.zero, task.total);
+    task.onUpdate?.call(task.parts);
+    task.onComplete?.call();
   }
 
   @override
-  void dispose() {
-    _tasks.clear();
-    _accumMs = 0;
+  void onDispose() {
+    super.onDispose();
     if (identical(this, _default)) _registered = false;
   }
+
+  // ── internal accessors for handles (same library) ─────────────────
+
+  @internal
+  CountdownTask? task(int id) => taskOf(id);
+  @internal
+  void requestFrame() => ctx.requestFrame();
 
   // ── public API ────────────────────────────────────────────────────
 
   CountdownHandle add(CountdownOptions opts) {
-    final id = _uid++;
-    _tasks[id] = CountdownTask(
+    final id = nextId();
+    enqueue(CountdownTask(
       id: id,
       total: opts.duration,
       onUpdate: opts.onUpdate,
-      onDone: opts.onDone,
-    );
-    _ctx.requestFrame();
+      onComplete: opts.onComplete,
+      threshold: opts.threshold,
+      onThreshold: opts.onThreshold,
+      onReady: opts.onReady,
+      onStart: opts.onStart,
+      onCancel: opts.onCancel,
+      onPause: opts.onPause,
+      onResume: opts.onResume,
+    ));
     return CountdownHandle._(id, this);
   }
 }

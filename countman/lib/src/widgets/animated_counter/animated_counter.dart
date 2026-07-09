@@ -2,13 +2,13 @@
 // Original: https://github.com/Itsxhadi/flip_counter_plus
 //
 // Changes from original:
-//   1. Renamed AnimatedFlipCounter 鈫?CountupPlus.
+//   1. Renamed AnimatedFlipCounter -> AnimatedCounter.
 //   2. Replaced AnimationController (per-instance vsync ticker) with
-//      Countup driving the shared Countman scheduleFrameCallback.
+//      Counter driving the shared Countman scheduleFrameCallback.
 //      N counters share ONE frame callback instead of N AnimationControllers.
 //   3. Replaced setState(){ _updateCurrentDigitValues() } with
 //      ValueNotifier<int> (_rebuildNotifier) so only the digit Row rebuilds
-//      each frame 鈥?prefix/suffix/color-tint are static.
+//      each frame - prefix/suffix/color-tint are static.
 //   4. roll transition rendering moved to digit_column.dart (Transform.translate).
 //      Other transition types are unchanged.
 
@@ -17,24 +17,39 @@ import 'dart:math' as math;
 
 import 'package:flutter/widgets.dart';
 
-import 'package:countman/src/count_up/plugin.dart';
-import 'package:countman/src/count_up/types.dart';
+import 'package:countman/src/counter/plugin.dart';
+import 'package:countman/src/counter/types.dart';
 
 import 'package:countman/src/core/start_scheduler.dart';
 
+import '../painter/counter_painter.dart';
 import 'counter_controller.dart';
-import 'counter_painter.dart';
 import 'digit_column.dart';
 import 'types.dart';
 
 export 'counter_controller.dart';
 export 'types.dart';
 
-// 鈹€鈹€ widget 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
+/// True when [n] consists entirely of 9s (9, 99, 999, …): `(n + 1)` is a power
+/// of ten. `AnimatedCounter` uses this to detect the degenerate all-nines
+/// target (which stalls the digit interpolation) and animate to `n - ε`,
+/// snapping to the real target at `onComplete`. Every multiple of 9 (18, 27, …)
+/// must NOT trigger this.
+@visibleForTesting
+bool isAllNinesTarget(int n) {
+  if (n < 9) return false;
+  var m = n + 1;
+  while (m % 10 == 0) {
+    m ~/= 10;
+  }
+  return m == 1;
+}
 
-class AnimatedCountup extends StatefulWidget {
+// ── widget ────────────────────────────────────────────────────────────────
+
+class AnimatedCounter extends StatefulWidget {
   final num? value;
-  final CounterController? controller;
+  final AnimatedCounterController? controller;
   final Duration duration;
   final Duration negativeSignDuration;
   final Curve curve;
@@ -111,7 +126,7 @@ class AnimatedCountup extends StatefulWidget {
   final double autoEaseThreshold;
 
 
-  const AnimatedCountup({
+  const AnimatedCounter({
     super.key,
     this.value,
     this.controller,
@@ -189,8 +204,8 @@ class AnimatedCountup extends StatefulWidget {
 
   // 鈹€鈹€ locale factory constructors (unchanged from original) 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
 
-  factory AnimatedCountup.usd({
-    Key? key, num? value, CounterController? controller,
+  factory AnimatedCounter.usd({
+    Key? key, num? value, AnimatedCounterController? controller,
     Duration duration = const Duration(milliseconds: 300), Curve curve = Curves.linear,
     TextStyle? textStyle, String? suffix, int fractionDigits = 2, int wholeDigits = 1,
     bool hideLeadingZeroes = false, MainAxisAlignment mainAxisAlignment = MainAxisAlignment.center,
@@ -213,7 +228,7 @@ class AnimatedCountup extends StatefulWidget {
     String Function(int)? numeralMapper, CounterTransitionType transitionType = CounterTransitionType.roll,
     Duration? reverseDuration, Curve? reverseCurve, Duration? startDelay,
     double speedMultiplier = 1.0, Map<num, String>? compactAbbreviations,
-  }) => AnimatedCountup(
+  }) => AnimatedCounter(
     key: key, value: value, controller: controller, duration: duration, curve: curve,
     textStyle: textStyle, prefix: r'$', suffix: suffix, fractionDigits: fractionDigits,
     wholeDigits: wholeDigits, hideLeadingZeroes: hideLeadingZeroes,
@@ -235,8 +250,8 @@ class AnimatedCountup extends StatefulWidget {
     startDelay: startDelay, speedMultiplier: speedMultiplier, compactAbbreviations: compactAbbreviations,
   );
 
-  factory AnimatedCountup.cny({
-    Key? key, num? value, CounterController? controller,
+  factory AnimatedCounter.cny({
+    Key? key, num? value, AnimatedCounterController? controller,
     Duration duration = const Duration(milliseconds: 300), Curve curve = Curves.linear,
     TextStyle? textStyle, String? suffix, int fractionDigits = 2, int wholeDigits = 1,
     bool hideLeadingZeroes = false, MainAxisAlignment mainAxisAlignment = MainAxisAlignment.center,
@@ -259,7 +274,7 @@ class AnimatedCountup extends StatefulWidget {
     String Function(int)? numeralMapper, CounterTransitionType transitionType = CounterTransitionType.roll,
     Duration? reverseDuration, Curve? reverseCurve, Duration? startDelay,
     double speedMultiplier = 1.0, Map<num, String>? compactAbbreviations,
-  }) => AnimatedCountup(
+  }) => AnimatedCounter(
     key: key, value: value, controller: controller, duration: duration, curve: curve,
     textStyle: textStyle, prefix: '楼', suffix: suffix, fractionDigits: fractionDigits,
     wholeDigits: wholeDigits, hideLeadingZeroes: hideLeadingZeroes,
@@ -281,8 +296,8 @@ class AnimatedCountup extends StatefulWidget {
     startDelay: startDelay, speedMultiplier: speedMultiplier, compactAbbreviations: compactAbbreviations,
   );
 
-  factory AnimatedCountup.inr({
-    Key? key, num? value, CounterController? controller,
+  factory AnimatedCounter.inr({
+    Key? key, num? value, AnimatedCounterController? controller,
     Duration duration = const Duration(milliseconds: 300), Curve curve = Curves.linear,
     TextStyle? textStyle, String? suffix, int fractionDigits = 2, int wholeDigits = 1,
     bool hideLeadingZeroes = false, MainAxisAlignment mainAxisAlignment = MainAxisAlignment.center,
@@ -305,7 +320,7 @@ class AnimatedCountup extends StatefulWidget {
     String Function(int)? numeralMapper, CounterTransitionType transitionType = CounterTransitionType.roll,
     Duration? reverseDuration, Curve? reverseCurve, Duration? startDelay,
     double speedMultiplier = 1.0, Map<num, String>? compactAbbreviations,
-  }) => AnimatedCountup(
+  }) => AnimatedCounter(
     key: key, value: value, controller: controller, duration: duration, curve: curve,
     textStyle: textStyle, prefix: '₹', suffix: suffix, fractionDigits: fractionDigits,
     wholeDigits: wholeDigits, hideLeadingZeroes: hideLeadingZeroes,
@@ -328,14 +343,14 @@ class AnimatedCountup extends StatefulWidget {
   );
 
   @override
-  State<AnimatedCountup> createState() => _AnimatedCountupState();
+  State<AnimatedCounter> createState() => _AnimatedCounterState();
 }
 
 // 鈹€鈹€ state 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
 
-class _AnimatedCountupState extends State<AnimatedCountup> {
+class _AnimatedCounterState extends State<AnimatedCounter> {
   // 鈹€鈹€ ticker (replaces AnimationController) 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
-  CountupHandle? _handle;
+  CounterHandle? _handle;
   double _currentT = 0.0;
   double _pausedT  = 0.0;
   bool _repeating  = false;
@@ -344,7 +359,7 @@ class _AnimatedCountupState extends State<AnimatedCountup> {
   // Incrementing this calls markNeedsPaint() — NO widget build cost.
   final _repaintTrigger = ValueNotifier<int>(0);
 
-  // When n%9==0, we animate to n-1 and snap to n at onDone.
+  // When n%9==0, we animate to n-1 and snap to n at onComplete.
   bool _usingAdjustedTarget = false;
   List<double> _realTargetDigitValues = [];
 
@@ -456,11 +471,11 @@ class _AnimatedCountupState extends State<AnimatedCountup> {
   }
 
   @override
-  void didUpdateWidget(AnimatedCountup oldWidget) {
+  void didUpdateWidget(AnimatedCounter oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.controller != widget.controller) {
       oldWidget.controller?.removeListener(_handleControllerUpdate);
-      _unbindController();
+      _unbindController(oldWidget.controller); // clear the OLD controller's callbacks
       widget.controller?.addListener(_handleControllerUpdate);
       _bindController();
     }
@@ -516,8 +531,7 @@ class _AnimatedCountupState extends State<AnimatedCountup> {
     };
   }
 
-  void _unbindController() {
-    final c = widget.controller;
+  void _unbindController(AnimatedCounterController? c) {
     if (c == null) return;
     c.$pauseCallback   = null;
     c.$resumeCallback  = null;
@@ -544,6 +558,9 @@ class _AnimatedCountupState extends State<AnimatedCountup> {
   }
 
   void _startAnimationTransition(num oldValue, num newValue) {
+    // Non-finite guard: .round() throws on Infinity/NaN. Snap to 0.
+    if (!oldValue.isFinite) oldValue = 0;
+    if (!newValue.isFinite) newValue = 0;
     _isAnimatingDecrease = newValue < oldValue;
     widget.onAnimationStart?.call();
 
@@ -552,12 +569,15 @@ class _AnimatedCountupState extends State<AnimatedCountup> {
 
     // n % 9 == 0 detection: numbers like 9, 99, 999, 999999999 produce
     // degenerate digit patterns (stuck visuals). Animate to n-1 so the
-    // interpolation avoids the all-9 pattern, then snap to n at onDone.
+    // interpolation avoids the all-9 pattern, then snap to n at onComplete.
     final effFD = widget.compactNotation
         ? (widget.compactFractionDigits ?? (widget.fractionDigits == 0 ? 1 : widget.fractionDigits))
         : widget.fractionDigits;
     final scaledNew = (newValue.abs() * math.pow(10, effFD)).round();
-    _usingAdjustedTarget = newValue > 0 && scaledNew > 0 && scaledNew % 9 == 0;
+    // All-nines (repunit) targets — 9, 99, 999, … — are the ones with the
+    // degenerate pattern, NOT every multiple of 9. A value is all-nines iff
+    // (value + 1) is a power of ten.
+    _usingAdjustedTarget = newValue > 0 && scaledNew > 0 && isAllNinesTarget(scaledNew);
 
     if (_usingAdjustedTarget) {
       // Subtract the smallest representable unit (1 digit at fractionDigits place)
@@ -619,7 +639,7 @@ class _AnimatedCountupState extends State<AnimatedCountup> {
         ((1.0 - fromT) * totalDuration.inMicroseconds).round());
     if (remaining <= Duration.zero) return;
 
-    _handle = countup(CountupOptions(
+    _handle = counter(CounterOptions(
       from: fromT,
       to:   1.0,
       duration: remaining,
@@ -636,7 +656,7 @@ class _AnimatedCountupState extends State<AnimatedCountup> {
           _rebuildNotifier.value++;
         }
       },
-      onDone: (_) {
+      onComplete: (_) {
         _currentT = 1.0;
 
         // Snap to real target if we used adjusted target (n%9==0 case).
@@ -715,6 +735,9 @@ class _AnimatedCountupState extends State<AnimatedCountup> {
   }
 
   List<double> _getDigitsList(num targetValue) {
+    // Guard against NaN/Infinity: .round() throws UnsupportedError on them,
+    // and .clamp() propagates NaN. Fall back to 0 for a non-finite input.
+    if (targetValue is double && !targetValue.isFinite) targetValue = 0;
     final num clamped = targetValue.clamp(
       widget.minValue ?? double.negativeInfinity,
       widget.maxValue ?? double.infinity,
@@ -760,10 +783,11 @@ class _AnimatedCountupState extends State<AnimatedCountup> {
   @override
   void dispose() {
     widget.controller?.removeListener(_handleControllerUpdate);
-    _unbindController();
+    _unbindController(widget.controller);
     _startDelayTimer?.cancel();
     StartScheduler.instance.cancel(this);
     _handle?.cancel();
+    _activePainter?.disposeCache();
     _repaintTrigger.dispose();
     _rebuildNotifier.dispose();
     super.dispose();
@@ -787,9 +811,11 @@ class _AnimatedCountupState extends State<AnimatedCountup> {
         textScaler: textScaler,
       )..layout();
       _prototypeSize = painter.size;
+      painter.dispose(); // one-shot measurement — release the native paragraph
     }
 
-    final num clamped = _currentValue.clamp(
+    final num safeCurrent = _currentValue.isFinite ? _currentValue : 0;
+    final num clamped = safeCurrent.clamp(
       widget.minValue ?? double.negativeInfinity,
       widget.maxValue ?? double.infinity,
     );
@@ -815,13 +841,19 @@ class _AnimatedCountupState extends State<AnimatedCountup> {
 
     // ── digit row: only part that rebuilds every frame ───────────────────────
     // Fast path: CustomPainter when no Widget-returning custom builders.
-    //   Build cost ≈ 0ms (no widget instantiation).
-    // Slow path: Widget tree when digitBuilder / digitTransitionBuilder provided.
+    //   Build cost ≈ 0ms (no widget instantiation). Covers flip too now —
+    //   CounterPainter._flip() does the same rotateX perspective transform
+    //   directly on Canvas (see countdown_card.dart's flip-card painter for
+    //   the same technique applied to a two-half split-flap instead of a
+    //   single plane).
+    // Slow path: Widget tree when digitBuilder / digitTransitionBuilder
+    //   provided (arbitrary widgets can't be paragraph-cached), or blur
+    //   (needs ImageFiltered/saveLayer, which the Canvas path deliberately
+    //   avoids elsewhere in this package).
     //   Build cost ≈ 0.85ms × numDigits (widget instantiation overhead).
     final useCustomPainter = widget.digitBuilder == null &&
         widget.digitTransitionBuilder == null &&
-        widget.transitionType != CounterTransitionType.blur &&
-        widget.transitionType != CounterTransitionType.flip;
+        widget.transitionType != CounterTransitionType.blur;
 
     // ── CustomPainter fast path: create / reuse persistent painter ───────────
     if (useCustomPainter) {
@@ -839,6 +871,7 @@ class _AnimatedCountupState extends State<AnimatedCountup> {
           _activePainter!.style != style ||
           _activePainter!.transitionType != widget.transitionType ||
           _activePainter!.flipDirection != _effectiveFlipDirection) {
+        _activePainter?.disposeCache(); // release the outgoing painter's paragraphs
         _activePainter = CounterPainter(
           repaint: _repaintTrigger,
           digitValues: _currentDigitValues,

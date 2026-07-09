@@ -14,10 +14,10 @@ import 'package:flutter/scheduler.dart';
 /// setState(() => _target = 999);
 /// ```
 ///
-/// **2. Per-group override** — each [Countup] instance can override
+/// **2. Per-group override** — each [Counter] instance can override
 /// for its own tasks:
 /// ```dart
-/// final vipPlugin = Countup();
+/// final vipPlugin = Counter();
 /// StartScheduler.instance.groupBatchSize[vipPlugin] = 10;
 /// ```
 ///
@@ -33,7 +33,7 @@ class StartScheduler {
   int defaultBatchSize = 0;
 
   /// Per-group overrides. Key: any object that identifies the group
-  /// (e.g. a [Countup] instance).
+  /// (e.g. a [Counter] instance).
   final Map<Object, int> groupBatchSize = {};
 
   final _queue = <_Item>[];
