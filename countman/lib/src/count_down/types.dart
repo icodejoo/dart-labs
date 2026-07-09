@@ -1,5 +1,3 @@
-import 'package:flutter/foundation.dart';
-
 /// Formatter function type for [CountdownWidget].
 typedef DurationFormatter = String Function(Duration remaining);
 
@@ -37,16 +35,40 @@ abstract final class CountdownFormat {
   }
 }
 
-/// Injectable clock — replace in tests to avoid real-time waits.
+/// Converts [to] to an absolute [DateTime] deadline.
 ///
-/// Production code always uses the default [DateTime.now].
-/// Tests override this to advance time deterministically:
+/// Supported input types:
+/// - [DateTime] — used as-is.
+/// - [Duration] — resolved relative to [countdownClock] at call time.
+/// - [int] — treated as milliseconds since Unix epoch.
+/// - [String] — parsed as an ISO-8601 date string.
+DateTime resolveDeadline(dynamic to) {
+  if (to is DateTime) return to;
+  if (to is Duration) return countdownClock().add(to);
+  if (to is int) return DateTime.fromMillisecondsSinceEpoch(to);
+  if (to is String) return DateTime.parse(to);
+  throw ArgumentError(
+    '`to` must be DateTime, Duration, int (ms epoch), or ISO-8601 String '
+    '— got ${to.runtimeType}',
+  );
+}
+
+/// Returns the remaining [Duration] until the deadline described by [to],
+/// clamped to [Duration.zero] if already past.
+Duration remainingUntil(dynamic to) {
+  final d = resolveDeadline(to).difference(countdownClock());
+  return d.isNegative ? Duration.zero : d;
+}
+
+/// Injectable clock — defaults to [DateTime.now] in production.
+///
+/// Override in tests to advance time without real delays:
 /// ```dart
 /// var fakeNow = DateTime(2024);
 /// countdownClock = () => fakeNow;
 /// fakeNow = fakeNow.add(const Duration(seconds: 3));
 /// ```
-@visibleForTesting
+// ignore: prefer_function_declarations_over_variables
 DateTime Function() countdownClock = DateTime.now;
 
 /// Options for a countdown task added via [Countdown.add] or [countdown].

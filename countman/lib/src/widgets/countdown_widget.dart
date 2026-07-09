@@ -90,21 +90,21 @@ class _CountdownWidgetState extends State<CountdownWidget> {
       onUpdate: (r) => _remaining.value = r,
       onDone: widget.onDone,
     ));
-    widget.controller?._attach(_handle!);
+    widget.controller?.attach(_handle!);
   }
 
   @override
   void didUpdateWidget(CountdownWidget old) {
     super.didUpdateWidget(old);
     if (widget.duration != old.duration) {
-      widget.controller?._detach();
+      widget.controller?.detach();
       _start();
     }
   }
 
   @override
   void dispose() {
-    widget.controller?._detach();
+    widget.controller?.detach();
     _handle?.cancel();
     _remaining.dispose();
     super.dispose();
@@ -119,23 +119,4 @@ class _CountdownWidgetState extends State<CountdownWidget> {
   }
 }
 
-/// Imperative controller for [CountdownWidget].
-///
-/// Create once, pass to the widget, then call [pause], [resume], [reset]
-/// from any ancestor widget or business logic. The controller connects
-/// to the widget's internal [CountdownHandle] after the first build.
-class CountdownController {
-  CountdownHandle? _handle;
-
-  void _attach(CountdownHandle h) => _handle = h;
-  void _detach() => _handle = null;
-
-  void pause()                       => _handle?.pause();
-  void resume()                      => _handle?.resume();
-  void reset({Duration? duration})   => _handle?.reset(duration: duration);
-  void cancel()                      => _handle?.cancel();
-
-  Duration get remaining => _handle?.remaining ?? Duration.zero;
-  bool get isPaused      => _handle?.isPaused ?? false;
-  bool get isDone        => _handle?.isDone ?? true;
-}
+// CountdownController is defined in plugin.dart and re-exported via countman.dart.
