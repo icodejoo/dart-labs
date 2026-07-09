@@ -1,4 +1,4 @@
-# Countman 设计决策记录
+﻿# Countman 设计决策记录
 
 ## Phase 1 — 核心引擎
 
@@ -94,7 +94,7 @@
 - 有前后缀时套 Row，否则直接返回 digits widget
 
 ### RepaintBoundary 可选参数
-- `CountupBuilder` 和 `CountupPlus` 均增加 `repaintBoundary: bool = true`
+- `CountupBuilder` 和 `AnimatedCountup` 均增加 `repaintBoundary: bool = true`
 - 默认启用；大量实例（如 demo 宫格）应设为 false 避免 GPU 合成层爆炸
 - README 需说明：>10 个并发建议 `repaintBoundary: false`
 
@@ -105,13 +105,13 @@
 
 ### StartScheduler — 启动分批
 - `lib/src/core/start_scheduler.dart`，CountupPlugin 和 CountdownPlugin 共用
-- `batch: int`（默认 0 = 不分批）加在 CountupPlus 构造器上
+- `batch: int`（默认 0 = 不分批）加在 AnimatedCountup 构造器上
 - `batch: 5` 表示每帧最多启动 5 个 widget，约 5×3ms = 15ms，不超帧预算
 - 只对「动画首次启动」分批；resume/reverse/restart 是用户主动操作，立即执行
 - 副作用：视觉上 widget 以 batch 大小依次出现，非完全同帧（可接受）
 
 ### 路径 B（CustomPainter）决策
-- `CountupPlus` 改为 CustomPainter 渲染，消除 build 开销（~80ms → ~2ms）
+- `AnimatedCountup` 改为 CustomPainter 渲染，消除 build 开销（~80ms → ~2ms）
 - **混合方案**：默认走 CustomPainter；用户传 `digitBuilder`/`digitTransitionBuilder` 时 fallback 到 Widget 路径
 - 用户选择 builder 时知晓性能代价，不是意外降级
 - 路径 A（每位独立 ValueNotifier）被 B 完全覆盖，不需要实施
@@ -123,4 +123,43 @@
 
 ---
 
-## Phase 3 — CountdownPlugin（待脑暴）
+## Phase 3 — Countdown
+
+### 命名约定
+- Plugin 类：`Countup`（原 `CountupPlugin`）、`Countdown`
+- Widget：`CountdownWidget`；countup 侧 widget 名不变（`CountupBuilder`、`CountupText`、`AnimatedCountup`）
+
+### 时间模型：Deadline（真实时钟）
+- 每个任务存储 `endTime = DateTime.now().add(duration)`
+- `remaining = endTime.difference(DateTime.now())`（clamp ≥ 0）
+- 好处：app 切后台、ticker 挂起、恢复时自动修正，无累积漂移
+- 与 countup 的 dt 累积模式形成对比：倒计时语义绑定真实时间，countup 绑定动画进度
+
+### 节流：默认每秒通知一次
+- tick() 每帧运行（维持 ticker 活跃）
+- 默认：`remaining.inSeconds < lastNotifiedSeconds` 才调 `onUpdate`
+- `showMilliseconds: true`：每帧调 `onUpdate`，用于毫秒级精度展示
+- `lastNotifiedSeconds` 初始为 `total.inSeconds + 1`，保证第 1 帧必通知
+- 值修正：回调时传入实时计算的 `remaining`（非近似值），widget 层用 formatter 决定精度
+
+### 暂停/恢复
+- pause：`pausedRemaining = remaining`（快照）
+- resume：`endTime = DateTime.now().add(pausedRemaining!)`（重设 deadline）
+- 暂停期间 tick() 跳过该任务，ticker 若全部暂停则自停
+- resume 后调 `ctx.requestFrame()` 重启 ticker
+
+### 分组：同 countup，plugin 多实例
+- `Countdown(name: 'auction')` 创建独立队列
+- 传入 `CountdownWidget(plugin: myGroup, ...)` 指定分组
+- 不接入 `StartScheduler`（`add()` 开销极低，无需批量延迟启动）
+
+### CountdownController
+- 用户侧创建，传入 widget，widget 在 initState 注入内部 handle
+- API：`pause()` / `resume()` / `reset({Duration?})` / `cancel()`
+- Getter：`remaining` / `isPaused` / `isDone`
+- 纯命令式，不继承 ChangeNotifier（展示更新由 widget 内部 ValueNotifier 驱动）
+
+### CountdownFormat 内置格式化
+- `hms` / `ms` / `msTenths` / `auto`（`DurationFormatter = String Function(Duration)`）
+- 格式化在 widget 层；引擎层只传 Duration，不做字符串处理
+

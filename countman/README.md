@@ -1,4 +1,4 @@
-# countman
+﻿# countman
 
 **High-performance shared-ticker counter animations for Flutter.**
 
@@ -35,7 +35,7 @@ Countman (1 scheduleFrameCallback)
 | N `Timer.periodic` | — | N timers |
 | **countman** | **1** | **0** |
 
-Measured at 94 concurrent `CountupPlus` instances (0 → 999,999,999):
+Measured at 94 concurrent `AnimatedCountup` instances (0 → 999,999,999):
 
 - **Raster: 8–11 ms** — RepaintBoundary keeps each counter in its own layer.
 - **Build: ~2 ms** — CustomPainter path skips widget instantiation entirely.
@@ -158,7 +158,7 @@ Key parameters:
 
 ---
 
-### `CountupPlus`
+### `AnimatedCountup`
 
 Full-featured counter widget with 7 transition types, stagger, compact
 notation, decimal support, color tinting, and programmatic control.
@@ -169,10 +169,10 @@ per-frame widget rebuilds.
 
 ```dart
 // Basic
-CountupPlus(value: 9999)
+AnimatedCountup(value: 9999)
 
 // Roll transition with stagger
-CountupPlus(
+AnimatedCountup(
   value: 1000000,
   duration: const Duration(seconds: 2),
   transitionType: CounterTransitionType.roll,
@@ -181,12 +181,12 @@ CountupPlus(
 )
 
 // USD currency
-CountupPlus.usd(value: 1234.56)
+AnimatedCountup.usd(value: 1234.56)
 
 // Programmatic control
 final controller = CounterController();
 
-CountupPlus(controller: controller, value: 0)
+AnimatedCountup(controller: controller, value: 0)
 
 // later:
 controller.animateTo(9999);
@@ -197,7 +197,7 @@ controller.reverse();
 
 ---
 
-## `CountupPlus` key parameters
+## `AnimatedCountup` key parameters
 
 | Parameter | Default | Description |
 |---|---|---|
@@ -257,7 +257,7 @@ spike past the 16 ms frame budget.
 
 ```dart
 GridView.builder(
-  itemBuilder: (_, i) => CountupPlus(
+  itemBuilder: (_, i) => AnimatedCountup(
     value: data[i],
     batch: 5,   // at most 5 start per frame (~15 ms/frame budget)
   ),
@@ -307,7 +307,7 @@ GridView.builder(
 
 - Repository: [github.com/Itsxhadi/flip_counter_plus](https://github.com/Itsxhadi/flip_counter_plus)
 - License: MIT
-- Role: `CountupPlus` is adapted from `AnimatedFlipCounter` in this package.
+- Role: `AnimatedCountup` is adapted from `AnimatedFlipCounter` in this package.
   Major changes from the original:
   - `AnimationController` (per-instance vsync) replaced by `CountupPlugin`
     on the shared `Countman` ticker.
@@ -322,3 +322,4 @@ GridView.builder(
 ## License
 
 MIT — see [LICENSE](LICENSE).
+

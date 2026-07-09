@@ -1,4 +1,4 @@
-// Adapted from flip_counter_plus (MIT).
+﻿// Adapted from flip_counter_plus (MIT).
 // Original: https://github.com/Itsxhadi/flip_counter_plus
 
 import 'package:flutter/widgets.dart';
@@ -57,3 +57,4 @@ class CounterController extends ChangeNotifier {
     for (final l in List.of($statusListeners)) { l(status); }
   }
 }
+

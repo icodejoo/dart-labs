@@ -1,4 +1,4 @@
-// Copied from flip_counter_plus (MIT) with namespace renames.
+﻿// Copied from flip_counter_plus (MIT) with namespace renames.
 // Original: https://github.com/Itsxhadi/flip_counter_plus
 
 /// The direction in which the stagger effect propagates across digits.
@@ -40,3 +40,4 @@ const Map<NumeralSystem, List<String>> numeralSystemDigits = {
   NumeralSystem.devanagari:    ['०','१','२','३','४','५','६','७','८','९'],
   NumeralSystem.bengali:       ['০','১','২','৩','৪','৫','৬','৭','৮','৯'],
 };
+

@@ -1,4 +1,4 @@
-import 'dart:math' as math;
+﻿import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:countman/countman.dart';
@@ -97,8 +97,8 @@ class _DigitTestPageState extends State<DigitTestPage> {
                   color: _decreasing ? Colors.red : Colors.green,
                   fontSize: 16, fontWeight: FontWeight.bold)),
           const SizedBox(height: 8),
-          // CountupPlus — direction handled automatically inside widget
-          CountupPlus(
+          // AnimatedCountup — direction handled automatically inside widget
+          AnimatedCountup(
             value: _value,
             duration: const Duration(seconds: 3),
             thousandSeparator: ',',
@@ -141,3 +141,4 @@ class _DigitTestPageState extends State<DigitTestPage> {
     );
   }
 }
+

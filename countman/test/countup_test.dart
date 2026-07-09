@@ -7,10 +7,10 @@ import 'package:countman/countman.dart';
 //   frame 2 (dt>0) → accumulates time, progressing / done
 
 void main() {
-  late CountupPlugin plugin;
+  late Countup plugin;
 
   setUp(() {
-    plugin = CountupPlugin(name: 'test_countup');
+    plugin = Countup(name: 'test_countup');
     Countman.use(plugin);
   });
 
@@ -19,7 +19,7 @@ void main() {
   // ── direct tick() unit tests (no scheduler) ────────────────────────
 
   test('tick: onDone fires when accumulated dt >= duration', () {
-    final p = CountupPlugin(name: 'direct');
+    final p = Countup(name: 'direct');
     p.onAttach(CountmanContext(requestFrame: () {}));
 
     double? done;
@@ -38,7 +38,7 @@ void main() {
   });
 
   test('tick: onUpdate fires each frame', () {
-    final p = CountupPlugin(name: 'direct2');
+    final p = Countup(name: 'direct2');
     p.onAttach(CountmanContext(requestFrame: () {}));
 
     final values = <double>[];
