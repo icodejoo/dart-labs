@@ -1,5 +1,5 @@
 import 'package:flutter/widgets.dart';
-import 'package:odometer/odometer.dart';
+import 'package:odometer/odometer.dart' show OdometerNumber, OdometerTransition;
 
 import 'package:countman/src/count_up/plugin.dart';
 import 'package:countman/src/count_up/types.dart';
@@ -7,17 +7,14 @@ import 'package:countman/src/count_up/types.dart';
 /// A count-up widget that renders each digit with a vertical slide transition,
 /// driven by the shared [Countman] ticker.
 ///
-/// Internally uses [OdometerNumber.lerp] to compute per-digit fractional
-/// progress each frame — no [AnimationController] per instance.
+/// Option A: constructs [OdometerNumber] directly from the raw animated float
+/// each frame — individual digit progress is derived from the fractional part,
+/// so the ones digit slides smoothly while higher digits tick on integer carry.
+/// Digit count matches the current value with no leading-zero padding.
 ///
 /// ```dart
 /// CountupOdometer(to: 9999)
-/// CountupOdometer(
-///   to: 9999,
-///   duration: Duration(milliseconds: 1500),
-///   letterWidth: 24,
-///   numberTextStyle: TextStyle(fontSize: 32, fontWeight: FontWeight.bold),
-/// )
+/// CountupOdometer(from: 9999, to: 100)  // decreasing — no leading zeros
 /// ```
 class CountupOdometer extends StatefulWidget {
   const CountupOdometer({
@@ -26,12 +23,14 @@ class CountupOdometer extends StatefulWidget {
     required this.to,
     this.duration = const Duration(milliseconds: 1000),
     this.curve = Curves.easeOut,
-    /// Width of each digit slot in logical pixels.
-    /// Should match your [numberTextStyle] font size roughly.
     this.letterWidth = 20,
     this.numberTextStyle,
     this.verticalOffset = 20,
     this.groupSeparator,
+    this.prefix,
+    this.suffix,
+    this.prefixWidget,
+    this.suffixWidget,
     this.onDone,
   });
 
@@ -50,6 +49,18 @@ class CountupOdometer extends StatefulWidget {
   /// Optional widget inserted every 3 digits (e.g. `Text(',')`).
   final Widget? groupSeparator;
 
+  /// Plain-text prefix. Ignored when [prefixWidget] is provided.
+  final String? prefix;
+
+  /// Plain-text suffix. Ignored when [suffixWidget] is provided.
+  final String? suffix;
+
+  /// Widget placed before the digits. Takes precedence over [prefix].
+  final Widget? prefixWidget;
+
+  /// Widget placed after the digits. Takes precedence over [suffix].
+  final Widget? suffixWidget;
+
   final void Function(double value)? onDone;
 
   @override
@@ -58,30 +69,27 @@ class CountupOdometer extends StatefulWidget {
 
 class _CountupOdometerState extends State<CountupOdometer> {
   late final _LiveOdometerAnimation _animation;
-  late OdometerNumber _fromOdo;
-  late OdometerNumber _toOdo;
+  double _currentValue = 0;
   CountupHandle? _handle;
 
   @override
   void initState() {
     super.initState();
-    _fromOdo = OdometerNumber((widget.from ?? 0).round());
-    _toOdo = OdometerNumber(widget.to.round());
-    _animation = _LiveOdometerAnimation(_fromOdo);
-    _startTask();
+    _currentValue = widget.from ?? 0;
+    _animation = _LiveOdometerAnimation(_fromFloat(_currentValue));
+    _startTask(from: _currentValue);
   }
 
-  void _startTask() {
+  void _startTask({required double from}) {
     _handle?.cancel();
-    final fromSnap = _fromOdo;
-    final toSnap = _toOdo;
     _handle = countup(CountupOptions(
-      from: 0,
-      to: 1, // t: 0 → 1; curve is applied by CountupPlugin
+      from: from,
+      to: widget.to,
       duration: widget.duration,
       curve: widget.curve,
-      onUpdate: (t) {
-        _animation.value = OdometerNumber.lerp(fromSnap, toSnap, t.clamp(0.0, 1.0));
+      onUpdate: (v) {
+        _currentValue = v;
+        _animation.value = _fromFloat(v);
       },
       onDone: (_) => widget.onDone?.call(widget.to),
     ));
@@ -93,9 +101,7 @@ class _CountupOdometerState extends State<CountupOdometer> {
     if (widget.to != old.to ||
         widget.duration != old.duration ||
         widget.curve != old.curve) {
-      _fromOdo = OdometerNumber(_animation.value.number);
-      _toOdo = OdometerNumber(widget.to.round());
-      _startTask();
+      _startTask(from: _currentValue);
     }
   }
 
@@ -106,23 +112,85 @@ class _CountupOdometerState extends State<CountupOdometer> {
     super.dispose();
   }
 
+  // Builds one digit column without Opacity widget.
+  // Opacity widget triggers saveLayer for every fractional alpha frame.
+  // Using color alpha avoids the saveLayer entirely.
+  Widget _digit(int value, int place, double opacity, double offsetY) {
+    final style = widget.numberTextStyle ?? const TextStyle();
+    final base = style.color ?? const Color(0xFFFFFFFF);
+    final color = base.withValues(alpha: (base.a * opacity).clamp(0.0, 1.0));
+    Widget child = SizedBox(
+      width: widget.letterWidth,
+      child: Text('$value',
+          textAlign: TextAlign.center,
+          style: style.copyWith(color: color)),
+    );
+    // Insert thousand separator every 3 integer places (place 4, 7, 10…)
+    if (widget.groupSeparator != null && (place - 1) > 0 && (place - 1) % 3 == 0) {
+      child = Row(mainAxisSize: MainAxisSize.min,
+          children: [child, widget.groupSeparator!]);
+    }
+    return Transform.translate(offset: Offset(0, offsetY), child: child);
+  }
+
   @override
   Widget build(BuildContext context) {
-    return SlideOdometerTransition(
+    final vo = widget.verticalOffset;
+    final digits = OdometerTransition(
       odometerAnimation: _animation,
-      letterWidth: widget.letterWidth,
-      numberTextStyle: widget.numberTextStyle,
-      verticalOffset: widget.verticalOffset,
-      groupSeparator: widget.groupSeparator,
+      // Incoming digit: slides from -vo → 0, fades in
+      transitionIn: (value, place, p) => _digit(value, place, p,       vo * p - vo),
+      // Outgoing digit: slides from 0 → +vo, fades out
+      transitionOut:(value, place, p) => _digit(value, place, 1.0 - p, vo * p),
+    );
+
+    final hasPrefix = widget.prefixWidget != null || widget.prefix != null;
+    final hasSuffix = widget.suffixWidget != null || widget.suffix != null;
+    if (!hasPrefix && !hasSuffix) return digits;
+
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.baseline,
+      textBaseline: TextBaseline.alphabetic,
+      children: [
+        if (widget.prefixWidget != null)
+          widget.prefixWidget!
+        else if (widget.prefix != null)
+          Text(widget.prefix!, style: widget.numberTextStyle),
+        digits,
+        if (widget.suffixWidget != null)
+          widget.suffixWidget!
+        else if (widget.suffix != null)
+          Text(widget.suffix!, style: widget.numberTextStyle),
+      ],
     );
   }
 }
 
-/// A minimal [Animation<OdometerNumber>] backed by [ChangeNotifier].
+/// Constructs an [OdometerNumber] directly from a raw float value.
 ///
-/// [AnimatedWidget] (which [OdometerTransition] extends) calls [addListener],
-/// routing to [ChangeNotifier]. Setting [value] calls [notifyListeners],
-/// which triggers [AnimatedWidget.markNeedsBuild] — no [AnimationController].
+/// The fractional part of [v] becomes the ones-digit slide progress.
+/// Higher digits carry only at integer boundaries — no leading zeros when
+/// the digit count shrinks (e.g. 9999 → 100).
+OdometerNumber _fromFloat(double v) {
+  if (v <= 0) return OdometerNumber(0);
+  final floor = v.floor();
+  final frac = v - floor;
+  var val = floor;
+  var place = 1;
+  final digits = <int, double>{};
+  while (val > 0) {
+    digits[place] = val.toDouble() + (place == 1 ? frac : 0.0);
+    val = val ~/ 10;
+    place++;
+  }
+  if (digits.isEmpty) digits[1] = frac;
+  return OdometerNumber.fromDigits(digits);
+}
+
+/// A minimal [Animation<OdometerNumber>] backed by [ChangeNotifier].
+/// Setting [value] notifies [OdometerTransition] (an [AnimatedWidget]) to
+/// rebuild — no [AnimationController] needed.
 class _LiveOdometerAnimation extends ChangeNotifier
     implements Animation<OdometerNumber> {
   _LiveOdometerAnimation(OdometerNumber initial) : _value = initial;
