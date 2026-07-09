@@ -76,4 +76,51 @@
 
 ---
 
+## CountupOdometer — odometer vs flip_counter_plus
+
+### 选择 odometer 作为依赖
+- `odometer` 的核心是 `OdometerNumber` + `Odometer` widget（per-digit Stack）
+- `flip_counter_plus` 功能更丰富（小数、50 个参数、7 种过渡）但不可作为依赖（无共享 ticker，单文件 2455 行）
+- 参考 flip_counter_plus 的思路按需实现特性
+
+### OdometerNumber 构造方式：Option A（float 直接构造）
+- 放弃 `OdometerNumber.lerp`，改用 `_fromFloat(v)` 直接从 float 值构造
+- 个位携带小数进度（平滑滑动），高位在整数进位时跳变
+- 彻底解决递减时补零问题
+- 回退点：commit `462fd0f`（lerp 方案）
+
+### prefix/suffix 与 CountupText 保持一致
+- prefix/suffix (String) + prefixWidget/suffixWidget (Widget)，Widget 优先
+- 有前后缀时套 Row，否则直接返回 digits widget
+
+### RepaintBoundary 可选参数
+- `CountupBuilder` 和 `CountupPlus` 均增加 `repaintBoundary: bool = true`
+- 默认启用；大量实例（如 demo 宫格）应设为 false 避免 GPU 合成层爆炸
+- README 需说明：>10 个并发建议 `repaintBoundary: false`
+
+### 性能瓶颈实测（0→999,999,999，94 并发）
+- build=75-85ms（主因）：94 个 ValueListenableBuilder × 9 DigitColumn = 846 widget 重建/帧
+- raster=8-11ms（正常）：RepaintBoundary 生效
+- 启动 spike=400-800ms：94 个 widget 同时 didUpdateWidget
+
+### StartScheduler — 启动分批
+- `lib/src/core/start_scheduler.dart`，CountupPlugin 和 CountdownPlugin 共用
+- `batch: int`（默认 0 = 不分批）加在 CountupPlus 构造器上
+- `batch: 5` 表示每帧最多启动 5 个 widget，约 5×3ms = 15ms，不超帧预算
+- 只对「动画首次启动」分批；resume/reverse/restart 是用户主动操作，立即执行
+- 副作用：视觉上 widget 以 batch 大小依次出现，非完全同帧（可接受）
+
+### 路径 B（CustomPainter）决策
+- `CountupPlus` 改为 CustomPainter 渲染，消除 build 开销（~80ms → ~2ms）
+- **混合方案**：默认走 CustomPainter；用户传 `digitBuilder`/`digitTransitionBuilder` 时 fallback 到 Widget 路径
+- 用户选择 builder 时知晓性能代价，不是意外降级
+- 路径 A（每位独立 ValueNotifier）被 B 完全覆盖，不需要实施
+- 预估工期：最小可用版（roll/fade/scale + 混合）4-5 天
+
+### 小数支持（待实现）
+- 参考 flip_counter_plus：`v * 10^fractionDigits` 转整数后构造 OdometerNumber
+- 渲染层从 SlideOdometerTransition 换成直接用 Odometer，在第 N 位前插 decimalSeparator
+
+---
+
 ## Phase 3 — CountdownPlugin（待脑暴）

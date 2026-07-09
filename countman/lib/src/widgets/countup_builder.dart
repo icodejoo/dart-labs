@@ -21,6 +21,7 @@ class CountupBuilder extends StatefulWidget {
     required this.builder,
     this.onUpdate,
     this.onDone,
+    this.repaintBoundary = true,
   });
 
   final double? from;
@@ -36,6 +37,11 @@ class CountupBuilder extends StatefulWidget {
 
   /// Called once when the animation reaches [to].
   final void Function(double value)? onDone;
+
+  /// Wraps the builder output in a [RepaintBoundary].
+  /// Default: true. Set to false when many instances share one layer
+  /// (e.g. a dense grid) — too many boundaries increase GPU compositing cost.
+  final bool repaintBoundary;
 
   @override
   State<CountupBuilder> createState() => _CountupBuilderState();
@@ -100,9 +106,12 @@ class _CountupBuilderState extends State<CountupBuilder> {
 
   @override
   Widget build(BuildContext context) {
-    return ValueListenableBuilder<double>(
+    // RepaintBoundary isolates this widget's repaint from its siblings.
+    // Without it a single dirty counter repaints the whole ancestor layer.
+    final inner = ValueListenableBuilder<double>(
       valueListenable: _value,
       builder: (ctx, value, _) => widget.builder(ctx, value),
     );
+    return widget.repaintBoundary ? RepaintBoundary(child: inner) : inner;
   }
 }
