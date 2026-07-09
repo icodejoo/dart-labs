@@ -125,6 +125,27 @@ class AnimatedCounter extends StatefulWidget {
   /// Default: 100 000. Set to [double.infinity] to disable auto-ease.
   final double autoEaseThreshold;
 
+  /// Optional per-digit easing override, indexed left-to-right (0 = most
+  /// significant digit). Falls back to the resolved [curve] when null or when
+  /// it returns null for a given index.
+  final Curve? Function(int digitIndex)? curveForDigit;
+
+  /// Optional color resolver evaluated from the current value each frame,
+  /// overriding [textStyle]'s color. Returning a continuously varying color
+  /// recreates the painter each change and forfeits the zero-build fast path,
+  /// so prefer discrete/threshold coloring.
+  final Color? Function(num value)? colorResolver;
+
+  /// Optional custom interpolation between a digit's start and target value.
+  /// Receives `(from, to, easedProgress)` and returns the displayed value;
+  /// defaults to linear `from + (to - from) * progress`.
+  final double Function(double from, double to, double t)? interpolation;
+
+  /// Optional factory supplying a custom [CounterPainter] (subclass) for the
+  /// fast path, replacing the built-in one. Ignored on the widget slow path
+  /// ([digitBuilder] / [digitTransitionBuilder] / blur).
+  final CounterPainterBuilder? painterBuilder;
+
 
   const AnimatedCounter({
     super.key,
@@ -196,6 +217,10 @@ class AnimatedCounter extends StatefulWidget {
     this.onReverse,
     this.repaintBoundary = true,
     this.autoEaseThreshold = 100000,
+    this.curveForDigit,
+    this.colorResolver,
+    this.interpolation,
+    this.painterBuilder,
   })  : assert(value != null || controller != null,
             'Either value or controller must be provided'),
         assert(fractionDigits >= 0),
@@ -728,9 +753,14 @@ class _AnimatedCounterState extends State<AnimatedCounter> {
         final double elapsedUs = t * totalDurationUs;
         tDigit = ((elapsedUs - delayUs) / baseDurationUs).clamp(0.0, 1.0);
       }
-      final double progress = effectiveComputeCurve.transform(tDigit);
-      _currentDigitValues[i] = _oldDigitValues[i] +
-          (_targetDigitValues[i] - _oldDigitValues[i]) * progress;
+      // Per-digit curve override falls back to the auto-eased/base curve.
+      final Curve digitCurve = widget.curveForDigit?.call(i) ?? effectiveComputeCurve;
+      final double progress = digitCurve.transform(tDigit);
+      final double from = _oldDigitValues[i];
+      final double to = _targetDigitValues[i];
+      _currentDigitValues[i] = widget.interpolation != null
+          ? widget.interpolation!(from, to, progress)
+          : from + (to - from) * progress;
     }
   }
 
@@ -798,9 +828,14 @@ class _AnimatedCounterState extends State<AnimatedCounter> {
   @override
   Widget build(BuildContext context) {
     final baseStyle = DefaultTextStyle.of(context).style.merge(widget.textStyle);
-    final style = (widget.useTabularFigures && widget.textStyle?.fontFeatures == null)
+    var style = (widget.useTabularFigures && widget.textStyle?.fontFeatures == null)
         ? baseStyle.merge(const TextStyle(fontFeatures: [FontFeature.tabularFigures()]))
         : baseStyle;
+    // Value-driven color override (may recreate the painter when it changes).
+    if (widget.colorResolver != null) {
+      final resolved = widget.colorResolver!(_currentValue);
+      if (resolved != null) style = style.merge(TextStyle(color: resolved));
+    }
     final textScaler = MediaQuery.textScalerOf(context);
 
     if (_prototypeSize == null || style != _lastStyle || textScaler != _lastTextScaler) {
@@ -872,23 +907,41 @@ class _AnimatedCounterState extends State<AnimatedCounter> {
           _activePainter!.transitionType != widget.transitionType ||
           _activePainter!.flipDirection != _effectiveFlipDirection) {
         _activePainter?.disposeCache(); // release the outgoing painter's paragraphs
-        _activePainter = CounterPainter(
-          repaint: _repaintTrigger,
-          digitValues: _currentDigitValues,
-          style: style,
-          digitSize: _prototypeSize!,
-          transitionType: widget.transitionType,
-          flipDirection: _effectiveFlipDirection,
-          increasing: !_isAnimatingDecrease,
-          fractionDigits: effFD,
-          groupingPattern: widget.groupingPattern,
-          hideLeadingZeroes: widget.hideLeadingZeroes,
-          numeralSystem: widget.numeralSystem,
-          numeralMapper: widget.numeralMapper,
-          thousandSeparator: widget.thousandSeparator,
-          separatorStyle: widget.separatorStyle,
-          padding: widget.padding,
-        );
+        _activePainter = widget.painterBuilder != null
+            ? widget.painterBuilder!(
+                repaint: _repaintTrigger,
+                digitValues: _currentDigitValues,
+                style: style,
+                digitSize: _prototypeSize!,
+                transitionType: widget.transitionType,
+                flipDirection: _effectiveFlipDirection,
+                increasing: !_isAnimatingDecrease,
+                fractionDigits: effFD,
+                groupingPattern: widget.groupingPattern,
+                hideLeadingZeroes: widget.hideLeadingZeroes,
+                numeralSystem: widget.numeralSystem,
+                numeralMapper: widget.numeralMapper,
+                thousandSeparator: widget.thousandSeparator,
+                separatorStyle: widget.separatorStyle,
+                padding: widget.padding,
+              )
+            : CounterPainter(
+                repaint: _repaintTrigger,
+                digitValues: _currentDigitValues,
+                style: style,
+                digitSize: _prototypeSize!,
+                transitionType: widget.transitionType,
+                flipDirection: _effectiveFlipDirection,
+                increasing: !_isAnimatingDecrease,
+                fractionDigits: effFD,
+                groupingPattern: widget.groupingPattern,
+                hideLeadingZeroes: widget.hideLeadingZeroes,
+                numeralSystem: widget.numeralSystem,
+                numeralMapper: widget.numeralMapper,
+                thousandSeparator: widget.thousandSeparator,
+                separatorStyle: widget.separatorStyle,
+                padding: widget.padding,
+              );
       } else {
         // Sync direction on every build so direction reversal (e.g. Reset)
         // takes effect immediately — before the first onUpdate fires.

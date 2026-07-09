@@ -26,15 +26,25 @@ class CounterOdometer extends StatefulWidget {
     this.duration = const Duration(milliseconds: 1000),
     this.curve = Curves.easeOut,
     this.allowNegative = false,
+    this.plugin,
+    this.controller,
     this.letterWidth = 20,
     this.numberTextStyle,
     this.verticalOffset = 20,
+    this.slideCurve,
+    this.fadeEnabled = true,
+    this.digitAlignment = Alignment.center,
+    this.crossAxisAlignment = CrossAxisAlignment.baseline,
     this.groupSeparator,
     this.prefix,
     this.suffix,
     this.prefixWidget,
     this.suffixWidget,
+    this.onUpdate,
     this.onComplete,
+    this.onReady,
+    this.onStart,
+    this.onCancel,
   });
 
   final double? from;
@@ -46,12 +56,32 @@ class CounterOdometer extends StatefulWidget {
   /// display negative values with a leading minus sign.
   final bool allowNegative;
 
+  /// Optional [Counter] group for isolation. Defaults to the shared instance.
+  final Counter? plugin;
+
+  /// Optional controller for imperative retarget/cancel and value read-out.
+  final CounterController? controller;
+
   /// Fixed width per digit slot — prevents layout jitter when digits change.
   final double letterWidth;
   final TextStyle? numberTextStyle;
 
   /// Vertical slide distance in logical pixels.
   final double verticalOffset;
+
+  /// Optional easing applied to the per-digit slide/fade progress. Linear
+  /// (identity) when null.
+  final Curve? slideCurve;
+
+  /// When true (default) incoming/outgoing digits cross-fade; false keeps them
+  /// fully opaque and only slides.
+  final bool fadeEnabled;
+
+  /// Alignment of each digit within its fixed-width slot. Default: center.
+  final Alignment digitAlignment;
+
+  /// Cross-axis alignment of the number row (and any prefix/suffix).
+  final CrossAxisAlignment crossAxisAlignment;
 
   /// Optional widget inserted every 3 digits (e.g. `Text(',')`).
   final Widget? groupSeparator;
@@ -68,7 +98,15 @@ class CounterOdometer extends StatefulWidget {
   /// Widget placed after the digits. Takes precedence over [suffix].
   final Widget? suffixWidget;
 
+  /// Called every frame with the raw animated value.
+  final void Function(double value)? onUpdate;
+
   final void Function(double value)? onComplete;
+
+  /// Lifecycle callbacks: enqueued / first frame / cancelled before completion.
+  final VoidCallback? onReady;
+  final VoidCallback? onStart;
+  final VoidCallback? onCancel;
 
   @override
   State<CounterOdometer> createState() => _CounterOdometerState();
@@ -95,7 +133,7 @@ class _CounterOdometerState extends State<CounterOdometer> {
 
   void _startTask({required double from}) {
     _handle?.cancel();
-    _handle = counter(CounterOptions(
+    _handle = (widget.plugin ?? defaultCounter).add(CounterOptions(
       from: from,
       to: widget.to,
       duration: motionDuration(widget.duration),
@@ -104,25 +142,35 @@ class _CounterOdometerState extends State<CounterOdometer> {
       onUpdate: (v) {
         _currentValue = v;
         _animation.value = _odometerOf(v);
+        widget.controller?.latestValue = v;
+        widget.onUpdate?.call(v);
         final neg = widget.allowNegative && v < 0;
         if (neg != _showMinus) setState(() => _showMinus = neg);
       },
       onComplete: (_) => widget.onComplete?.call(widget.to),
+      onReady: widget.onReady,
+      onStart: widget.onStart,
+      onCancel: widget.onCancel,
     ));
+    widget.controller?.attach(_handle!);
   }
 
   @override
   void didUpdateWidget(CounterOdometer old) {
     super.didUpdateWidget(old);
+    if (widget.controller != old.controller) old.controller?.detach();
     if (widget.to != old.to ||
         widget.duration != old.duration ||
-        widget.curve != old.curve) {
+        widget.curve != old.curve ||
+        widget.plugin != old.plugin ||
+        widget.controller != old.controller) {
       _startTask(from: _currentValue);
     }
   }
 
   @override
   void dispose() {
+    widget.controller?.detach();
     _handle?.cancel();
     _animation.dispose();
     super.dispose();
@@ -136,12 +184,15 @@ class _CounterOdometerState extends State<CounterOdometer> {
     // are visible without an explicit color, instead of defaulting to white.
     final style = DefaultTextStyle.of(context).style.merge(widget.numberTextStyle);
     final base = style.color ?? const Color(0xFF000000);
-    final color = base.withValues(alpha: (base.a * opacity).clamp(0.0, 1.0));
+    // When fade is disabled digits stay fully opaque and only slide.
+    final effOpacity = widget.fadeEnabled ? opacity : 1.0;
+    final color = base.withValues(alpha: (base.a * effOpacity).clamp(0.0, 1.0));
     Widget child = SizedBox(
       width: widget.letterWidth,
-      child: Text('$value',
-          textAlign: TextAlign.center,
-          style: style.copyWith(color: color)),
+      child: Align(
+        alignment: widget.digitAlignment,
+        child: Text('$value', style: style.copyWith(color: color)),
+      ),
     );
     // Insert thousand separator every 3 integer places (place 4, 7, 10…)
     if (widget.groupSeparator != null && (place - 1) > 0 && (place - 1) % 3 == 0) {
@@ -154,12 +205,21 @@ class _CounterOdometerState extends State<CounterOdometer> {
   @override
   Widget build(BuildContext context) {
     final vo = widget.verticalOffset;
+    // Optional easing on the raw 0–1 transition progress.
+    double ease(double p) =>
+        widget.slideCurve != null ? widget.slideCurve!.transform(p) : p;
     final digits = OdometerTransition(
       odometerAnimation: _animation,
       // Incoming digit: slides from -vo → 0, fades in
-      transitionIn: (value, place, p) => _digit(value, place, p,       vo * p - vo),
+      transitionIn: (value, place, p) {
+        final e = ease(p);
+        return _digit(value, place, e, vo * e - vo);
+      },
       // Outgoing digit: slides from 0 → +vo, fades out
-      transitionOut:(value, place, p) => _digit(value, place, 1.0 - p, vo * p),
+      transitionOut: (value, place, p) {
+        final e = ease(p);
+        return _digit(value, place, 1.0 - e, vo * e);
+      },
     );
 
     // Leading minus for negative values (only when allowNegative).
@@ -176,7 +236,7 @@ class _CounterOdometerState extends State<CounterOdometer> {
 
     return Row(
       mainAxisSize: MainAxisSize.min,
-      crossAxisAlignment: CrossAxisAlignment.baseline,
+      crossAxisAlignment: widget.crossAxisAlignment,
       textBaseline: TextBaseline.alphabetic,
       children: [
         if (widget.prefixWidget != null)

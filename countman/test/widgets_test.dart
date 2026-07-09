@@ -25,7 +25,7 @@ group('CounterBuilder', () {
       CounterBuilder(
         from: 50,
         to: 100,
-        builder: (_, v) => Text(v.toInt().toString()),
+        builder: (_, v, __) => Text(v.toInt().toString()),
       ),
     ));
     await t.pump(); // frame 1: value = from = 50
@@ -36,7 +36,7 @@ group('CounterBuilder', () {
 
   testWidgets('defaults from to 0 when not provided', (t) async {
     await t.pumpWidget(_wrap(
-      CounterBuilder(to: 100, builder: (_, v) => Text(v.toInt().toString())),
+      CounterBuilder(to: 100, builder: (_, v, __) => Text(v.toInt().toString())),
     ));
     await t.pump();
     Countman.destroy();
@@ -49,7 +49,7 @@ group('CounterBuilder', () {
       CounterBuilder(
         to: 100,
         duration: const Duration(milliseconds: 200),
-        builder: (_, v) => Text(v.toInt().toString()),
+        builder: (_, v, __) => Text(v.toInt().toString()),
       ),
     ));
 
@@ -74,7 +74,7 @@ group('CounterBuilder', () {
         to: 42,
         duration: const Duration(milliseconds: 100),
         onComplete: (v) => doneValue = v,
-        builder: (_, v) => Text(v.toInt().toString()),
+        builder: (_, v, __) => Text(v.toInt().toString()),
       ),
     ));
 
@@ -93,13 +93,13 @@ group('CounterBuilder', () {
         to: 100,
         duration: const Duration(milliseconds: 200),
         curve: Curves.linear,
-        builder: (_, v) { linear.add(v); return const SizedBox(); },
+        builder: (_, v, __) {linear.add(v); return const SizedBox(); },
       ),
       CounterBuilder(
         to: 100,
         duration: const Duration(milliseconds: 200),
         curve: Curves.easeIn,
-        builder: (_, v) { bounce.add(v); return const SizedBox(); },
+        builder: (_, v, __) {bounce.add(v); return const SizedBox(); },
       ),
     ])));
 
@@ -120,7 +120,7 @@ group('CounterBuilder', () {
       return CounterBuilder(
         to: currentTo,
         duration: const Duration(milliseconds: 400),
-        builder: (_, v) => Text(v.toInt().toString()),
+        builder: (_, v, __) => Text(v.toInt().toString()),
       );
     })));
 
@@ -147,7 +147,7 @@ group('CounterBuilder', () {
       return CounterBuilder(
         to: currentTo,
         duration: const Duration(milliseconds: 100),
-        builder: (_, v) => Text(v.toInt().toString()),
+        builder: (_, v, __) => Text(v.toInt().toString()),
       );
     })));
 
@@ -172,7 +172,7 @@ group('CounterBuilder', () {
         to: 100,
         duration: const Duration(milliseconds: 400),
         onUpdate: (v) => values.add(v),
-        builder: (_, v) => Text(v.toInt().toString()),
+        builder: (_, v, __) => Text(v.toInt().toString()),
       ),
     ));
 

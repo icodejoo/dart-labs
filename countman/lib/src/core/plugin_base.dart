@@ -67,6 +67,15 @@ abstract class TaskQueuePlugin<T extends CountmanTask> implements CountmanPlugin
   final List<T> _pendingAdd = <T>[];
   final List<int> _pendingRemove = <int>[];
 
+  // ── group-level lifecycle (used by providers) ─────────────────────
+  /// Fired when a task is enqueued into a previously empty group (the group
+  /// transitions idle → active). Surfaced to providers as `onGroupReady`.
+  VoidCallback? onFirstEnqueued;
+
+  /// Fired when the last task leaves the group (the group transitions
+  /// active → idle). Surfaced to providers as `onAllComplete`.
+  VoidCallback? onQueueDrained;
+
   @override
   void onAttach(CountmanContext c) => ctx = c;
 
@@ -78,11 +87,13 @@ abstract class TaskQueuePlugin<T extends CountmanTask> implements CountmanPlugin
   /// tick callback — the insert is deferred until the loop finishes.
   @protected
   void enqueue(T task) {
+    final wasIdle = tasks.isEmpty && _pendingAdd.isEmpty;
     if (_ticking) {
       _pendingAdd.add(task);
     } else {
       tasks[task.id] = task;
     }
+    if (wasIdle) onFirstEnqueued?.call(); // group went idle → active
     task.onReady?.call(); // registration succeeded (synchronous at add)
     ctx.requestFrame();
   }
@@ -100,7 +111,11 @@ abstract class TaskQueuePlugin<T extends CountmanTask> implements CountmanPlugin
     if (_ticking) {
       _pendingRemove.add(id);
     } else {
+      final hadTasks = tasks.isNotEmpty;
       tasks.remove(id);
+      if (hadTasks && tasks.isEmpty && _pendingAdd.isEmpty) {
+        onQueueDrained?.call(); // group went active → idle
+      }
     }
   }
 
@@ -175,6 +190,9 @@ abstract class TaskQueuePlugin<T extends CountmanTask> implements CountmanPlugin
         _pendingAdd.clear();
         busy = true; // freshly added tasks need a frame to render
       }
+      // Reached only when the group was non-empty this frame (empty groups
+      // early-return above), so an empty map here means it just drained.
+      if (tasks.isEmpty) onQueueDrained?.call();
     }
     return busy;
   }

@@ -21,5 +21,6 @@ export 'src/widgets/counter_ring.dart';
 export 'src/widgets/countdown_bar.dart';
 export 'src/widgets/counter_bar.dart';
 export 'src/widgets/animated_counter/animated_counter.dart';
+export 'src/widgets/providers.dart';
 export 'src/widgets/painter/painter.dart';
 

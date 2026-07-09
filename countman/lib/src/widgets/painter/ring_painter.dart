@@ -8,19 +8,19 @@ import 'package:flutter/widgets.dart';
 /// is identical, so it lives here once instead of twice.
 ///
 /// Every drawing step is a separate overridable method so a subclass can
-/// customize one piece (e.g. a gradient arc, an offset center, a dashed
-/// track) without reimplementing [paint] from scratch:
+/// customize one piece (e.g. a dashed track, an offset center) without
+/// reimplementing [paint] from scratch. For the common cases —
+/// [gradient]/[trackGradient] shaders, a custom [startAngle], [strokeCap],
+/// a thinner track ([trackStrokeWidth]), or [padding] — pass the constructor
+/// arguments instead of subclassing:
 ///
 /// ```dart
-/// class GradientRingPainter extends RingPainter {
-///   const GradientRingPainter({required super.progress, ...});
-///   @override
-///   void paintArc(Canvas canvas, Offset center, double radius, Paint paint) {
-///     paint.shader = SweepGradient(colors: [Colors.blue, Colors.purple])
-///         .createShader(Rect.fromCircle(center: center, radius: radius));
-///     super.paintArc(canvas, center, radius, paint);
-///   }
-/// }
+/// RingPainter(
+///   progress: 0.6, color: Colors.blue, trackColor: Colors.grey,
+///   strokeWidth: 8, clockwise: true,
+///   gradient: SweepGradient(colors: [Colors.blue, Colors.purple]),
+///   strokeCap: StrokeCap.butt,
+/// )
 /// ```
 class RingPainter extends CustomPainter {
   const RingPainter({
@@ -29,6 +29,12 @@ class RingPainter extends CustomPainter {
     required this.trackColor,
     required this.strokeWidth,
     required this.clockwise,
+    this.startAngle = -math.pi / 2,
+    this.strokeCap = StrokeCap.round,
+    this.gradient,
+    this.trackGradient,
+    this.trackStrokeWidth,
+    this.padding = EdgeInsets.zero,
   });
 
   /// 0.0–1.0 fraction of the arc to draw.
@@ -38,40 +44,74 @@ class RingPainter extends CustomPainter {
   final double strokeWidth;
   final bool clockwise;
 
+  /// Angle (radians) the arc starts from. Default: `-pi/2` (12 o'clock).
+  final double startAngle;
+
+  /// Cap drawn at the arc ends. Default: [StrokeCap.round].
+  final StrokeCap strokeCap;
+
+  /// Optional gradient painted along the arc, overriding [color].
+  final Gradient? gradient;
+
+  /// Optional gradient painted on the track, overriding [trackColor].
+  final Gradient? trackGradient;
+
+  /// Track stroke width. Defaults to [strokeWidth] when null.
+  final double? trackStrokeWidth;
+
+  /// Inset applied before computing the ring's center and radius.
+  final EdgeInsets padding;
+
+  /// The drawing rect after applying [padding].
+  Rect rectFor(Size size) => padding.deflateRect(Offset.zero & size);
+
   /// Center of the ring within [size]. Override to offset it.
-  Offset centerFor(Size size) => size.center(Offset.zero);
+  Offset centerFor(Size size) => rectFor(size).center;
 
   /// Radius of the ring within [size]. Override for a custom radius rule.
-  /// Clamped to `>= 0` so an over-large [strokeWidth] can't produce a negative
+  /// Clamped to `>= 0` so an over-large stroke can't produce a negative
   /// radius (which draws a degenerate arc).
   double radiusFor(Size size) {
-    final r = (size.shortestSide - strokeWidth) / 2;
+    final maxStroke = math.max(strokeWidth, trackStrokeWidth ?? strokeWidth);
+    final r = (rectFor(size).shortestSide - maxStroke) / 2;
     return r < 0 ? 0 : r;
   }
 
-  /// Builds the [Paint] shared by [paintTrack] and [paintArc]. Override to
-  /// customize cap/join/shader — [paintArc]/[paintTrack] still overwrite
-  /// `color` before each stroke, so a shader set here is the easiest hook.
+  /// Builds the [Paint] shared by [paintTrack] and [paintArc].
   Paint buildStrokePaint() => Paint()
     ..style = PaintingStyle.stroke
     ..strokeWidth = strokeWidth
-    ..strokeCap = StrokeCap.round
+    ..strokeCap = strokeCap
     ..isAntiAlias = true;
 
   /// Draws the background track circle. Override to customize or skip it.
   void paintTrack(Canvas canvas, Offset center, double radius, Paint paint) {
-    paint.color = trackColor;
+    paint.strokeWidth = trackStrokeWidth ?? strokeWidth;
+    if (trackGradient != null) {
+      paint.shader = trackGradient!
+          .createShader(Rect.fromCircle(center: center, radius: radius));
+    } else {
+      paint.shader = null;
+      paint.color = trackColor;
+    }
     canvas.drawCircle(center, radius, paint);
   }
 
-  /// Draws the progress arc. Override to customize (multi-segment, gradient,
-  /// a leading "thumb" dot, etc).
+  /// Draws the progress arc. Override to customize (multi-segment, a leading
+  /// "thumb" dot, etc).
   void paintArc(Canvas canvas, Offset center, double radius, Paint paint) {
     if (progress <= 0) return;
-    paint.color = color;
+    paint.strokeWidth = strokeWidth;
+    final rect = Rect.fromCircle(center: center, radius: radius);
+    if (gradient != null) {
+      paint.shader = gradient!.createShader(rect);
+    } else {
+      paint.shader = null;
+      paint.color = color;
+    }
     canvas.drawArc(
-      Rect.fromCircle(center: center, radius: radius),
-      -math.pi / 2, // start at 12 o'clock
+      rect,
+      startAngle,
       2 * math.pi * progress * (clockwise ? 1 : -1),
       false,
       paint,
@@ -92,5 +132,12 @@ class RingPainter extends CustomPainter {
       old.progress != progress ||
       old.color != color ||
       old.trackColor != trackColor ||
-      old.strokeWidth != strokeWidth;
+      old.strokeWidth != strokeWidth ||
+      old.clockwise != clockwise ||
+      old.startAngle != startAngle ||
+      old.strokeCap != strokeCap ||
+      old.gradient != gradient ||
+      old.trackGradient != trackGradient ||
+      old.trackStrokeWidth != trackStrokeWidth ||
+      old.padding != padding;
 }

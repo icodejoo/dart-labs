@@ -1,6 +1,7 @@
 import 'package:countman/src/core/plugin_base.dart';
 import 'package:countman/src/core/ticker.dart';
 import 'package:flutter/animation.dart';
+import 'package:flutter/foundation.dart' show internal;
 
 import 'types.dart';
 
@@ -97,6 +98,39 @@ class Counter extends TaskQueuePlugin<CounterTask> {
     task.started = false;
     ctx.requestFrame();
   }
+}
+
+// ── CounterController ─────────────────────────────────────────────
+
+/// Imperative controller for count-up display widgets.
+///
+/// Create once, pass to a widget via its `controller` parameter, then call
+/// [update] to retarget, [cancel] to remove, or read [value] for the current
+/// animated number. The controller attaches to the widget's internal
+/// [CounterHandle] after the first build; mirrors [CountdownController].
+class CounterController {
+  CounterHandle? _handle;
+  double _value = 0;
+
+  // Called by counter display widgets in initState / didUpdateWidget / dispose.
+  // Not part of the end-user API.
+  // ignore: use_setters_to_change_properties
+  void attach(CounterHandle h) => _handle = h;
+  void detach() => _handle = null;
+
+  /// Pushed by the owning widget on every frame — not user-facing.
+  @internal
+  set latestValue(double v) => _value = v;
+
+  /// Retarget the animation to [to], continuing from the current value.
+  void update({required double to, Duration? duration, Curve? curve}) =>
+      _handle?.update(to: to, duration: duration, curve: curve);
+
+  /// Remove the underlying task immediately.
+  void cancel() => _handle?.cancel();
+
+  /// The most recent animated value reported by the widget (0 before start).
+  double get value => _value;
 }
 
 // ── default instance + top-level function ─────────────────────────
