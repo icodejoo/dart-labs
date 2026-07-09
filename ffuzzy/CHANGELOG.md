@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.5.2
+
+- **Repo move.** `homepage` / `repository` / `issue_tracker` now point at the
+  `ffuzzy` subdirectory of the `dart-labs` monorepo instead of the old
+  standalone `icodejoo/ffuzzy` repo. No code changes.
+
 ## 0.5.1
 
 - **Fix: Windows debug build (`error D8016: '/O2' and '/RTC1' command-line

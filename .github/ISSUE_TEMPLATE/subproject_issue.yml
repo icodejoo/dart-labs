@@ -1,0 +1,42 @@
+name: Subproject Issue
+description: Report bug or request feature for a subproject in this monorepo
+title: "[] "
+labels: []
+body:
+  - type: markdown
+    attributes:
+      value: |
+        **标题必须以 `[子项目名]` 开头**，例如 `[ffuzzy] 高亮位置计算错误`。
+        请把上方 Title 里的 `[]` 替换为对应子项目名。
+
+  - type: dropdown
+    id: subproject
+    attributes:
+      label: 子项目
+      description: 该 issue 属于哪个子项目？标题里的 [子项目名] 需与此一致。
+      options:
+        - cacheman
+        - dioman
+        - ffuzzy
+        - flutter_stompsocket
+        - getx-query
+        - layerman
+        - other / 其他
+    validations:
+      required: true
+
+  - type: textarea
+    id: description
+    attributes:
+      label: 问题描述
+      description: 发生了什么？期望是什么？
+    validations:
+      required: true
+
+  - type: textarea
+    id: repro
+    attributes:
+      label: 复现步骤 / 环境
+      description: 复现步骤、Dart/Flutter 版本、平台等
+    validations:
+      required: false
