@@ -99,7 +99,13 @@ class Countdown implements CountmanPlugin {
 
     _accumMs += dt.inMicroseconds / 1000.0;
     final shouldProcess = interval <= 0 || _accumMs >= interval;
-    if (shouldProcess && interval > 0) _accumMs -= interval;
+    if (shouldProcess) {
+      if (interval > 0) {
+        _accumMs -= interval; // carry remainder for next cycle
+      } else {
+        _accumMs = 0; // prevent unbounded growth at interval=0
+      }
+    }
 
     var busy = false;
     final done = <int>[];
@@ -159,6 +165,33 @@ class Countdown implements CountmanPlugin {
     _ctx.requestFrame();
     return CountdownHandle._(id, this);
   }
+}
+
+// ── CountdownController ───────────────────────────────────────────
+
+/// Imperative controller for countdown display widgets.
+///
+/// Create once, pass to a widget via its `controller` parameter, then call
+/// [pause], [resume], [reset], or [cancel] from any parent or business logic.
+/// The controller attaches to the widget's internal [CountdownHandle] after
+/// the first build.
+class CountdownController {
+  CountdownHandle? _handle;
+
+  // Called by countdown display widgets in initState / didUpdateWidget / dispose.
+  // Not part of the end-user API.
+  // ignore: use_setters_to_change_properties
+  void attach(CountdownHandle h) => _handle = h;
+  void detach() => _handle = null;
+
+  void pause()                     => _handle?.pause();
+  void resume()                    => _handle?.resume();
+  void reset({Duration? duration}) => _handle?.reset(duration: duration);
+  void cancel()                    => _handle?.cancel();
+
+  Duration get remaining => _handle?.remaining ?? Duration.zero;
+  bool get isPaused      => _handle?.isPaused ?? false;
+  bool get isDone        => _handle?.isDone ?? true;
 }
 
 // ── default instance + top-level function ─────────────────────────
