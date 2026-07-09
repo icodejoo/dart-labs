@@ -52,6 +52,11 @@ class CountdownWidget extends StatefulWidget {
     this.onComplete,
     this.threshold,
     this.onThreshold,
+    this.onReady,
+    this.onStart,
+    this.onCancel,
+    this.onPause,
+    this.onResume,
   }) : assert(duration != null || to != null,
             'Provide either `duration` or `to`.');
 
@@ -84,6 +89,13 @@ class CountdownWidget extends StatefulWidget {
 
   /// Called once when remaining crosses [threshold].
   final void Function()? onThreshold;
+
+  /// Lifecycle callbacks: enqueued / first frame / cancelled / paused / resumed.
+  final VoidCallback? onReady;
+  final VoidCallback? onStart;
+  final VoidCallback? onCancel;
+  final VoidCallback? onPause;
+  final VoidCallback? onResume;
 
   @override
   State<CountdownWidget> createState() => _CountdownWidgetState();
@@ -121,6 +133,11 @@ class _CountdownWidgetState extends State<CountdownWidget> {
       onComplete: widget.onComplete,
       threshold: widget.threshold,
       onThreshold: widget.onThreshold,
+      onReady: widget.onReady,
+      onStart: widget.onStart,
+      onCancel: widget.onCancel,
+      onPause: widget.onPause,
+      onResume: widget.onResume,
     ));
     widget.controller?.attach(_handle!);
   }

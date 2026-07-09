@@ -181,13 +181,13 @@ class _DemoPageState extends State<DemoPage> {
       ]),
       _Section('CounterBuilder', [
         _c('color by progress', CounterBuilder(to: _t, duration: 10000.ms,
-            builder: (_, v) { final t=(v/_t).clamp(0.0,1.0); return Text(v.toInt().toString(),
+            builder: (_, v, __) { final t=(v/_t).clamp(0.0,1.0); return Text(v.toInt().toString(),
                 style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Color.lerp(Colors.red,Colors.green,t))); })),
         _c('decimal .2f',       CounterBuilder(to: _t, duration: 10000.ms,
-            builder: (_, v) => Text(v.toStringAsFixed(2),
+            builder: (_, v, __) => Text(v.toStringAsFixed(2),
                 style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)))),
         _c('progress bar',      CounterBuilder(to: _t, duration: 10000.ms,
-            builder: (_, v) => Column(mainAxisSize: MainAxisSize.min, children: [
+            builder: (_, v, __) => Column(mainAxisSize: MainAxisSize.min, children: [
               Text(v.toInt().toString(), style: ts),
               const SizedBox(height: 2),
               LinearProgressIndicator(value: (v/_t).clamp(0.0,1.0),

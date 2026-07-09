@@ -21,6 +21,29 @@ import 'package:flutter/widgets.dart';
 import '../animated_counter/types.dart';
 import 'perspective.dart';
 
+/// Factory signature for [AnimatedCounter.painterBuilder]. Receives the exact
+/// arguments the default [CounterPainter] would be built with, so a custom
+/// implementation can subclass [CounterPainter] and forward them (overriding
+/// only the drawing methods it cares about) while keeping the in-place
+/// `update()` / repaint contract the fast path relies on.
+typedef CounterPainterBuilder = CounterPainter Function({
+  required Listenable repaint,
+  required List<double> digitValues,
+  required TextStyle style,
+  required Size digitSize,
+  required CounterTransitionType transitionType,
+  required AxisDirection flipDirection,
+  required bool increasing,
+  required int fractionDigits,
+  required List<int> groupingPattern,
+  required bool hideLeadingZeroes,
+  required NumeralSystem numeralSystem,
+  String Function(int)? numeralMapper,
+  String? thousandSeparator,
+  TextStyle? separatorStyle,
+  EdgeInsets padding,
+});
+
 class CounterPainter extends CustomPainter {
   CounterPainter({
     required Listenable repaint, // ← drives markNeedsPaint, NOT build

@@ -1,5 +1,7 @@
 import 'package:flutter/widgets.dart';
+import 'package:countman/src/counter/plugin.dart';
 import 'counter_builder.dart';
+import 'providers.dart';
 
 /// A [Text]-based count-up widget with optional prefix/suffix.
 ///
@@ -17,33 +19,73 @@ class CounterText extends StatelessWidget {
     super.key,
     this.from,
     required this.to,
-    this.duration = const Duration(milliseconds: 1000),
-    this.curve = Curves.easeOut,
-    this.allowNegative = false,
+    this.duration,
+    this.curve,
+    this.allowNegative,
+    this.plugin,
+    this.controller,
     this.formatter,
+    this.fractionDigits,
     this.style,
+    this.textAlign,
+    this.maxLines,
+    this.overflow,
+    this.softWrap,
+    this.strutStyle,
+    this.textScaler,
+    this.locale,
+    this.textWidthBasis,
     this.semanticsLabel,
     this.prefix,
     this.suffix,
     this.prefixWidget,
     this.suffixWidget,
+    this.onUpdate,
     this.onComplete,
+    this.onReady,
+    this.onStart,
+    this.onCancel,
   });
 
   final double? from;
   final double to;
-  final Duration duration;
-  final Curve curve;
+
+  /// Animation duration. Falls back to the enclosing [CounterProvider], then
+  /// to 1000ms.
+  final Duration? duration;
+
+  /// Easing curve. Falls back to the provider, then to [Curves.easeOut].
+  final Curve? curve;
 
   /// When `false` (default) the value never goes below 0. Set `true` to
-  /// count through / to negative numbers.
-  final bool allowNegative;
+  /// count through / to negative numbers. Falls back to the provider.
+  final bool? allowNegative;
 
-  /// Formats the animated value to a display string.
-  /// Defaults to `value.toInt().toString()`.
+  /// Optional [Counter] group for isolation. Defaults to the shared instance.
+  final Counter? plugin;
+
+  /// Optional controller for imperative retarget/cancel and value read-out.
+  final CounterController? controller;
+
+  /// Formats the animated value to a display string. Takes precedence over
+  /// [fractionDigits]. Defaults (both null) to `value.toInt().toString()`.
   final String Function(double value)? formatter;
 
+  /// Convenience decimal-places control used when [formatter] is null.
+  /// `null` (default) → integer display; otherwise `toStringAsFixed`.
+  final int? fractionDigits;
+
   final TextStyle? style;
+  final TextAlign? textAlign;
+
+  /// Forwarded to the underlying [Text]. See [Text] for semantics.
+  final int? maxLines;
+  final TextOverflow? overflow;
+  final bool? softWrap;
+  final StrutStyle? strutStyle;
+  final TextScaler? textScaler;
+  final Locale? locale;
+  final TextWidthBasis? textWidthBasis;
 
   /// Fixed screen-reader label. When set, the reader announces this instead of
   /// the animating number.
@@ -61,25 +103,57 @@ class CounterText extends StatelessWidget {
   /// Widget placed after the number. Takes precedence over [suffix].
   final Widget? suffixWidget;
 
+  /// Called every frame with the raw animated value.
+  final void Function(double value)? onUpdate;
+
   final void Function(double value)? onComplete;
 
-  String _format(double value) =>
-      formatter != null ? formatter!(value) : value.toInt().toString();
+  /// Lifecycle callbacks: enqueued / first frame / cancelled before completion.
+  final VoidCallback? onReady;
+  final VoidCallback? onStart;
+  final VoidCallback? onCancel;
+
+  String _format(double value) {
+    if (formatter != null) return formatter!(value);
+    if (fractionDigits != null) return value.toStringAsFixed(fractionDigits!);
+    return value.toInt().toString();
+  }
 
   @override
   Widget build(BuildContext context) {
     final hasPrefix = prefixWidget != null || prefix != null;
     final hasSuffix = suffixWidget != null || suffix != null;
 
+    // Resolve unset values from the nearest CounterProvider, then defaults.
+    final scope = CountmanScope.maybeOf<Counter>(context);
+    final effStyle = style ?? scope?.textStyle;
+
     final numberWidget = CounterBuilder(
       from: from,
       to: to,
-      duration: duration,
-      curve: curve,
-      allowNegative: allowNegative,
+      duration: duration ?? scope?.duration ?? const Duration(milliseconds: 1000),
+      curve: curve ?? scope?.curve ?? Curves.easeOut,
+      allowNegative: allowNegative ?? scope?.allowNegative ?? false,
+      plugin: plugin ?? scope?.plugin,
+      controller: controller,
+      onUpdate: onUpdate,
       onComplete: onComplete,
-      builder: (_, value) =>
-          Text(_format(value), style: style, semanticsLabel: semanticsLabel),
+      onReady: onReady,
+      onStart: onStart,
+      onCancel: onCancel,
+      builder: (_, value, __) => Text(
+        _format(value),
+        style: effStyle,
+        textAlign: textAlign,
+        maxLines: maxLines,
+        overflow: overflow,
+        softWrap: softWrap,
+        strutStyle: strutStyle,
+        textScaler: textScaler,
+        locale: locale,
+        textWidthBasis: textWidthBasis,
+        semanticsLabel: semanticsLabel,
+      ),
     );
 
     if (!hasPrefix && !hasSuffix) return numberWidget;
@@ -93,12 +167,12 @@ class CounterText extends StatelessWidget {
         if (prefixWidget != null)
           prefixWidget!
         else if (prefix != null)
-          Text(prefix!, style: style),
+          Text(prefix!, style: effStyle),
         numberWidget,
         if (suffixWidget != null)
           suffixWidget!
         else if (suffix != null)
-          Text(suffix!, style: style),
+          Text(suffix!, style: effStyle),
       ],
     );
   }
