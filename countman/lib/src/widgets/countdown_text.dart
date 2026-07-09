@@ -1,8 +1,8 @@
 import 'package:flutter/widgets.dart';
 import 'package:countman/src/count_down/plugin.dart';
-import 'package:countman/src/count_down/types.dart';
+import 'countdown_widget.dart';
 
-/// Displays a countdown as formatted text.
+/// Displays a countdown as formatted text. Composes [CountdownWidget].
 ///
 /// [to] accepts any of: [DateTime], [Duration], [int] (ms epoch), [String] (ISO-8601).
 ///
@@ -10,27 +10,34 @@ import 'package:countman/src/count_down/types.dart';
 /// CountdownText(to: DateTime(2025, 12, 31))
 /// CountdownText(to: const Duration(minutes: 5), formatter: CountdownFormat.ms)
 /// ```
-class CountdownText extends StatefulWidget {
+class CountdownText extends StatelessWidget {
   const CountdownText({
     super.key,
     required this.to,
     this.formatter = CountdownFormat.auto,
     this.style,
     this.textAlign,
+    this.semanticsLabel,
     this.plugin,
     this.controller,
-    this.onDone,
+    this.onComplete,
+    this.threshold,
+    this.onThreshold,
   });
 
   /// Countdown target. Accepts [DateTime], [Duration], [int] (ms epoch),
   /// or ISO-8601 [String].
-  final dynamic to;
+  final Object to;
 
   /// Converts remaining [Duration] to a display string.
   final DurationFormatter formatter;
 
   final TextStyle? style;
   final TextAlign? textAlign;
+
+  /// Fixed screen-reader label. When set, the reader announces this instead of
+  /// the per-second changing digits (which otherwise re-announce every tick).
+  final String? semanticsLabel;
 
   /// Optional [Countdown] group. Defaults to [defaultCountdown].
   final Countdown? plugin;
@@ -39,58 +46,30 @@ class CountdownText extends StatefulWidget {
   final CountdownController? controller;
 
   /// Called once when the countdown reaches zero.
-  final void Function()? onDone;
+  final void Function()? onComplete;
 
-  @override
-  State<CountdownText> createState() => _CountdownTextState();
-}
+  /// When remaining first drops to or below this, [onThreshold] fires once.
+  /// null (default) disables the check.
+  final Duration? threshold;
 
-class _CountdownTextState extends State<CountdownText> {
-  late final ValueNotifier<Duration> _remaining;
-  CountdownHandle? _handle;
-
-  @override
-  void initState() {
-    super.initState();
-    _remaining = ValueNotifier(Duration.zero);
-    _start();
-  }
-
-  void _start() {
-    _handle?.cancel();
-    final r = remainingUntil(widget.to);
-    _remaining.value = r;
-    _handle = (widget.plugin ?? defaultCountdown).add(CountdownOptions(
-      duration: r,
-      onUpdate: (v) => _remaining.value = v,
-      onDone: widget.onDone,
-    ));
-    widget.controller?.attach(_handle!);
-  }
-
-  @override
-  void didUpdateWidget(CountdownText old) {
-    super.didUpdateWidget(old);
-    if (widget.to != old.to) {
-      widget.controller?.detach();
-      _start();
-    }
-  }
-
-  @override
-  void dispose() {
-    widget.controller?.detach();
-    _handle?.cancel();
-    _remaining.dispose();
-    super.dispose();
-  }
+  /// Called once when remaining crosses [threshold].
+  final void Function()? onThreshold;
 
   @override
   Widget build(BuildContext context) {
-    return ValueListenableBuilder<Duration>(
-      valueListenable: _remaining,
-      builder: (_, r, __) =>
-          Text(widget.formatter(r), style: widget.style, textAlign: widget.textAlign),
+    return CountdownWidget(
+      to: to,
+      plugin: plugin,
+      controller: controller,
+      onComplete: onComplete,
+      threshold: threshold,
+      onThreshold: onThreshold,
+      builder: (_, p) => Text(
+        formatter(p),
+        style: style,
+        textAlign: textAlign,
+        semanticsLabel: semanticsLabel,
+      ),
     );
   }
 }

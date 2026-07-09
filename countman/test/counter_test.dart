@@ -1,4 +1,3 @@
-import 'package:flutter/animation.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:countman/countman.dart';
 
@@ -7,10 +6,10 @@ import 'package:countman/countman.dart';
 //   frame 2 (dt>0) → accumulates time, progressing / done
 
 void main() {
-  late Countup plugin;
+  late Counter plugin;
 
   setUp(() {
-    plugin = Countup(name: 'test_countup');
+    plugin = Counter(name: 'test_counter');
     Countman.use(plugin);
   });
 
@@ -18,15 +17,15 @@ void main() {
 
   // ── direct tick() unit tests (no scheduler) ────────────────────────
 
-  test('tick: onDone fires when accumulated dt >= duration', () {
-    final p = Countup(name: 'direct');
+  test('tick: onComplete fires when accumulated dt >= duration', () {
+    final p = Counter(name: 'direct');
     p.onAttach(CountmanContext(requestFrame: () {}));
 
     double? done;
-    p.add(CountupOptions(
+    p.add(CounterOptions(
       to: 100,
       duration: const Duration(milliseconds: 100),
-      onDone: (v) => done = v,
+      onComplete: (v) => done = v,
     ));
 
     p.tick(Duration.zero, Duration.zero);                                          // frame 1: started
@@ -38,11 +37,11 @@ void main() {
   });
 
   test('tick: onUpdate fires each frame', () {
-    final p = Countup(name: 'direct2');
+    final p = Counter(name: 'direct2');
     p.onAttach(CountmanContext(requestFrame: () {}));
 
     final values = <double>[];
-    p.add(CountupOptions(
+    p.add(CounterOptions(
       to: 100,
       duration: const Duration(milliseconds: 100),
       onUpdate: values.add,
@@ -62,7 +61,7 @@ void main() {
 
   testWidgets('animates from 0 to target', (tester) async {
     final values = <double>[];
-    plugin.add(CountupOptions(
+    plugin.add(CounterOptions(
       to: 100,
       duration: const Duration(milliseconds: 100),
       onUpdate: values.add,
@@ -81,12 +80,12 @@ void main() {
     Countman.destroy();
   });
 
-  testWidgets('calls onDone when animation completes', (tester) async {
+  testWidgets('calls onComplete when animation completes', (tester) async {
     double? doneValue;
-    plugin.add(CountupOptions(
+    plugin.add(CounterOptions(
       to: 50,
       duration: const Duration(milliseconds: 50),
-      onDone: (v) => doneValue = v,
+      onComplete: (v) => doneValue = v,
     ));
 
     await tester.pump();                                   // frame 1: start
@@ -98,7 +97,7 @@ void main() {
 
   testWidgets('respects custom from value', (tester) async {
     final values = <double>[];
-    plugin.add(CountupOptions(
+    plugin.add(CounterOptions(
       from: 200,
       to: 300,
       duration: const Duration(milliseconds: 100),
@@ -113,10 +112,10 @@ void main() {
 
   testWidgets('zero duration completes on second frame', (tester) async {
     double? doneValue;
-    plugin.add(CountupOptions(
+    plugin.add(CounterOptions(
       to: 42,
       duration: Duration.zero,
-      onDone: (v) => doneValue = v,
+      onComplete: (v) => doneValue = v,
     ));
 
     await tester.pump();                                  // frame 1: started, busy
@@ -130,7 +129,7 @@ void main() {
 
   testWidgets('retarget continues from current value', (tester) async {
     final values = <double>[];
-    final handle = plugin.add(CountupOptions(
+    final handle = plugin.add(CounterOptions(
       to: 100,
       duration: const Duration(milliseconds: 200),
       onUpdate: values.add,
@@ -150,7 +149,7 @@ void main() {
 
   testWidgets('cancel stops further updates', (tester) async {
     final values = <double>[];
-    final handle = plugin.add(CountupOptions(
+    final handle = plugin.add(CounterOptions(
       to: 100,
       duration: const Duration(milliseconds: 200),
       onUpdate: values.add,
@@ -170,7 +169,7 @@ void main() {
   // ── ticker integration ────────────────────────────────────────────
 
   testWidgets('ticker auto-stops when all tasks complete', (tester) async {
-    plugin.add(CountupOptions(
+    plugin.add(CounterOptions(
       to: 10,
       duration: const Duration(milliseconds: 50),
     ));
@@ -182,8 +181,8 @@ void main() {
 
   testWidgets('multiple tasks run concurrently', (tester) async {
     final a = <double>[], b = <double>[];
-    plugin.add(CountupOptions(to: 100, duration: const Duration(milliseconds: 100), onUpdate: a.add));
-    plugin.add(CountupOptions(to: 200, duration: const Duration(milliseconds: 100), onUpdate: b.add));
+    plugin.add(CounterOptions(to: 100, duration: const Duration(milliseconds: 100), onUpdate: a.add));
+    plugin.add(CounterOptions(to: 200, duration: const Duration(milliseconds: 100), onUpdate: b.add));
 
     await tester.pump();                                   // frame 1: both at from=0
     await tester.pump(const Duration(milliseconds: 50));  // frame 2: both progressing
@@ -193,14 +192,14 @@ void main() {
     Countman.destroy();
   });
 
-  // ── top-level countup() ───────────────────────────────────────────
+  // ── top-level counter() ───────────────────────────────────────────
 
-  testWidgets('countup() auto-bootstraps default plugin', (tester) async {
+  testWidgets('counter() auto-bootstraps default plugin', (tester) async {
     double? result;
-    countup(CountupOptions(
+    counter(CounterOptions(
       to: 77,
       duration: const Duration(milliseconds: 50),
-      onDone: (v) => result = v,
+      onComplete: (v) => result = v,
     ));
 
     await tester.pump();
@@ -210,16 +209,16 @@ void main() {
     expect(result, 77.0);
   });
 
-  testWidgets('countup() re-registers after destroy()', (tester) async {
+  testWidgets('counter() re-registers after destroy()', (tester) async {
     double? first, second;
 
-    countup(CountupOptions(to: 1, duration: const Duration(milliseconds: 50), onDone: (v) => first = v));
+    counter(CounterOptions(to: 1, duration: const Duration(milliseconds: 50), onComplete: (v) => first = v));
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 100));
     Countman.destroy();
     expect(first, 1.0);
 
-    countup(CountupOptions(to: 2, duration: const Duration(milliseconds: 50), onDone: (v) => second = v));
+    counter(CounterOptions(to: 2, duration: const Duration(milliseconds: 50), onComplete: (v) => second = v));
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 100));
     Countman.destroy();

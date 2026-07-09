@@ -1,10 +1,28 @@
-import 'dart:math' as math;
 import 'package:flutter/widgets.dart';
 import 'package:countman/src/count_down/plugin.dart';
 import 'package:countman/src/count_down/types.dart';
+import 'countdown_card_provider.dart';
+import 'countdown_card_types.dart';
+import 'painter/flip_card_painter.dart';
+import 'reduce_motion.dart';
+
+export 'countdown_card_provider.dart';
+export 'countdown_card_types.dart';
+export 'painter/flip_card_painter.dart';
+
+const _defaultDuration = Duration(milliseconds: 450);
+const _defaultCardWidth = 56.0;
+const _defaultCardHeight = 76.0;
+const _defaultDigitGap = 4.0;
+const _defaultUnitGap = 8.0;
+const _defaultCardColor = Color(0xFF212121);
+const _defaultScaleFactor = 1.5;
+const _defaultTransitionType = CountdownType.calendar;
+const _defaultTranslateEffect = SlideEffect.none;
+const _defaultPerspective = 0.006;
 
 /// A flip-card countdown display. Each time unit (H / M / S) is rendered as
-/// a split-flap card that animates when the digit changes.
+/// a card that animates when the digit changes.
 ///
 /// [to] accepts [DateTime], [Duration], [int] (ms epoch), or ISO-8601 [String].
 ///
@@ -13,7 +31,19 @@ import 'package:countman/src/count_down/types.dart';
 /// CountdownCard(to: DateTime(2025, 12, 31), splitDigits: true)
 /// ```
 ///
-/// For large numbers of concurrent instances set [repaintBoundary] = false.
+/// Rendering is a single [CustomPainter] driven by one shared
+/// [AnimationController] per card instance — dense grids of concurrent
+/// [CountdownCard]s cost one [Ticker] each, not one per digit, and digit
+/// changes never rebuild the widget tree (only `markNeedsPaint`).
+///
+/// [cardColor]/[textStyle]/[labelStyle]/[separatorStyle]/[duration]/
+/// [cardWidth]/[cardHeight]/[digitGap]/[unitGap] fall back to an ancestor
+/// [CountdownCardProvider] when left unset, then to a hardcoded default.
+/// Digit/separator/label glyphs are cached per-card so repeated digits
+/// (0-9) aren't re-laid-out every frame; for whichever of [textStyle] /
+/// [labelStyle] / [separatorStyle] are inherited from a provider (not set
+/// on this card), that cache is also shared across every card in the
+/// provider's scope.
 class CountdownCard extends StatefulWidget {
   const CountdownCard({
     super.key,
@@ -22,24 +52,31 @@ class CountdownCard extends StatefulWidget {
     this.showHours,
     this.labels = const ['H', 'M', 'S'],
     this.separator = ':',
-    this.flipDuration = const Duration(milliseconds: 450),
-    this.cardWidth = 56.0,
-    this.cardHeight = 76.0,
-    this.digitGap = 4.0,
-    this.unitGap = 8.0,
-    this.cardColor = const Color(0xFF212121),
+    this.transitionType,
+    this.scaleEffect,
+    this.scaleFactor,
+    this.opacityEffect,
+    this.perspective,
+    this.duration,
+    this.cardWidth,
+    this.cardHeight,
+    this.digitGap,
+    this.unitGap,
+    this.cardColor,
     this.textStyle,
     this.labelStyle,
     this.separatorStyle,
     this.repaintBoundary = true,
     this.plugin,
     this.controller,
-    this.onDone,
+    this.onComplete,
+    this.threshold,
+    this.onThreshold,
   });
 
   /// Countdown target. Accepts [DateTime], [Duration], [int] (ms epoch),
   /// or ISO-8601 [String].
-  final dynamic to;
+  final Object to;
 
   /// When true each individual digit (0-9) gets its own card;
   /// when false each unit (00-59) is one card.
@@ -55,26 +92,73 @@ class CountdownCard extends StatefulWidget {
 
   final String separator;
 
-  final Duration flipDuration;
+  /// Per-digit change animation. Falls back to
+  /// [CountdownCardProvider.transitionType], then [CountdownType.calendar].
+  final CountdownType? transitionType;
 
-  final double cardWidth;
-  final double cardHeight;
+  /// Scale behavior for [CountdownType.slide]/[CountdownType.flip]
+  /// digits: the entering digit shrinks from [scaleFactor] down to its
+  /// normal size ("enter"/"both"), the exiting digit shrinks from normal
+  /// size down to `1 / scaleFactor` ("exit"/"both"). No effect for
+  /// [CountdownType.calendar]. Falls back to
+  /// [CountdownCardProvider.scaleEffect], then [SlideEffect.none] (no
+  /// scaling).
+  final SlideEffect? scaleEffect;
+
+  /// Magnitude used by [scaleEffect]. Must be > 1 for "enter" to look like
+  /// it's shrinking in and "exit" to look like it's shrinking out — enter
+  /// animates `scaleFactor → 1.0`, exit animates `1.0 → 1/scaleFactor`. Falls
+  /// back to [CountdownCardProvider.scaleFactor], then 1.5.
+  final double? scaleFactor;
+
+  /// Opacity behavior for [CountdownType.slide]/[CountdownType.flip]
+  /// digits: the entering digit fades in from transparent ("enter"/"both"),
+  /// the exiting digit fades out to transparent ("exit"/"both"). No effect
+  /// for [CountdownType.calendar]. Falls back to
+  /// [CountdownCardProvider.opacityEffect], then [SlideEffect.none]
+  /// (fully opaque throughout).
+  final SlideEffect? opacityEffect;
+
+  /// Perspective coefficient for [CountdownType.flip]'s 3D
+  /// rotation — larger values exaggerate the foreshortening (the card looks
+  /// like it's leaning further out of the screen as it turns). No effect for
+  /// [CountdownType.calendar]/[CountdownType.slide]. Falls
+  /// back to [CountdownCardProvider.perspective], then 0.006.
+  final double? perspective;
+
+  /// Total transition duration, shared by every [transitionType]. Falls back
+  /// to [CountdownCardProvider.duration], then 450ms.
+  final Duration? duration;
+
+  /// Falls back to [CountdownCardProvider.cardWidth], then 56.
+  final double? cardWidth;
+
+  /// Falls back to [CountdownCardProvider.cardHeight], then 76.
+  final double? cardHeight;
 
   /// Gap between digit cards when [splitDigits] is true.
-  final double digitGap;
+  /// Falls back to [CountdownCardProvider.digitGap], then 4.
+  final double? digitGap;
 
   /// Horizontal space on each side of the separator.
-  final double unitGap;
+  /// Falls back to [CountdownCardProvider.unitGap], then 8.
+  final double? unitGap;
 
-  final Color cardColor;
+  /// Falls back to [CountdownCardProvider.cardColor], then a dark grey.
+  final Color? cardColor;
 
-  /// Text style for the digit numbers. Defaults to bold white scaled to [cardHeight].
+  /// Text style for the digit numbers. Falls back to
+  /// [CountdownCardProvider.textStyle], then bold white scaled to the
+  /// resolved card height.
   final TextStyle? textStyle;
 
-  /// Text style for unit labels below each card.
+  /// Text style for unit labels below each card. Falls back to
+  /// [CountdownCardProvider.labelStyle], then a small grey label style.
   final TextStyle? labelStyle;
 
-  /// Text style for the separator character.
+  /// Text style for the separator character. Falls back to
+  /// [CountdownCardProvider.separatorStyle], then a mid-grey style scaled
+  /// to the resolved card height.
   final TextStyle? separatorStyle;
 
   /// Wraps in [RepaintBoundary]. Disable when displaying many instances.
@@ -82,33 +166,112 @@ class CountdownCard extends StatefulWidget {
 
   final Countdown? plugin;
   final CountdownController? controller;
-  final void Function()? onDone;
+  final void Function()? onComplete;
+
+  /// When remaining first drops to or below this, [onThreshold] fires once.
+  /// null (default) disables the check.
+  final Duration? threshold;
+
+  /// Called once when remaining crosses [threshold].
+  final void Function()? onThreshold;
 
   @override
   State<CountdownCard> createState() => _CountdownCardState();
 }
 
-class _CountdownCardState extends State<CountdownCard> {
-  late final ValueNotifier<Duration> _remaining;
+class _CountdownCardState extends State<CountdownCard>
+    with SingleTickerProviderStateMixin {
   CountdownHandle? _handle;
+  late final AnimationController _ctrl;
+  late bool _showHours;
+  late CardModel _model;
+  Duration _lastRemaining = Duration.zero;
+
+  // Resolved once per build() (widget ?? provider ?? default) — the
+  // AnimationController's status listener is created once in initState and
+  // can't safely query CountdownCardProvider itself, so it reads this field
+  // instead of `widget.transitionType` directly.
+  CountdownType _transitionType = _defaultTransitionType;
+
+  // Per-card glyph cache. Used for any style this card resolves itself
+  // (explicit override, or no ancestor provider) — never shared with other
+  // cards. Bounded: at most ~10 digits + separator + label strings.
+  final _localCache = <(String, TextStyle), TextPainter>{};
 
   @override
   void initState() {
     super.initState();
-    _remaining = ValueNotifier(Duration.zero);
+    _transitionType = widget.transitionType ?? _defaultTransitionType;
+    _ctrl = AnimationController(vsync: this, duration: motionDuration(widget.duration ?? _defaultDuration))
+      ..addStatusListener((status) {
+        // calendar is two legs (forward then auto-reverse) over the same
+        // duration; slide/flip are a single forward pass — they commit at
+        // `completed` instead of waiting for a `dismissed` that never comes.
+        final isCalendar = _transitionType == CountdownType.calendar;
+        if (isCalendar && status == AnimationStatus.completed) {
+          _model.reversePhase = true;
+          _ctrl.reverse();
+          return;
+        }
+        final isEnd = isCalendar ? status == AnimationStatus.dismissed : status == AnimationStatus.completed;
+        if (isEnd) {
+          if (_model.target != null) _model.committed = _model.target!;
+          _model.target = null;
+          _model.reversePhase = false;
+        }
+      });
+    final r = remainingUntil(widget.to);
+    _showHours = widget.showHours ?? r.inHours >= 1;
+    _model = CardModel(_digitsFor(r, _showHours));
     _start();
   }
 
   void _start() {
     _handle?.cancel();
-    final r = remainingUntil(widget.to);
-    _remaining.value = r;
     _handle = (widget.plugin ?? defaultCountdown).add(CountdownOptions(
-      duration: r,
-      onUpdate: (r) => _remaining.value = r,
-      onDone: widget.onDone,
+      duration: remainingUntil(widget.to),
+      onUpdate: _onTick,
+      onComplete: widget.onComplete,
+      threshold: widget.threshold,
+      onThreshold: widget.onThreshold,
     ));
     widget.controller?.attach(_handle!);
+  }
+
+  List<int> _digitsFor(Duration r, bool showHours) {
+    final units = showHours
+        ? [r.inHours, r.inMinutes % 60, r.inSeconds % 60]
+        : [r.inMinutes % 60, r.inSeconds % 60];
+    return [for (final u in units) ...[u ~/ 10, u % 10]];
+  }
+
+  void _onTick(TimeParts parts) {
+    final remaining = parts.value;
+    _lastRemaining = remaining;
+    final showHours = widget.showHours ?? remaining.inHours >= 1;
+    if (showHours != _showHours) {
+      // Rare event (crossing the 1h boundary): the unit count itself
+      // changes, which needs a real layout pass. Snap instead of animating —
+      // a transition here would need to reconcile two different cell counts
+      // mid-flight, which isn't worth the complexity for a once-per-run edge.
+      setState(() {
+        _showHours = showHours;
+        _model = CardModel(_digitsFor(remaining, showHours));
+      });
+      return;
+    }
+
+    final next = _digitsFor(remaining, _showHours);
+    final changed = List.generate(next.length, (i) => next[i] != _model.committed[i]);
+    if (!changed.contains(true)) return;
+
+    if (_ctrl.isAnimating && _model.target != null) {
+      _model.committed = _model.target!; // finish the previous batch instantly
+    }
+    _model.target = next;
+    _model.changedMask = changed;
+    _model.reversePhase = false;
+    _ctrl.forward(from: 0);
   }
 
   @override
@@ -116,6 +279,11 @@ class _CountdownCardState extends State<CountdownCard> {
     super.didUpdateWidget(old);
     if (widget.to != old.to) {
       widget.controller?.detach();
+      _ctrl.stop();
+      _ctrl.value = 0;
+      final r = remainingUntil(widget.to);
+      _showHours = widget.showHours ?? r.inHours >= 1;
+      _model = CardModel(_digitsFor(r, _showHours));
       _start();
     }
   }
@@ -124,303 +292,166 @@ class _CountdownCardState extends State<CountdownCard> {
   void dispose() {
     widget.controller?.detach();
     _handle?.cancel();
-    _remaining.dispose();
+    _ctrl.dispose();
+    for (final tp in _localCache.values) {
+      tp.dispose(); // release cached native paragraphs
+    }
+    _localCache.clear();
     super.dispose();
   }
 
-  @override
-  Widget build(BuildContext context) {
-    final inner = ValueListenableBuilder<Duration>(
-      valueListenable: _remaining,
-      builder: (_, r, __) => _CardLayout(
-        remaining: r,
-        splitDigits: widget.splitDigits,
-        showHours: widget.showHours,
-        labels: widget.labels,
-        separator: widget.separator,
-        flipDuration: widget.flipDuration,
-        cardWidth: widget.cardWidth,
-        cardHeight: widget.cardHeight,
-        digitGap: widget.digitGap,
-        unitGap: widget.unitGap,
-        cardColor: widget.cardColor,
-        textStyle: widget.textStyle,
-        labelStyle: widget.labelStyle,
-        separatorStyle: widget.separatorStyle,
-      ),
-    );
-    return widget.repaintBoundary ? RepaintBoundary(child: inner) : inner;
-  }
-}
+  CardGeometry _measure({
+    required double cardWidth,
+    required double cardHeight,
+    required double digitGap,
+    required double unitGap,
+    required TextStyle separatorStyle,
+    required TextStyle labelStyle,
+    required Map<(String, TextStyle), TextPainter> sepCache,
+    required Map<(String, TextStyle), TextPainter> labelCache,
+  }) {
+    final unitsCount = _showHours ? 3 : 2;
+    final labelOffset = _showHours ? 0 : 1; // labels are always [hours, minutes, seconds]
+    final sepPainter = sepCache.putIfAbsent(
+        (widget.separator, separatorStyle),
+        () => TextPainter(text: TextSpan(text: widget.separator, style: separatorStyle), textDirection: TextDirection.ltr)
+          ..layout());
 
-// ── Layout ────────────────────────────────────────────────────────────────────
+    var x = 0.0;
+    final cells = <Cell>[];
+    final sepCenters = <double>[];
+    final unitLabelCenters = <double>[];
+    final unitLabelText = <String?>[];
+    var digitIndex = 0;
 
-class _CardLayout extends StatelessWidget {
-  const _CardLayout({
-    required this.remaining,
-    required this.splitDigits,
-    required this.showHours,
-    required this.labels,
-    required this.separator,
-    required this.flipDuration,
-    required this.cardWidth,
-    required this.cardHeight,
-    required this.digitGap,
-    required this.unitGap,
-    required this.cardColor,
-    required this.textStyle,
-    required this.labelStyle,
-    required this.separatorStyle,
-  });
+    for (var u = 0; u < unitsCount; u++) {
+      final unitStart = x;
+      if (widget.splitDigits) {
+        cells.add(Cell(x, cardWidth, digitIndex++, _fullRadius));
+        x += cardWidth + digitGap;
+        cells.add(Cell(x, cardWidth, digitIndex++, _fullRadius));
+        x += cardWidth;
+      } else {
+        final half = cardWidth / 2;
+        cells.add(Cell(x, half, digitIndex++, _leftRadius));
+        x += half;
+        cells.add(Cell(x, half, digitIndex++, _rightRadius));
+        x += half;
+      }
+      unitLabelCenters.add((unitStart + x) / 2);
+      unitLabelText.add(widget.labels?[u + labelOffset]);
 
-  final Duration remaining;
-  final bool splitDigits;
-  final bool? showHours;
-  final List<String>? labels;
-  final String separator;
-  final Duration flipDuration;
-  final double cardWidth;
-  final double cardHeight;
-  final double digitGap;
-  final double unitGap;
-  final Color cardColor;
-  final TextStyle? textStyle;
-  final TextStyle? labelStyle;
-  final TextStyle? separatorStyle;
-
-  bool get _showHours => showHours ?? remaining.inHours >= 1;
-
-  TextStyle get _effectiveText => textStyle ??
-      TextStyle(
-        fontSize: cardHeight * 0.48,
-        fontWeight: FontWeight.bold,
-        color: const Color(0xFFFFFFFF),
-      );
-
-  TextStyle get _effectiveLabel => labelStyle ??
-      TextStyle(
-        fontSize: 11,
-        color: const Color(0xFF9E9E9E),
-        fontWeight: FontWeight.w500,
-        letterSpacing: 0.5,
-      );
-
-  TextStyle get _effectiveSep => separatorStyle ??
-      TextStyle(
-        fontSize: cardHeight * 0.38,
-        fontWeight: FontWeight.bold,
-        color: const Color(0xFF757575),
-      );
-
-  @override
-  Widget build(BuildContext context) {
-    final h = remaining.inHours;
-    final m = remaining.inMinutes % 60;
-    final s = remaining.inSeconds % 60;
-
-    final children = <Widget>[];
-
-    if (_showHours) {
-      children.add(_unit(h, labels?[0]));
-      children.add(_sep());
+      if (u != unitsCount - 1) {
+        x += unitGap;
+        sepCenters.add(x + sepPainter.width / 2);
+        x += sepPainter.width + unitGap;
+      }
     }
-    children.add(_unit(m, labels?[1]));
-    children.add(_sep());
-    children.add(_unit(s, labels?[2]));
 
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      crossAxisAlignment: CrossAxisAlignment.center,
-      children: children,
+    final hasLabels = widget.labels != null;
+    final labelHeight = hasLabels
+        ? labelCache
+            .putIfAbsent(('X', labelStyle),
+                () => TextPainter(text: TextSpan(text: 'X', style: labelStyle), textDirection: TextDirection.ltr)..layout())
+            .height
+        : 0.0;
+    final extraHeight = hasLabels ? 4 + labelHeight : 0.0;
+
+    return CardGeometry(
+      size: Size(x, cardHeight + extraHeight),
+      cells: cells,
+      separatorCenters: sepCenters,
+      unitLabelCenters: unitLabelCenters,
+      unitLabelText: unitLabelText,
     );
   }
 
-  Widget _sep() => Padding(
-        padding: EdgeInsets.symmetric(horizontal: unitGap),
-        child: Text(separator, style: _effectiveSep),
-      );
+  @override
+  Widget build(BuildContext context) {
+    final provider = CountdownCardProvider.of(context);
 
-  Widget _unit(int value, String? label) {
-    final cards = splitDigits
-        ? Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              _digit(value ~/ 10, pad: false),
-              SizedBox(width: digitGap),
-              _digit(value % 10, pad: false),
-            ],
-          )
-        : _digit(value, pad: true);
+    final cardWidth = widget.cardWidth ?? provider?.cardWidth ?? _defaultCardWidth;
+    final cardHeight = widget.cardHeight ?? provider?.cardHeight ?? _defaultCardHeight;
+    final digitGap = widget.digitGap ?? provider?.digitGap ?? _defaultDigitGap;
+    final unitGap = widget.unitGap ?? provider?.unitGap ?? _defaultUnitGap;
+    final cardColor = widget.cardColor ?? provider?.cardColor ?? _defaultCardColor;
+    final duration = widget.duration ?? provider?.duration ?? _defaultDuration;
+    if (_ctrl.duration != duration) _ctrl.duration = duration;
 
-    if (label == null) return cards;
+    _transitionType = widget.transitionType ?? provider?.transitionType ?? _defaultTransitionType;
+    final scaleEffect = widget.scaleEffect ?? provider?.scaleEffect ?? _defaultTranslateEffect;
+    final scaleFactor = widget.scaleFactor ?? provider?.scaleFactor ?? _defaultScaleFactor;
+    final opacityEffect = widget.opacityEffect ?? provider?.opacityEffect ?? _defaultTranslateEffect;
+    final perspective = widget.perspective ?? provider?.perspective ?? _defaultPerspective;
 
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        cards,
-        const SizedBox(height: 4),
-        Text(label, style: _effectiveLabel),
-      ],
+    final textStyle = widget.textStyle ??
+        provider?.textStyle ??
+        TextStyle(fontSize: cardHeight * 0.48, fontWeight: FontWeight.bold, color: const Color(0xFFFFFFFF));
+    final labelStyle = widget.labelStyle ??
+        provider?.labelStyle ??
+        const TextStyle(
+            fontSize: 11, color: Color(0xFF9E9E9E), fontWeight: FontWeight.w500, letterSpacing: 0.5);
+    final separatorStyle = widget.separatorStyle ??
+        provider?.separatorStyle ??
+        TextStyle(fontSize: cardHeight * 0.38, fontWeight: FontWeight.bold, color: const Color(0xFF757575));
+
+    // A style is only shared via the provider's cache when this card is
+    // actually inheriting it (left unset) — an explicit override always
+    // uses this card's own local cache, so it never pollutes the shared one.
+    final digitCache = (widget.textStyle == null && provider != null) ? provider.cache : _localCache;
+    final sepCache = (widget.separatorStyle == null && provider != null) ? provider.cache : _localCache;
+    final labelCache = (widget.labelStyle == null && provider != null) ? provider.cache : _localCache;
+
+    final geom = _measure(
+      cardWidth: cardWidth,
+      cardHeight: cardHeight,
+      digitGap: digitGap,
+      unitGap: unitGap,
+      separatorStyle: separatorStyle,
+      labelStyle: labelStyle,
+      sepCache: sepCache,
+      labelCache: labelCache,
     );
-  }
 
-  Widget _digit(int value, {required bool pad}) => _FlipDigit(
-        value: value,
-        pad: pad,
-        cardWidth: cardWidth,
+    final inner = CustomPaint(
+      size: geom.size,
+      painter: FlipCardPainter(
+        repaint: _ctrl,
+        controller: _ctrl,
+        model: _model,
+        geom: geom,
+        transitionType: _transitionType,
+        scaleEffect: scaleEffect,
+        scaleFactor: scaleFactor,
+        opacityEffect: opacityEffect,
+        perspective: perspective,
         cardHeight: cardHeight,
         cardColor: cardColor,
-        flipDuration: flipDuration,
-        textStyle: _effectiveText,
-      );
-}
-
-// ── Flip digit ────────────────────────────────────────────────────────────────
-
-class _FlipDigit extends StatefulWidget {
-  const _FlipDigit({
-    required this.value,
-    required this.pad,
-    required this.cardWidth,
-    required this.cardHeight,
-    required this.cardColor,
-    required this.flipDuration,
-    required this.textStyle,
-  });
-
-  final int value;
-  final bool pad;
-  final double cardWidth;
-  final double cardHeight;
-  final Color cardColor;
-  final Duration flipDuration;
-  final TextStyle textStyle;
-
-  @override
-  State<_FlipDigit> createState() => _FlipDigitState();
-}
-
-class _FlipDigitState extends State<_FlipDigit>
-    with SingleTickerProviderStateMixin {
-  late final AnimationController _ctrl;
-  int _prev = 0;
-  int _curr = 0;
-
-  @override
-  void initState() {
-    super.initState();
-    _prev = _curr = widget.value;
-    _ctrl = AnimationController(
-      vsync: this,
-      duration: widget.flipDuration,
+        textStyle: textStyle,
+        labelStyle: labelStyle,
+        separatorStyle: separatorStyle,
+        separator: widget.separator,
+        digitCache: digitCache,
+        sepCache: sepCache,
+        labelCache: labelCache,
+      ),
     );
-  }
-
-  @override
-  void didUpdateWidget(_FlipDigit old) {
-    super.didUpdateWidget(old);
-    if (widget.value != old.value) {
-      _prev = old.value;
-      _curr = widget.value;
-      _ctrl.forward(from: 0);
-    }
-  }
-
-  @override
-  void dispose() {
-    _ctrl.dispose();
-    super.dispose();
-  }
-
-  String _fmt(int v) =>
-      widget.pad ? v.toString().padLeft(2, '0') : v.toString();
-
-  // Full card face with text centered.
-  Widget _face(int value) => Container(
-        width: widget.cardWidth,
-        height: widget.cardHeight,
-        decoration: BoxDecoration(
-          color: widget.cardColor,
-          borderRadius: BorderRadius.circular(4),
-        ),
-        child: Center(child: Text(_fmt(value), style: widget.textStyle)),
-      );
-
-  // Top half of a card face (clips lower 50%).
-  Widget _topHalf(int value) => ClipRect(
-        child: Align(
-          alignment: Alignment.topCenter,
-          heightFactor: 0.5,
-          child: _face(value),
-        ),
-      );
-
-  // Bottom half of a card face (clips upper 50%).
-  Widget _bottomHalf(int value) => Align(
-        alignment: Alignment.bottomCenter,
-        child: ClipRect(
-          child: Align(
-            alignment: Alignment.bottomCenter,
-            heightFactor: 0.5,
-            child: _face(value),
-          ),
-        ),
-      );
-
-  @override
-  Widget build(BuildContext context) {
-    return AnimatedBuilder(
-      animation: _ctrl,
-      builder: (_, __) {
-        final t = _ctrl.value;
-
-        // Idle — render static card.
-        if (t == 0 || t == 1) return _face(_curr);
-
-        final inPhase1 = t < 0.5;
-        final t1 = (t * 2).clamp(0.0, 1.0);
-        final t2 = ((t - 0.5) * 2).clamp(0.0, 1.0);
-
-        // Phase 1: old top falls forward  (0 → -π/2)
-        // Phase 2: new top rises from behind (π/2 → 0)
-        final angle = inPhase1
-            ? -(t1 * math.pi / 2)
-            : (1 - t2) * math.pi / 2;
-
-        final staticTopValue = inPhase1 ? _prev : _curr;
-        final animTopValue   = inPhase1 ? _prev : _curr;
-
-        return SizedBox(
-          width: widget.cardWidth,
-          height: widget.cardHeight,
-          child: Stack(
-            children: [
-              // Bottom half always shows new value.
-              _bottomHalf(_curr),
-              // Static top half (provides background for the animated flap).
-              _topHalf(staticTopValue),
-              // Animated flap rotating around the center divider.
-              Transform(
-                alignment: Alignment.bottomCenter,
-                transform: Matrix4.identity()
-                  ..setEntry(3, 2, 0.001) // perspective
-                  ..rotateX(angle),
-                child: _topHalf(animTopValue),
-              ),
-              // Divider line at card center.
-              Positioned(
-                top: widget.cardHeight / 2 - 0.5,
-                left: 0,
-                right: 0,
-                child: ColoredBox(
-                  color: const Color(0x28000000),
-                  child: SizedBox(height: 1, width: widget.cardWidth),
-                ),
-              ),
-            ],
-          ),
-        );
-      },
+    // The card paints digits straight to the canvas, so it has no text node
+    // for a screen reader. Expose the remaining time via Semantics.
+    final semantic = Semantics(
+      container: true,
+      label: 'Countdown',
+      value: CountdownFormat.hms(TimeParts.of(_lastRemaining)),
+      child: inner,
     );
+    return widget.repaintBoundary
+        ? RepaintBoundary(child: semantic)
+        : semantic;
   }
 }
+
+// ── geometry ───────────────────────────────────────────────────────────────────────────
+
+const _fullRadius = BorderRadius.all(Radius.circular(4));
+const _leftRadius = BorderRadius.horizontal(left: Radius.circular(4));
+const _rightRadius = BorderRadius.horizontal(right: Radius.circular(4));

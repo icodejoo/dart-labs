@@ -1,8 +1,10 @@
 import 'package:flutter/widgets.dart';
 import 'package:odometer/odometer.dart' show OdometerNumber, OdometerTransition;
 
-import 'package:countman/src/count_up/plugin.dart';
-import 'package:countman/src/count_up/types.dart';
+import 'package:countman/src/counter/plugin.dart';
+import 'package:countman/src/counter/types.dart';
+
+import 'reduce_motion.dart';
 
 /// A count-up widget that renders each digit with a vertical slide transition,
 /// driven by the shared [Countman] ticker.
@@ -13,16 +15,17 @@ import 'package:countman/src/count_up/types.dart';
 /// Digit count matches the current value with no leading-zero padding.
 ///
 /// ```dart
-/// CountupOdometer(to: 9999)
-/// CountupOdometer(from: 9999, to: 100)  // decreasing — no leading zeros
+/// CounterOdometer(to: 9999)
+/// CounterOdometer(from: 9999, to: 100)  // decreasing — no leading zeros
 /// ```
-class CountupOdometer extends StatefulWidget {
-  const CountupOdometer({
+class CounterOdometer extends StatefulWidget {
+  const CounterOdometer({
     super.key,
     this.from,
     required this.to,
     this.duration = const Duration(milliseconds: 1000),
     this.curve = Curves.easeOut,
+    this.allowNegative = false,
     this.letterWidth = 20,
     this.numberTextStyle,
     this.verticalOffset = 20,
@@ -31,13 +34,17 @@ class CountupOdometer extends StatefulWidget {
     this.suffix,
     this.prefixWidget,
     this.suffixWidget,
-    this.onDone,
+    this.onComplete,
   });
 
   final double? from;
   final double to;
   final Duration duration;
   final Curve curve;
+
+  /// When `false` (default) the value never goes below 0. Set `true` to
+  /// display negative values with a leading minus sign.
+  final bool allowNegative;
 
   /// Fixed width per digit slot — prevents layout jitter when digits change.
   final double letterWidth;
@@ -61,42 +68,51 @@ class CountupOdometer extends StatefulWidget {
   /// Widget placed after the digits. Takes precedence over [suffix].
   final Widget? suffixWidget;
 
-  final void Function(double value)? onDone;
+  final void Function(double value)? onComplete;
 
   @override
-  State<CountupOdometer> createState() => _CountupOdometerState();
+  State<CounterOdometer> createState() => _CounterOdometerState();
 }
 
-class _CountupOdometerState extends State<CountupOdometer> {
+class _CounterOdometerState extends State<CounterOdometer> {
   late final _LiveOdometerAnimation _animation;
   double _currentValue = 0;
-  CountupHandle? _handle;
+  bool _showMinus = false;
+  CounterHandle? _handle;
 
   @override
   void initState() {
     super.initState();
     _currentValue = widget.from ?? 0;
-    _animation = _LiveOdometerAnimation(_fromFloat(_currentValue));
+    _showMinus = widget.allowNegative && _currentValue < 0;
+    _animation = _LiveOdometerAnimation(_odometerOf(_currentValue));
     _startTask(from: _currentValue);
   }
 
+  // Odometer digits are non-negative; negativity is shown via a leading minus.
+  OdometerNumber _odometerOf(double v) =>
+      _fromFloat(widget.allowNegative ? v.abs() : v);
+
   void _startTask({required double from}) {
     _handle?.cancel();
-    _handle = countup(CountupOptions(
+    _handle = counter(CounterOptions(
       from: from,
       to: widget.to,
-      duration: widget.duration,
+      duration: motionDuration(widget.duration),
       curve: widget.curve,
+      allowNegative: widget.allowNegative,
       onUpdate: (v) {
         _currentValue = v;
-        _animation.value = _fromFloat(v);
+        _animation.value = _odometerOf(v);
+        final neg = widget.allowNegative && v < 0;
+        if (neg != _showMinus) setState(() => _showMinus = neg);
       },
-      onDone: (_) => widget.onDone?.call(widget.to),
+      onComplete: (_) => widget.onComplete?.call(widget.to),
     ));
   }
 
   @override
-  void didUpdateWidget(CountupOdometer old) {
+  void didUpdateWidget(CounterOdometer old) {
     super.didUpdateWidget(old);
     if (widget.to != old.to ||
         widget.duration != old.duration ||
@@ -116,8 +132,10 @@ class _CountupOdometerState extends State<CountupOdometer> {
   // Opacity widget triggers saveLayer for every fractional alpha frame.
   // Using color alpha avoids the saveLayer entirely.
   Widget _digit(int value, int place, double opacity, double offsetY) {
-    final style = widget.numberTextStyle ?? const TextStyle();
-    final base = style.color ?? const Color(0xFFFFFFFF);
+    // Inherit the ambient DefaultTextStyle (theme text color etc.) so digits
+    // are visible without an explicit color, instead of defaulting to white.
+    final style = DefaultTextStyle.of(context).style.merge(widget.numberTextStyle);
+    final base = style.color ?? const Color(0xFF000000);
     final color = base.withValues(alpha: (base.a * opacity).clamp(0.0, 1.0));
     Widget child = SizedBox(
       width: widget.letterWidth,
@@ -144,9 +162,17 @@ class _CountupOdometerState extends State<CountupOdometer> {
       transitionOut:(value, place, p) => _digit(value, place, 1.0 - p, vo * p),
     );
 
+    // Leading minus for negative values (only when allowNegative).
+    final Widget numberPart = _showMinus
+        ? Row(mainAxisSize: MainAxisSize.min, children: [
+            Text('-', style: widget.numberTextStyle),
+            digits,
+          ])
+        : digits;
+
     final hasPrefix = widget.prefixWidget != null || widget.prefix != null;
     final hasSuffix = widget.suffixWidget != null || widget.suffix != null;
-    if (!hasPrefix && !hasSuffix) return digits;
+    if (!hasPrefix && !hasSuffix) return numberPart;
 
     return Row(
       mainAxisSize: MainAxisSize.min,
@@ -157,7 +183,7 @@ class _CountupOdometerState extends State<CountupOdometer> {
           widget.prefixWidget!
         else if (widget.prefix != null)
           Text(widget.prefix!, style: widget.numberTextStyle),
-        digits,
+        numberPart,
         if (widget.suffixWidget != null)
           widget.suffixWidget!
         else if (widget.suffix != null)

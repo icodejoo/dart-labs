@@ -97,16 +97,16 @@ class _DigitTestPageState extends State<DigitTestPage> {
                   color: _decreasing ? Colors.red : Colors.green,
                   fontSize: 16, fontWeight: FontWeight.bold)),
           const SizedBox(height: 8),
-          // AnimatedCountup — direction handled automatically inside widget
-          AnimatedCountup(
+          // AnimatedCounter — direction handled automatically inside widget
+          AnimatedCounter(
             value: _value,
             duration: const Duration(seconds: 3),
             thousandSeparator: ',',
             textStyle: _style,
           ),
           const SizedBox(height: 16),
-          // CountupBuilder to tap into raw values
-          CountupBuilder(
+          // CounterBuilder to tap into raw values
+          CounterBuilder(
             to: _value,
             duration: const Duration(seconds: 3),
             onUpdate: _onUpdate,

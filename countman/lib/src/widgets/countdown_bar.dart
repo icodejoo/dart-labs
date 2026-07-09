@@ -1,35 +1,30 @@
 import 'package:flutter/material.dart';
 import 'package:countman/src/count_down/plugin.dart';
 import 'countdown_widget.dart';
-import 'painter/ring_painter.dart';
+import 'painter/bar_painter.dart';
 
-/// A circular arc countdown display. Composes [CountdownWidget].
+/// A linear progress-bar countdown display. Composes [CountdownWidget].
 ///
-/// The ring depletes from full as time elapses.
-/// Progress = remaining / total, where `total` is the initial remaining
-/// duration captured when the timer started.
+/// The bar shrinks from full as time elapses. Progress = remaining / total,
+/// where `total` is the initial remaining duration captured at start. Same
+/// underlying model as [CountdownRing] — pick whichever shape fits.
 ///
 /// [to] accepts [DateTime], [Duration], [int] (ms epoch), or ISO-8601 [String].
 ///
 /// ```dart
-/// CountdownRing(
-///   to: const Duration(minutes: 5),
-///   size: 80,
-///   center: CountdownText(to: const Duration(minutes: 5)),
-/// )
+/// CountdownBar(to: const Duration(minutes: 5), width: 240)
 /// ```
 ///
 /// For large numbers of concurrent instances set [repaintBoundary] = false.
-class CountdownRing extends StatelessWidget {
-  const CountdownRing({
+class CountdownBar extends StatelessWidget {
+  const CountdownBar({
     super.key,
     required this.to,
-    this.size = 80.0,
-    this.strokeWidth = 8.0,
+    this.width = 200.0,
+    this.height = 8.0,
     this.color,
     this.trackColor,
-    this.center,
-    this.clockwise = true,
+    this.borderRadius = const Radius.circular(4),
     this.repaintBoundary = true,
     this.plugin,
     this.controller,
@@ -42,20 +37,15 @@ class CountdownRing extends StatelessWidget {
   /// or ISO-8601 [String].
   final Object to;
 
-  final double size;
-  final double strokeWidth;
+  final double width;
+  final double height;
 
-  /// Arc color. Defaults to the theme's `colorScheme.primary`.
+  /// Fill color. Defaults to the theme's `colorScheme.primary`.
   final Color? color;
 
-  /// Track (background circle) color. Defaults to a muted theme color.
+  /// Track (background) color. Defaults to a muted theme color.
   final Color? trackColor;
-
-  /// Optional widget rendered in the center of the ring.
-  final Widget? center;
-
-  /// Arc direction. True = clockwise (default).
-  final bool clockwise;
+  final Radius borderRadius;
 
   /// Wraps in [RepaintBoundary]. Disable when displaying many instances.
   final bool repaintBoundary;
@@ -74,7 +64,7 @@ class CountdownRing extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
-    final arcColor = color ?? scheme.primary;
+    final fill = color ?? scheme.primary;
     final track = trackColor ?? scheme.onSurface.withValues(alpha: 0.12);
 
     return CountdownWidget(
@@ -86,24 +76,20 @@ class CountdownRing extends StatelessWidget {
       onThreshold: onThreshold,
       builder: (_, p) {
         final progress = p.progress;
-        final ring = Semantics(
+        final bar = Semantics(
           container: true,
           value: '${(progress * 100).round()}%',
           child: CustomPaint(
-            size: Size.square(size),
-            painter: RingPainter(
+            size: Size(width, height),
+            painter: BarPainter(
               progress: progress,
-              color: arcColor,
+              color: fill,
               trackColor: track,
-              strokeWidth: strokeWidth,
-              clockwise: clockwise,
+              borderRadius: borderRadius,
             ),
-            child: center != null
-                ? SizedBox.square(dimension: size, child: Center(child: center))
-                : null,
           ),
         );
-        return repaintBoundary ? RepaintBoundary(child: ring) : ring;
+        return repaintBoundary ? RepaintBoundary(child: bar) : bar;
       },
     );
   }

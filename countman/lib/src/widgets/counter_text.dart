@@ -1,31 +1,33 @@
 import 'package:flutter/widgets.dart';
-import 'countup_builder.dart';
+import 'counter_builder.dart';
 
 /// A [Text]-based count-up widget with optional prefix/suffix.
 ///
 /// Simple usage:
 /// ```dart
-/// CountupText(to: 9999)
-/// CountupText(to: 9999, prefix: '¥', style: TextStyle(fontSize: 32))
-/// CountupText(to: 9999, prefixWidget: Icon(Icons.star), suffix: ' pts')
-/// CountupText(to: 9999, formatter: (v) => v.toStringAsFixed(2))
+/// CounterText(to: 9999)
+/// CounterText(to: 9999, prefix: '¥', style: TextStyle(fontSize: 32))
+/// CounterText(to: 9999, prefixWidget: Icon(Icons.star), suffix: ' pts')
+/// CounterText(to: 9999, formatter: (v) => v.toStringAsFixed(2))
 /// ```
 ///
-/// For custom layouts beyond prefix/suffix, use [CountupBuilder] directly.
-class CountupText extends StatelessWidget {
-  const CountupText({
+/// For custom layouts beyond prefix/suffix, use [CounterBuilder] directly.
+class CounterText extends StatelessWidget {
+  const CounterText({
     super.key,
     this.from,
     required this.to,
     this.duration = const Duration(milliseconds: 1000),
     this.curve = Curves.easeOut,
+    this.allowNegative = false,
     this.formatter,
     this.style,
+    this.semanticsLabel,
     this.prefix,
     this.suffix,
     this.prefixWidget,
     this.suffixWidget,
-    this.onDone,
+    this.onComplete,
   });
 
   final double? from;
@@ -33,11 +35,19 @@ class CountupText extends StatelessWidget {
   final Duration duration;
   final Curve curve;
 
+  /// When `false` (default) the value never goes below 0. Set `true` to
+  /// count through / to negative numbers.
+  final bool allowNegative;
+
   /// Formats the animated value to a display string.
   /// Defaults to `value.toInt().toString()`.
   final String Function(double value)? formatter;
 
   final TextStyle? style;
+
+  /// Fixed screen-reader label. When set, the reader announces this instead of
+  /// the animating number.
+  final String? semanticsLabel;
 
   /// Plain-text prefix, e.g. `'¥'`. Ignored when [prefixWidget] is provided.
   final String? prefix;
@@ -51,7 +61,7 @@ class CountupText extends StatelessWidget {
   /// Widget placed after the number. Takes precedence over [suffix].
   final Widget? suffixWidget;
 
-  final void Function(double value)? onDone;
+  final void Function(double value)? onComplete;
 
   String _format(double value) =>
       formatter != null ? formatter!(value) : value.toInt().toString();
@@ -61,13 +71,15 @@ class CountupText extends StatelessWidget {
     final hasPrefix = prefixWidget != null || prefix != null;
     final hasSuffix = suffixWidget != null || suffix != null;
 
-    final numberWidget = CountupBuilder(
+    final numberWidget = CounterBuilder(
       from: from,
       to: to,
       duration: duration,
       curve: curve,
-      onDone: onDone,
-      builder: (_, value) => Text(_format(value), style: style),
+      allowNegative: allowNegative,
+      onComplete: onComplete,
+      builder: (_, value) =>
+          Text(_format(value), style: style, semanticsLabel: semanticsLabel),
     );
 
     if (!hasPrefix && !hasSuffix) return numberWidget;

@@ -3,15 +3,15 @@
 
 import 'package:flutter/widgets.dart';
 
-/// Programmatic control over a [CountupPlus] widget.
+/// Programmatic control over an [AnimatedCounter] widget.
 ///
-/// Pass to [CountupPlus.controller] and call [animateTo], [jumpTo],
+/// Pass to [AnimatedCounter.controller] and call [animateTo], [jumpTo],
 /// [pause], [resume], [stop], [restart], [repeat], or [reverse].
-class CounterController extends ChangeNotifier {
+class AnimatedCounterController extends ChangeNotifier {
   num _value;
   Duration? _overrideDuration;
 
-  // Internal callbacks wired up by _CountupPlusState — not public API.
+  // Internal callbacks wired up by _AnimatedCounterState — not public API.
   // (Dart has no package-private; these are left without _ to cross file boundaries.)
   VoidCallback? $pauseCallback;
   VoidCallback? $resumeCallback;
@@ -22,7 +22,7 @@ class CounterController extends ChangeNotifier {
   ValueGetter<AnimationStatus>? $statusGetter;
   final List<AnimationStatusListener> $statusListeners = [];
 
-  CounterController({num initialValue = 0}) : _value = initialValue;
+  AnimatedCounterController({num initialValue = 0}) : _value = initialValue;
 
   num get value => _value;
   Duration? get overrideDuration => _overrideDuration;

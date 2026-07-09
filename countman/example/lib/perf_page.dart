@@ -38,39 +38,39 @@ class _PerfPageState extends State<PerfPage> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _group('AnimatedCountup — roll (default)', [
+            _group('AnimatedCounter — roll (default)', [
               for (var i = 0; i < 5; i++)
-                AnimatedCountup(value: _value, duration: _dur, curve: Curves.linear,
+                AnimatedCounter(value: _value, duration: _dur, curve: Curves.linear,
                     thousandSeparator: ',', textStyle: _ts),
             ]),
-            _group('AnimatedCountup — flip', [
+            _group('AnimatedCounter — flip', [
               for (var i = 0; i < 5; i++)
-                AnimatedCountup(value: _value, duration: _dur, curve: Curves.linear,
+                AnimatedCounter(value: _value, duration: _dur, curve: Curves.linear,
                     transitionType: CounterTransitionType.flip,
                     thousandSeparator: ',', textStyle: _ts),
             ]),
-            _group('AnimatedCountup — blur', [
+            _group('AnimatedCounter — blur', [
               for (var i = 0; i < 5; i++)
-                AnimatedCountup(value: _value, duration: _dur, curve: Curves.linear,
+                AnimatedCounter(value: _value, duration: _dur, curve: Curves.linear,
                     transitionType: CounterTransitionType.blur,
                     thousandSeparator: ',', textStyle: _ts),
             ]),
-            _group('AnimatedCountup — stagger', [
+            _group('AnimatedCounter — stagger', [
               for (var i = 0; i < 5; i++)
-                AnimatedCountup(value: _value, duration: _dur, curve: Curves.linear,
+                AnimatedCounter(value: _value, duration: _dur, curve: Curves.linear,
                     staggerDelay: const Duration(milliseconds: 80),
                     thousandSeparator: ',', textStyle: _ts),
             ]),
-            _group('CountupOdometer', [
+            _group('CounterOdometer', [
               for (var i = 0; i < 5; i++)
-                CountupOdometer(to: _value, duration: _dur, curve: Curves.linear,
+                CounterOdometer(to: _value, duration: _dur, curve: Curves.linear,
                     letterWidth: 18, verticalOffset: 24,
                     numberTextStyle: _ts,
                     groupSeparator: Text(',', style: _ts)),
             ]),
-            _group('CountupText', [
+            _group('CounterText', [
               for (var i = 0; i < 5; i++)
-                CountupText(to: _value, duration: _dur, curve: Curves.linear,
+                CounterText(to: _value, duration: _dur, curve: Curves.linear,
                     style: _ts),
             ]),
           ],
