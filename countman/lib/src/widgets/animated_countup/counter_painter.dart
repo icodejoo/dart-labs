@@ -1,4 +1,4 @@
-// Custom painter for CountupPlus digits.
+﻿// Custom painter for CountupPlus digits.
 //
 // Key design: the painter is created ONCE per widget lifetime (in initState)
 // and updated in-place each frame. Combined with the `repaint` Listenable,
@@ -287,3 +287,5 @@ const Map<NumeralSystem, List<String>> _numeralMap = {
   NumeralSystem.devanagari:    ['०','१','२','३','४','५','६','७','८','९'],
   NumeralSystem.bengali:       ['০','১','২','৩','৪','৫','৬','৭','৮','৯'],
 };
+
+

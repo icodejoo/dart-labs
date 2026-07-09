@@ -2,54 +2,69 @@ import 'package:flutter/scheduler.dart';
 
 /// Frame-based batch scheduler for widget animation starts.
 ///
-/// When many widgets start animating simultaneously (e.g. a grid triggered
-/// by one setState), each startup work unit (Handle creation + paragraph
-/// cache cold-start) can easily exceed the 16ms frame budget.
+/// When many widgets start animating simultaneously (e.g. a dense grid
+/// triggered by one setState), each startup work unit can easily exceed the
+/// 16ms frame budget. The scheduler spreads starts across frames.
 ///
-/// Enqueue each start callback with a [batchSize]; the scheduler drains
-/// [batchSize] items per frame via [SchedulerBinding.scheduleFrameCallback],
-/// spreading the cost across multiple frames.
+/// ## Two ways to control batch size
 ///
-/// Always pair [enqueue] with [cancel] in [State.dispose] to remove stale
-/// closures that would otherwise keep the State alive in memory.
-///
-/// Usage:
+/// **1. Global default** — set once before the triggering setState:
 /// ```dart
-/// // In _startAnimation():
-/// StartScheduler.instance.enqueue(
-///   () { if (mounted) _launch(); },
-///   batchSize: widget.batch,
-///   tag: this,          // identity key for cancellation
-/// );
-///
-/// // In dispose():
-/// StartScheduler.instance.cancel(this);
+/// StartScheduler.instance.defaultBatchSize = 5;
+/// setState(() => _target = 999);
 /// ```
+///
+/// **2. Per-group override** — each [Countup] instance can override
+/// for its own tasks:
+/// ```dart
+/// final vipPlugin = Countup();
+/// StartScheduler.instance.groupBatchSize[vipPlugin] = 10;
+/// ```
+///
+/// Resolution order: per-group > global > 0 (run immediately).
+///
+/// Always pair [enqueue] with [cancel] in [State.dispose] to avoid memory
+/// leaks — the closure holds a reference to the State.
 class StartScheduler {
   StartScheduler._();
   static final instance = StartScheduler._();
 
+  /// Global default. 0 = run immediately (no batching).
+  int defaultBatchSize = 0;
+
+  /// Per-group overrides. Key: any object that identifies the group
+  /// (e.g. a [Countup] instance).
+  final Map<Object, int> groupBatchSize = {};
+
   final _queue = <_Item>[];
   bool _scheduled = false;
 
+  /// Resolve effective batch size for [group].
+  /// Priority: groupBatchSize[group] > defaultBatchSize.
+  int batchSizeFor(Object? group) {
+    if (group != null && groupBatchSize.containsKey(group)) {
+      return groupBatchSize[group]!;
+    }
+    return defaultBatchSize;
+  }
+
   /// Enqueue [fn].
   ///
-  /// [batchSize] == 0 runs [fn] immediately without queuing.
-  ///
-  /// [tag] is an identity key used by [cancel]. Pass the owning object
-  /// (typically `this` in a State) so the item can be removed before it runs.
-  void enqueue(void Function() fn, {int batchSize = 0, Object? tag}) {
-    if (batchSize <= 0) {
+  /// [tag] — identity key for [cancel]; pass `this` from the owning State.
+  /// [group] — optional group identity for per-group batch size lookup.
+  void enqueue(void Function() fn, {required Object tag, Object? group}) {
+    final bs = batchSizeFor(group);
+    if (bs <= 0) {
       fn();
       return;
     }
-    _queue.add(_Item(fn, batchSize, tag));
+    _queue.add(_Item(fn, bs, tag));
     _scheduleIfNeeded();
   }
 
   /// Remove all queued items tagged with [owner] before they execute.
   ///
-  /// Call this from [State.dispose] to:
+  /// Call from [State.dispose] to:
   /// - prevent the callback from running on a disposed widget, and
   /// - release the closure's reference to the State so it can be GC'd.
   void cancel(Object owner) {
@@ -66,8 +81,6 @@ class StartScheduler {
     _scheduled = false;
     if (_queue.isEmpty) return;
 
-    // Use the batch size of the first pending item.
-    // In practice, one "wave" (from a single setState) shares the same size.
     final n = _queue.first.batchSize;
     final end = n < _queue.length ? n : _queue.length;
     final batch = _queue.sublist(0, end);
@@ -80,7 +93,7 @@ class StartScheduler {
     _scheduleIfNeeded();
   }
 
-  /// Discard all pending items (e.g. when the owning plugin is destroyed).
+  /// Discard all pending items.
   void clear() {
     _queue.clear();
     _scheduled = false;

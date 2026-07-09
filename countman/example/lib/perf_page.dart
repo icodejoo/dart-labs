@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:countman/countman.dart';
 
 /// Performance test page.
@@ -38,26 +38,26 @@ class _PerfPageState extends State<PerfPage> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _group('CountupPlus — roll (default)', [
+            _group('AnimatedCountup — roll (default)', [
               for (var i = 0; i < 5; i++)
-                CountupPlus(value: _value, duration: _dur, curve: Curves.linear,
+                AnimatedCountup(value: _value, duration: _dur, curve: Curves.linear,
                     thousandSeparator: ',', textStyle: _ts),
             ]),
-            _group('CountupPlus — flip', [
+            _group('AnimatedCountup — flip', [
               for (var i = 0; i < 5; i++)
-                CountupPlus(value: _value, duration: _dur, curve: Curves.linear,
+                AnimatedCountup(value: _value, duration: _dur, curve: Curves.linear,
                     transitionType: CounterTransitionType.flip,
                     thousandSeparator: ',', textStyle: _ts),
             ]),
-            _group('CountupPlus — blur', [
+            _group('AnimatedCountup — blur', [
               for (var i = 0; i < 5; i++)
-                CountupPlus(value: _value, duration: _dur, curve: Curves.linear,
+                AnimatedCountup(value: _value, duration: _dur, curve: Curves.linear,
                     transitionType: CounterTransitionType.blur,
                     thousandSeparator: ',', textStyle: _ts),
             ]),
-            _group('CountupPlus — stagger', [
+            _group('AnimatedCountup — stagger', [
               for (var i = 0; i < 5; i++)
-                CountupPlus(value: _value, duration: _dur, curve: Curves.linear,
+                AnimatedCountup(value: _value, duration: _dur, curve: Curves.linear,
                     staggerDelay: const Duration(milliseconds: 80),
                     thousandSeparator: ',', textStyle: _ts),
             ]),
@@ -101,3 +101,4 @@ class _PerfPageState extends State<PerfPage> {
     ],
   );
 }
+

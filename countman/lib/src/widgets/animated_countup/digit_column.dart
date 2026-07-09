@@ -1,4 +1,4 @@
-// Adapted from flip_counter_plus (MIT).
+﻿// Adapted from flip_counter_plus (MIT).
 // Original: https://github.com/Itsxhadi/flip_counter_plus
 //
 // Change from original:
@@ -252,3 +252,4 @@ class _DigitColumnState extends State<DigitColumn> {
     );
   }
 }
+

@@ -4,7 +4,7 @@
 // Changes from original:
 //   1. Renamed AnimatedFlipCounter 鈫?CountupPlus.
 //   2. Replaced AnimationController (per-instance vsync ticker) with
-//      CountupPlugin driving the shared Countman scheduleFrameCallback.
+//      Countup driving the shared Countman scheduleFrameCallback.
 //      N counters share ONE frame callback instead of N AnimationControllers.
 //   3. Replaced setState(){ _updateCurrentDigitValues() } with
 //      ValueNotifier<int> (_rebuildNotifier) so only the digit Row rebuilds
@@ -32,7 +32,7 @@ export 'types.dart';
 
 // 鈹€鈹€ widget 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
 
-class CountupPlus extends StatefulWidget {
+class AnimatedCountup extends StatefulWidget {
   final num? value;
   final CounterController? controller;
   final Duration duration;
@@ -110,17 +110,8 @@ class CountupPlus extends StatefulWidget {
   /// Default: 100 000. Set to [double.infinity] to disable auto-ease.
   final double autoEaseThreshold;
 
-  /// Maximum number of widget starts processed per frame when many instances
-  /// animate simultaneously. 0 (default) = start immediately (no batching).
-  ///
-  /// Use when a dense grid of [CountupPlus] widgets all animate at once:
-  /// ```dart
-  /// CountupPlus(value: n, batch: 5)  // at most 5 start per frame
-  /// ```
-  /// Each frame takes ≈ batch × 3ms; set batch so total < 16ms (e.g. batch ≤ 5).
-  final int batch;
 
-  const CountupPlus({
+  const AnimatedCountup({
     super.key,
     this.value,
     this.controller,
@@ -190,7 +181,6 @@ class CountupPlus extends StatefulWidget {
     this.onReverse,
     this.repaintBoundary = true,
     this.autoEaseThreshold = 100000,
-    this.batch = 0,
   })  : assert(value != null || controller != null,
             'Either value or controller must be provided'),
         assert(fractionDigits >= 0),
@@ -199,7 +189,7 @@ class CountupPlus extends StatefulWidget {
 
   // 鈹€鈹€ locale factory constructors (unchanged from original) 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
 
-  factory CountupPlus.usd({
+  factory AnimatedCountup.usd({
     Key? key, num? value, CounterController? controller,
     Duration duration = const Duration(milliseconds: 300), Curve curve = Curves.linear,
     TextStyle? textStyle, String? suffix, int fractionDigits = 2, int wholeDigits = 1,
@@ -223,7 +213,7 @@ class CountupPlus extends StatefulWidget {
     String Function(int)? numeralMapper, CounterTransitionType transitionType = CounterTransitionType.roll,
     Duration? reverseDuration, Curve? reverseCurve, Duration? startDelay,
     double speedMultiplier = 1.0, Map<num, String>? compactAbbreviations,
-  }) => CountupPlus(
+  }) => AnimatedCountup(
     key: key, value: value, controller: controller, duration: duration, curve: curve,
     textStyle: textStyle, prefix: r'$', suffix: suffix, fractionDigits: fractionDigits,
     wholeDigits: wholeDigits, hideLeadingZeroes: hideLeadingZeroes,
@@ -245,7 +235,7 @@ class CountupPlus extends StatefulWidget {
     startDelay: startDelay, speedMultiplier: speedMultiplier, compactAbbreviations: compactAbbreviations,
   );
 
-  factory CountupPlus.cny({
+  factory AnimatedCountup.cny({
     Key? key, num? value, CounterController? controller,
     Duration duration = const Duration(milliseconds: 300), Curve curve = Curves.linear,
     TextStyle? textStyle, String? suffix, int fractionDigits = 2, int wholeDigits = 1,
@@ -269,7 +259,7 @@ class CountupPlus extends StatefulWidget {
     String Function(int)? numeralMapper, CounterTransitionType transitionType = CounterTransitionType.roll,
     Duration? reverseDuration, Curve? reverseCurve, Duration? startDelay,
     double speedMultiplier = 1.0, Map<num, String>? compactAbbreviations,
-  }) => CountupPlus(
+  }) => AnimatedCountup(
     key: key, value: value, controller: controller, duration: duration, curve: curve,
     textStyle: textStyle, prefix: '楼', suffix: suffix, fractionDigits: fractionDigits,
     wholeDigits: wholeDigits, hideLeadingZeroes: hideLeadingZeroes,
@@ -291,7 +281,7 @@ class CountupPlus extends StatefulWidget {
     startDelay: startDelay, speedMultiplier: speedMultiplier, compactAbbreviations: compactAbbreviations,
   );
 
-  factory CountupPlus.inr({
+  factory AnimatedCountup.inr({
     Key? key, num? value, CounterController? controller,
     Duration duration = const Duration(milliseconds: 300), Curve curve = Curves.linear,
     TextStyle? textStyle, String? suffix, int fractionDigits = 2, int wholeDigits = 1,
@@ -315,7 +305,7 @@ class CountupPlus extends StatefulWidget {
     String Function(int)? numeralMapper, CounterTransitionType transitionType = CounterTransitionType.roll,
     Duration? reverseDuration, Curve? reverseCurve, Duration? startDelay,
     double speedMultiplier = 1.0, Map<num, String>? compactAbbreviations,
-  }) => CountupPlus(
+  }) => AnimatedCountup(
     key: key, value: value, controller: controller, duration: duration, curve: curve,
     textStyle: textStyle, prefix: '₹', suffix: suffix, fractionDigits: fractionDigits,
     wholeDigits: wholeDigits, hideLeadingZeroes: hideLeadingZeroes,
@@ -338,12 +328,12 @@ class CountupPlus extends StatefulWidget {
   );
 
   @override
-  State<CountupPlus> createState() => _CountupPlusState();
+  State<AnimatedCountup> createState() => _AnimatedCountupState();
 }
 
 // 鈹€鈹€ state 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
 
-class _CountupPlusState extends State<CountupPlus> {
+class _AnimatedCountupState extends State<AnimatedCountup> {
   // 鈹€鈹€ ticker (replaces AnimationController) 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
   CountupHandle? _handle;
   double _currentT = 0.0;
@@ -466,7 +456,7 @@ class _CountupPlusState extends State<CountupPlus> {
   }
 
   @override
-  void didUpdateWidget(CountupPlus oldWidget) {
+  void didUpdateWidget(AnimatedCountup oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.controller != widget.controller) {
       oldWidget.controller?.removeListener(_handleControllerUpdate);
@@ -607,13 +597,11 @@ class _CountupPlusState extends State<CountupPlus> {
       _rebuildNotifier.value++;
       _onAnimStatusChange(AnimationStatus.completed);
     } else {
-      // Batch-schedule the launch when widget.batch > 0, so that many
-      // simultaneous starts (e.g. a dense grid) are spread across frames.
+      // Batch size resolved from StartScheduler.instance (global or per-group).
       StartScheduler.instance.enqueue(
         () { if (mounted) _launchHandle(fromT: 0); },
-        batchSize: widget.batch,
-        tag: this, // identity key — cancelled in dispose()
-      );
+        tag: this,
+      ); // no group — uses defaultBatchSize
     }
   }
 
@@ -1093,5 +1081,7 @@ class _CountupPlusState extends State<CountupPlus> {
     return '$sign${absValue.toStringAsFixed(widget.fractionDigits)}';
   }
 }
+
+
 
 

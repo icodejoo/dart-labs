@@ -1,4 +1,4 @@
----
+﻿---
 name: countman
 description: Work on countman — a high-performance Flutter counter animation library with a shared scheduleFrameCallback ticker. Use when adding features, widgets, fixing bugs, or optimizing this package.
 ---
@@ -46,11 +46,11 @@ No `AnimationController`, no `Timer.periodic`.
 | `lib/src/widgets/countup_builder.dart` | `CountupBuilder` — `StatefulWidget`, `ValueNotifier<double>` + `ValueListenableBuilder` |
 | `lib/src/widgets/countup_text.dart` | `CountupText` — `StatelessWidget` wrapping `CountupBuilder`; prefix/suffix support |
 | `lib/src/widgets/countup_odometer.dart` | `CountupOdometer` — per-digit slide via `OdometerTransition` (odometer pkg); `_fromFloat()` builds `OdometerNumber` directly from raw float |
-| `lib/src/widgets/countup_plus/countup_plus.dart` | `CountupPlus` — full-featured widget (adapted from flip_counter_plus); CustomPainter fast path + widget fallback |
-| `lib/src/widgets/countup_plus/counter_painter.dart` | `CounterPainter` — persistent `CustomPainter`; updated in-place each frame via `update()`; `repaint: Listenable` drives `markNeedsPaint`, not build |
-| `lib/src/widgets/countup_plus/counter_controller.dart` | `CounterController` — `ChangeNotifier`-based programmatic API (`animateTo`, `jumpTo`, `pause`, `resume`, `reverse`, …) |
-| `lib/src/widgets/countup_plus/digit_column.dart` | `DigitColumn` — widget fallback for `blur`/`flip` transition types or when `digitBuilder`/`digitTransitionBuilder` is provided |
-| `lib/src/widgets/countup_plus/types.dart` | `CounterTransitionType`, `StaggerDirection`, `NumeralSystem` enums |
+| `lib/src/widgets/animated_countup/animated_countup.dart` | `AnimatedCountup` — full-featured widget (adapted from flip_counter_plus); CustomPainter fast path + widget fallback |
+| `lib/src/widgets/animated_countup/counter_painter.dart` | `CounterPainter` — persistent `CustomPainter`; updated in-place each frame via `update()`; `repaint: Listenable` drives `markNeedsPaint`, not build |
+| `lib/src/widgets/animated_countup/counter_controller.dart` | `CounterController` — `ChangeNotifier`-based programmatic API (`animateTo`, `jumpTo`, `pause`, `resume`, `reverse`, …) |
+| `lib/src/widgets/animated_countup/digit_column.dart` | `DigitColumn` — widget fallback for `blur`/`flip` transition types or when `digitBuilder`/`digitTransitionBuilder` is provided |
+| `lib/src/widgets/animated_countup/types.dart` | `CounterTransitionType`, `StaggerDirection`, `NumeralSystem` enums |
 
 ---
 
@@ -97,10 +97,10 @@ CountupOdometer(
 )
 ```
 
-### `CountupPlus`
+### `AnimatedCountup`
 
 ```dart
-CountupPlus(
+AnimatedCountup(
   value: 1000000,
   duration: Duration(seconds: 2),
   transitionType: CounterTransitionType.roll,   // roll/fade/scale/fadeScale/rotate/flip/blur
@@ -115,7 +115,7 @@ CountupPlus(
 
 // Programmatic control
 final ctrl = CounterController(initialValue: 0);
-CountupPlus(controller: ctrl, value: 0)
+AnimatedCountup(controller: ctrl, value: 0)
 ctrl.animateTo(9999);
 ctrl.pause();   ctrl.resume();   ctrl.reverse();
 ```
@@ -180,8 +180,8 @@ ctrl.pause();   ctrl.resume();   ctrl.reverse();
 
 - GitHub: https://github.com/Itsxhadi/flip_counter_plus
 - License: MIT
-- Used by: `CountupPlus`
-- Role: `AnimatedFlipCounter` in that package is the origin of `CountupPlus`.
+- Used by: `AnimatedCountup`
+- Role: `AnimatedFlipCounter` in that package is the origin of `AnimatedCountup`.
   Changes made:
   - `AnimationController` → `CountupPlugin` on shared `Countman` ticker.
   - `setState(){}` digit rebuild → persistent `CounterPainter` + `ValueNotifier`
@@ -196,12 +196,12 @@ ctrl.pause();   ctrl.resume();   ctrl.reverse();
 ## Known limitations / gotchas
 
 - **`n % 9 == 0` detection** — targets like 9, 99, 999, 999,999,999 produce
-  degenerate digit patterns (the interpolation stalls at all-9). `CountupPlus`
+  degenerate digit patterns (the interpolation stalls at all-9). `AnimatedCountup`
   detects this and animates to `n - 1/(10^fractionDigits)`, then snaps to `n`
   at `onDone`. `CountupOdometer` and `CountupText` are not affected.
 
 - **`autoEaseThreshold: 100000`** — when `curve == Curves.linear` (the default
-  for `CountupPlus`) and the animated range exceeds this value, `Curves.easeInOut`
+  for `AnimatedCountup`) and the animated range exceeds this value, `Curves.easeInOut`
   is automatically applied internally to prevent large first/last-frame jumps.
   Set `autoEaseThreshold: double.infinity` to disable. Has no effect when an
   explicit non-linear curve is provided.
@@ -212,7 +212,7 @@ ctrl.pause();   ctrl.resume();   ctrl.reverse();
   dominates raster time.
 
 - **`blur` and `flip` transition types** always force the widget slow path
-  in `CountupPlus` (no `CustomPainter` equivalent). Avoid them in large grids.
+  in `AnimatedCountup` (no `CustomPainter` equivalent). Avoid them in large grids.
 
 - **`digitBuilder` / `digitTransitionBuilder`** also force the widget slow
   path. Build cost is ~0.85 ms per digit per frame; acceptable for a handful
@@ -220,3 +220,4 @@ ctrl.pause();   ctrl.resume();   ctrl.reverse();
 
 - **`CountdownPlugin`** is not yet implemented. The `StartScheduler` and
   `CountmanPlugin` interface are designed to accommodate it without changes.
+

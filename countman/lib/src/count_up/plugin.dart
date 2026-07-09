@@ -3,13 +3,13 @@ import 'package:countman/src/core/ticker.dart';
 import 'package:countman/src/core/types.dart';
 import 'types.dart';
 
-/// Returned by [CountupPlugin.add]. Allows the caller to retarget
+/// Returned by [Countup.add]. Allows the caller to retarget
 /// or cancel the animation without holding a reference to the plugin.
 class CountupHandle {
   CountupHandle._(this._id, this._plugin);
 
   final int _id;
-  final CountupPlugin _plugin;
+  final Countup _plugin;
 
   /// Retarget to a new [to] value, continuing from the current position.
   void update({required double to, Duration? duration, Curve? curve}) =>
@@ -18,10 +18,10 @@ class CountupHandle {
   void cancel() => _plugin._cancel(_id);
 }
 
-/// Count-up plugin — drives number interpolation on the shared ticker.
+/// Count-up engine — drives number interpolation on the shared ticker.
 /// Each instance is an independent task queue (= a "group").
-class CountupPlugin implements CountmanPlugin {
-  CountupPlugin({String? name}) : name = name ?? 'countup';
+class Countup implements CountmanPlugin {
+  Countup({String? name}) : name = name ?? 'countup';
 
   @override
   final String name;
@@ -128,11 +128,11 @@ class CountupPlugin implements CountmanPlugin {
 
 // ── default instance + top-level function ─────────────────────────
 
-final _default = CountupPlugin();
+final _default = Countup();
 bool _registered = false;
 
-/// Add a count-up animation using the default shared plugin.
-/// The plugin is auto-registered with [Countman] on first call.
+/// Add a count-up animation using the default shared [Countup] instance.
+/// Auto-registered with [Countman] on first call.
 CountupHandle countup(CountupOptions opts) {
   if (!_registered) {
     _registered = true;
