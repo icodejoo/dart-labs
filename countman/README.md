@@ -4,6 +4,9 @@
 
 [![pub.dev](https://img.shields.io/pub/v/countman.svg)](https://pub.dev/packages/countman)
 [![license](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![Demo](https://img.shields.io/badge/demo-live-brightgreen)](https://icodejoo.github.io/dart-labs/)
+
+**[▶ Live Demo](https://icodejoo.github.io/dart-labs/)** — Counter · Countdown · Elapsed, all widgets, all APIs.
 
 ---
 
@@ -21,8 +24,9 @@ same as adding the first.
 
 ```
 Countman (1 scheduleFrameCallback)
-  └── CountupPlugin (one task queue per group)
-       └── CountupHandle (one per animation)
+  ├── CountupPlugin  — interpolates numbers from → to
+  ├── Countdown      — wall-clock deadline timers (interval-gated)
+  └── Elapsed        — wall-clock elapsed timers (interval-gated)
 ```
 
 ---
@@ -96,6 +100,185 @@ identical.
 > Reproduce with `example/lib/benchmark_page.dart`:
 > `flutter run --profile -d windows --dart-define=BENCH_LIB=countmanCard`
 > (also `slide` / `countmanText` / `stopWatch`).
+
+---
+
+## Countdown
+
+### `CountdownBuilder`
+
+Low-level widget that exposes remaining time via a `builder` callback.
+
+```dart
+// Fixed duration — MM:SS
+CountdownBuilder(
+  duration: const Duration(minutes: 5),
+  builder: (context, parts) => Text(
+    CountdownFormat.ms(parts),
+    style: const TextStyle(fontSize: 32, fontWeight: FontWeight.bold),
+  ),
+)
+
+// Target deadline — accepts DateTime, Duration, int (ms epoch), or ISO-8601 String
+CountdownBuilder(
+  to: DateTime.now().add(const Duration(hours: 2)),
+  builder: (context, parts) => Text(CountdownFormat.hms(parts)),
+)
+```
+
+Key parameters:
+
+| Parameter | Description |
+|---|---|
+| `duration` | Fixed countdown length (mutually exclusive with `to`) |
+| `to` | Deadline — `DateTime`, `Duration`, `int` (ms epoch), or ISO-8601 `String` |
+| `plugin` | Custom `Countdown` instance (default: shared 1 s interval) |
+| `controller` | `CountdownController` for pause / resume / reset |
+| `onComplete` | Called once when remaining reaches zero |
+| `threshold` + `onThreshold` | Fire once when remaining first crosses threshold |
+
+### `CountdownText`
+
+Drop-in text widget. `const`-constructible when `to` is a `Duration`.
+
+```dart
+CountdownText(
+  to: const Duration(minutes: 5),
+  formatter: CountdownFormat.ms,
+  style: const TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
+)
+```
+
+### `CountdownRing`
+
+Arc progress ring that drains from full to empty.
+
+```dart
+CountdownRing(
+  to: const Duration(minutes: 2),
+  size: 100,
+  strokeWidth: 10,
+  color: Colors.blue,
+  trackColor: Colors.blue.withValues(alpha: 0.2),
+  center: const CountdownText(
+    to: Duration(minutes: 2),
+    formatter: CountdownFormat.ms,
+  ),
+)
+```
+
+### `CountdownBar`
+
+Horizontal progress bar.
+
+```dart
+CountdownBar(
+  to: const Duration(minutes: 1),
+  width: 250,
+  height: 10,
+  gradient: const LinearGradient(colors: [Colors.green, Colors.yellow, Colors.red]),
+  borderRadius: const Radius.circular(5),
+)
+```
+
+### `CountdownDial`
+
+Analog clock-face dial. Hand sweeps 60 seconds per revolution.
+
+```dart
+CountdownDial(
+  to: const Duration(seconds: 60),
+  size: 100,
+  builder: (_, rem) => Text(
+    rem.inSeconds.toString(),
+    style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+  ),
+)
+```
+
+### `CountdownCard`
+
+Split-flap / slide / flip card display.
+
+```dart
+CountdownCard(
+  to: const Duration(hours: 1, minutes: 30),
+  transitionType: CountdownType.calendar, // or .slide, .flip
+  splitDigits: true,
+)
+```
+
+### `CountdownFormat`
+
+Built-in `String Function(TimeParts)` formatters:
+
+| Formatter | Example output | Notes |
+|---|---|---|
+| `CountdownFormat.hms` | `01:23:45` | Always shows hours |
+| `CountdownFormat.ms` | `03:07` | Minutes may exceed 59 |
+| `CountdownFormat.msTenths` | `00:09.7` | Tenths of a second |
+| `CountdownFormat.msMillis` | `00:09.327` | Full ms precision — use with `interval: 0` |
+| `CountdownFormat.auto` | adaptive | `hms` ≥1h · `msTenths` <10s · else `ms` |
+
+### Millisecond precision
+
+Set `interval` to the desired update period in milliseconds (`0` = every vsync frame):
+
+```dart
+// Module-level singleton — do NOT create inside initState.
+// Countman.use() silently ignores duplicate names; a second instance created
+// on reset would never receive onAttach and throw LateInitializationError.
+final _msPlugin = Countdown(name: 'ms', interval: 1000 ~/ 60); // ~16 ms = 60 fps
+
+class _MyState extends State<_MyWidget> {
+  @override
+  void initState() {
+    super.initState();
+    Countman.use(_msPlugin); // idempotent — no-op if already registered
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return CountdownBuilder(
+      duration: const Duration(seconds: 10),
+      plugin: _msPlugin,
+      builder: (_, parts) => Text(CountdownFormat.msMillis(parts)),
+    );
+  }
+}
+```
+
+### Imperative control
+
+```dart
+final ctrl = CountdownController();
+
+CountdownBuilder(
+  duration: const Duration(minutes: 2),
+  controller: ctrl,
+  builder: (_, parts) => Text(CountdownFormat.ms(parts)),
+)
+
+ctrl.pause();
+ctrl.resume();
+ctrl.reset();                                    // back to original duration
+ctrl.reset(duration: const Duration(seconds: 30)); // override duration
+```
+
+---
+
+## Elapsed
+
+### `ElapsedText`
+
+Counts up from zero. Same `formatter` / `style` / `controller` API as `CountdownText`.
+
+```dart
+ElapsedText(
+  formatter: CountdownFormat.ms,
+  style: const TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
+)
+```
 
 ---
 

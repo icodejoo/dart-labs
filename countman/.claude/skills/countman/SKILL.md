@@ -1,24 +1,29 @@
 ﻿---
 name: countman
-description: Work on countman — a high-performance Flutter counter animation library with a shared scheduleFrameCallback ticker. Use when adding features, widgets, fixing bugs, or optimizing this package.
+description: Work on countman — a high-performance Flutter counter/countdown/elapsed animation library with a shared scheduleFrameCallback ticker. Use when adding features, widgets, fixing bugs, or optimizing this package.
 ---
 
 # countman
 
 `C:\workspace\dart-labs\countman`: one shared `scheduleFrameCallback` drives all
-count-up animations; rendering is pluggable via `CountmanPlugin` instances.
+animations; engines are pluggable `CountmanPlugin` instances.
 
 ## Architecture
 
 ```
 Countman (static singleton — 1 scheduleFrameCallback)
   └── CountmanPlugin interface (each instance = independent task queue / "group")
-       └── CountupPlugin (drives number interpolation; auto-registered on first countup() call)
-            └── CountupHandle (returned by add(); use update()/cancel() for retarget/cancel)
+       ├── CountupPlugin  — number interpolation; auto-registered via countup()
+       ├── Countdown      — wall-clock deadline timers; interval-gated (default 1 s; 0 = every frame)
+       └── Elapsed        — wall-clock elapsed timers; same interval API
 ```
 
-Widgets talk to `CountupPlugin` via the top-level `countup()` function.
 No `AnimationController`, no `Timer.periodic`.
+
+`Countman.use(plugin)` registers by name — **duplicate names are silently ignored**.
+Create plugins at module level or in long-lived state; never inside `initState` of a
+widget that can be recreated (e.g. after a reset key), or the second instance will
+never receive `onAttach` and throw `LateInitializationError` on first `add()`.
 
 ---
 
@@ -39,6 +44,28 @@ No `AnimationController`, no `Timer.periodic`.
 | `lib/src/count_up/plugin.dart` | `CountupPlugin`, `CountupHandle`, top-level `countup()` |
 | `lib/src/count_up/types.dart` | `CountupOptions`, `CountupTask` (internal mutable state per task) |
 
+### Countdown engine
+
+| File | Role |
+|---|---|
+| `lib/src/count_down/plugin.dart` | `Countdown` (extends `ClockPlugin`), `CountdownHandle`, `CountdownController`, `defaultCountdown`, top-level `countdown()` |
+| `lib/src/count_down/types.dart` | `CountdownOptions`, `CountdownTask`, `CountdownFormat` (hms/ms/msTenths/msMillis/auto), `DurationFormatter`, `resolveDeadline`, `remainingUntil` |
+
+### Elapsed engine
+
+| File | Role |
+|---|---|
+| `lib/src/elapsed/plugin.dart` | `Elapsed` (extends `ClockPlugin`), `ElapsedHandle`, `defaultElapsed`, top-level `elapsed()` |
+| `lib/src/elapsed/types.dart` | `ElapsedOptions`, `ElapsedTask` |
+
+### Shared engine base
+
+| File | Role |
+|---|---|
+| `lib/src/core/plugin_base.dart` | `ClockPlugin<T>` (interval accumulation + `beginFrame`), `TaskQueuePlugin<T>` (task map, concurrency-safe add/remove), `ClockTask`, `CountmanTask` |
+| `lib/src/core/time_parts.dart` | `TimeParts` — reused per-task value object decomposed each tick: `days/hours/minutes/seconds/millis`, `totalSeconds`, `progress`, `value` |
+| `lib/src/core/clock.dart` | `countdownClock` — replaceable `() → DateTime` used by countdown/elapsed; injectable in tests |
+
 ### Widgets
 
 | File | Role |
@@ -51,10 +78,47 @@ No `AnimationController`, no `Timer.periodic`.
 | `lib/src/widgets/animated_countup/counter_controller.dart` | `CounterController` — `ChangeNotifier`-based programmatic API (`animateTo`, `jumpTo`, `pause`, `resume`, `reverse`, …) |
 | `lib/src/widgets/animated_countup/digit_column.dart` | `DigitColumn` — widget fallback for `blur`/`flip` transition types or when `digitBuilder`/`digitTransitionBuilder` is provided |
 | `lib/src/widgets/animated_countup/types.dart` | `CounterTransitionType`, `StaggerDirection`, `NumeralSystem` enums |
+| `lib/src/widgets/countdown_widget.dart` | `CountdownBuilder` — `StatefulWidget`; `ValueNotifier<int>` rev-bump drives rebuild; `_handle?.cancel()` on dispose |
+| `lib/src/widgets/countdown_text.dart` | `CountdownText` — const-constructible countdown text |
+| `lib/src/widgets/countdown_ring.dart` | `CountdownRing` — arc ring using `progress` (dimensionless) |
+| `lib/src/widgets/countdown_bar.dart` | `CountdownBar` — horizontal bar using `progress` |
+| `lib/src/widgets/countdown_dial.dart` | `CountdownDial` — analog 60-second face; rounds to nearest second intentionally |
+| `lib/src/widgets/countdown_card.dart` | `CountdownCard` — split-flap/slide/flip card; wraps `AnimatedCounter` |
+| `lib/src/widgets/elapsed_text.dart` | `ElapsedText` — same API as `CountdownText`, counts up |
+| `lib/src/widgets/providers.dart` | `CountdownProvider` — `InheritedWidget` cascading defaults + group callbacks |
 
 ---
 
 ## Widget API (concise reference)
+
+### Countdown
+
+```dart
+// Basic
+CountdownBuilder(
+  duration: const Duration(minutes: 5),
+  builder: (ctx, parts) => Text(CountdownFormat.ms(parts)),
+)
+
+// Millisecond precision — plugin must be a module-level singleton
+final _msPlugin = Countdown(name: 'ms', interval: 1000 ~/ 60); // ~16 ms
+
+class _State extends State<_Widget> {
+  @override
+  void initState() {
+    super.initState();
+    Countman.use(_msPlugin); // idempotent
+  }
+  @override
+  Widget build(BuildContext context) => CountdownBuilder(
+    duration: const Duration(seconds: 10),
+    plugin: _msPlugin,
+    builder: (_, parts) => Text(CountdownFormat.msMillis(parts)),
+  );
+}
+```
+
+CountdownFormat formatters: `hms` · `ms` · `msTenths` · `msMillis` · `auto`
 
 ### `CountupBuilder`
 
@@ -218,6 +282,10 @@ ctrl.pause();   ctrl.resume();   ctrl.reverse();
   path. Build cost is ~0.85 ms per digit per frame; acceptable for a handful
   of counters, problematic at scale.
 
-- **`CountdownPlugin`** is not yet implemented. The `StartScheduler` and
-  `CountmanPlugin` interface are designed to accommodate it without changes.
+- **`Countdown` plugin singleton pattern** — `Countman.use()` silently ignores
+  duplicate plugin names. If a `Countdown` is created inside `initState` of a
+  widget that gets rebuilt via a reset key, the second instance never receives
+  `onAttach` and `ctx` remains `late`-uninitialized — `add()` throws
+  `LateInitializationError`. Fix: declare the plugin at module or long-lived
+  state level; `Countman.use()` is then safely idempotent.
 

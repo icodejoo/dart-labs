@@ -506,14 +506,14 @@ void main() {
     });
   });
 
-  // ── CountdownWidget ───────────────────────────────────────────────────────
+  // ── CountdownBuilder ───────────────────────────────────────────────────────
 
-  group('CountdownWidget', () {
+  group('CountdownBuilder', () {
     tearDown(Countman.destroy);
 
     testWidgets('renders initial duration on first frame', (t) async {
       await t.pumpWidget(_wrap(
-        CountdownWidget(
+        CountdownBuilder(
           duration: const Duration(minutes: 2),
           builder: (_, r) => Text(CountdownFormat.ms(r)),
         ),
@@ -527,7 +527,7 @@ void main() {
     testWidgets('calls onComplete when countdown reaches zero', (t) async {
       bool done = false;
       await t.pumpWidget(_wrap(
-        CountdownWidget(
+        CountdownBuilder(
           duration: const Duration(seconds: 2),
           onComplete: () => done = true,
           builder: (_, r) => Text('${r.inSeconds}'),
@@ -547,7 +547,7 @@ void main() {
     testWidgets('calls onThreshold once when remaining crosses threshold', (t) async {
       var count = 0;
       await t.pumpWidget(_wrap(
-        CountdownWidget(
+        CountdownBuilder(
           duration: const Duration(seconds: 5),
           threshold: const Duration(seconds: 3),
           onThreshold: () => count++,
@@ -571,7 +571,7 @@ void main() {
 
       await t.pumpWidget(_wrap(StatefulBuilder(builder: (_, s) {
         set = s;
-        return CountdownWidget(
+        return CountdownBuilder(
           duration: currentDuration,
           builder: (_, r) => Text(CountdownFormat.ms(r)),
         );
@@ -591,7 +591,7 @@ void main() {
       final ctrl = CountdownController();
 
       await t.pumpWidget(_wrap(
-        CountdownWidget(
+        CountdownBuilder(
           duration: const Duration(seconds: 10),
           controller: ctrl,
           builder: (_, r) => Text('${r.inSeconds}'),
@@ -619,7 +619,7 @@ void main() {
 
       bool done = false;
       await t.pumpWidget(_wrap(
-        CountdownWidget(
+        CountdownBuilder(
           duration: const Duration(seconds: 2),
           plugin: group,
           onComplete: () => done = true,
@@ -639,7 +639,7 @@ void main() {
     testWidgets('disposes task when widget is removed', (t) async {
       final calls = <TimeParts>[];
       await t.pumpWidget(_wrap(
-        CountdownWidget(
+        CountdownBuilder(
           duration: const Duration(seconds: 10),
           builder: (_, r) { calls.add(r); return const SizedBox(); },
         ),
@@ -772,6 +772,13 @@ void main() {
     test('msTenths', () {
       expect(CountdownFormat.msTenths(
           tp(const Duration(minutes: 1, seconds: 5, milliseconds: 350))), '01:05.3');
+    });
+
+    test('msMillis', () {
+      expect(CountdownFormat.msMillis(
+          tp(const Duration(minutes: 1, seconds: 5, milliseconds: 327))), '01:05.327');
+      expect(CountdownFormat.msMillis(tp(const Duration(seconds: 3, milliseconds: 7))), '00:03.007');
+      expect(CountdownFormat.msMillis(tp(const Duration(milliseconds: 500))), '00:00.500');
     });
 
     test('auto: ≥1h → hms', () {
