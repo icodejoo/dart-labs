@@ -41,6 +41,62 @@ Measured at 94 concurrent `AnimatedCountup` instances (0 → 999,999,999):
 - **Build: ~2 ms** — CustomPainter path skips widget instantiation entirely.
 - **Startup spike** is spread across frames with `batch:`.
 
+### Head-to-head vs other packages
+
+**50 concurrent countdowns**, Windows desktop **profile** mode, 15 s measurement
+window per library, run back-to-back in one session (display at 120 Hz). FPS =
+frames actually rendered ÷ elapsed; UI/raster = per-frame thread time;
+CPU = share of **one** core, sampled externally from the OS process; RSS =
+resident set size. Lower is better except FPS/jank.
+
+*(50 个并发倒计时，Windows 桌面 profile 模式，每库测量 15 s，同一会话依次运行，
+显示器 120 Hz。CPU 为单核占用率，从操作系统进程外部采样。除 FPS/jank 外均越低越好。)*
+
+**Card / slide mode** — countman `CountdownCard(slide)` vs [`slide_countdown`](https://pub.dev/packages/slide_countdown) `^2.0.2`:
+
+| metric | countman `CountdownCard` slide | `slide_countdown` |
+|---|---|---|
+| FPS (frames / 15 s) | **121.7** (1826) | 32.5 (488) |
+| UI ms  avg / p99 | **0.80 / 2.12** | 1.32 / 4.39 |
+| raster ms  avg / p99 | **0.83 / 1.47** | 1.05 / 1.76 |
+| jank frames | 0 | 0 |
+| RSS  avg / peak (MB) | 130.2 / 137.3 | 130.3 / 135.4 |
+| CPU (1 core) | 26.1 % | **10.0 %** |
+
+countman drives the slide+scale+opacity transition **every vsync** (fully
+smooth, cheaper per frame), so it renders far more frames and costs more total
+CPU; `slide_countdown` repaints only during its once-per-second slide bursts —
+lower CPU, but burstier cadence and pricier frames. Both are jank-free and use
+the same memory.
+
+*(countman 每帧驱动滑动+缩放+透明动画，完全顺滑、单帧更便宜，因此帧数更多、总 CPU
+更高；`slide_countdown` 仅在每秒滑动瞬间重绘——CPU 更低，但帧节奏更突发、单帧更贵。
+两者均无卡顿，内存相同。)*
+
+**Text mode** — countman `CountdownText` vs [`stop_watch_timer`](https://pub.dev/packages/stop_watch_timer) `^3.2.2` (driving a `Text` via `StreamBuilder`):
+
+| metric | countman `CountdownText` | `stop_watch_timer` |
+|---|---|---|
+| FPS (frames / 15 s) | 120.9 (1813) | 120.1 (1801) |
+| UI ms  avg / p99 | **0.10 / 0.16** | 0.16 / 0.66 |
+| raster ms  avg / p99 | 0.37 / 0.59 | **0.31 / 0.58** |
+| jank frames | 0 | 0 |
+| RSS  avg / peak (MB) | 113.8 / 116.0 | 113.9 / 116.4 |
+| CPU (1 core) | **12.1 %** | 18.8 % |
+
+For plain-text countdowns the single shared ticker + `markNeedsPaint` costs
+**~35 % less CPU** than 50 independent `stop_watch_timer` streams
+(12.1 % vs 18.8 % of a core) with steadier per-frame UI time; memory is
+identical.
+
+*(纯文本倒计时下，单一共享 ticker + `markNeedsPaint` 比 50 个独立
+`stop_watch_timer` 流省约 35% CPU（单核 12.1% vs 18.8%），单帧 UI 耗时更稳；
+内存相同。)*
+
+> Reproduce with `example/lib/benchmark_page.dart`:
+> `flutter run --profile -d windows --dart-define=BENCH_LIB=countmanCard`
+> (also `slide` / `countmanText` / `stopWatch`).
+
 ---
 
 ## Installation
