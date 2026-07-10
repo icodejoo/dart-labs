@@ -4,6 +4,7 @@ import 'card_demo_page.dart';
 import 'countdown_demo_page.dart';
 import 'digit_test_page.dart';
 import 'perf_page.dart';
+import 'benchmark_page.dart';
 
 void main() => runApp(const DemoApp());
 
@@ -13,13 +14,14 @@ class DemoApp extends StatelessWidget {
   Widget build(BuildContext context) => MaterialApp(
         title: 'Countman Demo',
         theme: ThemeData.dark(useMaterial3: true),
-        initialRoute: '/card',
+        initialRoute: '/bench',
         routes: {
           '/':          (_) => const DemoPage(),
           '/perf':      (_) => const PerfPage(),
           '/digit':     (_) => const DigitTestPage(),
           '/countdown': (_) => const CountdownDemoPage(),
           '/card':      (_) => const CardDemoPage(),
+          '/bench':     (_) => const BenchmarkPage(),
         },
       );
 }
