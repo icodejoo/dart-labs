@@ -37,6 +37,15 @@ abstract final class CountdownFormat {
     return '$m:$s.$f';
   }
 
+  /// mm:ss.SSS — full millisecond precision (e.g. 01:05.327).
+  /// Pair with [defaultCountdownMs] / [countdownMs] for sub-second updates.
+  static String msMillis(TimeParts t) {
+    final m = t.totalMinutes.toString().padLeft(2, '0');
+    final s = t.seconds.toString().padLeft(2, '0');
+    final ms = t.millis.toString().padLeft(3, '0');
+    return '$m:$s.$ms';
+  }
+
   /// Picks the most compact format automatically:
   /// ≥1h → HH:mm:ss, <10s → mm:ss.f, else → mm:ss.
   static String auto(TimeParts t) {
