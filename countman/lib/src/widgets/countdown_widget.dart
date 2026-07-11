@@ -10,7 +10,7 @@ export 'package:countman/src/count_down/types.dart'
 ///
 /// ## Basic usage
 /// ```dart
-/// CountdownWidget(
+/// CountdownBuilder(
 ///   duration: const Duration(minutes: 5),
 ///   builder: (context, remaining) => Text(CountdownFormat.ms(remaining)),
 /// )
@@ -21,7 +21,7 @@ export 'package:countman/src/count_down/types.dart'
 /// ```dart
 /// final _ctrl = CountdownController();
 ///
-/// CountdownWidget(
+/// CountdownBuilder(
 ///   duration: const Duration(minutes: 5),
 ///   controller: _ctrl,
 ///   builder: (context, remaining) => Text(CountdownFormat.ms(remaining)),
@@ -39,10 +39,10 @@ export 'package:countman/src/count_down/types.dart'
 /// final _group = Countdown(name: 'auction');
 /// Countman.use(_group);
 ///
-/// CountdownWidget(duration: ..., plugin: _group, builder: ...)
+/// CountdownBuilder(duration: ..., plugin: _group, builder: ...)
 /// ```
-class CountdownWidget extends StatefulWidget {
-  const CountdownWidget({
+class CountdownBuilder extends StatefulWidget {
+  const CountdownBuilder({
     super.key,
     this.duration,
     this.to,
@@ -98,10 +98,10 @@ class CountdownWidget extends StatefulWidget {
   final VoidCallback? onResume;
 
   @override
-  State<CountdownWidget> createState() => _CountdownWidgetState();
+  State<CountdownBuilder> createState() => _CountdownBuilderState();
 }
 
-class _CountdownWidgetState extends State<CountdownWidget> {
+class _CountdownBuilderState extends State<CountdownBuilder> {
   // Reused instance from the engine's onUpdate (per-task, mutated in place).
   late TimeParts _parts;
   // Bumped each tick to drive a rebuild (TimeParts is reused, so identity
@@ -143,7 +143,7 @@ class _CountdownWidgetState extends State<CountdownWidget> {
   }
 
   @override
-  void didUpdateWidget(CountdownWidget old) {
+  void didUpdateWidget(CountdownBuilder old) {
     super.didUpdateWidget(old);
     if (widget.duration != old.duration ||
         widget.to != old.to ||

@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:countman/countman.dart';
 
 /// Demo page covering every countdown widget and its full API surface:
-/// [CountdownWidget], [CountdownText], [CountdownCard], [CountdownRing],
+/// [CountdownBuilder], [CountdownText], [CountdownCard], [CountdownRing],
 /// [Countdown] (custom groups), [CountdownController], [CountdownFormat].
 class CountdownDemoPage extends StatefulWidget {
   const CountdownDemoPage({super.key});
@@ -31,12 +31,12 @@ class _CountdownDemoPageState extends State<CountdownDemoPage> {
     final now = DateTime.now();
 
     final sections = <Widget>[
-      _Section('CountdownWidget — basic', [
-        _Tile('builder: auto format', CountdownWidget(
+      _Section('CountdownBuilder — basic', [
+        _Tile('builder: auto format', CountdownBuilder(
           duration: _kMed,
           builder: (_, r) => Text(CountdownFormat.auto(r), style: _ts),
         )),
-        _Tile('builder: progress bar', CountdownWidget(
+        _Tile('builder: progress bar', CountdownBuilder(
           duration: _kMed,
           builder: (_, r) => Column(mainAxisSize: MainAxisSize.min, children: [
             Text(CountdownFormat.ms(r), style: _ts),
@@ -52,21 +52,21 @@ class _CountdownDemoPageState extends State<CountdownDemoPage> {
           ]),
         )),
       ]),
-      _Section('CountdownWidget — onComplete / plugin (custom group)', [
-        _Tile('onComplete (8s)', _DoneBadge(builder: (onComplete) => CountdownWidget(
+      _Section('CountdownBuilder — onComplete / plugin (custom group)', [
+        _Tile('onComplete (8s)', _DoneBadge(builder: (onComplete) => CountdownBuilder(
           duration: _kShort,
           onComplete: onComplete,
           builder: (_, r) => Text(CountdownFormat.msTenths(r), style: _ts),
         ))),
-        _Tile('plugin: Countdown(interval:100)', CountdownWidget(
+        _Tile('plugin: Countdown(interval:100)', CountdownBuilder(
           duration: _kShort,
           plugin: _fastGroup,
           builder: (_, r) => Text(CountdownFormat.msTenths(r), style: _ts),
         )),
       ]),
-      _Section('CountdownWidget — controller', [
+      _Section('CountdownBuilder — controller', [
         _Tile('pause / resume / reset / cancel', _ControllerDemo(
-          builder: (ctrl) => CountdownWidget(
+          builder: (ctrl) => CountdownBuilder(
             duration: _kMed,
             controller: ctrl,
             builder: (_, r) => Text(CountdownFormat.ms(r), style: _ts),

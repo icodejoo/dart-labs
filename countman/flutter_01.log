@@ -1,0 +1,71 @@
+Flutter crash report.
+Please report a bug at https://github.com/flutter/flutter/issues.
+
+## command
+
+flutter test
+
+## exception
+
+StateError: Bad state: LiveTest.run() may not be called for a closed test.
+
+```
+#0      LiveTestController.run (package:test_api/src/backend/live_test_controller.dart:154:7)
+#1      new Future.microtask.<anonymous closure> (dart:async/future.dart:287:40)
+#2      _rootRun (dart:async/zone_root.dart:27:47)
+#3      _CustomZone.run (dart:async/zone.dart:726:19)
+#4      _CustomZone.runGuarded (dart:async/zone.dart:625:7)
+#5      _CustomZone.bindCallbackGuarded.<anonymous closure> (dart:async/zone.dart:666:23)
+#6      _rootRun (dart:async/zone_root.dart:35:13)
+#7      _CustomZone.run (dart:async/zone.dart:726:19)
+#8      _CustomZone.runGuarded (dart:async/zone.dart:625:7)
+#9      _CustomZone.bindCallbackGuarded.<anonymous closure> (dart:async/zone.dart:666:23)
+#10     _microtaskLoop (dart:async/schedule_microtask.dart:40:35)
+#11     _startMicrotaskLoop (dart:async/schedule_microtask.dart:49:5)
+#12     _runPendingImmediateCallback (dart:isolate-patch/isolate_patch.dart:127:13)
+#13     _RawReceivePort._handleMessage (dart:isolate-patch/isolate_patch.dart:193:5)
+```
+
+## flutter doctor
+
+```
+[✓] Flutter (Channel stable, 3.44.3, on Microsoft Windows [版本 10.0.19045.6456], locale zh-CN) [579ms]
+    • Flutter version 3.44.3 on channel stable at C:\sdk\flutter
+    • Upstream repository https://github.com/flutter/flutter.git
+    • Framework revision e1fd963c6f (3 weeks ago), 2026-06-18 14:59:18 -0700
+    • Engine revision a4ce257c68
+    • Dart version 3.12.2
+    • DevTools version 2.57.0
+    • Feature flags: enable-web, enable-linux-desktop, enable-macos-desktop, enable-windows-desktop, enable-android, enable-ios, cli-animations, enable-native-assets, enable-swift-package-manager, omit-legacy-version-file, enable-lldb-debugging, enable-uiscene-migration
+
+[✓] Windows Version (10 Pro 64-bit, 22H2, 2009) [5.1s]
+
+[✓] Android toolchain - develop for Android devices (Android SDK version 36.0.0) [4.2s]
+    • Android SDK at C:\sdk\android
+    • Emulator version 36.1.9.0 (build_id 13823996) (CL:N/A)
+    • Platform android-36, build-tools 36.0.0
+    • ANDROID_HOME = C:\sdk\android
+    • Java binary at: C:\sdk\jdk\openjdk-21.0.5+11\bin\java
+      This JDK is specified in your Flutter configuration.
+      To change the current JDK, run: `flutter config --jdk-dir="path/to/jdk"`.
+    • Java version OpenJDK Runtime Environment OpenLogic-OpenJDK (build 21.0.5+11-adhoc.Administrator.jdk21u)
+    • All Android licenses accepted.
+
+[✓] Chrome - develop for the web [248ms]
+    • Chrome at C:\Program Files\Google\Chrome\Application\chrome.exe
+
+[✓] Visual Studio - develop Windows apps (Visual Studio 生成工具 2022 17.14.35 (June 2026)) [246ms]
+    • Visual Studio at C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools
+    • Visual Studio 生成工具 2022 version 17.14.37411.7
+    • Windows 10 SDK version 10.0.26100.0
+
+[✓] Connected device (3 available) [537ms]
+    • Windows (desktop) • windows • windows-x64    • Microsoft Windows [版本 10.0.19045.6456]
+    • Chrome (web)      • chrome  • web-javascript • Google Chrome 150.0.7871.100
+    • Edge (web)        • edge    • web-javascript • Microsoft Edge 149.0.4022.69
+
+[✓] Network resources [1,797ms]
+    • All expected network resources are available.
+
+• No issues found!
+```

@@ -40,13 +40,15 @@ typedef CounterPainterBuilder = CounterPainter Function({
   required NumeralSystem numeralSystem,
   String Function(int)? numeralMapper,
   String? thousandSeparator,
+  String decimalSeparator,
   TextStyle? separatorStyle,
   EdgeInsets padding,
+  double numberAlignment,
 });
 
 class CounterPainter extends CustomPainter {
   CounterPainter({
-    required Listenable repaint, // ← drives markNeedsPaint, NOT build
+    required Listenable repaint,
     required List<double> digitValues,
     required this.style,
     required this.digitSize,
@@ -59,8 +61,10 @@ class CounterPainter extends CustomPainter {
     required this.numeralSystem,
     this.numeralMapper,
     this.thousandSeparator,
+    this.decimalSeparator = '.',
     this.separatorStyle,
     this.padding = EdgeInsets.zero,
+    this.numberAlignment = 0.0,
   })  : _digitValues = List<double>.of(digitValues),
         _increasing = increasing,
         color = style.color ?? const Color(0xFFFFFFFF),
@@ -69,12 +73,14 @@ class CounterPainter extends CustomPainter {
   // ── mutable state updated each frame ──────────────────────────────────────
   List<double> _digitValues;
   bool _increasing;
+  /// Alpha multiplier applied to the incoming (nxt) digit during transitions.
+  /// Set to < 1.0 during bounce so the overshoot digit is semi-transparent.
+  double _bounceAlpha = 1.0;
 
-  /// Update digit values and increasing direction.
-  /// Called from onUpdate; the caller is responsible for triggering repaint.
-  void update(List<double> values, bool increasing) {
-    _digitValues = values;
-    _increasing = increasing;
+  void update(List<double> values, bool increasing, {double bounceAlpha = 1.0}) {
+    _digitValues   = values;
+    _increasing    = increasing;
+    _bounceAlpha   = bounceAlpha;
   }
 
   List<double> get digitValues => _digitValues;
@@ -91,20 +97,18 @@ class CounterPainter extends CustomPainter {
   final NumeralSystem numeralSystem;
   final String Function(int)? numeralMapper;
   final String? thousandSeparator;
+  final String decimalSeparator;
   final TextStyle? separatorStyle;
   final EdgeInsets padding;
+  /// Horizontal alignment of visible digits within the stable SizedBox.
+  /// -1.0 = left, 0.0 = center (default), 1.0 = right.
+  final double numberAlignment;
   final Color color;
 
   // ── paragraph cache ────────────────────────────────────────────────────────
-  // Key: digit * 256 + alpha_byte → Paragraph (pre-laid-out)
-  // Survives across frames because the painter is long-lived.
   final Map<int, ui.Paragraph> _cache = {};
 
   /// Builds (or reuses) a laid-out [ui.Paragraph] for [digit] at [alpha].
-  /// Every transition method below draws through this — override it if a
-  /// custom transition needs different paragraph styling, or call it
-  /// directly from a subclass's own transition method to get the same
-  /// per-frame caching for free.
   ui.Paragraph paragraphFor(int digit, double alpha) {
     final key = digit * 256 + (alpha * 255).round().clamp(0, 255);
     return _cache.putIfAbsent(key, () {
@@ -135,43 +139,71 @@ class CounterPainter extends CustomPainter {
   // ── layout ─────────────────────────────────────────────────────────────────
 
   /// Computes each visible digit column's x-offset, skipping hidden leading
-  /// zeroes and leaving room for thousand separators. Override to change
-  /// column spacing/ordering.
+  /// zeroes and leaving room for thousand and decimal separators.
   List<DigitColumnLayout> buildColumns() {
-    final n = digitValues.length;
-    final dw = digitSize.width + padding.horizontal;
-    final sw = separatorWidth();
-    double x = 0;
+    final n   = digitValues.length;
+    final dw  = digitSize.width + padding.horizontal;
+    final sw  = separatorWidth();
+    final dsw = decimalSeparatorWidth();
+    double x  = 0;
 
     int firstVisible = 0;
     if (hideLeadingZeroes) {
-      // Use round() to match the widget-path visibility rule.
-      // truncate() + fractional threshold was causing all digits to appear
-      // immediately (e.g. v=0.014 has frac > 0.01 → shown at 1.4% progress).
       firstVisible = _digitValues.indexWhere((v) => v.round() != 0);
       if (firstVisible == -1) firstVisible = n - 1;
     }
 
     final cols = <DigitColumnLayout>[];
     for (int i = 0; i < n; i++) {
-      final intPos = i - fractionDigits;
+      final intPos    = i - fractionDigits;
       final fromRight = n - fractionDigits - 1 - intPos;
       if (hideLeadingZeroes && i < firstVisible) continue;
 
-      if (thousandSeparator != null &&
+      // Reserve space for decimal separator before the first fraction digit.
+      if (fractionDigits > 0 && i == n - fractionDigits) x += dsw;
+
+      final bool addSep = thousandSeparator != null &&
           intPos >= 0 &&
-          fromRight > 0 &&
-          fromRight % groupSizeAt(fromRight) == 0) {
-        x += sw;
-      }
-      cols.add(DigitColumnLayout(index: i, x: x, fromRight: fromRight));
+          cols.isNotEmpty &&
+          (fromRight + 1) % groupSizeAt(fromRight + 1) == 0;
+      if (addSep) x += sw;
+      cols.add(DigitColumnLayout(index: i, x: x, fromRight: fromRight, hasSeparator: addSep));
       x += dw;
     }
     return cols;
   }
 
-  /// Resolves the grouping size (e.g. 3 for thousands) applicable at a given
-  /// distance from the right for [groupingPattern]-aware separators.
+  /// Returns the total rendered width of all digit columns plus separators,
+  /// respecting [hideLeadingZeroes] (variable — use [computeFullWidth] for
+  /// a stable SizedBox size that doesn't shrink during animation).
+  double computeTotalWidth() {
+    final cols = buildColumns();
+    if (cols.isEmpty) return 0;
+    return cols.last.x + digitSize.width + padding.horizontal;
+  }
+
+  /// Width for ALL [n] digit columns regardless of leading-zero visibility.
+  /// Call this in the host widget's build() to get a stable SizedBox size
+  /// that doesn't change as digits transition from leading-zero to non-zero.
+  double computeFullWidth() {
+    final n   = digitValues.length;
+    final dw  = digitSize.width + padding.horizontal;
+    final sw  = separatorWidth();
+    final dsw = decimalSeparatorWidth();
+    double x  = 0;
+    for (int i = 0; i < n; i++) {
+      final intPos    = i - fractionDigits;
+      final fromRight = n - fractionDigits - 1 - intPos;
+      if (fractionDigits > 0 && i == n - fractionDigits) x += dsw;
+      if (thousandSeparator != null && intPos >= 0 && i > 0 &&
+          (fromRight + 1) % groupSizeAt(fromRight + 1) == 0) {
+        x += sw;
+      }
+      x += dw;
+    }
+    return x;
+  }
+
   int groupSizeAt(int fromRight) {
     int acc = 0;
     for (int gi = groupingPattern.length - 1; gi >= 0; gi--) {
@@ -182,14 +214,7 @@ class CounterPainter extends CustomPainter {
   }
 
   double? _separatorWidthCache;
-
-  /// Measures [thousandSeparator]'s rendered width, or 0 if unset.
-  /// Memoized: the inputs ([thousandSeparator]/[separatorStyle]/[style]) are
-  /// immutable for the painter's lifetime, but this is called several times
-  /// per `paint()` — measuring once and caching avoids repeated paragraph
-  /// layout on the hot path. Override still supported (recompute + cache).
   double separatorWidth() => _separatorWidthCache ??= _measureSeparator();
-
   double _measureSeparator() {
     if (thousandSeparator == null) return 0;
     final st = separatorStyle ?? style;
@@ -204,18 +229,53 @@ class CounterPainter extends CustomPainter {
     return w;
   }
 
+  double? _decimalSepWidthCache;
+  double decimalSeparatorWidth() {
+    if (fractionDigits == 0) return 0;
+    return _decimalSepWidthCache ??= _measureDecimalSep();
+  }
+  double _measureDecimalSep() {
+    final st = separatorStyle ?? style;
+    final pb = ui.ParagraphBuilder(
+      ui.ParagraphStyle(fontSize: st.fontSize, fontFamily: st.fontFamily),
+    )
+      ..pushStyle(ui.TextStyle(color: st.color ?? color, fontSize: st.fontSize, fontFamily: st.fontFamily))
+      ..addText(decimalSeparator);
+    final p = pb.build()..layout(const ui.ParagraphConstraints(width: 200));
+    final w = p.maxIntrinsicWidth;
+    p.dispose();
+    return w;
+  }
+
   // ── paint ──────────────────────────────────────────────────────────────────
 
   @override
   void paint(Canvas canvas, Size size) {
     final cols = buildColumns();
-    final dh = digitSize.height + padding.vertical;
-    final dw = digitSize.width + padding.horizontal;
+    final dh  = digitSize.height + padding.vertical;
+    final dw  = digitSize.width  + padding.horizontal;
+    final dsw = decimalSeparatorWidth();
+
+    // Align visible content within the stable full-width SizedBox.
+    // contentWidth is the actual rendered width; size.width is computeFullWidth().
+    if (cols.isNotEmpty && hideLeadingZeroes) {
+      final contentWidth = cols.last.x + dw;
+      final gap = size.width - contentWidth;
+      if (gap > 0) {
+        // numberAlignment: -1=left(no shift), 0=center, 1=right(full shift)
+        canvas.translate(gap * (numberAlignment + 1) / 2, 0);
+      }
+    }
 
     for (final col in cols) {
-      final v = _digitValues[col.index];
+      // Draw decimal separator immediately before the first fraction digit.
+      if (fractionDigits > 0 && col.index == _digitValues.length - fractionDigits) {
+        drawDecimalSeparator(canvas, col.x - dsw, dh);
+      }
+
+      final v   = _digitValues[col.index];
       final cur = v.truncate() % 10;
-      final p = (v - v.truncate()).clamp(0.0, 1.0);
+      final p   = (v - v.truncate()).clamp(0.0, 1.0);
       final nxt = _increasing ? (cur + 1) % 10 : (cur - 1 + 10) % 10;
 
       canvas.save();
@@ -223,17 +283,12 @@ class CounterPainter extends CustomPainter {
       paintTransition(canvas, cur, nxt, p, col.x, dh, dw);
       canvas.restore();
 
-      if (thousandSeparator != null &&
-          col.fromRight > 0 &&
-          col.fromRight % groupSizeAt(col.fromRight) == 0) {
+      if (col.hasSeparator) {
         drawSeparator(canvas, col.x - separatorWidth(), dh);
       }
     }
   }
 
-  /// Dispatches to the transition method matching [transitionType]. Override
-  /// this single method to swap in different drawing for one or all
-  /// transition types.
   void paintTransition(Canvas canvas, int cur, int nxt, double p, double x, double h, double w) {
     switch (transitionType) {
       case CounterTransitionType.roll:      roll(canvas, cur, nxt, p, x, h);
@@ -242,15 +297,26 @@ class CounterPainter extends CustomPainter {
       case CounterTransitionType.fadeScale: scale(canvas, cur, nxt, p, x, h, w, true);
       case CounterTransitionType.rotate:    rotate(canvas, cur, nxt, p, x, h, w);
       case CounterTransitionType.flip:      flip(canvas, cur, nxt, p, x, h, w);
-      case CounterTransitionType.blur:      roll(canvas, cur, nxt, p, x, h);
+      case CounterTransitionType.blur:      blur(canvas, cur, nxt, p, x, h, w);
     }
   }
 
-  /// Vertical centering offset for a paragraph within a column of height [h].
+  void blur(Canvas c, int cur, int nxt, double p, double x, double h, double w) {
+    final sigma = (0.5 - (p - 0.5).abs()) * 8.0;
+    if (sigma < 0.1) {
+      roll(c, cur, nxt, p, x, h);
+    } else {
+      c.saveLayer(
+        Rect.fromLTWH(x, 0, w, h),
+        Paint()..imageFilter = ui.ImageFilter.blur(sigmaX: sigma, sigmaY: sigma),
+      );
+      roll(c, cur, nxt, p, x, h);
+      c.restore();
+    }
+  }
+
   double topY(double h) => (h - digitSize.height) / 2;
 
-  /// Sign of the roll exit direction, accounting for [flipDirection] and
-  /// [increasing].
   double exitDirection() {
     final base = (flipDirection == AxisDirection.up || flipDirection == AxisDirection.right) ? -1.0 : 1.0;
     return _increasing ? base : -base;
@@ -259,13 +325,13 @@ class CounterPainter extends CustomPainter {
   void roll(Canvas c, int cur, int nxt, double p, double x, double h) {
     final d = exitDirection();
     c.drawParagraph(paragraphFor(cur, 1 - p), Offset(x, topY(h) + p * h * d));
-    c.drawParagraph(paragraphFor(nxt, p), Offset(x, topY(h) + (p - 1) * h * d));
+    c.drawParagraph(paragraphFor(nxt, p * _bounceAlpha), Offset(x, topY(h) + (p - 1) * h * d));
   }
 
   void fade(Canvas c, int cur, int nxt, double p, double x, double h) {
     final y = topY(h);
     c.drawParagraph(paragraphFor(cur, 1 - p), Offset(x, y));
-    c.drawParagraph(paragraphFor(nxt, p), Offset(x, y));
+    c.drawParagraph(paragraphFor(nxt, p * _bounceAlpha), Offset(x, y));
   }
 
   void scale(Canvas c, int cur, int nxt, double p, double x, double h, double w, bool isFadeScale) {
@@ -303,11 +369,6 @@ class CounterPainter extends CustomPainter {
     c.restore();
   }
 
-  // Single-plane 3D flip — ported from digit_column.dart's flip case (which
-  // still handles digitBuilder/digitTransitionBuilder, where arbitrary
-  // widgets can't be paragraph-cached). Same two-phase rotateX math, just
-  // driven off dt/dp Canvas transforms instead of a Transform widget, so it
-  // no longer forces the widget-tree slow path.
   void flip(Canvas c, int cur, int nxt, double p, double x, double h, double w) {
     final cx = x + w / 2;
     final cy = h / 2;
@@ -324,10 +385,9 @@ class CounterPainter extends CustomPainter {
     });
   }
 
-  ui.Paragraph? _separatorParagraphCache;
+  // ── separator drawing ──────────────────────────────────────────────────────
 
-  /// The laid-out separator paragraph, built once and reused across frames
-  /// (drawing a paragraph is read-only). Rebuilt only after [disposeCache].
+  ui.Paragraph? _separatorParagraphCache;
   ui.Paragraph _separatorParagraph() {
     return _separatorParagraphCache ??= () {
       final st = separatorStyle ?? style;
@@ -344,28 +404,48 @@ class CounterPainter extends CustomPainter {
     c.drawParagraph(_separatorParagraph(), Offset(x, topY(h)));
   }
 
-  /// Disposes all cached native [ui.Paragraph]s. Call when this painter is
-  /// replaced (e.g. on a style/transition config change) so the paragraphs
-  /// don't wait for GC finalization.
+  ui.Paragraph? _decimalSepParagraphCache;
+  ui.Paragraph _decimalSeparatorParagraph() {
+    return _decimalSepParagraphCache ??= () {
+      final st = separatorStyle ?? style;
+      final pb = ui.ParagraphBuilder(
+        ui.ParagraphStyle(fontSize: st.fontSize, fontFamily: st.fontFamily),
+      )
+        ..pushStyle(ui.TextStyle(color: st.color ?? color, fontSize: st.fontSize, fontFamily: st.fontFamily))
+        ..addText(decimalSeparator);
+      return pb.build()..layout(ui.ParagraphConstraints(width: decimalSeparatorWidth() + 4));
+    }();
+  }
+
+  void drawDecimalSeparator(Canvas c, double x, double h) {
+    if (fractionDigits == 0) return;
+    c.drawParagraph(_decimalSeparatorParagraph(), Offset(x, topY(h)));
+  }
+
+  /// Disposes all cached native [ui.Paragraph]s.
   void disposeCache() {
-    for (final p in _cache.values) {
-      p.dispose();
-    }
+    for (final p in _cache.values) { p.dispose(); }
     _cache.clear();
     _separatorParagraphCache?.dispose();
     _separatorParagraphCache = null;
+    _decimalSepParagraphCache?.dispose();
+    _decimalSepParagraphCache = null;
   }
 
-  // shouldRepaint is not called when repaint is driven by the Listenable.
-  // Return false to avoid unnecessary repaints on widget config changes
-  // (those recreate the painter entirely via didUpdateWidget).
   @override
   bool shouldRepaint(CounterPainter old) => false;
 }
 
 class DigitColumnLayout {
-  const DigitColumnLayout({required this.index, required this.x, required this.fromRight});
+  const DigitColumnLayout({
+    required this.index,
+    required this.x,
+    required this.fromRight,
+    this.hasSeparator = false,
+  });
   final int index;
   final double x;
   final int fromRight;
+  /// True when a thousand-separator was placed immediately before this column.
+  final bool hasSeparator;
 }
