@@ -122,7 +122,8 @@ void main() {
           required repaint, required digitValues, required style, required digitSize,
           required transitionType, required flipDirection, required increasing,
           required fractionDigits, required groupingPattern, required hideLeadingZeroes,
-          required numeralSystem, numeralMapper, thousandSeparator, separatorStyle,
+          required numeralSystem, numeralMapper, thousandSeparator,
+          decimalSeparator = '.', separatorStyle,
           padding = EdgeInsets.zero,
         }) {
           builderCalled = true;
@@ -132,7 +133,7 @@ void main() {
             fractionDigits: fractionDigits, groupingPattern: groupingPattern,
             hideLeadingZeroes: hideLeadingZeroes, numeralSystem: numeralSystem,
             numeralMapper: numeralMapper, thousandSeparator: thousandSeparator,
-            separatorStyle: separatorStyle, padding: padding,
+            decimalSeparator: decimalSeparator, separatorStyle: separatorStyle, padding: padding,
           );
         },
       )));

@@ -66,7 +66,7 @@ class _PerfPageState extends State<PerfPage> {
                 CounterOdometer(to: _value, duration: _dur, curve: Curves.linear,
                     letterWidth: 18, verticalOffset: 24,
                     numberTextStyle: _ts,
-                    groupSeparator: Text(',', style: _ts)),
+                    groupSeparator: ','),
             ]),
             _group('CounterText', [
               for (var i = 0; i < 5; i++)

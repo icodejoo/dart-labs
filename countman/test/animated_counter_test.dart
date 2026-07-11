@@ -3,18 +3,16 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:countman/countman.dart';
 import 'package:countman/src/widgets/animated_counter/digit_column.dart' show DigitColumn;
 
-// AnimatedCounter had no test coverage before this file. These tests focus
-// on what changed here: CounterTransitionType.flip now renders via the
-// CustomPainter fast path (CounterPainter._flip, a Canvas rotateX
-// perspective transform) instead of always forcing the DigitColumn widget
-// fallback. digit_column.dart's flip case is still exercised — and still
-// needed — whenever digitBuilder/digitTransitionBuilder is supplied, since
-// those return arbitrary widgets that can't be paragraph-cached on Canvas.
+// AnimatedCounter (painter-only fast path) and CustomDigitCounter (widget-tree
+// path) tests.
 //
-// AnimatedCounter only animates on a VALUE CHANGE (didUpdateWidget) — it
-// displays the initial `value` directly on mount with no transition. So
-// every test that wants to exercise a transition mounts at one value, then
-// changes it via setState.
+// AnimatedCounter uses CounterPainter for all transitions — zero widget builds
+// per frame. CustomDigitCounter is needed when digitBuilder /
+// digitTransitionBuilder supply arbitrary widgets.
+//
+// Both widgets animate only on a VALUE CHANGE (didUpdateWidget) — they display
+// the initial value on mount with no transition. Tests mount at one value, then
+// change it via setState.
 
 Widget _wrap(Widget child) => MaterialApp(home: Scaffold(body: Center(child: child)));
 
@@ -22,6 +20,8 @@ void main() {
   tearDown(Countman.destroy);
 
   /// Mounts at [from], pumps one frame, then changes to [to] and settles.
+  /// Uses [CustomDigitCounter] when [digitBuilder] is supplied, otherwise
+  /// [AnimatedCounter] (painter-only fast path).
   Future<void> Function() animateTo(
     WidgetTester t, {
     required double from,
@@ -36,11 +36,19 @@ void main() {
 
       await t.pumpWidget(_wrap(StatefulBuilder(builder: (_, s) {
         setState = s;
+        if (digitBuilder != null) {
+          return CustomDigitCounter(
+            value: value,
+            duration: const Duration(milliseconds: 200),
+            transitionType: transitionType,
+            digitBuilder: digitBuilder,
+            onAnimationEnd: onAnimationEnd,
+          );
+        }
         return AnimatedCounter(
           value: value,
           duration: const Duration(milliseconds: 200),
           transitionType: transitionType,
-          digitBuilder: digitBuilder,
           onAnimationEnd: onAnimationEnd,
         );
       })));

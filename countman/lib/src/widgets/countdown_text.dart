@@ -3,7 +3,7 @@ import 'package:countman/src/count_down/plugin.dart';
 import 'countdown_widget.dart';
 import 'providers.dart';
 
-/// Displays a countdown as formatted text. Composes [CountdownWidget].
+/// Displays a countdown as formatted text. Composes [CountdownBuilder].
 ///
 /// [to] accepts any of: [DateTime], [Duration], [int] (ms epoch), [String] (ISO-8601).
 ///
@@ -89,7 +89,7 @@ class CountdownText extends StatelessWidget {
     // Resolve unset values from the nearest CountdownProvider.
     final scope = CountmanScope.maybeOf<Countdown>(context);
     final effStyle = style ?? scope?.textStyle;
-    return CountdownWidget(
+    return CountdownBuilder(
       to: to,
       plugin: plugin ?? scope?.plugin,
       controller: controller,

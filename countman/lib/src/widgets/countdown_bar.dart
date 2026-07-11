@@ -4,7 +4,7 @@ import 'countdown_widget.dart';
 import 'painter/bar_painter.dart';
 import 'providers.dart';
 
-/// A linear progress-bar countdown display. Composes [CountdownWidget].
+/// A linear progress-bar countdown display. Composes [CountdownBuilder].
 ///
 /// The bar shrinks from full as time elapses. Progress = remaining / total,
 /// where `total` is the initial remaining duration captured at start. Same
@@ -112,7 +112,7 @@ class CountdownBar extends StatelessWidget {
     final track = trackColor ?? scope?.trackColor ?? scheme.onSurface.withValues(alpha: 0.12);
     final effRepaint = repaintBoundary ?? scope?.repaintBoundary ?? true;
 
-    return CountdownWidget(
+    return CountdownBuilder(
       to: to,
       plugin: plugin ?? scope?.plugin,
       controller: controller,
