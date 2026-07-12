@@ -6,7 +6,10 @@ import 'provider_page.dart';
 import 'card_demo_page.dart';
 import 'countdown_demo_page.dart';
 import 'perf_page.dart';
-import 'benchmark_page.dart';
+// Web can't compile benchmark_page (dart:io); fall back to a stub there.
+//
+// web 无法编译 benchmark_page（dart:io），此时回退到桩。
+import 'benchmark_stub.dart' if (dart.library.io) 'benchmark_page.dart';
 import 'digit_test_page.dart';
 
 void main() {
