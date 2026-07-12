@@ -308,7 +308,7 @@ abstract class _BaseCounterState<W extends _BaseAnimatedCounter> extends State<W
   @override
   void initState() {
     super.initState();
-    _currentValue = widget.initialValue ?? _effectiveValue;
+    _currentValue = widget.initialValue;
     _lastValue    = _currentValue;
     final initialDigits = _getDigitsList(_currentValue);
     _maxDigits          = initialDigits.length;

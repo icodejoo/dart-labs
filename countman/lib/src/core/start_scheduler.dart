@@ -81,8 +81,17 @@ class StartScheduler {
     _scheduled = false;
     if (_queue.isEmpty) return;
 
+    // Only batch the leading run that shares the first item's batchSize, so
+    // items enqueued by a different group (with its own batchSize) aren't
+    // swept up under the wrong size — they get their own batch next frame.
+    //
+    // 只批处理与队首 batchSize 相同的前导连续段，使不同 group（各有自己 batchSize）
+    // 入队的项不被按错误大小一起处理——它们下一帧各自成批。
     final n = _queue.first.batchSize;
-    final end = n < _queue.length ? n : _queue.length;
+    var end = 0;
+    while (end < _queue.length && end < n && _queue[end].batchSize == n) {
+      end++;
+    }
     final batch = _queue.sublist(0, end);
     _queue.removeRange(0, end);
 

@@ -73,10 +73,15 @@ class TimeParts {
   /// Engine-internal: recompute the components in place from [value].
   /// Negative values clamp to zero.
   void set(Duration value, Duration? total) {
-    _value = value;
+    // Clamp negatives to zero on the stored value too (not just the component
+    // math), so `value`/`in*` stay consistent with the zeroed components — the
+    // documented "negative values clamp to zero" contract.
+    //
+    // 存储值也把负值钳到零（不仅是分量计算），使 `value`/`in*` 与归零的分量一致——
+    // 即文档承诺的"负值钳到零"。
+    _value = value < Duration.zero ? Duration.zero : value;
     _total = total;
-    var totalMs = value.inMilliseconds;
-    if (totalMs < 0) totalMs = 0;
+    final totalMs = _value.inMilliseconds;
     _components[0] = totalMs ~/ 86400000; // days
     _components[1] = (totalMs ~/ 3600000) % 24; // hours
     _components[2] = (totalMs ~/ 60000) % 60; // minutes

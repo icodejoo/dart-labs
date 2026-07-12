@@ -107,7 +107,15 @@ abstract class TaskQueuePlugin<T extends CountmanTask> implements CountmanPlugin
           (t) => t?.id == id,
           orElse: () => null,
         );
-    if (task != null && !task.done) task.onCancel?.call();
+    if (task != null && !task.done) {
+      task.onCancel?.call();
+      // Mark done so a second removeTask in the same tick (e.g. cancel() called
+      // twice) doesn't fire onCancel again; the loop also evicts done tasks.
+      //
+      // 标记 done，使同一 tick 内二次 removeTask（如 cancel() 被调两次）不再触发
+      // onCancel；循环也会驱逐 done 任务。
+      task.done = true;
+    }
     if (_ticking) {
       _pendingRemove.add(id);
     } else {
