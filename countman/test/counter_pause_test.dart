@@ -16,7 +16,7 @@ void main() {
 
     await tester.pumpWidget(MaterialApp(
       home: Scaffold(
-        body: CounterText(
+        body: TextCounter(
           to: 100,
           duration: const Duration(seconds: 1),
           controller: ctrl,

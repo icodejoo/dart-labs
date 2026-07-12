@@ -3,7 +3,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:countman/countman.dart';
 // ignore: implementation_imports
-import 'package:countman/src/widgets/countdown_dial.dart';
+import 'package:countman/src/widgets/dial_countdown.dart';
 import 'demo_card.dart';
 
 class CountdownPage extends StatefulWidget {
@@ -416,7 +416,7 @@ class _DemoState extends State<_Demo> {
     );
 
 Widget _textSection() => DemoSection(
-      title: 'CountdownText',
+      title: 'TextCountdown',
       children: [
         // 1 — Auto format (hms)
         DemoCard(
@@ -427,16 +427,16 @@ class _Demo extends StatelessWidget {
   const _Demo();
   @override
   Widget build(BuildContext context) {
-    return CountdownText(
+    return TextCountdown(
       to: const Duration(hours: 1, minutes: 30),
       style: const TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
     );
   }
 }
 '''),
-          child: const CountdownText(
+          child: const TextCountdown(
             to: Duration(hours: 1, minutes: 30),
-            style: CountdownTextStyle(textStyle: TextStyle(fontSize: 28, fontWeight: FontWeight.bold)),
+            style: TextCountdownStyle(textStyle: TextStyle(fontSize: 28, fontWeight: FontWeight.bold)),
           ),
         ),
 
@@ -449,7 +449,7 @@ class _Demo extends StatelessWidget {
   const _Demo();
   @override
   Widget build(BuildContext context) {
-    return CountdownText(
+    return TextCountdown(
       to: const Duration(minutes: 3, seconds: 45),
       formatter: CountdownFormat.ms,
       style: const TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
@@ -457,10 +457,10 @@ class _Demo extends StatelessWidget {
   }
 }
 '''),
-          child: const CountdownText(
+          child: const TextCountdown(
             to: Duration(minutes: 3, seconds: 45),
             formatter: CountdownFormat.ms,
-            style: CountdownTextStyle(textStyle: TextStyle(fontSize: 28, fontWeight: FontWeight.bold)),
+            style: TextCountdownStyle(textStyle: TextStyle(fontSize: 28, fontWeight: FontWeight.bold)),
           ),
         ),
 
@@ -473,7 +473,7 @@ class _Demo extends StatelessWidget {
   const _Demo();
   @override
   Widget build(BuildContext context) {
-    return CountdownText(
+    return TextCountdown(
       to: const Duration(seconds: 30),
       formatter: CountdownFormat.msTenths,
       style: const TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
@@ -481,10 +481,10 @@ class _Demo extends StatelessWidget {
   }
 }
 '''),
-          child: const CountdownText(
+          child: const TextCountdown(
             to: Duration(seconds: 30),
             formatter: CountdownFormat.msTenths,
-            style: CountdownTextStyle(textStyle: TextStyle(fontSize: 28, fontWeight: FontWeight.bold)),
+            style: TextCountdownStyle(textStyle: TextStyle(fontSize: 28, fontWeight: FontWeight.bold)),
           ),
         ),
 
@@ -497,7 +497,7 @@ class _Demo extends StatelessWidget {
   const _Demo();
   @override
   Widget build(BuildContext context) {
-    return CountdownText(
+    return TextCountdown(
       to: const Duration(minutes: 5),
       formatter: (parts) {
         if (parts.totalSeconds == 0) return 'Time up!';
@@ -508,13 +508,13 @@ class _Demo extends StatelessWidget {
   }
 }
 '''),
-          child: CountdownText(
+          child: TextCountdown(
             to: const Duration(minutes: 5),
             formatter: (parts) {
               if (parts.totalSeconds == 0) return 'Time up!';
               return '${parts.totalSeconds}s left';
             },
-            style: CountdownTextStyle(textStyle: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
+            style: TextCountdownStyle(textStyle: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
           ),
         ),
 
@@ -528,7 +528,7 @@ class _Demo extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final target = DateTime.now().add(const Duration(hours: 1)).toIso8601String();
-    return CountdownText(
+    return TextCountdown(
       to: target,
       formatter: CountdownFormat.hms,
       style: const TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
@@ -536,10 +536,10 @@ class _Demo extends StatelessWidget {
   }
 }
 '''),
-          child: CountdownText(
+          child: TextCountdown(
             to: DateTime.now().add(const Duration(hours: 1)).toIso8601String(),
             formatter: CountdownFormat.hms,
-            style: CountdownTextStyle(textStyle: const TextStyle(fontSize: 28, fontWeight: FontWeight.bold)),
+            style: TextCountdownStyle(textStyle: const TextStyle(fontSize: 28, fontWeight: FontWeight.bold)),
           ),
         ),
 
@@ -559,7 +559,7 @@ class _DemoState extends State<_Demo> {
 
   @override
   Widget build(BuildContext context) {
-    return CountdownText(
+    return TextCountdown(
       to: const Duration(seconds: 20),
       formatter: CountdownFormat.ms,
       threshold: const Duration(seconds: 5),
@@ -587,7 +587,7 @@ class _Demo extends StatelessWidget {
   const _Demo();
   @override
   Widget build(BuildContext context) {
-    return const CountdownText(
+    return const TextCountdown(
       to: Duration(minutes: 1),
       precise: true,
       formatter: CountdownFormat.msMillis,
@@ -596,11 +596,11 @@ class _Demo extends StatelessWidget {
   }
 }
 '''),
-          child: const CountdownText(
+          child: const TextCountdown(
             to: Duration(minutes: 1),
             precise: true,
             formatter: CountdownFormat.msMillis,
-            style: CountdownTextStyle(
+            style: TextCountdownStyle(
                 textStyle:
                     TextStyle(fontSize: 28, fontWeight: FontWeight.bold)),
           ),
@@ -615,7 +615,7 @@ class _Demo extends StatelessWidget {
   const _Demo();
   @override
   Widget build(BuildContext context) {
-    return const CountdownText(
+    return const TextCountdown(
       to: Duration(minutes: 1),
       precise: true,
       formatter: CountdownFormat.msTenths,
@@ -624,11 +624,11 @@ class _Demo extends StatelessWidget {
   }
 }
 '''),
-          child: const CountdownText(
+          child: const TextCountdown(
             to: Duration(minutes: 1),
             precise: true,
             formatter: CountdownFormat.msTenths,
-            style: CountdownTextStyle(
+            style: TextCountdownStyle(
                 textStyle:
                     TextStyle(fontSize: 28, fontWeight: FontWeight.bold)),
           ),
@@ -644,7 +644,7 @@ class _Demo extends StatelessWidget {
   const _Demo();
   @override
   Widget build(BuildContext context) {
-    return const CountdownText(
+    return const TextCountdown(
       to: Duration(days: 2, hours: 3, minutes: 4),
       formatter: CountdownFormat.dhms,
       style: TextStyle(fontSize: 26, fontWeight: FontWeight.bold),
@@ -652,10 +652,10 @@ class _Demo extends StatelessWidget {
   }
 }
 '''),
-          child: const CountdownText(
+          child: const TextCountdown(
             to: Duration(days: 2, hours: 3, minutes: 4),
             formatter: CountdownFormat.dhms,
-            style: CountdownTextStyle(
+            style: TextCountdownStyle(
                 textStyle:
                     TextStyle(fontSize: 26, fontWeight: FontWeight.bold)),
           ),
@@ -674,7 +674,7 @@ class _Demo extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     // dhm has no seconds field → the text changes only once per minute.
-    return const CountdownText(
+    return const TextCountdown(
       to: Duration(days: 2, hours: 3, minutes: 4),
       formatter: CountdownFormat.dhm,
       style: TextStyle(fontSize: 26, fontWeight: FontWeight.bold),
@@ -685,21 +685,21 @@ class _Demo extends StatelessWidget {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const CountdownText(
+              const TextCountdown(
                 to: Duration(days: 2, hours: 3, minutes: 4),
                 formatter: CountdownFormat.dhm,
-                style: CountdownTextStyle(
+                style: TextCountdownStyle(
                     textStyle:
                         TextStyle(fontSize: 26, fontWeight: FontWeight.bold)),
               ),
               const SizedBox(height: 4),
               // Proof-of-life: same timer, surfacing the live seconds that dhm
               // intentionally hides — so the card doesn't look frozen.
-              CountdownText(
+              TextCountdown(
                 to: const Duration(days: 2, hours: 3, minutes: 4),
                 formatter: (p) =>
                     '实时秒 (dhm 隐藏): ${p.seconds.toString().padLeft(2, '0')}s',
-                style: const CountdownTextStyle(
+                style: const TextCountdownStyle(
                   textStyle: TextStyle(fontSize: 12, color: Color(0xFF9E9E9E)),
                 ),
               ),
@@ -727,7 +727,7 @@ class _DemoState extends State<_Demo> {
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        CountdownText(
+        TextCountdown(
           to: const Duration(minutes: 2),
           formatter: CountdownFormat.ms,
           onTick: (parts) {
@@ -750,43 +750,43 @@ class _DemoState extends State<_Demo> {
     );
 
 Widget _ringSection() => DemoSection(
-      title: 'CountdownRing',
+      title: 'RingCountdown',
       children: [
         // 1 — Basic
         DemoCard(
           title: 'Basic',
-          description: 'Minimal CountdownRing with default theme colors.',
+          description: 'Minimal RingCountdown with default theme colors.',
           code: runnable(r'''
 class _Demo extends StatelessWidget {
   const _Demo();
   @override
   Widget build(BuildContext context) {
-    return CountdownRing(
+    return RingCountdown(
       to: const Duration(minutes: 2),
       size: 100,
     );
   }
 }
 '''),
-          child: const CountdownRing(
+          child: const RingCountdown(
             to: Duration(minutes: 2),
-            style: CountdownRingStyle(size: 100),
+            style: RingCountdownStyle(size: 100),
           ),
         ),
 
         // 2 — With center text
         DemoCard(
           title: 'With center text',
-          description: 'A CountdownText widget sits in the ring center.',
+          description: 'A TextCountdown widget sits in the ring center.',
           code: runnable(r'''
 class _Demo extends StatelessWidget {
   const _Demo();
   @override
   Widget build(BuildContext context) {
-    return CountdownRing(
+    return RingCountdown(
       to: const Duration(minutes: 2),
       size: 110,
-      center: const CountdownText(
+      center: const TextCountdown(
         to: Duration(minutes: 2),
         formatter: CountdownFormat.ms,
         style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
@@ -795,13 +795,13 @@ class _Demo extends StatelessWidget {
   }
 }
 '''),
-          child: const CountdownRing(
+          child: const RingCountdown(
             to: Duration(minutes: 2),
-            style: CountdownRingStyle(size: 110),
-            center: CountdownText(
+            style: RingCountdownStyle(size: 110),
+            center: TextCountdown(
               to: Duration(minutes: 2),
               formatter: CountdownFormat.ms,
-              style: CountdownTextStyle(textStyle: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+              style: TextCountdownStyle(textStyle: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
             ),
           ),
         ),
@@ -815,7 +815,7 @@ class _Demo extends StatelessWidget {
   const _Demo();
   @override
   Widget build(BuildContext context) {
-    return CountdownRing(
+    return RingCountdown(
       to: const Duration(minutes: 2),
       size: 100,
       strokeWidth: 12,
@@ -825,9 +825,9 @@ class _Demo extends StatelessWidget {
   }
 }
 '''),
-          child: CountdownRing(
+          child: RingCountdown(
             to: const Duration(minutes: 2),
-            style: CountdownRingStyle(
+            style: RingCountdownStyle(
               size: 100,
               strokeWidth: 12,
               color: Colors.deepOrange,
@@ -845,7 +845,7 @@ class _Demo extends StatelessWidget {
   const _Demo();
   @override
   Widget build(BuildContext context) {
-    return CountdownRing(
+    return RingCountdown(
       to: const Duration(minutes: 2),
       size: 100,
       strokeWidth: 10,
@@ -856,9 +856,9 @@ class _Demo extends StatelessWidget {
   }
 }
 '''),
-          child: const CountdownRing(
+          child: const RingCountdown(
             to: Duration(minutes: 2),
-            style: CountdownRingStyle(
+            style: RingCountdownStyle(
               size: 100,
               strokeWidth: 10,
               gradient: SweepGradient(
@@ -877,7 +877,7 @@ class _Demo extends StatelessWidget {
   const _Demo();
   @override
   Widget build(BuildContext context) {
-    return CountdownRing(
+    return RingCountdown(
       to: const Duration(minutes: 2),
       size: 100,
       clockwise: false,
@@ -885,9 +885,9 @@ class _Demo extends StatelessWidget {
   }
 }
 '''),
-          child: const CountdownRing(
+          child: const RingCountdown(
             to: Duration(minutes: 2),
-            style: CountdownRingStyle(
+            style: RingCountdownStyle(
               size: 100,
               clockwise: false,
             ),
@@ -914,11 +914,11 @@ class _DemoState extends State<_Demo> {
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        CountdownRing(
+        RingCountdown(
           to: const Duration(minutes: 2),
           size: 100,
           controller: _ctrl,
-          center: const CountdownText(
+          center: const TextCountdown(
             to: Duration(minutes: 2),
             formatter: CountdownFormat.ms,
             style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
@@ -969,16 +969,16 @@ class _Demo extends StatelessWidget {
   const _Demo();
   @override
   Widget build(BuildContext context) {
-    return CountdownRing(
+    return RingCountdown(
       to: const Duration(minutes: 2),
-      style: CountdownRingStyle(
+      style: RingCountdownStyle(
         size: 120,
         strokeWidth: 12,
         sweepAngle: 1.5 * math.pi,
         startAngle: 2.35,
         strokeCap: StrokeCap.round,
       ),
-      center: const CountdownText(
+      center: const TextCountdown(
         to: Duration(minutes: 2),
         formatter: CountdownFormat.ms,
         style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
@@ -987,19 +987,19 @@ class _Demo extends StatelessWidget {
   }
 }
 '''),
-          child: CountdownRing(
+          child: RingCountdown(
             to: const Duration(minutes: 2),
-            style: CountdownRingStyle(
+            style: RingCountdownStyle(
               size: 120,
               strokeWidth: 12,
               sweepAngle: 1.5 * math.pi,
               startAngle: 2.35,
               strokeCap: StrokeCap.round,
             ),
-            center: const CountdownText(
+            center: const TextCountdown(
               to: Duration(minutes: 2),
               formatter: CountdownFormat.ms,
-              style: CountdownTextStyle(
+              style: TextCountdownStyle(
                   textStyle:
                       TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
             ),
@@ -1016,9 +1016,9 @@ class _Demo extends StatelessWidget {
   const _Demo();
   @override
   Widget build(BuildContext context) {
-    return CountdownRing(
+    return RingCountdown(
       to: const Duration(minutes: 2),
-      style: const CountdownRingStyle(size: 120),
+      style: const RingCountdownStyle(size: 120),
       painterBuilder: (context, progress) => _GaugePainter(
         progress: progress,
         color: Theme.of(context).colorScheme.primary,
@@ -1027,9 +1027,9 @@ class _Demo extends StatelessWidget {
   }
 }
 '''),
-          child: CountdownRing(
+          child: RingCountdown(
             to: const Duration(minutes: 2),
-            style: const CountdownRingStyle(size: 120),
+            style: const RingCountdownStyle(size: 120),
             painterBuilder: (context, progress) => _GaugePainter(
               progress: progress,
               color: Theme.of(context).colorScheme.primary,
@@ -1040,7 +1040,7 @@ class _Demo extends StatelessWidget {
     );
 
 Widget _barSection() => DemoSection(
-      title: 'CountdownBar',
+      title: 'BarCountdown',
       children: [
         // 1 — Basic
         DemoCard(
@@ -1051,7 +1051,7 @@ class _Demo extends StatelessWidget {
   const _Demo();
   @override
   Widget build(BuildContext context) {
-    return CountdownBar(
+    return BarCountdown(
       to: const Duration(minutes: 1),
       width: 250,
       height: 10,
@@ -1059,9 +1059,9 @@ class _Demo extends StatelessWidget {
   }
 }
 '''),
-          child: const CountdownBar(
+          child: const BarCountdown(
             to: Duration(minutes: 1),
-            style: CountdownBarStyle(width: 250, height: 10),
+            style: BarCountdownStyle(width: 250, height: 10),
           ),
         ),
 
@@ -1074,7 +1074,7 @@ class _Demo extends StatelessWidget {
   const _Demo();
   @override
   Widget build(BuildContext context) {
-    return CountdownBar(
+    return BarCountdown(
       to: const Duration(minutes: 1),
       width: 250,
       height: 10,
@@ -1085,9 +1085,9 @@ class _Demo extends StatelessWidget {
   }
 }
 '''),
-          child: const CountdownBar(
+          child: const BarCountdown(
             to: Duration(minutes: 1),
-            style: CountdownBarStyle(
+            style: BarCountdownStyle(
               width: 250,
               height: 10,
               gradient: LinearGradient(
@@ -1106,7 +1106,7 @@ class _Demo extends StatelessWidget {
   const _Demo();
   @override
   Widget build(BuildContext context) {
-    return CountdownBar(
+    return BarCountdown(
       to: const Duration(minutes: 1),
       width: 250,
       height: 10,
@@ -1115,9 +1115,9 @@ class _Demo extends StatelessWidget {
   }
 }
 '''),
-          child: const CountdownBar(
+          child: const BarCountdown(
             to: Duration(minutes: 1),
-            style: CountdownBarStyle(
+            style: BarCountdownStyle(
               width: 250,
               height: 10,
               fillFromStart: false,
@@ -1134,7 +1134,7 @@ class _Demo extends StatelessWidget {
   const _Demo();
   @override
   Widget build(BuildContext context) {
-    return CountdownBar(
+    return BarCountdown(
       to: const Duration(minutes: 1),
       width: 250,
       height: 6,
@@ -1143,9 +1143,9 @@ class _Demo extends StatelessWidget {
   }
 }
 '''),
-          child: const CountdownBar(
+          child: const BarCountdown(
             to: Duration(minutes: 1),
-            style: CountdownBarStyle(
+            style: BarCountdownStyle(
               width: 250,
               height: 6,
               trackHeight: 24,
@@ -1162,7 +1162,7 @@ class _Demo extends StatelessWidget {
   const _Demo();
   @override
   Widget build(BuildContext context) {
-    return CountdownBar(
+    return BarCountdown(
       to: const Duration(minutes: 1),
       width: 250,
       height: 12,
@@ -1171,9 +1171,9 @@ class _Demo extends StatelessWidget {
   }
 }
 '''),
-          child: const CountdownBar(
+          child: const BarCountdown(
             to: Duration(minutes: 1),
-            style: CountdownBarStyle(
+            style: BarCountdownStyle(
               width: 250,
               height: 12,
               borderRadius: Radius.circular(6),
@@ -1191,9 +1191,9 @@ class _Demo extends StatelessWidget {
   const _Demo();
   @override
   Widget build(BuildContext context) {
-    return const CountdownBar(
+    return const BarCountdown(
       to: Duration(minutes: 1),
-      style: CountdownBarStyle(
+      style: BarCountdownStyle(
         vertical: true,
         height: 120,
         width: 12,
@@ -1206,9 +1206,9 @@ class _Demo extends StatelessWidget {
   }
 }
 '''),
-          child: const CountdownBar(
+          child: const BarCountdown(
             to: Duration(minutes: 1),
-            style: CountdownBarStyle(
+            style: BarCountdownStyle(
               vertical: true,
               height: 120,
               width: 12,
@@ -1223,7 +1223,7 @@ class _Demo extends StatelessWidget {
     );
 
 Widget _cardSection() => DemoSection(
-      title: 'CountdownCard',
+      title: 'CardCountdown',
       children: [
         // 1 — Calendar style
         DemoCard(
@@ -1234,16 +1234,16 @@ class _Demo extends StatelessWidget {
   const _Demo();
   @override
   Widget build(BuildContext context) {
-    return CountdownCard(
+    return CardCountdown(
       to: const Duration(hours: 1, minutes: 30),
       transitionType: CountdownType.calendar,
     );
   }
 }
 '''),
-          child: const CountdownCard(
+          child: const CardCountdown(
             to: Duration(hours: 1, minutes: 30),
-            style: CountdownCardStyle(transitionType: CountdownType.calendar),
+            style: CardCountdownStyle(transitionType: CountdownType.calendar),
           ),
         ),
 
@@ -1256,7 +1256,7 @@ class _Demo extends StatelessWidget {
   const _Demo();
   @override
   Widget build(BuildContext context) {
-    return CountdownCard(
+    return CardCountdown(
       to: const Duration(hours: 1, minutes: 30),
       transitionType: CountdownType.slide,
       scaleEffect: SlideEffect.enter,
@@ -1264,9 +1264,9 @@ class _Demo extends StatelessWidget {
   }
 }
 '''),
-          child: const CountdownCard(
+          child: const CardCountdown(
             to: Duration(hours: 1, minutes: 30),
-            style: CountdownCardStyle(
+            style: CardCountdownStyle(
               transitionType: CountdownType.slide,
               scaleEffect: SlideEffect.enter,
             ),
@@ -1282,16 +1282,16 @@ class _Demo extends StatelessWidget {
   const _Demo();
   @override
   Widget build(BuildContext context) {
-    return CountdownCard(
+    return CardCountdown(
       to: const Duration(hours: 1, minutes: 30),
       transitionType: CountdownType.flip,
     );
   }
 }
 '''),
-          child: const CountdownCard(
+          child: const CardCountdown(
             to: Duration(hours: 1, minutes: 30),
-            style: CountdownCardStyle(transitionType: CountdownType.flip),
+            style: CardCountdownStyle(transitionType: CountdownType.flip),
           ),
         ),
 
@@ -1304,16 +1304,16 @@ class _Demo extends StatelessWidget {
   const _Demo();
   @override
   Widget build(BuildContext context) {
-    return CountdownCard(
+    return CardCountdown(
       to: const Duration(hours: 1, minutes: 30),
       splitDigits: true,
     );
   }
 }
 '''),
-          child: const CountdownCard(
+          child: const CardCountdown(
             to: Duration(hours: 1, minutes: 30),
-            style: CountdownCardStyle(splitDigits: true),
+            style: CardCountdownStyle(splitDigits: true),
           ),
         ),
 
@@ -1326,14 +1326,14 @@ class _Demo extends StatelessWidget {
   const _Demo();
   @override
   Widget build(BuildContext context) {
-    return CountdownCard(
+    return CardCountdown(
       to: const Duration(hours: 1, minutes: 30),
       showHours: false,
     );
   }
 }
 '''),
-          child: const CountdownCard(
+          child: const CardCountdown(
             to: Duration(hours: 1, minutes: 30),
             showHours: false,
           ),
@@ -1348,7 +1348,7 @@ class _Demo extends StatelessWidget {
   const _Demo();
   @override
   Widget build(BuildContext context) {
-    return CountdownCard(
+    return CardCountdown(
       to: const Duration(hours: 1, minutes: 30),
       cardColor: const Color(0xFF1A237E),
       textStyle: const TextStyle(
@@ -1366,9 +1366,9 @@ class _Demo extends StatelessWidget {
   }
 }
 '''),
-          child: const CountdownCard(
+          child: const CardCountdown(
             to: Duration(hours: 1, minutes: 30),
-            style: CountdownCardStyle(
+            style: CardCountdownStyle(
               cardColor: Color(0xFF1A237E),
               textStyle: TextStyle(
                 fontSize: 30,
@@ -1411,22 +1411,22 @@ class _Demo extends StatelessWidget {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          CountdownRing(
+          RingCountdown(
             to: const Duration(minutes: 3),
             size: 90,
-            center: const CountdownText(
+            center: const TextCountdown(
               to: Duration(minutes: 3),
               formatter: CountdownFormat.ms,
             ),
           ),
           const SizedBox(height: 12),
-          const CountdownBar(
+          const BarCountdown(
             to: Duration(minutes: 3),
             width: 200,
             height: 8,
           ),
           const SizedBox(height: 8),
-          const CountdownText(
+          const TextCountdown(
             to: Duration(minutes: 3),
             formatter: CountdownFormat.ms,
           ),
@@ -1447,21 +1447,21 @@ class _Demo extends StatelessWidget {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                const CountdownRing(
+                const RingCountdown(
                   to: Duration(minutes: 3),
-                  style: CountdownRingStyle(size: 90),
-                  center: CountdownText(
+                  style: RingCountdownStyle(size: 90),
+                  center: TextCountdown(
                     to: Duration(minutes: 3),
                     formatter: CountdownFormat.ms,
                   ),
                 ),
                 const SizedBox(height: 12),
-                const CountdownBar(
+                const BarCountdown(
                   to: Duration(minutes: 3),
-                  style: CountdownBarStyle(width: 200, height: 8),
+                  style: BarCountdownStyle(width: 200, height: 8),
                 ),
                 const SizedBox(height: 8),
-                const CountdownText(
+                const TextCountdown(
                   to: Duration(minutes: 3),
                   formatter: CountdownFormat.ms,
                 ),
@@ -1497,13 +1497,13 @@ class _DemoState extends State<_Demo> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: const [
-              CountdownText(
+              TextCountdown(
                 to: Duration(seconds: 8),
                 formatter: CountdownFormat.ms,
                 style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
               ),
               SizedBox(height: 8),
-              CountdownText(
+              TextCountdown(
                 to: Duration(seconds: 12),
                 formatter: CountdownFormat.ms,
                 style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
@@ -1746,12 +1746,12 @@ class _ThresholdTextDemoState extends State<_ThresholdTextDemo> {
 
   @override
   Widget build(BuildContext context) {
-    return CountdownText(
+    return TextCountdown(
       to: const Duration(seconds: 20),
       formatter: CountdownFormat.ms,
       threshold: const Duration(seconds: 5),
       onThreshold: () { if (mounted) setState(() => _urgent = true); },
-      style: CountdownTextStyle(textStyle: TextStyle(
+      style: TextCountdownStyle(textStyle: TextStyle(
         fontSize: 28,
         fontWeight: FontWeight.bold,
         color: _urgent ? Colors.red : null,
@@ -1777,14 +1777,14 @@ class _RingControllerDemoState extends State<_RingControllerDemo> {
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        CountdownRing(
+        RingCountdown(
           to: const Duration(minutes: 2),
-          style: const CountdownRingStyle(size: 100),
+          style: const RingCountdownStyle(size: 100),
           controller: _ctrl,
-          center: const CountdownText(
+          center: const TextCountdown(
             to: Duration(minutes: 2),
             formatter: CountdownFormat.ms,
-            style: CountdownTextStyle(textStyle: TextStyle(fontSize: 14, fontWeight: FontWeight.bold)),
+            style: TextCountdownStyle(textStyle: TextStyle(fontSize: 14, fontWeight: FontWeight.bold)),
           ),
         ),
         const SizedBox(height: 12),
@@ -1839,16 +1839,16 @@ class _GroupCallbacksDemoState extends State<_GroupCallbacksDemo> {
           child: const Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              CountdownText(
+              TextCountdown(
                 to: Duration(seconds: 8),
                 formatter: CountdownFormat.ms,
-                style: CountdownTextStyle(textStyle: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+                style: TextCountdownStyle(textStyle: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
               ),
               SizedBox(height: 8),
-              CountdownText(
+              TextCountdown(
                 to: Duration(seconds: 12),
                 formatter: CountdownFormat.ms,
-                style: CountdownTextStyle(textStyle: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+                style: TextCountdownStyle(textStyle: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
               ),
             ],
           ),
@@ -1878,10 +1878,10 @@ class _GroupCallbacksDemoState extends State<_GroupCallbacksDemo> {
   }
 }
 
-/// Demo for [CountdownText.onTick]: a side-effect callback that accumulates a
+/// Demo for [TextCountdown.onTick]: a side-effect callback that accumulates a
 /// tick counter in state without rebuilding the digit text itself.
 ///
-/// [CountdownText.onTick] 演示：在不重建数字文本本身的前提下，用副作用回调把
+/// [TextCountdown.onTick] 演示：在不重建数字文本本身的前提下，用副作用回调把
 /// tick 次数累加到 state。
 class _OnTickTextDemo extends StatefulWidget {
   const _OnTickTextDemo();
@@ -1901,7 +1901,7 @@ class _OnTickTextDemoState extends State<_OnTickTextDemo> {
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        CountdownText(
+        TextCountdown(
           to: const Duration(minutes: 2),
           formatter: CountdownFormat.ms,
           // Defer setState to after the frame so the first tick (which may
@@ -1914,7 +1914,7 @@ class _OnTickTextDemoState extends State<_OnTickTextDemo> {
               if (mounted) setState(() => _ticks++);
             });
           },
-          style: const CountdownTextStyle(
+          style: const TextCountdownStyle(
               textStyle: TextStyle(fontSize: 28, fontWeight: FontWeight.bold)),
         ),
         const SizedBox(height: 8),
@@ -1924,10 +1924,10 @@ class _OnTickTextDemoState extends State<_OnTickTextDemo> {
   }
 }
 
-/// A minimal [CustomPainter] used with [CountdownRing.painterBuilder]: draws a
+/// A minimal [CustomPainter] used with [RingCountdown.painterBuilder]: draws a
 /// faint full-circle track plus a rounded progress arc scaled by [progress].
 ///
-/// 配合 [CountdownRing.painterBuilder] 的极简 [CustomPainter]：绘制一圈淡色轨道，
+/// 配合 [RingCountdown.painterBuilder] 的极简 [CustomPainter]：绘制一圈淡色轨道，
 /// 外加按 [progress] 缩放的圆头进度弧。
 class _GaugePainter extends CustomPainter {
   /// Creates the painter.
@@ -1976,10 +1976,10 @@ class _GaugePainter extends CustomPainter {
       old.progress != progress || old.color != color;
 }
 
-// ── CountdownDial section ─────────────────────────────────────────────────────
+// ── DialCountdown section ─────────────────────────────────────────────────────
 
 Widget _dialSection() => DemoSection(
-      title: 'CountdownDial',
+      title: 'DialCountdown',
       children: [
         DemoCard(
           title: 'Basic',
@@ -1988,14 +1988,14 @@ Widget _dialSection() => DemoSection(
 class _Demo extends StatelessWidget {
   const _Demo();
   @override
-  Widget build(BuildContext context) => CountdownDial(
+  Widget build(BuildContext context) => DialCountdown(
     to: const Duration(seconds: 60),
     size: 100,
   );
 }'''),
-          child: const CountdownDial(
+          child: const DialCountdown(
             to: Duration(seconds: 60),
-            style: CountdownDialStyle(size: 100),
+            style: DialCountdownStyle(size: 100),
           ),
         ),
 
@@ -2006,7 +2006,7 @@ class _Demo extends StatelessWidget {
 class _Demo extends StatelessWidget {
   const _Demo();
   @override
-  Widget build(BuildContext context) => CountdownDial(
+  Widget build(BuildContext context) => DialCountdown(
     to: const Duration(minutes: 3),
     size: 100,
     builder: (_, rem) => Text(
@@ -2015,9 +2015,9 @@ class _Demo extends StatelessWidget {
     ),
   );
 }'''),
-          child: CountdownDial(
+          child: DialCountdown(
             to: const Duration(minutes: 3),
-            style: const CountdownDialStyle(size: 100),
+            style: const DialCountdownStyle(size: 100),
             builder: (_, rem) => Text(
               rem.inSeconds.toString(),
               style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
@@ -2032,15 +2032,15 @@ class _Demo extends StatelessWidget {
 class _Demo extends StatelessWidget {
   const _Demo();
   @override
-  Widget build(BuildContext context) => CountdownDial(
+  Widget build(BuildContext context) => DialCountdown(
     to: const Duration(seconds: 60),
     size: 100,
     clockwise: false,
   );
 }'''),
-          child: const CountdownDial(
+          child: const DialCountdown(
             to: Duration(seconds: 60),
-            style: CountdownDialStyle(
+            style: DialCountdownStyle(
               size: 100,
               clockwise: false,
             ),
@@ -2054,15 +2054,15 @@ class _Demo extends StatelessWidget {
 class _Demo extends StatelessWidget {
   const _Demo();
   @override
-  Widget build(BuildContext context) => CountdownDial(
+  Widget build(BuildContext context) => DialCountdown(
     to: const Duration(seconds: 45),
     size: 100,
     ticks: null,
   );
 }'''),
-          child: const CountdownDial(
+          child: const DialCountdown(
             to: Duration(seconds: 45),
-            style: CountdownDialStyle(
+            style: DialCountdownStyle(
               size: 100,
               showTicks: false,
             ),
@@ -2076,14 +2076,14 @@ class _Demo extends StatelessWidget {
 class _Demo extends StatelessWidget {
   const _Demo();
   @override
-  Widget build(BuildContext context) => const CountdownDial(
+  Widget build(BuildContext context) => const DialCountdown(
     to: Duration(seconds: 60),
-    style: CountdownDialStyle(size: 100, glow: true),
+    style: DialCountdownStyle(size: 100, glow: true),
   );
 }'''),
-          child: const CountdownDial(
+          child: const DialCountdown(
             to: Duration(seconds: 60),
-            style: CountdownDialStyle(size: 100, glow: true),
+            style: DialCountdownStyle(size: 100, glow: true),
           ),
         ),
 
@@ -2094,18 +2094,18 @@ class _Demo extends StatelessWidget {
 class _Demo extends StatelessWidget {
   const _Demo();
   @override
-  Widget build(BuildContext context) => const CountdownDial(
+  Widget build(BuildContext context) => const DialCountdown(
     to: Duration(seconds: 60),
-    style: CountdownDialStyle(
+    style: DialCountdownStyle(
       size: 100,
       showArcA: false,
       showArcB: false,
     ),
   );
 }'''),
-          child: const CountdownDial(
+          child: const DialCountdown(
             to: Duration(seconds: 60),
-            style: CountdownDialStyle(
+            style: DialCountdownStyle(
               size: 100,
               showArcA: false,
               showArcB: false,
@@ -2120,9 +2120,9 @@ class _Demo extends StatelessWidget {
 class _Demo extends StatelessWidget {
   const _Demo();
   @override
-  Widget build(BuildContext context) => const CountdownDial(
+  Widget build(BuildContext context) => const DialCountdown(
     to: Duration(seconds: 60),
-    style: CountdownDialStyle(
+    style: DialCountdownStyle(
       size: 100,
       colors: DialColors(
         normal: Color(0xFF6C5CE7),
@@ -2131,9 +2131,9 @@ class _Demo extends StatelessWidget {
     ),
   );
 }'''),
-          child: const CountdownDial(
+          child: const DialCountdown(
             to: Duration(seconds: 60),
-            style: CountdownDialStyle(
+            style: DialCountdownStyle(
               size: 100,
               colors: DialColors(
                 normal: Color(0xFF6C5CE7),

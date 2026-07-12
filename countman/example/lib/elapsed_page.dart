@@ -49,8 +49,8 @@ class _ElapsedPageState extends State<ElapsedPage> {
           child: ListView(
         padding: const EdgeInsets.symmetric(vertical: 8),
         children: [
-          // ── ElapsedText ──────────────────────────────────────────────────
-          DemoSection(title: 'ElapsedText', children: [
+          // ── TextElapsed ──────────────────────────────────────────────────
+          DemoSection(title: 'TextElapsed', children: [
             DemoCard(
               title: 'Basic stopwatch',
               description: 'Counts up from 0 when mounted.',
@@ -59,14 +59,14 @@ class _Demo extends StatelessWidget {
   const _Demo();
   @override
   Widget build(BuildContext context) {
-    return ElapsedText(
+    return TextElapsed(
       style: TextStyle(fontSize: 32, fontWeight: FontWeight.bold),
     );
   }
 }
 '''),
-              child: const ElapsedText(
-                style: ElapsedTextStyle(textStyle: TextStyle(fontSize: 32, fontWeight: FontWeight.bold)),
+              child: const TextElapsed(
+                style: TextElapsedStyle(textStyle: TextStyle(fontSize: 32, fontWeight: FontWeight.bold)),
               ),
             ),
 
@@ -79,16 +79,16 @@ class _Demo extends StatelessWidget {
   const _Demo();
   @override
   Widget build(BuildContext context) {
-    return ElapsedText(
+    return TextElapsed(
       formatter: CountdownFormat.auto,
       style: TextStyle(fontSize: 28, fontWeight: FontWeight.w600),
     );
   }
 }
 '''),
-              child: const ElapsedText(
+              child: const TextElapsed(
                 formatter: CountdownFormat.auto,
-                style: ElapsedTextStyle(textStyle: TextStyle(fontSize: 28, fontWeight: FontWeight.w600)),
+                style: TextElapsedStyle(textStyle: TextStyle(fontSize: 28, fontWeight: FontWeight.w600)),
               ),
             ),
 
@@ -100,16 +100,16 @@ class _Demo extends StatelessWidget {
   const _Demo();
   @override
   Widget build(BuildContext context) {
-    return ElapsedText(
+    return TextElapsed(
       formatter: CountdownFormat.ms,
       style: TextStyle(fontSize: 28, fontFeatures: [FontFeature.tabularFigures()]),
     );
   }
 }
 '''),
-              child: const ElapsedText(
+              child: const TextElapsed(
                 formatter: CountdownFormat.ms,
-                style: ElapsedTextStyle(textStyle: TextStyle(fontSize: 28)),
+                style: TextElapsedStyle(textStyle: TextStyle(fontSize: 28)),
               ),
             ),
 
@@ -134,7 +134,7 @@ class _DemoState extends State<_Demo> {
   }
   @override
   Widget build(BuildContext context) {
-    return ElapsedText(
+    return TextElapsed(
       plugin: _plugin,
       formatter: CountdownFormat.msTenths,
       style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
@@ -162,7 +162,7 @@ class _Demo extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ElapsedText(
+    return TextElapsed(
       formatter: _fmt,
       style: TextStyle(fontSize: 24, fontWeight: FontWeight.w500),
     );
@@ -188,7 +188,7 @@ class _DemoState extends State<_Demo> {
   @override
   Widget build(BuildContext context) {
     return Column(mainAxisSize: MainAxisSize.min, children: [
-      ElapsedText(
+      TextElapsed(
         controller: _ctrl,
         style: TextStyle(fontSize: 32, fontWeight: FontWeight.bold),
       ),
@@ -226,7 +226,7 @@ class _DemoState extends State<_Demo> {
 
   @override
   Widget build(BuildContext context) {
-    return ElapsedText(
+    return TextElapsed(
       threshold: const Duration(seconds: 10),
       onThreshold: () => setState(() => _color = Colors.amber),
       style: TextStyle(fontSize: 32, fontWeight: FontWeight.bold, color: _color),
@@ -257,7 +257,7 @@ class _DemoState extends State<_Demo> {
     return GestureDetector(
       onTap: _reset,
       child: Column(mainAxisSize: MainAxisSize.min, children: [
-        ElapsedText(
+        TextElapsed(
           controller: _ctrl,
           style: TextStyle(fontSize: 32, fontWeight: FontWeight.bold),
         ),
@@ -282,7 +282,7 @@ class _Demo extends StatelessWidget {
   const _Demo();
   @override
   Widget build(BuildContext context) {
-    return ElapsedText(
+    return TextElapsed(
       precise: true,
       formatter: CountdownFormat.msMillis,
       style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
@@ -290,10 +290,10 @@ class _Demo extends StatelessWidget {
   }
 }
 '''),
-              child: const ElapsedText(
+              child: const TextElapsed(
                 precise: true,
                 formatter: CountdownFormat.msMillis,
-                style: ElapsedTextStyle(textStyle: TextStyle(fontSize: 28, fontWeight: FontWeight.bold)),
+                style: TextElapsedStyle(textStyle: TextStyle(fontSize: 28, fontWeight: FontWeight.bold)),
               ),
             ),
 
@@ -301,7 +301,7 @@ class _Demo extends StatelessWidget {
               title: 'onTick side effect',
               description:
                   'onTick updates an external label via setState — a side effect that '
-                  'does not rebuild the ElapsedText itself.',
+                  'does not rebuild the TextElapsed itself.',
               code: runnable('''
 class _Demo extends StatefulWidget {
   const _Demo();
@@ -314,7 +314,7 @@ class _DemoState extends State<_Demo> {
   @override
   Widget build(BuildContext context) {
     return Column(mainAxisSize: MainAxisSize.min, children: [
-      ElapsedText(
+      TextElapsed(
         onTick: (parts) => setState(() => _ticks++),
         style: TextStyle(fontSize: 32, fontWeight: FontWeight.bold),
       ),
@@ -333,7 +333,7 @@ class _DemoState extends State<_Demo> {
             DemoCard(
               title: 'Cascaded style',
               description:
-                  'ElapsedProvider.textStyle flows down to all child ElapsedText widgets.',
+                  'ElapsedProvider.textStyle flows down to all child TextElapsed widgets.',
               code: runnable('''
 class _Demo extends StatelessWidget {
   const _Demo();
@@ -348,17 +348,17 @@ class _Demo extends StatelessWidget {
       child: Row(mainAxisSize: MainAxisSize.min, children: [
         Column(mainAxisSize: MainAxisSize.min, children: [
           Text('A', style: TextStyle(fontSize: 11, color: Colors.grey)),
-          ElapsedText(),
+          TextElapsed(),
         ]),
         const SizedBox(width: 20),
         Column(mainAxisSize: MainAxisSize.min, children: [
           Text('B', style: TextStyle(fontSize: 11, color: Colors.grey)),
-          ElapsedText(),
+          TextElapsed(),
         ]),
         const SizedBox(width: 20),
         Column(mainAxisSize: MainAxisSize.min, children: [
           Text('C', style: TextStyle(fontSize: 11, color: Colors.grey)),
-          ElapsedText(),
+          TextElapsed(),
         ]),
       ]),
     );
@@ -428,7 +428,7 @@ class _LabeledElapsed extends StatelessWidget {
   Widget build(BuildContext context) {
     return Column(mainAxisSize: MainAxisSize.min, children: [
       Text(label, style: const TextStyle(fontSize: 11, color: Colors.grey)),
-      const ElapsedText(
+      const TextElapsed(
         style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
       ),
     ]);
@@ -473,10 +473,10 @@ class _TenthsDemoState extends State<_TenthsDemo> {
 
   @override
   Widget build(BuildContext context) {
-    return ElapsedText(
+    return TextElapsed(
       plugin: _plugin,
       formatter: CountdownFormat.msTenths,
-      style: ElapsedTextStyle(textStyle: const TextStyle(fontSize: 28, fontWeight: FontWeight.bold)),
+      style: TextElapsedStyle(textStyle: const TextStyle(fontSize: 28, fontWeight: FontWeight.bold)),
     );
   }
 }
@@ -496,9 +496,9 @@ class _CustomFormatterDemo extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const ElapsedText(
+    return const TextElapsed(
       formatter: _fmt,
-      style: ElapsedTextStyle(textStyle: TextStyle(fontSize: 24, fontWeight: FontWeight.w500)),
+      style: TextElapsedStyle(textStyle: TextStyle(fontSize: 24, fontWeight: FontWeight.w500)),
     );
   }
 }
@@ -520,9 +520,9 @@ class _PauseResumeDemoState extends State<_PauseResumeDemo> {
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        ElapsedText(
+        TextElapsed(
           controller: _ctrl,
-          style: ElapsedTextStyle(textStyle: const TextStyle(fontSize: 32, fontWeight: FontWeight.bold)),
+          style: TextElapsedStyle(textStyle: const TextStyle(fontSize: 32, fontWeight: FontWeight.bold)),
         ),
         const SizedBox(height: 12),
         Row(
@@ -567,10 +567,10 @@ class _ThresholdDemoState extends State<_ThresholdDemo> {
 
   @override
   Widget build(BuildContext context) {
-    return ElapsedText(
+    return TextElapsed(
       threshold: const Duration(seconds: 10),
       onThreshold: () => setState(() => _color = Colors.amber),
-      style: ElapsedTextStyle(textStyle: TextStyle(fontSize: 32, fontWeight: FontWeight.bold, color: _color)),
+      style: TextElapsedStyle(textStyle: TextStyle(fontSize: 32, fontWeight: FontWeight.bold, color: _color)),
     );
   }
 }
@@ -595,9 +595,9 @@ class _ResetOnTapDemoState extends State<_ResetOnTapDemo> {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          ElapsedText(
+          TextElapsed(
             controller: _ctrl,
-            style: ElapsedTextStyle(textStyle: const TextStyle(fontSize: 32, fontWeight: FontWeight.bold)),
+            style: TextElapsedStyle(textStyle: const TextStyle(fontSize: 32, fontWeight: FontWeight.bold)),
           ),
           const SizedBox(height: 6),
           const Text(
@@ -619,9 +619,9 @@ class _OnTickDemo extends StatefulWidget {
 }
 
 class _OnTickDemoState extends State<_OnTickDemo> {
-  // Tick counter kept outside the ElapsedText — mutated by onTick, shown below.
+  // Tick counter kept outside the TextElapsed — mutated by onTick, shown below.
   //
-  // 保存在 ElapsedText 之外的 tick 计数——由 onTick 修改并在下方显示。
+  // 保存在 TextElapsed 之外的 tick 计数——由 onTick 修改并在下方显示。
   int _ticks = 0;
 
   @override
@@ -629,9 +629,9 @@ class _OnTickDemoState extends State<_OnTickDemo> {
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        ElapsedText(
+        TextElapsed(
           onTick: (parts) => setState(() => _ticks++),
-          style: ElapsedTextStyle(textStyle: const TextStyle(fontSize: 32, fontWeight: FontWeight.bold)),
+          style: TextElapsedStyle(textStyle: const TextStyle(fontSize: 32, fontWeight: FontWeight.bold)),
         ),
         const SizedBox(height: 6),
         Text('ticks: $_ticks', style: const TextStyle(fontSize: 13)),
@@ -652,8 +652,8 @@ class _LabeledElapsed extends StatelessWidget {
       mainAxisSize: MainAxisSize.min,
       children: [
         Text(label, style: const TextStyle(fontSize: 11, color: Colors.grey)),
-        const ElapsedText(
-          style: ElapsedTextStyle(textStyle: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+        const TextElapsed(
+          style: TextElapsedStyle(textStyle: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
         ),
       ],
     );

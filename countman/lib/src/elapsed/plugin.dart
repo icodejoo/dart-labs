@@ -66,7 +66,7 @@ class ElapsedHandle {
 /// ```dart
 /// final calls = Elapsed(name: 'call-durations');
 /// Countman.use(calls);
-/// ElapsedText(plugin: calls)
+/// TextElapsed(plugin: calls)
 /// ```
 class Elapsed extends ClockPlugin<ElapsedTask> {
   Elapsed({String? name, int interval = 1000})
@@ -156,7 +156,7 @@ class ElapsedController {
 final _default = Elapsed(); // interval = 1000ms
 bool _registered = false;
 
-/// The default [Elapsed] instance (interval = 1 s) used by [ElapsedText]
+/// The default [Elapsed] instance (interval = 1 s) used by [TextElapsed]
 /// when no [plugin] is provided. Auto-registered with [Countman] on first access.
 Elapsed get defaultElapsed {
   if (!_registered) {

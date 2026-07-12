@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:countman/countman.dart';
 
-// CountdownRing and CounterRing share RingPainter (lib/src/widgets/ring_painter.dart).
+// RingCountdown and RingCounter share RingPainter (lib/src/widgets/ring_painter.dart).
 // Arc content isn't reachable via find.text(), so these tests exercise the
 // widget-wiring contract (onComplete, sizing, retarget, dispose) rather than
 // pixel content — the arc math itself is covered indirectly since both
@@ -12,7 +12,7 @@ import 'package:countman/countman.dart';
 Widget _wrap(Widget child) => MaterialApp(home: Scaffold(body: Center(child: child)));
 
 void main() {
-  group('CountdownRing', () {
+  group('RingCountdown', () {
     late DateTime now;
     late void Function(Duration) advance;
 
@@ -28,14 +28,14 @@ void main() {
     });
 
     testWidgets('renders at the requested size', (t) async {
-      await t.pumpWidget(_wrap(const CountdownRing(to: Duration(seconds: 10), style: CountdownRingStyle(size: 120))));
+      await t.pumpWidget(_wrap(const RingCountdown(to: Duration(seconds: 10), style: RingCountdownStyle(size: 120))));
       await t.pump();
-      expect(t.getSize(find.byType(CountdownRing)), const Size(120, 120));
+      expect(t.getSize(find.byType(RingCountdown)), const Size(120, 120));
     });
 
     testWidgets('onComplete fires when the countdown reaches zero', (t) async {
       bool done = false;
-      await t.pumpWidget(_wrap(CountdownRing(
+      await t.pumpWidget(_wrap(RingCountdown(
         to: const Duration(seconds: 2),
         onComplete: () => done = true,
       )));
@@ -49,7 +49,7 @@ void main() {
     });
 
     testWidgets('renders center widget', (t) async {
-      await t.pumpWidget(_wrap(CountdownRing(
+      await t.pumpWidget(_wrap(RingCountdown(
         to: const Duration(seconds: 10),
         center: const Text('center'),
       )));
@@ -58,18 +58,18 @@ void main() {
     });
   });
 
-  group('CounterRing', () {
+  group('RingCounter', () {
     tearDown(Countman.destroy);
 
     testWidgets('renders at the requested size', (t) async {
-      await t.pumpWidget(_wrap(const CounterRing(to: 100, style: CounterRingStyle(size: 120))));
+      await t.pumpWidget(_wrap(const RingCounter(to: 100, style: RingCounterStyle(size: 120))));
       await t.pump();
-      expect(t.getSize(find.byType(CounterRing)), const Size(120, 120));
+      expect(t.getSize(find.byType(RingCounter)), const Size(120, 120));
     });
 
     testWidgets('onComplete fires with the target value', (t) async {
       double? done;
-      await t.pumpWidget(_wrap(CounterRing(
+      await t.pumpWidget(_wrap(RingCounter(
         to: 100,
         duration: const Duration(milliseconds: 200),
         onComplete: (v) => done = v,
@@ -83,7 +83,7 @@ void main() {
     });
 
     testWidgets('renders center widget', (t) async {
-      await t.pumpWidget(_wrap(const CounterRing(
+      await t.pumpWidget(_wrap(const RingCounter(
         to: 100,
         center: Text('center'),
       )));
@@ -97,7 +97,7 @@ void main() {
 
       await t.pumpWidget(_wrap(StatefulBuilder(builder: (_, s) {
         setState = s;
-        return CounterRing(to: to, duration: const Duration(milliseconds: 200));
+        return RingCounter(to: to, duration: const Duration(milliseconds: 200));
       })));
       await t.pump();
       await t.pump(const Duration(milliseconds: 400)); // settle at 100
@@ -110,13 +110,13 @@ void main() {
     });
 
     testWidgets('from defaults to 0', (t) async {
-      await t.pumpWidget(_wrap(const CounterRing(to: 100, style: CounterRingStyle(size: 60))));
+      await t.pumpWidget(_wrap(const RingCounter(to: 100, style: RingCounterStyle(size: 60))));
       await t.pump();
       expect(t.takeException(), isNull);
     });
 
     testWidgets('disposes cleanly mid-animation', (t) async {
-      await t.pumpWidget(_wrap(const CounterRing(
+      await t.pumpWidget(_wrap(const RingCounter(
         to: 100,
         duration: Duration(milliseconds: 400),
       )));

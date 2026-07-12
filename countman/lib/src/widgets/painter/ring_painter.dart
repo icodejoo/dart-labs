@@ -2,7 +2,7 @@ import 'dart:math' as math;
 import 'package:flutter/widgets.dart';
 
 /// Draws a circular arc over a track — the shared rendering core for
-/// `CountdownRing` (arc depletes) and `CounterRing` (arc fills). Both widgets
+/// `RingCountdown` (arc depletes) and `RingCounter` (arc fills). Both widgets
 /// only differ in how they compute [progress]; the arc math lives here once.
 ///
 /// The track/arc span a configurable [sweepAngle] (default a full circle),
@@ -13,7 +13,7 @@ import 'package:flutter/widgets.dart';
 /// Every drawing step is a separate overridable method so a subclass can
 /// customize one piece without reimplementing [paint].
 ///
-/// 绘制轨道上的圆弧——`CountdownRing`（弧递减）与 `CounterRing`（弧填充）的
+/// 绘制轨道上的圆弧——`RingCountdown`（弧递减）与 `RingCounter`（弧填充）的
 /// 共享渲染核心。轨道/弧跨越可配置的 [sweepAngle]（默认整圆），因此传入
 /// `sweepAngle: 270 * pi / 180` 即可实现部分弧的"仪表盘"样式。可选的
 /// [backgroundColor] 在环形背后填充圆盘，[showTrack] 可完全隐藏轨道。

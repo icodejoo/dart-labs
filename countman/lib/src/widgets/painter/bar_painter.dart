@@ -1,7 +1,7 @@
 import 'package:flutter/widgets.dart';
 
 /// Draws a filled rounded-rect bar over a track — the shared rendering core
-/// for `CountdownBar` (bar shrinks) and `CounterBar` (bar grows). Both widgets
+/// for `BarCountdown` (bar shrinks) and `BarCounter` (bar grows). Both widgets
 /// only differ in how they compute [progress]; the fill math lives here once.
 ///
 /// Supports horizontal (default) and [vertical] orientation, filling from
@@ -9,7 +9,7 @@ import 'package:flutter/widgets.dart';
 /// thinner cross-axis band ([trackHeight]), per-corner rounding, and a
 /// hideable track ([showTrack]).
 ///
-/// 绘制轨道上的圆角填充条——`CountdownBar`/`CounterBar` 的共享渲染核心。支持水平
+/// 绘制轨道上的圆角填充条——`BarCountdown`/`BarCounter` 的共享渲染核心。支持水平
 /// （默认）与 [vertical] 竖向、从任一端填充、渐变、更细的横轴带、逐角圆角、可隐藏
 /// 轨道。
 class BarPainter extends CustomPainter {

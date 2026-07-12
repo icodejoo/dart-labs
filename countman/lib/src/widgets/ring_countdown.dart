@@ -6,24 +6,24 @@ import 'ring_style.dart';
 import 'progress_display.dart';
 import 'style_support.dart';
 
-export 'ring_style.dart' show CountdownRingStyle;
+export 'ring_style.dart' show RingCountdownStyle;
 
 /// A circular arc countdown display. Composes [CountdownBuilder].
 ///
 /// The ring depletes from full as time elapses. Progress = remaining / total.
 /// [to] accepts [DateTime], [Duration], [int] (ms epoch), or ISO-8601 [String].
 ///
-/// Visual appearance is configured via [style] ([CountdownRingStyle]).
+/// Visual appearance is configured via [style] ([RingCountdownStyle]).
 ///
 /// ```dart
-/// CountdownRing(
+/// RingCountdown(
 ///   to: const Duration(minutes: 5),
-///   style: const CountdownRingStyle(size: 80),
-///   center: CountdownText(to: const Duration(minutes: 5)),
+///   style: const RingCountdownStyle(size: 80),
+///   center: TextCountdown(to: const Duration(minutes: 5)),
 /// )
 /// ```
-class CountdownRing extends StatelessWidget {
-  const CountdownRing({
+class RingCountdown extends StatelessWidget {
+  const RingCountdown({
     super.key,
     required this.to,
     this.style,
@@ -50,7 +50,7 @@ class CountdownRing extends StatelessWidget {
   /// Visual style. Merged over the enclosing [CountdownProvider]'s defaults.
   ///
   /// 视觉样式。叠加在所在 [CountdownProvider] 的默认值之上。
-  final CountdownRingStyle? style;
+  final RingCountdownStyle? style;
 
   /// Optional widget rendered in the center of the ring.
   final Widget? center;
@@ -87,7 +87,7 @@ class CountdownRing extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final scope = CountmanScope.maybeOf<Countdown>(context);
-    final effStyle = (style ?? const CountdownRingStyle()).merge(scope?.countdownRingStyle);
+    final effStyle = (style ?? const RingCountdownStyle()).merge(scope?.ringCountdownStyle);
     final effSize = effStyle.size ?? 80.0;
     final colors = resolveProgressColors(
       context,

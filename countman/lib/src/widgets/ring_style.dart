@@ -4,13 +4,13 @@ import 'package:flutter/widgets.dart';
 import 'painter/ring_painter.dart';
 import 'style_support.dart';
 
-/// Shared visual-field contract for [CounterRingStyle] / [CountdownRingStyle].
+/// Shared visual-field contract for [RingCounterStyle] / [RingCountdownStyle].
 ///
 /// Declares every ring appearance knob as an abstract getter so the two
 /// independent style classes reuse one field set and one painter builder
 /// ([ringPainterFrom]) without duplicating the drawing wiring.
 ///
-/// [CounterRingStyle] / [CountdownRingStyle] 共享的视觉字段契约。把每个环形外观项
+/// [RingCounterStyle] / [RingCountdownStyle] 共享的视觉字段契约。把每个环形外观项
 /// 声明为抽象 getter，使两个独立样式类复用同一字段集与同一画笔构建器
 /// （[ringPainterFrom]），无需重复绘制接线。
 mixin RingStyleFields {
@@ -85,10 +85,10 @@ mixin RingStyleFields {
   AlignmentGeometry? get centerAlignment;
 
   /// Whether a filled "thumb" dot rides the arc's moving edge. Defaults on for
-  /// `CountdownRing` (makes slow depletion visibly move), off for `CounterRing`.
+  /// `RingCountdown` (makes slow depletion visibly move), off for `RingCounter`.
   ///
-  /// 是否在弧的移动边缘显示实心"游标"圆点。`CountdownRing` 默认开（让缓慢递减明显
-  /// 在动），`CounterRing` 默认关。
+  /// 是否在弧的移动边缘显示实心"游标"圆点。`RingCountdown` 默认开（让缓慢递减明显
+  /// 在动），`RingCounter` 默认关。
   bool? get showThumb;
 
   /// Thumb fill color. Falls back to the arc color.
@@ -164,16 +164,16 @@ RingPainter ringPainterFrom(
   );
 }
 
-/// Visual style for the ring displays — shared by `CounterRing` and
-/// `CountdownRing` (see the [CounterRingStyle] / [CountdownRingStyle] aliases).
+/// Visual style for the ring displays — shared by `RingCounter` and
+/// `RingCountdown` (see the [RingCounterStyle] / [RingCountdownStyle] aliases).
 ///
 /// Groups every ring appearance knob (geometry, colors, gradients, arc span,
 /// track visibility, background fill, container decoration) into one reusable,
 /// themeable, mergeable object. All fields nullable; unset fields fall back to
 /// the provider then to framework defaults.
 ///
-/// 环形显示组件的视觉样式——由 `CounterRing` 与 `CountdownRing` 共用
-/// （见 [CounterRingStyle] / [CountdownRingStyle] 别名）。
+/// 环形显示组件的视觉样式——由 `RingCounter` 与 `RingCountdown` 共用
+/// （见 [RingCounterStyle] / [RingCountdownStyle] 别名）。
 ///
 /// 把每个环形外观项（几何、颜色、渐变、弧跨度、轨道可见性、背景填充、容器装饰）
 /// 聚合为一个可复用、可主题化、可合并的对象。所有字段可空；未设置的字段回退到
@@ -341,12 +341,12 @@ class RingStyle with BoxStyleFields, RingStyleFields, StyleProps {
       ];
 }
 
-/// Visual style for `CounterRing`. Alias of the shared [RingStyle].
+/// Visual style for `RingCounter`. Alias of the shared [RingStyle].
 ///
-/// `CounterRing` 的视觉样式。共享 [RingStyle] 的别名。
-typedef CounterRingStyle = RingStyle;
+/// `RingCounter` 的视觉样式。共享 [RingStyle] 的别名。
+typedef RingCounterStyle = RingStyle;
 
-/// Visual style for `CountdownRing`. Alias of the shared [RingStyle].
+/// Visual style for `RingCountdown`. Alias of the shared [RingStyle].
 ///
-/// `CountdownRing` 的视觉样式。共享 [RingStyle] 的别名。
-typedef CountdownRingStyle = RingStyle;
+/// `RingCountdown` 的视觉样式。共享 [RingStyle] 的别名。
+typedef RingCountdownStyle = RingStyle;

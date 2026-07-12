@@ -7,7 +7,7 @@ import '../core/time_parts.dart';
 export '../core/clock.dart' show countdownClock;
 export '../core/time_parts.dart' show TimeParts;
 
-/// Formatter function type for [CountdownWidget] / [ElapsedText]. Receives the
+/// Formatter function type for [CountdownWidget] / [TextElapsed]. Receives the
 /// shared per-task [TimeParts] (pre-decomposed d/h/m/s/ms) rather than a raw
 /// [Duration], so a formatter reads components directly with no `%` math.
 typedef DurationFormatter = String Function(TimeParts parts);

@@ -64,8 +64,8 @@ class HomePage extends StatelessWidget {
           _PluginCard(
             icon: Icons.timer_outlined,
             title: 'Counter',
-            subtitle: 'CounterText · CounterBuilder · CounterOdometer\n'
-                'CounterRing · CounterBar · AnimatedCounter',
+            subtitle: 'TextCounter · CounterBuilder · OdometerCounter\n'
+                'RingCounter · BarCounter · AnimatedCounter',
             route: '/counter',
             color: const Color(0xFF5C6BC0),
           ),
@@ -73,8 +73,8 @@ class HomePage extends StatelessWidget {
           _PluginCard(
             icon: Icons.hourglass_empty_rounded,
             title: 'Countdown',
-            subtitle: 'CountdownBuilder · CountdownText · CountdownRing\n'
-                'CountdownBar · CountdownCard',
+            subtitle: 'CountdownBuilder · TextCountdown · RingCountdown\n'
+                'BarCountdown · CardCountdown',
             route: '/countdown',
             color: const Color(0xFF26A69A),
           ),
@@ -82,7 +82,7 @@ class HomePage extends StatelessWidget {
           _PluginCard(
             icon: Icons.access_time_rounded,
             title: 'Elapsed',
-            subtitle: 'ElapsedText · ElapsedBuilder · ElapsedProvider',
+            subtitle: 'TextElapsed · ElapsedBuilder · ElapsedProvider',
             route: '/elapsed',
             color: const Color(0xFFEF5350),
           ),
@@ -99,14 +99,14 @@ class HomePage extends StatelessWidget {
           _PluginCard(
             icon: Icons.account_tree_rounded,
             title: 'Providers',
-            subtitle: 'CountmanProvider (聚合三家族) · CountdownCardProvider',
+            subtitle: 'CountmanProvider (聚合三家族) · CardCountdownProvider',
             route: '/providers',
             color: const Color(0xFF7E57C2),
           ),
           const SizedBox(height: 12),
           _PluginCard(
             icon: Icons.style_rounded,
-            title: 'CountdownCard 效果矩阵',
+            title: 'CardCountdown 效果矩阵',
             subtitle: 'calendar / slide / flip · scale / opacity / perspective',
             route: '/card',
             color: const Color(0xFF26A69A),

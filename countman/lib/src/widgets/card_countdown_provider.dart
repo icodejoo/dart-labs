@@ -1,8 +1,8 @@
 import 'package:flutter/widgets.dart';
-import 'countdown_card_types.dart';
+import 'card_countdown_types.dart';
 
 /// Shares default style/size/timing config across a subtree of
-/// [CountdownCard]s, so a whole screen of cards doesn't need to repeat
+/// [CardCountdown]s, so a whole screen of cards doesn't need to repeat
 /// `cardColor:`/`textStyle:`/`duration:` etc. on every instance.
 ///
 /// For whichever of [textStyle], [labelStyle], [separatorStyle] a card
@@ -14,20 +14,20 @@ import 'countdown_card_types.dart';
 /// per-card customizations never pollute the shared pool.
 ///
 /// Uses the standard subscribing [InheritedWidget] lookup: changing a
-/// [CountdownCardProvider]'s config rebuilds every [CountdownCard] in its
+/// [CardCountdownProvider]'s config rebuilds every [CardCountdown] in its
 /// scope, the same as [Theme] or [DefaultTextStyle]. It's meant to be
 /// configured once per screen — changing it on a hot path (every frame,
 /// every tick) works but isn't what it's for.
 ///
 /// ```dart
-/// CountdownCardProvider(
+/// CardCountdownProvider(
 ///   cardColor: Colors.indigo,
 ///   textStyle: const TextStyle(fontSize: 32, color: Colors.white),
-///   child: GridView(children: [for (final t in targets) CountdownCard(to: t)]),
+///   child: GridView(children: [for (final t in targets) CardCountdown(to: t)]),
 /// )
 /// ```
-class CountdownCardProvider extends StatefulWidget {
-  const CountdownCardProvider({
+class CardCountdownProvider extends StatefulWidget {
+  const CardCountdownProvider({
     super.key,
     required this.child,
     this.cardColor,
@@ -64,17 +64,17 @@ class CountdownCardProvider extends StatefulWidget {
   final SlideEffect? opacityEffect;
   final double? perspective;
 
-  /// Looks up the nearest ancestor [CountdownCardProvider], subscribing this
+  /// Looks up the nearest ancestor [CardCountdownProvider], subscribing this
   /// context to it — the caller rebuilds whenever the provider's config
   /// changes. Returns null if there is no ancestor provider.
-  static CountdownCardProviderData? of(BuildContext context) =>
-      context.dependOnInheritedWidgetOfExactType<_CountdownCardScope>()?.data;
+  static CardCountdownProviderData? of(BuildContext context) =>
+      context.dependOnInheritedWidgetOfExactType<_CardCountdownScope>()?.data;
 
   @override
-  State<CountdownCardProvider> createState() => _CountdownCardProviderState();
+  State<CardCountdownProvider> createState() => _CardCountdownProviderState();
 }
 
-class _CountdownCardProviderState extends State<CountdownCardProvider> {
+class _CardCountdownProviderState extends State<CardCountdownProvider> {
   // One cache per provider instance, stable across rebuilds (only recreated
   // if the provider widget itself is torn down and remounted).
   final _cache = <(String, TextStyle), TextPainter>{};
@@ -89,8 +89,8 @@ class _CountdownCardProviderState extends State<CountdownCardProvider> {
   }
 
   @override
-  Widget build(BuildContext context) => _CountdownCardScope(
-        data: CountdownCardProviderData(
+  Widget build(BuildContext context) => _CardCountdownScope(
+        data: CardCountdownProviderData(
           cardColor: widget.cardColor,
           textStyle: widget.textStyle,
           labelStyle: widget.labelStyle,
@@ -113,9 +113,9 @@ class _CountdownCardProviderState extends State<CountdownCardProvider> {
 }
 
 /// Resolved config + shared glyph cache exposed to descendant
-/// [CountdownCard]s by [CountdownCardProvider].
-class CountdownCardProviderData {
-  const CountdownCardProviderData({
+/// [CardCountdown]s by [CardCountdownProvider].
+class CardCountdownProviderData {
+  const CardCountdownProviderData({
     required this.cardColor,
     required this.textStyle,
     required this.labelStyle,
@@ -150,18 +150,18 @@ class CountdownCardProviderData {
   final SlideEffect? opacityEffect;
   final double? perspective;
 
-  /// Shared glyph cache — see the class-level doc on [CountdownCardProvider]
+  /// Shared glyph cache — see the class-level doc on [CardCountdownProvider]
   /// for which cards actually use it vs their own local cache.
   final Map<(String, TextStyle), TextPainter> cache;
 }
 
-class _CountdownCardScope extends InheritedWidget {
-  const _CountdownCardScope({required this.data, required super.child});
+class _CardCountdownScope extends InheritedWidget {
+  const _CardCountdownScope({required this.data, required super.child});
 
-  final CountdownCardProviderData data;
+  final CardCountdownProviderData data;
 
   @override
-  bool updateShouldNotify(_CountdownCardScope oldWidget) =>
+  bool updateShouldNotify(_CardCountdownScope oldWidget) =>
       data.cardColor != oldWidget.data.cardColor ||
       data.textStyle != oldWidget.data.textStyle ||
       data.labelStyle != oldWidget.data.labelStyle ||

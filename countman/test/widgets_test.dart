@@ -190,13 +190,13 @@ group('CounterBuilder', () {
   });
 });
 
-// ── CounterText ────────────────────────────────────────────────────────────────
+// ── TextCounter ────────────────────────────────────────────────────────────────
 
-group('CounterText', () {
+group('TextCounter', () {
   tearDown(Countman.destroy);
 
   testWidgets('default formatter shows toInt', (t) async {
-    await t.pumpWidget(_wrap(CounterText(to: 99)));
+    await t.pumpWidget(_wrap(TextCounter(to: 99)));
     await t.pump();
     Countman.destroy();
 
@@ -205,7 +205,7 @@ group('CounterText', () {
 
   testWidgets('custom formatter applied', (t) async {
     await t.pumpWidget(_wrap(
-      CounterText(
+      TextCounter(
         to: 100,
         formatter: (v) => '${v.toInt()}px',
       ),
@@ -218,7 +218,7 @@ group('CounterText', () {
 
   testWidgets('reaches to value', (t) async {
     await t.pumpWidget(_wrap(
-      CounterText(to: 50, duration: const Duration(milliseconds: 100)),
+      TextCounter(to: 50, duration: const Duration(milliseconds: 100)),
     ));
     await _pumpTwo(t);
     Countman.destroy();
@@ -227,7 +227,7 @@ group('CounterText', () {
   });
 
   testWidgets('no Row when no prefix/suffix', (t) async {
-    await t.pumpWidget(_wrap(CounterText(to: 10)));
+    await t.pumpWidget(_wrap(TextCounter(to: 10)));
     await t.pump();
     Countman.destroy();
 
@@ -235,7 +235,7 @@ group('CounterText', () {
   });
 
   testWidgets('prefix String shown', (t) async {
-    await t.pumpWidget(_wrap(CounterText(to: 10, prefix: '¥')));
+    await t.pumpWidget(_wrap(TextCounter(to: 10, prefix: '¥')));
     await t.pump();
     Countman.destroy();
 
@@ -244,7 +244,7 @@ group('CounterText', () {
   });
 
   testWidgets('suffix String shown', (t) async {
-    await t.pumpWidget(_wrap(CounterText(to: 10, suffix: ' pts')));
+    await t.pumpWidget(_wrap(TextCounter(to: 10, suffix: ' pts')));
     await t.pump();
     Countman.destroy();
 
@@ -253,7 +253,7 @@ group('CounterText', () {
   });
 
   testWidgets('both prefix and suffix shown', (t) async {
-    await t.pumpWidget(_wrap(CounterText(to: 10, prefix: '¥', suffix: ' 元')));
+    await t.pumpWidget(_wrap(TextCounter(to: 10, prefix: '¥', suffix: ' 元')));
     await t.pump();
     Countman.destroy();
 
@@ -263,7 +263,7 @@ group('CounterText', () {
 
   testWidgets('prefixWidget shown instead of prefix String', (t) async {
     await t.pumpWidget(_wrap(
-      CounterText(
+      TextCounter(
         to: 10,
         prefixWidget: const Icon(Icons.star, key: Key('icon')),
         prefix: 'IGNORED',
@@ -278,7 +278,7 @@ group('CounterText', () {
 
   testWidgets('suffixWidget shown instead of suffix String', (t) async {
     await t.pumpWidget(_wrap(
-      CounterText(
+      TextCounter(
         to: 10,
         suffixWidget: const Icon(Icons.check, key: Key('icon')),
         suffix: 'IGNORED',
@@ -293,7 +293,7 @@ group('CounterText', () {
 
   testWidgets('prefixWidget triggers Row even without prefix String', (t) async {
     await t.pumpWidget(_wrap(
-      CounterText(to: 10, prefixWidget: const Icon(Icons.star)),
+      TextCounter(to: 10, prefixWidget: const Icon(Icons.star)),
     ));
     await t.pump();
     Countman.destroy();
@@ -303,7 +303,7 @@ group('CounterText', () {
 
   testWidgets('suffixWidget triggers Row even without suffix String', (t) async {
     await t.pumpWidget(_wrap(
-      CounterText(to: 10, suffixWidget: const Icon(Icons.check)),
+      TextCounter(to: 10, suffixWidget: const Icon(Icons.check)),
     ));
     await t.pump();
     Countman.destroy();
@@ -314,7 +314,7 @@ group('CounterText', () {
   testWidgets('onComplete called when animation completes', (t) async {
     double? done;
     await t.pumpWidget(_wrap(
-      CounterText(
+      TextCounter(
         to: 77,
         duration: const Duration(milliseconds: 100),
         onComplete: (v) => done = v,
@@ -327,7 +327,7 @@ group('CounterText', () {
   });
 
   testWidgets('from value respected', (t) async {
-    await t.pumpWidget(_wrap(CounterText(from: 50, to: 100)));
+    await t.pumpWidget(_wrap(TextCounter(from: 50, to: 100)));
     await t.pump();
     Countman.destroy();
 

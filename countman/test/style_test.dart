@@ -12,41 +12,41 @@ import 'package:countman/countman.dart';
 void main() {
   tearDown(Countman.destroy);
 
-  group('CounterTextStyle value semantics', () {
+  group('TextCounterStyle value semantics', () {
     test('merge: this non-null fields win, other fills the gaps', () {
-      const a = CounterTextStyle(textStyle: TextStyle(fontSize: 10));
-      const b = CounterTextStyle(textStyle: TextStyle(fontSize: 20), maxLines: 2);
+      const a = TextCounterStyle(textStyle: TextStyle(fontSize: 10));
+      const b = TextCounterStyle(textStyle: TextStyle(fontSize: 20), maxLines: 2);
       final m = a.merge(b);
       expect(m.textStyle!.fontSize, 10, reason: 'a (higher priority) wins');
       expect(m.maxLines, 2, reason: 'b fills the gap a left null');
     });
 
     test('merge(null) returns this', () {
-      const a = CounterTextStyle(maxLines: 3);
+      const a = TextCounterStyle(maxLines: 3);
       expect(identical(a.merge(null), a), isTrue);
     });
 
     test('copyWith replaces only the given fields', () {
-      const a = CounterTextStyle(textStyle: TextStyle(fontSize: 10), maxLines: 1);
+      const a = TextCounterStyle(textStyle: TextStyle(fontSize: 10), maxLines: 1);
       final c = a.copyWith(maxLines: 5);
       expect(c.maxLines, 5);
       expect(c.textStyle!.fontSize, 10, reason: 'untouched field preserved');
     });
 
     test('== and hashCode by value', () {
-      const a = CounterTextStyle(maxLines: 2, textStyle: TextStyle(fontSize: 10));
-      const b = CounterTextStyle(maxLines: 2, textStyle: TextStyle(fontSize: 10));
-      const c = CounterTextStyle(maxLines: 3);
+      const a = TextCounterStyle(maxLines: 2, textStyle: TextStyle(fontSize: 10));
+      const b = TextCounterStyle(maxLines: 2, textStyle: TextStyle(fontSize: 10));
+      const c = TextCounterStyle(maxLines: 3);
       expect(a, equals(b));
       expect(a.hashCode, b.hashCode);
       expect(a, isNot(equals(c)));
     });
   });
 
-  group('CounterRingStyle value semantics + new fields', () {
+  group('RingCounterStyle value semantics + new fields', () {
     test('merge keeps this.strokeWidth, takes other.sweepAngle', () {
-      const a = CounterRingStyle(strokeWidth: 4);
-      const b = CounterRingStyle(strokeWidth: 8, sweepAngle: 3.14, showTrack: false);
+      const a = RingCounterStyle(strokeWidth: 4);
+      const b = RingCounterStyle(strokeWidth: 8, sweepAngle: 3.14, showTrack: false);
       final m = a.merge(b);
       expect(m.strokeWidth, 4);
       expect(m.sweepAngle, 3.14);
@@ -55,25 +55,25 @@ void main() {
   });
 
   group('BarStyle / DialStyle / CardStyle / AnimatedCounterStyle exist & merge', () {
-    test('CountdownBarStyle vertical + merge', () {
-      const a = CountdownBarStyle(vertical: true);
-      const b = CountdownBarStyle(vertical: false, height: 12);
+    test('BarCountdownStyle vertical + merge', () {
+      const a = BarCountdownStyle(vertical: true);
+      const b = BarCountdownStyle(vertical: false, height: 12);
       final m = a.merge(b);
       expect(m.vertical, true);
       expect(m.height, 12);
     });
 
-    test('CountdownDialStyle show flags + merge', () {
-      const a = CountdownDialStyle(showTicks: false);
-      const b = CountdownDialStyle(showTicks: true, glow: true);
+    test('DialCountdownStyle show flags + merge', () {
+      const a = DialCountdownStyle(showTicks: false);
+      const b = DialCountdownStyle(showTicks: true, glow: true);
       final m = a.merge(b);
       expect(m.showTicks, false);
       expect(m.glow, true);
     });
 
-    test('CountdownCardStyle merge', () {
-      const a = CountdownCardStyle(splitDigits: true);
-      const b = CountdownCardStyle(splitDigits: false, cardWidth: 40);
+    test('CardCountdownStyle merge', () {
+      const a = CardCountdownStyle(splitDigits: true);
+      const b = CardCountdownStyle(splitDigits: false, cardWidth: 40);
       final m = a.merge(b);
       expect(m.splitDigits, true);
       expect(m.cardWidth, 40);
@@ -89,13 +89,13 @@ void main() {
   });
 
   group('style is actually applied by widgets', () {
-    testWidgets('CounterText applies decoration + textStyle', (t) async {
+    testWidgets('TextCounter applies decoration + textStyle', (t) async {
       await t.pumpWidget(const MaterialApp(
         home: Scaffold(
           body: Center(
-            child: CounterText(
+            child: TextCounter(
               to: 100,
-              style: CounterTextStyle(
+              style: TextCounterStyle(
                 textStyle: TextStyle(fontSize: 20, color: Color(0xFF112233)),
                 decoration: BoxDecoration(color: Color(0xFFAABBCC)),
               ),
@@ -119,17 +119,17 @@ void main() {
       expect(txt.style?.color, const Color(0xFF112233));
     });
 
-    testWidgets('CounterProvider.counterTextStyle inherited; widget style wins', (t) async {
+    testWidgets('CounterProvider.textCounterStyle inherited; widget style wins', (t) async {
       await t.pumpWidget(MaterialApp(
         home: Scaffold(
           body: CounterProvider(
-            counterTextStyle: const CounterTextStyle(textStyle: TextStyle(fontSize: 30)),
+            textCounterStyle: const TextCounterStyle(textStyle: TextStyle(fontSize: 30)),
             child: Column(children: const [
-              CounterText(to: 5, key: Key('inherit')),
-              CounterText(
+              TextCounter(to: 5, key: Key('inherit')),
+              TextCounter(
                 to: 5,
                 key: Key('override'),
-                style: CounterTextStyle(textStyle: TextStyle(fontSize: 12)),
+                style: TextCounterStyle(textStyle: TextStyle(fontSize: 12)),
               ),
             ]),
           ),
@@ -144,11 +144,11 @@ void main() {
           reason: 'widget style overrides provider');
     });
 
-    testWidgets('CountdownCard forwards curve to its transition painter', (t) async {
+    testWidgets('CardCountdown forwards curve to its transition painter', (t) async {
       await t.pumpWidget(const MaterialApp(
         home: Scaffold(
           body: Center(
-            child: CountdownCard(to: Duration(seconds: 5), curve: Curves.easeInOut),
+            child: CardCountdown(to: Duration(seconds: 5), curve: Curves.easeInOut),
           ),
         ),
       ));
@@ -161,15 +161,15 @@ void main() {
       expect(fcp.curve, Curves.easeInOut);
     });
 
-    testWidgets('CountdownText gains prefix/suffix with per-affix style', (t) async {
+    testWidgets('TextCountdown gains prefix/suffix with per-affix style', (t) async {
       await t.pumpWidget(const MaterialApp(
         home: Scaffold(
           body: Center(
-            child: CountdownText(
+            child: TextCountdown(
               to: Duration(minutes: 1),
               prefix: '⏱ ',
               suffix: ' left',
-              style: CountdownTextStyle(
+              style: TextCountdownStyle(
                 prefixStyle: TextStyle(fontSize: 8),
                 suffixStyle: TextStyle(fontSize: 9),
               ),

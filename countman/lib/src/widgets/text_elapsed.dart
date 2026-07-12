@@ -4,14 +4,14 @@ import 'package:countman/src/count_down/types.dart'
 import 'package:countman/src/elapsed/plugin.dart';
 import 'providers.dart';
 import 'text_style.dart';
-import 'elapsed_widget.dart';
+import 'elapsed_builder.dart';
 
 export 'text_style.dart' show CountmanTextStyle;
 
-/// Visual style for [ElapsedText]. Alias of the shared [CountmanTextStyle].
+/// Visual style for [TextElapsed]. Alias of the shared [CountmanTextStyle].
 ///
-/// [ElapsedText] 的视觉样式。共享 [CountmanTextStyle] 的别名。
-typedef ElapsedTextStyle = CountmanTextStyle;
+/// [TextElapsed] 的视觉样式。共享 [CountmanTextStyle] 的别名。
+typedef TextElapsedStyle = CountmanTextStyle;
 
 /// Displays an open-ended elapsed-time counter — a stopwatch, not a
 /// countdown. Starts at zero the moment it's mounted and counts up
@@ -19,23 +19,23 @@ typedef ElapsedTextStyle = CountmanTextStyle;
 ///
 /// Reuses [CountdownFormat]'s duration formatters ([DurationFormatter]).
 /// Derives from [ElapsedBuilder], which owns the plugin/task wiring (mirrors
-/// [CounterText] building on `CounterBuilder`).
+/// [TextCounter] building on `CounterBuilder`).
 ///
 /// ```dart
-/// ElapsedText() // 00:00, 00:01, 00:02, ...
-/// ElapsedText(formatter: CountdownFormat.hms)
+/// TextElapsed() // 00:00, 00:01, 00:02, ...
+/// TextElapsed(formatter: CountdownFormat.hms)
 /// ```
 ///
 /// ## Imperative control (pause / resume / reset)
 /// ```dart
 /// final _ctrl = ElapsedController();
-/// ElapsedText(controller: _ctrl);
+/// TextElapsed(controller: _ctrl);
 /// _ctrl.pause();
 /// _ctrl.resume();
 /// _ctrl.reset();
 /// ```
-class ElapsedText extends StatelessWidget {
-  const ElapsedText({
+class TextElapsed extends StatelessWidget {
+  const TextElapsed({
     super.key,
     this.formatter,
     this.style,
@@ -68,7 +68,7 @@ class ElapsedText extends StatelessWidget {
   /// Visual style. Merged over the enclosing [ElapsedProvider]'s text style.
   ///
   /// 视觉样式。叠加在所在 [ElapsedProvider] 的文本样式之上。
-  final ElapsedTextStyle? style;
+  final TextElapsedStyle? style;
 
   /// Plain-text prefix. Ignored when [prefixWidget] is provided.
   final String? prefix;
@@ -126,7 +126,7 @@ class ElapsedText extends StatelessWidget {
     //
     // 解析样式，叠加在 provider 默认之上。
     final scope = CountmanScope.maybeOf<Elapsed>(context);
-    final s = (style ?? const ElapsedTextStyle()).merge(scope?.elapsedTextStyle);
+    final s = (style ?? const TextElapsedStyle()).merge(scope?.textElapsedStyle);
     final effTextStyle = s.textStyle ?? scope?.textStyle;
     final effFormatter = formatter ?? scope?.formatter ?? CountdownFormat.auto;
 

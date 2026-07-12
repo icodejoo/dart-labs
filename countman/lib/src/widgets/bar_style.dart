@@ -3,9 +3,9 @@ import 'package:flutter/widgets.dart';
 import 'painter/bar_painter.dart';
 import 'style_support.dart';
 
-/// Shared visual-field contract for [CounterBarStyle] / [CountdownBarStyle].
+/// Shared visual-field contract for [BarCounterStyle] / [BarCountdownStyle].
 ///
-/// [CounterBarStyle] / [CountdownBarStyle] 共享的视觉字段契约。
+/// [BarCounterStyle] / [BarCountdownStyle] 共享的视觉字段契约。
 mixin BarStyleFields {
   /// Bar length along the main axis (width when horizontal).
   ///
@@ -112,15 +112,15 @@ BarPainter barPainterFrom(
   );
 }
 
-/// Visual style for the bar displays — shared by `CounterBar` and
-/// `CountdownBar` (see the [CounterBarStyle] / [CountdownBarStyle] aliases).
+/// Visual style for the bar displays — shared by `BarCounter` and
+/// `BarCountdown` (see the [BarCounterStyle] / [BarCountdownStyle] aliases).
 ///
 /// Groups every bar appearance knob (geometry, colors, gradients, corner
 /// radius, fill direction, orientation, container decoration) into one
 /// reusable, themeable, mergeable object. All fields nullable.
 ///
-/// 进度条显示组件的视觉样式——由 `CounterBar` 与 `CountdownBar` 共用
-/// （见 [CounterBarStyle] / [CountdownBarStyle] 别名）。
+/// 进度条显示组件的视觉样式——由 `BarCounter` 与 `BarCountdown` 共用
+/// （见 [BarCounterStyle] / [BarCountdownStyle] 别名）。
 ///
 /// 把每个进度条外观项（几何、颜色、渐变、圆角、填充方向、朝向、容器装饰）聚合为
 /// 一个可复用、可主题化、可合并的对象。所有字段可空。
@@ -252,12 +252,12 @@ class BarStyle with BoxStyleFields, BarStyleFields, StyleProps {
       ];
 }
 
-/// Visual style for `CounterBar`. Alias of the shared [BarStyle].
+/// Visual style for `BarCounter`. Alias of the shared [BarStyle].
 ///
-/// `CounterBar` 的视觉样式。共享 [BarStyle] 的别名。
-typedef CounterBarStyle = BarStyle;
+/// `BarCounter` 的视觉样式。共享 [BarStyle] 的别名。
+typedef BarCounterStyle = BarStyle;
 
-/// Visual style for `CountdownBar`. Alias of the shared [BarStyle].
+/// Visual style for `BarCountdown`. Alias of the shared [BarStyle].
 ///
-/// `CountdownBar` 的视觉样式。共享 [BarStyle] 的别名。
-typedef CountdownBarStyle = BarStyle;
+/// `BarCountdown` 的视觉样式。共享 [BarStyle] 的别名。
+typedef BarCountdownStyle = BarStyle;

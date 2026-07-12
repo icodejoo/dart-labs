@@ -6,23 +6,23 @@ import 'text_style.dart';
 
 export 'text_style.dart' show CountmanTextStyle;
 
-/// Visual style for [CountdownText]. Alias of the shared [CountmanTextStyle].
+/// Visual style for [TextCountdown]. Alias of the shared [CountmanTextStyle].
 ///
-/// [CountdownText] 的视觉样式。共享 [CountmanTextStyle] 的别名。
-typedef CountdownTextStyle = CountmanTextStyle;
+/// [TextCountdown] 的视觉样式。共享 [CountmanTextStyle] 的别名。
+typedef TextCountdownStyle = CountmanTextStyle;
 
 /// A [Text]-based countdown widget with optional prefix/suffix.
 ///
 /// ```dart
-/// CountdownText(to: const Duration(minutes: 5), formatter: CountdownFormat.ms)
+/// TextCountdown(to: const Duration(minutes: 5), formatter: CountdownFormat.ms)
 /// ```
 ///
 /// `const`-constructible when [to] is a [Duration] and no non-const style is
 /// supplied.
 ///
 /// 基于 [Text] 的倒计时组件，可选前后缀。
-class CountdownText extends StatelessWidget {
-  const CountdownText({
+class TextCountdown extends StatelessWidget {
+  const TextCountdown({
     super.key,
     required this.to,
     this.formatter,
@@ -61,7 +61,7 @@ class CountdownText extends StatelessWidget {
   /// Visual style. Merged over the enclosing [CountdownProvider]'s text style.
   ///
   /// 视觉样式。叠加在所在 [CountdownProvider] 的文本样式之上。
-  final CountdownTextStyle? style;
+  final TextCountdownStyle? style;
 
   /// Plain-text prefix, e.g. `'⏱ '`. Ignored when [prefixWidget] is provided.
   final String? prefix;
@@ -119,7 +119,7 @@ class CountdownText extends StatelessWidget {
     //
     // 解析样式，叠加在 provider 默认文本样式之上，并取默认 formatter。
     final scope = CountmanScope.maybeOf<Countdown>(context);
-    final s = (style ?? const CountdownTextStyle()).merge(scope?.countdownTextStyle);
+    final s = (style ?? const TextCountdownStyle()).merge(scope?.textCountdownStyle);
     final effTextStyle = s.textStyle ?? scope?.textStyle;
     final effFormatter = formatter ?? scope?.formatter ?? CountdownFormat.auto;
 

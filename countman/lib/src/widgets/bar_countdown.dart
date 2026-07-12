@@ -6,20 +6,20 @@ import 'bar_style.dart';
 import 'progress_display.dart';
 import 'style_support.dart';
 
-export 'bar_style.dart' show CountdownBarStyle;
+export 'bar_style.dart' show BarCountdownStyle;
 
 /// A linear progress-bar countdown display. Composes [CountdownBuilder].
 ///
 /// The bar shrinks from full as time elapses. Progress = remaining / total.
 /// [to] accepts [DateTime], [Duration], [int] (ms epoch), or ISO-8601 [String].
 ///
-/// Visual appearance via [style] ([CountdownBarStyle]).
+/// Visual appearance via [style] ([BarCountdownStyle]).
 ///
 /// ```dart
-/// CountdownBar(to: const Duration(minutes: 5), style: const CountdownBarStyle(width: 240))
+/// BarCountdown(to: const Duration(minutes: 5), style: const BarCountdownStyle(width: 240))
 /// ```
-class CountdownBar extends StatelessWidget {
-  const CountdownBar({
+class BarCountdown extends StatelessWidget {
+  const BarCountdown({
     super.key,
     required this.to,
     this.style,
@@ -45,7 +45,7 @@ class CountdownBar extends StatelessWidget {
   /// Visual style. Merged over the enclosing [CountdownProvider]'s defaults.
   ///
   /// 视觉样式。叠加在所在 [CountdownProvider] 的默认值之上。
-  final CountdownBarStyle? style;
+  final BarCountdownStyle? style;
 
   /// Wraps in [RepaintBoundary]. Falls back to the provider, then `true`.
   final bool? repaintBoundary;
@@ -79,7 +79,7 @@ class CountdownBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final scope = CountmanScope.maybeOf<Countdown>(context);
-    final effStyle = (style ?? const CountdownBarStyle()).merge(scope?.countdownBarStyle);
+    final effStyle = (style ?? const BarCountdownStyle()).merge(scope?.barCountdownStyle);
     final effW = effStyle.width ?? 200.0;
     final effH = effStyle.height ?? 8.0;
     final colors = resolveProgressColors(

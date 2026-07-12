@@ -79,12 +79,12 @@ never receive `onAttach` and throw `LateInitializationError` on first `add()`.
 | `lib/src/widgets/animated_countup/digit_column.dart` | `DigitColumn` — widget fallback for `blur`/`flip` transition types or when `digitBuilder`/`digitTransitionBuilder` is provided |
 | `lib/src/widgets/animated_countup/types.dart` | `CounterTransitionType`, `StaggerDirection`, `NumeralSystem` enums |
 | `lib/src/widgets/countdown_widget.dart` | `CountdownBuilder` — `StatefulWidget`; `ValueNotifier<int>` rev-bump drives rebuild; `_handle?.cancel()` on dispose |
-| `lib/src/widgets/countdown_text.dart` | `CountdownText` — const-constructible countdown text |
-| `lib/src/widgets/countdown_ring.dart` | `CountdownRing` — arc ring using `progress` (dimensionless) |
-| `lib/src/widgets/countdown_bar.dart` | `CountdownBar` — horizontal bar using `progress` |
-| `lib/src/widgets/countdown_dial.dart` | `CountdownDial` — analog 60-second face; rounds to nearest second intentionally |
-| `lib/src/widgets/countdown_card.dart` | `CountdownCard` — split-flap/slide/flip card; wraps `AnimatedCounter` |
-| `lib/src/widgets/elapsed_text.dart` | `ElapsedText` — same API as `CountdownText`, counts up |
+| `lib/src/widgets/text_countdown.dart` | `TextCountdown` — const-constructible countdown text |
+| `lib/src/widgets/ring_countdown.dart` | `RingCountdown` — arc ring using `progress` (dimensionless) |
+| `lib/src/widgets/bar_countdown.dart` | `BarCountdown` — horizontal bar using `progress` |
+| `lib/src/widgets/dial_countdown.dart` | `DialCountdown` — analog 60-second face; rounds to nearest second intentionally |
+| `lib/src/widgets/card_countdown.dart` | `CardCountdown` — split-flap/slide/flip card; wraps `AnimatedCounter` |
+| `lib/src/widgets/text_elapsed.dart` | `TextElapsed` — same API as `TextCountdown`, counts up |
 | `lib/src/widgets/providers.dart` | `CountdownProvider` — `InheritedWidget` cascading defaults + group callbacks |
 
 ---
