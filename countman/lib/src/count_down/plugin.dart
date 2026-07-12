@@ -103,18 +103,6 @@ class Countdown extends ClockPlugin<CountdownTask> {
     task.onComplete?.call();
   }
 
-  @override
-  void onDispose() {
-    super.onDispose();
-    if (identical(this, _default)) _registered = false;
-    // Drop the cached precise instance so defaultCountdownMs re-creates and
-    // re-registers a live one after Countman.destroy().
-    //
-    // 丢弃缓存的精确实例，使 Countman.destroy() 后 defaultCountdownMs 重新创建并
-    // 注册一个存活实例。
-    if (identical(this, _defaultMs)) _defaultMs = null;
-  }
-
   // ── internal accessors for handles (same library) ─────────────────
 
   @internal
@@ -172,24 +160,18 @@ class CountdownController {
 
 // ── default instance + top-level function ─────────────────────────
 
-final _default = Countdown(); // interval = 1000ms
-bool _registered = false;
+final _defaultCountdown = LazyDefault<Countdown>(() => Countdown()); // interval = 1000ms
 
 /// The default [Countdown] instance (interval = 1 s) used by [CountdownWidget]
 /// when no [plugin] is provided. Auto-registered with [Countman] on first access.
-Countdown get defaultCountdown {
-  if (!_registered) {
-    _registered = true;
-    Countman.use(_default);
-  }
-  return _default;
-}
+Countdown get defaultCountdown => _defaultCountdown.instance;
 
 /// Add a countdown using the default shared [Countdown] instance.
 CountdownHandle countdown(CountdownOptions opts) =>
     defaultCountdown.add(opts);
 
-Countdown? _defaultMs;
+final _defaultCountdownMs =
+    LazyDefault<Countdown>(() => Countdown(name: 'countdown-ms', interval: 0));
 
 /// The default **precise** [Countdown] instance (`interval: 0` — processes
 /// every frame) used by widgets with `precise: true` when no [plugin] is
@@ -201,11 +183,4 @@ Countdown? _defaultMs;
 /// 时供 `precise: true` 的组件使用。让亚秒格式化器（[CountdownFormat.msTenths] /
 /// [CountdownFormat.msMillis]）平滑更新，无需手动接线分组。首次访问时自动向
 /// [Countman] 注册。
-Countdown get defaultCountdownMs {
-  final existing = _defaultMs;
-  if (existing != null) return existing;
-  final p = Countdown(name: 'countdown-ms', interval: 0);
-  Countman.use(p);
-  _defaultMs = p;
-  return p;
-}
+Countdown get defaultCountdownMs => _defaultCountdownMs.instance;

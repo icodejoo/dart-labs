@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 
+import 'ticker.dart';
 import 'time_parts.dart';
 import 'types.dart';
 
@@ -14,7 +15,18 @@ abstract class CountmanTask {
   final int id;
 
   /// Set true after the task's first active frame renders its initial value.
+  /// Cleared on re-anchor (e.g. counter retarget) so the next frame renders
+  /// without advancing time; [onStart] does NOT re-fire (see [startFired]).
+  ///
+  /// 首帧渲染初值后置 true。重新锚定（如 counter 重定目标）时清除，使下一帧不推进
+  /// 时间地渲染；[onStart] 不会再次触发（见 [startFired]）。
   bool started = false;
+
+  /// Set true the first time [onStart] fires; keeps it once-per-task even
+  /// across re-anchors that reset [started].
+  ///
+  /// [onStart] 首次触发后置 true；即使经过重置 [started] 的重新锚定，也保持每任务一次。
+  bool startFired = false;
 
   /// Set true once the task has completed and should be removed.
   bool done = false;
@@ -57,6 +69,16 @@ abstract class TaskQueuePlugin<T extends CountmanTask> implements CountmanPlugin
   @protected
   late CountmanContext ctx;
 
+  /// True once [onAttach] has injected [ctx]. Used to lazily self-register a
+  /// plugin the first time a task is added, so a user-created plugin passed
+  /// straight to a widget (`plugin: Countdown(name: 'x', interval: 100)`)
+  /// works without a manual `Countman.use(...)` call.
+  ///
+  /// [onAttach] 注入 [ctx] 后为 true。用于首次添加任务时惰性自注册，使用户直接传给
+  /// 组件的自建插件（`plugin: Countdown(name: 'x', interval: 100)`）无需手动
+  /// `Countman.use(...)` 即可工作。
+  bool _attached = false;
+
   /// Live task map. Never mutate its key set directly from within a tick —
   /// use [enqueue]/[removeTask] so changes are deferred safely.
   @protected
@@ -66,6 +88,23 @@ abstract class TaskQueuePlugin<T extends CountmanTask> implements CountmanPlugin
   bool _ticking = false;
   final List<T> _pendingAdd = <T>[];
   final List<int> _pendingRemove = <int>[];
+
+  // Reusable snapshot of live tasks for the per-frame loop — avoids allocating
+  // a fresh `tasks.values` iterator every frame. Rebuilt only when the task set
+  // structurally changes (add/remove/drain); steady-state animation reuses it.
+  //
+  // 逐帧循环用的活动任务复用快照——避免每帧新建 `tasks.values` 迭代器。仅当任务集
+  // 结构变化（增/删/排空）时重建；稳态动画复用它。
+  final List<T> _live = <T>[];
+  bool _liveDirty = true;
+
+  /// Number of live tasks in this group, including ones queued mid-tick.
+  /// Drops to 0 once every task completes and is auto-removed — handy for
+  /// observing the group going idle (the ticker then auto-stops).
+  ///
+  /// 本组存活任务数（含 tick 中排队的）。所有任务完成并被自动移除后归 0——
+  /// 便于观察组转空闲（此后 ticker 自动停止）。
+  int get activeTaskCount => tasks.length + _pendingAdd.length;
 
   // ── group-level lifecycle (used by providers) ─────────────────────
   /// Fired when a task is enqueued into a previously empty group (the group
@@ -77,7 +116,10 @@ abstract class TaskQueuePlugin<T extends CountmanTask> implements CountmanPlugin
   VoidCallback? onQueueDrained;
 
   @override
-  void onAttach(CountmanContext c) => ctx = c;
+  void onAttach(CountmanContext c) {
+    ctx = c;
+    _attached = true;
+  }
 
   /// Allocate a unique task id.
   @protected
@@ -87,11 +129,31 @@ abstract class TaskQueuePlugin<T extends CountmanTask> implements CountmanPlugin
   /// tick callback — the insert is deferred until the loop finishes.
   @protected
   void enqueue(T task) {
+    // Lazily self-register on first use so a user-created plugin handed to a
+    // widget attaches without a manual Countman.use(). Idempotent by name; a
+    // name clash with an already-registered DIFFERENT instance leaves us
+    // unattached — surface that as a clear error instead of a cryptic
+    // LateInitializationError on [ctx].
+    //
+    // 首次使用时惰性自注册，使用户直接传给组件的插件无需手动 Countman.use() 即可挂载。
+    // 按名幂等；若与已注册的“另一个”同名实例冲突则仍未挂载——此时抛出清晰错误，
+    // 而非 [ctx] 上晦涩的 LateInitializationError。
+    if (!_attached) {
+      Countman.use(this);
+      if (!_attached) {
+        throw StateError(
+          'countman: plugin "$name" is not attached because a different plugin '
+          'with the same name is already registered. Give this plugin a unique '
+          'name (e.g. Countdown(name: "my-group", ...)).',
+        );
+      }
+    }
     final wasIdle = tasks.isEmpty && _pendingAdd.isEmpty;
     if (_ticking) {
       _pendingAdd.add(task);
     } else {
       tasks[task.id] = task;
+      _liveDirty = true;
     }
     if (wasIdle) onFirstEnqueued?.call(); // group went idle → active
     task.onReady?.call(); // registration succeeded (synchronous at add)
@@ -103,10 +165,12 @@ abstract class TaskQueuePlugin<T extends CountmanTask> implements CountmanPlugin
   /// handles (which are not subclasses) call this to cancel their task.
   @internal
   void removeTask(int id) {
-    final task = tasks[id] ?? _pendingAdd.cast<T?>().firstWhere(
-          (t) => t?.id == id,
-          orElse: () => null,
-        );
+    T? task = tasks[id];
+    if (task == null) {
+      for (final p in _pendingAdd) {
+        if (p.id == id) { task = p; break; }
+      }
+    }
     if (task != null && !task.done) {
       task.onCancel?.call();
       // Mark done so a second removeTask in the same tick (e.g. cancel() called
@@ -121,6 +185,7 @@ abstract class TaskQueuePlugin<T extends CountmanTask> implements CountmanPlugin
     } else {
       final hadTasks = tasks.isNotEmpty;
       tasks.remove(id);
+      _liveDirty = true;
       if (hadTasks && tasks.isEmpty && _pendingAdd.isEmpty) {
         onQueueDrained?.call(); // group went active → idle
       }
@@ -162,16 +227,28 @@ abstract class TaskQueuePlugin<T extends CountmanTask> implements CountmanPlugin
     final dtMs = dt.inMicroseconds / 1000.0;
     final shouldProcess = beginFrame(dtMs);
 
+    // Rebuild the live snapshot only if the set changed since last frame.
+    //
+    // 仅当任务集自上帧变化时才重建活动快照。
+    if (_liveDirty) {
+      _live..clear()..addAll(tasks.values);
+      _liveDirty = false;
+    }
+
     var busy = false;
     _ticking = true;
     try {
-      for (final task in tasks.values) {
+      for (var li = 0; li < _live.length; li++) {
+        final task = _live[li];
         if (task.done || task.isPaused) continue;
 
         if (!task.started) {
           task.started = true;
           renderInitial(task);
-          task.onStart?.call(); // timing begins on the first rendered frame
+          if (!task.startFired) {
+            task.startFired = true;
+            task.onStart?.call(); // once per task, even across re-anchors
+          }
           busy = true;
           continue;
         }
@@ -190,12 +267,14 @@ abstract class TaskQueuePlugin<T extends CountmanTask> implements CountmanPlugin
           tasks.remove(id);
         }
         _pendingRemove.clear();
+        _liveDirty = true;
       }
       if (_pendingAdd.isNotEmpty) {
         for (final t in _pendingAdd) {
           tasks[t.id] = t;
         }
         _pendingAdd.clear();
+        _liveDirty = true;
         busy = true; // freshly added tasks need a frame to render
       }
       // Reached only when the group was non-empty this frame (empty groups
@@ -342,4 +421,59 @@ abstract class ClockPlugin<T extends ClockTask> extends TaskQueuePlugin<T> {
   /// Fire terminal callbacks when [isComplete] first returns true.
   @protected
   void onComplete(T task);
+}
+
+/// Holds a lazily-created, auto-registered default plugin instance. Replaces
+/// the per-engine `_default` / `_registered` bootstrap and the matching
+/// `Countman.destroy()` reset boilerplate.
+///
+/// 持有惰性创建、自动注册的默认插件实例。取代各引擎的 `_default` / `_registered`
+/// 引导及对应的 `Countman.destroy()` 重置样板。
+class LazyDefault<T extends CountmanPlugin> {
+  /// Creates a lazy default from a [factory] invoked on first access, and
+  /// registers it so [Countman.destroy] can reset every default centrally.
+  ///
+  /// 由首次访问时调用的 [factory] 创建惰性默认值，并登记自身，使 [Countman.destroy]
+  /// 能集中重置所有默认值。
+  LazyDefault(this._factory) {
+    _all.add(this);
+  }
+
+  /// Every [LazyDefault] ever constructed. [Countman.destroy] resets them all
+  /// via [resetAll], so plugins no longer each reset their own in `onDispose`.
+  ///
+  /// 所有已构造的 [LazyDefault]。[Countman.destroy] 经 [resetAll] 统一重置，
+  /// 插件不再各自在 `onDispose` 里重置。
+  static final List<LazyDefault<CountmanPlugin>> _all = [];
+
+  /// Forgets every default instance so the next access rebuilds + re-registers.
+  /// Called by [Countman.destroy] after clearing the plugin set.
+  ///
+  /// 忘记所有默认实例，使下次访问重建并重新注册。由 [Countman.destroy] 在清空
+  /// 插件集后调用。
+  static void resetAll() {
+    for (final d in _all) {
+      d.reset();
+    }
+  }
+
+  final T Function() _factory;
+  T? _instance;
+
+  /// The instance — created and `Countman.use`d on first access, then reused.
+  ///
+  /// 实例——首次访问时创建并 `Countman.use`，此后复用。
+  T get instance {
+    final existing = _instance;
+    if (existing != null) return existing;
+    final created = _factory();
+    _instance = created;
+    Countman.use(created);
+    return created;
+  }
+
+  /// Forget the instance so the next [instance] access rebuilds + re-registers.
+  ///
+  /// 忘记实例，使下次 [instance] 访问重建并重新注册。
+  void reset() => _instance = null;
 }

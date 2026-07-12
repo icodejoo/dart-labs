@@ -62,7 +62,7 @@ abstract class _BaseAnimatedCounter extends StatefulWidget {
   final num initialValue;
   final NumeralSystem numeralSystem;
   final String Function(int digit)? numeralMapper;
-  final CounterTransitionType transitionType;
+  final CounterTransition transition;
   final Duration? reverseDuration;
   final Curve? reverseCurve;
   final Duration? startDelay;
@@ -84,11 +84,11 @@ abstract class _BaseAnimatedCounter extends StatefulWidget {
   /// Fast mode: every digit column does a SINGLE step from its old digit to
   /// its new digit (one slot of movement), regardless of numeric distance —
   /// e.g. 1000 → 9999 slides each column once (1→9, 0→9, …) instead of the
-  /// full cascading odometer roll. Applies to every [transitionType].
+  /// full cascading odometer roll. Applies to every [transition].
   ///
   /// 快速模式：每个数字列都从旧位到新位单步位移（一个身位），无关数值距离——
   /// 如 1000 → 9999 每列只滑一次（1→9、0→9…），而非完整级联滚动。对所有
-  /// [transitionType] 生效。
+  /// [transition] 生效。
   final bool fast;
 
   // ── resolved visual getters: [style] wins, else the deprecated raw param ──
@@ -171,7 +171,7 @@ abstract class _BaseAnimatedCounter extends StatefulWidget {
     this.initialValue = 0,
     this.numeralSystem = NumeralSystem.latin,
     this.numeralMapper,
-    this.transitionType = CounterTransitionType.roll,
+    this.transition = CounterTransition.slide,
     this.reverseDuration,
     this.reverseCurve,
     this.startDelay,
@@ -218,7 +218,15 @@ abstract class _BaseCounterState<W extends _BaseAnimatedCounter> extends State<W
   // ── ticker ────────────────────────────────────────────────────────────────
   CounterHandle? _handle;
   CounterHandle? _bounceHandle; // separate post-animation bounce
-  double _bounceAlpha = 1.0;   // nxt digit alpha during bounce (< 1 = semi-transparent)
+  // Per-column post-animation bounce nudge, each a fraction of digit height
+  // (empty / 0 = none). Per-column so it can be phase-shifted by the same
+  // stagger delay as the roll — each place bounces as it lands. Positive
+  // magnitude; the render applies the motion-direction sign.
+  //
+  // 逐列的动画后回弹轻推，各为数位高度的比例（空 / 0 = 无）。逐列是为了能按与滚动
+  // 相同的 stagger 延迟做相位偏移——每一位在落定时各自回弹。为正幅值；渲染按运动
+  // 方向取符号。
+  List<double> _bounceOffsets = const <double>[];
   double _currentT = 0.0;
   double _pausedT  = 0.0;
   bool _repeating  = false;
@@ -245,6 +253,13 @@ abstract class _BaseCounterState<W extends _BaseAnimatedCounter> extends State<W
   List<int> _fastToDigits   = [];
   int  _maxDigits          = 0;
   bool _isAnimatingDecrease = false;
+  // Total numeric distance |new − old| of the current transition. Drives
+  // autoEase (big value jumps ease automatically) independent of the per-digit
+  // wrapped trajectory.
+  //
+  // 本次过渡的数值总跨度 |新 − 旧|。驱动 autoEase（大数值跳变自动缓动），
+  // 与逐位环绕轨迹无关。
+  double _valueRange = 0.0;
 
   Size?       _prototypeSize;
   TextStyle?  _lastStyle;
@@ -432,27 +447,40 @@ abstract class _BaseCounterState<W extends _BaseAnimatedCounter> extends State<W
     final oldDigits = _getDigitsList(oldValue);
     var animTarget  = newValue;
 
-    final effFD = widget.compactNotation
-        ? (widget.compactFractionDigits ?? (widget.fractionDigits == 0 ? 1 : widget.fractionDigits))
-        : widget.fractionDigits;
-    final scaledNew = (newValue.abs() * math.pow(10, effFD)).round();
-    _usingAdjustedTarget = newValue > 0 && scaledNew > 0 && isAllNinesTarget(scaledNew);
-    if (_usingAdjustedTarget) {
-      animTarget = newValue - 1.0 / math.pow(10, effFD);
+    final effFD = _effectiveFractionDigits();
+    // The all-nines ε-adjust only matters in fast mode (normal mode overwrites
+    // _usingAdjustedTarget = false below and lands exactly via ghost-prevention).
+    // Skip the pow/round/scan entirely for the common non-fast path.
+    //
+    // all-nines 的 ε 修正只在 fast 模式有意义（普通模式下方会把 _usingAdjustedTarget
+    // 置 false，并靠防幻影精确落位）。常见的非 fast 路径直接跳过 pow/round/扫描。
+    _usingAdjustedTarget = false;
+    if (widget.fast) {
+      final scaledNew = (newValue.abs() * math.pow(10, effFD)).round();
+      _usingAdjustedTarget = newValue > 0 && scaledNew > 0 && isAllNinesTarget(scaledNew);
+      if (_usingAdjustedTarget) {
+        animTarget = newValue - 1.0 / math.pow(10, effFD);
+      }
     }
 
     final targetDigits = _getDigitsList(animTarget);
     _realTargetDigitValues = List<double>.from(_getDigitsList(newValue));
     // Never shrink _maxDigits — keeps SizedBox stable and numberAlignment
     // consistent when animating to a smaller value (e.g. 1000 → 7).
-    _maxDigits = math.max(_maxDigits, math.max(oldDigits.length, targetDigits.length));
+    _maxDigits = math.max(_maxDigits,
+        math.max(oldDigits.length,
+            math.max(targetDigits.length, _realTargetDigitValues.length)));
 
     _oldDigitValues    = [...List<double>.filled(_maxDigits - oldDigits.length, 0.0),    ...oldDigits];
     _targetDigitValues = [...List<double>.filled(_maxDigits - targetDigits.length, 0.0), ...targetDigits];
     _currentDigitValues = List<double>.from(_oldDigitValues);
 
-    // Fast mode: per-column old→new digit. Use the REAL new value's digits
-    // (not the all-nines-adjusted animTarget) since fast doesn't cascade.
+    // Per-column single digits (0–9), old & new. Derived from the cumulative
+    // magnitude arrays via %10, then reused by both fast and normal modes.
+    // Uses the REAL new value's digits (not the all-nines-adjusted animTarget).
+    //
+    // 每列的单个数字（0–9），旧与新。由累计幅值数组经 %10 得到，fast 与普通模式共用。
+    // 使用真实新值的数位（而非 all-nines 修正后的 animTarget）。
     final realTarget = [
       ...List<double>.filled(
           (_maxDigits - _realTargetDigitValues.length).clamp(0, _maxDigits), 0.0),
@@ -460,6 +488,35 @@ abstract class _BaseCounterState<W extends _BaseAnimatedCounter> extends State<W
     ];
     _fastFromDigits = [for (final v in _oldDigitValues) v.toInt().abs() % 10];
     _fastToDigits   = [for (final v in realTarget) v.toInt().abs() % 10];
+
+    // Total numeric span — drives autoEase (big jumps ease automatically).
+    //
+    // 数值总跨度——驱动 autoEase（大跳变自动缓动）。
+    _valueRange = (newValue - oldValue).abs().toDouble();
+
+    // ── Normal (non-fast) mode: cumulative per-place cascade ──────────────────
+    // Keep the cumulative trajectory: the units column carries the WHOLE number
+    // and each higher place is value / 10^place. Lower places therefore spin
+    // faster than higher ones — the mechanical-odometer cascade — so a target
+    // like 99 rolls 00→01→…→99, NOT every column stepping in lockstep
+    // 00→11→…→99. Direction (increase → up, decrease → down) and the
+    // end-of-roll ghost are handled entirely in the render layer
+    // (CounterPainter.resolveColumnPhase / DigitColumn): it reads the target
+    // digit and snaps each place onto it. No all-nines ε-adjust is needed, so
+    // animate straight to the real target.
+    //
+    // 普通（非 fast）模式：累计逐位级联。保留累计轨迹：个位列携带整个数字，每个更高位
+    // 为 值 / 10^位。低位因此比高位滚得快——机械里程表式级联——故如 99 这样的目标会
+    // 滚 00→01→…→99，而非每列锁步 00→11→…→99。方向（递增→向上，递减→向下）与
+    // 滚动末尾的幻影完全在渲染层处理（CounterPainter.resolveColumnPhase / DigitColumn）：
+    // 读取目标数位并把每一位精确吸附到目标。无需 all-nines 的 ε 修正，直接动画到真实目标。
+    // Non-fast mode needs no extra fixup here: `animTarget == newValue`, so the
+    // `_targetDigitValues`/`_currentDigitValues` computed above already hold the
+    // real-target and old-value arrays, and `_usingAdjustedTarget` stayed false.
+    //
+    // 非 fast 模式此处无需额外修正：`animTarget == newValue`，故上方算出的
+    // `_targetDigitValues`/`_currentDigitValues` 已是真实目标与旧值数组，
+    // `_usingAdjustedTarget` 也一直为 false。
 
     final isIncrease  = newValue > oldValue;
     final isDecrease  = newValue < oldValue;
@@ -520,9 +577,16 @@ abstract class _BaseCounterState<W extends _BaseAnimatedCounter> extends State<W
         _usingAdjustedTarget = false;
         _onAnimStatusChange(AnimationStatus.completed);
         if (_repeating) { _repeating = false; _launchHandle(fromT: 0); }
-        else _maybeTriggerBounce();
       },
     ));
+
+    // Bounce runs CONCURRENTLY with the roll (started here, not in onComplete),
+    // so each column bounces the instant IT finishes rolling rather than after
+    // the whole staggered roll completes. Only on a fresh start (fromT == 0).
+    //
+    // 回弹与滚动并发（在此启动，而非 onComplete），使每列在自己滚动结束的瞬间就回弹，
+    // 而非等整个错峰滚动完成。仅在全新开始（fromT == 0）时启动。
+    if (fromT == 0.0 && widget.bounceOvershoot > 0.0) _startBounceWave();
   }
 
   void _onAnimStatusChange(AnimationStatus status) {
@@ -530,59 +594,99 @@ abstract class _BaseCounterState<W extends _BaseAnimatedCounter> extends State<W
     if (status == AnimationStatus.completed) widget.onAnimationEnd?.call();
   }
 
-  // ── post-animation bounce ─────────────────────────────────────────────────
+  // ── concurrent bounce wave ─────────────────────────────────────────────────
 
-  void _maybeTriggerBounce() {
+  /// Starts the per-column bounce, running CONCURRENTLY with the roll over
+  /// `roll + bounce` so each column bounces the instant IT finishes rolling
+  /// (not after the whole staggered roll). Each bounce is a pure POSITIONAL
+  /// nudge of the already-settled digit — the value stays pinned on target
+  /// (progress 0), so NO adjacent digit is revealed (only the target value
+  /// shows) and it works even when the target digit is 0. tanh caps the nudge
+  /// within one digit height; [_bounceOffsets] (0 → maxFrac → 0 per column) is
+  /// consumed by the painter / DigitColumn as a fraction of digit height.
+  ///
+  /// 启动逐列回弹，与滚动并发，跨 `滚动 + 回弹` 时间轴，使每列在自己滚动结束的瞬间
+  /// 回弹（而非等整个错峰滚动完成）。每次回弹是对已定位数位的纯位置轻推——值仍钉在
+  /// 目标（进度 0），故不显示相邻数位（只显示目标值），且目标数位为 0 时同样有效。
+  /// tanh 把轻推限制在一个数位高度内；[_bounceOffsets]（每列 0 → maxFrac → 0）由
+  /// painter / DigitColumn 当作数位高度的比例消费。
+  void _startBounceWave() {
     if (!mounted || widget.bounceOvershoot <= 0.0) return;
 
-    // Each digit column bounces independently by one digit step in the
-    // animation direction (increasing → +1, decreasing → −1).
-    // This gives every visible digit drum a physical overshoot feel.
-    // tanh keeps bounce within one digit unit regardless of parameter value.
     final double ex2     = math.exp(2.0 * widget.bounceOvershoot);
     final double maxFrac = (ex2 - 1) / (ex2 + 1);
 
-    _bounceAlpha = 0.4; // nxt digit is 40% opacity during bounce
+    const double bounceUs = 350000.0;
 
-    final List<double> settled = List<double>.of(_currentDigitValues);
+    // Per-column roll-end (µs from launch), mirroring _updateCurrentDigitValues:
+    // column i finishes rolling at delayUs(i) + baseDurationUs. The bounce for
+    // that column then plays over the next [bounceUs].
+    //
+    // 逐列滚动结束时刻（自启动的 µs），与 _updateCurrentDigitValues 对齐：第 i 列在
+    // delayUs(i) + baseDurationUs 结束滚动，其回弹随后在 [bounceUs] 内播放。
+    Duration baseDuration = (widget.controller != null && widget.controller!.overrideDuration != null)
+        ? widget.controller!.overrideDuration!
+        : ((_isAnimatingDecrease && widget.reverseDuration != null)
+            ? widget.reverseDuration! : widget.duration);
+    if (baseDuration == Duration.zero) baseDuration = const Duration(microseconds: 1);
+    final double baseDurationUs = baseDuration.inMicroseconds.toDouble() / widget.speedMultiplier;
 
+    final Duration? stagger = _effectiveStaggerDelay;
+    final double staggerUs =
+        (stagger == null) ? 0.0 : stagger.inMicroseconds.toDouble() / widget.speedMultiplier;
+
+    double rollEndUs(int i) => _staggerDelayUs(i, staggerUs) + baseDurationUs;
+
+    // Timeline covers the last column's roll-end plus one bounce.
+    //
+    // 时间轴覆盖最后一列的滚动结束再加一次回弹。
+    double lastRollEndUs = 0.0;
+    for (int i = 0; i < _maxDigits; i++) {
+      final e = rollEndUs(i);
+      if (e > lastRollEndUs) lastRollEndUs = e;
+    }
+    final double totalUs = lastRollEndUs + bounceUs;
+    if (totalUs <= 0) return;
+
+    _bounceOffsets = List<double>.filled(_maxDigits, 0.0);
+
+    _bounceHandle?.cancel();
     _bounceHandle = counter(CounterOptions(
       from: 0.0,
       to: 1.0,
-      duration: const Duration(milliseconds: 350),
+      duration: Duration(microseconds: totalUs.round()),
       curve: Curves.linear,
       allowNegative: false,
       onUpdate: (t) {
         if (!mounted) return;
-        // Always add a positive offset: settled[i] → settled[i] + maxFrac*bump.
-        // The painter's _increasing flag controls whether nxt = cur+1 (increasing)
-        // or cur−1 (decreasing), so the correct adjacent digit appears without us
-        // needing to negate the direction here.  The return path (offset → 0) is
-        // always smooth: p decreases from maxFrac to 0, nxt fades out cleanly.
-        final offset = maxFrac * math.sin(math.pi * t);
-        for (int i = 0; i < _currentDigitValues.length; i++) {
-          if (i >= settled.length) continue;
-          // Leading-zero columns must stay at 0: a positive offset would make
-          // them non-zero, defeating hideLeadingZeroes and showing phantom digits.
-          if (settled[i] == 0.0) {
-            _currentDigitValues[i] = 0.0;
-          } else {
-            _currentDigitValues[i] = settled[i] + offset;
-          }
+        final double elapsedUs = t * totalUs;
+        for (int i = 0; i < _maxDigits; i++) {
+          final double localUs = elapsedUs - rollEndUs(i);
+          _bounceOffsets[i] = (localUs > 0.0 && localUs < bounceUs)
+              ? maxFrac * math.sin(math.pi * localUs / bounceUs)
+              : 0.0;
         }
         _onFrameUpdate();
       },
       onComplete: (_) {
         if (!mounted) return;
-        _bounceAlpha = 1.0; // restore full opacity
-        for (int i = 0; i < _currentDigitValues.length; i++) {
-          if (i < settled.length) _currentDigitValues[i] = settled[i];
-        }
+        _bounceOffsets = const <double>[];
         _onFrameUpdate();
         _bounceHandle = null;
       },
     ));
   }
+
+  /// Per-column stagger delay (µs from launch) for column [i] given the
+  /// [staggerUs] stride. Shared by the roll ([_updateCurrentDigitValues]) and
+  /// the bounce wave ([_startBounceWave]) so both stay phase-aligned.
+  ///
+  /// 给定 [staggerUs] 步长时，第 [i] 列的错峰延迟（自启动的 µs）。由滚动
+  /// （[_updateCurrentDigitValues]）与回弹波（[_startBounceWave]）共用，使两者相位对齐。
+  double _staggerDelayUs(int i, double staggerUs) => switch (widget.staggerDirection) {
+        StaggerDirection.leftToRight => staggerUs * i,
+        StaggerDirection.rightToLeft => staggerUs * (_maxDigits - 1 - i),
+      };
 
   // ── digit computation ─────────────────────────────────────────────────────
 
@@ -600,22 +704,34 @@ abstract class _BaseCounterState<W extends _BaseAnimatedCounter> extends State<W
     final double baseDurationUs  = baseDuration.inMicroseconds.toDouble() / widget.speedMultiplier;
     final double totalDurationUs = _effectiveDuration.inMicroseconds.toDouble();
 
-    final double maxRange = _maxDigits > 0
-        ? (_targetDigitValues.last - _oldDigitValues.last).abs() : 0;
-    final bool autoEase = curve == Curves.linear && maxRange > widget.autoEaseThreshold;
+    // autoEase off the total numeric span, not the per-digit wrapped delta
+    // (which is now ≤ 10 and would never cross the threshold).
+    //
+    // autoEase 依据数值总跨度，而非逐位环绕增量（后者现已 ≤ 10，永远够不到阈值）。
+    final bool autoEase = curve == Curves.linear && _valueRange > widget.autoEaseThreshold;
     final Curve effectiveComputeCurve = autoEase ? Curves.easeInOut : curve;
 
-    _currentDigitValues = List<double>.filled(_maxDigits, 0.0);
+    // Reuse the buffer across frames; reallocate only when the digit count
+    // changes (once per transition). Saves one list allocation per frame.
+    //
+    // 帧间复用缓冲；仅当位数变化时重分配（每次过渡一次）。省去每帧一次列表分配。
+    if (_currentDigitValues.length != _maxDigits) {
+      _currentDigitValues = List<double>.filled(_maxDigits, 0.0);
+    }
+
+    // Stagger stride + elapsed hoisted out of the per-digit loop (were
+    // recomputed per digit per frame).
+    //
+    // stagger 步长与 elapsed 提到逐位循环外（原来每位每帧都算）。
+    final double staggerUs = (stagger != null && stagger > Duration.zero)
+        ? stagger.inMicroseconds.toDouble() / widget.speedMultiplier
+        : 0.0;
+    final double elapsedUs = t * totalDurationUs;
 
     for (int i = 0; i < _maxDigits; i++) {
       double tDigit = t;
-      if (stagger != null && stagger > Duration.zero) {
-        final double staggerUs = stagger.inMicroseconds.toDouble() / widget.speedMultiplier;
-        final double delayUs   = switch (widget.staggerDirection) {
-          StaggerDirection.leftToRight => staggerUs * i,
-          StaggerDirection.rightToLeft => staggerUs * (_maxDigits - 1 - i),
-        };
-        final double elapsedUs = t * totalDurationUs;
+      if (staggerUs > 0.0) {
+        final double delayUs = _staggerDelayUs(i, staggerUs);
         tDigit = ((elapsedUs - delayUs) / baseDurationUs).clamp(0.0, 1.0);
       }
       final Curve  digitCurve = widget.curveForDigit?.call(i) ?? effectiveComputeCurve;
@@ -637,8 +753,10 @@ abstract class _BaseCounterState<W extends _BaseAnimatedCounter> extends State<W
           ? widget.interpolation!(from, to, progress)
           : from + (to - from) * progress;
 
-      // Bounce is applied as a separate post-animation phase in _maybeTriggerBounce()
-      // so that it is always visible: the target digit overshoots then snaps back.
+      // Bounce is applied separately as a per-column positional nudge in
+      // _startBounceWave() (concurrent with the roll), not baked into the value.
+      //
+      // 回弹在 _startBounceWave() 中作为逐列位置轻推单独施加（与滚动并发），不写入数值。
       _currentDigitValues[i] = value;
     }
   }
@@ -672,19 +790,6 @@ abstract class _BaseCounterState<W extends _BaseAnimatedCounter> extends State<W
     while (v > 0) { digits.add(v.toDouble()); v = v ~/ 10; }
     while (digits.length < widget.wholeDigits + effFD) { digits.add(0.0); }
     return digits.reversed.toList(growable: false);
-  }
-
-  bool _hasDigitStarted(int i) {
-    if (_currentT == 0.0) return false;
-    final stagger = _effectiveStaggerDelay;
-    if (stagger == null || stagger == Duration.zero) return true;
-    final double staggerUs = stagger.inMicroseconds.toDouble() / widget.speedMultiplier;
-    final double delayUs   = switch (widget.staggerDirection) {
-      StaggerDirection.leftToRight => staggerUs * i,
-      StaggerDirection.rightToLeft => staggerUs * (_maxDigits - 1 - i),
-    };
-    final double elapsedUs = _currentT * _effectiveDuration.inMicroseconds.toDouble();
-    return elapsedUs > delayUs;
   }
 
   @override

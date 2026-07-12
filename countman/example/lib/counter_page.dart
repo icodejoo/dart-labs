@@ -767,7 +767,7 @@ class _CounterPageState extends State<CounterPage> {
             DemoCard(
               title: 'roll',
               child: _CyclingAnimatedCounter(
-                  transitionType: CounterTransitionType.roll),
+                  transition: CounterTransition.slide),
               code: runnable(
                 "class _Demo extends StatefulWidget {\n"
                 "  const _Demo({super.key});\n"
@@ -790,7 +790,7 @@ class _CounterPageState extends State<CounterPage> {
                 "      children: [\n"
                 "        AnimatedCounter(\n"
                 "          controller: _ctrl,\n"
-                "          transitionType: CounterTransitionType.roll,\n"
+                "          transition: CounterTransition.slide,\n"
                 "          duration: Duration(milliseconds: 600),\n"
                 "          textStyle: TextStyle(fontSize: 48),\n"
                 "        ),\n"
@@ -813,7 +813,7 @@ class _CounterPageState extends State<CounterPage> {
             DemoCard(
               title: 'fade',
               child: _CyclingAnimatedCounter(
-                  transitionType: CounterTransitionType.fade),
+                  transition: CounterTransition(motion: CounterMotion.none)),
               code: runnable(
                 "class _Demo extends StatefulWidget {\n"
                 "  const _Demo({super.key});\n"
@@ -836,7 +836,7 @@ class _CounterPageState extends State<CounterPage> {
                 "      children: [\n"
                 "        AnimatedCounter(\n"
                 "          controller: _ctrl,\n"
-                "          transitionType: CounterTransitionType.fade,\n"
+                "          transition: CounterTransition(motion: CounterMotion.none),\n"
                 "          duration: Duration(milliseconds: 600),\n"
                 "          textStyle: TextStyle(fontSize: 48),\n"
                 "        ),\n"
@@ -858,7 +858,7 @@ class _CounterPageState extends State<CounterPage> {
             DemoCard(
               title: 'scale',
               child: _CyclingAnimatedCounter(
-                  transitionType: CounterTransitionType.scale),
+                  transition: CounterTransition(motion: CounterMotion.none, scale: true)),
               code: runnable(
                 "class _Demo extends StatefulWidget {\n"
                 "  const _Demo({super.key});\n"
@@ -881,7 +881,7 @@ class _CounterPageState extends State<CounterPage> {
                 "      children: [\n"
                 "        AnimatedCounter(\n"
                 "          controller: _ctrl,\n"
-                "          transitionType: CounterTransitionType.scale,\n"
+                "          transition: CounterTransition(motion: CounterMotion.none, scale: true),\n"
                 "          duration: Duration(milliseconds: 600),\n"
                 "          textStyle: TextStyle(fontSize: 48),\n"
                 "        ),\n"
@@ -903,7 +903,7 @@ class _CounterPageState extends State<CounterPage> {
             DemoCard(
               title: 'fadeScale',
               child: _CyclingAnimatedCounter(
-                  transitionType: CounterTransitionType.fadeScale),
+                  transition: CounterTransition.slideScale),
               code: runnable(
                 "class _Demo extends StatefulWidget {\n"
                 "  const _Demo({super.key});\n"
@@ -926,7 +926,7 @@ class _CounterPageState extends State<CounterPage> {
                 "      children: [\n"
                 "        AnimatedCounter(\n"
                 "          controller: _ctrl,\n"
-                "          transitionType: CounterTransitionType.fadeScale,\n"
+                "          transition: CounterTransition.slideScale,\n"
                 "          duration: Duration(milliseconds: 600),\n"
                 "          textStyle: TextStyle(fontSize: 48),\n"
                 "        ),\n"
@@ -948,7 +948,7 @@ class _CounterPageState extends State<CounterPage> {
             DemoCard(
               title: 'rotate',
               child: _CyclingAnimatedCounter(
-                  transitionType: CounterTransitionType.rotate),
+                  transition: CounterTransition.rotate),
               code: runnable(
                 "class _Demo extends StatefulWidget {\n"
                 "  const _Demo({super.key});\n"
@@ -971,7 +971,7 @@ class _CounterPageState extends State<CounterPage> {
                 "      children: [\n"
                 "        AnimatedCounter(\n"
                 "          controller: _ctrl,\n"
-                "          transitionType: CounterTransitionType.rotate,\n"
+                "          transition: CounterTransition.rotate,\n"
                 "          duration: Duration(milliseconds: 600),\n"
                 "          textStyle: TextStyle(fontSize: 48),\n"
                 "        ),\n"
@@ -993,7 +993,7 @@ class _CounterPageState extends State<CounterPage> {
             DemoCard(
               title: 'flip',
               child: _CyclingAnimatedCounter(
-                  transitionType: CounterTransitionType.flip),
+                  transition: CounterTransition.flip),
               code: runnable(
                 "class _Demo extends StatefulWidget {\n"
                 "  const _Demo({super.key});\n"
@@ -1016,7 +1016,7 @@ class _CounterPageState extends State<CounterPage> {
                 "      children: [\n"
                 "        AnimatedCounter(\n"
                 "          controller: _ctrl,\n"
-                "          transitionType: CounterTransitionType.flip,\n"
+                "          transition: CounterTransition.flip,\n"
                 "          duration: Duration(milliseconds: 600),\n"
                 "          textStyle: TextStyle(fontSize: 48),\n"
                 "        ),\n"
@@ -1039,7 +1039,7 @@ class _CounterPageState extends State<CounterPage> {
               title: 'blur',
               description: 'AnimatedCounterBuilder with blur transition',
               child: _CyclingAnimatedCounterBuilder(
-                  transitionType: CounterTransitionType.blur),
+                  transition: CounterTransition.slideBlur),
               code: runnable(
                 "class _Demo extends StatefulWidget {\n"
                 "  const _Demo({super.key});\n"
@@ -1062,7 +1062,7 @@ class _CounterPageState extends State<CounterPage> {
                 "      children: [\n"
                 "        AnimatedCounterBuilder(\n"
                 "          controller: _ctrl,\n"
-                "          transitionType: CounterTransitionType.blur,\n"
+                "          transition: CounterTransition.slideBlur,\n"
                 "          duration: Duration(milliseconds: 600),\n"
                 "          textStyle: TextStyle(fontSize: 48),\n"
                 "        ),\n"
@@ -1109,7 +1109,7 @@ class _CounterPageState extends State<CounterPage> {
                 "        AnimatedCounter(\n"
                 "          controller: _ctrl,\n"
                 "          fast: true,\n"
-                "          transitionType: CounterTransitionType.roll,\n"
+                "          transition: CounterTransition.slide,\n"
                 "          thousandSeparator: ',',\n"
                 "          duration: Duration(milliseconds: 600),\n"
                 "          textStyle: TextStyle(fontSize: 48),\n"
@@ -1470,19 +1470,29 @@ class _CounterPageState extends State<CounterPage> {
           DemoSection(title: 'AnimatedCounter ??Locale Factories', children: [
             DemoCard(
               title: 'USD',
-              child: AnimatedCounter.usd(
+              child: AnimatedCounter(
                 value: 1234567.89,
                 duration: const Duration(milliseconds: 800),
-                textStyle: const TextStyle(fontSize: 32),
+                prefix: r'$',
+                thousandSeparator: ',',
+                groupingPattern: const [3],
+                fractionDigits: 2,
+                hideLeadingZeroes: false,
+                style: const AnimatedCounterStyle(textStyle: TextStyle(fontSize: 32)),
               ),
               code: runnable(
                 "class _Demo extends StatelessWidget {\n"
                 "  const _Demo({super.key});\n"
                 "  @override\n"
-                "  Widget build(BuildContext context) => AnimatedCounter.usd(\n"
+                "  Widget build(BuildContext context) => AnimatedCounter(\n"
                 "    value: 1234567.89,\n"
                 "    duration: Duration(milliseconds: 800),\n"
-                "    textStyle: TextStyle(fontSize: 32),\n"
+                "    prefix: r'\$',\n"
+                "    thousandSeparator: ',',\n"
+                "    groupingPattern: [3],\n"
+                "    fractionDigits: 2,\n"
+                "    hideLeadingZeroes: false,\n"
+                "    style: AnimatedCounterStyle(textStyle: TextStyle(fontSize: 32)),\n"
                 "  );\n"
                 "}",
               ),
@@ -1490,19 +1500,29 @@ class _CounterPageState extends State<CounterPage> {
 
             DemoCard(
               title: 'CNY (?)',
-              child: AnimatedCounter.cny(
+              child: AnimatedCounter(
                 value: 9999.99,
                 duration: const Duration(milliseconds: 800),
-                textStyle: const TextStyle(fontSize: 32),
+                prefix: '¥',
+                thousandSeparator: ',',
+                groupingPattern: const [4],
+                fractionDigits: 2,
+                hideLeadingZeroes: false,
+                style: const AnimatedCounterStyle(textStyle: TextStyle(fontSize: 32)),
               ),
               code: runnable(
                 "class _Demo extends StatelessWidget {\n"
                 "  const _Demo({super.key});\n"
                 "  @override\n"
-                "  Widget build(BuildContext context) => AnimatedCounter.cny(\n"
+                "  Widget build(BuildContext context) => AnimatedCounter(\n"
                 "    value: 9999.99,\n"
                 "    duration: Duration(milliseconds: 800),\n"
-                "    textStyle: TextStyle(fontSize: 32),\n"
+                "    prefix: '¥',\n"
+                "    thousandSeparator: ',',\n"
+                "    groupingPattern: [4],\n"
+                "    fractionDigits: 2,\n"
+                "    hideLeadingZeroes: false,\n"
+                "    style: AnimatedCounterStyle(textStyle: TextStyle(fontSize: 32)),\n"
                 "  );\n"
                 "}",
               ),
@@ -1510,19 +1530,29 @@ class _CounterPageState extends State<CounterPage> {
 
             DemoCard(
               title: 'INR (??',
-              child: AnimatedCounter.inr(
+              child: AnimatedCounter(
                 value: 1234567.89,
                 duration: const Duration(milliseconds: 800),
-                textStyle: const TextStyle(fontSize: 32),
+                prefix: '₹',
+                thousandSeparator: ',',
+                groupingPattern: const [3, 2],
+                fractionDigits: 2,
+                hideLeadingZeroes: false,
+                style: const AnimatedCounterStyle(textStyle: TextStyle(fontSize: 32)),
               ),
               code: runnable(
                 "class _Demo extends StatelessWidget {\n"
                 "  const _Demo({super.key});\n"
                 "  @override\n"
-                "  Widget build(BuildContext context) => AnimatedCounter.inr(\n"
+                "  Widget build(BuildContext context) => AnimatedCounter(\n"
                 "    value: 1234567.89,\n"
                 "    duration: Duration(milliseconds: 800),\n"
-                "    textStyle: TextStyle(fontSize: 32),\n"
+                "    prefix: '₹',\n"
+                "    thousandSeparator: ',',\n"
+                "    groupingPattern: [3, 2],  // Indian grouping\n"
+                "    fractionDigits: 2,\n"
+                "    hideLeadingZeroes: false,\n"
+                "    style: AnimatedCounterStyle(textStyle: TextStyle(fontSize: 32)),\n"
                 "  );\n"
                 "}",
               ),
@@ -1534,7 +1564,7 @@ class _CounterPageState extends State<CounterPage> {
             DemoCard(
               title: 'Bounce overshoot',
               child: _CyclingAnimatedCounter(
-                transitionType: CounterTransitionType.roll,
+                transition: CounterTransition.slide,
                 bounceOvershoot: 0.67,
                 bounceElasticity: 4.0,
               ),
@@ -1560,7 +1590,7 @@ class _CounterPageState extends State<CounterPage> {
                 "      children: [\n"
                 "        AnimatedCounter(\n"
                 "          controller: _ctrl,\n"
-                "          transitionType: CounterTransitionType.roll,\n"
+                "          transition: CounterTransition.slide,\n"
                 "          bounceOvershoot: 0.67,\n"
                 "          bounceElasticity: 4.0,\n"
                 "          duration: Duration(milliseconds: 600),\n"
@@ -1585,7 +1615,7 @@ class _CounterPageState extends State<CounterPage> {
               title: 'High elasticity',
               description: 'Peak near end of transition (elasticity 8)',
               child: _CyclingAnimatedCounter(
-                transitionType: CounterTransitionType.roll,
+                transition: CounterTransition.slide,
                 bounceOvershoot: 0.67,
                 bounceElasticity: 8.0,
               ),
@@ -1611,9 +1641,65 @@ class _CounterPageState extends State<CounterPage> {
                 "      children: [\n"
                 "        AnimatedCounter(\n"
                 "          controller: _ctrl,\n"
-                "          transitionType: CounterTransitionType.roll,\n"
+                "          transition: CounterTransition.slide,\n"
                 "          bounceOvershoot: 0.67,\n"
                 "          bounceElasticity: 8.0,\n"
+                "          duration: Duration(milliseconds: 600),\n"
+                "          textStyle: TextStyle(fontSize: 48),\n"
+                "        ),\n"
+                "        const SizedBox(height: 12),\n"
+                "        ElevatedButton(\n"
+                "          onPressed: () {\n"
+                "            _idx = (_idx + 1) % _values.length;\n"
+                "            _ctrl.animateTo(_values[_idx]);\n"
+                "          },\n"
+                "          child: const Text('Next'),\n"
+                "        ),\n"
+                "      ],\n"
+                "    );\n"
+                "  }\n"
+                "}",
+              ),
+            ),
+
+            DemoCard(
+              title: 'Bounce + stagger',
+              description:
+                  'Per-digit stagger (80 ms, right→left) on the roll — columns arrive in sequence — followed by a bounce overshoot.',
+              child: _CyclingAnimatedCounter(
+                transition: CounterTransition.slide,
+                bounceOvershoot: 0.67,
+                bounceElasticity: 4.0,
+                staggerDelay: const Duration(milliseconds: 80),
+                staggerDirection: StaggerDirection.rightToLeft,
+              ),
+              code: runnable(
+                "class _Demo extends StatefulWidget {\n"
+                "  const _Demo({super.key});\n"
+                "  @override\n"
+                "  State<_Demo> createState() => _DemoState();\n"
+                "}\n"
+                "\n"
+                "class _DemoState extends State<_Demo> {\n"
+                "  final _ctrl = AnimatedCounterController(initialValue: 0);\n"
+                "  final _values = [0, 99, 42, 1000, 7];\n"
+                "  int _idx = 0;\n"
+                "\n"
+                "  @override\n"
+                "  void dispose() { _ctrl.dispose(); super.dispose(); }\n"
+                "\n"
+                "  @override\n"
+                "  Widget build(BuildContext context) {\n"
+                "    return Column(\n"
+                "      mainAxisSize: MainAxisSize.min,\n"
+                "      children: [\n"
+                "        AnimatedCounter(\n"
+                "          controller: _ctrl,\n"
+                "          transition: CounterTransition.slide,\n"
+                "          bounceOvershoot: 0.67,\n"
+                "          bounceElasticity: 4.0,\n"
+                "          staggerDelay: Duration(milliseconds: 80),\n"
+                "          staggerDirection: StaggerDirection.rightToLeft,\n"
                 "          duration: Duration(milliseconds: 600),\n"
                 "          textStyle: TextStyle(fontSize: 48),\n"
                 "        ),\n"
@@ -2207,14 +2293,18 @@ class _CounterTextOnCompleteState extends State<_CounterTextOnComplete> {
 
 /// Cycles through preset values on button press using AnimatedCounterController.
 class _CyclingAnimatedCounter extends StatefulWidget {
-  final CounterTransitionType transitionType;
+  final CounterTransition transition;
   final double bounceOvershoot;
   final double bounceElasticity;
+  final Duration? staggerDelay;
+  final StaggerDirection staggerDirection;
 
   const _CyclingAnimatedCounter({
-    required this.transitionType,
+    required this.transition,
     this.bounceOvershoot = 0.0,
     this.bounceElasticity = 4.0,
+    this.staggerDelay,
+    this.staggerDirection = StaggerDirection.rightToLeft,
   });
 
   @override
@@ -2260,9 +2350,11 @@ class _CyclingAnimatedCounterState extends State<_CyclingAnimatedCounter> {
       children: [
         AnimatedCounter(
           controller: _ctrl,
-          transitionType: widget.transitionType,
+          transition: widget.transition,
           bounceOvershoot: widget.bounceOvershoot,
           bounceElasticity: widget.bounceElasticity,
+          staggerDelay: widget.staggerDelay,
+          staggerDirection: widget.staggerDirection,
           duration: const Duration(milliseconds: 600),
           textStyle: const TextStyle(fontSize: 48),
         ),
@@ -2278,9 +2370,9 @@ class _CyclingAnimatedCounterState extends State<_CyclingAnimatedCounter> {
 
 /// Same cycling pattern but using AnimatedCounterBuilder (for blur transition).
 class _CyclingAnimatedCounterBuilder extends StatefulWidget {
-  final CounterTransitionType transitionType;
+  final CounterTransition transition;
 
-  const _CyclingAnimatedCounterBuilder({required this.transitionType});
+  const _CyclingAnimatedCounterBuilder({required this.transition});
 
   @override
   State<_CyclingAnimatedCounterBuilder> createState() =>
@@ -2320,7 +2412,7 @@ class _CyclingAnimatedCounterBuilderState
       children: [
         AnimatedCounterBuilder(
           controller: _ctrl,
-          transitionType: widget.transitionType,
+          transition: widget.transition,
           duration: const Duration(milliseconds: 600),
           textStyle: const TextStyle(fontSize: 48),
         ),
@@ -2841,8 +2933,14 @@ class _FastModeDemoState extends State<_FastModeDemo> {
       children: [
         AnimatedCounter(
           controller: _ctrl,
+          // Match the controller's start so mount/reset doesn't animate a
+          // spurious 0 → 1000 (fast would move only the changed thousands digit).
+          //
+          // 与控制器初值一致，避免挂载/重置时误触 0 → 1000 的动画
+          // （fast 下只有变化的千位会动）。
+          initialValue: 1000,
           fast: true,
-          transitionType: CounterTransitionType.roll,
+          transition: CounterTransition.slide,
           thousandSeparator: ',',
           duration: const Duration(milliseconds: 600),
           textStyle: const TextStyle(fontSize: 48),

@@ -2,7 +2,7 @@
 // Original: https://github.com/Itsxhadi/flip_counter_plus
 //
 // Change from original:
-//   CounterTransitionType.roll: replaced Positioned with Transform.translate
+//   CounterTransition.slide: replaced Positioned with Transform.translate
 //   + ClipRect so digit transitions run on the GPU compositor layer with no
 //   layout pass per frame.
 
@@ -18,7 +18,6 @@ class DigitColumn extends StatefulWidget {
   final double value;
   final double oldValue;
   final double animationValue;
-  final bool hasStarted;
   final Size size;
   final Color color;
   final TextStyle style;
@@ -36,7 +35,7 @@ class DigitColumn extends StatefulWidget {
   final bool triggerHaptics;
   final NumeralSystem numeralSystem;
   final String Function(int digit)? numeralMapper;
-  final CounterTransitionType transitionType;
+  final CounterTransition transition;
 
   /// Fast mode: this column does a SINGLE step from [fastFromDigit] to
   /// [fastToDigit] (one slot of movement), with [animationValue] carrying the
@@ -50,19 +49,44 @@ class DigitColumn extends StatefulWidget {
   final int fastFromDigit;
   final int fastToDigit;
 
+  /// Global animation direction, fixed before the transition runs: `true` =
+  /// increasing (digits roll up, next = cur + 1), `false` = decreasing (roll
+  /// down, next = cur − 1). Only consulted in normal (non-[fast]) mode; must
+  /// match the sign the parent used to build [animationValue]'s trajectory.
+  ///
+  /// 全局动画方向，在过渡开始前定好：`true` = 递增（数位向上滚，下一位 = 当前 + 1），
+  /// `false` = 递减（向下滚，下一位 = 当前 − 1）。仅普通（非 [fast]）模式使用；
+  /// 必须与父级构造 [animationValue] 轨迹时所用的方向一致。
+  final bool increasing;
+
+  /// Opacity for a leading place that is fading into view as the number grows
+  /// into it (normal mode, `hideLeadingZeroes`). `1.0` = fully shown. Lets a
+  /// newly-significant digit fade in instead of popping at full opacity.
+  ///
+  /// 前导位随数字增长淡入时的不透明度（普通模式，`hideLeadingZeroes`）。`1.0` = 完全
+  /// 显示。让新变得有效的数位淡入，而非以全不透明突现。
+  final double revealAlpha;
+
+  /// Post-animation bounce nudge as a fraction of digit height (0 = none). The
+  /// digit is pinned to its target (progress 0) and slid by this fraction in
+  /// the motion direction, then back — no adjacent digit shown.
+  ///
+  /// 动画后回弹轻推，按数位高度的比例（0 = 无）。数位钉在目标（进度 0），沿运动方向
+  /// 滑动该比例再返回——不显示相邻数位。
+  final double bounceOffset;
+
   const DigitColumn({
     super.key,
     required this.value,
     required this.oldValue,
     required this.animationValue,
-    required this.hasStarted,
     required this.size,
     required this.color,
     required this.style,
     required this.padding,
     required this.numeralSystem,
     this.numeralMapper,
-    required this.transitionType,
+    required this.transition,
     this.visible = true,
     this.flipDirection = AxisDirection.up,
     this.digitBuilder,
@@ -71,6 +95,9 @@ class DigitColumn extends StatefulWidget {
     this.fast = false,
     this.fastFromDigit = 0,
     this.fastToDigit = 0,
+    this.increasing = true,
+    this.revealAlpha = 1.0,
+    this.bounceOffset = 0.0,
   });
 
   @override
@@ -92,152 +119,164 @@ class _DigitColumnState extends State<DigitColumn> {
       }
     }
 
-    // Resolve (current digit, next digit, 0–1 progress) once; the transition
-    // switch below is direction/mode-agnostic and just consumes them.
-    // Fast mode = a single step fromDigit → toDigit; normal = odometer roll
-    // where the next digit is always the current + 1.
+    // Resolve (current digit, next digit, 0–1 progress) via the shared
+    // odometer helper — same math the painter path uses — so the transition
+    // switch below stays direction/mode-agnostic and just consumes them.
     //
-    // 一次解析（当前位、下一位、0–1 进度）；下方过渡 switch 与模式无关，只消费它们。
-    // 快速模式 = 从 fromDigit 到 toDigit 单步；普通模式 = 里程表滚动，下一位恒为当前 +1。
-    final int curDigit;
-    final int nextDigit;
-    final double decimal;
-    if (widget.fast) {
-      curDigit = widget.fastFromDigit;
-      nextDigit = widget.fastToDigit;
-      // Unchanged digit → stay static (progress 0) instead of sliding X→X.
-      decimal = curDigit == nextDigit ? 0.0 : widget.animationValue.clamp(0.0, 1.0);
-    } else {
-      final whole = widget.animationValue ~/ 1;
-      decimal = widget.animationValue - whole;
-      curDigit = (whole % 10).toInt();
-      nextDigit = ((whole + 1) % 10).toInt();
-    }
+    // 经共享里程表 helper 解析（当前位、下一位、0–1 进度）——与 painter 路径同一套
+    // 数学——故下方过渡 switch 与方向/模式无关，只消费它们。
+    final (int curDigit, int nextDigit, double dec) = resolveDigitPhase(
+      fast: widget.fast,
+      fastFrom: widget.fastFromDigit,
+      fastTo: widget.fastToDigit,
+      position: widget.animationValue,
+      increasing: widget.increasing,
+      targetDigit: widget.value.toInt().abs() % 10,
+      target: widget.value,
+      hasTarget: !widget.fast,
+    );
+    double decimal = dec;
     final w = widget.size.width  + widget.padding.horizontal;
     final h = widget.size.height + widget.padding.vertical;
 
     if (!widget.visible) return SizedBox(width: 0, height: h);
 
-    final currentDigitWidget = _buildSingleDigit(
-      context: context, digit: curDigit, opacity: 1 - decimal, style: widget.style,
+    // fade modifier: bake the cross-fade opacity into the two digits (else full
+    // opacity). scale/motion/blur are composed below, mirroring the painter.
+    //
+    // fade 修饰：把交叉淡入不透明度写入两个数位（否则全不透明）。scale/运动/blur 在下方
+    // 组合，与 painter 对齐。
+    final double curOp = widget.transition.fade ? (1 - decimal).clamp(0.0, 1.0) : 1.0;
+    final double nxtOp = widget.transition.fade ? decimal.clamp(0.0, 1.0) : 1.0;
+    Widget currentDigitWidget = _buildSingleDigit(
+      context: context, digit: curDigit, opacity: curOp, style: widget.style,
     );
-    final nextDigitWidget = _buildSingleDigit(
-      context: context, digit: nextDigit, opacity: decimal, style: widget.style,
+    Widget nextDigitWidget = _buildSingleDigit(
+      context: context, digit: nextDigit, opacity: nxtOp, style: widget.style,
     );
 
-    final Widget transitionChild;
+    Widget transitionChild;
 
     if (widget.digitTransitionBuilder != null) {
       transitionChild = widget.digitTransitionBuilder!(
         context, currentDigitWidget, nextDigitWidget, decimal, widget.size,
       );
     } else {
-      switch (widget.transitionType) {
-        case CounterTransitionType.fade:
-          transitionChild = Stack(alignment: Alignment.center, children: [
-            currentDigitWidget, nextDigitWidget,
-          ]);
+      // scale modifier: shrink the leaving digit / grow the arriving one.
+      if (widget.transition.scale) {
+        currentDigitWidget = Transform.scale(
+            scale: (1.0 - decimal).clamp(0.0, 1.0), child: currentDigitWidget);
+        nextDigitWidget = Transform.scale(
+            scale: decimal.clamp(0.0, 1.0), child: nextDigitWidget);
+      }
 
-        case CounterTransitionType.scale:
-          transitionChild = Stack(alignment: Alignment.center, children: [
-            Transform.scale(scale: (1.0 - decimal).clamp(0.0, 1.0), child: currentDigitWidget),
-            Transform.scale(scale: decimal.clamp(0.0, 1.0), child: nextDigitWidget),
-          ]);
+      switch (widget.transition.motion) {
+        case CounterMotion.none:
+          transitionChild = Stack(alignment: Alignment.center,
+              children: [currentDigitWidget, nextDigitWidget]);
 
-        case CounterTransitionType.fadeScale:
-          transitionChild = Stack(alignment: Alignment.center, children: [
-            Transform.scale(scale: (1.0 - 0.2 * decimal).clamp(0.0, 1.0), child: currentDigitWidget),
-            Transform.scale(scale: (0.8 + 0.2 * decimal).clamp(0.0, 1.0), child: nextDigitWidget),
-          ]);
-
-        case CounterTransitionType.rotate:
+        case CounterMotion.rotate:
           transitionChild = Stack(alignment: Alignment.center, children: [
             Transform.rotate(angle: -decimal * math.pi / 2, child: currentDigitWidget),
             Transform.rotate(angle: (1.0 - decimal) * math.pi / 2, child: nextDigitWidget),
           ]);
 
-        // ⚠️  flip uses Matrix4 perspective (setEntry 3,2) → GPU compositing layer.
-        case CounterTransitionType.flip:
-          final angle = decimal * math.pi;
-          transitionChild = Stack(alignment: Alignment.center, children: [
-            if (decimal < 0.5)
-              Transform(
-                transform: Matrix4.identity()..setEntry(3, 2, 0.002)..rotateX(-angle),
-                alignment: Alignment.center,
-                child: currentDigitWidget,
-              )
-            else
-              Transform(
-                transform: Matrix4.identity()..setEntry(3, 2, 0.002)..rotateX(math.pi - angle),
-                alignment: Alignment.center,
-                child: nextDigitWidget,
-              ),
-          ]);
-
-        // ⚠️  blur triggers ImageFiltered → saveLayer every frame.
-        // Avoid for multiple simultaneous instances in production.
-        case CounterTransitionType.blur:
-          final blurAmount = (0.5 - (decimal - 0.5).abs()) * 8.0;
-          Widget stack = Stack(alignment: Alignment.center, children: [
-            currentDigitWidget, nextDigitWidget,
-          ]);
-          if (blurAmount > 0.1) {
-            stack = ImageFiltered(
-              imageFilter: ui.ImageFilter.blur(sigmaX: blurAmount, sigmaY: blurAmount),
-              child: stack,
-            );
+        case CounterMotion.flip:
+          {
+            // ⚠️ Matrix4 perspective (setEntry 3,2) → GPU compositing layer.
+            final angle = decimal * math.pi;
+            transitionChild = Stack(alignment: Alignment.center, children: [
+              if (decimal < 0.5)
+                Transform(
+                  transform: Matrix4.identity()..setEntry(3, 2, 0.002)..rotateX(-angle),
+                  alignment: Alignment.center,
+                  child: currentDigitWidget,
+                )
+              else
+                Transform(
+                  transform: Matrix4.identity()..setEntry(3, 2, 0.002)..rotateX(math.pi - angle),
+                  alignment: Alignment.center,
+                  child: nextDigitWidget,
+                ),
+            ]);
           }
-          transitionChild = stack;
 
-        // ── roll: Transform.translate replaces Positioned ──────────────────
-        // Positioned triggers a layout pass every frame.
-        // Transform.translate is a post-layout compositor operation — zero
-        // layout cost. ClipRect bounds the slide within the digit slot.
-        case CounterTransitionType.roll:
-          final isHorizontal = widget.flipDirection == AxisDirection.left ||
-              widget.flipDirection == AxisDirection.right;
-
-          if (isHorizontal) {
-            transitionChild = ClipRect(
-              child: SizedBox(width: w, height: h,
-                child: Stack(children: [
-                  Transform.translate(
-                    offset: Offset(_currentOffset(w, decimal) + widget.padding.left, 0),
-                    child: currentDigitWidget,
-                  ),
-                  Transform.translate(
-                    offset: Offset(_nextOffset(w, decimal) + widget.padding.left, 0),
-                    child: nextDigitWidget,
-                  ),
-                ]),
-              ),
-            );
-          } else {
-            // Vertical roll.
-            // Original used Positioned(bottom: offset) inside a Stack.
-            // Equivalent Transform.translate offsets (y axis, sign inverted
-            // because Transform.translate uses top-down coords):
-            //   current: moves "out" in the exit direction as decimal → 1
-            //   next:    arrives from the entry direction as decimal → 1
-            transitionChild = ClipRect(
-              child: SizedBox(width: w, height: h,
-                child: Stack(children: [
-                  Transform.translate(
-                    offset: Offset(0, -_currentOffset(h, decimal) - widget.padding.bottom),
-                    child: currentDigitWidget,
-                  ),
-                  Transform.translate(
-                    offset: Offset(0, -_nextOffset(h, decimal) - widget.padding.bottom),
-                    child: nextDigitWidget,
-                  ),
-                ]),
-              ),
-            );
+        // ── slide: Transform.translate (post-layout compositor op, zero layout
+        // cost); ClipRect bounds the slide within the digit slot. ──────────────
+        case CounterMotion.slide:
+          {
+            final isHorizontal = widget.flipDirection == AxisDirection.left ||
+                widget.flipDirection == AxisDirection.right;
+            if (isHorizontal) {
+              transitionChild = ClipRect(
+                child: SizedBox(width: w, height: h,
+                  child: Stack(children: [
+                    Transform.translate(
+                      offset: Offset(_currentOffset(w, decimal) + widget.padding.left, 0),
+                      child: currentDigitWidget,
+                    ),
+                    Transform.translate(
+                      offset: Offset(_nextOffset(w, decimal) + widget.padding.left, 0),
+                      child: nextDigitWidget,
+                    ),
+                  ]),
+                ),
+              );
+            } else {
+              transitionChild = ClipRect(
+                child: SizedBox(width: w, height: h,
+                  child: Stack(children: [
+                    Transform.translate(
+                      offset: Offset(0, -_currentOffset(h, decimal) - widget.padding.bottom),
+                      child: currentDigitWidget,
+                    ),
+                    Transform.translate(
+                      offset: Offset(0, -_nextOffset(h, decimal) - widget.padding.bottom),
+                      child: nextDigitWidget,
+                    ),
+                  ]),
+                ),
+              );
+            }
           }
+      }
+
+      // blur modifier: ⚠️ ImageFiltered → saveLayer every frame; avoid many
+      // simultaneous instances in production.
+      if (widget.transition.blur) {
+        final blurAmount = (0.5 - (decimal - 0.5).abs()) * 8.0;
+        if (blurAmount > 0.1) {
+          transitionChild = ImageFiltered(
+            imageFilter: ui.ImageFilter.blur(sigmaX: blurAmount, sigmaY: blurAmount),
+            child: transitionChild,
+          );
+        }
       }
     }
 
-    return SizedBox(width: w, height: h, child: transitionChild);
+    Widget box = SizedBox(width: w, height: h, child: transitionChild);
+    if (widget.bounceOffset != 0.0) {
+      // Nudge the resting digit in the motion direction (up for up/right flip,
+      // down otherwise), clipped to the slot; progress is 0 so only the target
+      // digit shows.
+      //
+      // 沿运动方向轻推静止数位（up/right 翻转向上，否则向下），裁剪到槽内；进度为 0，
+      // 故只显示目标数位。
+      final double sign = (widget.flipDirection == AxisDirection.up ||
+              widget.flipDirection == AxisDirection.right)
+          ? -1.0
+          : 1.0;
+      box = ClipRect(
+        child: Transform.translate(
+          offset: Offset(0, widget.bounceOffset * h * sign),
+          child: box,
+        ),
+      );
+    }
+    if (widget.revealAlpha < 1.0) {
+      box = Opacity(opacity: widget.revealAlpha.clamp(0.0, 1.0), child: box);
+    }
+    return box;
   }
 
   // Offset helpers — unchanged from original.

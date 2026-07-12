@@ -1,5 +1,13 @@
 part of 'animated_counter.dart';
 
+/// Below this cumulative place value a normal-mode leading column counts as
+/// "not yet reached" (collapsed); above it the column is shown and its opacity
+/// ramps `cum → 1` for a fade-in.
+///
+/// 低于此累计位值，普通模式的前导列视为"尚未到达"（收起）；高于则显示，其不透明度按
+/// `cum → 1` 渐变实现淡入。
+const double _kLeadingRevealEps = 1e-3;
+
 // ── widget ────────────────────────────────────────────────────────────────────
 
 /// Animated rolling-digit counter using Flutter's widget tree.
@@ -80,7 +88,7 @@ class AnimatedCounterBuilder extends _BaseAnimatedCounter {
     super.initialValue,
     super.numeralSystem,
     super.numeralMapper,
-    super.transitionType,
+    super.transition,
     super.reverseDuration,
     super.reverseCurve,
     super.startDelay,
@@ -176,13 +184,46 @@ class _AnimatedCounterBuilderState extends _BaseCounterState<AnimatedCounterBuil
 
         // ── integer digits ────────────────────────────────────────────────
         final integerWidgets = <Widget>[];
+        // Running "any earlier column significant" flag — replaces a per-column
+        // List.generate(i).any(...) that was O(n²) allocations per frame.
+        //
+        // 累进的「更高位有非零」标志——取代原来逐列 List.generate(i).any(...) 的
+        // 每帧 O(n²) 分配。
+        bool anySigBefore = false;
         for (int i = 0; i < integerDigitCount; i++) {
+          final bool isLast = i == integerDigitCount - 1;
+          final bool nzI = digitNonZero(i);
+          // Leading-zero handling.
+          //   • !hideLeadingZeroes → always shown, full opacity.
+          //   • fast → binary (progress carries no magnitude); keep the old
+          //     endpoint-based visibility.
+          //   • normal → live cumulative place value: collapse a place still at
+          //     ~0, fade it in (opacity = cum) while it grows into view, full
+          //     once cum ≥ 1. Hides leading zeros at rest (e.g. 1000 → 7 → "7").
+          //
+          // 前导零处理：
+          //   • !hideLeadingZeroes → 始终显示，全不透明。
+          //   • fast → 二值（进度不含幅值），沿用旧的端点可见性。
+          //   • 普通 → 用实时累计位值：仍约为 0 的位收起，随其增长淡入（opacity = cum），
+          //     cum ≥ 1 后全显。静止时隐藏前导零（如 1000 → 7 → "7"）。
+          final bool vis;
+          final double reveal;
+          if (!widget.hideLeadingZeroes) {
+            vis = true;
+            reveal = 1.0;
+          } else if (widget.fast) {
+            vis = nzI || isLast || anySigBefore;
+            reveal = 1.0;
+          } else {
+            final double cum = _currentDigitValues[i];
+            vis = isLast || cum > _kLeadingRevealEps;
+            reveal = isLast ? 1.0 : cum.clamp(0.0, 1.0);
+          }
           Widget digit = DigitColumn(
             key: ValueKey(_currentDigitValues.length - i),
             value: _targetDigitValues[i],
             oldValue: _oldDigitValues[i],
             animationValue: _currentDigitValues[i],
-            hasStarted: _hasDigitStarted(i),
             size: _prototypeSize!,
             color: color,
             style: style,
@@ -193,20 +234,20 @@ class _AnimatedCounterBuilderState extends _BaseCounterState<AnimatedCounterBuil
             triggerHaptics: widget.triggerHaptics,
             numeralSystem: widget.numeralSystem,
             numeralMapper: widget.numeralMapper,
-            transitionType: widget.transitionType,
+            transition: widget.transition,
             fast: widget.fast,
             fastFromDigit: i < _fastFromDigits.length ? _fastFromDigits[i] : 0,
             fastToDigit: i < _fastToDigits.length ? _fastToDigits[i] : 0,
-            visible: widget.hideLeadingZeroes
-                ? (digitNonZero(i) ||
-                    i == integerDigitCount - 1 ||
-                    List<int>.generate(i, (j) => j).any(digitNonZero))
-                : true,
+            increasing: !_isAnimatingDecrease,
+            visible: vis,
+            revealAlpha: reveal,
+            bounceOffset: i < _bounceOffsets.length ? _bounceOffsets[i] : 0.0,
           );
           if (widget.digitWrapperBuilder != null) {
             digit = widget.digitWrapperBuilder!(ctx, i, digit);
           }
           integerWidgets.add(digit);
+          anySigBefore = anySigBefore || nzI;
         }
 
         // ── thousand separators ───────────────────────────────────────────
@@ -297,7 +338,6 @@ class _AnimatedCounterBuilderState extends _BaseCounterState<AnimatedCounterBuil
                       value: _targetDigitValues[i],
                       oldValue: _oldDigitValues[i],
                       animationValue: _currentDigitValues[i],
-                      hasStarted: _hasDigitStarted(i),
                       size: _prototypeSize!,
                       color: color,
                       style: style,
@@ -308,10 +348,12 @@ class _AnimatedCounterBuilderState extends _BaseCounterState<AnimatedCounterBuil
                       triggerHaptics: widget.triggerHaptics,
                       numeralSystem: widget.numeralSystem,
                       numeralMapper: widget.numeralMapper,
-                      transitionType: widget.transitionType,
+                      transition: widget.transition,
                       fast: widget.fast,
                       fastFromDigit: i < _fastFromDigits.length ? _fastFromDigits[i] : 0,
                       fastToDigit: i < _fastToDigits.length ? _fastToDigits[i] : 0,
+                      increasing: !_isAnimatingDecrease,
+                      bounceOffset: i < _bounceOffsets.length ? _bounceOffsets[i] : 0.0,
                     );
                     if (widget.digitWrapperBuilder != null) {
                       d = widget.digitWrapperBuilder!(ctx, i, d);

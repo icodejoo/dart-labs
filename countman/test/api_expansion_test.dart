@@ -122,7 +122,7 @@ void main() {
         colorResolver: (v) { resolverCalled = true; return v > 0 ? Colors.green : null; },
         painterBuilder: ({
           required repaint, required digitValues, required style, required digitSize,
-          required transitionType, required flipDirection, required increasing,
+          required transition, required flipDirection, required increasing,
           required fractionDigits, required groupingPattern, required hideLeadingZeroes,
           required numeralSystem, numeralMapper, thousandSeparator,
           decimalSeparator = '.', separatorStyle,
@@ -131,7 +131,7 @@ void main() {
           builderCalled = true;
           return CounterPainter(
             repaint: repaint, digitValues: digitValues, style: style, digitSize: digitSize,
-            transitionType: transitionType, flipDirection: flipDirection, increasing: increasing,
+            transition: transition, flipDirection: flipDirection, increasing: increasing,
             fractionDigits: fractionDigits, groupingPattern: groupingPattern,
             hideLeadingZeroes: hideLeadingZeroes, numeralSystem: numeralSystem,
             numeralMapper: numeralMapper, thousandSeparator: thousandSeparator,

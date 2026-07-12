@@ -8,6 +8,33 @@ import 'package:countman/countman.dart';
 void main() {
   CountmanContext noopCtx() => CountmanContext(requestFrame: () {});
 
+  // ── lazy self-registration on first add() ──────────────────────────
+  group('lazy self-registration (user plugin passed straight to add/widget)', () {
+    tearDown(Countman.destroy);
+
+    test('unnamed-instance user plugin self-attaches on first add — no LateInit', () {
+      Countman.destroy();
+      // Created but NOT Countman.use()'d, as when handed straight to a widget.
+      final p = Countdown(name: 'selfreg-unique', interval: 100);
+      expect(
+        () => p.add(const CountdownOptions(duration: Duration(seconds: 5))),
+        returnsNormally,
+      );
+      expect(Countman.pluginCount, greaterThan(0));
+    });
+
+    test('name clash with an already-registered different instance → clear StateError', () {
+      Countman.destroy();
+      final a = Countdown(name: 'selfreg-dup', interval: 100);
+      a.add(const CountdownOptions(duration: Duration(seconds: 5))); // registers 'selfreg-dup'
+      final b = Countdown(name: 'selfreg-dup', interval: 200); // same name, different instance
+      expect(
+        () => b.add(const CountdownOptions(duration: Duration(seconds: 5))),
+        throwsStateError,
+      );
+    });
+  });
+
   // ── P0: structural mutation of the task map during tick() ──────────
 
   group('P0 concurrent modification (no ConcurrentModificationError)', () {
@@ -386,6 +413,32 @@ void main() {
       await tester.pump();
 
       expect(find.text('-'), findsNothing);
+      Countman.destroy();
+    });
+  });
+
+  group('OdometerCounter anti-alias (huge range)', () {
+    testWidgets('0 → 999,999,999 animates and settles without throwing', (tester) async {
+      // Range/duration triggers the coprime-step anti-alias path; it must run
+      // and snap to the exact target on completion without exceptions.
+      //
+      // 该量级/时长触发互质步长防混叠路径；须正常运行并在完成时精确吸附到目标，无异常。
+      await tester.pumpWidget(const MaterialApp(
+        home: Scaffold(
+          body: Center(
+            child: OdometerCounter(
+              from: 0,
+              to: 999999999,
+              duration: Duration(milliseconds: 300),
+            ),
+          ),
+        ),
+      ));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 100));
+      await tester.pump(const Duration(milliseconds: 250));
+      await tester.pumpAndSettle();
+      expect(tester.takeException(), isNull);
       Countman.destroy();
     });
   });

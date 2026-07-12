@@ -89,18 +89,6 @@ class Elapsed extends ClockPlugin<ElapsedTask> {
   @override
   void onComplete(ElapsedTask task) {} // unreachable: isComplete is always false
 
-  @override
-  void onDispose() {
-    super.onDispose();
-    if (identical(this, _default)) _registered = false;
-    // Drop the cached precise instance so defaultElapsedMs re-creates and
-    // re-registers a live one after Countman.destroy().
-    //
-    // 丢弃缓存的精确实例，使 Countman.destroy() 后 defaultElapsedMs 重新创建并
-    // 注册一个存活实例。
-    if (identical(this, _defaultMs)) _defaultMs = null;
-  }
-
   // ── internal accessors for handles (same library) ─────────────────
 
   @internal
@@ -153,23 +141,17 @@ class ElapsedController {
 
 // ── default instance + top-level function ─────────────────────────
 
-final _default = Elapsed(); // interval = 1000ms
-bool _registered = false;
+final _defaultElapsed = LazyDefault<Elapsed>(() => Elapsed()); // interval = 1000ms
 
 /// The default [Elapsed] instance (interval = 1 s) used by [TextElapsed]
 /// when no [plugin] is provided. Auto-registered with [Countman] on first access.
-Elapsed get defaultElapsed {
-  if (!_registered) {
-    _registered = true;
-    Countman.use(_default);
-  }
-  return _default;
-}
+Elapsed get defaultElapsed => _defaultElapsed.instance;
 
 /// Add an elapsed-time timer using the default shared [Elapsed] instance.
 ElapsedHandle elapsed(ElapsedOptions opts) => defaultElapsed.add(opts);
 
-Elapsed? _defaultMs;
+final _defaultElapsedMs =
+    LazyDefault<Elapsed>(() => Elapsed(name: 'elapsed-ms', interval: 0));
 
 /// The default **precise** [Elapsed] instance (`interval: 0` — processes every
 /// frame) used by widgets with `precise: true` when no [plugin] is given.
@@ -177,11 +159,4 @@ Elapsed? _defaultMs;
 ///
 /// 默认的**精确** [Elapsed] 实例（`interval: 0`——每帧处理），当未传 [plugin] 时
 /// 供 `precise: true` 的组件使用。首次访问时自动向 [Countman] 注册。
-Elapsed get defaultElapsedMs {
-  final existing = _defaultMs;
-  if (existing != null) return existing;
-  final p = Elapsed(name: 'elapsed-ms', interval: 0);
-  Countman.use(p);
-  _defaultMs = p;
-  return p;
-}
+Elapsed get defaultElapsedMs => _defaultElapsedMs.instance;
