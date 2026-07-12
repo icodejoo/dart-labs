@@ -20,7 +20,7 @@
 
 | Counter | Countdown | Elapsed |
 | :---: | :---: | :---: |
-| ![Counter demo](example/screenshots/counter.png) | ![Countdown demo](example/screenshots/countdown.png) | ![Elapsed demo](example/screenshots/elapsed.png) |
+| ![Counter demo](example/screenshots/counter.jpg) | ![Countdown demo](example/screenshots/countdown.jpg) | ![Elapsed demo](example/screenshots/elapsed.jpg) |
 | Text / ring / bar / odometer / animated | Text / ring / bar / dial / card | Stopwatch, precise, provider |
 
 > Captured from the [example app](example/) — try it live at the [demo site](https://icodejoo.github.io/dart-labs/).
