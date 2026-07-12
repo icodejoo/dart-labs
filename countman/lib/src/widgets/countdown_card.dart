@@ -404,6 +404,15 @@ class _CountdownCardState extends State<CountdownCard>
       _showHours = widget.showHours ?? r.inHours >= 1;
       _model = CardModel(_digitsFor(r, _showHours));
       _start();
+    } else if (widget.showHours != old.showHours) {
+      // showHours flipped without a new deadline — relayout the unit count now
+      // instead of waiting for the next tick to notice (avoids a stale frame).
+      //
+      // showHours 翻转但截止未变——立即重排单位数，而非等下一 tick 才发现
+      // （避免一帧陈旧）。
+      final r = remainingUntil(widget.to);
+      _showHours = widget.showHours ?? r.inHours >= 1;
+      _model = CardModel(_digitsFor(r, _showHours));
     }
   }
 

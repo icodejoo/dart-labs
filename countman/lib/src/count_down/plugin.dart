@@ -107,6 +107,12 @@ class Countdown extends ClockPlugin<CountdownTask> {
   void onDispose() {
     super.onDispose();
     if (identical(this, _default)) _registered = false;
+    // Drop the cached precise instance so defaultCountdownMs re-creates and
+    // re-registers a live one after Countman.destroy().
+    //
+    // 丢弃缓存的精确实例，使 Countman.destroy() 后 defaultCountdownMs 重新创建并
+    // 注册一个存活实例。
+    if (identical(this, _defaultMs)) _defaultMs = null;
   }
 
   // ── internal accessors for handles (same library) ─────────────────

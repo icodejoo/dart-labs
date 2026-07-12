@@ -487,7 +487,8 @@ class _AnimatedCounterState extends _BaseCounterState<AnimatedCounter> {
       );
     }
 
-    content = _wrapColorTint(content, style.color ?? const Color(0xFF000000));
+    content = _wrapColorTint(
+        content, style.color ?? DefaultTextStyle.of(context).style.color ?? const Color(0xFF000000));
     return _wrapSemantics(content, widget.semanticsLabel ?? _buildSemanticText(val));
   }
 }

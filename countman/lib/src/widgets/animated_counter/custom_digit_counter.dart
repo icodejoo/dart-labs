@@ -151,7 +151,13 @@ class _AnimatedCounterBuilderState extends _BaseCounterState<AnimatedCounterBuil
       }
     }
     final int   val   = (displayValue * math.pow(10, effFD)).round();
-    final Color color = style.color ?? const Color(0xffff0000);
+    // Digit tint: explicit style color -> ambient DefaultTextStyle color -> black.
+    // (Aligns with AnimatedCounter; was a hardcoded red that read like a bug.)
+    //
+    // 数字着色：显式样式色 -> 环境 DefaultTextStyle 色 -> 黑色。
+    // （与 AnimatedCounter 对齐；原为硬编码红色，看起来像 bug。）
+    final Color color =
+        style.color ?? DefaultTextStyle.of(context).style.color ?? const Color(0xFF000000);
 
     final inner = ValueListenableBuilder<int>(
       valueListenable: _rebuildNotifier,
@@ -314,7 +320,7 @@ class _AnimatedCounterBuilderState extends _BaseCounterState<AnimatedCounterBuil
     );
 
     Widget content = widget.repaintBoundary ? RepaintBoundary(child: inner) : inner;
-    content = _wrapColorTint(content, style.color ?? const Color(0xFF000000));
+    content = _wrapColorTint(content, color);
     return _wrapSemantics(content, widget.semanticsLabel ?? _buildSemanticText(val));
   }
 }
