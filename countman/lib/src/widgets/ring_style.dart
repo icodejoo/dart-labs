@@ -83,6 +83,23 @@ mixin RingStyleFields {
   ///
   /// [center] 子组件在环内的对齐。默认居中。
   AlignmentGeometry? get centerAlignment;
+
+  /// Whether a filled "thumb" dot rides the arc's moving edge. Defaults on for
+  /// `CountdownRing` (makes slow depletion visibly move), off for `CounterRing`.
+  ///
+  /// 是否在弧的移动边缘显示实心"游标"圆点。`CountdownRing` 默认开（让缓慢递减明显
+  /// 在动），`CounterRing` 默认关。
+  bool? get showThumb;
+
+  /// Thumb fill color. Falls back to the arc color.
+  ///
+  /// 游标填充色。回退到弧色。
+  Color? get thumbColor;
+
+  /// Thumb radius. Falls back to `strokeWidth * 0.7`.
+  ///
+  /// 游标半径。回退到 `strokeWidth * 0.7`。
+  double? get thumbRadius;
 }
 
 /// Builds a [RingPainter] from a resolved style, given the current [progress]
@@ -118,6 +135,7 @@ RingPainter ringPainterFrom(
   EdgeInsets arcInset = EdgeInsets.zero,
   bool anchorAtEnd = false,
   StrokeCap defaultStrokeCap = StrokeCap.round,
+  bool defaultShowThumb = false,
 }) {
   return RingPainter(
     progress: progress,
@@ -129,6 +147,9 @@ RingPainter ringPainterFrom(
     startAngle: s.startAngle ?? -math.pi / 2,
     strokeCap: s.strokeCap ?? defaultStrokeCap,
     anchorAtEnd: anchorAtEnd,
+    showThumb: s.showThumb ?? defaultShowThumb,
+    thumbColor: s.thumbColor,
+    thumbRadius: s.thumbRadius,
     gradient: s.gradient,
     trackGradient: s.trackGradient,
     // Ring-internal inset (distinct from the container [BoxStyleFields.padding],
@@ -177,6 +198,9 @@ class RingStyle with BoxStyleFields, RingStyleFields, StyleProps {
     this.showTrack,
     this.backgroundColor,
     this.centerAlignment,
+    this.showThumb,
+    this.thumbColor,
+    this.thumbRadius,
     this.padding,
     this.decoration,
   });
@@ -210,6 +234,12 @@ class RingStyle with BoxStyleFields, RingStyleFields, StyleProps {
   @override
   final AlignmentGeometry? centerAlignment;
   @override
+  final bool? showThumb;
+  @override
+  final Color? thumbColor;
+  @override
+  final double? thumbRadius;
+  @override
   final EdgeInsetsGeometry? padding;
   @override
   final Decoration? decoration;
@@ -232,6 +262,9 @@ class RingStyle with BoxStyleFields, RingStyleFields, StyleProps {
     bool? showTrack,
     Color? backgroundColor,
     AlignmentGeometry? centerAlignment,
+    bool? showThumb,
+    Color? thumbColor,
+    double? thumbRadius,
     EdgeInsetsGeometry? padding,
     Decoration? decoration,
   }) =>
@@ -250,6 +283,9 @@ class RingStyle with BoxStyleFields, RingStyleFields, StyleProps {
         showTrack: showTrack ?? this.showTrack,
         backgroundColor: backgroundColor ?? this.backgroundColor,
         centerAlignment: centerAlignment ?? this.centerAlignment,
+        showThumb: showThumb ?? this.showThumb,
+        thumbColor: thumbColor ?? this.thumbColor,
+        thumbRadius: thumbRadius ?? this.thumbRadius,
         padding: padding ?? this.padding,
         decoration: decoration ?? this.decoration,
       );
@@ -274,6 +310,9 @@ class RingStyle with BoxStyleFields, RingStyleFields, StyleProps {
           showTrack: showTrack ?? other.showTrack,
           backgroundColor: backgroundColor ?? other.backgroundColor,
           centerAlignment: centerAlignment ?? other.centerAlignment,
+          showThumb: showThumb ?? other.showThumb,
+          thumbColor: thumbColor ?? other.thumbColor,
+          thumbRadius: thumbRadius ?? other.thumbRadius,
           padding: padding ?? other.padding,
           decoration: decoration ?? other.decoration,
         );
@@ -294,6 +333,9 @@ class RingStyle with BoxStyleFields, RingStyleFields, StyleProps {
         showTrack,
         backgroundColor,
         centerAlignment,
+        showThumb,
+        thumbColor,
+        thumbRadius,
         padding,
         decoration,
       ];

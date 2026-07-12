@@ -34,6 +34,9 @@ class RingPainter extends CustomPainter {
     this.showTrack = true,
     this.backgroundColor,
     this.anchorAtEnd = false,
+    this.showThumb = false,
+    this.thumbColor,
+    this.thumbRadius,
   });
 
   /// 0.0–1.0 fraction of the arc to draw.
@@ -94,6 +97,27 @@ class RingPainter extends CustomPainter {
   /// 为 `true` 时弧固定在远端、起点随 [progress] 下降而后退，使倒计时的空缺从
   /// [startAngle] 开始、沿绘制方向（默认顺时针）扫过，而非剩余弧向反方向回退。
   final bool anchorAtEnd;
+
+  /// Draws a filled dot ("thumb") at the arc's moving/leading edge. A distinct
+  /// dot that slides each tick reads as "alive" even when a long countdown's
+  /// gap grows only ~1px/second — solving the "looks frozen at first" problem
+  /// while keeping round caps.
+  ///
+  /// 在弧的移动/前导边缘绘制一个实心圆点（"游标"）。即便长倒计时缺口每秒只增长
+  /// ~1px，一个每 tick 滑动的醒目圆点也让人一眼看出"在动"——在保留圆头的同时解决
+  /// "初期看似静止"的问题。
+  final bool showThumb;
+
+  /// Thumb fill color. Defaults to the arc [color] when null.
+  ///
+  /// 游标填充色。为空时取弧的 [color]。
+  final Color? thumbColor;
+
+  /// Thumb radius. Defaults to `strokeWidth * 0.7` (a knob slightly proud of
+  /// the stroke) when null.
+  ///
+  /// 游标半径。为空时取 `strokeWidth * 0.7`（略高于描边的小旋钮）。
+  final double? thumbRadius;
 
   /// The drawing rect after applying [padding].
   Rect rectFor(Size size) => padding.deflateRect(Offset.zero & size);
@@ -212,6 +236,39 @@ class RingPainter extends CustomPainter {
     canvas.drawArc(rect, g.start, g.sweep, false, paint);
   }
 
+  /// Draws the [showThumb] dot at the arc's leading (moving) edge — the arc
+  /// start for a depleting [anchorAtEnd] ring, else the arc end. Override to
+  /// customize the marker.
+  ///
+  /// 在弧的前导（移动）边缘绘制 [showThumb] 圆点——递减的 [anchorAtEnd] 环取弧起点，
+  /// 否则取弧末端。可重写以自定义标记。
+  void paintThumb(Canvas canvas, Offset center, double radius) {
+    if (!showThumb || progress <= 0) return;
+    final g = arcGeometry(
+      startAngle: startAngle,
+      sweepAngle: sweepAngle,
+      progress: progress,
+      strokeWidth: strokeWidth,
+      radius: radius,
+      strokeCap: strokeCap,
+      clockwise: clockwise,
+      anchorAtEnd: anchorAtEnd,
+    );
+    final leadingAngle = anchorAtEnd ? g.start : g.start + g.sweep;
+    final pos = Offset(
+      center.dx + radius * math.cos(leadingAngle),
+      center.dy + radius * math.sin(leadingAngle),
+    );
+    canvas.drawCircle(
+      pos,
+      thumbRadius ?? strokeWidth * 0.7,
+      Paint()
+        ..style = PaintingStyle.fill
+        ..color = thumbColor ?? color
+        ..isAntiAlias = true,
+    );
+  }
+
   @override
   void paint(Canvas canvas, Size size) {
     final center = centerFor(size);
@@ -220,6 +277,7 @@ class RingPainter extends CustomPainter {
     final paint = buildStrokePaint();
     paintTrack(canvas, center, radius, paint);
     paintArc(canvas, center, radius, paint);
+    paintThumb(canvas, center, radius);
   }
 
   @override
@@ -238,5 +296,8 @@ class RingPainter extends CustomPainter {
       old.sweepAngle != sweepAngle ||
       old.showTrack != showTrack ||
       old.backgroundColor != backgroundColor ||
-      old.anchorAtEnd != anchorAtEnd;
+      old.anchorAtEnd != anchorAtEnd ||
+      old.showThumb != showThumb ||
+      old.thumbColor != thumbColor ||
+      old.thumbRadius != thumbRadius;
 }

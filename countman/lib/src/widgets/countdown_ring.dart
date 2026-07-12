@@ -138,15 +138,16 @@ class CountdownRing extends StatelessWidget {
                   color: colors.fill,
                   trackColor: colors.track,
                   // Countdown depletes: pin the arc's far end so the empty gap
-                  // opens at 12 o'clock and sweeps clockwise. Round caps stay
-                  // the default — RingPainter clamps a near-full ring so the two
-                  // caps only touch, giving rounded ends AND a gap that's
-                  // visible from the first tick.
+                  // opens at 12 o'clock and sweeps clockwise. A leading thumb
+                  // dot (on by default here, off/customizable via style) rides
+                  // the depleting edge so even a slow long countdown visibly
+                  // moves every tick while keeping rounded ends.
                   //
-                  // 倒计时递减：锚定弧远端，使空缺从 12 点顺时针扫过。圆头保持默认——
-                  // RingPainter 对接近满环做钳制，使两端圆头仅相接，从而既有圆头、
-                  // 缺口又从第 1 tick 就可见。
-                  anchorAtEnd: true),
+                  // 倒计时递减：锚定弧远端，使空缺从 12 点顺时针扫过。前导游标圆点
+                  // （此处默认开，可经 style 关闭/定制）骑在递减边缘，使即便缓慢的
+                  // 长倒计时也每 tick 明显移动，同时保留圆头。
+                  anchorAtEnd: true,
+                  defaultShowThumb: true),
           paintChild: centerWidget,
         );
       },
