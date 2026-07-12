@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.2.1
+
+Docs only — no code changes.
+
+### Fixed
+- README screenshots and cross-links (EN/ZH) now use absolute URLs so they
+  render on pub.dev. Relative paths broke because the package lives in a
+  monorepo subdirectory (`countman/`), which pub.dev resolves against the repo
+  root.
+
 ## 0.2.0
 
 Counter transition redesign + internal consolidation.

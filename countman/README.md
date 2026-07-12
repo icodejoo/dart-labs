@@ -2,10 +2,10 @@
 
 **High-performance counter, countdown & elapsed animations for Flutter — driven by ONE shared vsync ticker, not per-widget timers. Built for high-concurrency timing.**
 
-**English** · [简体中文](README.zh.md)
+**English** · [简体中文](https://github.com/icodejoo/dart-labs/blob/main/countman/README.zh.md)
 
 [![pub.dev](https://img.shields.io/pub/v/countman.svg)](https://pub.dev/packages/countman)
-[![license](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![license](https://img.shields.io/badge/license-MIT-blue.svg)](https://github.com/icodejoo/dart-labs/blob/main/countman/LICENSE)
 [![Demo](https://img.shields.io/badge/demo-live-brightgreen)](https://icodejoo.github.io/dart-labs/)
 
 **[▶ Live Demo](https://icodejoo.github.io/dart-labs/)** — Counter · Countdown · Elapsed, all widgets, all APIs.
@@ -20,10 +20,10 @@
 
 | Counter | Countdown | Elapsed |
 | :---: | :---: | :---: |
-| ![Counter demo](example/screenshots/counter.jpg) | ![Countdown demo](example/screenshots/countdown.jpg) | ![Elapsed demo](example/screenshots/elapsed.jpg) |
+| ![Counter demo](https://raw.githubusercontent.com/icodejoo/dart-labs/main/countman/example/screenshots/counter.jpg) | ![Countdown demo](https://raw.githubusercontent.com/icodejoo/dart-labs/main/countman/example/screenshots/countdown.jpg) | ![Elapsed demo](https://raw.githubusercontent.com/icodejoo/dart-labs/main/countman/example/screenshots/elapsed.jpg) |
 | Text / ring / bar / odometer / animated | Text / ring / bar / dial / card | Stopwatch, precise, provider |
 
-> Captured from the [example app](example/) — try it live at the [demo site](https://icodejoo.github.io/dart-labs/).
+> Captured from the [example app](https://github.com/icodejoo/dart-labs/tree/main/countman/example) — try it live at the [demo site](https://icodejoo.github.io/dart-labs/).
 
 ---
 
@@ -793,7 +793,7 @@ you can subclass one instead of starting from scratch.
 ## Contributing
 
 Issues and PRs are very welcome — bug reports, feature ideas, performance
-findings, docs, and **new demos** for the [example app](example/) (which powers
+findings, docs, and **new demos** for the [example app](https://github.com/icodejoo/dart-labs/tree/main/countman/example) (which powers
 the [live demo](https://icodejoo.github.io/dart-labs/)) all help.
 
 - 🐛 [Open an issue](https://github.com/icodejoo/dart-labs/issues)
@@ -804,4 +804,4 @@ the [live demo](https://icodejoo.github.io/dart-labs/)) all help.
 
 ## License
 
-MIT — see [LICENSE](LICENSE).
+MIT — see [LICENSE](https://github.com/icodejoo/dart-labs/blob/main/countman/LICENSE).

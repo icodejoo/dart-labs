@@ -2,10 +2,10 @@
 
 **面向 Flutter 的高性能计数器、倒计时与计时动画 —— 由一个共享的 vsync ticker 驱动，而非逐组件的定时器。专为高并发计时场景设计。**
 
-[English](README.md) · **简体中文**
+[English](https://github.com/icodejoo/dart-labs/blob/main/countman/README.md) · **简体中文**
 
 [![pub.dev](https://img.shields.io/pub/v/countman.svg)](https://pub.dev/packages/countman)
-[![license](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![license](https://img.shields.io/badge/license-MIT-blue.svg)](https://github.com/icodejoo/dart-labs/blob/main/countman/LICENSE)
 [![Demo](https://img.shields.io/badge/demo-live-brightgreen)](https://icodejoo.github.io/dart-labs/)
 
 **[▶ 在线演示](https://icodejoo.github.io/dart-labs/)** —— 计数器 · 倒计时 · 计时，涵盖全部组件、全部 API。
@@ -20,10 +20,10 @@
 
 | 计数器 | 倒计时 | 计时 |
 | :---: | :---: | :---: |
-| ![计数器演示](example/screenshots/counter.jpg) | ![倒计时演示](example/screenshots/countdown.jpg) | ![计时演示](example/screenshots/elapsed.jpg) |
+| ![计数器演示](https://raw.githubusercontent.com/icodejoo/dart-labs/main/countman/example/screenshots/counter.jpg) | ![倒计时演示](https://raw.githubusercontent.com/icodejoo/dart-labs/main/countman/example/screenshots/countdown.jpg) | ![计时演示](https://raw.githubusercontent.com/icodejoo/dart-labs/main/countman/example/screenshots/elapsed.jpg) |
 | 文本 / 环形 / 条形 / 里程表 / 动画 | 文本 / 环形 / 条形 / 表盘 / 卡片 | 秒表、高精度、Provider |
 
-> 截取自[示例应用](example/) —— 可在[在线演示](https://icodejoo.github.io/dart-labs/)中实际体验。
+> 截取自[示例应用](https://github.com/icodejoo/dart-labs/tree/main/countman/example) —— 可在[在线演示](https://icodejoo.github.io/dart-labs/)中实际体验。
 
 ---
 
@@ -791,7 +791,7 @@ fakeNow = fakeNow.add(const Duration(seconds: 3));   // "3 seconds pass"
 ## 贡献（Contributing）
 
 非常欢迎 issue 与 PR —— bug 报告、功能点子、性能
-发现、文档，以及为 [示例应用](example/)（它驱动着
+发现、文档，以及为 [示例应用](https://github.com/icodejoo/dart-labs/tree/main/countman/example)（它驱动着
 [在线演示](https://icodejoo.github.io/dart-labs/)）贡献的 **新 demo**，全都很有帮助。
 
 - 🐛 [提交 issue](https://github.com/icodejoo/dart-labs/issues)
@@ -802,4 +802,4 @@ fakeNow = fakeNow.add(const Duration(seconds: 3));   // "3 seconds pass"
 
 ## 许可证（License）
 
-MIT —— 参见 [LICENSE](LICENSE)。
+MIT —— 参见 [LICENSE](https://github.com/icodejoo/dart-labs/blob/main/countman/LICENSE)。
