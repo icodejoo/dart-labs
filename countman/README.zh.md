@@ -20,7 +20,7 @@
 
 | 计数器 | 倒计时 | 计时 |
 | :---: | :---: | :---: |
-| ![计数器演示](example/screenshots/counter.png) | ![倒计时演示](example/screenshots/countdown.png) | ![计时演示](example/screenshots/elapsed.png) |
+| ![计数器演示](example/screenshots/counter.jpg) | ![倒计时演示](example/screenshots/countdown.jpg) | ![计时演示](example/screenshots/elapsed.jpg) |
 | 文本 / 环形 / 条形 / 里程表 / 动画 | 文本 / 环形 / 条形 / 表盘 / 卡片 | 秒表、高精度、Provider |
 
 > 截取自[示例应用](example/) —— 可在[在线演示](https://icodejoo.github.io/dart-labs/)中实际体验。
