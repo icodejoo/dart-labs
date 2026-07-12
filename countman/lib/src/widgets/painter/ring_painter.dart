@@ -33,6 +33,7 @@ class RingPainter extends CustomPainter {
     this.sweepAngle = 2 * math.pi,
     this.showTrack = true,
     this.backgroundColor,
+    this.anchorAtEnd = false,
   });
 
   /// 0.0–1.0 fraction of the arc to draw.
@@ -77,6 +78,22 @@ class RingPainter extends CustomPainter {
   ///
   /// 可选：环形背后圆盘的实心填充（半径至环形处）。
   final Color? backgroundColor;
+
+  /// Anchors the progress arc at its END instead of its start.
+  ///
+  /// With the default (false), the arc grows/shrinks from [startAngle] — the
+  /// natural "fill toward a goal" behavior for a counter. With `true`, the arc
+  /// is pinned at its far end and its START recedes as [progress] drops, so a
+  /// countdown's empty gap opens at [startAngle] and sweeps in the drawing
+  /// direction (clockwise by default) instead of the leftover arc retreating
+  /// the other way.
+  ///
+  /// 将进度弧锚定在其**末端**而非起点。
+  ///
+  /// 默认（false）时弧从 [startAngle] 增长/收缩——计数器"向目标填充"的自然行为。
+  /// 为 `true` 时弧固定在远端、起点随 [progress] 下降而后退，使倒计时的空缺从
+  /// [startAngle] 开始、沿绘制方向（默认顺时针）扫过，而非剩余弧向反方向回退。
+  final bool anchorAtEnd;
 
   /// The drawing rect after applying [padding].
   Rect rectFor(Size size) => padding.deflateRect(Offset.zero & size);
@@ -139,13 +156,15 @@ class RingPainter extends CustomPainter {
       paint.shader = null;
       paint.color = color;
     }
-    canvas.drawArc(
-      rect,
-      startAngle,
-      sweepAngle * progress * (clockwise ? 1 : -1),
-      false,
-      paint,
-    );
+    final dir = clockwise ? 1.0 : -1.0;
+    // Anchor at end: push the start forward by the emptied fraction so the arc
+    // shrinks from its start (gap sweeps in `dir`); else grow from startAngle.
+    //
+    // 尾端锚定：把起点按已空比例前移，使弧从起点收缩（空缺沿 dir 扫过）；否则从
+    // startAngle 增长。
+    final start =
+        anchorAtEnd ? startAngle + sweepAngle * (1 - progress) * dir : startAngle;
+    canvas.drawArc(rect, start, sweepAngle * progress * dir, false, paint);
   }
 
   @override
@@ -173,5 +192,6 @@ class RingPainter extends CustomPainter {
       old.padding != padding ||
       old.sweepAngle != sweepAngle ||
       old.showTrack != showTrack ||
-      old.backgroundColor != backgroundColor;
+      old.backgroundColor != backgroundColor ||
+      old.anchorAtEnd != anchorAtEnd;
 }

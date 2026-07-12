@@ -665,12 +665,15 @@ class _Demo extends StatelessWidget {
         DemoCard(
           title: 'Days-aware — dhm',
           description: 'CountdownFormat.dhm drops the seconds field (D:HH:MM) '
-              'for long multi-day countdowns.',
+              'for long multi-day countdowns. It only refreshes once a MINUTE, '
+              'so the big digits look static between minute ticks — the small '
+              'live-seconds line proves the underlying timer is running.',
           code: runnable(r'''
 class _Demo extends StatelessWidget {
   const _Demo();
   @override
   Widget build(BuildContext context) {
+    // dhm has no seconds field → the text changes only once per minute.
     return const CountdownText(
       to: Duration(days: 2, hours: 3, minutes: 4),
       formatter: CountdownFormat.dhm,
@@ -679,12 +682,28 @@ class _Demo extends StatelessWidget {
   }
 }
 '''),
-          child: const CountdownText(
-            to: Duration(days: 2, hours: 3, minutes: 4),
-            formatter: CountdownFormat.dhm,
-            style: CountdownTextStyle(
-                textStyle:
-                    TextStyle(fontSize: 26, fontWeight: FontWeight.bold)),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const CountdownText(
+                to: Duration(days: 2, hours: 3, minutes: 4),
+                formatter: CountdownFormat.dhm,
+                style: CountdownTextStyle(
+                    textStyle:
+                        TextStyle(fontSize: 26, fontWeight: FontWeight.bold)),
+              ),
+              const SizedBox(height: 4),
+              // Proof-of-life: same timer, surfacing the live seconds that dhm
+              // intentionally hides — so the card doesn't look frozen.
+              CountdownText(
+                to: const Duration(days: 2, hours: 3, minutes: 4),
+                formatter: (p) =>
+                    '实时秒 (dhm 隐藏): ${p.seconds.toString().padLeft(2, '0')}s',
+                style: const CountdownTextStyle(
+                  textStyle: TextStyle(fontSize: 12, color: Color(0xFF9E9E9E)),
+                ),
+              ),
+            ],
           ),
         ),
 

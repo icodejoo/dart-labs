@@ -116,6 +116,8 @@ RingPainter ringPainterFrom(
   required Color color,
   required Color trackColor,
   EdgeInsets arcInset = EdgeInsets.zero,
+  bool anchorAtEnd = false,
+  StrokeCap defaultStrokeCap = StrokeCap.round,
 }) {
   return RingPainter(
     progress: progress,
@@ -125,7 +127,8 @@ RingPainter ringPainterFrom(
     trackStrokeWidth: s.trackStrokeWidth,
     clockwise: s.clockwise ?? true,
     startAngle: s.startAngle ?? -math.pi / 2,
-    strokeCap: s.strokeCap ?? StrokeCap.round,
+    strokeCap: s.strokeCap ?? defaultStrokeCap,
+    anchorAtEnd: anchorAtEnd,
     gradient: s.gradient,
     trackGradient: s.trackGradient,
     // Ring-internal inset (distinct from the container [BoxStyleFields.padding],
