@@ -46,9 +46,35 @@ abstract final class CountdownFormat {
     return '$m:$s.$ms';
   }
 
+  /// Dd HH:mm:ss — shows whole days when ≥1 day remains (e.g. `2d 03:04:05`),
+  /// otherwise falls back to [hms]. Ideal for multi-day event/sale countdowns
+  /// where [hms] would render an unwieldy `72:00:00`.
+  ///
+  /// Dd HH:mm:ss——剩余 ≥1 天时显示整数天（如 `2d 03:04:05`），否则回退到 [hms]。
+  /// 适合多天活动/大促倒计时；此时 [hms] 会显示笨重的 `72:00:00`。
+  static String dhms(TimeParts t) {
+    if (t.days <= 0) return hms(t);
+    final h = t.hours.toString().padLeft(2, '0');
+    final m = t.minutes.toString().padLeft(2, '0');
+    final s = t.seconds.toString().padLeft(2, '0');
+    return '${t.days}d $h:$m:$s';
+  }
+
+  /// Dd HH:mm — days + hours + minutes, dropping seconds (e.g. `2d 03:04`).
+  /// Falls back to [hms] when under a day.
+  ///
+  /// Dd HH:mm——天 + 时 + 分，省去秒（如 `2d 03:04`）。不足一天时回退到 [hms]。
+  static String dhm(TimeParts t) {
+    if (t.days <= 0) return hms(t);
+    final h = t.hours.toString().padLeft(2, '0');
+    final m = t.minutes.toString().padLeft(2, '0');
+    return '${t.days}d $h:$m';
+  }
+
   /// Picks the most compact format automatically:
-  /// ≥1h → HH:mm:ss, <10s → mm:ss.f, else → mm:ss.
+  /// ≥1d → Dd HH:mm:ss, ≥1h → HH:mm:ss, <10s → mm:ss.f, else → mm:ss.
   static String auto(TimeParts t) {
+    if (t.days >= 1) return dhms(t);
     if (t.totalHours >= 1) return hms(t);
     if (t.totalSeconds < 10) return msTenths(t);
     return ms(t);

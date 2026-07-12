@@ -20,6 +20,124 @@ import 'package:countman/src/counter/plugin.dart';
 import 'package:countman/src/counter/types.dart';
 
 import 'reduce_motion.dart';
+import 'style_support.dart';
+import 'providers.dart';
+
+/// Visual style for [CounterOdometer].
+///
+/// Groups digit text style, slot geometry, per-affix styling, and container
+/// [decoration]/[padding]. All fields nullable; unset fields fall back to the
+/// deprecated loose params then framework defaults.
+///
+/// [CounterOdometer] 的视觉样式。聚合数字文本样式、槽位几何、前后缀样式、容器
+/// [decoration]/[padding]。所有字段可空；未设置回退到弃用松散参数再到框架默认值。
+@immutable
+class CounterOdometerStyle with BoxStyleFields, StyleProps {
+  /// Creates a [CounterOdometer] style. All fields optional.
+  ///
+  /// 创建 [CounterOdometer] 样式。所有字段可选。
+  const CounterOdometerStyle({
+    this.numberTextStyle,
+    this.letterWidth,
+    this.verticalOffset,
+    this.fadeEnabled,
+    this.digitAlignment,
+    this.crossAxisAlignment,
+    this.prefixStyle,
+    this.suffixStyle,
+    this.padding,
+    this.decoration,
+  });
+
+  /// Text style for the digits.
+  final TextStyle? numberTextStyle;
+
+  /// Fixed width per digit slot.
+  final double? letterWidth;
+
+  /// Vertical slide distance in logical pixels.
+  final double? verticalOffset;
+
+  /// Cross-fade incoming/outgoing digits.
+  final bool? fadeEnabled;
+
+  /// Alignment of each digit within its slot.
+  final Alignment? digitAlignment;
+
+  /// Cross-axis alignment of the number row (and prefix/suffix).
+  final CrossAxisAlignment? crossAxisAlignment;
+
+  /// Text style for the prefix string (falls back to [numberTextStyle]).
+  final TextStyle? prefixStyle;
+
+  /// Text style for the suffix string (falls back to [numberTextStyle]).
+  final TextStyle? suffixStyle;
+
+  @override
+  final EdgeInsetsGeometry? padding;
+  @override
+  final Decoration? decoration;
+
+  /// Returns a copy with the given fields replaced.
+  ///
+  /// 返回替换了给定字段的副本。
+  CounterOdometerStyle copyWith({
+    TextStyle? numberTextStyle,
+    double? letterWidth,
+    double? verticalOffset,
+    bool? fadeEnabled,
+    Alignment? digitAlignment,
+    CrossAxisAlignment? crossAxisAlignment,
+    TextStyle? prefixStyle,
+    TextStyle? suffixStyle,
+    EdgeInsetsGeometry? padding,
+    Decoration? decoration,
+  }) =>
+      CounterOdometerStyle(
+        numberTextStyle: numberTextStyle ?? this.numberTextStyle,
+        letterWidth: letterWidth ?? this.letterWidth,
+        verticalOffset: verticalOffset ?? this.verticalOffset,
+        fadeEnabled: fadeEnabled ?? this.fadeEnabled,
+        digitAlignment: digitAlignment ?? this.digitAlignment,
+        crossAxisAlignment: crossAxisAlignment ?? this.crossAxisAlignment,
+        prefixStyle: prefixStyle ?? this.prefixStyle,
+        suffixStyle: suffixStyle ?? this.suffixStyle,
+        padding: padding ?? this.padding,
+        decoration: decoration ?? this.decoration,
+      );
+
+  /// Merges with lower-priority [other]: this object's non-null fields win.
+  ///
+  /// 与更低优先级的 [other] 合并：本对象非空字段优先。
+  CounterOdometerStyle merge(CounterOdometerStyle? other) => other == null
+      ? this
+      : CounterOdometerStyle(
+          numberTextStyle: numberTextStyle ?? other.numberTextStyle,
+          letterWidth: letterWidth ?? other.letterWidth,
+          verticalOffset: verticalOffset ?? other.verticalOffset,
+          fadeEnabled: fadeEnabled ?? other.fadeEnabled,
+          digitAlignment: digitAlignment ?? other.digitAlignment,
+          crossAxisAlignment: crossAxisAlignment ?? other.crossAxisAlignment,
+          prefixStyle: prefixStyle ?? other.prefixStyle,
+          suffixStyle: suffixStyle ?? other.suffixStyle,
+          padding: padding ?? other.padding,
+          decoration: decoration ?? other.decoration,
+        );
+
+  @override
+  List<Object?> get props => [
+        numberTextStyle,
+        letterWidth,
+        verticalOffset,
+        fadeEnabled,
+        digitAlignment,
+        crossAxisAlignment,
+        prefixStyle,
+        suffixStyle,
+        padding,
+        decoration,
+      ];
+}
 
 class CounterOdometer extends StatefulWidget {
   const CounterOdometer({
@@ -31,13 +149,8 @@ class CounterOdometer extends StatefulWidget {
     this.allowNegative = false,
     this.plugin,
     this.controller,
-    this.letterWidth = 20,
-    this.numberTextStyle,
-    this.verticalOffset = 20,
+    this.style,
     this.slideCurve,
-    this.fadeEnabled = true,
-    this.digitAlignment = Alignment.center,
-    this.crossAxisAlignment = CrossAxisAlignment.baseline,
     this.groupSeparator,
     this.prefix,
     this.suffix,
@@ -62,26 +175,16 @@ class CounterOdometer extends StatefulWidget {
   final bool allowNegative;
 
   final Counter? plugin;
-  final CounterController? controller;
+  final CounterValueController? controller;
 
-  /// Fixed width per digit slot — prevents layout jitter when digits change.
-  final double letterWidth;
-  final TextStyle? numberTextStyle;
-
-  /// Vertical slide distance in logical pixels.
-  final double verticalOffset;
+  /// Visual style. Merged over the enclosing [CounterProvider]'s odometer
+  /// style, then the built-in defaults.
+  ///
+  /// 视觉样式。叠加在所在 [CounterProvider] 的 odometer 样式之上，再到内建默认值。
+  final CounterOdometerStyle? style;
 
   /// Optional easing applied to the per-digit slide/fade progress.
   final Curve? slideCurve;
-
-  /// Cross-fade incoming/outgoing digits when true (default).
-  final bool fadeEnabled;
-
-  /// Alignment of each digit within its fixed-width slot.
-  final Alignment digitAlignment;
-
-  /// Cross-axis alignment of the number row (and any prefix/suffix).
-  final CrossAxisAlignment crossAxisAlignment;
 
   /// Text drawn between every 3 digits (e.g. `','`).
   /// Replaces the former `Widget?` parameter; the painter renders it as text.
@@ -205,7 +308,22 @@ class _CounterOdometerState extends State<CounterOdometer> {
 
   @override
   Widget build(BuildContext context) {
-    final style      = DefaultTextStyle.of(context).style.merge(widget.numberTextStyle);
+    // Resolve style: widget.style over the provider default, then built-in
+    // defaults for any field still unset.
+    //
+    // 解析样式：widget.style 叠加在 provider 默认之上，仍未设的字段用内建默认值。
+    final scope = CountmanScope.maybeOf<Counter>(context);
+    final st = widget.style?.merge(scope?.counterOdometerStyle) ?? scope?.counterOdometerStyle;
+    final effNumberTextStyle = st?.numberTextStyle;
+    final effLetterWidth = st?.letterWidth ?? 20.0;
+    final effVerticalOffset = st?.verticalOffset ?? 20.0;
+    final effFadeEnabled = st?.fadeEnabled ?? true;
+    final effDigitAlignment = st?.digitAlignment ?? Alignment.center;
+    final effCrossAxisAlignment = st?.crossAxisAlignment ?? CrossAxisAlignment.baseline;
+    final effPrefixStyle = st?.prefixStyle ?? effNumberTextStyle;
+    final effSuffixStyle = st?.suffixStyle ?? effNumberTextStyle;
+
+    final style      = DefaultTextStyle.of(context).style.merge(effNumberTextStyle);
     final textScaler = MediaQuery.textScalerOf(context);
 
     // ── prototype measurement (once per style) ─────────────────────────────
@@ -227,11 +345,11 @@ class _CounterOdometerState extends State<CounterOdometer> {
         increasing: _increasing,
         textStyle: style,
         digitH: _protoSize!.height,
-        letterWidth: widget.letterWidth,
-        verticalOffset: widget.verticalOffset,
+        letterWidth: effLetterWidth,
+        verticalOffset: effVerticalOffset,
         slideCurve: widget.slideCurve,
-        fadeEnabled: widget.fadeEnabled,
-        digitAlignment: widget.digitAlignment,
+        fadeEnabled: effFadeEnabled,
+        digitAlignment: effDigitAlignment,
         groupSeparator: widget.groupSeparator,
         bounceOvershoot: widget.bounceOvershoot,
         bounceElasticity: widget.bounceElasticity,
@@ -243,7 +361,7 @@ class _CounterOdometerState extends State<CounterOdometer> {
 
     // SizedBox sized from max(from, to) — stable throughout animation.
     final totalW = _painter!.computeFullWidth();
-    Widget digitBox = SizedBox(
+    final Widget digitBox = SizedBox(
       width: totalW,
       height: _protoSize!.height,
       child: CustomPaint(painter: _painter),
@@ -254,26 +372,26 @@ class _CounterOdometerState extends State<CounterOdometer> {
         widget.prefix      != null || widget.prefixWidget  != null ||
         widget.suffix      != null || widget.suffixWidget  != null;
 
-    if (!needsRow) return digitBox;
-
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      crossAxisAlignment: widget.crossAxisAlignment,
-      textBaseline: TextBaseline.alphabetic,
-      children: [
-        if (_showMinus)
-          Text('-', style: widget.numberTextStyle),
-        if (widget.prefixWidget != null)
-          widget.prefixWidget!
-        else if (widget.prefix != null)
-          Text(widget.prefix!, style: widget.numberTextStyle),
-        digitBox,
-        if (widget.suffixWidget != null)
-          widget.suffixWidget!
-        else if (widget.suffix != null)
-          Text(widget.suffix!, style: widget.numberTextStyle),
-      ],
-    );
+    final Widget content = !needsRow
+        ? digitBox
+        : Row(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: effCrossAxisAlignment,
+            textBaseline: TextBaseline.alphabetic,
+            children: [
+              if (_showMinus) Text('-', style: effNumberTextStyle),
+              if (widget.prefixWidget != null)
+                widget.prefixWidget!
+              else if (widget.prefix != null)
+                Text(widget.prefix!, style: effPrefixStyle),
+              digitBox,
+              if (widget.suffixWidget != null)
+                widget.suffixWidget!
+              else if (widget.suffix != null)
+                Text(widget.suffix!, style: effSuffixStyle),
+            ],
+          );
+    return applyBoxStyle(content, padding: st?.padding, decoration: st?.decoration);
   }
 }
 

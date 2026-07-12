@@ -40,7 +40,7 @@ class _CounterPageState extends State<CounterPage> {
               child: CounterText(
                 from: 0,
                 to: 9999,
-                style: const TextStyle(fontSize: 40, fontWeight: FontWeight.bold),
+                style: CounterTextStyle(textStyle: const TextStyle(fontSize: 40, fontWeight: FontWeight.bold)),
               ),
               code: runnable(
                 "class _Demo extends StatelessWidget {\n"
@@ -62,7 +62,7 @@ class _CounterPageState extends State<CounterPage> {
                 from: 0,
                 to: 9999.99,
                 formatter: (v) => '?${v.toStringAsFixed(2)}',
-                style: const TextStyle(fontSize: 32),
+                style: CounterTextStyle(textStyle: const TextStyle(fontSize: 32)),
               ),
               code: runnable(
                 "class _Demo extends StatelessWidget {\n"
@@ -85,7 +85,7 @@ class _CounterPageState extends State<CounterPage> {
                 to: 500,
                 prefix: '?? ',
                 suffix: ' pts',
-                style: const TextStyle(fontSize: 32),
+                style: CounterTextStyle(textStyle: const TextStyle(fontSize: 32)),
               ),
               code: runnable(
                 "class _Demo extends StatelessWidget {\n"
@@ -110,7 +110,7 @@ class _CounterPageState extends State<CounterPage> {
                 to: 100,
                 duration: const Duration(seconds: 3),
                 curve: Curves.bounceOut,
-                style: const TextStyle(fontSize: 40, fontWeight: FontWeight.bold),
+                style: CounterTextStyle(textStyle: const TextStyle(fontSize: 40, fontWeight: FontWeight.bold)),
               ),
               code: runnable(
                 "class _Demo extends StatelessWidget {\n"
@@ -134,7 +134,7 @@ class _CounterPageState extends State<CounterPage> {
                 from: 50,
                 to: -50,
                 allowNegative: true,
-                style: const TextStyle(fontSize: 40, fontWeight: FontWeight.bold),
+                style: CounterTextStyle(textStyle: const TextStyle(fontSize: 40, fontWeight: FontWeight.bold)),
               ),
               code: runnable(
                 "class _Demo extends StatelessWidget {\n"
@@ -379,8 +379,10 @@ class _CounterPageState extends State<CounterPage> {
               child: CounterOdometer(
                 from: 0,
                 to: 9999,
-                letterWidth: 22,
-                numberTextStyle: const TextStyle(fontSize: 32),
+                style: const CounterOdometerStyle(
+                  letterWidth: 22,
+                  numberTextStyle: TextStyle(fontSize: 32),
+                ),
               ),
               code: runnable(
                 "class _Demo extends StatelessWidget {\n"
@@ -402,9 +404,11 @@ class _CounterPageState extends State<CounterPage> {
               child: CounterOdometer(
                 from: 0,
                 to: 1234567,
-                letterWidth: 22,
                 groupSeparator: ',',
-                numberTextStyle: const TextStyle(fontSize: 32),
+                style: const CounterOdometerStyle(
+                  letterWidth: 22,
+                  numberTextStyle: TextStyle(fontSize: 32),
+                ),
               ),
               code: runnable(
                 "class _Demo extends StatelessWidget {\n"
@@ -427,10 +431,12 @@ class _CounterPageState extends State<CounterPage> {
               child: CounterOdometer(
                 from: 0,
                 to: 999,
-                letterWidth: 22,
                 bounceOvershoot: 0.67,
                 bounceElasticity: 5.0,
-                numberTextStyle: const TextStyle(fontSize: 36),
+                style: const CounterOdometerStyle(
+                  letterWidth: 22,
+                  numberTextStyle: TextStyle(fontSize: 36),
+                ),
               ),
               code: runnable(
                 "class _Demo extends StatelessWidget {\n"
@@ -453,8 +459,10 @@ class _CounterPageState extends State<CounterPage> {
               child: CounterOdometer(
                 from: 10000,
                 to: 0,
-                letterWidth: 22,
-                numberTextStyle: const TextStyle(fontSize: 32),
+                style: const CounterOdometerStyle(
+                  letterWidth: 22,
+                  numberTextStyle: TextStyle(fontSize: 32),
+                ),
               ),
               code: runnable(
                 "class _Demo extends StatelessWidget {\n"
@@ -476,9 +484,11 @@ class _CounterPageState extends State<CounterPage> {
               child: CounterOdometer(
                 from: 0,
                 to: 9999,
-                letterWidth: 22,
-                fadeEnabled: false,
-                numberTextStyle: const TextStyle(fontSize: 32),
+                style: const CounterOdometerStyle(
+                  letterWidth: 22,
+                  fadeEnabled: false,
+                  numberTextStyle: TextStyle(fontSize: 32),
+                ),
               ),
               code: runnable(
                 "class _Demo extends StatelessWidget {\n"
@@ -501,8 +511,8 @@ class _CounterPageState extends State<CounterPage> {
             DemoCard(
               title: 'Basic',
               child: CounterRing(
-                size: 100,
                 to: 100,
+                style: const CounterRingStyle(size: 100),
                 center: CounterBuilder(
                   from: 0,
                   to: 100,
@@ -535,10 +545,12 @@ class _CounterPageState extends State<CounterPage> {
             DemoCard(
               title: 'Custom colors',
               child: CounterRing(
-                size: 100,
                 to: 100,
-                color: Colors.orange,
-                trackColor: Colors.orange.withValues(alpha: 0.2),
+                style: CounterRingStyle(
+                  size: 100,
+                  color: Colors.orange,
+                  trackColor: Colors.orange.withValues(alpha: 0.2),
+                ),
                 center: const Icon(Icons.local_fire_department,
                     color: Colors.orange, size: 28),
               ),
@@ -561,10 +573,12 @@ class _CounterPageState extends State<CounterPage> {
             DemoCard(
               title: 'Gradient',
               child: CounterRing(
-                size: 100,
                 to: 100,
-                gradient: const SweepGradient(
-                  colors: [Colors.blue, Colors.purple, Colors.pink],
+                style: const CounterRingStyle(
+                  size: 100,
+                  gradient: SweepGradient(
+                    colors: [Colors.blue, Colors.purple, Colors.pink],
+                  ),
                 ),
               ),
               code: runnable(
@@ -585,9 +599,11 @@ class _CounterPageState extends State<CounterPage> {
             DemoCard(
               title: 'Anti-clockwise',
               child: CounterRing(
-                size: 100,
                 to: 100,
-                clockwise: false,
+                style: const CounterRingStyle(
+                  size: 100,
+                  clockwise: false,
+                ),
               ),
               code: runnable(
                 "class _Demo extends StatelessWidget {\n"
@@ -605,9 +621,11 @@ class _CounterPageState extends State<CounterPage> {
             DemoCard(
               title: 'Large stroke',
               child: CounterRing(
-                size: 120,
                 to: 100,
-                strokeWidth: 16,
+                style: const CounterRingStyle(
+                  size: 120,
+                  strokeWidth: 16,
+                ),
               ),
               code: runnable(
                 "class _Demo extends StatelessWidget {\n"
@@ -627,7 +645,9 @@ class _CounterPageState extends State<CounterPage> {
           DemoSection(title: 'CounterBar', children: [
             DemoCard(
               title: 'Basic',
-              child: CounterBar(width: 240, height: 12, to: 100),
+              child: CounterBar(
+                  to: 100,
+                  style: const CounterBarStyle(width: 240, height: 12)),
               code: runnable(
                 "class _Demo extends StatelessWidget {\n"
                 "  const _Demo({super.key});\n"
@@ -641,11 +661,13 @@ class _CounterPageState extends State<CounterPage> {
             DemoCard(
               title: 'Gradient fill',
               child: CounterBar(
-                width: 240,
-                height: 12,
                 to: 100,
-                gradient: const LinearGradient(
-                  colors: [Colors.blue, Colors.purple],
+                style: const CounterBarStyle(
+                  width: 240,
+                  height: 12,
+                  gradient: LinearGradient(
+                    colors: [Colors.blue, Colors.purple],
+                  ),
                 ),
               ),
               code: runnable(
@@ -667,10 +689,12 @@ class _CounterPageState extends State<CounterPage> {
             DemoCard(
               title: 'Fill from end',
               child: CounterBar(
-                width: 240,
-                height: 12,
                 to: 100,
-                fillFromStart: false,
+                style: const CounterBarStyle(
+                  width: 240,
+                  height: 12,
+                  fillFromStart: false,
+                ),
               ),
               code: runnable(
                 "class _Demo extends StatelessWidget {\n"
@@ -689,10 +713,12 @@ class _CounterPageState extends State<CounterPage> {
             DemoCard(
               title: 'Rounded corners',
               child: CounterBar(
-                width: 240,
-                height: 20,
                 to: 100,
-                borderRadius: const Radius.circular(10),
+                style: const CounterBarStyle(
+                  width: 240,
+                  height: 20,
+                  borderRadius: Radius.circular(10),
+                ),
               ),
               code: runnable(
                 "class _Demo extends StatelessWidget {\n"
@@ -712,11 +738,13 @@ class _CounterPageState extends State<CounterPage> {
               title: 'Custom track height',
               description: 'Thin fill (4) inside a taller track (20)',
               child: CounterBar(
-                width: 240,
-                height: 4,
-                trackHeight: 20,
                 to: 100,
-                borderRadius: const Radius.circular(10),
+                style: const CounterBarStyle(
+                  width: 240,
+                  height: 4,
+                  trackHeight: 20,
+                  borderRadius: Radius.circular(10),
+                ),
               ),
               code: runnable(
                 "class _Demo extends StatelessWidget {\n"
@@ -1009,8 +1037,8 @@ class _CounterPageState extends State<CounterPage> {
 
             DemoCard(
               title: 'blur',
-              description: 'CustomDigitCounter with blur transition',
-              child: _CyclingCustomDigitCounter(
+              description: 'AnimatedCounterBuilder with blur transition',
+              child: _CyclingAnimatedCounterBuilder(
                   transitionType: CounterTransitionType.blur),
               code: runnable(
                 "class _Demo extends StatefulWidget {\n"
@@ -1032,7 +1060,7 @@ class _CounterPageState extends State<CounterPage> {
                 "    return Column(\n"
                 "      mainAxisSize: MainAxisSize.min,\n"
                 "      children: [\n"
-                "        CustomDigitCounter(\n"
+                "        AnimatedCounterBuilder(\n"
                 "          controller: _ctrl,\n"
                 "          transitionType: CounterTransitionType.blur,\n"
                 "          duration: Duration(milliseconds: 600),\n"
@@ -1667,8 +1695,8 @@ class _CounterPageState extends State<CounterPage> {
             ),
           ]),
 
-          // ?�?� CustomDigitCounter ?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�
-          DemoSection(title: 'CustomDigitCounter', children: [
+          // ?�?� AnimatedCounterBuilder ?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�
+          DemoSection(title: 'AnimatedCounterBuilder', children: [
             DemoCard(
               title: 'Custom digitBuilder',
               description: 'Each digit rendered as a colored box',
@@ -1684,7 +1712,7 @@ class _CounterPageState extends State<CounterPage> {
                 "  ];\n"
                 "\n"
                 "  @override\n"
-                "  Widget build(BuildContext context) => CustomDigitCounter(\n"
+                "  Widget build(BuildContext context) => AnimatedCounterBuilder(\n"
                 "    value: 5678,\n"
                 "    duration: Duration(milliseconds: 800),\n"
                 "    textStyle: TextStyle(fontSize: 32, color: Colors.white),\n"
@@ -1715,7 +1743,7 @@ class _CounterPageState extends State<CounterPage> {
                 "  const _Demo({super.key});\n"
                 "\n"
                 "  @override\n"
-                "  Widget build(BuildContext context) => CustomDigitCounter(\n"
+                "  Widget build(BuildContext context) => AnimatedCounterBuilder(\n"
                 "    value: 9876,\n"
                 "    duration: Duration(milliseconds: 800),\n"
                 "    textStyle: TextStyle(fontSize: 44),\n"
@@ -1759,9 +1787,11 @@ class _CounterPageState extends State<CounterPage> {
                 child: const Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    CounterRing(to: 100, size: 80),
+                    CounterRing(to: 100, style: CounterRingStyle(size: 80)),
                     SizedBox(height: 16),
-                    CounterBar(to: 100, width: 200, height: 10),
+                    CounterBar(
+                        to: 100,
+                        style: CounterBarStyle(width: 200, height: 10)),
                   ],
                 ),
               ),
@@ -1860,7 +1890,7 @@ class _CounterTextOnCompleteState extends State<_CounterTextOnComplete> {
           child: CounterText(
             from: 0,
             to: 100,
-            style: const TextStyle(fontSize: 40, fontWeight: FontWeight.bold),
+            style: CounterTextStyle(textStyle: const TextStyle(fontSize: 40, fontWeight: FontWeight.bold)),
             onComplete: (_) {
               if (!mounted) return;
               ScaffoldMessenger.of(context).showSnackBar(
@@ -1950,19 +1980,19 @@ class _CyclingAnimatedCounterState extends State<_CyclingAnimatedCounter> {
   }
 }
 
-/// Same cycling pattern but using CustomDigitCounter (for blur transition).
-class _CyclingCustomDigitCounter extends StatefulWidget {
+/// Same cycling pattern but using AnimatedCounterBuilder (for blur transition).
+class _CyclingAnimatedCounterBuilder extends StatefulWidget {
   final CounterTransitionType transitionType;
 
-  const _CyclingCustomDigitCounter({required this.transitionType});
+  const _CyclingAnimatedCounterBuilder({required this.transitionType});
 
   @override
-  State<_CyclingCustomDigitCounter> createState() =>
-      _CyclingCustomDigitCounterState();
+  State<_CyclingAnimatedCounterBuilder> createState() =>
+      _CyclingAnimatedCounterBuilderState();
 }
 
-class _CyclingCustomDigitCounterState
-    extends State<_CyclingCustomDigitCounter> {
+class _CyclingAnimatedCounterBuilderState
+    extends State<_CyclingAnimatedCounterBuilder> {
   final _ctrl = AnimatedCounterController(initialValue: 0);
   final _values = [0, 99, 42, 1000, 7];
   int _idx = 0;
@@ -1992,7 +2022,7 @@ class _CyclingCustomDigitCounterState
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        CustomDigitCounter(
+        AnimatedCounterBuilder(
           controller: _ctrl,
           transitionType: widget.transitionType,
           duration: const Duration(milliseconds: 600),
@@ -2115,7 +2145,7 @@ class _PauseResumeDemoState extends State<_PauseResumeDemo> {
   }
 }
 
-/// CustomDigitCounter with a colored box digitBuilder.
+/// AnimatedCounterBuilder with a colored box digitBuilder.
 class _CustomDigitBuilderDemo extends StatelessWidget {
   const _CustomDigitBuilderDemo();
 
@@ -2127,7 +2157,7 @@ class _CustomDigitBuilderDemo extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return CustomDigitCounter(
+    return AnimatedCounterBuilder(
       value: 5678,
       duration: const Duration(milliseconds: 800),
       textStyle: const TextStyle(fontSize: 32, color: Colors.white),
@@ -2146,13 +2176,13 @@ class _CustomDigitBuilderDemo extends StatelessWidget {
   }
 }
 
-/// CustomDigitCounter with a scale+opacity digitTransitionBuilder.
+/// AnimatedCounterBuilder with a scale+opacity digitTransitionBuilder.
 class _CustomTransitionDemo extends StatelessWidget {
   const _CustomTransitionDemo();
 
   @override
   Widget build(BuildContext context) {
-    return CustomDigitCounter(
+    return AnimatedCounterBuilder(
       value: 9876,
       duration: const Duration(milliseconds: 800),
       textStyle: const TextStyle(fontSize: 44),
@@ -2253,9 +2283,9 @@ class _CounterProviderGroupCallbacksDemoState
           child: const Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              CounterRing(to: 75, size: 70),
+              CounterRing(to: 75, style: CounterRingStyle(size: 70)),
               SizedBox(width: 16),
-              CounterRing(to: 50, size: 70),
+              CounterRing(to: 50, style: CounterRingStyle(size: 70)),
             ],
           ),
         ),

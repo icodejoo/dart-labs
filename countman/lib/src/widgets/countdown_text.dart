@@ -1,34 +1,42 @@
 import 'package:flutter/widgets.dart';
 import 'package:countman/src/count_down/plugin.dart';
-import 'countdown_widget.dart';
 import 'providers.dart';
+import 'countdown_builder.dart';
+import 'text_style.dart';
 
-/// Displays a countdown as formatted text. Composes [CountdownBuilder].
+export 'text_style.dart' show CountmanTextStyle;
+
+/// Visual style for [CountdownText]. Alias of the shared [CountmanTextStyle].
 ///
-/// [to] accepts any of: [DateTime], [Duration], [int] (ms epoch), [String] (ISO-8601).
+/// [CountdownText] 的视觉样式。共享 [CountmanTextStyle] 的别名。
+typedef CountdownTextStyle = CountmanTextStyle;
+
+/// A [Text]-based countdown widget with optional prefix/suffix.
 ///
 /// ```dart
-/// CountdownText(to: DateTime(2025, 12, 31))
 /// CountdownText(to: const Duration(minutes: 5), formatter: CountdownFormat.ms)
 /// ```
+///
+/// `const`-constructible when [to] is a [Duration] and no non-const style is
+/// supplied.
+///
+/// 基于 [Text] 的倒计时组件，可选前后缀。
 class CountdownText extends StatelessWidget {
   const CountdownText({
     super.key,
     required this.to,
-    this.formatter = CountdownFormat.auto,
+    this.formatter,
     this.style,
-    this.textAlign,
-    this.maxLines,
-    this.overflow,
-    this.softWrap,
-    this.strutStyle,
-    this.textScaler,
-    this.locale,
-    this.textWidthBasis,
+    this.prefix,
+    this.suffix,
+    this.prefixWidget,
+    this.suffixWidget,
     this.semanticsLabel,
     this.plugin,
+    this.precise = false,
     this.controller,
     this.onComplete,
+    this.onTick,
     this.threshold,
     this.onThreshold,
     this.onReady,
@@ -42,42 +50,63 @@ class CountdownText extends StatelessWidget {
   /// or ISO-8601 [String].
   final Object to;
 
-  /// Converts remaining [Duration] to a display string.
-  final DurationFormatter formatter;
+  /// Converts remaining time ([TimeParts]) to a display string. `null`
+  /// (default) inherits the enclosing [CountdownProvider]'s formatter, then
+  /// [CountdownFormat.auto].
+  ///
+  /// 把剩余时间（[TimeParts]）转成显示字符串。`null`（默认）继承所在
+  /// [CountdownProvider] 的 formatter，再到 [CountdownFormat.auto]。
+  final DurationFormatter? formatter;
 
-  final TextStyle? style;
-  final TextAlign? textAlign;
+  /// Visual style. Merged over the enclosing [CountdownProvider]'s text style.
+  ///
+  /// 视觉样式。叠加在所在 [CountdownProvider] 的文本样式之上。
+  final CountdownTextStyle? style;
 
-  /// Forwarded to the underlying [Text]. See [Text] for semantics.
-  final int? maxLines;
-  final TextOverflow? overflow;
-  final bool? softWrap;
-  final StrutStyle? strutStyle;
-  final TextScaler? textScaler;
-  final Locale? locale;
-  final TextWidthBasis? textWidthBasis;
+  /// Plain-text prefix, e.g. `'⏱ '`. Ignored when [prefixWidget] is provided.
+  final String? prefix;
+
+  /// Plain-text suffix. Ignored when [suffixWidget] is provided.
+  final String? suffix;
+
+  /// Widget placed before the number. Takes precedence over [prefix].
+  final Widget? prefixWidget;
+
+  /// Widget placed after the number. Takes precedence over [suffix].
+  final Widget? suffixWidget;
 
   /// Fixed screen-reader label. When set, the reader announces this instead of
-  /// the per-second changing digits (which otherwise re-announce every tick).
+  /// the per-second changing digits.
   final String? semanticsLabel;
 
   /// Optional [Countdown] group. Defaults to [defaultCountdown].
   final Countdown? plugin;
 
+  /// Drive on the shared precise group ([defaultCountdownMs], `interval: 0`)
+  /// so sub-second formatters update every frame. Ignored when [plugin] or a
+  /// provider group is set.
+  ///
+  /// 用共享精确组（[defaultCountdownMs]，`interval: 0`）驱动，使亚秒格式化器每帧
+  /// 更新。设置了 [plugin] 或 provider 分组时忽略。
+  final bool precise;
+
   /// Optional controller for pause / resume / reset.
   final CountdownController? controller;
 
-  /// Called once when the countdown reaches zero.
   final void Function()? onComplete;
 
-  /// When remaining first drops to or below this, [onThreshold] fires once.
-  /// null (default) disables the check.
-  final Duration? threshold;
+  /// Called every tick with the current remaining [TimeParts] — for side
+  /// effects (analytics, syncing) without writing a custom [CountdownBuilder].
+  ///
+  /// 每 tick 以当前剩余 [TimeParts] 回调——用于埋点/同步等副作用，无需自写
+  /// [CountdownBuilder]。
+  final void Function(TimeParts parts)? onTick;
 
-  /// Called once when remaining crosses [threshold].
+  /// When remaining first drops to/below this, [onThreshold] fires once.
+  final Duration? threshold;
   final void Function()? onThreshold;
 
-  /// Lifecycle callbacks: enqueued / first frame / cancelled / paused / resumed.
+  /// Lifecycle callbacks.
   final VoidCallback? onReady;
   final VoidCallback? onStart;
   final VoidCallback? onCancel;
@@ -86,14 +115,21 @@ class CountdownText extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Resolve unset values from the nearest CountdownProvider.
+    // Resolve style over the provider's default text style + formatter.
+    //
+    // 解析样式，叠加在 provider 默认文本样式之上，并取默认 formatter。
     final scope = CountmanScope.maybeOf<Countdown>(context);
-    final effStyle = style ?? scope?.textStyle;
-    return CountdownBuilder(
+    final s = (style ?? const CountdownTextStyle()).merge(scope?.countdownTextStyle);
+    final effTextStyle = s.textStyle ?? scope?.textStyle;
+    final effFormatter = formatter ?? scope?.formatter ?? CountdownFormat.auto;
+
+    final number = CountdownBuilder(
       to: to,
       plugin: plugin ?? scope?.plugin,
+      precise: precise,
       controller: controller,
       onComplete: onComplete,
+      onTick: onTick,
       threshold: threshold,
       onThreshold: onThreshold,
       onReady: onReady,
@@ -101,19 +137,18 @@ class CountdownText extends StatelessWidget {
       onCancel: onCancel,
       onPause: onPause,
       onResume: onResume,
-      builder: (_, p) => Text(
-        formatter(p),
-        style: effStyle,
-        textAlign: textAlign,
-        maxLines: maxLines,
-        overflow: overflow,
-        softWrap: softWrap,
-        strutStyle: strutStyle,
-        textScaler: textScaler,
-        locale: locale,
-        textWidthBasis: textWidthBasis,
-        semanticsLabel: semanticsLabel,
-      ),
+      builder: (_, p, __) =>
+          styledNumberText(effFormatter(p), s, effTextStyle, semanticsLabel: semanticsLabel),
+    );
+
+    return wrapAffixedText(
+      number,
+      s,
+      effTextStyle,
+      prefix: prefix,
+      suffix: suffix,
+      prefixWidget: prefixWidget,
+      suffixWidget: suffixWidget,
     );
   }
 }

@@ -3,7 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:countman/countman.dart';
 
 /// Tests for the G4–G7 API expansion: widget lifecycle callbacks, property
-/// overrides, CounterController, and the scope providers.
+/// overrides, CounterValueController, and the scope providers.
 void main() {
   Widget wrap(Widget child) => MaterialApp(home: Scaffold(body: child));
 
@@ -98,9 +98,11 @@ void main() {
       await t.pumpWidget(wrap(CounterRing(
         to: 100,
         duration: const Duration(milliseconds: 100),
-        gradient: const SweepGradient(colors: [Colors.red, Colors.blue]),
-        startAngle: 0,
-        trackStrokeWidth: 4,
+        style: const CounterRingStyle(
+          gradient: SweepGradient(colors: [Colors.red, Colors.blue]),
+          startAngle: 0,
+          trackStrokeWidth: 4,
+        ),
       )));
       await t.pump();
       await t.pump(const Duration(milliseconds: 200));
@@ -124,7 +126,7 @@ void main() {
           required fractionDigits, required groupingPattern, required hideLeadingZeroes,
           required numeralSystem, numeralMapper, thousandSeparator,
           decimalSeparator = '.', separatorStyle,
-          padding = EdgeInsets.zero,
+          padding = EdgeInsets.zero, numberAlignment = 0.0,
         }) {
           builderCalled = true;
           return CounterPainter(
@@ -147,8 +149,11 @@ void main() {
 
     testWidgets('CounterOdometer slideCurve / fadeEnabled render without throwing', (t) async {
       await t.pumpWidget(wrap(const CounterOdometer(
-        to: 42, slideCurve: Curves.easeOut, fadeEnabled: false,
-        crossAxisAlignment: CrossAxisAlignment.center,
+        to: 42, slideCurve: Curves.easeOut,
+        style: CounterOdometerStyle(
+          fadeEnabled: false,
+          crossAxisAlignment: CrossAxisAlignment.center,
+        ),
       )));
       await t.pump();
       await t.pump(const Duration(milliseconds: 1200));
@@ -157,12 +162,12 @@ void main() {
     });
   });
 
-  // ── G6: CounterController ─────────────────────────────────────────────────
-  group('G6 CounterController', () {
+  // ── G6: CounterValueController ─────────────────────────────────────────────────
+  group('G6 CounterValueController', () {
     tearDown(Countman.destroy);
 
     testWidgets('value tracks animation; cancel stops updates', (t) async {
-      final ctrl = CounterController();
+      final ctrl = CounterValueController();
       await t.pumpWidget(wrap(CounterText(
         to: 100, duration: const Duration(milliseconds: 400), controller: ctrl,
       )));
@@ -179,7 +184,7 @@ void main() {
     });
 
     testWidgets('update retargets from the current value', (t) async {
-      final ctrl = CounterController();
+      final ctrl = CounterValueController();
       await t.pumpWidget(wrap(CounterText(
         to: 100, duration: const Duration(milliseconds: 200), controller: ctrl,
       )));
@@ -202,7 +207,7 @@ void main() {
         textStyle: const TextStyle(fontSize: 40),
         child: Column(children: const [
           CounterText(to: 10, key: Key('inherit')),
-          CounterText(to: 10, style: TextStyle(fontSize: 12), key: Key('override')),
+          CounterText(to: 10, style: CounterTextStyle(textStyle: TextStyle(fontSize: 12)), key: Key('override')),
         ]),
       )));
       await t.pump();

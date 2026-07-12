@@ -3,35 +3,39 @@ part of 'animated_counter.dart';
 // ── shared widget base ────────────────────────────────────────────────────────
 
 abstract class _BaseAnimatedCounter extends StatefulWidget {
+  /// Aggregate visual style. Overrides the deprecated loose visual params
+  /// field-by-field (see the resolving getters below).
+  ///
+  /// 聚合视觉样式。逐字段覆盖弃用的松散视觉参数（见下方解析 getter）。
+  final AnimatedCounterStyle? style;
+
   final num? value;
   final AnimatedCounterController? controller;
   final Duration duration;
   final Duration negativeSignDuration;
   final Curve curve;
-  final TextStyle? textStyle;
+  final TextStyle? _textStyle;
   final String? prefix;
   final String? infix;
   final String? suffix;
-  final TextStyle? prefixStyle;
-  final TextStyle? infixStyle;
-  final TextStyle? suffixStyle;
+  final TextStyle? _prefixStyle;
+  final TextStyle? _infixStyle;
+  final TextStyle? _suffixStyle;
   final TextOverflow? prefixOverflow;
   final TextOverflow? infixOverflow;
   final TextOverflow? suffixOverflow;
   final int fractionDigits;
   final int wholeDigits;
   final bool hideLeadingZeroes;
-  /// Horizontal alignment of visible digits within the stable full-width slot.
-  /// -1.0 = left, 0.0 = center (default), 1.0 = right.
-  final double numberAlignment;
+  final double _numberAlignment;
   final String? thousandSeparator;
   final List<int> groupingPattern;
   final String decimalSeparator;
-  final TextStyle? separatorStyle;
-  final MainAxisAlignment mainAxisAlignment;
-  final CrossAxisAlignment crossAxisAlignment;
-  final EdgeInsets padding;
-  final bool useTabularFigures;
+  final TextStyle? _separatorStyle;
+  final MainAxisAlignment _mainAxisAlignment;
+  final CrossAxisAlignment _crossAxisAlignment;
+  final EdgeInsets _padding;
+  final bool _useTabularFigures;
   final bool showPositiveSign;
   final Duration? positiveSignDuration;
   final String? semanticsLabel;
@@ -40,9 +44,9 @@ abstract class _BaseAnimatedCounter extends StatefulWidget {
   final AxisDirection flipDirection;
   final num? minValue;
   final num? maxValue;
-  final Color? increasingColor;
-  final Color? decreasingColor;
-  final Duration colorFadeDuration;
+  final Color? _increasingColor;
+  final Color? _decreasingColor;
+  final Duration _colorFadeDuration;
   final Widget? prefixWidget;
   final Widget? infixWidget;
   final Widget? suffixWidget;
@@ -77,32 +81,57 @@ abstract class _BaseAnimatedCounter extends StatefulWidget {
   final double bounceOvershoot;
   final double bounceElasticity;
 
+  // ── resolved visual getters: [style] wins, else the deprecated raw param ──
+  // 已解析视觉 getter：[style] 优先，否则用弃用的原始参数。
+  TextStyle? get textStyle => style?.textStyle ?? _textStyle;
+  TextStyle? get prefixStyle => style?.prefixStyle ?? _prefixStyle;
+  TextStyle? get infixStyle => style?.infixStyle ?? _infixStyle;
+  TextStyle? get suffixStyle => style?.suffixStyle ?? _suffixStyle;
+  TextStyle? get separatorStyle => style?.separatorStyle ?? _separatorStyle;
+
+  /// Horizontal alignment of visible digits within the stable full-width slot.
+  /// -1.0 = left, 0.0 = center (default), 1.0 = right.
+  double get numberAlignment => style?.numberAlignment ?? _numberAlignment;
+  MainAxisAlignment get mainAxisAlignment => style?.mainAxisAlignment ?? _mainAxisAlignment;
+  CrossAxisAlignment get crossAxisAlignment => style?.crossAxisAlignment ?? _crossAxisAlignment;
+  EdgeInsets get padding => style?.padding ?? _padding;
+  bool get useTabularFigures => style?.useTabularFigures ?? _useTabularFigures;
+  Color? get increasingColor => style?.increasingColor ?? _increasingColor;
+  Color? get decreasingColor => style?.decreasingColor ?? _decreasingColor;
+  Duration get colorFadeDuration => style?.colorFadeDuration ?? _colorFadeDuration;
+
+  /// Container decoration drawn around the whole counter (style-only).
+  ///
+  /// 绘制在整个计数器外围的容器装饰（仅样式）。
+  Decoration? get decoration => style?.decoration;
+
   const _BaseAnimatedCounter({
     super.key,
+    this.style,
     this.value,
     this.controller,
     this.duration = const Duration(milliseconds: 300),
     this.negativeSignDuration = const Duration(milliseconds: 150),
     this.curve = Curves.linear,
-    this.textStyle,
+    @Deprecated('Use style: AnimatedCounterStyle(textStyle: ...)') TextStyle? textStyle,
     this.prefix,
     this.infix,
     this.suffix,
     this.fractionDigits = 0,
     this.wholeDigits = 1,
     this.hideLeadingZeroes = true,
-    this.numberAlignment = 0.0,
+    @Deprecated('Use style: AnimatedCounterStyle(numberAlignment: ...)') double numberAlignment = 0.0,
     this.thousandSeparator,
     this.groupingPattern = const [3],
     this.decimalSeparator = '.',
-    this.separatorStyle,
-    this.mainAxisAlignment = MainAxisAlignment.center,
-    this.crossAxisAlignment = CrossAxisAlignment.center,
-    this.padding = EdgeInsets.zero,
-    this.useTabularFigures = true,
-    this.prefixStyle,
-    this.infixStyle,
-    this.suffixStyle,
+    @Deprecated('Use style: AnimatedCounterStyle(separatorStyle: ...)') TextStyle? separatorStyle,
+    @Deprecated('Use style: AnimatedCounterStyle(mainAxisAlignment: ...)') MainAxisAlignment mainAxisAlignment = MainAxisAlignment.center,
+    @Deprecated('Use style: AnimatedCounterStyle(crossAxisAlignment: ...)') CrossAxisAlignment crossAxisAlignment = CrossAxisAlignment.center,
+    @Deprecated('Use style: AnimatedCounterStyle(padding: ...)') EdgeInsets padding = EdgeInsets.zero,
+    @Deprecated('Use style: AnimatedCounterStyle(useTabularFigures: ...)') bool useTabularFigures = true,
+    @Deprecated('Use style: AnimatedCounterStyle(prefixStyle: ...)') TextStyle? prefixStyle,
+    @Deprecated('Use style: AnimatedCounterStyle(infixStyle: ...)') TextStyle? infixStyle,
+    @Deprecated('Use style: AnimatedCounterStyle(suffixStyle: ...)') TextStyle? suffixStyle,
     this.prefixOverflow,
     this.infixOverflow,
     this.suffixOverflow,
@@ -114,9 +143,9 @@ abstract class _BaseAnimatedCounter extends StatefulWidget {
     this.flipDirection = AxisDirection.up,
     this.minValue,
     this.maxValue,
-    this.increasingColor,
-    this.decreasingColor,
-    this.colorFadeDuration = const Duration(milliseconds: 800),
+    @Deprecated('Use style: AnimatedCounterStyle(increasingColor: ...)') Color? increasingColor,
+    @Deprecated('Use style: AnimatedCounterStyle(decreasingColor: ...)') Color? decreasingColor,
+    @Deprecated('Use style: AnimatedCounterStyle(colorFadeDuration: ...)') Duration colorFadeDuration = const Duration(milliseconds: 800),
     this.prefixWidget,
     this.infixWidget,
     this.suffixWidget,
@@ -150,7 +179,20 @@ abstract class _BaseAnimatedCounter extends StatefulWidget {
     this.interpolation,
     this.bounceOvershoot = 0.0,
     this.bounceElasticity = 4.0,
-  })  : assert(value != null || controller != null,
+  })  : _textStyle = textStyle,
+        _prefixStyle = prefixStyle,
+        _infixStyle = infixStyle,
+        _suffixStyle = suffixStyle,
+        _separatorStyle = separatorStyle,
+        _numberAlignment = numberAlignment,
+        _mainAxisAlignment = mainAxisAlignment,
+        _crossAxisAlignment = crossAxisAlignment,
+        _padding = padding,
+        _useTabularFigures = useTabularFigures,
+        _increasingColor = increasingColor,
+        _decreasingColor = decreasingColor,
+        _colorFadeDuration = colorFadeDuration,
+        assert(value != null || controller != null,
             'Either value or controller must be provided'),
         assert(fractionDigits >= 0),
         assert(wholeDigits >= 0),
@@ -189,6 +231,13 @@ abstract class _BaseCounterState<W extends _BaseAnimatedCounter> extends State<W
   Size?       _prototypeSize;
   TextStyle?  _lastStyle;
   TextScaler? _lastTextScaler;
+  // Signature of the 0–9 glyphs last measured. Recompute the prototype cell
+  // when it changes (e.g. numeralMapper / numeralSystem swapped) so the cell
+  // keeps fitting the actual glyphs.
+  //
+  // 上次测量的 0–9 字形签名。当其变化时（例如切换 numeralMapper /
+  // numeralSystem）重新计算原型单元格，使单元格始终适配真实字形。
+  String?     _lastGlyphSig;
 
   // ── subclass hooks ────────────────────────────────────────────────────────
 
@@ -624,16 +673,60 @@ abstract class _BaseCounterState<W extends _BaseAnimatedCounter> extends State<W
     return style;
   }
 
+  /// Resolve the glyph a digit renders as, mirroring [_DigitColumn]'s logic:
+  /// custom [numeralMapper] wins, else the [numeralSystem] table, else the
+  /// Latin digit. Kept in sync with `digit_column.dart` so the prototype cell
+  /// is measured with the exact glyph that will be painted.
+  ///
+  /// 解析某个数字实际渲染成的字形，逻辑与 [_DigitColumn] 一致：优先自定义
+  /// [numeralMapper]，其次 [numeralSystem] 表，最后回退到拉丁数字。与
+  /// `digit_column.dart` 保持同步，使原型单元格用真正绘制的字形来测量。
+  ///
+  /// @param digit The digit 0–9 to resolve.
+  ///
+  ///   要解析的数字 0–9。
+  ///
+  /// @returns The display string for [digit].
+  ///
+  ///   [digit] 对应的显示字符串。
+  String _glyphForDigit(int digit) => widget.numeralMapper != null
+      ? widget.numeralMapper!(digit)
+      : (numeralSystemDigits[widget.numeralSystem]?[digit] ?? '$digit');
+
   void _updatePrototypeSize(TextStyle style, TextScaler textScaler) {
-    if (_prototypeSize != null && style == _lastStyle && textScaler == _lastTextScaler) return;
-    _lastStyle = style; _lastTextScaler = textScaler;
-    final tp = TextPainter(
-      text: TextSpan(text: '0', style: style),
-      textDirection: TextDirection.ltr,
-      textScaler: textScaler,
-    )..layout();
-    _prototypeSize = tp.size;
-    tp.dispose();
+    // Resolve the glyphs first (cheap, no layout) so a change of
+    // numeralMapper / numeralSystem invalidates the cached size even when the
+    // text style is unchanged.
+    //
+    // 先解析字形（廉价，无需布局），使 numeralMapper / numeralSystem 变化时
+    // 即便文本样式不变也能让缓存尺寸失效。
+    final glyphs = [for (var d = 0; d <= 9; d++) _glyphForDigit(d)];
+    final glyphSig = glyphs.join(' ');
+    if (_prototypeSize != null &&
+        style == _lastStyle &&
+        textScaler == _lastTextScaler &&
+        glyphSig == _lastGlyphSig) return;
+    _lastStyle = style; _lastTextScaler = textScaler; _lastGlyphSig = glyphSig;
+    // Measure every digit 0–9 as it will actually render (numeralMapper /
+    // numeralSystem may yield glyphs wider or taller than Latin '0', e.g.
+    // circled numbers ①–⑨), and size the cell to the widest & tallest so no
+    // glyph is clipped.
+    //
+    // 按实际渲染字形逐一测量数字 0–9（numeralMapper / numeralSystem 可能产生
+    // 比拉丁 '0' 更宽或更高的字形，例如圆圈数字 ①–⑨），单元格取最大宽高，
+    // 使任何字形都不会被裁剪。
+    double w = 0, h = 0;
+    for (final g in glyphs) {
+      final tp = TextPainter(
+        text: TextSpan(text: g, style: style),
+        textDirection: TextDirection.ltr,
+        textScaler: textScaler,
+      )..layout();
+      if (tp.size.width  > w) w = tp.size.width;
+      if (tp.size.height > h) h = tp.size.height;
+      tp.dispose();
+    }
+    _prototypeSize = Size(w, h);
   }
 
   int _effectiveFractionDigits() => widget.compactNotation
@@ -653,8 +746,12 @@ abstract class _BaseCounterState<W extends _BaseAnimatedCounter> extends State<W
   }
 
   Widget _wrapSemantics(Widget child, String label) {
-    if (label.isEmpty) return child;
-    return Semantics(label: label, child: ExcludeSemantics(child: child));
+    // Apply the style's container decoration around the whole counter.
+    //
+    // 应用样式的容器装饰，包裹整个计数器。
+    final decorated = applyBoxStyle(child, decoration: widget.decoration);
+    if (label.isEmpty) return decorated;
+    return Semantics(label: label, child: ExcludeSemantics(child: decorated));
   }
 
   String _buildSemanticText(int intValue) {

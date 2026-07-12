@@ -399,15 +399,17 @@ class _BenchmarkPageState extends State<BenchmarkPage> {
       case BenchLib.countmanCard:
         return CountdownCard(
           to: dur,
-          transitionType: CountdownType.slide,
-          scaleEffect: SlideEffect.both,
-          opacityEffect: SlideEffect.both,
           showHours: false,
           labels: null,
-          cardWidth: 30,
-          cardHeight: 40,
-          unitGap: 4,
-          textStyle: ts,
+          style: const CountdownCardStyle(
+            transitionType: CountdownType.slide,
+            scaleEffect: SlideEffect.both,
+            opacityEffect: SlideEffect.both,
+            cardWidth: 30,
+            cardHeight: 40,
+            unitGap: 4,
+            textStyle: ts,
+          ),
         );
       case BenchLib.slide:
         return SlideCountdown(
@@ -421,7 +423,7 @@ class _BenchmarkPageState extends State<BenchmarkPage> {
           style: ts,
         );
       case BenchLib.countmanText:
-        return CountdownText(to: dur, formatter: CountdownFormat.ms, style: ts);
+        return CountdownText(to: dur, formatter: CountdownFormat.ms, style: CountdownTextStyle(textStyle: ts));
       case BenchLib.stopWatch:
         return _StopWatchCell(duration: dur, style: ts);
       case BenchLib.idle:

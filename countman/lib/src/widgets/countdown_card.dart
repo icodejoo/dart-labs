@@ -5,6 +5,8 @@ import 'countdown_card_provider.dart';
 import 'countdown_card_types.dart';
 import 'painter/flip_card_painter.dart';
 import 'reduce_motion.dart';
+import 'style_support.dart';
+import 'providers.dart';
 
 export 'countdown_card_provider.dart';
 export 'countdown_card_types.dart';
@@ -20,6 +22,172 @@ const _defaultScaleFactor = 1.5;
 const _defaultTransitionType = CountdownType.calendar;
 const _defaultTranslateEffect = SlideEffect.none;
 const _defaultPerspective = 0.006;
+
+/// Visual style for [CountdownCard].
+///
+/// Aggregates card geometry, colors, per-digit transition look, and container
+/// [decoration]/[padding]. All fields nullable; unset fields fall back to the
+/// deprecated loose params, then an ancestor [CountdownCardProvider], then a
+/// hardcoded default.
+///
+/// [CountdownCard] 的视觉样式。聚合卡片几何、颜色、逐位过渡外观、容器
+/// [decoration]/[padding]。所有字段可空；未设置的字段回退到弃用松散参数，再到
+/// 祖先 [CountdownCardProvider]，最后到硬编码默认值。
+@immutable
+class CountdownCardStyle with BoxStyleFields, StyleProps {
+  /// Creates a [CountdownCard] style. All fields optional.
+  ///
+  /// 创建 [CountdownCard] 样式。所有字段可选。
+  const CountdownCardStyle({
+    this.splitDigits,
+    this.cardWidth,
+    this.cardHeight,
+    this.digitGap,
+    this.unitGap,
+    this.cardColor,
+    this.transitionType,
+    this.scaleEffect,
+    this.scaleFactor,
+    this.opacityEffect,
+    this.perspective,
+    this.textStyle,
+    this.labelStyle,
+    this.separatorStyle,
+    this.padding,
+    this.decoration,
+  });
+
+  /// When true each digit gets its own card; when false each unit is one card.
+  final bool? splitDigits;
+
+  /// Width of one card.
+  final double? cardWidth;
+
+  /// Height of one card.
+  final double? cardHeight;
+
+  /// Gap between digit cards when [splitDigits] is true.
+  final double? digitGap;
+
+  /// Horizontal space on each side of the separator.
+  final double? unitGap;
+
+  /// Card background color.
+  final Color? cardColor;
+
+  /// Per-digit change transition.
+  final CountdownType? transitionType;
+
+  /// Scale behavior for slide/flip transitions.
+  final SlideEffect? scaleEffect;
+
+  /// Scale magnitude used by [scaleEffect].
+  final double? scaleFactor;
+
+  /// Opacity behavior for slide/flip transitions.
+  final SlideEffect? opacityEffect;
+
+  /// Perspective coefficient for flip's 3D rotation.
+  final double? perspective;
+
+  /// Digit number text style.
+  final TextStyle? textStyle;
+
+  /// Unit-label text style.
+  final TextStyle? labelStyle;
+
+  /// Separator-character text style.
+  final TextStyle? separatorStyle;
+
+  @override
+  final EdgeInsetsGeometry? padding;
+  @override
+  final Decoration? decoration;
+
+  /// Returns a copy with the given fields replaced.
+  ///
+  /// 返回替换了给定字段的副本。
+  CountdownCardStyle copyWith({
+    bool? splitDigits,
+    double? cardWidth,
+    double? cardHeight,
+    double? digitGap,
+    double? unitGap,
+    Color? cardColor,
+    CountdownType? transitionType,
+    SlideEffect? scaleEffect,
+    double? scaleFactor,
+    SlideEffect? opacityEffect,
+    double? perspective,
+    TextStyle? textStyle,
+    TextStyle? labelStyle,
+    TextStyle? separatorStyle,
+    EdgeInsetsGeometry? padding,
+    Decoration? decoration,
+  }) =>
+      CountdownCardStyle(
+        splitDigits: splitDigits ?? this.splitDigits,
+        cardWidth: cardWidth ?? this.cardWidth,
+        cardHeight: cardHeight ?? this.cardHeight,
+        digitGap: digitGap ?? this.digitGap,
+        unitGap: unitGap ?? this.unitGap,
+        cardColor: cardColor ?? this.cardColor,
+        transitionType: transitionType ?? this.transitionType,
+        scaleEffect: scaleEffect ?? this.scaleEffect,
+        scaleFactor: scaleFactor ?? this.scaleFactor,
+        opacityEffect: opacityEffect ?? this.opacityEffect,
+        perspective: perspective ?? this.perspective,
+        textStyle: textStyle ?? this.textStyle,
+        labelStyle: labelStyle ?? this.labelStyle,
+        separatorStyle: separatorStyle ?? this.separatorStyle,
+        padding: padding ?? this.padding,
+        decoration: decoration ?? this.decoration,
+      );
+
+  /// Merges with lower-priority [other]: this object's non-null fields win.
+  ///
+  /// 与更低优先级的 [other] 合并：本对象非空字段优先。
+  CountdownCardStyle merge(CountdownCardStyle? other) => other == null
+      ? this
+      : CountdownCardStyle(
+          splitDigits: splitDigits ?? other.splitDigits,
+          cardWidth: cardWidth ?? other.cardWidth,
+          cardHeight: cardHeight ?? other.cardHeight,
+          digitGap: digitGap ?? other.digitGap,
+          unitGap: unitGap ?? other.unitGap,
+          cardColor: cardColor ?? other.cardColor,
+          transitionType: transitionType ?? other.transitionType,
+          scaleEffect: scaleEffect ?? other.scaleEffect,
+          scaleFactor: scaleFactor ?? other.scaleFactor,
+          opacityEffect: opacityEffect ?? other.opacityEffect,
+          perspective: perspective ?? other.perspective,
+          textStyle: textStyle ?? other.textStyle,
+          labelStyle: labelStyle ?? other.labelStyle,
+          separatorStyle: separatorStyle ?? other.separatorStyle,
+          padding: padding ?? other.padding,
+          decoration: decoration ?? other.decoration,
+        );
+
+  @override
+  List<Object?> get props => [
+        splitDigits,
+        cardWidth,
+        cardHeight,
+        digitGap,
+        unitGap,
+        cardColor,
+        transitionType,
+        scaleEffect,
+        scaleFactor,
+        opacityEffect,
+        perspective,
+        textStyle,
+        labelStyle,
+        separatorStyle,
+        padding,
+        decoration,
+      ];
+}
 
 /// A flip-card countdown display. Each time unit (H / M / S) is rendered as
 /// a card that animates when the digit changes.
@@ -48,39 +216,43 @@ class CountdownCard extends StatefulWidget {
   const CountdownCard({
     super.key,
     required this.to,
-    this.splitDigits = false,
+    this.style,
     this.showHours,
     this.labels = const ['H', 'M', 'S'],
     this.separator = ':',
-    this.transitionType,
-    this.scaleEffect,
-    this.scaleFactor,
-    this.opacityEffect,
-    this.perspective,
     this.duration,
-    this.cardWidth,
-    this.cardHeight,
-    this.digitGap,
-    this.unitGap,
-    this.cardColor,
-    this.textStyle,
-    this.labelStyle,
-    this.separatorStyle,
+    this.curve,
     this.repaintBoundary = true,
     this.plugin,
     this.controller,
     this.onComplete,
+    this.onTick,
     this.threshold,
     this.onThreshold,
   });
 
+  /// Visual style. Merged over the ancestor [CountdownCardProvider], then
+  /// defaults.
+  ///
+  /// **Two provider paths, by design.** Card visuals resolve as:
+  /// `style` > enclosing [CountdownProvider]'s `countdownCardStyle`
+  /// (a [CountdownCardStyle]) > ancestor [CountdownCardProvider] (which also
+  /// owns the shared glyph cache) > hardcoded default. [CountdownCardProvider]
+  /// stays separate because it carries stateful, card-specific [TextPainter]
+  /// glyph caches that don't belong on the general scope.
+  ///
+  /// 视觉样式。叠加在祖先 [CountdownCardProvider] 之上，再到默认值。
+  ///
+  /// **两条 provider 路径（有意为之）。** 卡片视觉解析顺序：`style` > 所在
+  /// [CountdownProvider] 的 `countdownCardStyle`（[CountdownCardStyle]）> 祖先
+  /// [CountdownCardProvider]（同时持有共享字形缓存）> 硬编码默认值。
+  /// [CountdownCardProvider] 保持独立，因为它承载有状态、卡片专属的 [TextPainter]
+  /// 字形缓存，不宜并入通用 scope。
+  final CountdownCardStyle? style;
+
   /// Countdown target. Accepts [DateTime], [Duration], [int] (ms epoch),
   /// or ISO-8601 [String].
   final Object to;
-
-  /// When true each individual digit (0-9) gets its own card;
-  /// when false each unit (00-59) is one card.
-  final bool splitDigits;
 
   /// Whether to show the hours unit.
   /// null = auto: shown only when remaining ≥ 1 hour.
@@ -92,74 +264,15 @@ class CountdownCard extends StatefulWidget {
 
   final String separator;
 
-  /// Per-digit change animation. Falls back to
-  /// [CountdownCardProvider.transitionType], then [CountdownType.calendar].
-  final CountdownType? transitionType;
-
-  /// Scale behavior for [CountdownType.slide]/[CountdownType.flip]
-  /// digits: the entering digit shrinks from [scaleFactor] down to its
-  /// normal size ("enter"/"both"), the exiting digit shrinks from normal
-  /// size down to `1 / scaleFactor` ("exit"/"both"). No effect for
-  /// [CountdownType.calendar]. Falls back to
-  /// [CountdownCardProvider.scaleEffect], then [SlideEffect.none] (no
-  /// scaling).
-  final SlideEffect? scaleEffect;
-
-  /// Magnitude used by [scaleEffect]. Must be > 1 for "enter" to look like
-  /// it's shrinking in and "exit" to look like it's shrinking out — enter
-  /// animates `scaleFactor → 1.0`, exit animates `1.0 → 1/scaleFactor`. Falls
-  /// back to [CountdownCardProvider.scaleFactor], then 1.5.
-  final double? scaleFactor;
-
-  /// Opacity behavior for [CountdownType.slide]/[CountdownType.flip]
-  /// digits: the entering digit fades in from transparent ("enter"/"both"),
-  /// the exiting digit fades out to transparent ("exit"/"both"). No effect
-  /// for [CountdownType.calendar]. Falls back to
-  /// [CountdownCardProvider.opacityEffect], then [SlideEffect.none]
-  /// (fully opaque throughout).
-  final SlideEffect? opacityEffect;
-
-  /// Perspective coefficient for [CountdownType.flip]'s 3D
-  /// rotation — larger values exaggerate the foreshortening (the card looks
-  /// like it's leaning further out of the screen as it turns). No effect for
-  /// [CountdownType.calendar]/[CountdownType.slide]. Falls
-  /// back to [CountdownCardProvider.perspective], then 0.006.
-  final double? perspective;
-
-  /// Total transition duration, shared by every [transitionType]. Falls back
+  /// Total transition duration, shared by every transition type. Falls back
   /// to [CountdownCardProvider.duration], then 450ms.
   final Duration? duration;
 
-  /// Falls back to [CountdownCardProvider.cardWidth], then 56.
-  final double? cardWidth;
-
-  /// Falls back to [CountdownCardProvider.cardHeight], then 76.
-  final double? cardHeight;
-
-  /// Gap between digit cards when [splitDigits] is true.
-  /// Falls back to [CountdownCardProvider.digitGap], then 4.
-  final double? digitGap;
-
-  /// Horizontal space on each side of the separator.
-  /// Falls back to [CountdownCardProvider.unitGap], then 8.
-  final double? unitGap;
-
-  /// Falls back to [CountdownCardProvider.cardColor], then a dark grey.
-  final Color? cardColor;
-
-  /// Text style for the digit numbers. Falls back to
-  /// [CountdownCardProvider.textStyle], then bold white scaled to the
-  /// resolved card height.
-  final TextStyle? textStyle;
-
-  /// Text style for unit labels below each card. Falls back to
-  /// [CountdownCardProvider.labelStyle], then a small grey label style.
-  final TextStyle? labelStyle;
-
-  /// Text style for the separator character. Falls back to
-  /// [CountdownCardProvider.separatorStyle], then a mid-grey style scaled
-  /// to the resolved card height.
-  final TextStyle? separatorStyle;
+  /// Easing curve for the per-digit transition. Falls back to
+  /// [CountdownCardProvider.curve], then [Curves.linear].
+  ///
+  /// 逐位过渡的缓动曲线。回退到 [CountdownCardProvider.curve]，再到 [Curves.linear]。
+  final Curve? curve;
 
   /// Wraps in [RepaintBoundary]. Disable when displaying many instances.
   final bool repaintBoundary;
@@ -167,6 +280,11 @@ class CountdownCard extends StatefulWidget {
   final Countdown? plugin;
   final CountdownController? controller;
   final void Function()? onComplete;
+
+  /// Called every tick with the current remaining [TimeParts].
+  ///
+  /// 每 tick 以当前剩余 [TimeParts] 回调。
+  final void Function(TimeParts parts)? onTick;
 
   /// When remaining first drops to or below this, [onThreshold] fires once.
   /// null (default) disables the check.
@@ -201,7 +319,7 @@ class _CountdownCardState extends State<CountdownCard>
   @override
   void initState() {
     super.initState();
-    _transitionType = widget.transitionType ?? _defaultTransitionType;
+    _transitionType = widget.style?.transitionType ?? _defaultTransitionType;
     _ctrl = AnimationController(vsync: this, duration: motionDuration(widget.duration ?? _defaultDuration))
       ..addStatusListener((status) {
         // calendar is two legs (forward then auto-reverse) over the same
@@ -246,6 +364,7 @@ class _CountdownCardState extends State<CountdownCard>
   }
 
   void _onTick(TimeParts parts) {
+    widget.onTick?.call(parts);
     final remaining = parts.value;
     _lastRemaining = remaining;
     final showHours = widget.showHours ?? remaining.inHours >= 1;
@@ -309,6 +428,7 @@ class _CountdownCardState extends State<CountdownCard>
     required TextStyle labelStyle,
     required Map<(String, TextStyle), TextPainter> sepCache,
     required Map<(String, TextStyle), TextPainter> labelCache,
+    required bool splitDigits,
   }) {
     final unitsCount = _showHours ? 3 : 2;
     final labelOffset = _showHours ? 0 : 1; // labels are always [hours, minutes, seconds]
@@ -326,7 +446,7 @@ class _CountdownCardState extends State<CountdownCard>
 
     for (var u = 0; u < unitsCount; u++) {
       final unitStart = x;
-      if (widget.splitDigits) {
+      if (splitDigits) {
         cells.add(Cell(x, cardWidth, digitIndex++, _fullRadius));
         x += cardWidth + digitGap;
         cells.add(Cell(x, cardWidth, digitIndex++, _fullRadius));
@@ -370,37 +490,50 @@ class _CountdownCardState extends State<CountdownCard>
   Widget build(BuildContext context) {
     final provider = CountdownCardProvider.of(context);
 
-    final cardWidth = widget.cardWidth ?? provider?.cardWidth ?? _defaultCardWidth;
-    final cardHeight = widget.cardHeight ?? provider?.cardHeight ?? _defaultCardHeight;
-    final digitGap = widget.digitGap ?? provider?.digitGap ?? _defaultDigitGap;
-    final unitGap = widget.unitGap ?? provider?.unitGap ?? _defaultUnitGap;
-    final cardColor = widget.cardColor ?? provider?.cardColor ?? _defaultCardColor;
+    // Resolution order per field: widget.style > enclosing CountdownProvider's
+    // countdownCardStyle > ancestor CountdownCardProvider > hardcoded default.
+    //
+    // 每个字段的解析顺序：widget.style > 所在 CountdownProvider 的 countdownCardStyle
+    // > 祖先 CountdownCardProvider > 硬编码默认值。
+    final ccStyle = CountmanScope.maybeOf<Countdown>(context)?.countdownCardStyle;
+    final st = widget.style?.merge(ccStyle) ?? ccStyle;
+    final cardWidth = st?.cardWidth ?? provider?.cardWidth ?? _defaultCardWidth;
+    final cardHeight = st?.cardHeight ?? provider?.cardHeight ?? _defaultCardHeight;
+    final digitGap = st?.digitGap ?? provider?.digitGap ?? _defaultDigitGap;
+    final unitGap = st?.unitGap ?? provider?.unitGap ?? _defaultUnitGap;
+    final cardColor = st?.cardColor ?? provider?.cardColor ?? _defaultCardColor;
     final duration = widget.duration ?? provider?.duration ?? _defaultDuration;
     if (_ctrl.duration != duration) _ctrl.duration = duration;
+    final effCurve = widget.curve ?? provider?.curve ?? Curves.linear;
+    final splitDigits = st?.splitDigits ?? false;
 
-    _transitionType = widget.transitionType ?? provider?.transitionType ?? _defaultTransitionType;
-    final scaleEffect = widget.scaleEffect ?? provider?.scaleEffect ?? _defaultTranslateEffect;
-    final scaleFactor = widget.scaleFactor ?? provider?.scaleFactor ?? _defaultScaleFactor;
-    final opacityEffect = widget.opacityEffect ?? provider?.opacityEffect ?? _defaultTranslateEffect;
-    final perspective = widget.perspective ?? provider?.perspective ?? _defaultPerspective;
+    _transitionType = st?.transitionType ?? provider?.transitionType ?? _defaultTransitionType;
+    final scaleEffect = st?.scaleEffect ?? provider?.scaleEffect ?? _defaultTranslateEffect;
+    final scaleFactor = st?.scaleFactor ?? provider?.scaleFactor ?? _defaultScaleFactor;
+    final opacityEffect = st?.opacityEffect ?? provider?.opacityEffect ?? _defaultTranslateEffect;
+    final perspective = st?.perspective ?? provider?.perspective ?? _defaultPerspective;
 
-    final textStyle = widget.textStyle ??
+    final resolvedTextStyle = st?.textStyle;
+    final resolvedLabelStyle = st?.labelStyle;
+    final resolvedSeparatorStyle = st?.separatorStyle;
+
+    final textStyle = resolvedTextStyle ??
         provider?.textStyle ??
         TextStyle(fontSize: cardHeight * 0.48, fontWeight: FontWeight.bold, color: const Color(0xFFFFFFFF));
-    final labelStyle = widget.labelStyle ??
+    final labelStyle = resolvedLabelStyle ??
         provider?.labelStyle ??
         const TextStyle(
             fontSize: 11, color: Color(0xFF9E9E9E), fontWeight: FontWeight.w500, letterSpacing: 0.5);
-    final separatorStyle = widget.separatorStyle ??
+    final separatorStyle = resolvedSeparatorStyle ??
         provider?.separatorStyle ??
         TextStyle(fontSize: cardHeight * 0.38, fontWeight: FontWeight.bold, color: const Color(0xFF757575));
 
     // A style is only shared via the provider's cache when this card is
     // actually inheriting it (left unset) — an explicit override always
     // uses this card's own local cache, so it never pollutes the shared one.
-    final digitCache = (widget.textStyle == null && provider != null) ? provider.cache : _localCache;
-    final sepCache = (widget.separatorStyle == null && provider != null) ? provider.cache : _localCache;
-    final labelCache = (widget.labelStyle == null && provider != null) ? provider.cache : _localCache;
+    final digitCache = (resolvedTextStyle == null && provider != null) ? provider.cache : _localCache;
+    final sepCache = (resolvedSeparatorStyle == null && provider != null) ? provider.cache : _localCache;
+    final labelCache = (resolvedLabelStyle == null && provider != null) ? provider.cache : _localCache;
 
     final geom = _measure(
       cardWidth: cardWidth,
@@ -411,6 +544,7 @@ class _CountdownCardState extends State<CountdownCard>
       labelStyle: labelStyle,
       sepCache: sepCache,
       labelCache: labelCache,
+      splitDigits: splitDigits,
     );
 
     final inner = CustomPaint(
@@ -425,6 +559,7 @@ class _CountdownCardState extends State<CountdownCard>
         scaleFactor: scaleFactor,
         opacityEffect: opacityEffect,
         perspective: perspective,
+        curve: effCurve,
         cardHeight: cardHeight,
         cardColor: cardColor,
         textStyle: textStyle,
@@ -444,9 +579,10 @@ class _CountdownCardState extends State<CountdownCard>
       value: CountdownFormat.hms(TimeParts.of(_lastRemaining)),
       child: inner,
     );
+    final decorated = applyBoxStyle(semantic, padding: st?.padding, decoration: st?.decoration);
     return widget.repaintBoundary
-        ? RepaintBoundary(child: semantic)
-        : semantic;
+        ? RepaintBoundary(child: decorated)
+        : decorated;
   }
 }
 

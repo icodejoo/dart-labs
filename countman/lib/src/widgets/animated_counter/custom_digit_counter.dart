@@ -8,7 +8,7 @@ part of 'animated_counter.dart';
 /// each digit as an arbitrary widget. For the common case — styled text digits —
 /// prefer [AnimatedCounter], which uses [CustomPainter] with zero build cost
 /// per animation frame.
-class CustomDigitCounter extends _BaseAnimatedCounter {
+class AnimatedCounterBuilder extends _BaseAnimatedCounter {
   /// Builds a custom widget for each digit (0–9).
   /// Called with the digit's integer value and the resolved text style.
   final Widget Function(BuildContext context, int digit, TextStyle style)? digitBuilder;
@@ -26,7 +26,7 @@ class CustomDigitCounter extends _BaseAnimatedCounter {
   /// Wraps each [DigitColumn] after it is built, indexed left-to-right.
   final Widget Function(BuildContext context, int index, Widget child)? digitWrapperBuilder;
 
-  const CustomDigitCounter({
+  const AnimatedCounterBuilder({
     super.key,
     super.value,
     super.controller,
@@ -98,18 +98,19 @@ class CustomDigitCounter extends _BaseAnimatedCounter {
     super.interpolation,
     super.bounceOvershoot,
     super.bounceElasticity,
+    super.style,
     this.digitBuilder,
     this.digitTransitionBuilder,
     this.digitWrapperBuilder,
   });
 
   @override
-  State<CustomDigitCounter> createState() => _CustomDigitCounterState();
+  State<AnimatedCounterBuilder> createState() => _AnimatedCounterBuilderState();
 }
 
 // ── state ─────────────────────────────────────────────────────────────────────
 
-class _CustomDigitCounterState extends _BaseCounterState<CustomDigitCounter> {
+class _AnimatedCounterBuilderState extends _BaseCounterState<AnimatedCounterBuilder> {
   final _rebuildNotifier = ValueNotifier<int>(0);
 
   // ── frame hooks ───────────────────────────────────────────────────────────

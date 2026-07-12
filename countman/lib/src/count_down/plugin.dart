@@ -182,3 +182,24 @@ Countdown get defaultCountdown {
 /// Add a countdown using the default shared [Countdown] instance.
 CountdownHandle countdown(CountdownOptions opts) =>
     defaultCountdown.add(opts);
+
+Countdown? _defaultMs;
+
+/// The default **precise** [Countdown] instance (`interval: 0` — processes
+/// every frame) used by widgets with `precise: true` when no [plugin] is
+/// given. Lets sub-second formatters ([CountdownFormat.msTenths] /
+/// [CountdownFormat.msMillis]) update smoothly without hand-wiring a group.
+/// Auto-registered with [Countman] on first access.
+///
+/// 默认的**精确** [Countdown] 实例（`interval: 0`——每帧处理），当未传 [plugin]
+/// 时供 `precise: true` 的组件使用。让亚秒格式化器（[CountdownFormat.msTenths] /
+/// [CountdownFormat.msMillis]）平滑更新，无需手动接线分组。首次访问时自动向
+/// [Countman] 注册。
+Countdown get defaultCountdownMs {
+  final existing = _defaultMs;
+  if (existing != null) return existing;
+  final p = Countdown(name: 'countdown-ms', interval: 0);
+  Countman.use(p);
+  _defaultMs = p;
+  return p;
+}

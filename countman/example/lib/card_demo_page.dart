@@ -40,97 +40,123 @@ class _CardDemoPageState extends State<CardDemoPage> {
                 labeled('calendar (default)', const CountdownCard(to: to)),
                 labeled(
                   'slide: none',
-                  const CountdownCard(to: to, transitionType: CountdownType.slide),
+                  const CountdownCard(
+                    to: to,
+                    style: CountdownCardStyle(transitionType: CountdownType.slide),
+                  ),
                 ),
                 labeled(
                   'slide: scale both',
                   const CountdownCard(
                     to: to,
-                    transitionType: CountdownType.slide,
-                    scaleEffect: SlideEffect.both,
+                    style: CountdownCardStyle(
+                      transitionType: CountdownType.slide,
+                      scaleEffect: SlideEffect.both,
+                    ),
                   ),
                 ),
                 labeled(
                   'slide: opacity both',
                   const CountdownCard(
                     to: to,
-                    transitionType: CountdownType.slide,
-                    opacityEffect: SlideEffect.both,
+                    style: CountdownCardStyle(
+                      transitionType: CountdownType.slide,
+                      opacityEffect: SlideEffect.both,
+                    ),
                   ),
                 ),
                 labeled(
                   'slide: scale+opacity both',
                   const CountdownCard(
                     to: to,
-                    transitionType: CountdownType.slide,
-                    scaleEffect: SlideEffect.both,
-                    opacityEffect: SlideEffect.both,
+                    style: CountdownCardStyle(
+                      transitionType: CountdownType.slide,
+                      scaleEffect: SlideEffect.both,
+                      opacityEffect: SlideEffect.both,
+                    ),
                   ),
                 ),
                 labeled(
                   'slide: scaleFactor 2.5',
                   const CountdownCard(
                     to: to,
-                    transitionType: CountdownType.slide,
-                    scaleEffect: SlideEffect.both,
-                    scaleFactor: 2.5,
+                    style: CountdownCardStyle(
+                      transitionType: CountdownType.slide,
+                      scaleEffect: SlideEffect.both,
+                      scaleFactor: 2.5,
+                    ),
                   ),
                 ),
                 labeled(
                   'slide: enter-only scale+opacity',
                   const CountdownCard(
                     to: to,
-                    transitionType: CountdownType.slide,
-                    scaleEffect: SlideEffect.enter,
-                    opacityEffect: SlideEffect.enter,
+                    style: CountdownCardStyle(
+                      transitionType: CountdownType.slide,
+                      scaleEffect: SlideEffect.enter,
+                      opacityEffect: SlideEffect.enter,
+                    ),
                   ),
                 ),
                 labeled(
                   'slide: exit-only scale+opacity',
                   const CountdownCard(
                     to: to,
-                    transitionType: CountdownType.slide,
-                    scaleEffect: SlideEffect.exit,
-                    opacityEffect: SlideEffect.exit,
+                    style: CountdownCardStyle(
+                      transitionType: CountdownType.slide,
+                      scaleEffect: SlideEffect.exit,
+                      opacityEffect: SlideEffect.exit,
+                    ),
                   ),
                 ),
                 labeled(
                   'flip: none (pure rotate)',
-                  const CountdownCard(to: to, transitionType: CountdownType.flip),
+                  const CountdownCard(
+                    to: to,
+                    style: CountdownCardStyle(transitionType: CountdownType.flip),
+                  ),
                 ),
                 labeled(
                   'flip: perspective 0.02 (stronger 3D)',
                   const CountdownCard(
                     to: to,
-                    transitionType: CountdownType.flip,
-                    perspective: 0.02,
+                    style: CountdownCardStyle(
+                      transitionType: CountdownType.flip,
+                      perspective: 0.02,
+                    ),
                   ),
                 ),
                 labeled(
                   'flip: scale+opacity both',
                   const CountdownCard(
                     to: to,
-                    transitionType: CountdownType.flip,
-                    scaleEffect: SlideEffect.both,
-                    opacityEffect: SlideEffect.both,
+                    style: CountdownCardStyle(
+                      transitionType: CountdownType.flip,
+                      scaleEffect: SlideEffect.both,
+                      opacityEffect: SlideEffect.both,
+                    ),
                   ),
                 ),
                 labeled(
                   'flip: enter-only scale+opacity',
                   const CountdownCard(
                     to: to,
-                    transitionType: CountdownType.flip,
-                    scaleEffect: SlideEffect.enter,
-                    opacityEffect: SlideEffect.enter,
+                    style: CountdownCardStyle(
+                      transitionType: CountdownType.flip,
+                      scaleEffect: SlideEffect.enter,
+                      opacityEffect: SlideEffect.enter,
+                    ),
                   ),
                 ),
                 labeled(
                   'flip: exit-only scale+opacity',
                   const CountdownCard(
                     to: to,
-                    transitionType: CountdownType.flip,
-                    scaleEffect: SlideEffect.exit,
-                    opacityEffect: SlideEffect.exit,
+                    style: CountdownCardStyle(
+                      transitionType: CountdownType.flip,
+                      scaleEffect: SlideEffect.exit,
+                      opacityEffect: SlideEffect.exit,
+                    ),
                   ),
                 ),
               ],

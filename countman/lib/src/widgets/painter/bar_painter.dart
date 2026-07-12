@@ -1,17 +1,17 @@
 import 'package:flutter/widgets.dart';
 
 /// Draws a filled rounded-rect bar over a track — the shared rendering core
-/// for `CountdownBar` (bar shrinks as remaining time depletes) and
-/// `CounterBar` (bar grows as the value approaches its target). Both
-/// widgets only differ in how they compute [progress]; the fill math itself
-/// is identical, so it lives here once instead of twice — same split as
-/// [RingPainter] for the circular variants.
+/// for `CountdownBar` (bar shrinks) and `CounterBar` (bar grows). Both widgets
+/// only differ in how they compute [progress]; the fill math lives here once.
 ///
-/// Each drawing step is a separate overridable method, same pattern as
-/// [RingPainter]. For the common cases — a [gradient]/[trackGradient] fill,
-/// filling from the end ([fillFromStart] = false), a thinner track
-/// ([trackHeight]), or per-corner rounding ([borderRadiusGeometry]) — pass the
-/// constructor arguments instead of subclassing.
+/// Supports horizontal (default) and [vertical] orientation, filling from
+/// either edge ([fillFromStart]), an optional [gradient]/[trackGradient], a
+/// thinner cross-axis band ([trackHeight]), per-corner rounding, and a
+/// hideable track ([showTrack]).
+///
+/// 绘制轨道上的圆角填充条——`CountdownBar`/`CounterBar` 的共享渲染核心。支持水平
+/// （默认）与 [vertical] 竖向、从任一端填充、渐变、更细的横轴带、逐角圆角、可隐藏
+/// 轨道。
 class BarPainter extends CustomPainter {
   const BarPainter({
     required this.progress,
@@ -23,6 +23,8 @@ class BarPainter extends CustomPainter {
     this.trackGradient,
     this.fillFromStart = true,
     this.trackHeight,
+    this.showTrack = true,
+    this.vertical = false,
   });
 
   /// 0.0–1.0 fraction of the bar to fill.
@@ -42,16 +44,31 @@ class BarPainter extends CustomPainter {
   /// Optional gradient painted over the track, overriding [trackColor].
   final Gradient? trackGradient;
 
-  /// When true (default) the fill grows from the left/start edge; when false
-  /// it grows from the right/end edge.
+  /// When true (default) the fill grows from the start edge — left (horizontal)
+  /// or bottom (vertical); when false it grows from the opposite edge.
   final bool fillFromStart;
 
-  /// Track/fill height, vertically centered within the paint size. Defaults to
-  /// the full paint height when null.
+  /// Cross-axis thickness of the track/fill band, centered within the paint
+  /// size. Defaults to the full cross-axis extent when null.
   final double? trackHeight;
 
-  /// Vertical band the bar occupies within [size], honoring [trackHeight].
+  /// When false, the background track is not drawn (only the fill).
+  ///
+  /// 为 false 时不绘制背景轨道（只画填充）。
+  final bool showTrack;
+
+  /// When true, the bar fills along the vertical axis instead of horizontal.
+  ///
+  /// 为 true 时沿竖直轴填充，而非水平。
+  final bool vertical;
+
+  /// Cross-axis band the bar occupies within [size], honoring [trackHeight].
   Rect bandFor(Size size) {
+    if (vertical) {
+      final w = trackHeight ?? size.width;
+      final left = (size.width - w) / 2;
+      return Rect.fromLTWH(left, 0, w, size.height);
+    }
     final h = trackHeight ?? size.height;
     final top = (size.height - h) / 2;
     return Rect.fromLTWH(0, top, size.width, h);
@@ -67,6 +84,7 @@ class BarPainter extends CustomPainter {
 
   /// Draws the background track. Override to customize or skip it.
   void paintTrack(Canvas canvas, RRect track) {
+    if (!showTrack) return;
     final paint = Paint();
     if (trackGradient != null) {
       paint.shader = trackGradient!.createShader(track.outerRect);
@@ -82,10 +100,18 @@ class BarPainter extends CustomPainter {
     final p = progress.clamp(0.0, 1.0);
     if (p <= 0) return;
     final band = bandFor(size);
-    final w = band.width * p;
-    final fillRect = fillFromStart
-        ? Rect.fromLTWH(band.left, band.top, w, band.height)
-        : Rect.fromLTWH(band.right - w, band.top, w, band.height);
+    final Rect fillRect;
+    if (vertical) {
+      final hh = band.height * p;
+      fillRect = fillFromStart
+          ? Rect.fromLTWH(band.left, band.bottom - hh, band.width, hh)
+          : Rect.fromLTWH(band.left, band.top, band.width, hh);
+    } else {
+      final w = band.width * p;
+      fillRect = fillFromStart
+          ? Rect.fromLTWH(band.left, band.top, w, band.height)
+          : Rect.fromLTWH(band.right - w, band.top, w, band.height);
+    }
     final paint = Paint();
     if (gradient != null) {
       paint.shader = gradient!.createShader(band);
@@ -115,5 +141,7 @@ class BarPainter extends CustomPainter {
       old.gradient != gradient ||
       old.trackGradient != trackGradient ||
       old.fillFromStart != fillFromStart ||
-      old.trackHeight != trackHeight;
+      old.trackHeight != trackHeight ||
+      old.showTrack != showTrack ||
+      old.vertical != vertical;
 }

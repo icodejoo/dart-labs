@@ -25,7 +25,7 @@ void main() {
     });
 
     testWidgets('renders at the requested size', (t) async {
-      await t.pumpWidget(_wrap(const CountdownBar(to: Duration(seconds: 10), width: 240, height: 10)));
+      await t.pumpWidget(_wrap(const CountdownBar(to: Duration(seconds: 10), style: CountdownBarStyle(width: 240, height: 10))));
       await t.pump();
       expect(t.getSize(find.byType(CountdownBar)), const Size(240, 10));
     });
@@ -79,7 +79,7 @@ void main() {
     tearDown(Countman.destroy);
 
     testWidgets('renders at the requested size', (t) async {
-      await t.pumpWidget(_wrap(const CounterBar(to: 100, width: 240, height: 10)));
+      await t.pumpWidget(_wrap(const CounterBar(to: 100, style: CounterBarStyle(width: 240, height: 10))));
       await t.pump();
       expect(t.getSize(find.byType(CounterBar)), const Size(240, 10));
     });

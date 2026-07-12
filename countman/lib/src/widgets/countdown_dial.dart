@@ -1,8 +1,9 @@
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:countman/src/count_down/plugin.dart';
-import 'countdown_widget.dart';
+import 'countdown_builder.dart';
 import 'providers.dart';
+import 'style_support.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Public colour vocabulary
@@ -11,7 +12,8 @@ import 'providers.dart';
 /// The five zone colours that drive tick / arc / digit tinting.
 ///
 /// Mirrors the `IRingColors` interface from ring.ts.
-class DialColors {
+@immutable
+class DialColors with StyleProps {
   const DialColors({
     this.normal = const Color(0xFFFF6A5A),
     this.green = const Color(0xFF37D67A),
@@ -56,6 +58,9 @@ class DialColors {
         red: red ?? this.red,
         off: off ?? this.off,
       );
+
+  @override
+  List<Object?> get props => [normal, green, yellow, red, off];
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -70,7 +75,8 @@ class DialColors {
 /// (50, 50).  The Flutter painter maps these proportionally to the widget's
 /// logical pixel size, so every dimension here is in that normalised [0, 100]
 /// space (i.e., a fraction of the widget's half-width).
-class DialTicksConfig {
+@immutable
+class DialTicksConfig with StyleProps {
   const DialTicksConfig({
     this.count = 60,
     this.radius = 46.5,
@@ -109,6 +115,19 @@ class DialTicksConfig {
 
   /// Text style for major-tick labels (defaults to a small white font).
   final TextStyle? labelStyle;
+
+  @override
+  List<Object?> get props => [
+        count,
+        radius,
+        width,
+        length,
+        majorEvery,
+        majorLengthFactor,
+        majorWidthFactor,
+        showLabels,
+        labelStyle,
+      ];
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -118,7 +137,8 @@ class DialTicksConfig {
 /// Configuration for one decorative segmented arc ring.
 ///
 /// Mirrors `IRingArc` from ring.ts.
-class DialArcConfig {
+@immutable
+class DialArcConfig with StyleProps {
   const DialArcConfig({
     required this.radius,
     required this.strokeWidth,
@@ -137,6 +157,9 @@ class DialArcConfig {
 
   /// Angular span of each segment in degrees.
   final double spanDegrees;
+
+  @override
+  List<Object?> get props => [radius, strokeWidth, segments, spanDegrees];
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -146,7 +169,8 @@ class DialArcConfig {
 /// Configuration for the innermost progress ring.
 ///
 /// Mirrors `IRingInner` from ring.ts.
-class DialInnerConfig {
+@immutable
+class DialInnerConfig with StyleProps {
   const DialInnerConfig({
     this.radius = 27.5,
     this.strokeWidth = 2.8,
@@ -161,6 +185,9 @@ class DialInnerConfig {
 
   /// Grey background track colour.
   final Color trackColor;
+
+  @override
+  List<Object?> get props => [radius, strokeWidth, trackColor];
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -201,26 +228,192 @@ class DialInnerConfig {
 ///
 /// All ring geometry uses a normalised 100×100 coordinate space to stay
 /// faithful to the original SVG viewBox (0 0 100 100) from ring.ts.
+/// Visual style for [CountdownDial].
+///
+/// Aggregates the dial's geometry, zone colors, tick/arc/inner ring configs
+/// (with explicit `show*` flags — clearer than the old "pass null to hide"),
+/// glow, and container [decoration]/[padding]. All fields nullable; unset
+/// fields fall back to the dial's built-in defaults.
+///
+/// [CountdownDial] 的视觉样式。聚合表盘几何、区域配色、刻度/弧/内圈配置（用显式
+/// `show*` 开关——比旧的"传 null 隐藏"更清晰）、辉光、容器 [decoration]/[padding]。
+/// 所有字段可空；未设置的字段回退到表盘内建默认值。
+@immutable
+class CountdownDialStyle with BoxStyleFields, StyleProps {
+  /// Creates a [CountdownDial] style. All fields optional.
+  ///
+  /// 创建 [CountdownDial] 样式。所有字段可选。
+  const CountdownDialStyle({
+    this.size,
+    this.clockwise,
+    this.redAt,
+    this.yellowAt,
+    this.colors,
+    this.ticks,
+    this.arcA,
+    this.arcB,
+    this.inner,
+    this.glow,
+    this.showTicks,
+    this.showArcA,
+    this.showArcB,
+    this.showInner,
+    this.centerAlignment,
+    this.padding,
+    this.decoration,
+  });
+
+  /// Logical pixel size (square).
+  final double? size;
+
+  /// Tick/drain direction; true = clockwise.
+  final bool? clockwise;
+
+  /// Seconds-remaining threshold below which ticks turn red.
+  final int? redAt;
+
+  /// Seconds-remaining threshold below which ticks turn yellow.
+  final int? yellowAt;
+
+  /// Zone color palette.
+  final DialColors? colors;
+
+  /// Outer tick ring config (used when [showTicks] != false).
+  final DialTicksConfig? ticks;
+
+  /// Outer decorative arc config (used when [showArcA] != false).
+  final DialArcConfig? arcA;
+
+  /// Inner decorative arc config (used when [showArcB] != false).
+  final DialArcConfig? arcB;
+
+  /// Innermost progress ring config (used when [showInner] != false).
+  final DialInnerConfig? inner;
+
+  /// Drop-shadow glow on lit elements.
+  final bool? glow;
+
+  /// Whether the tick ring is drawn. Default true.
+  final bool? showTicks;
+
+  /// Whether outer arc A is drawn. Default true.
+  final bool? showArcA;
+
+  /// Whether inner arc B is drawn. Default true.
+  final bool? showArcB;
+
+  /// Whether the innermost progress ring is drawn. Default true.
+  final bool? showInner;
+
+  /// Alignment of the center [CountdownDial.builder] child. Default center.
+  final AlignmentGeometry? centerAlignment;
+
+  @override
+  final EdgeInsetsGeometry? padding;
+  @override
+  final Decoration? decoration;
+
+  /// Returns a copy with the given fields replaced.
+  ///
+  /// 返回替换了给定字段的副本。
+  CountdownDialStyle copyWith({
+    double? size,
+    bool? clockwise,
+    int? redAt,
+    int? yellowAt,
+    DialColors? colors,
+    DialTicksConfig? ticks,
+    DialArcConfig? arcA,
+    DialArcConfig? arcB,
+    DialInnerConfig? inner,
+    bool? glow,
+    bool? showTicks,
+    bool? showArcA,
+    bool? showArcB,
+    bool? showInner,
+    AlignmentGeometry? centerAlignment,
+    EdgeInsetsGeometry? padding,
+    Decoration? decoration,
+  }) =>
+      CountdownDialStyle(
+        size: size ?? this.size,
+        clockwise: clockwise ?? this.clockwise,
+        redAt: redAt ?? this.redAt,
+        yellowAt: yellowAt ?? this.yellowAt,
+        colors: colors ?? this.colors,
+        ticks: ticks ?? this.ticks,
+        arcA: arcA ?? this.arcA,
+        arcB: arcB ?? this.arcB,
+        inner: inner ?? this.inner,
+        glow: glow ?? this.glow,
+        showTicks: showTicks ?? this.showTicks,
+        showArcA: showArcA ?? this.showArcA,
+        showArcB: showArcB ?? this.showArcB,
+        showInner: showInner ?? this.showInner,
+        centerAlignment: centerAlignment ?? this.centerAlignment,
+        padding: padding ?? this.padding,
+        decoration: decoration ?? this.decoration,
+      );
+
+  /// Merges with lower-priority [other]: this object's non-null fields win.
+  ///
+  /// 与更低优先级的 [other] 合并：本对象非空字段优先。
+  CountdownDialStyle merge(CountdownDialStyle? other) => other == null
+      ? this
+      : CountdownDialStyle(
+          size: size ?? other.size,
+          clockwise: clockwise ?? other.clockwise,
+          redAt: redAt ?? other.redAt,
+          yellowAt: yellowAt ?? other.yellowAt,
+          colors: colors ?? other.colors,
+          ticks: ticks ?? other.ticks,
+          arcA: arcA ?? other.arcA,
+          arcB: arcB ?? other.arcB,
+          inner: inner ?? other.inner,
+          glow: glow ?? other.glow,
+          showTicks: showTicks ?? other.showTicks,
+          showArcA: showArcA ?? other.showArcA,
+          showArcB: showArcB ?? other.showArcB,
+          showInner: showInner ?? other.showInner,
+          centerAlignment: centerAlignment ?? other.centerAlignment,
+          padding: padding ?? other.padding,
+          decoration: decoration ?? other.decoration,
+        );
+
+  @override
+  List<Object?> get props => [
+        size,
+        clockwise,
+        redAt,
+        yellowAt,
+        colors,
+        ticks,
+        arcA,
+        arcB,
+        inner,
+        glow,
+        showTicks,
+        showArcA,
+        showArcB,
+        showInner,
+        centerAlignment,
+        padding,
+        decoration,
+      ];
+}
+
 class CountdownDial extends StatelessWidget {
   const CountdownDial({
     super.key,
     required this.to,
-    this.size = 200.0,
-    this.clockwise = true,
-    this.redAt = 3,
-    this.yellowAt = 10,
-    this.colors = const DialColors(),
-    this.ticks = const DialTicksConfig(),
-    this.arcA = const DialArcConfig(radius: 35.5, strokeWidth: 2.4),
-    this.arcB = const DialArcConfig(
-        radius: 31.5, strokeWidth: 1.3, segments: 3, spanDegrees: 60),
-    this.inner = const DialInnerConfig(),
-    this.glow = false,
+    this.style,
     this.repaintBoundary,
+    this.painterBuilder,
     this.builder,
     this.plugin,
     this.controller,
     this.onComplete,
+    this.onTick,
     this.threshold,
     this.onThreshold,
     this.onReady,
@@ -230,53 +423,24 @@ class CountdownDial extends StatelessWidget {
     this.onResume,
   });
 
-  // ── Countdown target ──────────────────────────────────────────────────────
+  /// Visual style. Merged over the enclosing [CountdownProvider]'s defaults.
+  ///
+  /// 视觉样式。叠加在所在 [CountdownProvider] 的默认值之上。
+  final CountdownDialStyle? style;
 
   /// Countdown target. Accepts [DateTime], [Duration], [int] (ms epoch), or
   /// ISO-8601 [String].
   final Object to;
 
-  // ── Layout ────────────────────────────────────────────────────────────────
-
-  /// Logical pixel size of the widget (both width and height �?always square).
-  final double size;
-
-  // ── Behaviour ────────────────────────────────────────────────────────────
-
-  /// Tick / drain direction.  `true` (default) = clockwise.
-  final bool clockwise;
-
-  /// Seconds remaining threshold below which ticks turn red.  Default: 3.
-  final int redAt;
-
-  /// Seconds remaining threshold below which ticks turn yellow.  Default: 10.
-  final int yellowAt;
-
-  // ── Appearance ────────────────────────────────────────────────────────────
-
-  /// Zone colour palette.
-  final DialColors colors;
-
-  /// Outermost tick ring settings.  Set to `null` to hide.
-  final DialTicksConfig? ticks;
-
-  /// Outer decorative arc ring (arc A).  Set to `null` to hide.
-  final DialArcConfig? arcA;
-
-  /// Inner decorative arc ring (arc B).  Set to `null` to hide.
-  final DialArcConfig? arcB;
-
-  /// Innermost progress ring settings.  Set to `null` to hide.
-  final DialInnerConfig? inner;
-
-  /// Adds a paint-layer drop-shadow glow effect to lit elements.
-  /// Visually expensive; disable when showing many dials.
-  final bool glow;
-
   /// Wraps in [RepaintBoundary].  Falls back to the provider then `true`.
   final bool? repaintBoundary;
 
-  // ── Centre builder ────────────────────────────────────────────────────────
+  /// Supplies a fully custom painter given the current [TimeParts], replacing
+  /// the built-in dial painter. All [style] visuals are ignored then.
+  ///
+  /// 依据当前 [TimeParts] 提供完全自定义的画笔，替换内建表盘画笔。此时所有 [style]
+  /// 视觉项被忽略。
+  final CustomPainter Function(BuildContext context, TimeParts parts)? painterBuilder;
 
   /// Optional widget rendered in the centre of the dial.
   /// Receives [TimeParts] each tick.  When null, the centre is empty.
@@ -287,6 +451,12 @@ class CountdownDial extends StatelessWidget {
   final Countdown? plugin;
   final CountdownController? controller;
   final void Function()? onComplete;
+
+  /// Called every tick with the current remaining [TimeParts].
+  ///
+  /// 每 tick 以当前剩余 [TimeParts] 回调。
+  final void Function(TimeParts parts)? onTick;
+
   final Duration? threshold;
   final void Function()? onThreshold;
   final VoidCallback? onReady;
@@ -300,11 +470,27 @@ class CountdownDial extends StatelessWidget {
     final scope = CountmanScope.maybeOf<Countdown>(context);
     final effRepaint = repaintBoundary ?? scope?.repaintBoundary ?? true;
 
+    // Widget style layered over the enclosing provider's dial style.
+    //
+    // widget 样式叠加在所在 provider 的表盘样式之上。
+    final s = (style ?? const CountdownDialStyle()).merge(scope?.countdownDialStyle);
+    final effSize = s.size ?? 200.0;
+    final effTicks = (s.showTicks ?? true) ? (s.ticks ?? const DialTicksConfig()) : null;
+    final effArcA = (s.showArcA ?? true)
+        ? (s.arcA ?? const DialArcConfig(radius: 35.5, strokeWidth: 2.4))
+        : null;
+    final effArcB = (s.showArcB ?? true)
+        ? (s.arcB ??
+            const DialArcConfig(radius: 31.5, strokeWidth: 1.3, segments: 3, spanDegrees: 60))
+        : null;
+    final effInner = (s.showInner ?? true) ? (s.inner ?? const DialInnerConfig()) : null;
+
     return CountdownBuilder(
       to: to,
       plugin: plugin ?? scope?.plugin,
       controller: controller,
       onComplete: onComplete,
+      onTick: onTick,
       threshold: threshold,
       onThreshold: onThreshold,
       onReady: onReady,
@@ -312,34 +498,40 @@ class CountdownDial extends StatelessWidget {
       onCancel: onCancel,
       onPause: onPause,
       onResume: onResume,
-      builder: (ctx, parts) {
+      builder: (ctx, parts, _) {
         final dial = Semantics(
           container: true,
           label: 'Countdown',
           value: '${(parts.progress * 100).round()}%',
           child: CustomPaint(
-            size: Size.square(size),
-            painter: _DialPainter(
-              parts: parts,
-              clockwise: clockwise,
-              redAt: redAt,
-              yellowAt: yellowAt,
-              colors: colors,
-              ticks: ticks,
-              arcA: arcA,
-              arcB: arcB,
-              inner: inner,
-              glow: glow,
-            ),
+            size: Size.square(effSize),
+            painter: painterBuilder != null
+                ? painterBuilder!(ctx, parts)
+                : _DialPainter(
+                    parts: parts,
+                    clockwise: s.clockwise ?? true,
+                    redAt: s.redAt ?? 3,
+                    yellowAt: s.yellowAt ?? 10,
+                    colors: s.colors ?? const DialColors(),
+                    ticks: effTicks,
+                    arcA: effArcA,
+                    arcB: effArcB,
+                    inner: effInner,
+                    glow: s.glow ?? false,
+                  ),
             child: builder != null
                 ? SizedBox.square(
-                    dimension: size,
-                    child: Center(child: builder!(ctx, parts)),
+                    dimension: effSize,
+                    child: Align(
+                      alignment: s.centerAlignment ?? Alignment.center,
+                      child: builder!(ctx, parts),
+                    ),
                   )
                 : null,
           ),
         );
-        return effRepaint ? RepaintBoundary(child: dial) : dial;
+        final decorated = applyBoxStyle(dial, padding: s.padding, decoration: s.decoration);
+        return effRepaint ? RepaintBoundary(child: decorated) : decorated;
       },
     );
   }

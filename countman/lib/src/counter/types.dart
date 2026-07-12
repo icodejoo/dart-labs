@@ -2,7 +2,7 @@ import 'package:flutter/animation.dart';
 
 import '../core/plugin_base.dart';
 
-/// Options for a count-up animation task.
+/// Options for a counter animation task.
 class CounterOptions {
   const CounterOptions({
     this.from,
@@ -70,4 +70,11 @@ class CounterTask extends CountmanTask {
 
   double value = 0;
   double accumMs = 0; // accumulated dt since the task became active
+
+  /// When true the task holds its current value and stops advancing until
+  /// resumed. Mirrors the pause capability of countdown/elapsed tasks.
+  ///
+  /// 为 true 时任务保持当前值并停止推进，直到恢复。与倒计时/经过时间任务的暂停
+  /// 能力对齐。
+  bool paused = false;
 }
