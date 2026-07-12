@@ -4,6 +4,7 @@ import 'countdown_builder.dart';
 import 'providers.dart';
 import 'bar_style.dart';
 import 'progress_display.dart';
+import 'style_support.dart';
 
 export 'bar_style.dart' show CountdownBarStyle;
 
@@ -111,12 +112,16 @@ class CountdownBar extends StatelessWidget {
           painter: painterBuilder != null
               ? painterBuilder!(ctx, progress)
               : barPainterFrom(effStyle, progress: progress, color: colors.fill, trackColor: colors.track),
-          padding: effStyle.padding,
-          decoration: effStyle.decoration,
         );
       },
     );
 
-    return effRepaint ? RepaintBoundary(child: driver) : driver;
+    // Box layer is value-independent — wrap ONCE outside the per-tick builder;
+    // RepaintBoundary (if any) is the outermost layer.
+    //
+    // 盒层不依赖值——在每 tick 的 builder 外只包一次；RepaintBoundary（若有）为最外层。
+    final decorated =
+        applyBoxStyle(driver, padding: effStyle.padding, decoration: effStyle.decoration);
+    return effRepaint ? RepaintBoundary(child: decorated) : decorated;
   }
 }

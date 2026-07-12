@@ -4,6 +4,7 @@ import 'counter_builder.dart';
 import 'providers.dart';
 import 'bar_style.dart';
 import 'progress_display.dart';
+import 'style_support.dart';
 
 export 'bar_style.dart' show CounterBarStyle;
 
@@ -95,7 +96,10 @@ class CounterBar extends StatelessWidget {
       scopeTrackColor: scope?.trackColor,
     );
 
-    return CounterBuilder(
+    // Box layer is value-independent — wrap it ONCE around the builder.
+    //
+    // 盒层不依赖值——在 builder 外只包一次。
+    final core = CounterBuilder(
       from: this.from,
       to: to,
       duration: duration ?? scope?.duration ?? const Duration(milliseconds: 1000),
@@ -117,10 +121,9 @@ class CounterBar extends StatelessWidget {
           painter: painterBuilder != null
               ? painterBuilder!(ctx, progress)
               : barPainterFrom(effStyle, progress: progress, color: colors.fill, trackColor: colors.track),
-          padding: effStyle.padding,
-          decoration: effStyle.decoration,
         );
       },
     );
+    return applyBoxStyle(core, padding: effStyle.padding, decoration: effStyle.decoration);
   }
 }

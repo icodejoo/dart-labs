@@ -4,6 +4,7 @@ import 'countdown_builder.dart';
 import 'providers.dart';
 import 'ring_style.dart';
 import 'progress_display.dart';
+import 'style_support.dart';
 
 export 'ring_style.dart' show CountdownRingStyle;
 
@@ -134,13 +135,18 @@ class CountdownRing extends StatelessWidget {
               ? painterBuilder!(ctx, progress)
               : ringPainterFrom(effStyle,
                   progress: progress, color: colors.fill, trackColor: colors.track),
-          padding: effStyle.padding,
-          decoration: effStyle.decoration,
           paintChild: centerWidget,
         );
       },
     );
 
-    return effRepaint ? RepaintBoundary(child: driver) : driver;
+    // Box layer (padding + decoration) is value-independent — wrap ONCE outside
+    // the per-tick builder; RepaintBoundary (if any) is the outermost layer.
+    //
+    // 盒层（padding + decoration）不依赖值——在每 tick 的 builder 外只包一次；
+    // RepaintBoundary（若有）为最外层。
+    final decorated =
+        applyBoxStyle(driver, padding: effStyle.padding, decoration: effStyle.decoration);
+    return effRepaint ? RepaintBoundary(child: decorated) : decorated;
   }
 }
