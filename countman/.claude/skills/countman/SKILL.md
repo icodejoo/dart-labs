@@ -68,9 +68,14 @@ use `style:`.
 
 **Formatters** — `CountdownFormat.{hms, ms, msTenths, msMillis, dhms, dhm, auto}`.
 
-**Enums** — `CounterTransitionType` (roll/fade/scale/fadeScale/rotate/flip/blur),
-`StaggerDirection`, `NumeralSystem`, `CountdownType` (calendar/slide/flip),
-`SlideEffect` (none/enter/exit/both).
+**Counter transition** — `CounterTransition` (composable: `CounterMotion`
+none/slide/rotate/flip + `scale`/`fade`/`blur` bool modifiers; presets
+`.slide`(default)/`.slideScale`/`.slideBlur`/`.rotate`/`.flip`/`.flipFade`).
+Shared odometer/ghost math: `resolveDigitPhase(DigitPhase out, …)` writes into a
+reused holder (painter + `DigitColumn` call it; alloc-free hot path).
+
+**Enums** — `StaggerDirection`, `NumeralSystem`, `CountdownType`
+(calendar/slide/flip), `SlideEffect` (none/enter/exit/both).
 
 **Other** — `TimeParts`, `StartScheduler`, `countdownClock` (injectable
 `() → DateTime`), `painter/painter.dart` painters (`CounterPainter`,
@@ -100,7 +105,7 @@ use `style:`.
 | `lib/src/widgets/card_countdown{,_types,_provider}.dart` | `CardCountdown`, `CountdownType`/`SlideEffect`, provider |
 | `lib/src/widgets/countdown_builder.dart` | `CountdownBuilder` |
 | `lib/src/widgets/{text_countdown,text_elapsed,elapsed_builder}.dart` | countdown/elapsed widgets |
-| `lib/src/widgets/animated_counter/animated_counter.dart` | `AnimatedCounter` (+ `.usd/.cny/.inr`), painter fast path |
+| `lib/src/widgets/animated_counter/animated_counter.dart` | `AnimatedCounter`, painter fast path |
 | `lib/src/widgets/animated_counter/{_base_counter,custom_digit_counter}.dart` | shared base; `AnimatedCounterBuilder` (widget path) |
 | `lib/src/widgets/animated_counter/{counter_controller,types}.dart` | `AnimatedCounterController`, enums |
 | `lib/src/widgets/providers.dart` | `CountmanScope`, `CounterProvider`/`CountdownProvider`/`ElapsedProvider`/`CountmanProvider` |
@@ -123,15 +128,17 @@ OdometerCounter(to: 9999, groupSeparator: ',', bounceOvershoot: 0.3,
 CounterBuilder(to: 9999, builder: (ctx, value, child) => Text('${value.toInt()}'))
 
 // AnimatedCounter — value/controller(AnimatedCounterController)/duration(300ms)/
-//   curve(linear)/transitionType(roll)/fast(single-step per digit, old->new one
-//     slot; all transitions; painter+widget paths)/fractionDigits/wholeDigits/thousandSeparator/
-//   groupingPattern([3])/staggerDelay/staggerDirection/compactNotation/numeralSystem/
-//   showPositiveSign/flipDirection/autoEaseThreshold(100000)/repaintBoundary/
+//   curve(linear)/transition(CounterTransition.slide)/fast(single-step per digit,
+//     old->new one slot; all transitions; painter+widget paths)/fractionDigits/wholeDigits/
+//   thousandSeparator/groupingPattern([3])/staggerDelay/staggerDirection/compactNotation/
+//   numeralSystem/showPositiveSign/flipDirection/autoEaseThreshold(100000)/repaintBoundary/
 //   style(AnimatedCounterStyle: text/affix/separator styles, increasingColor/
 //   decreasingColor/colorFadeDuration, padding, decoration)/painterBuilder
-AnimatedCounter(value: 1000000, transitionType: CounterTransitionType.roll,
+AnimatedCounter(value: 1000000, transition: CounterTransition.slide,
   staggerDelay: Duration(milliseconds: 30), thousandSeparator: ',')
-AnimatedCounter.usd(value: 1234.56)   // .cny grouping[4], .inr grouping[3,2]
+// Currency = prefix + groupingPattern (USD [3], CNY [4], INR [3,2]); no .usd/.cny/.inr ctors
+AnimatedCounter(value: 1234.56, prefix: r'$', fractionDigits: 2,
+  thousandSeparator: ',', groupingPattern: [3])
 AnimatedCounterBuilder(value: 1234, digitBuilder: (ctx, d, s) => Text('$d', style: s))
 
 // Countdown — to: DateTime|Duration|int(ms epoch)|ISO String; plugin/precise/

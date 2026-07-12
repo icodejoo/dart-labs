@@ -1,5 +1,39 @@
 # Changelog
 
+## 0.2.0
+
+Counter transition redesign + internal consolidation.
+
+### Changed (breaking)
+- `AnimatedCounter` / `AnimatedCounterBuilder`: `transitionType`
+  (`CounterTransitionType`) → `transition` (`CounterTransition`) — a composable
+  look built from a `CounterMotion` (`none`/`slide`/`rotate`/`flip`) plus
+  `scale` / `fade` / `blur` modifiers, with presets `.slide` (default),
+  `.slideScale`, `.slideBlur`, `.rotate`, `.flip`, `.flipFade`.
+- Removed the `AnimatedCounter.usd` / `.cny` / `.inr` currency factory
+  constructors — compose `prefix` + `groupingPattern` (`[3]` / `[4]` / `[3, 2]`)
+  directly instead.
+- `OdometerCounter` is now a thin `AnimatedCounter` delegate (a `StatelessWidget`
+  reusing the shared painter). `bounceElasticity` is retained for source
+  compatibility but no longer has an effect — bounce is driven by
+  `bounceOvershoot`.
+
+### Added
+- Leading-zero-at-rest fade-in: hidden leading zeros fade in/out by the live
+  cumulative place value instead of popping (e.g. `1000 → 7` collapses to `7`).
+- Per-column bounce wave that follows a staggered roll.
+
+### Internal
+- Odometer trajectory + end-of-roll ghost-prevention math extracted into one
+  shared `resolveDigitPhase` used by both the painter and widget-tree paths;
+  the paint/build hot paths stay allocation-free via a reused `DigitPhase`.
+- The default (`slide`/`none`) paint path skips a redundant canvas
+  save/restore pair.
+- Default-plugin registration unified on first task (`LazyDefault` +
+  `enqueue` self-register), with a central reset on `Countman.destroy()`.
+- `CountmanTask.reanchor()` replaces ad-hoc `started` toggling for
+  retarget / resume / reset.
+
 ## 0.1.0
 
 Initial release.

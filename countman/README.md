@@ -223,15 +223,14 @@ OdometerCounter(to: 500, bounceOvershoot: 0.35)    // spring overshoot per digit
 | `groupSeparator` | — | `String` drawn every 3 digits |
 | `slideCurve` | — | Easing on the per-digit slide |
 | `bounceOvershoot` | `0.0` | Overshoot magnitude per ones-digit transition |
-| `bounceElasticity` | `4.0` | Where the overshoot peak lands (≥ 1) |
 | `prefix`/`suffix`/`prefixWidget`/`suffixWidget` | — | Affixes |
 
 ### `AnimatedCounter`
 
-Full-featured rolling-digit counter: 7 transition types, stagger, compact
-notation, decimals, currency grouping, color tinting and programmatic control.
+Full-featured rolling-digit counter: composable transitions, stagger, compact
+notation, decimals, digit grouping, color tinting and programmatic control.
 Backed by a persistent `CustomPainter` — zero widget builds per frame (the
-`flip`/`blur` types and the builder variant fall back to the widget path).
+`AnimatedCounterBuilder` variant uses the widget-tree path instead).
 
 ```dart
 AnimatedCounter(value: 9999)
@@ -239,7 +238,7 @@ AnimatedCounter(value: 9999)
 AnimatedCounter(
   value: 1000000,
   duration: const Duration(seconds: 2),
-  transitionType: CounterTransitionType.roll,   // roll·fade·scale·fadeScale·rotate·flip·blur
+  transition: CounterTransition.slide,   // .slide·.slideScale·.slideBlur·.rotate·.flip·.flipFade
   staggerDelay: const Duration(milliseconds: 30),
   staggerDirection: StaggerDirection.rightToLeft,
   thousandSeparator: ',',
@@ -249,10 +248,9 @@ AnimatedCounter(
   ),
 )
 
-// Currency factories (prefix + grouping preset, fractionDigits: 2)
-AnimatedCounter.usd(value: 1234.56)   // $1,234.56  — grouping [3]
-AnimatedCounter.cny(value: 1234.56)   // ¥1,234.56  — grouping [4]
-AnimatedCounter.inr(value: 1234.56)   // ₹1,234.56  — grouping [3, 2]
+// Currency: prefix + grouping pattern (grouping [3]=USD, [4]=CNY, [3,2]=INR)
+AnimatedCounter(value: 1234.56, prefix: r'$', fractionDigits: 2,
+    thousandSeparator: ',', groupingPattern: const [3])   // $1,234.56
 
 // Compact notation
 AnimatedCounter(value: 1200000, compactNotation: true)  // "1.2M"
@@ -269,8 +267,8 @@ Key parameters:
 | `controller` | — | [`AnimatedCounterController`](#animatedcounter-controller) |
 | `duration` | `300 ms` | Animation duration |
 | `curve` | `Curves.linear` | Easing curve |
-| `transitionType` | `roll` | `roll`·`fade`·`scale`·`fadeScale`·`rotate`·`flip`·`blur` |
-| `fast` | `false` | Single-step per digit: each column moves ONE slot old→new (e.g. 1000→9999 slides 1→9 once) instead of the full cascading roll. Works with every `transitionType`; painter and widget paths both supported. |
+| `transition` | `CounterTransition.slide` | Composable look: presets `.slide`·`.slideScale`·`.slideBlur`·`.rotate`·`.flip`·`.flipFade`, or build one from a `CounterMotion` (`none`/`slide`/`rotate`/`flip`) plus `scale`/`fade`/`blur` modifiers, e.g. `CounterTransition(motion: CounterMotion.none, scale: true)` |
+| `fast` | `false` | Single-step per digit: each column moves ONE slot old→new (e.g. 1000→9999 slides 1→9 once) instead of the full cascading roll. Works with every `transition`; painter and widget paths both supported. |
 | `fractionDigits` | `0` | Decimal places |
 | `wholeDigits` | `1` | Minimum integer digit slots |
 | `hideLeadingZeroes` | `true` | Hide leading zeros |

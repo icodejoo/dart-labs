@@ -222,15 +222,14 @@ OdometerCounter(to: 500, bounceOvershoot: 0.35)    // spring overshoot per digit
 | `groupSeparator` | — | 每 3 位绘制的 `String` |
 | `slideCurve` | — | 逐位滑动的缓动曲线 |
 | `bounceOvershoot` | `0.0` | 个位数字每次过渡的过冲幅度 |
-| `bounceElasticity` | `4.0` | 过冲峰值出现的位置（≥ 1） |
 | `prefix`/`suffix`/`prefixWidget`/`suffixWidget` | — | 前后缀 |
 
 ### `AnimatedCounter`
 
-功能齐全的滚动数字计数器：7 种过渡类型、错峰、紧凑
-记数法、小数、货币分组、颜色着色以及编程式控制。
+功能齐全的滚动数字计数器：可组合过渡、错峰、紧凑
+记数法、小数、数字分组、颜色着色以及编程式控制。
 由一个持久化的 `CustomPainter` 支撑 —— 每帧零组件构建
-（`flip`/`blur` 类型与 builder 变体会回退到组件路径）。
+（`AnimatedCounterBuilder` 变体改走组件树路径）。
 
 ```dart
 AnimatedCounter(value: 9999)
@@ -238,7 +237,7 @@ AnimatedCounter(value: 9999)
 AnimatedCounter(
   value: 1000000,
   duration: const Duration(seconds: 2),
-  transitionType: CounterTransitionType.roll,   // roll·fade·scale·fadeScale·rotate·flip·blur
+  transition: CounterTransition.slide,   // .slide·.slideScale·.slideBlur·.rotate·.flip·.flipFade
   staggerDelay: const Duration(milliseconds: 30),
   staggerDirection: StaggerDirection.rightToLeft,
   thousandSeparator: ',',
@@ -248,10 +247,9 @@ AnimatedCounter(
   ),
 )
 
-// Currency factories (prefix + grouping preset, fractionDigits: 2)
-AnimatedCounter.usd(value: 1234.56)   // $1,234.56  — grouping [3]
-AnimatedCounter.cny(value: 1234.56)   // ¥1,234.56  — grouping [4]
-AnimatedCounter.inr(value: 1234.56)   // ₹1,234.56  — grouping [3, 2]
+// 货币：前缀 + 分组模式（grouping [3]=USD、[4]=CNY、[3,2]=INR）
+AnimatedCounter(value: 1234.56, prefix: r'$', fractionDigits: 2,
+    thousandSeparator: ',', groupingPattern: const [3])   // $1,234.56
 
 // Compact notation
 AnimatedCounter(value: 1200000, compactNotation: true)  // "1.2M"
@@ -268,8 +266,8 @@ AnimatedCounter(value: 2025, numeralSystem: NumeralSystem.devanagari)
 | `controller` | — | [`AnimatedCounterController`](#animatedcounter-controller) |
 | `duration` | `300 ms` | 动画时长 |
 | `curve` | `Curves.linear` | 缓动曲线 |
-| `transitionType` | `roll` | `roll`·`fade`·`scale`·`fadeScale`·`rotate`·`flip`·`blur` |
-| `fast` | `false` | 每位单步：每列只移动一个身位（旧→新，如 1000→9999 千位 1→9 一次），而非完整级联滚动。对所有 `transitionType` 生效；painter 与 widget 两条路径都支持。 |
+| `transition` | `CounterTransition.slide` | 可组合外观：预设 `.slide`·`.slideScale`·`.slideBlur`·`.rotate`·`.flip`·`.flipFade`，或由 `CounterMotion`（`none`/`slide`/`rotate`/`flip`）叠加 `scale`/`fade`/`blur` 修饰自建，如 `CounterTransition(motion: CounterMotion.none, scale: true)` |
+| `fast` | `false` | 每位单步：每列只移动一个身位（旧→新，如 1000→9999 千位 1→9 一次），而非完整级联滚动。对所有 `transition` 生效；painter 与 widget 两条路径都支持。 |
 | `fractionDigits` | `0` | 小数位数 |
 | `wholeDigits` | `1` | 最少整数位槽 |
 | `hideLeadingZeroes` | `true` | 隐藏前导零 |
