@@ -17,7 +17,11 @@ class _PerfPageState extends State<PerfPage> {
   void _reset() => setState(() => _value = 0);
 
   static const _dur = Duration(seconds: 10);
-  static const _ts  = TextStyle(fontSize: 22, fontWeight: FontWeight.bold);
+  // Explicit white: the page forces a black background, so relying on the
+  // theme's default text color makes digits invisible under a light theme.
+  //
+  // 显式白色：本页强制黑底，若依赖主题默认文字色，浅色主题下数字会看不见。
+  static const _ts  = TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.white);
 
   @override
   Widget build(BuildContext context) {
@@ -26,6 +30,11 @@ class _PerfPageState extends State<PerfPage> {
       appBar: AppBar(
         title: const Text('Perf Test  0 → 999,999,999 · 10 s'),
         backgroundColor: Colors.black,
+        // Forced dark app bar → set light foreground so the title/actions stay
+        // visible under a light theme (default foreground follows the theme).
+        //
+        // 强制深色 AppBar → 设浅色前景，使标题/操作在浅色主题下仍可见。
+        foregroundColor: Colors.white,
         actions: [
           TextButton(onPressed: _reset, child: const Text('Reset')),
           const SizedBox(width: 8),

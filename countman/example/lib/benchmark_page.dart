@@ -345,6 +345,11 @@ class _BenchmarkPageState extends State<BenchmarkPage> {
       backgroundColor: const Color(0xFF101014),
       appBar: AppBar(
         backgroundColor: const Color(0xFF101014),
+        // Forced dark app bar → light foreground so the title stays visible
+        // under a light theme (default foreground follows the theme).
+        //
+        // 强制深色 AppBar → 浅色前景，使标题在浅色主题下仍可见。
+        foregroundColor: Colors.white,
         title: Text('Countdown Bench · $kCount 并发 · $_phase'),
         actions: [
           Padding(
