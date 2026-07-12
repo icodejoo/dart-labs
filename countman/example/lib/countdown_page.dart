@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:countman/countman.dart';
 // ignore: implementation_imports
@@ -574,6 +576,157 @@ class _DemoState extends State<_Demo> {
 '''),
           child: _ThresholdTextDemo(),
         ),
+
+        // 7 — Precise sub-second (ms)
+        DemoCard(
+          title: 'Precise sub-second (ms)',
+          description: 'precise: true drives the widget every frame; '
+              'CountdownFormat.msMillis shows MM:SS.mmm — no manual plugin needed.',
+          code: runnable(r'''
+class _Demo extends StatelessWidget {
+  const _Demo();
+  @override
+  Widget build(BuildContext context) {
+    return const CountdownText(
+      to: Duration(minutes: 1),
+      precise: true,
+      formatter: CountdownFormat.msMillis,
+      style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
+    );
+  }
+}
+'''),
+          child: const CountdownText(
+            to: Duration(minutes: 1),
+            precise: true,
+            formatter: CountdownFormat.msMillis,
+            style: CountdownTextStyle(
+                textStyle:
+                    TextStyle(fontSize: 28, fontWeight: FontWeight.bold)),
+          ),
+        ),
+
+        // 8 — Precise tenths
+        DemoCard(
+          title: 'Precise tenths',
+          description: 'Same precise group, CountdownFormat.msTenths shows MM:SS.d.',
+          code: runnable(r'''
+class _Demo extends StatelessWidget {
+  const _Demo();
+  @override
+  Widget build(BuildContext context) {
+    return const CountdownText(
+      to: Duration(minutes: 1),
+      precise: true,
+      formatter: CountdownFormat.msTenths,
+      style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
+    );
+  }
+}
+'''),
+          child: const CountdownText(
+            to: Duration(minutes: 1),
+            precise: true,
+            formatter: CountdownFormat.msTenths,
+            style: CountdownTextStyle(
+                textStyle:
+                    TextStyle(fontSize: 28, fontWeight: FontWeight.bold)),
+          ),
+        ),
+
+        // 9 — Days-aware (dhms)
+        DemoCard(
+          title: 'Days-aware — dhms',
+          description: 'CountdownFormat.dhms adds a days field for multi-day '
+              'targets (D:HH:MM:SS).',
+          code: runnable(r'''
+class _Demo extends StatelessWidget {
+  const _Demo();
+  @override
+  Widget build(BuildContext context) {
+    return const CountdownText(
+      to: Duration(days: 2, hours: 3, minutes: 4),
+      formatter: CountdownFormat.dhms,
+      style: TextStyle(fontSize: 26, fontWeight: FontWeight.bold),
+    );
+  }
+}
+'''),
+          child: const CountdownText(
+            to: Duration(days: 2, hours: 3, minutes: 4),
+            formatter: CountdownFormat.dhms,
+            style: CountdownTextStyle(
+                textStyle:
+                    TextStyle(fontSize: 26, fontWeight: FontWeight.bold)),
+          ),
+        ),
+
+        // 10 — Days-aware (dhm)
+        DemoCard(
+          title: 'Days-aware — dhm',
+          description: 'CountdownFormat.dhm drops the seconds field (D:HH:MM) '
+              'for long multi-day countdowns.',
+          code: runnable(r'''
+class _Demo extends StatelessWidget {
+  const _Demo();
+  @override
+  Widget build(BuildContext context) {
+    return const CountdownText(
+      to: Duration(days: 2, hours: 3, minutes: 4),
+      formatter: CountdownFormat.dhm,
+      style: TextStyle(fontSize: 26, fontWeight: FontWeight.bold),
+    );
+  }
+}
+'''),
+          child: const CountdownText(
+            to: Duration(days: 2, hours: 3, minutes: 4),
+            formatter: CountdownFormat.dhm,
+            style: CountdownTextStyle(
+                textStyle:
+                    TextStyle(fontSize: 26, fontWeight: FontWeight.bold)),
+          ),
+        ),
+
+        // 11 — onTick side effect
+        DemoCard(
+          title: 'onTick side effect',
+          description: 'onTick fires each tick; a StatefulWidget accumulates a '
+              'counter alongside the digits without rebuilding them.',
+          code: runnable(r'''
+class _Demo extends StatefulWidget {
+  const _Demo();
+  @override
+  State<_Demo> createState() => _DemoState();
+}
+
+class _DemoState extends State<_Demo> {
+  int _ticks = 0;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        CountdownText(
+          to: const Duration(minutes: 2),
+          formatter: CountdownFormat.ms,
+          onTick: (parts) {
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              if (mounted) setState(() => _ticks++);
+            });
+          },
+          style: const TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
+        ),
+        const SizedBox(height: 8),
+        Text('tick 次数: $_ticks', style: const TextStyle(fontSize: 14)),
+      ],
+    );
+  }
+}
+'''),
+          child: _OnTickTextDemo(),
+        ),
       ],
     );
 
@@ -784,6 +937,86 @@ class _DemoState extends State<_Demo> {
 '''),
           child: _RingControllerDemo(),
         ),
+
+        // 7 — Gauge (partial arc)
+        DemoCard(
+          title: 'Gauge (partial arc)',
+          description: 'sweepAngle < 2π with a custom startAngle turns the ring '
+              'into a dashboard gauge; strokeCap rounds the ends.',
+          code: runnable(r'''
+import 'dart:math' as math;
+
+class _Demo extends StatelessWidget {
+  const _Demo();
+  @override
+  Widget build(BuildContext context) {
+    return CountdownRing(
+      to: const Duration(minutes: 2),
+      style: CountdownRingStyle(
+        size: 120,
+        strokeWidth: 12,
+        sweepAngle: 1.5 * math.pi,
+        startAngle: 2.35,
+        strokeCap: StrokeCap.round,
+      ),
+      center: const CountdownText(
+        to: Duration(minutes: 2),
+        formatter: CountdownFormat.ms,
+        style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+      ),
+    );
+  }
+}
+'''),
+          child: CountdownRing(
+            to: const Duration(minutes: 2),
+            style: CountdownRingStyle(
+              size: 120,
+              strokeWidth: 12,
+              sweepAngle: 1.5 * math.pi,
+              startAngle: 2.35,
+              strokeCap: StrokeCap.round,
+            ),
+            center: const CountdownText(
+              to: Duration(minutes: 2),
+              formatter: CountdownFormat.ms,
+              style: CountdownTextStyle(
+                  textStyle:
+                      TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+            ),
+          ),
+        ),
+
+        // 8 — Custom painter (painterBuilder)
+        DemoCard(
+          title: 'Custom painter',
+          description: 'painterBuilder supplies your own CustomPainter for the '
+              'given 0–1 progress, replacing all built-in ring drawing.',
+          code: runnable(r'''
+class _Demo extends StatelessWidget {
+  const _Demo();
+  @override
+  Widget build(BuildContext context) {
+    return CountdownRing(
+      to: const Duration(minutes: 2),
+      style: const CountdownRingStyle(size: 120),
+      painterBuilder: (context, progress) => _GaugePainter(
+        progress: progress,
+        color: Theme.of(context).colorScheme.primary,
+      ),
+    );
+  }
+}
+'''),
+          child: CountdownRing(
+            to: const Duration(minutes: 2),
+            style: const CountdownRingStyle(size: 120),
+            painterBuilder: (context, progress) => _GaugePainter(
+              progress: progress,
+              color: Theme.of(context).colorScheme.primary,
+            ),
+          ),
+        ),
       ],
     );
 
@@ -925,6 +1158,45 @@ class _Demo extends StatelessWidget {
               width: 250,
               height: 12,
               borderRadius: Radius.circular(6),
+            ),
+          ),
+        ),
+
+        // 6 — Vertical, no track
+        DemoCard(
+          title: 'Vertical, no track',
+          description: 'vertical: true fills along the Y axis; showTrack: false '
+              'hides the background track, leaving just the gradient fill.',
+          code: runnable(r'''
+class _Demo extends StatelessWidget {
+  const _Demo();
+  @override
+  Widget build(BuildContext context) {
+    return const CountdownBar(
+      to: Duration(minutes: 1),
+      style: CountdownBarStyle(
+        vertical: true,
+        height: 120,
+        width: 12,
+        showTrack: false,
+        gradient: LinearGradient(
+          colors: [Colors.green, Colors.orange, Colors.red],
+        ),
+      ),
+    );
+  }
+}
+'''),
+          child: const CountdownBar(
+            to: Duration(minutes: 1),
+            style: CountdownBarStyle(
+              vertical: true,
+              height: 120,
+              width: 12,
+              showTrack: false,
+              gradient: LinearGradient(
+                colors: [Colors.green, Colors.orange, Colors.red],
+              ),
             ),
           ),
         ),
@@ -1587,6 +1859,104 @@ class _GroupCallbacksDemoState extends State<_GroupCallbacksDemo> {
   }
 }
 
+/// Demo for [CountdownText.onTick]: a side-effect callback that accumulates a
+/// tick counter in state without rebuilding the digit text itself.
+///
+/// [CountdownText.onTick] 演示：在不重建数字文本本身的前提下，用副作用回调把
+/// tick 次数累加到 state。
+class _OnTickTextDemo extends StatefulWidget {
+  const _OnTickTextDemo();
+
+  @override
+  State<_OnTickTextDemo> createState() => _OnTickTextDemoState();
+}
+
+class _OnTickTextDemoState extends State<_OnTickTextDemo> {
+  /// Number of ticks seen so far.
+  ///
+  /// 目前已收到的 tick 次数。
+  int _ticks = 0;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        CountdownText(
+          to: const Duration(minutes: 2),
+          formatter: CountdownFormat.ms,
+          // Defer setState to after the frame so the first tick (which may
+          // fire during build) never re-enters build().
+          //
+          // 把 setState 延到帧后执行，避免首个 tick（可能在 build 期间触发）
+          // 重入 build()。
+          onTick: (parts) {
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              if (mounted) setState(() => _ticks++);
+            });
+          },
+          style: const CountdownTextStyle(
+              textStyle: TextStyle(fontSize: 28, fontWeight: FontWeight.bold)),
+        ),
+        const SizedBox(height: 8),
+        Text('tick 次数: $_ticks', style: const TextStyle(fontSize: 14)),
+      ],
+    );
+  }
+}
+
+/// A minimal [CustomPainter] used with [CountdownRing.painterBuilder]: draws a
+/// faint full-circle track plus a rounded progress arc scaled by [progress].
+///
+/// 配合 [CountdownRing.painterBuilder] 的极简 [CustomPainter]：绘制一圈淡色轨道，
+/// 外加按 [progress] 缩放的圆头进度弧。
+class _GaugePainter extends CustomPainter {
+  /// Creates the painter.
+  ///
+  /// 创建画笔。
+  ///
+  /// @param progress Current 0–1 fill fraction.
+  ///
+  ///   当前 0–1 填充比例。
+  ///
+  /// @param color Arc color (track uses a faded variant).
+  ///
+  ///   弧颜色（轨道使用其淡化变体）。
+  const _GaugePainter({required this.progress, required this.color});
+
+  /// Current 0–1 fill fraction.
+  ///
+  /// 当前 0–1 填充比例。
+  final double progress;
+
+  /// Arc color.
+  ///
+  /// 弧颜色。
+  final Color color;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final center = size.center(Offset.zero);
+    final radius = size.shortestSide / 2 - 6;
+    final rect = Rect.fromCircle(center: center, radius: radius);
+    final track = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 10
+      ..color = color.withValues(alpha: 0.15);
+    final arc = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeCap = StrokeCap.round
+      ..strokeWidth = 10
+      ..color = color;
+    canvas.drawArc(rect, -math.pi / 2, 2 * math.pi, false, track);
+    canvas.drawArc(rect, -math.pi / 2, 2 * math.pi * progress, false, arc);
+  }
+
+  @override
+  bool shouldRepaint(_GaugePainter old) =>
+      old.progress != progress || old.color != color;
+}
+
 // ── CountdownDial section ─────────────────────────────────────────────────────
 
 Widget _dialSection() => DemoSection(
@@ -1676,6 +2046,80 @@ class _Demo extends StatelessWidget {
             style: CountdownDialStyle(
               size: 100,
               showTicks: false,
+            ),
+          ),
+        ),
+
+        DemoCard(
+          title: 'Glow',
+          description: 'glow: true adds a drop-shadow to lit elements',
+          code: runnable(r'''
+class _Demo extends StatelessWidget {
+  const _Demo();
+  @override
+  Widget build(BuildContext context) => const CountdownDial(
+    to: Duration(seconds: 60),
+    style: CountdownDialStyle(size: 100, glow: true),
+  );
+}'''),
+          child: const CountdownDial(
+            to: Duration(seconds: 60),
+            style: CountdownDialStyle(size: 100, glow: true),
+          ),
+        ),
+
+        DemoCard(
+          title: 'Ticks only',
+          description: 'showArcA / showArcB: false leaves just the tick ring + inner face',
+          code: runnable(r'''
+class _Demo extends StatelessWidget {
+  const _Demo();
+  @override
+  Widget build(BuildContext context) => const CountdownDial(
+    to: Duration(seconds: 60),
+    style: CountdownDialStyle(
+      size: 100,
+      showArcA: false,
+      showArcB: false,
+    ),
+  );
+}'''),
+          child: const CountdownDial(
+            to: Duration(seconds: 60),
+            style: CountdownDialStyle(
+              size: 100,
+              showArcA: false,
+              showArcB: false,
+            ),
+          ),
+        ),
+
+        DemoCard(
+          title: 'Custom colors',
+          description: 'DialColors overrides the normal + final-minute palette',
+          code: runnable(r'''
+class _Demo extends StatelessWidget {
+  const _Demo();
+  @override
+  Widget build(BuildContext context) => const CountdownDial(
+    to: Duration(seconds: 60),
+    style: CountdownDialStyle(
+      size: 100,
+      colors: DialColors(
+        normal: Color(0xFF6C5CE7),
+        red: Color(0xFFE84393),
+      ),
+    ),
+  );
+}'''),
+          child: const CountdownDial(
+            to: Duration(seconds: 60),
+            style: CountdownDialStyle(
+              size: 100,
+              colors: DialColors(
+                normal: Color(0xFF6C5CE7),
+                red: Color(0xFFE84393),
+              ),
             ),
           ),
         ),

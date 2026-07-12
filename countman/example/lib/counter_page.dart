@@ -1860,6 +1860,254 @@ class _CounterPageState extends State<CounterPage> {
               ),
             ),
           ]),
+
+          // ── CounterValueController ─────────────────────────────────────────
+          DemoSection(title: 'CounterValueController', children: [
+            DemoCard(
+              title: 'Imperative control',
+              description: 'update / pause / resume / cancel + live status',
+              child: _CounterValueControllerDemo(),
+              code: runnable(
+                "class _Demo extends StatefulWidget {\n"
+                "  const _Demo({super.key});\n"
+                "  @override\n"
+                "  State<_Demo> createState() => _DemoState();\n"
+                "}\n"
+                "\n"
+                "class _DemoState extends State<_Demo> {\n"
+                "  final _ctrl = CounterValueController();\n"
+                "  final _rand = math.Random();\n"
+                "  Timer? _statusTimer;\n"
+                "\n"
+                "  @override\n"
+                "  void initState() {\n"
+                "    super.initState();\n"
+                "    _statusTimer = Timer.periodic(\n"
+                "      const Duration(milliseconds: 100),\n"
+                "      (_) { if (mounted) setState(() {}); },\n"
+                "    );\n"
+                "  }\n"
+                "\n"
+                "  @override\n"
+                "  void dispose() { _statusTimer?.cancel(); super.dispose(); }\n"
+                "\n"
+                "  @override\n"
+                "  Widget build(BuildContext context) {\n"
+                "    return Column(\n"
+                "      mainAxisSize: MainAxisSize.min,\n"
+                "      children: [\n"
+                "        CounterText(\n"
+                "          from: 0,\n"
+                "          to: 10000,\n"
+                "          controller: _ctrl,\n"
+                "          duration: const Duration(seconds: 8),\n"
+                "          style: CounterTextStyle(\n"
+                "            textStyle: TextStyle(fontSize: 36, fontWeight: FontWeight.bold),\n"
+                "          ),\n"
+                "        ),\n"
+                "        const SizedBox(height: 8),\n"
+                "        Wrap(\n"
+                "          spacing: 6,\n"
+                "          runSpacing: 6,\n"
+                "          alignment: WrapAlignment.center,\n"
+                "          children: [\n"
+                "            ElevatedButton(\n"
+                "              onPressed: () =>\n"
+                "                  _ctrl.update(to: _rand.nextInt(10000).toDouble()),\n"
+                "              child: const Text('Update'),\n"
+                "            ),\n"
+                "            ElevatedButton(onPressed: _ctrl.pause, child: const Text('Pause')),\n"
+                "            ElevatedButton(onPressed: _ctrl.resume, child: const Text('Resume')),\n"
+                "            ElevatedButton(onPressed: _ctrl.cancel, child: const Text('Cancel')),\n"
+                "          ],\n"
+                "        ),\n"
+                "        const SizedBox(height: 6),\n"
+                "        Text(\n"
+                "          'animating: \${_ctrl.isAnimating}  paused: \${_ctrl.isPaused}\\n'\n"
+                "          'done: \${_ctrl.isDone}  value: \${_ctrl.value.toStringAsFixed(0)}',\n"
+                "          textAlign: TextAlign.center,\n"
+                "          style: const TextStyle(fontSize: 11),\n"
+                "        ),\n"
+                "      ],\n"
+                "    );\n"
+                "  }\n"
+                "}",
+                extraImports: "import 'dart:async';\nimport 'dart:math' as math;",
+              ),
+            ),
+          ]),
+
+          // ── CounterText — Advanced (animateOnce / decoration / semantics) ──
+          DemoSection(title: 'CounterText — Advanced', children: [
+            DemoCard(
+              title: 'animateOnce',
+              description: 'Left rolls once & freezes on rebuild; right re-rolls',
+              child: _AnimateOnceDemo(),
+              code: runnable(
+                "class _Demo extends StatefulWidget {\n"
+                "  const _Demo({super.key});\n"
+                "  @override\n"
+                "  State<_Demo> createState() => _DemoState();\n"
+                "}\n"
+                "\n"
+                "class _DemoState extends State<_Demo> {\n"
+                "  int _rebuild = 0;\n"
+                "\n"
+                "  @override\n"
+                "  Widget build(BuildContext context) {\n"
+                "    final style = CounterTextStyle(\n"
+                "      textStyle: const TextStyle(fontSize: 26, fontWeight: FontWeight.bold),\n"
+                "    );\n"
+                "    // animateOnce: true cascades to descendants that carry a stable\n"
+                "    // ValueKey — those roll only on first build.\n"
+                "    return CounterProvider(\n"
+                "      animateOnce: true,\n"
+                "      child: Column(\n"
+                "        mainAxisSize: MainAxisSize.min,\n"
+                "        children: [\n"
+                "          Text('build #\$_rebuild', style: const TextStyle(fontSize: 10)),\n"
+                "          Row(\n"
+                "            mainAxisSize: MainAxisSize.min,\n"
+                "            children: [\n"
+                "              CounterText(key: const ValueKey('once'),\n"
+                "                  from: 0, to: 9999, style: style),\n"
+                "              const SizedBox(width: 16),\n"
+                "              CounterText(key: const ValueKey('every'),\n"
+                "                  animateOnce: false, from: 0, to: 9999, style: style),\n"
+                "            ],\n"
+                "          ),\n"
+                "          const SizedBox(height: 8),\n"
+                "          ElevatedButton(\n"
+                "            onPressed: () => setState(() => _rebuild++),\n"
+                "            child: const Text('Rebuild'),\n"
+                "          ),\n"
+                "        ],\n"
+                "      ),\n"
+                "    );\n"
+                "  }\n"
+                "}",
+              ),
+            ),
+
+            DemoCard(
+              title: 'Decoration',
+              description: 'style.decoration: background + rounded border + padding',
+              child: CounterText(
+                from: 0,
+                to: 9999,
+                style: CounterTextStyle(
+                  textStyle: const TextStyle(
+                      fontSize: 32, fontWeight: FontWeight.bold, color: Colors.white),
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                  decoration: BoxDecoration(
+                    color: Colors.indigo,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: Colors.indigoAccent, width: 2),
+                  ),
+                ),
+              ),
+              code: runnable(
+                "class _Demo extends StatelessWidget {\n"
+                "  const _Demo({super.key});\n"
+                "  @override\n"
+                "  Widget build(BuildContext context) => CounterText(\n"
+                "    from: 0,\n"
+                "    to: 9999,\n"
+                "    style: CounterTextStyle(\n"
+                "      textStyle: TextStyle(fontSize: 32, fontWeight: FontWeight.bold,\n"
+                "          color: Colors.white),\n"
+                "      padding: EdgeInsets.symmetric(horizontal: 16, vertical: 10),\n"
+                "      decoration: BoxDecoration(\n"
+                "        color: Colors.indigo,\n"
+                "        borderRadius: BorderRadius.circular(12),\n"
+                "        border: Border.all(color: Colors.indigoAccent, width: 2),\n"
+                "      ),\n"
+                "    ),\n"
+                "  );\n"
+                "}",
+              ),
+            ),
+
+            DemoCard(
+              title: 'semanticsLabel',
+              description: 'Screen reader announces a fixed label, not the number',
+              child: CounterText(
+                from: 0,
+                to: 100,
+                semanticsLabel: '固定读屏文本',
+                style: CounterTextStyle(
+                    textStyle: const TextStyle(fontSize: 40, fontWeight: FontWeight.bold)),
+              ),
+              code: runnable(
+                "class _Demo extends StatelessWidget {\n"
+                "  const _Demo({super.key});\n"
+                "  @override\n"
+                "  Widget build(BuildContext context) => CounterText(\n"
+                "    from: 0,\n"
+                "    to: 100,\n"
+                "    semanticsLabel: '固定读屏文本',\n"
+                "    style: CounterTextStyle(\n"
+                "      textStyle: TextStyle(fontSize: 40, fontWeight: FontWeight.bold),\n"
+                "    ),\n"
+                "  );\n"
+                "}",
+              ),
+            ),
+          ]),
+
+          // ── AnimatedCounter — Sign & Lifecycle ─────────────────────────────
+          DemoSection(title: 'AnimatedCounter — Sign & Lifecycle', children: [
+            DemoCard(
+              title: 'Positive sign + lifecycle',
+              description: 'showPositiveSign + onAnimationStart / onAnimationEnd',
+              child: _SignLifecycleDemo(),
+              code: runnable(
+                "class _Demo extends StatefulWidget {\n"
+                "  const _Demo({super.key});\n"
+                "  @override\n"
+                "  State<_Demo> createState() => _DemoState();\n"
+                "}\n"
+                "\n"
+                "class _DemoState extends State<_Demo> {\n"
+                "  final _ctrl = AnimatedCounterController(initialValue: 1000);\n"
+                "  final _targets = [1000, -500, 2500, -1500];\n"
+                "  int _i = 0;\n"
+                "  String _status = 'idle';\n"
+                "\n"
+                "  @override\n"
+                "  void dispose() { _ctrl.dispose(); super.dispose(); }\n"
+                "\n"
+                "  @override\n"
+                "  Widget build(BuildContext context) {\n"
+                "    return Column(\n"
+                "      mainAxisSize: MainAxisSize.min,\n"
+                "      children: [\n"
+                "        AnimatedCounter(\n"
+                "          controller: _ctrl,\n"
+                "          showPositiveSign: true,\n"
+                "          duration: const Duration(milliseconds: 900),\n"
+                "          textStyle: const TextStyle(fontSize: 40),\n"
+                "          onAnimationStart: () => setState(() => _status = 'animating…'),\n"
+                "          onAnimationEnd: () => setState(() => _status = 'done'),\n"
+                "        ),\n"
+                "        const SizedBox(height: 6),\n"
+                "        Text(_status,\n"
+                "            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),\n"
+                "        const SizedBox(height: 6),\n"
+                "        ElevatedButton(\n"
+                "          onPressed: () {\n"
+                "            _i = (_i + 1) % _targets.length;\n"
+                "            _ctrl.animateTo(_targets[_i]);\n"
+                "          },\n"
+                "          child: const Text('Toggle sign'),\n"
+                "        ),\n"
+                "      ],\n"
+                "    );\n"
+                "  }\n"
+                "}",
+              ),
+            ),
+          ]),
         ],
         ),    // ListView
       ),      // KeyedSubtree
@@ -2288,6 +2536,211 @@ class _CounterProviderGroupCallbacksDemoState
               CounterRing(to: 50, style: CounterRingStyle(size: 70)),
             ],
           ),
+        ),
+      ],
+    );
+  }
+}
+
+/// CounterValueController demo: imperative update / pause / resume / cancel
+/// with a live status read-out polled every 100 ms.
+class _CounterValueControllerDemo extends StatefulWidget {
+  const _CounterValueControllerDemo();
+  @override
+  State<_CounterValueControllerDemo> createState() =>
+      _CounterValueControllerDemoState();
+}
+
+class _CounterValueControllerDemoState
+    extends State<_CounterValueControllerDemo> {
+  // Imperative handle attached to the CounterText below.
+  final _ctrl = CounterValueController();
+  // Source of random retarget values for the Update button.
+  final _rand = math.Random();
+  // Polls controller state so the status line stays live.
+  Timer? _statusTimer;
+
+  @override
+  void initState() {
+    super.initState();
+    _statusTimer = Timer.periodic(
+      const Duration(milliseconds: 100),
+      (_) {
+        if (mounted) setState(() {});
+      },
+    );
+  }
+
+  @override
+  void dispose() {
+    _statusTimer?.cancel();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        CounterText(
+          from: 0,
+          to: 10000,
+          controller: _ctrl,
+          duration: const Duration(seconds: 8),
+          style: CounterTextStyle(
+            textStyle:
+                const TextStyle(fontSize: 36, fontWeight: FontWeight.bold),
+          ),
+        ),
+        const SizedBox(height: 8),
+        Wrap(
+          spacing: 6,
+          runSpacing: 6,
+          alignment: WrapAlignment.center,
+          children: [
+            ElevatedButton(
+              onPressed: () =>
+                  _ctrl.update(to: _rand.nextInt(10000).toDouble()),
+              child: const Text('Update'),
+            ),
+            ElevatedButton(onPressed: _ctrl.pause, child: const Text('Pause')),
+            ElevatedButton(
+                onPressed: _ctrl.resume, child: const Text('Resume')),
+            ElevatedButton(
+                onPressed: _ctrl.cancel, child: const Text('Cancel')),
+          ],
+        ),
+        const SizedBox(height: 6),
+        Text(
+          'animating: ${_ctrl.isAnimating}  paused: ${_ctrl.isPaused}\n'
+          'done: ${_ctrl.isDone}  value: ${_ctrl.value.toStringAsFixed(0)}',
+          textAlign: TextAlign.center,
+          style: const TextStyle(fontSize: 11),
+        ),
+      ],
+    );
+  }
+}
+
+/// animateOnce demo: a Rebuild button re-runs build(); the left counter
+/// (animateOnce via provider) stays frozen while the right one re-rolls.
+class _AnimateOnceDemo extends StatefulWidget {
+  const _AnimateOnceDemo();
+  @override
+  State<_AnimateOnceDemo> createState() => _AnimateOnceDemoState();
+}
+
+class _AnimateOnceDemoState extends State<_AnimateOnceDemo> {
+  // Rebuild counter — bumping it triggers setState without changing keys.
+  int _rebuild = 0;
+
+  @override
+  Widget build(BuildContext context) {
+    final style = CounterTextStyle(
+      textStyle: const TextStyle(fontSize: 26, fontWeight: FontWeight.bold),
+    );
+    // animateOnce: true cascades to keyed descendants — they roll once only.
+    return CounterProvider(
+      animateOnce: true,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text('build #$_rebuild', style: const TextStyle(fontSize: 10)),
+          const SizedBox(height: 4),
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Column(
+                children: [
+                  const Text('once', style: TextStyle(fontSize: 10)),
+                  CounterText(
+                      key: const ValueKey('once'),
+                      from: 0,
+                      to: 9999,
+                      style: style),
+                ],
+              ),
+              const SizedBox(width: 16),
+              Column(
+                children: [
+                  const Text('every build', style: TextStyle(fontSize: 10)),
+                  CounterText(
+                      key: const ValueKey('every'),
+                      animateOnce: false,
+                      from: 0,
+                      to: 9999,
+                      style: style),
+                ],
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          ElevatedButton(
+            onPressed: () => setState(() => _rebuild++),
+            child: const Text('Rebuild'),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// AnimatedCounter with showPositiveSign and lifecycle callbacks driving a
+/// status label; the button toggles between positive and negative targets.
+class _SignLifecycleDemo extends StatefulWidget {
+  const _SignLifecycleDemo();
+  @override
+  State<_SignLifecycleDemo> createState() => _SignLifecycleDemoState();
+}
+
+class _SignLifecycleDemoState extends State<_SignLifecycleDemo> {
+  final _ctrl = AnimatedCounterController(initialValue: 1000);
+  // Alternating positive / negative targets.
+  final _targets = [1000, -500, 2500, -1500];
+  int _i = 0;
+  // Lifecycle status shown under the counter.
+  String _status = 'idle';
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        AnimatedCounter(
+          controller: _ctrl,
+          showPositiveSign: true,
+          duration: const Duration(milliseconds: 900),
+          textStyle: const TextStyle(fontSize: 40),
+          // Defer setState out of the build/animation phase.
+          onAnimationStart: () {
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              if (mounted) setState(() => _status = 'animating…');
+            });
+          },
+          onAnimationEnd: () {
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              if (mounted) setState(() => _status = 'done');
+            });
+          },
+        ),
+        const SizedBox(height: 6),
+        Text(_status,
+            style:
+                const TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+        const SizedBox(height: 6),
+        ElevatedButton(
+          onPressed: () {
+            _i = (_i + 1) % _targets.length;
+            _ctrl.animateTo(_targets[_i]);
+          },
+          child: const Text('Toggle sign'),
         ),
       ],
     );

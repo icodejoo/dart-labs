@@ -2,6 +2,12 @@ import 'package:flutter/material.dart';
 import 'counter_page.dart';
 import 'countdown_page.dart';
 import 'elapsed_page.dart';
+import 'provider_page.dart';
+import 'card_demo_page.dart';
+import 'countdown_demo_page.dart';
+import 'perf_page.dart';
+import 'benchmark_page.dart';
+import 'digit_test_page.dart';
 
 void main() {
   runApp(const CountmanDemoApp());
@@ -32,6 +38,12 @@ class CountmanDemoApp extends StatelessWidget {
         '/counter': (_) => const CounterPage(),
         '/countdown': (_) => const CountdownPage(),
         '/elapsed': (_) => const ElapsedPage(),
+        '/providers': (_) => const ProviderPage(),
+        '/card': (_) => const CardDemoPage(),
+        '/countdown-demo': (_) => const CountdownDemoPage(),
+        '/perf': (_) => const PerfPage(),
+        '/benchmark': (_) => const BenchmarkPage(),
+        '/digit-test': (_) => const DigitTestPage(),
       },
     );
   }
@@ -70,8 +82,65 @@ class HomePage extends StatelessWidget {
           _PluginCard(
             icon: Icons.access_time_rounded,
             title: 'Elapsed',
-            subtitle: 'ElapsedText · ElapsedProvider',
+            subtitle: 'ElapsedText · ElapsedBuilder · ElapsedProvider',
             route: '/elapsed',
+            color: const Color(0xFFEF5350),
+          ),
+          const SizedBox(height: 24),
+          Padding(
+            padding: const EdgeInsets.only(left: 4, bottom: 4),
+            child: Text('进阶 / More',
+                style: Theme.of(context)
+                    .textTheme
+                    .titleSmall
+                    ?.copyWith(fontWeight: FontWeight.w700)),
+          ),
+          const SizedBox(height: 8),
+          _PluginCard(
+            icon: Icons.account_tree_rounded,
+            title: 'Providers',
+            subtitle: 'CountmanProvider (聚合三家族) · CountdownCardProvider',
+            route: '/providers',
+            color: const Color(0xFF7E57C2),
+          ),
+          const SizedBox(height: 12),
+          _PluginCard(
+            icon: Icons.style_rounded,
+            title: 'CountdownCard 效果矩阵',
+            subtitle: 'calendar / slide / flip · scale / opacity / perspective',
+            route: '/card',
+            color: const Color(0xFF26A69A),
+          ),
+          const SizedBox(height: 12),
+          _PluginCard(
+            icon: Icons.hourglass_bottom_rounded,
+            title: 'Countdown 全家速览',
+            subtitle: 'to 的四种输入 · formatter · controller · 并发',
+            route: '/countdown-demo',
+            color: const Color(0xFF26A69A),
+          ),
+          const SizedBox(height: 12),
+          _PluginCard(
+            icon: Icons.speed_rounded,
+            title: '性能压测',
+            subtitle: '并发 AnimatedCounter / Odometer, 0→10 亿 / 10s',
+            route: '/perf',
+            color: const Color(0xFF5C6BC0),
+          ),
+          const SizedBox(height: 12),
+          _PluginCard(
+            icon: Icons.insights_rounded,
+            title: '基准对比',
+            subtitle: 'countman vs slide_countdown / stop_watch_timer',
+            route: '/benchmark',
+            color: const Color(0xFF5C6BC0),
+          ),
+          const SizedBox(height: 12),
+          _PluginCard(
+            icon: Icons.bug_report_rounded,
+            title: '数字调试 (onUpdate)',
+            subtitle: 'AnimatedCounter / CounterBuilder 逐帧日志',
+            route: '/digit-test',
             color: const Color(0xFFEF5350),
           ),
         ],

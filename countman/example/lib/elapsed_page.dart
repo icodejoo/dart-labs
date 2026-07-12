@@ -271,6 +271,61 @@ class _DemoState extends State<_Demo> {
 '''),
               child: const _ResetOnTapDemo(),
             ),
+
+            DemoCard(
+              title: 'Precise sub-second',
+              description:
+                  'precise: true drives on the shared frame-rate group; '
+                  'CountdownFormat.msMillis shows milliseconds — no manual Elapsed(interval:) needed.',
+              code: runnable('''
+class _Demo extends StatelessWidget {
+  const _Demo();
+  @override
+  Widget build(BuildContext context) {
+    return ElapsedText(
+      precise: true,
+      formatter: CountdownFormat.msMillis,
+      style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
+    );
+  }
+}
+'''),
+              child: const ElapsedText(
+                precise: true,
+                formatter: CountdownFormat.msMillis,
+                style: ElapsedTextStyle(textStyle: TextStyle(fontSize: 28, fontWeight: FontWeight.bold)),
+              ),
+            ),
+
+            DemoCard(
+              title: 'onTick side effect',
+              description:
+                  'onTick updates an external label via setState — a side effect that '
+                  'does not rebuild the ElapsedText itself.',
+              code: runnable('''
+class _Demo extends StatefulWidget {
+  const _Demo();
+  @override
+  State<_Demo> createState() => _DemoState();
+}
+class _DemoState extends State<_Demo> {
+  int _ticks = 0;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(mainAxisSize: MainAxisSize.min, children: [
+      ElapsedText(
+        onTick: (parts) => setState(() => _ticks++),
+        style: TextStyle(fontSize: 32, fontWeight: FontWeight.bold),
+      ),
+      const SizedBox(height: 6),
+      Text('ticks: \$_ticks', style: const TextStyle(fontSize: 13)),
+    ]);
+  }
+}
+'''),
+              child: const _OnTickDemo(),
+            ),
           ]),
 
           // ── ElapsedProvider ──────────────────────────────────────────────
@@ -551,6 +606,36 @@ class _ResetOnTapDemoState extends State<_ResetOnTapDemo> {
           ),
         ],
       ),
+    );
+  }
+}
+
+// ── _OnTickDemo ───────────────────────────────────────────────────────────────
+
+class _OnTickDemo extends StatefulWidget {
+  const _OnTickDemo();
+  @override
+  State<_OnTickDemo> createState() => _OnTickDemoState();
+}
+
+class _OnTickDemoState extends State<_OnTickDemo> {
+  // Tick counter kept outside the ElapsedText — mutated by onTick, shown below.
+  //
+  // 保存在 ElapsedText 之外的 tick 计数——由 onTick 修改并在下方显示。
+  int _ticks = 0;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        ElapsedText(
+          onTick: (parts) => setState(() => _ticks++),
+          style: ElapsedTextStyle(textStyle: const TextStyle(fontSize: 32, fontWeight: FontWeight.bold)),
+        ),
+        const SizedBox(height: 6),
+        Text('ticks: $_ticks', style: const TextStyle(fontSize: 13)),
+      ],
     );
   }
 }
