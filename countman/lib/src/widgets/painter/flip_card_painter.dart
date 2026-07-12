@@ -82,6 +82,7 @@ class FlipCardPainter extends CustomPainter {
     required this.scaleFactor,
     required this.opacityEffect,
     required this.perspective,
+    this.curve = Curves.linear,
     required this.cardHeight,
     required this.cardColor,
     required this.textStyle,
@@ -110,6 +111,11 @@ class FlipCardPainter extends CustomPainter {
   /// half-card rotation and [CountdownType.flip]'s whole-card rotation.
   final double perspective;
 
+  /// Easing curve applied to the transition progress [t] before painting.
+  ///
+  /// 绘制前应用到过渡进度 [t] 的缓动曲线。
+  final Curve curve;
+
   final double cardHeight;
   final Color cardColor;
   final TextStyle textStyle;
@@ -125,7 +131,7 @@ class FlipCardPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    final t = controller.value;
+    final t = curve.transform(controller.value.clamp(0.0, 1.0));
     final changedMask = model.changedMask;
 
     for (final cell in geom.cells) {

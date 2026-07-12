@@ -11,8 +11,9 @@ export 'src/elapsed/plugin.dart';
 export 'src/widgets/counter_builder.dart';
 export 'src/widgets/counter_text.dart';
 export 'src/widgets/counter_odometer.dart';
-export 'src/widgets/countdown_widget.dart';
+export 'src/widgets/countdown_builder.dart';
 export 'src/widgets/elapsed_text.dart';
+export 'src/widgets/elapsed_widget.dart';
 export 'src/widgets/countdown_text.dart';
 export 'src/widgets/countdown_card.dart';
 export 'src/widgets/countdown_card_types.dart';
@@ -21,7 +22,7 @@ export 'src/widgets/counter_ring.dart';
 export 'src/widgets/countdown_bar.dart';
 export 'src/widgets/counter_bar.dart';
 export 'src/widgets/animated_counter/animated_counter.dart';
-// export 'src/widgets/countdown_dial.dart'; // URI issue in analyzer — import directly
+export 'src/widgets/countdown_dial.dart';
 export 'src/widgets/providers.dart';
 export 'src/widgets/painter/painter.dart';
 

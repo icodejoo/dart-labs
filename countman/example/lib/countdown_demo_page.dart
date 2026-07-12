@@ -34,11 +34,11 @@ class _CountdownDemoPageState extends State<CountdownDemoPage> {
       _Section('CountdownBuilder — basic', [
         _Tile('builder: auto format', CountdownBuilder(
           duration: _kMed,
-          builder: (_, r) => Text(CountdownFormat.auto(r), style: _ts),
+          builder: (_, r, __) => Text(CountdownFormat.auto(r), style: _ts),
         )),
         _Tile('builder: progress bar', CountdownBuilder(
           duration: _kMed,
-          builder: (_, r) => Column(mainAxisSize: MainAxisSize.min, children: [
+          builder: (_, r, __) => Column(mainAxisSize: MainAxisSize.min, children: [
             Text(CountdownFormat.ms(r), style: _ts),
             const SizedBox(height: 4),
             SizedBox(
@@ -56,12 +56,12 @@ class _CountdownDemoPageState extends State<CountdownDemoPage> {
         _Tile('onComplete (8s)', _DoneBadge(builder: (onComplete) => CountdownBuilder(
           duration: _kShort,
           onComplete: onComplete,
-          builder: (_, r) => Text(CountdownFormat.msTenths(r), style: _ts),
+          builder: (_, r, __) => Text(CountdownFormat.msTenths(r), style: _ts),
         ))),
         _Tile('plugin: Countdown(interval:100)', CountdownBuilder(
           duration: _kShort,
           plugin: _fastGroup,
-          builder: (_, r) => Text(CountdownFormat.msTenths(r), style: _ts),
+          builder: (_, r, __) => Text(CountdownFormat.msTenths(r), style: _ts),
         )),
       ]),
       _Section('CountdownBuilder — controller', [
@@ -69,68 +69,73 @@ class _CountdownDemoPageState extends State<CountdownDemoPage> {
           builder: (ctrl) => CountdownBuilder(
             duration: _kMed,
             controller: ctrl,
-            builder: (_, r) => Text(CountdownFormat.ms(r), style: _ts),
+            builder: (_, r, __) => Text(CountdownFormat.ms(r), style: _ts),
           ),
         )),
       ]),
       _Section("CountdownText — `to` input types", [
-        _Tile('Duration', CountdownText(to: _kMed, style: _ts)),
-        _Tile('DateTime', CountdownText(to: now.add(_kMed), style: _ts)),
+        _Tile('Duration', CountdownText(to: _kMed, style: CountdownTextStyle(textStyle: _ts))),
+        _Tile('DateTime', CountdownText(to: now.add(_kMed), style: CountdownTextStyle(textStyle: _ts))),
         _Tile('int (ms epoch)', CountdownText(
-            to: now.add(_kMed).millisecondsSinceEpoch, style: _ts)),
+            to: now.add(_kMed).millisecondsSinceEpoch, style: CountdownTextStyle(textStyle: _ts))),
         _Tile('String (ISO-8601)', CountdownText(
-            to: now.add(_kMed).toIso8601String(), style: _ts)),
+            to: now.add(_kMed).toIso8601String(), style: CountdownTextStyle(textStyle: _ts))),
       ]),
       _Section('CountdownText — formatters', [
-        _Tile('hms', CountdownText(to: _kHour, formatter: CountdownFormat.hms, style: _ts)),
-        _Tile('ms', CountdownText(to: _kMed, formatter: CountdownFormat.ms, style: _ts)),
-        _Tile('msTenths', CountdownText(to: _kShort, formatter: CountdownFormat.msTenths, style: _ts)),
-        _Tile('auto (≥1h/<10s/else)', CountdownText(to: _kHour, formatter: CountdownFormat.auto, style: _ts)),
+        _Tile('hms', CountdownText(to: _kHour, formatter: CountdownFormat.hms, style: CountdownTextStyle(textStyle: _ts))),
+        _Tile('ms', CountdownText(to: _kMed, formatter: CountdownFormat.ms, style: CountdownTextStyle(textStyle: _ts))),
+        _Tile('msTenths', CountdownText(to: _kShort, formatter: CountdownFormat.msTenths, style: CountdownTextStyle(textStyle: _ts))),
+        _Tile('auto (≥1h/<10s/else)', CountdownText(to: _kHour, formatter: CountdownFormat.auto, style: CountdownTextStyle(textStyle: _ts))),
         _Tile('custom formatter', CountdownText(
           to: _kMed,
           formatter: (r) => '剩余 ${r.inSeconds} 秒',
-          style: _ts,
+          style: CountdownTextStyle(textStyle: _ts),
         )),
       ]),
       _Section('CountdownText — style / controller / onComplete', [
         _Tile('style + textAlign', CountdownText(
           to: _kMed,
-          textAlign: TextAlign.center,
-          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.amber),
+          style: const CountdownTextStyle(
+            textAlign: TextAlign.center,
+            textStyle: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.amber),
+          ),
         )),
         _Tile('controller', _ControllerDemo(
-          builder: (ctrl) => CountdownText(to: _kMed, controller: ctrl, style: _ts),
+          builder: (ctrl) => CountdownText(to: _kMed, controller: ctrl, style: CountdownTextStyle(textStyle: _ts)),
         )),
         _Tile('onComplete (8s)', _DoneBadge(builder: (onComplete) =>
-            CountdownText(to: _kShort, onComplete: onComplete, style: _ts))),
+            CountdownText(to: _kShort, onComplete: onComplete, style: CountdownTextStyle(textStyle: _ts)))),
       ]),
       _Section('CountdownCard — layout options', [
         _Tile('default (unit cards)', CountdownCard(to: _kMed), size: const Size(200, 110)),
-        _Tile('splitDigits: true', CountdownCard(to: _kMed, splitDigits: true), size: const Size(220, 110)),
+        _Tile('splitDigits: true', CountdownCard(to: _kMed, style: const CountdownCardStyle(splitDigits: true)), size: const Size(220, 110)),
         _Tile('showHours: true (forced)', CountdownCard(to: _kMed, showHours: true), size: const Size(260, 110)),
         _Tile('showHours: false (forced)', CountdownCard(to: _kHour, showHours: false), size: const Size(200, 110)),
         _Tile('labels: 时/分/秒', CountdownCard(to: _kHour, labels: const ['时', '分', '秒']), size: const Size(260, 110)),
         _Tile('labels: null', CountdownCard(to: _kMed, labels: null), size: const Size(180, 90)),
         _Tile('separator "·" / unitGap 16', CountdownCard(
-            to: _kMed, separator: '·', unitGap: 16), size: const Size(220, 110)),
+            to: _kMed, separator: '·', style: const CountdownCardStyle(unitGap: 16)), size: const Size(220, 110)),
         _Tile('digitGap 10 (splitDigits)', CountdownCard(
-            to: _kMed, splitDigits: true, digitGap: 10), size: const Size(240, 110)),
+            to: _kMed, style: const CountdownCardStyle(splitDigits: true, digitGap: 10)), size: const Size(240, 110)),
       ]),
       _Section('CountdownCard — style', [
         _Tile('cardColor / textStyle / labelStyle', CountdownCard(
           to: _kMed,
-          cardColor: const Color(0xFF1A237E),
-          textStyle: const TextStyle(fontSize: 32, fontWeight: FontWeight.bold, color: Colors.cyanAccent),
-          labelStyle: const TextStyle(fontSize: 10, color: Colors.cyanAccent),
+          style: const CountdownCardStyle(
+            cardColor: Color(0xFF1A237E),
+            textStyle: TextStyle(fontSize: 32, fontWeight: FontWeight.bold, color: Colors.cyanAccent),
+            labelStyle: TextStyle(fontSize: 10, color: Colors.cyanAccent),
+          ),
         ), size: const Size(220, 120)),
         _Tile('separatorStyle', CountdownCard(
           to: _kMed,
-          separatorStyle: const TextStyle(fontSize: 28, color: Colors.redAccent),
+          style: const CountdownCardStyle(
+            separatorStyle: TextStyle(fontSize: 28, color: Colors.redAccent),
+          ),
         ), size: const Size(200, 110)),
         _Tile('cardWidth/Height 40x56, duration 800ms', CountdownCard(
           to: _kMed,
-          cardWidth: 40,
-          cardHeight: 56,
+          style: const CountdownCardStyle(cardWidth: 40, cardHeight: 56),
           duration: const Duration(milliseconds: 800),
         ), size: const Size(180, 100)),
         _Tile('repaintBoundary: false', CountdownCard(
@@ -144,28 +149,30 @@ class _CountdownDemoPageState extends State<CountdownDemoPage> {
         _Tile('default', CountdownRing(to: _kMed), size: const Size(120, 120)),
         _Tile('center: CountdownText', CountdownRing(
           to: _kMed,
-          center: CountdownText(to: _kMed, style: _ts),
+          center: CountdownText(to: _kMed, style: CountdownTextStyle(textStyle: _ts)),
         ), size: const Size(120, 120)),
-        _Tile('clockwise: false', CountdownRing(to: _kMed, clockwise: false), size: const Size(120, 120)),
+        _Tile('clockwise: false', CountdownRing(to: _kMed, style: const CountdownRingStyle(clockwise: false)), size: const Size(120, 120)),
         _Tile('size/strokeWidth/colors', CountdownRing(
           to: _kMed,
-          size: 100,
-          strokeWidth: 14,
-          color: Colors.deepOrangeAccent,
-          trackColor: const Color(0xFF3A3A3A),
+          style: const CountdownRingStyle(
+            size: 100,
+            strokeWidth: 14,
+            color: Colors.deepOrangeAccent,
+            trackColor: Color(0xFF3A3A3A),
+          ),
         ), size: const Size(130, 130)),
         _Tile('repaintBoundary: false', CountdownRing(
             to: _kMed, repaintBoundary: false), size: const Size(120, 120)),
         _Tile('onComplete (8s) + center', _DoneBadge(builder: (onComplete) => CountdownRing(
           to: _kShort,
           onComplete: onComplete,
-          center: CountdownText(to: _kShort, formatter: CountdownFormat.msTenths, style: _ts),
+          center: CountdownText(to: _kShort, formatter: CountdownFormat.msTenths, style: CountdownTextStyle(textStyle: _ts)),
         )), size: const Size(120, 120)),
         _Tile('controller', _ControllerDemo(
           builder: (ctrl) => CountdownRing(
             to: _kMed,
             controller: ctrl,
-            center: CountdownText(to: _kMed, style: _ts),
+            center: CountdownText(to: _kMed, style: CountdownTextStyle(textStyle: _ts)),
           ),
           size: const Size(130, 160),
         )),
@@ -174,7 +181,7 @@ class _CountdownDemoPageState extends State<CountdownDemoPage> {
         for (var i = 1; i <= 12; i++)
           _Tile('#$i (${_kMed.inSeconds - i}s)', CountdownText(
             to: Duration(seconds: _kMed.inSeconds - i),
-            style: _ts,
+            style: CountdownTextStyle(textStyle: _ts),
           )),
       ]),
     ];

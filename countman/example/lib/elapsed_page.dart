@@ -66,7 +66,7 @@ class _Demo extends StatelessWidget {
 }
 '''),
               child: const ElapsedText(
-                style: TextStyle(fontSize: 32, fontWeight: FontWeight.bold),
+                style: ElapsedTextStyle(textStyle: TextStyle(fontSize: 32, fontWeight: FontWeight.bold)),
               ),
             ),
 
@@ -88,7 +88,7 @@ class _Demo extends StatelessWidget {
 '''),
               child: const ElapsedText(
                 formatter: CountdownFormat.auto,
-                style: TextStyle(fontSize: 28, fontWeight: FontWeight.w600),
+                style: ElapsedTextStyle(textStyle: TextStyle(fontSize: 28, fontWeight: FontWeight.w600)),
               ),
             ),
 
@@ -109,7 +109,7 @@ class _Demo extends StatelessWidget {
 '''),
               child: const ElapsedText(
                 formatter: CountdownFormat.ms,
-                style: TextStyle(fontSize: 28),
+                style: ElapsedTextStyle(textStyle: TextStyle(fontSize: 28)),
               ),
             ),
 
@@ -421,7 +421,7 @@ class _TenthsDemoState extends State<_TenthsDemo> {
     return ElapsedText(
       plugin: _plugin,
       formatter: CountdownFormat.msTenths,
-      style: const TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
+      style: ElapsedTextStyle(textStyle: const TextStyle(fontSize: 28, fontWeight: FontWeight.bold)),
     );
   }
 }
@@ -443,7 +443,7 @@ class _CustomFormatterDemo extends StatelessWidget {
   Widget build(BuildContext context) {
     return const ElapsedText(
       formatter: _fmt,
-      style: TextStyle(fontSize: 24, fontWeight: FontWeight.w500),
+      style: ElapsedTextStyle(textStyle: TextStyle(fontSize: 24, fontWeight: FontWeight.w500)),
     );
   }
 }
@@ -467,7 +467,7 @@ class _PauseResumeDemoState extends State<_PauseResumeDemo> {
       children: [
         ElapsedText(
           controller: _ctrl,
-          style: const TextStyle(fontSize: 32, fontWeight: FontWeight.bold),
+          style: ElapsedTextStyle(textStyle: const TextStyle(fontSize: 32, fontWeight: FontWeight.bold)),
         ),
         const SizedBox(height: 12),
         Row(
@@ -515,7 +515,7 @@ class _ThresholdDemoState extends State<_ThresholdDemo> {
     return ElapsedText(
       threshold: const Duration(seconds: 10),
       onThreshold: () => setState(() => _color = Colors.amber),
-      style: TextStyle(fontSize: 32, fontWeight: FontWeight.bold, color: _color),
+      style: ElapsedTextStyle(textStyle: TextStyle(fontSize: 32, fontWeight: FontWeight.bold, color: _color)),
     );
   }
 }
@@ -542,7 +542,7 @@ class _ResetOnTapDemoState extends State<_ResetOnTapDemo> {
         children: [
           ElapsedText(
             controller: _ctrl,
-            style: const TextStyle(fontSize: 32, fontWeight: FontWeight.bold),
+            style: ElapsedTextStyle(textStyle: const TextStyle(fontSize: 32, fontWeight: FontWeight.bold)),
           ),
           const SizedBox(height: 6),
           const Text(
@@ -568,7 +568,7 @@ class _LabeledElapsed extends StatelessWidget {
       children: [
         Text(label, style: const TextStyle(fontSize: 11, color: Colors.grey)),
         const ElapsedText(
-          style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+          style: ElapsedTextStyle(textStyle: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
         ),
       ],
     );

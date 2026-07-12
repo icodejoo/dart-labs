@@ -17,10 +17,38 @@ class CounterHandle {
   void update({required double to, Duration? duration, Curve? curve}) =>
       _plugin._retarget(_id, to: to, duration: duration, curve: curve);
 
+  /// Freeze the animation at its current value. No-op if done.
+  ///
+  /// 将动画冻结在当前值。已完成则无操作。
+  void pause() => _plugin._setPaused(_id, true);
+
+  /// Resume a paused animation from where it froze. No-op if not paused.
+  ///
+  /// 从冻结处恢复动画。未暂停则无操作。
+  void resume() => _plugin._setPaused(_id, false);
+
   void cancel() => _plugin.removeTask(_id);
+
+  /// True while the task exists, is not done, and is not paused.
+  ///
+  /// 任务存在、未完成且未暂停时为 true。
+  bool get isAnimating {
+    final t = _plugin.taskById(_id);
+    return t != null && !t.done && !t.paused;
+  }
+
+  /// True when the task is currently frozen via [pause].
+  ///
+  /// 任务当前经 [pause] 冻结时为 true。
+  bool get isPaused => _plugin.taskById(_id)?.paused ?? false;
+
+  /// True once the task has completed (or no longer exists).
+  ///
+  /// 任务已完成（或不再存在）时为 true。
+  bool get isDone => _plugin.taskById(_id)?.done ?? true;
 }
 
-/// Count-up engine — drives number interpolation on the shared ticker.
+/// Counter engine — drives number interpolation on the shared ticker.
 /// Each instance is an independent task queue (= a "group").
 class Counter extends TaskQueuePlugin<CounterTask> {
   Counter({String? name}) : super(name ?? 'counter');
@@ -37,6 +65,10 @@ class Counter extends TaskQueuePlugin<CounterTask> {
 
   @override
   bool step(CounterTask task, double dtMs, bool shouldProcess) {
+    // Paused: hold the current value, consume no time, stay alive.
+    //
+    // 暂停：保持当前值，不消耗时间，保持存活。
+    if (task.paused) return true;
     task.accumMs += dtMs;
     final durationMs = task.duration.inMilliseconds.toDouble();
     final t = durationMs > 0 ? (task.accumMs / durationMs).clamp(0.0, 1.0) : 1.0;
@@ -87,6 +119,15 @@ class Counter extends TaskQueuePlugin<CounterTask> {
 
   // ── internal (called by CounterHandle) ───────────────────────────
 
+  /// Same-library task lookup for [CounterHandle] (which is not a subclass and
+  /// so can't touch the protected [taskOf] directly). Mirrors
+  /// `Countdown.task` / `Elapsed.task`.
+  ///
+  /// 供 [CounterHandle] 使用的同库任务查找（它不是子类，无法直接访问受保护的
+  /// [taskOf]）。与 `Countdown.task` / `Elapsed.task` 一致。
+  @internal
+  CounterTask? taskById(int id) => taskOf(id);
+
   void _retarget(int id, {required double to, Duration? duration, Curve? curve}) {
     final task = taskOf(id);
     if (task == null || task.done) return;
@@ -98,17 +139,29 @@ class Counter extends TaskQueuePlugin<CounterTask> {
     task.started = false;
     ctx.requestFrame();
   }
+
+  /// Sets the paused state of task [id]; requests a frame on resume so the
+  /// ticker picks the task back up. Called by [CounterHandle.pause]/[resume].
+  ///
+  /// 设置任务 [id] 的暂停状态；恢复时请求一帧使 ticker 重新拾取任务。由
+  /// [CounterHandle.pause]/[resume] 调用。
+  void _setPaused(int id, bool paused) {
+    final task = taskOf(id);
+    if (task == null || task.done || task.paused == paused) return;
+    task.paused = paused;
+    if (!paused) ctx.requestFrame();
+  }
 }
 
-// ── CounterController ─────────────────────────────────────────────
+// ── CounterValueController ─────────────────────────────────────────────
 
-/// Imperative controller for count-up display widgets.
+/// Imperative controller for counter display widgets.
 ///
 /// Create once, pass to a widget via its `controller` parameter, then call
 /// [update] to retarget, [cancel] to remove, or read [value] for the current
 /// animated number. The controller attaches to the widget's internal
 /// [CounterHandle] after the first build; mirrors [CountdownController].
-class CounterController {
+class CounterValueController {
   CounterHandle? _handle;
   double _value = 0;
 
@@ -126,11 +179,36 @@ class CounterController {
   void update({required double to, Duration? duration, Curve? curve}) =>
       _handle?.update(to: to, duration: duration, curve: curve);
 
+  /// Freeze the animation at its current value.
+  ///
+  /// 将动画冻结在当前值。
+  void pause() => _handle?.pause();
+
+  /// Resume a paused animation.
+  ///
+  /// 恢复已暂停的动画。
+  void resume() => _handle?.resume();
+
   /// Remove the underlying task immediately.
   void cancel() => _handle?.cancel();
 
   /// The most recent animated value reported by the widget (0 before start).
   double get value => _value;
+
+  /// True while the animation is running (not paused, not done).
+  ///
+  /// 动画运行中（未暂停、未完成）时为 true。
+  bool get isAnimating => _handle?.isAnimating ?? false;
+
+  /// True when the animation is currently paused.
+  ///
+  /// 动画当前暂停时为 true。
+  bool get isPaused => _handle?.isPaused ?? false;
+
+  /// True once the animation has completed (or before attach).
+  ///
+  /// 动画已完成（或尚未 attach）时为 true。
+  bool get isDone => _handle?.isDone ?? true;
 }
 
 // ── default instance + top-level function ─────────────────────────
@@ -148,6 +226,6 @@ Counter get defaultCounter {
   return _default;
 }
 
-/// Add a count-up animation using the default shared [Counter] instance.
+/// Add a counter animation using the default shared [Counter] instance.
 /// Auto-registered with [Countman] on first call.
 CounterHandle counter(CounterOptions opts) => defaultCounter.add(opts);

@@ -28,7 +28,7 @@ void main() {
     });
 
     testWidgets('renders at the requested size', (t) async {
-      await t.pumpWidget(_wrap(const CountdownRing(to: Duration(seconds: 10), size: 120)));
+      await t.pumpWidget(_wrap(const CountdownRing(to: Duration(seconds: 10), style: CountdownRingStyle(size: 120))));
       await t.pump();
       expect(t.getSize(find.byType(CountdownRing)), const Size(120, 120));
     });
@@ -62,7 +62,7 @@ void main() {
     tearDown(Countman.destroy);
 
     testWidgets('renders at the requested size', (t) async {
-      await t.pumpWidget(_wrap(const CounterRing(to: 100, size: 120)));
+      await t.pumpWidget(_wrap(const CounterRing(to: 100, style: CounterRingStyle(size: 120))));
       await t.pump();
       expect(t.getSize(find.byType(CounterRing)), const Size(120, 120));
     });
@@ -110,7 +110,7 @@ void main() {
     });
 
     testWidgets('from defaults to 0', (t) async {
-      await t.pumpWidget(_wrap(const CounterRing(to: 100, size: 60)));
+      await t.pumpWidget(_wrap(const CounterRing(to: 100, style: CounterRingStyle(size: 60))));
       await t.pump();
       expect(t.takeException(), isNull);
     });

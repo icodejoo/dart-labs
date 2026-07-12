@@ -35,6 +35,7 @@ class CountdownCardProvider extends StatefulWidget {
     this.labelStyle,
     this.separatorStyle,
     this.duration,
+    this.curve,
     this.cardWidth,
     this.cardHeight,
     this.digitGap,
@@ -52,6 +53,7 @@ class CountdownCardProvider extends StatefulWidget {
   final TextStyle? labelStyle;
   final TextStyle? separatorStyle;
   final Duration? duration;
+  final Curve? curve;
   final double? cardWidth;
   final double? cardHeight;
   final double? digitGap;
@@ -94,6 +96,7 @@ class _CountdownCardProviderState extends State<CountdownCardProvider> {
           labelStyle: widget.labelStyle,
           separatorStyle: widget.separatorStyle,
           duration: widget.duration,
+          curve: widget.curve,
           cardWidth: widget.cardWidth,
           cardHeight: widget.cardHeight,
           digitGap: widget.digitGap,
@@ -118,6 +121,7 @@ class CountdownCardProviderData {
     required this.labelStyle,
     required this.separatorStyle,
     required this.duration,
+    required this.curve,
     required this.cardWidth,
     required this.cardHeight,
     required this.digitGap,
@@ -135,6 +139,7 @@ class CountdownCardProviderData {
   final TextStyle? labelStyle;
   final TextStyle? separatorStyle;
   final Duration? duration;
+  final Curve? curve;
   final double? cardWidth;
   final double? cardHeight;
   final double? digitGap;
@@ -162,6 +167,7 @@ class _CountdownCardScope extends InheritedWidget {
       data.labelStyle != oldWidget.data.labelStyle ||
       data.separatorStyle != oldWidget.data.separatorStyle ||
       data.duration != oldWidget.data.duration ||
+      data.curve != oldWidget.data.curve ||
       data.cardWidth != oldWidget.data.cardWidth ||
       data.cardHeight != oldWidget.data.cardHeight ||
       data.digitGap != oldWidget.data.digitGap ||

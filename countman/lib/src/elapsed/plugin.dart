@@ -162,3 +162,20 @@ Elapsed get defaultElapsed {
 
 /// Add an elapsed-time timer using the default shared [Elapsed] instance.
 ElapsedHandle elapsed(ElapsedOptions opts) => defaultElapsed.add(opts);
+
+Elapsed? _defaultMs;
+
+/// The default **precise** [Elapsed] instance (`interval: 0` — processes every
+/// frame) used by widgets with `precise: true` when no [plugin] is given.
+/// Auto-registered with [Countman] on first access.
+///
+/// 默认的**精确** [Elapsed] 实例（`interval: 0`——每帧处理），当未传 [plugin] 时
+/// 供 `precise: true` 的组件使用。首次访问时自动向 [Countman] 注册。
+Elapsed get defaultElapsedMs {
+  final existing = _defaultMs;
+  if (existing != null) return existing;
+  final p = Elapsed(name: 'elapsed-ms', interval: 0);
+  Countman.use(p);
+  _defaultMs = p;
+  return p;
+}

@@ -63,7 +63,7 @@ class _Demo extends StatelessWidget {
   Widget build(BuildContext context) {
     return CountdownBuilder(
       duration: const Duration(minutes: 5),
-      builder: (context, parts) {
+      builder: (context, parts, _) {
         final m = parts.totalMinutes.toString().padLeft(2, '0');
         final s = parts.seconds.toString().padLeft(2, '0');
         return Text(
@@ -77,7 +77,7 @@ class _Demo extends StatelessWidget {
 '''),
           child: CountdownBuilder(
             duration: const Duration(minutes: 5),
-            builder: (_, parts) {
+            builder: (_, parts, __) {
               final m = parts.totalMinutes.toString().padLeft(2, '0');
               final s = parts.seconds.toString().padLeft(2, '0');
               return Text(
@@ -99,7 +99,7 @@ class _Demo extends StatelessWidget {
   Widget build(BuildContext context) {
     return CountdownBuilder(
       to: DateTime.now().add(const Duration(hours: 2)),
-      builder: (context, parts) {
+      builder: (context, parts, _) {
         final h = parts.totalHours.toString().padLeft(2, '0');
         final m = parts.minutes.toString().padLeft(2, '0');
         final s = parts.seconds.toString().padLeft(2, '0');
@@ -114,7 +114,7 @@ class _Demo extends StatelessWidget {
 '''),
           child: CountdownBuilder(
             to: DateTime.now().add(const Duration(hours: 2)),
-            builder: (_, parts) {
+            builder: (_, parts, __) {
               final h = parts.totalHours.toString().padLeft(2, '0');
               final m = parts.minutes.toString().padLeft(2, '0');
               final s = parts.seconds.toString().padLeft(2, '0');
@@ -148,7 +148,7 @@ class _DemoState extends State<_Demo> {
         CountdownBuilder(
           duration: const Duration(minutes: 2),
           controller: _ctrl,
-          builder: (context, parts) {
+          builder: (context, parts, _) {
             final m = parts.totalMinutes.toString().padLeft(2, '0');
             final s = parts.seconds.toString().padLeft(2, '0');
             return Text(
@@ -205,7 +205,7 @@ class _DemoState extends State<_Demo> {
       duration: const Duration(seconds: 30),
       threshold: const Duration(seconds: 10),
       onThreshold: () { if (mounted) setState(() => _urgent = true); },
-      builder: (context, parts) {
+      builder: (context, parts, _) {
         final m = parts.totalMinutes.toString().padLeft(2, '0');
         final s = parts.seconds.toString().padLeft(2, '0');
         return Text(
@@ -246,7 +246,7 @@ class _DemoState extends State<_Demo> {
         CountdownBuilder(
           duration: const Duration(seconds: 10),
           onComplete: () { if (mounted) setState(() => _done = true); },
-          builder: (context, parts) {
+          builder: (context, parts, _) {
             final s = parts.totalSeconds.toString().padLeft(2, '0');
             return Text(
               '00:$s',
@@ -289,7 +289,7 @@ class _Demo extends StatelessWidget {
   Widget build(BuildContext context) {
     return CountdownBuilder(
       duration: const Duration(hours: 1, minutes: 23, seconds: 45),
-      builder: (context, parts) {
+      builder: (context, parts, _) {
         return Row(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -347,7 +347,7 @@ class _ClockBox extends StatelessWidget {
 '''),
           child: CountdownBuilder(
             duration: const Duration(hours: 1, minutes: 23, seconds: 45),
-            builder: (_, parts) {
+            builder: (_, parts, __) {
               return Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
@@ -400,7 +400,7 @@ class _DemoState extends State<_Demo> {
     return CountdownBuilder(
       duration: const Duration(seconds: 10),
       plugin: _plugin,
-      builder: (context, parts) => Text(
+      builder: (context, parts, _) => Text(
         CountdownFormat.msMillis(parts),
         style: const TextStyle(fontSize: 32, fontWeight: FontWeight.bold),
       ),
@@ -434,7 +434,7 @@ class _Demo extends StatelessWidget {
 '''),
           child: const CountdownText(
             to: Duration(hours: 1, minutes: 30),
-            style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
+            style: CountdownTextStyle(textStyle: TextStyle(fontSize: 28, fontWeight: FontWeight.bold)),
           ),
         ),
 
@@ -458,7 +458,7 @@ class _Demo extends StatelessWidget {
           child: const CountdownText(
             to: Duration(minutes: 3, seconds: 45),
             formatter: CountdownFormat.ms,
-            style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
+            style: CountdownTextStyle(textStyle: TextStyle(fontSize: 28, fontWeight: FontWeight.bold)),
           ),
         ),
 
@@ -482,7 +482,7 @@ class _Demo extends StatelessWidget {
           child: const CountdownText(
             to: Duration(seconds: 30),
             formatter: CountdownFormat.msTenths,
-            style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
+            style: CountdownTextStyle(textStyle: TextStyle(fontSize: 28, fontWeight: FontWeight.bold)),
           ),
         ),
 
@@ -512,7 +512,7 @@ class _Demo extends StatelessWidget {
               if (parts.totalSeconds == 0) return 'Time up!';
               return '${parts.totalSeconds}s left';
             },
-            style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+            style: CountdownTextStyle(textStyle: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
           ),
         ),
 
@@ -537,7 +537,7 @@ class _Demo extends StatelessWidget {
           child: CountdownText(
             to: DateTime.now().add(const Duration(hours: 1)).toIso8601String(),
             formatter: CountdownFormat.hms,
-            style: const TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
+            style: CountdownTextStyle(textStyle: const TextStyle(fontSize: 28, fontWeight: FontWeight.bold)),
           ),
         ),
 
@@ -598,7 +598,7 @@ class _Demo extends StatelessWidget {
 '''),
           child: const CountdownRing(
             to: Duration(minutes: 2),
-            size: 100,
+            style: CountdownRingStyle(size: 100),
           ),
         ),
 
@@ -625,11 +625,11 @@ class _Demo extends StatelessWidget {
 '''),
           child: const CountdownRing(
             to: Duration(minutes: 2),
-            size: 110,
+            style: CountdownRingStyle(size: 110),
             center: CountdownText(
               to: Duration(minutes: 2),
               formatter: CountdownFormat.ms,
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              style: CountdownTextStyle(textStyle: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
             ),
           ),
         ),
@@ -655,10 +655,12 @@ class _Demo extends StatelessWidget {
 '''),
           child: CountdownRing(
             to: const Duration(minutes: 2),
-            size: 100,
-            strokeWidth: 12,
-            color: Colors.deepOrange,
-            trackColor: Colors.orange.withValues(alpha: 0.2),
+            style: CountdownRingStyle(
+              size: 100,
+              strokeWidth: 12,
+              color: Colors.deepOrange,
+              trackColor: Colors.orange.withValues(alpha: 0.2),
+            ),
           ),
         ),
 
@@ -684,10 +686,12 @@ class _Demo extends StatelessWidget {
 '''),
           child: const CountdownRing(
             to: Duration(minutes: 2),
-            size: 100,
-            strokeWidth: 10,
-            gradient: SweepGradient(
-              colors: [Colors.blue, Colors.purple, Colors.pink],
+            style: CountdownRingStyle(
+              size: 100,
+              strokeWidth: 10,
+              gradient: SweepGradient(
+                colors: [Colors.blue, Colors.purple, Colors.pink],
+              ),
             ),
           ),
         ),
@@ -711,8 +715,10 @@ class _Demo extends StatelessWidget {
 '''),
           child: const CountdownRing(
             to: Duration(minutes: 2),
-            size: 100,
-            clockwise: false,
+            style: CountdownRingStyle(
+              size: 100,
+              clockwise: false,
+            ),
           ),
         ),
 
@@ -803,8 +809,7 @@ class _Demo extends StatelessWidget {
 '''),
           child: const CountdownBar(
             to: Duration(minutes: 1),
-            width: 250,
-            height: 10,
+            style: CountdownBarStyle(width: 250, height: 10),
           ),
         ),
 
@@ -830,10 +835,12 @@ class _Demo extends StatelessWidget {
 '''),
           child: const CountdownBar(
             to: Duration(minutes: 1),
-            width: 250,
-            height: 10,
-            gradient: LinearGradient(
-              colors: [Colors.green, Colors.yellow, Colors.red],
+            style: CountdownBarStyle(
+              width: 250,
+              height: 10,
+              gradient: LinearGradient(
+                colors: [Colors.green, Colors.yellow, Colors.red],
+              ),
             ),
           ),
         ),
@@ -858,9 +865,11 @@ class _Demo extends StatelessWidget {
 '''),
           child: const CountdownBar(
             to: Duration(minutes: 1),
-            width: 250,
-            height: 10,
-            fillFromStart: false,
+            style: CountdownBarStyle(
+              width: 250,
+              height: 10,
+              fillFromStart: false,
+            ),
           ),
         ),
 
@@ -884,9 +893,11 @@ class _Demo extends StatelessWidget {
 '''),
           child: const CountdownBar(
             to: Duration(minutes: 1),
-            width: 250,
-            height: 6,
-            trackHeight: 24,
+            style: CountdownBarStyle(
+              width: 250,
+              height: 6,
+              trackHeight: 24,
+            ),
           ),
         ),
 
@@ -910,9 +921,11 @@ class _Demo extends StatelessWidget {
 '''),
           child: const CountdownBar(
             to: Duration(minutes: 1),
-            width: 250,
-            height: 12,
-            borderRadius: Radius.circular(6),
+            style: CountdownBarStyle(
+              width: 250,
+              height: 12,
+              borderRadius: Radius.circular(6),
+            ),
           ),
         ),
       ],
@@ -939,7 +952,7 @@ class _Demo extends StatelessWidget {
 '''),
           child: const CountdownCard(
             to: Duration(hours: 1, minutes: 30),
-            transitionType: CountdownType.calendar,
+            style: CountdownCardStyle(transitionType: CountdownType.calendar),
           ),
         ),
 
@@ -962,8 +975,10 @@ class _Demo extends StatelessWidget {
 '''),
           child: const CountdownCard(
             to: Duration(hours: 1, minutes: 30),
-            transitionType: CountdownType.slide,
-            scaleEffect: SlideEffect.enter,
+            style: CountdownCardStyle(
+              transitionType: CountdownType.slide,
+              scaleEffect: SlideEffect.enter,
+            ),
           ),
         ),
 
@@ -985,7 +1000,7 @@ class _Demo extends StatelessWidget {
 '''),
           child: const CountdownCard(
             to: Duration(hours: 1, minutes: 30),
-            transitionType: CountdownType.flip,
+            style: CountdownCardStyle(transitionType: CountdownType.flip),
           ),
         ),
 
@@ -1007,7 +1022,7 @@ class _Demo extends StatelessWidget {
 '''),
           child: const CountdownCard(
             to: Duration(hours: 1, minutes: 30),
-            splitDigits: true,
+            style: CountdownCardStyle(splitDigits: true),
           ),
         ),
 
@@ -1062,17 +1077,19 @@ class _Demo extends StatelessWidget {
 '''),
           child: const CountdownCard(
             to: Duration(hours: 1, minutes: 30),
-            cardColor: Color(0xFF1A237E),
-            textStyle: TextStyle(
-              fontSize: 30,
-              fontWeight: FontWeight.bold,
-              color: Colors.cyanAccent,
-            ),
-            labelStyle: TextStyle(
-              fontSize: 10,
-              fontWeight: FontWeight.w500,
-              color: Colors.cyanAccent,
-              letterSpacing: 0.5,
+            style: CountdownCardStyle(
+              cardColor: Color(0xFF1A237E),
+              textStyle: TextStyle(
+                fontSize: 30,
+                fontWeight: FontWeight.bold,
+                color: Colors.cyanAccent,
+              ),
+              labelStyle: TextStyle(
+                fontSize: 10,
+                fontWeight: FontWeight.w500,
+                color: Colors.cyanAccent,
+                letterSpacing: 0.5,
+              ),
             ),
           ),
         ),
@@ -1141,7 +1158,7 @@ class _Demo extends StatelessWidget {
               children: [
                 const CountdownRing(
                   to: Duration(minutes: 3),
-                  size: 90,
+                  style: CountdownRingStyle(size: 90),
                   center: CountdownText(
                     to: Duration(minutes: 3),
                     formatter: CountdownFormat.ms,
@@ -1150,8 +1167,7 @@ class _Demo extends StatelessWidget {
                 const SizedBox(height: 12),
                 const CountdownBar(
                   to: Duration(minutes: 3),
-                  width: 200,
-                  height: 8,
+                  style: CountdownBarStyle(width: 200, height: 8),
                 ),
                 const SizedBox(height: 8),
                 const CountdownText(
@@ -1253,7 +1269,7 @@ class _MsBuilderDemoState extends State<_MsBuilderDemo> {
     return CountdownBuilder(
       duration: const Duration(seconds: 10),
       plugin: _msPlugin,
-      builder: (_, parts) => Text(
+      builder: (_, parts, __) => Text(
         CountdownFormat.msMillis(parts),
         style: const TextStyle(fontSize: 32, fontWeight: FontWeight.bold),
       ),
@@ -1279,7 +1295,7 @@ class _ControllerBuilderDemoState extends State<_ControllerBuilderDemo> {
         CountdownBuilder(
           duration: const Duration(minutes: 2),
           controller: _ctrl,
-          builder: (_, parts) {
+          builder: (_, parts, __) {
             final m = parts.totalMinutes.toString().padLeft(2, '0');
             final s = parts.seconds.toString().padLeft(2, '0');
             return Text(
@@ -1328,7 +1344,7 @@ class _ThresholdDemoState extends State<_ThresholdDemo> {
       duration: const Duration(seconds: 30),
       threshold: const Duration(seconds: 10),
       onThreshold: () { if (mounted) setState(() => _urgent = true); },
-      builder: (_, parts) {
+      builder: (_, parts, __) {
         final m = parts.totalMinutes.toString().padLeft(2, '0');
         final s = parts.seconds.toString().padLeft(2, '0');
         return Text(
@@ -1362,7 +1378,7 @@ class _OnCompleteDemoState extends State<_OnCompleteDemo> {
         CountdownBuilder(
           duration: const Duration(seconds: 10),
           onComplete: () { if (mounted) setState(() => _done = true); },
-          builder: (_, parts) {
+          builder: (_, parts, __) {
             final s = parts.totalSeconds.toString().padLeft(2, '0');
             return Text(
               '00:$s',
@@ -1444,12 +1460,12 @@ class _ThresholdTextDemoState extends State<_ThresholdTextDemo> {
       formatter: CountdownFormat.ms,
       threshold: const Duration(seconds: 5),
       onThreshold: () { if (mounted) setState(() => _urgent = true); },
-      style: TextStyle(
+      style: CountdownTextStyle(textStyle: TextStyle(
         fontSize: 28,
         fontWeight: FontWeight.bold,
         color: _urgent ? Colors.red : null,
         letterSpacing: _urgent ? 2 : 0,
-      ),
+      )),
     );
   }
 }
@@ -1472,12 +1488,12 @@ class _RingControllerDemoState extends State<_RingControllerDemo> {
       children: [
         CountdownRing(
           to: const Duration(minutes: 2),
-          size: 100,
+          style: const CountdownRingStyle(size: 100),
           controller: _ctrl,
           center: const CountdownText(
             to: Duration(minutes: 2),
             formatter: CountdownFormat.ms,
-            style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+            style: CountdownTextStyle(textStyle: TextStyle(fontSize: 14, fontWeight: FontWeight.bold)),
           ),
         ),
         const SizedBox(height: 12),
@@ -1535,13 +1551,13 @@ class _GroupCallbacksDemoState extends State<_GroupCallbacksDemo> {
               CountdownText(
                 to: Duration(seconds: 8),
                 formatter: CountdownFormat.ms,
-                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                style: CountdownTextStyle(textStyle: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
               ),
               SizedBox(height: 8),
               CountdownText(
                 to: Duration(seconds: 12),
                 formatter: CountdownFormat.ms,
-                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                style: CountdownTextStyle(textStyle: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
               ),
             ],
           ),
@@ -1590,7 +1606,7 @@ class _Demo extends StatelessWidget {
 }'''),
           child: const CountdownDial(
             to: Duration(seconds: 60),
-            size: 100,
+            style: CountdownDialStyle(size: 100),
           ),
         ),
 
@@ -1612,7 +1628,7 @@ class _Demo extends StatelessWidget {
 }'''),
           child: CountdownDial(
             to: const Duration(minutes: 3),
-            size: 100,
+            style: const CountdownDialStyle(size: 100),
             builder: (_, rem) => Text(
               rem.inSeconds.toString(),
               style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
@@ -1635,8 +1651,10 @@ class _Demo extends StatelessWidget {
 }'''),
           child: const CountdownDial(
             to: Duration(seconds: 60),
-            size: 100,
-            clockwise: false,
+            style: CountdownDialStyle(
+              size: 100,
+              clockwise: false,
+            ),
           ),
         ),
 
@@ -1655,8 +1673,10 @@ class _Demo extends StatelessWidget {
 }'''),
           child: const CountdownDial(
             to: Duration(seconds: 45),
-            size: 100,
-            ticks: null,
+            style: CountdownDialStyle(
+              size: 100,
+              showTicks: false,
+            ),
           ),
         ),
       ],

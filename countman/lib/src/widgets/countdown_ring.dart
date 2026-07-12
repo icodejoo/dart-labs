@@ -1,48 +1,38 @@
-import 'dart:math' as math;
-import 'package:flutter/material.dart';
+import 'package:flutter/widgets.dart';
 import 'package:countman/src/count_down/plugin.dart';
-import 'countdown_widget.dart';
-import 'painter/ring_painter.dart';
+import 'countdown_builder.dart';
 import 'providers.dart';
+import 'ring_style.dart';
+import 'progress_display.dart';
+
+export 'ring_style.dart' show CountdownRingStyle;
 
 /// A circular arc countdown display. Composes [CountdownBuilder].
 ///
-/// The ring depletes from full as time elapses.
-/// Progress = remaining / total, where `total` is the initial remaining
-/// duration captured when the timer started.
-///
+/// The ring depletes from full as time elapses. Progress = remaining / total.
 /// [to] accepts [DateTime], [Duration], [int] (ms epoch), or ISO-8601 [String].
+///
+/// Visual appearance is configured via [style] ([CountdownRingStyle]).
 ///
 /// ```dart
 /// CountdownRing(
 ///   to: const Duration(minutes: 5),
-///   size: 80,
+///   style: const CountdownRingStyle(size: 80),
 ///   center: CountdownText(to: const Duration(minutes: 5)),
 /// )
 /// ```
-///
-/// For large numbers of concurrent instances set [repaintBoundary] = false.
 class CountdownRing extends StatelessWidget {
   const CountdownRing({
     super.key,
     required this.to,
-    this.size = 80.0,
-    this.strokeWidth = 8.0,
-    this.trackStrokeWidth,
-    this.color,
-    this.trackColor,
-    this.gradient,
-    this.trackGradient,
-    this.startAngle = -math.pi / 2,
-    this.strokeCap = StrokeCap.round,
-    this.padding = EdgeInsets.zero,
+    this.style,
     this.center,
-    this.clockwise = true,
     this.repaintBoundary,
     this.painterBuilder,
     this.plugin,
     this.controller,
     this.onComplete,
+    this.onTick,
     this.threshold,
     this.onThreshold,
     this.onReady,
@@ -56,53 +46,31 @@ class CountdownRing extends StatelessWidget {
   /// or ISO-8601 [String].
   final Object to;
 
-  final double size;
-  final double strokeWidth;
-
-  /// Track stroke width. Defaults to [strokeWidth] when null.
-  final double? trackStrokeWidth;
-
-  /// Arc color. Defaults to the theme's `colorScheme.primary`.
-  final Color? color;
-
-  /// Track (background circle) color. Defaults to a muted theme color.
-  final Color? trackColor;
-
-  /// Optional arc gradient, overriding [color].
-  final Gradient? gradient;
-
-  /// Optional track gradient, overriding [trackColor].
-  final Gradient? trackGradient;
-
-  /// Angle (radians) the arc starts from. Default: 12 o'clock.
-  final double startAngle;
-
-  /// Cap drawn at the arc ends. Default: [StrokeCap.round].
-  final StrokeCap strokeCap;
-
-  /// Inset applied before the ring is laid out within [size].
-  final EdgeInsets padding;
+  /// Visual style. Merged over the enclosing [CountdownProvider]'s defaults.
+  ///
+  /// 视觉样式。叠加在所在 [CountdownProvider] 的默认值之上。
+  final CountdownRingStyle? style;
 
   /// Optional widget rendered in the center of the ring.
   final Widget? center;
 
-  /// Arc direction. True = clockwise (default).
-  final bool clockwise;
-
-  /// Wraps in [RepaintBoundary]. Disable when displaying many instances.
-  /// Falls back to the provider, then to `true`.
+  /// Wraps in [RepaintBoundary]. Falls back to the provider, then `true`.
   final bool? repaintBoundary;
 
   /// Supplies a fully custom painter given the current 0–1 progress, replacing
-  /// the built-in [RingPainter]. All style parameters above are ignored then.
+  /// the built-in ring painter. All [style] visuals are ignored then.
   final CustomPainter Function(BuildContext context, double progress)? painterBuilder;
 
   final Countdown? plugin;
   final CountdownController? controller;
   final void Function()? onComplete;
 
+  /// Called every tick with the current remaining [TimeParts].
+  ///
+  /// 每 tick 以当前剩余 [TimeParts] 回调。
+  final void Function(TimeParts parts)? onTick;
+
   /// When remaining first drops to or below this, [onThreshold] fires once.
-  /// null (default) disables the check.
   final Duration? threshold;
 
   /// Called once when remaining crosses [threshold].
@@ -117,18 +85,38 @@ class CountdownRing extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    // Resolve unset values from the nearest CountdownProvider.
     final scope = CountmanScope.maybeOf<Countdown>(context);
-    final arcColor = color ?? scope?.color ?? scheme.primary;
-    final track = trackColor ?? scope?.trackColor ?? scheme.onSurface.withValues(alpha: 0.12);
+    final effStyle = (style ?? const CountdownRingStyle()).merge(scope?.countdownRingStyle);
+    final effSize = effStyle.size ?? 80.0;
+    final colors = resolveProgressColors(
+      context,
+      color: effStyle.color,
+      trackColor: effStyle.trackColor,
+      scopeColor: scope?.color,
+      scopeTrackColor: scope?.trackColor,
+    );
     final effRepaint = repaintBoundary ?? scope?.repaintBoundary ?? true;
 
-    return CountdownBuilder(
+    // Center overlay is value-independent — build once and pass through the
+    // builder's child slot so the per-tick repaint skips it.
+    //
+    // 中心叠层不依赖值——只建一次，经 builder 的 child 槽透传，使每 tick 重绘跳过它。
+    final centerChild = center != null
+        ? SizedBox.square(
+            dimension: effSize,
+            child: Align(
+              alignment: effStyle.centerAlignment ?? Alignment.center,
+              child: center,
+            ),
+          )
+        : null;
+
+    final driver = CountdownBuilder(
       to: to,
       plugin: plugin ?? scope?.plugin,
       controller: controller,
       onComplete: onComplete,
+      onTick: onTick,
       threshold: threshold,
       onThreshold: onThreshold,
       onReady: onReady,
@@ -136,35 +124,23 @@ class CountdownRing extends StatelessWidget {
       onCancel: onCancel,
       onPause: onPause,
       onResume: onResume,
-      builder: (ctx, p) {
+      child: centerChild,
+      builder: (ctx, p, centerWidget) {
         final progress = p.progress;
-        final ring = Semantics(
-          container: true,
-          value: '${(progress * 100).round()}%',
-          child: CustomPaint(
-            size: Size.square(size),
-            painter: painterBuilder != null
-                ? painterBuilder!(ctx, progress)
-                : RingPainter(
-                    progress: progress,
-                    color: arcColor,
-                    trackColor: track,
-                    strokeWidth: strokeWidth,
-                    trackStrokeWidth: trackStrokeWidth,
-                    clockwise: clockwise,
-                    startAngle: startAngle,
-                    strokeCap: strokeCap,
-                    gradient: gradient,
-                    trackGradient: trackGradient,
-                    padding: padding,
-                  ),
-            child: center != null
-                ? SizedBox.square(dimension: size, child: Center(child: center))
-                : null,
-          ),
+        return buildProgressPaint(
+          size: Size.square(effSize),
+          progress: progress,
+          painter: painterBuilder != null
+              ? painterBuilder!(ctx, progress)
+              : ringPainterFrom(effStyle,
+                  progress: progress, color: colors.fill, trackColor: colors.track),
+          padding: effStyle.padding,
+          decoration: effStyle.decoration,
+          paintChild: centerWidget,
         );
-        return effRepaint ? RepaintBoundary(child: ring) : ring;
       },
     );
+
+    return effRepaint ? RepaintBoundary(child: driver) : driver;
   }
 }

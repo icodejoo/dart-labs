@@ -19,7 +19,7 @@ abstract class CountmanTask {
   /// Set true once the task has completed and should be removed.
   bool done = false;
 
-  /// Whether the task is frozen. Non-pausable tasks (count-up) stay `false`.
+  /// Whether the task is frozen. Non-pausable tasks (counter) stay `false`.
   bool get isPaused => false;
 
   // ── lifecycle callbacks (fired by the base) ────────────────────────

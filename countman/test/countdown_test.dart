@@ -515,7 +515,7 @@ void main() {
       await t.pumpWidget(_wrap(
         CountdownBuilder(
           duration: const Duration(minutes: 2),
-          builder: (_, r) => Text(CountdownFormat.ms(r)),
+          builder: (_, r, __) => Text(CountdownFormat.ms(r)),
         ),
       ));
       await t.pump(); // first frame: initial value
@@ -530,7 +530,7 @@ void main() {
         CountdownBuilder(
           duration: const Duration(seconds: 2),
           onComplete: () => done = true,
-          builder: (_, r) => Text('${r.inSeconds}'),
+          builder: (_, r, __) => Text('${r.inSeconds}'),
         ),
       ));
 
@@ -551,7 +551,7 @@ void main() {
           duration: const Duration(seconds: 5),
           threshold: const Duration(seconds: 3),
           onThreshold: () => count++,
-          builder: (_, r) => Text('${r.inSeconds}'),
+          builder: (_, r, __) => Text('${r.inSeconds}'),
         ),
       ));
 
@@ -573,7 +573,7 @@ void main() {
         set = s;
         return CountdownBuilder(
           duration: currentDuration,
-          builder: (_, r) => Text(CountdownFormat.ms(r)),
+          builder: (_, r, __) => Text(CountdownFormat.ms(r)),
         );
       })));
 
@@ -594,7 +594,7 @@ void main() {
         CountdownBuilder(
           duration: const Duration(seconds: 10),
           controller: ctrl,
-          builder: (_, r) => Text('${r.inSeconds}'),
+          builder: (_, r, __) => Text('${r.inSeconds}'),
         ),
       ));
 
@@ -623,7 +623,7 @@ void main() {
           duration: const Duration(seconds: 2),
           plugin: group,
           onComplete: () => done = true,
-          builder: (_, r) => Text('${r.inSeconds}'),
+          builder: (_, r, __) => Text('${r.inSeconds}'),
         ),
       ));
 
@@ -641,7 +641,7 @@ void main() {
       await t.pumpWidget(_wrap(
         CountdownBuilder(
           duration: const Duration(seconds: 10),
-          builder: (_, r) { calls.add(r); return const SizedBox(); },
+          builder: (_, r, __) { calls.add(r); return const SizedBox(); },
         ),
       ));
 

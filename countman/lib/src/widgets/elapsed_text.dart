@@ -1,17 +1,25 @@
 import 'package:flutter/widgets.dart';
-import 'package:countman/src/count_down/types.dart' show DurationFormatter, CountdownFormat, TimeParts;
+import 'package:countman/src/count_down/types.dart'
+    show DurationFormatter, CountdownFormat, TimeParts;
 import 'package:countman/src/elapsed/plugin.dart';
-import 'package:countman/src/elapsed/types.dart';
 import 'providers.dart';
+import 'text_style.dart';
+import 'elapsed_widget.dart';
+
+export 'text_style.dart' show CountmanTextStyle;
+
+/// Visual style for [ElapsedText]. Alias of the shared [CountmanTextStyle].
+///
+/// [ElapsedText] 的视觉样式。共享 [CountmanTextStyle] 的别名。
+typedef ElapsedTextStyle = CountmanTextStyle;
 
 /// Displays an open-ended elapsed-time counter — a stopwatch, not a
 /// countdown. Starts at zero the moment it's mounted and counts up
 /// indefinitely until removed or [ElapsedController.cancel]led.
 ///
-/// Reuses [CountdownFormat]'s duration formatters ([DurationFormatter]) —
-/// `hms`/`ms`/`msTenths`/`auto` are pure `Duration -> String` functions with
-/// no assumption about counting direction, so the same formatters that
-/// render "remaining" for a countdown render "elapsed" here unchanged.
+/// Reuses [CountdownFormat]'s duration formatters ([DurationFormatter]).
+/// Derives from [ElapsedBuilder], which owns the plugin/task wiring (mirrors
+/// [CounterText] building on `CounterBuilder`).
 ///
 /// ```dart
 /// ElapsedText() // 00:00, 00:01, 00:02, ...
@@ -26,22 +34,20 @@ import 'providers.dart';
 /// _ctrl.resume();
 /// _ctrl.reset();
 /// ```
-class ElapsedText extends StatefulWidget {
+class ElapsedText extends StatelessWidget {
   const ElapsedText({
     super.key,
-    this.formatter = CountdownFormat.auto,
+    this.formatter,
     this.style,
-    this.textAlign,
-    this.maxLines,
-    this.overflow,
-    this.softWrap,
-    this.strutStyle,
-    this.textScaler,
-    this.locale,
-    this.textWidthBasis,
+    this.prefix,
+    this.suffix,
+    this.prefixWidget,
+    this.suffixWidget,
     this.semanticsLabel,
     this.plugin,
+    this.precise = false,
     this.controller,
+    this.onTick,
     this.threshold,
     this.onThreshold,
     this.onReady,
@@ -51,20 +57,30 @@ class ElapsedText extends StatefulWidget {
     this.onResume,
   });
 
-  /// Converts elapsed [Duration] to a display string.
-  final DurationFormatter formatter;
+  /// Converts elapsed time ([TimeParts]) to a display string. `null` (default)
+  /// inherits the enclosing [ElapsedProvider]'s formatter, then
+  /// [CountdownFormat.auto].
+  ///
+  /// 把经过时间（[TimeParts]）转成显示字符串。`null`（默认）继承所在
+  /// [ElapsedProvider] 的 formatter，再到 [CountdownFormat.auto]。
+  final DurationFormatter? formatter;
 
-  final TextStyle? style;
-  final TextAlign? textAlign;
+  /// Visual style. Merged over the enclosing [ElapsedProvider]'s text style.
+  ///
+  /// 视觉样式。叠加在所在 [ElapsedProvider] 的文本样式之上。
+  final ElapsedTextStyle? style;
 
-  /// Forwarded to the underlying [Text]. See [Text] for semantics.
-  final int? maxLines;
-  final TextOverflow? overflow;
-  final bool? softWrap;
-  final StrutStyle? strutStyle;
-  final TextScaler? textScaler;
-  final Locale? locale;
-  final TextWidthBasis? textWidthBasis;
+  /// Plain-text prefix. Ignored when [prefixWidget] is provided.
+  final String? prefix;
+
+  /// Plain-text suffix. Ignored when [suffixWidget] is provided.
+  final String? suffix;
+
+  /// Widget placed before the number. Takes precedence over [prefix].
+  final Widget? prefixWidget;
+
+  /// Widget placed after the number. Takes precedence over [suffix].
+  final Widget? suffixWidget;
 
   /// Fixed screen-reader label. When set, the reader announces this instead of
   /// the per-second changing digits.
@@ -73,8 +89,22 @@ class ElapsedText extends StatefulWidget {
   /// Optional [Elapsed] group. Defaults to [defaultElapsed].
   final Elapsed? plugin;
 
+  /// Drive on the shared precise group ([defaultElapsedMs], `interval: 0`) so
+  /// sub-second formatters update every frame. Ignored when [plugin] or a
+  /// provider group is set.
+  ///
+  /// 用共享精确组（[defaultElapsedMs]，`interval: 0`）驱动，使亚秒格式化器每帧
+  /// 更新。设置了 [plugin] 或 provider 分组时忽略。
+  final bool precise;
+
   /// Optional controller for pause / resume / reset.
   final ElapsedController? controller;
+
+  /// Called every tick with the current elapsed [TimeParts] — for side effects
+  /// (analytics, syncing) without writing a custom [ElapsedBuilder].
+  ///
+  /// 每 tick 以当前经过时间 [TimeParts] 回调——用于埋点/同步等副作用。
+  final void Function(TimeParts parts)? onTick;
 
   /// When elapsed time first reaches or exceeds this, [onThreshold] fires
   /// once. null (default) disables the check.
@@ -91,83 +121,39 @@ class ElapsedText extends StatefulWidget {
   final VoidCallback? onResume;
 
   @override
-  State<ElapsedText> createState() => _ElapsedTextState();
-}
-
-class _ElapsedTextState extends State<ElapsedText> {
-  TimeParts _parts = TimeParts.of(Duration.zero);
-  final ValueNotifier<int> _rev = ValueNotifier(0);
-  ElapsedHandle? _handle;
-  // Plugin inherited from the nearest ElapsedProvider (null if none).
-  Elapsed? _scopePlugin;
-  bool _initialized = false;
-
-  @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    final scopePlugin = CountmanScope.maybeOf<Elapsed>(context)?.plugin;
-    // Start on first resolve, or re-anchor if the inherited group changed.
-    if (!_initialized || scopePlugin != _scopePlugin) {
-      _initialized = true;
-      _scopePlugin = scopePlugin;
-      _start();
-    }
-  }
-
-  void _start() {
-    _handle?.cancel();
-    _handle = (widget.plugin ?? _scopePlugin ?? defaultElapsed).add(ElapsedOptions(
-      onUpdate: (p) {
-        _parts = p;
-        _rev.value++;
-      },
-      threshold: widget.threshold,
-      onThreshold: widget.onThreshold,
-      onReady: widget.onReady,
-      onStart: widget.onStart,
-      onCancel: widget.onCancel,
-      onPause: widget.onPause,
-      onResume: widget.onResume,
-    ));
-    widget.controller?.attach(_handle!);
-  }
-
-  @override
-  void didUpdateWidget(ElapsedText old) {
-    super.didUpdateWidget(old);
-    // A changed plugin or controller must re-anchor the task and re-attach,
-    // mirroring the countdown display widgets.
-    if (widget.plugin != old.plugin || widget.controller != old.controller) {
-      old.controller?.detach();
-      _start();
-    }
-  }
-
-  @override
-  void dispose() {
-    widget.controller?.detach();
-    _handle?.cancel();
-    _rev.dispose();
-    super.dispose();
-  }
-
-  @override
   Widget build(BuildContext context) {
-    final effStyle =
-        widget.style ?? CountmanScope.maybeOf<Elapsed>(context)?.textStyle;
-    return ValueListenableBuilder<int>(
-      valueListenable: _rev,
-      builder: (_, __, ___) => Text(widget.formatter(_parts),
-          style: effStyle,
-          textAlign: widget.textAlign,
-          maxLines: widget.maxLines,
-          overflow: widget.overflow,
-          softWrap: widget.softWrap,
-          strutStyle: widget.strutStyle,
-          textScaler: widget.textScaler,
-          locale: widget.locale,
-          textWidthBasis: widget.textWidthBasis,
-          semanticsLabel: widget.semanticsLabel),
+    // Resolve style over the provider default.
+    //
+    // 解析样式，叠加在 provider 默认之上。
+    final scope = CountmanScope.maybeOf<Elapsed>(context);
+    final s = (style ?? const ElapsedTextStyle()).merge(scope?.elapsedTextStyle);
+    final effTextStyle = s.textStyle ?? scope?.textStyle;
+    final effFormatter = formatter ?? scope?.formatter ?? CountdownFormat.auto;
+
+    final number = ElapsedBuilder(
+      plugin: plugin,
+      precise: precise,
+      controller: controller,
+      onTick: onTick,
+      threshold: threshold,
+      onThreshold: onThreshold,
+      onReady: onReady,
+      onStart: onStart,
+      onCancel: onCancel,
+      onPause: onPause,
+      onResume: onResume,
+      builder: (_, parts, __) =>
+          styledNumberText(effFormatter(parts), s, effTextStyle, semanticsLabel: semanticsLabel),
+    );
+
+    return wrapAffixedText(
+      number,
+      s,
+      effTextStyle,
+      prefix: prefix,
+      suffix: suffix,
+      prefixWidget: prefixWidget,
+      suffixWidget: suffixWidget,
     );
   }
 }

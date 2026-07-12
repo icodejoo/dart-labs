@@ -43,8 +43,10 @@ void main() {
     });
 
     testWidgets('renders and ticks down without throwing (splitDigits)', (t) async {
-      await t.pumpWidget(
-          _wrap(const CountdownCard(to: Duration(seconds: 65), splitDigits: true)));
+      await t.pumpWidget(_wrap(const CountdownCard(
+        to: Duration(seconds: 65),
+        style: CountdownCardStyle(splitDigits: true),
+      )));
       await t.pump();
 
       for (var i = 0; i < 3; i++) {
@@ -192,9 +194,11 @@ void main() {
             (t) async {
           await t.pumpWidget(_wrap(CountdownCard(
             to: const Duration(seconds: 65),
-            transitionType: CountdownType.slide,
-            scaleEffect: scaleEffect,
-            opacityEffect: opacityEffect,
+            style: CountdownCardStyle(
+              transitionType: CountdownType.slide,
+              scaleEffect: scaleEffect,
+              opacityEffect: opacityEffect,
+            ),
           )));
           await t.pump();
 
@@ -209,9 +213,11 @@ void main() {
       bool done = false;
       await t.pumpWidget(_wrap(CountdownCard(
         to: const Duration(seconds: 2),
-        transitionType: CountdownType.slide,
-        scaleEffect: SlideEffect.both,
-        opacityEffect: SlideEffect.both,
+        style: const CountdownCardStyle(
+          transitionType: CountdownType.slide,
+          scaleEffect: SlideEffect.both,
+          opacityEffect: SlideEffect.both,
+        ),
         onComplete: () => done = true,
       )));
       await t.pump();
@@ -227,7 +233,7 @@ void main() {
       final ctrl = CountdownController();
       await t.pumpWidget(_wrap(CountdownCard(
         to: const Duration(seconds: 10),
-        transitionType: CountdownType.slide,
+        style: const CountdownCardStyle(transitionType: CountdownType.slide),
         controller: ctrl,
       )));
       await t.pump();
@@ -241,9 +247,11 @@ void main() {
     testWidgets('disposes cleanly when removed mid-transition', (t) async {
       await t.pumpWidget(_wrap(const CountdownCard(
         to: Duration(seconds: 3),
-        transitionType: CountdownType.slide,
-        scaleEffect: SlideEffect.both,
-        opacityEffect: SlideEffect.both,
+        style: CountdownCardStyle(
+          transitionType: CountdownType.slide,
+          scaleEffect: SlideEffect.both,
+          opacityEffect: SlideEffect.both,
+        ),
       )));
       await t.pump();
 
@@ -260,7 +268,7 @@ void main() {
     testWidgets('does not leave the AnimationController stuck (single forward pass)', (t) async {
       await t.pumpWidget(_wrap(const CountdownCard(
         to: Duration(seconds: 3),
-        transitionType: CountdownType.slide,
+        style: CountdownCardStyle(transitionType: CountdownType.slide),
       )));
       await t.pump();
 
@@ -296,9 +304,11 @@ void main() {
             (t) async {
           await t.pumpWidget(_wrap(CountdownCard(
             to: const Duration(seconds: 65),
-            transitionType: CountdownType.flip,
-            scaleEffect: scaleEffect,
-            opacityEffect: opacityEffect,
+            style: CountdownCardStyle(
+              transitionType: CountdownType.flip,
+              scaleEffect: scaleEffect,
+              opacityEffect: opacityEffect,
+            ),
           )));
           await t.pump();
 
@@ -312,8 +322,10 @@ void main() {
     testWidgets('perspective is configurable without throwing', (t) async {
       await t.pumpWidget(_wrap(const CountdownCard(
         to: Duration(seconds: 65),
-        transitionType: CountdownType.flip,
-        perspective: 0.02,
+        style: CountdownCardStyle(
+          transitionType: CountdownType.flip,
+          perspective: 0.02,
+        ),
       )));
       await t.pump();
       await tickThrough(t, seconds: 2);
@@ -324,9 +336,11 @@ void main() {
       bool done = false;
       await t.pumpWidget(_wrap(CountdownCard(
         to: const Duration(seconds: 2),
-        transitionType: CountdownType.flip,
-        scaleEffect: SlideEffect.both,
-        opacityEffect: SlideEffect.both,
+        style: const CountdownCardStyle(
+          transitionType: CountdownType.flip,
+          scaleEffect: SlideEffect.both,
+          opacityEffect: SlideEffect.both,
+        ),
         onComplete: () => done = true,
       )));
       await t.pump();
@@ -341,7 +355,7 @@ void main() {
     testWidgets('does not leave the AnimationController stuck (single forward pass)', (t) async {
       await t.pumpWidget(_wrap(const CountdownCard(
         to: Duration(seconds: 3),
-        transitionType: CountdownType.flip,
+        style: CountdownCardStyle(transitionType: CountdownType.flip),
       )));
       await t.pump();
 
@@ -361,7 +375,7 @@ void main() {
       // without throwing when mixed with calendar-only visuals disabled.
       await t.pumpWidget(_wrap(const CountdownCard(
         to: Duration(seconds: 65),
-        transitionType: CountdownType.flip,
+        style: CountdownCardStyle(transitionType: CountdownType.flip),
       )));
       await t.pump();
       await tickThrough(t, seconds: 2);
@@ -371,9 +385,11 @@ void main() {
     testWidgets('disposes cleanly when removed mid-transition', (t) async {
       await t.pumpWidget(_wrap(const CountdownCard(
         to: Duration(seconds: 3),
-        transitionType: CountdownType.flip,
-        scaleEffect: SlideEffect.both,
-        opacityEffect: SlideEffect.both,
+        style: CountdownCardStyle(
+          transitionType: CountdownType.flip,
+          scaleEffect: SlideEffect.both,
+          opacityEffect: SlideEffect.both,
+        ),
       )));
       await t.pump();
 
@@ -430,7 +446,9 @@ void main() {
     testWidgets('card explicit transitionType overrides the provider', (t) async {
       await t.pumpWidget(_wrap(const CountdownCardProvider(
         transitionType: CountdownType.slide,
-        child: CountdownCard(to: Duration(seconds: 65), transitionType: CountdownType.calendar),
+        child: CountdownCard(
+            to: Duration(seconds: 65),
+            style: CountdownCardStyle(transitionType: CountdownType.calendar)),
       )));
       await t.pump();
 
@@ -453,7 +471,8 @@ void main() {
 
       await t.pumpWidget(_wrap(const CountdownCardProvider(
         cardWidth: 200,
-        child: CountdownCard(to: Duration(seconds: 65), cardWidth: 20),
+        child: CountdownCard(
+            to: Duration(seconds: 65), style: CountdownCardStyle(cardWidth: 20)),
       )));
       await t.pump();
       final overriddenSize = t.getSize(find.byType(CountdownCard));

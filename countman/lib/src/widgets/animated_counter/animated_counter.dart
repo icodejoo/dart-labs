@@ -3,7 +3,7 @@
 // Architecture: three files form one Dart library via `part`/`part of`:
 //   animated_counter.dart    — library root; AnimatedCounter + state
 //   _base_counter.dart       — _BaseAnimatedCounter + _BaseCounterState (shared engine)
-//   custom_digit_counter.dart — CustomDigitCounter + state (widget-tree path)
+//   custom_digit_counter.dart — AnimatedCounterBuilder + state (widget-tree path)
 //
 // Fast path (this file):
 //   Every animation frame calls _activePainter.update() + markNeedsPaint().
@@ -12,7 +12,7 @@
 //   rebuilds only once per value change (on setState), not per frame.
 //
 // Widget-tree path (custom_digit_counter.dart):
-//   Use CustomDigitCounter when you need digitBuilder / digitTransitionBuilder.
+//   Use AnimatedCounterBuilder when you need digitBuilder / digitTransitionBuilder.
 
 import 'dart:async';
 import 'dart:math' as math;
@@ -28,12 +28,14 @@ import '../painter/counter_painter.dart';
 import 'counter_controller.dart';
 import 'digit_column.dart';
 import 'types.dart';
+import '../style_support.dart';
 
 export 'counter_controller.dart';
 export 'types.dart';
 
 part '_base_counter.dart';
 part 'custom_digit_counter.dart';
+part 'animated_counter_style.dart';
 
 // ── all-nines detection ───────────────────────────────────────────────────────
 
@@ -57,13 +59,14 @@ bool isAllNinesTarget(int n) {
 /// Static decorations (prefix, suffix, signs) are rendered in a lightweight
 /// [Row] that rebuilds only once per value change.
 ///
-/// For custom per-digit widgets or transition builders use [CustomDigitCounter].
+/// For custom per-digit widgets or transition builders use [AnimatedCounterBuilder].
 class AnimatedCounter extends _BaseAnimatedCounter {
   /// Optional factory for a custom [CounterPainter] subclass.
   final CounterPainterBuilder? painterBuilder;
 
   const AnimatedCounter({
     super.key,
+    super.style,
     super.value,
     super.controller,
     super.duration,
@@ -333,7 +336,14 @@ class _AnimatedCounterState extends _BaseCounterState<AnimatedCounter> {
       }
     }
     final int   val   = (displayValue * math.pow(10, effFD)).round();
-    final Color color = style.color ?? const Color(0xffff0000);
+    // Digit tint: explicit style color → ambient DefaultTextStyle color → black.
+    // (Was a hardcoded red, which read like a bug when no color was set.)
+    //
+    // 数字着色：显式样式色 → 环境 DefaultTextStyle 色 → 黑色。
+    // （原为硬编码红色，未设色时看起来像 bug。）
+    final Color color = style.color ??
+        DefaultTextStyle.of(context).style.color ??
+        const Color(0xFF000000);
     final dh          = _prototypeSize!.height + widget.padding.vertical;
 
     // ── painter: create or reuse in-place ──────────────────────────────────
