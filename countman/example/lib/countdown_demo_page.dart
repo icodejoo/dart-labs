@@ -71,7 +71,7 @@ class _CountdownDemoPageState extends State<CountdownDemoPage> {
             controller: ctrl,
             builder: (_, r, __) => Text(CountdownFormat.ms(r), style: _ts),
           ),
-        )),
+        ), size: const Size(150, 110)),
       ]),
       _Section("CountdownText — `to` input types", [
         _Tile('Duration', CountdownText(to: _kMed, style: CountdownTextStyle(textStyle: _ts))),
@@ -102,7 +102,7 @@ class _CountdownDemoPageState extends State<CountdownDemoPage> {
         )),
         _Tile('controller', _ControllerDemo(
           builder: (ctrl) => CountdownText(to: _kMed, controller: ctrl, style: CountdownTextStyle(textStyle: _ts)),
-        )),
+        ), size: const Size(150, 110)),
         _Tile('onComplete (8s)', _DoneBadge(builder: (onComplete) =>
             CountdownText(to: _kShort, onComplete: onComplete, style: CountdownTextStyle(textStyle: _ts)))),
       ]),
