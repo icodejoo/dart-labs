@@ -157,14 +157,36 @@ class RingPainter extends CustomPainter {
       paint.color = color;
     }
     final dir = clockwise ? 1.0 : -1.0;
-    // Anchor at end: push the start forward by the emptied fraction so the arc
-    // shrinks from its start (gap sweeps in `dir`); else grow from startAngle.
+    var drawnSweep = sweepAngle * progress;
+
+    // Round/square caps extend ~strokeWidth/2 past each endpoint. On a
+    // (near-)full ring those two caps overlap at the seam — a bulge that also
+    // swallows the first few percent of change (the gap must exceed a cap
+    // radius before it shows). Clamp the sweep so the caps at most TOUCH,
+    // leaving a hairline gap that widens from the first tick — rounded ends AND
+    // real-time separation. Partial-arc gauges never have meeting ends, so skip.
     //
-    // 尾端锚定：把起点按已空比例前移，使弧从起点收缩（空缺沿 dir 扫过）；否则从
+    // 圆头/方头会在每个端点外延伸约 strokeWidth/2。在（接近）满环时两端圆头在接缝
+    // 重叠——既是凸起，又吞掉最初几个百分点的变化（缺口需超过一个圆头半径才可见）。
+    // 钳制 sweep 使两端圆头至多相接、留一发丝缝，让缺口从第 1 tick 就张开——既有
+    // 圆头又能实时分割。部分弧 gauge 两端本不相接，故跳过。
+    if (strokeCap != StrokeCap.butt &&
+        radius > 0 &&
+        sweepAngle >= 2 * math.pi - 1e-3) {
+      final capGap = strokeWidth / radius; // ~one cap diameter, in radians
+      // max(0, …) guards a degenerate stroke thicker than the circumference.
+      final maxSweep = math.max(0.0, sweepAngle - capGap);
+      if (drawnSweep > maxSweep) drawnSweep = maxSweep;
+    }
+
+    // Anchor at end: offset the start by the emptied span so the arc shrinks
+    // from its start (gap sweeps in `dir`); else grow from startAngle.
+    //
+    // 尾端锚定：按已空跨度前移起点，使弧从起点收缩（空缺沿 dir 扫过）；否则从
     // startAngle 增长。
-    final start =
-        anchorAtEnd ? startAngle + sweepAngle * (1 - progress) * dir : startAngle;
-    canvas.drawArc(rect, start, sweepAngle * progress * dir, false, paint);
+    final emptied = sweepAngle - drawnSweep;
+    final start = anchorAtEnd ? startAngle + emptied * dir : startAngle;
+    canvas.drawArc(rect, start, drawnSweep * dir, false, paint);
   }
 
   @override
