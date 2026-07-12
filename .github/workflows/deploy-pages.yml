@@ -1,0 +1,63 @@
+name: Deploy countman demo to GitHub Pages
+
+# Builds the countman example as a Flutter web app and publishes it to
+# GitHub Pages (source must be set to "GitHub Actions" in repo settings —
+# this workflow uses the official Pages deployment actions).
+#
+# 把 countman 示例构建为 Flutter web 并发布到 GitHub Pages
+# （仓库 Pages 源需设为 "GitHub Actions"，本工作流用官方 Pages 部署 action）。
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'countman/**'
+      - '.github/workflows/deploy-pages.yml'
+  workflow_dispatch: {}
+
+# Least-privilege token + the id-token/pages perms the deploy action needs.
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# One live deployment at a time; a newer push supersedes an in-flight one.
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+
+      - name: Build web
+        working-directory: countman/example
+        # base-href = repo name so asset URLs resolve under
+        # https://<user>.github.io/dart-labs/
+        run: |
+          flutter pub get
+          flutter build web --release --base-href /dart-labs/
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: countman/example/build/web
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
