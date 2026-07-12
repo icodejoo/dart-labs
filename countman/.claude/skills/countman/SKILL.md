@@ -123,7 +123,8 @@ OdometerCounter(to: 9999, groupSeparator: ',', bounceOvershoot: 0.3,
 CounterBuilder(to: 9999, builder: (ctx, value, child) => Text('${value.toInt()}'))
 
 // AnimatedCounter — value/controller(AnimatedCounterController)/duration(300ms)/
-//   curve(linear)/transitionType(roll)/fractionDigits/wholeDigits/thousandSeparator/
+//   curve(linear)/transitionType(roll)/fast(single-step per digit, old->new one
+//     slot; all transitions; painter+widget paths)/fractionDigits/wholeDigits/thousandSeparator/
 //   groupingPattern([3])/staggerDelay/staggerDirection/compactNotation/numeralSystem/
 //   showPositiveSign/flipDirection/autoEaseThreshold(100000)/repaintBoundary/
 //   style(AnimatedCounterStyle: text/affix/separator styles, increasingColor/

@@ -138,6 +138,7 @@ class AnimatedCounter extends _BaseAnimatedCounter {
     super.interpolation,
     super.bounceOvershoot,
     super.bounceElasticity,
+    super.fast,
     this.painterBuilder,
   });
 
@@ -285,7 +286,8 @@ class _AnimatedCounterState extends _BaseCounterState<AnimatedCounter> {
   @override
   void _onFrameUpdate() {
     _activePainter?.update(_currentDigitValues, !_isAnimatingDecrease,
-        bounceAlpha: _bounceAlpha);
+        bounceAlpha: _bounceAlpha,
+        fast: widget.fast, fastFrom: _fastFromDigits, fastTo: _fastToDigits);
     _repaintTrigger.value++;
     if (widget.triggerHaptics) _maybeHaptic();
   }
@@ -293,7 +295,8 @@ class _AnimatedCounterState extends _BaseCounterState<AnimatedCounter> {
   @override
   void _onAnimationComplete() {
     _activePainter?.update(_currentDigitValues, !_isAnimatingDecrease,
-        bounceAlpha: _bounceAlpha);
+        bounceAlpha: _bounceAlpha,
+        fast: widget.fast, fastFrom: _fastFromDigits, fastTo: _fastToDigits);
     _repaintTrigger.value++;
   }
 
@@ -390,11 +393,15 @@ class _AnimatedCounterState extends _BaseCounterState<AnimatedCounter> {
               separatorStyle: widget.separatorStyle,
               padding: widget.padding,
               numberAlignment: widget.numberAlignment,
+              fast: widget.fast,
+              fastFrom: _fastFromDigits,
+              fastTo: _fastToDigits,
             );
     } else {
       // Sync direction on every build so a direction reversal takes effect
       // immediately — before the first onUpdate fires.
-      _activePainter!.update(_currentDigitValues, !_isAnimatingDecrease);
+      _activePainter!.update(_currentDigitValues, !_isAnimatingDecrease,
+          fast: widget.fast, fastFrom: _fastFromDigits, fastTo: _fastToDigits);
     }
 
     // computeFullWidth() counts ALL n digit slots (ignores hideLeadingZeroes)

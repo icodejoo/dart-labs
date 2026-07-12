@@ -258,6 +258,7 @@ AnimatedCounter(value: 2025, numeralSystem: NumeralSystem.devanagari)
 | `duration` | `300 ms` | 动画时长 |
 | `curve` | `Curves.linear` | 缓动曲线 |
 | `transitionType` | `roll` | `roll`·`fade`·`scale`·`fadeScale`·`rotate`·`flip`·`blur` |
+| `fast` | `false` | 每位单步：每列只移动一个身位（旧→新，如 1000→9999 千位 1→9 一次），而非完整级联滚动。对所有 `transitionType` 生效；painter 与 widget 两条路径都支持。 |
 | `fractionDigits` | `0` | 小数位数 |
 | `wholeDigits` | `1` | 最少整数位槽 |
 | `hideLeadingZeroes` | `true` | 隐藏前导零 |

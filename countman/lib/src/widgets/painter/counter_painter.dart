@@ -65,8 +65,14 @@ class CounterPainter extends CustomPainter {
     this.separatorStyle,
     this.padding = EdgeInsets.zero,
     this.numberAlignment = 0.0,
+    bool fast = false,
+    List<int> fastFrom = const <int>[],
+    List<int> fastTo = const <int>[],
   })  : _digitValues = List<double>.of(digitValues),
         _increasing = increasing,
+        _fast = fast,
+        _fastFrom = fastFrom,
+        _fastTo = fastTo,
         color = style.color ?? const Color(0xFFFFFFFF),
         super(repaint: repaint);
 
@@ -77,10 +83,30 @@ class CounterPainter extends CustomPainter {
   /// Set to < 1.0 during bounce so the overshoot digit is semi-transparent.
   double _bounceAlpha = 1.0;
 
-  void update(List<double> values, bool increasing, {double bounceAlpha = 1.0}) {
+  /// Fast mode: each column is a SINGLE step from [_fastFrom]`[i]` to
+  /// [_fastTo]`[i]`, with `_digitValues[i]` carrying the 0–1 progress (instead
+  /// of a continuous odometer position). Off: the normal cascading roll.
+  ///
+  /// 快速模式：每列从 [_fastFrom]`[i]` 单步到 [_fastTo]`[i]`，`_digitValues[i]`
+  /// 携带 0–1 进度（而非连续里程表位置）。关闭：普通级联滚动。
+  bool _fast;
+  List<int> _fastFrom;
+  List<int> _fastTo;
+
+  void update(
+    List<double> values,
+    bool increasing, {
+    double bounceAlpha = 1.0,
+    bool? fast,
+    List<int>? fastFrom,
+    List<int>? fastTo,
+  }) {
     _digitValues   = values;
     _increasing    = increasing;
     _bounceAlpha   = bounceAlpha;
+    if (fast != null) _fast = fast;
+    if (fastFrom != null) _fastFrom = fastFrom;
+    if (fastTo != null) _fastTo = fastTo;
   }
 
   List<double> get digitValues => _digitValues;
@@ -149,7 +175,19 @@ class CounterPainter extends CustomPainter {
 
     int firstVisible = 0;
     if (hideLeadingZeroes) {
-      firstVisible = _digitValues.indexWhere((v) => v.round() != 0);
+      if (_fast) {
+        // A fast column carries progress (not magnitude) in _digitValues, so
+        // decide visibility from its endpoint digits: keep it if either the
+        // old or new digit is non-zero.
+        firstVisible = -1;
+        for (int i = 0; i < n; i++) {
+          final f = i < _fastFrom.length ? _fastFrom[i] : 0;
+          final t = i < _fastTo.length ? _fastTo[i] : 0;
+          if (f != 0 || t != 0) { firstVisible = i; break; }
+        }
+      } else {
+        firstVisible = _digitValues.indexWhere((v) => v.round() != 0);
+      }
       if (firstVisible == -1) firstVisible = n - 1;
     }
 
@@ -273,10 +311,22 @@ class CounterPainter extends CustomPainter {
         drawDecimalSeparator(canvas, col.x - dsw, dh);
       }
 
-      final v   = _digitValues[col.index];
-      final cur = v.truncate() % 10;
-      final p   = (v - v.truncate()).clamp(0.0, 1.0);
-      final nxt = _increasing ? (cur + 1) % 10 : (cur - 1 + 10) % 10;
+      final int cur;
+      final int nxt;
+      final double p;
+      if (_fast) {
+        // Single step old → new; _digitValues[i] carries the 0–1 progress.
+        // A column whose digit doesn't change stays static (progress 0) so it
+        // doesn't blink-slide from a digit to the same digit.
+        cur = col.index < _fastFrom.length ? _fastFrom[col.index] : 0;
+        nxt = col.index < _fastTo.length ? _fastTo[col.index] : 0;
+        p   = cur == nxt ? 0.0 : _digitValues[col.index].clamp(0.0, 1.0);
+      } else {
+        final v = _digitValues[col.index];
+        cur = v.truncate() % 10;
+        p   = (v - v.truncate()).clamp(0.0, 1.0);
+        nxt = _increasing ? (cur + 1) % 10 : (cur - 1 + 10) % 10;
+      }
 
       canvas.save();
       canvas.clipRect(Rect.fromLTWH(col.x, 0, dw, dh));

@@ -98,6 +98,7 @@ class AnimatedCounterBuilder extends _BaseAnimatedCounter {
     super.interpolation,
     super.bounceOvershoot,
     super.bounceElasticity,
+    super.fast,
     super.style,
     this.digitBuilder,
     this.digitTransitionBuilder,
@@ -164,6 +165,15 @@ class _AnimatedCounterBuilderState extends _BaseCounterState<AnimatedCounterBuil
       builder: (ctx, _, __) {
         final integerDigitCount = _currentDigitValues.length - effFD;
 
+        // In fast mode _currentDigitValues carries progress (not magnitude), so
+        // leading-zero visibility must read the endpoint digits instead.
+        //
+        // 快速模式下 _currentDigitValues 携带进度（非磁量），故隐藏前导零需改读端点位。
+        bool digitNonZero(int j) => widget.fast
+            ? ((j < _fastFromDigits.length && _fastFromDigits[j] != 0) ||
+                (j < _fastToDigits.length && _fastToDigits[j] != 0))
+            : _currentDigitValues[j].round() != 0;
+
         // ── integer digits ────────────────────────────────────────────────
         final integerWidgets = <Widget>[];
         for (int i = 0; i < integerDigitCount; i++) {
@@ -184,10 +194,13 @@ class _AnimatedCounterBuilderState extends _BaseCounterState<AnimatedCounterBuil
             numeralSystem: widget.numeralSystem,
             numeralMapper: widget.numeralMapper,
             transitionType: widget.transitionType,
+            fast: widget.fast,
+            fastFromDigit: i < _fastFromDigits.length ? _fastFromDigits[i] : 0,
+            fastToDigit: i < _fastToDigits.length ? _fastToDigits[i] : 0,
             visible: widget.hideLeadingZeroes
-                ? (_currentDigitValues[i].round() != 0 ||
+                ? (digitNonZero(i) ||
                     i == integerDigitCount - 1 ||
-                    _currentDigitValues.sublist(0, i).any((d) => d.round() != 0))
+                    List<int>.generate(i, (j) => j).any(digitNonZero))
                 : true,
           );
           if (widget.digitWrapperBuilder != null) {
@@ -296,6 +309,9 @@ class _AnimatedCounterBuilderState extends _BaseCounterState<AnimatedCounterBuil
                       numeralSystem: widget.numeralSystem,
                       numeralMapper: widget.numeralMapper,
                       transitionType: widget.transitionType,
+                      fast: widget.fast,
+                      fastFromDigit: i < _fastFromDigits.length ? _fastFromDigits[i] : 0,
+                      fastToDigit: i < _fastToDigits.length ? _fastToDigits[i] : 0,
                     );
                     if (widget.digitWrapperBuilder != null) {
                       d = widget.digitWrapperBuilder!(ctx, i, d);

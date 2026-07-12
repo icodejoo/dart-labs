@@ -259,6 +259,7 @@ Key parameters:
 | `duration` | `300 ms` | Animation duration |
 | `curve` | `Curves.linear` | Easing curve |
 | `transitionType` | `roll` | `roll`·`fade`·`scale`·`fadeScale`·`rotate`·`flip`·`blur` |
+| `fast` | `false` | Single-step per digit: each column moves ONE slot old→new (e.g. 1000→9999 slides 1→9 once) instead of the full cascading roll. Works with every `transitionType`; painter and widget paths both supported. |
 | `fractionDigits` | `0` | Decimal places |
 | `wholeDigits` | `1` | Minimum integer digit slots |
 | `hideLeadingZeroes` | `true` | Hide leading zeros |
