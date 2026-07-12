@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/scheduler.dart';
 
+import 'plugin_base.dart' show LazyDefault;
 import 'types.dart';
 
 /// Shared vsync ticker — one `scheduleFrameCallback` drives all plugins.
@@ -63,6 +64,12 @@ class Countman {
     }
     _plugins.clear();
     _installed.clear();
+    // Reset every lazy default centrally so the next task rebuilds + re-registers
+    // them — replaces the per-plugin `onDispose` reset boilerplate.
+    //
+    // 集中重置所有惰性默认值，使下个任务重建并重新注册——取代各插件 `onDispose`
+    // 里的重置样板。
+    LazyDefault.resetAll();
   }
 
   // ── test helpers ─────────────────────────────────────────────────
@@ -89,7 +96,7 @@ class Countman {
     final len = _plugins.length;
     for (var i = 0; i < len; i++) {
       try {
-        if (_plugins[i].tick(timestamp, dt) != false) busy = true;
+        if (_plugins[i].tick(timestamp, dt)) busy = true;
       } catch (e, st) {
         FlutterError.reportError(FlutterErrorDetails(
           exception: e,

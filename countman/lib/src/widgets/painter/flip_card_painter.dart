@@ -203,6 +203,21 @@ class FlipCardPainter extends CustomPainter {
     tp.paint(canvas, Offset(cx - tp.width / 2, alignTop ? y : y - tp.height / 2));
   }
 
+  /// A faded copy of [textStyle] with [alpha] quantized to [_alphaBuckets]
+  /// levels. Routing a fading digit through this + [drawCenteredText] caches
+  /// ≤ 10·16 faded glyphs instead of building/laying-out/disposing an uncached
+  /// [TextPainter] every frame for the whole transition.
+  ///
+  /// [textStyle] 的淡化副本，[alpha] 量化到 [_alphaBuckets] 级。淡入数位经此 +
+  /// [drawCenteredText] 缓存 ≤ 10·16 个淡化字形，而非整段过渡每帧新建/排版/销毁一个
+  /// 未缓存 [TextPainter]。
+  static const int _alphaBuckets = 16;
+  TextStyle _fadedStyle(double alpha) {
+    final b = (alpha.clamp(0.0, 1.0) * (_alphaBuckets - 1)).round();
+    final base = textStyle.color ?? const Color(0xFFFFFFFF);
+    return textStyle.copyWith(color: base.withValues(alpha: b / (_alphaBuckets - 1)));
+  }
+
   /// Upper half: `from` flap falls away (0 → π/2) revealing the `to` value's
   /// static background beneath it.
   /// Lower half: `to` flap rises into place (-π/2 → 0) covering the `from`
@@ -315,11 +330,7 @@ class FlipCardPainter extends CustomPainter {
     if (alpha >= 1.0) {
       drawCenteredText(canvas, '$value', textStyle, digitCache, rect.center.dx, rect.center.dy);
     } else {
-      final faded = textStyle.copyWith(color: (textStyle.color ?? const Color(0xFFFFFFFF)).withValues(alpha: alpha));
-      final tp = TextPainter(text: TextSpan(text: '$value', style: faded), textDirection: TextDirection.ltr)
-        ..layout();
-      tp.paint(canvas, Offset(rect.center.dx - tp.width / 2, rect.center.dy - tp.height / 2));
-      tp.dispose(); // uncached, per-frame — release the native paragraph now
+      drawCenteredText(canvas, '$value', _fadedStyle(alpha), digitCache, rect.center.dx, rect.center.dy);
     }
   }
 
@@ -354,11 +365,7 @@ class FlipCardPainter extends CustomPainter {
     if (alpha >= 1.0) {
       drawCenteredText(canvas, '$value', textStyle, digitCache, cx, cy);
     } else {
-      final faded = textStyle.copyWith(color: (textStyle.color ?? const Color(0xFFFFFFFF)).withValues(alpha: alpha));
-      final tp = TextPainter(text: TextSpan(text: '$value', style: faded), textDirection: TextDirection.ltr)
-        ..layout();
-      tp.paint(canvas, Offset(cx - tp.width / 2, cy - tp.height / 2));
-      tp.dispose(); // uncached, per-frame — release the native paragraph now
+      drawCenteredText(canvas, '$value', _fadedStyle(alpha), digitCache, cx, cy);
     }
 
     if (scaled) canvas.restore();

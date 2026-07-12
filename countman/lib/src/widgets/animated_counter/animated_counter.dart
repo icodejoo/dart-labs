@@ -120,7 +120,7 @@ class AnimatedCounter extends _BaseAnimatedCounter {
     super.initialValue,
     super.numeralSystem,
     super.numeralMapper,
-    super.transitionType,
+    super.transition,
     super.reverseDuration,
     super.reverseCurve,
     super.startDelay,
@@ -142,133 +142,6 @@ class AnimatedCounter extends _BaseAnimatedCounter {
     this.painterBuilder,
   });
 
-  // ── locale factory constructors ───────────────────────────────────────────
-
-  factory AnimatedCounter.usd({
-    Key? key, num? value, AnimatedCounterController? controller,
-    Duration duration = const Duration(milliseconds: 300), Curve curve = Curves.linear,
-    TextStyle? textStyle, String? suffix, int fractionDigits = 2, int wholeDigits = 1,
-    bool hideLeadingZeroes = false, MainAxisAlignment mainAxisAlignment = MainAxisAlignment.center,
-    CrossAxisAlignment crossAxisAlignment = CrossAxisAlignment.center,
-    EdgeInsets padding = EdgeInsets.zero, bool useTabularFigures = true,
-    bool showPositiveSign = false, String? semanticsLabel,
-    VoidCallback? onAnimationEnd, VoidCallback? onAnimationStart,
-    AxisDirection flipDirection = AxisDirection.up,
-    num? minValue, num? maxValue, Color? increasingColor, Color? decreasingColor,
-    Duration colorFadeDuration = const Duration(milliseconds: 800),
-    Widget? prefixWidget, Widget? infixWidget, Widget? suffixWidget,
-    Widget? thousandSeparatorWidget, Widget? decimalSeparatorWidget,
-    Widget? negativeSignWidget, Widget? positiveSignWidget,
-    Duration? staggerDelay, StaggerDirection staggerDirection = StaggerDirection.rightToLeft,
-    bool compactNotation = false, bool triggerHaptics = false, int? compactFractionDigits,
-    num? initialValue, NumeralSystem numeralSystem = NumeralSystem.latin,
-    String Function(int)? numeralMapper, CounterTransitionType transitionType = CounterTransitionType.roll,
-    Duration? reverseDuration, Curve? reverseCurve, Duration? startDelay,
-    double speedMultiplier = 1.0, Map<num, String>? compactAbbreviations,
-  }) => AnimatedCounter(
-    key: key, value: value, controller: controller, duration: duration, curve: curve,
-    textStyle: textStyle, prefix: r'$', suffix: suffix, fractionDigits: fractionDigits,
-    wholeDigits: wholeDigits, hideLeadingZeroes: hideLeadingZeroes,
-    thousandSeparator: ',', groupingPattern: const [3], decimalSeparator: '.',
-    mainAxisAlignment: mainAxisAlignment, crossAxisAlignment: crossAxisAlignment,
-    padding: padding, useTabularFigures: useTabularFigures, showPositiveSign: showPositiveSign,
-    semanticsLabel: semanticsLabel, onAnimationEnd: onAnimationEnd, onAnimationStart: onAnimationStart,
-    flipDirection: flipDirection, minValue: minValue, maxValue: maxValue,
-    increasingColor: increasingColor, decreasingColor: decreasingColor,
-    colorFadeDuration: colorFadeDuration, prefixWidget: prefixWidget, infixWidget: infixWidget,
-    suffixWidget: suffixWidget, thousandSeparatorWidget: thousandSeparatorWidget,
-    decimalSeparatorWidget: decimalSeparatorWidget, negativeSignWidget: negativeSignWidget,
-    positiveSignWidget: positiveSignWidget, staggerDelay: staggerDelay,
-    staggerDirection: staggerDirection, compactNotation: compactNotation,
-    triggerHaptics: triggerHaptics, compactFractionDigits: compactFractionDigits,
-    initialValue: initialValue ?? 0, numeralSystem: numeralSystem, numeralMapper: numeralMapper,
-    transitionType: transitionType, reverseDuration: reverseDuration, reverseCurve: reverseCurve,
-    startDelay: startDelay, speedMultiplier: speedMultiplier, compactAbbreviations: compactAbbreviations,
-  );
-
-  factory AnimatedCounter.cny({
-    Key? key, num? value, AnimatedCounterController? controller,
-    Duration duration = const Duration(milliseconds: 300), Curve curve = Curves.linear,
-    TextStyle? textStyle, String? suffix, int fractionDigits = 2, int wholeDigits = 1,
-    bool hideLeadingZeroes = false, MainAxisAlignment mainAxisAlignment = MainAxisAlignment.center,
-    CrossAxisAlignment crossAxisAlignment = CrossAxisAlignment.center,
-    EdgeInsets padding = EdgeInsets.zero, bool useTabularFigures = true,
-    bool showPositiveSign = false, String? semanticsLabel,
-    VoidCallback? onAnimationEnd, VoidCallback? onAnimationStart,
-    AxisDirection flipDirection = AxisDirection.up,
-    num? minValue, num? maxValue, Color? increasingColor, Color? decreasingColor,
-    Duration colorFadeDuration = const Duration(milliseconds: 800),
-    Widget? prefixWidget, Widget? infixWidget, Widget? suffixWidget,
-    Widget? thousandSeparatorWidget, Widget? decimalSeparatorWidget,
-    Widget? negativeSignWidget, Widget? positiveSignWidget,
-    Duration? staggerDelay, StaggerDirection staggerDirection = StaggerDirection.rightToLeft,
-    bool compactNotation = false, bool triggerHaptics = false, int? compactFractionDigits,
-    num? initialValue, NumeralSystem numeralSystem = NumeralSystem.latin,
-    String Function(int)? numeralMapper, CounterTransitionType transitionType = CounterTransitionType.roll,
-    Duration? reverseDuration, Curve? reverseCurve, Duration? startDelay,
-    double speedMultiplier = 1.0, Map<num, String>? compactAbbreviations,
-  }) => AnimatedCounter(
-    key: key, value: value, controller: controller, duration: duration, curve: curve,
-    textStyle: textStyle, prefix: '¥', suffix: suffix, fractionDigits: fractionDigits,
-    wholeDigits: wholeDigits, hideLeadingZeroes: hideLeadingZeroes,
-    thousandSeparator: ',', groupingPattern: const [4], decimalSeparator: '.',
-    mainAxisAlignment: mainAxisAlignment, crossAxisAlignment: crossAxisAlignment,
-    padding: padding, useTabularFigures: useTabularFigures, showPositiveSign: showPositiveSign,
-    semanticsLabel: semanticsLabel, onAnimationEnd: onAnimationEnd, onAnimationStart: onAnimationStart,
-    flipDirection: flipDirection, minValue: minValue, maxValue: maxValue,
-    increasingColor: increasingColor, decreasingColor: decreasingColor,
-    colorFadeDuration: colorFadeDuration, prefixWidget: prefixWidget, infixWidget: infixWidget,
-    suffixWidget: suffixWidget, thousandSeparatorWidget: thousandSeparatorWidget,
-    decimalSeparatorWidget: decimalSeparatorWidget, negativeSignWidget: negativeSignWidget,
-    positiveSignWidget: positiveSignWidget, staggerDelay: staggerDelay,
-    staggerDirection: staggerDirection, compactNotation: compactNotation,
-    triggerHaptics: triggerHaptics, compactFractionDigits: compactFractionDigits,
-    initialValue: initialValue ?? 0, numeralSystem: numeralSystem, numeralMapper: numeralMapper,
-    transitionType: transitionType, reverseDuration: reverseDuration, reverseCurve: reverseCurve,
-    startDelay: startDelay, speedMultiplier: speedMultiplier, compactAbbreviations: compactAbbreviations,
-  );
-
-  factory AnimatedCounter.inr({
-    Key? key, num? value, AnimatedCounterController? controller,
-    Duration duration = const Duration(milliseconds: 300), Curve curve = Curves.linear,
-    TextStyle? textStyle, String? suffix, int fractionDigits = 2, int wholeDigits = 1,
-    bool hideLeadingZeroes = false, MainAxisAlignment mainAxisAlignment = MainAxisAlignment.center,
-    CrossAxisAlignment crossAxisAlignment = CrossAxisAlignment.center,
-    EdgeInsets padding = EdgeInsets.zero, bool useTabularFigures = true,
-    bool showPositiveSign = false, String? semanticsLabel,
-    VoidCallback? onAnimationEnd, VoidCallback? onAnimationStart,
-    AxisDirection flipDirection = AxisDirection.up,
-    num? minValue, num? maxValue, Color? increasingColor, Color? decreasingColor,
-    Duration colorFadeDuration = const Duration(milliseconds: 800),
-    Widget? prefixWidget, Widget? infixWidget, Widget? suffixWidget,
-    Widget? thousandSeparatorWidget, Widget? decimalSeparatorWidget,
-    Widget? negativeSignWidget, Widget? positiveSignWidget,
-    Duration? staggerDelay, StaggerDirection staggerDirection = StaggerDirection.rightToLeft,
-    bool compactNotation = false, bool triggerHaptics = false, int? compactFractionDigits,
-    num? initialValue, NumeralSystem numeralSystem = NumeralSystem.latin,
-    String Function(int)? numeralMapper, CounterTransitionType transitionType = CounterTransitionType.roll,
-    Duration? reverseDuration, Curve? reverseCurve, Duration? startDelay,
-    double speedMultiplier = 1.0, Map<num, String>? compactAbbreviations,
-  }) => AnimatedCounter(
-    key: key, value: value, controller: controller, duration: duration, curve: curve,
-    textStyle: textStyle, prefix: '₹', suffix: suffix, fractionDigits: fractionDigits,
-    wholeDigits: wholeDigits, hideLeadingZeroes: hideLeadingZeroes,
-    thousandSeparator: ',', groupingPattern: const [3, 2], decimalSeparator: '.',
-    mainAxisAlignment: mainAxisAlignment, crossAxisAlignment: crossAxisAlignment,
-    padding: padding, useTabularFigures: useTabularFigures, showPositiveSign: showPositiveSign,
-    semanticsLabel: semanticsLabel, onAnimationEnd: onAnimationEnd, onAnimationStart: onAnimationStart,
-    flipDirection: flipDirection, minValue: minValue, maxValue: maxValue,
-    increasingColor: increasingColor, decreasingColor: decreasingColor,
-    colorFadeDuration: colorFadeDuration, prefixWidget: prefixWidget, infixWidget: infixWidget,
-    suffixWidget: suffixWidget, thousandSeparatorWidget: thousandSeparatorWidget,
-    decimalSeparatorWidget: decimalSeparatorWidget, negativeSignWidget: negativeSignWidget,
-    positiveSignWidget: positiveSignWidget, staggerDelay: staggerDelay,
-    staggerDirection: staggerDirection, compactNotation: compactNotation,
-    triggerHaptics: triggerHaptics, compactFractionDigits: compactFractionDigits,
-    initialValue: initialValue ?? 0, numeralSystem: numeralSystem, numeralMapper: numeralMapper,
-    transitionType: transitionType, reverseDuration: reverseDuration, reverseCurve: reverseCurve,
-    startDelay: startDelay, speedMultiplier: speedMultiplier, compactAbbreviations: compactAbbreviations,
-  );
 
   @override
   State<AnimatedCounter> createState() => _AnimatedCounterState();
@@ -286,8 +159,9 @@ class _AnimatedCounterState extends _BaseCounterState<AnimatedCounter> {
   @override
   void _onFrameUpdate() {
     _activePainter?.update(_currentDigitValues, !_isAnimatingDecrease,
-        bounceAlpha: _bounceAlpha,
-        fast: widget.fast, fastFrom: _fastFromDigits, fastTo: _fastToDigits);
+        bounceOffsets: _bounceOffsets,
+        fast: widget.fast, fastFrom: _fastFromDigits, fastTo: _fastToDigits,
+        targets: _targetDigitValues);
     _repaintTrigger.value++;
     if (widget.triggerHaptics) _maybeHaptic();
   }
@@ -295,8 +169,9 @@ class _AnimatedCounterState extends _BaseCounterState<AnimatedCounter> {
   @override
   void _onAnimationComplete() {
     _activePainter?.update(_currentDigitValues, !_isAnimatingDecrease,
-        bounceAlpha: _bounceAlpha,
-        fast: widget.fast, fastFrom: _fastFromDigits, fastTo: _fastToDigits);
+        bounceOffsets: _bounceOffsets,
+        fast: widget.fast, fastFrom: _fastFromDigits, fastTo: _fastToDigits,
+        targets: _targetDigitValues);
     _repaintTrigger.value++;
   }
 
@@ -350,10 +225,20 @@ class _AnimatedCounterState extends _BaseCounterState<AnimatedCounter> {
     final dh          = _prototypeSize!.height + widget.padding.vertical;
 
     // ── painter: create or reuse in-place ──────────────────────────────────
+    // Pass the RAW flipDirection (not _effectiveFlipDirection). The painter's
+    // exitDirection() already flips the roll by _increasing; feeding it the
+    // pre-flipped direction would cancel that out and make decreases roll the
+    // wrong way (up). Raw direction also means no per-reversal recreation —
+    // direction changes flow through update(_increasing) alone.
+    //
+    // 传入原始 flipDirection（而非 _effectiveFlipDirection）。painter 的
+    // exitDirection() 已按 _increasing 翻转滚动方向；若再喂入预翻转的方向会互相抵消，
+    // 使递减朝错误方向（向上）滚动。用原始方向还能免去每次反向时重建 painter——
+    // 方向变化只经由 update(_increasing) 流转。
     if (_activePainter == null ||
         _activePainter!.style         != style ||
-        _activePainter!.transitionType != widget.transitionType ||
-        _activePainter!.flipDirection  != _effectiveFlipDirection) {
+        _activePainter!.transition != widget.transition ||
+        _activePainter!.flipDirection  != widget.flipDirection) {
       _activePainter?.disposeCache();
       _activePainter = widget.painterBuilder != null
           ? widget.painterBuilder!(
@@ -361,8 +246,8 @@ class _AnimatedCounterState extends _BaseCounterState<AnimatedCounter> {
               digitValues: _currentDigitValues,
               style: style,
               digitSize: _prototypeSize!,
-              transitionType: widget.transitionType,
-              flipDirection: _effectiveFlipDirection,
+              transition: widget.transition,
+              flipDirection: widget.flipDirection,
               increasing: !_isAnimatingDecrease,
               fractionDigits: effFD,
               groupingPattern: widget.groupingPattern,
@@ -380,8 +265,8 @@ class _AnimatedCounterState extends _BaseCounterState<AnimatedCounter> {
               digitValues: _currentDigitValues,
               style: style,
               digitSize: _prototypeSize!,
-              transitionType: widget.transitionType,
-              flipDirection: _effectiveFlipDirection,
+              transition: widget.transition,
+              flipDirection: widget.flipDirection,
               increasing: !_isAnimatingDecrease,
               fractionDigits: effFD,
               groupingPattern: widget.groupingPattern,
@@ -396,12 +281,15 @@ class _AnimatedCounterState extends _BaseCounterState<AnimatedCounter> {
               fast: widget.fast,
               fastFrom: _fastFromDigits,
               fastTo: _fastToDigits,
+              targets: _targetDigitValues,
             );
     } else {
       // Sync direction on every build so a direction reversal takes effect
       // immediately — before the first onUpdate fires.
       _activePainter!.update(_currentDigitValues, !_isAnimatingDecrease,
-          fast: widget.fast, fastFrom: _fastFromDigits, fastTo: _fastToDigits);
+          bounceOffsets: _bounceOffsets,
+          fast: widget.fast, fastFrom: _fastFromDigits, fastTo: _fastToDigits,
+          targets: _targetDigitValues);
     }
 
     // computeFullWidth() counts ALL n digit slots (ignores hideLeadingZeroes)

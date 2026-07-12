@@ -26,7 +26,7 @@ void main() {
     WidgetTester t, {
     required double from,
     required double to,
-    required CounterTransitionType transitionType,
+    required CounterTransition transition,
     Widget Function(BuildContext, int, TextStyle)? digitBuilder,
     VoidCallback? onAnimationEnd,
   }) {
@@ -40,7 +40,7 @@ void main() {
           return AnimatedCounterBuilder(
             value: value,
             duration: const Duration(milliseconds: 200),
-            transitionType: transitionType,
+            transition: transition,
             digitBuilder: digitBuilder,
             onAnimationEnd: onAnimationEnd,
           );
@@ -48,7 +48,7 @@ void main() {
         return AnimatedCounter(
           value: value,
           duration: const Duration(milliseconds: 200),
-          transitionType: transitionType,
+          transition: transition,
           onAnimationEnd: onAnimationEnd,
         );
       })));
@@ -60,17 +60,27 @@ void main() {
   }
 
   group('AnimatedCounter transitions animate without throwing', () {
-    for (final type in CounterTransitionType.values) {
-      testWidgets('transitionType=$type animates 3 -> 42', (t) async {
-        await animateTo(t, from: 3, to: 42, transitionType: type)();
+    const transitions = <CounterTransition>[
+      CounterTransition.slide,
+      CounterTransition.slideScale,
+      CounterTransition.slideBlur,
+      CounterTransition.rotate,
+      CounterTransition.flip,
+      CounterTransition.flipFade,
+      CounterTransition(motion: CounterMotion.none),                 // pure fade
+      CounterTransition(motion: CounterMotion.none, scale: true),    // scale in place
+    ];
+    for (final type in transitions) {
+      testWidgets('transition=$type animates 3 -> 42', (t) async {
+        await animateTo(t, from: 3, to: 42, transition: type)();
         expect(t.takeException(), isNull);
       });
     }
   });
 
-  group('CounterTransitionType.flip', () {
+  group('CounterTransition.flip', () {
     testWidgets('fast path (no digitBuilder) uses CustomPaint and settles cleanly', (t) async {
-      await animateTo(t, from: 0, to: 7, transitionType: CounterTransitionType.flip)();
+      await animateTo(t, from: 0, to: 7, transition: CounterTransition.flip)();
 
       expect(t.takeException(), isNull);
       expect(find.byType(CustomPaint), findsWidgets); // fast path uses CustomPaint
@@ -82,7 +92,7 @@ void main() {
         t,
         from: 0,
         to: 7,
-        transitionType: CounterTransitionType.flip,
+        transition: CounterTransition.flip,
         digitBuilder: (_, digit, style) => Text('$digit', style: style),
       )();
 
@@ -91,7 +101,7 @@ void main() {
     });
 
     testWidgets('decreasing value (7 -> 2) animates without throwing', (t) async {
-      await animateTo(t, from: 7, to: 2, transitionType: CounterTransitionType.flip)();
+      await animateTo(t, from: 7, to: 2, transition: CounterTransition.flip)();
       expect(t.takeException(), isNull);
     });
 
@@ -101,7 +111,7 @@ void main() {
         t,
         from: 0,
         to: 9,
-        transitionType: CounterTransitionType.flip,
+        transition: CounterTransition.flip,
         onAnimationEnd: () => ended = true,
       )();
 
@@ -118,7 +128,7 @@ void main() {
         return AnimatedCounter(
           value: value,
           duration: const Duration(milliseconds: 300),
-          transitionType: CounterTransitionType.flip,
+          transition: CounterTransition.flip,
         );
       })));
       await t.pump();

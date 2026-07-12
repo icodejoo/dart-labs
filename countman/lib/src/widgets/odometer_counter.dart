@@ -6,22 +6,23 @@
 // Visual behaviour:
 //   • Ones digit transitions smoothly (fractional progress).
 //   • Higher digits snap at integer carry boundaries.
-//   • Increasing: old digit exits downward, new arrives from above.
-//   • Decreasing: old exits upward, new arrives from below.
+//   • Increasing: old digit exits UPWARD, new arrives from below.
+//   • Decreasing: old exits DOWNWARD, new arrives from above.
+//     (Direction is fixed once per segment and matches AnimatedCounter:
+//      increase → up, decrease → down.)
 //   • Optional bounce: each ones-digit transition briefly overshoots the target
 //     then springs back, direction-aware.
 
 import 'dart:math' as math;
-import 'dart:ui' as ui;
 
 import 'package:flutter/widgets.dart';
 
 import 'package:countman/src/counter/plugin.dart';
-import 'package:countman/src/counter/types.dart';
 
 import 'reduce_motion.dart';
 import 'style_support.dart';
 import 'providers.dart';
+import 'animated_counter/animated_counter.dart';
 
 /// Visual style for [OdometerCounter].
 ///
@@ -139,7 +140,28 @@ class OdometerCounterStyle with BoxStyleFields, StyleProps {
       ];
 }
 
-class OdometerCounter extends StatefulWidget {
+/// A sliding-digit "odometer" counter. Now a thin preset over
+/// [AnimatedCounter] with [CounterTransition.slide] and odometer defaults
+/// (fixed-width leading zeros). The previous standalone painter was removed —
+/// [AnimatedCounter]'s slide is the same look — so most rendering knobs are
+/// inherited from it.
+///
+/// Retained-but-inert (source compatibility only): [plugin], [controller],
+/// [slideCurve], [onUpdate], [onReady], [onCancel], and the
+/// [OdometerCounterStyle.letterWidth] / `verticalOffset` / `fadeEnabled`
+/// fields. Prefer [AnimatedCounter] directly for full control.
+///
+/// 滑动数位「里程表」计数器。现为 [AnimatedCounter] 的薄预设（[CounterTransition.slide]
+/// + 里程表默认值：固定位宽前导零）。独立 painter 已移除（AnimatedCounter 的 slide 是
+/// 同款外观），故大部分渲染参数继承自它。
+///
+/// 保留但失效（仅为源码兼容）：[plugin]、[controller]、[slideCurve]、[onUpdate]、
+/// [onReady]、[onCancel]，以及 [OdometerCounterStyle] 的 letterWidth / verticalOffset /
+/// fadeEnabled 字段。需要完全控制请直接用 [AnimatedCounter]。
+class OdometerCounter extends StatelessWidget {
+  /// Creates an odometer counter animating [from] → [to].
+  ///
+  /// 创建一个从 [from] 动画到 [to] 的里程表计数器。
   const OdometerCounter({
     super.key,
     this.from,
@@ -163,565 +185,166 @@ class OdometerCounter extends StatefulWidget {
     this.onCancel,
     this.bounceOvershoot = 0.0,
     this.bounceElasticity = 4.0,
-  }) : assert(bounceOvershoot >= 0.0),
-       assert(bounceElasticity >= 1.0);
+  })  : assert(bounceOvershoot >= 0.0),
+        assert(bounceElasticity >= 1.0);
 
+  /// Start value (default 0).
+  ///
+  /// 起始值（默认 0）。
   final double? from;
+
+  /// Target value.
+  ///
+  /// 目标值。
   final double to;
+
+  /// Animation duration.
+  ///
+  /// 动画时长。
   final Duration duration;
+
+  /// Easing curve.
+  ///
+  /// 缓动曲线。
   final Curve curve;
 
   /// When `false` (default) the value never goes below 0.
+  ///
+  /// 为 `false`（默认）时数值不会低于 0。
   final bool allowNegative;
 
+  /// Inert (source compatibility only).
+  ///
+  /// 失效（仅源码兼容）。
   final Counter? plugin;
+
+  /// Inert (source compatibility only).
+  ///
+  /// 失效（仅源码兼容）。
   final CounterValueController? controller;
 
   /// Visual style. Merged over the enclosing [CounterProvider]'s odometer
-  /// style, then the built-in defaults.
+  /// style, then built-in defaults.
   ///
   /// 视觉样式。叠加在所在 [CounterProvider] 的 odometer 样式之上，再到内建默认值。
   final OdometerCounterStyle? style;
 
-  /// Optional easing applied to the per-digit slide/fade progress.
+  /// Inert (source compatibility only).
+  ///
+  /// 失效（仅源码兼容）。
   final Curve? slideCurve;
 
   /// Text drawn between every 3 digits (e.g. `','`).
-  /// Replaces the former `Widget?` parameter; the painter renders it as text.
+  ///
+  /// 每 3 位之间绘制的文本（如 `','`）。
   final String? groupSeparator;
 
+  /// Prefix string.
+  ///
+  /// 前缀字符串。
   final String? prefix;
+
+  /// Suffix string.
+  ///
+  /// 后缀字符串。
   final String? suffix;
+
+  /// Prefix widget (wins over [prefix]).
+  ///
+  /// 前缀组件（优先于 [prefix]）。
   final Widget? prefixWidget;
+
+  /// Suffix widget (wins over [suffix]).
+  ///
+  /// 后缀组件（优先于 [suffix]）。
   final Widget? suffixWidget;
 
+  /// Inert (source compatibility only).
+  ///
+  /// 失效（仅源码兼容）。
   final void Function(double value)? onUpdate;
+
+  /// Called once the animation reaches [to].
+  ///
+  /// 动画到达 [to] 时回调一次。
   final void Function(double value)? onComplete;
+
+  /// Inert (source compatibility only).
+  ///
+  /// 失效（仅源码兼容）。
   final VoidCallback? onReady;
+
+  /// Called when the animation starts.
+  ///
+  /// 动画开始时回调。
   final VoidCallback? onStart;
+
+  /// Inert (source compatibility only).
+  ///
+  /// 失效（仅源码兼容）。
   final VoidCallback? onCancel;
 
-  /// How far each ones-digit transition overshoots its target before snapping
-  /// back. `0.0` (default) disables the effect.
+  /// Per-digit settle overshoot (`0.0` disables). See [AnimatedCounter].
   ///
-  /// The overshoot direction follows the animation:
-  ///   • Increasing → briefly shows the digit ABOVE the target (e.g. 6→7→6).
-  ///   • Decreasing → briefly shows the digit BELOW the target (e.g. 6→5→6).
+  /// 逐位落定过冲（`0.0` 关闭）。见 [AnimatedCounter]。
   final double bounceOvershoot;
 
-  /// Controls timing of the overshoot peak within each transition.
-  /// Higher values push the peak closer to the end (stiffer spring). Must be ≥ 1.
+  /// Overshoot peak timing (≥ 1). See [AnimatedCounter].
   ///
-  /// Peak occurs at `frac = 0.5^(1/bounceElasticity)`:
-  ///   `4.0` (default) → peak at frac ≈ 0.84 (balanced).
-  ///   `8.0`           → peak at frac ≈ 0.92 (very late, snappy).
+  /// 过冲峰值时机（≥ 1）。见 [AnimatedCounter]。
   final double bounceElasticity;
 
   @override
-  State<OdometerCounter> createState() => _CounterOdometerState();
-}
-
-// ── state ─────────────────────────────────────────────────────────────────────
-
-class _CounterOdometerState extends State<OdometerCounter> {
-  double _currentValue = 0;
-  bool _showMinus = false;
-  bool _increasing = true;
-  CounterHandle? _handle;
-
-  // Stable abs-value endpoints for this animation segment.
-  // Passed to the painter so each digit column interpolates fromDigit→toDigit
-  // independently, giving the slot-machine "all digits move" effect while
-  // always landing on an exact integer digit at t=0 and t=1.
-  double _fromAbsVal = 0;
-  double _toAbsVal   = 0;
-
-  final _repaintTrigger = ValueNotifier<int>(0);
-  _OdometerPainter? _painter;
-  TextStyle? _lastStyle;
-  Size? _protoSize;
-
-  @override
-  void initState() {
-    super.initState();
-    _currentValue = widget.from ?? 0;
-    _showMinus    = widget.allowNegative && _currentValue < 0;
-    _increasing   = (widget.from ?? 0) <= widget.to;
-    _fromAbsVal   = _currentValue.abs();
-    _toAbsVal     = widget.to.abs();
-    _startTask(from: _currentValue);
-  }
-
-  void _startTask({required double from}) {
-    _handle?.cancel();
-    _increasing = from <= widget.to;
-    _fromAbsVal = from.abs();
-    _toAbsVal   = widget.to.abs();
-    _handle = (widget.plugin ?? defaultCounter).add(CounterOptions(
-      from: from,
-      to: widget.to,
-      duration: motionDuration(widget.duration),
-      curve: widget.curve,
-      allowNegative: widget.allowNegative,
-      onUpdate: (v) {
-        _currentValue = v;
-        widget.controller?.latestValue = v;
-        widget.onUpdate?.call(v);
-        _painter?.update(v, _increasing, _fromAbsVal, _toAbsVal);
-        _repaintTrigger.value++;
-
-        final neg = widget.allowNegative && v < 0;
-        if (neg != _showMinus) {
-          _showMinus = neg;
-          if (mounted) setState(() {});
-        }
-      },
-      onComplete: (_) => widget.onComplete?.call(widget.to),
-      onReady: widget.onReady,
-      onStart: widget.onStart,
-      onCancel: widget.onCancel,
-    ));
-    widget.controller?.attach(_handle!);
-  }
-
-  @override
-  void didUpdateWidget(OdometerCounter old) {
-    super.didUpdateWidget(old);
-    if (widget.controller != old.controller) old.controller?.detach();
-    if (widget.to       != old.to       ||
-        widget.duration != old.duration  ||
-        widget.curve    != old.curve     ||
-        widget.plugin   != old.plugin    ||
-        widget.controller != old.controller) {
-      _startTask(from: _currentValue);
-    }
-  }
-
-  @override
-  void dispose() {
-    widget.controller?.detach();
-    _handle?.cancel();
-    _painter?.disposeCache();
-    _repaintTrigger.dispose();
-    super.dispose();
-  }
-
-  @override
   Widget build(BuildContext context) {
-    // Resolve style: widget.style over the provider default, then built-in
-    // defaults for any field still unset.
+    // Style: this widget's style over the enclosing provider's odometer style.
     //
-    // 解析样式：widget.style 叠加在 provider 默认之上，仍未设的字段用内建默认值。
+    // 样式：本组件样式叠加在所在 provider 的 odometer 样式之上。
     final scope = CountmanScope.maybeOf<Counter>(context);
-    final st = widget.style?.merge(scope?.odometerCounterStyle) ?? scope?.odometerCounterStyle;
-    final effNumberTextStyle = st?.numberTextStyle;
-    final effLetterWidth = st?.letterWidth ?? 20.0;
-    final effVerticalOffset = st?.verticalOffset ?? 20.0;
-    final effFadeEnabled = st?.fadeEnabled ?? true;
-    final effDigitAlignment = st?.digitAlignment ?? Alignment.center;
-    final effCrossAxisAlignment = st?.crossAxisAlignment ?? CrossAxisAlignment.baseline;
-    final effPrefixStyle = st?.prefixStyle ?? effNumberTextStyle;
-    final effSuffixStyle = st?.suffixStyle ?? effNumberTextStyle;
+    final st = style?.merge(scope?.odometerCounterStyle) ?? scope?.odometerCounterStyle;
 
-    final style      = DefaultTextStyle.of(context).style.merge(effNumberTextStyle);
-    final textScaler = MediaQuery.textScalerOf(context);
+    // Fixed-width leading zeros — the mechanical-odometer look. Width = digit
+    // count of the larger endpoint.
+    //
+    // 固定位宽前导零——机械里程表外观。位宽 = 较大端点的位数。
+    final int maxAbs = math.max((from ?? 0).abs(), to.abs()).floor();
+    final int wholeDigits = maxAbs == 0 ? 1 : maxAbs.toString().length;
 
-    // ── prototype measurement (once per style) ─────────────────────────────
-    if (_protoSize == null || style != _lastStyle) {
-      final tp = TextPainter(
-        text: TextSpan(text: '0', style: style),
-        textDirection: TextDirection.ltr,
-        textScaler: textScaler,
-      )..layout();
-      _protoSize = tp.size;
-      tp.dispose();
-
-      _painter?.disposeCache();
-      _painter = _OdometerPainter(
-        repaint: _repaintTrigger,
-        value: _currentValue,
-        fromAbsVal: _fromAbsVal,
-        toAbsVal: _toAbsVal,
-        increasing: _increasing,
-        textStyle: style,
-        digitH: _protoSize!.height,
-        letterWidth: effLetterWidth,
-        verticalOffset: effVerticalOffset,
-        slideCurve: widget.slideCurve,
-        fadeEnabled: effFadeEnabled,
-        digitAlignment: effDigitAlignment,
-        groupSeparator: widget.groupSeparator,
-        bounceOvershoot: widget.bounceOvershoot,
-        bounceElasticity: widget.bounceElasticity,
-      );
-      _lastStyle = style;
-    } else {
-      _painter!.update(_currentValue, _increasing, _fromAbsVal, _toAbsVal);
-    }
-
-    // SizedBox sized from max(from, to) — stable throughout animation.
-    final totalW = _painter!.computeFullWidth();
-    final Widget digitBox = SizedBox(
-      width: totalW,
-      height: _protoSize!.height,
-      child: CustomPaint(painter: _painter),
+    final Widget counter = AnimatedCounter(
+      initialValue: from ?? 0,
+      value: to,
+      // Honor the OS "reduce motion" flag, like CounterBuilder / CardCountdown.
+      //
+      // 遵循系统「减弱动态」标志，与 CounterBuilder / CardCountdown 一致。
+      duration: motionDuration(duration),
+      curve: curve,
+      transition: CounterTransition.slide,
+      minValue: allowNegative ? null : 0,
+      wholeDigits: wholeDigits,
+      hideLeadingZeroes: false,
+      thousandSeparator: groupSeparator,
+      prefix: prefix,
+      suffix: suffix,
+      prefixWidget: prefixWidget,
+      suffixWidget: suffixWidget,
+      bounceOvershoot: bounceOvershoot,
+      bounceElasticity: bounceElasticity,
+      onAnimationStart: onStart,
+      onAnimationEnd: onComplete == null ? null : () => onComplete!(to),
+      style: AnimatedCounterStyle(
+        textStyle: st?.numberTextStyle,
+        numberAlignment: st?.digitAlignment?.x ?? 0.0,
+        // Forward per-affix + cross-axis styling (previously silently dropped).
+        //
+        // 转发前后缀 + 交叉轴样式（此前被静默丢弃）。
+        prefixStyle: st?.prefixStyle,
+        suffixStyle: st?.suffixStyle,
+        crossAxisAlignment: st?.crossAxisAlignment,
+      ),
     );
 
-    // ── decoration Row ─────────────────────────────────────────────────────
-    final needsRow = _showMinus ||
-        widget.prefix      != null || widget.prefixWidget  != null ||
-        widget.suffix      != null || widget.suffixWidget  != null;
-
-    final Widget content = !needsRow
-        ? digitBox
-        : Row(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: effCrossAxisAlignment,
-            textBaseline: TextBaseline.alphabetic,
-            children: [
-              if (_showMinus) Text('-', style: effNumberTextStyle),
-              if (widget.prefixWidget != null)
-                widget.prefixWidget!
-              else if (widget.prefix != null)
-                Text(widget.prefix!, style: effPrefixStyle),
-              digitBox,
-              if (widget.suffixWidget != null)
-                widget.suffixWidget!
-              else if (widget.suffix != null)
-                Text(widget.suffix!, style: effSuffixStyle),
-            ],
-          );
-    return applyBoxStyle(content, padding: st?.padding, decoration: st?.decoration);
+    // Container-level padding / decoration from the style.
+    //
+    // 来自样式的容器级 padding / decoration。
+    return applyBoxStyle(counter, padding: st?.padding, decoration: st?.decoration);
   }
-}
-
-// ── painter ───────────────────────────────────────────────────────────────────
-
-class _OdometerPainter extends CustomPainter {
-  _OdometerPainter({
-    required Listenable repaint,
-    required double value,
-    required double fromAbsVal,
-    required double toAbsVal,
-    required bool increasing,
-    required this.textStyle,
-    required this.digitH,
-    required this.letterWidth,
-    required this.verticalOffset,
-    this.slideCurve,
-    this.fadeEnabled = true,
-    this.digitAlignment = Alignment.center,
-    this.groupSeparator,
-    this.bounceOvershoot = 0.0,
-    this.bounceElasticity = 4.0,
-  })  : _value      = value,
-        _fromAbsVal = fromAbsVal,
-        _toAbsVal   = toAbsVal,
-        _increasing  = increasing,
-        _color       = textStyle.color ?? const Color(0xFF000000),
-        super(repaint: repaint);
-
-  double _value;
-  double _fromAbsVal;
-  double _toAbsVal;
-  bool   _increasing;
-
-  void update(double value, bool increasing, double fromAbsVal, double toAbsVal) {
-    _value      = value;
-    _increasing  = increasing;
-    _fromAbsVal = fromAbsVal;
-    _toAbsVal   = toAbsVal;
-  }
-
-  final TextStyle textStyle;
-  final double    digitH;       // height of one digit (from TextPainter)
-  final double    letterWidth;
-  final double    verticalOffset;
-  final Curve?    slideCurve;
-  final bool      fadeEnabled;
-  final Alignment digitAlignment;
-  final String?   groupSeparator;
-  final double    bounceOvershoot;
-  final double    bounceElasticity;
-  final Color     _color;
-
-  // ── paragraph cache ───────────────────────────────────────────────────────
-  // Key: digit * 256 + alpha_byte  →  pre-laid-out Paragraph
-  final Map<int, ui.Paragraph> _cache = {};
-
-  ui.Paragraph _paragraph(int digit, double alpha) {
-    final key = digit * 256 + (alpha * 255).round().clamp(0, 255);
-    return _cache.putIfAbsent(key, () {
-      final c = _color.withValues(alpha: alpha.clamp(0.0, 1.0));
-      final pb = ui.ParagraphBuilder(
-        ui.ParagraphStyle(
-          textAlign: TextAlign.center,
-          fontSize: textStyle.fontSize,
-          fontWeight: textStyle.fontWeight,
-          fontFamily: textStyle.fontFamily,
-        ),
-      )
-        ..pushStyle(ui.TextStyle(
-          color: c,
-          fontSize: textStyle.fontSize,
-          fontWeight: textStyle.fontWeight,
-          fontFamily: textStyle.fontFamily,
-        ))
-        ..addText('$digit');
-      return pb.build()
-        ..layout(ui.ParagraphConstraints(width: letterWidth));
-    });
-  }
-
-  ui.Paragraph? _sepCache;
-  ui.Paragraph _separatorParagraph() {
-    return _sepCache ??= () {
-      final pb = ui.ParagraphBuilder(
-        ui.ParagraphStyle(fontSize: textStyle.fontSize, fontFamily: textStyle.fontFamily),
-      )
-        ..pushStyle(ui.TextStyle(
-          color: _color,
-          fontSize: textStyle.fontSize,
-          fontFamily: textStyle.fontFamily,
-        ))
-        ..addText(groupSeparator!);
-      return pb.build()
-        ..layout(ui.ParagraphConstraints(width: _separatorWidth() + 4));
-    }();
-  }
-
-  double? _sepWidthCache;
-  double _separatorWidth() {
-    if (groupSeparator == null) return 0;
-    return _sepWidthCache ??= () {
-      final pb = ui.ParagraphBuilder(
-        ui.ParagraphStyle(fontSize: textStyle.fontSize, fontFamily: textStyle.fontFamily),
-      )
-        ..pushStyle(ui.TextStyle(
-          color: _color, fontSize: textStyle.fontSize, fontFamily: textStyle.fontFamily,
-        ))
-        ..addText(groupSeparator!);
-      final p = pb.build()..layout(const ui.ParagraphConstraints(width: 200));
-      final w = p.maxIntrinsicWidth;
-      p.dispose();
-      return w;
-    }();
-  }
-
-  // ── digit layout ──────────────────────────────────────────────────────────
-
-  /// Integer power of 10 (avoids floating-point drift in math.pow).
-  static int _pow10(int n) {
-    var r = 1;
-    for (var i = 0; i < n; i++) r *= 10;
-    return r;
-  }
-
-  /// Real cascading odometer layout.
-  ///
-  /// Each digit column uses `absVal / 10^p` to derive its current position,
-  /// so higher-place digits scroll proportionally slower (ones is 10× faster
-  /// than tens, etc.). This is the physically correct odometer behaviour the
-  /// user expects — different digits move at different speeds rather than all
-  /// cycling 0→9 in lockstep.
-  ///
-  /// Ghost prevention: at t=0 and t=1 (endpoints) digits are snapped to the
-  /// exact integer digits of _fromAbsVal / _toAbsVal, ensuring frac=0 and no
-  /// semi-transparent overlap at rest.
-  List<(double x, int cur, int nxt, double frac)> _buildLayout(int numDigits) {
-    final double t;
-    if (_fromAbsVal == _toAbsVal) {
-      t = 1.0;
-    } else {
-      t = ((_value.abs() - _fromAbsVal) / (_toAbsVal - _fromAbsVal))
-          .clamp(0.0, 1.0);
-    }
-
-    final bool snapStart = t <= 1e-9;
-    final bool snapEnd   = t >= 1.0 - 1e-9;
-
-    final raw = <(int cur, int nxt, double frac)>[];
-
-    for (int place = 0; place < numDigits; place++) {
-      final p10  = _pow10(place);
-      final p10f = p10.toDouble();
-
-      int    cur;
-      double frac;
-      int    nxt;
-
-      if (snapStart) {
-        // Exact integer digits at animation start — no ghost.
-        cur  = (_fromAbsVal.round() ~/ p10) % 10;
-        frac = 0.0;
-        nxt  = _increasing ? (cur + 1) % 10 : (cur - 1 + 10) % 10;
-      } else if (snapEnd) {
-        // Exact integer digits at animation end — no ghost.
-        cur  = (_toAbsVal.round() ~/ p10) % 10;
-        frac = 0.0;
-        nxt  = _increasing ? (cur + 1) % 10 : (cur - 1 + 10) % 10;
-      } else if (_increasing) {
-        // Increasing: floor gives the "from" digit, frac is decimal portion.
-        final scaled  = _value.abs() / p10f;
-        final intPart = scaled.floor();
-        frac = scaled - intPart;
-        if (frac < 0.005) frac = 0.0;
-        cur  = intPart % 10;
-        nxt  = (cur + 1) % 10;
-
-        // Ghost prevention: when this digit has entered its final cycle
-        // (within one place-value step of target) and already shows the
-        // target digit, stop animating — prevents a "9→0" ghost at the end.
-        final int targetDigit = (_toAbsVal.round() ~/ p10) % 10;
-        if (cur == targetDigit && _value.abs() >= _toAbsVal - p10f) {
-          frac = 0.0;
-        }
-      } else {
-        // Decreasing: ceil gives the digit we're leaving; frac is progress
-        // toward the lower digit.
-        final scaled  = _value.abs() / p10f;
-        final intCeil = scaled.ceil();
-        frac = (intCeil - scaled).clamp(0.0, 1.0);
-        if (frac < 0.005) frac = 0.0;
-        cur  = intCeil % 10;
-        nxt  = (cur - 1 + 10) % 10;
-
-        // Ghost prevention for decreasing: within one cycle of target.
-        final int targetDigit = (_toAbsVal.round() ~/ p10) % 10;
-        if (cur == targetDigit && _value.abs() <= _toAbsVal + p10f) {
-          frac = 0.0;
-        }
-      }
-
-      raw.add((cur, nxt, frac));
-    }
-
-    // Build left-to-right (most significant first).
-    final n    = raw.length;
-    final sepW = _separatorWidth();
-    final result = <(double x, int cur, int nxt, double frac)>[];
-    double x = 0;
-
-    for (var i = n - 1; i >= 0; i--) {
-      final fromRight = i + 1;
-      if (groupSeparator != null && fromRight % 3 == 0 && fromRight < n) {
-        x += sepW;
-      }
-      final (c, nt, fr) = raw[i];
-      result.add((x, c, nt, fr));
-      x += letterWidth;
-    }
-    return result;
-  }
-
-  /// Stable SizedBox width based on max(fromAbsVal, toAbsVal) digit count —
-  /// never changes mid-animation.
-  double computeFullWidth() {
-    final maxAbsVal = math.max(_fromAbsVal, _toAbsVal);
-    final intFloor  = maxAbsVal.floor();
-    final numDigits = intFloor == 0 ? 1 : intFloor.toString().length;
-    final sepW = _separatorWidth();
-    var x = 0.0;
-    for (var i = numDigits - 1; i >= 0; i--) {
-      final fromRight = i + 1;
-      if (groupSeparator != null && fromRight % 3 == 0 && fromRight < numDigits) {
-        x += sepW;
-      }
-      x += letterWidth;
-    }
-    return x == 0 ? letterWidth : x;
-  }
-
-  // ── paint ─────────────────────────────────────────────────────────────────
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final h        = size.height;
-    final maxAbsVal = math.max(_fromAbsVal, _toAbsVal);
-    final intFloor  = maxAbsVal.floor();
-    final numDigits = math.max(1, intFloor == 0 ? 1 : intFloor.toString().length);
-    final layout    = _buildLayout(numDigits);
-    final dir    = _increasing ? 1.0 : -1.0;
-    final sepW   = _separatorWidth();
-    // Use the CELL HEIGHT as slide distance so digits fully clear the clip
-    // boundary at any frac value, preventing semi-transparent ghost overlap.
-    // Using a smaller verticalOffset than digitH would leave the incoming
-    // digit permanently peeking into the visible window.
-    final vo     = h;
-
-    // Vertical baseline within the slot, accounting for digitAlignment.
-    final baseY = (h - digitH) * (digitAlignment.y + 1) / 2;
-
-    for (int i = 0; i < layout.length; i++) {
-      final (x, cur, nxt, frac) = layout[i];
-
-      // Draw separator left of this column when carry-based layout inserted one.
-      if (groupSeparator != null) {
-        final fromRight = layout.length - i;
-        if (fromRight % 3 == 0 && fromRight < layout.length) {
-          canvas.drawParagraph(_separatorParagraph(), Offset(x - sepW, baseY));
-        }
-      }
-
-      // ── easing + bounce ─────────────────────────────────────────────────
-      // Fast path: bounceOvershoot=0 (default) → skip all sin/pow math.
-      // Slow path: apply bounce bump after easing. bump peaks near frac=0.84
-      // (e=4) and returns to 0 at both frac=0 and frac=1 (sin(π·frac^e)).
-      // effectiveE can exceed 1.0, triggering the 3-digit overshoot render.
-      final rawE = (slideCurve?.transform(frac.clamp(0, 1)) ?? frac).clamp(0.0, 1.0);
-      final effectiveE = (bounceOvershoot > 0 && frac > 0 && frac < 1)
-          ? rawE + bounceOvershoot * math.sin(math.pi * math.pow(frac, bounceElasticity))
-          : rawE;
-
-      canvas.save();
-      canvas.clipRect(Rect.fromLTWH(x, 0, letterWidth, h));
-
-      if (effectiveE <= 1.0) {
-        // ── normal: two digits ─────────────────────────────────────────────
-        final e = effectiveE;
-        canvas.drawParagraph(
-          _paragraph(cur, fadeEnabled ? 1.0 - e : 1.0),
-          Offset(x, baseY + e * vo * dir),
-        );
-        canvas.drawParagraph(
-          _paragraph(nxt, fadeEnabled ? e : 1.0),
-          Offset(x, baseY + (e - 1.0) * vo * dir),
-        );
-      } else {
-        // ── overshoot: three digits ────────────────────────────────────────
-        // effectiveE ∈ (1, 1+bounceOvershoot]: treat as a secondary transition
-        // where `nxt` (the target digit) plays the role of the exiting digit
-        // and `over` (one step further in the animation direction) briefly
-        // appears, then everything returns as effectiveE falls back to 1.0.
-        final eFrac = effectiveE - 1.0; // 0 → bounceOvershoot → 0
-        final over  = _increasing ? (nxt + 1) % 10 : (nxt - 1 + 10) % 10;
-
-        // cur: fully exited — nothing to draw (clipped).
-
-        // nxt (target): slides past center, fades out slightly.
-        canvas.drawParagraph(
-          _paragraph(nxt, fadeEnabled ? (1.0 - eFrac).clamp(0, 1) : 1.0),
-          Offset(x, baseY + (effectiveE - 1.0) * vo * dir),
-        );
-
-        // over (overshoot digit): arrives from the far side, fades in briefly.
-        canvas.drawParagraph(
-          _paragraph(over, fadeEnabled ? eFrac.clamp(0, 1) : 1.0),
-          Offset(x, baseY + (effectiveE - 2.0) * vo * dir),
-        );
-      }
-
-      canvas.restore();
-    }
-  }
-
-  void disposeCache() {
-    for (final p in _cache.values) { p.dispose(); }
-    _cache.clear();
-    _sepCache?.dispose();
-    _sepCache = null;
-  }
-
-  @override
-  bool shouldRepaint(_OdometerPainter old) => false;
 }

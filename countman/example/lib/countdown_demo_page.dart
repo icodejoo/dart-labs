@@ -177,6 +177,10 @@ class _CountdownDemoPageState extends State<CountdownDemoPage> {
           size: const Size(130, 160),
         )),
       ]),
+      _Section('Auto-remove on complete (task auto-evicted; ticker idles)', [
+        _Tile('done → task removed; resume = no-op', const _AutoRemoveDemo(),
+            size: const Size(200, 140)),
+      ]),
       _Section('Stress — 12 concurrent (shared defaultCountdown group)', [
         for (var i = 1; i <= 12; i++)
           _Tile('#$i (${_kMed.inSeconds - i}s)', TextCountdown(
@@ -309,6 +313,80 @@ class _ControllerDemoState extends State<_ControllerDemo> {
             _btn('cancel', () { _ctrl.cancel(); setState(() => _status = 'cancelled'); }),
           ]),
           Text(_status, style: const TextStyle(fontSize: 8, color: Colors.grey)),
+        ]),
+      );
+
+  Widget _btn(String label, VoidCallback onTap) => TextButton(
+        style: TextButton.styleFrom(
+          padding: const EdgeInsets.symmetric(horizontal: 4),
+          minimumSize: Size.zero,
+          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+        ),
+        onPressed: onTap,
+        child: Text(label, style: const TextStyle(fontSize: 9)),
+      );
+}
+
+/// Dedicated group so [TaskQueuePlugin.activeTaskCount] reflects ONLY this
+/// demo's task (not the shared default group). Never manually registered —
+/// the plugin self-attaches on the first `add()` (see TaskQueuePlugin.enqueue).
+///
+/// 独立分组，使 [TaskQueuePlugin.activeTaskCount] 只反映本 demo 的任务（不含共享
+/// 默认组）。从不手动注册——插件在首次 `add()` 时自注册（见 TaskQueuePlugin.enqueue）。
+final _autoRemovePlugin = Countdown(name: 'autoremove-demo');
+
+/// Shows a countdown task auto-evicting itself when it completes: the live
+/// task count drops to 0, the digits are removed, and a subsequent `resume()`
+/// is a no-op (there is no task left to resume).
+///
+/// 演示倒计时任务完成后自动移除：存活任务数归 0、数字被移除，之后 `resume()`
+/// 为空操作（已无任务可恢复）。
+class _AutoRemoveDemo extends StatefulWidget {
+  const _AutoRemoveDemo();
+  @override
+  State<_AutoRemoveDemo> createState() => _AutoRemoveDemoState();
+}
+
+class _AutoRemoveDemoState extends State<_AutoRemoveDemo> {
+  final _ctrl = CountdownController();
+  bool _done = false;
+  int _seq = 0; // bump to spin up a fresh 5 s task
+
+  void _restart() => setState(() { _done = false; _seq++; });
+
+  @override
+  Widget build(BuildContext context) => SizedBox(
+        width: 190,
+        child: Column(mainAxisSize: MainAxisSize.min, children: [
+          SizedBox(
+            height: 24,
+            child: _done
+                // Task gone → nothing left to render.
+                //
+                // 任务已移除 → 无内容可渲染。
+                ? const Text('— task removed —',
+                    style: TextStyle(fontSize: 12, color: Colors.grey))
+                : CountdownBuilder(
+                    key: ValueKey(_seq),
+                    plugin: _autoRemovePlugin,
+                    controller: _ctrl,
+                    duration: const Duration(seconds: 5),
+                    onTick: (_) { if (mounted) setState(() {}); }, // refresh count
+                    onComplete: () { if (mounted) setState(() => _done = true); },
+                    builder: (_, r, __) =>
+                        Text(CountdownFormat.ms(r), style: _ts),
+                  ),
+          ),
+          const SizedBox(height: 2),
+          Text('active tasks: ${_autoRemovePlugin.activeTaskCount}',
+              style: const TextStyle(fontSize: 9, color: Colors.grey)),
+          Wrap(alignment: WrapAlignment.center, spacing: 2, children: [
+            _btn('pause', () { _ctrl.pause(); setState(() {}); }),
+            _btn('resume', () { _ctrl.resume(); setState(() {}); }),
+            _btn('restart', _restart),
+          ]),
+          Text(_done ? 'resume → no-op (no task)' : 'running',
+              style: const TextStyle(fontSize: 8, color: Colors.grey)),
         ]),
       );
 

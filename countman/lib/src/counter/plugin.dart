@@ -91,12 +91,6 @@ class Counter extends TaskQueuePlugin<CounterTask> {
   static double _clamp(CounterTask task, double v) =>
       (!task.allowNegative && v < 0) ? 0 : v;
 
-  @override
-  void onDispose() {
-    // Reset the auto-bootstrap flag so counter() re-registers after destroy().
-    if (identical(this, _default)) _registered = false;
-  }
-
   // ── public API ────────────────────────────────────────────────────
 
   CounterHandle add(CounterOptions opts) {
@@ -213,18 +207,11 @@ class CounterValueController {
 
 // ── default instance + top-level function ─────────────────────────
 
-final _default = Counter();
-bool _registered = false;
+final _defaultCounter = LazyDefault<Counter>(() => Counter());
 
 /// The default shared [Counter] instance. Auto-registered with [Countman]
 /// on first access.
-Counter get defaultCounter {
-  if (!_registered) {
-    _registered = true;
-    Countman.use(_default);
-  }
-  return _default;
-}
+Counter get defaultCounter => _defaultCounter.instance;
 
 /// Add a counter animation using the default shared [Counter] instance.
 /// Auto-registered with [Countman] on first call.
