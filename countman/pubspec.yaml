@@ -1,16 +1,18 @@
 name: countman
-description: "A high-performance shared-ticker counter engine for Flutter. One vsync frame callback drives all count-up animations and countdown timers; rendering is pluggable."
+description: "High-performance counter, countdown & stopwatch animations for Flutter. One shared vsync ticker drives every instance — no per-widget timers, built for high concurrency."
 version: 0.1.0
 homepage: https://github.com/icodejoo/dart-labs/tree/main/countman
 repository: https://github.com/icodejoo/dart-labs
 issue_tracker: https://github.com/icodejoo/dart-labs/issues
 
+# Discovery tags (max 5) — one per searchable category, covering all three
+# families (counter / countdown / stopwatch) plus the common "timer" search.
 topics:
   - counter
   - countdown
-  - animation
+  - stopwatch
   - timer
-  - ticker
+  - animation
 
 environment:
   sdk: ^3.5.0
