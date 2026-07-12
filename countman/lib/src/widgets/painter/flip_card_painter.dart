@@ -1,9 +1,9 @@
 import 'dart:math' as math;
 import 'package:flutter/widgets.dart';
-import '../countdown_card_types.dart';
+import '../card_countdown_types.dart';
 import 'perspective.dart';
 
-/// Layout of one digit cell within a [CountdownCard], resolved by its
+/// Layout of one digit cell within a [CardCountdown], resolved by its
 /// `_measure()` and consumed by [FlipCardPainter].
 class Cell {
   const Cell(this.x, this.width, this.digitIndex, this.radius);
@@ -13,7 +13,7 @@ class Cell {
   final BorderRadius radius;
 }
 
-/// Resolved geometry for one [CountdownCard] paint pass — cell positions,
+/// Resolved geometry for one [CardCountdown] paint pass — cell positions,
 /// separator/label centers, and the overall canvas [size].
 class CardGeometry {
   const CardGeometry({
@@ -30,7 +30,7 @@ class CardGeometry {
   final List<String?> unitLabelText;
 }
 
-/// Mutable, painter-visible animation state for one `CountdownCard` instance.
+/// Mutable, painter-visible animation state for one `CardCountdown` instance.
 /// Digit ticks and transition progress mutate this directly — no `setState`
 /// — the painter's `repaint` listenable (the shared [AnimationController])
 /// is what schedules the repaint.
@@ -42,7 +42,7 @@ class CardModel {
   bool reversePhase = false;
 }
 
-/// Paints one `CountdownCard` — every digit, separator and label — as a
+/// Paints one `CardCountdown` — every digit, separator and label — as a
 /// single [CustomPainter] repainted in place, not a widget subtree rebuilt
 /// per digit.
 ///
@@ -123,8 +123,8 @@ class FlipCardPainter extends CustomPainter {
   final TextStyle separatorStyle;
   final String separator;
 
-  // Glyph caches — see CountdownCard.build() for how these are routed to
-  // either the card's own local cache or a CountdownCardProvider's shared one.
+  // Glyph caches — see CardCountdown.build() for how these are routed to
+  // either the card's own local cache or a CardCountdownProvider's shared one.
   final Map<(String, TextStyle), TextPainter> digitCache;
   final Map<(String, TextStyle), TextPainter> sepCache;
   final Map<(String, TextStyle), TextPainter> labelCache;

@@ -70,17 +70,17 @@ class _PerfPageState extends State<PerfPage> {
                     staggerDelay: const Duration(milliseconds: 80),
                     thousandSeparator: ',', textStyle: _ts),
             ]),
-            _group('CounterOdometer', [
+            _group('OdometerCounter', [
               for (var i = 0; i < 5; i++)
-                CounterOdometer(to: _value, duration: _dur, curve: Curves.linear,
-                    style: const CounterOdometerStyle(
+                OdometerCounter(to: _value, duration: _dur, curve: Curves.linear,
+                    style: const OdometerCounterStyle(
                         letterWidth: 18, verticalOffset: 24, numberTextStyle: _ts),
                     groupSeparator: ','),
             ]),
-            _group('CounterText', [
+            _group('TextCounter', [
               for (var i = 0; i < 5; i++)
-                CounterText(to: _value, duration: _dur, curve: Curves.linear,
-                    style: CounterTextStyle(textStyle: _ts)),
+                TextCounter(to: _value, duration: _dur, curve: Curves.linear,
+                    style: TextCounterStyle(textStyle: _ts)),
             ]),
           ],
         ),

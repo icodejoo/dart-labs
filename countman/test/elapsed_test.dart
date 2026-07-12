@@ -179,20 +179,20 @@ void main() {
     });
   });
 
-  // ── ElapsedText ───────────────────────────────────────────────────────────
+  // ── TextElapsed ───────────────────────────────────────────────────────────
 
-  group('ElapsedText', () {
+  group('TextElapsed', () {
     tearDown(Countman.destroy);
 
     testWidgets('renders 00:00 on first frame', (t) async {
-      await t.pumpWidget(_wrap(const ElapsedText()));
+      await t.pumpWidget(_wrap(const TextElapsed()));
       await t.pump();
       Countman.destroy();
       expect(find.text('00:00.0'), findsOneWidget); // auto formatter: <10s → msTenths
     });
 
     testWidgets('counts up with a custom formatter', (t) async {
-      await t.pumpWidget(_wrap(ElapsedText(formatter: CountdownFormat.ms)));
+      await t.pumpWidget(_wrap(TextElapsed(formatter: CountdownFormat.ms)));
       await t.pump();
       expect(find.text('00:00'), findsOneWidget);
 
@@ -204,7 +204,7 @@ void main() {
 
     testWidgets('controller pause/resume/reset work', (t) async {
       final ctrl = ElapsedController();
-      await t.pumpWidget(_wrap(ElapsedText(controller: ctrl, formatter: CountdownFormat.ms)));
+      await t.pumpWidget(_wrap(TextElapsed(controller: ctrl, formatter: CountdownFormat.ms)));
       await t.pump();
 
       advance(const Duration(seconds: 3));
@@ -229,7 +229,7 @@ void main() {
 
     testWidgets('onThreshold fires once', (t) async {
       var count = 0;
-      await t.pumpWidget(_wrap(ElapsedText(
+      await t.pumpWidget(_wrap(TextElapsed(
         threshold: const Duration(seconds: 3),
         onThreshold: () => count++,
       )));
@@ -246,7 +246,7 @@ void main() {
       final group = Elapsed(name: 'custom_elapsed_group', interval: 0);
       Countman.use(group);
 
-      await t.pumpWidget(_wrap(ElapsedText(plugin: group, formatter: CountdownFormat.ms)));
+      await t.pumpWidget(_wrap(TextElapsed(plugin: group, formatter: CountdownFormat.ms)));
       await t.pump();
 
       advance(const Duration(seconds: 2));
@@ -257,7 +257,7 @@ void main() {
 
     testWidgets('disposes task when widget is removed', (t) async {
       final calls = <TimeParts>[];
-      await t.pumpWidget(_wrap(ElapsedText(
+      await t.pumpWidget(_wrap(TextElapsed(
         formatter: (d) { calls.add(d); return ''; },
       )));
 

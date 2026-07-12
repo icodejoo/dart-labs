@@ -2,17 +2,17 @@ import 'package:flutter/widgets.dart';
 
 import 'style_support.dart';
 
-/// Visual style for the text displays — shared by [CounterText],
-/// [CountdownText] and [ElapsedText] (see the `CounterTextStyle` /
-/// `CountdownTextStyle` / `ElapsedTextStyle` aliases in those files).
+/// Visual style for the text displays — shared by [TextCounter],
+/// [TextCountdown] and [TextElapsed] (see the `TextCounterStyle` /
+/// `TextCountdownStyle` / `TextElapsedStyle` aliases in those files).
 ///
 /// Groups text styling, per-affix styling, [Text] forwarding options, and the
 /// container decoration into one reusable, themeable, mergeable object. All
 /// fields nullable; unset fields fall back to the enclosing provider then to
 /// framework defaults.
 ///
-/// 文本显示组件的视觉样式——由 [CounterText]、[CountdownText]、[ElapsedText] 共用
-/// （见各文件中的 `CounterTextStyle` / `CountdownTextStyle` / `ElapsedTextStyle`
+/// 文本显示组件的视觉样式——由 [TextCounter]、[TextCountdown]、[TextElapsed] 共用
+/// （见各文件中的 `TextCounterStyle` / `TextCountdownStyle` / `TextElapsedStyle`
 /// 别名）。
 ///
 /// 把文字样式、前后缀样式、[Text] 转发选项、容器装饰聚合为一个可复用、可主题化、

@@ -7,26 +7,26 @@ import 'text_style.dart';
 
 export 'text_style.dart' show CountmanTextStyle;
 
-/// Visual style for [CounterText]. Alias of the shared [CountmanTextStyle].
+/// Visual style for [TextCounter]. Alias of the shared [CountmanTextStyle].
 ///
-/// [CounterText] 的视觉样式。共享 [CountmanTextStyle] 的别名。
-typedef CounterTextStyle = CountmanTextStyle;
+/// [TextCounter] 的视觉样式。共享 [CountmanTextStyle] 的别名。
+typedef TextCounterStyle = CountmanTextStyle;
 
 /// A [Text]-based counter widget with optional prefix/suffix.
 ///
 /// Simple usage:
 /// ```dart
-/// CounterText(to: 9999)
-/// CounterText(to: 9999, prefix: '¥', style: CounterTextStyle(textStyle: TextStyle(fontSize: 32)))
-/// CounterText(to: 9999, prefixWidget: Icon(Icons.star), suffix: ' pts')
-/// CounterText(to: 9999, formatter: (v) => v.toStringAsFixed(2))
+/// TextCounter(to: 9999)
+/// TextCounter(to: 9999, prefix: '¥', style: TextCounterStyle(textStyle: TextStyle(fontSize: 32)))
+/// TextCounter(to: 9999, prefixWidget: Icon(Icons.star), suffix: ' pts')
+/// TextCounter(to: 9999, formatter: (v) => v.toStringAsFixed(2))
 /// ```
 ///
 /// 基于 [Text] 的向上计数组件，可选前后缀。
 ///
 /// For custom layouts beyond prefix/suffix, use [CounterBuilder] directly.
-class CounterText extends StatelessWidget {
-  const CounterText({
+class TextCounter extends StatelessWidget {
+  const TextCounter({
     super.key,
     this.from,
     required this.to,
@@ -83,7 +83,7 @@ class CounterText extends StatelessWidget {
   /// Visual style. Merged over the enclosing [CounterProvider]'s text style.
   ///
   /// 视觉样式。叠加在所在 [CounterProvider] 的文本样式之上。
-  final CounterTextStyle? style;
+  final TextCounterStyle? style;
 
   /// Plain-text prefix, e.g. `'¥'`. Ignored when [prefixWidget] is provided.
   final String? prefix;
@@ -144,7 +144,7 @@ class CounterText extends StatelessWidget {
     //
     // 解析样式：widget 样式叠加在 provider 默认文本样式之上。
     final scope = CountmanScope.maybeOf<Counter>(context);
-    final s = (style ?? const CounterTextStyle()).merge(scope?.counterTextStyle);
+    final s = (style ?? const TextCounterStyle()).merge(scope?.textCounterStyle);
     final effTextStyle = s.textStyle ?? scope?.textStyle;
 
     final number = CounterBuilder(

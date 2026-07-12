@@ -1,4 +1,4 @@
-// CounterOdometer — sliding-digit counter driven by a persistent CustomPainter.
+// OdometerCounter — sliding-digit counter driven by a persistent CustomPainter.
 //
 // Replaced the external `odometer` package with a painter that is updated
 // in-place each frame via markNeedsPaint(). Zero widget rebuilds per frame.
@@ -23,20 +23,20 @@ import 'reduce_motion.dart';
 import 'style_support.dart';
 import 'providers.dart';
 
-/// Visual style for [CounterOdometer].
+/// Visual style for [OdometerCounter].
 ///
 /// Groups digit text style, slot geometry, per-affix styling, and container
 /// [decoration]/[padding]. All fields nullable; unset fields fall back to the
 /// deprecated loose params then framework defaults.
 ///
-/// [CounterOdometer] 的视觉样式。聚合数字文本样式、槽位几何、前后缀样式、容器
+/// [OdometerCounter] 的视觉样式。聚合数字文本样式、槽位几何、前后缀样式、容器
 /// [decoration]/[padding]。所有字段可空；未设置回退到弃用松散参数再到框架默认值。
 @immutable
-class CounterOdometerStyle with BoxStyleFields, StyleProps {
-  /// Creates a [CounterOdometer] style. All fields optional.
+class OdometerCounterStyle with BoxStyleFields, StyleProps {
+  /// Creates a [OdometerCounter] style. All fields optional.
   ///
-  /// 创建 [CounterOdometer] 样式。所有字段可选。
-  const CounterOdometerStyle({
+  /// 创建 [OdometerCounter] 样式。所有字段可选。
+  const OdometerCounterStyle({
     this.numberTextStyle,
     this.letterWidth,
     this.verticalOffset,
@@ -81,7 +81,7 @@ class CounterOdometerStyle with BoxStyleFields, StyleProps {
   /// Returns a copy with the given fields replaced.
   ///
   /// 返回替换了给定字段的副本。
-  CounterOdometerStyle copyWith({
+  OdometerCounterStyle copyWith({
     TextStyle? numberTextStyle,
     double? letterWidth,
     double? verticalOffset,
@@ -93,7 +93,7 @@ class CounterOdometerStyle with BoxStyleFields, StyleProps {
     EdgeInsetsGeometry? padding,
     Decoration? decoration,
   }) =>
-      CounterOdometerStyle(
+      OdometerCounterStyle(
         numberTextStyle: numberTextStyle ?? this.numberTextStyle,
         letterWidth: letterWidth ?? this.letterWidth,
         verticalOffset: verticalOffset ?? this.verticalOffset,
@@ -109,9 +109,9 @@ class CounterOdometerStyle with BoxStyleFields, StyleProps {
   /// Merges with lower-priority [other]: this object's non-null fields win.
   ///
   /// 与更低优先级的 [other] 合并：本对象非空字段优先。
-  CounterOdometerStyle merge(CounterOdometerStyle? other) => other == null
+  OdometerCounterStyle merge(OdometerCounterStyle? other) => other == null
       ? this
-      : CounterOdometerStyle(
+      : OdometerCounterStyle(
           numberTextStyle: numberTextStyle ?? other.numberTextStyle,
           letterWidth: letterWidth ?? other.letterWidth,
           verticalOffset: verticalOffset ?? other.verticalOffset,
@@ -139,8 +139,8 @@ class CounterOdometerStyle with BoxStyleFields, StyleProps {
       ];
 }
 
-class CounterOdometer extends StatefulWidget {
-  const CounterOdometer({
+class OdometerCounter extends StatefulWidget {
+  const OdometerCounter({
     super.key,
     this.from,
     required this.to,
@@ -181,7 +181,7 @@ class CounterOdometer extends StatefulWidget {
   /// style, then the built-in defaults.
   ///
   /// 视觉样式。叠加在所在 [CounterProvider] 的 odometer 样式之上，再到内建默认值。
-  final CounterOdometerStyle? style;
+  final OdometerCounterStyle? style;
 
   /// Optional easing applied to the per-digit slide/fade progress.
   final Curve? slideCurve;
@@ -218,12 +218,12 @@ class CounterOdometer extends StatefulWidget {
   final double bounceElasticity;
 
   @override
-  State<CounterOdometer> createState() => _CounterOdometerState();
+  State<OdometerCounter> createState() => _CounterOdometerState();
 }
 
 // ── state ─────────────────────────────────────────────────────────────────────
 
-class _CounterOdometerState extends State<CounterOdometer> {
+class _CounterOdometerState extends State<OdometerCounter> {
   double _currentValue = 0;
   bool _showMinus = false;
   bool _increasing = true;
@@ -285,7 +285,7 @@ class _CounterOdometerState extends State<CounterOdometer> {
   }
 
   @override
-  void didUpdateWidget(CounterOdometer old) {
+  void didUpdateWidget(OdometerCounter old) {
     super.didUpdateWidget(old);
     if (widget.controller != old.controller) old.controller?.detach();
     if (widget.to       != old.to       ||
@@ -313,7 +313,7 @@ class _CounterOdometerState extends State<CounterOdometer> {
     //
     // 解析样式：widget.style 叠加在 provider 默认之上，仍未设的字段用内建默认值。
     final scope = CountmanScope.maybeOf<Counter>(context);
-    final st = widget.style?.merge(scope?.counterOdometerStyle) ?? scope?.counterOdometerStyle;
+    final st = widget.style?.merge(scope?.odometerCounterStyle) ?? scope?.odometerCounterStyle;
     final effNumberTextStyle = st?.numberTextStyle;
     final effLetterWidth = st?.letterWidth ?? 20.0;
     final effVerticalOffset = st?.verticalOffset ?? 20.0;

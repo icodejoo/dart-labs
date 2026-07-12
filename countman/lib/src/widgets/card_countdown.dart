@@ -1,15 +1,15 @@
 import 'package:flutter/widgets.dart';
 import 'package:countman/src/count_down/plugin.dart';
 import 'package:countman/src/count_down/types.dart';
-import 'countdown_card_provider.dart';
-import 'countdown_card_types.dart';
+import 'card_countdown_provider.dart';
+import 'card_countdown_types.dart';
 import 'painter/flip_card_painter.dart';
 import 'reduce_motion.dart';
 import 'style_support.dart';
 import 'providers.dart';
 
-export 'countdown_card_provider.dart';
-export 'countdown_card_types.dart';
+export 'card_countdown_provider.dart';
+export 'card_countdown_types.dart';
 export 'painter/flip_card_painter.dart';
 
 const _defaultDuration = Duration(milliseconds: 450);
@@ -23,22 +23,22 @@ const _defaultTransitionType = CountdownType.calendar;
 const _defaultTranslateEffect = SlideEffect.none;
 const _defaultPerspective = 0.006;
 
-/// Visual style for [CountdownCard].
+/// Visual style for [CardCountdown].
 ///
 /// Aggregates card geometry, colors, per-digit transition look, and container
 /// [decoration]/[padding]. All fields nullable; unset fields fall back to the
-/// deprecated loose params, then an ancestor [CountdownCardProvider], then a
+/// deprecated loose params, then an ancestor [CardCountdownProvider], then a
 /// hardcoded default.
 ///
-/// [CountdownCard] 的视觉样式。聚合卡片几何、颜色、逐位过渡外观、容器
+/// [CardCountdown] 的视觉样式。聚合卡片几何、颜色、逐位过渡外观、容器
 /// [decoration]/[padding]。所有字段可空；未设置的字段回退到弃用松散参数，再到
-/// 祖先 [CountdownCardProvider]，最后到硬编码默认值。
+/// 祖先 [CardCountdownProvider]，最后到硬编码默认值。
 @immutable
-class CountdownCardStyle with BoxStyleFields, StyleProps {
-  /// Creates a [CountdownCard] style. All fields optional.
+class CardCountdownStyle with BoxStyleFields, StyleProps {
+  /// Creates a [CardCountdown] style. All fields optional.
   ///
-  /// 创建 [CountdownCard] 样式。所有字段可选。
-  const CountdownCardStyle({
+  /// 创建 [CardCountdown] 样式。所有字段可选。
+  const CardCountdownStyle({
     this.splitDigits,
     this.cardWidth,
     this.cardHeight,
@@ -107,7 +107,7 @@ class CountdownCardStyle with BoxStyleFields, StyleProps {
   /// Returns a copy with the given fields replaced.
   ///
   /// 返回替换了给定字段的副本。
-  CountdownCardStyle copyWith({
+  CardCountdownStyle copyWith({
     bool? splitDigits,
     double? cardWidth,
     double? cardHeight,
@@ -125,7 +125,7 @@ class CountdownCardStyle with BoxStyleFields, StyleProps {
     EdgeInsetsGeometry? padding,
     Decoration? decoration,
   }) =>
-      CountdownCardStyle(
+      CardCountdownStyle(
         splitDigits: splitDigits ?? this.splitDigits,
         cardWidth: cardWidth ?? this.cardWidth,
         cardHeight: cardHeight ?? this.cardHeight,
@@ -147,9 +147,9 @@ class CountdownCardStyle with BoxStyleFields, StyleProps {
   /// Merges with lower-priority [other]: this object's non-null fields win.
   ///
   /// 与更低优先级的 [other] 合并：本对象非空字段优先。
-  CountdownCardStyle merge(CountdownCardStyle? other) => other == null
+  CardCountdownStyle merge(CardCountdownStyle? other) => other == null
       ? this
-      : CountdownCardStyle(
+      : CardCountdownStyle(
           splitDigits: splitDigits ?? other.splitDigits,
           cardWidth: cardWidth ?? other.cardWidth,
           cardHeight: cardHeight ?? other.cardHeight,
@@ -195,25 +195,25 @@ class CountdownCardStyle with BoxStyleFields, StyleProps {
 /// [to] accepts [DateTime], [Duration], [int] (ms epoch), or ISO-8601 [String].
 ///
 /// ```dart
-/// CountdownCard(to: const Duration(minutes: 5))
-/// CountdownCard(to: DateTime(2025, 12, 31), splitDigits: true)
+/// CardCountdown(to: const Duration(minutes: 5))
+/// CardCountdown(to: DateTime(2025, 12, 31), splitDigits: true)
 /// ```
 ///
 /// Rendering is a single [CustomPainter] driven by one shared
 /// [AnimationController] per card instance — dense grids of concurrent
-/// [CountdownCard]s cost one [Ticker] each, not one per digit, and digit
+/// [CardCountdown]s cost one [Ticker] each, not one per digit, and digit
 /// changes never rebuild the widget tree (only `markNeedsPaint`).
 ///
 /// [cardColor]/[textStyle]/[labelStyle]/[separatorStyle]/[duration]/
 /// [cardWidth]/[cardHeight]/[digitGap]/[unitGap] fall back to an ancestor
-/// [CountdownCardProvider] when left unset, then to a hardcoded default.
+/// [CardCountdownProvider] when left unset, then to a hardcoded default.
 /// Digit/separator/label glyphs are cached per-card so repeated digits
 /// (0-9) aren't re-laid-out every frame; for whichever of [textStyle] /
 /// [labelStyle] / [separatorStyle] are inherited from a provider (not set
 /// on this card), that cache is also shared across every card in the
 /// provider's scope.
-class CountdownCard extends StatefulWidget {
-  const CountdownCard({
+class CardCountdown extends StatefulWidget {
+  const CardCountdown({
     super.key,
     required this.to,
     this.style,
@@ -231,24 +231,24 @@ class CountdownCard extends StatefulWidget {
     this.onThreshold,
   });
 
-  /// Visual style. Merged over the ancestor [CountdownCardProvider], then
+  /// Visual style. Merged over the ancestor [CardCountdownProvider], then
   /// defaults.
   ///
   /// **Two provider paths, by design.** Card visuals resolve as:
-  /// `style` > enclosing [CountdownProvider]'s `countdownCardStyle`
-  /// (a [CountdownCardStyle]) > ancestor [CountdownCardProvider] (which also
-  /// owns the shared glyph cache) > hardcoded default. [CountdownCardProvider]
+  /// `style` > enclosing [CountdownProvider]'s `cardCountdownStyle`
+  /// (a [CardCountdownStyle]) > ancestor [CardCountdownProvider] (which also
+  /// owns the shared glyph cache) > hardcoded default. [CardCountdownProvider]
   /// stays separate because it carries stateful, card-specific [TextPainter]
   /// glyph caches that don't belong on the general scope.
   ///
-  /// 视觉样式。叠加在祖先 [CountdownCardProvider] 之上，再到默认值。
+  /// 视觉样式。叠加在祖先 [CardCountdownProvider] 之上，再到默认值。
   ///
   /// **两条 provider 路径（有意为之）。** 卡片视觉解析顺序：`style` > 所在
-  /// [CountdownProvider] 的 `countdownCardStyle`（[CountdownCardStyle]）> 祖先
-  /// [CountdownCardProvider]（同时持有共享字形缓存）> 硬编码默认值。
-  /// [CountdownCardProvider] 保持独立，因为它承载有状态、卡片专属的 [TextPainter]
+  /// [CountdownProvider] 的 `cardCountdownStyle`（[CardCountdownStyle]）> 祖先
+  /// [CardCountdownProvider]（同时持有共享字形缓存）> 硬编码默认值。
+  /// [CardCountdownProvider] 保持独立，因为它承载有状态、卡片专属的 [TextPainter]
   /// 字形缓存，不宜并入通用 scope。
-  final CountdownCardStyle? style;
+  final CardCountdownStyle? style;
 
   /// Countdown target. Accepts [DateTime], [Duration], [int] (ms epoch),
   /// or ISO-8601 [String].
@@ -265,13 +265,13 @@ class CountdownCard extends StatefulWidget {
   final String separator;
 
   /// Total transition duration, shared by every transition type. Falls back
-  /// to [CountdownCardProvider.duration], then 450ms.
+  /// to [CardCountdownProvider.duration], then 450ms.
   final Duration? duration;
 
   /// Easing curve for the per-digit transition. Falls back to
-  /// [CountdownCardProvider.curve], then [Curves.linear].
+  /// [CardCountdownProvider.curve], then [Curves.linear].
   ///
-  /// 逐位过渡的缓动曲线。回退到 [CountdownCardProvider.curve]，再到 [Curves.linear]。
+  /// 逐位过渡的缓动曲线。回退到 [CardCountdownProvider.curve]，再到 [Curves.linear]。
   final Curve? curve;
 
   /// Wraps in [RepaintBoundary]. Disable when displaying many instances.
@@ -294,10 +294,10 @@ class CountdownCard extends StatefulWidget {
   final void Function()? onThreshold;
 
   @override
-  State<CountdownCard> createState() => _CountdownCardState();
+  State<CardCountdown> createState() => _CountdownCardState();
 }
 
-class _CountdownCardState extends State<CountdownCard>
+class _CountdownCardState extends State<CardCountdown>
     with SingleTickerProviderStateMixin {
   CountdownHandle? _handle;
   late final AnimationController _ctrl;
@@ -307,7 +307,7 @@ class _CountdownCardState extends State<CountdownCard>
 
   // Resolved once per build() (widget ?? provider ?? default) — the
   // AnimationController's status listener is created once in initState and
-  // can't safely query CountdownCardProvider itself, so it reads this field
+  // can't safely query CardCountdownProvider itself, so it reads this field
   // instead of `widget.transitionType` directly.
   CountdownType _transitionType = _defaultTransitionType;
 
@@ -394,7 +394,7 @@ class _CountdownCardState extends State<CountdownCard>
   }
 
   @override
-  void didUpdateWidget(CountdownCard old) {
+  void didUpdateWidget(CardCountdown old) {
     super.didUpdateWidget(old);
     if (widget.to != old.to) {
       widget.controller?.detach();
@@ -497,14 +497,14 @@ class _CountdownCardState extends State<CountdownCard>
 
   @override
   Widget build(BuildContext context) {
-    final provider = CountdownCardProvider.of(context);
+    final provider = CardCountdownProvider.of(context);
 
     // Resolution order per field: widget.style > enclosing CountdownProvider's
-    // countdownCardStyle > ancestor CountdownCardProvider > hardcoded default.
+    // cardCountdownStyle > ancestor CardCountdownProvider > hardcoded default.
     //
-    // 每个字段的解析顺序：widget.style > 所在 CountdownProvider 的 countdownCardStyle
-    // > 祖先 CountdownCardProvider > 硬编码默认值。
-    final ccStyle = CountmanScope.maybeOf<Countdown>(context)?.countdownCardStyle;
+    // 每个字段的解析顺序：widget.style > 所在 CountdownProvider 的 cardCountdownStyle
+    // > 祖先 CardCountdownProvider > 硬编码默认值。
+    final ccStyle = CountmanScope.maybeOf<Countdown>(context)?.cardCountdownStyle;
     final st = widget.style?.merge(ccStyle) ?? ccStyle;
     final cardWidth = st?.cardWidth ?? provider?.cardWidth ?? _defaultCardWidth;
     final cardHeight = st?.cardHeight ?? provider?.cardHeight ?? _defaultCardHeight;

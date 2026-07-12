@@ -13,7 +13,7 @@ void main() {
 
     testWidgets('counter widget fires onReady / onStart', (t) async {
       final events = <String>[];
-      await t.pumpWidget(wrap(CounterText(
+      await t.pumpWidget(wrap(TextCounter(
         to: 100,
         duration: const Duration(milliseconds: 100),
         onReady: () => events.add('ready'),
@@ -28,7 +28,7 @@ void main() {
 
     testWidgets('counter widget fires onCancel when removed early', (t) async {
       var cancelled = false;
-      await t.pumpWidget(wrap(CounterText(
+      await t.pumpWidget(wrap(TextCounter(
         to: 100,
         duration: const Duration(seconds: 10),
         onCancel: () => cancelled = true,
@@ -42,7 +42,7 @@ void main() {
     testWidgets('countdown widget fires onPause / onResume via controller', (t) async {
       final events = <String>[];
       final ctrl = CountdownController();
-      await t.pumpWidget(wrap(CountdownText(
+      await t.pumpWidget(wrap(TextCountdown(
         to: const Duration(seconds: 30),
         controller: ctrl,
         onPause: () => events.add('pause'),
@@ -87,18 +87,18 @@ void main() {
       expect(base.shouldRepaint(perCorner), isTrue);
     });
 
-    testWidgets('CounterText fractionDigits formats without a formatter', (t) async {
-      await t.pumpWidget(wrap(const CounterText(from: 1.25, to: 1.25, fractionDigits: 2)));
+    testWidgets('TextCounter fractionDigits formats without a formatter', (t) async {
+      await t.pumpWidget(wrap(const TextCounter(from: 1.25, to: 1.25, fractionDigits: 2)));
       await t.pump();
       expect(find.text('1.25'), findsOneWidget);
       Countman.destroy();
     });
 
-    testWidgets('CounterRing gradient + custom startAngle render without throwing', (t) async {
-      await t.pumpWidget(wrap(CounterRing(
+    testWidgets('RingCounter gradient + custom startAngle render without throwing', (t) async {
+      await t.pumpWidget(wrap(RingCounter(
         to: 100,
         duration: const Duration(milliseconds: 100),
-        style: const CounterRingStyle(
+        style: const RingCounterStyle(
           gradient: SweepGradient(colors: [Colors.red, Colors.blue]),
           startAngle: 0,
           trackStrokeWidth: 4,
@@ -147,10 +147,10 @@ void main() {
       Countman.destroy();
     });
 
-    testWidgets('CounterOdometer slideCurve / fadeEnabled render without throwing', (t) async {
-      await t.pumpWidget(wrap(const CounterOdometer(
+    testWidgets('OdometerCounter slideCurve / fadeEnabled render without throwing', (t) async {
+      await t.pumpWidget(wrap(const OdometerCounter(
         to: 42, slideCurve: Curves.easeOut,
-        style: CounterOdometerStyle(
+        style: OdometerCounterStyle(
           fadeEnabled: false,
           crossAxisAlignment: CrossAxisAlignment.center,
         ),
@@ -168,7 +168,7 @@ void main() {
 
     testWidgets('value tracks animation; cancel stops updates', (t) async {
       final ctrl = CounterValueController();
-      await t.pumpWidget(wrap(CounterText(
+      await t.pumpWidget(wrap(TextCounter(
         to: 100, duration: const Duration(milliseconds: 400), controller: ctrl,
       )));
       await t.pump();                                  // value = 0
@@ -185,7 +185,7 @@ void main() {
 
     testWidgets('update retargets from the current value', (t) async {
       final ctrl = CounterValueController();
-      await t.pumpWidget(wrap(CounterText(
+      await t.pumpWidget(wrap(TextCounter(
         to: 100, duration: const Duration(milliseconds: 200), controller: ctrl,
       )));
       await t.pump();
@@ -206,8 +206,8 @@ void main() {
       await t.pumpWidget(wrap(CounterProvider(
         textStyle: const TextStyle(fontSize: 40),
         child: Column(children: const [
-          CounterText(to: 10, key: Key('inherit')),
-          CounterText(to: 10, style: CounterTextStyle(textStyle: TextStyle(fontSize: 12)), key: Key('override')),
+          TextCounter(to: 10, key: Key('inherit')),
+          TextCounter(to: 10, style: TextCounterStyle(textStyle: TextStyle(fontSize: 12)), key: Key('override')),
         ]),
       )));
       await t.pump();
@@ -224,7 +224,7 @@ void main() {
       await t.pumpWidget(wrap(CounterProvider(
         onGroupReady: () => events.add('ready'),
         onAllComplete: () => events.add('drained'),
-        child: const CounterText(to: 5, duration: Duration(milliseconds: 100)),
+        child: const TextCounter(to: 5, duration: Duration(milliseconds: 100)),
       )));
       await t.pump();                                  // enqueue + first frame
       expect(events, contains('ready'));
@@ -233,10 +233,10 @@ void main() {
       Countman.destroy();
     });
 
-    testWidgets('CountdownProvider supplies textStyle to CountdownText', (t) async {
+    testWidgets('CountdownProvider supplies textStyle to TextCountdown', (t) async {
       await t.pumpWidget(wrap(CountdownProvider(
         textStyle: const TextStyle(fontSize: 33),
-        child: const CountdownText(to: Duration(minutes: 1), key: Key('cd')),
+        child: const TextCountdown(to: Duration(minutes: 1), key: Key('cd')),
       )));
       await t.pump();
       final text = t.widget<Text>(
@@ -245,10 +245,10 @@ void main() {
       Countman.destroy();
     });
 
-    testWidgets('ElapsedProvider supplies textStyle to ElapsedText', (t) async {
+    testWidgets('ElapsedProvider supplies textStyle to TextElapsed', (t) async {
       await t.pumpWidget(wrap(ElapsedProvider(
         textStyle: const TextStyle(fontSize: 21),
-        child: const ElapsedText(key: Key('el')),
+        child: const TextElapsed(key: Key('el')),
       )));
       await t.pump();
       final text = t.widget<Text>(

@@ -7,14 +7,14 @@ import 'package:countman/src/count_down/types.dart' show DurationFormatter;
 import 'package:countman/src/elapsed/plugin.dart';
 
 import 'animate_once.dart';
-import 'counter_text.dart' show CounterTextStyle;
-import 'countdown_text.dart' show CountdownTextStyle;
-import 'elapsed_text.dart' show ElapsedTextStyle;
-import 'ring_style.dart' show CounterRingStyle, CountdownRingStyle;
-import 'bar_style.dart' show CounterBarStyle, CountdownBarStyle;
-import 'countdown_dial.dart' show CountdownDialStyle;
-import 'countdown_card.dart' show CountdownCardStyle;
-import 'counter_odometer.dart' show CounterOdometerStyle;
+import 'text_counter.dart' show TextCounterStyle;
+import 'text_countdown.dart' show TextCountdownStyle;
+import 'text_elapsed.dart' show TextElapsedStyle;
+import 'ring_style.dart' show RingCounterStyle, RingCountdownStyle;
+import 'bar_style.dart' show BarCounterStyle, BarCountdownStyle;
+import 'dial_countdown.dart' show DialCountdownStyle;
+import 'card_countdown.dart' show CardCountdownStyle;
+import 'odometer_counter.dart' show OdometerCounterStyle;
 
 /// Shared inherited scope carrying the default configuration a
 /// [CounterProvider] / [CountdownProvider] / [ElapsedProvider] hands down to
@@ -37,16 +37,16 @@ class CountmanScope<P> extends InheritedWidget {
     this.formatter,
     this.animateOnce,
     this.once,
-    this.counterTextStyle,
-    this.countdownTextStyle,
-    this.elapsedTextStyle,
-    this.counterRingStyle,
-    this.countdownRingStyle,
-    this.counterBarStyle,
-    this.countdownBarStyle,
-    this.countdownDialStyle,
-    this.countdownCardStyle,
-    this.counterOdometerStyle,
+    this.textCounterStyle,
+    this.textCountdownStyle,
+    this.textElapsedStyle,
+    this.ringCounterStyle,
+    this.ringCountdownStyle,
+    this.barCounterStyle,
+    this.barCountdownStyle,
+    this.dialCountdownStyle,
+    this.cardCountdownStyle,
+    this.odometerCounterStyle,
     required super.child,
   });
 
@@ -94,16 +94,16 @@ class CountmanScope<P> extends InheritedWidget {
   /// Default per-component styles a descendant merges under its own `style`.
   ///
   /// 后代在自身 `style` 之下合并的各组件默认样式。
-  final CounterTextStyle? counterTextStyle;
-  final CountdownTextStyle? countdownTextStyle;
-  final ElapsedTextStyle? elapsedTextStyle;
-  final CounterRingStyle? counterRingStyle;
-  final CountdownRingStyle? countdownRingStyle;
-  final CounterBarStyle? counterBarStyle;
-  final CountdownBarStyle? countdownBarStyle;
-  final CountdownDialStyle? countdownDialStyle;
-  final CountdownCardStyle? countdownCardStyle;
-  final CounterOdometerStyle? counterOdometerStyle;
+  final TextCounterStyle? textCounterStyle;
+  final TextCountdownStyle? textCountdownStyle;
+  final TextElapsedStyle? textElapsedStyle;
+  final RingCounterStyle? ringCounterStyle;
+  final RingCountdownStyle? ringCountdownStyle;
+  final BarCounterStyle? barCounterStyle;
+  final BarCountdownStyle? barCountdownStyle;
+  final DialCountdownStyle? dialCountdownStyle;
+  final CardCountdownStyle? cardCountdownStyle;
+  final OdometerCounterStyle? odometerCounterStyle;
 
   /// The nearest scope of plugin type [P], or null when there is none.
   static CountmanScope<P>? maybeOf<P>(BuildContext context) =>
@@ -121,16 +121,16 @@ class CountmanScope<P> extends InheritedWidget {
       repaintBoundary != old.repaintBoundary ||
       formatter != old.formatter ||
       animateOnce != old.animateOnce ||
-      counterTextStyle != old.counterTextStyle ||
-      countdownTextStyle != old.countdownTextStyle ||
-      elapsedTextStyle != old.elapsedTextStyle ||
-      counterRingStyle != old.counterRingStyle ||
-      countdownRingStyle != old.countdownRingStyle ||
-      counterBarStyle != old.counterBarStyle ||
-      countdownBarStyle != old.countdownBarStyle ||
-      countdownDialStyle != old.countdownDialStyle ||
-      countdownCardStyle != old.countdownCardStyle ||
-      counterOdometerStyle != old.counterOdometerStyle;
+      textCounterStyle != old.textCounterStyle ||
+      textCountdownStyle != old.textCountdownStyle ||
+      textElapsedStyle != old.textElapsedStyle ||
+      ringCounterStyle != old.ringCounterStyle ||
+      ringCountdownStyle != old.ringCountdownStyle ||
+      barCounterStyle != old.barCounterStyle ||
+      barCountdownStyle != old.barCountdownStyle ||
+      dialCountdownStyle != old.dialCountdownStyle ||
+      cardCountdownStyle != old.cardCountdownStyle ||
+      odometerCounterStyle != old.odometerCounterStyle;
   // `once` intentionally excluded: mutable identity-stable registry.
 }
 
@@ -189,7 +189,7 @@ abstract class _ProviderStateBase<W extends StatefulWidget, P> extends State<W> 
 /// CounterProvider(
 ///   duration: const Duration(milliseconds: 800),
 ///   textStyle: const TextStyle(fontSize: 28),
-///   child: Column(children: [CounterText(to: 100), CounterRing(to: 50)]),
+///   child: Column(children: [TextCounter(to: 100), RingCounter(to: 50)]),
 /// )
 /// ```
 class CounterProvider extends StatefulWidget {
@@ -204,10 +204,10 @@ class CounterProvider extends StatefulWidget {
     this.allowNegative,
     this.repaintBoundary,
     this.animateOnce,
-    this.counterTextStyle,
-    this.counterRingStyle,
-    this.counterBarStyle,
-    this.counterOdometerStyle,
+    this.textCounterStyle,
+    this.ringCounterStyle,
+    this.barCounterStyle,
+    this.odometerCounterStyle,
     this.onGroupReady,
     this.onAllComplete,
     required this.child,
@@ -241,10 +241,10 @@ class CounterProvider extends StatefulWidget {
   /// Default per-component styles handed down to counter descendants.
   ///
   /// 下发给向上计数后代的各组件默认样式。
-  final CounterTextStyle? counterTextStyle;
-  final CounterRingStyle? counterRingStyle;
-  final CounterBarStyle? counterBarStyle;
-  final CounterOdometerStyle? counterOdometerStyle;
+  final TextCounterStyle? textCounterStyle;
+  final RingCounterStyle? ringCounterStyle;
+  final BarCounterStyle? barCounterStyle;
+  final OdometerCounterStyle? odometerCounterStyle;
 
   final Widget child;
 
@@ -286,10 +286,10 @@ class _CounterProviderState extends _ProviderStateBase<CounterProvider, Counter>
         repaintBoundary: widget.repaintBoundary,
         animateOnce: widget.animateOnce,
         once: once,
-        counterTextStyle: widget.counterTextStyle,
-        counterRingStyle: widget.counterRingStyle,
-        counterBarStyle: widget.counterBarStyle,
-        counterOdometerStyle: widget.counterOdometerStyle,
+        textCounterStyle: widget.textCounterStyle,
+        ringCounterStyle: widget.ringCounterStyle,
+        barCounterStyle: widget.barCounterStyle,
+        odometerCounterStyle: widget.odometerCounterStyle,
         child: widget.child,
       );
 }
@@ -308,11 +308,11 @@ class CountdownProvider extends StatefulWidget {
     this.repaintBoundary,
     this.formatter,
     this.animateOnce,
-    this.countdownTextStyle,
-    this.countdownRingStyle,
-    this.countdownBarStyle,
-    this.countdownDialStyle,
-    this.countdownCardStyle,
+    this.textCountdownStyle,
+    this.ringCountdownStyle,
+    this.barCountdownStyle,
+    this.dialCountdownStyle,
+    this.cardCountdownStyle,
     this.onGroupReady,
     this.onAllComplete,
     required this.child,
@@ -324,10 +324,10 @@ class CountdownProvider extends StatefulWidget {
   final Color? trackColor;
   final bool? repaintBoundary;
 
-  /// Default duration formatter handed down to [CountdownText] descendants
+  /// Default duration formatter handed down to [TextCountdown] descendants
   /// (each may still override with its own `formatter`).
   ///
-  /// 下发给 [CountdownText] 后代的默认时长格式化器（每个仍可用自身 `formatter`
+  /// 下发给 [TextCountdown] 后代的默认时长格式化器（每个仍可用自身 `formatter`
   /// 覆盖）。
   final DurationFormatter? formatter;
 
@@ -350,11 +350,11 @@ class CountdownProvider extends StatefulWidget {
   /// Default per-component styles handed down to countdown descendants.
   ///
   /// 下发给倒计时后代的各组件默认样式。
-  final CountdownTextStyle? countdownTextStyle;
-  final CountdownRingStyle? countdownRingStyle;
-  final CountdownBarStyle? countdownBarStyle;
-  final CountdownDialStyle? countdownDialStyle;
-  final CountdownCardStyle? countdownCardStyle;
+  final TextCountdownStyle? textCountdownStyle;
+  final RingCountdownStyle? ringCountdownStyle;
+  final BarCountdownStyle? barCountdownStyle;
+  final DialCountdownStyle? dialCountdownStyle;
+  final CardCountdownStyle? cardCountdownStyle;
 
   final Widget child;
 
@@ -397,11 +397,11 @@ class _CountdownProviderState extends _ProviderStateBase<CountdownProvider, Coun
         formatter: widget.formatter,
         animateOnce: widget.animateOnce,
         once: once,
-        countdownTextStyle: widget.countdownTextStyle,
-        countdownRingStyle: widget.countdownRingStyle,
-        countdownBarStyle: widget.countdownBarStyle,
-        countdownDialStyle: widget.countdownDialStyle,
-        countdownCardStyle: widget.countdownCardStyle,
+        textCountdownStyle: widget.textCountdownStyle,
+        ringCountdownStyle: widget.ringCountdownStyle,
+        barCountdownStyle: widget.barCountdownStyle,
+        dialCountdownStyle: widget.dialCountdownStyle,
+        cardCountdownStyle: widget.cardCountdownStyle,
         child: widget.child,
       );
 }
@@ -415,7 +415,7 @@ class ElapsedProvider extends StatefulWidget {
     super.key,
     this.plugin,
     this.textStyle,
-    this.elapsedTextStyle,
+    this.textElapsedStyle,
     this.formatter,
     this.onGroupReady,
     this.onAllComplete,
@@ -425,15 +425,15 @@ class ElapsedProvider extends StatefulWidget {
   final Elapsed? plugin;
   final TextStyle? textStyle;
 
-  /// Default [ElapsedText] style handed down to elapsed descendants.
+  /// Default [TextElapsed] style handed down to elapsed descendants.
   ///
-  /// 下发给经过时间后代的默认 [ElapsedText] 样式。
-  final ElapsedTextStyle? elapsedTextStyle;
+  /// 下发给经过时间后代的默认 [TextElapsed] 样式。
+  final TextElapsedStyle? textElapsedStyle;
 
-  /// Default duration formatter handed down to [ElapsedText] descendants
+  /// Default duration formatter handed down to [TextElapsed] descendants
   /// (each may still override with its own `formatter`).
   ///
-  /// 下发给 [ElapsedText] 后代的默认时长格式化器（每个仍可用自身 `formatter` 覆盖）。
+  /// 下发给 [TextElapsed] 后代的默认时长格式化器（每个仍可用自身 `formatter` 覆盖）。
   final DurationFormatter? formatter;
 
   /// Fired when the group goes idle → active (its first task is enqueued).
@@ -481,7 +481,7 @@ class _ElapsedProviderState extends _ProviderStateBase<ElapsedProvider, Elapsed>
         allowNegative: null,
         repaintBoundary: null,
         formatter: widget.formatter,
-        elapsedTextStyle: widget.elapsedTextStyle,
+        textElapsedStyle: widget.textElapsedStyle,
         child: widget.child,
       );
 }
@@ -529,16 +529,16 @@ class CountmanProvider extends StatelessWidget {
     this.repaintBoundary,
     this.animateOnce,
     this.formatter,
-    this.counterTextStyle,
-    this.countdownTextStyle,
-    this.elapsedTextStyle,
-    this.counterRingStyle,
-    this.countdownRingStyle,
-    this.counterBarStyle,
-    this.countdownBarStyle,
-    this.countdownDialStyle,
-    this.countdownCardStyle,
-    this.counterOdometerStyle,
+    this.textCounterStyle,
+    this.textCountdownStyle,
+    this.textElapsedStyle,
+    this.ringCounterStyle,
+    this.ringCountdownStyle,
+    this.barCounterStyle,
+    this.barCountdownStyle,
+    this.dialCountdownStyle,
+    this.cardCountdownStyle,
+    this.odometerCounterStyle,
     required this.child,
   });
 
@@ -563,16 +563,16 @@ class CountmanProvider extends StatelessWidget {
   final DurationFormatter? formatter;
 
   /// Per-component default styles, routed to their family's provider.
-  final CounterTextStyle? counterTextStyle;
-  final CountdownTextStyle? countdownTextStyle;
-  final ElapsedTextStyle? elapsedTextStyle;
-  final CounterRingStyle? counterRingStyle;
-  final CountdownRingStyle? countdownRingStyle;
-  final CounterBarStyle? counterBarStyle;
-  final CountdownBarStyle? countdownBarStyle;
-  final CountdownDialStyle? countdownDialStyle;
-  final CountdownCardStyle? countdownCardStyle;
-  final CounterOdometerStyle? counterOdometerStyle;
+  final TextCounterStyle? textCounterStyle;
+  final TextCountdownStyle? textCountdownStyle;
+  final TextElapsedStyle? textElapsedStyle;
+  final RingCounterStyle? ringCounterStyle;
+  final RingCountdownStyle? ringCountdownStyle;
+  final BarCounterStyle? barCounterStyle;
+  final BarCountdownStyle? barCountdownStyle;
+  final DialCountdownStyle? dialCountdownStyle;
+  final CardCountdownStyle? cardCountdownStyle;
+  final OdometerCounterStyle? odometerCounterStyle;
 
   final Widget child;
 
@@ -588,10 +588,10 @@ class CountmanProvider extends StatelessWidget {
       allowNegative: allowNegative,
       repaintBoundary: repaintBoundary,
       animateOnce: animateOnce,
-      counterTextStyle: counterTextStyle,
-      counterRingStyle: counterRingStyle,
-      counterBarStyle: counterBarStyle,
-      counterOdometerStyle: counterOdometerStyle,
+      textCounterStyle: textCounterStyle,
+      ringCounterStyle: ringCounterStyle,
+      barCounterStyle: barCounterStyle,
+      odometerCounterStyle: odometerCounterStyle,
       child: CountdownProvider(
         plugin: countdown,
         textStyle: textStyle,
@@ -600,16 +600,16 @@ class CountmanProvider extends StatelessWidget {
         repaintBoundary: repaintBoundary,
         animateOnce: animateOnce,
         formatter: formatter,
-        countdownTextStyle: countdownTextStyle,
-        countdownRingStyle: countdownRingStyle,
-        countdownBarStyle: countdownBarStyle,
-        countdownDialStyle: countdownDialStyle,
-        countdownCardStyle: countdownCardStyle,
+        textCountdownStyle: textCountdownStyle,
+        ringCountdownStyle: ringCountdownStyle,
+        barCountdownStyle: barCountdownStyle,
+        dialCountdownStyle: dialCountdownStyle,
+        cardCountdownStyle: cardCountdownStyle,
         child: ElapsedProvider(
           plugin: elapsed,
           textStyle: textStyle,
           formatter: formatter,
-          elapsedTextStyle: elapsedTextStyle,
+          textElapsedStyle: textElapsedStyle,
           child: child,
         ),
       ),

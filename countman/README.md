@@ -56,9 +56,9 @@ resident set size. Lower is better except FPS/jank.
 *(50 个并发倒计时，Windows 桌面 profile 模式，每库测量 15 s，同一会话依次运行，
 显示器 120 Hz。CPU 为单核占用率，从操作系统进程外部采样。除 FPS/jank 外均越低越好。)*
 
-**Card / slide mode** — countman `CountdownCard(slide)` vs [`slide_countdown`](https://pub.dev/packages/slide_countdown) `^2.0.2`:
+**Card / slide mode** — countman `CardCountdown(slide)` vs [`slide_countdown`](https://pub.dev/packages/slide_countdown) `^2.0.2`:
 
-| metric | countman `CountdownCard` slide | `slide_countdown` |
+| metric | countman `CardCountdown` slide | `slide_countdown` |
 |---|---|---|
 | FPS (frames / 15 s) | **121.7** (1826) | 32.5 (488) |
 | UI ms  avg / p99 | **0.80 / 2.12** | 1.32 / 4.39 |
@@ -77,9 +77,9 @@ the same memory.
 更高；`slide_countdown` 仅在每秒滑动瞬间重绘——CPU 更低，但帧节奏更突发、单帧更贵。
 两者均无卡顿，内存相同。)*
 
-**Text mode** — countman `CountdownText` vs [`stop_watch_timer`](https://pub.dev/packages/stop_watch_timer) `^3.2.2` (driving a `Text` via `StreamBuilder`):
+**Text mode** — countman `TextCountdown` vs [`stop_watch_timer`](https://pub.dev/packages/stop_watch_timer) `^3.2.2` (driving a `Text` via `StreamBuilder`):
 
-| metric | countman `CountdownText` | `stop_watch_timer` |
+| metric | countman `TextCountdown` | `stop_watch_timer` |
 |---|---|---|
 | FPS (frames / 15 s) | 120.9 (1813) | 120.1 (1801) |
 | UI ms  avg / p99 | **0.10 / 0.16** | 0.16 / 0.66 |
@@ -137,42 +137,42 @@ Key parameters:
 | `onComplete` | Called once when remaining reaches zero |
 | `threshold` + `onThreshold` | Fire once when remaining first crosses threshold |
 
-### `CountdownText`
+### `TextCountdown`
 
 Drop-in text widget. `const`-constructible when `to` is a `Duration`.
 
 ```dart
-CountdownText(
+TextCountdown(
   to: const Duration(minutes: 5),
   formatter: CountdownFormat.ms,
   style: const TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
 )
 ```
 
-### `CountdownRing`
+### `RingCountdown`
 
 Arc progress ring that drains from full to empty.
 
 ```dart
-CountdownRing(
+RingCountdown(
   to: const Duration(minutes: 2),
   size: 100,
   strokeWidth: 10,
   color: Colors.blue,
   trackColor: Colors.blue.withValues(alpha: 0.2),
-  center: const CountdownText(
+  center: const TextCountdown(
     to: Duration(minutes: 2),
     formatter: CountdownFormat.ms,
   ),
 )
 ```
 
-### `CountdownBar`
+### `BarCountdown`
 
 Horizontal progress bar.
 
 ```dart
-CountdownBar(
+BarCountdown(
   to: const Duration(minutes: 1),
   width: 250,
   height: 10,
@@ -181,12 +181,12 @@ CountdownBar(
 )
 ```
 
-### `CountdownDial`
+### `DialCountdown`
 
 Analog clock-face dial. Hand sweeps 60 seconds per revolution.
 
 ```dart
-CountdownDial(
+DialCountdown(
   to: const Duration(seconds: 60),
   size: 100,
   builder: (_, rem) => Text(
@@ -196,12 +196,12 @@ CountdownDial(
 )
 ```
 
-### `CountdownCard`
+### `CardCountdown`
 
 Split-flap / slide / flip card display.
 
 ```dart
-CountdownCard(
+CardCountdown(
   to: const Duration(hours: 1, minutes: 30),
   transitionType: CountdownType.calendar, // or .slide, .flip
   splitDigits: true,
@@ -269,12 +269,12 @@ ctrl.reset(duration: const Duration(seconds: 30)); // override duration
 
 ## Elapsed
 
-### `ElapsedText`
+### `TextElapsed`
 
-Counts up from zero. Same `formatter` / `style` / `controller` API as `CountdownText`.
+Counts up from zero. Same `formatter` / `style` / `controller` API as `TextCountdown`.
 
 ```dart
-ElapsedText(
+TextElapsed(
   formatter: CountdownFormat.ms,
   style: const TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
 )

@@ -191,7 +191,7 @@ class DialInnerConfig with StyleProps {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// CountdownDial widget
+// DialCountdown widget
 // ─────────────────────────────────────────────────────────────────────────────
 
 /// A circular dial countdown display that replicates the ring.ts renderer in
@@ -215,7 +215,7 @@ class DialInnerConfig with StyleProps {
 /// display (time text, custom widget, etc.).
 ///
 /// ```dart
-/// CountdownDial(
+/// DialCountdown(
 ///   to: const Duration(minutes: 5),
 ///   size: 200,
 ///   builder: (context, parts) => Text(
@@ -228,22 +228,22 @@ class DialInnerConfig with StyleProps {
 ///
 /// All ring geometry uses a normalised 100×100 coordinate space to stay
 /// faithful to the original SVG viewBox (0 0 100 100) from ring.ts.
-/// Visual style for [CountdownDial].
+/// Visual style for [DialCountdown].
 ///
 /// Aggregates the dial's geometry, zone colors, tick/arc/inner ring configs
 /// (with explicit `show*` flags — clearer than the old "pass null to hide"),
 /// glow, and container [decoration]/[padding]. All fields nullable; unset
 /// fields fall back to the dial's built-in defaults.
 ///
-/// [CountdownDial] 的视觉样式。聚合表盘几何、区域配色、刻度/弧/内圈配置（用显式
+/// [DialCountdown] 的视觉样式。聚合表盘几何、区域配色、刻度/弧/内圈配置（用显式
 /// `show*` 开关——比旧的"传 null 隐藏"更清晰）、辉光、容器 [decoration]/[padding]。
 /// 所有字段可空；未设置的字段回退到表盘内建默认值。
 @immutable
-class CountdownDialStyle with BoxStyleFields, StyleProps {
-  /// Creates a [CountdownDial] style. All fields optional.
+class DialCountdownStyle with BoxStyleFields, StyleProps {
+  /// Creates a [DialCountdown] style. All fields optional.
   ///
-  /// 创建 [CountdownDial] 样式。所有字段可选。
-  const CountdownDialStyle({
+  /// 创建 [DialCountdown] 样式。所有字段可选。
+  const DialCountdownStyle({
     this.size,
     this.clockwise,
     this.redAt,
@@ -305,7 +305,7 @@ class CountdownDialStyle with BoxStyleFields, StyleProps {
   /// Whether the innermost progress ring is drawn. Default true.
   final bool? showInner;
 
-  /// Alignment of the center [CountdownDial.builder] child. Default center.
+  /// Alignment of the center [DialCountdown.builder] child. Default center.
   final AlignmentGeometry? centerAlignment;
 
   @override
@@ -316,7 +316,7 @@ class CountdownDialStyle with BoxStyleFields, StyleProps {
   /// Returns a copy with the given fields replaced.
   ///
   /// 返回替换了给定字段的副本。
-  CountdownDialStyle copyWith({
+  DialCountdownStyle copyWith({
     double? size,
     bool? clockwise,
     int? redAt,
@@ -335,7 +335,7 @@ class CountdownDialStyle with BoxStyleFields, StyleProps {
     EdgeInsetsGeometry? padding,
     Decoration? decoration,
   }) =>
-      CountdownDialStyle(
+      DialCountdownStyle(
         size: size ?? this.size,
         clockwise: clockwise ?? this.clockwise,
         redAt: redAt ?? this.redAt,
@@ -358,9 +358,9 @@ class CountdownDialStyle with BoxStyleFields, StyleProps {
   /// Merges with lower-priority [other]: this object's non-null fields win.
   ///
   /// 与更低优先级的 [other] 合并：本对象非空字段优先。
-  CountdownDialStyle merge(CountdownDialStyle? other) => other == null
+  DialCountdownStyle merge(DialCountdownStyle? other) => other == null
       ? this
-      : CountdownDialStyle(
+      : DialCountdownStyle(
           size: size ?? other.size,
           clockwise: clockwise ?? other.clockwise,
           redAt: redAt ?? other.redAt,
@@ -402,8 +402,8 @@ class CountdownDialStyle with BoxStyleFields, StyleProps {
       ];
 }
 
-class CountdownDial extends StatelessWidget {
-  const CountdownDial({
+class DialCountdown extends StatelessWidget {
+  const DialCountdown({
     super.key,
     required this.to,
     this.style,
@@ -426,7 +426,7 @@ class CountdownDial extends StatelessWidget {
   /// Visual style. Merged over the enclosing [CountdownProvider]'s defaults.
   ///
   /// 视觉样式。叠加在所在 [CountdownProvider] 的默认值之上。
-  final CountdownDialStyle? style;
+  final DialCountdownStyle? style;
 
   /// Countdown target. Accepts [DateTime], [Duration], [int] (ms epoch), or
   /// ISO-8601 [String].
@@ -473,7 +473,7 @@ class CountdownDial extends StatelessWidget {
     // Widget style layered over the enclosing provider's dial style.
     //
     // widget 样式叠加在所在 provider 的表盘样式之上。
-    final s = (style ?? const CountdownDialStyle()).merge(scope?.countdownDialStyle);
+    final s = (style ?? const DialCountdownStyle()).merge(scope?.dialCountdownStyle);
     final effSize = s.size ?? 200.0;
     final effTicks = (s.showTicks ?? true) ? (s.ticks ?? const DialTicksConfig()) : null;
     final effArcA = (s.showArcA ?? true)

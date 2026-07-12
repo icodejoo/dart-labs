@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:countman/countman.dart';
 
-/// Single-widget demo — CountdownCard only. Iterate here before spreading
+/// Single-widget demo — CardCountdown only. Iterate here before spreading
 /// changes to the other countdown widgets.
 class CardDemoPage extends StatefulWidget {
   const CardDemoPage({super.key});
@@ -27,7 +27,7 @@ class _CardDemoPageState extends State<CardDemoPage> {
         );
 
     return Scaffold(
-      appBar: AppBar(title: const Text('CountdownCard Demo')),
+      appBar: AppBar(title: const Text('CardCountdown Demo')),
       body: Center(
         child: KeyedSubtree(
           key: ValueKey(_seed),
@@ -37,19 +37,19 @@ class _CardDemoPageState extends State<CardDemoPage> {
               runSpacing: 24,
               alignment: WrapAlignment.center,
               children: [
-                labeled('calendar (default)', const CountdownCard(to: to)),
+                labeled('calendar (default)', const CardCountdown(to: to)),
                 labeled(
                   'slide: none',
-                  const CountdownCard(
+                  const CardCountdown(
                     to: to,
-                    style: CountdownCardStyle(transitionType: CountdownType.slide),
+                    style: CardCountdownStyle(transitionType: CountdownType.slide),
                   ),
                 ),
                 labeled(
                   'slide: scale both',
-                  const CountdownCard(
+                  const CardCountdown(
                     to: to,
-                    style: CountdownCardStyle(
+                    style: CardCountdownStyle(
                       transitionType: CountdownType.slide,
                       scaleEffect: SlideEffect.both,
                     ),
@@ -57,9 +57,9 @@ class _CardDemoPageState extends State<CardDemoPage> {
                 ),
                 labeled(
                   'slide: opacity both',
-                  const CountdownCard(
+                  const CardCountdown(
                     to: to,
-                    style: CountdownCardStyle(
+                    style: CardCountdownStyle(
                       transitionType: CountdownType.slide,
                       opacityEffect: SlideEffect.both,
                     ),
@@ -67,9 +67,9 @@ class _CardDemoPageState extends State<CardDemoPage> {
                 ),
                 labeled(
                   'slide: scale+opacity both',
-                  const CountdownCard(
+                  const CardCountdown(
                     to: to,
-                    style: CountdownCardStyle(
+                    style: CardCountdownStyle(
                       transitionType: CountdownType.slide,
                       scaleEffect: SlideEffect.both,
                       opacityEffect: SlideEffect.both,
@@ -78,9 +78,9 @@ class _CardDemoPageState extends State<CardDemoPage> {
                 ),
                 labeled(
                   'slide: scaleFactor 2.5',
-                  const CountdownCard(
+                  const CardCountdown(
                     to: to,
-                    style: CountdownCardStyle(
+                    style: CardCountdownStyle(
                       transitionType: CountdownType.slide,
                       scaleEffect: SlideEffect.both,
                       scaleFactor: 2.5,
@@ -89,9 +89,9 @@ class _CardDemoPageState extends State<CardDemoPage> {
                 ),
                 labeled(
                   'slide: enter-only scale+opacity',
-                  const CountdownCard(
+                  const CardCountdown(
                     to: to,
-                    style: CountdownCardStyle(
+                    style: CardCountdownStyle(
                       transitionType: CountdownType.slide,
                       scaleEffect: SlideEffect.enter,
                       opacityEffect: SlideEffect.enter,
@@ -100,9 +100,9 @@ class _CardDemoPageState extends State<CardDemoPage> {
                 ),
                 labeled(
                   'slide: exit-only scale+opacity',
-                  const CountdownCard(
+                  const CardCountdown(
                     to: to,
-                    style: CountdownCardStyle(
+                    style: CardCountdownStyle(
                       transitionType: CountdownType.slide,
                       scaleEffect: SlideEffect.exit,
                       opacityEffect: SlideEffect.exit,
@@ -111,16 +111,16 @@ class _CardDemoPageState extends State<CardDemoPage> {
                 ),
                 labeled(
                   'flip: none (pure rotate)',
-                  const CountdownCard(
+                  const CardCountdown(
                     to: to,
-                    style: CountdownCardStyle(transitionType: CountdownType.flip),
+                    style: CardCountdownStyle(transitionType: CountdownType.flip),
                   ),
                 ),
                 labeled(
                   'flip: perspective 0.02 (stronger 3D)',
-                  const CountdownCard(
+                  const CardCountdown(
                     to: to,
-                    style: CountdownCardStyle(
+                    style: CardCountdownStyle(
                       transitionType: CountdownType.flip,
                       perspective: 0.02,
                     ),
@@ -128,9 +128,9 @@ class _CardDemoPageState extends State<CardDemoPage> {
                 ),
                 labeled(
                   'flip: scale+opacity both',
-                  const CountdownCard(
+                  const CardCountdown(
                     to: to,
-                    style: CountdownCardStyle(
+                    style: CardCountdownStyle(
                       transitionType: CountdownType.flip,
                       scaleEffect: SlideEffect.both,
                       opacityEffect: SlideEffect.both,
@@ -139,9 +139,9 @@ class _CardDemoPageState extends State<CardDemoPage> {
                 ),
                 labeled(
                   'flip: enter-only scale+opacity',
-                  const CountdownCard(
+                  const CardCountdown(
                     to: to,
-                    style: CountdownCardStyle(
+                    style: CardCountdownStyle(
                       transitionType: CountdownType.flip,
                       scaleEffect: SlideEffect.enter,
                       opacityEffect: SlideEffect.enter,
@@ -150,9 +150,9 @@ class _CardDemoPageState extends State<CardDemoPage> {
                 ),
                 labeled(
                   'flip: exit-only scale+opacity',
-                  const CountdownCard(
+                  const CardCountdown(
                     to: to,
-                    style: CountdownCardStyle(
+                    style: CardCountdownStyle(
                       transitionType: CountdownType.flip,
                       scaleEffect: SlideEffect.exit,
                       opacityEffect: SlideEffect.exit,

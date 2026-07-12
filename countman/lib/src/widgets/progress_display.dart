@@ -61,8 +61,8 @@ ProgressColors resolveProgressColors(
   );
 }
 
-/// Wires the per-tick progress paint scaffold shared by CounterRing/Bar and
-/// CountdownRing/Bar: a percentage [Semantics] wrapper around a [CustomPaint].
+/// Wires the per-tick progress paint scaffold shared by RingCounter/Bar and
+/// RingCountdown/Bar: a percentage [Semantics] wrapper around a [CustomPaint].
 ///
 /// This is the ONLY value-dependent part, so it belongs inside the per-tick
 /// builder. The value-independent box layer (padding + decoration via
@@ -70,7 +70,7 @@ ProgressColors resolveProgressColors(
 /// caller to wrap ONCE outside the builder — keeping them off the per-tick
 /// rebuild path.
 ///
-/// 接线 CounterRing/Bar 与 CountdownRing/Bar 共用的每 tick 进度绘制脚手架：包裹
+/// 接线 RingCounter/Bar 与 RingCountdown/Bar 共用的每 tick 进度绘制脚手架：包裹
 /// [CustomPaint] 的百分比 [Semantics]。
 ///
 /// 这是唯一依赖值的部分，故置于每 tick 的 builder 内。不依赖值的盒层（padding +

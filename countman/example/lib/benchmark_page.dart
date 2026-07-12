@@ -15,13 +15,13 @@ enum BenchLib {
   /// Nothing mounted — idle screen. / 空闲，未挂载任何库。
   idle,
 
-  /// countman [CountdownCard] in [CountdownType.slide] mode. / countman 卡片滑动模式。
+  /// countman [CardCountdown] in [CountdownType.slide] mode. / countman 卡片滑动模式。
   countmanCard,
 
   /// The `slide_countdown` package's [SlideCountdown]. / slide_countdown 包。
   slide,
 
-  /// countman [CountdownText] (plain formatted text). / countman 文本模式。
+  /// countman [TextCountdown] (plain formatted text). / countman 文本模式。
   countmanText,
 
   /// `stop_watch_timer` package driving a plain [Text] via [StreamBuilder].
@@ -402,11 +402,11 @@ class _BenchmarkPageState extends State<BenchmarkPage> {
         fontSize: 22, fontWeight: FontWeight.bold, color: Colors.white);
     switch (_mounted) {
       case BenchLib.countmanCard:
-        return CountdownCard(
+        return CardCountdown(
           to: dur,
           showHours: false,
           labels: null,
-          style: const CountdownCardStyle(
+          style: const CardCountdownStyle(
             transitionType: CountdownType.slide,
             scaleEffect: SlideEffect.both,
             opacityEffect: SlideEffect.both,
@@ -428,7 +428,7 @@ class _BenchmarkPageState extends State<BenchmarkPage> {
           style: ts,
         );
       case BenchLib.countmanText:
-        return CountdownText(to: dur, formatter: CountdownFormat.ms, style: CountdownTextStyle(textStyle: ts));
+        return TextCountdown(to: dur, formatter: CountdownFormat.ms, style: TextCountdownStyle(textStyle: ts));
       case BenchLib.stopWatch:
         return _StopWatchCell(duration: dur, style: ts);
       case BenchLib.idle:

@@ -325,18 +325,18 @@ void main() {
   });
 
   group('a11y semantics', () {
-    testWidgets('CounterRing exposes a percentage semantics value', (tester) async {
+    testWidgets('RingCounter exposes a percentage semantics value', (tester) async {
       final handle = tester.ensureSemantics();
       await tester.pumpWidget(const MaterialApp(
         home: Scaffold(
-          body: Center(child: CounterRing(to: 100, duration: Duration(milliseconds: 100))),
+          body: Center(child: RingCounter(to: 100, duration: Duration(milliseconds: 100))),
         ),
       ));
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 200)); // reach 100%
 
       final node = tester.getSemantics(find.descendant(
-        of: find.byType(CounterRing),
+        of: find.byType(RingCounter),
         matching: find.byType(CustomPaint),
       ).first);
       expect(node.value, endsWith('%'));
@@ -345,12 +345,12 @@ void main() {
     });
   });
 
-  group('CounterOdometer negative display', () {
+  group('OdometerCounter negative display', () {
     testWidgets('shows leading minus when allowNegative and value < 0', (tester) async {
       await tester.pumpWidget(const MaterialApp(
         home: Scaffold(
           body: Center(
-            child: CounterOdometer(
+            child: OdometerCounter(
               from: 0,
               to: -5,
               allowNegative: true,
@@ -372,7 +372,7 @@ void main() {
       await tester.pumpWidget(const MaterialApp(
         home: Scaffold(
           body: Center(
-            child: CounterOdometer(
+            child: OdometerCounter(
               from: 0,
               to: -5,
               duration: Duration(milliseconds: 100),

@@ -662,12 +662,12 @@ void main() {
 
   // ── CountdownFormat ───────────────────────────────────────────────────────
 
-  group('onThreshold threading — CountdownText / CountdownRing', () {
+  group('onThreshold threading — TextCountdown / RingCountdown', () {
     tearDown(Countman.destroy);
 
-    testWidgets('CountdownText fires onThreshold', (t) async {
+    testWidgets('TextCountdown fires onThreshold', (t) async {
       var count = 0;
-      await t.pumpWidget(_wrap(CountdownText(
+      await t.pumpWidget(_wrap(TextCountdown(
         to: const Duration(seconds: 5),
         threshold: const Duration(seconds: 3),
         onThreshold: () => count++,
@@ -680,9 +680,9 @@ void main() {
       expect(count, 1);
     });
 
-    testWidgets('CountdownRing fires onThreshold', (t) async {
+    testWidgets('RingCountdown fires onThreshold', (t) async {
       var count = 0;
-      await t.pumpWidget(_wrap(CountdownRing(
+      await t.pumpWidget(_wrap(RingCountdown(
         to: const Duration(seconds: 5),
         threshold: const Duration(seconds: 3),
         onThreshold: () => count++,

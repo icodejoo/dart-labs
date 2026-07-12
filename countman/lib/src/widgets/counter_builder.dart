@@ -103,10 +103,10 @@ class CounterBuilder extends StatefulWidget {
 
   /// Explicit stable id for animate-once. When null, the id is derived from a
   /// [ValueKey] on this widget's [key]. Provided so wrapper widgets
-  /// ([CounterText] etc.) can forward the id extracted from their own key.
+  /// ([TextCounter] etc.) can forward the id extracted from their own key.
   ///
   /// animate-once 的显式稳定 id。为空时从本 widget 的 [key]（[ValueKey]）派生。
-  /// 提供此参数以便包装 widget（[CounterText] 等）转发从自身 key 提取的 id。
+  /// 提供此参数以便包装 widget（[TextCounter] 等）转发从自身 key 提取的 id。
   final String? onceId;
 
   @override

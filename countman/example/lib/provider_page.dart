@@ -3,10 +3,10 @@ import 'package:countman/countman.dart';
 
 /// Demonstrates the provider layer: the aggregate [CountmanProvider] that
 /// configures all three families at once, and the standalone
-/// [CountdownCardProvider] that also shares a glyph cache across cards.
+/// [CardCountdownProvider] that also shares a glyph cache across cards.
 ///
 /// 演示 provider 层：一次配置三家族的聚合 [CountmanProvider]，以及独立的、还共享
-/// 字形缓存的 [CountdownCardProvider]。
+/// 字形缓存的 [CardCountdownProvider]。
 class ProviderPage extends StatelessWidget {
   const ProviderPage({super.key});
 
@@ -27,10 +27,10 @@ class ProviderPage extends StatelessWidget {
           ),
           SizedBox(height: 16),
           _Section(
-            title: 'CountdownCardProvider',
+            title: 'CardCountdownProvider',
             description:
                 'Cascades card visuals (cardColor / textStyle / transitionType) and '
-                'shares one glyph cache across every CountdownCard in scope.',
+                'shares one glyph cache across every CardCountdown in scope.',
             child: _CardProviderDemo(),
           ),
         ],
@@ -58,36 +58,36 @@ class _AggregateDemo extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text('CounterText (inherits textStyle + duration + curve):'),
+          const Text('TextCounter (inherits textStyle + duration + curve):'),
           const SizedBox(height: 6),
-          const CounterText(to: 2048),
+          const TextCounter(to: 2048),
           const SizedBox(height: 16),
-          const Text('CounterRing (inherits color + trackColor):'),
+          const Text('RingCounter (inherits color + trackColor):'),
           const SizedBox(height: 6),
-          const CounterRing(to: 100, center: CounterText(to: 100, suffix: '%')),
+          const RingCounter(to: 100, center: TextCounter(to: 100, suffix: '%')),
           const SizedBox(height: 16),
-          const Text('CountdownText (inherits textStyle + formatter=hms):'),
+          const Text('TextCountdown (inherits textStyle + formatter=hms):'),
           const SizedBox(height: 6),
-          CountdownText(to: const Duration(minutes: 90)),
+          TextCountdown(to: const Duration(minutes: 90)),
           const SizedBox(height: 16),
-          const Text('ElapsedText (inherits textStyle + formatter=hms):'),
+          const Text('TextElapsed (inherits textStyle + formatter=hms):'),
           const SizedBox(height: 6),
-          const ElapsedText(),
+          const TextElapsed(),
         ],
       ),
     );
   }
 }
 
-/// Two cards sharing one [CountdownCardProvider] — same look, one glyph cache.
+/// Two cards sharing one [CardCountdownProvider] — same look, one glyph cache.
 ///
-/// 两张卡共用一个 [CountdownCardProvider]——外观一致，共享字形缓存。
+/// 两张卡共用一个 [CardCountdownProvider]——外观一致，共享字形缓存。
 class _CardProviderDemo extends StatelessWidget {
   const _CardProviderDemo();
 
   @override
   Widget build(BuildContext context) {
-    return CountdownCardProvider(
+    return CardCountdownProvider(
       cardColor: const Color(0xFF00695C),
       textStyle: const TextStyle(
           fontSize: 30, fontWeight: FontWeight.bold, color: Colors.white),
@@ -96,8 +96,8 @@ class _CardProviderDemo extends StatelessWidget {
         spacing: 16,
         runSpacing: 16,
         children: [
-          CountdownCard(to: const Duration(minutes: 5)),
-          CountdownCard(to: const Duration(hours: 1, minutes: 30)),
+          CardCountdown(to: const Duration(minutes: 5)),
+          CardCountdown(to: const Duration(hours: 1, minutes: 30)),
         ],
       ),
     );

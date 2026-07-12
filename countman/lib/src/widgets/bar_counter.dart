@@ -2,27 +2,22 @@ import 'package:flutter/widgets.dart';
 import 'package:countman/src/counter/plugin.dart';
 import 'counter_builder.dart';
 import 'providers.dart';
-import 'ring_style.dart';
+import 'bar_style.dart';
 import 'progress_display.dart';
 import 'style_support.dart';
 
-export 'ring_style.dart' show CounterRingStyle;
+export 'bar_style.dart' show BarCounterStyle;
 
-/// A circular arc counter display — the fill-toward-a-goal counterpart to
-/// `CountdownRing`. Progress = `(value - from) / (to - from)`.
+/// A linear progress-bar counter display — the fill-toward-a-goal counterpart
+/// to `BarCountdown`. Progress = `(value - from) / (to - from)`.
 ///
-/// Composes [CounterBuilder] for the animation drive; visual appearance is
-/// configured via [style] ([CounterRingStyle]).
+/// Composes [CounterBuilder]; visual appearance via [style] ([BarCounterStyle]).
 ///
 /// ```dart
-/// CounterRing(
-///   to: 100,
-///   style: const CounterRingStyle(size: 80),
-///   center: CounterText(to: 100, suffix: '%'),
-/// )
+/// BarCounter(to: 100, style: const BarCounterStyle(width: 240))
 /// ```
-class CounterRing extends StatelessWidget {
-  const CounterRing({
+class BarCounter extends StatelessWidget {
+  const BarCounter({
     super.key,
     this.from,
     required this.to,
@@ -32,7 +27,6 @@ class CounterRing extends StatelessWidget {
     this.plugin,
     this.controller,
     this.style,
-    this.center,
     this.repaintBoundary,
     this.painterBuilder,
     this.onUpdate,
@@ -45,7 +39,7 @@ class CounterRing extends StatelessWidget {
   /// Start value. Defaults to 0.
   final double? from;
 
-  /// Target value the arc fills toward.
+  /// Target value the bar fills toward.
   final double to;
 
   /// Animation duration. Falls back to the [CounterProvider], then to 1000ms.
@@ -66,16 +60,13 @@ class CounterRing extends StatelessWidget {
   /// Visual style. Merged over the enclosing [CounterProvider]'s defaults.
   ///
   /// 视觉样式。叠加在所在 [CounterProvider] 的默认值之上。
-  final CounterRingStyle? style;
-
-  /// Optional widget rendered in the center of the ring.
-  final Widget? center;
+  final BarCounterStyle? style;
 
   /// Wraps in [RepaintBoundary]. Falls back to the provider, then `true`.
   final bool? repaintBoundary;
 
   /// Supplies a fully custom painter given the current 0–1 progress, replacing
-  /// the built-in ring painter. All [style] visuals are ignored then.
+  /// the built-in bar painter. All [style] visuals are ignored then.
   final CustomPainter Function(BuildContext context, double progress)? painterBuilder;
 
   /// Called every frame with the raw animated value.
@@ -94,8 +85,9 @@ class CounterRing extends StatelessWidget {
     final from = this.from ?? 0;
     final span = to - from;
     final scope = CountmanScope.maybeOf<Counter>(context);
-    final effStyle = (style ?? const CounterRingStyle()).merge(scope?.counterRingStyle);
-    final effSize = effStyle.size ?? 80.0;
+    final effStyle = (style ?? const BarCounterStyle()).merge(scope?.barCounterStyle);
+    final effW = effStyle.width ?? 200.0;
+    final effH = effStyle.height ?? 8.0;
     final colors = resolveProgressColors(
       context,
       color: effStyle.color,
@@ -104,25 +96,9 @@ class CounterRing extends StatelessWidget {
       scopeTrackColor: scope?.trackColor,
     );
 
-    // Center overlay doesn't depend on the animated value — build it once and
-    // pass as the builder's child so each frame's rebuild skips it.
+    // Box layer is value-independent — wrap it ONCE around the builder.
     //
-    // 中心叠层不依赖动画值——只建一次并作为 builder 的 child 传入，使每帧重建跳过它。
-    final centerChild = center != null
-        ? SizedBox.square(
-            dimension: effSize,
-            child: Align(
-              alignment: effStyle.centerAlignment ?? Alignment.center,
-              child: center,
-            ),
-          )
-        : null;
-
-    // Box layer (padding + decoration) is value-independent — wrap it ONCE
-    // around the builder so the per-tick rebuild never touches it.
-    //
-    // 盒层（padding + decoration）不依赖值——在 builder 外只包一次，使每 tick 重建
-    // 不碰它。
+    // 盒层不依赖值——在 builder 外只包一次。
     final core = CounterBuilder(
       from: this.from,
       to: to,
@@ -137,17 +113,14 @@ class CounterRing extends StatelessWidget {
       onReady: onReady,
       onStart: onStart,
       onCancel: onCancel,
-      child: centerChild,
-      builder: (ctx, v, centerWidget) {
+      builder: (ctx, v, __) {
         final progress = span != 0 ? ((v - from) / span).clamp(0.0, 1.0) : 1.0;
         return buildProgressPaint(
-          size: Size.square(effSize),
+          size: Size(effW, effH),
           progress: progress,
           painter: painterBuilder != null
               ? painterBuilder!(ctx, progress)
-              : ringPainterFrom(effStyle,
-                  progress: progress, color: colors.fill, trackColor: colors.track),
-          paintChild: centerWidget,
+              : barPainterFrom(effStyle, progress: progress, color: colors.fill, trackColor: colors.track),
         );
       },
     );
