@@ -1,7 +1,5 @@
 import 'package:flutter/material.dart';
 
-import 'style_support.dart';
-
 /// Opacity of the muted default track (behind the progress fill) when no
 /// explicit track color is given.
 ///
@@ -64,18 +62,20 @@ ProgressColors resolveProgressColors(
 }
 
 /// Wires the per-tick progress paint scaffold shared by CounterRing/Bar and
-/// CountdownRing/Bar: a percentage [Semantics] wrapper around a [CustomPaint],
-/// then the style's box layer (padding + decoration).
+/// CountdownRing/Bar: a percentage [Semantics] wrapper around a [CustomPaint].
 ///
-/// Repaint-boundary wrapping is intentionally left to the caller (counter
-/// displays delegate it to their builder; countdown displays wrap here), so
-/// this helper stays a pure paint-scaffold.
+/// This is the ONLY value-dependent part, so it belongs inside the per-tick
+/// builder. The value-independent box layer (padding + decoration via
+/// `applyBoxStyle`) and any [RepaintBoundary] are intentionally left to the
+/// caller to wrap ONCE outside the builder — keeping them off the per-tick
+/// rebuild path.
 ///
 /// 接线 CounterRing/Bar 与 CountdownRing/Bar 共用的每 tick 进度绘制脚手架：包裹
-/// [CustomPaint] 的百分比 [Semantics]，再套样式盒层（padding + decoration）。
+/// [CustomPaint] 的百分比 [Semantics]。
 ///
-/// RepaintBoundary 的包裹刻意留给调用方（counter 显示交给其 builder，countdown
-/// 显示在各自处包裹），使本 helper 保持为纯绘制脚手架。
+/// 这是唯一依赖值的部分，故置于每 tick 的 builder 内。不依赖值的盒层（padding +
+/// decoration，经 `applyBoxStyle`）与 [RepaintBoundary] 刻意留给调用方在 builder
+/// 外只包一次——使其不在每 tick 重建路径上。
 ///
 /// @param size Paint size (square for rings, W×H for bars).
 ///
@@ -89,34 +89,23 @@ ProgressColors resolveProgressColors(
 ///
 ///   要渲染的 [CustomPainter]。
 ///
-/// @param padding Style padding for the box layer.
-///
-///   盒层的样式内边距。
-///
-/// @param decoration Style decoration for the box layer.
-///
-///   盒层的样式装饰。
-///
 /// @param paintChild Optional child painted over the custom paint (e.g. a ring
 ///   center).
 ///
 ///   可选的绘制其上的子组件（如环形中心）。
 ///
-/// @returns The semantics-wrapped, box-decorated paint widget.
+/// @returns The semantics-wrapped paint widget (no box layer).
 ///
-///   带无障碍语义与盒装饰的绘制 widget。
+///   带无障碍语义的绘制 widget（不含盒层）。
 Widget buildProgressPaint({
   required Size size,
   required double progress,
   required CustomPainter painter,
-  EdgeInsetsGeometry? padding,
-  Decoration? decoration,
   Widget? paintChild,
 }) {
-  final paint = Semantics(
+  return Semantics(
     container: true,
     value: '${(progress * 100).round()}%',
     child: CustomPaint(size: size, painter: painter, child: paintChild),
   );
-  return applyBoxStyle(paint, padding: padding, decoration: decoration);
 }

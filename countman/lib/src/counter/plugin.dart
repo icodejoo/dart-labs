@@ -65,10 +65,10 @@ class Counter extends TaskQueuePlugin<CounterTask> {
 
   @override
   bool step(CounterTask task, double dtMs, bool shouldProcess) {
-    // Paused: hold the current value, consume no time, stay alive.
+    // Paused tasks are skipped by the base tick loop (via `isPaused`) and never
+    // reach here, so no explicit pause guard is needed.
     //
-    // 暂停：保持当前值，不消耗时间，保持存活。
-    if (task.paused) return true;
+    // 暂停任务由基类 tick 循环（经 `isPaused`）跳过，不会到达此处，故无需显式暂停判断。
     task.accumMs += dtMs;
     final durationMs = task.duration.inMilliseconds.toDouble();
     final t = durationMs > 0 ? (task.accumMs / durationMs).clamp(0.0, 1.0) : 1.0;

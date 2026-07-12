@@ -4,6 +4,7 @@ import 'counter_builder.dart';
 import 'providers.dart';
 import 'ring_style.dart';
 import 'progress_display.dart';
+import 'style_support.dart';
 
 export 'ring_style.dart' show CounterRingStyle;
 
@@ -117,7 +118,12 @@ class CounterRing extends StatelessWidget {
           )
         : null;
 
-    return CounterBuilder(
+    // Box layer (padding + decoration) is value-independent — wrap it ONCE
+    // around the builder so the per-tick rebuild never touches it.
+    //
+    // 盒层（padding + decoration）不依赖值——在 builder 外只包一次，使每 tick 重建
+    // 不碰它。
+    final core = CounterBuilder(
       from: this.from,
       to: to,
       duration: duration ?? scope?.duration ?? const Duration(milliseconds: 1000),
@@ -141,11 +147,10 @@ class CounterRing extends StatelessWidget {
               ? painterBuilder!(ctx, progress)
               : ringPainterFrom(effStyle,
                   progress: progress, color: colors.fill, trackColor: colors.track),
-          padding: effStyle.padding,
-          decoration: effStyle.decoration,
           paintChild: centerWidget,
         );
       },
     );
+    return applyBoxStyle(core, padding: effStyle.padding, decoration: effStyle.decoration);
   }
 }

@@ -77,4 +77,18 @@ class CounterTask extends CountmanTask {
   /// 为 true 时任务保持当前值并停止推进，直到恢复。与倒计时/经过时间任务的暂停
   /// 能力对齐。
   bool paused = false;
+
+  /// Reports the pause state to the base tick loop, which skips paused tasks
+  /// and excludes them from "busy" — so a fully-paused group lets the shared
+  /// ticker idle instead of spinning every frame. On resume the handle calls
+  /// `requestFrame`, and the ticker's first post-restart frame has `dt == 0`
+  /// (Countman resets `_hasLast`), so the animation continues from its frozen
+  /// [accumMs] without a time jump.
+  ///
+  /// 向基类 tick 循环报告暂停态：循环会跳过暂停任务且不计入 busy——因此整组暂停时
+  /// 共享 ticker 可 idle，而非每帧空转。恢复时 handle 调用 `requestFrame`，重启后
+  /// 首帧 `dt == 0`（Countman 重置 `_hasLast`），故动画从冻结的 [accumMs] 无跳变
+  /// 继续。
+  @override
+  bool get isPaused => paused;
 }
