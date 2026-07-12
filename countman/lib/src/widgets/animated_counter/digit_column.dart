@@ -38,6 +38,18 @@ class DigitColumn extends StatefulWidget {
   final String Function(int digit)? numeralMapper;
   final CounterTransitionType transitionType;
 
+  /// Fast mode: this column does a SINGLE step from [fastFromDigit] to
+  /// [fastToDigit] (one slot of movement), with [animationValue] carrying the
+  /// 0–1 progress. Off (default): [animationValue] is a continuous odometer
+  /// position and the column rolls floor → floor+1 through every intermediate.
+  ///
+  /// 快速模式：本列从 [fastFromDigit] 单步位移到 [fastToDigit]（一个身位），
+  /// [animationValue] 携带 0–1 进度。关闭（默认）：[animationValue] 为连续里程表
+  /// 位置，逐位 floor → floor+1 滚过所有中间位。
+  final bool fast;
+  final int fastFromDigit;
+  final int fastToDigit;
+
   const DigitColumn({
     super.key,
     required this.value,
@@ -56,6 +68,9 @@ class DigitColumn extends StatefulWidget {
     this.digitBuilder,
     this.digitTransitionBuilder,
     required this.triggerHaptics,
+    this.fast = false,
+    this.fastFromDigit = 0,
+    this.fastToDigit = 0,
   });
 
   @override
@@ -77,18 +92,37 @@ class _DigitColumnState extends State<DigitColumn> {
       }
     }
 
-    final whole   = widget.animationValue ~/ 1;
-    final decimal = widget.animationValue - whole;
+    // Resolve (current digit, next digit, 0–1 progress) once; the transition
+    // switch below is direction/mode-agnostic and just consumes them.
+    // Fast mode = a single step fromDigit → toDigit; normal = odometer roll
+    // where the next digit is always the current + 1.
+    //
+    // 一次解析（当前位、下一位、0–1 进度）；下方过渡 switch 与模式无关，只消费它们。
+    // 快速模式 = 从 fromDigit 到 toDigit 单步；普通模式 = 里程表滚动，下一位恒为当前 +1。
+    final int curDigit;
+    final int nextDigit;
+    final double decimal;
+    if (widget.fast) {
+      curDigit = widget.fastFromDigit;
+      nextDigit = widget.fastToDigit;
+      // Unchanged digit → stay static (progress 0) instead of sliding X→X.
+      decimal = curDigit == nextDigit ? 0.0 : widget.animationValue.clamp(0.0, 1.0);
+    } else {
+      final whole = widget.animationValue ~/ 1;
+      decimal = widget.animationValue - whole;
+      curDigit = (whole % 10).toInt();
+      nextDigit = ((whole + 1) % 10).toInt();
+    }
     final w = widget.size.width  + widget.padding.horizontal;
     final h = widget.size.height + widget.padding.vertical;
 
     if (!widget.visible) return SizedBox(width: 0, height: h);
 
     final currentDigitWidget = _buildSingleDigit(
-      context: context, digit: whole % 10, opacity: 1 - decimal, style: widget.style,
+      context: context, digit: curDigit, opacity: 1 - decimal, style: widget.style,
     );
     final nextDigitWidget = _buildSingleDigit(
-      context: context, digit: (whole + 1) % 10, opacity: decimal, style: widget.style,
+      context: context, digit: nextDigit, opacity: decimal, style: widget.style,
     );
 
     final Widget transitionChild;

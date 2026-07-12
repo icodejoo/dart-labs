@@ -81,6 +81,16 @@ abstract class _BaseAnimatedCounter extends StatefulWidget {
   final double bounceOvershoot;
   final double bounceElasticity;
 
+  /// Fast mode: every digit column does a SINGLE step from its old digit to
+  /// its new digit (one slot of movement), regardless of numeric distance —
+  /// e.g. 1000 → 9999 slides each column once (1→9, 0→9, …) instead of the
+  /// full cascading odometer roll. Applies to every [transitionType].
+  ///
+  /// 快速模式：每个数字列都从旧位到新位单步位移（一个身位），无关数值距离——
+  /// 如 1000 → 9999 每列只滑一次（1→9、0→9…），而非完整级联滚动。对所有
+  /// [transitionType] 生效。
+  final bool fast;
+
   // ── resolved visual getters: [style] wins, else the deprecated raw param ──
   // 已解析视觉 getter：[style] 优先，否则用弃用的原始参数。
   TextStyle? get textStyle => style?.textStyle ?? _textStyle;
@@ -179,6 +189,7 @@ abstract class _BaseAnimatedCounter extends StatefulWidget {
     this.interpolation,
     this.bounceOvershoot = 0.0,
     this.bounceElasticity = 4.0,
+    this.fast = false,
   })  : _textStyle = textStyle,
         _prefixStyle = prefixStyle,
         _infixStyle = infixStyle,
@@ -225,6 +236,13 @@ abstract class _BaseCounterState<W extends _BaseAnimatedCounter> extends State<W
   List<double> _oldDigitValues     = [];
   List<double> _targetDigitValues  = [];
   List<double> _currentDigitValues = [];
+  // Fast mode (widget.fast): per-column old/new digit (0–9), computed once per
+  // transition. In fast mode _currentDigitValues[i] carries the 0–1 progress.
+  //
+  // 快速模式（widget.fast）：每列旧/新位（0–9），每次过渡算一次。此模式下
+  // _currentDigitValues[i] 携带 0–1 进度。
+  List<int> _fastFromDigits = [];
+  List<int> _fastToDigits   = [];
   int  _maxDigits          = 0;
   bool _isAnimatingDecrease = false;
 
@@ -433,6 +451,16 @@ abstract class _BaseCounterState<W extends _BaseAnimatedCounter> extends State<W
     _targetDigitValues = [...List<double>.filled(_maxDigits - targetDigits.length, 0.0), ...targetDigits];
     _currentDigitValues = List<double>.from(_oldDigitValues);
 
+    // Fast mode: per-column old→new digit. Use the REAL new value's digits
+    // (not the all-nines-adjusted animTarget) since fast doesn't cascade.
+    final realTarget = [
+      ...List<double>.filled(
+          (_maxDigits - _realTargetDigitValues.length).clamp(0, _maxDigits), 0.0),
+      ..._realTargetDigitValues,
+    ];
+    _fastFromDigits = [for (final v in _oldDigitValues) v.toInt().abs() % 10];
+    _fastToDigits   = [for (final v in realTarget) v.toInt().abs() % 10];
+
     final isIncrease  = newValue > oldValue;
     final isDecrease  = newValue < oldValue;
     final targetColor = isIncrease ? widget.increasingColor
@@ -592,6 +620,17 @@ abstract class _BaseCounterState<W extends _BaseAnimatedCounter> extends State<W
       }
       final Curve  digitCurve = widget.curveForDigit?.call(i) ?? effectiveComputeCurve;
       final double progress   = digitCurve.transform(tDigit);
+
+      // Fast mode: the column just carries its 0–1 progress; the from→new-digit
+      // single step is rendered by the painter / DigitColumn (no cascade here).
+      //
+      // 快速模式：列只携带 0–1 进度；from→新位 的单步由 painter / DigitColumn 渲染
+      // （此处不做级联）。
+      if (widget.fast) {
+        _currentDigitValues[i] = progress;
+        continue;
+      }
+
       final double from       = _oldDigitValues[i];
       final double to         = _targetDigitValues[i];
       double value = widget.interpolation != null

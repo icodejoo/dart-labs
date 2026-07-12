@@ -1080,6 +1080,54 @@ class _CounterPageState extends State<CounterPage> {
                 "}",
               ),
             ),
+
+            DemoCard(
+              title: 'Fast mode (single-step)',
+              description:
+                  'fast: true — each digit moves one step (old→new) instead of a full cascade; e.g. 1000→9999 slides the thousands 1→9 once.',
+              child: _FastModeDemo(),
+              code: runnable(
+                "class _Demo extends StatefulWidget {\n"
+                "  const _Demo({super.key});\n"
+                "  @override\n"
+                "  State<_Demo> createState() => _DemoState();\n"
+                "}\n"
+                "\n"
+                "class _DemoState extends State<_Demo> {\n"
+                "  final _ctrl = AnimatedCounterController(initialValue: 1000);\n"
+                "  final _values = [1000, 9999];\n"
+                "  int _idx = 0;\n"
+                "\n"
+                "  @override\n"
+                "  void dispose() { _ctrl.dispose(); super.dispose(); }\n"
+                "\n"
+                "  @override\n"
+                "  Widget build(BuildContext context) {\n"
+                "    return Column(\n"
+                "      mainAxisSize: MainAxisSize.min,\n"
+                "      children: [\n"
+                "        AnimatedCounter(\n"
+                "          controller: _ctrl,\n"
+                "          fast: true,\n"
+                "          transitionType: CounterTransitionType.roll,\n"
+                "          thousandSeparator: ',',\n"
+                "          duration: Duration(milliseconds: 600),\n"
+                "          textStyle: TextStyle(fontSize: 48),\n"
+                "        ),\n"
+                "        const SizedBox(height: 12),\n"
+                "        ElevatedButton(\n"
+                "          onPressed: () {\n"
+                "            _idx = (_idx + 1) % _values.length;\n"
+                "            _ctrl.animateTo(_values[_idx].toDouble());\n"
+                "          },\n"
+                "          child: const Text('1000 ↔ 9999'),\n"
+                "        ),\n"
+                "      ],\n"
+                "    );\n"
+                "  }\n"
+                "}",
+              ),
+            ),
           ]),
 
           // ?�?� AnimatedCounter ??Formatting ?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�
@@ -2741,6 +2789,68 @@ class _SignLifecycleDemoState extends State<_SignLifecycleDemo> {
             _ctrl.animateTo(_targets[_i]);
           },
           child: const Text('Toggle sign'),
+        ),
+      ],
+    );
+  }
+}
+
+/// AnimatedCounter fast-mode demo: toggles between two far-apart values so the
+/// single-step (old→new, one hop) per-digit motion is clearly visible.
+///
+/// AnimatedCounter 快速模式演示：在相差较大的两个值之间切换，
+/// 直观展示每一位数字只滑一格（旧位→新位单步）而非完整级联滚动的效果。
+class _FastModeDemo extends StatefulWidget {
+  const _FastModeDemo();
+  @override
+  State<_FastModeDemo> createState() => _FastModeDemoState();
+}
+
+class _FastModeDemoState extends State<_FastModeDemo> {
+  // Controller driving the counter; starts at 1000.
+  //
+  // 驱动计数器的控制器，初始值为 1000。
+  final _ctrl = AnimatedCounterController(initialValue: 1000);
+  // Two far-apart values so every digit changes and the single hop is obvious.
+  //
+  // 两个相差较大的值，使每一位都发生变化，单步滑动效果更明显。
+  final _values = [1000, 9999];
+  // Index into [_values] for the current target.
+  //
+  // 当前目标值在 [_values] 中的下标。
+  int _idx = 0;
+
+  /// Advance to the next preset value, animating the counter to it.
+  ///
+  /// 切换到下一个预设值，并驱动计数器动画过渡到该值。
+  void _toggle() {
+    _idx = (_idx + 1) % _values.length;
+    _ctrl.animateTo(_values[_idx].toDouble());
+  }
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        AnimatedCounter(
+          controller: _ctrl,
+          fast: true,
+          transitionType: CounterTransitionType.roll,
+          thousandSeparator: ',',
+          duration: const Duration(milliseconds: 600),
+          textStyle: const TextStyle(fontSize: 48),
+        ),
+        const SizedBox(height: 12),
+        ElevatedButton(
+          onPressed: _toggle,
+          child: const Text('1000 ↔ 9999'),
         ),
       ],
     );
