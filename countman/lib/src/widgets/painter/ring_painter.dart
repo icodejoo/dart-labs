@@ -144,6 +144,49 @@ class RingPainter extends CustomPainter {
     canvas.drawArc(rect, startAngle, sweepAngle * (clockwise ? 1 : -1), false, paint);
   }
 
+  /// Pure geometry behind [paintArc]: the progress arc's `(start, sweep)` after
+  /// the round/square-cap clamp. Exposed as a static so the behavior is unit
+  /// testable without a canvas.
+  ///
+  /// Round/square caps extend ~strokeWidth/2 past each endpoint. On a
+  /// (near-)full ring those two caps overlap at the seam — a bulge that also
+  /// swallows the first few percent of change (the gap must exceed a cap
+  /// radius before it shows). The clamp keeps the caps at most TOUCHING,
+  /// leaving a hairline gap that widens from the first tick — rounded ends AND
+  /// real-time separation. Partial-arc gauges never have meeting ends, so are
+  /// left unclamped. [anchorAtEnd] offsets the start by the emptied span so a
+  /// countdown's gap opens at [start] and sweeps in the drawing direction.
+  ///
+  /// [paintArc] 背后的纯几何：钳制后进度弧的 `(start, sweep)`。抽为静态，便于无
+  /// canvas 单测。圆头/方头会在端点外延伸约 strokeWidth/2；满环时两端在接缝重叠
+  /// （凸起 + 吞掉最初几个百分点）。钳制使两端至多相接、留发丝缝——既圆头又实时
+  /// 分割。部分弧不钳。[anchorAtEnd] 按已空跨度前移起点，使倒计时缺口从 [start]
+  /// 沿绘制方向扫过。
+  static ({double start, double sweep}) arcGeometry({
+    required double startAngle,
+    required double sweepAngle,
+    required double progress,
+    required double strokeWidth,
+    required double radius,
+    required StrokeCap strokeCap,
+    required bool clockwise,
+    required bool anchorAtEnd,
+  }) {
+    final dir = clockwise ? 1.0 : -1.0;
+    var drawnSweep = sweepAngle * progress;
+    if (strokeCap != StrokeCap.butt &&
+        radius > 0 &&
+        sweepAngle >= 2 * math.pi - 1e-3) {
+      final capGap = strokeWidth / radius; // ~one cap diameter, in radians
+      // max(0, …) guards a degenerate stroke thicker than the circumference.
+      final maxSweep = math.max(0.0, sweepAngle - capGap);
+      if (drawnSweep > maxSweep) drawnSweep = maxSweep;
+    }
+    final emptied = sweepAngle - drawnSweep;
+    final start = anchorAtEnd ? startAngle + emptied * dir : startAngle;
+    return (start: start, sweep: drawnSweep * dir);
+  }
+
   /// Draws the progress arc. Override to customize (multi-segment, a leading
   /// "thumb" dot, etc).
   void paintArc(Canvas canvas, Offset center, double radius, Paint paint) {
@@ -156,37 +199,17 @@ class RingPainter extends CustomPainter {
       paint.shader = null;
       paint.color = color;
     }
-    final dir = clockwise ? 1.0 : -1.0;
-    var drawnSweep = sweepAngle * progress;
-
-    // Round/square caps extend ~strokeWidth/2 past each endpoint. On a
-    // (near-)full ring those two caps overlap at the seam — a bulge that also
-    // swallows the first few percent of change (the gap must exceed a cap
-    // radius before it shows). Clamp the sweep so the caps at most TOUCH,
-    // leaving a hairline gap that widens from the first tick — rounded ends AND
-    // real-time separation. Partial-arc gauges never have meeting ends, so skip.
-    //
-    // 圆头/方头会在每个端点外延伸约 strokeWidth/2。在（接近）满环时两端圆头在接缝
-    // 重叠——既是凸起，又吞掉最初几个百分点的变化（缺口需超过一个圆头半径才可见）。
-    // 钳制 sweep 使两端圆头至多相接、留一发丝缝，让缺口从第 1 tick 就张开——既有
-    // 圆头又能实时分割。部分弧 gauge 两端本不相接，故跳过。
-    if (strokeCap != StrokeCap.butt &&
-        radius > 0 &&
-        sweepAngle >= 2 * math.pi - 1e-3) {
-      final capGap = strokeWidth / radius; // ~one cap diameter, in radians
-      // max(0, …) guards a degenerate stroke thicker than the circumference.
-      final maxSweep = math.max(0.0, sweepAngle - capGap);
-      if (drawnSweep > maxSweep) drawnSweep = maxSweep;
-    }
-
-    // Anchor at end: offset the start by the emptied span so the arc shrinks
-    // from its start (gap sweeps in `dir`); else grow from startAngle.
-    //
-    // 尾端锚定：按已空跨度前移起点，使弧从起点收缩（空缺沿 dir 扫过）；否则从
-    // startAngle 增长。
-    final emptied = sweepAngle - drawnSweep;
-    final start = anchorAtEnd ? startAngle + emptied * dir : startAngle;
-    canvas.drawArc(rect, start, drawnSweep * dir, false, paint);
+    final g = arcGeometry(
+      startAngle: startAngle,
+      sweepAngle: sweepAngle,
+      progress: progress,
+      strokeWidth: strokeWidth,
+      radius: radius,
+      strokeCap: strokeCap,
+      clockwise: clockwise,
+      anchorAtEnd: anchorAtEnd,
+    );
+    canvas.drawArc(rect, g.start, g.sweep, false, paint);
   }
 
   @override
