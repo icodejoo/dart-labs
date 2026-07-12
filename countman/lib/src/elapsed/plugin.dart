@@ -26,7 +26,7 @@ class ElapsedHandle {
     if (task == null || !task.isPaused) return;
     task.startTime = countdownClock().subtract(task.pausedElapsed!);
     task.pausedElapsed = null;
-    task.started = false; // re-anchor: next interval renders without consuming time
+    task.reanchor(); // next interval renders without consuming time
     task.onResume?.call();
     _plugin.requestFrame();
   }
@@ -37,7 +37,7 @@ class ElapsedHandle {
     if (task == null) return;
     task.startTime = countdownClock();
     task.pausedElapsed = null;
-    task.started = false;
+    task.reanchor();
     task.thresholdFired = false;
     _plugin.requestFrame();
   }

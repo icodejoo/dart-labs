@@ -172,6 +172,12 @@ class CounterPainter extends CustomPainter {
   static const int _alphaBuckets = 16;
   final Map<int, ui.Paragraph> _cache = {};
 
+  /// Reused each column each frame by [_resolveColumnPhaseInto] so the paint
+  /// hot path stays allocation-free.
+  ///
+  /// 由 [_resolveColumnPhaseInto] 逐列逐帧复用，使绘制热路径零分配。
+  final DigitPhase _phase = DigitPhase();
+
   /// Builds (or reuses) a laid-out [ui.Paragraph] for [digit] at [alpha]
   /// (quantized to [_alphaBuckets] levels to bound the cache).
   ui.Paragraph paragraphFor(int digit, double alpha) {
@@ -353,7 +359,10 @@ class CounterPainter extends CustomPainter {
         drawDecimalSeparator(canvas, col.x - dsw, dh);
       }
 
-      final (cur, nxt, p) = resolveColumnPhase(col.index);
+      _resolveColumnPhaseInto(col.index);
+      final int cur = _phase.cur;
+      final int nxt = _phase.nxt;
+      final double p = _phase.p;
 
       // Fade-in ONLY for leading integer places (index < units) still growing
       // into view (cum 0→1). The units place and any fraction digits are never
@@ -436,8 +445,10 @@ class CounterPainter extends CustomPainter {
   /// @returns Record `(cur, nxt, p)` — the two digits and the roll phase.
   ///
   ///   记录 `(cur, nxt, p)` —— 两个数位与滚动相位。
-  @visibleForTesting
-  (int cur, int nxt, double p) resolveColumnPhase(int columnIndex) {
+  /// Fills [_phase] for [columnIndex] this frame. Hot path — no allocation.
+  ///
+  /// 为本帧的 [columnIndex] 填充 [_phase]。热路径——零分配。
+  void _resolveColumnPhaseInto(int columnIndex) {
     // Ghost-prevention needs this place's target digit + value; off in fast
     // mode and for custom painters / unit tests that don't supply them.
     //
@@ -445,7 +456,8 @@ class CounterPainter extends CustomPainter {
     final bool hasTarget = !_fast &&
         columnIndex < _fastTo.length &&
         columnIndex < _targets.length;
-    return resolveDigitPhase(
+    resolveDigitPhase(
+      _phase,
       fast: _fast,
       fastFrom: columnIndex < _fastFrom.length ? _fastFrom[columnIndex] : 0,
       fastTo: columnIndex < _fastTo.length ? _fastTo[columnIndex] : 0,
@@ -456,6 +468,12 @@ class CounterPainter extends CustomPainter {
       hasTarget: hasTarget,
       eps: _revealEps,
     );
+  }
+
+  @visibleForTesting
+  (int cur, int nxt, double p) resolveColumnPhase(int columnIndex) {
+    _resolveColumnPhaseInto(columnIndex);
+    return (_phase.cur, _phase.nxt, _phase.p);
   }
 
   /// Renders the transition by composing [CounterTransition]: an optional

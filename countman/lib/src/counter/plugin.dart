@@ -130,7 +130,7 @@ class Counter extends TaskQueuePlugin<CounterTask> {
     if (duration != null) task.duration = duration;
     if (curve != null) task.curve = curve;
     task.accumMs = 0;
-    task.started = false;
+    task.reanchor();
     ctx.requestFrame();
   }
 

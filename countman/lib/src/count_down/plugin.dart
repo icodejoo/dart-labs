@@ -25,7 +25,7 @@ class CountdownHandle {
     if (task == null || task.done || !task.isPaused) return;
     task.endTime = countdownClock().add(task.pausedRemaining!);
     task.pausedRemaining = null;
-    task.started = false; // re-anchor: next interval renders without consuming time
+    task.reanchor(); // next interval renders without consuming time
     task.onResume?.call();
     _plugin.requestFrame();
   }
@@ -38,7 +38,7 @@ class CountdownHandle {
     if (duration != null) task.total = duration;
     task.endTime = countdownClock().add(task.total);
     task.pausedRemaining = null;
-    task.started = false;
+    task.reanchor();
     task.thresholdFired = false;
     _plugin.requestFrame();
   }
