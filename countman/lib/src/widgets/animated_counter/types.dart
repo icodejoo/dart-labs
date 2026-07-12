@@ -160,14 +160,42 @@ const Map<NumeralSystem, List<String>> numeralSystemDigits = {
   NumeralSystem.bengali:       ['০','১','২','৩','৪','৫','৬','৭','৮','৯'],
 };
 
-/// Resolves the odometer triple a single digit column renders THIS frame,
-/// shared by the painter fast-path ([CounterPainter.resolveColumnPhase]) and
-/// the widget-tree path ([DigitColumn]) so the trajectory + end-of-roll
+/// Mutable output holder for [resolveDigitPhase]. Callers keep ONE instance and
+/// reuse it every frame so the paint/build hot path stays allocation-free (a
+/// record return would heap-allocate per digit per frame in a perf-critical
+/// counter).
+///
+/// [resolveDigitPhase] 的可变输出容器。调用方持有单个实例并逐帧复用，使绘制/构建
+/// 热路径零分配（返回 record 会在性能敏感的计数器里每数位每帧堆分配一次）。
+class DigitPhase {
+  /// The digit being left this frame.
+  ///
+  /// 本帧正在离开的数位。
+  int cur = 0;
+
+  /// The digit arriving this frame.
+  ///
+  /// 本帧正在到来的数位。
+  int nxt = 0;
+
+  /// The 0–1 roll phase from [cur] → [nxt].
+  ///
+  /// 从 [cur] → [nxt] 的 0–1 滚动相位。
+  double p = 0.0;
+}
+
+/// Resolves the odometer triple a single digit column renders THIS frame INTO
+/// [out], shared by the painter fast-path ([CounterPainter.resolveColumnPhase])
+/// and the widget-tree path ([DigitColumn]) so the trajectory + end-of-roll
 /// ghost-prevention math lives in ONE tested place instead of being mirrored.
 ///
-/// 解析单个数位列本帧渲染的三元组，由 painter 快路径
+/// 将单个数位列本帧渲染的三元组解析写入 [out]，由 painter 快路径
 /// （[CounterPainter.resolveColumnPhase]）与组件树路径（[DigitColumn]）共用，
 /// 使滚动轨迹与滚动末尾防幻影逻辑集中于一处、不再镜像重复。
+///
+/// @param out DigitPhase — reused holder the result is written into.
+///
+///   结果写入的复用容器。
 ///
 /// @param fast Fast mode: a single step [fastFrom] → [fastTo] with [position]
 ///   as the 0–1 progress; off = a continuous odometer where [position] is the
@@ -210,12 +238,8 @@ const Map<NumeralSystem, List<String>> numeralSystemDigits = {
 ///
 ///   防幻影吸附的接近容差。
 ///
-/// @returns Record `(int cur, int nxt, double p)` — the digit being left, the
-///   digit arriving, and the 0–1 roll phase from cur → nxt.
-///
-///   记录 `(int cur, int nxt, double p)` —— 离开位、到来位，以及 cur → nxt 的
-///   0–1 滚动相位。
-(int cur, int nxt, double p) resolveDigitPhase({
+void resolveDigitPhase(
+  DigitPhase out, {
   required bool fast,
   required int fastFrom,
   required int fastTo,
@@ -230,8 +254,10 @@ const Map<NumeralSystem, List<String>> numeralSystemDigits = {
     // Unchanged digit → stay static (progress 0) instead of sliding X→X.
     //
     // 数位不变 → 保持静止（进度 0），而非从 X 滑到 X。
-    final p = fastFrom == fastTo ? 0.0 : position.clamp(0.0, 1.0);
-    return (fastFrom, fastTo, p);
+    out.cur = fastFrom;
+    out.nxt = fastTo;
+    out.p = fastFrom == fastTo ? 0.0 : position.clamp(0.0, 1.0);
+    return;
   }
   if (increasing) {
     // Monotonic upward: floor is the digit being left, next is +1 (mod 10).
@@ -250,7 +276,10 @@ const Map<NumeralSystem, List<String>> numeralSystemDigits = {
     if (hasTarget && cur == targetDigit && position >= target - 1.0 && position <= target + eps) {
       p = 0.0;
     }
-    return (cur, (cur + 1) % 10, p);
+    out.cur = cur;
+    out.nxt = (cur + 1) % 10;
+    out.p = p;
+    return;
   }
   // Monotonic downward: ceil is the digit being left, next is −1 (mod 10).
   // ceil keeps the roll phase right across the 0/9 wrap and for the negative
@@ -264,6 +293,8 @@ const Map<NumeralSystem, List<String>> numeralSystemDigits = {
   if (hasTarget && cur == targetDigit && position <= target + 1.0 && position >= target - eps) {
     p = 0.0;
   }
-  return (cur, (cur - 1 + 10) % 10, p);
+  out.cur = cur;
+  out.nxt = (cur - 1 + 10) % 10;
+  out.p = p;
 }
 

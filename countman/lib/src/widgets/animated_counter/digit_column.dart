@@ -107,6 +107,12 @@ class DigitColumn extends StatefulWidget {
 class _DigitColumnState extends State<DigitColumn> {
   int? _lastHapticValue;
 
+  /// Reused each build by [resolveDigitPhase] so no per-frame record is
+  /// allocated on the widget-tree path.
+  ///
+  /// 每次 build 由 [resolveDigitPhase] 复用，使组件树路径不逐帧分配 record。
+  final DigitPhase _phase = DigitPhase();
+
   @override
   Widget build(BuildContext context) {
     if (widget.triggerHaptics) {
@@ -125,7 +131,8 @@ class _DigitColumnState extends State<DigitColumn> {
     //
     // 经共享里程表 helper 解析（当前位、下一位、0–1 进度）——与 painter 路径同一套
     // 数学——故下方过渡 switch 与方向/模式无关，只消费它们。
-    final (int curDigit, int nextDigit, double dec) = resolveDigitPhase(
+    resolveDigitPhase(
+      _phase,
       fast: widget.fast,
       fastFrom: widget.fastFromDigit,
       fastTo: widget.fastToDigit,
@@ -135,7 +142,9 @@ class _DigitColumnState extends State<DigitColumn> {
       target: widget.value,
       hasTarget: !widget.fast,
     );
-    double decimal = dec;
+    final int curDigit = _phase.cur;
+    final int nextDigit = _phase.nxt;
+    double decimal = _phase.p;
     final w = widget.size.width  + widget.padding.horizontal;
     final h = widget.size.height + widget.padding.vertical;
 

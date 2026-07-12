@@ -31,6 +31,17 @@ abstract class CountmanTask {
   /// Set true once the task has completed and should be removed.
   bool done = false;
 
+  /// Re-anchor the task: make the next active frame render the current state
+  /// WITHOUT advancing time (dt), and WITHOUT re-firing [onStart]. Used by
+  /// retarget / resume / reset. The one named operation the plugins invoke
+  /// instead of poking [started] directly — [startFired] keeps [onStart]
+  /// once-per-task across every re-anchor.
+  ///
+  /// 重新锚定任务：使下一活动帧渲染当前状态，且不推进时间（dt）、不再次触发
+  /// [onStart]。用于 retarget / resume / reset。这是插件调用的唯一具名操作，
+  /// 取代直接改写 [started]——[startFired] 保证 [onStart] 跨每次重新锚定仍每任务一次。
+  void reanchor() => started = false;
+
   /// Whether the task is frozen. Non-pausable tasks (counter) stay `false`.
   bool get isPaused => false;
 
@@ -460,17 +471,15 @@ class LazyDefault<T extends CountmanPlugin> {
   final T Function() _factory;
   T? _instance;
 
-  /// The instance — created and `Countman.use`d on first access, then reused.
+  /// The instance — created lazily on first access, then reused. Registration
+  /// is left to [TaskQueuePlugin.enqueue]'s self-register on the first added
+  /// task (the single registration point for both default and user plugins),
+  /// so a bare `defaultX` access that never adds a task costs nothing.
   ///
-  /// 实例——首次访问时创建并 `Countman.use`，此后复用。
-  T get instance {
-    final existing = _instance;
-    if (existing != null) return existing;
-    final created = _factory();
-    _instance = created;
-    Countman.use(created);
-    return created;
-  }
+  /// 实例——首次访问时惰性创建，此后复用。注册交由 [TaskQueuePlugin.enqueue] 在首个
+  /// 任务加入时自注册（默认插件与用户插件共用的唯一注册点），故仅访问 `defaultX`
+  /// 而不加任务时零开销。
+  T get instance => _instance ??= _factory();
 
   /// Forget the instance so the next [instance] access rebuilds + re-registers.
   ///
