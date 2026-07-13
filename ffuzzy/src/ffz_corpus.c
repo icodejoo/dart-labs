@@ -347,6 +347,7 @@ static inline void coll_push(collector *col, scored s) {
     }
 }
 
+#ifdef FFZ_SUBSEQUENCE
 // Pass 1 over items [lo,hi): pick each item's best-scoring key and push it to
 // `col`. `m` is a matcher private to this caller/thread; `pat` is shared
 // read-only.
@@ -402,7 +403,19 @@ static void scan_job_run(scan_job *j) {
     }
     ffz_matcher_free(m);
 }
+#endif /* FFZ_SUBSEQUENCE */
 
+// thr_join is always needed (used by both subsequence and edit-distance parallel paths).
+#if defined(_WIN32)
+static void thr_join(ffz_thr t) { WaitForSingleObject(t, INFINITE); CloseHandle(t); }
+#elif defined(FFZ_NO_THREADS)
+static void thr_join(ffz_thr t) { (void)t; }
+#else
+static void thr_join(ffz_thr t) { pthread_join(t, NULL); }
+#endif
+
+#ifdef FFZ_SUBSEQUENCE
+// Subsequence-specific thread trampoline and launcher.
 #if defined(_WIN32)
 static DWORD WINAPI scan_trampoline(LPVOID p) { scan_job_run((scan_job *)p); return 0; }
 static bool thr_start(scan_job *j, ffz_thr *out) {
@@ -411,18 +424,15 @@ static bool thr_start(scan_job *j, ffz_thr *out) {
     *out = h;
     return true;
 }
-static void thr_join(ffz_thr t) { WaitForSingleObject(t, INFINITE); CloseHandle(t); }
 #elif defined(FFZ_NO_THREADS)
-// Never called (resolve_threads()==1); present so the serial path links.
 static bool thr_start(scan_job *j, ffz_thr *out) { (void)j; (void)out; return false; }
-static void thr_join(ffz_thr t) { (void)t; }
 #else
 static void *scan_trampoline(void *p) { scan_job_run((scan_job *)p); return NULL; }
 static bool thr_start(scan_job *j, ffz_thr *out) {
     return pthread_create(out, NULL, scan_trampoline, j) == 0;
 }
-static void thr_join(ffz_thr t) { pthread_join(t, NULL); }
 #endif
+#endif /* FFZ_SUBSEQUENCE */
 
 static unsigned resolve_threads(ffz_parallel par, size_t nitems) {
     if (!par.parallel || nitems < FFZ_PARALLEL_MIN) return 1;
@@ -445,6 +455,7 @@ ffz_scoring_mode ffz_corpus_scoring(const ffz_corpus *c) {
     return c->cfg.scoring_mode;
 }
 
+#ifdef FFZ_SUBSEQUENCE
 // Internal: shared implementation for ffz_corpus_filter and ffz_corpus_filter_raws.
 // skip_idx=true omits Pass 2 (index computation) — results have empty indices.
 static void _corpus_filter_impl(ffz_corpus *c, const char *query, size_t query_len,
@@ -593,3 +604,683 @@ void ffz_corpus_filter_raws(ffz_corpus *c, const char *query, size_t query_len,
     _corpus_filter_impl(c, query, query_len, cm, nm, mode, par, limit,
                         scoring, true, out);
 }
+#endif /* FFZ_SUBSEQUENCE */
+
+#ifdef FFZ_EDIT_DISTANCE
+// --- edit-distance filter -------------------------------------------------
+
+static void scan_edit_range(ffz_corpus *c, const ffz_config *cfg,
+                            ffz_str qstr, int max_dist,
+                            size_t lo, size_t hi, collector *col) {
+    for (size_t i = lo; i < hi; i++) {
+        corpus_item *it = &c->items[i];
+        int32_t best = INT32_MIN;
+        int best_kind = 0; uint32_t best_key = 0;
+        size_t nk = item_nkeys(it);
+        for (size_t k = 0; k < nk; k++) {
+            const corpus_key *key = item_key(it, k);
+            int d = ffz_edit_distance(qstr, key_str(key), max_dist, cfg);
+            if (d >= 0) {
+                int32_t s = -(int32_t)d;
+                if (s > best) { best = s; best_kind = key->kind; best_key = (uint32_t)k; }
+            }
+        }
+        if (best != INT32_MIN) {
+            scored sc = {(uint32_t)i, best, best_kind, best_key};
+            coll_push(col, sc);
+        }
+    }
+}
+
+typedef struct {
+    ffz_corpus *c;
+    ffz_config cfg;
+    ffz_str qstr;
+    int max_dist;
+    size_t lo, hi;
+    scored *out;
+    size_t cap;
+    bool bounded;
+    size_t n;
+} scan_edit_job;
+
+static void scan_edit_job_run(scan_edit_job *j) {
+    if (!j->out) { j->n = 0; return; }
+    collector col = {j->out, 0, j->cap, j->bounded};
+    scan_edit_range(j->c, &j->cfg, j->qstr, j->max_dist, j->lo, j->hi, &col);
+    j->n = col.n;
+}
+
+#if defined(_WIN32)
+static DWORD WINAPI scan_edit_trampoline(LPVOID p) {
+    scan_edit_job_run((scan_edit_job *)p); return 0;
+}
+static bool thr_edit_start(scan_edit_job *j, ffz_thr *out) {
+    HANDLE h = CreateThread(NULL, 0, scan_edit_trampoline, j, 0, NULL);
+    if (!h) return false;
+    *out = h;
+    return true;
+}
+#elif defined(FFZ_NO_THREADS)
+static bool thr_edit_start(scan_edit_job *j, ffz_thr *out) { (void)j; (void)out; return false; }
+#else
+static void *scan_edit_trampoline(void *p) { scan_edit_job_run((scan_edit_job *)p); return NULL; }
+static bool thr_edit_start(scan_edit_job *j, ffz_thr *out) {
+    return pthread_create(out, NULL, scan_edit_trampoline, j) == 0;
+}
+#endif
+
+void ffz_corpus_filter_edit(ffz_corpus *c,
+                            const char *query, size_t query_len,
+                            ffz_case_matching cm, ffz_normalization nm,
+                            int max_distance,
+                            ffz_parallel par, size_t limit,
+                            ffz_results *out) {
+    ffz_results_free(out);
+    out->hits = NULL;
+    out->len = out->cap = 0;
+
+    if (!c || !query || max_distance < 0) return;
+
+    // Decode query once.
+    ffz_str_buf qbuf = {NULL, 0, 0};
+    ffz_str qstr = ffz_str_from_utf8(query, query_len, &qbuf);
+
+    // Resolve config flags.
+    ffz_config cfg = c->cfg;
+
+    // Smart case: if query has no uppercase, ignore case.
+    if (cm == FFZ_CASE_IGNORE) {
+        cfg.ignore_case = true;
+    } else if (cm == FFZ_CASE_RESPECT) {
+        cfg.ignore_case = false;
+    } else {  // FFZ_CASE_SMART
+        bool has_upper = false;
+        for (size_t i = 0; i < qstr.len && !has_upper; i++)
+            has_upper = ffz_cp_is_upper(ffz_at(qstr, i));
+        cfg.ignore_case = !has_upper;
+    }
+
+    // Smart norm: if query has no diacritics, fold.
+    if (nm == FFZ_NORM_NEVER) {
+        cfg.normalize = false;
+    } else {  // FFZ_NORM_SMART
+        bool has_diacritic = false;
+        for (size_t i = 0; i < qstr.len && !has_diacritic; i++)
+            has_diacritic = ffz_cp_has_normalize(ffz_at(qstr, i));
+        cfg.normalize = !has_diacritic;
+    }
+
+    // Allocate pass-1 result buffer.
+    scored *sc = (scored *)malloc((c->n ? c->n : 1) * sizeof(scored));
+    if (!sc) { ffz_str_buf_free(&qbuf); return; }
+
+    size_t ns = 0;
+    unsigned nthreads = resolve_threads(par, c->n);
+
+    if (nthreads <= 1) {
+        collector col = {sc, 0, c->n, false};
+        scan_edit_range(c, &cfg, qstr, max_distance, 0, c->n, &col);
+        ns = col.n;
+    } else {
+        size_t chunk = (c->n + nthreads - 1) / nthreads;
+        scan_edit_job *jobs = (scan_edit_job *)calloc(nthreads, sizeof(scan_edit_job));
+        ffz_thr *ths = (ffz_thr *)calloc(nthreads, sizeof(ffz_thr));
+        char *started = (char *)calloc(nthreads, 1);
+        if (!jobs || !ths || !started) {
+            collector col = {sc, 0, c->n, false};
+            scan_edit_range(c, &cfg, qstr, max_distance, 0, c->n, &col);
+            ns = col.n;
+        } else {
+            unsigned spawned = 0;
+            for (unsigned t = 0; t < nthreads; t++) {
+                size_t lo = t * chunk;
+                if (lo >= c->n) break;
+                size_t hi = lo + chunk < c->n ? lo + chunk : c->n;
+                bool bounded = (limit > 0 && limit < (hi - lo));
+                size_t cap = bounded ? limit : (hi - lo);
+                scored *obuf = (scored *)malloc(cap * sizeof(scored));
+                jobs[t] = (scan_edit_job){c, cfg, qstr, max_distance,
+                                          lo, hi, obuf, cap, bounded, 0};
+                spawned = t + 1;
+                if (!obuf) continue;
+                if (thr_edit_start(&jobs[t], &ths[t])) started[t] = 1;
+                else scan_edit_job_run(&jobs[t]);
+            }
+            for (unsigned t = 0; t < spawned; t++) {
+                if (started[t]) thr_join(ths[t]);
+                if (jobs[t].out) {
+                    memcpy(sc + ns, jobs[t].out, jobs[t].n * sizeof(scored));
+                    ns += jobs[t].n;
+                    free(jobs[t].out);
+                }
+            }
+        }
+        free(jobs);
+        free(ths);
+        free(started);
+    }
+
+    // Sort / top-K: score = -distance, so higher score = closer match.
+    size_t keep;
+    scored *top = (limit && limit < ns) ? (scored *)malloc(limit * sizeof(scored))
+                                        : NULL;
+    if (top) {
+        scored_topk(sc, ns, limit, top);
+        free(sc);
+        sc = top;
+        keep = limit;
+    } else {
+        if (ns) qsort(sc, ns, sizeof(scored), cmp_scored);
+        keep = ns;
+    }
+
+    // Emit results (indices are always empty — no backtracking).
+    for (size_t r = 0; r < keep; r++) {
+        ffz_hit hit;
+        hit.item_index  = sc[r].item_index;
+        hit.score       = sc[r].score;
+        hit.matched_kind = sc[r].matched_kind;
+        hit.matched_key = sc[r].matched_key;
+        hit.indices.data = NULL;
+        hit.indices.len = hit.indices.cap = 0;
+        results_push(out, hit);
+    }
+
+    free(sc);
+    ffz_str_buf_free(&qbuf);
+}
+#endif /* FFZ_EDIT_DISTANCE */
+
+#if defined(FFZ_SUBSEQUENCE) && defined(FFZ_EDIT_DISTANCE)
+// --- single-pass merge scan -----------------------------------------------
+
+static void scan_merge_range(ffz_corpus *c,
+                             ffz_matcher *m, const ffz_pattern *pat,
+                             const ffz_config *edit_cfg, ffz_str qstr, int max_dist,
+                             size_t lo, size_t hi, collector *col) {
+    for (size_t i = lo; i < hi; i++) {
+        corpus_item *it = &c->items[i];
+        size_t nk = item_nkeys(it);
+        int32_t best_seq = -1;
+        int best_seq_kind = 0; uint32_t best_seq_key = 0;
+
+        // Pass A: try all keys with subsequence
+        for (size_t k = 0; k < nk; k++) {
+            const corpus_key *key = item_key(it, k);
+            int32_t s = ffz_pattern_match(m, pat, key_str(key), NULL);
+            if (s > best_seq) {
+                best_seq = s; best_seq_kind = key->kind; best_seq_key = (uint32_t)k;
+            }
+        }
+        if (best_seq >= 0) {
+            scored sc = {(uint32_t)i, best_seq, best_seq_kind, best_seq_key};
+            coll_push(col, sc);
+            continue;  // seq found — skip edit distance entirely
+        }
+
+        // Pass B: try all keys with edit distance (only if seq missed)
+        int32_t best_edit = INT32_MIN;
+        int best_edit_kind = 0; uint32_t best_edit_key = 0;
+        for (size_t k = 0; k < nk; k++) {
+            const corpus_key *key = item_key(it, k);
+            int d = ffz_edit_distance(qstr, key_str(key), max_dist, edit_cfg);
+            if (d >= 0) {
+                int32_t es = -(int32_t)(d + 1);
+                if (es > best_edit) {
+                    best_edit = es; best_edit_kind = key->kind; best_edit_key = (uint32_t)k;
+                }
+            }
+        }
+        if (best_edit != INT32_MIN) {
+            scored sc = {(uint32_t)i, best_edit, best_edit_kind, best_edit_key};
+            coll_push(col, sc);
+        }
+    }
+}
+
+typedef struct {
+    ffz_corpus *c;
+    const ffz_pattern *pat;
+    ffz_config edit_cfg;
+    ffz_str qstr;
+    int max_dist;
+    ffz_scoring_mode scoring;
+    size_t lo, hi;
+    scored *out;
+    size_t cap;
+    bool bounded;
+    size_t n;
+} scan_merge_job;
+
+static void scan_merge_job_run(scan_merge_job *j) {
+    if (!j->out) { j->n = 0; return; }
+    ffz_config cfg = j->c->cfg;
+    cfg.scoring_mode = j->scoring;
+    ffz_matcher *m = ffz_matcher_new(cfg);
+    if (!m) { j->n = 0; return; }
+    collector col = {j->out, 0, j->cap, j->bounded};
+    scan_merge_range(j->c, m, j->pat, &j->edit_cfg, j->qstr,
+                     j->max_dist, j->lo, j->hi, &col);
+    j->n = col.n;
+    ffz_matcher_free(m);
+}
+
+#if defined(_WIN32)
+static DWORD WINAPI scan_merge_trampoline(LPVOID p) {
+    scan_merge_job_run((scan_merge_job *)p); return 0;
+}
+static bool thr_merge_start(scan_merge_job *j, ffz_thr *out) {
+    HANDLE h = CreateThread(NULL, 0, scan_merge_trampoline, j, 0, NULL);
+    if (!h) return false; *out = h; return true;
+}
+#elif defined(FFZ_NO_THREADS)
+static bool thr_merge_start(scan_merge_job *j, ffz_thr *out) { (void)j; (void)out; return false; }
+#else
+static void *scan_merge_trampoline(void *p) { scan_merge_job_run((scan_merge_job *)p); return NULL; }
+static bool thr_merge_start(scan_merge_job *j, ffz_thr *out) {
+    return pthread_create(out, NULL, scan_merge_trampoline, j) == 0;
+}
+#endif
+
+void ffz_corpus_filter_merge(ffz_corpus *c,
+                              const char *query, size_t query_len,
+                              ffz_case_matching cm, ffz_normalization nm,
+                              int max_distance, ffz_scoring_mode scoring,
+                              ffz_parallel par, size_t limit,
+                              ffz_results *out) {
+    ffz_results_free(out);
+    out->hits = NULL; out->len = out->cap = 0;
+    if (!c || !query || max_distance < 0) return;
+    if ((unsigned)scoring > FFZ_SCORE_NUCLEO) scoring = FFZ_SCORE_FAST;
+
+    ffz_pattern *pat = ffz_pattern_parse(query, query_len, cm, nm);
+    if (!pat) return;
+
+    // Build edit-distance config (same smart-case/norm logic as filter_edit)
+    ffz_str_buf qbuf = {NULL, 0, 0};
+    ffz_str qstr = ffz_str_from_utf8(query, query_len, &qbuf);
+    ffz_config edit_cfg = c->cfg;
+    if (cm == FFZ_CASE_IGNORE) { edit_cfg.ignore_case = true; }
+    else if (cm == FFZ_CASE_RESPECT) { edit_cfg.ignore_case = false; }
+    else {
+        bool has_upper = false;
+        for (size_t i = 0; i < qstr.len && !has_upper; i++)
+            has_upper = ffz_cp_is_upper(ffz_at(qstr, i));
+        edit_cfg.ignore_case = !has_upper;
+    }
+    if (nm == FFZ_NORM_NEVER) { edit_cfg.normalize = false; }
+    else {
+        bool has_dia = false;
+        for (size_t i = 0; i < qstr.len && !has_dia; i++)
+            has_dia = ffz_cp_has_normalize(ffz_at(qstr, i));
+        edit_cfg.normalize = !has_dia;
+    }
+
+    scored *sc = (scored *)malloc((c->n ? c->n : 1) * sizeof(scored));
+    if (!sc) { ffz_pattern_free(pat); ffz_str_buf_free(&qbuf); return; }
+
+    size_t ns = 0;
+    unsigned nthreads = resolve_threads(par, c->n);
+
+    if (nthreads <= 1) {
+        ffz_config cfg = c->cfg; cfg.scoring_mode = scoring;
+        ffz_matcher *m = ffz_matcher_new(cfg);
+        if (m) {
+            collector col = {sc, 0, c->n, false};
+            scan_merge_range(c, m, pat, &edit_cfg, qstr, max_distance, 0, c->n, &col);
+            ns = col.n;
+            ffz_matcher_free(m);
+        }
+    } else {
+        size_t chunk = (c->n + nthreads - 1) / nthreads;
+        scan_merge_job *jobs = (scan_merge_job *)calloc(nthreads, sizeof(scan_merge_job));
+        ffz_thr *ths   = (ffz_thr *)calloc(nthreads, sizeof(ffz_thr));
+        char *started  = (char *)calloc(nthreads, 1);
+        if (!jobs || !ths || !started) {
+            ffz_config cfg = c->cfg; cfg.scoring_mode = scoring;
+            ffz_matcher *m = ffz_matcher_new(cfg);
+            if (m) {
+                collector col = {sc, 0, c->n, false};
+                scan_merge_range(c, m, pat, &edit_cfg, qstr, max_distance, 0, c->n, &col);
+                ns = col.n;
+                ffz_matcher_free(m);
+            }
+        } else {
+            unsigned spawned = 0;
+            for (unsigned t = 0; t < nthreads; t++) {
+                size_t lo = t * chunk;
+                if (lo >= c->n) break;
+                size_t hi = lo + chunk < c->n ? lo + chunk : c->n;
+                bool bounded = (limit > 0 && limit < (hi - lo));
+                size_t cap = bounded ? limit : (hi - lo);
+                scored *obuf = (scored *)malloc(cap * sizeof(scored));
+                jobs[t] = (scan_merge_job){c, pat, edit_cfg, qstr, max_distance,
+                                           scoring, lo, hi, obuf, cap, bounded, 0};
+                spawned = t + 1;
+                if (!obuf) continue;
+                if (thr_merge_start(&jobs[t], &ths[t])) started[t] = 1;
+                else scan_merge_job_run(&jobs[t]);
+            }
+            for (unsigned t = 0; t < spawned; t++) {
+                if (started[t]) thr_join(ths[t]);
+                if (jobs[t].out) {
+                    memcpy(sc + ns, jobs[t].out, jobs[t].n * sizeof(scored));
+                    ns += jobs[t].n;
+                    free(jobs[t].out);
+                }
+            }
+        }
+        free(jobs); free(ths); free(started);
+    }
+
+    // Sort/top-K; descending score puts seq hits (≥0) before edit-only (<0)
+    size_t keep;
+    scored *top = (limit && limit < ns) ? (scored *)malloc(limit * sizeof(scored)) : NULL;
+    if (top) {
+        scored_topk(sc, ns, limit, top);
+        free(sc); sc = top; keep = limit;
+    } else {
+        if (ns) qsort(sc, ns, sizeof(scored), cmp_scored);
+        keep = ns;
+    }
+
+    // Pass 2: recompute indices for seq hits (edit-only hits have empty indices)
+    ffz_config cfg2 = c->cfg; cfg2.scoring_mode = scoring;
+    ffz_matcher *fm2 = ffz_matcher_new(cfg2);
+    for (size_t r = 0; r < keep; r++) {
+        ffz_hit hit;
+        hit.item_index = sc[r].item_index;
+        hit.score      = sc[r].score;
+        hit.matched_kind = sc[r].matched_kind;
+        hit.matched_key  = sc[r].matched_key;
+        hit.indices.data = NULL; hit.indices.len = hit.indices.cap = 0;
+        if (fm2 && sc[r].score >= 0) {  // only seq hits get indices
+            corpus_item *it = &c->items[sc[r].item_index];
+            const corpus_key *key = item_key(it, sc[r].matched_key);
+            ffz_pattern_match(fm2, pat, key_str(key), &hit.indices);
+            ffz_indices_sort_dedup(&hit.indices);
+        }
+        results_push(out, hit);
+    }
+    ffz_matcher_free(fm2);
+
+    free(sc);
+    ffz_pattern_free(pat);
+    ffz_str_buf_free(&qbuf);
+}
+
+// --- fallback filter -------------------------------------------------------
+
+void ffz_corpus_filter_fallback(ffz_corpus *c,
+                                 const char *query, size_t query_len,
+                                 ffz_case_matching cm, ffz_normalization nm,
+                                 int max_distance, ffz_scoring_mode scoring,
+                                 ffz_parallel par, size_t limit,
+                                 ffz_results *out) {
+    ffz_results_free(out);
+    out->hits = NULL; out->len = out->cap = 0;
+    if ((unsigned)scoring > FFZ_SCORE_NUCLEO) scoring = FFZ_SCORE_FAST;
+    // Pass 1: subsequence
+    _corpus_filter_impl(c, query, query_len, cm, nm, FFZ_FUZZY,
+                        par, limit, scoring, false, out);
+    if (out->len > 0) return;
+    // Pass 2: edit distance (only if seq found nothing)
+    ffz_corpus_filter_edit(c, query, query_len, cm, nm, max_distance,
+                            par, limit, out);
+}
+
+// --- dual filter -----------------------------------------------------------
+
+// Per-item dual scan: seq hits go to seq_col, edit hits go to edit_col.
+// Unlike merge, items can appear in BOTH collectors (independent result sets).
+static void scan_dual_range(ffz_corpus *c,
+                             ffz_matcher *m, const ffz_pattern *pat,
+                             const ffz_config *edit_cfg, ffz_str qstr, int max_dist,
+                             size_t lo, size_t hi,
+                             collector *seq_col, collector *edit_col) {
+    for (size_t i = lo; i < hi; i++) {
+        corpus_item *it = &c->items[i];
+        size_t nk = item_nkeys(it);
+        int32_t best_seq = -1;
+        int best_seq_kind = 0; uint32_t best_seq_key = 0;
+        int32_t best_edit = INT32_MIN;
+        int best_edit_kind = 0; uint32_t best_edit_key = 0;
+
+        for (size_t k = 0; k < nk; k++) {
+            const corpus_key *key = item_key(it, k);
+            ffz_str ks = key_str(key);
+
+            // Subsequence
+            int32_t s = ffz_pattern_match(m, pat, ks, NULL);
+            if (s > best_seq) {
+                best_seq = s; best_seq_kind = key->kind; best_seq_key = (uint32_t)k;
+            }
+
+            // Edit distance
+            int d = ffz_edit_distance(qstr, ks, max_dist, edit_cfg);
+            if (d >= 0) {
+                int32_t es = -(int32_t)(d + 1);
+                if (es > best_edit) {
+                    best_edit = es; best_edit_kind = key->kind; best_edit_key = (uint32_t)k;
+                }
+            }
+        }
+
+        if (best_seq >= 0) {
+            scored sc = {(uint32_t)i, best_seq, best_seq_kind, best_seq_key};
+            coll_push(seq_col, sc);
+        }
+        if (best_edit != INT32_MIN) {
+            scored sc = {(uint32_t)i, best_edit, best_edit_kind, best_edit_key};
+            coll_push(edit_col, sc);
+        }
+    }
+}
+
+typedef struct {
+    ffz_corpus *c;
+    const ffz_pattern *pat;
+    ffz_config edit_cfg;
+    ffz_str qstr;
+    int max_dist;
+    ffz_scoring_mode scoring;
+    size_t lo, hi;
+    scored *seq_out;   size_t seq_cap;   bool seq_bounded;
+    scored *edit_out;  size_t edit_cap;  bool edit_bounded;
+    size_t seq_n, edit_n;
+} scan_dual_job;
+
+static void scan_dual_job_run(scan_dual_job *j) {
+    if (!j->seq_out && !j->edit_out) { j->seq_n = j->edit_n = 0; return; }
+    ffz_config cfg = j->c->cfg; cfg.scoring_mode = j->scoring;
+    ffz_matcher *m = ffz_matcher_new(cfg);
+    if (!m) { j->seq_n = j->edit_n = 0; return; }
+    scored dummy[1];
+    collector seq_col  = {j->seq_out  ? j->seq_out  : dummy, 0, j->seq_cap,  j->seq_bounded};
+    collector edit_col = {j->edit_out ? j->edit_out : dummy, 0, j->edit_cap, j->edit_bounded};
+    scan_dual_range(j->c, m, j->pat, &j->edit_cfg, j->qstr, j->max_dist,
+                    j->lo, j->hi, &seq_col, &edit_col);
+    j->seq_n  = seq_col.n;
+    j->edit_n = edit_col.n;
+    ffz_matcher_free(m);
+}
+
+#if defined(_WIN32)
+static DWORD WINAPI scan_dual_trampoline(LPVOID p) {
+    scan_dual_job_run((scan_dual_job *)p); return 0;
+}
+static bool thr_dual_start(scan_dual_job *j, ffz_thr *out) {
+    HANDLE h = CreateThread(NULL, 0, scan_dual_trampoline, j, 0, NULL);
+    if (!h) return false; *out = h; return true;
+}
+#elif defined(FFZ_NO_THREADS)
+static bool thr_dual_start(scan_dual_job *j, ffz_thr *out) { (void)j; (void)out; return false; }
+#else
+static void *scan_dual_trampoline(void *p) { scan_dual_job_run((scan_dual_job *)p); return NULL; }
+static bool thr_dual_start(scan_dual_job *j, ffz_thr *out) {
+    return pthread_create(out, NULL, scan_dual_trampoline, j) == 0;
+}
+#endif
+
+// Helper: sort a scored array and materialise Pass-2 indices into out.
+// `skip_idx` = true skips index computation (faster for edit-only results).
+static void finalise_results(ffz_corpus *c, ffz_matcher *fm, const ffz_pattern *pat,
+                              scored *sc, size_t ns, size_t limit, bool skip_idx,
+                              ffz_results *out) {
+    size_t keep;
+    scored *top = (limit && limit < ns) ? (scored *)malloc(limit * sizeof(scored)) : NULL;
+    if (top) {
+        scored_topk(sc, ns, limit, top);
+        free(sc); sc = top; keep = limit;
+    } else {
+        if (ns) qsort(sc, ns, sizeof(scored), cmp_scored);
+        keep = ns; top = NULL;
+    }
+    for (size_t r = 0; r < keep; r++) {
+        ffz_hit hit;
+        hit.item_index = sc[r].item_index;
+        hit.score      = sc[r].score;
+        hit.matched_kind = sc[r].matched_kind;
+        hit.matched_key  = sc[r].matched_key;
+        hit.indices.data = NULL; hit.indices.len = hit.indices.cap = 0;
+        if (!skip_idx && fm && sc[r].score >= 0) {
+            corpus_item *it = &c->items[sc[r].item_index];
+            const corpus_key *key = item_key(it, sc[r].matched_key);
+            ffz_pattern_match(fm, pat, key_str(key), &hit.indices);
+            ffz_indices_sort_dedup(&hit.indices);
+        }
+        results_push(out, hit);
+    }
+    if (top) free(top); else if (sc) free(sc);
+}
+
+void ffz_dual_results_free(ffz_dual_results *d) {
+    if (!d) return;
+    ffz_results_free(&d->seq);
+    ffz_results_free(&d->edit);
+}
+
+void ffz_corpus_filter_dual(ffz_corpus *c,
+                              const char *query, size_t query_len,
+                              ffz_case_matching cm, ffz_normalization nm,
+                              int max_distance, ffz_scoring_mode scoring,
+                              ffz_parallel par, size_t limit,
+                              ffz_dual_results *d) {
+    ffz_results_free(&d->seq); ffz_results_free(&d->edit);
+    d->seq.hits = d->edit.hits = NULL;
+    d->seq.len = d->seq.cap = d->edit.len = d->edit.cap = 0;
+    if (!c || !query || max_distance < 0) return;
+    if ((unsigned)scoring > FFZ_SCORE_NUCLEO) scoring = FFZ_SCORE_FAST;
+
+    ffz_pattern *pat = ffz_pattern_parse(query, query_len, cm, nm);
+    if (!pat) return;
+
+    ffz_str_buf qbuf = {NULL, 0, 0};
+    ffz_str qstr = ffz_str_from_utf8(query, query_len, &qbuf);
+    ffz_config edit_cfg = c->cfg;
+    if (cm == FFZ_CASE_IGNORE) { edit_cfg.ignore_case = true; }
+    else if (cm == FFZ_CASE_RESPECT) { edit_cfg.ignore_case = false; }
+    else {
+        bool has_upper = false;
+        for (size_t i = 0; i < qstr.len && !has_upper; i++)
+            has_upper = ffz_cp_is_upper(ffz_at(qstr, i));
+        edit_cfg.ignore_case = !has_upper;
+    }
+    if (nm == FFZ_NORM_NEVER) { edit_cfg.normalize = false; }
+    else {
+        bool has_dia = false;
+        for (size_t i = 0; i < qstr.len && !has_dia; i++)
+            has_dia = ffz_cp_has_normalize(ffz_at(qstr, i));
+        edit_cfg.normalize = !has_dia;
+    }
+
+    size_t n = c->n ? c->n : 1;
+    scored *seq_sc  = (scored *)malloc(n * sizeof(scored));
+    scored *edit_sc = (scored *)malloc(n * sizeof(scored));
+    if (!seq_sc || !edit_sc) {
+        free(seq_sc); free(edit_sc);
+        ffz_pattern_free(pat); ffz_str_buf_free(&qbuf);
+        return;
+    }
+
+    size_t seq_ns = 0, edit_ns = 0;
+    unsigned nthreads = resolve_threads(par, c->n);
+
+    if (nthreads <= 1) {
+        ffz_config cfg = c->cfg; cfg.scoring_mode = scoring;
+        ffz_matcher *m = ffz_matcher_new(cfg);
+        if (m) {
+            collector seq_col  = {seq_sc,  0, c->n, false};
+            collector edit_col = {edit_sc, 0, c->n, false};
+            scan_dual_range(c, m, pat, &edit_cfg, qstr, max_distance,
+                            0, c->n, &seq_col, &edit_col);
+            seq_ns = seq_col.n; edit_ns = edit_col.n;
+            ffz_matcher_free(m);
+        }
+    } else {
+        size_t chunk = (c->n + nthreads - 1) / nthreads;
+        scan_dual_job *jobs = (scan_dual_job *)calloc(nthreads, sizeof(scan_dual_job));
+        ffz_thr *ths  = (ffz_thr *)calloc(nthreads, sizeof(ffz_thr));
+        char *started = (char *)calloc(nthreads, 1);
+        if (!jobs || !ths || !started) {
+            ffz_config cfg = c->cfg; cfg.scoring_mode = scoring;
+            ffz_matcher *m = ffz_matcher_new(cfg);
+            if (m) {
+                collector seq_col  = {seq_sc,  0, c->n, false};
+                collector edit_col = {edit_sc, 0, c->n, false};
+                scan_dual_range(c, m, pat, &edit_cfg, qstr, max_distance,
+                                0, c->n, &seq_col, &edit_col);
+                seq_ns = seq_col.n; edit_ns = edit_col.n;
+                ffz_matcher_free(m);
+            }
+        } else {
+            unsigned spawned = 0;
+            for (unsigned t = 0; t < nthreads; t++) {
+                size_t lo = t * chunk;
+                if (lo >= c->n) break;
+                size_t hi = lo + chunk < c->n ? lo + chunk : c->n;
+                bool sbounded = (limit && limit < (hi - lo));
+                bool ebounded = sbounded;
+                size_t scap = sbounded ? limit : (hi - lo);
+                scored *sobuf = (scored *)malloc(scap * sizeof(scored));
+                scored *eobuf = (scored *)malloc(scap * sizeof(scored));
+                jobs[t] = (scan_dual_job){c, pat, edit_cfg, qstr, max_distance,
+                                           scoring, lo, hi,
+                                           sobuf, scap, sbounded,
+                                           eobuf, scap, ebounded, 0, 0};
+                spawned = t + 1;
+                if (!sobuf || !eobuf) { free(sobuf); free(eobuf); jobs[t].seq_out = jobs[t].edit_out = NULL; continue; }
+                if (thr_dual_start(&jobs[t], &ths[t])) started[t] = 1;
+                else scan_dual_job_run(&jobs[t]);
+            }
+            for (unsigned t = 0; t < spawned; t++) {
+                if (started[t]) thr_join(ths[t]);
+                if (jobs[t].seq_out) {
+                    memcpy(seq_sc + seq_ns,   jobs[t].seq_out,  jobs[t].seq_n  * sizeof(scored));
+                    seq_ns  += jobs[t].seq_n;
+                    free(jobs[t].seq_out);
+                }
+                if (jobs[t].edit_out) {
+                    memcpy(edit_sc + edit_ns, jobs[t].edit_out, jobs[t].edit_n * sizeof(scored));
+                    edit_ns += jobs[t].edit_n;
+                    free(jobs[t].edit_out);
+                }
+            }
+        }
+        free(jobs); free(ths); free(started);
+    }
+
+    ffz_config cfg2 = c->cfg; cfg2.scoring_mode = scoring;
+    ffz_matcher *fm2 = ffz_matcher_new(cfg2);
+
+    // seq: sort + Pass 2 indices
+    finalise_results(c, fm2, pat, seq_sc, seq_ns, limit, false, &d->seq);
+    // edit: sort, no Pass 2 (edit hits have no char indices)
+    finalise_results(c, NULL, pat, edit_sc, edit_ns, limit, true, &d->edit);
+
+    ffz_matcher_free(fm2);
+    ffz_pattern_free(pat);
+    ffz_str_buf_free(&qbuf);
+}
+#endif /* FFZ_SUBSEQUENCE && FFZ_EDIT_DISTANCE */

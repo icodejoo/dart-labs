@@ -268,6 +268,13 @@ int32_t ffz_fuzzy_greedy(ffz_matcher *m, ffz_str hay, ffz_str needle,
 int32_t ffz_fuzzy_rolling(ffz_matcher *m, ffz_str hay, ffz_str needle,
                           size_t start, size_t greedy_end, size_t end);
 
+#ifdef FFZ_EDIT_DISTANCE
+// Myers bit-parallel edit distance. Returns distance in [0..max_dist] or -1.
+// query/hay are scanned with ffz_normalize_cp using cfg for consistent folding.
+int ffz_edit_distance(ffz_str query, ffz_str hay, int max_dist,
+                      const ffz_config *cfg);
+#endif
+
 // --- prefilter (ffz_prefilter.c) -----------------------------------------
 // Find (start, greedy_end, end) bounds for a subsequence match. Returns false
 // if the needle can't be a subsequence. If `only_greedy`, end == greedy_end.
