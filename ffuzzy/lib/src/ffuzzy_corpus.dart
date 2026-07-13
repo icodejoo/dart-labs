@@ -206,13 +206,19 @@ abstract base class FuzzyCorpusProtected<T> {
 
   void update(int index, T item) {
     checkMutate_();
-    if (keys_[index] != null) {
-      debugPrint('[ffuzzy] update() discards alternate keys at $index; '
-          'use removeAt() + addKey() instead.');
-    }
+    final hadKeys = keys_[index] != null;
     items_[index] = item;
     keys_[index] = null;
     rebuild_();
+    if (hadKeys) {
+      // Mutation above already ran identically in debug and release — the
+      // assert below is a loud after-the-fact warning, not a gate, so this
+      // method's effect never forks by build mode.
+      final msg = '[ffuzzy] update() discarded alternate keys at $index; '
+          'use removeAt() + addKey() instead.';
+      assert(false, msg);
+      debugPrint(msg);
+    }
   }
 
   void removeAt(int index) {

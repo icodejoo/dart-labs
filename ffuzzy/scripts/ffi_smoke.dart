@@ -32,7 +32,7 @@ Future<void> main(List<String> args) async {
   fuzzyCodepointToUtf16('src/main.rs', hlHits.first.indices);
 
   // The async twin must agree with the synchronous method, element-by-element.
-  final async = await c.fuzzyAsync('src', limit: 10);
+  final async = await c.asyncFuzzy('src', limit: 10);
   if (async.length != fuzzy.length) {
     throw 'filterAsync len ${async.length} != ${fuzzy.length}';
   }
@@ -60,14 +60,15 @@ Future<void> main(List<String> args) async {
   if (c.fuzzy('README').isNotEmpty) throw 'removed item should not match';
   if (c.fuzzy('src').isEmpty) throw 'survivor should still match after rebuild';
 
-  // single-best view: corpus.one.<mode> returns the top hit (or null), running
-  // the same native scan as the list method with limit 1.
-  final best = c.one.fuzzy('src');
-  if (best == null || best.raw.isEmpty) {
-    throw 'one.fuzzy should find the best hit';
+  // single-best view: mode(q, limit: 1) returns the top hit as a 1-element list.
+  //
+  // 单结果视图：mode(q, limit: 1) 以单元素列表返回最佳命中项。
+  final best = c.fuzzy('src', limit: 1);
+  if (best.isEmpty || best.first.raw.isEmpty) {
+    throw 'fuzzy(limit: 1) should find the best hit';
   }
-  if (c.one.exact('definitely-absent') != null) {
-    throw 'one.exact should be null for no match';
+  if (c.exact('definitely-absent', limit: 1).isNotEmpty) {
+    throw 'exact(limit: 1) should be empty for no match';
   }
 
   // keyed: a List<Map> searched by a field; hit.raw is the whole map.
@@ -77,21 +78,21 @@ Future<void> main(List<String> args) async {
   ], 'name', libraryPath: libPath);
   final ml = maps.prefix('Al');
   if (ml.isEmpty || ml.first.raw['id'] != 1) throw 'keyed map search failed';
-  final mo = maps.one.prefix('Al');
-  if (mo == null || mo.raw['id'] != 1) throw 'keyed one.prefix failed';
+  final mo = maps.prefix('Al', limit: 1);
+  if (mo.isEmpty || mo.first.raw['id'] != 1) throw 'keyed prefix(limit: 1) failed';
   maps.dispose();
 
-  // buildAsync: populate on a background isolate, search, then disposeAndWait.
-  final big = await FuzzyCorpus.buildAsync(
+  // asyncBuild: populate on a background isolate, search, then asyncDispose.
+  final big = await FuzzyCorpus.asyncBuild(
     List.generate(3000, (i) => 'item_$i'),
     stringOf: (s) => s,
     libraryPath: libPath,
   );
-  if (big.length != 3000) throw 'buildAsync length ${big.length} != 3000';
-  if ((await big.fuzzyAsync('item_42', limit: 1)).isEmpty) {
-    throw 'buildAsync search failed';
+  if (big.length != 3000) throw 'asyncBuild length ${big.length} != 3000';
+  if ((await big.asyncFuzzy('item_42', limit: 1)).isEmpty) {
+    throw 'asyncBuild search failed';
   }
-  await big.disposeAndWait();
+  await big.asyncDispose();
 
   // FuzzyCrash API: install never throws; lastReport on a fresh path is null.
   FuzzyCrash.install();
