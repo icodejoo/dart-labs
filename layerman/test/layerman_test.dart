@@ -688,6 +688,66 @@ void main() {
 
       manager.dispose();
     });
+
+    testWidgets(
+        'delay is not bypassed when a second entry is enqueued during the delay',
+        (tester) async {
+      // Regression: _schedule re-picked the front entry after a second open()
+      // triggered it. delayConsumed=true caused the delay to be skipped and
+      // the entry to activate immediately.
+      final manager = OverlayManager(exitDuration: Duration.zero);
+      await pumpHost(tester, manager);
+
+      manager.open(
+        id: 'slow',
+        delay: const Duration(milliseconds: 300),
+        builder: (c, h) => label('SLOW'),
+      );
+      await tester.pump(); // delay timer armed; nothing visible yet
+      expect(find.text('SLOW'), findsNothing);
+
+      // Enqueue a second entry — must NOT cause SLOW to bypass its delay.
+      manager.open(
+        id: 'fast',
+        delay: const Duration(milliseconds: 100),
+        builder: (c, h) => label('FAST'),
+      );
+      await tester.pump();
+      expect(find.text('SLOW'), findsNothing); // delay still in progress
+
+      // After SLOW's full delay, it activates (FAST waits behind it).
+      await tester.pump(const Duration(milliseconds: 300));
+      await tester.pump();
+      expect(find.text('SLOW'), findsOneWidget);
+      expect(find.text('FAST'), findsNothing);
+
+      manager.dispose();
+    });
+
+    testWidgets('replace during an appear delay skips the delay (TS rule)',
+        (tester) async {
+      final manager = OverlayManager(exitDuration: Duration.zero);
+      await pumpHost(tester, manager);
+
+      manager.open(
+        id: 'delayed',
+        delay: const Duration(milliseconds: 300),
+        builder: (c, h) => label('DELAYED'),
+      );
+      await tester.pump(); // delay timer armed
+      expect(find.text('DELAYED'), findsNothing);
+
+      // A replace entry: must cancel the delay and activate immediately.
+      manager.open(
+        id: 'r',
+        replace: true,
+        builder: (c, h) => label('R'),
+      );
+      await tester.pump();
+      expect(find.text('R'), findsOneWidget); // jumped ahead without waiting
+
+      manager.dispose();
+    });
   });
 
   group('priority & ordering — TS parity', () {

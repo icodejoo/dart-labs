@@ -9,7 +9,7 @@ ifneq ($(OS),Windows_NT)
 CFLAGS  += -pthread
 endif
 
-.PHONY: all test lib size clean
+.PHONY: all test lib size clean check publish install-hooks
 all: test
 
 # Build and run the test suite.
@@ -44,3 +44,20 @@ size:
 
 clean:
 	rm -rf $(BUILD) *.o
+
+# Install git hooks via lefthook (requires: npm install -g lefthook).
+# Run once per clone from the dart-labs/ repo root.
+install-hooks:
+	cd ../.. && lefthook install
+	@echo "Git hooks installed. pre-push checks run automatically on next push."
+
+# Dart API surface parity check (mirrors wasm/scripts/check_api_parity.mjs).
+# Reads test/shared/api_surface.json and verifies all methods exist in source.
+check:
+	dart run scripts/check_api_parity.dart
+
+# Publish to pub.dev with pre-flight checks.
+# Equivalent of npm's prepublishOnly — runs check + api_parity tests first.
+publish: check
+	flutter test test/api_parity_test.dart
+	flutter pub publish
