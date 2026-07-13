@@ -303,6 +303,13 @@ final class FuzzyCorpus<T> extends FuzzyCorpusProtected<T> {
   // Returns true when the corpus is still deferred (caller should return empty).
   bool _guardSync() { check_(); _ensureReady(); return cDeferred_; }
 
+  @override void syncEnsureReady_() => _ensureReady();
+
+  @override
+  Future<void> asyncEnsureReady_() async {
+    if (cDeferred_) { await _readyCompleter.future; _ensureReady(); }
+  }
+
   @override
   List<FuzzyHit<T>> search_(int mode, String q, FuzzyOptions o) {
     if (_guardSync()) return [];
