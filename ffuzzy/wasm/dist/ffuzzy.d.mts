@@ -1,7 +1,7 @@
 //#region src/ffuzzy-corpus.d.ts
 /** Initialize the WASM engine. Await once before constructing any `FuzzyCorpus`. Idempotent. */
 declare function ffuzzyInitialize(opts?: Record<string, unknown>): Promise<void>;
-/** `true` once {@link ffuzzyInitialize} has completed. */
+/** `true` once {@link ffuzzyInitialize} has completed successfully. */
 declare function ffuzzyReady(): boolean;
 type FuzzyCase = 0 | 1 | 2;
 declare const FuzzyCase: Readonly<{
@@ -60,13 +60,29 @@ interface FuzzyHit<T = unknown> {
   raw: T;
   index: number;
   score: number;
+  /** Which key kind matched (`FuzzyKeyKind.*`). */
   matchedKind: number;
+  /** Raw integer kind code — same as `matchedKind`; mirrors `FuzzyHit.matchedKindCode` in Dart. */
+  matchedKindCode: number;
   matchedKey: number;
   /** Matched codepoint positions. Populated only when `highlight: true`. */
   indices: number[];
 }
 /** Dot-notation field paths for `T` (up to two levels deep). */
 type FieldPath<T extends Record<string, unknown>> = { [K in keyof T & string]: T[K] extends Record<string, unknown> ? K | `${K}.${keyof T[K] & string}` : K; }[keyof T & string];
+type SearchStrategy = 'fuzzy' | 'approx' | 'fallback' | 'merge';
+/**
+ * Returns a sensible edit-distance threshold based on query length (mirrors
+ * Elasticsearch's AUTO policy). Used as the default when `maxDistance` is omitted.
+ * - length ≤ 2 → 0 (exact)
+ * - length 3-5 → 1
+ * - length 6+  → 2
+ */
+declare function autoMaxDistance(query: string): number;
+interface FuzzyDualResult<T = unknown> {
+  fuzzy: FuzzyHit<T>[];
+  approx: FuzzyHit<T>[];
+}
 interface FuzzyCorpusInit<T> {
   stringOf?: (item: T) => string;
   options?: Partial<FuzzyOptions> | FuzzyOptions;
@@ -92,11 +108,22 @@ declare class FuzzyCorpus<T = string> {
   private _items;
   private _keys;
   private _disposed;
+  private _deferred;
+  private _matchPaths;
+  private _preferPrefix;
   private _ptr;
   private _scratch;
   private _scratch4;
   private _scratchCap;
   constructor(items?: Iterable<T>, init?: FuzzyCorpusInit<T>);
+  /** Resolves when the engine finishes loading (success or failure). Useful for
+   *  re-triggering a search after a corpus created before `ffuzzyInitialize`:
+   *  ```ts
+   *  corpus.ready.then(() => { if (corpus.isReady) renderResults(corpus.fuzzy(q)); });
+   *  ``` */
+  get ready(): Promise<void>;
+  /** `true` once the engine has loaded and this corpus is backed by WASM. */
+  get isReady(): boolean;
   static strings(items?: Iterable<string>, opts?: Omit<FuzzyCorpusInit<string>, 'stringOf'>): FuzzyCorpus<string>;
   static byKey<T extends Record<string, unknown>>(maps?: Iterable<T>, field?: FieldPath<T> | (string & {}), opts?: Omit<FuzzyCorpusInit<T>, 'stringOf'>): FuzzyCorpus<T>;
   static byKeys<T extends Record<string, unknown>>(maps?: Iterable<T>, fields?: (FieldPath<T> | (string & {}))[], opts?: Omit<FuzzyCorpusInit<T>, 'stringOf'>): FuzzyCorpus<T>;
@@ -109,11 +136,62 @@ declare class FuzzyCorpus<T = string> {
   removeWhere(test: (item: T) => boolean): number;
   refresh(source?: Iterable<T>): void;
   clear(): void;
-  /** Fuzzy (subsequence) search. Supports fzf operators: `!term` `^term` `'term` `term$`. */
+  /** fzf-style subsequence search. Shorthand for `search(query, { strategy: 'fuzzy' })`. */
   fuzzy(query: string, opts?: Partial<FuzzyOptions>): FuzzyHit<T>[];
+  /** Contiguous-substring match. */
+  substring(query: string, opts?: Partial<FuzzyOptions>): FuzzyHit<T>[];
+  /** Prefix match — item starts with query. */
+  prefix(query: string, opts?: Partial<FuzzyOptions>): FuzzyHit<T>[];
+  /** Postfix match — item ends with query. */
+  postfix(query: string, opts?: Partial<FuzzyOptions>): FuzzyHit<T>[];
+  /** Alias for {@link postfix}. */
+  suffix(query: string, opts?: Partial<FuzzyOptions>): FuzzyHit<T>[];
+  /** Exact whole-string match. */
+  exact(query: string, opts?: Partial<FuzzyOptions>): FuzzyHit<T>[];
   /** Fuzzy search — raw `T[]` only, no wrapper. Faster: skips highlight-index computation. */
   fuzzyRaws(query: string, opts?: Partial<FuzzyOptions>): T[];
+  /** Substring search — raw `T[]` only. */
+  substringRaws(query: string, opts?: Partial<FuzzyOptions>): T[];
+  /** Prefix search — raw `T[]` only. */
+  prefixRaws(query: string, opts?: Partial<FuzzyOptions>): T[];
+  /** Postfix search — raw `T[]` only. */
+  postfixRaws(query: string, opts?: Partial<FuzzyOptions>): T[];
+  /** Alias for {@link postfixRaws}. */
+  suffixRaws(query: string, opts?: Partial<FuzzyOptions>): T[];
+  /** Exact search — raw `T[]` only. */
+  exactRaws(query: string, opts?: Partial<FuzzyOptions>): T[];
+  /** Edit-distance (typo-tolerant) search. Shorthand for `search(q, { strategy: 'approx' })`.
+   *  Requires WASM built with FFZ_EDIT_DISTANCE. Returns [] if not available. */
+  /** Raw-object shorthand for `search()`. Returns `T[]` instead of `FuzzyHit<T>[]`. */
+  searchRaws(query: string, opts?: Partial<FuzzyOptions> & {
+    strategy?: SearchStrategy;
+    maxDistance?: number;
+  }): T[];
+  /** Edit-distance (typo-tolerant) search. Shorthand for `search(q, { strategy: 'approx' })`.
+   *  `maxDistance` defaults to {@link autoMaxDistance}(query) when omitted. */
+  approx(query: string, maxDistance?: number, opts?: Partial<FuzzyOptions>): FuzzyHit<T>[];
+  /** Unified search entry point.
+   *
+   * - `'fuzzy'`    — fzf subsequence (default, same as calling `fuzzy()`)
+   * - `'approx'`   — edit-distance; `maxDistance` auto-scaled when omitted
+   * - `'fallback'` — subsequence first; falls back to approx when empty
+   * - `'merge'`    — both algorithms; subsequence hits first, then approx-only hits
+   */
+  search(query: string, opts?: Partial<FuzzyOptions> & {
+    strategy?: SearchStrategy;
+    maxDistance?: number;
+  }): FuzzyHit<T>[];
+  /** Raw-object shorthand for `approx()`. Returns `T[]` instead of `FuzzyHit<T>[]`. */
+  approxRaws(query: string, maxDistance?: number, opts?: Partial<FuzzyOptions>): T[];
+  /** Runs both algorithms independently and returns their results in separate buckets.
+   *  `maxDistance` defaults to {@link autoMaxDistance}(query) when omitted. */
+  dual(query: string, opts?: Partial<FuzzyOptions> & {
+    maxDistance?: number;
+  }): FuzzyDualResult<T>;
+  private _approxRaw;
   dispose(): void;
+  /** Returns true if ready to search; false if still deferred (WASM not loaded). */
+  private _ensureReady;
   private _allocScratch;
   private _ensureScratch;
   private _nativeAdd;
@@ -121,6 +199,8 @@ declare class FuzzyCorpus<T = string> {
   private _filter;
   private _search;
   private _searchRaws;
+  /** Non-WASM search for prefix/postfix/exact/substring modes using native JS string ops. */
+  private _nativeSearch;
   private _alive;
   private _bounds;
 }
@@ -144,4 +224,4 @@ declare function highlightHtml(text: string, indices: number[], opts?: {
   tag?: string;
 }): string;
 //#endregion
-export { FieldPath, FuzzyCase, FuzzyCorpus, FuzzyCorpusInit, FuzzyHit, FuzzyKey, FuzzyKeyKind, FuzzyMode, FuzzyNorm, FuzzyOptions, FuzzyScoring, ffuzzyInitialize, ffuzzyReady, fuzzyCodepointToUtf16, highlightHtml };
+export { FieldPath, FuzzyCase, FuzzyCorpus, FuzzyCorpusInit, FuzzyDualResult, FuzzyHit, FuzzyKey, FuzzyKeyKind, FuzzyMode, FuzzyNorm, FuzzyOptions, FuzzyScoring, SearchStrategy, autoMaxDistance, ffuzzyInitialize, ffuzzyReady, fuzzyCodepointToUtf16, highlightHtml };

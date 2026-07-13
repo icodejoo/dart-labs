@@ -6,9 +6,7 @@
 //   edlib (Martinsos/edlib, MIT) — calculateBlock inner loop formulation.
 //   rapidfuzz-cpp (maxbachmann/rapidfuzz-cpp, MIT) — Unicode Peq strategy.
 //
-// Build this file only when FFZ_EDIT_DISTANCE is defined.
-#ifdef FFZ_EDIT_DISTANCE
-
+// Both algorithms are always compiled together.
 #include <stdlib.h>
 #include "ffz_internal.h"
 
@@ -168,5 +166,3 @@ int ffz_edit_distance(ffz_str query, ffz_str hay,
 
     return score <= max_dist ? score : -1;
 }
-
-#endif /* FFZ_EDIT_DISTANCE */
