@@ -15,13 +15,13 @@ all: test
 # Build and run the test suite.
 test:
 	@mkdir -p $(BUILD)
-	$(CC) $(CFLAGS) $(SRCS) tests/test_ffz.c -o $(BUILD)/test_ffz
+	$(CC) $(CFLAGS) $(SRCS) test/test_ffz.c -o $(BUILD)/test_ffz
 	$(BUILD)/test_ffz
 
 # Memory-leak smoke test (counting allocator).
 leak:
 	@mkdir -p $(BUILD)
-	$(CC) $(CFLAGS) -DFFZ_TRACK_ALLOC $(SRCS) tests/test_leak.c -o $(BUILD)/test_leak
+	$(CC) $(CFLAGS) -DFFZ_TRACK_ALLOC $(SRCS) test/test_leak.c -o $(BUILD)/test_leak
 	$(BUILD)/test_leak
 
 # Static library.

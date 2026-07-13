@@ -326,21 +326,50 @@ abstract base class FuzzyCorpusProtected<T> {
           int? threads, int? limit, FuzzyScoring? scoring}) =>
       searchRaws_(mExact, q, eff_(caseMatching, normalization, parallel, threads, limit, false, scoring));
 
-  /// Edit-distance search. Shorthand for `search(q, strategy: SearchStrategy.approx)`.
+  /// Approximate SUBSTRING search: finds items containing a window whose
+  /// edit distance to [q] is within [maxDistance] — the window may start/end
+  /// anywhere in the item's text, it is NOT anchored to the whole string (so
+  /// a short typo'd [q] can match inside a much longer item). Shorthand for
+  /// `search(q, strategy: SearchStrategy.approx)`.
   ///
-  /// [maxDistance] defaults to [autoMaxDistance] when omitted (auto-scaled by query length).
+  /// 近似子串搜索：查找包含某个窗口的条目，该窗口与 [q] 的编辑距离不超过
+  /// [maxDistance] —— 该窗口可以从条目文本中的任意位置开始/结束，并不锚定到
+  /// 整个字符串（因此一个较短的、带有拼写错误的 [q] 也能匹配到一个长得多的
+  /// 条目内部）。是 `search(q, strategy: SearchStrategy.approx)` 的简写。
+  ///
+  /// [maxDistance] defaults to [autoMaxDistance] when omitted (auto-scaled by
+  /// query length — note this scales with the QUERY's length, not the
+  /// window's, so it stays meaningful regardless of how long the item is).
+  ///
+  /// 省略 [maxDistance] 时默认使用 [autoMaxDistance]（根据查询长度自动缩放
+  /// ——注意这里是按“查询”的长度缩放，而不是窗口的长度，因此无论条目本身
+  /// 有多长，该值都始终有意义）。
+  ///
+  /// When [highlight] is true, [FuzzyHit.indices] is populated with every
+  /// codepoint position in the matched window (a contiguous range) rather
+  /// than the discrete positions [fuzzy] reports.
+  ///
+  /// 当 [highlight] 为 true 时，[FuzzyHit.indices] 会被填充为匹配窗口内的
+  /// 每一个码点位置（一个连续区间），而不是 [fuzzy] 所报告的离散位置。
   List<FuzzyHit<T>> approx(String q,
           {int? maxDistance, FuzzyCase? caseMatching,
-          FuzzyNorm? normalization, int? limit}) =>
+          FuzzyNorm? normalization, int? limit, bool? highlight}) =>
       searchEdit_(q, maxDistance ?? autoMaxDistance(q),
-          eff_(caseMatching, normalization, null, null, limit, false, null));
+          eff_(caseMatching, normalization, null, null, limit, highlight, null));
 
   /// Unified search entry point. Defaults to fzf-style subsequence (`strategy: SearchStrategy.fuzzy`).
+  ///
+  /// 统一的搜索入口。默认使用 fzf 风格的子序列匹配（`strategy: SearchStrategy.fuzzy`）。
   ///
   /// - [SearchStrategy.fuzzy]    — subsequence match (same as [fuzzy])
   /// - [SearchStrategy.approx]   — edit-distance; [maxDistance] auto-scaled when omitted
   /// - [SearchStrategy.fallback] — subsequence first; falls back to edit-distance if empty
   /// - [SearchStrategy.merge]    — both algorithms; subsequence hits first, then approx-only hits
+  ///
+  /// - [SearchStrategy.fuzzy]    —— 子序列匹配（等同于 [fuzzy]）
+  /// - [SearchStrategy.approx]   —— 编辑距离匹配；省略 [maxDistance] 时自动缩放
+  /// - [SearchStrategy.fallback] —— 优先子序列匹配；结果为空时回退到编辑距离匹配
+  /// - [SearchStrategy.merge]    —— 同时使用两种算法；子序列命中在前，仅编辑距离命中的结果在后
   List<FuzzyHit<T>> search(String q, {
     SearchStrategy strategy = SearchStrategy.fuzzy,
     int? maxDistance,
@@ -364,7 +393,11 @@ abstract base class FuzzyCorpusProtected<T> {
 
   /// Runs both algorithms independently and returns their results in separate buckets.
   ///
+  /// 独立运行两种算法，并将各自的结果分别放入不同的结果桶中返回。
+  ///
   /// [maxDistance] defaults to [autoMaxDistance] when omitted.
+  ///
+  /// 省略 [maxDistance] 时默认使用 [autoMaxDistance]。
   FuzzyDualResult<T> dual(String q, {
     int? maxDistance,
     FuzzyCase? caseMatching,
@@ -372,12 +405,13 @@ abstract base class FuzzyCorpusProtected<T> {
     bool? parallel,
     int? threads,
     int? limit,
+    bool? highlight,
     FuzzyScoring? scoring,
   }) {
     check_();
     syncEnsureReady_();
     final dist = maxDistance ?? autoMaxDistance(q);
-    final o = eff_(caseMatching, normalization, parallel, threads, limit, false, scoring);
+    final o = eff_(caseMatching, normalization, parallel, threads, limit, highlight, scoring);
     if (cDeferred_) return FuzzyDualResult(fuzzy: const [], approx: const []);
     return searchDualC_(q, dist, o);
   }
@@ -505,12 +539,12 @@ abstract base class FuzzyCorpusProtected<T> {
 
   Future<List<FuzzyHit<T>>> asyncApprox(String q, {
     int? maxDistance, FuzzyCase? caseMatching,
-    FuzzyNorm? normalization, int? limit,
+    FuzzyNorm? normalization, int? limit, bool? highlight,
   }) async {
     check_(); inFlight_++;
     try {
-      return approx(q, maxDistance: maxDistance,
-          caseMatching: caseMatching, normalization: normalization, limit: limit);
+      return approx(q, maxDistance: maxDistance, caseMatching: caseMatching,
+          normalization: normalization, limit: limit, highlight: highlight);
     } finally { inFlight_--; signalIfIdle_(); }
   }
 
@@ -527,14 +561,15 @@ abstract base class FuzzyCorpusProtected<T> {
 
   Future<FuzzyDualResult<T>> asyncDual(String q, {
     int? maxDistance, FuzzyCase? caseMatching, FuzzyNorm? normalization,
-    bool? parallel, int? threads, int? limit, FuzzyScoring? scoring,
+    bool? parallel, int? threads, int? limit, bool? highlight, FuzzyScoring? scoring,
   }) async {
     await asyncEnsureReady_();
     check_(); inFlight_++;
     try {
       return dual(q, maxDistance: maxDistance,
           caseMatching: caseMatching, normalization: normalization,
-          parallel: parallel, threads: threads, limit: limit, scoring: scoring);
+          parallel: parallel, threads: threads, limit: limit,
+          highlight: highlight, scoring: scoring);
     } finally { inFlight_--; signalIfIdle_(); }
   }
 }

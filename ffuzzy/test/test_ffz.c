@@ -1091,6 +1091,85 @@ static void test_recent_fixes(void) {
     }
 }
 
+// Regression coverage for two bugs found reviewing ffz_edit_window
+// (src/ffz_edit.c, reached via ffz_corpus_filter_edit — the internal edit
+// functions aren't part of the public header, so this drives them black-box
+// through the corpus API like the rest of this file):
+//   (1) malloc(0) was previously read as OOM, silently turning a genuine
+//       distance-only hit (empty recovered window) into a dropped result.
+//   (2) the free-start scan's best==0 early exit must not disturb recovery
+//       of a normal, non-degenerate window.
+//
+// 针对在评审 ffz_edit_window（src/ffz_edit.c，通过 ffz_corpus_filter_edit
+// 到达——内部编辑相关函数不属于公共头文件，因此本测试和文件中其他测试
+// 一样，通过语料库 API 黑盒驱动它们）时发现的两个 bug 的回归测试：
+//   (1) malloc(0) 此前被误判为 OOM，把一个本应正常返回的、仅距离命中
+//       （恢复出的窗口为空）的结果悄悄丢弃了。
+//   (2) 自由起点扫描（free-start scan）的 best==0 提前退出，不应干扰
+//       正常、非退化窗口的恢复。
+static void test_edit_window_fixes(void) {
+    ffz_corpus *c = ffz_corpus_new(ffz_config_default());
+    ffz_corpus_add(c, "widget_alpha.dart", 17);
+    ffz_corpus_add(c, "widget_beta.dart", 16);
+
+    // (1) Degenerate: query "q" appears nowhere; the best achievable distance
+    // is qlen (1), realised by the empty window at position 0 -- this used to
+    // allocate ffz_edit_window's scratch buffer via malloc(0), whose result is
+    // implementation-defined and must not be misread as OOM (dropping the hit).
+    //
+    // (1) 退化情形：查询串 "q" 哪里都不出现；能达到的最优距离是 qlen（1），
+    // 由位置 0 处的空窗口实现——这曾经会通过 malloc(0) 分配
+    // ffz_edit_window 的暂存缓冲区，而 malloc(0) 的返回值是由具体实现
+    // 决定的，绝不能被误判为 OOM（从而丢弃这个命中项）。
+    {
+        ffz_results r = {0};
+        ffz_corpus_filter_edit(c, "q", 1, FFZ_CASE_SMART, FFZ_NORM_SMART, 1,
+                               ffz_parallel_off(), 10, &r);
+        CHECK(r.len == 2, "degenerate query still returns both items (no OOM misfire)");
+        for (size_t i = 0; i < r.len; i++)
+            CHECK(-r.hits[i].score == 1, "degenerate hit reports distance == qlen");
+        ffz_results_free(&r);
+    }
+
+    // (2) Ordinary hit: window recovery must still populate a non-empty window.
+    //
+    // (2) 普通命中：窗口恢复仍必须得到一个非空窗口。
+    {
+        ffz_results r = {0};
+        ffz_corpus_filter_edit(c, "widgit", 6, FFZ_CASE_SMART, FFZ_NORM_SMART, 1,
+                               ffz_parallel_off(), 10, &r);
+        CHECK(r.len >= 1, "typo query matches at least one item");
+        bool found = false;
+        for (size_t i = 0; i < r.len; i++)
+            if (r.hits[i].indices.len > 0) found = true;
+        CHECK(found, "at least one hit has a non-empty recovered window");
+        ffz_results_free(&r);
+    }
+
+    // (3) Exact substring at the very start of a long haystack: the best==0
+    // early exit must still recover the correct (non-empty) window.
+    //
+    // (3) 精确子串出现在长 haystack 的最开头：best==0 提前退出仍必须
+    // 恢复出正确的（非空）窗口。
+    {
+        ffz_corpus *c2 = ffz_corpus_new(ffz_config_default());
+        char big[300];
+        memset(big, 'x', sizeof(big));
+        memcpy(big, "needle", 6);
+        ffz_corpus_add(c2, big, sizeof(big));
+        ffz_results r = {0};
+        ffz_corpus_filter_edit(c2, "needle", 6, FFZ_CASE_SMART, FFZ_NORM_SMART,
+                               1, ffz_parallel_off(), 10, &r);
+        CHECK(r.len == 1, "exact substring near start still matches");
+        CHECK(r.hits[0].score == 0, "exact substring reports distance 0");
+        CHECK(r.hits[0].indices.len == 6, "recovered window has correct length");
+        ffz_results_free(&r);
+        ffz_corpus_free(c2);
+    }
+
+    ffz_corpus_free(c);
+}
+
 int main(void) {
     ffz_matcher *m = ffz_matcher_new(ffz_config_default());
     test_basic(m);
@@ -1132,6 +1211,7 @@ int main(void) {
     m = ffz_matcher_new(ffz_config_default());
     test_invalid_utf8(m);
     ffz_matcher_free(m);
+    test_edit_window_fixes();
 
     printf("\n%d/%d checks passed\n", g_total - g_fail, g_total);
     return g_fail ? 1 : 0;

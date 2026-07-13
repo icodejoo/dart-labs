@@ -130,10 +130,20 @@ void ffz_corpus_filter_raws(ffz_corpus *c, const char *query, size_t query_len,
 // Return the corpus-level scoring mode (stored in its ffz_config).
 ffz_scoring_mode ffz_corpus_scoring(const ffz_corpus *c);
 
-// Edit-distance (typo-tolerant) filter. Returns items whose best key has
-// edit distance <= max_distance from query. Results are sorted by distance
-// ascending (score = -distance; same ffz_hit struct, indices always empty).
+// Approximate SUBSTRING (edit-distance) filter. Returns items containing a
+// window whose edit distance to query is <= max_distance — the window may
+// start/end anywhere in the item, it is NOT anchored to the whole string.
+// Results are sorted by distance ascending (score = -distance). Each hit's
+// indices are populated with every codepoint position in the matched window
+// (a contiguous range, unlike the subsequence filters' discrete positions).
 // max_distance=1 handles single-char typos; 2 handles most realistic errors.
+//
+// 近似子串（编辑距离）过滤器。返回包含某个窗口的条目，该窗口与 query 的
+// 编辑距离 <= max_distance——窗口可以从条目中任意位置开始/结束，并不
+// 锚定到整个字符串。结果按距离升序排序（score = -distance）。每个命中项
+// 的 indices 会填充匹配窗口内的每一个码点位置（是一段连续区间，
+// 不同于子序列过滤器给出的离散位置）。max_distance=1 可处理单字符
+// 拼写错误；2 可处理大多数常见错误。
 void ffz_corpus_filter_edit(ffz_corpus *c,
                             const char *query, size_t query_len,
                             ffz_case_matching cm, ffz_normalization nm,
@@ -141,8 +151,23 @@ void ffz_corpus_filter_edit(ffz_corpus *c,
                             ffz_parallel par, size_t limit,
                             ffz_results *out);
 
+// Like ffz_corpus_filter_edit but skips Pass 2 (no matched-window recovery).
+// All hit.indices will be empty. Use when only item identity/distance is needed.
+//
+// 与 ffz_corpus_filter_edit 类似，但跳过 Pass 2（不做匹配窗口恢复）。
+// 所有 hit.indices 都为空。仅需要条目身份/距离时使用。
+void ffz_corpus_filter_edit_raws(ffz_corpus *c,
+                                 const char *query, size_t query_len,
+                                 ffz_case_matching cm, ffz_normalization nm,
+                                 int max_distance,
+                                 ffz_parallel par, size_t limit,
+                                 ffz_results *out);
+
 // Single-pass merge: one corpus scan for both algorithms.
 // Seq hits (score ≥ 0) precede edit-only hits (score = -(distance+1) ≤ -1).
+//
+// 单趟合并：一次语料库扫描同时跑两种算法。
+// 子序列命中（score ≥ 0）排在仅编辑距离命中（score = -(distance+1) ≤ -1）之前。
 void ffz_corpus_filter_merge(ffz_corpus *c,
                               const char *query, size_t query_len,
                               ffz_case_matching cm, ffz_normalization nm,
@@ -152,6 +177,9 @@ void ffz_corpus_filter_merge(ffz_corpus *c,
 
 // Single-call fallback: runs subsequence; falls back to edit-distance only if
 // subsequence returns zero results. One FFI call, no intermediate Dart objects.
+//
+// 单次调用的回退过滤器：先跑子序列匹配；仅当子序列返回零结果时才回退到
+// 编辑距离匹配。只需一次 FFI 调用，不产生中间 Dart 对象。
 void ffz_corpus_filter_fallback(ffz_corpus *c,
                                  const char *query, size_t query_len,
                                  ffz_case_matching cm, ffz_normalization nm,
@@ -160,9 +188,15 @@ void ffz_corpus_filter_fallback(ffz_corpus *c,
                                  ffz_results *out);
 
 // Dual result handle: two independent result sets in one corpus scan.
+//
+// 双结果句柄：一次语料库扫描产出两个独立的结果集。
 typedef struct {
     ffz_results seq;   // subsequence hits (fzf scores)
+    //
+    // 子序列命中结果（fzf 分数）。
     ffz_results edit;  // edit-distance hits (all items, including overlap with seq)
+    //
+    // 编辑距离命中结果（所有条目，包括与 seq 重叠的部分）。
 } ffz_dual_results;
 
 void ffz_dual_results_free(ffz_dual_results *d);
@@ -170,6 +204,10 @@ void ffz_dual_results_free(ffz_dual_results *d);
 // Single-pass dual: scans corpus once, applies both algorithms per item.
 // Writes seq hits and edit hits into separate result sets inside *d.
 // d must be zero-initialised by the caller before the first call.
+//
+// 单趟双算法扫描：只扫描一次语料库，对每一项都应用两种算法。
+// 将子序列命中和编辑距离命中分别写入 *d 内的两个独立结果集。
+// 调用方必须在第一次调用前将 d 清零初始化。
 void ffz_corpus_filter_dual(ffz_corpus *c,
                               const char *query, size_t query_len,
                               ffz_case_matching cm, ffz_normalization nm,

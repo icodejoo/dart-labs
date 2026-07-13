@@ -10,6 +10,21 @@ import 'shared_query_tab.dart';
 Widget _hits(List<FuzzyHit<String>> hits) =>
     ResultList([for (final h in hits) '${h.raw}  (score ${h.score})']);
 
+// approx's score is -distance (see ffz_corpus.c); indices are the matched
+// window's codepoint range (a contiguous run), not discrete positions.
+//
+// approx 的分数是 -distance（参见 ffz_corpus.c）；indices 是匹配窗口的码点
+// 区间（一段连续范围），而不是离散的位置。
+String _approxWindowLine(FuzzyHit<String> h) {
+  if (h.indices.isEmpty) return '${h.raw}  (dist ${-h.score})';
+  final u16 = fuzzyCodepointToUtf16(h.raw, [h.indices.first, h.indices.last]);
+  final window = h.raw.substring(u16[0], u16[1] + 1);
+  return '${h.raw}  [$window]  (dist ${-h.score})';
+}
+
+Widget _approxHits(List<FuzzyHit<String>> hits) =>
+    ResultList([for (final h in hits) _approxWindowLine(h)]);
+
 final List<QuerySpec> searchModeSpecs = [
   QuerySpec('fuzzy', "corpus.fuzzy(query)",
       (c, q) => _hits(c.fuzzy(q, limit: 20))),
@@ -28,12 +43,15 @@ final List<QuerySpec> searchModeSpecs = [
       "corpus.search(query,\n"
           "  strategy: SearchStrategy.merge)",
       (c, q) => _hits(c.search(q, strategy: SearchStrategy.merge, limit: 20))),
-  QuerySpec('approx', "corpus.approx(query)  // edit-distance",
-      (c, q) => _hits(c.approx(q, limit: 20)),
-      note: 'Whole-string Levenshtein distance vs the FULL item text — best '
-          'for short, single-token candidates near the query\'s length '
-          "(app names, usernames: 'instgram'→Instagram). Long paths need a "
-          "near-complete typo instead, e.g. 'REDME.md'."),
+  QuerySpec(
+      'approx',
+      "corpus.approx(query, highlight: true)\n"
+          "// edit-distance, SUBSTRING search",
+      (c, q) => _approxHits(c.approx(q, limit: 20, highlight: true)),
+      note: 'Finds a window inside the item within edit distance of query — '
+          "the window can start/end anywhere, so 'scaffolx' (a typo, not a "
+          'fuzzy subsequence) still matches inside a long path. [brackets] '
+          'show the matched window.'),
   QuerySpec('dual', "corpus.dual(query)  // fuzzy + approx, split", (c, q) {
     final r = c.dual(q, limit: 10);
     return Column(
