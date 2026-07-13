@@ -3,7 +3,16 @@
 import 'package:flutter/material.dart';
 import 'package:ffuzzy/ffuzzy.dart';
 
-void main() => runApp(const FuzzyDemoApp());
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  // Web: load the WASM engine from the published npm package.
+  // On native this is a no-op, so it's safe to always call.
+  // Load WASM engine from CDN (or swap for webAssetsUrl to use a local asset).
+  await ffuzzyInit(
+    webUrl: 'https://cdn.jsdelivr.net/npm/@codejoo/ffuzzy@0.7.0/dist/ffz.mjs',
+  );
+  runApp(const FuzzyDemoApp());
+}
 
 const _items = <String>[
   'lib/src/widgets/scaffold.dart',
@@ -20,7 +29,7 @@ class FuzzyDemoApp extends StatelessWidget {
   const FuzzyDemoApp({super.key});
   @override
   Widget build(BuildContext context) => MaterialApp(
-        title: 'ffz demo',
+        title: 'ffuzzy demo',
         theme: ThemeData(useMaterial3: true, colorSchemeSeed: Colors.indigo),
         home: const SearchPage(),
       );
@@ -40,6 +49,8 @@ class _SearchPageState extends State<SearchPage> {
   @override
   void initState() {
     super.initState();
+    // ffuzzyInit() has already completed by the time the app starts,
+    // so constructing FuzzyCorpus here is safe on all platforms.
     _corpus = FuzzyCorpus.strings(_items, matchPaths: true);
     // Index the CJK item by host-computed pinyin/initials so latin typing finds it.
     _corpus.addKey('中文搜索引擎', [
@@ -50,14 +61,8 @@ class _SearchPageState extends State<SearchPage> {
   }
 
   Future<void> _search(String q) async {
-    // fuzzyAsync keeps the UI smooth even for a large corpus. Because searches
-    // can finish out of order under fast typing, tag each with a generation and
-    // apply only the latest — so the displayed results always match the newest
-    // query (never a stale one). (For a small corpus, a synchronous `_corpus
-    // .fuzzy(q)` is simpler and inherently latest-wins.)
     final gen = ++_searchGen;
-    final hits = await _corpus.fuzzyAsync(q, limit: 50, highlight: true);
-    // Ignore if a newer keystroke superseded this, or the widget is gone.
+    final hits = await _corpus.asyncFuzzy(q, limit: 50, highlight: true);
     if (!mounted || gen != _searchGen) return;
     setState(() => _hits = hits);
   }
@@ -71,7 +76,21 @@ class _SearchPageState extends State<SearchPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('ffz fuzzy search')),
+      appBar: AppBar(
+        title: const Text('ffuzzy demo'),
+        actions: [
+          Padding(
+            padding: const EdgeInsets.only(right: 16),
+            child: Text(
+              'Web WASM build',
+              style: Theme.of(context)
+                  .textTheme
+                  .bodySmall
+                  ?.copyWith(color: Colors.white70),
+            ),
+          ),
+        ],
+      ),
       body: Column(
         children: [
           Padding(
@@ -79,32 +98,52 @@ class _SearchPageState extends State<SearchPage> {
             child: TextField(
               autofocus: true,
               decoration: const InputDecoration(
-                hintText: 'Type to fuzzy-search (try "appbar", "中文", "zwssyq")',
+                hintText:
+                    'Type to fuzzy-search  (try "src", "appbar", "中文", "zwssyq")',
                 border: OutlineInputBorder(),
+                prefixIcon: Icon(Icons.search),
               ),
               onChanged: _search,
             ),
           ),
-          Expanded(
-            child: ListView.builder(
-              itemCount: _hits.length,
-              itemBuilder: (context, i) {
-                final hit = _hits[i];
-                final text = hit.raw;
-                final positions = hit.matchedKey == 0
-                    ? fuzzyCodepointToUtf16(text, hit.indices).toSet()
-                    : const <int>{};
-                return ListTile(
-                  dense: true,
-                  title: _Highlighted(text, positions),
-                  trailing: Text('${hit.score}'),
-                  subtitle: hit.matchedKind == FuzzyKeyKind.original
-                      ? null
-                      : Text('via ${hit.matchedKind.name}'),
-                );
-              },
+          if (_hits.isEmpty)
+            const Expanded(
+              child: Center(
+                child: Text(
+                  'No matches',
+                  style: TextStyle(color: Colors.grey),
+                ),
+              ),
+            )
+          else
+            Expanded(
+              child: ListView.separated(
+                separatorBuilder: (_, __) =>
+                    const Divider(height: 1, indent: 16),
+                itemCount: _hits.length,
+                itemBuilder: (context, i) {
+                  final hit = _hits[i];
+                  final text = hit.raw;
+                  final positions = hit.matchedKey == 0
+                      ? fuzzyCodepointToUtf16(text, hit.indices).toSet()
+                      : const <int>{};
+                  return ListTile(
+                    dense: true,
+                    leading: const Icon(Icons.insert_drive_file, size: 18),
+                    title: _Highlighted(text, positions),
+                    trailing: Chip(
+                      label: Text('${hit.score}'),
+                      padding: EdgeInsets.zero,
+                      labelPadding:
+                          const EdgeInsets.symmetric(horizontal: 6),
+                    ),
+                    subtitle: hit.matchedKind == FuzzyKeyKind.original
+                        ? null
+                        : Text('via ${hit.matchedKind.name}'),
+                  );
+                },
+              ),
             ),
-          ),
         ],
       ),
     );

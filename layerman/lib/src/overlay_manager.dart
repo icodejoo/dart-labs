@@ -964,12 +964,16 @@ class OverlayManager extends ChangeNotifier {
           _discardActive(cur);
         }
       }
-      // TS-parity: a replace arriving during the transition gap means
-      // "show me NOW" — skip the remaining gap.
+      // TS-parity: a replace arriving during the transition gap (or appear
+      // delay) means "show me NOW" — skip the remaining gap / delay.
       if (s.gapPending) {
         s.gapTimer?.cancel();
         s.gapTimer = null;
         s.gapPending = false;
+      }
+      if (s.delayTimer != null) {
+        s.delayTimer!.cancel();
+        s.delayTimer = null;
       }
     }
     s.queue.add(entry);
@@ -1095,6 +1099,7 @@ class OverlayManager extends ChangeNotifier {
     _cancelCooldownTimer(s);
     if (s.active != null) return; // slot occupied
     if (s.gapPending) return; // waiting out the transition gap
+    if (s.delayTimer != null) return; // waiting out the per-overlay appear delay
     if (s.queue.isEmpty) return;
 
     final sorted = s.queue.toList()..sort(_cmp);

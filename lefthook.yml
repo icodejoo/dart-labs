@@ -1,0 +1,9 @@
+pre-push:
+  parallel: true
+  commands:
+    ffuzzy-dart-api-check:
+      glob: "ffuzzy/**/*"
+      run: dart run ffuzzy/scripts/check_api_parity.dart
+    ffuzzy-js-api-check:
+      glob: "ffuzzy/wasm/**/*"
+      run: node ffuzzy/wasm/scripts/check_api_parity.mjs

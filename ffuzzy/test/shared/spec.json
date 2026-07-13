@@ -1,0 +1,197 @@
+{
+  "version": 2,
+  "comment": "Canonical behavioural spec for FuzzyCorpus. Dart (native FFI) and JS (WASM + native) implementations must produce identical results for every case. Dart is the source of truth.",
+
+  "suites": [
+
+    {
+      "name": "fuzzy — ranking and options",
+      "corpus": ["src/main.dart", "lib/widget.dart", "README.md", "中文搜索引擎"],
+      "cases": [
+        { "id": "f-top1",    "mode": "fuzzy", "query": "main",    "assert": { "top": "src/main.dart" } },
+        { "id": "f-cjk",     "mode": "fuzzy", "query": "中文",    "assert": { "top": "中文搜索引擎" } },
+        { "id": "f-nomatch", "mode": "fuzzy", "query": "zzzzzzz", "assert": { "count": 0 } },
+        { "id": "f-limit",   "mode": "fuzzy", "query": "dart", "opts": { "limit": 1 }, "assert": { "maxCount": 1 } },
+        { "id": "f-case-smart-lower",   "mode": "fuzzy", "query": "readme", "assert": { "contains": ["README.md"] } },
+        { "id": "f-case-respect-upper", "mode": "fuzzy", "query": "README", "opts": { "caseMatching": "respect" }, "assert": { "contains": ["README.md"], "excludes": ["src/main.dart"] } },
+        { "id": "f-case-ignore",        "mode": "fuzzy", "query": "SRC",    "opts": { "caseMatching": "ignore"  }, "assert": { "contains": ["src/main.dart"] } },
+        { "id": "f-scoring-off",        "mode": "fuzzy", "query": "dart",   "opts": { "scoring": "off" },          "assert": { "minCount": 1, "allScoreZero": true } }
+      ]
+    },
+
+    {
+      "name": "fuzzyRaws",
+      "corpus": ["src/main.dart", "lib/widget.dart", "README.md"],
+      "cases": [
+        { "id": "fr-basic",   "mode": "fuzzyRaws", "query": "main",    "assert": { "top": "src/main.dart" } },
+        { "id": "fr-nomatch", "mode": "fuzzyRaws", "query": "zzzzzzz", "assert": { "count": 0 } },
+        { "id": "fr-limit",   "mode": "fuzzyRaws", "query": "dart", "opts": { "limit": 1 }, "assert": { "maxCount": 1 } }
+      ]
+    },
+
+    {
+      "name": "prefix / prefixRaws",
+      "corpus": ["src/main.dart", "lib/widget.dart", "README.md", "test.txt", "dart_tool"],
+      "cases": [
+        { "id": "pre-basic",   "mode": "prefix",     "query": "src",  "assert": { "hits": ["src/main.dart"] } },
+        { "id": "pre-nomatch", "mode": "prefix",     "query": "xyz",  "assert": { "count": 0 } },
+        { "id": "pre-nocase",  "mode": "prefix",     "query": "lib",  "assert": { "hits": ["lib/widget.dart"] } },
+        { "id": "pre-respect", "mode": "prefix",     "query": "Src",  "opts": { "caseMatching": "respect" }, "assert": { "count": 0 } },
+        { "id": "pre-raws",    "mode": "prefixRaws", "query": "src",  "assert": { "hits": ["src/main.dart"] } }
+      ]
+    },
+
+    {
+      "name": "postfix (suffix) / postfixRaws",
+      "corpus": ["src/main.dart", "lib/widget.dart", "README.md", "test.txt"],
+      "cases": [
+        { "id": "post-dart",    "mode": "postfix",     "query": ".dart", "assert": { "hits": ["src/main.dart", "lib/widget.dart"] } },
+        { "id": "post-txt",     "mode": "postfix",     "query": ".txt",  "assert": { "hits": ["test.txt"] } },
+        { "id": "post-nomatch", "mode": "postfix",     "query": ".rs",   "assert": { "count": 0 } },
+        { "id": "suf-alias",    "mode": "suffix",      "query": ".dart", "assert": { "hits": ["src/main.dart", "lib/widget.dart"] } },
+        { "id": "post-raws",    "mode": "postfixRaws", "query": ".dart", "assert": { "hits": ["src/main.dart", "lib/widget.dart"] } },
+        { "id": "suf-raws",     "mode": "suffixRaws",  "query": ".dart", "assert": { "hits": ["src/main.dart", "lib/widget.dart"] } }
+      ]
+    },
+
+    {
+      "name": "exact / exactRaws",
+      "corpus": ["src/main.dart", "lib/widget.dart", "README.md"],
+      "cases": [
+        { "id": "ex-basic",    "mode": "exact",     "query": "README.md",      "assert": { "hits": ["README.md"] } },
+        { "id": "ex-nocase",   "mode": "exact",     "query": "readme.md",      "assert": { "hits": ["README.md"] } },
+        { "id": "ex-respect",  "mode": "exact",     "query": "readme.md",      "opts": { "caseMatching": "respect" }, "assert": { "count": 0 } },
+        { "id": "ex-nomatch",  "mode": "exact",     "query": "NONEXISTENT",    "assert": { "count": 0 } },
+        { "id": "ex-raws",     "mode": "exactRaws", "query": "README.md",      "assert": { "hits": ["README.md"] } }
+      ]
+    },
+
+    {
+      "name": "substring / substringRaws",
+      "corpus": ["src/main.dart", "lib/widget.dart", "README.md", "dart_tool"],
+      "cases": [
+        { "id": "sub-widget",  "mode": "substring",     "query": "widget",  "assert": { "hits": ["lib/widget.dart"] } },
+        { "id": "sub-dart",    "mode": "substring",     "query": "dart",    "assert": { "hits": ["src/main.dart", "lib/widget.dart", "dart_tool"] } },
+        { "id": "sub-nocase",  "mode": "substring",     "query": "WIDGET",  "opts": { "caseMatching": "ignore" },  "assert": { "hits": ["lib/widget.dart"] } },
+        { "id": "sub-respect", "mode": "substring",     "query": "WIDGET",  "opts": { "caseMatching": "respect" }, "assert": { "count": 0 } },
+        { "id": "sub-nomatch", "mode": "substring",     "query": "zzzzz",   "assert": { "count": 0 } },
+        { "id": "sub-raws",    "mode": "substringRaws", "query": "widget",  "assert": { "hits": ["lib/widget.dart"] } }
+      ]
+    },
+
+    {
+      "name": "FuzzyHit fields",
+      "corpus": ["src/main.dart"],
+      "cases": [
+        {
+          "id": "hit-fields",
+          "mode": "fuzzy", "query": "main",
+          "assert": {
+            "top": "src/main.dart",
+            "topHitFields": {
+              "index": 0,
+              "scoreGt": 0,
+              "matchedKind": 0,
+              "matchedKindCode": 0,
+              "matchedKey": 0,
+              "indicesEmpty": true
+            }
+          }
+        },
+        {
+          "id": "hit-highlight",
+          "mode": "fuzzy", "query": "main",
+          "opts": { "highlight": true },
+          "assert": { "top": "src/main.dart", "topHitFields": { "indicesNotEmpty": true } }
+        }
+      ]
+    },
+
+    {
+      "name": "addKey — alternate keys (pinyin / initials)",
+      "corpus": [],
+      "addKey": [
+        { "item": "张三", "keys": [{ "text": "zhangsan", "kind": 1 }, { "text": "zs", "kind": 2 }] },
+        { "item": "李四", "keys": [{ "text": "lisi",     "kind": 1 }, { "text": "ls", "kind": 2 }] }
+      ],
+      "cases": [
+        { "id": "key-pinyin",      "mode": "fuzzy", "query": "zhangsan", "assert": { "top": "张三" } },
+        { "id": "key-initials",    "mode": "fuzzy", "query": "zs",       "assert": { "top": "张三" } },
+        { "id": "key-initials-li", "mode": "fuzzy", "query": "ls",       "assert": { "top": "李四" } },
+        { "id": "key-cjk-direct",  "mode": "fuzzy", "query": "张",       "assert": { "top": "张三" } },
+        {
+          "id": "key-matchedkind",
+          "mode": "fuzzy", "query": "zs",
+          "assert": { "top": "张三", "topHitFields": { "matchedKind": 2, "matchedKindCode": 2 } }
+        }
+      ]
+    },
+
+    {
+      "name": "byKey — map field search",
+      "byKey": {
+        "items": [
+          { "name": "Alice", "city": "Boston" },
+          { "name": "Bob",   "city": "Berlin" },
+          { "name": "Carol", "city": "Boston" }
+        ],
+        "field": "name"
+      },
+      "cases": [
+        { "id": "bk-top",     "mode": "fuzzy", "query": "alice", "assert": { "topField": "name", "topValue": "Alice" } },
+        { "id": "bk-partial", "mode": "fuzzy", "query": "bo",    "assert": { "contains_field": { "field": "name", "value": "Bob" } } }
+      ]
+    },
+
+    {
+      "name": "byKeys — multi-field search",
+      "byKeys": {
+        "items": [
+          { "name": "Acme Inc", "city": "Boston" },
+          { "name": "Globex",   "city": "Acme City" }
+        ],
+        "fields": ["name", "city"]
+      },
+      "cases": [
+        { "id": "bks-name",      "mode": "fuzzy", "query": "acme",   "assert": { "minCount": 1 } },
+        { "id": "bks-city-match","mode": "fuzzy", "query": "acme",   "assert": { "contains_field": { "field": "name", "value": "Globex" } } }
+      ]
+    },
+
+    {
+      "name": "mutation — removeAt / update / removeWhere / refresh / clear",
+      "corpus": ["apple", "banana", "cherry", "apricot"],
+      "mutations": [
+        { "op": "removeAt", "index": 0 }
+      ],
+      "cases": [
+        { "id": "mut-removed",  "mode": "fuzzy", "query": "apple",  "assert": { "count": 0 } },
+        { "id": "mut-survive",  "mode": "fuzzy", "query": "banana", "assert": { "top": "banana" } }
+      ]
+    },
+
+    {
+      "name": "mutation — clear",
+      "corpus": ["alpha", "beta", "gamma"],
+      "mutations": [
+        { "op": "clear" }
+      ],
+      "cases": [
+        { "id": "clear-empty", "mode": "fuzzy", "query": "alpha", "assert": { "count": 0 } },
+        { "id": "clear-len",   "mode": "length",                  "assert": { "count": 0 } }
+      ]
+    },
+
+    {
+      "name": "Unicode — astral plane and CJK",
+      "corpus": ["café_menu.json", "中文搜索引擎", "src/main.rs", "emoji_😀.txt"],
+      "cases": [
+        { "id": "uni-accent",   "mode": "fuzzy",  "query": "caf",   "assert": { "contains": ["café_menu.json"] } },
+        { "id": "uni-cjk",     "mode": "fuzzy",  "query": "搜索",  "assert": { "top": "中文搜索引擎" } },
+        { "id": "uni-prefix",  "mode": "prefix", "query": "中文",  "assert": { "hits": ["中文搜索引擎"] } },
+        { "id": "uni-exact",   "mode": "exact",  "query": "中文搜索引擎", "assert": { "hits": ["中文搜索引擎"] } }
+      ]
+    }
+
+  ]
+}
