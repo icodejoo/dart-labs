@@ -51,7 +51,7 @@ void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   // Load the WASM engine from the published npm package:
   await ffuzzyInit(
-    webUrl: 'https://cdn.jsdelivr.net/npm/@codejoo/ffuzzy@0.7.0/dist/ffuzzy.mjs',
+    webUrl: 'https://cdn.jsdelivr.net/npm/@codejoo/ffuzzy@0.8.0/dist/ffuzzy.mjs',
   );
   // Or self-host: await ffuzzyInit(webAssetsUrl: '/assets/ffuzzy.mjs');
   runApp(const MyApp());
@@ -65,6 +65,14 @@ platforms.
 > `asyncFuzzy` yields to the event loop via a microtask but the WASM computation
 > still runs on the main thread (no Web Worker). Keep corpora under ~50k items
 > or use `fuzzy` synchronously with `limit` to stay within a frame budget.
+
+**Lazy init (corpus created before `ffuzzyInit`):** If a `FuzzyCorpus` is
+constructed before `ffuzzyInit` completes, it operates in *deferred* mode —
+sync search methods return `[]` immediately, while `async*` methods (`asyncFuzzy`,
+`asyncSearch`, `asyncApprox`, `asyncDual`, etc.) automatically await WASM
+initialisation before executing and return real results. All strategies —
+`fuzzy`, `approx`, `fallback`, `merge`, and `dual` — behave consistently in
+both sync and async variants once WASM is ready.
 
 **Parameters:**
 - `webUrl` — CDN or self-hosted URL to `ffuzzy.mjs`. No Flutter asset needed.
@@ -234,8 +242,10 @@ result.approx  // List<FuzzyHit<T>> — edit-distance hits
 
 Also: `asyncDual()`.
 
-`async*` calls may overlap safely. Mutations while a search is in flight throw
-[`StateError`](#errors).
+`async*` calls (`asyncFuzzy`, `asyncSearch`, `asyncApprox`, `asyncDual`, …)
+may overlap safely. On web they also serve as the deferred-init path — a
+call made before `ffuzzyInit` completes will await WASM before returning
+results. Mutations while a search is in flight throw [`StateError`](#errors).
 
 ### Lifecycle
 
