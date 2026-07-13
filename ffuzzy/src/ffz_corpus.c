@@ -533,49 +533,25 @@ static void _corpus_filter_impl(ffz_corpus *c, const char *query, size_t query_l
         free(started);
     }
 
-    // OFF mode: results arrived in corpus insertion order (serial) or chunk
-    // order (parallel, which also preserves insertion order since chunks are
-    // contiguous). Skip sort; just truncate to limit.
-    size_t keep;
+    // OFF mode: results in corpus insertion order — skip sort.
     if (scoring == FFZ_SCORE_OFF) {
-        keep = (limit && limit < ns) ? limit : ns;
+        size_t keep = (limit && limit < ns) ? limit : ns;
+        for (size_t r = 0; r < keep; r++) {
+            ffz_hit hit;
+            hit.item_index  = sc[r].item_index;
+            hit.score       = sc[r].score;
+            hit.matched_kind = sc[r].matched_kind;
+            hit.matched_key  = sc[r].matched_key;
+            hit.indices.data = NULL;
+            hit.indices.len  = hit.indices.cap = 0;
+            results_push(out, hit);
+        }
+        free(sc);
     } else {
-        // When a limit caps the output well below the match count, select the
-        // top-`limit` with a bounded heap instead of sorting everything.
-        scored *top = (limit && limit < ns) ? (scored *)malloc(limit * sizeof(scored))
-                                            : NULL;
-        if (top) {
-            scored_topk(sc, ns, limit, top);
-            free(sc);
-            sc = top;
-            keep = limit;
-        } else {
-            if (ns) qsort(sc, ns, sizeof(scored), cmp_scored);  // NULL/0-safe
-            keep = ns;
-            top = NULL;
-        }
+        finalise_results(c, fm, pat, sc, ns, limit, skip_idx, out);
+        sc = NULL;  // finalise_results owns and frees sc
     }
 
-    // Pass 2: recompute indices for survivors on their winning key.
-    // Skipped when skip_idx=true (caller only needs item identity, not positions).
-    for (size_t r = 0; r < keep; r++) {
-        ffz_hit hit;
-        hit.item_index = sc[r].item_index;
-        hit.score = sc[r].score;
-        hit.matched_kind = sc[r].matched_kind;
-        hit.matched_key = sc[r].matched_key;
-        hit.indices.data = NULL;
-        hit.indices.len = hit.indices.cap = 0;
-        if (!skip_idx) {
-            corpus_item *it = &c->items[sc[r].item_index];
-            const corpus_key *key = item_key(it, sc[r].matched_key);
-            ffz_pattern_match(fm, pat, key_str(key), &hit.indices);
-            ffz_indices_sort_dedup(&hit.indices);
-        }
-        results_push(out, hit);
-    }
-
-    free(sc);
     ffz_matcher_free(fm);
     ffz_pattern_free(pat);
 }
@@ -754,33 +730,7 @@ void ffz_corpus_filter_edit(ffz_corpus *c,
         free(started);
     }
 
-    // Sort / top-K: score = -distance, so higher score = closer match.
-    size_t keep;
-    scored *top = (limit && limit < ns) ? (scored *)malloc(limit * sizeof(scored))
-                                        : NULL;
-    if (top) {
-        scored_topk(sc, ns, limit, top);
-        free(sc);
-        sc = top;
-        keep = limit;
-    } else {
-        if (ns) qsort(sc, ns, sizeof(scored), cmp_scored);
-        keep = ns;
-    }
-
-    // Emit results (indices are always empty — no backtracking).
-    for (size_t r = 0; r < keep; r++) {
-        ffz_hit hit;
-        hit.item_index  = sc[r].item_index;
-        hit.score       = sc[r].score;
-        hit.matched_kind = sc[r].matched_kind;
-        hit.matched_key = sc[r].matched_key;
-        hit.indices.data = NULL;
-        hit.indices.len = hit.indices.cap = 0;
-        results_push(out, hit);
-    }
-
-    free(sc);
+    finalise_results(c, NULL, NULL, sc, ns, limit, true, out);
     ffz_str_buf_free(&qbuf);
 }
 
@@ -965,38 +915,13 @@ void ffz_corpus_filter_merge(ffz_corpus *c,
         free(jobs); free(ths); free(started);
     }
 
-    // Sort/top-K; descending score puts seq hits (≥0) before edit-only (<0)
-    size_t keep;
-    scored *top = (limit && limit < ns) ? (scored *)malloc(limit * sizeof(scored)) : NULL;
-    if (top) {
-        scored_topk(sc, ns, limit, top);
-        free(sc); sc = top; keep = limit;
-    } else {
-        if (ns) qsort(sc, ns, sizeof(scored), cmp_scored);
-        keep = ns;
-    }
-
-    // Pass 2: recompute indices for seq hits (edit-only hits have empty indices)
+    // Sort/top-K; descending score puts seq hits (≥0) before edit-only (<0).
+    // Pass 2: finalise_results computes indices for seq hits (score >= 0) only.
     ffz_config cfg2 = c->cfg; cfg2.scoring_mode = scoring;
     ffz_matcher *fm2 = ffz_matcher_new(cfg2);
-    for (size_t r = 0; r < keep; r++) {
-        ffz_hit hit;
-        hit.item_index = sc[r].item_index;
-        hit.score      = sc[r].score;
-        hit.matched_kind = sc[r].matched_kind;
-        hit.matched_key  = sc[r].matched_key;
-        hit.indices.data = NULL; hit.indices.len = hit.indices.cap = 0;
-        if (fm2 && sc[r].score >= 0) {  // only seq hits get indices
-            corpus_item *it = &c->items[sc[r].item_index];
-            const corpus_key *key = item_key(it, sc[r].matched_key);
-            ffz_pattern_match(fm2, pat, key_str(key), &hit.indices);
-            ffz_indices_sort_dedup(&hit.indices);
-        }
-        results_push(out, hit);
-    }
+    finalise_results(c, fm2, pat, sc, ns, limit, false, out);
+    sc = NULL;  // owned and freed by finalise_results
     ffz_matcher_free(fm2);
-
-    free(sc);
     ffz_pattern_free(pat);
     ffz_str_buf_free(&qbuf);
 }

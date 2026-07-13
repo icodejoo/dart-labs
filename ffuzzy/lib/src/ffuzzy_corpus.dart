@@ -106,6 +106,8 @@ abstract base class FuzzyCorpusProtected<T> {
   bool building_ = false;
   // ignore: non_constant_identifier_names
   Completer<void>? idle_;
+  // ignore: non_constant_identifier_names
+  bool cDeferred_ = false;   // true when constructed before C backend is ready (web only)
 
   // ── Bridge (C / WASM) — implemented by platform subclass ─────────────────
 
@@ -363,14 +365,21 @@ abstract base class FuzzyCorpusProtected<T> {
     check_();
     final dist = maxDistance ?? autoMaxDistance(q);
     final o = eff_(caseMatching, normalization, parallel, threads, limit, false, scoring);
+    if (cDeferred_) return FuzzyDualResult(fuzzy: const [], approx: const []);
     return searchDualC_(q, dist, o);
   }
 
-  List<FuzzyHit<T>> _fallback(String q, int maxDist, FuzzyOptions o) =>
-      searchFallback_(q, maxDist, o);
+  List<FuzzyHit<T>> _fallback(String q, int maxDist, FuzzyOptions o) {
+    check_();
+    if (cDeferred_) return const [];
+    return searchFallback_(q, maxDist, o);
+  }
 
-  List<FuzzyHit<T>> _merge(String q, int maxDist, FuzzyOptions o) =>
-      searchMerge_(q, maxDist, o);
+  List<FuzzyHit<T>> _merge(String q, int maxDist, FuzzyOptions o) {
+    check_();
+    if (cDeferred_) return const [];
+    return searchMerge_(q, maxDist, o);
+  }
 
   Future<List<FuzzyHit<T>>> asyncFuzzy(String q,
           {FuzzyCase? caseMatching, FuzzyNorm? normalization, bool? parallel,

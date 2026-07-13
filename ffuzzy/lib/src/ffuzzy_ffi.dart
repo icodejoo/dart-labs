@@ -337,16 +337,18 @@ final class FuzzyCorpus<T> extends FuzzyCorpusProtected<T>
             o.parallel ? 1 : 0, o.threads, o.limit, o.scoring._c);
   }
 
-  @override
-  List<FuzzyHit<T>> searchMerge_(String q, int maxDist, FuzzyOptions o) {
+  List<FuzzyHit<T>> _callFfiFilter(
+      Pointer<Void> Function(Pointer<Void>, Pointer<Uint8>, int,
+          int, int, int, int, int, int, int) fn,
+      String q, int maxDist, FuzzyOptions o) {
     final qb = toUtf8(q);
     final qp = _alloc(qb);
     var r = Pointer<Void>.fromAddress(0);
     try {
-      r = _l.filterMerge(_ptr, qp, qb.isEmpty ? 0 : qb.length,
+      r = fn(_ptr, qp, qb.isEmpty ? 0 : qb.length,
           o.caseMatching._c, o.normalization._c, maxDist,
           o.scoring._c, o.parallel ? 1 : 0, o.threads, o.limit);
-      if (r == nullptr) throw StateError('ffz_ffi_filter_merge returned null (OOM)');
+      if (r == nullptr) throw StateError('ffuzzy: filter returned null (OOM)');
       return _readHits(r, false);
     } finally {
       malloc.free(qp);
@@ -355,21 +357,12 @@ final class FuzzyCorpus<T> extends FuzzyCorpusProtected<T>
   }
 
   @override
-  List<FuzzyHit<T>> searchFallback_(String q, int maxDist, FuzzyOptions o) {
-    final qb = toUtf8(q);
-    final qp = _alloc(qb);
-    var r = Pointer<Void>.fromAddress(0);
-    try {
-      r = _l.filterFallback(_ptr, qp, qb.isEmpty ? 0 : qb.length,
-          o.caseMatching._c, o.normalization._c, maxDist,
-          o.scoring._c, o.parallel ? 1 : 0, o.threads, o.limit);
-      if (r == nullptr) throw StateError('ffz_ffi_filter_fallback returned null (OOM)');
-      return _readHits(r, false);
-    } finally {
-      malloc.free(qp);
-      if (r != nullptr) _l.rFree(r);
-    }
-  }
+  List<FuzzyHit<T>> searchMerge_(String q, int maxDist, FuzzyOptions o) =>
+      _callFfiFilter(_l.filterMerge, q, maxDist, o);
+
+  @override
+  List<FuzzyHit<T>> searchFallback_(String q, int maxDist, FuzzyOptions o) =>
+      _callFfiFilter(_l.filterFallback, q, maxDist, o);
 
   @override
   FuzzyDualResult<T> searchDualC_(String q, int maxDist, FuzzyOptions o) {
