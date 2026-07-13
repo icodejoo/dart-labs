@@ -88,7 +88,6 @@ FFZ_API void ffz_ffi_free(ffz_corpus *c) { if (!c) return; ffz_corpus_free(c); }
 
 // --- filter: mode 0=fuzzy 1=substring 2=prefix 3=postfix 4=exact (word);
 //     cm 0=respect 1=ignore 2=smart;  nm 0=never 1=smart ---------------------
-#ifdef FFZ_SUBSEQUENCE
 // Like ffz_ffi_filter_ex but takes an explicit scoring mode. The Dart layer
 // passes the already-resolved effective scoring (corpus default merged with
 // per-call override). scoring: 0=FAST, 1=OFF, 2=NUCLEO.
@@ -145,7 +144,6 @@ FFZ_API ffz_results *ffz_ffi_filter(ffz_corpus *c, const char *q, size_t qn,
     return ffz_ffi_filter_ex(c, q, qn, mode, FFZ_CASE_SMART, FFZ_NORM_SMART,
                              parallel, threads, limit);
 }
-#endif /* FFZ_SUBSEQUENCE */
 
 // --- result accessors (no struct layout needed on the Dart side) ----------
 FFZ_API size_t ffz_ffi_results_len(ffz_results *r) {
@@ -181,7 +179,6 @@ FFZ_API void ffz_ffi_results_free(ffz_results *r) {
     free(r);
 }
 
-#ifdef FFZ_EDIT_DISTANCE
 // Edit-distance (typo-tolerant) search. max_distance: typically 1 or 2.
 // Results sorted by distance ascending. Indices always empty.
 // cm: 0=respect 1=ignore 2=smart. nm: 0=never 1=smart.
@@ -200,9 +197,7 @@ FFZ_API ffz_results *ffz_ffi_filter_edit(ffz_corpus *c,
                            max_distance, par, limit, r);
     return r;
 }
-#endif /* FFZ_EDIT_DISTANCE */
 
-#if defined(FFZ_SUBSEQUENCE) && defined(FFZ_EDIT_DISTANCE)
 FFZ_API ffz_results *ffz_ffi_filter_merge(ffz_corpus *c,
                                            const char *q, size_t qn,
                                            int cm, int nm,
@@ -276,7 +271,6 @@ FFZ_API void ffz_ffi_dual_free(ffz_dual_results *d) {
     ffz_dual_results_free(d);
     free(d);
 }
-#endif /* FFZ_SUBSEQUENCE && FFZ_EDIT_DISTANCE */
 
 // --- bulk accessors: fill caller-provided arrays in one call ----------------
 // Reduces JS→WASM boundary crossings from O(N) to O(1) when reading results.

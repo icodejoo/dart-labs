@@ -357,9 +357,9 @@ final class FuzzyCorpus<T> extends FuzzyCorpusProtected<T> {
   }
 
   @override
-  List<FuzzyHit<T>>? searchFallback_(String q, int maxDist, FuzzyOptions o) {
+  List<FuzzyHit<T>> searchFallback_(String q, int maxDist, FuzzyOptions o) {
     check_(); _ensureReady();
-    if (_deferred) return null;
+    if (_deferred) return [];
     final M = _M;
     final qb = toUtf8(q);
     final qp = _wAlloc(qb);
@@ -368,7 +368,7 @@ final class FuzzyCorpus<T> extends FuzzyCorpusProtected<T> {
       r = M.filterFallback(_cp, qp, qb.isEmpty ? 0 : qb.length,
           o.caseMatching._c, o.normalization._c, maxDist,
           o.scoring._c, o.parallel ? 1 : 0, o.threads, o.limit);
-      if (r == 0) return null;
+      if (r == 0) throw StateError('ffz_ffi_filter_fallback returned null (OOM)');
       return _readHits(M, r, false);
     } finally {
       _wFree(qp);
@@ -377,9 +377,9 @@ final class FuzzyCorpus<T> extends FuzzyCorpusProtected<T> {
   }
 
   @override
-  FuzzyDualResult<T>? searchDualC_(String q, int maxDist, FuzzyOptions o) {
+  FuzzyDualResult<T> searchDualC_(String q, int maxDist, FuzzyOptions o) {
     check_(); _ensureReady();
-    if (_deferred) return null;
+    if (_deferred) return FuzzyDualResult(fuzzy: [], approx: []);
     final M = _M;
     final qb = toUtf8(q);
     final qp = _wAlloc(qb);
@@ -388,7 +388,7 @@ final class FuzzyCorpus<T> extends FuzzyCorpusProtected<T> {
       d = M.filterDual(_cp, qp, qb.isEmpty ? 0 : qb.length,
           o.caseMatching._c, o.normalization._c, maxDist,
           o.scoring._c, o.parallel ? 1 : 0, o.threads, o.limit);
-      if (d == 0) return null;
+      if (d == 0) throw StateError('ffz_ffi_filter_dual returned null (OOM)');
       final sr = M.dualSeq(d);
       final er = M.dualEdit(d);
       final seqHits  = sr != 0 ? _readHits(M, sr, false) : <FuzzyHit<T>>[];
@@ -401,10 +401,9 @@ final class FuzzyCorpus<T> extends FuzzyCorpusProtected<T> {
   }
 
   @override
-  List<FuzzyHit<T>>? searchMerge_(String q, int maxDist, FuzzyOptions o) {
-    check_();
-    _ensureReady();
-    if (_deferred) return null;
+  List<FuzzyHit<T>> searchMerge_(String q, int maxDist, FuzzyOptions o) {
+    check_(); _ensureReady();
+    if (_deferred) return [];
     final M = _M;
     final qb = toUtf8(q);
     final qp = _wAlloc(qb);
@@ -413,7 +412,7 @@ final class FuzzyCorpus<T> extends FuzzyCorpusProtected<T> {
       r = M.filterMerge(_cp, qp, qb.isEmpty ? 0 : qb.length,
           o.caseMatching._c, o.normalization._c, maxDist,
           o.scoring._c, o.parallel ? 1 : 0, o.threads, o.limit);
-      if (r == 0) return null;
+      if (r == 0) throw StateError('ffz_ffi_filter_merge returned null (OOM)');
       return _readHits(M, r, false);
     } finally {
       _wFree(qp);

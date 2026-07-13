@@ -5,20 +5,8 @@
   "type": "module",
   "exports": {
     ".": {
-      "import": "./dist/ffuzzy-fzf.mjs",
-      "types": "./dist/ffuzzy-fzf.d.mts"
-    },
-    "./fzf": {
-      "import": "./dist/ffuzzy-fzf.mjs",
-      "types": "./dist/ffuzzy-fzf.d.mts"
-    },
-    "./approx": {
-      "import": "./dist/ffuzzy-approx.mjs",
-      "types": "./dist/ffuzzy-fzf.d.mts"
-    },
-    "./full": {
-      "import": "./dist/ffuzzy-full.mjs",
-      "types": "./dist/ffuzzy-fzf.d.mts"
+      "import": "./dist/ffuzzy.mjs",
+      "types": "./dist/ffuzzy.d.mts"
     }
   },
   "files": [
@@ -29,10 +17,9 @@
     "access": "public"
   },
   "scripts": {
-    "build": "tsdown && terser dist/ffuzzy-fzf.mjs -o dist/ffuzzy-fzf.mjs --module --compress passes=2 --mangle && terser dist/ffuzzy-approx.mjs -o dist/ffuzzy-approx.mjs --module --compress passes=2 --mangle && terser dist/ffuzzy-full.mjs -o dist/ffuzzy-full.mjs --module --compress passes=2 --mangle",
+    "build": "tsdown && terser dist/ffuzzy.mjs -o dist/ffuzzy.mjs --module --compress passes=2 --mangle",
     "build:engine": "bash build-engine.sh",
-    "build:engine:all": "bash build-engine.sh && FFZ_EDIT_DISTANCE=1 bash build-engine.sh && FFZ_SUBSEQUENCE=0 FFZ_EDIT_DISTANCE=1 bash build-engine.sh",
-    "build:all": "npm run build:engine:all && npm run build",
+    "build:all": "bash build-engine.sh && npm run build",
     "check": "node scripts/check_api_parity.mjs",
     "test": "npm run build && node scripts/check_api_parity.mjs && node --test",
     "prepublishOnly": "npm run build && node scripts/check_api_parity.mjs"

@@ -120,10 +120,10 @@ abstract base class FuzzyCorpusProtected<T> {
   Future<List<T>> searchRawsAsync_(int mode, String q, FuzzyOptions o);
   List<FuzzyHit<T>> searchEdit_(String q, int maxDist, FuzzyOptions o);
 
-  // Optional C-side bridges (return null → Dart fallback).
-  List<FuzzyHit<T>>? searchMerge_(String q, int maxDist, FuzzyOptions o) => null;
-  List<FuzzyHit<T>>? searchFallback_(String q, int maxDist, FuzzyOptions o) => null;
-  FuzzyDualResult<T>? searchDualC_(String q, int maxDist, FuzzyOptions o) => null;
+  // C-side bridges — always implemented by platform subclass.
+  List<FuzzyHit<T>> searchMerge_(String q, int maxDist, FuzzyOptions o);
+  List<FuzzyHit<T>> searchFallback_(String q, int maxDist, FuzzyOptions o);
+  FuzzyDualResult<T> searchDualC_(String q, int maxDist, FuzzyOptions o);
 
   // ── Shared internals ──────────────────────────────────────────────────────
 
@@ -363,33 +363,14 @@ abstract base class FuzzyCorpusProtected<T> {
     check_();
     final dist = maxDistance ?? autoMaxDistance(q);
     final o = eff_(caseMatching, normalization, parallel, threads, limit, false, scoring);
-    final c = searchDualC_(q, dist, o);
-    if (c != null) return c;
-    return FuzzyDualResult(
-      fuzzy: search_(mFuzzy, q, o),
-      approx: searchEdit_(q, dist, o),
-    );
+    return searchDualC_(q, dist, o);
   }
 
-  List<FuzzyHit<T>> _fallback(String q, int maxDist, FuzzyOptions o) {
-    final c = searchFallback_(q, maxDist, o);
-    if (c != null) return c;
-    final hits = search_(mFuzzy, q, o);
-    return hits.isNotEmpty ? hits : searchEdit_(q, maxDist, o);
-  }
+  List<FuzzyHit<T>> _fallback(String q, int maxDist, FuzzyOptions o) =>
+      searchFallback_(q, maxDist, o);
 
-  List<FuzzyHit<T>> _merge(String q, int maxDist, FuzzyOptions o) {
-    // Use C-side single-pass if available (O(n) instead of O(2n)).
-    final cResult = searchMerge_(q, maxDist, o);
-    if (cResult != null) return cResult;
-    // Dart two-pass fallback.
-    final noLimit = o.copyWith(limit: 0);
-    final seqHits  = search_(mFuzzy, q, noLimit);
-    final editHits = searchEdit_(q, maxDist, noLimit);
-    final seen = {for (final h in seqHits) h.index};
-    final merged = [...seqHits, ...editHits.where((h) => !seen.contains(h.index))];
-    return o.limit > 0 ? merged.take(o.limit).toList() : merged;
-  }
+  List<FuzzyHit<T>> _merge(String q, int maxDist, FuzzyOptions o) =>
+      searchMerge_(q, maxDist, o);
 
   Future<List<FuzzyHit<T>>> asyncFuzzy(String q,
           {FuzzyCase? caseMatching, FuzzyNorm? normalization, bool? parallel,

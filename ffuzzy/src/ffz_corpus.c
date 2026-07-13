@@ -347,7 +347,6 @@ static inline void coll_push(collector *col, scored s) {
     }
 }
 
-#ifdef FFZ_SUBSEQUENCE
 // Pass 1 over items [lo,hi): pick each item's best-scoring key and push it to
 // `col`. `m` is a matcher private to this caller/thread; `pat` is shared
 // read-only.
@@ -403,7 +402,6 @@ static void scan_job_run(scan_job *j) {
     }
     ffz_matcher_free(m);
 }
-#endif /* FFZ_SUBSEQUENCE */
 
 // thr_join is always needed (used by both subsequence and edit-distance parallel paths).
 #if defined(_WIN32)
@@ -414,7 +412,6 @@ static void thr_join(ffz_thr t) { (void)t; }
 static void thr_join(ffz_thr t) { pthread_join(t, NULL); }
 #endif
 
-#ifdef FFZ_SUBSEQUENCE
 // Subsequence-specific thread trampoline and launcher.
 #if defined(_WIN32)
 static DWORD WINAPI scan_trampoline(LPVOID p) { scan_job_run((scan_job *)p); return 0; }
@@ -432,7 +429,6 @@ static bool thr_start(scan_job *j, ffz_thr *out) {
     return pthread_create(out, NULL, scan_trampoline, j) == 0;
 }
 #endif
-#endif /* FFZ_SUBSEQUENCE */
 
 static unsigned resolve_threads(ffz_parallel par, size_t nitems) {
     if (!par.parallel || nitems < FFZ_PARALLEL_MIN) return 1;
@@ -455,7 +451,6 @@ ffz_scoring_mode ffz_corpus_scoring(const ffz_corpus *c) {
     return c->cfg.scoring_mode;
 }
 
-#ifdef FFZ_SUBSEQUENCE
 // Internal: shared implementation for ffz_corpus_filter and ffz_corpus_filter_raws.
 // skip_idx=true omits Pass 2 (index computation) — results have empty indices.
 static void _corpus_filter_impl(ffz_corpus *c, const char *query, size_t query_len,
@@ -604,9 +599,7 @@ void ffz_corpus_filter_raws(ffz_corpus *c, const char *query, size_t query_len,
     _corpus_filter_impl(c, query, query_len, cm, nm, mode, par, limit,
                         scoring, true, out);
 }
-#endif /* FFZ_SUBSEQUENCE */
 
-#ifdef FFZ_EDIT_DISTANCE
 // --- edit-distance filter -------------------------------------------------
 
 static void scan_edit_range(ffz_corpus *c, const ffz_config *cfg,
@@ -790,9 +783,7 @@ void ffz_corpus_filter_edit(ffz_corpus *c,
     free(sc);
     ffz_str_buf_free(&qbuf);
 }
-#endif /* FFZ_EDIT_DISTANCE */
 
-#if defined(FFZ_SUBSEQUENCE) && defined(FFZ_EDIT_DISTANCE)
 // --- single-pass merge scan -----------------------------------------------
 
 static void scan_merge_range(ffz_corpus *c,
@@ -1283,4 +1274,3 @@ void ffz_corpus_filter_dual(ffz_corpus *c,
     ffz_pattern_free(pat);
     ffz_str_buf_free(&qbuf);
 }
-#endif /* FFZ_SUBSEQUENCE && FFZ_EDIT_DISTANCE */

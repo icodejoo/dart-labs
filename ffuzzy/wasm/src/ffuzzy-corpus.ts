@@ -10,8 +10,8 @@
  * corpus.dispose();
  * ```
  */
-// @ts-ignore — ffz-fzf.mjs is the Emscripten-compiled engine; we cast it ourselves below
-import ffuzzyModule from './ffz-fzf.mjs';
+// @ts-ignore — ffz.mjs is the Emscripten-compiled engine; we cast it ourselves below
+import ffuzzyModule from './ffz.mjs';
 
 // ── WASM module instance ──────────────────────────────────────────────────────
 
@@ -22,31 +22,31 @@ interface FfzMod {
   _malloc(n: number): number;
   _free(ptr: number): void;
   _ffz_ffi_new_cfg(mp: number, pp: number): number;
-  _ffz_ffi_new_cfg2?(mp: number, pp: number, sc: number): number;
+  _ffz_ffi_new_cfg2(mp: number, pp: number, sc: number): number;
   _ffz_ffi_add(cp: number, sp: number, len: number): void;
   _ffz_ffi_add_keyed(cp: number, sp: number, len: number, tp: number, lp: number, kp: number, n: number): void;
   _ffz_ffi_clear(cp: number): void;
   _ffz_ffi_free(cp: number): void;
-  _ffz_ffi_filter_ex?(cp: number, qp: number, qlen: number, mode: number, cm: number, nm: number, par: number, thr: number, lim: number): number;
-  _ffz_ffi_filter_ex2?(cp: number, qp: number, qlen: number, mode: number, cm: number, nm: number, par: number, thr: number, lim: number, sc: number): number;
-  _ffz_ffi_filter_raws?(cp: number, qp: number, qlen: number, mode: number, cm: number, nm: number, par: number, thr: number, lim: number, sc: number): number;
-  _ffz_ffi_filter_edit?(cp: number, qp: number, qlen: number, maxDist: number, cm: number, nm: number, lim: number): number;
-  _ffz_ffi_filter_merge?(cp: number, qp: number, qlen: number, cm: number, nm: number, maxDist: number, sc: number, par: number, thr: number, lim: number): number;
-  _ffz_ffi_filter_fallback?(cp: number, qp: number, qlen: number, cm: number, nm: number, maxDist: number, sc: number, par: number, thr: number, lim: number): number;
-  _ffz_ffi_filter_dual?(cp: number, qp: number, qlen: number, cm: number, nm: number, maxDist: number, sc: number, par: number, thr: number, lim: number): number;
-  _ffz_ffi_dual_seq?(d: number): number;
-  _ffz_ffi_dual_edit?(d: number): number;
-  _ffz_ffi_dual_free?(d: number): void;
+  _ffz_ffi_filter_ex(cp: number, qp: number, qlen: number, mode: number, cm: number, nm: number, par: number, thr: number, lim: number): number;
+  _ffz_ffi_filter_ex2(cp: number, qp: number, qlen: number, mode: number, cm: number, nm: number, par: number, thr: number, lim: number, sc: number): number;
+  _ffz_ffi_filter_raws(cp: number, qp: number, qlen: number, mode: number, cm: number, nm: number, par: number, thr: number, lim: number, sc: number): number;
+  _ffz_ffi_filter_edit(cp: number, qp: number, qlen: number, maxDist: number, cm: number, nm: number, lim: number): number;
+  _ffz_ffi_filter_merge(cp: number, qp: number, qlen: number, cm: number, nm: number, maxDist: number, sc: number, par: number, thr: number, lim: number): number;
+  _ffz_ffi_filter_fallback(cp: number, qp: number, qlen: number, cm: number, nm: number, maxDist: number, sc: number, par: number, thr: number, lim: number): number;
+  _ffz_ffi_filter_dual(cp: number, qp: number, qlen: number, cm: number, nm: number, maxDist: number, sc: number, par: number, thr: number, lim: number): number;
+  _ffz_ffi_dual_seq(d: number): number;
+  _ffz_ffi_dual_edit(d: number): number;
+  _ffz_ffi_dual_free(d: number): void;
   _ffz_ffi_results_len(r: number): number;
   _ffz_ffi_results_item(r: number, i: number): number;
   _ffz_ffi_results_score(r: number, i: number): number;
   _ffz_ffi_results_kind(r: number, i: number): number;
   _ffz_ffi_results_key(r: number, i: number): number;
-  _ffz_ffi_results_nindices?(r: number, i: number): number;
-  _ffz_ffi_results_index?(r: number, i: number, j: number): number;
+  _ffz_ffi_results_nindices(r: number, i: number): number;
+  _ffz_ffi_results_index(r: number, i: number, j: number): number;
   _ffz_ffi_results_free(r: number): void;
-  _ffz_ffi_results_bulk?(r: number, ip: number, sp: number, kp: number, keyp: number, n: number): void;
-  _ffz_ffi_results_items_bulk?(r: number, ip: number, n: number): void;
+  _ffz_ffi_results_bulk(r: number, ip: number, sp: number, kp: number, keyp: number, n: number): void;
+  _ffz_ffi_results_items_bulk(r: number, ip: number, n: number): void;
 }
 
 // ── singleton ─────────────────────────────────────────────────────────────────
@@ -232,9 +232,7 @@ export class FuzzyCorpus<T = string> {
     }
     this._M = _M;
     const sc = this._opts.scoring;
-    this._ptr = this._M._ffz_ffi_new_cfg2
-      ? this._M._ffz_ffi_new_cfg2(this._matchPaths ? 1 : 0, this._preferPrefix ? 1 : 0, sc)
-      : this._M._ffz_ffi_new_cfg(this._matchPaths ? 1 : 0, this._preferPrefix ? 1 : 0);
+    this._ptr = this._M._ffz_ffi_new_cfg2(this._matchPaths ? 1 : 0, this._preferPrefix ? 1 : 0, sc);
     if (!this._ptr) throw new Error('FuzzyCorpus: native allocation failed (OOM)');
     this._allocScratch(SCRATCH_INIT);
     if (items) this.addAll(items);
@@ -375,59 +373,41 @@ export class FuzzyCorpus<T = string> {
       case 'fuzzy':    return this._search(0, query, rest);
       case 'approx':   return this._approxRaw(query, dist, o);
       case 'fallback': {
-        if (M._ffz_ffi_filter_fallback) {
-          const [qp, qn] = writeUtf8(M, query);
-          let res = 0;
-          try { res = M._ffz_ffi_filter_fallback(this._ptr, qp, qn, o.caseMatching, o.normalization, dist, o.scoring, 0, 0, o.limit); }
-          finally { M._free(qp); }
-          if (res) {
-            const len = M._ffz_ffi_results_len(res);
-            const hits = new Array<FuzzyHit<T>>(len);
-            for (let i = 0; i < len; i++) {
-              const idx = M._ffz_ffi_results_item(res, i);
-              const kind = M._ffz_ffi_results_kind(res, i);
-              hits[i] = { raw: this._items[idx], index: idx, score: M._ffz_ffi_results_score(res, i),
-                          matchedKind: kind, matchedKindCode: kind,
-                          matchedKey: M._ffz_ffi_results_key(res, i), indices: [] };
-            }
-            M._ffz_ffi_results_free(res);
-            return hits;
-          }
+        const [qp, qn] = writeUtf8(M, query);
+        let res = 0;
+        try { res = M._ffz_ffi_filter_fallback(this._ptr, qp, qn, o.caseMatching, o.normalization, dist, o.scoring, 0, 0, o.limit); }
+        finally { M._free(qp); }
+        const len = M._ffz_ffi_results_len(res);
+        const hits = new Array<FuzzyHit<T>>(len);
+        for (let i = 0; i < len; i++) {
+          const idx = M._ffz_ffi_results_item(res, i);
+          const kind = M._ffz_ffi_results_kind(res, i);
+          hits[i] = { raw: this._items[idx], index: idx, score: M._ffz_ffi_results_score(res, i),
+                      matchedKind: kind, matchedKindCode: kind,
+                      matchedKey: M._ffz_ffi_results_key(res, i), indices: [] };
         }
-        const hits = this._search(0, query, rest);
-        return hits.length > 0 ? hits : this._approxRaw(query, dist, o);
+        M._ffz_ffi_results_free(res);
+        return hits;
       }
       case 'merge': {
-        // Use C-side single-pass if available (O(n) vs O(2n)).
-        const M = this._M!;
-        if (M._ffz_ffi_filter_merge) {
-          const [qp, qn] = writeUtf8(M, query);
-          let res = 0;
-          try {
-            res = M._ffz_ffi_filter_merge(this._ptr, qp, qn,
-                o.caseMatching, o.normalization, dist, o.scoring, 0, 0, o.limit);
-          } finally { M._free(qp); }
-          if (res) {
-            const len = M._ffz_ffi_results_len(res);
-            const hits = new Array<FuzzyHit<T>>(len);
-            for (let i = 0; i < len; i++) {
-              const idx = M._ffz_ffi_results_item(res, i);
-              const kind = M._ffz_ffi_results_kind(res, i);
-              hits[i] = { raw: this._items[idx], index: idx,
-                          score: M._ffz_ffi_results_score(res, i),
-                          matchedKind: kind, matchedKindCode: kind,
-                          matchedKey: M._ffz_ffi_results_key(res, i), indices: [] };
-            }
-            M._ffz_ffi_results_free(res);
-            return hits;
-          }
+        const [qp, qn] = writeUtf8(M, query);
+        let res = 0;
+        try {
+          res = M._ffz_ffi_filter_merge(this._ptr, qp, qn,
+              o.caseMatching, o.normalization, dist, o.scoring, 0, 0, o.limit);
+        } finally { M._free(qp); }
+        const len = M._ffz_ffi_results_len(res);
+        const hits = new Array<FuzzyHit<T>>(len);
+        for (let i = 0; i < len; i++) {
+          const idx = M._ffz_ffi_results_item(res, i);
+          const kind = M._ffz_ffi_results_kind(res, i);
+          hits[i] = { raw: this._items[idx], index: idx,
+                      score: M._ffz_ffi_results_score(res, i),
+                      matchedKind: kind, matchedKindCode: kind,
+                      matchedKey: M._ffz_ffi_results_key(res, i), indices: [] };
         }
-        // Dart-side two-pass fallback.
-        const seqHits  = this._search(0, query, { ...rest, limit: 0 });
-        const editHits = this._approxRaw(query, dist, new FuzzyOptions({ ...this._opts, ...rest, limit: 0 }));
-        const seen = new Set(seqHits.map(h => h.index));
-        const merged = [...seqHits, ...editHits.filter(h => !seen.has(h.index))];
-        return o.limit > 0 ? merged.slice(0, o.limit) : merged;
+        M._ffz_ffi_results_free(res);
+        return hits;
       }
     }
   }
@@ -446,51 +426,36 @@ export class FuzzyCorpus<T = string> {
     const dist = maxDistance ?? autoMaxDistance(query);
     const o = new FuzzyOptions({ ...this._opts, ...rest });
     const M = this._M!;
-    if (M._ffz_ffi_filter_dual && M._ffz_ffi_dual_seq && M._ffz_ffi_dual_edit && M._ffz_ffi_dual_free) {
-      const [qp, qn] = writeUtf8(M, query);
-      let d = 0;
-      try { d = M._ffz_ffi_filter_dual(this._ptr, qp, qn, o.caseMatching, o.normalization, dist, o.scoring, 0, 0, o.limit); }
-      finally { M._free(qp); }
-      if (d) {
-        const sr = M._ffz_ffi_dual_seq(d);
-        const er = M._ffz_ffi_dual_edit(d);
-        const readSet = (r: number): FuzzyHit<T>[] => {
-          if (!r) return [];
-          const len = M._ffz_ffi_results_len(r);
-          const hits = new Array<FuzzyHit<T>>(len);
-          for (let i = 0; i < len; i++) {
-            const idx = M._ffz_ffi_results_item(r, i);
-            const kind = M._ffz_ffi_results_kind(r, i);
-            hits[i] = { raw: this._items[idx], index: idx, score: M._ffz_ffi_results_score(r, i),
-                        matchedKind: kind, matchedKindCode: kind,
-                        matchedKey: M._ffz_ffi_results_key(r, i), indices: [] };
-          }
-          return hits;
-        };
-        const result: FuzzyDualResult<T> = { fuzzy: readSet(sr), approx: readSet(er) };
-        M._ffz_ffi_dual_free(d);
-        return result;
+    const [qp, qn] = writeUtf8(M, query);
+    let d = 0;
+    try { d = M._ffz_ffi_filter_dual(this._ptr, qp, qn, o.caseMatching, o.normalization, dist, o.scoring, 0, 0, o.limit); }
+    finally { M._free(qp); }
+    const sr = M._ffz_ffi_dual_seq(d);
+    const er = M._ffz_ffi_dual_edit(d);
+    const readSet = (r: number): FuzzyHit<T>[] => {
+      const len = M._ffz_ffi_results_len(r);
+      const hits = new Array<FuzzyHit<T>>(len);
+      for (let i = 0; i < len; i++) {
+        const idx = M._ffz_ffi_results_item(r, i);
+        const kind = M._ffz_ffi_results_kind(r, i);
+        hits[i] = { raw: this._items[idx], index: idx, score: M._ffz_ffi_results_score(r, i),
+                    matchedKind: kind, matchedKindCode: kind,
+                    matchedKey: M._ffz_ffi_results_key(r, i), indices: [] };
       }
-    }
-    return {
-      fuzzy:  this._search(0, query, rest),
-      approx: this._approxRaw(query, dist, o),
+      return hits;
     };
+    const result: FuzzyDualResult<T> = { fuzzy: readSet(sr), approx: readSet(er) };
+    M._ffz_ffi_dual_free(d);
+    return result;
   }
 
   private _approxRaw(query: string, maxDistance: number, o: FuzzyOptions): FuzzyHit<T>[] {
     if (!this._ensureReady()) return [];
     const M = this._M!;
-    if (!M._ffz_ffi_filter_edit) return [];
     const [qp, qn] = writeUtf8(M, query);
-    let res = 0;
-    try {
-      res = M._ffz_ffi_filter_edit(this._ptr, qp, qn, maxDistance,
-          o.caseMatching, o.normalization, o.limit);
-    } finally {
-      M._free(qp);
-    }
-    if (!res) return [];
+    const res = M._ffz_ffi_filter_edit(this._ptr, qp, qn, maxDistance,
+        o.caseMatching, o.normalization, o.limit);
+    M._free(qp);
     const len = M._ffz_ffi_results_len(res);
     if (len === 0) { M._ffz_ffi_results_free(res); return []; }
     const hits = new Array<FuzzyHit<T>>(len);
@@ -527,9 +492,7 @@ export class FuzzyCorpus<T = string> {
     this._deferred = false;
     this._M = _M;
     const sc = this._opts.scoring;
-    this._ptr = this._M._ffz_ffi_new_cfg2
-      ? this._M._ffz_ffi_new_cfg2(this._matchPaths ? 1 : 0, this._preferPrefix ? 1 : 0, sc)
-      : this._M._ffz_ffi_new_cfg(this._matchPaths ? 1 : 0, this._preferPrefix ? 1 : 0);
+    this._ptr = this._M._ffz_ffi_new_cfg2(this._matchPaths ? 1 : 0, this._preferPrefix ? 1 : 0, sc);
     if (!this._ptr) throw new Error('FuzzyCorpus: native allocation failed (OOM)');
     this._allocScratch(SCRATCH_INIT);
     this._rebuild();
@@ -580,27 +543,16 @@ export class FuzzyCorpus<T = string> {
 
   private _filter(mode: number, query: string, o: FuzzyOptions): number {
     const M = this._M!;
-    if (!M._ffz_ffi_filter_ex && !M._ffz_ffi_filter_ex2 && !M._ffz_ffi_filter_raws) {
-      throw new Error('FuzzyCorpus: fuzzy/substring/prefix/… requires FFZ_SUBSEQUENCE build');
-    }
     const [qp, qn] = writeUtf8(M, query);
     let res: number;
     try {
-      if (o.highlight) {
-        res = M._ffz_ffi_filter_ex2
-          ? M._ffz_ffi_filter_ex2(this._ptr, qp, qn, mode, o.caseMatching, o.normalization, o.parallel ? 1 : 0, o.threads, o.limit, o.scoring)
-          : M._ffz_ffi_filter_ex!(this._ptr, qp, qn, mode, o.caseMatching, o.normalization, o.parallel ? 1 : 0, o.threads, o.limit);
-      } else {
-        res = M._ffz_ffi_filter_raws
-          ? M._ffz_ffi_filter_raws(this._ptr, qp, qn, mode, o.caseMatching, o.normalization, o.parallel ? 1 : 0, o.threads, o.limit, o.scoring)
-          : M._ffz_ffi_filter_ex2
-            ? M._ffz_ffi_filter_ex2(this._ptr, qp, qn, mode, o.caseMatching, o.normalization, o.parallel ? 1 : 0, o.threads, o.limit, o.scoring)
-            : M._ffz_ffi_filter_ex!(this._ptr, qp, qn, mode, o.caseMatching, o.normalization, o.parallel ? 1 : 0, o.threads, o.limit);
-      }
+      res = o.highlight
+        ? M._ffz_ffi_filter_ex2(this._ptr, qp, qn, mode, o.caseMatching, o.normalization, o.parallel ? 1 : 0, o.threads, o.limit, o.scoring)
+        : M._ffz_ffi_filter_raws(this._ptr, qp, qn, mode, o.caseMatching, o.normalization, o.parallel ? 1 : 0, o.threads, o.limit, o.scoring);
     } finally {
       M._free(qp);
     }
-    if (!res!) throw new Error('FuzzyCorpus: filter failed (OOM or invalid params)');
+    if (!res!) throw new Error('FuzzyCorpus: filter failed (OOM)');
     return res!;
   }
 
@@ -613,7 +565,7 @@ export class FuzzyCorpus<T = string> {
     if (len === 0) { M._ffz_ffi_results_free(res); return []; }
 
     const hits = new Array<FuzzyHit<T>>(len);
-    if (M._ffz_ffi_results_bulk && !o.highlight) {
+    if (!o.highlight) {
       this._ensureScratch(len);
       const sp = this._scratch4 >> 2;
       M._ffz_ffi_results_bulk(res, this._scratch4, this._scratch4 + len * 4, this._scratch4 + len * 8, this._scratch4 + len * 12, len);
@@ -624,14 +576,14 @@ export class FuzzyCorpus<T = string> {
         hits[i] = { raw: this._items[idx], index: idx, score: I[sp + len + i], matchedKind: mk, matchedKindCode: mk, matchedKey: H[sp + len * 3 + i], indices: [] };
       }
     } else {
-      const canIdx = o.highlight && !!M._ffz_ffi_results_nindices;
+      const canIdx = o.highlight;
       for (let i = 0; i < len; i++) {
         const idx = M._ffz_ffi_results_item(res, i);
         let indices: number[] = [];
         if (canIdx) {
-          const ni = M._ffz_ffi_results_nindices!(res, i);
+          const ni = M._ffz_ffi_results_nindices(res, i);
           indices = new Array(ni);
-          for (let j = 0; j < ni; j++) indices[j] = M._ffz_ffi_results_index!(res, i, j);
+          for (let j = 0; j < ni; j++) indices[j] = M._ffz_ffi_results_index(res, i, j);
         }
         const kind = M._ffz_ffi_results_kind(res, i);
         hits[i] = {
@@ -651,28 +603,17 @@ export class FuzzyCorpus<T = string> {
     this._alive();
     if (!this._ensureReady()) return [];
     const M = this._M!, o = new FuzzyOptions({ ...this._opts, ...overrides });
-    let res: number;
-    if (M._ffz_ffi_filter_raws) {
-      const [qp, qn] = writeUtf8(M, query);
-      res = M._ffz_ffi_filter_raws(this._ptr, qp, qn, mode, o.caseMatching, o.normalization, o.parallel ? 1 : 0, o.threads, o.limit, o.scoring);
-      M._free(qp);
-      if (!res) throw new Error('FuzzyCorpus: filter_raws failed (OOM)');
-    } else {
-      res = this._filter(mode, query, o);
-    }
+    const [qp, qn] = writeUtf8(M, query);
+    const res = M._ffz_ffi_filter_raws(this._ptr, qp, qn, mode, o.caseMatching, o.normalization, o.parallel ? 1 : 0, o.threads, o.limit, o.scoring);
+    M._free(qp);
+    if (!res) throw new Error('FuzzyCorpus: filter_raws failed (OOM)');
     const len = M._ffz_ffi_results_len(res);
     if (len === 0) { M._ffz_ffi_results_free(res); return []; }
-    let out: T[];
-    if (M._ffz_ffi_results_items_bulk) {
-      this._ensureScratch(len);
-      M._ffz_ffi_results_items_bulk(res, this._scratch, len);
-      const H = M.HEAPU32, base = this._scratch >> 2;
-      out = new Array(len);
-      for (let i = 0; i < len; i++) out[i] = this._items[H[base + i]];
-    } else {
-      out = [];
-      for (let i = 0; i < len; i++) out.push(this._items[M._ffz_ffi_results_item(res, i)]);
-    }
+    this._ensureScratch(len);
+    M._ffz_ffi_results_items_bulk(res, this._scratch, len);
+    const H = M.HEAPU32, base = this._scratch >> 2;
+    const out = new Array<T>(len);
+    for (let i = 0; i < len; i++) out[i] = this._items[H[base + i]];
     M._ffz_ffi_results_free(res);
     return out;
   }

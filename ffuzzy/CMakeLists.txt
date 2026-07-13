@@ -23,21 +23,17 @@ project(ffz LANGUAGES C)
 option(FFZ_CRASH_IN_RELEASE
   "Compile the in-process crash handler into release builds (+~26 KB unwind tables; ship the .debug/.pdb sidecar to symbolize)." OFF)
 
-option(FFZ_SUBSEQUENCE
-  "Enable fzf-style subsequence search (fuzzy, prefix, substring, etc.)." ON)
-option(FFZ_EDIT_DISTANCE
-  "Enable edit-distance (typo-tolerant) search via corpus.editDistance()." OFF)
-
-if(NOT FFZ_SUBSEQUENCE AND NOT FFZ_EDIT_DISTANCE)
-  message(FATAL_ERROR "ffz: enable at least one of FFZ_SUBSEQUENCE or FFZ_EDIT_DISTANCE.")
-endif()
-
-# Shared infrastructure — always compiled regardless of algorithm selection.
 set(FFZ_SRCS
   "${CMAKE_CURRENT_SOURCE_DIR}/src/ffz_alloc.c"
   "${CMAKE_CURRENT_SOURCE_DIR}/src/ffz_chars.c"
   "${CMAKE_CURRENT_SOURCE_DIR}/src/ffz_class_table.c"
   "${CMAKE_CURRENT_SOURCE_DIR}/src/ffz_corpus.c"
+  "${CMAKE_CURRENT_SOURCE_DIR}/src/ffz_edit.c"
+  "${CMAKE_CURRENT_SOURCE_DIR}/src/ffz_fuzzy.c"
+  "${CMAKE_CURRENT_SOURCE_DIR}/src/ffz_match.c"
+  "${CMAKE_CURRENT_SOURCE_DIR}/src/ffz_pattern.c"
+  "${CMAKE_CURRENT_SOURCE_DIR}/src/ffz_prefilter.c"
+  "${CMAKE_CURRENT_SOURCE_DIR}/src/ffz_score.c"
   "${CMAKE_CURRENT_SOURCE_DIR}/src/ffz_string.c"
   "${CMAKE_CURRENT_SOURCE_DIR}/src/ffz_unicode_tables.c"
   "${CMAKE_CURRENT_SOURCE_DIR}/ffi/ffz_ffi.c"
@@ -59,22 +55,6 @@ if(FFZ_LOCATABLE OR FFZ_CRASH_IN_RELEASE)
   list(APPEND FFZ_SRCS "${CMAKE_CURRENT_SOURCE_DIR}/ffi/ffz_crash.c")
 endif()
 
-if(FFZ_SUBSEQUENCE)
-  list(APPEND FFZ_SRCS
-    "${CMAKE_CURRENT_SOURCE_DIR}/src/ffz_fuzzy.c"
-    "${CMAKE_CURRENT_SOURCE_DIR}/src/ffz_match.c"
-    "${CMAKE_CURRENT_SOURCE_DIR}/src/ffz_pattern.c"
-    "${CMAKE_CURRENT_SOURCE_DIR}/src/ffz_prefilter.c"
-    "${CMAKE_CURRENT_SOURCE_DIR}/src/ffz_score.c"
-  )
-endif()
-
-if(FFZ_EDIT_DISTANCE)
-  list(APPEND FFZ_SRCS
-    "${CMAKE_CURRENT_SOURCE_DIR}/src/ffz_edit.c"
-  )
-endif()
-
 add_library(ffz SHARED ${FFZ_SRCS})
 target_include_directories(ffz PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/include")
 target_compile_features(ffz PRIVATE c_std_11)
@@ -84,14 +64,6 @@ target_compile_features(ffz PRIVATE c_std_11)
 # Win32 (the corpus uses CreateThread there). Threads::Threads adds -pthread.
 find_package(Threads REQUIRED)
 target_link_libraries(ffz PRIVATE Threads::Threads)
-
-if(FFZ_SUBSEQUENCE)
-  target_compile_definitions(ffz PRIVATE FFZ_SUBSEQUENCE)
-endif()
-
-if(FFZ_EDIT_DISTANCE)
-  target_compile_definitions(ffz PRIVATE FFZ_EDIT_DISTANCE)
-endif()
 
 if(NOT FFZ_LOCATABLE)
   target_compile_definitions(ffz PRIVATE NDEBUG)

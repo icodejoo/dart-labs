@@ -36,16 +36,14 @@ extension on FuzzyNorm {
 // ── Native library handle ─────────────────────────────────────────────────────
 
 typedef _Vpp  = Void Function(Pointer<Void>);
-typedef _Np   = Pointer<Void> Function(Int32, Int32);
 typedef _Np2  = Pointer<Void> Function(Int32, Int32, Int32);
 typedef _Na   = Void Function(Pointer<Void>, Pointer<Uint8>, Size);
 typedef _Nak  = Void Function(Pointer<Void>, Pointer<Uint8>, Size,
                                Pointer<Pointer<Uint8>>, Pointer<Size>, Pointer<Int32>, Size);
 typedef _Nfr  = Void Function(Pointer<Void>);
-typedef _Nfx  = Pointer<Void> Function(Pointer<Void>, Pointer<Uint8>, Size,
-                               Int32, Int32, Int32, Int32, Int32, Size);
 typedef _Nfx2 = Pointer<Void> Function(Pointer<Void>, Pointer<Uint8>, Size,
                                Int32, Int32, Int32, Int32, Int32, Size, Int32);
+typedef _Nvp  = Void Function(Pointer<Void>);
 typedef _Ri   = Uint32 Function(Pointer<Void>, Size);
 typedef _Rni  = Size Function(Pointer<Void>, Size);
 typedef _Rid  = Uint32 Function(Pointer<Void>, Size, Size);
@@ -54,10 +52,8 @@ typedef _Nfe  = Pointer<Void> Function(Pointer<Void>, Pointer<Uint8>, Size, Int3
 
 class _Lib {
   _Lib(this.lib)
-      : newCfg    = lib.lookupFunction<_Np, Pointer<Void> Function(int,int)>('ffz_ffi_new_cfg'),
-        add       = lib.lookupFunction<_Na, void Function(Pointer<Void>,Pointer<Uint8>,int)>('ffz_ffi_add'),
+      : add       = lib.lookupFunction<_Na, void Function(Pointer<Void>,Pointer<Uint8>,int)>('ffz_ffi_add'),
         clear     = lib.lookupFunction<_Vpp, void Function(Pointer<Void>)>('ffz_ffi_clear'),
-        filterEx  = _optFilterEx(lib),
         rLen      = lib.lookupFunction<Size Function(Pointer<Void>), int Function(Pointer<Void>)>('ffz_ffi_results_len'),
         rItem     = lib.lookupFunction<_Ri, int Function(Pointer<Void>,int)>('ffz_ffi_results_item'),
         rScore    = lib.lookupFunction<_Rs, int Function(Pointer<Void>,int)>('ffz_ffi_results_score'),
@@ -68,61 +64,27 @@ class _Lib {
         rFree     = lib.lookupFunction<_Vpp, void Function(Pointer<Void>)>('ffz_ffi_results_free'),
         free      = lib.lookupFunction<_Nfr, void Function(Pointer<Void>)>('ffz_ffi_free'),
         crash     = _optCrash(lib),
-        addKeyed  = _optAddKeyed(lib),
-        newCfg2   = _optNewCfg2(lib),
-        filterEx2   = _optFilter(lib, 'ffz_ffi_filter_ex2'),
-        filterRaw   = _optFilter(lib, 'ffz_ffi_filter_raws'),
-        filterEdit  = _optFilterEdit(lib),
-        filterMerge    = _optFilter(lib, 'ffz_ffi_filter_merge'),
-        filterFallback = _optFilter(lib, 'ffz_ffi_filter_fallback'),
-        filterDual     = _optFilter(lib, 'ffz_ffi_filter_dual'),
-        dualSeq        = _optDualPart(lib, 'ffz_ffi_dual_seq'),
-        dualEdit       = _optDualPart(lib, 'ffz_ffi_dual_edit'),
-        dualFree       = _optDualFree(lib),
-        finalizer   = NativeFinalizer(lib.lookup<NativeFunction<_Nfr>>('ffz_ffi_free').cast());
+        newCfg2       = lib.lookupFunction<_Np2, Pointer<Void> Function(int,int,int)>('ffz_ffi_new_cfg2'),
+        addKeyed      = lib.lookupFunction<_Nak, void Function(Pointer<Void>,Pointer<Uint8>,int,Pointer<Pointer<Uint8>>,Pointer<Size>,Pointer<Int32>,int)>('ffz_ffi_add_keyed'),
+        filterEx2     = lib.lookupFunction<_Nfx2, Pointer<Void> Function(Pointer<Void>,Pointer<Uint8>,int,int,int,int,int,int,int,int)>('ffz_ffi_filter_ex2'),
+        filterRaw     = lib.lookupFunction<_Nfx2, Pointer<Void> Function(Pointer<Void>,Pointer<Uint8>,int,int,int,int,int,int,int,int)>('ffz_ffi_filter_raws'),
+        filterEdit    = lib.lookupFunction<_Nfe, Pointer<Void> Function(Pointer<Void>,Pointer<Uint8>,int,int,int,int,int)>('ffz_ffi_filter_edit'),
+        filterMerge   = lib.lookupFunction<_Nfx2, Pointer<Void> Function(Pointer<Void>,Pointer<Uint8>,int,int,int,int,int,int,int,int)>('ffz_ffi_filter_merge'),
+        filterFallback= lib.lookupFunction<_Nfx2, Pointer<Void> Function(Pointer<Void>,Pointer<Uint8>,int,int,int,int,int,int,int,int)>('ffz_ffi_filter_fallback'),
+        filterDual    = lib.lookupFunction<_Nfx2, Pointer<Void> Function(Pointer<Void>,Pointer<Uint8>,int,int,int,int,int,int,int,int)>('ffz_ffi_filter_dual'),
+        dualSeq       = lib.lookupFunction<Pointer<Void> Function(Pointer<Void>), Pointer<Void> Function(Pointer<Void>)>('ffz_ffi_dual_seq'),
+        dualEdit      = lib.lookupFunction<Pointer<Void> Function(Pointer<Void>), Pointer<Void> Function(Pointer<Void>)>('ffz_ffi_dual_edit'),
+        dualFree      = lib.lookupFunction<_Nvp, void Function(Pointer<Void>)>('ffz_ffi_dual_free'),
+        finalizer     = NativeFinalizer(lib.lookup<NativeFunction<_Nfr>>('ffz_ffi_free').cast());
 
   static int Function(Pointer<Utf8>)? _optCrash(DynamicLibrary lib) {
     try { return lib.lookupFunction<Int32 Function(Pointer<Utf8>), int Function(Pointer<Utf8>)>('ffz_ffi_install_crash_handler'); }
     catch (_) { return null; }
   }
-  static void Function(Pointer<Void>,Pointer<Uint8>,int,Pointer<Pointer<Uint8>>,Pointer<Size>,Pointer<Int32>,int)?
-      _optAddKeyed(DynamicLibrary lib) {
-    try { return lib.lookupFunction<_Nak, void Function(Pointer<Void>,Pointer<Uint8>,int,Pointer<Pointer<Uint8>>,Pointer<Size>,Pointer<Int32>,int)>('ffz_ffi_add_keyed'); }
-    catch (_) { return null; }
-  }
-  static Pointer<Void> Function(int,int,int)? _optNewCfg2(DynamicLibrary lib) {
-    try { return lib.lookupFunction<_Np2, Pointer<Void> Function(int,int,int)>('ffz_ffi_new_cfg2'); }
-    catch (_) { return null; }
-  }
-  static Pointer<Void> Function(Pointer<Void>,Pointer<Uint8>,int,int,int,int,int,int,int)?
-      _optFilterEx(DynamicLibrary lib) {
-    try { return lib.lookupFunction<_Nfx, Pointer<Void> Function(Pointer<Void>,Pointer<Uint8>,int,int,int,int,int,int,int)>('ffz_ffi_filter_ex'); }
-    catch (_) { return null; }
-  }
-  static Pointer<Void> Function(Pointer<Void>,Pointer<Uint8>,int,int,int,int,int,int,int,int)?
-      _optFilter(DynamicLibrary lib, String name) {
-    try { return lib.lookupFunction<_Nfx2, Pointer<Void> Function(Pointer<Void>,Pointer<Uint8>,int,int,int,int,int,int,int,int)>(name); }
-    catch (_) { return null; }
-  }
-  static Pointer<Void> Function(Pointer<Void>)? _optDualPart(DynamicLibrary lib, String name) {
-    try { return lib.lookupFunction<Pointer<Void> Function(Pointer<Void>), Pointer<Void> Function(Pointer<Void>)>(name); }
-    catch (_) { return null; }
-  }
-  static void Function(Pointer<Void>)? _optDualFree(DynamicLibrary lib) {
-    try { return lib.lookupFunction<Void Function(Pointer<Void>), void Function(Pointer<Void>)>('ffz_ffi_dual_free'); }
-    catch (_) { return null; }
-  }
-  static Pointer<Void> Function(Pointer<Void>,Pointer<Uint8>,int,int,int,int,int)?
-      _optFilterEdit(DynamicLibrary lib) {
-    try { return lib.lookupFunction<_Nfe, Pointer<Void> Function(Pointer<Void>,Pointer<Uint8>,int,int,int,int,int)>('ffz_ffi_filter_edit'); }
-    catch (_) { return null; }
-  }
 
   final DynamicLibrary lib;
-  final Pointer<Void> Function(int,int) newCfg;
   final void Function(Pointer<Void>,Pointer<Uint8>,int) add;
   final void Function(Pointer<Void>) clear;
-  final Pointer<Void> Function(Pointer<Void>,Pointer<Uint8>,int,int,int,int,int,int,int)? filterEx;
   final int Function(Pointer<Void>) rLen;
   final int Function(Pointer<Void>,int) rItem, rKey;
   final int Function(Pointer<Void>,int) rScore, rKind;
@@ -130,17 +92,17 @@ class _Lib {
   final int Function(Pointer<Void>,int,int) rIdx;
   final void Function(Pointer<Void>) rFree, free;
   final int Function(Pointer<Utf8>)? crash;
-  final void Function(Pointer<Void>,Pointer<Uint8>,int,Pointer<Pointer<Uint8>>,Pointer<Size>,Pointer<Int32>,int)? addKeyed;
-  final Pointer<Void> Function(int,int,int)? newCfg2;
-  final Pointer<Void> Function(Pointer<Void>,Pointer<Uint8>,int,int,int,int,int,int,int,int)? filterEx2;
-  final Pointer<Void> Function(Pointer<Void>,Pointer<Uint8>,int,int,int,int,int,int,int,int)? filterRaw;
-  final Pointer<Void> Function(Pointer<Void>,Pointer<Uint8>,int,int,int,int,int)? filterEdit;
-  final Pointer<Void> Function(Pointer<Void>,Pointer<Uint8>,int,int,int,int,int,int,int,int)? filterMerge;
-  final Pointer<Void> Function(Pointer<Void>,Pointer<Uint8>,int,int,int,int,int,int,int,int)? filterFallback;
-  final Pointer<Void> Function(Pointer<Void>,Pointer<Uint8>,int,int,int,int,int,int,int,int)? filterDual;
-  final Pointer<Void> Function(Pointer<Void>)? dualSeq;
-  final Pointer<Void> Function(Pointer<Void>)? dualEdit;
-  final void Function(Pointer<Void>)? dualFree;
+  final Pointer<Void> Function(int,int,int) newCfg2;
+  final void Function(Pointer<Void>,Pointer<Uint8>,int,Pointer<Pointer<Uint8>>,Pointer<Size>,Pointer<Int32>,int) addKeyed;
+  final Pointer<Void> Function(Pointer<Void>,Pointer<Uint8>,int,int,int,int,int,int,int,int) filterEx2;
+  final Pointer<Void> Function(Pointer<Void>,Pointer<Uint8>,int,int,int,int,int,int,int,int) filterRaw;
+  final Pointer<Void> Function(Pointer<Void>,Pointer<Uint8>,int,int,int,int,int) filterEdit;
+  final Pointer<Void> Function(Pointer<Void>,Pointer<Uint8>,int,int,int,int,int,int,int,int) filterMerge;
+  final Pointer<Void> Function(Pointer<Void>,Pointer<Uint8>,int,int,int,int,int,int,int,int) filterFallback;
+  final Pointer<Void> Function(Pointer<Void>,Pointer<Uint8>,int,int,int,int,int,int,int,int) filterDual;
+  final Pointer<Void> Function(Pointer<Void>) dualSeq;
+  final Pointer<Void> Function(Pointer<Void>) dualEdit;
+  final void Function(Pointer<Void>) dualFree;
   final NativeFinalizer finalizer;
 
   static final Map<String, _Lib> _cache = {};
@@ -182,14 +144,7 @@ final class FuzzyCorpus<T> extends FuzzyCorpusProtected<T>
   })  : _l = _Lib.resolve(libraryPath),
         _libPath = libraryPath,
         super(options: options, stringOf_: stringOf) {
-    final sc = options.scoring._c;
-    _ptr = (_l.newCfg2 != null)
-        ? _l.newCfg2!(matchPaths ? 1 : 0, preferPrefix ? 1 : 0, sc)
-        : _l.newCfg(matchPaths ? 1 : 0, preferPrefix ? 1 : 0);
-    if (_l.newCfg2 == null && options.scoring != FuzzyScoring.fast) {
-      // ignore: avoid_print
-      print('[ffuzzy] WARNING: scoring=${options.scoring} requires ffz_ffi_new_cfg2');
-    }
+    _ptr = _l.newCfg2(matchPaths ? 1 : 0, preferPrefix ? 1 : 0, options.scoring._c);
     if (_ptr == nullptr) {
       throw const FuzzyException('ffz_ffi_new_cfg returned null (out of memory)');
     }
@@ -267,8 +222,6 @@ final class FuzzyCorpus<T> extends FuzzyCorpusProtected<T>
 
   @override
   void cAddKeyed_(Uint8List primary, List<FuzzyKey> keys) {
-    final f = _l.addKeyed;
-    if (f == null) throw const FuzzyException('ffz_ffi_add_keyed missing');
     final ip = _alloc(primary);
     _estBytes += primary.length;
     final n = keys.length;
@@ -283,7 +236,7 @@ final class FuzzyCorpus<T> extends FuzzyCorpusProtected<T>
         ta[i] = kp; la[i] = kb.isEmpty ? 0 : kb.length; ka[i] = keys[i].kind;
         kptrs.add(kp); _estBytes += kb.length;
       }
-      f(_ptr, ip, primary.isEmpty ? 0 : primary.length, ta, la, ka, n);
+      _l.addKeyed(_ptr, ip, primary.isEmpty ? 0 : primary.length, ta, la, ka, n);
     } finally {
       for (final p in kptrs) { malloc.free(p); }
       malloc.free(ta); malloc.free(la); malloc.free(ka); malloc.free(ip);
@@ -358,14 +311,12 @@ final class FuzzyCorpus<T> extends FuzzyCorpusProtected<T>
   @override
   List<FuzzyHit<T>> searchEdit_(String q, int maxDist, FuzzyOptions o) {
     check_();
-    final f = _l.filterEdit;
-    if (f == null) throw const FuzzyException('editDistance requires FFZ_EDIT_DISTANCE build');
     final qb = toUtf8(q);
     final qp = _alloc(qb);
     var r = Pointer<Void>.fromAddress(0);
     try {
-      r = f(_ptr, qp, qb.isEmpty ? 0 : qb.length, maxDist,
-            o.caseMatching._c, o.normalization._c, o.limit);
+      r = _l.filterEdit(_ptr, qp, qb.isEmpty ? 0 : qb.length, maxDist,
+          o.caseMatching._c, o.normalization._c, o.limit);
       if (r == nullptr) throw StateError('ffz_ffi_filter_edit returned null (OOM)');
       return _readHits(r, false);
     } finally {
@@ -378,47 +329,23 @@ final class FuzzyCorpus<T> extends FuzzyCorpusProtected<T>
 
   Pointer<Void> _nativeFilter(Pointer<Uint8> qp, int qlen, int mode,
       FuzzyOptions o, bool highlight) {
-    final ex  = _l.filterEx;
-    final ex2 = _l.filterEx2;
-    final raw = _l.filterRaw;
-    if (ex == null && ex2 == null && raw == null) {
-      throw const FuzzyException(
-          'fuzzy/substring/prefix/… requires FFZ_SUBSEQUENCE build');
-    }
-    if (highlight) {
-      return (ex2 != null)
-          ? ex2(_ptr, qp, qlen, mode, o.caseMatching._c, o.normalization._c,
-              o.parallel ? 1 : 0, o.threads, o.limit, o.scoring._c)
-          : ex!(_ptr, qp, qlen, mode, o.caseMatching._c, o.normalization._c,
-              o.parallel ? 1 : 0, o.threads, o.limit);
-    } else {
-      return (raw != null)
-          ? raw(_ptr, qp, qlen, mode, o.caseMatching._c, o.normalization._c,
-              o.parallel ? 1 : 0, o.threads, o.limit, o.scoring._c)
-          : (ex2 != null)
-              ? ex2(_ptr, qp, qlen, mode, o.caseMatching._c, o.normalization._c,
-                  o.parallel ? 1 : 0, o.threads, o.limit, o.scoring._c)
-              : ex!(_ptr, qp, qlen, mode, o.caseMatching._c, o.normalization._c,
-                  o.parallel ? 1 : 0, o.threads, o.limit);
-    }
+    return highlight
+        ? _l.filterEx2(_ptr, qp, qlen, mode, o.caseMatching._c, o.normalization._c,
+            o.parallel ? 1 : 0, o.threads, o.limit, o.scoring._c)
+        : _l.filterRaw(_ptr, qp, qlen, mode, o.caseMatching._c, o.normalization._c,
+            o.parallel ? 1 : 0, o.threads, o.limit, o.scoring._c);
   }
 
   @override
-  List<FuzzyHit<T>>? searchMerge_(String q, int maxDist, FuzzyOptions o) =>
-      _nativeMerge(q, maxDist, o);
-
-  @override
-  List<FuzzyHit<T>>? searchFallback_(String q, int maxDist, FuzzyOptions o) {
-    final f = _l.filterFallback;
-    if (f == null) return null;
+  List<FuzzyHit<T>> searchMerge_(String q, int maxDist, FuzzyOptions o) {
     final qb = toUtf8(q);
     final qp = _alloc(qb);
     var r = Pointer<Void>.fromAddress(0);
     try {
-      r = f(_ptr, qp, qb.isEmpty ? 0 : qb.length,
-            o.caseMatching._c, o.normalization._c, maxDist,
-            o.scoring._c, o.parallel ? 1 : 0, o.threads, o.limit);
-      if (r == nullptr) return null;
+      r = _l.filterMerge(_ptr, qp, qb.isEmpty ? 0 : qb.length,
+          o.caseMatching._c, o.normalization._c, maxDist,
+          o.scoring._c, o.parallel ? 1 : 0, o.threads, o.limit);
+      if (r == nullptr) throw StateError('ffz_ffi_filter_merge returned null (OOM)');
       return _readHits(r, false);
     } finally {
       malloc.free(qp);
@@ -427,48 +354,40 @@ final class FuzzyCorpus<T> extends FuzzyCorpusProtected<T>
   }
 
   @override
-  FuzzyDualResult<T>? searchDualC_(String q, int maxDist, FuzzyOptions o) {
-    final fd = _l.filterDual;
-    final seqF = _l.dualSeq;
-    final editF = _l.dualEdit;
-    final freeF = _l.dualFree;
-    if (fd == null || seqF == null || editF == null || freeF == null) return null;
+  List<FuzzyHit<T>> searchFallback_(String q, int maxDist, FuzzyOptions o) {
+    final qb = toUtf8(q);
+    final qp = _alloc(qb);
+    var r = Pointer<Void>.fromAddress(0);
+    try {
+      r = _l.filterFallback(_ptr, qp, qb.isEmpty ? 0 : qb.length,
+          o.caseMatching._c, o.normalization._c, maxDist,
+          o.scoring._c, o.parallel ? 1 : 0, o.threads, o.limit);
+      if (r == nullptr) throw StateError('ffz_ffi_filter_fallback returned null (OOM)');
+      return _readHits(r, false);
+    } finally {
+      malloc.free(qp);
+      if (r != nullptr) _l.rFree(r);
+    }
+  }
+
+  @override
+  FuzzyDualResult<T> searchDualC_(String q, int maxDist, FuzzyOptions o) {
     final qb = toUtf8(q);
     final qp = _alloc(qb);
     var d = Pointer<Void>.fromAddress(0);
     try {
-      d = fd(_ptr, qp, qb.isEmpty ? 0 : qb.length,
-             o.caseMatching._c, o.normalization._c, maxDist,
-             o.scoring._c, o.parallel ? 1 : 0, o.threads, o.limit);
-      if (d == nullptr) return null;
-      final sr = seqF(d);
-      final er = editF(d);
+      d = _l.filterDual(_ptr, qp, qb.isEmpty ? 0 : qb.length,
+          o.caseMatching._c, o.normalization._c, maxDist,
+          o.scoring._c, o.parallel ? 1 : 0, o.threads, o.limit);
+      if (d == nullptr) throw StateError('ffz_ffi_filter_dual returned null (OOM)');
+      final sr = _l.dualSeq(d);
+      final er = _l.dualEdit(d);
       final seqHits  = sr != nullptr ? _readHits(sr, false) : <FuzzyHit<T>>[];
       final editHits = er != nullptr ? _readHits(er, false) : <FuzzyHit<T>>[];
       return FuzzyDualResult(fuzzy: seqHits, approx: editHits);
     } finally {
       malloc.free(qp);
-      if (d != nullptr) freeF(d);
-    }
-  }
-
-  // C-side single-pass merge: returns null if not available (fall back to Dart two-pass).
-  List<FuzzyHit<T>>? _nativeMerge(String q, int maxDist, FuzzyOptions o) {
-    final f = _l.filterMerge;
-    if (f == null) return null;
-    final qb = toUtf8(q);
-    final qp = _alloc(qb);
-    var r = Pointer<Void>.fromAddress(0);
-    try {
-      r = f(_ptr, qp, qb.isEmpty ? 0 : qb.length,
-            o.caseMatching._c, o.normalization._c, maxDist,
-            o.scoring._c, o.parallel ? 1 : 0, o.threads, o.limit);
-      if (r == nullptr) return null;
-      // Seq hits have indices (score ≥ 0); edit-only hits (score < 0) have none.
-      return _readHits(r, false);
-    } finally {
-      malloc.free(qp);
-      if (r != nullptr) _l.rFree(r);
+      if (d != nullptr) _l.dualFree(d);
     }
   }
 
@@ -499,20 +418,11 @@ final class FuzzyCorpus<T> extends FuzzyCorpusProtected<T>
     var r = Pointer<Void>.fromAddress(0);
     try {
       if (o.highlight) {
-        r = (lib.filterEx2 != null)
-            ? lib.filterEx2!(ptr, qp, qb.length, mode, o.caseMatching._c,
-                o.normalization._c, o.parallel ? 1 : 0, o.threads, o.limit, o.scoring._c)
-            : lib.filterEx!(ptr, qp, qb.length, mode, o.caseMatching._c,
-                o.normalization._c, o.parallel ? 1 : 0, o.threads, o.limit);
+        r = lib.filterEx2(ptr, qp, qb.length, mode, o.caseMatching._c,
+            o.normalization._c, o.parallel ? 1 : 0, o.threads, o.limit, o.scoring._c);
       } else {
-        r = (lib.filterRaw != null)
-            ? lib.filterRaw!(ptr, qp, qb.length, mode, o.caseMatching._c,
-                o.normalization._c, o.parallel ? 1 : 0, o.threads, o.limit, o.scoring._c)
-            : (lib.filterEx2 != null)
-                ? lib.filterEx2!(ptr, qp, qb.length, mode, o.caseMatching._c,
-                    o.normalization._c, o.parallel ? 1 : 0, o.threads, o.limit, o.scoring._c)
-                : lib.filterEx!(ptr, qp, qb.length, mode, o.caseMatching._c,
-                    o.normalization._c, o.parallel ? 1 : 0, o.threads, o.limit);
+        r = lib.filterRaw(ptr, qp, qb.length, mode, o.caseMatching._c,
+            o.normalization._c, o.parallel ? 1 : 0, o.threads, o.limit, o.scoring._c);
       }
       if (r == nullptr) return const [];
       final n = lib.rLen(r);
@@ -540,14 +450,8 @@ final class FuzzyCorpus<T> extends FuzzyCorpusProtected<T>
     final qp = _alloc(qb);
     var r = Pointer<Void>.fromAddress(0);
     try {
-      r = (lib.filterRaw != null)
-          ? lib.filterRaw!(ptr, qp, qb.length, mode, o.caseMatching._c,
-              o.normalization._c, o.parallel ? 1 : 0, o.threads, o.limit, o.scoring._c)
-          : (lib.filterEx2 != null)
-              ? lib.filterEx2!(ptr, qp, qb.length, mode, o.caseMatching._c,
-                  o.normalization._c, o.parallel ? 1 : 0, o.threads, o.limit, o.scoring._c)
-              : lib.filterEx!(ptr, qp, qb.length, mode, o.caseMatching._c,
-                  o.normalization._c, o.parallel ? 1 : 0, o.threads, o.limit);
+      r = lib.filterRaw(ptr, qp, qb.length, mode, o.caseMatching._c,
+          o.normalization._c, o.parallel ? 1 : 0, o.threads, o.limit, o.scoring._c);
       if (r == nullptr) return const [];
       final n = lib.rLen(r);
       final out = List<int>.generate(n, (i) => lib.rItem(r, i), growable: false);

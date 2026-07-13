@@ -113,7 +113,6 @@ ffz_parallel ffz_parallel_with(int threads);     // {true, threads}
 // call — do NOT hold pointers into a previous result across a filter call on
 // the same `out`. Must be zero-initialised before the very first call:
 //   ffz_results r = {0};
-#ifdef FFZ_SUBSEQUENCE
 void ffz_corpus_filter(ffz_corpus *c, const char *query, size_t query_len,
                        ffz_case_matching cm, ffz_normalization nm,
                        ffz_mode mode, ffz_parallel par, size_t limit,
@@ -127,12 +126,10 @@ void ffz_corpus_filter_raws(ffz_corpus *c, const char *query, size_t query_len,
                              ffz_mode mode, ffz_parallel par, size_t limit,
                              ffz_scoring_mode scoring,
                              ffz_results *out);
-#endif
 
 // Return the corpus-level scoring mode (stored in its ffz_config).
 ffz_scoring_mode ffz_corpus_scoring(const ffz_corpus *c);
 
-#ifdef FFZ_EDIT_DISTANCE
 // Edit-distance (typo-tolerant) filter. Returns items whose best key has
 // edit distance <= max_distance from query. Results are sorted by distance
 // ascending (score = -distance; same ffz_hit struct, indices always empty).
@@ -143,9 +140,7 @@ void ffz_corpus_filter_edit(ffz_corpus *c,
                             int max_distance,
                             ffz_parallel par, size_t limit,
                             ffz_results *out);
-#endif
 
-#if defined(FFZ_SUBSEQUENCE) && defined(FFZ_EDIT_DISTANCE)
 // Single-pass merge: one corpus scan for both algorithms.
 // Seq hits (score ≥ 0) precede edit-only hits (score = -(distance+1) ≤ -1).
 void ffz_corpus_filter_merge(ffz_corpus *c,
@@ -181,7 +176,6 @@ void ffz_corpus_filter_dual(ffz_corpus *c,
                               int max_distance, ffz_scoring_mode scoring,
                               ffz_parallel par, size_t limit,
                               ffz_dual_results *d);
-#endif
 
 #ifdef __cplusplus
 }
