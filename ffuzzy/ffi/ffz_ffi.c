@@ -179,9 +179,16 @@ FFZ_API void ffz_ffi_results_free(ffz_results *r) {
     free(r);
 }
 
-// Edit-distance (typo-tolerant) search. max_distance: typically 1 or 2.
-// Results sorted by distance ascending. Indices always empty.
+// Approximate substring (edit-distance, typo-tolerant) search. max_distance:
+// typically 1 or 2. Results sorted by distance ascending. Each hit's indices
+// are the matched window's codepoint range (a contiguous run, not discrete
+// positions — see ffz_corpus_filter_edit).
 // cm: 0=respect 1=ignore 2=smart. nm: 0=never 1=smart.
+//
+// 近似子串（编辑距离、容错拼写）搜索。max_distance 通常为 1 或 2。
+// 结果按距离升序排序。每个命中项的 indices 是匹配窗口的码点范围
+// （一段连续区间，而非离散位置——参见 ffz_corpus_filter_edit）。
+// cm：0=区分大小写 1=忽略大小写 2=智能。nm：0=从不归一化 1=智能归一化。
 FFZ_API ffz_results *ffz_ffi_filter_edit(ffz_corpus *c,
                                           const char *q, size_t qn,
                                           int max_distance,
@@ -195,6 +202,29 @@ FFZ_API ffz_results *ffz_ffi_filter_edit(ffz_corpus *c,
     ffz_parallel par = ffz_parallel_off();
     ffz_corpus_filter_edit(c, q, qn, (ffz_case_matching)cm, (ffz_normalization)nm,
                            max_distance, par, limit, r);
+    return r;
+}
+
+// Like ffz_ffi_filter_edit but skips per-survivor window recovery (Pass 2).
+// Results have empty indices; score/kind/key/item are still valid. Faster
+// when the caller only needs matched items, not highlight ranges.
+//
+// 与 ffz_ffi_filter_edit 类似，但跳过每个存活项的窗口恢复（Pass 2）。
+// 结果的 indices 为空；score/kind/key/item 仍然有效。当调用方只需要
+// 匹配到的条目、不需要高亮范围时，这样更快。
+FFZ_API ffz_results *ffz_ffi_filter_edit_raws(ffz_corpus *c,
+                                               const char *q, size_t qn,
+                                               int max_distance,
+                                               int cm, int nm,
+                                               size_t limit) {
+    if (!c || !q) return NULL;
+    if ((unsigned)cm > FFZ_CASE_SMART || (unsigned)nm > FFZ_NORM_SMART) return NULL;
+    if (max_distance < 0 || max_distance > 10) return NULL;
+    ffz_results *r = (ffz_results *)calloc(1, sizeof(ffz_results));
+    if (!r) return NULL;
+    ffz_parallel par = ffz_parallel_off();
+    ffz_corpus_filter_edit_raws(c, q, qn, (ffz_case_matching)cm, (ffz_normalization)nm,
+                                max_distance, par, limit, r);
     return r;
 }
 
@@ -218,6 +248,8 @@ FFZ_API ffz_results *ffz_ffi_filter_merge(ffz_corpus *c,
 }
 
 // --- fallback filter -------------------------------------------------------
+//
+// --- 回退过滤器 ---
 FFZ_API ffz_results *ffz_ffi_filter_fallback(ffz_corpus *c,
                                               const char *q, size_t qn,
                                               int cm, int nm,
@@ -240,6 +272,8 @@ FFZ_API ffz_results *ffz_ffi_filter_fallback(ffz_corpus *c,
 }
 
 // --- dual filter -----------------------------------------------------------
+//
+// --- 双结果过滤器 ---
 FFZ_API ffz_dual_results *ffz_ffi_filter_dual(ffz_corpus *c,
                                                const char *q, size_t qn,
                                                int cm, int nm,

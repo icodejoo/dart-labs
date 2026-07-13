@@ -268,9 +268,37 @@ int32_t ffz_fuzzy_greedy(ffz_matcher *m, ffz_str hay, ffz_str needle,
 int32_t ffz_fuzzy_rolling(ffz_matcher *m, ffz_str hay, ffz_str needle,
                           size_t start, size_t greedy_end, size_t end);
 
-// Myers bit-parallel edit distance. Returns distance in [0..max_dist] or -1.
+// Myers bit-parallel edit distance (whole-string, both ends anchored).
+// Returns distance in [0..max_dist] or -1.
+//
+// Myers 位并行编辑距离算法（全串匹配，两端都锚定）。
+// 返回 [0..max_dist] 范围内的距离，或 -1。
 int ffz_edit_distance(ffz_str query, ffz_str hay, int max_dist,
                       const ffz_config *cfg);
+
+// Approximate substring distance only (no window) — cheap Pass-1 scoring.
+// Same search as ffz_edit_window below, minus the backward pass that
+// recovers the match's start; use this to score every corpus item, and
+// ffz_edit_window only for the surviving top-K (Pass 2, for highlighting).
+//
+// 仅计算近似子串距离（不含窗口）——开销小的第一轮（Pass 1）打分。
+// 与下方 ffz_edit_window 是同一种搜索，只是少了恢复匹配起点的反向扫描；
+// 用它对语料库中每一项打分，仅对存活下来的 top-K 结果（Pass 2，用于高亮）
+// 才调用 ffz_edit_window。
+int ffz_edit_distance_substring(ffz_str query, ffz_str hay, int max_dist,
+                                const ffz_config *cfg);
+
+// Approximate substring search: the minimum-edit-distance window of `hay`
+// that matches `query`, free to start/end anywhere in hay. Writes the
+// window's codepoint range [*out_start, *out_end). Returns the window's
+// distance in [0..max_dist], or -1 if no window qualifies.
+//
+// 近似子串搜索：在 `hay` 中找出与 `query` 匹配、编辑距离最小的窗口，
+// 该窗口可以从 hay 中任意位置开始和结束。写出该窗口的码点范围
+// [*out_start, *out_end)。返回 [0..max_dist] 范围内的窗口距离，
+// 若没有窗口满足条件则返回 -1。
+int ffz_edit_window(ffz_str query, ffz_str hay, int max_dist,
+                    const ffz_config *cfg, size_t *out_start, size_t *out_end);
 
 // --- prefilter (ffz_prefilter.c) -----------------------------------------
 // Find (start, greedy_end, end) bounds for a subsequence match. Returns false

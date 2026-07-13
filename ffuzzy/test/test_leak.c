@@ -116,6 +116,81 @@ static void oom_cycle(int budget) {
     ffz_dbg_fail_after(-1);  // disable before returning
 }
 
+// Edit-distance (approx substring) cycle: Pass 2 index recovery allocates a
+// reversed-hay scratch buffer in ffz_edit_window (src/ffz_edit.c) — exercise
+// it, including the end==0 degenerate window (query longer than any match)
+// so that path's malloc(0)-avoidance is under leak/OOM coverage too.
+//
+// 编辑距离（近似子串）循环：第二轮（Pass 2）下标恢复会在
+// ffz_edit_window（src/ffz_edit.c）中分配一个反转 hay 的暂存缓冲区——
+// 这里对它进行测试，包括 end==0 的退化窗口情形（查询串比任何匹配都长），
+// 确保该路径的 malloc(0) 规避逻辑也在泄漏/OOM 覆盖范围内。
+static void edit_cycle(void) {
+    ffz_corpus *c = ffz_corpus_new(ffz_config_default());
+    char buf[32];
+    for (int i = 0; i < 200; i++) {
+        int n = snprintf(buf, sizeof(buf), "widget_%d.dart", i);
+        ffz_corpus_add(c, buf, (size_t)n);
+    }
+    ffz_results r = {0};
+    // Ordinary hit: recovers a non-empty window.
+    //
+    // 普通命中：恢复出一个非空窗口。
+    ffz_corpus_filter_edit(c, "widgit", 6, FFZ_CASE_SMART, FFZ_NORM_SMART, 1,
+                           ffz_parallel_off(), 20, &r);
+    ffz_results_free(&r);
+    // Raw variant: Pass 2 skipped entirely.
+    //
+    // Raw 变体：完全跳过第二轮（Pass 2）。
+    ffz_corpus_filter_edit_raws(c, "widgit", 6, FFZ_CASE_SMART, FFZ_NORM_SMART,
+                                1, ffz_parallel_off(), 20, &r);
+    ffz_results_free(&r);
+    // Degenerate: distance == query length, best window recovered is empty
+    // (end == 0) — hits the malloc(0)-avoidance branch in ffz_edit_window.
+    //
+    // 退化情形：距离 == 查询串长度，恢复出的最优窗口为空（end == 0）——
+    // 会命中 ffz_edit_window 中 malloc(0) 规避的分支。
+    ffz_corpus_filter_edit(c, "q", 1, FFZ_CASE_SMART, FFZ_NORM_SMART, 1,
+                           ffz_parallel_off(), 20, &r);
+    ffz_results_free(&r);
+    // merge + dual, both with highlight-triggering Pass 2.
+    //
+    // merge 和 dual，两者都会触发带高亮的第二轮（Pass 2）。
+    ffz_corpus_filter_merge(c, "widgit", 6, FFZ_CASE_SMART, FFZ_NORM_SMART, 1,
+                            FFZ_SCORE_FAST, ffz_parallel_off(), 20, &r);
+    ffz_results_free(&r);
+    ffz_dual_results d = {0};
+    ffz_corpus_filter_dual(c, "widgit", 6, FFZ_CASE_SMART, FFZ_NORM_SMART, 1,
+                           FFZ_SCORE_FAST, ffz_parallel_off(), 20, &d);
+    ffz_dual_results_free(&d);
+    ffz_corpus_free(c);
+}
+
+// Drive sustained OOM through the edit-distance paths specifically, so the
+// hrev scratch-buffer allocation in ffz_edit_window is exercised under
+// injected allocator failure (never leak, never crash on the failure path).
+//
+// 专门针对编辑距离路径持续注入 OOM，确保 ffz_edit_window 中的 hrev
+// 暂存缓冲区分配在分配器故障注入下也经过测试（绝不泄漏、绝不在失败
+// 路径上崩溃）。
+static void oom_cycle_edit(int budget) {
+    ffz_dbg_fail_after(budget);
+    ffz_corpus *c = ffz_corpus_new(ffz_config_default());
+    if (c) {
+        char buf[32];
+        for (int i = 0; i < 200; i++) {
+            int n = snprintf(buf, sizeof(buf), "widget_%d.dart", i);
+            ffz_corpus_add(c, buf, (size_t)n);
+        }
+        ffz_results r = {0};
+        ffz_corpus_filter_edit(c, "widgit", 6, FFZ_CASE_SMART, FFZ_NORM_SMART,
+                               1, ffz_parallel_off(), 20, &r);
+        ffz_results_free(&r);
+        ffz_corpus_free(c);
+    }
+    ffz_dbg_fail_after(-1);
+}
+
 // NUCLEO mode OOM injection: every allocation from #budget onward fails.
 static void oom_cycle_nucleo(int budget) {
     ffz_dbg_fail_after(budget);
@@ -148,6 +223,17 @@ int main(void) {
     // OOM injection across a spread of budgets: never crash, never leak.
     for (int budget = 1; budget <= 60; budget++) oom_cycle(budget);
     CHECK(ffz_alloc_live_blocks() == base, "no leak across OOM-injected cycles");
+
+    // Edit-distance (approx substring) cycles, including OOM injection through
+    // ffz_edit_window's hrev scratch allocation.
+    //
+    // 编辑距离（近似子串）循环，包括对 ffz_edit_window 的 hrev 暂存
+    // 分配所做的 OOM 注入测试。
+    for (int i = 0; i < 50; i++) edit_cycle();
+    CHECK(ffz_alloc_live_blocks() == base, "no leak after edit-distance cycles");
+    for (int budget = 1; budget <= 40; budget++) oom_cycle_edit(budget);
+    CHECK(ffz_alloc_live_blocks() == base,
+          "no leak across edit-distance OOM-injected cycles");
 
     // NUCLEO mode OOM injection: same guarantee in the full-matrix DP path.
     for (int budget = 1; budget <= 80; budget++) oom_cycle_nucleo(budget);

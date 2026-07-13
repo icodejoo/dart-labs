@@ -69,6 +69,7 @@ class _Lib {
         filterEx2     = lib.lookupFunction<_Nfx2, Pointer<Void> Function(Pointer<Void>,Pointer<Uint8>,int,int,int,int,int,int,int,int)>('ffz_ffi_filter_ex2'),
         filterRaw     = lib.lookupFunction<_Nfx2, Pointer<Void> Function(Pointer<Void>,Pointer<Uint8>,int,int,int,int,int,int,int,int)>('ffz_ffi_filter_raws'),
         filterEdit    = lib.lookupFunction<_Nfe, Pointer<Void> Function(Pointer<Void>,Pointer<Uint8>,int,int,int,int,int)>('ffz_ffi_filter_edit'),
+        filterEditRaw = lib.lookupFunction<_Nfe, Pointer<Void> Function(Pointer<Void>,Pointer<Uint8>,int,int,int,int,int)>('ffz_ffi_filter_edit_raws'),
         filterMerge   = lib.lookupFunction<_Nfx2, Pointer<Void> Function(Pointer<Void>,Pointer<Uint8>,int,int,int,int,int,int,int,int)>('ffz_ffi_filter_merge'),
         filterFallback= lib.lookupFunction<_Nfx2, Pointer<Void> Function(Pointer<Void>,Pointer<Uint8>,int,int,int,int,int,int,int,int)>('ffz_ffi_filter_fallback'),
         filterDual    = lib.lookupFunction<_Nfx2, Pointer<Void> Function(Pointer<Void>,Pointer<Uint8>,int,int,int,int,int,int,int,int)>('ffz_ffi_filter_dual'),
@@ -97,6 +98,7 @@ class _Lib {
   final Pointer<Void> Function(Pointer<Void>,Pointer<Uint8>,int,int,int,int,int,int,int,int) filterEx2;
   final Pointer<Void> Function(Pointer<Void>,Pointer<Uint8>,int,int,int,int,int,int,int,int) filterRaw;
   final Pointer<Void> Function(Pointer<Void>,Pointer<Uint8>,int,int,int,int,int) filterEdit;
+  final Pointer<Void> Function(Pointer<Void>,Pointer<Uint8>,int,int,int,int,int) filterEditRaw;
   final Pointer<Void> Function(Pointer<Void>,Pointer<Uint8>,int,int,int,int,int,int,int,int) filterMerge;
   final Pointer<Void> Function(Pointer<Void>,Pointer<Uint8>,int,int,int,int,int,int,int,int) filterFallback;
   final Pointer<Void> Function(Pointer<Void>,Pointer<Uint8>,int,int,int,int,int,int,int,int) filterDual;
@@ -316,10 +318,11 @@ final class FuzzyCorpus<T> extends FuzzyCorpusProtected<T>
     final qp = _alloc(qb);
     var r = Pointer<Void>.fromAddress(0);
     try {
-      r = _l.filterEdit(_ptr, qp, qb.isEmpty ? 0 : qb.length, maxDist,
+      final fn = o.highlight ? _l.filterEdit : _l.filterEditRaw;
+      r = fn(_ptr, qp, qb.isEmpty ? 0 : qb.length, maxDist,
           o.caseMatching._c, o.normalization._c, o.limit);
       if (r == nullptr) throw StateError('ffz_ffi_filter_edit returned null (OOM)');
-      return _readHits(r, false);
+      return _readHits(r, o.highlight);
     } finally {
       malloc.free(qp);
       if (r != nullptr) _l.rFree(r);
@@ -376,8 +379,8 @@ final class FuzzyCorpus<T> extends FuzzyCorpusProtected<T>
       if (d == nullptr) throw StateError('ffz_ffi_filter_dual returned null (OOM)');
       final sr = _l.dualSeq(d);
       final er = _l.dualEdit(d);
-      final seqHits  = sr != nullptr ? _readHits(sr, false) : <FuzzyHit<T>>[];
-      final editHits = er != nullptr ? _readHits(er, false) : <FuzzyHit<T>>[];
+      final seqHits  = sr != nullptr ? _readHits(sr, o.highlight) : <FuzzyHit<T>>[];
+      final editHits = er != nullptr ? _readHits(er, o.highlight) : <FuzzyHit<T>>[];
       return FuzzyDualResult(fuzzy: seqHits, approx: editHits);
     } finally {
       malloc.free(qp);

@@ -452,6 +452,8 @@ ffz_scoring_mode ffz_corpus_scoring(const ffz_corpus *c) {
 }
 
 static void finalise_results(ffz_corpus *c, ffz_matcher *fm, const ffz_pattern *pat,
+                              ffz_str edit_query, const ffz_config *edit_cfg,
+                              int edit_max_dist, bool edit_all,
                               scored *sc, size_t ns, size_t limit, bool skip_idx,
                               ffz_results *out);
 
@@ -552,7 +554,11 @@ static void _corpus_filter_impl(ffz_corpus *c, const char *query, size_t query_l
         }
         free(sc);
     } else {
-        finalise_results(c, fm, pat, sc, ns, limit, skip_idx, out);
+        // This path never produces edit-distance-sourced (negative-score) hits.
+        //
+        // 这条路径永远不会产生源自编辑距离（负分数）的命中项。
+        ffz_str no_edit_query = {NULL, NULL, 0};
+        finalise_results(c, fm, pat, no_edit_query, NULL, 0, false, sc, ns, limit, skip_idx, out);
         sc = NULL;  // finalise_results owns and frees sc
     }
 
@@ -592,7 +598,7 @@ static void scan_edit_range(ffz_corpus *c, const ffz_config *cfg,
         size_t nk = item_nkeys(it);
         for (size_t k = 0; k < nk; k++) {
             const corpus_key *key = item_key(it, k);
-            int d = ffz_edit_distance(qstr, key_str(key), max_dist, cfg);
+            int d = ffz_edit_distance_substring(qstr, key_str(key), max_dist, cfg);
             if (d >= 0) {
                 int32_t s = -(int32_t)d;
                 if (s > best) { best = s; best_kind = key->kind; best_key = (uint32_t)k; }
@@ -643,11 +649,18 @@ static bool thr_edit_start(scan_edit_job *j, ffz_thr *out) {
 }
 #endif
 
-void ffz_corpus_filter_edit(ffz_corpus *c,
+// Shared implementation for ffz_corpus_filter_edit / ffz_corpus_filter_edit_raws.
+// skip_idx=true omits Pass 2 (matched-window recovery) — results have empty
+// indices, matching the ffz_corpus_filter / ffz_corpus_filter_raws pattern.
+//
+// ffz_corpus_filter_edit / ffz_corpus_filter_edit_raws 的共用实现。
+// skip_idx=true 时省略 Pass 2（匹配窗口恢复）——结果的 indices 为空，
+// 与 ffz_corpus_filter / ffz_corpus_filter_raws 的模式一致。
+static void _corpus_filter_edit_impl(ffz_corpus *c,
                             const char *query, size_t query_len,
                             ffz_case_matching cm, ffz_normalization nm,
                             int max_distance,
-                            ffz_parallel par, size_t limit,
+                            ffz_parallel par, size_t limit, bool skip_idx,
                             ffz_results *out) {
     ffz_results_free(out);
     out->hits = NULL;
@@ -656,13 +669,19 @@ void ffz_corpus_filter_edit(ffz_corpus *c,
     if (!c || !query || max_distance < 0) return;
 
     // Decode query once.
+    //
+    // 只解码一次查询串。
     ffz_str_buf qbuf = {NULL, 0, 0};
     ffz_str qstr = ffz_str_from_utf8(query, query_len, &qbuf);
 
     // Resolve config flags.
+    //
+    // 解析配置标志位。
     ffz_config cfg = c->cfg;
 
     // Smart case: if query has no uppercase, ignore case.
+    //
+    // 智能大小写：若查询串没有大写字母，则忽略大小写。
     if (cm == FFZ_CASE_IGNORE) {
         cfg.ignore_case = true;
     } else if (cm == FFZ_CASE_RESPECT) {
@@ -675,6 +694,8 @@ void ffz_corpus_filter_edit(ffz_corpus *c,
     }
 
     // Smart norm: if query has no diacritics, fold.
+    //
+    // 智能归一化：若查询串没有变音符号，则做折叠归一化。
     if (nm == FFZ_NORM_NEVER) {
         cfg.normalize = false;
     } else {  // FFZ_NORM_SMART
@@ -685,6 +706,8 @@ void ffz_corpus_filter_edit(ffz_corpus *c,
     }
 
     // Allocate pass-1 result buffer.
+    //
+    // 分配第一轮（Pass 1）结果缓冲区。
     scored *sc = (scored *)malloc((c->n ? c->n : 1) * sizeof(scored));
     if (!sc) { ffz_str_buf_free(&qbuf); return; }
 
@@ -734,8 +757,34 @@ void ffz_corpus_filter_edit(ffz_corpus *c,
         free(started);
     }
 
-    finalise_results(c, NULL, NULL, sc, ns, limit, true, out);
+    finalise_results(c, NULL, NULL, qstr, &cfg, max_distance, true,
+                      sc, ns, limit, skip_idx, out);
     ffz_str_buf_free(&qbuf);
+}
+
+void ffz_corpus_filter_edit(ffz_corpus *c,
+                            const char *query, size_t query_len,
+                            ffz_case_matching cm, ffz_normalization nm,
+                            int max_distance,
+                            ffz_parallel par, size_t limit,
+                            ffz_results *out) {
+    _corpus_filter_edit_impl(c, query, query_len, cm, nm, max_distance,
+                             par, limit, false, out);
+}
+
+// Like ffz_corpus_filter_edit but skips Pass 2 (no matched-window recovery).
+// All hit.indices will be empty. Use when only item identity/distance is needed.
+//
+// 与 ffz_corpus_filter_edit 类似，但跳过 Pass 2（不做匹配窗口恢复）。
+// 所有 hit.indices 都为空。仅需要条目身份/距离时使用。
+void ffz_corpus_filter_edit_raws(ffz_corpus *c,
+                                 const char *query, size_t query_len,
+                                 ffz_case_matching cm, ffz_normalization nm,
+                                 int max_distance,
+                                 ffz_parallel par, size_t limit,
+                                 ffz_results *out) {
+    _corpus_filter_edit_impl(c, query, query_len, cm, nm, max_distance,
+                             par, limit, true, out);
 }
 
 // --- single-pass merge scan -----------------------------------------------
@@ -751,6 +800,8 @@ static void scan_merge_range(ffz_corpus *c,
         int best_seq_kind = 0; uint32_t best_seq_key = 0;
 
         // Pass A: try all keys with subsequence
+        //
+        // 第一轮（Pass A）：对所有 key 尝试子序列匹配。
         for (size_t k = 0; k < nk; k++) {
             const corpus_key *key = item_key(it, k);
             int32_t s = ffz_pattern_match(m, pat, key_str(key), NULL);
@@ -762,14 +813,18 @@ static void scan_merge_range(ffz_corpus *c,
             scored sc = {(uint32_t)i, best_seq, best_seq_kind, best_seq_key};
             coll_push(col, sc);
             continue;  // seq found — skip edit distance entirely
+            //
+            // 已找到子序列命中——完全跳过编辑距离计算。
         }
 
         // Pass B: try all keys with edit distance (only if seq missed)
+        //
+        // 第二轮（Pass B）：仅当子序列未命中时，对所有 key 尝试编辑距离匹配。
         int32_t best_edit = INT32_MIN;
         int best_edit_kind = 0; uint32_t best_edit_key = 0;
         for (size_t k = 0; k < nk; k++) {
             const corpus_key *key = item_key(it, k);
-            int d = ffz_edit_distance(qstr, key_str(key), max_dist, edit_cfg);
+            int d = ffz_edit_distance_substring(qstr, key_str(key), max_dist, edit_cfg);
             if (d >= 0) {
                 int32_t es = -(int32_t)(d + 1);
                 if (es > best_edit) {
@@ -843,6 +898,8 @@ void ffz_corpus_filter_merge(ffz_corpus *c,
     if (!pat) return;
 
     // Build edit-distance config (same smart-case/norm logic as filter_edit)
+    //
+    // 构建编辑距离配置（与 filter_edit 相同的智能大小写/归一化逻辑）。
     ffz_str_buf qbuf = {NULL, 0, 0};
     ffz_str qstr = ffz_str_from_utf8(query, query_len, &qbuf);
     ffz_config edit_cfg = c->cfg;
@@ -920,10 +977,15 @@ void ffz_corpus_filter_merge(ffz_corpus *c,
     }
 
     // Sort/top-K; descending score puts seq hits (≥0) before edit-only (<0).
-    // Pass 2: finalise_results computes indices for seq hits (score >= 0) only.
+    // Pass 2: finalise_results computes indices for both — subsequence
+    // positions for seq hits, the matched window for edit-only hits.
+    //
+    // 排序/取 top-K；按分数降序会让子序列命中（≥0）排在仅编辑距离命中（<0）
+    // 之前。第二轮（Pass 2）：finalise_results 为两者都计算 indices——
+    // 子序列命中用子序列位置，仅编辑距离命中用匹配窗口。
     ffz_config cfg2 = c->cfg; cfg2.scoring_mode = scoring;
     ffz_matcher *fm2 = ffz_matcher_new(cfg2);
-    finalise_results(c, fm2, pat, sc, ns, limit, false, out);
+    finalise_results(c, fm2, pat, qstr, &edit_cfg, max_distance, false, sc, ns, limit, false, out);
     sc = NULL;  // owned and freed by finalise_results
     ffz_matcher_free(fm2);
     ffz_pattern_free(pat);
@@ -942,10 +1004,14 @@ void ffz_corpus_filter_fallback(ffz_corpus *c,
     out->hits = NULL; out->len = out->cap = 0;
     if ((unsigned)scoring > FFZ_SCORE_NUCLEO) scoring = FFZ_SCORE_FAST;
     // Pass 1: subsequence
+    //
+    // 第一轮（Pass 1）：子序列匹配。
     _corpus_filter_impl(c, query, query_len, cm, nm, FFZ_FUZZY,
                         par, limit, scoring, false, out);
     if (out->len > 0) return;
     // Pass 2: edit distance (only if seq found nothing)
+    //
+    // 第二轮（Pass 2）：编辑距离匹配（仅当子序列毫无结果时才执行）。
     ffz_corpus_filter_edit(c, query, query_len, cm, nm, max_distance,
                             par, limit, out);
 }
@@ -954,6 +1020,9 @@ void ffz_corpus_filter_fallback(ffz_corpus *c,
 
 // Per-item dual scan: seq hits go to seq_col, edit hits go to edit_col.
 // Unlike merge, items can appear in BOTH collectors (independent result sets).
+//
+// 逐项双算法扫描：子序列命中写入 seq_col，编辑距离命中写入 edit_col。
+// 与 merge 不同，同一条目可以同时出现在两个收集器中（各自独立的结果集）。
 static void scan_dual_range(ffz_corpus *c,
                              ffz_matcher *m, const ffz_pattern *pat,
                              const ffz_config *edit_cfg, ffz_str qstr, int max_dist,
@@ -972,13 +1041,17 @@ static void scan_dual_range(ffz_corpus *c,
             ffz_str ks = key_str(key);
 
             // Subsequence
+            //
+            // 子序列匹配。
             int32_t s = ffz_pattern_match(m, pat, ks, NULL);
             if (s > best_seq) {
                 best_seq = s; best_seq_kind = key->kind; best_seq_key = (uint32_t)k;
             }
 
             // Edit distance
-            int d = ffz_edit_distance(qstr, ks, max_dist, edit_cfg);
+            //
+            // 编辑距离匹配。
+            int d = ffz_edit_distance_substring(qstr, ks, max_dist, edit_cfg);
             if (d >= 0) {
                 int32_t es = -(int32_t)(d + 1);
                 if (es > best_edit) {
@@ -1044,8 +1117,44 @@ static bool thr_dual_start(scan_dual_job *j, ffz_thr *out) {
 #endif
 
 // Helper: sort a scored array and materialise Pass-2 indices into out.
-// `skip_idx` = true skips index computation (faster for edit-only results).
+// `skip_idx` = true skips index computation entirely (fastest, no highlight).
+//
+// `edit_all` = true declares "every entry in `sc` is an edit-distance hit,
+// regardless of score sign" — set by callers whose array can ONLY hold edit
+// hits (ffz_corpus_filter_edit[_raws], dual's edit bucket), where the plain
+// -(distance) encoding lets score be 0 for an exact match. Do NOT infer this
+// from `fm == NULL` instead: merge's mixed seq+edit array also passes a
+// possibly-NULL fm (ffz_matcher_new can fail under OOM) while still holding
+// >=0 seq scores that must NOT be treated as edit hits.
+//
+// For arrays where edit_all is false, a `scored` entry's score sign says
+// which algorithm produced it: score >= 0 is a subsequence hit (recompute
+// indices via ffz_pattern_match, needs fm/pat), score < 0 is an edit-distance
+// hit (recompute the matched window via ffz_edit_window, needs
+// edit_query/edit_cfg — edit_cfg == NULL means "this array can't contain
+// edit hits, don't bother trying"). Edit-window indices are the whole
+// matched window [start, end), not discrete positions.
+//
+// 辅助函数：对 scored 数组排序，并把第二轮（Pass 2）的 indices 写入 out。
+// `skip_idx` = true 时完全跳过下标计算（最快，但不产生高亮）。
+//
+// `edit_all` = true 表示"`sc` 中的每一项都是编辑距离命中，无论分数符号
+// 如何"——由那些数组只可能持有编辑距离命中的调用方设置
+// （ffz_corpus_filter_edit[_raws]、dual 的 edit 结果桶），因为这类数组
+// 使用单纯的 -(distance) 编码，精确匹配时分数可以为 0。不要改用
+// `fm == NULL` 来推断这一点：merge 混合了子序列与编辑距离命中的数组
+// 也可能传入 NULL 的 fm（ffz_matcher_new 在 OOM 下会失败），但其中仍
+// 持有 >=0 的子序列分数，绝不能被当成编辑距离命中处理。
+//
+// 对于 edit_all 为 false 的数组，`scored` 条目的分数符号表明它由哪种
+// 算法产生：score >= 0 是子序列命中（需要 fm/pat，通过 ffz_pattern_match
+// 重新计算下标），score < 0 是编辑距离命中（需要 edit_query/edit_cfg，
+// 通过 ffz_edit_window 重新计算匹配窗口——edit_cfg == NULL 表示"这个数组
+// 不可能包含编辑距离命中，不必尝试"）。编辑窗口的下标是整个匹配窗口
+// [start, end)，而不是离散位置。
 static void finalise_results(ffz_corpus *c, ffz_matcher *fm, const ffz_pattern *pat,
+                              ffz_str edit_query, const ffz_config *edit_cfg,
+                              int edit_max_dist, bool edit_all,
                               scored *sc, size_t ns, size_t limit, bool skip_idx,
                               ffz_results *out) {
     size_t keep;
@@ -1064,11 +1173,21 @@ static void finalise_results(ffz_corpus *c, ffz_matcher *fm, const ffz_pattern *
         hit.matched_kind = sc[r].matched_kind;
         hit.matched_key  = sc[r].matched_key;
         hit.indices.data = NULL; hit.indices.len = hit.indices.cap = 0;
-        if (!skip_idx && fm && sc[r].score >= 0) {
+        if (!skip_idx && !edit_all && fm && sc[r].score >= 0) {
             corpus_item *it = &c->items[sc[r].item_index];
             const corpus_key *key = item_key(it, sc[r].matched_key);
             ffz_pattern_match(fm, pat, key_str(key), &hit.indices);
             ffz_indices_sort_dedup(&hit.indices);
+        } else if (!skip_idx && edit_cfg && (edit_all || sc[r].score < 0)) {
+            corpus_item *it = &c->items[sc[r].item_index];
+            const corpus_key *key = item_key(it, sc[r].matched_key);
+            size_t start, end;
+            int d = ffz_edit_window(edit_query, key_str(key), edit_max_dist,
+                                     edit_cfg, &start, &end);
+            if (d >= 0) {
+                for (size_t p = start; p < end; p++)
+                    ffz_indices_push(&hit.indices, (uint32_t)p);
+            }
         }
         results_push(out, hit);
     }
@@ -1194,10 +1313,15 @@ void ffz_corpus_filter_dual(ffz_corpus *c,
     ffz_config cfg2 = c->cfg; cfg2.scoring_mode = scoring;
     ffz_matcher *fm2 = ffz_matcher_new(cfg2);
 
-    // seq: sort + Pass 2 indices
-    finalise_results(c, fm2, pat, seq_sc, seq_ns, limit, false, &d->seq);
-    // edit: sort, no Pass 2 (edit hits have no char indices)
-    finalise_results(c, NULL, pat, edit_sc, edit_ns, limit, true, &d->edit);
+    // seq: sort + Pass 2 subsequence-position indices
+    //
+    // seq：排序 + 第二轮（Pass 2）子序列位置下标。
+    finalise_results(c, fm2, pat, qstr, NULL, 0, false, seq_sc, seq_ns, limit, false, &d->seq);
+    // edit: sort + Pass 2 matched-window indices
+    //
+    // edit：排序 + 第二轮（Pass 2）匹配窗口下标。
+    finalise_results(c, NULL, pat, qstr, &edit_cfg, max_distance, true,
+                      edit_sc, edit_ns, limit, false, &d->edit);
 
     ffz_matcher_free(fm2);
     ffz_pattern_free(pat);
