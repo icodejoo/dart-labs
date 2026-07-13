@@ -183,7 +183,7 @@ final class FuzzyCorpus<T> extends FuzzyCorpusProtected<T> {
     _matchPaths = matchPaths;
     _preferPrefix = preferPrefix;
     if (!_ready) {
-      _deferred = true;
+      cDeferred_ = true;
       for (final item in items) { items_.add(item); keys_.add(null); }
       return;
     }
@@ -238,7 +238,6 @@ final class FuzzyCorpus<T> extends FuzzyCorpusProtected<T> {
   // ── WASM-specific state ───────────────────────────────────────────────────
 
   int _cp = 0;         // WASM corpus pointer
-  bool _deferred = false; // true if constructed before WASM was ready
   bool _matchPaths = false;
   bool _preferPrefix = false;
 
@@ -252,8 +251,8 @@ final class FuzzyCorpus<T> extends FuzzyCorpusProtected<T> {
   // Called at search time. If WASM has since loaded, do the one-time C alloc
   // + rebuild; otherwise stays deferred and searches return [].
   void _ensureReady() {
-    if (!_deferred || !_ready) return;
-    _deferred = false;
+    if (!cDeferred_ || !_ready) return;
+    cDeferred_ = false;
     _cp = _M.newCfg2(_matchPaths ? 1 : 0, _preferPrefix ? 1 : 0, options.scoring._c);
     if (_cp == 0) throw const FuzzyException('ffz_ffi_new_cfg2 returned null (OOM)');
     rebuild_();
@@ -263,7 +262,7 @@ final class FuzzyCorpus<T> extends FuzzyCorpusProtected<T> {
 
   @override
   void cAdd_(Uint8List bytes) {
-    if (_deferred) return; // buffered in items_; will be pushed on first _ensureReady()
+    if (cDeferred_) return; // buffered in items_; will be pushed on first _ensureReady()
     final sp = _wAlloc(bytes);
     try { _M.add(_cp, sp, bytes.isEmpty ? 0 : bytes.length); }
     finally { _wFree(sp); }
@@ -271,7 +270,7 @@ final class FuzzyCorpus<T> extends FuzzyCorpusProtected<T> {
 
   @override
   void cAddKeyed_(Uint8List primary, List<FuzzyKey> keys) {
-    if (_deferred) return;
+    if (cDeferred_) return;
     final M = _M;
     final sp = _wAlloc(primary);
     final n = keys.length;
@@ -296,13 +295,13 @@ final class FuzzyCorpus<T> extends FuzzyCorpusProtected<T> {
     }
   }
 
-  @override void cClear_() { if (!_deferred) _M.corpusClear(_cp); }
-  @override void cFree_()  { if (!_deferred) _M.corpusFree(_cp); }
+  @override void cClear_() { if (!cDeferred_) _M.corpusClear(_cp); }
+  @override void cFree_()  { if (!cDeferred_) _M.corpusFree(_cp); }
 
   // ── Search bridge ─────────────────────────────────────────────────────────
 
   // Returns true when the corpus is still deferred (caller should return empty).
-  bool _guardSync() { check_(); _ensureReady(); return _deferred; }
+  bool _guardSync() { check_(); _ensureReady(); return cDeferred_; }
 
   @override
   List<FuzzyHit<T>> search_(int mode, String q, FuzzyOptions o) {
@@ -340,7 +339,7 @@ final class FuzzyCorpus<T> extends FuzzyCorpusProtected<T> {
   @override
   Future<List<FuzzyHit<T>>> searchAsync_(int mode, String q, FuzzyOptions o) async {
     check_();
-    if (_deferred) { await _readyCompleter.future; _ensureReady(); }
+    if (cDeferred_) { await _readyCompleter.future; _ensureReady(); }
     inFlight_++;
     try { return search_(mode, q, o); }
     finally { inFlight_--; signalIfIdle_(); }
@@ -349,24 +348,25 @@ final class FuzzyCorpus<T> extends FuzzyCorpusProtected<T> {
   @override
   Future<List<T>> searchRawsAsync_(int mode, String q, FuzzyOptions o) async {
     check_();
-    if (_deferred) { await _readyCompleter.future; _ensureReady(); }
+    if (cDeferred_) { await _readyCompleter.future; _ensureReady(); }
     inFlight_++;
     try { return searchRaws_(mode, q, o); }
     finally { inFlight_--; signalIfIdle_(); }
   }
 
-  @override
-  List<FuzzyHit<T>> searchFallback_(String q, int maxDist, FuzzyOptions o) {
-    if (_guardSync()) return [];
+  List<FuzzyHit<T>> _callWasmFilter(
+      int Function(int cp, int qp, int qlen, int cm, int nm, int maxDist,
+                   int sc, int par, int thr, int lim) fn,
+      String q, int maxDist, FuzzyOptions o) {
     final M = _M;
     final qb = toUtf8(q);
     final qp = _wAlloc(qb);
     int r = 0;
     try {
-      r = M.filterFallback(_cp, qp, qb.isEmpty ? 0 : qb.length,
+      r = fn(_cp, qp, qb.isEmpty ? 0 : qb.length,
           o.caseMatching._c, o.normalization._c, maxDist,
           o.scoring._c, o.parallel ? 1 : 0, o.threads, o.limit);
-      if (r == 0) throw StateError('ffz_ffi_filter_fallback returned null (OOM)');
+      if (r == 0) throw StateError('ffuzzy: filter returned null (OOM)');
       return _readHits(M, r, false);
     } finally {
       _wFree(qp);
@@ -375,8 +375,14 @@ final class FuzzyCorpus<T> extends FuzzyCorpusProtected<T> {
   }
 
   @override
+  List<FuzzyHit<T>> searchFallback_(String q, int maxDist, FuzzyOptions o) =>
+      _callWasmFilter(
+          (cp, qp, qlen, cm, nm, md, sc, par, thr, lim) =>
+              _M.filterFallback(cp, qp, qlen, cm, nm, md, sc, par, thr, lim),
+          q, maxDist, o);
+
+  @override
   FuzzyDualResult<T> searchDualC_(String q, int maxDist, FuzzyOptions o) {
-    if (_guardSync()) return FuzzyDualResult(fuzzy: [], approx: []);
     final M = _M;
     final qb = toUtf8(q);
     final qp = _wAlloc(qb);
@@ -398,23 +404,11 @@ final class FuzzyCorpus<T> extends FuzzyCorpusProtected<T> {
   }
 
   @override
-  List<FuzzyHit<T>> searchMerge_(String q, int maxDist, FuzzyOptions o) {
-    if (_guardSync()) return [];
-    final M = _M;
-    final qb = toUtf8(q);
-    final qp = _wAlloc(qb);
-    int r = 0;
-    try {
-      r = M.filterMerge(_cp, qp, qb.isEmpty ? 0 : qb.length,
-          o.caseMatching._c, o.normalization._c, maxDist,
-          o.scoring._c, o.parallel ? 1 : 0, o.threads, o.limit);
-      if (r == 0) throw StateError('ffz_ffi_filter_merge returned null (OOM)');
-      return _readHits(M, r, false);
-    } finally {
-      _wFree(qp);
-      if (r != 0) M.rFree(r);
-    }
-  }
+  List<FuzzyHit<T>> searchMerge_(String q, int maxDist, FuzzyOptions o) =>
+      _callWasmFilter(
+          (cp, qp, qlen, cm, nm, md, sc, par, thr, lim) =>
+              _M.filterMerge(cp, qp, qlen, cm, nm, md, sc, par, thr, lim),
+          q, maxDist, o);
 
   @override
   List<FuzzyHit<T>> searchEdit_(String q, int maxDist, FuzzyOptions o) {
