@@ -76,8 +76,7 @@ jobs:
         run: |
           flutter build web \
             --release \
-            --base-href /dart-labs/countman/ \
-            --web-renderer canvaskit
+            --base-href /dart-labs/countman/
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
@@ -111,8 +110,7 @@ jobs:
         run: |
           flutter build web \
             --release \
-            --base-href /dart-labs/dioman/ \
-            --web-renderer canvaskit
+            --base-href /dart-labs/dioman/
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
@@ -146,8 +144,7 @@ jobs:
         run: |
           flutter build web \
             --release \
-            --base-href /dart-labs/layerman/ \
-            --web-renderer canvaskit
+            --base-href /dart-labs/layerman/
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
