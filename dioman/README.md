@@ -1,8 +1,11 @@
 # dioman
 
 [![pub](https://img.shields.io/pub/v/dioman.svg)](https://pub.dev/packages/dioman)
+[![Demo](https://img.shields.io/badge/demo-live-brightgreen)](https://icodejoo.github.io/dart-labs/dioman/)
 
 > 中文文档：[README.zh-CN.md](./README.zh-CN.md)
+
+**[▶ Live Demo](https://icodejoo.github.io/dart-labs/dioman/)** — interactive request playground, no server needed.
 
 A set of **composable, self-contained** [`dio`](https://pub.dev/packages/dio) interceptor *plugins* — auth, cache, retry, request dedup, mock, envelope-normalize, path-rewrite, loading, cancel, logging — that each do one thing, plus the **correct install order** to wire them together.
 

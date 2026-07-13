@@ -1,5 +1,7 @@
 # layerman
 
+🎮 [Live demo](https://icodejoo.github.io/dart-labs/layerman/)
+
 A **Flutter-native overlay queue manager** for dialogs, modals, bottom-sheets,
 toasts and banners. It owns *when* / *which* overlay is shown — a serial
 one-at-a-time queue with named slots, priority, `replace`, `affix` and

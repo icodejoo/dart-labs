@@ -3,6 +3,9 @@
 > English: [README.md](./README.md)
 
 [![pub](https://img.shields.io/pub/v/dioman.svg)](https://pub.dev/packages/dioman)
+[![Demo](https://img.shields.io/badge/demo-live-brightgreen)](https://icodejoo.github.io/dart-labs/dioman/)
+
+**[▶ 在线演示](https://icodejoo.github.io/dart-labs/dioman/)** —— 交互式请求演练场,无需服务端。
 
 一组**可组合、各自独立**的 [`dio`](https://pub.dev/packages/dio) 拦截器*插件*——鉴权、缓存、重试、并发去重、mock、信封拆包、路径变量、加载态、取消、日志——每个只做一件事；并给出把它们串起来的**正确安装顺序**。
 

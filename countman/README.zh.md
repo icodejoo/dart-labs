@@ -6,9 +6,9 @@
 
 [![pub.dev](https://img.shields.io/pub/v/countman.svg)](https://pub.dev/packages/countman)
 [![license](https://img.shields.io/badge/license-MIT-blue.svg)](https://github.com/icodejoo/dart-labs/blob/main/countman/LICENSE)
-[![Demo](https://img.shields.io/badge/demo-live-brightgreen)](https://icodejoo.github.io/dart-labs/)
+[![Demo](https://img.shields.io/badge/demo-live-brightgreen)](https://icodejoo.github.io/dart-labs/countman/)
 
-**[▶ 在线演示](https://icodejoo.github.io/dart-labs/)** —— 计数器 · 倒计时 · 计时，涵盖全部组件、全部 API。
+**[▶ 在线演示](https://icodejoo.github.io/dart-labs/countman/)** —— 计数器 · 倒计时 · 计时，涵盖全部组件、全部 API。
 
 - ⚡ **无 `Timer.periodic`，无逐组件 `AnimationController`** —— 一切都由单个 `SchedulerBinding.scheduleFrameCallback` 驱动。
 - 🚀 **专为高并发设计** —— 第 100 个活动计数器/计时器与第 1 个开销相同；当没有任何动画时，ticker 会自动进入空闲。
@@ -23,7 +23,7 @@
 | ![计数器演示](https://raw.githubusercontent.com/icodejoo/dart-labs/main/countman/example/screenshots/counter.jpg) | ![倒计时演示](https://raw.githubusercontent.com/icodejoo/dart-labs/main/countman/example/screenshots/countdown.jpg) | ![计时演示](https://raw.githubusercontent.com/icodejoo/dart-labs/main/countman/example/screenshots/elapsed.jpg) |
 | 文本 / 环形 / 条形 / 里程表 / 动画 | 文本 / 环形 / 条形 / 表盘 / 卡片 | 秒表、高精度、Provider |
 
-> 截取自[示例应用](https://github.com/icodejoo/dart-labs/tree/main/countman/example) —— 可在[在线演示](https://icodejoo.github.io/dart-labs/)中实际体验。
+> 截取自[示例应用](https://github.com/icodejoo/dart-labs/tree/main/countman/example) —— 可在[在线演示](https://icodejoo.github.io/dart-labs/countman/)中实际体验。
 
 ---
 

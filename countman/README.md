@@ -6,9 +6,9 @@
 
 [![pub.dev](https://img.shields.io/pub/v/countman.svg)](https://pub.dev/packages/countman)
 [![license](https://img.shields.io/badge/license-MIT-blue.svg)](https://github.com/icodejoo/dart-labs/blob/main/countman/LICENSE)
-[![Demo](https://img.shields.io/badge/demo-live-brightgreen)](https://icodejoo.github.io/dart-labs/)
+[![Demo](https://img.shields.io/badge/demo-live-brightgreen)](https://icodejoo.github.io/dart-labs/countman/)
 
-**[▶ Live Demo](https://icodejoo.github.io/dart-labs/)** — Counter · Countdown · Elapsed, all widgets, all APIs.
+**[▶ Live Demo](https://icodejoo.github.io/dart-labs/countman/)** — Counter · Countdown · Elapsed, all widgets, all APIs.
 
 - ⚡ **No `Timer.periodic`, no per-widget `AnimationController`** — a single `SchedulerBinding.scheduleFrameCallback` drives everything.
 - 🚀 **Built for high concurrency** — the 100th live counter/timer costs the same as the 1st; the ticker auto-idles when nothing is animating.
@@ -23,7 +23,7 @@
 | ![Counter demo](https://raw.githubusercontent.com/icodejoo/dart-labs/main/countman/example/screenshots/counter.jpg) | ![Countdown demo](https://raw.githubusercontent.com/icodejoo/dart-labs/main/countman/example/screenshots/countdown.jpg) | ![Elapsed demo](https://raw.githubusercontent.com/icodejoo/dart-labs/main/countman/example/screenshots/elapsed.jpg) |
 | Text / ring / bar / odometer / animated | Text / ring / bar / dial / card | Stopwatch, precise, provider |
 
-> Captured from the [example app](https://github.com/icodejoo/dart-labs/tree/main/countman/example) — try it live at the [demo site](https://icodejoo.github.io/dart-labs/).
+> Captured from the [example app](https://github.com/icodejoo/dart-labs/tree/main/countman/example) — try it live at the [demo site](https://icodejoo.github.io/dart-labs/countman/).
 
 ---
 
