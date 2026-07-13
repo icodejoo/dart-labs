@@ -64,6 +64,8 @@ void main() async {
 
 **注意**：web 端 `fuzzy()` 等方法是**同步的**（WASM 在主线程执行）；`asyncFuzzy()` 在 web 上是带 microtask 的同步调用，不经 Web Worker，大型 corpus 可能阻塞主线程。
 
+**延迟初始化（corpus 在 `ffuzzyInit` 之前创建）**：同步方法（`search`/`fuzzy`/`approx`/`dual` 等）在 WASM 就绪前返回 `[]`；`async*` 变体（`asyncFuzzy`/`asyncSearch`/`asyncApprox`/`asyncDual` 等）会自动 await WASM 初始化完成再执行，所有 strategy（包括 `fallback`/`merge`）均支持此行为。
+
 ## 公开 Dart API（`package:ffuzzy/ffuzzy.dart`）
 
 ### ffuzzyInit
