@@ -24,13 +24,20 @@ command -v emcc >/dev/null 2>&1 || { echo "error: emcc not found; source emsdk_e
 echo "Using $(emcc --version | head -1)"
 
 # All FFI symbols except the crash handler (not available in WASM).
-mapfile -t SYMS < <(grep -oE 'ffz_ffi_[a-z_0-9]+' "$ROOT/ffi/ffz_ffi.c" \
+# Scoped to `FFZ_API` definition lines so comments (e.g. "ffz_ffi_results_*")
+# can't leak a truncated, nonexistent symbol into the export list.
+mapfile -t SYMS < <(grep '^FFZ_API' "$ROOT/ffi/ffz_ffi.c" \
+                    | grep -oE 'ffz_ffi_[a-z_0-9]+' \
                     | grep -v 'install_crash_handler' | sort -u)
 EXPORTS="_malloc,_free"
 for s in "${SYMS[@]}"; do EXPORTS+=",_$s"; done
-RUNTIME="ccall,cwrap,UTF8ToString,stringToUTF8,lengthBytesUTF8,getValue,setValue"
+RUNTIME="ccall,cwrap,UTF8ToString,stringToUTF8,lengthBytesUTF8,getValue,setValue,HEAPU8,HEAP32,HEAPU32"
 
 OUT="$WASM/src/ffz.mjs"
+
+# Wipe stale non-.ts build output before recompiling — src/ should only ever
+# hold the current ffz.mjs (this script's output) plus hand-written .ts.
+find "$WASM/src" -type f ! -name '*.ts' -delete
 
 echo "--- compiling → $OUT ($OPT) ---"
 emcc $OPT \

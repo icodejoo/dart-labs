@@ -15,7 +15,7 @@ import { join, dirname } from 'node:path';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '../..');
 const api  = JSON.parse(readFileSync(join(root, 'test/shared/api_surface.json'), 'utf8'));
-const dts  = readFileSync(join(root, 'wasm/dist/ffuzzy-fzf.d.mts'), 'utf8');
+const dts  = readFileSync(join(root, 'wasm/dist/ffuzzy.d.mts'), 'utf8');
 
 // ── Extract JS exports ────────────────────────────────────────────────────────
 // tsdown generates a single `export { A, B, C };` line at the bottom of .d.mts
