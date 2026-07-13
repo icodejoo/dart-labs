@@ -31,6 +31,7 @@ TypeScript/axios counterpart) — new capabilities and a few breaking signature 
   `retryAfterMax` fields; `extra['dioman:retry']` also now accepts a plain `int` (overrides `max`
   only) or `false` (disables retry for this request, highest-priority veto), not just a
   `DiomanRetryOptions` object.
+- Docs: README (EN/ZH) now link the live interactive demo.
 
 ## 0.4.1
 

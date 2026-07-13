@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.2.2
+
+Docs only — no code changes.
+
+### Fixed
+- README (EN/ZH) demo link/badge now points to the package-specific demo
+  path (`/countman/`) instead of the shared monorepo landing page.
+
 ## 0.2.1
 
 Docs only — no code changes.
