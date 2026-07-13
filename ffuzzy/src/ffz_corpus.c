@@ -451,6 +451,10 @@ ffz_scoring_mode ffz_corpus_scoring(const ffz_corpus *c) {
     return c->cfg.scoring_mode;
 }
 
+static void finalise_results(ffz_corpus *c, ffz_matcher *fm, const ffz_pattern *pat,
+                              scored *sc, size_t ns, size_t limit, bool skip_idx,
+                              ffz_results *out);
+
 // Internal: shared implementation for ffz_corpus_filter and ffz_corpus_filter_raws.
 // skip_idx=true omits Pass 2 (index computation) — results have empty indices.
 static void _corpus_filter_impl(ffz_corpus *c, const char *query, size_t query_len,

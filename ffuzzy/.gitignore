@@ -38,6 +38,9 @@ migrate_working_dir/
 # C 引擎构建产物(仓库根即 C 插件)
 build/
 
+# 临时/散落构建产物统一存放目录(手动编译等)
+.temp/
+
 # WASM bundles (wasm/*.js) are now tracked — regenerate with `npm run build`
 # (wasm/build.mjs appends the wrapper to the committed engine .mjs).
 *.o
