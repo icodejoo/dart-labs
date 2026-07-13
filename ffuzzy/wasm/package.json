@@ -1,33 +1,41 @@
 {
   "name": "@codejoo/ffuzzy",
-  "version": "0.7.0",
+  "version": "0.8.0",
   "description": "Fast fuzzy search for the web — WASM port of the ffuzzy C engine. Five search modes, Unicode, TypeScript, browser + Node.",
   "type": "module",
   "exports": {
     ".": {
-      "import": "./ffuzzy.js",
-      "types": "./ffuzzy.d.ts"
+      "import": "./dist/ffuzzy-fzf.mjs",
+      "types": "./dist/ffuzzy-fzf.d.mts"
     },
-    "./lite": {
-      "import": "./ffuzzy-lite.js",
-      "types": "./ffuzzy-lite.d.ts"
+    "./fzf": {
+      "import": "./dist/ffuzzy-fzf.mjs",
+      "types": "./dist/ffuzzy-fzf.d.mts"
+    },
+    "./approx": {
+      "import": "./dist/ffuzzy-approx.mjs",
+      "types": "./dist/ffuzzy-fzf.d.mts"
+    },
+    "./full": {
+      "import": "./dist/ffuzzy-full.mjs",
+      "types": "./dist/ffuzzy-fzf.d.mts"
     }
   },
   "files": [
-    "ffuzzy.js",
-    "ffuzzy.d.ts",
-    "ffuzzy-lite.js",
-    "ffuzzy-lite.d.ts",
+    "dist/",
     "README.md"
   ],
   "publishConfig": {
     "access": "public"
   },
   "scripts": {
-    "build": "node build.mjs",
+    "build": "tsdown && terser dist/ffuzzy-fzf.mjs -o dist/ffuzzy-fzf.mjs --module --compress passes=2 --mangle && terser dist/ffuzzy-approx.mjs -o dist/ffuzzy-approx.mjs --module --compress passes=2 --mangle && terser dist/ffuzzy-full.mjs -o dist/ffuzzy-full.mjs --module --compress passes=2 --mangle",
     "build:engine": "bash build-engine.sh",
-    "test": "node build.mjs && node --test",
-    "prepublishOnly": "node build.mjs"
+    "build:engine:all": "bash build-engine.sh && FFZ_EDIT_DISTANCE=1 bash build-engine.sh && FFZ_SUBSEQUENCE=0 FFZ_EDIT_DISTANCE=1 bash build-engine.sh",
+    "build:all": "npm run build:engine:all && npm run build",
+    "check": "node scripts/check_api_parity.mjs",
+    "test": "npm run build && node scripts/check_api_parity.mjs && node --test",
+    "prepublishOnly": "npm run build && node scripts/check_api_parity.mjs"
   },
   "keywords": [
     "fuzzy-search",
@@ -66,6 +74,9 @@
   },
   "devDependencies": {
     "fuse.js": "^7.4.2",
-    "fuzzysort": "^3.1.0"
+    "fuzzysort": "^3.1.0",
+    "terser": "^5.49.0",
+    "tsdown": "^0.22.7",
+    "typescript": "~5.7.3"
   }
 }

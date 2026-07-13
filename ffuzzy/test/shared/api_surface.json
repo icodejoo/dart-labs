@@ -1,0 +1,45 @@
+{
+  "comment": "Canonical public API surface for FuzzyCorpus. Update this file when Dart API changes — the parity check script and both test files will catch what's missing on either side.",
+  "version": 1,
+
+  "corpus_instance_methods": [
+    "fuzzy",         "fuzzyRaws",
+    "substring",     "substringRaws",
+    "prefix",        "prefixRaws",
+    "postfix",       "postfixRaws",
+    "suffix",        "suffixRaws",
+    "exact",         "exactRaws",
+    "search",        "searchRaws",
+    "dual",
+    "approx",        "approxRaws",
+    "add",           "addAll",       "addKey",
+    "update",        "removeAt",     "removeWhere",
+    "refresh",       "clear",        "dispose"
+  ],
+
+  "corpus_static_methods": ["strings", "byKey", "byKeys"],
+
+  "fuzzy_hit_fields": [
+    "raw", "index", "score",
+    "matchedKind", "matchedKindCode", "matchedKey",
+    "indices"
+  ],
+
+  "module_exports": [
+    "ffuzzyInitialize", "ffuzzyReady",
+    "FuzzyCorpus", "FuzzyKey", "FuzzyOptions",
+    "FuzzyCase", "FuzzyNorm", "FuzzyMode", "FuzzyScoring", "FuzzyKeyKind",
+    "fuzzyCodepointToUtf16", "highlightHtml"
+  ],
+
+  "dart_only": [
+    "asyncBuild", "asyncAddAll", "asyncDispose",
+    "asyncSearch", "asyncSearchRaws",
+    "asyncApprox", "asyncApproxRaws",
+    "asyncDual",
+    "asyncFuzzy",         "asyncSubstring",     "asyncPrefix",
+    "asyncPostfix",       "asyncSuffix",        "asyncExact",
+    "asyncFuzzyRaws",     "asyncSubstringRaws", "asyncPrefixRaws",
+    "asyncPostfixRaws",   "asyncSuffixRaws",    "asyncExactRaws"
+  ]
+}

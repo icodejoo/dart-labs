@@ -3,7 +3,7 @@ description: >-
   Fast fuzzy search for Flutter, powered by a compact C engine via dart:ffi:
   fuzzy/substring/prefix/postfix/exact matching over a resident corpus,
   multi-threading, async filtering, hit highlighting, and Unicode (CJK).
-version: 0.5.2
+version: 0.6.0
 repository: https://github.com/icodejoo/dart-labs/tree/main/ffuzzy
 homepage: https://github.com/icodejoo/dart-labs/tree/main/ffuzzy
 issue_tracker: https://github.com/icodejoo/dart-labs/issues
@@ -15,13 +15,16 @@ topics:
   - unicode
 
 environment:
-  sdk: ^3.4.0
-  flutter: '>=3.10.0'
+  sdk: ^3.6.0
+  flutter: '>=3.24.0'
 
 dependencies:
   flutter:
     sdk: flutter
   ffi: ^2.1.0
+  web: ^1.1.0
+  flutter_web_plugins:
+    sdk: flutter
 
 dev_dependencies:
   flutter_lints: ^4.0.0
@@ -41,3 +44,6 @@ flutter:
         ffiPlugin: true
       windows:
         ffiPlugin: true
+      web:
+        pluginClass: FfuzzyPlugin
+        fileName: src/ffuzzy_web_plugin.dart

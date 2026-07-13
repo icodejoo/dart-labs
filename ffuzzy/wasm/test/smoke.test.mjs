@@ -7,7 +7,7 @@ import { test } from 'node:test';
 import {
   ffuzzyInitialize, ffuzzyReady, FuzzyCorpus, FuzzyKey, FuzzyKeyKind,
   FuzzyScoring, fuzzyCodepointToUtf16, highlightHtml,
-} from '../ffuzzy.js';
+} from '../dist/ffuzzy.mjs';
 
 test('full: init idempotent + ffuzzyReady', async () => {
   assert.equal(ffuzzyReady(), false);
@@ -111,14 +111,4 @@ test('full: dispose idempotent + use-after-dispose throws', async () => {
   c.dispose();
   c.dispose();
   assert.throws(() => c.fuzzy('x'), /after dispose/);
-});
-
-test('lite: separate bundle, ASCII + CJK', async () => {
-  const lite = await import('../ffuzzy-lite.js');
-  await lite.ffuzzyInitialize();
-  const c = lite.FuzzyCorpus.strings(['中文搜索', 'apple', 'app store']);
-  const hits = c.fuzzy('中文');
-  assert.deepEqual(hits.map((h) => h.raw), ['中文搜索']);
-  assert.ok(c.fuzzy('app').length >= 2);
-  c.dispose();
 });

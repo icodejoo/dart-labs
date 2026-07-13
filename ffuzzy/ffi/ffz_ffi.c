@@ -88,6 +88,7 @@ FFZ_API void ffz_ffi_free(ffz_corpus *c) { if (!c) return; ffz_corpus_free(c); }
 
 // --- filter: mode 0=fuzzy 1=substring 2=prefix 3=postfix 4=exact (word);
 //     cm 0=respect 1=ignore 2=smart;  nm 0=never 1=smart ---------------------
+#ifdef FFZ_SUBSEQUENCE
 // Like ffz_ffi_filter_ex but takes an explicit scoring mode. The Dart layer
 // passes the already-resolved effective scoring (corpus default merged with
 // per-call override). scoring: 0=FAST, 1=OFF, 2=NUCLEO.
@@ -144,6 +145,7 @@ FFZ_API ffz_results *ffz_ffi_filter(ffz_corpus *c, const char *q, size_t qn,
     return ffz_ffi_filter_ex(c, q, qn, mode, FFZ_CASE_SMART, FFZ_NORM_SMART,
                              parallel, threads, limit);
 }
+#endif /* FFZ_SUBSEQUENCE */
 
 // --- result accessors (no struct layout needed on the Dart side) ----------
 FFZ_API size_t ffz_ffi_results_len(ffz_results *r) {
@@ -178,6 +180,103 @@ FFZ_API void ffz_ffi_results_free(ffz_results *r) {
     ffz_results_free(r);
     free(r);
 }
+
+#ifdef FFZ_EDIT_DISTANCE
+// Edit-distance (typo-tolerant) search. max_distance: typically 1 or 2.
+// Results sorted by distance ascending. Indices always empty.
+// cm: 0=respect 1=ignore 2=smart. nm: 0=never 1=smart.
+FFZ_API ffz_results *ffz_ffi_filter_edit(ffz_corpus *c,
+                                          const char *q, size_t qn,
+                                          int max_distance,
+                                          int cm, int nm,
+                                          size_t limit) {
+    if (!c || !q) return NULL;
+    if ((unsigned)cm > FFZ_CASE_SMART || (unsigned)nm > FFZ_NORM_SMART) return NULL;
+    if (max_distance < 0 || max_distance > 10) return NULL;
+    ffz_results *r = (ffz_results *)calloc(1, sizeof(ffz_results));
+    if (!r) return NULL;
+    ffz_parallel par = ffz_parallel_off();
+    ffz_corpus_filter_edit(c, q, qn, (ffz_case_matching)cm, (ffz_normalization)nm,
+                           max_distance, par, limit, r);
+    return r;
+}
+#endif /* FFZ_EDIT_DISTANCE */
+
+#if defined(FFZ_SUBSEQUENCE) && defined(FFZ_EDIT_DISTANCE)
+FFZ_API ffz_results *ffz_ffi_filter_merge(ffz_corpus *c,
+                                           const char *q, size_t qn,
+                                           int cm, int nm,
+                                           int max_distance, int scoring,
+                                           int parallel, int threads,
+                                           size_t limit) {
+    if (!c || !q) return NULL;
+    if ((unsigned)cm      > FFZ_CASE_SMART  ||
+        (unsigned)nm      > FFZ_NORM_SMART  ||
+        (unsigned)scoring > FFZ_SCORE_NUCLEO ||
+        max_distance < 0 || max_distance > 10) return NULL;
+    ffz_results *r = (ffz_results *)calloc(1, sizeof(ffz_results));
+    if (!r) return NULL;
+    ffz_parallel par = {parallel != 0, threads};
+    ffz_corpus_filter_merge(c, q, qn, (ffz_case_matching)cm, (ffz_normalization)nm,
+                             max_distance, (ffz_scoring_mode)scoring, par, limit, r);
+    return r;
+}
+
+// --- fallback filter -------------------------------------------------------
+FFZ_API ffz_results *ffz_ffi_filter_fallback(ffz_corpus *c,
+                                              const char *q, size_t qn,
+                                              int cm, int nm,
+                                              int max_distance, int scoring,
+                                              int parallel, int threads,
+                                              size_t limit) {
+    if (!c || !q) return NULL;
+    if ((unsigned)cm      > FFZ_CASE_SMART   ||
+        (unsigned)nm      > FFZ_NORM_SMART   ||
+        (unsigned)scoring > FFZ_SCORE_NUCLEO ||
+        max_distance < 0 || max_distance > 10) return NULL;
+    ffz_results *r = (ffz_results *)calloc(1, sizeof(ffz_results));
+    if (!r) return NULL;
+    ffz_parallel par = {parallel != 0, threads};
+    ffz_corpus_filter_fallback(c, q, qn,
+                                (ffz_case_matching)cm, (ffz_normalization)nm,
+                                max_distance, (ffz_scoring_mode)scoring,
+                                par, limit, r);
+    return r;
+}
+
+// --- dual filter -----------------------------------------------------------
+FFZ_API ffz_dual_results *ffz_ffi_filter_dual(ffz_corpus *c,
+                                               const char *q, size_t qn,
+                                               int cm, int nm,
+                                               int max_distance, int scoring,
+                                               int parallel, int threads,
+                                               size_t limit) {
+    if (!c || !q) return NULL;
+    if ((unsigned)cm      > FFZ_CASE_SMART   ||
+        (unsigned)nm      > FFZ_NORM_SMART   ||
+        (unsigned)scoring > FFZ_SCORE_NUCLEO ||
+        max_distance < 0 || max_distance > 10) return NULL;
+    ffz_dual_results *d = (ffz_dual_results *)calloc(1, sizeof(ffz_dual_results));
+    if (!d) return NULL;
+    ffz_parallel par = {parallel != 0, threads};
+    ffz_corpus_filter_dual(c, q, qn,
+                            (ffz_case_matching)cm, (ffz_normalization)nm,
+                            max_distance, (ffz_scoring_mode)scoring,
+                            par, limit, d);
+    return d;
+}
+
+// Accessors for dual results — return embedded ffz_results* so callers can
+// reuse the existing ffz_ffi_results_* accessors.
+FFZ_API ffz_results *ffz_ffi_dual_seq(ffz_dual_results *d)  { return d ? &d->seq  : NULL; }
+FFZ_API ffz_results *ffz_ffi_dual_edit(ffz_dual_results *d) { return d ? &d->edit : NULL; }
+
+FFZ_API void ffz_ffi_dual_free(ffz_dual_results *d) {
+    if (!d) return;
+    ffz_dual_results_free(d);
+    free(d);
+}
+#endif /* FFZ_SUBSEQUENCE && FFZ_EDIT_DISTANCE */
 
 // --- bulk accessors: fill caller-provided arrays in one call ----------------
 // Reduces JS→WASM boundary crossings from O(N) to O(1) when reading results.

@@ -113,6 +113,7 @@ ffz_parallel ffz_parallel_with(int threads);     // {true, threads}
 // call — do NOT hold pointers into a previous result across a filter call on
 // the same `out`. Must be zero-initialised before the very first call:
 //   ffz_results r = {0};
+#ifdef FFZ_SUBSEQUENCE
 void ffz_corpus_filter(ffz_corpus *c, const char *query, size_t query_len,
                        ffz_case_matching cm, ffz_normalization nm,
                        ffz_mode mode, ffz_parallel par, size_t limit,
@@ -126,9 +127,61 @@ void ffz_corpus_filter_raws(ffz_corpus *c, const char *query, size_t query_len,
                              ffz_mode mode, ffz_parallel par, size_t limit,
                              ffz_scoring_mode scoring,
                              ffz_results *out);
+#endif
 
 // Return the corpus-level scoring mode (stored in its ffz_config).
 ffz_scoring_mode ffz_corpus_scoring(const ffz_corpus *c);
+
+#ifdef FFZ_EDIT_DISTANCE
+// Edit-distance (typo-tolerant) filter. Returns items whose best key has
+// edit distance <= max_distance from query. Results are sorted by distance
+// ascending (score = -distance; same ffz_hit struct, indices always empty).
+// max_distance=1 handles single-char typos; 2 handles most realistic errors.
+void ffz_corpus_filter_edit(ffz_corpus *c,
+                            const char *query, size_t query_len,
+                            ffz_case_matching cm, ffz_normalization nm,
+                            int max_distance,
+                            ffz_parallel par, size_t limit,
+                            ffz_results *out);
+#endif
+
+#if defined(FFZ_SUBSEQUENCE) && defined(FFZ_EDIT_DISTANCE)
+// Single-pass merge: one corpus scan for both algorithms.
+// Seq hits (score ≥ 0) precede edit-only hits (score = -(distance+1) ≤ -1).
+void ffz_corpus_filter_merge(ffz_corpus *c,
+                              const char *query, size_t query_len,
+                              ffz_case_matching cm, ffz_normalization nm,
+                              int max_distance, ffz_scoring_mode scoring,
+                              ffz_parallel par, size_t limit,
+                              ffz_results *out);
+
+// Single-call fallback: runs subsequence; falls back to edit-distance only if
+// subsequence returns zero results. One FFI call, no intermediate Dart objects.
+void ffz_corpus_filter_fallback(ffz_corpus *c,
+                                 const char *query, size_t query_len,
+                                 ffz_case_matching cm, ffz_normalization nm,
+                                 int max_distance, ffz_scoring_mode scoring,
+                                 ffz_parallel par, size_t limit,
+                                 ffz_results *out);
+
+// Dual result handle: two independent result sets in one corpus scan.
+typedef struct {
+    ffz_results seq;   // subsequence hits (fzf scores)
+    ffz_results edit;  // edit-distance hits (all items, including overlap with seq)
+} ffz_dual_results;
+
+void ffz_dual_results_free(ffz_dual_results *d);
+
+// Single-pass dual: scans corpus once, applies both algorithms per item.
+// Writes seq hits and edit hits into separate result sets inside *d.
+// d must be zero-initialised by the caller before the first call.
+void ffz_corpus_filter_dual(ffz_corpus *c,
+                              const char *query, size_t query_len,
+                              ffz_case_matching cm, ffz_normalization nm,
+                              int max_distance, ffz_scoring_mode scoring,
+                              ffz_parallel par, size_t limit,
+                              ffz_dual_results *d);
+#endif
 
 #ifdef __cplusplus
 }
