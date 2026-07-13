@@ -1,3 +1,9 @@
+## 0.1.1
+
+Docs only — no code changes.
+
+* README now links the live interactive demo.
+
 ## 0.1.0
 
 * **`OverlayNavigatorObserver`** — a `NavigatorObserver` that feeds real
