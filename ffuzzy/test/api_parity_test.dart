@@ -45,8 +45,8 @@ void main() {
       c.dispose();
     });
 
-    test('buildAsync', () async {
-      final c = await FuzzyCorpus.buildAsync(
+    test('asyncBuild', () async {
+      final c = await FuzzyCorpus.asyncBuild(
         ['alpha', 'beta'], stringOf: (s) => s, libraryPath: lib,
       );
       expect(c.length, 2);
@@ -64,34 +64,34 @@ void main() {
     tearDown(() => c.dispose());
 
     test('fuzzy',         () { final h = c.fuzzy('main');        expect(h, isNotEmpty); });
-    test('fuzzyAsync',    () async { final h = await c.fuzzyAsync('main'); expect(h, isNotEmpty); });
+    test('asyncFuzzy',    () async { final h = await c.asyncFuzzy('main'); expect(h, isNotEmpty); });
     test('fuzzyRaws',     () { final r = c.fuzzyRaws('main');     expect(r, isNotEmpty); });
-    test('fuzzyRawsAsync',() async { final r = await c.fuzzyRawsAsync('main'); expect(r, isNotEmpty); });
+    test('asyncFuzzyRaws',() async { final r = await c.asyncFuzzyRaws('main'); expect(r, isNotEmpty); });
 
     test('prefix',         () { expect(c.prefix('src'),      isNotEmpty); });
-    test('prefixAsync',    () async { expect(await c.prefixAsync('src'), isNotEmpty); });
+    test('asyncPrefix',    () async { expect(await c.asyncPrefix('src'), isNotEmpty); });
     test('prefixRaws',     () { expect(c.prefixRaws('src'),   isNotEmpty); });
-    test('prefixRawsAsync',() async { expect(await c.prefixRawsAsync('src'), isNotEmpty); });
+    test('asyncPrefixRaws',() async { expect(await c.asyncPrefixRaws('src'), isNotEmpty); });
 
     test('postfix',         () { expect(c.postfix('.dart'),    isNotEmpty); });
-    test('postfixAsync',    () async { expect(await c.postfixAsync('.dart'), isNotEmpty); });
+    test('asyncPostfix',    () async { expect(await c.asyncPostfix('.dart'), isNotEmpty); });
     test('postfixRaws',     () { expect(c.postfixRaws('.dart'), isNotEmpty); });
-    test('postfixRawsAsync',() async { expect(await c.postfixRawsAsync('.dart'), isNotEmpty); });
+    test('asyncPostfixRaws',() async { expect(await c.asyncPostfixRaws('.dart'), isNotEmpty); });
 
     test('suffix',          () { expect(c.suffix('.dart'),     isNotEmpty); });
-    test('suffixAsync',     () async { expect(await c.suffixAsync('.dart'), isNotEmpty); });
+    test('asyncSuffix',     () async { expect(await c.asyncSuffix('.dart'), isNotEmpty); });
     test('suffixRaws',      () { expect(c.suffixRaws('.dart'),  isNotEmpty); });
-    test('suffixRawsAsync', () async { expect(await c.suffixRawsAsync('.dart'), isNotEmpty); });
+    test('asyncSuffixRaws', () async { expect(await c.asyncSuffixRaws('.dart'), isNotEmpty); });
 
     test('exact',          () { expect(c.exact('README.md'),   isNotEmpty); });
-    test('exactAsync',     () async { expect(await c.exactAsync('README.md'), isNotEmpty); });
+    test('asyncExact',     () async { expect(await c.asyncExact('README.md'), isNotEmpty); });
     test('exactRaws',      () { expect(c.exactRaws('README.md'), isNotEmpty); });
-    test('exactRawsAsync', () async { expect(await c.exactRawsAsync('README.md'), isNotEmpty); });
+    test('asyncExactRaws', () async { expect(await c.asyncExactRaws('README.md'), isNotEmpty); });
 
     test('substring',         () { expect(c.substring('widget'),    isNotEmpty); });
-    test('substringAsync',    () async { expect(await c.substringAsync('widget'), isNotEmpty); });
+    test('asyncSubstring',    () async { expect(await c.asyncSubstring('widget'), isNotEmpty); });
     test('substringRaws',     () { expect(c.substringRaws('widget'),  isNotEmpty); });
-    test('substringRawsAsync',() async { expect(await c.substringRawsAsync('widget'), isNotEmpty); });
+    test('asyncSubstringRaws',() async { expect(await c.asyncSubstringRaws('widget'), isNotEmpty); });
   });
 
   // ── FuzzyHit fields ──────────────────────────────────────────────────────────
@@ -137,7 +137,7 @@ void main() {
     test('removeWhere', () { final n = c.removeWhere((s) => s.startsWith('a')); expect(n, greaterThan(0)); });
     test('refresh',     () { c.refresh(['x', 'y']); expect(c.length, 2); });
     test('clear',       () { c.clear(); expect(c.length, 0); });
-    test('addAllAsync', () async { await c.addAllAsync(['p', 'q']); expect(c.length, 5); });
+    test('asyncAddAll', () async { await c.asyncAddAll(['p', 'q']); expect(c.length, 5); });
   });
 
   // ── Lifecycle ────────────────────────────────────────────────────────────────
@@ -152,9 +152,9 @@ void main() {
       c.dispose();
       expect(() => c.fuzzy('x'), throwsStateError);
     });
-    test('disposeAndWait', () async {
+    test('asyncDispose', () async {
       final c = FuzzyCorpus.strings(['x'], libraryPath: lib);
-      await c.disposeAndWait();
+      await c.asyncDispose();
     });
   });
 
