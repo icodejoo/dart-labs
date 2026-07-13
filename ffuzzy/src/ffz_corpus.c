@@ -1143,7 +1143,7 @@ static void finalise_results(ffz_corpus *c, ffz_matcher *fm, const ffz_pattern *
         }
         results_push(out, hit);
     }
-    if (top) free(top); else if (sc) free(sc);
+    free(sc);  // sc == top after topk branch, or the original buffer in the sort branch
 }
 
 void ffz_dual_results_free(ffz_dual_results *d) {

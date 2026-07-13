@@ -260,10 +260,11 @@ final class FuzzyCorpus<T> extends FuzzyCorpusProtected<T>
   List<FuzzyHit<T>> search_(int mode, String q, FuzzyOptions o) {
     check_();
     if (mode != mFuzzy) return dartSearch(items_, stringOf_, mode, q, o);
-    final qp = _alloc(toUtf8(q));
+    final qb = toUtf8(q);
+    final qp = _alloc(qb);
     var r = Pointer<Void>.fromAddress(0);
     try {
-      r = _nativeFilter(qp, toUtf8(q).length, mode, o, o.highlight);
+      r = _nativeFilter(qp, qb.isEmpty ? 0 : qb.length, mode, o, o.highlight);
       if (r == nullptr) throw StateError('ffz filter returned null (OOM)');
       return _readHits(r, o.highlight);
     } finally {

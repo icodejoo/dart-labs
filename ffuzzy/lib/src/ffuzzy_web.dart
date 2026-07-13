@@ -301,11 +301,12 @@ final class FuzzyCorpus<T> extends FuzzyCorpusProtected<T> {
 
   // ── Search bridge ─────────────────────────────────────────────────────────
 
+  // Returns true when the corpus is still deferred (caller should return empty).
+  bool _guardSync() { check_(); _ensureReady(); return _deferred; }
+
   @override
   List<FuzzyHit<T>> search_(int mode, String q, FuzzyOptions o) {
-    check_();
-    _ensureReady();
-    if (_deferred) return [];
+    if (_guardSync()) return [];
     if (mode != mFuzzy) return dartSearch(items_, stringOf_, mode, q, o);
     final M = _M;
     final qb = toUtf8(q);
@@ -329,9 +330,7 @@ final class FuzzyCorpus<T> extends FuzzyCorpusProtected<T> {
 
   @override
   List<T> searchRaws_(int mode, String q, FuzzyOptions o) {
-    check_();
-    _ensureReady();
-    if (_deferred) return [];
+    if (_guardSync()) return [];
     if (mode != mFuzzy) return dartSearchRaws(items_, stringOf_, mode, q, o);
     return [for (final h in search_(mode, q, o.copyWith(highlight: false))) h.raw];
   }
@@ -358,8 +357,7 @@ final class FuzzyCorpus<T> extends FuzzyCorpusProtected<T> {
 
   @override
   List<FuzzyHit<T>> searchFallback_(String q, int maxDist, FuzzyOptions o) {
-    check_(); _ensureReady();
-    if (_deferred) return [];
+    if (_guardSync()) return [];
     final M = _M;
     final qb = toUtf8(q);
     final qp = _wAlloc(qb);
@@ -378,8 +376,7 @@ final class FuzzyCorpus<T> extends FuzzyCorpusProtected<T> {
 
   @override
   FuzzyDualResult<T> searchDualC_(String q, int maxDist, FuzzyOptions o) {
-    check_(); _ensureReady();
-    if (_deferred) return FuzzyDualResult(fuzzy: [], approx: []);
+    if (_guardSync()) return FuzzyDualResult(fuzzy: [], approx: []);
     final M = _M;
     final qb = toUtf8(q);
     final qp = _wAlloc(qb);
@@ -402,8 +399,7 @@ final class FuzzyCorpus<T> extends FuzzyCorpusProtected<T> {
 
   @override
   List<FuzzyHit<T>> searchMerge_(String q, int maxDist, FuzzyOptions o) {
-    check_(); _ensureReady();
-    if (_deferred) return [];
+    if (_guardSync()) return [];
     final M = _M;
     final qb = toUtf8(q);
     final qp = _wAlloc(qb);
@@ -422,9 +418,7 @@ final class FuzzyCorpus<T> extends FuzzyCorpusProtected<T> {
 
   @override
   List<FuzzyHit<T>> searchEdit_(String q, int maxDist, FuzzyOptions o) {
-    check_();
-    _ensureReady();
-    if (_deferred) return [];
+    if (_guardSync()) return [];
     final M = _M;
     final qb = toUtf8(q);
     final qp = _wAlloc(qb);

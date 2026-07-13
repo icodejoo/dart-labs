@@ -366,6 +366,7 @@ export class FuzzyCorpus<T = string> {
   search(query: string, opts?: Partial<FuzzyOptions> & { strategy?: SearchStrategy; maxDistance?: number }): FuzzyHit<T>[] {
     this._alive();
     if (!this._ensureReady()) return [];
+    const M = this._M!;
     const { strategy = 'fuzzy', maxDistance, ...rest } = opts ?? {};
     const dist = maxDistance ?? autoMaxDistance(query);
     const o = new FuzzyOptions({ ...this._opts, ...rest });
@@ -377,17 +378,7 @@ export class FuzzyCorpus<T = string> {
         let res = 0;
         try { res = M._ffz_ffi_filter_fallback(this._ptr, qp, qn, o.caseMatching, o.normalization, dist, o.scoring, 0, 0, o.limit); }
         finally { M._free(qp); }
-        const len = M._ffz_ffi_results_len(res);
-        const hits = new Array<FuzzyHit<T>>(len);
-        for (let i = 0; i < len; i++) {
-          const idx = M._ffz_ffi_results_item(res, i);
-          const kind = M._ffz_ffi_results_kind(res, i);
-          hits[i] = { raw: this._items[idx], index: idx, score: M._ffz_ffi_results_score(res, i),
-                      matchedKind: kind, matchedKindCode: kind,
-                      matchedKey: M._ffz_ffi_results_key(res, i), indices: [] };
-        }
-        M._ffz_ffi_results_free(res);
-        return hits;
+        return this._readFlat(M, res);
       }
       case 'merge': {
         const [qp, qn] = writeUtf8(M, query);
@@ -396,18 +387,7 @@ export class FuzzyCorpus<T = string> {
           res = M._ffz_ffi_filter_merge(this._ptr, qp, qn,
               o.caseMatching, o.normalization, dist, o.scoring, 0, 0, o.limit);
         } finally { M._free(qp); }
-        const len = M._ffz_ffi_results_len(res);
-        const hits = new Array<FuzzyHit<T>>(len);
-        for (let i = 0; i < len; i++) {
-          const idx = M._ffz_ffi_results_item(res, i);
-          const kind = M._ffz_ffi_results_kind(res, i);
-          hits[i] = { raw: this._items[idx], index: idx,
-                      score: M._ffz_ffi_results_score(res, i),
-                      matchedKind: kind, matchedKindCode: kind,
-                      matchedKey: M._ffz_ffi_results_key(res, i), indices: [] };
-        }
-        M._ffz_ffi_results_free(res);
-        return hits;
+        return this._readFlat(M, res);
       }
     }
   }
@@ -449,15 +429,8 @@ export class FuzzyCorpus<T = string> {
     return result;
   }
 
-  private _approxRaw(query: string, maxDistance: number, o: FuzzyOptions): FuzzyHit<T>[] {
-    if (!this._ensureReady()) return [];
-    const M = this._M!;
-    const [qp, qn] = writeUtf8(M, query);
-    const res = M._ffz_ffi_filter_edit(this._ptr, qp, qn, maxDistance,
-        o.caseMatching, o.normalization, o.limit);
-    M._free(qp);
+  private _readFlat(M: FfzMod, res: number): FuzzyHit<T>[] {
     const len = M._ffz_ffi_results_len(res);
-    if (len === 0) { M._ffz_ffi_results_free(res); return []; }
     const hits = new Array<FuzzyHit<T>>(len);
     for (let i = 0; i < len; i++) {
       const idx = M._ffz_ffi_results_item(res, i);
@@ -468,6 +441,16 @@ export class FuzzyCorpus<T = string> {
     }
     M._ffz_ffi_results_free(res);
     return hits;
+  }
+
+  private _approxRaw(query: string, maxDistance: number, o: FuzzyOptions): FuzzyHit<T>[] {
+    if (!this._ensureReady()) return [];
+    const M = this._M!;
+    const [qp, qn] = writeUtf8(M, query);
+    const res = M._ffz_ffi_filter_edit(this._ptr, qp, qn, maxDistance,
+        o.caseMatching, o.normalization, o.limit);
+    M._free(qp);
+    return this._readFlat(M, res);
   }
 
   // ── lifecycle ────────────────────────────────────────────────────────────────

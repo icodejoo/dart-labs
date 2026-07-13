@@ -188,6 +188,7 @@ declare class FuzzyCorpus<T = string> {
   dual(query: string, opts?: Partial<FuzzyOptions> & {
     maxDistance?: number;
   }): FuzzyDualResult<T>;
+  private _readFlat;
   private _approxRaw;
   dispose(): void;
   /** Returns true if ready to search; false if still deferred (WASM not loaded). */
