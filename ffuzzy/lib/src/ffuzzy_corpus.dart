@@ -127,6 +127,12 @@ abstract base class FuzzyCorpusProtected<T> {
   List<FuzzyHit<T>> searchFallback_(String q, int maxDist, FuzzyOptions o);
   FuzzyDualResult<T> searchDualC_(String q, int maxDist, FuzzyOptions o);
 
+  // Lazy-init hooks — web overrides to trigger _ensureReady(); FFI is always ready (no-op).
+  // ignore: non_constant_identifier_names
+  void syncEnsureReady_() {}
+  // ignore: non_constant_identifier_names
+  Future<void> asyncEnsureReady_() async {}
+
   // ── Shared internals ──────────────────────────────────────────────────────
 
   void check_() {
@@ -363,6 +369,7 @@ abstract base class FuzzyCorpusProtected<T> {
     FuzzyScoring? scoring,
   }) {
     check_();
+    syncEnsureReady_();
     final dist = maxDistance ?? autoMaxDistance(q);
     final o = eff_(caseMatching, normalization, parallel, threads, limit, false, scoring);
     if (cDeferred_) return FuzzyDualResult(fuzzy: const [], approx: const []);
@@ -371,12 +378,14 @@ abstract base class FuzzyCorpusProtected<T> {
 
   List<FuzzyHit<T>> _fallback(String q, int maxDist, FuzzyOptions o) {
     check_();
+    syncEnsureReady_();
     if (cDeferred_) return const [];
     return searchFallback_(q, maxDist, o);
   }
 
   List<FuzzyHit<T>> _merge(String q, int maxDist, FuzzyOptions o) {
     check_();
+    syncEnsureReady_();
     if (cDeferred_) return const [];
     return searchMerge_(q, maxDist, o);
   }
@@ -458,6 +467,7 @@ abstract base class FuzzyCorpusProtected<T> {
     int? maxDistance, FuzzyCase? caseMatching, FuzzyNorm? normalization,
     bool? parallel, int? threads, int? limit, bool? highlight, FuzzyScoring? scoring,
   }) async {
+    await asyncEnsureReady_();
     check_(); inFlight_++;
     try {
       return search(q, strategy: strategy, maxDistance: maxDistance,
@@ -513,6 +523,7 @@ abstract base class FuzzyCorpusProtected<T> {
     int? maxDistance, FuzzyCase? caseMatching, FuzzyNorm? normalization,
     bool? parallel, int? threads, int? limit, FuzzyScoring? scoring,
   }) async {
+    await asyncEnsureReady_();
     check_(); inFlight_++;
     try {
       return dual(q, maxDistance: maxDistance,

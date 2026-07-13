@@ -378,6 +378,7 @@ export class FuzzyCorpus<T = string> {
         let res = 0;
         try { res = M._ffz_ffi_filter_fallback(this._ptr, qp, qn, o.caseMatching, o.normalization, dist, o.scoring, 0, 0, o.limit); }
         finally { M._free(qp); }
+        if (!res) return [];
         return this._readFlat(M, res);
       }
       case 'merge': {
@@ -387,6 +388,7 @@ export class FuzzyCorpus<T = string> {
           res = M._ffz_ffi_filter_merge(this._ptr, qp, qn,
               o.caseMatching, o.normalization, dist, o.scoring, 0, 0, o.limit);
         } finally { M._free(qp); }
+        if (!res) return [];
         return this._readFlat(M, res);
       }
     }
@@ -410,6 +412,7 @@ export class FuzzyCorpus<T = string> {
     let d = 0;
     try { d = M._ffz_ffi_filter_dual(this._ptr, qp, qn, o.caseMatching, o.normalization, dist, o.scoring, 0, 0, o.limit); }
     finally { M._free(qp); }
+    if (!d) return { fuzzy: [], approx: [] };
     const sr = M._ffz_ffi_dual_seq(d);
     const er = M._ffz_ffi_dual_edit(d);
     const readSet = (r: number): FuzzyHit<T>[] => {
@@ -447,9 +450,14 @@ export class FuzzyCorpus<T = string> {
     if (!this._ensureReady()) return [];
     const M = this._M!;
     const [qp, qn] = writeUtf8(M, query);
-    const res = M._ffz_ffi_filter_edit(this._ptr, qp, qn, maxDistance,
-        o.caseMatching, o.normalization, o.limit);
-    M._free(qp);
+    let res = 0;
+    try {
+      res = M._ffz_ffi_filter_edit(this._ptr, qp, qn, maxDistance,
+          o.caseMatching, o.normalization, o.limit);
+    } finally {
+      M._free(qp);
+    }
+    if (!res) return [];
     return this._readFlat(M, res);
   }
 
