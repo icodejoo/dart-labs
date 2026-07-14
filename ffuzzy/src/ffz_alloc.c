@@ -18,6 +18,15 @@ typedef volatile long long ffz_atomic;
 #define FFZ_STORE(p, v)  _InterlockedExchange64((p), (long long)(v))
 #define FFZ_INC(p)       (void)_InterlockedIncrement64(p)
 #define FFZ_DEC(p)       (void)_InterlockedDecrement64(p)
+// Compare-and-swap: on success, *p becomes `desired` and returns 1. On
+// failure, *expected is updated to *p's current value and returns 0 (mirrors
+// C11's atomic_compare_exchange_weak so fail_now() below can share one loop).
+static int ffz_cas(ffz_atomic *p, long long *expected, long long desired) {
+    long long prev = _InterlockedCompareExchange64(p, desired, *expected);
+    if (prev == *expected) return 1;
+    *expected = prev;
+    return 0;
+}
 #else
 #include <stdatomic.h>
 typedef _Atomic long long ffz_atomic;
@@ -25,6 +34,9 @@ typedef _Atomic long long ffz_atomic;
 #define FFZ_STORE(p, v)  atomic_store((p), (long long)(v))
 #define FFZ_INC(p)       (void)atomic_fetch_add((p), 1)
 #define FFZ_DEC(p)       (void)atomic_fetch_sub((p), 1)
+static int ffz_cas(ffz_atomic *p, long long *expected, long long desired) {
+    return atomic_compare_exchange_weak(p, expected, desired);
+}
 #endif
 
 static ffz_atomic g_live = 0;
@@ -37,12 +49,20 @@ static ffz_atomic g_fail_after = -1;
 void ffz_dbg_fail_after(int n) { FFZ_STORE(&g_fail_after, n); }
 
 // Returns 1 and consumes a budget slot if this allocation should fail.
+// The load-and-decide-and-decrement must be one atomic step: with a plain
+// load-then-decrement, two racing threads could both observe the last
+// remaining budget slot (c == 1), both decide not to fail, and both
+// decrement — letting one extra allocation through past the configured
+// budget and making OOM-path tests flaky under the parallel scan this
+// counter is meant to support. A CAS retry loop closes that window.
 static int fail_now(void) {
     long long c = FFZ_LOAD(&g_fail_after);
-    if (c < 0) return 0;            // injection disabled
-    if (c == 0) return 1;           // budget exhausted -> fail
-    FFZ_DEC(&g_fail_after);
-    return 0;
+    for (;;) {
+        if (c < 0) return 0;            // injection disabled
+        if (c == 0) return 1;           // budget exhausted -> fail
+        if (ffz_cas(&g_fail_after, &c, c - 1)) return 0;  // consumed one slot
+        // c has been refreshed to the current value by ffz_cas; retry.
+    }
 }
 
 void *ffz_dbg_malloc(size_t n) {

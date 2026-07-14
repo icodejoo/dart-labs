@@ -55,15 +55,24 @@ let _M: FfzMod | null = null;
 let _readyResolve: (() => void) | null = null;
 // Resolves when ffuzzyInitialize finishes — success (_M set) or failure (_M null).
 const _readyPromise = new Promise<void>(res => { _readyResolve = res; });
+// Tracks an in-flight ffuzzyInitialize() call so concurrent callers (e.g. two
+// components each initializing on mount) share one WASM instantiation instead
+// of double-invoking the module factory (double network fetch / double
+// linear-memory allocation, with `_M` ending up as whichever finished last).
+let _initPromise: Promise<void> | null = null;
 
 /** Initialize the WASM engine. Await once before constructing any `FuzzyCorpus`. Idempotent. */
-export async function ffuzzyInitialize(opts?: Record<string, unknown>): Promise<void> {
-  if (_M) return;
-  try {
-    _M = await (ffuzzyModule as unknown as (o?: Record<string, unknown>) => Promise<FfzMod>)(opts);
-  } finally {
-    _readyResolve?.();
-  }
+export function ffuzzyInitialize(opts?: Record<string, unknown>): Promise<void> {
+  if (_M) return Promise.resolve();
+  if (_initPromise) return _initPromise;
+  _initPromise = (async () => {
+    try {
+      _M = await (ffuzzyModule as unknown as (o?: Record<string, unknown>) => Promise<FfzMod>)(opts);
+    } finally {
+      _readyResolve?.();
+    }
+  })();
+  return _initPromise;
 }
 
 /** `true` once {@link ffuzzyInitialize} has completed successfully. */
@@ -177,6 +186,7 @@ function foldPair(text: string, query: string, cm: FuzzyCase): [string, string] 
 function writeUtf8(M: FfzMod, s: string): [number, number] {
   const bytes = new TextEncoder().encode(s);
   const ptr = M._malloc(bytes.length || 1);
+  if (!ptr) throw new Error('FuzzyCorpus: native allocation failed (OOM)');
   M.HEAPU8.set(bytes, ptr);
   return [ptr, bytes.length];
 }
@@ -228,6 +238,14 @@ export class FuzzyCorpus<T = string> {
     if (!_M) {
       this._deferred = true;
       if (items) for (const item of items) { this._items.push(item); this._keys.push(null); }
+      // Migrate to WASM as soon as the engine finishes loading, not just the
+      // next time a search happens to run — otherwise `isReady` still reads
+      // false at the exact moment `ready` resolves (see the `ready` getter's
+      // doc example), because nothing had called _ensureReady() yet. Swallow
+      // failures here (an unhandled rejection would otherwise surface with no
+      // caller to catch it) — a real OOM on this tiny allocation will simply
+      // resurface the next time a search is attempted.
+      _readyPromise.then(() => { try { this._ensureReady(); } catch { /* see above */ } });
       return;
     }
     this._M = _M;
@@ -235,7 +253,13 @@ export class FuzzyCorpus<T = string> {
     this._ptr = this._M._ffz_ffi_new_cfg2(this._matchPaths ? 1 : 0, this._preferPrefix ? 1 : 0, sc);
     if (!this._ptr) throw new Error('FuzzyCorpus: native allocation failed (OOM)');
     this._allocScratch(SCRATCH_INIT);
-    if (items) this.addAll(items);
+    if (items) {
+      // If addAll (via the caller-supplied stringOf) throws partway, nobody
+      // ever gets a reference to `this` to call dispose() on — release the
+      // native ptr/scratch buffers ourselves before rethrowing.
+      try { this.addAll(items); }
+      catch (e) { this.dispose(); throw e; }
+    }
   }
 
   /** Resolves when the engine finishes loading (success or failure). Useful for
@@ -266,9 +290,17 @@ export class FuzzyCorpus<T = string> {
   ): FuzzyCorpus<T> {
     if (!fields?.length) throw new Error('byKeys: fields must not be empty');
     const corpus = new FuzzyCorpus<T>([], { ...opts, stringOf: (m) => getField(m as Record<string, unknown>, fields[0]) });
-    for (const item of maps ?? []) {
-      if (fields.length === 1) { corpus.add(item); }
-      else { corpus.addKey(item, fields.slice(1).map((f) => new FuzzyKey(getField(item as Record<string, unknown>, f), FuzzyKeyKind.custom))); }
+    try {
+      for (const item of maps ?? []) {
+        if (fields.length === 1) { corpus.add(item); }
+        else { corpus.addKey(item, fields.slice(1).map((f) => new FuzzyKey(getField(item as Record<string, unknown>, f), FuzzyKeyKind.custom))); }
+      }
+    } catch (e) {
+      // Same leak-on-throw concern as the constructor: this loop runs after
+      // `corpus` already holds a native ptr/scratch buffers, and nobody else
+      // has a reference to release them if we don't here.
+      corpus.dispose();
+      throw e;
     }
     return corpus;
   }
@@ -352,6 +384,7 @@ export class FuzzyCorpus<T = string> {
   /** Edit-distance (typo-tolerant) search. Shorthand for `search(q, { strategy: 'approx' })`.
    *  `maxDistance` defaults to {@link autoMaxDistance}(query) when omitted. */
   approx(query: string, maxDistance?: number, opts?: Partial<FuzzyOptions>): FuzzyHit<T>[] {
+    this._alive();
     const dist = maxDistance ?? autoMaxDistance(query);
     return this._approxRaw(query, dist, new FuzzyOptions({ ...this._opts, ...opts }));
   }
@@ -378,7 +411,7 @@ export class FuzzyCorpus<T = string> {
         let res = 0;
         try { res = M._ffz_ffi_filter_fallback(this._ptr, qp, qn, o.caseMatching, o.normalization, dist, o.scoring, 0, 0, o.limit); }
         finally { M._free(qp); }
-        if (!res) return [];
+        if (!res) throw new Error('FuzzyCorpus: filter_fallback failed (OOM)');
         return this._readFlat(M, res);
       }
       case 'merge': {
@@ -388,9 +421,11 @@ export class FuzzyCorpus<T = string> {
           res = M._ffz_ffi_filter_merge(this._ptr, qp, qn,
               o.caseMatching, o.normalization, dist, o.scoring, 0, 0, o.limit);
         } finally { M._free(qp); }
-        if (!res) return [];
+        if (!res) throw new Error('FuzzyCorpus: filter_merge failed (OOM)');
         return this._readFlat(M, res);
       }
+      default:
+        throw new Error(`FuzzyCorpus: unknown search strategy ${JSON.stringify(strategy)}`);
     }
   }
 
@@ -412,38 +447,43 @@ export class FuzzyCorpus<T = string> {
     let d = 0;
     try { d = M._ffz_ffi_filter_dual(this._ptr, qp, qn, o.caseMatching, o.normalization, dist, o.scoring, 0, 0, o.limit); }
     finally { M._free(qp); }
-    if (!d) return { fuzzy: [], approx: [] };
-    const sr = M._ffz_ffi_dual_seq(d);
-    const er = M._ffz_ffi_dual_edit(d);
-    const readSet = (r: number): FuzzyHit<T>[] => {
-      const len = M._ffz_ffi_results_len(r);
-      const hits = new Array<FuzzyHit<T>>(len);
-      for (let i = 0; i < len; i++) {
-        const idx = M._ffz_ffi_results_item(r, i);
-        const kind = M._ffz_ffi_results_kind(r, i);
-        hits[i] = { raw: this._items[idx], index: idx, score: M._ffz_ffi_results_score(r, i),
-                    matchedKind: kind, matchedKindCode: kind,
-                    matchedKey: M._ffz_ffi_results_key(r, i), indices: [] };
-      }
-      return hits;
-    };
-    const result: FuzzyDualResult<T> = { fuzzy: readSet(sr), approx: readSet(er) };
-    M._ffz_ffi_dual_free(d);
-    return result;
+    if (!d) throw new Error('FuzzyCorpus: filter_dual failed (OOM)');
+    try {
+      const sr = M._ffz_ffi_dual_seq(d);
+      const er = M._ffz_ffi_dual_edit(d);
+      const readSet = (r: number): FuzzyHit<T>[] => {
+        const len = M._ffz_ffi_results_len(r);
+        const hits = new Array<FuzzyHit<T>>(len);
+        for (let i = 0; i < len; i++) {
+          const idx = M._ffz_ffi_results_item(r, i);
+          const kind = M._ffz_ffi_results_kind(r, i);
+          hits[i] = { raw: this._items[idx], index: idx, score: M._ffz_ffi_results_score(r, i),
+                      matchedKind: kind, matchedKindCode: kind,
+                      matchedKey: M._ffz_ffi_results_key(r, i), indices: [] };
+        }
+        return hits;
+      };
+      return { fuzzy: readSet(sr), approx: readSet(er) };
+    } finally {
+      M._ffz_ffi_dual_free(d);
+    }
   }
 
   private _readFlat(M: FfzMod, res: number): FuzzyHit<T>[] {
-    const len = M._ffz_ffi_results_len(res);
-    const hits = new Array<FuzzyHit<T>>(len);
-    for (let i = 0; i < len; i++) {
-      const idx = M._ffz_ffi_results_item(res, i);
-      const kind = M._ffz_ffi_results_kind(res, i);
-      hits[i] = { raw: this._items[idx], index: idx, score: M._ffz_ffi_results_score(res, i),
-                  matchedKind: kind, matchedKindCode: kind,
-                  matchedKey: M._ffz_ffi_results_key(res, i), indices: [] };
+    try {
+      const len = M._ffz_ffi_results_len(res);
+      const hits = new Array<FuzzyHit<T>>(len);
+      for (let i = 0; i < len; i++) {
+        const idx = M._ffz_ffi_results_item(res, i);
+        const kind = M._ffz_ffi_results_kind(res, i);
+        hits[i] = { raw: this._items[idx], index: idx, score: M._ffz_ffi_results_score(res, i),
+                    matchedKind: kind, matchedKindCode: kind,
+                    matchedKey: M._ffz_ffi_results_key(res, i), indices: [] };
+      }
+      return hits;
+    } finally {
+      M._ffz_ffi_results_free(res);
     }
-    M._ffz_ffi_results_free(res);
-    return hits;
   }
 
   private _approxRaw(query: string, maxDistance: number, o: FuzzyOptions): FuzzyHit<T>[] {
@@ -457,7 +497,7 @@ export class FuzzyCorpus<T = string> {
     } finally {
       M._free(qp);
     }
-    if (!res) return [];
+    if (!res) throw new Error('FuzzyCorpus: filter_edit failed (OOM)');
     return this._readFlat(M, res);
   }
 
@@ -486,14 +526,18 @@ export class FuzzyCorpus<T = string> {
     this._ptr = this._M._ffz_ffi_new_cfg2(this._matchPaths ? 1 : 0, this._preferPrefix ? 1 : 0, sc);
     if (!this._ptr) throw new Error('FuzzyCorpus: native allocation failed (OOM)');
     this._allocScratch(SCRATCH_INIT);
-    this._rebuild();
+    try { this._rebuild(); }
+    catch (e) { this.dispose(); throw e; }
     return true;
   }
 
   private _allocScratch(cap: number): void {
-    const M = this._M;
+    const M = this._M!;
     if (this._scratchCap) { M._free(this._scratch); M._free(this._scratch4); }
     this._scratch = M._malloc(cap * 4); this._scratch4 = M._malloc(cap * 4 * 4); this._scratchCap = cap;
+    if (!this._scratch || !this._scratch4) {
+      throw new Error('FuzzyCorpus: native allocation failed (OOM)');
+    }
   }
 
   private _ensureScratch(n: number): void {
@@ -512,6 +556,7 @@ export class FuzzyCorpus<T = string> {
     const tP = M._malloc(4 * nk), lP = M._malloc(4 * nk), kP = M._malloc(4 * nk);
     const kPtrs: number[] = [];
     try {
+      if (!tP || !lP || !kP) throw new Error('FuzzyCorpus: native allocation failed (OOM)');
       for (let i = 0; i < nk; i++) {
         const [kp, klen] = writeUtf8(M, keys[i].text);
         kPtrs.push(kp);
@@ -529,7 +574,19 @@ export class FuzzyCorpus<T = string> {
   private _rebuild(): void {
     if (!this._M) return;
     this._M._ffz_ffi_clear(this._ptr);
-    for (let i = 0; i < this._items.length; i++) this._nativeAdd(this._items[i], this._keys[i]);
+    for (let i = 0; i < this._items.length; i++) {
+      try {
+        this._nativeAdd(this._items[i], this._keys[i]);
+      } catch (e) {
+        // The native corpus now holds only `i` entries, but this._items
+        // still holds more — truncate to what was actually committed so
+        // native result indices keep mapping to the right this._items[idx]
+        // (instead of desyncing), then surface the failure to the caller.
+        this._items.length = i;
+        this._keys.length = i;
+        throw e;
+      }
+    }
   }
 
   private _filter(mode: number, query: string, o: FuzzyOptions): number {
@@ -552,42 +609,45 @@ export class FuzzyCorpus<T = string> {
     if (!this._ensureReady()) return [];
     const M = this._M!, o = new FuzzyOptions({ ...this._opts, ...overrides });
     const res = this._filter(mode, query, o);
-    const len = M._ffz_ffi_results_len(res);
-    if (len === 0) { M._ffz_ffi_results_free(res); return []; }
+    try {
+      const len = M._ffz_ffi_results_len(res);
+      if (len === 0) return [];
 
-    const hits = new Array<FuzzyHit<T>>(len);
-    if (!o.highlight) {
-      this._ensureScratch(len);
-      const sp = this._scratch4 >> 2;
-      M._ffz_ffi_results_bulk(res, this._scratch4, this._scratch4 + len * 4, this._scratch4 + len * 8, this._scratch4 + len * 12, len);
-      const H = M.HEAPU32, I = M.HEAP32;
-      for (let i = 0; i < len; i++) {
-        const idx = H[sp + i];
-        const mk = I[sp + len * 2 + i];
-        hits[i] = { raw: this._items[idx], index: idx, score: I[sp + len + i], matchedKind: mk, matchedKindCode: mk, matchedKey: H[sp + len * 3 + i], indices: [] };
-      }
-    } else {
-      const canIdx = o.highlight;
-      for (let i = 0; i < len; i++) {
-        const idx = M._ffz_ffi_results_item(res, i);
-        let indices: number[] = [];
-        if (canIdx) {
-          const ni = M._ffz_ffi_results_nindices(res, i);
-          indices = new Array(ni);
-          for (let j = 0; j < ni; j++) indices[j] = M._ffz_ffi_results_index(res, i, j);
+      const hits = new Array<FuzzyHit<T>>(len);
+      if (!o.highlight) {
+        this._ensureScratch(len);
+        const sp = this._scratch4 >> 2;
+        M._ffz_ffi_results_bulk(res, this._scratch4, this._scratch4 + len * 4, this._scratch4 + len * 8, this._scratch4 + len * 12, len);
+        const H = M.HEAPU32, I = M.HEAP32;
+        for (let i = 0; i < len; i++) {
+          const idx = H[sp + i];
+          const mk = I[sp + len * 2 + i];
+          hits[i] = { raw: this._items[idx], index: idx, score: I[sp + len + i], matchedKind: mk, matchedKindCode: mk, matchedKey: H[sp + len * 3 + i], indices: [] };
         }
-        const kind = M._ffz_ffi_results_kind(res, i);
-        hits[i] = {
-          raw: this._items[idx], index: idx,
-          score: M._ffz_ffi_results_score(res, i),
-          matchedKind: kind, matchedKindCode: kind,
-          matchedKey: M._ffz_ffi_results_key(res, i),
-          indices,
-        };
+      } else {
+        const canIdx = o.highlight;
+        for (let i = 0; i < len; i++) {
+          const idx = M._ffz_ffi_results_item(res, i);
+          let indices: number[] = [];
+          if (canIdx) {
+            const ni = M._ffz_ffi_results_nindices(res, i);
+            indices = new Array(ni);
+            for (let j = 0; j < ni; j++) indices[j] = M._ffz_ffi_results_index(res, i, j);
+          }
+          const kind = M._ffz_ffi_results_kind(res, i);
+          hits[i] = {
+            raw: this._items[idx], index: idx,
+            score: M._ffz_ffi_results_score(res, i),
+            matchedKind: kind, matchedKindCode: kind,
+            matchedKey: M._ffz_ffi_results_key(res, i),
+            indices,
+          };
+        }
       }
+      return hits;
+    } finally {
+      M._ffz_ffi_results_free(res);
     }
-    M._ffz_ffi_results_free(res);
-    return hits;
   }
 
   private _searchRaws(mode: number, query: string, overrides: Partial<FuzzyOptions>): T[] {
@@ -595,18 +655,25 @@ export class FuzzyCorpus<T = string> {
     if (!this._ensureReady()) return [];
     const M = this._M!, o = new FuzzyOptions({ ...this._opts, ...overrides });
     const [qp, qn] = writeUtf8(M, query);
-    const res = M._ffz_ffi_filter_raws(this._ptr, qp, qn, mode, o.caseMatching, o.normalization, o.parallel ? 1 : 0, o.threads, o.limit, o.scoring);
-    M._free(qp);
+    let res: number;
+    try {
+      res = M._ffz_ffi_filter_raws(this._ptr, qp, qn, mode, o.caseMatching, o.normalization, o.parallel ? 1 : 0, o.threads, o.limit, o.scoring);
+    } finally {
+      M._free(qp);
+    }
     if (!res) throw new Error('FuzzyCorpus: filter_raws failed (OOM)');
-    const len = M._ffz_ffi_results_len(res);
-    if (len === 0) { M._ffz_ffi_results_free(res); return []; }
-    this._ensureScratch(len);
-    M._ffz_ffi_results_items_bulk(res, this._scratch, len);
-    const H = M.HEAPU32, base = this._scratch >> 2;
-    const out = new Array<T>(len);
-    for (let i = 0; i < len; i++) out[i] = this._items[H[base + i]];
-    M._ffz_ffi_results_free(res);
-    return out;
+    try {
+      const len = M._ffz_ffi_results_len(res);
+      if (len === 0) return [];
+      this._ensureScratch(len);
+      M._ffz_ffi_results_items_bulk(res, this._scratch, len);
+      const H = M.HEAPU32, base = this._scratch >> 2;
+      const out = new Array<T>(len);
+      for (let i = 0; i < len; i++) out[i] = this._items[H[base + i]];
+      return out;
+    } finally {
+      M._ffz_ffi_results_free(res);
+    }
   }
 
   /** Non-WASM search for prefix/postfix/exact/substring modes using native JS string ops. */

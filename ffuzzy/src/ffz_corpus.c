@@ -69,6 +69,7 @@ static inline unsigned char *blk_data(ffz_arena_block *b) {
 }
 // Returns NULL on OOM; callers drop the key (file-wide drop-on-OOM policy).
 static void *arena_alloc(ffz_arena *a, size_t n) {
+    if (n > SIZE_MAX - 7u) return NULL;  // would overflow the align round-up
     n = (n + 7u) & ~(size_t)7u;  // 8-byte align (fits uint32_t codepoints)
     ffz_arena_block *b = a->head;
     if (b && b->used + n <= b->cap) {  // fits the current head block
@@ -211,6 +212,7 @@ static void dup_key(ffz_corpus *c, const char *s, size_t n, int kind,
 static void emit_item(ffz_corpus *c, const char *item, size_t len,
                       const ffz_key *ek, size_t extra) {
     if (c->n == c->cap) {
+        if (c->cap > SIZE_MAX >> 1) return;  // doubling would overflow; drop
         size_t ncap = c->cap ? c->cap * 2 : 16;
         corpus_item *ni = (corpus_item *)realloc(c->items, ncap * sizeof(corpus_item));
         if (!ni) return;  // OOM: drop this add rather than deref NULL
@@ -300,6 +302,7 @@ static void scored_topk(const scored *sc, size_t ns, size_t k, scored *out) {
 
 static void results_push(ffz_results *r, ffz_hit hit) {
     if (r->len == r->cap) {
+        if (r->cap > SIZE_MAX >> 1) { ffz_indices_free(&hit.indices); return; }
         size_t ncap = r->cap ? r->cap * 2 : 32;
         ffz_hit *h = (ffz_hit *)realloc(r->hits, ncap * sizeof(ffz_hit));
         if (!h) { ffz_indices_free(&hit.indices); return; }  // OOM: drop hit
@@ -468,6 +471,13 @@ static void _corpus_filter_impl(ffz_corpus *c, const char *query, size_t query_l
     if ((unsigned)scoring > FFZ_SCORE_NUCLEO) scoring = FFZ_SCORE_FAST;
     out->hits = NULL;
     out->len = out->cap = 0;
+
+    // Guard against a NULL/invalid corpus or query, matching every sibling
+    // entry point (_corpus_filter_edit_impl, ffz_corpus_filter_merge,
+    // ffz_corpus_filter_dual) — without this, an FFI caller passing a stale
+    // handle (e.g. after dispose) crashes here but is handled gracefully
+    // everywhere else.
+    if (!c || !query) return;
 
     ffz_pattern *pat = (mode == FFZ_FUZZY)
                            ? ffz_pattern_parse(query, query_len, cm, nm)
@@ -789,6 +799,11 @@ void ffz_corpus_filter_edit_raws(ffz_corpus *c,
 
 // --- single-pass merge scan -----------------------------------------------
 
+// `m` may be NULL (caller's ffz_matcher_new failed under OOM): Pass A needs a
+// matcher, but Pass B (ffz_edit_distance_substring) does not, so a NULL `m`
+// just skips Pass A instead of dropping the whole item — an item that could
+// still produce an edit-distance-only hit must not be silently lost because
+// of an unrelated allocation failure.
 static void scan_merge_range(ffz_corpus *c,
                              ffz_matcher *m, const ffz_pattern *pat,
                              const ffz_config *edit_cfg, ffz_str qstr, int max_dist,
@@ -802,19 +817,21 @@ static void scan_merge_range(ffz_corpus *c,
         // Pass A: try all keys with subsequence
         //
         // 第一轮（Pass A）：对所有 key 尝试子序列匹配。
-        for (size_t k = 0; k < nk; k++) {
-            const corpus_key *key = item_key(it, k);
-            int32_t s = ffz_pattern_match(m, pat, key_str(key), NULL);
-            if (s > best_seq) {
-                best_seq = s; best_seq_kind = key->kind; best_seq_key = (uint32_t)k;
+        if (m) {
+            for (size_t k = 0; k < nk; k++) {
+                const corpus_key *key = item_key(it, k);
+                int32_t s = ffz_pattern_match(m, pat, key_str(key), NULL);
+                if (s > best_seq) {
+                    best_seq = s; best_seq_kind = key->kind; best_seq_key = (uint32_t)k;
+                }
             }
-        }
-        if (best_seq >= 0) {
-            scored sc = {(uint32_t)i, best_seq, best_seq_kind, best_seq_key};
-            coll_push(col, sc);
-            continue;  // seq found — skip edit distance entirely
-            //
-            // 已找到子序列命中——完全跳过编辑距离计算。
+            if (best_seq >= 0) {
+                scored sc = {(uint32_t)i, best_seq, best_seq_kind, best_seq_key};
+                coll_push(col, sc);
+                continue;  // seq found — skip edit distance entirely
+                //
+                // 已找到子序列命中——完全跳过编辑距离计算。
+            }
         }
 
         // Pass B: try all keys with edit distance (only if seq missed)
@@ -857,8 +874,8 @@ static void scan_merge_job_run(scan_merge_job *j) {
     if (!j->out) { j->n = 0; return; }
     ffz_config cfg = j->c->cfg;
     cfg.scoring_mode = j->scoring;
-    ffz_matcher *m = ffz_matcher_new(cfg);
-    if (!m) { j->n = 0; return; }
+    ffz_matcher *m = ffz_matcher_new(cfg);  // NULL is fine: scan_merge_range
+                                             // still runs Pass B (edit-only).
     collector col = {j->out, 0, j->cap, j->bounded};
     scan_merge_range(j->c, m, j->pat, &j->edit_cfg, j->qstr,
                      j->max_dist, j->lo, j->hi, &col);
@@ -927,13 +944,12 @@ void ffz_corpus_filter_merge(ffz_corpus *c,
 
     if (nthreads <= 1) {
         ffz_config cfg = c->cfg; cfg.scoring_mode = scoring;
-        ffz_matcher *m = ffz_matcher_new(cfg);
-        if (m) {
-            collector col = {sc, 0, c->n, false};
-            scan_merge_range(c, m, pat, &edit_cfg, qstr, max_distance, 0, c->n, &col);
-            ns = col.n;
-            ffz_matcher_free(m);
-        }
+        ffz_matcher *m = ffz_matcher_new(cfg);  // NULL (OOM) still runs the
+                                                 // edit-only pass below.
+        collector col = {sc, 0, c->n, false};
+        scan_merge_range(c, m, pat, &edit_cfg, qstr, max_distance, 0, c->n, &col);
+        ns = col.n;
+        ffz_matcher_free(m);
     } else {
         size_t chunk = (c->n + nthreads - 1) / nthreads;
         scan_merge_job *jobs = (scan_merge_job *)calloc(nthreads, sizeof(scan_merge_job));
@@ -942,12 +958,10 @@ void ffz_corpus_filter_merge(ffz_corpus *c,
         if (!jobs || !ths || !started) {
             ffz_config cfg = c->cfg; cfg.scoring_mode = scoring;
             ffz_matcher *m = ffz_matcher_new(cfg);
-            if (m) {
-                collector col = {sc, 0, c->n, false};
-                scan_merge_range(c, m, pat, &edit_cfg, qstr, max_distance, 0, c->n, &col);
-                ns = col.n;
-                ffz_matcher_free(m);
-            }
+            collector col = {sc, 0, c->n, false};
+            scan_merge_range(c, m, pat, &edit_cfg, qstr, max_distance, 0, c->n, &col);
+            ns = col.n;
+            ffz_matcher_free(m);
         } else {
             unsigned spawned = 0;
             for (unsigned t = 0; t < nthreads; t++) {
@@ -1023,6 +1037,9 @@ void ffz_corpus_filter_fallback(ffz_corpus *c,
 //
 // 逐项双算法扫描：子序列命中写入 seq_col，编辑距离命中写入 edit_col。
 // 与 merge 不同，同一条目可以同时出现在两个收集器中（各自独立的结果集）。
+// `m` may be NULL (caller's ffz_matcher_new failed under OOM): the subsequence
+// pass needs a matcher, the edit-distance pass does not, so a NULL `m` just
+// skips the former instead of dropping both passes for the whole range.
 static void scan_dual_range(ffz_corpus *c,
                              ffz_matcher *m, const ffz_pattern *pat,
                              const ffz_config *edit_cfg, ffz_str qstr, int max_dist,
@@ -1043,9 +1060,11 @@ static void scan_dual_range(ffz_corpus *c,
             // Subsequence
             //
             // 子序列匹配。
-            int32_t s = ffz_pattern_match(m, pat, ks, NULL);
-            if (s > best_seq) {
-                best_seq = s; best_seq_kind = key->kind; best_seq_key = (uint32_t)k;
+            if (m) {
+                int32_t s = ffz_pattern_match(m, pat, ks, NULL);
+                if (s > best_seq) {
+                    best_seq = s; best_seq_kind = key->kind; best_seq_key = (uint32_t)k;
+                }
             }
 
             // Edit distance
@@ -1087,8 +1106,8 @@ typedef struct {
 static void scan_dual_job_run(scan_dual_job *j) {
     if (!j->seq_out && !j->edit_out) { j->seq_n = j->edit_n = 0; return; }
     ffz_config cfg = j->c->cfg; cfg.scoring_mode = j->scoring;
-    ffz_matcher *m = ffz_matcher_new(cfg);
-    if (!m) { j->seq_n = j->edit_n = 0; return; }
+    ffz_matcher *m = ffz_matcher_new(cfg);  // NULL is fine: scan_dual_range
+                                             // still runs the edit-only pass.
     scored dummy[1];
     collector seq_col  = {j->seq_out  ? j->seq_out  : dummy, 0, j->seq_cap,  j->seq_bounded};
     collector edit_col = {j->edit_out ? j->edit_out : dummy, 0, j->edit_cap, j->edit_bounded};
@@ -1158,13 +1177,24 @@ static void finalise_results(ffz_corpus *c, ffz_matcher *fm, const ffz_pattern *
                               scored *sc, size_t ns, size_t limit, bool skip_idx,
                               ffz_results *out) {
     size_t keep;
-    scored *top = (limit && limit < ns) ? (scored *)malloc(limit * sizeof(scored)) : NULL;
+    bool want_topk = limit && limit < ns;
+    scored *top = want_topk ? (scored *)malloc(limit * sizeof(scored)) : NULL;
     if (top) {
         scored_topk(sc, ns, limit, top);
         free(sc); sc = top; keep = limit;
+    } else if (want_topk) {
+        // OOM allocating the top-k buffer: degrade to an in-place sort and
+        // truncate to `limit` afterward (cmp_scored sorts best-first, same
+        // order scored_topk would produce), rather than silently returning
+        // all `ns` results. Every header doc promises "at most limit hits";
+        // this is the one path that must not violate that under memory
+        // pressure while every other OOM path in this file degrades toward
+        // returning less, never more.
+        if (ns) qsort(sc, ns, sizeof(scored), cmp_scored);
+        keep = limit;
     } else {
         if (ns) qsort(sc, ns, sizeof(scored), cmp_scored);
-        keep = ns; top = NULL;
+        keep = ns;
     }
     for (size_t r = 0; r < keep; r++) {
         ffz_hit hit;
@@ -1248,15 +1278,14 @@ void ffz_corpus_filter_dual(ffz_corpus *c,
 
     if (nthreads <= 1) {
         ffz_config cfg = c->cfg; cfg.scoring_mode = scoring;
-        ffz_matcher *m = ffz_matcher_new(cfg);
-        if (m) {
-            collector seq_col  = {seq_sc,  0, c->n, false};
-            collector edit_col = {edit_sc, 0, c->n, false};
-            scan_dual_range(c, m, pat, &edit_cfg, qstr, max_distance,
-                            0, c->n, &seq_col, &edit_col);
-            seq_ns = seq_col.n; edit_ns = edit_col.n;
-            ffz_matcher_free(m);
-        }
+        ffz_matcher *m = ffz_matcher_new(cfg);  // NULL (OOM) still runs the
+                                                 // edit-only pass below.
+        collector seq_col  = {seq_sc,  0, c->n, false};
+        collector edit_col = {edit_sc, 0, c->n, false};
+        scan_dual_range(c, m, pat, &edit_cfg, qstr, max_distance,
+                        0, c->n, &seq_col, &edit_col);
+        seq_ns = seq_col.n; edit_ns = edit_col.n;
+        ffz_matcher_free(m);
     } else {
         size_t chunk = (c->n + nthreads - 1) / nthreads;
         scan_dual_job *jobs = (scan_dual_job *)calloc(nthreads, sizeof(scan_dual_job));
@@ -1265,14 +1294,12 @@ void ffz_corpus_filter_dual(ffz_corpus *c,
         if (!jobs || !ths || !started) {
             ffz_config cfg = c->cfg; cfg.scoring_mode = scoring;
             ffz_matcher *m = ffz_matcher_new(cfg);
-            if (m) {
-                collector seq_col  = {seq_sc,  0, c->n, false};
-                collector edit_col = {edit_sc, 0, c->n, false};
-                scan_dual_range(c, m, pat, &edit_cfg, qstr, max_distance,
-                                0, c->n, &seq_col, &edit_col);
-                seq_ns = seq_col.n; edit_ns = edit_col.n;
-                ffz_matcher_free(m);
-            }
+            collector seq_col  = {seq_sc,  0, c->n, false};
+            collector edit_col = {edit_sc, 0, c->n, false};
+            scan_dual_range(c, m, pat, &edit_cfg, qstr, max_distance,
+                            0, c->n, &seq_col, &edit_col);
+            seq_ns = seq_col.n; edit_ns = edit_col.n;
+            ffz_matcher_free(m);
         } else {
             unsigned spawned = 0;
             for (unsigned t = 0; t < nthreads; t++) {

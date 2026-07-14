@@ -321,6 +321,7 @@ int32_t ffz_fuzzy_rolling(ffz_matcher *m, ffz_str hay, ffz_str needle,
     for (size_t k = 1; k < nl; k++) {
         uint32_t ndk = ffz_at(needle, k);
         uint32_t pprev_c = 0;  // C[k][i-1] (gap score from the previous column)
+        uint8_t pprev_c_valid = 0;  // tracked separately: see [C-0] below.
 
         for (size_t i = 0; i < W; i++) {
             // Cache H_prev[i-1] once: used by both the consecutive path and the
@@ -339,7 +340,7 @@ int32_t ffz_fuzzy_rolling(ffz_matcher *m, ffz_str hay, ffz_str needle,
                     new_h = (prev_score + cb + FFZ_SCORE_MATCH) + 1u;
                 }
                 // Gap path: from C[k][i-1] = pprev_c.
-                if (pprev_c) {
+                if (pprev_c_valid) {
                     uint32_t g = (pprev_c + b + FFZ_SCORE_MATCH) + 1u;
                     if (g > new_h) new_h = g;
                 }
@@ -347,19 +348,26 @@ int32_t ffz_fuzzy_rolling(ffz_matcher *m, ffz_str hay, ffz_str needle,
             H_curr[i] = new_h;
 
             // Compute C[k][i] (for use at column i+1 as pprev_c).
-            // C stores actual gap scores (not +1 offset), as it feeds arithmetic
-            // directly; 0 means invalid.
+            // [C-0] Unlike H, C's validity is NOT inferred from its value being
+            // nonzero: a real gap chain can legitimately decay to an actual
+            // score of 0 once accumulated GAP_START/GAP_EXTENSION penalties
+            // exhaust it, and that must stay distinguishable from "no gap path
+            // reaches here". Track validity in a separate flag instead.
             uint32_t new_c = 0;
+            uint8_t new_c_valid = 0;
             if (hp) {
                 uint32_t prev_score = hp - 1u;
-                if (prev_score > FFZ_PENALTY_GAP_START)
-                    new_c = prev_score - FFZ_PENALTY_GAP_START;
+                new_c = prev_score > FFZ_PENALTY_GAP_START
+                            ? prev_score - FFZ_PENALTY_GAP_START : 0;
+                new_c_valid = 1;
             }
-            if (pprev_c > FFZ_PENALTY_GAP_EXTENSION) {
-                uint32_t ext = pprev_c - FFZ_PENALTY_GAP_EXTENSION;
-                if (ext > new_c) new_c = ext;
+            if (pprev_c_valid) {
+                uint32_t ext = pprev_c > FFZ_PENALTY_GAP_EXTENSION
+                                   ? pprev_c - FFZ_PENALTY_GAP_EXTENSION : 0;
+                if (!new_c_valid || ext > new_c) { new_c = ext; new_c_valid = 1; }
             }
             pprev_c = new_c;
+            pprev_c_valid = new_c_valid;
         }
         // Rotate rows.
         uint32_t *tmp = H_prev;

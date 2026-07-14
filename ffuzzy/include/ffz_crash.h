@@ -27,7 +27,10 @@ extern "C" {
 // Install the crash handler (idempotent — repeat calls only update the path).
 // `breadcrumb_path` (UTF-8, may be NULL): if set, the handler also writes the
 // report to this file, truncating it; the host reads it on the next launch to
-// surface "last crash" diagnostics. Returns 1 on success, 0 if unsupported.
+// surface "last crash" diagnostics. Returns 1 on success, 0 if unsupported OR
+// if breadcrumb_path was given but exceeds the internal path buffer (crash
+// reporting to stderr/logcat is still installed either way; only the
+// breadcrumb file is skipped in that case).
 int ffz_install_crash_handler(const char *breadcrumb_path);
 
 #ifdef __cplusplus

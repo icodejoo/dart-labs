@@ -180,18 +180,26 @@ static int scan_free_start(const ffz_peq *peq, int qlen, ffz_str hay,
 // 但仍属于内部接口的一部分。
 int ffz_edit_distance(ffz_str query, ffz_str hay,
                       int max_dist, const ffz_config *cfg) {
-    // Single-block path only.
+    // Single-block path only. Compared as size_t, before any narrowing to
+    // int, so an oversized query.len can't wrap into a small value and slip
+    // past this guard (see ffz_edit_distance_substring/ffz_edit_window,
+    // which already compare query.len this way).
     //
-    // 仅支持单块（single-block）路径。
-    if ((int)query.len > 64) return max_dist + 1;
+    // 仅支持单块（single-block）路径。以 size_t 比较，且在任何向 int 收窄
+    // 之前完成，这样过大的 query.len 就不会因回绕成小值而绕过此检查
+    // （参见 ffz_edit_distance_substring / ffz_edit_window，它们已经是
+    // 按这种方式比较 query.len 的）。
+    if (query.len > 64) return max_dist + 1;
 
     int qlen = (int)query.len;
     int hlen = (int)hay.len;
 
-    // Trivial cases.
+    // Trivial cases. Both are whole-string (anchored) distances: an empty
+    // query costs one deletion per remaining hay codepoint, and vice versa.
     //
-    // 平凡情形。
-    if (qlen == 0) return 0;
+    // 平凡情形。两者都是全串（锚定）距离：空查询串对每个剩余的 hay 码点都要
+    // 付出一次删除代价，反之亦然。
+    if (qlen == 0) return hlen <= max_dist ? hlen : -1;
     if (hlen == 0) return qlen <= max_dist ? qlen : -1;
 
     // --- Common prefix strip ---
@@ -326,7 +334,13 @@ int ffz_edit_distance(ffz_str query, ffz_str hay,
 // 计算推迟到初始纯打分扫描之后的做法是一致的。
 int ffz_edit_distance_substring(ffz_str query, ffz_str hay, int max_dist,
                                 const ffz_config *cfg) {
-    if (query.len == 0) return 0;
+    // An empty query trivially matches (distance 0) anywhere, but that must
+    // still respect the documented [0..max_dist]/-1 contract: a negative
+    // max_dist means "no window qualifies", full stop.
+    //
+    // 空查询串在任意位置都能"免费"匹配（距离 0），但仍须遵守文档规定的
+    // [0..max_dist] / -1 契约：max_dist 为负数就意味着"没有窗口满足条件"。
+    if (query.len == 0) return max_dist >= 0 ? 0 : -1;
     if (query.len > 64) return -1;
     int qlen = (int)query.len;
     if (hay.len == 0) return qlen <= max_dist ? qlen : -1;
@@ -370,7 +384,12 @@ int ffz_edit_window(ffz_str query, ffz_str hay, int max_dist,
     // 即使不先检查返回值就读取 *out_start/*out_end，也不会看到不确定的值。
     *out_start = 0;
     *out_end = 0;
-    if (query.len == 0) return 0;
+    // Same empty-query contract as ffz_edit_distance_substring above: 0 is
+    // only correct when max_dist can actually accommodate it.
+    //
+    // 与上面 ffz_edit_distance_substring 相同的空查询串契约：只有当
+    // max_dist 确实能容纳它时，返回 0 才是正确的。
+    if (query.len == 0) return max_dist >= 0 ? 0 : -1;
     if (query.len > 64) return -1;
     int qlen = (int)query.len;
 

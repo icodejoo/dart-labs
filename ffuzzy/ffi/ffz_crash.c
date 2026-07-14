@@ -55,6 +55,10 @@ static void rep_dec(ffz_report *r, long v) {
 }
 
 // Path stored at install time (fixed buffer — set once, read in handler).
+// ffz_install_crash_handler is meant to be called once during app init, well
+// before any crash can race a concurrent re-install; it is not synchronized
+// against the handler reading g_breadcrumb, so re-installing concurrently
+// with an in-flight crash is unsupported.
 static char g_breadcrumb[1024];
 static volatile int g_installed = 0;
 
@@ -78,6 +82,14 @@ static void emit_report(const ffz_report *r) {
     }
 }
 
+// DbgHelp (SymInitialize/SymFromAddr/SymGetLineFromAddr64/SymCleanup) is
+// documented by Microsoft as not thread-safe: "calls from more than one
+// thread... will likely result in unexpected behavior or memory corruption."
+// SetUnhandledExceptionFilter's single filter can be entered concurrently by
+// two different threads crashing at once, so every DbgHelp call is serialized
+// through this lock.
+static CRITICAL_SECTION g_dbghelp_lock;
+
 static LONG WINAPI ffz_win_handler(EXCEPTION_POINTERS *ep) {
     ffz_report r; r.len = 0;
     rep_str(&r, "\n*** ffz native crash: exception ");
@@ -86,6 +98,7 @@ static LONG WINAPI ffz_win_handler(EXCEPTION_POINTERS *ep) {
     rep_hex(&r, ep ? (uint64_t)(uintptr_t)ep->ExceptionRecord->ExceptionAddress : 0);
     rep_str(&r, "\n");
 
+    EnterCriticalSection(&g_dbghelp_lock);
     HANDLE proc = GetCurrentProcess();
     SymSetOptions(SYMOPT_LOAD_LINES | SYMOPT_DEFERRED_LOADS | SYMOPT_UNDNAME);
     SymInitialize(proc, NULL, TRUE);  // reads ffz.pdb if alongside the dll
@@ -114,21 +127,26 @@ static LONG WINAPI ffz_win_handler(EXCEPTION_POINTERS *ep) {
         rep_str(&r, "\n");
     }
     SymCleanup(proc);
+    LeaveCriticalSection(&g_dbghelp_lock);
+
     emit_report(&r);
     return EXCEPTION_CONTINUE_SEARCH;  // let the default handler / crash dump run
 }
 
 int ffz_install_crash_handler(const char *breadcrumb_path) {
     g_breadcrumb[0] = '\0';
+    int ok = 1;
     if (breadcrumb_path) {
         size_t n = strlen(breadcrumb_path);
         if (n < sizeof(g_breadcrumb)) memcpy(g_breadcrumb, breadcrumb_path, n + 1);
+        else ok = 0;  // path too long: breadcrumb writing disabled, signal it
     }
     if (!g_installed) {
+        InitializeCriticalSection(&g_dbghelp_lock);
         SetUnhandledExceptionFilter(ffz_win_handler);
         g_installed = 1;
     }
-    return 1;
+    return ok;
 }
 
 // =========================================================================
@@ -208,6 +226,15 @@ static int capture(void **frames, int cap) {
     return st.n;
 }
 #else
+// NOTE: glibc/Apple backtrace() is not on POSIX's async-signal-safe list (it
+// may allocate/take a dynamic-linker lock internally, notably on its first
+// call). This is a known, accepted tradeoff shared by most in-process crash
+// reporters — a fully signal-safe unwinder would mean hand-rolling DWARF/CFI
+// unwinding, which is out of scope here. In the rare case where the crash
+// occurs while the faulting thread already holds a lock backtrace() needs,
+// the handler can hang rather than report; the alternate signal stack and
+// re-entrancy guard above still bound the worst case to "no report", never
+// a corrupted one.
 static int capture(void **frames, int cap) { return backtrace(frames, cap); }
 #endif
 
@@ -291,22 +318,41 @@ static void ffz_posix_handler(int sig, siginfo_t *info, void *uc) {
     if (sig == SIGABRT) raise(sig);
 }
 
+// Stack overflow delivers SIGSEGV on the already-exhausted thread stack, with
+// no room left to push a new frame — including ffz_posix_handler's own 8 KB
+// `ffz_report r`. Without an alternate signal stack, the kernel simply can't
+// invoke the handler for exactly the crash it's most needed for. Sized well
+// above SIGSTKSZ/MINSIGSTKSZ to comfortably cover the handler's locals.
+#ifndef FFZ_ALTSTACK_SIZE
+#define FFZ_ALTSTACK_SIZE (64 * 1024)
+#endif
+static char g_altstack[FFZ_ALTSTACK_SIZE];
+
 int ffz_install_crash_handler(const char *breadcrumb_path) {
     g_breadcrumb[0] = '\0';
+    int ok = 1;
     if (breadcrumb_path) {
         size_t n = strlen(breadcrumb_path);
         if (n < sizeof(g_breadcrumb)) memcpy(g_breadcrumb, breadcrumb_path, n + 1);
+        else ok = 0;  // path too long: breadcrumb writing disabled, signal it
     }
-    if (g_installed) return 1;
+    if (g_installed) return ok;
+
+    stack_t ss;
+    ss.ss_sp = g_altstack;
+    ss.ss_size = sizeof(g_altstack);
+    ss.ss_flags = 0;
+    sigaltstack(&ss, NULL);
+
     struct sigaction sa;
     memset(&sa, 0, sizeof(sa));
     sa.sa_sigaction = ffz_posix_handler;
-    sa.sa_flags = SA_SIGINFO;
+    sa.sa_flags = SA_SIGINFO | SA_ONSTACK;
     sigemptyset(&sa.sa_mask);
     int sigs[] = {SIGSEGV, SIGABRT, SIGBUS, SIGILL, SIGFPE};
     for (size_t i = 0; i < sizeof(sigs) / sizeof(sigs[0]); i++)
         sigaction(sigs[i], &sa, NULL);
     g_installed = 1;
-    return 1;
+    return ok;
 }
 #endif

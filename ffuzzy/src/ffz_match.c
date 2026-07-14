@@ -34,11 +34,14 @@ bool ffz_matcher_reserve(ffz_matcher *m, size_t width, size_t needle_len) {
         }
         // H-2: guard against nc * 2 * sizeof(uint32_t) overflow before realloc.
         if (nc > SIZE_MAX / (2 * sizeof(uint32_t))) return false;
-        // M-3: write each realloc result into a temporary pointer; commit all
-        // three to the struct only after every realloc succeeds, so a partial
-        // failure never leaves hay/bonus/roll with inconsistent capacities.
-        // realloc on failure leaves the original pointer valid, so each step
-        // below is safe to fall through without leaking memory.
+        // M-3: write each realloc result into a temporary pointer, then commit
+        // it to the struct as soon as ITS OWN realloc succeeds — realloc may
+        // have moved the block, so the old m->hay/bonus/roll must not be kept
+        // around (double-free / stale-pointer risk) even if a later realloc
+        // in this same call fails. m->cap_hay itself is only bumped once all
+        // three succeed: on a partial failure it stays at the old (smaller)
+        // value, which just under-reports capacity — safe, since it can only
+        // cause a redundant realloc on the next call, never an OOB write.
         uint32_t *nh = (uint32_t *)realloc(m->hay,  nc * sizeof(uint32_t));
         if (!nh) return false;
         uint8_t  *nb = (uint8_t  *)realloc(m->bonus, nc);
