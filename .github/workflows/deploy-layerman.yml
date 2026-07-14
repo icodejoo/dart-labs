@@ -1,0 +1,52 @@
+name: Deploy layerman demo
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'layerman/lib/**'
+      - 'layerman/example/lib/**'
+      - 'layerman/example/web/**'
+      - 'layerman/example/pubspec.yaml'
+      - 'layerman/pubspec.yaml'
+      - '.github/workflows/deploy-layerman.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: gh-pages
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Build & deploy layerman
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Package dependencies
+        working-directory: layerman
+        run: flutter pub get
+
+      - name: Example dependencies
+        working-directory: layerman/example
+        run: flutter pub get
+
+      - name: Build web
+        working-directory: layerman/example
+        run: flutter build web --release --base-href /dart-labs/layerman/
+
+      - name: Deploy to gh-pages/layerman/
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: layerman/example/build/web
+          destination_dir: layerman
+          keep_files: true
