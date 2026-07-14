@@ -1,0 +1,54 @@
+name: Deploy getx_query demo
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'getx-query/lib/**'
+      - 'getx-query/example/lib/**'
+      - 'getx-query/example/web/**'
+      - 'getx-query/example/pubspec.yaml'
+      - 'getx-query/pubspec.yaml'
+      - '.github/workflows/deploy-getx-query.yml'
+      - '.github/workflows/update-root-index.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: gh-pages
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Build & deploy getx_query
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+      - name: Package dependencies
+        working-directory: getx-query
+        run: flutter pub get
+      - name: Example dependencies
+        working-directory: getx-query/example
+        run: flutter pub get
+      - name: Build web
+        working-directory: getx-query/example
+        run: flutter build web --release --base-href /dart-labs/getx-query/
+      - name: Deploy getx-query/ to gh-pages
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: getx-query/example/build/web
+          destination_dir: getx-query
+          keep_files: true
+
+  update-index:
+    name: Update root index
+    needs: deploy
+    uses: ./.github/workflows/update-root-index.yml
+    secrets: inherit
