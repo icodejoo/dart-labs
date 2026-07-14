@@ -100,6 +100,33 @@ jobs:
                 </div>
                 <span class="badge">Flutter Web</span>
               </a>
+              <a class="card" href="cacheman/">
+                <div class="card-title">🗃 cacheman</div>
+                <div class="card-desc">
+                  Type-safe cache with TTL, expiry, sliding renewal, namespaces,
+                  pluggable codecs and Jsonx extended types — persistent and
+                  in-memory tiers with one unified API.
+                </div>
+                <span class="badge">Flutter Web</span>
+              </a>
+              <a class="card" href="stompsocket/">
+                <div class="card-title">🔌 flutter_stompsocket</div>
+                <div class="card-desc">
+                  Production-ready STOMP-over-WebSocket client — auto-reconnect,
+                  offline send buffering, shared-parse subscriptions,
+                  and manual / smart / auto ACK modes.
+                </div>
+                <span class="badge">Flutter Web</span>
+              </a>
+              <a class="card" href="getx-query/">
+                <div class="card-title">⚡ getx_query</div>
+                <div class="card-desc">
+                  TanStack-Query semantics for GetX — Rx-backed useQuery,
+                  useMutation, useInfiniteQuery over flutter_query.
+                  No HookWidget; render with Obx.
+                </div>
+                <span class="badge">Flutter Web</span>
+              </a>
             </div>
           </body>
           </html>

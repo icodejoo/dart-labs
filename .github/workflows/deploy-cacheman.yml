@@ -1,0 +1,54 @@
+name: Deploy cacheman demo
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'cacheman/lib/**'
+      - 'cacheman/example/lib/**'
+      - 'cacheman/example/web/**'
+      - 'cacheman/example/pubspec.yaml'
+      - 'cacheman/pubspec.yaml'
+      - '.github/workflows/deploy-cacheman.yml'
+      - '.github/workflows/update-root-index.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: gh-pages
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Build & deploy cacheman
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+      - name: Package dependencies
+        working-directory: cacheman
+        run: flutter pub get
+      - name: Example dependencies
+        working-directory: cacheman/example
+        run: flutter pub get
+      - name: Build web
+        working-directory: cacheman/example
+        run: flutter build web --release --base-href /dart-labs/cacheman/
+      - name: Deploy cacheman/ to gh-pages
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: cacheman/example/build/web
+          destination_dir: cacheman
+          keep_files: true
+
+  update-index:
+    name: Update root index
+    needs: deploy
+    uses: ./.github/workflows/update-root-index.yml
+    secrets: inherit
