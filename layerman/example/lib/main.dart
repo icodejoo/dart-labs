@@ -2,6 +2,7 @@ import 'package:bot_toast/bot_toast.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:layerman/layerman.dart';
+import 'package:shadcn_ui/shadcn_ui.dart';
 import 'demo_shell.dart';
 import 'manager.dart';
 
@@ -57,10 +58,20 @@ class _AppRootState extends State<AppRoot> {
         OverlayNavigatorObserver(om),
       ],
       // Layer order (top → bottom):
-      //   bot_toast  >  OverlayManagerScope  >  Navigator / routes
+      //   bot_toast  >  ShadSonner toasts  >  OverlayManagerScope  >  routes
+      //
+      // ShadTheme must be an ancestor of all shadcn/ui widgets (ShadButton,
+      // ShadDialog, ShadSheet) rendered inside overlay builders and dialogs.
+      // ShadSonner is keyed so present-callbacks can reach it without context.
       builder: (context, child) => botToastBuilder(
         context,
-        OverlayManagerScope(manager: om, child: child!),
+        ShadTheme(
+          data: ShadThemeData(colorScheme: const ShadSlateColorScheme.light()),
+          child: ShadSonner(
+            key: shadSonnerKey,
+            child: OverlayManagerScope(manager: om, child: child!),
+          ),
+        ),
       ),
       // Use initialRoute + routes so the home page has name '/home'
       // (not '/' which is Flutter's implicit defaultRouteName for home:).
