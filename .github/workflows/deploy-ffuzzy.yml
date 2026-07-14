@@ -1,0 +1,54 @@
+name: Deploy ffuzzy demo
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'ffuzzy/lib/**'
+      - 'ffuzzy/example/lib/**'
+      - 'ffuzzy/example/web/**'
+      - 'ffuzzy/example/pubspec.yaml'
+      - 'ffuzzy/pubspec.yaml'
+      - '.github/workflows/deploy-ffuzzy.yml'
+      - '.github/workflows/update-root-index.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: gh-pages
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Build & deploy ffuzzy
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+      - name: Package dependencies
+        working-directory: ffuzzy
+        run: flutter pub get
+      - name: Example dependencies
+        working-directory: ffuzzy/example
+        run: flutter pub get
+      - name: Build web
+        working-directory: ffuzzy/example
+        run: flutter build web --release --base-href /dart-labs/ffuzzy/
+      - name: Deploy ffuzzy/ to gh-pages
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ffuzzy/example/build/web
+          destination_dir: ffuzzy
+          keep_files: true
+
+  update-index:
+    name: Update root index
+    needs: deploy
+    uses: ./.github/workflows/update-root-index.yml
+    secrets: inherit
