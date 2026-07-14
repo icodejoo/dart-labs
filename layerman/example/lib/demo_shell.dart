@@ -9,6 +9,7 @@ import 'pages/cooldown_page.dart';
 import 'pages/lifecycle_page.dart';
 import 'pages/pause_page.dart';
 import 'pages/external_page.dart';
+import 'pages/mixed_page.dart';
 import 'pages/setup_page.dart';
 import 'widgets/om_state_bar.dart';
 
@@ -31,6 +32,7 @@ const _destinations = [
   _Dest('Lifecycle', Icons.recycling_outlined),
   _Dest('Pause & Resume', Icons.pause_circle_outline),
   _Dest('External Presenters', Icons.open_in_new_outlined),
+  _Dest('Mixed UI Libraries', Icons.auto_awesome_outlined),
   _Dest('Setup & Restart', Icons.settings_outlined),
 ];
 
@@ -45,6 +47,7 @@ const _pages = [
   LifecyclePage(),
   PausePage(),
   ExternalPage(),
+  MixedPage(),
   SetupPage(),
 ];
 
