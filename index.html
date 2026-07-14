@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>dart-labs demos</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: #0d1117; color: #e6edf3;
+      display: flex; flex-direction: column;
+      align-items: center; min-height: 100vh;
+      padding: 48px 16px;
+    }
+    h1 { font-size: 2rem; margin-bottom: 8px; }
+    .subtitle { color: #8b949e; margin-bottom: 48px; }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      gap: 16px; width: 100%; max-width: 960px;
+    }
+    a.card {
+      display: block; padding: 24px;
+      background: #161b22; border: 1px solid #30363d;
+      border-radius: 12px; text-decoration: none; color: inherit;
+      transition: border-color .2s, transform .15s;
+    }
+    a.card:hover { border-color: #58a6ff; transform: translateY(-2px); }
+    .card-title { font-size: 1.2rem; font-weight: 700; margin-bottom: 6px; }
+    .card-desc  { font-size: .875rem; color: #8b949e; line-height: 1.5; }
+    .badge {
+      display: inline-block; margin-top: 12px;
+      padding: 3px 10px; border-radius: 20px;
+      font-size: .75rem; font-weight: 600;
+      background: #1f6feb33; color: #58a6ff;
+      border: 1px solid #1f6feb;
+    }
+  </style>
+</head>
+<body>
+  <h1>dart-labs / demos</h1>
+  <p class="subtitle">Live Flutter Web demos for every package in the monorepo</p>
+  <div class="grid">
+    <a class="card" href="countman/">
+      <div class="card-title">⏱ countman</div>
+      <div class="card-desc">
+        High-performance shared-ticker counter &amp; countdown animations.
+        Counter · Countdown · Elapsed — all APIs demoed.
+      </div>
+      <span class="badge">Flutter Web</span>
+    </a>
+    <a class="card" href="dioman/">
+      <div class="card-title">🔌 dioman</div>
+      <div class="card-desc">
+        Composable Dio interceptor plugins — auth, cache, retry, dedup,
+        mock, normalize and more. Live request playground, no server needed.
+      </div>
+      <span class="badge">Flutter Web</span>
+    </a>
+    <a class="card" href="layerman/">
+      <div class="card-title">🗂 layerman</div>
+      <div class="card-desc">
+        Flutter-native overlay queue manager — serial queue, replace,
+        affix, overlap, cooldown, conditions, external presenters and more.
+        All APIs interactively demoed.
+      </div>
+      <span class="badge">Flutter Web</span>
+    </a>
+  </div>
+</body>
+</html>
