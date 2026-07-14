@@ -1,6 +1,8 @@
-// Card specs for the "搜索模式" tab — the 9 synchronous search-mode methods.
+// Card specs for the "Search modes" tab — the 12 synchronous search-mode
+// methods, including all 4 SearchStrategy variants via the unified search().
 //
-// "搜索模式" Tab 的卡片定义 —— 9 个同步搜索方法。
+// "Search modes" Tab 的卡片定义 —— 12 个同步搜索方法，包含统一入口
+// search() 的全部 4 种 SearchStrategy。
 import 'package:flutter/material.dart';
 import 'package:ffuzzy/ffuzzy.dart';
 
@@ -39,10 +41,34 @@ final List<QuerySpec> searchModeSpecs = [
   QuerySpec('exact', "corpus.exact(query)",
       (c, q) => _hits(c.exact(q, limit: 20))),
   QuerySpec(
+      'search (fuzzy)',
+      "corpus.search(query,\n"
+          "  strategy: SearchStrategy.fuzzy)  // default",
+      (c, q) => _hits(c.search(q, strategy: SearchStrategy.fuzzy, limit: 20)),
+      note: 'Unified entry point, same algorithm as fuzzy() above.'),
+  QuerySpec(
+      'search (approx)',
+      "corpus.search(query,\n"
+          "  strategy: SearchStrategy.approx, highlight: true)",
+      (c, q) => _approxHits(c.search(q,
+          strategy: SearchStrategy.approx, limit: 20, highlight: true)),
+      note: 'Unified entry point, same algorithm as approx() below.'),
+  QuerySpec(
+      'search (fallback)',
+      "corpus.search(query,\n"
+          "  strategy: SearchStrategy.fallback)",
+      (c, q) =>
+          _hits(c.search(q, strategy: SearchStrategy.fallback, limit: 20)),
+      note: 'Runs fuzzy first; only falls back to approx (edit-distance) '
+          'when the fuzzy result is empty — so a clean subsequence match '
+          'always wins over a typo-tolerant one.'),
+  QuerySpec(
       'search (merge)',
       "corpus.search(query,\n"
           "  strategy: SearchStrategy.merge)",
-      (c, q) => _hits(c.search(q, strategy: SearchStrategy.merge, limit: 20))),
+      (c, q) => _hits(c.search(q, strategy: SearchStrategy.merge, limit: 20)),
+      note: 'Runs both algorithms in one scan — subsequence hits first, '
+          'then approx-only hits (already-found items are deduplicated).'),
   QuerySpec(
       'approx',
       "corpus.approx(query, highlight: true)\n"
