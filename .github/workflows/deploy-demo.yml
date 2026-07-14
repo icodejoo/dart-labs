@@ -1,21 +1,32 @@
-# Builds ALL sub-project demo apps (Flutter Web) and deploys them together
-# to a single GitHub Pages site with per-project subdirectory paths.
+# Builds only CHANGED sub-project demos and deploys them with a complete site.
 #
-# Live site structure:
+# Architecture:
+#   1. `changes` job: dorny/paths-filter detects which packages changed.
+#   2. Each `build-*` job is conditional (if: changed == 'true') and retains
+#      its artifact for 90 days so future unchanged-package downloads work.
+#   3. `assemble` job: for changed packages, downloads the fresh artifact from
+#      this run; for unchanged packages, restores the most-recent artifact from
+#      a previous successful run (dawidd6/action-download-artifact).
+#      This ensures the deployed site is always complete even when only one
+#      package changed.
+#
+# Live site:
 #   https://icodejoo.github.io/dart-labs/             — landing index
 #   https://icodejoo.github.io/dart-labs/countman/    — Countman demo
 #   https://icodejoo.github.io/dart-labs/dioman/      — Dioman demo
 #   https://icodejoo.github.io/dart-labs/layerman/    — Layerman demo
-#   (add more sub-projects by copying the build-countman job pattern)
 #
 # First-time repo setup (one-time):
 #   Settings → Pages → Source → "GitHub Actions"
 #
-# To add a new sub-project demo:
-#   1. Copy the build-countman job, rename it build-<name>
-#   2. Adjust working-directory, base-href, and artifact path
-#   3. Add it to needs: [build-countman, build-<name>] in assemble
-#   4. Add a download-artifact step in assemble for the new artifact
+# To add a new sub-project <pkg>:
+#   1. Add paths to `changes` job filters (same block as countman).
+#   2. Add paths to `on.push.paths` trigger list.
+#   3. Copy the `build-countman` job; rename to `build-<pkg>`; adjust
+#      working-directory and --base-href.
+#   4. Add `build-<pkg>` to `assemble.needs`.
+#   5. Add two download steps in `assemble` (fresh + previous-run pattern).
+#   6. Add a card to the root index.html in the assemble job.
 
 name: Deploy Demos
 
@@ -40,6 +51,7 @@ on:
   workflow_dispatch:
 
 permissions:
+  actions: read   # needed by dawidd6/action-download-artifact to fetch previous artifacts
   contents: read
   pages: write
   id-token: write
@@ -51,133 +63,185 @@ concurrency:
 # ── Jobs ──────────────────────────────────────────────────────────────────────
 
 jobs:
-  # ── countman demo ────────────────────────────────────────────────────────────
+  # ── Detect changed packages ────────────────────────────────────────────────
+  changes:
+    name: Detect changed packages
+    runs-on: ubuntu-latest
+    outputs:
+      countman: ${{ steps.filter.outputs.countman }}
+      dioman:   ${{ steps.filter.outputs.dioman }}
+      layerman: ${{ steps.filter.outputs.layerman }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            countman:
+              - 'countman/lib/**'
+              - 'countman/example/lib/**'
+              - 'countman/example/pubspec.yaml'
+              - 'countman/pubspec.yaml'
+            dioman:
+              - 'dioman/lib/**'
+              - 'dioman/example/lib/**'
+              - 'dioman/example/pubspec.yaml'
+              - 'dioman/pubspec.yaml'
+            layerman:
+              - 'layerman/lib/**'
+              - 'layerman/example/lib/**'
+              - 'layerman/example/web/**'
+              - 'layerman/example/pubspec.yaml'
+              - 'layerman/pubspec.yaml'
+
+  # ── countman demo ──────────────────────────────────────────────────────────
   build-countman:
     name: Build countman demo
+    needs: changes
+    if: needs.changes.outputs.countman == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-
       - uses: subosito/flutter-action@v2
         with:
           channel: stable
           cache: true
-
       - name: Package dependencies
         working-directory: countman
         run: flutter pub get
-
       - name: Example dependencies
         working-directory: countman/example
         run: flutter pub get
-
       - name: Build web
         working-directory: countman/example
-        run: |
-          flutter build web \
-            --release \
-            --base-href /dart-labs/countman/
-
-      - name: Upload artifact
-        uses: actions/upload-artifact@v4
+        run: flutter build web --release --base-href /dart-labs/countman/
+      - uses: actions/upload-artifact@v4
         with:
           name: countman-web
           path: countman/example/build/web
-          retention-days: 1
+          retention-days: 90   # kept long enough for future unchanged-package restores
 
-  # ── dioman demo ──────────────────────────────────────────────────────────────
+  # ── dioman demo ────────────────────────────────────────────────────────────
   build-dioman:
     name: Build dioman demo
+    needs: changes
+    if: needs.changes.outputs.dioman == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-
       - uses: subosito/flutter-action@v2
         with:
           channel: stable
           cache: true
-
       - name: Package dependencies
         working-directory: dioman
         run: flutter pub get
-
       - name: Example dependencies
         working-directory: dioman/example
         run: flutter pub get
-
       - name: Build web
         working-directory: dioman/example
-        run: |
-          flutter build web \
-            --release \
-            --base-href /dart-labs/dioman/
-
-      - name: Upload artifact
-        uses: actions/upload-artifact@v4
+        run: flutter build web --release --base-href /dart-labs/dioman/
+      - uses: actions/upload-artifact@v4
         with:
           name: dioman-web
           path: dioman/example/build/web
-          retention-days: 1
+          retention-days: 90
 
-  # ── layerman demo ────────────────────────────────────────────────────────────
+  # ── layerman demo ──────────────────────────────────────────────────────────
   build-layerman:
     name: Build layerman demo
+    needs: changes
+    if: needs.changes.outputs.layerman == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-
       - uses: subosito/flutter-action@v2
         with:
           channel: stable
           cache: true
-
       - name: Package dependencies
         working-directory: layerman
         run: flutter pub get
-
       - name: Example dependencies
         working-directory: layerman/example
         run: flutter pub get
-
       - name: Build web
         working-directory: layerman/example
-        run: |
-          flutter build web \
-            --release \
-            --base-href /dart-labs/layerman/
-
-      - name: Upload artifact
-        uses: actions/upload-artifact@v4
+        run: flutter build web --release --base-href /dart-labs/layerman/
+      - uses: actions/upload-artifact@v4
         with:
           name: layerman-web
           path: layerman/example/build/web
-          retention-days: 1
+          retention-days: 90
 
-  # ── assemble all sub-projects + root index ────────────────────────────────
+  # ── Assemble: merge this run's fresh builds with previous-run artifacts ────
   assemble:
     name: Assemble site
-    needs: [build-countman, build-dioman, build-layerman]
+    needs: [changes, build-countman, build-dioman, build-layerman]
+    # Run even when some build jobs were skipped; abort only on failure/cancel.
+    if: >-
+      always() && !cancelled() &&
+      (needs.build-countman.result == 'success' || needs.build-countman.result == 'skipped') &&
+      (needs.build-dioman.result   == 'success' || needs.build-dioman.result   == 'skipped') &&
+      (needs.build-layerman.result == 'success' || needs.build-layerman.result == 'skipped')
     runs-on: ubuntu-latest
     steps:
-      - name: Download countman
+      # ── countman ────────────────────────────────────────────────────────────
+      - name: Download countman (this run — rebuilt)
+        if: needs.changes.outputs.countman == 'true'
         uses: actions/download-artifact@v4
         with:
           name: countman-web
           path: site/countman
 
-      - name: Download dioman
+      - name: Download countman (previous run — unchanged)
+        if: needs.changes.outputs.countman != 'true'
+        uses: dawidd6/action-download-artifact@v6
+        with:
+          workflow: deploy-demo.yml
+          branch: main
+          name: countman-web
+          path: site/countman
+          if_no_artifact_found: warn   # first-ever run: no previous artifact yet
+
+      # ── dioman ──────────────────────────────────────────────────────────────
+      - name: Download dioman (this run — rebuilt)
+        if: needs.changes.outputs.dioman == 'true'
         uses: actions/download-artifact@v4
         with:
           name: dioman-web
           path: site/dioman
 
-      - name: Download layerman
+      - name: Download dioman (previous run — unchanged)
+        if: needs.changes.outputs.dioman != 'true'
+        uses: dawidd6/action-download-artifact@v6
+        with:
+          workflow: deploy-demo.yml
+          branch: main
+          name: dioman-web
+          path: site/dioman
+          if_no_artifact_found: warn
+
+      # ── layerman ────────────────────────────────────────────────────────────
+      - name: Download layerman (this run — rebuilt)
+        if: needs.changes.outputs.layerman == 'true'
         uses: actions/download-artifact@v4
         with:
           name: layerman-web
           path: site/layerman
 
-      # ── Root landing page ─────────────────────────────────────────────────
+      - name: Download layerman (previous run — unchanged)
+        if: needs.changes.outputs.layerman != 'true'
+        uses: dawidd6/action-download-artifact@v6
+        with:
+          workflow: deploy-demo.yml
+          branch: main
+          name: layerman-web
+          path: site/layerman
+          if_no_artifact_found: warn
+
+      # ── Root landing page ────────────────────────────────────────────────
       - name: Generate root index
         run: |
           mkdir -p site
@@ -210,9 +274,7 @@ jobs:
                 border-radius: 12px; text-decoration: none; color: inherit;
                 transition: border-color .2s, transform .15s;
               }
-              a.card:hover {
-                border-color: #58a6ff; transform: translateY(-2px);
-              }
+              a.card:hover { border-color: #58a6ff; transform: translateY(-2px); }
               .card-title { font-size: 1.2rem; font-weight: 700; margin-bottom: 6px; }
               .card-desc  { font-size: .875rem; color: #8b949e; line-height: 1.5; }
               .badge {
@@ -266,7 +328,7 @@ jobs:
         with:
           path: site
 
-  # ── deploy ────────────────────────────────────────────────────────────────
+  # ── Deploy ─────────────────────────────────────────────────────────────────
   deploy:
     name: Deploy to GitHub Pages
     needs: assemble
