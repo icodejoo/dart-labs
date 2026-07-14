@@ -21,7 +21,13 @@ const int mExact     = 4;
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 Uint8List toUtf8(String s) {
-  if (s.isEmpty) return Uint8List.fromList([0]);
+  // A truly empty buffer (length 0), not a 1-byte NUL: every call site tests
+  // `bytes.isEmpty` to decide whether to pass length 0 to native/WASM (native
+  // treats an empty query as "match all" — see ffz_ffi.c's q=""  comment).
+  // Returning [0] here previously made that check always false, so an empty
+  // query silently searched for a literal U+0000 codepoint instead of
+  // matching everything.
+  if (s.isEmpty) return Uint8List(0);
   return Uint8List.fromList(utf8.encode(s));
 }
 
@@ -126,6 +132,15 @@ abstract base class FuzzyCorpusProtected<T> {
   List<FuzzyHit<T>> searchMerge_(String q, int maxDist, FuzzyOptions o);
   List<FuzzyHit<T>> searchFallback_(String q, int maxDist, FuzzyOptions o);
   FuzzyDualResult<T> searchDualC_(String q, int maxDist, FuzzyOptions o);
+
+  // Async counterparts of searchEdit_/searchMerge_/searchFallback_/searchDualC_
+  // above. On native these genuinely offload to a worker isolate (like
+  // searchAsync_); on web, WASM calls are inherently synchronous, so these
+  // just await engine readiness before calling the sync path.
+  Future<List<FuzzyHit<T>>> searchEditAsync_(String q, int maxDist, FuzzyOptions o);
+  Future<List<FuzzyHit<T>>> searchMergeAsync_(String q, int maxDist, FuzzyOptions o);
+  Future<List<FuzzyHit<T>>> searchFallbackAsync_(String q, int maxDist, FuzzyOptions o);
+  Future<FuzzyDualResult<T>> searchDualAsync_(String q, int maxDist, FuzzyOptions o);
 
   // Lazy-init hooks — web overrides to trigger _ensureReady(); FFI is always ready (no-op).
   // ignore: non_constant_identifier_names
@@ -502,19 +517,27 @@ abstract base class FuzzyCorpusProtected<T> {
       caseMatching: caseMatching, normalization: normalization,
       parallel: parallel, threads: threads, limit: limit, scoring: scoring)) h.raw];
 
+  // Dispatches to the per-strategy *Async_ bridge method (searchAsync_ /
+  // searchEditAsync_ / searchFallbackAsync_ / searchMergeAsync_), each of
+  // which genuinely offloads to a worker isolate on native and awaits engine
+  // readiness on web — unlike simply calling the synchronous `search()`
+  // inside an async function, which still blocks the calling isolate/thread
+  // for the whole native call.
   Future<List<FuzzyHit<T>>> asyncSearch(String q, {
     SearchStrategy strategy = SearchStrategy.fuzzy,
     int? maxDistance, FuzzyCase? caseMatching, FuzzyNorm? normalization,
     bool? parallel, int? threads, int? limit, bool? highlight, FuzzyScoring? scoring,
   }) async {
     await asyncEnsureReady_();
-    check_(); inFlight_++;
-    try {
-      return search(q, strategy: strategy, maxDistance: maxDistance,
-          caseMatching: caseMatching, normalization: normalization,
-          parallel: parallel, threads: threads, limit: limit,
-          highlight: highlight, scoring: scoring);
-    } finally { inFlight_--; signalIfIdle_(); }
+    check_();
+    final o = eff_(caseMatching, normalization, parallel, threads, limit, highlight, scoring);
+    final dist = maxDistance ?? autoMaxDistance(q);
+    return switch (strategy) {
+      SearchStrategy.fuzzy     => searchAsync_(mFuzzy, q, o),
+      SearchStrategy.approx    => searchEditAsync_(q, dist, o),
+      SearchStrategy.fallback  => searchFallbackAsync_(q, dist, o),
+      SearchStrategy.merge     => searchMergeAsync_(q, dist, o),
+    };
   }
 
   Future<List<T>> asyncSearchRaws(String q, {
@@ -522,12 +545,11 @@ abstract base class FuzzyCorpusProtected<T> {
     int? maxDistance, FuzzyCase? caseMatching, FuzzyNorm? normalization,
     bool? parallel, int? threads, int? limit, FuzzyScoring? scoring,
   }) async {
-    check_(); inFlight_++;
-    try {
-      return searchRaws(q, strategy: strategy, maxDistance: maxDistance,
-          caseMatching: caseMatching, normalization: normalization,
-          parallel: parallel, threads: threads, limit: limit, scoring: scoring);
-    } finally { inFlight_--; signalIfIdle_(); }
+    final hits = await asyncSearch(q, strategy: strategy, maxDistance: maxDistance,
+        caseMatching: caseMatching, normalization: normalization,
+        parallel: parallel, threads: threads, limit: limit,
+        highlight: false, scoring: scoring);
+    return [for (final h in hits) h.raw];
   }
 
   List<T> approxRaws(String q,
@@ -540,23 +562,21 @@ abstract base class FuzzyCorpusProtected<T> {
   Future<List<FuzzyHit<T>>> asyncApprox(String q, {
     int? maxDistance, FuzzyCase? caseMatching,
     FuzzyNorm? normalization, int? limit, bool? highlight,
-  }) async {
-    check_(); inFlight_++;
-    try {
-      return approx(q, maxDistance: maxDistance, caseMatching: caseMatching,
-          normalization: normalization, limit: limit, highlight: highlight);
-    } finally { inFlight_--; signalIfIdle_(); }
+  }) {
+    check_();
+    final dist = maxDistance ?? autoMaxDistance(q);
+    final o = eff_(caseMatching, normalization, null, null, limit, highlight, null);
+    return searchEditAsync_(q, dist, o);
   }
 
   Future<List<T>> asyncApproxRaws(String q, {
     int? maxDistance, FuzzyCase? caseMatching,
     FuzzyNorm? normalization, int? limit,
   }) async {
-    check_(); inFlight_++;
-    try {
-      return approxRaws(q, maxDistance: maxDistance,
-          caseMatching: caseMatching, normalization: normalization, limit: limit);
-    } finally { inFlight_--; signalIfIdle_(); }
+    final hits = await asyncApprox(q, maxDistance: maxDistance,
+        caseMatching: caseMatching, normalization: normalization,
+        limit: limit, highlight: false);
+    return [for (final h in hits) h.raw];
   }
 
   Future<FuzzyDualResult<T>> asyncDual(String q, {
@@ -564,12 +584,10 @@ abstract base class FuzzyCorpusProtected<T> {
     bool? parallel, int? threads, int? limit, bool? highlight, FuzzyScoring? scoring,
   }) async {
     await asyncEnsureReady_();
-    check_(); inFlight_++;
-    try {
-      return dual(q, maxDistance: maxDistance,
-          caseMatching: caseMatching, normalization: normalization,
-          parallel: parallel, threads: threads, limit: limit,
-          highlight: highlight, scoring: scoring);
-    } finally { inFlight_--; signalIfIdle_(); }
+    check_();
+    final dist = maxDistance ?? autoMaxDistance(q);
+    final o = eff_(caseMatching, normalization, parallel, threads, limit, highlight, scoring);
+    if (cDeferred_) return FuzzyDualResult(fuzzy: const [], approx: const []);
+    return searchDualAsync_(q, dist, o);
   }
 }

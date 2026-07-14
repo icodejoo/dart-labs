@@ -27,6 +27,7 @@ struct ffz_pattern {
 typedef struct { uint32_t *d; size_t len, cap; } cpvec;
 static void cpvec_push(cpvec *v, uint32_t c) {
     if (v->len == v->cap) {
+        if (v->cap > SIZE_MAX >> 1) return;  // doubling would overflow; drop
         size_t ncap = v->cap ? v->cap * 2 : 16;
         uint32_t *d = (uint32_t *)realloc(v->d, ncap * sizeof(uint32_t));
         if (!d) return;  // OOM: drop (needle truncated, never crashes)

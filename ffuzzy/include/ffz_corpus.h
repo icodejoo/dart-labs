@@ -83,6 +83,13 @@ typedef struct {
     ffz_hit *hits;
     size_t len;
     size_t cap;
+    // Set true only on an ffz_results* that was itself heap-allocated (the
+    // ffi shim's ffz_ffi_filter*() family). false on an ffz_results embedded
+    // by value elsewhere (e.g. ffz_dual_results.seq/edit) — those must be
+    // released by freeing their *owner*, never individually. FFI callers:
+    // this is what lets ffz_ffi_results_free() refuse to free() a pointer
+    // that was never malloc'd, instead of crashing.
+    bool owned;
 } ffz_results;
 
 void ffz_results_free(ffz_results *r);

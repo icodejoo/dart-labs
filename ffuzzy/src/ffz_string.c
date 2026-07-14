@@ -58,10 +58,11 @@ ffz_config ffz_config_match_paths(void) {
 // --- indices --------------------------------------------------------------
 void ffz_indices_push(ffz_indices *ix, uint32_t v) {
     if (ix->len == ix->cap) {
+        if (ix->cap > SIZE_MAX >> 1) return;  // doubling would overflow; drop
         size_t ncap = ix->cap ? ix->cap * 2 : 32;
         uint32_t *d = (uint32_t *)realloc(ix->data, ncap * sizeof(uint32_t));
-        if (!d) return;  // OOM: drop rather than deref NULL (no overflow check
-        ix->data = d;    // needed: ncap is bounded by needle_len <= 2048)
+        if (!d) return;  // OOM: drop rather than deref NULL
+        ix->data = d;
         ix->cap = ncap;
     }
     ix->data[ix->len++] = v;
@@ -92,6 +93,7 @@ void ffz_indices_sort_dedup(ffz_indices *ix) {
 // --- UTF-8 decode (codepoint level; invalid bytes -> U+FFFD) ---------------
 static void buf_push(ffz_str_buf *buf, uint32_t cp) {
     if (buf->len == buf->cap) {
+        if (buf->cap > SIZE_MAX >> 1) return;  // doubling would overflow; drop
         size_t ncap = buf->cap ? buf->cap * 2 : 32;
         uint32_t *d = (uint32_t *)realloc(buf->cp, ncap * sizeof(uint32_t));
         if (!d) return;  // OOM: drop the codepoint rather than deref NULL

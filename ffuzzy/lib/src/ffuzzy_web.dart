@@ -277,13 +277,17 @@ final class FuzzyCorpus<T> extends FuzzyCorpusProtected<T> {
     final ta = M.malloc(n * 4);
     final la = M.malloc(n * 4);
     final ka = M.malloc(n * 4);
-    final h32 = M.heap32.toDart;
     final kPtrs = <int>[];
     try {
       for (var i = 0; i < n; i++) {
         final kb = toUtf8(keys[i].text);
+        // _wAlloc below can trigger WebAssembly.Memory.grow(), which detaches
+        // any typed-array view taken over the old buffer — so M.heap32 must
+        // be re-read AFTER each allocation, never cached across one. (This is
+        // the same discipline _wAlloc itself already follows internally.)
         final kp = _wAlloc(kb);
         kPtrs.add(kp);
+        final h32 = M.heap32.toDart;
         h32[(ta >> 2) + i] = kp;
         h32[(la >> 2) + i] = kb.isEmpty ? 0 : kb.length;
         h32[(ka >> 2) + i] = keys[i].kind;
@@ -435,6 +439,45 @@ final class FuzzyCorpus<T> extends FuzzyCorpusProtected<T> {
     }
   }
 
+  // Web: WASM is synchronous, so — like searchAsync_ above — these just wait
+  // for engine readiness (if deferred) before calling the sync path; there is
+  // no worker-isolate offload to do on this platform.
+  @override
+  Future<List<FuzzyHit<T>>> searchEditAsync_(String q, int maxDist, FuzzyOptions o) async {
+    check_();
+    if (cDeferred_) { await _readyCompleter.future; _ensureReady(); }
+    inFlight_++;
+    try { return searchEdit_(q, maxDist, o); }
+    finally { inFlight_--; signalIfIdle_(); }
+  }
+
+  @override
+  Future<List<FuzzyHit<T>>> searchMergeAsync_(String q, int maxDist, FuzzyOptions o) async {
+    check_();
+    if (cDeferred_) { await _readyCompleter.future; _ensureReady(); }
+    inFlight_++;
+    try { return searchMerge_(q, maxDist, o); }
+    finally { inFlight_--; signalIfIdle_(); }
+  }
+
+  @override
+  Future<List<FuzzyHit<T>>> searchFallbackAsync_(String q, int maxDist, FuzzyOptions o) async {
+    check_();
+    if (cDeferred_) { await _readyCompleter.future; _ensureReady(); }
+    inFlight_++;
+    try { return searchFallback_(q, maxDist, o); }
+    finally { inFlight_--; signalIfIdle_(); }
+  }
+
+  @override
+  Future<FuzzyDualResult<T>> searchDualAsync_(String q, int maxDist, FuzzyOptions o) async {
+    check_();
+    if (cDeferred_) { await _readyCompleter.future; _ensureReady(); }
+    inFlight_++;
+    try { return searchDualC_(q, maxDist, o); }
+    finally { inFlight_--; signalIfIdle_(); }
+  }
+
   List<FuzzyHit<T>> _readHits(_Mod M, int r, bool highlight) {
     final n = M.rLen(r);
     final out = <FuzzyHit<T>>[];
@@ -457,7 +500,19 @@ final class FuzzyCorpus<T> extends FuzzyCorpusProtected<T> {
 
   Future<void> asyncAddAll(Iterable<T> items) async {
     checkMutate_(); building_ = true;
-    try { await Future.microtask(() => addAll(items)); }
+    try {
+      // Can't call the public addAll() here: it re-runs checkMutate_(), which
+      // throws StateError('...build in progress') because building_ is
+      // already true at this point — 100% reproducible, not a race. Do the
+      // same per-item work addAll() does, directly.
+      await Future.microtask(() {
+        for (final item in items) {
+          nAdd_(item, null);
+          items_.add(item);
+          keys_.add(null);
+        }
+      });
+    }
     finally { building_ = false; signalIfIdle_(); }
   }
 

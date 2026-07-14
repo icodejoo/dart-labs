@@ -102,6 +102,7 @@ FFZ_API ffz_results *ffz_ffi_filter_ex2(ffz_corpus *c, const char *q, size_t qn,
         (unsigned)scoring > FFZ_SCORE_NUCLEO) return NULL;
     ffz_results *r = (ffz_results *)calloc(1, sizeof(ffz_results));
     if (!r) return NULL;
+    r->owned = true;  // heap-allocated: ffz_ffi_results_free() may free() it
     ffz_parallel par;
     par.parallel = parallel != 0;
     par.threads  = threads;
@@ -130,6 +131,7 @@ FFZ_API ffz_results *ffz_ffi_filter_raws(ffz_corpus *c, const char *q, size_t qn
         (unsigned)scoring > FFZ_SCORE_NUCLEO) return NULL;
     ffz_results *r = (ffz_results *)calloc(1, sizeof(ffz_results));
     if (!r) return NULL;
+    r->owned = true;  // heap-allocated: ffz_ffi_results_free() may free() it
     ffz_parallel par;
     par.parallel = parallel != 0;
     par.threads  = threads;
@@ -174,7 +176,12 @@ FFZ_API uint32_t ffz_ffi_results_index(ffz_results *r, size_t i, size_t j) {
     return r->hits[i].indices.data[j];
 }
 FFZ_API void ffz_ffi_results_free(ffz_results *r) {
-    if (!r) return;
+    // r->owned is only true for a handle this file itself heap-allocated
+    // (the ffz_ffi_filter*() family). ffz_ffi_dual_seq()/ffz_ffi_dual_edit()
+    // return pointers EMBEDDED inside an ffz_dual_results — never malloc'd on
+    // their own — so free()-ing them here would be an invalid free. Refuse
+    // instead of crashing; callers must release those via ffz_ffi_dual_free().
+    if (!r || !r->owned) return;
     ffz_results_free(r);
     free(r);
 }
@@ -199,6 +206,7 @@ FFZ_API ffz_results *ffz_ffi_filter_edit(ffz_corpus *c,
     if (max_distance < 0 || max_distance > 10) return NULL;
     ffz_results *r = (ffz_results *)calloc(1, sizeof(ffz_results));
     if (!r) return NULL;
+    r->owned = true;  // heap-allocated: ffz_ffi_results_free() may free() it
     ffz_parallel par = ffz_parallel_off();
     ffz_corpus_filter_edit(c, q, qn, (ffz_case_matching)cm, (ffz_normalization)nm,
                            max_distance, par, limit, r);
@@ -222,6 +230,7 @@ FFZ_API ffz_results *ffz_ffi_filter_edit_raws(ffz_corpus *c,
     if (max_distance < 0 || max_distance > 10) return NULL;
     ffz_results *r = (ffz_results *)calloc(1, sizeof(ffz_results));
     if (!r) return NULL;
+    r->owned = true;  // heap-allocated: ffz_ffi_results_free() may free() it
     ffz_parallel par = ffz_parallel_off();
     ffz_corpus_filter_edit_raws(c, q, qn, (ffz_case_matching)cm, (ffz_normalization)nm,
                                 max_distance, par, limit, r);
@@ -241,6 +250,7 @@ FFZ_API ffz_results *ffz_ffi_filter_merge(ffz_corpus *c,
         max_distance < 0 || max_distance > 10) return NULL;
     ffz_results *r = (ffz_results *)calloc(1, sizeof(ffz_results));
     if (!r) return NULL;
+    r->owned = true;  // heap-allocated: ffz_ffi_results_free() may free() it
     ffz_parallel par = {parallel != 0, threads};
     ffz_corpus_filter_merge(c, q, qn, (ffz_case_matching)cm, (ffz_normalization)nm,
                              max_distance, (ffz_scoring_mode)scoring, par, limit, r);
@@ -263,6 +273,7 @@ FFZ_API ffz_results *ffz_ffi_filter_fallback(ffz_corpus *c,
         max_distance < 0 || max_distance > 10) return NULL;
     ffz_results *r = (ffz_results *)calloc(1, sizeof(ffz_results));
     if (!r) return NULL;
+    r->owned = true;  // heap-allocated: ffz_ffi_results_free() may free() it
     ffz_parallel par = {parallel != 0, threads};
     ffz_corpus_filter_fallback(c, q, qn,
                                 (ffz_case_matching)cm, (ffz_normalization)nm,

@@ -43,6 +43,13 @@ typedef _Nak  = Void Function(Pointer<Void>, Pointer<Uint8>, Size,
 typedef _Nfr  = Void Function(Pointer<Void>);
 typedef _Nfx2 = Pointer<Void> Function(Pointer<Void>, Pointer<Uint8>, Size,
                                Int32, Int32, Int32, Int32, Int32, Size, Int32);
+// ffz_ffi_filter_merge/filter_fallback/filter_dual's C signature is
+// (corpus, q, qn, cm, nm, max_distance, scoring, parallel, threads, limit) —
+// six Int32 trailing params followed by a size_t `limit`. This is NOT the
+// same shape as _Nfx2 above (which has Size in slot 6 / Int32 in slot 7, the
+// reverse), so it needs its own typedef rather than reusing _Nfx2.
+typedef _Nfm  = Pointer<Void> Function(Pointer<Void>, Pointer<Uint8>, Size,
+                               Int32, Int32, Int32, Int32, Int32, Int32, Size);
 typedef _Nvp  = Void Function(Pointer<Void>);
 typedef _Ri   = Uint32 Function(Pointer<Void>, Size);
 typedef _Rni  = Size Function(Pointer<Void>, Size);
@@ -70,9 +77,9 @@ class _Lib {
         filterRaw     = lib.lookupFunction<_Nfx2, Pointer<Void> Function(Pointer<Void>,Pointer<Uint8>,int,int,int,int,int,int,int,int)>('ffz_ffi_filter_raws'),
         filterEdit    = lib.lookupFunction<_Nfe, Pointer<Void> Function(Pointer<Void>,Pointer<Uint8>,int,int,int,int,int)>('ffz_ffi_filter_edit'),
         filterEditRaw = lib.lookupFunction<_Nfe, Pointer<Void> Function(Pointer<Void>,Pointer<Uint8>,int,int,int,int,int)>('ffz_ffi_filter_edit_raws'),
-        filterMerge   = lib.lookupFunction<_Nfx2, Pointer<Void> Function(Pointer<Void>,Pointer<Uint8>,int,int,int,int,int,int,int,int)>('ffz_ffi_filter_merge'),
-        filterFallback= lib.lookupFunction<_Nfx2, Pointer<Void> Function(Pointer<Void>,Pointer<Uint8>,int,int,int,int,int,int,int,int)>('ffz_ffi_filter_fallback'),
-        filterDual    = lib.lookupFunction<_Nfx2, Pointer<Void> Function(Pointer<Void>,Pointer<Uint8>,int,int,int,int,int,int,int,int)>('ffz_ffi_filter_dual'),
+        filterMerge   = lib.lookupFunction<_Nfm, Pointer<Void> Function(Pointer<Void>,Pointer<Uint8>,int,int,int,int,int,int,int,int)>('ffz_ffi_filter_merge'),
+        filterFallback= lib.lookupFunction<_Nfm, Pointer<Void> Function(Pointer<Void>,Pointer<Uint8>,int,int,int,int,int,int,int,int)>('ffz_ffi_filter_fallback'),
+        filterDual    = lib.lookupFunction<_Nfm, Pointer<Void> Function(Pointer<Void>,Pointer<Uint8>,int,int,int,int,int,int,int,int)>('ffz_ffi_filter_dual'),
         dualSeq       = lib.lookupFunction<Pointer<Void> Function(Pointer<Void>), Pointer<Void> Function(Pointer<Void>)>('ffz_ffi_dual_seq'),
         dualEdit      = lib.lookupFunction<Pointer<Void> Function(Pointer<Void>), Pointer<Void> Function(Pointer<Void>)>('ffz_ffi_dual_edit'),
         dualFree      = lib.lookupFunction<_Nvp, void Function(Pointer<Void>)>('ffz_ffi_dual_free'),
@@ -216,8 +223,11 @@ final class FuzzyCorpus<T> extends FuzzyCorpusProtected<T>
   @override
   void cAdd_(Uint8List bytes) {
     final p = _alloc(bytes);
-    _l.add(_ptr, p, bytes.isEmpty ? 0 : bytes.length);
-    malloc.free(p);
+    try {
+      _l.add(_ptr, p, bytes.isEmpty ? 0 : bytes.length);
+    } finally {
+      malloc.free(p);
+    }
     _estBytes += bytes.length;
     _refreshFinalizer();
   }
@@ -261,7 +271,13 @@ final class FuzzyCorpus<T> extends FuzzyCorpusProtected<T>
   @override
   List<FuzzyHit<T>> search_(int mode, String q, FuzzyOptions o) {
     check_();
-    if (mode != mFuzzy) return dartSearch(items_, stringOf_, mode, q, o);
+    // All 5 modes (fuzzy/substring/prefix/postfix/exact) are implemented by
+    // the native C engine (see ffz_ffi_filter_ex2's mode param) — unlike web,
+    // which falls back to dartSearch for non-fuzzy modes because the WASM
+    // build doesn't wire those up. Route everything through native here so
+    // alt-key matching, Unicode/pinyin normalization, and highlight indices
+    // (all of which dartSearch can't do) work for every mode, matching what
+    // lib/ffuzzy.dart documents for the native platform.
     final qb = toUtf8(q);
     final qp = _alloc(qb);
     var r = Pointer<Void>.fromAddress(0);
@@ -278,14 +294,14 @@ final class FuzzyCorpus<T> extends FuzzyCorpusProtected<T>
   @override
   List<T> searchRaws_(int mode, String q, FuzzyOptions o) {
     check_();
-    if (mode != mFuzzy) return dartSearchRaws(items_, stringOf_, mode, q, o);
     return [for (final h in search_(mode, q, o.copyWith(highlight: false))) h.raw];
   }
 
   @override
   Future<List<FuzzyHit<T>>> searchAsync_(int mode, String q, FuzzyOptions o) async {
     check_();
-    if (mode != mFuzzy) return search_(mode, q, o);
+    // _isoSearch below already forwards `mode` straight to filterEx2/filterRaw,
+    // which support all 5 modes — no need to special-case fuzzy here.
     final addr = _ptr.address;
     final libPath = _libPath;
     final qb = toUtf8(q);
@@ -300,7 +316,6 @@ final class FuzzyCorpus<T> extends FuzzyCorpusProtected<T>
   @override
   Future<List<T>> searchRawsAsync_(int mode, String q, FuzzyOptions o) async {
     check_();
-    if (mode != mFuzzy) return searchRaws_(mode, q, o);
     final addr = _ptr.address;
     final libPath = _libPath;
     final qb = toUtf8(q);
@@ -388,6 +403,68 @@ final class FuzzyCorpus<T> extends FuzzyCorpusProtected<T>
     }
   }
 
+  // ── Async bridge (edit/merge/fallback/dual) ───────────────────────────────
+  // Mirrors searchAsync_ above: offload the native call to a worker isolate
+  // instead of just wrapping the synchronous call in an async function (which
+  // would still block the calling isolate for the whole native call).
+
+  List<FuzzyHit<T>> _fromRaws(List<(int, int, int, int, List<int>)> raws) =>
+      [for (final r in raws) if (r.$1 < items_.length)
+        FuzzyHit<T>(items_[r.$1], r.$1, r.$2, kindOf(r.$3), r.$3, r.$4, r.$5)];
+
+  @override
+  Future<List<FuzzyHit<T>>> searchEditAsync_(String q, int maxDist, FuzzyOptions o) async {
+    check_();
+    final addr = _ptr.address;
+    final libPath = _libPath;
+    final qb = toUtf8(q);
+    inFlight_++;
+    try {
+      final raws = await Isolate.run(() => _isoSearchEdit(libPath, addr, qb, maxDist, o));
+      return _fromRaws(raws);
+    } finally { inFlight_--; signalIfIdle_(); _keepAlive(); }
+  }
+
+  @override
+  Future<List<FuzzyHit<T>>> searchMergeAsync_(String q, int maxDist, FuzzyOptions o) async {
+    check_();
+    final addr = _ptr.address;
+    final libPath = _libPath;
+    final qb = toUtf8(q);
+    inFlight_++;
+    try {
+      final raws = await Isolate.run(() => _isoSearchMF(libPath, addr, qb, maxDist, o, true));
+      return _fromRaws(raws);
+    } finally { inFlight_--; signalIfIdle_(); _keepAlive(); }
+  }
+
+  @override
+  Future<List<FuzzyHit<T>>> searchFallbackAsync_(String q, int maxDist, FuzzyOptions o) async {
+    check_();
+    final addr = _ptr.address;
+    final libPath = _libPath;
+    final qb = toUtf8(q);
+    inFlight_++;
+    try {
+      final raws = await Isolate.run(() => _isoSearchMF(libPath, addr, qb, maxDist, o, false));
+      return _fromRaws(raws);
+    } finally { inFlight_--; signalIfIdle_(); _keepAlive(); }
+  }
+
+  @override
+  Future<FuzzyDualResult<T>> searchDualAsync_(String q, int maxDist, FuzzyOptions o) async {
+    check_();
+    final addr = _ptr.address;
+    final libPath = _libPath;
+    final qb = toUtf8(q);
+    inFlight_++;
+    try {
+      final (seqRaws, editRaws) =
+          await Isolate.run(() => _isoSearchDual(libPath, addr, qb, maxDist, o));
+      return FuzzyDualResult(fuzzy: _fromRaws(seqRaws), approx: _fromRaws(editRaws));
+    } finally { inFlight_--; signalIfIdle_(); _keepAlive(); }
+  }
+
   List<FuzzyHit<T>> _readHits(Pointer<Void> r, bool highlight) {
     final n = _l.rLen(r);
     final out = <FuzzyHit<T>>[];
@@ -460,6 +537,99 @@ final class FuzzyCorpus<T> extends FuzzyCorpusProtected<T>
     }
   }
 
+  // Isolate-safe edit-distance search (mirrors searchEdit_ above).
+  static List<(int, int, int, int, List<int>)> _isoSearchEdit(
+      String? libPath, int addr, Uint8List qb, int maxDist, FuzzyOptions o) {
+    final lib = _Lib.resolve(libPath);
+    final ptr = Pointer<Void>.fromAddress(addr);
+    final qp = _alloc(qb);
+    var r = Pointer<Void>.fromAddress(0);
+    try {
+      final fn = o.highlight ? lib.filterEdit : lib.filterEditRaw;
+      r = fn(ptr, qp, qb.isEmpty ? 0 : qb.length, maxDist,
+          o.caseMatching._c, o.normalization._c, o.limit);
+      if (r == nullptr) return const [];
+      final n = lib.rLen(r);
+      final out = <(int, int, int, int, List<int>)>[];
+      for (var i = 0; i < n; i++) {
+        List<int> idx = const [];
+        if (o.highlight) {
+          final ni = lib.rNIdx(r, i);
+          idx = List<int>.generate(ni, (j) => lib.rIdx(r, i, j));
+        }
+        out.add((lib.rItem(r,i), lib.rScore(r,i), lib.rKind(r,i), lib.rKey(r,i), idx));
+      }
+      lib.rFree(r); r = nullptr;
+      return out;
+    } finally {
+      malloc.free(qp);
+      if (r != nullptr) lib.rFree(r);
+    }
+  }
+
+  // Isolate-safe merge/fallback search (mirrors _callFfiFilter above; neither
+  // native entry point computes highlight indices, so none are read here).
+  static List<(int, int, int, int, List<int>)> _isoSearchMF(
+      String? libPath, int addr, Uint8List qb, int maxDist, FuzzyOptions o,
+      bool useMerge) {
+    final lib = _Lib.resolve(libPath);
+    final ptr = Pointer<Void>.fromAddress(addr);
+    final qp = _alloc(qb);
+    var r = Pointer<Void>.fromAddress(0);
+    try {
+      final fn = useMerge ? lib.filterMerge : lib.filterFallback;
+      r = fn(ptr, qp, qb.isEmpty ? 0 : qb.length,
+          o.caseMatching._c, o.normalization._c, maxDist,
+          o.scoring._c, o.parallel ? 1 : 0, o.threads, o.limit);
+      if (r == nullptr) return const [];
+      final n = lib.rLen(r);
+      final out = <(int, int, int, int, List<int>)>[];
+      for (var i = 0; i < n; i++) {
+        out.add((lib.rItem(r,i), lib.rScore(r,i), lib.rKind(r,i), lib.rKey(r,i), const <int>[]));
+      }
+      lib.rFree(r); r = nullptr;
+      return out;
+    } finally {
+      malloc.free(qp);
+      if (r != nullptr) lib.rFree(r);
+    }
+  }
+
+  // Isolate-safe dual search (mirrors searchDualC_ above) — returns (seq, edit).
+  static (List<(int, int, int, int, List<int>)>, List<(int, int, int, int, List<int>)>)
+      _isoSearchDual(String? libPath, int addr, Uint8List qb, int maxDist, FuzzyOptions o) {
+    final lib = _Lib.resolve(libPath);
+    final ptr = Pointer<Void>.fromAddress(addr);
+    final qp = _alloc(qb);
+    var d = Pointer<Void>.fromAddress(0);
+    try {
+      d = lib.filterDual(ptr, qp, qb.isEmpty ? 0 : qb.length,
+          o.caseMatching._c, o.normalization._c, maxDist,
+          o.scoring._c, o.parallel ? 1 : 0, o.threads, o.limit);
+      if (d == nullptr) return (const [], const []);
+      List<(int, int, int, int, List<int>)> read(Pointer<Void> r) {
+        if (r == nullptr) return const [];
+        final n = lib.rLen(r);
+        final out = <(int, int, int, int, List<int>)>[];
+        for (var i = 0; i < n; i++) {
+          List<int> idx = const [];
+          if (o.highlight) {
+            final ni = lib.rNIdx(r, i);
+            idx = List<int>.generate(ni, (j) => lib.rIdx(r, i, j));
+          }
+          out.add((lib.rItem(r,i), lib.rScore(r,i), lib.rKind(r,i), lib.rKey(r,i), idx));
+        }
+        return out;
+      }
+      final seq = read(lib.dualSeq(d));
+      final edit = read(lib.dualEdit(d));
+      return (seq, edit);
+    } finally {
+      malloc.free(qp);
+      if (d != nullptr) lib.dualFree(d);
+    }
+  }
+
   // ── Async build ───────────────────────────────────────────────────────────
 
   Future<void> asyncAddAll(Iterable<T> items) async {
@@ -475,8 +645,11 @@ final class FuzzyCorpus<T> extends FuzzyCorpusProtected<T>
         final p = Pointer<Void>.fromAddress(addr);
         for (final bytes in texts) {
           final mp = _alloc(bytes);
-          lib.add(p, mp, bytes.isEmpty ? 0 : bytes.length);
-          malloc.free(mp);
+          try {
+            lib.add(p, mp, bytes.isEmpty ? 0 : bytes.length);
+          } finally {
+            malloc.free(mp);
+          }
         }
       });
       for (final item in list) { items_.add(item); keys_.add(null); }
