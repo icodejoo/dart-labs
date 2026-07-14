@@ -1,0 +1,54 @@
+name: Deploy countman demo
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'countman/lib/**'
+      - 'countman/example/lib/**'
+      - 'countman/example/pubspec.yaml'
+      - 'countman/pubspec.yaml'
+      - '.github/workflows/deploy-countman.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write   # peaceiris/actions-gh-pages pushes to gh-pages branch
+
+# Serialize all sub-package deployments so concurrent pushes don't race on
+# the gh-pages branch. cancel-in-progress: false queues rather than cancels
+# (a mid-deploy cancel would leave the branch in a broken state).
+concurrency:
+  group: gh-pages
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Build & deploy countman
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Package dependencies
+        working-directory: countman
+        run: flutter pub get
+
+      - name: Example dependencies
+        working-directory: countman/example
+        run: flutter pub get
+
+      - name: Build web
+        working-directory: countman/example
+        run: flutter build web --release --base-href /dart-labs/countman/
+
+      - name: Deploy to gh-pages/countman/
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: countman/example/build/web
+          destination_dir: countman
+          keep_files: true   # leave every other sub-package directory untouched
