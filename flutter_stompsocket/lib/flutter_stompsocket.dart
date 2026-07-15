@@ -9,9 +9,16 @@ import 'package:stomp_dart_client/stomp_dart_client.dart';
 /// 解析后的 JSON 消息（约定顶层为对象），即 `Map<String, T>`（默认 dynamic）。
 typedef Dictional<T> = Map<String, T>;
 
+/// 订阅回调收到的消息体：[jsonDecode] 能解析成功时就是解析后的实际值（`Map`/`List`/
+/// `String`/`num`/`bool`/`null` 都可能，不要求顶层必须是对象）；[jsonDecode] 本身
+/// 抛异常（不是合法 JSON）时，原样传回收到的原始文本字符串——不在库内部替业务猜测/
+/// 丢弃这段文本，由回调自行判断怎么处理。二进制解码失败（未配置 [binaryDecoder] 或
+/// 它自己抛异常）仍然视为解析失败，不传给回调（见 [ParseFailureAck]）。
+typedef ParsedMessage = dynamic;
+
 /// 订阅回调。第二参 [ack] 恒有值：仅在 [AckMode.manual] 下用于手动 ACK/NACK，
 /// 其余模式为 no-op（安全忽略即可，可写 `(json, _) { ... }`）。
-typedef JsonCallback = void Function(Dictional json, AckControl ack);
+typedef JsonCallback = void Function(ParsedMessage json, AckControl ack);
 
 /// 订阅的确认模式（单一字段，覆盖“不应答/自动应答/手动应答”三态）。
 enum AckMode {
@@ -92,7 +99,7 @@ enum ParseFailureAck {
 /// [Stompsocket.stateListenable]（Flutter 原生响应式，可喂 ValueListenableBuilder）、
 /// 或 [Stompsocket.onStateChanged]（命令式回调，便于桥接 GetX 等）观察。
 enum StompConnectionState {
-  /// 未启动或已 dispose
+  /// 未启动（[Stompsocket.dispose] 后是 disconnected，不回到 idle）
   idle,
 
   /// 正在建立首次连接
@@ -110,9 +117,11 @@ enum StompConnectionState {
 
 /// 解析结果：`(数据, 错误信息)`。
 ///
-/// 用 record 而非直接返回 `Dictional?`，是为了把错误信息带出后台 isolate，
+/// 用 record 而非直接返回值，是为了把错误信息带出后台 isolate，
 /// 由主 isolate 统一记日志（[compute] 内的 print/log 在部分平台不汇聚到主控制台）。
-typedef _ParseResult = (Dictional? data, String? error);
+/// `data` 为 dynamic：可以是 Map/List/String/num/bool/null（JSON 解析结果），
+/// 或收到非合法 JSON 时的原始文本，或二进制解码结果。
+typedef _ParseResult = (dynamic data, String? error);
 
 /// 负载大小阈值（字节）。
 ///
@@ -125,20 +134,22 @@ typedef _ParseResult = (Dictional? data, String? error);
 /// 此处阈值方案只适合"偶发大包"。
 const _isolateThreshold = 32 * 1024;
 
-/// 自动生成订阅 id 的前缀，带特殊字符以避免和调用方手传的 id 冲突。
-const _autoIdPrefix = 'auto#sub-';
+/// 不传 id 时按 (destination, ack, onParseError, ordered) 生成确定性归并键的前缀。
+/// `\x00` 作分隔符——STOMP destination 不含空字节，与用户显式 id 不会碰撞。
+const _autoDestPrefix = 'auto#dest\x00';
 
 /// 用于未提供 onUnhandled* 回调时占位（StompConfig 要求非空）。
 void _noopFrame(StompFrame _) {}
 
 /// 解析字符串消息体（顶层函数，可被 [compute] 发送到后台 isolate）。
+///
+/// [jsonDecode] 成功 → 返回解析后的值（Map/List/String/num/bool/null 都可能）；
+/// [jsonDecode] 抛异常 → 原样返回原始文本，交由回调自行判断——不视为解析错误。
 _ParseResult _decodeStringBody(String body) {
   try {
-    final r = jsonDecode(body);
-    if (r is Dictional) return (r, null);
-    return (null, 'json 顶层不是对象: ${r.runtimeType}');
-  } catch (e) {
-    return (null, 'string 解析失败: $e');
+    return (jsonDecode(body), null);
+  } catch (_) {
+    return (body, null); // 不是合法 JSON → 原样传回原始文本
   }
 }
 
@@ -233,6 +244,7 @@ class Stompsocket {
     Map<String, String>? connectHeaders,
     Future<Map<String, String>?> Function()? beforeConnect,
     this.binaryDecoder,
+    this.onParseFailure,
     this.queueWhileDisconnected = true,
     this.maxQueuedMessages = 100,
     this.resumeOnForeground = false,
@@ -320,12 +332,18 @@ class Stompsocket {
   /// 为 true 时需运行在已初始化 WidgetsBinding 的 Flutter App 中。
   final bool resumeOnForeground;
 
-  /// 二进制消息体解码器：收到二进制帧时调用，返回解析后的 Map，解码失败请抛异常
+  /// 二进制消息体解码器：收到二进制帧时调用，返回值不做类型约束（[ParsedMessage] 即
+  /// `dynamic`），下游回调自行决定怎么接受（Map/List/String 都可以）。解码失败请抛异常
   /// （会按解析失败走 [ParseFailureAck] 策略）。
   ///
   /// 大包会经 [compute] 放到后台 isolate 执行，此时该函数**必须是顶层/静态函数**
   /// （可被发送到 isolate，不能捕获实例状态）。未提供时，收到二进制消息按解析失败处理。
-  final Dictional? Function(Uint8List bytes)? binaryDecoder;
+  final ParsedMessage Function(Uint8List bytes)? binaryDecoder;
+
+  /// 消息体解析失败（二进制帧未配置 [binaryDecoder]、或 binaryDecoder 自己抛异常）时触发，
+  /// 用于业务侧监控消息丢弃：[AckMode.auto] 下解析失败的消息不会进任何订阅回调，没有这个
+  /// 钩子的话只在 debug 日志里留一条痕迹，业务完全无感知。
+  final void Function(StompFrame frame, String error)? onParseFailure;
 
   /// 是否输出日志（主开关）。含 stomp_dart 的帧级 [onDebugMessage] 流水。
   final bool debug;
@@ -354,9 +372,6 @@ class Stompsocket {
 
   /// 所有订阅，以订阅 id 为键
   final Map<String, _Subscription> _subscriptions = {};
-
-  /// 自动生成 id 的自增计数
-  int _autoId = 0;
 
   /// 未连接时暂存的出站消息，连接建立后按序 flush
   final List<_Outbound> _outbox = [];
@@ -450,7 +465,8 @@ class Stompsocket {
     void Function(String message)? onDebugMessage,
     Map<String, String>? connectHeaders,
     Future<Map<String, String>?> Function()? beforeConnect,
-    Dictional? Function(Uint8List bytes)? binaryDecoder,
+    ParsedMessage Function(Uint8List bytes)? binaryDecoder,
+    void Function(StompFrame frame, String error)? onParseFailure,
     bool? queueWhileDisconnected,
     int? maxQueuedMessages,
     bool? resumeOnForeground,
@@ -479,6 +495,7 @@ class Stompsocket {
       connectHeaders: connectHeaders ?? _connectHeadersInit,
       beforeConnect: beforeConnect ?? _userBeforeConnect,
       binaryDecoder: binaryDecoder ?? this.binaryDecoder,
+      onParseFailure: onParseFailure ?? this.onParseFailure,
       queueWhileDisconnected: queueWhileDisconnected ?? this.queueWhileDisconnected,
       maxQueuedMessages: maxQueuedMessages ?? this.maxQueuedMessages,
       resumeOnForeground: resumeOnForeground ?? this.resumeOnForeground,
@@ -539,8 +556,16 @@ class Stompsocket {
     if (_outbox.isEmpty) return;
     final pending = List<_Outbound>.of(_outbox);
     _outbox.clear();
-    for (final o in pending) {
-      _sendNow(o);
+    for (var i = 0; i < pending.length; i++) {
+      try {
+        _sendNow(pending[i]);
+      } catch (e, st) {
+        // 补发中途又断线等 send 抛异常：把没发出去的（含当前这条）回退到缓冲头部，
+        // 等下次连接成功再补发，不让剩余消息随循环中断一起丢掉。
+        _outbox.insertAll(0, pending.sublist(i));
+        _log('补发离线消息失败，剩余 ${pending.length - i} 条已回退到缓冲', e, st);
+        return;
+      }
     }
   }
 
@@ -550,16 +575,18 @@ class Stompsocket {
 
   /// 订阅一个 topic。
   ///
-  /// - 传入相同的 [id] 时，[callback] 会被追加到同一个订阅的函数队列中，
-  ///   多个回调共用同一份解析后的数据，且不会向服务端重复发送 SUBSCRIBE。
-  /// - 不传 [id] 时自动生成一个唯一 id，作为独立订阅。
-  /// - [ordered] 为 true（默认）时严格按消息到达顺序分发（即使大包走了异步
-  ///   解析也不会乱序）；为 false 时解析完即分发，吞吐更高但可能乱序。
+  /// - **不传 [id]**（常见用法）：按 `(destination, ack, onParseError, ordered)` 四元组自动
+  ///   归并。相同四元组的多次 subscribe 共享**一条** wire 订阅（只发一次 SUBSCRIBE，消息只
+  ///   解析一次再分发给所有回调），通过 returned handle 的 `unsubscribe()` 引用计数释放，
+  ///   最后一个取消才撤销订阅。`ack`/`ordered` 不同 → 归并键不同 → 独立订阅。
+  /// - **传入 [id]**：精确控制归并键，与”不传 id”的自动键完全独立（自动键含 `\x00`，
+  ///   用户 id 不可能含此字符）。用于同一 destination 下需要多份独立订阅的场景。
+  /// - [ordered] 为 true（默认）时严格按消息到达顺序分发（即使大包走了异步解析也不会
+  ///   乱序）；为 false 时解析完即分发，吞吐更高但可能乱序。
   /// - [ack] 非 [AckMode.auto] 时，每条消息处理完会自动 ACK（回调全部成功）
-  ///   或 NACK（任一回调抛异常），逐条确认建议用 [AckMode.clientIndividual]。
-  /// - [onParseError] 控制“消息体解析失败”时自动 NACK（默认，重投）还是
-  ///   ACK（丢弃坏消息）；仅在 [ack] 非 auto 时生效。
-  /// - [ordered]/[ack]/[onParseError] 只在该 id 首次订阅时生效。
+  ///   或 NACK（任一回调抛异常）。
+  /// - [onParseError] 控制”二进制消息解析失败”时自动 NACK（默认）还是 ACK（丢弃）；
+  ///   仅在 [ack] 非 auto 时生效。
   /// - 未连接时只登记到本地，连接建立后（含重连）自动向服务端重放。
   ///
   /// 返回 [StompSubscription] 句柄：`.id` 可用于 [unsubscribe]，
@@ -572,10 +599,15 @@ class Stompsocket {
     AckMode ack = AckMode.auto,
     ParseFailureAck onParseError = ParseFailureAck.nack,
   }) {
-    final subId = id ?? '$_autoIdPrefix${_autoId++}';
+    // 不传 id → 四元组确定性键（含 \x00 分隔符，与用户显式 id 命名空间隔离）；
+    // 传了 id → 直接用，可在同 destination 下保持多份独立订阅。
+    final subId = id ?? '$_autoDestPrefix$destination\x00${ack.name}\x00${onParseError.name}\x00$ordered';
 
-    // 已存在同 id 订阅：仅把回调加入队列，复用解析数据；否则新建
     var sub = _subscriptions[subId];
+    if (sub != null && sub.destination != destination) {
+      // 只有显式传 id 时才可能触发（自动键已含 destination，不会错位）
+      _log('subscribe: id “$subId” 已绑定 ${sub.destination}，传入的新 destination “$destination” 被忽略（回调追加到原订阅）');
+    }
     if (sub == null) {
       sub = _Subscription(
         id: subId,
@@ -660,7 +692,9 @@ class Stompsocket {
     if (sub == null) return false;
     _subscriptions.remove(sub.id);
     sub.callbacks.clear();
-    sub.unsubscribeFn?.call();
+    // 未连接时不碰 unsubscribeFn：断线后服务端订阅已随会话消失，往死 socket 发
+    // UNSUBSCRIBE 帧没有意义。
+    if (client.connected) sub.unsubscribeFn?.call();
     return true;
   }
 
@@ -773,7 +807,10 @@ class Stompsocket {
   /// 把同一份解析后的数据分发给该订阅队列中的所有回调，并按 [AckMode] 处理确认。
   void _dispatch(_Subscription sub, StompFrame frame, _ParseResult result) {
     final (json, error) = result;
-    if (error != null) _log(error);
+    if (error != null) {
+      _log(error);
+      onParseFailure?.call(frame, error);
+    }
 
     // 异步解析期间订阅可能已被取消，或被同 id 重新订阅（换了新对象）：直接返回。
     if (!identical(_subscriptions[sub.id], sub)) return;
@@ -808,7 +845,7 @@ class Stompsocket {
 
   /// 分发给队列中所有回调，返回是否全部成功（任一抛异常即 false）。
   /// 复制一份队列，避免回调内部增删订阅时并发修改。
-  bool _runCallbacks(_Subscription sub, Dictional json, AckControl ack) {
+  bool _runCallbacks(_Subscription sub, ParsedMessage json, AckControl ack) {
     var ok = true;
     for (final reg in List<_CallbackReg>.of(sub.callbacks)) {
       try {
