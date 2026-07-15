@@ -165,14 +165,16 @@ void main() {
     expect(broker.framesOf('ACK'), isEmpty);
   });
 
-  test('auto-ack: 解析失败默认 NACK', () async {
+  test('auto-ack: 解析失败（二进制无 binaryDecoder）默认 NACK', () async {
+    // 真正的解析失败：二进制帧但没配 binaryDecoder。
+    // 非 JSON 纯文本已不是解析失败——会原样传给回调，不走 onParseError 路径。
     client.activate();
     await pump(() => client.connected);
 
     client.subscribe('/topic/a', (_, _) {}, ack: AckMode.smart);
     await pump(() => broker.subscriptionCount == 1);
 
-    broker.sendMessage('/topic/a', 'not-json', withAck: true);
+    broker.sendBinaryMessage('/topic/a', Uint8List.fromList([0x1f, 0x8b]), withAck: true);
     await pump(() => broker.framesOf('NACK').isNotEmpty);
     expect(broker.framesOf('ACK'), isEmpty);
   });
@@ -185,9 +187,36 @@ void main() {
         ack: AckMode.smart, onParseError: ParseFailureAck.ack);
     await pump(() => broker.subscriptionCount == 1);
 
-    broker.sendMessage('/topic/a', 'not-json', withAck: true);
+    broker.sendBinaryMessage('/topic/a', Uint8List.fromList([0x1f, 0x8b]), withAck: true);
     await pump(() => broker.framesOf('ACK').isNotEmpty);
     expect(broker.framesOf('NACK'), isEmpty);
+  });
+
+  test('body 是非 JSON 纯文本：原样传给回调，不当成解析失败', () async {
+    client.activate();
+    await pump(() => client.connected);
+
+    dynamic got;
+    client.subscribe('/topic/text', (j, _) => got = j, ack: AckMode.smart);
+    await pump(() => broker.subscriptionCount == 1);
+
+    broker.sendMessage('/topic/text', 'hello world', withAck: true);
+    await pump(() => got != null);
+    expect(got, 'hello world');
+    await pump(() => broker.framesOf('ACK').isNotEmpty); // 回调成功 → ACK
+  });
+
+  test('JSON 顶层是数组/数字：能解析就给解析结果，不是文本', () async {
+    client.activate();
+    await pump(() => client.connected);
+
+    dynamic got;
+    client.subscribe('/topic/arr', (j, _) => got = j);
+    await pump(() => broker.subscriptionCount == 1);
+
+    broker.sendMessage('/topic/arr', '[1,2,3]');
+    await pump(() => got != null);
+    expect(got, [1, 2, 3]);
   });
 
   test('大 JSON（>32KB）经 compute 后台解析仍正确', () async {
@@ -369,23 +398,93 @@ void main() {
     expect(broker.framesOf('UNSUBSCRIBE').single.headers['id'], 'S');
   });
 
-  test('同一 topic 独立订阅(不复用 id): 各自 SUBSCRIBE、各自收到', () async {
+  test('同一 topic 独立订阅（显式不同 id）: 各自 SUBSCRIBE、各自收到', () async {
+    // 需要独立订阅时显式传不同 id（逃生门）
     client.activate();
     await pump(() => client.connected);
 
-    final got1 = <Dictional>[];
-    final got2 = <Dictional>[];
-    client.subscribe('/topic/a', (j, _) => got1.add(j)); // auto id 1
-    client.subscribe('/topic/a', (j, _) => got2.add(j)); // auto id 2
+    final got1 = <dynamic>[];
+    final got2 = <dynamic>[];
+    client.subscribe('/topic/a', (j, _) => got1.add(j), id: 'sub-1');
+    client.subscribe('/topic/a', (j, _) => got2.add(j), id: 'sub-2');
     await pump(() => broker.subscriptionCount == 2);
     expect(broker.framesOf('SUBSCRIBE').length, 2);
 
     broker.sendMessage('/topic/a', '{"v":5}'); // 投递给 2 条订阅
     await pump(() => got1.isNotEmpty && got2.isNotEmpty);
-    expect(got1.single['v'], 5);
-    expect(got2.single['v'], 5);
+    expect((got1.single as Map)['v'], 5);
+    expect((got2.single as Map)['v'], 5);
     // 独立订阅：不共享对象
     expect(identical(got1.single, got2.single), isFalse);
+  });
+
+  test('subscribe（不传 id）：同 destination + 同选项自动归并，消息只解析一次', () async {
+    client.activate();
+    await pump(() => client.connected);
+
+    dynamic a;
+    dynamic b;
+    client.subscribe('/topic/merge', (j, _) => a = j);
+    client.subscribe('/topic/merge', (j, _) => b = j);
+    await pump(() => broker.subscriptionCount == 1); // 只产生一条 wire 订阅
+
+    broker.sendMessage('/topic/merge', '{"v":9}');
+    await pump(() => a != null && b != null);
+    expect(identical(a, b), isTrue); // 同一对象引用（只解析一次）
+  });
+
+  test('subscribe（不传 id）：同 destination 但 ack 不同时独立订阅', () async {
+    client.activate();
+    await pump(() => client.connected);
+
+    client.subscribe('/topic/split', (_, _) {}, ack: AckMode.auto);
+    client.subscribe('/topic/split', (_, _) {}, ack: AckMode.smart);
+    await pump(() => broker.subscriptionCount == 2); // 两条独立的 wire 订阅
+  });
+
+  test('subscribe（不传 id）：引用计数——两个订阅者都取消后才发 UNSUBSCRIBE', () async {
+    client.activate();
+    await pump(() => client.connected);
+
+    final s1 = client.subscribe('/topic/rc', (_, _) {});
+    final s2 = client.subscribe('/topic/rc', (_, _) {});
+    await pump(() => broker.subscriptionCount == 1);
+
+    s1.unsubscribe();
+    await Future<void>.delayed(const Duration(milliseconds: 50));
+    expect(broker.subscriptionCount, 1); // s2 还在，不发 UNSUBSCRIBE
+    expect(broker.framesOf('UNSUBSCRIBE'), isEmpty);
+
+    s2.unsubscribe();
+    await pump(() => broker.subscriptionCount == 0);
+    expect(broker.framesOf('UNSUBSCRIBE').length, 1);
+  });
+
+  test('subscribe（传 id）：显式 id 与自动归并键完全独立', () async {
+    client.activate();
+    await pump(() => client.connected);
+
+    // 一个自动归并、一个显式 id——即使 destination 相同也是两条独立订阅
+    client.subscribe('/topic/explicit', (_, _) {});
+    client.subscribe('/topic/explicit', (_, _) {}, id: 'my-id');
+    await pump(() => broker.subscriptionCount == 2);
+  });
+
+  test('onParseFailure：二进制解析失败时业务可观测', () async {
+    String? failedError;
+    final c = Stompsocket(
+      url: 'ws://127.0.0.1:${broker.port}',
+      onParseFailure: (_, error) => failedError = error,
+    );
+    c.activate();
+    await pump(() => c.connected);
+    c.subscribe('/topic/pf', (_, _) {});
+    await pump(() => broker.subscriptionCount == 1);
+
+    broker.sendBinaryMessage('/topic/pf', Uint8List.fromList([0x1f, 0x8b]));
+    await pump(() => failedError != null);
+    expect(failedError, contains('binaryDecoder'));
+    c.dispose();
   });
 
   test('send: 已连接时 Map body 自动 json 编码并发出 SEND', () async {

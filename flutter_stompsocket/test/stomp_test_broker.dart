@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:typed_data';
 
 /// 极简 STOMP-over-WebSocket 测试 broker，仅实现客户端用到的帧子集：
 /// CONNECT→CONNECTED、SUBSCRIBE/UNSUBSCRIBE、MESSAGE 下推、ACK/NACK 记录、
@@ -81,6 +82,31 @@ class StompTestBroker {
     return delivered;
   }
 
+  /// 向订阅了 [destination] 的所有连接推送一条 MESSAGE，body 为真正的二进制帧，
+  /// 用于测试"收到二进制 body"的场景（stomp_dart_client 对 WS binary 帧产出 binaryBody）。
+  int sendBinaryMessage(
+    String destination,
+    Uint8List body, {
+    bool withAck = false,
+  }) {
+    var delivered = 0;
+    for (final c in _conns) {
+      c.subs.forEach((subId, dest) {
+        if (dest != destination) return;
+        final mid = 'msg-${_messageId++}';
+        c.sendBinary('MESSAGE', {
+          'subscription': subId,
+          'message-id': mid,
+          'destination': destination,
+          'content-length': '${body.length}',
+          if (withAck) 'ack': 'ack-$mid',
+        }, body);
+        delivered++;
+      });
+    }
+    return delivered;
+  }
+
   /// 向所有连接发送一帧 STOMP ERROR。
   void sendError(String message, {String body = ''}) {
     for (final c in _conns) {
@@ -147,7 +173,7 @@ class _Conn {
   final WebSocket ws;
   final Map<String, String> subs = {}; // subId → destination
 
-  /// 序列化并发送一帧。body 以 NULL 结尾（客户端解析器按 NULL 终止读取）。
+  /// 序列化并发送一帧（文本 WS 帧）。body 以 NULL 结尾。
   void send(String command, Map<String, String> headers, [String? body]) {
     final sb = StringBuffer(command);
     headers.forEach((k, v) => sb.write('\n$k:$v'));
@@ -159,5 +185,21 @@ class _Conn {
     } catch (_) {
       // 连接正在关闭（如测试 teardown 期间），忽略。
     }
+  }
+
+  /// 序列化并发送一帧（二进制 WS 帧，stomp_dart_client 收到后产出 binaryBody 非 null）。
+  void sendBinary(String command, Map<String, String> headers, Uint8List body) {
+    // header 部分是 UTF-8 文本，body 是原始字节，以 0x00 结尾拼成 Uint8List
+    final headerStr = StringBuffer(command);
+    headers.forEach((k, v) => headerStr.write('\n$k:$v'));
+    headerStr.write('\n\n');
+    final headerBytes = Uint8List.fromList(headerStr.toString().codeUnits);
+    final result = Uint8List(headerBytes.length + body.length + 1);
+    result.setRange(0, headerBytes.length, headerBytes);
+    result.setRange(headerBytes.length, headerBytes.length + body.length, body);
+    result[headerBytes.length + body.length] = 0x00;
+    try {
+      ws.add(result);
+    } catch (_) {}
   }
 }
