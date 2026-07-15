@@ -134,9 +134,13 @@ typedef _ParseResult = (dynamic data, String? error);
 /// 此处阈值方案只适合"偶发大包"。
 const _isolateThreshold = 32 * 1024;
 
-/// 不传 id 时按 (destination, ack, onParseError, ordered) 生成确定性归并键的前缀。
-/// `\x00` 作分隔符——STOMP destination 不含空字节，与用户显式 id 不会碰撞。
-const _autoDestPrefix = 'auto#dest\x00';
+/// 不传 id 时按 (destination, ack, onParseError, ordered) 生成确定性归并键的分隔符/前缀。
+/// 用 `\x1f`（单元分隔符）：这个键会被当作 STOMP 的 `id` 头发上线，**绝不能用 `\x00`**——
+/// NUL 是 STOMP 的帧终止符，放进 header 会把整帧从中间截断（服务端报 "malformed frame:
+/// missing header/body separator"）。`\x1f` 是非 NUL/CR/LF 的控制字符，几乎不可能出现在
+/// destination 或用户显式 id 里，不会碰撞。
+const _autoDestSep = '\x1f';
+const _autoDestPrefix = 'auto#dest$_autoDestSep';
 
 /// 用于未提供 onUnhandled* 回调时占位（StompConfig 要求非空）。
 void _noopFrame(StompFrame _) {}
@@ -582,7 +586,7 @@ class Stompsocket {
   ///   归并。相同四元组的多次 subscribe 共享**一条** wire 订阅（只发一次 SUBSCRIBE，消息只
   ///   解析一次再分发给所有回调），通过 returned handle 的 `unsubscribe()` 引用计数释放，
   ///   最后一个取消才撤销订阅。`ack`/`ordered` 不同 → 归并键不同 → 独立订阅。
-  /// - **传入 [id]**：精确控制归并键，与”不传 id”的自动键完全独立（自动键含 `\x00`，
+  /// - **传入 [id]**：精确控制归并键，与”不传 id”的自动键完全独立（自动键含 `\x1f`，
   ///   用户 id 不可能含此字符）。用于同一 destination 下需要多份独立订阅的场景。
   /// - [ordered] 为 true（默认）时严格按消息到达顺序分发（即使大包走了异步解析也不会
   ///   乱序）；为 false 时解析完即分发，吞吐更高但可能乱序。
@@ -602,9 +606,9 @@ class Stompsocket {
     AckMode ack = AckMode.auto,
     ParseFailureAck onParseError = ParseFailureAck.nack,
   }) {
-    // 不传 id → 四元组确定性键（含 \x00 分隔符，与用户显式 id 命名空间隔离）；
+    // 不传 id → 四元组确定性键（含 \x1f 分隔符，与用户显式 id 命名空间隔离）；
     // 传了 id → 直接用，可在同 destination 下保持多份独立订阅。
-    final subId = id ?? '$_autoDestPrefix$destination\x00${ack.name}\x00${onParseError.name}\x00$ordered';
+    final subId = id ?? '$_autoDestPrefix$destination$_autoDestSep${ack.name}$_autoDestSep${onParseError.name}$_autoDestSep$ordered';
 
     var sub = _subscriptions[subId];
     if (sub != null && sub.destination != destination) {
