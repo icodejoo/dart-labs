@@ -247,7 +247,7 @@ class Stompsocket {
     this.onParseFailure,
     this.queueWhileDisconnected = true,
     this.maxQueuedMessages = 100,
-    this.resumeOnForeground = false,
+    this.resumeOnForeground = true,
     this.debug = false,
     this.onLog,
     this.onConnected,
@@ -327,9 +327,9 @@ class Stompsocket {
   /// 出站缓冲上限，超出丢弃最旧
   final int maxQueuedMessages;
 
-  /// App 回到前台（[AppLifecycleState.resumed]）时若未连接则立即重连（默认 false）。
+  /// App 回到前台（[AppLifecycleState.resumed]）时若未连接则立即重连（默认 true）。
   /// 规避 App 被系统挂起/后台时定时器暂停、连接静默失活、回前台迟迟不恢复的问题。
-  /// 为 true 时需运行在已初始化 WidgetsBinding 的 Flutter App 中。
+  /// 需运行在已初始化 WidgetsBinding 的 Flutter App 中；纯 Dart 测试等场景可设为 false。
   final bool resumeOnForeground;
 
   /// 二进制消息体解码器：收到二进制帧时调用，返回值不做类型约束（[ParsedMessage] 即

@@ -12,6 +12,9 @@ import 'stomp_test_broker.dart';
 Dictional _decodeUtf8Json(Uint8List bytes) => jsonDecode(utf8.decode(bytes)) as Dictional;
 
 void main() {
+  // AppLifecycleListener（resumeOnForeground 默认 true 时创建）需要已初始化的 binding。
+  TestWidgetsFlutterBinding.ensureInitialized();
+
   late StompTestBroker broker;
   late Stompsocket client;
 
