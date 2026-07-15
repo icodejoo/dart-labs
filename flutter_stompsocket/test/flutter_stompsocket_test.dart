@@ -473,6 +473,18 @@ void main() {
     await pump(() => broker.subscriptionCount == 2);
   });
 
+  test('自动归并键不含 NUL：SUBSCRIBE 的 id 头 wire 安全', () async {
+    // 回归：曾用 \x00 作分隔符，NUL 是 STOMP 帧终止符，放进 id 头会把帧从中间截断。
+    client.activate();
+    await pump(() => client.connected);
+    client.subscribe('/topic/nulcheck', (_, _) {});
+    await pump(() => broker.subscriptionCount == 1);
+
+    final id = broker.framesOf('SUBSCRIBE').last.headers['id'] ?? '';
+    expect(id.contains('\x00'), isFalse);
+    expect(id.contains('/topic/nulcheck'), isTrue);
+  });
+
   test('content-type 缺失 + UTF-8 JSON 字节：按文本解析，不走 binaryDecoder', () async {
     // stomp_dart 对 content-type 缺失的帧也产出 binaryBody（ActiveMQ 常见）；
     // 严格 UTF-8 探测应把它救回文本路径。
