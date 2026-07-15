@@ -423,6 +423,9 @@ class Stompsocket {
 
   /// 立即重连（跳过 reconnectDelay 等待），仅在"期望连接但当前未连接"时生效。
   /// 供 [resumeOnForeground] 回前台自动调用，也可在网络恢复（如 connectivity_plus）时手动调用。
+  ///
+  /// 注：stomp_dart 的 `deactivate()` 是同步的（当场取消重连定时器、销毁 handler），
+  /// 紧跟 `activate()` 没有竞态——与 stompjs（异步 deactivate、必须 await）不同。
   void forceReconnect() {
     if (!_wantConnection || client.connected) return;
     client.deactivate();
@@ -758,7 +761,7 @@ class Stompsocket {
         // 闭包内 catch 所有异常，避免链因一次失败而永久中断。
         sub.tail = sub.tail.then((_) async {
           try {
-            _dispatch(sub, frame, await _parse(frame.binaryBody, frame.body));
+            _dispatch(sub, frame, await _parse(frame.binaryBody, frame.body, frame.headers['content-type']));
           } catch (e, st) {
             _log('有序分发失败 (id=${sub.id})', e, st);
           }
@@ -767,7 +770,7 @@ class Stompsocket {
       }
 
       // 无序：解析完即分发
-      final parsed = _parse(frame.binaryBody, frame.body);
+      final parsed = _parse(frame.binaryBody, frame.body, frame.headers['content-type']);
       if (parsed is Future<_ParseResult>) {
         parsed.then((r) => _dispatch(sub, frame, r)).catchError((Object e, StackTrace st) {
           _log('分发失败 (id=${sub.id})', e, st);
@@ -779,29 +782,52 @@ class Stompsocket {
   }
 
   /// 按负载大小决定同步解析或丢到后台 isolate 解析。
-  FutureOr<_ParseResult> _parse(Uint8List? binary, String? body) {
+  ///
+  /// [contentType] 用于二进制分流：stomp_dart 的 parser 在 content-type 为
+  /// `application/octet-stream` **或缺失** 时都会把 body 归入 [binary]——而 ActiveMQ 等
+  /// 服务端常不写 content-type，JSON 文本也会走到 binary 分支。所以：
+  /// - 显式标注 octet-stream → 直接走 [binaryDecoder]（快路径，声明了就不再校验）；
+  /// - 其余（含 content-type 缺失）→ 先做**严格 UTF-8 解码**探测：成功就按文本路径解析，
+  ///   失败（压缩/真二进制数据几乎必然在极短字节内违反 UTF-8 结构规则、快速失败）才走
+  ///   [binaryDecoder]。这是字节结构层面的确定性校验，不能反过来用"JSON 解析抛没抛异常"
+  ///   猜测——二进制数据凑巧解出可解析文本会把损坏数据当合法结果静默交给业务。
+  FutureOr<_ParseResult> _parse(Uint8List? binary, String? body, String? contentType) {
     if (binary != null) {
-      final decoder = binaryDecoder;
-      if (decoder == null) {
-        return (null, '收到二进制消息但未配置 binaryDecoder');
-      }
-      if (binary.length <= _isolateThreshold) {
+      if (contentType != 'application/octet-stream') {
+        final String text;
         try {
-          return (decoder(binary), null);
-        } catch (e) {
-          return (null, '二进制解析失败: $e');
+          text = utf8.decode(binary); // 严格模式（allowMalformed 默认 false）
+        } on FormatException {
+          return _parseBinary(binary);
         }
+        return text.length <= _isolateThreshold ? _decodeStringBody(text) : compute(_decodeStringBody, text);
       }
-      // 大包丢到后台 isolate（decoder 必须是顶层/静态函数），异常转为解析失败记录
-      return compute(decoder, binary)
-          .then<_ParseResult>((d) => (d, null))
-          .catchError((Object e) => (null, '二进制解析失败: $e'));
+      return _parseBinary(binary);
     }
     if (body != null) {
       // 用字符长度估算体量即可，无需精确字节数
       return body.length <= _isolateThreshold ? _decodeStringBody(body) : compute(_decodeStringBody, body);
     }
     return (null, null);
+  }
+
+  /// 二进制路径：走注入的 [binaryDecoder]，未配置/抛异常都记为解析失败。
+  FutureOr<_ParseResult> _parseBinary(Uint8List binary) {
+    final decoder = binaryDecoder;
+    if (decoder == null) {
+      return (null, '收到二进制消息但未配置 binaryDecoder');
+    }
+    if (binary.length <= _isolateThreshold) {
+      try {
+        return (decoder(binary), null);
+      } catch (e) {
+        return (null, '二进制解析失败: $e');
+      }
+    }
+    // 大包丢到后台 isolate（decoder 必须是顶层/静态函数），异常转为解析失败记录
+    return compute(decoder, binary)
+        .then<_ParseResult>((d) => (d, null))
+        .catchError((Object e) => (null, '二进制解析失败: $e'));
   }
 
   /// 把同一份解析后的数据分发给该订阅队列中的所有回调，并按 [AckMode] 处理确认。

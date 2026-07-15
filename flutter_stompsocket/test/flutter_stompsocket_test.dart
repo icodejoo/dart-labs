@@ -470,6 +470,42 @@ void main() {
     await pump(() => broker.subscriptionCount == 2);
   });
 
+  test('content-type 缺失 + UTF-8 JSON 字节：按文本解析，不走 binaryDecoder', () async {
+    // stomp_dart 对 content-type 缺失的帧也产出 binaryBody（ActiveMQ 常见）；
+    // 严格 UTF-8 探测应把它救回文本路径。
+    client.activate();
+    await pump(() => client.connected);
+
+    dynamic got;
+    client.subscribe('/topic/nohdr', (j, _) => got = j);
+    await pump(() => broker.subscriptionCount == 1);
+
+    broker.sendBinaryMessage('/topic/nohdr',
+        Uint8List.fromList(utf8.encode('{"n":1}'))); // 无 content-type
+    await pump(() => got != null);
+    expect((got as Map)['n'], 1);
+  });
+
+  test('content-type 显式 octet-stream：直接走 binaryDecoder（快路径）', () async {
+    // 即使内容恰好是合法 UTF-8，显式声明了二进制就不做文本探测
+    final c = Stompsocket(
+      url: 'ws://127.0.0.1:${broker.port}',
+      binaryDecoder: _decodeUtf8Json,
+    );
+    addTearDown(c.dispose);
+    c.activate();
+    await pump(() => c.connected);
+
+    dynamic got;
+    c.subscribe('/topic/explicit-bin', (j, _) => got = j);
+    await pump(() => broker.subscriptionCount == 1);
+
+    broker.sendMessage('/topic/explicit-bin', '{"b":true}',
+        contentType: 'application/octet-stream');
+    await pump(() => got != null);
+    expect((got as Map)['b'], true);
+  });
+
   test('onParseFailure：二进制解析失败时业务可观测', () async {
     String? failedError;
     final c = Stompsocket(
