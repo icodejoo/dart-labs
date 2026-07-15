@@ -756,12 +756,15 @@ class Stompsocket {
 
   StompFrameCallback _onIncoming(_Subscription sub) {
     return (StompFrame frame) {
+      // 捕获消息到达时的会话代次：大包异步解析期间若断线重连，解析完成后不能对
+      // 旧会话的 ack id 发 ACK/NACK（重连后 client.connected 又为 true，会误发）。
+      final gen = _generation;
       if (sub.ordered) {
         // 串到该订阅的串行链尾，保证分发顺序 == 到达顺序。
         // 闭包内 catch 所有异常，避免链因一次失败而永久中断。
         sub.tail = sub.tail.then((_) async {
           try {
-            _dispatch(sub, frame, await _parse(frame.binaryBody, frame.body, frame.headers['content-type']));
+            _dispatch(sub, frame, await _parse(frame.binaryBody, frame.body, frame.headers['content-type']), gen);
           } catch (e, st) {
             _log('有序分发失败 (id=${sub.id})', e, st);
           }
@@ -772,11 +775,11 @@ class Stompsocket {
       // 无序：解析完即分发
       final parsed = _parse(frame.binaryBody, frame.body, frame.headers['content-type']);
       if (parsed is Future<_ParseResult>) {
-        parsed.then((r) => _dispatch(sub, frame, r)).catchError((Object e, StackTrace st) {
+        parsed.then((r) => _dispatch(sub, frame, r, gen)).catchError((Object e, StackTrace st) {
           _log('分发失败 (id=${sub.id})', e, st);
         });
       } else {
-        _dispatch(sub, frame, parsed);
+        _dispatch(sub, frame, parsed, gen);
       }
     };
   }
@@ -831,7 +834,8 @@ class Stompsocket {
   }
 
   /// 把同一份解析后的数据分发给该订阅队列中的所有回调，并按 [AckMode] 处理确认。
-  void _dispatch(_Subscription sub, StompFrame frame, _ParseResult result) {
+  /// [gen] 是消息到达时的会话代次，用于避免异步解析后对旧会话误发 ACK/NACK。
+  void _dispatch(_Subscription sub, StompFrame frame, _ParseResult result, int gen) {
     final (json, error) = result;
     if (error != null) {
       _log(error);
@@ -855,16 +859,16 @@ class Stompsocket {
         } else {
           handled = _runCallbacks(sub, json, const _NoopAck());
         }
-        _sendAck(frame, handled: handled);
+        _sendAck(frame, handled: handled, gen: gen);
       case AckMode.manual:
         if (error != null) {
           // 未解析成功，回调拿不到 json，按策略自动应答
-          _sendAck(frame, handled: sub.onParseError == ParseFailureAck.ack);
+          _sendAck(frame, handled: sub.onParseError == ParseFailureAck.ack, gen: gen);
         } else if (json == null) {
-          _sendAck(frame, handled: true);
+          _sendAck(frame, handled: true, gen: gen);
         } else {
           // 交给回调手动 ack/nack；本封装不自动应答
-          _runCallbacks(sub, json, _MessageAck(this, _ackIdOf(frame), _generation));
+          _runCallbacks(sub, json, _MessageAck(this, _ackIdOf(frame), gen));
         }
     }
   }
@@ -884,9 +888,11 @@ class Stompsocket {
     return ok;
   }
 
-  /// 处理成功发 ACK，失败发 NACK。
-  void _sendAck(StompFrame frame, {required bool handled}) {
-    if (!client.connected) return; // 断线时 ACK/NACK 无意义
+  /// 处理成功发 ACK，失败发 NACK。[gen] 为消息到达时的会话代次。
+  void _sendAck(StompFrame frame, {required bool handled, required int gen}) {
+    // 断线、或已重连到新会话（大包异步解析期间断线重连）时 ACK/NACK 无意义：
+    // ack id 属于旧会话，发出去服务端认不得。
+    if (!client.connected || gen != _generation) return;
     final id = _ackIdOf(frame);
     if (id == null) {
       _log('无法自动${handled ? "ACK" : "NACK"}：消息缺少 ack/message-id 头');
