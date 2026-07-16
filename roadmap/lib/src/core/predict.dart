@@ -22,7 +22,9 @@ class PredictResult {
 /// 多出的那一个就是"这局如果这样开，衍生路会落的颜色"；没有多出说明这个假设下
 /// 该衍生路还没走到需要落子的位置，返回 null。
 PredictResult predictNextOutcome(List<RawResult> results) {
-  final base = [1, 2, 3].map((k) => deriveRoad(buildBigRoad(results), k).entries.length).toList();
+  // 基线大路只构建一次（三条衍生路共用同一份大路数据）。
+  final baseBigRoad = buildBigRoad(results);
+  final base = [1, 2, 3].map((k) => deriveRoad(baseBigRoad, k).entries.length).toList();
 
   (DerivedColor?, DerivedColor?, DerivedColor?) predict(String hypo) {
     final next = results.isNotEmpty ? results.last.no + 1 : 1;

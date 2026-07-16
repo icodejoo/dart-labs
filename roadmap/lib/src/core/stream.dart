@@ -66,9 +66,37 @@ TokenResult resolveToken(StreamSelector selector, GenericResult result) {
   }
 }
 
+/// 把 paletteKey（"banker"/"player"/"tie"/"red"/"blue" 或任意自定义键）解析成
+/// ARGB 颜色。内置五键之外的自定义键先查 `theme.palette.outcomes[key]`，查不到
+/// 回落 `palette.blue`——规格作者可以发明新键，只要主题里给出对应颜色即可，
+/// 不需要改这里的代码。
+///
+/// ```dart
+/// colorForPaletteKey('banker', theme); // 0xFFE53935
+/// colorForPaletteKey('gold', theme);   // theme.palette.outcomes['gold'] ?? blue
+/// ```
+/// 每个 [GameSpec] 的 outcome code → 定义索引，惰性构建、按实例缓存。
+/// GameSpec 有 const 构造器放不下 late 字段，用 Expando 挂在实例外面——
+/// 消除 colorForToken/labelForToken 每格一次的 outcomes 线性扫描
+/// （轮盘 37 个 outcome × 每格一次查色，线性扫是布局热路径上的主要开销）。
+final Expando<Map<String, OutcomeDef>> _outcomeIndexCache = Expando();
+
+/// 取 [spec] 的 outcome code → [OutcomeDef] 索引（O(1) 查找，按 spec 实例缓存）。
+Map<String, OutcomeDef> outcomeIndexOf(GameSpec spec) =>
+    _outcomeIndexCache[spec] ??= {for (final o in spec.outcomes) o.code: o};
+
+int colorForPaletteKey(String key, Theme theme) => switch (key) {
+  'banker' => theme.palette.banker,
+  'player' => theme.palette.player,
+  'tie' => theme.palette.tie,
+  'red' => theme.palette.red,
+  'blue' => theme.palette.blue,
+  _ => theme.palette.outcomes?[key] ?? theme.palette.blue,
+};
+
 /// 根据 token 解析显示颜色（ARGB 32 位整数），三级 fallback：
 /// 1. `theme.palette.outcomes[token]`（自定义颜色，最高优先级）
-/// 2. `spec.outcomes` 中该 code 的 `paletteKey` 对应颜色
+/// 2. `spec.outcomes` 中该 code 的 `paletteKey` 对应颜色（见 [colorForPaletteKey]）
 /// 3. `stream.selector` 的 tokens[0] → `palette.red`，tokens[1] → `palette.blue`
 ///
 /// ```dart
@@ -78,23 +106,8 @@ int colorForToken(GameSpec spec, String streamId, String token, Theme theme) {
   final custom = theme.palette.outcomes?[token];
   if (custom != null) return custom;
 
-  OutcomeDef? outcomeDef;
-  for (final o in spec.outcomes) {
-    if (o.code == token) {
-      outcomeDef = o;
-      break;
-    }
-  }
-  if (outcomeDef != null) {
-    return switch (outcomeDef.paletteKey) {
-      'banker' => theme.palette.banker,
-      'player' => theme.palette.player,
-      'tie' => theme.palette.tie,
-      'red' => theme.palette.red,
-      'blue' => theme.palette.blue,
-      _ => theme.palette.blue,
-    };
-  }
+  final outcomeDef = outcomeIndexOf(spec)[token];
+  if (outcomeDef != null) return colorForPaletteKey(outcomeDef.paletteKey, theme);
 
   StreamDef? stream;
   for (final s in spec.streams) {
@@ -132,10 +145,20 @@ String labelForToken(GameSpec spec, String token, Theme theme) {
   final custom = theme.labels.outcomes?[token];
   if (custom != null) return custom;
 
-  for (final o in spec.outcomes) {
-    if (o.code == token) return o.label;
+  // 向后兼容桥：百家乐规格下继续尊重 theme.labels.banker/player/tie 的定制
+  // （珠盘路历史上直接读这三个字段）。只限 baccarat——龙虎的 'T' 是虎不是和，
+  // 不能按 code 无差别映射。
+  if (spec.id == 'baccarat') {
+    switch (token) {
+      case 'B':
+        return theme.labels.banker;
+      case 'P':
+        return theme.labels.player;
+      case 'T':
+        return theme.labels.tie;
+    }
   }
-  return token;
+  return outcomeIndexOf(spec)[token]?.label ?? token;
 }
 
 /// 从 [GameSpec] 中按 id 查找流定义，找不到时返回 main 流（保证总有返回值）。

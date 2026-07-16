@@ -253,11 +253,8 @@ final Theme defaultTheme = Theme(
   roads: const {},
 );
 
-/// 暗色主题（同 [defaultTheme]，深色 UI 配色）。
-final Theme darkTheme = defaultTheme.copyWith(
-  canvas: const CanvasTheme(background: 0xFF1A1A2E),
-  grid: const GridTheme(stroke: 0x14FFFFFF, lineWidth: 0.5),
-);
+/// 暗色主题：默认主题本身就是深色配色，直接共用同一实例。
+final Theme darkTheme = defaultTheme;
 
 /// 浅色主题（白底配色，适用于日间模式）。
 final Theme lightTheme = Theme(

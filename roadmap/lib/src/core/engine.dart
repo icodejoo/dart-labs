@@ -44,10 +44,22 @@ class Engine {
 
   Engine._(this.plugins, this._spec, this._sorted, this._enabledIds);
 
+  /// 上次 compute 的入参（按引用比较）与输出——store 每次 append 都产生新的
+  /// results 列表，引用即版本号；UI 侧的无关重算（切换开关、重建面板）用同一份
+  /// results+cfg 再次 compute 时直接命中，布局对象保持同一实例，下游的
+  /// identity 缓存（RoadPanel 的指令列表/Picture 缓存）也因此不被击穿。
+  List<RawResult>? _lastResults;
+  LayoutConfig? _lastCfg;
+  ComputeOutput? _lastOutput;
+
   /// 全量计算所有已启用插件的布局输出。
   ///
   /// [results] 是当前靴的全部局结果，[cfg] 是布局配置（cellSize/rows/theme）。
+  /// 同一份 [results] 与 [cfg]（按引用比较）重复调用直接返回上次的输出。
   ComputeOutput compute(List<RawResult> results, LayoutConfig cfg) {
+    if (identical(results, _lastResults) && identical(cfg, _lastCfg)) {
+      return _lastOutput!;
+    }
     final cache = <String, Object?>{};
     final errors = <String, Object>{};
 
@@ -91,7 +103,11 @@ class Engine {
       }
     }
 
-    return ComputeOutput(layouts: layouts, data: data, predictions: predictions, errors: errors);
+    final output = ComputeOutput(layouts: layouts, data: data, predictions: predictions, errors: errors);
+    _lastResults = results;
+    _lastCfg = cfg;
+    _lastOutput = output;
+    return output;
   }
 }
 
@@ -108,23 +124,14 @@ class Engine {
 Engine createEngine(List<String> enabledIds, {GameSpec? spec}) {
   final resolvedSpec = spec ?? baccaratSpec;
 
-  // 收集传递依赖。
-  final needed = <String>{};
-  final queue = [...enabledIds];
-  while (queue.isNotEmpty) {
-    final id = queue.removeLast();
-    if (needed.contains(id)) continue;
-    if (!roadRegistry.containsKey(id)) throw StateError('Unknown road plugin: "$id"');
-    needed.add(id);
-  }
-
-  // 从注册表加载所有插件（含依赖的依赖）。
+  // 从注册表加载启用的插件及其传递依赖（依赖入队前已校验，顶层 id 在这里校验）。
   final plugins = <String, RoadPlugin>{};
-  final toLoad = [...needed];
+  final toLoad = [...enabledIds];
   while (toLoad.isNotEmpty) {
     final id = toLoad.removeLast();
     if (plugins.containsKey(id)) continue;
-    final plugin = roadRegistry[id]!;
+    final plugin = roadRegistry[id];
+    if (plugin == null) throw StateError('Unknown road plugin: "$id"');
     plugins[id] = plugin;
     for (final dep in plugin.dependsOn) {
       if (!plugins.containsKey(dep)) {

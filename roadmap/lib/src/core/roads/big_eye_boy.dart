@@ -48,7 +48,7 @@ class BigEyeBoyPlugin extends RoadPlugin<DerivedRoadData> {
           y: p.physRow * cellSize,
           w: cellSize,
           h: cellSize,
-          resultNo: data.entries.isNotEmpty ? i : 0,
+          resultNo: i,
           commands: [CircleCommand(x: px.x, y: px.y, r: cellSize * radiusRatio, stroke: stroke, lineWidth: lineWidth)],
         ),
       );

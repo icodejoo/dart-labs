@@ -168,13 +168,7 @@ class BigRoadData {
 }
 
 /// 衍生路（大眼仔/小路/曱甴路）的单格颜色。
-enum DerivedColor {
-  red,
-  blue;
-
-  /// 对应 TS 版本里的字符串字面量（`"red"`/`"blue"`），供渲染/序列化使用。
-  String get label => this == DerivedColor.red ? 'red' : 'blue';
-}
+enum DerivedColor { red, blue }
 
 /// 衍生路数据。
 class DerivedRoadData {

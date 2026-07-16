@@ -54,6 +54,7 @@ class RoadmapStore {
   /// 全量替换结果（轮询/重连对账）。不播动画，直接刷新。
   void setResults(List<RawResult> results) {
     _results = List.of(results);
+    _snapshot = null;
     _emitter.emit(ChangeEvent(kind: UpdateKind.full, results: List.of(_results)));
   }
 
@@ -69,6 +70,7 @@ class RoadmapStore {
       return;
     }
     _results = [..._results, result];
+    _snapshot = null;
     _scheduleFlush(result);
   }
 
@@ -77,11 +79,16 @@ class RoadmapStore {
     final idx = _results.indexWhere((r) => r.no == no);
     if (idx == -1) return;
     _results = [..._results.sublist(0, idx), result, ..._results.sublist(idx + 1)];
+    _snapshot = null;
     _emitter.emit(ChangeEvent(kind: UpdateKind.patch, results: List.of(_results)));
   }
 
-  /// 获取当前结果列表的只读快照。
-  List<RawResult> getResults() => List.unmodifiable(_results);
+  /// 只读快照缓存：数据没变时 [getResults] 返回同一实例——引用稳定才能让
+  /// `Engine.compute` 的按引用备忘录在 UI 侧无关重算时命中。
+  List<RawResult>? _snapshot;
+
+  /// 获取当前结果列表的只读快照（数据未变化时返回同一实例，可安全按引用比较）。
+  List<RawResult> getResults() => _snapshot ??= List.unmodifiable(_results);
 
   /// 订阅数据变更，返回取消订阅函数。
   void Function() subscribe(Listener<ChangeEvent> cb) => _emitter.on(cb);
