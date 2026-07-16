@@ -79,6 +79,11 @@ class RoadPanel extends StatefulWidget {
   /// 单个格子被点击时的回调（联动高亮/tooltip 用）。
   final void Function(LayoutCell cell)? onCellTap;
 
+  /// 新格子插入后是否播放呼吸光圈（对应 TS 版本 `ux/pulse.ts` 的效果，这里直接
+  /// 内建在面板里——呼吸光圈需要知道"哪个格子、什么时候新增"，这个信息只有
+  /// `RoadPanel` 自己在 diff 时才拿得到，外部控制器只能传一个开关）。
+  final bool pulseEnabled;
+
   const RoadPanel({
     super.key,
     required this.cells,
@@ -94,6 +99,7 @@ class RoadPanel extends StatefulWidget {
     this.animDurationMs = 280,
     this.onDoubleTap,
     this.onCellTap,
+    this.pulseEnabled = false,
   });
 
   @override
@@ -109,6 +115,13 @@ class _RoadPanelState extends State<RoadPanel> with SingleTickerProviderStateMix
   List<Transition> _transitions = const [];
   double _animProgress = 1;
   int _animStartMs = 0;
+
+  /// 呼吸光圈：独立于插入动画（280ms）另开一条更长的采样时间线（2000ms，对齐
+  /// TS 版本 `ux/pulse.ts` 的默认时长），只在 [RoadPanel.pulseEnabled] 时对最新
+  /// 插入的格子生效。
+  LayoutCell? _pulseCell;
+  int _pulseStartMs = 0;
+  static const _pulseDurationMs = 2000;
 
   final List<_VelocitySample> _velocitySamples = [];
 
@@ -129,6 +142,14 @@ class _RoadPanelState extends State<RoadPanel> with SingleTickerProviderStateMix
     _animProgress = _transitions.isEmpty ? 1 : 0;
     _animStartMs = _lastTick.inMilliseconds;
     _prevLayout = next;
+
+    if (widget.pulseEnabled && animate) {
+      final entered = _transitions.whereType<EnterTransition>();
+      if (entered.isNotEmpty) {
+        _pulseCell = entered.last.cell;
+        _pulseStartMs = _lastTick.inMilliseconds;
+      }
+    }
 
     final bounds = _bounds();
     switch (widget.followTail) {
@@ -182,14 +203,39 @@ class _RoadPanelState extends State<RoadPanel> with SingleTickerProviderStateMix
       if (t >= 1) _transitions = const [];
     }
 
+    if (_pulseCell != null) {
+      final t = (elapsed.inMilliseconds - _pulseStartMs) / _pulseDurationMs;
+      changed = true;
+      if (t >= 1) _pulseCell = null;
+    }
+
     if (changed) setState(() {});
   }
 
+  /// 呼吸光圈当前帧的绘制指令：半径随时间增大、透明度随时间衰减的描边圆，
+  /// 叠在格子圆圈之上（对应 TS 版本 `drawPulseRing` 的采样逻辑）。
+  List<DrawCommand> _samplePulseRing() {
+    final cell = _pulseCell;
+    if (cell == null) return const [];
+    final t = ((_lastTick.inMilliseconds - _pulseStartMs) / _pulseDurationMs).clamp(0.0, 1.0);
+    final cx = cell.x + cell.w / 2;
+    final cy = cell.y + cell.h / 2;
+    final r = cell.w * 0.42 * (1 + 0.3 * t);
+    return [
+      CircleCommand(x: cx, y: cy, r: r, stroke: 0xFFFFD700, lineWidth: 2, alpha: 0.6 * (1 - t)),
+    ];
+  }
+
   /// 按当前动画进度采样出这一帧应绘制的指令：进入格子播放 scaleIn，移动格子播放
-  /// tween，其余格子直达终态；退出格子（窗口模式挤出）额外叠加淡出采样。
+  /// tween，其余格子直达终态；退出格子（窗口模式挤出）额外叠加淡出采样；呼吸光圈
+  /// （若启用）叠在最上层，独立于插入动画的时间线。
   List<DrawCommand> _sampleCommands() {
     if (_transitions.isEmpty) {
-      return [...widget.decorations, for (final cell in widget.cells) ...cell.commands];
+      return [
+        ...widget.decorations,
+        for (final cell in widget.cells) ...cell.commands,
+        ..._samplePulseRing(),
+      ];
     }
 
     final enters = <String, LayoutCell>{};
@@ -221,7 +267,7 @@ class _RoadPanelState extends State<RoadPanel> with SingleTickerProviderStateMix
         ? exitCells.expand((cell) => sampleExit(ExitAnimation.fadeOut.animName, cell, _animProgress))
         : const <DrawCommand>[];
 
-    return [...widget.decorations, ...cellCmds, ...exitCmds];
+    return [...widget.decorations, ...cellCmds, ...exitCmds, ..._samplePulseRing()];
   }
 
   Offset? _lastFocalPoint;

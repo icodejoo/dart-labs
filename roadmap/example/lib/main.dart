@@ -88,6 +88,12 @@ class _RoadmapDemoPageState extends State<RoadmapDemoPage> {
   bool _celebrationEnabled = true;
   bool _hapticsEnabled = false;
 
+  /// 最近一次 store 变更的类型，决定要不要给 RoadPanel 播插入动画/自动跟随尾部
+  /// ——只有真正的"加一局"（UpdateKind.append）才应该动画+跟随，切靴局/切游戏
+  /// 类型这类全量刷新（UpdateKind.full）应该直达终态，不该把用户正在看的历史
+  /// 位置拽走。
+  RoadUpdateKind _lastEventKind = RoadUpdateKind.setResults;
+
   @override
   void initState() {
     super.initState();
@@ -95,7 +101,14 @@ class _RoadmapDemoPageState extends State<RoadmapDemoPage> {
       onOutOfSync: (expected, actual) =>
           debugPrint('roadmap demo: out of sync，期望局号 $expected，实际 $actual'),
     );
-    _store.subscribe((event) => setState(() => _recompute()));
+    _store.subscribe((event) {
+      _lastEventKind = switch (event.kind) {
+        UpdateKind.append => RoadUpdateKind.append,
+        UpdateKind.patch => RoadUpdateKind.patch,
+        UpdateKind.full => RoadUpdateKind.setResults,
+      };
+      setState(_recompute);
+    });
     _loadMock();
   }
 
@@ -294,7 +307,9 @@ class _RoadmapDemoPageState extends State<RoadmapDemoPage> {
               theme: theme,
               panelWidth: 360,
               panelHeight: layout.contentHeight.clamp(60, 260),
-              eventType: RoadUpdateKind.append,
+              eventType: _lastEventKind,
+              followTail: _lastEventKind == RoadUpdateKind.append ? FollowTail.ease : FollowTail.none,
+              pulseEnabled: _pulseEnabled,
             ),
           ],
         ),
