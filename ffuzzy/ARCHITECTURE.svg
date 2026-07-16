@@ -1,0 +1,126 @@
+<svg viewBox="0 0 1400 950" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <style>
+      .box { fill: #FDE8D0; stroke: #333; stroke-width: 2; }
+      .box-api { fill: #E8F5E9; stroke: #333; stroke-width: 1.5; }
+      .box-plugin { fill: #FFF9C4; stroke: #333; stroke-width: 1.5; }
+      .text-title { font-size: 18px; font-weight: bold; font-family: Arial; }
+      .text-label { font-size: 13px; font-family: Arial; }
+      .text-small { font-size: 11px; font-family: Arial; }
+      .text-api { font-size: 10px; font-family: 'Courier New', monospace; }
+      .arrow { stroke: #333; stroke-width: 2; fill: none; marker-end: url(#arrowhead); }
+      .arrow-small { stroke: #666; stroke-width: 1.5; fill: none; marker-end: url(#arrowhead-small); }
+    </style>
+    <marker id="arrowhead" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto">
+      <polygon points="0 0, 10 3, 0 6" fill="#333"/>
+    </marker>
+    <marker id="arrowhead-small" markerWidth="8" markerHeight="8" refX="7" refY="2" orient="auto">
+      <polygon points="0 0, 8 2, 0 4" fill="#666"/>
+    </marker>
+  </defs>
+
+  <text x="700" y="30" text-anchor="middle" class="text-title">FFuzzy (Dart) 完整架构流程图</text>
+  <text x="700" y="50" text-anchor="middle" class="text-label">Dart 模糊搜索库 | 高效字符串匹配算法</text>
+
+  <!-- 应用层 -->
+  <rect x="50" y="80" width="200" height="120" class="box" rx="8"/>
+  <text x="150" y="110" text-anchor="middle" class="text-title">应用代码</text>
+  <text x="150" y="130" text-anchor="middle" class="text-label">App Code</text>
+  <text x="150" y="150" text-anchor="middle" class="text-api">FFuzzy.search(query)</text>
+  <text x="150" y="165" text-anchor="middle" class="text-api">FFuzzy.filter(list)</text>
+  <text x="150" y="180" text-anchor="middle" class="text-api">FFuzzy.score(str)</text>
+
+  <path d="M 250 140 L 320 140" class="arrow"/>
+
+  <!-- FFuzzy 核心 -->
+  <rect x="320" y="80" width="200" height="120" class="box" rx="8"/>
+  <text x="420" y="110" text-anchor="middle" class="text-title">FFuzzy 核心</text>
+  <text x="420" y="130" text-anchor="middle" class="text-label">Fuzzy Search</text>
+  <text x="420" y="150" text-anchor="middle" class="text-api">search/filter</text>
+  <text x="420" y="165" text-anchor="middle" class="text-api">score compute</text>
+  <text x="420" y="180" text-anchor="middle" class="text-api">rank results</text>
+
+  <path d="M 420 200 L 420 260" class="arrow"/>
+
+  <!-- 处理管道 -->
+  <text x="50" y="260" class="text-label" font-weight="bold">📦 搜索处理</text>
+
+  <!-- 查询规范化 -->
+  <rect x="50" y="280" width="160" height="130" class="box-plugin" rx="5"/>
+  <text x="130" y="305" text-anchor="middle" class="text-label">查询规范化</text>
+  <text x="130" y="320" text-anchor="middle" class="text-small">Query Normalize</text>
+  <line x1="60" y1="330" x2="200" y2="330" stroke="#ccc" stroke-width="1"/>
+  <text x="130" y="348" text-anchor="middle" class="text-api">trim whitespace</text>
+  <text x="130" y="363" text-anchor="middle" class="text-api">lowercase</text>
+  <text x="130" y="378" text-anchor="middle" class="text-api">remove diacritics</text>
+  <text x="130" y="393" text-anchor="middle" class="text-small">预处理查询</text>
+
+  <!-- 候选集准备 -->
+  <rect x="230" y="280" width="160" height="130" class="box-plugin" rx="5"/>
+  <text x="310" y="305" text-anchor="middle" class="text-label">候选集准备</text>
+  <text x="310" y="320" text-anchor="middle" class="text-small">Candidates Prepare</text>
+  <line x1="240" y1="330" x2="380" y2="330" stroke="#ccc" stroke-width="1"/>
+  <text x="310" y="348" text-anchor="middle" class="text-api">normalize(str)</text>
+  <text x="310" y="363" text-anchor="middle" class="text-api">tokenize</text>
+  <text x="310" y="378" text-anchor="middle" class="text-api">build index</text>
+  <text x="310" y="393" text-anchor="middle" class="text-small">候选数据预处理</text>
+
+  <!-- 匹配算法 -->
+  <rect x="410" y="280" width="160" height="130" class="box-plugin" rx="5"/>
+  <text x="490" y="305" text-anchor="middle" class="text-label">匹配算法</text>
+  <text x="490" y="320" text-anchor="middle" class="text-small">Matching Algo</text>
+  <line x1="420" y1="330" x2="560" y2="330" stroke="#ccc" stroke-width="1"/>
+  <text x="490" y="348" text-anchor="middle" class="text-api">Levenshtein / Jaro</text>
+  <text x="490" y="363" text-anchor="middle" class="text-api">substring match</text>
+  <text x="490" y="378" text-anchor="middle" class="text-api">fuzzy pattern</text>
+  <text x="490" y="393" text-anchor="middle" class="text-small">字符串相似度</text>
+
+  <!-- 评分排序 -->
+  <rect x="590" y="280" width="160" height="130" class="box-plugin" rx="5"/>
+  <text x="670" y="305" text-anchor="middle" class="text-label">评分排序</text>
+  <text x="670" y="320" text-anchor="middle" class="text-small">Scoring & Rank</text>
+  <line x1="600" y1="330" x2="740" y2="330" stroke="#ccc" stroke-width="1"/>
+  <text x="670" y="348" text-anchor="middle" class="text-api">compute score</text>
+  <text x="670" y="363" text-anchor="middle" class="text-api">position weight</text>
+  <text x="670" y="378" text-anchor="middle" class="text-api">sort by score</text>
+  <text x="670" y="393" text-anchor="middle" class="text-small">结果排序</text>
+
+  <!-- 箭头 -->
+  <path d="M 130 410 L 300 480" class="arrow-small"/>
+  <path d="M 310 410 L 350 480" class="arrow-small"/>
+  <path d="M 490 410 L 420 480" class="arrow-small"/>
+  <path d="M 670 410 L 450 480" class="arrow-small"/>
+
+  <!-- 过滤与缓存 -->
+  <rect x="300" y="480" width="240" height="110" class="box-api" rx="8"/>
+  <text x="420" y="510" text-anchor="middle" class="text-title">过滤与优化</text>
+  <text x="420" y="530" text-anchor="middle" class="text-label">Filter & Cache</text>
+  <line x1="310" y1="540" x2="530" y2="540" stroke="#999" stroke-width="1"/>
+  <text x="350" y="558" text-anchor="middle" class="text-api">threshold filter</text>
+  <text x="490" y="558" text-anchor="middle" class="text-api">lru cache results</text>
+  <text x="420" y="575" text-anchor="middle" class="text-api">重复查询缓存</text>
+
+  <path d="M 420 590 L 420 650" class="arrow"/>
+
+  <!-- 结果构建 -->
+  <rect x="300" y="650" width="240" height="110" class="box" rx="8"/>
+  <text x="420" y="680" text-anchor="middle" class="text-title">结果构建</text>
+  <text x="420" y="700" text-anchor="middle" class="text-label">Result Builder</text>
+  <line x1="310" y1="710" x2="530" y2="710" stroke="#999" stroke-width="1"/>
+  <text x="350" y="728" text-anchor="middle" class="text-api">build match info</text>
+  <text x="490" y="728" text-anchor="middle" class="text-api">highlight match</text>
+  <text x="420" y="745" text-anchor="middle" class="text-api">结构化匹配结果</text>
+
+  <path d="M 420 760 L 420 820" class="arrow"/>
+
+  <!-- 返回应用 -->
+  <rect x="300" y="820" width="240" height="110" class="box" rx="8"/>
+  <text x="420" y="850" text-anchor="middle" class="text-title">返回应用</text>
+  <text x="420" y="870" text-anchor="middle" class="text-label">Return Results</text>
+  <line x1="310" y1="880" x2="530" y2="880" stroke="#999" stroke-width="1"/>
+  <text x="350" y="898" text-anchor="middle" class="text-api">List[Match]</text>
+  <text x="490" y="898" text-anchor="middle" class="text-api">highest score first</text>
+  <text x="420" y="915" text-anchor="middle" class="text-api">有序匹配结果</text>
+
+  <text x="50" y="930" class="text-small" font-weight="bold">完整流程：查询规范化 → 候选集准备 → 匹配算法 → 评分排序 → 过滤优化 → 结果构建 → 返回应用</text>
+</svg>
