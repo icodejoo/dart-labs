@@ -44,14 +44,14 @@
     "browser",
     "node"
   ],
-  "homepage": "https://github.com/icodejoo/ffuzzy",
+  "homepage": "https://github.com/icodejoo/dart-labs/tree/main/ffuzzy/wasm",
   "repository": {
     "type": "git",
-    "url": "https://github.com/icodejoo/ffuzzy.git",
-    "directory": "wasm"
+    "url": "git+https://github.com/icodejoo/dart-labs.git",
+    "directory": "ffuzzy/wasm"
   },
   "bugs": {
-    "url": "https://github.com/icodejoo/ffuzzy/issues"
+    "url": "https://github.com/icodejoo/dart-labs/issues"
   },
   "license": "MIT",
   "author": "jelon <jelon@tbu.net>",

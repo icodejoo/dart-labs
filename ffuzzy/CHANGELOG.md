@@ -1,5 +1,23 @@
 # Changelog
 
+## 0.6.0
+
+- **New: edit-distance search.** Myers bit-parallel Levenshtein
+  (`src/ffz_edit.c`) alongside the existing subsequence engine. Both
+  algorithms are independently modular via `FFZ_SUBSEQUENCE` /
+  `FFZ_EDIT_DISTANCE` CMake flags.
+- **New: unified `search()` API.** `search(q, {strategy, maxDistance, …})`
+  with `fuzzy` | `approx` | `fallback` | `merge` strategies, plus
+  `approx()` (edit-distance shortcut, `maxDistance` auto-scales by query
+  length when omitted) and `dual()` (single corpus scan, returns
+  `FuzzyDualResult(fuzzy:, approx:)`). Each ships `…Raws` / `async…` /
+  `async…Raws` variants.
+- **BREAKING: async method renames.** `fuzzyAsync` → `asyncFuzzy`,
+  `substringAsync` → `asyncSubstring`, … (all async variants now use the
+  `async…` prefix); `disposeAndWait` → `asyncDispose`.
+- **Build:** explicit source list in `CMakeLists.txt`, fatal error if both
+  `FFZ_SUBSEQUENCE` and `FFZ_EDIT_DISTANCE` are OFF.
+
 ## 0.5.2
 
 - **Repo move.** `homepage` / `repository` / `issue_tracker` now point at the
