@@ -45,8 +45,8 @@ ffuzzy/                         ← pub 包根（pub 包名 ffuzzy）
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await ffuzzyInit(
-    webUrl: 'https://cdn.jsdelivr.net/npm/@codejoo/ffuzzy@0.8.0/dist/ffuzzy-fzf.mjs',
-    // 或: webAssetsUrl: '/assets/ffuzzy-fzf.mjs'（需在 pubspec.yaml 声明 assets）
+    webUrl: 'https://cdn.jsdelivr.net/npm/@codejoo/ffuzzy@0.8.0/dist/ffuzzy.mjs',
+    // 或: webAssetsUrl: '/assets/ffuzzy.mjs'（需在 pubspec.yaml 声明 assets）
   );
   runApp(const MyApp());
 }
@@ -225,22 +225,18 @@ lefthook install           # 或: make install-hooks（在 ffuzzy/ 里）
 ```
 wasm/
 ├── src/
-│   ├── ffz-fzf.mjs          # ★ emcc 产物（子序列，默认）
-│   ├── ffz-approx.mjs       # ★ emcc 产物（编辑距离）
-│   ├── ffz-full.mjs         # ★ emcc 产物（两者）
+│   ├── ffz.mjs              # ★ emcc 产物（子序列 + 编辑距离，两算法始终一起编入）
 │   └── ffuzzy-corpus.ts     # ★ 手写 TypeScript corpus 实现（唯一源）
 ├── dist/                    # tsdown 产出（提交到 git，npm 发布用）
-│   ├── ffuzzy-fzf.mjs       # 子序列（~32 KB gzip）
-│   ├── ffuzzy-approx.mjs    # 编辑距离（~22 KB gzip）
-│   ├── ffuzzy-full.mjs      # 两者（~33 KB gzip）
-│   └── ffuzzy-fzf.d.mts     # 自动生成 TypeScript 声明
+│   ├── ffuzzy.mjs           # 唯一 bundle（~36 KB gzip）
+│   └── ffuzzy.d.mts         # 自动生成 TypeScript 声明
 ├── scripts/
 │   └── check_api_parity.mjs # ★ API 表面一致性检查（CI/发布前运行）
 ├── test/
 │   ├── smoke.test.mjs       # 功能冒烟测试
 │   ├── shared_spec.test.mjs # ★ 共享行为规格运行器（读 test/shared/spec.json）
 │   └── api_parity.test.mjs  # ★ JS API 表面验证
-├── build-engine.sh          # emcc → src/ffz-{fzf,approx,full}.mjs（慢路径，改 C 时跑）
+├── build-engine.sh          # emcc → src/ffz.mjs（慢路径，改 C 时跑）
 ├── tsdown.config.ts         # tsdown 配置（src/ffuzzy-corpus.ts → dist/）
 ├── tsconfig.json
 └── package.json
@@ -249,19 +245,15 @@ wasm/
 ### 构建流程
 
 ```
-build-engine.sh (需 emcc)          → src/ffz-fzf.mjs     （默认，子序列）
-                                   → src/ffz-approx.mjs  （编辑距离，FFZ_SUBSEQUENCE=0 FFZ_EDIT_DISTANCE=1）
-                                   → src/ffz-full.mjs    （两者，FFZ_EDIT_DISTANCE=1）
-npm run build  (tsdown + terser)   → dist/ffuzzy-fzf.mjs     （提交）
-                                   → dist/ffuzzy-approx.mjs  （提交）
-                                   → dist/ffuzzy-full.mjs    （提交）
-                                   → dist/ffuzzy-fzf.d.mts   （类型声明，提交）
+build-engine.sh (需 emcc)          → src/ffz.mjs      （子序列 + 编辑距离一起编入，不再分变体）
+npm run build  (tsdown + terser)   → dist/ffuzzy.mjs   （提交）
+                                   → dist/ffuzzy.d.mts （类型声明，提交）
 ```
 
 ```bash
 cd wasm
 npm run build          # 快路：编译 TS corpus → dist/
-npm run build:engine   # 慢路：重编 C → src/ffz-{fzf,approx,full}.mjs（需 emcc）
+npm run build:engine   # 慢路：重编 C → src/ffz.mjs（需 emcc）
 npm run build:all      # 全链路：engine + build
 npm run check          # API 表面一致性检查
 npm test               # build + check + node --test（全部测试）
@@ -300,14 +292,11 @@ corpus.dispose();
 
 **Flutter web 加载方式**：
 ```dart
-// CDN（推荐，节省 bundle 体积）— 子序列默认
-await ffuzzyInit(webUrl: 'https://cdn.jsdelivr.net/npm/@codejoo/ffuzzy@0.8.0/dist/ffuzzy-fzf.mjs');
-
-// 两种算法均需时用 full 变体
-await ffuzzyInit(webUrl: 'https://cdn.jsdelivr.net/npm/@codejoo/ffuzzy@0.8.0/dist/ffuzzy-full.mjs');
+// CDN（推荐，节省 bundle 体积）
+await ffuzzyInit(webUrl: 'https://cdn.jsdelivr.net/npm/@codejoo/ffuzzy@0.8.0/dist/ffuzzy.mjs');
 
 // 或本地 asset（需 pubspec.yaml assets 声明，离线可用）
-await ffuzzyInit(webAssetsUrl: '/assets/ffuzzy-fzf.mjs');
+await ffuzzyInit(webAssetsUrl: '/assets/ffuzzy.mjs');
 ```
 
 ## 测试套件维护
