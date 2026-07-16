@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.6.1
+
+- **Docs only.** README (EN/ZH) corrected to match the shipped 0.6.0 API:
+  version pin, `search()`/`approx()`/`dual()` coverage, single-bundle WASM
+  build (no more `ffz-{fzf,approx,full}` variants), `matchedKindCode`. No
+  code changes.
+
 ## 0.6.0
 
 - **New: edit-distance search.** Myers bit-parallel Levenshtein

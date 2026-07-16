@@ -2,9 +2,9 @@
 
 [English](README.md) | 中文
 
-为 Web 提供的高性能排名模糊搜索 —— [ffuzzy](https://github.com/icodejoo/ffuzzy) C 引擎的 WASM 移植版。
+为 Web 提供的高性能排名模糊搜索 —— [ffuzzy](https://github.com/icodejoo/dart-labs/tree/main/ffuzzy) C 引擎的 WASM 移植版。
 
-仅模糊搜索 · TypeScript · 浏览器 + Node · 完整版 ~57 KB / lite 版 ~43 KB
+模糊搜索 + 编辑距离搜索 · TypeScript · 浏览器 + Node · ~36 KB gzip
 
 ## 安装
 
@@ -37,50 +37,54 @@ files.dispose();
 > 为什么要一次 `await`？浏览器禁止同步编译大于 4 KB 的 WASM 模块，所以引擎
 > 必须异步初始化。初始化完成后，所有调用都是同步的。
 
-## Lite 版
-
-体积比完整版小 ~14 KB；覆盖 ASCII + CJK。不支持西里尔文/希腊文大小写折叠或变音符去除。
-
-```ts
-import { ffuzzyInitialize, FuzzyCorpus } from '@codejoo/ffuzzy/lite';
-
-await ffuzzyInitialize();
-```
-
 ## 搜索
 
-高层 API 只暴露**模糊搜索**——这是 WASM 真正碾压原生 JS 的唯一场景
-（比 fuse.js 快 8-55×）。
-
-精确 / 前缀 / 后缀 / 子串查询直接用原生 JS 即可——在典型浏览器数据量
-（< 10 万条）下，`Array.filter` 更快：
+`fuzzy` 是核心模式——这是 WASM 真正碾压原生 JS 的场景（比 fuse.js 快 8-55×）。
+`substring` / `prefix` / `postfix`（别名 `suffix`）/ `exact` 走原生 JS 字符串操作
+（不经过 WASM 边界），各带 `*Raws` 变体，跳过 `FuzzyHit` 包装、速度更快：
 
 ```ts
-// 精确
-items.filter(g => g.gameId === '101024')
-
-// 前缀 / 后缀
-items.filter(g => g.gameName.startsWith('Super'))
-items.filter(g => g.gameName.endsWith('1000'))
-
-// 模糊 —— corpus 不可替代
-corpus.fuzzy('gems', { limit: 50 })   // 排名、评分、多字段
+corpus.fuzzy('gems', { limit: 50 })     // 排名、评分、多字段
+corpus.prefix('Super')
+corpus.postfix('1000')                  // suffix() 是别名
+corpus.exact('101024')
+corpus.substring('ems')
+corpus.fuzzyRaws('gems')                // T[] —— 跳过 FuzzyHit 包装
 ```
 
 `fuzzy` 支持 fzf 风格操作符：`!term` 排除 · `^term` 强制前缀 ·
 `'term` 强制子串 · `term$` 强制后缀。
 
-### 原始对象快捷方式（`*Raws`）
+### 编辑距离搜索 —— `approx()`
 
-只需要命中 item、不需要 score/indices 等元数据时，`*Raws` 系列跳过 `FuzzyHit`
-包装，速度更快：
+基于 Myers bit-parallel Levenshtein，容忍拼写错误、替换和换位——与 `fuzzy`
+（子序列匹配）不同，它匹配与查询词编辑距离在 `maxDistance` 以内的项：
 
 ```ts
-const items: string[] = corpus.fuzzyRaws('src');
-// 等价但更快于 corpus.fuzzy('src').map(h => h.raw)
+corpus.approx('iphoen')                  // "iPhone" —— maxDistance 按查询长度自动推算
+corpus.approx('iphoen', 2)               // 显式指定 maxDistance
+corpus.approxRaws('iphoen')              // T[]
 ```
 
-可用方法：`fuzzyRaws` / `substringRaws` / `prefixRaws` / `postfixRaws` / `exactRaws`
+`maxDistance` 省略时自动推算：≤2 字符 → 0，3–5 → 1，6+ → 2。
+
+### 统一入口 —— `search()`
+
+```ts
+corpus.search('iphoen', { strategy: 'fuzzy' })      // 默认，等价于 fuzzy()
+corpus.search('iphoen', { strategy: 'approx' })     // 等价于 approx()
+corpus.search('iphoen', { strategy: 'fallback' })   // 先子序列，无结果再编辑距离
+corpus.search('iphoen', { strategy: 'merge' })       // 两者都跑，子序列命中在前
+corpus.searchRaws('iphoen', { strategy: 'merge' })  // T[]
+```
+
+### 双结果 —— `dual()`
+
+单次 corpus 扫描跑两种算法，分桶返回：
+
+```ts
+const { fuzzy, approx } = corpus.dual('iphoen');
+```
 
 ## 选项
 
@@ -180,12 +184,13 @@ using corpus = FuzzyCorpus.strings(items); // 离开作用域自动 dispose
 
 ```ts
 interface FuzzyHit<T> {
-  raw:         T;        // 命中的原始对象
-  index:       number;   // 在语料中的插入序号
-  score:       number;   // 匹配分（越高越好，仅同一次查询内可比）
-  matchedKind: number;   // 命中键的类型（FuzzyKeyKind）
-  matchedKey:  number;   // 命中的是该 item 的第几个键
-  indices:     number[]; // 命中的码点位置 —— 仅 highlight:true 时有值
+  raw:             T;        // 命中的原始对象
+  index:           number;   // 在语料中的插入序号
+  score:           number;   // 匹配分（越高越好，仅同一次查询内可比）
+  matchedKind:     number;   // 命中键的类型（FuzzyKeyKind）
+  matchedKindCode: number;   // 原始整数 kind 值（内置 kind 与 matchedKind 相同，自定义 kind ≥ 100 时保留原值）
+  matchedKey:      number;   // 命中的是该 item 的第几个键
+  indices:         number[]; // 命中的码点位置 —— 仅 highlight:true 时有值
 }
 ```
 
@@ -219,7 +224,8 @@ interface FuzzyHit<T> {
 | 类型化 `byKey<T>` / 点路径 | ✅ | ❌ | ❌ |
 | Dart FFI（Flutter） | ✅ | ❌ | ❌ |
 | 排名质量 | nucleo DP | 前缀偏向 | Bitap/Levenshtein |
-| 包体积 | ~57 KB | ~8 KB | ~24 KB |
+| 编辑距离搜索 | ✅ `approx` | ❌ | △（Bitap） |
+| 包体积 | ~36 KB gzip | ~8 KB | ~24 KB |
 
 **选 ffuzzy 而不选 fuzzysort 的场景**：CJK 内容、拼音/罗马音转写、多字段搜索（`byKeys`），
 或同时使用 Flutter/Dart 包。纯 ASCII 无 Unicode 需求时，fuzzysort 更轻量。
@@ -227,17 +233,18 @@ interface FuzzyHit<T> {
 ## 从源码构建
 
 ```sh
-# *.d.ts.src 是类型声明的可编辑源；修改后运行 build 重新生成 *.d.ts：
-cd wasm && npm run build        # 拼接 wrapper → ffuzzy.js / ffuzzy-lite.js + 生成 *.d.ts
+cd wasm
+npm run build          # 快路：编译 src/ffuzzy-corpus.ts → dist/ffuzzy.mjs + .d.mts
 
 # 重建 WASM 引擎（需要 Emscripten ≥3.x）：
-npm run build:engine            # emcc 编译 src/*.c → *.engine.mjs，然后自动 npm run build
+npm run build:engine    # emcc 编译 src/*.c → src/ffz.mjs，然后自动 npm run build
+npm run build:all       # 引擎 + build 一步到位
 ```
 
 ## 相关
 
 - [pub.dev 上的 ffuzzy](https://pub.dev/packages/ffuzzy) —— Flutter / Dart 包
-- [GitHub](https://github.com/icodejoo/ffuzzy)
+- [GitHub](https://github.com/icodejoo/dart-labs/tree/main/ffuzzy)
 
 ## 许可证
 

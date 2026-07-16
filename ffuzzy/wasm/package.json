@@ -1,6 +1,6 @@
 {
   "name": "@codejoo/ffuzzy",
-  "version": "0.8.0",
+  "version": "0.8.1",
   "description": "Fast fuzzy search for the web — WASM port of the ffuzzy C engine. Five search modes, Unicode, TypeScript, browser + Node.",
   "type": "module",
   "exports": {

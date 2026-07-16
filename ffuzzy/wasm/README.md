@@ -2,9 +2,9 @@
 
 English | [中文](README.zh-CN.md)
 
-Ranked fuzzy search for the web — a WASM port of the [ffuzzy](https://github.com/icodejoo/ffuzzy) C engine.
+Ranked fuzzy search for the web — a WASM port of the [ffuzzy](https://github.com/icodejoo/dart-labs/tree/main/ffuzzy) C engine.
 
-Fuzzy search only · TypeScript · browser + Node · ~57 KB full / ~43 KB lite
+Fuzzy + edit-distance search · TypeScript · browser + Node · ~36 KB gzip
 
 ## Install
 
@@ -39,39 +39,56 @@ files.dispose();
 > (browsers forbid synchronous compilation of modules >4 KB), so the engine must
 > be readied once. After that, every call is synchronous.
 
-## Lite build
-
-~14 KB smaller; covers ASCII + CJK. No Cyrillic/Greek case-fold or accent-strip.
-
-```ts
-import { ffuzzyInitialize, FuzzyCorpus } from '@codejoo/ffuzzy/lite';
-
-await ffuzzyInitialize();
-```
-
 ## Search
 
-The high-level API exposes **fuzzy search only** — the one mode where WASM
-genuinely outperforms native JS (8-55× faster than fuse.js).
-
-For exact / prefix / postfix / substring lookups use native JS directly —
-`Array.filter` + `===` / `startsWith` / `endsWith` is faster at typical
-browser dataset sizes (< 100k items):
+`fuzzy` is the flagship mode — the one where WASM genuinely outperforms
+native JS (8-55× faster than fuse.js). `substring` / `prefix` / `postfix`
+(alias `suffix`) / `exact` run as native JS string ops (no WASM crossing) and
+each has a `*Raws` variant that skips the `FuzzyHit` wrapper for speed:
 
 ```ts
-// exact
-items.filter(g => g.gameId === '101024')
-
-// prefix / postfix
-items.filter(g => g.gameName.startsWith('Super'))
-items.filter(g => g.gameName.endsWith('1000'))
-
-// fuzzy — corpus is indispensable here
-corpus.fuzzy('gems', { limit: 50 })   // ranked, scored, multi-key
+corpus.fuzzy('gems', { limit: 50 })     // ranked, scored, multi-key
+corpus.prefix('Super')
+corpus.postfix('1000')                  // suffix() is an alias
+corpus.exact('101024')
+corpus.substring('ems')
+corpus.fuzzyRaws('gems')                // T[] — skips FuzzyHit wrapper
 ```
 
 `fuzzy` supports fzf-style operators: `!term` negate · `^term` prefix-force ·
 `'term` substring-force · `term$` postfix-force.
+
+### Edit-distance search — `approx()`
+
+Tolerates typos, substitutions and transpositions via Myers bit-parallel
+Levenshtein — unlike `fuzzy` (subsequence matching), it matches items within
+`maxDistance` edits of the query:
+
+```ts
+corpus.approx('iphoen')                  // "iPhone" — maxDistance auto-scales by query length
+corpus.approx('iphoen', 2)               // explicit maxDistance
+corpus.approxRaws('iphoen')              // T[]
+```
+
+`maxDistance` auto-scales when omitted: ≤2 chars → 0, 3–5 → 1, 6+ → 2.
+
+### Unified entry point — `search()`
+
+```ts
+corpus.search('iphoen', { strategy: 'fuzzy' })      // default, same as fuzzy()
+corpus.search('iphoen', { strategy: 'approx' })     // same as approx()
+corpus.search('iphoen', { strategy: 'fallback' })   // subsequence first, else edit-distance
+corpus.search('iphoen', { strategy: 'merge' })       // both, subsequence hits first
+corpus.searchRaws('iphoen', { strategy: 'merge' })  // T[]
+```
+
+### Dual result — `dual()`
+
+Runs both algorithms in a single corpus scan, returned as separate buckets:
+
+```ts
+const { fuzzy, approx } = corpus.dual('iphoen');
+```
 
 ## Options
 
@@ -170,12 +187,13 @@ using corpus = FuzzyCorpus.strings(items); // auto-disposed at scope exit
 
 ```ts
 interface FuzzyHit<T> {
-  raw:         T;        // original item
-  index:       number;   // insertion index in corpus
-  score:       number;   // higher = better; only comparable within one query
-  matchedKind: number;   // FuzzyKeyKind of the matched key
-  matchedKey:  number;   // key index within the item
-  indices:     number[]; // matched codepoint positions — populated only when highlight:true
+  raw:             T;        // original item
+  index:           number;   // insertion index in corpus
+  score:           number;   // higher = better; only comparable within one query
+  matchedKind:     number;   // FuzzyKeyKind of the matched key
+  matchedKindCode: number;   // raw kind code — same as matchedKind for built-ins, preserves custom kinds (>=100)
+  matchedKey:      number;   // key index within the item
+  indices:         number[]; // matched codepoint positions — populated only when highlight:true
 }
 ```
 
@@ -210,7 +228,8 @@ Build time (one-off): ffuzzy **2-9 ms** · fuse.js 2-20 ms · fuzzysort 5-27 ms
 | Typed `byKey<T>` / dot-path | ✅ | ❌ | ❌ |
 | Dart FFI (Flutter) | ✅ | ❌ | ❌ |
 | Ranking quality | nucleo DP | prefix-biased | Bitap/Levenshtein |
-| Bundle size | ~57 KB | ~8 KB | ~24 KB |
+| Edit-distance search | ✅ `approx` | ❌ | △ (Bitap) |
+| Bundle size | ~36 KB gzip | ~8 KB | ~24 KB |
 
 **When to choose ffuzzy over fuzzysort**: CJK content, pinyin/romaji transliteration,
 multi-field search (`byKeys`), or when you also use the Flutter/Dart package.
@@ -219,17 +238,18 @@ For pure ASCII with no Unicode requirements, fuzzysort may be a lighter choice.
 ## Build from source
 
 ```sh
-# Dart types live in *.d.ts.src — edit those, then build to regenerate *.d.ts:
-cd wasm && npm run build        # appends wrapper → ffuzzy.js / ffuzzy-lite.js + regenerates *.d.ts
+cd wasm
+npm run build          # fast path: compile src/ffuzzy-corpus.ts → dist/ffuzzy.mjs + .d.mts
 
-# Rebuild the WASM engine (requires Emscripten ≥3.x):
-npm run build:engine            # emcc compiles src/*.c → *.engine.mjs, then npm run build
+# Rebuild the WASM engine (requires Emscripten >=3.x):
+npm run build:engine    # emcc compiles src/*.c → src/ffz.mjs, then npm run build
+npm run build:all       # engine + build in one step
 ```
 
 ## Related
 
 - [ffuzzy on pub.dev](https://pub.dev/packages/ffuzzy) — Flutter / Dart package
-- [ffuzzy on GitHub](https://github.com/icodejoo/ffuzzy)
+- [ffuzzy on GitHub](https://github.com/icodejoo/dart-labs/tree/main/ffuzzy)
 
 ## License
 

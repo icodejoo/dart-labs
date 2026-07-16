@@ -31,7 +31,7 @@ on its own. The native library is **~32 KB** stripped.
 
 ```yaml
 dependencies:
-  ffuzzy: ^0.5.0
+  ffuzzy: ^0.6.0
 
 environment:
   sdk: ^3.6.0
@@ -51,7 +51,7 @@ void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   // Load the WASM engine from the published npm package:
   await ffuzzyInit(
-    webUrl: 'https://cdn.jsdelivr.net/npm/@codejoo/ffuzzy@0.8.0/dist/ffuzzy.mjs',
+    webUrl: 'https://cdn.jsdelivr.net/npm/@codejoo/ffuzzy@0.8.1/dist/ffuzzy.mjs',
   );
   // Or self-host: await ffuzzyInit(webAssetsUrl: '/assets/ffuzzy.mjs');
   runApp(const MyApp());
@@ -410,29 +410,18 @@ Both flags require at least one to be ON (CMake will error otherwise).
 
 ### Enabling on web (WASM)
 
-Three pre-built engine variants are available:
-
-| File | Algorithm | Gzip |
-|---|---|---|
-| `ffz-fzf.mjs` | Subsequence only (default) | ~32 KB |
-| `ffz-approx.mjs` | Edit-distance only | ~22 KB |
-| `ffz-full.mjs` | Both algorithms | ~33 KB |
+The published `ffuzzy.mjs` bundle ships with both algorithms compiled in — no
+variant selection needed:
 
 ```dart
-// Subsequence only (default)
-await ffuzzyInit(webUrl: 'https://cdn.jsdelivr.net/npm/@codejoo/ffuzzy@0.8.0/dist/ffuzzy-fzf.mjs');
-
-// Both algorithms
-await ffuzzyInit(webUrl: 'https://cdn.jsdelivr.net/npm/@codejoo/ffuzzy@0.8.0/dist/ffuzzy-full.mjs');
+await ffuzzyInit(webUrl: 'https://cdn.jsdelivr.net/npm/@codejoo/ffuzzy@0.8.1/dist/ffuzzy.mjs');
 ```
 
-Build your own variant:
+Rebuilding the engine yourself:
 ```bash
 # In wasm/:
-bash build-engine.sh                                    # → src/ffz-fzf.mjs
-FFZ_EDIT_DISTANCE=1 bash build-engine.sh               # → src/ffz-full.mjs
-FFZ_SUBSEQUENCE=0 FFZ_EDIT_DISTANCE=1 bash build-engine.sh  # → src/ffz-approx.mjs
-npm run build                                           # → dist/ffuzzy-{fzf,approx,full}.mjs
+npm run build:engine   # emcc → src/ffz.mjs (subsequence + edit-distance)
+npm run build          # → dist/ffuzzy.mjs + dist/ffuzzy.d.mts
 ```
 
 If the WASM module was not built with the required algorithm, affected methods
@@ -503,15 +492,11 @@ nucleo), Unicode coverage, and engine design live in
 ## npm / JavaScript
 
 The same C engine is published as [`@codejoo/ffuzzy`](https://www.npmjs.com/package/@codejoo/ffuzzy)
-for browser and Node projects. Three package variants match the three WASM builds:
+for browser and Node projects, with a matching API (both algorithms compiled
+into the one bundle):
 
 ```ts
-// Default (subsequence only)
 import { ffuzzyInitialize, FuzzyCorpus } from '@codejoo/ffuzzy';
-// Full (both algorithms)
-import { ffuzzyInitialize, FuzzyCorpus } from '@codejoo/ffuzzy/full';
-// Edit-distance only
-import { ffuzzyInitialize, FuzzyCorpus } from '@codejoo/ffuzzy/approx';
 
 await ffuzzyInitialize();
 const corpus = FuzzyCorpus.strings(['src/main.rs', 'README.md']);
