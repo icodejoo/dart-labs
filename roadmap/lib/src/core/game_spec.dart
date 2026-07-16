@@ -248,8 +248,14 @@ ValidateJsonResult validateGameSpecJson(Object? raw) {
       if (o['label'] is! String) {
         errs.add('outcomes[$i].label: must be a string');
       }
-      if (!_validPaletteKeys.contains(o['paletteKey'])) {
-        errs.add('outcomes[$i].paletteKey: must be one of ${_validPaletteKeys.join("|")}');
+      // 内置五键之外允许自定义键（运行时经 colorForPaletteKey 回落
+      // theme.palette.outcomes[key]），这里只校验必须是非空字符串。
+      final pk = o['paletteKey'];
+      if (pk is! String || pk.isEmpty) {
+        errs.add(
+          'outcomes[$i].paletteKey: must be a non-empty string '
+          '(built-ins: ${_validPaletteKeys.join("|")}, custom keys resolve via theme.palette.outcomes)',
+        );
       }
     }
   }

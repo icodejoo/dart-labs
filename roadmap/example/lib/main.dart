@@ -51,6 +51,10 @@ const _roadLabels = {
 /// 百家乐专属的路（切到其他游戏类型时隐藏，对应 example/main.ts 的做法）。
 const _baccaratOnlyRoads = {'pairRoad', 'naturalRoad'};
 
+/// 轮盘可用的路：衍生路插件（大路/大眼仔等）目前只认百家乐 B/P 语义，
+/// 轮盘 37 个号码 outcome 走它们没有意义，只开放珠盘露珠。
+const _rouletteRoads = {'beadPlate'};
+
 class RoadmapDemoPage extends StatefulWidget {
   const RoadmapDemoPage({super.key});
 
@@ -90,6 +94,20 @@ class _RoadmapDemoPageState extends State<RoadmapDemoPage> {
 
   /// 问路：none / B / P。
   String _predictMode = 'none';
+
+  /// 上次跑 predictNextOutcome 时的 results 引用（按引用备忘）。
+  List<RawResult>? _lastPredictedFor;
+
+  /// 全局主题（demo 不换肤，解析一次全程复用，避免每次 build 重建整棵主题树）。
+  late final _theme = resolveTheme();
+
+  /// 布局配置（不变，缓存一份）——与 store 的稳定快照配合，让 Engine.compute 的
+  /// 按引用备忘录在 UI 无关重算（切开关等）时直接命中，布局对象保持同一实例。
+  late final _cfg = LayoutConfig(cellSize: 18, rows: 6, theme: _theme);
+
+  /// 合并后 decorations 列表的备忘录（按路 id）：入参引用没变就复用同一 List
+  /// 实例，避免每次 build 新建列表击穿 RoadPanel 的数据未变判断。
+  final Map<String, (RoadLayout, PredictionForRoad?, String, List<DrawCommand>)> _decoCache = {};
 
   bool _pulseEnabled = true;
   bool _celebrationEnabled = true;
@@ -136,13 +154,20 @@ class _RoadmapDemoPageState extends State<RoadmapDemoPage> {
 
   void _recompute() {
     _engine ??= createEngine(_enabledRoads.toList(), spec: _currentSpec);
-    final cfg = LayoutConfig(cellSize: 18, rows: 6, theme: resolveTheme());
     final results = _store.getResults();
-    _output = _engine!.compute(results, cfg);
+    _output = _engine!.compute(results, _cfg);
     // predictNextOutcome 只对百家乐的 B/P 二元结果有意义（假设下一局 winner
     // 是 'B'/'P' 去重算大路）；切到龙虎/骰宝时不调用，_predictMode 也会在
     // _onGameTypeChanged 里跟着隐藏对应的下拉控件。
-    _prediction = _currentSpec.id == 'baccarat' ? predictNextOutcome(results) : null;
+    // 问路结果按 results 引用备忘：无关 UI 重算不重跑 predictNextOutcome，
+    // PredictionForRoad 实例保持稳定，_decoCache 的 identical 判断才能命中。
+    if (_currentSpec.id != 'baccarat') {
+      _prediction = null;
+      _lastPredictedFor = null;
+    } else if (!identical(results, _lastPredictedFor)) {
+      _prediction = predictNextOutcome(results);
+      _lastPredictedFor = results;
+    }
   }
 
   void _loadShoe(String shoeId) {
@@ -159,6 +184,7 @@ class _RoadmapDemoPageState extends State<RoadmapDemoPage> {
     setState(() {
       _currentSpec = spec;
       _enabledRoads.removeWhere((id) => _baccaratOnlyRoads.contains(id) && spec.id != 'baccarat');
+      if (spec.id == 'roulette') _enabledRoads.retainWhere(_rouletteRoads.contains);
       _rebuildEngine();
       _store.setResults(const []);
       _replayer?.stop();
@@ -182,7 +208,7 @@ class _RoadmapDemoPageState extends State<RoadmapDemoPage> {
     }
 
     final output = _output;
-    final theme = resolveTheme();
+    final theme = _theme;
 
     return Scaffold(
       appBar: AppBar(title: const Text('roadmap demo — 百家乐/龙虎/骰宝路子图')),
@@ -223,7 +249,7 @@ class _RoadmapDemoPageState extends State<RoadmapDemoPage> {
         children: [
           DropdownButton<GameSpec>(
             value: _currentSpec,
-            items: [baccaratSpec, dragonTigerSpec, sicboSpec]
+            items: [baccaratSpec, dragonTigerSpec, sicboSpec, rouletteSpec]
                 .map((s) => DropdownMenuItem(value: s, child: Text('游戏：${s.label}')))
                 .toList(),
             onChanged: (s) => s != null ? _onGameTypeChanged(s) : null,
@@ -236,7 +262,11 @@ class _RoadmapDemoPageState extends State<RoadmapDemoPage> {
               onChanged: (id) => id != null ? _loadShoe(id) : null,
             ),
           ..._allRoadIds
-              .where((id) => _currentSpec.id == 'baccarat' || !_baccaratOnlyRoads.contains(id))
+              .where(
+                (id) => _currentSpec.id == 'roulette'
+                    ? _rouletteRoads.contains(id)
+                    : _currentSpec.id == 'baccarat' || !_baccaratOnlyRoads.contains(id),
+              )
               .map(
                 (id) => FilterChip(
                   label: Text(_roadLabels[id] ?? id),
@@ -311,7 +341,7 @@ class _RoadmapDemoPageState extends State<RoadmapDemoPage> {
   Widget _buildRoadCard(String id, ComputeOutput output, Theme theme) {
     final layout = output.layouts[id]!;
     final prediction = _predictMode == 'none' ? null : _predictionFor(id);
-    final ghost = _buildGhostDecoration(prediction, layout);
+    final decorations = _mergedDecorations(id, layout, prediction);
 
     return Card(
       child: Padding(
@@ -324,7 +354,7 @@ class _RoadmapDemoPageState extends State<RoadmapDemoPage> {
             RoadPanel(
               key: ValueKey(id),
               cells: layout.cells,
-              decorations: [...(layout.decorations ?? const []), ...ghost],
+              decorations: decorations,
               contentWidth: layout.contentWidth,
               contentHeight: layout.contentHeight,
               grid: layout.grid,
@@ -353,13 +383,32 @@ class _RoadmapDemoPageState extends State<RoadmapDemoPage> {
     };
   }
 
+  /// 合并 layout.decorations 与问路 ghost，按 (layout, prediction, predictMode)
+  /// 引用备忘：入参没变时返回同一 List 实例，RoadPanel 才能识别"数据未变"。
+  List<DrawCommand> _mergedDecorations(String id, RoadLayout layout, PredictionForRoad? prediction) {
+    final cached = _decoCache[id];
+    if (cached != null &&
+        identical(cached.$1, layout) &&
+        identical(cached.$2, prediction) &&
+        cached.$3 == _predictMode) {
+      return cached.$4;
+    }
+    final ghost = _buildGhostDecoration(prediction, layout);
+    final merged = ghost.isEmpty
+        ? (layout.decorations ?? const <DrawCommand>[])
+        : [...(layout.decorations ?? const <DrawCommand>[]), ...ghost];
+    _decoCache[id] = (layout, prediction, _predictMode, merged);
+    return merged;
+  }
+
   /// 问路 ghost：假设下一局开庄/开闲，衍生路会不会多长出一格、落什么颜色，
   /// 用半透明提示点画在对应路当前内容的末尾（紧挨着最后一格右侧，同一行）。
   List<DrawCommand> _buildGhostDecoration(PredictionForRoad? prediction, RoadLayout layout) {
     if (prediction == null) return const [];
     final color = _predictMode == 'B' ? prediction.ifBanker : prediction.ifPlayer;
     if (color == null) return const [];
-    final argb = color == DerivedColor.red ? 0xFFE53935 : 0xFF1E88E5;
+    // 颜色跟随主题调色板，不再硬编码（换主题时 ghost 点与路子图保持一致）
+    final argb = color == DerivedColor.red ? _theme.palette.red : _theme.palette.blue;
     if (layout.cells.isEmpty) {
       return [DotCommand(x: 9, y: 9, r: 6, fill: argb, alpha: 0.5)];
     }

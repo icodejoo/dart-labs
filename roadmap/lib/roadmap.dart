@@ -39,6 +39,7 @@ export 'src/core/stream.dart';
 export 'src/core/game_specs/baccarat.dart';
 export 'src/core/game_specs/dragon_tiger.dart';
 export 'src/core/game_specs/sicbo.dart';
+export 'src/core/game_specs/roulette.dart';
 
 // ---- Roads: 内置路插件 ----
 export 'src/core/roads/band_merge.dart';

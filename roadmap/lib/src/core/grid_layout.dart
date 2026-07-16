@@ -21,29 +21,33 @@ class PlacedCell {
 /// 把逻辑列高数组（大路每列的格数）摆放到物理网格上：列满 [rows] 行后向右换列
 /// （"龙尾"逻辑），列间不重叠。
 List<PlacedCell> placeOnGrid(List<int> logicalColumns, int rows) {
-  final occupied = <String>{};
+  // 占用集用整数键（col*4096+row）而非 '$col,$row' 字符串——本函数是布局热路径
+  // （每次 compute 大路/三条衍生路/长龙高亮各跑一遍），字符串插值+哈希是这里
+  // 最大的分配来源。rows 远小于 4096，编码无碰撞。
+  final occupied = <int>{};
   final placed = <PlacedCell>[];
   var nextHeadCol = 0;
+  int key(int col, int row) => col * 4096 + row;
 
   for (final len in logicalColumns) {
     var col = nextHeadCol;
     const row = 0;
-    while (occupied.contains('$col,$row')) {
+    while (occupied.contains(key(col, row))) {
       col++;
     }
-    occupied.add('$col,$row');
+    occupied.add(key(col, row));
     placed.add(PlacedCell(physCol: col, physRow: row));
     final headCol = col;
     var curCol = col;
     var curRow = row;
 
     for (var i = 1; i < len; i++) {
-      if (curRow + 1 < rows && !occupied.contains('$curCol,${curRow + 1}')) {
+      if (curRow + 1 < rows && !occupied.contains(key(curCol, curRow + 1))) {
         curRow = curRow + 1;
       } else {
         curCol = curCol + 1;
       }
-      occupied.add('$curCol,$curRow');
+      occupied.add(key(curCol, curRow));
       placed.add(PlacedCell(physCol: curCol, physRow: curRow));
     }
 
