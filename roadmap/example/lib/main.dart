@@ -81,6 +81,13 @@ class _RoadmapDemoPageState extends State<RoadmapDemoPage> {
   Engine? _engine;
   ComputeOutput? _output;
 
+  /// 问路结果：假设下一局开庄/开闲，三条衍生路是否多长出一格、落什么颜色。
+  /// 这是独立于引擎 `predict()` 机制的统计预测（`core/predict.dart` 的
+  /// `predictNextOutcome`）——大眼仔/小路/曱甴路插件本身不实现 `predict()`
+  /// （跟 TS 版本一致，问路是引擎之外单独的一套逻辑），所以不能从
+  /// `ComputeOutput.predictions` 里取，得单独算。
+  PredictResult? _prediction;
+
   /// 问路：none / B / P。
   String _predictMode = 'none';
 
@@ -130,7 +137,12 @@ class _RoadmapDemoPageState extends State<RoadmapDemoPage> {
   void _recompute() {
     _engine ??= createEngine(_enabledRoads.toList(), spec: _currentSpec);
     final cfg = LayoutConfig(cellSize: 18, rows: 6, theme: resolveTheme());
-    _output = _engine!.compute(_store.getResults(), cfg);
+    final results = _store.getResults();
+    _output = _engine!.compute(results, cfg);
+    // predictNextOutcome 只对百家乐的 B/P 二元结果有意义（假设下一局 winner
+    // 是 'B'/'P' 去重算大路）；切到龙虎/骰宝时不调用，_predictMode 也会在
+    // _onGameTypeChanged 里跟着隐藏对应的下拉控件。
+    _prediction = _currentSpec.id == 'baccarat' ? predictNextOutcome(results) : null;
   }
 
   void _loadShoe(String shoeId) {
@@ -286,8 +298,8 @@ class _RoadmapDemoPageState extends State<RoadmapDemoPage> {
 
   Widget _buildRoadCard(String id, ComputeOutput output, Theme theme) {
     final layout = output.layouts[id]!;
-    final prediction = _predictMode == 'none' ? null : output.predictions[id];
-    final ghost = _buildGhostDecoration(id, prediction);
+    final prediction = _predictMode == 'none' ? null : _predictionFor(id);
+    final ghost = _buildGhostDecoration(prediction, layout);
 
     return Card(
       child: Padding(
@@ -317,15 +329,32 @@ class _RoadmapDemoPageState extends State<RoadmapDemoPage> {
     );
   }
 
+  /// 从 [_prediction] 里取指定路的问路结果（只有大眼仔/小路/曱甴路三条有意义）。
+  PredictionForRoad? _predictionFor(String id) {
+    final p = _prediction;
+    if (p == null) return null;
+    return switch (id) {
+      'bigEyeBoy' => p.bigEyeBoy,
+      'smallRoad' => p.smallRoad,
+      'cockroachRoad' => p.cockroachRoad,
+      _ => null,
+    };
+  }
+
   /// 问路 ghost：假设下一局开庄/开闲，衍生路会不会多长出一格、落什么颜色，
-  /// 用半透明提示点画在对应路的末尾。
-  List<DrawCommand> _buildGhostDecoration(String id, PredictionForRoad? prediction) {
+  /// 用半透明提示点画在对应路当前内容的末尾（紧挨着最后一格右侧，同一行）。
+  List<DrawCommand> _buildGhostDecoration(PredictionForRoad? prediction, RoadLayout layout) {
     if (prediction == null) return const [];
-    if (!const ['bigEyeBoy', 'smallRoad', 'cockroachRoad'].contains(id)) return const [];
     final color = _predictMode == 'B' ? prediction.ifBanker : prediction.ifPlayer;
     if (color == null) return const [];
     final argb = color == DerivedColor.red ? 0xFFE53935 : 0xFF1E88E5;
-    return [DotCommand(x: 9, y: 9, r: 6, fill: argb, alpha: 0.5)];
+    if (layout.cells.isEmpty) {
+      return [DotCommand(x: 9, y: 9, r: 6, fill: argb, alpha: 0.5)];
+    }
+    final last = layout.cells.last;
+    final cx = last.x + last.w * 1.5;
+    final cy = last.y + last.h / 2;
+    return [DotCommand(x: cx, y: cy, r: last.w * 0.3, fill: argb, alpha: 0.5)];
   }
 
   Widget _buildStatsCard(StatsData stats) {
