@@ -253,7 +253,19 @@ class _RoadmapDemoPageState extends State<RoadmapDemoPage> {
             IconButton(
               icon: const Icon(Icons.play_arrow),
               tooltip: '回放',
-              onPressed: () => setState(() => _replayer!.play()),
+              onPressed: () => setState(() {
+                // 加载靴局时已经把整靴数据 setResults 进 store 供用户直接看全貌，
+                // replayer 的内部游标却是从 0 开始——不清空 store 直接 play() 会
+                // 导致每次 append 的局号和 store 里"已经有的最后一局+1"对不上，
+                // append 静默失败（回调 onOutOfSync），回放毫无效果。只有从
+                // idle（刚加载/上次已停止）重新开始时才需要清空重建；从暂停
+                // 恢复（paused）应该接着播，不能清空。
+                if (_replayer!.state == ReplayState.idle) {
+                  _store.setResults(const []);
+                  _replayer = createReplayer(_replayScript, _store);
+                }
+                _replayer!.play();
+              }),
             ),
             IconButton(
               icon: const Icon(Icons.pause),
