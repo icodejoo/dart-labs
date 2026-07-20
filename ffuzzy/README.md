@@ -31,7 +31,7 @@ on its own. The native library is **~32 KB** stripped.
 
 ```yaml
 dependencies:
-  ffuzzy: ^0.5.0
+  ffuzzy: ^0.6.2
 
 environment:
   sdk: ^3.6.0
@@ -392,51 +392,29 @@ corpus.dual('iphoen')                          // both, separate buckets
 Results are sorted closest-first (`score = −(distance+1)` for edit-only hits;
 seq hits keep their fzf score). `FuzzyHit.indices` is always empty for edit-distance hits.
 
-> **Opt-in feature** — requires the native library (or WASM module) to be
-> compiled with `FFZ_EDIT_DISTANCE`. `FFZ_SUBSEQUENCE` (ON by default) controls
-> the fzf algorithm independently.
+Both algorithms (subsequence + edit-distance) ship together, always compiled
+in — native and WASM builds no longer have separate variants to opt into
+(prior versions gated edit-distance behind a `FFZ_EDIT_DISTANCE` build flag;
+since 0.6.2 there is exactly one build).
 
-### Enabling on native (Android / iOS / macOS / Linux / Windows)
+### Native (Android / iOS / macOS / Linux / Windows)
 
-Pass CMake flags when building. Both algorithms are ON by default for
-`FFZ_SUBSEQUENCE`; `FFZ_EDIT_DISTANCE` is OFF by default:
+Nothing to configure — the plugin's CMake build always compiles both engines.
 
-```bash
-cmake -DFFZ_SUBSEQUENCE=ON -DFFZ_EDIT_DISTANCE=ON ..   # both
-cmake -DFFZ_SUBSEQUENCE=OFF -DFFZ_EDIT_DISTANCE=ON ..  # edit-distance only
-```
+### Web (WASM)
 
-Both flags require at least one to be ON (CMake will error otherwise).
-
-### Enabling on web (WASM)
-
-Three pre-built engine variants are available:
-
-| File | Algorithm | Gzip |
-|---|---|---|
-| `ffz-fzf.mjs` | Subsequence only (default) | ~32 KB |
-| `ffz-approx.mjs` | Edit-distance only | ~22 KB |
-| `ffz-full.mjs` | Both algorithms | ~33 KB |
+One prebuilt engine module, both algorithms included:
 
 ```dart
-// Subsequence only (default)
-await ffuzzyInit(webUrl: 'https://cdn.jsdelivr.net/npm/@codejoo/ffuzzy@0.8.0/dist/ffuzzy-fzf.mjs');
-
-// Both algorithms
-await ffuzzyInit(webUrl: 'https://cdn.jsdelivr.net/npm/@codejoo/ffuzzy@0.8.0/dist/ffuzzy-full.mjs');
+await ffuzzyInit(webUrl: 'https://cdn.jsdelivr.net/npm/@codejoo/ffuzzy@0.8.0/dist/ffuzzy.mjs');
 ```
 
-Build your own variant:
+Build your own:
 ```bash
 # In wasm/:
-bash build-engine.sh                                    # → src/ffz-fzf.mjs
-FFZ_EDIT_DISTANCE=1 bash build-engine.sh               # → src/ffz-full.mjs
-FFZ_SUBSEQUENCE=0 FFZ_EDIT_DISTANCE=1 bash build-engine.sh  # → src/ffz-approx.mjs
-npm run build                                           # → dist/ffuzzy-{fzf,approx,full}.mjs
+bash build-engine.sh   # → src/ffz.mjs (WASM inlined as base64, self-contained)
+npm run build          # → dist/ffuzzy.mjs
 ```
-
-If the WASM module was not built with the required algorithm, affected methods
-return `[]` silently on web and throw `FuzzyException` on native.
 
 ---
 
