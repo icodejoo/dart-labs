@@ -24,7 +24,7 @@ class PausePage extends StatelessWidget {
             [
               demoButton('btn-queue-3-for-pause', 'queue 3 cards first', () {
                 for (var i = 1; i <= 3; i++) {
-                  om.open(id: 'p$i', builder: (c, h) => buildCard('P$i', h));
+                  openCard('p$i', text: 'P$i');
                 }
               }),
               demoButton('btn-pause-all', 'pauseAll()', () {
@@ -43,11 +43,10 @@ class PausePage extends StatelessWidget {
             'pause(id) / resume(id) — freeze one overlay\'s duration',
             [
               demoButton('btn-dur-for-pause', 'open id:"timer" with duration: 10s', () {
-                om.open(
-                    id: 'timer',
+                openCard('timer',
+                    text: 'TIMER 10s',
                     duration: const Duration(seconds: 10),
-                    builder: (c, h) =>
-                        buildCard('TIMER 10s', h, hint: 'Countdown can be paused/resumed'));
+                    hint: 'Countdown can be paused/resumed');
               }),
               demoButton('btn-pause-id', 'pause("timer")', () {
                 om.pause('timer');
@@ -66,10 +65,9 @@ class PausePage extends StatelessWidget {
             'pauseOnRoutes — auto-freeze zone',
             [
               demoButton('btn-queue-in-zone', 'queue a card (stays queued in /zone)', () {
-                om.open(
-                    id: 'zone-card',
-                    builder: (c, h) => buildCard('ZONE CARD', h,
-                        hint: 'Queued now; will activate when you leave /zone'));
+                openCard('zone-card',
+                    text: 'ZONE CARD',
+                    hint: 'Queued now; will activate when you leave /zone');
               }),
               demoButton('btn-goto-zone', '→ navigate to /zone', () {
                 Navigator.of(context).push(MaterialPageRoute<void>(
@@ -80,7 +78,7 @@ class PausePage extends StatelessWidget {
             ],
             subtitle:
                 '1. Queue a card above\n'
-                '2. Navigate to /zone — queue auto-freezes (OverlayNavigatorObserver + pauseOnRoutes: ["/zone"])\n'
+                '2. Navigate to /zone — queue auto-freezes (LayermanNavigatorObserver + pauseOnRoutes: ["/zone"])\n'
                 '3. Navigate back — queue auto-resumes, card activates\n\n'
                 'Manual pauseAll and route-zone pausing compose via OR — neither overrides the other.',
           ),
