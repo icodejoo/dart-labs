@@ -1,0 +1,126 @@
+<svg viewBox="0 0 1400 950" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <style>
+      .box { fill: #FDE8D0; stroke: #333; stroke-width: 2; }
+      .box-api { fill: #E8F5E9; stroke: #333; stroke-width: 1.5; }
+      .box-plugin { fill: #FFF9C4; stroke: #333; stroke-width: 1.5; }
+      .text-title { font-size: 18px; font-weight: bold; font-family: Arial; }
+      .text-label { font-size: 13px; font-family: Arial; }
+      .text-small { font-size: 11px; font-family: Arial; }
+      .text-api { font-size: 10px; font-family: 'Courier New', monospace; }
+      .arrow { stroke: #333; stroke-width: 2; fill: none; marker-end: url(#arrowhead); }
+      .arrow-small { stroke: #666; stroke-width: 1.5; fill: none; marker-end: url(#arrowhead-small); }
+    </style>
+    <marker id="arrowhead" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto">
+      <polygon points="0 0, 10 3, 0 6" fill="#333"/>
+    </marker>
+    <marker id="arrowhead-small" markerWidth="8" markerHeight="8" refX="7" refY="2" orient="auto">
+      <polygon points="0 0, 8 2, 0 4" fill="#666"/>
+    </marker>
+  </defs>
+
+  <text x="700" y="30" text-anchor="middle" class="text-title">Countman (Dart) 完整架构流程图</text>
+  <text x="700" y="50" text-anchor="middle" class="text-label">Dart 数字动画库 | ValueNotifier 驱动的渐进式计数</text>
+
+  <!-- 应用层 -->
+  <rect x="50" y="80" width="200" height="120" class="box" rx="8"/>
+  <text x="150" y="110" text-anchor="middle" class="text-title">应用代码</text>
+  <text x="150" y="130" text-anchor="middle" class="text-label">App Code (Flutter)</text>
+  <text x="150" y="150" text-anchor="middle" class="text-api">Countman.countUp(target)</text>
+  <text x="150" y="165" text-anchor="middle" class="text-api">Countman.countDown(target)</text>
+  <text x="150" y="180" text-anchor="middle" class="text-api">setValue(value)</text>
+
+  <path d="M 250 140 L 320 140" class="arrow"/>
+
+  <!-- Countman 核心 -->
+  <rect x="320" y="80" width="200" height="120" class="box" rx="8"/>
+  <text x="420" y="110" text-anchor="middle" class="text-title">Countman 核心</text>
+  <text x="420" y="130" text-anchor="middle" class="text-label">Counter Engine</text>
+  <text x="420" y="150" text-anchor="middle" class="text-api">start/stop/pause</text>
+  <text x="420" y="165" text-anchor="middle" class="text-api">getValue/getState</text>
+  <text x="420" y="180" text-anchor="middle" class="text-api">manage ticker</text>
+
+  <path d="M 420 200 L 420 260" class="arrow"/>
+
+  <!-- 处理管道 -->
+  <text x="50" y="260" class="text-label" font-weight="bold">📦 处理管道</text>
+
+  <!-- Ticker 同步 -->
+  <rect x="50" y="280" width="160" height="130" class="box-plugin" rx="5"/>
+  <text x="130" y="305" text-anchor="middle" class="text-label">心跳同步</text>
+  <text x="130" y="320" text-anchor="middle" class="text-small">Ticker Provider</text>
+  <line x1="60" y1="330" x2="200" y2="330" stroke="#ccc" stroke-width="1"/>
+  <text x="130" y="348" text-anchor="middle" class="text-api">createTicker(callback)</text>
+  <text x="130" y="363" text-anchor="middle" class="text-api">start/stop timing</text>
+  <text x="130" y="378" text-anchor="middle" class="text-api">vsync elapsed</text>
+  <text x="130" y="393" text-anchor="middle" class="text-small">60fps 帧同步</text>
+
+  <!-- 缓动计算 -->
+  <rect x="230" y="280" width="160" height="130" class="box-plugin" rx="5"/>
+  <text x="310" y="305" text-anchor="middle" class="text-label">缓动计算</text>
+  <text x="310" y="320" text-anchor="middle" class="text-small">Easing Calculate</text>
+  <line x1="240" y1="330" x2="380" y2="330" stroke="#ccc" stroke-width="1"/>
+  <text x="310" y="348" text-anchor="middle" class="text-api">linear/cubic easing</text>
+  <text x="310" y="363" text-anchor="middle" class="text-api">progress [0-1]</text>
+  <text x="310" y="378" text-anchor="middle" class="text-api">interpolate value</text>
+  <text x="310" y="393" text-anchor="middle" class="text-small">动画函数</text>
+
+  <!-- 数值更新 -->
+  <rect x="410" y="280" width="160" height="130" class="box-plugin" rx="5"/>
+  <text x="490" y="305" text-anchor="middle" class="text-label">数值更新</text>
+  <text x="490" y="320" text-anchor="middle" class="text-small">Value Update</text>
+  <line x1="420" y1="330" x2="560" y2="330" stroke="#ccc" stroke-width="1"/>
+  <text x="490" y="348" text-anchor="middle" class="text-api">calcCurrentValue()</text>
+  <text x="490" y="363" text-anchor="middle" class="text-api">update notifier</text>
+  <text x="490" y="378" text-anchor="middle" class="text-api">notify listeners</text>
+  <text x="490" y="393" text-anchor="middle" class="text-small">值变更通知</text>
+
+  <!-- 格式化 -->
+  <rect x="590" y="280" width="160" height="130" class="box-plugin" rx="5"/>
+  <text x="670" y="305" text-anchor="middle" class="text-label">格式化</text>
+  <text x="670" y="320" text-anchor="middle" class="text-small">Formatting</text>
+  <line x1="600" y1="330" x2="740" y2="330" stroke="#ccc" stroke-width="1"/>
+  <text x="670" y="348" text-anchor="middle" class="text-api">format(value, locale)</text>
+  <text x="670" y="363" text-anchor="middle" class="text-api">decimal places</text>
+  <text x="670" y="378" text-anchor="middle" class="text-api">currency/percent</text>
+  <text x="670" y="393" text-anchor="middle" class="text-small">显示格式</text>
+
+  <!-- 箭头 -->
+  <path d="M 130 410 L 300 480" class="arrow-small"/>
+  <path d="M 310 410 L 350 480" class="arrow-small"/>
+  <path d="M 490 410 L 420 480" class="arrow-small"/>
+  <path d="M 670 410 L 450 480" class="arrow-small"/>
+
+  <!-- ValueNotifier -->
+  <rect x="300" y="480" width="240" height="110" class="box-api" rx="8"/>
+  <text x="420" y="510" text-anchor="middle" class="text-title">响应式状态</text>
+  <text x="420" y="530" text-anchor="middle" class="text-label">ValueNotifier&lt;double&gt;</text>
+  <line x1="310" y1="540" x2="530" y2="540" stroke="#999" stroke-width="1"/>
+  <text x="350" y="558" text-anchor="middle" class="text-api">value property</text>
+  <text x="490" y="558" text-anchor="middle" class="text-api">addListener</text>
+  <text x="420" y="575" text-anchor="middle" class="text-api">数值响应式驱动</text>
+
+  <path d="M 420 590 L 420 650" class="arrow"/>
+
+  <!-- Widget 构建 -->
+  <rect x="300" y="650" width="240" height="110" class="box" rx="8"/>
+  <text x="420" y="680" text-anchor="middle" class="text-title">Widget 构建</text>
+  <text x="420" y="700" text-anchor="middle" class="text-label">ValueListenableBuilder</text>
+  <line x1="310" y1="710" x2="530" y2="710" stroke="#999" stroke-width="1"/>
+  <text x="350" y="728" text-anchor="middle" class="text-api">listen value change</text>
+  <text x="490" y="728" text-anchor="middle" class="text-api">rebuild widget</text>
+  <text x="420" y="745" text-anchor="middle" class="text-api">局部刷新渲染</text>
+
+  <path d="M 420 760 L 420 820" class="arrow"/>
+
+  <!-- 屏幕显示 -->
+  <rect x="300" y="820" width="240" height="110" class="box" rx="8"/>
+  <text x="420" y="850" text-anchor="middle" class="text-title">屏幕显示</text>
+  <text x="420" y="870" text-anchor="middle" class="text-label">UI Render</text>
+  <line x1="310" y1="880" x2="530" y2="880" stroke="#999" stroke-width="1"/>
+  <text x="350" y="898" text-anchor="middle" class="text-api">Text / Custom Widget</text>
+  <text x="490" y="898" text-anchor="middle" class="text-api">animate display</text>
+  <text x="420" y="915" text-anchor="middle" class="text-api">用户看到动画数字</text>
+
+  <text x="50" y="930" class="text-small" font-weight="bold">完整流程：应用创建 → Ticker同步 → 缓动计算 → 数值更新 → 格式化 → ValueNotifier → Widget构建 → UI渲染 → 动画效果</text>
+</svg>

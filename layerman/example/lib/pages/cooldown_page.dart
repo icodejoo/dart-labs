@@ -23,18 +23,16 @@ class CooldownPage extends StatelessWidget {
             'session — max shows per app session',
             [
               demoButton('btn-cds', 'session: 1 (once per session)', () {
-                om.open(
-                    id: 'cd-s',
+                openCard('cd-s',
+                    text: 'SESSION 1',
                     cooldown: const OverlayCooldown(session: 1),
-                    builder: (c, h) =>
-                        buildCard('SESSION 1', h, hint: 'Tap again — blocked until app restarts'));
+                    hint: 'Tap again — blocked until app restarts');
               }),
               demoButton('btn-cds3', 'session: 3', () {
-                om.open(
-                    id: 'cd-s3-${DateTime.now().millisecondsSinceEpoch}',
+                openCard('cd-s3-${DateTime.now().millisecondsSinceEpoch}',
+                    text: 'SESSION 3',
                     cooldown: const OverlayCooldown(session: 3),
-                    builder: (c, h) =>
-                        buildCard('SESSION 3', h, hint: 'Up to 3 shows per session'));
+                    hint: 'Up to 3 shows per session');
               }),
             ],
             subtitle:
@@ -46,11 +44,10 @@ class CooldownPage extends StatelessWidget {
             'total — lifetime show cap (requires persistent storage)',
             [
               demoButton('btn-cdt', 'total: 2', () {
-                om.open(
-                    id: 'cd-t',
+                openCard('cd-t',
+                    text: 'TOTAL 2',
                     cooldown: const OverlayCooldown(total: 2),
-                    builder: (c, h) =>
-                        buildCard('TOTAL 2', h, hint: 'Shown at most 2 times ever (persisted)'));
+                    hint: 'Shown at most 2 times ever (persisted)');
               }),
             ],
             subtitle:
@@ -63,11 +60,11 @@ class CooldownPage extends StatelessWidget {
             'minGap — minimum time between shows',
             [
               demoButton('btn-cdg', 'minGap: 5s', () {
-                om.open(
-                    id: 'cd-g',
+                openCard('cd-g',
+                    text: 'GAP 5s',
                     cooldown: const OverlayCooldown(minGap: Duration(seconds: 5)),
-                    builder: (c, h) =>
-                        buildCard('GAP 5s', h, hint: 'Close then try again within 5s → queued, auto-shows at 5s'));
+                    hint:
+                        'Close then try again within 5s → queued, auto-shows at 5s');
               }),
             ],
             subtitle:
@@ -79,18 +76,16 @@ class CooldownPage extends StatelessWidget {
             'day — max shows per calendar day',
             [
               demoButton('btn-cdd', 'day: 1 (once per day)', () {
-                om.open(
-                    id: 'cd-d',
+                openCard('cd-d',
+                    text: 'DAY 1',
                     cooldown: const OverlayCooldown(day: 1),
-                    builder: (c, h) =>
-                        buildCard('DAY 1', h, hint: 'Max 1 show per calendar day'));
+                    hint: 'Max 1 show per calendar day');
               }),
               demoButton('btn-cdd3', 'day: 3', () {
-                om.open(
-                    id: 'cd-d3-${DateTime.now().millisecondsSinceEpoch}',
+                openCard('cd-d3-${DateTime.now().millisecondsSinceEpoch}',
+                    text: 'DAY 3',
                     cooldown: const OverlayCooldown(day: 3),
-                    builder: (c, h) =>
-                        buildCard('DAY 3', h, hint: 'Max 3 shows per calendar day'));
+                    hint: 'Max 3 shows per calendar day');
               }),
             ],
           ),
@@ -99,11 +94,10 @@ class CooldownPage extends StatelessWidget {
             'hour — max shows per clock hour',
             [
               demoButton('btn-cdh', 'hour: 2', () {
-                om.open(
-                    id: 'cd-h-${DateTime.now().millisecondsSinceEpoch}',
+                openCard('cd-h-${DateTime.now().millisecondsSinceEpoch}',
+                    text: 'HOUR 2',
                     cooldown: const OverlayCooldown(hour: 2),
-                    builder: (c, h) =>
-                        buildCard('HOUR 2', h, hint: 'Max 2 shows per clock hour'));
+                    hint: 'Max 2 shows per clock hour');
               }),
             ],
           ),
@@ -112,11 +106,10 @@ class CooldownPage extends StatelessWidget {
             'minute — max shows per clock minute',
             [
               demoButton('btn-cdm', 'minute: 1', () {
-                om.open(
-                    id: 'cd-m',
+                openCard('cd-m',
+                    text: 'MIN 1',
                     cooldown: const OverlayCooldown(minute: 1),
-                    builder: (c, h) =>
-                        buildCard('MIN 1', h, hint: 'Max 1 show per clock minute'));
+                    hint: 'Max 1 show per clock minute');
               }),
             ],
           ),
@@ -125,11 +118,11 @@ class CooldownPage extends StatelessWidget {
             'Combine caps — most restrictive wins',
             [
               demoButton('btn-cdcombine', 'session:2 + minGap:3s', () {
-                om.open(
-                    id: 'cd-combo-${DateTime.now().millisecondsSinceEpoch}',
-                    cooldown: const OverlayCooldown(session: 2, minGap: Duration(seconds: 3)),
-                    builder: (c, h) =>
-                        buildCard('COMBO', h, hint: 'session:2 AND minGap:3s — both must pass'));
+                openCard('cd-combo-${DateTime.now().millisecondsSinceEpoch}',
+                    text: 'COMBO',
+                    cooldown: const OverlayCooldown(
+                        session: 2, minGap: Duration(seconds: 3)),
+                    hint: 'session:2 AND minGap:3s — both must pass');
               }),
             ],
           ),
@@ -139,12 +132,11 @@ class CooldownPage extends StatelessWidget {
             [
               demoButton('btn-ready', 'await om.ready() then open', () async {
                 await om.ready();
-                om.open(
-                    id: 'cd-ready',
+                openCard('cd-ready',
+                    text: 'READY',
                     cooldown: const OverlayCooldown(total: 5),
-                    builder: (c, h) =>
-                        buildCard('READY', h, hint: 'Opened after ready() resolved — '
-                            'persisted total/day/hour counts are now hydrated'));
+                    hint: 'Opened after ready() resolved — '
+                        'persisted total/day/hour counts are now hydrated');
               }),
             ],
             subtitle:

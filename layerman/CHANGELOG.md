@@ -1,3 +1,56 @@
+## 0.2.0
+
+**Breaking — the manager is now headless (UI-agnostic).** The self-rendering
+`builder:` path is gone; `present:` is the sole rendering hook. The core no
+longer owns an `Overlay`, imports no `package:flutter/widgets.dart`, and mirrors
+the headless TS sister package.
+
+Why: the whole point is an orchestrator that doesn't care what renders. As long
+as `builder:` existed, the manager had to own an `Overlay` layer and be attached
+to an `OverlayState` — that *is* a UI responsibility, and it contradicted the
+goal. The `present:`/`PresentedOverlay` handle model is a strict superset: a
+backend that owns its own `OverlayEntry` covers everything `builder:` did, so
+nothing is lost. See the README's "Why there is no `builder:`" section for the
+migration recipe.
+
+**Renamed** (to match the package name)
+
+* `OverlayManager` → `Layerman`; `OverlayNavigatorObserver` → `LayermanNavigatorObserver`.
+* Everything else keeps its `Overlay*` name on purpose — `OverlayPredicate`,
+  `OverlayCooldown`, `OverlayCooldownStorage`, `OverlayRecord`,
+  `PresentedOverlay` describe the overlay *being managed*, not the manager
+  itself, so renaming those to `Layerman*` would misdescribe what they are
+  (e.g. `PresentedOverlay` is "the overlay that got presented", not "a
+  presented orchestrator").
+
+**Removed**
+
+* `open(builder: ...)` and the `OverlayContentBuilder` typedef — use
+  `open(present: ...)`.
+* `OverlayManagerScope`, `Layerman.attach` / `detach` / `isAttached` — the
+  manager attaches to nothing now.
+* `OverlayHandle`, `OverlayPhase`, and the handle's `phase` /  `phaseListenable`
+  / `isClosing` — `open()` returns its `Future<T?>` directly; a backend drives
+  its own exit animation and reports completion via `PresentedOverlay.dismissed`.
+* `barrierColor` / `barrierDismissible` on `open()` — the backend renders its
+  own barrier.
+* `Layerman(exitDuration:)` constructor default — `exitDuration` is now a
+  per-`open()` grace only (null ⇒ advance immediately).
+
+**Behavior**
+
+* `replace` now always **closes** the preempted overlay (result `null`); it is
+  never sent back to the queue to re-show. A dismissed backend can't be
+  faithfully re-presented (that would re-run its side effects), so the old
+  self-rendered "displace + resume" semantics no longer applied and were
+  dropped along with their `wasDisplaced` / `replaceBand` machinery.
+
+**Unchanged**: slots, priority, `affix`, `overlap`, conditions (`when` / `route`
+/ `requiresAuth` / `setContext` / `dismissWhenUnmet`), cooldown (+ pluggable
+storage), `resolve`, `beforeClose`, `duration`, `delay`, `gap`, `pauseAll` /
+`resumeAll` / `pause` / `resume`, `update`, `clearWhere`, `LayermanNavigatorObserver`,
+`currentRoute`, `pauseOnRoutes`.
+
 ## 0.1.1
 
 Docs only — no code changes.

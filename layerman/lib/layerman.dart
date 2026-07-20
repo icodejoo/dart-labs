@@ -1,18 +1,17 @@
-/// A Flutter-native overlay **queue** manager.
+/// A **headless** overlay **queue** orchestrator.
 ///
 /// Manages when/which overlay is shown — serial one-at-a-time queueing with
-/// named slots, priority, replace and overlap — and actually renders it by
-/// inserting real [OverlayEntry]s into an attached [OverlayState]. Overlays
-/// expose imperative `Future<T?>` results and a two-phase close for exit
-/// animations.
+/// named slots, priority, replace, overlap, conditions and cooldown — while
+/// staying UI-agnostic: rendering is delegated to a [Present] backend
+/// (showDialog / GetX / bot_toast / a self-managed `OverlayEntry` / ...) that
+/// the manager invokes when the queue grants a slot. Overlays expose imperative
+/// `Future<T?>` results and a two-phase close so a backend can play its exit
+/// animation before the queue advances.
 library;
 
 export 'src/overlay_manager.dart'
     show
-        OverlayManager,
-        OverlayHandle,
-        OverlayPhase,
-        OverlayContentBuilder,
+        Layerman,
         OverlayPredicate,
         OverlayCooldown,
         OverlayCooldownStorage,
@@ -21,5 +20,4 @@ export 'src/overlay_manager.dart'
         PresentContext,
         PresentedOverlay,
         Present;
-export 'src/overlay_manager_scope.dart' show OverlayManagerScope;
-export 'src/overlay_navigator_observer.dart' show OverlayNavigatorObserver;
+export 'src/overlay_navigator_observer.dart' show LayermanNavigatorObserver;

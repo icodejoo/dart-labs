@@ -4,44 +4,30 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:layerman/layerman.dart';
 
-/// Pump an [OverlayManagerScope] hosting [manager] and run the post-frame
-/// attach so the manager is ready to render.
-Future<void> pumpHost(WidgetTester tester, OverlayManager manager) async {
-  await tester.pumpWidget(
-    MaterialApp(
-      home: OverlayManagerScope(
-        manager: manager,
-        child: const Scaffold(body: Center(child: Text('home'))),
-      ),
-    ),
-  );
-  await tester.pump(); // run addPostFrameCallback -> attach
-}
-
-/// A trivial overlay body that shows its label.
-Widget label(String text) => Center(child: Text(text));
-
 /// Simulates an external overlay backend (showDialog / GetX / bot_toast):
 /// [present] is what the orchestrator calls when the queue grants permission;
 /// [userClose] simulates the user closing the backend directly (barrier tap,
 /// back button, timeout); [dismiss] is the orchestrator-driven graceful close.
-class _FakeBackend {
-  final Completer<String?> _dismissed = Completer<String?>();
+class _FakeBackend<T> {
+  final Completer<T?> _dismissed = Completer<T?>();
   bool presented = false;
   bool dismissCalled = false;
 
-  PresentedOverlay<String> present(PresentContext context) {
+  /// The [Present] callback: hand this straight to `open(present: ...)`.
+  PresentedOverlay<T> present(PresentContext context) {
     presented = true;
-    return PresentedOverlay<String>(
+    return PresentedOverlay<T>(
       dismissed: _dismissed.future,
-      dismiss: ([String? result]) async {
+      dismiss: ([T? result]) async {
         dismissCalled = true;
         if (!_dismissed.isCompleted) _dismissed.complete(result);
       },
     );
   }
 
-  void userClose(String? result) {
+  /// Simulate the backend closing itself (user tap, barrier, back button,
+  /// timeout) without going through the orchestrator's `dismiss`.
+  void userClose(T? result) {
     if (!_dismissed.isCompleted) _dismissed.complete(result);
   }
 }
@@ -49,15 +35,17 @@ class _FakeBackend {
 void main() {
   testWidgets('serial: only one overlay shows at a time; the rest queue',
       (tester) async {
-    final manager = OverlayManager();
-    await pumpHost(tester, manager);
+    await tester.pumpWidget(const SizedBox());
+    final manager = Layerman();
 
-    manager.open(id: 'a', builder: (c, h) => label('A'));
-    manager.open(id: 'b', builder: (c, h) => label('B'));
+    final a = _FakeBackend<String>();
+    final b = _FakeBackend<String>();
+    manager.open(id: 'a', present: a.present);
+    manager.open(id: 'b', present: b.present);
     await tester.pump();
 
-    expect(find.text('A'), findsOneWidget);
-    expect(find.text('B'), findsNothing);
+    expect(a.presented, isTrue);
+    expect(b.presented, isFalse);
     expect(manager.activeIds, <String>['a']);
     expect(manager.queuedIds, <String>['b']);
 
@@ -66,23 +54,28 @@ void main() {
 
   testWidgets('closing the active overlay advances to the next',
       (tester) async {
-    final manager =
-        OverlayManager(exitDuration: const Duration(milliseconds: 100));
-    await pumpHost(tester, manager);
+    await tester.pumpWidget(const SizedBox());
+    final manager = Layerman();
 
-    manager.open(id: 'a', builder: (c, h) => label('A'));
-    manager.open(id: 'b', builder: (c, h) => label('B'));
+    final a = _FakeBackend<String>();
+    final b = _FakeBackend<String>();
+    manager.open(
+      id: 'a',
+      present: a.present,
+      exitDuration: const Duration(milliseconds: 100),
+    );
+    manager.open(id: 'b', present: b.present);
     await tester.pump();
-    expect(find.text('A'), findsOneWidget);
+    expect(manager.isShowing('a'), isTrue);
 
     manager.close('a');
-    await tester.pump(); // phase -> closing (still mounted)
+    await tester.pump(); // phase -> closing (exit grace pending)
     expect(manager.isShowing('a'), isTrue); // still in closing phase
-    await tester.pump(const Duration(milliseconds: 100)); // exit -> removed
-    await tester.pump(); // build the newly activated 'b'
+    await tester.pump(
+        const Duration(milliseconds: 100)); // exit -> removed + next shown
 
-    expect(find.text('A'), findsNothing);
-    expect(find.text('B'), findsOneWidget);
+    expect(manager.isShowing('a'), isFalse);
+    expect(b.presented, isTrue);
     expect(manager.activeIds, <String>['b']);
 
     manager.dispose();
@@ -90,43 +83,42 @@ void main() {
 
   testWidgets('priority: higher priority shows before lower when slot frees',
       (tester) async {
-    final manager = OverlayManager(exitDuration: Duration.zero);
-    await pumpHost(tester, manager);
+    await tester.pumpWidget(const SizedBox());
+    final manager = Layerman();
 
-    manager.open(id: 'a', builder: (c, h) => label('A')); // activates now
-    manager.open(id: 'low', priority: 1, builder: (c, h) => label('LOW'));
-    manager.open(id: 'high', priority: 10, builder: (c, h) => label('HIGH'));
+    final a = _FakeBackend<String>();
+    final low = _FakeBackend<String>();
+    final high = _FakeBackend<String>();
+    manager.open(id: 'a', present: a.present); // activates now
+    manager.open(id: 'low', priority: 1, present: low.present);
+    manager.open(id: 'high', priority: 10, present: high.present);
     await tester.pump();
-    expect(find.text('A'), findsOneWidget);
+    expect(manager.isShowing('a'), isTrue);
 
     manager.close('a');
-    await tester.pump(); // exit zero -> removed + next activated
-    expect(find.text('HIGH'), findsOneWidget);
-    expect(find.text('LOW'), findsNothing);
+    await tester.pump(); // exit immediate (default) -> removed + next shown
+    expect(manager.isShowing('high'), isTrue);
+    expect(manager.isShowing('low'), isFalse);
 
     manager.close('high');
     await tester.pump();
-    expect(find.text('LOW'), findsOneWidget);
+    expect(manager.isShowing('low'), isTrue);
 
     manager.dispose();
   });
 
   testWidgets('show returns a Future that resolves with the close result',
       (tester) async {
-    final manager = OverlayManager(exitDuration: Duration.zero);
-    await pumpHost(tester, manager);
+    await tester.pumpWidget(const SizedBox());
+    final manager = Layerman();
 
-    final future = manager.open<String>(
-      id: 'confirm',
-      builder: (c, h) => TextButton(
-        onPressed: () => h.close('yes'),
-        child: const Text('OK'),
-      ),
-    );
+    final backend = _FakeBackend<String>();
+    final future =
+        manager.open<String>(id: 'confirm', present: backend.present);
     await tester.pump();
-    expect(find.text('OK'), findsOneWidget);
+    expect(backend.presented, isTrue);
 
-    await tester.tap(find.text('OK'));
+    backend.userClose('yes'); // e.g. the backend's own "OK" button
     await tester.pump();
 
     expect(await future, 'yes');
@@ -136,10 +128,11 @@ void main() {
 
   testWidgets('manager.close(id, value) also delivers the result',
       (tester) async {
-    final manager = OverlayManager(exitDuration: Duration.zero);
-    await pumpHost(tester, manager);
+    await tester.pumpWidget(const SizedBox());
+    final manager = Layerman();
 
-    final future = manager.open<int>(id: 'n', builder: (c, h) => label('N'));
+    final backend = _FakeBackend<int>();
+    final future = manager.open<int>(id: 'n', present: backend.present);
     await tester.pump();
 
     manager.close('n', 42);
@@ -152,10 +145,11 @@ void main() {
 
   testWidgets('dismiss / no-result close resolves the Future with null',
       (tester) async {
-    final manager = OverlayManager(exitDuration: Duration.zero);
-    await pumpHost(tester, manager);
+    await tester.pumpWidget(const SizedBox());
+    final manager = Layerman();
 
-    final future = manager.open<String>(id: 'x', builder: (c, h) => label('X'));
+    final backend = _FakeBackend<String>();
+    final future = manager.open<String>(id: 'x', present: backend.present);
     await tester.pump();
 
     manager.dismiss('x');
@@ -166,95 +160,65 @@ void main() {
     manager.dispose();
   });
 
-  testWidgets('replace: preempts the current overlay; it returns to the queue',
+  testWidgets('replace: preempts the current overlay, closing it (result null)',
       (tester) async {
-    final manager = OverlayManager(exitDuration: Duration.zero);
-    await pumpHost(tester, manager);
+    await tester.pumpWidget(const SizedBox());
+    final manager = Layerman();
 
-    final aFuture =
-        manager.open<String>(id: 'a', builder: (c, h) => label('A'));
+    final a = _FakeBackend<String>();
+    final b = _FakeBackend<String>();
+    final aFuture = manager.open<String>(id: 'a', present: a.present);
     await tester.pump();
-    expect(find.text('A'), findsOneWidget);
+    expect(manager.isShowing('a'), isTrue);
 
-    manager.open(id: 'b', replace: true, builder: (c, h) => label('B'));
+    manager.open(id: 'b', replace: true, present: b.present);
     await tester.pump();
 
-    expect(find.text('A'), findsNothing);
-    expect(find.text('B'), findsOneWidget);
-    // Displaced back to the queue (result still pending), NOT dropped.
-    expect(manager.queuedIds, contains('a'));
+    expect(manager.isShowing('a'), isFalse);
+    expect(manager.isShowing('b'), isTrue);
+    expect(await aFuture, isNull); // preempted -> closed with null, not requeued
+    expect(manager.queuedIds, isNot(contains('a')));
 
     manager.close('b');
     await tester.pump();
-    expect(find.text('A'), findsOneWidget); // A resumes once B closes
-
-    manager.close('a', 'done');
-    await tester.pump();
-    expect(await aFuture, 'done'); // its own close settles it, not the replace
+    expect(manager.activeIds, isEmpty); // 'a' does NOT resume; it is gone for good
 
     manager.dispose();
   });
 
-  testWidgets('replace displaces the current AND front-bands ahead of queued',
+  testWidgets('replace closes the current AND front-bands ahead of queued',
       (tester) async {
-    final manager = OverlayManager(exitDuration: Duration.zero);
-    await pumpHost(tester, manager);
+    await tester.pumpWidget(const SizedBox());
+    final manager = Layerman();
 
-    manager.open(id: 'a', builder: (c, h) => label('A')); // active
-    manager.open(id: 'b', builder: (c, h) => label('B')); // queued first
-    manager.open(id: 'r', replace: true, builder: (c, h) => label('R'));
+    final a = _FakeBackend<String>();
+    final b = _FakeBackend<String>();
+    final r = _FakeBackend<String>();
+    final aFuture = manager.open<String>(id: 'a', present: a.present); // active
+    manager.open(id: 'b', present: b.present); // queued first
+    manager.open(id: 'r', replace: true, present: r.present);
     await tester.pump();
 
-    expect(find.text('R'), findsOneWidget); // preempts A AND outranks queued B
-    expect(find.text('A'), findsNothing);
-    expect(manager.queuedIds, containsAll(<String>['a', 'b'])); // both waiting
+    expect(manager.isShowing('r'), isTrue); // preempts A AND outranks queued B
+    expect(manager.isShowing('a'), isFalse);
+    expect(await aFuture, isNull); // closed for good, not requeued
+    expect(manager.queuedIds, <String>['b']); // only b still waits
 
     manager.close('r');
     await tester.pump();
-    expect(find.text('A'), findsOneWidget); // displaced A (oldest seq) resumes first
-
-    manager.close('a');
-    await tester.pump();
-    expect(find.text('B'), findsOneWidget); // then the rest of the queue
+    expect(manager.isShowing('b'), isTrue); // next in queue — NOT the closed 'a'
 
     manager.dispose();
   });
 
-  group('replace / displace — regression (code-review)', () {
-    testWidgets('displaced entry with a one-shot cooldown still re-shows and '
-        'its future settles (no permanent hang)', (tester) async {
-      final manager = OverlayManager(exitDuration: Duration.zero);
-      await pumpHost(tester, manager);
-
-      final aFuture = manager.open<String>(
-        id: 'a',
-        cooldown: const OverlayCooldown(session: 1),
-        builder: (c, h) => label('A'),
-      );
-      await tester.pump();
-      expect(find.text('A'), findsOneWidget);
-
-      manager.open(id: 'b', replace: true, builder: (c, h) => label('B'));
-      await tester.pump();
-      expect(manager.queuedIds, contains('a'));
-
-      manager.close('b');
-      await tester.pump();
-      expect(find.text('A'), findsOneWidget); // exempt: re-shows despite session:1
-
-      manager.close('a', 'ok');
-      await tester.pump();
-      expect(await aFuture, 'ok'); // settles, not stranded
-
-      manager.dispose();
-    });
-
+  group('replace closes the preempted entry — regression (code-review)', () {
     testWidgets('replacing a RESOLVING entry discards it — resolver never '
         'runs twice and stale data never opens', (tester) async {
-      final manager = OverlayManager(exitDuration: Duration.zero);
-      await pumpHost(tester, manager);
+      await tester.pumpWidget(const SizedBox());
+      final manager = Layerman();
 
       var calls = 0;
+      var presented = false;
       final backend = Completer<String?>();
       final aFuture = manager.open<String>(
         id: 'a',
@@ -262,58 +226,39 @@ void main() {
           calls++;
           return backend.future;
         },
-        builder: (c, h) => label('A:${h.data}'),
+        present: (ctx) {
+          presented = true;
+          return PresentedOverlay<String>(dismissed: Completer<String?>().future);
+        },
       );
       await tester.pump();
       expect(manager.activeIds, isEmpty); // resolving, nothing shown
       expect(calls, 1);
 
-      manager.open(id: 'b', replace: true, builder: (c, h) => label('B'));
+      final b = _FakeBackend<String>();
+      manager.open(id: 'b', replace: true, present: b.present);
       await tester.pump();
-      expect(find.text('B'), findsOneWidget);
+      expect(manager.isShowing('b'), isTrue);
       expect(manager.queuedIds, isNot(contains('a'))); // discarded, not displaced
       expect(await aFuture, isNull); // settled null
 
       backend.complete('X'); // the stale resolver finishes late
       await tester.pump();
       expect(calls, 1); // NOT re-run
-      expect(find.textContaining('A:'), findsNothing); // stale payload never opens
+      expect(presented, isFalse); // stale payload never opens
 
       manager.dispose();
     });
 
-    testWidgets('close() on a displaced entry settles it and stops the re-show',
+    testWidgets("a queued entry's close() is a no-op until it is actually shown",
         (tester) async {
-      final manager = OverlayManager(exitDuration: Duration.zero);
-      await pumpHost(tester, manager);
+      await tester.pumpWidget(const SizedBox());
+      final manager = Layerman();
 
-      final aFuture =
-          manager.open<String>(id: 'a', builder: (c, h) => label('A'));
-      await tester.pump();
-      manager.open(id: 'b', replace: true, builder: (c, h) => label('B'));
-      await tester.pump();
-      expect(manager.queuedIds, contains('a'));
-
-      manager.close('a', 'bye'); // via the still-held handle path
-      await tester.pump();
-      expect(await aFuture, 'bye'); // delivered, not dropped
-      expect(manager.queuedIds, isNot(contains('a')));
-
-      manager.close('b');
-      await tester.pump();
-      expect(find.text('A'), findsNothing); // does NOT re-appear
-
-      manager.dispose();
-    });
-
-    testWidgets('a normal queued entry\'s close() is still a no-op (not '
-        'mistaken for displaced)', (tester) async {
-      final manager = OverlayManager(exitDuration: Duration.zero);
-      await pumpHost(tester, manager);
-
-      manager.open(id: 'a', builder: (c, h) => label('A'));
-      final qFuture =
-          manager.open<String>(id: 'q', builder: (c, h) => label('Q'));
+      final a = _FakeBackend<String>();
+      final q = _FakeBackend<String>();
+      manager.open(id: 'a', present: a.present);
+      final qFuture = manager.open<String>(id: 'q', present: q.present);
       await tester.pump();
       expect(manager.queuedIds, contains('q'));
 
@@ -324,79 +269,26 @@ void main() {
 
       manager.close('a');
       await tester.pump();
-      expect(find.text('Q'), findsOneWidget); // it eventually shows
-
-      manager.dispose();
-    });
-
-    testWidgets('a displaced entry resumes its REMAINING duration, not a full '
-        'one', (tester) async {
-      var t = DateTime(2026, 1, 1, 12);
-      final manager =
-          OverlayManager(exitDuration: Duration.zero, now: () => t);
-      await pumpHost(tester, manager);
-
-      manager.open(
-        id: 'a',
-        duration: const Duration(seconds: 10),
-        builder: (c, h) => label('A'),
-      );
-      await tester.pump();
-
-      t = t.add(const Duration(seconds: 8)); // 2s of the 10s left
-      manager.open(id: 'b', replace: true, builder: (c, h) => label('B'));
-      await tester.pump();
-      manager.close('b');
-      await tester.pump();
-      expect(find.text('A'), findsOneWidget); // re-shown with ~2s remaining
-
-      await tester.pump(const Duration(milliseconds: 1500));
-      expect(find.text('A'), findsOneWidget); // still up before 2s
-      await tester.pump(const Duration(milliseconds: 700)); // now past 2s
-      expect(find.text('A'), findsNothing); // auto-closed on REMAINING, not 10s
-
-      manager.dispose();
-    });
-
-    testWidgets('a displaced replace entry does not out-band the replacer',
-        (tester) async {
-      final manager = OverlayManager(exitDuration: Duration.zero);
-      await pumpHost(tester, manager);
-
-      // 'a' is itself a replace (shows immediately — nothing to preempt).
-      manager.open(id: 'a', replace: true, builder: (c, h) => label('A'));
-      await tester.pump();
-      expect(find.text('A'), findsOneWidget);
-
-      // 'b' (also replace) displaces 'a'. 'b' must show; 'a' must NOT jump back
-      // ahead of it despite 'a' having the older seq.
-      manager.open(id: 'b', replace: true, builder: (c, h) => label('B'));
-      await tester.pump();
-      expect(find.text('B'), findsOneWidget);
-      expect(find.text('A'), findsNothing);
-      expect(manager.queuedIds, contains('a'));
-
-      manager.close('b');
-      await tester.pump();
-      expect(find.text('A'), findsOneWidget); // resumes only after the replacer
+      expect(manager.isShowing('q'), isTrue); // it eventually shows
 
       manager.dispose();
     });
 
     testWidgets('clear() cancels an armed cooldown wake timer', (tester) async {
+      await tester.pumpWidget(const SizedBox());
       var t = DateTime(2026, 1, 1, 12);
-      final manager =
-          OverlayManager(exitDuration: Duration.zero, now: () => t);
-      await pumpHost(tester, manager);
+      final manager = Layerman(now: () => t);
 
       const cd = OverlayCooldown(minGap: Duration(seconds: 1));
-      manager.open(id: 'g', cooldown: cd, builder: (c, h) => label('G'));
+      final g1 = _FakeBackend<String>();
+      manager.open(id: 'g', cooldown: cd, present: g1.present);
       await tester.pump();
       manager.close('g');
       await tester.pump();
-      manager.open(id: 'g', cooldown: cd, builder: (c, h) => label('G2'));
+      final g2 = _FakeBackend<String>();
+      manager.open(id: 'g', cooldown: cd, present: g2.present);
       await tester.pump();
-      expect(find.text('G2'), findsNothing); // queued, wake timer armed
+      expect(g2.presented, isFalse); // queued, wake timer armed
 
       manager.clear(); // must cancel the armed timer
 
@@ -410,197 +302,112 @@ void main() {
       manager.dispose();
     });
 
-    testWidgets('a displaced entry with resolve reuses its fetched data — '
-        'the resolver is NOT invoked again on resume', (tester) async {
-      final manager = OverlayManager(exitDuration: Duration.zero);
-      await pumpHost(tester, manager);
-
-      var calls = 0;
-      manager.open<Map<String, int>>(
-        id: 'a',
-        resolve: () async {
-          calls++;
-          return {'v': calls};
-        },
-        builder: (c, h) => label('A:${(h.data as Map)['v']}'),
-      );
-      await tester.pump();
-      await tester.pump();
-      expect(find.text('A:1'), findsOneWidget);
-      expect(calls, 1);
-
-      manager.open(id: 'b', replace: true, builder: (c, h) => label('B'));
-      await tester.pump();
-      expect(manager.queuedIds, contains('a'));
-
-      manager.close('b');
-      await tester.pump();
-      expect(find.text('A:1'), findsOneWidget); // same payload, no re-fetch
-      expect(calls, 1); // resolver NOT called again
-
-      manager.dispose();
-    });
-
-    testWidgets('beforeClose still gates close() on a displaced entry',
-        (tester) async {
-      final manager = OverlayManager(exitDuration: Duration.zero);
-      await pumpHost(tester, manager);
-
-      var allow = false;
-      manager.open<String>(
-        id: 'a',
-        beforeClose: () => allow,
-        builder: (c, h) => label('A'),
-      );
-      await tester.pump();
-      manager.open(id: 'b', replace: true, builder: (c, h) => label('B'));
-      await tester.pump();
-      expect(manager.queuedIds, contains('a'));
-
-      manager.close('a', 'nope'); // guard still false -> vetoed
-      await tester.pump();
-      expect(manager.queuedIds, contains('a')); // still queued, not removed
-
-      allow = true;
-      manager.close('a', 'ok'); // guard now true -> takes effect
-      await tester.pump();
-      expect(manager.queuedIds, isNot(contains('a')));
-
-      manager.dispose();
-    });
-
-    testWidgets('an approved async beforeClose still finalizes a close even '
-        'if the entry gets displaced while the guard is pending',
-        (tester) async {
-      final manager = OverlayManager(exitDuration: Duration.zero);
-      await pumpHost(tester, manager);
+    testWidgets(
+        'a beforeClose guard pending when a replace discards the entry is '
+        'safely ignored — no double-settle, no crash', (tester) async {
+      await tester.pumpWidget(const SizedBox());
+      final manager = Layerman();
 
       final guardVerdict = Completer<bool>();
+      final a = _FakeBackend<String>();
       final aFuture = manager.open<String>(
         id: 'a',
         beforeClose: () => guardVerdict.future,
-        builder: (c, h) => label('A'),
+        present: a.present,
       );
       await tester.pump();
 
       manager.close('a', 'done'); // guard in flight, entry still open
 
-      manager.open(id: 'b', replace: true, builder: (c, h) => label('B'));
+      final b = _FakeBackend<String>();
+      manager.open(id: 'b', replace: true, present: b.present);
       await tester.pump();
-      expect(find.text('B'), findsOneWidget);
-      expect(manager.queuedIds, contains('a')); // displaced while guard pending
+      expect(manager.isShowing('b'), isTrue);
+      expect(await aFuture, isNull); // discarded by the replace before the guard settled
 
-      guardVerdict.complete(true); // approve after the displace
+      guardVerdict.complete(true); // late verdict must not resurrect/re-settle 'a'
       await tester.pump();
       await tester.pump();
-      expect(await aFuture, 'done'); // the approved close still lands
-      expect(manager.queuedIds, isNot(contains('a')));
+      expect(await aFuture, isNull); // unchanged
 
       manager.dispose();
     });
   });
 
   testWidgets('overlap: bypasses the queue and stacks on top', (tester) async {
-    final manager = OverlayManager();
-    await pumpHost(tester, manager);
+    await tester.pumpWidget(const SizedBox());
+    final manager = Layerman();
 
-    manager.open(id: 'a', builder: (c, h) => label('A'));
-    manager.open(id: 'top', overlap: true, builder: (c, h) => label('TOP'));
+    final a = _FakeBackend<String>();
+    final top = _FakeBackend<String>();
+    manager.open(id: 'a', present: a.present);
+    manager.open(id: 'top', overlap: true, present: top.present);
     await tester.pump();
 
-    expect(find.text('A'), findsOneWidget);
-    expect(find.text('TOP'), findsOneWidget); // both shown simultaneously
+    expect(manager.isShowing('a'), isTrue);
+    expect(manager.isShowing('top'), isTrue); // both shown simultaneously
     expect(manager.activeIds, containsAll(<String>['a', 'top']));
-
-    manager.dispose();
-  });
-
-  testWidgets('barrierDismissible: tapping the barrier dismisses the overlay',
-      (tester) async {
-    final manager = OverlayManager(exitDuration: Duration.zero);
-    await pumpHost(tester, manager);
-
-    final future = manager.open<String>(
-      id: 'dlg',
-      barrierDismissible: true,
-      barrierColor: const Color(0x88000000),
-      builder: (c, h) => const Center(
-        child: SizedBox(
-          width: 100,
-          height: 100,
-          child: Center(child: Text('DLG')),
-        ),
-      ),
-    );
-    await tester.pump();
-    expect(find.text('DLG'), findsOneWidget);
-
-    // Tap top-left corner (on the barrier, away from the centered content).
-    await tester.tapAt(const Offset(5, 5));
-    await tester.pump();
-
-    expect(find.text('DLG'), findsNothing);
-    expect(await future, isNull);
 
     manager.dispose();
   });
 
   testWidgets('duration: overlay auto-closes after its duration elapses',
       (tester) async {
-    final manager = OverlayManager(exitDuration: Duration.zero);
-    await pumpHost(tester, manager);
+    await tester.pumpWidget(const SizedBox());
+    final manager = Layerman();
 
+    final backend = _FakeBackend<String>();
     manager.open(
       id: 't',
       duration: const Duration(milliseconds: 500),
-      builder: (c, h) => label('T'),
+      present: backend.present,
     );
     await tester.pump();
-    expect(find.text('T'), findsOneWidget);
+    expect(manager.isShowing('t'), isTrue);
 
     await tester.pump(const Duration(milliseconds: 500));
     await tester.pump();
-    expect(find.text('T'), findsNothing);
+    expect(manager.isShowing('t'), isFalse);
 
     manager.dispose();
   });
 
   testWidgets('gap: next overlay waits the gap after the previous is removed',
       (tester) async {
-    final manager = OverlayManager(
-      gap: const Duration(milliseconds: 300),
-      exitDuration: Duration.zero,
-    );
-    await pumpHost(tester, manager);
+    await tester.pumpWidget(const SizedBox());
+    final manager = Layerman(gap: const Duration(milliseconds: 300));
 
-    manager.open(id: 'a', builder: (c, h) => label('A'));
-    manager.open(id: 'b', builder: (c, h) => label('B'));
+    final a = _FakeBackend<String>();
+    final b = _FakeBackend<String>();
+    manager.open(id: 'a', present: a.present);
+    manager.open(id: 'b', present: b.present);
     await tester.pump();
-    expect(find.text('A'), findsOneWidget);
+    expect(manager.isShowing('a'), isTrue);
 
     manager.close('a');
     await tester.pump(); // A removed, gap timer armed
-    expect(find.text('A'), findsNothing);
-    expect(find.text('B'), findsNothing); // still waiting out the gap
+    expect(manager.isShowing('a'), isFalse);
+    expect(b.presented, isFalse); // still waiting out the gap
 
     await tester.pump(const Duration(milliseconds: 300));
-    await tester.pump();
-    expect(find.text('B'), findsOneWidget);
+    expect(b.presented, isTrue);
 
     manager.dispose();
   });
 
   testWidgets('named slots run independent serial queues', (tester) async {
-    final manager = OverlayManager();
-    await pumpHost(tester, manager);
+    await tester.pumpWidget(const SizedBox());
+    final manager = Layerman();
 
-    manager.open(id: 't', slot: 'toast', builder: (c, h) => label('TOAST'));
-    manager.open(id: 's', slot: 'sheet', builder: (c, h) => label('SHEET'));
+    final t = _FakeBackend<String>();
+    final s = _FakeBackend<String>();
+    manager.open(id: 't', slot: 'toast', present: t.present);
+    manager.open(id: 's', slot: 'sheet', present: s.present);
     await tester.pump();
 
     // Different slots -> both active at once.
-    expect(find.text('TOAST'), findsOneWidget);
-    expect(find.text('SHEET'), findsOneWidget);
+    expect(t.presented, isTrue);
+    expect(s.presented, isTrue);
 
     manager.dispose();
   });
@@ -608,62 +415,60 @@ void main() {
   group('timing (delay / gap / exitDuration) — TS parity', () {
     testWidgets('delay: waits before appearing, even for the first overlay',
         (tester) async {
-      final manager = OverlayManager();
-      await pumpHost(tester, manager);
+      await tester.pumpWidget(const SizedBox());
+      final manager = Layerman();
 
+      final d = _FakeBackend<String>();
       manager.open(
         id: 'd',
         delay: const Duration(milliseconds: 200),
-        builder: (c, h) => label('D'),
+        present: d.present,
       );
       await tester.pump();
-      expect(find.text('D'), findsNothing); // cold start also honors delay
+      expect(d.presented, isFalse); // cold start also honors delay
       expect(manager.queuedIds, contains('d'));
 
       await tester.pump(const Duration(milliseconds: 200));
-      await tester.pump();
-      expect(find.text('D'), findsOneWidget);
+      expect(d.presented, isTrue);
 
       manager.dispose();
     });
 
     testWidgets('replace during the gap skips the remaining gap (TS rule)',
         (tester) async {
-      final manager = OverlayManager(
-        gap: const Duration(milliseconds: 300),
-        exitDuration: Duration.zero,
-      );
-      await pumpHost(tester, manager);
+      await tester.pumpWidget(const SizedBox());
+      final manager = Layerman(gap: const Duration(milliseconds: 300));
 
-      manager.open(id: 'a', builder: (c, h) => label('A'));
+      final a = _FakeBackend<String>();
+      manager.open(id: 'a', present: a.present);
       await tester.pump();
       manager.close('a');
       await tester.pump(); // removed; gap timer armed
 
-      manager.open(id: 'r', replace: true, builder: (c, h) => label('R'));
+      final r = _FakeBackend<String>();
+      manager.open(id: 'r', replace: true, present: r.present);
       await tester.pump();
-      expect(find.text('R'), findsOneWidget); // did NOT wait out the gap
+      expect(r.presented, isTrue); // did NOT wait out the gap
 
       manager.dispose();
     });
 
-    testWidgets('per-overlay exitDuration overrides the manager default',
-        (tester) async {
-      final manager =
-          OverlayManager(exitDuration: const Duration(milliseconds: 100));
-      await pumpHost(tester, manager);
+    testWidgets('exitDuration is configured per-open, independently of any '
+        'other entry', (tester) async {
+      await tester.pumpWidget(const SizedBox());
+      final manager = Layerman();
 
+      final x = _FakeBackend<String>();
       manager.open(
         id: 'x',
         exitDuration: const Duration(milliseconds: 400),
-        builder: (c, h) => label('X'),
+        present: x.present,
       );
       await tester.pump();
       manager.close('x');
       await tester.pump(const Duration(milliseconds: 200));
-      expect(manager.isShowing('x'), isTrue); // manager default would be gone
+      expect(manager.isShowing('x'), isTrue); // grace still running
       await tester.pump(const Duration(milliseconds: 200));
-      await tester.pump();
       expect(manager.isShowing('x'), isFalse);
 
       manager.dispose();
@@ -671,13 +476,14 @@ void main() {
 
     testWidgets('manual close cancels the pending duration timer',
         (tester) async {
-      final manager = OverlayManager(exitDuration: Duration.zero);
-      await pumpHost(tester, manager);
+      await tester.pumpWidget(const SizedBox());
+      final manager = Layerman();
 
+      final backend = _FakeBackend<String>();
       final future = manager.open<String>(
         id: 't',
         duration: const Duration(milliseconds: 500),
-        builder: (c, h) => label('T'),
+        present: backend.present,
       );
       await tester.pump();
       manager.close('t', 'manual');
@@ -695,56 +501,55 @@ void main() {
       // Regression: _schedule re-picked the front entry after a second open()
       // triggered it. delayConsumed=true caused the delay to be skipped and
       // the entry to activate immediately.
-      final manager = OverlayManager(exitDuration: Duration.zero);
-      await pumpHost(tester, manager);
+      await tester.pumpWidget(const SizedBox());
+      final manager = Layerman();
 
+      final slow = _FakeBackend<String>();
       manager.open(
         id: 'slow',
         delay: const Duration(milliseconds: 300),
-        builder: (c, h) => label('SLOW'),
+        present: slow.present,
       );
-      await tester.pump(); // delay timer armed; nothing visible yet
-      expect(find.text('SLOW'), findsNothing);
+      await tester.pump(); // delay timer armed; nothing presented yet
+      expect(slow.presented, isFalse);
 
       // Enqueue a second entry — must NOT cause SLOW to bypass its delay.
+      final fast = _FakeBackend<String>();
       manager.open(
         id: 'fast',
         delay: const Duration(milliseconds: 100),
-        builder: (c, h) => label('FAST'),
+        present: fast.present,
       );
       await tester.pump();
-      expect(find.text('SLOW'), findsNothing); // delay still in progress
+      expect(slow.presented, isFalse); // delay still in progress
 
       // After SLOW's full delay, it activates (FAST waits behind it).
       await tester.pump(const Duration(milliseconds: 300));
-      await tester.pump();
-      expect(find.text('SLOW'), findsOneWidget);
-      expect(find.text('FAST'), findsNothing);
+      expect(slow.presented, isTrue);
+      expect(fast.presented, isFalse);
 
       manager.dispose();
     });
 
     testWidgets('replace during an appear delay skips the delay (TS rule)',
         (tester) async {
-      final manager = OverlayManager(exitDuration: Duration.zero);
-      await pumpHost(tester, manager);
+      await tester.pumpWidget(const SizedBox());
+      final manager = Layerman();
 
+      final delayed = _FakeBackend<String>();
       manager.open(
         id: 'delayed',
         delay: const Duration(milliseconds: 300),
-        builder: (c, h) => label('DELAYED'),
+        present: delayed.present,
       );
       await tester.pump(); // delay timer armed
-      expect(find.text('DELAYED'), findsNothing);
+      expect(delayed.presented, isFalse);
 
       // A replace entry: must cancel the delay and activate immediately.
-      manager.open(
-        id: 'r',
-        replace: true,
-        builder: (c, h) => label('R'),
-      );
+      final r = _FakeBackend<String>();
+      manager.open(id: 'r', replace: true, present: r.present);
       await tester.pump();
-      expect(find.text('R'), findsOneWidget); // jumped ahead without waiting
+      expect(r.presented, isTrue); // jumped ahead without waiting
 
       manager.dispose();
     });
@@ -752,20 +557,23 @@ void main() {
 
   group('priority & ordering — TS parity', () {
     testWidgets('equal priority breaks ties FIFO', (tester) async {
-      final manager = OverlayManager(exitDuration: Duration.zero);
-      await pumpHost(tester, manager);
+      await tester.pumpWidget(const SizedBox());
+      final manager = Layerman();
 
-      manager.open(id: 'a', builder: (c, h) => label('A'));
-      manager.open(id: 'first', priority: 5, builder: (c, h) => label('FIRST'));
-      manager.open(id: 'second', priority: 5, builder: (c, h) => label('SECOND'));
+      final a = _FakeBackend<String>();
+      final first = _FakeBackend<String>();
+      final second = _FakeBackend<String>();
+      manager.open(id: 'a', present: a.present);
+      manager.open(id: 'first', priority: 5, present: first.present);
+      manager.open(id: 'second', priority: 5, present: second.present);
       await tester.pump();
 
       manager.close('a');
       await tester.pump();
-      expect(find.text('FIRST'), findsOneWidget);
+      expect(manager.isShowing('first'), isTrue);
       manager.close('first');
       await tester.pump();
-      expect(find.text('SECOND'), findsOneWidget);
+      expect(manager.isShowing('second'), isTrue);
 
       manager.dispose();
     });
@@ -774,17 +582,19 @@ void main() {
   group('duplicate id — TS parity', () {
     testWidgets('reusing an active id replaces in place (old result null)',
         (tester) async {
-      final manager = OverlayManager(exitDuration: Duration.zero);
-      await pumpHost(tester, manager);
+      await tester.pumpWidget(const SizedBox());
+      final manager = Layerman();
 
-      final first = manager.open<String>(id: 'dup', builder: (c, h) => label('V1'));
+      final v1 = _FakeBackend<String>();
+      final v2 = _FakeBackend<String>();
+      final first = manager.open<String>(id: 'dup', present: v1.present);
       await tester.pump();
-      expect(find.text('V1'), findsOneWidget);
+      expect(manager.isShowing('dup'), isTrue);
+      expect(v1.presented, isTrue);
 
-      final second = manager.open<String>(id: 'dup', builder: (c, h) => label('V2'));
+      final second = manager.open<String>(id: 'dup', present: v2.present);
       await tester.pump();
-      expect(find.text('V1'), findsNothing);
-      expect(find.text('V2'), findsOneWidget); // shown immediately, no queue trip
+      expect(v2.presented, isTrue); // shown immediately, no queue trip
       expect(manager.queuedIds, isEmpty);
       expect(await first, isNull); // old handle settled
 
@@ -797,19 +607,22 @@ void main() {
 
     testWidgets('reusing a queued id overrides the queued entry',
         (tester) async {
-      final manager = OverlayManager(exitDuration: Duration.zero);
-      await pumpHost(tester, manager);
+      await tester.pumpWidget(const SizedBox());
+      final manager = Layerman();
 
-      manager.open(id: 'block', builder: (c, h) => label('BLOCK'));
-      final old = manager.open<String>(id: 'dup', builder: (c, h) => label('Q1'));
-      manager.open(id: 'dup', builder: (c, h) => label('Q2'));
+      final block = _FakeBackend<String>();
+      final q1 = _FakeBackend<String>();
+      final q2 = _FakeBackend<String>();
+      manager.open(id: 'block', present: block.present);
+      final old = manager.open<String>(id: 'dup', present: q1.present);
+      manager.open(id: 'dup', present: q2.present);
       await tester.pump();
       expect(await old, isNull); // overridden while queued
 
       manager.close('block');
       await tester.pump();
-      expect(find.text('Q1'), findsNothing);
-      expect(find.text('Q2'), findsOneWidget); // new config won
+      expect(q1.presented, isFalse);
+      expect(q2.presented, isTrue); // new config won
 
       manager.dispose();
     });
@@ -818,36 +631,41 @@ void main() {
   group('lifecycle & results — TS parity', () {
     testWidgets('close on a queued id is a no-op; remove takes it out',
         (tester) async {
-      final manager = OverlayManager();
-      await pumpHost(tester, manager);
+      await tester.pumpWidget(const SizedBox());
+      final manager = Layerman();
 
-      manager.open(id: 'a', builder: (c, h) => label('A'));
-      final queued = manager.open<String>(id: 'q', builder: (c, h) => label('Q'));
+      final a = _FakeBackend<String>();
+      final q = _FakeBackend<String>();
+      manager.open(id: 'a', present: a.present);
+      final queued = manager.open<String>(id: 'q', present: q.present);
       await tester.pump();
 
       manager.close('q'); // not open -> no-op
       await tester.pump();
       expect(manager.queuedIds, contains('q'));
-      expect(find.text('A'), findsOneWidget);
+      expect(manager.isShowing('a'), isTrue);
 
       manager.remove('q');
       await tester.pump();
       expect(manager.queuedIds, isEmpty);
       expect(await queued, isNull);
-      expect(find.text('A'), findsOneWidget); // current untouched
+      expect(manager.isShowing('a'), isTrue); // current untouched
 
       manager.dispose();
     });
 
     testWidgets('clear(): everything removed, all pending results resolve null',
         (tester) async {
-      final manager = OverlayManager();
-      await pumpHost(tester, manager);
+      await tester.pumpWidget(const SizedBox());
+      final manager = Layerman();
 
-      final f1 = manager.open<String>(id: 'a', builder: (c, h) => label('A'));
-      final f2 = manager.open<String>(id: 'b', builder: (c, h) => label('B'));
-      final f3 = manager.open<String>(
-          id: 'o', overlap: true, builder: (c, h) => label('O'));
+      final a = _FakeBackend<String>();
+      final b = _FakeBackend<String>();
+      final o = _FakeBackend<String>();
+      final f1 = manager.open<String>(id: 'a', present: a.present);
+      final f2 = manager.open<String>(id: 'b', present: b.present);
+      final f3 =
+          manager.open<String>(id: 'o', overlap: true, present: o.present);
       await tester.pump();
 
       manager.clear();
@@ -857,23 +675,22 @@ void main() {
       expect(await f1, isNull);
       expect(await f2, isNull);
       expect(await f3, isNull);
-      expect(find.text('A'), findsNothing);
-      expect(find.text('O'), findsNothing);
 
       manager.dispose();
     });
 
-    testWidgets('handle.data carries the opaque payload', (tester) async {
-      final manager = OverlayManager();
-      await pumpHost(tester, manager);
+    testWidgets('data carries the opaque payload into PresentContext',
+        (tester) async {
+      await tester.pumpWidget(const SizedBox());
+      final manager = Layerman();
 
       Object? seen;
       manager.open(
         id: 'd',
         data: {'kind': 'promo'},
-        builder: (c, h) {
-          seen = h.data;
-          return label('D');
+        present: (ctx) {
+          seen = ctx.data;
+          return PresentedOverlay<void>(dismissed: Completer<void>().future);
         },
       );
       await tester.pump();
@@ -886,41 +703,45 @@ void main() {
   group('overlap — TS parity', () {
     testWidgets('multiple overlaps coexist and close independently',
         (tester) async {
-      final manager = OverlayManager(exitDuration: Duration.zero);
-      await pumpHost(tester, manager);
+      await tester.pumpWidget(const SizedBox());
+      final manager = Layerman();
 
-      manager.open(id: 'base', builder: (c, h) => label('BASE'));
-      manager.open(id: 'o1', overlap: true, builder: (c, h) => label('O1'));
-      manager.open(id: 'o2', overlap: true, builder: (c, h) => label('O2'));
+      final base = _FakeBackend<String>();
+      final o1 = _FakeBackend<String>();
+      final o2 = _FakeBackend<String>();
+      manager.open(id: 'base', present: base.present);
+      manager.open(id: 'o1', overlap: true, present: o1.present);
+      manager.open(id: 'o2', overlap: true, present: o2.present);
       await tester.pump();
-      expect(find.text('BASE'), findsOneWidget);
-      expect(find.text('O1'), findsOneWidget);
-      expect(find.text('O2'), findsOneWidget);
+      expect(base.presented, isTrue);
+      expect(o1.presented, isTrue);
+      expect(o2.presented, isTrue);
 
       manager.close('o1');
       await tester.pump();
-      expect(find.text('O1'), findsNothing);
-      expect(find.text('O2'), findsOneWidget); // others untouched
-      expect(find.text('BASE'), findsOneWidget); // serial slot untouched
+      expect(manager.isShowing('o1'), isFalse);
+      expect(manager.isShowing('o2'), isTrue); // others untouched
+      expect(manager.isShowing('base'), isTrue); // serial slot untouched
 
       manager.dispose();
     });
 
     testWidgets('overlap honors duration auto-close', (tester) async {
-      final manager = OverlayManager(exitDuration: Duration.zero);
-      await pumpHost(tester, manager);
+      await tester.pumpWidget(const SizedBox());
+      final manager = Layerman();
 
+      final backend = _FakeBackend<String>();
       manager.open(
         id: 'o',
         overlap: true,
         duration: const Duration(milliseconds: 300),
-        builder: (c, h) => label('O'),
+        present: backend.present,
       );
       await tester.pump();
-      expect(find.text('O'), findsOneWidget);
+      expect(manager.isShowing('o'), isTrue);
       await tester.pump(const Duration(milliseconds: 300));
       await tester.pump();
-      expect(find.text('O'), findsNothing);
+      expect(manager.isShowing('o'), isFalse);
 
       manager.dispose();
     });
@@ -928,12 +749,13 @@ void main() {
 
   group('introspection & notifications — TS parity', () {
     testWidgets('ChangeNotifier fires on transitions', (tester) async {
-      final manager = OverlayManager(exitDuration: Duration.zero);
-      await pumpHost(tester, manager);
+      await tester.pumpWidget(const SizedBox());
+      final manager = Layerman();
 
       var ticks = 0;
       manager.addListener(() => ticks++);
-      manager.open(id: 'a', builder: (c, h) => label('A'));
+      final a = _FakeBackend<String>();
+      manager.open(id: 'a', present: a.present);
       await tester.pump();
       final afterShow = ticks;
       expect(afterShow, greaterThan(0));
@@ -945,23 +767,9 @@ void main() {
       manager.dispose();
     });
 
-    testWidgets('builtin entries queued before attach show after attach',
-        (tester) async {
-      final manager = OverlayManager();
-      manager.open(id: 'early', builder: (c, h) => label('EARLY'));
-      expect(manager.activeIds, isEmpty); // no OverlayState yet
-      expect(manager.queuedIds, contains('early'));
-
-      await pumpHost(tester, manager); // attach happens post-frame
-      await tester.pump();
-      expect(find.text('EARLY'), findsOneWidget);
-
-      manager.dispose();
-    });
-
     testWidgets('currentRoute mirrors the route key set via setContext',
         (tester) async {
-      final manager = OverlayManager();
+      final manager = Layerman();
       expect(manager.currentRoute, isNull);
 
       manager.setContext({'route': '/checkout'});
@@ -977,11 +785,12 @@ void main() {
   group('external presenter (orchestrating third-party overlay systems)', () {
     testWidgets('present is called only when the queue grants permission',
         (tester) async {
-      final manager = OverlayManager(exitDuration: Duration.zero);
-      await pumpHost(tester, manager);
+      await tester.pumpWidget(const SizedBox());
+      final manager = Layerman();
 
-      final backend = _FakeBackend();
-      manager.open(id: 'a', builder: (c, h) => label('A'));
+      final a = _FakeBackend<String>();
+      final backend = _FakeBackend<String>();
+      manager.open(id: 'a', present: a.present);
       manager.open<String>(id: 'ext', present: backend.present);
       await tester.pump();
       expect(backend.presented, isFalse); // queued behind A
@@ -996,32 +805,33 @@ void main() {
 
     testWidgets('backend-closed (user path) resolves the Future and advances',
         (tester) async {
-      final manager = OverlayManager();
-      await pumpHost(tester, manager);
+      await tester.pumpWidget(const SizedBox());
+      final manager = Layerman();
 
-      final backend = _FakeBackend();
+      final backend = _FakeBackend<String>();
       final future = manager.open<String>(id: 'ext', present: backend.present);
-      manager.open(id: 'next', builder: (c, h) => label('NEXT'));
+      final next = _FakeBackend<String>();
+      manager.open(id: 'next', present: next.present);
       await tester.pump();
       expect(backend.presented, isTrue);
-      expect(find.text('NEXT'), findsNothing);
+      expect(next.presented, isFalse);
 
       backend.userClose('yes'); // e.g. barrier tap / back button / timeout
       await tester.pump(); // flush the dismissed microtask -> queue advances
-      await tester.pump(); // build the newly inserted 'next' entry
+      await tester.pump(); // let the newly activated 'next' present
 
       expect(await future, 'yes');
-      expect(find.text('NEXT'), findsOneWidget); // queue advanced
+      expect(next.presented, isTrue); // queue advanced
 
       manager.dispose();
     });
 
     testWidgets('manager.close drives the backend dismiss handle',
         (tester) async {
-      final manager = OverlayManager();
-      await pumpHost(tester, manager);
+      await tester.pumpWidget(const SizedBox());
+      final manager = Layerman();
 
-      final backend = _FakeBackend();
+      final backend = _FakeBackend<String>();
       final future = manager.open<String>(id: 'ext', present: backend.present);
       await tester.pump();
 
@@ -1035,10 +845,10 @@ void main() {
       manager.dispose();
     });
 
-    testWidgets('external entries do not require an attached OverlayState',
+    testWidgets('external entries work without any widget ever being pumped',
         (tester) async {
-      final manager = OverlayManager(); // never attached
-      final backend = _FakeBackend();
+      final manager = Layerman(); // no pumpWidget at all
+      final backend = _FakeBackend<String>();
       final future = manager.open<String>(id: 'ext', present: backend.present);
       await tester.pump();
       expect(backend.presented, isTrue); // backend renders itself
@@ -1052,56 +862,57 @@ void main() {
 
     testWidgets('replace preempts an external overlay (best-effort dismiss)',
         (tester) async {
-      final manager = OverlayManager();
-      await pumpHost(tester, manager);
+      await tester.pumpWidget(const SizedBox());
+      final manager = Layerman();
 
-      final backend = _FakeBackend();
+      final backend = _FakeBackend<String>();
       final extFuture =
           manager.open<String>(id: 'ext', present: backend.present);
       await tester.pump();
       expect(backend.presented, isTrue);
 
-      manager.open(id: 'b', replace: true, builder: (c, h) => label('B'));
+      final b = _FakeBackend<String>();
+      manager.open(id: 'b', replace: true, present: b.present);
       await tester.pump();
 
       expect(backend.dismissCalled, isTrue); // backend asked to close
       expect(await extFuture, isNull); // preempted -> null
-      expect(find.text('B'), findsOneWidget);
+      expect(b.presented, isTrue);
 
       manager.dispose();
     });
 
     testWidgets('exitDuration acts as post-dismiss grace before advancing',
         (tester) async {
-      final manager = OverlayManager();
-      await pumpHost(tester, manager);
+      await tester.pumpWidget(const SizedBox());
+      final manager = Layerman();
 
-      final backend = _FakeBackend();
+      final backend = _FakeBackend<String>();
       manager.open<String>(
         id: 'ext',
         present: backend.present,
         exitDuration: const Duration(milliseconds: 100),
       );
-      manager.open(id: 'next', builder: (c, h) => label('NEXT'));
+      final next = _FakeBackend<String>();
+      manager.open(id: 'next', present: next.present);
       await tester.pump();
 
       backend.userClose(null); // route future completes at animation start
       await tester.pump();
-      expect(find.text('NEXT'), findsNothing); // grace: exit anim still playing
+      expect(next.presented, isFalse); // grace: exit anim still playing
 
       await tester.pump(const Duration(milliseconds: 100));
-      await tester.pump();
-      expect(find.text('NEXT'), findsOneWidget);
+      expect(next.presented, isTrue);
 
       manager.dispose();
     });
 
     testWidgets('clear() best-effort dismisses external backends',
         (tester) async {
-      final manager = OverlayManager();
-      await pumpHost(tester, manager);
+      await tester.pumpWidget(const SizedBox());
+      final manager = Layerman();
 
-      final backend = _FakeBackend();
+      final backend = _FakeBackend<String>();
       manager.open<String>(id: 'ext', present: backend.present);
       await tester.pump();
 
@@ -1115,15 +926,16 @@ void main() {
 
     testWidgets('external + overlap stacks over the serial slot',
         (tester) async {
-      final manager = OverlayManager();
-      await pumpHost(tester, manager);
+      await tester.pumpWidget(const SizedBox());
+      final manager = Layerman();
 
-      final backend = _FakeBackend();
-      manager.open(id: 'base', builder: (c, h) => label('BASE'));
+      final base = _FakeBackend<String>();
+      final backend = _FakeBackend<String>();
+      manager.open(id: 'base', present: base.present);
       manager.open<String>(id: 'ext', overlap: true, present: backend.present);
       await tester.pump();
 
-      expect(find.text('BASE'), findsOneWidget); // serial slot untouched
+      expect(base.presented, isTrue); // serial slot untouched
       expect(backend.presented, isTrue); // presented immediately, no queue
       expect(manager.activeIds, containsAll(<String>['base', 'ext']));
 
@@ -1132,10 +944,10 @@ void main() {
 
     testWidgets('external duration auto-close drives the backend dismiss',
         (tester) async {
-      final manager = OverlayManager();
-      await pumpHost(tester, manager);
+      await tester.pumpWidget(const SizedBox());
+      final manager = Layerman();
 
-      final backend = _FakeBackend();
+      final backend = _FakeBackend<String>();
       final future = manager.open<String>(
         id: 'ext',
         duration: const Duration(milliseconds: 200),
@@ -1155,29 +967,30 @@ void main() {
 
     testWidgets('external without a dismiss handle: close() just detaches',
         (tester) async {
-      final manager = OverlayManager();
-      await pumpHost(tester, manager);
+      await tester.pumpWidget(const SizedBox());
+      final manager = Layerman();
 
       final done = Completer<String?>();
       final future = manager.open<String>(
         id: 'ext',
         present: (ctx) => PresentedOverlay<String>(dismissed: done.future),
       );
-      manager.open(id: 'next', builder: (c, h) => label('NEXT'));
+      final next = _FakeBackend<String>();
+      manager.open(id: 'next', present: next.present);
       await tester.pump();
 
       manager.close('ext', 'r'); // cannot preempt the backend -> detach
       await tester.pump();
       await tester.pump();
       expect(await future, 'r'); // orchestrator result still delivered
-      expect(find.text('NEXT'), findsOneWidget); // queue advanced anyway
+      expect(next.presented, isTrue); // queue advanced anyway
 
       manager.dispose();
     });
 
     testWidgets('PresentContext carries id / slot / data', (tester) async {
-      final manager = OverlayManager();
-      await pumpHost(tester, manager);
+      await tester.pumpWidget(const SizedBox());
+      final manager = Layerman();
 
       PresentContext? seen;
       final done = Completer<void>();
@@ -1202,11 +1015,12 @@ void main() {
   group('beforeClose guard — TS parity', () {
     testWidgets('returning false cancels the close; true allows it',
         (tester) async {
-      final manager = OverlayManager(exitDuration: Duration.zero);
-      await pumpHost(tester, manager);
+      await tester.pumpWidget(const SizedBox());
+      final manager = Layerman();
 
       var allow = false;
-      manager.open(id: 'g', beforeClose: () => allow, builder: (c, h) => label('G'));
+      final g = _FakeBackend<String>();
+      manager.open(id: 'g', beforeClose: () => allow, present: g.present);
       await tester.pump();
 
       manager.close('g');
@@ -1223,13 +1037,14 @@ void main() {
 
     testWidgets('async guard is awaited; remove() bypasses the guard',
         (tester) async {
-      final manager = OverlayManager(exitDuration: Duration.zero);
-      await pumpHost(tester, manager);
+      await tester.pumpWidget(const SizedBox());
+      final manager = Layerman();
 
+      final g = _FakeBackend<String>();
       manager.open(
         id: 'g',
         beforeClose: () async => false,
-        builder: (c, h) => label('G'),
+        present: g.present,
       );
       await tester.pump();
       manager.close('g');
@@ -1248,39 +1063,44 @@ void main() {
   group('affix — TS parity', () {
     testWidgets('affix blocks replace; the replacer front-bands the queue',
         (tester) async {
-      final manager = OverlayManager(exitDuration: Duration.zero);
-      await pumpHost(tester, manager);
+      await tester.pumpWidget(const SizedBox());
+      final manager = Layerman();
 
-      manager.open(id: 'fix', affix: true, builder: (c, h) => label('FIX'));
-      manager.open(id: 'n', priority: 100, builder: (c, h) => label('N'));
-      manager.open(id: 'r', replace: true, builder: (c, h) => label('R'));
+      final fix = _FakeBackend<String>();
+      final n = _FakeBackend<String>();
+      final r = _FakeBackend<String>();
+      manager.open(id: 'fix', affix: true, present: fix.present);
+      manager.open(id: 'n', priority: 100, present: n.present);
+      manager.open(id: 'r', replace: true, present: r.present);
       await tester.pump();
 
-      expect(find.text('FIX'), findsOneWidget); // not displaced
+      expect(manager.isShowing('fix'), isTrue); // not displaced
       expect(manager.queuedIds, containsAll(<String>['n', 'r']));
 
       manager.close('fix');
       await tester.pump();
-      expect(find.text('R'), findsOneWidget); // replace band beats priority 100
+      expect(manager.isShowing('r'), isTrue); // replace band beats priority 100
 
       manager.close('r');
       await tester.pump();
-      expect(find.text('N'), findsOneWidget);
+      expect(manager.isShowing('n'), isTrue);
 
       manager.dispose();
     });
 
     testWidgets('duplicate-id self-update is NOT blocked by affix',
         (tester) async {
-      final manager = OverlayManager(exitDuration: Duration.zero);
-      await pumpHost(tester, manager);
+      await tester.pumpWidget(const SizedBox());
+      final manager = Layerman();
 
-      manager.open(id: 'fix', affix: true, builder: (c, h) => label('V1'));
+      final v1 = _FakeBackend<String>();
+      final v2 = _FakeBackend<String>();
+      manager.open(id: 'fix', affix: true, present: v1.present);
       await tester.pump();
-      manager.open(id: 'fix', affix: true, builder: (c, h) => label('V2'));
+      manager.open(id: 'fix', affix: true, present: v2.present);
       await tester.pump();
-      expect(find.text('V1'), findsNothing);
-      expect(find.text('V2'), findsOneWidget);
+      expect(v2.presented, isTrue);
+      expect(manager.isShowing('fix'), isTrue);
 
       manager.dispose();
     });
@@ -1289,35 +1109,37 @@ void main() {
   group('pause / resume — TS parity', () {
     testWidgets('pauseAll is a full freeze; resumeAll releases everything',
         (tester) async {
-      final manager = OverlayManager();
-      await pumpHost(tester, manager);
+      await tester.pumpWidget(const SizedBox());
+      final manager = Layerman();
 
       manager.pauseAll();
-      manager.open(id: 's', builder: (c, h) => label('S')); // serial frozen
-      manager.open(id: 'o', overlap: true, builder: (c, h) => label('O')); // held
+      final s = _FakeBackend<String>();
+      final o = _FakeBackend<String>();
+      manager.open(id: 's', present: s.present); // serial frozen
+      manager.open(id: 'o', overlap: true, present: o.present); // held
       await tester.pump();
       expect(manager.activeIds, isEmpty);
       expect(manager.queuedIds, containsAll(<String>['s', 'o']));
 
       manager.resumeAll();
       await tester.pump();
-      expect(find.text('S'), findsOneWidget);
-      expect(find.text('O'), findsOneWidget);
+      expect(s.presented, isTrue);
+      expect(o.presented, isTrue);
 
       manager.dispose();
     });
 
     testWidgets('pause(id)/resume(id) freeze the duration countdown',
         (tester) async {
+      await tester.pumpWidget(const SizedBox());
       var t = DateTime(2026, 1, 1, 12);
-      final manager =
-          OverlayManager(exitDuration: Duration.zero, now: () => t);
-      await pumpHost(tester, manager);
+      final manager = Layerman(now: () => t);
 
+      final backend = _FakeBackend<String>();
       manager.open(
         id: 'p',
         duration: const Duration(seconds: 1),
-        builder: (c, h) => label('P'),
+        present: backend.present,
       );
       await tester.pump();
 
@@ -1330,7 +1152,6 @@ void main() {
 
       manager.resume('p');
       await tester.pump(const Duration(milliseconds: 500));
-      await tester.pump();
       expect(manager.isShowing('p'), isFalse); // resumed with remaining time
 
       manager.dispose();
@@ -1340,18 +1161,19 @@ void main() {
   group('pauseOnRoutes — route-zone auto pause/resume', () {
     testWidgets('entering a matching route pauses the queue; leaving resumes',
         (tester) async {
-      final manager = OverlayManager(pauseOnRoutes: const ['/checkout']);
-      await pumpHost(tester, manager);
+      await tester.pumpWidget(const SizedBox());
+      final manager = Layerman(pauseOnRoutes: const ['/checkout']);
 
       manager.setContext({'route': '/checkout'});
-      manager.open(id: 'a', builder: (c, h) => label('A'));
+      final a = _FakeBackend<String>();
+      manager.open(id: 'a', present: a.present);
       await tester.pump();
-      expect(find.text('A'), findsNothing); // route zone froze activation
+      expect(a.presented, isFalse); // route zone froze activation
       expect(manager.isPaused, isTrue);
 
       manager.setContext({'route': '/home'});
       await tester.pump();
-      expect(find.text('A'), findsOneWidget); // left the zone -> resumed
+      expect(a.presented, isTrue); // left the zone -> resumed
       expect(manager.isPaused, isFalse);
 
       manager.dispose();
@@ -1359,54 +1181,56 @@ void main() {
 
     testWidgets('route zone does not undo an unrelated manual pauseAll',
         (tester) async {
-      final manager = OverlayManager(pauseOnRoutes: const ['/checkout']);
-      await pumpHost(tester, manager);
+      await tester.pumpWidget(const SizedBox());
+      final manager = Layerman(pauseOnRoutes: const ['/checkout']);
 
       manager.pauseAll();
       manager.setContext({'route': '/checkout'}); // enters zone too
-      manager.open(id: 'a', builder: (c, h) => label('A'));
+      final a = _FakeBackend<String>();
+      manager.open(id: 'a', present: a.present);
       await tester.pump();
-      expect(find.text('A'), findsNothing);
+      expect(a.presented, isFalse);
 
       manager.setContext({'route': '/home'}); // leaves zone; still manual-paused
       await tester.pump();
-      expect(find.text('A'), findsNothing); // still frozen
+      expect(a.presented, isFalse); // still frozen
       expect(manager.isPaused, isTrue);
 
       manager.resumeAll();
       await tester.pump();
-      expect(find.text('A'), findsOneWidget);
+      expect(a.presented, isTrue);
 
       manager.dispose();
     });
 
     testWidgets('manual resumeAll does not undo an active route zone',
         (tester) async {
-      final manager = OverlayManager(pauseOnRoutes: const ['/checkout']);
-      await pumpHost(tester, manager);
+      await tester.pumpWidget(const SizedBox());
+      final manager = Layerman(pauseOnRoutes: const ['/checkout']);
 
       manager.setContext({'route': '/checkout'}); // zone active
       manager.pauseAll(); // also manually paused (redundant but legal)
       manager.resumeAll(); // clears the MANUAL pause only
-      manager.open(id: 'a', builder: (c, h) => label('A'));
+      final a = _FakeBackend<String>();
+      manager.open(id: 'a', present: a.present);
       await tester.pump();
-      expect(find.text('A'), findsNothing); // route zone still holds it
+      expect(a.presented, isFalse); // route zone still holds it
       expect(manager.isPaused, isTrue);
 
       manager.setContext({'route': '/home'});
       await tester.pump();
-      expect(find.text('A'), findsOneWidget);
+      expect(a.presented, isTrue);
 
       manager.dispose();
     });
   });
 
-  group('OverlayNavigatorObserver — auto route context', () {
+  group('LayermanNavigatorObserver — auto route context', () {
     // Every callback defers its setContext to a post-frame callback (see the
-    // class doc) — pumpAndSettle flushes that plus the extra frame the
-    // resulting OverlayEntry insertion/removal needs to actually render.
-    // The observer listens to didChangeTop (the CURRENT topmost route),
-    // not the legacy didPush/didPop/didReplace/didRemove quartet.
+    // class doc) — pumpAndSettle flushes that plus the extra frame needed to
+    // observe the resulting state change. The observer listens to
+    // didChangeTop (the CURRENT topmost route), not the legacy
+    // didPush/didPop/didReplace/didRemove quartet.
     MaterialPageRoute<void> route(String? name, {Object? arguments}) =>
         MaterialPageRoute<void>(
           settings: RouteSettings(name: name, arguments: arguments),
@@ -1415,26 +1239,27 @@ void main() {
 
     testWidgets('didChangeTop makes route-conditioned overlays eligible',
         (tester) async {
-      final manager = OverlayManager();
-      await pumpHost(tester, manager);
-      final observer = OverlayNavigatorObserver(manager);
+      await tester.pumpWidget(const SizedBox());
+      final manager = Layerman();
+      final observer = LayermanNavigatorObserver(manager);
 
-      manager.open(id: 'a', route: '/checkout', builder: (c, h) => label('A'));
+      final a = _FakeBackend<String>();
+      manager.open(id: 'a', route: '/checkout', present: a.present);
       await tester.pump();
-      expect(find.text('A'), findsNothing); // no route observed yet
+      expect(a.presented, isFalse); // no route observed yet
 
       observer.didChangeTop(route('/checkout'), null);
       await tester.pumpAndSettle();
-      expect(find.text('A'), findsOneWidget);
+      expect(a.presented, isTrue);
 
       manager.dispose();
     });
 
     testWidgets('a later didChangeTop (e.g. after a pop) restores the '
         'previous path', (tester) async {
-      final manager = OverlayManager();
-      await pumpHost(tester, manager);
-      final observer = OverlayNavigatorObserver(manager);
+      await tester.pumpWidget(const SizedBox());
+      final manager = Layerman();
+      final observer = LayermanNavigatorObserver(manager);
 
       final home = route('/home');
       final checkout = route('/checkout');
@@ -1442,13 +1267,14 @@ void main() {
       observer.didChangeTop(checkout, home);
       await tester.pumpAndSettle();
 
-      manager.open(id: 'a', route: '/home', builder: (c, h) => label('A'));
+      final a = _FakeBackend<String>();
+      manager.open(id: 'a', route: '/home', present: a.present);
       await tester.pump();
-      expect(find.text('A'), findsNothing); // currently on /checkout
+      expect(a.presented, isFalse); // currently on /checkout
 
       observer.didChangeTop(home, checkout); // back to /home
       await tester.pumpAndSettle();
-      expect(find.text('A'), findsOneWidget);
+      expect(a.presented, isTrue);
 
       manager.dispose();
     });
@@ -1456,34 +1282,36 @@ void main() {
     testWidgets('an anonymous route (no settings.name) clears the route '
         'context — dismissWhenUnmet pulls the shown overlay down',
         (tester) async {
-      final manager = OverlayManager();
-      await pumpHost(tester, manager);
-      final observer = OverlayNavigatorObserver(manager);
+      await tester.pumpWidget(const SizedBox());
+      final manager = Layerman();
+      final observer = LayermanNavigatorObserver(manager);
 
       final home = route('/home');
       observer.didChangeTop(home, null);
       await tester.pumpAndSettle();
-      manager.open(id: 'a', route: '/home', builder: (c, h) => label('A'));
+      final a = _FakeBackend<String>();
+      manager.open(id: 'a', route: '/home', present: a.present);
       await tester.pumpAndSettle();
-      expect(find.text('A'), findsOneWidget);
+      expect(manager.isShowing('a'), isTrue);
 
       observer.didChangeTop(route(null), home); // no name
       await tester.pumpAndSettle();
-      expect(find.text('A'), findsNothing);
+      expect(manager.isShowing('a'), isFalse);
 
       manager.dispose();
     });
 
     testWidgets('custom pathOf overrides the default RouteSettings.name lookup',
         (tester) async {
-      final manager = OverlayManager();
-      await pumpHost(tester, manager);
-      final observer = OverlayNavigatorObserver(
+      await tester.pumpWidget(const SizedBox());
+      final manager = Layerman();
+      final observer = LayermanNavigatorObserver(
         manager,
         pathOf: (r) => r.settings.arguments as String?,
       );
 
-      manager.open(id: 'a', route: '/via-args', builder: (c, h) => label('A'));
+      final a = _FakeBackend<String>();
+      manager.open(id: 'a', route: '/via-args', present: a.present);
       await tester.pump();
 
       observer.didChangeTop(
@@ -1491,21 +1319,22 @@ void main() {
         null,
       );
       await tester.pumpAndSettle();
-      expect(find.text('A'), findsOneWidget);
+      expect(a.presented, isTrue);
 
       manager.dispose();
     });
 
     testWidgets('a throwing pathOf is reported, not propagated — route '
         'treated as unresolvable', (tester) async {
-      final manager = OverlayManager();
-      await pumpHost(tester, manager);
-      final observer = OverlayNavigatorObserver(
+      await tester.pumpWidget(const SizedBox());
+      final manager = Layerman();
+      final observer = LayermanNavigatorObserver(
         manager,
         pathOf: (r) => throw StateError('bad extractor'),
       );
 
-      manager.open(id: 'a', route: '/checkout', builder: (c, h) => label('A'));
+      final a = _FakeBackend<String>();
+      manager.open(id: 'a', route: '/checkout', present: a.present);
       await tester.pump();
 
       // A thrown pathOf reports via FlutterError.reportError instead of
@@ -1519,7 +1348,7 @@ void main() {
         FlutterError.onError = originalOnError;
       }
       await tester.pumpAndSettle();
-      expect(find.text('A'), findsNothing); // treated as unresolvable, not '/checkout'
+      expect(a.presented, isFalse); // treated as unresolvable, not '/checkout'
       expect(manager.currentRoute, isNull);
 
       manager.dispose();
@@ -1527,9 +1356,9 @@ void main() {
 
     testWidgets('a manager disposed before the deferred frame runs is never '
         'called into (no ChangeNotifier-after-dispose)', (tester) async {
-      final manager = OverlayManager();
-      await pumpHost(tester, manager);
-      final observer = OverlayNavigatorObserver(manager);
+      await tester.pumpWidget(const SizedBox());
+      final manager = Layerman();
+      final observer = LayermanNavigatorObserver(manager);
 
       observer.didChangeTop(route('/checkout'), null); // queues a post-frame callback
       manager.dispose(); // disposed BEFORE the callback gets a chance to fire
@@ -1544,116 +1373,131 @@ void main() {
   group('conditions (when / route / requiresAuth / setContext) — TS parity',
       () {
     testWidgets('route gating: waits until setContext matches', (tester) async {
-      final manager = OverlayManager();
-      await pumpHost(tester, manager);
+      await tester.pumpWidget(const SizedBox());
+      final manager = Layerman();
 
       manager.setContext({'route': '/home'});
-      manager.open(id: 'a', route: '/target', builder: (c, h) => label('A'));
+      final a = _FakeBackend<String>();
+      manager.open(id: 'a', route: '/target', present: a.present);
       await tester.pump();
-      expect(find.text('A'), findsNothing);
+      expect(a.presented, isFalse);
       expect(manager.queuedIds, contains('a')); // waits, not dropped
 
       manager.setContext({'route': '/target'});
       await tester.pump();
-      expect(find.text('A'), findsOneWidget);
+      expect(a.presented, isTrue);
 
       manager.dispose();
     });
 
     testWidgets('route supports List<String> and RegExp', (tester) async {
-      final manager = OverlayManager();
-      await pumpHost(tester, manager);
+      await tester.pumpWidget(const SizedBox());
+      final manager = Layerman();
 
       manager.setContext({'route': '/user/42'});
-      manager.open(id: 'list', route: const ['/a', '/b'], builder: (c, h) => label('L'));
-      manager.open(id: 're', route: RegExp(r'^/user/\d+$'), builder: (c, h) => label('RE'));
+      final list = _FakeBackend<String>();
+      final re = _FakeBackend<String>();
+      manager.open(id: 'list', route: const ['/a', '/b'], present: list.present);
+      manager.open(
+          id: 're', route: RegExp(r'^/user/\d+$'), present: re.present);
       await tester.pump();
-      expect(find.text('L'), findsNothing);
-      expect(find.text('RE'), findsOneWidget);
+      expect(list.presented, isFalse);
+      expect(re.presented, isTrue);
 
       manager.dispose();
     });
 
     testWidgets('requiresAuth + when overrides the sugar', (tester) async {
-      final manager = OverlayManager();
-      await pumpHost(tester, manager);
+      await tester.pumpWidget(const SizedBox());
+      final manager = Layerman();
 
       manager.setContext({'auth': false});
-      manager.open(id: 'au', requiresAuth: true, builder: (c, h) => label('AU'));
+      final au = _FakeBackend<String>();
+      manager.open(id: 'au', requiresAuth: true, present: au.present);
       await tester.pump();
-      expect(find.text('AU'), findsNothing);
+      expect(au.presented, isFalse);
 
       // `when` is the sole authority: ignores mismatching route/auth.
+      final wn = _FakeBackend<String>();
       manager.open(
         id: 'wn',
         route: '/nope',
         requiresAuth: true,
         when: (ctx) => true,
-        builder: (c, h) => label('WN'),
+        present: wn.present,
       );
       await tester.pump();
-      expect(find.text('WN'), findsOneWidget);
+      expect(wn.presented, isTrue);
 
       manager.dispose();
     });
 
     testWidgets('dismissWhenUnmet (default) removes a shown overlay; '
         'false keeps it', (tester) async {
-      final manager = OverlayManager();
-      await pumpHost(tester, manager);
+      await tester.pumpWidget(const SizedBox());
+      final manager = Layerman();
 
       manager.setContext({'route': '/home'});
-      manager.open(id: 'a', route: '/home', builder: (c, h) => label('A'));
-      manager.open(id: 'b', builder: (c, h) => label('B')); // unconditional
+      final a = _FakeBackend<String>();
+      final b = _FakeBackend<String>();
+      manager.open(id: 'a', route: '/home', present: a.present);
+      manager.open(id: 'b', present: b.present); // unconditional
       await tester.pump();
-      expect(find.text('A'), findsOneWidget);
+      expect(manager.isShowing('a'), isTrue);
 
       manager.setContext({'route': '/other'}); // a no longer eligible
       await tester.pump();
-      expect(find.text('A'), findsNothing); // auto-dismissed
-      expect(find.text('B'), findsOneWidget); // queue advanced
+      expect(manager.isShowing('a'), isFalse); // auto-dismissed
+      expect(b.presented, isTrue); // queue advanced
 
       manager.setContext({'route': '/home'});
+      final keep = _FakeBackend<String>();
       manager.open(
         id: 'keep',
         route: '/home',
         dismissWhenUnmet: false,
         replace: true,
-        builder: (c, h) => label('KEEP'),
+        present: keep.present,
       );
       await tester.pump();
       manager.setContext({'route': '/other'});
       await tester.pump();
-      expect(find.text('KEEP'), findsOneWidget); // opted out
+      expect(manager.isShowing('keep'), isTrue); // opted out
 
       manager.dispose();
     });
 
     testWidgets('an ineligible replace does not displace the current (5b); '
         'an ineligible overlap is dropped', (tester) async {
-      final manager = OverlayManager();
-      await pumpHost(tester, manager);
+      await tester.pumpWidget(const SizedBox());
+      final manager = Layerman();
 
-      manager.open(id: 'keep', builder: (c, h) => label('KEEP'));
+      final keep = _FakeBackend<String>();
+      manager.open(id: 'keep', present: keep.present);
       await tester.pump();
+      final rx = _FakeBackend<String>();
       manager.open(
         id: 'rx',
         replace: true,
         requiresAuth: true, // auth unset -> ineligible
-        builder: (c, h) => label('RX'),
+        present: rx.present,
       );
       await tester.pump();
-      expect(find.text('KEEP'), findsOneWidget); // untouched
+      expect(manager.isShowing('keep'), isTrue); // untouched
       expect(manager.queuedIds, contains('rx')); // waits instead
 
+      var oxPresented = false;
       final dropped = manager.open<String>(
         id: 'ox',
         overlap: true,
         requiresAuth: true,
-        builder: (c, h) => label('OX'),
+        present: (ctx) {
+          oxPresented = true;
+          return PresentedOverlay<String>(dismissed: Completer<String?>().future);
+        },
       );
       await tester.pump();
-      expect(find.text('OX'), findsNothing); // now-or-never: dropped
+      expect(oxPresented, isFalse); // now-or-never: dropped
       expect(await dropped, isNull);
 
       manager.dispose();
@@ -1662,200 +1506,178 @@ void main() {
 
   group('cooldown — TS parity', () {
     testWidgets('session cap blocks the second show', (tester) async {
-      final manager = OverlayManager(exitDuration: Duration.zero);
-      await pumpHost(tester, manager);
+      await tester.pumpWidget(const SizedBox());
+      final manager = Layerman();
 
       const cd = OverlayCooldown(session: 1);
-      manager.open(id: 's', cooldown: cd, builder: (c, h) => label('S'));
+      final s1 = _FakeBackend<String>();
+      manager.open(id: 's', cooldown: cd, present: s1.present);
       await tester.pump();
       manager.close('s');
       await tester.pump();
 
-      manager.open(id: 's', cooldown: cd, builder: (c, h) => label('S2'));
+      final s2 = _FakeBackend<String>();
+      manager.open(id: 's', cooldown: cd, present: s2.present);
       await tester.pump();
-      expect(find.text('S2'), findsNothing); // capped, waits in queue
+      expect(s2.presented, isFalse); // capped, waits in queue
       expect(manager.queuedIds, contains('s'));
 
       manager.dispose();
     });
 
     testWidgets('minGap blocks inside the window, allows after', (tester) async {
+      await tester.pumpWidget(const SizedBox());
       var t = DateTime(2026, 1, 1, 12);
-      final manager =
-          OverlayManager(exitDuration: Duration.zero, now: () => t);
-      await pumpHost(tester, manager);
+      final manager = Layerman(now: () => t);
 
       const cd = OverlayCooldown(minGap: Duration(seconds: 10));
-      manager.open(id: 'g', cooldown: cd, builder: (c, h) => label('G'));
+      final g1 = _FakeBackend<String>();
+      manager.open(id: 'g', cooldown: cd, present: g1.present);
       await tester.pump();
       manager.close('g');
       await tester.pump();
 
-      manager.open(id: 'g', cooldown: cd, builder: (c, h) => label('G2'));
+      final g2 = _FakeBackend<String>();
+      manager.open(id: 'g', cooldown: cd, present: g2.present);
       await tester.pump();
-      expect(find.text('G2'), findsNothing); // inside the gap
+      expect(g2.presented, isFalse); // inside the gap
 
       t = t.add(const Duration(seconds: 11));
       manager.setContext({}); // nudge re-evaluation (cooldown expiry is silent)
       await tester.pump();
-      expect(find.text('G2'), findsOneWidget);
+      expect(g2.presented, isTrue);
 
       manager.dispose();
     });
 
     testWidgets('minGap auto-wakes the queued entry when it expires (no nudge)',
         (tester) async {
+      await tester.pumpWidget(const SizedBox());
       var t = DateTime(2026, 1, 1, 12);
-      final manager =
-          OverlayManager(exitDuration: Duration.zero, now: () => t);
-      await pumpHost(tester, manager);
+      final manager = Layerman(now: () => t);
 
       const cd = OverlayCooldown(minGap: Duration(milliseconds: 500));
-      manager.open(id: 'g', cooldown: cd, builder: (c, h) => label('G'));
+      final g1 = _FakeBackend<String>();
+      manager.open(id: 'g', cooldown: cd, present: g1.present);
       await tester.pump();
       manager.close('g');
       await tester.pump();
 
-      manager.open(id: 'g', cooldown: cd, builder: (c, h) => label('G2'));
+      final g2 = _FakeBackend<String>();
+      manager.open(id: 'g', cooldown: cd, present: g2.present);
       await tester.pump();
-      expect(find.text('G2'), findsNothing); // inside the gap → queued
+      expect(g2.presented, isFalse); // inside the gap → queued
 
       // Advance the clock and let the armed wake timer fire — crucially with
       // NO setContext nudge: a time-based cooldown wakes its own queue.
       t = t.add(const Duration(seconds: 1));
       await tester.pump(const Duration(milliseconds: 520));
-      expect(find.text('G2'), findsOneWidget);
-
-      manager.dispose();
-    });
-
-    testWidgets('a displaced overlay re-shows without re-counting its cooldown',
-        (tester) async {
-      var t = DateTime(2026, 1, 1, 12);
-      final manager =
-          OverlayManager(exitDuration: Duration.zero, now: () => t);
-      await pumpHost(tester, manager);
-
-      const cd = OverlayCooldown(day: 2); // at most twice per local day
-
-      manager.open(id: 'a', cooldown: cd, builder: (c, h) => label('A'));
-      await tester.pump(); // 1st count
-      manager.open(id: 'b', replace: true, builder: (c, h) => label('B'));
-      await tester.pump();
-      expect(manager.queuedIds, contains('a')); // displaced, not dropped
-
-      manager.close('b');
-      await tester.pump();
-      expect(find.text('A'), findsOneWidget); // re-shows; the re-open is exempt
-      manager.close('a');
-      await tester.pump();
-
-      // Because the displaced re-show did NOT burn a count, a genuine second
-      // show is still allowed...
-      manager.open(id: 'a', cooldown: cd, builder: (c, h) => label('A2'));
-      await tester.pump();
-      expect(find.text('A2'), findsOneWidget); // 2nd of 2
-      manager.close('a');
-      await tester.pump();
-
-      // ...but the third hits the day:2 cap.
-      manager.open(id: 'a', cooldown: cd, builder: (c, h) => label('A3'));
-      await tester.pump();
-      expect(find.text('A3'), findsNothing);
+      expect(g2.presented, isTrue);
 
       manager.dispose();
     });
 
     testWidgets('day cap resets across the local midnight', (tester) async {
+      await tester.pumpWidget(const SizedBox());
       var t = DateTime(2026, 1, 1, 23, 59);
-      final manager =
-          OverlayManager(exitDuration: Duration.zero, now: () => t);
-      await pumpHost(tester, manager);
+      final manager = Layerman(now: () => t);
 
       const cd = OverlayCooldown(day: 1);
-      manager.open(id: 'd', cooldown: cd, builder: (c, h) => label('D'));
+      final d1 = _FakeBackend<String>();
+      manager.open(id: 'd', cooldown: cd, present: d1.present);
       await tester.pump();
       manager.close('d');
       await tester.pump();
 
-      manager.open(id: 'd', cooldown: cd, builder: (c, h) => label('D2'));
+      final d2 = _FakeBackend<String>();
+      manager.open(id: 'd', cooldown: cd, present: d2.present);
       await tester.pump();
-      expect(find.text('D2'), findsNothing); // same day
+      expect(d2.presented, isFalse); // same day
 
       t = DateTime(2026, 1, 2, 0, 1); // crossed midnight
       manager.setContext({});
       await tester.pump();
-      expect(find.text('D2'), findsOneWidget);
+      expect(d2.presented, isTrue);
 
       manager.dispose();
     });
 
     testWidgets('total persists across manager instances via storage',
         (tester) async {
+      await tester.pumpWidget(const SizedBox());
       final storage = MemoryCooldownStorage();
       const cd = OverlayCooldown(total: 1);
 
-      final m1 = OverlayManager(
-          exitDuration: Duration.zero, cooldownStorage: storage);
+      final m1 = Layerman(cooldownStorage: storage);
       await m1.ready();
-      await pumpHost(tester, m1);
-      m1.open(id: 't', cooldown: cd, builder: (c, h) => label('T'));
+      final t1 = _FakeBackend<String>();
+      m1.open(id: 't', cooldown: cd, present: t1.present);
       await tester.pump(); // open + fire-and-forget persist
       await tester.pump();
       m1.dispose();
 
-      final m2 = OverlayManager(
-          exitDuration: Duration.zero, cooldownStorage: storage);
+      final m2 = Layerman(cooldownStorage: storage);
       await m2.ready(); // hydrates the persisted counter
-      await pumpHost(tester, m2);
-      m2.open(id: 't', cooldown: cd, builder: (c, h) => label('T2'));
+      final t2 = _FakeBackend<String>();
+      m2.open(id: 't', cooldown: cd, present: t2.present);
       await tester.pump();
-      expect(find.text('T2'), findsNothing); // total cap survived the restart
+      expect(t2.presented, isFalse); // total cap survived the restart
 
       m2.dispose();
     });
   });
 
   group('resolve (backend-driven data) — TS parity', () {
-    testWidgets('resolved data becomes handle.data; slot is committed',
+    testWidgets('resolved data becomes PresentContext.data; slot is committed',
         (tester) async {
-      final manager = OverlayManager();
-      await pumpHost(tester, manager);
+      await tester.pumpWidget(const SizedBox());
+      final manager = Layerman();
 
       final backend = Completer<String?>();
+      Object? seenData;
       manager.open<String>(
         id: 'r',
         resolve: () => backend.future,
-        builder: (c, h) => label('R:${h.data}'),
+        present: (ctx) {
+          seenData = ctx.data;
+          return PresentedOverlay<String>(dismissed: Completer<String?>().future);
+        },
       );
-      manager.open(id: 'hi', priority: 100, builder: (c, h) => label('HI'));
+      final hi = _FakeBackend<String>();
+      manager.open(id: 'hi', priority: 100, present: hi.present);
       await tester.pump();
       expect(manager.activeIds, isEmpty); // resolving, nothing visible yet
-      expect(find.text('HI'), findsNothing); // cannot preempt the commitment
+      expect(hi.presented, isFalse); // cannot preempt the commitment
 
       backend.complete('X');
       await tester.pump();
       await tester.pump();
-      expect(find.text('R:X'), findsOneWidget); // data injected
+      expect(seenData, 'X'); // data injected
+      expect(manager.isShowing('r'), isTrue);
       expect(manager.queuedIds, contains('hi'));
 
       manager.dispose();
     });
 
     testWidgets('resolve returning null skips to the next', (tester) async {
-      final manager = OverlayManager();
-      await pumpHost(tester, manager);
+      await tester.pumpWidget(const SizedBox());
+      final manager = Layerman();
 
+      var presentCalled = false;
       final skipped = manager.open<String>(
         id: 'r',
         resolve: () async => null,
-        builder: (c, h) => label('R'),
+        present: (ctx) {
+          presentCalled = true;
+          return PresentedOverlay<String>(dismissed: Completer<String?>().future);
+        },
       );
-      manager.open(id: 'next', builder: (c, h) => label('NEXT'));
+      final next = _FakeBackend<String>();
+      manager.open(id: 'next', present: next.present);
       await tester.pump();
       await tester.pump();
-      expect(find.text('R'), findsNothing);
-      expect(find.text('NEXT'), findsOneWidget);
+      expect(presentCalled, isFalse);
+      expect(next.presented, isTrue);
       expect(await skipped, isNull);
 
       manager.dispose();
@@ -1863,40 +1685,52 @@ void main() {
   });
 
   group('update / clearWhere — TS parity', () {
-    testWidgets('update(id, patch) shallow-merges data and rebuilds',
+    testWidgets(
+        'update(id, patch) shallow-merges data in place and notifies listeners',
         (tester) async {
-      final manager = OverlayManager();
-      await pumpHost(tester, manager);
+      await tester.pumpWidget(const SizedBox());
+      final manager = Layerman();
 
       manager.open(
         id: 'u',
         data: {'n': 1, 'keep': 'x'},
-        builder: (c, h) {
-          final d = h.data as Map;
-          return label('n=${d['n']} keep=${d['keep']}');
-        },
+        present: (ctx) =>
+            PresentedOverlay<void>(dismissed: Completer<void>().future),
       );
       await tester.pump();
-      expect(find.text('n=1 keep=x'), findsOneWidget);
 
+      var notified = false;
+      manager.addListener(() => notified = true);
       manager.update('u', {'n': 2});
-      await tester.pump();
-      expect(find.text('n=2 keep=x'), findsOneWidget); // merged in place
+
+      // clearWhere's predicate is the only public window onto an entry's live
+      // data; use it purely as an inspector (always return false) to confirm
+      // the merge without actually removing the entry.
+      Object? seenData;
+      manager.clearWhere((r) {
+        if (r.id == 'u') seenData = r.data;
+        return false;
+      });
+      expect(seenData, {'n': 2, 'keep': 'x'}); // merged in place
+      expect(notified, isTrue);
 
       manager.dispose();
     });
 
     testWidgets('clearWhere removes matching entries only', (tester) async {
-      final manager = OverlayManager();
-      await pumpHost(tester, manager);
+      await tester.pumpWidget(const SizedBox());
+      final manager = Layerman();
 
-      manager.open(id: 'keep', builder: (c, h) => label('KEEP'));
-      manager.open(id: 'drop-1', data: {'group': 'x'}, builder: (c, h) => label('D1'));
+      final keep = _FakeBackend<String>();
+      final drop1 = _FakeBackend<String>();
+      final drop2 = _FakeBackend<String>();
+      manager.open(id: 'keep', present: keep.present);
+      manager.open(id: 'drop-1', data: {'group': 'x'}, present: drop1.present);
       manager.open(
           id: 'drop-2',
           slot: 'toast',
           data: {'group': 'x'},
-          builder: (c, h) => label('D2'));
+          present: drop2.present);
       await tester.pump();
 
       manager.clearWhere(
@@ -1904,33 +1738,9 @@ void main() {
       await tester.pump();
       expect(manager.isShowing('keep'), isTrue);
       expect(manager.queuedIds, isEmpty);
-      expect(find.text('D2'), findsNothing);
+      expect(manager.isShowing('drop-2'), isFalse);
 
       manager.dispose();
     });
-  });
-
-  testWidgets('phase transitions from open to closing on close', (tester) async {
-    final manager =
-        OverlayManager(exitDuration: const Duration(milliseconds: 200));
-    await pumpHost(tester, manager);
-
-    late OverlayHandle<void> captured;
-    manager.open<void>(
-      id: 'p',
-      builder: (c, h) {
-        captured = h;
-        return label('P');
-      },
-    );
-    await tester.pump();
-    expect(captured.phase, OverlayPhase.open);
-
-    manager.close('p');
-    await tester.pump();
-    expect(captured.phase, OverlayPhase.closing);
-
-    await tester.pump(const Duration(milliseconds: 200));
-    manager.dispose();
   });
 }
