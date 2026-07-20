@@ -2,14 +2,14 @@ import 'package:flutter/widgets.dart';
 import 'package:layerman/layerman.dart';
 import 'package:shadcn_ui/shadcn_ui.dart';
 
-OverlayManager om = _fresh();
+Layerman om = _fresh();
 
-OverlayManager _fresh() => OverlayManager(
+Layerman _fresh() => Layerman(
       gap: const Duration(milliseconds: 300),
       pauseOnRoutes: const ['/zone'],
     );
 
-OverlayManager createFreshManager() => _fresh();
+Layerman createFreshManager() => _fresh();
 
 void Function()? _restartCb;
 void registerRestartCallback(void Function() cb) => _restartCb = cb;

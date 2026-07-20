@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import '../helpers.dart';
-import '../manager.dart';
 
 class TimingPage extends StatelessWidget {
   const TimingPage({super.key});
@@ -14,32 +13,28 @@ class TimingPage extends StatelessWidget {
         children: [
           pageHeader(context, 'Timing',
               'Three per-overlay timing parameters: delay defers activation, '
-              'duration auto-dismisses after a countdown, exitDuration controls '
-              'how long the closing phase lasts before the entry is removed. '
-              'gap is a constructor parameter of OverlayManager.'),
+              'duration auto-dismisses after a countdown, exitDuration is the '
+              'grace period between the backend closing and the entry actually '
+              'being removed (lets a shared exit animation finish). '
+              'gap is a constructor parameter of Layerman.'),
           pageSection(
             context,
             'delay — defer first activation',
             [
               demoButton('btn-delay-1s', 'delay: 1s', () {
-                om.open(
-                    id: 'dly1',
+                openCard('dly1',
+                    text: 'DELAY 1s',
                     delay: const Duration(seconds: 1),
-                    builder: (c, h) => buildCard('DELAY 1s', h,
-                        hint: 'Appeared 1s after open() was called'));
+                    hint: 'Appeared 1s after open() was called');
               }),
               demoButton('btn-delay-3s', 'delay: 3s', () {
-                om.open(
-                    id: 'dly3',
+                openCard('dly3',
+                    text: 'DELAY 3s',
                     delay: const Duration(seconds: 3),
-                    builder: (c, h) => buildCard('DELAY 3s', h,
-                        hint: 'Appeared 3s after open() was called'));
+                    hint: 'Appeared 3s after open() was called');
               }),
               demoButton('btn-delay-0', 'delay: none (immediate)', () {
-                om.open(
-                    id: 'dly0',
-                    builder: (c, h) =>
-                        buildCard('NO DELAY', h, hint: 'Immediate activation'));
+                openCard('dly0', text: 'NO DELAY', hint: 'Immediate activation');
               }),
             ],
             subtitle:
@@ -52,24 +47,20 @@ class TimingPage extends StatelessWidget {
             'duration — auto-dismiss countdown',
             [
               demoButton('btn-dur-2s', 'duration: 2s', () {
-                om.open(
-                    id: 'dur2',
+                openCard('dur2',
+                    text: 'AUTO 2s',
                     duration: const Duration(seconds: 2),
-                    builder: (c, h) => buildCard('AUTO 2s', h,
-                        hint: 'Closes automatically after 2 seconds'));
+                    hint: 'Closes automatically after 2 seconds');
               }),
               demoButton('btn-dur-5s', 'duration: 5s', () {
-                om.open(
-                    id: 'dur5',
+                openCard('dur5',
+                    text: 'AUTO 5s',
                     duration: const Duration(seconds: 5),
-                    builder: (c, h) => buildCard('AUTO 5s', h,
-                        hint: 'Closes automatically after 5 seconds'));
+                    hint: 'Closes automatically after 5 seconds');
               }),
               demoButton('btn-dur-manual', 'no duration (manual close)', () {
-                om.open(
-                    id: 'durman',
-                    builder: (c, h) => buildCard('MANUAL', h,
-                        hint: 'No auto-close — close button required'));
+                openCard('durman',
+                    text: 'MANUAL', hint: 'No auto-close — close button required');
               }),
             ],
             subtitle:
@@ -79,46 +70,40 @@ class TimingPage extends StatelessWidget {
           ),
           pageSection(
             context,
-            'exitDuration — closing phase length',
+            'exitDuration — grace before removal',
             [
-              demoButton('btn-exit-0', 'exitDuration: 0ms', () {
-                om.open(
-                    id: 'ex0',
-                    exitDuration: Duration.zero,
-                    builder: (c, h) =>
-                        buildCard('EXIT 0ms', h, hint: 'Disappears instantly on close'));
+              demoButton('btn-exit-0', 'exitDuration: none (immediate)', () {
+                openCard('ex0',
+                    text: 'EXIT none',
+                    hint: 'Advances the queue as soon as the dialog reports closed');
               }),
               demoButton('btn-exit-600', 'exitDuration: 600ms', () {
-                om.open(
-                    id: 'ex600',
+                openCard('ex600',
+                    text: 'EXIT 600ms',
                     exitDuration: const Duration(milliseconds: 600),
-                    builder: (c, h) => buildCard('EXIT 600ms', h,
-                        hint: 'Stays in "closing" phase for 600ms.\n'
-                            'The phase listenable lets you animate the exit.'));
-              }),
-              demoButton('btn-exit-default', 'exitDuration: default (200ms)', () {
-                om.open(
-                    id: 'exdef',
-                    builder: (c, h) =>
-                        buildCard('EXIT default', h, hint: 'Default exitDuration = 200ms'));
+                    hint: 'Queue waits 600ms after close before the next overlay '
+                        'activates — gives the backend room for its own exit '
+                        'animation.');
               }),
             ],
             subtitle:
-                'exitDuration controls the closing phase before final removal. '
-                'Use ValueListenableBuilder on handle.phaseListenable to drive exit animations.',
+                'exitDuration is a per-open() grace between the backend reporting '
+                '"dismissed" and the queue actually advancing. null (the default) '
+                'advances immediately — there is no more phase/animation owned by '
+                'the manager itself; the backend (showDialog here) plays its own.',
           ),
           pageSection(
             context,
             'Combine: delay + duration + exitDuration',
             [
               demoButton('btn-all-timing', 'delay 1s → show 3s → exit 500ms', () {
-                om.open(
-                    id: 'alltm',
+                openCard('alltm',
+                    text: 'ALL TIMING',
                     delay: const Duration(seconds: 1),
                     duration: const Duration(seconds: 3),
                     exitDuration: const Duration(milliseconds: 500),
-                    builder: (c, h) => buildCard('ALL TIMING', h,
-                        hint: 'delay 1s → auto-close after 3s → exit 500ms'));
+                    hint: 'delay 1s → auto-close after 3s → 500ms grace before '
+                        'the next overlay activates');
               }),
             ],
           ),

@@ -30,13 +30,12 @@ class _ConditionsPageState extends State<ConditionsPage> {
             'route — only show on a specific route',
             [
               demoButton('btn-cond-promo', 'open with route: "/promo"', () {
-                om.open(
-                    id: 'cond-promo',
+                openEntry('cond-promo',
+                    text: 'ROUTE /promo',
                     route: '/promo',
                     dismissWhenUnmet: true,
-                    builder: (c, h) => buildCard('ROUTE /promo', h,
-                        hint: 'Only visible on /promo.\n'
-                            'Leaving /promo auto-dismisses this card.'));
+                    hint: 'Only visible on /promo.\n'
+                        'Leaving /promo auto-dismisses this card.');
               }),
               demoButton('btn-goto-promo', '→ navigate to /promo', () {
                 Navigator.of(context).push(MaterialPageRoute<void>(
@@ -55,11 +54,10 @@ class _ConditionsPageState extends State<ConditionsPage> {
             'route with RegExp — pattern matching',
             [
               demoButton('btn-cond-regex', 'route: RegExp(r"^/promo")', () {
-                om.open(
-                    id: 'cond-regex',
+                openEntry('cond-regex',
+                    text: 'REGEX route',
                     route: RegExp(r'^/promo'),
-                    builder: (c, h) =>
-                        buildCard('REGEX route', h, hint: 'Matches any route starting with /promo'));
+                    hint: 'Matches any route starting with /promo');
               }),
             ],
           ),
@@ -68,11 +66,10 @@ class _ConditionsPageState extends State<ConditionsPage> {
             'route with List — multiple eligible routes',
             [
               demoButton('btn-cond-list', 'route: ["/promo", "/zone"]', () {
-                om.open(
-                    id: 'cond-list',
+                openEntry('cond-list',
+                    text: 'LIST route',
                     route: const ['/promo', '/zone'],
-                    builder: (c, h) => buildCard('LIST route', h,
-                        hint: 'Eligible on /promo OR /zone'));
+                    hint: 'Eligible on /promo OR /zone');
               }),
             ],
           ),
@@ -94,11 +91,10 @@ class _ConditionsPageState extends State<ConditionsPage> {
               ),
               const SizedBox(height: 8),
               demoButton('btn-cond-when', 'open with when: (ctx) => toggle', () {
-                om.open(
-                    id: 'cond-when',
+                openCard('cond-when',
+                    text: 'WHEN',
                     when: (_) => _whenEnabled,
-                    builder: (c, h) => buildCard('WHEN', h,
-                        hint: 'Only activates when the toggle above is ON'));
+                    hint: 'Only activates when the toggle above is ON');
               }),
               demoButton('btn-cond-nudge', 'setContext (trigger re-eval)', () {
                 om.setContext({});
@@ -129,11 +125,10 @@ class _ConditionsPageState extends State<ConditionsPage> {
               ),
               const SizedBox(height: 8),
               demoButton('btn-cond-auth', 'open with requiresAuth: true', () {
-                om.open(
-                    id: 'cond-auth',
+                openCard('cond-auth',
+                    text: 'AUTH REQUIRED',
                     requiresAuth: true,
-                    builder: (c, h) => buildCard('AUTH REQUIRED', h,
-                        hint: 'Only activates when context["auth"] == true'));
+                    hint: 'Only activates when context["auth"] == true');
               }),
             ],
             subtitle:
@@ -145,13 +140,12 @@ class _ConditionsPageState extends State<ConditionsPage> {
             'dismissWhenUnmet: false — stay shown even if condition breaks',
             [
               demoButton('btn-cond-stay', 'open route:/promo + dismissWhenUnmet:false', () {
-                om.open(
-                    id: 'cond-stay',
+                openEntry('cond-stay',
+                    text: 'STAYS',
                     route: '/promo',
                     dismissWhenUnmet: false,
-                    builder: (c, h) => buildCard('STAYS', h,
-                        hint: 'route:/promo but dismissWhenUnmet:false\n'
-                            'Navigating away does NOT auto-close this'));
+                    hint: 'route:/promo but dismissWhenUnmet:false\n'
+                        'Navigating away does NOT auto-close this');
               }),
             ],
             subtitle:
@@ -174,7 +168,7 @@ class _ConditionsPageState extends State<ConditionsPage> {
             ],
             subtitle:
                 'setContext merges into existing context and re-evaluates all conditions. '
-                'OverlayNavigatorObserver calls this automatically on navigation.',
+                'LayermanNavigatorObserver calls this automatically on navigation.',
           ),
         ],
       ),

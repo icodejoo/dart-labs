@@ -2,7 +2,7 @@ import 'package:flutter/widgets.dart';
 
 import 'overlay_manager.dart';
 
-/// Feeds real navigation into [OverlayManager.setContext]'s `route` key
+/// Feeds real navigation into [Layerman.setContext]'s `route` key
 /// automatically, so `route`/`when`/`dismissWhenUnmet` conditions and
 /// `pauseOnRoutes` react to actual navigation without the host writing
 /// `setContext({'route': ...})` by hand in every page's lifecycle.
@@ -15,7 +15,7 @@ import 'overlay_manager.dart';
 ///
 /// ```dart
 /// MaterialApp(
-///   navigatorObservers: [OverlayNavigatorObserver(manager)],
+///   navigatorObservers: [LayermanNavigatorObserver(manager)],
 ///   ...
 /// )
 /// ```
@@ -64,15 +64,15 @@ import 'overlay_manager.dart';
 /// this mid-build, and `setContext` synchronously notifies listeners and may
 /// insert `OverlayEntry`s — doing that mid-build throws (`setState()/
 /// markNeedsBuild() called during build`). Deferring here means callers never
-/// have to work around this themselves. [OverlayManager.isDisposed] is
+/// have to work around this themselves. [Layerman.isDisposed] is
 /// checked both before scheduling and inside the deferred callback, so a
 /// manager disposed between a navigation event and the next frame (e.g. an
 /// app-level restart that swaps managers) is never called after disposal.
-class OverlayNavigatorObserver extends NavigatorObserver {
-  OverlayNavigatorObserver(this.manager, {String? Function(Route<dynamic> route)? pathOf})
+class LayermanNavigatorObserver extends NavigatorObserver {
+  LayermanNavigatorObserver(this.manager, {String? Function(Route<dynamic> route)? pathOf})
       : _pathOf = pathOf ?? _defaultPathOf;
 
-  final OverlayManager manager;
+  final Layerman manager;
   final String? Function(Route<dynamic> route) _pathOf;
 
   static String? _defaultPathOf(Route<dynamic> route) => route.settings.name;
@@ -91,7 +91,7 @@ class OverlayNavigatorObserver extends NavigatorObserver {
         stack: stack,
         library: 'layerman',
         context: ErrorDescription(
-          'while extracting the path for OverlayNavigatorObserver',
+          'while extracting the path for LayermanNavigatorObserver',
         ),
       ));
       path = null; // treat an extraction failure like an unresolvable route
