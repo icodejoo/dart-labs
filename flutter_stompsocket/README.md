@@ -87,7 +87,7 @@ ws.dispose();      // reversible stop
 | Option | Type | Default | Description |
 |---|---|---|---|
 | `reconnectDelay` | `Duration` | `5s` | Fixed-interval auto-reconnect; `>0` retries forever, `Duration.zero` disables it. |
-| `resumeOnForeground` | `bool` | `false` | When true, reconnect immediately on `AppLifecycleState.resumed` if disconnected (requires an initialized `WidgetsBinding`). |
+| `resumeOnForeground` | `bool` | `true` | When true, reconnect immediately on `AppLifecycleState.resumed` if disconnected (requires an initialized `WidgetsBinding`; set to `false` for plain-Dart contexts without one). |
 
 #### Parsing
 

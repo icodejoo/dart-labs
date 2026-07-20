@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'pages/queue_page.dart';
 import 'pages/replace_affix_page.dart';
 import 'pages/overlap_page.dart';
-import 'pages/barrier_page.dart';
 import 'pages/timing_page.dart';
 import 'pages/conditions_page.dart';
 import 'pages/cooldown_page.dart';
@@ -25,7 +24,6 @@ const _destinations = [
   _Dest('Queue Basics', Icons.queue_outlined),
   _Dest('Replace & Affix', Icons.swap_horiz),
   _Dest('Overlap', Icons.layers_outlined),
-  _Dest('Barrier & Close', Icons.blur_on_outlined),
   _Dest('Timing', Icons.timer_outlined),
   _Dest('Conditions', Icons.filter_alt_outlined),
   _Dest('Cooldown', Icons.hourglass_empty),
@@ -40,7 +38,6 @@ const _pages = [
   QueuePage(),
   ReplaceAffixPage(),
   OverlapPage(),
-  BarrierPage(),
   TimingPage(),
   ConditionsPage(),
   CooldownPage(),

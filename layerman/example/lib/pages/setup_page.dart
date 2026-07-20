@@ -14,29 +14,30 @@ class SetupPage extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           pageHeader(context, 'Setup & Restart',
-              'How to wire up OverlayManagerScope, OverlayNavigatorObserver, '
-              'and custom cooldown storage. Also covers manager properties '
-              'and the in-app restart pattern.'),
+              'The manager is headless — it never touches the widget tree, so '
+              'there is no scope/overlay layer to mount. Wiring up '
+              'LayermanNavigatorObserver, a UI backend for present(), and custom '
+              'cooldown storage is all app.main() needs. Also covers manager '
+              'properties and the in-app restart pattern.'),
           pageSection(
             context,
-            'OverlayManagerScope — attaches the manager to an OverlayState',
-            [
-              demoButton('btn-isattached', 'check om.isAttached', () {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text('om.isAttached = ${om.isAttached}')),
-                );
-              }),
-            ],
+            'No scope to mount — the manager renders nothing',
+            [],
             subtitle:
-                'OverlayManagerScope(manager: om, child: child) wraps the widget tree '
-                'and calls om.attach(overlayState) after the first frame. '
-                'isAttached is true once an OverlayState is connected. '
-                '\n\nSetup:\n'
-                '  builder: (ctx, child) => OverlayManagerScope(manager: om, child: child!)',
+                'There used to be an OverlayManagerScope that attached the '
+                'manager to an OverlayState. That is gone: the manager owns no '
+                'Overlay and touches no widget tree. Every demo in this app '
+                'shows its overlay through a real UI backend — showDialog, '
+                'Get.dialog, a GetX snackbar, bot_toast, ShadSonner — wired '
+                'through present(). See helpers.dart\'s presentCard/presentRouteDialog/'
+                'presentShadDialog/presentShadToast for the adapters this app uses.\n\n'
+                'Setup:\n'
+                '  final om = Layerman(gap: Duration(milliseconds: 300));\n'
+                '  // no scope, no attach() — just call om.open(present: ...)',
           ),
           pageSection(
             context,
-            'OverlayNavigatorObserver — auto route tracking',
+            'LayermanNavigatorObserver — auto route tracking',
             [
               demoButton('btn-current-route', 'om.currentRoute', () {
                 ScaffoldMessenger.of(context).showSnackBar(
@@ -45,12 +46,12 @@ class SetupPage extends StatelessWidget {
               }),
             ],
             subtitle:
-                'OverlayNavigatorObserver(om) wired into navigatorObservers: [...] '
+                'LayermanNavigatorObserver(om) wired into navigatorObservers: [...] '
                 'calls om.setContext({"route": routeName}) on every route change. '
                 'Overrides didChangeTop — the only Flutter hook that always reports '
                 'the true topmost route, including go_router\'s declarative pages.\n\n'
                 'Setup:\n'
-                '  navigatorObservers: [OverlayNavigatorObserver(om)]',
+                '  navigatorObservers: [LayermanNavigatorObserver(om)]',
           ),
           pageSection(
             context,
@@ -59,7 +60,6 @@ class SetupPage extends StatelessWidget {
               demoButton('btn-props', 'print all properties', () {
                 final msg =
                     'isPaused: ${om.isPaused}\n'
-                    'isAttached: ${om.isAttached}\n'
                     'isDisposed: ${om.isDisposed}\n'
                     'currentRoute: ${om.currentRoute}\n'
                     'activeIds: ${om.activeIds}\n'
@@ -75,28 +75,27 @@ class SetupPage extends StatelessWidget {
             'MemoryCooldownStorage — default in-memory storage',
             [
               demoButton('btn-mem-storage', 'open with default storage', () {
-                om.open(
-                    id: 'mem-cd',
+                openCard('mem-cd',
+                    text: 'MEM STORAGE',
                     cooldown: const OverlayCooldown(session: 2),
-                    builder: (c, h) => buildCard('MEM STORAGE', h,
-                        hint: 'Uses MemoryCooldownStorage (default). '
-                            'Counts reset on restart.'));
+                    hint: 'Uses MemoryCooldownStorage (default). '
+                        'Counts reset on restart.');
               }),
             ],
             subtitle:
-                'OverlayManager defaults to MemoryCooldownStorage — no persistence. '
+                'Layerman defaults to MemoryCooldownStorage — no persistence. '
                 'For cross-session persistence:\n'
-                '  OverlayManager(cooldownStorage: MySharedPrefsStorage())\n\n'
+                '  Layerman(cooldownStorage: MySharedPrefsStorage())\n\n'
                 'OverlayCooldownStorage interface:\n'
-                '  Future<Map<String,dynamic>> read(String key)\n'
-                '  Future<void> write(String key, Map<String,dynamic> data)',
+                '  Future<String?> read(String key)\n'
+                '  Future<void> write(String key, String value)',
           ),
           pageSection(
             context,
             'storageKey — namespace cooldown storage',
             [],
             subtitle:
-                'OverlayManager(storageKey: "my_app:cooldown") namespaces the storage. '
+                'Layerman(storageKey: "my_app:cooldown") namespaces the storage. '
                 'Useful when multiple OverlayManagers share one storage backend.',
           ),
           pageSection(
@@ -104,7 +103,7 @@ class SetupPage extends StatelessWidget {
             'pauseOnRoutes — constructor param',
             [],
             subtitle:
-                'OverlayManager(pauseOnRoutes: ["/zone", RegExp(r"^/auth")]) '
+                'Layerman(pauseOnRoutes: ["/zone", RegExp(r"^/auth")]) '
                 'specifies patterns where the queue auto-freezes. '
                 'Accepts String, List<String>, or RegExp — same as the route condition.',
           ),
@@ -122,8 +121,7 @@ class SetupPage extends StatelessWidget {
                 '  om = createFreshManager()\n'
                 '  _gen++  // ValueKey remounts HomePage\n\n'
                 'Do NOT call runApp() again — a second GetMaterialApp/BotToastInit '
-                'is init-once and silently no-ops. '
-                'OverlayManagerScope re-attaches via didUpdateWidget.',
+                'is init-once and silently no-ops.',
           ),
           pageSection(
             context,
@@ -138,7 +136,7 @@ class SetupPage extends StatelessWidget {
             subtitle:
                 'Call om.dispose() when the manager\'s lifetime ends (e.g. restart). '
                 'After dispose, isDisposed = true; further open() calls are no-ops. '
-                'OverlayNavigatorObserver checks isDisposed before setContext() '
+                'LayermanNavigatorObserver checks isDisposed before setContext() '
                 'to avoid ChangeNotifier-after-dispose crashes.',
           ),
         ],

@@ -1,0 +1,26 @@
+name: roadsman
+description: "百家乐/龙虎/骰宝路子图（露珠图）纯 Dart 引擎 + Flutter 渲染面板。移植自 casino monorepo 的 apps/baccarat-roadmap（TypeScript）。"
+version: 0.1.0
+homepage: https://github.com/icodejoo/dart-labs/tree/main/roadsman
+repository: https://github.com/icodejoo/dart-labs
+issue_tracker: https://github.com/icodejoo/dart-labs/issues
+
+topics:
+  - baccarat
+  - roadmap
+  - canvas
+  - game
+  - visualization
+
+environment:
+  sdk: ^3.5.0
+  flutter: ">=3.0.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^5.0.0

@@ -1,0 +1,126 @@
+<svg viewBox="0 0 1400 950" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <style>
+      .box { fill: #FDE8D0; stroke: #333; stroke-width: 2; }
+      .box-api { fill: #E8F5E9; stroke: #333; stroke-width: 1.5; }
+      .box-plugin { fill: #FFF9C4; stroke: #333; stroke-width: 1.5; }
+      .text-title { font-size: 18px; font-weight: bold; font-family: Arial; }
+      .text-label { font-size: 13px; font-family: Arial; }
+      .text-small { font-size: 11px; font-family: Arial; }
+      .text-api { font-size: 10px; font-family: 'Courier New', monospace; }
+      .arrow { stroke: #333; stroke-width: 2; fill: none; marker-end: url(#arrowhead); }
+      .arrow-small { stroke: #666; stroke-width: 1.5; fill: none; marker-end: url(#arrowhead-small); }
+    </style>
+    <marker id="arrowhead" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto">
+      <polygon points="0 0, 10 3, 0 6" fill="#333"/>
+    </marker>
+    <marker id="arrowhead-small" markerWidth="8" markerHeight="8" refX="7" refY="2" orient="auto">
+      <polygon points="0 0, 8 2, 0 4" fill="#666"/>
+    </marker>
+  </defs>
+
+  <text x="700" y="30" text-anchor="middle" class="text-title">GetX Query 完整架构流程图</text>
+  <text x="700" y="50" text-anchor="middle" class="text-label">GetX 查询与数据获取库 | 智能缓存与自动重试</text>
+
+  <!-- 应用层 -->
+  <rect x="50" y="80" width="200" height="120" class="box" rx="8"/>
+  <text x="150" y="110" text-anchor="middle" class="text-title">应用代码</text>
+  <text x="150" y="130" text-anchor="middle" class="text-label">GetX Controller</text>
+  <text x="150" y="150" text-anchor="middle" class="text-api">query.get(key)</text>
+  <text x="150" y="165" text-anchor="middle" class="text-api">query.refresh()</text>
+  <text x="150" y="180" text-anchor="middle" class="text-api">query.invalidate()</text>
+
+  <path d="M 250 140 L 320 140" class="arrow"/>
+
+  <!-- Query 核心 -->
+  <rect x="320" y="80" width="200" height="120" class="box" rx="8"/>
+  <text x="420" y="110" text-anchor="middle" class="text-title">Query 核心</text>
+  <text x="420" y="130" text-anchor="middle" class="text-label">Query Manager</text>
+  <text x="420" y="150" text-anchor="middle" class="text-api">get/refresh</text>
+  <text x="420" y="165" text-anchor="middle" class="text-api">invalidate/prefetch</text>
+  <text x="420" y="180" text-anchor="middle" class="text-api">state manage</text>
+
+  <path d="M 420 200 L 420 260" class="arrow"/>
+
+  <!-- 处理阶段 -->
+  <text x="50" y="260" class="text-label" font-weight="bold">📦 查询处理</text>
+
+  <!-- 缓存检查 -->
+  <rect x="50" y="280" width="160" height="130" class="box-plugin" rx="5"/>
+  <text x="130" y="305" text-anchor="middle" class="text-label">缓存检查</text>
+  <text x="130" y="320" text-anchor="middle" class="text-small">Cache Check</text>
+  <line x1="60" y1="330" x2="200" y2="330" stroke="#ccc" stroke-width="1"/>
+  <text x="130" y="348" text-anchor="middle" class="text-api">getFromCache(key)</text>
+  <text x="130" y="363" text-anchor="middle" class="text-api">checkExpiry()</text>
+  <text x="130" y="378" text-anchor="middle" class="text-api">hit → return</text>
+  <text x="130" y="393" text-anchor="middle" class="text-small">缓存命中返回</text>
+
+  <!-- 去重 -->
+  <rect x="230" y="280" width="160" height="130" class="box-plugin" rx="5"/>
+  <text x="310" y="305" text-anchor="middle" class="text-label">请求去重</text>
+  <text x="310" y="320" text-anchor="middle" class="text-small">Request Dedup</text>
+  <line x1="240" y1="330" x2="380" y2="330" stroke="#ccc" stroke-width="1"/>
+  <text x="310" y="348" text-anchor="middle" class="text-api">checkInFlight(key)</text>
+  <text x="310" y="363" text-anchor="middle" class="text-api">share promise</text>
+  <text x="310" y="378" text-anchor="middle" class="text-api">await same request</text>
+  <text x="310" y="393" text-anchor="middle" class="text-small">防并发请求</text>
+
+  <!-- 数据获取 -->
+  <rect x="410" y="280" width="160" height="130" class="box-plugin" rx="5"/>
+  <text x="490" y="305" text-anchor="middle" class="text-label">数据获取</text>
+  <text x="490" y="320" text-anchor="middle" class="text-small">Data Fetch</text>
+  <line x1="420" y1="330" x2="560" y2="330" stroke="#ccc" stroke-width="1"/>
+  <text x="490" y="348" text-anchor="middle" class="text-api">query fn()</text>
+  <text x="490" y="363" text-anchor="middle" class="text-api">HTTP request</text>
+  <text x="490" y="378" text-anchor="middle" class="text-api">parse response</text>
+  <text x="490" y="393" text-anchor="middle" class="text-small">网络请求</text>
+
+  <!-- 错误重试 -->
+  <rect x="590" y="280" width="160" height="130" class="box-plugin" rx="5"/>
+  <text x="670" y="305" text-anchor="middle" class="text-label">错误重试</text>
+  <text x="670" y="320" text-anchor="middle" class="text-small">Retry Strategy</text>
+  <line x1="600" y1="330" x2="740" y2="330" stroke="#ccc" stroke-width="1"/>
+  <text x="670" y="348" text-anchor="middle" class="text-api">maxRetries config</text>
+  <text x="670" y="363" text-anchor="middle" class="text-api">exponential backoff</text>
+  <text x="670" y="378" text-anchor="middle" class="text-api">retry on error</text>
+  <text x="670" y="393" text-anchor="middle" class="text-small">自动重试机制</text>
+
+  <!-- 箭头 -->
+  <path d="M 130 410 L 300 480" class="arrow-small"/>
+  <path d="M 310 410 L 350 480" class="arrow-small"/>
+  <path d="M 490 410 L 420 480" class="arrow-small"/>
+  <path d="M 670 410 L 450 480" class="arrow-small"/>
+
+  <!-- 缓存存储 -->
+  <rect x="300" y="480" width="240" height="110" class="box-api" rx="8"/>
+  <text x="420" y="510" text-anchor="middle" class="text-title">缓存存储</text>
+  <text x="420" y="530" text-anchor="middle" class="text-label">Cache Storage</text>
+  <line x1="310" y1="540" x2="530" y2="540" stroke="#999" stroke-width="1"/>
+  <text x="350" y="558" text-anchor="middle" class="text-api">store with TTL</text>
+  <text x="490" y="558" text-anchor="middle" class="text-api">memory + disk</text>
+  <text x="420" y="575" text-anchor="middle" class="text-api">缓存数据持久化</text>
+
+  <path d="M 420 590 L 420 650" class="arrow"/>
+
+  <!-- 状态更新 -->
+  <rect x="300" y="650" width="240" height="110" class="box" rx="8"/>
+  <text x="420" y="680" text-anchor="middle" class="text-title">状态更新</text>
+  <text x="420" y="700" text-anchor="middle" class="text-label">State Management</text>
+  <line x1="310" y1="710" x2="530" y2="710" stroke="#999" stroke-width="1"/>
+  <text x="350" y="728" text-anchor="middle" class="text-api">update Rx value</text>
+  <text x="490" y="728" text-anchor="middle" class="text-api">notify listeners</text>
+  <text x="420" y="745" text-anchor="middle" class="text-api">GetX Rx 变量更新</text>
+
+  <path d="M 420 760 L 420 820" class="arrow"/>
+
+  <!-- Widget 重建 -->
+  <rect x="300" y="820" width="240" height="110" class="box" rx="8"/>
+  <text x="420" y="850" text-anchor="middle" class="text-title">Widget 重建</text>
+  <text x="420" y="870" text-anchor="middle" class="text-label">Obx / GetBuilder</text>
+  <line x1="310" y1="880" x2="530" y2="880" stroke="#999" stroke-width="1"/>
+  <text x="350" y="898" text-anchor="middle" class="text-api">observe Rx</text>
+  <text x="490" y="898" text-anchor="middle" class="text-api">rebuild UI</text>
+  <text x="420" y="915" text-anchor="middle" class="text-api">界面自动更新</text>
+
+  <text x="50" y="930" class="text-small" font-weight="bold">完整流程：应用查询 → 缓存检查 → 去重 → 数据获取 → 错误重试 → 缓存存储 → 状态更新 → Widget重建</text>
+</svg>

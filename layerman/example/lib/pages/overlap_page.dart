@@ -15,32 +15,32 @@ class OverlapPage extends StatelessWidget {
           pageHeader(context, 'Overlap',
               'overlap: true bypasses the serial queue and stacks the overlay '
               'immediately on top. Ineligible overlap entries are dropped (null result). '
-              'Named slots each have their own independent serial queue.'),
+              'Named slots each have their own independent serial queue.\n\n'
+              'These demos present via a bare OverlayEntry (presentEntry), not a '
+              'showDialog route — overlap is meant to coexist with everything else '
+              'on screen, and a real modal barrier would block that.'),
           pageSection(
             context,
             'overlap — stack multiple overlays simultaneously',
             [
               demoButton('btn-ovl-a', 'open OVA (then stack OVB from inside)', () {
-                om.open(
-                  id: 'ova',
-                  builder: (c, h) => buildCard(
-                    'OVA',
-                    h,
-                    hint: 'Tap "stack OVB" to layer a second overlay on top',
-                    offset: const Offset(0, -60),
-                    actions: [
-                      FilledButton.tonal(
-                        onPressed: () => om.open(
-                          id: 'ovb',
-                          overlap: true,
-                          builder: (c2, h2) => buildCard('OVB (overlap)', h2,
-                              offset: const Offset(0, 60),
-                              hint: 'Both OVA and OVB are visible simultaneously'),
-                        ),
-                        child: const Text('stack OVB'),
+                openEntry(
+                  'ova',
+                  text: 'OVA',
+                  hint: 'Tap "stack OVB" to layer a second overlay on top',
+                  offset: const Offset(0, -60),
+                  actions: (close) => [
+                    FilledButton.tonal(
+                      onPressed: () => openEntry(
+                        'ovb',
+                        text: 'OVB (overlap)',
+                        overlap: true,
+                        offset: const Offset(0, 60),
+                        hint: 'Both OVA and OVB are visible simultaneously',
                       ),
-                    ],
-                  ),
+                      child: const Text('stack OVB'),
+                    ),
+                  ],
                 );
               }),
             ],
@@ -52,20 +52,26 @@ class OverlapPage extends StatelessWidget {
             '2×2 groups — clearWhere by group tag',
             [
               demoButton('btn-groups', 'open 4 overlapping cards', () {
-                const a = {'group': 'a'};
-                const b = {'group': 'b'};
-                om.open(
-                    id: 'a1', overlap: true, data: a,
-                    builder: (c, h) => buildCard('A1', h, offset: const Offset(-130, -70)));
-                om.open(
-                    id: 'a2', overlap: true, data: a,
-                    builder: (c, h) => buildCard('A2', h, offset: const Offset(-130, 70)));
-                om.open(
-                    id: 'b1', overlap: true, data: b,
-                    builder: (c, h) => buildCard('B1', h, offset: const Offset(130, -70)));
-                om.open(
-                    id: 'b2', overlap: true, data: b,
-                    builder: (c, h) => buildCard('B2', h, offset: const Offset(130, 70)));
+                openEntry('a1',
+                    text: 'A1',
+                    overlap: true,
+                    data: const {'group': 'a'},
+                    offset: const Offset(-130, -70));
+                openEntry('a2',
+                    text: 'A2',
+                    overlap: true,
+                    data: const {'group': 'a'},
+                    offset: const Offset(-130, 70));
+                openEntry('b1',
+                    text: 'B1',
+                    overlap: true,
+                    data: const {'group': 'b'},
+                    offset: const Offset(130, -70));
+                openEntry('b2',
+                    text: 'B2',
+                    overlap: true,
+                    data: const {'group': 'b'},
+                    offset: const Offset(130, 70));
               }),
               demoButton('btn-clear-a-grp', 'clearWhere group == "a"', () {
                 om.clearWhere(
@@ -85,27 +91,19 @@ class OverlapPage extends StatelessWidget {
             'Named slots — two independent queues side-by-side',
             [
               demoButton('btn-slot-x', 'open in slot "X"', () {
-                om.open(
-                    id: 'sx-${DateTime.now().millisecondsSinceEpoch}',
-                    slot: 'X',
-                    builder: (c, h) => buildCard('SLOT-X', h,
-                        offset: const Offset(-110, 0)));
+                openCard('sx-${DateTime.now().millisecondsSinceEpoch}',
+                    text: 'SLOT-X', slot: 'X', offset: const Offset(-110, 0));
               }),
               demoButton('btn-slot-y', 'open in slot "Y"', () {
-                om.open(
-                    id: 'sy-${DateTime.now().millisecondsSinceEpoch}',
-                    slot: 'Y',
-                    builder: (c, h) => buildCard('SLOT-Y', h,
-                        offset: const Offset(110, 0)));
+                openCard('sy-${DateTime.now().millisecondsSinceEpoch}',
+                    text: 'SLOT-Y', slot: 'Y', offset: const Offset(110, 0));
               }),
               demoButton('btn-queue-both-slots', 'queue 2 in each slot', () {
                 for (var i = 1; i <= 2; i++) {
-                  om.open(
-                      id: 'sx$i', slot: 'X',
-                      builder: (c, h) => buildCard('X$i', h, offset: const Offset(-110, 0)));
-                  om.open(
-                      id: 'sy$i', slot: 'Y',
-                      builder: (c, h) => buildCard('Y$i', h, offset: const Offset(110, 0)));
+                  openCard('sx$i',
+                      text: 'X$i', slot: 'X', offset: const Offset(-110, 0));
+                  openCard('sy$i',
+                      text: 'Y$i', slot: 'Y', offset: const Offset(110, 0));
                 }
               }),
             ],

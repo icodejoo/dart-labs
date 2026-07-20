@@ -1,33 +1,43 @@
 ---
 name: layerman
 description: >-
-  Work on layerman — the Flutter-native overlay QUEUE manager (serial one-at-a-time
+  Work on layerman — the headless Flutter overlay QUEUE orchestrator (serial one-at-a-time
   slots, priority/replace/affix/overlap, conditions + cooldown, resolve, beforeClose,
-  pause, Future<T?> results, two-phase close) that renders real OverlayEntrys AND can
-  orchestrate external overlay systems (showDialog / GetX / bot_toast) through the
-  Present/PresentedOverlay adapter, plus auto route-awareness via OverlayNavigatorObserver
-  and pauseOnRoutes "no-overlay zones". Read BEFORE modifying lib/src/, the tests, or the
-  example. Covers the engine architecture, the non-obvious invariants tests depend on,
-  the external-presenter rules of engagement, and the verify workflow (unit + real-device
-  Windows integration). Triggers on: overlay, dialog queue, OverlayManager, OverlayManagerScope,
-  replace, affix, overlap, cooldown, setContext, dismissWhenUnmet, resolve, beforeClose,
-  PresentedOverlay, Get.dialog, Get.snackbar, bot_toast, barrier, pauseAll, pauseOnRoutes,
-  OverlayNavigatorObserver, currentRoute, deep link, route guard.
+  pause, Future<T?> results, two-phase close) that renders NOTHING itself and instead
+  schedules overlays rendered through a caller-supplied `present:` backend (showDialog /
+  GetX / bot_toast / a self-managed OverlayEntry) via the Present/PresentedOverlay adapter,
+  plus auto route-awareness via LayermanNavigatorObserver and pauseOnRoutes "no-overlay
+  zones". Read BEFORE modifying lib/src/, the tests, or the example. Covers the engine
+  architecture, the non-obvious invariants tests depend on, the present-backend rules of
+  engagement, and the verify workflow (unit + real-device Windows integration). Triggers
+  on: overlay, dialog queue, Layerman, present, PresentedOverlay, replace, affix,
+  overlap, cooldown, setContext, dismissWhenUnmet, resolve, beforeClose, Get.dialog,
+  Get.snackbar, bot_toast, pauseAll, pauseOnRoutes, LayermanNavigatorObserver, currentRoute,
+  deep link, route guard.
 ---
 
 # layerman (dart-labs)
 
-`D:/workspaces/dart-labs/layerman` — a **Flutter-native overlay queue manager**,
+`D:/workspaces/dart-labs/layerman` — a **headless Flutter overlay queue orchestrator**,
 the Flutter sibling of the headless TS package `@codejoo/overlaymanager`
-(`D:/workspaces/codejoo/apps/overlay-manager`). Same orchestration semantics; different
-philosophy: **it embraces Flutter** — inserts real `OverlayEntry`s into an attached
-`OverlayState` (via `OverlayManagerScope`'s own `Overlay` layer, independent of the
-Navigator), and `open<T>()` returns `Future<T?>` like `showDialog`.
+(`D:/workspaces/codejoo/apps/overlay-manager`). Same orchestration semantics, and since
+0.2.0 the same philosophy too: the manager decides *when*/*which* overlay shows but
+**renders nothing itself** — every overlay goes through a caller-supplied `present:`
+backend (`showDialog`, GetX, `bot_toast`, a self-managed `OverlayEntry`, …), and
+`open<T>()` returns `Future<T?>` like `showDialog`. The core imports no
+`package:flutter/widgets.dart` and owns no `Overlay` layer.
 
-Engine is one file: `lib/src/overlay_manager.dart` (~1150 lines). `lib/src/overlay_manager_scope.dart`
-is the host widget (`of`/`maybeOf`, post-frame `attach`). `lib/src/overlay_navigator_observer.dart`
-is the auto route-awareness `NavigatorObserver`. Tests: `test/layerman_test.dart`
-(80 widget tests). Example app + real-device integration: `example/` (17 tests on Windows).
+> **0.2.0 breaking change**: the earlier `builder:` render path, `OverlayHandle`,
+> `OverlayPhase`, `OverlayManagerScope` and `attach`/`detach`/`isAttached` are all gone —
+> `present:` is the sole rendering hook now. See the README's "Why there is no `builder:`"
+> section and the CHANGELOG for the full list and migration recipe. Don't reintroduce any
+> of these; that's the whole point of the refactor.
+
+Engine is one file: `lib/src/overlay_manager.dart` (~1250 lines) — no more
+`overlay_manager_scope.dart` (deleted with `OverlayManagerScope`). `lib/src/overlay_navigator_observer.dart`
+is the auto route-awareness `NavigatorObserver` (unaffected by the headless refactor — it
+only feeds `route` into `setContext`, never renders). Tests: `test/layerman_test.dart`.
+Example app + real-device integration: `example/`.
 
 > **The public show method is `open<T>()`** (renamed from `show` at 0.0.1 — `show` no longer
 > exists). Published to pub.dev as **`layerman`** (pub.dev rejected `overlaymanager` as too
@@ -38,42 +48,53 @@ is the auto route-awareness `NavigatorObserver`. Tests: `test/layerman_test.dart
 ## Architecture map (lib/src/overlay_manager.dart)
 
 - **`_Slot`** per named slot: `active` (0..1 occupant: resolving/open/closing), `queue`,
-  gap/delay timers, `gapPending`. `_overlaps` = concurrent stack; `_pendingOverlaps` = held
-  while paused; `_byId` = single source of truth.
-- **Ordering `_cmp`**: replace front-band FIRST, then priority desc, then FIFO `seq`.
+  gap/delay/cooldown timers, `gapPending`. `_overlaps` = concurrent stack; `_pendingOverlaps`
+  = held while paused; `_byId` = single source of truth.
+- **Ordering `_cmp`**: `entry.replace` (an immutable per-entry field) front-bands FIRST, then
+  priority desc, then FIFO `seq` — needed so a replacer that got queued (blocked by an
+  `affix`ed current) still shows ahead of already-waiting normal entries.
 - **Eligibility** = `_conditionsPass` (`when` sole authority; else `route`(String|List|RegExp)
   AND `requiresAuth` against `_context` set by `setContext`) + `_cooldownPass`.
-- **`_schedule(slot)`**: paused → return; slot occupied/gapPending/empty → return; pick first
-  ELIGIBLE from sorted queue (ineligible entries WAIT); builtin front needs `_overlay`
-  attached, external does not; honor `delay` unless `skipGap`; `_activate`.
-- **`_activate`**: occupies slot; `resolveData != null` → phase `resolving` (committed; later
-  arrivals can't preempt), `null` result skips WITHOUT counting cooldown; else `_open` →
-  count cooldown, `_insert` (builtin: OverlayEntry with ValueListenableBuilder + optional
-  barrier Stack) or `presentExternal()` (external), start duration.
-- **Two-phase close**: `close` → `beforeClose` guard (false/throw cancels; async awaited) →
-  `_doClose` → phase `closing` + settle → builtin: `exitDuration` timer → `_remove`;
-  external: call `externalDismiss`, its `dismissed` signal drives `_onExternalDismissed`
-  (+`exitDuration` as post-dismiss grace). `_remove` advances (gap-aware) only when it freed
-  a serial slot.
-- **External presenter**: `open(present: (ctx) => PresentedOverlay(dismissed:, dismiss:))` —
-  `dismissed` completes on ANY close path and becomes the result; `dismiss` is the targeted
-  orchestrator close. `externalDone` guards re-entry; `_dismissBackendBestEffort` fires on
-  replace/clear/remove of a still-showing external entry.
+- **`_schedule(slot)`**: paused → return; slot occupied/`gapPending`/a `delayTimer` pending/
+  queue empty → return; pick the first ELIGIBLE entry from the sorted queue (ineligible
+  entries WAIT — `_armCooldownWake` arms a wake-up timer if the only thing blocking is a
+  time-based cooldown); honor the entry's `delay` unless `skipGap`; `_activate`.
+- **`_activate`**: occupies the slot; `resolveData != null` → phase `resolving` (committed —
+  later arrivals can't preempt while resolving), `null` result skips WITHOUT counting
+  cooldown (`_onResolved`); otherwise `_open` → records cooldown, calls
+  `entry.presentBackend()` (invokes the caller's `present:` exactly once and wires
+  `externalDismiss` to the returned `PresentedOverlay.dismiss`), starts the `duration` timer.
+  There is no other rendering path — `presentBackend` is the only way an overlay ever
+  becomes visible.
+- **Two-phase close**: `close` → `beforeClose` guard (false/throw cancels; an async guard's
+  continuation re-checks `_closable`/`_isCurrent` at resolution time, since the entry may
+  have been removed while it was pending) → `_doClose` → phase `closing` + settle the result
+  → calls `entry.externalDismiss(result)` (skipped if the backend already reported done) →
+  its `dismissed` future firing drives `_onExternalDismissed`, which applies the optional
+  `exitDuration` grace before `_remove`. `_remove` advances the slot (gap-aware) only when it
+  freed a serial `active` occupant.
+- **`present:` backend** (the sole rendering hook — see the README's "Why there is no
+  `builder:`" section for the rationale): `open(present: (ctx) => PresentedOverlay(dismissed:,
+  dismiss:))` — `dismissed` completes on ANY close path and becomes the result; `dismiss` is
+  the targeted orchestrator-driven close. `externalDone` guards re-entry (a late `dismissed`
+  signal after we already force-closed must not re-drive removal); `_dismissBackendBestEffort`
+  fires on replace/clear/remove of a still-showing entry.
 - **CooldownStore**: hydrate-once (`await manager.ready()`), sync reads, fire-and-forget
   write-through to pluggable `OverlayCooldownStorage` (default memory; README shows a
   shared_preferences adapter). Local calendar buckets for day/hour/minute; rolling `minGap`;
   `session` in memory. Injectable `now` for tests.
-- **pause**: `pauseAll` = FULL freeze (no activation, replace won't displace, overlaps held
-  in `_pendingOverlaps`, durations frozen with remaining time via `now`); `resumeAll`
-  releases + re-schedules. `pause(id)/resume(id)` freeze one duration countdown.
-  Internally `pauseAll`/`resumeAll` only flip `_manualPaused`; the effective `_paused` getter
-  is `_manualPaused || _routeZonePaused`, and `_applyFreeze`/`_applyRelease` (extracted bodies)
-  are shared with `_updateRouteZone` (see below) — neither side undoes the other.
+- **pause**: `pauseAll` = FULL freeze (no activation, `replace` won't discard the current
+  occupant, overlaps held in `_pendingOverlaps`, durations frozen with remaining time via
+  `now`); `resumeAll` releases + re-schedules. `pause(id)/resume(id)` freeze one duration
+  countdown. Internally `pauseAll`/`resumeAll` only flip `_manualPaused`; the effective
+  `_paused` getter is `_manualPaused || _routeZonePaused`, and `_applyFreeze`/`_applyRelease`
+  (extracted bodies) are shared with `_updateRouteZone` (see below) — neither side undoes the
+  other.
 - **`pauseOnRoutes`** (constructor param, `String`/`List<String>`/`RegExp` patterns): a
   "no-overlay zone". `setContext` calls `_updateRouteZone()` on every invocation, which
   matches `_context['route']` against the patterns and flips `_routeZonePaused`, calling
   `_applyFreeze`/`_applyRelease` only when the EFFECTIVE `_paused` actually changes.
-- **`OverlayNavigatorObserver`** (`overlay_navigator_observer.dart`): a `NavigatorObserver`
+- **`LayermanNavigatorObserver`** (`overlay_navigator_observer.dart`): a `NavigatorObserver`
   that overrides ONLY `didChangeTop` (NOT the legacy `didPush`/`didPop`/`didRemove`/`didReplace`
   quartet — code review round 2 found `didRemove`/`didReplace` report the route AT THE POSITION
   THAT CHANGED, not necessarily the topmost/displayed one, if the change targeted a route buried
@@ -95,45 +116,28 @@ is the auto route-awareness `NavigatorObserver`. Tests: `test/layerman_test.dart
   not call `notifyListeners()` on a disposed `ChangeNotifier`). A throwing `pathOf` is caught and
   reported via `FlutterError.reportError` — never propagates out of the observer callback, and
   the route is treated as unresolvable (`null`) rather than left stale.
-- **`OverlayManager.currentRoute`** — reads `_context['route']` back; lets a host avoid
+- **`Layerman.currentRoute`** — reads `_context['route']` back; lets a host avoid
   keeping its own separate route mirror (the demo used to keep `routeLabel`, now gone).
 
 ## Non-obvious invariants — do NOT break
 
-1. **Replace front band** in `_cmp` (real bug caught on-device: a preemptor must outrank
-   earlier-queued normal entries). **Replace also skips a pending gap** (cancels gapTimer).
-   **A displaced BUILTIN entry goes BACK to the queue (`_displace`), not dropped** (the old
-   `_discardActive`-for-both was the bug behind "replace后旧弹窗不回来"): result stays pending,
-   keeps id/data, re-shows once the replacer closes. Code-review hardening (all tested):
-     - **Only `phase==open` is displaced.** A `resolving` cur is `_discardActive`d — displacing
-       it would double-run the in-flight resolver and could open with stale data.
-     - **`wasDisplaced` is one flag doing three jobs** (cleanup pass collapsed a separate
-       `exemptNextCooldown` into it — they were always set/reset at the exact same two sites, so
-       keeping them apart was pure duplication): (a) `_cooldownPass`/`_armCooldownWake` bypass the
-       cooldown gate entirely (not just `record`) — else a `session:1`/`total:1` displaced entry
-       is never re-eligible and its future hangs forever; (b) lets a held handle's `close()` take
-       effect on a displaced (pending) entry (settle+remove) instead of being dropped and silently
-       re-showing — a normal never-shown queued entry's `close()` is still a no-op; (c) `_open`
-       resets it, ending both behaviors once the entry is actually shown again.
-     - **`replaceBand` (mutable, init `=replace`) drives `_cmp`, not `replace`.** `_displace`
-       sets it false so a resumer can't out-band the replacer that displaced it (two
-       `replace:true` would otherwise invert by seq).
-     - `_close` runs `beforeClose` for the displaced-pending path too (2nd round of review caught
-       it bypassing the guard entirely) via a shared `_closable(e)`/`_finishClose(e, result)` pair
-       instead of a per-call `proceed()` closure; the async-guard continuation re-checks
-       `_closable(e)` at resolution time so an already-approved close still lands even if a
-       replace displaced the entry mid-guard.
-     - **`resolved` flag stops a resumed `resolve`-backed entry from re-fetching** — `_activate`
-       only calls the resolver when `!e.resolved`; a resumed entry reopens with its previously
-       fetched `data` (2nd round: re-fetching on every resume risked a duplicate side effect and
-       could silently discard an already-shown overlay if the 2nd fetch returned null).
-     - **`_displace` freezes duration (`_freezeDuration`)**; `_startDuration` resumes
-       `durationRemaining ?? duration`, so a re-show gets the REMAINING time, not a fresh window.
-   Same-id reopen and external/closing actives are still `_discardActive`d. `clear()` cancels
-   `slot.cooldownTimer` (like `pauseAll`/`dispose`).
-2. **Replace only displaces when the replacer is itself eligible** (TS 5b) and the manager
-   is not paused; an `affix`ed current blocks displacement (replacer keeps band ordering).
-   Duplicate-id self-update (`open` with an active id) is NOT blocked by affix.
+1. **Replace front band** in `_cmp` (real bug caught on-device pre-0.2.0: a preemptor must
+   outrank earlier-queued normal entries) — `entry.replace` is immutable and read directly by
+   `_cmp`, nothing mutates it post-construction. **Replace also skips a pending gap/delay**
+   (cancels `gapTimer`/`delayTimer`). **Since 0.2.0, replace ALWAYS discards the preempted
+   entry via `_discardActive`** — settles its result `null`, best-effort `dismiss`es its
+   backend, detaches it from `slot.active` — it is **never** re-queued or resumed. This
+   deliberately dropped the pre-0.2.0 "displace + resume" machinery (`_displace`,
+   `wasDisplaced`, `replaceBand`, the `resolved`-flag-for-resumed-entries dance): once
+   rendering moved to a caller-supplied `present:` backend, a dismissed backend can no longer
+   be faithfully re-presented (that would re-run its side effects), so "send it back to the
+   queue and re-show later" stopped being a sound semantics — see the CHANGELOG's 0.2.0 entry
+   and the README's replace description. Same-id reopen and closing actives are still
+   `_discardActive`d. `clear()` cancels `slot.cooldownTimer` (like `pauseAll`/`dispose`).
+2. **Replace only preempts when the replacer is itself eligible** (TS 5b) and the manager
+   is not paused; an `affix`ed current blocks preemption (the replacer keeps its front-band
+   ordering and shows next once the slot frees up). Duplicate-id self-update (`open` with an
+   active id) is NOT blocked by affix.
 3. **Ineligible queued entries WAIT; ineligible `overlap` is DROPPED** (now-or-never,
    result null). **A TIME-based cooldown (`minGap` + day/hour/minute rollover) DOES self-wake**:
    when `_schedule` finds nothing eligible it arms `slot.cooldownTimer` for the soonest
@@ -144,16 +148,22 @@ is the auto route-awareness `NavigatorObserver`. Tests: `test/layerman_test.dart
 4. **`_CooldownStore._flush` must call `storage.write` DIRECTLY** — wrapping in
    `Future(...)` leaves a pending Timer that explodes flutter_test's fake async.
 5. **`beforeClose` gates only `close()`** — `remove`/`clear`/auto-dismiss bypass it.
-6. **External entries**: never require `attach`; `exitDuration` means post-dismissed grace
-   (route futures complete when the exit animation STARTS); `externalDone` must be set
-   before best-effort dismiss so the late `dismissed` signal can't re-drive removal.
+6. **Every entry is presented through `present:`** — there is no manager-level wiring step
+   (no `attach`/`detach`, no `OverlayState`) to forget. `exitDuration` means post-dismissed
+   grace (route futures complete when the exit animation STARTS, not when it finishes);
+   `externalDone` must be set before best-effort dismiss so a late `dismissed` signal can't
+   re-drive removal.
 7. **`resolve` is committed once resolving** (slot held); `null` skip does not count
    cooldown; `_onResolved` guards `_byId[id] == e && phase == resolving`.
-8. **`update(id, patch)`** shallow-merges Map-into-Map (else replaces) and must call
-   `overlayEntry?.markNeedsBuild()` — builders read `handle.data` at build time.
-9. **No `stackIndex/isTopmost`** (deliberate TS difference): self-rendering means z-order IS
-   Overlay insertion order. No cross-isolate cooldown sync (share a storage backend).
-10. **`OverlayNavigatorObserver` must `scheduleFrame()` after `addPostFrameCallback`** — do not
+8. **`update(id, patch)`** shallow-merges Map-into-Map (else replaces) via `setData`, then
+   calls `notifyListeners()` — that's it. The manager owns no widgets, so it cannot
+   `markNeedsBuild` anything itself; a `present:` backend that wants to reflect the new
+   `data` must rebuild off that notification (or read `ctx.data` next time it builds).
+9. **No `stackIndex/isTopmost`** (deliberate TS difference, unchanged by the headless
+   refactor): layer/z-order is entirely up to whichever `present:` backend renders the
+   overlay — the queue itself tracks and exposes none of it. No cross-isolate cooldown sync
+   (share a storage backend).
+10. **`LayermanNavigatorObserver` must `scheduleFrame()` after `addPostFrameCallback`** — do not
     "simplify" this away. Registering the callback alone is not enough; without an explicit
     frame request, navigation that happens to coincide with an otherwise-idle frame can leave
     the route update pending indefinitely (real risk in production, not just a test artifact —
@@ -164,7 +174,7 @@ is the auto route-awareness `NavigatorObserver`. Tests: `test/layerman_test.dart
     before AND after flipping the specific flag) before calling `_applyFreeze`/`_applyRelease`
     (extracted into the shared `_applyPauseTransition(before)` helper — 3 independent code-review
     agents converged on the same duplication, worth trusting that signal).
-12. **`OverlayNavigatorObserver` overrides `didChangeTop`, NOT the legacy quartet** — do not add
+12. **`LayermanNavigatorObserver` overrides `didChangeTop`, NOT the legacy quartet** — do not add
     back `didPush`/`didPop`/`didRemove`/`didReplace` overrides "for completeness"; `didRemove`/
     `didReplace` report the route at the position that changed, which can be buried under a
     still-topmost different route, corrupting `route` context. `didChangeTop` is Flutter's own
@@ -172,7 +182,7 @@ is the auto route-awareness `NavigatorObserver`. Tests: `test/layerman_test.dart
     (verified empirically: fires on cold start with `previousTopRoute == null`, and on every
     push/pop). Existing unit tests call `observer.didChangeTop(...)` directly, not the legacy
     methods — if you see a test calling `.didPush(...)` on this class, it's stale, fix the test.
-13. **`OverlayNavigatorObserver` must check `manager.isDisposed`** both before scheduling the
+13. **`LayermanNavigatorObserver` must check `manager.isDisposed`** both before scheduling the
     post-frame callback AND inside it — a manager can be disposed (app-level restart swapping
     managers) between a navigation event firing and the deferred callback running; without the
     guard, `setContext`'s `notifyListeners()` throws on a disposed `ChangeNotifier`.
@@ -195,7 +205,7 @@ is the auto route-awareness `NavigatorObserver`. Tests: `test/layerman_test.dart
 
 ## Considered and deferred: `WidgetsBindingObserver` for OS-level deep links
 
-`OverlayNavigatorObserver` only sees IN-APP `Navigator` state changes (any trigger — vanilla,
+`LayermanNavigatorObserver` only sees IN-APP `Navigator` state changes (any trigger — vanilla,
 GetX, go_router — but only once Flutter's own Navigator has already processed the change).
 `WidgetsBindingObserver` gives two DIFFERENT, narrower hooks that are genuine pre-navigation
 interception points, evaluated during this feature's brainstorm and NOT built (out of scope
@@ -212,7 +222,7 @@ ever requested):
   `Navigator.pop()` called from app code.
 Neither hook solves "intercept arbitrary in-app navigation, regardless of trigger, without
 changing call sites" — that combination remains structurally impossible in Flutter (confirmed
-independently via this reasoning and via the `OverlayNavigatorObserver` design work above).
+independently via this reasoning and via the `LayermanNavigatorObserver` design work above).
 
 ## External backends — rules of engagement (issue-history-proven)
 
@@ -231,7 +241,7 @@ independently via this reasoning and via the `OverlayNavigatorObserver` design w
 ```bash
 cd D:/workspaces/dart-labs/layerman
 flutter analyze                                   # must be clean
-flutter test                                      # 80 widget tests — the unit gate
+flutter test                                      # 72 widget tests — the unit gate
 
 cd example
 flutter test integration_test/orchestration_test.dart -d windows   # 17 tests, REAL window
@@ -247,23 +257,25 @@ Integration-test gotchas (learned the hard way):
 - Overlap/replace/affix assertions use 2+ overlays driven from buttons INSIDE overlays
   (in-card `_card(actions: ...)`); barrier(mask)-close via `tapAt` far from the card.
 - After a queue advance: `pump(700ms)` (exit 200 + gap 300) then `pumpAndSettle`.
-- **Never call `setContext` from `initState`/`dispose` directly** — it notifies and may
-  insert OverlayEntries during build → `markNeedsBuild during build`. The demo no longer
+- **Never call `setContext` from `initState`/`dispose` directly** — it notifies listeners
+  (and may synchronously trigger a `present:` backend's own dismiss) during build →
+  `markNeedsBuild during build`. The demo no longer
   needs this workaround at all: `PromoPage`/`NoOverlayZonePage` are plain `StatelessWidget`s
-  with zero lifecycle code — `OverlayNavigatorObserver` (wired into `navigatorObservers` in
+  with zero lifecycle code — `LayermanNavigatorObserver` (wired into `navigatorObservers` in
   `AppRoot`) feeds route context automatically, deferred safely inside the observer itself.
-- **Testing `OverlayNavigatorObserver` (or anything relying on its deferred update) in a plain
+- **Testing `LayermanNavigatorObserver` (or anything relying on its deferred update) in a plain
   `flutter test` widget test**: `pumpAndSettle()`/bare `pump()` DO flush it correctly — but
   only because the observer calls `scheduleFrame()` itself (invariant #10 above). If you ever
   call `manager.setContext(...)` from your OWN deferred callback without a matching
   `scheduleFrame()`, the exact same class of unit test will hang silently on `pump()`/
   `pumpAndSettle()` with no exception, just a `findsNothing` where you expected `findsOneWidget`.
-- The demo supports **in-app restart** (`btn-restart` → `_AppRootState.restart()`:
-  `setState` disposes `om`, builds a fresh one, bumps a generation key so `HomePage`
-  remounts). Do NOT re-`runApp` for restart — a second `GetMaterialApp`/`BotToastInit`
-  is init-once and silently no-ops (that was the "重启没反应" bug). The Scope re-attaches
-  to the new manager via `didUpdateWidget`. `om` is a mutable global; async callbacks
-  guard with `identical(m, om)` before touching it.
+- The demo supports **in-app restart** (`btn-restart` → `_AppRootState._doRestart()`:
+  `setState` disposes `om`, builds a fresh one, bumps a generation key so `DemoShell`
+  remounts via `ValueKey(_gen)`). Do NOT re-`runApp` for restart — a second
+  `GetMaterialApp`/`BotToastInit` is init-once and silently no-ops (that was the
+  "重启没反应" bug). There's no Scope to re-attach anymore — the manager is headless, so
+  restart is just reassigning the mutable global `om` and remounting the subtree that reads
+  it; async callbacks guard with `identical(m, om)` before touching it.
 - **A HomePage button is unreachable once a pushed page covers it** (`btn-goto-zone`
   pushes `NoOverlayZonePage`, which covers `HomePage` — `btn-queue-in-zone` lives on
   `HomePage`). To exercise "queue something while on `/zone`" from an integration test,

@@ -1,22 +1,81 @@
 # Changelog
 
+## 0.6.2
+
+Five-way parallel code review + two targeted expert passes across the whole
+stack (C core, FFI bridge, Dart, WASM/TS), fixing correctness/memory-safety
+bugs found since 0.6.0 shipped — no public API changes.
+
+- **Fix: FAST-mode fuzzy scoring silently dropped valid long-range matches.**
+  `ffz_fuzzy.c`'s default scoring mode used `0` as both "gap score is
+  legitimately zero" and "no gap path exists" — a match whose accumulated
+  gap penalties decayed to exactly 0 was treated as no-match. Now tracked via
+  a separate validity flag.
+- **Fix: 7 bugs in the edit-distance substring engine** (`ffz_edit.c` /
+  `ffz_edit_window`) — `malloc(0)` misread as OOM (dropping genuine
+  degenerate-window hits), a 32-bit `size_t` overflow guard on the reversed-hay
+  scratch buffer, uninitialized `*out_start`/`*out_end` on some early-return
+  paths, and a `finalise_results` dispatch that inferred "is this an
+  edit-distance result" from the score's sign / a nullable pointer — both
+  unreliable signals that misfired for exact matches and for `merge`'s mixed
+  seq+edit arrays under allocation OOM. Replaced with an explicit `edit_all`
+  flag.
+- **Fix: OOM/null-pointer paths in the corpus filter engine** — missing
+  NULL/query guard in `_corpus_filter_impl` (inconsistent with every sibling
+  filter function), `finalise_results` breaking the "at most `limit` hits"
+  contract on OOM, and a matcher-allocation OOM in `merge`/`dual` scans that
+  dropped edit-distance-only hits that don't even need a matcher. Added
+  overflow guards to array-growth doubling and arena alignment throughout.
+- **Fix: a deferred (lazy-init) web corpus permanently returned empty
+  results from `fallback`/`merge`/`dual()`** unless a plain `fuzzy`/`approx`
+  search had already been called first to trigger WASM init — those three
+  entry points checked the deferred flag but never actually triggered
+  readiness. Also: their `async*` counterparts ran the search synchronously
+  instead of awaiting WASM the way `asyncFuzzy` already did.
+- **Fix: native (FFI) `search()` bypassed the C engine for 4 of 5 strategies**
+  (`substring`/`prefix`/`postfix`/`exact`), silently dropping alt-key
+  matching, normalization, and highlight indices on native for those modes —
+  all 5 now route through the C engine consistently.
+- **Fix: `toUtf8('')` produced a 1-byte NUL buffer instead of a true empty
+  array**, breaking "empty query matches everything" semantics on native.
+- **Fix: an FFI ABI typedef mismatch** for `filter_merge`/`filter_fallback`/
+  `filter_dual` (parameter types copy-pasted from an unrelated function
+  shape).
+- **Fix: `asyncSearch`/`asyncApprox`/`asyncDual` on native didn't actually
+  offload to a worker isolate** — they wrapped the synchronous call in an
+  `async` function, which still runs on the calling isolate. Added 4 new
+  async bridge methods so these genuinely run off the main isolate.
+- **Fix: memory leaks on the WASM/web path** — `approx()`/`approxRaws()`
+  were missing the disposed-check every other search entry point has
+  (post-dispose use-after-free); a scratch-buffer free wasn't wrapped in
+  try/finally and leaked on throw; OOM checks added to the write/allocate
+  paths; an in-flight guard against concurrent double-init.
+- **Fix: `update()` forked behavior between debug and release builds** — a
+  debug-only `assert` was gating a mutation that must always happen.
+- **Build:** `FFZ_SUBSEQUENCE`/`FFZ_EDIT_DISTANCE` CMake toggles removed —
+  both search algorithms are now unconditionally compiled in (they always
+  shipped together in practice; the toggles only added untested
+  configurations). If you were building with one of these OFF, drop the flag.
+
+Verified: 186 C unit tests + 310 leak/OOM checks, 118 Dart tests (`flutter
+test`), 69 WASM/TS tests + API parity — all green.
+
 ## 0.6.1
 
-- **Docs only.** README (EN/ZH) corrected to match the shipped 0.6.0 API:
-  version pin, `search()`/`approx()`/`dual()` coverage, single-bundle WASM
-  build (no more `ffz-{fzf,approx,full}` variants), `matchedKindCode`. No
-  code changes.
+Docs only. README (EN/ZH) corrected to match the shipped 0.6.0 API: version
+pin, `search()`/`approx()`/`dual()` coverage, single-bundle WASM build (no
+more `ffz-{fzf,approx,full}` variants), `matchedKindCode`. No code changes.
 
 ## 0.6.0
 
 - **New: edit-distance search.** Myers bit-parallel Levenshtein
   (`src/ffz_edit.c`) alongside the existing subsequence engine. Both
   algorithms are independently modular via `FFZ_SUBSEQUENCE` /
-  `FFZ_EDIT_DISTANCE` CMake flags.
+  `FFZ_EDIT_DISTANCE` CMake flags (removed again in 0.6.2 — see above).
 - **New: unified `search()` API.** `search(q, {strategy, maxDistance, …})`
-  with `fuzzy` | `approx` | `fallback` | `merge` strategies, plus
-  `approx()` (edit-distance shortcut, `maxDistance` auto-scales by query
-  length when omitted) and `dual()` (single corpus scan, returns
+  with `fuzzy` | `approx` | `fallback` | `merge` strategies, plus `approx()`
+  (edit-distance shortcut, `maxDistance` auto-scales by query length when
+  omitted) and `dual()` (single corpus scan, returns
   `FuzzyDualResult(fuzzy:, approx:)`). Each ships `…Raws` / `async…` /
   `async…Raws` variants.
 - **BREAKING: async method renames.** `fuzzyAsync` → `asyncFuzzy`,

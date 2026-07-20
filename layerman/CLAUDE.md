@@ -5,11 +5,12 @@
 
 ## 是什么
 
-Flutter 原生 overlay **队列管理器**(dialog/modal/bottomsheet/toast 编排),TS 姊妹包为
-`@codejoo/overlaymanager`(`D:/workspaces/codejoo/apps/overlay-manager`,headless)。本包**拥抱
-Flutter**:真实 `OverlayEntry` 插入 `OverlayManagerScope` 自有 Overlay 层,`open<T>() → Future<T?>`。
-另有 TS 没有的**外部 presenter**(`Present`/`PresentedOverlay`):统一编排 showDialog / GetX
-(dialog·snackbar) / bot_toast——调度权归本包、渲染权归各家。
+**headless** overlay **队列编排器**(dialog/modal/bottomsheet/toast 编排),TS 姊妹包为
+`@codejoo/overlaymanager`(`D:/workspaces/codejoo/apps/overlay-manager`,同为 headless)。公开类叫
+`Layerman`(0.2.0 前叫 `OverlayManager`,见决策史)——只管**排队/优先级/条件/冷却/两阶段关闭**这些编排逻辑,
+自己不拥有任何 `Overlay`/`OverlayEntry`,不碰 widget 树。渲染完全交给调用方通过 `present:`(`Present`/
+`PresentedOverlay`)接入——showDialog / GetX(dialog·snackbar) / bot_toast / 自建 `OverlayEntry`
+都行,调度权归本包、渲染权归各家。`open<T>() → Future<T?>`。
 
 ## 决策史(为什么是现在这样)
 
@@ -92,6 +93,29 @@ Flutter**:真实 `OverlayEntry` 插入 `OverlayManagerScope` 自有 Overlay 层,
   ⑥3 个独立 agent 收敛到同一处重复(`pauseAll`/`resumeAll`/`_updateRouteZone` 里手写的"记前值→翻转→按边沿
   调 freeze/release"逻辑),提炼成共享的 `_applyPauseTransition(before)`;`pauseOnRoutes` 与 `open()` 的
   `route` 参数类型校验也从两份手写 union 收敛成共享的 `_isRoutePattern`。
+
+- **0.2.0 headless 化 + 改名 `Layerman`**(2026-07-20):随 let188_app 的 popup 接入需求,做了两件事。
+  ①**headless 重构**:删掉自渲染的 `builder:` 路径(连同 `OverlayHandle`/`OverlayPhase`/
+  `OverlayManagerScope`/`attach`/`detach`/`isAttached`/`barrierColor`/`barrierDismissible`,以及连带
+  不可达的 `_displace`/`wasDisplaced`/`replaceBand`/`resolved`),`present:` 成为唯一必传渲染入口,核心
+  不再 import `flutter/widgets`。`replace` 语义随之变化:被顶掉的项现在**总是关闭**(result null),不再退回
+  队列重现(旧的"displace+resume"依赖自渲染 widget 才能安全重现,外部 backend 关了就没法保真重现)。
+  ②**反悔上一轮"仓库文件夹/技能目录改 layerman"时的决定**,这次真的把公开类 `OverlayManager` 改名
+  `Layerman`、`OverlayNavigatorObserver` 改名 `LayermanNavigatorObserver`,让主入口类名跟包名对齐
+  （类似 `dio` 包的 `Dio`、`bot_toast` 包的 `BotToast`）。`OverlayPredicate`/`OverlayCooldown`/
+  `OverlayCooldownStorage`/`OverlayRecord`/`PresentedOverlay` **刻意不跟着改**——这些描述的是"被管理的
+  浮层"这个领域概念本身,不是包/管理器的身份,机械换成 `Layerman*` 会读不通（`PresentedOverlay` 是"被展示
+  的浮层",不是"被展示的编排器"）。**测试(1246→1246行,内容全改)72 全绿、`flutter analyze` 干净、
+  example 15 页 + 真机集成测试 17 全绿**(过程中顺带修了 5 个 demo 层面的真问题:重启时路由清理和 widget
+  key 切换挤在同一个 setState 里竞态出 FocusManager 崩溃;`presentEntry` 用错了 `Overlay.of` 的查找方式;
+  beforeClose/update 两个演示的关闭按钮绕开了 `close()` 直接 pop 路由,守卫形同虚设;两个演示误用模态
+  `presentCard` 挡住了同页其它按钮;条件页拿路由条件配模态弹窗,弹窗自己的合成路由名把 `route` 上下文
+  改了,当场把自己条件判掉)。
+  **CHANGELOG/CLAUDE.md 教训**:全局 sed 替换 `OverlayManager`→`Layerman` 时,不能碰**历史记录**——
+  CHANGELOG 的 0.0.1/0.1.0 条目、以及本文件里描述"当时决定保留 OverlayManager 不改"的那句话,都是在
+  陈述"那个时间点这个类真的叫这个名字"的事实,机械替换会把历史记录改到自相矛盾(比如把"我们决定保留
+  OverlayManager 这个名字"改成"我们决定保留 Layerman 这个名字"——变成废话)。只有**当前**（未发布的
+  0.2.0 条目、以及这条新增的决策记录本身）该用新名字,历史条目一律保持发生时的原名。
 
 ## 验收基线(2026-07-04)
 
