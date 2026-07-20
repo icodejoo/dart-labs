@@ -249,13 +249,9 @@ wasm/
 ### 构建流程
 
 ```
-build-engine.sh (需 emcc)          → src/ffz-fzf.mjs     （默认，子序列）
-                                   → src/ffz-approx.mjs  （编辑距离，FFZ_SUBSEQUENCE=0 FFZ_EDIT_DISTANCE=1）
-                                   → src/ffz-full.mjs    （两者，FFZ_EDIT_DISTANCE=1）
-npm run build  (tsdown + terser)   → dist/ffuzzy-fzf.mjs     （提交）
-                                   → dist/ffuzzy-approx.mjs  （提交）
-                                   → dist/ffuzzy-full.mjs    （提交）
-                                   → dist/ffuzzy-fzf.d.mts   （类型声明，提交）
+build-engine.sh (需 emcc)          → src/ffz.mjs        （两种算法始终一起编译，0.6.2 起不再分变体）
+npm run build  (tsdown + terser)   → dist/ffuzzy.mjs    （提交）
+                                   → dist/ffuzzy.d.mts  （类型声明，提交）
 ```
 
 ```bash
@@ -358,8 +354,8 @@ flutter test test/                       # 全量
 - `ffz_ffi_filter_raws`：跳过 Pass 2（不计算命中字符位置），速度更快
 - 经典五种模式（fuzzy/substring/prefix/postfix/exact）统一走 `_filter_ex`，由 `mode` 参数区分
 - `highlight:false`（默认）→ `filterRaws`；`highlight:true` → `filterEx2`
-- 编辑距离（`approx`）走独立 FFI 调用（Myers bit-parallel Levenshtein），需 `FFZ_EDIT_DISTANCE=ON`
-- `FFZ_SUBSEQUENCE`（默认 ON）与 `FFZ_EDIT_DISTANCE`（默认 OFF）可独立控制，两者不可同时 OFF
+- 编辑距离（`approx`）走独立 FFI 调用（Myers bit-parallel Levenshtein）——0.6.2 起两种算法始终一起编译，
+  不再有 `FFZ_SUBSEQUENCE`/`FFZ_EDIT_DISTANCE` 条件编译开关
 
 ## 发布 npm
 
