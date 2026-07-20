@@ -11,7 +11,7 @@ import 'package:ffuzzy/ffuzzy.dart';
 
 String _libPath() {
   final root = Directory.current.path;
-  if (Platform.isWindows) return '$root\\libffz.dll';
+  if (Platform.isWindows) return '$root\\ffz.dll';
   if (Platform.isMacOS)   return '$root/libffz.dylib';
   return '$root/build_x86_64/libffuzzy.so';
 }

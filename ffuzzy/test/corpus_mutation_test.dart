@@ -3,7 +3,8 @@
 // 运行（在 repo 根目录，需要先构建 native 库）：
 //   flutter test test/corpus_mutation_test.dart
 //
-// Windows 上 native 库为 libffz.dll（repo 根目录）。
+// Windows 上 native 库为 ffz.dll（repo 根目录；无 lib 前缀——MSVC 下 CMake
+// 打包出的真实插件产物就是这个名字，跟 ffuzzy_ffi.dart 默认查找路径一致）。
 // 测试通过 libraryPath 传入绝对路径，跳过 Flutter 插件加载机制，
 // 使测试文件在 `flutter test` 下可直接运行。
 
@@ -17,7 +18,7 @@ import 'package:ffuzzy/ffuzzy.dart';
 /// flutter test 以项目根目录作为 cwd，因此直接使用 [Directory.current]。
 String _nativeLibPath() {
   final repoRoot = Directory.current.path;
-  if (Platform.isWindows) return '$repoRoot\\libffz.dll';
+  if (Platform.isWindows) return '$repoRoot\\ffz.dll';
   if (Platform.isMacOS) return '$repoRoot/libffz.dylib';
   return '$repoRoot/build_x86_64/libffuzzy.so';
 }
