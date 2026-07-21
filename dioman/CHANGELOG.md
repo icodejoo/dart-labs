@@ -5,8 +5,8 @@
 - Breaking: `DiomanCache` gains a durable persistence layer. `persist: DiomanCachePersist` is a
   new **required** constructor parameter — there is no built-in no-op implementation, so every
   existing `DiomanCache(...)` call site needs one (implement `read`/`write`/`remove`/`erase`
-  yourself; the shape mirrors the `get_storage` package's container API — `read` sync,
-  `write`/`remove`/`erase` async). A new `cachePolicy: DiomanCachePolicy` (`none` default /
+  yourself; the shape mirrors the `get_storage` package's container API — `read` may be sync or
+  async (`FutureOr`), `write`/`remove`/`erase` always async). A new `cachePolicy: DiomanCachePolicy` (`none` default /
   `memo` / `persist` / `both`, also overridable per request via `DiomanCacheOptions.cachePolicy`)
   picks where a cached entry lives: `none` never caches, `memo` is the old in-memory-only
   behavior, `persist` uses only the durable layer, `both` keeps memory and persist in sync (a

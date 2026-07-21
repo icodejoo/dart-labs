@@ -206,7 +206,7 @@ DiomanEnvs(dio: dio, [
 
 `DiomanCache({required DiomanCachePersist persist, DiomanCachePolicy cachePolicy = DiomanCachePolicy.none, int expires = 60000, CacheClone clone = CacheClone.shallow, int maxEntries = 500, bool enabled = true, bool Function(RequestOptions)? shouldCache, DateTime Function() now = DateTime.now})`——**毫秒**级 TTL 缓存，以 `extra[kRequestKey]` 为键（需 `DiomanKey`）。默认只缓存 `GET`。超过 `maxEntries`（`0` 关闭上限）按 LRU 淘汰（只作用于内存层）。`CacheClone` 控制命中数据的可变安全性：`shallow`（默认，命中方改顶层字段不会污染缓存）、`deep`（嵌套修改也安全）、`none`（只读零拷贝）。`now` 可注入时钟做确定性 TTL 测试。管理接口：`remove(key)`、`clear()`（两者都不管 `cachePolicy` 是什么，永远同时操作内存层和 `persist`）。没有 `removeWhere`/`size`——`DiomanCachePersist` 没有枚举 key 的能力，纯 `persist` 策略下的条目永远无法被批量操作正确覆盖到；需要批量清理就自己在业务层维护 key 列表，逐个调 `remove`。
 
-`persist` **必传**——没有内置的空实现，必须自己实现 `DiomanCachePersist`（`read`/`write`/`remove`/`erase`，接口形状参照 `get_storage` 包的容器 API——`read` 同步，`write`/`remove`/`erase` 异步），接入文件、sqlite、Hive、`get_storage` 或其他任意存储，哪怕你只打算用 `DiomanCachePolicy.memo`。
+`persist` **必传**——没有内置的空实现，必须自己实现 `DiomanCachePersist`（`read`/`write`/`remove`/`erase`，接口形状参照 `get_storage` 包的容器 API——`read` 可以同步也可以异步（`FutureOr`），`write`/`remove`/`erase` 永远异步），接入文件、sqlite、Hive、`get_storage` 或其他任意存储，哪怕你只打算用 `DiomanCachePolicy.memo`。
 
 `cachePolicy`（也可通过 `DiomanCacheOptions.cachePolicy` 按请求覆盖）决定缓存条目存在**哪**，跟是否缓存（仍由 `enabled`/`shouldCache` 决定）是两回事：
 - `none`（默认）——完全不缓存该请求，总是直接透传。缓存要显式开启，不会默默生效。
