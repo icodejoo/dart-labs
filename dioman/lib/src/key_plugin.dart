@@ -79,7 +79,7 @@ class DiomanKeyOptions {
 /// // Install before cache and share:
 /// dio.interceptors
 ///   ..add(DiomanKey())
-///   ..add(DiomanCache())
+///   ..add(DiomanCache(persist: yourCachePersist))
 ///   ..add(DiomanShare());
 ///
 /// // Override per request:

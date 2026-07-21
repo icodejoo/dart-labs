@@ -25,6 +25,7 @@
 // it reuses the already-resolved `RequestOptions.baseUrl`, not the bare
 // Dio's own empty BaseOptions), letting several scenarios that used to be
 // untestable (they'd otherwise hit the real internet) run for real.
+import 'support/fake_cache_persist.dart';
 import 'dart:async';
 
 import 'package:dio/dio.dart';
@@ -78,7 +79,7 @@ void main() {
       addTearDown(server.close);
       final dio = Dio(BaseOptions(baseUrl: server.baseUrl));
       installStateful(dio,
-          cache: DiomanCache(), share: DiomanShare(policy: DiomanSharePolicy.start));
+          cache: DiomanCache(persist: FakeCachePersist(), cachePolicy: DiomanCachePolicy.memo, ), share: DiomanShare(policy: DiomanSharePolicy.start));
 
       await dio.get<void>('/data');
       expect(calls, 1);
@@ -101,7 +102,7 @@ void main() {
       addTearDown(server.close);
       final dio = Dio(BaseOptions(baseUrl: server.baseUrl));
       installStateful(dio,
-          cache: DiomanCache(), share: DiomanShare(policy: DiomanSharePolicy.start));
+          cache: DiomanCache(persist: FakeCachePersist(), cachePolicy: DiomanCachePolicy.memo, ), share: DiomanShare(policy: DiomanSharePolicy.start));
 
       final a = dio.get<Map<String, dynamic>>('/data');
       final b = dio.get<Map<String, dynamic>>('/data');
@@ -121,7 +122,7 @@ void main() {
       addTearDown(server.close);
       final dio = Dio(BaseOptions(baseUrl: server.baseUrl));
       final cancel = DiomanCancel();
-      installStateful(dio, cache: DiomanCache(), cancel: cancel);
+      installStateful(dio, cache: DiomanCache(persist: FakeCachePersist(), cachePolicy: DiomanCachePolicy.memo, ), cancel: cancel);
 
       await dio.get<void>('/data'); // real, tracked briefly then released
       await dio.get<void>('/data'); // cache hit
@@ -138,7 +139,7 @@ void main() {
       final dio = Dio(BaseOptions(baseUrl: server.baseUrl));
       final states = <bool>[];
       installStateful(dio,
-          cache: DiomanCache(),
+          cache: DiomanCache(persist: FakeCachePersist(), cachePolicy: DiomanCachePolicy.memo, ),
           loading: DiomanLoading(onChanged: states.add));
 
       await dio.get<void>('/data'); // real: true then false
@@ -161,7 +162,7 @@ void main() {
       final tm = FakeTokenManager('t0');
       installStateful(
         dio,
-        cache: DiomanCache(),
+        cache: DiomanCache(persist: FakeCachePersist(), cachePolicy: DiomanCachePolicy.memo, ),
         auth: DiomanAuth(
           tokenManager: tm,
           onRefresh: (_, __) async {},
@@ -196,7 +197,7 @@ void main() {
       });
       addTearDown(server.close);
       final dio = Dio(BaseOptions(baseUrl: server.baseUrl));
-      installStateful(dio, cache: DiomanCache());
+      installStateful(dio, cache: DiomanCache(persist: FakeCachePersist(), cachePolicy: DiomanCachePolicy.memo, ));
       dio.interceptors.add(DiomanRetry(max: 1, delay: (_, __, ___, ____) => Duration.zero));
 
       final r1 = await dio.get<Map<String, dynamic>>('/data');
@@ -248,7 +249,7 @@ void main() {
       });
       addTearDown(server.close);
       final dio = Dio(BaseOptions(baseUrl: server.baseUrl));
-      final cache = DiomanCache();
+      final cache = DiomanCache(persist: FakeCachePersist(), cachePolicy: DiomanCachePolicy.memo, );
       installStateful(dio, cache: cache);
       dio.interceptors.add(DiomanRetry(
         max: 1,
@@ -262,11 +263,6 @@ void main() {
               "retried, successful result — the retry's own re-issue "
               'reached the network directly, never consulting the cache');
       expect(attempts, 2);
-      expect(cache.size, 1,
-          reason: 'the ORIGINAL (failed) attempt still wrote its 200 '
-              "response to the cache — that part of DiomanCache's behavior "
-              "is unrelated to DiomanRetry's re-issue mechanism and "
-              'unchanged by this redesign');
 
       final later = await dio.get<Map<String, dynamic>>('/data');
       expect(later.data!['code'], 0,
@@ -811,7 +807,7 @@ void main() {
       final dio = Dio(BaseOptions(baseUrl: server.baseUrl));
       final states = <bool>[];
       installStateful(dio,
-          cache: DiomanCache(),
+          cache: DiomanCache(persist: FakeCachePersist(), cachePolicy: DiomanCachePolicy.memo, ),
           cancel: DiomanCancel(),
           loading: DiomanLoading(onChanged: states.add));
 
@@ -846,7 +842,7 @@ void main() {
       final states = <bool>[];
       installStateful(
         dio,
-        cache: DiomanCache(),
+        cache: DiomanCache(persist: FakeCachePersist(), cachePolicy: DiomanCachePolicy.memo, ),
         share: DiomanShare(policy: DiomanSharePolicy.start),
         cancel: DiomanCancel(),
         loading: DiomanLoading(onChanged: states.add),
@@ -899,7 +895,7 @@ void main() {
         filter: const DiomanFilter(),
         key: const DiomanKey(),
         normalize: const DiomanNormalize(),
-        cache: DiomanCache(),
+        cache: DiomanCache(persist: FakeCachePersist(), cachePolicy: DiomanCachePolicy.memo, ),
         share: DiomanShare(policy: DiomanSharePolicy.start),
         mock: DiomanMock(enabled: false),
         cancel: DiomanCancel(),

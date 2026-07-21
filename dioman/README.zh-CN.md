@@ -38,13 +38,13 @@
 | `DiomanAuth` | 注入 token + 单窗口 401/403 刷新重放（5 种失败动作）。 |
 | `DiomanRetry` | 按退避重试网络（可选业务）失败。 |
 | `DiomanLog` | 零依赖的请求/响应/错误日志，输出方式可注入。 |
-| `DiomanNormalize` | *（可选，装在最后）* 拆 `{code,data,message}` 信封；非成功码转成 `ApiException` 抛出。 |
+| `DiomanNormalize` | *（可选，装在最后）* 拆 `{code,data,message}` 信封；非成功码转成 `DiomanException` 抛出。 |
 
 ## 安装
 
 ```yaml
 dependencies:
-  dioman: ^0.4.1
+  dioman: ^0.6.0
 ```
 
 ```dart
@@ -67,7 +67,7 @@ final handle = Dioman.install(
   repath: DiomanRepath(),                 // /users/{id}  → /users/42
   filter: const DiomanFilter(),           // 剔除空参数
   key: const DiomanKey(),                 // 缓存/去重的 key
-  cache: DiomanCache(),                   // TTL 缓存（GET）
+  cache: DiomanCache(persist: yourCachePersist),                   // TTL 缓存（GET）
   share: DiomanShare(),                   // 并发去重
   mock: DiomanMock(),                     // 默认 enabled: false——仅开发用
   cancel: DiomanCancel(),
@@ -156,7 +156,7 @@ envs → repath → filter → key → cache → share → mock → cancel → l
 final handle = Dioman.install(
   dio,
   key: const DiomanKey(),
-  cache: DiomanCache(),
+  cache: DiomanCache(persist: yourCachePersist),
   auth: DiomanAuth(tokenManager: tm, onRefresh: ..., onAccessExpired: ...),
   log: const DiomanLog(),
   normalize: const DiomanNormalize(), // 可选——install不管参数顺序，都会把它放最后
@@ -200,11 +200,19 @@ DiomanEnvs(dio: dio, [
 
 不是传输层的事——只是针对**某一种**信封约定（`{code, data, message}`）的便利转换，适合你的 API 就用，不适合就完全不装。正因如此，它被排除在[快速上手](#快速上手)和硬约束顺序表之外——**如果要用，装在最后**，排在 `log` 后面（这也是 `Dioman.install` 放置它的位置，不管参数传在第几个）。
 
-`DiomanNormalize({String dataKey = 'data', String codeKey = 'code', String messageKey = 'message', bool enabled = true, bool Function(dynamic)? isSuccess, bool Function(RequestOptions, Response)? shouldNormalize})`——成功信封时把 `response.data` 换成内层负载；非成功 `code` 则以 `ApiException` reject。默认仅当 body 是含 `codeKey` **且**含 `dataKey` 或 `messageKey` 的 `Map` 时才处理，`isSuccess` 默认为 `code == 0`。
+`DiomanNormalize({String dataKey = 'data', String codeKey = 'code', String messageKey = 'message', bool enabled = true, bool Function(dynamic)? isSuccess, bool Function(RequestOptions, Response)? shouldNormalize})`——成功信封时把 `response.data` 换成内层负载；非成功 `code` 则以 `DiomanException` reject。默认仅当 body 是含 `codeKey` **且**含 `dataKey` 或 `messageKey` 的 `Map` 时才处理，`isSuccess` 默认为 `code == 0`。
 
 ### DiomanCache
 
-`DiomanCache({int expires = 60000, CacheClone clone = CacheClone.shallow, int maxEntries = 500, bool enabled = true, bool Function(RequestOptions)? shouldCache, DateTime Function() now = DateTime.now})`——**毫秒**级 TTL 缓存，以 `extra[kRequestKey]` 为键（需 `DiomanKey`）。默认只缓存 `GET`。超过 `maxEntries`（`0` 关闭上限）按 LRU 淘汰。`CacheClone` 控制命中数据的可变安全性：`shallow`（默认，命中方改顶层字段不会污染缓存）、`deep`（嵌套修改也安全）、`none`（只读零拷贝）。`now` 可注入时钟做确定性 TTL 测试。管理接口：`remove(key)`、`removeWhere(test)`、`clear()`、`size`。
+`DiomanCache({required DiomanCachePersist persist, DiomanCachePolicy cachePolicy = DiomanCachePolicy.none, int expires = 60000, CacheClone clone = CacheClone.shallow, int maxEntries = 500, bool enabled = true, bool Function(RequestOptions)? shouldCache, DateTime Function() now = DateTime.now})`——**毫秒**级 TTL 缓存，以 `extra[kRequestKey]` 为键（需 `DiomanKey`）。默认只缓存 `GET`。超过 `maxEntries`（`0` 关闭上限）按 LRU 淘汰（只作用于内存层）。`CacheClone` 控制命中数据的可变安全性：`shallow`（默认，命中方改顶层字段不会污染缓存）、`deep`（嵌套修改也安全）、`none`（只读零拷贝）。`now` 可注入时钟做确定性 TTL 测试。管理接口：`remove(key)`、`clear()`（两者都不管 `cachePolicy` 是什么，永远同时操作内存层和 `persist`）。没有 `removeWhere`/`size`——`DiomanCachePersist` 没有枚举 key 的能力，纯 `persist` 策略下的条目永远无法被批量操作正确覆盖到；需要批量清理就自己在业务层维护 key 列表，逐个调 `remove`。
+
+`persist` **必传**——没有内置的空实现，必须自己实现 `DiomanCachePersist`（`read`/`write`/`remove`/`erase`，接口形状参照 `get_storage` 包的容器 API——`read` 同步，`write`/`remove`/`erase` 异步），接入文件、sqlite、Hive、`get_storage` 或其他任意存储，哪怕你只打算用 `DiomanCachePolicy.memo`。
+
+`cachePolicy`（也可通过 `DiomanCacheOptions.cachePolicy` 按请求覆盖）决定缓存条目存在**哪**，跟是否缓存（仍由 `enabled`/`shouldCache` 决定）是两回事：
+- `none`（默认）——完全不缓存该请求，总是直接透传。缓存要显式开启，不会默默生效。
+- `memo`——只用内存层 `_store`，和以前行为一样。不持久——重启或 `dispose()` 后丢失，永不读写 `persist`。
+- `persist`——只用 `persist`；该请求永不读写内存层。
+- `both`——两者同步：写入时 `_store` 和 `persist` 都写；内存未命中时回退读 `persist` 并回填 `_store`，下次同一个 key 就能重新从内存命中。
 
 ### DiomanShare
 

@@ -72,6 +72,7 @@
 // bytes from this one) — every other response stays keep-alive, so the
 // (much more frequent) plain-success sweep reuses one connection instead of
 // opening a fresh one per request.
+import 'support/fake_cache_persist.dart';
 import 'dart:convert';
 import 'dart:io';
 
@@ -120,7 +121,7 @@ DiomanHandle _install(Dio dio, int mask, _MutableTokenManager tm) {
     repath: has(1) ? DiomanRepath() : null,
     filter: has(2) ? const DiomanFilter() : null,
     key: has(3) ? const DiomanKey() : null,
-    cache: has(4) ? DiomanCache() : null,
+    cache: has(4) ? DiomanCache(persist: FakeCachePersist(), cachePolicy: DiomanCachePolicy.memo, ) : null,
     share: has(5) ? DiomanShare(policy: DiomanSharePolicy.start) : null,
     mock: has(6) ? DiomanMock(enabled: false) : null,
     cancel: has(7) ? DiomanCancel() : null,

@@ -30,6 +30,19 @@ class _TM implements DiomanTokenManager {
   void set(String? t) => _access = t;
 }
 
+/// Minimal in-memory [DiomanCachePersist] for this script.
+class _MemCachePersist implements DiomanCachePersist {
+  final _store = <String, dynamic>{};
+  @override
+  dynamic read(String key) => _store[key];
+  @override
+  Future<void> write(String key, Map<String, dynamic> value) async => _store[key] = value;
+  @override
+  Future<void> remove(String key) async => _store.remove(key);
+  @override
+  Future<void> erase() async => _store.clear();
+}
+
 /// Counts requests that reach the END of the request chain = real outbound
 /// calls. Cache/share/mock short-circuit earlier in the chain, so those never
 /// increment this — making it a truthful network-hit counter.
@@ -68,7 +81,7 @@ Future<void> main() async {
     repath: DiomanRepath(),
     key: const DiomanKey(),
     normalize: const DiomanNormalize(),
-    cache: DiomanCache(),
+    cache: DiomanCache(persist: _MemCachePersist()),
     share: DiomanShare(policy: DiomanSharePolicy.start),
     cancel: DiomanCancel(),
     loading: DiomanLoading(onChanged: (l) => print('  [loading=$l]')),

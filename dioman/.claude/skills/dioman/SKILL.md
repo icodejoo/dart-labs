@@ -7,7 +7,7 @@ description: >-
   plugin, or reordering the chain. Covers the forward-order execution model, the install-order
   constraints, per-plugin implementation invariants, the extra[...] key registry, and how to verify.
   Triggers on: dio, interceptor, DiomanPlugin, auth token refresh/401 replay, cache TTL, request dedup/
-  share, retry back-off, mock fallback, envelope normalize, ApiException, ITokenManager, install order.
+  share, retry back-off, mock fallback, envelope normalize, DiomanException, ITokenManager, install order.
 ---
 
 # dioman
@@ -191,10 +191,10 @@ the wire, whether or not `normalize` is even installed.
   above; NOT part of the hard-constraint order, and deliberately excluded from quickstart examples.
   Default detects an envelope by `data is Map && containsKey(codeKey)`; success (`code==0`)
   ⇒ mutates `response.data = envelope[dataKey]` in place; failure ⇒
-  `handler.reject(DioException(error: ApiException(code,message,data)), true)` — **the trailing
+  `handler.reject(DioException(error: DiomanException(code,message,data)), true)` — **the trailing
   `true` ("call following error interceptors") is required** so anything installed after it (nothing,
   normally, since it's last) would still see the converted business error; dropping it stops error
-  propagation. `ApiException implements Exception` with `code`/`message`/`data`.
+  propagation. `DiomanException implements Exception` with `code`/`message`/`data`.
 - **DiomanRetry** (`retry_plugin.dart`, `name: 'dioman:retry'`). Ported/aligned with the same
   rewrite in `@codejoo/axp`'s `retry.ts` (this monorepo's TS/axios counterpart) — see its class doc
   and `CHANGELOG.md`'s `0.5.0` entry for the full field list. Flat 3000ms default `delay` (was

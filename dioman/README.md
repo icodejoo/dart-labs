@@ -38,13 +38,13 @@ Every plugin extends `DiomanPlugin` (a named `Interceptor` with a `dispose()` ho
 | `DiomanAuth` | Token injection + single-window 401/403 refresh & replay (5 failure actions). |
 | `DiomanRetry` | Retry network (and optionally business) failures with back-off. |
 | `DiomanLog` | Dependency-free request/response/error logging with a pluggable sink. |
-| `DiomanNormalize` | *(optional, install last)* Unwrap a `{code,data,message}` envelope; reject non-success as an `ApiException`. |
+| `DiomanNormalize` | *(optional, install last)* Unwrap a `{code,data,message}` envelope; reject non-success as an `DiomanException`. |
 
 ## Install
 
 ```yaml
 dependencies:
-  dioman: ^0.4.1
+  dioman: ^0.6.0
 ```
 
 ```dart
@@ -68,7 +68,7 @@ final handle = Dioman.install(
   repath: DiomanRepath(),                 // /users/{id}  → /users/42
   filter: const DiomanFilter(),           // drop empty params
   key: const DiomanKey(),                 // key for cache/share
-  cache: DiomanCache(),                   // TTL cache (GET)
+  cache: DiomanCache(persist: yourCachePersist),                   // TTL cache (GET)
   share: DiomanShare(),                   // dedup concurrent
   mock: DiomanMock(),                     // enabled: false by default — dev only
   cancel: DiomanCancel(),
@@ -183,7 +183,7 @@ needed if you add plugins to `dio.interceptors` yourself instead of going throug
 final handle = Dioman.install(
   dio,
   key: const DiomanKey(),
-  cache: DiomanCache(),
+  cache: DiomanCache(persist: yourCachePersist),
   auth: DiomanAuth(tokenManager: tm, onRefresh: ..., onAccessExpired: ...),
   log: const DiomanLog(),
   normalize: const DiomanNormalize(), // optional — install places it last regardless of argument order
@@ -227,11 +227,19 @@ DiomanEnvs(dio: dio, [
 
 Not a transport concern — a convenience for **one specific** envelope convention (`{code, data, message}`). Use it if your API matches; skip it entirely otherwise. Left out of [Quick start](#quick-start) and the hard-constraint order table for this reason — **if you use it, install it last**, after `log` (also where `Dioman.install` places it regardless of argument order).
 
-`DiomanNormalize({String dataKey = 'data', String codeKey = 'code', String messageKey = 'message', bool enabled = true, bool Function(dynamic)? isSuccess, bool Function(RequestOptions, Response)? shouldNormalize})` — on a success envelope replaces `response.data` with the inner payload; on a non-success `code` it rejects with an `ApiException`. By default only kicks in when the body is a `Map` containing `codeKey` **and** either `dataKey` or `messageKey`, and `isSuccess` is `code == 0`.
+`DiomanNormalize({String dataKey = 'data', String codeKey = 'code', String messageKey = 'message', bool enabled = true, bool Function(dynamic)? isSuccess, bool Function(RequestOptions, Response)? shouldNormalize})` — on a success envelope replaces `response.data` with the inner payload; on a non-success `code` it rejects with an `DiomanException`. By default only kicks in when the body is a `Map` containing `codeKey` **and** either `dataKey` or `messageKey`, and `isSuccess` is `code == 0`.
 
 ### DiomanCache
 
-`DiomanCache({int expires = 60000, CacheClone clone = CacheClone.shallow, int maxEntries = 500, bool enabled = true, bool Function(RequestOptions)? shouldCache, DateTime Function() now = DateTime.now})` — TTL cache in **milliseconds**, keyed by `extra[kRequestKey]` (needs `DiomanKey`). Defaults to caching `GET` only. Bounded by `maxEntries` (`0` disables the cap), LRU-evicted. `CacheClone` controls mutation safety of a hit: `shallow` (default, a hit reader can't corrupt the store by reassigning top-level fields), `deep` (safe for nested mutation), `none` (zero-copy read-only). `now` injects a clock for deterministic TTL tests. Management: `remove(key)`, `removeWhere(test)`, `clear()`, `size`.
+`DiomanCache({required DiomanCachePersist persist, DiomanCachePolicy cachePolicy = DiomanCachePolicy.none, int expires = 60000, CacheClone clone = CacheClone.shallow, int maxEntries = 500, bool enabled = true, bool Function(RequestOptions)? shouldCache, DateTime Function() now = DateTime.now})` — TTL cache in **milliseconds**, keyed by `extra[kRequestKey]` (needs `DiomanKey`). Defaults to caching `GET` only. Bounded by `maxEntries` (`0` disables the cap), LRU-evicted (memory layer only). `CacheClone` controls mutation safety of a hit: `shallow` (default, a hit reader can't corrupt the store by reassigning top-level fields), `deep` (safe for nested mutation), `none` (zero-copy read-only). `now` injects a clock for deterministic TTL tests. Management: `remove(key)`, `clear()` (both always touch the memory store and `persist`, regardless of `cachePolicy`). There's no `removeWhere`/`size` — `DiomanCachePersist` has no key-enumeration capability, so a bulk/pattern-based operation could never be correct against a `persist`-only entry; keep your own key list in the caller if you need bulk eviction.
+
+`persist` is **required** — there is no built-in no-op implementation, so you must implement `DiomanCachePersist` yourself (`read`/`write`/`remove`/`erase`, shaped after the `get_storage` package's container API — `read` is sync, `write`/`remove`/`erase` are async), backed by a file, sqlite, Hive, `get_storage`, or anything else, even if you only ever use `DiomanCachePolicy.memo`.
+
+`cachePolicy` (also overridable per request via `DiomanCacheOptions.cachePolicy`) picks *where* a cached entry lives, independently of whether it's cached at all (still gated by `enabled`/`shouldCache`):
+- `none` (default) — don't cache this request at all; always passes through. Caching is opt-in, not a silent default.
+- `memo` — in-memory `_store` only, same as the old behavior. Not durable — wiped on restart or `dispose()`. `persist` is never touched.
+- `persist` — `persist` only; the in-memory store is never read or written for that request.
+- `both` — synced: a write goes to `_store` **and** `persist`; a memory miss falls back to `persist.read` and backfills `_store` so the next hit is served from memory again.
 
 ### DiomanShare
 

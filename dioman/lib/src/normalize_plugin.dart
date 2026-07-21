@@ -50,8 +50,8 @@ class DiomanNormalizeOptions {
 /// does not satisfy [isSuccess].
 ///
 /// [DiomanNormalize]收到一个[codeKey]值不满足[isSuccess]的响应时抛出。
-class ApiException implements Exception {
-  const ApiException({required this.code, required this.message, this.data});
+class DiomanException implements Exception {
+  const DiomanException({required this.code, required this.message, this.data});
 
   /// The business-logic status code from the envelope.
   ///
@@ -69,7 +69,7 @@ class ApiException implements Exception {
   final dynamic data;
 
   @override
-  String toString() => 'ApiException(code: $code, message: $message)';
+  String toString() => 'DiomanException(code: $code, message: $message)';
 }
 
 /// Unwraps a standard API envelope `{ code, data, message }`.
@@ -82,10 +82,10 @@ class ApiException implements Exception {
 /// 信封成功时，把`response.data`替换成内层的[dataKey]值，方便下游代码直接
 /// 处理payload。
 ///
-/// On a non-success code, rejects with an [ApiException] so error handling
+/// On a non-success code, rejects with an [DiomanException] so error handling
 /// is unified at the interceptor layer.
 ///
-/// 非成功code时，以[ApiException] reject，让错误处理统一在拦截器层完成。
+/// 非成功code时，以[DiomanException] reject，让错误处理统一在拦截器层完成。
 ///
 /// ## Optional, business-specific — install LAST
 ///
@@ -202,11 +202,11 @@ class DiomanNormalize extends DiomanPlugin {
     // BOTH the status [codeKey] AND either the payload [dataKey] or the
     // [messageKey] — a plain resource that merely happens to carry a `code`
     // field (e.g. a country/error code as data) would otherwise be mistaken
-    // for an envelope and wrongly rejected as an ApiException.
+    // for an envelope and wrongly rejected as an DiomanException.
     //
     // 默认：只处理看起来像信封的JSON body。要求同时含状态[codeKey]，且含
     // [dataKey]或[messageKey]之一——避免把碰巧带`code`字段的普通资源
-    // （比如国家码/错误码当数据）误判成信封而错误地以ApiException拒绝。
+    // （比如国家码/错误码当数据）误判成信封而错误地以DiomanException拒绝。
     final data = response.data;
     if (data is! Map) return false;
     return data.containsKey($codeKey) &&
@@ -254,7 +254,7 @@ class DiomanNormalize extends DiomanPlugin {
       DioException(
         requestOptions: response.requestOptions,
         response: response,
-        error: ApiException(code: code, message: message, data: data),
+        error: DiomanException(code: code, message: message, data: data),
         message: message,
         type: DioExceptionType.badResponse,
       ),

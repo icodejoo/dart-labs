@@ -1,4 +1,5 @@
 ﻿// ignore_for_file: prefer_initializing_formals
+import 'dart:async';
 import 'package:dio/dio.dart';
 import 'key_plugin.dart';
 import 'dioman_plugin.dart';
@@ -24,6 +25,33 @@ enum DiomanClonePolicy {
   deep,
 }
 
+/// Where a cached entry lives: memory, [DiomanCache.persist], or both.
+///
+/// 缓存条目存在哪：内存、[DiomanCache.persist]，或两者。
+enum DiomanCachePolicy {
+  /// Don't cache this request at all.
+  ///
+  /// 完全不缓存该请求。
+  none,
+
+  /// In-memory `_store` only — not durable, gone on restart/dispose.
+  ///
+  /// 只用内存层——不持久，重启或dispose后丢失。
+  memo,
+
+  /// [DiomanCache.persist] only.
+  ///
+  /// 只用[DiomanCache.persist]。
+  persist,
+
+  /// Both, kept in sync: a write goes to memory and [DiomanCache.persist]; a
+  /// memory miss falls back to `persist.read` and backfills memory.
+  ///
+  /// 两者同步：写入时内存和[DiomanCache.persist]都写；内存未命中时回退读取
+  /// `persist`并回填内存。
+  both,
+}
+
 class _Entry {
   _Entry(this.data, this.expiresAt);
 
@@ -38,6 +66,60 @@ class _Entry {
   final int expiresAt;
 }
 
+/// Pluggable persistence hook for [DiomanCache] — no built-in implementation,
+/// the caller wires up their own durability technology (file / sqlite / Hive
+/// / get_storage / ...). Shape mirrors `get_storage`'s container API: [read]
+/// is sync, [write]/[remove]/[erase] are async. Called without awaiting;
+/// implementations must serialize their own I/O so calls land in the order
+/// they were issued, and must catch their own errors — [write]/[remove]/
+/// [erase] rejecting is never observed by [DiomanCache].
+///
+/// 落盘扩展点：不内置任何实现，由调用方接入自己的持久化技术（文件/sqlite/
+/// Hive/get_storage等）。接口形状参照`get_storage`的容器API：[read]同步，
+/// [write]/[remove]/[erase]异步。调用时不等待完成；实现方需要自己保证调用
+/// 落地的顺序跟发出顺序一致，也要自己捕获异常——[write]/[remove]/[erase]
+/// 的失败[DiomanCache]不会感知到。
+///
+/// ```dart
+/// class MyGetStoragePersist implements DiomanCachePersist {
+///   final _box = GetStorage('dioman_cache');
+///   @override
+///   dynamic read(String key) => _box.read(key);
+///   @override
+///   Future<void> write(String key, Map<String, dynamic> value) =>
+///       _box.write(key, value);
+///   @override
+///   Future<void> remove(String key) => _box.remove(key);
+///   @override
+///   Future<void> erase() => _box.erase();
+/// }
+/// ```
+abstract class DiomanCachePersist {
+  /// Synchronously reads whatever was last persisted for [key], or `null` if
+  /// there's nothing (or nothing yet — see the class doc on init ordering).
+  ///
+  /// 同步读取[key]最后一次落盘的内容，没有则返回`null`。
+  dynamic read(String key);
+
+  /// Persists [value] under [key]. Always a plain, JSON-encodable
+  /// `{'data': ..., 'expiresAt': ...}` map — safe to `jsonEncode` directly
+  /// in the implementation.
+  ///
+  /// 落盘保存[key]对应的[value]。固定是可直接`jsonEncode`的
+  /// `{'data': ..., 'expiresAt': ...}` map。
+  Future<void> write(String key, Map<String, dynamic> value);
+
+  /// Removes a single persisted entry.
+  ///
+  /// 移除单条落盘数据。
+  Future<void> remove(String key);
+
+  /// Wipes every persisted entry this store holds.
+  ///
+  /// 清空该存储的全部落盘数据。
+  Future<void> erase();
+}
+
 /// Per-request override for [DiomanCache], read from `extra['dioman:cache']`.
 ///
 /// [DiomanCache]的单请求覆盖，从`extra['dioman:cache']`读取。
@@ -49,6 +131,7 @@ class DiomanCacheOptions {
     this.maxEntries,
     this.shouldCache,
     this.now,
+    this.cachePolicy,
   });
 
   /// `false` skips cache for this request. `null` (default) inherits the
@@ -84,6 +167,11 @@ class DiomanCacheOptions {
   ///
   /// 仅本次请求覆盖插件的时钟函数`now`。
   final DateTime Function()? now;
+
+  /// Overrides the plugin's default [DiomanCachePolicy] for this request only.
+  ///
+  /// 仅本次请求覆盖插件默认的[DiomanCachePolicy]。
+  final DiomanCachePolicy? cachePolicy;
 }
 
 /// TTL-based response cache.
@@ -101,7 +189,11 @@ class DiomanCacheOptions {
 /// ```dart
 /// dio.interceptors
 ///   ..add(DiomanKey())
-///   ..add(DiomanCache(expires: 30000)); // 30 s
+///   ..add(DiomanCache(
+///     persist: MyDiomanCachePersist(), // your own DiomanCachePersist impl
+///     cachePolicy: DiomanCachePolicy.both, // sync memory + persist
+///     expires: 30000, // 30 s
+///   ));
 ///
 /// // Per-request:
 /// dio.get('/list', options: Options(extra: {
@@ -110,6 +202,8 @@ class DiomanCacheOptions {
 /// ```
 class DiomanCache extends DiomanPlugin {
   DiomanCache({
+    required this.persist,
+    this.cachePolicy = DiomanCachePolicy.none,
     this.expires = 60000, // milliseconds
     this.clone = DiomanClonePolicy.shallow,
     this.maxEntries = 500,
@@ -118,6 +212,20 @@ class DiomanCache extends DiomanPlugin {
     DateTime Function() now = DateTime.now,
   })  : _shouldCache = shouldCache ?? _defaultShouldCache,
         _now = now;
+
+  /// Backing store for [DiomanCachePolicy.persist]/[DiomanCachePolicy.both].
+  /// Required regardless of [cachePolicy]'s default.
+  ///
+  /// [DiomanCachePolicy.persist]/[DiomanCachePolicy.both]的落盘后端。不管
+  /// [cachePolicy]默认是什么都必传。
+  final DiomanCachePersist persist;
+
+  /// Default [DiomanCachePolicy] for every request, overridable per request
+  /// via [DiomanCacheOptions.cachePolicy].
+  ///
+  /// 每个请求的默认[DiomanCachePolicy]，可通过
+  /// [DiomanCacheOptions.cachePolicy]按请求覆盖。
+  final DiomanCachePolicy cachePolicy;
 
   /// `false` disables the plugin entirely — every request passes through
   /// untouched and nothing is ever cached.
@@ -140,15 +248,12 @@ class DiomanCache extends DiomanPlugin {
   /// 做零拷贝。
   final DiomanClonePolicy clone;
 
-  /// Maximum number of cached entries (LRU-evicted once exceeded). Without a
-  /// cap, keys that vary per request (e.g. deep [DiomanKey] mode on
-  /// paginated/search endpoints) accumulate forever, since an entry is only
-  /// otherwise removed when its *exact* key is requested again after expiry.
-  /// Set to `0` to disable the cap.
+  /// Maximum number of in-memory entries, LRU-evicted once exceeded. `0`
+  /// disables the cap. Only applies to the memory store — [persist]'s
+  /// capacity is entirely the caller's concern.
   ///
-  /// 缓存条目上限（超出后按LRU淘汰）。没有上限的话，每次请求都不同的key
-  /// （比如分页/搜索接口用deep模式的[DiomanKey]）会无限堆积，因为条目只有在
-  /// 过期后被*完全相同*的key再请求一次才会被清掉。设为`0`关闭上限。
+  /// 内存层条目上限，超出后按LRU淘汰。`0`关闭上限。只作用于内存层——
+  /// [persist]的容量完全是调用方自己的事。
   final int maxEntries;
 
   /// Decides whether a request should be cached at all. Defaults to GET-only.
@@ -174,6 +279,7 @@ class DiomanCache extends DiomanPlugin {
   static const _kCacheKey = '$pluginName:key';
   static const _kCacheTtl = '$pluginName:ttl';
   static const _kCacheClone = '$pluginName:clone';
+  static const _kCachePolicy = '$pluginName:policy';
 
   static bool _defaultShouldCache(RequestOptions o) =>
       o.method.toUpperCase() == 'GET';
@@ -189,15 +295,29 @@ class DiomanCache extends DiomanPlugin {
     final key = options.extra[kKey] as String?;
     if (key == null) return handler.next(options); // no key → no cache
 
+    final policy = $options.cachePolicy;
+    final useMemo = policy == DiomanCachePolicy.memo ||
+        policy == DiomanCachePolicy.both;
+    final usePersist = policy == DiomanCachePolicy.persist ||
+        policy == DiomanCachePolicy.both;
+
     final $now = $options.now;
-    final entry = _store[key];
+    var entry = useMemo ? _store[key] : null;
+    if (entry == null && usePersist) {
+      // Memory miss (or memory not in play for this policy) — persist may
+      // still hold the entry (durable across restarts, or the only layer
+      // this policy uses at all).
+      entry = _hydrateFromPersist(key);
+    }
     if (entry != null) {
       if (entry.expiresAt > $now().millisecondsSinceEpoch) {
-        // Fresh hit — move to the end so eviction is true LRU (most-recently
-        // *used*, not merely most-recently-written); otherwise a hot but old
-        // entry would be evicted ahead of a colder, newer one.
-        _store.remove(key);
-        _store[key] = entry;
+        if (useMemo) {
+          // Fresh hit — move to the end so eviction is true LRU
+          // (most-recently *used*, not merely most-recently-written); also
+          // how a `both`-policy persist hydration backfills memory.
+          _store.remove(key);
+          _store[key] = entry;
+        }
         // callFollowingResponseInterceptor: true — a cache hit must still
         // run onResponse of everything installed after cache (share, mock,
         // cancel, loading, auth, retry, log, normalize), same as a real
@@ -212,13 +332,16 @@ class DiomanCache extends DiomanPlugin {
           true,
         );
       }
-      _store.remove(key); // expired
+      // Expired — clean up wherever this policy looked for it.
+      if (useMemo) _store.remove(key);
+      if (usePersist) unawaited(persist.remove(key));
     }
 
     // Mark for writing on response.
     options.extra[_kCacheKey] = key;
     options.extra[_kCacheTtl] = $options.expires;
     options.extra[_kCacheClone] = $options.clone;
+    options.extra[_kCachePolicy] = policy;
     handler.next(options);
   }
 
@@ -234,15 +357,26 @@ class DiomanCache extends DiomanPlugin {
       final override = opts.extra[name];
       final o = override is DiomanCacheOptions ? override : null;
       final $now = o?.now ?? _now;
+      final policy =
+          opts.extra[_kCachePolicy] as DiomanCachePolicy? ?? cachePolicy;
+      final useMemo = policy == DiomanCachePolicy.memo ||
+          policy == DiomanCachePolicy.both;
+      final usePersist = policy == DiomanCachePolicy.persist ||
+          policy == DiomanCachePolicy.both;
       // Remove-then-reinsert moves this key to the end of iteration order
       // (Dart's default Map is insertion-ordered), so eviction below always
       // drops the least-recently-written entry first.
-      _store.remove(key);
-      _store[key] = _Entry(
-        response.data,
-        $now().millisecondsSinceEpoch + ttl,
-      );
-      _evictIfNeeded();
+      final expiresAt = $now().millisecondsSinceEpoch + ttl;
+      if (useMemo) {
+        _store.remove(key);
+        _store[key] = _Entry(response.data, expiresAt);
+        _evictIfNeeded();
+      }
+      if (usePersist) {
+        unawaited(
+          persist.write(key, {'data': response.data, 'expiresAt': expiresAt}),
+        );
+      }
     }
     handler.next(response);
   }
@@ -254,33 +388,43 @@ class DiomanCache extends DiomanPlugin {
     }
   }
 
+  /// Reads a single [_Entry] back from [persist] for [key], if any.
+  ///
+  /// 从[persist]为[key]读回单条[_Entry]（如果有的话）。
+  _Entry? _hydrateFromPersist(String key) {
+    final raw = persist.read(key);
+    if (raw is Map && raw['expiresAt'] is int) {
+      return _Entry(raw['data'], raw['expiresAt'] as int);
+    }
+    return null;
+  }
+
   // ── Cache management ──────────────────────────────────────────────────────
 
-  /// Removes a single cached entry by key.
+  /// Removes a single cached entry by key (memory and [persist] both).
   ///
-  /// 按key移除单条缓存条目。
-  void remove(String key) => _store.remove(key);
+  /// 按key移除单条缓存条目（同时清掉内存和[persist]落盘的部分）。
+  void remove(String key) {
+    _store.remove(key);
+    unawaited(persist.remove(key));
+  }
 
-  /// Removes every cached entry whose key satisfies [test].
+  /// Clears the entire cache — memory and [persist] both.
   ///
-  /// 移除所有满足[test]的缓存条目。
-  void removeWhere(bool Function(String key) test) =>
-      _store.removeWhere((k, _) => test(k));
-
-  /// Clears the entire cache.
-  ///
-  /// 清空整个缓存。
-  void clear() => _store.clear();
-
-  /// Current number of cached entries.
-  ///
-  /// 当前缓存条目数。
-  int get size => _store.length;
+  /// 清空整个缓存——内存和[persist]落盘的部分都清空。
+  void clear() {
+    _store.clear();
+    unawaited(persist.erase());
+  }
 
   // ── Helpers ───────────────────────────────────────────────────────────────
 
-  ({int expires, DiomanClonePolicy clone, DateTime Function() now})? _resolve(
-      RequestOptions opts) {
+  ({
+    int expires,
+    DiomanClonePolicy clone,
+    DateTime Function() now,
+    DiomanCachePolicy cachePolicy
+  })? _resolve(RequestOptions opts) {
     final override = opts.extra[name];
     final o = override is DiomanCacheOptions ? override : null;
     final $enabled = o?.enabled ?? enabled;
@@ -291,6 +435,7 @@ class DiomanCache extends DiomanPlugin {
       expires: o?.expires ?? expires,
       clone: o?.clone ?? clone,
       now: o?.now ?? _now,
+      cachePolicy: o?.cachePolicy ?? cachePolicy,
     );
   }
 

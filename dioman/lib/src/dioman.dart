@@ -27,7 +27,7 @@ import 'share_plugin.dart';
 /// final handle = Dioman.install(
 ///   dio,
 ///   key: const DiomanKey(),
-///   cache: DiomanCache(),
+///   cache: DiomanCache(persist: yourCachePersist),
 ///   auth: DiomanAuth(tokenManager: tm, onRefresh: ..., onAccessExpired: ...),
 ///   log: const DiomanLog(),
 ///   normalize: const DiomanNormalize(), // optional, business-specific — see its own doc
