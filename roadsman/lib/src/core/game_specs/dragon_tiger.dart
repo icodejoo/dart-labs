@@ -15,17 +15,17 @@ import '../game_spec.dart';
 /// ```
 final GameSpec dragonTigerSpec = GameSpec(
   id: 'dragonTiger',
-  label: '龙虎',
+  label: 'Dragon/Tiger',
   outcomes: const [
-    OutcomeDef(code: 'D', label: '龙', paletteKey: 'banker', beadTextField: 'dragonTotal'),
+    OutcomeDef(code: 'D', label: 'Dragon', paletteKey: 'banker', beadTextField: 'dragonTotal'),
     // Note: code uses G (tiGer) rather than T, because T is already taken by tie — don't change this once settled.
-    OutcomeDef(code: 'G', label: '虎', paletteKey: 'player', beadTextField: 'tigerTotal'),
-    OutcomeDef(code: 'T', label: '和', paletteKey: 'tie', beadTextField: 'dragonTotal'),
+    OutcomeDef(code: 'G', label: 'Tiger', paletteKey: 'player', beadTextField: 'tigerTotal'),
+    OutcomeDef(code: 'T', label: 'Tie', paletteKey: 'tie', beadTextField: 'dragonTotal'),
   ],
   streams: const [
     StreamDef(
       id: 'main',
-      label: '龙虎',
+      label: 'Dragon/Tiger',
       selector: OutcomeSelector(('D', 'G')),
       skipOutcomes: ['T'],
     ),

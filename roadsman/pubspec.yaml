@@ -1,6 +1,6 @@
 name: roadsman
-description: "百家乐/龙虎/骰宝路子图（露珠图）纯 Dart 引擎 + Flutter 渲染面板。移植自 casino monorepo 的 apps/baccarat-roadmap（TypeScript）。"
-version: 0.1.1
+description: "Pure-Dart road-map (bead plate) engine + Flutter render panel for baccarat/dragon-tiger/sic-bo."
+version: 0.1.2
 
 topics:
   - baccarat

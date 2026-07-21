@@ -37,7 +37,7 @@ const Set<int> rouletteRedNumbers = {1, 3, 5, 7, 9, 12, 14, 16, 18, 19, 21, 23, 
 /// ```
 final GameSpec rouletteSpec = GameSpec(
   id: 'roulette',
-  label: '轮盘',
+  label: 'Roulette',
   outcomes: [
     // Zero: green scheme (the tie color slot defaults to green 0xFF43A047).
     const OutcomeDef(code: '0', label: '0', paletteKey: 'tie'),
@@ -51,7 +51,7 @@ final GameSpec rouletteSpec = GameSpec(
   streams: const [
     StreamDef(
       id: 'main',
-      label: '大小',
+      label: 'High/Low',
       selector: RangeSelector(
         field: 'number',
         buckets: (
@@ -64,7 +64,7 @@ final GameSpec rouletteSpec = GameSpec(
     ),
     StreamDef(
       id: 'oddEven',
-      label: '单双',
+      label: 'Odd/Even',
       selector: MarkSelector(code: 'odd', tokens: ('O', 'E')),
       skipOutcomes: ['0'],
     ),

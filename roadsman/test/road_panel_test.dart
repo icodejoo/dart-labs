@@ -3,7 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:roadsman/roadsman.dart';
 
 void main() {
-  testWidgets('RoadPanel 挂载并渲染大路布局不抛异常', (tester) async {
+  testWidgets('RoadPanel mounts and renders a big road layout without throwing', (tester) async {
     final engine = createEngine(['bigRoad']);
     final results = [
       const RawResult(no: 1, winner: 'B', bankerPair: false, playerPair: false),

@@ -248,7 +248,7 @@ final Theme defaultTheme = Theme(
   canvas: const CanvasTheme(background: 0xFF1A1A2E),
   grid: const GridTheme(stroke: 0x14FFFFFF, lineWidth: 0.5),
   cell: const CellTheme(radiusRatio: 0.38, lineWidth: 2),
-  labels: const LabelsTheme(banker: '庄', player: '闲', tie: '和', empty: '等待开局'),
+  labels: const LabelsTheme(banker: 'Banker', player: 'Player', tie: 'Tie', empty: 'Waiting for a new shoe'),
   fonts: const FontsTheme(family: 'sans-serif', sizeRatio: 0.4),
   roads: const {},
 );
@@ -272,7 +272,7 @@ final Theme lightTheme = Theme(
   canvas: const CanvasTheme(background: 0xFFF5F5F5),
   grid: const GridTheme(stroke: 0x1A000000, lineWidth: 0.5),
   cell: const CellTheme(radiusRatio: 0.38, lineWidth: 2),
-  labels: const LabelsTheme(banker: '庄', player: '闲', tie: '和', empty: '等待开局'),
+  labels: const LabelsTheme(banker: 'Banker', player: 'Player', tie: 'Tie', empty: 'Waiting for a new shoe'),
   fonts: const FontsTheme(family: 'sans-serif', sizeRatio: 0.4),
   roads: const {},
 );

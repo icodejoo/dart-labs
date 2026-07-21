@@ -3,7 +3,7 @@ import 'package:roadsman/roadsman.dart';
 
 void main() {
   group('viewport', () {
-    test('createViewport 返回原点、scale=1、idle', () {
+    test('createViewport returns origin, scale=1, idle', () {
       final s = createViewport();
       expect(s.offsetX, 0);
       expect(s.offsetY, 0);
@@ -11,13 +11,13 @@ void main() {
       expect(s.phase, ViewportPhase.idle);
     });
 
-    test('computeBounds：内容比面板宽时 minX 为负', () {
+    test('computeBounds: minX is negative when content is wider than the panel', () {
       final bounds = computeBounds(400, 216, 800, 216, 1);
       expect(bounds.minX, -400);
       expect(bounds.maxX, 0);
     });
 
-    test('dragBy 在边界内正常累加偏移', () {
+    test('dragBy accumulates offset normally while within bounds', () {
       final bounds = computeBounds(400, 216, 800, 216, 1);
       var s = createViewport();
       s = dragBy(s, -50, 0, bounds, defaultViewportConfig);
@@ -25,7 +25,7 @@ void main() {
       expect(s.phase, ViewportPhase.dragging);
     });
 
-    test('dragBy 越界时按橡皮筋阻尼压缩', () {
+    test('dragBy compresses via rubber-band damping when out of bounds', () {
       final bounds = computeBounds(400, 216, 800, 216, 1);
       var s = createViewport();
       // Dragging past the minX=-400 boundary to -450: after damping it should sit
@@ -35,14 +35,14 @@ void main() {
       expect(s.offsetX, lessThan(-400));
     });
 
-    test('Y 轴在内容高度不超过面板时锁死为 0', () {
+    test('Y axis is locked at 0 when content height does not exceed the panel', () {
       final bounds = computeBounds(400, 216, 800, 216, 1); // minY = 0 (content isn't taller than the panel)
       var s = createViewport();
       s = dragBy(s, 0, 50, bounds, defaultViewportConfig);
       expect(s.offsetY, 0);
     });
 
-    test('zoomAt 保持焦点处内容屏幕位置不变（缩放不变量）', () {
+    test('zoomAt keeps the content screen position at the focal point unchanged (zoom invariant)', () {
       final bounds0 = computeBounds(400, 216, 800, 216, 1);
       final s0 = dragBy(createViewport(), -100, 0, bounds0, defaultViewportConfig);
       final nextScale = 1.5;
@@ -56,13 +56,13 @@ void main() {
       expect(s1.scale, nextScale);
     });
 
-    test('zoomAt 超出 [0.5, 3] 会被 clamp', () {
+    test('zoomAt is clamped when outside [0.5, 3]', () {
       final bounds = computeBounds(400, 216, 800, 216, 5);
       final s = zoomAt(createViewport(), 0, 0, 10, bounds);
       expect(s.scale, 3);
     });
 
-    test('endDrag 低速回到 idle 或 rebound，高速进入 inertia', () {
+    test('endDrag returns to idle or rebound at low speed, enters inertia at high speed', () {
       final bounds = computeBounds(400, 216, 800, 216, 1);
       final slow = endDrag(createViewport(), 0.001, 0, bounds, defaultViewportConfig);
       expect(slow.phase, ViewportPhase.idle);

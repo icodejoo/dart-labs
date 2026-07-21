@@ -16,7 +16,7 @@ class EmptyStateOverlay extends StatelessWidget {
   /// Text color.
   final Color color;
 
-  const EmptyStateOverlay({super.key, this.message = '等待开局', this.color = Colors.white70});
+  const EmptyStateOverlay({super.key, this.message = 'Waiting for a new shoe', this.color = Colors.white70});
 
   @override
   Widget build(BuildContext context) => IgnorePointer(
