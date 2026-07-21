@@ -1,4 +1,4 @@
-## Unreleased
+## 0.1.1
 
 - 移除 `README.zh-CN.md`（不再维护中文版 README）
 - `pubspec.yaml` 去掉 `homepage`/`repository`/`issue_tracker` 的 GitHub 链接
