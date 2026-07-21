@@ -28,14 +28,15 @@ void main() {
     test('dragBy 越界时按橡皮筋阻尼压缩', () {
       final bounds = computeBounds(400, 216, 800, 216, 1);
       var s = createViewport();
-      // 越过 minX=-400 边界，拖到 -450：阻尼后应比 -450 更靠近边界。
+      // Dragging past the minX=-400 boundary to -450: after damping it should sit
+      // closer to the boundary than -450.
       s = dragBy(s, -450, 0, bounds, defaultViewportConfig);
       expect(s.offsetX, greaterThan(-450));
       expect(s.offsetX, lessThan(-400));
     });
 
     test('Y 轴在内容高度不超过面板时锁死为 0', () {
-      final bounds = computeBounds(400, 216, 800, 216, 1); // minY = 0（内容不超高）
+      final bounds = computeBounds(400, 216, 800, 216, 1); // minY = 0 (content isn't taller than the panel)
       var s = createViewport();
       s = dragBy(s, 0, 50, bounds, defaultViewportConfig);
       expect(s.offsetY, 0);
@@ -48,7 +49,7 @@ void main() {
       final bounds1 = computeBounds(400, 216, 800, 216, nextScale);
       final s1 = zoomAt(s0, 200, 100, nextScale, bounds1);
 
-      // 缩放前焦点处的内容坐标。
+      // Content coordinates at the focal point before zooming.
       final contentXBefore = (200 - s0.offsetX) / s0.scale;
       final contentXAfter = (200 - s1.offsetX) / s1.scale;
       expect(contentXAfter, closeTo(contentXBefore, 0.001));

@@ -1,6 +1,6 @@
-/// UX 增强包 barrel（仅重新导出，无自身逻辑）。
+/// UX enhancement package barrel (re-exports only, no logic of its own).
 ///
-/// 移植自 `src/panel/ux/index.ts`。
+/// Ported from `src/panel/ux/index.ts`.
 library;
 
 export 'pulse.dart';

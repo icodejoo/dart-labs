@@ -1,13 +1,13 @@
-/// 曱甴路插件（k=3）：比较间隔两列的列长，斜线标记。
+/// Cockroach road plugin (k=3): compares column lengths two columns apart, drawn as a slash marker.
 ///
-/// 移植自 `src/core/roads/cockroach-road.ts`。
+/// Ported from `src/core/roads/cockroach-road.ts`.
 library;
 
 import '../grid_layout.dart';
 import '../types.dart';
 import 'derived_road.dart';
 
-/// 曱甴路插件（k=3）：比较间隔两列的列长，斜线标记。
+/// Cockroach road plugin (k=3): compares column lengths two columns apart, drawn as a slash marker.
 class CockroachRoadPlugin extends RoadPlugin<DerivedRoadData> {
   @override
   String get id => 'cockroachRoad';
@@ -59,5 +59,5 @@ class CockroachRoadPlugin extends RoadPlugin<DerivedRoadData> {
   }
 }
 
-/// [CockroachRoadPlugin] 的单例实例。
+/// Singleton instance of [CockroachRoadPlugin].
 final cockroachRoadPlugin = CockroachRoadPlugin();

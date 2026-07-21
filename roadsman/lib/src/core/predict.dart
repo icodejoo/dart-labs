@@ -1,13 +1,14 @@
-/// 问路：假设下一局为庄/闲时，三条衍生路会不会多长出一格、落什么颜色。
+/// Prediction: assuming the next round is Banker/Player, would each of the
+/// three derived roads gain a new cell, and what color would it be.
 ///
-/// 移植自 `src/core/predict.ts`。
+/// Ported from `src/core/predict.ts`.
 library;
 
 import 'roads/big_road.dart';
 import 'roads/derived_road.dart';
 import 'types.dart';
 
-/// [predictNextOutcome] 的返回值：三条衍生路各自的问路结果。
+/// Return value of [predictNextOutcome]: prediction results for each of the three derived roads.
 class PredictResult {
   final PredictionForRoad bigEyeBoy;
   final PredictionForRoad smallRoad;
@@ -16,13 +17,16 @@ class PredictResult {
   const PredictResult({required this.bigEyeBoy, required this.smallRoad, required this.cockroachRoad});
 }
 
-/// 基于历史统计给出下一局各结果的概率倾向。
+/// Gives a probability lean for the next round's outcome based on historical stats.
 ///
-/// 做法：分别假设下一局开庄/开闲，重算三条衍生路，比较条目数是否比当前多一个——
-/// 多出的那一个就是"这局如果这样开，衍生路会落的颜色"；没有多出说明这个假设下
-/// 该衍生路还没走到需要落子的位置，返回 null。
+/// Approach: hypothesize the next round is Banker or Player respectively,
+/// recompute the three derived roads, and compare whether the entry count
+/// grew by one versus the current state — the newly added entry is the
+/// color the derived road would land on under that hypothesis. If no entry
+/// was added, this derived road hasn't reached a point where it needs to
+/// place a new cell under that hypothesis, so return null.
 PredictResult predictNextOutcome(List<RawResult> results) {
-  // 基线大路只构建一次（三条衍生路共用同一份大路数据）。
+  // The baseline big road is built only once (all three derived roads share this same big-road data).
   final baseBigRoad = buildBigRoad(results);
   final base = [1, 2, 3].map((k) => deriveRoad(baseBigRoad, k).entries.length).toList();
 

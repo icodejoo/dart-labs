@@ -1,17 +1,19 @@
-/// 空态文案覆盖层：结果为空时在面板中央显示提示文案。
+/// Empty-state text overlay: shows a hint message centered in the panel
+/// when results are empty.
 ///
-/// 移植自 `src/panel/ux/empty-state.ts`；Flutter 版本是一个纯 widget，直接
-/// `Stack` 叠在 `RoadPanel` 上即可，不需要像 TS 那样手动增删 DOM 节点。
+/// Ported from `src/panel/ux/empty-state.ts`; the Flutter version is a plain
+/// widget that can simply be layered on `RoadPanel` via a `Stack`, without
+/// needing to manually add/remove DOM nodes like the TS version does.
 library;
 
 import 'package:flutter/material.dart';
 
-/// 空态覆盖层：`message` 为空字符串时不渲染任何内容。
+/// Empty-state overlay: renders nothing when `message` is an empty string.
 class EmptyStateOverlay extends StatelessWidget {
-  /// 提示文案，默认"等待开局"。
+  /// Hint message, defaults to "waiting for the round to start".
   final String message;
 
-  /// 文字颜色。
+  /// Text color.
   final Color color;
 
   const EmptyStateOverlay({super.key, this.message = '等待开局', this.color = Colors.white70});

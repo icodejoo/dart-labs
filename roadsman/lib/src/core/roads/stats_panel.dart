@@ -1,11 +1,11 @@
-/// 统计面板插件：庄/闲/和计数与占比、最长连状态。
+/// Stats panel plugin: banker/player/tie counts and percentages, longest-streak status.
 ///
-/// 移植自 `src/core/roads/stats-panel.ts`。
+/// Ported from `src/core/roads/stats-panel.ts`.
 library;
 
 import '../types.dart';
 
-/// 统计面板插件。
+/// Stats panel plugin.
 class StatsPanelPlugin extends RoadPlugin<StatsData> {
   @override
   String get id => 'statsPanel';
@@ -89,5 +89,5 @@ class StatsPanelPlugin extends RoadPlugin<StatsData> {
   }
 }
 
-/// [StatsPanelPlugin] 的单例实例。
+/// Singleton instance of [StatsPanelPlugin].
 final statsPanelPlugin = StatsPanelPlugin();

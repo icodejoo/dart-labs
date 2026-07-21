@@ -1,15 +1,17 @@
-/// 类型安全事件发射器。
+/// Type-safe event emitter.
 ///
-/// 纯 Dart，无 DOM 依赖，无通配符，无优先级，无异步队列。移植自
-/// `src/core/emitter.ts`；Dart 版本用单一载荷类型（不是 TS 的多键事件映射表），
-/// 多事件场景由调用方各自建一个 `Emitter<T>` 实例，比强行照搬 TS 的
-/// `Record<string, unknown>` 事件映射表更符合 Dart 的类型推断习惯。
+/// Pure Dart, no DOM dependency, no wildcards, no priorities, no async queue.
+/// Ported from `src/core/emitter.ts`; the Dart version uses a single payload
+/// type (instead of the TS multi-key event map), so multi-event scenarios
+/// should have callers create one `Emitter<T>` instance per event — this fits
+/// Dart's type inference better than forcing the TS
+/// `Record<string, unknown>` event map pattern.
 library;
 
-/// 事件监听器（接收载荷，无返回值）。
+/// Event listener (receives a payload, returns nothing).
 typedef Listener<T> = void Function(T payload);
 
-/// 类型安全 Emitter。
+/// Type-safe emitter.
 ///
 /// ```dart
 /// final emitter = Emitter<int>();
@@ -20,13 +22,13 @@ typedef Listener<T> = void Function(T payload);
 class Emitter<T> {
   final _listeners = <Listener<T>>{};
 
-  /// 订阅事件，返回取消订阅函数（调用后立即移除该监听器）。
+  /// Subscribes to events, returning an unsubscribe function (removes this listener when called).
   void Function() on(Listener<T> listener) {
     _listeners.add(listener);
     return () => _listeners.remove(listener);
   }
 
-  /// 发射事件，同步调用所有监听器。
+  /// Emits an event, synchronously calling all listeners.
   void emit(T payload) {
     for (final listener in _listeners.toList()) {
       listener(payload);

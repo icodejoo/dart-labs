@@ -1,43 +1,58 @@
-/// 绘制回调类型：让调用方在内置绘制前/后插入自定义 Canvas 绘制，控制图层顺序
-/// （before = 画在内置内容之下，after = 画在内置内容之上），且内置绘制永远照常
-/// 执行——这些回调是纯增量挂钩，不会替换/跳过任何内置绘制。
+/// Paint callback types: let the caller inject custom Canvas drawing before/after
+/// the built-in painting, controlling layer order (before = drawn beneath the
+/// built-in content, after = drawn on top of it), while the built-in painting
+/// always still runs as normal — these callbacks are purely additive hooks,
+/// they never replace or skip any built-in drawing.
 ///
-/// 两组挂钩：
-/// - 网格瓷砖（[GridCellPaintCallback]）：只在 `GridStyle.tile` 下、每个瓷砖单元
-///   格触发，用于自定义底部背景元素（棋盘配色、贴图等）。
-/// - 绘制指令（[CommandPaintCallback]）：[RoadPainter]/[RoadFramePainter] 绘制
-///   的每一条 [DrawCommand]（圆/线/斜线/点/文字标记/矩形，含叠加层）触发一次，
-///   携带原始指令对象，可 switch 拿到该指令的全部坐标/尺寸/颜色字段。
+/// Two hook groups:
+/// - Grid tiles ([GridCellPaintCallback]): fires for each grid tile cell, only
+///   under `GridStyle.tile`, for customizing bottom-layer background elements
+///   (checkerboard coloring, textures, etc.).
+/// - Draw commands ([CommandPaintCallback]): fires once for every [DrawCommand]
+///   ([RoadPainter]/[RoadFramePainter] paint circles/lines/slashes/dots/text
+///   badges/rects, including overlay layers), carrying the original command
+///   object so a switch can access all of that command's coordinate/size/color
+///   fields.
 ///
-/// 未设置回调（默认）时零开销——网格/内容层的 Picture 缓存快速路径完全不受
-/// 影响；一旦设置了对应回调，该层当帧会退回逐条直绘（缓存录制的是纯栅格数据，
-/// 没法在重放时触发 Dart 回调），仅牺牲拖拽/惯性帧的部分性能换取正确性。
+/// Zero overhead when no callback is set (the default) — the grid/content
+/// layer's Picture cache fast path is completely unaffected; once a
+/// corresponding callback is set, that layer falls back to per-item direct
+/// drawing for the frame (the cache records pure raster data and can't fire a
+/// Dart callback on replay), trading away some drag/fling-frame performance
+/// for correctness.
 library;
 
 import 'dart:ui';
 
 import '../core/types.dart';
 
-/// 网格瓷砖绘制信息：内置填充执行前后都会带上这份信息回调一次。
+/// Grid tile paint info: fired once both before and after the built-in fill is
+/// executed.
 ///
-/// [canvas] 已经处于当前 viewport 变换之下（内容坐标系），直接用 [rect] 的坐标
-/// 作画即可，无需自己再处理平移/缩放。
+/// [canvas] is already under the current viewport transform (content
+/// coordinate space), so you can paint directly using [rect]'s coordinates
+/// without handling translation/scaling yourself.
 class GridCellPaintInfo {
-  /// 当前画布，已应用 viewport 变换（内容坐标系）。
+  /// The current canvas, with the viewport transform already applied (content
+  /// coordinate space).
   final Canvas canvas;
 
-  /// 瓷砖的位置与大小（内容坐标系，已按 [GridSpec.tileInsetRatio] 收缩）。
+  /// The tile's position and size (content coordinate space, already shrunk
+  /// per [GridSpec.tileInsetRatio]).
   final Rect rect;
 
-  /// 内置填充色（[GridSpec.tileFill]，缺省时的兜底色）。
+  /// The built-in fill color ([GridSpec.tileFill], or the fallback default).
   final Color color;
 
-  /// 瓷砖在本次绘制循环里的行号（从 0 起，仅为遍历顺序，不是逻辑网格行号——
-  /// 网格随 viewport 相位滚动，同一行号在不同帧可能对应不同的实际内容位置；
-  /// 常见用法是按奇偶行/列做棋盘配色）。
+  /// The tile's row index within this paint pass (starting at 0; this is just
+  /// iteration order, not a logical grid row — the grid scrolls with the
+  /// viewport phase, so the same row index can map to a different actual
+  /// content position on different frames; a common use is checkerboard
+  /// coloring by row/column parity).
   final int row;
 
-  /// 瓷砖在本次绘制循环里的列号（含义同 [row]）。
+  /// The tile's column index within this paint pass (same semantics as
+  /// [row]).
   final int col;
 
   const GridCellPaintInfo({
@@ -49,24 +64,27 @@ class GridCellPaintInfo {
   });
 }
 
-/// 网格瓷砖绘制前/后回调；参见 [GridCellPaintInfo]。
+/// Before/after callback for grid tile painting; see [GridCellPaintInfo].
 typedef GridCellPaintCallback = void Function(GridCellPaintInfo info);
 
-/// 单条绘制指令的信息：内置绘制执行前后都会带上这份信息回调一次。
+/// Info for a single draw command: fired once both before and after the
+/// built-in drawing is executed.
 ///
-/// [canvas] 已经处于当前 viewport 变换之下（内容坐标系）。[command] 是原始
-/// [DrawCommand]，switch 其运行时类型（[CircleCommand]/[LineCommand]/
-/// [SlashCommand]/[DotCommand]/[BadgeCommand]/[RectCommand]）可取到该指令的
-/// 全部坐标/尺寸/颜色字段。
+/// [canvas] is already under the current viewport transform (content
+/// coordinate space). [command] is the original [DrawCommand]; switching on
+/// its runtime type ([CircleCommand]/[LineCommand]/[SlashCommand]/
+/// [DotCommand]/[BadgeCommand]/[RectCommand]) gives access to all of that
+/// command's coordinate/size/color fields.
 class CommandPaintInfo {
-  /// 当前画布，已应用 viewport 变换（内容坐标系）。
+  /// The current canvas, with the viewport transform already applied (content
+  /// coordinate space).
   final Canvas canvas;
 
-  /// 即将/刚刚被内置绘制的指令。
+  /// The command about to be / just painted by the built-in drawing.
   final DrawCommand command;
 
   const CommandPaintInfo({required this.canvas, required this.command});
 }
 
-/// 绘制指令前/后回调；参见 [CommandPaintInfo]。
+/// Before/after callback for a draw command; see [CommandPaintInfo].
 typedef CommandPaintCallback = void Function(CommandPaintInfo info);

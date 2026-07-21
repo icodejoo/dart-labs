@@ -8,9 +8,10 @@ void main() {
   runApp(const RoadmapDemoApp());
 }
 
-/// roadsman 包的 Flutter demo，功能对齐 casino/apps/baccarat-roadmap 的
-/// `example/main.ts`：切换游戏类型、勾选显示哪些路、手工加一局、回放、问路、
-/// UX 开关。不追求逐像素复刻网页版布局，追求功能对等。
+/// A Flutter demo for the roadsman package, matching the feature set of
+/// `example/main.ts` in casino/apps/baccarat-roadmap: switching game type, toggling
+/// which roads are shown, manually appending a round, replay, "what if" prediction,
+/// and UX toggles. It doesn't aim to pixel-match the web layout, only functional parity.
 class RoadmapDemoApp extends StatelessWidget {
   const RoadmapDemoApp({super.key});
 
@@ -48,11 +49,13 @@ const _roadLabels = {
   'statsPanel': '统计面板',
 };
 
-/// 百家乐专属的路（切到其他游戏类型时隐藏，对应 example/main.ts 的做法）。
+/// Roads exclusive to baccarat (hidden when switching to other game types, matching
+/// what example/main.ts does).
 const _baccaratOnlyRoads = {'pairRoad', 'naturalRoad'};
 
-/// 轮盘可用的路：衍生路插件（大路/大眼仔等）目前只认百家乐 B/P 语义，
-/// 轮盘 37 个号码 outcome 走它们没有意义，只开放珠盘露珠。
+/// Roads available for roulette: the derived-road plugins (big road/big eye boy etc.)
+/// currently only understand baccarat's B/P semantics, so they're meaningless against
+/// roulette's 37-number outcomes -- only the bead plate is enabled.
 const _rouletteRoads = {'beadPlate'};
 
 class RoadmapDemoPage extends StatefulWidget {
@@ -85,38 +88,44 @@ class _RoadmapDemoPageState extends State<RoadmapDemoPage> {
   Engine? _engine;
   ComputeOutput? _output;
 
-  /// 问路结果：假设下一局开庄/开闲，三条衍生路是否多长出一格、落什么颜色。
-  /// 这是独立于引擎 `predict()` 机制的统计预测（`core/predict.dart` 的
-  /// `predictNextOutcome`）——大眼仔/小路/曱甴路插件本身不实现 `predict()`
-  /// （跟 TS 版本一致，问路是引擎之外单独的一套逻辑），所以不能从
-  /// `ComputeOutput.predictions` 里取，得单独算。
+  /// "What if" prediction result: assuming the next round is a banker or player win,
+  /// whether each of the three derived roads would gain an extra cell and what color it
+  /// would be. This is a statistical prediction independent of the engine's `predict()`
+  /// mechanism (`predictNextOutcome` in `core/predict.dart`) -- the big eye boy/small
+  /// road/cockroach road plugins themselves don't implement `predict()` (matching the TS
+  /// version, where "what if" prediction is a separate system outside the engine), so it
+  /// can't be read from `ComputeOutput.predictions` and has to be computed separately.
   PredictResult? _prediction;
 
-  /// 问路：none / B / P。
+  /// "What if" mode: none / B / P.
   String _predictMode = 'none';
 
-  /// 上次跑 predictNextOutcome 时的 results 引用（按引用备忘）。
+  /// The results reference from the last time predictNextOutcome ran (memoized by reference).
   List<RawResult>? _lastPredictedFor;
 
-  /// 全局主题（demo 不换肤，解析一次全程复用，避免每次 build 重建整棵主题树）。
+  /// Global theme (the demo doesn't support skinning, so it's resolved once and reused
+  /// throughout, to avoid rebuilding the whole theme tree on every build).
   late final _theme = resolveTheme();
 
-  /// 布局配置（不变，缓存一份）——与 store 的稳定快照配合，让 Engine.compute 的
-  /// 按引用备忘录在 UI 无关重算（切开关等）时直接命中，布局对象保持同一实例。
+  /// Layout config (fixed, cached once) -- paired with the store's stable snapshot so that
+  /// Engine.compute's by-reference memoization can hit directly when recomputing for
+  /// UI-only changes (toggling a switch etc.), keeping the layout object the same instance.
   late final _cfg = LayoutConfig(cellSize: 18, rows: 6, theme: _theme);
 
-  /// 合并后 decorations 列表的备忘录（按路 id）：入参引用没变就复用同一 List
-  /// 实例，避免每次 build 新建列表击穿 RoadPanel 的数据未变判断。
+  /// Memo of the merged decorations list (keyed by road id): if the input references
+  /// haven't changed, reuse the same List instance, so a new list isn't built on every
+  /// build that would defeat RoadPanel's "data unchanged" check.
   final Map<String, (RoadLayout, PredictionForRoad?, String, List<DrawCommand>)> _decoCache = {};
 
   bool _pulseEnabled = true;
   bool _celebrationEnabled = true;
   bool _hapticsEnabled = false;
 
-  /// 最近一次 store 变更的类型，决定要不要给 RoadPanel 播插入动画/自动跟随尾部
-  /// ——只有真正的"加一局"（UpdateKind.append）才应该动画+跟随，切靴局/切游戏
-  /// 类型这类全量刷新（UpdateKind.full）应该直达终态，不该把用户正在看的历史
-  /// 位置拽走。
+  /// The kind of the most recent store change, which decides whether RoadPanel should
+  /// play an insert animation / auto-follow the tail -- only a genuine "append one round"
+  /// (UpdateKind.append) should animate and follow; a full refresh like switching shoes or
+  /// game type (UpdateKind.full) should jump straight to the final state, without yanking
+  /// the user away from the history position they're currently looking at.
   RoadUpdateKind _lastEventKind = RoadUpdateKind.setResults;
 
   @override
@@ -156,11 +165,12 @@ class _RoadmapDemoPageState extends State<RoadmapDemoPage> {
     _engine ??= createEngine(_enabledRoads.toList(), spec: _currentSpec);
     final results = _store.getResults();
     _output = _engine!.compute(results, _cfg);
-    // predictNextOutcome 只对百家乐的 B/P 二元结果有意义（假设下一局 winner
-    // 是 'B'/'P' 去重算大路）；切到龙虎/骰宝时不调用，_predictMode 也会在
-    // _onGameTypeChanged 里跟着隐藏对应的下拉控件。
-    // 问路结果按 results 引用备忘：无关 UI 重算不重跑 predictNextOutcome，
-    // PredictionForRoad 实例保持稳定，_decoCache 的 identical 判断才能命中。
+    // predictNextOutcome only makes sense for baccarat's binary B/P outcome (recomputing
+    // the big road assuming the next winner is 'B'/'P'); it isn't called when switched to
+    // dragon tiger/sicbo, and _onGameTypeChanged also hides the corresponding dropdown then.
+    // The prediction result is memoized by the results reference: a UI-only recompute
+    // doesn't rerun predictNextOutcome, so the PredictionForRoad instance stays stable and
+    // _decoCache's identical check can hit.
     if (_currentSpec.id != 'baccarat') {
       _prediction = null;
       _lastPredictedFor = null;
@@ -284,12 +294,14 @@ class _RoadmapDemoPageState extends State<RoadmapDemoPage> {
               icon: const Icon(Icons.play_arrow),
               tooltip: '回放',
               onPressed: () => setState(() {
-                // 加载靴局时已经把整靴数据 setResults 进 store 供用户直接看全貌，
-                // replayer 的内部游标却是从 0 开始——不清空 store 直接 play() 会
-                // 导致每次 append 的局号和 store 里"已经有的最后一局+1"对不上，
-                // append 静默失败（回调 onOutOfSync），回放毫无效果。只有从
-                // idle（刚加载/上次已停止）重新开始时才需要清空重建；从暂停
-                // 恢复（paused）应该接着播，不能清空。
+                // Loading a shoe already pushes the whole shoe's data into the store via
+                // setResults so the user can see the full picture, but the replayer's
+                // internal cursor starts from 0 -- calling play() without clearing the
+                // store first would make each appended round number mismatch "the store's
+                // last round + 1", so append silently fails (via the onOutOfSync callback)
+                // and replay has no visible effect. Clearing and rebuilding is only needed
+                // when starting fresh from idle (just loaded / previously stopped); resuming
+                // from paused should just continue playing, not clear anything.
                 if (_replayer!.state == ReplayState.idle) {
                   _store.setResults(const []);
                   _replayer = createReplayer(_replayScript, _store);
@@ -371,7 +383,8 @@ class _RoadmapDemoPageState extends State<RoadmapDemoPage> {
     );
   }
 
-  /// 从 [_prediction] 里取指定路的问路结果（只有大眼仔/小路/曱甴路三条有意义）。
+  /// Gets the "what if" prediction result for a given road from [_prediction] (only
+  /// meaningful for big eye boy/small road/cockroach road).
   PredictionForRoad? _predictionFor(String id) {
     final p = _prediction;
     if (p == null) return null;
@@ -383,8 +396,9 @@ class _RoadmapDemoPageState extends State<RoadmapDemoPage> {
     };
   }
 
-  /// 合并 layout.decorations 与问路 ghost，按 (layout, prediction, predictMode)
-  /// 引用备忘：入参没变时返回同一 List 实例，RoadPanel 才能识别"数据未变"。
+  /// Merges layout.decorations with the "what if" ghost marker, memoized by
+  /// (layout, prediction, predictMode) references: returns the same List instance when the
+  /// inputs haven't changed, so RoadPanel can recognize the data as unchanged.
   List<DrawCommand> _mergedDecorations(String id, RoadLayout layout, PredictionForRoad? prediction) {
     final cached = _decoCache[id];
     if (cached != null &&
@@ -401,13 +415,16 @@ class _RoadmapDemoPageState extends State<RoadmapDemoPage> {
     return merged;
   }
 
-  /// 问路 ghost：假设下一局开庄/开闲，衍生路会不会多长出一格、落什么颜色，
-  /// 用半透明提示点画在对应路当前内容的末尾（紧挨着最后一格右侧，同一行）。
+  /// "What if" ghost marker: assuming the next round is a banker or player win, whether a
+  /// derived road would gain an extra cell and what color it would be, drawn as a
+  /// semi-transparent dot at the end of that road's current content (right next to the
+  /// last cell, same row).
   List<DrawCommand> _buildGhostDecoration(PredictionForRoad? prediction, RoadLayout layout) {
     if (prediction == null) return const [];
     final color = _predictMode == 'B' ? prediction.ifBanker : prediction.ifPlayer;
     if (color == null) return const [];
-    // 颜色跟随主题调色板，不再硬编码（换主题时 ghost 点与路子图保持一致）
+    // Color follows the theme palette instead of being hardcoded (keeps the ghost dot
+    // consistent with the road chart when the theme changes)
     final argb = color == DerivedColor.red ? _theme.palette.red : _theme.palette.blue;
     if (layout.cells.isEmpty) {
       return [DotCommand(x: 9, y: 9, r: 6, fill: argb, alpha: 0.5)];

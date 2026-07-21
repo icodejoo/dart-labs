@@ -1,4 +1,5 @@
-/// 珠盘路 spec 驱动行为测试：同一个插件在百家乐/轮盘规格下产出各自的颜色与文字。
+/// Bead plate spec-driven behavior test: the same plugin produces different colors and
+/// text depending on whether the baccarat or roulette game spec is in effect.
 library;
 
 import 'package:flutter_test/flutter_test.dart';
@@ -7,11 +8,11 @@ import 'package:roadsman/roadsman.dart';
 RawResult _r(int no, String winner, {bool bp = false, bool pp = false}) =>
     RawResult(no: no, winner: winner, bankerPair: bp, playerPair: pp);
 
-/// 从一格的指令里取第一个 CircleCommand 的 fill。
+/// Gets the fill of the first CircleCommand among a cell's draw commands.
 int? _fillOf(LayoutCell cell) =>
     cell.commands.whereType<CircleCommand>().first.fill;
 
-/// 从一格的指令里取 BadgeCommand 的文字。
+/// Gets the text of the BadgeCommand among a cell's draw commands.
 String _textOf(LayoutCell cell) =>
     cell.commands.whereType<BadgeCommand>().first.text;
 
@@ -32,7 +33,7 @@ void main() {
       expect(_textOf(cells[1]), theme.labels.player);
       expect(_textOf(cells[2]), theme.labels.tie);
 
-      // 庄对角标仍然产出（走 spec.markers 泛化路径）。
+      // The banker-pair corner marker is still produced (via the generalized spec.markers path).
       expect(cells[0].commands.whereType<DotCommand>(), hasLength(1));
       expect(cells[1].commands.whereType<DotCommand>(), isEmpty);
     });
@@ -45,9 +46,9 @@ void main() {
       expect(_textOf(cells[0]), '0');
       expect(_textOf(cells[1]), '32');
       expect(_textOf(cells[2]), '17');
-      expect(_fillOf(cells[0]), theme.palette.tie); // 零号绿色系
-      expect(_fillOf(cells[1]), theme.palette.red); // 32 红
-      expect(_fillOf(cells[2]), theme.palette.blue); // 17 黑（默认 blue 色位）
+      expect(_fillOf(cells[0]), theme.palette.tie); // 0 is green
+      expect(_fillOf(cells[1]), theme.palette.red); // 32 is red
+      expect(_fillOf(cells[2]), theme.palette.blue); // 17 is black (defaults to the blue slot)
     });
 
     test('主题 palette.outcomes 覆盖单个号码颜色（外部可配，不改规格）', () {

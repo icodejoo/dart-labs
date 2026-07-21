@@ -1,3 +1,10 @@
+## Unreleased
+
+- 移除 `README.zh-CN.md`（不再维护中文版 README）
+- `pubspec.yaml` 去掉 `homepage`/`repository`/`issue_tracker` 的 GitHub 链接
+- 代码注释统一改为纯英文（原双语注释中的中文部分已删除/合并进英文）
+- 新增 `CLAUDE.md` 记录本包的项目规则（README 单一英文版、注释禁止中文）
+
 ## 0.1.0
 
 包名从 `roadmap` 改为 `roadsman`（pub.dev 上 `roadmap` 已被占用）；其余无变化。

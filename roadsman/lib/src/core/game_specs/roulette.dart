@@ -1,9 +1,11 @@
-/// 轮盘内置 [GameSpec]。
+/// Built-in [GameSpec] for roulette.
 ///
-/// 露珠图（珠盘路）开箱即用：每个号码是一个 outcome，code/label 都是号码本身，
-/// 取色走 paletteKey——红号 `red`、黑号 `blue`（沿用衍生路红蓝色位，主题里
-/// `palette.red/blue` 默认就是红/蓝）、零号 `tie`（绿色系）。想要严格的
-/// "黑色"号码配色，不用改代码，主题覆盖即可：
+/// The bead-plate chart works out of the box: each number is one outcome,
+/// with code/label both being the number itself, colored via paletteKey —
+/// red numbers use `red`, black numbers use `blue` (reusing the derived
+/// road's red/blue color slots; `palette.red/blue` defaults to red/blue in
+/// the theme), and zero uses `tie` (green scheme). To get a strict "black"
+/// color for black numbers, no code change is needed — just override the theme:
 ///
 /// ```dart
 /// resolveTheme(palette: (p) => p.copyWith(
@@ -11,20 +13,23 @@
 /// ));
 /// ```
 ///
-/// 数据喂法：`RawResult(no: n, winner: '17', ...)`——winner 直接放号码字符串。
+/// Data feed format: `RawResult(no: n, winner: '17', ...)` — winner holds the number string directly.
 ///
-/// 大小/单双两条衍生流已按 [RangeSelector]/[MarkSelector] 声明（0 号通过
-/// `skipOutcomes` 跳过，同骰宝围骰通吃的机制），但它们依赖 `extras.number` /
-/// `marks.odd`，而目前 store 存的 [RawResult] 没有这两个字段的通道——接入衍生
-/// 路前需要先让数据层支持 [GenericResult]（与骰宝大小/单双路是同一个缺口）。
+/// The big/small and odd/even derived streams are already declared via
+/// [RangeSelector]/[MarkSelector] (zero is skipped via `skipOutcomes`, the
+/// same sweep mechanism as sic bo's triple), but they depend on
+/// `extras.number` / `marks.odd`, and the [RawResult] currently stored by
+/// the store has no channel for these two fields — wiring up the derived
+/// streams requires the data layer to support [GenericResult] first (the
+/// same gap as sic bo's big/small and odd/even roads).
 library;
 
 import '../game_spec.dart';
 
-/// 欧式轮盘的红色号码（美式相同）。黑色号码即 1-36 中的其余 18 个。
+/// Red numbers on a European roulette wheel (same as American). Black numbers are the other 18 among 1-36.
 const Set<int> rouletteRedNumbers = {1, 3, 5, 7, 9, 12, 14, 16, 18, 19, 21, 23, 25, 27, 30, 32, 34, 36};
 
-/// 轮盘规格实例（欧式单零，0-36 共 37 个 outcome）。
+/// Roulette spec instance (European single-zero, 0-36 for 37 outcomes total).
 ///
 /// ```dart
 /// final engine = createEngine(['beadPlate'], spec: rouletteSpec);
@@ -34,7 +39,7 @@ final GameSpec rouletteSpec = GameSpec(
   id: 'roulette',
   label: '轮盘',
   outcomes: [
-    // 零号：绿色系（tie 色位默认即绿色 0xFF43A047）。
+    // Zero: green scheme (the tie color slot defaults to green 0xFF43A047).
     const OutcomeDef(code: '0', label: '0', paletteKey: 'tie'),
     for (var n = 1; n <= 36; n++)
       OutcomeDef(
@@ -53,7 +58,7 @@ final GameSpec rouletteSpec = GameSpec(
           RangeBucket(token: 'S', min: 1, max: 18),
           RangeBucket(token: 'B', min: 19, max: 36),
         ),
-        // 零号不走大小路（跳过并累加 skipCount），同骰宝围骰的处理方式。
+        // Zero does not advance the big/small road (skipped and accumulated into skipCount), same handling as sic bo's triple.
         skipOutcomes: ['0'],
       ),
     ),
@@ -64,5 +69,5 @@ final GameSpec rouletteSpec = GameSpec(
       skipOutcomes: ['0'],
     ),
   ],
-  // 轮盘无角标标记。
+  // Roulette has no badge markers.
 );

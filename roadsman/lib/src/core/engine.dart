@@ -1,7 +1,7 @@
-/// 引擎：插件注册表、拓扑排序、错误边界。
+/// Engine: plugin registry, topological sort, error boundary.
 ///
-/// 移植自 `src/core/engine.ts`。TS 版本的 `createEngine` 保留 `async` 签名只是
-/// 为了兼容旧调用方（内部完全同步）；Dart 版本没有这个历史包袱，直接是同步函数。
+/// Ported from `src/core/engine.ts`. The TS version of `createEngine` keeps `async` signature only to
+/// be compatible with old callers (internally completely synchronous); Dart version has no such historical baggage, directly synchronous function.
 library;
 
 import 'game_specs/baccarat.dart';
@@ -9,20 +9,20 @@ import 'roads/index.dart';
 import 'stream.dart';
 import 'types.dart';
 
-/// 引擎 compute 输出。
+/// Engine compute output.
 ///
-/// 出错插件不中断其他路，而是记入 [errors]。
+/// Errored plugins do not interrupt other roads, but are recorded in [errors].
 class ComputeOutput {
-  /// 各路的格子化布局输出（出错路缺席）。
+  /// Gridded layout output for each road (errored roads absent).
   final Map<String, RoadLayout> layouts;
 
-  /// 各路的 derive 数据（出错路缺席）。
+  /// Derive data for each road (errored roads absent).
   final Map<String, Object?> data;
 
-  /// 各路的问路结果（出错路缺席）。
+  /// Prediction results for each road (errored roads absent).
   final Map<String, PredictionForRoad> predictions;
 
-  /// 插件错误 Map（id -> 错误）。出错的插件及其下游级联插件均记录在此，其他路照常。
+  /// Plugin error map (id -> error). Errored plugins and their downstream cascading plugins are recorded here, other roads proceed normally.
   final Map<String, Object> errors;
 
   const ComputeOutput({
@@ -33,9 +33,9 @@ class ComputeOutput {
   });
 }
 
-/// 引擎。
+/// Engine.
 class Engine {
-  /// 已加载的插件 Map（只读）。
+  /// Loaded plugin map (read-only).
   final Map<String, RoadPlugin> plugins;
 
   final GameSpec _spec;
@@ -44,18 +44,18 @@ class Engine {
 
   Engine._(this.plugins, this._spec, this._sorted, this._enabledIds);
 
-  /// 上次 compute 的入参（按引用比较）与输出——store 每次 append 都产生新的
-  /// results 列表，引用即版本号；UI 侧的无关重算（切换开关、重建面板）用同一份
-  /// results+cfg 再次 compute 时直接命中，布局对象保持同一实例，下游的
-  /// identity 缓存（RoadPanel 的指令列表/Picture 缓存）也因此不被击穿。
+  /// Last compute input parameters (compared by reference) and output -- store produces a new
+  /// results list with each append, reference is version number; unrelated recomputation on UI side (toggle switches, rebuild panel)
+  /// directly hits when recomputing the same results+cfg, layout objects remain the same instance, downstream
+  /// identity cache (RoadPanel instruction list / Picture cache) is therefore not pierced.
   List<RawResult>? _lastResults;
   LayoutConfig? _lastCfg;
   ComputeOutput? _lastOutput;
 
-  /// 全量计算所有已启用插件的布局输出。
+  /// Fully compute the layout output of all enabled plugins.
   ///
-  /// [results] 是当前靴的全部局结果，[cfg] 是布局配置（cellSize/rows/theme）。
-  /// 同一份 [results] 与 [cfg]（按引用比较）重复调用直接返回上次的输出。
+  /// [results] is all round results of the current shoe, [cfg] is layout configuration (cellSize/rows/theme).
+  /// Repeated calls with the same [results] and [cfg] (compared by reference) directly return the previous output.
   ComputeOutput compute(List<RawResult> results, LayoutConfig cfg) {
     if (identical(results, _lastResults) && identical(cfg, _lastCfg)) {
       return _lastOutput!;
@@ -72,7 +72,7 @@ class Engine {
       errors: errors,
     );
 
-    // 按拓扑序预热缓存，出错则记录并跳过下游。
+    // Preheat cache in topological order, record and skip downstream if error.
     for (final id in _sorted) {
       if (errors.containsKey(id)) continue;
       try {
@@ -97,7 +97,7 @@ class Engine {
         final prediction = plugin.predict(ctx);
         if (prediction != null) predictions[id] = prediction;
       } catch (err) {
-        // 检查是否因依赖出错导致的级联。
+        // Check if this is a cascade error caused by a dependency error.
         final cascadeFrom = plugin.dependsOn.where(errors.containsKey).firstOrNull;
         errors[id] = cascadeFrom != null ? 'Cascaded from "$cascadeFrom": ${errors[cascadeFrom]}' : err;
       }
@@ -111,20 +111,20 @@ class Engine {
   }
 }
 
-/// 创建引擎：按 [enabledIds] 从 [roadRegistry] 展开传递依赖、拓扑排序，返回
-/// 可同步 compute 的 [Engine] 实例。
+/// Create engine: expand transitive dependencies from [roadRegistry] according to [enabledIds], topologically sort, return
+/// a [Engine] instance that can synchronously compute.
 ///
 /// ```dart
 /// final engine = createEngine(['beadPlate', 'bigRoad']);
 /// final output = engine.compute(results, cfg);
 ///
-/// // 使用自定义规格
+/// // Use custom spec
 /// final engine2 = createEngine(['beadPlate', 'bigRoad'], spec: dragonTigerSpec);
 /// ```
 Engine createEngine(List<String> enabledIds, {GameSpec? spec}) {
   final resolvedSpec = spec ?? baccaratSpec;
 
-  // 从注册表加载启用的插件及其传递依赖（依赖入队前已校验，顶层 id 在这里校验）。
+  // Load enabled plugins and their transitive dependencies from the registry (dependencies are validated before being enqueued, top-level id is validated here).
   final plugins = <String, RoadPlugin>{};
   final toLoad = [...enabledIds];
   while (toLoad.isNotEmpty) {
@@ -148,7 +148,7 @@ Engine createEngine(List<String> enabledIds, {GameSpec? spec}) {
   return Engine._(plugins, resolvedSpec, sorted, enabledIds);
 }
 
-/// 对已加载插件进行拓扑排序（Kahn 算法）。存在循环依赖时抛错。
+/// Topologically sort loaded plugins (Kahn's algorithm). Throw error if circular dependency exists.
 List<String> _topoSort(Map<String, RoadPlugin> plugins) {
   final inDegree = <String, int>{};
   final dependents = <String, List<String>>{};

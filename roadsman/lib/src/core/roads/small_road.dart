@@ -1,13 +1,13 @@
-/// 小路插件（k=2）：比较隔列列长，实心圆。
+/// Small road plugin (k=2): compares column lengths one column apart, drawn as a solid circle.
 ///
-/// 移植自 `src/core/roads/small-road.ts`。
+/// Ported from `src/core/roads/small-road.ts`.
 library;
 
 import '../grid_layout.dart';
 import '../types.dart';
 import 'derived_road.dart';
 
-/// 小路插件（k=2）：比较隔列列长，实心圆。
+/// Small road plugin (k=2): compares column lengths one column apart, drawn as a solid circle.
 class SmallRoadPlugin extends RoadPlugin<DerivedRoadData> {
   @override
   String get id => 'smallRoad';
@@ -58,5 +58,5 @@ class SmallRoadPlugin extends RoadPlugin<DerivedRoadData> {
   }
 }
 
-/// [SmallRoadPlugin] 的单例实例。
+/// Singleton instance of [SmallRoadPlugin].
 final smallRoadPlugin = SmallRoadPlugin();

@@ -1,31 +1,32 @@
-/// 长龙金圈庆祝效果控制器。
+/// Gold-ring celebration effect controller for long dragon streaks.
 ///
-/// 移植自 `src/panel/ux/celebration.ts`（简化为开关控制器，理由同
-/// `pulse.dart`——具体庆祝动画交给消费方按需叠加）。
+/// Ported from `src/panel/ux/celebration.ts` (simplified to a toggle
+/// controller, for the same reason as `pulse.dart`——the actual celebration
+/// animation is left to the consumer to layer on as needed).
 library;
 
-/// 触发庆祝的模式。
+/// Patterns that can trigger a celebration.
 enum CelebrationPattern { dragon, singleHop, doubleHop }
 
-/// 庆祝效果选项。
+/// Celebration effect options.
 class CelebrationOptions {
-  /// 触发模式，默认只在长龙时触发。
+  /// Trigger patterns; defaults to firing only on a dragon streak.
   final List<CelebrationPattern> pattern;
 
   const CelebrationOptions({this.pattern = const [CelebrationPattern.dragon]});
 }
 
-/// 长龙金圈庆祝效果控制器。
+/// Gold-ring celebration effect controller for long dragon streaks.
 class CelebrationEffect {
   bool enabled;
   final CelebrationOptions options;
 
   CelebrationEffect({this.enabled = true, this.options = const CelebrationOptions()});
 
-  /// 切换开关。
+  /// Toggle the effect on/off.
   void toggle(bool on) => enabled = on;
 }
 
-/// 创建长龙庆祝效果控制器（默认开启）。
+/// Create a dragon-streak celebration effect controller (enabled by default).
 CelebrationEffect createCelebrationEffect({CelebrationOptions options = const CelebrationOptions()}) =>
     CelebrationEffect(options: options);

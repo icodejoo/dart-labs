@@ -1,24 +1,27 @@
-/// 加载骨架屏：整体数据刷新期间盖住面板，避免空白闪烁。
+/// Loading skeleton: covers the panel during a full data refresh to avoid a
+/// blank flash.
 ///
-/// 移植自 `src/panel/ux/skeleton.ts`。TS 版本是可插拔的适配器接口（默认实现
-/// 用纯 DOM/CSS 画点阵 + 斜向高光扫描）；Flutter 版本同样保留可插拔接口，默认
-/// 实现改用 `ShaderMask` + `LinearGradient` 做等价的扫光效果。
+/// Ported from `src/panel/ux/skeleton.ts`. The TS version is a pluggable
+/// adapter interface (the default implementation draws a dot-matrix + a
+/// diagonal shimmer sweep with plain DOM/CSS); the Flutter version likewise
+/// keeps a pluggable interface, with the default implementation using
+/// `ShaderMask` + `LinearGradient` for an equivalent shimmer effect.
 library;
 
 import 'package:flutter/material.dart';
 
-/// 骨架屏渲染的上下文信息。
+/// Contextual info for rendering the skeleton.
 class SkeletonContext {
-  /// 面板宽度。
+  /// Panel width.
   final double panelWidth;
 
-  /// 面板高度。
+  /// Panel height.
   final double panelHeight;
 
-  /// 背景色。
+  /// Background color.
   final Color background;
 
-  /// 前景（点阵/高光）色。
+  /// Foreground (dot-matrix/shimmer) color.
   final Color foreground;
 
   const SkeletonContext({
@@ -29,18 +32,20 @@ class SkeletonContext {
   });
 }
 
-/// 可插拔的骨架屏渲染策略：实现 [build] 返回要叠加显示的 widget。
+/// Pluggable skeleton rendering strategy: implement [build] to return the
+/// widget to overlay.
 abstract class SkeletonAdapter {
   Widget build(SkeletonContext ctx);
 }
 
-/// 默认骨架屏实现：背景色块 + 一条循环扫过的高光带。
+/// Default skeleton implementation: a background block plus a shimmer band
+/// that sweeps across in a loop.
 class DefaultSkeletonAdapter extends SkeletonAdapter {
   @override
   Widget build(SkeletonContext ctx) => _ShimmerBlock(ctx: ctx);
 }
 
-/// 内置默认骨架屏适配器实例。
+/// Built-in default skeleton adapter instance.
 final SkeletonAdapter defaultSkeletonAdapter = DefaultSkeletonAdapter();
 
 class _ShimmerBlock extends StatefulWidget {
@@ -89,7 +94,8 @@ class _ShimmerBlockState extends State<_ShimmerBlock> with SingleTickerProviderS
   }
 }
 
-/// 骨架屏渲染器：包装一个 [SkeletonAdapter]，暴露 `build` 给消费方叠加显示。
+/// Skeleton renderer: wraps a [SkeletonAdapter] and exposes `build` for the
+/// consumer to overlay.
 class SkeletonRenderer {
   final SkeletonAdapter adapter;
   const SkeletonRenderer(this.adapter);
@@ -97,6 +103,7 @@ class SkeletonRenderer {
   Widget build(SkeletonContext ctx) => adapter.build(ctx);
 }
 
-/// 创建骨架屏渲染器，缺省用内置的扫光实现。
+/// Create a skeleton renderer, defaulting to the built-in shimmer
+/// implementation.
 SkeletonRenderer createSkeletonRenderer([SkeletonAdapter? adapter]) =>
     SkeletonRenderer(adapter ?? defaultSkeletonAdapter);

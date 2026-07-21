@@ -1,11 +1,11 @@
-/// 大眼仔/小路/曱甴路共用的参数化衍生算法。
+/// The shared parameterized derived-road algorithm for Big Eye Boy/Small Road/Cockroach Road.
 ///
-/// 移植自 `src/core/roads/derived-road.ts`。
+/// Ported from `src/core/roads/derived-road.ts`.
 library;
 
 import '../types.dart';
 
-/// 基于大路 [bigRoad] 按偏移量 [k] 推导衍生路数据（k=1 大眼仔，k=2 小路，k=3 曱甴路）。
+/// Derives derived-road data from big road [bigRoad] using offset [k] (k=1 Big Eye Boy, k=2 Small Road, k=3 Cockroach Road).
 DerivedRoadData deriveRoad(BigRoadData bigRoad, int k) {
   final cells = bigRoad.cells;
   final columns = bigRoad.columns;
@@ -29,12 +29,12 @@ DerivedRoadData deriveRoad(BigRoadData bigRoad, int k) {
 
     DerivedColor color;
     if (r == 0) {
-      // 新列：比较 (c-1) 和 (c-1-k) 两列的长度。
+      // New column: compares the lengths of columns (c-1) and (c-1-k).
       final lenA = (c - 1 >= 0 && c - 1 < columns.length) ? columns[c - 1] : 0;
       final lenB = (c - 1 - k >= 0 && c - 1 - k < columns.length) ? columns[c - 1 - k] : 0;
       color = lenA == lenB ? DerivedColor.red : DerivedColor.blue;
     } else {
-      // 同列往下：检查 c-k 列在深度 r 处是否有格子。
+      // Continuing down the same column: checks whether column c-k has a cell at depth r.
       final lenCk = (c - k >= 0 && c - k < columns.length) ? columns[c - k] : 0;
       color = lenCk == r ? DerivedColor.blue : DerivedColor.red;
     }
@@ -46,7 +46,7 @@ DerivedRoadData deriveRoad(BigRoadData bigRoad, int k) {
   return DerivedRoadData(entries: entries, sourceCellIndex: sourceCellIndex);
 }
 
-/// 从衍生路的颜色序列构建逻辑列高数组（规则同大路，但无和局）。
+/// Builds the array of logical column heights from a derived road's color sequence (same rule as big road, but with no ties).
 List<int> derivedToColumns(List<DerivedColor> entries) {
   final columns = <int>[];
   DerivedColor? last;

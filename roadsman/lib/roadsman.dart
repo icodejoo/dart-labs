@@ -1,39 +1,39 @@
-/// roadsman：百家乐/龙虎/骰宝路子图（露珠图）纯 Dart 引擎 + Flutter 渲染面板。
+/// Roadsman: A pure Dart engine for baccarat/dragon-tiger/sicbo road maps (beads plate) + Flutter rendering panel.
 ///
-/// 移植自 casino monorepo 的 `apps/baccarat-roadmap`（TypeScript）。
+/// Ported from the casino monorepo's `apps/baccarat-roadmap` (TypeScript).
 library;
 
-// ---- Core types: 全部公共类型 ----
+// ---- Core types ----
 export 'src/core/types.dart';
 
-// ---- Theme: 主题体系 ----
+// ---- Theme system ----
 export 'src/core/theme.dart';
 
-// ---- Grid layout: 物理网格布局 ----
+// ---- Grid layout ----
 export 'src/core/grid_layout.dart';
 
-// ---- Engine: 引擎 ----
+// ---- Engine ----
 export 'src/core/engine.dart';
 
-// ---- Animation: 动画系统 ----
+// ---- Animation system ----
 export 'src/core/animation.dart';
 
-// ---- Viewport: 视口状态机 ----
+// ---- Viewport state machine ----
 export 'src/core/viewport.dart';
 
-// ---- Store: 数据 Store ----
+// ---- Store ----
 export 'src/core/store.dart';
 
-// ---- Emitter: 类型安全事件发射器 ----
+// ---- Type-safe event emitter ----
 export 'src/core/emitter.dart';
 
-// ---- Pipeline: 指令管道 ----
+// ---- Instruction pipeline ----
 export 'src/core/pipeline.dart';
 
-// ---- Predict: 问路 ----
+// ---- Prediction ----
 export 'src/core/predict.dart';
 
-// ---- GameSpec: 可插拔游戏规则 ----
+// ---- GameSpec: pluggable game rules ----
 export 'src/core/game_spec.dart';
 export 'src/core/stream.dart';
 export 'src/core/game_specs/baccarat.dart';
@@ -41,7 +41,7 @@ export 'src/core/game_specs/dragon_tiger.dart';
 export 'src/core/game_specs/sicbo.dart';
 export 'src/core/game_specs/roulette.dart';
 
-// ---- Roads: 内置路插件 ----
+// ---- Built-in road plugins ----
 export 'src/core/roads/band_merge.dart';
 export 'src/core/roads/derived_road.dart';
 export 'src/core/roads/bead_plate.dart';
@@ -58,11 +58,11 @@ export 'src/core/roads/streak_highlight.dart';
 export 'src/core/roads/stats_panel.dart';
 export 'src/core/roads/index.dart';
 
-// ---- Render: CustomPainter 渲染层 + SVG 纯函数渲染 ----
+// ---- Render: CustomPainter rendering layer + SVG pure function rendering ----
 export 'src/render/road_painter.dart';
 export 'src/render/svg_renderer.dart';
 
-// ---- Panel: 面板 Widget、回放、UX 增强包 ----
+// ---- Panel: Widget, playback, UX enhancement package ----
 export 'src/panel/road_panel.dart';
 export 'src/panel/replayer.dart';
 export 'src/panel/ux/index.dart';

@@ -1,13 +1,13 @@
-/// 大眼仔插件（k=1）：比较相邻列列长，红=规律，蓝=不规律。
+/// Big Eye Boy plugin (k=1): compares adjacent column lengths, red = follows pattern, blue = breaks pattern.
 ///
-/// 移植自 `src/core/roads/big-eye-boy.ts`。
+/// Ported from `src/core/roads/big-eye-boy.ts`.
 library;
 
 import '../grid_layout.dart';
 import '../types.dart';
 import 'derived_road.dart';
 
-/// 大眼仔插件（k=1）：比较相邻列列长，空心圆。
+/// Big Eye Boy plugin (k=1): compares adjacent column lengths, drawn as a hollow circle.
 class BigEyeBoyPlugin extends RoadPlugin<DerivedRoadData> {
   @override
   String get id => 'bigEyeBoy';
@@ -59,5 +59,5 @@ class BigEyeBoyPlugin extends RoadPlugin<DerivedRoadData> {
   }
 }
 
-/// [BigEyeBoyPlugin] 的单例实例。
+/// Singleton instance of [BigEyeBoyPlugin].
 final bigEyeBoyPlugin = BigEyeBoyPlugin();
