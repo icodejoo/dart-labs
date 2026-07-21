@@ -51,11 +51,14 @@ class DiomanCancel extends DiomanPlugin {
   /// 本插件解析后的构造期选项。
   final DiomanCancelOptions config;
 
-  static const _name = 'dioman:cancel';
-  static const _kToken = '$_name:token';
+  /// Public plugin name / extra key for this plugin, accessible without an instance.
+  ///
+  /// 插件名 / extra键，无需实例即可访问。
+  static const pluginName = 'dioman:cancel';
+  static const _kToken = '$pluginName:token';
 
   @override
-  String get name => _name;
+  String get name => pluginName;
 
   @override
   void onRequest(RequestOptions options, RequestInterceptorHandler handler) {

@@ -138,10 +138,13 @@ class DiomanLog extends DiomanPlugin {
   /// 自定义日志输出函数，默认[print]。可通过[DiomanLogOptions.writer]按请求覆盖。
   final LogWriter? writer;
 
-  static const _name = 'dioman:log';
+  /// Public plugin name / extra key for this plugin, accessible without an instance.
+  ///
+  /// 插件名 / extra键，无需实例即可访问。
+  static const pluginName = 'dioman:log';
 
   @override
-  String get name => _name;
+  String get name => pluginName;
 
   /// Merges the per-request override with the plugin's own defaults.
   ///

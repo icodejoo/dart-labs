@@ -1,3 +1,10 @@
+## 0.5.1
+
+- Feature: each plugin's fixed name/`extra` key is now also exposed as a public
+  `static const pluginName` on the class (e.g. `DiomanCache.pluginName`), so callers can
+  reference a plugin's key without constructing an instance. The instance `String get name`
+  getter is unchanged and still delegates to it.
+
 ## 0.5.0
 
 `DiomanRetry` overhaul, ported from the same rewrite in this monorepo's `@codejoo/axp` (its

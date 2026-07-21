@@ -99,10 +99,13 @@ class DiomanLoading extends DiomanPlugin {
     this.delayClose = Duration.zero,
   }) : _onChanged = onChanged;
 
-  static const _name = 'dioman:loading';
-  static const _kBracketed = '$_name:bracketed';
-  static const _kOnChanged = '$_name:onChanged';
-  static const _kDelayClose = '$_name:delayClose';
+  /// Public plugin name / extra key for this plugin, accessible without an instance.
+  ///
+  /// 插件名 / extra键，无需实例即可访问。
+  static const pluginName = 'dioman:loading';
+  static const _kBracketed = '$pluginName:bracketed';
+  static const _kOnChanged = '$pluginName:onChanged';
+  static const _kDelayClose = '$pluginName:delayClose';
 
   /// `false` disables the plugin entirely — every request passes through
   /// untouched and the counter never moves.
@@ -176,7 +179,7 @@ class DiomanLoading extends DiomanPlugin {
   int get activeCount => _count;
 
   @override
-  String get name => _name;
+  String get name => pluginName;
 
   @override
   void onRequest(RequestOptions options, RequestInterceptorHandler handler) {

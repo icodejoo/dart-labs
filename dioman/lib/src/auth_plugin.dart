@@ -422,18 +422,21 @@ class DiomanAuth extends DiomanPlugin {
 
   static String _defaultBearer(String t) => 'Bearer $t';
 
-  static const _name = 'dioman:auth';
+  /// Public plugin name / extra key for this plugin, accessible without an instance.
+  ///
+  /// 插件名 / extra键，无需实例即可访问。
+  static const pluginName = 'dioman:auth';
   // extra keys — plain strings so they survive Dio's mergeConfig on replay
   //
   // extra key——用纯字符串常量，保证重放时能在Dio的mergeConfig中存活
-  static const _kDecision = '$_name:decision';
-  static const _kProtected = '$_name:protected';
-  static const _kRefreshed = '$_name:refreshed';
-  static const _kDenied = '$_name:denied';
-  static const _kTokenUsed = '$_name:tokenUsed';
+  static const _kDecision = '$pluginName:decision';
+  static const _kProtected = '$pluginName:protected';
+  static const _kRefreshed = '$pluginName:refreshed';
+  static const _kDenied = '$pluginName:denied';
+  static const _kTokenUsed = '$pluginName:tokenUsed';
 
   @override
-  String get name => _name;
+  String get name => pluginName;
 
   // ── Request ───────────────────────────────────────────────────────────────
 

@@ -410,10 +410,13 @@ class DiomanRetry extends DiomanPlugin {
   /// [DiomanRetryOptions.retryAfterMax]按请求覆盖。
   final Duration? retryAfterMax;
 
-  static const _name = 'dioman:retry';
+  /// Public plugin name / extra key for this plugin, accessible without an instance.
+  ///
+  /// 插件名 / extra键，无需实例即可访问。
+  static const pluginName = 'dioman:retry';
 
   @override
-  String get name => _name;
+  String get name => pluginName;
 
   // ── Per-request override resolution ───────────────────────────────────────
 

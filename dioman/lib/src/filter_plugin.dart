@@ -83,10 +83,13 @@ class DiomanFilter extends DiomanPlugin {
   /// `false`时插件整体失效——永不剔除任何字段。
   final bool enabled;
 
-  static const _name = 'dioman:filter';
+  /// Public plugin name / extra key for this plugin, accessible without an instance.
+  ///
+  /// 插件名 / extra键，无需实例即可访问。
+  static const pluginName = 'dioman:filter';
 
   @override
-  String get name => _name;
+  String get name => pluginName;
 
   static bool _defaultPredicate(String key, dynamic value) {
     if (value == null) return true;

@@ -5,7 +5,10 @@ class DiomanNotifyOptions {}
 
 /// 本插件用于从响应体中提取错误信息，并转换为文字通知用户
 class DiomanNotify<T> extends DiomanPlugin {
-  static const _name = 'dioman:notify';
+  /// Public plugin name / extra key for this plugin, accessible without an instance.
+  ///
+  /// 插件名 / extra键，无需实例即可访问。
+  static const pluginName = 'dioman:notify';
   DiomanNotify({
     required this.notify,
     required this.stringify,
@@ -15,7 +18,7 @@ class DiomanNotify<T> extends DiomanPlugin {
       stringify;
 
   @override
-  String get name => _name;
+  String get name => pluginName;
 
   @override
   void onResponse(Response response, ResponseInterceptorHandler handler) {

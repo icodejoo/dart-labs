@@ -171,7 +171,7 @@ handle.dispose();
 
 ## 插件详解
 
-每个插件都提供 `String get name`（用于查找/去重）与 `dispose()`。多数支持从 `options.extra` 读单请求级开关（见[单请求级覆盖](#单请求级覆盖)）。
+每个插件都提供 `String get name`（用于查找/去重）与 `dispose()`。每个插件的名字也作为类上的 `static const pluginName` 公开（例如 `DiomanCache.pluginName`），无需实例化即可拿到该插件的 `extra` 键。多数支持从 `options.extra` 读单请求级开关（见[单请求级覆盖](#单请求级覆盖)）。
 
 ### DiomanEnvs
 
