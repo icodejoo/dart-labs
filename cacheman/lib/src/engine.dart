@@ -3,10 +3,10 @@ import 'dart:convert';
 import 'entity.dart';
 import 'interface.dart';
 
-/// Per-call `set` options. Only these apply per call — everything else
+/// Per-call `write` options. Only these apply per call — everything else
 /// (codec, sliding, raw, ...) is instance-level, see [CachemanOptions].
 ///
-/// 单次 `set` 调用的选项。只有这些是 per-call 的——其余（codec/sliding/raw
+/// 单次 `write` 调用的选项。只有这些是 per-call 的——其余（codec/sliding/raw
 /// 等）都是实例级配置，见 [CachemanOptions]。
 class CacheOptions {
   const CacheOptions({this.ttl, this.expireAt, this.memoized});
@@ -153,7 +153,7 @@ class CachemanOptions {
   /// 只写一次：仅当键为空（不存在/已过期）时才写入，否则丢弃本次写入。
   final bool readonly;
 
-  /// Also obfuscate the key: when set with a [codec], the storage key is
+  /// Also obfuscate the key: when enabled with a [codec], the storage key is
   /// deterministically run through the codec. Requires a [codec], else it
   /// warns and degrades to plaintext keys.
   ///
@@ -296,7 +296,7 @@ class Engine {
 
   /// Lazily-built, incrementally-maintained cache of this instance's own
   /// storage keys — avoids re-scanning the whole (possibly shared) backend on
-  /// every [keys]/[length]/[key]/[clear]/[purge] call. Built once on first
+  /// every [keys]/[length]/[key]/[erase]/[purge] call. Built once on first
   /// access via a full scan, then kept in sync by [_trackOwned]/
   /// [_untrackOwned] as this instance writes/deletes. Invalidated wholesale on
   /// [setNamespace] (the ownership predicate changed).
@@ -310,7 +310,7 @@ class Engine {
   /// per-account-isolation use case.
   ///
   /// 懒建、增量维护的"本实例自有 key"缓存——避免每次 [keys]/[length]/[key]/
-  /// [clear]/[purge] 都把（可能是共享的）后端整个扫一遍。首次访问时全扫建一
+  /// [erase]/[purge] 都把（可能是共享的）后端整个扫一遍。首次访问时全扫建一
   /// 次，之后靠 [_trackOwned]/[_untrackOwned] 随本实例的写入/删除增量维护。
   /// [setNamespace] 时整体失效（所有权判定变了）。
   ///
@@ -417,9 +417,9 @@ class Engine {
     return (hit: false, value: null);
   }
 
-  // ── public: get ──────────────────────────────────────────────────────────
+  // ── public: read ─────────────────────────────────────────────────────────
 
-  T? get<T>(String key, [T? defaultValue]) {
+  T? read<T>(String key, [T? defaultValue]) {
     final storageKey = _fullKey(key);
     final fallback = defaultValue;
     final memoHit = _fromMemo(storageKey, fallback);
@@ -431,11 +431,11 @@ class Engine {
   /// [defaults] (missing slots fall back to `null`).
   ///
   /// 批量读取：返回等长 list，跟 [defaults] 逐位对应（缺位为 `null`）。
-  List<dynamic> getAll(List<String> keys, [List<dynamic>? defaults]) => [
-        for (var i = 0; i < keys.length; i++) get<dynamic>(keys[i], defaults != null && i < defaults.length ? defaults[i] : null),
+  List<dynamic> readAll(List<String> keys, [List<dynamic>? defaults]) => [
+        for (var i = 0; i < keys.length; i++) read<dynamic>(keys[i], defaults != null && i < defaults.length ? defaults[i] : null),
       ];
 
-  // ── public: set ──────────────────────────────────────────────────────────
+  // ── public: write ────────────────────────────────────────────────────────
 
   /// Builds the entity to persist; `null` means validation failed (already
   /// warned) and the write should be skipped.
@@ -467,7 +467,7 @@ class Engine {
     return CacheEntity(value: value, createdAt: now, expireAt: entityExpireAt, ttl: finalTtl);
   }
 
-  void set<T>(String key, T value, {int? ttl, Object? expireAt, bool? memoized}) {
+  void write<T>(String key, T value, {int? ttl, Object? expireAt, bool? memoized}) {
     final storageKey = _fullKey(key);
     final $memoized = memoized ?? _opts.memoized;
 
@@ -487,7 +487,7 @@ class Engine {
     }
 
     if (_opts.readonly) {
-      if (get<dynamic>(key) == null) write();
+      if (read<dynamic>(key) == null) write();
       return;
     }
     write();
@@ -499,30 +499,32 @@ class Engine {
   ///
   /// 批量写入：[values] 跟 [keys] 逐位对应；[ttl]/[expireAt]/[memoized] 对
   /// 全部键生效。[values] 短于 [keys] 时，缺位的键跳过（警告）。
-  void setAll(List<String> keys, List<dynamic> values, {int? ttl, Object? expireAt, bool? memoized}) {
+  void writeAll(List<String> keys, List<dynamic> values, {int? ttl, Object? expireAt, bool? memoized}) {
     if (values.length < keys.length) {
       // ignore: avoid_print
       print('[cacheman] batch set: values(${values.length}) shorter than keys(${keys.length}); missing entries skipped');
     }
     final n = keys.length < values.length ? keys.length : values.length;
     for (var i = 0; i < n; i++) {
-      set<dynamic>(keys[i], values[i], ttl: ttl, expireAt: expireAt, memoized: memoized);
+      write<dynamic>(keys[i], values[i], ttl: ttl, expireAt: expireAt, memoized: memoized);
     }
   }
 
-  // ── public: remove / clear / keys / purge / destroy ─────────────────────
+  // ── public: remove / erase / keys / purge / destroy ─────────────────────
 
   void remove(String key) => _del(_fullKey(key));
 
   void removeAll(List<String> keys) {
-    for (final k in keys) _del(_fullKey(k));
+    for (final k in keys) {
+      _del(_fullKey(k));
+    }
   }
 
   /// With `namespace` or `enckey`: removes only this instance's keys.
-  /// Otherwise clears the whole backend.
+  /// Otherwise erases the whole backend.
   ///
   /// 带 `namespace` 或 `enckey` 时：只删本实例管辖的键。否则整个后端清空。
-  void clear() {
+  void erase() {
     _memo.clear();
     if (_ns.isEmpty && !_enckey) {
       _store.clear();

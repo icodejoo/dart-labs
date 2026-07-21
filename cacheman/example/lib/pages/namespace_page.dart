@@ -26,22 +26,22 @@ class _NamespacePageState extends State<NamespacePage> {
     _reload();
   }
 
-  Engine get _nsA {
-    cache.ls.setNamespace('account_a');
-    return cache.ls;
+  Cacheman get _nsA {
+    cache.setNamespace('account_a');
+    return cache;
   }
 
-  Engine get _nsB {
-    cache.ls.setNamespace('account_b');
-    return cache.ls;
+  Cacheman get _nsB {
+    cache.setNamespace('account_b');
+    return cache;
   }
 
   void _reload() {
-    cache.ls.setNamespace('account_a');
-    final kA = cache.ls.keys();
-    cache.ls.setNamespace('account_b');
-    final kB = cache.ls.keys();
-    cache.ls.setNamespace(null);
+    cache.setNamespace('account_a');
+    final kA = cache.keys();
+    cache.setNamespace('account_b');
+    final kB = cache.keys();
+    cache.setNamespace(null);
     setState(() {
       _keysA = kA;
       _keysB = kB;
@@ -53,17 +53,17 @@ class _NamespacePageState extends State<NamespacePage> {
     final k = _keyCtrlA.text.trim();
     final v = _valCtrlA.text.trim();
     if (k.isEmpty) return;
-    _nsA.set(k, v);
-    cache.ls.setNamespace(null);
+    _nsA.write(k, v);
+    cache.setNamespace(null);
     _reload();
     setState(() => _statusMsg = 'Set "$k" in account_a');
   }
 
   void _getA() {
     final k = _keyCtrlA.text.trim();
-    cache.ls.setNamespace('account_a');
-    final v = cache.ls.get<dynamic>(k);
-    cache.ls.setNamespace(null);
+    cache.setNamespace('account_a');
+    final v = cache.read<dynamic>(k);
+    cache.setNamespace(null);
     setState(() =>
         _statusMsg = v == null ? 'account_a: "$k" not found' : 'account_a "$k" = $v');
   }
@@ -72,25 +72,25 @@ class _NamespacePageState extends State<NamespacePage> {
     final k = _keyCtrlB.text.trim();
     final v = _valCtrlB.text.trim();
     if (k.isEmpty) return;
-    _nsB.set(k, v);
-    cache.ls.setNamespace(null);
+    _nsB.write(k, v);
+    cache.setNamespace(null);
     _reload();
     setState(() => _statusMsg = 'Set "$k" in account_b');
   }
 
   void _getB() {
     final k = _keyCtrlB.text.trim();
-    cache.ls.setNamespace('account_b');
-    final v = cache.ls.get<dynamic>(k);
-    cache.ls.setNamespace(null);
+    cache.setNamespace('account_b');
+    final v = cache.read<dynamic>(k);
+    cache.setNamespace(null);
     setState(() =>
         _statusMsg = v == null ? 'account_b: "$k" not found' : 'account_b "$k" = $v');
   }
 
   void _clearA() {
-    cache.ls.setNamespace('account_a');
-    cache.ls.clear();
-    cache.ls.setNamespace(null);
+    cache.setNamespace('account_a');
+    cache.erase();
+    cache.setNamespace(null);
     _reload();
     setState(() => _statusMsg = 'Cleared account_a — account_b untouched');
   }
@@ -137,10 +137,10 @@ class _NamespacePageState extends State<NamespacePage> {
                   onGet: _getA,
                   onClear: _clearA,
                   getEngine: () {
-                    cache.ls.setNamespace('account_a');
-                    return cache.ls;
+                    cache.setNamespace('account_a');
+                    return cache;
                   },
-                  resetEngine: () => cache.ls.setNamespace(null),
+                  resetEngine: () => cache.setNamespace(null),
                   onChanged: _reload,
                 ),
               ),
@@ -156,10 +156,10 @@ class _NamespacePageState extends State<NamespacePage> {
                   onGet: _getB,
                   onClear: null,
                   getEngine: () {
-                    cache.ls.setNamespace('account_b');
-                    return cache.ls;
+                    cache.setNamespace('account_b');
+                    return cache;
                   },
-                  resetEngine: () => cache.ls.setNamespace(null),
+                  resetEngine: () => cache.setNamespace(null),
                   onChanged: _reload,
                 ),
               ),
@@ -194,7 +194,7 @@ class _AccountPanel extends StatelessWidget {
   final VoidCallback onSet;
   final VoidCallback onGet;
   final VoidCallback? onClear;
-  final Engine Function() getEngine;
+  final Cacheman Function() getEngine;
   final VoidCallback resetEngine;
   final VoidCallback onChanged;
 
@@ -268,7 +268,7 @@ class _AccountPanel extends StatelessWidget {
 
   String _readKey(String k) {
     final eng = getEngine();
-    final v = eng.get<dynamic>(k);
+    final v = eng.read<dynamic>(k);
     resetEngine();
     return '$v';
   }

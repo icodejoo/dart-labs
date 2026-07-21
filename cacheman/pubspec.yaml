@@ -1,6 +1,6 @@
 name: cacheman
-description: "A tiny, type-safe wrapper over get_storage (persistent) and an in-memory store with one unified API: TTL & absolute expiry, sliding renewal, namespaces, pluggable serialization, an optional codec hook, and a key-bound shortcut helper."
-version: 0.1.0
+description: "A tiny, type-safe wrapper over get_storage (persistent) with one unified API: TTL & absolute expiry, sliding renewal, namespaces, pluggable serialization, an optional codec hook, and a key-bound shortcut helper."
+version: 0.2.0
 homepage: https://github.com/icodejoo/dart-labs/tree/main/cacheman
 repository: https://github.com/icodejoo/dart-labs
 issue_tracker: https://github.com/icodejoo/dart-labs/issues

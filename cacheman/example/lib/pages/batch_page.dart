@@ -19,7 +19,7 @@ class _BatchPageState extends State<BatchPage> {
   final _v3 = TextEditingController(text: 'gamma');
 
   late final FastAccessor<String> _fa =
-      fast<String>(cache.ls, 'fa_key');
+      fast<String>(cache, 'fa_key');
   final _faValCtrl = TextEditingController(text: 'fast_value');
   String? _faDisplay;
 
@@ -36,19 +36,19 @@ class _BatchPageState extends State<BatchPage> {
       [_v1.text.trim(), _v2.text.trim(), _v3.text.trim()];
 
   void _setAll() {
-    cache.ls.setAll(_batchKeys, _batchValues);
-    setState(() => _batchResult = 'setAll done');
+    cache.writeAll(_batchKeys, _batchValues);
+    setState(() => _batchResult = 'writeAll done');
     _refresh();
   }
 
   void _getAll() {
-    final results = cache.ls.getAll(_batchKeys);
+    final results = cache.readAll(_batchKeys);
     setState(() =>
         _batchResult = results.asMap().entries.map((e) => '${_batchKeys[e.key]}: ${e.value}').join('\n'));
   }
 
   void _removeAll() {
-    cache.ls.removeAll(_batchKeys);
+    cache.removeAll(_batchKeys);
     setState(() => _batchResult = 'removeAll done');
     _refresh();
   }
@@ -101,8 +101,8 @@ class _BatchPageState extends State<BatchPage> {
             spacing: 8,
             runSpacing: 8,
             children: [
-              FilledButton(onPressed: _setAll, child: const Text('setAll')),
-              FilledButton.tonal(onPressed: _getAll, child: const Text('getAll')),
+              FilledButton(onPressed: _setAll, child: const Text('writeAll')),
+              FilledButton.tonal(onPressed: _getAll, child: const Text('readAll')),
               FilledButton.tonal(
                   onPressed: _removeAll, child: const Text('removeAll')),
             ],

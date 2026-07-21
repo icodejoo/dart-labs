@@ -31,7 +31,7 @@ class FakePathProviderPlatform extends PathProviderPlatform {
 /// without going through a real `get_storage` container (no disk I/O, no
 /// `path_provider`/platform binding needed — every TTL/sliding/namespace/
 /// codec/raw/readonly/clone behavior lives in [Engine], not in the backend,
-/// so this is a faithful substitute for either `ls` or `ss`'s real backend).
+/// so this is a faithful substitute for `ls`'s real backend).
 class FakeStore implements Store {
   final Map<String, String> _m = <String, String>{};
   bool failNext = false;
@@ -125,33 +125,33 @@ Engine engine({
     );
 
 void main() {
-  group('basic get/set/remove', () {
-    test('set then get roundtrips', () {
+  group('basic read/write/remove', () {
+    test('write then read roundtrips', () {
       final e = engine();
-      e.set('a', 'hello');
-      expect(e.get<String>('a'), 'hello');
+      e.write('a', 'hello');
+      expect(e.read<String>('a'), 'hello');
     });
 
     test('missing key returns null, or the given default', () {
       final e = engine();
-      expect(e.get<String>('missing'), isNull);
-      expect(e.get<String>('missing', 'fallback'), 'fallback');
+      expect(e.read<String>('missing'), isNull);
+      expect(e.read<String>('missing', 'fallback'), 'fallback');
     });
 
     test('remove deletes the key', () {
       final e = engine();
-      e.set('a', 1);
+      e.write('a', 1);
       e.remove('a');
-      expect(e.get<int>('a'), isNull);
+      expect(e.read<int>('a'), isNull);
     });
 
     test('values round-trip through JSON (maps, lists, nested)', () {
       final e = engine();
-      e.set('obj', {
+      e.write('obj', {
         'id': 1,
         'tags': ['a', 'b'],
       });
-      expect(e.get<dynamic>('obj'), {
+      expect(e.read<dynamic>('obj'), {
         'id': 1,
         'tags': ['a', 'b'],
       });
@@ -161,27 +161,27 @@ void main() {
   group('ttl / expiry', () {
     test('a positive ttl expires the entry after it elapses', () async {
       final e = engine();
-      e.set('a', 'x', ttl: 30);
-      expect(e.get<String>('a'), 'x');
+      e.write('a', 'x', ttl: 30);
+      expect(e.read<String>('a'), 'x');
       await Future<void>.delayed(const Duration(milliseconds: 60));
-      expect(e.get<String>('a'), isNull);
+      expect(e.read<String>('a'), isNull);
     });
 
     test('ttl <= 0 is warned and ignored — value persists with no expiry', () {
       final e = engine();
-      e.set('a', 'x', ttl: 0);
-      expect(e.get<String>('a'), 'x');
+      e.write('a', 'x', ttl: 0);
+      expect(e.read<String>('a'), 'x');
     });
 
     test('expireAt in the past (no sliding) skips the write entirely', () {
       final e = engine();
-      e.set('a', 'x', expireAt: DateTime.now().subtract(const Duration(seconds: 1)));
-      expect(e.get<String>('a'), isNull);
+      e.write('a', 'x', expireAt: DateTime.now().subtract(const Duration(seconds: 1)));
+      expect(e.read<String>('a'), isNull);
     });
 
     test('purge() proactively deletes an expired entry', () async {
       final e = engine();
-      e.set('a', 'x', ttl: 20);
+      e.write('a', 'x', ttl: 20);
       await Future<void>.delayed(const Duration(milliseconds: 40));
       e.purge();
       expect(e.length, 0);
@@ -191,20 +191,20 @@ void main() {
   group('sliding expiry', () {
     test('a read hit past 10% of ttl renews expireAt', () async {
       final e = engine(sliding: true);
-      e.set('a', 'x', ttl: 100);
+      e.write('a', 'x', ttl: 100);
       await Future<void>.delayed(const Duration(milliseconds: 20)); // > 10% of 100ms elapsed
-      expect(e.get<String>('a'), 'x'); // triggers renewal
+      expect(e.read<String>('a'), 'x'); // triggers renewal
       await Future<void>.delayed(const Duration(milliseconds: 90)); // would've expired without renewal
-      expect(e.get<String>('a'), 'x');
+      expect(e.read<String>('a'), 'x');
     });
 
     test('without sliding, the same read pattern lets the entry expire on schedule', () async {
       final e = engine();
-      e.set('a', 'x', ttl: 100);
+      e.write('a', 'x', ttl: 100);
       await Future<void>.delayed(const Duration(milliseconds: 20));
-      expect(e.get<String>('a'), 'x');
+      expect(e.read<String>('a'), 'x');
       await Future<void>.delayed(const Duration(milliseconds: 90));
-      expect(e.get<String>('a'), isNull);
+      expect(e.read<String>('a'), isNull);
     });
   });
 
@@ -213,47 +213,47 @@ void main() {
       final backend = FakeStore();
       final a = engine(namespace: 'a', store: backend);
       final b = engine(namespace: 'b', store: backend);
-      a.set('x', 1);
-      b.set('x', 2);
-      expect(a.get<int>('x'), 1);
-      expect(b.get<int>('x'), 2);
+      a.write('x', 1);
+      b.write('x', 2);
+      expect(a.read<int>('x'), 1);
+      expect(b.read<int>('x'), 2);
     });
 
-    test('clear() with a namespace only removes owned keys', () {
+    test('erase() with a namespace only removes owned keys', () {
       final backend = FakeStore();
       final a = engine(namespace: 'a', store: backend);
       final b = engine(namespace: 'b', store: backend);
-      a.set('x', 1);
-      b.set('y', 2);
-      a.clear();
-      expect(a.get<int>('x'), isNull);
-      expect(b.get<int>('y'), 2);
+      a.write('x', 1);
+      b.write('y', 2);
+      a.erase();
+      expect(a.read<int>('x'), isNull);
+      expect(b.read<int>('y'), 2);
     });
 
     test('keys()/length() stay accurate as entries are added and removed (owned-key cache)', () {
       final backend = FakeStore();
       final a = engine(namespace: 'a', store: backend);
       final b = engine(namespace: 'b', store: backend);
-      a.set('x', 1);
-      a.set('y', 2);
-      b.set('z', 3);
+      a.write('x', 1);
+      a.write('y', 2);
+      b.write('z', 3);
       expect(a.keys()..sort(), ['x', 'y']);
       expect(a.length, 2);
       a.remove('x');
       expect(a.keys(), ['y']);
       expect(a.length, 1);
-      b.set('w', 4);
+      b.write('w', 4);
       expect(b.keys()..sort(), ['w', 'z']);
       expect(a.length, 1); // unaffected by b's writes to a different namespace
     });
 
     test('setNamespace invalidates the owned-key cache so keys() reflects the new namespace', () {
       final e = engine(namespace: 'a');
-      e.set('x', 1);
+      e.write('x', 1);
       expect(e.keys(), ['x']); // builds the owned-key cache under namespace 'a'
       e.setNamespace('b');
       expect(e.keys(), isEmpty); // nothing written under 'b' yet — not stale from 'a'
-      e.set('y', 2);
+      e.write('y', 2);
       expect(e.keys(), ['y']);
       e.setNamespace('a');
       expect(e.keys(), ['x']); // back to 'a', cache rebuilt fresh
@@ -261,68 +261,68 @@ void main() {
 
     test('setNamespace switches the prefix in place and clears memo', () {
       final e = engine(memoized: true);
-      e.set('token', 'v1');
-      expect(e.get<String>('token'), 'v1');
+      e.write('token', 'v1');
+      expect(e.read<String>('token'), 'v1');
       e.setNamespace('alice');
-      expect(e.get<String>('token'), isNull); // different prefix now, nothing written there yet
-      e.set('token', 'v2');
-      expect(e.get<String>('token'), 'v2');
+      expect(e.read<String>('token'), isNull); // different prefix now, nothing written there yet
+      e.write('token', 'v2');
+      expect(e.read<String>('token'), 'v2');
       e.setNamespace(); // back to no namespace
-      expect(e.get<String>('token'), 'v1'); // original data untouched
+      expect(e.read<String>('token'), 'v1'); // original data untouched
     });
   });
 
   group('batch operations', () {
-    test('setAll / getAll / removeAll', () {
+    test('writeAll / readAll / removeAll', () {
       final e = engine();
-      e.setAll(['a', 'b', 'c'], [1, 2, 3]);
-      expect(e.getAll(['a', 'b', 'c']), [1, 2, 3]);
+      e.writeAll(['a', 'b', 'c'], [1, 2, 3]);
+      expect(e.readAll(['a', 'b', 'c']), [1, 2, 3]);
       e.removeAll(['a', 'c']);
-      expect(e.getAll(['a', 'b', 'c']), [null, 2, null]);
+      expect(e.readAll(['a', 'b', 'c']), [null, 2, null]);
     });
 
-    test('getAll pairs defaults positionally, missing slots fall back to null', () {
+    test('readAll pairs defaults positionally, missing slots fall back to null', () {
       final e = engine();
-      e.set('a', 1);
-      expect(e.getAll(['a', 'b'], [0, 'x']), [1, 'x']);
-      expect(e.getAll(['a', 'b']), [1, null]);
+      e.write('a', 1);
+      expect(e.readAll(['a', 'b'], [0, 'x']), [1, 'x']);
+      expect(e.readAll(['a', 'b']), [1, null]);
     });
 
-    test('setAll with fewer values than keys skips the missing entries', () {
+    test('writeAll with fewer values than keys skips the missing entries', () {
       final e = engine();
-      e.setAll(['a', 'b', 'c'], [1, 2]);
-      expect(e.getAll(['a', 'b', 'c']), [1, 2, null]);
+      e.writeAll(['a', 'b', 'c'], [1, 2]);
+      expect(e.readAll(['a', 'b', 'c']), [1, 2, null]);
     });
   });
 
   group('raw mode', () {
     test('a String value is stored and read back untouched, no envelope', () {
       final e = engine(raw: true);
-      e.set('a', 'plain-string');
-      expect(e.get<String>('a'), 'plain-string');
+      e.write('a', 'plain-string');
+      expect(e.read<String>('a'), 'plain-string');
     });
 
     test('a non-String value is warned and the write is skipped', () {
       final e = engine(raw: true);
-      e.set<dynamic>('a', 42);
-      expect(e.get<String>('a'), isNull);
+      e.write<dynamic>('a', 42);
+      expect(e.read<String>('a'), isNull);
     });
   });
 
   group('readonly', () {
     test('writes only when the key is empty; a second write is discarded', () {
       final e = engine(readonly: true);
-      e.set('a', 'first');
-      e.set('a', 'second');
-      expect(e.get<String>('a'), 'first');
+      e.write('a', 'first');
+      e.write('a', 'second');
+      expect(e.read<String>('a'), 'first');
     });
 
     test('writes again once the key expires', () async {
       final e = engine(readonly: true);
-      e.set('a', 'first', ttl: 20);
+      e.write('a', 'first', ttl: 20);
       await Future<void>.delayed(const Duration(milliseconds: 40));
-      e.set('a', 'second');
-      expect(e.get<String>('a'), 'second');
+      e.write('a', 'second');
+      expect(e.read<String>('a'), 'second');
     });
   });
 
@@ -330,25 +330,25 @@ void main() {
     test('codeable + codec obfuscates the persisted string but reads decode transparently', () {
       final backend = FakeStore();
       final e = engine(codeable: true, codec: FakeCodec(), store: backend);
-      e.set('a', 'secret');
+      e.write('a', 'secret');
       expect(backend.get('a'), isNot(contains('secret'))); // raw backend value doesn't show plaintext
-      expect(e.get<String>('a'), 'secret');
+      expect(e.read<String>('a'), 'secret');
     });
 
     test('a decode failure (wrong codec/corrupted data) is treated as a miss, not a throw', () {
       final backend = FakeStore();
       final withCodec = engine(codeable: true, codec: FakeCodec('right'), store: backend);
-      withCodec.set('a', 'secret');
+      withCodec.write('a', 'secret');
       final wrongCodec = engine(codeable: true, codec: FakeCodec('wrong'), store: backend);
-      expect(wrongCodec.get<String>('a'), isNull);
+      expect(wrongCodec.read<String>('a'), isNull);
     });
 
     test('enckey obfuscates the storage key so foreign readers cannot see it', () {
       final backend = FakeStore();
       final e = engine(enckey: true, codec: FakeCodec(), store: backend);
-      e.set('token', 'abc');
+      e.write('token', 'abc');
       expect(backend.keys(), isNot(contains('token')));
-      expect(e.get<String>('token'), 'abc');
+      expect(e.read<String>('token'), 'abc');
       expect(e.keys(), ['token']); // logical keys are still plaintext to the owner
     });
   });
@@ -356,38 +356,38 @@ void main() {
   group('cloned / deepCloned', () {
     test('cloned:false (default) shares the same reference as the memo cache', () {
       final e = engine(memoized: true);
-      e.set('a', {'n': 1});
-      final r1 = e.get<Map<String, dynamic>>('a')!;
-      final r2 = e.get<Map<String, dynamic>>('a')!;
+      e.write('a', {'n': 1});
+      final r1 = e.read<Map<String, dynamic>>('a')!;
+      final r2 = e.read<Map<String, dynamic>>('a')!;
       expect(identical(r1, r2), isTrue);
     });
 
     test('cloned:true (shallow) returns a distinct top-level container', () {
       final e = engine(memoized: true, cloned: true);
-      e.set('a', {'n': 1});
-      final r1 = e.get<Map<String, dynamic>>('a')!;
-      final r2 = e.get<Map<String, dynamic>>('a')!;
+      e.write('a', {'n': 1});
+      final r1 = e.read<Map<String, dynamic>>('a')!;
+      final r2 = e.read<Map<String, dynamic>>('a')!;
       expect(identical(r1, r2), isFalse);
       expect(r1, r2);
     });
 
     test('cloned:true (shallow) does NOT isolate a nested object', () {
       final e = engine(memoized: true, cloned: true);
-      e.set('a', {
+      e.write('a', {
         'nested': {'n': 1},
       });
-      final r1 = e.get<Map<String, dynamic>>('a')!;
-      final r2 = e.get<Map<String, dynamic>>('a')!;
+      final r1 = e.read<Map<String, dynamic>>('a')!;
+      final r2 = e.read<Map<String, dynamic>>('a')!;
       expect(identical(r1['nested'], r2['nested']), isTrue); // shallow: nested still shared
     });
 
     test('cloned + deepCloned isolates nested objects too', () {
       final e = engine(memoized: true, cloned: true, deepCloned: true);
-      e.set('a', {
+      e.write('a', {
         'nested': {'n': 1},
       });
-      final r1 = e.get<Map<String, dynamic>>('a')!;
-      final r2 = e.get<Map<String, dynamic>>('a')!;
+      final r1 = e.read<Map<String, dynamic>>('a')!;
+      final r2 = e.read<Map<String, dynamic>>('a')!;
       expect(identical(r1['nested'], r2['nested']), isFalse);
       expect(r1, r2);
     });
@@ -399,55 +399,9 @@ void main() {
       Object? reported;
       final e = engine(store: backend, onError: (key, err) => reported = err);
       backend.failNext = true;
-      e.set('a', 'x');
+      e.write('a', 'x');
       expect(reported, isNull); // retried once, second attempt succeeded
-      expect(e.get<String>('a'), 'x');
-    });
-  });
-
-  group('fast / lazy / batchFast', () {
-    test('fast binds a key and forwards get/set/remove', () {
-      final e = engine();
-      final token = fast<String>(e, 'token');
-      token.set('abc');
-      expect(token.get(), 'abc');
-      token.remove();
-      expect(token.get(), isNull);
-      expect(token.get('def'), 'def');
-    });
-
-    test('lazy only builds the accessor on first call, then reuses it', () {
-      final e = engine();
-      final tokenLazy = lazy<String>(e, 'token');
-      final a = tokenLazy();
-      final b = tokenLazy();
-      expect(identical(a, b), isTrue);
-    });
-
-    test('batchFast binds several keys at once', () {
-      final e = engine();
-      final accessors = batchFast<String>(e, ['a', 'b']);
-      accessors['a']!.set('1');
-      accessors['b']!.set('2');
-      expect(e.get<String>('a'), '1');
-      expect(e.get<String>('b'), '2');
-    });
-  });
-
-  group('debug()', () {
-    test('returns every owned entry decrypted, namespace preserved', () {
-      final backend = FakeStore();
-      final e = engine(namespace: 'ns', enckey: true, codec: FakeCodec(), store: backend);
-      e.set('a', 1);
-      e.set('b', 2);
-      expect(debug(e), {'ns:a': 1, 'ns:b': 2});
-    });
-
-    test('does not write anything back — keys()/length stay unaffected', () {
-      final e = engine();
-      e.set('a', 1);
-      debug(e);
-      expect(e.length, 1);
+      expect(e.read<String>('a'), 'x');
     });
   });
 
@@ -455,9 +409,9 @@ void main() {
     test('clears the memo cache but keeps persisted data readable', () {
       final backend = FakeStore();
       final e = engine(memoized: true, store: backend);
-      e.set('a', 1);
+      e.write('a', 1);
       e.destroy();
-      expect(e.get<int>('a'), 1); // still readable straight from the backend
+      expect(e.read<int>('a'), 1); // still readable straight from the backend
     });
   });
 
@@ -495,70 +449,6 @@ void main() {
     });
   });
 
-  group('Memory cap capacity', () {
-    test('unlimited by default — no eviction', () {
-      final m = Memory();
-      for (var i = 0; i < 1000; i++) {
-        m.set('k$i', 'v' * 100);
-      }
-      expect(m.length, 1000);
-    });
-
-    test('evicts oldest first (FIFO) once over cap', () {
-      final m = Memory(cap: 12); // room for ~2 entries of "kN"+"vvvvv" (2+5=7 chars each)
-      m.set('k1', 'vvvvv'); // size 7
-      m.set('k2', 'vvvvv'); // size 14 > 12 -> evicts k1
-      expect(m.get('k1'), isNull);
-      expect(m.get('k2'), 'vvvvv');
-      expect(m.length, 1);
-    });
-
-    test('overwriting an existing key does not change its FIFO position', () {
-      final m = Memory(cap: 21); // 3 entries of size 7 fit
-      m.set('k1', 'vvvvv');
-      m.set('k2', 'vvvvv');
-      m.set('k3', 'vvvvv');
-      m.set('k1', 'wwwww'); // overwrite, same size — k1 stays oldest
-      m.set('k4', 'vvvvv'); // pushes total over cap -> evicts k1 (oldest), not k2
-      expect(m.get('k1'), isNull);
-      expect(m.get('k2'), 'vvvvv');
-      expect(m.get('k3'), 'vvvvv');
-      expect(m.get('k4'), 'vvvvv');
-    });
-
-    test('overwriting the oldest key with a bigger value can evict that very write (self-eviction)', () {
-      final m = Memory(cap: 20);
-      m.set('a', '12'); // size 3, position 0 (oldest)
-      m.set('b', '12'); // size 3, position 1
-      m.set('c', '12'); // size 3, position 2
-      // Overwrite 'a' with a value that alone fits under cap (size 17 <= 20),
-      // but combined total (3+3+17=23) exceeds it. Overwrite keeps 'a' at
-      // position 0, so FIFO eviction removes 'a' first — the very write that
-      // just happened, even though it wasn't oversized on its own.
-      m.set('a', '1234567890123456');
-      expect(m.get('a'), isNull);
-      expect(m.get('b'), '12');
-      expect(m.get('c'), '12');
-    });
-
-    test('a single entry larger than the cap is dropped entirely', () {
-      final m = Memory(cap: 5);
-      m.set('k1', 'this-value-is-way-too-long');
-      expect(m.get('k1'), isNull);
-      expect(m.length, 0);
-    });
-
-    test('removing an entry updates the tracked size so later evictions are correct', () {
-      final m = Memory(cap: 14);
-      m.set('k1', 'vvvvv'); // 7
-      m.set('k2', 'vvvvv'); // 14
-      m.remove('k1'); // size back to 7
-      m.set('k3', 'vvvvv'); // 14, should NOT evict k2
-      expect(m.get('k2'), 'vvvvv');
-      expect(m.get('k3'), 'vvvvv');
-    });
-  });
-
   group('Cacheman.create() — real get_storage integration', () {
     late Directory tempDir;
 
@@ -579,52 +469,83 @@ void main() {
       } catch (_) {}
     });
 
-    test('ls persists via get_storage; ss is pure in-memory and independent', () async {
-      final cache = await Cacheman.create(container: 'cacheman_test_ls_ss', path: tempDir.path);
-      cache.ls.set('a', 'persisted');
-      cache.ss.set('a', 'memory-only');
-      expect(cache.ls.get<String>('a'), 'persisted');
-      expect(cache.ss.get<String>('a'), 'memory-only');
-      await cache.destroy();
-    });
-
-    test('cap caps ss with FIFO eviction; ls is unaffected', () async {
-      // cap sized to hold a few serialized entries (each ~55-65 chars once
-      // wrapped in the CacheEntity JSON envelope), not raw value length.
-      final cache = await Cacheman.create(container: 'cacheman_test_ssmax', path: tempDir.path, cap: 200);
-      for (var i = 0; i < 20; i++) {
-        cache.ss.set('k$i', 'x' * 20, memoized: false);
-        cache.ls.set('k$i', 'x' * 20);
-      }
-      expect(cache.ss.get<String>('k0'), isNull); // evicted long ago
-      expect(cache.ss.get<String>('k19'), isNotNull); // most recent survives
-      expect(cache.ls.get<String>('k0'), isNotNull); // ls has no cap
+    test('ls persists via get_storage', () async {
+      final cache = await Cacheman.create(container: 'cacheman_test_ls', path: tempDir.path);
+      cache.write('a', 'persisted');
+      expect(cache.read<String>('a'), 'persisted');
       await cache.destroy();
     });
 
     test('ls.key(index)/length walk get_storage directly without materializing keys()', () async {
       final cache = await Cacheman.create(container: 'cacheman_test_ls_key', path: tempDir.path);
-      cache.ls.set('a', 1);
-      cache.ls.set('b', 2);
-      cache.ls.set('c', 3);
-      expect(cache.ls.length, 3);
-      expect(cache.ls.key(0), 'a');
-      expect(cache.ls.key(1), 'b');
-      expect(cache.ls.key(2), 'c');
-      expect(cache.ls.key(3), isNull); // out of range
-      cache.ls.remove('b');
-      expect(cache.ls.length, 2);
-      expect(cache.ls.key(1), 'c'); // 'c' shifted into 'b''s old slot
+      cache.write('a', 1);
+      cache.write('b', 2);
+      cache.write('c', 3);
+      expect(cache.length, 3);
+      expect(cache.key(0), 'a');
+      expect(cache.key(1), 'b');
+      expect(cache.key(2), 'c');
+      expect(cache.key(3), isNull); // out of range
+      cache.remove('b');
+      expect(cache.length, 2);
+      expect(cache.key(1), 'c'); // 'c' shifted into 'b''s old slot
       await cache.destroy();
     });
 
-    test('setNamespace switches both ls and ss together', () async {
+    test('setNamespace switches ls', () async {
       final cache = await Cacheman.create(container: 'cacheman_test_ns', path: tempDir.path);
-      cache.ls.set('token', 'v1');
-      cache.ss.set('token', 's1');
+      cache.write('token', 'v1');
       cache.setNamespace('alice');
-      expect(cache.ls.get<String>('token'), isNull);
-      expect(cache.ss.get<String>('token'), isNull);
+      expect(cache.read<String>('token'), isNull);
+    });
+
+    group('fast / lazy / batchFast', () {
+      test('fast binds a key and forwards get/set/remove', () async {
+        final cache = await Cacheman.create(container: 'cacheman_test_fast', path: tempDir.path);
+        final token = fast<String>(cache, 'token');
+        token.set('abc');
+        expect(token.get(), 'abc');
+        token.remove();
+        expect(token.get(), isNull);
+        expect(token.get('def'), 'def');
+      });
+
+      test('lazy only builds the accessor on first call, then reuses it', () async {
+        final cache = await Cacheman.create(container: 'cacheman_test_lazy', path: tempDir.path);
+        final tokenLazy = lazy<String>(cache, 'token');
+        final a = tokenLazy();
+        final b = tokenLazy();
+        expect(identical(a, b), isTrue);
+      });
+
+      test('batchFast binds several keys at once', () async {
+        final cache = await Cacheman.create(container: 'cacheman_test_batch_fast', path: tempDir.path);
+        final accessors = batchFast<String>(cache, ['a', 'b']);
+        accessors['a']!.set('1');
+        accessors['b']!.set('2');
+        expect(cache.read<String>('a'), '1');
+        expect(cache.read<String>('b'), '2');
+      });
+    });
+
+    group('debug()', () {
+      test('returns every owned entry decrypted, namespace preserved', () async {
+        final cache = await Cacheman.create(
+          container: 'cacheman_test_debug',
+          path: tempDir.path,
+          options: CachemanOptions(namespace: 'ns', enckey: true, codec: FakeCodec()),
+        );
+        cache.write('a', 1);
+        cache.write('b', 2);
+        expect(debug(cache), {'ns:a': 1, 'ns:b': 2});
+      });
+
+      test('does not write anything back — keys()/length stay unaffected', () async {
+        final cache = await Cacheman.create(container: 'cacheman_test_debug_noop', path: tempDir.path);
+        cache.write('a', 1);
+        debug(cache);
+        expect(cache.length, 1);
+      });
     });
   });
 }

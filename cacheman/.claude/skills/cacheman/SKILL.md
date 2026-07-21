@@ -1,37 +1,41 @@
 ---
 name: cacheman
 description: >-
-  Work on cacheman — a type-safe wrapper over get_storage (persistent, `ls`) and a pure
-  in-memory store (`ss`) sharing one Engine: TTL & absolute expiry, sliding renewal,
-  namespaces, pluggable serialize/deserialize, an optional Codec hook (no implementation
-  shipped), enckey key obfuscation, raw/readonly modes, batch ops, an owned-key cache, a
-  Jsonx serializer, and fast/lazy/batchFast key-bound accessors. Flutter-only (get_storage
-  dependency), Dart/Flutter sibling of `@codejoo/storage` (TypeScript). Read BEFORE modifying
-  anything under lib/src/ or changing CachemanOptions semantics. Covers Engine's internal
-  invariants, the owned-key cache gotcha, sliding-renewal's 90% threshold, force's
-  sync-only retry, and the verify workflow. Triggers on: Cacheman.create, Engine, ls, ss,
-  CachemanOptions, CacheEntity, sliding, namespace, enckey, codeable, raw mode, readonly,
-  memoized, cloned, deepCloned, force, onError, Jsonx, fast/lazy/batchFast, debug(), Memory
-  cap, GetStorageAdapter.
+  Work on cacheman — a type-safe wrapper over get_storage (persistent, `ls`), one Engine:
+  TTL & absolute expiry, sliding renewal, namespaces, pluggable serialize/deserialize, an
+  optional Codec hook (no implementation shipped), enckey key obfuscation, raw/readonly
+  modes, batch ops, an owned-key cache, a Jsonx serializer, and fast/lazy/batchFast
+  key-bound accessors. Flutter-only (get_storage dependency), Dart/Flutter sibling of
+  `@codejoo/storage` (TypeScript). Read BEFORE modifying anything under lib/src/ or
+  changing CachemanOptions semantics. Covers Engine's internal invariants, the owned-key
+  cache gotcha, sliding-renewal's 90% threshold, force's sync-only retry, and the verify
+  workflow. Triggers on: Cacheman.create, Engine, ls, CachemanOptions, CacheEntity,
+  sliding, namespace, enckey, codeable, raw mode, readonly, memoized, cloned, deepCloned,
+  force, onError, Jsonx, fast/lazy/batchFast, debug(), GetStorageAdapter, read/write/erase.
 ---
 
 # cacheman
 
 Flutter package (`get_storage: ^2.1.1` — the only runtime dependency besides `flutter`
 itself). One `Engine` class (`lib/src/engine.dart`) implements the whole read/write/expiry/
-namespace logic; `ls` and `ss` are two `Engine` instances that share the same
-`CachemanOptions` but differ only in backend (`Store` implementation) and `Memo` instance.
-Entry point `lib/cacheman.dart` re-exports everything callers need. Tests:
-`test/cacheman_test.dart` (unit tests against a `FakeStore`, plus a real-`get_storage`
-integration group at the bottom). `example/cacheman_example.dart` is a single-file runnable
-Flutter app (`flutter run example/cacheman_example.dart`) exercising every public feature —
-update it alongside the READMEs on any public API change.
+namespace logic; `ls` is an `Engine` instance backed by `GetStorageAdapter` + `Memo`, wired
+up from one `CachemanOptions`. Entry point `lib/cacheman.dart` re-exports everything
+callers need. Tests: `test/cacheman_test.dart` (unit tests against a `FakeStore`, plus a
+real-`get_storage` integration group at the bottom). `example/lib/` is a runnable Flutter
+app (`flutter run example/lib/main.dart`) exercising every public feature — update it
+alongside the READMEs on any public API change.
 
 **`Cacheman.create()` is the only `Future` boundary in the whole API** — every `Engine`
 method after that is synchronous, because `get_storage` is sync-after-init (see
 `Cacheman`'s class doc for the full "why" vs the TS sibling's async IndexedDB tier). Do not
 add async methods to `Engine` without re-reading that design note — it's a deliberate
 constraint, not an oversight.
+
+`Engine`'s public CRUD surface is `read`/`readAll`, `write`/`writeAll`, `remove`/
+`removeAll`, `erase` (plus `keys`/`key(index)`/`length`/`purge`/`setNamespace`/`destroy`,
+unaffected by that rename). Note `Store` (the backend contract in `lib/src/interface.dart`)
+and `MemoCache`/`Memo` still use `get`/`set`/`remove`/`clear` internally — those are
+separate, lower-level interfaces `Engine` calls into, not part of its own public API.
 
 The two READMEs (`README.md` EN, `README.zh-CN.md` ZH) are the canonical usage docs — keep
 both in sync on any public API change. Every field in `lib/src/*.dart` already carries a
@@ -43,28 +47,26 @@ bilingual (EN + 中文) doc comment; match that convention for anything new.
   `remove`/`clear`/`key(index)`/`keys()`/`length`), `MemoCache` (dynamic-valued read cache:
   `get`/`set`/`remove`/`clear`), `Codec` (`encode`/`decode` string transform, no
   implementation shipped), `CachemanOnError` typedef.
-- **`lib/src/memory.dart`** — `Memory implements Store`, backs `ss`. `LinkedHashMap`-based,
-  soft `cap` (total `key.length + value.length`), FIFO eviction by *insertion* order
-  (overwriting an existing key does NOT reset its position — see the class doc's
-  self-eviction gotcha: overwriting the oldest key with a bigger value can evict that very
-  write).
 - **`lib/src/get_storage_adapter.dart`** — `GetStorageAdapter implements Store`, backs `ls`.
   Wraps a `GetStorage` container. `set`/`remove`/`clear` are fire-and-forget
   (`.catchError` → `onError`) because get_storage's disk flush is async and debounced,
   decoupled from any single call.
 - **`lib/src/memo.dart`** — `Memo implements MemoCache`, plain `Map`-backed. One instance per
-  `Engine` (so per `ls`/`ss`), never shared across `Cacheman` instances.
+  `Engine` (so one per `ls`), never shared across `Cacheman` instances.
 - **`lib/src/entity.dart`** — `CacheEntity` (the write envelope: `value`/`expireAt`/
   `createdAt`/`ttl`), `defaultSerialize`/`defaultDeserialize` (plain `jsonEncode`/
   `jsonDecode`). `createdAt` doubles as "this entry was written by this library" — never
   drop it when adding a new field, it's what stops a coincidentally-shaped foreign entry
   from being mistaken for an expired one.
-- **`lib/src/engine.dart`** — `CacheOptions` (per-`set` call: `ttl`/`expireAt`/`memoized`),
-  `CachemanOptions` (instance-level, see below), `Engine` (all the logic).
+- **`lib/src/engine.dart`** — `CacheOptions` (per-`write` call: `ttl`/`expireAt`/`memoized`),
+  `CachemanOptions` (instance-level, see below), `Engine` (all the logic: `read`/`readAll`,
+  `write`/`writeAll`, `remove`/`removeAll`, `erase`).
 - **`lib/src/cacheman.dart`** — `Cacheman.create()` wiring: builds `ls` (GetStorageAdapter +
-  Memo) and `ss` (Memory + Memo) from one `CachemanOptions`, plus `setNamespace`/`destroy`.
+  Memo) from one `CachemanOptions`, plus `setNamespace`/`destroy`.
 - **`lib/src/fast.dart`** — `FastAccessor<V>`, `fast`/`lazy`/`batchFast` — key-bound
-  accessor sugar over an `Engine`, no independent state.
+  accessor sugar over an `Engine` (its own `get`/`set`/`remove` methods forward to
+  `Engine.read`/`Engine.write`/`Engine.remove` — the accessor's own method names were not
+  part of the `Engine` rename).
 - **`lib/src/debug.dart`** — `debug(Engine)`: read-only decrypted snapshot, never writes
   back (doesn't pollute `keys()`/`length`).
 - **`lib/src/jsonx.dart`** — `Jsonx.encode`/`Jsonx.decode<T>`: a `toEncodable`/`reviver` pair
@@ -99,11 +101,11 @@ bilingual (EN + 中文) doc comment; match that convention for anything new.
   disk-flush failures are async (`.catchError` on the `GetStorage.write` Future) and are
   *never* retried — they only ever reach `onError`. Don't conflate the two failure paths.
 - **`raw: true` requires a `String` value** — anything else is warned and the write is
-  skipped (`T value` checked `is! String` in `Engine.set`). This mirrors a fix in the TS
+  skipped (`T value` checked `is! String` in `Engine.write`). This mirrors a fix in the TS
   sibling; don't silently coerce non-strings.
-- **`readonly: true` short-circuits `set` before the raw/entity branch** — `write()` only
-  runs if `get<dynamic>(key) == null`. A second `set` on a live key is a silent no-op; it
-  fires again once the key expires.
+- **`readonly: true` short-circuits `write` before the raw/entity branch** — the actual
+  write only runs if `read<dynamic>(key) == null`. A second `write` on a live key is a
+  silent no-op; it fires again once the key expires.
 - **`enckey` requires a `codec`** — without one, `Engine`'s constructor prints a warning and
   keys stay plaintext (`_enckey` getter is `_opts.enckey && _opts.codec != null`, so this is
   enforced structurally, not just documented). Same pattern for `codeable` without a codec.
@@ -112,7 +114,7 @@ bilingual (EN + 中文) doc comment; match that convention for anything new.
 - **`cloned` cloning picks the concrete `Map` type before copying** (`value is Map<String,
   dynamic>` checked before the bare `value is Map` fallback) — a bare `value is Map` type
   test alone promotes to `Map<dynamic, dynamic>` regardless of the original's actual key
-  type, which would break a caller's `get<Map<String, dynamic>>()` cast after a `Map.of`
+  type, which would break a caller's `read<Map<String, dynamic>>()` cast after a `Map.of`
   copy. Don't collapse these two branches.
 - **`deepCloned` only applies when `cloned` is also `true`** — it changes shallow→deep, it
   is not an independent switch. Deep clone re-encodes/decodes through `jsonEncode`/

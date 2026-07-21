@@ -42,7 +42,7 @@ class _TtlPageState extends State<TtlPage> {
     final k = _keyCtrl.text.trim();
     final v = _valCtrl.text.trim();
     if (k.isEmpty) return;
-    cache.ls.set(k, v, ttl: (_ttlSeconds * 1000).round());
+    cache.write(k, v, ttl: (_ttlSeconds * 1000).round());
     _refresh();
   }
 
@@ -52,27 +52,27 @@ class _TtlPageState extends State<TtlPage> {
     if (k.isEmpty) return;
     final expireAt =
         DateTime.now().add(Duration(seconds: _expireInSeconds.round()));
-    cache.ls.set(k, v, expireAt: expireAt);
+    cache.write(k, v, expireAt: expireAt);
     _refresh();
   }
 
   void _get() {
     final k = _keyCtrl.text.trim();
     if (k.isEmpty) return;
-    final v = cache.ls.get<dynamic>(k);
+    final v = cache.read<dynamic>(k);
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text(v == null ? '"$k" not found / expired' : '$v')),
     );
   }
 
   void _purge() {
-    cache.ls.purge();
+    cache.purge();
     _refresh();
   }
 
   @override
   Widget build(BuildContext context) {
-    final keys = cache.ls.keys();
+    final keys = cache.keys();
     final now = DateTime.now().millisecondsSinceEpoch;
 
     return SingleChildScrollView(
@@ -144,7 +144,7 @@ class _TtlPageState extends State<TtlPage> {
                 keyName: k,
                 now: now,
                 onDelete: () {
-                  cache.ls.remove(k);
+                  cache.remove(k);
                   _refresh();
                 },
               ),
@@ -164,7 +164,7 @@ class _EntryRow extends StatelessWidget {
   final VoidCallback onDelete;
 
   String _status() {
-    final v = cache.ls.get<dynamic>(keyName);
+    final v = cache.read<dynamic>(keyName);
     if (v == null) return 'expired or absent';
     return '$v';
   }
