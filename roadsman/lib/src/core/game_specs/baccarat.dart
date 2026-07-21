@@ -1,12 +1,13 @@
-/// 百家乐内置 [GameSpec]。
+/// Built-in [GameSpec] for baccarat.
 ///
-/// 行为与 TS 版本逐字节一致：B/P/T 三结果，主流 skip T，庄对/闲对/例牌三角标。
-/// 移植自 `src/core/game-specs/baccarat.ts`。
+/// Behavior matches the TS version byte-for-byte: three outcomes B/P/T, the
+/// main stream skips T, with banker-pair/player-pair/natural badge markers.
+/// Ported from `src/core/game-specs/baccarat.ts`.
 library;
 
 import '../game_spec.dart';
 
-/// 百家乐规格实例。
+/// Baccarat spec instance.
 ///
 /// ```dart
 /// final engine = createEngine(ids, spec: baccaratSpec);
@@ -17,7 +18,7 @@ final GameSpec baccaratSpec = GameSpec(
   outcomes: const [
     OutcomeDef(code: 'B', label: '庄', paletteKey: 'banker', beadTextField: 'bankerTotal'),
     OutcomeDef(code: 'P', label: '闲', paletteKey: 'player', beadTextField: 'playerTotal'),
-    // 和局双方同点，显示庄点（与行业惯例一致）。
+    // On a tie both sides have the same point total; display the banker's total (matches industry convention).
     OutcomeDef(code: 'T', label: '和', paletteKey: 'tie', beadTextField: 'bankerTotal'),
   ],
   streams: const [
@@ -25,7 +26,7 @@ final GameSpec baccaratSpec = GameSpec(
       id: 'main',
       label: '庄闲',
       selector: OutcomeSelector(('B', 'P')),
-      // 和局不占格，累加到 skipCount。
+      // A tie doesn't occupy a cell; it's accumulated into skipCount instead.
       skipOutcomes: ['T'],
     ),
   ],
@@ -44,8 +45,9 @@ final GameSpec baccaratSpec = GameSpec(
       position: MarkerPosition.bottomRight,
       paletteKey: 'player',
     ),
-    // 例牌橙色内圆：实际颜色走 theme.palette.outcomes['natural']，
-    // 缺省回落 defaultTheme 中补充的 0xFFFB8C00。
+    // Natural's orange inner circle: the actual color comes from
+    // theme.palette.outcomes['natural'], falling back to the 0xFFFB8C00
+    // supplied in defaultTheme when absent.
     MarkerDef(code: 'natural', label: '例牌', shape: MarkerShape.innerDot, paletteKey: 'tie'),
   ],
 );

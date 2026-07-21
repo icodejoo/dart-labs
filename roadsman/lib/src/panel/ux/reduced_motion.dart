@@ -1,16 +1,21 @@
-/// 监听系统"减弱动态效果"偏好，命中时全局禁用动画。
+/// Listens for the system "reduce motion" preference and globally disables
+/// animations when it is set.
 ///
-/// 移植自 `src/panel/ux/reduced-motion.ts`。TS 版本监听浏览器
-/// `prefers-reduced-motion` media query；Flutter 用 `MediaQuery.disableAnimations`
-/// 读取同一个系统级无障碍偏好。没有关闭开关是刻意设计——无障碍不是可选项。
+/// Ported from `src/panel/ux/reduced-motion.ts`. The TS version listens to
+/// the browser's `prefers-reduced-motion` media query; Flutter reads the
+/// same system-level accessibility preference via
+/// `MediaQuery.disableAnimations`. There is deliberately no override switch
+/// to turn this off——accessibility is not optional.
 library;
 
 import 'package:flutter/widgets.dart';
 
-/// 读取当前系统是否偏好减弱动态效果。
+/// Reads whether the system currently prefers reduced motion.
 ///
-/// 用法：在 widget 的 `build()` 里调用（依赖 `MediaQuery`，会在偏好变化时
-/// 自动触发 rebuild），据此把 `RoadPanel.animDurationMs` 置 0。
+/// Usage: call this inside a widget's `build()` (it depends on
+/// `MediaQuery`, so it will trigger a rebuild automatically when the
+/// preference changes), then use the result to set
+/// `RoadPanel.animDurationMs` to 0.
 ///
 /// ```dart
 /// final reduced = prefersReducedMotion(context);

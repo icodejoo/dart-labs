@@ -1,16 +1,24 @@
-/// `CustomPainter` 渲染层：把核心层产出的 [DrawCommand] 列表画到 Flutter Canvas 上。
+/// `CustomPainter` rendering layer: paints the [DrawCommand] list produced by
+/// the core layer onto a Flutter Canvas.
 ///
-/// 对应 TS 版本的 `renderer-canvas/canvas-renderer.ts`：每帧对指令列表全量重绘，
-/// 不做增量 diff（diff 发生在更上层的 `panel/road_panel.dart`，只决定当前帧要画
-/// 哪些插值后的指令，画布本身永远是"整份重画"）。这个模型天然贴合 Flutter 的
-/// `CustomPainter`：`shouldRepaint` 对应 TS 里"要不要在下一帧调 `render()`"。
+/// Corresponds to the TS version's `renderer-canvas/canvas-renderer.ts`: every
+/// frame fully repaints the command list, doing no incremental diffing (the
+/// diffing happens one layer up in `panel/road_panel.dart`, which only decides
+/// which interpolated commands to paint for the current frame — the canvas
+/// itself is always "fully redrawn"). This model fits Flutter's
+/// `CustomPainter` naturally: `shouldRepaint` corresponds to TS's "should we
+/// call `render()` on the next frame".
 ///
-/// 两个 painter 入口共享同一套绘制实现（[_paintRoad]）：
-/// - [RoadPainter]：无状态快照式，字段即当帧数据，适合外部直接使用；
-/// - [RoadFramePainter] + [RoadFrameState]：面板内部的"活帧"路径——painter 从
-///   状态对象实时读取，`repaint` Listenable 驱动重绘，动画/拖拽帧零 widget 重建。
+/// Two painter entry points share the same drawing implementation
+/// ([_paintRoad]):
+/// - [RoadPainter]: stateless snapshot-style, fields are the current frame's
+///   data, suited to direct external use;
+/// - [RoadFramePainter] + [RoadFrameState]: the panel's internal "live frame"
+///   path — the painter reads live from the state object, the `repaint`
+///   Listenable drives repaints, and animation/drag frames trigger zero
+///   widget rebuilds.
 ///
-/// 移植自 `src/renderer-canvas/canvas-renderer.ts`。
+/// Ported from `src/renderer-canvas/canvas-renderer.ts`.
 library;
 
 import 'dart:math' as math;
@@ -23,30 +31,36 @@ import 'paint_hooks.dart';
 
 export 'paint_hooks.dart' show GridCellPaintInfo, GridCellPaintCallback, CommandPaintInfo, CommandPaintCallback;
 
-/// 把核心层的 ARGB 整数颜色转成 Flutter [Color]。
+/// Converts the core layer's ARGB integer color into a Flutter [Color].
 Color colorFromArgb(int argb) => Color(argb);
 
-/// 内容层的 [ui.Picture] 缓存：同一份指令列表只录制一次（含 TextPainter 布局、
-/// Paint 构造这些开销最大的部分），后续帧无论视口怎么平移/缩放都只是
-/// `canvas.drawPicture` 重放——纯视口帧（拖拽/惯性/自动滚动）不再逐条指令
-/// 走 Dart 绘制代码。
+/// [ui.Picture] cache for the content layer: the same command list is only
+/// recorded once (including the most expensive parts — TextPainter layout,
+/// Paint construction), and subsequent frames just replay via
+/// `canvas.drawPicture` no matter how the viewport pans/scales — pure
+/// viewport frames (drag/fling/auto-scroll) no longer run Dart drawing code
+/// per command.
 ///
-/// 选 Picture 而不是栅格化成 [ui.Image]：Picture 是矢量重放，缩放不糊、不用
-/// 关心 DPR、录制同步完成；Image 栅格化是异步的且要按最大缩放倍率×DPR 备图，
-/// 复杂度不成比例。
+/// Picture is chosen over rasterizing to a [ui.Image]: a Picture is vector
+/// replay, so scaling never blurs, there's no need to worry about DPR, and
+/// recording completes synchronously; Image rasterization is asynchronous and
+/// would need to prepare a backing image sized to the max scale factor × DPR
+/// — disproportionate complexity.
 ///
-/// 由面板层（`RoadPanel`）持有并跨 painter 实例复用（painter 每次 build 都会
-/// 重建，缓存放在 painter 里会随之丢失）；面板销毁时调用 [dispose]。
-/// 一个面板一份，勿跨面板共享（跨面板共享会让旧 Picture 在另一面板的在途帧里
-/// 被 dispose）。
+/// Held by the panel layer (`RoadPanel`) and reused across painter instances
+/// (a painter is rebuilt on every build, so a cache kept on the painter would
+/// be lost each time); call [dispose] when the panel is destroyed. One per
+/// panel — never share across panels (sharing across panels would let a
+/// stale Picture get disposed mid-flight in another panel's frame).
 class CommandLayerCache {
-  /// 已录制的内容层。
+  /// The recorded content layer.
   ui.Picture? _picture;
 
-  /// 录制时对应的指令列表（按引用判断是否命中）。
+  /// The command list this was recorded for (identity check decides a hit).
   List<DrawCommand>? _forCommands;
 
-  /// 命中缓存则直接返回，否则用 [record] 录一份新的并替换旧缓存。
+  /// Returns the cached picture directly on a hit; otherwise records a fresh
+  /// one via [record] and replaces the old cache.
   ui.Picture resolve(List<DrawCommand> commands, void Function(Canvas canvas) record) {
     if (identical(_forCommands, commands) && _picture != null) return _picture!;
     final recorder = ui.PictureRecorder();
@@ -57,7 +71,7 @@ class CommandLayerCache {
     return _picture!;
   }
 
-  /// 释放底层 Picture 资源。
+  /// Releases the underlying Picture resource.
   void dispose() {
     _picture?.dispose();
     _picture = null;
@@ -65,14 +79,18 @@ class CommandLayerCache {
   }
 }
 
-/// 背景网格的 [ui.Picture] 缓存。网格在内容坐标系里是静止的（相位滚动只是
-/// 整体平移），所以按 (grid 实例, scale, 面板尺寸) 录制一张覆盖
-/// `[-span, w+span] × [-span, h+span]` 的网格图，之后每帧只需
-/// `translate(phase - span) + drawPicture`——拖拽/惯性期间不再逐格
-/// drawRRect/drawLine（tile 模式一帧约几百次调用，是拖拽帧的主要 Dart 开销）。
+/// [ui.Picture] cache for the background grid. The grid is static in content
+/// coordinate space (phase scrolling is just an overall translation), so it
+/// records a single grid image keyed on (grid instance, scale, panel size)
+/// that covers `[-span, w+span] × [-span, h+span]`; after that each frame just
+/// needs `translate(phase - span) + drawPicture` — no more per-cell
+/// drawRRect/drawLine during drag/fling (tile mode makes on the order of
+/// hundreds of calls per frame, the main Dart cost of a drag frame).
 ///
-/// 缩放手势期间 scale 逐事件变化会逐次重录，成本与原直绘持平；平移类帧
-/// （最常见）全部命中。同 [CommandLayerCache]，一个面板一份，勿跨面板共享。
+/// During a pinch gesture, scale changes per event so it re-records each
+/// time, at a cost on par with direct drawing; pan-only frames (the most
+/// common case) hit the cache entirely. Same rule as [CommandLayerCache]: one
+/// per panel, never share across panels.
 class GridLayerCache {
   ui.Picture? _picture;
   GridSpec? _grid;
@@ -80,7 +98,8 @@ class GridLayerCache {
   double _w = 0;
   double _h = 0;
 
-  /// 命中（grid 引用、scale、尺寸均一致）则复用，否则重录。
+  /// Reuses the cache on a hit (grid identity, scale, and size all match);
+  /// otherwise re-records.
   ui.Picture resolve(
     GridSpec grid,
     double scale,
@@ -102,7 +121,7 @@ class GridLayerCache {
     return _picture!;
   }
 
-  /// 释放底层 Picture 资源。
+  /// Releases the underlying Picture resource.
   void dispose() {
     _picture?.dispose();
     _picture = null;
@@ -110,52 +129,64 @@ class GridLayerCache {
   }
 }
 
-/// 单个路面板的 `CustomPainter`：消费 [commands]，按 [viewport] 做变换绘制，
-/// 可选绘制背景网格 [grid]。字段是当帧快照，数据变化时重建 painter 实例。
+/// `CustomPainter` for a single road panel: consumes [commands], paints them
+/// transformed per [viewport], and optionally paints a background grid
+/// [grid]. Fields are the current frame's snapshot; the painter instance is
+/// rebuilt when data changes.
 class RoadPainter extends CustomPainter {
-  /// 待绘制的指令列表（已按当前帧插值完毕，全量重绘）。
+  /// The list of commands to paint (already interpolated for the current
+  /// frame, fully repainted).
   final List<DrawCommand> commands;
 
-  /// 内容总宽（逻辑像素），用于可视裁剪。
+  /// Total content width (logical pixels), used for visibility culling.
   final double contentWidth;
 
-  /// 当前视口偏移/缩放。
+  /// Current viewport offset/scale.
   final Offset viewportOffset;
 
-  /// 当前视口缩放倍率。
+  /// Current viewport scale factor.
   final double viewportScale;
 
-  /// 背景网格配置，null 表示不绘制网格。
+  /// Background grid configuration; null means don't draw a grid.
   final GridSpec? grid;
 
-  /// 画布背景色。
+  /// Canvas background color.
   final int background;
 
-  /// 内容层 Picture 缓存（可选，由面板层持有跨帧复用）。传入后同一份 [commands]
-  /// 只录制一次，纯视口帧直接重放；不传则退回逐条指令直绘（带可视裁剪）。
+  /// Content layer Picture cache (optional, held across frames by the panel
+  /// layer). When passed, the same [commands] list is only recorded once and
+  /// pure-viewport frames just replay it; when omitted, falls back to
+  /// per-command direct drawing (with visibility culling).
   final CommandLayerCache? layerCache;
 
-  /// 背景网格 Picture 缓存（可选，由面板层持有跨帧复用）。
+  /// Background grid Picture cache (optional, held across frames by the panel
+  /// layer).
   final GridLayerCache? gridCache;
 
-  /// 叠加层指令（呼吸光圈、动画中的格子等每帧变化的少量指令），画在内容层
-  /// 之上、同一视口变换内。与 [commands] 分离是为了让底层的 Picture 缓存不被
-  /// 逐帧动画击穿。
+  /// Overlay layer commands (a small number of per-frame-changing commands
+  /// like breathing halos, animated cells), painted on top of the content
+  /// layer, within the same viewport transform. Kept separate from
+  /// [commands] so the underlying Picture cache isn't invalidated by
+  /// per-frame animation.
   final List<DrawCommand> overlayCommands;
 
-  /// 网格瓷砖内置填充**之前**触发（画在瓷砖底下），仅 `grid.style == GridStyle.tile`
-  /// 时生效。设置后当帧网格会跳过 Picture 缓存、逐格直绘。
+  /// Fires **before** the built-in grid tile fill (drawn beneath the tile),
+  /// only in effect when `grid.style == GridStyle.tile`. Once set, that
+  /// frame's grid skips the Picture cache and draws per-cell directly.
   final GridCellPaintCallback? onBeforePaintGridCell;
 
-  /// 网格瓷砖内置填充**之后**触发（画在瓷砖上面）。同 [onBeforePaintGridCell]
-  /// 的缓存旁路规则。
+  /// Fires **after** the built-in grid tile fill (drawn on top of the tile).
+  /// Same cache-bypass rule as [onBeforePaintGridCell].
   final GridCellPaintCallback? onAfterPaintGridCell;
 
-  /// 每条绘制指令（[commands]/[overlayCommands] 涵盖的圆/线/斜线/点/文字/矩形）
-  /// 内置绘制**之前**触发。设置后内容层当帧会跳过 Picture 缓存、逐条直绘。
+  /// Fires **before** the built-in drawing of each command (circles, lines,
+  /// slashes, dots, text, rects covered by [commands]/[overlayCommands]).
+  /// Once set, the content layer skips the Picture cache and draws each
+  /// command directly for that frame.
   final CommandPaintCallback? onBeforePaintCommand;
 
-  /// 每条绘制指令内置绘制**之后**触发。同 [onBeforePaintCommand] 的缓存旁路规则。
+  /// Fires **after** the built-in drawing of each command. Same cache-bypass
+  /// rule as [onBeforePaintCommand].
   final CommandPaintCallback? onAfterPaintCommand;
 
   const RoadPainter({
@@ -208,61 +239,73 @@ class RoadPainter extends CustomPainter {
       oldDelegate.onAfterPaintCommand != onAfterPaintCommand;
 }
 
-/// "活帧"状态：面板每帧要变的数据（指令、视口、缓存选择）都写进这里，
-/// [markFrame] 触发 [RoadFramePainter] 经 `repaint` Listenable 直达
-/// `markNeedsPaint`——动画/拖拽帧完全绕开 setState/build/element diff。
+/// "Live frame" state: everything the panel needs to change every frame
+/// (commands, viewport, cache selection) is written here; [markFrame] drives
+/// [RoadFramePainter] straight to `markNeedsPaint` via the `repaint`
+/// Listenable — animation/drag frames completely bypass
+/// setState/build/element diffing.
 class RoadFrameState extends ChangeNotifier {
-  /// 内容层指令（静止或动画底图，配合 [layerCache] 走 Picture 重放）。
+  /// Content layer commands (static or animated background art, replayed via
+  /// Picture together with [layerCache]).
   List<DrawCommand> commands = const [];
 
-  /// 叠加层指令（呼吸光圈、动画中的格子），每帧直绘。
+  /// Overlay layer commands (breathing halos, animated cells), drawn directly
+  /// every frame.
   List<DrawCommand> overlayCommands = const [];
 
-  /// 当前视口偏移。
+  /// Current viewport offset.
   Offset viewportOffset = Offset.zero;
 
-  /// 当前视口缩放。
+  /// Current viewport scale.
   double viewportScale = 1;
 
-  /// 本帧内容层适用的 Picture 缓存（静止帧/动画底图各有一份），null 走直绘。
+  /// The Picture cache applicable to the content layer for this frame (a
+  /// separate one for static frames vs. animated background art); null means
+  /// draw directly.
   CommandLayerCache? layerCache;
 
-  /// 通知 painter 重绘当前帧。
+  /// Notifies the painter to repaint the current frame.
   void markFrame() => notifyListeners();
 }
 
-/// 从 [RoadFrameState] 实时取帧数据的 `CustomPainter`。
+/// A `CustomPainter` that reads frame data live from [RoadFrameState].
 ///
-/// 构造时把 frame 作为 `repaint` Listenable 传给基类：帧状态变化只触发
-/// `markNeedsPaint`，不重建任何 widget。painter 自己的字段只剩数据变化频率低的
-/// 静态配置（尺寸/网格/背景），它们变化时由 build 重建 painter，走 shouldRepaint。
+/// The frame is passed to the base class as the `repaint` Listenable at
+/// construction time: frame state changes only trigger `markNeedsPaint`,
+/// never rebuild any widget. The painter's own fields are left with only the
+/// low-churn static configuration (size/grid/background), which is rebuilt by
+/// build when it changes and goes through shouldRepaint.
 class RoadFramePainter extends CustomPainter {
-  /// 帧状态（同时作为 repaint Listenable）。
+  /// The frame state (also serves as the repaint Listenable).
   final RoadFrameState frame;
 
-  /// 内容总宽（逻辑像素），用于直绘路径的可视裁剪。
+  /// Total content width (logical pixels), used for visibility culling on the
+  /// direct-draw path.
   final double contentWidth;
 
-  /// 背景网格配置，null 不绘制。
+  /// Background grid configuration; null means don't draw.
   final GridSpec? grid;
 
-  /// 画布背景色。
+  /// Canvas background color.
   final int background;
 
-  /// 背景网格 Picture 缓存。
+  /// Background grid Picture cache.
   final GridLayerCache? gridCache;
 
-  /// 网格瓷砖内置填充**之前**触发，仅 `grid.style == GridStyle.tile` 时生效；
-  /// 参见 [RoadPainter.onBeforePaintGridCell]。
+  /// Fires **before** the built-in grid tile fill, only in effect when
+  /// `grid.style == GridStyle.tile`; see [RoadPainter.onBeforePaintGridCell].
   final GridCellPaintCallback? onBeforePaintGridCell;
 
-  /// 网格瓷砖内置填充**之后**触发；参见 [RoadPainter.onAfterPaintGridCell]。
+  /// Fires **after** the built-in grid tile fill; see
+  /// [RoadPainter.onAfterPaintGridCell].
   final GridCellPaintCallback? onAfterPaintGridCell;
 
-  /// 每条绘制指令内置绘制**之前**触发；参见 [RoadPainter.onBeforePaintCommand]。
+  /// Fires **before** the built-in drawing of each command; see
+  /// [RoadPainter.onBeforePaintCommand].
   final CommandPaintCallback? onBeforePaintCommand;
 
-  /// 每条绘制指令内置绘制**之后**触发；参见 [RoadPainter.onAfterPaintCommand]。
+  /// Fires **after** the built-in drawing of each command; see
+  /// [RoadPainter.onAfterPaintCommand].
   final CommandPaintCallback? onAfterPaintCommand;
 
   RoadFramePainter({
@@ -308,15 +351,19 @@ class RoadFramePainter extends CustomPainter {
       oldDelegate.onAfterPaintCommand != onAfterPaintCommand;
 }
 
-// ─── 共享绘制实现（RoadPainter 与 RoadFramePainter 共用） ───────────────────
+// ─── Shared drawing implementation (used by both RoadPainter and RoadFramePainter) ───────────────────
 
-/// 直绘路径复用的填充/描边 Paint。单 UI 线程且 `Canvas.draw*` 在调用时即拷贝
-/// Paint 状态，调用返回后立刻改字段复用是安全的——避免动画帧每条指令 1-2 次
-/// Paint 分配（含 native finalizer 注册）。每次使用必须重置用到的全部字段。
+/// Fill/stroke Paint objects reused by the direct-draw path. Since we're on a
+/// single UI thread and `Canvas.draw*` copies the Paint state at call time,
+/// it's safe to mutate and reuse the fields right after the call returns —
+/// this avoids 1-2 Paint allocations (including native finalizer
+/// registration) per command on animation frames. Every use must reset all
+/// fields it relies on.
 final Paint _fillPaint = Paint();
 final Paint _strokePaint = Paint()..style = PaintingStyle.stroke;
 
-/// 完整画一帧：背景 → 网格 → 内容层（Picture 缓存或直绘+裁剪）→ 叠加层。
+/// Paints a full frame: background -> grid -> content layer (Picture cache or
+/// direct draw + culling) -> overlay layer.
 void _paintRoad(
   Canvas canvas,
   Size size, {
@@ -340,7 +387,7 @@ void _paintRoad(
 
   canvas.drawRect(Rect.fromLTWH(0, 0, w, h), _fillPaint..color = colorFromArgb(background));
 
-  // 1. 背景网格：不参与 scroll 变换，始终铺满面板。
+  // 1. Background grid: not subject to the scroll transform, always fills the panel.
   if (grid != null) {
     _paintGrid(
       canvas,
@@ -355,17 +402,21 @@ void _paintRoad(
     );
   }
 
-  // 2. 内容层：应用 viewport 变换。
+  // 2. Content layer: apply the viewport transform.
   canvas.save();
   canvas.translate(viewportOffset.dx, viewportOffset.dy);
   canvas.scale(viewportScale);
 
-  // 设了指令回调就退回直绘：Picture 缓存录制的是纯栅格数据，重放不会触发
-  // Dart 回调，缓存和回调二选一（回调优先，正确性优先于纯视口帧的性能）。
+  // If command hooks are set, fall back to direct drawing: the Picture cache
+  // records pure raster data and replay won't fire a Dart callback, so it's
+  // cache or callbacks, not both (callbacks win — correctness over the
+  // performance of pure-viewport frames).
   if (layerCache != null && !hasCommandHooks) {
-    // 缓存路径：整层录成 Picture 重放。录制时不做可视裁剪（Picture 与视口
-    // 无关，才能跨平移/缩放复用），裁剪交给画布 clip——重放开销远低于逐条
-    // 指令的 Paint/TextPainter 构造。
+    // Cache path: record the whole layer as a Picture and replay it. No
+    // visibility culling is applied while recording (the Picture must be
+    // viewport-independent to be reusable across pans/zooms); clipping is
+    // left to the canvas clip — replay cost is far lower than per-command
+    // Paint/TextPainter construction.
     canvas.drawPicture(layerCache.resolve(commands, (c) {
       for (final cmd in commands) {
         _paintCommand(c, cmd);
@@ -382,7 +433,7 @@ void _paintRoad(
     }
   }
 
-  // 3. 叠加层（呼吸光圈、动画中的格子），数量极少，直绘。
+  // 3. Overlay layer (breathing halos, animated cells), very few of them, drawn directly.
   for (final cmd in overlayCommands) {
     _paintCommandWithHooks(canvas, cmd, onBeforePaintCommand, onAfterPaintCommand);
   }
@@ -390,8 +441,9 @@ void _paintRoad(
   canvas.restore();
 }
 
-/// 画一条指令，前后按需触发 [onBefore]/[onAfter]（均为 null 时等价于直接调用
-/// [_paintCommand]，没有额外分支/对象分配开销）。
+/// Paints one command, firing [onBefore]/[onAfter] around it as needed (when
+/// both are null this is equivalent to calling [_paintCommand] directly, with
+/// no extra branch/allocation overhead).
 void _paintCommandWithHooks(
   Canvas canvas,
   DrawCommand cmd,
@@ -408,9 +460,12 @@ void _paintCommandWithHooks(
   onAfter?.call(info);
 }
 
-/// 渲染背景网格（相位与内容坐标同步对齐，随 viewport 平移/缩放连续绘制，铺满
-/// 整个可视区域）。与内容层共用同一份 viewport 变换语义，不受内容边界限制——
-/// 避免"内容自绘网格"与"渲染层背景网格"两套独立系统各自计算坐标导致的错位。
+/// Renders the background grid (phase kept in sync with content coordinates,
+/// drawn continuously as the viewport pans/zooms, filling the whole visible
+/// area). Shares the same viewport-transform semantics as the content layer
+/// and isn't constrained by content bounds — this avoids misalignment that
+/// would result if "content self-drawn grid" and "render-layer background
+/// grid" were two independent systems each computing their own coordinates.
 void _paintGrid(
   Canvas canvas,
   double w,
@@ -435,13 +490,15 @@ void _paintGrid(
   final spanW = cellSize * colSpan * scale;
   final spanH = cellSize * rowSpan * scale;
 
-  // 相位：X/Y 均按当前 offset 动态计算（同步内容平移）。
+  // Phase: X/Y are both computed dynamically from the current offset (kept in sync with content translation).
   final phaseX = ((viewportOffset.dx % spanW) + spanW) % spanW;
   final phaseY = ((viewportOffset.dy % spanH) + spanH) % spanH;
 
-  // 缓存路径：网格图按 (grid, scale, 尺寸) 录制一次（原点对齐、覆盖四周各多
-  // 一个周期），每帧只平移到当前相位再重放——平移类帧零逐格绘制。设了瓷砖
-  // 回调则跳过缓存（录制的是纯栅格数据，重放不会触发 Dart 回调）。
+  // Cache path: the grid image is recorded once keyed on (grid, scale, size)
+  // (origin-aligned, covering one extra period on each side), and each frame
+  // only needs to translate to the current phase and replay — zero per-cell
+  // drawing on pan frames. Skips the cache if a tile callback is set (the
+  // cache records pure raster data and replay won't fire a Dart callback).
   if (gridCache != null && !hasCellHooks) {
     final picture = gridCache.resolve(grid, scale, w, h, (c) {
       _recordGrid(c, w, h, grid, spanW, spanH);
@@ -461,7 +518,7 @@ void _paintGrid(
     final radius = math.min(spanW, spanH) * tileRadiusRatio;
     final color = colorFromArgb(tileFill);
     final paint = Paint()..color = color;
-    // 从 phase-span 起步，保证左/上边缘的半截瓷砖也能画出来，不留空隙。
+    // Start from phase-span so the partial tiles at the left/top edge also get painted, leaving no gaps.
     var row = 0;
     for (var y = phaseY - spanH; y <= h + spanH; y += spanH, row++) {
       var col = 0;
@@ -496,9 +553,11 @@ void _paintGrid(
   canvas.restore();
 }
 
-/// 把网格录制到原点对齐的画布上，覆盖 `[0, w+2·span] × [0, h+2·span]`——
-/// 比可视区四周各多一个周期，平移到任意相位（`phase - span ∈ [-span, 0)`）
-/// 后都能铺满面板。绘制参数与 [_paintGrid] 的直绘路径逐项一致。
+/// Records the grid onto an origin-aligned canvas, covering
+/// `[0, w+2·span] × [0, h+2·span]` — one extra period on each side beyond the
+/// visible area, so that translating to any phase
+/// (`phase - span ∈ [-span, 0)`) still fills the panel. Drawing parameters
+/// match the direct-draw path in [_paintGrid] item for item.
 void _recordGrid(Canvas canvas, double w, double h, GridSpec grid, double spanW, double spanH) {
   final totalW = w + 2 * spanW;
   final totalH = h + 2 * spanH;
@@ -533,7 +592,7 @@ void _recordGrid(Canvas canvas, double w, double h, GridSpec grid, double spanW,
   }
 }
 
-/// 可视范围裁剪（剔除明显在面板外的指令，提升性能）。
+/// Visibility culling (drops commands that are clearly off-panel, improving performance).
 bool _isOutside(DrawCommand cmd, double visL, double visR) => switch (cmd) {
   CircleCommand c => c.x < visL || c.x > visR,
   SlashCommand c => c.x < visL || c.x > visR,
@@ -543,7 +602,7 @@ bool _isOutside(DrawCommand cmd, double visL, double visR) => switch (cmd) {
   RectCommand c => c.x + c.w < visL || c.x > visR,
 };
 
-/// 回放单条绘制指令，支持 [DrawCommand.alpha] 透明度（动画插值用）。
+/// Replays a single draw command, honoring [DrawCommand.alpha] opacity (used for animation interpolation).
 void _paintCommand(Canvas canvas, DrawCommand cmd) {
   final alpha = cmd.alpha ?? 1;
   switch (cmd) {
@@ -625,5 +684,5 @@ void _paintCommand(Canvas canvas, DrawCommand cmd) {
   }
 }
 
-/// 颜色叠加动画透明度。
+/// Blends the animation opacity into a color.
 Color _withAlpha(int argb, double alpha) => colorFromArgb(argb).withValues(alpha: alpha);

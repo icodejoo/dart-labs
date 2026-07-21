@@ -1,7 +1,9 @@
-/// 回放：`Timer` 驱动逐局回放，走 `store.append` 路径，插入动画/视口跟随全部
-/// 自然生效（不是另起一套渲染逻辑，只是"自动帮你按时间点 append"）。
+/// Replay: a `Timer` drives round-by-round playback through the `store.append`
+/// path, so insert animations and viewport follow all kick in naturally
+/// (this isn't a separate rendering path — it's just "auto-append at the
+/// right time for you").
 ///
-/// 移植自 `src/panel/replayer.ts`。
+/// Ported from `src/panel/replayer.ts`.
 library;
 
 import 'dart:async';
@@ -9,29 +11,29 @@ import 'dart:async';
 import '../core/store.dart';
 import '../core/types.dart';
 
-/// 回放状态。
+/// Replay state.
 enum ReplayState { idle, playing, paused }
 
-/// 回放选项。
+/// Replay options.
 class ReplayOptions {
-  /// 每局播放间隔（ms），默认 800ms。
+  /// Interval between rounds (ms), defaults to 800ms.
   final int intervalMs;
 
   const ReplayOptions({this.intervalMs = 800});
 }
 
-/// 回放进度。
+/// Replay progress.
 class ReplayProgress {
-  /// 当前已播放到第几局（0-based）。
+  /// Number of rounds played so far (0-based).
   final int current;
 
-  /// 总局数。
+  /// Total number of rounds.
   final int total;
 
   const ReplayProgress({required this.current, required this.total});
 }
 
-/// 回放驱动。
+/// Drives the replay.
 class Replayer {
   final List<RawResult> _fullResults;
   final RoadmapStore _store;
@@ -44,13 +46,13 @@ class Replayer {
   Replayer(this._fullResults, this._store, {ReplayOptions opts = const ReplayOptions()})
     : _intervalMs = opts.intervalMs;
 
-  /// 当前回放状态。
+  /// Current replay state.
   ReplayState get state => _state;
 
-  /// 当前进度。
+  /// Current progress.
   ReplayProgress get progress => ReplayProgress(current: _cursor, total: _fullResults.length);
 
-  /// 从当前位置继续播放，逐局调用 `store.append`。
+  /// Resumes playback from the current position, calling `store.append` round by round.
   void play() {
     if (_state == ReplayState.playing) return;
     _state = ReplayState.playing;
@@ -64,14 +66,14 @@ class Replayer {
     });
   }
 
-  /// 暂停播放（保留当前进度，可用 [play] 续播）。
+  /// Pauses playback (keeps the current progress; resume with [play]).
   void pause() {
     _timer?.cancel();
     _timer = null;
     if (_state == ReplayState.playing) _state = ReplayState.paused;
   }
 
-  /// 跳转到第 [no] 局（不播动画，直接走 `setResults`）。
+  /// Jumps to round [no] (no animation played, goes straight through `setResults`).
   void seek(int no) {
     final idx = _fullResults.indexWhere((r) => r.no == no);
     if (idx == -1) return;
@@ -79,7 +81,7 @@ class Replayer {
     _store.setResults(_fullResults.sublist(0, _cursor));
   }
 
-  /// 停止回放，恢复完整靴数据。
+  /// Stops the replay and restores the full shoe data.
   void stop() {
     _timer?.cancel();
     _timer = null;
@@ -89,7 +91,8 @@ class Replayer {
   }
 }
 
-/// 创建一个回放驱动，逐局按 [opts.intervalMs] 间隔调用 `store.append`。
+/// Creates a replayer that calls `store.append` round by round at
+/// [opts.intervalMs] intervals.
 ///
 /// ```dart
 /// final replayer = createReplayer(shoe.results, store, opts: const ReplayOptions(intervalMs: 500));

@@ -1,9 +1,11 @@
-/// 数据 Store（实时刷新）。
+/// Data store (live refresh).
 ///
-/// 管理当前靴的局结果，对外提供 [RoadmapStore.setResults] / [RoadmapStore.append] /
-/// [RoadmapStore.patch] 三种更新路径。只有 append 触发动画语义；setResults 和
-/// patch 直接刷新。同一微任务内的多次 append 合并为一次通知（防推送风暴）。
-/// 移植自 `src/core/store.ts`。
+/// Manages the current shoe's round results, exposing three update paths:
+/// [RoadmapStore.setResults] / [RoadmapStore.append] / [RoadmapStore.patch].
+/// Only append triggers animation semantics; setResults and patch refresh
+/// directly. Multiple appends within the same microtask are coalesced into
+/// a single notification (to prevent a notification storm).
+/// Ported from `src/core/store.ts`.
 library;
 
 import 'dart:async';
@@ -11,36 +13,36 @@ import 'dart:async';
 import 'emitter.dart';
 import 'types.dart';
 
-/// 更新类型。
+/// Update kind.
 enum UpdateKind {
-  /// 全量替换（轮询/重连对账）。
+  /// Full replacement (polling / reconnect reconciliation).
   full,
 
-  /// 追加一局（推送正常路径，唯一触发动画的入口）。
+  /// Append a round (the normal push path; the only entry point that triggers animation).
   append,
 
-  /// 修正历史某局。
+  /// Correct a historical round.
   patch,
 }
 
-/// Store 变更事件载荷。
+/// Store change event payload.
 class ChangeEvent {
-  /// 更新类型。
+  /// Update kind.
   final UpdateKind kind;
 
-  /// 当前完整结果列表（只读快照）。
+  /// Current full results list (read-only snapshot).
   final List<RawResult> results;
 
-  /// append 时为新追加的那一局，其他类型为 null。
+  /// The newly appended round when kind is append; null for other kinds.
   final RawResult? appended;
 
   const ChangeEvent({required this.kind, required this.results, this.appended});
 }
 
-/// 乱序/跳号回调（由外部拉全量后 [RoadmapStore.setResults] 对账）。
+/// Out-of-order / gap callback (caller should pull the full data and reconcile via [RoadmapStore.setResults]).
 typedef OutOfSyncCallback = void Function(int expected, int actual);
 
-/// 数据 Store。
+/// Data store.
 class RoadmapStore {
   List<RawResult> _results = [];
   final _emitter = Emitter<ChangeEvent>();
@@ -51,17 +53,18 @@ class RoadmapStore {
 
   RoadmapStore({OutOfSyncCallback? onOutOfSync}) : _onOutOfSync = onOutOfSync;
 
-  /// 全量替换结果（轮询/重连对账）。不播动画，直接刷新。
+  /// Fully replaces the results (polling / reconnect reconciliation). No animation, refreshes directly.
   void setResults(List<RawResult> results) {
     _results = List.of(results);
     _snapshot = null;
     _emitter.emit(ChangeEvent(kind: UpdateKind.full, results: List.of(_results)));
   }
 
-  /// 追加一局（推送正常路径，唯一触发插入动画的入口）。
+  /// Appends a round (the normal push path; the only entry point that triggers the insertion animation).
   ///
-  /// 要求 `result.no == last.no + 1`，否则不入库并调用 [OutOfSyncCallback]。
-  /// 同一微任务内多次 append 合并为一次通知。
+  /// Requires `result.no == last.no + 1`; otherwise the result is not
+  /// stored and [OutOfSyncCallback] is invoked instead.
+  /// Multiple appends within the same microtask are coalesced into a single notification.
   void append(RawResult result) {
     final last = _results.isNotEmpty ? _results.last : null;
     final expected = last != null ? last.no + 1 : 1;
@@ -74,7 +77,7 @@ class RoadmapStore {
     _scheduleFlush(result);
   }
 
-  /// 修正历史某局（不播动画）。
+  /// Corrects a historical round (no animation).
   void patch(int no, RawResult result) {
     final idx = _results.indexWhere((r) => r.no == no);
     if (idx == -1) return;
@@ -83,17 +86,19 @@ class RoadmapStore {
     _emitter.emit(ChangeEvent(kind: UpdateKind.patch, results: List.of(_results)));
   }
 
-  /// 只读快照缓存：数据没变时 [getResults] 返回同一实例——引用稳定才能让
-  /// `Engine.compute` 的按引用备忘录在 UI 侧无关重算时命中。
+  /// Read-only snapshot cache: [getResults] returns the same instance when
+  /// data hasn't changed — reference stability is what lets
+  /// `Engine.compute`'s reference-based memoization hit when the UI side
+  /// re-renders for unrelated reasons.
   List<RawResult>? _snapshot;
 
-  /// 获取当前结果列表的只读快照（数据未变化时返回同一实例，可安全按引用比较）。
+  /// Gets a read-only snapshot of the current results list (returns the same instance when data hasn't changed, safe to compare by reference).
   List<RawResult> getResults() => _snapshot ??= List.unmodifiable(_results);
 
-  /// 订阅数据变更，返回取消订阅函数。
+  /// Subscribes to data changes, returning an unsubscribe function.
   void Function() subscribe(Listener<ChangeEvent> cb) => _emitter.on(cb);
 
-  /// 安排微任务冲刷（已安排则跳过，下一微任务只执行一次）。
+  /// Schedules a microtask flush (skipped if one is already scheduled; runs once on the next microtask).
   void _scheduleFlush(RawResult appended) {
     _pendingLastAppended = appended;
     if (_pendingFlush) return;
@@ -107,7 +112,7 @@ class RoadmapStore {
   }
 }
 
-/// 创建数据 Store 实例。
+/// Creates a data store instance.
 ///
 /// ```dart
 /// final store = createStore(onOutOfSync: (exp, act) => print('out of sync $exp $act'));

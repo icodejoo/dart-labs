@@ -1,8 +1,9 @@
-// 绘制回调（网格瓷砖 / 绘制指令的 before/after 挂钩）单元测试。
+// Unit tests for paint callbacks (before/after hooks for grid tiles / draw commands).
 //
-// 直接构造 [RoadPainter] 并调用 [RoadPainter.paint]（PictureRecorder 承接画布），
-// 不经 widget 树——回调本身与 widget 生命周期无关，只关心 paint() 期间的
-// 触发顺序与携带的信息是否正确。
+// Constructs a [RoadPainter] directly and calls [RoadPainter.paint] (with a
+// PictureRecorder backing the canvas), bypassing the widget tree -- the callbacks
+// themselves are unrelated to the widget lifecycle, so this only cares about the
+// firing order and payload correctness during paint().
 
 import 'dart:ui' as ui;
 
@@ -10,7 +11,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:roadsman/roadsman.dart';
 
-/// 用 [RoadPainter] 画一帧到一次性 [Canvas] 上（结果不需要，只关心触发的回调）。
+/// Paints one frame with [RoadPainter] onto a throwaway [Canvas] (the result doesn't
+/// matter -- this only cares about which callbacks fire).
 void _paintOnce(RoadPainter painter, {Size size = const Size(200, 200)}) {
   final recorder = ui.PictureRecorder();
   final canvas = Canvas(recorder);
@@ -44,7 +46,7 @@ void main() {
       _paintOnce(painter);
 
       expect(calls, isNotEmpty);
-      // 每个格子必须先 before 再 after，不能交叉。
+      // Each cell must fire before then after, never interleaved.
       for (var i = 0; i < calls.length; i += 2) {
         final row = calls[i].substring(calls[i].indexOf('(') + 1, calls[i].indexOf(','));
         final col = calls[i].substring(calls[i].indexOf(',') + 1, calls[i].indexOf(')'));
@@ -93,7 +95,7 @@ void main() {
       final afterFirstPaint = callCount;
       expect(afterFirstPaint, greaterThan(0));
 
-      _paintOnce(painter()); // 第二帧：若被 Picture 缓存命中，回调不会再触发
+      _paintOnce(painter()); // second frame: if the Picture cache hits, the callback won't fire again
       expect(callCount, afterFirstPaint * 2);
     });
   });
@@ -142,7 +144,7 @@ void main() {
       _paintOnce(painter());
       expect(callCount, 1);
 
-      _paintOnce(painter()); // 同一份 commands 引用：若走缓存重放，回调不会再触发
+      _paintOnce(painter()); // same commands reference: if replayed from cache, the callback won't fire again
       expect(callCount, 2);
     });
 

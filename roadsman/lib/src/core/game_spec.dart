@@ -1,22 +1,22 @@
-/// GameSpec：游戏规格抽象。
+/// GameSpec: game specification abstraction.
 ///
-/// 把百家乐语义从类型系统抽离为数据，使同一套引擎/插件/渲染层支持任意
-/// "离散结果流"类游戏。零 Flutter 依赖，可在纯 Dart 环境直接使用。
-/// 移植自 `src/core/game-spec.ts`。
+/// Extract baccarat semantics from the type system into data, allowing the same engine/plugins/rendering layer
+/// to support any "discrete result stream" type game. Zero Flutter dependency, can be used directly in pure Dart environments.
+/// Ported from `src/core/game-spec.ts`.
 library;
 
-/// 一种可能的局结果定义。
+/// A possible round result definition.
 class OutcomeDef {
-  /// 结果代码，在同一 [GameSpec] 内唯一，如 "B"、"P"、"T"、"D"。
+  /// Result code, unique within the same [GameSpec], e.g. "B", "P", "T", "D".
   final String code;
 
-  /// UI 文案（珠盘圆内字、统计面板行名）。
+  /// UI copy (in-bead circle text, stats panel row name).
   final String label;
 
-  /// 取色键：指向 Palette 的既有键（"banker"/"player"/"tie"/"red"/"blue"）。
+  /// Color lookup key: points to existing keys in Palette ("banker"/"player"/"tie"/"red"/"blue").
   final String paletteKey;
 
-  /// 珠盘数字模式下，本结果从 [GenericResult.extras] 取哪个字段显示；缺省回退显示 [label]。
+  /// In bead plate number mode, which field from [GenericResult.extras] this result displays; defaults to fallback display [label].
   final String? beadTextField;
 
   const OutcomeDef({
@@ -27,27 +27,27 @@ class OutcomeDef {
   });
 }
 
-/// dot 形状角标的角位。
+/// Corner position for dot-shaped marker.
 enum MarkerPosition { topLeft, topRight, bottomLeft, bottomRight }
 
-/// 布尔角标形状："dot" 角点（对子）| "innerDot" 内实心圆（例牌）。
+/// Boolean marker shape: "dot" corner (pair) | "innerDot" inner filled circle (natural).
 enum MarkerShape { dot, innerDot }
 
-/// 布尔角标定义（泛化庄对/闲对/例牌）。
+/// Boolean marker definition (generalizes banker pair/player pair/natural).
 class MarkerDef {
-  /// 标记代码，对应 [GenericResult.marks] 的键，如 "bankerPair"。
+  /// Marker code, corresponds to key in [GenericResult.marks], e.g. "bankerPair".
   final String code;
 
-  /// UI 文案（统计面板/tooltip）。
+  /// UI copy (stats panel/tooltip).
   final String label;
 
-  /// 呈现形状。
+  /// Presentation shape.
   final MarkerShape shape;
 
-  /// dot 形状的角位，缺省 topLeft。
+  /// Corner position for dot shape, defaults to topLeft.
   final MarkerPosition position;
 
-  /// 取色键，同 [OutcomeDef.paletteKey]。
+  /// Color lookup key, same as [OutcomeDef.paletteKey].
   final String paletteKey;
 
   const MarkerDef({
@@ -59,20 +59,20 @@ class MarkerDef {
   });
 }
 
-/// 声明式流选择器（sealed class，穷尽 switch 匹配）。
+/// Declarative stream selector (sealed class, exhaustive switch matching).
 sealed class StreamSelector {
   const StreamSelector();
 }
 
-/// 直接取 outcome 代码作为 token（百家乐主流、龙虎主流）。
+/// Directly use outcome code as token (baccarat mainstream, dragon-tiger mainstream).
 final class OutcomeSelector extends StreamSelector {
-  /// 走路的二元 token 列表，恰好 2 个，决定 predict 的两个假设值。
+  /// Binary token list for road, exactly 2, determines the two hypothesis values for predict.
   final (String, String) tokens;
 
   const OutcomeSelector(this.tokens);
 }
 
-/// 分桶定义（闭区间）。
+/// Bucket definition (closed interval).
 class RangeBucket {
   final String token;
   final double min;
@@ -81,77 +81,77 @@ class RangeBucket {
   const RangeBucket({required this.token, required this.min, required this.max});
 }
 
-/// 按数值字段分桶（骰宝大小：extras.total 4-10 → "S"，11-17 → "B"）。
+/// Bucket by numeric field (sicbo size: extras.total 4-10 → "S", 11-17 → "B").
 final class RangeSelector extends StreamSelector {
-  /// [GenericResult.extras] 中的字段名。
+  /// Field name in [GenericResult.extras].
   final String field;
 
-  /// 分桶定义，恰好 2 个。
+  /// Bucket definitions, exactly 2.
   final (RangeBucket, RangeBucket) buckets;
 
-  /// 命中即跳过整局的结果代码（骰宝围骰通吃）。
+  /// Result codes to skip the entire round if hit (sicbo triple takes all).
   final List<String>? skipOutcomes;
 
   const RangeSelector({required this.field, required this.buckets, this.skipOutcomes});
 }
 
-/// 按布尔标记走路（单双路等）。
+/// Road by boolean mark (single/double roads, etc.).
 final class MarkSelector extends StreamSelector {
-  /// [GenericResult.marks] 中的键。
+  /// Key in [GenericResult.marks].
   final String code;
 
-  /// (true 对应的 token, false 对应的 token)。
+  /// (token for true, token for false).
   final (String, String) tokens;
 
   const MarkSelector({required this.code, required this.tokens});
 }
 
-/// 路流定义：声明如何从一局结果得到走路 token。
+/// Road stream definition: declare how to derive road token from a round result.
 class StreamDef {
-  /// 流 id，每个 [GameSpec] 必须有 id 为 "main" 的主流。
+  /// Stream ID, each [GameSpec] must have a main stream with ID "main".
   final String id;
 
-  /// UI 名称（面板多流切换用）。
+  /// UI name (for multi-stream switching in panel).
   final String label;
 
-  /// 选择器。
+  /// Selector.
   final StreamSelector selector;
 
-  /// 不占格的结果代码列表（百家乐的 "T"）。
+  /// List of result codes that do not occupy cells (baccarat "T").
   final List<String>? skipOutcomes;
 
   const StreamDef({required this.id, required this.label, required this.selector, this.skipOutcomes});
 }
 
-/// 游戏规格：一个游戏的全部声明。
+/// Game specification: all declarations for a game.
 ///
 /// ```dart
 /// final spec = GameSpec(
 ///   id: 'custom',
-///   label: '自定义',
+///   label: 'Custom',
 ///   outcomes: [
-///     OutcomeDef(code: 'A', label: '甲', paletteKey: 'banker'),
-///     OutcomeDef(code: 'B', label: '乙', paletteKey: 'player'),
+///     OutcomeDef(code: 'A', label: 'Alpha', paletteKey: 'banker'),
+///     OutcomeDef(code: 'B', label: 'Beta', paletteKey: 'player'),
 ///   ],
 ///   streams: [
-///     StreamDef(id: 'main', label: '主流', selector: OutcomeSelector(('A', 'B'))),
+///     StreamDef(id: 'main', label: 'Main', selector: OutcomeSelector(('A', 'B'))),
 ///   ],
 /// );
 /// ```
 class GameSpec {
-  /// 规格 id，"baccarat" | "dragonTiger" | "sicbo" | 自定义。
+  /// Spec ID: "baccarat" | "dragonTiger" | "sicbo" | custom.
   final String id;
 
-  /// 游戏名称（面板标题等）。
+  /// Game name (panel title, etc.).
   final String label;
 
-  /// 全部可能结果。
+  /// All possible outcomes.
   final List<OutcomeDef> outcomes;
 
-  /// 路流列表，必含 id="main"。
+  /// List of road streams, must include id="main".
   final List<StreamDef> streams;
 
-  /// 角标标记（可空）。
+  /// Marker markers (nullable).
   final List<MarkerDef>? markers;
 
   const GameSpec({
@@ -163,36 +163,36 @@ class GameSpec {
   });
 }
 
-/// 泛化后的单局结果，core 内部通行格式。对外 API 保留 [RawResult]（见 `types.dart`），
-/// 由适配层转换。
+/// Generalized single round result, internal format within core. External API retains [RawResult] (see `types.dart`),
+/// converted by adapter layer.
 class GenericResult {
-  /// 局号，从 1 开始单调递增。
+  /// Round number, monotonically increasing from 1.
   final int no;
 
-  /// 结果代码，必须 ∈ `spec.outcomes[].code`。
+  /// Result code, must be ∈ `spec.outcomes[].code`.
   final String outcome;
 
-  /// 布尔标记，键 ∈ `spec.markers[].code`；缺键视为 false。
+  /// Boolean markers, keys ∈ `spec.markers[].code`; missing keys are treated as false.
   final Map<String, bool>? marks;
 
-  /// 数值附加字段（骰宝 total/die1-3、百家乐点数等），供 range 选择器与 tooltip 使用。
+  /// Numeric additional fields (sicbo total/die1-3, baccarat points, etc.), used by range selector and tooltip.
   final Map<String, num>? extras;
 
   const GenericResult({required this.no, required this.outcome, this.marks, this.extras});
 }
 
-/// [validateGameSpec] 的返回值（sealed class）。
+/// Return value of [validateGameSpec] (sealed class).
 sealed class ValidateResult {
   const ValidateResult();
 }
 
-/// 校验通过。
+/// Validation passed.
 final class ValidateOk extends ValidateResult {
   final GameSpec spec;
   const ValidateOk(this.spec);
 }
 
-/// 校验失败。
+/// Validation failed.
 final class ValidateError extends ValidateResult {
   final List<String> errors;
   const ValidateError(this.errors);
@@ -200,17 +200,17 @@ final class ValidateError extends ValidateResult {
 
 const _validPaletteKeys = ['banker', 'player', 'tie', 'red', 'blue'];
 
-/// 校验任意值（通常来自 JSON 反序列化的 `Map<String, dynamic>`）是否为合法 [GameSpec]。
+/// Validate whether an arbitrary value (usually from JSON-deserialized `Map<String, dynamic>`) is a valid [GameSpec].
 ///
-/// 手写校验（不引第三方 schema 库），逐字段核对结构，供"自定义游戏规格"这类运行时
-/// 输入场景使用。校验通过时仍返回原始 `Map`（由调用方自行转 [GameSpec]），因为
-/// Dart 侧强类型转换需要调用方决定字段缺省值，这里只负责报错。
+/// Hand-written validation (no third-party schema library), checks structure field by field, for runtime
+/// "custom game spec" input scenarios. Still returns the original `Map` on successful validation (caller converts to [GameSpec] themselves), because
+/// strong-typed conversion on the Dart side requires the caller to decide field defaults, this is only responsible for error reporting.
 ///
 /// ```dart
 /// final result = validateGameSpecJson(jsonDecode(userInput) as Map<String, dynamic>);
 /// switch (result) {
 ///   case ValidateError(:final errors): print(errors);
-///   case ValidateOkJson(:final json): // 转换为 GameSpec
+///   case ValidateOkJson(:final json): // convert to GameSpec
 /// }
 /// ```
 ValidateJsonResult validateGameSpecJson(Object? raw) {
@@ -248,8 +248,8 @@ ValidateJsonResult validateGameSpecJson(Object? raw) {
       if (o['label'] is! String) {
         errs.add('outcomes[$i].label: must be a string');
       }
-      // 内置五键之外允许自定义键（运行时经 colorForPaletteKey 回落
-      // theme.palette.outcomes[key]），这里只校验必须是非空字符串。
+      // Custom keys beyond the built-in five are allowed (at runtime falls back via colorForPaletteKey to
+      // theme.palette.outcomes[key]), here only validates it must be a non-empty string.
       final pk = o['paletteKey'];
       if (pk is! String || pk.isEmpty) {
         errs.add(
@@ -333,18 +333,18 @@ ValidateJsonResult validateGameSpecJson(Object? raw) {
   return ValidateJsonOk(obj);
 }
 
-/// [validateGameSpecJson] 的返回值。
+/// Return value of [validateGameSpecJson].
 sealed class ValidateJsonResult {
   const ValidateJsonResult();
 }
 
-/// 校验通过，返回原始（已确认结构合法的）JSON Map。
+/// Validation passed, returns the original (confirmed structurally valid) JSON Map.
 final class ValidateJsonOk extends ValidateJsonResult {
   final Map json;
   const ValidateJsonOk(this.json);
 }
 
-/// 校验失败。
+/// Validation failed.
 final class ValidateJsonError extends ValidateJsonResult {
   final List<String> errors;
   const ValidateJsonError(this.errors);

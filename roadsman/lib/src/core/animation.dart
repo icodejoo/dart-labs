@@ -1,36 +1,36 @@
-/// 动画系统（纯函数）。
+/// Animation system (pure functions).
 ///
-/// 提供 [diffLayout]（布局 diff）、缓动函数、插入/移动/退出动画采样、
-/// [applyWindow]（窗口模式截取）等纯函数。渲染层保持无状态；动画层位于
-/// compute 输出与渲染层之间。移植自 `src/core/animation.ts`。
+/// Provides [diffLayout] (layout diff), easing functions, enter/move/exit animation sampling,
+/// [applyWindow] (window mode cropping) etc pure functions. Rendering layer remains stateless; animation layer is between
+/// compute output and rendering layer. Ported from `src/core/animation.ts`.
 library;
 
 import 'dart:math' as math;
 
 import 'types.dart';
 
-/// 缓动函数类型。
+/// Easing function type.
 typedef EasingFn = double Function(double t);
 
-/// 缓动函数集合。任何 `double Function(double)` 均可自行传入。
+/// Collection of easing functions. Any `double Function(double)` can be passed in directly.
 ///
 /// ```dart
-/// final v = Easing.easeOutCubic(0.5); // 约 0.875
+/// final v = Easing.easeOutCubic(0.5); // about 0.875
 /// ```
 abstract final class Easing {
-  /// 线性。
+  /// Linear.
   static double linear(double t) => t;
 
-  /// 缓出三次（轻柔落地）。
+  /// Ease out cubic (gentle landing).
   static double easeOutCubic(double t) => 1 - math.pow(1 - t, 3).toDouble();
 
-  /// 缓出回弹（带轻微弹性）。
+  /// Ease out back (with slight elasticity).
   static double easeOutBack(double t) {
     const c = 1.70158;
     return 1 + (c + 1) * math.pow(t - 1, 3) + c * math.pow(t - 1, 2);
   }
 
-  /// 弹簧（近似，过冲后回弹）。
+  /// Spring (approximation, overshoot then rebound).
   static double spring(double t) {
     const omega = 12.0;
     const zeta = 0.5;
@@ -38,68 +38,68 @@ abstract final class Easing {
   }
 }
 
-/// 插入动画预置名称（格子首次出现时）。
+/// Enter animation preset names (when cell first appears).
 enum EnterAnimation {
-  /// 无动画，直接呈现终态。
+  /// No animation, directly present final state.
   none,
 
-  /// 淡入（alpha 0→1）。
+  /// Fade in (alpha 0→1).
   fadeIn,
 
-  /// 缩放插入（半径 0→r，配 [Easing.easeOutBack] 有回弹）。
+  /// Scale enter (radius 0→r, with [Easing.easeOutBack] has rebound).
   scaleIn,
 
-  /// 下落插入（从上方落入 + 淡入）。
+  /// Drop in (fall from above + fade in).
   dropIn,
 }
 
-/// 移动动画预置名称（格子位置变化，窗口左移时）。
+/// Move animation preset names (cell position change, when window shifts left).
 enum MoveAnimation {
-  /// 无动画。
+  /// No animation.
   none,
 
-  /// 线性位置 tween。
+  /// Linear position tween.
   tween,
 }
 
-/// 退出动画预置名称（窗口模式格子被挤出时）。
+/// Exit animation preset names (when cell is pushed out in window mode).
 enum ExitAnimation {
-  /// 无动画（直接消失）。
+  /// No animation (disappear directly).
   none,
 
-  /// 淡出 + 左移半格。
+  /// Fade out + shift left half cell.
   fadeOut,
 }
 
-/// 路图显示模式：follow 视口缓动跟随（默认）/ window 固定 N 列，超出则挤出。
+/// Road display mode: follow viewport easing follow (default) / window fixed N columns, push out when exceeded.
 enum RoadDisplayMode { follow, window }
 
-/// 单个格子的过渡描述（sealed class）。
+/// Transition description for a single cell (sealed class).
 sealed class Transition {
   const Transition();
 }
 
-/// 格子进入（新增）。
+/// Cell enter (newly added).
 final class EnterTransition extends Transition {
   final LayoutCell cell;
   const EnterTransition(this.cell);
 }
 
-/// 格子移动（同 key，位置变化）。
+/// Cell move (same key, position change).
 final class MoveTransition extends Transition {
   final LayoutCell from;
   final LayoutCell to;
   const MoveTransition(this.from, this.to);
 }
 
-/// 格子退出（被挤出）。
+/// Cell exit (pushed out).
 final class ExitTransition extends Transition {
   final LayoutCell cell;
   const ExitTransition(this.cell);
 }
 
-/// 对比两个布局，输出过渡列表（仅基于 key 比较，不看内容）。
-/// [prev] 为 null（首帧/全量刷新）时返回空列表（直接呈现终态）。
+/// Compare two layouts, output transition list (based only on key comparison, not content).
+/// When [prev] is null (first frame/full refresh), returns empty list (directly present final state).
 ///
 /// ```dart
 /// final transitions = diffLayout(prev, next);
@@ -133,26 +133,26 @@ List<Transition> diffLayout(RoadLayout? prev, RoadLayout next) {
   return transitions;
 }
 
-/// 插入动画采样函数类型。
+/// Enter animation sampling function type.
 typedef EnterSampleFn = List<DrawCommand> Function(LayoutCell cell, double progress);
 
-/// 移动动画采样函数类型。
+/// Move animation sampling function type.
 typedef MoveSampleFn = List<DrawCommand> Function(LayoutCell from, LayoutCell to, double progress);
 
-/// 退出动画采样函数类型。
+/// Exit animation sampling function type.
 typedef ExitSampleFn = List<DrawCommand> Function(LayoutCell cell, double progress);
 
 final _enterRegistry = <String, EnterSampleFn>{};
 final _moveRegistry = <String, MoveSampleFn>{};
 final _exitRegistry = <String, ExitSampleFn>{};
 
-/// 注册自定义插入动画，可在 [sampleEnter] 里按 [name] 覆盖内置行为。
+/// Register custom enter animation, can override built-in behavior by [name] in [sampleEnter].
 void registerEnterAnimation(String name, EnterSampleFn fn) => _enterRegistry[name] = fn;
 
-/// 注册自定义移动动画。
+/// Register custom move animation.
 void registerMoveAnimation(String name, MoveSampleFn fn) => _moveRegistry[name] = fn;
 
-/// 注册自定义退出动画。
+/// Register custom exit animation.
 void registerExitAnimation(String name, ExitSampleFn fn) => _exitRegistry[name] = fn;
 
 String _enterAnimName(EnterAnimation a) => switch (a) {
@@ -162,11 +162,11 @@ String _enterAnimName(EnterAnimation a) => switch (a) {
   EnterAnimation.dropIn => 'dropIn',
 };
 
-/// 采样插入动画，返回该 [progress] 下格子的绘制指令。
+/// Sample enter animation, return the cell's draw commands at [progress].
 ///
-/// [name] 通常是 [EnterAnimation] 对应的名字（见 `_enterAnimName`），也可以是
-/// 通过 [registerEnterAnimation] 注册的自定义名。[cellSize] 供 dropIn 计算起始
-/// Y 偏移，默认 36。
+/// [name] is usually the name corresponding to [EnterAnimation] (see `_enterAnimName`), or can be
+/// a custom name registered via [registerEnterAnimation]. [cellSize] used for dropIn to compute starting
+/// Y offset, defaults to 36.
 ///
 /// ```dart
 /// final cmds = sampleEnter('scaleIn', cell, 0.5);
@@ -190,7 +190,7 @@ List<DrawCommand> sampleEnter(String name, LayoutCell cell, double progress, [do
   }
 }
 
-/// 采样移动动画，返回该 [progress] 下格子的绘制指令。
+/// Sample move animation, return the cell's draw commands at [progress].
 ///
 /// ```dart
 /// final cmds = sampleMove('tween', from, to, 0.5);
@@ -210,7 +210,7 @@ List<DrawCommand> sampleMove(String name, LayoutCell from, LayoutCell to, double
   }
 }
 
-/// 采样退出动画，返回该 [progress] 下格子的绘制指令（0 完全可见，1 完全消失）。
+/// Sample exit animation, return the cell's draw commands at [progress] (0 fully visible, 1 fully disappeared).
 ///
 /// ```dart
 /// final cmds = sampleExit('fadeOut', cell, 0.5);
@@ -230,8 +230,8 @@ List<DrawCommand> sampleExit(String name, LayoutCell cell, double progress, [dou
   }
 }
 
-/// 把 [EnterAnimation]/[MoveAnimation]/[ExitAnimation] 枚举值转成 [sampleEnter] 等
-/// 函数期望的字符串名，供不想手写字符串字面量的调用方使用。
+/// Convert [EnterAnimation]/[MoveAnimation]/[ExitAnimation] enum values to the string names expected by
+/// [sampleEnter] etc functions, for callers who don't want to hand-write string literals.
 extension EnterAnimationName on EnterAnimation {
   String get animName => _enterAnimName(this);
 }
@@ -244,8 +244,8 @@ extension ExitAnimationName on ExitAnimation {
   String get animName => this == ExitAnimation.none ? 'none' : 'fadeOut';
 }
 
-/// 窗口模式：截取最近 [windowCols] 列，区间外的格子丢弃，区间内的格子整体左移。
-/// key 不变，[diffLayout] 自然得出 enter/move/exit。
+/// Window mode: crop the most recent [windowCols] columns, cells outside the range are discarded, cells inside the range shift left as a whole.
+/// key remains unchanged, [diffLayout] naturally derives enter/move/exit.
 ///
 /// ```dart
 /// final windowed = applyWindow(layout, 8, 36);
@@ -292,7 +292,7 @@ DrawCommand _withAlpha(DrawCommand cmd, double alpha) => switch (cmd) {
   RectCommand c => RectCommand(x: c.x, y: c.y, w: c.w, h: c.h, fill: c.fill, stroke: c.stroke, radius: c.radius, alpha: alpha),
 };
 
-/// 等比缩放指令（以格子中心为原点，缩放所有坐标和尺寸）。
+/// Uniformly scale commands (with cell center as origin, scale all coordinates and dimensions).
 List<DrawCommand> _scaleCommands(List<DrawCommand> commands, LayoutCell cell, double scale) {
   final cx = cell.x + cell.w / 2;
   final cy = cell.y + cell.h / 2;
@@ -355,8 +355,8 @@ List<DrawCommand> _scaleCommands(List<DrawCommand> commands, LayoutCell cell, do
   }).toList();
 }
 
-/// 对指令列表批量平移（返回新列表，不修改入参）。供动画插值与多路合并布局
-/// （如 `roads/band_merge.dart` 把子路拼进同一画布）复用。
+/// Batch translate a list of commands (returns new list, does not modify input). Reused by animation interpolation and multi-road merge layout
+/// (e.g. `roads/band_merge.dart` combining sub-roads into the same canvas).
 ///
 /// ```dart
 /// final shifted = translateCommands(cell.commands, 0, 120);
@@ -366,7 +366,7 @@ List<DrawCommand> translateCommands(List<DrawCommand> commands, double dx, doubl
   return commands.map((cmd) => translateCommand(cmd, dx, dy)).toList();
 }
 
-/// 平移单条指令（返回新对象）。
+/// Translate a single command (returns new object).
 DrawCommand translateCommand(DrawCommand cmd, double dx, double dy) => switch (cmd) {
   CircleCommand c => CircleCommand(
     x: c.x + dx,

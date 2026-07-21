@@ -1,16 +1,16 @@
-/// 大路插件：百家乐核心路图，龙尾右弯排列。
+/// Big road plugin: baccarat's core road chart, laid out with dragon-tail turns to the right.
 ///
-/// 移植自 `src/core/roads/big-road.ts`。
+/// Ported from `src/core/roads/big-road.ts`.
 library;
 
 import '../grid_layout.dart';
 import '../types.dart';
 
-/// 从原始结果构建大路数据。
+/// Builds big road data from raw results.
 ///
 /// ```dart
 /// final data = buildBigRoad(results);
-/// // data.cells 按出现顺序，data.columns[i] 为第 i 逻辑列的格子数
+/// // data.cells are in order of appearance; data.columns[i] is the cell count of logical column i
 /// ```
 BigRoadData buildBigRoad(List<RawResult> results) {
   final cells = <BigRoadCell>[];
@@ -79,7 +79,7 @@ BigRoadData buildBigRoad(List<RawResult> results) {
   return BigRoadData(cells: cells, columns: columns, leadingTies: leadingTies);
 }
 
-/// 大路插件：百家乐核心路图，龙尾右弯排列。
+/// Big road plugin: baccarat's core road chart, laid out with dragon-tail turns to the right.
 class BigRoadPlugin extends RoadPlugin<BigRoadData> {
   @override
   String get id => 'bigRoad';
@@ -131,13 +131,15 @@ class BigRoadPlugin extends RoadPlugin<BigRoadData> {
         }
       }
 
-      // 角标偏移 0.36（不是 0.4/0.46！）：
-      // 完全清出本格圆环需要偏移 ≥0.403（diag - 半径 > radiusRatio+半线宽），
-      // 但本格是 cellSize 见方，偏移 + 角标半径(0.12) 一旦超过 0.5 就会探出本格边界，
-      // 伸进下一格的地盘——下一格的圆环在绘制数组里排在后面，会覆盖探出的部分，
-      // 呈现"被相邻圆圈咬掉一块"。两个约束互斥（0.403 vs 0.38 谁大谁小），
-      // 优先保证不越界（0.36+0.12=0.48<0.5），代价是跟自己这格的圆环有少量重叠——
-      // 这没问题，z-order 在同一格内角标本来就画在圆环之后，稳压得住。
+      // Badge offset 0.36 (not 0.4/0.46!):
+      // Fully clearing this cell's ring needs an offset ≥0.403 (diag - radius > radiusRatio + half line width),
+      // but since the cell is cellSize square, once offset + badge radius (0.12) exceeds 0.5 it pokes
+      // into the next cell's territory — that next cell's ring is drawn later in the command array
+      // and would cover the part that pokes out, showing up as "a bite taken out by the adjacent
+      // circle." The two constraints conflict (0.403 vs 0.38, whichever is larger), so we prioritize
+      // staying in bounds (0.36+0.12=0.48<0.5), at the cost of a small overlap with this cell's own
+      // ring — that's fine, since within a single cell the badge is z-ordered after the ring anyway
+      // and holds up visually.
       if (cell.bankerPair) {
         commands.add(
           DotCommand(x: px.x - cellSize * 0.36, y: px.y - cellSize * 0.36, r: cellSize * 0.12, fill: palette.banker),
@@ -167,5 +169,5 @@ class BigRoadPlugin extends RoadPlugin<BigRoadData> {
   }
 }
 
-/// [BigRoadPlugin] 的单例实例，供 `roadRegistry` 注册使用。
+/// Singleton instance of [BigRoadPlugin], used for registration with `roadRegistry`.
 final bigRoadPlugin = BigRoadPlugin();

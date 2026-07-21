@@ -1,51 +1,53 @@
-/// 指令管道（Command Pipeline）。
+/// Command Pipeline.
 ///
-/// 在 compute 输出与渲染层之间开放横切处理点。管道按注册顺序依次执行，每个
-/// transform 收上一个的输出（纯函数链）。用途：水印、灰度滤镜等全局效果，不改
-/// 任何插件。移植自 `src/core/pipeline.ts`。
+/// Opens up cross-cutting hook points between compute output and the render
+/// layer. The pipeline runs registered transforms in registration order,
+/// each transform consuming the previous one's output (a pure function
+/// chain). Use cases: watermarking, grayscale filters, and other global
+/// effects, without modifying any plugin. Ported from `src/core/pipeline.ts`.
 library;
 
 import 'types.dart';
 
-/// 指令变换函数类型。
+/// Command transform function type.
 typedef CommandTransform = List<DrawCommand> Function(
   List<DrawCommand> commands,
   CommandTransformContext ctx,
 );
 
-/// 变换上下文（只读，禁止就地修改）。
+/// Transform context (read-only, must not be mutated in place).
 class CommandTransformContext {
-  /// 路 id。
+  /// Road id.
   final String roadId;
 
-  /// 当前布局。
+  /// Current layout.
   final RoadLayout layout;
 
-  /// 当前主题。
+  /// Current theme.
   final Theme theme;
 
   const CommandTransformContext({required this.roadId, required this.layout, required this.theme});
 }
 
-/// 指令管道。
+/// Command pipeline.
 ///
 /// ```dart
 /// final pipeline = createPipeline();
 /// final unuse = pipeline.use('watermark', watermarkTransform('TEST'));
 /// final finalCmds = pipeline.run(commands, ctx);
-/// unuse(); // 卸载
+/// unuse(); // unregister
 /// ```
 class Pipeline {
-  // 保持插入顺序的有序 Map。
+  // Ordered map preserving insertion order.
   final _transforms = <String, CommandTransform>{};
 
-  /// 注册变换函数（同名覆盖），返回卸载函数。
+  /// Registers a transform function (overwrites same name), returning an unregister function.
   void Function() use(String name, CommandTransform fn) {
     _transforms[name] = fn;
     return () => _transforms.remove(name);
   }
 
-  /// 按注册顺序执行管道，返回最终指令列表（新列表，不修改入参）。
+  /// Runs the pipeline in registration order, returning the final command list (a new list, input left unmodified).
   List<DrawCommand> run(List<DrawCommand> commands, CommandTransformContext ctx) {
     var current = commands;
     for (final fn in _transforms.values) {
@@ -55,27 +57,27 @@ class Pipeline {
   }
 }
 
-/// 创建一个空的指令管道实例。
+/// Creates an empty pipeline instance.
 Pipeline createPipeline() => Pipeline();
 
-/// 全局默认管道（所有面板共用，可在应用入口注册全局 transform）。
+/// Global default pipeline (shared by all panels; register global transforms at app entry).
 final Pipeline globalPipeline = createPipeline();
 
-/// 水印选项。
+/// Watermark options.
 class WatermarkOptions {
-  /// 水印不透明度（0-1），默认 0.15。
+  /// Watermark opacity (0-1), default 0.15.
   final double alpha;
 
-  /// 字号（逻辑像素），默认 14。
+  /// Font size (logical pixels), default 14.
   final double fontSize;
 
-  /// 文字颜色，默认白色。
+  /// Text color, default white.
   final int fill;
 
   const WatermarkOptions({this.alpha = 0.15, this.fontSize = 14, this.fill = 0xFFFFFFFF});
 }
 
-/// 右下角水印 transform（追加低 alpha badge 指令）。
+/// Bottom-right watermark transform (appends a low-alpha badge command).
 ///
 /// ```dart
 /// pipeline.use('watermark', watermarkTransform('DEMO', const WatermarkOptions(alpha: 0.2)));
@@ -98,8 +100,9 @@ CommandTransform watermarkTransform(String text, [WatermarkOptions opts = const 
   };
 }
 
-/// 灰度 transform：将所有颜色（fill/stroke）转为灰度亮度值。颜色统一是 ARGB
-/// 32 位整数，不需要像 TS 版本那样解析 hex/rgba 字符串。
+/// Grayscale transform: converts all colors (fill/stroke) to grayscale
+/// luminance values. Colors are uniformly ARGB 32-bit integers, so there's
+/// no need to parse hex/rgba strings like the TS version does.
 ///
 /// ```dart
 /// pipeline.use('gray', grayscaleTransform());
@@ -140,7 +143,7 @@ DrawCommand _toGray(DrawCommand cmd) => switch (cmd) {
   ),
 };
 
-/// 把一个 ARGB 颜色转为等亮度的灰度颜色，保留原有 alpha 通道。
+/// Converts an ARGB color to a grayscale color of equal luminance, preserving the original alpha channel.
 int _grayColor(int argb) {
   final a = (argb >> 24) & 0xFF;
   final r = (argb >> 16) & 0xFF;

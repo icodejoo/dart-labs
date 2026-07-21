@@ -1,40 +1,40 @@
-/// 主题体系（Theme）。
+/// Theme system (Theme).
 ///
-/// 定义路图渲染所需的全部样式参数，支持深合并覆盖。插件内读取顺序：
-/// `theme.roads[id]?.field ?? theme.cell.field`。颜色统一用 ARGB 32 位整数
-/// （对应 Flutter `Color.value`），核心层不依赖 `dart:ui`，渲染层用
-/// `Color(value)` 包一层即可。移植自 `src/core/theme.ts`。
+/// Defines all style parameters required for road map rendering, supporting deep merge override. Read order in plugins:
+/// `theme.roads[id]?.field ?? theme.cell.field`. Colors uniformly use ARGB 32-bit integer
+/// (corresponding to Flutter `Color.value`), core layer does not depend on `dart:ui`, rendering layer uses
+/// `Color(value)` wrapper. Ported from `src/core/theme.ts`.
 library;
 
-/// 颜色调色板，定义庄/闲/和及通用颜色。
+/// Color palette, defines banker/player/tie and common colors.
 class Palette {
-  /// 庄颜色（红色系）。
+  /// Banker color (red series).
   final int banker;
 
-  /// 闲颜色（蓝色系）。
+  /// Player color (blue series).
   final int player;
 
-  /// 和颜色（绿色系）。
+  /// Tie color (green series).
   final int tie;
 
-  /// 通用红色（衍生路红色圆/斜线）。
+  /// Common red (derived road red circle/slash).
   final int red;
 
-  /// 通用蓝色（衍生路蓝色圆/斜线）。
+  /// Common blue (derived road blue circle/slash).
   final int blue;
 
-  /// 高亮色（长龙/单跳/双跳背景色，ARGB 含 alpha）。
+  /// Highlight color (long dragon/single jump/double jump background color, ARGB with alpha).
   final int highlight;
 
-  /// 文字颜色（圆内 badge 文本）。
+  /// Text color (in-circle badge text).
   final int text;
 
-  /// 瓷砖背景填充色（合板/紧凑路纸的大格圆角瓷砖底色）。
+  /// Tile background fill color (large rounded tile bottom color for beadplate/compact road sheet).
   final int tileFill;
 
-  /// 自定义 outcome/token 颜色扩展槽（GameSpec 泛化用）。
+  /// Custom outcome/token color extension slot (for GameSpec generalization).
   ///
-  /// 键为 outcome code 或 token 字符串，值为颜色；`colorForToken` 最高优先级读取此处。
+  /// Key is outcome code or token string, value is color; `colorForToken` reads here with highest priority.
   final Map<String, int>? outcomes;
 
   const Palette({
@@ -49,7 +49,7 @@ class Palette {
     this.outcomes,
   });
 
-  /// 基于当前调色板派生一份新调色板，未指定字段沿用原值；[outcomes] 整体替换（不合并）。
+  /// Derive a new palette based on the current palette, unspecified fields keep original values; [outcomes] is completely replaced (not merged).
   Palette copyWith({
     int? banker,
     int? player,
@@ -73,9 +73,9 @@ class Palette {
   );
 }
 
-/// 画布背景配置。
+/// Canvas background configuration.
 class CanvasTheme {
-  /// 画布背景色（渲染层每帧铺底，保证导出/截图含背景）。
+  /// Canvas background color (rendering layer fills bottom each frame, ensuring export/screenshot contains background).
   final int background;
 
   const CanvasTheme({required this.background});
@@ -84,12 +84,12 @@ class CanvasTheme {
       CanvasTheme(background: background ?? this.background);
 }
 
-/// 网格线样式。
+/// Grid line style.
 class GridTheme {
-  /// 网格线颜色。
+  /// Grid line color.
   final int stroke;
 
-  /// 网格线宽。
+  /// Grid line width.
   final double lineWidth;
 
   const GridTheme({required this.stroke, required this.lineWidth});
@@ -98,12 +98,12 @@ class GridTheme {
       GridTheme(stroke: stroke ?? this.stroke, lineWidth: lineWidth ?? this.lineWidth);
 }
 
-/// 格子全局默认样式。
+/// Cell global default style.
 class CellTheme {
-  /// 圆的半径比例（相对 cellSize）。
+  /// Circle radius ratio (relative to cellSize).
   final double radiusRatio;
 
-  /// 描边线宽。
+  /// Stroke line width.
   final double lineWidth;
 
   const CellTheme({required this.radiusRatio, required this.lineWidth});
@@ -112,15 +112,15 @@ class CellTheme {
       CellTheme(radiusRatio: radiusRatio ?? this.radiusRatio, lineWidth: lineWidth ?? this.lineWidth);
 }
 
-/// 文案/i18n。`outcomes` 扩展槽供 GameSpec 泛化：键为 outcome code 或 token，
-/// 值为 UI 文案；`labelForToken` 优先读取此处。
+/// Copy text / i18n. `outcomes` extension slot for GameSpec generalization: key is outcome code or token,
+/// value is UI copy; `labelForToken` reads here with priority.
 class LabelsTheme {
   final String banker;
   final String player;
   final String tie;
   final String empty;
 
-  /// 自定义 outcome/token 文案覆盖槽。
+  /// Custom outcome/token copy override slot.
   final Map<String, String>? outcomes;
 
   const LabelsTheme({
@@ -146,12 +146,12 @@ class LabelsTheme {
   );
 }
 
-/// 字体配置。
+/// Font configuration.
 class FontsTheme {
-  /// 字体族。
+  /// Font family.
   final String family;
 
-  /// 字号比例（相对 cellSize）。
+  /// Font size ratio (relative to cellSize).
   final double sizeRatio;
 
   const FontsTheme({required this.family, required this.sizeRatio});
@@ -160,44 +160,44 @@ class FontsTheme {
       FontsTheme(family: family ?? this.family, sizeRatio: sizeRatio ?? this.sizeRatio);
 }
 
-/// 单路主题覆盖，可覆盖全局 cell 参数并添加路专属参数。
+/// Single road theme override, can override global cell parameters and add road-specific parameters.
 class RoadTheme {
-  /// 圆的半径比例（相对 cellSize），覆盖全局 `cell.radiusRatio`。
+  /// Circle radius ratio (relative to cellSize), overrides global `cell.radiusRatio`.
   final double? radiusRatio;
 
-  /// 描边线宽，覆盖全局 `cell.lineWidth`。
+  /// Stroke line width, overrides global `cell.lineWidth`.
   final double? lineWidth;
 
-  /// 路专属参数（如 naturalRoad 的金边色、beadPlate 的 textMode），由各路插件文档定义。
+  /// Road-specific parameters (e.g., gold edge color for naturalRoad, textMode for beadPlate), defined by each road plugin documentation.
   final Map<String, Object?> extra;
 
   const RoadTheme({this.radiusRatio, this.lineWidth, this.extra = const {}});
 
-  /// 读取一个路专属参数，找不到时返回 [orElse]。
+  /// Read a road-specific parameter, return [orElse] if not found.
   T get<T>(String key, T orElse) => (extra[key] as T?) ?? orElse;
 }
 
-/// 完整主题结构。
+/// Complete theme structure.
 class Theme {
-  /// 颜色调色板。
+  /// Color palette.
   final Palette palette;
 
-  /// 画布背景。
+  /// Canvas background.
   final CanvasTheme canvas;
 
-  /// 网格线样式。
+  /// Grid line style.
   final GridTheme grid;
 
-  /// 格子全局默认样式。
+  /// Cell global default style.
   final CellTheme cell;
 
-  /// 文案/i18n。
+  /// Copy / i18n.
   final LabelsTheme labels;
 
-  /// 字体配置。
+  /// Font configuration.
   final FontsTheme fonts;
 
-  /// 按路 id 覆盖，只需填需要覆盖的字段。
+  /// Override by road ID, only need to fill fields to override.
   final Map<String, RoadTheme> roads;
 
   const Theme({
@@ -210,8 +210,8 @@ class Theme {
     this.roads = const {},
   });
 
-  /// 派生一份新主题；[palette]/[canvas]/[grid]/[cell]/[labels]/[fonts] 各自整体替换，
-  /// [roads] 与已有条目按路 id 合并（不是整体替换）。
+  /// Derive a new theme; [palette]/[canvas]/[grid]/[cell]/[labels]/[fonts] are completely replaced individually,
+  /// [roads] is merged with existing entries by road ID (not completely replaced).
   Theme copyWith({
     Palette? palette,
     CanvasTheme? canvas,
@@ -231,7 +231,7 @@ class Theme {
   );
 }
 
-/// 默认主题（深色配色）。
+/// Default theme (dark color scheme).
 final Theme defaultTheme = Theme(
   palette: Palette(
     banker: 0xFFE53935,
@@ -242,7 +242,7 @@ final Theme defaultTheme = Theme(
     highlight: 0x40FFD500,
     text: 0xFFFFFFFF,
     tileFill: 0xFFEDE9F1,
-    // 例牌橙色内圆：大路 natural 标记的颜色由此处统一管理，不在渲染代码中硬编码。
+    // Natural orange inner circle: the color of big road natural marker is centrally managed here, not hard-coded in rendering.
     outcomes: const {'natural': 0xFFFB8C00},
   ),
   canvas: const CanvasTheme(background: 0xFF1A1A2E),
@@ -253,10 +253,10 @@ final Theme defaultTheme = Theme(
   roads: const {},
 );
 
-/// 暗色主题：默认主题本身就是深色配色，直接共用同一实例。
+/// Dark theme: default theme itself is already dark color scheme, directly reuse the same instance.
 final Theme darkTheme = defaultTheme;
 
-/// 浅色主题（白底配色，适用于日间模式）。
+/// Light theme (white background color scheme, suitable for daytime mode).
 final Theme lightTheme = Theme(
   palette: Palette(
     banker: 0xFFC62828,
@@ -277,20 +277,20 @@ final Theme lightTheme = Theme(
   roads: const {},
 );
 
-/// 解析主题：将用户覆盖以 [Theme.copyWith] 的方式叠加到 [defaultTheme]，返回完整 [Theme]。
+/// Resolve theme: overlay user overrides using [Theme.copyWith] onto [defaultTheme], return complete [Theme].
 ///
-/// TS 版本用通用深合并函数处理任意深度的 `DeepPartial<Theme>`；Dart 版本改用显式的
-/// `copyWith` 链——`Theme` 的字段深度固定（不是无限嵌套的用户数据），显式赋值比一个
-/// 反射式深合并函数更可读，也更符合 Dart 的强类型习惯。
+/// TS version uses generic deep merge function to handle `DeepPartial<Theme>` of any depth; Dart version uses explicit
+/// `copyWith` chains instead -- `Theme` fields have fixed depth (not infinitely nested user data), explicit assignment is more readable
+/// than a reflection-based deep merge function and conforms better to Dart's strong typing habits.
 ///
 /// ```dart
-/// // 使用默认主题
+/// // Use default theme
 /// final theme = resolveTheme();
 ///
-/// // 只修改庄色
+/// // Only change banker color
 /// final theme = resolveTheme(palette: (p) => p.copyWith(banker: 0xFFFF0000));
 ///
-/// // 覆盖单条路的线宽
+/// // Override line width of a single road
 /// final theme = resolveTheme(roads: {'bigEyeBoy': const RoadTheme(lineWidth: 4)});
 /// ```
 Theme resolveTheme({

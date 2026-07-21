@@ -7,7 +7,7 @@ void main() {
   group('createEngine', () {
     test('自动展开传递依赖并按拓扑序计算', () {
       final engine = createEngine(['statsPanel']);
-      // statsPanel 依赖 bigRoad，应被自动展开加载。
+      // statsPanel depends on bigRoad, which should be auto-expanded and loaded.
       expect(engine.plugins.containsKey('bigRoad'), isTrue);
       expect(engine.plugins.containsKey('statsPanel'), isTrue);
     });
@@ -31,8 +31,9 @@ void main() {
     });
 
     test('依赖插件出错时记入 errors，不影响其他路', () {
-      // bigRoad 本身不会抛错——这里验证的是「同一次 compute 中一条路失败不阻塞其他路」
-      // 这一行为边界：只启用互不依赖的两条路，二者都应各自正常产出。
+      // bigRoad itself never throws -- this verifies the boundary behavior that "one road
+      // failing during a single compute call doesn't block the other roads": only two
+      // mutually independent roads are enabled here, and both should still produce output normally.
       final engine = createEngine(['beadPlate', 'pairRoad']);
       final results = [_r(1, 'B'), _r(2, 'P')];
       final cfg = LayoutConfig(cellSize: 18, rows: 6, theme: resolveTheme());

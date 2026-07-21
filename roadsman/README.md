@@ -2,8 +2,6 @@
 
 Baccarat / Dragon Tiger / Sic Bo "road map" (bead-road) visualization for Flutter — a full port of the TypeScript `apps/baccarat-roadmap` package from the casino monorepo (`main` branch).
 
-中文说明见 [README.zh-CN.md](README.zh-CN.md)。
-
 ## What it does
 
 Turns a shoe's raw round-by-round results (banker/player/tie + pair/natural marks) into the industry-standard "roads" used at real tables:

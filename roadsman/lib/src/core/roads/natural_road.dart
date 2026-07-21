@@ -1,12 +1,12 @@
-/// 例牌路插件：仅展示例牌（天生赢家）局，顺序蛇形排列。
+/// Natural road plugin: shows only natural (instant winner) rounds, laid out in sequential serpentine order.
 ///
-/// 移植自 `src/core/roads/natural-road.ts`。
+/// Ported from `src/core/roads/natural-road.ts`.
 library;
 
 import '../grid_layout.dart';
 import '../types.dart';
 
-/// 例牌路插件：仅展示例牌（天生赢家）局，顺序蛇形排列。
+/// Natural road plugin: shows only natural (instant winner) rounds, laid out in sequential serpentine order.
 class NaturalRoadPlugin extends RoadPlugin<List<RawResult>> {
   @override
   String get id => 'naturalRoad';
@@ -67,5 +67,5 @@ class NaturalRoadPlugin extends RoadPlugin<List<RawResult>> {
   }
 }
 
-/// [NaturalRoadPlugin] 的单例实例。
+/// Singleton instance of [NaturalRoadPlugin].
 final naturalRoadPlugin = NaturalRoadPlugin();

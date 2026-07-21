@@ -10,8 +10,9 @@ void main() {
 
     test('列高超过 rows 时向右换列（龙尾右弯，停留在底行不回到顶行）', () {
       final placed = placeOnGrid([8], 6);
-      // 前 6 格占满第 0 列（row 0..5）；到底后每多一格就向右挪一列，
-      // 停留在同一行（row=5），不是回到 row=0 重新往下走——这是"龙尾右弯"的本意。
+      // The first 6 cells fill column 0 (row 0..5); once at the bottom, every extra cell
+      // shifts one column to the right while staying on the same row (row=5), rather than
+      // wrapping back to row=0 -- that's the intent of the "dragon tail turns right" rule.
       expect(placed[5].physCol, 0);
       expect(placed[5].physRow, 5);
       expect(placed[6].physCol, 1);
@@ -22,7 +23,7 @@ void main() {
 
     test('多列依次从各自 headCol 起摆放', () {
       final placed = placeOnGrid([2, 1, 3], 6);
-      // 第一列 2 格：(0,0)(0,1)；第二列 1 格：(1,0)；第三列 3 格：(2,0)(2,1)(2,2)
+      // Column 1 has 2 cells: (0,0)(0,1); column 2 has 1 cell: (1,0); column 3 has 3 cells: (2,0)(2,1)(2,2)
       expect(placed.map((p) => (p.physCol, p.physRow)), [
         (0, 0),
         (0, 1),
@@ -60,7 +61,7 @@ void main() {
     test('按最大物理列计算总宽', () {
       final placed = placeOnGrid([2, 1, 3], 6);
       final size = contentSize(placed, 6, 18);
-      expect(size.width, 3 * 18); // 最大 physCol=2 → 3 列
+      expect(size.width, 3 * 18); // max physCol=2 -> 3 columns
     });
   });
 }

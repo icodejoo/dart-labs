@@ -1,29 +1,29 @@
-/// 物理网格布局：把逻辑列高数组摆放到物理网格上（龙尾右弯/顺序摆放两种算法）。
+/// Physical grid layout: place logical column heights array on physical grid (two algorithms: dragon tail right turn / sequential placement).
 ///
-/// 移植自 `src/core/grid-layout.ts`。
+/// Ported from `src/core/grid-layout.ts`.
 library;
 
 import 'dart:math' as math;
 
 import 'types.dart';
 
-/// 一个逻辑格子在物理网格上的放置结果。
+/// Placement result of a logical cell on physical grid.
 class PlacedCell {
-  /// 物理列（0-based）。
+  /// Physical column (0-based).
   final int physCol;
 
-  /// 物理行（0-based）。
+  /// Physical row (0-based).
   final int physRow;
 
   const PlacedCell({required this.physCol, required this.physRow});
 }
 
-/// 把逻辑列高数组（大路每列的格数）摆放到物理网格上：列满 [rows] 行后向右换列
-/// （"龙尾"逻辑），列间不重叠。
+/// Place logical column heights array (number of cells in each big road column) on physical grid: move right after column fills [rows] rows
+/// ("dragon tail" logic), columns do not overlap.
 List<PlacedCell> placeOnGrid(List<int> logicalColumns, int rows) {
-  // 占用集用整数键（col*4096+row）而非 '$col,$row' 字符串——本函数是布局热路径
-  // （每次 compute 大路/三条衍生路/长龙高亮各跑一遍），字符串插值+哈希是这里
-  // 最大的分配来源。rows 远小于 4096，编码无碰撞。
+  // Occupied set uses integer key (col*4096+row) instead of '$col,$row' string -- this function is on layout hot path
+  // (big road/three derived roads/dragon highlight each run per compute), string interpolation+hash is the largest allocation source here.
+  // rows is much less than 4096, encoding has no collision.
   final occupied = <int>{};
   final placed = <PlacedCell>[];
   var nextHeadCol = 0;
@@ -57,22 +57,22 @@ List<PlacedCell> placeOnGrid(List<int> logicalColumns, int rows) {
   return placed;
 }
 
-/// 按列优先顺序摆放一个扁平索引（珠盘路/对子路/例牌路用：逐局顺序填格，不做归并）。
+/// Place a flat index in column-first order (bead plate / pair road / natural road use: fill cells sequentially by round, no merging).
 PlacedCell placeSequential(int index, int rows) =>
     PlacedCell(physCol: index ~/ rows, physRow: index % rows);
 
-/// 像素坐标。
+/// Pixel coordinates.
 class PixelPoint {
   final double x;
   final double y;
   const PixelPoint(this.x, this.y);
 }
 
-/// 物理格子坐标转像素坐标（格子中心点）。
+/// Convert physical cell coordinates to pixel coordinates (cell center).
 PixelPoint cellToPixel(int physCol, int physRow, double cellSize) =>
     PixelPoint(physCol * cellSize + cellSize / 2, physRow * cellSize + cellSize / 2);
 
-/// 生成背景网格线指令，在路圆圈之前绘制。
+/// Generate background grid line commands, drawn before road circles.
 List<DrawCommand> gridCommands(int colCount, int rows, double cellSize, {int strokeColor = 0x14FFFFFF}) {
   final w = colCount * cellSize;
   final h = rows * cellSize;
@@ -88,21 +88,21 @@ List<DrawCommand> gridCommands(int colCount, int rows, double cellSize, {int str
   return cmds;
 }
 
-/// 内容尺寸。
+/// Content size.
 class ContentSize {
   final double width;
   final double height;
   const ContentSize(this.width, this.height);
 }
 
-/// 计算一组已摆放格子的总内容尺寸。
+/// Compute the total content size of a set of placed cells.
 ContentSize contentSize(List<PlacedCell> cells, int rows, double cellSize) {
   if (cells.isEmpty) return ContentSize(0, rows * cellSize);
   final maxCol = cells.map((c) => c.physCol).reduce(math.max);
   return ContentSize((maxCol + 1) * cellSize, rows * cellSize);
 }
 
-/// 把 [v] 四舍五入到指定精度（golden fixture 数值确定性用）。
+/// Round [v] to the specified precision (used for golden fixture numeric determinism).
 ///
 /// ```dart
 /// roundTo(1.00005, 1e-4); // 1.0001

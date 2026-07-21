@@ -1,39 +1,40 @@
-/// 多子路合并成一张网格的公用逻辑（derivedTrio / compactRoadSheet 共用）。
+/// Shared logic for merging multiple sub-roads into a single grid (used by derivedTrio / compactRoadSheet).
 ///
-/// 移植自 `src/core/roads/band-merge.ts`。
+/// Ported from `src/core/roads/band-merge.ts`.
 library;
 
 import '../animation.dart' show translateCommands;
 import '../types.dart';
 
-/// 一条带前缀与平移量的子路布局。
+/// A sub-road layout with a key prefix and translation offset.
 class Band {
-  /// key 命名空间前缀，防各子路 key 冲突（如 "eye"/"small"/"roach"/"big"）。
+  /// Key namespace prefix, to avoid key collisions across sub-roads (e.g. "eye"/"small"/"roach"/"big").
   final String prefix;
 
-  /// 子路自身坐标系下的布局（未平移）。
+  /// Layout in the sub-road's own coordinate system (not yet translated).
   final RoadLayout layout;
 
-  /// 水平平移（逻辑像素），缺省 0。
+  /// Horizontal translation (logical pixels), defaults to 0.
   final double dx;
 
-  /// 垂直平移（逻辑像素），缺省 0。
+  /// Vertical translation (logical pixels), defaults to 0.
   final double dy;
 
   const Band({required this.prefix, required this.layout, this.dx = 0, this.dy = 0});
 }
 
-/// 合并后的 cells 与 decorations（不含 contentWidth/Height，由调用方各自计算）。
+/// The merged cells and decorations (excludes contentWidth/Height, computed by the caller).
 class MergedBands {
   final List<LayoutCell> cells;
   final List<DrawCommand> decorations;
   const MergedBands({required this.cells, required this.decorations});
 }
 
-/// 合并多条 [Band]：key 加前缀，cell 的 x/y 与 commands、decorations 一并平移。
+/// Merges multiple [Band]s: prefixes each key, and translates cell x/y along with commands and decorations.
 ///
-/// `cell.x`/`cell.y` 必须与 commands 同步平移——命中检测（tooltip/联动高亮）用的是
-/// cell 矩形，只平移 commands 不平移 cell.x/y 会导致点不中。
+/// `cell.x`/`cell.y` must be translated in sync with commands — hit-testing (tooltips/linked
+/// highlighting) uses the cell rectangle, so translating only the commands without cell.x/y
+/// would break hit detection.
 ///
 /// ```dart
 /// final merged = mergeBands([

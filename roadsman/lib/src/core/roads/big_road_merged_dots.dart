@@ -1,6 +1,6 @@
-/// 大路合并三点 overlay：在大路格子上叠加大眼仔/小路/曱甴路标记。
+/// Big road merged-dots overlay: overlays Big Eye Boy/Small Road/Cockroach Road markers on big road cells.
 ///
-/// 移植自 `src/core/roads/big-road-merged-dots.ts`。
+/// Ported from `src/core/roads/big-road-merged-dots.ts`.
 library;
 
 import 'dart:math' as math;
@@ -8,7 +8,7 @@ import 'dart:math' as math;
 import '../grid_layout.dart';
 import '../types.dart';
 
-/// 大路合并三点 overlay 插件。
+/// Big road merged-dots overlay plugin.
 class BigRoadMergedDotsPlugin extends RoadPlugin<void> {
   @override
   String get id => 'bigRoadMergedDots';
@@ -66,5 +66,5 @@ class BigRoadMergedDotsPlugin extends RoadPlugin<void> {
   }
 }
 
-/// [BigRoadMergedDotsPlugin] 的单例实例。
+/// Singleton instance of [BigRoadMergedDotsPlugin].
 final bigRoadMergedDotsPlugin = BigRoadMergedDotsPlugin();

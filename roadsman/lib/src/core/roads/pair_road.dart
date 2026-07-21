@@ -1,12 +1,12 @@
-/// 对子路插件：仅展示有对子的局，顺序蛇形排列。
+/// Pair road plugin: shows only rounds with a pair, laid out in sequential serpentine order.
 ///
-/// 移植自 `src/core/roads/pair-road.ts`。
+/// Ported from `src/core/roads/pair-road.ts`.
 library;
 
 import '../grid_layout.dart';
 import '../types.dart';
 
-/// 对子路插件：仅展示有对子的局，顺序蛇形排列。
+/// Pair road plugin: shows only rounds with a pair, laid out in sequential serpentine order.
 class PairRoadPlugin extends RoadPlugin<List<RawResult>> {
   @override
   String get id => 'pairRoad';
@@ -69,5 +69,5 @@ class PairRoadPlugin extends RoadPlugin<List<RawResult>> {
   }
 }
 
-/// [PairRoadPlugin] 的单例实例。
+/// Singleton instance of [PairRoadPlugin].
 final pairRoadPlugin = PairRoadPlugin();

@@ -1,6 +1,6 @@
-/// 长龙/单跳/双跳高亮 overlay 插件，输出为装饰指令（无 cells）。
+/// Dragon streak/single-jump/double-jump highlight overlay plugin, output as decoration commands (no cells).
 ///
-/// 移植自 `src/core/roads/streak-highlight.ts`。
+/// Ported from `src/core/roads/streak-highlight.ts`.
 library;
 
 import 'dart:math' as math;
@@ -8,44 +8,44 @@ import 'dart:math' as math;
 import '../grid_layout.dart';
 import '../types.dart';
 
-/// 连庄/连闲判定的最低列数阈值。
+/// Minimum column-count threshold for detecting a banker/player dragon streak.
 const int _dragonMin = 4;
 
-/// 单跳连续判定最低列数。
+/// Minimum column count for a single-jump run.
 const int _singleHopMin = 4;
 
-/// 双跳连续判定最低列数。
+/// Minimum column count for a double-jump run.
 const int _doubleHopMin = 4;
 
-/// 高亮区间类型。
+/// Type of highlight interval.
 enum StreakType { dragon, singleHop, doubleHop }
 
-/// 高亮区间描述。
+/// Description of a highlight interval.
 class StreakInterval {
-  /// 高亮类型。
+  /// Highlight type.
   final StreakType type;
 
-  /// 起始逻辑列。
+  /// Starting logical column.
   final int colStart;
 
-  /// 结束逻辑列。
+  /// Ending logical column.
   final int colEnd;
 
   const StreakInterval({required this.type, required this.colStart, required this.colEnd});
 }
 
-/// 从大路列信息中找出所有高亮区间（长龙/单跳/双跳）。
+/// Finds all highlight intervals (dragon/single-jump/double-jump) from the big road's column info.
 List<StreakInterval> _findIntervals(List<int> columns) {
   final intervals = <StreakInterval>[];
 
-  // 长龙：单列高度 >= _dragonMin。
+  // Dragon streak: a single column's height >= _dragonMin.
   for (var i = 0; i < columns.length; i++) {
     if (columns[i] >= _dragonMin) {
       intervals.add(StreakInterval(type: StreakType.dragon, colStart: i, colEnd: i));
     }
   }
 
-  // 单跳：连续列长为 1 的列数 >= _singleHopMin。
+  // Single-jump: number of consecutive columns of length 1 >= _singleHopMin.
   var start = -1;
   for (var i = 0; i <= columns.length; i++) {
     if (i < columns.length && columns[i] == 1) {
@@ -58,7 +58,7 @@ List<StreakInterval> _findIntervals(List<int> columns) {
     }
   }
 
-  // 双跳：连续列长为 2 的列数 >= _doubleHopMin。
+  // Double-jump: number of consecutive columns of length 2 >= _doubleHopMin.
   start = -1;
   for (var i = 0; i <= columns.length; i++) {
     if (i < columns.length && columns[i] == 2) {
@@ -74,7 +74,7 @@ List<StreakInterval> _findIntervals(List<int> columns) {
   return intervals;
 }
 
-/// 长龙/单跳/双跳高亮 overlay 插件。
+/// Dragon streak/single-jump/double-jump highlight overlay plugin.
 class StreakHighlightPlugin extends RoadPlugin<List<StreakInterval>> {
   @override
   String get id => 'streakHighlight';
@@ -100,7 +100,7 @@ class StreakHighlightPlugin extends RoadPlugin<List<StreakInterval>> {
     final highlightPhysCols = <int>{};
     for (final interval in data) {
       for (var c = interval.colStart; c <= interval.colEnd; c++) {
-        // 收集大路中逻辑列 c 所占的所有物理列。
+        // Collects all physical columns occupied by logical column c in the big road.
         for (var i = 0; i < bigRoad.cells.length; i++) {
           if (bigRoad.cells[i].col == c) {
             highlightPhysCols.add(placed[i].physCol);
@@ -125,5 +125,5 @@ class StreakHighlightPlugin extends RoadPlugin<List<StreakInterval>> {
   }
 }
 
-/// [StreakHighlightPlugin] 的单例实例。
+/// Singleton instance of [StreakHighlightPlugin].
 final streakHighlightPlugin = StreakHighlightPlugin();

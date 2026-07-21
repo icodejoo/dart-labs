@@ -1,11 +1,14 @@
-/// 三合一衍生路合板插件：把大眼仔/小路/曱甴路三条衍生路合画在同一张 6 大行网格上，
-/// 每个大格切 2×2 子格，对应真实赌场记分牌的合板呈现。
+/// Trio derived-road board plugin: draws the three derived roads (Big Eye Boy/Small Road/
+/// Cockroach Road) together on a single 6-grid-row grid, splitting each grid cell into 2x2
+/// sub-cells, matching a real casino scoreboard's combined board presentation.
 ///
-/// 不重新实现任何衍生路算法：直接复用三个插件各自的 derive 数据与 layout 纯函数，
-/// 只做"半格缩放 + 区域平移"。区域划分：大眼仔占上 3 大行（全宽），小路占下 3 大行
-/// 左半，曱甴路占下 3 大行右半。
+/// Does not reimplement any derived-road algorithm: directly reuses each of the three plugins'
+/// own derive data and pure layout functions, only doing "half-cell scaling + region
+/// translation". Region layout: Big Eye Boy occupies the top 3 grid rows (full width), Small
+/// Road occupies the bottom 3 grid rows' left half, Cockroach Road occupies the bottom 3 grid
+/// rows' right half.
 ///
-/// 移植自 `src/core/roads/derived-trio.ts`。
+/// Ported from `src/core/roads/derived-trio.ts`.
 library;
 
 import 'dart:math' as math;
@@ -16,16 +19,18 @@ import 'big_eye_boy.dart';
 import 'cockroach_road.dart';
 import 'small_road.dart';
 
-/// 分割列下限（大格数）。小路区域宽度不足此值时仍占满，参考图 18 大格宽的一半。
+/// Minimum split-column count (in grid cells). When the Small Road region's width falls short of
+/// this value it still occupies the full width; the reference figure is half of an 18-grid-cell width.
 const int minHalfCols = 9;
 
-/// 总列数下限（大格数）。空数据/数据很少时面板仍铺满一屏瓷砖。
+/// Minimum total column count (in grid cells). Keeps the panel filled with a full screen of tiles
+/// even when data is empty or sparse.
 const int minTotalCols = 18;
 
-/// 把 [layout] 输出的像素宽折算成大格列数（向上取整）。
+/// Converts the pixel width output by [layout] into a grid column count (rounded up).
 int colsOf(RoadLayout layout, double cellSize) => (layout.contentWidth / cellSize).ceil();
 
-/// 三合一衍生路合板插件。
+/// Trio derived-road board plugin.
 class DerivedTrioPlugin extends RoadPlugin<void> {
   @override
   String get id => 'derivedTrio';
@@ -66,12 +71,14 @@ class DerivedTrioPlugin extends RoadPlugin<void> {
       decorations: merged.decorations,
       contentWidth: totalCols * cfg.cellSize,
       contentHeight: 6 * cfg.cellSize,
-      // 背景瓷砖网格与内容共用渲染层同一份 viewport 变换，连续绘制不受 totalCols 限制；
-      // cellSize 取子格边长 s，colSpan/rowSpan=2 让每 2×2 个子格视觉合并成 1 个大格瓷砖。
+      // The background tile grid shares the same viewport transform as the content on the
+      // rendering layer, so continuous drawing isn't limited by totalCols; cellSize takes the
+      // sub-cell edge length s, with colSpan/rowSpan=2 making every 2x2 sub-cells visually merge
+      // into one grid tile.
       grid: GridSpec(cellSize: s, colSpan: 2, rowSpan: 2, style: GridStyle.tile, tileFill: cfg.theme.palette.tileFill),
     );
   }
 }
 
-/// [DerivedTrioPlugin] 的单例实例。
+/// Singleton instance of [DerivedTrioPlugin].
 final derivedTrioPlugin = DerivedTrioPlugin();

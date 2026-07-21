@@ -1,8 +1,8 @@
-/// 视口拖拽/惯性/回弹/缩放的纯状态机。
+/// Pure state machine for viewport dragging/inertia/rebound/scaling.
 ///
-/// 不依赖任何手势库——上层（`panel/road_panel.dart`）用 `GestureDetector` 把
-/// 拖拽增量/释放速度/缩放焦点喂给这里的纯函数，状态机本身不知道输入源。
-/// 移植自 `src/core/viewport.ts`。
+/// Does not depend on any gesture library -- the upper layer (`panel/road_panel.dart`) uses `GestureDetector` to feed
+/// drag deltas/release velocity/scale focus to the pure functions here, the state machine itself does not know the input source.
+/// Ported from `src/core/viewport.ts`.
 library;
 
 import 'dart:math' as math;
@@ -12,7 +12,7 @@ import 'types.dart';
 const double _minScale = 0.5;
 const double _maxScale = 3;
 
-/// 默认视口物理参数。
+/// Default viewport physics parameters.
 const ViewportConfig defaultViewportConfig = ViewportConfig(
   rubberBandFactor: 0.3,
   friction: 0.95,
@@ -21,7 +21,7 @@ const ViewportConfig defaultViewportConfig = ViewportConfig(
   snapEpsilon: 0.5,
 );
 
-/// 创建初始视口状态（原点，scale=1，idle）。
+/// Create initial viewport state (origin, scale=1, idle).
 ///
 /// ```dart
 /// final s = createViewport();
@@ -36,14 +36,14 @@ ViewportState createViewport() => const ViewportState(
   phase: ViewportPhase.idle,
 );
 
-/// 将值压入橡皮筋（超出边界的阻尼压缩）。
+/// Apply value to rubber band (damping compression beyond bounds).
 double _applyRubberBand(double value, double min, double max, double factor) {
   if (value > max) return max + (value - max) * factor;
   if (value < min) return min - (min - value) * factor;
   return value;
 }
 
-/// 反算橡皮筋压缩前的真实坐标，避免每次增量拖拽都在已压缩值上再次压缩导致抖动。
+/// Reverse-calculate the real coordinate before rubber band compression, avoiding jitter from repeated compression on already-compressed values during incremental dragging.
 double _decompressRubberBand(double displayed, double min, double max, double factor) {
   if (displayed > max) return max + (displayed - max) / factor;
   if (displayed < min) return min - (min - displayed) / factor;
@@ -52,7 +52,7 @@ double _decompressRubberBand(double displayed, double min, double max, double fa
 
 double _clamp(double value, double min, double max) => math.max(min, math.min(max, value));
 
-/// 处理拖拽增量，更新 offsetX/Y（Y 轴条件锁死：`bounds.minY == 0` 时锁死）。
+/// Handle drag delta, update offsetX/Y (Y axis conditionally locked: locked when `bounds.minY == 0`).
 ///
 /// ```dart
 /// final next = dragBy(state, -10, 0, bounds, defaultViewportConfig);
@@ -77,7 +77,7 @@ ViewportState dragBy(ViewportState s, double dx, double dy, ViewportBounds bound
   );
 }
 
-/// 结束拖拽，根据速度决定进入惯性或回弹阶段。
+/// End drag, decide whether to enter inertia or rebound phase based on velocity.
 ///
 /// ```dart
 /// final next = endDrag(state, velocityX, velocityY, bounds, defaultViewportConfig);
@@ -101,8 +101,8 @@ ViewportState endDrag(ViewportState s, double vx, double vy, ViewportBounds boun
   return s.copyWith(velocityX: vx, velocityY: yLocked ? 0 : vy, phase: ViewportPhase.inertia);
 }
 
-/// 推进视口状态机一帧（[dt] ms）。处理 inertia / rebound / autoScroll 三个阶段；
-/// idle 直接返回原状态。
+/// Advance viewport state machine one frame ([dt] ms). Handle inertia / rebound / autoScroll three phases;
+/// idle directly returns original state.
 ///
 /// ```dart
 /// final next = stepViewport(state, 16.7, bounds, defaultViewportConfig);
@@ -174,11 +174,11 @@ ViewportState stepViewport(ViewportState s, double dt, ViewportBounds bounds, Vi
   );
 }
 
-/// 计算视口边界（根据面板尺寸、内容尺寸和缩放比例）。
+/// Compute viewport bounds (based on panel size, content size, and scale factor).
 ///
 /// ```dart
 /// final bounds = computeBounds(400, 216, 800, 216, 1);
-/// bounds.minX; // -400（内容比面板宽）
+/// bounds.minX; // -400 (content wider than panel)
 /// ```
 ViewportBounds computeBounds(double panelW, double panelH, double contentW, double contentH, double scale) =>
     ViewportBounds(
@@ -188,9 +188,9 @@ ViewportBounds computeBounds(double panelW, double panelH, double contentW, doub
       maxY: 0,
     );
 
-/// 围绕焦点缩放视口，保证焦点处内容的屏幕位置不变。
+/// Scale viewport around a focal point, ensuring the screen position of content at the focal point remains unchanged.
 ///
-/// [nextScale] 超出 `[0.5, 3]` 会被 clamp；[bounds] 需按 clamp 后的缩放值重新计算。
+/// [nextScale] beyond `[0.5, 3]` will be clamped; [bounds] needs to be recomputed based on the clamped scale value.
 ///
 /// ```dart
 /// final bounds = computeBounds(panelW, panelH, contentW, contentH, nextScale);
@@ -199,7 +199,7 @@ ViewportBounds computeBounds(double panelW, double panelH, double contentW, doub
 ViewportState zoomAt(ViewportState s, double focalX, double focalY, double nextScale, ViewportBounds bounds) {
   final clamped = _clamp(nextScale, _minScale, _maxScale);
 
-  // 不变量：焦点处的内容点在缩放前后屏幕位置不变。
+  // Invariant: the content point at the focal point has the same screen position before and after scaling.
   // contentX = (focalX - offsetX) / scale
   // offsetX' = focalX - contentX * nextScale
   final contentX = (focalX - s.offsetX) / s.scale;
@@ -207,7 +207,7 @@ ViewportState zoomAt(ViewportState s, double focalX, double focalY, double nextS
   final newOffsetX = focalX - contentX * clamped;
   final newOffsetY = focalY - contentY * clamped;
 
-  // 直接 clamp 到新边界（缩放不走橡皮筋）。
+  // Directly clamp to new bounds (scaling does not use rubber band).
   return s.copyWith(
     scale: clamped,
     offsetX: _clamp(newOffsetX, bounds.minX, bounds.maxX),
@@ -216,9 +216,9 @@ ViewportState zoomAt(ViewportState s, double focalX, double focalY, double nextS
   );
 }
 
-/// 触发自动滚动到尾部（新格子到来且之前处于尾部对齐时调用）。
+/// Trigger automatic scroll to end (called when new cell arrives and was previously tail-aligned).
 ///
-/// 设置 autoScroll 阶段，指数趋近 [targetX]。
+/// Set autoScroll phase, exponentially approach [targetX].
 ///
 /// ```dart
 /// final next = startAutoScroll(state, newBounds.minX);

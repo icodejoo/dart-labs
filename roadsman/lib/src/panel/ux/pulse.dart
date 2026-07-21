@@ -1,33 +1,37 @@
-/// 新格子插入后的呼吸光圈效果控制器。
+/// Pulsing halo effect controller for newly inserted cells.
 ///
-/// 移植自 `src/panel/ux/pulse.ts`。TS 版本在 demo 层手写了一段独立的呼吸动画帧
-/// 循环，直接在指令层叠加一个半透明描边圆；Flutter 版本把它简化成一个开关控制器
-/// ——具体的光圈绘制交给消费方用 `AnimatedContainer`/`CustomPaint` 叠加层实现，
-/// 这里只管"这个效果现在是否应该生效"这一件事，不重复实现动画采样。
+/// Ported from `src/panel/ux/pulse.ts`. The TS version hand-rolls an
+/// independent pulse animation frame loop at the demo layer, layering a
+/// translucent stroked circle directly on the directive layer; the Flutter
+/// version simplifies this to a toggle controller——the actual halo drawing
+/// is left to the consumer to implement via an `AnimatedContainer`/
+/// `CustomPaint` overlay layer. This controller only tracks "whether the
+/// effect should currently be active", without re-implementing animation
+/// sampling.
 library;
 
-/// 呼吸光圈效果的选项。
+/// Options for the pulsing halo effect.
 class PulseOptions {
-  /// 单次呼吸时长（ms），默认 2000ms。
+  /// Duration of a single pulse (ms), defaults to 2000ms.
   final int duration;
 
-  /// 光圈颜色（ARGB），默认金色。
+  /// Halo color (ARGB), defaults to gold.
   final int color;
 
   const PulseOptions({this.duration = 2000, this.color = 0xFFFFD700});
 }
 
-/// 呼吸光圈效果控制器。
+/// Pulsing halo effect controller.
 class PulseEffect {
   bool enabled;
   final PulseOptions options;
 
   PulseEffect({this.enabled = true, this.options = const PulseOptions()});
 
-  /// 切换开关。
+  /// Toggle the effect on/off.
   void toggle(bool on) => enabled = on;
 }
 
-/// 创建呼吸光圈效果控制器（默认开启）。
+/// Create a pulsing halo effect controller (enabled by default).
 PulseEffect createPulseEffect({PulseOptions options = const PulseOptions()}) =>
     PulseEffect(options: options);

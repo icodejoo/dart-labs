@@ -1,6 +1,6 @@
-/// 内置路插件注册表。
+/// Registry of built-in road plugins.
 ///
-/// 移植自 `src/core/roads/index.ts`。
+/// Ported from `src/core/roads/index.ts`.
 library;
 
 import '../types.dart';
@@ -17,7 +17,7 @@ import 'small_road.dart';
 import 'stats_panel.dart';
 import 'streak_highlight.dart';
 
-/// 全部内置路插件的同步注册表，按插件 id 索引。
+/// Synchronous registry of all built-in road plugins, indexed by plugin id.
 ///
 /// ```dart
 /// final plugin = roadRegistry['beadPlate'];

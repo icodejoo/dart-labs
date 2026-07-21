@@ -12,8 +12,8 @@ RawResult _r(
 void main() {
   group('buildBigRoad', () {
     test('归并连续同一赢家为一列，和局累加到当前格 tieCount', () {
-      // 对应 casino fixtures/baccarat-regular.json 的开局序列：
-      // B, B(庄对), P, T, P(闲对), B(例牌), B, B, P, P, T, B
+      // Mirrors the round sequence from casino fixtures/baccarat-regular.json:
+      // B, B(banker pair), P, T, P(player pair), B(natural), B, B, P, P, T, B
       final results = [
         _r(1, 'B'),
         _r(2, 'B', bankerPair: true),
@@ -31,23 +31,25 @@ void main() {
 
       final data = buildBigRoad(results);
 
-      // 列结构：[B,B] [P,P] [B,B,B] [P,P] [B]
+      // Column structure: [B,B] [P,P] [B,B,B] [P,P] [B]
       expect(data.columns, [2, 2, 3, 2, 1]);
       expect(data.leadingTies, 0);
 
-      // 局 4（T）紧跟局 3（P）之后，累加到当前列（第 2 列，此时只有局 3 一格）的 tieCount。
+      // Round 4 (T) immediately follows round 3 (P), so it's added to the tieCount of the
+      // current column (column 2, which at this point only has round 3's cell).
       final col1FirstCell = data.cells.firstWhere((c) => c.col == 1 && c.row == 0);
       expect(col1FirstCell.tieCount, 1);
 
-      // 局 11（T）紧跟局 10（P）之后，累加到第 4 列（索引 3）末格的 tieCount。
+      // Round 11 (T) immediately follows round 10 (P), so it's added to the tieCount of the
+      // last cell in column 4 (index 3).
       final col3LastCell = data.cells.lastWhere((c) => c.col == 3);
       expect(col3LastCell.tieCount, 1);
 
-      // 局 2 的庄对标记保留在对应格子上。
+      // Round 2's banker-pair marker is kept on the corresponding cell.
       final secondBankerCell = data.cells.firstWhere((c) => c.col == 0 && c.row == 1);
       expect(secondBankerCell.bankerPair, isTrue);
 
-      // 局 6 的例牌标记保留。
+      // Round 6's natural marker is kept.
       final naturalCell = data.cells.firstWhere((c) => c.resultNo == 6);
       expect(naturalCell.natural, isTrue);
     });

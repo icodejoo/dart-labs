@@ -1,8 +1,8 @@
-/// 公共类型定义。
+/// Common type definitions.
 ///
-/// 所有路插件、渲染层、引擎共享的数据结构，本文件不依赖 Flutter/dart:ui，
-/// 可在纯 Dart 环境（含服务端）直接使用。移植自 casino monorepo
-/// `apps/baccarat-roadmap` 的 `src/core/types.ts`。
+/// Data structures shared by all road plugins, rendering layer, and engine. This file does not depend on Flutter/dart:ui
+/// and can be used directly in pure Dart environments (including server). Ported from the casino monorepo's
+/// `apps/baccarat-roadmap` `src/core/types.ts`.
 library;
 
 import 'theme.dart';
@@ -19,35 +19,35 @@ export 'game_spec.dart'
         ValidateJsonOk,
         ValidateJsonError;
 
-/// 百家乐局结果中的胜者。
+/// Winner in a baccarat round result.
 ///
-/// 已废弃，请使用 [GenericResult.outcome] 替代；仅供适配层与向后兼容使用。
+/// Deprecated: use [GenericResult.outcome] instead; kept for adapter layer compatibility and backward compatibility.
 @Deprecated('请使用 GenericResult.outcome 替代')
 typedef Winner = String; // "B" | "P" | "T"
 
-/// 单局原始结果（百家乐外部格式，对外保留向后兼容）。
+/// Raw result of a single round (baccarat external format, kept for backward compatibility).
 ///
-/// core 内部使用 [GenericResult]；通过 [toGenericResult] 转换。
+/// Internally, core uses [GenericResult]; convert via [toGenericResult].
 class RawResult {
-  /// 局号，从 1 开始单调递增。
+  /// Round number, monotonically increasing starting from 1.
   final int no;
 
-  /// 胜者："B" | "P" | "T"。
+  /// Winner: "B" | "P" | "T".
   final String winner;
 
-  /// 庄对子。
+  /// Banker pair.
   final bool bankerPair;
 
-  /// 闲对子。
+  /// Player pair.
   final bool playerPair;
 
-  /// 是否例牌（天生赢家）。
+  /// Whether it is a natural (instant win).
   final bool? natural;
 
-  /// 庄点数（0-9）。
+  /// Banker total points (0-9).
   final int? bankerTotal;
 
-  /// 闲点数（0-9）。
+  /// Player total points (0-9).
   final int? playerTotal;
 
   const RawResult({
@@ -60,7 +60,7 @@ class RawResult {
     this.playerTotal,
   });
 
-  /// 从 JSON（`mock.json` 的一条局结果）构造。
+  /// Construct from JSON (a round result from `mock.json`).
   factory RawResult.fromJson(Map<String, dynamic> json) => RawResult(
     no: json['no'] as int,
     winner: json['winner'] as String,
@@ -71,7 +71,7 @@ class RawResult {
     playerTotal: json['playerTotal'] as int?,
   );
 
-  /// 序列化为 JSON。
+  /// Serialize to JSON.
   Map<String, dynamic> toJson() => {
     'no': no,
     'winner': winner,
@@ -83,18 +83,18 @@ class RawResult {
   };
 }
 
-/// 靴（一副牌的全部局）。
+/// Shoe (all rounds of a deck).
 class Shoe {
-  /// 靴 id。
+  /// Shoe ID.
   final String shoeId;
 
-  /// 桌台 id。
+  /// Table ID.
   final String tableId;
 
-  /// 开始时间 ISO 字符串。
+  /// Start time ISO string.
   final String startedAt;
 
-  /// 局结果列表。
+  /// List of round results.
   final List<RawResult> results;
 
   const Shoe({
@@ -104,7 +104,7 @@ class Shoe {
     required this.results,
   });
 
-  /// 从 JSON 构造一份完整的靴数据。
+  /// Construct a complete shoe data from JSON.
   factory Shoe.fromJson(Map<String, dynamic> json) => Shoe(
     shoeId: json['shoeId'] as String,
     tableId: json['tableId'] as String,
@@ -115,30 +115,30 @@ class Shoe {
   );
 }
 
-/// 大路格子（逻辑坐标）。
+/// Big road cell (logical coordinates).
 class BigRoadCell {
-  /// 逻辑列（0-based，append 时不变）。
+  /// Logical column (0-based, unchanged during append).
   final int col;
 
-  /// 逻辑行（0-based）。
+  /// Logical row (0-based).
   final int row;
 
-  /// 胜者（不含和局，和局累加到 [tieCount]）："B" | "P"。
+  /// Winner (excluding ties, accumulated to [tieCount]): "B" | "P".
   final String winner;
 
-  /// 当格累计和局数。
+  /// Cumulative tie count for this cell.
   final int tieCount;
 
-  /// 是否庄对子。
+  /// Whether banker pair.
   final bool bankerPair;
 
-  /// 是否闲对子。
+  /// Whether player pair.
   final bool playerPair;
 
-  /// 是否例牌（天生 8/9），缺省视为 false。
+  /// Whether natural (natural 8/9), defaults to false.
   final bool natural;
 
-  /// 对应的 [RawResult.no]。
+  /// Corresponding [RawResult.no].
   final int resultNo;
 
   const BigRoadCell({
@@ -153,77 +153,77 @@ class BigRoadCell {
   });
 }
 
-/// 大路数据。
+/// Big road data.
 class BigRoadData {
-  /// 大路格子列表（与 `placeOnGrid` 的放置结果一一对应）。
+  /// List of big road cells (corresponding one-to-one with `placeOnGrid` placement results).
   final List<BigRoadCell> cells;
 
-  /// 各逻辑列的高度（即该列有多少格）。
+  /// Height of each logical column (number of cells in that column).
   final List<int> columns;
 
-  /// 开局前的前置和局数。
+  /// Leading tie count before the game starts.
   final int leadingTies;
 
   const BigRoadData({required this.cells, required this.columns, required this.leadingTies});
 }
 
-/// 衍生路（大眼仔/小路/曱甴路）的单格颜色。
+/// Color of a single cell in derived roads (big eye boy / small road / cockroach road).
 enum DerivedColor { red, blue }
 
-/// 衍生路数据。
+/// Derived road data.
 class DerivedRoadData {
-  /// 各格颜色。
+  /// Color of each cell.
   final List<DerivedColor> entries;
 
-  /// entries[i] 对应大路 cells[sourceCellIndex[i]]，用于合并点标记。
+  /// entries[i] corresponds to big road cells[sourceCellIndex[i]], used for merge mark.
   final List<int> sourceCellIndex;
 
   const DerivedRoadData({required this.entries, required this.sourceCellIndex});
 }
 
-/// 布局配置，传入每个 `layout()` 调用。所有样式均从 [theme] 读取。
+/// Layout configuration, passed to each `layout()` call. All styles are read from [theme].
 class LayoutConfig {
-  /// 格子尺寸（逻辑像素）。
+  /// Cell size (logical pixels).
   final double cellSize;
 
-  /// 路图行数。
+  /// Number of rows in the road diagram.
   final int rows;
 
-  /// 完整主题，包含颜色/尺寸/文案等所有样式参数。
+  /// Complete theme, containing all style parameters including colors, sizes, and text.
   final Theme theme;
 
   const LayoutConfig({required this.cellSize, required this.rows, required this.theme});
 }
 
-/// 绘制指令集合（sealed class，穷尽 switch 匹配）。
+/// Collection of drawing commands (sealed class, exhaustive switch matching).
 ///
-/// 渲染层是无状态回放器：收到指令列表，全量重绘。所有坐标均为内容坐标系
-/// （未经 viewport 变换）。[alpha] 可选，动画层用于透明度插值。
+/// The rendering layer is a stateless replayer: receives a list of commands and redraws completely. All coordinates are in content coordinate system
+/// (not transformed by viewport). [alpha] is optional, used by animation layer for opacity interpolation.
 sealed class DrawCommand {
-  /// 透明度（0-1），动画层插值用，默认 1。
+  /// Opacity (0-1), used by animation layer for interpolation, defaults to 1.
   final double? alpha;
 
   const DrawCommand({this.alpha});
 }
 
-/// 实心/空心圆。
+/// Filled or hollow circle.
 final class CircleCommand extends DrawCommand {
-  /// 圆心 X。
+  /// Center X.
   final double x;
 
-  /// 圆心 Y。
+  /// Center Y.
   final double y;
 
-  /// 半径。
+  /// Radius.
   final double r;
 
-  /// 填充色（ARGB 32 位整数，兼容 `Color.value`）。
+  /// Fill color (ARGB 32-bit integer, compatible with `Color.value`).
   final int? fill;
 
-  /// 描边色。
+  /// Stroke color.
   final int? stroke;
 
-  /// 描边宽度。
+  /// Stroke width.
   final double? lineWidth;
 
   const CircleCommand({
@@ -237,35 +237,35 @@ final class CircleCommand extends DrawCommand {
   });
 }
 
-/// 折线/多段线。
+/// Polyline / multi-segment line.
 final class LineCommand extends DrawCommand {
-  /// 点坐标：`[x0,y0,x1,y1,...]`。
+  /// Point coordinates: `[x0,y0,x1,y1,...]`.
   final List<double> points;
 
-  /// 线颜色。
+  /// Line color.
   final int stroke;
 
-  /// 线宽。
+  /// Line width.
   final double? lineWidth;
 
   const LineCommand({required this.points, required this.stroke, this.lineWidth, super.alpha});
 }
 
-/// 斜线（和局标记）。
+/// Slash line (tie marker).
 final class SlashCommand extends DrawCommand {
-  /// 中心 X。
+  /// Center X.
   final double x;
 
-  /// 中心 Y。
+  /// Center Y.
   final double y;
 
-  /// 半长（左下→右上）。
+  /// Half length (bottom-left to top-right).
   final double r;
 
-  /// 线颜色。
+  /// Line color.
   final int stroke;
 
-  /// 线宽。
+  /// Line width.
   final double? lineWidth;
 
   const SlashCommand({
@@ -278,38 +278,38 @@ final class SlashCommand extends DrawCommand {
   });
 }
 
-/// 实心小圆点（对子/合并标记）。
+/// Filled small dot (pair/merge marker).
 final class DotCommand extends DrawCommand {
-  /// 圆心 X。
+  /// Center X.
   final double x;
 
-  /// 圆心 Y。
+  /// Center Y.
   final double y;
 
-  /// 半径。
+  /// Radius.
   final double r;
 
-  /// 填充色。
+  /// Fill color.
   final int fill;
 
   const DotCommand({required this.x, required this.y, required this.r, required this.fill, super.alpha});
 }
 
-/// 文字标记（圆内字、多和计数等）。
+/// Text marker (in-circle text, tie count, etc.).
 final class BadgeCommand extends DrawCommand {
-  /// 中心 X。
+  /// Center X.
   final double x;
 
-  /// 中心 Y。
+  /// Center Y.
   final double y;
 
-  /// 文本内容。
+  /// Text content.
   final String text;
 
-  /// 文字颜色。
+  /// Text color.
   final int? fill;
 
-  /// 字号（逻辑像素）。
+  /// Font size (logical pixels).
   final double? fontSize;
 
   const BadgeCommand({
@@ -322,27 +322,27 @@ final class BadgeCommand extends DrawCommand {
   });
 }
 
-/// 矩形（高亮背景等）。
+/// Rectangle (highlight background, etc.).
 final class RectCommand extends DrawCommand {
-  /// 左上角 X。
+  /// Top-left X.
   final double x;
 
-  /// 左上角 Y。
+  /// Top-left Y.
   final double y;
 
-  /// 宽度。
+  /// Width.
   final double w;
 
-  /// 高度。
+  /// Height.
   final double h;
 
-  /// 填充色。
+  /// Fill color.
   final int? fill;
 
-  /// 描边色。
+  /// Stroke color.
   final int? stroke;
 
-  /// 圆角半径（逻辑像素），缺省不画圆角（沿用原有直角矩形路径）。
+  /// Corner radius (logical pixels), defaults to no rounded corners (uses original right-angle rectangle path).
   final double? radius;
 
   const RectCommand({
@@ -357,32 +357,32 @@ final class RectCommand extends DrawCommand {
   });
 }
 
-/// 布局格子，携带稳定 [key] 供动画 diff 和命中检测使用。
+/// Layout cell with stable [key] for animation diff and hit detection.
 ///
-/// key 取法：
-/// - beadPlate / pairRoad / naturalRoad：`resultNo` 的字符串形式
-/// - bigRoad：`col:row`（逻辑坐标，append 永不改变已有格子的逻辑坐标）
-/// - 衍生路：`entryIndex` 的字符串形式（entries 下标，append-only 时稳定）
+/// Key derivation:
+/// - beadPlate / pairRoad / naturalRoad: string form of `resultNo`
+/// - bigRoad: `col:row` (logical coordinates, append never changes logical coordinates of existing cells)
+/// - derived roads: string form of `entryIndex` (index in entries, stable during append-only)
 class LayoutCell {
-  /// 稳定身份标识，用于 diff 和命中检测。
+  /// Stable identity for diff and hit detection.
   final String key;
 
-  /// 格子左上角内容坐标 X。
+  /// Top-left content X of the cell.
   final double x;
 
-  /// 格子左上角内容坐标 Y。
+  /// Top-left content Y of the cell.
   final double y;
 
-  /// 格子宽度。
+  /// Cell width.
   final double w;
 
-  /// 格子高度。
+  /// Cell height.
   final double h;
 
-  /// 对应的 [RawResult.no]，用于联动高亮和 tooltip。
+  /// Corresponding [RawResult.no], used for linked highlighting and tooltip.
   final int resultNo;
 
-  /// 该格子的绘制指令列表。
+  /// List of draw commands for this cell.
   final List<DrawCommand> commands;
 
   const LayoutCell({
@@ -396,24 +396,24 @@ class LayoutCell {
   });
 }
 
-/// 路布局输出。
+/// Road layout output.
 ///
-/// 渲染时展开顺序：decorations → cells（各自展开 commands）。
-/// 动画 diff 基于 cells 的 key 进行；decorations 不参与 diff。
+/// Rendering expansion order: decorations → cells (each expands commands).
+/// Animation diff is based on cells' key; decorations do not participate in diff.
 class RoadLayout {
-  /// 格子列表。
+  /// List of cells.
   final List<LayoutCell> cells;
 
-  /// 不属于任何格子的指令（如 streakHighlight 高亮矩形）。
+  /// Commands not belonging to any cell (e.g., streakHighlight highlight rectangle).
   final List<DrawCommand>? decorations;
 
-  /// 内容总宽（逻辑像素，用于 viewport bounds 计算）。
+  /// Total content width (logical pixels, used for viewport bounds calculation).
   final double contentWidth;
 
-  /// 内容总高（逻辑像素）。
+  /// Total content height (logical pixels).
   final double contentHeight;
 
-  /// 本路专属的背景网格规格，缺省时渲染层使用面板默认网格。
+  /// This road's exclusive background grid spec, defaults to using the panel's default grid when omitted.
   final GridSpec? grid;
 
   const RoadLayout({
@@ -425,36 +425,36 @@ class RoadLayout {
   });
 }
 
-/// 背景网格呈现风格。
+/// Background grid presentation style.
 enum GridStyle { line, tile }
 
-/// 背景网格呈现规格，供渲染层绘制（line 细线网格 / tile 圆角瓷砖），路插件可选返回。
+/// Background grid presentation spec for rendering layer (line fine grid / tile rounded tile), optionally returned by road plugins.
 ///
-/// 网格与画布内容共用同一份坐标变换（随 viewport 平移/缩放），按视口连续绘制，不受
-/// 内容边界限制——避免"内容网格"与"渲染层背景网格"两套独立系统各自计算导致的错位。
+/// Grid and canvas content share the same coordinate transformation (moving/scaling with viewport), drawn continuously in viewport,
+/// not limited by content boundaries -- avoiding misalignment caused by two independent systems each calculating "content grid" and "rendering layer background grid".
 class GridSpec {
-  /// 网格最小单元格边长（逻辑像素，内容坐标系），对应 layout 逻辑格子的实际尺寸。
+  /// Grid cell edge length (logical pixels, content coordinate system), corresponding to the actual size of layout logical cells.
   final double cellSize;
 
-  /// 网格线颜色（style=line 时使用），缺省由渲染层给默认值。
+  /// Grid line color (used when style=line), defaults are set by rendering layer if omitted.
   final int? stroke;
 
-  /// 视觉分组：每个可见网格单元横向跨越多少个 cellSize 步进，缺省 1（不分组）。
+  /// Visual grouping: how many cellSize steps each visible grid cell spans horizontally, defaults to 1 (no grouping).
   final int colSpan;
 
-  /// 视觉分组：每个可见网格单元纵向跨越多少个 cellSize 步进，缺省 1（不分组）。
+  /// Visual grouping: how many cellSize steps each visible grid cell spans vertically, defaults to 1 (no grouping).
   final int rowSpan;
 
-  /// 呈现风格：line 细线网格（默认）/ tile 圆角瓷砖填充。
+  /// Presentation style: line fine grid (default) / tile rounded tile fill.
   final GridStyle style;
 
-  /// style=tile 时的填充色。
+  /// Fill color when style=tile.
   final int? tileFill;
 
-  /// style=tile 时的圆角半径比例（相对分组后的格子边长），缺省 0.15。
+  /// Rounded corner radius ratio when style=tile (relative to grouped cell edge length), defaults to 0.15.
   final double tileRadiusRatio;
 
-  /// style=tile 时瓷砖间缝隙比例（相对分组后的格子边长），缺省 0.06。
+  /// Tile gap ratio when style=tile (relative to grouped cell edge length), defaults to 0.06.
   final double tileInsetRatio;
 
   const GridSpec({
@@ -469,24 +469,24 @@ class GridSpec {
   });
 }
 
-/// 路插件的计算上下文，供 derive/layout/predict 调用。
+/// Calculation context for road plugins, supplied to derive/layout/predict calls.
 abstract class RoadContext {
-  /// 当前靴的全部局结果（只读，向后兼容，插件内读取局结果请用此字段）。
+  /// All round results of the current shoe (read-only, backward compatible, use this field to read results in plugins).
   List<RawResult> get results;
 
-  /// 当前游戏规格（引擎注入）。
+  /// Current game spec (injected by engine).
   GameSpec get spec;
 
-  /// 按 id 查询流定义，找不到时返回 main 流（引擎注入）。
+  /// Query stream definition by id, returns main stream if not found (injected by engine).
   StreamDef stream(String id);
 
-  /// 获取指定插件的 derive 计算结果（带缓存，按拓扑序预热）。
+  /// Get derive calculation result of specified plugin (with caching, preheated in topological order).
   T get<T>(String pluginId);
 }
 
-/// 将百家乐 [RawResult] 转为 [GenericResult]（配合 `BACCARAT_SPEC` 使用）。
+/// Convert baccarat [RawResult] to [GenericResult] (use with `BACCARAT_SPEC`).
 ///
-/// marks 里缺省 false 的布尔键不写入，保持结构紧凑。
+/// Boolean keys that default to false in marks are not written, keeping the structure compact.
 ///
 /// ```dart
 /// final g = toGenericResult(RawResult(no: 1, winner: 'B', bankerPair: true, playerPair: false));
@@ -510,7 +510,7 @@ GenericResult toGenericResult(RawResult r) {
   );
 }
 
-/// 将 [GenericResult] 转回 [RawResult]（用于 tooltip 等外部展示，仅百家乐规格有意义）。
+/// Convert [GenericResult] back to [RawResult] (for external display like tooltip, only meaningful for baccarat spec).
 RawResult fromGenericResult(GenericResult g) => RawResult(
   no: g.no,
   winner: g.outcome,
@@ -521,94 +521,94 @@ RawResult fromGenericResult(GenericResult g) => RawResult(
   playerTotal: g.extras?['playerTotal']?.toInt(),
 );
 
-/// 路插件类型。
+/// Road plugin type.
 enum RoadKind { grid, overlay, summary }
 
-/// 路插件接口，所有路均实现此接口。
+/// Road plugin interface, all roads implement this interface.
 abstract class RoadPlugin<TData> {
-  /// 插件唯一 id。
+  /// Unique plugin ID.
   String get id;
 
-  /// 插件类型。
+  /// Plugin type.
   RoadKind get kind;
 
-  /// 依赖的其他插件 id 列表（引擎自动处理传递依赖）。
+  /// List of other plugin IDs this depends on (engine automatically handles transitive dependencies).
   List<String> get dependsOn => const [];
 
-  /// 从 `ctx.results` 派生本路的数据。
+  /// Derive this road's data from `ctx.results`.
   TData derive(RoadContext ctx);
 
-  /// 将派生数据转为格子化布局输出。
+  /// Convert derived data to gridded layout output.
   RoadLayout? layout(TData data, LayoutConfig cfg, RoadContext ctx) => null;
 
-  /// 问路：返回假设下一局为庄/闲时，本路下一格的颜色。
+  /// Prediction: return the color of this road's next cell assuming the next round is banker/player.
   PredictionForRoad? predict(RoadContext ctx) => null;
 
-  /// 插件配置 schema（供 UI 自动生成设置面板，引擎校验并注入 config）。
+  /// Plugin configuration schema (for UI to auto-generate settings panel, engine validates and injects config).
   Map<String, ConfigField> get configSchema => const {};
 }
 
-/// 问路结果。
+/// Prediction result.
 class PredictionForRoad {
-  /// 假设下一局为庄时本路颜色。
+  /// This road's color assuming the next round is banker.
   final DerivedColor? ifBanker;
 
-  /// 假设下一局为闲时本路颜色。
+  /// This road's color assuming the next round is player.
   final DerivedColor? ifPlayer;
 
   const PredictionForRoad({this.ifBanker, this.ifPlayer});
 }
 
-/// 当前连庄/连闲状态。
+/// Current banker/player streak status.
 class CurrentStreak {
-  /// 连出的胜者："B" | "P"。
+  /// Streak winner: "B" | "P".
   final String winner;
 
-  /// 连出长度。
+  /// Streak length.
   final int length;
 
   const CurrentStreak({required this.winner, required this.length});
 }
 
-/// 统计数据。
+/// Statistics data.
 class StatsData {
-  /// 总局数。
+  /// Total number of rounds.
   final int total;
 
-  /// 庄局数。
+  /// Number of banker rounds.
   final int banker;
 
-  /// 闲局数。
+  /// Number of player rounds.
   final int player;
 
-  /// 和局数。
+  /// Number of tie rounds.
   final int tie;
 
-  /// 庄对子数。
+  /// Number of banker pairs.
   final int bankerPair;
 
-  /// 闲对子数。
+  /// Number of player pairs.
   final int playerPair;
 
-  /// 例牌数。
+  /// Number of naturals.
   final int natural;
 
-  /// 庄局百分比（一位小数）。
+  /// Banker round percentage (one decimal place).
   final double bankerPct;
 
-  /// 闲局百分比（一位小数）。
+  /// Player round percentage (one decimal place).
   final double playerPct;
 
-  /// 和局百分比（一位小数）。
+  /// Tie round percentage (one decimal place).
   final double tiePct;
 
-  /// 庄最长连庄。
+  /// Longest banker streak.
   final int longestBankerStreak;
 
-  /// 闲最长连闲。
+  /// Longest player streak.
   final int longestPlayerStreak;
 
-  /// 当前连庄/连闲状态。
+  /// Current banker/player streak status.
   final CurrentStreak? currentStreak;
 
   const StatsData({
@@ -628,30 +628,30 @@ class StatsData {
   });
 }
 
-/// 视口状态机阶段。
+/// Viewport state machine phase.
 enum ViewportPhase { idle, dragging, inertia, rebound, autoScroll }
 
-/// 视口状态（不可变，纯函数操作）。
+/// Viewport state (immutable, pure function operations).
 class ViewportState {
-  /// 内容层水平偏移（逻辑像素）。
+  /// Horizontal offset of content layer (logical pixels).
   final double offsetX;
 
-  /// 内容层垂直偏移（逻辑像素）。
+  /// Vertical offset of content layer (logical pixels).
   final double offsetY;
 
-  /// 缩放倍率。
+  /// Scale factor.
   final double scale;
 
-  /// 水平速度（逻辑像素/ms）。
+  /// Horizontal velocity (logical pixels/ms).
   final double velocityX;
 
-  /// 垂直速度（逻辑像素/ms）。
+  /// Vertical velocity (logical pixels/ms).
   final double velocityY;
 
-  /// 当前状态机阶段。
+  /// Current state machine phase.
   final ViewportPhase phase;
 
-  /// autoScroll 阶段的目标 X（内部使用）。
+  /// Target X for autoScroll phase (internal use).
   final double? autoScrollTargetX;
 
   const ViewportState({
@@ -664,7 +664,7 @@ class ViewportState {
     this.autoScrollTargetX,
   });
 
-  /// 基于当前状态派生一份新状态，未指定字段沿用原值。
+  /// Derive a new state based on the current state, unspecified fields keep original values.
   ViewportState copyWith({
     double? offsetX,
     double? offsetY,
@@ -685,38 +685,38 @@ class ViewportState {
   );
 }
 
-/// 视口边界。
+/// Viewport bounds.
 class ViewportBounds {
-  /// 最小 offsetX（内容右对齐面板左边）。
+  /// Minimum offsetX (content right-aligned to panel left).
   final double minX;
 
-  /// 最大 offsetX（内容左对齐面板左边，通常为 0）。
+  /// Maximum offsetX (content left-aligned to panel left, usually 0).
   final double maxX;
 
-  /// 最小 offsetY。
+  /// Minimum offsetY.
   final double minY;
 
-  /// 最大 offsetY。
+  /// Maximum offsetY.
   final double maxY;
 
   const ViewportBounds({required this.minX, required this.maxX, required this.minY, required this.maxY});
 }
 
-/// 视口物理参数配置。
+/// Viewport physics parameter configuration.
 class ViewportConfig {
-  /// 拖出边界的橡皮筋阻尼（越小越"沉"，0-1）。
+  /// Rubber band damping when dragged out of bounds (smaller is "heavier", 0-1).
   final double rubberBandFactor;
 
-  /// 惯性摩擦系数（越小停得越快，0-1）。
+  /// Inertial friction coefficient (smaller stops faster, 0-1).
   final double friction;
 
-  /// 惯性停止速度阈值（px/ms）。
+  /// Inertial stop velocity threshold (px/ms).
   final double minVelocity;
 
-  /// 回弹时间常数（ms，越大回弹越慢）。
+  /// Rebound time constant (ms, larger rebounds slower).
   final double reboundTau;
 
-  /// 贴边吸附阈值（px）。
+  /// Edge snap threshold (px).
   final double snapEpsilon;
 
   const ViewportConfig({
@@ -728,41 +728,41 @@ class ViewportConfig {
   });
 }
 
-/// 配置字段类型。
+/// Configuration field type.
 enum ConfigFieldType { boolean, number, select, color }
 
-/// select 类型配置项的一个选项。
+/// An option in a select type configuration item.
 class ConfigFieldOption {
-  /// 选项值。
+  /// Option value.
   final String value;
 
-  /// 选项显示名。
+  /// Option display name.
   final String label;
 
   const ConfigFieldOption({required this.value, required this.label});
 }
 
-/// 配置字段描述（自描述，用于自动生成 UI）。
+/// Configuration field description (self-describing, used for auto-generating UI).
 class ConfigField {
-  /// 字段类型。
+  /// Field type.
   final ConfigFieldType type;
 
-  /// UI 显示名。
+  /// UI display name.
   final String label;
 
-  /// 默认值。
+  /// Default value.
   final Object? defaultValue;
 
-  /// number 类型：最小值。
+  /// Number type: minimum value.
   final double? min;
 
-  /// number 类型：最大值。
+  /// Number type: maximum value.
   final double? max;
 
-  /// number 类型：步进值。
+  /// Number type: step value.
   final double? step;
 
-  /// select 类型：选项列表。
+  /// Select type: list of options.
   final List<ConfigFieldOption>? options;
 
   const ConfigField({

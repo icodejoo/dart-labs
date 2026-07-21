@@ -1,11 +1,12 @@
-/// 紧凑完整路纸插件：大路（全尺寸 6 大行）叠在三合一合板（6 大行）之上，共 12
-/// 大行，对应真实赌场记分牌的完整呈现。
+/// Compact full road sheet plugin: big road (full size, 6 grid rows) stacked on top of the trio
+/// board (6 grid rows), 12 grid rows total, matching a real casino scoreboard's full presentation.
 ///
-/// 不重新实现任何路算法，直接复用大路与三条衍生路各自的 layout 纯函数，只做
-/// "区域堆叠 + 平移"；瓷砖背景/分割列策略与 [derivedTrioPlugin] 共享同一套常量与
-/// 折算逻辑（从 `derived_trio.dart` 导入复用，不复制）。
+/// Does not reimplement any road algorithm; directly reuses the pure layout functions of big road
+/// and the three derived roads, only doing "region stacking + translation". The tile background /
+/// split-column strategy shares the same constants and conversion logic as [derivedTrioPlugin]
+/// (imported and reused from `derived_trio.dart`, not duplicated).
 ///
-/// 移植自 `src/core/roads/compact-road-sheet.ts`。
+/// Ported from `src/core/roads/compact-road-sheet.ts`.
 library;
 
 import 'dart:math' as math;
@@ -18,7 +19,7 @@ import 'cockroach_road.dart';
 import 'derived_trio.dart' show colsOf, minHalfCols, minTotalCols;
 import 'small_road.dart';
 
-/// 紧凑完整路纸插件。
+/// Compact full road sheet plugin.
 class CompactRoadSheetPlugin extends RoadPlugin<void> {
   @override
   String get id => 'compactRoadSheet';
@@ -54,9 +55,10 @@ class CompactRoadSheetPlugin extends RoadPlugin<void> {
     final h = math.max(smallCols, minHalfCols);
     final totalCols = [bigCols, eyeCols, h + roachCols, minTotalCols].reduce(math.max);
 
-    // 大路 band 置顶（dy=0），三合一合板整体下移 6 个大格（dy=6*cellSize）；
-    // 三合一内部的相对偏移（小路/曱甴路 dy=9*cellSize、曱甴路 dx=H*cellSize）与
-    // derivedTrio 独立计算时一致，只是叠加了大路 band 的整体偏移基准。
+    // The big road band sits at the top (dy=0); the trio board is shifted down 6 grid cells
+    // (dy=6*cellSize) as a whole. The relative offsets within the trio (small road/cockroach road
+    // dy=9*cellSize, cockroach road dx=H*cellSize) match what derivedTrio computes on its own —
+    // just added on top of the big road band's overall offset baseline.
     final merged = mergeBands([
       Band(prefix: 'big', layout: big),
       Band(prefix: 'eye', layout: eye, dy: 6 * cfg.cellSize),
@@ -69,13 +71,15 @@ class CompactRoadSheetPlugin extends RoadPlugin<void> {
       decorations: merged.decorations,
       contentWidth: totalCols * cfg.cellSize,
       contentHeight: 12 * cfg.cellSize,
-      // 大路区（顶部 6 大行）与三合一合板区（底部 6 大行）共用同一套 cellSize 大格瓷砖，
-      // 尽管两区内部标记的最细定位单元不同（大路整格 vs 合板半格），瓷砖网格只关心
-      // 视觉呈现的大格粒度，取子格边长 s、colSpan/rowSpan=2 与 derivedTrio 保持一致。
+      // The big road region (top 6 grid rows) and the trio board region (bottom 6 grid rows)
+      // share the same cellSize grid tile, even though the finest positioning unit differs
+      // between the two regions (big road whole cells vs. trio board half-cells) — the tile grid
+      // only cares about the visual grid granularity, so it uses the sub-cell edge length s with
+      // colSpan/rowSpan=2, consistent with derivedTrio.
       grid: GridSpec(cellSize: s, colSpan: 2, rowSpan: 2, style: GridStyle.tile, tileFill: cfg.theme.palette.tileFill),
     );
   }
 }
 
-/// [CompactRoadSheetPlugin] 的单例实例。
+/// Singleton instance of [CompactRoadSheetPlugin].
 final compactRoadSheetPlugin = CompactRoadSheetPlugin();

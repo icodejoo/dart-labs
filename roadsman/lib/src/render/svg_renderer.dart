@@ -1,27 +1,29 @@
-/// SVG 渲染器（[renderToSvg]）。
+/// SVG renderer ([renderToSvg]).
 ///
-/// 纯函数，不依赖 `dart:ui`/Flutter，可在纯 Dart（服务端/CLI）环境直接运行。
-/// 把 [RoadLayout] + [Theme] 转成完整 `<svg>...</svg>` 字符串，用于服务端出图、
-/// 分享卡片、报表邮件。移植自 `src/renderer-svg/svg-renderer.ts`。
+/// A pure function with no dependency on `dart:ui`/Flutter, so it can run
+/// directly in a pure Dart (server/CLI) environment. Converts [RoadLayout] +
+/// [Theme] into a complete `<svg>...</svg>` string, for server-side image
+/// generation, share cards, report emails. Ported from
+/// `src/renderer-svg/svg-renderer.ts`.
 library;
 
 import '../core/types.dart';
 
-/// [renderToSvg] 的选项。
+/// Options for [renderToSvg].
 class SvgRenderOptions {
-  /// 输出 SVG 宽度（px），默认 `layout.contentWidth`。
+  /// Output SVG width (px), defaults to `layout.contentWidth`.
   final double? width;
 
-  /// 输出 SVG 高度（px），默认 `layout.contentHeight`。
+  /// Output SVG height (px), defaults to `layout.contentHeight`.
   final double? height;
 
-  /// 是否绘制网格线，默认 false。
+  /// Whether to draw grid lines, defaults to false.
   final bool grid;
 
   const SvgRenderOptions({this.width, this.height, this.grid = false});
 }
 
-/// XML 转义（防止文本内容破坏 SVG 结构）。
+/// XML escaping (prevents text content from breaking the SVG structure).
 String _xmlEscape(String s) => s
     .replaceAll('&', '&amp;')
     .replaceAll('<', '&lt;')
@@ -29,9 +31,10 @@ String _xmlEscape(String s) => s
     .replaceAll('"', '&quot;')
     .replaceAll("'", '&#39;');
 
-/// 把 ARGB 32 位整数颜色转成 `rgba(r,g,b,a)` CSS 字符串（保留自身 alpha 通道，
-/// SVG 的 `opacity` 属性再叠加 [DrawCommand.alpha] 这一层动画插值 alpha，
-/// 二者相乘的语义与 SVG 规范一致）。
+/// Converts an ARGB 32-bit integer color into an `rgba(r,g,b,a)` CSS string
+/// (keeping its own alpha channel; the SVG `opacity` attribute then layers on
+/// the [DrawCommand.alpha] animation-interpolated alpha on top, and
+/// multiplying the two matches SVG's own semantics).
 String _cssColor(int argb) {
   final a = ((argb >> 24) & 0xFF) / 255;
   final r = (argb >> 16) & 0xFF;
@@ -40,7 +43,7 @@ String _cssColor(int argb) {
   return 'rgba($r,$g,$b,${a.toStringAsFixed(3)})';
 }
 
-/// 将单条 [DrawCommand] 转为 SVG 元素字符串。
+/// Converts a single [DrawCommand] into an SVG element string.
 String _commandToSvg(DrawCommand cmd) {
   final op = cmd.alpha ?? 1;
   return switch (cmd) {
@@ -79,7 +82,8 @@ String _commandToSvg(DrawCommand cmd) {
   };
 }
 
-/// 将路布局和主题渲染为完整 SVG 字符串（零 Flutter 依赖）。
+/// Renders a road layout and theme into a complete SVG string (zero Flutter
+/// dependency).
 ///
 /// ```dart
 /// final svg = renderToSvg(layout, defaultTheme, grid: true);
@@ -91,12 +95,12 @@ String renderToSvg(RoadLayout layout, Theme theme, {double? width, double? heigh
 
   final parts = <String>[];
 
-  // 背景。
+  // Background.
   parts.add('<rect x="0" y="0" width="$w" height="$h" fill="${_xmlEscape(_cssColor(theme.canvas.background))}"/>');
 
-  // 网格线。
+  // Grid lines.
   if (grid) {
-    const cs = 36.0; // SVG 网格默认格子尺寸。
+    const cs = 36.0; // Default SVG grid cell size.
     final stroke = _xmlEscape(_cssColor(theme.grid.stroke));
     final lw = theme.grid.lineWidth;
     for (var x = 0.0; x <= w; x += cs) {

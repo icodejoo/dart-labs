@@ -6,28 +6,30 @@ RawResult _r(int no, String winner) => RawResult(no: no, winner: winner, bankerP
 void main() {
   group('deriveRoad', () {
     test('大眼仔（k=1）在第二列第二格才开始起算', () {
-      // 列结构 [B] [P] [B] ... 前两列（k=1 至少要 col==1,row==1 或 col==2,row==0）
-      // 才会开始产出条目：短序列时 entries 应为空。
+      // Column structure [B] [P] [B] ... entries only start being produced once the first
+      // two columns are past (k=1 needs at least col==1,row==1 or col==2,row==0),
+      // so a short sequence should yield empty entries.
       final short = buildBigRoad([_r(1, 'B'), _r(2, 'P')]);
       final derived = deriveRoad(short, 1);
       expect(derived.entries, isEmpty);
     });
 
     test('列长规律时落红，列长不规律时落蓝', () {
-      // 构造：col0=[B,B]（长度2），col1=[P]（长度1），col2=[B]开始...
-      // 大眼仔从 col=1,row=... 或 col=2,row=0 起算，比较 (c-1) 与 (c-1-k) 列长。
+      // Setup: col0=[B,B] (length 2), col1=[P] (length 1), col2=[B] begins...
+      // Big Eye Boy starts counting from col=1,row=... or col=2,row=0, comparing the
+      // lengths of column (c-1) and column (c-1-k).
       final results = [
         _r(1, 'B'),
-        _r(2, 'B'), // col0 长度2
-        _r(3, 'P'), // col1 长度1
-        _r(4, 'B'), // col2 长度1（新列，起算点 c=2,row=0，k=1）
-        _r(5, 'P'), // col3 长度1
-        _r(6, 'B'), // col4 长度1
+        _r(2, 'B'), // col0 length 2
+        _r(3, 'P'), // col1 length 1
+        _r(4, 'B'), // col2 length 1 (new column, starting point c=2,row=0, k=1)
+        _r(5, 'P'), // col3 length 1
+        _r(6, 'B'), // col4 length 1
       ];
       final bigRoad = buildBigRoad(results);
       final derived = deriveRoad(bigRoad, 1);
 
-      // col2 新列：比较 col1(长度1) 与 col0(长度2) → 不同 → 蓝
+      // col2 is a new column: compare col1 (length 1) with col0 (length 2) -> different -> blue
       expect(derived.entries.first, DerivedColor.blue);
     });
 
