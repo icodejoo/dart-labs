@@ -76,10 +76,13 @@ class DiomanEnvs extends DiomanPlugin {
   /// 本插件解析后的构造期选项。
   final DiomanEnvsOptions config;
 
-  static const _name = 'dioman:envs';
+  /// Public plugin name / extra key for this plugin, accessible without an instance.
+  ///
+  /// 插件名 / extra键，无需实例即可访问。
+  static const pluginName = 'dioman:envs';
 
   @override
-  String get name => _name;
+  String get name => pluginName;
 
   @override
   void onRequest(RequestOptions options, RequestInterceptorHandler handler) {

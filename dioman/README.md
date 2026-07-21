@@ -198,7 +198,7 @@ handle.dispose();
 
 ## Plugins
 
-Every plugin exposes a `String get name` (for lookup/dedup) and a `dispose()` hook. Most read a per-request flag from `options.extra` (see [Per-request overrides](#per-request-overrides)).
+Every plugin exposes a `String get name` (for lookup/dedup) and a `dispose()` hook. Each plugin's name is also available as a `static const pluginName` on the class itself (e.g. `DiomanCache.pluginName`), so callers can reference a plugin's `extra` key without constructing an instance. Most read a per-request flag from `options.extra` (see [Per-request overrides](#per-request-overrides)).
 
 ### DiomanEnvs
 

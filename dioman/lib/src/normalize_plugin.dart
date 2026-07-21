@@ -176,10 +176,13 @@ class DiomanNormalize extends DiomanPlugin {
   final bool Function(RequestOptions options, Response<dynamic> response)?
       shouldNormalize;
 
-  static const _name = 'dioman:normalize';
+  /// Public plugin name / extra key for this plugin, accessible without an instance.
+  ///
+  /// 插件名 / extra键，无需实例即可访问。
+  static const pluginName = 'dioman:normalize';
 
   @override
-  String get name => _name;
+  String get name => pluginName;
 
   bool _isSuccess(dynamic code, bool Function(dynamic)? $isSuccess) =>
       $isSuccess != null ? $isSuccess(code) : code == 0;

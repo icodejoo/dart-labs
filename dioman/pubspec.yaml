@@ -1,6 +1,6 @@
 name: dioman
 description: "Composable, self-contained Dio interceptor plugins (auth, cache, retry, dedup, mock, normalize, ...) plus the correct install order to wire them together."
-version: 0.5.0
+version: 0.5.1
 repository: https://github.com/icodejoo/dart-labs/tree/main/dioman
 issue_tracker: https://github.com/icodejoo/dart-labs/issues
 

@@ -218,15 +218,18 @@ class DiomanShare extends DiomanPlugin {
   Dio? _retryDio;
   Dio get _retry => _retryDio ??= Dio();
 
-  static const _name = 'dioman:share';
-  static const _kEntry = '$_name:entry';
-  static const _kSeq = '$_name:seq';
-  static const _kPolicy = '$_name:policy';
-  static const _kRetriesLeft = '$_name:retriesLeft';
-  static const _kInterval = '$_name:interval';
+  /// Public plugin name / extra key for this plugin, accessible without an instance.
+  ///
+  /// 插件名 / extra键，无需实例即可访问。
+  static const pluginName = 'dioman:share';
+  static const _kEntry = '$pluginName:entry';
+  static const _kSeq = '$pluginName:seq';
+  static const _kPolicy = '$pluginName:policy';
+  static const _kRetriesLeft = '$pluginName:retriesLeft';
+  static const _kInterval = '$pluginName:interval';
 
   @override
-  String get name => _name;
+  String get name => pluginName;
 
   // ── Request side ──────────────────────────────────────────────────────────
 

@@ -118,10 +118,13 @@ class DiomanKey extends DiomanPlugin {
   /// [DiomanKeyOptions.builder]按请求覆盖。
   final String Function(RequestOptions)? builder;
 
-  static const _name = 'dioman:qid';
+  /// Public plugin name / extra key for this plugin, accessible without an instance.
+  ///
+  /// 插件名 / extra键，无需实例即可访问。
+  static const pluginName = 'dioman:qid';
 
   @override
-  String get name => _name;
+  String get name => pluginName;
 
   @override
   void onRequest(RequestOptions options, RequestInterceptorHandler handler) {

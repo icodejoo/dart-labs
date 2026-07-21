@@ -167,16 +167,19 @@ class DiomanCache extends DiomanPlugin {
 
   final _store = <String, _Entry>{};
 
-  static const _name = 'dioman:cache';
-  static const _kCacheKey = '$_name:key';
-  static const _kCacheTtl = '$_name:ttl';
-  static const _kCacheClone = '$_name:clone';
+  /// Public plugin name / extra key for this plugin, accessible without an instance.
+  ///
+  /// 插件名 / extra键，无需实例即可访问。
+  static const pluginName = 'dioman:cache';
+  static const _kCacheKey = '$pluginName:key';
+  static const _kCacheTtl = '$pluginName:ttl';
+  static const _kCacheClone = '$pluginName:clone';
 
   static bool _defaultShouldCache(RequestOptions o) =>
       o.method.toUpperCase() == 'GET';
 
   @override
-  String get name => _name;
+  String get name => pluginName;
 
   @override
   void onRequest(RequestOptions options, RequestInterceptorHandler handler) {

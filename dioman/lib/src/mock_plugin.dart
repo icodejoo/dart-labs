@@ -133,10 +133,13 @@ class DiomanMock extends DiomanPlugin {
   // 流包装对象而不是解析后的payload。
   static final _transformer = FusedTransformer();
 
-  static const _name = 'dioman:mock';
+  /// Public plugin name / extra key for this plugin, accessible without an instance.
+  ///
+  /// 插件名 / extra键，无需实例即可访问。
+  static const pluginName = 'dioman:mock';
 
   @override
-  String get name => _name;
+  String get name => pluginName;
 
   // ── Route management ──────────────────────────────────────────────────────
 
