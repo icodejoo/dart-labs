@@ -1,20 +1,26 @@
-# roadsman — 项目规则
+# roadsman — project rules
 
-**先读 `/roadsman` 技能**(`.claude/skills/roadsman/SKILL.md`)再改代码——架构、
-移植对照、验收流程都在那里,此处只记项目级规则。
+**Read the `/roadsman` skill first** (`.claude/skills/roadsman/SKILL.md`) before
+changing code — architecture, the TS/Dart port mapping, and the verification
+workflow all live there; this file only tracks project-level rules.
 
-## 1. README 只维护英文版
+## 1. README has only one, English version
 
-不再维护 `README.zh-CN.md` 或任何中文版 README。README 只有一份 `README.md`,
-用英文撰写。
+Do not maintain `README.zh-CN.md` or any other-language README. There is a
+single `README.md`, written in English.
 
-## 2. 代码注释一律用英文,禁止出现中文
+## 2. No Chinese anywhere in the project — comments, data, everything
 
-`lib/`、`test/`、`example/` 下所有代码注释(`//`、`/* */`、文档注释 `///`)一律用
-英文书写,不允许出现中文。此规则只约束**注释**,不影响面向用户的数据/文案字段
-(如 `OutcomeDef.label`、`MarkerDef.label` 这类展示文案本就是中文,不受此规则
-约束——它们是数据,不是注释)。
+All code comments (`//`, `/* */`, doc comments `///`) under `lib/`, `test/`,
+and `example/` must be in English, with no Chinese. This also applies to
+every other file in the project, including `pubspec.yaml`, `CHANGELOG.md`,
+and this file — nothing checked in may contain Chinese text. There is no
+carve-out for user-facing data/label fields (e.g. `OutcomeDef.label`,
+`MarkerDef.label`, `LabelsTheme` defaults) — those must default to English
+too. Callers who want localized text still configure it themselves via the
+existing theme/label override mechanisms; only the shipped defaults must be
+English.
 
-## 3. 包发布不带 GitHub 链接
+## 3. No GitHub links in the published package
 
-`pubspec.yaml` 不写 `homepage`/`repository`/`issue_tracker` 字段。
+`pubspec.yaml` does not set `homepage`/`repository`/`issue_tracker`.

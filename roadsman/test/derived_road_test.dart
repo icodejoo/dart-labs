@@ -5,7 +5,7 @@ RawResult _r(int no, String winner) => RawResult(no: no, winner: winner, bankerP
 
 void main() {
   group('deriveRoad', () {
-    test('大眼仔（k=1）在第二列第二格才开始起算', () {
+    test('Big Eye Boy (k=1) only starts counting at the second column, second row', () {
       // Column structure [B] [P] [B] ... entries only start being produced once the first
       // two columns are past (k=1 needs at least col==1,row==1 or col==2,row==0),
       // so a short sequence should yield empty entries.
@@ -14,7 +14,7 @@ void main() {
       expect(derived.entries, isEmpty);
     });
 
-    test('列长规律时落红，列长不规律时落蓝', () {
+    test('falls red when column lengths follow the pattern, blue when they do not', () {
       // Setup: col0=[B,B] (length 2), col1=[P] (length 1), col2=[B] begins...
       // Big Eye Boy starts counting from col=1,row=... or col=2,row=0, comparing the
       // lengths of column (c-1) and column (c-1-k).
@@ -33,7 +33,7 @@ void main() {
       expect(derived.entries.first, DerivedColor.blue);
     });
 
-    test('sourceCellIndex 与 entries 等长，且索引指向大路 cells', () {
+    test('sourceCellIndex has the same length as entries, and indices point into big road cells', () {
       final results = List.generate(10, (i) => _r(i + 1, i.isEven ? 'B' : 'P'));
       final bigRoad = buildBigRoad(results);
       final derived = deriveRoad(bigRoad, 1);
@@ -45,7 +45,7 @@ void main() {
   });
 
   group('derivedToColumns', () {
-    test('连续同色归并成一列，规则与大路一致但无和局', () {
+    test('merges consecutive same colors into one column, same rule as the big road but with no ties', () {
       final cols = derivedToColumns([
         DerivedColor.red,
         DerivedColor.red,
@@ -57,7 +57,7 @@ void main() {
       expect(cols, [2, 3, 1]);
     });
 
-    test('空输入返回空列表', () {
+    test('returns an empty list for empty input', () {
       expect(derivedToColumns(const []), isEmpty);
     });
   });

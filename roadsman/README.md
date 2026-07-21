@@ -1,6 +1,6 @@
 # roadsman
 
-Baccarat / Dragon Tiger / Sic Bo "road map" (bead-road) visualization for Flutter — a full port of the TypeScript `apps/baccarat-roadmap` package from the casino monorepo (`main` branch).
+Baccarat / Dragon Tiger / Sic Bo "road map" (bead-road) visualization for Flutter.
 
 ## What it does
 
@@ -17,9 +17,9 @@ Baked-in support for Baccarat, Dragon Tiger, and Sic Bo via a pluggable `GameSpe
 
 ## Architecture
 
-Three layers, same shape as the TS original: `core` (pure Dart, zero Flutter dependency — computes data and layout) → `render` (`RoadPainter`, a `CustomPainter` that draws a `DrawCommand` list; plus `renderToSvg`, a pure function for server-side rendering) → `panel` (`RoadPanel` widget: gestures, viewport physics, per-cell animation, replay, UX extras).
+Three layers: `core` (pure Dart, zero Flutter dependency — computes data and layout) → `render` (`RoadPainter`, a `CustomPainter` that draws a `DrawCommand` list; plus `renderToSvg`, a pure function for server-side rendering) → `panel` (`RoadPanel` widget: gestures, viewport physics, per-cell animation, replay, UX extras).
 
-Full diagrams and a rundown of where this diverges from the TS version (and why) are in [ARCHITECTURE.md](ARCHITECTURE.md).
+Full diagrams are in [ARCHITECTURE.md](ARCHITECTURE.md).
 
 ## Quick start
 

@@ -37,16 +37,16 @@ const _allRoadIds = [
 ];
 
 const _roadLabels = {
-  'beadPlate': '珠盘路',
-  'bigRoad': '大路',
-  'bigEyeBoy': '大眼仔',
-  'smallRoad': '小路',
-  'cockroachRoad': '曱甴路',
-  'pairRoad': '对子路',
-  'naturalRoad': '例牌路',
-  'derivedTrio': '三合一',
-  'compactRoadSheet': '紧凑路纸',
-  'statsPanel': '统计面板',
+  'beadPlate': 'Bead Plate',
+  'bigRoad': 'Big Road',
+  'bigEyeBoy': 'Big Eye Boy',
+  'smallRoad': 'Small Road',
+  'cockroachRoad': 'Cockroach Road',
+  'pairRoad': 'Pair Road',
+  'naturalRoad': 'Natural Road',
+  'derivedTrio': 'Derived Trio',
+  'compactRoadSheet': 'Compact Road Sheet',
+  'statsPanel': 'Stats Panel',
 };
 
 /// Roads exclusive to baccarat (hidden when switching to other game types, matching
@@ -133,7 +133,7 @@ class _RoadmapDemoPageState extends State<RoadmapDemoPage> {
     super.initState();
     _store = createStore(
       onOutOfSync: (expected, actual) =>
-          debugPrint('roadsman demo: out of sync，期望局号 $expected，实际 $actual'),
+          debugPrint('roadsman demo: out of sync, expected round $expected, got $actual'),
     );
     _store.subscribe((event) {
       _lastEventKind = switch (event.kind) {
@@ -221,14 +221,14 @@ class _RoadmapDemoPageState extends State<RoadmapDemoPage> {
     final theme = _theme;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('roadsman demo — 百家乐/龙虎/骰宝路子图')),
+      appBar: AppBar(title: const Text('roadsman demo — Baccarat/Dragon Tiger/Sic Bo road charts')),
       body: Column(
         children: [
           _buildControlBar(),
           const Divider(height: 1),
           Expanded(
             child: output == null
-                ? const Center(child: Text('等待开局'))
+                ? const Center(child: Text('Waiting for a new shoe'))
                 : SingleChildScrollView(
                     padding: const EdgeInsets.all(12),
                     child: Wrap(
@@ -260,14 +260,14 @@ class _RoadmapDemoPageState extends State<RoadmapDemoPage> {
           DropdownButton<GameSpec>(
             value: _currentSpec,
             items: [baccaratSpec, dragonTigerSpec, sicboSpec, rouletteSpec]
-                .map((s) => DropdownMenuItem(value: s, child: Text('游戏：${s.label}')))
+                .map((s) => DropdownMenuItem(value: s, child: Text('Game: ${s.label}')))
                 .toList(),
             onChanged: (s) => s != null ? _onGameTypeChanged(s) : null,
           ),
           if (_currentSpec.id == 'baccarat')
             DropdownButton<String>(
               value: _currentShoeId.isEmpty ? null : _currentShoeId,
-              hint: const Text('靴局'),
+              hint: const Text('Shoe'),
               items: _shoes.map((s) => DropdownMenuItem(value: s.shoeId, child: Text(s.shoeId))).toList(),
               onChanged: (id) => id != null ? _loadShoe(id) : null,
             ),
@@ -288,11 +288,11 @@ class _RoadmapDemoPageState extends State<RoadmapDemoPage> {
                   }),
                 ),
               ),
-          ElevatedButton(onPressed: _appendOneRound, child: const Text('加一局')),
+          ElevatedButton(onPressed: _appendOneRound, child: const Text('Add a round')),
           if (_replayer != null) ...[
             IconButton(
               icon: const Icon(Icons.play_arrow),
-              tooltip: '回放',
+              tooltip: 'Replay',
               onPressed: () => setState(() {
                 // Loading a shoe already pushes the whole shoe's data into the store via
                 // setResults so the user can see the full picture, but the replayer's
@@ -311,12 +311,12 @@ class _RoadmapDemoPageState extends State<RoadmapDemoPage> {
             ),
             IconButton(
               icon: const Icon(Icons.pause),
-              tooltip: '暂停',
+              tooltip: 'Pause',
               onPressed: () => setState(() => _replayer!.pause()),
             ),
             IconButton(
               icon: const Icon(Icons.stop),
-              tooltip: '停止（恢复整靴）',
+              tooltip: 'Stop (restore the full shoe)',
               onPressed: () => setState(() => _replayer!.stop()),
             ),
           ],
@@ -324,24 +324,24 @@ class _RoadmapDemoPageState extends State<RoadmapDemoPage> {
             DropdownButton<String>(
               value: _predictMode,
               items: const [
-                DropdownMenuItem(value: 'none', child: Text('不问路')),
-                DropdownMenuItem(value: 'B', child: Text('问庄')),
-                DropdownMenuItem(value: 'P', child: Text('问闲')),
+                DropdownMenuItem(value: 'none', child: Text('No prediction')),
+                DropdownMenuItem(value: 'B', child: Text('Ask Banker')),
+                DropdownMenuItem(value: 'P', child: Text('Ask Player')),
               ],
               onChanged: (v) => setState(() => _predictMode = v ?? 'none'),
             ),
           FilterChip(
-            label: const Text('呼吸高亮'),
+            label: const Text('Pulse highlight'),
             selected: _pulseEnabled,
             onSelected: (v) => setState(() => _pulseEnabled = v),
           ),
           FilterChip(
-            label: const Text('长龙庆祝'),
+            label: const Text('Long-streak celebration'),
             selected: _celebrationEnabled,
             onSelected: (v) => setState(() => _celebrationEnabled = v),
           ),
           FilterChip(
-            label: const Text('触觉反馈'),
+            label: const Text('Haptic feedback'),
             selected: _hapticsEnabled,
             onSelected: (v) => setState(() => _hapticsEnabled = v),
           ),
@@ -443,16 +443,16 @@ class _RoadmapDemoPageState extends State<RoadmapDemoPage> {
           crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Text('统计面板', style: TextStyle(fontWeight: FontWeight.bold)),
+            const Text('Stats Panel', style: TextStyle(fontWeight: FontWeight.bold)),
             const SizedBox(height: 8),
-            Text('总局数：${stats.total}'),
-            Text('庄：${stats.banker}（${stats.bankerPct}%）'),
-            Text('闲：${stats.player}（${stats.playerPct}%）'),
-            Text('和：${stats.tie}（${stats.tiePct}%）'),
-            Text('最长连庄：${stats.longestBankerStreak}'),
-            Text('最长连闲：${stats.longestPlayerStreak}'),
+            Text('Total rounds: ${stats.total}'),
+            Text('Banker: ${stats.banker} (${stats.bankerPct}%)'),
+            Text('Player: ${stats.player} (${stats.playerPct}%)'),
+            Text('Tie: ${stats.tie} (${stats.tiePct}%)'),
+            Text('Longest banker streak: ${stats.longestBankerStreak}'),
+            Text('Longest player streak: ${stats.longestPlayerStreak}'),
             if (stats.currentStreak != null)
-              Text('当前连状态：${stats.currentStreak!.winner} × ${stats.currentStreak!.length}'),
+              Text('Current streak: ${stats.currentStreak!.winner} × ${stats.currentStreak!.length}'),
           ],
         ),
       ),

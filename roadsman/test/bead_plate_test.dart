@@ -20,8 +20,8 @@ void main() {
   final theme = resolveTheme();
   final cfg = LayoutConfig(cellSize: 18, rows: 6, theme: theme);
 
-  group('BeadPlate spec 驱动', () {
-    test('百家乐：颜色/文字与规格 paletteKey/label 一致，行为与硬编码时代相同', () {
+  group('BeadPlate is spec-driven', () {
+    test('baccarat: color/text match the spec paletteKey/label, same behavior as the old hardcoded version', () {
       final engine = createEngine(['beadPlate']);
       final output = engine.compute([_r(1, 'B', bp: true), _r(2, 'P'), _r(3, 'T')], cfg);
       final cells = output.layouts['beadPlate']!.cells;
@@ -38,7 +38,7 @@ void main() {
       expect(cells[1].commands.whereType<DotCommand>(), isEmpty);
     });
 
-    test('轮盘：号码文字 + 红/黑/绿取色，零改一行渲染代码', () {
+    test('roulette: number text + red/black/green coloring, zero rendering code changes', () {
       final engine = createEngine(['beadPlate'], spec: rouletteSpec);
       final output = engine.compute([_r(1, '0'), _r(2, '32'), _r(3, '17')], cfg);
       final cells = output.layouts['beadPlate']!.cells;
@@ -51,7 +51,7 @@ void main() {
       expect(_fillOf(cells[2]), theme.palette.blue); // 17 is black (defaults to the blue slot)
     });
 
-    test('主题 palette.outcomes 覆盖单个号码颜色（外部可配，不改规格）', () {
+    test('theme palette.outcomes overrides a single number color (externally configurable, spec unchanged)', () {
       final custom = resolveTheme(
         palette: (p) => p.copyWith(outcomes: {...?p.outcomes, '17': 0xFF212121}),
       );
@@ -63,7 +63,7 @@ void main() {
       expect(_fillOf(output.layouts['beadPlate']!.cells[0]), 0xFF212121);
     });
 
-    test('colorForPaletteKey：自定义键回落 palette.outcomes，未知键回落 blue', () {
+    test('colorForPaletteKey: a custom key falls back to palette.outcomes, an unknown key falls back to blue', () {
       final custom = resolveTheme(
         palette: (p) => p.copyWith(outcomes: {...?p.outcomes, 'gold': 0xFFFFD700}),
       );

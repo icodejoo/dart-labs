@@ -22,7 +22,7 @@ export 'game_spec.dart'
 /// Winner in a baccarat round result.
 ///
 /// Deprecated: use [GenericResult.outcome] instead; kept for adapter layer compatibility and backward compatibility.
-@Deprecated('请使用 GenericResult.outcome 替代')
+@Deprecated('Use GenericResult.outcome instead')
 typedef Winner = String; // "B" | "P" | "T"
 
 /// Raw result of a single round (baccarat external format, kept for backward compatibility).

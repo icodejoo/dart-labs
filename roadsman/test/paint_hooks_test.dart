@@ -22,7 +22,7 @@ void _paintOnce(RoadPainter painter, {Size size = const Size(200, 200)}) {
 
 void main() {
   group('onBeforePaintGridCell / onAfterPaintGridCell', () {
-    test('tile 网格逐格触发，先 before 后 after，且携带正确的矩形/颜色/行列号', () {
+    test('tile grid fires per cell, before then after, carrying the correct rect/color/row/col', () {
       final calls = <String>[];
       Rect? firstRect;
 
@@ -58,7 +58,7 @@ void main() {
       expect(firstRect!.height, greaterThan(0));
     });
 
-    test('line 样式网格不触发瓷砖回调（没有离散格子）', () {
+    test('line-style grid does not fire the tile callback (no discrete cells)', () {
       var called = false;
       final painter = RoadPainter(
         commands: const [],
@@ -75,7 +75,7 @@ void main() {
       expect(called, isFalse);
     });
 
-    test('设置瓷砖回调后绕过 gridCache——即使传了缓存也逐帧触发', () {
+    test('setting a tile callback bypasses gridCache -- fires every frame even with a cache passed in', () {
       final gridCache = GridLayerCache();
       addTearDown(gridCache.dispose);
       var callCount = 0;
@@ -101,7 +101,7 @@ void main() {
   });
 
   group('onBeforePaintCommand / onAfterPaintCommand', () {
-    test('每条 commands/overlayCommands 各触发一次，先 before 后 after，携带原始指令', () {
+    test('each command in commands/overlayCommands fires once, before then after, carrying the original command', () {
       final before = <DrawCommand>[];
       final after = <DrawCommand>[];
 
@@ -125,7 +125,7 @@ void main() {
       expect(after, [circle, dot]);
     });
 
-    test('设置指令回调后绕过 layerCache——即使传了缓存也逐帧触发', () {
+    test('setting a command callback bypasses layerCache -- fires every frame even with a cache passed in', () {
       final layerCache = CommandLayerCache();
       addTearDown(layerCache.dispose);
       var callCount = 0;
@@ -148,7 +148,7 @@ void main() {
       expect(callCount, 2);
     });
 
-    test('未设置任何回调时行为不变（不抛异常，路径与之前一致）', () {
+    test('behavior is unchanged when no callback is set (no exceptions, same code path as before)', () {
       const commands = [
         CircleCommand(x: 1, y: 1, r: 1, fill: 0xFFFFFFFF),
         RectCommand(x: 0, y: 0, w: 5, h: 5, fill: 0xFF000000),

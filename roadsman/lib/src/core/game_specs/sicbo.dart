@@ -20,19 +20,19 @@ import '../game_spec.dart';
 /// ```
 final GameSpec sicboSpec = GameSpec(
   id: 'sicbo',
-  label: '骰宝',
+  label: 'Sic Bo',
   outcomes: const [
     // Normal round (non-triple): sic bo has no inherent binary matchup, so
     // outcome only records whether it was a triple; the road-building is
     // entirely derived from the range/mark streams off extras.
-    OutcomeDef(code: 'N', label: '普通', paletteKey: 'blue', beadTextField: 'total'),
+    OutcomeDef(code: 'N', label: 'Normal', paletteKey: 'blue', beadTextField: 'total'),
     // Triple (all three dice show the same value): tie color scheme, sweeps all bets.
-    OutcomeDef(code: 'TRIPLE', label: '围骰', paletteKey: 'tie', beadTextField: 'total'),
+    OutcomeDef(code: 'TRIPLE', label: 'Triple', paletteKey: 'tie', beadTextField: 'total'),
   ],
   streams: const [
     StreamDef(
       id: 'main',
-      label: '大小',
+      label: 'High/Low',
       selector: RangeSelector(
         field: 'total',
         buckets: (
@@ -45,7 +45,7 @@ final GameSpec sicboSpec = GameSpec(
     ),
     StreamDef(
       id: 'oddEven',
-      label: '单双',
+      label: 'Odd/Even',
       selector: MarkSelector(code: 'odd', tokens: ('O', 'E')),
       // Skipped on triple; the odd/even road does not advance.
       skipOutcomes: ['TRIPLE'],

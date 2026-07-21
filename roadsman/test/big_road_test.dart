@@ -11,7 +11,7 @@ RawResult _r(
 
 void main() {
   group('buildBigRoad', () {
-    test('归并连续同一赢家为一列，和局累加到当前格 tieCount', () {
+    test('merges consecutive same winners into one column, ties accumulate into the current cell tieCount', () {
       // Mirrors the round sequence from casino fixtures/baccarat-regular.json:
       // B, B(banker pair), P, T, P(player pair), B(natural), B, B, P, P, T, B
       final results = [
@@ -54,7 +54,7 @@ void main() {
       expect(naturalCell.natural, isTrue);
     });
 
-    test('开局即和局时累加到 leadingTies，不产生格子', () {
+    test('ties at the very start accumulate into leadingTies without producing a cell', () {
       final results = [_r(1, 'T'), _r(2, 'T'), _r(3, 'T'), _r(4, 'B')];
       final data = buildBigRoad(results);
 
@@ -64,7 +64,7 @@ void main() {
       expect(data.columns, [1]);
     });
 
-    test('结果为空时返回空数据', () {
+    test('returns empty data when results are empty', () {
       final data = buildBigRoad(const []);
       expect(data.cells, isEmpty);
       expect(data.columns, isEmpty);

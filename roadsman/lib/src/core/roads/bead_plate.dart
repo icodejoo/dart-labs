@@ -36,11 +36,11 @@ class BeadPlatePlugin extends RoadPlugin<List<RawResult>> {
   Map<String, ConfigField> get configSchema => const {
     'textMode': ConfigField(
       type: ConfigFieldType.select,
-      label: '圆内文字',
+      label: 'Circle text',
       defaultValue: 'label',
       options: [
-        ConfigFieldOption(value: 'label', label: '结果文字'),
-        ConfigFieldOption(value: 'points', label: '点数'),
+        ConfigFieldOption(value: 'label', label: 'Outcome text'),
+        ConfigFieldOption(value: 'points', label: 'Points'),
       ],
     ),
   };
