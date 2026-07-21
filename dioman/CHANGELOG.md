@@ -1,3 +1,23 @@
+## 0.6.0
+
+- Breaking: `ApiException` renamed to `DiomanException` (`normalize_plugin.dart`) — update any
+  `catch`/`is`/`as` sites and the `error:` object `DiomanNormalize` rejects with.
+- Breaking: `DiomanCache` gains a durable persistence layer. `persist: DiomanCachePersist` is a
+  new **required** constructor parameter — there is no built-in no-op implementation, so every
+  existing `DiomanCache(...)` call site needs one (implement `read`/`write`/`remove`/`erase`
+  yourself; the shape mirrors the `get_storage` package's container API — `read` sync,
+  `write`/`remove`/`erase` async). A new `cachePolicy: DiomanCachePolicy` (`none` default /
+  `memo` / `persist` / `both`, also overridable per request via `DiomanCacheOptions.cachePolicy`)
+  picks where a cached entry lives: `none` never caches, `memo` is the old in-memory-only
+  behavior, `persist` uses only the durable layer, `both` keeps memory and persist in sync (a
+  memory miss falls back to `persist.read` and backfills memory). Note the default changed from
+  an implicit always-on memory cache to `DiomanCachePolicy.none` — pass `cachePolicy: memo`
+  explicitly to keep the old behavior.
+- Breaking: `DiomanCache.removeWhere()`/`.size` removed — `DiomanCachePersist` has no
+  key-enumeration capability, so these could never be correct once a `persist`/`both` policy is
+  in play (silently a no-op / always `0`). `remove(key)` and `clear()` stay — both already touch
+  `persist` unconditionally and work correctly under every policy.
+
 ## 0.5.1
 
 - Feature: each plugin's fixed name/`extra` key is now also exposed as a public

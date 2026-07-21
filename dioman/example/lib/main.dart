@@ -35,6 +35,20 @@ class _Entry {
 
 typedef _Emit = void Function(String msg, _Kind kind);
 
+/// Minimal in-memory [DiomanCachePersist] for this demo. A real app would
+/// back this with a file / sqlite / Hive / get_storage / etc.
+class _MemCachePersist implements DiomanCachePersist {
+  final _store = <String, dynamic>{};
+  @override
+  dynamic read(String key) => _store[key];
+  @override
+  Future<void> write(String key, Map<String, dynamic> value) async => _store[key] = value;
+  @override
+  Future<void> remove(String key) async => _store.remove(key);
+  @override
+  Future<void> erase() async => _store.clear();
+}
+
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 ResponseBody _json(String body, {int code = 200}) => ResponseBody.fromString(
@@ -250,7 +264,7 @@ Future<void> _runKey(_Emit emit) async {
     });
 
   final dio = Dio(BaseOptions(baseUrl: 'https://api.demo.dev'));
-  dio.interceptors.addAll([const DiomanKey(), DiomanCache(), mock, _logPlugin(emit)]);
+  dio.interceptors.addAll([const DiomanKey(), DiomanCache(persist: _MemCachePersist()), mock, _logPlugin(emit)]);
 
   emit('① GET /items?sort=asc&page=1', _Kind.system);
   await dio.get('/items', queryParameters: {'sort': 'asc', 'page': 1});
@@ -284,7 +298,7 @@ Future<void> _runNormalize(_Emit emit) async {
     emit('res.data (unwrapped): ${jsonEncode(res.data)}', _Kind.response);
   }
 
-  // ── failure: non-zero code → ApiException
+  // ── failure: non-zero code → DiomanException
   {
     final dio = Dio(BaseOptions(baseUrl: 'https://api.demo.dev'));
     dio.interceptors.addAll([mock, const DiomanNormalize(), _logPlugin(emit)]);
@@ -293,9 +307,9 @@ Future<void> _runNormalize(_Emit emit) async {
     try {
       await dio.get('/users/2');
     } on DioException catch (e) {
-      if (e.error is ApiException) {
-        final ex = e.error as ApiException;
-        emit('ApiException(code: ${ex.code}, message: "${ex.message}")', _Kind.error);
+      if (e.error is DiomanException) {
+        final ex = e.error as DiomanException;
+        emit('DiomanException(code: ${ex.code}, message: "${ex.message}")', _Kind.error);
       } else {
         emit('$e', _Kind.error);
       }
@@ -316,7 +330,7 @@ Future<void> _runCache(_Emit emit) async {
 
   final dio = Dio(BaseOptions(baseUrl: 'https://api.demo.dev'));
   dio.interceptors.addAll(
-      [const DiomanKey(), DiomanCache(), mock, _logPlugin(emit)]);
+      [const DiomanKey(), DiomanCache(persist: _MemCachePersist()), mock, _logPlugin(emit)]);
 
   emit('1st GET /users/1  (network)', _Kind.system);
   final t1 = Stopwatch()..start();
@@ -645,7 +659,7 @@ final _scenarios = <_Scenario>[
   _Scenario(
     icon: Icons.unarchive_rounded,
     title: 'Normalize',
-    subtitle: 'Unwrap {code, data, message} envelope — throw ApiException on non-zero code',
+    subtitle: 'Unwrap {code, data, message} envelope — throw DiomanException on non-zero code',
     color: _orange,
     tags: ['normalize', 'mock'],
     run: _runNormalize,

@@ -34,6 +34,24 @@ class InMemoryTokenManager implements DiomanTokenManager {
   }
 }
 
+/// A minimal in-memory [DiomanCachePersist] for the example. In a real app
+/// back this with a file / sqlite / Hive / get_storage / etc.
+class InMemoryCachePersist implements DiomanCachePersist {
+  final _store = <String, dynamic>{};
+
+  @override
+  dynamic read(String key) => _store[key];
+
+  @override
+  Future<void> write(String key, Map<String, dynamic> value) async => _store[key] = value;
+
+  @override
+  Future<void> remove(String key) async => _store.remove(key);
+
+  @override
+  Future<void> erase() async => _store.clear();
+}
+
 // ═════════════════════════════════════════════════════════════════════════════
 // Plugin ORDER — the single most important thing when composing these plugins.
 //
@@ -129,7 +147,7 @@ Dio createHttp({
     const DiomanKey(), //                                                 (4)
     // ── response shaping / caching / dedup ────────────────────────────────
     const DiomanNormalize(), //                                           (5)
-    DiomanCache(), //                                                     (6)
+    DiomanCache(persist: InMemoryCachePersist()), //                       (6)
     DiomanShare(), //                                                     (7)
     DiomanMock(enabled: enableMock, mockUrl: mockUrl), //                 (8)
     // ── lifecycle brackets (must precede auth & retry) ────────────────────

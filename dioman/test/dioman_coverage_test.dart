@@ -7,8 +7,9 @@
 // DiomanRepath's placeholder substitution (previously never exercised at all),
 // DiomanMock's mockUrl-redirect path (previously only the inline-handler path was
 // tested), DiomanShare's `end`/`race` policies (previously only `start`/`retry`),
-// DiomanCache's management API (`remove`/`removeWhere`/`clear`) and clone policies,
+// DiomanCache's management API (`remove`/`clear`) and clone policies,
 // and misc smaller branches in auth/filter/key/log/cancel/retry.
+import 'support/fake_cache_persist.dart';
 import 'dart:async';
 
 import 'package:dio/dio.dart';
@@ -285,7 +286,7 @@ void main() {
       addTearDown(server.close);
       final dio = Dio(BaseOptions(baseUrl: server.baseUrl));
       dio.interceptors.add(const DiomanKey(enabled: false));
-      dio.interceptors.add(DiomanCache());
+      dio.interceptors.add(DiomanCache(persist: FakeCachePersist(), cachePolicy: DiomanCachePolicy.memo, ));
 
       await dio.get<void>('/data');
       await dio.get<void>('/data');
@@ -303,7 +304,7 @@ void main() {
       addTearDown(server.close);
       final dio = Dio(BaseOptions(baseUrl: server.baseUrl));
       dio.interceptors.add(const DiomanKey()); // fastMode: false (default)
-      dio.interceptors.add(DiomanCache(
+      dio.interceptors.add(DiomanCache(persist: FakeCachePersist(), cachePolicy: DiomanCachePolicy.memo, 
           shouldCache: (o) => true)); // allow caching this POST
 
       await dio.post<void>('/data',
@@ -329,7 +330,7 @@ void main() {
       addTearDown(server.close);
       final dio = Dio(BaseOptions(baseUrl: server.baseUrl));
       dio.interceptors.add(const DiomanKey());
-      dio.interceptors.add(DiomanCache(shouldCache: (o) => true));
+      dio.interceptors.add(DiomanCache(persist: FakeCachePersist(), cachePolicy: DiomanCachePolicy.memo, shouldCache: (o) => true));
 
       await dio.post<void>('/data', data: 'raw-body');
       await dio.post<void>('/data', data: 'raw-body');
@@ -349,7 +350,7 @@ void main() {
       addTearDown(server.close);
       final dio = Dio(BaseOptions(baseUrl: server.baseUrl));
       dio.interceptors.add(const DiomanKey());
-      dio.interceptors.add(DiomanCache());
+      dio.interceptors.add(DiomanCache(persist: FakeCachePersist(), cachePolicy: DiomanCachePolicy.memo, ));
 
       await dio.get<void>('/data', queryParameters: {'x': _Unencodable()});
       await dio.get<void>('/data', queryParameters: {'x': _Unencodable()});
@@ -360,28 +361,33 @@ void main() {
   });
 
   group('DiomanCache management API', () {
-    test('remove()/removeWhere()/clear() operate on the live store', () async {
-      final server =
-          await TestServer.start((req) => respondJson(req, {'v': 1}, 200));
+    test('remove()/clear() operate on the live store', () async {
+      var calls = 0;
+      final server = await TestServer.start((req) async {
+        calls++;
+        await respondJson(req, {'v': 1}, 200);
+      });
       addTearDown(server.close);
       final dio = Dio(BaseOptions(baseUrl: server.baseUrl));
-      final cache = DiomanCache();
+      final cache = DiomanCache(
+          persist: FakeCachePersist(), cachePolicy: DiomanCachePolicy.memo);
       dio.interceptors.add(const DiomanKey());
       dio.interceptors.add(cache);
 
       await dio.get<void>('/a');
       await dio.get<void>('/b');
-      expect(cache.size, 2);
+      expect(calls, 2);
 
       cache.remove('GET:/a');
-      expect(cache.size, 1);
-
-      await dio.get<void>('/c');
-      cache.removeWhere((k) => k.contains('/c'));
-      expect(cache.size, 1);
+      await dio.get<void>('/a');
+      expect(calls, 3, reason: 'remove() evicted /a → real network hit');
+      await dio.get<void>('/b');
+      expect(calls, 3, reason: '/b is untouched, still a cache hit');
 
       cache.clear();
-      expect(cache.size, 0);
+      await dio.get<void>('/a');
+      await dio.get<void>('/b');
+      expect(calls, 5, reason: 'clear() wiped everything');
     });
 
     test('an expired entry is evicted on the next request for that key, '
@@ -395,7 +401,7 @@ void main() {
       final dio = Dio(BaseOptions(baseUrl: server.baseUrl));
       dio.interceptors.add(const DiomanKey());
       var now = DateTime(2024, 1, 1);
-      dio.interceptors.add(DiomanCache(expires: 1000, now: () => now));
+      dio.interceptors.add(DiomanCache(persist: FakeCachePersist(), cachePolicy: DiomanCachePolicy.memo, expires: 1000, now: () => now));
 
       final r1 = await dio.get<Map<String, dynamic>>('/data');
       expect(r1.data!['v'], 1);
@@ -414,7 +420,7 @@ void main() {
       addTearDown(server.close);
       final dio = Dio(BaseOptions(baseUrl: server.baseUrl));
       dio.interceptors.add(const DiomanKey());
-      dio.interceptors.add(DiomanCache());
+      dio.interceptors.add(DiomanCache(persist: FakeCachePersist(), cachePolicy: DiomanCachePolicy.memo, ));
 
       final r1 = await dio.get<List<dynamic>>('/data');
       final r2 = await dio.get<List<dynamic>>('/data'); // cache hit
@@ -437,7 +443,7 @@ void main() {
       addTearDown(server.close);
       final dio = Dio(BaseOptions(baseUrl: server.baseUrl));
       dio.interceptors.add(const DiomanKey());
-      dio.interceptors.add(DiomanCache(clone: DiomanClonePolicy.deep));
+      dio.interceptors.add(DiomanCache(persist: FakeCachePersist(), cachePolicy: DiomanCachePolicy.memo, clone: DiomanClonePolicy.deep));
 
       final r1 =
           await dio.get<Map<String, dynamic>>('/data'); // populates cache
@@ -453,6 +459,155 @@ void main() {
           reason: "the list's original value (2) survived — r2's mutation "
               'to 999 never touched the stored entry either');
       expect(identical(r1.data, r2.data), isFalse);
+    });
+  });
+
+  group('DiomanCache cachePolicy', () {
+    test('none (default): never caches at all, neither layer touched',
+        () async {
+      var calls = 0;
+      final server = await TestServer.start((req) async {
+        calls++;
+        await respondJson(req, {'v': calls}, 200);
+      });
+      addTearDown(server.close);
+      final dio = Dio(BaseOptions(baseUrl: server.baseUrl));
+      final persist = FakeCachePersist();
+      dio.interceptors.add(const DiomanKey());
+      dio.interceptors.add(DiomanCache(persist: persist));
+
+      await dio.get<void>('/data');
+      await dio.get<void>('/data');
+      expect(calls, 2, reason: 'cachePolicy.none never caches at all');
+      expect(persist.store, isEmpty);
+    });
+
+    test('memo: memory-only, persist untouched', () async {
+      var calls = 0;
+      final server = await TestServer.start((req) async {
+        calls++;
+        await respondJson(req, {'v': calls}, 200);
+      });
+      addTearDown(server.close);
+      final dio = Dio(BaseOptions(baseUrl: server.baseUrl));
+      final persist = FakeCachePersist();
+      dio.interceptors.add(const DiomanKey());
+      dio.interceptors.add(
+        DiomanCache(persist: persist, cachePolicy: DiomanCachePolicy.memo),
+      );
+
+      await dio.get<void>('/data');
+      await dio.get<void>('/data');
+      expect(calls, 1, reason: 'second call still hits the memory store');
+      expect(persist.store, isEmpty,
+          reason: 'cachePolicy.memo never touches persist');
+    });
+
+    test('persist: the in-memory store is never read or written — every '
+        'hit/miss goes straight through persist', () async {
+      var calls = 0;
+      final server = await TestServer.start((req) async {
+        calls++;
+        await respondJson(req, {'v': calls}, 200);
+      });
+      addTearDown(server.close);
+      final dio = Dio(BaseOptions(baseUrl: server.baseUrl));
+      final persist = FakeCachePersist();
+      final cache = DiomanCache(
+        persist: persist,
+        cachePolicy: DiomanCachePolicy.persist,
+      );
+      dio.interceptors.add(const DiomanKey());
+      dio.interceptors.add(cache);
+
+      await dio.get<void>('/data');
+      expect(persist.store, isNotEmpty, reason: 'write went to persist');
+
+      await dio.get<void>('/data');
+      expect(calls, 1, reason: 'second call is served from persist directly');
+
+      // Prove memory was never populated: wiping persist alone (nothing left
+      // in memory to fall back on) must cause a real miss.
+      persist.store.clear();
+      await dio.get<void>('/data');
+      expect(calls, 2,
+          reason: 'with persist wiped and memory never in play, this is a '
+              'real network miss');
+    });
+
+    test('both: a write syncs to memory AND persist; a fresh DiomanCache '
+        'instance (simulating a restart) still hits because it rehydrates '
+        'from persist and backfills its own memory store', () async {
+      var calls = 0;
+      final server = await TestServer.start((req) async {
+        calls++;
+        await respondJson(req, {'v': calls}, 200);
+      });
+      addTearDown(server.close);
+      final dio = Dio(BaseOptions(baseUrl: server.baseUrl));
+      final persist = FakeCachePersist();
+      final cache1 =
+          DiomanCache(persist: persist, cachePolicy: DiomanCachePolicy.both);
+      dio.interceptors.add(const DiomanKey());
+      dio.interceptors.add(cache1);
+
+      await dio.get<void>('/data');
+      expect(persist.store, isNotEmpty);
+
+      await dio.get<void>('/data'); // still cache1 — a memory hit
+      expect(calls, 1, reason: 'cache1 serves this from its own memory');
+
+      // Simulate a process restart: swap in a brand new DiomanCache (empty
+      // `_store`) backed by the SAME persist instance.
+      dio.interceptors.removeLast();
+      final cache2 =
+          DiomanCache(persist: persist, cachePolicy: DiomanCachePolicy.both);
+      dio.interceptors.add(cache2);
+
+      await dio.get<void>('/data');
+      expect(calls, 1,
+          reason: 'served from persist, never reaching the network — cache2 '
+              'had no memory of its own yet');
+
+      // Prove the persist hit backfilled cache2's own memory: wipe persist
+      // and confirm cache2 STILL serves a hit, purely from its now-backfilled
+      // memory store.
+      persist.store.clear();
+      await dio.get<void>('/data');
+      expect(calls, 1,
+          reason: 'still a hit with persist wiped — the earlier persist read '
+              "backfilled cache2's memory store");
+    });
+
+    test('cachePolicy is overridable per request via DiomanCacheOptions',
+        () async {
+      var calls = 0;
+      final server = await TestServer.start((req) async {
+        calls++;
+        await respondJson(req, {'v': calls}, 200);
+      });
+      addTearDown(server.close);
+      final dio = Dio(BaseOptions(baseUrl: server.baseUrl));
+      final persist = FakeCachePersist();
+      final cache =
+          DiomanCache(persist: persist, cachePolicy: DiomanCachePolicy.memo);
+      dio.interceptors.add(const DiomanKey());
+      dio.interceptors.add(cache);
+
+      await dio.get<void>('/data',
+          options: Options(extra: {
+            'dioman:cache':
+                const DiomanCacheOptions(cachePolicy: DiomanCachePolicy.persist),
+          }));
+      expect(persist.store, isNotEmpty,
+          reason: 'per-request override routed this write to persist');
+
+      // Prove memory was bypassed: a follow-up call using the plugin's
+      // DEFAULT policy (memo) never sees the persist-only entry.
+      await dio.get<void>('/data');
+      expect(calls, 2,
+          reason: 'default-policy call misses — memory was never populated '
+              'by the persist-only override');
     });
   });
 
@@ -1209,9 +1364,9 @@ void main() {
   });
 
   group('DiomanNormalize', () {
-    test('ApiException.toString() includes the code and message', () {
-      const e = ApiException(code: 1, message: 'boom');
-      expect(e.toString(), 'ApiException(code: 1, message: boom)');
+    test('DiomanException.toString() includes the code and message', () {
+      const e = DiomanException(code: 1, message: 'boom');
+      expect(e.toString(), 'DiomanException(code: 1, message: boom)');
     });
 
     test('a custom shouldNormalize overrides the default envelope-detection '

@@ -4,6 +4,7 @@
 // cancel semantics — including for plugins that internally re-dispatch via a
 // bare `Dio()` (DiomanAuth's replay, DiomanShare's retry policy), which now
 // reach the real test server instead of the live internet.
+import 'support/fake_cache_persist.dart';
 import 'dart:async';
 import 'dart:convert';
 
@@ -700,14 +701,12 @@ void main() {
       });
       addTearDown(server.close);
       final dio = Dio(BaseOptions(baseUrl: server.baseUrl));
-      final cache = DiomanCache(maxEntries: 2);
+      final cache = DiomanCache(persist: FakeCachePersist(), cachePolicy: DiomanCachePolicy.memo, maxEntries: 2);
       dio.interceptors.addAll([const DiomanKey(), cache]);
 
       await dio.get<void>('/a');
       await dio.get<void>('/b');
       await dio.get<void>('/c'); // evicts '/a' (least recently written)
-
-      expect(cache.size, 2);
 
       await dio.get<void>('/a'); // must miss cache → real network hit again
       expect(calls, 4);
@@ -845,12 +844,12 @@ void main() {
       final res = await dio.get<Map<String, dynamic>>('/country');
       expect(res.data, {'code': 86, 'name': 'CN'},
           reason: 'code-only map must pass through untouched, not be unwrapped '
-              'or rejected as an ApiException');
+              'or rejected as an DiomanException');
     });
 
     test(
         'a real error envelope (code + message) is still rejected as an '
-        'ApiException', () async {
+        'DiomanException', () async {
       final server = await TestServer.start(
           (req) => respondJson(req, {'code': 1, 'message': 'boom'}, 200));
       addTearDown(server.close);
@@ -862,7 +861,7 @@ void main() {
         throwsA(isA<DioException>().having(
           (e) => e.error,
           'error',
-          isA<ApiException>(),
+          isA<DiomanException>(),
         )),
       );
     });
@@ -894,7 +893,7 @@ void main() {
       });
       addTearDown(server.close);
       final dio = Dio(BaseOptions(baseUrl: server.baseUrl));
-      dio.interceptors.addAll([const DiomanKey(), DiomanCache(maxEntries: 2)]);
+      dio.interceptors.addAll([const DiomanKey(), DiomanCache(persist: FakeCachePersist(), cachePolicy: DiomanCachePolicy.memo, maxEntries: 2)]);
 
       await dio.get<void>('/a'); // store: [a]
       await dio.get<void>('/b'); // store: [a, b]
@@ -918,7 +917,7 @@ void main() {
           await TestServer.start((req) => respondJson(req, {'v': 1}, 200));
       addTearDown(server.close);
       final dio = Dio(BaseOptions(baseUrl: server.baseUrl));
-      dio.interceptors.addAll([const DiomanKey(), DiomanCache()]);
+      dio.interceptors.addAll([const DiomanKey(), DiomanCache(persist: FakeCachePersist(), cachePolicy: DiomanCachePolicy.memo, )]);
 
       await dio.get<Map<String, dynamic>>('/x'); // network → store
       final hit1 = await dio.get<Map<String, dynamic>>('/x'); // cache hit
@@ -1125,7 +1124,7 @@ void main() {
       });
       addTearDown(server.close);
       final dio = Dio(BaseOptions(baseUrl: server.baseUrl));
-      dio.interceptors.addAll([const DiomanKey(), DiomanCache()]);
+      dio.interceptors.addAll([const DiomanKey(), DiomanCache(persist: FakeCachePersist(), cachePolicy: DiomanCachePolicy.memo, )]);
 
       await dio.get<void>('/x');
       await dio.get<void>(
@@ -1286,7 +1285,7 @@ void main() {
     });
 
     test(
-        'DiomanCache(enabled: false) never caches, even across identical '
+        'DiomanCache(persist: FakeCachePersist(), cachePolicy: DiomanCachePolicy.memo, enabled: false) never caches, even across identical '
         'requests', () async {
       var calls = 0;
       final server = await TestServer.start((req) async {
@@ -1295,7 +1294,7 @@ void main() {
       });
       addTearDown(server.close);
       final dio = Dio(BaseOptions(baseUrl: server.baseUrl));
-      dio.interceptors.addAll([const DiomanKey(), DiomanCache(enabled: false)]);
+      dio.interceptors.addAll([const DiomanKey(), DiomanCache(persist: FakeCachePersist(), cachePolicy: DiomanCachePolicy.memo, enabled: false)]);
 
       await dio.get<void>('/x');
       await dio.get<void>('/x');
@@ -1442,7 +1441,7 @@ void main() {
       });
       addTearDown(server.close);
       final dio = Dio(BaseOptions(baseUrl: server.baseUrl));
-      dio.interceptors.addAll([const DiomanKey(), DiomanCache(enabled: false)]);
+      dio.interceptors.addAll([const DiomanKey(), DiomanCache(persist: FakeCachePersist(), cachePolicy: DiomanCachePolicy.memo, enabled: false)]);
 
       await dio.get<void>('/x',
           options: Options(
@@ -1594,7 +1593,7 @@ void main() {
       addTearDown(server.close);
       final dio = Dio(BaseOptions(baseUrl: server.baseUrl));
       dio.interceptors
-          .addAll([const DiomanKey(), DiomanCache()]); // default: GET-only
+          .addAll([const DiomanKey(), DiomanCache(persist: FakeCachePersist(), cachePolicy: DiomanCachePolicy.memo, )]); // default: GET-only
 
       final alwaysCache = Options(
         extra: {'dioman:cache': DiomanCacheOptions(shouldCache: (o) => true)},
