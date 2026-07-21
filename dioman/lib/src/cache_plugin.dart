@@ -68,23 +68,23 @@ class _Entry {
 
 /// Pluggable persistence hook for [DiomanCache] — no built-in implementation,
 /// the caller wires up their own durability technology (file / sqlite / Hive
-/// / get_storage / ...). Shape mirrors `get_storage`'s container API: [read]
-/// is sync, [write]/[remove]/[erase] are async. Called without awaiting;
-/// implementations must serialize their own I/O so calls land in the order
-/// they were issued, and must catch their own errors — [write]/[remove]/
-/// [erase] rejecting is never observed by [DiomanCache].
+/// / get_storage / ...). [read] may be sync or async (`FutureOr`); [write]/
+/// [remove]/[erase] are always async. Called without awaiting; implementations
+/// must serialize their own I/O so calls land in the order they were issued,
+/// and must catch their own errors — a rejected [write]/[remove]/[erase] is
+/// never observed by [DiomanCache].
 ///
 /// 落盘扩展点：不内置任何实现，由调用方接入自己的持久化技术（文件/sqlite/
-/// Hive/get_storage等）。接口形状参照`get_storage`的容器API：[read]同步，
-/// [write]/[remove]/[erase]异步。调用时不等待完成；实现方需要自己保证调用
-/// 落地的顺序跟发出顺序一致，也要自己捕获异常——[write]/[remove]/[erase]
-/// 的失败[DiomanCache]不会感知到。
+/// Hive/get_storage等）。[read]可以是同步也可以是异步（`FutureOr`）；
+/// [write]/[remove]/[erase]永远异步。调用时不等待完成；实现方需要自己保证
+/// 调用落地的顺序跟发出顺序一致，也要自己捕获异常——[write]/[remove]/
+/// [erase]的失败[DiomanCache]不会感知到。
 ///
 /// ```dart
 /// class MyGetStoragePersist implements DiomanCachePersist {
 ///   final _box = GetStorage('dioman_cache');
 ///   @override
-///   dynamic read(String key) => _box.read(key);
+///   dynamic read(String key) => _box.read(key); // sync example
 ///   @override
 ///   Future<void> write(String key, Map<String, dynamic> value) =>
 ///       _box.write(key, value);
@@ -95,11 +95,12 @@ class _Entry {
 /// }
 /// ```
 abstract class DiomanCachePersist {
-  /// Synchronously reads whatever was last persisted for [key], or `null` if
-  /// there's nothing (or nothing yet — see the class doc on init ordering).
+  /// Reads whatever was last persisted for [key], or `null` if there's
+  /// nothing. May return synchronously or a `Future`.
   ///
-  /// 同步读取[key]最后一次落盘的内容，没有则返回`null`。
-  dynamic read(String key);
+  /// 读取[key]最后一次落盘的内容，没有则返回`null`。可以同步返回，也可以返回
+  /// 一个`Future`。
+  FutureOr<dynamic> read(String key);
 
   /// Persists [value] under [key]. Always a plain, JSON-encodable
   /// `{'data': ..., 'expiresAt': ...}` map — safe to `jsonEncode` directly
@@ -281,6 +282,12 @@ class DiomanCache extends DiomanPlugin {
   static const _kCacheClone = '$pluginName:clone';
   static const _kCachePolicy = '$pluginName:policy';
 
+  /// Keys of the `{data, expiresAt}` map handed to/read back from [persist].
+  ///
+  /// 传给/从[persist]读回的`{data, expiresAt}` map的字段名。
+  static const _kPersistData = 'data';
+  static const _kPersistExpiresAt = 'expiresAt';
+
   static bool _defaultShouldCache(RequestOptions o) =>
       o.method.toUpperCase() == 'GET';
 
@@ -288,7 +295,8 @@ class DiomanCache extends DiomanPlugin {
   String get name => pluginName;
 
   @override
-  void onRequest(RequestOptions options, RequestInterceptorHandler handler) {
+  void onRequest(
+      RequestOptions options, RequestInterceptorHandler handler) async {
     final $options = _resolve(options);
     if ($options == null) return handler.next(options);
 
@@ -307,7 +315,7 @@ class DiomanCache extends DiomanPlugin {
       // Memory miss (or memory not in play for this policy) — persist may
       // still hold the entry (durable across restarts, or the only layer
       // this policy uses at all).
-      entry = _hydrateFromPersist(key);
+      entry = await _hydrateFromPersist(key);
     }
     if (entry != null) {
       if (entry.expiresAt > $now().millisecondsSinceEpoch) {
@@ -374,7 +382,8 @@ class DiomanCache extends DiomanPlugin {
       }
       if (usePersist) {
         unawaited(
-          persist.write(key, {'data': response.data, 'expiresAt': expiresAt}),
+          persist.write(key,
+              {_kPersistData: response.data, _kPersistExpiresAt: expiresAt}),
         );
       }
     }
@@ -391,10 +400,10 @@ class DiomanCache extends DiomanPlugin {
   /// Reads a single [_Entry] back from [persist] for [key], if any.
   ///
   /// 从[persist]为[key]读回单条[_Entry]（如果有的话）。
-  _Entry? _hydrateFromPersist(String key) {
-    final raw = persist.read(key);
-    if (raw is Map && raw['expiresAt'] is int) {
-      return _Entry(raw['data'], raw['expiresAt'] as int);
+  Future<_Entry?> _hydrateFromPersist(String key) async {
+    final raw = await persist.read(key);
+    if (raw is Map && raw[_kPersistExpiresAt] is int) {
+      return _Entry(raw[_kPersistData], raw[_kPersistExpiresAt] as int);
     }
     return null;
   }

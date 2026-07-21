@@ -37,6 +37,25 @@ class _Unencodable {
   String toString() => 'unencodable';
 }
 
+/// A [DiomanCachePersist] whose [read] is genuinely async (never returns
+/// synchronously), to prove [DiomanCache] awaits it rather than assuming sync.
+class _AsyncOnlyCachePersist implements DiomanCachePersist {
+  final _store = <String, dynamic>{};
+  @override
+  Future<dynamic> read(String key) async {
+    await Future<void>.delayed(Duration.zero);
+    return _store[key];
+  }
+
+  @override
+  Future<void> write(String key, Map<String, dynamic> value) async =>
+      _store[key] = value;
+  @override
+  Future<void> remove(String key) async => _store.remove(key);
+  @override
+  Future<void> erase() async => _store.clear();
+}
+
 void main() {
   group('DiomanEnvs', () {
     test('the first matching rule wins and its BaseOptions fields are '
@@ -608,6 +627,29 @@ void main() {
       expect(calls, 2,
           reason: 'default-policy call misses — memory was never populated '
               'by the persist-only override');
+    });
+
+    test('DiomanCachePersist.read may be async (a real Future, not just a '
+        'sync value) — DiomanCache awaits it before deciding hit/miss',
+        () async {
+      var calls = 0;
+      final server = await TestServer.start((req) async {
+        calls++;
+        await respondJson(req, {'v': calls}, 200);
+      });
+      addTearDown(server.close);
+      final dio = Dio(BaseOptions(baseUrl: server.baseUrl));
+      final persist = _AsyncOnlyCachePersist();
+      dio.interceptors.add(const DiomanKey());
+      dio.interceptors.add(
+        DiomanCache(persist: persist, cachePolicy: DiomanCachePolicy.persist),
+      );
+
+      await dio.get<void>('/data');
+      await dio.get<void>('/data');
+      expect(calls, 1,
+          reason: 'second call is a hit even though read() only resolves '
+              'after a real async gap');
     });
   });
 
