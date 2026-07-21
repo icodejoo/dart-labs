@@ -10,50 +10,16 @@ class BasicPage extends StatefulWidget {
   State<BasicPage> createState() => _BasicPageState();
 }
 
-class _BasicPageState extends State<BasicPage>
-    with SingleTickerProviderStateMixin {
-  late TabController _tabs;
-
-  @override
-  void initState() {
-    super.initState();
-    _tabs = TabController(length: 2, vsync: this);
-  }
-
-  @override
-  void dispose() {
-    _tabs.dispose();
-    super.dispose();
-  }
-
+class _BasicPageState extends State<BasicPage> {
   @override
   Widget build(BuildContext context) {
-    return Column(
-      children: [
-        TabBar(
-          controller: _tabs,
-          tabs: const [
-            Tab(text: 'ls (persistent)'),
-            Tab(text: 'ss (memory)'),
-          ],
-        ),
-        Expanded(
-          child: TabBarView(
-            controller: _tabs,
-            children: [
-              _EngineTab(engine: cache.ls, onChanged: widget.onChanged),
-              _EngineTab(engine: cache.ss, onChanged: widget.onChanged),
-            ],
-          ),
-        ),
-      ],
-    );
+    return _EngineTab(engine: cache, onChanged: widget.onChanged);
   }
 }
 
 class _EngineTab extends StatefulWidget {
   const _EngineTab({required this.engine, required this.onChanged});
-  final Engine engine;
+  final Cacheman engine;
   final VoidCallback onChanged;
 
   @override
@@ -73,14 +39,14 @@ class _EngineTabState extends State<_EngineTab> {
     final k = _keyCtrl.text.trim();
     final v = _valCtrl.text.trim();
     if (k.isEmpty) return;
-    widget.engine.set(k, v);
+    widget.engine.write(k, v);
     _refresh();
   }
 
   void _get() {
     final k = _keyCtrl.text.trim();
     if (k.isEmpty) return;
-    final v = widget.engine.get<dynamic>(k);
+    final v = widget.engine.read<dynamic>(k);
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text(v == null ? '"$k" not found' : '"$k" = $v')),
     );
@@ -94,7 +60,7 @@ class _EngineTabState extends State<_EngineTab> {
   }
 
   void _clear() {
-    widget.engine.clear();
+    widget.engine.erase();
     _refresh();
   }
 
@@ -147,7 +113,7 @@ class _EngineTabState extends State<_EngineTab> {
                     itemCount: keys.length,
                     itemBuilder: (_, i) {
                       final k = keys[i];
-                      final v = widget.engine.get<dynamic>(k);
+                      final v = widget.engine.read<dynamic>(k);
                       return ListTile(
                         dense: true,
                         title: Text(k),

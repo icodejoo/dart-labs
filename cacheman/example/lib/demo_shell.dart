@@ -107,12 +107,7 @@ class _StatusBar extends StatelessWidget {
         children: [
           const Icon(Icons.storage, size: 14),
           const SizedBox(width: 4),
-          Text('ls: ${cache.ls.length} keys',
-              style: Theme.of(context).textTheme.bodySmall),
-          const SizedBox(width: 24),
-          const Icon(Icons.memory, size: 14),
-          const SizedBox(width: 4),
-          Text('ss: ${cache.ss.length} keys',
+          Text('ls: ${cache.length} keys',
               style: Theme.of(context).textTheme.bodySmall),
         ],
       ),

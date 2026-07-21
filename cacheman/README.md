@@ -4,8 +4,8 @@
 
 [![pub](https://img.shields.io/pub/v/cacheman.svg)](https://pub.dev/packages/cacheman)
 
-A tiny, type-safe wrapper over [`get_storage`](https://pub.dev/packages/get_storage) (persistent) and an
-in-memory store, with one unified API: TTL & absolute expiry, sliding renewal, namespaces, pluggable
+A tiny, type-safe wrapper over [`get_storage`](https://pub.dev/packages/get_storage) (persistent),
+with one unified API: TTL & absolute expiry, sliding renewal, namespaces, pluggable
 serialization, an optional codec hook, and a key-bound shortcut helper. The Dart/Flutter sibling of
 `@codejoo/storage` (TypeScript).
 
@@ -26,12 +26,10 @@ import 'package:cacheman/cacheman.dart';
 
 final cache = await Cacheman.create();
 
-cache.ls.set('token', 'abc');       // persists across restarts (get_storage)
-cache.ls.get<String>('token');      // 'abc' — synchronous
-cache.ls.set('session', 1, ttl: 60000); // expires in 60s
-cache.ls.remove('token');
-
-cache.ss.set('draft', {'id': 1});   // pure in-memory — gone on next process start
+cache.write('token', 'abc');       // persists across restarts (get_storage)
+cache.read<String>('token');       // 'abc' — synchronous
+cache.write('session', 1, ttl: 60000); // expires in 60s
+cache.remove('token');
 
 cache.setNamespace('alice');        // per-account isolation, in place
 await cache.destroy();              // releases resources, keeps persisted data
@@ -39,25 +37,22 @@ await cache.destroy();              // releases resources, keeps persisted data
 
 ## API
 
-### `Cacheman.create({container, path, options, cap})`
+### `Cacheman.create({container, path, options})`
 
-The only `Future` boundary. Returns a `Cacheman` with `.ls` (persistent, `get_storage`-backed) and `.ss`
-(pure in-memory) — both `Engine`s share the same option set and method surface. `cap` caps `.ss`
-only (`ls` is disk-backed, no such cap): a soft limit on total `key.length + value.length` across all
-entries; `null` (default) means unlimited. Once over cap, the oldest entries (by insertion order) are
-evicted first (FIFO) — see `Memory.cap`'s doc comment for exact semantics.
+The only `Future` boundary. Returns a `Cacheman` (persistent, `get_storage`-backed) exposing all
+CRUD methods directly — no `.ls` indirection.
 
-### `Engine` methods (`ls` / `ss`)
+### `Cacheman` methods
 
 | Method | Description |
 | --- | --- |
-| `get<T>(key, [default])` | Read; missing/expired → `default` (or `null`). |
-| `set<T>(key, value, {ttl, expireAt, memoized})` | Write. `ttl` in ms. |
+| `read<T>(key, [default])` | Read; missing/expired → `default` (or `null`). |
+| `write<T>(key, value, {ttl, expireAt, memoized})` | Write. `ttl` in ms. |
 | `remove(key)` | Delete. |
-| `getAll(keys, [defaults])` / `setAll(keys, values, {...})` / `removeAll(keys)` | Batch, positional. |
+| `readAll(keys, [defaults])` / `writeAll(keys, values, {...})` / `removeAll(keys)` | Batch, positional. |
 | `keys()` / `key(index)` / `length` | Enumerate/count owned keys. |
 | `purge()` | Proactively delete expired entries (otherwise lazy). |
-| `clear()` | Clear owned keys (namespace/enckey-scoped) or everything. |
+| `erase()` | Erase owned keys (namespace/enckey-scoped) or everything. |
 | `namespace` / `setNamespace([ns])` | Current prefix / switch it in place. |
 | `destroy()` | Clear the memo cache. Does not delete persisted data. |
 
@@ -70,11 +65,11 @@ evicted first (FIFO) — see `Memory.cap`'s doc comment for exact semantics.
 **No codec implementation ships with this package.** `Codec` is a plain `encode`/`decode` string
 interface — bring your own (obfuscation, real encryption, compression, whatever fits).
 
-### `fast<V>(engine, key)` / `lazy<V>(engine, key)` / `batchFast<V>(engine, keys)`
+### `fast<V>(cache, key)` / `lazy<V>(cache, key)` / `batchFast<V>(cache, keys)`
 
 Key-bound shortcut accessors — see `lib/src/fast.dart`.
 
-### `debug(engine)`
+### `debug(cache)`
 
 Decrypted snapshot of every owned entry, `{ "namespace:key": value }` — see `lib/src/debug.dart`.
 
@@ -88,19 +83,20 @@ result to `T` (e.g. `Jsonx.decode<Map<String, dynamic>>(s)`). Not round-trippabl
 
 ## Example
 
-A complete, runnable app exercising every feature above (`ls`/`ss`, ttl, sliding, namespace,
+A complete, runnable app exercising every feature above (persistent tier, ttl, sliding, namespace,
 batch ops, `fast`/`lazy`/`batchFast`, `debug()`, `codeable`/`enckey`, `Jsonx`, `raw`/`readonly`)
-is in [`example/cacheman_example.dart`](./example/cacheman_example.dart):
+is in [`example/`](./example/):
 
 ```bash
-flutter run example/cacheman_example.dart
+flutter run example/lib/main.dart
 ```
 
 ## Differences from `@codejoo/storage` (the TS sibling)
 
 - **Fully synchronous** after `create()` — `get_storage` is sync-after-init, so there's no `db`/async
   tier the way the TS version has `ls`/`ss` (sync) vs `db` (async IndexedDB).
-- **Two tiers, not three**: `ls` (persistent) / `ss` (in-memory) — no IndexedDB equivalent needed.
+- **One tier, not three**: only the persistent tier — no in-memory `ss` tier and no IndexedDB
+  equivalent needed.
 - **No built-in codec.** The TS version ships obfuscation codecs; this package only exposes the
   `Codec` interface.
 - **`force`'s retry only covers synchronous write failures** (e.g. a custom `serialize` throwing) —

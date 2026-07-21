@@ -98,7 +98,7 @@ dynamic _reviver(dynamic key, dynamic value) {
 ///     deserialize: (s) => CacheEntity.fromJson(Jsonx.decode<Map<String, dynamic>>(s)),
 ///   ),
 /// );
-/// cache.ls.set('x', {'when': DateTime.now(), 'ids': {1, 2}}); // round-trips exactly
+/// cache.write('x', {'when': DateTime.now(), 'ids': {1, 2}}); // round-trips exactly
 /// ```
 ///
 /// 兼容 `dart:convert` 的序列化器，额外支持 [DateTime]/[Duration]/[Set]/

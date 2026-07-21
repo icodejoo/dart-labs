@@ -17,7 +17,7 @@ class _AdvancedPageState extends State<AdvancedPage> {
   void _storeDateTime() {
     final now = DateTime.now();
     final encoded = Jsonx.encode(now);
-    cache.ls.set('jsonx_datetime', encoded);
+    cache.write('jsonx_datetime', encoded);
     final decoded = Jsonx.decode<DateTime>(encoded);
     setState(() =>
         _jsonxResult = 'DateTime\n  in:  $now\n  enc: $encoded\n  out: $decoded');
@@ -26,7 +26,7 @@ class _AdvancedPageState extends State<AdvancedPage> {
   void _storeDuration() {
     const dur = Duration(hours: 2, minutes: 30);
     final encoded = Jsonx.encode(dur);
-    cache.ls.set('jsonx_duration', encoded);
+    cache.write('jsonx_duration', encoded);
     final decoded = Jsonx.decode<Duration>(encoded);
     setState(() =>
         _jsonxResult = 'Duration\n  in:  $dur\n  enc: $encoded\n  out: $decoded');
@@ -35,7 +35,7 @@ class _AdvancedPageState extends State<AdvancedPage> {
   void _storeSet() {
     const s = {1, 2, 3, 99};
     final encoded = Jsonx.encode(s);
-    cache.ls.set('jsonx_set', encoded);
+    cache.write('jsonx_set', encoded);
     final decoded = Jsonx.decode<Set<dynamic>>(encoded);
     setState(() =>
         _jsonxResult = 'Set\n  in:  $s\n  enc: $encoded\n  out: $decoded');
@@ -44,7 +44,7 @@ class _AdvancedPageState extends State<AdvancedPage> {
   void _storeBigInt() {
     final b = BigInt.parse('99999999999999999999999999999');
     final encoded = Jsonx.encode(b);
-    cache.ls.set('jsonx_bigint', encoded);
+    cache.write('jsonx_bigint', encoded);
     final decoded = Jsonx.decode<BigInt>(encoded);
     setState(() =>
         _jsonxResult = 'BigInt\n  in:  $b\n  enc: $encoded\n  out: $decoded');
@@ -53,14 +53,14 @@ class _AdvancedPageState extends State<AdvancedPage> {
   void _storeUri() {
     final uri = Uri.parse('https://pub.dev/packages/cacheman?tab=readme');
     final encoded = Jsonx.encode(uri);
-    cache.ls.set('jsonx_uri', encoded);
+    cache.write('jsonx_uri', encoded);
     final decoded = Jsonx.decode<Uri>(encoded);
     setState(() =>
         _jsonxResult = 'Uri\n  in:  $uri\n  enc: $encoded\n  out: $decoded');
   }
 
   void _takeSnapshot() {
-    final snap = debug(cache.ls);
+    final snap = debug(cache);
     if (snap.isEmpty) {
       setState(() => _debugSnapshot = '(ls is empty — set some keys first)');
       return;

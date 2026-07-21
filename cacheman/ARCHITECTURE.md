@@ -2,7 +2,7 @@
 
 ## 项目概述
 
-**cacheman** 是一个轻量级、类型安全的 Flutter/Dart 缓存封装，统一包装 GetStorage（持久化存储）和内存存储，提供 TTL、绝对过期、滑动续期、命名空间、可插拔序列化、可选编码等功能。
+**cacheman** 是一个轻量级、类型安全的 Flutter/Dart 缓存封装，统一包装 GetStorage（持久化存储），提供 TTL、绝对过期、滑动续期、命名空间、可插拔序列化、可选编码等功能。
 
 ## 核心架构
 
@@ -14,10 +14,8 @@
     ├─ 类型推导
     └─ 配置合并
     ↓
-[存储适配器选择]
-    ├─ 持久化: GetStorage
-    ├─ 会话: 内存 Map
-    └─ 自适应选择
+[存储适配器]
+    └─ 持久化: GetStorage
     ↓
 [键值格式化]
     ├─ 命名空间处理 (prefix:key)
@@ -40,8 +38,7 @@
     └─ 自动清理
     ↓
 [值存储]
-    ├─ GetStorage: 文件持久化
-    └─ Map: 内存存储
+    └─ GetStorage: 文件持久化
     ↓
 应用读取到的数据
 ```
@@ -50,8 +47,7 @@
 
 ### 1. **统一存储接口**
 - **GetStorage**: 持久化存储，应用重启后仍保留
-- **内存 Map**: 会话级存储，应用关闭则清除
-- 同一 API，自动选择
+- 同一 API
 
 ### 2. **类型安全**
 ```dart
@@ -112,8 +108,7 @@ lib/
 │   ├── cacheman.dart           # Cacheman 核心类
 │   ├── adapters/
 │   │   ├─ storage_adapter.dart # 存储适配器基类
-│   │   ├─ get_storage_adapter.dart
-│   │   └─ memory_adapter.dart
+│   │   └─ get_storage_adapter.dart
 │   ├── serialization/
 │   │   ├─ serializer.dart      # 序列化器接口
 │   │   └─ codec.dart           # 编解码器
@@ -163,13 +158,11 @@ final cache = Cacheman<Map<String, dynamic>>(
     ├─ 包含：值、过期时间
     └─ 元数据
     ↓
-[选择存储后端]
-    ├─ GetStorage: 文件系统
-    └─ Map: 内存
+[存储后端]
+    └─ GetStorage: 文件系统
     ↓
 [执行写入]
-    ├─ GetStorage: await box.write(key, data)
-    └─ Map: map[key] = data
+    └─ GetStorage: await box.write(key, data)
     ↓
 数据写入完成
 ```
@@ -189,8 +182,7 @@ final cache = Cacheman<Map<String, dynamic>>(
     └─ 已过期则删除并返回 null
     ↓
 [读取数据]
-    ├─ GetStorage: box.read(key)
-    └─ Map: map[key]
+    └─ GetStorage: box.read(key)
     ↓
 [检查滑动过期]
     ├─ 如果启用 sliding 模式
