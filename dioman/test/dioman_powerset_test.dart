@@ -1,11 +1,27 @@
-// Power-set correctness sweep for Dioman.install's 13 plugins.
+// Power-set correctness sweep for Dioman.install's plugins.
 //
 // Unlike dioman_combinations_test.dart's hand-picked pairwise/3-way tests
 // (which assert SPECIFIC cross-plugin behavior for the 6 stateful plugins),
 // this file asserts the RETURNED VALUE is what it should be — not just
 // "didn't throw" — across two sweeps:
 //
-//   1. Baseline sweep — ALL 2^13-1 = 8191 non-empty combinations of the 13
+//   The two sweeps deliberately cover DIFFERENT plugin sets. Bits 0-12 are the
+//   13 "core" plugins; bits 13-15 (timeout/offline/breaker) are appended. The
+//   baseline sweep covers ALL 16 (2^16-1 combinations); the paced exception
+//   sweep covers only the 13 core (2^13-1). timeout/offline/breaker are left
+//   OUT of the paced sweep on purpose: none of them participate in the
+//   retry/cache/auth recovery being asserted there (an offline plugin with
+//   `isOnline: true`, a breaker below threshold, and a benign timeout are all
+//   pure pass-throughs on that path), so adding their 3 bits would 8x the mask
+//   count — and thus 8x the TIME_WAIT-paced wall clock, from several minutes to
+//   ~an hour (see the pacing note below) — for ZERO new assertions. Their own
+//   exception behavior (breaker tripping, offline queue/reject, timeout firing)
+//   is covered by the targeted tests in dioman_test.dart instead. They ARE in
+//   the baseline sweep, which is cheap (one keep-alive connection for the whole
+//   sweep — see the adapter note below), so it still verifies all 16 coexist,
+//   order, dispose, and don't collide on their `extra[...]` keys.
+//
+//   1. Baseline sweep — ALL 2^16-1 = 65535 non-empty combinations of the 16
 //      plugins, each firing one plain-success GET (`/base`): status 200;
 //      body is the raw envelope, unless DiomanNormalize is present (then
 //      unwrapped); server sees `Authorization: Bearer t0` iff DiomanAuth is
@@ -96,10 +112,26 @@ class _MutableTokenManager implements DiomanTokenManager {
   void set(String? v) => _access = v;
 }
 
+// Bits 0-12 are the original 13 "core" plugins (unchanged order — cache/share/
+// auth/retry/normalize bit positions are relied on by the _hasXxx helpers
+// below). Bits 13-15 are the three appended plugins, present ONLY in the
+// baseline sweep (see the file header). Appending them keeps every core bit
+// position stable, so iterating the paced sweep over 1.._coreMax naturally
+// leaves timeout/offline/breaker off.
 const _names = [
   'envs', 'repath', 'filter', 'key', 'cache', 'share', 'mock', //
-  'cancel', 'loading', 'auth', 'retry', 'log', 'normalize',
+  'cancel', 'loading', 'auth', 'retry', 'log', 'normalize', //
+  'timeout', 'offline', 'breaker',
 ];
+
+/// Number of core plugins (bits 0-12) — the paced exception sweep's universe.
+const _coreCount = 13;
+
+/// Highest mask value for the baseline sweep (all 16 plugins).
+final _allMax = (1 << _names.length) - 1;
+
+/// Highest mask value for the paced sweep (core 13 only; bits 13-15 stay 0).
+final _coreMax = (1 << _coreCount) - 1;
 
 bool _hasBit(int mask, int bit) => (mask & (1 << bit)) != 0;
 bool _hasKey(int mask) => _hasBit(mask, 3);
@@ -108,20 +140,33 @@ bool _hasAuth(int mask) => _hasBit(mask, 9);
 bool _hasRetry(int mask) => _hasBit(mask, 10);
 bool _hasNormalize(int mask) => _hasBit(mask, 12);
 
-/// Installs the subset of the 13 plugins selected by [mask]'s bits (bit i
+/// Installs the subset of the plugins selected by [mask]'s bits (bit i
 /// ↔ [_names][i]) — [Dioman.install] slots them into the canonical order
 /// regardless of which bits are set. `retry`/`auth` are configured to
 /// recover in exactly 1 extra attempt so the exception-path phases below
-/// stay deterministic and fast.
+/// stay deterministic and fast. The three appended plugins (bits 13-15) are
+/// configured as pure pass-throughs on the plain-success path: `timeout`
+/// only rewrites config, `offline` reports `isOnline: true` so nothing is
+/// queued, and `breaker` never trips because every request in the baseline
+/// sweep succeeds (its consecutive-failure count stays 0).
 DiomanHandle _install(Dio dio, int mask, _MutableTokenManager tm) {
   bool has(int bit) => _hasBit(mask, bit);
   return Dioman.install(
     dio,
     envs: has(0) ? DiomanEnvs(const []) : null,
+    timeout: has(13)
+        ? DiomanTimeout(probe: () => NetworkQuality.excellent)
+        : null,
     repath: has(1) ? DiomanRepath() : null,
     filter: has(2) ? const DiomanFilter() : null,
     key: has(3) ? const DiomanKey() : null,
     cache: has(4) ? DiomanCache(persist: FakeCachePersist(), cachePolicy: DiomanCachePolicy.memo, ) : null,
+    offline: has(14)
+        ? DiomanOffline(
+            isOnline: () => true,
+            onConnectivityChanged: const Stream<bool>.empty(),
+          )
+        : null,
     share: has(5) ? DiomanShare(policy: DiomanSharePolicy.start) : null,
     mock: has(6) ? DiomanMock(enabled: false) : null,
     cancel: has(7) ? DiomanCancel() : null,
@@ -134,6 +179,7 @@ DiomanHandle _install(Dio dio, int mask, _MutableTokenManager tm) {
           )
         : null,
     retry: has(10) ? DiomanRetry(max: 1, delay: (_, __, ___, ____) => Duration.zero) : null,
+    breaker: has(15) ? DiomanBreaker() : null,
     log: has(11) ? DiomanLog(writer: (m, {error}) {}) : null,
     normalize: has(12) ? const DiomanNormalize() : null,
   );
@@ -166,7 +212,7 @@ bool _matchesSuccessShape(int mask, dynamic data) =>
 
 void main() {
   test(
-    'every non-empty subset of the 13 plugins (8191 combinations) returns '
+    'every non-empty subset of the 16 plugins (65535 combinations) returns '
     'the expected value on a plain success',
     () async {
       String? lastAuthHeader;
@@ -184,7 +230,7 @@ void main() {
       addTearDown(() => dio.close(force: true));
 
       final failures = <String, Object>{};
-      final total = (1 << _names.length) - 1;
+      final total = _allMax;
       for (var mask = 1; mask <= total; mask++) {
         final name = _describe(mask);
         final handle = _install(dio, mask, _MutableTokenManager('t0'));
@@ -220,7 +266,7 @@ void main() {
             '(showing up to 20):\n$sample');
       }
     },
-    timeout: const Timeout(Duration(minutes: 5)),
+    timeout: const Timeout(Duration(minutes: 12)),
   );
 
   test(
@@ -254,7 +300,9 @@ void main() {
       addTearDown(() => dio.close(force: true));
 
       final failures = <String, Object>{};
-      final total = (1 << _names.length) - 1;
+      // Core 13 only — bits 13-15 stay 0, so timeout/offline/breaker are never
+      // installed here (see the file header for why they're excluded).
+      final total = _coreMax;
 
       for (var mask = 1; mask <= total; mask++) {
         final name = _describe(mask);
