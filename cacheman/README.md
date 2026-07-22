@@ -32,7 +32,6 @@ cache.write('session', 1, ttl: 60000); // expires in 60s
 cache.remove('token');
 
 cache.setNamespace('alice');        // per-account isolation, in place
-await cache.destroy();              // releases resources, keeps persisted data
 ```
 
 ## API
@@ -47,18 +46,17 @@ CRUD methods directly — no `.ls` indirection.
 | Method | Description |
 | --- | --- |
 | `read<T>(key, [default])` | Read; missing/expired → `default` (or `null`). |
-| `write<T>(key, value, {ttl, expireAt, memoized})` | Write. `ttl` in ms. |
+| `write<T>(key, value, {ttl, expireAt})` | Write. `ttl` in ms. |
 | `remove(key)` | Delete. |
 | `readAll(keys, [defaults])` / `writeAll(keys, values, {...})` / `removeAll(keys)` | Batch, positional. |
 | `keys()` / `key(index)` / `length` | Enumerate/count owned keys. |
 | `purge()` | Proactively delete expired entries (otherwise lazy). |
 | `erase()` | Erase owned keys (namespace/enckey-scoped) or everything. |
 | `namespace` / `setNamespace([ns])` | Current prefix / switch it in place. |
-| `destroy()` | Clear the memo cache. Does not delete persisted data. |
 
 ### `CachemanOptions`
 
-`memoized`, `cloned` (+`deepCloned`), `serialize`/`deserialize`, `codeable`/`codec`, `sliding`,
+`serialize`/`deserialize`, `codeable`/`codec`, `sliding`,
 `namespace`, `raw`, `force`, `readonly`, `enckey`, `onError` — see each field's doc comment in
 `lib/src/engine.dart` for exact semantics.
 
@@ -101,9 +99,7 @@ flutter run example/lib/main.dart
   `Codec` interface.
 - **`force`'s retry only covers synchronous write failures** (e.g. a custom `serialize` throwing) —
   `get_storage`'s actual disk-flush failures are asynchronous and reported via `onError` separately,
-  not retried (see `GetStorageAdapter`'s doc comment).
-- **`cloned` is shallow by default** (`Map.of`/`List.of`); set `deepCloned: true` too if you intend to
-  mutate anything beyond the top-level container.
+  not retried (see `Cacheman`'s `_gs` doc comment in `lib/src/cacheman.dart`).
 - No `crossTab` equivalent (a browser-tab concept with no Flutter analogue).
 
 ## License

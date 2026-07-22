@@ -151,10 +151,12 @@ QueryResult<T> useQuery<T>({
     seedUpdatedAt:      seedUpdatedAt,
   );
   final rxSubs = bindReactive([...queryKey, enabled], update);
+  final disposeResume = bindResume(observer.onResume);
 
   result.disposeCallback = () {
     unsubscribe();
     observer.onUnmount();
+    disposeResume();
     for (final s in rxSubs) {
       s.cancel();
     }

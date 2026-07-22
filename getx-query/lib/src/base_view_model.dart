@@ -1,10 +1,6 @@
 // ignore_for_file: implementation_imports, invalid_use_of_internal_member
 
-import 'dart:async';
-
 import 'package:flutter/foundation.dart' show VoidCallback;
-import 'package:flutter/widgets.dart'
-    show AppLifecycleState, WidgetsBinding, WidgetsBindingObserver;
 import 'package:flutter_query/flutter_query.dart'
     hide QueryResult,
         MutationResult,
@@ -74,7 +70,7 @@ VoidCallback _makeObserverUpdater<T>(
 // _Core  — all observer + client logic, framework-agnostic
 // ─────────────────────────────────────────────────────────────────────────────
 
-class _Core with WidgetsBindingObserver {
+class _Core {
   _Core(this._client);
 
   final QueryClient _client;
@@ -82,15 +78,7 @@ class _Core with WidgetsBindingObserver {
   final _mutations       = <MutationResult>[];
   final _infiniteResults = <InfiniteQueryResult>[];
 
-  // Coalesces the app-resume invalidation below: every live _Core sharing
-  // the same QueryClient gets a didChangeAppLifecycleState callback on
-  // resume, which would otherwise call invalidateQueries() once per
-  // ViewModel instance. All such callbacks fire synchronously in the same
-  // event, so tracking "already scheduled for this client" and running the
-  // actual invalidate in a microtask collapses them into a single call.
-  static final _pendingResumeInvalidate = <QueryClient>{};
-
-  void init()    => WidgetsBinding.instance.addObserver(this);
+  void init() {}
 
   void dispose() {
     for (final r in _results) {
@@ -102,7 +90,6 @@ class _Core with WidgetsBindingObserver {
     for (final r in _infiniteResults) {
       r.dispose();
     }
-    WidgetsBinding.instance.removeObserver(this);
   }
 
   // ── useQuery ──────────────────────────────────────────────────────────────
@@ -167,10 +154,12 @@ class _Core with WidgetsBindingObserver {
       ),
     );
     final unsubscribe = observer.subscribe(result.update);
+    final disposeResume = bindResume(observer.onResume);
 
     result.disposeCallback = () {
       unsubscribe();
       observer.onUnmount();
+      disposeResume();
       for (final s in rxSubs) {
         s.cancel();
       }
@@ -242,10 +231,12 @@ class _Core with WidgetsBindingObserver {
       () => observer.options = buildOptions(),
     );
     final unsubscribe = observer.subscribe(result.update);
+    final disposeResume = bindResume(observer.onResume);
 
     result.disposeCallback = () {
       unsubscribe();
       observer.onUnmount();
+      disposeResume();
       for (final s in rxSubs) {
         s.cancel();
       }
@@ -477,23 +468,6 @@ class _Core with WidgetsBindingObserver {
   }
 
   void clear() => _client.clear();
-
-  // ── WidgetsBindingObserver ────────────────────────────────────────────────
-
-  @override
-  void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.resumed) {
-      // Coalesce: only the first _Core to observe this resume for a given
-      // client schedules the invalidate; every other _Core sharing the same
-      // client sees `add` return false and no-ops.
-      if (_pendingResumeInvalidate.add(_client)) {
-        scheduleMicrotask(() {
-          _pendingResumeInvalidate.remove(_client);
-          _client.invalidateQueries();
-        });
-      }
-    }
-  }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

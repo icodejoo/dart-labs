@@ -106,9 +106,7 @@ final cache = Cacheman(
 lib/
 ├── src/
 │   ├── cacheman.dart           # Cacheman 核心类
-│   ├── adapters/
-│   │   ├─ storage_adapter.dart # 存储适配器基类
-│   │   └─ get_storage_adapter.dart
+│   ├── options.dart            # CacheOptions / CachemanOptions 配置类
 │   ├── serialization/
 │   │   ├─ serializer.dart      # 序列化器接口
 │   │   └─ codec.dart           # 编解码器

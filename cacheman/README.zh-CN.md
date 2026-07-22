@@ -29,7 +29,6 @@ cache.write('session', 1, ttl: 60000); // 60 秒后过期
 cache.remove('token');
 
 cache.setNamespace('alice');        // 原地按账号隔离
-await cache.destroy();              // 释放资源，保留已落盘数据
 ```
 
 ## API
@@ -43,18 +42,17 @@ await cache.destroy();              // 释放资源，保留已落盘数据
 | 方法 | 说明 |
 | --- | --- |
 | `read<T>(key, [default])` | 读取；缺失/过期 → `default`（或 `null`）。 |
-| `write<T>(key, value, {ttl, expireAt, memoized})` | 写入。`ttl` 单位毫秒。 |
+| `write<T>(key, value, {ttl, expireAt})` | 写入。`ttl` 单位毫秒。 |
 | `remove(key)` | 删除。 |
 | `readAll(keys, [defaults])` / `writeAll(keys, values, {...})` / `removeAll(keys)` | 批量，按位置对应。 |
 | `keys()` / `key(index)` / `length` | 枚举/统计本实例管辖的键。 |
 | `purge()` | 主动删除已过期条目（平时是懒过期）。 |
 | `erase()` | 清空本实例管辖的键（namespace/enckey 范围内），或整个后端。 |
 | `namespace` / `setNamespace([ns])` | 当前前缀 / 原地切换。 |
-| `destroy()` | 清空 memo 缓存。不删除已落盘数据。 |
 
 ### `CachemanOptions`
 
-`memoized`、`cloned`（+`deepCloned`）、`serialize`/`deserialize`、`codeable`/`codec`、`sliding`、`namespace`、`raw`、`force`、`readonly`、`enckey`、`onError`——精确语义见 `lib/src/engine.dart` 里每个字段的文档注释。
+`serialize`/`deserialize`、`codeable`/`codec`、`sliding`、`namespace`、`raw`、`force`、`readonly`、`enckey`、`onError`——精确语义见 `lib/src/engine.dart` 里每个字段的文档注释。
 
 **本包不内置任何 codec 实现。** `Codec` 只是一个 `encode`/`decode` 字符串接口——混淆、真加密、压缩，怎么实现随你。
 
@@ -85,8 +83,7 @@ flutter run example/lib/main.dart
 - **`create()` 之后全同步**——`get_storage` 初始化完就是同步的，所以不像 TS 版那样需要 `ls`/`ss`（同步）之外再搞一个 `db`（异步 IndexedDB）层。
 - **一层，不是三层**：只有持久层——没有内存 `ss` 层，也不需要 IndexedDB 的等价物。
 - **不内置 codec。** TS 版自带混淆 codec；这个包只暴露 `Codec` 接口。
-- **`force` 的重试只覆盖同步写入失败**（比如自定义 `serialize` 抛错）——`get_storage` 真正的落盘失败是异步的，走单独的 `onError` 上报，不会重试（见 `GetStorageAdapter` 的文档注释）。
-- **`cloned` 默认浅拷贝**（`Map.of`/`List.of`）；打算修改顶层以外的内容，再加上 `deepCloned: true`。
+- **`force` 的重试只覆盖同步写入失败**（比如自定义 `serialize` 抛错）——`get_storage` 真正的落盘失败是异步的，走单独的 `onError` 上报，不会重试（见 `lib/src/cacheman.dart` 中 `Cacheman` 的 `_gs` 文档注释）。
 - 没有 `crossTab` 的等价物（浏览器标签页概念，Flutter 没有对应场景）。
 
 ## License

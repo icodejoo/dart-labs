@@ -18,7 +18,7 @@ class FastAccessor<V> {
   /// Writes the bound key.
   ///
   /// 写入绑定的 key。
-  void set(V value, {int? ttl, Object? expireAt, bool? memoized}) => _cacheman.write<V>(_key, value, ttl: ttl, expireAt: expireAt, memoized: memoized);
+  void set(V value, {int? ttl, Object? expireAt}) => _cacheman.write<V>(_key, value, ttl: ttl, expireAt: expireAt);
 
   /// Deletes the bound key.
   ///

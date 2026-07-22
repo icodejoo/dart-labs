@@ -436,7 +436,7 @@ scope.dispose();
 - **`GetBaseViewModel`**：继承 `GetxController`，自动接好 `onInit`/`onClose`；不传 client 时从 `QueryService` 解析。
 - **`BaseViewModel`**：与框架无关；构造时注入 `QueryClient`，自行调用 `init()` / `dispose()`（都标了 `@mustCallSuper`）。
 
-两者都会在 `AppLifecycleState.resumed`（回前台）时失效所有查询。如果多个 ViewModel 共用同一个 `QueryClient` 且同时存活，这个回前台失效会被合并成每个 client 每次回前台只触发一次——而不是每个 ViewModel 各触发一次。
+每个 `useQuery`/`useInfiniteQuery`——无论是独立调用、通过 `QueryScope`，还是挂在 ViewModel 上——在 App 回前台时都会各自遵循自己的 `refetchOnResume` 策略（`stale`/`always`/`never`），与直接调用 flutter_query 的 hook 行为一致。不存在整个 client 级别的批量失效。
 
 | 成员 | 含义 |
 |---|---|
