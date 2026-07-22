@@ -49,6 +49,8 @@ cache.setNamespace('alice');        // 原地按账号隔离
 | `purge()` | 主动删除已过期条目（平时是懒过期）。 |
 | `erase()` | 清空本实例管辖的键（namespace/enckey 范围内），或整个后端。 |
 | `namespace` / `setNamespace([ns])` | 当前前缀 / 原地切换。 |
+| `container` | 底层 `get_storage` 的 `GetStorage` 实例——给需要拿到原始 container 的互操作场景用（比如用 `listenKey` 监听外部变更）。 |
+| `storageKey(key)` | `key` 实际落盘用的 key（加了命名空间前缀，`enckey` 时还会编码）——传给 `container.listenKey(...)` 的应该是这个，而不是 `key` 本身。 |
 
 ### `CachemanOptions`
 
@@ -59,6 +61,30 @@ cache.setNamespace('alice');        // 原地按账号隔离
 ### `fast<V>(cache, key)` / `lazy<V>(cache, key)` / `batchFast<V>(cache, keys)`
 
 键绑定的快捷访问器——见 `lib/src/fast.dart`。
+
+### GetX 响应式接入（`container` + `storageKey`）
+
+本包**不依赖** `get`——`container`/`storageKey` 只是留出的互操作接口，不是内置的 GetX 集成。如果你自己用 GetX，靠这两个就能自己搭一个类似 VueUse `useStorage` 的响应式封装：
+
+```dart
+Rx<V?> reactive<V>(Cacheman cache, String key) {
+  final rx = Rx<V?>(cache.read<V>(key));
+
+  // 外部写入（其他实例/隔离区）会同步更新 Rx。
+  cache.container.listenKey(cache.storageKey(key), (dynamic _) => rx.value = cache.read<V>(key));
+
+  // 本地改 Rx 会写回 cacheman（ttl/serialize 等语义仍然生效）。
+  ever(rx, (V? v) => v == null ? cache.remove(key) : cache.write<V>(key, v));
+
+  return rx;
+}
+
+final token = reactive<String>(cache, 'token');
+Obx(() => Text(token.value ?? 'no token'));
+token.value = 'abc123'; // 界面自动刷新，并持久化
+```
+
+只要可能用到 `enckey`，就应该用 `cache.storageKey(key)`，而不是 `cache.namespace + key`——codec 的编码逻辑是私有可插拔的细节，`storageKey` 已经帮你处理好了。
 
 ### `debug(cache)`
 

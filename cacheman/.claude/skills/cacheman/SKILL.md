@@ -5,13 +5,14 @@ description: >-
   (`Cacheman`): TTL & absolute expiry, sliding renewal, namespaces, pluggable
   serialize/deserialize, an optional Codec hook (no implementation shipped), enckey key
   obfuscation, raw/readonly modes, batch ops, an owned-key cache, a Jsonx serializer, and
-  fast/lazy/batchFast key-bound accessors. Flutter-only (get_storage dependency),
+  fast/lazy/batchFast key-bound accessors, and a public container/storageKey escape hatch for
+  external interop (e.g. GetX reactive wiring). Flutter-only (get_storage dependency),
   Dart/Flutter sibling of `@codejoo/storage` (TypeScript). Read BEFORE modifying anything
   under lib/src/ or changing CachemanOptions semantics. Covers Cacheman's internal
   invariants, the owned-key cache gotcha, sliding-renewal's 90% threshold, force's sync-only
   retry, and the verify workflow. Triggers on: Cacheman.create, ls, CachemanOptions,
   CacheEntity, sliding, namespace, enckey, codeable, raw mode, readonly, force, onError,
-  Jsonx, fast/lazy/batchFast, debug(), read/write/erase.
+  Jsonx, fast/lazy/batchFast, debug(), read/write/erase, container, storageKey, listenKey.
 ---
 
 # cacheman
@@ -42,6 +43,13 @@ field — there is no `Store`/`MemoCache` contract to satisfy anymore and no mem
 adding a second backend would mean giving `Cacheman` an internal branch, not resurrecting an
 injected-interface seam. `Cacheman.destroy()` was removed along with the memo cache — there
 was nothing left for it to release.
+
+`Cacheman.container` (public `GetStorage` getter) and `Cacheman.storageKey(key)` (public
+`_fullKey` wrapper — namespace-prefixed, `enckey`-encoded when enabled) exist purely for
+external interop that needs the raw, real storage key — e.g. wiring `container.listenKey(
+storageKey(key), ...)` up to a GetX `Rx` for a VueUse-`useStorage`-style reactive layer. Use
+`storageKey(key)`, not `namespace + key`, whenever `enckey` might be involved — the codec's
+encoding is a private, pluggable implementation detail that can't be reproduced externally.
 
 The two READMEs (`README.md` EN, `README.zh-CN.md` ZH) are the canonical usage docs — keep
 both in sync on any public API change. Every field in `lib/src/*.dart` already carries a
