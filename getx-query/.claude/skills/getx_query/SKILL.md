@@ -92,7 +92,7 @@ are thin public wrappers (guarded by `_disposed`) over `mutateImpl`/`mutateAsync
 which are the raw fields wired directly to observer methods — see disposal invariants below for why
 they're split.
 
-### `reactive.dart` — `plainValue`/`resolveReactiveKey`/`bindReactive`, recognize `RxObjectMixin` not `Rx`
+### `reactive.dart` — `plainValue`/`resolveReactiveKey`/`bindReactive`/`bindResume`, recognize `RxObjectMixin` not `Rx`
 
 Shared (not duplicated — `use_query.dart`, `base_view_model.dart`, and `use_infinite_query.dart` all
 import it) helper file, not exported from the barrel. Checks `v is RxObjectMixin` rather than `v is Rx`
@@ -146,15 +146,21 @@ count stuck at 1) until the copy was added — if you touch `plainValue`, rerun 
   `use_infinite_query.dart` (duplicated wiring logic — keep in sync; the reactive-type handling itself
   is shared via `reactive.dart`, not duplicated).
 - `_Core` tracks `_results`/`_mutations`/`_infiniteResults` (one list per result type); `dispose()`
-  disposes all three + `removeObserver(this)`. This is the auto-cleanup standalone hooks lack.
-- `_Core` mixes in `WidgetsBindingObserver`; **`didChangeAppLifecycleState` on `resumed` calls
-  `_client.invalidateQueries()` with no key → invalidates ALL queries.** A non-obvious global side
-  effect; active only in view-model flows, not standalone hooks.
-  **Coalesced across ViewModels sharing a client:** every live `_Core` gets this callback on resume,
-  which fire synchronously in the same event loop turn. `_Core._pendingResumeInvalidate` (a static
-  `Set<QueryClient>`) + `scheduleMicrotask` collapse N simultaneous callbacks for the same client into
-  one `invalidateQueries()` call. If you touch this, preserve the "first _Core to see this resume wins,
-  the rest see `add()` return false" shape — don't key it per-`_Core` instance, that defeats the point.
+  disposes all three. This is the auto-cleanup standalone hooks lack.
+- **Resume handling is per-query, not client-wide.** Every `useQuery`/`useInfiniteQuery` call site —
+  standalone (`use_query.dart`/`use_infinite_query.dart`), via `_Core`, and by extension `QueryScope`
+  (which just calls the standalone `useQuery`) — wires `reactive.dart`'s `bindResume(observer.onResume)`
+  right after `observer.subscribe(...)`, and calls the returned dispose callback in its
+  `disposeCallback`. `bindResume` is a thin wrapper over
+  `AppLifecycleListener(onResume: onResume).dispose`, mirroring what flutter_query's own hooks do
+  per observer. Each query's own `refetchOnResume` (`stale`/`always`/`never`) is therefore respected
+  individually. **Do not reintroduce a blanket `_client.invalidateQueries()` on resume** — an earlier
+  version of `_Core` did that (mixing in `WidgetsBindingObserver`, overriding
+  `didChangeAppLifecycleState`, coalescing via a static `_pendingResumeInvalidate` set), and it was a
+  real bug: it force-refetched every query on the shared client on every resume, including ones
+  explicitly marked `refetchOnResume: never`, and standalone/`QueryScope` queries had no resume handling
+  at all (silent no-op). If you touch resume behavior again, keep it scoped to `bindResume` per
+  observer — don't go back to a client-wide call.
 - `GetBaseViewModel extends GetxController`: `onInit`→`super.onInit(); _core.init()`;
   `onClose`→`_core.dispose(); super.onClose()`. Ordering (dispose before super.onClose) is deliberate;
   GetX calls these automatically → subscriptions auto-dispose on controller close (the main reason to

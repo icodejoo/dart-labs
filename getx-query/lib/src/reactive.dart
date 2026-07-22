@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/foundation.dart';
+import 'package:flutter/widgets.dart' show AppLifecycleListener;
 import 'package:get/get.dart';
 
 /// Unwrap a reactive value to its current plain value; pass-through for non-Rx.
@@ -36,4 +37,14 @@ List<StreamSubscription> bindReactive(
     if (v is RxObjectMixin) subs.add(v.stream.listen((_) => onChange()));
   }
   return subs;
+}
+
+/// Subscribe [onResume] to app-foreground-resume events, mirroring what
+/// flutter_query's own hooks do per query (`AppLifecycleListener(onResume:
+/// observer.onResume)`) — so each query's own `refetchOnResume` policy is
+/// honored individually instead of a blanket, client-wide invalidation.
+/// Returns a callback to cancel the subscription.
+VoidCallback bindResume(VoidCallback onResume) {
+  final listener = AppLifecycleListener(onResume: onResume);
+  return listener.dispose;
 }

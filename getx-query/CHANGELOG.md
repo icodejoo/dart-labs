@@ -1,3 +1,17 @@
+## 0.1.1
+
+- Fix: `refetchOnResume` now actually takes effect — every `useQuery`/`useInfiniteQuery`
+  (standalone, via `QueryScope`, or on a `BaseViewModel`/`GetBaseViewModel`) subscribes its own
+  observer to app-foreground-resume via `AppLifecycleListener(onResume: observer.onResume)`,
+  matching flutter_query's own hooks. Each query's individual `stale`/`always`/`never` policy is
+  now respected.
+  - Previously, standalone `useQuery`/`useInfiniteQuery` and `QueryScope` had no resume handling
+    at all, so `refetchOnResume` was silently a no-op.
+  - Previously, `BaseViewModel`/`GetBaseViewModel` instead ran a blanket, client-wide
+    `invalidateQueries()` on every resume — refetching *all* queries on the shared `QueryClient`
+    regardless of their `refetchOnResume` setting (including ones explicitly set to `never`), and
+    regardless of whether they were actually stale.
+
 ## 0.1.0
 
 - First release. An [Rx]-backed bridge that brings

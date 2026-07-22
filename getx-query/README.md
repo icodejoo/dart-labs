@@ -436,7 +436,7 @@ Both mix in the full `QueryClient` API and track every subscription (`useQuery`,
 - **`GetBaseViewModel`** — extends `GetxController`; wires `onInit`/`onClose` automatically. Resolves the client from `QueryService` unless you pass one.
 - **`BaseViewModel`** — framework-agnostic; constructor-inject a `QueryClient`, call `init()` / `dispose()` yourself (both `@mustCallSuper`).
 
-Both also invalidate all queries on `AppLifecycleState.resumed`. If several ViewModels share the same `QueryClient` and are alive at once, that resume-invalidation is coalesced into a single call per client per resume — not one per ViewModel.
+Each `useQuery`/`useInfiniteQuery` — whether called standalone, via `QueryScope`, or on a ViewModel — honors its own `refetchOnResume` policy individually on app foreground resume (`stale` / `always` / `never`), same as calling flutter_query's hooks directly. There is no blanket, client-wide invalidation on resume.
 
 | Member | Meaning |
 |---|---|

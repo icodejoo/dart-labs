@@ -45,14 +45,14 @@ class CacheEntity {
       );
 
   /// A copy with [expireAt] overridden — used by sliding renewal so the
-  /// in-memory memo entry is never mutated in place before the backend write
-  /// is confirmed (mirrors a fix in the sibling `@codejoo/storage` TS
-  /// project: mutating a memo-shared entity before `persist()` succeeds would
-  /// let readers observe a "renewed" expiry the backend never actually got).
+  /// just-read entity is never mutated in place before the backend write is
+  /// confirmed (mirrors a fix in the sibling `@codejoo/storage` TS project:
+  /// mutating the entity before `persist()` succeeds would let readers
+  /// observe a "renewed" expiry the backend never actually got).
   ///
-  /// 覆盖 [expireAt] 的副本——滑动续期专用，保证落盘确认前绝不原地改动可能
-  /// 被 memo 共享着的 entity（对齐姊妹 TS 项目 `@codejoo/storage` 修过的一个
-  /// 坑：落盘成功前原地改会让读者看到一个后端其实没拿到的"已续期"过期时间）。
+  /// 覆盖 [expireAt] 的副本——滑动续期专用，保证落盘确认前绝不原地改动刚读出
+  /// 来的 entity（对齐姊妹 TS 项目 `@codejoo/storage` 修过的一个坑：落盘成功
+  /// 前原地改会让读者看到一个后端其实没拿到的"已续期"过期时间）。
   CacheEntity renewed(int expireAt) => CacheEntity(
         value: value,
         expireAt: expireAt,

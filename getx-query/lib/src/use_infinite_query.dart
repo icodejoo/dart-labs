@@ -98,10 +98,12 @@ InfiniteQueryResult<TData, TPageParam> useInfiniteQuery<TData, TPageParam>({
 
   void update() => observer.options = buildOptions();
   final rxSubs = bindReactive([...queryKey, enabled], update);
+  final disposeResume = bindResume(observer.onResume);
 
   result.disposeCallback = () {
     unsubscribe();
     observer.onUnmount();
+    disposeResume();
     for (final s in rxSubs) {
       s.cancel();
     }

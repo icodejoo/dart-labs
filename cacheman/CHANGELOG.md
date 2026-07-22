@@ -1,3 +1,32 @@
+## 0.3.0
+
+**Breaking:**
+
+- Removed the `Store` and `MemoCache` abstraction layers. `Engine` now talks directly to a
+  `GetStorage` container and a plain `Map` read cache instead of going through an injected
+  backend/memo-cache interface — both only ever had one real implementation
+  (`GetStorageAdapter`/`Memo`), so the seam was pure indirection. `GetStorageAdapter` and
+  `Memo` (and their files `lib/src/get_storage_adapter.dart`/`lib/src/memo.dart`) are deleted.
+  `Store`/`MemoCache`/`Memo` were previously part of the public export surface
+  (`package:cacheman/cacheman.dart`) — any code importing them directly will no longer
+  compile. This is an internal simplification with no behavioral change to `Cacheman`'s
+  public API (`read`/`write`/`remove`/`erase`/... are unaffected).
+- Removed the in-process memo read-cache layer entirely. Every `read` now goes straight to
+  `get_storage`; every `write` persists straight to `get_storage`, with no intermediate cache.
+  `CachemanOptions.memoized`, `CacheOptions.memoized`, `CachemanOptions.cloned`, and
+  `CachemanOptions.deepCloned` are all removed (there is no longer a shared memo reference for
+  `cloned`/`deepCloned` to protect against — every `read()` already returns a value freshly
+  deserialized from JSON, never aliased to anything the engine holds onto). `Engine.destroy()`
+  and `Cacheman.destroy()` are removed — with no memo cache, `destroy()` had nothing left to do.
+- Merged the `Engine` class directly into `Cacheman` — `Cacheman` was already a pure
+  forwarding wrapper around `Engine` with no other consumers, so the two are now one class
+  (`lib/src/cacheman.dart`); `lib/src/engine.dart` is deleted, and `CacheOptions`/
+  `CachemanOptions` moved to `lib/src/options.dart`. This is an internal simplification with
+  no behavioral change to `Cacheman`'s public API, but it **is breaking** for anyone who
+  imported the `Engine` type directly (it was previously exported from
+  `package:cacheman/cacheman.dart`) — that export is removed, since nothing outside the
+  package ever constructed an `Engine` on its own.
+
 ## 0.2.0
 
 **Breaking:**
