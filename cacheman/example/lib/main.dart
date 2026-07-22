@@ -6,7 +6,8 @@ late Cacheman cache;
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  cache = await Cacheman.create();
+  cache = Cacheman();
+  await cache.ensureInitialized();
   runApp(const CachemanDemoApp());
 }
 

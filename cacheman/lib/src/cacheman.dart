@@ -17,8 +17,9 @@ import 'options.dart';
 /// happens in the background, debounced, and never blocks a read. There's no
 /// second, genuinely-async persistent backend to justify a sync/async dual
 /// API the way the TS version's `ls` (sync) vs `db` (async IndexedDB) split
-/// does. So `Cacheman.create()` is the only `Future` boundary; every method
-/// on [Cacheman] after that is synchronous.
+/// does. The one `Future` in the API is [ensureInitialized] — call and await
+/// it once right after constructing, before any read/write; every other
+/// method on [Cacheman] is synchronous.
 ///
 /// 统一、类型安全地封装 `get_storage`（持久层）：TTL/绝对过期、滑动续期、
 /// 命名空间、可插拔序列化、可选 codec 钩子、批量操作。全部读写/过期/命名
@@ -29,17 +30,43 @@ import 'options.dart';
 /// `read`/`write`/`remove` 在 `init()` 完成之后，对它自己的内存态就是同步
 /// 的——落盘是后台防抖做的，从不阻塞读。这里没有第二个真正异步的持久后端，
 /// 犯不着像 TS 版 `ls`（同步）vs `db`（异步 IndexedDB）那样搞一套同步/异步
-/// 二态 API。所以 `Cacheman.create()` 是唯一的 `Future` 边界，之后 [Cacheman]
-/// 上的每个方法都是同步的。
+/// 二态 API。整个 API 里唯一的 `Future` 是 [ensureInitialized]——构造完实例后
+/// 先 await 它一次，再做任何读写；[Cacheman] 上其余方法都是同步的。
 ///
 /// ```dart
-/// final cache = await Cacheman.create();
+/// final cache = Cacheman();
+/// await cache.ensureInitialized();     // must run before first read/write
 /// cache.write('token', 'abc');         // persists across restarts
 /// cache.read<String>('token');         // 'abc' — synchronous
 /// cache.setNamespace('alice');         // per-account isolation
 /// ```
 class Cacheman {
-  Cacheman._(this._gs, this._opts) : _ns = _initialNs(_opts.namespace) {
+  /// Builds a [Cacheman] for [container]/[path] with [options]. Synchronous
+  /// — building the underlying `GetStorage` is itself synchronous, but its
+  /// disk-backed state isn't loaded yet. **Callers must call and await
+  /// [ensureInitialized] before any read/write** (this constructor can't be
+  /// `async` itself, so that guarantee isn't compiler-enforced — it's on the
+  /// caller).
+  ///
+  /// A subclass just forwards its own constructor params via `super(...)`,
+  /// e.g. `MySub({super.container, super.path, super.options});` — no extra
+  /// factory boilerplate needed.
+  ///
+  /// 用 [container]/[path]/[options] 构造一个 [Cacheman]。同步——底层
+  /// `GetStorage` 的构造本身是同步的，但它的磁盘态数据这时候还没加载。
+  /// **调用方必须在任何读写之前先调用并 await [ensureInitialized]**（构造函数
+  /// 没法是 `async` 的，所以这条保证编译器不会帮你check，靠调用方自觉）。
+  ///
+  /// 子类只需把自己构造函数的参数用 `super(...)` 转发下去即可，比如
+  /// `MySub({super.container, super.path, super.options});`——不需要额外的
+  /// 工厂方法样板代码。
+  Cacheman({
+    String container = 'cacheman',
+    String? path,
+    CachemanOptions options = const CachemanOptions(),
+  })  : _gs = GetStorage(container, path),
+        _opts = options,
+        _ns = _initialNs(options.namespace) {
     if (_opts.enckey && _opts.codec == null) {
       // ignore: avoid_print
       print('[cacheman] `enckey` requires a `codec`; none provided — keys remain in plaintext.');
@@ -52,45 +79,32 @@ class Cacheman {
 
   static String _initialNs(String? namespace) => namespace != null && namespace.isNotEmpty ? '$namespace:' : '';
 
-  /// Creates and initializes a [Cacheman] instance. Must be awaited before
-  /// first use — this is the only `Future` boundary in the whole API (see
-  /// the class doc).
+  /// Awaits this instance's `GetStorage` disk load. Must be called once and
+  /// awaited before any read/write — this is the only `Future` boundary in
+  /// the whole API (see the class doc).
   ///
-  /// [container]/[path] are forwarded to `GetStorage` (same container name ⇒
-  /// same underlying data across `create()` calls — `get_storage` caches
-  /// instances per container internally). [options] apply to this instance.
+  /// Not routed through `GetStorage.init(container)` — it internally always
+  /// calls `GetStorage(container)` (no path) to create/fetch a cached
+  /// instance; once that's run once for a container name, `path` is
+  /// permanently baked in as null for that name and any `path` passed to the
+  /// constructor above would've been ignored (the factory caches by
+  /// container name — a cache hit just returns the old instance, constructor
+  /// args and all). The constructor above builds `GetStorage(container,
+  /// path)` itself instead, so `path` sticks; this method just awaits that
+  /// instance's own `initStorage`.
   ///
-  /// 创建并初始化一个 [Cacheman] 实例。首次使用前必须 await——这是整个 API
-  /// 里唯一的 `Future` 边界（见类文档）。
+  /// 等待本实例的 `GetStorage` 磁盘态加载完。必须在任何读写之前调用并 await
+  /// 一次——这是整个 API 里唯一的 `Future` 边界（见类文档）。
   ///
-  /// [container]/[path] 透传给 `GetStorage`（同一个 container 名 ⇒
-  /// `create()` 多次调用间是同一份底层数据——`get_storage` 内部按 container
-  /// 名缓存实例）。[options] 作用于本实例。
-  static Future<Cacheman> create({
-    String container = 'cacheman',
-    String? path,
-    CachemanOptions options = const CachemanOptions(),
-  }) async {
-    // 不走 GetStorage.init(container)——它内部固定用 GetStorage(container)（不带
-    // path）去建/取缓存实例，一旦先跑过一次就把这个 container 名永久钉死成
-    // path=null，我们后面再传 path 也没用（factory 按 container 名读缓存，
-    // 命中就直接返回旧实例，构造参数被无视）。这里改成自己先用带 path 的调用
-    // 建好实例，再自己 await 它的 initStorage——WidgetsFlutterBinding 也要
-    // 自己确保初始化（原来是 init() 内部帮着调的）。
-    //
-    // Not going through GetStorage.init(container) — it internally always
-    // calls GetStorage(container) (no path) to create/fetch the cached
-    // instance; once that's run once for this container name, `path` is
-    // permanently baked in as null and any `path` we pass later is ignored
-    // (the factory caches by container name — a cache hit just returns the
-    // old instance, constructor args and all). Instead, construct the
-    // instance ourselves WITH `path` first, then await its own
-    // `initStorage` — and ensure `WidgetsFlutterBinding` ourselves (`init()`
-    // used to do that for us).
+  /// 没有走 `GetStorage.init(container)`——它内部固定用 `GetStorage(container)`
+  /// （不带 path）去建/取缓存实例，一旦某个 container 名跑过一次，`path` 就
+  /// 永久钉死成 null，上面构造函数传的 `path` 会被无视（factory 按
+  /// container 名读缓存，命中就直接返回旧实例，构造参数被无视）。上面的
+  /// 构造函数改成自己直接用带 `path` 的 `GetStorage(container, path)` 建实例，
+  /// 所以 `path` 能生效；这个方法只是 await 那个实例自己的 `initStorage`。
+  Future<void> ensureInitialized() async {
     WidgetsFlutterBinding.ensureInitialized();
-    final gs = GetStorage(container, path);
-    await gs.initStorage;
-    return Cacheman._(gs, options);
+    await _gs.initStorage;
   }
 
   /// The `get_storage` container this instance persists to.
@@ -239,7 +253,7 @@ class Cacheman {
   ///
   /// **Caveat**: only writes/deletes made *through this instance* update the
   /// cache. A different [Cacheman] instance sharing the same namespace on the
-  /// same backend (e.g. two `Cacheman.create()` calls for the same
+  /// same backend (e.g. two `Cacheman()` instances for the same
   /// container+namespace) can drift this cache stale — the original
   /// always-full-scan behavior didn't have that limitation. Fine when each
   /// namespace is owned by exactly one live instance, which is the normal
@@ -252,7 +266,7 @@ class Cacheman {
   ///
   /// **注意**：只有经过本实例的写入/删除才会更新缓存。如果同一个 namespace
   /// 在同一个 backend 上被另一个 [Cacheman] 实例同时使用（比如同一个
-  /// container+namespace 建了两个 `Cacheman.create()`），这个缓存可能读不到
+  /// container+namespace 建了两个 `Cacheman()` 实例），这个缓存可能读不到
   /// 对方的变更而过期——原来的每次全扫版本没有这个限制。正常的"每个
   /// namespace 只有一个存活实例"用法（比如按账号隔离）下没问题。
   Set<String>? _ownedKeysCache;

@@ -9,14 +9,14 @@ import 'package:path_provider_platform_interface/path_provider_platform_interfac
 /// `get_storage`'s io backend calls `getApplicationDocumentsDirectory()`
 /// unconditionally before falling back to an explicit `path` (see
 /// `get_storage`'s `StorageImpl._fileDb`), so even passing `path:` to
-/// `Cacheman.create()` still needs a working path_provider platform channel
+/// `Cacheman()`'s constructor still needs a working path_provider platform channel
 /// — absent under plain `flutter test`. This fake satisfies that call; the
 /// path it returns is never actually used since our tests always pass an
 /// explicit `path:`.
 ///
 /// `get_storage` 的 io 后端在决定要不要用传入的 `path` 之前，会无条件先调一次
 /// `getApplicationDocumentsDirectory()`（见 `get_storage` 的
-/// `StorageImpl._fileDb`），所以就算给 `Cacheman.create()` 传了 `path:`，也
+/// `StorageImpl._fileDb`），所以就算给 `Cacheman()` 构造函数传了 `path:`，也
 /// 还是需要一个能用的 path_provider 平台通道——纯 `flutter test` 下没有。这个
 /// 假实现就是补上这一调用；返回的路径本身用不到，因为我们的测试都显式传了
 /// `path:`。
@@ -49,6 +49,15 @@ class FakeCodec implements Codec {
       return null;
     }
   }
+}
+
+/// Awaits [cache]'s init and returns it — sugar for the direct
+/// `Cacheman(...)` construction sites below (the `newCache` helper inside
+/// `main()` covers the common case; this is for the group that exercises the
+/// constructor directly).
+Future<Cacheman> _ready(Cacheman cache) async {
+  await cache.ensureInitialized();
+  return cache;
 }
 
 void main() {
@@ -88,22 +97,25 @@ void main() {
     bool readonly = false,
     bool enckey = false,
     CachemanOnError? onError,
-  }) =>
-      Cacheman.create(
-        container: container ?? nextContainer(),
-        path: tempDir.path,
-        options: CachemanOptions(
-          codeable: codeable,
-          codec: codec,
-          sliding: sliding,
-          namespace: namespace,
-          raw: raw,
-          force: force,
-          readonly: readonly,
-          enckey: enckey,
-          onError: onError,
-        ),
-      );
+  }) async {
+    final cache = Cacheman(
+      container: container ?? nextContainer(),
+      path: tempDir.path,
+      options: CachemanOptions(
+        codeable: codeable,
+        codec: codec,
+        sliding: sliding,
+        namespace: namespace,
+        raw: raw,
+        force: force,
+        readonly: readonly,
+        enckey: enckey,
+        onError: onError,
+      ),
+    );
+    await cache.ensureInitialized();
+    return cache;
+  }
 
   setUp(() {
     tempDir = Directory.systemTemp.createTempSync('cacheman_test_');
@@ -425,15 +437,15 @@ void main() {
     });
   });
 
-  group('Cacheman.create() — real get_storage integration', () {
+  group('Cacheman() — real get_storage integration', () {
     test('ls persists via get_storage', () async {
-      final cache = await Cacheman.create(container: 'cacheman_test_ls', path: tempDir.path);
+      final cache = await _ready(Cacheman(container: 'cacheman_test_ls', path: tempDir.path));
       cache.write('a', 'persisted');
       expect(cache.read<String>('a'), 'persisted');
     });
 
     test('ls.key(index)/length walk get_storage directly without materializing keys()', () async {
-      final cache = await Cacheman.create(container: 'cacheman_test_ls_key', path: tempDir.path);
+      final cache = await _ready(Cacheman(container: 'cacheman_test_ls_key', path: tempDir.path));
       cache.write('a', 1);
       cache.write('b', 2);
       cache.write('c', 3);
@@ -448,7 +460,7 @@ void main() {
     });
 
     test('setNamespace switches ls', () async {
-      final cache = await Cacheman.create(container: 'cacheman_test_ns', path: tempDir.path);
+      final cache = await _ready(Cacheman(container: 'cacheman_test_ns', path: tempDir.path));
       cache.write('token', 'v1');
       cache.setNamespace('alice');
       expect(cache.read<String>('token'), isNull);
@@ -456,7 +468,7 @@ void main() {
 
     group('fast / lazy / batchFast', () {
       test('fast binds a key and forwards get/set/remove', () async {
-        final cache = await Cacheman.create(container: 'cacheman_test_fast', path: tempDir.path);
+        final cache = await _ready(Cacheman(container: 'cacheman_test_fast', path: tempDir.path));
         final token = fast<String>(cache, 'token');
         token.set('abc');
         expect(token.get(), 'abc');
@@ -466,7 +478,7 @@ void main() {
       });
 
       test('lazy only builds the accessor on first call, then reuses it', () async {
-        final cache = await Cacheman.create(container: 'cacheman_test_lazy', path: tempDir.path);
+        final cache = await _ready(Cacheman(container: 'cacheman_test_lazy', path: tempDir.path));
         final tokenLazy = lazy<String>(cache, 'token');
         final a = tokenLazy();
         final b = tokenLazy();
@@ -474,7 +486,7 @@ void main() {
       });
 
       test('batchFast binds several keys at once', () async {
-        final cache = await Cacheman.create(container: 'cacheman_test_batch_fast', path: tempDir.path);
+        final cache = await _ready(Cacheman(container: 'cacheman_test_batch_fast', path: tempDir.path));
         final accessors = batchFast<String>(cache, ['a', 'b']);
         accessors['a']!.set('1');
         accessors['b']!.set('2');
@@ -485,18 +497,18 @@ void main() {
 
     group('debug()', () {
       test('returns every owned entry decrypted, namespace preserved', () async {
-        final cache = await Cacheman.create(
+        final cache = await _ready(Cacheman(
           container: 'cacheman_test_debug',
           path: tempDir.path,
           options: CachemanOptions(namespace: 'ns', enckey: true, codec: FakeCodec()),
-        );
+        ));
         cache.write('a', 1);
         cache.write('b', 2);
         expect(debug(cache), {'ns:a': 1, 'ns:b': 2});
       });
 
       test('does not write anything back — keys()/length stay unaffected', () async {
-        final cache = await Cacheman.create(container: 'cacheman_test_debug_noop', path: tempDir.path);
+        final cache = await _ready(Cacheman(container: 'cacheman_test_debug_noop', path: tempDir.path));
         cache.write('a', 1);
         debug(cache);
         expect(cache.length, 1);

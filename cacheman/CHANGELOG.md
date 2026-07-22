@@ -1,3 +1,17 @@
+## 0.5.0
+
+**Breaking:**
+
+- Removed `Cacheman.create()`. `Cacheman` now has a plain, synchronous constructor
+  (`Cacheman({container, path, options})`) plus an instance method `ensureInitialized()` that
+  must be called and awaited once before any read/write — the only `Future` boundary in the API,
+  same role `create()` used to play. This lets external code `extend Cacheman` and forward
+  constructor params via `super(...)` without any factory boilerplate (Dart constructors can't be
+  `async`, which is why `create()` — a static factory — couldn't be subclassed cleanly).
+
+  Migration: `final cache = await Cacheman.create(options: opts);` →
+  `final cache = Cacheman(options: opts); await cache.ensureInitialized();`
+
 ## 0.4.0
 
 - Added `Cacheman.container` — exposes the underlying `get_storage` `GetStorage` instance, for
