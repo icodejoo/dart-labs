@@ -92,12 +92,13 @@ dynamic _reviver(dynamic key, dynamic value) {
 /// those before this file's `toEncodable` hook even runs).
 ///
 /// ```dart
-/// final cache = await Cacheman.create(
+/// final cache = Cacheman(
 ///   options: CachemanOptions(
 ///     serialize: (e) => Jsonx.encode(e.toJson()),
 ///     deserialize: (s) => CacheEntity.fromJson(Jsonx.decode<Map<String, dynamic>>(s)),
 ///   ),
 /// );
+/// await cache.ensureInitialized();
 /// cache.write('x', {'when': DateTime.now(), 'ids': {1, 2}}); // round-trips exactly
 /// ```
 ///

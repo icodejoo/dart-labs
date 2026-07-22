@@ -8,7 +8,8 @@ import 'cacheman.dart';
 /// [Cacheman.keys]/[Cacheman.length].
 ///
 /// ```dart
-/// final cache = await Cacheman.create(options: CachemanOptions(codeable: true, codec: myCodec));
+/// final cache = Cacheman(options: CachemanOptions(codeable: true, codec: myCodec));
+/// await cache.ensureInitialized();
 /// debug(cache); // { "token": "abc", ... }
 /// ```
 ///

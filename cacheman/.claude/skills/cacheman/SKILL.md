@@ -10,7 +10,7 @@ description: >-
   Dart/Flutter sibling of `@codejoo/storage` (TypeScript). Read BEFORE modifying anything
   under lib/src/ or changing CachemanOptions semantics. Covers Cacheman's internal
   invariants, the owned-key cache gotcha, sliding-renewal's 90% threshold, force's sync-only
-  retry, and the verify workflow. Triggers on: Cacheman.create, ls, CachemanOptions,
+  retry, and the verify workflow. Triggers on: Cacheman(), ensureInitialized, ls, CachemanOptions,
   CacheEntity, sliding, namespace, enckey, codeable, raw mode, readonly, force, onError,
   Jsonx, fast/lazy/batchFast, debug(), read/write/erase, container, storageKey, listenKey.
 ---
@@ -24,17 +24,22 @@ instance talking directly to a `GetStorage` container (no backend abstraction se
 only ever had one real implementation, so it was removed; also no in-process read cache —
 every `read` goes straight to `GetStorage`), wired up from one `CachemanOptions`. Entry point
 `lib/cacheman.dart` re-exports everything callers need. Tests: `test/cacheman_test.dart`
-(every case goes through a real `Cacheman.create()` backed by real `get_storage`, since
-`Cacheman` no longer accepts an injected fake backend — a shared `setUp`/`tearDown` builds a
-fresh temp dir + `FakePathProviderPlatform` per test, and each test picks a fresh container
-name). `example/lib/` is a runnable Flutter app (`flutter run example/lib/main.dart`)
-exercising every public feature — update it alongside the READMEs on any public API change.
+(every case goes through a real `Cacheman()` + `await ensureInitialized()` backed by real
+`get_storage`, since `Cacheman` no longer accepts an injected fake backend — a shared
+`setUp`/`tearDown` builds a fresh temp dir + `FakePathProviderPlatform` per test, and each
+test picks a fresh container name). `example/lib/` is a runnable Flutter app (`flutter run
+example/lib/main.dart`) exercising every public feature — update it alongside the READMEs
+on any public API change.
 
-**`Cacheman.create()` is the only `Future` boundary in the whole API** — every other
-method after that is synchronous, because `get_storage` is sync-after-init (see
-`Cacheman`'s class doc for the full "why" vs the TS sibling's async IndexedDB tier). Do not
-add async methods to `Cacheman` without re-reading that design note — it's a deliberate
-constraint, not an oversight.
+**`Cacheman()`'s constructor is plain and synchronous; `ensureInitialized()` (an instance
+method, not a static factory) is the only `Future` boundary in the whole API** — every other
+method is synchronous, because `get_storage` is sync-after-init (see `Cacheman`'s class doc
+for the full "why" vs the TS sibling's async IndexedDB tier). Do not add async methods to
+`Cacheman` without re-reading that design note — it's a deliberate constraint, not an
+oversight. There used to be a static `Cacheman.create()` factory instead; it was removed in
+favor of this plain-constructor + `ensureInitialized()` split specifically so external code
+can `extend Cacheman` and forward constructor params via `super(...)` — a static factory
+can't be subclassed that way, and Dart constructors can't be `async`.
 
 `Cacheman`'s public CRUD surface is `read`/`readAll`, `write`/`writeAll`, `remove`/
 `removeAll`, `erase` (plus `keys`/`key(index)`/`length`/`purge`/`setNamespace`,
@@ -67,9 +72,10 @@ bilingual (EN + 中文) doc comment; match that convention for anything new.
   `jsonDecode`). `createdAt` doubles as "this entry was written by this library" — never
   drop it when adding a new field, it's what stops a coincidentally-shaped foreign entry
   from being mistaken for an expired one.
-- **`lib/src/cacheman.dart`** — the whole `Cacheman` class: `Cacheman.create()` wiring
-  (builds `_gs` directly from the `GetStorage` container and one `CachemanOptions`), plus
-  all the logic: `read`/`readAll`, `write`/`writeAll`, `remove`/`removeAll`, `erase`,
+- **`lib/src/cacheman.dart`** — the whole `Cacheman` class: the constructor (builds `_gs`
+  directly from the `GetStorage` container and one `CachemanOptions`) plus `ensureInitialized()`
+  (awaits `_gs`'s disk load), plus all the logic: `read`/`readAll`, `write`/`writeAll`,
+  `remove`/`removeAll`, `erase`,
   `key`/`keys`/`length`/`purge`/`setNamespace`. `_gs` (the `GetStorage` container:
   `_gs.write`/`.remove`/`.erase` calls are fire-and-forget with `.catchError` → `onError`,
   because get_storage's disk flush is async and debounced, decoupled from any single call).
@@ -87,17 +93,18 @@ bilingual (EN + 中文) doc comment; match that convention for anything new.
 
 ## `Cacheman` invariants (do NOT break)
 
-- **`Cacheman.create()` does NOT call `GetStorage.init(container)`.** That factory method
-  internally caches instances by container name with `path` baked in as `null` on first
-  call — passing `path:` later would silently be ignored on a cache hit. Instead, `create()`
-  constructs `GetStorage(container, path)` directly and awaits `initStorage` itself, plus
-  calls `WidgetsFlutterBinding.ensureInitialized()` itself (normally `init()`'s job). Do not
-  "simplify" this back to `GetStorage.init(...)`.
+- **`Cacheman()`'s constructor does NOT call `GetStorage.init(container)`.** That factory
+  method internally caches instances by container name with `path` baked in as `null` on
+  first call — passing `path:` later would silently be ignored on a cache hit. Instead, the
+  constructor builds `GetStorage(container, path)` directly itself; `ensureInitialized()`
+  then awaits that instance's own `initStorage` and calls
+  `WidgetsFlutterBinding.ensureInitialized()` (normally `init()`'s job). Do not "simplify"
+  this back to `GetStorage.init(...)`.
 - **The owned-key cache (`_ownedKeysCache`) is per-`Cacheman`-instance, not per-backend.**
   It's lazily built via a full scan (`_gs.getKeys<Iterable<dynamic>>().where(_owns)`) on
   first access, then incrementally maintained by `_trackOwned`/`_untrackOwned` as *this*
   instance writes/deletes. **Two `Cacheman` instances sharing the same namespace on the
-  same backend (e.g. two separate `Cacheman.create()` calls for the same
+  same backend (e.g. two separate `Cacheman()` instances for the same
   container+namespace) can drift this cache stale** — a write through instance A is
   invisible to instance B's cache. Fine for the normal one-instance-per-namespace usage
   (per-account isolation); do not assume it's safe for concurrent same-namespace instances
@@ -143,7 +150,7 @@ flutter analyze example/cacheman_example.dart   # example is analyzed separately
 dart pub publish --dry-run   # release readiness check before bumping/publishing
 ```
 
-The `Cacheman.create()` integration tests need a working `path_provider` platform channel
+The `Cacheman()` integration tests need a working `path_provider` platform channel
 even though an explicit `path:` is passed (get_storage's io backend unconditionally calls
 `getApplicationDocumentsDirectory()` first) — `test/cacheman_test.dart`'s
 `FakePathProviderPlatform` satisfies that call; its returned path is never actually used.

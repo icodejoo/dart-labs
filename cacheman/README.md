@@ -9,7 +9,8 @@ with one unified API: TTL & absolute expiry, sliding renewal, namespaces, plugga
 serialization, an optional codec hook, and a key-bound shortcut helper. The Dart/Flutter sibling of
 `@codejoo/storage` (TypeScript).
 
-Fully synchronous after a single async `create()` — see `Cacheman`'s class doc for why.
+Fully synchronous after a single `await cache.ensureInitialized()` call — see `Cacheman`'s class
+doc for why.
 
 ## Install
 
@@ -24,7 +25,8 @@ dependencies:
 ```dart
 import 'package:cacheman/cacheman.dart';
 
-final cache = await Cacheman.create();
+final cache = Cacheman();
+await cache.ensureInitialized();
 
 cache.write('token', 'abc');       // persists across restarts (get_storage)
 cache.read<String>('token');       // 'abc' — synchronous
@@ -36,10 +38,28 @@ cache.setNamespace('alice');        // per-account isolation, in place
 
 ## API
 
-### `Cacheman.create({container, path, options})`
+### `Cacheman({container, path, options})`
 
-The only `Future` boundary. Returns a `Cacheman` (persistent, `get_storage`-backed) exposing all
-CRUD methods directly — no `.ls` indirection.
+Constructs a `Cacheman` (persistent, `get_storage`-backed) exposing all CRUD methods directly — no
+`.ls` indirection. Synchronous — call and `await` `ensureInitialized()` once before any read/write.
+
+### `cache.ensureInitialized()`
+
+The only `Future` boundary in the API. Awaits `get_storage`'s disk load for this instance's
+container.
+
+Subclassing: `Cacheman`'s constructor and `ensureInitialized()` are both plain, non-factory members,
+so a subclass just forwards constructor params via `super(...)` — no factory boilerplate needed:
+
+```dart
+class MyCacheman extends Cacheman {
+  MyCacheman({super.container, super.path, super.options});
+  int extra = 0;
+}
+
+final cache = MyCacheman();
+await cache.ensureInitialized();
+```
 
 ### `Cacheman` methods
 

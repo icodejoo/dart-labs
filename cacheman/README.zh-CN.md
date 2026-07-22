@@ -6,7 +6,7 @@
 
 一个轻量、类型安全的封装，包住 [`get_storage`](https://pub.dev/packages/get_storage)（持久层），对外一套统一 API：TTL 与绝对过期、滑动续期、命名空间、可插拔序列化、可选 codec 钩子、键绑定的快捷访问器。姊妹 TS 项目 `@codejoo/storage` 的 Dart/Flutter 版本。
 
-只有一次异步的 `create()` 之后全同步——原因见 `Cacheman` 的类文档。
+只需 `await cache.ensureInitialized()` 一次之后全同步——原因见 `Cacheman` 的类文档。
 
 ## 安装
 
@@ -21,7 +21,8 @@ dependencies:
 ```dart
 import 'package:cacheman/cacheman.dart';
 
-final cache = await Cacheman.create();
+final cache = Cacheman();
+await cache.ensureInitialized();
 
 cache.write('token', 'abc');       // 持久化，跨进程重启（get_storage）
 cache.read<String>('token');       // 'abc' —— 同步
@@ -33,9 +34,25 @@ cache.setNamespace('alice');        // 原地按账号隔离
 
 ## API
 
-### `Cacheman.create({container, path, options})`
+### `Cacheman({container, path, options})`
 
-整个 API 唯一的 `Future` 边界。返回一个 `Cacheman`（持久层，`get_storage` 支撑），全部读写接口直接挂在上面——不再有 `.ls` 这层间接。
+构造一个 `Cacheman`（持久层，`get_storage` 支撑），全部读写接口直接挂在上面——不再有 `.ls` 这层间接。同步——任何读写前需先调用并 `await` 一次 `ensureInitialized()`。
+
+### `cache.ensureInitialized()`
+
+整个 API 唯一的 `Future` 边界，等待本实例对应 container 的磁盘态加载完。
+
+子类化：`Cacheman` 的构造函数和 `ensureInitialized()` 都是普通成员，不是工厂方法，子类只需把构造参数用 `super(...)` 转发即可，不需要额外的工厂样板代码：
+
+```dart
+class MyCacheman extends Cacheman {
+  MyCacheman({super.container, super.path, super.options});
+  int extra = 0;
+}
+
+final cache = MyCacheman();
+await cache.ensureInitialized();
+```
 
 ### `Cacheman` 方法
 
