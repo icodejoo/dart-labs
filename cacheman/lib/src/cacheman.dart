@@ -127,6 +127,16 @@ class Cacheman {
   /// 见其文档）。
   final GetStorage _gs;
 
+  /// The underlying `get_storage` container this instance persists to.
+  /// Exposed for interop that needs the raw container — e.g. `listenKey`
+  /// for external change notifications (see [storageKey] for the key to
+  /// pass it).
+  ///
+  /// 本实例落盘的底层 `get_storage` container。给需要拿到原始 container 的
+  /// 互操作场景用——比如用 `listenKey` 监听外部变更（配合 [storageKey] 拿
+  /// 要传给它的 key）。
+  GetStorage get container => _gs;
+
   final CachemanOptions _opts;
 
   String _ns;
@@ -154,6 +164,18 @@ class Cacheman {
   }
 
   // ── key helpers ──────────────────────────────────────────────────────────
+
+  /// The actual key [key] is persisted under in [container] — namespace
+  /// prefixed and, with `enckey`, codec-encoded on top. External listeners
+  /// (e.g. `container.listenKey(...)`) must watch this, not [key] itself,
+  /// since the raw storage key is otherwise opaque (the codec is a
+  /// pluggable, private implementation detail).
+  ///
+  /// [key] 在 [container] 里实际落盘用的 key——加了命名空间前缀，`enckey`
+  /// 时还会经 codec 编码。外部监听器（比如 `container.listenKey(...)`）必须
+  /// 监听这个，而不是 [key] 本身，因为原始存储 key 否则是不透明的（codec 是
+  /// 可插拔的私有实现细节）。
+  String storageKey(String key) => _fullKey(key);
 
   String _fullKey(String key) {
     final nk = '$_ns$key';

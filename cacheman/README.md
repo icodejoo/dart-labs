@@ -53,6 +53,8 @@ CRUD methods directly — no `.ls` indirection.
 | `purge()` | Proactively delete expired entries (otherwise lazy). |
 | `erase()` | Erase owned keys (namespace/enckey-scoped) or everything. |
 | `namespace` / `setNamespace([ns])` | Current prefix / switch it in place. |
+| `container` | Underlying `get_storage` `GetStorage` instance — for interop needing the raw container (e.g. `listenKey` for external change notifications). |
+| `storageKey(key)` | The actual key `key` is persisted under (namespace-prefixed, `enckey`-encoded when enabled) — pass this to `container.listenKey(...)`, not `key` itself. |
 
 ### `CachemanOptions`
 
@@ -66,6 +68,33 @@ interface — bring your own (obfuscation, real encryption, compression, whateve
 ### `fast<V>(cache, key)` / `lazy<V>(cache, key)` / `batchFast<V>(cache, keys)`
 
 Key-bound shortcut accessors — see `lib/src/fast.dart`.
+
+### GetX reactive interop (`container` + `storageKey`)
+
+`get` is *not* a dependency of this package — `container`/`storageKey` are a plain escape
+hatch, not a shipped GetX integration. If you do use GetX, they're enough to build a
+VueUse-`useStorage`-style reactive wrapper yourself:
+
+```dart
+Rx<V?> reactive<V>(Cacheman cache, String key) {
+  final rx = Rx<V?>(cache.read<V>(key));
+
+  // External writes (another instance/isolate) update the Rx.
+  cache.container.listenKey(cache.storageKey(key), (dynamic _) => rx.value = cache.read<V>(key));
+
+  // Local Rx writes persist back through cacheman (ttl/serialize/etc. still apply).
+  ever(rx, (V? v) => v == null ? cache.remove(key) : cache.write<V>(key, v));
+
+  return rx;
+}
+
+final token = reactive<String>(cache, 'token');
+Obx(() => Text(token.value ?? 'no token'));
+token.value = 'abc123'; // updates the UI and persists
+```
+
+Use `cache.storageKey(key)`, not `cache.namespace + key`, whenever `enckey` might be in play —
+the codec's encoding is a private, pluggable detail `storageKey` already accounts for.
 
 ### `debug(cache)`
 

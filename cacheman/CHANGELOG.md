@@ -1,3 +1,12 @@
+## 0.4.0
+
+- Added `Cacheman.container` — exposes the underlying `get_storage` `GetStorage` instance, for
+  interop that needs the raw container (e.g. `listenKey` for external change notifications, such
+  as wiring up a GetX `Rx` for reactive reads).
+- Added `Cacheman.storageKey(key)` — returns the actual key `key` is persisted under
+  (namespace-prefixed, and `enckey`-encoded when enabled). Needed alongside `container` since the
+  real storage key is otherwise opaque once `enckey`'s pluggable codec is involved.
+
 ## 0.3.0
 
 **Breaking:**
