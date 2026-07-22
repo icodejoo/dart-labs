@@ -1731,4 +1731,626 @@ void main() {
               "belongs to the second request's own callback instead");
     });
   });
+
+  group('DiomanBreaker', () {
+    test('trips after N consecutive failures, then fails fast (no network)',
+        () async {
+      var hits = 0;
+      final server = await TestServer.start((req) async {
+        hits++;
+        await respondJson(req, {'ok': false}, 500);
+      });
+      addTearDown(server.close);
+
+      final dio = Dio(BaseOptions(baseUrl: server.baseUrl));
+      final breaker = DiomanBreaker(
+        failureThreshold: 3,
+        resetDuration: const Duration(seconds: 10),
+      );
+      dio.interceptors.add(breaker);
+      addTearDown(breaker.dispose);
+
+      // Three genuine failures trip the breaker.
+      for (var i = 0; i < 3; i++) {
+        await expectLater(dio.get<dynamic>('/x'), throwsA(isA<DioException>()));
+      }
+      expect(hits, 3, reason: 'all three failing requests hit the server');
+      expect(breaker.stateOf('GET:/x'), DiomanBreakerState.open);
+
+      // Fourth request is rejected fast — never reaches the server.
+      DioException? caught;
+      try {
+        await dio.get<dynamic>('/x');
+      } on DioException catch (e) {
+        caught = e;
+      }
+      expect(caught, isNotNull);
+      expect(caught!.error, isA<DiomanBreakerOpenException>());
+      expect((caught.error as DiomanBreakerOpenException).bucketKey, 'GET:/x');
+      expect(hits, 3, reason: 'fail-fast: the open breaker did NOT hit the server');
+    });
+
+    test('a success resets the consecutive-failure count', () async {
+      var status = 500;
+      final server = await TestServer.start((req) async {
+        await respondJson(req, {'ok': status == 200}, status);
+      });
+      addTearDown(server.close);
+
+      final dio = Dio(BaseOptions(baseUrl: server.baseUrl));
+      final breaker = DiomanBreaker(
+        failureThreshold: 3,
+        resetDuration: const Duration(seconds: 10),
+      );
+      dio.interceptors.add(breaker);
+      addTearDown(breaker.dispose);
+
+      // Two failures, then a success (resets), then two more failures — never
+      // three IN A ROW, so the breaker must stay closed.
+      status = 500;
+      await expectLater(dio.get<dynamic>('/x'), throwsA(isA<DioException>()));
+      await expectLater(dio.get<dynamic>('/x'), throwsA(isA<DioException>()));
+      status = 200;
+      await dio.get<dynamic>('/x');
+      status = 500;
+      await expectLater(dio.get<dynamic>('/x'), throwsA(isA<DioException>()));
+      await expectLater(dio.get<dynamic>('/x'), throwsA(isA<DioException>()));
+
+      expect(breaker.stateOf('GET:/x'), DiomanBreakerState.closed);
+    });
+
+    test('cooldown → halfOpen probe succeeds → closed', () async {
+      var status = 500;
+      var hits = 0;
+      final server = await TestServer.start((req) async {
+        hits++;
+        await respondJson(req, {'ok': status == 200}, status);
+      });
+      addTearDown(server.close);
+
+      final dio = Dio(BaseOptions(baseUrl: server.baseUrl));
+      final transitions = <String>[];
+      final breaker = DiomanBreaker(
+        failureThreshold: 2,
+        resetDuration: const Duration(milliseconds: 150),
+        halfOpenMaxCalls: 1,
+        onStateChange: (k, from, to) => transitions.add('${from.name}->${to.name}'),
+      );
+      dio.interceptors.add(breaker);
+      addTearDown(breaker.dispose);
+
+      // Trip it.
+      status = 500;
+      await expectLater(dio.get<dynamic>('/x'), throwsA(isA<DioException>()));
+      await expectLater(dio.get<dynamic>('/x'), throwsA(isA<DioException>()));
+      expect(breaker.stateOf('GET:/x'), DiomanBreakerState.open);
+      final hitsAtOpen = hits;
+
+      // Still cooling down → fail fast, server untouched.
+      await expectLater(dio.get<dynamic>('/x'), throwsA(isA<DioException>()));
+      expect(hits, hitsAtOpen, reason: 'rejected before cooldown, no network');
+
+      // Wait out the cooldown, server now healthy → probe succeeds → closed.
+      await Future<void>.delayed(const Duration(milliseconds: 200));
+      status = 200;
+      await dio.get<dynamic>('/x');
+      expect(hits, hitsAtOpen + 1, reason: 'exactly one probe went to network');
+      expect(breaker.stateOf('GET:/x'), DiomanBreakerState.closed);
+      expect(transitions,
+          ['closed->open', 'open->halfOpen', 'halfOpen->closed']);
+    });
+
+    test('cooldown → halfOpen probe fails → re-opens', () async {
+      final server = await TestServer.start((req) async {
+        await respondJson(req, {'ok': false}, 500);
+      });
+      addTearDown(server.close);
+
+      final dio = Dio(BaseOptions(baseUrl: server.baseUrl));
+      final transitions = <String>[];
+      final breaker = DiomanBreaker(
+        failureThreshold: 2,
+        resetDuration: const Duration(milliseconds: 150),
+        halfOpenMaxCalls: 1,
+        onStateChange: (k, from, to) => transitions.add('${from.name}->${to.name}'),
+      );
+      dio.interceptors.add(breaker);
+      addTearDown(breaker.dispose);
+
+      await expectLater(dio.get<dynamic>('/x'), throwsA(isA<DioException>()));
+      await expectLater(dio.get<dynamic>('/x'), throwsA(isA<DioException>()));
+      expect(breaker.stateOf('GET:/x'), DiomanBreakerState.open);
+
+      await Future<void>.delayed(const Duration(milliseconds: 200));
+      // Probe hits the still-broken server, fails → back to open.
+      await expectLater(dio.get<dynamic>('/x'), throwsA(isA<DioException>()));
+      expect(breaker.stateOf('GET:/x'), DiomanBreakerState.open);
+      expect(transitions,
+          ['closed->open', 'open->halfOpen', 'halfOpen->open']);
+    });
+
+    test('custom shouldTrip counts a 200 business failure', () async {
+      final server = await TestServer.start((req) async {
+        // HTTP 200 but a business-level failure code.
+        await respondJson(req, {'code': 1, 'msg': 'nope'}, 200);
+      });
+      addTearDown(server.close);
+
+      final dio = Dio(BaseOptions(baseUrl: server.baseUrl));
+      final breaker = DiomanBreaker(
+        failureThreshold: 2,
+        resetDuration: const Duration(seconds: 10),
+        shouldTrip: (resp, err) {
+          final data = resp?.data;
+          if (data is Map && data['code'] != 0) return true;
+          return null;
+        },
+      );
+      dio.interceptors.add(breaker);
+      addTearDown(breaker.dispose);
+
+      // Both are HTTP 200 (no throw), but the breaker counts them as failures.
+      await dio.get<dynamic>('/x');
+      await dio.get<dynamic>('/x');
+      expect(breaker.stateOf('GET:/x'), DiomanBreakerState.open);
+
+      DioException? caught;
+      try {
+        await dio.get<dynamic>('/x');
+      } on DioException catch (e) {
+        caught = e;
+      }
+      expect(caught?.error, isA<DiomanBreakerOpenException>());
+    });
+
+    test('per-request enabled:false bypasses the open breaker', () async {
+      var hits = 0;
+      final server = await TestServer.start((req) async {
+        hits++;
+        await respondJson(req, {'ok': false}, 500);
+      });
+      addTearDown(server.close);
+
+      final dio = Dio(BaseOptions(baseUrl: server.baseUrl));
+      final breaker = DiomanBreaker(
+        failureThreshold: 2,
+        resetDuration: const Duration(seconds: 10),
+      );
+      dio.interceptors.add(breaker);
+      addTearDown(breaker.dispose);
+
+      await expectLater(dio.get<dynamic>('/x'), throwsA(isA<DioException>()));
+      await expectLater(dio.get<dynamic>('/x'), throwsA(isA<DioException>()));
+      expect(breaker.stateOf('GET:/x'), DiomanBreakerState.open);
+      final hitsAtOpen = hits;
+
+      // Opted-out request must still reach the server (real 500, not a
+      // fast-fail breaker rejection).
+      DioException? caught;
+      try {
+        await dio.get<dynamic>('/x',
+            options: Options(extra: {
+              DiomanBreaker.pluginName: const DiomanBreakerOptions(enabled: false),
+            }));
+      } on DioException catch (e) {
+        caught = e;
+      }
+      expect(caught?.error, isNot(isA<DiomanBreakerOpenException>()));
+      expect(hits, hitsAtOpen + 1, reason: 'the opted-out request hit the server');
+    });
+
+    test('with DiomanRetry: an open breaker stops the retry storm', () async {
+      var hits = 0;
+      final server = await TestServer.start((req) async {
+        hits++;
+        await respondJson(req, {'ok': false}, 500);
+      });
+      addTearDown(server.close);
+
+      final dio = Dio(BaseOptions(baseUrl: server.baseUrl));
+      // All requests share one bucket; threshold 1 so ONE fully-failed
+      // top-level request trips it.
+      final breaker = DiomanBreaker(
+        failureThreshold: 1,
+        resetDuration: const Duration(seconds: 10),
+        keyBuilder: (_) => 'bucket',
+      );
+      final retry = DiomanRetry(
+        max: 3,
+        delay: (_, __, ___, ____) => Duration.zero,
+      );
+      final handle = Dioman.install(dio, retry: retry, breaker: breaker);
+      addTearDown(handle.dispose);
+
+      // Request 1: closed → 1 real attempt + 3 retries = 4 hits, then the
+      // breaker records the final failure and opens.
+      await expectLater(dio.get<dynamic>('/x'), throwsA(isA<DioException>()));
+      expect(hits, 4);
+      expect(breaker.stateOf('bucket'), DiomanBreakerState.open);
+
+      // Request 2: breaker open → rejected fast, and DiomanRetry does NOT
+      // retry the breaker-open rejection. Zero extra hits.
+      DioException? caught;
+      try {
+        await dio.get<dynamic>('/x');
+      } on DioException catch (e) {
+        caught = e;
+      }
+      expect(caught?.error, isA<DiomanBreakerOpenException>());
+      expect(hits, 4, reason: 'no retry storm — breaker-open reject is not retried');
+    });
+
+    test('a cancelled request does not reset the failure count', () async {
+      var slow = false;
+      final server = await TestServer.start((req) async {
+        if (slow) await Future<void>.delayed(const Duration(seconds: 5));
+        await respondJson(req, {'ok': false}, 500);
+      });
+      addTearDown(server.close);
+
+      final dio = Dio(BaseOptions(baseUrl: server.baseUrl));
+      final breaker = DiomanBreaker(
+        failureThreshold: 3,
+        resetDuration: const Duration(seconds: 10),
+      );
+      dio.interceptors.add(breaker);
+      addTearDown(breaker.dispose);
+
+      // Two genuine failures — count = 2, one short of tripping.
+      await expectLater(dio.get<dynamic>('/x'), throwsA(isA<DioException>()));
+      await expectLater(dio.get<dynamic>('/x'), throwsA(isA<DioException>()));
+      expect(breaker.stateOf('GET:/x'), DiomanBreakerState.closed);
+
+      // Cancel an in-flight (admitted) request. A cancel must be neutral — it
+      // must NOT reset the count back to 0.
+      slow = true;
+      final ct = CancelToken();
+      final f = dio.get<dynamic>('/x', cancelToken: ct);
+      await Future<void>.delayed(const Duration(milliseconds: 50));
+      ct.cancel();
+      await expectLater(
+        f,
+        throwsA(isA<DioException>()
+            .having((e) => e.type, 'type', DioExceptionType.cancel)),
+      );
+      expect(breaker.stateOf('GET:/x'), DiomanBreakerState.closed);
+
+      // One more real failure → count reaches 3 → trips. Only possible if the
+      // cancel did NOT reset the count (otherwise this is just failure #1).
+      slow = false;
+      await expectLater(dio.get<dynamic>('/x'), throwsA(isA<DioException>()));
+      expect(breaker.stateOf('GET:/x'), DiomanBreakerState.open);
+    });
+  });
+
+  group('DiomanTimeout', () {
+    test('applies the matched tier: short receive times out, generous is ok',
+        () async {
+      final server = await TestServer.start((req) async {
+        await Future<void>.delayed(const Duration(milliseconds: 300));
+        await respondJson(req, {'ok': true}, 200);
+      });
+      addTearDown(server.close);
+
+      var quality = NetworkQuality.poor;
+      final dio = Dio(BaseOptions(baseUrl: server.baseUrl));
+      dio.interceptors.add(DiomanTimeout(
+        probe: () => quality,
+        timeouts: const {
+          NetworkQuality.poor: DiomanTimeouts(receive: Duration(milliseconds: 100)),
+          NetworkQuality.excellent: DiomanTimeouts(receive: Duration(seconds: 2)),
+        },
+      ));
+
+      // poor → 100ms receive against a 300ms server → receiveTimeout.
+      await expectLater(
+        dio.get<dynamic>('/x'),
+        throwsA(isA<DioException>()
+            .having((e) => e.type, 'type', DioExceptionType.receiveTimeout)),
+      );
+
+      // excellent → 2s receive → succeeds.
+      quality = NetworkQuality.excellent;
+      final r = await dio.get<dynamic>('/x');
+      expect(r.statusCode, 200);
+    });
+
+    test('only non-null fields are written; others keep BaseOptions', () async {
+      final server = await TestServer.start((req) async {
+        await respondJson(req, {'ok': true}, 200);
+      });
+      addTearDown(server.close);
+
+      final captured = <String, Duration?>{};
+      final dio = Dio(BaseOptions(
+        baseUrl: server.baseUrl,
+        connectTimeout: const Duration(seconds: 4),
+        receiveTimeout: const Duration(seconds: 5),
+      ));
+      dio.interceptors.add(DiomanTimeout(
+        probe: () => NetworkQuality.poor,
+        timeouts: const {
+          // Only connect is set for this tier.
+          NetworkQuality.poor: DiomanTimeouts(connect: Duration(seconds: 7)),
+        },
+      ));
+      dio.interceptors.add(InterceptorsWrapper(onRequest: (o, h) {
+        captured['connect'] = o.connectTimeout;
+        captured['receive'] = o.receiveTimeout;
+        h.next(o);
+      }));
+
+      await dio.get<dynamic>('/x');
+      expect(captured['connect'], const Duration(seconds: 7),
+          reason: 'connect was overridden by the tier');
+      expect(captured['receive'], const Duration(seconds: 5),
+          reason: 'receive was null in the tier → left at the BaseOptions value');
+    });
+
+    test('a tier absent from the map is a no-op for that request', () async {
+      final server = await TestServer.start((req) async {
+        await respondJson(req, {'ok': true}, 200);
+      });
+      addTearDown(server.close);
+
+      final captured = <String, Duration?>{};
+      final dio = Dio(BaseOptions(
+        baseUrl: server.baseUrl,
+        connectTimeout: const Duration(seconds: 4),
+        receiveTimeout: const Duration(seconds: 5),
+      ));
+      dio.interceptors.add(DiomanTimeout(
+        probe: () => NetworkQuality.good, // not in the map below
+        timeouts: const {
+          NetworkQuality.poor: DiomanTimeouts(connect: Duration(seconds: 7)),
+        },
+      ));
+      dio.interceptors.add(InterceptorsWrapper(onRequest: (o, h) {
+        captured['connect'] = o.connectTimeout;
+        captured['receive'] = o.receiveTimeout;
+        h.next(o);
+      }));
+
+      await dio.get<dynamic>('/x');
+      expect(captured['connect'], const Duration(seconds: 4));
+      expect(captured['receive'], const Duration(seconds: 5));
+    });
+
+    test('per-request enabled:false keeps the carried timeouts', () async {
+      final server = await TestServer.start((req) async {
+        await respondJson(req, {'ok': true}, 200);
+      });
+      addTearDown(server.close);
+
+      Duration? captured;
+      final dio = Dio(BaseOptions(
+        baseUrl: server.baseUrl,
+        connectTimeout: const Duration(seconds: 4),
+      ));
+      dio.interceptors.add(DiomanTimeout(
+        probe: () => NetworkQuality.poor,
+        timeouts: const {
+          NetworkQuality.poor: DiomanTimeouts(connect: Duration(seconds: 7)),
+        },
+      ));
+      dio.interceptors.add(InterceptorsWrapper(onRequest: (o, h) {
+        captured = o.connectTimeout;
+        h.next(o);
+      }));
+
+      await dio.get<dynamic>('/x',
+          options: Options(extra: {
+            DiomanTimeout.pluginName: const DiomanTimeoutOptions(enabled: false),
+          }));
+      expect(captured, const Duration(seconds: 4),
+          reason: 'opted out → the tier override never applied');
+    });
+
+    test('per-request timeouts merge, overriding a single tier', () async {
+      final server = await TestServer.start((req) async {
+        await respondJson(req, {'ok': true}, 200);
+      });
+      addTearDown(server.close);
+
+      Duration? captured;
+      final dio = Dio(BaseOptions(baseUrl: server.baseUrl));
+      dio.interceptors.add(DiomanTimeout(
+        probe: () => NetworkQuality.poor,
+        timeouts: const {
+          NetworkQuality.poor: DiomanTimeouts(connect: Duration(seconds: 7)),
+        },
+      ));
+      dio.interceptors.add(InterceptorsWrapper(onRequest: (o, h) {
+        captured = o.connectTimeout;
+        h.next(o);
+      }));
+
+      await dio.get<dynamic>('/x',
+          options: Options(extra: {
+            DiomanTimeout.pluginName: const DiomanTimeoutOptions(timeouts: {
+              NetworkQuality.poor: DiomanTimeouts(connect: Duration(seconds: 9)),
+            }),
+          }));
+      expect(captured, const Duration(seconds: 9),
+          reason: 'the per-request poor tier replaced the plugin default');
+    });
+  });
+
+  group('DiomanOffline', () {
+    /// Matcher for a DioException wrapping a DiomanOfflineException of [reason].
+    Matcher offlineError(DiomanOfflineReason reason) => isA<DioException>().having(
+        (e) => e.error, 'error',
+        isA<DiomanOfflineException>().having((x) => x.reason, 'reason', reason));
+
+    test('offline request is queued (no network), then replayed on reconnect',
+        () async {
+      var hits = 0;
+      final server = await TestServer.start((req) async {
+        hits++;
+        await respondJson(req, {'ok': true}, 200);
+      });
+      addTearDown(server.close);
+
+      final conn = StreamController<bool>();
+      addTearDown(conn.close);
+      var online = false;
+      final dio = Dio(BaseOptions(baseUrl: server.baseUrl));
+      final offline = DiomanOffline(
+        isOnline: () => online,
+        onConnectivityChanged: conn.stream,
+      );
+      dio.interceptors.add(offline);
+      addTearDown(offline.dispose);
+
+      final f = dio.get<dynamic>('/x'); // offline → parks
+      await Future<void>.delayed(const Duration(milliseconds: 50));
+      expect(offline.pending, 1);
+      expect(hits, 0, reason: 'queued, never went to the network');
+
+      online = true;
+      conn.add(true); // reconnect → flush
+      final r = await f;
+      expect(r.statusCode, 200);
+      expect(hits, 1, reason: 'replayed exactly once');
+      expect(offline.pending, 0);
+    });
+
+    test('online request passes straight through (not queued)', () async {
+      var hits = 0;
+      final server = await TestServer.start((req) async {
+        hits++;
+        await respondJson(req, {'ok': true}, 200);
+      });
+      addTearDown(server.close);
+
+      final conn = StreamController<bool>();
+      addTearDown(conn.close);
+      final dio = Dio(BaseOptions(baseUrl: server.baseUrl));
+      final offline = DiomanOffline(
+        isOnline: () => true,
+        onConnectivityChanged: conn.stream,
+      );
+      dio.interceptors.add(offline);
+      addTearDown(offline.dispose);
+
+      final r = await dio.get<dynamic>('/x');
+      expect(r.statusCode, 200);
+      expect(hits, 1);
+      expect(offline.pending, 0);
+    });
+
+    test('shouldQueue: only writes are queued, reads pass through', () async {
+      final server = await TestServer.start((req) async {
+        await respondJson(req, {'ok': true}, 200);
+      });
+      addTearDown(server.close);
+
+      final conn = StreamController<bool>();
+      addTearDown(conn.close);
+      var online = false;
+      final dio = Dio(BaseOptions(baseUrl: server.baseUrl));
+      final offline = DiomanOffline(
+        isOnline: () => online,
+        onConnectivityChanged: conn.stream,
+        shouldQueue: (o) => o.method.toUpperCase() != 'GET',
+      );
+      dio.interceptors.add(offline);
+      addTearDown(offline.dispose);
+
+      // GET is not queued → reaches the (real, up) test server right away.
+      final getR = await dio.get<dynamic>('/g');
+      expect(getR.statusCode, 200);
+      expect(offline.pending, 0);
+
+      // POST is queued while "offline".
+      final pf = dio.post<dynamic>('/p', data: <String, dynamic>{});
+      await Future<void>.delayed(const Duration(milliseconds: 50));
+      expect(offline.pending, 1);
+
+      online = true;
+      conn.add(true);
+      final pr = await pf;
+      expect(pr.statusCode, 200);
+    });
+
+    test('queue full evicts the oldest with a queueFull rejection', () async {
+      final server = await TestServer.start((req) async {
+        await respondJson(req, {'ok': true}, 200);
+      });
+      addTearDown(server.close);
+
+      final conn = StreamController<bool>();
+      addTearDown(conn.close);
+      var online = false;
+      final dio = Dio(BaseOptions(baseUrl: server.baseUrl));
+      final offline = DiomanOffline(
+        isOnline: () => online,
+        onConnectivityChanged: conn.stream,
+        maxQueueSize: 2,
+      );
+      dio.interceptors.add(offline);
+      addTearDown(offline.dispose);
+
+      final f1 = dio.get<dynamic>('/1');
+      final f2 = dio.get<dynamic>('/2');
+      final f3 = dio.get<dynamic>('/3');
+      // f3 enqueuing evicts f1 (oldest).
+      await expectLater(f1, throwsA(offlineError(DiomanOfflineReason.queueFull)));
+      expect(offline.pending, 2);
+
+      // Drain the survivors so no future is left dangling.
+      online = true;
+      conn.add(true);
+      await Future.wait([f2, f3]);
+      expect(offline.pending, 0);
+    });
+
+    test('maxWait rejects a queued request that waits too long', () async {
+      final server = await TestServer.start((req) async {
+        await respondJson(req, {'ok': true}, 200);
+      });
+      addTearDown(server.close);
+
+      final conn = StreamController<bool>();
+      addTearDown(conn.close);
+      final dio = Dio(BaseOptions(baseUrl: server.baseUrl));
+      final offline = DiomanOffline(
+        isOnline: () => false,
+        onConnectivityChanged: conn.stream,
+        maxWait: const Duration(milliseconds: 100),
+      );
+      dio.interceptors.add(offline);
+      addTearDown(offline.dispose);
+
+      await expectLater(
+        dio.get<dynamic>('/x'),
+        throwsA(offlineError(DiomanOfflineReason.timeout)),
+      );
+      expect(offline.pending, 0, reason: 'timed-out entry was removed');
+    });
+
+    test('dispose rejects every pending request (no perma-hang)', () async {
+      final server = await TestServer.start((req) async {
+        await respondJson(req, {'ok': true}, 200);
+      });
+      addTearDown(server.close);
+
+      final conn = StreamController<bool>();
+      addTearDown(conn.close);
+      final dio = Dio(BaseOptions(baseUrl: server.baseUrl));
+      final offline = DiomanOffline(
+        isOnline: () => false,
+        onConnectivityChanged: conn.stream,
+      );
+      dio.interceptors.add(offline);
+
+      final f = dio.get<dynamic>('/x');
+      await Future<void>.delayed(const Duration(milliseconds: 50));
+      expect(offline.pending, 1);
+
+      offline.dispose();
+      await expectLater(f, throwsA(offlineError(DiomanOfflineReason.disposed)));
+      expect(offline.pending, 0);
+    });
+  });
 }

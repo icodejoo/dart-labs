@@ -15,7 +15,7 @@ description: >-
 Pure-Dart package (`dio: ^5.0.0` only, **no Flutter**, SDK `^3.5.0`). A set of **self-contained
 Dio interceptor plugins**, each extending `DiomanPlugin` (a named `Interceptor` with `String get name`
 and a `dispose()` hook — `lib/src/dioman_plugin.dart`), PLUS the documented correct install order.
-Entry `lib/dioman.dart` re-exports all 13 plugins. Each plugin lives in its own `lib/src/*.dart`.
+Entry `lib/dioman.dart` re-exports all 16 ordered plugins (envs → … → normalize below). Each plugin lives in its own `lib/src/*.dart`.
 
 Acceptance = **`dart analyze` clean** + `dart test` (`test/dioman_test.dart`, `test/
 dioman_combinations_test.dart`, `test/dioman_coverage_test.dart`, `test/
@@ -56,20 +56,30 @@ load-bearing:
 
 ### Recommended order (and the hard constraints)
 
-`envs → repath → filter → key → cache → share → mock → cancel →
-loading → auth → retry → log → normalize`
+`envs → timeout → repath → filter → key → cache → offline → share → mock → cancel →
+loading → auth → retry → breaker → log → normalize`
 
 `normalize` is LAST — optional, business-specific, not a transport concern (see its own bullet
 below and its class doc). Every OTHER plugin therefore sees the response exactly as it came off
 the wire, whether or not `normalize` is even installed.
 
+- **timeout right after envs** — pure per-request config (rewrites connect/receive/send timeouts by
+  network tier), no request/response coupling, so it sits at the very front alongside `envs`.
 - **key before cache & share** — they key off `extra[kRequestKey]`; no key ⇒ they no-op (treat
   request as independent). This is a hard dependency.
+- **cache before offline** — an offline read that hits the cache short-circuits before `offline`
+  can queue it (stale-cache-over-queue for reads).
+- **offline before share/cancel/loading** — a parked (queued) request must NOT have created a share
+  entry or opened a cancel/loading bracket, or those leak while it waits; parking happens by NOT
+  calling `next` (see its bullet), so anything after it never ran its onRequest.
 - **cache/share/mock before cancel & loading** — a short-circuit skips following `onRequest`s, so a
   bracket (increment/inject) placed *before* the resolver would fire on request and never clean up.
 - **cancel & loading before auth & retry** — on a 401 (auth) or network retry, those `resolve()` the
   error and halt the forward `onError` chain; the brackets must already have run (counter
   decremented, token released) by then.
+- **breaker after retry** — so it counts only each request's FINAL outcome (a retry-recovered
+  request reaches its onResponse as a success; only a retry-exhausted one reaches onError as a
+  failure), not transient blips retry already absorbed. See its bullet.
 - **normalize dead last** — so `cache`'s stored payload, `retry`'s `shouldRetry`, and
   `log`'s dump all see the RAW response regardless of whether `normalize` is installed. Also means
   `normalize` catches a business failure via its own `reject(...)` (see its bullet below) only for
@@ -185,6 +195,23 @@ the wire, whether or not `normalize` is even installed.
   getting a cheap hit, until the entry expires. `DiomanRetry`'s own re-issue (the bare Dio from ITS
   OWN prior attempt) never reads this plugin back either way (bare Dio, doesn't touch this plugin at
   all).
+- **DiomanOffline** (`offline_plugin.dart`, `name: 'dioman:offline'`). Offline queue-and-replay.
+  Constructor subscribes to the injected `Stream<bool> onConnectivityChanged` (`_sub`, cancelled in
+  `dispose()`); a `true` event calls `flush()`. `bool Function() isOnline` is checked in `onRequest`.
+  **Parks a request by NOT calling `next`** — it stashes `{handler, options}` in the FIFO `_queue`
+  and returns, leaving the request suspended at this plugin (this is WHY it must sit before
+  share/cancel/loading — nothing after it ran its onRequest, so no share entry / bracket exists to
+  leak). `flush()` drains the queue by calling `handler.next(options)` on each — resuming it down
+  the REST of the chain (NOT a throwaway Dio, and it never re-enters this onRequest since `next`
+  goes forward). Each entry is settled EXACTLY once at whichever exit fires first: flush →
+  `next`; queue full (`maxQueueSize`, default 50, `0`=uncapped) → oldest evicted with
+  `reject(queueFull)`; `maxWait` timer (default `null`=unbounded) → `reject(timeout)`; `dispose()` →
+  `reject(disposed)` for all. Rejections are `DioException(error:
+  DiomanOfflineException(reason), type: unknown)`, no response → retry won't retry them. `maxWait`/
+  eviction/dispose all remove-from-queue before rejecting, and the timer callback guards on
+  `_queue.remove(entry)` returning true, so no double-settle. `shouldQueue` (default `null` = queue
+  everything) gates what's parked; reads normally shouldn't queue (let cache serve them).
+  `pending` getter exposes queue length for tests. **dispose MUST reject all** or waiters hang.
 - **DiomanNormalize** (`normalize_plugin.dart`, `name: 'dioman:normalize'`, `const` ctor, `onResponse`
   only). **Optional, business-specific, install LAST** — after `log`, at the very end (also where
   `Dioman.install` places it regardless of argument order) — see its class doc and the order note
@@ -233,6 +260,33 @@ the wire, whether or not `normalize` is even installed.
   response carries whatever auth header the ORIGINAL attempt had, and is never normalized, by
   design (see the class doc's full trade-off list). Optional `onRetry: (attempt) {}` callback is a
   lightweight substitute for the logging the re-issue no longer passes through `DiomanLog` for.
+- **DiomanBreaker** (`breaker_plugin.dart`, `name: 'dioman:breaker'`). Circuit breaker, one `_Bucket`
+  per `METHOD:path` key (override via `keyBuilder`; default reuses `DiomanKey`'s fast-key scheme,
+  computed independently — does NOT read `extra[kRequestKey]`). State machine `closed → open →
+  halfOpen`: `failureThreshold` (default 10) CONSECUTIVE failures trip closed→open (any success
+  resets the count); open rejects fast in `onRequest` (no network) until `resetDuration` (default
+  30s) elapses, then admits up to `halfOpenMaxCalls` (default 3) probes — ONE probe success →
+  closed, ONE probe failure → open (cooldown restarts). **Installed AFTER retry**, so it only ever
+  records each top-level request's FINAL outcome (retry re-issues via its own bare Dio never reach
+  it → each request counted exactly once). `onRequest` marks the admitted request via
+  `extra['dioman:breaker:key']`; `onResponse`/`onError` only record an outcome when that mark is
+  present — a cache/mock short-circuit runs `onResponse` WITHOUT having run this plugin's
+  `onRequest`, and must not be recorded. `onError` also skips its OWN `DiomanBreakerOpenException`
+  rejections (never counts them). The open-rejection is `DioException(error:
+  DiomanBreakerOpenException(bucketKey, retryableAt), type: unknown)` with NO response — so retry's
+  default `shouldRetry` won't retry a fail-fast (same non-retryable-shape trick as auth's denial).
+  Reject uses `callFollowingErrorInterceptor: true` so brackets before it (cancel/loading/share)
+  still release — identical to auth's onRequest rejections. `_isFailure` default: HTTP 5xx / 429, or
+  a timeout/connection-error `DioExceptionType` when there's no status; unknown-type errors (auth
+  denial, its own open-reject) deliberately don't count. `onError` also skips `DioExceptionType.cancel`
+  ENTIRELY — a user cancellation is recorded as neither success nor failure (recording it as
+  "success", the default for anything `_isFailure` returns false on, would reset the
+  consecutive-failure count and let a burst of cancels mask a genuinely failing dependency). Custom
+  `shouldTrip(response?, err?) →
+  bool?` overrides (exact bool wins, null → default). `DiomanRetry.breaker` SETTER (wired by
+  `Dioman.install` when both passed) lets retry call `breaker.isOpen(config)` — a PURE read, no
+  mutation — before each re-issue to stop an in-progress retry loop the instant the breaker trips.
+  `dispose()`/`reset()` clear all buckets; no timers, no parked handlers.
 - **DiomanKey** (`key_plugin.dart`, `name: 'dioman:qid'`, `const` ctor). Exports
   `const kRequestKey = 'dioman:key'` — fixed, cross-plugin protocol key (key writes, cache/share
   read), a DIFFERENT string from the plugin's own `name` (`'dioman:qid'`) on purpose, so the
@@ -298,6 +352,16 @@ the wire, whether or not `normalize` is even installed.
   `bytes`/`stream` responseType back to json. Known limitation: a rule that genuinely WANTS to reset
   responseType to json is indistinguishable from "didn't set it" — there's no sentinel for that.
   Constructor-level `enabled` flag (wrapped in `DiomanEnvsOptions`) makes `apply` a permanent no-op.
+- **DiomanTimeout** (`timeout_plugin.dart`, `name: 'dioman:timeout'`). Dynamic per-request timeouts
+  by network tier. `NetworkQuality Function() probe` (constructor-only, called once per `onRequest`)
+  returns one of `NetworkQuality{excellent,good,poor,none}`; `Map<NetworkQuality, DiomanTimeouts>
+  timeouts` maps each tier to a `DiomanTimeouts(connect?, receive?, send?)`. **Only non-null fields
+  are written** onto `options.connectTimeout`/`receiveTimeout`/`sendTimeout` — a null field leaves
+  the request's existing value (from `BaseOptions`/caller) untouched, and a tier ABSENT from the map
+  is a complete no-op for that request. Default map sets connect 10s/15s/30s/10s (weak-net stretch),
+  receive/send untouched. `none` is just another tier — NO fail-fast (that's offline's job). Per-
+  request `DiomanTimeoutOptions.timeouts` MERGES by tier (`{...own, ...override}`). No instance
+  state, `dispose()` no-op. Pure config → installed right after envs.
 - **DiomanLog** (`log_plugin.dart`, `name: 'dioman:log'`). Dependency-free; `print` by default, `writer` to
   route elsewhere.
 
@@ -348,7 +412,8 @@ Fixed `name` values (also the `extra` key): `DiomanAuth` → `dioman:auth`, `Dio
 `dioman:mock`, `DiomanLoading` → `dioman:loading`, `DiomanLog` → `dioman:log`, `DiomanRetry` →
 `dioman:retry`, `DiomanFilter` → `dioman:filter`, `DiomanRepath` → `dioman:repath`,
 `DiomanNormalize` → `dioman:normalize`, `DiomanCancel` → `dioman:cancel`, `DiomanEnvs` →
-`dioman:envs`.
+`dioman:envs`, `DiomanTimeout` → `dioman:timeout`, `DiomanBreaker` → `dioman:breaker`,
+`DiomanOffline` → `dioman:offline`.
 
 Internal (fixed, cross-plugin protocol or single-plugin bookkeeping, never exposed via a per-call
 `DiomanXxxOptions`): `kRequestKey` = `'dioman:key'` (key writes, cache/share read — the one
@@ -356,7 +421,12 @@ genuinely cross-plugin key, kept as a public top-level const for that reason, an
 DIFFERENT string from `DiomanKey`'s own `name` = `'dioman:qid'` so the wire-protocol slot and the
 caller-facing override can never collide), `dioman:cache:key`/`ttl`/`clone`,
 `dioman:share:entry`/`seq`/`policy`/`retriesLeft`, `dioman:cancel:token`,
-`dioman:loading:bracketed`, `dioman:auth:decision`/`protected`/`refreshed`/`denied`/`tokenUsed`.
+`dioman:loading:bracketed`, `dioman:auth:decision`/`protected`/`refreshed`/`denied`/`tokenUsed`,
+`dioman:breaker:key` (marks a request `DiomanBreaker`'s onRequest admitted, so onResponse/onError
+only record outcomes for requests that actually ran its onRequest — same guard shape as
+`dioman:loading:bracketed`). `DiomanTimeout` and `DiomanOffline` have NO internal `extra` keys —
+timeout is stateless (writes directly to the request's timeout fields), offline keeps its queue as
+instance state (the `_queue` list), not in `extra`.
 `DiomanRetry` has no internal `extra` key of its own anymore — its whole retry loop lives inside
 one onResponse/onError invocation now (see its bullet above), nothing needs to persist across
 separate calls. `dioman:retry:reentry` is `DiomanShare`'s own internal marker (see its bullet), not
@@ -384,11 +454,12 @@ design avoids. There are no collisions — preserve that when adding a plugin.
 - Adding a plugin: extend `DiomanPlugin`, give a unique `name`, read/write only your own `extra` keys,
   implement `dispose()` if you hold instance state, and slot it into the order by its request/
   response/error roles (document why in the README order table).
-- **`Dioman.install` auto-wires `share`/`cancel` setters.** After `addAll`-ing the ordered plugin
-  list, `install` does `if (share != null) { retry?.share = share; auth?.share = share; }` and the
-  same for `cancel` — so callers going through `install` never need to touch the setters by hand.
-  Hand-wiring (`retry.share = share`) is only needed when adding plugins to `dio.interceptors`
-  directly instead of through `install`.
+- **`Dioman.install` auto-wires `share`/`cancel`/`breaker` setters.** After `addAll`-ing the ordered
+  plugin list, `install` does `if (share != null) { retry?.share = share; auth?.share = share; }`,
+  the same for `cancel`, and `if (breaker != null) retry?.breaker = breaker;` — so callers going
+  through `install` never need to touch the setters by hand. Hand-wiring (`retry.share = share`,
+  `retry.breaker = breaker`) is only needed when adding plugins to `dio.interceptors` directly
+  instead of through `install`.
 
 ## Verify workflow
 

@@ -1,3 +1,38 @@
+## 0.7.0
+
+Three new plugins, all additive (no breaking changes) — each self-contained, each with a
+`static const pluginName`, a nullable-field `DiomanXxxOptions` per-request override, and a
+constructor-level `enabled` flag, following the existing plugin conventions.
+
+- Feature: `DiomanTimeout` (`timeout_plugin.dart`, `dioman:timeout`) — dynamic per-request
+  connect/receive/send timeouts by network tier. A host-supplied `probe: () => NetworkQuality`
+  (`excellent`/`good`/`poor`/`none`) selects a `DiomanTimeouts(connect?, receive?, send?)` from a
+  tier map; only non-null fields are written, so a partially-configured tier leaves the other
+  timeouts as `BaseOptions` set them, and a tier absent from the map is a no-op. Pure config, no
+  request/response coupling — install right after `DiomanEnvs`. Per-request `timeouts` merge by
+  tier.
+- Feature: `DiomanOffline` (`offline_plugin.dart`, `dioman:offline`) — offline queue-and-replay.
+  Parks a request (captures its handler, does NOT call `next`) while a host-supplied
+  `isOnline: () => bool` reports offline; a `true` event on the injected
+  `onConnectivityChanged: Stream<bool>` (or a manual `flush()`) resumes each parked request down
+  the rest of the chain. `shouldQueue` gates what's parked (reads normally pass through to cache),
+  `maxQueueSize` (default 50, oldest evicted with a `queueFull` rejection) and `maxWait` (default
+  unbounded, `timeout` rejection) bound the queue, and `dispose()` rejects everything pending.
+  Rejections wrap `DiomanOfflineException` in a response-less `DioException` so `DiomanRetry` won't
+  retry them. Install after `DiomanCache`, before `DiomanShare`.
+- Feature: `DiomanBreaker` (`breaker_plugin.dart`, `dioman:breaker`) — circuit breaker, one bucket
+  per `METHOD:path` (override via `keyBuilder`). `closed → open → halfOpen`: `failureThreshold`
+  (default 10) consecutive failures trip open, `resetDuration` (default 30s) cooldown then
+  `halfOpenMaxCalls` (default 3) probes decide recovery. Open buckets fail fast in `onRequest` with
+  a response-less `DiomanBreakerOpenException` (not retried by `DiomanRetry`'s default). Install
+  AFTER `DiomanRetry` so it counts only each top-level request's final outcome. `DiomanRetry.breaker`
+  setter (auto-wired by `Dioman.install`) lets an in-progress retry loop stop the instant the
+  breaker trips. `shouldTrip`/`onStateChange` hooks; a user `cancel` is recorded as neither success
+  nor failure so it can't reset the consecutive-failure count.
+- `Dioman.install` gains `timeout:`/`offline:`/`breaker:` parameters, slotted into the canonical
+  order `envs → timeout → repath → filter → key → cache → offline → share → mock → cancel →
+  loading → auth → retry → breaker → log → normalize`, and auto-wires `retry.breaker = breaker`.
+
 ## 0.6.0
 
 - Breaking: `ApiException` renamed to `DiomanException` (`normalize_plugin.dart`) — update any
