@@ -1,6 +1,7 @@
 import 'package:dio/dio.dart';
 
 import 'auth_plugin.dart';
+import 'breaker_plugin.dart';
 import 'key_plugin.dart';
 import 'cache_plugin.dart';
 import 'cancel_plugin.dart';
@@ -10,8 +11,10 @@ import 'loading_plugin.dart';
 import 'log_plugin.dart';
 import 'mock_plugin.dart';
 import 'normalize_plugin.dart';
+import 'offline_plugin.dart';
 import 'filter_plugin.dart';
 import 'repath_plugin.dart';
+import 'timeout_plugin.dart';
 import 'retry_plugin.dart';
 import 'share_plugin.dart';
 
@@ -42,21 +45,24 @@ abstract final class Dioman {
   static DiomanHandle install(
     Dio dio, {
     DiomanEnvs? envs,
+    DiomanTimeout? timeout,
     DiomanRepath? repath,
     DiomanFilter? filter,
     DiomanKey? key,
     DiomanCache? cache,
+    DiomanOffline? offline,
     DiomanShare? share,
     DiomanMock? mock,
     DiomanCancel? cancel,
     DiomanLoading? loading,
     DiomanAuth? auth,
     DiomanRetry? retry,
+    DiomanBreaker? breaker,
     DiomanLog? log,
     DiomanNormalize? normalize,
   }) {
-    // envs → repath → filter → key → cache → share → mock → cancel →
-    // loading → auth → retry → log → normalize
+    // envs → timeout → repath → filter → key → cache → offline → share → mock →
+    // cancel → loading → auth → retry → breaker → log → normalize
     //
     // DiomanNormalize is last on purpose (see its own class doc): it's an
     // optional, business-specific envelope-unwrapping convenience, not a
@@ -65,16 +71,19 @@ abstract final class Dioman {
     // sees the response exactly as it came off the wire.
     final ordered = <DiomanPlugin?>[
       envs,
+      timeout,
       repath,
       filter,
       key,
       cache,
+      offline,
       share,
       mock,
       cancel,
       loading,
       auth,
       retry,
+      breaker,
       log,
       normalize,
     ];
@@ -97,6 +106,14 @@ abstract final class Dioman {
     if (cancel != null) {
       retry?.cancel = cancel;
       auth?.cancel = cancel;
+    }
+    // Let DiomanRetry consult the breaker before each re-issue, so an
+    // in-progress retry loop stops the instant the breaker trips.
+    //
+    // 让DiomanRetry在每次重发前查询熔断器，正在进行的重试循环会在熔断器触发的
+    // 那一刻立即停止。
+    if (breaker != null) {
+      retry?.breaker = breaker;
     }
 
     return DiomanHandle._(dio, plugins);

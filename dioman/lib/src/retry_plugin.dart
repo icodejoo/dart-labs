@@ -2,6 +2,7 @@
 import 'dart:async';
 import 'dart:math';
 import 'package:dio/dio.dart';
+import 'breaker_plugin.dart';
 import 'cancel_plugin.dart';
 import 'dioman_plugin.dart';
 import 'key_plugin.dart';
@@ -304,6 +305,30 @@ class DiomanRetry extends DiomanPlugin {
   DiomanCancel? _cancel;
 
   set cancel(DiomanCancel? value) => _cancel = value;
+
+  /// The [DiomanBreaker] instance installed on the same [Dio], if any. Set
+  /// this whenever [DiomanBreaker] and [DiomanRetry] are combined — before
+  /// each re-issue this plugin checks [DiomanBreaker.isOpen], so a request
+  /// still looping through its retries stops the instant the breaker trips
+  /// from OTHER requests, instead of piling more attempts onto a server that
+  /// just went down. Without it, retries run to exhaustion regardless of the
+  /// breaker's state.
+  ///
+  /// [Dioman.install] wires this automatically when both a `breaker:` and a
+  /// `retry:` plugin are passed to it — set it by hand only when wiring the
+  /// chain yourself instead of going through `install`.
+  ///
+  /// 同一个[Dio]上安装的[DiomanBreaker]实例（如果有）。[DiomanBreaker]和
+  /// [DiomanRetry]搭配使用时设置它——本插件在每次重发前检查
+  /// [DiomanBreaker.isOpen]，于是正在重试循环中的请求，会在熔断器因**其它**
+  /// 请求触发的那一刻立即停止，而不是继续往刚挂掉的服务器上堆重试。不设置时，
+  /// 无论熔断器状态如何，重试都会跑到耗尽为止。
+  ///
+  /// [Dioman.install]同时收到`breaker:`和`retry:`时会自动完成这层接线——只有
+  /// 自己手动拼接拦截器链（不走`install`）时才需要手动设置。
+  DiomanBreaker? _breaker;
+
+  set breaker(DiomanBreaker? value) => _breaker = value;
 
   /// Called right before each retry attempt is actually issued, with the
   /// 1-based attempt number. Purely observational — e.g. wire it to your own
@@ -625,6 +650,9 @@ class DiomanRetry extends DiomanPlugin {
     var current = response;
     for (var attempt = 1; attempt <= $max; attempt++) {
       if (config.cancelToken?.isCancelled == true) break;
+      // Breaker tripped (by this or other requests) → stop piling retries on a
+      // downed server; propagate the last outcome instead.
+      if (_breaker?.isOpen(config) == true) break;
       final wait = _resolveWait(config, attempt, $max, current, null);
       await _delay(wait, config.cancelToken);
       if (config.cancelToken?.isCancelled == true) break;
@@ -666,6 +694,9 @@ class DiomanRetry extends DiomanPlugin {
     var lastError = err;
     for (var attempt = 1; attempt <= $max; attempt++) {
       if (config.cancelToken?.isCancelled == true) break;
+      // Breaker tripped (by this or other requests) → stop piling retries on a
+      // downed server; propagate the last error instead.
+      if (_breaker?.isOpen(config) == true) break;
       final wait = _resolveWait(config, attempt, $max, lastError.response, lastError);
       await _delay(wait, config.cancelToken);
       if (config.cancelToken?.isCancelled == true) break;
