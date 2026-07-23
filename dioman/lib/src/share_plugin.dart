@@ -411,8 +411,9 @@ class DiomanShare extends DiomanPlugin {
         final finalErr = lastError is DioException
             ? lastError
             : DioException(requestOptions: opts, error: lastError);
-        if (!entry.completer.isCompleted)
+        if (!entry.completer.isCompleted) {
           entry.completer.completeError(finalErr);
+        }
         return handler.next(finalErr);
 
       case DiomanSharePolicy.end:

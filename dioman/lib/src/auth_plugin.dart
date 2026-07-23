@@ -682,8 +682,9 @@ class DiomanAuth extends DiomanPlugin {
           // Re-inject with the freshly refreshed token — the throwaway Dio
           // has no interceptors, so nothing else will update the header.
           final fresh = _tokenManager.accessToken;
-          if (fresh != null && fresh.isNotEmpty)
+          if (fresh != null && fresh.isNotEmpty) {
             await _injectToken(opts, fresh, o);
+          }
           final replayed = await _fetchReplay(opts);
           if (replayed != null) return replayed;
         }
@@ -696,8 +697,9 @@ class DiomanAuth extends DiomanPlugin {
         // Someone else's refresh may have landed a new token since this
         // request's header was built — carry the current one on replay.
         final current = _tokenManager.accessToken;
-        if (current != null && current.isNotEmpty)
+        if (current != null && current.isNotEmpty) {
           await _injectToken(opts, current, o);
+        }
         final replayed = await _fetchReplay(opts);
         if (replayed != null) return replayed;
         _clearFlags(bag);
