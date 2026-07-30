@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:fvideo/fvideo.dart';
-import 'package:media_kit_video/media_kit_video.dart';
 
 /// Example entry: init fvideo core, then run the demo app.
 ///
@@ -26,14 +25,9 @@ class MyApp extends StatelessWidget {
   }
 }
 
-/// A page that plays a sample video with the bare media_kit [Video] widget.
+/// A page that plays a sample video with [FvideoPlayer] and its gestures.
 ///
-/// This is the P1 milestone: it proves the fvideo core plays end-to-end
-/// before the self-built controls layer lands.
-///
-/// 用裸 media_kit [Video] 组件播放示例视频的页面。
-///
-/// 这是 P1 里程碑：在自研控制条落地前，先验证 fvideo 内核端到端能播。
+/// 用 [FvideoPlayer] 及其手势层播放示例视频的页面。
 class PlayerPage extends StatefulWidget {
   /// Creates the player page.
   ///
@@ -74,7 +68,7 @@ class _PlayerPageState extends State<PlayerPage> {
       body: Center(
         child: AspectRatio(
           aspectRatio: 16 / 9,
-          child: Video(controller: _controller.videoController),
+          child: FvideoPlayer(controller: _controller),
         ),
       ),
     );
