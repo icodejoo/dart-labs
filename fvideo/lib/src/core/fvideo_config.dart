@@ -1,3 +1,41 @@
+/// Video surface fill mode.
+///
+/// 画面填充模式。
+enum FvideoFit {
+  /// Fit entirely inside the box, letterboxed (default).
+  ///
+  /// 完整放入画框，可能留黑边（默认）。
+  contain,
+
+  /// Fill the box, cropping overflow.
+  ///
+  /// 铺满画框，裁掉溢出部分。
+  cover,
+
+  /// Stretch to fill, ignoring aspect ratio.
+  ///
+  /// 拉伸铺满，忽略宽高比。
+  fill;
+
+  /// The next mode in the contain → cover → fill cycle.
+  ///
+  /// contain → cover → fill 循环中的下一个模式。
+  FvideoFit get next => switch (this) {
+        FvideoFit.contain => FvideoFit.cover,
+        FvideoFit.cover => FvideoFit.fill,
+        FvideoFit.fill => FvideoFit.contain,
+      };
+
+  /// Short display label for the mode.
+  ///
+  /// 模式的简短显示标签。
+  String get label => switch (this) {
+        FvideoFit.contain => '适应',
+        FvideoFit.cover => '裁剪',
+        FvideoFit.fill => '拉伸',
+      };
+}
+
 /// Gesture configuration for the fvideo player overlay.
 ///
 /// Side mapping follows the product spec: left-vertical = volume,
