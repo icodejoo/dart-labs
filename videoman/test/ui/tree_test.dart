@@ -72,6 +72,19 @@ void main() {
     expect(out.last.slot, VmSlot.overlay);
   });
 
+  test('add tags the appended component with the patch\'s slot/order, not its own', () {
+    // The leaf's own slot/order (top, 5) deliberately differ from what the
+    // patch requests (bottom, 9) — the patch's values must win.
+    //
+    // 叶子自身的 slot/order（top, 5）故意与补丁请求的（bottom, 9）不同——
+    // 补丁的值必须生效。
+    final own = _Leaf('ad', slot: VmSlot.top, order: 5);
+    final out = applyPatches(tree(), [VmPatch.add(VmSlot.bottom, own, order: 9)]);
+    expect(out.last.name, 'ad');
+    expect(out.last.slot, VmSlot.bottom);
+    expect(out.last.order, 9);
+  });
+
   test('an unmatched path is a no-op, not a crash', () {
     final out = applyPatches(tree(), [VmPatch.remove('nope/nope')]);
     expect(_names(out), _names(tree()));
