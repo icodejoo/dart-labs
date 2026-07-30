@@ -150,6 +150,80 @@ void main() {
 
     await sub.cancel();
   });
+
+  test('rapid sequential stall-cycles each produce exactly one downshift '
+      'without corrupting currentQuality', () async {
+    // Three pinned variants so two consecutive downshifts are observable
+    // (high -> mid -> low). Regression test for the ABR reentrancy guard:
+    // without `_abrDownshiftInFlight`, overlapping in-flight downshifts
+    // could race on `_kernel` and double-fire/swallow VmAbrDownshift or
+    // leave currentQuality inconsistent with what was actually `open()`ed.
+    //
+    // Note: `downshiftQuality()`'s only awaited work in this harness is a
+    // `FakeKernel.open()`/`seek()` call that resolves on the next
+    // microtask (no real async gap), so within a single test process we
+    // cannot force two `downshiftQuality()` futures to be genuinely
+    // in-flight at the same instant — the guard is exercised by asserting
+    // that back-to-back full stall cycles, fired without any inter-cycle
+    // delay, still resolve to exactly one VmAbrDownshift per cycle and a
+    // consistent final quality. A true concurrent race (two overlapping
+    // async kernel round-trips) isn't practically triggerable without
+    // instrumenting FakeKernel to insert an artificial delay inside
+    // open()/seek(), which this harness does not do.
+    //
+    // 用三档清晰度以便观察两次连续降档（high -> mid -> low）。这是 ABR
+    // 重入保护的回归测试：没有 `_abrDownshiftInFlight` 时，重叠的进行中降档
+    // 可能在 `_kernel` 上竞争，导致 VmAbrDownshift 重复/漏发，或
+    // currentQuality 与实际 `open()` 的清晰度不一致。
+    //
+    // 说明：本测试用的 `downshiftQuality()` 唯一的 await 点是
+    // `FakeKernel.open()`/`seek()`，其在下一个微任务即可完成（没有真实的
+    // 异步间隔），因此单个测试进程内无法强制让两个 `downshiftQuality()`
+    // future 真正同时在途——本测试改为验证：不留 cycle 间隔地连续触发两轮
+    // 完整的 stall 周期，仍能得到每轮恰好一次 VmAbrDownshift，且最终清晰度
+    // 一致。要制造真正并发的竞争（两个重叠的异步内核往返），需要给
+    // FakeKernel 的 open()/seek() 插入人为延迟，本测试骨架未做这件事。
+    const auto = VmQuality(label: '自动', uri: '', isAuto: true);
+    const high = VmQuality(label: '1080p', uri: 'https://host/1080.m3u8', height: 1080);
+    const mid = VmQuality(label: '720p', uri: 'https://host/720.m3u8', height: 720);
+    const low = VmQuality(label: '480p', uri: 'https://host/480.m3u8', height: 480);
+    e.debugSetQualities(const [auto, high, mid, low], current: high);
+
+    final events = <VmEvent>[];
+    final sub = e.events.listen(events.add);
+
+    // First stall cycle: high -> mid. Fire all six buffering edges (two
+    // full cycles' worth) back-to-back with no await in between, so any
+    // overlap in the downshift's async tail would surface here.
+    //
+    // 第一轮 stall 周期：high -> mid。把两轮完整周期的六个缓冲沿一次性连续
+    // 触发，不在中间 await，这样降档异步尾部的任何重叠都会在此暴露。
+    for (var i = 0; i < 3; i++) {
+      k.emitBuffering(true);
+      k.emitBuffering(false);
+    }
+    for (var i = 0; i < 3; i++) {
+      k.emitBuffering(true);
+      k.emitBuffering(false);
+    }
+    // Drain microtasks/timers until both downshifts have settled.
+    //
+    // 排空微任务/定时器直到两次降档都已完成。
+    for (var i = 0; i < 5; i++) {
+      await Future<void>.delayed(Duration.zero);
+    }
+
+    final downshifts = events.whereType<VmAbrDownshift>().toList();
+    expect(downshifts.length, 2);
+    expect(downshifts[0].from, high);
+    expect(downshifts[0].to, mid);
+    expect(downshifts[1].from, mid);
+    expect(downshifts[1].to, low);
+    expect(e.state.currentQuality, low);
+    expect(k.lastUri, low.uri);
+
+    await sub.cancel();
+  });
 }
 
 class _CancelSeek extends VmInterceptor {

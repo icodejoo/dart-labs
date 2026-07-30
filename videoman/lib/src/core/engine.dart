@@ -76,6 +76,18 @@ class VmEngine implements VmApi {
   /// [VmAbrConfig.stallThreshold] 构造的 [VmBufferingAbr]。
   late final VmAbrPolicy _abrPolicy;
 
+  /// Reentrancy guard for [_handleAbrBuffering]: true while a downshift
+  /// triggered by a previous threshold-crossing is still in flight (its
+  /// async `open()`/`seek()` hasn't settled yet). Prevents two overlapping
+  /// [downshiftQuality] calls from racing on [_kernel] and corrupting the
+  /// "from" quality snapshot or double/under-firing [VmAbrDownshift].
+  ///
+  /// [_handleAbrBuffering] 的重入保护：为真时表示上一次阈值触发的降档仍在
+  /// 进行中（其异步 `open()`/`seek()` 尚未完成）。防止两次
+  /// [downshiftQuality] 调用并发争用 [_kernel]，破坏"from"清晰度快照或
+  /// 导致 [VmAbrDownshift] 重复/漏发。
+  bool _abrDownshiftInFlight = false;
+
   final VmBus<VmState> _state = VmBus<VmState>(const VmState());
   final VmBus<VmUiState> _ui = VmBus<VmUiState>(const VmUiState());
   final StreamController<VmEvent> _events = StreamController<VmEvent>.broadcast();
@@ -488,14 +500,16 @@ class VmEngine implements VmApi {
   void _handleAbrBuffering(bool buffering) {
     final shouldDownshift = _abrPolicy.onBuffering(buffering);
     if (!shouldDownshift || !options.abr.enabled) return;
+    if (_abrDownshiftInFlight) return;
     final from = state.currentQuality;
     if (from == null) return;
+    _abrDownshiftInFlight = true;
     unawaited(downshiftQuality().then((_) {
       final to = state.currentQuality;
       if (to != null && to != from) {
         _events.add(VmAbrDownshift(from, to));
       }
-    }));
+    }).whenComplete(() => _abrDownshiftInFlight = false));
   }
 
   /// GETs [url] as a UTF-8 string via a one-shot HTTP client.
