@@ -18,6 +18,7 @@ export 'src/core/platform/ports.dart';
 export 'src/core/state/progress.dart';
 export 'src/core/state/state.dart';
 export 'src/core/state/ui_state.dart';
+export 'src/platform_impl/wiring.dart';
 export 'src/ui/components/bottom_bar.dart';
 export 'src/ui/components/center_play.dart';
 export 'src/ui/components/common.dart';

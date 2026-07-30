@@ -456,6 +456,31 @@ class VmEngine implements VmApi {
     }
   }
 
+  /// The brightness port this engine was constructed with; only for use by
+  /// tests that need to assert which concrete [VmBrightnessPort] a given
+  /// construction path (e.g. [VmEngine.new] vs. `createVmEngine`) wired up.
+  ///
+  /// 该 engine 构造时使用的亮度端口；仅供测试断言某条构造路径（如
+  /// [VmEngine.new] 与 `createVmEngine`）接入的具体 [VmBrightnessPort]。
+  @visibleForTesting
+  VmBrightnessPort get debugBrightnessPort => _brightness;
+
+  /// The PiP port this engine was constructed with; see
+  /// [debugBrightnessPort] for why this is exposed only for tests.
+  ///
+  /// 该 engine 构造时使用的画中画端口；暴露原因同 [debugBrightnessPort]，
+  /// 仅供测试使用。
+  @visibleForTesting
+  VmPipPort get debugPipPort => _pip;
+
+  /// The orientation port this engine was constructed with; see
+  /// [debugBrightnessPort] for why this is exposed only for tests.
+  ///
+  /// 该 engine 构造时使用的方向端口；暴露原因同 [debugBrightnessPort]，
+  /// 仅供测试使用。
+  @visibleForTesting
+  VmOrientationPort get debugOrientationPort => _orientation;
+
   /// Directly injects quality variants into [state] without any HTTP fetch
   /// or kernel interaction; only for use by tests that need to seed ABR
   /// downshift scenarios without a real HLS master playlist.
