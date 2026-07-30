@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../core/api.dart';
 import '../../core/model/fit.dart';
 import '../../core/model/quality.dart';
+import '../../core/model/source.dart';
 import '../../core/options/theme.dart';
 import '../scope/selector.dart';
 import '../slots/component.dart';
@@ -65,17 +66,18 @@ class TopBarComponent extends VmComponent {
 
 /// Displays the current source's title, ellipsized to one line.
 ///
-/// GAP: neither `VmApi` nor `VmState` currently expose the currently-open
-/// `VmSource` (which is where `title` lives), so there is no way for this
-/// leaf to read a real title without adding a new `VmApi` member — which is
-/// out of scope for this task. Renders an empty string as a fallback; see
-/// the task report for the full writeup.
+/// Reads [VmApi.sourceTitle] (not part of [VmState]/[VmApi.states]), so
+/// reactivity is piggybacked on a [VmSelector] watching [VmState.type] —
+/// [VmApi.open] always updates `type` as part of the same synchronous state
+/// emit that updates the open source, so watching it is sufficient to
+/// rebuild this leaf whenever a new source (and thus title) is opened.
 ///
 /// 展示当前源的标题，超一行省略。
 ///
-/// 缺口：`VmApi`/`VmState` 均未暴露当前已打开的 `VmSource`（`title` 字段所
-/// 在处），因此该叶子组件目前无法读到真实标题，除非新增 `VmApi` 成员——这
-/// 超出了本任务范围。当前以空字符串兜底；完整说明见任务报告。
+/// 读取 [VmApi.sourceTitle]（不属于 [VmState]/[VmApi.states]），因此借助
+/// 监听 [VmState.type] 的 [VmSelector] 实现响应式重建——[VmApi.open] 总是
+/// 在更新已打开源的同一次同步状态发射中更新 `type`，所以监听它足以在每次
+/// 打开新源（从而标题变化）时重建该叶子组件。
 class TitleComponent extends VmComponent {
   /// Creates the title leaf component.
   ///
@@ -91,15 +93,17 @@ class TitleComponent extends VmComponent {
   @override
   Widget build(BuildContext context, VmApi api, List<Widget> children) {
     final theme = api.options.theme;
-    // No source/title accessor exists on VmApi/VmState yet — render empty.
-    //
-    // VmApi/VmState 尚无源/标题访问入口——渲染为空。
-    const title = '';
-    return Text(
-      title,
-      maxLines: 1,
-      overflow: TextOverflow.ellipsis,
-      style: TextStyle(color: Color(theme.textColor), fontSize: theme.titleFontSize),
+    return VmSelector<VmStreamType>(
+      selector: (s) => s.type,
+      builder: (context, _) {
+        final title = api.sourceTitle ?? '';
+        return Text(
+          title,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: TextStyle(color: Color(theme.textColor), fontSize: theme.titleFontSize),
+        );
+      },
     );
   }
 }
