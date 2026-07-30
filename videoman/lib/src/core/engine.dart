@@ -48,6 +48,15 @@ class VmEngine implements VmApi {
   @override
   final VmOptions options;
 
+  /// The kernel's render handle (a media_kit `VideoController` for
+  /// [MpvKernel]), forwarded verbatim so `VmPlayer` can feed it to the
+  /// `Video` widget.
+  ///
+  /// 内核的渲染句柄（[MpvKernel] 场景下是 media_kit 的 `VideoController`），
+  /// 原样转发，供 `VmPlayer` 传给 `Video` 组件。
+  @override
+  Object? get renderHandle => _kernel.renderHandle;
+
   /// Interceptor chain consulted before open/seek/play and on every error.
   ///
   /// 在 open/seek/play 前及每次出错时咨询的拦截链。

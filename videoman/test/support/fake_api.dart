@@ -149,6 +149,7 @@ class FakeVmApi implements VmApi {
   ///
   /// 供被测组件使用的假渲染句柄；默认 `null`，此时 `VmPlayer` 渲染占位符
   /// 而非真实视频画面。
+  @override
   Object? renderHandle;
 
   @override
