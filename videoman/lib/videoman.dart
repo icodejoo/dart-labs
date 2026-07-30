@@ -8,7 +8,6 @@ library;
 export 'src/core/model/source.dart';
 export 'src/core/model/fit.dart';
 export 'src/core/model/quality.dart';
-export 'src/core/model/abr.dart';
 export 'src/core/controller.dart';
-export 'src/core/config.dart';
+export 'src/core/options/options.dart';
 export 'src/controls/player.dart';
