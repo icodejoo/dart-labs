@@ -5,6 +5,7 @@ import 'package:videoman/src/core/interceptor/interceptor.dart';
 import 'package:videoman/src/core/model/quality.dart';
 import 'package:videoman/src/core/model/source.dart';
 import 'package:videoman/src/core/options/options.dart';
+import 'package:videoman/src/core/platform/ports.dart';
 import 'package:videoman/src/core/state/ui_state.dart';
 
 import '../support/fake_kernel.dart';
@@ -224,6 +225,67 @@ void main() {
 
     await sub.cancel();
   });
+
+  test('setFullscreen re-applies orientation when size arrives later while '
+      'fullscreen', () async {
+    final spy = _SpyOrientationPort();
+    final e2 = VmEngine(kernel: k, orientation: spy);
+
+    // Enter fullscreen before the kernel has reported any real size.
+    //
+    // 在内核报告真实尺寸之前进入全屏。
+    await e2.setFullscreen(true);
+    expect(spy.calls.length, 1);
+    expect(spy.calls.single, (0, 0));
+
+    // Size arrives later (e.g. HLS manifest resolved) — orientation should
+    // be re-derived/re-applied using the fresh dimensions.
+    //
+    // 尺寸随后才到达（如 HLS manifest 解析完成）——应使用新尺寸重新推导并
+    // 应用方向。
+    k.emitSize(1920, 1080);
+    await Future<void>.delayed(Duration.zero);
+    expect(spy.calls.length, 2);
+    expect(spy.calls.last, (1920, 1080));
+
+    await e2.dispose();
+  });
+
+  test('size changes while NOT fullscreen do not re-apply orientation', () async {
+    final spy = _SpyOrientationPort();
+    final e2 = VmEngine(kernel: k, orientation: spy);
+
+    k.emitSize(1280, 720);
+    await Future<void>.delayed(Duration.zero);
+    expect(spy.calls, isEmpty);
+
+    await e2.dispose();
+  });
+}
+
+/// A spy [VmOrientationPort] that records every `apply(...)` call's
+/// width/height so tests can assert re-application behavior.
+///
+/// 记录每次 `apply(...)` 调用的宽高的 [VmOrientationPort] 间谍实现，供测试
+/// 断言重新应用行为。
+class _SpyOrientationPort implements VmOrientationPort {
+  /// Every (width, height) pair passed to [apply], in call order.
+  ///
+  /// 每次 [apply] 调用传入的 (width, height)，按调用顺序记录。
+  final List<(int, int)> calls = [];
+
+  @override
+  Future<void> apply({
+    required bool fullscreen,
+    required bool immersive,
+    required int width,
+    required int height,
+  }) async {
+    calls.add((width, height));
+  }
+
+  @override
+  Future<void> reset() async {}
 }
 
 class _CancelSeek extends VmInterceptor {
