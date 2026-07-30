@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:videoman/src/core/model/fit.dart';
+import 'package:videoman/src/core/model/source.dart';
 import 'package:videoman/src/core/options/options.dart';
 import 'package:videoman/src/core/state/state.dart';
 import 'package:videoman/src/ui/components/top_bar.dart';
@@ -55,6 +56,18 @@ void main() {
     final api = FakeVmApi(options: const VmOptions(strings: VmStrings(fitContain: 'Fit')));
     await pumpComponent(t, api, TopBarComponent());
     expect(find.text('Fit'), findsOneWidget);
+    await api.dispose();
+  });
+
+  testWidgets('title shows the current source title, empty when none', (t) async {
+    final api = FakeVmApi();
+    await pumpComponent(t, api, TopBarComponent());
+    expect(find.text(''), findsOneWidget);
+
+    api.source = const VmSource('https://host/video.mp4', title: 'My Video');
+    api.push(api.state.copyWith(type: VmStreamType.live));
+    await t.pumpAndSettle();
+    expect(find.text('My Video'), findsOneWidget);
     await api.dispose();
   });
 }

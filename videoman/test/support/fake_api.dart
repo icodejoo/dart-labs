@@ -169,6 +169,23 @@ class FakeVmApi implements VmApi {
   @override
   VmUiState get uiState => _uiState.value;
 
+  /// The source currently "open" on this fake; drives [sourceTitle].
+  ///
+  /// Set automatically by [open] from its `source` argument, so tests that
+  /// call `open()` see [sourceTitle] reflect it immediately. Also settable
+  /// directly by widget tests that never call [open] and just want to seed
+  /// a title.
+  ///
+  /// 该假对象当前"已打开"的源；驱动 [sourceTitle]。
+  ///
+  /// 由 [open] 根据其 `source` 参数自动设置，因此调用 `open()` 的测试能
+  /// 立即在 [sourceTitle] 上看到反映；也可由从不调用 [open] 、只想直接
+  /// 塞入标题的组件测试直接赋值。
+  VmSource? source;
+
+  @override
+  String? get sourceTitle => source?.title;
+
   /// Pushes a new state snapshot, visible immediately via [state] and to
   /// any current/future [states] subscribers.
   ///
@@ -196,6 +213,7 @@ class FakeVmApi implements VmApi {
   @override
   Future<void> open(VmSource source, {bool autoPlay = true}) async {
     calls.add('open');
+    this.source = source;
   }
 
   @override
