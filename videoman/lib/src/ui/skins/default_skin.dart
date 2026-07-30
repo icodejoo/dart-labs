@@ -9,6 +9,7 @@ import '../components/hud_layer.dart';
 import '../components/live_bar.dart';
 import '../components/overlays.dart';
 import '../components/top_bar.dart';
+import '../scope/scope.dart';
 import '../scope/selector.dart';
 import '../slots/component.dart';
 import '../slots/patch.dart';
@@ -85,11 +86,12 @@ class VmDefaultSkin implements VmSkin {
 }
 
 /// Fades [child] in/out with [VmUiState.controlsVisible] and, while hidden,
-/// swallows no taps of its own but stops passing them on — reproducing
-/// 0.1.0's "hidden bars are tap-through" rule for the top/bottom chrome.
+/// lets taps pass through to the gesture layer below instead of absorbing
+/// them — reproducing 0.1.0's "hidden bars are tap-through" rule for the
+/// top/bottom chrome.
 ///
-/// 依据 [VmUiState.controlsVisible] 渐显/渐隐 [child]；隐藏时自身不拦截任何
-/// 点击、也不再向下传递——复刻 0.1.0"隐藏时的栏可被穿透点击"的规则。
+/// 依据 [VmUiState.controlsVisible] 渐显/渐隐 [child]；隐藏时点击会穿透到
+/// 下方的手势层，而非被自身吸收——复刻 0.1.0"隐藏时的栏可被穿透点击"的规则。
 class _BarVisibility extends StatelessWidget {
   /// Creates the visibility wrapper around [child].
   ///
@@ -103,6 +105,7 @@ class _BarVisibility extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final fadeDuration = VmScope.of(context).options.controls.fadeDuration;
     return VmUiSelector<bool>(
       selector: (s) => s.controlsVisible,
       builder: (context, visible) {
@@ -110,7 +113,7 @@ class _BarVisibility extends StatelessWidget {
           ignoring: !visible,
           child: AnimatedOpacity(
             opacity: visible ? 1 : 0,
-            duration: const Duration(milliseconds: 200),
+            duration: fadeDuration,
             child: child,
           ),
         );
