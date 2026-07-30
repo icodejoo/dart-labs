@@ -163,7 +163,7 @@ class ZoomHudComponent extends VmComponent {
           selector: (s) => s.zoom,
           builder: (context, zoom) => _HudBadge(
             api: api,
-            text: '${zoom.toStringAsFixed(1)}x',
+            text: '${zoom.toStringAsFixed(1)}${api.options.strings.zoomSuffix}',
           ),
         );
       },

@@ -45,6 +45,11 @@ class VmTheme {
   /// 小号说明文字（如观看模式提示）的字号。
   final double captionFontSize;
 
+  /// Font size for the live badge text.
+  ///
+  /// 直播角标文字的字号。
+  final double badgeFontSize;
+
   /// Size of the large center icon (e.g. play/pause tap feedback).
   ///
   /// 中央大图标（如播放/暂停点按反馈）的尺寸。
@@ -72,6 +77,7 @@ class VmTheme {
     this.titleFontSize = 14.0,
     this.timeFontSize = 12.0,
     this.captionFontSize = 10.0,
+    this.badgeFontSize = 11.0,
     this.centerIconSize = 64.0,
     this.progressHeight = 2.0,
     this.sheetBackgroundColor = 0xEE1A1A1A,
@@ -89,6 +95,7 @@ class VmTheme {
           titleFontSize == other.titleFontSize &&
           timeFontSize == other.timeFontSize &&
           captionFontSize == other.captionFontSize &&
+          badgeFontSize == other.badgeFontSize &&
           centerIconSize == other.centerIconSize &&
           progressHeight == other.progressHeight &&
           sheetBackgroundColor == other.sheetBackgroundColor;
@@ -102,6 +109,7 @@ class VmTheme {
         titleFontSize,
         timeFontSize,
         captionFontSize,
+        badgeFontSize,
         centerIconSize,
         progressHeight,
         sheetBackgroundColor,

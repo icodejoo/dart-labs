@@ -26,7 +26,19 @@ abstract class VmComponent {
 
   /// The overlay region this component renders into.
   ///
+  /// This only takes effect for components at the top level of the tree
+  /// (entries returned directly by [VmSkin.components]) — [buildSlots]
+  /// reads [slot]/[order] only from those top-level entries. For a node
+  /// nested under another component's [children], this value is inert:
+  /// its parent's [build] positions it directly via the built [children]
+  /// list, not via slot placement.
+  ///
   /// 该组件渲染到的叠加层区域。
+  ///
+  /// 该属性仅对树顶层的组件（即 [VmSkin.components] 直接返回的条目）生效——
+  /// [buildSlots] 只从这些顶层条目读取 [slot]/[order]。若节点是嵌套在另一
+  /// 组件的 [children] 中，该值不会生效：其父组件的 [build] 会直接通过已
+  /// 构建的 [children] 列表来布局它，而非按槽位放置。
   VmSlot get slot;
 
   /// Sort key within a slot; ascending, ties broken by original position.

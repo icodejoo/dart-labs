@@ -57,6 +57,12 @@ class VmStrings {
   /// 清晰度选择控件的标签文案。
   final String quality;
 
+  /// Suffix appended to the pinch-zoom HUD's numeric scale (e.g. `x` for
+  /// `1.5x`).
+  ///
+  /// 双指缩放 HUD 数值倍率后追加的后缀（例如 `1.5x` 中的 `x`）。
+  final String zoomSuffix;
+
   /// Creates a strings bundle; defaults to the product's Simplified Chinese
   /// copy.
   ///
@@ -71,6 +77,7 @@ class VmStrings {
     this.backToEdge = '回到边缘',
     this.auto = '自动',
     this.quality = '清晰度',
+    this.zoomSuffix = 'x',
   });
 
   /// Resolves the display label for a [VmFit] mode.
@@ -99,7 +106,8 @@ class VmStrings {
           timeshift == other.timeshift &&
           backToEdge == other.backToEdge &&
           auto == other.auto &&
-          quality == other.quality;
+          quality == other.quality &&
+          zoomSuffix == other.zoomSuffix;
 
   @override
   int get hashCode => Object.hash(
@@ -112,5 +120,6 @@ class VmStrings {
         backToEdge,
         auto,
         quality,
+        zoomSuffix,
       );
 }

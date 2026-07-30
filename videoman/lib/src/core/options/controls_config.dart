@@ -17,6 +17,11 @@ class VmControlsConfig {
   /// 播放开始时控制条是否立即可见。
   final bool showOnStart;
 
+  /// Duration of the show/hide fade animation for the control bars.
+  ///
+  /// 控制条显示/隐藏渐变动画的时长。
+  final Duration fadeDuration;
+
   /// Creates a controls config; auto-hide on with a 3-second delay, and
   /// visible on start, by default.
   ///
@@ -25,6 +30,7 @@ class VmControlsConfig {
     this.autoHide = true,
     this.autoHideDelay = const Duration(seconds: 3),
     this.showOnStart = true,
+    this.fadeDuration = const Duration(milliseconds: 200),
   });
 
   @override
@@ -34,8 +40,10 @@ class VmControlsConfig {
           runtimeType == other.runtimeType &&
           autoHide == other.autoHide &&
           autoHideDelay == other.autoHideDelay &&
-          showOnStart == other.showOnStart;
+          showOnStart == other.showOnStart &&
+          fadeDuration == other.fadeDuration;
 
   @override
-  int get hashCode => Object.hash(autoHide, autoHideDelay, showOnStart);
+  int get hashCode =>
+      Object.hash(autoHide, autoHideDelay, showOnStart, fadeDuration);
 }

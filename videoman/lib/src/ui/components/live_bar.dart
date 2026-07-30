@@ -68,6 +68,11 @@ class LiveBadgeComponent extends VmComponent {
   @override
   String get name => 'liveBadge';
 
+  // Inert: this component is only ever nested under [LiveBarComponent],
+  // which lays out its children directly rather than via slot placement.
+  //
+  // 无效：该组件始终嵌套在 [LiveBarComponent] 之下，父组件直接通过
+  // children 布局，而非按槽位放置。
   @override
   VmSlot get slot => VmSlot.bottom;
 
@@ -86,7 +91,7 @@ class LiveBadgeComponent extends VmComponent {
         style: TextStyle(
           color: Color(theme.textColor),
           fontWeight: FontWeight.bold,
-          fontSize: 11,
+          fontSize: theme.badgeFontSize,
         ),
       ),
     );
@@ -107,6 +112,11 @@ class BackToEdgeComponent extends VmComponent {
   @override
   String get name => 'backToEdge';
 
+  // Inert: this component is only ever nested under [LiveBarComponent],
+  // which lays out its children directly rather than via slot placement.
+  //
+  // 无效：该组件始终嵌套在 [LiveBarComponent] 之下，父组件直接通过
+  // children 布局，而非按槽位放置。
   @override
   VmSlot get slot => VmSlot.bottom;
 
