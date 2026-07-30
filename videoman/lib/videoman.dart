@@ -5,14 +5,28 @@
 /// 支持点播与直播。
 library;
 
-export 'src/core/model/source.dart';
+export 'src/core/api.dart';
+export 'src/core/compat.dart';
+export 'src/core/engine.dart';
+export 'src/core/events/events.dart';
+export 'src/core/interceptor/interceptor.dart';
 export 'src/core/model/fit.dart';
 export 'src/core/model/quality.dart';
-export 'src/core/api.dart';
-export 'src/core/controller.dart';
-export 'src/core/engine.dart';
+export 'src/core/model/source.dart';
 export 'src/core/options/options.dart';
+export 'src/core/platform/ports.dart';
+export 'src/core/state/progress.dart';
+export 'src/core/state/state.dart';
+export 'src/core/state/ui_state.dart';
+export 'src/ui/components/common.dart';
+export 'src/ui/fit_ext.dart';
+export 'src/ui/format.dart';
 export 'src/ui/player.dart';
+export 'src/ui/scope/scope.dart';
+export 'src/ui/scope/selector.dart';
 export 'src/ui/skins/default_skin.dart';
 export 'src/ui/skins/skin.dart';
+export 'src/ui/slots/component.dart';
 export 'src/ui/slots/patch.dart';
+export 'src/ui/slots/slot.dart';
+export 'src/ui/slots/tree.dart';

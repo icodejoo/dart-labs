@@ -1,18 +1,14 @@
 import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
 
-/// Files still allowed to import `package:media_kit` while the phase A
-/// refactor is in flight. `mpv_kernel.dart` is the plan's permanent
-/// exception; `controller.dart` is the legacy 0.1.0 controller, deleted by
-/// Task 18 (`refactor(videoman): drop legacy controls, add deprecated
-/// VmController facade`) — until then it still talks to media_kit directly.
+/// Files still allowed to import `package:media_kit`. `mpv_kernel.dart` is
+/// the plan's permanent exception — every other file in `lib/src/core/**`
+/// must stay media_kit-free.
 ///
-/// 阶段 A 重构进行期间仍允许 import `package:media_kit` 的文件。
-/// `mpv_kernel.dart` 是计划里永久的例外；`controller.dart` 是 0.1.0 遗留
-/// 控制器，由 Task 18 删除，删除前它仍直连 media_kit。
+/// 仍允许 import `package:media_kit` 的文件。`mpv_kernel.dart` 是计划里
+/// 永久的例外——`lib/src/core/**` 下其余文件都必须不含 media_kit 依赖。
 const _mediaKitExceptions = {
   'kernel/mpv_kernel.dart',
-  'controller.dart',
 };
 
 /// The `import`/`export` lines of [source], ignoring comments and any other
