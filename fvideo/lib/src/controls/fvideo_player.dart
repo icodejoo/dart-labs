@@ -141,6 +141,7 @@ class _FvideoPlayerState extends State<FvideoPlayer> {
 
   final BufferingAbr _abr = BufferingAbr();
   StreamSubscription<bool>? _bufferingSub;
+  bool _pipSupported = false;
 
   @override
   void initState() {
@@ -149,6 +150,7 @@ class _FvideoPlayerState extends State<FvideoPlayer> {
     _loadBrightness();
     _scheduleControlsHide();
     _initQualities();
+    _initPip();
     // Downshift when the network stalls repeatedly on a pinned quality.
     // 锁定某清晰度时网络反复卡顿则降档。
     _bufferingSub = widget.controller.player.stream.buffering.listen((b) {
@@ -188,6 +190,16 @@ class _FvideoPlayerState extends State<FvideoPlayer> {
     } catch (_) {
       _brightness = 1.0;
     }
+  }
+
+  // ---- PiP --------------------------------------------------------------
+
+  /// Detects PiP support so the button only shows where it works.
+  ///
+  /// 探测画中画支持，仅在可用平台显示按钮。
+  Future<void> _initPip() async {
+    final ok = await widget.controller.isPipSupported();
+    if (mounted) setState(() => _pipSupported = ok);
   }
 
   // ---- Quality / ABR ----------------------------------------------------
@@ -499,6 +511,7 @@ class _FvideoPlayerState extends State<FvideoPlayer> {
     final hasQualities = widget.controller.qualities.isNotEmpty;
     final onQuality = hasQualities ? _showQualityMenu : null;
     final qualityLabel = widget.controller.currentQuality?.label;
+    final onPip = _pipSupported ? widget.controller.enterPip : null;
     if (widget.controller.isLive) {
       return LiveControls(
         controller: widget.controller,
@@ -509,6 +522,7 @@ class _FvideoPlayerState extends State<FvideoPlayer> {
         onToggleFullscreen: _toggleFullscreen,
         onQuality: onQuality,
         qualityLabel: qualityLabel,
+        onPip: onPip,
       );
     }
     return VodControls(
@@ -520,6 +534,7 @@ class _FvideoPlayerState extends State<FvideoPlayer> {
       onToggleFullscreen: _toggleFullscreen,
       onQuality: onQuality,
       qualityLabel: qualityLabel,
+      onPip: onPip,
     );
   }
 

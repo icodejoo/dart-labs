@@ -54,6 +54,11 @@ class VodControls extends StatefulWidget {
   /// 清晰度按钮的标签（如当前清晰度）。
   final String? qualityLabel;
 
+  /// Called when the PiP button is tapped; null hides the button.
+  ///
+  /// 点击画中画按钮时调用；为 null 时隐藏该按钮。
+  final VoidCallback? onPip;
+
   /// Creates the VOD control bar.
   ///
   /// 创建点播控制条。
@@ -67,6 +72,7 @@ class VodControls extends StatefulWidget {
     required this.onToggleFullscreen,
     this.onQuality,
     this.qualityLabel,
+    this.onPip,
   });
 
   @override
@@ -106,6 +112,8 @@ class _VodControlsState extends State<VodControls> {
             style: const TextStyle(color: Colors.white, fontSize: 14),
           ),
         ),
+        if (widget.onPip != null)
+          ControlIconButton(icon: Icons.picture_in_picture_alt_rounded, onPressed: widget.onPip),
         if (widget.onQuality != null)
           ControlIconButton(
             icon: Icons.high_quality_rounded,

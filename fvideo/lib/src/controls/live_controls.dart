@@ -50,6 +50,11 @@ class LiveControls extends StatelessWidget {
   /// 清晰度按钮的标签（如当前清晰度）。
   final String? qualityLabel;
 
+  /// Called when the PiP button is tapped; null hides the button.
+  ///
+  /// 点击画中画按钮时调用；为 null 时隐藏该按钮。
+  final VoidCallback? onPip;
+
   /// Creates the live control bar.
   ///
   /// 创建直播控制条。
@@ -63,6 +68,7 @@ class LiveControls extends StatelessWidget {
     required this.onToggleFullscreen,
     this.onQuality,
     this.qualityLabel,
+    this.onPip,
   });
 
   @override
@@ -92,6 +98,8 @@ class LiveControls extends StatelessWidget {
             style: const TextStyle(color: Colors.white, fontSize: 14),
           ),
         ),
+        if (onPip != null)
+          ControlIconButton(icon: Icons.picture_in_picture_alt_rounded, onPressed: onPip),
         if (onQuality != null)
           ControlIconButton(
             icon: Icons.high_quality_rounded,

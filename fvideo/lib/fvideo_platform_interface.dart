@@ -26,4 +26,15 @@ abstract class FvideoPlatform extends PlatformInterface {
   Future<String?> getPlatformVersion() {
     throw UnimplementedError('platformVersion() has not been implemented.');
   }
+
+  /// Whether this platform can enter system picture-in-picture.
+  ///
+  /// 本平台是否支持进入系统画中画。
+  Future<bool> isPipSupported() => Future.value(false);
+
+  /// Requests system PiP with an optional [width]/[height] aspect hint.
+  /// Returns whether PiP was entered.
+  ///
+  /// 请求系统画中画，可选传入 [width]/[height] 作为宽高比提示。返回是否成功进入。
+  Future<bool> enterPip({int? width, int? height}) => Future.value(false);
 }
