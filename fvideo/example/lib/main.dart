@@ -21,13 +21,42 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const MaterialApp(home: PlayerPage());
+    return MaterialApp(theme: ThemeData.dark(), home: const PlayerPage());
   }
 }
 
-/// A page that plays a sample video with [FvideoPlayer] and its gestures.
+/// A demo source with a display name.
 ///
-/// 用 [FvideoPlayer] 及其手势层播放示例视频的页面。
+/// 带显示名的演示源。
+class _Demo {
+  final String name;
+  final FvideoSource source;
+  const _Demo(this.name, this.source);
+}
+
+/// The demo sources: a plain VOD mp4 and a multi-quality HLS stream.
+///
+/// 演示源：普通点播 mp4 与含多清晰度的 HLS 流。
+const _demos = [
+  _Demo(
+    'VOD · mp4',
+    FvideoSource(
+      'https://user-images.githubusercontent.com/28951144/229373695-22f88f13-d18f-4288-9bf1-c3e078d83722.mp4',
+      title: '示例点播 mp4',
+    ),
+  ),
+  _Demo(
+    'HLS · 多清晰度',
+    FvideoSource(
+      'https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8',
+      title: 'HLS 多清晰度示例',
+    ),
+  ),
+];
+
+/// A page that plays a demo source with [FvideoPlayer] and a source switcher.
+///
+/// 用 [FvideoPlayer] 播放演示源并提供源切换的页面。
 class PlayerPage extends StatefulWidget {
   /// Creates the player page.
   ///
@@ -43,16 +72,13 @@ class PlayerPage extends StatefulWidget {
 /// [PlayerPage] 的状态；持有 [FvideoController] 的生命周期。
 class _PlayerPageState extends State<PlayerPage> {
   late final FvideoController _controller;
+  int _index = 0;
 
   @override
   void initState() {
     super.initState();
     _controller = FvideoController();
-    _controller.open(
-      const FvideoSource(
-        'https://user-images.githubusercontent.com/28951144/229373695-22f88f13-d18f-4288-9bf1-c3e078d83722.mp4',
-      ),
-    );
+    _controller.open(_demos[_index].source);
   }
 
   @override
@@ -61,10 +87,32 @@ class _PlayerPageState extends State<PlayerPage> {
     super.dispose();
   }
 
+  /// Switches to demo source [i] and reloads its qualities.
+  ///
+  /// 切换到第 [i] 个演示源并重新加载其清晰度。
+  Future<void> _switch(int i) async {
+    setState(() => _index = i);
+    await _controller.open(_demos[i].source);
+    await _controller.loadQualities();
+    if (mounted) setState(() {});
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('fvideo P1')),
+      appBar: AppBar(
+        title: const Text('fvideo'),
+        actions: [
+          for (var i = 0; i < _demos.length; i++)
+            TextButton(
+              onPressed: i == _index ? null : () => _switch(i),
+              child: Text(
+                _demos[i].name,
+                style: TextStyle(color: i == _index ? Colors.grey : Colors.white),
+              ),
+            ),
+        ],
+      ),
       body: Center(
         child: AspectRatio(
           aspectRatio: 16 / 9,

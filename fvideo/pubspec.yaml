@@ -1,7 +1,14 @@
 name: fvideo
-description: "A new Flutter plugin project."
-version: 0.0.1
-homepage:
+description: "media_kit (libmpv/ffmpeg) 视频播放器插件：手势、点播/直播控制条、清晰度切换与自适应、画中画。"
+version: 0.1.0
+homepage: https://github.com/icodejoo/dart-labs/tree/main/fvideo
+repository: https://github.com/icodejoo/dart-labs/tree/main/fvideo
+topics:
+  - video
+  - player
+  - media-kit
+  - hls
+  - picture-in-picture
 
 environment:
   sdk: ^3.12.2
