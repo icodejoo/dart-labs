@@ -1,6 +1,6 @@
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:videoman/src/controls/player.dart' show preferredOrientationsFor;
+import 'package:videoman/src/platform_impl/orientation_impl.dart' show preferredOrientationsFor;
 
 void main() {
   group('preferredOrientationsFor', () {
