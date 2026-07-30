@@ -32,7 +32,15 @@ List<VmComponent> applyPatches(List<VmComponent> tree, List<VmPatch> patches) {
 List<VmComponent> _applyOne(List<VmComponent> tree, VmPatch patch) {
   switch (patch) {
     case VmPatchAdd():
-      return [...tree, patch.component];
+      return [
+        ...tree,
+        _CopyComponent(
+          patch.component,
+          patch.component.children,
+          slotOverride: patch.slot,
+          orderOverride: patch.order,
+        ),
+      ];
     case VmPatchReplace():
       return _replaceAt(tree, patch.path, patch.component);
     case VmPatchRemove():
@@ -105,20 +113,39 @@ List<VmComponent> _insertAfterAt(List<VmComponent> nodes, String path, VmCompone
   }).toList();
 }
 
-/// A structural copy of [source] that keeps its identity (name/slot/order/
-/// build) but swaps in [newChildren] — used by the recursive patch helpers
-/// to rebuild ancestors of a matched descendant without mutating anything.
+/// A structural copy of [source] that keeps its identity (name/build) but
+/// swaps in [newChildren], and optionally overrides [slot]/[order] — used by
+/// the recursive patch helpers to rebuild ancestors of a matched descendant
+/// without mutating anything, and by [VmPatchAdd] to tag an appended
+/// component with the patch's own slot/order rather than the component's own.
 ///
-/// [source] 的结构性拷贝，保留其身份（name/slot/order/build）但替换为
-/// [newChildren]——供递归补丁辅助函数在重建匹配后代的祖先节点时使用，不会
-/// 修改任何原始对象。
+/// Note: this wrapper does not preserve [source]'s concrete runtime type —
+/// an `is SomeConcreteType` check against a patched ancestor will not match.
+///
+/// [source] 的结构性拷贝，保留其身份（name/build）但替换为 [newChildren]，
+/// 并可选地覆盖 [slot]/[order]——供递归补丁辅助函数在重建匹配后代的祖先节点
+/// 时使用（不修改任何原始对象），也供 [VmPatchAdd] 用来给新增的组件打上
+/// 补丁自带的 slot/order，而不是组件自身的。
+///
+/// 注意：此包装不保留 [source] 的具体运行时类型——对被打过补丁的祖先节点做
+/// `is SomeConcreteType` 判断不会命中。
 class _CopyComponent extends VmComponent {
-  _CopyComponent(this._source, this.children);
+  _CopyComponent(this._source, this.children, {this.slotOverride, this.orderOverride});
 
   /// The original component being wrapped.
   ///
   /// 被包装的原始组件。
   final VmComponent _source;
+
+  /// Overridden slot, if provided; falls back to [_source]'s own slot.
+  ///
+  /// 覆盖用的 slot（若提供）；否则回退到 [_source] 自身的 slot。
+  final VmSlot? slotOverride;
+
+  /// Overridden order, if provided; falls back to [_source]'s own order.
+  ///
+  /// 覆盖用的 order（若提供）；否则回退到 [_source] 自身的 order。
+  final int? orderOverride;
 
   @override
   final List<VmComponent> children;
@@ -127,10 +154,10 @@ class _CopyComponent extends VmComponent {
   String get name => _source.name;
 
   @override
-  VmSlot get slot => _source.slot;
+  VmSlot get slot => slotOverride ?? _source.slot;
 
   @override
-  int get order => _source.order;
+  int get order => orderOverride ?? _source.order;
 
   @override
   Widget build(BuildContext context, VmApi api, List<Widget> builtChildren) =>
