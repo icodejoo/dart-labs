@@ -46,8 +46,8 @@
 - [x] **P0** 工程结构（core / controls 分层）
 - [x] **P1** 内核封装（FvideoController / FvideoSource）
 - [x] **P2** 手势层 + HUD（FvideoGestureDetector / FvideoPlayer）
-- [ ] **P3** 观看模式（#5）+ 锁定/沉浸（#4）+ 点播/直播控制条
-- [ ] **P4** 方向与全屏（#3）
+- [x] **P3** 观看模式（#5）+ 锁定/沉浸（#4）+ 点播/直播控制条
+- [x] **P4** 方向与全屏（#3）：全屏切换 + 按宽高比定向 + 尺寸流自动重定向 + autoOrientation 开关
 - [ ] **P5** 清晰度提取 / 手动切换 / ABR 自适应（#2）
 - [ ] **P6** 画中画 PiP（#1）
 - [ ] **P7** 发布准备（README / example / pub）
