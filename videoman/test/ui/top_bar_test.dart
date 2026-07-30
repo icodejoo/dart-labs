@@ -64,10 +64,34 @@ void main() {
     await pumpComponent(t, api, TopBarComponent());
     expect(find.text(''), findsOneWidget);
 
-    api.source = const VmSource('https://host/video.mp4', title: 'My Video');
-    api.push(api.state.copyWith(type: VmStreamType.live));
+    await api.open(const VmSource('https://host/video.mp4', title: 'My Video'));
     await t.pumpAndSettle();
     expect(find.text('My Video'), findsOneWidget);
+    await api.dispose();
+  });
+
+  // Regression: re-opening a *different* source of the SAME VmStreamType
+  // (VOD -> VOD here) must still update the shown title. Round-1 of this
+  // fix piggybacked reactivity on VmState.type, which does not change in
+  // this case, so the title stayed stuck on the first source — this test
+  // exercises exactly that same-type re-open path.
+  //
+  // 回归测试：重新打开同一 VmStreamType（此处为点播 -> 点播）的另一个源时，
+  // 展示的标题也必须更新。本修复第一轮曾把响应式重建挂在 VmState.type 上，
+  // 而这种情况下 type 不会变化，导致标题停留在第一个源上——本测试专门覆盖
+  // 这种同类型重开的路径。
+  testWidgets('title updates when re-opening a different source of the same stream type', (t) async {
+    final api = FakeVmApi();
+    await api.open(const VmSource('https://host/a.mp4', title: 'A'));
+    await pumpComponent(t, api, TopBarComponent());
+    expect(find.text('A'), findsOneWidget);
+    expect(api.state.type, VmStreamType.vod);
+
+    await api.open(const VmSource('https://host/b.mp4', title: 'B'));
+    expect(api.state.type, VmStreamType.vod);
+    await t.pumpAndSettle();
+    expect(find.text('B'), findsOneWidget);
+    expect(find.text('A'), findsNothing);
     await api.dispose();
   });
 }

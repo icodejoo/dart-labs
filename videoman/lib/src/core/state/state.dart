@@ -119,6 +119,21 @@ class VmState {
   /// 最近一次的播放错误（若有）。
   final Object? error;
 
+  /// Title of the currently open source, or null before [VmState] has any
+  /// source opened / when the source provides no title.
+  ///
+  /// Tracked as a first-class state field (rather than outside [VmState])
+  /// so [VmSelector]s can react directly to title changes, independent of
+  /// whether [type] also changed in the same [open] call (e.g. re-opening a
+  /// different source of the same stream type).
+  ///
+  /// 当前已打开源的标题；未打开过源，或源未提供标题时为 null。
+  ///
+  /// 作为状态的一等字段跟踪（而非放在 [VmState] 之外），使 [VmSelector] 能
+  /// 直接响应标题变化，不依赖同一次 [open] 调用中 [type] 是否也发生了变化
+  /// （例如重新打开同一流类型的另一个源）。
+  final String? sourceTitle;
+
   /// Creates a state snapshot; all fields default to the 0.1.0 baseline
   /// behaviour (stopped, full volume/brightness/rate/zoom, contain fit,
   /// VOD, not seekable-live).
@@ -147,19 +162,21 @@ class VmState {
     this.seekableWindow = Duration.zero,
     this.timeshiftBehind,
     this.error,
+    this.sourceTitle,
   });
 
   /// Returns a copy with the given fields replaced.
   ///
-  /// [clearQuality], [clearTimeshift], and [clearError] explicitly null out
-  /// [currentQuality], [timeshiftBehind], and [error] respectively — passing
-  /// a nullable field as `null` is otherwise indistinguishable from "keep".
+  /// [clearQuality], [clearTimeshift], [clearError], and [clearSourceTitle]
+  /// explicitly null out [currentQuality], [timeshiftBehind], [error], and
+  /// [sourceTitle] respectively — passing a nullable field as `null` is
+  /// otherwise indistinguishable from "keep".
   ///
   /// 返回一个替换了指定字段的副本。
   ///
-  /// [clearQuality]、[clearTimeshift]、[clearError] 用于显式清空
-  /// [currentQuality]、[timeshiftBehind]、[error]——否则可空字段传 `null`
-  /// 无法与"保持原值"区分。
+  /// [clearQuality]、[clearTimeshift]、[clearError]、[clearSourceTitle]
+  /// 用于显式清空 [currentQuality]、[timeshiftBehind]、[error]、
+  /// [sourceTitle]——否则可空字段传 `null` 无法与"保持原值"区分。
   VmState copyWith({
     bool? playing,
     bool? buffering,
@@ -182,9 +199,11 @@ class VmState {
     Duration? seekableWindow,
     Duration? timeshiftBehind,
     Object? error,
+    String? sourceTitle,
     bool clearQuality = false,
     bool clearTimeshift = false,
     bool clearError = false,
+    bool clearSourceTitle = false,
   }) {
     return VmState(
       playing: playing ?? this.playing,
@@ -208,6 +227,7 @@ class VmState {
       seekableWindow: seekableWindow ?? this.seekableWindow,
       timeshiftBehind: clearTimeshift ? null : (timeshiftBehind ?? this.timeshiftBehind),
       error: clearError ? null : (error ?? this.error),
+      sourceTitle: clearSourceTitle ? null : (sourceTitle ?? this.sourceTitle),
     );
   }
 
@@ -235,7 +255,8 @@ class VmState {
         other.liveSeekable == liveSeekable &&
         other.seekableWindow == seekableWindow &&
         other.timeshiftBehind == timeshiftBehind &&
-        other.error == error;
+        other.error == error &&
+        other.sourceTitle == sourceTitle;
   }
 
   @override
@@ -250,6 +271,7 @@ class VmState {
         seekableWindow,
         timeshiftBehind,
         error,
+        sourceTitle,
       );
 }
 

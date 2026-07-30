@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import '../../core/api.dart';
 import '../../core/model/fit.dart';
 import '../../core/model/quality.dart';
-import '../../core/model/source.dart';
 import '../../core/options/theme.dart';
 import '../scope/selector.dart';
 import '../slots/component.dart';
@@ -66,18 +65,16 @@ class TopBarComponent extends VmComponent {
 
 /// Displays the current source's title, ellipsized to one line.
 ///
-/// Reads [VmApi.sourceTitle] (not part of [VmState]/[VmApi.states]), so
-/// reactivity is piggybacked on a [VmSelector] watching [VmState.type] —
-/// [VmApi.open] always updates `type` as part of the same synchronous state
-/// emit that updates the open source, so watching it is sufficient to
-/// rebuild this leaf whenever a new source (and thus title) is opened.
+/// Reads [VmState.sourceTitle] directly via a [VmSelector], so it rebuilds
+/// whenever the title itself changes — including re-opening a different
+/// source of the *same* [VmState.type] (e.g. VOD → VOD), which does not
+/// change `type` and would otherwise be missed if watching `type` instead.
 ///
 /// 展示当前源的标题，超一行省略。
 ///
-/// 读取 [VmApi.sourceTitle]（不属于 [VmState]/[VmApi.states]），因此借助
-/// 监听 [VmState.type] 的 [VmSelector] 实现响应式重建——[VmApi.open] 总是
-/// 在更新已打开源的同一次同步状态发射中更新 `type`，所以监听它足以在每次
-/// 打开新源（从而标题变化）时重建该叶子组件。
+/// 通过 [VmSelector] 直接读取 [VmState.sourceTitle]，因此标题本身变化时即
+/// 会重建——包括重新打开同一 [VmState.type]（例如点播换点播）的另一个源，
+/// 此时 `type` 不会变化，若改为监听 `type` 则会漏掉这种情况。
 class TitleComponent extends VmComponent {
   /// Creates the title leaf component.
   ///
@@ -93,10 +90,10 @@ class TitleComponent extends VmComponent {
   @override
   Widget build(BuildContext context, VmApi api, List<Widget> children) {
     final theme = api.options.theme;
-    return VmSelector<VmStreamType>(
-      selector: (s) => s.type,
-      builder: (context, _) {
-        final title = api.sourceTitle ?? '';
+    return VmSelector<String?>(
+      selector: (s) => s.sourceTitle,
+      builder: (context, sourceTitle) {
+        final title = sourceTitle ?? '';
         return Text(
           title,
           maxLines: 1,

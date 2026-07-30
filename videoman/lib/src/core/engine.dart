@@ -225,9 +225,6 @@ class VmEngine implements VmApi {
   VmUiState get uiState => _ui.value;
 
   @override
-  String? get sourceTitle => _source?.title;
-
-  @override
   Future<void> open(VmSource source, {bool autoPlay = true}) async {
     final allowed = await _chain.beforeOpen(source);
     if (!allowed) return;
@@ -236,8 +233,10 @@ class VmEngine implements VmApi {
     _state.emit(state.copyWith(
       qualities: const [],
       type: source.type,
+      sourceTitle: source.title,
       clearQuality: true,
       clearError: true,
+      clearSourceTitle: source.title == null,
     ));
     await _kernel.open(source.uri, play: autoPlay);
     _recomputeLiveSeekable();

@@ -57,12 +57,6 @@ abstract class VmApi {
   /// 构造该实例时使用的配置。
   VmOptions get options;
 
-  /// Title of the currently open source, or null before [open] / when the
-  /// source has none.
-  ///
-  /// 当前已打开源的标题；[open] 之前或源未提供标题时为 null。
-  String? get sourceTitle;
-
   /// Opens [source] for playback.
   ///
   /// [source] is the media to load. [autoPlay] controls whether playback
