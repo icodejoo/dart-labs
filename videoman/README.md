@@ -30,7 +30,7 @@ Flutter 视频播放库，自研手势与控制层，支持点播与直播。
 
 ```yaml
 dependencies:
-  videoman: ^0.1.0
+  videoman: ^0.2.0
 ```
 
 Android 要用画中画，需在 `AndroidManifest.xml` 的 Activity 上声明：
@@ -50,7 +50,7 @@ import 'package:videoman/videoman.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
-  VmController.ensureInitialized(); // 全局一次性初始化
+  VmEngine.ensureInitialized(); // 全局一次性初始化
   runApp(const MyApp());
 }
 
@@ -61,13 +61,13 @@ class Page extends StatefulWidget {
 }
 
 class _PageState extends State<Page> {
-  late final VmController controller;
+  late final VmEngine engine;
 
   @override
   void initState() {
     super.initState();
-    controller = VmController();
-    controller.open(const VmSource(
+    engine = VmEngine();
+    engine.open(const VmSource(
       'https://example.com/master.m3u8',
       type: VmStreamType.live, // 或 VmStreamType.vod
       title: '示例',
@@ -76,37 +76,122 @@ class _PageState extends State<Page> {
 
   @override
   void dispose() {
-    controller.dispose();
+    engine.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    return VmPlayer(
-      controller: controller,
-      fit: VmFit.contain,
-      gestureConfig: const VmGestureConfig(),
-    );
+    return VmPlayer(api: engine); // 默认皮肤 VmDefaultSkin
   }
 }
 ```
 
-自定义手势侧别/开关：
+自定义手势侧别/开关，通过 `VmOptions` 传入 `VmEngine`：
 
 ```dart
-const VmGestureConfig(
-  leftVerticalVolume: true,      // 左侧竖滑=音量
-  rightVerticalBrightness: true, // 右侧竖滑=亮度
-  horizontalSeek: true,          // 横滑=进度
-  doubleTapSeek: true,
-  doubleTapStep: Duration(seconds: 10),
-  pinchZoom: true,
+final engine = VmEngine(
+  options: const VmOptions(
+    gesture: VmGestureConfig(
+      leftVerticalVolume: true,      // 左侧竖滑=音量
+      rightVerticalBrightness: true, // 右侧竖滑=亮度
+      horizontalSeek: true,          // 横滑=进度
+      doubleTapSeek: true,
+      doubleTapStep: Duration(seconds: 10),
+      pinchZoom: true,
+    ),
+  ),
 );
+```
+
+## 架构 / Architecture
+
+0.2.0 起分两层：`lib/src/core/`（无 UI 依赖的能力面/内核封装）与
+`lib/src/ui/`（组件树 + 皮肤 + 手势，纯 Flutter widget）。
+
+```
+core/
+  api.dart              VmApi        —— UI 层唯一依赖的抽象能力面
+  engine.dart           VmEngine     —— VmApi 的生产实现（取代 0.1.0 的 VmController）
+  kernel/                            —— VmKernel 抽象；mpv_kernel.dart 是唯一 import media_kit 的文件
+  bus/ events/ state/                —— 事件总线、sealed 事件表、VmState/VmProgress/VmUiState
+  interceptor/           VmInterceptor —— beforeOpen/beforeSeek/beforePlay/onError 四个拦截点
+  options/               VmOptions    —— gesture/abr/controls/live/strings/theme 六节配置聚合
+ui/
+  player.dart            VmPlayer     —— 顶层组件：接 VmApi + 渲染画面 + 由 VmSkin 出树
+  slots/                 VmComponent / VmSlot / VmPatch —— 组件树模型与结构化补丁
+  skins/                 VmSkin / VmDefaultSkin —— 依据 VmState 决定树里有哪些组件
+  components/                         —— 叶子/组合组件（top_bar/bottom_bar/live_bar/gesture_layer/hud_layer/...）
+```
+
+`VmApi` 是 `ui/` 唯一允许依赖的抽象——它不直接触达 `VmKernel` 或 media_kit。
+测试用 `FakeVmApi`（见 `test/support/fake_api.dart`），因此绝大多数组件/皮肤测试
+无需启动真实播放内核。
+
+## 自定义皮肤 / Custom skins
+
+不用继承旧版 `VodControls`/`LiveControls`/`VmGestureDetector`，改为对
+`VmDefaultSkin` 打补丁，或整体实现 `VmSkin` 接口重写 `components()`/`assemble()`：
+
+```dart
+// 去掉顶栏里的画中画按钮（等价于 0.1.0 里派生子类删掉一个按钮）。
+const noPipSkin = VmDefaultSkin(
+  patches: [VmPatch.remove('topBar/pipButton')],
+);
+
+VmPlayer(api: engine, skin: noPipSkin);
+```
+
+```dart
+// 在顶栏追加一个自定义组件。
+final withExtra = VmDefaultSkin(
+  patches: [VmPatch.add(VmSlot.top, MyExtraButtonComponent(), order: 10)],
+);
+```
+
+需要完全不同的排版时，直接实现 `VmSkin`：
+
+```dart
+class MySkin implements VmSkin {
+  @override
+  List<VmComponent> components(VmState s) => [/* 自定义组件树 */];
+
+  @override
+  Widget assemble(BuildContext context, VmSlotBundle slots, Widget video) {
+    return Stack(children: [video, ...slots[VmSlot.top]]);
+  }
+}
+```
+
+## 注入拦截器 / Interceptors
+
+`VmInterceptor` 让宿主 App 否决或改写核心动作（例如播放前鉴权、跳转边界限制、
+统一错误上报），无需改动 `VmEngine`/组件代码：
+
+```dart
+class AuthGate extends VmInterceptor {
+  @override
+  Future<bool> beforeOpen(VmSource source) async {
+    return await checkEntitlement(source.uri); // false 则取消打开
+  }
+
+  @override
+  Future<Duration?> beforeSeek(Duration target) async {
+    return target < Duration.zero ? Duration.zero : target; // 改写目标位置
+  }
+
+  @override
+  void onError(Object error, StackTrace stack) => reportToSentry(error, stack);
+}
+
+final engine = VmEngine(interceptors: [AuthGate()]);
 ```
 
 ## Roadmap / 路线图
 
-见 [doc/ROADMAP.md](doc/ROADMAP.md)。二期计划自建**瘦身** libmpv/ffmpeg（仅主流点播/录播格式，构建卡 LGPL）替换官方 `media_kit_libs_video`。
+见 [doc/ROADMAP.md](doc/ROADMAP.md) 与 [doc/DESIGN-0.2.0.md](doc/DESIGN-0.2.0.md)。
+阶段 A（本次，core/ui 分层重构）已完成；阶段 B（拖动预览缩略图）、阶段 C（直播
+时移）、阶段 D（收尾发布）计划见 DESIGN 文档 §7/§8/§12。
 
 ## License
 

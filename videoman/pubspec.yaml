@@ -1,6 +1,6 @@
 name: videoman
 description: "media_kit (libmpv/ffmpeg) 视频播放器插件：手势、点播/直播控制条、清晰度切换与自适应、画中画。"
-version: 0.1.0
+version: 0.2.0
 homepage: https://github.com/icodejoo/dart-labs/tree/main/videoman
 repository: https://github.com/icodejoo/dart-labs/tree/main/videoman
 topics:
