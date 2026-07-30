@@ -38,6 +38,20 @@ BoxFit fvideoBoxFit(FvideoFit fit) => switch (fit) {
       FvideoFit.fill => BoxFit.fill,
     };
 
+/// Chooses the fullscreen orientations that match a video's aspect ratio.
+///
+/// Landscape (both directions) when width ≥ height, else portrait.
+///
+/// 按视频宽高比选择全屏方向：宽≥高用横屏（双向），否则竖屏。
+///
+/// - [width], [height]: video pixel dimensions / 视频像素宽高
+/// - returns the preferred orientation list / 返回首选方向列表
+List<DeviceOrientation> preferredOrientationsFor(int width, int height) {
+  return width >= height
+      ? const [DeviceOrientation.landscapeLeft, DeviceOrientation.landscapeRight]
+      : const [DeviceOrientation.portraitUp, DeviceOrientation.portraitDown];
+}
+
 /// The fvideo player widget: video surface + gestures + control bars + lock.
 ///
 /// Renders a media_kit [Video] (built-in controls disabled) and overlays
@@ -72,6 +86,12 @@ class FvideoPlayer extends StatefulWidget {
   /// 双指缩放的最大倍数。
   final double maxZoom;
 
+  /// Auto-detect the video aspect ratio and lock orientation accordingly
+  /// while fullscreen. When false, fullscreen keeps device auto-rotate.
+  ///
+  /// 全屏时自动检测视频宽高比并据此锁定方向。为 false 时全屏保持设备自动旋转。
+  final bool autoOrientation;
+
   /// Creates a player bound to [controller].
   ///
   /// 创建绑定到 [controller] 的播放器。
@@ -86,6 +106,7 @@ class FvideoPlayer extends StatefulWidget {
     this.gestureConfig = const FvideoGestureConfig(),
     this.fit = FvideoFit.contain,
     this.maxZoom = 3.0,
+    this.autoOrientation = true,
   });
 
   @override
@@ -112,18 +133,35 @@ class _FvideoPlayerState extends State<FvideoPlayer> {
   Timer? _hudTimer;
   Timer? _controlsTimer;
 
+  int? _videoWidth;
+  int? _videoHeight;
+  StreamSubscription<int?>? _widthSub;
+  StreamSubscription<int?>? _heightSub;
+
   @override
   void initState() {
     super.initState();
     _fit = widget.fit;
     _loadBrightness();
     _scheduleControlsHide();
+    // Track video dimensions so fullscreen orientation follows the aspect.
+    // 跟踪视频尺寸，使全屏方向跟随宽高比。
+    _widthSub = widget.controller.player.stream.width.listen((w) {
+      _videoWidth = w;
+      _onDimsChanged();
+    });
+    _heightSub = widget.controller.player.stream.height.listen((h) {
+      _videoHeight = h;
+      _onDimsChanged();
+    });
   }
 
   @override
   void dispose() {
     _hudTimer?.cancel();
     _controlsTimer?.cancel();
+    _widthSub?.cancel();
+    _heightSub?.cancel();
     // Restore system UI on the way out. / 退出时恢复系统 UI。
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
     SystemChrome.setPreferredOrientations(DeviceOrientation.values);
@@ -229,21 +267,24 @@ class _FvideoPlayerState extends State<FvideoPlayer> {
     );
   }
 
+  /// Re-applies fullscreen orientation when the video dimensions change.
+  ///
+  /// 视频尺寸变化时重新应用全屏方向。
+  void _onDimsChanged() {
+    if (_fullscreen && widget.autoOrientation) _applyOrientation();
+  }
+
   /// Locks orientation to match the video aspect ratio in fullscreen.
   ///
   /// 全屏时按视频宽高比锁定方向。
   void _applyOrientation() {
-    if (!_fullscreen) {
+    if (!_fullscreen || !widget.autoOrientation) {
       SystemChrome.setPreferredOrientations(DeviceOrientation.values);
       return;
     }
-    final w = widget.controller.player.state.width ?? 16;
-    final h = widget.controller.player.state.height ?? 9;
-    SystemChrome.setPreferredOrientations(
-      w >= h
-          ? const [DeviceOrientation.landscapeLeft, DeviceOrientation.landscapeRight]
-          : const [DeviceOrientation.portraitUp, DeviceOrientation.portraitDown],
-    );
+    final w = _videoWidth ?? widget.controller.player.state.width ?? 16;
+    final h = _videoHeight ?? widget.controller.player.state.height ?? 9;
+    SystemChrome.setPreferredOrientations(preferredOrientationsFor(w, h));
   }
 
   // ---- Gesture intents --------------------------------------------------
