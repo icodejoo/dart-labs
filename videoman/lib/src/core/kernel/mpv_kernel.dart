@@ -40,6 +40,11 @@ class MpvKernel implements VmKernel {
     });
   }
 
+  /// One-time global media_kit init; call before creating any [MpvKernel].
+  ///
+  /// 全局一次性 media_kit 初始化；创建任何 [MpvKernel] 前调用。
+  static void ensureInitialized() => MediaKit.ensureInitialized();
+
   /// The wrapped media_kit player instance.
   ///
   /// 被包裹的 media_kit 播放器实例。
