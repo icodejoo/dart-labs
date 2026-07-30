@@ -44,6 +44,16 @@ class VodControls extends StatefulWidget {
   /// 点击全屏按钮时调用。
   final VoidCallback onToggleFullscreen;
 
+  /// Called when the quality button is tapped; null hides the button.
+  ///
+  /// 点击清晰度按钮时调用；为 null 时隐藏该按钮。
+  final VoidCallback? onQuality;
+
+  /// Label for the quality button (e.g. current quality).
+  ///
+  /// 清晰度按钮的标签（如当前清晰度）。
+  final String? qualityLabel;
+
   /// Creates the VOD control bar.
   ///
   /// 创建点播控制条。
@@ -55,6 +65,8 @@ class VodControls extends StatefulWidget {
     required this.onLock,
     required this.onCycleFit,
     required this.onToggleFullscreen,
+    this.onQuality,
+    this.qualityLabel,
   });
 
   @override
@@ -94,6 +106,12 @@ class _VodControlsState extends State<VodControls> {
             style: const TextStyle(color: Colors.white, fontSize: 14),
           ),
         ),
+        if (widget.onQuality != null)
+          ControlIconButton(
+            icon: Icons.high_quality_rounded,
+            caption: widget.qualityLabel,
+            onPressed: widget.onQuality,
+          ),
         ControlIconButton(
           icon: Icons.aspect_ratio_rounded,
           caption: widget.fit.label,

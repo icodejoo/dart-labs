@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 import 'package:media_kit_video/media_kit_video.dart';
 import 'package:screen_brightness/screen_brightness.dart';
 
+import '../core/abr.dart';
 import '../core/fvideo_config.dart';
 import '../core/fvideo_controller.dart';
 import 'gesture_layer.dart';
@@ -14,7 +15,7 @@ import 'vod_controls.dart';
 /// Which transient HUD indicator is currently shown.
 ///
 /// 当前显示的瞬时 HUD 指示器种类。
-enum _Hud { none, volume, brightness, seek, fit }
+enum _Hud { none, volume, brightness, seek, fit, quality }
 
 /// How long the HUD stays visible after the last update.
 ///
@@ -138,12 +139,21 @@ class _FvideoPlayerState extends State<FvideoPlayer> {
   StreamSubscription<int?>? _widthSub;
   StreamSubscription<int?>? _heightSub;
 
+  final BufferingAbr _abr = BufferingAbr();
+  StreamSubscription<bool>? _bufferingSub;
+
   @override
   void initState() {
     super.initState();
     _fit = widget.fit;
     _loadBrightness();
     _scheduleControlsHide();
+    _initQualities();
+    // Downshift when the network stalls repeatedly on a pinned quality.
+    // 锁定某清晰度时网络反复卡顿则降档。
+    _bufferingSub = widget.controller.player.stream.buffering.listen((b) {
+      if (_abr.add(b)) _autoDownshift();
+    });
     // Track video dimensions so fullscreen orientation follows the aspect.
     // 跟踪视频尺寸，使全屏方向跟随宽高比。
     _widthSub = widget.controller.player.stream.width.listen((w) {
@@ -162,6 +172,7 @@ class _FvideoPlayerState extends State<FvideoPlayer> {
     _controlsTimer?.cancel();
     _widthSub?.cancel();
     _heightSub?.cancel();
+    _bufferingSub?.cancel();
     // Restore system UI on the way out. / 退出时恢复系统 UI。
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
     SystemChrome.setPreferredOrientations(DeviceOrientation.values);
@@ -177,6 +188,64 @@ class _FvideoPlayerState extends State<FvideoPlayer> {
     } catch (_) {
       _brightness = 1.0;
     }
+  }
+
+  // ---- Quality / ABR ----------------------------------------------------
+
+  /// Resolves HLS quality variants, then refreshes to show the picker.
+  ///
+  /// 解析 HLS 清晰度档位，随后刷新以显示选择入口。
+  Future<void> _initQualities() async {
+    await widget.controller.loadQualities();
+    if (mounted) setState(() {});
+  }
+
+  /// Steps down one quality on repeated stalls and flashes a HUD.
+  ///
+  /// 反复卡顿时降一档清晰度并闪一次 HUD。
+  Future<void> _autoDownshift() async {
+    final cur = widget.controller.currentQuality;
+    if (cur == null || cur.isAuto) return;
+    await widget.controller.downshiftQuality();
+    if (!mounted) return;
+    setState(() {});
+    _showHud(_Hud.quality, '网络波动 · ${widget.controller.currentQuality?.label ?? ''}');
+  }
+
+  /// Opens a bottom sheet to pick a quality; auto delegates ABR to the engine.
+  ///
+  /// 打开底部选择器切换清晰度；"自动"把 ABR 交给内核。
+  void _showQualityMenu() {
+    showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: const Color(0xEE1A1A1A),
+      builder: (ctx) {
+        final qs = widget.controller.qualities;
+        final cur = widget.controller.currentQuality;
+        return SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              for (final q in qs)
+                ListTile(
+                  title: Text(q.label, style: const TextStyle(color: Colors.white)),
+                  trailing: (cur?.uri == q.uri && cur?.isAuto == q.isAuto)
+                      ? const Icon(Icons.check_rounded, color: Colors.white)
+                      : null,
+                  onTap: () {
+                    Navigator.of(ctx).pop();
+                    _abr.reset();
+                    widget.controller.switchQuality(q).then((_) {
+                      if (mounted) setState(() {});
+                    });
+                    _showHud(_Hud.quality, q.label);
+                  },
+                ),
+            ],
+          ),
+        );
+      },
+    );
   }
 
   // ---- HUD --------------------------------------------------------------
@@ -427,6 +496,9 @@ class _FvideoPlayerState extends State<FvideoPlayer> {
   ///
   /// 按源类型构建点播或直播控制条。
   Widget _buildControls() {
+    final hasQualities = widget.controller.qualities.isNotEmpty;
+    final onQuality = hasQualities ? _showQualityMenu : null;
+    final qualityLabel = widget.controller.currentQuality?.label;
     if (widget.controller.isLive) {
       return LiveControls(
         controller: widget.controller,
@@ -435,6 +507,8 @@ class _FvideoPlayerState extends State<FvideoPlayer> {
         onLock: _toggleLock,
         onCycleFit: _cycleFit,
         onToggleFullscreen: _toggleFullscreen,
+        onQuality: onQuality,
+        qualityLabel: qualityLabel,
       );
     }
     return VodControls(
@@ -444,6 +518,8 @@ class _FvideoPlayerState extends State<FvideoPlayer> {
       onLock: _toggleLock,
       onCycleFit: _cycleFit,
       onToggleFullscreen: _toggleFullscreen,
+      onQuality: onQuality,
+      qualityLabel: qualityLabel,
     );
   }
 
@@ -473,6 +549,7 @@ class _FvideoPlayerState extends State<FvideoPlayer> {
       _Hud.brightness: Icons.brightness_6_rounded,
       _Hud.seek: Icons.fast_forward_rounded,
       _Hud.fit: Icons.aspect_ratio_rounded,
+      _Hud.quality: Icons.high_quality_rounded,
     };
     return Center(
       child: Container(

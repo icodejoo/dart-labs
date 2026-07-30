@@ -8,4 +8,6 @@ library;
 export 'src/core/fvideo_source.dart';
 export 'src/core/fvideo_controller.dart';
 export 'src/core/fvideo_config.dart';
+export 'src/core/quality.dart';
+export 'src/core/abr.dart';
 export 'src/controls/fvideo_player.dart';

@@ -48,7 +48,7 @@
 - [x] **P2** 手势层 + HUD（FvideoGestureDetector / FvideoPlayer）
 - [x] **P3** 观看模式（#5）+ 锁定/沉浸（#4）+ 点播/直播控制条
 - [x] **P4** 方向与全屏（#3）：全屏切换 + 按宽高比定向 + 尺寸流自动重定向 + autoOrientation 开关
-- [ ] **P5** 清晰度提取 / 手动切换 / ABR 自适应（#2）
+- [x] **P5** 清晰度提取 / 手动切换 / ABR 自适应（#2）：HLS master 解析、手动切档（保位续播）、缓冲卡顿降档；"自动"档委托 libmpv 原生 ABR
 - [ ] **P6** 画中画 PiP（#1）
 - [ ] **P7** 发布准备（README / example / pub）
 - [ ] **二期** ffmpeg 瘦身（LGPL）
