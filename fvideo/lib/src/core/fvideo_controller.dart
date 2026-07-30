@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:media_kit/media_kit.dart';
 import 'package:media_kit_video/media_kit_video.dart';
 
+import '../../fvideo_platform_interface.dart';
 import 'fvideo_source.dart';
 import 'quality.dart';
 
@@ -185,6 +186,21 @@ class FvideoController {
   ///
   /// 设置播放倍速（1.0 为正常）。
   Future<void> setRate(double rate) => player.setRate(rate);
+
+  /// Whether the platform supports system picture-in-picture (Android only
+  /// today; iOS/desktop return false — see ROADMAP technical risks).
+  ///
+  /// 平台是否支持系统画中画（目前仅 Android；iOS/桌面返回 false，见 ROADMAP 风险）。
+  Future<bool> isPipSupported() => FvideoPlatform.instance.isPipSupported();
+
+  /// Requests system PiP using the current video's aspect ratio.
+  /// Returns whether PiP was entered.
+  ///
+  /// 用当前视频宽高比请求系统画中画。返回是否成功进入。
+  Future<bool> enterPip() => FvideoPlatform.instance.enterPip(
+        width: player.state.width,
+        height: player.state.height,
+      );
 
   /// Releases the player and its resources.
   ///
