@@ -97,7 +97,7 @@ class _PlayerPageState extends State<PlayerPage> {
   @override
   void initState() {
     super.initState();
-    _engine = VmEngine();
+    _engine = createVmEngine();
     _engine.open(_demos[_index].source);
   }
 

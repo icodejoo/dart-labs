@@ -32,6 +32,20 @@
 | 派生子类定制控制条 | 传入 `VmPatch` 列表给 `VmDefaultSkin(patches: [...])`，或整体替换 `VmSkin` |
 | 硬编码中文文案/配色 | `VmOptions.strings`（`VmStrings`）/ `VmOptions.theme`（`VmTheme`）注入替换 |
 
+### 修复 / Fixes
+
+* **补上阶段 A 遗漏的平台适配器接线**：阶段 A 把亮度/画中画/方向拆成
+  `VmBrightnessPort`/`VmPipPort`/`VmOrientationPort` 三个可注入端口，并在
+  `lib/src/platform_impl/` 下实现了对应的真实适配器
+  （`ScreenBrightnessPort`/`ChannelPipPort`/`SystemChromeOrientationPort`），
+  但全仓库没有任何地方真正构造过它们——`VmEngine()` 未显式注入时会静默落到
+  `FallbackBrightnessPort`/`NoopPipPort`/`NoopOrientationPort`，导致右侧亮度
+  手势、`enterPip()`、`setFullscreen()` 的方向/沉浸式系统 UI 在 0.2.0 里全部
+  失效（0.1.0 中可用）。新增 `createVmEngine()`（`lib/src/platform_impl/wiring.dart`，
+  已从 `lib/videoman.dart` 导出）默认接入三个真实适配器，同时保留
+  `VmEngine()` 自身的空/兜底默认值不变（供纯 Dart 单测使用）；`example/lib/main.dart`
+  已改用 `createVmEngine()`。
+
 ## 0.1.0
 
 首个可用版本 / First usable release.
