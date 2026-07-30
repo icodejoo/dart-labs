@@ -1,0 +1,117 @@
+export 'abr_config.dart';
+export 'controls_config.dart';
+export 'gesture_config.dart';
+export 'live_config.dart';
+export 'strings.dart';
+export 'theme.dart';
+
+import 'abr_config.dart';
+import 'controls_config.dart';
+import 'gesture_config.dart';
+import 'live_config.dart';
+import 'strings.dart';
+import 'theme.dart';
+
+/// Top-level, immutable configuration bundle for a videoman player.
+///
+/// Groups every configurable aspect (gestures, ABR, control bar, live
+/// behaviour, copy, theme) into one object so apps can construct and pass a
+/// single [VmOptions] instance, and so [copyWith] can replace one section
+/// without disturbing the others. A `preview` section is intentionally
+/// absent for now (deferred to a later task).
+///
+/// videoman 播放器的顶层不可变配置集合。
+///
+/// 把所有可配置项（手势、ABR、控制条、直播行为、文案、主题）归入一个对象，
+/// 应用只需构造并传入一个 [VmOptions] 实例；[copyWith] 可只替换其中一节而
+/// 不影响其他节。目前暂不包含 `preview`（预览图）一节，留待后续任务。
+class VmOptions {
+  /// Live-playback configuration.
+  ///
+  /// 直播播放配置。
+  final VmLiveConfig live;
+
+  /// Gesture configuration.
+  ///
+  /// 手势配置。
+  final VmGestureConfig gesture;
+
+  /// Adaptive-bitrate configuration.
+  ///
+  /// 自适应码率配置。
+  final VmAbrConfig abr;
+
+  /// Control-bar behaviour configuration.
+  ///
+  /// 控制条行为配置。
+  final VmControlsConfig controls;
+
+  /// Externalised UI copy.
+  ///
+  /// 外置 UI 文案。
+  final VmStrings strings;
+
+  /// Externalised visual theme.
+  ///
+  /// 外置视觉主题。
+  final VmTheme theme;
+
+  /// Creates an options bundle; every section defaults to its own defaults.
+  ///
+  /// 创建配置集合；每一节均使用其自身默认值。
+  const VmOptions({
+    this.live = const VmLiveConfig(),
+    this.gesture = const VmGestureConfig(),
+    this.abr = const VmAbrConfig(),
+    this.controls = const VmControlsConfig(),
+    this.strings = const VmStrings(),
+    this.theme = const VmTheme(),
+  });
+
+  /// Returns a copy with the given sections replaced; omitted sections keep
+  /// their current value.
+  ///
+  /// 返回一份替换了指定节的拷贝；未指定的节保持当前值。
+  ///
+  /// - [live]: replacement live config / 替换用的直播配置
+  /// - [gesture]: replacement gesture config / 替换用的手势配置
+  /// - [abr]: replacement ABR config / 替换用的 ABR 配置
+  /// - [controls]: replacement controls config / 替换用的控制条配置
+  /// - [strings]: replacement strings / 替换用的文案
+  /// - [theme]: replacement theme / 替换用的主题
+  ///
+  /// Returns the new [VmOptions] instance / 返回新的 [VmOptions] 实例。
+  VmOptions copyWith({
+    VmLiveConfig? live,
+    VmGestureConfig? gesture,
+    VmAbrConfig? abr,
+    VmControlsConfig? controls,
+    VmStrings? strings,
+    VmTheme? theme,
+  }) {
+    return VmOptions(
+      live: live ?? this.live,
+      gesture: gesture ?? this.gesture,
+      abr: abr ?? this.abr,
+      controls: controls ?? this.controls,
+      strings: strings ?? this.strings,
+      theme: theme ?? this.theme,
+    );
+  }
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is VmOptions &&
+          runtimeType == other.runtimeType &&
+          live == other.live &&
+          gesture == other.gesture &&
+          abr == other.abr &&
+          controls == other.controls &&
+          strings == other.strings &&
+          theme == other.theme;
+
+  @override
+  int get hashCode =>
+      Object.hash(live, gesture, abr, controls, strings, theme);
+}

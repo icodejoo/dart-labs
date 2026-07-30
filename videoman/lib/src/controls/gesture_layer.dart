@@ -1,6 +1,6 @@
 import 'package:flutter/widgets.dart';
 
-import '../core/config.dart';
+import '../core/options/gesture_config.dart';
 
 /// Full-width horizontal swipe maps to this many seconds of seek.
 ///

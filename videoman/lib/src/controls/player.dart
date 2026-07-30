@@ -5,10 +5,9 @@ import 'package:flutter/services.dart';
 import 'package:media_kit_video/media_kit_video.dart';
 import 'package:screen_brightness/screen_brightness.dart';
 
-import '../core/config.dart';
 import '../core/controller.dart';
-import '../core/model/abr.dart';
 import '../core/model/fit.dart';
+import '../core/options/options.dart';
 import '../ui/fit_ext.dart';
 import 'gesture_layer.dart';
 import 'live_controls.dart';
@@ -144,7 +143,7 @@ class _VmPlayerState extends State<VmPlayer> {
     // Downshift when the network stalls repeatedly on a pinned quality.
     // 锁定某清晰度时网络反复卡顿则降档。
     _bufferingSub = widget.controller.player.stream.buffering.listen((b) {
-      if (_abr.add(b)) _autoDownshift();
+      if (_abr.onBuffering(b)) _autoDownshift();
     });
     // Track video dimensions so fullscreen orientation follows the aspect.
     // 跟踪视频尺寸，使全屏方向跟随宽高比。

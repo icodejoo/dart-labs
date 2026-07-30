@@ -46,21 +46,21 @@ void main() {
     test('signals a downshift after `threshold` stalls (rising edges only)', () {
       final abr = VmBufferingAbr(threshold: 3);
       // Each stall is a false→true transition; sustained true must not recount.
-      expect(abr.add(true), isFalse); // stall 1
-      expect(abr.add(true), isFalse); // still buffering, no new edge
-      expect(abr.add(false), isFalse);
-      expect(abr.add(true), isFalse); // stall 2
-      expect(abr.add(false), isFalse);
-      expect(abr.add(true), isTrue); // stall 3 → downshift
+      expect(abr.onBuffering(true), isFalse); // stall 1
+      expect(abr.onBuffering(true), isFalse); // still buffering, no new edge
+      expect(abr.onBuffering(false), isFalse);
+      expect(abr.onBuffering(true), isFalse); // stall 2
+      expect(abr.onBuffering(false), isFalse);
+      expect(abr.onBuffering(true), isTrue); // stall 3 → downshift
       expect(abr.stalls, 0); // counter reset
     });
 
     test('reset clears the counter and edge state', () {
       final abr = VmBufferingAbr(threshold: 2);
-      abr.add(true);
+      abr.onBuffering(true);
       abr.reset();
       expect(abr.stalls, 0);
-      expect(abr.add(true), isFalse); // fresh edge after reset
+      expect(abr.onBuffering(true), isFalse); // fresh edge after reset
     });
   });
 
