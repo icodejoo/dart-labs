@@ -5,9 +5,11 @@ import 'package:flutter/services.dart';
 import 'package:media_kit_video/media_kit_video.dart';
 import 'package:screen_brightness/screen_brightness.dart';
 
-import '../core/abr.dart';
 import '../core/config.dart';
 import '../core/controller.dart';
+import '../core/model/abr.dart';
+import '../core/model/fit.dart';
+import '../ui/fit_ext.dart';
 import 'gesture_layer.dart';
 import 'live_controls.dart';
 import 'vod_controls.dart';
@@ -26,18 +28,6 @@ const Duration _kHudLinger = Duration(milliseconds: 700);
 ///
 /// 播放中控制条自动隐藏前的停留时长。
 const Duration _kControlsLinger = Duration(seconds: 4);
-
-/// Maps an [VmFit] to Flutter's [BoxFit].
-///
-/// 将 [VmFit] 映射为 Flutter 的 [BoxFit]。
-///
-/// - [fit]: videoman fill mode / videoman 填充模式
-/// - returns the matching [BoxFit] / 返回对应的 [BoxFit]
-BoxFit vmBoxFit(VmFit fit) => switch (fit) {
-      VmFit.contain => BoxFit.contain,
-      VmFit.cover => BoxFit.cover,
-      VmFit.fill => BoxFit.fill,
-    };
 
 /// Chooses the fullscreen orientations that match a video's aspect ratio.
 ///
@@ -139,7 +129,7 @@ class _VmPlayerState extends State<VmPlayer> {
   StreamSubscription<int?>? _widthSub;
   StreamSubscription<int?>? _heightSub;
 
-  final BufferingAbr _abr = BufferingAbr();
+  final VmBufferingAbr _abr = VmBufferingAbr();
   StreamSubscription<bool>? _bufferingSub;
   bool _pipSupported = false;
 
@@ -327,7 +317,7 @@ class _VmPlayerState extends State<VmPlayer> {
   /// 循环切换填充模式（contain → cover → fill）并闪一次 HUD。
   void _cycleFit() {
     setState(() => _fit = _fit.next);
-    _showHud(_Hud.fit, _fit.label);
+    _showHud(_Hud.fit, vmFitLabel(_fit));
   }
 
   /// Toggles fullscreen and applies aspect-based orientation + immersion.

@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 
-import '../core/config.dart';
 import '../core/controller.dart';
+import '../core/model/fit.dart';
+import '../ui/fit_ext.dart';
 import 'controls_common.dart';
 
 /// On-demand (VOD) control bar: title/lock/fit/fullscreen + play/pause +
@@ -122,7 +123,7 @@ class _VodControlsState extends State<VodControls> {
           ),
         ControlIconButton(
           icon: Icons.aspect_ratio_rounded,
-          caption: widget.fit.label,
+          caption: vmFitLabel(widget.fit),
           onPressed: widget.onCycleFit,
         ),
         ControlIconButton(

@@ -11,7 +11,7 @@
 /// 统计缓冲*上升沿*（播放卡顿）。当卡顿次数达到 [threshold]，[add] 会返回一次
 /// true 作为"立即降档"信号并重置计数。内核原生"自动"模式下通常禁用本监测、由
 /// libmpv 自行做 ABR；它的价值在于当用户*锁定*了网络扛不住的清晰度时触发降档。
-class BufferingAbr {
+class VmBufferingAbr {
   /// Number of stalls that triggers a downshift suggestion.
   ///
   /// 触发降档建议所需的卡顿次数。
@@ -23,7 +23,7 @@ class BufferingAbr {
   /// Creates a monitor that downshifts after [threshold] stalls (default 3).
   ///
   /// 创建一个在 [threshold] 次卡顿后建议降档的监测器（默认 3）。
-  BufferingAbr({this.threshold = 3});
+  VmBufferingAbr({this.threshold = 3});
 
   /// Number of stalls counted since the last downshift signal.
   ///
