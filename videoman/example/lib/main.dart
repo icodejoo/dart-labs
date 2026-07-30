@@ -6,7 +6,7 @@ import 'package:videoman/videoman.dart';
 /// 示例入口：初始化 videoman 内核，随后运行演示 app。
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
-  VmController.ensureInitialized();
+  VmEngine.ensureInitialized();
   runApp(const MyApp());
 }
 
@@ -52,7 +52,20 @@ const _demos = [
       title: 'HLS 多清晰度示例',
     ),
   ),
+  _Demo(
+    '自定义皮肤 · 无画中画按钮',
+    VmSource(
+      'https://user-images.githubusercontent.com/28951144/229373695-22f88f13-d18f-4288-9bf1-c3e078d83722.mp4',
+      title: '自定义皮肤示例',
+    ),
+  ),
 ];
+
+/// A skin used by the third demo entry: the default skin with the
+/// picture-in-picture button patched out of the top bar.
+///
+/// 第三个演示入口使用的皮肤：在默认皮肤基础上，从顶栏中移除画中画按钮。
+const _noPipSkin = VmDefaultSkin(patches: [VmPatch.remove('topBar/pipButton')]);
 
 /// A page that plays a demo source with [VmPlayer] and a source switcher.
 ///
@@ -67,23 +80,30 @@ class PlayerPage extends StatefulWidget {
   State<PlayerPage> createState() => _PlayerPageState();
 }
 
-/// State for [PlayerPage]; owns the [VmController] lifecycle.
+/// State for [PlayerPage]; owns the [VmEngine] lifecycle.
 ///
-/// [PlayerPage] 的状态；持有 [VmController] 的生命周期。
+/// [PlayerPage] 的状态；持有 [VmEngine] 的生命周期。
 class _PlayerPageState extends State<PlayerPage> {
-  late final VmController _controller;
+  /// The playback facade backing every demo entry.
+  ///
+  /// 支撑每个演示入口的播放能力面。
+  late final VmEngine _engine;
+
+  /// Index of the currently selected demo source.
+  ///
+  /// 当前选中的演示源下标。
   int _index = 0;
 
   @override
   void initState() {
     super.initState();
-    _controller = VmController();
-    _controller.open(_demos[_index].source);
+    _engine = VmEngine();
+    _engine.open(_demos[_index].source);
   }
 
   @override
   void dispose() {
-    _controller.dispose();
+    _engine.dispose();
     super.dispose();
   }
 
@@ -92,8 +112,8 @@ class _PlayerPageState extends State<PlayerPage> {
   /// 切换到第 [i] 个演示源并重新加载其清晰度。
   Future<void> _switch(int i) async {
     setState(() => _index = i);
-    await _controller.open(_demos[i].source);
-    await _controller.loadQualities();
+    await _engine.open(_demos[i].source);
+    await _engine.loadQualities();
     if (mounted) setState(() {});
   }
 
@@ -116,7 +136,10 @@ class _PlayerPageState extends State<PlayerPage> {
       body: Center(
         child: AspectRatio(
           aspectRatio: 16 / 9,
-          child: VmPlayer(controller: _controller),
+          child: VmPlayer(
+            api: _engine,
+            skin: _index == 2 ? _noPipSkin : const VmDefaultSkin(),
+          ),
         ),
       ),
     );

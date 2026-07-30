@@ -57,6 +57,16 @@ abstract class VmApi {
   /// 构造该实例时使用的配置。
   VmOptions get options;
 
+  /// The underlying render handle for the video surface — a media_kit
+  /// `VideoController` in production, or an arbitrary placeholder (e.g.
+  /// `null`) in test doubles. `VmPlayer` renders a real `Video` widget only
+  /// when this `is VideoController`, otherwise a placeholder.
+  ///
+  /// 视频画面的底层渲染句柄——生产环境下是 media_kit 的 `VideoController`，
+  /// 测试替身中可以是任意占位值（如 `null`）。`VmPlayer` 仅当此值
+  /// `is VideoController` 时才渲染真实的 `Video` 组件，否则渲染占位符。
+  Object? get renderHandle;
+
   /// Opens [source] for playback.
   ///
   /// [source] is the media to load. [autoPlay] controls whether playback
