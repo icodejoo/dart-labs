@@ -1,8 +1,6 @@
 import 'package:flutter/painting.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:videoman/videoman.dart';
-import 'package:videoman/src/ui/fit_ext.dart';
-import 'package:videoman/src/ui/format.dart';
 
 void main() {
   group('vmBoxFit', () {
