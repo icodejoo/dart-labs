@@ -55,6 +55,11 @@ class VmTheme {
   /// 进度条轨道的高度。
   final double progressHeight;
 
+  /// ARGB color for modal sheet backgrounds (e.g. the quality picker).
+  ///
+  /// 弹层（如清晰度选择器）背景的 ARGB 颜色。
+  final int sheetBackgroundColor;
+
   /// Creates a theme; defaults to the product's white-on-dark, red-accent
   /// look.
   ///
@@ -69,6 +74,7 @@ class VmTheme {
     this.captionFontSize = 10.0,
     this.centerIconSize = 64.0,
     this.progressHeight = 2.0,
+    this.sheetBackgroundColor = 0xEE1A1A1A,
   });
 
   @override
@@ -84,7 +90,8 @@ class VmTheme {
           timeFontSize == other.timeFontSize &&
           captionFontSize == other.captionFontSize &&
           centerIconSize == other.centerIconSize &&
-          progressHeight == other.progressHeight;
+          progressHeight == other.progressHeight &&
+          sheetBackgroundColor == other.sheetBackgroundColor;
 
   @override
   int get hashCode => Object.hash(
@@ -97,5 +104,6 @@ class VmTheme {
         captionFontSize,
         centerIconSize,
         progressHeight,
+        sheetBackgroundColor,
       );
 }

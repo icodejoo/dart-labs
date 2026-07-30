@@ -83,8 +83,8 @@ class LiveBadgeComponent extends VmComponent {
       ),
       child: Text(
         strings.live,
-        style: const TextStyle(
-          color: Colors.white,
+        style: TextStyle(
+          color: Color(theme.textColor),
           fontWeight: FontWeight.bold,
           fontSize: 11,
         ),

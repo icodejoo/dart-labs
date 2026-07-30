@@ -214,7 +214,7 @@ class QualityButtonComponent extends VmComponent {
   ) {
     showModalBottomSheet<void>(
       context: context,
-      backgroundColor: const Color(0xEE1A1A1A),
+      backgroundColor: Color(theme.sheetBackgroundColor),
       builder: (ctx) {
         return SafeArea(
           child: Column(
