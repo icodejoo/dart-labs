@@ -50,7 +50,7 @@
 - [x] **P4** 方向与全屏（#3）：全屏切换 + 按宽高比定向 + 尺寸流自动重定向 + autoOrientation 开关
 - [x] **P5** 清晰度提取 / 手动切换 / ABR 自适应（#2）：HLS master 解析、手动切档（保位续播）、缓冲卡顿降档；"自动"档委托 libmpv 原生 ABR
 - [x] **P6** 画中画 PiP（#1）：Android 系统级 PiP（ActivityAware + PictureInPictureParams，宽高比钳制）；iOS/桌面返回不支持（见风险），按钮仅在支持平台显示
-- [ ] **P7** 发布准备（README / example / pub）
+- [x] **P7** 发布准备：README、CHANGELOG、LICENSE(MIT)、pubspec 元数据/topics、example 源切换、`pub publish --dry-run` 通过
 - [ ] **二期** ffmpeg 瘦身（LGPL）
 
 ## 技术风险（需评估/决策）
