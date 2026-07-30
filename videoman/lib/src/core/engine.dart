@@ -192,6 +192,20 @@ class VmEngine implements VmApi {
     _sizeSub = _kernel.size.listen((v) {
       _state.emit(state.copyWith(width: v.width, height: v.height));
       _events.add(VmSizeChanged(v.width, v.height));
+      // Re-derive/apply fullscreen orientation if dimensions arrive (or
+      // change) while already fullscreen — e.g. a network/HLS source whose
+      // real size wasn't known yet when fullscreen was entered.
+      //
+      // 若在已处于全屏状态下尺寸才到达（或发生变化）——例如打开全屏时网络/
+      // HLS 源的真实尺寸尚未知晓——则重新推导并应用全屏方向。
+      if (state.fullscreen) {
+        unawaited(_orientation.apply(
+          fullscreen: true,
+          immersive: true,
+          width: v.width,
+          height: v.height,
+        ));
+      }
     });
     _errorSub = _kernel.error.listen((e) {
       _state.emit(state.copyWith(error: e));
