@@ -5,8 +5,8 @@ import 'package:media_kit/media_kit.dart';
 import 'package:media_kit_video/media_kit_video.dart';
 
 import '../../videoman_platform_interface.dart';
-import 'source.dart';
-import 'quality.dart';
+import 'model/quality.dart';
+import 'model/source.dart';
 
 /// Thin playback controller wrapping media_kit's [Player] + [VideoController].
 ///

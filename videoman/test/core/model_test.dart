@@ -42,9 +42,9 @@ void main() {
     });
   });
 
-  group('BufferingAbr', () {
+  group('VmBufferingAbr', () {
     test('signals a downshift after `threshold` stalls (rising edges only)', () {
-      final abr = BufferingAbr(threshold: 3);
+      final abr = VmBufferingAbr(threshold: 3);
       // Each stall is a false→true transition; sustained true must not recount.
       expect(abr.add(true), isFalse); // stall 1
       expect(abr.add(true), isFalse); // still buffering, no new edge
@@ -56,11 +56,25 @@ void main() {
     });
 
     test('reset clears the counter and edge state', () {
-      final abr = BufferingAbr(threshold: 2);
+      final abr = VmBufferingAbr(threshold: 2);
       abr.add(true);
       abr.reset();
       expect(abr.stalls, 0);
       expect(abr.add(true), isFalse); // fresh edge after reset
+    });
+  });
+
+  group('VmFit', () {
+    test('cycles contain → cover → fill → contain', () {
+      expect(VmFit.contain.next, VmFit.cover);
+      expect(VmFit.cover.next, VmFit.fill);
+      expect(VmFit.fill.next, VmFit.contain);
+    });
+
+    test('every mode has a non-empty labelKey', () {
+      for (final f in VmFit.values) {
+        expect(f.labelKey, isNotEmpty);
+      }
     });
   });
 }
