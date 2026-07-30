@@ -30,10 +30,12 @@ class MpvKernel implements VmKernel {
     _controller = VideoController(_player);
     _widthSub = _player.stream.width.listen((w) {
       _lastWidth = w ?? 0;
+      _widthSeen = true;
       _emitSize();
     });
     _heightSub = _player.stream.height.listen((h) {
       _lastHeight = h ?? 0;
+      _heightSeen = true;
       _emitSize();
     });
   }
@@ -63,13 +65,28 @@ class MpvKernel implements VmKernel {
   /// 最近观测到的帧高度；首次回调到达前为 0。
   int _lastHeight = 0;
 
+  /// Whether the width stream has delivered at least one value yet.
+  ///
+  /// 宽度流是否已至少推送过一次值。
+  bool _widthSeen = false;
+
+  /// Whether the height stream has delivered at least one value yet.
+  ///
+  /// 高度流是否已至少推送过一次值。
+  bool _heightSeen = false;
+
   final StreamController<VmSize> _sizeController = StreamController<VmSize>.broadcast();
 
   /// Combines the latest cached width/height into a [VmSize] and pushes it
-  /// to listeners.
+  /// to listeners, but only once both dimensions have been observed at
+  /// least once — this avoids emitting a bogus intermediate size (e.g.
+  /// width-only) before media_kit has reported both.
   ///
-  /// 将缓存的最新宽/高合并为 [VmSize] 并推送给监听者。
+  /// 将缓存的最新宽/高合并为 [VmSize] 并推送给监听者；但只有当两个维度都已
+  /// 被观测到至少一次时才会推送，以避免在 media_kit 尚未同时报告二者前推送
+  /// 出错误的中间尺寸（如只有宽度）。
   void _emitSize() {
+    if (!_widthSeen || !_heightSeen) return;
     _sizeController.add(VmSize(width: _lastWidth, height: _lastHeight));
   }
 

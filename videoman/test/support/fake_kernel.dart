@@ -40,6 +40,12 @@ class FakeKernel implements VmKernel {
   /// 最近一次 [open] 调用的 URI 参数；若从未调用过 [open] 则为 `null`。
   String? lastUri;
 
+  /// The `play` argument of the most recent [open] call, or `null` if
+  /// [open] has never been called.
+  ///
+  /// 最近一次 [open] 调用的 `play` 参数；若从未调用过 [open] 则为 `null`。
+  bool? lastPlay;
+
   /// The bytes returned by [screenshot]; settable by tests, defaults to
   /// `null`.
   ///
@@ -47,9 +53,10 @@ class FakeKernel implements VmKernel {
   Uint8List? fakeShot;
 
   @override
-  Future<void> open(String uri, {bool play = false}) async {
+  Future<void> open(String uri, {bool play = true}) async {
     calls.add('open');
     lastUri = uri;
+    lastPlay = play;
   }
 
   @override
