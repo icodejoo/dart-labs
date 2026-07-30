@@ -64,6 +64,14 @@ class FvideoController {
     await player.open(Media(source.uri), play: autoPlay);
   }
 
+  /// Re-opens the current source from scratch (used as the live "go to edge").
+  ///
+  /// 重新打开当前源（用作直播"回到边缘"）。
+  Future<void> reload() async {
+    final s = _source;
+    if (s != null) await open(s);
+  }
+
   /// Resumes playback.
   ///
   /// 恢复播放。

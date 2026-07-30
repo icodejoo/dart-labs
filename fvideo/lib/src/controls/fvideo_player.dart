@@ -1,35 +1,56 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:media_kit_video/media_kit_video.dart';
 import 'package:screen_brightness/screen_brightness.dart';
 
 import '../core/fvideo_config.dart';
 import '../core/fvideo_controller.dart';
 import 'gesture_layer.dart';
+import 'live_controls.dart';
+import 'vod_controls.dart';
 
 /// Which transient HUD indicator is currently shown.
 ///
 /// 当前显示的瞬时 HUD 指示器种类。
-enum _Hud { none, volume, brightness, seek }
+enum _Hud { none, volume, brightness, seek, fit }
 
 /// How long the HUD stays visible after the last update.
 ///
 /// 最后一次更新后 HUD 保持可见的时长。
 const Duration _kHudLinger = Duration(milliseconds: 700);
 
-/// The fvideo player widget: video surface + zoom + gesture control layer.
+/// How long the control bars stay up before auto-hiding during playback.
 ///
-/// Renders a media_kit [Video] with its built-in controls disabled and
-/// overlays fvideo's own gestures (left=volume, right=brightness,
-/// horizontal=seek, double-tap=seek, pinch=zoom) with HUD feedback. The
-/// VOD/live control bars land in a later milestone (P3).
+/// 播放中控制条自动隐藏前的停留时长。
+const Duration _kControlsLinger = Duration(seconds: 4);
+
+/// Maps an [FvideoFit] to Flutter's [BoxFit].
 ///
-/// fvideo 播放器组件：视频画面 + 缩放 + 手势控制层。
+/// 将 [FvideoFit] 映射为 Flutter 的 [BoxFit]。
 ///
-/// 渲染 media_kit 的 [Video]（关闭其内置控制条），叠加 fvideo 自己的手势
-/// （左音量/右亮度/横滑进度/双击快进退/双指缩放）并带 HUD 反馈。点播/直播
-/// 控制条在后续里程碑（P3）实现。
+/// - [fit]: fvideo fill mode / fvideo 填充模式
+/// - returns the matching [BoxFit] / 返回对应的 [BoxFit]
+BoxFit fvideoBoxFit(FvideoFit fit) => switch (fit) {
+      FvideoFit.contain => BoxFit.contain,
+      FvideoFit.cover => BoxFit.cover,
+      FvideoFit.fill => BoxFit.fill,
+    };
+
+/// The fvideo player widget: video surface + gestures + control bars + lock.
+///
+/// Renders a media_kit [Video] (built-in controls disabled) and overlays
+/// fvideo's gestures (left=volume, right=brightness, horizontal=seek,
+/// double-tap=seek, pinch=zoom), a VOD/live control bar, fill-mode switching
+/// (contain/cover/fill), fullscreen with aspect-based orientation, and a
+/// lock mode that blocks all interaction (anti-mistouch, immersive).
+///
+/// fvideo 播放器组件：视频画面 + 手势 + 控制条 + 锁定。
+///
+/// 渲染 media_kit 的 [Video]（关内置控制条），叠加 fvideo 手势（左音量/右亮度/
+/// 横滑进度/双击/双指缩放）、点播或直播控制条、填充模式切换（contain/cover/fill）、
+/// 基于宽高比定向的全屏，以及屏蔽全部交互的锁定模式（防误触、沉浸式）。
 class FvideoPlayer extends StatefulWidget {
   /// The playback controller to render and drive.
   ///
@@ -40,6 +61,11 @@ class FvideoPlayer extends StatefulWidget {
   ///
   /// 手势开关与侧别配置。
   final FvideoGestureConfig gestureConfig;
+
+  /// Initial fill mode.
+  ///
+  /// 初始填充模式。
+  final FvideoFit fit;
 
   /// Maximum pinch-zoom scale factor.
   ///
@@ -52,12 +78,13 @@ class FvideoPlayer extends StatefulWidget {
   ///
   /// Example / 示例:
   /// ```dart
-  /// FvideoPlayer(controller: myController);
+  /// FvideoPlayer(controller: myController, fit: FvideoFit.cover);
   /// ```
   const FvideoPlayer({
     super.key,
     required this.controller,
     this.gestureConfig = const FvideoGestureConfig(),
+    this.fit = FvideoFit.contain,
     this.maxZoom = 3.0,
   });
 
@@ -65,28 +92,41 @@ class FvideoPlayer extends StatefulWidget {
   State<FvideoPlayer> createState() => _FvideoPlayerState();
 }
 
-/// State for [FvideoPlayer]; owns zoom, brightness cache and HUD timing.
+/// State for [FvideoPlayer]; owns zoom, brightness, fit, lock and fullscreen.
 ///
-/// [FvideoPlayer] 的状态；持有缩放、亮度缓存与 HUD 计时。
+/// [FvideoPlayer] 的状态；持有缩放、亮度、填充模式、锁定与全屏。
 class _FvideoPlayerState extends State<FvideoPlayer> {
   final ScreenBrightness _brightnessPlugin = ScreenBrightness();
   double _zoom = 1.0;
   double _baseZoom = 1.0;
   double _brightness = 1.0;
 
+  late FvideoFit _fit;
+  bool _locked = false;
+  bool _controlsVisible = true;
+  bool _fullscreen = false;
+  bool _showUnlock = false;
+
   _Hud _hud = _Hud.none;
   String _hudText = '';
   Timer? _hudTimer;
+  Timer? _controlsTimer;
 
   @override
   void initState() {
     super.initState();
+    _fit = widget.fit;
     _loadBrightness();
+    _scheduleControlsHide();
   }
 
   @override
   void dispose() {
     _hudTimer?.cancel();
+    _controlsTimer?.cancel();
+    // Restore system UI on the way out. / 退出时恢复系统 UI。
+    SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
+    SystemChrome.setPreferredOrientations(DeviceOrientation.values);
     super.dispose();
   }
 
@@ -97,9 +137,11 @@ class _FvideoPlayerState extends State<FvideoPlayer> {
     try {
       _brightness = await _brightnessPlugin.application;
     } catch (_) {
-      _brightness = 1.0; // unsupported platform / 平台不支持时兜底
+      _brightness = 1.0;
     }
   }
+
+  // ---- HUD --------------------------------------------------------------
 
   /// Shows a HUD with [text] for [kind] and schedules auto-hide.
   ///
@@ -114,6 +156,97 @@ class _FvideoPlayerState extends State<FvideoPlayer> {
       if (mounted) setState(() => _hud = _Hud.none);
     });
   }
+
+  // ---- Controls visibility ---------------------------------------------
+
+  /// Toggles the control bars (or reveals the unlock button when locked).
+  ///
+  /// 切换控制条显隐（锁定时改为显示解锁按钮）。
+  void _onTap() {
+    if (_locked) {
+      setState(() => _showUnlock = true);
+      _controlsTimer?.cancel();
+      _controlsTimer = Timer(_kControlsLinger, () {
+        if (mounted) setState(() => _showUnlock = false);
+      });
+      return;
+    }
+    setState(() => _controlsVisible = !_controlsVisible);
+    _scheduleControlsHide();
+  }
+
+  /// Auto-hides the control bars after a delay while playing.
+  ///
+  /// 播放中延迟自动隐藏控制条。
+  void _scheduleControlsHide() {
+    _controlsTimer?.cancel();
+    if (!_controlsVisible || _locked) return;
+    _controlsTimer = Timer(_kControlsLinger, () {
+      if (mounted && widget.controller.player.state.playing) {
+        setState(() => _controlsVisible = false);
+      }
+    });
+  }
+
+  // ---- Lock / fit / fullscreen -----------------------------------------
+
+  /// Toggles the lock mode (blocks gestures + controls, goes immersive).
+  ///
+  /// 切换锁定模式（屏蔽手势与控制条，进入沉浸式）。
+  void _toggleLock() {
+    setState(() {
+      _locked = !_locked;
+      _controlsVisible = !_locked;
+      _showUnlock = false;
+    });
+    _applySystemUi();
+    _scheduleControlsHide();
+  }
+
+  /// Cycles the fill mode (contain → cover → fill) and flashes a HUD.
+  ///
+  /// 循环切换填充模式（contain → cover → fill）并闪一次 HUD。
+  void _cycleFit() {
+    setState(() => _fit = _fit.next);
+    _showHud(_Hud.fit, _fit.label);
+  }
+
+  /// Toggles fullscreen and applies aspect-based orientation + immersion.
+  ///
+  /// 切换全屏并应用基于宽高比的方向与沉浸式。
+  void _toggleFullscreen() {
+    setState(() => _fullscreen = !_fullscreen);
+    _applySystemUi();
+    _applyOrientation();
+  }
+
+  /// Applies immersive system UI when locked or fullscreen, else edge-to-edge.
+  ///
+  /// 锁定或全屏时进入沉浸式系统 UI，否则恢复 edge-to-edge。
+  void _applySystemUi() {
+    SystemChrome.setEnabledSystemUIMode(
+      (_fullscreen || _locked) ? SystemUiMode.immersiveSticky : SystemUiMode.edgeToEdge,
+    );
+  }
+
+  /// Locks orientation to match the video aspect ratio in fullscreen.
+  ///
+  /// 全屏时按视频宽高比锁定方向。
+  void _applyOrientation() {
+    if (!_fullscreen) {
+      SystemChrome.setPreferredOrientations(DeviceOrientation.values);
+      return;
+    }
+    final w = widget.controller.player.state.width ?? 16;
+    final h = widget.controller.player.state.height ?? 9;
+    SystemChrome.setPreferredOrientations(
+      w >= h
+          ? const [DeviceOrientation.landscapeLeft, DeviceOrientation.landscapeRight]
+          : const [DeviceOrientation.portraitUp, DeviceOrientation.portraitDown],
+    );
+  }
+
+  // ---- Gesture intents --------------------------------------------------
 
   /// Applies a volume intent (0–100) and shows the volume HUD.
   ///
@@ -138,15 +271,16 @@ class _FvideoPlayerState extends State<FvideoPlayer> {
   void _onSeekPreview(double seconds) {
     final target = _clampedTarget(seconds);
     final sign = seconds >= 0 ? '+' : '-';
-    _showHud(_Hud.seek, '${_fmt(target)}  $sign${_fmt(Duration(seconds: seconds.abs().round()))}');
+    _showHud(
+      _Hud.seek,
+      '${_fmt(target)}  $sign${_fmt(Duration(seconds: seconds.abs().round()))}',
+    );
   }
 
   /// Commits the accumulated horizontal seek.
   ///
   /// 提交累计的横向进度调整。
-  void _onSeekCommit(double seconds) {
-    widget.controller.seek(_clampedTarget(seconds));
-  }
+  void _onSeekCommit(double seconds) => widget.controller.seek(_clampedTarget(seconds));
 
   /// Applies a double-tap seek [step] relative to the current position.
   ///
@@ -169,6 +303,8 @@ class _FvideoPlayerState extends State<FvideoPlayer> {
   ///
   /// 捏合结束后固化缩放系数。
   void _onZoomEnd() => _baseZoom = _zoom;
+
+  // ---- Helpers ----------------------------------------------------------
 
   /// Computes the clamped seek target from a signed [seconds] delta.
   ///
@@ -198,8 +334,11 @@ class _FvideoPlayerState extends State<FvideoPlayer> {
     return h > 0 ? '$h:$m:$s' : '$m:$s';
   }
 
+  // ---- Build ------------------------------------------------------------
+
   @override
   Widget build(BuildContext context) {
+    final showControls = _controlsVisible && !_locked;
     return ColoredBox(
       color: const Color(0xFF000000),
       child: Stack(
@@ -211,24 +350,75 @@ class _FvideoPlayerState extends State<FvideoPlayer> {
               child: Video(
                 controller: widget.controller.videoController,
                 controls: NoVideoControls,
+                fit: fvideoBoxFit(_fit),
               ),
             ),
           ),
-          FvideoGestureDetector(
-            config: widget.gestureConfig,
-            isLive: widget.controller.isLive,
-            volumeGetter: () => widget.controller.player.state.volume,
-            brightnessGetter: () => _brightness,
-            onVolume: _onVolume,
-            onBrightness: _onBrightness,
-            onSeekPreview: _onSeekPreview,
-            onSeekCommit: _onSeekCommit,
-            onZoomUpdate: _onZoomUpdate,
-            onZoomEnd: _onZoomEnd,
-            onDoubleTapSeek: _onDoubleTapSeek,
+          if (!_locked)
+            FvideoGestureDetector(
+              config: widget.gestureConfig,
+              isLive: widget.controller.isLive,
+              volumeGetter: () => widget.controller.player.state.volume,
+              brightnessGetter: () => _brightness,
+              onVolume: _onVolume,
+              onBrightness: _onBrightness,
+              onSeekPreview: _onSeekPreview,
+              onSeekCommit: _onSeekCommit,
+              onZoomUpdate: _onZoomUpdate,
+              onZoomEnd: _onZoomEnd,
+              onDoubleTapSeek: _onDoubleTapSeek,
+              onTap: _onTap,
+            ),
+          if (_locked) GestureDetector(behavior: HitTestBehavior.opaque, onTap: _onTap),
+          AnimatedOpacity(
+            opacity: showControls ? 1 : 0,
+            duration: const Duration(milliseconds: 150),
+            child: IgnorePointer(ignoring: !showControls, child: _buildControls()),
           ),
+          if (_locked && _showUnlock) _buildUnlockButton(),
           if (_hud != _Hud.none) _buildHud(),
         ],
+      ),
+    );
+  }
+
+  /// Builds the VOD or live control bar depending on the source type.
+  ///
+  /// 按源类型构建点播或直播控制条。
+  Widget _buildControls() {
+    if (widget.controller.isLive) {
+      return LiveControls(
+        controller: widget.controller,
+        fit: _fit,
+        isFullscreen: _fullscreen,
+        onLock: _toggleLock,
+        onCycleFit: _cycleFit,
+        onToggleFullscreen: _toggleFullscreen,
+      );
+    }
+    return VodControls(
+      controller: widget.controller,
+      fit: _fit,
+      isFullscreen: _fullscreen,
+      onLock: _toggleLock,
+      onCycleFit: _cycleFit,
+      onToggleFullscreen: _toggleFullscreen,
+    );
+  }
+
+  /// Builds the centered unlock button shown while locked.
+  ///
+  /// 构建锁定态下居中显示的解锁按钮。
+  Widget _buildUnlockButton() {
+    return Center(
+      child: InkResponse(
+        onTap: _toggleLock,
+        radius: 32,
+        child: Container(
+          padding: const EdgeInsets.all(14),
+          decoration: const BoxDecoration(color: Color(0xB3000000), shape: BoxShape.circle),
+          child: const Icon(Icons.lock_rounded, color: Colors.white, size: 28),
+        ),
       ),
     );
   }
@@ -241,6 +431,7 @@ class _FvideoPlayerState extends State<FvideoPlayer> {
       _Hud.volume: Icons.volume_up_rounded,
       _Hud.brightness: Icons.brightness_6_rounded,
       _Hud.seek: Icons.fast_forward_rounded,
+      _Hud.fit: Icons.aspect_ratio_rounded,
     };
     return Center(
       child: Container(
