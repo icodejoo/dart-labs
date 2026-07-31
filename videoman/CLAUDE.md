@@ -29,7 +29,11 @@
 三层（`buildPlaybackLayer`/`buildOperableLayer`/`buildPersistentLayer`）、`VmSlot` 加
 `left`/`right`。**手势侧别→动作改配**：`VmGestureConfig` 用 `VmGestureAction` 映射，默认
 翻转为左亮度/右音量（对齐主流）。设计见 [doc/DESIGN-0.3.0-plugin-skin.md](doc/DESIGN-0.3.0-plugin-skin.md)。
-267 项测试全绿，`flutter analyze` 0 issues。**真机仍未验证**（承自 0.2.0）。
+后续增量：系统音量端口 `VmVolumePort`、强制横竖屏 `VmApi.setOrientation`
+（`VmOrientation{auto,portrait,landscape}` + 顶栏仅移动端的 `orientationButton`，
+独立于全屏；`auto` 保持按宽高比定向）。
+289 项测试全绿，`flutter analyze` 0 issues。**横竖屏按钮真机仍未验证**（手势/音量/亮度
+线已在 Android 真机过；方向按钮与 PiP/直播/时移 UI 等仍未系统走真机，承自 0.2.0）。
 
 ---
 

@@ -203,6 +203,19 @@ Windows 实跑证实。这不是回归，是能力从未在桌面实现过。vid
 在 `VmApi.events` 上发 `VmFullscreenChanged(bool)` 事件，与 `VmOrientationPort`
 无关，宿主监听后自行调用窗口管理 API 即可（见 README「平台端口」一节示例）。
 
+### 强制横竖屏（0.3.0）
+
+`VmApi.setOrientation(VmOrientation)` 是独立于全屏的方向能力：`VmOrientation.auto`
+保持上文「全屏按宽高比定向」的行为，`portrait`/`landscape` 无视宽高比与全屏状态
+强制该方向，写入 `VmState.orientation` 并发 `VmOrientationChanged`。落点在
+`VmOrientationPort.apply` 新增的 `orientation` 参：`resolveOrientations()`
+（`orientation_impl.dart`，已抽出纯函数单测）在 `auto` 时回退到
+`preferredOrientationsFor(w,h)`，否则直接取横/竖屏对。engine 侧由 `_applyOrientation()`
+统一根据 `state.fullscreen + state.orientation` 应用，`setFullscreen`/`setOrientation`
+/尺寸到达三处共用它。UI 侧 `OrientationButtonComponent`（顶栏，name
+`orientationButton`）仅在 `defaultTargetPlatform` 为 Android/iOS 时渲染——桌面端强制
+方向本就无效，与 pip 按钮的隐藏思路一致——点击经 `VmOrientation.toggled` 横↔竖切换。
+
 ## 测试
 
 - `test/core/`：`api_test.dart`/`bus_test.dart`/`compat_test.dart`/

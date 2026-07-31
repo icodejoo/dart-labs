@@ -1,4 +1,5 @@
 import '../model/fit.dart';
+import '../model/orientation.dart';
 import '../model/quality.dart';
 import '../model/source.dart';
 
@@ -37,6 +38,12 @@ class VmState {
   ///
   /// 播放器当前是否处于全屏模式。
   final bool fullscreen;
+
+  /// The forced screen-orientation override; [VmOrientation.auto] by default,
+  /// which keeps the aspect-ratio/fullscreen-derived behavior.
+  ///
+  /// 强制屏幕方向覆盖；默认 [VmOrientation.auto]，即保持按宽高比/全屏推导的行为。
+  final VmOrientation orientation;
 
   /// Whether the player is currently in picture-in-picture mode.
   ///
@@ -160,6 +167,7 @@ class VmState {
     this.completed = false,
     this.locked = false,
     this.fullscreen = false,
+    this.orientation = VmOrientation.auto,
     this.pip = false,
     this.pipSupported = false,
     this.duration = Duration.zero,
@@ -198,6 +206,7 @@ class VmState {
     bool? completed,
     bool? locked,
     bool? fullscreen,
+    VmOrientation? orientation,
     bool? pip,
     bool? pipSupported,
     Duration? duration,
@@ -227,6 +236,7 @@ class VmState {
       completed: completed ?? this.completed,
       locked: locked ?? this.locked,
       fullscreen: fullscreen ?? this.fullscreen,
+      orientation: orientation ?? this.orientation,
       pip: pip ?? this.pip,
       pipSupported: pipSupported ?? this.pipSupported,
       duration: duration ?? this.duration,
@@ -257,6 +267,7 @@ class VmState {
         other.completed == completed &&
         other.locked == locked &&
         other.fullscreen == fullscreen &&
+        other.orientation == orientation &&
         other.pip == pip &&
         other.pipSupported == pipSupported &&
         other.duration == duration &&
@@ -279,7 +290,7 @@ class VmState {
 
   @override
   int get hashCode => Object.hash(
-        Object.hash(playing, buffering, completed, locked, fullscreen, pip, pipSupported),
+        Object.hash(playing, buffering, completed, locked, fullscreen, orientation, pip, pipSupported),
         Object.hash(duration, width, height, volume, brightness, rate, zoom),
         fit,
         Object.hashAll(qualities),

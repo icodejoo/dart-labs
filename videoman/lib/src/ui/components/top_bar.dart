@@ -1,7 +1,9 @@
+import 'package:flutter/foundation.dart' show TargetPlatform, defaultTargetPlatform;
 import 'package:flutter/material.dart';
 
 import '../../core/api.dart';
 import '../../core/model/fit.dart';
+import '../../core/model/orientation.dart';
 import '../../core/model/quality.dart';
 import '../../core/options/theme.dart';
 import '../scope/selector.dart';
@@ -42,6 +44,7 @@ class TopBarComponent extends VmComponent {
         PipButtonComponent(),
         QualityButtonComponent(),
         FitButtonComponent(),
+        OrientationButtonComponent(),
         FullscreenButtonComponent(),
       ];
 
@@ -263,6 +266,52 @@ class FitButtonComponent extends VmComponent {
           theme: theme,
           caption: api.options.strings.fitLabel(fit),
           onPressed: () => api.setFit(fit.next),
+        );
+      },
+    );
+  }
+}
+
+/// Forced-orientation toggle button; tap switches the device between forced
+/// landscape and portrait via [VmApi.setOrientation], independent of
+/// fullscreen.
+///
+/// Renders nothing off mobile (`defaultTargetPlatform` not Android/iOS), where
+/// forcing device orientation has no effect — mirroring how the pip button
+/// hides where PiP is unsupported. Watches [VmState.orientation] so its toggle
+/// target follows the current forced state.
+///
+/// 强制方向切换按钮；点击经 [VmApi.setOrientation] 在强制横屏与竖屏间切换，与
+/// 全屏无关。
+///
+/// 非移动端（`defaultTargetPlatform` 不是 Android/iOS）不渲染任何内容——那里
+/// 强制设备方向本就无效，与画中画按钮在不支持处隐藏一致。监听
+/// [VmState.orientation]，使切换目标跟随当前强制状态。
+class OrientationButtonComponent extends VmComponent {
+  /// Creates the orientation-button leaf component.
+  ///
+  /// 创建方向按钮叶子组件。
+  OrientationButtonComponent();
+
+  @override
+  String get name => 'orientationButton';
+
+  @override
+  VmSlot get slot => VmSlot.top;
+
+  @override
+  Widget build(BuildContext context, VmApi api, List<Widget> children) {
+    final isMobile = defaultTargetPlatform == TargetPlatform.android ||
+        defaultTargetPlatform == TargetPlatform.iOS;
+    if (!isMobile) return const SizedBox.shrink();
+    final theme = api.options.theme;
+    return VmSelector<VmOrientation>(
+      selector: (s) => s.orientation,
+      builder: (context, orientation) {
+        return VmIconButton(
+          icon: Icons.screen_rotation_rounded,
+          theme: theme,
+          onPressed: () => api.setOrientation(orientation.toggled),
         );
       },
     );

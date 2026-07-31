@@ -26,6 +26,12 @@ UI 插件化：把 0.2.0 已有的组件树/皮肤/补丁沉淀为 **Plugin / Co
   `createVmEngine` 默认在 Android 接原生 `SystemVolumePort`（`AudioManager`，无新依赖），
   iOS/桌面回退播放器音量；任意平台可传 `CallbackVolumePort((percent) => ...)` 接管。
   构造时从端口播种 `state.volume` 作手势基线。
+* **强制横竖屏 `VmApi.setOrientation`**：新增 `VmOrientation { auto, portrait, landscape }`
+  与 `VmState.orientation`/`VmOrientationChanged`；`setOrientation` 独立于全屏强制设备
+  方向，`auto` 保持原「全屏按宽高比定向」行为。顶栏新增 `OrientationButtonComponent`
+  （name `orientationButton`，全屏按钮左侧），仅移动端渲染、点击横↔竖切换，可用
+  `VmPatch.remove('topBar/orientationButton')` 移除。`VmOrientationPort.apply` 增
+  `orientation` 参入（内部端口签名变更）。
 
 ## 0.2.0
 
