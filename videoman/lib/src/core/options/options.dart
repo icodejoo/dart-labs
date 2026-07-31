@@ -2,6 +2,7 @@ export 'abr_config.dart';
 export 'controls_config.dart';
 export 'gesture_config.dart';
 export 'live_config.dart';
+export 'preview_config.dart';
 export 'strings.dart';
 export 'theme.dart';
 
@@ -9,23 +10,28 @@ import 'abr_config.dart';
 import 'controls_config.dart';
 import 'gesture_config.dart';
 import 'live_config.dart';
+import 'preview_config.dart';
 import 'strings.dart';
 import 'theme.dart';
 
 /// Top-level, immutable configuration bundle for a videoman player.
 ///
-/// Groups every configurable aspect (gestures, ABR, control bar, live
-/// behaviour, copy, theme) into one object so apps can construct and pass a
-/// single [VmOptions] instance, and so [copyWith] can replace one section
-/// without disturbing the others. A `preview` section is intentionally
-/// absent for now (deferred to a later task).
+/// Groups every configurable aspect (preview, gestures, ABR, control bar,
+/// live behaviour, copy, theme) into one object so apps can construct and
+/// pass a single [VmOptions] instance, and so [copyWith] can replace one
+/// section without disturbing the others.
 ///
 /// videoman 播放器的顶层不可变配置集合。
 ///
-/// 把所有可配置项（手势、ABR、控制条、直播行为、文案、主题）归入一个对象，
-/// 应用只需构造并传入一个 [VmOptions] 实例；[copyWith] 可只替换其中一节而
-/// 不影响其他节。目前暂不包含 `preview`（预览图）一节，留待后续任务。
+/// 把所有可配置项（预览、手势、ABR、控制条、直播行为、文案、主题）归入一个
+/// 对象，应用只需构造并传入一个 [VmOptions] 实例；[copyWith] 可只替换其中
+/// 一节而不影响其他节。
 class VmOptions {
+  /// Scrub-preview (thumbnail) configuration.
+  ///
+  /// 拖动预览（缩略图）配置。
+  final VmPreviewConfig preview;
+
   /// Live-playback configuration.
   ///
   /// 直播播放配置。
@@ -60,6 +66,7 @@ class VmOptions {
   ///
   /// 创建配置集合；每一节均使用其自身默认值。
   const VmOptions({
+    this.preview = const VmPreviewConfig(),
     this.live = const VmLiveConfig(),
     this.gesture = const VmGestureConfig(),
     this.abr = const VmAbrConfig(),
@@ -73,6 +80,7 @@ class VmOptions {
   ///
   /// 返回一份替换了指定节的拷贝；未指定的节保持当前值。
   ///
+  /// - [preview]: replacement preview config / 替换用的预览配置
   /// - [live]: replacement live config / 替换用的直播配置
   /// - [gesture]: replacement gesture config / 替换用的手势配置
   /// - [abr]: replacement ABR config / 替换用的 ABR 配置
@@ -82,6 +90,7 @@ class VmOptions {
   ///
   /// Returns the new [VmOptions] instance / 返回新的 [VmOptions] 实例。
   VmOptions copyWith({
+    VmPreviewConfig? preview,
     VmLiveConfig? live,
     VmGestureConfig? gesture,
     VmAbrConfig? abr,
@@ -90,6 +99,7 @@ class VmOptions {
     VmTheme? theme,
   }) {
     return VmOptions(
+      preview: preview ?? this.preview,
       live: live ?? this.live,
       gesture: gesture ?? this.gesture,
       abr: abr ?? this.abr,
@@ -104,6 +114,7 @@ class VmOptions {
       identical(this, other) ||
       other is VmOptions &&
           runtimeType == other.runtimeType &&
+          preview == other.preview &&
           live == other.live &&
           gesture == other.gesture &&
           abr == other.abr &&
@@ -113,5 +124,5 @@ class VmOptions {
 
   @override
   int get hashCode =>
-      Object.hash(live, gesture, abr, controls, strings, theme);
+      Object.hash(preview, live, gesture, abr, controls, strings, theme);
 }

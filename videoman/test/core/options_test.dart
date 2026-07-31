@@ -1,6 +1,9 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:videoman/src/core/model/fit.dart';
+import 'package:videoman/src/core/model/source.dart';
 import 'package:videoman/src/core/options/options.dart';
+import 'package:videoman/src/core/preview/net_probe.dart';
+import 'package:videoman/src/core/preview/platform_kind.dart';
 
 void main() {
   test('VmOptions defaults are const-constructible and preserve 0.1.0 gesture behaviour', () {
@@ -33,5 +36,68 @@ void main() {
     final n = o.copyWith(controls: const VmControlsConfig(autoHide: false));
     expect(n.controls.autoHide, isFalse);
     expect(n.gesture, o.gesture);
+  });
+
+  test('VmPreviewConfig defaults match DESIGN section 6.1', () {
+    const p = VmPreviewConfig();
+    expect(p.enabled, isTrue);
+    expect(p.network, VmPreviewNetwork.wifiOnly);
+    expect(p.onBlocked, isNull);
+    expect(p.sources, isNull, reason: 'null means the built-in [vtt, extract] chain');
+    expect(p.vttEnabled, isTrue);
+    expect(p.vttUrl, isNull);
+    expect(p.vttUrlResolver, isNull);
+    expect(p.extractFallback, isTrue);
+    expect(p.extractPlatforms, VmPlatformKind.values.toSet());
+    expect(p.frameWidth, 160);
+    expect(p.bucket, const Duration(seconds: 10));
+    expect(p.hwdec, isFalse);
+    expect(p.memMaxEntries, 40);
+    expect(p.diskMaxBytes, 64 * 1024 * 1024);
+    expect(p.diskDir, isNull);
+    expect(p.cacheKeyBuilder, isNull);
+    expect(p.clearOnDispose, isTrue);
+    expect(p.debounce, const Duration(milliseconds: 120));
+    expect(p.probe, isNull);
+    expect(p.cache, isNull);
+    expect(p.extractor, isNull);
+  });
+
+  test('VmOptions exposes a preview section that defaults to VmPreviewConfig', () {
+    const o = VmOptions();
+    expect(o.preview, const VmPreviewConfig());
+  });
+
+  test('VmOptions.copyWith replaces only the preview section', () {
+    const o = VmOptions();
+    final n = o.copyWith(preview: const VmPreviewConfig(frameWidth: 320));
+    expect(n.preview.frameWidth, 320);
+    expect(n.gesture, o.gesture);
+    expect(n.controls, o.controls);
+    expect(n, isNot(o));
+  });
+
+  test('VmPreviewConfig.copyWith replaces one knob and compares by value', () {
+    const p = VmPreviewConfig();
+    final n = p.copyWith(network: VmPreviewNetwork.never);
+    expect(n.network, VmPreviewNetwork.never);
+    expect(n.frameWidth, p.frameWidth);
+    expect(n, isNot(p));
+    expect(p.copyWith(), p);
+  });
+
+  test('every VmPreviewConfig injection point accepts a custom strategy', () {
+    final p = VmPreviewConfig(
+      probe: AlwaysAllowNetProbe(),
+      cacheKeyBuilder: (s, b, w) => 'custom',
+      vttUrlResolver: (s) => Uri.parse('https://cdn/t.vtt'),
+      onBlocked: (_) {},
+      extractPlatforms: const {VmPlatformKind.windows},
+    );
+    expect(p.probe, isA<VmNetProbe>());
+    expect(p.cacheKeyBuilder!('a', 1, 2), 'custom');
+    expect(p.vttUrlResolver!(const VmSource('x')), Uri.parse('https://cdn/t.vtt'));
+    expect(p.onBlocked, isNotNull);
+    expect(p.extractPlatforms, {VmPlatformKind.windows});
   });
 }

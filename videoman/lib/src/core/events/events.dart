@@ -1,6 +1,7 @@
 import '../model/fit.dart';
 import '../model/quality.dart';
 import '../model/source.dart';
+import '../options/preview_config.dart';
 
 /// Base type of everything broadcast on [VmApi.events].
 ///
@@ -340,6 +341,21 @@ class VmLiveEdgeReached extends VmEvent {
   ///
   /// 创建事件。
   const VmLiveEdgeReached();
+}
+
+/// A scrub-preview request was refused before any work happened.
+///
+/// 一次拖动预览请求在真正开工前被拒绝。
+class VmPreviewBlocked extends VmEvent {
+  /// Why the request was refused.
+  ///
+  /// 被拒绝的原因。
+  final VmPreviewBlockReason reason;
+
+  /// Creates the event with [reason].
+  ///
+  /// 用 [reason] 创建事件。
+  const VmPreviewBlocked(this.reason);
 }
 
 /// A playback error occurred.
