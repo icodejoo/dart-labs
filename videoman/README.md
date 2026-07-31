@@ -16,6 +16,8 @@ Flutter 视频播放库，自研手势与控制层，支持点播与直播。
 - **Quality / 清晰度**：解析 HLS master 提取档位、手动切换、网络卡顿自动降档；"自动"档委托 libmpv 原生 ABR。
 - **PiP / 画中画**：Android 系统级画中画（iOS/桌面暂不支持，见下）。
 - **VOD & Live / 点播与直播**：两套控制条，直播禁用进度、支持"回到边缘"。
+- **Scrub preview / 拖动预览缩略图**：拖动进度条或横滑手势时，进度条上方浮出目标时刻的
+  缩略图气泡（WebVTT 雪碧图 / libmpv 抽帧兜底，两级缓存，默认仅 WiFi）。
 
 ## Platform support / 平台支持
 
@@ -127,6 +129,32 @@ ui/
 `VmApi` 是 `ui/` 唯一允许依赖的抽象——它不直接触达 `VmKernel` 或 media_kit。
 测试用 `FakeVmApi`（见 `test/support/fake_api.dart`），因此绝大多数组件/皮肤测试
 无需启动真实播放内核。
+
+## 拖动预览
+
+```dart
+final engine = createVmEngine(
+  options: const VmOptions(
+    preview: VmPreviewConfig(
+      network: VmPreviewNetwork.wifiOnly, // 默认；always / never 可选
+      frameWidth: 160,                    // 缩略图宽度
+      bucket: Duration(seconds: 10),      // 桶大小，同桶复用同一张图
+      memMaxEntries: 40,                  // 内存 LRU 条目上限
+      diskMaxBytes: 64 * 1024 * 1024,     // 磁盘 LRU 字节上限
+    ),
+  ),
+);
+```
+
+约定的缩略图轨地址是 `<视频地址>.vtt`；要换地址用 `vttUrl` 或 `vttUrlResolver`。
+要整块换掉气泡外观：
+
+```dart
+VmPlayer(
+  api: engine,
+  skin: VmDefaultSkin(patches: [VmPatch.replace('preview', MyBubble())]),
+)
+```
 
 ## 自定义皮肤 / Custom skins
 

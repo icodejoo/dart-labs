@@ -172,11 +172,23 @@ flutter pub publish --dry-run                     # 发布校验
 （`flutter analyze` 0、测试全绿、功能零变化）。按
 [DESIGN-0.2.0.md](DESIGN-0.2.0.md) §12：
 
-1. **阶段 B：拖动预览缩略图——未开始**。`preview/` 全套（`VmThumbSource`/
-   `VmFrameExtractor`/`VmTwoLevelCache`/`VmPreviewService`）+ `preview`
-   组件 + 网络策略。**先做的事**：DESIGN §11 风险表第一条——实测
-   `screenshot-raw` 的分辨率语义（Windows 桌面写最小验证脚本），不通则改走
-   `VideoControllerConfiguration(width/height)` 并回写 DESIGN 文档。
+1. **阶段 B：拖动预览缩略图——已完成**（2026-07-31）。文件清单：
+   `lib/src/core/preview/`（`models`/`hash`/`vtt`/`cache`/`dir_provider`/`disk_cache`/
+   `two_level_cache`/`net_probe`/`fetcher`/`source`/`vtt_source`/`extractor`/
+   `platform_kind`/`api`/`service`）、`lib/src/core/options/preview_config.dart`
+   （`VmPreviewConfig`）、`lib/src/platform_impl/`（`mpv_extractor_impl`/
+   `net_probe_impl`/`thumb_dir_impl`）、`lib/src/ui/components/preview.dart`
+   （`PreviewComponent`，挂 `VmSlot.bottomAbove`，气泡水平位置随拖动比例跟随，
+   钳制不越界）。新增公开面：`VmApi.preview`（`VmPreviewApi`）、
+   `VmOptions.preview`（`VmPreviewConfig`）、`VmPreviewBlocked` 事件；
+   `createVmEngine()` 新增 `thumbDir`/`extractor`/`fetcher` 三个可选参数。
+   **抽帧路线**（见 `doc/plans/2026-07-31-phase-b-preview.md` 附录 A）：
+   `screenshot-raw` 实测在 Windows 上不论 `vf=scale` 还是
+   `VideoControllerConfiguration(width/height)` 都不能缩小输出，最终采用
+   "原尺寸 + 不缩放兜底"，`frameWidth` 仅作为 cache key 与 UI 显示宽度参与量。
+   212 项测试全绿，`flutter analyze` 0 issues。已知遗留：横滑手势路径与
+   "关闭预览开关"两点未逐条人工验证（理论行为一致，见附录 B）；磁盘缓存按原
+   分辨率 JPEG 估算，`diskMaxBytes` 默认 64MB 的余量比按缩略图估算的更紧张。
 2. **阶段 C：直播时移——未开始**。`live/timeshift.dart` 窗口/behind 纯函数 +
    复用 seekBar + `liveBadge`/`timeshift`/`backToLive` 组件 + 手势门控；
    DVR 窗口默认靠内核 duration 推断，需提供 `dvrWindow`/`windowResolver`

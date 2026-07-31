@@ -6158,7 +6158,7 @@ DESIGN §6 的硬约束要求「review 时逐条对账」。本任务把 §6.1 �
 - Consumes: Task 2–13 的全部公开类型
 - Produces: DESIGN §6.1 的逐行守卫测试
 
-- [ ] **Step 1: 写 `test/core/openness_preview_test.dart`**
+- [x] **Step 1: 写 `test/core/openness_preview_test.dart`**
 
 ```dart
 // A row-by-row audit of DESIGN-0.2.0 section 6.1: every decision videoman
@@ -6387,13 +6387,13 @@ void main() {
 顶部若缺 `import 'package:videoman/src/core/state/state.dart';`（`VmState` 用于
 `components(const VmState())`）则补上。
 
-- [ ] **Step 2: 跑测试确认通过**
+- [x] **Step 2: 跑测试确认通过**
 
 Run: `flutter test test/core/openness_preview_test.dart && flutter analyze`
 Expected: 13 项 PASS，analyze 0 issues。
 **任何一项失败都表示 §6.1 的某一行缺了默认值/配置项/注入点，必须补齐而不是改测试。**
 
-- [ ] **Step 3: 更新 `CHANGELOG.md`**
+- [x] **Step 3: 更新 `CHANGELOG.md`**
 
 在 `## 0.2.0` 段落（若尚未存在则新建）里追加：
 
@@ -6419,7 +6419,7 @@ Expected: 13 项 PASS，analyze 0 issues。
 - 新增 `path_provider`、`connectivity_plus`。
 ```
 
-- [ ] **Step 4: 更新 `README.md`**
+- [x] **Step 4: 更新 `README.md`**
 
 在功能列表里加一行「拖动预览缩略图（WebVTT 雪碧图 / libmpv 抽帧兜底，两级缓存，默认仅 WiFi）」，
 并新增一节：
@@ -6452,19 +6452,19 @@ VmPlayer(
 ```
 ````
 
-- [ ] **Step 5: 更新 `doc/SPEC.md`**
+- [x] **Step 5: 更新 `doc/SPEC.md`**
 
 把「阶段 B：拖动预览——未开始」那条改成「已完成」，并补一段实现现状：文件清单、
 `VmApi.preview` / `VmOptions.preview` / `VmPreviewBlocked` 三个新公开面、
 抽帧路线（引用附录 A 的结论）、以及 `createVmEngine()` 在本阶段新增的 `thumbDir`/
 `extractor`/`fetcher` 三个预览端口参数。
 
-- [ ] **Step 6: 最终校验**
+- [x] **Step 6: 最终校验**
 
 Run: `flutter analyze && flutter test && flutter pub publish --dry-run`
 Expected: analyze 0 issues；212 项全绿；dry-run 0 warnings
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add -A
