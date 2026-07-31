@@ -187,7 +187,7 @@ DESIGN §7.3 假定给隐藏 `Player` 设 `vf=scale=<w>:-2` 就能让 `screensho
 - Produces: 附录 A 的结论文本，与后续任务共享的两个常量决策：`kExtractorRoute`（`vfScale` 或
   `videoControllerSize`）、隐藏 `Player` 的属性列表
 
-- [ ] **Step 1: 写 spike 程序 `example/lib/spike_screenshot.dart`**
+- [x] **Step 1: 写 spike 程序 `example/lib/spike_screenshot.dart`**
 
 ```dart
 // Throwaway verification harness for DESIGN-0.2.0 §11's top risk: does
@@ -381,7 +381,7 @@ Future<void> main() async {
 }
 ```
 
-- [ ] **Step 2: 跑 spike 并捕获 stdout**
+- [x] **Step 2: 跑 spike 并捕获 stdout**
 
 Run: `cd example && flutter run -d windows -t lib/spike_screenshot.dart`
 Expected: 控制台出现三行 `[baseline] …` / `[vf=scale] …` / `[controllerSize] …`，最后一行
@@ -391,7 +391,7 @@ Expected: 控制台出现三行 `[baseline] …` / `[vf=scale] …` / `[controll
 `example/assets` 下任意 mp4 的绝对路径再跑一次；仍失败则在附录 A 记 `INCONCLUSIVE` 并按 Step 6
 处理。
 
-- [ ] **Step 3: 把结论写进附录 A**
+- [x] **Step 3: 把结论写进附录 A**
 
 在本文档末尾的「附录 A：抽帧分辨率实测结论」下，把三行 `[...]` 输出与 `VERDICT` 行原样粘贴，
 并写明最终选路：
@@ -405,7 +405,7 @@ Expected: 控制台出现三行 `[baseline] …` / `[vf=scale] …` / `[controll
   仅用于 UI 显示宽度与 cacheKey，并在附录 A 明确记下"磁盘占用会显著高于预算，`diskMaxBytes`
   默认值需要复核"。
 
-- [ ] **Step 4: 若结论证伪 vfScale 路线，先修订本文档再往下走**
+- [x] **Step 4: 若结论证伪 vfScale 路线，先修订本文档再往下走**
 
 只需改一处：**Task 9 Step 5** 的 `MpvFrameExtractor` 实现代码——删掉 `_ensurePlayer()` 里的
 `await native.setProperty('vf', 'scale=$width:-2');`，改为在 `VideoController(player)` 处传
@@ -417,13 +417,13 @@ Expected: 控制台出现三行 `[baseline] …` / `[vf=scale] …` / `[controll
 其余任务一律不受影响，因为它们只依赖 `VmFrameExtractor` 抽象，`extractor_test.dart` 用的是
 `_FakeExtractor`、不碰 media_kit。**改完再进 Task 2。**
 
-- [ ] **Step 5: 删除 spike 文件**
+- [x] **Step 5: 删除 spike 文件**
 
 ```bash
 git rm -f example/lib/spike_screenshot.dart
 ```
 
-- [ ] **Step 6: 校验并提交**
+- [x] **Step 6: 校验并提交**
 
 Run: `flutter analyze && flutter test`
 Expected: 0 issues；94 项全绿（本任务未动 `lib/`）
@@ -3394,11 +3394,11 @@ class VmExtractorThumbSource implements VmThumbSource {
 
 - [ ] **Step 5: 实现 `lib/src/platform_impl/mpv_extractor_impl.dart`**
 
-> **依赖 Task 1 的实测结论。** 下面写的是 **vfScale 路线**。若附录 A 记录的是
-> `VF_SCALE_WORKS=false`，把 `_configure()` 里的 `setProperty('vf', …)` 删掉，改在
-> `VideoController(...)` 处传 `VideoControllerConfiguration(width: width, height: (width * 9 / 16).round())`，
-> 并把 `_player`/`_controller` 的惰性创建改为"每次 `width` 变化时重建"（因为
-> `VideoControllerConfiguration` 只能在构造时给定）。其余代码不变。
+> **Task 1 实测结论（附录 A）：`vfScale` 与 `controllerSize` 两条路线均
+> `WORKS=false`——`screenshot()` 拿到的始终是原生分辨率。** 因此下面的实现**不设
+> `vf` 属性、也不给 `VideoControllerConfiguration` 传宽高**，直接把 `screenshot()`
+> 的原图整张返回；`width` 参数不参与实际抽帧，只用于 cache key（Task 2）与 UI 侧显示
+> 目标宽度。磁盘缓存的 `diskMaxBytes` 默认值因此需要按原分辨率 JPEG 复核，见附录 A。
 
 ```dart
 import 'dart:async';
@@ -3415,8 +3415,13 @@ import '../core/preview/extractor.dart';
 /// Reuses the libmpv/ffmpeg already bundled for playback, so preview
 /// extraction adds no dependency and does not affect the planned ffmpeg
 /// slimming milestone. Playback quality settings are deliberately minimal —
-/// audio off, no cache, exact seeks, downscaled output — because these frames
-/// are ~160px thumbnails, never watched.
+/// audio off, no cache, exact seeks — because these frames are only ever
+/// shown as small preview thumbnails. Output is NOT downscaled at the mpv
+/// layer: Task 1's spike found that neither `vf=scale` nor
+/// `VideoControllerConfiguration` sizing actually shrinks what
+/// `screenshot()` returns on Windows (see plan appendix A), so [extract]
+/// hands back whatever resolution the source has and `width` is purely
+/// advisory (cache key, UI-side target size).
 ///
 /// Calls are serialised internally: libmpv cannot service two seek+screenshot
 /// round trips on one player concurrently.
@@ -3425,7 +3430,11 @@ import '../core/preview/extractor.dart';
 ///
 /// 复用播放时已经打包进来的 libmpv/ffmpeg，因此预览抽帧不引入任何依赖，也不
 /// 影响后续 ffmpeg 瘦身里程碑。播放相关设置刻意压到最低——关音频、不做缓存、
-/// 精确 seek、输出降采样——因为这些帧只是 ~160px 的缩略图，不会被真的观看。
+/// 精确 seek——因为这些帧只是拿来当小预览图用，不会被真的观看。输出**不**在
+/// mpv 层缩放：Task 1 的 spike 发现 Windows 上 `vf=scale` 与
+/// `VideoControllerConfiguration` 都不能真正缩小 `screenshot()` 的结果
+/// （见计划附录 A），因此 [extract] 原样返回源分辨率的图，`width` 只是
+/// 建议值（用于 cache key 与 UI 侧目标尺寸）。
 ///
 /// 内部对调用做了串行化：libmpv 无法在同一个 player 上并发处理两次
 /// seek + screenshot 往返。
@@ -3490,7 +3499,14 @@ class MpvFrameExtractor implements VmFrameExtractor {
       await native.setProperty('hwdec', hwdec ? 'auto' : 'no');
       await native.setProperty('hr-seek', 'yes');
       await native.setProperty('cache', 'no');
-      await native.setProperty('vf', 'scale=$width:-2');
+      // `width` is intentionally unused here: neither `vf=scale` nor
+      // VideoControllerConfiguration sizing shrinks screenshot() output on
+      // Windows (Task 1 spike, plan appendix A), so no mpv-side scaling is
+      // attempted.
+      //
+      // `width` 在此故意不使用：Task 1 的 spike（见计划附录 A）证实
+      // Windows 上 `vf=scale` 与 VideoControllerConfiguration 都不能真正
+      // 缩小 screenshot() 的输出，因此不在 mpv 层做任何缩放尝试。
     }
     _player = player;
     return player;
@@ -6445,14 +6461,35 @@ git commit -m "docs(videoman): audit preview openness contract and document phas
 
 ## 附录 A：抽帧分辨率实测结论
 
-> Task 1 Step 3 在此粘贴 spike 的 stdout 与最终选路。**在填写之前，Task 9 的
-> `mpv_extractor_impl.dart` 按 vfScale 路线实现。**
+实测于 2026-07-31，Windows 桌面（`flutter run -d windows`），片源为 example 已用的
+GitHub 示例 mp4（native 854x480），请求宽度 160px。
 
 ```
-（待填：三行 [baseline]/[vf=scale]/[controllerSize] 输出 + VERDICT 行）
+[baseline]      native=854x480 requested=160px shot=jpeg 854x480 bytes=257685
+[vf=scale]      native=854x480 requested=160px shot=jpeg 854x480 bytes=257685
+[controllerSize] native=854x480 requested=160px shot=jpeg 854x480 bytes=257685
+=== VERDICT route=vfScale       result=jpeg 854x480 WORKS=false ===
+=== VERDICT route=controllerSize result=jpeg 854x480 WORKS=false ===
 ```
 
-最终选路：（待填 `vfScale` / `videoControllerSize` / `原尺寸兜底`）
+`vf=scale=160:-2` 与 `VideoControllerConfiguration(width/height)` 均未能让
+`player.screenshot()` 返回缩小后的图像——两条路线拿到的都是原生 854x480，与不设任何
+缩放的 baseline 完全一致。
+
+**最终选路：原尺寸 + 不缩放兜底**（DESIGN §11 头号风险证伪，两条候选路线均不成立）。
+Task 9 的 `MpvFrameExtractor` 直接对 `player.screenshot()` 返回的原图不做任何缩放/裁剪，
+`frameWidth` 配置项退化为仅用于 UI 显示时的目标宽度与 cacheKey 参与量，不影响实际抽帧
+分辨率。**`diskMaxBytes` 默认值需要复核**——按原分辨率 JPEG 估算，同样条目数下磁盘占用
+会明显高于按 160px 缩略图估算的预算，Task 5/6 实现磁盘缓存时需回头核实默认上限是否仍然
+合理（或改为存储前用 Flutter `ui.Image`/`instantiateImageCodec` 在内存中二次缩放后再落盘，
+这属于 Task 9 范围内的追加决定，而不是走 mpv 侧的 `vf`/`configuration`）。
+
+**调试过程中的额外发现（与选路结论无关，仅供后续排障参考）**：spike 早期版本在同一进程里
+连续创建第 3 个 `Player()` 实例时，会在 `NativePlayer.setProperty()` 上永久挂起，且不受
+调用间延时、`dispose()` 时序、或引入 `media_kit_native_event_loop` 包影响；前两个实例
+在同一场景下总能正常工作。这与 videoman 的真实用法无关——运行时任何时刻至多同时存在
+一个主播放器 + 一个隐藏抽帧 `Player`（两个实例），不会触发该现象——因此本计划不将其当作
+待解决问题，只留档供未来若真机上出现类似"第 N 个播放器卡死"症状时参考。
 
 ## 附录 B：Windows 实跑结果
 

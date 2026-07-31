@@ -51,7 +51,11 @@
 **承自 fvideo（改名前）、排在 0.2.0 之后**——videoman 就是 fvideo，遗留任务全部承接：
 
 4. **二期 ffmpeg 瘦身（LGPL）——未开始**：自建 libmpv/ffmpeg 裁剪 demuxer/decoder，
-   替换 `media_kit_libs_video`；构建卡 LGPL，避开 GPL-only 组件。
+   替换 `media_kit_libs_video`；构建卡 LGPL，避开 GPL-only 组件。**顺带待办**：自建时
+   可直接导出一个轻量 FFI 抽帧函数（如 `vm_extract_thumbnail(uri, atMs, width) -> jpegBytes`，
+   内部走 `libavformat`+`libswscale`），替换阶段 B 现在"开一个完整隐藏 `Player` 抽帧"的
+   重量级方案（阶段 B 受限于 mpv `screenshot()` 不支持缩放，见
+   [doc/plans/2026-07-31-phase-b-preview.md](doc/plans/2026-07-31-phase-b-preview.md) 附录 A）。
 5. **iOS PiP 未实现**：当前返回不支持（libmpv 纹理限制）；评估
    AVSampleBufferDisplayLayer 或应用内悬浮窗降级。
 
