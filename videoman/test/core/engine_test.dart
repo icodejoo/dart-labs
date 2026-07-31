@@ -422,6 +422,108 @@ void main() {
     expect(e2.state.seekableWindow, const Duration(seconds: 120));
     await e2.dispose();
   });
+
+  test('timeshift seek reopens the stream at the url the builder returns', () async {
+    final k2 = FakeKernel();
+    final e2 = VmEngine(
+      kernel: k2,
+      options: VmOptions(
+        live: VmLiveConfig(
+          seekMode: VmLiveSeekMode.timeshift,
+          dvrWindow: const Duration(seconds: 600),
+          urlBuilder: (uri, behind, at) => '$uri?behind=${behind.inSeconds}',
+        ),
+      ),
+    );
+    await e2.open(const VmSource('https://host/l.m3u8', type: VmStreamType.live));
+    await Future<void>.delayed(Duration.zero);
+    k2.calls.clear();
+    await e2.seek(const Duration(seconds: 100));
+    expect(k2.lastUri, 'https://host/l.m3u8?behind=500');
+    expect(k2.calls, contains('open'));
+    expect(k2.calls, isNot(contains('seek')));
+    expect(e2.state.timeshiftBehind, const Duration(seconds: 500));
+    await e2.dispose();
+  });
+
+  test('timeshift seek is a no-op when no urlBuilder is supplied', () async {
+    final k2 = FakeKernel();
+    final e2 = VmEngine(
+      kernel: k2,
+      options: const VmOptions(
+        live: VmLiveConfig(
+          seekMode: VmLiveSeekMode.timeshift,
+          dvrWindow: Duration(seconds: 600),
+        ),
+      ),
+    );
+    await e2.open(const VmSource('https://host/l.m3u8', type: VmStreamType.live));
+    k2.calls.clear();
+    await e2.seek(const Duration(seconds: 100));
+    expect(k2.calls, isEmpty);
+    await e2.dispose();
+  });
+
+  test('a timeshift seek landing inside the edge threshold reports the edge', () async {
+    final k2 = FakeKernel();
+    final e2 = VmEngine(
+      kernel: k2,
+      options: VmOptions(
+        live: VmLiveConfig(
+          seekMode: VmLiveSeekMode.timeshift,
+          dvrWindow: const Duration(seconds: 600),
+          urlBuilder: (uri, behind, at) => '$uri?behind=${behind.inSeconds}',
+        ),
+      ),
+    );
+    await e2.open(const VmSource('https://host/l.m3u8', type: VmStreamType.live));
+    final events = <VmEvent>[];
+    final sub = e2.events.listen(events.add);
+    await e2.seek(const Duration(seconds: 595));
+    await Future<void>.delayed(Duration.zero);
+    expect(e2.state.timeshiftBehind, isNull);
+    expect(events.whereType<VmLiveEdgeReached>(), isNotEmpty);
+    await sub.cancel();
+    await e2.dispose();
+  });
+
+  test('a live seek is clamped to the window even when duration is unknown', () async {
+    final k2 = FakeKernel();
+    final e2 = VmEngine(
+      kernel: k2,
+      options: const VmOptions(
+        live: VmLiveConfig(
+          seekMode: VmLiveSeekMode.dvr,
+          dvrWindow: Duration(seconds: 120),
+        ),
+      ),
+    );
+    await e2.open(const VmSource('https://host/l.m3u8', type: VmStreamType.live));
+    await Future<void>.delayed(Duration.zero);
+    await e2.seek(const Duration(seconds: 999));
+    expect(k2.lastSeek, const Duration(seconds: 120));
+    await e2.dispose();
+  });
+
+  test('beforeSeek still gates a timeshift seek', () async {
+    final k2 = FakeKernel();
+    final e2 = VmEngine(
+      kernel: k2,
+      interceptors: [_CancelSeek()],
+      options: VmOptions(
+        live: VmLiveConfig(
+          seekMode: VmLiveSeekMode.timeshift,
+          dvrWindow: const Duration(seconds: 600),
+          urlBuilder: (uri, behind, at) => '$uri?behind=${behind.inSeconds}',
+        ),
+      ),
+    );
+    await e2.open(const VmSource('https://host/l.m3u8', type: VmStreamType.live));
+    k2.calls.clear();
+    await e2.seek(const Duration(seconds: 100));
+    expect(k2.calls, isEmpty);
+    await e2.dispose();
+  });
 }
 
 /// A spy [VmOrientationPort] that records every `apply(...)` call's
