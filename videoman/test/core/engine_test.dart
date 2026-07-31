@@ -334,6 +334,94 @@ void main() {
     e2.preview.requestAt(const Duration(seconds: 1));
     expect(e2.preview.current, isNull);
   });
+
+  test('timeshiftBehind stays null for a VOD source', () async {
+    await e.open(const VmSource('https://host/a.mp4'));
+    k.emitDuration(const Duration(seconds: 600));
+    k.emitPosition(const Duration(seconds: 10));
+    await Future<void>.delayed(Duration.zero);
+    expect(e.state.timeshiftBehind, isNull);
+  });
+
+  test('a dvr live stream reports how far behind the edge it is', () async {
+    final k2 = FakeKernel();
+    final e2 = VmEngine(
+      kernel: k2,
+      options: const VmOptions(live: VmLiveConfig(seekMode: VmLiveSeekMode.dvr)),
+    );
+    await e2.open(const VmSource('https://host/l.m3u8', type: VmStreamType.live));
+    k2.emitDuration(const Duration(seconds: 300));
+    k2.emitPosition(const Duration(seconds: 100));
+    await Future<void>.delayed(Duration.zero);
+    expect(e2.state.liveSeekable, isTrue);
+    expect(e2.state.seekableWindow, const Duration(seconds: 300));
+    expect(e2.state.timeshiftBehind, const Duration(seconds: 200));
+    await e2.dispose();
+  });
+
+  test('inside the edge threshold clears timeshiftBehind and announces the edge', () async {
+    final k2 = FakeKernel();
+    final e2 = VmEngine(
+      kernel: k2,
+      options: const VmOptions(live: VmLiveConfig(seekMode: VmLiveSeekMode.dvr)),
+    );
+    await e2.open(const VmSource('https://host/l.m3u8', type: VmStreamType.live));
+    k2.emitDuration(const Duration(seconds: 300));
+    k2.emitPosition(const Duration(seconds: 100));
+    await Future<void>.delayed(Duration.zero);
+    final events = <VmEvent>[];
+    final sub = e2.events.listen(events.add);
+    k2.emitPosition(const Duration(seconds: 295));
+    await Future<void>.delayed(Duration.zero);
+    expect(e2.state.timeshiftBehind, isNull);
+    expect(events.whereType<VmLiveEdgeReached>(), isNotEmpty);
+    await sub.cancel();
+    await e2.dispose();
+  });
+
+  test('VmTimeshiftChanged fires only when the whole-second lag changes', () async {
+    final k2 = FakeKernel();
+    final e2 = VmEngine(
+      kernel: k2,
+      options: const VmOptions(live: VmLiveConfig(seekMode: VmLiveSeekMode.dvr)),
+    );
+    await e2.open(const VmSource('https://host/l.m3u8', type: VmStreamType.live));
+    k2.emitDuration(const Duration(seconds: 300));
+    await Future<void>.delayed(Duration.zero);
+    final events = <VmEvent>[];
+    final sub = e2.events.listen(events.add);
+    // All three ticks quantise to the same whole-second lag (199s): the raw
+    // lags are 199.8s / 199.4s / 199.1s, which truncate to 199 every time.
+    //
+    // 三次 tick 量化后落后量相同（均为 199 秒）：原始落后量分别是 199.8 /
+    // 199.4 / 199.1 秒，截断后都是 199。
+    k2.emitPosition(const Duration(milliseconds: 100200));
+    k2.emitPosition(const Duration(milliseconds: 100600));
+    k2.emitPosition(const Duration(milliseconds: 100900));
+    await Future<void>.delayed(Duration.zero);
+    expect(events.whereType<VmTimeshiftChanged>().length, 1,
+        reason: 'sub-second jitter must not spam the event stream');
+    await sub.cancel();
+    await e2.dispose();
+  });
+
+  test('an injected windowResolver overrides the kernel duration', () async {
+    final k2 = FakeKernel();
+    final e2 = VmEngine(
+      kernel: k2,
+      options: VmOptions(
+        live: VmLiveConfig(
+          seekMode: VmLiveSeekMode.dvr,
+          windowResolver: (_) => const Duration(seconds: 120),
+        ),
+      ),
+    );
+    await e2.open(const VmSource('https://host/l.m3u8', type: VmStreamType.live));
+    k2.emitDuration(const Duration(seconds: 300));
+    await Future<void>.delayed(Duration.zero);
+    expect(e2.state.seekableWindow, const Duration(seconds: 120));
+    await e2.dispose();
+  });
 }
 
 /// A spy [VmOrientationPort] that records every `apply(...)` call's

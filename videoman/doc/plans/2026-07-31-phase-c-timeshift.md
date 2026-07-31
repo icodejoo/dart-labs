@@ -651,7 +651,7 @@ UI 只显示 `-MM:SS`，秒级精度足够。
 - Consumes: `resolveWindow` / `behindOf`（Task 2）、`VmTimeshiftChanged` / `VmLiveEdgeReached`（已存在）
 - Produces: 无新公开类型；`VmState.timeshiftBehind` 首次被写入
 
-- [ ] **Step 1: 追加失败测试到 `test/core/engine_test.dart`**
+- [x] **Step 1: 追加失败测试到 `test/core/engine_test.dart`**
 
 `main()` 末尾追加：
 
@@ -745,13 +745,13 @@ UI 只显示 `-MM:SS`，秒级精度足够。
   });
 ```
 
-- [ ] **Step 2: 跑测试确认失败**
+- [x] **Step 2: 跑测试确认失败**
 
 Run: `flutter test test/core/engine_test.dart`
 Expected: FAIL — 「a dvr live stream reports how far behind the edge it is」等项失败，
 `expected: Duration:0:03:20.000000  actual: <null>`（`timeshiftBehind` 从未被写入）
 
-- [ ] **Step 3: engine 改造**
+- [x] **Step 3: engine 改造**
 
 `lib/src/core/engine.dart`：
 
@@ -816,7 +816,7 @@ import 'live/timeshift.dart';
   }
 ```
 
-- [ ] **Step 4: 跑测试确认通过**
+- [x] **Step 4: 跑测试确认通过**
 
 Run: `flutter test test/core/engine_test.dart && flutter analyze`
 Expected: 全绿（既有项一项不变 + 新增 5 项），analyze 0 issues
@@ -826,7 +826,7 @@ Expected: 全绿（既有项一项不变 + 新增 5 项），analyze 0 issues
 > 的时序——检查 `_updateTimeshift` 是否在 `_state.emit` **之后**调用（必须是之后，它要读
 > 刚写入的 `seekableWindow`）。
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add -A
