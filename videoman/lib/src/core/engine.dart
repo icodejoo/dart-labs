@@ -70,6 +70,9 @@ class VmEngine implements VmApi {
   @override
   Object? get renderHandle => _kernel.renderHandle;
 
+  @override
+  bool get pipSupported => state.pipSupported;
+
   /// Interceptor chain consulted before open/seek/play and on every error.
   ///
   /// 在 open/seek/play 前及每次出错时咨询的拦截链。
@@ -258,6 +261,17 @@ class VmEngine implements VmApi {
       thumbDir: thumbDir,
       extractor: extractor,
       fetcher: fetcher,
+    );
+    // Probe pip support once. The UI hides the pip button until this answers,
+    // which is why a failed probe must resolve to false rather than throw.
+    //
+    // 探测一次画中画支持情况。UI 在它返回前隐藏画中画按钮，因此探测失败必须
+    // 归约为 false，而不能抛出。
+    unawaited(
+      _pip.isSupported().then((ok) {
+        if (_events.isClosed) return;
+        _state.emit(state.copyWith(pipSupported: ok));
+      }).catchError((Object _) {}),
     );
   }
 

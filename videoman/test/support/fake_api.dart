@@ -42,7 +42,7 @@ class FakeVmApi implements VmApi {
   /// subscribers.
   ///
   /// [state]/[states] 的底层总线；向新订阅者重放当前快照。
-  final VmBus<VmState> _state = VmBus<VmState>(const VmState());
+  final VmBus<VmState> _state = VmBus<VmState>(const VmState(pipSupported: true));
 
   /// Backing bus for [uiState]/[uiStates]; replays the current snapshot to
   /// new subscribers.
@@ -140,10 +140,21 @@ class FakeVmApi implements VmApi {
   /// 最近一次 [showHud] 调用的参数；若从未调用过则为 `null`。
   VmHud? lastHud;
 
-  /// The value [enterPip] returns; settable by tests, defaults to `true`.
+  /// Whether this fake reports pip support; mirrored into
+  /// [VmState.pipSupported] so `..pipSupported = false` also flips what any
+  /// `VmSelector` on state sees.
   ///
-  /// [enterPip] 的返回值；可由测试赋值，默认为 `true`。
-  bool pipSupported = true;
+  /// 该假对象是否报告支持画中画；会镜像进 [VmState.pipSupported]，因此
+  /// `..pipSupported = false` 同时也会翻转状态上任何 `VmSelector` 看到的值。
+  @override
+  bool get pipSupported => state.pipSupported;
+
+  /// Sets [pipSupported] by pushing a new state snapshot.
+  ///
+  /// 通过推送新状态快照来设置 [pipSupported]。
+  ///
+  /// - [value]: whether pip is supported / 是否支持画中画
+  set pipSupported(bool value) => push(state.copyWith(pipSupported: value));
 
   /// A fake render handle exposed to widgets under test; `null` by default,
   /// in which case `VmPlayer` renders a placeholder instead of a real

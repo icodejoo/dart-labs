@@ -1908,7 +1908,7 @@ platform adapters, restoring brightness/PiP/orientation`（commit `9c2d4f0`）�
   - `abstract class VmApi { bool get pipSupported; }`
   - barrel 导出 `src/platform_impl/{brightness_impl,orientation_impl,pip_impl}.dart`
 
-- [ ] **Step 1: 写失败测试 — state 与 engine**
+- [x] **Step 1: 写失败测试 — state 与 engine**
 
 `test/core/state_test.dart` 的 `main()` 末尾追加：
 
@@ -1975,7 +1975,7 @@ class _ThrowingPip implements VmPipPort {
 
 > 测试文件可以 import flutter——`purity_test.dart` 只扫 `lib/src/core/`。
 
-- [ ] **Step 2: 写失败测试 — UI**
+- [x] **Step 2: 写失败测试 — UI**
 
 `test/ui/top_bar_test.dart`：**删掉**第 24–45 行那一整块（`// NOTE: VmApi exposes no
 synchronous …` 注释 + `testWidgets('pip button always shows (no sync capability check on
@@ -1999,13 +1999,13 @@ VmApi)', …)` 整项），换成：
   });
 ```
 
-- [ ] **Step 3: 跑测试确认失败**
+- [x] **Step 3: 跑测试确认失败**
 
 Run: `flutter test test/core/state_test.dart test/core/engine_test.dart test/ui/top_bar_test.dart`
 Expected: FAIL — `The named parameter 'pipSupported' isn't defined`（`VmState.copyWith`）、
 `The getter 'pipSupported' isn't defined for the class 'VmEngine'`
 
-- [ ] **Step 4: 加 `VmState.pipSupported`**
+- [x] **Step 4: 加 `VmState.pipSupported`**
 
 `lib/src/core/state/state.dart`：在 `pip` 字段之后插入
 
@@ -2032,7 +2032,7 @@ Expected: FAIL — `The named parameter 'pipSupported' isn't defined`（`VmState
 `hashCode` 的第一个 `Object.hash(playing, buffering, completed, locked, fullscreen, pip)`
 改为 `Object.hash(playing, buffering, completed, locked, fullscreen, pip, pipSupported)`。
 
-- [ ] **Step 5: 加 `VmApi.pipSupported` 并在 engine 探测**
+- [x] **Step 5: 加 `VmApi.pipSupported` 并在 engine 探测**
 
 `lib/src/core/api.dart`：在 `Object? get renderHandle;` 之后插入
 
@@ -2077,7 +2077,7 @@ Expected: FAIL — `The named parameter 'pipSupported' isn't defined`（`VmState
     );
 ```
 
-- [ ] **Step 6: `PipButtonComponent` 按能力位隐藏，`FakeVmApi` 补镜像**
+- [x] **Step 6: `PipButtonComponent` 按能力位隐藏，`FakeVmApi` 补镜像**
 
 `lib/src/ui/components/top_bar.dart`：把 `PipButtonComponent` 类文档里从 `/// GAP:` 到
 `/// 报告。` 的整段缺口说明**删掉**，换成：
@@ -2142,7 +2142,7 @@ Expected: FAIL — `The named parameter 'pipSupported' isn't defined`（`VmState
 
 3. `enterPip()` 里的 `return pipSupported;` 原样保留（现在读的是 state）。
 
-- [ ] **Step 7: 补 `brightness_impl`/`orientation_impl`/`pip_impl` 的 barrel 导出**
+- [x] **Step 7: 补 `brightness_impl`/`orientation_impl`/`pip_impl` 的 barrel 导出**
 
 `lib/videoman.dart` 末尾（`export 'src/ui/slots/tree.dart';` 之后）追加：
 
@@ -2158,12 +2158,12 @@ export 'src/platform_impl/pip_impl.dart';
 `createVmEngine()`（真实的 brightness/PiP/orientation 三个端口已经装好），本任务不需要
 再碰它。
 
-- [ ] **Step 8: 跑全量测试与分析**
+- [x] **Step 8: 跑全量测试与分析**
 
 Run: `flutter test && flutter analyze`
 Expected: 全绿（state +1、engine +2、top_bar 由 1 项变 2 项），analyze 0 issues
 
-- [ ] **Step 9: Commit**
+- [x] **Step 9: Commit**
 
 ```bash
 git add -A

@@ -21,23 +21,16 @@ void main() {
     await api.dispose();
   });
 
-  // NOTE: VmApi exposes no synchronous "is PiP supported" getter (VmPipPort
-  // .isSupported() is async and not surfaced on VmApi at all), so this
-  // component cannot decide visibility from `FakeVmApi.pipSupported` (which
-  // only controls what `enterPip()` resolves to). Per the task brief's
-  // documented fallback, the button always shows; unsupported platforms rely
-  // on `enterPip()` resolving to `false`/no-op at runtime. See the task
-  // report for details.
-  //
-  // 说明：VmApi 未暴露同步的"是否支持画中画"getter（VmPipPort.isSupported()
-  // 是异步的，且未在 VmApi 上暴露），因此本组件无法根据
-  // `FakeVmApi.pipSupported`（其真实含义只是 `enterPip()` 的返回值）来决定
-  // 可见性。按任务简报中记录的兜底方案，该按钮始终显示；不支持的平台依赖
-  // `enterPip()` 在运行时返回 `false`/静默无效果。详见任务报告。
-  testWidgets('pip button always shows (no sync capability check on VmApi)', (t) async {
+  testWidgets('pip button is hidden when the platform reports no pip support', (t) async {
     final api = FakeVmApi()..pipSupported = false;
     await pumpComponent(t, api, TopBarComponent());
-    expect(find.byIcon(Icons.picture_in_picture_alt_rounded), findsOneWidget);
+    expect(find.byIcon(Icons.picture_in_picture_alt_rounded), findsNothing);
+    await api.dispose();
+  });
+
+  testWidgets('pip button shows and enters pip when supported', (t) async {
+    final api = FakeVmApi()..pipSupported = true;
+    await pumpComponent(t, api, TopBarComponent());
     await t.tap(find.byIcon(Icons.picture_in_picture_alt_rounded));
     await t.pump();
     expect(api.calls, contains('enterPip'));

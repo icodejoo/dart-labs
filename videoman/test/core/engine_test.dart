@@ -1,3 +1,4 @@
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:videoman/src/core/engine.dart';
 import 'package:videoman/src/core/events/events.dart';
@@ -629,6 +630,24 @@ void main() {
     expect(k2.calls, contains('seek'));
     await e2.dispose();
   });
+
+  test('pipSupported starts false and flips once the port answers', () async {
+    final k2 = FakeKernel();
+    final e2 = VmEngine(kernel: k2, pip: _YesPip());
+    expect(e2.pipSupported, isFalse);
+    await Future<void>.delayed(Duration.zero);
+    expect(e2.pipSupported, isTrue);
+    expect(e2.state.pipSupported, isTrue);
+    await e2.dispose();
+  });
+
+  test('pipSupported stays false when the port throws', () async {
+    final k2 = FakeKernel();
+    final e2 = VmEngine(kernel: k2, pip: _ThrowingPip());
+    await Future<void>.delayed(Duration.zero);
+    expect(e2.pipSupported, isFalse);
+    await e2.dispose();
+  });
 }
 
 /// A spy [VmOrientationPort] that records every `apply(...)` call's
@@ -664,4 +683,27 @@ class _CancelSeek extends VmInterceptor {
 class _DenyPlay extends VmInterceptor {
   @override
   Future<bool> beforePlay() async => false;
+}
+
+/// A pip port that reports support and always succeeds.
+///
+/// 报告支持画中画且总是成功的 pip 端口。
+class _YesPip implements VmPipPort {
+  @override
+  Future<bool> isSupported() async => true;
+
+  @override
+  Future<bool> enter({int? width, int? height}) async => true;
+}
+
+/// A pip port whose capability probe fails, standing in for a platform whose
+/// channel is missing.
+///
+/// 能力探测会失败的 pip 端口，用于模拟缺少平台通道的平台。
+class _ThrowingPip implements VmPipPort {
+  @override
+  Future<bool> isSupported() async => throw MissingPluginException('no pip');
+
+  @override
+  Future<bool> enter({int? width, int? height}) async => false;
 }

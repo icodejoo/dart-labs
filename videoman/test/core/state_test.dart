@@ -44,4 +44,11 @@ void main() {
     expect(s.copyWith(clearPreview: true).previewAt, isNull);
     expect(s.copyWith(dragging: true).previewAt, const Duration(seconds: 5));
   });
+
+  test('VmState.pipSupported defaults to false and round-trips through copyWith', () {
+    const s = VmState();
+    expect(s.pipSupported, isFalse);
+    expect(s.copyWith(pipSupported: true).pipSupported, isTrue);
+    expect(s.copyWith(pipSupported: true), isNot(equals(s)));
+  });
 }
