@@ -1071,7 +1071,7 @@ git commit -m "feat(videoman): implement timeshift seeking by reopening at a hos
 - Consumes: `VmBackToLive` / `VmLiveConfig.effectiveBackToLive` / `autoBackToLiveOnStall`（Task 1）
 - Produces: 无新公开类型；`backToLiveEdge()` 的真实语义
 
-- [ ] **Step 1: 追加失败测试到 `test/core/engine_test.dart`**
+- [x] **Step 1: 追加失败测试到 `test/core/engine_test.dart`**
 
 `main()` 末尾追加：
 
@@ -1182,13 +1182,13 @@ git commit -m "feat(videoman): implement timeshift seeking by reopening at a hos
   });
 ```
 
-- [ ] **Step 2: 跑测试确认失败**
+- [x] **Step 2: 跑测试确认失败**
 
 Run: `flutter test test/core/engine_test.dart`
 Expected: FAIL — 「backToLiveEdge in dvr mode seeks to the window end without reopening」失败，
 `expected: ['seek']  actual: ['open']`（当前占位实现走的是 `reload()`）
 
-- [ ] **Step 3: 实现**
+- [x] **Step 3: 实现**
 
 `lib/src/core/engine.dart`：
 
@@ -1285,7 +1285,7 @@ Expected: FAIL — 「backToLiveEdge in dvr mode seeks to the window end without
   }
 ```
 
-- [ ] **Step 4: 跑测试确认通过**
+- [x] **Step 4: 跑测试确认通过**
 
 Run: `flutter test && flutter analyze`
 Expected: 全绿（新增 5 项），analyze 0 issues
@@ -1293,7 +1293,7 @@ Expected: 全绿（新增 5 项），analyze 0 issues
 > 既有的 `test/ui/live_bar_test.dart` 的「back-to-edge button reloads the stream」此刻**仍应通过**
 > ——它断言的是 `api.reload()` 被调用，而 UI 还没改（Task 6 才改）。
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add -A

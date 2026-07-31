@@ -115,6 +115,16 @@ class VmEngine implements VmApi {
   /// 导致 [VmAbrDownshift] 重复/漏发。
   bool _abrDownshiftInFlight = false;
 
+  /// Reentrancy guard for [_maybeAutoBackToLive]: true while an automatic
+  /// back-to-edge jump is still in flight. Buffering can flap several times
+  /// per second, and each overlapping jump would issue another kernel
+  /// `seek()`/`open()` on top of the previous one.
+  ///
+  /// [_maybeAutoBackToLive] 的重入保护：为真表示一次自动回边缘仍在进行中。
+  /// 缓冲状态每秒可能翻转数次，若不加保护，每次翻转都会在上一次未完成时再向
+  /// 内核发一次 `seek()`/`open()`。
+  bool _autoBackToLiveInFlight = false;
+
   final VmBus<VmState> _state = VmBus<VmState>(const VmState());
   final VmBus<VmUiState> _ui = VmBus<VmUiState>(const VmUiState());
   final StreamController<VmEvent> _events = StreamController<VmEvent>.broadcast();
@@ -201,6 +211,7 @@ class VmEngine implements VmApi {
       _state.emit(state.copyWith(buffering: v));
       _events.add(VmBufferingChanged(v));
       _handleAbrBuffering(v);
+      _maybeAutoBackToLive(v);
     });
     _completedSub = _kernel.completed.listen((v) {
       _state.emit(state.copyWith(completed: v));
@@ -611,8 +622,66 @@ class VmEngine implements VmApi {
   @override
   Future<void> backToLiveEdge() async {
     if (state.type != VmStreamType.live) return;
-    await reload();
+    switch (options.live.effectiveBackToLive) {
+      case VmBackToLive.seekEnd:
+        final window = state.seekableWindow;
+        if (state.liveSeekable && window > Duration.zero) {
+          await _kernel.seek(window);
+        } else {
+          await _reopenLiveSource();
+        }
+      case VmBackToLive.reopen:
+        await _reopenLiveSource();
+    }
+    _state.emit(state.copyWith(clearTimeshift: true));
     _events.add(const VmLiveEdgeReached());
+  }
+
+  /// Reopens the original live URL on the kernel, bypassing [open].
+  ///
+  /// [open] would clear the quality list and emit
+  /// [VmSourceChanged]/[VmReady], telling the UI the source changed — but
+  /// returning to the edge is a position change, not a source change. It also
+  /// matters in [VmLiveSeekMode.timeshift]: [_source] still holds the
+  /// *original* live URL while the kernel currently has a time-shifted one
+  /// open, so this is what actually catches back up.
+  ///
+  /// 绕过 [open]，直接让内核重新打开原始直播地址。
+  ///
+  /// 走 [open] 会清空清晰度列表并发出 [VmSourceChanged]/[VmReady]，告诉 UI
+  /// 源变了——但回到边缘只是位置变化，不是换源。这一点在
+  /// [VmLiveSeekMode.timeshift] 下尤其关键：[_source] 里存的仍是**原始**直播
+  /// 地址，而内核当前打开的是带时间参数的时移地址，重开原始地址才能真正追上。
+  Future<void> _reopenLiveSource() async {
+    final s = _source;
+    if (s == null) return;
+    await _kernel.open(s.uri, play: true);
+  }
+
+  /// Jumps back to the live edge on a stall, when configured to.
+  ///
+  /// Only fires on a rising stall while actually time-shifted: a stall at the
+  /// edge has nowhere to jump to, and jumping while the user is deliberately
+  /// replaying would silently discard their chosen position — which is why
+  /// [VmLiveConfig.autoBackToLiveOnStall] defaults to off.
+  ///
+  /// 在配置开启时，卡顿则跳回直播边缘。
+  ///
+  /// 仅在**确实处于时移状态**且卡顿发生时触发：在边缘卡顿无处可跳；而用户正在
+  /// 主动回看时跳走会悄悄丢掉他选定的位置——这正是
+  /// [VmLiveConfig.autoBackToLiveOnStall] 默认关闭的原因。
+  ///
+  /// - [buffering]: the latest buffering flag / 最新的缓冲标志
+  void _maybeAutoBackToLive(bool buffering) {
+    if (!buffering) return;
+    if (!options.live.autoBackToLiveOnStall) return;
+    if (state.type != VmStreamType.live) return;
+    if (state.timeshiftBehind == null) return;
+    if (_autoBackToLiveInFlight) return;
+    _autoBackToLiveInFlight = true;
+    unawaited(
+      backToLiveEdge().whenComplete(() => _autoBackToLiveInFlight = false),
+    );
   }
 
   @override
