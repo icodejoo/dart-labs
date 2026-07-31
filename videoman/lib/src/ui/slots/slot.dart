@@ -36,4 +36,17 @@ enum VmSlot {
   ///
   /// 覆盖在最上层的全屏叠加层（广告、自定义横幅）。
   overlay,
+
+  /// Left vertical edge band, for side content (sidebars, episode lists).
+  /// Not used by the built-in HUD — volume/brightness feedback stays
+  /// centered.
+  ///
+  /// 左侧垂直边带，用于侧边内容（侧栏、剧集列表）。内置 HUD 不用它——
+  /// 音量/亮度反馈保持居中。
+  left,
+
+  /// Right vertical edge band, mirror of [left].
+  ///
+  /// 右侧垂直边带，[left] 的镜像。
+  right,
 }
