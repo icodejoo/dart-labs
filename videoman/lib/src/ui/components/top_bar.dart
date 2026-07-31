@@ -105,26 +105,17 @@ class TitleComponent extends VmComponent {
   }
 }
 
-/// Picture-in-picture entry button.
+/// Picture-in-picture entry button; renders nothing where PiP is unsupported.
 ///
-/// GAP: `VmApi` exposes no synchronous "is PiP supported" getter (the
-/// underlying `VmPipPort.isSupported()` is async and isn't surfaced on
-/// `VmApi` at all), so this component cannot decide its visibility from a
-/// capability check the way 0.1.0's `player.dart` did (it probed
-/// asynchronously in `initState` and stored the result in local widget
-/// state). Per the task brief's documented fallback, the button therefore
-/// always shows; tapping calls [VmApi.enterPip], which resolves to `false`
-/// and no-ops on unsupported platforms. See the task report for the full
-/// writeup.
+/// Visibility follows [VmState.pipSupported], which the engine resolves once
+/// from `VmPipPort.isSupported()` shortly after construction — so on desktop
+/// the button never appears at all, rather than appearing and doing nothing.
 ///
-/// 画中画入口按钮。
+/// 画中画入口按钮；平台不支持画中画时不渲染任何内容。
 ///
-/// 缺口：`VmApi` 未暴露同步的"是否支持画中画" getter（底层
-/// `VmPipPort.isSupported()` 是异步的，且完全未在 `VmApi` 上暴露），因此该
-/// 组件无法像 0.1.0 的 `player.dart` 那样做能力判断来决定可见性（后者在
-/// `initState` 里异步探测并存入本地 widget state）。按任务简报记录的兜底
-/// 方案，该按钮始终显示；点击调用 [VmApi.enterPip]，在不支持的平台上会
-/// 解析为 `false` 并静默无效果。完整说明见任务报告。
+/// 可见性跟随 [VmState.pipSupported]——engine 在构造后不久用
+/// `VmPipPort.isSupported()` 解析一次。因此桌面端该按钮根本不会出现，而不是
+/// 出现了点了没反应。
 class PipButtonComponent extends VmComponent {
   /// Creates the pip-button leaf component.
   ///
@@ -140,10 +131,16 @@ class PipButtonComponent extends VmComponent {
   @override
   Widget build(BuildContext context, VmApi api, List<Widget> children) {
     final theme = api.options.theme;
-    return VmIconButton(
-      icon: Icons.picture_in_picture_alt_rounded,
-      theme: theme,
-      onPressed: () => api.enterPip(),
+    return VmSelector<bool>(
+      selector: (s) => s.pipSupported,
+      builder: (context, supported) {
+        if (!supported) return const SizedBox.shrink();
+        return VmIconButton(
+          icon: Icons.picture_in_picture_alt_rounded,
+          theme: theme,
+          onPressed: () => api.enterPip(),
+        );
+      },
     );
   }
 }

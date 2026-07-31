@@ -68,6 +68,20 @@ abstract class VmApi {
   /// `is VideoController` 时才渲染真实的 `Video` 组件，否则渲染占位符。
   Object? get renderHandle;
 
+  /// Whether the current platform supports system picture-in-picture.
+  ///
+  /// A synchronous mirror of [VmState.pipSupported] so components can branch
+  /// without a selector. Components that must *rebuild* when it flips should
+  /// still watch `VmState.pipSupported` through a `VmSelector`, since the
+  /// value is resolved asynchronously shortly after construction.
+  ///
+  /// 当前平台是否支持系统画中画。
+  ///
+  /// [VmState.pipSupported] 的同步镜像，便于组件不用 selector 也能分支。需要在
+  /// 它翻转时**重建**的组件仍应通过 `VmSelector` 观察 `VmState.pipSupported`，
+  /// 因为该值是在构造后不久异步解析出来的。
+  bool get pipSupported;
+
   /// The scrub-preview capability surface: thumbnail requests, the resolved
   /// thumbnail stream, and cache control.
   ///

@@ -58,3 +58,6 @@ export 'src/ui/slots/component.dart';
 export 'src/ui/slots/patch.dart';
 export 'src/ui/slots/slot.dart';
 export 'src/ui/slots/tree.dart';
+export 'src/platform_impl/brightness_impl.dart';
+export 'src/platform_impl/orientation_impl.dart';
+export 'src/platform_impl/pip_impl.dart';

@@ -43,6 +43,20 @@ class VmState {
   /// 播放器当前是否处于画中画模式。
   final bool pip;
 
+  /// Whether the current platform supports system picture-in-picture at all.
+  ///
+  /// Distinct from [pip], which says whether PiP is *active*. Resolved once
+  /// per engine from `VmPipPort.isSupported()`; `false` until that probe
+  /// answers, so UI that hides itself on `false` merely appears a frame or two
+  /// late instead of flashing a button that does nothing.
+  ///
+  /// 当前平台是否支持系统画中画。
+  ///
+  /// 与 [pip] 不同——后者表示画中画是否**正在生效**。每个 engine 用
+  /// `VmPipPort.isSupported()` 探测一次；探测返回前为 `false`，因此依赖它隐藏
+  /// 自身的 UI 只是晚一两帧出现，而不会先闪一个点了没反应的按钮。
+  final bool pipSupported;
+
   /// Total media duration; `Duration.zero` if unknown (e.g. live).
   ///
   /// 媒体总时长；未知时（如直播）为 `Duration.zero`。
@@ -147,6 +161,7 @@ class VmState {
     this.locked = false,
     this.fullscreen = false,
     this.pip = false,
+    this.pipSupported = false,
     this.duration = Duration.zero,
     this.width = 0,
     this.height = 0,
@@ -184,6 +199,7 @@ class VmState {
     bool? locked,
     bool? fullscreen,
     bool? pip,
+    bool? pipSupported,
     Duration? duration,
     int? width,
     int? height,
@@ -212,6 +228,7 @@ class VmState {
       locked: locked ?? this.locked,
       fullscreen: fullscreen ?? this.fullscreen,
       pip: pip ?? this.pip,
+      pipSupported: pipSupported ?? this.pipSupported,
       duration: duration ?? this.duration,
       width: width ?? this.width,
       height: height ?? this.height,
@@ -241,6 +258,7 @@ class VmState {
         other.locked == locked &&
         other.fullscreen == fullscreen &&
         other.pip == pip &&
+        other.pipSupported == pipSupported &&
         other.duration == duration &&
         other.width == width &&
         other.height == height &&
@@ -261,7 +279,7 @@ class VmState {
 
   @override
   int get hashCode => Object.hash(
-        Object.hash(playing, buffering, completed, locked, fullscreen, pip),
+        Object.hash(playing, buffering, completed, locked, fullscreen, pip, pipSupported),
         Object.hash(duration, width, height, volume, brightness, rate, zoom),
         fit,
         Object.hashAll(qualities),
