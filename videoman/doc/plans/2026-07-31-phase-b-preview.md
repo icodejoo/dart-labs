@@ -1152,7 +1152,7 @@ DESIGN §7.4「内存：计数 LRU，默认 40 项」+ §6.1「内存上限 / `m
   - `abstract class VmThumbCache { Uint8List? peek(String key); Future<Uint8List?> read(String key); Future<void> write(String key, Uint8List bytes); Future<void> clear(); Future<void> dispose(); }`
   - `class VmMemoryThumbCache implements VmThumbCache { VmMemoryThumbCache({int maxEntries = 40}); final int maxEntries; int get length; }`
 
-- [ ] **Step 1: 写失败测试 `test/core/preview/cache_test.dart`**
+- [x] **Step 1: 写失败测试 `test/core/preview/cache_test.dart`**
 
 ```dart
 import 'dart:typed_data';
@@ -1245,12 +1245,12 @@ void main() {
 }
 ```
 
-- [ ] **Step 2: 跑测试确认失败**
+- [x] **Step 2: 跑测试确认失败**
 
 Run: `flutter test test/core/preview/cache_test.dart`
 Expected: FAIL — `Error when reading 'lib/src/core/preview/cache.dart': No such file or directory`
 
-- [ ] **Step 3: 实现 `lib/src/core/preview/cache.dart`**
+- [x] **Step 3: 实现 `lib/src/core/preview/cache.dart`**
 
 ```dart
 import 'dart:collection';
@@ -1383,7 +1383,7 @@ class VmMemoryThumbCache implements VmThumbCache {
 }
 ```
 
-- [ ] **Step 4: barrel 增补导出**
+- [x] **Step 4: barrel 增补导出**
 
 `lib/videoman.dart` 在 `export 'src/core/preview/hash.dart';` 之前插入：
 
@@ -1391,12 +1391,12 @@ class VmMemoryThumbCache implements VmThumbCache {
 export 'src/core/preview/cache.dart';
 ```
 
-- [ ] **Step 5: 跑测试确认通过**
+- [x] **Step 5: 跑测试确认通过**
 
 Run: `flutter test test/core/preview/cache_test.dart && flutter analyze`
 Expected: 8 项 PASS，analyze 0 issues
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add -A
