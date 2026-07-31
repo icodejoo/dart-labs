@@ -31,7 +31,7 @@ import 'skin.dart';
 ///
 /// 1. **播放层 / playback layer** — the raw [video] surface.
 /// 2. **操作层 / operable layer** — gesture detection plus the top/center/
-///    bottom chrome, all fading and becoming tap-through together as *one*
+///    bottom and left/right chrome, all fading and becoming tap-through together as *one*
 ///    [_BarVisibility] instance on [VmUiState.controlsVisible] (idle
 ///    auto-hide); hidden outright while locked or in picture-in-picture
 ///    ([_LockedHidden]/[_PipHidden]), since neither state has any use for it.
@@ -139,6 +139,34 @@ class VmDefaultSkin implements VmSkin {
                                 ...slots[VmSlot.bottomAbove],
                                 ...slots[VmSlot.bottom],
                               ],
+                            ),
+                          ),
+                          // Left/right vertical edge bands (VmSlot.left/right):
+                          // full-height, centered content, for side chrome
+                          // (sidebars, episode lists). Empty by default — a
+                          // no-op unless a component is placed there.
+                          //
+                          // 左/右垂直边带（VmSlot.left/right）：满高、内容居中，
+                          // 用于侧边 chrome（侧栏、剧集列表）。默认为空——除非
+                          // 有组件放进去，否则不产生任何效果。
+                          Positioned(
+                            top: 0,
+                            bottom: 0,
+                            left: 0,
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: slots[VmSlot.left],
+                            ),
+                          ),
+                          Positioned(
+                            top: 0,
+                            bottom: 0,
+                            right: 0,
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: slots[VmSlot.right],
                             ),
                           ),
                         ],
