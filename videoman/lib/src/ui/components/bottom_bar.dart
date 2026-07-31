@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 
 import '../../core/api.dart';
+import '../../core/model/source.dart';
 import '../../core/state/progress.dart';
 import '../format.dart';
 import '../scope/selector.dart';
@@ -126,6 +127,12 @@ class DurationLabelComponent extends VmComponent {
 ///
 /// 拖动进行中，展示值锁定为本地拖动值而非进度流推送值，避免拖动抖动——对齐
 /// 0.1.0 `value = _dragValue ?? pos...` 的行为。
+///
+/// For a seekable live stream the span is the DVR window rather than
+/// `duration`, so one component serves both VOD and DVR live (DESIGN §5.4).
+///
+/// 对可拖动的直播流，量程取 DVR 窗口而非 `duration`，因此同一个组件同时服务
+/// 点播与可拖直播（DESIGN §5.4）。
 class SeekBarComponent extends VmComponent {
   /// Creates the seek-bar leaf component.
   ///
@@ -141,8 +148,10 @@ class SeekBarComponent extends VmComponent {
   @override
   Widget build(BuildContext context, VmApi api, List<Widget> children) {
     return VmSelector<Duration>(
-      selector: (s) => s.duration,
-      builder: (context, duration) => _SeekBar(api: api, duration: duration),
+      selector: (s) => s.type == VmStreamType.live && s.liveSeekable
+          ? s.seekableWindow
+          : s.duration,
+      builder: (context, span) => _SeekBar(api: api, duration: span),
     );
   }
 }

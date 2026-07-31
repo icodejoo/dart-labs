@@ -1330,7 +1330,7 @@ DESIGN §8 的 UI 部分 + §5.4 的直播树 `bottomBar/{liveBadge, seekBar, ti
   - `class BackToLiveComponent extends VmComponent`（name `'backToLive'`）
   - `LiveBadgeComponent` 按 `timeshiftBehind` 切换配色/文案（类名与 name 不变）
 
-- [ ] **Step 1: 改写并追加 `test/ui/live_bar_test.dart`**
+- [x] **Step 1: 改写并追加 `test/ui/live_bar_test.dart`**
 
 整个文件替换为：
 
@@ -1388,6 +1388,12 @@ void main() {
     expect(find.text('LIVE'), findsOneWidget);
     api.push(_behind);
     await t.pump();
+    // A second pump settles a Stream.multi replay hop from VmBus — see the
+    // identical note on the preview-bubble tests in phase B.
+    //
+    // 第二次 pump 用来落定 VmBus 的 Stream.multi 重放跳转——与阶段 B 预览气泡
+    // 测试里的说明相同。
+    await t.pump();
     expect(find.text('LIVE'), findsNothing);
     expect(find.text('时移'), findsOneWidget);
     await api.dispose();
@@ -1399,6 +1405,7 @@ void main() {
     await pumpComponent(t, api, LiveBarComponent(seekable: true));
     expect(find.text('-01:05'), findsOneWidget);
     api.push(_atEdge);
+    await t.pump();
     await t.pump();
     expect(find.text('-01:05'), findsNothing);
     await api.dispose();
@@ -1438,12 +1445,12 @@ void main() {
 
 顶部还要 `import 'package:videoman/src/core/options/options.dart';`（`VmOptions`/`VmStrings`）。
 
-- [ ] **Step 2: 跑测试确认失败**
+- [x] **Step 2: 跑测试确认失败**
 
 Run: `flutter test test/ui/live_bar_test.dart`
 Expected: FAIL — `The named parameter 'seekable' isn't defined`（`LiveBarComponent`）
 
-- [ ] **Step 3: 加主题色并删掉死文案**
+- [x] **Step 3: 加主题色并删掉死文案**
 
 `lib/src/core/options/theme.dart`：在 `accentColor` 字段之后插入
 
@@ -1463,7 +1470,7 @@ Expected: FAIL — `The named parameter 'seekable' isn't defined`（`LiveBarComp
 `this.backToEdge = '回到边缘',`、`==` 里的 `backToEdge == other.backToEdge &&`、
 `hashCode` 参数表里的 `backToEdge`。
 
-- [ ] **Step 4: 重写 `lib/src/ui/components/live_bar.dart`**
+- [x] **Step 4: 重写 `lib/src/ui/components/live_bar.dart`**
 
 整个文件替换为：
 
@@ -1688,7 +1695,7 @@ class BackToLiveComponent extends VmComponent {
 }
 ```
 
-- [ ] **Step 5: `SeekBarComponent` 量程改为按流类型取值**
+- [x] **Step 5: `SeekBarComponent` 量程改为按流类型取值**
 
 `lib/src/ui/components/bottom_bar.dart` 的 `SeekBarComponent.build` 替换为：
 
@@ -1716,7 +1723,7 @@ class BackToLiveComponent extends VmComponent {
 /// 点播与可拖直播（DESIGN §5.4）。
 ```
 
-- [ ] **Step 6: 皮肤传 `seekable`**
+- [x] **Step 6: 皮肤传 `seekable`**
 
 `lib/src/ui/skins/default_skin.dart` 的 `components(VmState s)` 里，把
 
@@ -1732,7 +1739,7 @@ class BackToLiveComponent extends VmComponent {
             : BottomBarComponent(),
 ```
 
-- [ ] **Step 7: 跑测试与分析**
+- [x] **Step 7: 跑测试与分析**
 
 Run: `flutter test && flutter analyze`
 Expected: 全绿（live_bar 7 项），analyze 0 issues
@@ -1752,7 +1759,7 @@ Expected: 全绿（live_bar 7 项），analyze 0 issues
 
 这是本阶段**唯一**允许改动的阶段 A 既有断言，因为组件树的直播分支语义确实变了。
 
-- [ ] **Step 8: Commit**
+- [x] **Step 8: Commit**
 
 ```bash
 git add -A

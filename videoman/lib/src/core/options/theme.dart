@@ -25,6 +25,12 @@ class VmTheme {
   /// 强调元素（如进度条高亮、直播角标）的 ARGB 颜色。
   final int accentColor;
 
+  /// ARGB color for the badge while the live stream is time-shifted (i.e. not
+  /// at the live edge).
+  ///
+  /// 直播处于时移状态（即不在直播边缘）时角标的 ARGB 颜色。
+  final int timeshiftBadgeColor;
+
   /// ARGB color for the top/bottom gradient behind the control bars.
   ///
   /// 控制条上下渐变背景的 ARGB 颜色。
@@ -73,6 +79,7 @@ class VmTheme {
     this.iconColor = 0xFFFFFFFF,
     this.textColor = 0xFFFFFFFF,
     this.accentColor = 0xFFE53935,
+    this.timeshiftBadgeColor = 0xFF616161,
     this.barGradientColor = 0x99000000,
     this.titleFontSize = 14.0,
     this.timeFontSize = 12.0,
@@ -91,6 +98,7 @@ class VmTheme {
           iconColor == other.iconColor &&
           textColor == other.textColor &&
           accentColor == other.accentColor &&
+          timeshiftBadgeColor == other.timeshiftBadgeColor &&
           barGradientColor == other.barGradientColor &&
           titleFontSize == other.titleFontSize &&
           timeFontSize == other.timeFontSize &&
@@ -105,6 +113,7 @@ class VmTheme {
         iconColor,
         textColor,
         accentColor,
+        timeshiftBadgeColor,
         barGradientColor,
         titleFontSize,
         timeFontSize,

@@ -24,7 +24,8 @@ void main() {
     final bottom = skin
         .components(const VmState(type: VmStreamType.live))
         .firstWhere((c) => c.name == 'bottomBar');
-    expect(bottom.children.map((c) => c.name), ['liveBadge', 'backToEdge']);
+    expect(bottom.children.map((c) => c.name),
+        ['liveBadge', 'seekBar', 'timeshift', 'backToLive']);
   });
 
   test('patches passed to the default skin are applied to its tree', () {

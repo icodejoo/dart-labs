@@ -42,11 +42,6 @@ class VmStrings {
   /// 表示当前处于时移模式的标签文案。
   final String timeshift;
 
-  /// Button text to jump back to the (DVR/time-shift) edge.
-  ///
-  /// 跳回（DVR/时移）边缘的按钮文案。
-  final String backToEdge;
-
   /// Label for automatic quality selection.
   ///
   /// 自动清晰度选择的标签文案。
@@ -74,7 +69,6 @@ class VmStrings {
     this.live = 'LIVE',
     this.backToLive = '回到直播',
     this.timeshift = '时移',
-    this.backToEdge = '回到边缘',
     this.auto = '自动',
     this.quality = '清晰度',
     this.zoomSuffix = 'x',
@@ -104,7 +98,6 @@ class VmStrings {
           live == other.live &&
           backToLive == other.backToLive &&
           timeshift == other.timeshift &&
-          backToEdge == other.backToEdge &&
           auto == other.auto &&
           quality == other.quality &&
           zoomSuffix == other.zoomSuffix;
@@ -117,7 +110,6 @@ class VmStrings {
         live,
         backToLive,
         timeshift,
-        backToEdge,
         auto,
         quality,
         zoomSuffix,
