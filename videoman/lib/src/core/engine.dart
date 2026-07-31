@@ -10,6 +10,7 @@ import 'events/events.dart';
 import 'interceptor/interceptor.dart';
 import 'kernel/kernel.dart';
 import 'kernel/mpv_kernel.dart';
+import 'live/timeshift.dart';
 import 'model/fit.dart';
 import 'model/quality.dart';
 import 'model/source.dart';
@@ -207,6 +208,7 @@ class VmEngine implements VmApi {
     });
     _positionSub = _kernel.position.listen((v) {
       _lastPosition = v;
+      _updateTimeshift(v);
       _progressRaw.add(VmProgress(position: v, buffer: _lastBuffer));
     });
     _bufferSub = _kernel.buffer.listen((v) {
@@ -660,27 +662,50 @@ class VmEngine implements VmApi {
 
   /// Recomputes [VmState.liveSeekable]/[VmState.seekableWindow] from the
   /// current stream type, [VmLiveConfig.seekMode], and the resolved DVR/
-  /// time-shift window (see [_resolveWindow]).
+  /// time-shift window (see [resolveWindow]).
   ///
   /// 根据当前流类型、[VmLiveConfig.seekMode] 及解析出的 DVR/时移窗口（见
-  /// [_resolveWindow]）重算 [VmState.liveSeekable]/[VmState.seekableWindow]。
+  /// [resolveWindow]）重算 [VmState.liveSeekable]/[VmState.seekableWindow]。
   void _recomputeLiveSeekable() {
-    final window = _resolveWindow();
+    final window = resolveWindow(state, options.live);
     final seekable = state.type == VmStreamType.live &&
         options.live.seekMode != VmLiveSeekMode.off &&
         window > Duration.zero;
     _state.emit(state.copyWith(liveSeekable: seekable, seekableWindow: window));
+    _updateTimeshift(_lastPosition);
   }
 
-  /// Resolves the effective DVR/time-shift window: an explicit
-  /// [VmLiveConfig.dvrWindow] if configured, otherwise the kernel-reported
-  /// [VmState.duration] (common for a live HLS stream whose "duration" is
-  /// its DVR window length).
+  /// Recomputes [VmState.timeshiftBehind] from [position] and announces the
+  /// transition on the event stream.
   ///
-  /// 解析生效的 DVR/时移窗口：若配置了 [VmLiveConfig.dvrWindow] 则用之，否则
-  /// 用内核报告的 [VmState.duration]（常见于直播 HLS 流，其"时长"即 DVR
-  /// 窗口长度）。
-  Duration _resolveWindow() => options.live.dvrWindow ?? state.duration;
+  /// The lag is quantised to whole seconds before comparison: position ticks
+  /// arrive several times a second, and emitting a new [VmState] for every
+  /// sub-second change would turn the deduplicated [states] stream into a
+  /// high-frequency one — exactly what phase A avoided by keeping position out
+  /// of [VmState]. Second-level precision is all the `-MM:SS` indicator needs.
+  ///
+  /// 依据 [position] 重算 [VmState.timeshiftBehind]，并在事件流上广播其变化。
+  ///
+  /// 落后量在比较前先量化到整秒：position 每秒到达数次，若每次亚秒级变化都发一个
+  /// 新的 [VmState]，去重后的 [states] 流就会退化成高频流——这正是阶段 A 把
+  /// position 排除在 [VmState] 之外所要避免的。`-MM:SS` 指示器也只需要秒级精度。
+  ///
+  /// - [position]: latest known playhead position / 最近已知的播放位置
+  void _updateTimeshift(Duration position) {
+    final live = state.type == VmStreamType.live && state.liveSeekable;
+    final raw = live
+        ? behindOf(position, state.seekableWindow, options.live.edgeThreshold)
+        : null;
+    final behind = raw == null ? null : Duration(seconds: raw.inSeconds);
+    if (behind == state.timeshiftBehind) return;
+    if (behind == null) {
+      _state.emit(state.copyWith(clearTimeshift: true));
+      if (live) _events.add(const VmLiveEdgeReached());
+    } else {
+      _state.emit(state.copyWith(timeshiftBehind: behind));
+      _events.add(VmTimeshiftChanged(behind));
+    }
+  }
 
   /// Feeds a buffering-state observation to [_abrPolicy] and, when it signals
   /// a downshift and [VmAbrConfig.enabled] is true, downshifts the current
