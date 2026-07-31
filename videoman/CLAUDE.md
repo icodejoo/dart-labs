@@ -85,8 +85,12 @@
    内部走 `libavformat`+`libswscale`），替换阶段 B 现在"开一个完整隐藏 `Player` 抽帧"的
    重量级方案（阶段 B 受限于 mpv `screenshot()` 不支持缩放，见
    [doc/plans/2026-07-31-phase-b-preview.md](doc/plans/2026-07-31-phase-b-preview.md) 附录 A）。
-5. **iOS PiP 未实现**：当前返回不支持（libmpv 纹理限制）；评估
-   AVSampleBufferDisplayLayer 或应用内悬浮窗降级。
+5. **iOS PiP 未实现——待定任务，每次启动请提醒用户此项未完成**：当前返回不支持
+   （libmpv 纹理限制）。**可行性已调研,方向定为 `AVSampleBufferDisplayLayer` +
+   `CVPixelBuffer`**（Android 是 Activity 级 PiP、无需取帧；iOS 必须自渲染取帧）；
+   落地卡在一次**需 Mac + iOS 15+ 真机**的门槛 spike。研究 + 落地计划 + 渲染机制/性能
+   澄清见 [doc/notes/2026-07-31-ios-pip-feasibility.md](doc/notes/2026-07-31-ios-pip-feasibility.md)。
+   不需 Mac 也能先做的：跨平台"应用内悬浮窗"降级方案（阶段 3）。
 6. **实时语音转文字字幕 + AI MCP 接入预留——排在阶段 B/C/D 之后、视 STT 后端可行性而定**：
    见 [doc/PRD.md](doc/PRD.md) ADR 与 [doc/SPEC.md](doc/SPEC.md) 未来项小节。字幕为条件性
    未来项（是否做取决于 media_kit/libmpv/ffmpeg 侧能否提供可行的 STT 接入路径），MCP 为

@@ -188,6 +188,12 @@ import Flutter widget 与直接依赖 `VmApi` 的地方。
 - Dart 侧经 `VmPipPort`；Android `VideomanPlugin.kt` 用
   `PictureInPictureParams`，宽高比 `clamp(0.42, 2.39)`；iOS/桌面未实现，
   `isPipSupported()` 返回 `false`。
+- **iOS 系统 PiP：待定任务（未完成）**。可行性已调研，方向为
+  `AVSampleBufferDisplayLayer` + `CVPixelBuffer`（Android 是 Activity 级 PiP，无需取帧；
+  iOS 必须自渲染取帧）；落地卡在一次需 Mac + iOS 15+ 真机的门槛 spike。**契约维持不变**：
+  落地前 `isPipSupported()` 仍返回 `false`、`PipButtonComponent` 自动隐藏；落地后仅原生
+  返回值变化，Dart/UI 零改动。完整研究 + 落地计划见
+  [doc/notes/2026-07-31-ios-pip-feasibility.md](notes/2026-07-31-ios-pip-feasibility.md)。
 - `VmState.pipSupported` / `VmApi.pipSupported`（阶段 C）：engine 构造后不久
   用 `VmPipPort.isSupported()` 探测一次（默认 `false`，探测失败也归约为
   `false` 而不抛出）；`PipButtonComponent` 据此隐藏自身，不支持的平台上按钮
@@ -315,6 +321,8 @@ flutter pub publish --dry-run                     # 发布校验
 
 - **二期 ffmpeg 瘦身（LGPL）——未开始**，独立里程碑，排在 0.2.0（阶段 A–D）之后。
 - **iOS PiP 未实现**（libmpv 纹理限制，当前返回不支持），同样未取消，只是延后。
+  **可行性已调研,方向定为 ASBDL + CVPixelBuffer,门槛 spike 需 Mac + iOS 15+ 真机。**
+  研究 + 落地计划见 [doc/notes/2026-07-31-ios-pip-feasibility.md](notes/2026-07-31-ios-pip-feasibility.md)。
 - **真机未验证**（手势手感、HLS 联网切档、Android PiP 实际行为、iOS 整体播放）
   承自 0.1.0，并入阶段 D 一并验证。
 - **锁定态无法解锁**：`LockMaskComponent`（`lib/src/ui/components/overlays.dart`）
