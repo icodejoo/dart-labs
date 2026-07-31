@@ -4545,12 +4545,12 @@ void main() {
 }
 ```
 
-- [ ] **Step 2: 跑测试确认失败**
+- [x] **Step 2: 跑测试确认失败**
 
 Run: `flutter test test/core/preview/service_test.dart`
 Expected: FAIL — `Error when reading 'lib/src/core/preview/service.dart': No such file or directory`
 
-- [ ] **Step 3: 实现 `lib/src/core/preview/api.dart`**
+- [x] **Step 3: 实现 `lib/src/core/preview/api.dart`**
 
 ```dart
 import 'models.dart';
@@ -4609,7 +4609,7 @@ abstract class VmPreviewApi {
 }
 ```
 
-- [ ] **Step 4: 实现 `lib/src/core/preview/service.dart`**
+- [x] **Step 4: 实现 `lib/src/core/preview/service.dart`**
 
 ```dart
 import 'dart:async';
@@ -4952,7 +4952,7 @@ class VmPreviewService implements VmPreviewApi {
 }
 ```
 
-- [ ] **Step 5: barrel 增补导出**
+- [x] **Step 5: barrel 增补导出**
 
 `lib/videoman.dart` 在 `export 'src/core/preview/cache.dart';` 之前插入：
 
@@ -4966,12 +4966,12 @@ export 'src/core/preview/api.dart';
 export 'src/core/preview/service.dart';
 ```
 
-- [ ] **Step 6: 跑测试确认通过**
+- [x] **Step 6: 跑测试确认通过**
 
 Run: `flutter test test/core/preview/service_test.dart && flutter analyze`
 Expected: 17 项 PASS，analyze 0 issues
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add -A
