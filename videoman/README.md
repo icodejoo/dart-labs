@@ -15,7 +15,8 @@ Flutter 视频播放库，自研手势与控制层，支持点播与直播。
 - **Orientation / 方向**：全屏按视频宽高比自动横/竖屏。
 - **Quality / 清晰度**：解析 HLS master 提取档位、手动切换、网络卡顿自动降档；"自动"档委托 libmpv 原生 ABR。
 - **PiP / 画中画**：Android 系统级画中画（iOS/桌面暂不支持，见下）。
-- **VOD & Live / 点播与直播**：两套控制条，直播禁用进度、支持"回到边缘"。
+- **VOD & Live / 点播与直播**：两套控制条；直播默认禁止拖动，可开启 DVR（服务端窗口内拖动）
+  或时移（拖动即换源），带"回到直播"按钮与时移角标。
 - **Scrub preview / 拖动预览缩略图**：拖动进度条或横滑手势时，进度条上方浮出目标时刻的
   缩略图气泡（WebVTT 雪碧图 / libmpv 抽帧兜底，两级缓存，默认仅 WiFi）。
 
@@ -155,6 +156,39 @@ VmPlayer(
   skin: VmDefaultSkin(patches: [VmPatch.replace('preview', MyBubble())]),
 )
 ```
+
+## 直播时移
+
+```dart
+// DVR：不换源，在服务端滑动窗口内拖动
+final engine = VmEngine(
+  options: const VmOptions(
+    live: VmLiveConfig(seekMode: VmLiveSeekMode.dvr),
+  ),
+);
+
+// 时移：拖动时用你自己的 URL 方案重开源
+final engine = VmEngine(
+  options: VmOptions(
+    live: VmLiveConfig(
+      seekMode: VmLiveSeekMode.timeshift,
+      dvrWindow: const Duration(hours: 2),
+      urlBuilder: (uri, behind, now) =>
+          '$uri?begin=${now.subtract(behind).millisecondsSinceEpoch}',
+    ),
+  ),
+);
+```
+
+默认 `off`（保持 0.1.0 禁拖行为）；`timeshift` 模式没有 `urlBuilder` 就不生效；
+`windowResolver` 用于服务端带外声明窗口的场景。
+
+## 平台端口
+
+`VmEngine()` 裸构造默认走 noop 端口（供纯 Dart 单测使用），应用代码应改用
+`lib/src/platform_impl/wiring.dart` 的 `createVmEngine()`——它默认接好
+`ScreenBrightnessPort()` / `ChannelPipPort()` / `SystemChromeOrientationPort()`，
+并额外接好预览相关的端口（缩略图目录/抽帧器/网络探针的真实实现）。
 
 ## 自定义皮肤 / Custom skins
 

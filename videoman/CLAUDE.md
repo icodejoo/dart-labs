@@ -31,7 +31,16 @@
 **阶段 B（拖动预览缩略图）已完成**：`VmApi.preview`/`VmOptions.preview`/
 `VmPreviewBlocked` 三个新公开面，WebVTT 雪碧图 + libmpv 抽帧兜底的有序来源链，
 内存+磁盘两级缓存，`connectivity_plus` 网络策略，`PreviewComponent` 气泡
-（水平位置随拖动比例跟随）。212 项测试全绿，`flutter analyze` 0 issues。
+（水平位置随拖动比例跟随）。
+
+**阶段 C（直播时移）已完成**：`VmLiveConfig` 新增 `urlBuilder`/`backToLive`/
+`autoBackToLiveOnStall`/`windowResolver`；`lib/src/core/live/timeshift.dart`
+纯函数 `resolveWindow`/`behindOf`/`atLiveEdge`；`VmState.timeshiftBehind` 真正
+写入并伴随 `VmTimeshiftChanged`/`VmLiveEdgeReached` 事件；`backToLiveEdge()`
+从占位（`reload()`）变为按策略执行；新增 `VmApi.pipSupported`/
+`VmState.pipSupported`，PiP 按钮在不支持的平台自动隐藏；直播底栏加
+`seekBar`/`timeshift`/`backToLive`（原 `backToEdge` 已改名删除）。
+260 项测试全绿，`flutter analyze` 0 issues。
 
 ## 剩余任务
 
@@ -41,14 +50,15 @@
    [doc/plans/2026-07-31-phase-b-preview.md](doc/plans/2026-07-31-phase-b-preview.md)
    （15 Task 全部完成，附录 A/B 记录实测结论与真机验证结果）。详见
    [doc/SPEC.md](doc/SPEC.md)"剩余任务"一节的实现现状小结。
-2. **阶段 C：直播时移——未开始**。计划：
+2. **阶段 C：直播时移——已完成**（2026-07-31）。计划：
    [doc/plans/2026-07-31-phase-c-timeshift.md](doc/plans/2026-07-31-phase-c-timeshift.md)
-   （Task 1–9）。注意含一处破坏性变更：现有 `backToEdge` 组件（调 `reload()`）要改名
-   `backToLive` 并改语义，会破坏 patch 路径 `bottomBar/backToEdge`。
-3. **阶段 D：收尾——未开始**。同上文件的 Task 10–14：iOS podspec 元数据（仍是 Flutter
-   模板占位）、example 三个 demo、README/CHANGELOG/SPEC 更新、`pub publish --dry-run`、
-   **真机一轮验证**（手势手感、HLS 联网切档、Android PiP 实际行为、iOS 整体；均承自 0.1.0
-   仍未验证，且阶段 A 重构本身也从未上过真机）。
+   （Task 1–9 全部完成）。详见 [doc/SPEC.md](doc/SPEC.md)"直播时移（阶段 C）"一节。
+3. **阶段 D：收尾——进行中**。同上文件的 Task 10–14：iOS podspec 元数据已对齐
+   pubspec（Task 10 完成，注意版本号需手动同步）、example 已加直播/时移两个 demo
+   （Task 11 完成，仅桌面冒烟，未做交互验证）、README/CHANGELOG/SPEC 已更新（Task 12）、
+   `pub publish --dry-run` 待最终校验（Task 13）、**真机一轮验证仍未做**（Task 14；
+   手势手感、HLS 联网切档、Android PiP 实际行为、iOS 整体、直播/时移 UI；均承自 0.1.0
+   仍未验证，且阶段 A 重构、预览、时移三块都从未上过真机）。
 
 **承自 fvideo（改名前）、排在 0.2.0 之后**——videoman 就是 fvideo，遗留任务全部承接：
 
@@ -64,10 +74,6 @@
    见 [doc/PRD.md](doc/PRD.md) ADR 与 [doc/SPEC.md](doc/SPEC.md) 未来项小节。字幕为条件性
    未来项（是否做取决于 media_kit/libmpv/ffmpeg 侧能否提供可行的 STT 接入路径），MCP 为
    架构预留钩子；均未排入具体阶段，不是当前开发计划。
-
-**阶段 A 遗留的小尾巴**：`VmApi` 缺同步 PiP 能力查询，`PipButtonComponent` 在不支持的
-平台（桌面）渲染成死按钮（0.1.0 会隐藏）。已排进阶段 C Task 8；临时规避用
-`VmPatch.remove('topBar/pipButton')`。
 
 ## 约定
 
