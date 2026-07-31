@@ -35,22 +35,23 @@ android / ios / windows。（web/macos/linux media_kit 都支持，未纳入本�
 - **许可**：二期构建**卡 LGPL**（避开 GPL-only 组件，否则传染下游、违背"对外发布不作限制"的意图）。
 - **iOS PiP 降级**：media_kit 用 libmpv 纹理渲染，系统级 PiP 依赖 AVPlayer 路径，暂不实现；`isPipSupported()` 返回 false。后续如需，评估 AVSampleBufferDisplayLayer 方案或应用内悬浮窗降级。
 - **手动清晰度**：libmpv 对 HLS 自适应内置；手动锁档采用"解析 master playlist + 打开指定变体 URL"方案，未走 libmpv 属性。
-- **实时语音转文字字幕——可行性已评估（2026-07-31，第二版，推翻同日第一版结论）**：
-  完整调研见 [doc/notes/2026-07-31-stt-subtitle-feasibility.md](notes/2026-07-31-stt-subtitle-feasibility.md)。
-  **结论：可行，不需要新增任何第三方依赖**——libmpv 没有实时 PCM 抽头 API，但不需要
-  抽头：仿阶段 B 拖动预览的"独立第二解码路径"套路（有 mpv 生态先例 WhisperSubs
-  验证过），把音频独立解码分块，交给**平台原生 STT**（Android ML Kit GenAI Speech
-  Recognition / iOS `SFSpeechAudioBufferRecognitionRequest`——均支持喂任意音频
-  buffer、均是操作系统自带能力、经原生插件代码调用，不算引入第三方依赖）转写，按
-  时间戳回灌为字幕叠层组件；**没有原生能力的平台（如 Linux）默认关闭**，是预期行为，
-  不是缺陷。第一版曾建议默认依赖 whisper.cpp（FFI），已推翻——理由是它是真正的新增
-  第三方依赖且需要模型文件，而平台原生能力不需要。曾评估"MCP 兜底"方案，**已否决**：
-  MCP 是请求/响应协议非实时流式，延迟不可控（可能数秒到数十秒），且与下方 MCP 钩子
-  本该扮演的"被动暴露上下文"角色冲突；缺口不专门补，复用既有
-  `VmVolumePort`/`CallbackVolumePort` 那套注入模式给宿主一个通用 `VmSttEngine` 口子
-  即可（非 MCP 专用）。**仍未排入具体阶段任务**——待用户就「macOS 无原生插件、需从零
-  搭建，是否现在投入」「Windows SAPI/COM 实现优先级」两点拍板后，才转化为类似
-  `doc/plans/` 的逐 Task 计划开工。
+- **实时语音转文字字幕——可行性已评估（2026-07-31，第二版，含音频抽取 spike 实测），
+  Android+iOS 已排入落地计划**：完整调研见
+  [doc/notes/2026-07-31-stt-subtitle-feasibility.md](notes/2026-07-31-stt-subtitle-feasibility.md)
+  （附录 A 记录 spike 实测过程与数据）。**结论：可行，不需要新增任何第三方依赖**——
+  libmpv 没有实时 PCM 抽头 API；音频分块抽取**不额外起第二个 media_kit `Player`**
+  （spike 中 `Media(start:,end:)+stream.completed` 技术上跑通了，但双播放器 CPU/内存
+  翻倍，已否决），改用**各平台原生的轻量音频抽取 API**（Android `MediaExtractor`+
+  `MediaCodec`、iOS `AVAssetReader`），在已有原生插件内一次调用内完成"抽取 PCM→交给
+  平台原生 STT（Android ML Kit GenAI Speech Recognition / iOS
+  `SFSpeechAudioBufferRecognitionRequest`）→回文本"，PCM 字节不过 Dart 侧。原生 STT
+  均是操作系统自带能力，不算引入第三方依赖，也不需要打包模型文件。第一版曾建议默认
+  依赖 whisper.cpp（FFI），已推翻。曾评估"MCP 兜底"方案，**已否决**：MCP 是请求/
+  响应协议非实时流式，延迟不可控，且与下方 MCP 钩子本该扮演的"被动暴露上下文"角色
+  冲突；缺口不专门补，复用既有 `VmVolumePort`/`CallbackVolumePort` 那套注入模式给
+  宿主一个通用 `VmSttEngine` 口子即可（非 MCP 专用）。**macOS/Windows 暂缓**（macOS
+  无原生插件需从零搭建，Windows SAPI/COM 是无先例的真实原生工作量），**先落地
+  Android+iOS**，逐 Task 计划见 `doc/plans/`。
 - **AI MCP（Model Context Protocol）集成钩子（预留，非当前承诺，与上方字幕功能解耦）**：
   架构上为未来能力预留空间——播放器可能需要向 MCP 连接的 AI agent 暴露上下文（如当前
   字幕文本、播放状态），或接收其下发的指令。这是**被动暴露上下文/接受控制**的角色，
