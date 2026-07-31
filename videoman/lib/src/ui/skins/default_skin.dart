@@ -248,7 +248,7 @@ class _LockToggleButton extends StatelessWidget {
     return VmSelector<bool>(
       selector: (s) => s.locked,
       builder: (context, locked) {
-        return Align(
+        final button = Align(
           alignment: Alignment.centerRight,
           child: Padding(
             padding: const EdgeInsets.all(16),
@@ -259,6 +259,16 @@ class _LockToggleButton extends StatelessWidget {
             ),
           ),
         );
+        // While locked, this is the *only* interactive element on screen and
+        // must never itself fade away on the idle timer — there would be no
+        // other way to bring it back. Unlocked, it is just another top-bar-ish
+        // control and should fade with everything else on inactivity, or
+        // "immersive mode" would still show one lingering button.
+        //
+        // 锁定期间，这是屏幕上唯一可交互的元素，绝不能被空闲计时器一起淡出——
+        // 否则没有别的办法能把它调回来。未锁定时，它就是个普通的顶栏类控制，
+        // 空闲后应该跟其余控制一起淡出，否则"沉浸模式"还是会留一个按钮杵在那。
+        return locked ? button : _BarVisibility(child: button);
       },
     );
   }
