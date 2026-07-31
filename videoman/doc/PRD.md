@@ -35,11 +35,17 @@ android / ios / windows。（web/macos/linux media_kit 都支持，未纳入本�
 - **许可**：二期构建**卡 LGPL**（避开 GPL-only 组件，否则传染下游、违背"对外发布不作限制"的意图）。
 - **iOS PiP 降级**：media_kit 用 libmpv 纹理渲染，系统级 PiP 依赖 AVPlayer 路径，暂不实现；`isPipSupported()` 返回 false。后续如需，评估 AVSampleBufferDisplayLayer 方案或应用内悬浮窗降级。
 - **手动清晰度**：libmpv 对 HLS 自适应内置；手动锁档采用"解析 master playlist + 打开指定变体 URL"方案，未走 libmpv 属性。
-- **实时语音转文字字幕（条件性未来项，非当前承诺）**：若 media_kit/libmpv/ffmpeg 侧具备可行的
-  音频抽取或 STT 接入路径（候选：端侧模型经 FFI、云端 STT API、未来的
-  ffmpeg/whisper.cpp 集成点），videoman 应支持对音轨做实时转写并以字幕/字幕叠层形式
-  展示。**这不是排入某个阶段的开发计划**，仅记录产品意图，是否做、怎么做取决于后续对
-  后端可行性的评估结论；评估结论应回写本条并转化为具体阶段任务。
+- **实时语音转文字字幕——可行性已评估（2026-07-31），结论：可行，无硬阻断项**：
+  完整调研见 [doc/notes/2026-07-31-stt-subtitle-feasibility.md](notes/2026-07-31-stt-subtitle-feasibility.md)。
+  结论摘要——libmpv 没有实时 PCM 抽头 API，但**不需要抽头**：仿阶段 B 拖动预览的
+  "独立第二解码路径"套路（有 mpv 生态先例 WhisperSubs 验证过），把音频独立解码、
+  分块喂给 **whisper.cpp**（MIT，FFI，跨平台一致，四端行为统一，pub.dev 已有
+  `whisper_ggml` 等现成封装）转写，按时间戳回灌为字幕叠层组件；平台原生 STT
+  （iOS `SFSpeechAudioBufferRecognitionRequest`/Android ML Kit）与云端 STT 均
+  可行但不建议做默认（前者破坏跨平台一致性、后者引入网络/费用依赖），可留作可插拔
+  实现。**仍未排入具体阶段任务**——需用户就「依赖 `whisper_ggml` 还是自建更薄的 FFI
+  绑定」「默认模型档位（tiny/base）与语言」两点拍板后，才转化为类似
+  `doc/plans/` 的逐 Task 计划开工。
 - **AI MCP（Model Context Protocol）集成钩子（预留，非当前承诺）**：架构上为未来能力预留
   空间——播放器可能需要向 MCP 连接的 AI agent 暴露上下文（如当前字幕文本、播放状态），
   或接收其下发的指令。同样是前瞻性预留，不代表已排期实现；目前只要求架构不把这条路堵死。

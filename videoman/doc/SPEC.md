@@ -301,14 +301,17 @@ flutter pub publish --dry-run                     # 发布校验
    连普通 iOS 真机都未跑过，这条要专挑一台老机型单独测，不能假设新 iPhone
    跑通就代表没这问题。
 
-**未来项（未排期，见 PRD ADR）**：实时语音转文字字幕 + AI MCP 集成钩子——两条均为条件性/
-投机性的前瞻记录，非本阶段（B/C/D）范围，详见 [doc/PRD.md](PRD.md) 非功能需求/决策记录。
-若后续评估后启动，大致落点：
+**未来项（见 PRD ADR）**：实时语音转文字字幕（**可行性已评估，结论可行，见下**）+
+AI MCP 集成钩子（仍为纯前瞻记录）。详见 [doc/PRD.md](PRD.md) 非功能需求/决策记录。
 
-- **STT 字幕**：预计新增一个 core 端口抽象（类似 `VmFrameExtractor`/`VmNetProbe`），放在
-  `lib/src/core/`，具体实现放 `lib/src/platform_impl/` 下——消费 media_kit/libmpv 若能暴露的
-  原始音频数据，或转发给外部 STT 服务；转写结果作为字幕流回灌到 UI 层的一个新叠层组件
-  （类似 `preview`/字幕类组件），走既有组件树/皮肤/补丁机制，不改变 `VmApi` 之外的契约。
+- **STT 字幕——2026-07-31 已完成可行性评估**：完整调研见
+  [doc/notes/2026-07-31-stt-subtitle-feasibility.md](notes/2026-07-31-stt-subtitle-feasibility.md)。
+  libmpv 无实时 PCM 抽头 API，但方案是仿阶段 B「隐藏 Player 独立解码」套路（不需要
+  抽头，有 mpv 生态先例 WhisperSubs 验证过），分块喂给 whisper.cpp（MIT、FFI、
+  跨平台一致）转写，回灌为字幕叠层组件；架构延续既有端口抽象三件套（暂拟
+  `VmSttEngine`，core 出抽象、`platform_impl/` 出实现、noop 默认）。**仍未排入具体
+  Task**——待用户就依赖选型（`whisper_ggml` 现成包 vs 自建更薄 FFI 绑定）与默认模型
+  档位/语言拍板后转化为逐 Task 计划。
 - **MCP 钩子**：预计不会成为核心依赖，更可能是一个可选的 `VmInterceptor` 实现或独立的事件流
   消费者，订阅播放状态/字幕文本等只读上下文，并可选择性地接收外部指令；核心库不直接依赖
   MCP SDK，接入方式留给上层应用或独立扩展包。

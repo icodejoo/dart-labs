@@ -91,10 +91,13 @@
    落地卡在一次**需 Mac + iOS 15+ 真机**的门槛 spike。研究 + 落地计划 + 渲染机制/性能
    澄清见 [doc/notes/2026-07-31-ios-pip-feasibility.md](doc/notes/2026-07-31-ios-pip-feasibility.md)。
    不需 Mac 也能先做的：跨平台"应用内悬浮窗"降级方案（阶段 3）。
-6. **实时语音转文字字幕 + AI MCP 接入预留——排在阶段 B/C/D 之后、视 STT 后端可行性而定**：
-   见 [doc/PRD.md](doc/PRD.md) ADR 与 [doc/SPEC.md](doc/SPEC.md) 未来项小节。字幕为条件性
-   未来项（是否做取决于 media_kit/libmpv/ffmpeg 侧能否提供可行的 STT 接入路径），MCP 为
-   架构预留钩子；均未排入具体阶段，不是当前开发计划。
+6. **实时语音转文字字幕——可行性已评估（2026-07-31），结论可行，等用户拍板依赖选型后开工**：
+   方向是仿阶段 B「隐藏 Player 独立解码」+ whisper.cpp（MIT/FFI/跨平台一致）转写 + 字幕
+   叠层组件；不建议默认用平台原生 STT（破坏跨平台一致性）或云端 STT（引入网络/费用）。
+   完整调研见 [doc/notes/2026-07-31-stt-subtitle-feasibility.md](doc/notes/2026-07-31-stt-subtitle-feasibility.md)，
+   回写见 [doc/PRD.md](doc/PRD.md) ADR。**待用户决定两点才能转成逐 Task 计划开工**：
+   ①依赖 `whisper_ggml` 现成包还是自建更薄 FFI 绑定（新增第三方依赖需用户同意）；
+   ②默认模型档位（tiny/base）与语言。AI MCP 接入钩子仍是纯架构预留，未评估、未排期。
 
 ## 约定
 
