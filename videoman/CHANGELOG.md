@@ -1,3 +1,26 @@
+## 0.3.0
+
+UI 插件化：把 0.2.0 已有的组件树/皮肤/补丁沉淀为 **Plugin / Component / Skin**
+三层契约，并翻转手势侧别对齐主流。**破坏性变更**（0.2.0 尚未发布）。
+
+* **`VmPlugin` 能力 mixin**：为「事件副作用型」有状态组件提供两样与业务无关的能力——
+  `api`（稳定句柄，`VmScope.readOf` 非依赖读，`initState` 安全）与 `bind()`（订阅并在
+  `dispose` 自动回收）。纯渲染组件仍走 `VmSelector`，无需 mixin。
+* **手势侧别→动作映射（破坏性）**：`VmGestureConfig` 的三个侧别布尔
+  （`horizontalSeek`/`leftVerticalVolume`/`rightVerticalBrightness`）改为三个
+  `VmGestureAction` 字段（`horizontal`/`leftVertical`/`rightVertical`），侧别与动作
+  彻底解耦，可任意重映射或用 `VmGestureAction.none` 禁用某侧。**默认翻转为
+  左亮度/右音量/横滑进度**（对齐 bilibili 等主流），逆转 0.1.0/0.2.0 的刻意反向设计。
+* **组件树静态化**：`VmSkin.components(VmState)` → 无参 `components()`，树不再随状态
+  变化；`VmPlayer` 只构建一次而非每次状态变化重建整棵树，响应式收敛到组件自身的
+  `VmSelector`。VOD/直播底栏合并为一个自适应 `BottomBarComponent`（暴露两者子组件的
+  并集，只挂载当前流类型相关的那些）；`live_bar.dart` 移除，其叶子并入 `bottom_bar.dart`。
+* **皮肤三层骨架可覆写**：`VmDefaultSkin.assemble` 拆为受保护的
+  `buildPlaybackLayer`/`buildOperableLayer`/`buildPersistentLayer`，新增「继承并只重排
+  一层」的半覆写定制档（补丁 / 半覆写 / 全实现三档）。
+* **`VmSlot` 新增 `left`/`right`**：左右垂直边带插槽，供侧栏/剧集列表等侧边内容；
+  音量/亮度 HUD 维持居中，不落两侧。
+
 ## 0.2.0
 
 阶段 A 重构：`core/` + `ui/` 分层架构落地，功能与 0.1.0 保持一致

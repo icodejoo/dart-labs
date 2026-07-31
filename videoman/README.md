@@ -9,7 +9,7 @@ Flutter 视频播放库，自研手势与控制层，支持点播与直播。
 
 ## Features / 功能
 
-- **Gestures / 手势**：左半竖滑=音量、右半竖滑=亮度、横滑=进度、双击=快进退、双指=缩放，带 HUD 反馈。
+- **Gestures / 手势**：左半竖滑=亮度、右半竖滑=音量、横滑=进度、双击=快进退、双指=缩放，带 HUD 反馈；侧别→动作可配。
 - **Fill modes / 观看模式**：`contain` / `cover` / `fill` 循环切换。
 - **Lock / 锁定**：一键锁定屏蔽全部交互（防误触），沉浸式观看。
 - **Orientation / 方向**：全屏按视频宽高比自动横/竖屏。
@@ -33,7 +33,7 @@ Flutter 视频播放库，自研手势与控制层，支持点播与直播。
 
 ```yaml
 dependencies:
-  videoman: ^0.2.0
+  videoman: ^0.3.0
 ```
 
 Android 要用画中画，需在 `AndroidManifest.xml` 的 Activity 上声明：
@@ -90,15 +90,17 @@ class _PageState extends State<Page> {
 }
 ```
 
-自定义手势侧别/开关，通过 `VmOptions` 传入 `VmEngine`：
+自定义手势侧别→动作/开关，通过 `VmOptions` 传入 `VmEngine`。侧别与动作解耦，可自由
+重映射（把亮度放右侧、或用 `VmGestureAction.none` 禁用某一侧）：
 
 ```dart
-final engine = VmEngine(
+final engine = createVmEngine(
   options: const VmOptions(
     gesture: VmGestureConfig(
-      leftVerticalVolume: true,      // 左侧竖滑=音量
-      rightVerticalBrightness: true, // 右侧竖滑=亮度
-      horizontalSeek: true,          // 横滑=进度
+      // 默认即主流约定：左亮度、右音量、横滑进度。下面演示换回旧的左音量/右亮度。
+      leftVertical: VmGestureAction.volume,      // 左侧竖滑=音量
+      rightVertical: VmGestureAction.brightness, // 右侧竖滑=亮度
+      horizontal: VmGestureAction.seek,          // 横滑=进度
       doubleTapSeek: true,
       doubleTapStep: Duration(seconds: 10),
       pinchZoom: true,
@@ -123,8 +125,9 @@ core/
 ui/
   player.dart            VmPlayer     —— 顶层组件：接 VmApi + 渲染画面 + 由 VmSkin 出树
   slots/                 VmComponent / VmSlot / VmPatch —— 组件树模型与结构化补丁
-  skins/                 VmSkin / VmDefaultSkin —— 依据 VmState 决定树里有哪些组件
-  components/                         —— 叶子/组合组件（top_bar/bottom_bar/live_bar/gesture_layer/hud_layer/...）
+  scope/                 VmScope / VmSelector / VmPlugin —— 能力面下发、按字段订阅、副作用能力 mixin
+  skins/                 VmSkin / VmDefaultSkin —— 静态组件树 + 可覆写的三层骨架
+  components/                         —— 叶子/组合组件（top_bar/bottom_bar/gesture_layer/hud_layer/...）
 ```
 
 `VmApi` 是 `ui/` 唯一允许依赖的抽象——它不直接触达 `VmKernel` 或 media_kit。
@@ -210,8 +213,19 @@ engine.events.listen((e) {
 
 ## 自定义皮肤 / Custom skins
 
-不用继承旧版 `VodControls`/`LiveControls`/`VmGestureDetector`，改为对
-`VmDefaultSkin` 打补丁，或整体实现 `VmSkin` 接口重写 `components()`/`assemble()`：
+三档定制，由浅入深：
+
+1. **补丁档**：`VmDefaultSkin(patches: [...])`——增/删/替换/重写组件、在已有插槽间挪位置。
+2. **半覆写档**：`extends VmDefaultSkin` 只覆写某一层的受保护方法
+   （`buildPlaybackLayer`/`buildOperableLayer`/`buildPersistentLayer`），重排版而复用其余各层。
+3. **全实现档**：`implements VmSkin` 重写 `components()`/`assemble()`，布局与组件全自定义。
+
+内置皮肤是三层骨架：**播放层**（画面）+**操作层**（手势/顶中底/左右栏，随闲置一起淡隐、
+pip/锁定时整层隐藏）+**常驻层**（锁定遮罩与锁定/解锁按钮，恒挂载、默认穿透、不受门控）。
+组件树是静态的（`components()` 不吃状态），显隐由组件各自的 `VmSelector` 响应式决定。
+插槽词表：`top`/`center`/`bottom`/`bottomAbove`/`overlay`/`left`/`right`/`gesture`/`hud`。
+
+打补丁或整体实现 `VmSkin`：
 
 ```dart
 // 去掉顶栏里的画中画按钮（等价于 0.1.0 里派生子类删掉一个按钮）。
@@ -234,7 +248,7 @@ final withExtra = VmDefaultSkin(
 ```dart
 class MySkin implements VmSkin {
   @override
-  List<VmComponent> components(VmState s) => [/* 自定义组件树 */];
+  List<VmComponent> components() => [/* 自定义组件树（静态） */];
 
   @override
   Widget assemble(BuildContext context, VmSlotBundle slots, Widget video) {

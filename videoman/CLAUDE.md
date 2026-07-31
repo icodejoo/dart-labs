@@ -20,7 +20,20 @@
 基于 media_kit（libmpv/ffmpeg）的 Flutter 视频播放插件，自研手势与控制层，
 支持点播/直播，发布到 pub.dev。属于 `dart-labs` monorepo 的子工程。
 
-## 当前状态（0.2.0）
+## 当前状态（0.3.0）
+
+**0.3.0 UI 插件化已完成**（承 0.2.0 阶段 A–D）：把组件树/皮肤/补丁沉淀为
+**Plugin / Component / Skin** 三层契约——`VmPlugin` 能力 mixin（`api` + `bind()`，
+`ui/scope/plugin.dart`）、组件树静态化（`VmSkin.components()` 无参，VOD/直播底栏合并为
+自适应 `BottomBarComponent`，`live_bar.dart` 已删）、`VmDefaultSkin.assemble` 拆为可覆写
+三层（`buildPlaybackLayer`/`buildOperableLayer`/`buildPersistentLayer`）、`VmSlot` 加
+`left`/`right`。**手势侧别→动作改配**：`VmGestureConfig` 用 `VmGestureAction` 映射，默认
+翻转为左亮度/右音量（对齐主流）。设计见 [doc/DESIGN-0.3.0-plugin-skin.md](doc/DESIGN-0.3.0-plugin-skin.md)。
+267 项测试全绿，`flutter analyze` 0 issues。**真机仍未验证**（承自 0.2.0）。
+
+---
+
+以下为 0.2.0 阶段成果（仍有效）：
 
 **阶段 A（core/ui 分层重构）已完成**：功能与 0.1.0 保持一致（零可见变化），架构
 重写为 `VmApi`/`VmEngine`（取代 `VmController`，后者已 `@Deprecated`）+

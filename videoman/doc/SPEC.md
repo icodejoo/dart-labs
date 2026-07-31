@@ -83,10 +83,17 @@ import Flutter widget 与直接依赖 `VmApi` 的地方。
 - `VmComponent`：`name`（树内寻址用）+ `slot`（归属的 `VmSlot`）+
   `children` + `build(context, api, children)`。叶子组件 `children` 为空；
   组合组件（如 `TopBarComponent`）持有多个子组件。
-- `VmSkin.components(VmState s)` 返回顶层组件列表，可依据 `s`（如
-  `s.type == VmStreamType.live`）切换分支——VOD 用 `BottomBarComponent`，
-  直播用 `LiveBarComponent`，二者顶层 `name` 都是 `bottomBar`，是刻意设计的
-  替换点。
+- `VmSkin.components()`（0.3.0 起无参）返回**静态**顶层组件列表——树不随状态
+  变化，显隐由组件各自的 `VmSelector` 响应式决定。VOD/直播底栏合并为一个自适应
+  `BottomBarComponent`：暴露两套布局子组件的并集（顶层 `name` 恒为 `bottomBar`，
+  patch 路径不随流类型错位），只挂载与当前 `state.type` 相关的那些。
+- `VmPlugin`（`ui/scope/plugin.dart`）：给「事件副作用型」有状态组件的能力 mixin，
+  提供 `api`（`VmScope.readOf` 非依赖读，`initState` 安全）与 `bind()`（订阅并在
+  `dispose` 自动回收）。纯渲染组件走 `VmSelector`，不需要它。
+- `VmSlot`：`gesture`/`hud`/`top`/`center`/`bottomAbove`/`bottom`/`overlay` +
+  `left`/`right`（0.3.0 新增的左右垂直边带，供侧栏等；HUD 维持居中不落两侧）。
+- `VmDefaultSkin.assemble` 是三层骨架（播放/操作/常驻），0.3.0 起拆为受保护的
+  `buildPlaybackLayer`/`buildOperableLayer`/`buildPersistentLayer`，子类可只覆写一层。
 - `VmPatch` 是数据不是动作，只有 `applyPatches()` 解释它们（纯函数、可测）：
   - `VmPatch.replace(path, component)`：整替换一个节点。
   - `VmPatch.remove(path)`：移除一个节点（顶层或嵌套）。
@@ -125,8 +132,10 @@ import Flutter widget 与直接依赖 `VmApi` 的地方。
   90s 满屏宽，来自 `VmGestureConfig.hSeekSpanPerScreen`，可配）；直播下受
   `state.liveSeekable && VmGestureConfig.allowWhenLive`（默认开）门控，
   非 `off` 模式的可拖直播允许横滑 seek，其余禁用。
-- 竖滑：左侧竖滑→音量（0–100），右侧竖滑→亮度（0–1），系数
-  `VmGestureConfig.vSensitivity`。
+- 竖滑：侧别→动作经 `VmGestureConfig` 的 `leftVertical`/`rightVertical`
+  （`VmGestureAction`）配置，0.3.0 起默认**左亮度、右音量**（对齐主流，翻转自
+  0.1.0/0.2.0 的左音量/右亮度）；音量 0–100、亮度 0–1，系数 `vSensitivity`。
+  横滑动作由 `horizontal`（默认 `seek`）决定；`VmGestureAction.none` 可禁用某方向。
 - 双指缩放：`onScaleUpdate` 进入 zoom，`clamp(1, maxZoom)`。
 - 双击：按 `VmGestureConfig.doubleTapStep`（默认 10s）快进退。
 - 亮度经 `VmBrightnessPort`（生产实现用 `screen_brightness`），平台不支持
@@ -200,19 +209,20 @@ Windows 实跑证实。这不是回归，是能力从未在桌面实现过。vid
   `models`/`hash`/`vtt`/`cache`/`disk_cache`/`two_level_cache`/`net_probe`/
   `vtt_source`/`extractor`/`service`）。
 - `test/ui/`：`bottom_bar_test.dart`/`format_test.dart`/`gesture_test.dart`/
-  `live_bar_test.dart`/`orientation_test.dart`/`overlays_test.dart`/
-  `player_test.dart`/`preview_test.dart`（阶段 B）/`selector_test.dart`/
-  `skin_test.dart`/`top_bar_test.dart`/`tree_test.dart`。
+  `live_bar_test.dart`（0.3.0 起验证自适应底栏的直播态）/`orientation_test.dart`/
+  `overlays_test.dart`/`player_test.dart`/`plugin_test.dart`（0.3.0 `VmPlugin`）/
+  `preview_test.dart`（阶段 B）/`selector_test.dart`/`skin_test.dart`/
+  `top_bar_test.dart`/`tree_test.dart`。
 - `test/platform_impl/`：`net_probe_impl_test.dart`（阶段 B）/`wiring_test.dart`。
 - `test/method_channel_test.dart`：平台通道桩。
 - `test/support/`：`fake_api.dart`/`fake_kernel.dart`/`pump.dart` 测试基础设施。
 
-**实测结果**（阶段 C 收口，2026-07-31 本机实跑）：**260 tests passed, 0
-failed**（末行 `00:11 +260: All tests passed!`）。`flutter analyze` 0 issues。
-`flutter pub publish --dry-run`：**0 warnings**（`Total compressed archive
-size: 373 KB`）。`test/core/purity_test.dart` 单独跑通过，`_mediaKitExceptions`
-集合仍恰好是 `{'kernel/mpv_kernel.dart'}`。依赖清单核对：阶段 C 未新增任何
-依赖，仍是阶段 B 引入的 `path_provider`/`connectivity_plus` 加阶段 A 既有项。
+**实测结果**（0.3.0 插件化收口，2026-07-31 本机实跑）：**267 tests passed, 0
+failed**。`flutter analyze` 0 issues。
+`flutter pub publish --dry-run`：干净 git 状态下 **0 warnings**。
+`test/core/purity_test.dart` 单独跑通过，`_mediaKitExceptions` 集合仍恰好是
+`{'kernel/mpv_kernel.dart'}`。依赖清单核对：0.3.0 未新增任何依赖，仍是阶段 B 引入的
+`path_provider`/`connectivity_plus` 加阶段 A 既有项。
 
 ## 命令
 
