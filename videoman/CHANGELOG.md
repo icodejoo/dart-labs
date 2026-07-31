@@ -46,6 +46,26 @@
   `VmEngine()` 自身的空/兜底默认值不变（供纯 Dart 单测使用）；`example/lib/main.dart`
   已改用 `createVmEngine()`。
 
+### 新增 — 拖动预览（阶段 B）
+
+- 拖动进度条或横滑手势时，在进度条上方显示目标时刻的缩略图气泡（`PreviewComponent`，
+  挂在 `VmSlot.bottomAbove`，可用 `VmPatch.replace('preview', …)` 整块替换）。气泡水平
+  位置跟随拖动进度沿进度条移动，并钳制到两端不越界。
+- 缩略图来源按序：服务端 WebVTT 雪碧图（约定 `<video-url>.vtt`，支持 `#xywh` 裁剪）→
+  libmpv 隐藏 `Player` 抽帧兜底。可用 `VmPreviewConfig.sources` 整链替换。
+- 两级缓存：内存计数 LRU（默认 40 项）+ 磁盘字节 LRU（默认 64MB，临时目录），
+  `dispose()` 默认清盘。
+- 网络策略默认 `wifiOnly`，由 `connectivity_plus` 探针判定；未知连接与桌面一律放行。
+  被拦时静默不请求，只发 `VmPreviewBlocked` 事件并回调 `onBlocked`。
+- `VmApi.preview`（`VmPreviewApi`）、`VmOptions.preview`（`VmPreviewConfig`）、
+  `VmPreviewBlocked` 事件为新增公开 API。
+- 扩展 `createVmEngine()`：新增 `thumbDir`/`extractor`/`fetcher` 三个可选参数，
+  缺省接入缩略图目录、抽帧器、网络探针的真实实现。
+
+#### 依赖
+
+- 新增 `path_provider`、`connectivity_plus`。
+
 ## 0.1.0
 
 首个可用版本 / First usable release.

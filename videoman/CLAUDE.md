@@ -26,19 +26,21 @@
 重写为 `VmApi`/`VmEngine`（取代 `VmController`，后者已 `@Deprecated`）+
 `VmKernel` 内核抽象 + 组件树/皮肤/补丁（`VmComponent`/`VmSkin`/`VmDefaultSkin`/
 `VmPatch`）+ 文案与主题外置（`VmStrings`/`VmTheme`，经 `VmOptions` 注入）+
-拦截点（`VmInterceptor`）。`flutter analyze` 0 issues，测试全绿，
-`flutter pub publish --dry-run` 0 warnings（详见 doc/SPEC.md）。
+拦截点（`VmInterceptor`）。
+
+**阶段 B（拖动预览缩略图）已完成**：`VmApi.preview`/`VmOptions.preview`/
+`VmPreviewBlocked` 三个新公开面，WebVTT 雪碧图 + libmpv 抽帧兜底的有序来源链，
+内存+磁盘两级缓存，`connectivity_plus` 网络策略，`PreviewComponent` 气泡
+（水平位置随拖动比例跟随）。212 项测试全绿，`flutter analyze` 0 issues。
 
 ## 剩余任务
 
 按 doc/DESIGN-0.2.0.md §12 的阶段划分。**逐 Task 计划已写好，直接照做即可**：
 
-1. **阶段 B：拖动预览缩略图——未开始**。计划：
+1. **阶段 B：拖动预览缩略图——已完成**（2026-07-31）。计划与实测结论：
    [doc/plans/2026-07-31-phase-b-preview.md](doc/plans/2026-07-31-phase-b-preview.md)
-   （15 Task）。**Task 1 是必须先跑的实测 spike**：libmpv `screenshot-raw` 返回原始
-   分辨率还是窗口分辨率，决定 `vf=scale` 抽帧缩放路线成不成立（DESIGN §11 头号风险）。
-   spike 是非交互自报告式，`flutter run -d windows -t <spike>` 读 stdout 的
-   `=== VERDICT: ... ===` 行即可判定；Task 2+ 依赖该结论。
+   （15 Task 全部完成，附录 A/B 记录实测结论与真机验证结果）。详见
+   [doc/SPEC.md](doc/SPEC.md)"剩余任务"一节的实现现状小结。
 2. **阶段 C：直播时移——未开始**。计划：
    [doc/plans/2026-07-31-phase-c-timeshift.md](doc/plans/2026-07-31-phase-c-timeshift.md)
    （Task 1–9）。注意含一处破坏性变更：现有 `backToEdge` 组件（调 `reload()`）要改名
