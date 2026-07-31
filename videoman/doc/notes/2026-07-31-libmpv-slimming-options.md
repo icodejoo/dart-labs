@@ -120,6 +120,8 @@ example/build/windows/x64/runner/Debug/libmpv-2.dll = 29,764,622 字节（约 29
 
 ## 参考
 
+- 相关调研：[2026-07-31-ffmpeg-slimming-options.md](2026-07-31-ffmpeg-slimming-options.md)
+  （libmpv 底下包的 ffmpeg 本身的解码器/容器/协议盘点，现代主流点播+直播范围）
 - mpv 官方构建选项定义（`meson.options`，2026-07-31 拉取自 `master` 分支）
   https://github.com/mpv-player/mpv/blob/master/meson.options
 - 相关调研：[2026-07-31-stt-subtitle-feasibility.md](2026-07-31-stt-subtitle-feasibility.md)

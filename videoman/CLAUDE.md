@@ -84,6 +84,10 @@
    已完成**（2026-07-31）：哪些选项明确可关、哪些要按平台取舍、哪些要先实测才能关、
    哪些是产品取舍非技术问题——详见
    [doc/notes/2026-07-31-libmpv-slimming-options.md](doc/notes/2026-07-31-libmpv-slimming-options.md)。
+   **ffmpeg 本身（解码器/容器/协议）的完整盘点也已完成**，范围锁定"现代主流点播+
+   直播"（用户已拍板：保留 FLV/RTMP——国内直播平台常用、保留 DASH、保留
+   RTSP——摄像头场景；不需要 Android `content://` 本地相册），详见
+   [doc/notes/2026-07-31-ffmpeg-slimming-options.md](doc/notes/2026-07-31-ffmpeg-slimming-options.md)。
    **字幕相关选项（libass/subrandr/uchardet）明确保留待定，不要关**——用户认为 mpv
    原生字幕渲染可能有用，等瘦身构建实测出体积数字后再权衡（与
    [doc/notes/2026-07-31-stt-subtitle-feasibility.md](doc/notes/2026-07-31-stt-subtitle-feasibility.md)
