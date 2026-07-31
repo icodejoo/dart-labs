@@ -297,10 +297,12 @@ class _GestureLayerState extends State<_GestureLayer> with VmPlugin<_GestureLaye
       case _DragMode.volume:
         final frac = -_cum.dy / _size.height; // up = louder
         _api.setVolume((_startValue + frac * 100).clamp(0, 100));
+        _api.showHud(VmHud.volume);
         break;
       case _DragMode.brightness:
         final frac = -_cum.dy / _size.height; // up = brighter
         _api.setBrightness((_startValue + frac).clamp(0.0, 1.0));
+        _api.showHud(VmHud.brightness);
         break;
       case _DragMode.undecided:
       case _DragMode.zoom:
