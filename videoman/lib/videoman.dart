@@ -20,6 +20,7 @@ export 'src/core/preview/dir_provider.dart';
 export 'src/core/preview/disk_cache.dart';
 export 'src/core/preview/hash.dart';
 export 'src/core/preview/models.dart';
+export 'src/core/preview/two_level_cache.dart';
 export 'src/core/preview/vtt.dart';
 export 'src/core/state/progress.dart';
 export 'src/core/state/state.dart';

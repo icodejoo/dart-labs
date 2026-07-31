@@ -1913,7 +1913,7 @@ DESIGN §7.1「内存命中 → 同帧同步返回；磁盘命中 → 异步读 
 - Consumes: `VmThumbCache`, `VmMemoryThumbCache`（Task 4）、`VmDiskThumbCache`（Task 5）
 - Produces: `class VmTwoLevelCache implements VmThumbCache { VmTwoLevelCache({required VmThumbCache memory, required VmThumbCache disk}); final VmThumbCache memory; final VmThumbCache disk; }`
 
-- [ ] **Step 1: 写失败测试 `test/core/preview/two_level_cache_test.dart`**
+- [x] **Step 1: 写失败测试 `test/core/preview/two_level_cache_test.dart`**
 
 ```dart
 import 'dart:typed_data';
@@ -2030,12 +2030,12 @@ void main() {
 }
 ```
 
-- [ ] **Step 2: 跑测试确认失败**
+- [x] **Step 2: 跑测试确认失败**
 
 Run: `flutter test test/core/preview/two_level_cache_test.dart`
 Expected: FAIL — `Error when reading 'lib/src/core/preview/two_level_cache.dart': No such file or directory`
 
-- [ ] **Step 3: 实现 `lib/src/core/preview/two_level_cache.dart`**
+- [x] **Step 3: 实现 `lib/src/core/preview/two_level_cache.dart`**
 
 ```dart
 import 'dart:typed_data';
@@ -2106,7 +2106,7 @@ class VmTwoLevelCache implements VmThumbCache {
 }
 ```
 
-- [ ] **Step 4: barrel 增补导出**
+- [x] **Step 4: barrel 增补导出**
 
 `lib/videoman.dart` 在 `export 'src/core/preview/models.dart';` 之后插入：
 
@@ -2114,12 +2114,12 @@ class VmTwoLevelCache implements VmThumbCache {
 export 'src/core/preview/two_level_cache.dart';
 ```
 
-- [ ] **Step 5: 跑测试确认通过**
+- [x] **Step 5: 跑测试确认通过**
 
 Run: `flutter test test/core/preview/two_level_cache_test.dart && flutter analyze`
 Expected: 7 项 PASS，analyze 0 issues
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add -A
