@@ -3640,7 +3640,7 @@ DESIGN §6.1 全表落成配置类，外加 `VmPreviewBlocked` 事件。阶段 A
   - `VmOptions.preview`（默认 `const VmPreviewConfig()`）+ `copyWith(preview:)` + 参与 `==`/`hashCode`
   - `class VmPreviewBlocked extends VmEvent { final VmPreviewBlockReason reason; const VmPreviewBlocked(this.reason); }`
 
-- [ ] **Step 1: 追加失败测试到 `test/core/options_test.dart`**
+- [x] **Step 1: 追加失败测试到 `test/core/options_test.dart`**
 
 在文件顶部 import 区补（**只补这三行**，多补会触发 `unused_import` 让 analyze 非 0）：
 
@@ -3721,12 +3721,12 @@ import 'package:videoman/src/core/preview/platform_kind.dart';
 
 （上面三个 import 已覆盖本组用到的全部类型。）
 
-- [ ] **Step 2: 跑测试确认失败**
+- [x] **Step 2: 跑测试确认失败**
 
 Run: `flutter test test/core/options_test.dart`
 Expected: FAIL — `VmPreviewConfig isn't defined`；既有 4 项仍 PASS
 
-- [ ] **Step 3: 实现 `lib/src/core/options/preview_config.dart`**
+- [x] **Step 3: 实现 `lib/src/core/options/preview_config.dart`**
 
 ```dart
 import '../preview/cache.dart';
@@ -4094,7 +4094,7 @@ bool _setEq(Set<VmPlatformKind> a, Set<VmPlatformKind> b) =>
     a.length == b.length && a.containsAll(b);
 ```
 
-- [ ] **Step 4: 把 `preview` 接进 `VmOptions`**
+- [x] **Step 4: 把 `preview` 接进 `VmOptions`**
 
 `lib/src/core/options/options.dart`：
 
@@ -4127,7 +4127,7 @@ bool _setEq(Set<VmPlatformKind> a, Set<VmPlatformKind> b) =>
 6. `==` 加 `preview == other.preview &&`；`hashCode` 改为
    `Object.hash(preview, live, gesture, abr, controls, strings, theme)`。
 
-- [ ] **Step 5: 加 `VmPreviewBlocked` 事件**
+- [x] **Step 5: 加 `VmPreviewBlocked` 事件**
 
 `lib/src/core/events/events.dart` 顶部 import 区加：
 
@@ -4154,12 +4154,12 @@ class VmPreviewBlocked extends VmEvent {
 }
 ```
 
-- [ ] **Step 6: barrel 增补导出**
+- [x] **Step 6: barrel 增补导出**
 
 `lib/videoman.dart` 已导出 `src/core/options/options.dart`，`preview_config.dart` 随之传递导出，
 无需新增行。确认 `flutter analyze` 无 `unused_import`。
 
-- [ ] **Step 7: 跑测试与分析**
+- [x] **Step 7: 跑测试与分析**
 
 Run: `flutter test && flutter analyze`
 Expected: options 9 项（原 4 + 新 5）PASS，累计 168 项全绿，analyze 0 issues。
