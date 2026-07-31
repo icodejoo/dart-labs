@@ -4202,7 +4202,7 @@ VmPreviewService({
 
   外加 `void attach(VmSource? source)`、`Future<void> dispose()`、`@visibleForTesting Future<void> drain()`
 
-- [ ] **Step 1: 写失败测试 `test/core/preview/service_test.dart`**
+- [x] **Step 1: 写失败测试 `test/core/preview/service_test.dart`**
 
 ```dart
 import 'dart:async';
@@ -4229,6 +4229,7 @@ class _FakeSource implements VmThumbSource {
   /// - [name]: diagnostic identifier / 诊断标识
   /// - [answer]: whether this source produces a thumbnail / 该来源是否产出缩略图
   /// - [delay]: artificial latency per request / 每次请求的人造延迟
+  // ignore: unused_element_parameter
   _FakeSource({this.name = 'fake', this.answer = true, this.delay = Duration.zero});
 
   @override
