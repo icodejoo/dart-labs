@@ -78,16 +78,16 @@ class VmDefaultSkin implements VmSkin {
 
   @override
   List<VmComponent> components() => applyPatches([
-        GestureLayerComponent(),
-        HudLayerComponent(),
-        TopBarComponent(),
-        CenterPlayComponent(),
-        PreviewComponent(),
-        BottomBarComponent(),
-        BufferingComponent(),
-        ErrorComponent(),
-        LockMaskComponent(),
-      ], patches);
+    GestureLayerComponent(),
+    HudLayerComponent(),
+    TopBarComponent(),
+    CenterPlayComponent(),
+    PreviewComponent(),
+    BottomBarComponent(),
+    BufferingComponent(),
+    ErrorComponent(),
+    LockMaskComponent(),
+  ], patches);
 
   @override
   Widget assemble(BuildContext context, VmSlotBundle slots, Widget video) {
@@ -102,10 +102,21 @@ class VmDefaultSkin implements VmSkin {
 
   /// Layer 1 — the raw video surface. Override to wrap/replace the picture.
   ///
+  /// Wrapped in a [RepaintBoundary] so the frequently-repainting operable
+  /// layer (seek-bar ticks, HUD fades, bar-visibility animation) never forces
+  /// this layer to re-raster, and vice versa.
+  ///
   /// 第 1 层——原始视频画面。覆写以包裹/替换画面。
+  ///
+  /// 包了一层 [RepaintBoundary]，使频繁重绘的操作层（进度条 tick、HUD 淡出、
+  /// 栏显隐动画）不会牵连本层重新光栅化，反之亦然。
   @protected
-  Widget buildPlaybackLayer(BuildContext context, VmSlotBundle slots, Widget video) {
-    return Positioned.fill(child: video);
+  Widget buildPlaybackLayer(
+    BuildContext context,
+    VmSlotBundle slots,
+    Widget video,
+  ) {
+    return Positioned.fill(child: RepaintBoundary(child: video));
   }
 
   /// Layer 2 — the operable chrome (gesture + top/center/bottom/left/right
@@ -114,88 +125,100 @@ class VmDefaultSkin implements VmSkin {
   ///
   /// 第 2 层——操作层 chrome（手势 + 顶/中/底/左/右栏 + HUD），一起淡入淡出与
   /// 隐藏。覆写以重排 chrome（例如把控制条停靠到顶部）。
+  ///
+  /// Wrapped in a [RepaintBoundary]: this layer repaints most often (seek-bar
+  /// ticks, HUD auto-hide fades, the bar-visibility animation), so isolating
+  /// it keeps that churn from forcing the playback/persistent layers to
+  /// re-raster alongside it.
+  ///
+  /// 包了一层 [RepaintBoundary]：本层重绘最频繁（进度条 tick、HUD 自动隐藏
+  /// 淡出、栏显隐动画），隔离后这些变动不会连带播放层/常驻层一起重新光栅化。
   @protected
   Widget buildOperableLayer(BuildContext context, VmSlotBundle slots) {
     return Positioned.fill(
-      child: _PipHidden(
-        child: _LockedHidden(
-          child: Stack(
-            children: [
-              Positioned.fill(child: Stack(children: slots[VmSlot.gesture])),
-              Positioned.fill(
-                child: _BarVisibility(
-                      // A Stack of independently `Positioned` regions, not a
-                      // Column: the bottom bar grows taller when the preview
-                      // bubble appears above it (VmSlot.bottomAbove), and a
-                      // Column would re-flow every sibling in response —
-                      // visibly nudging the center play/pause icon up and
-                      // down as the bubble shows/hides. Positioning top/
-                      // center/bottom independently means resizing one never
-                      // moves another.
-                      //
-                      // 用 Stack + 各自独立的 Positioned，而非 Column：预览气泡
-                      // 出现在底栏上方（VmSlot.bottomAbove）时会撑高底栏，若用
-                      // Column，兄弟节点都会跟着重新排布——中间的播放/暂停图标
-                      // 就会随气泡出现/消失肉眼可见地上下跳动。顶/中/底各自
-                      // 独立定位，意味着其中一个变高变矮，绝不会带动另一个。
-                      child: Stack(
-                        children: [
-                          Positioned(
-                            top: 0,
-                            left: 0,
-                            right: 0,
-                            child: Column(children: slots[VmSlot.top]),
+      child: RepaintBoundary(
+        child: _PipHidden(
+          child: _LockedHidden(
+            child: Stack(
+              children: [
+                Positioned.fill(child: Stack(children: slots[VmSlot.gesture])),
+                Positioned.fill(
+                  child: _BarVisibility(
+                    // A Stack of independently `Positioned` regions, not a
+                    // Column: the bottom bar grows taller when the preview
+                    // bubble appears above it (VmSlot.bottomAbove), and a
+                    // Column would re-flow every sibling in response —
+                    // visibly nudging the center play/pause icon up and
+                    // down as the bubble shows/hides. Positioning top/
+                    // center/bottom independently means resizing one never
+                    // moves another.
+                    //
+                    // 用 Stack + 各自独立的 Positioned，而非 Column：预览气泡
+                    // 出现在底栏上方（VmSlot.bottomAbove）时会撑高底栏，若用
+                    // Column，兄弟节点都会跟着重新排布——中间的播放/暂停图标
+                    // 就会随气泡出现/消失肉眼可见地上下跳动。顶/中/底各自
+                    // 独立定位，意味着其中一个变高变矮，绝不会带动另一个。
+                    child: Stack(
+                      children: [
+                        Positioned(
+                          top: 0,
+                          left: 0,
+                          right: 0,
+                          child: Column(children: slots[VmSlot.top]),
+                        ),
+                        Positioned.fill(
+                          child: Stack(children: slots[VmSlot.center]),
+                        ),
+                        Positioned(
+                          left: 0,
+                          right: 0,
+                          bottom: 0,
+                          child: Column(
+                            children: [
+                              ...slots[VmSlot.bottomAbove],
+                              ...slots[VmSlot.bottom],
+                            ],
                           ),
-                          Positioned.fill(child: Stack(children: slots[VmSlot.center])),
-                          Positioned(
-                            left: 0,
-                            right: 0,
-                            bottom: 0,
-                            child: Column(
-                              children: [
-                                ...slots[VmSlot.bottomAbove],
-                                ...slots[VmSlot.bottom],
-                              ],
-                            ),
+                        ),
+                        // Left/right vertical edge bands (VmSlot.left/right):
+                        // full-height, centered content, for side chrome
+                        // (sidebars, episode lists). Empty by default — a
+                        // no-op unless a component is placed there.
+                        //
+                        // 左/右垂直边带（VmSlot.left/right）：满高、内容居中，
+                        // 用于侧边 chrome（侧栏、剧集列表）。默认为空——除非
+                        // 有组件放进去，否则不产生任何效果。
+                        Positioned(
+                          top: 0,
+                          bottom: 0,
+                          left: 0,
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: slots[VmSlot.left],
                           ),
-                          // Left/right vertical edge bands (VmSlot.left/right):
-                          // full-height, centered content, for side chrome
-                          // (sidebars, episode lists). Empty by default — a
-                          // no-op unless a component is placed there.
-                          //
-                          // 左/右垂直边带（VmSlot.left/right）：满高、内容居中，
-                          // 用于侧边 chrome（侧栏、剧集列表）。默认为空——除非
-                          // 有组件放进去，否则不产生任何效果。
-                          Positioned(
-                            top: 0,
-                            bottom: 0,
-                            left: 0,
-                            child: Column(
-                              mainAxisSize: MainAxisSize.min,
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: slots[VmSlot.left],
-                            ),
+                        ),
+                        Positioned(
+                          top: 0,
+                          bottom: 0,
+                          right: 0,
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: slots[VmSlot.right],
                           ),
-                          Positioned(
-                            top: 0,
-                            bottom: 0,
-                            right: 0,
-                            child: Column(
-                              mainAxisSize: MainAxisSize.min,
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: slots[VmSlot.right],
-                            ),
-                          ),
-                        ],
-                      ),
+                        ),
+                      ],
                     ),
                   ),
-                  Positioned.fill(child: Stack(children: slots[VmSlot.hud])),
-                ],
-              ),
+                ),
+                Positioned.fill(child: Stack(children: slots[VmSlot.hud])),
+              ],
             ),
           ),
-        );
+        ),
+      ),
+    );
   }
 
   /// Layer 3 — the persistent overlay + lock/unlock toggle. Always mounted,
@@ -208,14 +231,24 @@ class VmDefaultSkin implements VmSkin {
   /// 自动隐藏/画中画/锁定门控——切换按钮本身就是**改变**那些状态的入口。
   /// 只有必须拦截点击的部分（不透明锁定遮罩）才吸收事件。覆写以改变哪些内容
   /// 不论那些状态如何都保持可达。
+  ///
+  /// Wrapped in a [RepaintBoundary] for the same reason as the other two
+  /// layers: this one rarely repaints (only on lock-state change), so
+  /// isolating it keeps the operable layer's frequent churn from dragging it
+  /// along.
+  ///
+  /// 同样包了一层 [RepaintBoundary]：本层极少重绘（仅锁定状态变化时），隔离后
+  /// 操作层的频繁重绘不会连带它一起重新光栅化。
   @protected
   Widget buildPersistentLayer(BuildContext context, VmSlotBundle slots) {
     return Positioned.fill(
-      child: Stack(
-        children: [
-          Stack(children: slots[VmSlot.overlay]),
-          const _LockToggleButton(),
-        ],
+      child: RepaintBoundary(
+        child: Stack(
+          children: [
+            Stack(children: slots[VmSlot.overlay]),
+            const _LockToggleButton(),
+          ],
+        ),
       ),
     );
   }
