@@ -7,6 +7,8 @@ import 'package:videoman/src/core/model/fit.dart';
 import 'package:videoman/src/core/model/quality.dart';
 import 'package:videoman/src/core/model/source.dart';
 import 'package:videoman/src/core/options/options.dart';
+import 'package:videoman/src/core/preview/api.dart';
+import 'package:videoman/src/core/preview/models.dart';
 import 'package:videoman/src/core/state/progress.dart';
 import 'package:videoman/src/core/state/state.dart';
 import 'package:videoman/src/core/state/ui_state.dart';
@@ -151,6 +153,12 @@ class FakeVmApi implements VmApi {
   /// 而非真实视频画面。
   @override
   Object? renderHandle;
+
+  /// The preview test double this fake exposes.
+  ///
+  /// 该假对象暴露的预览测试替身。
+  @override
+  final FakePreviewApi preview = FakePreviewApi();
 
   @override
   Stream<VmEvent> get events => _events.stream;
@@ -338,5 +346,77 @@ class FakeVmApi implements VmApi {
     await _events.close();
     await _state.close();
     await _uiState.close();
+    await preview.dispose();
   }
+}
+
+/// A test double for [VmPreviewApi] that records requests and lets tests push
+/// thumbnails into the stream.
+///
+/// [VmPreviewApi] 的测试替身：记录请求，并允许测试向流中推送缩略图。
+class FakePreviewApi implements VmPreviewApi {
+  /// Backing controller for [thumbs].
+  ///
+  /// [thumbs] 的底层控制器。
+  final StreamController<VmThumb?> _thumbs = StreamController<VmThumb?>.broadcast();
+
+  /// Ordered method names invoked on this fake.
+  ///
+  /// 在该替身上被调用的方法名有序列表。
+  final List<String> calls = <String>[];
+
+  /// The argument of the most recent [requestAt] call.
+  ///
+  /// 最近一次 [requestAt] 调用的参数。
+  Duration? lastRequestedAt;
+
+  /// The value [peekAt] returns; settable by tests, defaults to null.
+  ///
+  /// [peekAt] 的返回值；可由测试赋值，默认 null。
+  VmThumb? peekResult;
+
+  /// The thumbnail most recently pushed via [push].
+  ///
+  /// 最近一次通过 [push] 推送的缩略图。
+  VmThumb? _current;
+
+  @override
+  Stream<VmThumb?> get thumbs => _thumbs.stream;
+
+  @override
+  VmThumb? get current => _current;
+
+  @override
+  VmThumb? peekAt(Duration position) {
+    calls.add('peekAt');
+    return peekResult;
+  }
+
+  @override
+  void requestAt(Duration position) {
+    calls.add('requestAt');
+    lastRequestedAt = position;
+  }
+
+  @override
+  void cancel() => calls.add('cancel');
+
+  @override
+  Future<void> clear() async => calls.add('clear');
+
+  /// Pushes [thumb] to [thumbs] and makes it the [current] value.
+  ///
+  /// 把 [thumb] 推送到 [thumbs] 并设为 [current]。
+  ///
+  /// - [thumb]: the thumbnail to publish, or null to hide / 要发布的缩略图，
+  ///   null 表示隐藏
+  void push(VmThumb? thumb) {
+    _current = thumb;
+    _thumbs.add(thumb);
+  }
+
+  /// Closes the backing stream.
+  ///
+  /// 关闭底层流。
+  Future<void> dispose() => _thumbs.close();
 }

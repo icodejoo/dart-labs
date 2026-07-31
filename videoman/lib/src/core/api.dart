@@ -3,6 +3,7 @@ import 'model/fit.dart';
 import 'model/quality.dart';
 import 'model/source.dart';
 import 'options/options.dart';
+import 'preview/api.dart';
 import 'state/progress.dart';
 import 'state/state.dart';
 import 'state/ui_state.dart';
@@ -66,6 +67,12 @@ abstract class VmApi {
   /// 测试替身中可以是任意占位值（如 `null`）。`VmPlayer` 仅当此值
   /// `is VideoController` 时才渲染真实的 `Video` 组件，否则渲染占位符。
   Object? get renderHandle;
+
+  /// The scrub-preview capability surface: thumbnail requests, the resolved
+  /// thumbnail stream, and cache control.
+  ///
+  /// 拖动预览能力面：缩略图请求、已解析缩略图的流，以及缓存控制。
+  VmPreviewApi get preview;
 
   /// Opens [source] for playback.
   ///

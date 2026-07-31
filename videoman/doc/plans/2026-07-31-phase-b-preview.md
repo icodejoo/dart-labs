@@ -5012,7 +5012,7 @@ brightness, pip, orientation})`，接好了 brightness/PiP/orientation 三个真
   - `class FakePreviewApi implements VmPreviewApi`（测试替身，带 `push(VmThumb?)`、`peekResult`、`lastRequestedAt`、`calls`）
   - `FakeVmApi.preview` → `FakePreviewApi`
 
-- [ ] **Step 1: 追加失败测试到 `test/core/engine_test.dart`**
+- [x] **Step 1: 追加失败测试到 `test/core/engine_test.dart`**
 
 顶部 import 区补：
 
@@ -5097,12 +5097,12 @@ import 'package:videoman/src/core/preview/net_probe.dart';
   });
 ```
 
-- [ ] **Step 2: 跑测试确认失败**
+- [x] **Step 2: 跑测试确认失败**
 
 Run: `flutter test test/core/engine_test.dart`
 Expected: FAIL — `The getter 'preview' isn't defined for the class 'VmEngine'`；既有项仍 PASS
 
-- [ ] **Step 3: 在 `VmApi` 上声明 `preview`**
+- [x] **Step 3: 在 `VmApi` 上声明 `preview`**
 
 `lib/src/core/api.dart`：import 区加 `import 'preview/api.dart';`；在 `Object? get renderHandle;`
 之后插入：
@@ -5115,7 +5115,7 @@ Expected: FAIL — `The getter 'preview' isn't defined for the class 'VmEngine'`
   VmPreviewApi get preview;
 ```
 
-- [ ] **Step 4: 在 `VmEngine` 里装配预览服务**
+- [x] **Step 4: 在 `VmEngine` 里装配预览服务**
 
 `lib/src/core/engine.dart`：
 
@@ -5291,7 +5291,7 @@ import 'preview/vtt_source.dart';
 6. `open()` 里在 `_source = source;` 之后插入 `_previewService.attach(source);`。
 7. `dispose()` 里在 `await _kernel.dispose();` **之前**插入 `await _previewService.dispose();`。
 
-- [ ] **Step 5: 扩展 `lib/src/platform_impl/wiring.dart`（现有文件，只加预览三端口）**
+- [x] **Step 5: 扩展 `lib/src/platform_impl/wiring.dart`（现有文件，只加预览三端口）**
 
 这是 `9c2d4f0` 落地后的**当前文件全文**（不要从零重写，下面的 diff 建立在它之上）：
 
@@ -5469,7 +5469,7 @@ VmEngine createVmEngine({
 }
 ```
 
-- [ ] **Step 6: 给 `FakeVmApi` 加 `preview`**
+- [x] **Step 6: 给 `FakeVmApi` 加 `preview`**
 
 `test/support/fake_api.dart`：import 区补
 
@@ -5565,7 +5565,7 @@ class FakePreviewApi implements VmPreviewApi {
 
 `FakeVmApi.dispose()` 里在 `await _uiState.close();` 之后加 `await preview.dispose();`。
 
-- [ ] **Step 7: 跑测试与分析**
+- [x] **Step 7: 跑测试与分析**
 
 `export 'src/platform_impl/wiring.dart';` 已经在 `lib/videoman.dart` 里（`9c2d4f0` 加的），
 本任务不新增导出行——先 `grep -n "export 'src/platform_impl/wiring.dart'" lib/videoman.dart`
@@ -5576,7 +5576,7 @@ Expected: engine 新增 5 项 PASS，累计 190 项全绿，analyze 0 issues；`
 原有 3 项（`9c2d4f0` 加的）仍 PASS。`purity_test.dart` PASS（`engine.dart` 只 import core
 内部文件；插件全在 `wiring.dart`）。
 
-- [ ] **Step 8: Commit**
+- [x] **Step 8: Commit**
 
 ```bash
 git add -A
