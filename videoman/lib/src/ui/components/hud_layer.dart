@@ -64,7 +64,8 @@ class VolumeHudComponent extends VmComponent {
           selector: (s) => s.volume,
           builder: (context, volume) => _HudBadge(
             api: api,
-            text: '${volume.round()}',
+            icon: volume <= 0 ? Icons.volume_off_rounded : Icons.volume_up_rounded,
+            text: '${volume.round()}%',
           ),
         );
       },
@@ -97,7 +98,8 @@ class BrightnessHudComponent extends VmComponent {
           selector: (s) => s.brightness,
           builder: (context, brightness) => _HudBadge(
             api: api,
-            text: '${(brightness * 100).round()}',
+            icon: Icons.brightness_6_rounded,
+            text: '${(brightness * 100).round()}%',
           ),
         );
       },
@@ -171,19 +173,26 @@ class ZoomHudComponent extends VmComponent {
   }
 }
 
-/// Small centered pill used to render every HUD's text, themed from
-/// [VmApi.options].
+/// Small centered pill used to render every HUD, themed from [VmApi.options].
 ///
-/// 用于渲染各 HUD 文本的居中小胶囊，配色取自 [VmApi.options]。
+/// Shows an optional leading [icon] followed by [text] — volume/brightness
+/// pass an icon plus a `NN%` string so the gesture has legible feedback;
+/// seek/zoom pass text only.
+///
+/// 用于渲染各 HUD 的居中小胶囊，配色取自 [VmApi.options]。
+///
+/// 可选的前置 [icon] 加 [text]——音量/亮度传入图标加 `NN%` 文本，让手势有清晰
+/// 反馈；进度/缩放只传文本。
 class _HudBadge extends StatelessWidget {
-  /// Creates a themed HUD text badge.
+  /// Creates a themed HUD badge.
   ///
-  /// [api] supplies the theme to render with. [text] is the content shown.
+  /// [api] supplies the theme. [text] is the content shown; [icon] is an
+  /// optional leading glyph.
   ///
-  /// 创建带主题的 HUD 文本徽标。
+  /// 创建带主题的 HUD 徽标。
   ///
-  /// [api] 提供渲染用的主题。[text] 为要展示的文本内容。
-  const _HudBadge({required this.api, required this.text});
+  /// [api] 提供主题。[text] 为展示内容；[icon] 为可选前置图标。
+  const _HudBadge({required this.api, required this.text, this.icon});
 
   /// Capability surface supplying [VmApi.options].
   ///
@@ -195,9 +204,15 @@ class _HudBadge extends StatelessWidget {
   /// 徽标内展示的文本内容。
   final String text;
 
+  /// Optional leading icon shown before [text].
+  ///
+  /// [text] 之前展示的可选前置图标。
+  final IconData? icon;
+
   @override
   Widget build(BuildContext context) {
     final theme = api.options.theme;
+    final color = Color(theme.textColor);
     return Center(
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -205,12 +220,18 @@ class _HudBadge extends StatelessWidget {
           color: Color(theme.barGradientColor),
           borderRadius: BorderRadius.circular(8),
         ),
-        child: Text(
-          text,
-          style: TextStyle(
-            color: Color(theme.textColor),
-            fontSize: theme.titleFontSize,
-          ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (icon != null) ...[
+              Icon(icon, color: color, size: theme.titleFontSize + 2),
+              const SizedBox(width: 8),
+            ],
+            Text(
+              text,
+              style: TextStyle(color: color, fontSize: theme.titleFontSize),
+            ),
+          ],
         ),
       ),
     );

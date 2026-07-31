@@ -3,6 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:videoman/src/core/model/source.dart';
 import 'package:videoman/src/core/options/options.dart';
 import 'package:videoman/src/core/state/state.dart';
+import 'package:videoman/src/core/state/ui_state.dart';
 import 'package:videoman/src/ui/components/gesture_layer.dart';
 
 import '../support/fake_api.dart';
@@ -19,6 +20,9 @@ void main() {
     expect(api.lastBrightness, isNotNull);
     expect(api.lastBrightness, greaterThan(0.5));
     expect(api.calls, isNot(contains('setVolume')));
+    // The gesture also raises the brightness HUD for feedback.
+    // 手势同时抬起亮度 HUD 作为反馈。
+    expect(api.lastHud, VmHud.brightness);
     await api.dispose();
   });
 
@@ -32,6 +36,9 @@ void main() {
     expect(api.lastVolume, isNotNull);
     expect(api.lastVolume, greaterThan(50));
     expect(api.calls, isNot(contains('setBrightness')));
+    // The gesture also raises the volume HUD for feedback.
+    // 手势同时抬起音量 HUD 作为反馈。
+    expect(api.lastHud, VmHud.volume);
     await api.dispose();
   });
 
