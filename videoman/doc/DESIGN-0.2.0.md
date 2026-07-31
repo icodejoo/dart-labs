@@ -404,7 +404,7 @@ review 时逐条对账。
 | 时移 URL | 无 | — | `urlBuilder(uri, behind, wallClock)` |
 | DVR 窗口 | 取内核 duration | `dvrWindow` 覆盖 | `windowResolver(state)` |
 | "在边缘"阈值 | 10s | `edgeThreshold` | — |
-| 回直播方式 | dvr→seek 末端；timeshift→重开 | `backToLive: seekEnd/reopen` | — |
+| 回直播方式 | dvr→seek 末端；timeshift→重开 | `backToLive: seekEnd/reopen`（可空，空则按 `seekMode` 推导） | — |
 | 卡顿自动回边缘 | 关 | `autoBackToLiveOnStall` | — |
 
 ### 6.3 全局
@@ -535,6 +535,14 @@ Duration resolveWindow(VmState s, VmLiveConfig cfg);
 Duration? behindOf(Duration position, Duration window, Duration edgeThreshold);
 bool atLiveEdge(Duration position, Duration window, Duration edgeThreshold);
 ```
+
+**落地偏差**（阶段 C 落地，2026-07-31，详见 `doc/SPEC.md`「直播时移」一节与
+`doc/plans/2026-07-31-phase-c-timeshift.md`）：`backToLive` 是**可空**字段，
+为空时按 `seekMode` 推导（`timeshift` → `reopen`，其余 → `seekEnd`），而非
+本节原文暗示的必填枚举；UI 树里的 `backToEdge` 组件已更名为 `backToLive`
+（patch 路径 `bottomBar/backToEdge` → `bottomBar/backToLive`，破坏性变更）；
+`behind` 在写入 `VmState` 前按整秒量化，避免 position 高频回调击穿去重后的
+`states` 流。
 
 ---
 

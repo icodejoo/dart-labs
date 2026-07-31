@@ -66,6 +66,23 @@
 
 - 新增 `path_provider`、`connectivity_plus`。
 
+### 新增 — 直播时移（阶段 C）
+
+- 新增 `VmLiveSeekMode.dvr` / `.timeshift` 两种可拖直播模式；
+- 新增 `VmLiveConfig.urlBuilder` / `backToLive` / `autoBackToLiveOnStall` / `windowResolver`；
+- 新增 `lib/src/core/live/timeshift.dart` 纯函数 `resolveWindow` / `behindOf` / `atLiveEdge`；
+- `VmState.timeshiftBehind` 现在真正被写入，并伴随 `VmTimeshiftChanged` / `VmLiveEdgeReached` 事件；
+- `VmApi.backToLiveEdge()` 由占位（`reload()`）变为按策略执行；
+- 新增 `VmApi.pipSupported` / `VmState.pipSupported`，PiP 按钮在不支持的平台自动隐藏；
+
+**破坏性变更（0.2.0 内部，相对阶段 A/B 中间态）：**
+
+| 旧 | 新 | 说明 |
+|---|---|---|
+| `BackToEdgeComponent`（name `backToEdge`） | `BackToLiveComponent`（name `backToLive`） | patch 路径 `bottomBar/backToEdge` → `bottomBar/backToLive`；行为由 `reload()` 改为 `backToLiveEdge()` |
+| `VmStrings.backToEdge` | `VmStrings.backToLive` | 前者删除 |
+| `LiveBarComponent()` | `LiveBarComponent({bool seekable = false})` | 新增可选参数，旧写法仍可编译 |
+
 ## 0.1.0
 
 首个可用版本 / First usable release.

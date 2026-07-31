@@ -29,7 +29,8 @@ lib/
    │  ├─ options/abr_config.dart      # VmAbrConfig（含 VmAbrPolicy 抽象；未落在 model/abr.dart）
    │  ├─ options/gesture_config.dart  # VmGestureConfig（自 0.1.0 迁入，字段不变）
    │  ├─ options/controls_config.dart # VmControlsConfig
-   │  ├─ options/live_config.dart     # VmLiveConfig
+   │  ├─ options/live_config.dart     # VmLiveConfig（含 urlBuilder/backToLive/windowResolver）
+   │  ├─ live/timeshift.dart          # resolveWindow/behindOf/atLiveEdge 纯函数
    │  ├─ options/strings.dart         # VmStrings（文案外置，默认简体中文）
    │  ├─ options/theme.dart           # VmTheme（配色/尺寸外置，ARGB int 存储）
    │  ├─ model/source.dart            # VmSource / VmStreamType
@@ -67,8 +68,12 @@ import Flutter widget 与直接依赖 `VmApi` 的地方。
   `Video`，否则渲染占位符——这是 widget 测试无需真实播放内核的关键。
 - `VmState.sourceTitle` 是 `VmState` 上的可空字段（不是 `VmApi` 的独立
   getter）；`copyWith` 用 `clearSourceTitle` 标志区分"不改"与"清空"。
-- `VmApi.seek()` 在直播时被引擎忽略；直播"回到边缘"用 `backToLiveEdge()`
-  （内部重开当前源）。
+- 直播下 `seek()` 受 `state.liveSeekable` 门控（`VmLiveConfig.seekMode !=
+  off` 且可拖窗口 > 0）：`dvr` 走内核原生 seek（clamp 到 `seekableWindow`）；
+  `timeshift` 走 `VmLiveConfig.urlBuilder` 重开源（没有 `urlBuilder` 则整个
+  seek 是空操作）。`backToLiveEdge()` 按 `VmLiveConfig.effectiveBackToLive`
+  执行——`seekEnd` 直接 seek 到窗口末端，`reopen` 重开**原始**直播地址
+  （绕过 `open()`，因为回边缘是位置变化不是换源，也不该清空清晰度列表）。
 - `VmPlayer` 组合渲染画面 + `VmSkin.components(state)` 出的组件树
   （经 `buildSlots()` 分槽）+ `VmSkin.assemble()` 拼装 `Stack`；默认皮肤
   `VmDefaultSkin` 复刻 0.1.0 的分栏布局与"隐藏时可穿透点击"规则。
@@ -117,7 +122,9 @@ import Flutter widget 与直接依赖 `VmApi` 的地方。
 ## 手势数学（gesture_layer.dart）
 
 - 横滑进度：`seconds = dx / width * hSeekSpanPerScreen.inSeconds`（默认
-  90s 满屏宽，来自 `VmGestureConfig.hSeekSpanPerScreen`，可配）；直播禁用。
+  90s 满屏宽，来自 `VmGestureConfig.hSeekSpanPerScreen`，可配）；直播下受
+  `state.liveSeekable && VmGestureConfig.allowWhenLive`（默认开）门控，
+  非 `off` 模式的可拖直播允许横滑 seek，其余禁用。
 - 竖滑：左侧竖滑→音量（0–100），右侧竖滑→亮度（0–1），系数
   `VmGestureConfig.vSensitivity`。
 - 双指缩放：`onScaleUpdate` 进入 zoom，`clamp(1, maxZoom)`。
@@ -135,28 +142,63 @@ import Flutter widget 与直接依赖 `VmApi` 的地方。
   `core/model/abr.dart`）；省略时默认 `VmBufferingAbr(threshold: stallThreshold)`。
   自动档不降档（交给 libmpv 原生 ABR）。
 
+## 直播时移（阶段 C）
+
+- 三种模式（`VmLiveConfig.seekMode`）：`off`（默认，禁拖）、`dvr`（服务端滑动
+  窗口内拖，复用内核原生 seek）、`timeshift`（拖动即用 `urlBuilder` 重开源）。
+- 窗口解析优先级（`resolveWindow`，`lib/src/core/live/timeshift.dart`）：
+  `VmLiveConfig.windowResolver` > `dvrWindow` > 内核报告的 `duration`。结果
+  clamp 到非负。
+- `behindOf(position, window, edgeThreshold)`：落后边缘的时长在 `edgeThreshold`
+  （默认 10s）以内、或窗口未知/为零、或 `position` 已到/超过窗口末端时一律返回
+  `null`（视为"在边缘"），否则返回落后量。`atLiveEdge` 是其取反的语义封装。
+- `VmState.timeshiftBehind` 在写入前先按**整秒量化**——position 每秒回调多次，
+  不量化会让去重后的 `states` 流退化成高频流（阶段 A 特意把 position 排除在
+  `VmState` 之外的初衷）。落后量归零/变化时分别发 `VmLiveEdgeReached`/
+  `VmTimeshiftChanged`。
+- `backToLiveEdge()` 的行为由 `VmLiveConfig.effectiveBackToLive` 决定：显式配置
+  `backToLive` 就用它，否则按 `seekMode` 推导（`timeshift` → `reopen`，其余 →
+  `seekEnd`）。`reopen` 重开的是 `_source` 里保存的**原始**直播地址，而不是内核
+  当前打开的时移地址。
+- `autoBackToLiveOnStall`（默认关）：仅在**确实处于时移状态**且发生卡顿时才
+  自动跳回边缘，避免悄悄丢弃用户主动选定的回看位置。
+- UI 树 `bottomBar/{liveBadge, seekBar, timeshift, backToLive}`：`SeekBarComponent`
+  对可拖直播取 `seekableWindow` 而非 `duration`（同一组件同时服务 VOD 与直播）；
+  `liveBadge` 按 `timeshiftBehind == null` 在红色 `LIVE`/灰色 `时移`（`VmTheme.
+  timeshiftBadgeColor`）间切换；`backToLive`（原 `backToEdge`，已删除并改名）
+  调 `backToLiveEdge()` 而非 `reload()`。
+
 ## PiP（原生）
 
 - Dart 侧经 `VmPipPort`；Android `VideomanPlugin.kt` 用
   `PictureInPictureParams`，宽高比 `clamp(0.42, 2.39)`；iOS/桌面未实现，
   `isPipSupported()` 返回 `false`。
+- `VmState.pipSupported` / `VmApi.pipSupported`（阶段 C）：engine 构造后不久
+  用 `VmPipPort.isSupported()` 探测一次（默认 `false`，探测失败也归约为
+  `false` 而不抛出）；`PipButtonComponent` 据此隐藏自身，不支持的平台上按钮
+  根本不出现，而不是出现了点了没反应。
 
 ## 测试
 
 - `test/core/`：`api_test.dart`/`bus_test.dart`/`compat_test.dart`/
   `engine_test.dart`/`interceptor_test.dart`/`kernel_contract_test.dart`/
   `model_test.dart`/`options_test.dart`/`ports_test.dart`/`purity_test.dart`
-  （断言 `core/` 不 import Flutter）/`state_test.dart`。
+  （断言 `core/` 不 import Flutter）/`state_test.dart`/
+  `openness_live_test.dart`（阶段 C，DESIGN §6.2 逐行对账）/
+  `openness_preview_test.dart`（阶段 B，DESIGN §6.1 逐行对账）/
+  `live/timeshift_test.dart`（阶段 C 纯函数）/`preview/`（阶段 B 全套：
+  `models`/`hash`/`vtt`/`cache`/`disk_cache`/`two_level_cache`/`net_probe`/
+  `vtt_source`/`extractor`/`service`）。
 - `test/ui/`：`bottom_bar_test.dart`/`format_test.dart`/`gesture_test.dart`/
   `live_bar_test.dart`/`orientation_test.dart`/`overlays_test.dart`/
-  `player_test.dart`/`selector_test.dart`/`skin_test.dart`/
-  `top_bar_test.dart`/`tree_test.dart`。
+  `player_test.dart`/`preview_test.dart`（阶段 B）/`selector_test.dart`/
+  `skin_test.dart`/`top_bar_test.dart`/`tree_test.dart`。
+- `test/platform_impl/`：`net_probe_impl_test.dart`（阶段 B）/`wiring_test.dart`。
 - `test/method_channel_test.dart`：平台通道桩。
 - `test/support/`：`fake_api.dart`/`fake_kernel.dart`/`pump.dart` 测试基础设施。
 
-**实测结果**（本次收口，`flutter test` 完整输出，见 Task 19 报告的 Step 3
-原始命令输出）：**91 tests passed, 0 failed**（末行 `00:04 +91: All tests
-passed!`，2026-07-31 本机实跑）。
+**实测结果**（阶段 C 收口，2026-07-31 本机实跑）：**260 tests passed, 0
+failed**（末行 `00:12 +260: All tests passed!`）。`flutter analyze` 0 issues。
 
 ## 命令
 
@@ -190,14 +232,16 @@ flutter pub publish --dry-run                     # 发布校验
    212 项测试全绿，`flutter analyze` 0 issues。已知遗留：横滑手势路径与
    "关闭预览开关"两点未逐条人工验证（理论行为一致，见附录 B）；磁盘缓存按原
    分辨率 JPEG 估算，`diskMaxBytes` 默认 64MB 的余量比按缩略图估算的更紧张。
-2. **阶段 C：直播时移——未开始**。`live/timeshift.dart` 窗口/behind 纯函数 +
-   复用 seekBar + `liveBadge`/`timeshift`/`backToLive` 组件 + 手势门控；
-   DVR 窗口默认靠内核 duration 推断，需提供 `dvrWindow`/`windowResolver`
-   覆盖点。
-3. **阶段 D：收尾发布——未开始**。README/CHANGELOG/example 补齐 VOD/直播/
-   时移三个 demo、真机一轮验证（手势手感、HLS 联网切档、Android PiP
-   实际行为、iOS 整体播放，均承自 0.1.0 尚未在真机验证）、
-   `flutter pub publish --dry-run` 0 warnings，发布 0.2.0。
+2. **阶段 C：直播时移——已完成**（2026-07-31）。见本文档「直播时移（阶段 C）」
+   一节的实现现状；`ios/videoman.podspec` 元数据已与 `pubspec.yaml` 对齐
+   （**版本号必须手动同步**——`s.version` 不会自动跟 `pubspec.yaml` 的
+   `version` 走，每次改版本都要同时改 podspec）；example 已加直播 DVR/时移
+   两个 demo。
+3. **阶段 D：收尾发布——进行中**。README/CHANGELOG/SPEC 已更新；
+   `flutter pub publish --dry-run` 待最终校验；**真机一轮验证仍未做**
+   （手势手感、HLS 联网切档、Android PiP 实际行为、iOS 整体播放、直播时移
+   UI，均承自 0.1.0 尚未在真机验证，且本次 core/ui 重构与预览/时移两个新功能
+   也从未上过真机——见文末「真机验证结果」一节）。
 
 **未来项（未排期，见 PRD ADR）**：实时语音转文字字幕 + AI MCP 集成钩子——两条均为条件性/
 投机性的前瞻记录，非本阶段（B/C/D）范围，详见 [doc/PRD.md](PRD.md) 非功能需求/决策记录。

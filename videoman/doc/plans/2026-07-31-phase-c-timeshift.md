@@ -2533,7 +2533,7 @@ git commit -m "feat(videoman): add live and timeshift demos to the example app"
 - Consumes: Task 1–11 全部产物
 - Produces: 与代码一致的文档
 
-- [ ] **Step 1: CHANGELOG**
+- [x] **Step 1: CHANGELOG**
 
 `CHANGELOG.md` 的 `## 0.2.0` 段追加「直播时移」小节：
 
@@ -2551,7 +2551,7 @@ git commit -m "feat(videoman): add live and timeshift demos to the example app"
 | `VmStrings.backToEdge` | `VmStrings.backToLive` | 前者删除 |
 | `LiveBarComponent()` | `LiveBarComponent({bool seekable = false})` | 新增可选参数，旧写法仍可编译 |
 
-- [ ] **Step 2: README**
+- [x] **Step 2: README**
 
 新增「直播时移」一节：
 
@@ -2584,7 +2584,7 @@ final engine = VmEngine(
 `ScreenBrightnessPort()` / `ChannelPipPort()` / `SystemChromeOrientationPort()`，且与
 阶段 B/C 谁先落地无关；若阶段 B 已落地，`createVmEngine()` 还会多接好预览相关的端口。
 
-- [ ] **Step 3: SPEC**
+- [x] **Step 3: SPEC**
 
 `doc/SPEC.md`：
 - 「架构分层」目录树补 `core/live/timeshift.dart`；
@@ -2596,7 +2596,7 @@ final engine = VmEngine(
 - 记一句 podspec 版本必须与 pubspec 同步；
 - 末节「剩余任务」按实际情况更新（阶段 C 完成；阶段 B 视其是否已落地）。
 
-- [ ] **Step 4: CLAUDE.md 与 DESIGN 回写**
+- [x] **Step 4: CLAUDE.md 与 DESIGN 回写**
 
 `CLAUDE.md` 的「当前状态」改为阶段 C 已完成。
 
