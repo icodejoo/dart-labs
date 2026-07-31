@@ -456,7 +456,7 @@ DESIGN §8 点名要求的三个可单测纯函数。engine 里**不许**再出�
   - `Duration? behindOf(Duration position, Duration window, Duration edgeThreshold)`
   - `bool atLiveEdge(Duration position, Duration window, Duration edgeThreshold)`
 
-- [ ] **Step 1: 写失败测试 `test/core/live/timeshift_test.dart`**
+- [x] **Step 1: 写失败测试 `test/core/live/timeshift_test.dart`**
 
 ```dart
 import 'package:flutter_test/flutter_test.dart';
@@ -531,12 +531,12 @@ void main() {
 }
 ```
 
-- [ ] **Step 2: 跑测试确认失败**
+- [x] **Step 2: 跑测试确认失败**
 
 Run: `flutter test test/core/live/timeshift_test.dart`
 Expected: FAIL — `Error: Couldn't resolve the package ... live/timeshift.dart` / `resolveWindow isn't defined`
 
-- [ ] **Step 3: 实现 `lib/src/core/live/timeshift.dart`**
+- [x] **Step 3: 实现 `lib/src/core/live/timeshift.dart`**
 
 ```dart
 import '../options/live_config.dart';
@@ -612,7 +612,7 @@ bool atLiveEdge(Duration position, Duration window, Duration edgeThreshold) =>
     behindOf(position, window, edgeThreshold) == null;
 ```
 
-- [ ] **Step 4: barrel 增补导出**
+- [x] **Step 4: barrel 增补导出**
 
 `lib/videoman.dart` 在 `export 'src/core/interceptor/interceptor.dart';` 之后按字母序插入：
 
@@ -620,12 +620,12 @@ bool atLiveEdge(Duration position, Duration window, Duration edgeThreshold) =>
 export 'src/core/live/timeshift.dart';
 ```
 
-- [ ] **Step 5: 跑测试确认通过**
+- [x] **Step 5: 跑测试确认通过**
 
 Run: `flutter test test/core/live/timeshift_test.dart && flutter analyze`
 Expected: 9 项 PASS，analyze 0 issues
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add -A

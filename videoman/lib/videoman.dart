@@ -10,6 +10,7 @@ export 'src/core/compat.dart';
 export 'src/core/engine.dart';
 export 'src/core/events/events.dart';
 export 'src/core/interceptor/interceptor.dart';
+export 'src/core/live/timeshift.dart';
 export 'src/core/model/fit.dart';
 export 'src/core/model/quality.dart';
 export 'src/core/model/source.dart';
