@@ -2148,7 +2148,7 @@ DESIGN §7.5 + §6.1「网络限制 | `wifiOnly` | `network` | `probe`（`VmNetP
   - `Future<bool> previewAllowedOn(VmPreviewNetwork policy, VmNetProbe probe)`
   - `class ConnectivityNetProbe implements VmNetProbe { ConnectivityNetProbe({Connectivity? connectivity}); static bool allowsHeavy(List<ConnectivityResult> results); }`（`platform_impl`）
 
-- [ ] **Step 1: 加依赖**
+- [x] **Step 1: 加依赖**
 
 `pubspec.yaml` 的 `dependencies:` 段内，`flutter:` 之后、`media_kit:` 之前按字母序插入：
 
@@ -2159,7 +2159,7 @@ DESIGN §7.5 + §6.1「网络限制 | `wifiOnly` | `network` | `probe`（`VmNetP
 Run: `flutter pub get`
 Expected: 解析成功，`pubspec.lock` 出现 `connectivity_plus`
 
-- [ ] **Step 2: 写失败测试 `test/core/preview/net_probe_test.dart`**
+- [x] **Step 2: 写失败测试 `test/core/preview/net_probe_test.dart`**
 
 ```dart
 import 'dart:async';
@@ -2258,7 +2258,7 @@ class _ThrowingProbe implements VmNetProbe {
 }
 ```
 
-- [ ] **Step 3: 写失败测试 `test/platform_impl/net_probe_impl_test.dart`**
+- [x] **Step 3: 写失败测试 `test/platform_impl/net_probe_impl_test.dart`**
 
 ```dart
 import 'package:connectivity_plus/connectivity_plus.dart';
@@ -2291,12 +2291,12 @@ void main() {
 }
 ```
 
-- [ ] **Step 4: 跑测试确认失败**
+- [x] **Step 4: 跑测试确认失败**
 
 Run: `flutter test test/core/preview/net_probe_test.dart test/platform_impl/net_probe_impl_test.dart`
 Expected: FAIL — `Error when reading 'lib/src/core/preview/net_probe.dart': No such file or directory`
 
-- [ ] **Step 5: 实现 `lib/src/core/preview/net_probe.dart`**
+- [x] **Step 5: 实现 `lib/src/core/preview/net_probe.dart`**
 
 ```dart
 /// When scrub-preview thumbnails are allowed to use the network.
@@ -2398,7 +2398,7 @@ Future<bool> previewAllowedOn(VmPreviewNetwork policy, VmNetProbe probe) async {
 }
 ```
 
-- [ ] **Step 6: 实现 `lib/src/platform_impl/net_probe_impl.dart`**
+- [x] **Step 6: 实现 `lib/src/platform_impl/net_probe_impl.dart`**
 
 ```dart
 import 'package:connectivity_plus/connectivity_plus.dart';
@@ -2463,7 +2463,7 @@ class ConnectivityNetProbe implements VmNetProbe {
 }
 ```
 
-- [ ] **Step 7: barrel 增补导出**
+- [x] **Step 7: barrel 增补导出**
 
 `lib/videoman.dart` 在 `export 'src/core/preview/models.dart';` 之后插入：
 
@@ -2477,13 +2477,13 @@ export 'src/core/preview/net_probe.dart';
 export 'src/platform_impl/net_probe_impl.dart';
 ```
 
-- [ ] **Step 8: 跑测试与分析**
+- [x] **Step 8: 跑测试与分析**
 
 Run: `flutter test && flutter analyze`
 Expected: net_probe 5 项 + net_probe_impl 4 项全 PASS，累计 147 项全绿，analyze 0 issues。
 `purity_test.dart` 仍 PASS（`connectivity_plus` 只出现在 `platform_impl/`）。
 
-- [ ] **Step 9: Commit**
+- [x] **Step 9: Commit**
 
 ```bash
 git add -A
