@@ -1,11 +1,9 @@
-import 'dart:async';
-
 import 'package:flutter/widgets.dart';
 
 import '../../core/api.dart';
 import '../../core/model/source.dart';
-import '../../core/state/progress.dart';
 import '../../core/state/ui_state.dart';
+import '../scope/plugin.dart';
 import '../slots/component.dart';
 import '../slots/slot.dart';
 
@@ -102,7 +100,7 @@ class _GestureLayer extends StatefulWidget {
 ///
 /// [_GestureLayer] 的状态机；手势数学与 0.1.0 的
 /// `_VmGestureDetectorState` 完全一致，只是出口改为 [VmApi] 调用。
-class _GestureLayerState extends State<_GestureLayer> {
+class _GestureLayerState extends State<_GestureLayer> with VmPlugin<_GestureLayer> {
   /// Which intent the current one-finger drag is driving, if decided.
   ///
   /// 当前单指拖动正在驱动的意图（若已判定）。
@@ -146,11 +144,6 @@ class _GestureLayerState extends State<_GestureLayer> {
   /// [VmApi.state] 里）。
   Duration _lastPosition = Duration.zero;
 
-  /// Subscription feeding [_lastPosition]; cancelled on dispose.
-  ///
-  /// 为 [_lastPosition] 供数的订阅；在 dispose 时取消。
-  StreamSubscription<VmProgress>? _progressSub;
-
   /// Shorthand for the capability surface this state drives.
   ///
   /// 该状态驱动的能力面的简写访问器。
@@ -159,13 +152,11 @@ class _GestureLayerState extends State<_GestureLayer> {
   @override
   void initState() {
     super.initState();
-    _progressSub = _api.progress.listen((p) => _lastPosition = p.position);
-  }
-
-  @override
-  void dispose() {
-    _progressSub?.cancel();
-    super.dispose();
+    // Subscription lifecycle handled by [VmPlugin.bind] — cancelled on
+    // dispose without a manual override.
+    //
+    // 订阅生命周期交给 [VmPlugin.bind]——无需手写 dispose 即会在销毁时取消。
+    bind(_api.progress, (p) => _lastPosition = p.position);
   }
 
   /// Whether seek gestures are currently allowed: always for VOD; for a

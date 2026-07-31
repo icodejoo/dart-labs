@@ -41,6 +41,28 @@ class VmScope extends InheritedWidget {
     return scope.api;
   }
 
+  /// Reads the nearest [VmScope]'s [api] without registering a dependency.
+  ///
+  /// Unlike [of], this is safe to call from `initState` and side-effect
+  /// contexts — it never subscribes the caller to rebuilds. Use it where the
+  /// api instance is only needed as a stable handle (it does not change over a
+  /// player's lifetime), e.g. inside [VmPlugin].
+  ///
+  /// 读取最近 [VmScope] 的 [api]，且不注册依赖。
+  ///
+  /// 与 [of] 不同，本方法可在 `initState` 及副作用上下文中安全调用——它绝不会
+  /// 让调用方订阅重建。用于只把 api 当作稳定句柄的场景（api 在播放器生命周期内
+  /// 不变），例如 [VmPlugin] 内部。
+  static VmApi readOf(BuildContext context) {
+    final scope = context.getInheritedWidgetOfExactType<VmScope>();
+    if (scope == null) {
+      throw FlutterError(
+        'VmScope.readOf() called outside a VmScope. Wrap your widget in VmPlayer or VmScope.',
+      );
+    }
+    return scope.api;
+  }
+
   @override
   bool updateShouldNotify(VmScope oldWidget) => api != oldWidget.api;
 }
