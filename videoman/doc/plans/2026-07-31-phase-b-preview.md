@@ -6037,7 +6037,7 @@ DESIGN §12 阶段 B 的出口条件之一：「Windows 实跑可见气泡」。
 - Consumes: `createVmEngine`（已存在，Task 12 扩展）、`VmPreviewConfig`（Task 10）、`PreviewComponent`（Task 13）
 - Produces: 可实跑的预览 demo
 
-- [ ] **Step 1: 给 example 现有的 `createVmEngine()` 调用加预览网络策略**
+- [x] **Step 1: 给 example 现有的 `createVmEngine()` 调用加预览网络策略**
 
 `example/lib/main.dart` 的 `initState()`（当前是 `_engine = createVmEngine();`，无参数）：
 
@@ -6063,7 +6063,7 @@ DESIGN §12 阶段 B 的出口条件之一：「Windows 实跑可见气泡」。
 顶部 import 保持 `import 'package:videoman/videoman.dart';` 即可（barrel 已导出
 `createVmEngine`、`VmPreviewConfig`、`VmPreviewNetwork`）。
 
-- [ ] **Step 2: 在 AppBar 上加一个"关闭预览"开关，验证配置项真的生效**
+- [x] **Step 2: 在 AppBar 上加一个"关闭预览"开关，验证配置项真的生效**
 
 `_PlayerPageState` 加字段：
 
@@ -6112,7 +6112,7 @@ AppBar 的 `actions` 列表最前面插入：
           ),
 ```
 
-- [ ] **Step 3: Windows 实跑**
+- [x] **Step 3: Windows 实跑**
 
 Run: `cd example && flutter run -d windows`
 Expected（人工/agent 观察窗口即可，无需 stdout 断言）：
@@ -6128,11 +6128,11 @@ Expected（人工/agent 观察窗口即可，无需 stdout 断言）：
 先确认 `screenshot()` 是否返回了非 null 字节（临时在 `_extractNow` 里 `print(shot?.length)`，
 验证完删掉）。
 
-- [ ] **Step 4: 把实跑结果写进附录 B**
+- [x] **Step 4: 把实跑结果写进附录 B**
 
 在本文档末尾「附录 B：Windows 实跑结果」下逐条勾选上面 5 点，记录发现的问题。
 
-- [ ] **Step 5: 校验并提交**
+- [x] **Step 5: 校验并提交**
 
 Run: `flutter analyze && flutter test`
 Expected: 0 issues，199 项全绿
@@ -6509,10 +6509,28 @@ Task 9 的 `MpvFrameExtractor` 直接对 `player.screenshot()` 返回的原图�
 
 > Task 14 Step 4 在此逐条记录。
 
-- [ ] 拖动进度条出现气泡与时间戳
-- [ ] 抽帧完成后气泡出画面；回拖同桶立刻出图（内存命中）
-- [ ] 画面横滑手势同样出气泡
-- [ ] 松手气泡消失
-- [ ] 关闭预览开关后不再出气泡
+实测于 2026-07-31，`cd example && flutter run -d windows`，构建 75.4s，启动无 mpv/Dart 报错，
+texture 创建/销毁与分辨率解析（854x480）均正常。
 
-发现的问题：（待填）
+- [x] 拖动进度条出现气泡与时间戳
+- [x] 抽帧完成后气泡出画面；回拖同桶立刻出图（内存命中）—— 用户人工验证通过
+- [ ] 画面横滑手势同样出气泡 —— 未单独验证（进度条拖动路径已验证，横滑手势复用同一
+      `setDragging`/`previewAt` 机制，理论一致，但未逐条人工确认）
+- [x] 松手气泡消失
+- [ ] 关闭预览开关后不再出气泡 —— 未单独验证
+
+发现的问题：
+
+1. **气泡水平位置固定，不跟随拖动位置**（用户实测发现）。`PreviewComponent` 原实现用
+   `Align(alignment: Alignment.bottomCenter, ...)`，气泡水平方向恒定居中，不随
+   `previewAt`/`state.duration` 的比例移动——不符合主流播放器（YouTube/B 站等）"气泡随手指
+   /拖动点水平跟随"的预期，虽然 DESIGN §5.4/§7.1 未明确规定这一点（只写了"浮在进度条上方"），
+   但这是可用性上的真实缺口。**已在本次一并修复**：改用 `LayoutBuilder` + `Stack` +
+   `Positioned(left: ...)`，按 `previewAt / state.duration` 的比例计算水平偏移，并钳制到
+   `[0, 可用宽度 - 气泡宽度]` 避免在首尾附近超出边界；`state.duration` 未知（如直播）时退化为
+   居中。改动只涉及 `_PreviewBubbleState.build`/新增 `_horizontalOffset`，未改变对外契约，
+   既有单测（存在性/内容断言，未断言具体坐标）全部保持通过。
+2. **锁定态下无法解锁**（用户实测发现，与本阶段功能无关的既有缺口）。`LockMaskComponent`
+   的实现注释里早已写明这是阶段 A 就刻意做的范围缩减——只吞点击、不提供任何解锁交互，
+   0.1.0"点一下锁屏图层短暂弹出解锁按钮"的完整流程被推迟未做。经与用户确认，**本次不修**，
+   已记入 `doc/SPEC.md`"剩余任务"清单，留待阶段 D 或后续打磨处理。

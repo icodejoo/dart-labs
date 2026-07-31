@@ -186,6 +186,18 @@ flutter pub publish --dry-run                     # 发布校验
    实际行为、iOS 整体播放，均承自 0.1.0 尚未在真机验证）、
    `flutter pub publish --dry-run` 0 warnings，发布 0.2.0。
 
+**未来项（未排期，见 PRD ADR）**：实时语音转文字字幕 + AI MCP 集成钩子——两条均为条件性/
+投机性的前瞻记录，非本阶段（B/C/D）范围，详见 [doc/PRD.md](PRD.md) 非功能需求/决策记录。
+若后续评估后启动，大致落点：
+
+- **STT 字幕**：预计新增一个 core 端口抽象（类似 `VmFrameExtractor`/`VmNetProbe`），放在
+  `lib/src/core/`，具体实现放 `lib/src/platform_impl/` 下——消费 media_kit/libmpv 若能暴露的
+  原始音频数据，或转发给外部 STT 服务；转写结果作为字幕流回灌到 UI 层的一个新叠层组件
+  （类似 `preview`/字幕类组件），走既有组件树/皮肤/补丁机制，不改变 `VmApi` 之外的契约。
+- **MCP 钩子**：预计不会成为核心依赖，更可能是一个可选的 `VmInterceptor` 实现或独立的事件流
+  消费者，订阅播放状态/字幕文本等只读上下文，并可选择性地接收外部指令；核心库不直接依赖
+  MCP SDK，接入方式留给上层应用或独立扩展包。
+
 以下两点是阶段 A 落地过程中相对 DESIGN 文档的已知偏差，供阶段 B/C 生成详细
 计划时对照实际签名，不要盲目照抄 DESIGN 原文：
 
@@ -205,3 +217,9 @@ flutter pub publish --dry-run                     # 发布校验
 - **iOS PiP 未实现**（libmpv 纹理限制，当前返回不支持），同样未取消，只是延后。
 - **真机未验证**（手势手感、HLS 联网切档、Android PiP 实际行为、iOS 整体播放）
   承自 0.1.0，并入阶段 D 一并验证。
+- **锁定态无法解锁**：`LockMaskComponent`（`lib/src/ui/components/overlays.dart`）
+  的注释里早已写明这是刻意的范围缩减——只吞点击、不提供任何解锁交互，0.1.0
+  "点一下锁屏图层短暂弹出解锁按钮"的完整流程被推迟。阶段 B Windows 实跑
+  （2026-07-31）验证到：锁定后确实连 UI 都无法解锁，只能重启应用。留待阶段 D
+  或后续打磨时补上最小可用的解锁交互（例如点击遮罩短暂展示解锁按钮、不点击
+  则自动隐藏）。
