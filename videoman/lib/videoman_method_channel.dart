@@ -42,4 +42,30 @@ class MethodChannelVideoman extends VmPlatform {
       return false;
     }
   }
+
+  @override
+  Future<double?> getSystemVolume() async {
+    try {
+      return await methodChannel.invokeMethod<double>('getSystemVolume');
+    } on PlatformException {
+      return null;
+    } on MissingPluginException {
+      return null;
+    }
+  }
+
+  @override
+  Future<bool> setSystemVolume(double percent) async {
+    try {
+      final ok = await methodChannel.invokeMethod<bool>(
+        'setSystemVolume',
+        {'percent': percent},
+      );
+      return ok ?? false;
+    } on PlatformException {
+      return false;
+    } on MissingPluginException {
+      return false;
+    }
+  }
 }

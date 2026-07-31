@@ -193,6 +193,24 @@ final engine = VmEngine(
 `ScreenBrightnessPort()` / `ChannelPipPort()` / `SystemChromeOrientationPort()`，
 并额外接好预览相关的端口（缩略图目录/抽帧器/网络探针的真实实现）。
 
+### 音量端口 / Volume
+
+右侧竖滑调音量走 `VmVolumePort`。`createVmEngine()` 默认在 **Android** 上接
+`SystemVolumePort()`（原生 `AudioManager`，调**系统媒体音量**、与硬件音量键联动，
+不引第三方依赖）；**iOS**（系统限制代码改音量）与**桌面**回退到播放器自身音量。
+
+任意平台都能自己接管——传入 `CallbackVolumePort`，回调收到目标百分比（0–100），
+由你决定怎么落地（例如用自己的系统音量方案）：
+
+```dart
+final engine = createVmEngine(
+  options: options,
+  volume: CallbackVolumePort((percent) => myAudio.setSystemVolume(percent)),
+);
+```
+
+不传回调时，Android 走内置系统音量、其它平台走播放器音量——都无需额外代码。
+
 `SystemChromeOrientationPort` 只处理移动端的方向锁定/沉浸式系统 UI；在
 Windows/macOS/Linux 上没有对应的"真全屏"概念（把 OS 窗口撑满屏幕、去掉标题栏），
 调用 `setFullscreen(true)` 在桌面端不会有可见效果。videoman 不内置窗口管理

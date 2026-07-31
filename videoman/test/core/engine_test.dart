@@ -684,6 +684,48 @@ void main() {
 
     await sub.cancel();
   });
+
+  test('setVolume routes to the kernel when no volume port is wired', () async {
+    await e.setVolume(30);
+    expect(k.calls, contains('setVolume'));
+    expect(e.state.volume, 30);
+  });
+
+  test('setVolume routes to the volume port, not the kernel, when wired', () async {
+    final port = _RecordingVolumePort(current: 100);
+    final k2 = FakeKernel();
+    final e2 = VmEngine(kernel: k2, volume: port);
+    final events = <VmEvent>[];
+    final sub = e2.events.listen(events.add);
+    await e2.setVolume(30);
+    await Future<void>.delayed(Duration.zero); // let the event dispatch
+    expect(port.lastSet, 30);
+    // The kernel's own volume was left untouched (system/host owns volume now).
+    // 内核自身音量未被触碰（音量现在归系统/宿主管）。
+    expect(k2.calls, isNot(contains('setVolume')));
+    expect(e2.state.volume, 30);
+    expect(events.whereType<VmVolumeChanged>().map((e) => e.value), contains(30));
+    await sub.cancel();
+    await e2.dispose();
+  });
+
+  test('a wired volume port seeds the gesture baseline into state.volume', () async {
+    final port = _RecordingVolumePort(current: 45);
+    final e2 = VmEngine(kernel: FakeKernel(), volume: port);
+    // Seeding is async (like the pip probe); let it settle.
+    // 播种是异步的（同 pip 探测），等它落定。
+    await Future<void>.delayed(Duration.zero);
+    expect(e2.state.volume, 45);
+    await e2.dispose();
+  });
+
+  test('CallbackVolumePort forwards set to its callback and reports get', () async {
+    double? seen;
+    final port = CallbackVolumePort((p) => seen = p, onGet: () async => 70);
+    await port.set(55);
+    expect(seen, 55);
+    expect(await port.get(), 70);
+  });
 }
 
 /// A spy [VmOrientationPort] that records every `apply(...)` call's
@@ -742,4 +784,28 @@ class _ThrowingPip implements VmPipPort {
 
   @override
   Future<bool> enter({int? width, int? height}) async => false;
+}
+
+/// A spy [VmVolumePort] that records the last set value and reports a fixed
+/// current level for baseline seeding.
+///
+/// 记录最近一次 set 值、并回报固定当前值供基线播种的 [VmVolumePort] 探针。
+class _RecordingVolumePort implements VmVolumePort {
+  _RecordingVolumePort({required this.current});
+
+  /// The value returned by [get], used as the gesture baseline.
+  ///
+  /// [get] 返回的值，用作手势基线。
+  final double current;
+
+  /// The most recent value passed to [set].
+  ///
+  /// 最近一次传给 [set] 的值。
+  double? lastSet;
+
+  @override
+  Future<double> get() async => current;
+
+  @override
+  Future<void> set(double percent) async => lastSet = percent;
 }

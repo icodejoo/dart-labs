@@ -37,4 +37,16 @@ abstract class VmPlatform extends PlatformInterface {
   ///
   /// 请求系统画中画，可选传入 [width]/[height] 作为宽高比提示。返回是否成功进入。
   Future<bool> enterPip({int? width, int? height}) => Future.value(false);
+
+  /// Reads the system media volume as a percentage in `[0, 100]`, or `null`
+  /// when the platform has no implementation.
+  ///
+  /// 以 `[0, 100]` 百分比读取系统媒体音量；平台无实现时返回 `null`。
+  Future<double?> getSystemVolume() => Future.value(null);
+
+  /// Sets the system media volume to [percent] (`[0, 100]`). Returns whether
+  /// the platform applied it.
+  ///
+  /// 将系统媒体音量设为 [percent]（`[0, 100]`）。返回平台是否应用了该值。
+  Future<bool> setSystemVolume(double percent) => Future.value(false);
 }

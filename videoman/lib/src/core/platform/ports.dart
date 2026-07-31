@@ -29,6 +29,40 @@ abstract class VmBrightnessPort {
   Future<void> set(double value);
 }
 
+/// A port for reading and writing the device's system media volume, as a
+/// percentage in `[0, 100]`.
+///
+/// This is the injection point for "who owns volume". When one is wired
+/// (e.g. by `createVmEngine` on Android, or by a host passing its own), the
+/// volume gesture routes the target percent here instead of touching the
+/// player's own volume — so the gesture drives the real system volume and the
+/// video stays at full player volume. A host that wants full control can pass
+/// a [CallbackVolumePort] and apply the percent however it likes.
+///
+/// 读写设备系统媒体音量的端口，取值为 `[0, 100]` 的百分比。
+///
+/// 这是"音量归谁管"的注入点。接上端口后（如 Android 上由 `createVmEngine`
+/// 接上，或由宿主自带），音量手势会把目标百分比交给这里，而不去动播放器
+/// 自身音量——于是手势驱动的是真实系统音量，视频保持播放器满音量。宿主想
+/// 完全接管，可传 [CallbackVolumePort] 自行处置百分比。
+abstract class VmVolumePort {
+  /// Reads the current volume as a percentage in `[0, 100]`.
+  ///
+  /// 读取当前音量，取值为 `[0, 100]` 的百分比。
+  ///
+  /// Returns the current volume percentage.
+  ///
+  /// 返回当前音量百分比。
+  Future<double> get();
+
+  /// Sets the volume to [percent], a value in `[0, 100]`.
+  ///
+  /// 将音量设置为 [percent]，取值为 `[0, 100]`。
+  ///
+  /// - [percent]: the target volume percentage / 目标音量百分比
+  Future<void> set(double percent);
+}
+
 /// A port for entering system picture-in-picture mode.
 ///
 /// 进入系统画中画模式的端口。
@@ -92,6 +126,69 @@ class FallbackBrightnessPort implements VmBrightnessPort {
 
   @override
   Future<void> set(double value) => Future.value();
+}
+
+/// A zero-dependency [VmVolumePort] fallback that reports full volume and
+/// silently ignores writes.
+///
+/// 零依赖的 [VmVolumePort] 兜底实现：始终报告满音量，写入操作静默忽略。
+class FallbackVolumePort implements VmVolumePort {
+  @override
+  Future<double> get() => Future.value(100);
+
+  @override
+  Future<void> set(double percent) => Future.value();
+}
+
+/// A [VmVolumePort] adapter that forwards writes to a plain callback, so a
+/// host can control volume without implementing the full interface.
+///
+/// Pass `createVmEngine(volume: CallbackVolumePort((percent) => ...))` to take
+/// over volume entirely: the video keeps full player volume while your
+/// callback applies [percent] (e.g. to the OS media volume). Supply [onGet] if
+/// you can report the current level back; otherwise the gesture baseline
+/// starts from 100.
+///
+/// 把写入转发给一个普通回调的 [VmVolumePort] 适配器，宿主无需实现整个接口即可
+/// 接管音量。
+///
+/// 传 `createVmEngine(volume: CallbackVolumePort((percent) => ...))` 即可完全
+/// 接管：视频保持播放器满音量，你的回调负责应用 [percent]（例如写系统媒体
+/// 音量）。若能回报当前音量，传入 [onGet]；否则手势基线从 100 起算。
+///
+/// Example / 示例:
+/// ```dart
+/// final engine = createVmEngine(
+///   options: options,
+///   volume: CallbackVolumePort((percent) => MyAudio.setSystemVolume(percent)),
+/// );
+/// ```
+class CallbackVolumePort implements VmVolumePort {
+  /// Creates a callback-backed volume port.
+  ///
+  /// [onSet] receives the target percentage on every change; [onGet] optionally
+  /// reports the current level for the gesture baseline.
+  ///
+  /// 创建以回调为后端的音量端口。
+  ///
+  /// [onSet] 在每次变化时收到目标百分比；[onGet] 可选地回报当前音量用作手势基线。
+  const CallbackVolumePort(this.onSet, {this.onGet});
+
+  /// The sink applied on every volume change, in `[0, 100]`.
+  ///
+  /// 每次音量变化时调用的回调，取值 `[0, 100]`。
+  final void Function(double percent) onSet;
+
+  /// Optional reader for the current volume; defaults to reporting 100.
+  ///
+  /// 可选的当前音量读取器；默认回报 100。
+  final Future<double> Function()? onGet;
+
+  @override
+  Future<double> get() => onGet?.call() ?? Future.value(100);
+
+  @override
+  Future<void> set(double percent) async => onSet(percent);
 }
 
 /// A zero-dependency [VmPipPort] no-op that reports PiP as unsupported.
