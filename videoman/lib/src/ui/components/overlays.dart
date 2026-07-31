@@ -4,7 +4,6 @@ import '../../core/api.dart';
 import '../scope/selector.dart';
 import '../slots/component.dart';
 import '../slots/slot.dart';
-import 'common.dart';
 
 /// Buffering spinner overlay; shown only while [VmState.buffering] is true.
 ///
@@ -99,27 +98,16 @@ class ErrorComponent extends VmComponent {
 
 /// Full-size tap-swallowing mask shown while [VmState.locked] is true.
 ///
-/// SCOPE NOTE: this deliberately does not reproduce 0.1.0's richer lock flow
-/// (tap-while-locked flashing a temporary unlock button that auto-hides) —
-/// that UX is deferred to later polish. This component only absorbs taps so
-/// gestures/buttons underneath do not receive them while locked; when not
-/// locked it renders nothing.
+/// Only absorbs taps so gestures/buttons underneath don't receive them while
+/// locked; when not locked it renders nothing. The unlock affordance itself
+/// is a separate, always-on-top layer (see [VmDefaultSkin.assemble]) so it
+/// can never end up underneath this mask regardless of slot/stacking order.
 ///
-/// [VmState.locked] 为真时显示的全尺寸吞点击遮罩，并叠加一个解锁按钮。
+/// [VmState.locked] 为真时显示的全尺寸吞点击遮罩。
 ///
-/// Every other component is hidden while locked (see [VmDefaultSkin.assemble]),
-/// so this is the *only* interactive element left on screen — it renders its
-/// own unlock button rather than relying on `LockButtonComponent` in the
-/// (hidden) top bar, and being in [VmSlot.overlay] — the top-most layer —
-/// guarantees the button is never covered by the opaque tap-absorbing mask
-/// underneath it.
-///
-/// [VmState.locked] 为真时显示的全尺寸吞点击遮罩，并叠加解锁按钮。
-///
-/// 锁定期间其余组件全部隐藏（见 [VmDefaultSkin.assemble]），因此这是屏幕上
-/// **唯一**可交互的元素——它自带解锁按钮，而不依赖（已隐藏的）顶栏
-/// `LockButtonComponent`；且身处 [VmSlot.overlay]（最上层），保证按钮绝不会
-/// 被下方吞点击的不透明遮罩盖住。
+/// 只负责吞掉点击，使下层手势/按钮在锁定期间收不到事件；未锁定时不渲染任何
+/// 内容。解锁入口本身是独立的、恒定处于最上层的一层（见
+/// [VmDefaultSkin.assemble]），因此无论槽位/层叠顺序如何，都不会被本遮罩盖住。
 class LockMaskComponent extends VmComponent {
   /// Creates the lock-mask leaf component.
   ///
@@ -134,30 +122,14 @@ class LockMaskComponent extends VmComponent {
 
   @override
   Widget build(BuildContext context, VmApi api, List<Widget> children) {
-    final theme = api.options.theme;
     return VmSelector<bool>(
       selector: (s) => s.locked,
       builder: (context, locked) {
         if (!locked) return const SizedBox.shrink();
-        return Stack(
-          children: [
-            GestureDetector(
-              behavior: HitTestBehavior.opaque,
-              onTap: () {},
-              child: const SizedBox.expand(),
-            ),
-            Align(
-              alignment: Alignment.centerRight,
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: VmIconButton(
-                  icon: Icons.lock_rounded,
-                  theme: theme,
-                  onPressed: () => api.setLocked(false),
-                ),
-              ),
-            ),
-          ],
+        return GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onTap: () {},
+          child: const SizedBox.expand(),
         );
       },
     );

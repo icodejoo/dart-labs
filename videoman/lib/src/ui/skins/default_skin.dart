@@ -4,6 +4,7 @@ import '../../core/model/source.dart';
 import '../../core/state/state.dart';
 import '../components/bottom_bar.dart';
 import '../components/center_play.dart';
+import '../components/common.dart';
 import '../components/gesture_layer.dart';
 import '../components/hud_layer.dart';
 import '../components/live_bar.dart';
@@ -97,13 +98,20 @@ class VmDefaultSkin implements VmSkin {
           ),
         ),
         // Always mounted, never gated by _LockedHidden/_PipHidden: it is what
-        // *renders* the lock mask/unlock button and pip-hidden state in the
-        // first place, and stays inert (SizedBox.shrink) on its own when
-        // unlocked.
+        // *renders* the lock mask and pip-hidden state in the first place,
+        // and stays inert (SizedBox.shrink) on its own when unlocked.
         //
         // 恒定挂载，不受 _LockedHidden/_PipHidden 门控：它自己就是负责渲染
-        // 锁定遮罩/解锁按钮的组件，未锁定时自行收缩为空。
+        // 锁定遮罩的组件，未锁定时自行收缩为空。
         Positioned.fill(child: Stack(children: slots[VmSlot.overlay])),
+        // Its own independent, always-on-top layer — deliberately placed
+        // after (i.e. above) the overlay/lock-mask layer in this Stack, so it
+        // can never end up underneath the opaque mask regardless of slot
+        // ordering.
+        //
+        // 独立的一层，恒定处于最上方——刻意排在这个 Stack 里 overlay/锁定遮罩层
+        // 之后（即其上方），因此无论槽位顺序如何都不会被不透明遮罩盖住。
+        const Positioned.fill(child: _UnlockButton()),
       ],
     );
   }
@@ -210,6 +218,48 @@ class _LockedHidden extends StatelessWidget {
     return VmSelector<bool>(
       selector: (s) => s.locked,
       builder: (context, locked) => locked ? const SizedBox.shrink() : child,
+    );
+  }
+}
+
+/// The unlock button shown while [VmState.locked] is true.
+///
+/// Kept as its own top-most [Stack] entry in [VmDefaultSkin.assemble] —
+/// deliberately not part of [LockMaskComponent] or any slot-addressed
+/// component — so it structurally can never end up underneath the opaque
+/// tap-absorbing lock mask, regardless of slot/patch ordering. Renders
+/// nothing while unlocked.
+///
+/// [VmState.locked] 为真时显示的解锁按钮。
+///
+/// 在 [VmDefaultSkin.assemble] 里作为独立的、恒定处于最上层的 [Stack] 条目——
+/// 刻意不归入 [LockMaskComponent] 或任何按槽位寻址的组件，因此无论槽位/补丁
+/// 顺序如何，结构上都不可能被不透明的锁定遮罩盖住。未锁定时不渲染任何内容。
+class _UnlockButton extends StatelessWidget {
+  /// Creates the unlock-button layer.
+  ///
+  /// 创建解锁按钮层。
+  const _UnlockButton();
+
+  @override
+  Widget build(BuildContext context) {
+    final api = VmScope.of(context);
+    return VmSelector<bool>(
+      selector: (s) => s.locked,
+      builder: (context, locked) {
+        if (!locked) return const SizedBox.shrink();
+        return Align(
+          alignment: Alignment.centerRight,
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: VmIconButton(
+              icon: Icons.lock_rounded,
+              theme: api.options.theme,
+              onPressed: () => api.setLocked(false),
+            ),
+          ),
+        );
+      },
     );
   }
 }
