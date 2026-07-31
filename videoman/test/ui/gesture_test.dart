@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:videoman/src/core/model/source.dart';
+import 'package:videoman/src/core/options/options.dart';
 import 'package:videoman/src/core/state/state.dart';
 import 'package:videoman/src/ui/components/gesture_layer.dart';
 
@@ -70,5 +71,49 @@ void main() {
     await t.pumpAndSettle();
     expect(api.calls, contains('seek'));
     await api.dispose();
+  });
+
+  testWidgets('allowWhenLive=false blocks seeking even when liveSeekable', (t) async {
+    final api = FakeVmApi(
+      options: const VmOptions(gesture: VmGestureConfig(allowWhenLive: false)),
+    );
+    api.push(const VmState(
+      type: VmStreamType.live,
+      liveSeekable: true,
+      seekableWindow: Duration(seconds: 300),
+    ));
+    await pumpComponent(t, api, GestureLayerComponent());
+    await t.dragFrom(t.getCenter(find.byType(GestureDetector)), const Offset(100, 0));
+    await t.pumpAndSettle();
+    expect(api.calls, isNot(contains('seek')));
+    await api.dispose();
+  });
+
+  testWidgets('double tap seeks a seekable live stream and is blocked otherwise', (t) async {
+    final seekable = FakeVmApi();
+    seekable.push(const VmState(
+      type: VmStreamType.live,
+      liveSeekable: true,
+      seekableWindow: Duration(minutes: 5),
+    ));
+    await pumpComponent(t, seekable, GestureLayerComponent());
+    final center = t.getCenter(find.byType(GestureDetector));
+    await t.tapAt(center);
+    await t.pump(const Duration(milliseconds: 50));
+    await t.tapAt(center);
+    await t.pumpAndSettle();
+    expect(seekable.calls, contains('seek'));
+    await seekable.dispose();
+
+    final blocked = FakeVmApi();
+    blocked.push(const VmState(type: VmStreamType.live, liveSeekable: false));
+    await pumpComponent(t, blocked, GestureLayerComponent());
+    final center2 = t.getCenter(find.byType(GestureDetector));
+    await t.tapAt(center2);
+    await t.pump(const Duration(milliseconds: 50));
+    await t.tapAt(center2);
+    await t.pumpAndSettle();
+    expect(blocked.calls, isNot(contains('seek')));
+    await blocked.dispose();
   });
 }
