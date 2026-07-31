@@ -870,7 +870,7 @@ git commit -m "feat(videoman): add thumbnail models and FNV-1a cache-key hashing
 - Consumes: `VmThumbCue`, `VmThumbCrop`, `VmThumbIndex`（Task 2）
 - Produces: `VmThumbIndex parseVttThumbs(String content, {required Uri base})`
 
-- [ ] **Step 1: 写失败测试 `test/core/preview/vtt_test.dart`**
+- [x] **Step 1: 写失败测试 `test/core/preview/vtt_test.dart`**
 
 ```dart
 import 'package:flutter_test/flutter_test.dart';
@@ -991,12 +991,12 @@ void main() {
 }
 ```
 
-- [ ] **Step 2: 跑测试确认失败**
+- [x] **Step 2: 跑测试确认失败**
 
 Run: `flutter test test/core/preview/vtt_test.dart`
 Expected: FAIL — `Error when reading 'lib/src/core/preview/vtt.dart': No such file or directory`
 
-- [ ] **Step 3: 实现 `lib/src/core/preview/vtt.dart`**
+- [x] **Step 3: 实现 `lib/src/core/preview/vtt.dart`**
 
 ```dart
 import 'models.dart';
@@ -1114,7 +1114,7 @@ VmThumbIndex parseVttThumbs(String content, {required Uri base}) {
 }
 ```
 
-- [ ] **Step 4: barrel 增补导出**
+- [x] **Step 4: barrel 增补导出**
 
 `lib/videoman.dart` 在 `export 'src/core/preview/models.dart';` 之后插入：
 
@@ -1122,12 +1122,12 @@ VmThumbIndex parseVttThumbs(String content, {required Uri base}) {
 export 'src/core/preview/vtt.dart';
 ```
 
-- [ ] **Step 5: 跑测试确认通过**
+- [x] **Step 5: 跑测试确认通过**
 
 Run: `flutter test test/core/preview/vtt_test.dart && flutter analyze`
 Expected: 9 项 PASS，analyze 0 issues
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add -A
