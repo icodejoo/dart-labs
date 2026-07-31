@@ -3,6 +3,18 @@
 在 videoman 子工程内工作时的指引。详见 [doc/PRD.md](doc/PRD.md)（需求/决策）、
 [doc/SPEC.md](doc/SPEC.md)（架构/实现/命令/验证缺口）、[doc/ROADMAP.md](doc/ROADMAP.md)（里程碑）。
 
+> **换机器接手先读这三条**
+>
+> 1. **构造 engine 一律用 `createVmEngine()`**（`lib/src/platform_impl/wiring.dart`，已从
+>    barrel 导出），**不要直接 `VmEngine()`**——后者的平台端口默认是 noop，会导致亮度手势
+>    不生效、`enterPip()` 恒 false、全屏不转屏。`VmEngine()` 保留裸构造只为单测注入假端口。
+> 2. **[doc/DESIGN-0.2.0.md](doc/DESIGN-0.2.0.md) 有约 10 处已过期**（阶段 A 落地后未回写：
+>    kernel 签名、`VmState.sourceTitle`、`VmApi.renderHandle`、`VmAbrPolicy` 落点、
+>    sha1→FNV-1a，以及 4 处为守住 core 纯净性而必须挪到 `platform_impl/` 的结构调整）。
+>    **设计意图看 DESIGN，签名与落点一律以代码和 [doc/SPEC.md](doc/SPEC.md) 末节为准。**
+> 3. **阶段 B/C/D 的逐 Task 实现计划已就绪**，见 [doc/plans/](doc/plans/)。计划已按上述
+>    两点对齐过，可直接按 Task 顺序执行。
+
 ## 是什么
 
 基于 media_kit（libmpv/ffmpeg）的 Flutter 视频播放插件，自研手势与控制层，
@@ -17,17 +29,35 @@
 拦截点（`VmInterceptor`）。`flutter analyze` 0 issues，测试全绿，
 `flutter pub publish --dry-run` 0 warnings（详见 doc/SPEC.md）。
 
-## 剩余任务（在此机器继续时先看 doc/SPEC.md 末节）
+## 剩余任务
 
-按 doc/DESIGN-0.2.0.md §12 的阶段划分：
+按 doc/DESIGN-0.2.0.md §12 的阶段划分。**逐 Task 计划已写好，直接照做即可**：
 
-1. **阶段 B：拖动预览缩略图——未开始**。`preview/` 全套（抽帧/缓存/网络策略）+
-   `preview` 组件；第一步先实测 `screenshot-raw` 分辨率语义（DESIGN §7.3、§11 风险表）。
-2. **阶段 C：直播时移——未开始**。`live/timeshift.dart` 窗口/behind 纯函数 +
-   `liveBadge`/`timeshift`/`backToLive` 组件 + 手势门控。
-3. **阶段 D：收尾——未开始**。README/CHANGELOG/example 三个 demo（VOD/直播/时移）、
-   真机一轮验证（手势手感、HLS 联网切档、Android PiP 实际行为、iOS 整体，均承自
-   0.1.0 仍未验证）、发布 0.2.0。
+1. **阶段 B：拖动预览缩略图——未开始**。计划：
+   [doc/plans/2026-07-31-phase-b-preview.md](doc/plans/2026-07-31-phase-b-preview.md)
+   （15 Task）。**Task 1 是必须先跑的实测 spike**：libmpv `screenshot-raw` 返回原始
+   分辨率还是窗口分辨率，决定 `vf=scale` 抽帧缩放路线成不成立（DESIGN §11 头号风险）。
+   spike 是非交互自报告式，`flutter run -d windows -t <spike>` 读 stdout 的
+   `=== VERDICT: ... ===` 行即可判定；Task 2+ 依赖该结论。
+2. **阶段 C：直播时移——未开始**。计划：
+   [doc/plans/2026-07-31-phase-c-timeshift.md](doc/plans/2026-07-31-phase-c-timeshift.md)
+   （Task 1–9）。注意含一处破坏性变更：现有 `backToEdge` 组件（调 `reload()`）要改名
+   `backToLive` 并改语义，会破坏 patch 路径 `bottomBar/backToEdge`。
+3. **阶段 D：收尾——未开始**。同上文件的 Task 10–14：iOS podspec 元数据（仍是 Flutter
+   模板占位）、example 三个 demo、README/CHANGELOG/SPEC 更新、`pub publish --dry-run`、
+   **真机一轮验证**（手势手感、HLS 联网切档、Android PiP 实际行为、iOS 整体；均承自 0.1.0
+   仍未验证，且阶段 A 重构本身也从未上过真机）。
+
+**承自 fvideo（改名前）、排在 0.2.0 之后**——videoman 就是 fvideo，遗留任务全部承接：
+
+4. **二期 ffmpeg 瘦身（LGPL）——未开始**：自建 libmpv/ffmpeg 裁剪 demuxer/decoder，
+   替换 `media_kit_libs_video`；构建卡 LGPL，避开 GPL-only 组件。
+5. **iOS PiP 未实现**：当前返回不支持（libmpv 纹理限制）；评估
+   AVSampleBufferDisplayLayer 或应用内悬浮窗降级。
+
+**阶段 A 遗留的小尾巴**：`VmApi` 缺同步 PiP 能力查询，`PipButtonComponent` 在不支持的
+平台（桌面）渲染成死按钮（0.1.0 会隐藏）。已排进阶段 C Task 8；临时规避用
+`VmPatch.remove('topBar/pipButton')`。
 
 ## 约定
 

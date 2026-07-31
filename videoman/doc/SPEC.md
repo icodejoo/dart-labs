@@ -198,6 +198,10 @@ flutter pub publish --dry-run                     # 发布校验
   `lib/src/ui/slots/tree.dart` 的 `applyPatches()` 实现与
   `test/ui/tree_test.dart` 为准。
 
-关于 ffmpeg 瘦身（LGPL）与 iOS PiP：那是姊妹项目 `fvideo`
-（`dart-labs/fvideo`）0.1.0 的遗留任务，videoman 是独立重构项目，
-**不承接** fvideo 的剩余任务列表；videoman 自身尚无 ffmpeg 定制计划。
+关于 ffmpeg 瘦身（LGPL）与 iOS PiP：videoman 就是 `fvideo` 改名/重构而来的
+同一个工程，**fvideo 的遗留任务就是 videoman 的任务**，全部承接：
+
+- **二期 ffmpeg 瘦身（LGPL）——未开始**，独立里程碑，排在 0.2.0（阶段 A–D）之后。
+- **iOS PiP 未实现**（libmpv 纹理限制，当前返回不支持），同样未取消，只是延后。
+- **真机未验证**（手势手感、HLS 联网切档、Android PiP 实际行为、iOS 整体播放）
+  承自 0.1.0，并入阶段 D 一并验证。
