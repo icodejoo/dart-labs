@@ -4,7 +4,7 @@
 #
 Pod::Spec.new do |s|
   s.name             = 'videoman'
-  s.version          = '0.2.0'
+  s.version          = '0.3.0'
   s.summary          = 'media_kit (libmpv/ffmpeg) video player plugin with a self-built gesture and controls layer.'
   s.description      = <<-DESC
 A Flutter video player plugin built on media_kit (libmpv/ffmpeg): custom gesture
