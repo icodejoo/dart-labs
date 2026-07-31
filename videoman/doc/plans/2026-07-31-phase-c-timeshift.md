@@ -2389,7 +2389,7 @@ DESIGN §12 阶段 D：「example 三个 demo（VOD/直播/时移）」。现在
   `VmLiveSeekMode`、`VmTimeshiftBuilder`
 - Produces: example 里五个入口（原三个 + 直播 + 时移），每个 demo 带自己的 `VmOptions`
 
-- [ ] **Step 1: 让每个 demo 能带自己的 options**
+- [x] **Step 1: 让每个 demo 能带自己的 options**
 
 `example/lib/main.dart` 的 `_Demo` 类加一个字段：
 
@@ -2420,7 +2420,7 @@ class _Demo {
 }
 ```
 
-- [ ] **Step 2: 加直播与时移两个入口**
+- [x] **Step 2: 加直播与时移两个入口**
 
 `_demos` 列表末尾追加两项（前三项保持原样，只是现在都用默认 `options`）：
 
@@ -2463,7 +2463,7 @@ class _Demo {
 > 时移 demo 的 `urlBuilder` **不会**真的换出可播的流——这是预期行为，Task 14 的核对项写明
 > 「时移入口只验证 UI 与事件流，不验证画面」。
 
-- [ ] **Step 3: 切换 demo 时重建 engine**
+- [x] **Step 3: 切换 demo 时重建 engine**
 
 `options` 是构造期参数，切 demo 必须重建 engine。example 已经在用
 `createVmEngine()`（`_engine = createVmEngine();`，装好了真实的 brightness/PiP/orientation
@@ -2502,7 +2502,7 @@ class _Demo {
 > 若阶段 B 已落地，`createVmEngine()` 还会多接好预览相关的端口（缩略图目录/抽帧器），
 > 与这里的直播 `options` 互不冲突，不需要额外处理。
 
-- [ ] **Step 4: 校验**
+- [x] **Step 4: 校验**
 
 Run: `flutter analyze`
 Expected: 0 issues
@@ -2514,7 +2514,7 @@ Run: `cd example && flutter run -d windows`
 核对：五个入口都能切换、切换不崩、直播入口底栏出现进度条与 `LIVE` 角标、
 拖动直播进度条后角标变灰显示`时移`并出现 `-MM:SS`、点回直播按钮角标变回红色。
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add -A

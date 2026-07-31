@@ -25,19 +25,37 @@ class MyApp extends StatelessWidget {
   }
 }
 
-/// A demo source with a display name.
+/// A demo source with a display name and the options it needs.
 ///
-/// 带显示名的演示源。
+/// 带显示名与所需配置的演示源。
 class _Demo {
+  /// Label shown in the app bar.
+  ///
+  /// 应用栏上显示的名称。
   final String name;
+
+  /// The media source this entry plays.
+  ///
+  /// 该入口播放的媒体源。
   final VmSource source;
-  const _Demo(this.name, this.source);
+
+  /// Player options this entry needs (live mode, timeshift builder, …).
+  ///
+  /// 该入口所需的播放器配置（直播模式、时移地址构造器等）。
+  final VmOptions options;
+
+  /// Creates a demo entry.
+  ///
+  /// 创建一个演示入口。
+  const _Demo(this.name, this.source, {this.options = const VmOptions()});
 }
 
-/// The demo sources: a plain VOD mp4 and a multi-quality HLS stream.
+/// The demo sources: VOD mp4, multi-quality HLS, a custom-skin variant, a
+/// DVR-seekable live stream, and a time-shift (reopen-on-seek) live stream.
 ///
-/// 演示源：普通点播 mp4 与含多清晰度的 HLS 流。
-const _demos = [
+/// 演示源：点播 mp4、多清晰度 HLS、自定义皮肤变体、DVR 可拖直播、
+/// 时移（拖动即换源）直播。
+final _demos = [
   _Demo(
     'VOD · mp4',
     VmSource(
@@ -57,6 +75,39 @@ const _demos = [
     VmSource(
       'https://user-images.githubusercontent.com/28951144/229373695-22f88f13-d18f-4288-9bf1-c3e078d83722.mp4',
       title: '自定义皮肤示例',
+    ),
+  ),
+  _Demo(
+    '直播 · DVR 可拖',
+    VmSource(
+      'https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8',
+      type: VmStreamType.live,
+      title: '直播（DVR 窗口内可回看）',
+    ),
+    options: const VmOptions(
+      live: VmLiveConfig(seekMode: VmLiveSeekMode.dvr),
+    ),
+  ),
+  _Demo(
+    '直播 · 时移换源',
+    VmSource(
+      'https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8',
+      type: VmStreamType.live,
+      title: '直播（时移：拖动即换源）',
+    ),
+    options: VmOptions(
+      live: VmLiveConfig(
+        seekMode: VmLiveSeekMode.timeshift,
+        dvrWindow: const Duration(minutes: 10),
+        // Demo-only: this public test stream has no timeshift endpoint, so the
+        // builder just appends a query the server ignores. It exists to show
+        // *where* a real deployment plugs its own URL scheme in.
+        //
+        // 仅用于演示：这个公开测试流没有时移接口，构造器只是拼一个服务端会忽略
+        // 的查询参数。它的意义是展示真实部署应当在**哪里**接入自己的地址方案。
+        urlBuilder: (uri, behind, wallClock) =>
+            '$uri?begin=${wallClock.subtract(behind).millisecondsSinceEpoch}',
+      ),
     ),
   ),
 ];
@@ -102,19 +153,27 @@ class _PlayerPageState extends State<PlayerPage> {
   @override
   void initState() {
     super.initState();
-    // The demo runs on desktop/emulator over whatever connection is
-    // available, so the preview network policy is relaxed to `always`;
-    // production defaults to `wifiOnly`.
-    //
-    // demo 在桌面/模拟器上跑，网络类型不确定，故把预览网络策略放宽为
-    // `always`；生产环境默认是 `wifiOnly`。
-    _engine = createVmEngine(
-      options: const VmOptions(
-        preview: VmPreviewConfig(network: VmPreviewNetwork.always),
-      ),
-    );
+    _engine = createVmEngine(options: _optionsFor(_index));
     _engine.open(_demos[_index].source);
   }
+
+  /// Builds the effective options for demo [i]: that demo's own `options`
+  /// (live mode, timeshift builder, …) with the preview section overridden to
+  /// respect [_previewOn] and relax the network policy for desktop/emulator
+  /// use, where the connection type is unknown; production defaults to
+  /// `wifiOnly`.
+  ///
+  /// 构建第 [i] 个演示的生效配置：该演示自身的 `options`（直播模式、时移地址
+  /// 构造器等），并覆盖预览一节以遵循 [_previewOn]、放宽桌面/模拟器场景下
+  /// 未知的网络策略；生产环境默认是 `wifiOnly`。
+  ///
+  /// - [i]: index into [_demos] / [_demos] 下标
+  VmOptions _optionsFor(int i) => _demos[i].options.copyWith(
+        preview: VmPreviewConfig(
+          enabled: _previewOn,
+          network: VmPreviewNetwork.always,
+        ),
+      );
 
   /// Rebuilds the engine with preview switched to [on], reopening the current
   /// demo source.
@@ -126,14 +185,7 @@ class _PlayerPageState extends State<PlayerPage> {
     final old = _engine;
     setState(() {
       _previewOn = on;
-      _engine = createVmEngine(
-        options: VmOptions(
-          preview: VmPreviewConfig(
-            enabled: on,
-            network: VmPreviewNetwork.always,
-          ),
-        ),
-      );
+      _engine = createVmEngine(options: _optionsFor(_index));
     });
     await old.dispose();
     await _engine.open(_demos[_index].source);
@@ -145,11 +197,19 @@ class _PlayerPageState extends State<PlayerPage> {
     super.dispose();
   }
 
-  /// Switches to demo source [i] and reloads its qualities.
+  /// Switches to demo source [i], rebuilding the engine because options are
+  /// construction-time.
   ///
-  /// 切换到第 [i] 个演示源并重新加载其清晰度。
+  /// 切换到第 [i] 个演示源；因为配置是构造期参数，需要重建 engine。
+  ///
+  /// - [i]: index into the demo list / 演示列表下标
   Future<void> _switch(int i) async {
-    setState(() => _index = i);
+    final old = _engine;
+    setState(() {
+      _index = i;
+      _engine = createVmEngine(options: _optionsFor(i));
+    });
+    await old.dispose();
     await _engine.open(_demos[i].source);
     await _engine.loadQualities();
     if (mounted) setState(() {});
