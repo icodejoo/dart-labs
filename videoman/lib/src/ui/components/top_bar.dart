@@ -43,7 +43,6 @@ class TopBarComponent extends VmComponent {
         QualityButtonComponent(),
         FitButtonComponent(),
         FullscreenButtonComponent(),
-        LockButtonComponent(),
       ];
 
   @override
@@ -302,33 +301,3 @@ class FullscreenButtonComponent extends VmComponent {
   }
 }
 
-/// Lock toggle button; icon reflects [VmState.locked].
-///
-/// 锁定切换按钮；图标反映 [VmState.locked]。
-class LockButtonComponent extends VmComponent {
-  /// Creates the lock-button leaf component.
-  ///
-  /// 创建锁定按钮叶子组件。
-  LockButtonComponent();
-
-  @override
-  String get name => 'lockButton';
-
-  @override
-  VmSlot get slot => VmSlot.top;
-
-  @override
-  Widget build(BuildContext context, VmApi api, List<Widget> children) {
-    final theme = api.options.theme;
-    return VmSelector<bool>(
-      selector: (s) => s.locked,
-      builder: (context, locked) {
-        return VmIconButton(
-          icon: locked ? Icons.lock_rounded : Icons.lock_open_rounded,
-          theme: theme,
-          onPressed: () => api.setLocked(!locked),
-        );
-      },
-    );
-  }
-}

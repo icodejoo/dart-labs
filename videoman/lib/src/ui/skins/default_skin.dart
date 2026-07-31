@@ -111,7 +111,7 @@ class VmDefaultSkin implements VmSkin {
         //
         // 独立的一层，恒定处于最上方——刻意排在这个 Stack 里 overlay/锁定遮罩层
         // 之后（即其上方），因此无论槽位顺序如何都不会被不透明遮罩盖住。
-        const Positioned.fill(child: _UnlockButton()),
+        const Positioned.fill(child: _LockToggleButton()),
       ],
     );
   }
@@ -222,24 +222,25 @@ class _LockedHidden extends StatelessWidget {
   }
 }
 
-/// The unlock button shown while [VmState.locked] is true.
+/// The single lock/unlock toggle button, in both directions.
 ///
 /// Kept as its own top-most [Stack] entry in [VmDefaultSkin.assemble] —
-/// deliberately not part of [LockMaskComponent] or any slot-addressed
-/// component — so it structurally can never end up underneath the opaque
-/// tap-absorbing lock mask, regardless of slot/patch ordering. Renders
-/// nothing while unlocked.
+/// deliberately not part of the (hidden-while-locked) top bar or
+/// [LockMaskComponent] — so the same one button handles both "lock" (normal
+/// playback) and "unlock" (locked) without ever risking being covered by the
+/// opaque tap-absorbing lock mask, regardless of slot/patch ordering.
 ///
-/// [VmState.locked] 为真时显示的解锁按钮。
+/// 唯一的锁定/解锁切换按钮，两个方向共用同一个组件。
 ///
 /// 在 [VmDefaultSkin.assemble] 里作为独立的、恒定处于最上层的 [Stack] 条目——
-/// 刻意不归入 [LockMaskComponent] 或任何按槽位寻址的组件，因此无论槽位/补丁
-/// 顺序如何，结构上都不可能被不透明的锁定遮罩盖住。未锁定时不渲染任何内容。
-class _UnlockButton extends StatelessWidget {
-  /// Creates the unlock-button layer.
+/// 刻意不归入（锁定时隐藏的）顶栏或 [LockMaskComponent]，因此"锁定"（正常播放
+/// 态）与"解锁"（锁定态）由同一个按钮处理，且无论槽位/补丁顺序如何，都不会
+/// 被不透明的锁定遮罩盖住。
+class _LockToggleButton extends StatelessWidget {
+  /// Creates the lock-toggle layer.
   ///
-  /// 创建解锁按钮层。
-  const _UnlockButton();
+  /// 创建锁定切换按钮层。
+  const _LockToggleButton();
 
   @override
   Widget build(BuildContext context) {
@@ -247,15 +248,14 @@ class _UnlockButton extends StatelessWidget {
     return VmSelector<bool>(
       selector: (s) => s.locked,
       builder: (context, locked) {
-        if (!locked) return const SizedBox.shrink();
         return Align(
           alignment: Alignment.centerRight,
           child: Padding(
             padding: const EdgeInsets.all(16),
             child: VmIconButton(
-              icon: Icons.lock_rounded,
+              icon: locked ? Icons.lock_rounded : Icons.lock_open_rounded,
               theme: api.options.theme,
-              onPressed: () => api.setLocked(false),
+              onPressed: () => api.setLocked(!locked),
             ),
           ),
         );
