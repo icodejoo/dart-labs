@@ -95,6 +95,11 @@ import Flutter widget 与直接依赖 `VmApi` 的地方。
   `left`/`right`（0.3.0 新增的左右垂直边带，供侧栏等；HUD 维持居中不落两侧）。
 - `VmDefaultSkin.assemble` 是三层骨架（播放/操作/常驻），0.3.0 起拆为受保护的
   `buildPlaybackLayer`/`buildOperableLayer`/`buildPersistentLayer`，子类可只覆写一层。
+  三层各自包一层 `RepaintBoundary`：操作层重绘最频繁（进度条 tick/HUD 淡出/栏显隐
+  动画），隔离后不牵连播放层（视频画面）与常驻层一起重新光栅化，反之亦然；对宿主
+  App 也一样，外部重绘不会牵连进这棵子树。`test/ui/skin_test.dart` 用
+  `find.descendant(of: find.byType(VmScope), ...)` 断言恰好 3 个（不能用全局
+  `find.byType(RepaintBoundary)`——`MaterialApp`/测试绑定在外层还有框架级的）。
 - `VmPatch` 是数据不是动作，只有 `applyPatches()` 解释它们（纯函数、可测）：
   - `VmPatch.replace(path, component)`：整替换一个节点。
   - `VmPatch.remove(path)`：移除一个节点（顶层或嵌套）。
@@ -290,7 +295,11 @@ flutter pub publish --dry-run                     # 发布校验
    `flutter pub publish --dry-run` 待最终校验；**真机一轮验证仍未做**
    （手势手感、HLS 联网切档、Android PiP 实际行为、iOS 整体播放、直播时移
    UI，均承自 0.1.0 尚未在真机验证，且本次 core/ui 重构与预览/时移两个新功能
-   也从未上过真机——见文末「真机验证结果」一节）。
+   也从未上过真机——见文末「真机验证结果」一节）。**新增验证项**：iOS
+   低端/老旧机型上 Flutter `Texture` 更新已知会阻塞 raster 线程的 bug
+   （老设备上曾报告直接冻屏，`flutter/flutter#86613`）——videoman 目前
+   连普通 iOS 真机都未跑过，这条要专挑一台老机型单独测，不能假设新 iPhone
+   跑通就代表没这问题。
 
 **未来项（未排期，见 PRD ADR）**：实时语音转文字字幕 + AI MCP 集成钩子——两条均为条件性/
 投机性的前瞻记录，非本阶段（B/C/D）范围，详见 [doc/PRD.md](PRD.md) 非功能需求/决策记录。

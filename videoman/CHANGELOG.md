@@ -32,6 +32,11 @@ UI 插件化：把 0.2.0 已有的组件树/皮肤/补丁沉淀为 **Plugin / Co
   （name `orientationButton`，全屏按钮左侧），仅移动端渲染、点击横↔竖切换，可用
   `VmPatch.remove('topBar/orientationButton')` 移除。`VmOrientationPort.apply` 增
   `orientation` 参入（内部端口签名变更）。
+* **渲染性能：三层各自 `RepaintBoundary` 隔离**：`VmDefaultSkin.assemble` 的播放层/
+  操作层/常驻层各包一层 `RepaintBoundary`。操作层重绘最频繁（进度条 tick、HUD 淡出、
+  栏显隐动画），隔离后不会连带播放层（视频画面）与常驻层（锁定切换）一起重新
+  光栅化，反之亦然；对宿主 App 也一样——外部重绘不会牵连进这棵子树。纯内部渲染优化，
+  无公开 API 变化。
 
 ## 0.2.0
 

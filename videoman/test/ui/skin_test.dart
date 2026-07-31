@@ -83,6 +83,39 @@ void main() {
     await api.dispose();
   });
 
+  // Regression: each of the three assembled layers must sit behind its own
+  // RepaintBoundary, so the operable layer's frequent repaints (seek-bar
+  // ticks, HUD fades) never force the playback/persistent layers to
+  // re-raster alongside it, and vice versa.
+  //
+  // 回归测试：三层各自都要有独立的 RepaintBoundary，使操作层的频繁重绘（进度条
+  // tick、HUD 淡出）不会连带播放层/常驻层一起重新光栅化，反之亦然。
+  testWidgets('assemble isolates each of the three layers with a RepaintBoundary', (t) async {
+    final api = FakeVmApi();
+    const skin = VmDefaultSkin();
+    await t.pumpWidget(MaterialApp(
+      home: VmScope(
+        api: api,
+        child: Builder(builder: (c) {
+          final bundle = buildSlots(c, api, skin.components());
+          return skin.assemble(c, bundle, const ColoredBox(color: Color(0xFF000000)));
+        }),
+      ),
+    ));
+    // Scoped to descendants of VmScope: MaterialApp/the test binding add
+    // their own framework-level RepaintBoundarys above it (root view,
+    // Navigator overlay), which a global find.byType would also pick up.
+    //
+    // 限定在 VmScope 的后代范围内：MaterialApp/测试绑定会在它外层再加自己的
+    // 框架级 RepaintBoundary（根视图、Navigator overlay），全局 find.byType
+    // 会把那些也算进去。
+    expect(
+      find.descendant(of: find.byType(VmScope), matching: find.byType(RepaintBoundary)),
+      findsNWidgets(3),
+    );
+    await api.dispose();
+  });
+
   test('the default tree mounts the preview bubble in the bottomAbove slot', () {
     final tree = const VmDefaultSkin().components();
     final preview = tree.firstWhere((c) => c.name == 'preview');
