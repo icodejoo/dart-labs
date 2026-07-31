@@ -82,11 +82,15 @@ class _VmPlayerState extends State<VmPlayer> {
   Widget build(BuildContext context) {
     return VmScope(
       api: widget.api,
-      child: StreamBuilder<Object>(
-        stream: widget.api.states,
-        initialData: widget.api.state,
-        builder: (context, snapshot) {
-          final tree = widget.skin.components(widget.api.state);
+      // The tree is static (components() no longer varies by state) — build it
+      // once here rather than rebuilding the whole tree on every state change;
+      // reactivity lives inside the components' own VmSelectors.
+      //
+      // 组件树是静态的（components() 不再随状态变化）——在此只构建一次，而非
+      // 每次状态变化都重建整棵树；响应式都在组件自身的 VmSelector 里。
+      child: Builder(
+        builder: (context) {
+          final tree = widget.skin.components();
           final bundle = buildSlots(context, widget.api, tree);
           return widget.skin.assemble(context, bundle, const _RenderSurface());
         },

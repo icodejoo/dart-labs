@@ -11,16 +11,27 @@ import '../slots/component.dart';
 import '../slots/slot.dart';
 import 'common.dart';
 
-/// Composite component for the VOD bottom control bar: elapsed-time label,
-/// the seek slider (expanded), then total-duration label — matching 0.1.0's
-/// `_bottomBar()` row order.
+/// Adaptive composite for the bottom control bar, serving both VOD and live
+/// from one static node. It exposes the *union* of both layouts' children in a
+/// fixed order (so patch paths never shift) and lays out only the ones
+/// relevant to the current [VmState.type] — the rest are simply not placed,
+/// and thus never mounted.
 ///
-/// 点播底部控制条组合组件：已播放时间标签、进度滑块（撑开）、总时长标签，
-/// 行序对齐 0.1.0 的 `_bottomBar()`。
+/// - VOD: `positionLabel · seekBar(expanded) · durationLabel` (0.1.0 order).
+/// - Live: `liveBadge · seekBar(expanded when seekable, else spacer) ·
+///   timeshift · backToLive` (DESIGN §5.4).
+///
+/// 自适应的底部控制条组合组件，用一个静态节点同时服务点播与直播。它以固定
+/// 顺序暴露两种布局子组件的**并集**（使 patch 路径永不错位），且只布置与当前
+/// [VmState.type] 相关的那些——其余的不放置，因而不会挂载。
+///
+/// - 点播：`positionLabel · seekBar(撑开) · durationLabel`（0.1.0 行序）。
+/// - 直播：`liveBadge · seekBar(可拖时撑开，否则占位) · timeshift · backToLive`
+///   （DESIGN §5.4）。
 class BottomBarComponent extends VmComponent {
-  /// Creates the bottom-bar composite with its 3 fixed children.
+  /// Creates the adaptive bottom-bar composite.
   ///
-  /// 创建带 3 个固定子组件的底栏组合组件。
+  /// 创建自适应底栏组合组件。
   BottomBarComponent();
 
   @override
@@ -31,26 +42,42 @@ class BottomBarComponent extends VmComponent {
 
   @override
   List<VmComponent> get children => [
-        PositionLabelComponent(),
-        SeekBarComponent(),
-        DurationLabelComponent(),
+        PositionLabelComponent(), // 0 VOD
+        LiveBadgeComponent(), // 1 live
+        SeekBarComponent(), // 2 shared
+        TimeshiftLabelComponent(), // 3 live
+        DurationLabelComponent(), // 4 VOD
+        BackToLiveComponent(), // 5 live
       ];
 
   @override
   Widget build(BuildContext context, VmApi api, List<Widget> children) {
     final theme = api.options.theme;
-    return VmGradientBar(
-      top: false,
-      theme: theme,
-      child: Row(
-        children: [
-          const SizedBox(width: 8),
-          children[0],
-          Expanded(child: children[1]),
-          children[2],
-          const SizedBox(width: 8),
-        ],
-      ),
+    return VmSelector<({VmStreamType type, bool seekable})>(
+      selector: (s) => (type: s.type, seekable: s.liveSeekable),
+      builder: (context, v) {
+        final row = v.type == VmStreamType.live
+            ? Row(
+                children: [
+                  const SizedBox(width: 8),
+                  children[1], // liveBadge
+                  if (v.seekable) Expanded(child: children[2]) else const Spacer(),
+                  children[3], // timeshift
+                  children[5], // backToLive
+                  const SizedBox(width: 4),
+                ],
+              )
+            : Row(
+                children: [
+                  const SizedBox(width: 8),
+                  children[0], // positionLabel
+                  Expanded(child: children[2]), // seekBar
+                  children[4], // durationLabel
+                  const SizedBox(width: 8),
+                ],
+              );
+        return VmGradientBar(top: false, theme: theme, child: row);
+      },
     );
   }
 }
@@ -312,5 +339,135 @@ class _SeekBarState extends State<_SeekBar> {
     widget.api.seek(Duration(milliseconds: v.round()));
     widget.api.setDragging(false);
     setState(() => _awaitingSeek = true);
+  }
+}
+
+/// The live/time-shift badge: a red `LIVE` pill at the edge, a muted `时移`
+/// pill while replaying. Nested under [BottomBarComponent] in live mode.
+///
+/// Colour and copy both come from options ([VmTheme.accentColor] /
+/// [VmTheme.timeshiftBadgeColor], [VmStrings.live] / [VmStrings.timeshift]).
+///
+/// 直播/时移角标：在边缘时是红色 `LIVE` 胶囊，回看时是灰色 `时移` 胶囊；直播
+/// 模式下嵌套在 [BottomBarComponent] 之下。
+///
+/// 配色与文案都取自配置（[VmTheme.accentColor] / [VmTheme.timeshiftBadgeColor]、
+/// [VmStrings.live] / [VmStrings.timeshift]）。
+class LiveBadgeComponent extends VmComponent {
+  /// Creates the live-badge leaf component.
+  ///
+  /// 创建直播角标叶子组件。
+  LiveBadgeComponent();
+
+  @override
+  String get name => 'liveBadge';
+
+  @override
+  VmSlot get slot => VmSlot.bottom;
+
+  @override
+  Widget build(BuildContext context, VmApi api, List<Widget> children) {
+    final theme = api.options.theme;
+    final strings = api.options.strings;
+    return VmSelector<bool>(
+      selector: (s) => s.timeshiftBehind == null,
+      builder: (context, atEdge) {
+        return Container(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+          decoration: BoxDecoration(
+            color: Color(atEdge ? theme.accentColor : theme.timeshiftBadgeColor),
+            borderRadius: BorderRadius.circular(4),
+          ),
+          child: Text(
+            atEdge ? strings.live : strings.timeshift,
+            style: TextStyle(
+              color: Color(theme.textColor),
+              fontWeight: FontWeight.bold,
+              fontSize: theme.badgeFontSize,
+            ),
+          ),
+        );
+      },
+    );
+  }
+}
+
+/// Shows how far behind the live edge playback currently is, as `-MM:SS`.
+///
+/// Renders nothing at the live edge, so the bar is visually identical to a
+/// plain live stream until the user actually scrubs back.
+///
+/// 以 `-MM:SS` 展示当前落后直播边缘的时长。
+///
+/// 处于直播边缘时不渲染任何内容，因此在用户真正回看之前，底栏与普通直播流
+/// 在视觉上完全一致。
+class TimeshiftLabelComponent extends VmComponent {
+  /// Creates the timeshift-label leaf component.
+  ///
+  /// 创建时移标签叶子组件。
+  TimeshiftLabelComponent();
+
+  @override
+  String get name => 'timeshift';
+
+  @override
+  VmSlot get slot => VmSlot.bottom;
+
+  @override
+  Widget build(BuildContext context, VmApi api, List<Widget> children) {
+    final theme = api.options.theme;
+    return VmSelector<Duration?>(
+      selector: (s) => s.timeshiftBehind,
+      builder: (context, behind) {
+        if (behind == null) return const SizedBox.shrink();
+        return Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 6),
+          child: Text(
+            '-${formatDuration(behind)}',
+            style: TextStyle(
+              color: Color(theme.textColor),
+              fontSize: theme.timeFontSize,
+            ),
+          ),
+        );
+      },
+    );
+  }
+}
+
+/// Button returning playback to the live edge.
+///
+/// Delegates the *how* entirely to [VmApi.backToLiveEdge], which follows
+/// `VmLiveConfig.effectiveBackToLive` (seek to the window end for DVR, reopen
+/// the original URL for time-shift). Replaces 0.1.0's `backToEdge` button,
+/// which called `reload()` unconditionally.
+///
+/// 让播放回到直播边缘的按钮。
+///
+/// **具体怎么回**完全交给 [VmApi.backToLiveEdge]，由
+/// `VmLiveConfig.effectiveBackToLive` 决定（DVR 跳到窗口末端，时移则重开原始
+/// 地址）。它取代了 0.1.0 里无条件调用 `reload()` 的 `backToEdge` 按钮。
+class BackToLiveComponent extends VmComponent {
+  /// Creates the back-to-live leaf component.
+  ///
+  /// 创建回到直播叶子组件。
+  BackToLiveComponent();
+
+  @override
+  String get name => 'backToLive';
+
+  @override
+  VmSlot get slot => VmSlot.bottom;
+
+  @override
+  Widget build(BuildContext context, VmApi api, List<Widget> children) {
+    final theme = api.options.theme;
+    final strings = api.options.strings;
+    return VmIconButton(
+      icon: Icons.sync_rounded,
+      caption: strings.backToLive,
+      theme: theme,
+      onPressed: api.backToLiveEdge,
+    );
   }
 }

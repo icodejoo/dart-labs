@@ -43,7 +43,6 @@ export 'src/ui/components/center_play.dart';
 export 'src/ui/components/common.dart';
 export 'src/ui/components/gesture_layer.dart';
 export 'src/ui/components/hud_layer.dart';
-export 'src/ui/components/live_bar.dart';
 export 'src/ui/components/overlays.dart';
 export 'src/ui/components/preview.dart';
 export 'src/ui/components/top_bar.dart';
