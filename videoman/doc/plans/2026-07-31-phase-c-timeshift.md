@@ -2604,7 +2604,7 @@ final engine = VmEngine(
 `seekMode` 推导）；UI 树里 `backToEdge` 已更名 `backToLive`；`behind` 按整秒量化。
 §6.2 表格「回直播方式」一行的「配置项」列补上「（可空，空则按 `seekMode` 推导）」。
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add -A
