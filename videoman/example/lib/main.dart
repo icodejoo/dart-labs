@@ -87,18 +87,56 @@ class _PlayerPageState extends State<PlayerPage> {
   /// The playback facade backing every demo entry.
   ///
   /// 支撑每个演示入口的播放能力面。
-  late final VmEngine _engine;
+  late VmEngine _engine;
 
   /// Index of the currently selected demo source.
   ///
   /// 当前选中的演示源下标。
   int _index = 0;
 
+  /// Whether the scrub-preview bubble is enabled in this demo run.
+  ///
+  /// 本次 demo 运行中是否启用拖动预览气泡。
+  bool _previewOn = true;
+
   @override
   void initState() {
     super.initState();
-    _engine = createVmEngine();
+    // The demo runs on desktop/emulator over whatever connection is
+    // available, so the preview network policy is relaxed to `always`;
+    // production defaults to `wifiOnly`.
+    //
+    // demo 在桌面/模拟器上跑，网络类型不确定，故把预览网络策略放宽为
+    // `always`；生产环境默认是 `wifiOnly`。
+    _engine = createVmEngine(
+      options: const VmOptions(
+        preview: VmPreviewConfig(network: VmPreviewNetwork.always),
+      ),
+    );
     _engine.open(_demos[_index].source);
+  }
+
+  /// Rebuilds the engine with preview switched to [on], reopening the current
+  /// demo source.
+  ///
+  /// 以预览开关 [on] 重建 engine，并重新打开当前演示源。
+  ///
+  /// - [on]: whether the preview bubble should be enabled / 是否启用预览气泡
+  Future<void> _togglePreview(bool on) async {
+    final old = _engine;
+    setState(() {
+      _previewOn = on;
+      _engine = createVmEngine(
+        options: VmOptions(
+          preview: VmPreviewConfig(
+            enabled: on,
+            network: VmPreviewNetwork.always,
+          ),
+        ),
+      );
+    });
+    await old.dispose();
+    await _engine.open(_demos[_index].source);
   }
 
   @override
@@ -123,6 +161,11 @@ class _PlayerPageState extends State<PlayerPage> {
       appBar: AppBar(
         title: const Text('videoman'),
         actions: [
+          IconButton(
+            tooltip: _previewOn ? '关闭预览' : '开启预览',
+            icon: Icon(_previewOn ? Icons.image : Icons.image_not_supported),
+            onPressed: () => _togglePreview(!_previewOn),
+          ),
           for (var i = 0; i < _demos.length; i++)
             TextButton(
               onPressed: i == _index ? null : () => _switch(i),

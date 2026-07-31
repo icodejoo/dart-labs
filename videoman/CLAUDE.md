@@ -58,6 +58,10 @@
    [doc/plans/2026-07-31-phase-b-preview.md](doc/plans/2026-07-31-phase-b-preview.md) 附录 A）。
 5. **iOS PiP 未实现**：当前返回不支持（libmpv 纹理限制）；评估
    AVSampleBufferDisplayLayer 或应用内悬浮窗降级。
+6. **实时语音转文字字幕 + AI MCP 接入预留——排在阶段 B/C/D 之后、视 STT 后端可行性而定**：
+   见 [doc/PRD.md](doc/PRD.md) ADR 与 [doc/SPEC.md](doc/SPEC.md) 未来项小节。字幕为条件性
+   未来项（是否做取决于 media_kit/libmpv/ffmpeg 侧能否提供可行的 STT 接入路径），MCP 为
+   架构预留钩子；均未排入具体阶段，不是当前开发计划。
 
 **阶段 A 遗留的小尾巴**：`VmApi` 缺同步 PiP 能力查询，`PipButtonComponent` 在不支持的
 平台（桌面）渲染成死按钮（0.1.0 会隐藏）。已排进阶段 C Task 8；临时规避用

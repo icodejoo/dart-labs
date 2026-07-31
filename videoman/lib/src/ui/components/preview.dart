@@ -157,27 +157,71 @@ class _PreviewBubbleState extends State<_PreviewBubble> {
     final width = widget.api.options.preview.frameWidth.toDouble();
     final crop = _thumb?.crop;
     final height = crop == null ? width * 9 / 16 : width * crop.h / crop.w;
+    // Caption line height is an estimate (font size plus typical leading) —
+    // exact glyph metrics aren't known before layout, and a few logical
+    // pixels of slack here never causes visible clipping.
+    //
+    // 字幕行高是估算值（字号加上常见行距）——布局前拿不到精确字形度量，这里
+    // 留几个逻辑像素的余量不会造成可见裁切。
+    final bubbleHeight = height + 2 + theme.captionFontSize + 6;
 
-    return Align(
-      alignment: Alignment.bottomCenter,
-      child: Padding(
-        padding: const EdgeInsets.only(bottom: 4),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            _frame(width, height, crop),
-            const SizedBox(height: 2),
-            Text(
-              formatDuration(at),
-              style: TextStyle(
-                color: Color(theme.textColor),
-                fontSize: theme.captionFontSize,
-              ),
-            ),
-          ],
+    final bubble = Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        _frame(width, height, crop),
+        const SizedBox(height: 2),
+        Text(
+          formatDuration(at),
+          style: TextStyle(
+            color: Color(theme.textColor),
+            fontSize: theme.captionFontSize,
+          ),
+        ),
+      ],
+    );
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 4),
+      child: SizedBox(
+        height: bubbleHeight,
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final trackWidth = constraints.maxWidth;
+            final left = _horizontalOffset(trackWidth, width, at);
+            return Stack(
+              clipBehavior: Clip.none,
+              children: [Positioned(left: left, bottom: 0, child: bubble)],
+            );
+          },
         ),
       ),
     );
+  }
+
+  /// Computes the bubble's horizontal offset so it tracks the scrub position
+  /// along the seek bar, clamped so it never overflows either edge.
+  ///
+  /// 计算气泡的水平偏移，使其沿进度条跟随拖动位置，并钳制到两端不超出边界。
+  ///
+  /// - [trackWidth]: available width to position within (the full-width
+  ///   `bottomAbove` slot, which lines up with the seek bar below it) /
+  ///   可用定位宽度（撑满宽度的 `bottomAbove` 槽位，与其下方的进度条对齐）
+  /// - [bubbleWidth]: the bubble's own width / 气泡自身宽度
+  /// - [at]: the scrub position to project onto the track / 要投影到进度条上的
+  ///   拖动位置
+  ///
+  /// Returns the left offset in logical pixels; centred when the duration
+  /// isn't known yet or the track has no measurable width.
+  ///
+  /// 返回逻辑像素单位的左偏移；总时长未知或轨道宽度不可测时回退为居中。
+  double _horizontalOffset(double trackWidth, double bubbleWidth, Duration at) {
+    if (!trackWidth.isFinite || trackWidth <= 0) return 0;
+    final duration = widget.api.state.duration;
+    final centered = (trackWidth - bubbleWidth) / 2;
+    if (duration <= Duration.zero) return centered.clamp(0.0, trackWidth);
+    final frac = (at.inMilliseconds / duration.inMilliseconds).clamp(0.0, 1.0);
+    final maxLeft = (trackWidth - bubbleWidth).clamp(0.0, trackWidth);
+    return (frac * trackWidth - bubbleWidth / 2).clamp(0.0, maxLeft);
   }
 
   /// Builds the image frame: the whole bitmap, the crop window into a sprite
