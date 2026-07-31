@@ -25,19 +25,46 @@ import 'skin.dart';
 ///
 /// [components] swaps [BottomBarComponent] for [LiveBarComponent] based on
 /// [VmState.type] — both share the top-level name `bottomBar`, which is the
-/// intentional swap point between the VOD and live trees. [assemble]
-/// reproduces 0.1.0's `Column`-based bar layout: video → gesture layer →
-/// top/center/bottom chrome → HUD → full-bleed overlays, with the top/bottom
-/// bars fading and becoming tap-through via [VmUiState.controlsVisible].
+/// intentional swap point between the VOD and live trees.
+///
+/// [assemble] renders three layers, back to front:
+///
+/// 1. **播放层 / playback layer** — the raw [video] surface.
+/// 2. **操作层 / operable layer** — gesture detection plus the top/center/
+///    bottom chrome, all fading and becoming tap-through together as *one*
+///    [_BarVisibility] instance on [VmUiState.controlsVisible] (idle
+///    auto-hide); hidden outright while locked or in picture-in-picture
+///    ([_LockedHidden]/[_PipHidden]), since neither state has any use for it.
+/// 3. **常驻层 / persistent layer** — the lock mask and lock/unlock toggle.
+///    Always mounted, transparent to hits by default; only the pieces that
+///    actually need to intercept touches (the opaque mask while locked) do
+///    so. Never gated by auto-hide/pip/lock, because it is what *controls*
+///    those states in the first place.
+///
+/// This structure is the built-in skin's own coherent whole — a from-scratch
+/// [VmSkin] is free to lay its layers out completely differently; that
+/// customisation is the customiser's business, not this class's.
 ///
 /// 内置 [VmSkin]：对点播与直播都复刻 0.1.0 的默认外观，并扩展了 0.1.0 从未有
 /// 过的缓冲/错误/锁定叠加层。
 ///
 /// [components] 依据 [VmState.type] 在 [BottomBarComponent] 与
 /// [LiveBarComponent] 之间切换——二者顶层 `name` 都是 `bottomBar`，这正是
-/// 点播树与直播树之间刻意设计的替换点。[assemble] 复刻 0.1.0 基于 `Column`
-/// 的分栏布局：视频画面 → 手势层 → 顶/中/底栏 chrome → HUD → 全屏叠加层，
-/// 顶/底栏随 [VmUiState.controlsVisible] 渐隐并变为可穿透点击。
+/// 点播树与直播树之间刻意设计的替换点。
+///
+/// [assemble] 由后到前渲染三层：
+///
+/// 1. **播放层**——原始 [video] 画面。
+/// 2. **操作层**——手势探测 + 顶/中/底栏 chrome，全部作为**同一个**
+///    [_BarVisibility] 实例随 [VmUiState.controlsVisible]（闲置自动隐藏）一起
+///    渐隐并变为可穿透点击；锁定或画中画时整体隐藏（[_LockedHidden]/
+///    [_PipHidden]），因为这两种状态下它都毫无用处。
+/// 3. **常驻层**——锁定遮罩与锁定/解锁切换按钮。恒定挂载，默认对点击穿透；
+///    只有真正需要拦截点击的部分（锁定时的不透明遮罩）才会吸收事件。不受
+///    自动隐藏/画中画/锁定门控，因为它本身就是控制这些状态的入口。
+///
+/// 这套结构是内置皮肤自己的统一整体——完全自建的 [VmSkin] 可以把层次布局得
+/// 完全不同；那是定制方自己的事，不是这个类要操心的。
 class VmDefaultSkin implements VmSkin {
   /// Creates the default skin, optionally applying [patches] to its tree.
   ///
@@ -68,7 +95,10 @@ class VmDefaultSkin implements VmSkin {
   Widget assemble(BuildContext context, VmSlotBundle slots, Widget video) {
     return Stack(
       children: [
+        // 1. 播放层
         Positioned.fill(child: video),
+        // 2. 操作层：手势 + 顶/中/底栏，同一个 _BarVisibility 一起淡入淡出；
+        //    锁定/画中画时整体隐藏。
         Positioned.fill(
           child: _PipHidden(
             child: _LockedHidden(
@@ -76,19 +106,19 @@ class VmDefaultSkin implements VmSkin {
                 children: [
                   Positioned.fill(child: Stack(children: slots[VmSlot.gesture])),
                   Positioned.fill(
-                    child: Column(
-                      children: [
-                        _BarVisibility(child: Column(children: slots[VmSlot.top])),
-                        Expanded(child: Stack(children: slots[VmSlot.center])),
-                        _BarVisibility(
-                          child: Column(
+                    child: _BarVisibility(
+                      child: Column(
+                        children: [
+                          Column(children: slots[VmSlot.top]),
+                          Expanded(child: Stack(children: slots[VmSlot.center])),
+                          Column(
                             children: [
                               ...slots[VmSlot.bottomAbove],
                               ...slots[VmSlot.bottom],
                             ],
                           ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
                   ),
                   Positioned.fill(child: Stack(children: slots[VmSlot.hud])),
@@ -97,20 +127,10 @@ class VmDefaultSkin implements VmSkin {
             ),
           ),
         ),
-        // Always mounted, never gated by _LockedHidden/_PipHidden: it is what
-        // *renders* the lock mask and pip-hidden state in the first place,
-        // and stays inert (SizedBox.shrink) on its own when unlocked.
-        //
-        // 恒定挂载，不受 _LockedHidden/_PipHidden 门控：它自己就是负责渲染
-        // 锁定遮罩的组件，未锁定时自行收缩为空。
+        // 3. 常驻层：锁定遮罩 + 锁定/解锁按钮，恒定挂载、默认穿透，只有真正需要
+        //    拦截点击的部分（锁定遮罩）才吸收事件；不受操作层的门控影响，因为
+        //    它本身就是控制那些状态的入口。
         Positioned.fill(child: Stack(children: slots[VmSlot.overlay])),
-        // Its own independent, always-on-top layer — deliberately placed
-        // after (i.e. above) the overlay/lock-mask layer in this Stack, so it
-        // can never end up underneath the opaque mask regardless of slot
-        // ordering.
-        //
-        // 独立的一层，恒定处于最上方——刻意排在这个 Stack 里 overlay/锁定遮罩层
-        // 之后（即其上方），因此无论槽位顺序如何都不会被不透明遮罩盖住。
         const Positioned.fill(child: _LockToggleButton()),
       ],
     );
@@ -224,18 +244,19 @@ class _LockedHidden extends StatelessWidget {
 
 /// The single lock/unlock toggle button, in both directions.
 ///
-/// Kept as its own top-most [Stack] entry in [VmDefaultSkin.assemble] —
-/// deliberately not part of the (hidden-while-locked) top bar or
-/// [LockMaskComponent] — so the same one button handles both "lock" (normal
-/// playback) and "unlock" (locked) without ever risking being covered by the
-/// opaque tap-absorbing lock mask, regardless of slot/patch ordering.
+/// Lives in the skin's persistent layer (see [VmDefaultSkin.assemble]):
+/// always mounted, never gated by [_BarVisibility]'s idle auto-hide, by
+/// [_LockedHidden], or by [_PipHidden]. It has to stay reachable regardless of
+/// any of those states, because it is the one control that *changes* them —
+/// an auto-hidden lock button would leave no way to lock in the first place,
+/// and a lock-hidden one no way to unlock.
 ///
 /// 唯一的锁定/解锁切换按钮，两个方向共用同一个组件。
 ///
-/// 在 [VmDefaultSkin.assemble] 里作为独立的、恒定处于最上层的 [Stack] 条目——
-/// 刻意不归入（锁定时隐藏的）顶栏或 [LockMaskComponent]，因此"锁定"（正常播放
-/// 态）与"解锁"（锁定态）由同一个按钮处理，且无论槽位/补丁顺序如何，都不会
-/// 被不透明的锁定遮罩盖住。
+/// 位于皮肤的常驻层（见 [VmDefaultSkin.assemble]）：恒定挂载，不受
+/// [_BarVisibility] 的闲置自动隐藏、[_LockedHidden]、[_PipHidden] 任何一个门控。
+/// 它必须在这些状态下都可达，因为它本身就是**改变**这些状态的那个控制——
+/// 若被自动隐藏隐去，压根没法锁定；若被锁定隐去，压根没法解锁。
 class _LockToggleButton extends StatelessWidget {
   /// Creates the lock-toggle layer.
   ///
@@ -248,7 +269,7 @@ class _LockToggleButton extends StatelessWidget {
     return VmSelector<bool>(
       selector: (s) => s.locked,
       builder: (context, locked) {
-        final button = Align(
+        return Align(
           alignment: Alignment.centerRight,
           child: Padding(
             padding: const EdgeInsets.all(16),
@@ -259,16 +280,6 @@ class _LockToggleButton extends StatelessWidget {
             ),
           ),
         );
-        // While locked, this is the *only* interactive element on screen and
-        // must never itself fade away on the idle timer — there would be no
-        // other way to bring it back. Unlocked, it is just another top-bar-ish
-        // control and should fade with everything else on inactivity, or
-        // "immersive mode" would still show one lingering button.
-        //
-        // 锁定期间，这是屏幕上唯一可交互的元素，绝不能被空闲计时器一起淡出——
-        // 否则没有别的办法能把它调回来。未锁定时，它就是个普通的顶栏类控制，
-        // 空闲后应该跟其余控制一起淡出，否则"沉浸模式"还是会留一个按钮杵在那。
-        return locked ? button : _BarVisibility(child: button);
       },
     );
   }
