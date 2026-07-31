@@ -4,14 +4,16 @@
 #
 Pod::Spec.new do |s|
   s.name             = 'videoman'
-  s.version          = '0.0.1'
-  s.summary          = 'A new Flutter plugin project.'
+  s.version          = '0.2.0'
+  s.summary          = 'media_kit (libmpv/ffmpeg) video player plugin with a self-built gesture and controls layer.'
   s.description      = <<-DESC
-A new Flutter plugin project.
+A Flutter video player plugin built on media_kit (libmpv/ffmpeg): custom gesture
+layer, VOD and live control bars, HLS quality switching with buffering-based ABR,
+scrub-preview thumbnails, live timeshift, and Android picture-in-picture.
                        DESC
-  s.homepage         = 'http://example.com'
+  s.homepage         = 'https://github.com/icodejoo/dart-labs/tree/main/videoman'
   s.license          = { :file => '../LICENSE' }
-  s.author           = { 'Your Company' => 'email@example.com' }
+  s.author           = { 'jelon' => 'jelon@tbu.net' }
   s.source           = { :path => '.' }
   s.source_files = 'videoman/Sources/videoman/**/*'
   s.dependency 'Flutter'

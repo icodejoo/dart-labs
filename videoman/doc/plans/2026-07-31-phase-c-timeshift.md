@@ -2329,12 +2329,12 @@ git commit -m "test(videoman): audit the live timeshift openness contract"
 - Consumes: `pubspec.yaml` 的 `version` / `description` / `homepage`
 - Produces: 与 pubspec 一致的 podspec 元数据
 
-- [ ] **Step 1: 核对 pubspec 现值**
+- [x] **Step 1: 核对 pubspec 现值**
 
 Run: `grep -n "^version:\|^description:\|^homepage:\|^repository:" pubspec.yaml`
 Expected: `version: 0.2.0`、`homepage: https://github.com/icodejoo/dart-labs/tree/main/videoman`
 
-- [ ] **Step 2: 改写 podspec 元数据**
+- [x] **Step 2: 改写 podspec 元数据**
 
 `ios/videoman.podspec` 前段替换为（保留后面的 `source_files` / `dependency` / `platform` /
 `pod_target_xcconfig` / `swift_version` / 隐私清单注释块**原样不动**）：
@@ -2358,7 +2358,7 @@ scrub-preview thumbnails, live timeshift, and Android picture-in-picture.
 > `s.version` 必须与 `pubspec.yaml` 的 `version` 保持一致；以后每次改版本都要同时改这里。
 > 在 `doc/SPEC.md` 的「命令」小节旁边记一句这个约束（Task 12 一并写）。
 
-- [ ] **Step 3: 校验**
+- [x] **Step 3: 校验**
 
 Run: `flutter analyze`
 Expected: 0 issues（podspec 不参与 analyze，此步只是确认没顺手改坏 Dart 代码）
@@ -2366,7 +2366,7 @@ Expected: 0 issues（podspec 不参与 analyze，此步只是确认没顺手改�
 若本机有 CocoaPods：`cd ios && pod lib lint videoman.podspec --allow-warnings`；
 没有就跳过，交给 Task 14 的 iOS 真机/模拟器验证兜底。
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add -A
