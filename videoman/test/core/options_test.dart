@@ -7,10 +7,11 @@ import 'package:videoman/src/core/preview/platform_kind.dart';
 import 'package:videoman/src/core/state/state.dart';
 
 void main() {
-  test('VmOptions defaults are const-constructible and preserve 0.1.0 gesture behaviour', () {
+  test('VmOptions gesture defaults follow the mainstream side↔action mapping', () {
     const o = VmOptions();
-    expect(o.gesture.leftVerticalVolume, isTrue);
-    expect(o.gesture.rightVerticalBrightness, isTrue);
+    expect(o.gesture.leftVertical, VmGestureAction.brightness);
+    expect(o.gesture.rightVertical, VmGestureAction.volume);
+    expect(o.gesture.horizontal, VmGestureAction.seek);
     expect(o.gesture.hSeekSpanPerScreen, const Duration(seconds: 90));
     expect(o.gesture.doubleTapStep, const Duration(seconds: 10));
     expect(o.abr.stallThreshold, 3);

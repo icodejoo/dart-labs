@@ -83,7 +83,9 @@
   `VmApi` 抽象，不得直接触达 `VmKernel`/media_kit。
 - 注释：每个类/方法/函数都要注释，先英文后中文、空行分隔、简短；公开 API 带参数/返回/示例。
 - 校验用 `flutter analyze`（不用 build），除非要真跑 app。长机械改动先批量改、最后一次性校验。
-- 手势侧别（左音量/右亮度）与 media_kit 内置相反且刻意为之，勿"修正"。
+- 手势侧别（0.3.0 起：左亮度/右音量，对齐 bilibili 等主流）经 `VmGestureConfig` 的
+  侧别→动作映射（`leftVertical`/`rightVertical`/`horizontal` 取 `VmGestureAction`）配置，
+  非写死；默认值即上述主流约定。（0.2.0 及之前是"左音量/右亮度"，已翻转，别按旧注释改回。）
 - 新函数/模块配单测；纯逻辑（解析/ABR/映射/格式化）务必抽出来测，UI 用 WidgetTester。
 
 ## 命令

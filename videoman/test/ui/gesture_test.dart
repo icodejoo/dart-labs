@@ -9,11 +9,24 @@ import '../support/fake_api.dart';
 import '../support/pump.dart';
 
 void main() {
-  testWidgets('left vertical drag raises volume, not brightness', (tester) async {
+  testWidgets('left vertical drag raises brightness (mainstream default)', (tester) async {
     final api = FakeVmApi();
     api.push(const VmState(volume: 50, brightness: 0.5));
     await pumpComponent(tester, api, GestureLayerComponent());
     await tester.dragFrom(const Offset(200, 300), const Offset(0, -150));
+    await tester.pumpAndSettle();
+    expect(api.calls, contains('setBrightness'));
+    expect(api.lastBrightness, isNotNull);
+    expect(api.lastBrightness, greaterThan(0.5));
+    expect(api.calls, isNot(contains('setVolume')));
+    await api.dispose();
+  });
+
+  testWidgets('right vertical drag raises volume (mainstream default)', (tester) async {
+    final api = FakeVmApi();
+    api.push(const VmState(volume: 50, brightness: 0.5));
+    await pumpComponent(tester, api, GestureLayerComponent());
+    await tester.dragFrom(const Offset(600, 300), const Offset(0, -150));
     await tester.pumpAndSettle();
     expect(api.calls, contains('setVolume'));
     expect(api.lastVolume, isNotNull);
@@ -22,16 +35,21 @@ void main() {
     await api.dispose();
   });
 
-  testWidgets('right vertical drag raises brightness, not volume', (tester) async {
-    final api = FakeVmApi();
+  testWidgets('the side↔action mapping is configurable (swap left back to volume)', (tester) async {
+    final api = FakeVmApi(
+      options: const VmOptions(
+        gesture: VmGestureConfig(
+          leftVertical: VmGestureAction.volume,
+          rightVertical: VmGestureAction.brightness,
+        ),
+      ),
+    );
     api.push(const VmState(volume: 50, brightness: 0.5));
     await pumpComponent(tester, api, GestureLayerComponent());
-    await tester.dragFrom(const Offset(600, 300), const Offset(0, -150));
+    await tester.dragFrom(const Offset(200, 300), const Offset(0, -150));
     await tester.pumpAndSettle();
-    expect(api.calls, contains('setBrightness'));
-    expect(api.lastBrightness, isNotNull);
-    expect(api.lastBrightness, greaterThan(0.5));
-    expect(api.calls, isNot(contains('setVolume')));
+    expect(api.calls, contains('setVolume'));
+    expect(api.calls, isNot(contains('setBrightness')));
     await api.dispose();
   });
 

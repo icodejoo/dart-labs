@@ -23,7 +23,7 @@ description: 在 dart-labs/videoman 子工程继续开发 media_kit 视频播放
 
 ## 已完成
 
-- **0.1.0**：内核封装、手势（左音量/右亮度/横滑进度/双击/双指缩放 + HUD）、
+- **0.1.0**：内核封装、手势（横滑进度/双击/双指缩放 + HUD；侧别 0.3.0 起翻转，见下）、
   点播/直播控制条、contain/cover/fill、锁定/沉浸、全屏按宽高比定向、
   HLS 清晰度提取/手动切换/缓冲 ABR 降档、Android 系统级 PiP。
 - **0.2.0 阶段 A**：重构为 `core/`（行为，零 Flutter 依赖）+ `ui/`（表现）；
@@ -70,7 +70,9 @@ description: 在 dart-labs/videoman 子工程继续开发 media_kit 视频播放
 - 文案进 `VmStrings`、配色尺寸进 `VmTheme`，组件里不许出现字面量中文或 `Colors.xxx`。
 - 注释先英后中、空行分隔；每个类/方法/字段都要有。
 - 校验用 `flutter analyze`（非 build）；长机械改动批量改、末尾一次性校验。
-- 手势左音量/右亮度是刻意设计（与 media_kit 内置相反），勿改回。
+- 手势侧别→动作经 `VmGestureConfig`（`leftVertical`/`rightVertical`/`horizontal` 取
+  `VmGestureAction`）配置。0.3.0 起默认左亮度/右音量（对齐 bilibili 等主流），
+  已从 0.2.0 的"左音量/右亮度"翻转过来——别按旧文档改回。
 
 ## 命令
 

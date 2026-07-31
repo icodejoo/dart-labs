@@ -2,6 +2,7 @@ import 'package:flutter/widgets.dart';
 
 import '../../core/api.dart';
 import '../../core/model/source.dart';
+import '../../core/options/gesture_config.dart';
 import '../../core/state/ui_state.dart';
 import '../scope/plugin.dart';
 import '../slots/component.dart';
@@ -26,14 +27,14 @@ enum _DragMode {
   /// 横向拖动 → 进度。
   seek,
 
-  /// Left-half vertical drag → volume.
+  /// Vertical drag → volume.
   ///
-  /// 左半屏竖向拖动 → 音量。
+  /// 竖向拖动 → 音量。
   volume,
 
-  /// Right-half vertical drag → brightness.
+  /// Vertical drag → brightness.
   ///
-  /// 右半屏竖向拖动 → 亮度。
+  /// 竖向拖动 → 亮度。
   brightness,
 
   /// Two-finger pinch → zoom.
@@ -44,15 +45,15 @@ enum _DragMode {
 
 /// Component that recognizes gestures on the video surface (drag/pinch/tap)
 /// and drives the matching [VmApi] intent — never touching playback state
-/// directly. Side mapping (left=volume, right=brightness) and axis-lock
-/// behaviour are reproduced byte-for-byte from the 0.1.0 `VmGestureDetector`
-/// baseline; only the seek-gating logic is generalized to consider
-/// `liveSeekable`/`allowWhenLive` for an eventual live-seek feature.
+/// directly. Which action each direction performs is configurable via
+/// [VmGestureConfig] (side↔action mapping); defaults follow the mainstream
+/// convention (left = brightness, right = volume, horizontal = seek). Seek is
+/// gated by `liveSeekable`/`allowWhenLive` for live sources.
 ///
 /// 识别视频画面手势（拖动/捏合/点击）并驱动对应 [VmApi] 意图的组件——绝不
-/// 直接操作播放状态。侧别映射（左音量/右亮度）与轴向锁定行为与 0.1.0
-/// 基线的 `VmGestureDetector` 逐字一致；仅进度门控逻辑做了泛化，纳入
-/// `liveSeekable`/`allowWhenLive` 以支持后续的直播拖动功能。
+/// 直接操作播放状态。每个方向执行哪个动作由 [VmGestureConfig] 配置（侧别↔动作
+/// 映射）；默认对齐主流约定（左亮度、右音量、横滑进度）。直播源的进度手势受
+/// `liveSeekable`/`allowWhenLive` 门控。
 class GestureLayerComponent extends VmComponent {
   /// Creates a gesture-layer component.
   ///
@@ -254,14 +255,19 @@ class _GestureLayerState extends State<_GestureLayer> with VmPlugin<_GestureLaye
   /// [_DragMode.undecided]（不回退到其他模式）。
   _DragMode _decideMode() {
     final cfg = _api.options.gesture;
-    if (_cum.dx.abs() > _cum.dy.abs()) {
-      final canSeek = cfg.horizontalSeek && _seekAllowed;
-      return canSeek ? _DragMode.seek : _DragMode.undecided;
+    final action = _cum.dx.abs() > _cum.dy.abs()
+        ? cfg.horizontal
+        : (_startedLeft ? cfg.leftVertical : cfg.rightVertical);
+    switch (action) {
+      case VmGestureAction.seek:
+        return _seekAllowed ? _DragMode.seek : _DragMode.undecided;
+      case VmGestureAction.volume:
+        return _DragMode.volume;
+      case VmGestureAction.brightness:
+        return _DragMode.brightness;
+      case VmGestureAction.none:
+        return _DragMode.undecided;
     }
-    if (_startedLeft) {
-      return cfg.leftVerticalVolume ? _DragMode.volume : _DragMode.undecided;
-    }
-    return cfg.rightVerticalBrightness ? _DragMode.brightness : _DragMode.undecided;
   }
 
   /// Captures the starting volume/brightness for the chosen mode.

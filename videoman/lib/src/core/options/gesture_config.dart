@@ -1,29 +1,66 @@
+/// Which action a directional drag performs.
+///
+/// Decoupling side from action lets hosts remap freely — e.g. put brightness
+/// on the right, or disable one side with [none]. The vertical actions
+/// ([volume]/[brightness]) are driven by vertical drag distance; [seek] is
+/// driven by horizontal distance, so it only makes sense on [horizontal].
+///
+/// 某个方向的拖动执行哪个动作。
+///
+/// 将侧别与动作解耦，宿主可自由重映射——例如把亮度放右侧，或用 [none] 禁用
+/// 某一侧。竖向动作（[volume]/[brightness]）由竖向拖动距离驱动；[seek] 由横向
+/// 距离驱动，故只在 [horizontal] 上有意义。
+enum VmGestureAction {
+  /// The direction is disabled.
+  ///
+  /// 该方向被禁用。
+  none,
+
+  /// Adjust volume.
+  ///
+  /// 调整音量。
+  volume,
+
+  /// Adjust screen brightness.
+  ///
+  /// 调整屏幕亮度。
+  brightness,
+
+  /// Seek the timeline.
+  ///
+  /// 拖动进度。
+  seek,
+}
+
 /// Gesture configuration for the videoman player overlay.
 ///
-/// Side mapping follows the product spec: left-vertical = volume,
-/// right-vertical = brightness, horizontal = seek. (This intentionally
-/// differs from media_kit's built-in controls, whose sides are swapped
-/// and not configurable.)
+/// Directional drags map to actions via [leftVertical]/[rightVertical]/
+/// [horizontal], so the side↔action pairing is fully configurable. Defaults
+/// follow the mainstream convention (bilibili et al.): left-vertical =
+/// brightness, right-vertical = volume, horizontal = seek.
 ///
 /// videoman 播放器手势层的配置。
 ///
-/// 侧别映射遵循产品规格：左侧竖滑=音量，右侧竖滑=亮度，横滑=进度。
-/// （这与 media_kit 内置控制条相反，且内置侧别写死不可配。）
+/// 各方向拖动经 [leftVertical]/[rightVertical]/[horizontal] 映射到动作，侧别与
+/// 动作的配对完全可配。默认对齐主流约定（bilibili 等）：左侧竖滑=亮度，
+/// 右侧竖滑=音量，横滑=进度。
 class VmGestureConfig {
-  /// Horizontal drag seeks the timeline (VOD only).
+  /// Action for a horizontal drag. Defaults to [VmGestureAction.seek].
   ///
-  /// 横向拖动调整进度（仅点播）。
-  final bool horizontalSeek;
+  /// 横向拖动的动作。默认 [VmGestureAction.seek]。
+  final VmGestureAction horizontal;
 
-  /// Vertical drag on the left half adjusts volume.
+  /// Action for a vertical drag starting on the left half. Defaults to
+  /// [VmGestureAction.brightness].
   ///
-  /// 左半屏竖向拖动调整音量。
-  final bool leftVerticalVolume;
+  /// 从左半屏开始的竖向拖动的动作。默认 [VmGestureAction.brightness]。
+  final VmGestureAction leftVertical;
 
-  /// Vertical drag on the right half adjusts screen brightness.
+  /// Action for a vertical drag starting on the right half. Defaults to
+  /// [VmGestureAction.volume].
   ///
-  /// 右半屏竖向拖动调整屏幕亮度。
-  final bool rightVerticalBrightness;
+  /// 从右半屏开始的竖向拖动的动作。默认 [VmGestureAction.volume]。
+  final VmGestureAction rightVertical;
 
   /// Double-tap left/right to seek backward/forward (VOD only).
   ///
@@ -62,18 +99,23 @@ class VmGestureConfig {
   /// 直播场景下手势是否仍然生效。
   final bool allowWhenLive;
 
-  /// Creates a gesture config; all gestures on by default.
+  /// Creates a gesture config; sides map to the mainstream defaults.
   ///
-  /// 创建手势配置；默认全部开启。
+  /// 创建手势配置；各侧别按主流默认映射。
   ///
   /// Example / 示例:
   /// ```dart
-  /// const cfg = VmGestureConfig(pinchZoom: false);
+  /// // Swap the sides back, and disable pinch-zoom.
+  /// const cfg = VmGestureConfig(
+  ///   leftVertical: VmGestureAction.volume,
+  ///   rightVertical: VmGestureAction.brightness,
+  ///   pinchZoom: false,
+  /// );
   /// ```
   const VmGestureConfig({
-    this.horizontalSeek = true,
-    this.leftVerticalVolume = true,
-    this.rightVerticalBrightness = true,
+    this.horizontal = VmGestureAction.seek,
+    this.leftVertical = VmGestureAction.brightness,
+    this.rightVertical = VmGestureAction.volume,
     this.doubleTapSeek = true,
     this.doubleTapStep = const Duration(seconds: 10),
     this.pinchZoom = true,
@@ -88,9 +130,9 @@ class VmGestureConfig {
       identical(this, other) ||
       other is VmGestureConfig &&
           runtimeType == other.runtimeType &&
-          horizontalSeek == other.horizontalSeek &&
-          leftVerticalVolume == other.leftVerticalVolume &&
-          rightVerticalBrightness == other.rightVerticalBrightness &&
+          horizontal == other.horizontal &&
+          leftVertical == other.leftVertical &&
+          rightVertical == other.rightVertical &&
           doubleTapSeek == other.doubleTapSeek &&
           doubleTapStep == other.doubleTapStep &&
           pinchZoom == other.pinchZoom &&
@@ -101,9 +143,9 @@ class VmGestureConfig {
 
   @override
   int get hashCode => Object.hash(
-        horizontalSeek,
-        leftVerticalVolume,
-        rightVerticalBrightness,
+        horizontal,
+        leftVertical,
+        rightVertical,
         doubleTapSeek,
         doubleTapStep,
         pinchZoom,
