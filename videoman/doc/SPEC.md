@@ -304,17 +304,28 @@ flutter pub publish --dry-run                     # 发布校验
 **未来项（见 PRD ADR）**：实时语音转文字字幕（**可行性已评估，结论可行，见下**）+
 AI MCP 集成钩子（仍为纯前瞻记录）。详见 [doc/PRD.md](PRD.md) 非功能需求/决策记录。
 
-- **STT 字幕——2026-07-31 已完成可行性评估**：完整调研见
+- **STT 字幕——2026-07-31 已完成可行性评估（第二版，推翻同日第一版）**：完整调研见
   [doc/notes/2026-07-31-stt-subtitle-feasibility.md](notes/2026-07-31-stt-subtitle-feasibility.md)。
-  libmpv 无实时 PCM 抽头 API，但方案是仿阶段 B「隐藏 Player 独立解码」套路（不需要
-  抽头，有 mpv 生态先例 WhisperSubs 验证过），分块喂给 whisper.cpp（MIT、FFI、
-  跨平台一致）转写，回灌为字幕叠层组件；架构延续既有端口抽象三件套（暂拟
-  `VmSttEngine`，core 出抽象、`platform_impl/` 出实现、noop 默认）。**仍未排入具体
-  Task**——待用户就依赖选型（`whisper_ggml` 现成包 vs 自建更薄 FFI 绑定）与默认模型
-  档位/语言拍板后转化为逐 Task 计划。
-- **MCP 钩子**：预计不会成为核心依赖，更可能是一个可选的 `VmInterceptor` 实现或独立的事件流
-  消费者，订阅播放状态/字幕文本等只读上下文，并可选择性地接收外部指令；核心库不直接依赖
-  MCP SDK，接入方式留给上层应用或独立扩展包。
+  **结论：可行，不需要新增第三方依赖**。libmpv 无实时 PCM 抽头 API，但方案是仿阶段 B
+  「隐藏 Player 独立解码」套路（不需要抽头，有 mpv 生态先例 WhisperSubs 验证过），分块
+  交给**平台原生 STT**（Android ML Kit / iOS `SFSpeechAudioBufferRecognitionRequest`，
+  均支持喂任意 buffer、均是操作系统自带能力，走原生插件代码而非新依赖）转写，回灌为
+  字幕叠层组件；没有原生能力的平台（Linux）默认关闭，预期行为。分平台现状：
+  Android/iOS 已有原生插件、扩展量级小；**macOS 目前没有原生插件**（`macos/` 目录
+  不存在），要从零搭建；Windows 插件骨架是空壳，SAPI/COM 实现是真实原生工作量、无
+  项目内先例。架构延续既有端口抽象三件套（暂拟 `VmSttEngine`，core 出抽象、
+  `platform_impl/` 出各平台原生实现、无原生能力则 noop）。第一版曾建议默认依赖
+  whisper.cpp（FFI），已推翻——真正的新依赖 + 需要模型文件，平台原生能力两者都不需要。
+  曾评估"MCP 兜底转写"，**已否决**（MCP 是请求/响应协议非实时流式，延迟不可控；且与
+  MCP 钩子本该扮演的"被动暴露上下文"角色冲突）——缺口不专门补，复用既有
+  `VmVolumePort`/`CallbackVolumePort` 的注入模式给宿主一个通用 `VmSttEngine` 口子即可。
+  **仍未排入具体 Task**——待用户就「macOS 新插件是否现在投入」「Windows SAPI 优先级」
+  拍板后转化为逐 Task 计划。
+- **MCP 钩子（与上方字幕功能解耦，不承担转写职责）**：预计不会成为核心依赖，更可能是
+  一个可选的 `VmInterceptor` 实现或独立的事件流消费者，订阅播放状态/字幕文本等只读
+  上下文，并可选择性地接收外部指令——是**被动**暴露/接受控制的角色，不用作"主动请求
+  转写服务"（那条路已在字幕评估中否决）；核心库不直接依赖 MCP SDK，接入方式留给上层
+  应用或独立扩展包。
 
 以下两点是阶段 A 落地过程中相对 DESIGN 文档的已知偏差，供阶段 B/C 生成详细
 计划时对照实际签名，不要盲目照抄 DESIGN 原文：

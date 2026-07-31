@@ -91,13 +91,19 @@
    落地卡在一次**需 Mac + iOS 15+ 真机**的门槛 spike。研究 + 落地计划 + 渲染机制/性能
    澄清见 [doc/notes/2026-07-31-ios-pip-feasibility.md](doc/notes/2026-07-31-ios-pip-feasibility.md)。
    不需 Mac 也能先做的：跨平台"应用内悬浮窗"降级方案（阶段 3）。
-6. **实时语音转文字字幕——可行性已评估（2026-07-31），结论可行，等用户拍板依赖选型后开工**：
-   方向是仿阶段 B「隐藏 Player 独立解码」+ whisper.cpp（MIT/FFI/跨平台一致）转写 + 字幕
-   叠层组件；不建议默认用平台原生 STT（破坏跨平台一致性）或云端 STT（引入网络/费用）。
+6. **实时语音转文字字幕——可行性已评估（2026-07-31，第二版，推翻同日第一版），结论
+   可行且不需要新增第三方依赖，等用户拍板两点后开工**：方向是仿阶段 B「隐藏 Player
+   独立解码」+ **平台原生 STT 优先、没有就关闭**（Android ML Kit / iOS
+   `SFSpeechAudioBufferRecognitionRequest`，均是系统自带能力、走原生插件代码，不算
+   新依赖）+ 字幕叠层组件。第一版曾建议默认依赖 whisper.cpp，已推翻（真正的新依赖 +
+   需要模型文件）；曾评估 MCP 兜底转写，**已否决**（请求/响应协议非实时流式、延迟不可
+   控，且与 MCP 钩子"被动暴露上下文"的本职冲突）——缺口复用既有 `VmVolumePort`/
+   `CallbackVolumePort` 的注入模式给宿主一个通用 `VmSttEngine` 口子即可，不专门补 MCP。
    完整调研见 [doc/notes/2026-07-31-stt-subtitle-feasibility.md](doc/notes/2026-07-31-stt-subtitle-feasibility.md)，
    回写见 [doc/PRD.md](doc/PRD.md) ADR。**待用户决定两点才能转成逐 Task 计划开工**：
-   ①依赖 `whisper_ggml` 现成包还是自建更薄 FFI 绑定（新增第三方依赖需用户同意）；
-   ②默认模型档位（tiny/base）与语言。AI MCP 接入钩子仍是纯架构预留，未评估、未排期。
+   ① macOS 目前没有原生插件（需从零搭建）是否现在投入；② Windows SAPI/COM 实现
+   （真实原生工作量、无项目内先例）的优先级。AI MCP 接入钩子（被动暴露上下文/接受
+   指令，与字幕转写解耦）仍是纯架构预留，未评估、未排期。
 
 ## 约定
 

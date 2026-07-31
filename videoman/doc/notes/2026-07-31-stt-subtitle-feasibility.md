@@ -1,126 +1,147 @@
 # 实时语音转文字字幕（STT）可行性研究与方向
 
-> 2026-07-31 · 调研笔记 + ADR 回写 · 对应 [doc/PRD.md](../PRD.md) ADR
-> 「实时语音转文字字幕（条件性未来项）」——本文档即该条要求的"后端可行性评估结论"。
+> 2026-07-31 · 调研笔记 + ADR 回写（第二版，推翻第一版"默认用 whisper.cpp"的结论）·
+> 对应 [doc/PRD.md](../PRD.md) ADR「实时语音转文字字幕（条件性未来项）」——本文档即
+> 该条要求的"后端可行性评估结论"。
 >
-> 结论先行：**可行，且没有 iOS PiP 那种硬阻断项（不需要 Mac 才能起步）。** 核心思路
-> 不是从 libmpv 的实时播放管线里"抠"音频出来，而是**复用阶段 B 已验证过的套路——独立开
-> 第二条解码路径**，与主播放解耦。现阶段只出方向、不写实现代码、不加依赖。
+> 结论先行：**可行，且不需要新增任何第三方依赖。** 优先级：**平台原生 STT（有就用）→
+> 否则关闭**；不做 MCP 兜底（理由见 §4，已明确否决）；给宿主留一个通用的可注入端口，
+> 想接什么后端（云端/自建模型/自己的 MCP 调用）都行，但那是宿主的选择，不是 videoman
+> 默认链路的一环。现阶段只出方向、不写实现代码、不加依赖。
 
-## 1. 问题本质与关键转念
+## 0. 与第一版的关系
 
-字幕要做实时转写，直觉是"从 libmpv 正在播放的音频流里实时抽一份 PCM 出来"。但调研发现
+第一版（同日更早）结论是"默认依赖 whisper.cpp（FFI）跨平台统一转写"。复盘后推翻，理由：
+
+- whisper.cpp 是**新增第三方依赖**（FFI + 原生库 + 打包），需要 CLAUDE.md 约定的用户审批；
+  而**平台原生 STT 是操作系统自带能力**，通过原生代码（Swift/Kotlin/C++）调用，跟现有
+  PiP/音量/方向那套原生代码是同一类东西——**不算引入新依赖**。两条路优先级不该一样。
+- 不内置模型文件（用户明确要求）：whisper.cpp 路线要么打包模型进产物、要么设计"宿主自行
+  下载模型"的旁路，平台原生 STT 完全没有这个负担——模型是操作系统自己管的。
+- §1 的核心工程问题（如何拿到与视频音轨对应的实时 PCM）**在两个方案下是同一个问题**，
+  与选哪个转写引擎无关——所以这部分研究结论原样保留，不因为推翻引擎选型而作废。
+
+## 1. 核心工程问题：libmpv 没有实时 PCM 抽头 API，但有绕过的成熟范式
+
+无论最终转写引擎是谁，都要先解决"怎么拿到与视频音轨同步的 PCM"。调研发现
 **libmpv 没有干净的实时 PCM 抽头 API**——`ao=pcm` 是把整段音频转储成文件，不是流式接口；
 libmpv 的 render API（`MPV_RENDER_API_TYPE_SW` 等）只覆盖视频，不覆盖音频抽头。
 
-**关键转念**：字幕不需要"实时抽头"。参考真实存在的先例
-[WhisperSubs](https://github.com/GhostNaN/whisper-subs)（一个 mpv Lua 脚本，边播边跑
-whisper.cpp 生成字幕）——它的做法是**独立解码音频到小块 WAV、分块喂给 whisper.cpp、转写
-结果按时间戳注入字幕**，完全不touch mpv 的实时播放管线。这与 videoman **阶段 B 拖动预览
-缩略图已经验证过的架构**是同一个套路：mpv 的实时管线拿不到某个能力（阶段 B 是"缩放抽帧"，
-这里是"音频流"），**解法都是开一条独立的第二解码路径**，而不是硬啃第一条。
+**关键转念**：不需要"实时抽头"。参考真实存在的先例
+[WhisperSubs](https://github.com/GhostNaN/whisper-subs)（一个 mpv Lua 脚本，边播边转写
+字幕）——做法是**独立解码音频到小块、分块喂给转写引擎、结果按时间戳注入字幕**，完全不碰
+mpv 的实时播放管线。这与 videoman **阶段 B 拖动预览缩略图已经验证过的架构**是同一个套路：
+mpv 的实时管线拿不到某个能力（阶段 B 是"缩放抽帧"，这里是"音频流"），**解法都是开一条
+独立的第二解码路径**，而不是硬啃第一条。仿阶段 B 用一个不渲染视频、仅解码音频的隐藏
+media_kit 实例，按滚动窗口切块（参考 WhisperSubs 的 `CHUNK_SIZE` 调优经验：块太大延迟高，
+块太小转写质量和上下文都会受影响，需要实测调参），喂给下面选定的转写引擎。
 
-于是问题收敛为：**独立解码音频 → 分块转写 → 按时间戳回灌字幕**，这是一个成熟范式（先例
-已验证在 mpv 生态跑通），不是要突破的新工程难题。
+## 2. 转写引擎优先级：平台原生 STT 优先，否则关闭
 
-## 2. 转写引擎选型：whisper.cpp（FFI），非平台原生 STT
+### 2.1 平台原生 STT——分平台盘点（有的能力不对称，如实记录）
 
-调研了三条候选：
+| 平台 | 系统自带能力 | 是否支持喂任意 buffer（非仅麦克风） | 现状 |
+|---|---|---|---|
+| Android | ML Kit GenAI Speech Recognition | 支持，明确支持文件/音频源输入 | 原生插件已存在（Kotlin，已有 PiP/音量代码），加方法即可，量级与本次加音量相当 |
+| iOS | `SFSpeechRecognizer`/`SFSpeechAudioBufferRecognitionRequest` | 支持，`SFSpeechAudioBufferRecognitionRequest` 明确接受任意 buffer | 原生插件已存在（Swift），加方法即可 |
+| macOS | 与 iOS **同一套** Apple Speech Framework | 同上 | ⚠️ **videoman 目前没有 macOS 原生插件**（`macos/` 目录不存在）——要从零搭一个平台插件骨架，比"加个 case"重，但 STT 逻辑可照抄 iOS 那份 |
+| Windows | `System.Speech`/底层 SAPI（`ISpRecognizer`） | 支持，`SetInputToAudioStream`/`ISpStream` 明确支持任意音频流 | 插件骨架已存在但目前基本是空壳；SAPI 是 COM 接口，要在 C++ 里手写 COM 生命周期 + 自定义 `ISpStream` 喂数据——真正的原生工作量，项目里无先例可抄 |
+| Linux | **不存在**——没有 freedesktop 标准 STT API，只有第三方开源方案（不算"系统自带"） | — | 该平台默认无字幕，是预期行为，非缺陷 |
 
-### 2.1 whisper.cpp 经 FFI（推荐）
+- **不追求"四端行为完全一致"**：这是本次调整对既有价值取向的一次明确背离——videoman
+  一路的原则是"跨平台统一行为"（当初选 media_kit 而非各平台原生播放器就是这个原因），但
+  用户已明确拍板"优先系统自带，没有就关闭"，接受桌面端（尤其 Linux）体验不对称。这是
+  用户已知且接受的取舍，不是需要"修"的缺口。
+- iOS/macOS 的 Apple Speech Framework 部分场景可能需要联网（`requiresOnDeviceRecognition`
+  未强制时），实现时要显式选择强制端上识别，避免"字幕功能"隐式产生网络依赖。
 
-- **MIT 协议**——与 videoman"发布不设限"的立场兼容，也不牵扯 ffmpeg 二期"卡 LGPL"的
-  合规顾虑（whisper.cpp 与 ffmpeg 解码器许可完全独立）。
-- **跨平台一致**：Windows/Linux x64（AVX2）+ macOS/iOS（Apple 加速）+ Android，**四端
-  行为一致**——这正是 videoman 一路的价值取向（当初选 media_kit 而非各平台原生播放器，
-  就是为了跨平台一致；STT 引擎选型延续同一个原则，不选平台原生 STT）。
-- **生态已验证，非空白地**：pub.dev 已有 `whisper_ggml`（FFI 封装 whisper.cpp v1.8.3+，
-  支持 Large-v3-Turbo，跨平台）等现成包，"能不能把 whisper.cpp 接进 Flutter"这件事本身
-  没有不确定性，只剩"自己包一层轻量 FFI 还是直接依赖现成包"的工程选择。
-- **性能实测数据（有据可查，非猜测）**：`tiny`（75MB/39M 参数）在几乎任何硬件（含树莓派、
-  低端手机）上都**快于实时**；`base`（150MB）是"现代手机的实用默认档"，**速度约等于实时**；
-  实测延迟约"**落后现场 0.5–2 秒**"（依模型档位）。这个延迟量级，videoman 自己的直播时移
-  功能里"落后直播边缘"本就是一个被产品接受的正常态——字幕"迟 1-2 秒"不是新的体验门槛。
+### 2.2 MCP 兜底——已否决，不纳入默认链路
 
-### 2.2 平台原生 STT（不推荐做默认，可留作可插拔选项）
+调研后判断意义不大，理由：
 
-- **iOS**：`SFSpeechAudioBufferRecognitionRequest` 明确支持喂**任意音频 buffer**（不限
-  麦克风输入），技术上可行。
-- **Android**：Google ML Kit 的 GenAI Speech Recognition API 明确支持文件/音频源输入
-  （不限麦克风）。
-- **不推荐做默认的原因**：两端 API 形状不同、配额/网络依赖不同（部分场景需联网），**桌面
-  端（Windows/macOS/Linux）没有对应物**——直接违背 videoman"跨平台一致行为"的既定取向，
-  会把"四端一致的能力"重新拆成"移动端一套、桌面端另一套（或没有）"。可以留作**可插拔的
-  备选实现**（复用类似 `VmVolumePort`/`CallbackVolumePort` 的注入模式），但不做默认。
+1. **解决不了真正的空白**（Linux 桌面）。MCP 是**请求/响应协议，不是为实时音频流设计
+   的**——查证结果明确指出"MCP does not handle real-time audio streaming"。用它做字幕，
+   现实体验是"发一段音频→等一次工具调用往返→收到文本"，延迟可能是几秒到几十秒，字幕这
+   个场景下延迟到这个量级基本等于不可用——是另一种不可用，不是可接受的降级体验。
+2. **前提条件太窄**：要吃到这条路，宿主 App 得恰好接了一个能做语音转写的 MCP agent，是
+   很特殊的场景，不是"装个包就有"的通用能力；为这么窄的交集写一整套"音频分块→MCP 工具
+   调用→异步收文本→按时间戳回灌字幕"的管线，投入产出不成比例。
+3. **混淆了 MCP 钩子本来的定位**：PRD 里 MCP 钩子的原始设计是"播放器向 MCP agent 暴露
+   只读上下文（字幕文本、播放状态），或接收其下发的指令"——是**被动暴露/接受控制**的
+   角色；拿它做"主动请求转写服务"是完全不同的集成形状，会让以后真正做 MCP 钩子时更纠结。
 
-### 2.3 云端 STT API（不推荐做默认）
+**PRD 里的 AI MCP 集成钩子作为独立的、纯前瞻性的未来项保留不变**（context 暴露/接受指令），
+与字幕这件事解耦，不受本次否决影响。
 
-需要联网 + API key + 产生费用，且引入新的外部服务依赖——与"自包含库"定位不符，更适合作为
-**可插拔实现之一**（同样走端口抽象），不是默认路径。且新增任何第三方依赖/服务都需按
-CLAUDE.md 约定**先取得用户同意**。
+### 2.3 通用注入口子——不是"MCP 专用"，是复用既有模式
 
-## 3. 架构落点（与既有模式对齐，不新开一套范式）
+砍掉 MCP 专项之后，缺口不需要专门补：延续 `VmVolumePort`/`CallbackVolumePort` 那套
+"抽象端口 + 默认实现 + 可注入覆盖"模式，宿主想在 Linux 上或想覆盖平台原生实现时，可以
+自己实现 `VmSttEngine`（内部想接什么后端都行——云端 API、自建模型、自己的 MCP 调用），
+经 `createVmEngine(stt: MyEngine())` 注入。这个口子**通用性比"专门集成 MCP"更强**（不
+锁定某一种后端形状），且不需要额外设计，是既有套路的直接复用，零增量成本。
 
-延续 videoman 一路的"抽象端口 + 默认/可选实现 + 可注入覆盖"三件套（对齐 `VmBrightnessPort`/
-`VmVolumePort`/`VmFrameExtractor`/`VmNetProbe` 的既有形状）：
+## 3. 架构落点
 
-- **core 端口抽象**（`lib/src/core/` 新增，暂拟 `VmSttEngine`）：输入一段 PCM/WAV 数据，
-  输出时间戳文本片段流。默认实现留空/noop（同 `FallbackBrightnessPort` 的风格），真实实现
-  （whisper.cpp FFI）放 `lib/src/platform_impl/`。
-- **独立音频解码路径**：仿阶段 B 的"隐藏 `Player` 抽帧"模式——开一个不渲染视频、仅解码
-  音频的 media_kit 实例（或未来 ffmpeg 瘦身后自建的轻量解码器，见 §4 协同点），按滚动窗口
-  切块（参考 WhisperSubs 的 `CHUNK_SIZE` 调优经验：块太大延迟高，块太小转写质量和上下文
-  都会受影响，需要实测调参）。
+- **core 端口抽象**（`lib/src/core/`，暂拟 `VmSttEngine`）：输入 PCM 分块，输出带时间戳
+  的文本片段流。默认实现按平台探测原生能力，探测不到则 noop/关闭（同
+  `FallbackBrightnessPort` 的风格）；真实原生实现放 `lib/src/platform_impl/`
+  （`NativeSttEngine` 之类，Android/iOS/macOS/Windows 分别实现，Linux 无实现即关闭）。
+- **独立音频解码路径**：见 §1，仿阶段 B 的隐藏 `Player` 模式。
 - **字幕叠层组件**：新增一个类似 `PreviewComponent` 的叠层组件，挂在既有组件树/皮肤/补丁
-  机制上，不改变 `VmApi` 之外的契约——这与 SPEC.md 未来项小节原有的猜测一致，本次调研确认
-  了这个落点仍然成立。
+  机制上，不改变 `VmApi` 之外的契约。
 - **`VmApi` 面**：预计新增 `VmApi.subtitles`（字幕流，同 `preview` 的形状）+
   `VmSubtitleChanged` 一类事件，具体签名留到实现阶段确定。
 
 ## 4. 与二期 ffmpeg 瘦身（未开始的遗留任务 #4）的协同点
 
-二期若自建裁剪版 ffmpeg，`CLAUDE.md` 已经记了一笔"顺带导出一个轻量 FFI 抽帧函数替换阶段 B
-现在的重量级隐藏 Player 方案"——**同一个自建 ffmpeg，也可以顺带导出一个轻量 PCM 解码函数
-供 STT 用**，两个需求（缩略图抽帧、STT 音频解码）用的是同一类底层能力（独立于 mpv 播放管线
-的按需解码）。但**STT 不需要等 ffmpeg 瘦身完成**——现在用 media_kit 自带的隐藏 Player 模式
-就能起步，跟阶段 B 当年的路径完全一样。
+二期若自建裁剪版 ffmpeg，可顺带导出一个轻量 PCM 解码函数供 STT 用（与阶段 B 计划中"顺带
+导出轻量抽帧函数"是同一类底层能力）。但**STT 不需要等 ffmpeg 瘦身完成**——现在用
+media_kit 自带的隐藏 Player 模式就能起步。
 
 ## 5. 结论与建议（回写 PRD ADR）
 
-- **可行性结论**：可行。不存在 iOS PiP 那种硬阻断项，当前环境（无 Mac 限制）即可开始。
-- **技术方向**：独立解码路径（仿阶段 B）+ whisper.cpp FFI（跨平台默认引擎，MIT 协议）+
-  端口抽象（`VmSttEngine`，可注入平台原生/云端 STT 作为替代实现）+ 字幕叠层组件。
-- **不建议做默认的路径**：平台原生 STT、云端 STT——理由见 §2.2/2.3，可留作可插拔选项。
-- **待用户决策后才能真正开工的两件事**（不属于"可行性研究"范围，需明确同意）：
-  1. **新增第三方依赖**：是依赖现成 `whisper_ggml` 包，还是自己包一层更薄的 FFI 绑定
-     （更可控但工作量更大）——按 CLAUDE.md 约定需先取得用户同意。
-  2. **默认模型档位与语言**：`tiny`（更快、精度稍低）vs `base`（现代手机的实用默认）；
-     默认语言/是否自动语种检测。
+- **可行性结论**：可行，**不需要新增任何第三方依赖**——全部走操作系统自带能力 + 现有
+  平台原生插件的自然扩展。
+- **技术方向**：独立解码路径（仿阶段 B）+ **平台原生 STT 优先、否则关闭** + 通用
+  `VmSttEngine` 注入口子（非 MCP 专用）+ 字幕叠层组件。
+- **已否决**：whisper.cpp 作为默认引擎（推翻第一版结论，理由见 §0）；MCP 作为专项兜底
+  （理由见 §2.2）。
+- **待用户决策后才能转化为逐 Task 计划的点**：
+  1. macOS 原生插件从零搭建——是否现在就投入（本身是一块不小的新增工程），还是先只做
+     Android/iOS（已有插件、量级小）。
+  2. Windows SAPI/COM 实现的优先级——真实原生工作量，是否值得在字幕这个"未排期"功能上
+     先投入。
+  3. 桌面端体验不对称（尤其 Linux 默认无字幕）是否需要在文档/README 里对用户显式声明。
 
-## 6. 建议的落地顺序（草案，未排入具体 Task，需用户确认后转为类似
-   `doc/plans/2026-07-31-phase-b-preview.md` 的逐 Task 计划）
+## 6. 建议的落地顺序（草案，未排入具体 Task）
 
 1. Spike：用 media_kit 隐藏 Player（同阶段 B 手法）独立解码一段音频，验证能拿到可用的
-   PCM/WAV 分块。
-2. 引入 whisper.cpp FFI（依赖审批后），跑通"分块喂入 → 拿到文本 + 时间戳"的最小闭环。
-3. `VmSttEngine` 端口抽象 + noop 默认实现 + whisper.cpp 实现。
-4. 字幕叠层组件 + `VmApi.subtitles` 面 + 事件表。
-5. 调参：`CHUNK_SIZE`/模型档位/延迟与准确率的取舍，参考 WhisperSubs 的实战经验。
-6. 真机验证（含运算量在低端设备上的实际表现——`tiny`/`base` 的实时性因设备而异）。
+   PCM 分块，并验证与主播放位置的时间戳对齐精度。
+2. `VmSttEngine` 端口抽象 + noop 默认实现。
+3. Android 原生实现（ML Kit GenAI Speech Recognition）——现有插件基础上扩展，风险最低，
+   优先做通。
+4. iOS 原生实现（`SFSpeechAudioBufferRecognitionRequest`）——现有插件基础上扩展。
+5. 字幕叠层组件 + `VmApi.subtitles` 面 + 事件表，先在 Android/iOS 跑通闭环。
+6. 视 §5 待决点决定是否/何时投入 macOS 新插件与 Windows SAPI 实现。
+7. 真机验证（含识别延迟、准确率、CPU/电量开销的实测）。
 
 ## 参考
 
-- WhisperSubs（mpv 实时字幕生成先例，独立解码 + 分块 + whisper.cpp）
+- WhisperSubs（mpv 实时字幕生成先例，独立解码 + 分块转写）
   https://github.com/GhostNaN/whisper-subs
-- whisper.cpp（MIT，跨平台 C/C++ 移植）
-  https://github.com/ggml-org/whisper.cpp
-- whisper_ggml（Flutter FFI 封装，跨平台，Large-v3-Turbo 支持）
-  https://pub.dev/packages/whisper_ggml
-- whisper.cpp 实时延迟与模型档位性能数据
-  https://weesperneonflow.ai/en/blog/2026-06-23-whisper-cpp-setup-guide-local-speech-recognition-2026/
-- iOS `SFSpeechAudioBufferRecognitionRequest`（支持任意音频 buffer，非仅麦克风）
+- iOS/macOS `SFSpeechAudioBufferRecognitionRequest`（支持任意音频 buffer，非仅麦克风）
   https://developer.apple.com/documentation/speech/sfspeechaudiobufferrecognitionrequest
+- Apple SpeechAnalyzer/SpeechTranscriber（更新的长音频转写框架）
+  https://developer.apple.com/videos/play/wwdc2025/277/
 - Android ML Kit GenAI Speech Recognition（支持文件/音频源输入）
   https://developers.google.com/ml-kit/genai/speech-recognition/android
+- Windows `System.Speech.Recognition.SpeechRecognitionEngine`（`SetInputToAudioStream`
+  等，支持任意音频流输入）
+  https://learn.microsoft.com/en-us/dotnet/api/system.speech.recognition.speechrecognitionengine
+- Linux 无标准 freedesktop STT API 的现状
+  https://weesperneonflow.ai/en/blog/2026-06-18-voice-dictation-linux-open-source-tools-2026/
+- MCP 不为实时音频流设计（请求/响应模型，非低延迟流式）
+  https://github.com/microsoft/mcp-for-beginners/blob/main/translations/pcm/05-AdvancedTopics/mcp-realtimestreaming/README.md
 - FFmpeg/libavcodec 支持独立解码器实例（音频/视频可各自独立解码）
   https://etiand.re/posts/2025/01/how-to-decode-audio-streams-in-c-cpp-using-libav/
