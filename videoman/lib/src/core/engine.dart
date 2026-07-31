@@ -202,8 +202,12 @@ class VmEngine implements VmApi {
         _pip = pip ?? NoopPipPort(),
         _orientation = orientation ?? NoopOrientationPort() {
     _abrPolicy = options.abr.policy ?? VmBufferingAbr(threshold: options.abr.stallThreshold);
-    _progress = throttleStream(_progressRaw.stream, const Duration(milliseconds: 200))
-        .asBroadcastStream();
+    // throttleStream's own controller is already broadcast (see its doc
+    // comment for why that matters), so no further wrapping is needed here.
+    //
+    // throttleStream 内部的 controller 本身就是广播型（原因见其文档注释），
+    // 这里不需要再包一层。
+    _progress = throttleStream(_progressRaw.stream, const Duration(milliseconds: 200));
 
     _playingSub = _kernel.playing.listen((v) {
       _lastPlaying = v;

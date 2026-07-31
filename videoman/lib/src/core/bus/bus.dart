@@ -85,7 +85,25 @@ Stream<T> throttleStream<T>(Stream<T> source, Duration window) {
     timer = Timer(window, flush);
   }
 
-  out = StreamController<T>(
+  // Must be a broadcast controller, not a single-subscription one: `VmEngine`
+  // wraps this stream's output in `.asBroadcastStream()` so both the seek bar
+  // and the gesture layer can each hold their own subscription. If the
+  // listener count here ever drops to zero and rises again (e.g. a widget
+  // rebuild briefly tears down and recreates a subscriber), `asBroadcastStream`
+  // re-`listen()`s the underlying stream — which throws on a
+  // single-subscription controller ("Stream has already been listened to"),
+  // permanently killing position updates until the app restarts. A broadcast
+  // controller supports being listened to across repeated zero-to-one
+  // transitions, so this class of failure cannot happen.
+  //
+  // 必须是广播型 controller，不能是单订阅型：`VmEngine` 会把本函数的输出流再包一层
+  // `.asBroadcastStream()`，让进度条与手势层各自持有独立订阅。若这里的监听数一度
+  // 降到零、随后又有新订阅（例如一次 widget 重建短暂拆掉又重建了订阅者），
+  // `asBroadcastStream` 会对底层流重新调用一次 `listen()`——而单订阅 controller
+  // 只能被监听一次，第二次会抛出异常（"Stream has already been listened to"），
+  // 导致位置更新永久断流，直到重启 app。广播型 controller 支持反复经历"零监听
+  // 到有监听"的转换，从根上排除这类故障。
+  out = StreamController<T>.broadcast(
     onListen: () {
       sub = source.listen(
         (v) {
@@ -102,7 +120,21 @@ Stream<T> throttleStream<T>(Stream<T> source, Duration window) {
       );
     },
     onCancel: () async {
+      // Resets the whole state machine, not just the timer object: a
+      // subsequent 0-to-1 listener transition calls `onListen` again and must
+      // start clean. Leaving a stale non-null `timer` behind would make the
+      // very first post-resubscribe event take the "already have a pending
+      // flush" branch forever — queuing into `pending` with nothing left to
+      // ever flush it.
+      //
+      // 重置整个状态机，而不只是计时器对象：后续一次监听数从 0 回到 1 的转变
+      // 会再次调用 `onListen`，必须从干净状态开始。若只留下一个残留的非空
+      // `timer`，重新订阅后的第一个事件就会永远走进"已有待发 flush"分支——
+      // 存进 `pending` 却再也没有东西去把它发出去。
       timer?.cancel();
+      timer = null;
+      pending = null;
+      hasPending = false;
       await sub?.cancel();
     },
   );

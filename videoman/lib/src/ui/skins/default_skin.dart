@@ -68,21 +68,41 @@ class VmDefaultSkin implements VmSkin {
     return Stack(
       children: [
         Positioned.fill(child: video),
-        Positioned.fill(child: Stack(children: slots[VmSlot.gesture])),
         Positioned.fill(
-          child: Column(
-            children: [
-              _BarVisibility(child: Column(children: slots[VmSlot.top])),
-              Expanded(child: Stack(children: slots[VmSlot.center])),
-              _BarVisibility(
-                child: Column(
-                  children: [...slots[VmSlot.bottomAbove], ...slots[VmSlot.bottom]],
-                ),
+          child: _PipHidden(
+            child: _LockedHidden(
+              child: Stack(
+                children: [
+                  Positioned.fill(child: Stack(children: slots[VmSlot.gesture])),
+                  Positioned.fill(
+                    child: Column(
+                      children: [
+                        _BarVisibility(child: Column(children: slots[VmSlot.top])),
+                        Expanded(child: Stack(children: slots[VmSlot.center])),
+                        _BarVisibility(
+                          child: Column(
+                            children: [
+                              ...slots[VmSlot.bottomAbove],
+                              ...slots[VmSlot.bottom],
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Positioned.fill(child: Stack(children: slots[VmSlot.hud])),
+                ],
               ),
-            ],
+            ),
           ),
         ),
-        Positioned.fill(child: Stack(children: slots[VmSlot.hud])),
+        // Always mounted, never gated by _LockedHidden/_PipHidden: it is what
+        // *renders* the lock mask/unlock button and pip-hidden state in the
+        // first place, and stays inert (SizedBox.shrink) on its own when
+        // unlocked.
+        //
+        // 恒定挂载，不受 _LockedHidden/_PipHidden 门控：它自己就是负责渲染
+        // 锁定遮罩/解锁按钮的组件，未锁定时自行收缩为空。
         Positioned.fill(child: Stack(children: slots[VmSlot.overlay])),
       ],
     );
@@ -122,6 +142,74 @@ class _BarVisibility extends StatelessWidget {
           ),
         );
       },
+    );
+  }
+}
+
+/// Hides [child] outright while [VmState.pip] is active.
+///
+/// A floating system picture-in-picture window is a few dozen logical pixels
+/// across and offers no gesture surface of its own — the host OS supplies
+/// its own play/pause/close affordances — so videoman's entire chrome (gesture
+/// layer, bars, HUD) has no useful role there and would only draw over the
+/// system's controls.
+///
+/// [VmState.pip] 生效期间直接隐藏 [child]。
+///
+/// 系统级画中画悬浮窗只有几十逻辑像素见方，也没有自己的手势操作面——宿主
+/// 系统会提供自己的播放/暂停/关闭按钮——因此 videoman 的整套 chrome（手势层、
+/// 各栏、HUD）在其中毫无用处，反而会盖住系统自带的控制。
+class _PipHidden extends StatelessWidget {
+  /// Creates the pip-visibility wrapper around [child].
+  ///
+  /// 创建包裹 [child] 的画中画显隐控制组件。
+  const _PipHidden({required this.child});
+
+  /// The chrome whose visibility this widget controls.
+  ///
+  /// 该组件控制其显隐的 chrome 内容。
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return VmSelector<bool>(
+      selector: (s) => s.pip,
+      builder: (context, pip) => pip ? const SizedBox.shrink() : child,
+    );
+  }
+}
+
+/// Hides [child] outright while [VmState.locked] is active.
+///
+/// Locking is meant to prevent accidental touches during e.g. in-pocket
+/// playback; leaving every button visible-but-inert (the pre-fix behaviour)
+/// still invites taps that silently do nothing. Hiding the whole chrome and
+/// leaving only [LockMaskComponent]'s own unlock affordance (rendered in
+/// [VmSlot.overlay], unaffected by this wrapper) matches what users expect
+/// from a "locked" screen.
+///
+/// [VmState.locked] 生效期间直接隐藏 [child]。
+///
+/// 锁定的本意是防止兜里误触之类的意外点击；此前的行为是把所有按钮留着但让它们
+/// 失效，反而诱使用户点一个悄无声息没反应的东西。隐藏整套 chrome、只留
+/// [LockMaskComponent] 自带的解锁入口（渲染在 [VmSlot.overlay]，不受本组件
+/// 影响），更符合"锁定屏"该有的样子。
+class _LockedHidden extends StatelessWidget {
+  /// Creates the lock-visibility wrapper around [child].
+  ///
+  /// 创建包裹 [child] 的锁定显隐控制组件。
+  const _LockedHidden({required this.child});
+
+  /// The chrome whose visibility this widget controls.
+  ///
+  /// 该组件控制其显隐的 chrome 内容。
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return VmSelector<bool>(
+      selector: (s) => s.locked,
+      builder: (context, locked) => locked ? const SizedBox.shrink() : child,
     );
   }
 }

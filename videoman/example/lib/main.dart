@@ -237,8 +237,16 @@ class _PlayerPageState extends State<PlayerPage> {
         ],
       ),
       body: Center(
+        // Deliberately NOT the demo videos' own ~16:9 aspect ratio: when the
+        // box matches the content exactly, contain/cover/fill render
+        // identically and the fit-mode button appears to do nothing. 4:3
+        // guarantees visible letterboxing/cropping/stretching between modes.
+        //
+        // 故意不用演示视频自身的 ~16:9 宽高比：容器与内容完全一致时，
+        // contain/cover/fill 渲染结果相同，观感上"填充模式"按钮像是没反应。
+        // 4:3 能保证三种模式之间出现可见的黑边/裁切/拉伸差异。
         child: AspectRatio(
-          aspectRatio: 16 / 9,
+          aspectRatio: 4 / 3,
           child: VmPlayer(
             api: _engine,
             skin: _index == 2 ? _noPipSkin : const VmDefaultSkin(),
