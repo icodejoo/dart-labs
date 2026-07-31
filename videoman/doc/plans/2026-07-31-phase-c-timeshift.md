@@ -2185,7 +2185,7 @@ DESIGN §6 是硬约束：**每个替用户做的决策必须齐默认值 + 配�
 - Consumes: Task 1–6 全部产物
 - Produces: 一份可执行的 §6.2 对账测试
 
-- [ ] **Step 1: 写对账测试 `test/core/openness_live_test.dart`**
+- [x] **Step 1: 写对账测试 `test/core/openness_live_test.dart`**
 
 ```dart
 import 'package:flutter_test/flutter_test.dart';
@@ -2287,12 +2287,12 @@ void main() {
 }
 ```
 
-- [ ] **Step 2: 跑对账测试**
+- [x] **Step 2: 跑对账测试**
 
 Run: `flutter test test/core/openness_live_test.dart`
 Expected: 8 项全 PASS。**任何一项失败都说明 §6.2 有一行没落实，回对应 Task 补，不要改断言。**
 
-- [ ] **Step 3: 硬编码扫描**
+- [x] **Step 3: 硬编码扫描**
 
 ```bash
 grep -rn "Colors\.\|Color(0x" lib/src/ui/components/live_bar.dart | grep -v "theme\." ; echo "--- 上面应为空 ---"
@@ -2301,12 +2301,12 @@ grep -rn "Duration(seconds: 10)" lib/src/core/live lib/src/core/engine.dart ; ec
 grep -rn "timeshift\|behind\|window" lib/src/core/engine.dart | grep -v "resolveWindow\|behindOf\|atLiveEdge\|///\|//" ; echo "--- 上面若出现算术表达式，说明时移算术漏在了 engine 里，应搬进 live/timeshift.dart ---"
 ```
 
-- [ ] **Step 4: 跑全量**
+- [x] **Step 4: 跑全量**
 
 Run: `flutter test && flutter analyze`
 Expected: 全绿，analyze 0 issues
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add -A
