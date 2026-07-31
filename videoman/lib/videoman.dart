@@ -15,6 +15,7 @@ export 'src/core/model/quality.dart';
 export 'src/core/model/source.dart';
 export 'src/core/options/options.dart';
 export 'src/core/platform/ports.dart';
+export 'src/core/preview/cache.dart';
 export 'src/core/preview/hash.dart';
 export 'src/core/preview/models.dart';
 export 'src/core/preview/vtt.dart';
