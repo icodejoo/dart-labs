@@ -1425,7 +1425,7 @@ DESIGN §7.4「磁盘：`getTemporaryDirectory()/videoman_thumbs/`，字节 LRU 
   - `class VmDiskThumbCache implements VmThumbCache { VmDiskThumbCache({required VmThumbDirProvider dir, int maxBytes = 64 * 1024 * 1024}); final int maxBytes; Future<void> evict(); Future<int> totalBytes(); }`
   - `class TempThumbDirProvider implements VmThumbDirProvider { const TempThumbDirProvider({String folderName = 'videoman_thumbs'}); final String folderName; }`（`platform_impl`）
 
-- [ ] **Step 1: 加依赖**
+- [x] **Step 1: 加依赖**
 
 `pubspec.yaml` 的 `dependencies:` 段内，`plugin_platform_interface` 与 `screen_brightness` 之间
 按字母序插入：
@@ -1437,7 +1437,7 @@ DESIGN §7.4「磁盘：`getTemporaryDirectory()/videoman_thumbs/`，字节 LRU 
 Run: `flutter pub get`
 Expected: 解析成功，`pubspec.lock` 出现 `path_provider`
 
-- [ ] **Step 2: 写失败测试 `test/core/preview/disk_cache_test.dart`**
+- [x] **Step 2: 写失败测试 `test/core/preview/disk_cache_test.dart`**
 
 ```dart
 import 'dart:io';
@@ -1569,12 +1569,12 @@ void main() {
 }
 ```
 
-- [ ] **Step 3: 跑测试确认失败**
+- [x] **Step 3: 跑测试确认失败**
 
 Run: `flutter test test/core/preview/disk_cache_test.dart`
 Expected: FAIL — `Error when reading 'lib/src/core/preview/dir_provider.dart': No such file or directory`
 
-- [ ] **Step 4: 实现 `lib/src/core/preview/dir_provider.dart`**
+- [x] **Step 4: 实现 `lib/src/core/preview/dir_provider.dart`**
 
 ```dart
 /// Resolves the on-disk directory thumbnails are cached in.
@@ -1627,7 +1627,7 @@ class FixedThumbDirProvider implements VmThumbDirProvider {
 }
 ```
 
-- [ ] **Step 5: 实现 `lib/src/core/preview/disk_cache.dart`**
+- [x] **Step 5: 实现 `lib/src/core/preview/disk_cache.dart`**
 
 ```dart
 import 'dart:io';
@@ -1828,7 +1828,7 @@ class VmDiskThumbCache implements VmThumbCache {
 }
 ```
 
-- [ ] **Step 6: 实现 `lib/src/platform_impl/thumb_dir_impl.dart`**
+- [x] **Step 6: 实现 `lib/src/platform_impl/thumb_dir_impl.dart`**
 
 ```dart
 import 'dart:io';
@@ -1870,7 +1870,7 @@ class TempThumbDirProvider implements VmThumbDirProvider {
 }
 ```
 
-- [ ] **Step 7: barrel 增补导出**
+- [x] **Step 7: barrel 增补导出**
 
 `lib/videoman.dart` 在 `export 'src/core/preview/cache.dart';` 之后按字母序插入：
 
@@ -1885,13 +1885,13 @@ export 'src/core/preview/disk_cache.dart';
 export 'src/platform_impl/thumb_dir_impl.dart';
 ```
 
-- [ ] **Step 8: 跑测试与分析**
+- [x] **Step 8: 跑测试与分析**
 
 Run: `flutter test test/core/preview/ && flutter analyze`
 Expected: disk_cache 9 项 + 前序 28 项全 PASS，analyze 0 issues。
 `test/core/purity_test.dart` 仍 PASS（`disk_cache.dart` 只用 `dart:io`，没引 flutter）。
 
-- [ ] **Step 9: Commit**
+- [x] **Step 9: Commit**
 
 ```bash
 git add -A
