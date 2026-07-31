@@ -44,6 +44,7 @@ export 'src/ui/components/gesture_layer.dart';
 export 'src/ui/components/hud_layer.dart';
 export 'src/ui/components/live_bar.dart';
 export 'src/ui/components/overlays.dart';
+export 'src/ui/components/preview.dart';
 export 'src/ui/components/top_bar.dart';
 export 'src/ui/fit_ext.dart';
 export 'src/ui/format.dart';
