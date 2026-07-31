@@ -1781,7 +1781,7 @@ git commit -m "feat(videoman): add seek bar, timeshift indicator and back-to-liv
 - Consumes: `GestureLayerComponent`、`VmState.liveSeekable`、`VmGestureConfig.allowWhenLive`
 - Produces: 无
 
-- [ ] **Step 1: 追加失败测试到 `test/ui/gesture_test.dart`**
+- [x] **Step 1: 追加失败测试到 `test/ui/gesture_test.dart`**
 
 先读一遍文件顶部，沿用它既有的 import 与拖动辅助写法（阶段 A 已有 4 项手势测试，
 其中一项就是"直播禁滑"，本任务的新用例应与它同构）。在 `main()` 末尾追加：
@@ -1857,7 +1857,7 @@ git commit -m "feat(videoman): add seek bar, timeshift indicator and back-to-liv
 若顶部缺 import，补 `package:videoman/src/core/model/source.dart`、
 `package:videoman/src/core/options/options.dart`、`package:videoman/src/core/state/state.dart`。
 
-- [ ] **Step 2: 跑测试**
+- [x] **Step 2: 跑测试**
 
 Run: `flutter test test/ui/gesture_test.dart`
 Expected: **4 项新用例应当直接 PASS**——这是回归测试，不是 TDD。
@@ -1866,12 +1866,12 @@ Expected: **4 项新用例应当直接 PASS**——这是回归测试，不是 T
 `gesture_layer.dart:177-183` 读到的不一致，或拖动距离/阈值不足（`_kAxisLockThreshold` 是 8px，
 120px 足够）；先核对代码再决定是改测试写法还是修实现——**不要**直接放宽断言。
 
-- [ ] **Step 3: 跑全量**
+- [x] **Step 3: 跑全量**
 
 Run: `flutter test && flutter analyze`
 Expected: 全绿，analyze 0 issues
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add -A
