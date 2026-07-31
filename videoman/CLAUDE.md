@@ -88,6 +88,12 @@
    直播"（用户已拍板：保留 FLV/RTMP——国内直播平台常用、保留 DASH、保留
    RTSP——摄像头场景；不需要 Android `content://` 本地相册），详见
    [doc/notes/2026-07-31-ffmpeg-slimming-options.md](doc/notes/2026-07-31-ffmpeg-slimming-options.md)。
+   **ffmpeg 瘦身已做过 Windows spike 实测并沉淀出可复用构建配置**：主流瘦身+`-Os` = ffmpeg
+   6.26MB（相对完整版 29.8MB 省 79%，真实播放性能代价约 2%），LGPL 无冲突。可直接用的
+   configure 脚本 + 源码母版来源 + 各平台环境准备见
+   [tools/ffmpeg-slim/](tools/ffmpeg-slim/)，实测过程见
+   [doc/plans/2026-07-31-ffmpeg-slim-build-windows.md](doc/plans/2026-07-31-ffmpeg-slim-build-windows.md)。
+   （数字为 Windows/x86，真机 ARM 需复测；本脚本只构建 ffmpeg，完整 libmpv 瘦身是更大工程。）
    **字幕相关选项（libass/subrandr/uchardet）明确保留待定，不要关**——用户认为 mpv
    原生字幕渲染可能有用，等瘦身构建实测出体积数字后再权衡（与
    [doc/notes/2026-07-31-stt-subtitle-feasibility.md](doc/notes/2026-07-31-stt-subtitle-feasibility.md)
