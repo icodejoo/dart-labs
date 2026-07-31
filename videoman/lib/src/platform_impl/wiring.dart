@@ -9,6 +9,8 @@
 // 引入 `package:flutter/*` 或任何 `platform_impl/*` 文件（由
 // `test/core/purity_test.dart` 强制检查）。
 
+import 'package:flutter/foundation.dart';
+
 import '../core/engine.dart';
 import '../core/interceptor/interceptor.dart';
 import '../core/kernel/kernel.dart';
@@ -23,6 +25,22 @@ import 'net_probe_impl.dart';
 import 'orientation_impl.dart';
 import 'pip_impl.dart';
 import 'thumb_dir_impl.dart';
+import 'volume_impl.dart';
+
+/// The default [VmVolumePort] for this platform: the native system-media-volume
+/// port on Android, and `null` elsewhere so the engine keeps the player-volume
+/// path (iOS restricts programmatic system volume; desktop has no channel impl).
+///
+/// 本平台的默认 [VmVolumePort]：Android 上是原生系统媒体音量端口，其余平台为
+/// `null`，让引擎保持播放器音量路径（iOS 限制代码改系统音量；桌面无通道实现）。
+VmVolumePort? _defaultVolumePort() {
+  switch (defaultTargetPlatform) {
+    case TargetPlatform.android:
+      return SystemVolumePort();
+    default:
+      return null;
+  }
+}
 
 /// Creates a [VmEngine] wired to the real platform adapters
 /// ([ScreenBrightnessPort], [ChannelPipPort], [SystemChromeOrientationPort],
@@ -54,6 +72,12 @@ import 'thumb_dir_impl.dart';
 ///   在 open/seek/play 前咨询的拦截链
 /// - [brightness]: overrides the real [ScreenBrightnessPort] default /
 ///   覆盖默认的真实 [ScreenBrightnessPort]
+/// - [volume]: overrides the default volume port. Defaults to the native
+///   [SystemVolumePort] on Android and `null` (player-volume path) elsewhere;
+///   pass a [CallbackVolumePort] to drive system volume yourself on any
+///   platform / 覆盖默认音量端口。Android 默认接原生 [SystemVolumePort]，其余
+///   平台默认 `null`（播放器音量路径）；任意平台都可传 [CallbackVolumePort]
+///   自行驱动系统音量
 /// - [pip]: overrides the real [ChannelPipPort] default / 覆盖默认的真实
 ///   [ChannelPipPort]
 /// - [orientation]: overrides the real [SystemChromeOrientationPort] default
@@ -77,6 +101,7 @@ VmEngine createVmEngine({
   VmOptions options = const VmOptions(),
   List<VmInterceptor> interceptors = const [],
   VmBrightnessPort? brightness,
+  VmVolumePort? volume,
   VmPipPort? pip,
   VmOrientationPort? orientation,
   VmThumbDirProvider? thumbDir,
@@ -90,6 +115,7 @@ VmEngine createVmEngine({
         : options,
     interceptors: interceptors,
     brightness: brightness ?? ScreenBrightnessPort(),
+    volume: volume ?? _defaultVolumePort(),
     pip: pip ?? ChannelPipPort(),
     orientation: orientation ?? SystemChromeOrientationPort(),
     thumbDir: thumbDir ?? const TempThumbDirProvider(),

@@ -20,6 +20,12 @@ UI 插件化：把 0.2.0 已有的组件树/皮肤/补丁沉淀为 **Plugin / Co
   一层」的半覆写定制档（补丁 / 半覆写 / 全实现三档）。
 * **`VmSlot` 新增 `left`/`right`**：左右垂直边带插槽，供侧栏/剧集列表等侧边内容；
   音量/亮度 HUD 维持居中，不落两侧。
+* **音量/亮度手势 HUD 修复**：拖动时补上 `showHud`（此前只有 seek 会弹），HUD 徽标
+  加图标 + 百分比（如 `🔊 40%` / `☀ 60%`，0 音量显示静音图标）。
+* **系统音量端口 `VmVolumePort`**：右滑音量可驱动**系统媒体音量**而非仅播放器音量。
+  `createVmEngine` 默认在 Android 接原生 `SystemVolumePort`（`AudioManager`，无新依赖），
+  iOS/桌面回退播放器音量；任意平台可传 `CallbackVolumePort((percent) => ...)` 接管。
+  构造时从端口播种 `state.volume` 作手势基线。
 
 ## 0.2.0
 

@@ -83,6 +83,13 @@ class VmEngine implements VmApi {
   /// 读写设备屏幕亮度。
   final VmBrightnessPort _brightness;
 
+  /// Reads/writes system media volume; `null` means the volume gesture drives
+  /// the player's own volume via [_kernel] instead of any system volume.
+  ///
+  /// 读写系统媒体音量；为 `null` 时音量手势经 [_kernel] 驱动播放器自身音量，
+  /// 而非任何系统音量。
+  final VmVolumePort? _volume;
+
   /// Enters system picture-in-picture.
   ///
   /// 进入系统画中画。
@@ -210,6 +217,7 @@ class VmEngine implements VmApi {
     this.options = const VmOptions(),
     List<VmInterceptor> interceptors = const [],
     VmBrightnessPort? brightness,
+    VmVolumePort? volume,
     VmPipPort? pip,
     VmOrientationPort? orientation,
     VmThumbDirProvider? thumbDir,
@@ -218,6 +226,7 @@ class VmEngine implements VmApi {
   })  : _kernel = kernel ?? MpvKernel(),
         _chain = VmInterceptorChain(interceptors),
         _brightness = brightness ?? FallbackBrightnessPort(),
+        _volume = volume, // ignore: prefer_initializing_formals
         _pip = pip ?? NoopPipPort(),
         _orientation = orientation ?? NoopOrientationPort() {
     _abrPolicy = options.abr.policy ?? VmBufferingAbr(threshold: options.abr.stallThreshold);
@@ -313,6 +322,21 @@ class VmEngine implements VmApi {
         _state.emit(state.copyWith(pipSupported: ok));
       }).catchError((Object _) {}),
     );
+    // Seed state.volume from the real system volume so the volume gesture's
+    // baseline is accurate (and has headroom above the default 100). No-op
+    // when no volume port is wired (player-volume path keeps the 100 default).
+    //
+    // 从真实系统音量播种 state.volume，使音量手势基线准确（且在默认 100 之上
+    // 留出上调空间）。未接音量端口时空操作（播放器音量路径保持 100 默认）。
+    final volumePort = _volume;
+    if (volumePort != null) {
+      unawaited(
+        volumePort.get().then((v) {
+          if (_events.isClosed) return;
+          _state.emit(state.copyWith(volume: v.clamp(0, 100)));
+        }).catchError((Object _) {}),
+      );
+    }
   }
 
   /// Latest known buffered position, tracked alongside [_lastPosition] so a
@@ -571,7 +595,18 @@ class VmEngine implements VmApi {
 
   @override
   Future<void> setVolume(double v) async {
-    await _kernel.setVolume(v);
+    // Route to the volume port when wired (system media volume / host callback),
+    // otherwise to the player's own volume via the kernel. Either way the
+    // percentage is mirrored into state.volume for the HUD.
+    //
+    // 接了音量端口就走端口（系统媒体音量 / 宿主回调），否则经内核走播放器
+    // 自身音量。无论哪条路，百分比都镜像进 state.volume 供 HUD 显示。
+    final volumePort = _volume;
+    if (volumePort != null) {
+      await volumePort.set(v);
+    } else {
+      await _kernel.setVolume(v);
+    }
     _state.emit(state.copyWith(volume: v));
     _events.add(VmVolumeChanged(v));
   }
@@ -794,6 +829,14 @@ class VmEngine implements VmApi {
   /// [VmEngine.new] 与 `createVmEngine`）接入的具体 [VmBrightnessPort]。
   @visibleForTesting
   VmBrightnessPort get debugBrightnessPort => _brightness;
+
+  /// The volume port this engine was constructed with (`null` = player-volume
+  /// path); see [debugBrightnessPort] for why this is exposed only for tests.
+  ///
+  /// 该 engine 构造时使用的音量端口（`null` = 播放器音量路径）；暴露原因同
+  /// [debugBrightnessPort]，仅供测试使用。
+  @visibleForTesting
+  VmVolumePort? get debugVolumePort => _volume;
 
   /// The PiP port this engine was constructed with; see
   /// [debugBrightnessPort] for why this is exposed only for tests.

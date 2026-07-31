@@ -10,7 +10,7 @@ B/C 细节）。本文档描述**当前代码实际落地**的架构；与 DESIG
 ```
 lib/
 ├─ videoman.dart                      # 对外唯一入口 barrel
-├─ videoman_platform_interface.dart   # 平台通道接口（getPlatformVersion / isPipSupported / enterPip）
+├─ videoman_platform_interface.dart   # 平台通道接口（getPlatformVersion / isPipSupported / enterPip / get·setSystemVolume）
 ├─ videoman_method_channel.dart       # MethodChannel 实现
 └─ src/
    ├─ core/                           # 内核层：无 Flutter/media_kit UI 依赖
@@ -36,7 +36,7 @@ lib/
    │  ├─ model/source.dart            # VmSource / VmStreamType
    │  ├─ model/quality.dart           # VmQuality + parseHlsMasterPlaylist（纯函数）
    │  ├─ model/fit.dart               # VmFit(contain/cover/fill)
-   │  └─ platform/ports.dart          # VmBrightnessPort / VmPipPort / VmOrientationPort
+   │  └─ platform/ports.dart          # VmBrightnessPort / VmVolumePort / VmPipPort / VmOrientationPort
    ├─ platform_impl/                  # ports 的具体实现（screen_brightness / MethodChannel / SystemChrome）
    └─ ui/                             # UI 层：组件树 + 皮肤 + 手势，纯 Flutter widget
       ├─ player.dart                  # VmPlayer 门面：接 VmApi，渲染画面，用 VmSkin 出树
@@ -48,10 +48,11 @@ lib/
       ├─ slots/component.dart         # VmComponent 抽象（name/slot/children/build）
       ├─ slots/tree.dart              # buildSlots()：组件树 → VmSlotBundle
       ├─ slots/patch.dart             # VmPatch（replace/remove/insertAfter/add，路径寻址）+ applyPatches()
-      ├─ skins/skin.dart              # VmSkin 抽象（components()/assemble()）
-      ├─ skins/default_skin.dart      # VmDefaultSkin：VOD/Live 共用，按 VmState.type 换 bottomBar 分支
-      └─ components/                  # 叶子/组合组件：top_bar/bottom_bar/live_bar/center_play/
-                                       # gesture_layer/hud_layer/overlays/common
+      ├─ scope/plugin.dart            # VmPlugin：副作用型组件的能力 mixin（api + bind）
+      ├─ skins/skin.dart              # VmSkin 抽象（无参 components()/assemble()）
+      ├─ skins/default_skin.dart      # VmDefaultSkin：静态树 + 三层可覆写骨架
+      └─ components/                  # 叶子/组合组件：top_bar/bottom_bar（自适应 VOD/直播）/
+                                       # center_play/gesture_layer/hud_layer/overlays/common
 android/src/main/kotlin/.../VideomanPlugin.kt  # 原生 PiP：ActivityAware + enterPictureInPictureMode
 ```
 
@@ -74,8 +75,8 @@ import Flutter widget 与直接依赖 `VmApi` 的地方。
   seek 是空操作）。`backToLiveEdge()` 按 `VmLiveConfig.effectiveBackToLive`
   执行——`seekEnd` 直接 seek 到窗口末端，`reopen` 重开**原始**直播地址
   （绕过 `open()`，因为回边缘是位置变化不是换源，也不该清空清晰度列表）。
-- `VmPlayer` 组合渲染画面 + `VmSkin.components(state)` 出的组件树
-  （经 `buildSlots()` 分槽）+ `VmSkin.assemble()` 拼装 `Stack`；默认皮肤
+- `VmPlayer` 组合渲染画面 + `VmSkin.components()` 出的**静态**组件树
+  （经 `buildSlots()` 分槽，只构建一次）+ `VmSkin.assemble()` 拼装 `Stack`；默认皮肤
   `VmDefaultSkin` 复刻 0.1.0 的分栏布局与"隐藏时可穿透点击"规则。
 
 ## 组件树 / 皮肤 / 补丁
@@ -136,10 +137,15 @@ import Flutter widget 与直接依赖 `VmApi` 的地方。
   （`VmGestureAction`）配置，0.3.0 起默认**左亮度、右音量**（对齐主流，翻转自
   0.1.0/0.2.0 的左音量/右亮度）；音量 0–100、亮度 0–1，系数 `vSensitivity`。
   横滑动作由 `horizontal`（默认 `seek`）决定；`VmGestureAction.none` 可禁用某方向。
+  volume/brightness 拖动均会 `showHud(...)`，HUD 徽标带图标 + 百分比（如 `🔊40%`）。
+- 音量落点：`setVolume` 经 `VmVolumePort` 路由——接了端口走它（系统音量/宿主回调），
+  否则经内核走播放器音量。`createVmEngine` 默认仅 Android 接 `SystemVolumePort`
+  （原生 `AudioManager` 调系统媒体音量，无新依赖），iOS/桌面回退播放器音量；任意
+  平台可传 `CallbackVolumePort` 接管。构造时从端口 `get()` 播种 `state.volume` 作手势基线。
+- 亮度：经 `VmBrightnessPort`（生产实现用 `screen_brightness`）调系统屏幕亮度，
+  平台不支持时兜底 1.0。
 - 双指缩放：`onScaleUpdate` 进入 zoom，`clamp(1, maxZoom)`。
 - 双击：按 `VmGestureConfig.doubleTapStep`（默认 10s）快进退。
-- 亮度经 `VmBrightnessPort`（生产实现用 `screen_brightness`），平台不支持
-  时兜底 1.0。
 
 ## 清晰度 / ABR
 
@@ -217,7 +223,7 @@ Windows 实跑证实。这不是回归，是能力从未在桌面实现过。vid
 - `test/method_channel_test.dart`：平台通道桩。
 - `test/support/`：`fake_api.dart`/`fake_kernel.dart`/`pump.dart` 测试基础设施。
 
-**实测结果**（0.3.0 插件化收口，2026-07-31 本机实跑）：**267 tests passed, 0
+**实测结果**（0.3.0 插件化收口，2026-07-31 本机实跑）：**278 tests passed, 0
 failed**。`flutter analyze` 0 issues。
 `flutter pub publish --dry-run`：干净 git 状态下 **0 warnings**。
 `test/core/purity_test.dart` 单独跑通过，`_mediaKitExceptions` 集合仍恰好是
