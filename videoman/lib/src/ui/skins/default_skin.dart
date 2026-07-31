@@ -1,13 +1,10 @@
 import 'package:flutter/material.dart';
 
-import '../../core/model/source.dart';
-import '../../core/state/state.dart';
 import '../components/bottom_bar.dart';
 import '../components/center_play.dart';
 import '../components/common.dart';
 import '../components/gesture_layer.dart';
 import '../components/hud_layer.dart';
-import '../components/live_bar.dart';
 import '../components/overlays.dart';
 import '../components/preview.dart';
 import '../components/top_bar.dart';
@@ -23,11 +20,13 @@ import 'skin.dart';
 /// live sources, extended with the new buffering/error/lock overlays that
 /// 0.1.0 never had.
 ///
-/// [components] swaps [BottomBarComponent] for [LiveBarComponent] based on
-/// [VmState.type] — both share the top-level name `bottomBar`, which is the
-/// intentional swap point between the VOD and live trees.
+/// [components] is a single static tree — the adaptive [BottomBarComponent]
+/// renders its VOD or live layout internally from [VmState.type], so the skin
+/// no longer swaps whole subtrees by state.
 ///
-/// [assemble] renders three layers, back to front:
+/// [assemble] renders three layers, back to front, each via an overridable
+/// protected method ([buildPlaybackLayer]/[buildOperableLayer]/
+/// [buildPersistentLayer]) so a subclass can re-lay-out just one layer:
 ///
 /// 1. **播放层 / playback layer** — the raw [video] surface.
 /// 2. **操作层 / operable layer** — gesture detection plus the top/center/
@@ -48,11 +47,12 @@ import 'skin.dart';
 /// 内置 [VmSkin]：对点播与直播都复刻 0.1.0 的默认外观，并扩展了 0.1.0 从未有
 /// 过的缓冲/错误/锁定叠加层。
 ///
-/// [components] 依据 [VmState.type] 在 [BottomBarComponent] 与
-/// [LiveBarComponent] 之间切换——二者顶层 `name` 都是 `bottomBar`，这正是
-/// 点播树与直播树之间刻意设计的替换点。
+/// [components] 是单一静态树——自适应的 [BottomBarComponent] 依据
+/// [VmState.type] 在内部渲染点播或直播布局，皮肤不再按状态整体替换子树。
 ///
-/// [assemble] 由后到前渲染三层：
+/// [assemble] 由后到前渲染三层，每层经一个可覆写的受保护方法
+/// （[buildPlaybackLayer]/[buildOperableLayer]/[buildPersistentLayer]），
+/// 使子类可只重排其中一层：
 ///
 /// 1. **播放层**——原始 [video] 画面。
 /// 2. **操作层**——手势探测 + 顶/中/底栏 chrome，全部作为**同一个**
@@ -77,15 +77,13 @@ class VmDefaultSkin implements VmSkin {
   final List<VmPatch> patches;
 
   @override
-  List<VmComponent> components(VmState s) => applyPatches([
+  List<VmComponent> components() => applyPatches([
         GestureLayerComponent(),
         HudLayerComponent(),
         TopBarComponent(),
         CenterPlayComponent(),
         PreviewComponent(),
-        s.type == VmStreamType.live
-            ? LiveBarComponent(seekable: s.liveSeekable)
-            : BottomBarComponent(),
+        BottomBarComponent(),
         BufferingComponent(),
         ErrorComponent(),
         LockMaskComponent(),
@@ -95,18 +93,37 @@ class VmDefaultSkin implements VmSkin {
   Widget assemble(BuildContext context, VmSlotBundle slots, Widget video) {
     return Stack(
       children: [
-        // 1. 播放层
-        Positioned.fill(child: video),
-        // 2. 操作层：手势 + 顶/中/底栏，同一个 _BarVisibility 一起淡入淡出；
-        //    锁定/画中画时整体隐藏。
-        Positioned.fill(
-          child: _PipHidden(
-            child: _LockedHidden(
-              child: Stack(
-                children: [
-                  Positioned.fill(child: Stack(children: slots[VmSlot.gesture])),
-                  Positioned.fill(
-                    child: _BarVisibility(
+        buildPlaybackLayer(context, slots, video),
+        buildOperableLayer(context, slots),
+        buildPersistentLayer(context, slots),
+      ],
+    );
+  }
+
+  /// Layer 1 — the raw video surface. Override to wrap/replace the picture.
+  ///
+  /// 第 1 层——原始视频画面。覆写以包裹/替换画面。
+  @protected
+  Widget buildPlaybackLayer(BuildContext context, VmSlotBundle slots, Widget video) {
+    return Positioned.fill(child: video);
+  }
+
+  /// Layer 2 — the operable chrome (gesture + top/center/bottom/left/right
+  /// bars + HUD), fading and hiding together. Override to re-lay-out the
+  /// chrome (e.g. dock the control bar at the top).
+  ///
+  /// 第 2 层——操作层 chrome（手势 + 顶/中/底/左/右栏 + HUD），一起淡入淡出与
+  /// 隐藏。覆写以重排 chrome（例如把控制条停靠到顶部）。
+  @protected
+  Widget buildOperableLayer(BuildContext context, VmSlotBundle slots) {
+    return Positioned.fill(
+      child: _PipHidden(
+        child: _LockedHidden(
+          child: Stack(
+            children: [
+              Positioned.fill(child: Stack(children: slots[VmSlot.gesture])),
+              Positioned.fill(
+                child: _BarVisibility(
                       // A Stack of independently `Positioned` regions, not a
                       // Column: the bottom bar grows taller when the preview
                       // bubble appears above it (VmSlot.bottomAbove), and a
@@ -178,13 +195,28 @@ class VmDefaultSkin implements VmSkin {
               ),
             ),
           ),
-        ),
-        // 3. 常驻层：锁定遮罩 + 锁定/解锁按钮，恒定挂载、默认穿透，只有真正需要
-        //    拦截点击的部分（锁定遮罩）才吸收事件；不受操作层的门控影响，因为
-        //    它本身就是控制那些状态的入口。
-        Positioned.fill(child: Stack(children: slots[VmSlot.overlay])),
-        const Positioned.fill(child: _LockToggleButton()),
-      ],
+        );
+  }
+
+  /// Layer 3 — the persistent overlay + lock/unlock toggle. Always mounted,
+  /// transparent to hits by default, and never gated by auto-hide/pip/lock,
+  /// since the toggle is the very control that *changes* those states. Only
+  /// the pieces that must intercept touches (the opaque lock mask) do so.
+  /// Override to change what stays reachable regardless of those states.
+  ///
+  /// 第 3 层——常驻叠加层 + 锁定/解锁切换。恒挂载、默认对点击穿透，且不受
+  /// 自动隐藏/画中画/锁定门控——切换按钮本身就是**改变**那些状态的入口。
+  /// 只有必须拦截点击的部分（不透明锁定遮罩）才吸收事件。覆写以改变哪些内容
+  /// 不论那些状态如何都保持可达。
+  @protected
+  Widget buildPersistentLayer(BuildContext context, VmSlotBundle slots) {
+    return Positioned.fill(
+      child: Stack(
+        children: [
+          Stack(children: slots[VmSlot.overlay]),
+          const _LockToggleButton(),
+        ],
+      ),
     );
   }
 }

@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:videoman/src/core/api.dart';
-import 'package:videoman/src/core/model/source.dart';
-import 'package:videoman/src/core/state/state.dart';
 import 'package:videoman/src/ui/scope/scope.dart';
 import 'package:videoman/src/ui/skins/default_skin.dart';
 import 'package:videoman/src/ui/slots/component.dart';
@@ -11,6 +9,21 @@ import 'package:videoman/src/ui/slots/slot.dart';
 import 'package:videoman/src/ui/slots/tree.dart';
 
 import '../support/fake_api.dart';
+
+/// A ②-tier customisation: subclass [VmDefaultSkin] and override just one
+/// protected layer method, reusing the base's components/patches/other layers.
+///
+/// ②档定制：继承 [VmDefaultSkin] 只覆写一个受保护的层方法，复用基类的
+/// 组件/补丁/其余各层。
+class _MarkedPlaybackSkin extends VmDefaultSkin {
+  const _MarkedPlaybackSkin();
+  @override
+  Widget buildPlaybackLayer(BuildContext context, VmSlotBundle slots, Widget video) {
+    return Positioned.fill(
+      child: KeyedSubtree(key: const ValueKey('customPlayback'), child: video),
+    );
+  }
+}
 
 /// Minimal leaf carrying a [Key], used to locate where a slot renders.
 ///
@@ -27,26 +40,30 @@ class _Marker extends VmComponent {
 }
 
 void main() {
-  test('default skin emits the VOD tree for a vod source', () {
+  test('default skin emits one static tree', () {
     const skin = VmDefaultSkin();
-    final names = skin.components(const VmState()).map((c) => c.name).toList();
+    final names = skin.components().map((c) => c.name).toList();
     expect(names, containsAll(['gestureLayer', 'hudLayer', 'topBar', 'centerPlay', 'bottomBar']));
-    final bottom = skin.components(const VmState()).firstWhere((c) => c.name == 'bottomBar');
-    expect(bottom.children.map((c) => c.name), ['positionLabel', 'seekBar', 'durationLabel']);
   });
 
-  test('default skin emits the live tree for a live source', () {
-    const skin = VmDefaultSkin();
-    final bottom = skin
-        .components(const VmState(type: VmStreamType.live))
-        .firstWhere((c) => c.name == 'bottomBar');
-    expect(bottom.children.map((c) => c.name),
-        ['liveBadge', 'seekBar', 'timeshift', 'backToLive']);
+  test('the adaptive bottom bar exposes the union of VOD and live children', () {
+    // One static node serves both; the union is fixed-order so patch paths
+    // never shift by stream type.
+    // 一个静态节点同时服务两者；并集顺序固定，patch 路径不随流类型错位。
+    final bottom = const VmDefaultSkin().components().firstWhere((c) => c.name == 'bottomBar');
+    expect(bottom.children.map((c) => c.name), [
+      'positionLabel',
+      'liveBadge',
+      'seekBar',
+      'timeshift',
+      'durationLabel',
+      'backToLive',
+    ]);
   });
 
   test('patches passed to the default skin are applied to its tree', () {
     final skin = VmDefaultSkin(patches: [VmPatch.remove('topBar/pipButton')]);
-    final top = skin.components(const VmState()).firstWhere((c) => c.name == 'topBar');
+    final top = skin.components().firstWhere((c) => c.name == 'topBar');
     expect(top.children.map((c) => c.name), isNot(contains('pipButton')));
   });
 
@@ -57,7 +74,7 @@ void main() {
       home: VmScope(
         api: api,
         child: Builder(builder: (c) {
-          final bundle = buildSlots(c, api, skin.components(api.state));
+          final bundle = buildSlots(c, api, skin.components());
           return skin.assemble(c, bundle, const ColoredBox(color: Color(0xFF000000)));
         }),
       ),
@@ -67,7 +84,7 @@ void main() {
   });
 
   test('the default tree mounts the preview bubble in the bottomAbove slot', () {
-    final tree = const VmDefaultSkin().components(const VmState());
+    final tree = const VmDefaultSkin().components();
     final preview = tree.firstWhere((c) => c.name == 'preview');
     expect(preview.slot, VmSlot.bottomAbove);
   });
@@ -82,7 +99,7 @@ void main() {
       home: VmScope(
         api: api,
         child: Builder(builder: (c) {
-          final bundle = buildSlots(c, api, skin.components(api.state));
+          final bundle = buildSlots(c, api, skin.components());
           return skin.assemble(c, bundle, const ColoredBox(color: Color(0xFF000000)));
         }),
       ),
@@ -94,6 +111,27 @@ void main() {
     // 左标记贴左缘，右标记贴右缘。
     expect(leftBox.left, 0);
     expect(rightBox.right, screen.width);
+    await api.dispose();
+  });
+
+  testWidgets('a subclass can override one layer and reuse the rest', (t) async {
+    final api = FakeVmApi();
+    const skin = _MarkedPlaybackSkin();
+    await t.pumpWidget(MaterialApp(
+      home: VmScope(
+        api: api,
+        child: Builder(builder: (c) {
+          final bundle = buildSlots(c, api, skin.components());
+          return skin.assemble(c, bundle, const ColoredBox(color: Color(0xFF000000)));
+        }),
+      ),
+    ));
+    // The overridden playback layer is present...
+    // 被覆写的播放层生效……
+    expect(find.byKey(const ValueKey('customPlayback')), findsOneWidget);
+    // ...while the base's persistent lock toggle still renders (other layers
+    // reused). ……而基类常驻层的锁定切换按钮仍在（其余各层被复用）。
+    expect(find.byIcon(Icons.lock_open_rounded), findsOneWidget);
     await api.dispose();
   });
 }

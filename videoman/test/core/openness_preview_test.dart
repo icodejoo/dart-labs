@@ -19,7 +19,6 @@ import 'package:videoman/src/core/preview/models.dart';
 import 'package:videoman/src/core/preview/net_probe.dart';
 import 'package:videoman/src/core/preview/platform_kind.dart';
 import 'package:videoman/src/core/preview/source.dart';
-import 'package:videoman/src/core/state/state.dart';
 import 'package:videoman/src/ui/components/preview.dart';
 import 'package:videoman/src/ui/skins/default_skin.dart';
 import 'package:videoman/src/ui/slots/patch.dart';
@@ -208,7 +207,7 @@ void main() {
       expect(PreviewComponent().name, 'preview');
       final patched = VmDefaultSkin(
         patches: [VmPatch.remove('preview')],
-      ).components(const VmState());
+      ).components();
       expect(patched.where((c) => c.name == 'preview'), isEmpty);
     });
   });

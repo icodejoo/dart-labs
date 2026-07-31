@@ -1,37 +1,40 @@
 import 'package:flutter/widgets.dart';
 
-import '../../core/state/state.dart';
 import '../slots/component.dart';
 import '../slots/tree.dart';
 
-/// A pluggable player "skin": decides which [VmComponent]s exist for a given
-/// [VmState] and how the resulting [VmSlotBundle] plus the raw video surface
-/// are stacked into the final widget tree.
+/// A pluggable player "skin": decides which [VmComponent]s exist and how the
+/// resulting [VmSlotBundle] plus the raw video surface are stacked into the
+/// final widget tree.
 ///
 /// Implementations own two independent concerns: [components] (data — the
-/// component tree for the current state) and [assemble] (layout — how the
-/// already-built slot widgets and the video surface are composited).
-/// Splitting them lets [VmSlotBundle] be built once (via [buildSlots]) and
-/// reused by callers that only care about one side.
+/// static component tree) and [assemble] (layout — how the already-built slot
+/// widgets and the video surface are composited). Splitting them lets
+/// [VmSlotBundle] be built once (via [buildSlots]) and reused by callers that
+/// only care about one side.
 ///
-/// 可插拔的播放器"皮肤"：决定给定 [VmState] 下存在哪些 [VmComponent]，以及
-/// 构建出的 [VmSlotBundle] 与原始视频画面如何叠装成最终 widget 树。
+/// 可插拔的播放器"皮肤"：决定存在哪些 [VmComponent]，以及构建出的
+/// [VmSlotBundle] 与原始视频画面如何叠装成最终 widget 树。
 ///
-/// 实现方需关心两个独立职责：[components]（数据——当前状态下的组件树）与
+/// 实现方需关心两个独立职责：[components]（数据——静态组件树）与
 /// [assemble]（布局——已构建好的槽位 widget 与视频画面如何合成）。二者拆开
 /// 使得 [VmSlotBundle] 可以只构建一次（通过 [buildSlots]）并被只关心其中一侧
 /// 的调用方复用。
 abstract class VmSkin {
-  /// Returns the component tree to build for the current [s].
+  /// Returns the static component tree.
   ///
-  /// Called on every relevant state change so the tree can differ by
-  /// [VmState.type] (e.g. VOD vs live bottom bar) or any other field.
+  /// The tree does **not** vary by state: components self-gate their own
+  /// visibility reactively (via `VmSelector`), so the skin builds the tree
+  /// once instead of recomputing it on every state change. A component that
+  /// only applies to some sources (e.g. the live badge) simply renders
+  /// nothing when it doesn't apply.
   ///
-  /// 返回当前状态 [s] 下应构建的组件树。
+  /// 返回静态组件树。
   ///
-  /// 每次相关状态变化都会调用，因此树可以按 [VmState.type]（例如点播/直播
-  /// 底栏）或其他字段而不同。
-  List<VmComponent> components(VmState s);
+  /// 该树**不**随状态变化：组件通过 `VmSelector` 响应式地自我显隐，因此皮肤
+  /// 只构建树一次，而非每次状态变化都重算。只适用于部分源的组件（如直播角标）
+  /// 在不适用时直接不渲染任何内容即可。
+  List<VmComponent> components();
 
   /// Composes the already-built [slots] and the raw [video] surface into the
   /// final widget tree for [context].
