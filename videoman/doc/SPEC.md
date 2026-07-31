@@ -95,7 +95,8 @@ import Flutter widget 与直接依赖 `VmApi` 的地方。
 ## 文案 / 主题外置
 
 - `VmStrings`：`fitContain`/`fitCover`/`fitFill`/`live`/`backToLive`/
-  `timeshift`/`backToEdge`/`auto`/`quality` 九个字段，默认简体中文；
+  `timeshift`/`auto`/`quality` 八个字段，默认简体中文（`backToEdge` 已在阶段 C
+  被 `backToLive` 取代并删除）；
   `fitLabel(VmFit)` 是唯一允许解析 `VmFit → 文案` 的地方（0.2.0 落地审计中
   删除了 `ui/fit_ext.dart` 里重复且硬编码的 `vmFitLabel()`）。
 - `VmTheme`：`iconColor`/`textColor`/`accentColor`/`barGradientColor`/

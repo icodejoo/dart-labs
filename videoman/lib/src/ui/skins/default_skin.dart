@@ -55,7 +55,9 @@ class VmDefaultSkin implements VmSkin {
         TopBarComponent(),
         CenterPlayComponent(),
         PreviewComponent(),
-        s.type == VmStreamType.live ? LiveBarComponent() : BottomBarComponent(),
+        s.type == VmStreamType.live
+            ? LiveBarComponent(seekable: s.liveSeekable)
+            : BottomBarComponent(),
         BufferingComponent(),
         ErrorComponent(),
         LockMaskComponent(),
