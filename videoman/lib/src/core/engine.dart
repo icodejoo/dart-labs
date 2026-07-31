@@ -15,6 +15,18 @@ import 'model/quality.dart';
 import 'model/source.dart';
 import 'options/options.dart';
 import 'platform/ports.dart';
+import 'preview/api.dart';
+import 'preview/cache.dart';
+import 'preview/dir_provider.dart';
+import 'preview/disk_cache.dart';
+import 'preview/extractor.dart';
+import 'preview/fetcher.dart';
+import 'preview/net_probe.dart';
+import 'preview/platform_kind.dart';
+import 'preview/service.dart';
+import 'preview/source.dart';
+import 'preview/two_level_cache.dart';
+import 'preview/vtt_source.dart';
 import 'state/progress.dart';
 import 'state/state.dart';
 import 'state/ui_state.dart';
@@ -76,6 +88,11 @@ class VmEngine implements VmApi {
   ///
   /// 应用/重置全屏方向与系统 UI。
   final VmOrientationPort _orientation;
+
+  /// The scrub-preview service assembled from [VmOptions.preview].
+  ///
+  /// 依据 [VmOptions.preview] 装配出来的拖动预览服务。
+  late final VmPreviewService _previewService;
 
   /// The ABR downshift policy in effect; defaults to a [VmBufferingAbr]
   /// seeded from [VmAbrConfig.stallThreshold] when [VmAbrConfig.policy] is
@@ -146,6 +163,15 @@ class VmEngine implements VmApi {
   /// 基于 [kernel]（省略时默认新建 [MpvKernel]）、[options]、[interceptors]
   /// 及平台 [brightness]/[pip]/[orientation] 端口（各自省略时默认使用零依赖
   /// 兜底/空实现）创建一个 engine。
+  ///
+  /// [thumbDir]/[extractor]/[fetcher] supply the platform-side pieces of the
+  /// preview pipeline; each may be omitted, in which case the corresponding
+  /// capability degrades (no disk cache / no frame extraction / a `dart:io`
+  /// HTTP client) rather than failing.
+  ///
+  /// [thumbDir]/[extractor]/[fetcher] 提供预览流水线的平台侧零件；三者均可
+  /// 省略，省略时对应能力降级（无磁盘缓存 / 无抽帧兜底 / 使用 `dart:io`
+  /// 的 HTTP 客户端）而不是报错。
   VmEngine({
     VmKernel? kernel,
     this.options = const VmOptions(),
@@ -153,6 +179,9 @@ class VmEngine implements VmApi {
     VmBrightnessPort? brightness,
     VmPipPort? pip,
     VmOrientationPort? orientation,
+    VmThumbDirProvider? thumbDir,
+    VmFrameExtractor? extractor,
+    VmHttpFetcher? fetcher,
   })  : _kernel = kernel ?? MpvKernel(),
         _chain = VmInterceptorChain(interceptors),
         _brightness = brightness ?? FallbackBrightnessPort(),
@@ -212,6 +241,11 @@ class VmEngine implements VmApi {
       _events.add(VmErrorEvent(e));
       _chain.onError(e, StackTrace.current);
     });
+    _previewService = _buildPreview(
+      thumbDir: thumbDir,
+      extractor: extractor,
+      fetcher: fetcher,
+    );
   }
 
   /// Latest known buffered position, tracked alongside [_lastPosition] so a
@@ -248,10 +282,118 @@ class VmEngine implements VmApi {
   VmUiState get uiState => _ui.value;
 
   @override
+  VmPreviewApi get preview => _previewService;
+
+  /// Assembles the preview service from [VmOptions.preview] plus the
+  /// platform-side pieces the host injected.
+  ///
+  /// Every injection point in [VmPreviewConfig] wins over the built-in
+  /// default; a missing platform piece degrades that one capability instead of
+  /// disabling preview outright.
+  ///
+  /// 依据 [VmOptions.preview] 与宿主注入的平台侧零件装配预览服务。
+  ///
+  /// [VmPreviewConfig] 里的每个注入点都优先于内置默认；缺失某个平台零件只会
+  /// 让该项能力降级，而不会整体关闭预览。
+  ///
+  /// - [thumbDir]: disk-cache directory resolver / 磁盘缓存目录解析器
+  /// - [extractor]: frame extractor / 抽帧器
+  /// - [fetcher]: HTTP fetcher for VTT tracks and sprites / 拉取 VTT 轨与
+  ///   雪碧图的 HTTP 客户端
+  ///
+  /// Returns the assembled service.
+  ///
+  /// 返回装配好的服务。
+  VmPreviewService _buildPreview({
+    VmThumbDirProvider? thumbDir,
+    VmFrameExtractor? extractor,
+    VmHttpFetcher? fetcher,
+  }) {
+    final cfg = options.preview;
+    final dir = cfg.dirProvider ??
+        (cfg.diskDir != null ? FixedThumbDirProvider(cfg.diskDir!) : thumbDir);
+    final cache = cfg.cache ??
+        (dir == null
+            ? VmMemoryThumbCache(maxEntries: cfg.memMaxEntries)
+            : VmTwoLevelCache(
+                memory: VmMemoryThumbCache(maxEntries: cfg.memMaxEntries),
+                disk: VmDiskThumbCache(dir: dir, maxBytes: cfg.diskMaxBytes),
+              ));
+    return VmPreviewService(
+      config: cfg,
+      cache: cache,
+      probe: cfg.probe ?? AlwaysAllowNetProbe(),
+      sources: cfg.sources ?? _defaultThumbSources(cfg, extractor, fetcher),
+      onBlocked: _onPreviewBlocked,
+    );
+  }
+
+  /// Builds the built-in `[vtt, extract]` source chain, honouring
+  /// [VmPreviewConfig.vttEnabled], [VmPreviewConfig.extractFallback] and
+  /// [VmPreviewConfig.extractPlatforms].
+  ///
+  /// 构建内置的 `[vtt, extract]` 来源链，遵循 [VmPreviewConfig.vttEnabled]、
+  /// [VmPreviewConfig.extractFallback] 与 [VmPreviewConfig.extractPlatforms]。
+  ///
+  /// - [cfg]: the preview configuration / 预览配置
+  /// - [extractor]: host-injected frame extractor / 宿主注入的抽帧器
+  /// - [fetcher]: host-injected HTTP fetcher / 宿主注入的 HTTP 客户端
+  ///
+  /// Returns the ordered source chain, possibly empty.
+  ///
+  /// 返回有序的来源链，可能为空。
+  List<VmThumbSource> _defaultThumbSources(
+    VmPreviewConfig cfg,
+    VmFrameExtractor? extractor,
+    VmHttpFetcher? fetcher,
+  ) {
+    final chain = <VmThumbSource>[];
+    if (cfg.vttEnabled) {
+      final fixed = cfg.vttUrl;
+      chain.add(VmVttThumbSource(
+        fetcher: fetcher ?? IoHttpFetcher(),
+        resolveUrl: cfg.vttUrlResolver ??
+            (fixed == null ? defaultVttUrl : (_) => Uri.tryParse(fixed)),
+      ));
+    }
+    final ex = cfg.extractor ?? extractor;
+    if (cfg.extractFallback &&
+        ex != null &&
+        cfg.extractPlatforms.contains(currentPlatformKind())) {
+      chain.add(VmExtractorThumbSource(
+        extractor: ex,
+        width: cfg.frameWidth,
+        hwdec: cfg.hwdec,
+      ));
+    }
+    return chain;
+  }
+
+  /// Publishes a preview refusal on [events] and forwards it to the
+  /// host callback.
+  ///
+  /// 把一次预览拒绝发布到 [events] 上，并转发给宿主回调。
+  ///
+  /// - [reason]: why the request was refused / 被拒原因
+  void _onPreviewBlocked(VmPreviewBlockReason reason) {
+    if (!_events.isClosed) _events.add(VmPreviewBlocked(reason));
+    final cb = options.preview.onBlocked;
+    if (cb == null) return;
+    try {
+      cb(reason);
+    } on Object {
+      // A host callback must never break the engine.
+      //
+      // 宿主回调绝不能打断 engine。
+    }
+  }
+
+  @override
   Future<void> open(VmSource source, {bool autoPlay = true}) async {
     final allowed = await _chain.beforeOpen(source);
     if (!allowed) return;
     _source = source;
+    _previewService.attach(source);
     _abrPolicy.reset();
     _state.emit(state.copyWith(
       qualities: const [],
@@ -512,6 +654,7 @@ class VmEngine implements VmApi {
     await _ui.close();
     await _events.close();
     await _progressRaw.close();
+    await _previewService.dispose();
     await _kernel.dispose();
   }
 

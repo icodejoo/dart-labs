@@ -1,4 +1,8 @@
+import 'dart:io';
+
 import 'package:flutter_test/flutter_test.dart';
+import 'package:path_provider_platform_interface/path_provider_platform_interface.dart';
+import 'package:plugin_platform_interface/plugin_platform_interface.dart';
 import 'package:videoman/src/core/engine.dart';
 import 'package:videoman/src/core/platform/ports.dart';
 import 'package:videoman/src/platform_impl/brightness_impl.dart';
@@ -7,6 +11,19 @@ import 'package:videoman/src/platform_impl/pip_impl.dart';
 import 'package:videoman/src/platform_impl/wiring.dart';
 
 import '../support/fake_kernel.dart';
+
+/// A fake [PathProviderPlatform] so `createVmEngine()`'s real disk-cache
+/// wiring (Task 12) can dispose cleanly in this plain-Dart test suite,
+/// without a real platform channel behind `path_provider`.
+///
+/// 假的 [PathProviderPlatform]，让 `createVmEngine()`（Task 12 起接入真实
+/// 磁盘缓存）在本纯 Dart 测试套件里也能正常 dispose，而不需要 `path_provider`
+/// 背后真正的平台通道。
+class _FakePathProviderPlatform extends PathProviderPlatform
+    with MockPlatformInterfaceMixin {
+  @override
+  Future<String?> getTemporaryPath() async => Directory.systemTemp.path;
+}
 
 /// A fake [VmBrightnessPort] used only to prove that an explicit override
 /// wins over `createVmEngine`'s real-adapter default.
@@ -35,6 +52,9 @@ void main() {
   // 在 diff review 中是不可见的。这里断言具体运行时类型，意味着未来的回归
   // （例如有人把 example/lib/main.dart 改回裸 `VmEngine()`）能被本测试套件
   // 捕获，而不是只能靠人盯着亮度滑块才能发现。
+  TestWidgetsFlutterBinding.ensureInitialized();
+  PathProviderPlatform.instance = _FakePathProviderPlatform();
+
   group('createVmEngine', () {
     test('defaults every port to the real platform adapter', () {
       final engine = createVmEngine(kernel: FakeKernel());

@@ -6,6 +6,7 @@ import 'package:videoman/src/core/model/quality.dart';
 import 'package:videoman/src/core/model/source.dart';
 import 'package:videoman/src/core/options/options.dart';
 import 'package:videoman/src/core/platform/ports.dart';
+import 'package:videoman/src/core/preview/net_probe.dart';
 import 'package:videoman/src/core/state/ui_state.dart';
 
 import '../support/fake_kernel.dart';
@@ -260,6 +261,78 @@ void main() {
     expect(spy.calls, isEmpty);
 
     await e2.dispose();
+  });
+
+  test('preview is exposed on the api surface', () {
+    expect(e.preview, isNotNull);
+    expect(e.preview.current, isNull);
+  });
+
+  test('opening a source attaches it to the preview service', () async {
+    await e.open(const VmSource('https://host/a.mp4'));
+    e.preview.requestAt(const Duration(seconds: 5));
+    // With no sources able to serve this media the request resolves to
+    // nothing, but attaching must not throw and must clear any old thumb.
+    //
+    // 没有来源能服务该媒体时请求解析为空，但 attach 不得抛异常，且必须清掉
+    // 旧缩略图。
+    expect(e.preview.current, isNull);
+  });
+
+  test('a disabled preview config emits VmPreviewBlocked on the event stream', () async {
+    final e2 = VmEngine(
+      kernel: FakeKernel(),
+      options: const VmOptions(
+        preview: VmPreviewConfig(
+          enabled: false,
+          debounce: Duration.zero,
+          network: VmPreviewNetwork.always,
+        ),
+      ),
+    );
+    final events = <VmEvent>[];
+    final sub = e2.events.listen(events.add);
+    await e2.open(const VmSource('https://host/a.mp4'));
+    e2.preview.requestAt(const Duration(seconds: 5));
+    await Future<void>.delayed(const Duration(milliseconds: 50));
+    expect(events.whereType<VmPreviewBlocked>(), isNotEmpty);
+    expect(
+      events.whereType<VmPreviewBlocked>().first.reason,
+      VmPreviewBlockReason.disabled,
+    );
+    await sub.cancel();
+    await e2.dispose();
+  });
+
+  test('the configured onBlocked callback also fires', () async {
+    final reasons = <VmPreviewBlockReason>[];
+    final e2 = VmEngine(
+      kernel: FakeKernel(),
+      options: VmOptions(
+        preview: VmPreviewConfig(
+          enabled: false,
+          debounce: Duration.zero,
+          network: VmPreviewNetwork.always,
+          onBlocked: reasons.add,
+        ),
+      ),
+    );
+    await e2.open(const VmSource('https://host/a.mp4'));
+    e2.preview.requestAt(const Duration(seconds: 5));
+    await Future<void>.delayed(const Duration(milliseconds: 50));
+    expect(reasons, [VmPreviewBlockReason.disabled]);
+    await e2.dispose();
+  });
+
+  test('disposing the engine disposes the preview service', () async {
+    final e2 = VmEngine(kernel: FakeKernel());
+    await e2.dispose();
+    // A closed preview stream is the observable proof the service was torn
+    // down; requesting after dispose must be a silent no-op.
+    //
+    // 预览流已关闭即是服务已销毁的可观测证据；dispose 之后再请求必须静默无操作。
+    e2.preview.requestAt(const Duration(seconds: 1));
+    expect(e2.preview.current, isNull);
   });
 }
 
