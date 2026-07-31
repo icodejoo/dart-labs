@@ -430,12 +430,62 @@ class VmEngine implements VmApi {
     if (!gate) return;
     final t = await _chain.beforeSeek(to);
     if (t == null) return;
-    final clamped = state.duration > Duration.zero
-        ? Duration(milliseconds: t.inMilliseconds.clamp(0, state.duration.inMilliseconds))
+    // For a seekable live stream the meaningful upper bound is the DVR
+    // window, not `duration` — with an explicit dvrWindow/windowResolver the
+    // kernel may report no duration at all.
+    //
+    // 对可拖动的直播流，有意义的上界是 DVR 窗口而非 `duration`——配置了显式
+    // dvrWindow/windowResolver 时，内核可能根本不报告时长。
+    final limit = state.type == VmStreamType.live && state.liveSeekable
+        ? state.seekableWindow
+        : state.duration;
+    final clamped = limit > Duration.zero
+        ? Duration(milliseconds: t.inMilliseconds.clamp(0, limit.inMilliseconds))
         : t;
+    if (state.type == VmStreamType.live &&
+        options.live.seekMode == VmLiveSeekMode.timeshift) {
+      await _seekTimeshift(clamped);
+      return;
+    }
     _events.add(VmSeeking(clamped));
     await _kernel.seek(clamped);
     _events.add(VmSeeked(clamped));
+  }
+
+  /// Performs a time-shift seek by reopening the stream at a host-built URL.
+  ///
+  /// Unlike DVR mode there is nothing to seek within: the live URL only ever
+  /// serves the edge, so the only way to replay is to open a different URL
+  /// carrying the desired start time. [VmLiveConfig.urlBuilder] is the sole
+  /// source of that URL — without it the mode is inert and this is a no-op,
+  /// because guessing a server's time-shift parameter would silently open a
+  /// wrong (or 404) stream.
+  ///
+  /// 通过用宿主构造的 URL 重开流来完成一次时移拖动。
+  ///
+  /// 与 DVR 模式不同，这里没有可供 seek 的内容：直播地址永远只提供边缘内容，
+  /// 想回看就只能打开另一个携带目标起播时间的地址。[VmLiveConfig.urlBuilder]
+  /// 是该地址的唯一来源——没有它本模式不生效、本方法为空操作，因为猜测服务端
+  /// 的时移参数只会静默打开一个错误（或 404）的流。
+  ///
+  /// - [target]: the clamped in-window target position / 已 clamp 的窗口内目标位置
+  Future<void> _seekTimeshift(Duration target) async {
+    final src = _source;
+    final builder = options.live.urlBuilder;
+    if (src == null || builder == null) return;
+    final window = state.seekableWindow;
+    final raw = window > target ? window - target : Duration.zero;
+    final behind = Duration(seconds: raw.inSeconds);
+    _events.add(VmSeeking(target));
+    await _kernel.open(builder(src.uri, behind, DateTime.now()), play: true);
+    if (behind <= options.live.edgeThreshold) {
+      _state.emit(state.copyWith(clearTimeshift: true));
+      _events.add(const VmLiveEdgeReached());
+    } else {
+      _state.emit(state.copyWith(timeshiftBehind: behind));
+      _events.add(VmTimeshiftChanged(behind));
+    }
+    _events.add(VmSeeked(target));
   }
 
   @override

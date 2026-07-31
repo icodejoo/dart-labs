@@ -850,7 +850,7 @@ DESIGN §8：「**timeshift**：`onChangeEnd` 时用 `urlBuilder` 生成带起�
 - Consumes: `VmTimeshiftBuilder`（Task 1）、`VmTimeshiftChanged` / `VmLiveEdgeReached`（已存在）
 - Produces: 无新公开类型；`seek()` 在 `timeshift` 模式下的换源语义
 
-- [ ] **Step 1: 追加失败测试到 `test/core/engine_test.dart`**
+- [x] **Step 1: 追加失败测试到 `test/core/engine_test.dart`**
 
 `main()` 末尾追加：
 
@@ -958,13 +958,13 @@ DESIGN §8：「**timeshift**：`onChangeEnd` 时用 `urlBuilder` 生成带起�
   });
 ```
 
-- [ ] **Step 2: 跑测试确认失败**
+- [x] **Step 2: 跑测试确认失败**
 
 Run: `flutter test test/core/engine_test.dart`
 Expected: FAIL — 「timeshift seek reopens the stream at the url the builder returns」失败，
 `expected: 'https://host/l.m3u8?behind=500'  actual: 'https://host/l.m3u8'`（当前实现直接 `_kernel.seek`）
 
-- [ ] **Step 3: 改造 `seek()` 并加 `_seekTimeshift()`**
+- [x] **Step 3: 改造 `seek()` 并加 `_seekTimeshift()`**
 
 `lib/src/core/engine.dart` 的 `seek()` 整体替换为：
 
@@ -1038,12 +1038,12 @@ Expected: FAIL — 「timeshift seek reopens the stream at the url the builder r
   }
 ```
 
-- [ ] **Step 4: 跑测试确认通过**
+- [x] **Step 4: 跑测试确认通过**
 
 Run: `flutter test test/core/engine_test.dart && flutter analyze`
 Expected: 全绿（新增 5 项），analyze 0 issues
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add -A
