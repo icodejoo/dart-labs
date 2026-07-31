@@ -455,7 +455,7 @@ git commit -m "docs(videoman): record libmpv screenshot resolution spike result 
   - `String defaultCacheKey(String sourceKey, int bucketSec, int width)`
   - `typedef VmCacheKeyBuilder = String Function(String sourceKey, int bucketSec, int width);`
 
-- [ ] **Step 1: 写失败测试 `test/core/preview/models_test.dart`**
+- [x] **Step 1: 写失败测试 `test/core/preview/models_test.dart`**
 
 ```dart
 import 'dart:typed_data';
@@ -525,7 +525,7 @@ void main() {
 }
 ```
 
-- [ ] **Step 2: 写失败测试 `test/core/preview/hash_test.dart`**
+- [x] **Step 2: 写失败测试 `test/core/preview/hash_test.dart`**
 
 ```dart
 import 'package:flutter_test/flutter_test.dart';
@@ -565,12 +565,12 @@ void main() {
 }
 ```
 
-- [ ] **Step 3: 跑测试确认失败**
+- [x] **Step 3: 跑测试确认失败**
 
 Run: `flutter test test/core/preview/`
 Expected: FAIL — `Error when reading 'lib/src/core/preview/models.dart': No such file or directory` / `fnv1a64 isn't defined`
 
-- [ ] **Step 4: 实现 `lib/src/core/preview/models.dart`**
+- [x] **Step 4: 实现 `lib/src/core/preview/models.dart`**
 
 ```dart
 import 'dart:typed_data';
@@ -756,7 +756,7 @@ class VmThumbIndex {
 }
 ```
 
-- [ ] **Step 5: 实现 `lib/src/core/preview/hash.dart`**
+- [x] **Step 5: 实现 `lib/src/core/preview/hash.dart`**
 
 ```dart
 /// 64-bit FNV-1a offset basis.
@@ -834,7 +834,7 @@ String defaultCacheKey(String sourceKey, int bucketSec, int width) =>
 typedef VmCacheKeyBuilder = String Function(String sourceKey, int bucketSec, int width);
 ```
 
-- [ ] **Step 6: barrel 增补导出**
+- [x] **Step 6: barrel 增补导出**
 
 `lib/videoman.dart` 在 `export 'src/core/platform/ports.dart';` 之后按字母序插入两行：
 
@@ -843,12 +843,12 @@ export 'src/core/preview/hash.dart';
 export 'src/core/preview/models.dart';
 ```
 
-- [ ] **Step 7: 跑测试确认通过**
+- [x] **Step 7: 跑测试确认通过**
 
 Run: `flutter test test/core/preview/ && flutter analyze`
 Expected: 11 项 PASS（models 6 + hash 5），analyze 0 issues
 
-- [ ] **Step 8: Commit**
+- [x] **Step 8: Commit**
 
 ```bash
 git add -A
