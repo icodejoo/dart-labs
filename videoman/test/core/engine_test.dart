@@ -524,6 +524,111 @@ void main() {
     expect(k2.calls, isEmpty);
     await e2.dispose();
   });
+
+  test('backToLiveEdge in dvr mode seeks to the window end without reopening', () async {
+    final k2 = FakeKernel();
+    final e2 = VmEngine(
+      kernel: k2,
+      options: const VmOptions(live: VmLiveConfig(seekMode: VmLiveSeekMode.dvr)),
+    );
+    await e2.open(const VmSource('https://host/l.m3u8', type: VmStreamType.live));
+    k2.emitDuration(const Duration(seconds: 300));
+    k2.emitPosition(const Duration(seconds: 100));
+    await Future<void>.delayed(Duration.zero);
+    k2.calls.clear();
+    await e2.backToLiveEdge();
+    expect(k2.calls, ['seek']);
+    expect(k2.lastSeek, const Duration(seconds: 300));
+    expect(e2.state.timeshiftBehind, isNull);
+    await e2.dispose();
+  });
+
+  test('backToLiveEdge in timeshift mode reopens the original live url', () async {
+    final k2 = FakeKernel();
+    final e2 = VmEngine(
+      kernel: k2,
+      options: VmOptions(
+        live: VmLiveConfig(
+          seekMode: VmLiveSeekMode.timeshift,
+          dvrWindow: const Duration(seconds: 600),
+          urlBuilder: (uri, behind, at) => '$uri?behind=${behind.inSeconds}',
+        ),
+      ),
+    );
+    await e2.open(const VmSource('https://host/l.m3u8', type: VmStreamType.live));
+    await e2.seek(const Duration(seconds: 100));
+    expect(k2.lastUri, 'https://host/l.m3u8?behind=500');
+    k2.calls.clear();
+    await e2.backToLiveEdge();
+    expect(k2.calls, ['open']);
+    expect(k2.lastUri, 'https://host/l.m3u8',
+        reason: 'must reopen the original url, not the time-shifted one');
+    expect(e2.state.timeshiftBehind, isNull);
+    await e2.dispose();
+  });
+
+  test('an explicit backToLive strategy overrides the mode-derived one', () async {
+    final k2 = FakeKernel();
+    final e2 = VmEngine(
+      kernel: k2,
+      options: const VmOptions(
+        live: VmLiveConfig(
+          seekMode: VmLiveSeekMode.dvr,
+          backToLive: VmBackToLive.reopen,
+        ),
+      ),
+    );
+    await e2.open(const VmSource('https://host/l.m3u8', type: VmStreamType.live));
+    k2.emitDuration(const Duration(seconds: 300));
+    await Future<void>.delayed(Duration.zero);
+    k2.calls.clear();
+    await e2.backToLiveEdge();
+    expect(k2.calls, ['open']);
+    await e2.dispose();
+  });
+
+  test('backToLiveEdge is a no-op for a VOD source', () async {
+    await e.open(const VmSource('https://host/a.mp4'));
+    k.calls.clear();
+    await e.backToLiveEdge();
+    expect(k.calls, isEmpty);
+  });
+
+  test('autoBackToLiveOnStall jumps back only while time-shifted and only when on', () async {
+    final k2 = FakeKernel();
+    final e2 = VmEngine(
+      kernel: k2,
+      options: const VmOptions(
+        live: VmLiveConfig(
+          seekMode: VmLiveSeekMode.dvr,
+          autoBackToLiveOnStall: true,
+        ),
+      ),
+    );
+    await e2.open(const VmSource('https://host/l.m3u8', type: VmStreamType.live));
+    k2.emitDuration(const Duration(seconds: 300));
+    await Future<void>.delayed(Duration.zero);
+
+    // At the edge: a stall must not move the playhead.
+    // 在边缘：卡顿不应移动播放头。
+    k2.emitPosition(const Duration(seconds: 298));
+    await Future<void>.delayed(Duration.zero);
+    k2.calls.clear();
+    k2.emitBuffering(true);
+    await Future<void>.delayed(Duration.zero);
+    expect(k2.calls, isEmpty);
+
+    // Time-shifted: a stall jumps back to the edge.
+    // 时移中：卡顿会跳回边缘。
+    k2.emitBuffering(false);
+    k2.emitPosition(const Duration(seconds: 50));
+    await Future<void>.delayed(Duration.zero);
+    k2.calls.clear();
+    k2.emitBuffering(true);
+    await Future<void>.delayed(Duration.zero);
+    expect(k2.calls, contains('seek'));
+    await e2.dispose();
+  });
 }
 
 /// A spy [VmOrientationPort] that records every `apply(...)` call's
