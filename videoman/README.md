@@ -190,6 +190,24 @@ final engine = VmEngine(
 `ScreenBrightnessPort()` / `ChannelPipPort()` / `SystemChromeOrientationPort()`，
 并额外接好预览相关的端口（缩略图目录/抽帧器/网络探针的真实实现）。
 
+`SystemChromeOrientationPort` 只处理移动端的方向锁定/沉浸式系统 UI；在
+Windows/macOS/Linux 上没有对应的"真全屏"概念（把 OS 窗口撑满屏幕、去掉标题栏），
+调用 `setFullscreen(true)` 在桌面端不会有可见效果。videoman 不内置窗口管理
+依赖，桌面端真全屏留给宿主自己接：
+
+```dart
+engine.events.listen((e) {
+  if (e is VmFullscreenChanged) {
+    // 例如用 window_manager 包切换真实的 OS 窗口全屏。
+    windowManager.setFullScreen(e.value);
+  }
+});
+```
+
+`VmFullscreenChanged` 事件在 `setFullscreen()` 每次调用时都会发出，与
+`VmOrientationPort` 无关——不需要实现整套 `VmOrientationPort` 接口（那是给移动端
+方向/沉浸式 UI 设计的），监听事件流即可。
+
 ## 自定义皮肤 / Custom skins
 
 不用继承旧版 `VodControls`/`LiveControls`/`VmGestureDetector`，改为对

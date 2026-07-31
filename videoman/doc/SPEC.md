@@ -178,6 +178,16 @@ import Flutter widget 与直接依赖 `VmApi` 的地方。
   `false` 而不抛出）；`PipButtonComponent` 据此隐藏自身，不支持的平台上按钮
   根本不出现，而不是出现了点了没反应。
 
+## 全屏（桌面平台的已知边界）
+
+`SystemChromeOrientationPort`（`VmOrientationPort` 的默认实现）只处理移动端的
+方向锁定与沉浸式系统 UI；Windows/macOS/Linux 上没有"真全屏"的对应概念（撑满
+屏幕、去掉标题栏），因此 `setFullscreen(true)` 在桌面端不会有可见效果——2026-07-31
+Windows 实跑证实。这不是回归，是能力从未在桌面实现过。videoman 不内置窗口管理
+依赖（如 `window_manager`），桌面真全屏留给宿主接：`setFullscreen()` 每次调用都会
+在 `VmApi.events` 上发 `VmFullscreenChanged(bool)` 事件，与 `VmOrientationPort`
+无关，宿主监听后自行调用窗口管理 API 即可（见 README「平台端口」一节示例）。
+
 ## 测试
 
 - `test/core/`：`api_test.dart`/`bus_test.dart`/`compat_test.dart`/
