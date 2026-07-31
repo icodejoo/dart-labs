@@ -8,6 +8,7 @@ import '../components/gesture_layer.dart';
 import '../components/hud_layer.dart';
 import '../components/live_bar.dart';
 import '../components/overlays.dart';
+import '../components/preview.dart';
 import '../components/top_bar.dart';
 import '../scope/scope.dart';
 import '../scope/selector.dart';
@@ -53,6 +54,7 @@ class VmDefaultSkin implements VmSkin {
         HudLayerComponent(),
         TopBarComponent(),
         CenterPlayComponent(),
+        PreviewComponent(),
         s.type == VmStreamType.live ? LiveBarComponent() : BottomBarComponent(),
         BufferingComponent(),
         ErrorComponent(),

@@ -5,6 +5,7 @@ import 'package:videoman/src/core/state/state.dart';
 import 'package:videoman/src/ui/scope/scope.dart';
 import 'package:videoman/src/ui/skins/default_skin.dart';
 import 'package:videoman/src/ui/slots/patch.dart';
+import 'package:videoman/src/ui/slots/slot.dart';
 import 'package:videoman/src/ui/slots/tree.dart';
 
 import '../support/fake_api.dart';
@@ -46,5 +47,11 @@ void main() {
     ));
     expect(find.byType(Stack), findsWidgets);
     await api.dispose();
+  });
+
+  test('the default tree mounts the preview bubble in the bottomAbove slot', () {
+    final tree = const VmDefaultSkin().components(const VmState());
+    final preview = tree.firstWhere((c) => c.name == 'preview');
+    expect(preview.slot, VmSlot.bottomAbove);
   });
 }

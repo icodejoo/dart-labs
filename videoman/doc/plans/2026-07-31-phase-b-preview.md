@@ -5599,7 +5599,7 @@ DESIGN §5.4 的 `bottomAbove preview` + §6.1「气泡外观 | 默认组件 | �
 - Consumes: `VmApi`（含 Task 12 的 `preview`）、`VmThumb`/`VmThumbCrop`（Task 2）、`VmUiSelector`、`VmComponent`、`VmSlot`、`formatDuration`
 - Produces: `class PreviewComponent extends VmComponent`（`name` = `'preview'`，`slot` = `VmSlot.bottomAbove`）
 
-- [ ] **Step 1: 写失败测试 `test/ui/preview_test.dart`**
+- [x] **Step 1: 写失败测试 `test/ui/preview_test.dart`**
 
 ```dart
 import 'dart:typed_data';
@@ -5644,6 +5644,16 @@ void main() {
     await pumpComponent(t, api, PreviewComponent());
     api.pushUi(const VmUiState(dragging: true, previewAt: Duration(seconds: 65)));
     await t.pump();
+    // A second pump is needed here (but not after later state changes in this
+    // suite, which are always preceded by another pumped state change): the
+    // very first uiStates event after listen() costs an extra microtask hop
+    // through VmBus's Stream.multi replay, which one pump() doesn't fully
+    // settle before its frame runs.
+    //
+    // 这里需要第二次 pump（本组测试里后续状态变化不需要，因为前面总还有一次
+    // 已经 pump 过的状态变化垫底）：listen() 后的第一个 uiStates 事件要多走
+    // 一趟 VmBus 的 Stream.multi 重放微任务，一次 pump() 的帧还赶不上它。
+    await t.pump();
     expect(find.text('01:05'), findsOneWidget);
   });
 
@@ -5669,6 +5679,7 @@ void main() {
     api.preview.peekResult = VmThumb(at: const Duration(seconds: 10), bytes: _png);
     await pumpComponent(t, api, PreviewComponent());
     api.pushUi(const VmUiState(dragging: true, previewAt: Duration(seconds: 10)));
+    await t.pump();
     await t.pump();
     expect(find.byType(Image), findsOneWidget);
   });
@@ -5698,6 +5709,7 @@ void main() {
     expect(find.byType(Image), findsOneWidget);
     api.pushUi(const VmUiState());
     await t.pump();
+    await t.pump();
     expect(find.byType(Image), findsNothing);
     expect(api.preview.calls, contains('cancel'));
   });
@@ -5711,7 +5723,7 @@ void main() {
 }
 ```
 
-- [ ] **Step 2: 追加失败测试到 `test/ui/skin_test.dart`**
+- [x] **Step 2: 追加失败测试到 `test/ui/skin_test.dart`**
 
 在 `main()` 末尾追加：
 
@@ -5725,12 +5737,12 @@ void main() {
 
 顶部若缺 `import 'package:videoman/src/ui/slots/slot.dart';` 则补上。
 
-- [ ] **Step 3: 跑测试确认失败**
+- [x] **Step 3: 跑测试确认失败**
 
 Run: `flutter test test/ui/preview_test.dart test/ui/skin_test.dart`
 Expected: FAIL — `Error when reading 'lib/src/ui/components/preview.dart': No such file or directory`
 
-- [ ] **Step 4: 实现 `lib/src/ui/components/preview.dart`**
+- [x] **Step 4: 实现 `lib/src/ui/components/preview.dart`**
 
 ```dart
 import 'dart:async';
@@ -5983,13 +5995,13 @@ class _PreviewBubbleState extends State<_PreviewBubble> {
 }
 ```
 
-- [ ] **Step 5: 挂进默认皮肤**
+- [x] **Step 5: 挂进默认皮肤**
 
 `lib/src/ui/skins/default_skin.dart`：import 区加 `import '../components/preview.dart';`；
 `components()` 的列表里，在 `s.type == VmStreamType.live ? LiveBarComponent() : BottomBarComponent(),`
 **之前**插入 `PreviewComponent(),`（`bottomAbove` 在 `assemble` 里已排在 `bottom` 之上）。
 
-- [ ] **Step 6: barrel 增补导出**
+- [x] **Step 6: barrel 增补导出**
 
 `lib/videoman.dart` 在 `export 'src/ui/components/overlays.dart';` 之后按字母序插入：
 
@@ -5997,12 +6009,12 @@ class _PreviewBubbleState extends State<_PreviewBubble> {
 export 'src/ui/components/preview.dart';
 ```
 
-- [ ] **Step 7: 跑测试与分析**
+- [x] **Step 7: 跑测试与分析**
 
 Run: `flutter test && flutter analyze`
 Expected: preview 8 项 + skin 追加 1 项 PASS，累计 199 项全绿，analyze 0 issues
 
-- [ ] **Step 8: Commit**
+- [x] **Step 8: Commit**
 
 ```bash
 git add -A
