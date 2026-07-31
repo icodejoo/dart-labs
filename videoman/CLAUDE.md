@@ -80,8 +80,15 @@
 **承自 fvideo（改名前）、排在 0.2.0 之后**——videoman 就是 fvideo，遗留任务全部承接：
 
 4. **二期 ffmpeg 瘦身（LGPL）——未开始**：自建 libmpv/ffmpeg 裁剪 demuxer/decoder，
-   替换 `media_kit_libs_video`；构建卡 LGPL，避开 GPL-only 组件。**顺带待办**：自建时
-   可直接导出一个轻量 FFI 抽帧函数（如 `vm_extract_thumbnail(uri, atMs, width) -> jpegBytes`，
+   替换 `media_kit_libs_video`；构建卡 LGPL，避开 GPL-only 组件。**mpv 构建选项完整盘点
+   已完成**（2026-07-31）：哪些选项明确可关、哪些要按平台取舍、哪些要先实测才能关、
+   哪些是产品取舍非技术问题——详见
+   [doc/notes/2026-07-31-libmpv-slimming-options.md](doc/notes/2026-07-31-libmpv-slimming-options.md)。
+   **字幕相关选项（libass/subrandr/uchardet）明确保留待定，不要关**——用户认为 mpv
+   原生字幕渲染可能有用，等瘦身构建实测出体积数字后再权衡（与
+   [doc/notes/2026-07-31-stt-subtitle-feasibility.md](doc/notes/2026-07-31-stt-subtitle-feasibility.md)
+   的"Flutter 侧字幕组件 vs mpv 原生渲染"架构决策一并拍板）。**顺带待办**：自建时可直接
+   导出一个轻量 FFI 抽帧函数（如 `vm_extract_thumbnail(uri, atMs, width) -> jpegBytes`，
    内部走 `libavformat`+`libswscale`），替换阶段 B 现在"开一个完整隐藏 `Player` 抽帧"的
    重量级方案（阶段 B 受限于 mpv `screenshot()` 不支持缩放，见
    [doc/plans/2026-07-31-phase-b-preview.md](doc/plans/2026-07-31-phase-b-preview.md) 附录 A）。
@@ -91,19 +98,21 @@
    落地卡在一次**需 Mac + iOS 15+ 真机**的门槛 spike。研究 + 落地计划 + 渲染机制/性能
    澄清见 [doc/notes/2026-07-31-ios-pip-feasibility.md](doc/notes/2026-07-31-ios-pip-feasibility.md)。
    不需 Mac 也能先做的：跨平台"应用内悬浮窗"降级方案（阶段 3）。
-6. **实时语音转文字字幕——可行性已评估（2026-07-31，第二版，推翻同日第一版），结论
-   可行且不需要新增第三方依赖，等用户拍板两点后开工**：方向是仿阶段 B「隐藏 Player
-   独立解码」+ **平台原生 STT 优先、没有就关闭**（Android ML Kit / iOS
-   `SFSpeechAudioBufferRecognitionRequest`，均是系统自带能力、走原生插件代码，不算
-   新依赖）+ 字幕叠层组件。第一版曾建议默认依赖 whisper.cpp，已推翻（真正的新依赖 +
-   需要模型文件）；曾评估 MCP 兜底转写，**已否决**（请求/响应协议非实时流式、延迟不可
-   控，且与 MCP 钩子"被动暴露上下文"的本职冲突）——缺口复用既有 `VmVolumePort`/
+6. **实时语音转文字字幕——可行性已评估 + 音频抽取 spike 已实测（2026-07-31），
+   Android+iOS 正在落地**：方向是**各平台原生轻量抽取 API**（Android `MediaExtractor`+
+   `MediaCodec`、iOS `AVAssetReader`）+ **平台原生 STT**（Android ML Kit / iOS
+   `SFSpeechAudioBufferRecognitionRequest`，均系统自带、走原生插件代码，不算新依赖）+
+   字幕叠层组件；PCM 抽取与 STT 调用同一次原生方法内完成，不过 Dart 侧。spike 验证过
+   "起第二个 media_kit `Player` 用 `Media(start:,end:)` 分块"技术上可行，但双播放器
+   CPU/内存翻倍，**已否决**，改走上述原生 API 路线。曾建议默认依赖 whisper.cpp，已
+   推翻；曾评估 MCP 兜底转写，**已否决**（请求/响应协议非实时流式、延迟不可控，且与
+   MCP 钩子"被动暴露上下文"的本职冲突）——缺口复用既有 `VmVolumePort`/
    `CallbackVolumePort` 的注入模式给宿主一个通用 `VmSttEngine` 口子即可，不专门补 MCP。
-   完整调研见 [doc/notes/2026-07-31-stt-subtitle-feasibility.md](doc/notes/2026-07-31-stt-subtitle-feasibility.md)，
-   回写见 [doc/PRD.md](doc/PRD.md) ADR。**待用户决定两点才能转成逐 Task 计划开工**：
-   ① macOS 目前没有原生插件（需从零搭建）是否现在投入；② Windows SAPI/COM 实现
-   （真实原生工作量、无项目内先例）的优先级。AI MCP 接入钩子（被动暴露上下文/接受
-   指令，与字幕转写解耦）仍是纯架构预留，未评估、未排期。
+   完整调研 + spike 实测数据见
+   [doc/notes/2026-07-31-stt-subtitle-feasibility.md](doc/notes/2026-07-31-stt-subtitle-feasibility.md)
+   附录 A，回写见 [doc/PRD.md](doc/PRD.md) ADR。**macOS（无原生插件，需从零搭建）与
+   Windows（SAPI/COM，无项目内先例）暂缓**，逐 Task 落地计划见 `doc/plans/`。AI MCP
+   接入钩子（被动暴露上下文/接受指令，与字幕转写解耦）仍是纯架构预留，未评估、未排期。
 
 ## 约定
 
