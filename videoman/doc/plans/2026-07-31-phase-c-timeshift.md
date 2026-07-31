@@ -2619,30 +2619,30 @@ git commit -m "docs(videoman): document live timeshift and reconcile design doc 
 - Modify: `doc/SPEC.md`（贴实测输出）
 - Test: 全量
 
-- [ ] **Step 1: analyze**
+- [x] **Step 1: analyze**
 
 Run: `flutter analyze`
 Expected: `No issues found!`
 
-- [ ] **Step 2: 全量测试并留档**
+- [x] **Step 2: 全量测试并留档**
 
 Run: `flutter test`
 Expected: 全绿。**把最后一行原始输出**（形如 `00:0X +NNN: All tests passed!`）**原样抄进
 `doc/SPEC.md` 的测试小节**，连同日期与机器。不许只写"通过"。
 
-- [ ] **Step 3: 纯净性最终确认**
+- [x] **Step 3: 纯净性最终确认**
 
 Run: `flutter test test/core/purity_test.dart`
 并 `grep -n "_mediaKitExceptions" -A 3 test/core/purity_test.dart`
 Expected: PASS，且集合内容仍恰好是 `{'kernel/mpv_kernel.dart'}`
 
-- [ ] **Step 4: 依赖清单确认**
+- [x] **Step 4: 依赖清单确认**
 
 Run: `grep -n -A 12 "^dependencies:" pubspec.yaml`
 Expected: 阶段 C **没有**新增任何依赖。若阶段 B 已落地，只应多 `path_provider` 与
 `connectivity_plus`；其余与阶段 A 相同。
 
-- [ ] **Step 5: 发布预检**
+- [x] **Step 5: 发布预检**
 
 Run: `flutter pub publish --dry-run`
 Expected: **0 warnings**。常见问题与处理：
@@ -2653,7 +2653,7 @@ Expected: **0 warnings**。常见问题与处理：
 
 把 dry-run 的完整输出摘要也记进 `doc/SPEC.md`。
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add -A

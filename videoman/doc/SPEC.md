@@ -198,7 +198,11 @@ import Flutter widget 与直接依赖 `VmApi` 的地方。
 - `test/support/`：`fake_api.dart`/`fake_kernel.dart`/`pump.dart` 测试基础设施。
 
 **实测结果**（阶段 C 收口，2026-07-31 本机实跑）：**260 tests passed, 0
-failed**（末行 `00:12 +260: All tests passed!`）。`flutter analyze` 0 issues。
+failed**（末行 `00:11 +260: All tests passed!`）。`flutter analyze` 0 issues。
+`flutter pub publish --dry-run`：**0 warnings**（`Total compressed archive
+size: 373 KB`）。`test/core/purity_test.dart` 单独跑通过，`_mediaKitExceptions`
+集合仍恰好是 `{'kernel/mpv_kernel.dart'}`。依赖清单核对：阶段 C 未新增任何
+依赖，仍是阶段 B 引入的 `path_provider`/`connectivity_plus` 加阶段 A 既有项。
 
 ## 命令
 
