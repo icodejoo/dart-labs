@@ -648,6 +648,42 @@ void main() {
     expect(e2.pipSupported, isFalse);
     await e2.dispose();
   });
+
+  test('seek optimistically reports the target and suppresses stale pre-seek echoes', () async {
+    await e.open(const VmSource('https://host/a.mp4'));
+    k.emitDuration(const Duration(minutes: 10));
+    k.emitPosition(const Duration(seconds: 5));
+    await Future<void>.delayed(Duration.zero);
+
+    final seen = <Duration>[];
+    final sub = e.progress.listen((p) => seen.add(p.position));
+    await Future<void>.delayed(Duration.zero);
+
+    await e.seek(const Duration(seconds: 120));
+    await Future<void>.delayed(Duration.zero);
+    expect(seen, contains(const Duration(seconds: 120)),
+        reason: 'the target must be reported before the kernel round trip settles');
+
+    // A stale echo of the pre-seek position must not regress what is
+    // reported — this is exactly the "flashes back to the old spot" bug a
+    // tap-to-seek/swipe/double-tap step all shared before this fix.
+    //
+    // seek 前旧位置的陈旧回声不能让上报的位置倒退——这正是修复前
+    // 点击/横滑/双击 seek 都会"闪回旧位置"的那个 bug。
+    k.emitPosition(const Duration(seconds: 6));
+    await Future<void>.delayed(const Duration(milliseconds: 250));
+    expect(seen.last, const Duration(seconds: 120));
+
+    // Once the kernel actually lands near the target (within the settle
+    // tolerance), normal reporting resumes.
+    //
+    // 一旦内核真的落到目标附近（在结算容差内），恢复正常上报。
+    k.emitPosition(const Duration(milliseconds: 120200));
+    await Future<void>.delayed(const Duration(milliseconds: 250));
+    expect(seen.last, const Duration(milliseconds: 120200));
+
+    await sub.cancel();
+  });
 }
 
 /// A spy [VmOrientationPort] that records every `apply(...)` call's

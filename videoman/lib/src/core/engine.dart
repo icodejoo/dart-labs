@@ -159,6 +159,25 @@ class VmEngine implements VmApi {
   /// 无需等待节流即可读取。
   Duration _lastPosition = Duration.zero;
 
+  /// How close a kernel-reported position must land to [_pendingSeekTarget]
+  /// before it is trusted again after a seek.
+  ///
+  /// [_pendingSeekTarget] 结算后重新信任内核上报位置所需的接近程度。
+  static const Duration _seekSettleTolerance = Duration(milliseconds: 500);
+
+  /// The position a seek is currently settling toward, or null when no seek
+  /// is in flight. Set by every seek path ([seek]) so the *first*
+  /// post-seek [progress] update already reports the target instead of a
+  /// stale pre-seek position — this is what makes a tap-to-seek, a
+  /// horizontal-swipe seek and a double-tap fast-forward/rewind all behave
+  /// identically: they are the exact same code path.
+  ///
+  /// 当前正在结算的 seek 目标位置；无进行中的 seek 时为 null。由每条 seek 路径
+  /// （[seek]）设置，使 seek 之后**第一个** [progress] 更新就直接报告目标位置，
+  /// 而不是一个陈旧的 seek 前位置——这正是"点击进度条 seek"、"横滑 seek"、
+  /// "双击快进退"三者行为完全一致的原因：它们本就是同一段代码。
+  Duration? _pendingSeekTarget;
+
   /// Latest known playing/paused flag, tracked synchronously from every
   /// kernel `playing` callback; see [_lastPosition] for why this is kept
   /// outside the throttled/deduplicated public streams.
@@ -225,6 +244,23 @@ class VmEngine implements VmApi {
       if (v) _events.add(const VmCompleted());
     });
     _positionSub = _kernel.position.listen((v) {
+      // While a seek is settling, the kernel keeps echoing stale
+      // pre-seek positions for a moment before it actually catches up —
+      // reporting those would flash the UI back to the old spot right after
+      // a seek, then snap forward once the real position lands. Suppress
+      // anything that isn't yet close to the pending target; the first
+      // update that is releases the suppression, so a second seek fired
+      // before the first settles is never blocked.
+      //
+      // seek 结算期间，内核会先回声几次旧位置才真正追上——原样上报会导致刚
+      // seek 完 UI 先闪回旧位置，等真实位置到达才猛地跳过去。在到达目标附近
+      // 之前，一律抑制上报；第一次足够接近目标的更新会解除抑制，因此在前一次
+      // 尚未结算时又发起的第二次 seek 不会被卡住。
+      final target = _pendingSeekTarget;
+      if (target != null) {
+        if ((v - target).abs() > _seekSettleTolerance) return;
+        _pendingSeekTarget = null;
+      }
       _lastPosition = v;
       _updateTimeshift(v);
       _progressRaw.add(VmProgress(position: v, buffer: _lastBuffer));
@@ -424,6 +460,7 @@ class VmEngine implements VmApi {
     final allowed = await _chain.beforeOpen(source);
     if (!allowed) return;
     _source = source;
+    _pendingSeekTarget = null;
     _previewService.attach(source);
     _abrPolicy.reset();
     _state.emit(state.copyWith(
@@ -476,6 +513,18 @@ class VmEngine implements VmApi {
       await _seekTimeshift(clamped);
       return;
     }
+    // Optimistically report the target position before the kernel round trip
+    // even starts, and arm suppression of the stale echoes that follow (see
+    // _positionSub). Every UI seek trigger — slider tap/drag, horizontal
+    // swipe, double-tap step — funnels through this one method, so all three
+    // get this pinned-until-settled behavior for free.
+    //
+    // 在内核往返尚未开始之前就乐观上报目标位置，并布防后续陈旧回声的抑制
+    // （见 _positionSub）。所有 UI 触发 seek 的入口——进度条点击/拖动、横滑、
+    // 双击步进——都汇入这一个方法，因此三者都自动获得"钉住直到结算"的行为。
+    _pendingSeekTarget = clamped;
+    _lastPosition = clamped;
+    _progressRaw.add(VmProgress(position: clamped, buffer: _lastBuffer));
     _events.add(VmSeeking(clamped));
     await _kernel.seek(clamped);
     _events.add(VmSeeked(clamped));

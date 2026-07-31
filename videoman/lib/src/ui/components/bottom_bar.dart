@@ -205,16 +205,45 @@ class _SeekBarState extends State<_SeekBar> {
   /// 更新影响。
   double? _dragValue;
 
+  /// Whether [_dragValue] is a committed seek target awaiting confirmation
+  /// (post [_onChangeEnd]) rather than a live in-progress drag. Only in this
+  /// state does the `progress` listener auto-release the pin once
+  /// [_position] settles near it — during an active drag, a progress tick
+  /// landing near the current finger position must never prematurely snap
+  /// the pin loose.
+  ///
+  /// [_dragValue] 是否是已提交、正在等待确认的 seek 目标（[_onChangeEnd] 之后），
+  /// 而非正在进行的实时拖动。只有在这个状态下，`progress` 监听才会在
+  /// [_position] 落定后自动解除钉住——拖动进行中时，一次凑巧落在手指当前位置
+  /// 附近的进度 tick 绝不能提前把钉住松开。
+  bool _awaitingSeek = false;
+
   /// Subscription feeding [_position]; cancelled on dispose.
   ///
   /// 为 [_position] 供数的订阅；在 dispose 时取消。
   StreamSubscription<VmProgress>? _sub;
 
+  /// How close [_position] must land to a pinned [_dragValue] before the pin
+  /// is released back to following the live progress stream.
+  ///
+  /// [_position] 需要落在钉住的 [_dragValue] 多近范围内，才会解除钉住、回到
+  /// 跟随实时进度流。
+  static const double _settleToleranceMs = 500;
+
   @override
   void initState() {
     super.initState();
     _sub = widget.api.progress.listen((p) {
-      setState(() => _position = p.position.inMilliseconds.toDouble());
+      setState(() {
+        _position = p.position.inMilliseconds.toDouble();
+        final drag = _dragValue;
+        if (_awaitingSeek &&
+            drag != null &&
+            (_position - drag).abs() < _settleToleranceMs) {
+          _dragValue = null;
+          _awaitingSeek = false;
+        }
+      });
     });
   }
 
@@ -252,19 +281,36 @@ class _SeekBarState extends State<_SeekBar> {
   ///
   /// - [v]: the new slider value in milliseconds / 新滑块值（毫秒）
   void _onChanged(double v) {
-    setState(() => _dragValue = v);
+    setState(() {
+      _dragValue = v;
+      _awaitingSeek = false;
+    });
     widget.api.setDragging(true, previewAt: Duration(milliseconds: v.round()));
   }
 
-  /// Commits the dragged position via [VmApi.seek], clears the drag
-  /// preview, and clears the local drag value.
+  /// Commits the dragged position via [VmApi.seek] and clears the drag
+  /// preview.
   ///
-  /// 通过 [VmApi.seek] 提交拖动结果，清除拖动预览及本地拖动值。
+  /// Deliberately does *not* clear [_dragValue] here: [VmApi.seek] pins the
+  /// engine's own progress stream to the target too, but that stream is
+  /// throttled, so clearing the local pin immediately could still flash the
+  /// slider back to the stale pre-seek position for the throttle window.
+  /// [_dragValue] is released once [_position] actually reports something
+  /// close to it (see the `progress` listener in [initState]), so the
+  /// displayed value never regresses.
+  ///
+  /// 通过 [VmApi.seek] 提交拖动结果，清除拖动预览。
+  ///
+  /// 这里刻意**不**清空 [_dragValue]：[VmApi.seek] 也会把 engine 自身的进度流
+  /// 钉在目标值上，但那条流带节流，若立刻清掉本地钉住值，滑块仍可能在节流
+  /// 窗口内闪回 seek 前的旧位置。[_dragValue] 只在 [_position] 真的报告出
+  /// 接近目标的值时才释放（见 [initState] 里的 `progress` 监听），因此展示值
+  /// 绝不会倒退。
   ///
   /// - [v]: the final slider value in milliseconds / 最终滑块值（毫秒）
   void _onChangeEnd(double v) {
     widget.api.seek(Duration(milliseconds: v.round()));
     widget.api.setDragging(false);
-    setState(() => _dragValue = null);
+    setState(() => _awaitingSeek = true);
   }
 }
