@@ -107,15 +107,39 @@ class VmDefaultSkin implements VmSkin {
                   Positioned.fill(child: Stack(children: slots[VmSlot.gesture])),
                   Positioned.fill(
                     child: _BarVisibility(
-                      child: Column(
+                      // A Stack of independently `Positioned` regions, not a
+                      // Column: the bottom bar grows taller when the preview
+                      // bubble appears above it (VmSlot.bottomAbove), and a
+                      // Column would re-flow every sibling in response —
+                      // visibly nudging the center play/pause icon up and
+                      // down as the bubble shows/hides. Positioning top/
+                      // center/bottom independently means resizing one never
+                      // moves another.
+                      //
+                      // 用 Stack + 各自独立的 Positioned，而非 Column：预览气泡
+                      // 出现在底栏上方（VmSlot.bottomAbove）时会撑高底栏，若用
+                      // Column，兄弟节点都会跟着重新排布——中间的播放/暂停图标
+                      // 就会随气泡出现/消失肉眼可见地上下跳动。顶/中/底各自
+                      // 独立定位，意味着其中一个变高变矮，绝不会带动另一个。
+                      child: Stack(
                         children: [
-                          Column(children: slots[VmSlot.top]),
-                          Expanded(child: Stack(children: slots[VmSlot.center])),
-                          Column(
-                            children: [
-                              ...slots[VmSlot.bottomAbove],
-                              ...slots[VmSlot.bottom],
-                            ],
+                          Positioned(
+                            top: 0,
+                            left: 0,
+                            right: 0,
+                            child: Column(children: slots[VmSlot.top]),
+                          ),
+                          Positioned.fill(child: Stack(children: slots[VmSlot.center])),
+                          Positioned(
+                            left: 0,
+                            right: 0,
+                            bottom: 0,
+                            child: Column(
+                              children: [
+                                ...slots[VmSlot.bottomAbove],
+                                ...slots[VmSlot.bottom],
+                              ],
+                            ),
                           ),
                         ],
                       ),
