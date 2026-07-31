@@ -3087,7 +3087,7 @@ core 只见抽象端口。具体的 mpv 属性组合取决于 Task 1 的实测�
   - `VmPlatformKind currentPlatformKind()`
   - `class MpvFrameExtractor implements VmFrameExtractor`（`platform_impl`，无单测，靠 Task 14 实跑验证）
 
-- [ ] **Step 1: 写失败测试 `test/core/preview/extractor_test.dart`**
+- [x] **Step 1: 写失败测试 `test/core/preview/extractor_test.dart`**
 
 ```dart
 import 'dart:typed_data';
@@ -3207,12 +3207,12 @@ void main() {
 }
 ```
 
-- [ ] **Step 2: 跑测试确认失败**
+- [x] **Step 2: 跑测试确认失败**
 
 Run: `flutter test test/core/preview/extractor_test.dart`
 Expected: FAIL — `Error when reading 'lib/src/core/preview/extractor.dart': No such file or directory`
 
-- [ ] **Step 3: 实现 `lib/src/core/preview/platform_kind.dart`**
+- [x] **Step 3: 实现 `lib/src/core/preview/platform_kind.dart`**
 
 ```dart
 import 'dart:io';
@@ -3276,7 +3276,7 @@ VmPlatformKind currentPlatformKind() {
 }
 ```
 
-- [ ] **Step 4: 实现 `lib/src/core/preview/extractor.dart`**
+- [x] **Step 4: 实现 `lib/src/core/preview/extractor.dart`**
 
 ```dart
 import 'dart:typed_data';
@@ -3392,7 +3392,7 @@ class VmExtractorThumbSource implements VmThumbSource {
 }
 ```
 
-- [ ] **Step 5: 实现 `lib/src/platform_impl/mpv_extractor_impl.dart`**
+- [x] **Step 5: 实现 `lib/src/platform_impl/mpv_extractor_impl.dart`**
 
 > **Task 1 实测结论（附录 A）：`vfScale` 与 `controllerSize` 两条路线均
 > `WORKS=false`——`screenshot()` 拿到的始终是原生分辨率。** 因此下面的实现**不设
@@ -3460,6 +3460,7 @@ class MpvFrameExtractor implements VmFrameExtractor {
   /// The hidden player's video controller; kept alive alongside [_player].
   ///
   /// 隐藏播放器的视频控制器；与 [_player] 同生共死。
+  // ignore: unused_field
   VideoController? _controller;
 
   /// The media currently open on the hidden player, or null when none.
@@ -3584,7 +3585,7 @@ class MpvFrameExtractor implements VmFrameExtractor {
 }
 ```
 
-- [ ] **Step 6: barrel 增补导出**
+- [x] **Step 6: barrel 增补导出**
 
 `lib/videoman.dart` 在 `export 'src/core/preview/disk_cache.dart';` 之后按字母序插入：
 
@@ -3604,14 +3605,14 @@ export 'src/core/preview/platform_kind.dart';
 export 'src/platform_impl/mpv_extractor_impl.dart';
 ```
 
-- [ ] **Step 7: 跑测试与分析**
+- [x] **Step 7: 跑测试与分析**
 
 Run: `flutter test && flutter analyze`
 Expected: extractor 6 项 PASS，累计 163 项全绿，analyze 0 issues。
 **特别确认 `flutter test test/core/purity_test.dart` PASS**——`extractor.dart` 只依赖
 `dart:typed_data`，media_kit 只出现在 `platform_impl/mpv_extractor_impl.dart`。
 
-- [ ] **Step 8: Commit**
+- [x] **Step 8: Commit**
 
 ```bash
 git add -A
