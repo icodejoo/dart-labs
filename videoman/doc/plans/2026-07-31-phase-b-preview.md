@@ -2513,7 +2513,7 @@ HTTP 用 `dart:io` 的 `HttpClient`（不引 `package:http`），并藏在 `VmHt
   - `Uri? defaultVttUrl(VmSource source)`
   - `class VmVttThumbSource implements VmThumbSource { VmVttThumbSource({required VmHttpFetcher fetcher, VmVttUrlResolver resolveUrl = defaultVttUrl, int maxSprites = 4}); }`
 
-- [ ] **Step 1: 写失败测试 `test/core/preview/vtt_source_test.dart`**
+- [x] **Step 1: 写失败测试 `test/core/preview/vtt_source_test.dart`**
 
 ```dart
 import 'dart:convert';
@@ -2699,12 +2699,12 @@ void main() {
 }
 ```
 
-- [ ] **Step 2: 跑测试确认失败**
+- [x] **Step 2: 跑测试确认失败**
 
 Run: `flutter test test/core/preview/vtt_source_test.dart`
 Expected: FAIL — `Error when reading 'lib/src/core/preview/fetcher.dart': No such file or directory`
 
-- [ ] **Step 3: 实现 `lib/src/core/preview/fetcher.dart`**
+- [x] **Step 3: 实现 `lib/src/core/preview/fetcher.dart`**
 
 ```dart
 import 'dart:io';
@@ -2795,7 +2795,7 @@ class IoHttpFetcher implements VmHttpFetcher {
 }
 ```
 
-- [ ] **Step 4: 实现 `lib/src/core/preview/source.dart`**
+- [x] **Step 4: 实现 `lib/src/core/preview/source.dart`**
 
 ```dart
 import '../model/source.dart';
@@ -2844,7 +2844,7 @@ abstract class VmThumbSource {
 }
 ```
 
-- [ ] **Step 5: 实现 `lib/src/core/preview/vtt_source.dart`**
+- [x] **Step 5: 实现 `lib/src/core/preview/vtt_source.dart`**
 
 ```dart
 import 'dart:collection';
@@ -3038,7 +3038,7 @@ class VmVttThumbSource implements VmThumbSource {
 }
 ```
 
-- [ ] **Step 6: barrel 增补导出**
+- [x] **Step 6: barrel 增补导出**
 
 `lib/videoman.dart` 在 `export 'src/core/preview/disk_cache.dart';` 之后按字母序插入：
 
@@ -3053,12 +3053,12 @@ export 'src/core/preview/source.dart';
 export 'src/core/preview/vtt_source.dart';
 ```
 
-- [ ] **Step 7: 跑测试确认通过**
+- [x] **Step 7: 跑测试确认通过**
 
 Run: `flutter test test/core/preview/vtt_source_test.dart && flutter analyze`
 Expected: 10 项 PASS，analyze 0 issues
 
-- [ ] **Step 8: Commit**
+- [x] **Step 8: Commit**
 
 ```bash
 git add -A
