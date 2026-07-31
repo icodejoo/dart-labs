@@ -4,6 +4,7 @@ import 'package:videoman/src/core/model/source.dart';
 import 'package:videoman/src/core/options/options.dart';
 import 'package:videoman/src/core/preview/net_probe.dart';
 import 'package:videoman/src/core/preview/platform_kind.dart';
+import 'package:videoman/src/core/state/state.dart';
 
 void main() {
   test('VmOptions defaults are const-constructible and preserve 0.1.0 gesture behaviour', () {
@@ -99,5 +100,53 @@ void main() {
     expect(p.vttUrlResolver!(const VmSource('x')), Uri.parse('https://cdn/t.vtt'));
     expect(p.onBlocked, isNotNull);
     expect(p.extractPlatforms, {VmPlatformKind.windows});
+  });
+
+  test('VmLiveConfig defaults keep 0.1.0 behaviour and add the new knobs off', () {
+    const c = VmLiveConfig();
+    expect(c.seekMode, VmLiveSeekMode.off);
+    expect(c.dvrWindow, isNull);
+    expect(c.edgeThreshold, const Duration(seconds: 10));
+    expect(c.urlBuilder, isNull);
+    expect(c.backToLive, isNull);
+    expect(c.autoBackToLiveOnStall, isFalse);
+    expect(c.windowResolver, isNull);
+  });
+
+  test('effectiveBackToLive derives from seekMode when not configured', () {
+    expect(const VmLiveConfig(seekMode: VmLiveSeekMode.dvr).effectiveBackToLive,
+        VmBackToLive.seekEnd);
+    expect(const VmLiveConfig(seekMode: VmLiveSeekMode.timeshift).effectiveBackToLive,
+        VmBackToLive.reopen);
+    expect(const VmLiveConfig().effectiveBackToLive, VmBackToLive.seekEnd);
+  });
+
+  test('an explicit backToLive overrides the derived default', () {
+    const c = VmLiveConfig(
+      seekMode: VmLiveSeekMode.timeshift,
+      backToLive: VmBackToLive.seekEnd,
+    );
+    expect(c.effectiveBackToLive, VmBackToLive.seekEnd);
+  });
+
+  test('urlBuilder and windowResolver are injectable strategies', () {
+    final c = VmLiveConfig(
+      seekMode: VmLiveSeekMode.timeshift,
+      urlBuilder: (uri, behind, at) => '$uri?behind=${behind.inSeconds}',
+      windowResolver: (s) => const Duration(minutes: 30),
+    );
+    expect(
+      c.urlBuilder!('https://h/l.m3u8', const Duration(seconds: 60), DateTime(2026)),
+      'https://h/l.m3u8?behind=60',
+    );
+    expect(c.windowResolver!(const VmState()), const Duration(minutes: 30));
+  });
+
+  test('VmLiveConfig.copyWith replaces one field only', () {
+    const c = VmLiveConfig(seekMode: VmLiveSeekMode.dvr);
+    final n = c.copyWith(autoBackToLiveOnStall: true);
+    expect(n.autoBackToLiveOnStall, isTrue);
+    expect(n.seekMode, VmLiveSeekMode.dvr);
+    expect(n.edgeThreshold, c.edgeThreshold);
   });
 }

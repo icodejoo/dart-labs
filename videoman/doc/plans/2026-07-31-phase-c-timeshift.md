@@ -144,7 +144,7 @@ brightness/PiP/orientation`（commit `9c2d4f0`）落地之后为 94 项测试全
 > 只 import `model/*`，**不** import `options/*`，因此不成环。落地后跑一次
 > `flutter analyze` 确认无 `import_cycle` 类告警。
 
-- [ ] **Step 1: 追加失败测试到 `test/core/options_test.dart`**
+- [x] **Step 1: 追加失败测试到 `test/core/options_test.dart`**
 
 顶部 import 区补：
 
@@ -204,12 +204,12 @@ import 'package:videoman/src/core/state/state.dart';
   });
 ```
 
-- [ ] **Step 2: 跑测试确认失败**
+- [x] **Step 2: 跑测试确认失败**
 
 Run: `flutter test test/core/options_test.dart`
 Expected: FAIL — `The getter 'urlBuilder' isn't defined for the class 'VmLiveConfig'`
 
-- [ ] **Step 3: 实现 `lib/src/core/options/live_config.dart`**
+- [x] **Step 3: 实现 `lib/src/core/options/live_config.dart`**
 
 文件顶部补 import 与两个 typedef、一个枚举（放在 `VmLiveSeekMode` 之后、`VmLiveConfig` 之前）：
 
@@ -421,17 +421,17 @@ enum VmBackToLive {
       );
 ```
 
-- [ ] **Step 4: 跑测试确认通过**
+- [x] **Step 4: 跑测试确认通过**
 
 Run: `flutter test test/core/options_test.dart && flutter analyze`
 Expected: 9 项 PASS（既有 4 + 新增 5），analyze 0 issues
 
-- [ ] **Step 5: 跑纯净性守卫**
+- [x] **Step 5: 跑纯净性守卫**
 
 Run: `flutter test test/core/purity_test.dart`
 Expected: PASS（`live_config.dart` 新增的 import 是 core 内部文件）
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add -A
