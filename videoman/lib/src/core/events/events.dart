@@ -1,4 +1,5 @@
 import '../model/fit.dart';
+import '../model/orientation.dart';
 import '../model/quality.dart';
 import '../model/source.dart';
 import '../options/preview_config.dart';
@@ -301,6 +302,21 @@ class VmFullscreenChanged extends VmEvent {
   ///
   /// 用 [value] 创建事件。
   const VmFullscreenChanged(this.value);
+}
+
+/// The forced screen-orientation override changed.
+///
+/// 强制屏幕方向覆盖发生变化。
+class VmOrientationChanged extends VmEvent {
+  /// The new forced-orientation override.
+  ///
+  /// 新的强制方向覆盖值。
+  final VmOrientation orientation;
+
+  /// Creates the event with [orientation].
+  ///
+  /// 用 [orientation] 创建事件。
+  const VmOrientationChanged(this.orientation);
 }
 
 /// The picture-in-picture state changed.

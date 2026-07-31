@@ -4,6 +4,7 @@ import 'package:videoman/src/core/api.dart';
 import 'package:videoman/src/core/bus/bus.dart';
 import 'package:videoman/src/core/events/events.dart';
 import 'package:videoman/src/core/model/fit.dart';
+import 'package:videoman/src/core/model/orientation.dart';
 import 'package:videoman/src/core/model/quality.dart';
 import 'package:videoman/src/core/model/source.dart';
 import 'package:videoman/src/core/options/options.dart';
@@ -114,6 +115,12 @@ class FakeVmApi implements VmApi {
   ///
   /// 最近一次 [setFullscreen] 调用的参数；若从未调用过则为 `null`。
   bool? lastFullscreen;
+
+  /// The argument of the most recent [setOrientation] call, or `null` if
+  /// never called.
+  ///
+  /// 最近一次 [setOrientation] 调用的参数；若从未调用过则为 `null`。
+  VmOrientation? lastOrientation;
 
   /// The argument of the most recent [switchQuality] call, or `null` if
   /// never called.
@@ -298,6 +305,13 @@ class FakeVmApi implements VmApi {
   Future<void> setFullscreen(bool v) async {
     calls.add('setFullscreen');
     lastFullscreen = v;
+  }
+
+  @override
+  Future<void> setOrientation(VmOrientation o) async {
+    calls.add('setOrientation');
+    lastOrientation = o;
+    push(state.copyWith(orientation: o));
   }
 
   @override

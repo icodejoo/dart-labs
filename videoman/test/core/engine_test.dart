@@ -3,6 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:videoman/src/core/engine.dart';
 import 'package:videoman/src/core/events/events.dart';
 import 'package:videoman/src/core/interceptor/interceptor.dart';
+import 'package:videoman/src/core/model/orientation.dart';
 import 'package:videoman/src/core/model/quality.dart';
 import 'package:videoman/src/core/model/source.dart';
 import 'package:videoman/src/core/options/options.dart';
@@ -260,6 +261,38 @@ void main() {
     k.emitSize(1280, 720);
     await Future<void>.delayed(Duration.zero);
     expect(spy.calls, isEmpty);
+
+    await e2.dispose();
+  });
+
+  test('setOrientation forces the orientation, updates state, and emits an event', () async {
+    final spy = _SpyOrientationPort();
+    final e2 = VmEngine(kernel: k, orientation: spy);
+    final events = <VmEvent>[];
+    final sub = e2.events.listen(events.add);
+
+    await e2.setOrientation(VmOrientation.landscape);
+    expect(e2.state.orientation, VmOrientation.landscape);
+    expect(spy.orientations.last, VmOrientation.landscape);
+    await Future<void>.delayed(Duration.zero);
+    expect(events.whereType<VmOrientationChanged>().single.orientation, VmOrientation.landscape);
+
+    await sub.cancel();
+    await e2.dispose();
+  });
+
+  test('forced orientation is carried into the fullscreen apply call', () async {
+    final spy = _SpyOrientationPort();
+    final e2 = VmEngine(kernel: k, orientation: spy);
+
+    await e2.setOrientation(VmOrientation.portrait);
+    await e2.setFullscreen(true);
+    // Every apply since forcing portrait must carry that override, regardless
+    // of the (landscape) video size, so fullscreen never flips it back.
+    //
+    // 强制竖屏之后的每次 apply 都必须带上该覆盖，无论视频尺寸（横向）如何，
+    // 全屏都不会把它翻回去。
+    expect(spy.orientations.last, VmOrientation.portrait);
 
     await e2.dispose();
   });
@@ -739,14 +772,21 @@ class _SpyOrientationPort implements VmOrientationPort {
   /// 每次 [apply] 调用传入的 (width, height)，按调用顺序记录。
   final List<(int, int)> calls = [];
 
+  /// Every forced-orientation override passed to [apply], in call order.
+  ///
+  /// 每次 [apply] 调用传入的强制方向覆盖，按调用顺序记录。
+  final List<VmOrientation> orientations = [];
+
   @override
   Future<void> apply({
     required bool fullscreen,
     required bool immersive,
     required int width,
     required int height,
+    required VmOrientation orientation,
   }) async {
     calls.add((width, height));
+    orientations.add(orientation);
   }
 
   @override

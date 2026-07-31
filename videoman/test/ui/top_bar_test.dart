@@ -1,6 +1,8 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:videoman/src/core/model/fit.dart';
+import 'package:videoman/src/core/model/orientation.dart';
 import 'package:videoman/src/core/model/source.dart';
 import 'package:videoman/src/core/options/options.dart';
 import 'package:videoman/src/core/state/state.dart';
@@ -35,6 +37,41 @@ void main() {
     await t.pump();
     expect(api.calls, contains('enterPip'));
     await api.dispose();
+  });
+
+  testWidgets('orientation button toggles the forced orientation on mobile', (t) async {
+    debugDefaultTargetPlatformOverride = TargetPlatform.android;
+    final api = FakeVmApi();
+    try {
+      await pumpComponent(t, api, TopBarComponent());
+      expect(find.byIcon(Icons.screen_rotation_rounded), findsOneWidget);
+
+      // From the default auto state, one tap forces landscape.
+      await t.tap(find.byIcon(Icons.screen_rotation_rounded));
+      await t.pump();
+      expect(api.calls, contains('setOrientation'));
+      expect(api.lastOrientation, VmOrientation.landscape);
+
+      // A second tap flips landscape → portrait.
+      await t.tap(find.byIcon(Icons.screen_rotation_rounded));
+      await t.pump();
+      expect(api.lastOrientation, VmOrientation.portrait);
+    } finally {
+      debugDefaultTargetPlatformOverride = null;
+      await api.dispose();
+    }
+  });
+
+  testWidgets('orientation button is hidden off mobile', (t) async {
+    debugDefaultTargetPlatformOverride = TargetPlatform.windows;
+    final api = FakeVmApi();
+    try {
+      await pumpComponent(t, api, TopBarComponent());
+      expect(find.byIcon(Icons.screen_rotation_rounded), findsNothing);
+    } finally {
+      debugDefaultTargetPlatformOverride = null;
+      await api.dispose();
+    }
   });
 
   testWidgets('quality button is hidden when there are no variants', (t) async {

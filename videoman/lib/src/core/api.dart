@@ -1,5 +1,6 @@
 import 'events/events.dart';
 import 'model/fit.dart';
+import 'model/orientation.dart';
 import 'model/quality.dart';
 import 'model/source.dart';
 import 'options/options.dart';
@@ -195,6 +196,26 @@ abstract class VmApi {
   ///
   /// [v] 为 `true` 表示进入全屏，`false` 表示退出。
   Future<void> setFullscreen(bool v);
+
+  /// Forces the screen orientation, independent of fullscreen.
+  ///
+  /// [VmOrientation.auto] restores the aspect-ratio/fullscreen-derived
+  /// behavior; [VmOrientation.portrait]/[VmOrientation.landscape] pin that
+  /// orientation. Only mobile platforms honor this; desktop is a no-op.
+  ///
+  /// 强制屏幕方向，与全屏状态无关。
+  ///
+  /// [VmOrientation.auto] 恢复按宽高比/全屏推导的行为；
+  /// [VmOrientation.portrait]/[VmOrientation.landscape] 固定该方向。仅移动端
+  /// 生效，桌面端为空操作。
+  ///
+  /// - [o]: the target orientation override / 目标方向覆盖
+  ///
+  /// Example / 示例:
+  /// ```dart
+  /// await api.setOrientation(VmOrientation.landscape);
+  /// ```
+  Future<void> setOrientation(VmOrientation o);
 
   /// Loads the available quality list for the current source, if any.
   ///

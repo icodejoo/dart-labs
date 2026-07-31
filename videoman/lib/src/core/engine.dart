@@ -12,6 +12,7 @@ import 'kernel/kernel.dart';
 import 'kernel/mpv_kernel.dart';
 import 'live/timeshift.dart';
 import 'model/fit.dart';
+import 'model/orientation.dart';
 import 'model/quality.dart';
 import 'model/source.dart';
 import 'options/options.dart';
@@ -293,12 +294,7 @@ class VmEngine implements VmApi {
       // 若在已处于全屏状态下尺寸才到达（或发生变化）——例如打开全屏时网络/
       // HLS 源的真实尺寸尚未知晓——则重新推导并应用全屏方向。
       if (state.fullscreen) {
-        unawaited(_orientation.apply(
-          fullscreen: true,
-          immersive: true,
-          width: v.width,
-          height: v.height,
-        ));
+        unawaited(_applyOrientation());
       }
     });
     _errorSub = _kernel.error.listen((e) {
@@ -645,18 +641,32 @@ class VmEngine implements VmApi {
 
   @override
   Future<void> setFullscreen(bool v) async {
-    if (v) {
-      await _orientation.apply(
-        fullscreen: true,
-        immersive: true,
-        width: state.width,
-        height: state.height,
-      );
-    } else {
-      await _orientation.reset();
-    }
     _state.emit(state.copyWith(fullscreen: v));
+    await _applyOrientation();
     _events.add(VmFullscreenChanged(v));
+  }
+
+  @override
+  Future<void> setOrientation(VmOrientation o) async {
+    _state.emit(state.copyWith(orientation: o));
+    await _applyOrientation();
+    _events.add(VmOrientationChanged(o));
+  }
+
+  /// Applies the current fullscreen + forced-orientation state to the platform
+  /// via [_orientation]. Immersive UI is tied to fullscreen; the forced
+  /// [VmState.orientation] overrides the aspect-ratio derivation.
+  ///
+  /// 把当前全屏 + 强制方向状态经 [_orientation] 应用到平台。沉浸式 UI 与全屏
+  /// 绑定；强制的 [VmState.orientation] 覆盖按宽高比的推导。
+  Future<void> _applyOrientation() {
+    return _orientation.apply(
+      fullscreen: state.fullscreen,
+      immersive: state.fullscreen,
+      width: state.width,
+      height: state.height,
+      orientation: state.orientation,
+    );
   }
 
   @override

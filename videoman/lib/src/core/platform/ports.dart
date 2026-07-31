@@ -8,6 +8,8 @@
 // 依赖的兜底/空实现。真实实现放在 `lib/src/platform_impl/`，可以引入
 // flutter/插件包；本文件必须保持不引入任何 flutter/media_kit 依赖。
 
+import '../model/orientation.dart';
+
 /// A port for reading and writing the device/app screen brightness.
 ///
 /// 读写设备/应用屏幕亮度的端口。
@@ -100,13 +102,18 @@ abstract class VmOrientationPort {
   /// - [fullscreen]: whether fullscreen is active / 是否处于全屏
   /// - [immersive]: whether immersive (edge-to-edge) UI is active /
   ///   是否处于沉浸式（沉浸边到边）UI
-  /// - [width], [height]: video pixel dimensions used to pick orientation /
-  ///   用于选择方向的视频像素宽高
+  /// - [width], [height]: video pixel dimensions used to pick orientation when
+  ///   [orientation] is [VmOrientation.auto] / 当 [orientation] 为
+  ///   [VmOrientation.auto] 时用于选择方向的视频像素宽高
+  /// - [orientation]: forced-orientation override; [VmOrientation.auto] keeps
+  ///   the aspect-ratio/fullscreen-derived behavior / 强制方向覆盖；
+  ///   [VmOrientation.auto] 保持按宽高比/全屏推导的行为
   Future<void> apply({
     required bool fullscreen,
     required bool immersive,
     required int width,
     required int height,
+    required VmOrientation orientation,
   });
 
   /// Resets orientation/system UI back to the default (portrait, edge-to-edge
@@ -212,6 +219,7 @@ class NoopOrientationPort implements VmOrientationPort {
     required bool immersive,
     required int width,
     required int height,
+    required VmOrientation orientation,
   }) =>
       Future.value();
 
