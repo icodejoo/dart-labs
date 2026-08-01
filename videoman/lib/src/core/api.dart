@@ -267,12 +267,20 @@ abstract class VmApi {
 
   /// Shows a transient HUD overlay.
   ///
-  /// [hud] is the HUD variant to display.
+  /// [hud] is the HUD variant to display. [text] is explicit display text for
+  /// HUD variants that have no other state to derive it from — currently
+  /// only [SeekHudComponent]'s double-tap path uses this; the drag-seek path
+  /// keeps deriving its text from [VmUiState.previewAt], and volume/
+  /// brightness/zoom derive theirs from [VmState] directly. Omitting [text]
+  /// clears any previously set value.
   ///
   /// 显示一个临时 HUD 浮层。
   ///
-  /// [hud] 为要展示的 HUD 类型。
-  void showHud(VmHud hud);
+  /// [hud] 为要展示的 HUD 类型。[text] 是为那些没有其他状态可推导展示文本的
+  /// HUD 变体准备的显式文本——目前只有 [SeekHudComponent] 的双击路径会用它；
+  /// 拖动进度路径仍从 [VmUiState.previewAt] 推导文本，音量/亮度/缩放则直接从
+  /// [VmState] 推导。不传 [text] 会清空之前设置的值。
+  void showHud(VmHud hud, {String? text});
 
   /// Updates the drag-gesture-in-progress flag and optional seek-preview
   /// position.

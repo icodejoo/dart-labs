@@ -114,6 +114,28 @@ void main() {
     await api.dispose();
   });
 
+  testWidgets('double tap raises the seek HUD with the target duration as text '
+      '(regression: toast used to render empty)', (t) async {
+    final api = FakeVmApi();
+    await pumpComponent(t, api, GestureLayerComponent());
+    final size = t.getSize(find.byType(GestureDetector));
+    // Tap the right half so the step seeks forward from position zero.
+    final rightSide = t.getTopLeft(find.byType(GestureDetector)) +
+        Offset(size.width * 0.75, size.height / 2);
+    await t.tapAt(rightSide);
+    await t.pump(const Duration(milliseconds: 50));
+    await t.tapAt(rightSide);
+    await t.pumpAndSettle();
+
+    expect(api.calls, contains('seek'));
+    expect(api.lastSeek, const Duration(seconds: 10)); // default doubleTapStep
+    expect(api.lastHud, VmHud.seek);
+    expect(api.lastHudText, isNotNull);
+    expect(api.lastHudText, isNot(isEmpty));
+
+    await api.dispose();
+  });
+
   testWidgets('double tap seeks a seekable live stream and is blocked otherwise', (t) async {
     final seekable = FakeVmApi();
     seekable.push(const VmState(

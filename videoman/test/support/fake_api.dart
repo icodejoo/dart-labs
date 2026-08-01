@@ -141,11 +141,18 @@ class FakeVmApi implements VmApi {
   /// 调用传的就是 `null`）则为 `null`。
   Duration? lastPreviewAt;
 
-  /// The argument of the most recent [showHud] call, or `null` if never
-  /// called.
+  /// The `hud` argument of the most recent [showHud] call, or `null` if
+  /// never called.
   ///
-  /// 最近一次 [showHud] 调用的参数；若从未调用过则为 `null`。
+  /// 最近一次 [showHud] 调用的 `hud` 参数；若从未调用过则为 `null`。
   VmHud? lastHud;
+
+  /// The `text` argument of the most recent [showHud] call, or `null` if
+  /// never called (or that call passed no text).
+  ///
+  /// 最近一次 [showHud] 调用的 `text` 参数；若从未调用过（或该次调用未传
+  /// 文本）则为 `null`。
+  String? lastHudText;
 
   /// Whether this fake reports pip support; mirrored into
   /// [VmState.pipSupported] so `..pipSupported = false` also flips what any
@@ -352,9 +359,10 @@ class FakeVmApi implements VmApi {
   }
 
   @override
-  void showHud(VmHud hud) {
+  void showHud(VmHud hud, {String? text}) {
     calls.add('showHud');
     lastHud = hud;
+    lastHudText = text;
   }
 
   @override

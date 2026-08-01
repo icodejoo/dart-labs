@@ -227,6 +227,76 @@ Windows 实跑证实。这不是回归，是能力从未在桌面实现过。vid
 `orientationButton`）仅在 `defaultTargetPlatform` 为 Android/iOS 时渲染——桌面端强制
 方向本就无效，与 pip 按钮的隐藏思路一致——点击经 `VmOrientation.toggled` 横↔竖切换。
 
+## 预设皮肤：bilibili 点播 / 抖音风 feed
+
+两套开箱即用的皮肤，落地于 0.3.0 插件化架构之上（未单独编版本号，落地日期
+2026-08-01）。
+
+- **`VmBilibiliSkin`**（`ui/skins/bilibili_skin.dart`）：`extends VmDefaultSkin`，
+  纯"补丁档"定制（`VmPatch.add`/`insertAfter`），零布局改写——bilibili 的默认
+  控制条与手势侧别（左亮度/右音量）本就对齐 0.3.0 默认值。新增
+  `DanmakuTrackComponent`（`ui/components/danmaku.dart`，挂 `VmSlot.overlay`，
+  不受锁定/自动隐藏门控）+ 顶栏 `SpeedButtonComponent`（`ui/components/
+  speed_button.dart`，`0.5x~2x` 六档循环，走既有 `VmApi.setRate`，未新增 core
+  能力）。**倍速按钮落在顶栏而非底栏**：`TopBarComponent.build()` 用
+  `...children.sublist(1)` 展开全部子节点，而自适应的 `BottomBarComponent`
+  按下标显式取子节点（`children[0]`/`children[2]`/`children[4]`），补丁插入的
+  新兄弟节点会被静默丢弃——这是从 `BottomBarComponent` 现有实现读出的真实约束，
+  非设计偏好。
+- **弹幕（`VmDanmakuConfig`/`VmDanmakuItem`）**：**只做展示**，无发送框/输入/
+  去重限流引擎（`VmOptions.danmaku`，默认 `enabled: false`）；`items` 是宿主给
+  的固定列表，按 `time` 触发滚动、按 `trackCount` 轮询分轨（非完整防重叠）。
+  "弹幕开关"按钮本期**未做**——`enabled` 是构造期配置，非运行时可切换状态，
+  加运行时开关需要一个新的本地 UI 状态承载点，本期从简未做，留待后续。
+- **`VmFeedPlayer`/`VmDouyinSkin`**（`ui/feed_player.dart`/`ui/skins/
+  douyin_skin.dart`）：纵向"上滑下一个视频"feed，**单引擎架构**——
+  `VmFeedController`（`core/feed/feed_controller.dart`，纯 Dart，无 Flutter
+  依赖）反复对同一个 `VmApi` 调 `open()` 切换，而非并行维护多个 `VmEngine`。
+  该决策经过实测评估权衡：并行引擎池切换更顺滑（下一条已解码待播），但
+  代价是每活跃实例约 50-100MB 内存，且**硬解并发 session 数**（很多中低端
+  Android SoC 只支持 1-2 个）是比 CPU/内存更硬的瓶颈——超限会静默掉软解，
+  发热掉帧。结论是不做"高低端机型自动分档"（判断依据本就不可靠、需要机型库
+  或跑基准测试，videoman 一贯克制新依赖），改为单引擎 + `prefetchDepth` 交给
+  宿主按自己目标机型配置，默认保守值 1。
+  - **预取范围已从设计草案收窄**：原计划里"深度 1 用 mpv 原生
+    `prefetch-playlist`、深度 ≥2 走自建磁盘缓存"需要新增 mpv playlist 管理
+    + 经 `NativePlayer.handle` 裸 FFI 设置 mpv property，属于对现有单源
+    `VmEngine`/`VmKernel` 抽象的较大扩张，风险与本次工作量不匹配，**推迟**。
+    第一版 `NetworkWarmFeedPrefetcher`（`core/feed/feed_prefetcher.dart`）只做
+    HTTP Range 预取前 64KB 并丢弃——只预热 DNS/TCP/TLS/CDN 边缘节点，不解码、
+    不落盘，`VmApi.open()` 切换时解码器自身启动开销仍在。真正的 mpv 原生
+    playlist 预取集成留作后续任务。
+  - **只有 `activeIndex` 页渲染真实视频画面**：`PageView` 为滚动物理效果额外
+    构建的相邻页只在纯黑底上渲染自己的 chrome（社交竖排/作者信息）——因为只有
+    一个共享解码器，若相邻页也渲染真实画面，会显示"当前正在播放的那条"而非
+    它自己的内容。代价是刚定格的新页面在 `open()` 完成前会短暂黑屏，这是
+    上面单引擎决策的自然延伸，非独立缺陷。
+  - **点赞状态 videoman 端到端本地持有**（`VmFeedItem.initialLiked`/
+    `initialLikeCount`/`onLikeChanged`）：双击（`DouyinGestureLayerComponent`）
+    与竖排点赞按钮（`LikeButtonComponent`）经同一个 `ValueNotifier`（由
+    `VmFeedPlayer` 的 State 按 index 缓存、跨该页历次重建存活）保持同步；
+    `VmFeedController.toggleLike` 把切换结果写回条目缓存，滑走再滑回时仍是
+    切换后的值；不做回滚，是否持久化交给 `onLikeChanged` 回调。评论/分享/
+    头像/关注一律只是回调，videoman 不持有这些业务状态。
+  - **手势冲突靠"不引入组件"规避**：`VmDouyinSkin.components()` 压根不挂载
+    `GestureLayerComponent`（默认皮肤的亮度/音量竖滑手势），纵向拖拽完全归
+    `PageView` 所有；这是组件化架构的直接收益，不需要任何特判代码。
+  - **数据源**：`VmFeedLoader = Future<VmFeedItem?> Function(int index)`，
+    异步按需解析，返回 `null` 表示 feed 结束；`VmFeedController` 内部按索引
+    缓存去重并发加载。
+
+新增测试：`test/core/model_test.dart`（`VmDanmakuItem`/`VmFeedItem`）、
+`test/core/options_test.dart`（`VmDanmakuConfig`/`VmOptions.danmaku`）、
+`test/core/feed_controller_test.dart`、`test/core/feed_prefetcher_test.dart`
+（真起 `HttpServer` 校验 Range 头，非 mock）、`test/ui/danmaku_test.dart`、
+`test/ui/speed_button_test.dart`、`test/ui/bilibili_skin_test.dart`、
+`test/ui/douyin_skin_test.dart`、`test/ui/feed_social_test.dart`、
+`test/ui/feed_player_test.dart`。example 新增 `bilibili 皮肤`演示入口（原有
+demo 列表第 6 项）与独立的 `DouyinFeedDemoPage`（AppBar 新图标按钮进入，三个
+公开短 mp4 循环）。**均只在桌面跑过 `flutter test`/`flutter analyze`，未上
+真机**——手势双击识别、`PageView` 纵向滑动手感、弹幕滚动的真实观感，均承接
+本文档"真机验证结果"一节尚未覆盖的范围。
+
 ## 测试
 
 - `test/core/`：`api_test.dart`/`bus_test.dart`/`compat_test.dart`/

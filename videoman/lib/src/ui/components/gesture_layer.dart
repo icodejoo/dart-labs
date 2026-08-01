@@ -4,6 +4,7 @@ import '../../core/api.dart';
 import '../../core/model/source.dart';
 import '../../core/options/gesture_config.dart';
 import '../../core/state/ui_state.dart';
+import '../format.dart';
 import '../scope/plugin.dart';
 import '../slots/component.dart';
 import '../slots/slot.dart';
@@ -182,14 +183,29 @@ class _GestureLayerState extends State<_GestureLayer> with VmPlugin<_GestureLaye
   /// Applies a double-tap seek toward the tapped side, gated the same way
   /// as horizontal drag-seek.
   ///
+  /// Passes the target position as the HUD's [VmApi.showHud] `text` — this
+  /// path deliberately does *not* go through [VmApi.setDragging] (which the
+  /// drag-seek path uses instead): [VmUiState.previewAt] is what also drives
+  /// the scrub-preview thumbnail bubble, and a double tap is not a drag, so
+  /// populating it here would incorrectly pop the bubble up too. Regression:
+  /// before this, the seek HUD rendered with no text at all on double-tap,
+  /// since nothing populated either field it could read from.
+  ///
   /// 按点击侧执行双击快进/快退，门控逻辑与横滑进度一致。
+  ///
+  /// 把目标位置作为 HUD 的 [VmApi.showHud] `text` 参数传入——这条路径刻意
+  /// **不**走 [VmApi.setDragging]（拖动进度路径走的是这个）：
+  /// [VmUiState.previewAt] 同时也驱动着拖动预览缩略图气泡，而双击并非拖动，
+  /// 在这里写它会连带错误地弹出气泡。回归说明：改之前双击的进度 HUD 完全没有
+  /// 文字，因为它能读的两个字段都没人填过。
   void _onDoubleTap() {
     final cfg = _api.options.gesture;
     if (!cfg.doubleTapSeek || !_seekAllowed) return;
     final backward = _lastDoubleTapDx < _size.width / 2;
     final step = cfg.doubleTapStep;
-    _api.seek(_lastPosition + (backward ? -step : step));
-    _api.showHud(VmHud.seek);
+    final target = _lastPosition + (backward ? -step : step);
+    _api.seek(target);
+    _api.showHud(VmHud.seek, text: formatDuration(target));
   }
 
   /// Toggles control-bar visibility on a plain (non-double) tap.

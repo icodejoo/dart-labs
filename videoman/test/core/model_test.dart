@@ -77,4 +77,34 @@ void main() {
       }
     });
   });
+
+  group('VmDanmakuItem', () {
+    test('compares by value', () {
+      const a = VmDanmakuItem(text: 'hi', time: Duration(seconds: 1));
+      const b = VmDanmakuItem(text: 'hi', time: Duration(seconds: 1));
+      const c = VmDanmakuItem(text: 'bye', time: Duration(seconds: 1));
+      expect(a, b);
+      expect(a, isNot(c));
+      expect(a.hashCode, b.hashCode);
+    });
+  });
+
+  group('VmFeedItem', () {
+    test('copyWith replaces only the like fields, keeping callbacks', () {
+      var calls = 0;
+      final item = VmFeedItem(
+        source: const VmSource('https://h/0.mp4'),
+        authorName: 'alice',
+        initialLiked: false,
+        initialLikeCount: 3,
+        onLikeChanged: (liked, count) => calls++,
+      );
+      final n = item.copyWith(initialLiked: true, initialLikeCount: 4);
+      expect(n.initialLiked, isTrue);
+      expect(n.initialLikeCount, 4);
+      expect(n.authorName, 'alice');
+      n.onLikeChanged!(true, 4);
+      expect(calls, 1);
+    });
+  });
 }

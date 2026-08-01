@@ -88,12 +88,42 @@ class _VmPlayerState extends State<VmPlayer> {
       //
       // 组件树是静态的（components() 不再随状态变化）——在此只构建一次，而非
       // 每次状态变化都重建整棵树；响应式都在组件自身的 VmSelector 里。
-      child: Builder(
-        builder: (context) {
-          final tree = widget.skin.components();
-          final bundle = buildSlots(context, widget.api, tree);
-          return widget.skin.assemble(context, bundle, const _RenderSurface());
-        },
+      //
+      // Keyed by `widget.api`'s identity (regression fix): a handful of
+      // descendants (`_SeekBar`, the gesture layer, the preview bubble, the
+      // danmaku track) subscribe to `api`'s streams once in `initState`, not
+      // per rebuild. A host that swaps to a new `VmApi`/engine instance while
+      // `VmPlayer` stays mounted at the same tree position (e.g. switching
+      // sources by rebuilding with a fresh `createVmEngine()`, exactly what
+      // this package's own example app does) — without this key — would have
+      // Flutter reuse those descendants' existing `State` objects rather than
+      // remounting them, since same-type-same-key(null) widgets update in
+      // place. Their old subscriptions would then point at the previous,
+      // now-disposed engine's closed streams forever, so e.g. the seek bar
+      // would freeze on the old engine's last position instead of following
+      // the new one. Keying by `api` forces a full remount — fresh
+      // `initState`s bound to the new instance — whenever the api reference
+      // actually changes.
+      //
+      // 按 `widget.api` 的身份做 key（回归修复）：少数后代（`_SeekBar`、手势层、
+      // 预览气泡、弹幕轨道）只在 `initState` 里订阅一次 `api` 的流，而非每次
+      // 重建都订阅。宿主若在 `VmPlayer` 保持挂载于同一树位置的情况下换了一个
+      // 新的 `VmApi`/引擎实例（例如换源时重新 `createVmEngine()`——本包自己的
+      // example app 就是这么做的）——没有这个 key 的话，Flutter 会认为同类型、
+      // key 同为 null 的 widget 该原地更新，而非重新挂载这些后代，于是它们
+      // 旧的订阅会永远指向前一个、已经 dispose 的引擎的已关闭的流——进度条就
+      // 会卡在旧引擎的最后位置，而不会跟上新引擎。按 `api` 做 key，只要 api
+      // 引用真的变了就强制整棵子树重新挂载——所有 `initState` 都会用新实例
+      // 重新跑一遍。
+      child: KeyedSubtree(
+        key: ValueKey(widget.api),
+        child: Builder(
+          builder: (context) {
+            final tree = widget.skin.components();
+            final bundle = buildSlots(context, widget.api, tree);
+            return widget.skin.assemble(context, bundle, const _RenderSurface());
+          },
+        ),
       ),
     );
   }

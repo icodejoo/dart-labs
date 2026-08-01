@@ -109,7 +109,19 @@ class BrightnessHudComponent extends VmComponent {
 
 /// Seek-preview HUD; visible only while [VmUiState.hud] is [VmHud.seek].
 ///
+/// Two call paths feed this component different fields: horizontal drag-seek
+/// (via [VmApi.setDragging]) only ever populates [VmUiState.previewAt], while
+/// double-tap seek (via [VmApi.showHud]'s `text` param) populates
+/// [VmUiState.hudText] instead, since [VmUiState.previewAt] also drives the
+/// scrub-preview thumbnail bubble and double-tap must not trigger that.
+/// [VmUiState.hudText] wins when both happen to be set.
+///
 /// 拖动进度预览 HUD；仅在 [VmUiState.hud] 为 [VmHud.seek] 时可见。
+///
+/// 两条调用路径给本组件喂不同字段：横向拖动进度（经 [VmApi.setDragging]）只
+/// 填充 [VmUiState.previewAt]；双击进度（经 [VmApi.showHud] 的 `text` 参数）
+/// 则填充 [VmUiState.hudText]——因为 [VmUiState.previewAt] 同时驱动着拖动
+/// 预览缩略图气泡，双击不能触发它。两者都有值时以 [VmUiState.hudText] 为准。
 class SeekHudComponent extends VmComponent {
   /// Creates the seek HUD leaf component.
   ///
@@ -128,12 +140,13 @@ class SeekHudComponent extends VmComponent {
       selector: (s) => s.hud,
       builder: (context, hud) {
         if (hud != VmHud.seek) return const SizedBox.shrink();
-        return VmUiSelector<Duration?>(
-          selector: (s) => s.previewAt,
-          builder: (context, previewAt) => _HudBadge(
-            api: api,
-            text: previewAt != null ? formatDuration(previewAt) : '',
-          ),
+        return VmUiSelector<({String? hudText, Duration? previewAt})>(
+          selector: (s) => (hudText: s.hudText, previewAt: s.previewAt),
+          builder: (context, v) {
+            final text = v.hudText ?? (v.previewAt != null ? formatDuration(v.previewAt!) : null);
+            if (text == null) return const SizedBox.shrink();
+            return _HudBadge(api: api, text: text);
+          },
         );
       },
     );

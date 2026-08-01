@@ -1,5 +1,6 @@
 export 'abr_config.dart';
 export 'controls_config.dart';
+export 'danmaku_config.dart';
 export 'gesture_config.dart';
 export 'live_config.dart';
 export 'preview_config.dart';
@@ -8,6 +9,7 @@ export 'theme.dart';
 
 import 'abr_config.dart';
 import 'controls_config.dart';
+import 'danmaku_config.dart';
 import 'gesture_config.dart';
 import 'live_config.dart';
 import 'preview_config.dart';
@@ -52,6 +54,11 @@ class VmOptions {
   /// 控制条行为配置。
   final VmControlsConfig controls;
 
+  /// Scrolling-danmaku overlay configuration.
+  ///
+  /// 滚动弹幕叠加层配置。
+  final VmDanmakuConfig danmaku;
+
   /// Externalised UI copy.
   ///
   /// 外置 UI 文案。
@@ -71,6 +78,7 @@ class VmOptions {
     this.gesture = const VmGestureConfig(),
     this.abr = const VmAbrConfig(),
     this.controls = const VmControlsConfig(),
+    this.danmaku = const VmDanmakuConfig(),
     this.strings = const VmStrings(),
     this.theme = const VmTheme(),
   });
@@ -85,6 +93,7 @@ class VmOptions {
   /// - [gesture]: replacement gesture config / 替换用的手势配置
   /// - [abr]: replacement ABR config / 替换用的 ABR 配置
   /// - [controls]: replacement controls config / 替换用的控制条配置
+  /// - [danmaku]: replacement danmaku config / 替换用的弹幕配置
   /// - [strings]: replacement strings / 替换用的文案
   /// - [theme]: replacement theme / 替换用的主题
   ///
@@ -95,6 +104,7 @@ class VmOptions {
     VmGestureConfig? gesture,
     VmAbrConfig? abr,
     VmControlsConfig? controls,
+    VmDanmakuConfig? danmaku,
     VmStrings? strings,
     VmTheme? theme,
   }) {
@@ -104,6 +114,7 @@ class VmOptions {
       gesture: gesture ?? this.gesture,
       abr: abr ?? this.abr,
       controls: controls ?? this.controls,
+      danmaku: danmaku ?? this.danmaku,
       strings: strings ?? this.strings,
       theme: theme ?? this.theme,
     );
@@ -119,10 +130,11 @@ class VmOptions {
           gesture == other.gesture &&
           abr == other.abr &&
           controls == other.controls &&
+          danmaku == other.danmaku &&
           strings == other.strings &&
           theme == other.theme;
 
   @override
   int get hashCode =>
-      Object.hash(preview, live, gesture, abr, controls, strings, theme);
+      Object.hash(preview, live, gesture, abr, controls, danmaku, strings, theme);
 }

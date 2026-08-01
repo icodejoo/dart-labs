@@ -110,6 +110,65 @@ void main() {
     expect(e.uiState.controlsVisible, isFalse);
   });
 
+  test('showHud with text populates hudText (regression: double-tap seek toast was empty)', () {
+    e.showHud(VmHud.seek, text: '00:20');
+    expect(e.uiState.hud, VmHud.seek);
+    expect(e.uiState.hudText, '00:20');
+  });
+
+  test('showHud without text clears any previously set hudText', () {
+    e.showHud(VmHud.seek, text: '00:20');
+    e.showHud(VmHud.volume);
+    expect(e.uiState.hudText, isNull);
+  });
+
+  test('open() arms the auto-hide timer per showOnStart/autoHideDelay (regression)', () async {
+    final e2 = VmEngine(
+      kernel: k,
+      options: const VmOptions(controls: VmControlsConfig(autoHideDelay: Duration(milliseconds: 10))),
+    );
+    await e2.open(const VmSource('https://host/a.mp4'));
+    expect(e2.uiState.controlsVisible, isTrue);
+    await Future<void>.delayed(const Duration(milliseconds: 50));
+    expect(e2.uiState.controlsVisible, isFalse);
+    await e2.dispose();
+  });
+
+  test('play() after completion restarts VOD from zero '
+      '(regression: replay left the progress bar stuck at the end)', () async {
+    await e.open(const VmSource('https://host/a.mp4'));
+    k.calls.clear();
+    k.emitCompleted(true);
+    await Future<void>.delayed(Duration.zero);
+    expect(e.state.completed, isTrue);
+
+    await e.play();
+
+    expect(k.calls, ['seek', 'play']);
+    expect(k.lastSeek, Duration.zero);
+  });
+
+  test('play() after completion does not seek for a live source', () async {
+    await e.open(const VmSource('https://host/l.m3u8', type: VmStreamType.live));
+    k.calls.clear();
+    k.emitCompleted(true);
+    await Future<void>.delayed(Duration.zero);
+
+    await e.play();
+
+    expect(k.calls, ['play']);
+  });
+
+  test('open() leaves controls hidden when showOnStart is false', () async {
+    final e2 = VmEngine(
+      kernel: k,
+      options: const VmOptions(controls: VmControlsConfig(showOnStart: false)),
+    );
+    await e2.open(const VmSource('https://host/a.mp4'));
+    expect(e2.uiState.controlsVisible, isFalse);
+    await e2.dispose();
+  });
+
   test('setDragging carries the preview position and clears it on release', () {
     e.setDragging(true, previewAt: const Duration(seconds: 12));
     expect(e.uiState.dragging, isTrue);
