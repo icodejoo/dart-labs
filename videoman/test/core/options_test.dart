@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:videoman/src/core/model/danmaku.dart';
 import 'package:videoman/src/core/model/fit.dart';
 import 'package:videoman/src/core/model/source.dart';
 import 'package:videoman/src/core/options/options.dart';
@@ -149,5 +150,35 @@ void main() {
     expect(n.autoBackToLiveOnStall, isTrue);
     expect(n.seekMode, VmLiveSeekMode.dvr);
     expect(n.edgeThreshold, c.edgeThreshold);
+  });
+
+  test('VmDanmakuConfig defaults to disabled and empty', () {
+    const d = VmDanmakuConfig();
+    expect(d.enabled, isFalse);
+    expect(d.items, isEmpty);
+    expect(d.trackCount, 4);
+    expect(d.crossDuration, const Duration(seconds: 8));
+  });
+
+  test('VmDanmakuConfig.copyWith replaces one field and compares by value', () {
+    const d = VmDanmakuConfig();
+    final n = d.copyWith(enabled: true, items: const [VmDanmakuItem(text: 'hi', time: Duration.zero)]);
+    expect(n.enabled, isTrue);
+    expect(n.items, hasLength(1));
+    expect(n.trackCount, d.trackCount);
+    expect(n, isNot(d));
+  });
+
+  test('VmOptions exposes a danmaku section that defaults to VmDanmakuConfig', () {
+    const o = VmOptions();
+    expect(o.danmaku, const VmDanmakuConfig());
+  });
+
+  test('VmOptions.copyWith replaces only the danmaku section', () {
+    const o = VmOptions();
+    final n = o.copyWith(danmaku: const VmDanmakuConfig(enabled: true));
+    expect(n.danmaku.enabled, isTrue);
+    expect(n.gesture, o.gesture);
+    expect(n, isNot(o));
   });
 }

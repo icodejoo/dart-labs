@@ -493,6 +493,24 @@ class VmEngine implements VmApi {
     ));
     await _kernel.open(source.uri, play: autoPlay);
     _recomputeLiveSeekable();
+    // `VmControlsConfig.showOnStart` previously had no effect: nothing ever
+    // called `showControls()` on load, so the auto-hide timer never armed and
+    // the bar just sat visible until a first tap (which, since
+    // `controlsVisible` already defaulted to true, immediately hid it instead
+    // of arming the timer). Routing through `showControls()`/`hideControls()`
+    // here — instead of emitting `uiState` directly — makes sure the timer is
+    // armed exactly the same way a manual show would.
+    //
+    // `VmControlsConfig.showOnStart`此前形同虚设：加载时从没人调过
+    // `showControls()`,自动隐藏计时器压根没启动过,栏就一直显示到用户第一次
+    // 点击（而由于 `controlsVisible` 默认已是 true,那一下点击是直接隐藏,而非
+    // 启动计时器）。这里改走 `showControls()`/`hideControls()`（而非直接
+    // emit `uiState`）,确保计时器的启动方式与手动 show 完全一致。
+    if (options.controls.showOnStart) {
+      showControls();
+    } else {
+      hideControls();
+    }
     _events.add(VmSourceChanged(source));
     _events.add(const VmReady());
   }
@@ -501,6 +519,19 @@ class VmEngine implements VmApi {
   Future<void> play() async {
     final allowed = await _chain.beforePlay();
     if (!allowed) return;
+    // A VOD source that has already reached the end sits paused on its last
+    // frame; calling the kernel's `play()` alone leaves it there (there is
+    // nothing left downstream of the current position to play), so the
+    // progress bar looked frozen and nothing visibly "replayed". Live has no
+    // meaningful end-of-stream position to rewind to, so this only applies
+    // to VOD.
+    //
+    // 点播源播放到头后停在最后一帧；只调内核的 `play()` 什么都不会变（当前
+    // 位置往后已经没有内容可播），进度条看起来就是卡死、也没有任何"重新
+    // 播放"的可见效果。直播没有可回退的"播放完"位置，因此只对点播生效。
+    if (state.completed && state.type == VmStreamType.vod) {
+      await _kernel.seek(Duration.zero);
+    }
     await _kernel.play();
   }
 
@@ -814,11 +845,11 @@ class VmEngine implements VmApi {
   }
 
   @override
-  void showHud(VmHud hud) {
+  void showHud(VmHud hud, {String? text}) {
     _hudTimer?.cancel();
-    _ui.emit(uiState.copyWith(hud: hud));
+    _ui.emit(uiState.copyWith(hud: hud, hudText: text, clearHudText: text == null));
     _hudTimer = Timer(const Duration(milliseconds: 800), () {
-      _ui.emit(uiState.copyWith(hud: VmHud.none));
+      _ui.emit(uiState.copyWith(hud: VmHud.none, clearHudText: true));
     });
   }
 

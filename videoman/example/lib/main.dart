@@ -50,11 +50,24 @@ class _Demo {
   const _Demo(this.name, this.source, {this.options = const VmOptions()});
 }
 
+/// Sample danmaku for the bilibili-skin demo entry, timed to the first
+/// ~20 seconds of the shared demo mp4.
+///
+/// bilibili 皮肤演示入口用的示例弹幕，按共用演示 mp4 的前约 20 秒计时。
+const _sampleDanmaku = [
+  VmDanmakuItem(text: '前方高能', time: Duration(seconds: 2)),
+  VmDanmakuItem(text: '哈哈哈哈', time: Duration(seconds: 4)),
+  VmDanmakuItem(text: '这也太好看了吧', time: Duration(seconds: 6)),
+  VmDanmakuItem(text: '弹幕护体', time: Duration(seconds: 8)),
+  VmDanmakuItem(text: '一键三连', time: Duration(seconds: 10)),
+];
+
 /// The demo sources: VOD mp4, multi-quality HLS, a custom-skin variant, a
-/// DVR-seekable live stream, and a time-shift (reopen-on-seek) live stream.
+/// DVR-seekable live stream, a time-shift (reopen-on-seek) live stream, and a
+/// bilibili-style skin with danmaku + speed button.
 ///
 /// 演示源：点播 mp4、多清晰度 HLS、自定义皮肤变体、DVR 可拖直播、
-/// 时移（拖动即换源）直播。
+/// 时移（拖动即换源）直播、带弹幕 + 倍速按钮的 bilibili 风格皮肤。
 final _demos = [
   _Demo(
     'VOD · mp4',
@@ -110,6 +123,14 @@ final _demos = [
       ),
     ),
   ),
+  _Demo(
+    'bilibili 皮肤',
+    VmSource(
+      'https://user-images.githubusercontent.com/28951144/229373695-22f88f13-d18f-4288-9bf1-c3e078d83722.mp4',
+      title: 'bilibili 风格皮肤示例',
+    ),
+    options: const VmOptions(danmaku: VmDanmakuConfig(enabled: true, items: _sampleDanmaku)),
+  ),
 ];
 
 /// A skin used by the third demo entry: the default skin with the
@@ -117,6 +138,11 @@ final _demos = [
 ///
 /// 第三个演示入口使用的皮肤：在默认皮肤基础上，从顶栏中移除画中画按钮。
 const _noPipSkin = VmDefaultSkin(patches: [VmPatch.remove('topBar/pipButton')]);
+
+/// Index of the bilibili-skin demo entry in [_demos].
+///
+/// [_demos] 中 bilibili 皮肤演示入口的下标。
+const _bilibiliDemoIndex = 5;
 
 /// A page that plays a demo source with [VmPlayer] and a source switcher.
 ///
@@ -222,18 +248,45 @@ class _PlayerPageState extends State<PlayerPage> {
         title: const Text('videoman'),
         actions: [
           IconButton(
+            tooltip: '抖音风 feed 演示',
+            icon: const Icon(Icons.view_carousel_rounded),
+            onPressed: () => Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => const DouyinFeedDemoPage()),
+            ),
+          ),
+          IconButton(
             tooltip: _previewOn ? '关闭预览' : '开启预览',
             icon: Icon(_previewOn ? Icons.image : Icons.image_not_supported),
             onPressed: () => _togglePreview(!_previewOn),
           ),
-          for (var i = 0; i < _demos.length; i++)
-            TextButton(
-              onPressed: i == _index ? null : () => _switch(i),
-              child: Text(
-                _demos[i].name,
-                style: TextStyle(color: i == _index ? Colors.grey : Colors.white),
+          // The demo count keeps growing (6 as of the bilibili entry) and a
+          // plain Row silently clips the tail entries off-screen on anything
+          // narrower than a very wide monitor — `bilibili 皮肤` was
+          // unreachable by mouse before this. Scroll just this segment
+          // instead of the whole actions row, so the feed/preview icons stay
+          // put.
+          //
+          // demo 数量一直在涨（加上 bilibili 这条已到 6 个），普通 Row 在
+          // 不够宽的显示器上会把尾部条目静默裁掉——加上 `bilibili 皮肤` 之前
+          // 鼠标根本点不到它。只让这一段可横向滚动，而非整个 actions 行，
+          // feed/预览图标保持固定位置。
+          Expanded(
+            child: SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: Row(
+                children: [
+                  for (var i = 0; i < _demos.length; i++)
+                    TextButton(
+                      onPressed: i == _index ? null : () => _switch(i),
+                      child: Text(
+                        _demos[i].name,
+                        style: TextStyle(color: i == _index ? Colors.grey : Colors.white),
+                      ),
+                    ),
+                ],
               ),
             ),
+          ),
         ],
       ),
       body: Center(
@@ -249,9 +302,108 @@ class _PlayerPageState extends State<PlayerPage> {
           aspectRatio: 4 / 3,
           child: VmPlayer(
             api: _engine,
-            skin: _index == 2 ? _noPipSkin : const VmDefaultSkin(),
+            skin: _index == 2
+                ? _noPipSkin
+                : _index == _bilibiliDemoIndex
+                    ? VmBilibiliSkin()
+                    : const VmDefaultSkin(),
           ),
         ),
+      ),
+    );
+  }
+}
+
+/// Sample feed items for the douyin-style demo: three short public mp4s,
+/// looped with per-loop-varying like/comment/share counts so repeated swipes
+/// visibly show different numbers rather than the exact same three forever.
+///
+/// 抖音风演示的示例 feed 条目：三个公开短 mp4 循环播放，点赞/评论/分享数按圈数
+/// 变化，使反复上滑时数字可见地在变，而非永远是完全相同的三条。
+final _feedSources = [
+  'https://user-images.githubusercontent.com/28951144/229373695-22f88f13-d18f-4288-9bf1-c3e078d83722.mp4',
+  'https://interactive-examples.mdn.mozilla.net/media/cc0-videos/flower.mp4',
+  'https://interactive-examples.mdn.mozilla.net/media/cc0-videos/friday.mp4',
+];
+
+/// A full-screen page demoing [VmFeedPlayer]: vertical swipe-for-next-video,
+/// douyin-style social rail, and local like state — see doc/SPEC.md's feed
+/// entry for the single-engine architecture this is built on.
+///
+/// 演示 [VmFeedPlayer] 的全屏页面：纵向上滑切下一个视频、抖音风社交竖排、
+/// 本地点赞状态——其所基于的单引擎架构见 doc/SPEC.md 的 feed 条目。
+class DouyinFeedDemoPage extends StatefulWidget {
+  /// Creates the douyin-feed demo page.
+  ///
+  /// 创建抖音 feed 演示页面。
+  const DouyinFeedDemoPage({super.key});
+
+  @override
+  State<DouyinFeedDemoPage> createState() => _DouyinFeedDemoPageState();
+}
+
+/// State for [DouyinFeedDemoPage]; owns the single shared [VmEngine] every
+/// feed page plays through.
+///
+/// [DouyinFeedDemoPage] 的状态；持有 feed 中每一页共用的唯一 [VmEngine]。
+class _DouyinFeedDemoPageState extends State<DouyinFeedDemoPage> {
+  /// The single engine every feed page shares.
+  ///
+  /// feed 中每一页共享的唯一引擎。
+  late final VmEngine _engine;
+
+  @override
+  void initState() {
+    super.initState();
+    _engine = createVmEngine();
+  }
+
+  @override
+  void dispose() {
+    _engine.dispose();
+    super.dispose();
+  }
+
+  /// Resolves feed item [index], looping over [_feedSources] forever — a
+  /// real app would page through a backend feed API instead and return
+  /// `null` once exhausted.
+  ///
+  /// 解析 feed 第 [index] 条，在 [_feedSources] 上无限循环——真实 app 应改为
+  /// 分页请求后端 feed 接口，取完后返回 `null`。
+  ///
+  /// - [index]: the feed index to resolve / 要解析的 feed 索引
+  Future<VmFeedItem?> _loadItem(int index) async {
+    final loop = index ~/ _feedSources.length;
+    final uri = _feedSources[index % _feedSources.length];
+    return VmFeedItem(
+      source: VmSource(uri),
+      authorName: 'demo_user_$index',
+      musicName: '原创音频 · demo',
+      initialLikeCount: 100 + loop * 37 + index,
+      commentCount: 10 + index,
+      shareCount: 3 + index,
+      onLikeChanged: (liked, count) => debugPrint('feed[$index] liked=$liked count=$count'),
+      onComment: () => debugPrint('feed[$index] comment tapped'),
+      onShare: () => debugPrint('feed[$index] share tapped'),
+      onAvatarTap: () => debugPrint('feed[$index] avatar tapped'),
+      onFollowTap: () => debugPrint('feed[$index] follow tapped'),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.black,
+      body: Stack(
+        children: [
+          VmFeedPlayer(api: _engine, loader: _loadItem),
+          SafeArea(
+            child: IconButton(
+              icon: const Icon(Icons.close_rounded, color: Colors.white),
+              onPressed: () => Navigator.of(context).pop(),
+            ),
+          ),
+        ],
       ),
     );
   }

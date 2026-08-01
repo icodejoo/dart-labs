@@ -41,6 +41,33 @@ void main() {
     await api.dispose();
   });
 
+  testWidgets('seek HUD shows hudText when set (double-tap path)', (t) async {
+    final api = FakeVmApi();
+    api.pushUi(const VmUiState(hud: VmHud.seek, hudText: '00:20'));
+    await pumpComponent(t, api, HudLayerComponent());
+    await t.pump();
+    expect(find.text('00:20'), findsOneWidget);
+    await api.dispose();
+  });
+
+  testWidgets('seek HUD falls back to previewAt when hudText is absent (drag path)', (t) async {
+    final api = FakeVmApi();
+    api.pushUi(const VmUiState(hud: VmHud.seek, previewAt: Duration(seconds: 20)));
+    await pumpComponent(t, api, HudLayerComponent());
+    await t.pump();
+    expect(find.text('00:20'), findsOneWidget);
+    await api.dispose();
+  });
+
+  testWidgets('seek HUD shows nothing (not a blank badge) when neither is set', (t) async {
+    final api = FakeVmApi();
+    api.pushUi(const VmUiState(hud: VmHud.seek));
+    await pumpComponent(t, api, HudLayerComponent());
+    await t.pump();
+    expect(find.text(''), findsNothing);
+    await api.dispose();
+  });
+
   testWidgets('no HUD is shown when hud is none', (t) async {
     final api = FakeVmApi();
     api.pushUi(const VmUiState(hud: VmHud.none));
