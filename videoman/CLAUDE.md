@@ -108,8 +108,8 @@
    落地卡在一次**需 Mac + iOS 15+ 真机**的门槛 spike。研究 + 落地计划 + 渲染机制/性能
    澄清见 [doc/notes/2026-07-31-ios-pip-feasibility.md](doc/notes/2026-07-31-ios-pip-feasibility.md)。
    不需 Mac 也能先做的：跨平台"应用内悬浮窗"降级方案（阶段 3）。
-6. **实时语音转文字字幕——可行性已评估 + 音频抽取 spike 已实测（2026-07-31），
-   Android+iOS 正在落地**：方向是**各平台原生轻量抽取 API**（Android `MediaExtractor`+
+6. **实时语音转文字字幕——可行性 + 音频抽取 spike + 动态加载调研均已完成；方向 2026-08-01
+   倾向 whisper.cpp，待用户确认依赖后拆 Task**：方向是**各平台原生轻量抽取 API**（Android `MediaExtractor`+
    `MediaCodec`、iOS `AVAssetReader`）+ **平台原生 STT**（Android ML Kit / iOS
    `SFSpeechAudioBufferRecognitionRequest`，均系统自带、走原生插件代码，不算新依赖）+
    字幕叠层组件；PCM 抽取与 STT 调用同一次原生方法内完成，不过 Dart 侧。spike 验证过
@@ -123,6 +123,12 @@
    附录 A，回写见 [doc/PRD.md](doc/PRD.md) ADR。**macOS（无原生插件，需从零搭建）与
    Windows（SAPI/COM，无项目内先例）暂缓**，逐 Task 落地计划见 `doc/plans/`。AI MCP
    接入钩子（被动暴露上下文/接受指令，与字幕转写解耦）仍是纯架构预留，未评估、未排期。
+   **⚠️ 2026-08-01 方向调整（覆盖上文"平台原生优先"）**：动态加载调研
+   [doc/notes/2026-08-01-dynamic-loading.md](doc/notes/2026-08-01-dynamic-loading.md)
+   厘清「引擎=代码 / 模型=数据」——whisper.cpp 引擎仅几 MB 随包，模型是数据、运行时下载、
+   全平台合规（iOS 有官方 ODR/Background Assets）、天然满足"不内置模型"，**化解了此前对
+   whisper.cpp 的两个顾虑**，方向倾向 whisper.cpp（四端统一、避开 Android ML Kit alpha 坑）；
+   **引入 whisper.cpp 依赖仍需用户正式确认后才拆落地 Task**。
 
 ## 约定
 
