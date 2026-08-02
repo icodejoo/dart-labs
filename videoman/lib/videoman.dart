@@ -9,6 +9,7 @@ export 'src/core/api.dart';
 export 'src/core/compat.dart';
 export 'src/core/engine.dart';
 export 'src/core/events/events.dart';
+export 'src/core/feed/engine_pool.dart';
 export 'src/core/feed/feed_controller.dart';
 export 'src/core/feed/feed_prefetcher.dart';
 export 'src/core/interceptor/interceptor.dart';

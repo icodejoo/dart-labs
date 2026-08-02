@@ -26,22 +26,19 @@ abstract class VmFeedPrefetcher {
 /// The default [VmFeedPrefetcher]: opens a ranged HTTP GET for the first
 /// [rangeBytes] of [VmSource.uri] and discards the response.
 ///
-/// **Scope note**: this only warms DNS/TCP/TLS/CDN-edge state — it does not
-/// decode, does not write to disk, and does not make the subsequent
-/// `VmApi.open()` call skip the decoder's own startup cost. A deeper
-/// mpv-native playlist-prefetch integration (`prefetch-playlist`, demuxing
-/// the next item ahead inside the same kernel instance) was explored but
-/// deferred — see doc/SPEC.md's feed-prefetch entry — in favour of this
-/// lower-risk, still-real implementation for the first cut.
+/// **Scope note**: this only warms DNS/TCP/TLS/CDN-edge state; it does not
+/// decode and does not write to disk. Warming the *decoder* path is
+/// `VmFeedEnginePool`'s job — it opens upcoming items on their own engines
+/// ahead of time — so this prefetcher only covers the items further out than
+/// the pool reaches (see `VmFeedController.prefetchDepth`).
 ///
 /// 默认的 [VmFeedPrefetcher]：对 [VmSource.uri] 发起一次范围 HTTP GET，只取
 /// 前 [rangeBytes] 字节并丢弃响应体。
 ///
-/// **范围说明**：只预热 DNS/TCP/TLS/CDN 边缘节点状态——不解码、不落盘，也
-/// 不会让随后的 `VmApi.open()` 省掉解码器自身的启动开销。曾评估过更深的
-/// mpv 原生 playlist 预取集成（`prefetch-playlist`，在同一内核实例内提前
-/// demux 下一条），已推迟——见 doc/SPEC.md 的 feed 预取条目——第一版选择这个
-/// 风险更低、但仍然真实有效的实现。
+/// **范围说明**：只预热 DNS/TCP/TLS/CDN 边缘节点状态；不解码、不落盘。预热
+/// *解码*链路是 `VmFeedEnginePool` 的职责——它会提前在各自的引擎上打开即将
+/// 播放的条目——因此本 prefetcher 只覆盖池够不到的更远条目（见
+/// `VmFeedController.prefetchDepth`）。
 class NetworkWarmFeedPrefetcher implements VmFeedPrefetcher {
   /// Creates a network-warming prefetcher.
   ///

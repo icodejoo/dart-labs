@@ -249,28 +249,74 @@ Windows 实跑证实。这不是回归，是能力从未在桌面实现过。vid
   "弹幕开关"按钮本期**未做**——`enabled` 是构造期配置，非运行时可切换状态，
   加运行时开关需要一个新的本地 UI 状态承载点，本期从简未做，留待后续。
 - **`VmFeedPlayer`/`VmDouyinSkin`**（`ui/feed_player.dart`/`ui/skins/
-  douyin_skin.dart`）：纵向"上滑下一个视频"feed，**单引擎架构**——
-  `VmFeedController`（`core/feed/feed_controller.dart`，纯 Dart，无 Flutter
-  依赖）反复对同一个 `VmApi` 调 `open()` 切换，而非并行维护多个 `VmEngine`。
-  该决策经过实测评估权衡：并行引擎池切换更顺滑（下一条已解码待播），但
-  代价是每活跃实例约 50-100MB 内存，且**硬解并发 session 数**（很多中低端
-  Android SoC 只支持 1-2 个）是比 CPU/内存更硬的瓶颈——超限会静默掉软解，
-  发热掉帧。结论是不做"高低端机型自动分档"（判断依据本就不可靠、需要机型库
-  或跑基准测试，videoman 一贯克制新依赖），改为单引擎 + `prefetchDepth` 交给
-  宿主按自己目标机型配置，默认保守值 1。
-  - **预取范围已从设计草案收窄**：原计划里"深度 1 用 mpv 原生
-    `prefetch-playlist`、深度 ≥2 走自建磁盘缓存"需要新增 mpv playlist 管理
-    + 经 `NativePlayer.handle` 裸 FFI 设置 mpv property，属于对现有单源
-    `VmEngine`/`VmKernel` 抽象的较大扩张，风险与本次工作量不匹配，**推迟**。
-    第一版 `NetworkWarmFeedPrefetcher`（`core/feed/feed_prefetcher.dart`）只做
-    HTTP Range 预取前 64KB 并丢弃——只预热 DNS/TCP/TLS/CDN 边缘节点，不解码、
-    不落盘，`VmApi.open()` 切换时解码器自身启动开销仍在。真正的 mpv 原生
-    playlist 预取集成留作后续任务。
-  - **只有 `activeIndex` 页渲染真实视频画面**：`PageView` 为滚动物理效果额外
-    构建的相邻页只在纯黑底上渲染自己的 chrome（社交竖排/作者信息）——因为只有
-    一个共享解码器，若相邻页也渲染真实画面，会显示"当前正在播放的那条"而非
-    它自己的内容。代价是刚定格的新页面在 `open()` 完成前会短暂黑屏，这是
-    上面单引擎决策的自然延伸，非独立缺陷。
+  douyin_skin.dart`）：纵向"上滑下一个视频"feed，**引擎池架构**——
+  `VmFeedEnginePool`（`core/feed/engine_pool.dart`）持有最多 `poolSize`
+  个 `VmApi`，每个热页一个自己的引擎与渲染画面；`VmFeedController`
+  （`core/feed/feed_controller.dart`，纯 Dart，无 Flutter 依赖）驱动这个池
+  在 feed 中前进。两者都不依赖 Flutter，可单测。
+  - **推翻了此前的单引擎决策**（2026-08-02）。原决策依据是"并行引擎池每活跃
+    实例约 50-100MB 内存 + 硬解并发 session 数（很多中低端 Android SoC 只支持
+    1-2 个）"，于是改为单引擎反复 `open()`。但单引擎在切页瞬间有两个躲不掉的
+    瑕疵：冷 `open()` 会清空共享画面（**黑屏一闪**），而任何原地复用同一
+    Surface 的快速路径（当时的 `queueNext`+`Player.next()`）都会把**上一条
+    最后解码的那一帧**留在屏幕上，直到新一条的帧覆盖它为止。两者当时只能靠
+    一层定时黑遮罩（`switchMaskDuration`，150ms 猜测值）桥接——那是猜测，
+    不是修复，真机连续快切时仍会露。改用引擎池后，观众正在滑向的那页早已在
+    自己的引擎上打开、停在自己的画面上，**两个瑕疵都从根上不成立**，遮罩连同
+    `switchMaskDuration` 参数一起删除。采纳前用 `example/lib/spike_dual_engine.dart`
+    在 Android 真机按 `dumpsys meminfo` 分三阶段（单引擎基线 / 加一个预热引擎 /
+    释放后回收）实测过增量，结论是可接受。硬解 session 数的顾虑仍在，因此
+    `poolSize` 保持宿主可配（默认 3，内存吃紧可降到 2）。
+  - **`VmApi.queueNext`/`VmKernel.queueNext` 与 mpv `prefetch-playlist` 已删**：
+    每页独立引擎后，单引擎内部的 playlist 预取无意义。
+  - **窗口与淘汰**：`vmFeedWindow(center, size)`（纯函数，可单测）以活跃页为
+    中心向外展开、**向前优先**（`[c, c+1, c-1, c+2, …]`，奇数 size 对称，偶数
+    多出来的一个放前方），负索引跳过而非钳位。池满时**按到目标索引的距离淘汰，
+    不是 LRU**——刚划走的那页恰是"最近使用"却也最可能马上又要用，LRU 会淘汰错
+    的那个。回收只解绑 + `pause()`，引擎实例放回空闲列表复用，**不 dispose**
+    （每次上滑重建一次原生 Surface，等于把这套设计想省的开销又还回去）。
+  - **就绪判据 = `open()` resolve，不是"首帧已渲染"**：media_kit 没有暴露可
+    重复触发的首帧事件（`VideoController.waitUntilFirstFrameRendered` 是一次性
+    `Completer`，池化引擎被复用于后续条目时不会再触发）。冷 `open()` 在帧尺寸
+    确定前本就保持画面空白，因此用它近似。`VmFeedSlot.ready` 为 `false` 期间，
+    该页显示 `VmFeedPlayer.placeholderBuilder`（宿主可给封面图/骨架屏，默认
+    纯黑）**并照常渲染自己的 chrome**——chrome 组件读的是 feed 条目而非播放
+    状态，因此用任意存活引擎撑起 `VmScope` 即可。
+  - **引擎所有权在 `VmFeedPlayer`，不在宿主**：构造面从 `api:` 改为
+    `engineFactory:`（宿主传 `createVmEngine`）+ `poolSize`。池创建的每个引擎
+    都由该 widget dispose——宿主根本拿不到它们，别处也无从释放。这是相对
+    0.3.0 的 **breaking change**（feed 是未发布的新特性，代价可接受）。
+  - **音频不重叠**：只有活跃页 `play()`，`VmFeedEnginePool.focus(index)` 把
+    其余所有已绑定引擎 `pause()`；预热邻居一律 `open(autoPlay: false)` 停在
+    首帧。
+  - **`NetworkWarmFeedPrefetcher` 保留，但只覆盖池够不到的更远条目**：
+    `prefetchDepth` 范围内、已在引擎窗口里的索引会被跳过——那些正在被真正
+    打开，重复发一次 Range GET 毫无收益。默认 `prefetchDepth: 1` + 默认
+    `poolSize: 3` 的组合下，网络预取实际不发出任何请求。
+  - **`VmFeedController.activate()` 对重叠调用做合并，不会与自己竞速**：
+    快速连续 swipe 会在前一次 `activate(N)` 还没切完时就调用 `activate(N+1)`。
+    即使有了引擎池，串行化依然必要：两次重叠激活会各自用自己的窗口调用
+    `retain()`、再争抢空闲引擎，落败的一方可能把胜出方刚建立的绑定淘汰掉，
+    出现 chrome 已显示 N+1、画面却卡在别处的问题。`activate()` 内部排队合并：
+    任意时刻只有一路序列在跑，重叠调用只更新"接下来想要哪个索引"，进行中的
+    循环收尾后自动去处理最新目标，处理到一半才发现已被取代的目标会被跳过。
+    所有调用方（含过期的）都在真正收敛到最新索引后才一起 resolve。邻居预热
+    同样带这个检查，一旦有新激活到来就中止。
+  - **feed 到尽头（loader 返回 `null`）不再空转**：`_buildPage` 用一个
+    `_requested` 集合记录已请求过的索引——否则"build 发起请求 → 没东西可缓存
+    → `setState` → build 再发起同一请求"会无限循环（引擎池改造前就存在，
+    旧测试只 `pump()` 两次没暴露，换成 `pumpAndSettle` 立刻打出来）。加载
+    失败的索引会移出集合，后续重建仍会重试。
+  - **默认 `fit: cover`**：池创建每个引擎时对其调用一次
+    `setFit(VmFit.cover)`（可经构造参数覆盖）——`contain` 会按每条视频的
+    宽高比留出不同大小的黑边，每次上滑都像是尺寸跳了一下。**已知限制**：
+    Android 上 `VideoControllerConfiguration.width`/`height` 明确无效（见
+    media_kit_video 文档），解码输出的原生 Surface 必定按视频源分辨率
+    设置——切到分辨率不同的视频时，底层 Surface 仍会 resize/重建一次，
+    这与 `fit` 无关，是 media_kit_video 在 Android 上的实现限制，修复需要
+    改其 Android 原生代码，videoman 这层治不了。**引擎池顺带绕开了它的观感
+    代价**：每页有自己的 Surface，那次 resize/重建发生在预热阶段（观众还在看
+    上一条），而非切换瞬间。
   - **点赞状态 videoman 端到端本地持有**（`VmFeedItem.initialLiked`/
     `initialLikeCount`/`onLikeChanged`）：双击（`DouyinGestureLayerComponent`）
     与竖排点赞按钮（`LikeButtonComponent`）经同一个 `ValueNotifier`（由
@@ -287,7 +333,9 @@ Windows 实跑证实。这不是回归，是能力从未在桌面实现过。vid
 
 新增测试：`test/core/model_test.dart`（`VmDanmakuItem`/`VmFeedItem`）、
 `test/core/options_test.dart`（`VmDanmakuConfig`/`VmOptions.danmaku`）、
-`test/core/feed_controller_test.dart`、`test/core/feed_prefetcher_test.dart`
+`test/core/feed_controller_test.dart`、`test/core/engine_pool_test.dart`
+（`vmFeedWindow` 展开顺序/负索引、容量上限、距离淘汰、引擎复用不 dispose、
+`focus` 只留一路播放、绑定被取代后不置 ready）、`test/core/feed_prefetcher_test.dart`
 （真起 `HttpServer` 校验 Range 头，非 mock）、`test/ui/danmaku_test.dart`、
 `test/ui/speed_button_test.dart`、`test/ui/bilibili_skin_test.dart`、
 `test/ui/douyin_skin_test.dart`、`test/ui/feed_social_test.dart`、

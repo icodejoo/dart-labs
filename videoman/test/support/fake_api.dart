@@ -235,9 +235,18 @@ class FakeVmApi implements VmApi {
   /// 向 [events] 订阅者推送一个离散事件。
   void pushEvent(VmEvent next) => _events.add(next);
 
+  /// The `autoPlay` argument of the most recent [open] call, or `null` if
+  /// [open] has never been called — lets feed tests tell a page opened to
+  /// play from one merely preloaded and parked.
+  ///
+  /// 最近一次 [open] 调用的 `autoPlay` 参数；若从未调用过 [open] 则为 `null`
+  /// ——供 feed 测试区分"打开即播放"与"仅预加载并停住"的页面。
+  bool? lastAutoPlay;
+
   @override
   Future<void> open(VmSource source, {bool autoPlay = true}) async {
     calls.add('open');
+    lastAutoPlay = autoPlay;
     this.source = source;
     push(state.copyWith(
       type: source.type,
