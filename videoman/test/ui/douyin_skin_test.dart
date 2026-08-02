@@ -1,6 +1,7 @@
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:videoman/src/core/feed/engine_pool.dart';
 import 'package:videoman/src/core/feed/feed_controller.dart';
 import 'package:videoman/src/core/model/feed_item.dart';
 import 'package:videoman/src/core/model/source.dart';
@@ -10,8 +11,24 @@ import 'package:videoman/src/ui/slots/tree.dart';
 
 import '../support/fake_api.dart';
 
+/// Builds a controller whose pool hands out [api] as its only engine, with
+/// item 0 already resolved — enough for skin tests, which exercise chrome
+/// rather than engine switching.
+///
+/// 构建一个控制器，其引擎池只发放 [api] 这一个引擎，且条目 0 已解析完成——
+/// 对皮肤测试足够了，它们考察的是 chrome 而非引擎切换。
+///
+/// - [api]: the engine the pool hands out / 池要发放的引擎
+/// - [item]: the feed item every index resolves to / 每个索引都解析到的条目
+///
+/// Returns the ready-to-use controller.
+///
+/// 返回可直接使用的控制器。
 Future<VmFeedController> _controllerWith(FakeVmApi api, VmFeedItem item) async {
-  final controller = VmFeedController(api: api, loader: (i) async => item);
+  final controller = VmFeedController(
+    pool: VmFeedEnginePool(engineFactory: () => api, size: 1),
+    loader: (i) async => item,
+  );
   await controller.ensure(0);
   return controller;
 }
@@ -114,7 +131,10 @@ void main() {
   test('components expose no top bar and no drag-based gesture component', () {
     final api = FakeVmApi();
     final item = VmFeedItem(source: const VmSource('https://h/0.mp4'));
-    final controller = VmFeedController(api: api, loader: (i) async => item);
+    final controller = VmFeedController(
+      pool: VmFeedEnginePool(engineFactory: () => api, size: 1),
+      loader: (i) async => item,
+    );
     final skin = VmDouyinSkin(
       item: item,
       controller: controller,

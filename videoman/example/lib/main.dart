@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:videoman/videoman.dart';
 
+import 'spike_dual_engine.dart';
+
 /// Example entry: init videoman core, then run the demo app.
 ///
 /// 示例入口：初始化 videoman 内核，随后运行演示 app。
@@ -255,6 +257,13 @@ class _PlayerPageState extends State<PlayerPage> {
             ),
           ),
           IconButton(
+            tooltip: '双引擎内存 spike',
+            icon: const Icon(Icons.memory_rounded),
+            onPressed: () => Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => const DualEngineMemorySpikePage()),
+            ),
+          ),
+          IconButton(
             tooltip: _previewOn ? '关闭预览' : '开启预览',
             icon: Icon(_previewOn ? Icons.image : Icons.image_not_supported),
             onPressed: () => _togglePreview(!_previewOn),
@@ -328,10 +337,10 @@ final _feedSources = [
 
 /// A full-screen page demoing [VmFeedPlayer]: vertical swipe-for-next-video,
 /// douyin-style social rail, and local like state — see doc/SPEC.md's feed
-/// entry for the single-engine architecture this is built on.
+/// entry for the engine-pool architecture this is built on.
 ///
 /// 演示 [VmFeedPlayer] 的全屏页面：纵向上滑切下一个视频、抖音风社交竖排、
-/// 本地点赞状态——其所基于的单引擎架构见 doc/SPEC.md 的 feed 条目。
+/// 本地点赞状态——其所基于的引擎池架构见 doc/SPEC.md 的 feed 条目。
 class DouyinFeedDemoPage extends StatefulWidget {
   /// Creates the douyin-feed demo page.
   ///
@@ -342,28 +351,13 @@ class DouyinFeedDemoPage extends StatefulWidget {
   State<DouyinFeedDemoPage> createState() => _DouyinFeedDemoPageState();
 }
 
-/// State for [DouyinFeedDemoPage]; owns the single shared [VmEngine] every
-/// feed page plays through.
+/// State for [DouyinFeedDemoPage]. Note it owns no engine of its own — the
+/// feed's pool creates and disposes every engine, the host only supplies the
+/// factory.
 ///
-/// [DouyinFeedDemoPage] 的状态；持有 feed 中每一页共用的唯一 [VmEngine]。
+/// [DouyinFeedDemoPage] 的状态。注意它自身不持有任何引擎——所有引擎都由 feed
+/// 的引擎池创建与释放，宿主只负责提供工厂。
 class _DouyinFeedDemoPageState extends State<DouyinFeedDemoPage> {
-  /// The single engine every feed page shares.
-  ///
-  /// feed 中每一页共享的唯一引擎。
-  late final VmEngine _engine;
-
-  @override
-  void initState() {
-    super.initState();
-    _engine = createVmEngine();
-  }
-
-  @override
-  void dispose() {
-    _engine.dispose();
-    super.dispose();
-  }
-
   /// Resolves feed item [index], looping over [_feedSources] forever — a
   /// real app would page through a backend feed API instead and return
   /// `null` once exhausted.
@@ -396,7 +390,7 @@ class _DouyinFeedDemoPageState extends State<DouyinFeedDemoPage> {
       backgroundColor: Colors.black,
       body: Stack(
         children: [
-          VmFeedPlayer(api: _engine, loader: _loadItem),
+          VmFeedPlayer(engineFactory: createVmEngine, loader: _loadItem),
           SafeArea(
             child: IconButton(
               icon: const Icon(Icons.close_rounded, color: Colors.white),

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:videoman/src/core/feed/engine_pool.dart';
 import 'package:videoman/src/core/feed/feed_controller.dart';
 import 'package:videoman/src/core/model/feed_item.dart';
 import 'package:videoman/src/core/model/source.dart';
@@ -17,7 +18,10 @@ void main() {
       initialLikeCount: 5,
       onLikeChanged: (liked, count) => likedSeen = liked,
     );
-    final controller = VmFeedController(api: api, loader: (i) async => item);
+    final controller = VmFeedController(
+      pool: VmFeedEnginePool(engineFactory: () => api, size: 1),
+      loader: (i) async => item,
+    );
     await controller.ensure(0);
     final notifier = ValueNotifier(controller.likeStateOf(0));
 
