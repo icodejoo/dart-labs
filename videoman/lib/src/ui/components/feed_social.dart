@@ -3,8 +3,42 @@ import 'package:flutter/material.dart';
 import '../../core/api.dart';
 import '../../core/feed/feed_controller.dart';
 import '../../core/model/feed_item.dart';
+import '../../core/options/theme.dart';
 import '../slots/component.dart';
 import '../slots/slot.dart';
+
+/// Shared layout for the social rail's icon+count actions (like/comment/
+/// share): an opaque-tap column of a themed [Icon] over its count text.
+///
+/// 社交竖排里"图标+计数"动作（点赞/评论/分享）的共享布局：一列可穿透点击的
+/// 主题化 [Icon] 加下方计数文字。
+///
+/// - [icon]: the glyph / 图标
+/// - [iconColor]: the icon's ARGB color / 图标的 ARGB 颜色
+/// - [size]: icon size in logical pixels / 图标尺寸（逻辑像素）
+/// - [count]: the count caption below the icon / 图标下方的计数文字
+/// - [theme]: theme supplying the caption color/size / 提供计数文字颜色/字号的主题
+/// - [onTap]: tap handler / 点击回调
+Widget _railAction({
+  required IconData icon,
+  required int iconColor,
+  required double size,
+  required String count,
+  required VmTheme theme,
+  VoidCallback? onTap,
+}) {
+  return GestureDetector(
+    behavior: HitTestBehavior.opaque,
+    onTap: onTap,
+    child: Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(icon, color: Color(iconColor), size: size),
+        Text(count, style: TextStyle(color: Color(theme.textColor), fontSize: theme.captionFontSize)),
+      ],
+    ),
+  );
+}
 
 /// Right-side social action rail (avatar/follow, like, comment, share),
 /// bilibili/douyin-style. A pure grouping composite — every child renders
@@ -168,20 +202,13 @@ class LikeButtonComponent extends VmComponent {
     return ValueListenableBuilder<({bool liked, int count})>(
       valueListenable: likeNotifier,
       builder: (context, value, _) {
-        return GestureDetector(
-          behavior: HitTestBehavior.opaque,
+        return _railAction(
+          icon: value.liked ? Icons.favorite_rounded : Icons.favorite_border_rounded,
+          iconColor: value.liked ? theme.accentColor : theme.iconColor,
+          size: 32,
+          count: '${value.count}',
+          theme: theme,
           onTap: () => likeNotifier.value = controller.toggleLike(index),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(
-                value.liked ? Icons.favorite_rounded : Icons.favorite_border_rounded,
-                color: value.liked ? Color(theme.accentColor) : Color(theme.iconColor),
-                size: 32,
-              ),
-              Text('${value.count}', style: TextStyle(color: Color(theme.textColor), fontSize: theme.captionFontSize)),
-            ],
-          ),
         );
       },
     );
@@ -213,16 +240,13 @@ class CommentButtonComponent extends VmComponent {
   @override
   Widget build(BuildContext context, VmApi api, List<Widget> children) {
     final theme = api.options.theme;
-    return GestureDetector(
-      behavior: HitTestBehavior.opaque,
+    return _railAction(
+      icon: Icons.chat_bubble_rounded,
+      iconColor: theme.iconColor,
+      size: 30,
+      count: '${item.commentCount}',
+      theme: theme,
       onTap: item.onComment,
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(Icons.chat_bubble_rounded, color: Color(theme.iconColor), size: 30),
-          Text('${item.commentCount}', style: TextStyle(color: Color(theme.textColor), fontSize: theme.captionFontSize)),
-        ],
-      ),
     );
   }
 }
@@ -252,16 +276,13 @@ class ShareButtonComponent extends VmComponent {
   @override
   Widget build(BuildContext context, VmApi api, List<Widget> children) {
     final theme = api.options.theme;
-    return GestureDetector(
-      behavior: HitTestBehavior.opaque,
+    return _railAction(
+      icon: Icons.reply_rounded,
+      iconColor: theme.iconColor,
+      size: 30,
+      count: '${item.shareCount}',
+      theme: theme,
       onTap: item.onShare,
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(Icons.reply_rounded, color: Color(theme.iconColor), size: 30),
-          Text('${item.shareCount}', style: TextStyle(color: Color(theme.textColor), fontSize: theme.captionFontSize)),
-        ],
-      ),
     );
   }
 }

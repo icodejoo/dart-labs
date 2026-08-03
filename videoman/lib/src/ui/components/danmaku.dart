@@ -88,10 +88,67 @@ class _DanmakuTrackState extends State<_DanmakuTrack> with VmPlugin<_DanmakuTrac
   /// 在 [VmDanmakuConfig.trackCount] 条横向轨道间轮询的游标。
   int _nextTrack = 0;
 
+  /// [VmDanmakuConfig.items] sorted ascending by time, so [_onProgress] can
+  /// spawn newly-crossed comments from a monotonic cursor instead of rescanning
+  /// the whole (potentially thousands-strong) list on every progress tick.
+  ///
+  /// 按时间升序排好的 [VmDanmakuConfig.items]，使 [_onProgress] 能从单调游标
+  /// 生成新跨过的弹幕，而非每个进度 tick 都重扫整张（可能成千上万条的）表。
+  late List<VmDanmakuItem> _sorted;
+
+  /// Index into [_sorted] of the first not-yet-crossed comment; kept equal to
+  /// "first item with time > [_lastPosition]" across forward ticks (the while
+  /// loop) and backward seeks ([_firstAfter]).
+  ///
+  /// [_sorted] 中第一条尚未跨过的弹幕下标；在前进 tick（while 循环）与后跳
+  /// seek（[_firstAfter]）之间始终保持等于"首个 time > [_lastPosition] 的条目"。
+  int _cursor = 0;
+
   @override
   void initState() {
     super.initState();
+    _resort();
     bind(api.progress, _onProgress);
+  }
+
+  @override
+  void didUpdateWidget(_DanmakuTrack oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // Re-sort only when the host actually swapped the item list; positions
+    // arrive far more often than the list changes.
+    //
+    // 仅在宿主真的换了弹幕列表时才重排；位置更新远比列表变化频繁。
+    if (!identical(widget.config.items, oldWidget.config.items)) _resort();
+  }
+
+  /// Rebuilds [_sorted] from the current config and repositions [_cursor] to
+  /// the first item past [_lastPosition].
+  ///
+  /// 依当前配置重建 [_sorted]，并把 [_cursor] 重定位到 [_lastPosition] 之后的第一条。
+  void _resort() {
+    _sorted = [...widget.config.items]..sort((a, b) => a.time.compareTo(b.time));
+    _cursor = _firstAfter(_lastPosition);
+  }
+
+  /// Returns the index of the first item in [_sorted] whose time is strictly
+  /// greater than [t] (upper bound); `_sorted.length` if none.
+  ///
+  /// 返回 [_sorted] 中首个 time 严格大于 [t] 的条目下标（上界）；没有则返回
+  /// `_sorted.length`。
+  ///
+  /// - [t]: the position to bound against / 用于定界的位置
+  int _firstAfter(Duration t) {
+    var lo = 0;
+    var hi = _sorted.length;
+    while (lo < hi) {
+      final mid = (lo + hi) >> 1;
+      if (_sorted[mid].time <= t) {
+        lo = mid + 1;
+      } else {
+        hi = mid;
+      }
+    }
+    return lo;
   }
 
   /// Spawns every [VmDanmakuItem] whose [VmDanmakuItem.time] falls in
@@ -109,11 +166,22 @@ class _DanmakuTrackState extends State<_DanmakuTrack> with VmPlugin<_DanmakuTrac
   void _onProgress(VmProgress p) {
     final position = p.position;
     if (position > _lastPosition) {
-      for (final item in widget.config.items) {
-        if (item.time > _lastPosition && item.time <= position) {
-          _spawn(item);
-        }
+      // Forward: [_cursor] already sits at the first item past _lastPosition;
+      // spawn every item up to and including `position`, advancing the cursor.
+      //
+      // 前进：[_cursor] 已指向 _lastPosition 之后的第一条；生成直到（含）
+      // `position` 的每条弹幕，并推进游标。
+      while (_cursor < _sorted.length && _sorted[_cursor].time <= position) {
+        _spawn(_sorted[_cursor]);
+        _cursor++;
       }
+    } else if (position < _lastPosition) {
+      // Backward seek: reposition the cursor to the new position; a later
+      // forward tick then replays from there, matching the pre-cursor behavior.
+      //
+      // 后跳 seek：把游标重定位到新位置；之后的前进 tick 会从此处重放，
+      // 与引入游标之前的行为一致。
+      _cursor = _firstAfter(position);
     }
     _lastPosition = position;
   }

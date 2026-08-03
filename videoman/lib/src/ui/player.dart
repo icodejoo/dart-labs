@@ -38,6 +38,7 @@ class VmPlayer extends StatefulWidget {
     required this.api,
     this.skin = const VmDefaultSkin(),
     this.autoLoadQualities = true,
+    this.surface,
   });
 
   /// Playback facade driving this widget.
@@ -54,6 +55,22 @@ class VmPlayer extends StatefulWidget {
   ///
   /// 打开源后是否自动探测 HLS 清晰度档位。
   final bool autoLoadQualities;
+
+  /// The widget painted underneath the skin's chrome as the video surface;
+  /// defaults to the real media_kit surface (a black placeholder in tests).
+  ///
+  /// Feed pages pass a placeholder here for a page whose pooled engine isn't
+  /// ready yet, so that path still goes through [VmPlayer] and inherits its
+  /// api-identity keying (see the [KeyedSubtree] in [build]) rather than
+  /// re-assembling the tree without that safety net.
+  ///
+  /// 在皮肤 chrome 之下作为视频画面绘制的组件；默认渲染真实的 media_kit 画面
+  /// （测试环境下为黑色占位）。
+  ///
+  /// feed 页会在其池引擎尚未就绪时把占位组件传进来，使这条路径也走 [VmPlayer]、
+  /// 继承其按 api 身份做 key 的保证（见 [build] 里的 [KeyedSubtree]），而不是
+  /// 抛开那层安全网自行重装组件树。
+  final Widget? surface;
 
   @override
   State<VmPlayer> createState() => _VmPlayerState();
@@ -121,7 +138,7 @@ class _VmPlayerState extends State<VmPlayer> {
           builder: (context) {
             final tree = widget.skin.components();
             final bundle = buildSlots(context, widget.api, tree);
-            return widget.skin.assemble(context, bundle, const _RenderSurface());
+            return widget.skin.assemble(context, bundle, widget.surface ?? const _RenderSurface());
           },
         ),
       ),
