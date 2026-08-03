@@ -58,6 +58,14 @@ class VmStrings {
   /// 双指缩放 HUD 数值倍率后追加的后缀（例如 `1.5x` 中的 `x`）。
   final String zoomSuffix;
 
+  /// Suffix appended to the playback-speed button's numeric multiplier (e.g.
+  /// `x` for `1.5x`). Distinct from [zoomSuffix] so a host can word or
+  /// localize zoom and speed independently.
+  ///
+  /// 倍速按钮数值倍率后追加的后缀（例如 `1.5x` 中的 `x`）。与 [zoomSuffix] 分开，
+  /// 使宿主可对缩放与倍速独立措辞或本地化。
+  final String speedSuffix;
+
   /// Creates a strings bundle; defaults to the product's Simplified Chinese
   /// copy.
   ///
@@ -72,6 +80,7 @@ class VmStrings {
     this.auto = '自动',
     this.quality = '清晰度',
     this.zoomSuffix = 'x',
+    this.speedSuffix = 'x',
   });
 
   /// Resolves the display label for a [VmFit] mode.
@@ -100,7 +109,8 @@ class VmStrings {
           timeshift == other.timeshift &&
           auto == other.auto &&
           quality == other.quality &&
-          zoomSuffix == other.zoomSuffix;
+          zoomSuffix == other.zoomSuffix &&
+          speedSuffix == other.speedSuffix;
 
   @override
   int get hashCode => Object.hash(
@@ -113,5 +123,6 @@ class VmStrings {
         auto,
         quality,
         zoomSuffix,
+        speedSuffix,
       );
 }

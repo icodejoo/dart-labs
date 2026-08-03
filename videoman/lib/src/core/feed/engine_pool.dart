@@ -178,14 +178,20 @@ class VmFeedEnginePool {
   /// 任一 slot 的绑定或就绪标志变化时触发。
   final void Function()? onChanged;
 
-  /// Every engine ever created by this pool; length never exceeds [size].
-  ///
-  /// 本池创建过的所有引擎；长度永不超过 [size]。
-  final List<VmApi> _engines = <VmApi>[];
-
   /// Engines created but not currently bound to any feed index.
   ///
+  /// Every engine the pool has created is, at rest, in exactly one of [_idle]
+  /// or [_bound] — an engine is created only inside [_acquire] and bound in the
+  /// same synchronous step, and [_release] only ever moves engines between the
+  /// two. So `_idle.length + _bound.length` is the live engine count; no
+  /// separate "all engines" list is kept.
+  ///
   /// 已创建但当前未绑定到任何 feed 索引的引擎。
+  ///
+  /// 本池创建过的每个引擎，静止时都恰好在 [_idle] 或 [_bound] 其一——引擎只在
+  /// [_acquire] 内创建、并在同一次同步步骤里被绑定，[_release] 也只在两者间搬动。
+  /// 因此 `_idle.length + _bound.length` 就是存活引擎数，不再单独维护一份"全部
+  /// 引擎"列表。
   final List<VmApi> _idle = <VmApi>[];
 
   /// Current bindings, keyed by feed index.
@@ -203,7 +209,7 @@ class VmFeedEnginePool {
   /// How many engines currently exist; for tests and diagnostics.
   ///
   /// 当前存在多少个引擎；供测试与诊断使用。
-  int get engineCount => _engines.length;
+  int get engineCount => _idle.length + _bound.length;
 
   /// The feed indices currently bound to an engine.
   ///
@@ -302,13 +308,18 @@ class VmFeedEnginePool {
     // 迭代快照：这里在各引擎之间 await，而上一次激活遗留的邻居预热可能在这个
     // 窗口内完成绑定（改动 `_bound`）——直接迭代活的 map 会抛
     // ConcurrentModificationError。
-    for (final entry in _bound.entries.toList()) {
-      if (entry.key == index) {
-        await entry.value.api.play();
-      } else {
-        await entry.value.api.pause();
-      }
-    }
+    // The bound engines are independent native instances; fire their
+    // play/pause concurrently and await the slowest rather than paying
+    // (N-1) serial native round-trips on every swipe (this is the feed's
+    // hottest path).
+    //
+    // 各绑定引擎是彼此独立的 native 实例；并发发起 play/pause、只等最慢的一个，
+    // 而不是每次上滑都串行付出 (N-1) 次原生往返（这是 feed 最热的路径）。
+    await Future.wait(
+      _bound.entries.toList().map(
+        (e) => e.key == index ? e.value.api.play() : e.value.api.pause(),
+      ),
+    );
   }
 
   /// Unbinds every index outside [window], pausing those engines and
@@ -340,25 +351,17 @@ class VmFeedEnginePool {
   Future<void> dispose() async {
     if (_disposed) return;
     _disposed = true;
+    final engines = <VmApi>[..._idle, ..._bound.values.map((b) => b.api)];
     _bound.clear();
     _idle.clear();
-    final engines = List<VmApi>.of(_engines);
-    _engines.clear();
-    for (final engine in engines) {
-      // Per-engine: one engine failing to tear down must not strand the
-      // engines after it in the list — those are native decoders and
-      // surfaces, and nothing else holds a reference to free them.
-      //
-      // 逐个包裹：某个引擎拆除失败不能把列表里它后面的引擎晾在那——那些是
-      // 原生解码器与画面，除此之外没有任何东西持有它们的引用可供释放。
-      try {
-        await engine.dispose();
-      } on Object {
-        // Best-effort teardown; nothing useful to do with the failure here.
-        //
-        // 尽力而为地拆除；这里对失败没有任何有意义的处理方式。
-      }
-    }
+    // Concurrent, best-effort teardown. Independent native resources, so
+    // release them in parallel; the per-engine catchError keeps one failure
+    // from stranding the others (nothing else holds a reference to free them).
+    //
+    // 并发、尽力而为地拆除。彼此独立的原生资源，故并发释放；逐引擎的
+    // catchError 保证某个失败不会把其它引擎晾在那（除此之外没有任何东西
+    // 持有它们的引用可供释放）。
+    await Future.wait(engines.map((engine) => engine.dispose().catchError((Object _) {})));
   }
 
   /// Returns an engine free to bind to [index]: an idle one, a newly created
@@ -382,9 +385,8 @@ class VmFeedEnginePool {
   VmApi _acquire(int index) {
     if (_idle.isNotEmpty) return _idle.removeLast();
 
-    if (_engines.length < size) {
+    if (_idle.length + _bound.length < size) {
       final engine = _factory();
-      _engines.add(engine);
       final f = fit;
       if (f != null) unawaited(engine.setFit(f));
       return engine;

@@ -7,9 +7,7 @@ import '../core/feed/feed_prefetcher.dart';
 import '../core/model/feed_item.dart';
 import '../core/model/fit.dart';
 import 'player.dart';
-import 'scope/scope.dart';
 import 'skins/douyin_skin.dart';
-import 'slots/tree.dart';
 
 /// Builds what a feed page shows while its video is not yet on screen — the
 /// gap between the page mounting and its pooled engine finishing `open()`.
@@ -281,13 +279,17 @@ class _VmFeedPlayerState extends State<VmFeedPlayer> {
         widget.placeholderBuilder?.call(context, item) ?? const ColoredBox(color: Color(0xFF000000));
     if (scopeApi == null) return placeholder;
 
-    return VmScope(
-      api: scopeApi,
-      child: Builder(builder: (context) {
-        final bundle = buildSlots(context, scopeApi, skin.components());
-        return skin.assemble(context, bundle, placeholder);
-      }),
-    );
+    // Route through VmPlayer with the placeholder as its surface rather than
+    // hand-rebuilding VmScope + buildSlots + assemble here: VmPlayer keys the
+    // tree by api identity, so when this page's own engine finishes opening
+    // and scopeApi flips from the borrowed fallback to its own, the chrome
+    // remounts cleanly instead of silently reusing State bound to the old api.
+    //
+    // 走 VmPlayer、把占位当它的 surface 传入，而非在此手工重装
+    // VmScope + buildSlots + assemble：VmPlayer 按 api 身份给组件树做 key，
+    // 于是当本页自己的引擎打开完成、scopeApi 从借来的 fallback 切成自己的引擎时，
+    // chrome 会干净地重新挂载，而不是悄悄复用绑在旧 api 上的 State。
+    return VmPlayer(api: scopeApi, skin: skin, autoLoadQualities: false, surface: placeholder);
   }
 
   /// Returns any live engine to scope a not-yet-bound page's chrome against:

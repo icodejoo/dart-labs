@@ -37,7 +37,7 @@ class SpeedButtonComponent extends VmComponent {
   @override
   Widget build(BuildContext context, VmApi api, List<Widget> children) {
     final theme = api.options.theme;
-    final suffix = api.options.strings.zoomSuffix;
+    final suffix = api.options.strings.speedSuffix;
     return VmSelector<double>(
       selector: (s) => s.rate,
       builder: (context, rate) {
