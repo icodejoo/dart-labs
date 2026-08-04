@@ -52,6 +52,11 @@
 - [x] **P6** 画中画 PiP（#1）：Android 系统级 PiP（ActivityAware + PictureInPictureParams，宽高比钳制）；iOS/桌面返回不支持（见风险），按钮仅在支持平台显示
 - [x] **P7** 发布准备：README、CHANGELOG、LICENSE(MIT)、pubspec 元数据/topics、example 源切换、`pub publish --dry-run` 通过
 - [ ] **二期** ffmpeg 瘦身（LGPL）
+- [ ] **三期** 语音转字幕（STT）：实时路径（Zipformer + `videoman_stt` 独立包）已落地一版，
+      真机未验证；**批量预转写（点播一次性转写缓存字幕文件）依赖二期 ffmpeg 瘦身产出的
+      自建 ffmpeg + FFI 绑定**——mpv `ao=pcm` 音频抽取方案真机实测失败且被证实是已知不可靠
+      的老驱动，绕开 media_kit 直接 FFI 调 ffmpeg 也没有现成可用的库，详见
+      [doc/notes/2026-08-04-stt-engine-decision.md](notes/2026-08-04-stt-engine-decision.md)。
 
 ## 技术风险（需评估/决策）
 

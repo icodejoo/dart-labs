@@ -32,6 +32,8 @@ import 'preview/vtt_source.dart';
 import 'state/progress.dart';
 import 'state/state.dart';
 import 'state/ui_state.dart';
+import 'stt/api.dart';
+import 'stt/service.dart';
 
 /// The production [VmApi] implementation: reduces a [VmKernel]'s raw streams
 /// into public state/event/progress streams and implements every capability
@@ -105,6 +107,7 @@ class VmEngine implements VmApi {
   ///
   /// 依据 [VmOptions.preview] 装配出来的拖动预览服务。
   late final VmPreviewService _previewService;
+  late final VmSttService _sttService;
 
   /// The ABR downshift policy in effect; defaults to a [VmBufferingAbr]
   /// seeded from [VmAbrConfig.stallThreshold] when [VmAbrConfig.policy] is
@@ -186,6 +189,17 @@ class VmEngine implements VmApi {
   /// "双击快进退"三者行为完全一致的原因：它们本就是同一段代码。
   Duration? _pendingSeekTarget;
 
+  /// A VOD seek requested before the media reported a duration. The kernel
+  /// (mpv) silently drops a seek issued that early, so it is parked here and
+  /// replayed once [duration] first arrives — this is what makes an
+  /// open-then-resume-to-position land instead of vanishing.
+  ///
+  /// 在媒体尚未报告时长前就发起的点播 seek。内核（mpv）会静默丢弃这么早的
+  /// seek，因此先寄存在此，待 duration 首次到达时补发——这正是"打开后续播到
+  /// 某位置"能落地而非石沉大海的原因。若媒体始终不报告时长（畸形源），寄存的
+  /// seek 不会执行——但这与内核原本的行为一致（无时长的源本就无法 seek）。
+  Duration? _parkedSeek;
+
   /// Latest known playing/paused flag, tracked synchronously from every
   /// kernel `playing` callback; see [_lastPosition] for why this is kept
   /// outside the throttled/deduplicated public streams.
@@ -237,6 +251,7 @@ class VmEngine implements VmApi {
     // throttleStream 内部的 controller 本身就是广播型（原因见其文档注释），
     // 这里不需要再包一层。
     _progress = throttleStream(_progressRaw.stream, const Duration(milliseconds: 200));
+    _sttService = VmSttService(config: options.stt, onBlocked: _onSttBlocked);
 
     _playingSub = _kernel.playing.listen((v) {
       _lastPlaying = v;
@@ -273,6 +288,7 @@ class VmEngine implements VmApi {
       }
       _lastPosition = v;
       _updateTimeshift(v);
+      _sttService.updatePosition(v);
       _progressRaw.add(VmProgress(position: v, buffer: _lastBuffer));
     });
     _bufferSub = _kernel.buffer.listen((v) {
@@ -283,6 +299,7 @@ class VmEngine implements VmApi {
       _state.emit(state.copyWith(duration: v));
       _events.add(VmDurationChanged(v));
       _recomputeLiveSeekable();
+      unawaited(_applyParkedSeek(v));
     });
     _sizeSub = _kernel.size.listen((v) {
       _state.emit(state.copyWith(width: v.width, height: v.height));
@@ -370,6 +387,9 @@ class VmEngine implements VmApi {
 
   @override
   VmPreviewApi get preview => _previewService;
+
+  @override
+  VmSttApi get stt => _sttService;
 
   /// Assembles the preview service from [VmOptions.preview] plus the
   /// platform-side pieces the host injected.
@@ -475,13 +495,34 @@ class VmEngine implements VmApi {
     }
   }
 
+  /// Publishes an STT start refusal on [events] and forwards it to the host
+  /// callback.
+  ///
+  /// 把一次 STT 启动拒绝发布到 [events] 上，并转发给宿主回调。
+  ///
+  /// - [reason]: why the request was refused / 被拒原因
+  void _onSttBlocked(VmSttBlockReason reason) {
+    if (!_events.isClosed) _events.add(VmSttBlocked(reason));
+    final cb = options.stt.onBlocked;
+    if (cb == null) return;
+    try {
+      cb(reason);
+    } on Object {
+      // A host callback must never break the engine.
+      //
+      // 宿主回调绝不能打断 engine。
+    }
+  }
+
   @override
   Future<void> open(VmSource source, {bool autoPlay = true}) async {
     final allowed = await _chain.beforeOpen(source);
     if (!allowed) return;
     _source = source;
     _pendingSeekTarget = null;
+    _parkedSeek = null;
     _previewService.attach(source);
+    _sttService.attach(source);
     _abrPolicy.reset();
     _state.emit(state.copyWith(
       qualities: const [],
@@ -564,6 +605,20 @@ class VmEngine implements VmApi {
       await _seekTimeshift(clamped);
       return;
     }
+    // A VOD source whose duration hasn't arrived yet can't be sought — mpv
+    // drops the request outright. Park it (still reporting the target
+    // optimistically so the scrubber sits where the user asked) and let the
+    // duration listener replay it once the media first reports in.
+    //
+    // 点播源在时长到达前无法 seek——mpv 会直接丢弃该请求。先寄存（同时乐观上报
+    // 目标位置，让进度条停在用户所选处），待时长监听器在媒体首次报告时长后补发。
+    if (state.type == VmStreamType.vod && state.duration <= Duration.zero) {
+      _parkedSeek = clamped;
+      _lastPosition = clamped;
+      _progressRaw.add(VmProgress(position: clamped, buffer: _lastBuffer));
+      _events.add(VmSeeking(clamped));
+      return;
+    }
     // Optimistically report the target position before the kernel round trip
     // even starts, and arm suppression of the stale echoes that follow (see
     // _positionSub). Every UI seek trigger — slider tap/drag, horizontal
@@ -577,6 +632,28 @@ class VmEngine implements VmApi {
     _lastPosition = clamped;
     _progressRaw.add(VmProgress(position: clamped, buffer: _lastBuffer));
     _events.add(VmSeeking(clamped));
+    await _kernel.seek(clamped);
+    _events.add(VmSeeked(clamped));
+  }
+
+  /// Replays a [_parkedSeek] once the media first reports a real duration.
+  /// Clears the park, clamps the target into the freshly known duration, and
+  /// arms [_pendingSeekTarget] so the first post-seek position echo is trusted
+  /// the same way a normal seek's is. No-op when nothing is parked.
+  ///
+  /// 在媒体首次报告真实时长后补发被寄存的 [_parkedSeek]。清空寄存，把目标钳入
+  /// 刚知晓的时长，并布防 [_pendingSeekTarget]，使 seek 后第一个位置回声与普通
+  /// seek 一样被信任。无寄存时为空操作。
+  ///
+  /// - [duration]: the just-reported media duration / 刚上报的媒体时长
+  Future<void> _applyParkedSeek(Duration duration) async {
+    final parked = _parkedSeek;
+    if (parked == null || duration <= Duration.zero) return;
+    _parkedSeek = null;
+    final clamped = parked > duration ? duration : parked;
+    _pendingSeekTarget = clamped;
+    _lastPosition = clamped;
+    _progressRaw.add(VmProgress(position: clamped, buffer: _lastBuffer));
     await _kernel.seek(clamped);
     _events.add(VmSeeked(clamped));
   }
@@ -927,6 +1004,7 @@ class VmEngine implements VmApi {
     await _events.close();
     await _progressRaw.close();
     await _previewService.dispose();
+    await _sttService.dispose();
     await _kernel.dispose();
   }
 

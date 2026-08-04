@@ -1,3 +1,6 @@
+import 'dart:async';
+import 'dart:typed_data';
+
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:videoman/src/core/engine.dart';
@@ -10,6 +13,8 @@ import 'package:videoman/src/core/options/options.dart';
 import 'package:videoman/src/core/platform/ports.dart';
 import 'package:videoman/src/core/preview/net_probe.dart';
 import 'package:videoman/src/core/state/ui_state.dart';
+import 'package:videoman/src/core/stt/cue.dart';
+import 'package:videoman/src/core/stt/port.dart';
 
 import '../support/fake_kernel.dart';
 
@@ -83,6 +88,40 @@ void main() {
     await e2.seek(const Duration(seconds: 5));
     expect(k.calls, isEmpty);
     await e2.dispose();
+  });
+
+  test('a VOD seek before duration is known is parked, then replayed on duration', () async {
+    await e.open(const VmSource('https://host/a.mp4'));
+    k.calls.clear();
+    // Duration not reported yet — mpv drops such a seek, so it must be parked.
+    await e.seek(const Duration(seconds: 30));
+    expect(k.calls, isEmpty, reason: 'seek must not reach the kernel pre-duration');
+    // Duration arrives → the parked seek is replayed to the kernel.
+    k.emitDuration(const Duration(minutes: 5));
+    await Future<void>.delayed(Duration.zero);
+    expect(k.calls, contains('seek'));
+    expect(k.lastSeek, const Duration(seconds: 30));
+  });
+
+  test('a parked VOD seek is clamped into the duration once it is known', () async {
+    await e.open(const VmSource('https://host/a.mp4'));
+    k.calls.clear();
+    await e.seek(const Duration(seconds: 600)); // past the eventual end
+    expect(k.calls, isEmpty);
+    k.emitDuration(const Duration(seconds: 120));
+    await Future<void>.delayed(Duration.zero);
+    expect(k.lastSeek, const Duration(seconds: 120));
+  });
+
+  test('opening a new source discards a still-parked seek', () async {
+    await e.open(const VmSource('https://host/a.mp4'));
+    await e.seek(const Duration(seconds: 30)); // parked (no duration reported)
+    await e.open(const VmSource('https://host/b.mp4')); // clears the park
+    k.calls.clear();
+    k.emitDuration(const Duration(minutes: 5));
+    await Future<void>.delayed(Duration.zero);
+    expect(k.calls, isEmpty,
+        reason: 'a parked seek from the previous source must not fire');
   });
 
   test('beforePlay can veto playback', () async {
@@ -426,6 +465,124 @@ void main() {
     // 预览流已关闭即是服务已销毁的可观测证据；dispose 之后再请求必须静默无操作。
     e2.preview.requestAt(const Duration(seconds: 1));
     expect(e2.preview.current, isNull);
+  });
+
+  test('stt is exposed on the api surface and defaults to no languages', () {
+    expect(e.stt, isNotNull);
+    expect(e.stt.languages, isEmpty);
+    expect(e.stt.current, isNull);
+  });
+
+  test('starting stt with no engine configured emits VmSttBlocked(noEngine)', () async {
+    final e2 = VmEngine(kernel: FakeKernel(), options: const VmOptions(stt: VmSttConfig(enabled: true)));
+    final events = <VmEvent>[];
+    final sub = e2.events.listen(events.add);
+    await e2.open(const VmSource('https://host/a.mp4'));
+    await e2.stt.start();
+    await Future<void>.delayed(const Duration(milliseconds: 50));
+    expect(events.whereType<VmSttBlocked>().first.reason, VmSttBlockReason.noEngine);
+    await sub.cancel();
+    await e2.dispose();
+  });
+
+  test('starting stt before a source is open emits VmSttBlocked(noSource)', () async {
+    final e2 = VmEngine(
+      kernel: FakeKernel(),
+      options: VmOptions(stt: VmSttConfig(enabled: true, engine: _FakeSttEngine())),
+    );
+    final events = <VmEvent>[];
+    final sub = e2.events.listen(events.add);
+    await e2.stt.start();
+    await Future<void>.delayed(const Duration(milliseconds: 50));
+    expect(events.whereType<VmSttBlocked>().first.reason, VmSttBlockReason.noSource);
+    await sub.cancel();
+    await e2.dispose();
+  });
+
+  test('a disabled stt config emits VmSttBlocked(disabled) even with an engine configured',
+      () async {
+    final e2 = VmEngine(
+      kernel: FakeKernel(),
+      options: VmOptions(stt: VmSttConfig(engine: _FakeSttEngine())),
+    );
+    final events = <VmEvent>[];
+    final sub = e2.events.listen(events.add);
+    await e2.open(const VmSource('https://host/a.mp4'));
+    await e2.stt.start();
+    await Future<void>.delayed(const Duration(milliseconds: 50));
+    expect(events.whereType<VmSttBlocked>().first.reason, VmSttBlockReason.disabled);
+    await sub.cancel();
+    await e2.dispose();
+  });
+
+  test('the configured stt onBlocked callback also fires', () async {
+    final reasons = <VmSttBlockReason>[];
+    final e2 = VmEngine(kernel: FakeKernel(), options: VmOptions(stt: VmSttConfig(onBlocked: reasons.add)));
+    await e2.open(const VmSource('https://host/a.mp4'));
+    await e2.stt.start();
+    expect(reasons, [VmSttBlockReason.disabled]);
+    await e2.dispose();
+  });
+
+  test('a configured engine reports languages and forwards cues once started', () async {
+    final engine = _FakeSttEngine();
+    final e2 = VmEngine(
+      kernel: FakeKernel(),
+      options: VmOptions(stt: VmSttConfig(enabled: true, engine: engine)),
+    );
+    await e2.open(const VmSource('https://host/a.mp4'));
+    expect(e2.stt.languages, ['zh', 'en']);
+
+    final cues = <VmSttCue>[];
+    final sub = e2.stt.cues.listen(cues.add);
+    await e2.stt.start();
+    expect(engine.started, isTrue);
+    engine.emit(const VmSttCue(text: 'hi', start: Duration.zero, end: Duration(seconds: 1)));
+    await Future<void>.delayed(Duration.zero);
+    expect(cues, hasLength(1));
+
+    await e2.stt.stop();
+    expect(engine.stopped, isTrue);
+    await sub.cancel();
+    await e2.dispose();
+  });
+
+  test('current tracks the cue covering the latest reported playback position', () async {
+    final k2 = FakeKernel();
+    final engine = _FakeSttEngine();
+    final e2 = VmEngine(
+      kernel: k2,
+      options: VmOptions(stt: VmSttConfig(enabled: true, engine: engine)),
+    );
+    await e2.open(const VmSource('https://host/a.mp4'));
+    await e2.stt.start();
+    engine.emit(const VmSttCue(text: 'hi', start: Duration.zero, end: Duration(seconds: 2)));
+    await Future<void>.delayed(Duration.zero);
+
+    // `VmApi.progress` is throttled (200ms); wait past that window for the
+    // position tick to reach the stt service.
+    //
+    // `VmApi.progress` 有节流（200ms）；等过这个窗口，位置 tick 才会到达
+    // stt 服务。
+    k2.emitPosition(const Duration(milliseconds: 500));
+    await Future<void>.delayed(const Duration(milliseconds: 250));
+    expect(e2.stt.current?.text, 'hi');
+
+    k2.emitPosition(const Duration(seconds: 5));
+    await Future<void>.delayed(const Duration(milliseconds: 250));
+    expect(e2.stt.current, isNull);
+
+    await e2.dispose();
+  });
+
+  test('disposing the engine disposes the stt service and its engine', () async {
+    final engine = _FakeSttEngine();
+    final e2 = VmEngine(
+      kernel: FakeKernel(),
+      options: VmOptions(stt: VmSttConfig(enabled: true, engine: engine)),
+    );
+    await e2.dispose();
+    expect(engine.disposed, isTrue);
   });
 
   test('timeshiftBehind stays null for a VOD source', () async {
@@ -907,4 +1064,46 @@ class _RecordingVolumePort implements VmVolumePort {
 
   @override
   Future<void> set(double percent) async => lastSet = percent;
+}
+
+/// A [VmSttEngine] test double reporting `['zh', 'en']` that lets tests push
+/// cues on demand and records start/stop/dispose calls.
+///
+/// [VmSttEngine] 的测试替身，报告 `['zh', 'en']`，允许测试按需推送字幕，并
+/// 记录启停/销毁调用。
+class _FakeSttEngine implements VmSttEngine {
+  final _cues = StreamController<VmSttCue>.broadcast();
+  bool started = false;
+  Duration? startedAt;
+  bool stopped = false;
+  bool disposed = false;
+
+  @override
+  List<String> get languages => const ['zh', 'en'];
+
+  @override
+  Stream<VmSttCue> get cues => _cues.stream;
+
+  @override
+  Future<void> start(Duration atPosition) async {
+    started = true;
+    startedAt = atPosition;
+  }
+
+  @override
+  void feed(Float32List samples, int sampleRateHz) {}
+
+  @override
+  Future<void> stop() async => stopped = true;
+
+  @override
+  Future<void> dispose() async {
+    disposed = true;
+    await _cues.close();
+  }
+
+  /// Pushes [cue] to [cues].
+  ///
+  /// 把 [cue] 推送到 [cues]。
+  void emit(VmSttCue cue) => _cues.add(cue);
 }

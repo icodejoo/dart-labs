@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:videoman/videoman.dart';
 
+import 'spike_audio_extract.dart';
 import 'spike_dual_engine.dart';
 
 /// Example entry: init videoman core, then run the demo app.
@@ -257,10 +258,31 @@ class _PlayerPageState extends State<PlayerPage> {
             ),
           ),
           IconButton(
+            tooltip: '播放列表 + 下一集演示',
+            icon: const Icon(Icons.playlist_play_rounded),
+            onPressed: () => Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => const PlaylistDemoPage()),
+            ),
+          ),
+          IconButton(
+            tooltip: '广告演示（前/中贴片 + 运行时插入）',
+            icon: const Icon(Icons.ad_units_rounded),
+            onPressed: () => Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => const AdDemoPage()),
+            ),
+          ),
+          IconButton(
             tooltip: '双引擎内存 spike',
             icon: const Icon(Icons.memory_rounded),
             onPressed: () => Navigator.of(context).push(
               MaterialPageRoute(builder: (_) => const DualEngineMemorySpikePage()),
+            ),
+          ),
+          IconButton(
+            tooltip: '音频抽取 spike',
+            icon: const Icon(Icons.audiotrack_rounded),
+            onPressed: () => Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => const AudioExtractSpikePage()),
             ),
           ),
           IconButton(
@@ -395,6 +417,266 @@ class _DouyinFeedDemoPageState extends State<DouyinFeedDemoPage> {
             child: IconButton(
               icon: const Icon(Icons.close_rounded, color: Colors.white),
               onPressed: () => Navigator.of(context).pop(),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Playlist items for the playlist demo: three short public mp4s treated as a
+/// three-episode series, reusing the same URLs as the feed demo.
+///
+/// 播放列表演示的项：三个公开短 mp4 当作三集连播，复用与 feed 演示相同的 URL。
+final _playlistItems = [
+  for (var i = 0; i < _feedSources.length; i++)
+    VmPlaylistItem(
+      source: VmSource(_feedSources[i], title: '第 ${i + 1} 集'),
+      subtitle: '播放列表演示 · 共 ${_feedSources.length} 集',
+    ),
+];
+
+/// A page demoing sequential playlist playback: a [VmPlaylistController] drives
+/// auto-advance between three episodes, a [NextUpComponent] fades in near each
+/// item's end, and manual prev/next buttons exercise the same navigation.
+///
+/// 演示顺序播放列表：[VmPlaylistController] 在三集间驱动自动续播，
+/// [NextUpComponent] 在每项临近结束时淡入，手动上一集/下一集按钮演示同一套导航。
+class PlaylistDemoPage extends StatefulWidget {
+  /// Creates the playlist demo page.
+  ///
+  /// 创建播放列表演示页面。
+  const PlaylistDemoPage({super.key});
+
+  @override
+  State<PlaylistDemoPage> createState() => _PlaylistDemoPageState();
+}
+
+/// State for [PlaylistDemoPage]; owns the engine and the playlist controller.
+///
+/// [PlaylistDemoPage] 的状态；持有引擎与播放列表控制器。
+class _PlaylistDemoPageState extends State<PlaylistDemoPage> {
+  /// The playback facade backing the playlist.
+  ///
+  /// 支撑播放列表的播放能力面。
+  late VmEngine _engine;
+
+  /// Drives current-index tracking and prev/next/auto-advance navigation.
+  ///
+  /// 驱动当前下标跟踪与上一集/下一集/自动续播导航。
+  late VmPlaylistController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _engine = createVmEngine(
+      options: VmOptions(
+        playlist: VmPlaylistConfig(enabled: true, items: _playlistItems),
+      ),
+    );
+    _controller = VmPlaylistController(_engine);
+    // The controller never opens the first item on its own — the host kicks
+    // playback off.
+    //
+    // 控制器不会自动打开首项——由宿主起播。
+    _controller.jumpTo(0);
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    _engine.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('播放列表 + 下一集')),
+      body: Column(
+        children: [
+          AspectRatio(
+            aspectRatio: 16 / 9,
+            child: VmPlayer(
+              api: _engine,
+              // Patch the "next up" card into the overlay slot; it reads the
+              // controller directly for the running index.
+              //
+              // 把"下一集"卡片补进 overlay 槽位；它直接从控制器读取运行时下标。
+              skin: VmDefaultSkin(
+                patches: [VmPatch.add(VmSlot.overlay, NextUpComponent(_controller))],
+              ),
+            ),
+          ),
+          // Manual navigation, mirroring what auto-advance and the card do.
+          //
+          // 手动导航，与自动续播、卡片所做的一致。
+          Padding(
+            padding: const EdgeInsets.all(16),
+            child: StreamBuilder<int>(
+              stream: _controller.indexChanges,
+              builder: (context, _) {
+                final item = _controller.currentItem;
+                return Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    TextButton.icon(
+                      onPressed: _controller.hasPrevious ? _controller.previous : null,
+                      icon: const Icon(Icons.skip_previous_rounded),
+                      label: const Text('上一集'),
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      child: Text(item?.displayTitle ?? '—'),
+                    ),
+                    TextButton.icon(
+                      onPressed: _controller.hasNext ? _controller.next : null,
+                      icon: const Icon(Icons.skip_next_rounded),
+                      label: const Text('下一集'),
+                    ),
+                  ],
+                );
+              },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Content + ad schedule for the ad demo: a pre-roll and a mid-roll at 10s,
+/// both skippable after 3s, built from the shared sample clips.
+///
+/// 广告演示的正片 + 广告排期：一个前贴片、一个 10 秒处的中插，均 3 秒后可跳过，
+/// 复用共享样片构建。
+final _adContent = VmSource(_feedSources[0], title: '正片');
+final _adBreaks = [
+  VmAdBreak(
+    kind: VmAdBreakKind.pre,
+    source: VmSource(_feedSources[1]),
+    skippableAfter: const Duration(seconds: 3),
+    clickThroughUrl: 'https://example.com/ad',
+  ),
+  VmAdBreak(
+    kind: VmAdBreakKind.mid,
+    source: VmSource(_feedSources[2]),
+    offset: const Duration(seconds: 10),
+    skippableAfter: const Duration(seconds: 3),
+  ),
+];
+
+/// A page demoing pre/mid-roll ads plus runtime insertion: a [VmAdController]
+/// orchestrates the content↔ad source swaps, [AdOverlayComponent] renders the
+/// badge/skip/countdown, a button inserts an ad at the current position via
+/// [VmAdController.playAdNow], and click-through is surfaced through
+/// [VmAdConfig.onAdEvent] (no url_launcher — the host decides what to do).
+///
+/// 演示前/中贴片广告与运行时插入：[VmAdController] 编排正片↔广告的源切换，
+/// [AdOverlayComponent] 渲染角标/跳过/倒计时，一个按钮经
+/// [VmAdController.playAdNow] 在当前位置插播广告，点击跳转经
+/// [VmAdConfig.onAdEvent] 暴露（不引 url_launcher——由宿主决定如何处理）。
+class AdDemoPage extends StatefulWidget {
+  /// Creates the ad demo page.
+  ///
+  /// 创建广告演示页面。
+  const AdDemoPage({super.key});
+
+  @override
+  State<AdDemoPage> createState() => _AdDemoPageState();
+}
+
+/// State for [AdDemoPage]; owns the engine, the ad controller, and the last
+/// reported ad event for display.
+///
+/// [AdDemoPage] 的状态；持有引擎、广告控制器，以及用于展示的最近一次广告事件。
+class _AdDemoPageState extends State<AdDemoPage> {
+  /// The playback facade the ads run on.
+  ///
+  /// 广告运行其上的播放能力面。
+  late VmEngine _engine;
+
+  /// Orchestrates the pre/mid/post-roll and runtime-inserted ads.
+  ///
+  /// 编排前/中/后贴片与运行时插入的广告。
+  late VmAdController _controller;
+
+  /// The most recent ad lifecycle event, shown so the callback is visible.
+  ///
+  /// 最近一次广告生命周期事件，展示出来以便看到回调。
+  final ValueNotifier<String> _lastEvent = ValueNotifier<String>('—');
+
+  @override
+  void initState() {
+    super.initState();
+    _engine = createVmEngine(
+      options: VmOptions(
+        ads: VmAdConfig(enabled: true, breaks: _adBreaks, onAdEvent: _onAdEvent),
+      ),
+    );
+    _controller = VmAdController(_engine);
+    _controller.load(_adContent);
+  }
+
+  /// Records an ad event for display; a real host would act on a
+  /// [VmAdEventType.clicked] event's click-through URL here.
+  ///
+  /// 记录一次广告事件用于展示；真实宿主会在此处理 [VmAdEventType.clicked]
+  /// 事件的点击跳转地址。
+  void _onAdEvent(VmAdEvent e) {
+    final url = e.type == VmAdEventType.clicked ? e.adBreak.clickThroughUrl : null;
+    _lastEvent.value = url == null ? e.type.name : '${e.type.name} → $url';
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    _engine.dispose();
+    _lastEvent.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('广告演示')),
+      body: Column(
+        children: [
+          AspectRatio(
+            aspectRatio: 16 / 9,
+            child: VmPlayer(
+              api: _engine,
+              // Patch the ad overlay into the overlay slot; it reads the
+              // controller for the current ad and skip state.
+              //
+              // 把广告叠层补进 overlay 槽位；它从控制器读取当前广告与跳过状态。
+              skin: VmDefaultSkin(
+                patches: [VmPatch.add(VmSlot.overlay, AdOverlayComponent(_controller))],
+              ),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              children: [
+                // Insert an ad at the current content position on demand.
+                //
+                // 按需在当前正片位置插播一条广告。
+                TextButton.icon(
+                  onPressed: () => _controller.playAdNow(VmAdBreak(
+                    kind: VmAdBreakKind.mid,
+                    source: VmSource(_feedSources[2]),
+                    skippableAfter: const Duration(seconds: 2),
+                  )),
+                  icon: const Icon(Icons.ad_units_rounded),
+                  label: const Text('此刻插入广告'),
+                ),
+                ValueListenableBuilder<String>(
+                  valueListenable: _lastEvent,
+                  builder: (context, value, _) => Text('广告事件：$value'),
+                ),
+              ],
             ),
           ),
         ],

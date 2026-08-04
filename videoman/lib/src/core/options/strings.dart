@@ -66,6 +66,36 @@ class VmStrings {
   /// 使宿主可对缩放与倍速独立措辞或本地化。
   final String speedSuffix;
 
+  /// Label for the "turn subtitles off" row in the subtitle picker.
+  ///
+  /// 字幕选择器中"关闭字幕"一行的标签文案。
+  final String subtitleOff;
+
+  /// Heading on the "next up" card shown near the end of a playlist item.
+  ///
+  /// 播放列表项临近结束时"下一集"卡片的标题文案。
+  final String nextUp;
+
+  /// Label for the "play the next item now" button on the next-up card.
+  ///
+  /// "下一集"卡片上"立即播放下一项"按钮的文案。
+  final String playNow;
+
+  /// Label for the "dismiss the next-up card" button.
+  ///
+  /// "关闭下一集卡片"按钮的文案。
+  final String cancel;
+
+  /// Badge marking the currently-playing media as an advertisement.
+  ///
+  /// 标记当前播放内容为广告的角标文案。
+  final String adBadge;
+
+  /// Label for the "skip this ad" button.
+  ///
+  /// "跳过广告"按钮的文案。
+  final String skipAd;
+
   /// Creates a strings bundle; defaults to the product's Simplified Chinese
   /// copy.
   ///
@@ -81,6 +111,12 @@ class VmStrings {
     this.quality = '清晰度',
     this.zoomSuffix = 'x',
     this.speedSuffix = 'x',
+    this.subtitleOff = '关闭字幕',
+    this.nextUp = '即将播放',
+    this.playNow = '立即播放',
+    this.cancel = '取消',
+    this.adBadge = '广告',
+    this.skipAd = '跳过广告',
   });
 
   /// Resolves the display label for a [VmFit] mode.
@@ -110,7 +146,13 @@ class VmStrings {
           auto == other.auto &&
           quality == other.quality &&
           zoomSuffix == other.zoomSuffix &&
-          speedSuffix == other.speedSuffix;
+          speedSuffix == other.speedSuffix &&
+          subtitleOff == other.subtitleOff &&
+          nextUp == other.nextUp &&
+          playNow == other.playNow &&
+          cancel == other.cancel &&
+          adBadge == other.adBadge &&
+          skipAd == other.skipAd;
 
   @override
   int get hashCode => Object.hash(
@@ -124,5 +166,11 @@ class VmStrings {
         quality,
         zoomSuffix,
         speedSuffix,
+        subtitleOff,
+        nextUp,
+        playNow,
+        cancel,
+        adBadge,
+        skipAd,
       );
 }

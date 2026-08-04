@@ -8,6 +8,7 @@ import 'preview/api.dart';
 import 'state/progress.dart';
 import 'state/state.dart';
 import 'state/ui_state.dart';
+import 'stt/api.dart';
 
 /// The capability surface the UI layer depends on.
 ///
@@ -88,6 +89,12 @@ abstract class VmApi {
   ///
   /// 拖动预览能力面：缩略图请求、已解析缩略图的流，以及缓存控制。
   VmPreviewApi get preview;
+
+  /// The speech-to-text subtitle capability surface: recognized cues and
+  /// start/stop control.
+  ///
+  /// 语音转字幕能力面：识别出的字幕，以及启停控制。
+  VmSttApi get stt;
 
   /// Opens [source] for playback.
   ///

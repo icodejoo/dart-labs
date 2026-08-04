@@ -1,18 +1,24 @@
 export 'abr_config.dart';
+export 'ad_config.dart';
 export 'controls_config.dart';
 export 'danmaku_config.dart';
 export 'gesture_config.dart';
 export 'live_config.dart';
+export 'playlist_config.dart';
 export 'preview_config.dart';
+export 'stt_config.dart';
 export 'strings.dart';
 export 'theme.dart';
 
 import 'abr_config.dart';
+import 'ad_config.dart';
 import 'controls_config.dart';
 import 'danmaku_config.dart';
 import 'gesture_config.dart';
 import 'live_config.dart';
+import 'playlist_config.dart';
 import 'preview_config.dart';
+import 'stt_config.dart';
 import 'strings.dart';
 import 'theme.dart';
 
@@ -59,6 +65,21 @@ class VmOptions {
   /// 滚动弹幕叠加层配置。
   final VmDanmakuConfig danmaku;
 
+  /// Speech-to-text subtitle configuration.
+  ///
+  /// 语音转字幕配置。
+  final VmSttConfig stt;
+
+  /// Sequential playlist + "next up" card configuration.
+  ///
+  /// 顺序播放列表 + "下一集"卡片配置。
+  final VmPlaylistConfig playlist;
+
+  /// Pre/mid/post-roll ad configuration.
+  ///
+  /// 前/中/后贴片广告配置。
+  final VmAdConfig ads;
+
   /// Externalised UI copy.
   ///
   /// 外置 UI 文案。
@@ -79,6 +100,9 @@ class VmOptions {
     this.abr = const VmAbrConfig(),
     this.controls = const VmControlsConfig(),
     this.danmaku = const VmDanmakuConfig(),
+    this.stt = const VmSttConfig(),
+    this.playlist = const VmPlaylistConfig(),
+    this.ads = const VmAdConfig(),
     this.strings = const VmStrings(),
     this.theme = const VmTheme(),
   });
@@ -94,6 +118,9 @@ class VmOptions {
   /// - [abr]: replacement ABR config / 替换用的 ABR 配置
   /// - [controls]: replacement controls config / 替换用的控制条配置
   /// - [danmaku]: replacement danmaku config / 替换用的弹幕配置
+  /// - [stt]: replacement STT config / 替换用的 STT 配置
+  /// - [playlist]: replacement playlist config / 替换用的播放列表配置
+  /// - [ads]: replacement ad config / 替换用的广告配置
   /// - [strings]: replacement strings / 替换用的文案
   /// - [theme]: replacement theme / 替换用的主题
   ///
@@ -105,6 +132,9 @@ class VmOptions {
     VmAbrConfig? abr,
     VmControlsConfig? controls,
     VmDanmakuConfig? danmaku,
+    VmSttConfig? stt,
+    VmPlaylistConfig? playlist,
+    VmAdConfig? ads,
     VmStrings? strings,
     VmTheme? theme,
   }) {
@@ -115,6 +145,9 @@ class VmOptions {
       abr: abr ?? this.abr,
       controls: controls ?? this.controls,
       danmaku: danmaku ?? this.danmaku,
+      stt: stt ?? this.stt,
+      playlist: playlist ?? this.playlist,
+      ads: ads ?? this.ads,
       strings: strings ?? this.strings,
       theme: theme ?? this.theme,
     );
@@ -131,10 +164,13 @@ class VmOptions {
           abr == other.abr &&
           controls == other.controls &&
           danmaku == other.danmaku &&
+          stt == other.stt &&
+          playlist == other.playlist &&
+          ads == other.ads &&
           strings == other.strings &&
           theme == other.theme;
 
   @override
-  int get hashCode =>
-      Object.hash(preview, live, gesture, abr, controls, danmaku, strings, theme);
+  int get hashCode => Object.hash(preview, live, gesture, abr, controls, danmaku,
+      stt, playlist, ads, strings, theme);
 }
