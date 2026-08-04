@@ -3,6 +3,7 @@ import '../model/orientation.dart';
 import '../model/quality.dart';
 import '../model/source.dart';
 import '../options/preview_config.dart';
+import '../options/stt_config.dart';
 
 /// Base type of everything broadcast on [VmApi.events].
 ///
@@ -372,6 +373,21 @@ class VmPreviewBlocked extends VmEvent {
   ///
   /// 用 [reason] 创建事件。
   const VmPreviewBlocked(this.reason);
+}
+
+/// An STT `start()` request was refused before any recognition happened.
+///
+/// 一次 STT 启动请求在真正开始识别前被拒绝。
+class VmSttBlocked extends VmEvent {
+  /// Why the request was refused.
+  ///
+  /// 被拒绝的原因。
+  final VmSttBlockReason reason;
+
+  /// Creates the event with [reason].
+  ///
+  /// 用 [reason] 创建事件。
+  const VmSttBlocked(this.reason);
 }
 
 /// A playback error occurred.

@@ -10,6 +10,7 @@ import '../scope/selector.dart';
 import '../slots/component.dart';
 import '../slots/slot.dart';
 import 'common.dart';
+import 'subtitle.dart';
 
 /// Composite component for the top control bar: title (expanded) followed
 /// by pip / quality / fit / fullscreen / lock buttons, matching 0.1.0's
@@ -43,6 +44,7 @@ class TopBarComponent extends VmComponent {
         TitleComponent(),
         PipButtonComponent(),
         QualityButtonComponent(),
+        SubtitleButtonComponent(),
         FitButtonComponent(),
         OrientationButtonComponent(),
         FullscreenButtonComponent(),

@@ -13,6 +13,8 @@ import 'package:videoman/src/core/preview/models.dart';
 import 'package:videoman/src/core/state/progress.dart';
 import 'package:videoman/src/core/state/state.dart';
 import 'package:videoman/src/core/state/ui_state.dart';
+import 'package:videoman/src/core/stt/api.dart';
+import 'package:videoman/src/core/stt/cue.dart';
 
 /// A test double for [VmApi] that records every capability call it receives
 /// and lets tests push arbitrary state/events into its streams.
@@ -184,6 +186,12 @@ class FakeVmApi implements VmApi {
   /// 该假对象暴露的预览测试替身。
   @override
   final FakePreviewApi preview = FakePreviewApi();
+
+  /// The STT test double this fake exposes.
+  ///
+  /// 该假对象暴露的 STT 测试替身。
+  @override
+  final FakeSttApi stt = FakeSttApi();
 
   @override
   Stream<VmEvent> get events => _events.stream;
@@ -389,6 +397,7 @@ class FakeVmApi implements VmApi {
     await _state.close();
     await _uiState.close();
     await preview.dispose();
+    await stt.dispose();
   }
 }
 
@@ -461,4 +470,82 @@ class FakePreviewApi implements VmPreviewApi {
   ///
   /// 关闭底层流。
   Future<void> dispose() => _thumbs.close();
+}
+
+/// A test double for [VmSttApi] that records start/stop calls and lets tests
+/// push cues into the stream.
+///
+/// [VmSttApi] 的测试替身：记录启停调用，并允许测试向流中推送字幕。
+class FakeSttApi implements VmSttApi {
+  /// Backing controller for [cues].
+  ///
+  /// [cues] 的底层控制器。
+  final StreamController<VmSttCue> _cues = StreamController<VmSttCue>.broadcast();
+
+  /// Ordered method names invoked on this fake.
+  ///
+  /// 在该替身上被调用的方法名有序列表。
+  final List<String> calls = <String>[];
+
+  /// Languages this fake reports; settable by tests, defaults to empty.
+  ///
+  /// 该假对象报告的语言列表；可由测试赋值，默认空。
+  @override
+  List<String> languages = const [];
+
+  /// The cue most recently pushed via [push].
+  ///
+  /// 最近一次通过 [push] 推送的字幕。
+  VmSttCue? _current;
+
+  /// Whether [start] has been called without a following [stop].
+  ///
+  /// [start] 是否已被调用且尚未 [stop]。
+  bool _started = false;
+
+  @override
+  Stream<VmSttCue> get cues => _cues.stream;
+
+  @override
+  VmSttCue? get current => _current;
+
+  @override
+  bool get isRunning => _started;
+
+  @override
+  Future<void> start() async {
+    calls.add('start');
+    _started = true;
+  }
+
+  @override
+  Future<void> stop() async {
+    calls.add('stop');
+    _started = false;
+  }
+
+  /// Clears [current] without touching [cues] — simulates a real
+  /// [VmSttApi]'s position tracking deciding the previously-pushed cue no
+  /// longer covers the (fake-side untracked) playback position, since this
+  /// fake does not itself implement that expiry logic.
+  ///
+  /// 清空 [current]，不影响 [cues]——模拟真实 [VmSttApi] 的位置跟踪判定此前
+  /// 推送的字幕已不再覆盖播放位置（该假对象本身未实现这层过期逻辑，跟踪的
+  /// 播放位置也不是假对象关心的）。
+  void clear() => _current = null;
+
+  /// Pushes [cue] to [cues] and makes it the [current] value.
+  ///
+  /// 把 [cue] 推送到 [cues] 并设为 [current]。
+  ///
+  /// - [cue]: the cue to publish / 要发布的字幕
+  void push(VmSttCue cue) {
+    _current = cue;
+    _cues.add(cue);
+  }
+
+  /// Closes the backing stream.
+  ///
+  /// 关闭底层流。
+  Future<void> dispose() => _cues.close();
 }

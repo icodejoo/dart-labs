@@ -7,6 +7,7 @@ import '../components/gesture_layer.dart';
 import '../components/hud_layer.dart';
 import '../components/overlays.dart';
 import '../components/preview.dart';
+import '../components/subtitle.dart';
 import '../components/top_bar.dart';
 import '../scope/scope.dart';
 import '../scope/selector.dart';
@@ -83,6 +84,7 @@ class VmDefaultSkin implements VmSkin {
     TopBarComponent(),
     CenterPlayComponent(),
     PreviewComponent(),
+    SubtitleOverlayComponent(),
     BottomBarComponent(),
     BufferingComponent(),
     ErrorComponent(),
