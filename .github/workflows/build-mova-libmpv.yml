@@ -35,7 +35,12 @@ jobs:
       - name: Install build dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y ninja-build meson pkg-config nasm autoconf automake libtool
+          sudo apt-get install -y ninja-build pkg-config nasm autoconf automake libtool python3-pip
+          # ubuntu-22.04's apt meson is too old for mpv's build script (errors on
+          # "unrecognized arguments: --prefer-static") — pin via pip to the version
+          # verified working in the local WSL2 dry-run (Ubuntu 24.04's apt default).
+          pip3 install --user "meson==1.3.2"
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
 
       - name: Clone libmpv-android-video-build
         run: |
