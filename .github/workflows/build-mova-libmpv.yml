@@ -16,6 +16,12 @@ on:
       - '.github/workflows/build-mova-libmpv.yml'
   workflow_dispatch:
 
+# The android-arm64 job commits the rebuilt artifact back to dist/ (see its
+# last step) — the default GITHUB_TOKEN is read-only unless granted write
+# here, so without this the build succeeds but the push-back 403s.
+permissions:
+  contents: write
+
 env:
   # Pinned per tools/ffmpeg-slim/README.md's "实测结果" section — bump
   # deliberately, not implicitly, so a size regression can always be traced
