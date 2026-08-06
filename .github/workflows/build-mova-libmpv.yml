@@ -671,9 +671,14 @@ jobs:
           # slim build exists to stay LGPL (same flag the android flavor sets).
           # --prefer-static: our ffmpeg is static-only, and a mingw DLL cannot
           # carry undefined symbols, so its Libs.private deps (mbedtls/dav1d/
-          # zlib) have to come in at link time.
+          # zlib) have to come in at link time. It also keeps the shipped DLL
+          # self-contained instead of trailing a dozen MSYS2 runtime DLLs.
+          # -lstdc++/-ldwrite: static libharfbuzz.a is C++ and uses DirectWrite,
+          # but libmpv is a C target so the C driver links neither (the
+          # operator new/delete undefined refs in run 31096129335).
           meson setup build --prefix="$WS/prefix" --libdir=lib --default-library=shared \
             --prefer-static \
+            -Dc_link_args="-lstdc++ -ldwrite -lole32 -lrpcrt4" \
             -Dgpl=false -Dlibmpv=true -Dcplayer=false -Dtests=false
           ninja -C build
           ninja -C build install
