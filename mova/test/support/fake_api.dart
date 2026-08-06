@@ -1,0 +1,551 @@
+import 'dart:async';
+
+import 'package:mova/src/core/api.dart';
+import 'package:mova/src/core/bus/bus.dart';
+import 'package:mova/src/core/events/events.dart';
+import 'package:mova/src/core/model/fit.dart';
+import 'package:mova/src/core/model/orientation.dart';
+import 'package:mova/src/core/model/quality.dart';
+import 'package:mova/src/core/model/source.dart';
+import 'package:mova/src/core/options/options.dart';
+import 'package:mova/src/core/preview/api.dart';
+import 'package:mova/src/core/preview/models.dart';
+import 'package:mova/src/core/state/progress.dart';
+import 'package:mova/src/core/state/state.dart';
+import 'package:mova/src/core/state/ui_state.dart';
+import 'package:mova/src/core/stt/api.dart';
+import 'package:mova/src/core/stt/cue.dart';
+
+/// A test double for [MovaApi] that records every capability call it receives
+/// and lets tests push arbitrary state/events into its streams.
+///
+/// Used across the test suite (this task and later ones) as the single
+/// shared fake API implementation — its public surface is depended on
+/// verbatim by later tasks, so it is not to be extended casually.
+///
+/// [MovaApi] 的测试替身：记录收到的每次能力调用，并允许测试向其流中主动推送
+/// 状态/事件。
+///
+/// 在整个测试套件中（本任务及后续任务）作为唯一共享的假 API 实现——其公开
+/// 面被后续任务逐字依赖，不应随意扩充。
+class FakeMovaApi implements MovaApi {
+  /// Creates a fake API seeded with [options] and default state/UI-state
+  /// snapshots.
+  ///
+  /// 创建一个假 API，用 [options] 及默认状态/UI 状态快照进行初始化。
+  FakeMovaApi({this.options = const MovaOpts()});
+
+  /// The configuration passed at construction time.
+  ///
+  /// 构造时传入的配置。
+  @override
+  final MovaOpts options;
+
+  /// Backing bus for [state]/[states]; replays the current snapshot to new
+  /// subscribers.
+  ///
+  /// [state]/[states] 的底层总线；向新订阅者重放当前快照。
+  final MovaBus<MovaState> _state = MovaBus<MovaState>(const MovaState(pipSupported: true));
+
+  /// Backing bus for [uiState]/[uiStates]; replays the current snapshot to
+  /// new subscribers.
+  ///
+  /// [uiState]/[uiStates] 的底层总线；向新订阅者重放当前快照。
+  final MovaBus<MovaUiState> _uiState = MovaBus<MovaUiState>(const MovaUiState());
+
+  /// Backing controller for [progress]; no replay, matches production
+  /// semantics of a throttled tick stream.
+  ///
+  /// [progress] 的底层控制器；不重放，符合生产环境节流 tick 流的语义。
+  final StreamController<MovaProg> _progress = StreamController<MovaProg>.broadcast();
+
+  /// Backing controller for [events]; no replay, matches production
+  /// semantics of a discrete event stream.
+  ///
+  /// [events] 的底层控制器；不重放，符合生产环境离散事件流的语义。
+  final StreamController<MovaEvent> _events = StreamController<MovaEvent>.broadcast();
+
+  /// The ordered list of capability method names invoked on this fake,
+  /// e.g. `['play', 'seek']`.
+  ///
+  /// 在该假对象上被调用的能力方法名有序列表，例如 `['play', 'seek']`。
+  final List<String> calls = <String>[];
+
+  /// The argument of the most recent [seek] call, or `null` if never called.
+  ///
+  /// 最近一次 [seek] 调用的参数；若从未调用过则为 `null`。
+  Duration? lastSeek;
+
+  /// The argument of the most recent [setVolume] call, or `null` if never
+  /// called.
+  ///
+  /// 最近一次 [setVolume] 调用的参数；若从未调用过则为 `null`。
+  double? lastVolume;
+
+  /// The argument of the most recent [setBrightness] call, or `null` if
+  /// never called.
+  ///
+  /// 最近一次 [setBrightness] 调用的参数；若从未调用过则为 `null`。
+  double? lastBrightness;
+
+  /// The argument of the most recent [setRate] call, or `null` if never
+  /// called.
+  ///
+  /// 最近一次 [setRate] 调用的参数；若从未调用过则为 `null`。
+  double? lastRate;
+
+  /// The argument of the most recent [setZoom] call, or `null` if never
+  /// called.
+  ///
+  /// 最近一次 [setZoom] 调用的参数；若从未调用过则为 `null`。
+  double? lastZoom;
+
+  /// The argument of the most recent [setFit] call, or `null` if never
+  /// called.
+  ///
+  /// 最近一次 [setFit] 调用的参数；若从未调用过则为 `null`。
+  MovaFit? lastFit;
+
+  /// The argument of the most recent [setLocked] call, or `null` if never
+  /// called.
+  ///
+  /// 最近一次 [setLocked] 调用的参数；若从未调用过则为 `null`。
+  bool? lastLocked;
+
+  /// The argument of the most recent [setFullscreen] call, or `null` if
+  /// never called.
+  ///
+  /// 最近一次 [setFullscreen] 调用的参数；若从未调用过则为 `null`。
+  bool? lastFullscreen;
+
+  /// The argument of the most recent [setOrientation] call, or `null` if
+  /// never called.
+  ///
+  /// 最近一次 [setOrientation] 调用的参数；若从未调用过则为 `null`。
+  MovaOrient? lastOrientation;
+
+  /// The argument of the most recent [switchQuality] call, or `null` if
+  /// never called.
+  ///
+  /// 最近一次 [switchQuality] 调用的参数；若从未调用过则为 `null`。
+  MovaQual? lastQuality;
+
+  /// The `v` argument of the most recent [setDragging] call, or `null` if
+  /// never called.
+  ///
+  /// 最近一次 [setDragging] 调用的 `v` 参数；若从未调用过则为 `null`。
+  bool? lastDragging;
+
+  /// The `previewAt` argument of the most recent [setDragging] call, or
+  /// `null` if never called (or if that call passed `null`).
+  ///
+  /// 最近一次 [setDragging] 调用的 `previewAt` 参数；若从未调用过（或该次
+  /// 调用传的就是 `null`）则为 `null`。
+  Duration? lastPreviewAt;
+
+  /// The `hud` argument of the most recent [showHud] call, or `null` if
+  /// never called.
+  ///
+  /// 最近一次 [showHud] 调用的 `hud` 参数；若从未调用过则为 `null`。
+  MovaHud? lastHud;
+
+  /// The `text` argument of the most recent [showHud] call, or `null` if
+  /// never called (or that call passed no text).
+  ///
+  /// 最近一次 [showHud] 调用的 `text` 参数；若从未调用过（或该次调用未传
+  /// 文本）则为 `null`。
+  String? lastHudText;
+
+  /// Whether this fake reports pip support; mirrored into
+  /// [MovaState.pipSupported] so `..pipSupported = false` also flips what any
+  /// `MovaSelect` on state sees.
+  ///
+  /// 该假对象是否报告支持画中画；会镜像进 [MovaState.pipSupported]，因此
+  /// `..pipSupported = false` 同时也会翻转状态上任何 `MovaSelect` 看到的值。
+  @override
+  bool get pipSupported => state.pipSupported;
+
+  /// Sets [pipSupported] by pushing a new state snapshot.
+  ///
+  /// 通过推送新状态快照来设置 [pipSupported]。
+  ///
+  /// - [value]: whether pip is supported / 是否支持画中画
+  set pipSupported(bool value) => push(state.copyWith(pipSupported: value));
+
+  /// A fake render handle exposed to widgets under test; `null` by default,
+  /// in which case `MovaPlayer` renders a placeholder instead of a real
+  /// video surface.
+  ///
+  /// 供被测组件使用的假渲染句柄；默认 `null`，此时 `MovaPlayer` 渲染占位符
+  /// 而非真实视频画面。
+  @override
+  Object? renderHandle;
+
+  /// The preview test double this fake exposes.
+  ///
+  /// 该假对象暴露的预览测试替身。
+  @override
+  final FakePreviewApi preview = FakePreviewApi();
+
+  /// The STT test double this fake exposes.
+  ///
+  /// 该假对象暴露的 STT 测试替身。
+  @override
+  final FakeSttApi stt = FakeSttApi();
+
+  @override
+  Stream<MovaEvent> get events => _events.stream;
+
+  @override
+  Stream<MovaState> get states => _state.stream;
+
+  @override
+  Stream<MovaProg> get progress => _progress.stream;
+
+  @override
+  Stream<MovaUiState> get uiStates => _uiState.stream;
+
+  @override
+  MovaState get state => _state.value;
+
+  @override
+  MovaUiState get uiState => _uiState.value;
+
+  /// The source currently "open" on this fake, recorded for tests that want
+  /// to assert on it; also drives [MovaState.sourceTitle] via [open], which
+  /// pushes it into [state] the same way the real engine does.
+  ///
+  /// 该假对象当前"已打开"的源，供测试断言使用；也通过 [open] 驱动
+  /// [MovaState.sourceTitle]（与真实 engine 一样推入 [state]）。
+  MovaSource? source;
+
+  /// Pushes a new state snapshot, visible immediately via [state] and to
+  /// any current/future [states] subscribers.
+  ///
+  /// 推送一个新的状态快照，[state] 及所有当前/未来的 [states] 订阅者立即
+  /// 可见。
+  void push(MovaState next) => _state.emit(next);
+
+  /// Pushes a new UI state snapshot, visible immediately via [uiState] and
+  /// to any current/future [uiStates] subscribers.
+  ///
+  /// 推送一个新的 UI 状态快照，[uiState] 及所有当前/未来的 [uiStates]
+  /// 订阅者立即可见。
+  void pushUi(MovaUiState next) => _uiState.emit(next);
+
+  /// Pushes a progress tick to [progress] subscribers.
+  ///
+  /// 向 [progress] 订阅者推送一次进度 tick。
+  void pushProgress(MovaProg next) => _progress.add(next);
+
+  /// Pushes a discrete event to [events] subscribers.
+  ///
+  /// 向 [events] 订阅者推送一个离散事件。
+  void pushEvent(MovaEvent next) => _events.add(next);
+
+  /// The `autoPlay` argument of the most recent [open] call, or `null` if
+  /// [open] has never been called — lets feed tests tell a page opened to
+  /// play from one merely preloaded and parked.
+  ///
+  /// 最近一次 [open] 调用的 `autoPlay` 参数；若从未调用过 [open] 则为 `null`
+  /// ——供 feed 测试区分"打开即播放"与"仅预加载并停住"的页面。
+  bool? lastAutoPlay;
+
+  @override
+  Future<void> open(MovaSource source, {bool autoPlay = true}) async {
+    calls.add('open');
+    lastAutoPlay = autoPlay;
+    this.source = source;
+    push(state.copyWith(
+      type: source.type,
+      sourceTitle: source.title,
+      clearSourceTitle: source.title == null,
+    ));
+  }
+
+  @override
+  Future<void> play() async {
+    calls.add('play');
+  }
+
+  @override
+  Future<void> pause() async {
+    calls.add('pause');
+  }
+
+  @override
+  Future<void> playOrPause() async {
+    calls.add('playOrPause');
+  }
+
+  @override
+  Future<void> seek(Duration to) async {
+    calls.add('seek');
+    lastSeek = to;
+  }
+
+  @override
+  Future<void> seekBy(Duration delta) async {
+    calls.add('seekBy');
+  }
+
+  @override
+  Future<void> setVolume(double v) async {
+    calls.add('setVolume');
+    lastVolume = v;
+  }
+
+  @override
+  Future<void> setBrightness(double v) async {
+    calls.add('setBrightness');
+    lastBrightness = v;
+  }
+
+  @override
+  Future<void> setRate(double r) async {
+    calls.add('setRate');
+    lastRate = r;
+  }
+
+  @override
+  Future<void> setFit(MovaFit f) async {
+    calls.add('setFit');
+    lastFit = f;
+  }
+
+  @override
+  Future<void> setZoom(double z) async {
+    calls.add('setZoom');
+    lastZoom = z;
+  }
+
+  @override
+  Future<void> setLocked(bool v) async {
+    calls.add('setLocked');
+    lastLocked = v;
+  }
+
+  @override
+  Future<void> setFullscreen(bool v) async {
+    calls.add('setFullscreen');
+    lastFullscreen = v;
+  }
+
+  @override
+  Future<void> setOrientation(MovaOrient o) async {
+    calls.add('setOrientation');
+    lastOrientation = o;
+    push(state.copyWith(orientation: o));
+  }
+
+  @override
+  Future<void> loadQualities() async {
+    calls.add('loadQualities');
+  }
+
+  @override
+  Future<void> switchQuality(MovaQual q) async {
+    calls.add('switchQuality');
+    lastQuality = q;
+  }
+
+  @override
+  Future<bool> enterPip() async {
+    calls.add('enterPip');
+    return pipSupported;
+  }
+
+  @override
+  Future<void> reload() async {
+    calls.add('reload');
+  }
+
+  @override
+  Future<void> backToLiveEdge() async {
+    calls.add('backToLiveEdge');
+  }
+
+  @override
+  void showControls({bool sticky = false}) {
+    calls.add('showControls');
+  }
+
+  @override
+  void hideControls() {
+    calls.add('hideControls');
+  }
+
+  @override
+  void showHud(MovaHud hud, {String? text}) {
+    calls.add('showHud');
+    lastHud = hud;
+    lastHudText = text;
+  }
+
+  @override
+  void setDragging(bool v, {Duration? previewAt}) {
+    calls.add('setDragging');
+    lastDragging = v;
+    lastPreviewAt = previewAt;
+  }
+
+  @override
+  Future<void> dispose() async {
+    calls.add('dispose');
+    await _progress.close();
+    await _events.close();
+    await _state.close();
+    await _uiState.close();
+    await preview.dispose();
+    await stt.dispose();
+  }
+}
+
+/// A test double for [MovaPrevApi] that records requests and lets tests push
+/// thumbnails into the stream.
+///
+/// [MovaPrevApi] 的测试替身：记录请求，并允许测试向流中推送缩略图。
+class FakePreviewApi implements MovaPrevApi {
+  /// Backing controller for [thumbs].
+  ///
+  /// [thumbs] 的底层控制器。
+  final StreamController<MovaThumb?> _thumbs = StreamController<MovaThumb?>.broadcast();
+
+  /// Ordered method names invoked on this fake.
+  ///
+  /// 在该替身上被调用的方法名有序列表。
+  final List<String> calls = <String>[];
+
+  /// The argument of the most recent [requestAt] call.
+  ///
+  /// 最近一次 [requestAt] 调用的参数。
+  Duration? lastRequestedAt;
+
+  /// The value [peekAt] returns; settable by tests, defaults to null.
+  ///
+  /// [peekAt] 的返回值；可由测试赋值，默认 null。
+  MovaThumb? peekResult;
+
+  /// The thumbnail most recently pushed via [push].
+  ///
+  /// 最近一次通过 [push] 推送的缩略图。
+  MovaThumb? _current;
+
+  @override
+  Stream<MovaThumb?> get thumbs => _thumbs.stream;
+
+  @override
+  MovaThumb? get current => _current;
+
+  @override
+  MovaThumb? peekAt(Duration position) {
+    calls.add('peekAt');
+    return peekResult;
+  }
+
+  @override
+  void requestAt(Duration position) {
+    calls.add('requestAt');
+    lastRequestedAt = position;
+  }
+
+  @override
+  void cancel() => calls.add('cancel');
+
+  @override
+  Future<void> clear() async => calls.add('clear');
+
+  /// Pushes [thumb] to [thumbs] and makes it the [current] value.
+  ///
+  /// 把 [thumb] 推送到 [thumbs] 并设为 [current]。
+  ///
+  /// - [thumb]: the thumbnail to publish, or null to hide / 要发布的缩略图，
+  ///   null 表示隐藏
+  void push(MovaThumb? thumb) {
+    _current = thumb;
+    _thumbs.add(thumb);
+  }
+
+  /// Closes the backing stream.
+  ///
+  /// 关闭底层流。
+  Future<void> dispose() => _thumbs.close();
+}
+
+/// A test double for [MovaSttApi] that records start/stop calls and lets tests
+/// push cues into the stream.
+///
+/// [MovaSttApi] 的测试替身：记录启停调用，并允许测试向流中推送字幕。
+class FakeSttApi implements MovaSttApi {
+  /// Backing controller for [cues].
+  ///
+  /// [cues] 的底层控制器。
+  final StreamController<MovaSttCue> _cues = StreamController<MovaSttCue>.broadcast();
+
+  /// Ordered method names invoked on this fake.
+  ///
+  /// 在该替身上被调用的方法名有序列表。
+  final List<String> calls = <String>[];
+
+  /// Languages this fake reports; settable by tests, defaults to empty.
+  ///
+  /// 该假对象报告的语言列表；可由测试赋值，默认空。
+  @override
+  List<String> languages = const [];
+
+  /// The cue most recently pushed via [push].
+  ///
+  /// 最近一次通过 [push] 推送的字幕。
+  MovaSttCue? _current;
+
+  /// Whether [start] has been called without a following [stop].
+  ///
+  /// [start] 是否已被调用且尚未 [stop]。
+  bool _started = false;
+
+  @override
+  Stream<MovaSttCue> get cues => _cues.stream;
+
+  @override
+  MovaSttCue? get current => _current;
+
+  @override
+  bool get isRunning => _started;
+
+  @override
+  Future<void> start() async {
+    calls.add('start');
+    _started = true;
+  }
+
+  @override
+  Future<void> stop() async {
+    calls.add('stop');
+    _started = false;
+  }
+
+  /// Clears [current] without touching [cues] — simulates a real
+  /// [MovaSttApi]'s position tracking deciding the previously-pushed cue no
+  /// longer covers the (fake-side untracked) playback position, since this
+  /// fake does not itself implement that expiry logic.
+  ///
+  /// 清空 [current]，不影响 [cues]——模拟真实 [MovaSttApi] 的位置跟踪判定此前
+  /// 推送的字幕已不再覆盖播放位置（该假对象本身未实现这层过期逻辑，跟踪的
+  /// 播放位置也不是假对象关心的）。
+  void clear() => _current = null;
+
+  /// Pushes [cue] to [cues] and makes it the [current] value.
+  ///
+  /// 把 [cue] 推送到 [cues] 并设为 [current]。
+  ///
+  /// - [cue]: the cue to publish / 要发布的字幕
+  void push(MovaSttCue cue) {
+    _current = cue;
+    _cues.add(cue);
+  }
+
+  /// Closes the backing stream.
+  ///
+  /// 关闭底层流。
+  Future<void> dispose() => _cues.close();
+}
