@@ -16,7 +16,7 @@ ABI/平台、字幕/截图/HLS-FLV/avfilter回归/后台中断/AV1高码率场�
 
 | 平台 | 状态 | 说明 |
 |---|---|---|
-| Android arm64-v8a | ✅ 已定稿并接入 mova 工程 | 6.55MiB（AV1 硬解+软解双通道，2026-08-06 真机复测后改判），见下方"定稿结果"，真机播放验证进行中 |
+| Android arm64-v8a | ✅ 已定稿并接入 mova 工程 | 6.52MiB（AV1 硬解+软解双通道，2026-08-06 真机复测后改判，CI 复现构建），见下方"定稿结果"，真机播放验证进行中 |
 | Android armeabi-v7a / x86 / x86_64 | ⬜ 未开始 | 同一套 flavor 脚本理论上可复用，`--disable-runtime-cpudetect` 那条 arm64 专属优化不能照搬（见"关键单项发现"第 4 条），需要各自重新实测体积 |
 | iOS | ⬜ 未开始 | 构建链是 `media-kit/libmpv-ios-video-build`（不是 Android 那个仓库），需要 macOS 运行器；MediaCodec 硬解概念不适用，iOS 走 VideoToolbox，取舍逻辑要重新过一遍 |
 | macOS | ⬜ 未开始 | 构建链是 `media-kit/libmpv-macos-video-build`，同样需要 macOS 运行器 |
@@ -50,7 +50,7 @@ spike 过程与数据见 [../../doc/plans/2026-07-31-ffmpeg-slim-build-windows.m
 | + 去掉 `overlay`/`equalizer` 两个 avfilter（**未过真机播放验证**） | 6.61 MiB (6,931,744 B) | −44% | −70 KB |
 | + 去掉 VP8/MJPEG/AV1 全部软解 + `webm_dash_manifest` 之外的多余项清理 | 5.87 MiB (6,157,264 B) | −50% | −774 KB |
 | + 加回 `av1_mediacodec`（AV1 硬解） | 5.87 MiB (6,158,976 B) | −50.3% | +1.7 KB |
-| + 加回 `libdav1d`（AV1 软解，见下方"改判"）**（定稿）** | **6.55 MiB (6,862,416 B)** | **−44.5%** | +671 KB |
+| + 加回 `libdav1d`（AV1 软解，见下方"改判"）**（定稿，CI 复现）** | **6.52 MiB (6,835,296 B)** | **−44.7%** | +671 KB（本地 WSL2 dry-run 测得，CI 正式产物略小 27KB，工具链/编译参数顺序的正常误差） |
 
 **最终决策（2026-08-06 真机复测后改判）：AV1 硬解 + 软解都留**（`av1_mediacodec` 优先，
 `libdav1d` 兜底）。原判断是"仅留硬解，跟不上硬解的老机型/冷门 profile 接受播放失败"，
@@ -62,8 +62,17 @@ spike 过程与数据见 [../../doc/plans/2026-07-31-ffmpeg-slim-build-windows.m
 卡顿/耗电更糟**。VP9 保留仅硬解不变：VP9 硬解在 Android 7.0+ 覆盖率明显好于 AV1，
 目前没有类似真机翻车证据推翻原判断。
 
-**最终产物**：[`dist/arm64-v8a/libmpv.so`](dist/arm64-v8a/libmpv.so)（**6.55MiB，
-6,862,416 字节**）。
+**最终产物**：[`dist/arm64-v8a/libmpv.so`](dist/arm64-v8a/libmpv.so)（**6.52MiB，
+6,835,296 字节，CI 构建产物，见下方"CI：GitHub Actions 自动构建"**）。
+
+⚠️ **踩坑记录（2026-08-06）**：flavor 脚本里加 `libdav1d` 到 `DECODERS_VIDEO` **不够**——
+ffmpeg 的 `--enable-decoder=libdav1d` 只声明"要这个解码器"，没有 `--enable-libdav1d`
+（声明"要链接这个外部库"）时会被静默丢弃，**不报错**，编译/strip/符号校验全部通过，
+只有产物体积明显偏小、`dav1d_*` 动态符号缺失才能发现。第一次 CI 跑就踩了这个坑
+（产物 6,131,808 字节，比硬解单独版还小，`llvm-nm` 一查发现零 dav1d 符号）——本地
+WSL2 dry-run 当时是用临时命令行手动加的 `--enable-libdav1d`，没同步进这份脚本文件，
+两边跑的实际不是同一套配置。修复后 CI 重跑确认 19 个 `dav1d_*` 符号存在，产物体积符合
+预期，这才是这份文档里"定稿"数字的来源。
 **最终 flavor 脚本**：[`flavors-mova-slim.sh`](flavors-mova-slim.sh)（cp 到
 `buildscripts/scripts/ffmpeg.sh` 使用，见下文"出真正的 Android 产物"）。
 **buildscripts 本身需要的补丁**：[`libmpv-android-video-build.patch`](libmpv-android-video-build.patch)
@@ -121,7 +130,7 @@ VP8/MJPEG 相关符号确认消失。**真机验证进展**：H.264/HEVC/VP9 硬
 
 | 加回项 | 体积 | 相对定稿版（5.87MiB / 6,158,976 B） |
 |---|---:|---:|
-| + AV1 软解（`libdav1d`，硬解 `av1_mediacodec` 继续保留） | 6.55 MiB (6,862,416 B) | **+671 KB（约 +11%）** |
+| + AV1 软解（`libdav1d`，硬解 `av1_mediacodec` 继续保留） | 6.52 MiB (6,835,296 B，CI 复现构建) | **+671 KB（约 +11%，本地 WSL2 dry-run 测得）** |
 | + MJPEG 解码 | 5.94 MiB (6,228,272 B) | **+68 KB** |
 
 **结论：AV1 软解加回，MJPEG 维持不加**。
