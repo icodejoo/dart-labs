@@ -373,6 +373,14 @@ Android 上有三个约束：
   ninja 开满并行会 OOM（`clang++: Killed`）。构建前确认 `free -m` 至少 8 GB。
 - **macOS**：`brew install nasm pkg-config meson ninja cmake automake libtool`
 
+⚠️ **`meson` 版本坑**：mpv 的构建脚本传 `--prefer-static`，这个 flag 只在较新的
+meson 里才认识。Ubuntu 22.04（GitHub Actions `ubuntu-22.04` runner 的默认 apt 源）
+的 `apt install meson` 版本太老，会报 `meson: error: unrecognized arguments:
+--prefer-static` 直接失败。本仓库验证过能用的版本是 **1.3.2**（WSL2 Ubuntu 24.04 的
+apt 默认版本）——版本不够新时改用 `pip3 install --user "meson==1.3.2"`，CI 里已经
+这么做（见 [`../../.github/workflows/build-mova-libmpv.yml`](../../.github/workflows/build-mova-libmpv.yml)
+的"Install build dependencies"步骤）。
+
 ## 用法
 
 ```bash
