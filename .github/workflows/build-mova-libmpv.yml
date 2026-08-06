@@ -616,6 +616,20 @@ jobs:
           git clone https://github.com/mpv-player/mpv.git mpv-src
           git -C mpv-src checkout 78d43740f52db817d98bcf24fb30a76ab6fa13ff
 
+      - name: Patch mpv for current mingw-w64 headers
+        run: |
+          # ksmedia.h uses WAVE_FORMAT_* but only includes ks.h; current
+          # mingw-w64 no longer pulls mmreg.h in transitively, so those macros
+          # are undefined and ao_wasapi fails to compile (run 31094204221).
+          # Upstream mpv added these includes explicitly — the pinned commit
+          # predates that, so apply the same two lines.
+          FILES=$(grep -rl '#include <ksmedia.h>' mpv-src/audio mpv-src/osdep || true)
+          test -n "$FILES" || { echo "::error::no ksmedia.h include found — mpv layout changed, revisit this patch"; exit 1; }
+          for f in $FILES; do
+            sed -i 's|^#include <ksmedia.h>|#include <mmreg.h>\n#include <mmsystem.h>\n#include <ksmedia.h>|' "$f"
+            echo "patched $f"
+          done
+
       - name: Build slimmed ffmpeg (native, static)
         working-directory: ffmpeg-src
         run: |
