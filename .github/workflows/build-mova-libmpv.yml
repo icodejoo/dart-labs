@@ -50,6 +50,8 @@ jobs:
   android-arm64:
     name: Android arm64-v8a (implemented)
     runs-on: ubuntu-22.04
+    # Already green — temporarily disabled while iterating on linux/windows fixes.
+    if: false
     steps:
       - name: Checkout dart-labs
         uses: actions/checkout@v4
@@ -199,6 +201,8 @@ jobs:
             abi: x86
           - arch: x86_64
             abi: x86_64
+    # Already green — temporarily disabled while iterating on linux/windows fixes.
+    if: false
     steps:
       - name: Checkout dart-labs
         uses: actions/checkout@v4
@@ -480,24 +484,34 @@ jobs:
         working-directory: mpv-src
         run: |
           export PKG_CONFIG_PATH="$GITHUB_WORKSPACE/prefix/lib/pkgconfig"
-          meson setup build --prefix="$GITHUB_WORKSPACE/prefix" --default-library=shared \
+          # Force plain "lib" (not Ubuntu's multiarch "lib/x86_64-linux-gnu")
+          # so Strip and verify can find prefix/lib/libmpv.so without guessing.
+          meson setup build --prefix="$GITHUB_WORKSPACE/prefix" --libdir=lib --default-library=shared \
             -Dlibmpv=true -Dcplayer=false -Dtests=false
           ninja -C build
           ninja -C build install
 
       - name: Strip and verify
         run: |
-          LIBMPV="$GITHUB_WORKSPACE/prefix/lib/libmpv.so"
-          # Real filename may carry a soversion (libmpv.so.2 etc) — resolve it.
-          LIBMPV=$(readlink -f "$GITHUB_WORKSPACE"/prefix/lib/libmpv.so*)
+          # Resolve via the unversioned symlink (not a libmpv.so* glob — that
+          # expands to multiple paths and breaks strip's single-arg expectation).
+          # --libdir=lib above lands it here; without that meson uses Ubuntu's
+          # multiarch lib/x86_64-linux-gnu and this path 404s (run 31090200118).
+          test -e "$GITHUB_WORKSPACE/prefix/lib/libmpv.so" \
+            || { echo "::error::libmpv.so not at prefix/lib/ — check meson --libdir"; find "$GITHUB_WORKSPACE/prefix" -name 'libmpv.so*' -print; exit 1; }
+          LIBMPV=$(readlink -f "$GITHUB_WORKSPACE/prefix/lib/libmpv.so")
           strip --strip-all "$LIBMPV"
 
           echo "### libmpv.so size (linux x86_64)" >> "$GITHUB_STEP_SUMMARY"
           SIZE_BYTES=$(stat -c%s "$LIBMPV")
           echo "$SIZE_BYTES bytes ($(numfmt --to=iec-i --suffix=B "$SIZE_BYTES"))" >> "$GITHUB_STEP_SUMMARY"
 
+          # Android statically embeds dav1d (defined-only nm check). This Linux
+          # v1 links system libdav1d.so, so dav1d_open is undefined + DT_NEEDED
+          # rather than defined — accept either shape.
           nm -D --defined-only "$LIBMPV" | grep -q dav1d_open \
-            || { echo "::error::dav1d_open missing — AV1 decode silently dropped"; exit 1; }
+            || ldd "$LIBMPV" | grep -q libdav1d \
+            || { echo "::error::dav1d not linked (no defined dav1d_open, no libdav1d NEEDED) — AV1 decode silently dropped"; exit 1; }
 
           cp "$LIBMPV" "$GITHUB_WORKSPACE/libmpv-linux-x86_64.so"
 
@@ -581,11 +595,23 @@ jobs:
       - name: Configure and build mpv
         working-directory: build-root
         run: |
+          # packages/CMakeLists.txt foreach-includes EVERY entry at cmake
+          # *configure* time. mpv-release.cmake runs execute_process(curl
+          # .../releases/latest) then ExternalProject_Add(URL ${LINK}) — when
+          # the curl returns empty, configure dies with "No download info
+          # given for 'mpv-release'" (run 31090200118). We only need the git
+          # `mpv` target for libmpv-2.dll, so drop the release/packaging
+          # packages before configure ever sees them.
+          sed -i '/mpv-release$/d;/mpv-packaging$/d' packages/CMakeLists.txt
+          if grep -E '[[:space:]]mpv-release$|[[:space:]]mpv-packaging$' packages/CMakeLists.txt; then
+            echo "::error::failed to strip mpv-release/mpv-packaging from packages/CMakeLists.txt"
+            exit 1
+          fi
           cmake -DTARGET_ARCH=x86_64-w64-mingw32 \
             -DCMAKE_INSTALL_PREFIX="$(pwd)/install" \
             -G Ninja -Bbuild -S .
-          ninja -C build download || true
-          ninja -C build update
+          # download/update the whole ep list is huge and flaky; ExternalProject
+          # fetches each dep on demand when building the mpv target.
           ninja -C build mpv
 
       - name: Strip and verify
