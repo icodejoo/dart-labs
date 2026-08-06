@@ -1,0 +1,28 @@
+name: mova_stt
+description: "mova 的语音转字幕引擎实现（sherpa-onnx + Zipformer）。独立成包，使 mova 主包不背 sherpa_onnx 的原生二进制体积——未接入本包的宿主 App 不受影响。"
+version: 0.1.0
+homepage: https://github.com/icodejoo/dart-labs/tree/main/mova_stt
+repository: https://github.com/icodejoo/dart-labs/tree/main/mova_stt
+# Depends on mova via a path dependency during monorepo development;
+# switch to a version constraint (and drop this line) once mova_stt is
+# ready to publish to pub.dev.
+publish_to: none
+
+environment:
+  sdk: ^3.12.2
+  flutter: '>=3.3.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+  mova:
+    path: ../mova
+  # sherpa_onnx 拉入各平台原生二进制子包（sherpa_onnx_android_arm64、
+  # sherpa_onnx_ios 等），只有依赖了本包（mova_stt）的宿主才会背上这部分
+  # 体积；未接入的宿主完全不受影响，这正是拆包的目的。
+  sherpa_onnx: ^1.12.34
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0

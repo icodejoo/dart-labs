@@ -1,0 +1,173 @@
+name: Build mova libmpv (all platforms)
+
+# Only rebuilds when our build recipe changes — the ffmpeg/mpv/dav1d *source*
+# itself isn't vendored in this repo (pulled fresh from upstream at build
+# time per platform), so "source changes" here means our build recipe: the
+# per-platform ffmpeg configure flavor + the buildscripts patch under
+# tools/ffmpeg-slim/. See mova/tools/ffmpeg-slim/README.md's "多平台进度"
+# table for what's real vs. TODO — only the android-arm64 job is implemented
+# today; the rest are intentional no-op stubs so CI stays green while the
+# per-platform work gets filled in incrementally.
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'mova/tools/ffmpeg-slim/**'
+      - '.github/workflows/build-mova-libmpv.yml'
+  workflow_dispatch:
+
+env:
+  # Pinned per tools/ffmpeg-slim/README.md's "实测结果" section — bump
+  # deliberately, not implicitly, so a size regression can always be traced
+  # back to either our flavor/patch or an explicit version bump here.
+  ANDROID_LIBMPV_BUILD_REF: 1ecf510
+  NDK_VERSION: 25.2.9519653
+  NDK_ZIP_NAME: android-ndk-r25c-linux.zip
+
+jobs:
+  android-arm64:
+    name: Android arm64-v8a (implemented)
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Checkout dart-labs
+        uses: actions/checkout@v4
+
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ninja-build meson pkg-config nasm autoconf automake libtool
+
+      - name: Clone libmpv-android-video-build
+        run: |
+          git clone https://github.com/media-kit/libmpv-android-video-build build-root
+          cd build-root
+          git checkout "$ANDROID_LIBMPV_BUILD_REF"
+
+      - name: Apply mova slim-build patch
+        working-directory: build-root
+        run: git apply ../mova/tools/ffmpeg-slim/libmpv-android-video-build.patch
+
+      - name: Copy mova ffmpeg flavor into place
+        run: cp mova/tools/ffmpeg-slim/flavors-mova-slim.sh build-root/buildscripts/scripts/ffmpeg.sh
+
+      # sdkmanager's official NDK download is extremely slow (~0.12MB/s per
+      # tools/ffmpeg-slim/README.md's "环境准备" section) — pull the zip
+      # directly from Google's CDN instead and place it where build.sh expects it.
+      - name: Download Android NDK (direct, skip sdkmanager)
+        run: |
+          mkdir -p "build-root/buildscripts/sdk/android-sdk-linux/ndk"
+          curl -fsSL -o "$NDK_ZIP_NAME" "https://dl.google.com/android/repository/$NDK_ZIP_NAME"
+          unzip -q "$NDK_ZIP_NAME" -d /tmp/ndk-extract
+          mv /tmp/ndk-extract/android-ndk-r25c "build-root/buildscripts/sdk/android-sdk-linux/ndk/$NDK_VERSION"
+
+      - name: Download ffmpeg/mpv/dav1d/etc. sources
+        working-directory: build-root/buildscripts
+        run: ./include/download-deps.sh
+
+      - name: Apply upstream source patches
+        working-directory: build-root/buildscripts
+        run: ./patch.sh
+
+      - name: Build libmpv for arm64-v8a
+        working-directory: build-root/buildscripts
+        run: ./build.sh --arch arm64 mpv
+
+      - name: Strip and verify
+        working-directory: build-root/buildscripts
+        run: |
+          NDK_TOOLCHAIN=$(echo sdk/android-sdk-linux/ndk/$NDK_VERSION/toolchains/llvm/prebuilt/*)
+          LIBMPV=prefix/arm64-v8a/usr/local/lib/libmpv.so
+          "$NDK_TOOLCHAIN/bin/llvm-strip" --strip-all "$LIBMPV"
+
+          echo "### libmpv.so size (arm64-v8a)" >> "$GITHUB_STEP_SUMMARY"
+          SIZE_BYTES=$(stat -c%s "$LIBMPV")
+          echo "$SIZE_BYTES bytes ($(numfmt --to=iec-i --suffix=B "$SIZE_BYTES"))" >> "$GITHUB_STEP_SUMMARY"
+
+          # Critical-path symbol check — silent MediaCodec fallback-to-software
+          # is otherwise invisible (see README's mpv_lavc_set_java_vm note).
+          "$NDK_TOOLCHAIN/bin/llvm-nm" -D --defined-only "$LIBMPV" | grep -q mpv_lavc_set_java_vm \
+            || { echo "::error::mpv_lavc_set_java_vm missing — MediaCodec JavaVM binding broken"; exit 1; }
+          for sym in h264_mediacodec_decoder hevc_mediacodec_decoder vp9_mediacodec_decoder av1_mediacodec_decoder; do
+            "$NDK_TOOLCHAIN/bin/llvm-nm" -D --defined-only "$LIBMPV" | grep -q "$sym" \
+              || echo "::warning::$sym not found in dynamic symbols (expected for a static hwdec wrapper — check unstripped build if this is unexpected)"
+          done
+
+          cp "$LIBMPV" "$GITHUB_WORKSPACE/libmpv-arm64-v8a.so"
+
+      - name: Upload libmpv.so artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: mova-libmpv-android-arm64-v8a
+          path: libmpv-arm64-v8a.so
+          retention-days: 30
+
+      - name: Commit built artifact to dist/
+        run: |
+          mkdir -p mova/tools/ffmpeg-slim/dist/arm64-v8a
+          cp libmpv-arm64-v8a.so mova/tools/ffmpeg-slim/dist/arm64-v8a/libmpv.so
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add mova/tools/ffmpeg-slim/dist/arm64-v8a/libmpv.so
+          git diff --cached --quiet && echo "No size/content change, skip commit" || \
+            git commit -m "chore(mova): rebuild slimmed libmpv.so (android arm64-v8a) [skip ci]"
+          git push
+
+  # --- Everything below is a deliberate no-op scaffold, NOT a real build ---
+  # Each stub documents which upstream build repo the real job needs to drive
+  # and what's platform-specific about it (see README's "多平台进度" table).
+  # Flip `if: false` → real steps once that platform's flavor script/patch
+  # exists under tools/ffmpeg-slim/ and has been hand-verified once, the same
+  # way android-arm64 was.
+
+  android-other-abi:
+    name: "TODO: Android armeabi-v7a/x86/x86_64"
+    runs-on: ubuntu-22.04
+    if: false
+    steps:
+      - run: |
+          echo "Not implemented. Same libmpv-android-video-build pipeline as android-arm64,"
+          echo "but --disable-runtime-cpudetect is arm64-only (see README finding #4) —"
+          echo "needs its own re-measurement per ABI, not a blind copy-paste."
+          exit 1
+
+  ios:
+    name: "TODO: iOS"
+    runs-on: macos-latest
+    if: false
+    steps:
+      - run: |
+          echo "Not implemented. Build chain: media-kit/libmpv-ios-video-build."
+          echo "No MediaCodec — iOS hwdec is VideoToolbox (--enable-videotoolbox),"
+          echo "decoder/demuxer tradeoffs need re-deciding against iOS hw coverage data."
+          exit 1
+
+  macos:
+    name: "TODO: macOS"
+    runs-on: macos-latest
+    if: false
+    steps:
+      - run: |
+          echo "Not implemented. Build chain: media-kit/libmpv-macos-video-build."
+          echo "Also VideoToolbox-based hwdec, but different minimum-OS/arch matrix (universal arm64+x86_64) than iOS."
+          exit 1
+
+  windows:
+    name: "TODO: Windows"
+    runs-on: windows-latest
+    if: false
+    steps:
+      - run: |
+          echo "Not implemented. Build chain: media-kit/libmpv-win32-build."
+          echo "Historical Windows spike (doc/plans/2026-07-31-ffmpeg-slim-build-windows.md) was estimation-only, never a real build."
+          echo "hwdec is D3D11VA/DXVA2, not MediaCodec/VideoToolbox — separate tradeoff analysis needed."
+          exit 1
+
+  linux:
+    name: "TODO: Linux"
+    runs-on: ubuntu-22.04
+    if: false
+    steps:
+      - run: |
+          echo "Not implemented. Build chain: media-kit/libmpv-linux-build."
+          echo "hwdec is VDPAU/VAAPI; distro glibc-version fragmentation is a real concern for a slimmed static build."
+          exit 1
