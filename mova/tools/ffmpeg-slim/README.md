@@ -17,11 +17,10 @@ ABI/平台、字幕/截图/HLS-FLV/avfilter回归/后台中断/AV1高码率场�
 | 平台 | 状态 | 说明 |
 |---|---|---|
 | Android arm64-v8a | ✅ 已定稿并接入 mova 工程 | 6.52MiB（AV1 硬解+软解双通道，2026-08-06 真机复测后改判，CI 复现构建），见下方"定稿结果"，真机播放验证进行中 |
-| Android armeabi-v7a / x86 / x86_64 | ⬜ 未开始 | 同一套 flavor 脚本理论上可复用，`--disable-runtime-cpudetect` 那条 arm64 专属优化不能照搬（见"关键单项发现"第 4 条），需要各自重新实测体积 |
-| iOS | ⬜ 未开始 | 构建链是 `media-kit/libmpv-ios-video-build`（不是 Android 那个仓库），需要 macOS 运行器；MediaCodec 硬解概念不适用，iOS 走 VideoToolbox，取舍逻辑要重新过一遍 |
-| macOS | ⬜ 未开始 | 构建链是 `media-kit/libmpv-macos-video-build`，同样需要 macOS 运行器 |
-| Windows | ⬜ 未开始 | 构建链是 `media-kit/libmpv-win32-build`，历史 Windows spike（见文首链接）只做了推算，没有真实构建 |
-| Linux | ⬜ 未开始 | 构建链是 `media-kit/libmpv-linux-build` |
+| Android armeabi-v7a / x86 / x86_64 | ✅ CI 构建通过，未接入真机验证 | 同一套 flavor 脚本直接复用（`--disable-runtime-cpudetect` 已按架构条件判断，不用改），2026-08-06 CI 矩阵三个 ABI 全绿并核验 `dav1d_open` 符号；已接入 `example` 的 jniLibs，还没上真机测过 |
+| iOS + macOS | 🟡 CI 首次尝试中（v1） | **两者共用一个仓库** `media-kit/libmpv-darwin-build`（不是分开两个仓库，早前的假设是错的），Nix + 固定版本 Xcode 构建，`macos-15` runner。v1 直接用上游自带的"video/default" flavor（已含 VideoToolbox 硬解 + libdav1d 软解），没有照搬我们 Android 那份自定义解码器/demuxer 清单——留作后续，不是这轮的阻塞项 |
+| Windows | 🟡 CI 首次尝试中（v1） | 构建链是 `media-kit/libmpv-win32-video-build`（是 `zhongfly/mpv-winbuild` 的 fork，自带 CI 是未改名的上游发布流程，不直接照搬），改用 MSYS2 + mingw-w64 gcc 工具链直接跑它的 CMakeLists.txt，跳过 fork 自带的 clang+rustup+Docker 那套，先做 x86_64 |
+| Linux | 🟡 CI 首次尝试中（v1） | **media-kit 没有对应仓库**（早前假设的 `libmpv-linux-build` 不存在）——在 runner 本机原生构建 ffmpeg+mpv，不需要交叉编译；依赖走 apt 装现成的 `libass-dev`/`libfreetype6-dev` 等，不用像 Android 那样从源码build |
 
 **关键差异提醒**：Android 这份 flavor 脚本里 `--enable-mediacodec`/`--enable-jni` 是
 Android 专属硬解路径，其他平台各自有自己的硬解 API（iOS/macOS 是 VideoToolbox，Windows
