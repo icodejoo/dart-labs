@@ -5,14 +5,25 @@ name: Build mova libmpv (all platforms)
 # time per platform), so "source changes" here means our build recipe: the
 # per-platform ffmpeg configure flavor + the buildscripts patch under
 # tools/ffmpeg-slim/. See mova/tools/ffmpeg-slim/README.md's "多平台进度"
-# table for what's real vs. TODO — android-arm64 and android-other-abi
-# (armeabi-v7a/x86/x86_64, same libmpv-android-video-build pipeline, matrixed)
-# are implemented; iOS/macOS/Windows/Linux are intentional no-op stubs — each
-# needs a genuinely different build toolchain (Nix+Xcode for iOS/macOS via
-# the shared media-kit/libmpv-darwin-build repo, CMake+MinGW cross-build for
-# Windows via media-kit/libmpv-win32-video-build, and Linux has no upstream
-# media-kit repo at all), not a copy-paste of the Android shell-script
-# pattern — see README for what's actually been verified per platform.
+# table for what's real vs. still-being-verified — every job below now
+# attempts a real build (no more no-op stubs), but darwin/linux/windows are
+# first-attempt "v1"s that haven't been through a green CI run yet the way
+# android-arm64/android-other-abi have (those needed a meson-version pin and
+# an --enable-libdav1d fix before going green — expect the same kind of
+# iteration here). Each platform's build toolchain is genuinely different —
+# not a copy-paste of the Android shell-script pattern:
+#   - android-arm64 / android-other-abi: media-kit/libmpv-android-video-build,
+#     NDK cross-compile, shell flavor script (flavors-mova-slim.sh).
+#   - darwin (iOS+macOS, one job — there's no separate ios/macos repo):
+#     media-kit/libmpv-darwin-build, Nix + pinned Xcode, builds every
+#     ios/iossimulator/macos target in one `make` invocation. v1 ships the
+#     repo's own default flavor as-is (not our custom decoder/demuxer list).
+#   - linux: no upstream media-kit repo exists at all — native build on the
+#     runner itself (no cross-compile), deps from apt instead of source.
+#   - windows: media-kit/libmpv-win32-video-build (a fork of
+#     zhongfly/mpv-winbuild with un-rebranded upstream-release CI) driven
+#     directly via its CMakeLists.txt with a plain MSYS2/mingw-w64 gcc
+#     toolchain, skipping the fork's own clang+rustup+Docker pipeline.
 on:
   push:
     branches: [main]
@@ -243,44 +254,298 @@ jobs:
           echo "::error::failed to push dist/${{ matrix.abi }}/libmpv.so after retries"
           exit 1
 
-  ios:
-    name: "TODO: iOS"
-    runs-on: macos-latest
-    if: false
+  # iOS + macOS share one upstream repo (media-kit/libmpv-darwin-build) built
+  # via Nix + a pinned Xcode — there is no separate ios/macos repo despite
+  # what earlier comments here assumed. `nix develop -c make` with no TARGET
+  # builds the flake's default package, which is every ios/iossimulator/macos
+  # arch×variant×flavor combination in one go (see create-cross-package.nix),
+  # so this is one job, not a matrix. v1 ships the repo's own "video/default"
+  # flavor as-is (videotoolbox hwaccel + libdav1d already enabled upstream)
+  # rather than re-deriving our exact Android decoder/demuxer list through
+  # Nix overrides — that's a follow-up, not a blocker for a first real build.
+  darwin:
+    name: "iOS + macOS (implemented, v1: upstream default flavor)"
+    runs-on: macos-15
     steps:
-      - run: |
-          echo "Not implemented. Build chain: media-kit/libmpv-ios-video-build."
-          echo "No MediaCodec — iOS hwdec is VideoToolbox (--enable-videotoolbox),"
-          echo "decoder/demuxer tradeoffs need re-deciding against iOS hw coverage data."
+      - name: Platform info
+        run: sw_vers; uname -m
+
+      - name: Checkout dart-labs
+        uses: actions/checkout@v4
+        with:
+          path: dart-labs
+
+      - name: Checkout libmpv-darwin-build
+        uses: actions/checkout@v4
+        with:
+          repository: media-kit/libmpv-darwin-build
+          path: build-root
+          # No pinned ref yet (first attempt at this platform) — unlike the
+          # Android build's ANDROID_LIBMPV_BUILD_REF, we don't have a
+          # known-good commit to pin to. Pin this once a build here succeeds.
+
+      - uses: DeterminateSystems/nix-installer-action@v22
+        with:
+          extra-conf: |
+            sandbox = true
+            sandbox-fallback = false
+
+      - uses: DeterminateSystems/magic-nix-cache-action@v13
+        with:
+          use-flakehub: false
+
+      - name: Resolve Xcode path
+        id: xcode
+        run: |
+          # The repo's own CI pins Xcode_16.1.0.app; fall back to whatever
+          # Xcode the runner has if that exact version isn't preinstalled.
+          if [ -d /Applications/Xcode_16.1.0.app ]; then
+            echo "path=$(realpath /Applications/Xcode_16.1.0.app)" >> "$GITHUB_OUTPUT"
+          else
+            echo "::warning::Xcode_16.1.0.app not found, falling back to xcode-select's default — may not match what the flake expects"
+            echo "path=$(xcode-select -p | sed 's|/Contents/Developer||')" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Build (all darwin targets, upstream default flavor)
+        working-directory: build-root
+        run: nix develop -c make XCODE_PATH="${{ steps.xcode.outputs.path }}" VERSION=mova-ci
+
+      - name: Verify and collect
+        working-directory: build-root
+        run: |
+          ls -la result/
+          test -n "$(ls result/*ios* 2>/dev/null)" || { echo "::error::no iOS archive in result/"; exit 1; }
+          test -n "$(ls result/*macos* 2>/dev/null)" || { echo "::error::no macOS archive in result/"; exit 1; }
+          mkdir -p "$GITHUB_WORKSPACE/darwin-out"
+          cp result/*.tar.gz result/*.zip "$GITHUB_WORKSPACE/darwin-out/" 2>/dev/null || true
+          echo "### darwin build artifacts" >> "$GITHUB_STEP_SUMMARY"
+          ls -la "$GITHUB_WORKSPACE/darwin-out" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: mova-libmpv-darwin
+          path: darwin-out/*
+          retention-days: 30
+
+      - name: Commit built artifacts to dist/
+        working-directory: dart-labs
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          mkdir -p mova/tools/ffmpeg-slim/dist/darwin
+          cp "$GITHUB_WORKSPACE"/darwin-out/* mova/tools/ffmpeg-slim/dist/darwin/
+          git add mova/tools/ffmpeg-slim/dist/darwin/
+          if git diff --cached --quiet; then
+            echo "No size/content change, skip commit"
+            exit 0
+          fi
+          git commit -m "chore(mova): add darwin (ios+macos) libmpv build, v1 upstream default flavor [skip ci]"
+          for i in 1 2 3 4 5; do
+            if git push; then exit 0; fi
+            echo "push rejected, rebasing and retrying ($i/5)..."
+            git fetch origin main
+            git rebase origin/main
+            sleep $((RANDOM % 8 + 2))
+          done
+          echo "::error::failed to push dist/darwin/ after retries"
           exit 1
 
-  macos:
-    name: "TODO: macOS"
-    runs-on: macos-latest
-    if: false
-    steps:
-      - run: |
-          echo "Not implemented. Build chain: media-kit/libmpv-macos-video-build."
-          echo "Also VideoToolbox-based hwdec, but different minimum-OS/arch matrix (universal arm64+x86_64) than iOS."
-          exit 1
-
-  windows:
-    name: "TODO: Windows"
-    runs-on: windows-latest
-    if: false
-    steps:
-      - run: |
-          echo "Not implemented. Build chain: media-kit/libmpv-win32-build."
-          echo "Historical Windows spike (doc/plans/2026-07-31-ffmpeg-slim-build-windows.md) was estimation-only, never a real build."
-          echo "hwdec is D3D11VA/DXVA2, not MediaCodec/VideoToolbox — separate tradeoff analysis needed."
-          exit 1
-
+  # No upstream media-kit repo exists for Linux (unlike Android/darwin/win32)
+  # — this builds ffmpeg+mpv from source natively on the runner itself, no
+  # cross-compile toolchain needed. Dependencies (libass/freetype/harfbuzz/
+  # fribidi/dav1d/mbedtls) come from apt instead of being built from source
+  # like the Android buildscripts do, since a native Ubuntu build can just
+  # link the system dev packages — there's no NDK-style sysroot to flatten.
   linux:
-    name: "TODO: Linux"
+    name: "Linux x86_64 (implemented, v1: native build)"
     runs-on: ubuntu-22.04
-    if: false
     steps:
-      - run: |
-          echo "Not implemented. Build chain: media-kit/libmpv-linux-build."
-          echo "hwdec is VDPAU/VAAPI; distro glibc-version fragmentation is a real concern for a slimmed static build."
+      - name: Checkout dart-labs
+        uses: actions/checkout@v4
+
+      - name: Install build + runtime dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ninja-build pkg-config nasm autoconf automake libtool python3-pip \
+            libass-dev libfreetype6-dev libharfbuzz-dev libfribidi-dev libdav1d-dev \
+            libmbedtls-dev libvpx-dev zlib1g-dev libva-dev libvdpau-dev
+          pip3 install --user "meson==1.3.2"
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+
+      - name: Download ffmpeg and mpv sources
+        run: |
+          git clone --depth 1 --branch n6.0 https://github.com/FFmpeg/FFmpeg.git ffmpeg-src
+          git clone --depth 1 https://github.com/mpv-player/mpv.git mpv-src
+
+      - name: Build slimmed ffmpeg (native, static)
+        working-directory: ffmpeg-src
+        run: |
+          ./configure \
+            --disable-gpl --disable-nonfree --enable-version3 \
+            --enable-static --disable-shared --pkg-config-flags=--static \
+            --disable-doc --disable-programs --disable-avdevice --disable-postproc \
+            --disable-muxers --disable-decoders --disable-encoders --disable-demuxers \
+            --disable-parsers --disable-protocols --disable-devices --disable-filters \
+            --enable-small --enable-optimizations \
+            --enable-mbedtls --enable-zlib --enable-libdav1d \
+            --enable-vaapi --enable-vdpau \
+            --enable-avutil --enable-avcodec --enable-avfilter --enable-avformat \
+            --enable-swscale --enable-swresample \
+            --enable-decoder=h264,hevc,vp9,libdav1d,png,aac,aac_latm,mp3,mp3float,opus,ac3,eac3,flac,vorbis,pcm_s16le,pcm_s16be,pcm_s24le,pcm_s32le,pcm_f32le,pcm_u8,ass,ssa,subrip,text,webvtt,movtext \
+            --enable-encoder=png \
+            --enable-parser=h264,hevc,vp9,av1,png,aac,aac_latm,ac3,flac,opus,vorbis,mpegaudio \
+            --enable-demuxer=mov,matroska,webm_dash_manifest,mpegts,hls,flv,live_flv,data,mp3,flac,ogg,wav,aac,ac3,eac3,ass,srt,webvtt \
+            --enable-protocol=file,fd,pipe,data,http,https,tcp,tls,crypto,rtmp,rtmps,rtmpt,rtmpts,ffrtmpcrypt,ffrtmphttp,udp,rtp \
+            --enable-bsf=null,extract_extradata,h264_mp4toannexb,hevc_mp4toannexb,aac_adtstoasc,vp9_superframe,vp9_superframe_split,av1_frame_split,av1_frame_merge,mov2textsub,dump_extradata,setts \
+            --enable-network \
+            --prefix="$GITHUB_WORKSPACE/prefix"
+          make -j"$(nproc)"
+          make install
+
+      - name: Build mpv (native, against system libass/freetype and our ffmpeg)
+        working-directory: mpv-src
+        run: |
+          export PKG_CONFIG_PATH="$GITHUB_WORKSPACE/prefix/lib/pkgconfig"
+          meson setup build --prefix="$GITHUB_WORKSPACE/prefix" --default-library=shared \
+            -Dlibmpv=true -Dcplayer=false -Dtests=false
+          ninja -C build
+          ninja -C build install
+
+      - name: Strip and verify
+        run: |
+          LIBMPV="$GITHUB_WORKSPACE/prefix/lib/libmpv.so"
+          # Real filename may carry a soversion (libmpv.so.2 etc) — resolve it.
+          LIBMPV=$(readlink -f "$GITHUB_WORKSPACE"/prefix/lib/libmpv.so*)
+          strip --strip-all "$LIBMPV"
+
+          echo "### libmpv.so size (linux x86_64)" >> "$GITHUB_STEP_SUMMARY"
+          SIZE_BYTES=$(stat -c%s "$LIBMPV")
+          echo "$SIZE_BYTES bytes ($(numfmt --to=iec-i --suffix=B "$SIZE_BYTES"))" >> "$GITHUB_STEP_SUMMARY"
+
+          nm -D --defined-only "$LIBMPV" | grep -q dav1d_open \
+            || { echo "::error::dav1d_open missing — AV1 decode silently dropped"; exit 1; }
+
+          cp "$LIBMPV" "$GITHUB_WORKSPACE/libmpv-linux-x86_64.so"
+
+      - name: Upload libmpv.so artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: mova-libmpv-linux-x86_64
+          path: libmpv-linux-x86_64.so
+          retention-days: 30
+
+      - name: Commit built artifact to dist/
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          mkdir -p mova/tools/ffmpeg-slim/dist/linux-x86_64
+          cp "$GITHUB_WORKSPACE/libmpv-linux-x86_64.so" mova/tools/ffmpeg-slim/dist/linux-x86_64/libmpv.so
+          git add mova/tools/ffmpeg-slim/dist/linux-x86_64/libmpv.so
+          if git diff --cached --quiet; then
+            echo "No size/content change, skip commit"
+            exit 0
+          fi
+          git commit -m "chore(mova): add linux x86_64 libmpv build, v1 native [skip ci]"
+          for i in 1 2 3 4 5; do
+            if git push; then exit 0; fi
+            echo "push rejected, rebasing and retrying ($i/5)..."
+            git fetch origin main
+            git rebase origin/main
+            sleep $((RANDOM % 8 + 2))
+          done
+          echo "::error::failed to push dist/linux-x86_64/ after retries"
+          exit 1
+
+  # media-kit/libmpv-win32-video-build is a fork of zhongfly/mpv-winbuild with
+  # un-rebranded CI (shinchiro account references, Sourceforge/gist uploads) —
+  # its own workflow is upstream release plumbing, not something to mirror
+  # 1:1. This drives the repo's CMakeLists.txt directly instead: MSYS2 +
+  # mingw-w64 gcc toolchain (skipping the fork's clang+rustup+ccache+Docker
+  # setup entirely), x86_64 only for v1.
+  windows:
+    name: "Windows x86_64 (implemented, v1: gcc/mingw toolchain)"
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: msys2 {0}
+    steps:
+      - name: Checkout dart-labs
+        uses: actions/checkout@v4
+        with:
+          path: dart-labs
+
+      - uses: msys2/setup-msys2@v2
+        with:
+          msystem: MINGW64
+          update: true
+          install: >-
+            base-devel
+            mingw-w64-x86_64-toolchain
+            mingw-w64-x86_64-cmake
+            mingw-w64-x86_64-ninja
+            mingw-w64-x86_64-meson
+            mingw-w64-x86_64-nasm
+            mingw-w64-x86_64-pkg-config
+            git
+            autoconf
+            automake
+            libtool
+
+      - name: Checkout libmpv-win32-video-build
+        run: |
+          git clone https://github.com/media-kit/libmpv-win32-video-build build-root
+          # No pinned ref yet — same caveat as the darwin job, first attempt.
+
+      - name: Configure and build mpv
+        working-directory: build-root
+        run: |
+          cmake -DTARGET_ARCH=x86_64-w64-mingw32 \
+            -DCMAKE_INSTALL_PREFIX="$(pwd)/install" \
+            -G Ninja -Bbuild -S .
+          ninja -C build download || true
+          ninja -C build update
+          ninja -C build mpv
+
+      - name: Strip and verify
+        working-directory: build-root
+        run: |
+          DLL=$(find build -iname "libmpv-2.dll" | head -1)
+          test -n "$DLL" || { echo "::error::libmpv-2.dll not found under build/"; exit 1; }
+          x86_64-w64-mingw32-strip -s "$DLL"
+
+          echo "### libmpv-2.dll size (windows x86_64)" >> "$GITHUB_STEP_SUMMARY"
+          SIZE_BYTES=$(stat -c%s "$DLL")
+          echo "$SIZE_BYTES bytes" >> "$GITHUB_STEP_SUMMARY"
+
+          cp "$DLL" "$GITHUB_WORKSPACE/libmpv-2-windows-x86_64.dll"
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: mova-libmpv-windows-x86_64
+          path: libmpv-2-windows-x86_64.dll
+          retention-days: 30
+
+      - name: Commit built artifact to dist/
+        working-directory: dart-labs
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          mkdir -p mova/tools/ffmpeg-slim/dist/windows-x86_64
+          cp "$GITHUB_WORKSPACE/libmpv-2-windows-x86_64.dll" mova/tools/ffmpeg-slim/dist/windows-x86_64/libmpv-2.dll
+          git add mova/tools/ffmpeg-slim/dist/windows-x86_64/libmpv-2.dll
+          if git diff --cached --quiet; then
+            echo "No size/content change, skip commit"
+            exit 0
+          fi
+          git commit -m "chore(mova): add windows x86_64 libmpv-2.dll build, v1 gcc/mingw [skip ci]"
+          for i in 1 2 3 4 5; do
+            if git push; then exit 0; fi
+            echo "push rejected, rebasing and retrying ($i/5)..."
+            git fetch origin main
+            git rebase origin/main
+            sleep $((RANDOM % 8 + 2))
+          done
+          echo "::error::failed to push dist/windows-x86_64/ after retries"
           exit 1
