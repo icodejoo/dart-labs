@@ -618,15 +618,19 @@ jobs:
 
       - name: Patch mpv for current mingw-w64 headers
         run: |
-          # ksmedia.h uses WAVE_FORMAT_* but only includes ks.h; current
-          # mingw-w64 no longer pulls mmreg.h in transitively, so those macros
-          # are undefined and ao_wasapi fails to compile (run 31094204221).
-          # Upstream mpv added these includes explicitly — the pinned commit
-          # predates that, so apply the same two lines.
+          # ksmedia.h needs mmreg.h's WAVE_FORMAT_* macros but only includes
+          # ks.h, and current mingw-w64 no longer pulls mmreg.h in transitively
+          # (run 31094204221). Order matters: mmreg.h must come *before*
+          # ksguid.h, because ksguid.h switches DEFINE_GUIDSTRUCT from emitting
+          # extern declarations to emitting real GUID objects — put mmreg.h
+          # after it and its GUIDs collide with ksmedia.h's (run 31095299330).
+          # This is the include order upstream mpv uses under __MINGW32__; the
+          # pinned commit predates that fix.
           FILES=$(grep -rl '#include <ksmedia.h>' mpv-src/audio mpv-src/osdep || true)
           test -n "$FILES" || { echo "::error::no ksmedia.h include found — mpv layout changed, revisit this patch"; exit 1; }
           for f in $FILES; do
-            sed -i 's|^#include <ksmedia.h>|#include <mmreg.h>\n#include <mmsystem.h>\n#include <ksmedia.h>|' "$f"
+            grep -q '^#include <ksguid.h>' "$f" || { echo "::error::$f includes ksmedia.h without ksguid.h — revisit this patch"; exit 1; }
+            sed -i 's|^#include <ksguid.h>|#include <mmreg.h>\n#include <ksguid.h>\n#include <mmsystem.h>|' "$f"
             echo "patched $f"
           done
 
