@@ -20,10 +20,10 @@ name: Build mova libmpv (all platforms)
 #     repo's own default flavor as-is (not our custom decoder/demuxer list).
 #   - linux: no upstream media-kit repo exists at all — native build on the
 #     runner itself (no cross-compile), deps from apt instead of source.
-#   - windows: media-kit/libmpv-win32-video-build (a fork of
-#     zhongfly/mpv-winbuild with un-rebranded upstream-release CI) driven
-#     directly via its CMakeLists.txt with a plain MSYS2/mingw-w64 gcc
-#     toolchain, skipping the fork's own clang+rustup+Docker pipeline.
+#   - windows: same native-slim pattern as linux, on MSYS2/MINGW64 — NOT
+#     media-kit/libmpv-win32-video-build (that repo is a Linux→Windows
+#     cross-compile of a full GCC/LLVM toolchain + ~98 deps; it cannot run
+#     on windows-latest and isn't our slim flavor). Deps from pacman.
 on:
   push:
     branches: [main]
@@ -431,6 +431,8 @@ jobs:
   linux:
     name: "Linux x86_64 (implemented, v1: native build)"
     runs-on: ubuntu-22.04
+    # Already green (run 31092096967) — disabled while iterating on windows.
+    if: false
     steps:
       - name: Checkout dart-labs
         uses: actions/checkout@v4
@@ -544,14 +546,15 @@ jobs:
           echo "::error::failed to push dist/linux-x86_64/ after retries"
           exit 1
 
-  # media-kit/libmpv-win32-video-build is a fork of zhongfly/mpv-winbuild with
-  # un-rebranded CI (shinchiro account references, Sourceforge/gist uploads) —
-  # its own workflow is upstream release plumbing, not something to mirror
-  # 1:1. This drives the repo's CMakeLists.txt directly instead: MSYS2 +
-  # mingw-w64 gcc toolchain (skipping the fork's clang+rustup+ccache+Docker
-  # setup entirely), x86_64 only for v1.
+  # Same native-slim recipe as the linux job, on MSYS2 MINGW64. Do NOT drive
+  # media-kit/libmpv-win32-video-build here — that project is a Linux→Windows
+  # cross-compile that builds its own GCC/LLVM toolchain + ~98 deps from
+  # source (LD_PRELOAD/mimalloc, Docker, rustup); it cannot run usefully on
+  # windows-latest and ships the upstream full flavor, not our slim list.
+  # Deps (libass/freetype/harfbuzz/fribidi/dav1d/mbedtls) come from pacman.
+  # Hardaccel: d3d11va/dxva2 instead of linux's vaapi/vdpau.
   windows:
-    name: "Windows x86_64 (implemented, v1: gcc/mingw toolchain)"
+    name: "Windows x86_64 (implemented, v1: native MSYS2 slim)"
     runs-on: windows-latest
     defaults:
       run:
@@ -559,8 +562,6 @@ jobs:
     steps:
       - name: Checkout dart-labs
         uses: actions/checkout@v4
-        with:
-          path: dart-labs
 
       - uses: msys2/setup-msys2@v2
         with:
@@ -568,62 +569,88 @@ jobs:
           update: true
           install: >-
             base-devel
-            mingw-w64-x86_64-toolchain
-            mingw-w64-x86_64-cmake
-            mingw-w64-x86_64-ninja
-            mingw-w64-x86_64-nasm
-            mingw-w64-x86_64-pkg-config
-            mingw-w64-x86_64-python-pip
             git
             autoconf
             automake
             libtool
+            mingw-w64-x86_64-toolchain
+            mingw-w64-x86_64-ninja
+            mingw-w64-x86_64-nasm
+            mingw-w64-x86_64-pkgconf
+            mingw-w64-x86_64-python-pip
+            mingw-w64-x86_64-libass
+            mingw-w64-x86_64-freetype
+            mingw-w64-x86_64-harfbuzz
+            mingw-w64-x86_64-fribidi
+            mingw-w64-x86_64-dav1d
+            mingw-w64-x86_64-mbedtls
+            mingw-w64-x86_64-zlib
 
-      - name: Pin meson via pip (pacman's is too old for this CMakeLists.txt)
+      - name: Pin meson via pip
         run: |
-          # Same class of bug as the Android job's meson pin — this repo's
-          # CMakeLists.txt hard-requires >=1.3.0, MSYS2's mingw-w64-x86_64-meson
-          # package doesn't meet it ("Meson 1.3.0 or greater is required.
-          # Install it with pip instead." is literally CMake's own error text).
+          # Same pin as android/linux — keep meson versions aligned across jobs.
           pip3 install "meson==1.3.2"
 
-      - name: Checkout libmpv-win32-video-build
+      - name: Download ffmpeg and mpv sources
         run: |
-          git clone https://github.com/media-kit/libmpv-win32-video-build build-root
-          # No pinned ref yet — same caveat as the darwin job, first attempt.
+          git clone --depth 1 --branch n6.0 https://github.com/FFmpeg/FFmpeg.git ffmpeg-src
+          # Same mpv↔ffmpeg 6.0 pairing the linux/android jobs already verified.
+          git clone https://github.com/mpv-player/mpv.git mpv-src
+          git -C mpv-src checkout 78d43740f52db817d98bcf24fb30a76ab6fa13ff
 
-      - name: Configure and build mpv
-        working-directory: build-root
+      - name: Build slimmed ffmpeg (native, static)
+        working-directory: ffmpeg-src
         run: |
-          # packages/CMakeLists.txt foreach-includes EVERY entry at cmake
-          # *configure* time. mpv-release.cmake runs execute_process(curl
-          # .../releases/latest) then ExternalProject_Add(URL ${LINK}) — when
-          # the curl returns empty, configure dies with "No download info
-          # given for 'mpv-release'" (run 31090200118). We only need the git
-          # `mpv` target for libmpv-2.dll, so drop the release/packaging
-          # packages before configure ever sees them.
-          sed -i '/mpv-release$/d;/mpv-packaging$/d' packages/CMakeLists.txt
-          if grep -E '[[:space:]]mpv-release$|[[:space:]]mpv-packaging$' packages/CMakeLists.txt; then
-            echo "::error::failed to strip mpv-release/mpv-packaging from packages/CMakeLists.txt"
-            exit 1
-          fi
-          cmake -DTARGET_ARCH=x86_64-w64-mingw32 \
-            -DCMAKE_INSTALL_PREFIX="$(pwd)/install" \
-            -G Ninja -Bbuild -S .
-          # download/update the whole ep list is huge and flaky; ExternalProject
-          # fetches each dep on demand when building the mpv target.
-          ninja -C build mpv
+          # MSYS2/MINGW64 gcc is already the target toolchain — no --cross-prefix.
+          # Windows hardaccel is d3d11va/dxva2 (not vaapi/vdpau).
+          ./configure \
+            --target-os=mingw32 \
+            --arch=x86_64 \
+            --disable-gpl --disable-nonfree --enable-version3 \
+            --enable-static --disable-shared --pkg-config-flags=--static \
+            --disable-doc --disable-programs --disable-avdevice --disable-postproc \
+            --disable-muxers --disable-decoders --disable-encoders --disable-demuxers \
+            --disable-parsers --disable-protocols --disable-devices --disable-filters \
+            --enable-small --enable-optimizations \
+            --enable-mbedtls --enable-zlib --enable-libdav1d \
+            --enable-d3d11va --enable-dxva2 \
+            --enable-avutil --enable-avcodec --enable-avfilter --enable-avformat \
+            --enable-swscale --enable-swresample \
+            --enable-decoder=h264,hevc,vp9,libdav1d,png,aac,aac_latm,mp3,mp3float,opus,ac3,eac3,flac,vorbis,pcm_s16le,pcm_s16be,pcm_s24le,pcm_s32le,pcm_f32le,pcm_u8,ass,ssa,subrip,text,webvtt,movtext \
+            --enable-encoder=png \
+            --enable-parser=h264,hevc,vp9,av1,png,aac,aac_latm,ac3,flac,opus,vorbis,mpegaudio \
+            --enable-demuxer=mov,matroska,webm_dash_manifest,mpegts,hls,flv,live_flv,data,mp3,flac,ogg,wav,aac,ac3,eac3,ass,srt,webvtt \
+            --enable-protocol=file,fd,pipe,data,http,https,tcp,tls,crypto,rtmp,rtmps,rtmpt,rtmpts,ffrtmpcrypt,ffrtmphttp,udp,rtp \
+            --enable-bsf=null,extract_extradata,h264_mp4toannexb,hevc_mp4toannexb,aac_adtstoasc,vp9_superframe,vp9_superframe_split,av1_frame_split,av1_frame_merge,mov2textsub,dump_extradata,setts \
+            --enable-network \
+            --prefix="$GITHUB_WORKSPACE/prefix"
+          make -j"$(nproc)"
+          make install
+
+      - name: Build mpv (native, against pacman libass/freetype and our ffmpeg)
+        working-directory: mpv-src
+        run: |
+          export PKG_CONFIG_PATH="$GITHUB_WORKSPACE/prefix/lib/pkgconfig:/mingw64/lib/pkgconfig"
+          meson setup build --prefix="$GITHUB_WORKSPACE/prefix" --libdir=lib --default-library=shared \
+            -Dlibmpv=true -Dcplayer=false -Dtests=false
+          ninja -C build
+          ninja -C build install
 
       - name: Strip and verify
-        working-directory: build-root
         run: |
-          DLL=$(find build -iname "libmpv-2.dll" | head -1)
-          test -n "$DLL" || { echo "::error::libmpv-2.dll not found under build/"; exit 1; }
-          x86_64-w64-mingw32-strip -s "$DLL"
+          # Meson on mingw names the shared lib libmpv-2.dll (soversion baked in).
+          DLL=$(find "$GITHUB_WORKSPACE/prefix" -iname 'libmpv*.dll' | head -1)
+          test -n "$DLL" || { echo "::error::libmpv*.dll not found under prefix/"; find "$GITHUB_WORKSPACE/prefix" -type f -print; exit 1; }
+          strip -s "$DLL"
 
-          echo "### libmpv-2.dll size (windows x86_64)" >> "$GITHUB_STEP_SUMMARY"
+          echo "### libmpv.dll size (windows x86_64)" >> "$GITHUB_STEP_SUMMARY"
           SIZE_BYTES=$(stat -c%s "$DLL")
-          echo "$SIZE_BYTES bytes" >> "$GITHUB_STEP_SUMMARY"
+          echo "$SIZE_BYTES bytes ($(numfmt --to=iec-i --suffix=B "$SIZE_BYTES" 2>/dev/null || echo "$SIZE_BYTES B"))" >> "$GITHUB_STEP_SUMMARY"
+
+          # Pacman dav1d is shared — expect either a defined symbol or a DLL import.
+          nm --defined-only "$DLL" 2>/dev/null | grep -q dav1d_open \
+            || objdump -p "$DLL" | grep -qi dav1d \
+            || { echo "::error::dav1d not linked (no defined dav1d_open, no dav1d DLL import) — AV1 decode silently dropped"; exit 1; }
 
           cp "$DLL" "$GITHUB_WORKSPACE/libmpv-2-windows-x86_64.dll"
 
@@ -635,7 +662,6 @@ jobs:
           retention-days: 30
 
       - name: Commit built artifact to dist/
-        working-directory: dart-labs
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
@@ -646,7 +672,7 @@ jobs:
             echo "No size/content change, skip commit"
             exit 0
           fi
-          git commit -m "chore(mova): add windows x86_64 libmpv-2.dll build, v1 gcc/mingw [skip ci]"
+          git commit -m "chore(mova): add windows x86_64 libmpv-2.dll build, v1 native MSYS2 slim [skip ci]"
           for i in 1 2 3 4 5; do
             if git push; then exit 0; fi
             echo "push rejected, rebasing and retrying ($i/5)..."
