@@ -80,12 +80,36 @@ jobs:
       # sdkmanager's official NDK download is extremely slow (~0.12MB/s per
       # tools/ffmpeg-slim/README.md's "环境准备" section) — pull the zip
       # directly from Google's CDN instead and place it where build.sh expects it.
+      # Both caches are keyed on pinned versions (NDK_VERSION /
+      # ANDROID_LIBMPV_BUILD_REF), not on file hashes — the download scripts
+      # themselves already skip re-fetching anything that's on disk (see
+      # download-deps.sh's `[ ! -d dav1d ] && git clone ...` pattern), so a
+      # cache hit here just needs to restore that disk state instead of
+      # re-fetching ~500MB of NDK + several source trees on every single run
+      # (arm64/armeabi-v7a/x86/x86_64 all fetch identically, so the same key
+      # is shared across all 4 jobs — whichever runs first populates it).
+      - name: Cache Android NDK
+        uses: actions/cache@v4
+        with:
+          path: build-root/buildscripts/sdk/android-sdk-linux/ndk/${{ env.NDK_VERSION }}
+          key: android-ndk-${{ env.NDK_VERSION }}
+
       - name: Download Android NDK (direct, skip sdkmanager)
         run: |
-          mkdir -p "build-root/buildscripts/sdk/android-sdk-linux/ndk"
-          curl -fsSL -o "$NDK_ZIP_NAME" "https://dl.google.com/android/repository/$NDK_ZIP_NAME"
-          unzip -q "$NDK_ZIP_NAME" -d /tmp/ndk-extract
-          mv /tmp/ndk-extract/android-ndk-r25c "build-root/buildscripts/sdk/android-sdk-linux/ndk/$NDK_VERSION"
+          if [ -d "build-root/buildscripts/sdk/android-sdk-linux/ndk/$NDK_VERSION" ]; then
+            echo "NDK restored from cache, skipping download"
+          else
+            mkdir -p "build-root/buildscripts/sdk/android-sdk-linux/ndk"
+            curl -fsSL -o "$NDK_ZIP_NAME" "https://dl.google.com/android/repository/$NDK_ZIP_NAME"
+            unzip -q "$NDK_ZIP_NAME" -d /tmp/ndk-extract
+            mv /tmp/ndk-extract/android-ndk-r25c "build-root/buildscripts/sdk/android-sdk-linux/ndk/$NDK_VERSION"
+          fi
+
+      - name: Cache ffmpeg/mpv/dav1d/etc. source deps
+        uses: actions/cache@v4
+        with:
+          path: build-root/buildscripts/deps
+          key: android-deps-${{ env.ANDROID_LIBMPV_BUILD_REF }}
 
       - name: Download ffmpeg/mpv/dav1d/etc. sources
         working-directory: build-root/buildscripts
@@ -199,12 +223,36 @@ jobs:
       - name: Copy mova ffmpeg flavor into place
         run: cp mova/tools/ffmpeg-slim/flavors-mova-slim.sh build-root/buildscripts/scripts/ffmpeg.sh
 
+      # Both caches are keyed on pinned versions (NDK_VERSION /
+      # ANDROID_LIBMPV_BUILD_REF), not on file hashes — the download scripts
+      # themselves already skip re-fetching anything that's on disk (see
+      # download-deps.sh's `[ ! -d dav1d ] && git clone ...` pattern), so a
+      # cache hit here just needs to restore that disk state instead of
+      # re-fetching ~500MB of NDK + several source trees on every single run
+      # (arm64/armeabi-v7a/x86/x86_64 all fetch identically, so the same key
+      # is shared across all 4 jobs — whichever runs first populates it).
+      - name: Cache Android NDK
+        uses: actions/cache@v4
+        with:
+          path: build-root/buildscripts/sdk/android-sdk-linux/ndk/${{ env.NDK_VERSION }}
+          key: android-ndk-${{ env.NDK_VERSION }}
+
       - name: Download Android NDK (direct, skip sdkmanager)
         run: |
-          mkdir -p "build-root/buildscripts/sdk/android-sdk-linux/ndk"
-          curl -fsSL -o "$NDK_ZIP_NAME" "https://dl.google.com/android/repository/$NDK_ZIP_NAME"
-          unzip -q "$NDK_ZIP_NAME" -d /tmp/ndk-extract
-          mv /tmp/ndk-extract/android-ndk-r25c "build-root/buildscripts/sdk/android-sdk-linux/ndk/$NDK_VERSION"
+          if [ -d "build-root/buildscripts/sdk/android-sdk-linux/ndk/$NDK_VERSION" ]; then
+            echo "NDK restored from cache, skipping download"
+          else
+            mkdir -p "build-root/buildscripts/sdk/android-sdk-linux/ndk"
+            curl -fsSL -o "$NDK_ZIP_NAME" "https://dl.google.com/android/repository/$NDK_ZIP_NAME"
+            unzip -q "$NDK_ZIP_NAME" -d /tmp/ndk-extract
+            mv /tmp/ndk-extract/android-ndk-r25c "build-root/buildscripts/sdk/android-sdk-linux/ndk/$NDK_VERSION"
+          fi
+
+      - name: Cache ffmpeg/mpv/dav1d/etc. source deps
+        uses: actions/cache@v4
+        with:
+          path: build-root/buildscripts/deps
+          key: android-deps-${{ env.ANDROID_LIBMPV_BUILD_REF }}
 
       - name: Download ffmpeg/mpv/dav1d/etc. sources
         working-directory: build-root/buildscripts
