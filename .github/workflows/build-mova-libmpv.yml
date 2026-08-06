@@ -488,8 +488,12 @@ jobs:
           export PKG_CONFIG_PATH="$GITHUB_WORKSPACE/prefix/lib/pkgconfig"
           # Force plain "lib" (not Ubuntu's multiarch "lib/x86_64-linux-gnu")
           # so Strip and verify can find prefix/lib/libmpv.so without guessing.
+          # -Dgpl=false is not optional: mpv defaults to GPL, and this whole
+          # slim build exists to stay LGPL (same flag the android flavor sets).
+          # The dist/linux-x86_64/ artifact from run 31092096967 predates this
+          # flag and must be rebuilt before it can ship.
           meson setup build --prefix="$GITHUB_WORKSPACE/prefix" --libdir=lib --default-library=shared \
-            -Dlibmpv=true -Dcplayer=false -Dtests=false
+            -Dgpl=false -Dlibmpv=true -Dcplayer=false -Dtests=false
           ninja -C build
           ninja -C build install
 
@@ -593,7 +597,13 @@ jobs:
 
       - name: Download ffmpeg and mpv sources
         run: |
-          git clone --depth 1 --branch n6.0 https://github.com/FFmpeg/FFmpeg.git ffmpeg-src
+          # n6.0.1, not n6.0 like the android/linux jobs: ffmpeg 6.0's inline
+          # asm in libavcodec/x86/mathops.h feeds a non-immediate operand to
+          # shr/sar, which binutils >= 2.41 (what MSYS2 ships) rejects with
+          # "operand type mismatch for `shr'" on aacdec/aacsbr/aacps
+          # (run 31092943243). Upstream's fix is backported into 6.0.1, and
+          # 6.0.x stays libavcodec 60.3.x so the mpv pairing below still holds.
+          git clone --depth 1 --branch n6.0.1 https://github.com/FFmpeg/FFmpeg.git ffmpeg-src
           # Same mpv↔ffmpeg 6.0 pairing the linux/android jobs already verified.
           git clone https://github.com/mpv-player/mpv.git mpv-src
           git -C mpv-src checkout 78d43740f52db817d98bcf24fb30a76ab6fa13ff
@@ -631,8 +641,10 @@ jobs:
         working-directory: mpv-src
         run: |
           export PKG_CONFIG_PATH="$GITHUB_WORKSPACE/prefix/lib/pkgconfig:/mingw64/lib/pkgconfig"
+          # -Dgpl=false is not optional: mpv defaults to GPL, and this whole
+          # slim build exists to stay LGPL (same flag the android flavor sets).
           meson setup build --prefix="$GITHUB_WORKSPACE/prefix" --libdir=lib --default-library=shared \
-            -Dlibmpv=true -Dcplayer=false -Dtests=false
+            -Dgpl=false -Dlibmpv=true -Dcplayer=false -Dtests=false
           ninja -C build
           ninja -C build install
 
