@@ -120,6 +120,8 @@ cpudetect_flag="--enable-runtime-cpudetect"
 	\
 	--enable-mbedtls \
 	\
+	--enable-libdav1d \
+	\
 	--enable-zlib \
 	\
 	--enable-avutil \
