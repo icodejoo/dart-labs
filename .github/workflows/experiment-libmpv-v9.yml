@@ -91,6 +91,34 @@ name: Experiment - libmpv ffmpeg n9.0 + mpv v0.41.0 + libplacebo
 #     37,657,104 bytes (~2.78MB). No AV1 test clip available to
 #     screenshot-verify the hw decode path itself, but the registration
 #     mechanism is identical to h264/hevc/vp9's, which WAS verified.
+#   - Android: all of the above (dav1d removal, HarfBuzz/libass hardening,
+#     FreeType trim, whole-chain LTO) ported and combined into one build,
+#     landing at 8.80MB unverified -> 9.01MB after three real, previously-
+#     undiscovered integration bugs were found and fixed (media_kit's
+#     mpv_lavc_set_java_vm patch, missing -lc++_static/-lc++abi, mpv's own
+#     gl/plain-gl/egl-android needed regardless of libplacebo's GPU
+#     backend — see build-android-libmpv-v9.sh's header for the full
+#     writeup) -> 9.30MB after switching libplacebo from Vulkan to OpenGL.
+#     Real-device tested (Huawei arm64-v8a): app launches, plays a demo
+#     video, no crash. CPU/memory benchmarked against the shipped v6
+#     flavor: gpu-next+Vulkan regresses hard (CPU +27%, TOTAL PSS +70MB,
+#     EGL/GL mtrack 12x — pays for two simultaneous GPU contexts, Vulkan
+#     render + the GLES context the MediaCodec hwdec bridge always needs);
+#     gpu-next+OpenGL collapses back to one context and matches v6's
+#     numbers almost exactly, no regression.
+#   - Net verdict on this experiment: v9+OpenGL now matches (not exceeds)
+#     v6's runtime resource profile after all this, at a real binary-size
+#     cost (Android 5.87MiB -> 9.30MB) and real engineering cost (three
+#     latent upstream bugs had to be found and fixed just to reach parity).
+#     A parallel ffmpeg n6.0->n9.0 changelog audit found only a small,
+#     concrete set of features actually relevant to mova's roadmap
+#     (Enhanced FLV/RTMP HEVC/VP9/AV1 multitrack signaling, GCC
+#     autovectorization, default TLS hardening) against a large majority of
+#     irrelevant changelog entries. The unverified upside — libplacebo's
+#     color management/HDR tone-mapping quality vs the old vo=gpu pipeline
+#     — has NOT been checked visually on a real device in this experiment,
+#     only via performance counters; that visual comparison is the one
+#     remaining lever that could change this verdict.
 #
 # STATUS: tentative / not adopted. This workflow exists to keep the
 # validated recipe (and the several build-system pitfalls it took to get a
