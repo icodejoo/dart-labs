@@ -1,0 +1,113 @@
+name: Experiment - libmpv ffmpeg n9.0 + mpv v0.41.0 + libplacebo
+
+# Records (and keeps reproducible) a manual investigation from 2026-08-07:
+# whether ffmpeg n9.0 can build libmpv, and what mpv version/dependency
+# chain that forces. Findings, in short:
+#   - ffmpeg n9.0 itself compiles fine with mova's existing slim decoder
+#     list (see ../../mova/tools/ffmpeg-slim/flavors-mova-slim.sh).
+#   - The Android/Windows production flavor pins an old pre-libplacebo mpv
+#     commit specifically to avoid libplacebo — that commit's ffmpeg-6.0-era
+#     API usage (FF_PROFILE_* macros, AVCodec.sample_fmts/ch_layouts) does
+#     NOT compile against ffmpeg n9.0 headers, and the breaks are real API
+#     restructures, not one-line patches.
+#   - Bumping mpv to a version that DOES compile against n9.0 (v0.41.0,
+#     latest release) pulls in libplacebo as a hard dependency (mpv >=0.36
+#     dropped the non-libplacebo GPU renderer entirely) — which itself needs
+#     glslang+spirv-cross (Windows d3d11 backend) or glslang+Vulkan (Android
+#     Vulkan backend) for shader compilation.
+#   - Net effect: libmpv roughly doubles in size vs the shipped pre-libplacebo
+#     build, on every platform tested — Android 5.87MiB -> 10.62MB,
+#     Windows's equivalent lands at 13.60MB. This isn't a windows-specific
+#     issue; it's the fixed cost of "new mpv" vs "old mpv", not something a
+#     configure flag can trim away.
+#
+# STATUS: tentative / not adopted. This workflow exists to keep the
+# validated recipe (and the several build-system pitfalls it took to get a
+# working, non-silently-degraded binary) reproducible for whoever picks up
+# the "should mova move off the old mpv commit" decision next — it does not
+# feed into the production build (build-mova-libmpv.yml) and is not wired to
+# commit results anywhere.
+on:
+  workflow_dispatch:
+
+jobs:
+  windows-v9:
+    name: "Windows x86_64 (ffmpeg n9.0 + mpv v0.41.0 + libplacebo)"
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: msys2 {0}
+    steps:
+      - name: Checkout dart-labs
+        uses: actions/checkout@v4
+
+      - uses: msys2/setup-msys2@v2
+        with:
+          msystem: MINGW64
+          update: true
+          install: >-
+            base-devel
+            git
+            autoconf
+            automake
+            libtool
+            mingw-w64-x86_64-toolchain
+            mingw-w64-x86_64-ninja
+            mingw-w64-x86_64-nasm
+            mingw-w64-x86_64-pkgconf
+            mingw-w64-x86_64-python-pip
+            mingw-w64-x86_64-cmake
+            mingw-w64-x86_64-wine
+
+      - name: Pin meson via pip
+        run: pip3 install "meson==1.3.2"
+
+      - name: Run experiment build script
+        run: bash mova/tools/ffmpeg-slim/experiments/build-win-libmpv-v9.sh
+
+      - name: Upload libmpv-2.dll artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: libmpv-v9-windows-x86_64
+          path: /tmp/mova-win-libmpv/libmpv-2-stripped.dll
+          retention-days: 14
+
+  android-v9:
+    name: "Android arm64-v8a (ffmpeg n9.0 + mpv v0.41.0 + libplacebo)"
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Checkout dart-labs
+        uses: actions/checkout@v4
+
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ninja-build pkg-config nasm autoconf automake libtool \
+            cmake python3-pip python3-mako
+          pip3 install --user "meson==1.3.2"
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+
+      - name: Cache Android NDK
+        uses: actions/cache@v4
+        with:
+          path: /tmp/android-ndk-r25c
+          key: ndk-r25c-linux
+
+      - name: Download Android NDK (direct, skip sdkmanager)
+        run: |
+          if [ -d /tmp/android-ndk-r25c ]; then
+            echo "NDK restored from cache, skipping download"
+          else
+            curl -fsSL -o /tmp/android-ndk.zip https://dl.google.com/android/repository/android-ndk-r25c-linux.zip
+            unzip -q /tmp/android-ndk.zip -d /tmp
+          fi
+
+      - name: Run experiment build script
+        run: bash mova/tools/ffmpeg-slim/experiments/build-android-libmpv-v9.sh
+
+      - name: Upload libmpv.so artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: libmpv-v9-android-arm64-v8a
+          path: /tmp/mova-android-libmpv/libmpv-stripped.so
+          retention-days: 14
