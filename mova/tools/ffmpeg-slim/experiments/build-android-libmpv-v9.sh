@@ -22,6 +22,19 @@
 # port the hevc hw-only cut to iOS: pre-A9 devices (iPhone 6 and older,
 # still inside many apps' iOS 12+ floor) have no HEVC VideoToolbox decode.
 #
+# Not yet ported here (validated on Windows only, see
+# ../build-win-libmpv-v9.sh's header for numbers): the FreeType modules.cfg
+# trim and dropping ffmpeg's own subtitle decoders/demuxers. mbedtls stays
+# on Android regardless — there's no native-TLS ffmpeg backend for Android
+# the way --enable-schannel covers Windows.
+#
+# Also investigated cross-platform and NOT pursued (same finding applies
+# here as on Windows): mpv's meson.build hard-requires libass with no
+# feature option — stripping it means patching mpv's own OSD backend-
+# dispatch to tolerate zero text-rendering backends, which is framework
+# surgery (wrong cut fails as "mpv doesn't start"), not a build flag. See
+# ../build-win-libmpv-v9.sh's header for the full writeup.
+#
 # Status: tentative, see ../build-win-libmpv-v9.sh's header for the
 # libplacebo adoption decision context. Invoked by
 # .github/workflows/experiment-libmpv-v9.yml.

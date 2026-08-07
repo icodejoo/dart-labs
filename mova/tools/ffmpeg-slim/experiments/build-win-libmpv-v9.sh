@@ -1,14 +1,50 @@
 #!/bin/bash
 # EXPERIMENT — not the shipped windows flavor (see ../flavors-mova-slim.sh's
 # README for that). Validated locally in WSL2/mingw cross-compile (not
-# MSYS2), 2026-08-07: ffmpeg n9.0 + mpv v0.41.0 + libplacebo(d3d11+glslang)
-# → libmpv-2.dll, 13.60MB stripped. Status: tentative — libplacebo is a hard
-# mpv>=0.36 dependency (no more non-libplacebo GPU renderer to fall back to)
-# and roughly doubles size vs the shipped pre-libplacebo Android flavor
-# (5.87MiB → this stack's Android counterpart came out at 10.62MB). Decision
+# MSYS2). Status: tentative — libplacebo is a hard mpv>=0.36 dependency (no
+# more non-libplacebo GPU renderer to fall back to) and roughly doubles size
+# vs the shipped pre-libplacebo Android flavor (5.87MiB → this stack's
+# Android counterpart lands at 9.29MB after its own hw-only cuts). Decision
 # on whether to adopt this across platforms is NOT made yet — this script
 # exists to keep the validated recipe + its pitfalls reproducible, not as a
 # production build. Invoked by .github/workflows/experiment-libmpv-v9.yml.
+#
+# Size history (stripped libmpv-2.dll, 2026-08-07):
+#   13.60MB  baseline (ffmpeg n9.0 + mpv v0.41.0 + libplacebo(d3d11+glslang))
+#   12.04MB  + mbedtls -> --enable-schannel (Windows' native TLS backend —
+#            zero extra build, just -lsecur32/-lncrypt/-lcrypt32, always
+#            present; mbedtls conflicts with schannel so it's fully dropped)
+#   11.91MB  + trim FreeType's modules.cfg (drop type1/cid/pfr/type42/
+#            winfonts/pcf/bdf font-format drivers, svg/sdf rasterizers,
+#            lzw/bzip2 compressed-font-stream support — none of it is
+#            reachable for the TTF/OTF fonts mova actually renders; gzip
+#            stays, sfnt's WOFF/OT-SVG decompression path needs it)
+#   11.89MB  + drop ffmpeg's own subtitle decoders/demuxers/--enable-libass
+#            (ass/ssa/subrip/text/webvtt/movtext decoders, ass/srt demuxers,
+#            mov2textsub bsf) — mova doesn't decode embedded/sidecar
+#            subtitle tracks through ffmpeg/mpv at all, captions are
+#            STT-generated in the Dart layer (see mova/doc/notes/
+#            2026-07-31-stt-subtitle-feasibility.md). SPIKE, not adopted:
+#            closes off "read the file's own SRT/ASS track" as a future
+#            feature without re-adding these. Marginal win (~22KB) because
+#            mpv's own core still hard-requires libass regardless (see
+#            below) — freetype/harfbuzz/fribidi/libass stay linked either way.
+#
+# Investigated and NOT pursued: mpv's meson.build has libass as an
+# unconditional dependency() with no feature option (unlike its d3d11/
+# vulkan/opengl toggles) — sub/osd_libass.c (722 lines) is mpv's actual OSD
+# text renderer (volume/seek popups, console, status messages — separate
+# from mova's Flutter-side UI, which draws on top of mpv's output texture
+# and never touches this) and sub/sd_ass.c (1215 lines) is the ASS subtitle
+# decoder. Neither is used by mova (see the STT note above — no OSD, no
+# container-subtitle decode), but stripping them means patching mpv's own
+# OSD backend-dispatch logic to tolerate zero text-rendering backends
+# compiling in — that's framework surgery, not a build flag, and a wrong
+# cut fails as "mpv doesn't start" rather than "missing a feature". No
+# upstream fork found that's already done this (searched 2026-08-07 —
+# --disable-libass is a stale waf-era flag, meson dropped it; mpv-android
+# forks all keep libass). Higher risk/reward than everything above; needs
+# real playback verification before attempting, not just symbol checks.
 set -e
 set -x
 
@@ -51,23 +87,9 @@ if [ ! -f "$PREFIX/lib/libz.a" ]; then
   cd "$WORK"
 fi
 
-# ---- mbedtls ----
-if [ ! -f "$PREFIX/lib/libmbedtls.a" ]; then
-  log "mbedtls"
-  [ -d mbedtls-src ] || git clone --depth 1 -b v3.6.2 https://github.com/Mbed-TLS/mbedtls.git mbedtls-src
-  cd mbedtls-src
-  git submodule update --init --depth 1 2>/dev/null || true
-  mkdir -p build && cd build
-  cmake -G Ninja \
-    -DCMAKE_SYSTEM_NAME=Windows \
-    -DCMAKE_C_COMPILER=$CROSS-gcc \
-    -DCMAKE_INSTALL_PREFIX="$PREFIX" \
-    -DENABLE_PROGRAMS=OFF -DENABLE_TESTING=OFF -DUSE_SHARED_MBEDTLS_LIBRARY=OFF \
-    ..
-  ninja
-  ninja install
-  cd "$WORK"
-fi
+# mbedtls dropped — TLS goes through Windows' native SChannel instead (see
+# the --enable-schannel flag in ffmpeg's configure below), which needs zero
+# build steps and zero extra size (just three always-present system DLLs).
 
 # meson cross file — regenerated unconditionally (not gated on any single
 # dep's skip-if-built check) since dav1d/fribidi/harfbuzz all reuse it.
@@ -104,6 +126,27 @@ if [ ! -f "$PREFIX/lib/libfreetype.a" ]; then
   log "freetype"
   [ -d freetype-src ] || git clone --depth 1 -b VER-2-13-3 https://github.com/freetype/freetype.git freetype-src
   cd freetype-src
+  # Drop font-format drivers/rasterizers/compression mova never feeds it —
+  # fonts reaching libass here are TTF/OTF (sfnt+truetype+cff), never the
+  # legacy PostScript Type1/CID/PFR/Type42, old Windows FNT, or X11
+  # PCF/BDF bitmap formats, and never OT-SVG/SDF glyphs or LZW/bzip2-
+  # compressed font streams. gzip stays: sfnt's own WOFF and OT-SVG paths
+  # (ttsvg.c/sfwoff.c) call FT_Gzip_Uncompress unconditionally, so removing
+  # it is a hard link failure, not a soft feature drop.
+  sed -i \
+    -e '/^FONT_MODULES += type1$/d' \
+    -e '/^FONT_MODULES += cid$/d' \
+    -e '/^FONT_MODULES += pfr$/d' \
+    -e '/^FONT_MODULES += type42$/d' \
+    -e '/^FONT_MODULES += winfonts$/d' \
+    -e '/^FONT_MODULES += pcf$/d' \
+    -e '/^FONT_MODULES += bdf$/d' \
+    -e '/^RASTER_MODULES += raster$/d' \
+    -e '/^RASTER_MODULES += svg$/d' \
+    -e '/^RASTER_MODULES += sdf$/d' \
+    -e '/^AUX_MODULES += lzw$/d' \
+    -e '/^AUX_MODULES += bzip2$/d' \
+    modules.cfg
   ./autogen.sh || true
   ./configure --host=$CROSS --prefix="$PREFIX" --enable-static --disable-shared \
     --with-harfbuzz=no --with-bzip2=no --with-png=no --with-brotli=no
@@ -163,15 +206,18 @@ if [ ! -f "$PREFIX/lib/libavcodec.a" ]; then
   # per-category --disable-X, so nothing new that ffmpeg adds a default-on
   # component for (e.g. a new hwaccel/bsf) sneaks in unlisted — every enabled
   # piece below is explicit and diffable against the Android list.
+  # No subtitle decoders/demuxers — mova doesn't decode embedded/sidecar
+  # subtitle tracks through ffmpeg/mpv at all (see the file header). This
+  # only trims ffmpeg's own decoder/demuxer registration; libass itself
+  # stays linked regardless, since mpv's core hard-requires it (see header).
   DECODERS_VIDEO="h264,hevc,vp9,libdav1d,png"
   DECODERS_AUDIO="aac,aac_latm,mp3,mp3float,opus,ac3,eac3,flac,vorbis,pcm_s16le,pcm_s16be,pcm_s24le,pcm_s32le,pcm_f32le,pcm_u8"
-  DECODERS_SUB="ass,ssa,subrip,text,webvtt,movtext"
-  DECODERS="$DECODERS_VIDEO,$DECODERS_AUDIO,$DECODERS_SUB"
+  DECODERS="$DECODERS_VIDEO,$DECODERS_AUDIO"
   ENCODERS="png"
   PARSERS="h264,hevc,vp9,av1,png,aac,aac_latm,ac3,flac,opus,vorbis,mpegaudio"
-  DEMUXERS="mov,matroska,webm_dash_manifest,mpegts,hls,flv,live_flv,data,mp3,flac,ogg,wav,aac,ac3,eac3,ass,srt,webvtt"
+  DEMUXERS="mov,matroska,webm_dash_manifest,mpegts,hls,flv,live_flv,data,mp3,flac,ogg,wav,aac,ac3,eac3"
   PROTOCOLS="file,fd,pipe,data,http,https,tcp,tls,crypto,rtmp,rtmps,rtmpt,rtmpts,ffrtmpcrypt,ffrtmphttp,udp,rtp"
-  BSFS="null,extract_extradata,h264_mp4toannexb,hevc_mp4toannexb,aac_adtstoasc,vp9_superframe,vp9_superframe_split,av1_frame_split,av1_frame_merge,mov2textsub,dump_extradata,setts"
+  BSFS="null,extract_extradata,h264_mp4toannexb,hevc_mp4toannexb,aac_adtstoasc,vp9_superframe,vp9_superframe_split,av1_frame_split,av1_frame_merge,dump_extradata,setts"
   HWACCELS="h264_d3d11va,h264_d3d11va2,h264_dxva2,hevc_d3d11va,hevc_d3d11va2,hevc_dxva2,vp9_d3d11va,vp9_d3d11va2,vp9_dxva2,av1_d3d11va,av1_d3d11va2,av1_dxva2"
 
   # --disable-autodetect is the systemic version of the vulkan/iconv disables
@@ -194,7 +240,7 @@ if [ ! -f "$PREFIX/lib/libavcodec.a" ]; then
     \
     --enable-small --enable-optimizations \
     \
-    --enable-mbedtls --enable-zlib --enable-libdav1d --enable-libass \
+    --enable-schannel --enable-zlib --enable-libdav1d \
     \
     --enable-avutil --enable-avcodec --enable-avfilter --enable-avformat \
     --enable-swscale --enable-swresample \
@@ -210,7 +256,7 @@ if [ ! -f "$PREFIX/lib/libavcodec.a" ]; then
     --enable-network \
     --extra-cflags="-I$PREFIX/include" \
     --extra-ldflags="-L$PREFIX/lib" \
-    --extra-libs="-lmbedtls -lmbedx509 -lmbedcrypto -lws2_32 -lbcrypt" \
+    --extra-libs="-lws2_32" \
     --prefix="$PREFIX"
   make -j"$NPROC"
   make install
@@ -379,6 +425,6 @@ fi
 log "ALL DONE"
 DLL=$(find "$PREFIX" -iname 'libmpv*.dll' | head -1)
 $CROSS-strip -s "$DLL" -o "$WORK/libmpv-2-stripped.dll"
-echo "### libmpv-2.dll size (windows x86_64, ffmpeg n9.0 + mpv v0.41.0 + libplacebo)" >> "${GITHUB_STEP_SUMMARY:-/dev/stdout}"
+echo "### libmpv-2.dll size (windows x86_64, ffmpeg n9.0 + mpv v0.41.0 + libplacebo, schannel, trimmed freetype/subs)" >> "${GITHUB_STEP_SUMMARY:-/dev/stdout}"
 SIZE_BYTES=$(stat -c%s "$WORK/libmpv-2-stripped.dll")
 echo "$SIZE_BYTES bytes ($(numfmt --to=iec-i --suffix=B "$SIZE_BYTES" 2>/dev/null || echo "$SIZE_BYTES B"))" >> "${GITHUB_STEP_SUMMARY:-/dev/stdout}"

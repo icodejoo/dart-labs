@@ -35,6 +35,43 @@ name: Experiment - libmpv ffmpeg n9.0 + mpv v0.41.0 + libplacebo
 #         10.62MB -> 9.73MB (h264) -> 9.29MB (+hevc), zero source patches,
 #         just configure flags. Android-only — do not port the hevc cut to
 #         iOS, where pre-A9 devices have no HEVC VideoToolbox decode.
+#   - Separate follow-up dig on the Windows 13.60MB baseline (not yet
+#     ported to Android except where noted):
+#       * mbedtls -> --enable-schannel (Windows' native TLS backend, zero
+#         build cost, always-present system DLLs): 13.60MB -> 12.04MB.
+#         Android has no equivalent native-TLS ffmpeg backend, keeps mbedtls.
+#       * FreeType modules.cfg trimmed to drop font formats/rasterizers/
+#         compression mova's TTF/OTF-only rendering never reaches (Type1/
+#         CID/PFR/Type42/WinFonts/PCF/BDF, SVG/SDF raster, LZW/bzip2):
+#         12.04MB -> 11.91MB. Not yet re-validated on Android.
+#       * Dropped ffmpeg's own subtitle decoders/demuxers/--enable-libass
+#         (mova never decodes embedded/sidecar subtitle tracks through
+#         ffmpeg/mpv — captions are STT-generated Dart-side, see mova/doc/
+#         notes/2026-07-31-stt-subtitle-feasibility.md): 11.91MB -> 11.89MB.
+#         Tiny win (~22KB) because mpv's own core hard-requires libass
+#         regardless (see next point) — freetype/harfbuzz/fribidi/libass
+#         stay linked either way.
+#   - Investigated and explicitly NOT pursued: whether mpv could drop
+#     libass entirely, since mova uses neither mpv's OSD (volume/seek
+#     popups, console — mova's own UI is a Flutter overlay on top of mpv's
+#     output texture, never touches this) nor mpv's ASS-subtitle decoding.
+#     mpv's meson.build has libass as an unconditional dependency() with no
+#     feature toggle; the actual coupling is concentrated in 4 files
+#     (sub/osd_libass.c 722 lines, sub/sd_ass.c 1215, sub/ass_mp.c 472,
+#     sub/draw_bmp.c 1039 — everything else referencing "libass"/"ass_" is
+#     either a doc comment or a generic OSD-bitmap struct field, not a real
+#     call). Removing them is plausible on paper (unconditional
+#     sources-list entries, a couple of stray property getters in
+#     player/command.c) but requires patching mpv's OSD backend-dispatch to
+#     tolerate zero compiled-in text-rendering backends — framework surgery
+#     where a wrong cut fails as "mpv doesn't start", not "missing a
+#     feature". Searched 2026-08-07 for a fork that's already done this —
+#     none found (`--disable-libass` is a stale flag from mpv's pre-meson
+#     waf build; every mpv-android fork checked still ships libass). This
+#     is the single largest remaining win identified (freetype+harfbuzz+
+#     fribidi+libass together are multiple MB) but also the highest risk —
+#     don't attempt without a way to verify actual playback afterward, not
+#     just symbol-presence checks.
 #
 # STATUS: tentative / not adopted. This workflow exists to keep the
 # validated recipe (and the several build-system pitfalls it took to get a
