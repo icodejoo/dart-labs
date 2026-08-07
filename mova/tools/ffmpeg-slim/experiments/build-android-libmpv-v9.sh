@@ -3,13 +3,28 @@
 # for that, still the production path, 5.87MiB, pre-libplacebo mpv). This
 # script replicates ../build-win-libmpv-v9.sh's stack (ffmpeg n9.0 + mpv
 # v0.41.0 + libplacebo) for Android arm64-v8a/API 24 to get an
-# apples-to-apples cross-platform size comparison. Validated 2026-08-07 in
-# WSL2 + NDK r25c: libmpv.so, 10.62MB stripped (vs the shipped 5.87MiB — same
-# ~1.8x libplacebo tax as Windows). libplacebo uses the Vulkan backend here
-# (not d3d11 — Android's native GPU API), so no spirv-cross is needed:
-# Vulkan consumes SPIR-V directly. Status: tentative, see
-# ../build-win-libmpv-v9.sh's header for the adoption decision context.
-# Invoked by .github/workflows/experiment-libmpv-v9.yml.
+# apples-to-apples cross-platform size comparison. libplacebo uses the
+# Vulkan backend here (not d3d11 — Android's native GPU API), so no
+# spirv-cross is needed: Vulkan consumes SPIR-V directly.
+#
+# Size history (stripped libmpv.so, 2026-08-07, WSL2 + NDK r25c):
+#   10.62MB  baseline (ffmpeg n9.0 + mpv v0.41.0 + libplacebo)
+#    9.73MB  + drop h264 software decoder, hw-only via h264_mediacodec
+#    9.29MB  + drop hevc software decoder, hw-only via hevc_mediacodec
+# vs the shipped 5.87MiB pre-libplacebo build — libplacebo is still a fixed
+# ~1.6x tax after both hw-only cuts (same order of magnitude as Windows'
+# 13.60MB equivalent). The h264/hevc hw-only decoders are standalone FFCodec
+# implementations (same as the already-shipped vp9/av1 hw-only tradeoff in
+# ../flavors-mova-slim.sh) — they only need the codec's parser (already
+# enabled) to find frame boundaries, not the software decoder. H.264
+# MediaCodec coverage has been mandatory since API 16; HEVC MediaCodec is
+# broadly available from API 21+. This is an Android-only call — do NOT
+# port the hevc hw-only cut to iOS: pre-A9 devices (iPhone 6 and older,
+# still inside many apps' iOS 12+ floor) have no HEVC VideoToolbox decode.
+#
+# Status: tentative, see ../build-win-libmpv-v9.sh's header for the
+# libplacebo adoption decision context. Invoked by
+# .github/workflows/experiment-libmpv-v9.yml.
 set -e
 set -x
 
@@ -196,7 +211,9 @@ if [ ! -f "$PREFIX/lib/libavcodec.a" ]; then
   [ -d ffmpeg-src ] || git clone --depth 1 --branch n9.0 https://github.com/FFmpeg/FFmpeg.git ffmpeg-src
   cd ffmpeg-src
 
-  DECODERS_VIDEO="h264,hevc,vp9,libdav1d,png"
+  # h264/hevc software decoders dropped, hw-only via *_mediacodec — see the
+  # file header for the size numbers and the coverage rationale.
+  DECODERS_VIDEO="vp9,libdav1d,png"
   DECODERS_AUDIO="aac,aac_latm,mp3,mp3float,opus,ac3,eac3,flac,vorbis,pcm_s16le,pcm_s16be,pcm_s24le,pcm_s32le,pcm_f32le,pcm_u8"
   DECODERS_SUB="ass,ssa,subrip,text,webvtt,movtext"
   DECODERS="$DECODERS_VIDEO,$DECODERS_AUDIO,$DECODERS_SUB"
@@ -320,6 +337,6 @@ fi
 log "ALL DONE"
 SO=$(find "$PREFIX" -iname 'libmpv*.so' | head -1)
 $STRIP -s "$SO" -o "$WORK/libmpv-stripped.so"
-echo "### libmpv.so size (android arm64-v8a, ffmpeg n9.0 + mpv v0.41.0 + libplacebo)" >> "${GITHUB_STEP_SUMMARY:-/dev/stdout}"
+echo "### libmpv.so size (android arm64-v8a, ffmpeg n9.0 + mpv v0.41.0 + libplacebo, h264/hevc hw-only)" >> "${GITHUB_STEP_SUMMARY:-/dev/stdout}"
 SIZE_BYTES=$(stat -c%s "$WORK/libmpv-stripped.so")
 echo "$SIZE_BYTES bytes ($(numfmt --to=iec-i --suffix=B "$SIZE_BYTES"))" >> "${GITHUB_STEP_SUMMARY:-/dev/stdout}"

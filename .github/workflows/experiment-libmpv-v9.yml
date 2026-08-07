@@ -20,6 +20,21 @@ name: Experiment - libmpv ffmpeg n9.0 + mpv v0.41.0 + libplacebo
 #     Windows's equivalent lands at 13.60MB. This isn't a windows-specific
 #     issue; it's the fixed cost of "new mpv" vs "old mpv", not something a
 #     configure flag can trim away.
+#   - Follow-up dig for more cuts on top of that 10.62MB Android baseline:
+#       * libavutil/tx.h's generic FFT/MDCT table ladder (1024..131072) is
+#         unconditional framework code, not decoder-scoped — none of our
+#         enabled decoders ever request above ~4096 (AAC maxes at 1024,
+#         Vorbis's spec ceiling is 4096). Patching libavutil/tx_template.c
+#         to drop the 16384+ rungs looked promising on paper but broke the
+#         aarch64 NEON fast path (libavutil/aarch64/tx_float_neon.S
+#         references those table symbols directly) — reverted, not worth
+#         the risk for the win.
+#       * Dropping the h264/hevc *software* decoders and going hw-only via
+#         h264_mediacodec/hevc_mediacodec (same standalone-FFCodec pattern
+#         flavors-mova-slim.sh already uses for vp9/av1) DID land cleanly:
+#         10.62MB -> 9.73MB (h264) -> 9.29MB (+hevc), zero source patches,
+#         just configure flags. Android-only — do not port the hevc cut to
+#         iOS, where pre-A9 devices have no HEVC VideoToolbox decode.
 #
 # STATUS: tentative / not adopted. This workflow exists to keep the
 # validated recipe (and the several build-system pitfalls it took to get a
