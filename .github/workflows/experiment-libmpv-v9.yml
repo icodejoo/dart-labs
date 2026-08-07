@@ -51,27 +51,46 @@ name: Experiment - libmpv ffmpeg n9.0 + mpv v0.41.0 + libplacebo
 #         Tiny win (~22KB) because mpv's own core hard-requires libass
 #         regardless (see next point) — freetype/harfbuzz/fribidi/libass
 #         stay linked either way.
-#   - Investigated and explicitly NOT pursued: whether mpv could drop
-#     libass entirely, since mova uses neither mpv's OSD (volume/seek
-#     popups, console — mova's own UI is a Flutter overlay on top of mpv's
-#     output texture, never touches this) nor mpv's ASS-subtitle decoding.
-#     mpv's meson.build has libass as an unconditional dependency() with no
-#     feature toggle; the actual coupling is concentrated in 4 files
-#     (sub/osd_libass.c 722 lines, sub/sd_ass.c 1215, sub/ass_mp.c 472,
-#     sub/draw_bmp.c 1039 — everything else referencing "libass"/"ass_" is
-#     either a doc comment or a generic OSD-bitmap struct field, not a real
-#     call). Removing them is plausible on paper (unconditional
-#     sources-list entries, a couple of stray property getters in
-#     player/command.c) but requires patching mpv's OSD backend-dispatch to
-#     tolerate zero compiled-in text-rendering backends — framework surgery
-#     where a wrong cut fails as "mpv doesn't start", not "missing a
-#     feature". Searched 2026-08-07 for a fork that's already done this —
-#     none found (`--disable-libass` is a stale flag from mpv's pre-meson
-#     waf build; every mpv-android fork checked still ships libass). This
-#     is the single largest remaining win identified (freetype+harfbuzz+
-#     fribidi+libass together are multiple MB) but also the highest risk —
-#     don't attempt without a way to verify actual playback afterward, not
-#     just symbol-presence checks.
+#   - Investigated and prototyped (but NOT adopted — decision pending
+#     further discussion): whether mpv could drop libass entirely, since
+#     mova uses neither mpv's OSD (volume/seek popups, console — mova's own
+#     UI is a Flutter overlay on top of mpv's output texture, never touches
+#     this) nor mpv's ASS-subtitle decoding for its own captions. The patch
+#     (stub out sub/osd_libass.c, sub/sd_ass.c, sub/ass_mp.c) was written,
+#     compiled, linked, and real-device tested successfully — libass CAN be
+#     fully removed. Left out of this script because real-device testing
+#     also confirmed the opposite case works well: mpv's own sub-add command
+#     can load a real SRT/ASS file and auto-sync it to playback PTS across
+#     seeks (screenshot-verified at multiple seek points), which only works
+#     with libass present. Whether mova wants that capability is an open
+#     product question, not a build-flag decision — subtitle decode/demux
+#     and libass are both back in this script (see the D3D11/shaderc/
+#     subtitle entry below) pending that call.
+#   - D3D11 hwdec was broken (--enable-d3d11va/--enable-dxva2 silently
+#     swallowed by --disable-autodetect, separate from the per-codec
+#     --enable-hwaccel list) — fixed and real-device verified via mpv -v log
+#     showing "Using hardware decoding (d3d11va)" (zero-copy), not just a
+#     size measurement. CPU/memory benchmark on 720p h264: D3D11+hwdec
+#     3%CPU/153MB vs GL+dxinterop-copy 7.6%/264MB vs D3D11+software
+#     14%/201MB vs GL+software 12.8%/189MB — D3D11 kept on this basis.
+#     mpv's OWN d3d11 GPU context (separate from libplacebo's) additionally
+#     needs shaderc (glslang alone, which libplacebo uses, isn't enough) —
+#     shaderc vendors its own glslang+SPIRV-Tools copy, not deduped against
+#     the standalone build, a known remaining size cut not yet done.
+#   - HarfBuzz/libass audited for accidentally-enabled optional deps
+#     (graphite2/gobject/introspection/ICU for HarfBuzz, fontconfig for
+#     libass) — none were actually being pulled in by this cross-compile
+#     environment (byte-identical lib sizes before/after), pinned disabled
+#     explicitly anyway so a CI image change can't silently reintroduce them.
+#   - dav1d (external AV1 software decoder) dropped entirely — AV1 now goes
+#     through ffmpeg's native "av1" decoder + hwaccel only (mirrors the
+#     existing h264/hevc hw-only pattern below). libdav1d.a had no hwaccel
+#     hook at all, so AV1 hw decode wasn't actually reachable before this
+#     despite av1_d3d11va/dxva2 already being listed. Verified via a
+#     like-for-like relink: final unstripped libmpv-2.dll 40,507,664 ->
+#     37,657,104 bytes (~2.78MB). No AV1 test clip available to
+#     screenshot-verify the hw decode path itself, but the registration
+#     mechanism is identical to h264/hevc/vp9's, which WAS verified.
 #
 # STATUS: tentative / not adopted. This workflow exists to keep the
 # validated recipe (and the several build-system pitfalls it took to get a
