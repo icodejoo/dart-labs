@@ -726,6 +726,40 @@ index 9a5fafd..4548588 100644
          cp -r $src $out
        '';
  in
+diff --git a/nix/packages/mk-pkg-libxml2/default.nix b/nix/packages/mk-pkg-libxml2/default.nix
+index bf1f92b..099d3d7 100644
+--- a/nix/packages/mk-pkg-libxml2/default.nix
++++ b/nix/packages/mk-pkg-libxml2/default.nix
+@@ -27,6 +27,29 @@ let
+     patch -p1 <${../../../patches/ltmain-target-passthrough.patch}
+     cd -
+ 
++    # libxml2's own `bin_PROGRAMS = xmllint xmlcatalog` (Makefile.am/
++    # Makefile.in both bake this in unconditionally — no ./configure flag
++    # gates it, confirmed against the actual 2.11.5 release tarball) builds
++    # two CLI tools that link against the libxml2 being built in the same
++    # tree. CI run 31372370908 (movaslim size-optimization pass, every
++    # cross-file now carries -fvisibility=hidden): xmlcatalog failed with
++    # dozens of undefined xmlCatalog*/xmlFree/etc. symbols. Root cause is
++    # libxml2 itself, not our flag being wrong: its own
++    # include/libxml/xmlexports.h defines XMLPUBLIC as fully empty on non-
++    # Windows (`__declspec(dllexport/dllimport)` only applies under
++    # _WIN32) — it was never designed to build under a blanket
++    # -fvisibility=hidden without also carrying real
++    # __attribute__((visibility("default"))) markup, unlike glslang/
++    # libplacebo/mpv which already handle this correctly. Sed both files
++    # to drop xmllint/xmlcatalog from the default build — mova only needs
++    # the library (linked via libxml2_dep below), never these CLI tools.
++    sed -i \
++      -e 's/^bin_PROGRAMS = xmllint xmlcatalog$/bin_PROGRAMS =/' \
++      "$src/Makefile.am"
++    sed -i \
++      -e 's/^bin_PROGRAMS = xmllint\$(EXEEXT) xmlcatalog\$(EXEEXT)$/bin_PROGRAMS =/' \
++      "$src/Makefile.in"
++
+     cp ${./meson.build} $src/meson.build
+ 
+     cp -r $src $out
 diff --git a/nix/packages/mk-pkg-mpv/default.nix b/nix/packages/mk-pkg-mpv/default.nix
 index 543805a..f62c713 100644
 --- a/nix/packages/mk-pkg-mpv/default.nix
