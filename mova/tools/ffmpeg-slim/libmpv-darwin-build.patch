@@ -11,8 +11,8 @@ diff -ruN -x .git static6c/nix/packages/mk-pkg-dav1d/default.nix static6b/nix/pa
        -Denable_tools=false \
 diff -ruN -x .git static6c/nix/packages/mk-pkg-ffmpeg/default.nix static6b/nix/packages/mk-pkg-ffmpeg/default.nix
 --- a/nix/packages/mk-pkg-ffmpeg/default.nix	2026-08-10 18:59:51.639082800 +0800
-+++ b/nix/packages/mk-pkg-ffmpeg/default.nix	2026-08-10 19:56:04.905101000 +0800
-@@ -1,102 +1,165 @@
++++ b/nix/packages/mk-pkg-ffmpeg/default.nix	2026-08-10 20:03:03.534104000 +0800
+@@ -1,102 +1,158 @@
 -{
 -  pkgs ? import ../../utils/default/pkgs.nix,
 -  os ? import ../../utils/default/os.nix,
@@ -235,38 +235,31 @@ diff -ruN -x .git static6c/nix/packages/mk-pkg-ffmpeg/default.nix static6b/nix/p
 +      libvpx
 +      libx264
 +    ];
-+  # CI runs 31379586940/31380265939 (reproducible, not a caching fluke):
-+  # "ERROR: libxml-2.0 not found using pkg-config" from ffmpeg's own
-+  # ./configure, despite libxml2 building and installing libxml-2.0.pc
-+  # successfully in the same run. mbedtls/dav1d don't hit this (ffmpeg's
-+  # configure likely checks them via a non-pkg-config path), which is why
-+  # only libxml2's check surfaces it. This package uses
-+  # `stdenvNoCC.mkDerivation` (no C compiler wrapper) — pkg-config's usual
-+  # "auto-populate PKG_CONFIG_PATH from buildInputs" setup-hook may not
-+  # engage the same way it does under full stdenv, and every prior success
-+  # happened to have libxml2 already cache-hit from an earlier run rather
-+  # than freshly built in the same session, which likely papered over this
-+  # rather than actually exercising the propagation path. Set it
-+  # explicitly instead of relying on that implicit mechanism.
++  # CI runs 31379586940 onward: ffmpeg's own ./configure reported
++  # "libxml-2.0 not found using pkg-config" despite libxml2 installing a
++  # perfectly valid libxml-2.0.pc, and a plain PKG_CONFIG_PATH env var
++  # (also confirmed reachable via manual repro in the same shell) made no
++  # difference. Root cause (run 31385727949's manual pkg-config --static
++  # dump confirmed the .pc file itself is fine): meson's cross-file build
++  # ("Build type: cross build", true even macOS-arm64-to-macOS-arm64,
++  # since --cross-file is always passed) doesn't forward the host shell's
++  # PKG_CONFIG_PATH into external_project's pkg-config lookups — it needs
++  # meson's own built-in `pkg_config_path` option instead (confirmed real:
++  # trying to declare a project option of that name errors with "Option
++  # name pkg_config_path is reserved"), which both the external_project
++  # module and ordinary dependency() calls read directly, cross-build
++  # aware, in place of the ambient environment.
 +  PKG_CONFIG_PATH = pkgs.lib.concatStringsSep ":" (
 +    map (dep: "${dep}/lib/pkgconfig") ([ mbedtls ] ++ pkgs.lib.optionals (variant == variants.video) [ dav1d libxml2 ])
 +  );
 +  configurePhase = ''
-+    echo "DEBUG PKG_CONFIG_PATH=$PKG_CONFIG_PATH"
-+    echo "DEBUG which pkg-config: $(command -v pkg-config)"
-+    pkg-config --exists --print-errors libxml-2.0 && echo "DEBUG raw pkg-config: FOUND" || echo "DEBUG raw pkg-config: NOT FOUND"
-+    pkg-config --cflags --libs libxml-2.0 || true
-+    echo "DEBUG static pkg-config check:"
-+    pkg-config --static --exists --print-errors libxml-2.0 && echo "DEBUG static: FOUND" || echo "DEBUG static: NOT FOUND"
-+    pkg-config --static --cflags --libs libxml-2.0 || true
-+    cat "$(pkg-config --variable=pcfiledir libxml-2.0)/libxml-2.0.pc" || true
 +    meson setup build $src \
 +      --native-file ${nativeFile} \
 +      --cross-file ${crossFile} \
 +      --prefix=$out \
 +      -Dvariant=${variant} \
 +      -Dflavor=${flavor} \
-+      -Dffmpeg_pkg_config_path="$PKG_CONFIG_PATH" |
++      -Dpkg_config_path="$PKG_CONFIG_PATH" |
 +      tee configure.log
 +  '';
 +  buildPhase = ''
@@ -282,8 +275,8 @@ diff -ruN -x .git static6c/nix/packages/mk-pkg-ffmpeg/default.nix static6b/nix/p
 +}
 diff -ruN -x .git static6c/nix/packages/mk-pkg-ffmpeg/meson.build static6b/nix/packages/mk-pkg-ffmpeg/meson.build
 --- a/nix/packages/mk-pkg-ffmpeg/meson.build	2026-08-10 18:59:51.639082800 +0800
-+++ b/nix/packages/mk-pkg-ffmpeg/meson.build	2026-08-10 19:26:50.606970700 +0800
-@@ -1,370 +1,522 @@
++++ b/nix/packages/mk-pkg-ffmpeg/meson.build	2026-08-10 20:03:03.421052000 +0800
+@@ -1,370 +1,515 @@
 -# https://mesonbuild.com/External-Project-module.html
 -
 -project('ffmpeg', 'c', 'cpp', 'objc')
@@ -1128,15 +1121,8 @@ diff -ruN -x .git static6c/nix/packages/mk-pkg-ffmpeg/meson.build static6b/nix/p
 +# package individually.
 +options += ['--enable-static', '--disable-shared']
 +
-+# stdenvNoCC's external_project configure subprocess doesn't inherit the
-+# derivation's PKG_CONFIG_PATH env var (same gap fixed for AR above) —
-+# thread it through explicitly via a meson option instead.
-+ffmpeg_pkg_config_path = get_option('ffmpeg_pkg_config_path')
-+message('DEBUG ffmpeg_pkg_config_path = "@0@"'.format(ffmpeg_pkg_config_path))
-+
 +p = mod.add_project('configure',
 +    configure_options : options,
-+    env : ffmpeg_pkg_config_path != '' ? {'PKG_CONFIG_PATH': ffmpeg_pkg_config_path} : {},
 +    cross_configure_options: [
 +        '--enable-cross-compile',
 +        '--target-os=@0@'.format(host_machine.system()),
@@ -1178,13 +1164,12 @@ diff -ruN -x .git static6c/nix/packages/mk-pkg-ffmpeg/meson.build static6b/nix/p
 +meson.override_dependency('libswresample', libswresample_dep)
 diff -ruN -x .git static6c/nix/packages/mk-pkg-ffmpeg/meson.options static6b/nix/packages/mk-pkg-ffmpeg/meson.options
 --- a/nix/packages/mk-pkg-ffmpeg/meson.options	2026-08-10 18:59:51.640083400 +0800
-+++ b/nix/packages/mk-pkg-ffmpeg/meson.options	2026-08-10 19:20:20.492539600 +0800
-@@ -1,2 +1,3 @@
++++ b/nix/packages/mk-pkg-ffmpeg/meson.options	2026-08-10 20:03:03.477374300 +0800
+@@ -1,2 +1,2 @@
 -option('variant', type : 'combo', choices : ['audio', 'video'])
 -option('flavor', type : 'combo', choices : ['default', 'full', 'encodersgpl'])
 +option('variant', type : 'combo', choices : ['audio', 'video'])
 +option('flavor', type : 'combo', choices : ['default', 'full', 'encodersgpl', 'movaslim'])
-+option('ffmpeg_pkg_config_path', type : 'string', value : '')
 diff -ruN -x .git static6c/nix/packages/mk-pkg-freetype/default.nix static6b/nix/packages/mk-pkg-freetype/default.nix
 --- a/nix/packages/mk-pkg-freetype/default.nix	2026-08-10 18:59:51.643703500 +0800
 +++ b/nix/packages/mk-pkg-freetype/default.nix	2026-08-10 18:59:49.982274500 +0800
