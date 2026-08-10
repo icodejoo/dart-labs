@@ -6,6 +6,7 @@ import 'package:mova/src/core/model/orientation.dart';
 import 'package:mova/src/core/model/source.dart';
 import 'package:mova/src/core/options/options.dart';
 import 'package:mova/src/core/state/state.dart';
+import 'package:mova/src/ui/components/pip_overlay.dart';
 import 'package:mova/src/ui/components/top_bar.dart';
 
 import '../support/fake_api.dart';
@@ -23,12 +24,21 @@ void main() {
     await api.dispose();
   });
 
-  testWidgets('pip button is hidden when the platform reports no pip support', (t) async {
-    final api = FakeMovaApi()..pipSupported = false;
-    await pumpComponent(t, api, TopBarComponent());
-    expect(find.byIcon(Icons.picture_in_picture_alt_rounded), findsNothing);
-    await api.dispose();
-  });
+  testWidgets(
+    'pip button falls back to the in-app floating overlay when the platform '
+    'reports no pip support',
+    (t) async {
+      final api = FakeMovaApi()..pipSupported = false;
+      await pumpComponent(t, api, TopBarComponent());
+      expect(find.byIcon(Icons.picture_in_picture_alt_rounded), findsOneWidget);
+      await t.tap(find.byIcon(Icons.picture_in_picture_alt_rounded));
+      await t.pump();
+      expect(api.calls, isNot(contains('enterPip')));
+      expect(find.byIcon(Icons.close_rounded), findsOneWidget);
+      MovaPipOverlay.hide();
+      await api.dispose();
+    },
+  );
 
   testWidgets('pip button shows and enters pip when supported', (t) async {
     final api = FakeMovaApi()..pipSupported = true;

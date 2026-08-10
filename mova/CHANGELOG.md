@@ -3,6 +3,20 @@
 UI 插件化：把 0.2.0 已有的组件树/皮肤/补丁沉淀为 **Plugin / Component / Skin**
 三层契约，并翻转手势侧别对齐主流。**破坏性变更**（0.2.0 尚未发布）。
 
+* **iOS 画中画：阶段1骨架 + 阶段3应用内悬浮窗降级**（承自 fvideo #5，见
+  [doc/notes/2026-07-31-ios-pip-feasibility.md](doc/notes/2026-07-31-ios-pip-feasibility.md) §8）：
+  - `PipButtonComponent` 不再在 `pipSupported == false` 时隐藏——现在始终显示，
+    点击时按 `MovaApi.pipSupported` 分流：支持则走系统 PiP，否则打开新增的
+    `MovaPipOverlay`（`lib/src/ui/components/pip_overlay.dart`），把现有视频
+    画面缩进一个可拖动/可缩放的应用内悬浮小窗（非系统级 PiP，退后台即消失），
+    跨平台立即可用，示例见 example app 的"画中画悬浮窗兜底演示"入口。
+  - iOS 原生新增 `MovaPipController.swift`：`AVSampleBufferDisplayLayer` +
+    `AVPictureInPictureController(contentSource:)` 骨架，`AVAudioSession`
+    设 `.playback`，喂纯色测试卡假帧；`Info.plist` 加 `UIBackgroundModes:
+    audio`。**未在真机/Xcode 编译验证过**；`MethodChannelMova.isPipSupported()`
+    在 iOS 上仍无条件回报 `false`，`MovaApi.pipSupported` 契约不变，等阶段0/5
+    真机验证过再翻转。
+
 * **`MovaPlugin` 能力 mixin**：为「事件副作用型」有状态组件提供两样与业务无关的能力——
   `api`（稳定句柄，`MovaScope.readOf` 非依赖读，`initState` 安全）与 `bind()`（订阅并在
   `dispose` 自动回收）。纯渲染组件仍走 `MovaSelect`，无需 mixin。

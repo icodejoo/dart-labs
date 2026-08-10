@@ -323,6 +323,13 @@ class _PlayerPageState extends State<PlayerPage> {
             ),
           ),
           IconButton(
+            tooltip: '画中画悬浮窗兜底演示（阶段3）',
+            icon: const Icon(Icons.picture_in_picture_alt_rounded),
+            onPressed: () => Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => const PipOverlayDemoPage()),
+            ),
+          ),
+          IconButton(
             tooltip: _previewOn ? '关闭预览' : '开启预览',
             icon: Icon(_previewOn ? Icons.image : Icons.image_not_supported),
             onPressed: () => _togglePreview(!_previewOn),
@@ -716,6 +723,60 @@ class _AdDemoPageState extends State<AdDemoPage> {
               ],
             ),
           ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Demo page for the阶段3 in-app floating-window PiP fallback
+/// (`MovaPipOverlay`, see `doc/notes/2026-07-31-ios-pip-feasibility.md` §3/§8):
+/// tap the top bar's PiP button and — since desktop/this example always
+/// reports `pipSupported == false` — the video shrinks into a small
+/// draggable/resizable window floating over this page instead of doing
+/// nothing, letting the rest of the page stay usable underneath.
+///
+/// 阶段3应用内悬浮窗画中画降级方案（`MovaPipOverlay`，参见
+/// `doc/notes/2026-07-31-ios-pip-feasibility.md` §3/§8）演示页：点击顶部条的
+/// 画中画按钮——由于桌面端/本示例始终报告 `pipSupported == false`——视频会缩成
+/// 一个悬浮在本页面之上、可拖动/可缩放的小窗，而非毫无反应，页面其余部分仍可
+/// 正常使用。
+class PipOverlayDemoPage extends StatefulWidget {
+  /// Creates the PiP-overlay demo page.
+  ///
+  /// 创建画中画悬浮窗演示页面。
+  const PipOverlayDemoPage({super.key});
+
+  @override
+  State<PipOverlayDemoPage> createState() => _PipOverlayDemoPageState();
+}
+
+/// State for [PipOverlayDemoPage]; owns the demo engine.
+///
+/// [PipOverlayDemoPage] 的状态；持有演示引擎。
+class _PipOverlayDemoPageState extends State<PipOverlayDemoPage> {
+  /// The playback facade backing this page's player.
+  ///
+  /// 支撑本页面播放器的播放能力面。
+  late final MovaEngine _engine = createMovaEngine()..open(MovaSource(_feedSources.first));
+
+  @override
+  void dispose() {
+    _engine.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('画中画悬浮窗兜底演示')),
+      body: Column(
+        children: [
+          const Padding(
+            padding: EdgeInsets.all(16),
+            child: Text('点顶部条的画中画图标：小窗会悬浮出来，可拖动/可缩放，右上角关闭。'),
+          ),
+          AspectRatio(aspectRatio: 16 / 9, child: MovaPlayer(api: _engine)),
         ],
       ),
     );

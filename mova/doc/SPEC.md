@@ -203,21 +203,34 @@ import Flutter widget 与直接依赖 `MovaApi` 的地方。
   timeshiftBadgeColor`）间切换；`backToLive`（原 `backToEdge`，已删除并改名）
   调 `backToLiveEdge()` 而非 `reload()`。
 
-## PiP（原生）
+## PiP（原生 + 应用内悬浮窗降级）
 
 - Dart 侧经 `MovaPipPort`；Android `MovaPlugin.kt` 用
-  `PictureInPictureParams`，宽高比 `clamp(0.42, 2.39)`；iOS/桌面未实现，
+  `PictureInPictureParams`，宽高比 `clamp(0.42, 2.39)`；桌面未实现，
   `isPipSupported()` 返回 `false`。
-- **iOS 系统 PiP：待定任务（未完成）**。可行性已调研，方向为
-  `AVSampleBufferDisplayLayer` + `CVPixelBuffer`（Android 是 Activity 级 PiP，无需取帧；
-  iOS 必须自渲染取帧）；落地卡在一次需 Mac + iOS 15+ 真机的门槛 spike。**契约维持不变**：
-  落地前 `isPipSupported()` 仍返回 `false`、`PipButtonComponent` 自动隐藏；落地后仅原生
-  返回值变化，Dart/UI 零改动。完整研究 + 落地计划见
+- **iOS 系统 PiP：阶段1骨架已落地（未真机验证）**。`ios/mova/Sources/mova/MovaPipController.swift`
+  起了 `AVSampleBufferDisplayLayer` + `AVPictureInPictureController(contentSource:)`，
+  `AVPictureInPictureSampleBufferPlaybackDelegate` 的 play/pause/skip 回调是
+  `// TODO(spike)` 空桩，`AVAudioSession` 已设 `.playback`，`enterPip` 灌入的是
+  定时器产出的纯色测试卡假帧（阶段2真实 libmpv 取帧仍未做）；
+  `example/ios/Runner/Info.plist` 已加 `UIBackgroundModes: audio`。**Dart 侧契约
+  刻意维持不变**：`MethodChannelMova.isPipSupported()` 在 iOS 上无条件短路回报
+  `false`（见该文件内注释），不转发原生探测结果——落地前
+  `PipButtonComponent` 仍按"不支持"路径工作（现在的"不支持"路径是下面的悬浮窗
+  降级，而非隐藏，见下）。原生代码从未在真机上编译或运行过；真机验证（阶段0
+  取帧路径定档、阶段2真实帧、阶段5全链路验证）仍是待办。完整研究 + 落地计划见
   [doc/notes/2026-07-31-ios-pip-feasibility.md](notes/2026-07-31-ios-pip-feasibility.md)。
+- **应用内悬浮窗降级（阶段3，已落地，跨平台可用）**：`MovaPipOverlay`
+  （`lib/src/ui/components/pip_overlay.dart`）不是系统 PiP——只是插入本应用
+  自己根 `Overlay` 的一个可拖动/可缩放小窗，应用退到后台就会消失。
+  `PipButtonComponent` 不再在 `pipSupported == false` 时隐藏自身：现在会始终
+  渲染，点击时 `pipSupported == true` 调 `MovaApi.enterPip()`，否则调
+  `MovaPipOverlay.show()` 把现有视频画面缩进悬浮窗，应用其余部分仍可正常使用。
+  示例见 `example/lib/main.dart` 的"画中画悬浮窗兜底演示"入口。
 - `MovaState.pipSupported` / `MovaApi.pipSupported`（阶段 C）：engine 构造后不久
   用 `MovaPipPort.isSupported()` 探测一次（默认 `false`，探测失败也归约为
-  `false` 而不抛出）；`PipButtonComponent` 据此隐藏自身，不支持的平台上按钮
-  根本不出现，而不是出现了点了没反应。
+  `false` 而不抛出）；现在只决定 `PipButtonComponent` 点击后走系统 PiP 还是
+  悬浮窗降级，不再决定按钮本身是否显示。
 
 ## 全屏（桌面平台的已知边界）
 
@@ -478,8 +491,9 @@ Android+iOS 落地中，见下**）+ AI MCP 集成钩子（仍为纯前瞻记录
 同一个工程，**fvideo 的遗留任务就是 mova 的任务**，全部承接：
 
 - **二期 ffmpeg 瘦身（LGPL）——未开始**，独立里程碑，排在 0.2.0（阶段 A–D）之后。
-- **iOS PiP 未实现**（libmpv 纹理限制，当前返回不支持），同样未取消，只是延后。
-  **可行性已调研,方向定为 ASBDL + CVPixelBuffer,门槛 spike 需 Mac + iOS 15+ 真机。**
+- **iOS PiP：阶段1骨架已落地（假帧，未真机验证），阶段3应用内悬浮窗降级已落地**。
+  可行性已调研，方向定为 ASBDL + CVPixelBuffer；门槛 spike（阶段0，定档取帧路径
+  A/B/C）与阶段2真实帧、阶段5全链路验证仍需 Mac + iOS 15+ 真机，尚未开始。
   研究 + 落地计划见 [doc/notes/2026-07-31-ios-pip-feasibility.md](notes/2026-07-31-ios-pip-feasibility.md)。
 - **真机未验证**（手势手感、HLS 联网切档、Android PiP 实际行为、iOS 整体播放）
   承自 0.1.0，并入阶段 D 一并验证。

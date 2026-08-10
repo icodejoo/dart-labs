@@ -149,24 +149,45 @@ mpv PR #7857，2023 已合入）渲进我们自己的 IOSurface-backed `CVPixelB
 保持 `MovaPipPort` / `MovaApi.enterPip()` / `pipSupported` 抽象不变，实现全在 iOS 原生侧 +
 少量 Dart 收口。**阶段 0 是门槛,未过不进阶段 2。**
 
-- **阶段 0 · 门槛 spike（需 Mac + iOS 15+ 真机）**：见 §6，定下取帧路径 A/B/C。产出：
-  一份"哪条路可行 + 实测 fps/稳定性"的结论，回填本文件 §5。
-- **阶段 1 · iOS PiP 骨架（假帧先跑通，部分不需真机可先写）**：
-  - `MovaPlugin.swift` 起 `AVSampleBufferDisplayLayer` +
-    `AVPictureInPictureController(contentSource:)`；实现
-    `AVPictureInPictureSampleBufferPlaybackDelegate`（播放/暂停/skip 回调）。
-  - `AVAudioSession` 设 `.playback`；`Info.plist` 加 `UIBackgroundModes: audio`。
-  - 方法通道：iOS 15+ 时 `isPipSupported → true`、`enterPip → 启动 PiP`。先用纯色
-    假帧验证启停 + 退后台续播 + 权限/plist。
-- **阶段 2 · 接真实帧源（按 spike 选定路径）**：每帧 `CVPixelBuffer` →
+- [ ] **阶段 0 · 门槛 spike（需 Mac + iOS 15+ 真机，未开始）**：见 §6，定下取帧路径
+  A/B/C。产出：一份"哪条路可行 + 实测 fps/稳定性"的结论，回填本文件 §5。
+- [x] **阶段 1 · iOS PiP 骨架（假帧先跑通，2026-08-10 已写，未编译/未真机验证）**：
+  - `ios/mova/Sources/mova/MovaPipController.swift` 起了
+    `AVSampleBufferDisplayLayer` + `AVPictureInPictureController(contentSource:)`；
+    `AVPictureInPictureSampleBufferPlaybackDelegate` 的播放/暂停/skip 回调是
+    `// TODO(spike)` 空桩（真实透传要等阶段2）。
+  - `AVAudioSession` 已设 `.playback`（`MovaPipController.start`）；
+    `example/ios/Runner/Info.plist` 已加 `UIBackgroundModes: audio`。
+  - 方法通道（`MovaPlugin.swift`）：`isPipSupported` 在 iOS 15+ 上探测
+    `AVPictureInPictureController.isPictureInPictureSupported()`；`enterPip`
+    启动 PiP，定时器按 30fps 灌入纯色测试卡 `CVPixelBuffer`（验证的是启停/
+    音频会话/plist 范式，不是真实画面）。**这些代码从未在真机（甚至从未在
+    Xcode）编译或运行过**——语法/API 签名是按知识核对的，非实测确认。
+  - **Dart 侧网关刻意没跟着放开**：`lib/mova_method_channel.dart` 的
+    `MethodChannelMova.isPipSupported()` 在 iOS 上无条件短路回报 `false`，
+    不管原生探测回报什么——对应下面 SPEC 指导，`MovaApi.pipSupported` 要等
+    阶段5真机验证过才允许在 iOS 上翻真。
+- [ ] **阶段 2 · 接真实帧源（按 spike 选定路径，未开始）**：每帧 `CVPixelBuffer` →
   `CMSampleBuffer`（带 PTS/format desc）→ `enqueue` 给 ASBDL；把播放态/seek 与 `MovaApi`
-  同步。路径 A 需先解决 media_kit 取帧面（上游钩子/fork）。
-- **阶段 3 · 跨平台降级悬浮窗（不需 Mac，可提前做）**：应用内浮窗复用现有 Flutter
-  texture，藏在同一 `enterPip()` 面之下；系统 PiP ready 后按平台切换。
-- **阶段 4 · Dart 收口**：`ChannelPipPort` 已就绪；`pipSupported` 探测在 iOS 返回
-  `true` 后 `PipButtonComponent` 自动显示；补方法通道单测（桩/假帧）。
-- **阶段 5 · 真机验证**：PiP 启停、退后台续、手势/seek 同步、画质、退出恢复、与全屏/
-  转屏共存。
+  同步；`MovaPipController` 的 `AVPictureInPictureSampleBufferPlaybackDelegate`
+  桩要在这一步补上真实转发。路径 A 需先解决 media_kit 取帧面（上游钩子/fork）。
+- [x] **阶段 3 · 跨平台降级悬浮窗（不需 Mac，2026-08-10 已落地）**：
+  `MovaPipOverlay`（`lib/src/ui/components/pip_overlay.dart`）复用现有
+  Flutter/media_kit `VideoController`，藏在同一 `enterPip()` 调用点之下——
+  `PipButtonComponent`（`lib/src/ui/components/top_bar.dart`）点击时
+  `pipSupported` 为真走系统 PiP，否则打开悬浮窗；systemPiP ready 后自动按
+  `pipSupported` 切换，无需改按钮逻辑。示例见 `example/lib/main.dart` 的
+  "画中画悬浮窗兜底演示"；单测见 `test/ui/pip_overlay_test.dart` 与
+  `test/ui/top_bar_test.dart`。
+- [ ] **阶段 4 · Dart 收口（部分完成）**：`ChannelPipPort` 已就绪；方法通道单测
+  仍缺（`enterPip`/`isPipSupported` 的桩/假帧场景）；`pipSupported` 在 iOS 返回
+  `true` 后 `PipButtonComponent` 自动切到系统 PiP 路径的行为已实现（阶段3顺带
+  做了），但由于阶段0/5未完成，Dart 网关仍锁 `false`，这条切换路径实际尚未被
+  验证过。
+- [ ] **阶段 5 · 真机验证（未开始）**：PiP 启停、退后台续、手势/seek 同步、画质、
+  退出恢复、与全屏/转屏共存；通过后删掉
+  `lib/mova_method_channel.dart` 里 `isPipSupported()` 的 `Platform.isIOS`
+  短路网关。
 
 **SPEC 指导（已回写 `doc/SPEC.md`）**：PiP 契约维持不变——iOS 实现落地前
 `isPipSupported()` 仍返回 `false`、按钮自动隐藏；落地后仅该原生返回值 + `pipSupported`

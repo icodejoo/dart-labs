@@ -10,6 +10,7 @@ import '../scope/selector.dart';
 import '../slots/component.dart';
 import '../slots/slot.dart';
 import 'common.dart';
+import 'pip_overlay.dart';
 import 'subtitle.dart';
 
 /// Composite component for the top control bar: title (expanded) followed
@@ -109,17 +110,24 @@ class TitleComponent extends MovaComp {
   }
 }
 
-/// Picture-in-picture entry button; renders nothing where PiP is unsupported.
+/// Picture-in-picture entry button.
 ///
-/// Visibility follows [MovaState.pipSupported], which the engine resolves once
-/// from `MovaPipPort.isSupported()` shortly after construction — so on desktop
-/// the button never appears at all, rather than appearing and doing nothing.
+/// Visibility no longer depends on [MovaState.pipSupported]: where the
+/// platform has no real OS PiP (`pipSupported == false` — desktop today, iOS
+/// until its native skeleton lands), tapping falls back to
+/// [MovaPipOverlay.show] instead of doing nothing, per the in-app floating
+/// window degradation in
+/// `doc/notes/2026-07-31-ios-pip-feasibility.md` §3/§8 阶段3. Where the
+/// platform reports real support, tapping still calls [MovaApi.enterPip] as
+/// before.
 ///
-/// 画中画入口按钮；平台不支持画中画时不渲染任何内容。
+/// 画中画入口按钮。
 ///
-/// 可见性跟随 [MovaState.pipSupported]——engine 在构造后不久用
-/// `MovaPipPort.isSupported()` 解析一次。因此桌面端该按钮根本不会出现，而不是
-/// 出现了点了没反应。
+/// 可见性不再依赖 [MovaState.pipSupported]：平台没有真正系统级画中画时
+/// （`pipSupported == false`——当前的桌面端、原生骨架落地前的 iOS），点击会
+/// 降级调用 [MovaPipOverlay.show] 而非毫无反应，对应
+/// `doc/notes/2026-07-31-ios-pip-feasibility.md` §3/§8 阶段3的应用内悬浮窗
+/// 降级方案。平台报告真正支持时，点击仍和以前一样调用 [MovaApi.enterPip]。
 class PipButtonComponent extends MovaComp {
   /// Creates the pip-button leaf component.
   ///
@@ -138,11 +146,16 @@ class PipButtonComponent extends MovaComp {
     return MovaSelect<bool>(
       selector: (s) => s.pipSupported,
       builder: (context, supported) {
-        if (!supported) return const SizedBox.shrink();
         return MovaIconButton(
           icon: Icons.picture_in_picture_alt_rounded,
           theme: theme,
-          onPressed: () => api.enterPip(),
+          onPressed: () {
+            if (supported) {
+              api.enterPip();
+            } else {
+              MovaPipOverlay.show(context, api: api, video: movaPipMiniSurface(api));
+            }
+          },
         );
       },
     );
