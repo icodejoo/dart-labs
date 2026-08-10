@@ -11,8 +11,8 @@ diff -ruN -x .git static6c/nix/packages/mk-pkg-dav1d/default.nix static6b/nix/pa
        -Denable_tools=false \
 diff -ruN -x .git static6c/nix/packages/mk-pkg-ffmpeg/default.nix static6b/nix/packages/mk-pkg-ffmpeg/default.nix
 --- a/nix/packages/mk-pkg-ffmpeg/default.nix	2026-08-10 18:59:51.639082800 +0800
-+++ b/nix/packages/mk-pkg-ffmpeg/default.nix	2026-08-10 20:03:03.534104000 +0800
-@@ -1,102 +1,158 @@
++++ b/nix/packages/mk-pkg-ffmpeg/default.nix	2026-08-10 20:12:30.379579900 +0800
+@@ -1,102 +1,165 @@
 -{
 -  pkgs ? import ../../utils/default/pkgs.nix,
 -  os ? import ../../utils/default/os.nix,
@@ -253,13 +253,20 @@ diff -ruN -x .git static6c/nix/packages/mk-pkg-ffmpeg/default.nix static6b/nix/p
 +    map (dep: "${dep}/lib/pkgconfig") ([ mbedtls ] ++ pkgs.lib.optionals (variant == variants.video) [ dav1d libxml2 ])
 +  );
 +  configurePhase = ''
++    cat > pkg-config-wrapper <<WRAPPER
++#!/usr/bin/env bash
++export PKG_CONFIG_PATH="$PKG_CONFIG_PATH"
++exec ${pkgs.pkg-config}/bin/pkg-config "\$@"
++WRAPPER
++    chmod +x pkg-config-wrapper
++
 +    meson setup build $src \
 +      --native-file ${nativeFile} \
 +      --cross-file ${crossFile} \
 +      --prefix=$out \
 +      -Dvariant=${variant} \
 +      -Dflavor=${flavor} \
-+      -Dpkg_config_path="$PKG_CONFIG_PATH" |
++      -Dpkg_config_wrapper="$PWD/pkg-config-wrapper" |
 +      tee configure.log
 +  '';
 +  buildPhase = ''
@@ -275,8 +282,8 @@ diff -ruN -x .git static6c/nix/packages/mk-pkg-ffmpeg/default.nix static6b/nix/p
 +}
 diff -ruN -x .git static6c/nix/packages/mk-pkg-ffmpeg/meson.build static6b/nix/packages/mk-pkg-ffmpeg/meson.build
 --- a/nix/packages/mk-pkg-ffmpeg/meson.build	2026-08-10 18:59:51.639082800 +0800
-+++ b/nix/packages/mk-pkg-ffmpeg/meson.build	2026-08-10 20:03:03.421052000 +0800
-@@ -1,370 +1,515 @@
++++ b/nix/packages/mk-pkg-ffmpeg/meson.build	2026-08-10 20:12:30.259220400 +0800
+@@ -1,370 +1,526 @@
 -# https://mesonbuild.com/External-Project-module.html
 -
 -project('ffmpeg', 'c', 'cpp', 'objc')
@@ -661,6 +668,17 @@ diff -ruN -x .git static6c/nix/packages/mk-pkg-ffmpeg/meson.build static6b/nix/p
 +ar = find_program('ar')
 +strip = find_program('strip')
 +pkg_config = find_program('pkg-config')
++
++# meson's external_project module doesn't forward the host shell's
++# PKG_CONFIG_PATH into ffmpeg's own ./configure subprocess (confirmed via
++# manual repro — neither a plain env var nor meson's own built-in
++# pkg_config_path option made any difference, run 31386245593). Bake it
++# into a wrapper script instead: default.nix generates one that exports
++# PKG_CONFIG_PATH before exec-ing the real pkg-config, so the value
++# travels with the binary itself rather than depending on whatever
++# environment the subprocess actually gets.
++pkg_config_wrapper = get_option('pkg_config_wrapper')
++pkg_config_bin = pkg_config_wrapper != '' ? pkg_config_wrapper : pkg_config.path()
 +
 +# build options
 +c_args = get_option('c_args')
@@ -1136,7 +1154,7 @@ diff -ruN -x .git static6c/nix/packages/mk-pkg-ffmpeg/meson.build static6b/nix/p
 +        '--cxx=@0@'.format(''.join(cpp.cmd_array())),
 +        '--objcc=@0@'.format(''.join(objc.cmd_array())),
 +        '--ld=@0@'.format(''.join(c.cmd_array())),
-+        '--pkg-config=@0@'.format(pkg_config.path()),
++        '--pkg-config=@0@'.format(pkg_config_bin),
 +
 +        '--host-cc=@0@'.format(''.join(c.cmd_array())),
 +        '--host-ld=@0@'.format(''.join(c.cmd_array())),
@@ -1164,12 +1182,13 @@ diff -ruN -x .git static6c/nix/packages/mk-pkg-ffmpeg/meson.build static6b/nix/p
 +meson.override_dependency('libswresample', libswresample_dep)
 diff -ruN -x .git static6c/nix/packages/mk-pkg-ffmpeg/meson.options static6b/nix/packages/mk-pkg-ffmpeg/meson.options
 --- a/nix/packages/mk-pkg-ffmpeg/meson.options	2026-08-10 18:59:51.640083400 +0800
-+++ b/nix/packages/mk-pkg-ffmpeg/meson.options	2026-08-10 20:03:03.477374300 +0800
-@@ -1,2 +1,2 @@
++++ b/nix/packages/mk-pkg-ffmpeg/meson.options	2026-08-10 20:12:30.316751500 +0800
+@@ -1,2 +1,3 @@
 -option('variant', type : 'combo', choices : ['audio', 'video'])
 -option('flavor', type : 'combo', choices : ['default', 'full', 'encodersgpl'])
 +option('variant', type : 'combo', choices : ['audio', 'video'])
 +option('flavor', type : 'combo', choices : ['default', 'full', 'encodersgpl', 'movaslim'])
++option('pkg_config_wrapper', type : 'string', value : '')
 diff -ruN -x .git static6c/nix/packages/mk-pkg-freetype/default.nix static6b/nix/packages/mk-pkg-freetype/default.nix
 --- a/nix/packages/mk-pkg-freetype/default.nix	2026-08-10 18:59:51.643703500 +0800
 +++ b/nix/packages/mk-pkg-freetype/default.nix	2026-08-10 18:59:49.982274500 +0800
