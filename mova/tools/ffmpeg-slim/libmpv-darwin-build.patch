@@ -298,10 +298,10 @@ index 0000000..d4a6a33
 +}
 diff --git a/nix/packages/mk-pkg-glslang/meson.build b/nix/packages/mk-pkg-glslang/meson.build
 new file mode 100644
-index 0000000..3a6eac8
+index 0000000..afe9aba
 --- /dev/null
 +++ b/nix/packages/mk-pkg-glslang/meson.build
-@@ -0,0 +1,52 @@
+@@ -0,0 +1,67 @@
 +# glslang ships CMake, not meson — wrapped via meson's cmake module the same
 +# way mk-pkg-mbedtls wraps mbedtls's own CMake build (see that package's
 +# meson.build for the reference pattern this mirrors). The outer Nix
@@ -330,10 +330,25 @@ index 0000000..3a6eac8
 +    arch = 'arm64'
 +endif
 +
++# glslang's GenericCodeGen/Include/InfoSink.h uses std::filesystem::path
++# (macOS 10.15+), but this repo's cross-files/*.ini bakes a blanket
++# -mmacosx-version-min=10.9 into every package's c_args/cpp_args (kept low
++# for the amd64/universal builds' compatibility floor) — that leaks into
++# glslang's CMake subproject and clang's availability annotations turn
++# every std::filesystem call into a hard "unavailable" compile error at
++# 10.9. Raising just glslang's deployment target (not the shared
++# cross-file, which every other package still needs at 10.9) fixes it
++# without touching anything else's compatibility floor. 10.15 is the
++# minimum std::filesystem needs; arm64 Macs never shipped below 11.0
++# anyway so this costs nothing in practice for the macos-arm64 target
++# movaslim is being validated on first.
 +options = cmake.subproject_options()
 +options.add_cmake_defines({
 +    'CMAKE_OSX_ARCHITECTURES': arch,
 +    'CMAKE_OSX_SYSROOT': meson.get_cross_property('cmake_osx_sysroot'),
++    'CMAKE_OSX_DEPLOYMENT_TARGET': '10.15',
++    'CMAKE_C_FLAGS': '-mmacosx-version-min=10.15',
++    'CMAKE_CXX_FLAGS': '-mmacosx-version-min=10.15',
 +    'CMAKE_C_COMPILER_WORKS': true,
 +    'CMAKE_CXX_COMPILER_WORKS': true,
 +    'CMAKE_BUILD_TYPE': 'Release',
