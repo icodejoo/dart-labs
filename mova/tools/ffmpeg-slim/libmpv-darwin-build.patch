@@ -371,10 +371,10 @@ index 0000000..afe9aba
 +
 diff --git a/nix/packages/mk-pkg-libplacebo/default.nix b/nix/packages/mk-pkg-libplacebo/default.nix
 new file mode 100644
-index 0000000..5b71daa
+index 0000000..b214b52
 --- /dev/null
 +++ b/nix/packages/mk-pkg-libplacebo/default.nix
-@@ -0,0 +1,115 @@
+@@ -0,0 +1,118 @@
 +{
 +  pkgs ? import ../../utils/default/pkgs.nix,
 +  os ? import ../../utils/default/os.nix,
@@ -432,15 +432,19 @@ index 0000000..5b71daa
 +    cp -r ${glad} $out/3rdparty/glad
 +    chmod -R u+w $out/3rdparty
 +
-+    # Same fix tools/ffmpeg-slim/experiments/build-android-libmpv-v9.sh
-+    # applies by hand: cc.has_header('glslang/build_info.h') is called with
-+    # no -I args, so it can't see glslang's include dir even though it's on
-+    # CPATH (has_header()'s implicit--I search doesn't extend to CPATH the
-+    # way an actual compile does) — pass it explicitly via the
-+    # already-present -Dvulkan-sdk option (repurposed by libplacebo's own
-+    # src/glsl/meson.build to point glslang lookups at a prefix, see that
-+    # file upstream), same as the Android/Windows experiments do.
-+    sed -i "s|cc.has_header('glslang/build_info.h')|cc.has_header('glslang/build_info.h', args: ['-I' + get_option('vulkan-sdk') / 'include'])|" \
++    # Same underlying gap tools/ffmpeg-slim/experiments/build-android-
++    # libmpv-v9.sh works around by hand: cc.has_header('glslang/build_info.h')
++    # is called with no -I args, so it can't see glslang's include dir even
++    # though it's on CPATH (has_header()'s implicit include search doesn't
++    # extend to CPATH the way an actual compile does). That script points it
++    # at a '-Dvulkan-sdk=...' meson option value — but v7.351.0 (the version
++    # pinned here) doesn't have a 'vulkan-sdk' option at all (CI run
++    # 31362842554: "ERROR: Unknown options: vulkan-sdk" — that option must
++    # have been added to libplacebo's meson_options.txt sometime after this
++    # tag; the Android/Windows scripts float on an unpinned `git clone`, so
++    # they never hit this gap). Bake the real path in directly instead of
++    # round-tripping through a meson option that doesn't exist here.
++    sed -i "s|cc.has_header('glslang/build_info.h')|cc.has_header('glslang/build_info.h', args: ['-I${glslang}/include'])|" \
 +      $out/src/glsl/meson.build
 +  '';
 +in
@@ -480,8 +484,7 @@ index 0000000..5b71daa
 +      -Dglslang=enabled \
 +      -Dshaderc=disabled \
 +      -Ddemos=false \
-+      -Dtests=false \
-+      -Dvulkan-sdk=${glslang}
++      -Dtests=false
 +  '';
 +  buildPhase = ''
 +    meson compile -vC build
