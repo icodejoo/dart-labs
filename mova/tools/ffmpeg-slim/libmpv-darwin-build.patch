@@ -705,10 +705,10 @@ index 9a5fafd..6a25a00 100644
    buildPhase = ''
      meson compile -vC build
 diff --git a/nix/packages/mk-pkg-libxml2/default.nix b/nix/packages/mk-pkg-libxml2/default.nix
-index bf1f92b..099d3d7 100644
+index bf1f92b..e9d4d5d 100644
 --- a/nix/packages/mk-pkg-libxml2/default.nix
 +++ b/nix/packages/mk-pkg-libxml2/default.nix
-@@ -27,6 +27,29 @@ let
+@@ -27,6 +27,43 @@ let
      patch -p1 <${../../../patches/ltmain-target-passthrough.patch}
      cd -
  
@@ -734,6 +734,20 @@ index bf1f92b..099d3d7 100644
 +    sed -i \
 +      -e 's/^bin_PROGRAMS = xmllint\$(EXEEXT) xmlcatalog\$(EXEEXT)$/bin_PROGRAMS =/' \
 +      "$src/Makefile.in"
++
++    # `noinst_LTLIBRARIES = testdso.la` (Makefile.am/Makefile.in, bare
++    # unconditional line same as bin_PROGRAMS above) builds a libtool
++    # `-module` (a dlopen-able plugin, part of libxml2's own xmlmodule
++    # self-test) — never installed, but still built by `make all`. `-module`
++    # inherently needs shared-library support from libtool; now that
++    # libxml2 itself is --enable-static --disable-shared (see meson.build),
++    # libtool has no shared toolchain path left to build it with. CI run
++    # 31378279271: "make[2]: *** [Makefile:959: testdso.la] Error 1". Not
++    # needed for mova's own linkage either way — sed it out same as the
++    # CLI tools.
++    sed -i \
++      -e 's/^noinst_LTLIBRARIES = testdso.la$/noinst_LTLIBRARIES =/' \
++      "$src/Makefile.am" "$src/Makefile.in"
 +
      cp ${./meson.build} $src/meson.build
  
