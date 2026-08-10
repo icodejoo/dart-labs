@@ -159,6 +159,353 @@ index a48d1db..d7cbb8e 100644
  option('variant', type : 'combo', choices : ['audio', 'video'])
 -option('flavor', type : 'combo', choices : ['default', 'full', 'encodersgpl'])
 +option('flavor', type : 'combo', choices : ['default', 'full', 'encodersgpl', 'movaslim'])
+diff --git a/nix/packages/mk-pkg-glslang/default.nix b/nix/packages/mk-pkg-glslang/default.nix
+new file mode 100644
+index 0000000..d4a6a33
+--- /dev/null
++++ b/nix/packages/mk-pkg-glslang/default.nix
+@@ -0,0 +1,81 @@
++{
++  pkgs ? import ../../utils/default/pkgs.nix,
++  os ? import ../../utils/default/os.nix,
++  arch ? pkgs.callPackage ../../utils/default/arch.nix { },
++}:
++
++let
++  name = "glslang";
++  packageLock = (import ../../../packages.lock.nix).${name};
++  inherit (packageLock) version;
++
++  callPackage = pkgs.lib.callPackageWith { inherit pkgs os arch; };
++  nativeFile = callPackage ../../utils/native-file/default.nix { };
++  crossFile = callPackage ../../utils/cross-file/default.nix { };
++
++  pname = import ../../utils/name/package.nix name;
++  src = callPackage ../../utils/fetch-tarball/default.nix {
++    name = "${pname}-source-${version}";
++    inherit (packageLock) url sha256;
++  };
++  patchedSource = pkgs.runCommand "${pname}-patched-source-${version}" { } ''
++    mkdir -p $out/subprojects/glslang
++    cp -r ${src}/* $out/subprojects/glslang/
++    cp ${./meson.build} $out/meson.build
++  '';
++in
++
++pkgs.stdenvNoCC.mkDerivation {
++  name = "${pname}-${os}-${arch}-${version}";
++  pname = pname;
++  inherit version;
++  src = patchedSource;
++  dontUnpack = true;
++  enableParallelBuilding = true;
++  nativeBuildInputs = [
++    pkgs.cmake
++    pkgs.meson
++    pkgs.ninja
++    pkgs.pkg-config
++    pkgs.python3
++  ];
++  configurePhase = ''
++    meson setup build $src \
++      --native-file ${nativeFile} \
++      --cross-file ${crossFile} \
++      --prefix=$out
++  '';
++  buildPhase = ''
++    meson compile -vC build
++  '';
++  installPhase = ''
++    mkdir -p $out/lib $out/include
++
++    # Static libs — glslang's CMake exports several separate targets
++    # (glslang/MachineIndependent/GenericCodeGen/OSDependent/OGLCompiler/
++    # SPIRV), all landing somewhere under the meson-driven cmake.subproject
++    # build tree. Glob broadly rather than hardcoding exact subdirectory
++    # names, which vary by glslang/CMake version.
++    find build -type f -name '*.a' -exec cp -n {} $out/lib/ \;
++
++    # Headers — public API headers live in the source tree
++    # (glslang/Public, glslang/Include, SPIRV, StandAlone); build_info.h is
++    # CMake-generated at configure time into the build tree. Copy both,
++    # preserving the glslang/SPIRV/StandAlone include-path structure
++    # libplacebo's src/glsl/meson.build expects (glslang/..., SPIRV/...).
++    src_root=$(find build/subprojects -maxdepth 1 -type d -name 'glslang*' | head -1)
++    if [ -z "$src_root" ]; then src_root=$src/subprojects/glslang; fi
++
++    for d in glslang SPIRV StandAlone; do
++      if [ -d "$src_root/$d" ]; then
++        mkdir -p "$out/include/$d"
++        find "$src_root/$d" -name '*.h' -exec cp --parents -t $out/include {} \; 2>/dev/null || true
++      fi
++    done
++    # Generated build_info.h (and any other configure-time generated
++    # headers) — search the whole build tree, not just src_root, since
++    # CMake typically places generated files under the binary dir mirroring
++    # the source's relative path, not inside the source tree itself.
++    find build -name 'build_info.h' -exec cp {} $out/include/glslang/ \; 2>/dev/null || true
++  '';
++}
+diff --git a/nix/packages/mk-pkg-glslang/meson.build b/nix/packages/mk-pkg-glslang/meson.build
+new file mode 100644
+index 0000000..3a6eac8
+--- /dev/null
++++ b/nix/packages/mk-pkg-glslang/meson.build
+@@ -0,0 +1,52 @@
++# glslang ships CMake, not meson — wrapped via meson's cmake module the same
++# way mk-pkg-mbedtls wraps mbedtls's own CMake build (see that package's
++# meson.build for the reference pattern this mirrors). The outer Nix
++# derivation's installPhase globs the resulting .a files out of `build/`
++# directly (same approach mbedtls's installPhase uses for its .dylib) rather
++# than wiring a meson dependency() object — libplacebo's own src/glsl/
++# meson.build looks glslang up via raw cc.find_library()/cc.has_header()
++# calls, not a pkg-config dependency, so there is nothing here that needs to
++# go through meson.override_dependency().
++#
++# Flags mirror tools/ffmpeg-slim/experiments/build-{android,win}-libmpv-v9.sh's
++# glslang cmake invocation: ENABLE_OPT=OFF drops the SPIR-V optimizer
++# (SPIRV-Tools-opt, the single biggest non-ffmpeg static-lib piece in those
++# experiments — libplacebo's shaders are hand-written and small, not codegen
++# output that benefits from an optimization pass) and
++# ALLOW_EXTERNAL_SPIRV_TOOLS=OFF keeps glslang from reaching for a system
++# SPIRV-Tools this sandboxed build doesn't provide.
++project('glslang', 'c', 'cpp')
++
++cmake = import('cmake')
++
++cpu = host_machine.cpu()
++if cpu == 'amd64'
++    arch = 'x86_64'
++elif cpu == 'arm64'
++    arch = 'arm64'
++endif
++
++options = cmake.subproject_options()
++options.add_cmake_defines({
++    'CMAKE_OSX_ARCHITECTURES': arch,
++    'CMAKE_OSX_SYSROOT': meson.get_cross_property('cmake_osx_sysroot'),
++    'CMAKE_C_COMPILER_WORKS': true,
++    'CMAKE_CXX_COMPILER_WORKS': true,
++    'CMAKE_BUILD_TYPE': 'Release',
++    'BUILD_SHARED_LIBS': false,
++    'ENABLE_GLSLANG_BINARIES': false,
++    'ENABLE_SPVREMAPPER': false,
++    'ENABLE_CTEST': false,
++    'ENABLE_HLSL': false,
++    'ALLOW_EXTERNAL_SPIRV_TOOLS': false,
++    'ENABLE_OPT': false,
++})
++
++# Referencing .dependency('glslang') below is what forces meson to actually
++# configure+build the subproject (evaluating it is not lazy) even though
++# nothing in this wrapper links against it — the outer Nix installPhase
++# harvests the resulting .a files straight out of the meson build directory
++# instead (see comment above).
++glslang_proj = cmake.subproject('glslang', options: options)
++glslang_dep = glslang_proj.dependency('glslang')
++
+diff --git a/nix/packages/mk-pkg-libplacebo/default.nix b/nix/packages/mk-pkg-libplacebo/default.nix
+new file mode 100644
+index 0000000..5b71daa
+--- /dev/null
++++ b/nix/packages/mk-pkg-libplacebo/default.nix
+@@ -0,0 +1,115 @@
++{
++  pkgs ? import ../../utils/default/pkgs.nix,
++  os ? import ../../utils/default/os.nix,
++  arch ? pkgs.callPackage ../../utils/default/arch.nix { },
++}:
++
++let
++  name = "libplacebo";
++  lock = import ../../../packages.lock.nix;
++  packageLock = lock.${name};
++  inherit (packageLock) version;
++
++  callPackage = pkgs.lib.callPackageWith { inherit pkgs os arch; };
++  nativeFile = callPackage ../../utils/native-file/default.nix { };
++  crossFile = callPackage ../../utils/cross-file/default.nix { };
++  glslang = callPackage ../mk-pkg-glslang/default.nix { };
++
++  pname = import ../../utils/name/package.nix name;
++  src = callPackage ../../utils/fetch-tarball/default.nix {
++    name = "${pname}-source-${version}";
++    inherit (packageLock) url sha256;
++  };
++
++  # GitHub's tag archive (unlike `git clone --recursive`, which is what
++  # tools/ffmpeg-slim/experiments/build-{android,win}-libmpv-v9.sh use) does
++  # not include submodule content — fetch each submodule libplacebo's core
++  # build actually needs (not demos/nuklear or Vulkan-Headers, both unused
++  # here: -Ddemos=false, -Dvulkan=disabled) at the exact commit pinned by
++  # v7.351.0's .gitmodules, and splice them into place.
++  jinja = callPackage ../../utils/fetch-tarball/default.nix {
++    name = "libplacebo-jinja-source-${lock.libplaceboJinja.version}";
++    inherit (lock.libplaceboJinja) url sha256;
++  };
++  markupsafe = callPackage ../../utils/fetch-tarball/default.nix {
++    name = "libplacebo-markupsafe-source-${lock.libplaceboMarkupsafe.version}";
++    inherit (lock.libplaceboMarkupsafe) url sha256;
++  };
++  fastFloat = callPackage ../../utils/fetch-tarball/default.nix {
++    name = "libplacebo-fast-float-source-${lock.libplaceboFastFloat.version}";
++    inherit (lock.libplaceboFastFloat) url sha256;
++  };
++  glad = callPackage ../../utils/fetch-tarball/default.nix {
++    name = "libplacebo-glad-source-${lock.libplaceboGlad.version}";
++    inherit (lock.libplaceboGlad) url sha256;
++  };
++
++  patchedSource = pkgs.runCommand "${pname}-patched-source-${version}" { } ''
++    cp -r ${src} $out
++    chmod -R u+w $out
++
++    rm -rf $out/3rdparty/jinja $out/3rdparty/markupsafe $out/3rdparty/fast_float $out/3rdparty/glad
++    cp -r ${jinja} $out/3rdparty/jinja
++    cp -r ${markupsafe} $out/3rdparty/markupsafe
++    cp -r ${fastFloat} $out/3rdparty/fast_float
++    cp -r ${glad} $out/3rdparty/glad
++    chmod -R u+w $out/3rdparty
++
++    # Same fix tools/ffmpeg-slim/experiments/build-android-libmpv-v9.sh
++    # applies by hand: cc.has_header('glslang/build_info.h') is called with
++    # no -I args, so it can't see glslang's include dir even though it's on
++    # CPATH (has_header()'s implicit--I search doesn't extend to CPATH the
++    # way an actual compile does) — pass it explicitly via the
++    # already-present -Dvulkan-sdk option (repurposed by libplacebo's own
++    # src/glsl/meson.build to point glslang lookups at a prefix, see that
++    # file upstream), same as the Android/Windows experiments do.
++    sed -i "s|cc.has_header('glslang/build_info.h')|cc.has_header('glslang/build_info.h', args: ['-I' + get_option('vulkan-sdk') / 'include'])|" \
++      $out/src/glsl/meson.build
++  '';
++in
++
++pkgs.stdenvNoCC.mkDerivation {
++  name = "${pname}-${os}-${arch}-${version}";
++  pname = pname;
++  inherit version;
++  src = patchedSource;
++  dontUnpack = true;
++  enableParallelBuilding = true;
++  nativeBuildInputs = [
++    pkgs.meson
++    pkgs.ninja
++    pkgs.pkg-config
++    pkgs.python3
++  ];
++  # meson's cc.find_library()/cc.has_header() (used by libplacebo's
++  # src/glsl/meson.build to locate glslang — it isn't a proper pkg-config
++  # dependency(), see mk-pkg-glslang's meson.build comment) does a compiler
++  # trial-link/header-search rather than a PKG_CONFIG_PATH lookup, so it
++  # only sees glslang's headers/libs via the compiler's own implicit search
++  # paths. clang (like gcc) honors CPATH/LIBRARY_PATH for this — same
++  # mechanism the shell experiments rely on (see their headers' comments on
++  # this exact gap).
++  CPATH = "${glslang}/include";
++  LIBRARY_PATH = "${glslang}/lib";
++  configurePhase = ''
++    meson setup build $src \
++      --native-file ${nativeFile} \
++      --cross-file ${crossFile} \
++      --prefix=$out \
++      --default-library=static \
++      -Dvulkan=disabled \
++      -Dopengl=enabled \
++      -Dd3d11=disabled \
++      -Dglslang=enabled \
++      -Dshaderc=disabled \
++      -Ddemos=false \
++      -Dtests=false \
++      -Dvulkan-sdk=${glslang}
++  '';
++  buildPhase = ''
++    meson compile -vC build
++  '';
++  installPhase = ''
++    meson install -C build
++  '';
++}
+diff --git a/nix/packages/mk-pkg-mpv/default.nix b/nix/packages/mk-pkg-mpv/default.nix
+index 543805a..636ffa1 100644
+--- a/nix/packages/mk-pkg-mpv/default.nix
++++ b/nix/packages/mk-pkg-mpv/default.nix
+@@ -3,6 +3,7 @@
+   os ? import ../../utils/default/os.nix,
+   arch ? pkgs.callPackage ../../utils/default/arch.nix { },
+   variant ? import ../../utils/default/variant.nix,
++  flavor ? import ../../utils/default/flavor.nix,
+ }:
+ 
+ let
+@@ -11,13 +12,21 @@ let
+   inherit (packageLock) version;
+ 
+   variants = import ../../utils/constants/variants.nix;
++  flavors = import ../../utils/constants/flavors.nix;
+   oses = import ../../utils/constants/oses.nix;
++  # mova movaslim-only: mpv v0.41.0's GPU rendering hard-requires libplacebo
++  # (see mk-pkg-libplacebo's comments) — the currently-pinned mpv build for
++  # every OTHER flavor (default/full/encodersgpl) stays on the
++  # `-Dlibplacebo=disabled` path below unchanged. This flag is what the
++  # rest of this file branches on.
++  useLibplacebo = flavor == flavors.movaslim && variant == variants.video;
+   callPackage = pkgs.lib.callPackageWith {
+     inherit
+       pkgs
+       os
+       arch
+       variant
++      flavor
+       ;
+   };
+   nativeFile = callPackage ../../utils/native-file/default.nix { };
+@@ -26,6 +35,7 @@ let
+   ffmpeg = callPackage ../mk-pkg-ffmpeg/default.nix { };
+   uchardet = callPackage ../mk-pkg-uchardet/default.nix { };
+   libass = callPackage ../mk-pkg-libass/default.nix { };
++  libplacebo = callPackage ../mk-pkg-libplacebo/default.nix { };
+ 
+   nativeBuildInputs = [
+     pkgs.meson
+@@ -75,6 +85,9 @@ pkgs.stdenvNoCC.mkDerivation {
+     ++ pkgs.lib.optionals (variant == "video") [
+       uchardet
+       libass
++    ]
++    ++ pkgs.lib.optionals useLibplacebo [
++      libplacebo
+     ];
+   configurePhase = ''
+     DISABLE_ALL_OPTIONS=(
+@@ -237,6 +250,17 @@ pkgs.stdenvNoCC.mkDerivation {
+       -Dios-gl=enabled `# iOS OpenGL ES hardware decoding interop support`
+     )
+ 
++    # mova movaslim-only (mpv v0.41.0 pairing — see this file's useLibplacebo
++    # comment above). OpenGL backend only, no vulkan/d3d11/shaderc — mirrors
++    # tools/ffmpeg-slim/experiments/build-android-libmpv-v9.sh's real-device
++    # finding that a second concurrent GPU context (vulkan, alongside the
++    # hwdec bridge's GL context) costs real CPU/memory vs collapsing both
++    # onto the single GL context OpenGL gives you here.
++    MOVASLIM_VIDEO_OPTIONS=(
++      -Dlibplacebo=enabled `# libplacebo support`
++      -Dlibplacebo-next=enabled `# gpu-next video output`
++    )
++
+     OPTIONS=("''${DISABLE_ALL_OPTIONS[@]}")
+ 
+     OPTIONS+=("''${COMMON_OPTIONS[@]}")
+@@ -256,6 +280,10 @@ pkgs.stdenvNoCC.mkDerivation {
+       fi
+     fi
+ 
++    ${pkgs.lib.optionalString useLibplacebo ''
++      OPTIONS+=("''${MOVASLIM_VIDEO_OPTIONS[@]}")
++    ''}
++
+     meson setup build $src \
+       --native-file ${nativeFile} \
+       --cross-file ${crossFile} \
 diff --git a/nix/utils/constants/flavors.nix b/nix/utils/constants/flavors.nix
 index e2aa737..eeb29d4 100644
 --- a/nix/utils/constants/flavors.nix
@@ -182,3 +529,111 @@ index 12e8c7b..886cc60 100644
    flavors.encodersgpl
 +  flavors.movaslim
  ]
+diff --git a/packages.lock.nix b/packages.lock.nix
+index aed6a72..9cd0401 100644
+--- a/packages.lock.nix
++++ b/packages.lock.nix
+@@ -5,9 +5,25 @@
+     sha256 = "a4003623cdc0109dec3aac8435520aa3fb12c4d69454fa227f2658cdb6dab5fa";
+   };
+   ffmpeg = {
+-    version = "6.0";
+-    url = "https://ffmpeg.org/releases/ffmpeg-6.0.tar.xz";
+-    sha256 = "57be87c22d9b49c112b6d24bc67d42508660e6b718b3db89c44e47e289137082";
++    # Bumped 6.0 -> n9.0 for the movaslim flavor only (see mk-pkg-ffmpeg/
++    # meson.build's movaslim branch) — this is a global version bump shared
++    # by every flavor in this lock file, since packages.lock.nix has no
++    # per-flavor versioning. default/full/encodersgpl are untested against
++    # n9.0 after this bump; nothing in this repo's CI currently builds those
++    # targets so this is not (yet) a regression anyone will hit, but it's a
++    # known gap — see mpv's version bump below for why this pairing exists.
++    version = "9.0";
++    url = "https://github.com/FFmpeg/FFmpeg/archive/refs/tags/n9.0.tar.gz";
++    sha256 = "d97647ace36a307f17ba2bca052d68937487bed8682e1eb9b6737076a9c442b7";
++  };
++  glslang = {
++    # libplacebo's GLSL->SPIR-V compiler dependency (needed regardless of
++    # which GPU backend libplacebo itself renders through — see
++    # mk-pkg-libplacebo's comments). Same tag mova's Android/Windows v9
++    # experiments use (tools/ffmpeg-slim/experiments/build-*-libmpv-v9.sh).
++    version = "14.3.0";
++    url = "https://github.com/KhronosGroup/glslang/archive/refs/tags/14.3.0.tar.gz";
++    sha256 = "be6339048e20280938d9cb399fcdd06e04f8654d43e170e8cce5a56c9a754284";
+   };
+   fftools-ffi = {
+     version = "9b0d4da0";
+@@ -64,6 +80,54 @@
+     url = "https://code.videolan.org/videolan/x264/-/archive/a8b68ebfaa68621b5ac8907610d3335971839d52/libx264-a8b68ebfaa68621b5ac8907610d3335971839d52.tar.gz";
+     sha256 = "164688b63f11a6e4f6d945057fc5c57d5eefb97973d0029fb0303744e10839ff";
+   };
++  libplacebo = {
++    # mpv v0.41.0's GPU rendering (video/out/vo_gpu_next.c) hard-requires
++    # this, unlike the currently-pinned mpv 0.36.0 which can still build
++    # with `-Dlibplacebo=disabled` (that option was a real optional
++    # `dependency('libplacebo', ..., required: get_option('libplacebo'))`
++    # at 0.36 — confirmed by this repo's own existing default/full/
++    # encodersgpl artifacts, all built on 0.36.0 with it disabled).
++    # OpenGL backend only (no vulkan/d3d11) — matches the Android v9
++    # experiment's real-device finding that Vulkan's second concurrent GPU
++    # context (alongside the VideoToolbox/MediaCodec hwdec bridge's GL
++    # context) costs real CPU/memory, whereas OpenGL collapses back to the
++    # single GL context already in use.
++    version = "7.351.0";
++    url = "https://github.com/haasn/libplacebo/archive/refs/tags/v7.351.0.tar.gz";
++    sha256 = "716954501d9b76e6906fddda66febc5886493d0673dd265ec1e6e52f4e5cd7c6";
++  };
++  # libplacebo's git submodules — GitHub's tag tarball (unlike `git clone
++  # --recursive`, which is what the Android/Windows v9 shell scripts use)
++  # does NOT include submodule content, so each one actually referenced by
++  # libplacebo's core build (not just its `demos/` — disabled via
++  # `-Ddemos=false` — or Vulkan/vulkan-headers — disabled via
++  # `-Dvulkan=disabled`) needs its own pinned fetch, spliced into place by
++  # mk-pkg-libplacebo's patchedSource step. Commits pinned to whatever
++  # v7.351.0's .gitmodules records (github.com/haasn/libplacebo/blob/
++  # v7.351.0/.gitmodules) — jinja/markupsafe are libplacebo's own Python
++  # shader-codegen templating tools (used at build time regardless of GPU
++  # backend), fast_float is a core string-parsing dependency, glad is the
++  # OpenGL function loader (needed since the opengl backend is enabled).
++  libplaceboJinja = {
++    version = "15206881";
++    url = "https://github.com/pallets/jinja/archive/15206881c006c79667fe5154fe80c01c65410679.tar.gz";
++    sha256 = "b88a20dcc2e34072fcf4159325bc6c34cd4b29a81a8b83d15d2f28ba561da296";
++  };
++  libplaceboMarkupsafe = {
++    version = "28ace20b";
++    url = "https://github.com/pallets/markupsafe/archive/28ace20b140d15c083e1cbc163ee6b7778ba098c.tar.gz";
++    sha256 = "bead4c1f90f02956a082c6f026237e1e106a00636f4b26c3f16921631eb8737f";
++  };
++  libplaceboFastFloat = {
++    version = "1bf70101";
++    url = "https://github.com/fastfloat/fast_float/archive/1bf70101536d37fa9954cc4f03fd0903d045a9f3.tar.gz";
++    sha256 = "95c7730f3db8bfb8568e26387bed5df5284158c408d2c6411ed8ad4f5a6dc9ae";
++  };
++  libplaceboGlad = {
++    version = "73db193f";
++    url = "https://github.com/Dav1dde/glad/archive/73db193f853e2ee079bf3ca8a64aa2eaf6459043.tar.gz";
++    sha256 = "33dbeae44d8315ece57e14eba4b1b4a02ac5406d1c4f49cd20048c91522a6b9a";
++  };
+   libxml2 = {
+     version = "2.11.5";
+     url = "https://download.gnome.org/sources/libxml2/2.11/libxml2-2.11.5.tar.xz";
+@@ -75,9 +139,16 @@
+     sha256 = "a420fcf7103e54e775c383e3751729b8fb2dcd087f6165befd13f28315f754f5";
+   };
+   mpv = {
+-    version = "0.36.0";
+-    url = "https://github.com/mpv-player/mpv/archive/refs/tags/v0.36.0.tar.gz";
+-    sha256 = "29abc44f8ebee013bb2f9fe14d80b30db19b534c679056e4851ceadf5a5e8bf6";
++    # Bumped 0.36.0 -> v0.41.0 together with the ffmpeg bump above — pinned
++    # together deliberately, not independently: mova's Android v9 experiment
++    # (tools/ffmpeg-slim/experiments/build-android-libmpv-v9.sh) hit real
++    # compile failures trying to build this mpv version against ffmpeg
++    # 6.0-era headers (AVCodec.sample_fmts/ch_layouts were removed, replaced
++    # by avcodec_get_supported_config() — an API restructure, not a rename),
++    # so these two versions move as a pair.
++    version = "0.41.0";
++    url = "https://github.com/mpv-player/mpv/archive/refs/tags/v0.41.0.tar.gz";
++    sha256 = "ee21092a5ee427353392360929dc64645c54479aefdb5babc5cfbb5fad626209";
+   };
+   uchardet = {
+     version = "0.0.8";

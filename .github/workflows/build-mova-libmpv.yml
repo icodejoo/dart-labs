@@ -328,18 +328,31 @@ jobs:
   # combination instead of every ios/iossimulator/macos arch×variant×flavor
   # combination the default (TARGET-less) package would.
   #
-  # v2: this now carries our own "movaslim" ffmpeg flavor (patch below),
-  # mirroring the Android decoder/demuxer/protocol keep-list from
-  # tools/ffmpeg-slim/flavors-mova-slim.sh, adapted to VideoToolbox hwaccel
-  # instead of MediaCodec — see the patch file's comments for the per-codec
-  # reasoning. This first CI attempt intentionally builds only ONE target
-  # (macos-arm64, the fastest combination: native to the macos-15 runner's
-  # arch, no iOS SDK cross-compile, no lipo universal-binary merge) to
-  # verify the movaslim flavor actually configures/compiles/links before
-  # spending CI time on the full ios/iossimulator/macos matrix. Once this
-  # goes green, broaden TARGET (or drop it) to cover the other combinations
-  # and add real-device/simulator playback verification, mirroring how
-  # Android went from a single arm64-v8a build to a validated multi-ABI one.
+  # v3: carries our own "movaslim" ffmpeg flavor (patch below) — NOT the
+  # ffmpeg-6.0-based v2 anymore, superseded to follow the ffmpeg n9.0 + mpv
+  # v0.41.0 + libplacebo "v9" line already validated (compiled + real-device
+  # tested) for Android/Windows in tools/ffmpeg-slim/experiments/build-
+  # {android,win}-libmpv-v9.sh. Decoder/demuxer/protocol keep-list still
+  # mirrors Android's, adapted to VideoToolbox hwaccel instead of
+  # MediaCodec; GPU backend is libplacebo's OpenGL path (not Vulkan/D3D11),
+  # reusing the Android v9 experiment's real-device finding that a second
+  # concurrent GPU context costs real CPU/memory vs collapsing onto the
+  # single GL context the hwdec bridge already uses. See the patch file's
+  # comments and tools/ffmpeg-slim/README.md's "Darwin movaslim flavor"
+  # section for the full per-codec/per-dependency reasoning — this pairing
+  # needed two brand-new Nix packages (mk-pkg-glslang, mk-pkg-libplacebo)
+  # that have never been exercised in this repo, so expect this to take
+  # several CI iterations to go green, same as the real-device debugging
+  # the Android/Windows v9 experiments needed.
+  #
+  # This first CI attempt intentionally builds only ONE target (macos-arm64,
+  # the fastest combination: native to the macos-15 runner's arch, no iOS
+  # SDK cross-compile, no lipo universal-binary merge) to verify the
+  # movaslim flavor actually configures/compiles/links before spending CI
+  # time on the full ios/iossimulator/macos matrix. Once this goes green,
+  # broaden TARGET (or drop it) to cover the other combinations and add
+  # real-device/simulator playback verification, mirroring how Android went
+  # from a single arm64-v8a build to a validated multi-ABI one.
   darwin:
     name: "Darwin: macOS arm64 ONLY (movaslim flavor, no iOS yet)"
     runs-on: macos-15

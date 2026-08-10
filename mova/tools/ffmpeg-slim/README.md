@@ -18,7 +18,7 @@ ABI/平台、字幕/截图/HLS-FLV/avfilter回归/后台中断/AV1高码率场�
 |---|---|---|
 | Android arm64-v8a | ✅ 已定稿并接入 mova 工程 | 6.52MiB（AV1 硬解+软解双通道，2026-08-06 真机复测后改判，CI 复现构建），见下方"定稿结果"，真机播放验证进行中 |
 | Android armeabi-v7a / x86 / x86_64 | ✅ CI 构建通过，未接入真机验证 | 同一套 flavor 脚本直接复用（`--disable-runtime-cpudetect` 已按架构条件判断，不用改），2026-08-06 CI 矩阵三个 ABI 全绿并核验 `dav1d_open` 符号；已接入 `example` 的 jniLibs，还没上真机测过 |
-| iOS + macOS | 🟡 CI 验证中（v2：movaslim flavor，仅 macos-arm64） | **两者共用一个仓库** `media-kit/libmpv-darwin-build`（不是分开两个仓库，早前的假设是错的），Nix + 固定版本 Xcode 构建，`macos-15` runner。v2 新增了自定义 `movaslim` flavor（[`libmpv-darwin-build.patch`](libmpv-darwin-build.patch)），照搬 Android 的解码器/demuxer/协议清单，硬解从 MediaCodec 换成 VideoToolbox——但 VideoToolbox 是叠加在软解码器之上的 hwaccel，不是像 MediaCodec 那样独立的解码器命名空间，所以 `vp9` 软解码器不能像 Android 那样砍掉（会连累 hwaccel），AV1 在这个 ffmpeg hwaccel 列表里没有 VideoToolbox 选项，只能纯软解 `libdav1d`。这一步先只构建 `macos-arm64`（矩阵里最快的单一目标：原生匹配 runner 架构，不用 iOS SDK 交叉编译，不用 lipo 合并 universal）验证 flavor 本身能不能配置/编译/链接成功，还没跑 ios/iossimulator 目标，也没有任何真机/模拟器播放验证 |
+| iOS + macOS | 🟡 CI 验证中（v3：跟随 v9 线，ffmpeg n9.0 + mpv v0.41.0 + libplacebo(OpenGL)，仅 macos-arm64） | **两者共用一个仓库** `media-kit/libmpv-darwin-build`（不是分开两个仓库，早前的假设是错的），Nix + 固定版本 Xcode 构建，`macos-15` runner。v3 放弃了 v2 的 ffmpeg 6.0 路线，改跟 `experiments/build-{android,win}-libmpv-v9.sh` 已验证过的 v9 线（ffmpeg n9.0 + mpv v0.41.0 + libplacebo，mpv v0.41 的 GPU 渲染硬依赖 libplacebo，为此新增了 `mk-pkg-glslang`/`mk-pkg-libplacebo` 两个 Nix 包），GPU 后端选 OpenGL（不是 Vulkan/D3D11，复用 Android 真机验证过的"避免开第二个 GPU context"结论）。解码器清单仍照搬 Android，硬解从 MediaCodec 换成 VideoToolbox——`vp9` 软解码器不能像 Android v9 那样砍掉（VideoToolbox 是叠加在软解上的 hwaccel，不是独立解码器命名空间），AV1 在这个 ffmpeg hwaccel 列表里没有 VideoToolbox 选项，只能纯软解 `libdav1d`（不能照抄 Android/Windows v9"AV1 改纯硬解"）。详见下方"Darwin movaslim flavor"一节。这一步先只构建 `macos-arm64`（矩阵里最快的单一目标）验证整条链路能不能配置/编译/链接成功，还没跑 ios/iossimulator 目标，也没有任何真机/模拟器播放验证，本地也完全没做过语法检查（没有 Nix/Xcode 环境） |
 | Windows | 🟡 CI 首次尝试中（v1） | 构建链是 `media-kit/libmpv-win32-video-build`（是 `zhongfly/mpv-winbuild` 的 fork，自带 CI 是未改名的上游发布流程，不直接照搬），改用 MSYS2 + mingw-w64 gcc 工具链直接跑它的 CMakeLists.txt，跳过 fork 自带的 clang+rustup+Docker 那套，先做 x86_64 |
 | Linux | 🟡 CI 首次尝试中（v1） | **media-kit 没有对应仓库**（早前假设的 `libmpv-linux-build` 不存在）——在 runner 本机原生构建 ffmpeg+mpv，不需要交叉编译；依赖走 apt 装现成的 `libass-dev`/`libfreetype6-dev` 等，不用像 Android 那样从源码build |
 
@@ -32,7 +32,73 @@ DEMUXERS/PROTOCOLS/BSFS 这些格式支持范围的清单是可以跨平台复�
 spike 过程与数据见 [../../doc/plans/2026-07-31-ffmpeg-slim-build-windows.md](../../doc/plans/2026-07-31-ffmpeg-slim-build-windows.md)，
 组件取舍依据见 [../../doc/notes/2026-07-31-ffmpeg-slimming-options.md](../../doc/notes/2026-07-31-ffmpeg-slimming-options.md)。
 
-## Darwin（iOS/macOS）movaslim flavor —— v2 首次尝试（未验证）
+## Darwin（iOS/macOS）movaslim flavor —— v3：跟随 v9 线（ffmpeg n9.0 + mpv v0.41.0 + libplacebo，未验证）
+
+**2026-08-10 方向调整**：v2（下面保留的历史记录）是照搬 Android **v6**（`flavors-
+mova-slim.sh`，ffmpeg 6.0，出货产线）的解码器清单。但 `experiments/build-android-
+libmpv-v9.sh`/`build-win-libmpv-v9.sh` 里已经有一条独立的 **v9 实验线**（ffmpeg n9.0
++ mpv v0.41.0 + libplacebo），Android/Windows 都验证过至少能编译+真机跑通（Android
+9.30MB，Windows 12.04MB，各自都踩过真机 bug 才收敛）——**这条线才是当前要 darwin 跟随
+的目标**，v2 的 ffmpeg 6.0 + 无 libplacebo 组合已经不再是方向，patch 已经整个换成 v9
+版本，不是在 v2 基础上叠加。
+
+**这次改动比 v2 大得多**，因为 v9 线除了解码器清单，还多了两个结构性变化：
+
+1. **ffmpeg 6.0 → n9.0，mpv 0.36.0 → v0.41.0**——两个版本必须配对升级：mpv v0.41.0
+   用的是 ffmpeg n9.0 才有的新 API（`avcodec_get_supported_config()`），旧版 ffmpeg
+   头文件编译不过；这个版本对在 `packages.lock.nix` 里是全局的（这个仓库没有按
+   flavor 分版本的机制），意味着 `default`/`full`/`encodersgpl` 这三个既有 flavor
+   理论上也会被这次升级影响到，但目前 CI 里没有任何 job 会去构建它们，所以不是这轮
+   要处理的问题，只是记录一下这个隐藏耦合
+2. **mpv v0.41.0 的 GPU 渲染硬依赖 libplacebo**——现有 `default`/`full`/`encodersgpl`
+   都是 `-Dlibplacebo=disabled` 跑的 mpv 0.36.0（那个版本 libplacebo 还是可选的
+   `dependency(..., required: get_option('libplacebo'))`），但 0.41.0 的
+   `vo_gpu_next.c`（新一代渲染管线）离不开它了。所以这次新增了两个全新的 Nix 包：
+   - `nix/packages/mk-pkg-glslang`——libplacebo 的 GLSL→SPIR-V 编译依赖（无论
+     libplacebo 走哪个 GPU 后端都需要，不是 Vulkan/D3D11 专属）。glslang 上游是纯
+     CMake 项目，没有 meson 支持，这里参考 `mk-pkg-mbedtls` 已有的手法——写一个自定义
+     `meson.build`，用 meson 的 `cmake` 模块把 glslang 的 CMakeLists 当 subproject
+     跑（`cmake.subproject()`），构建产物直接从 `build/` 目录里 glob 出来，不走
+     `meson.override_dependency()`（因为 libplacebo 自己用 `cc.find_library()`/
+     `cc.has_header()` 裸查找 glslang，不是标准 pkg-config 依赖）
+   - `nix/packages/mk-pkg-libplacebo`——libplacebo 本身有原生 meson 支持，直接
+     `meson setup` 即可，但它是 `git clone --recursive` 拉子模块的项目，GitHub 的
+     tag 归档包不含子模块内容，所以额外单独拉取了 `jinja`/`markupsafe`/`fast_float`/
+     `glad` 四个子模块（按 v7.351.0 版本 `.gitmodules` 记录的具体 commit 单独 fetch，
+     跳过只有 demos/Vulkan 用到的 `nuklear`/`Vulkan-Headers`）拼进源码树
+   - `mk-pkg-mpv/default.nix` 新增 `flavor` 参数，只有 `flavor == movaslim`（且
+     `variant == video`）才把 `-Dlibplacebo=enabled -Dlibplacebo-next=enabled`
+     叠加进配置、把 libplacebo 加进 buildInputs——其余 flavor 完全不受影响，继续走
+     原来 `-Dlibplacebo=disabled` 的路径
+
+**GPU 后端选 OpenGL，不是 Vulkan/D3D11**：直接复用 Android v9 实验的真机结论——
+Vulkan 会让 libplacebo 额外开一个独立 GPU context，跟硬解桥接（MediaCodec/
+VideoToolbox 用的 GL context）并存，Android 真机实测 CPU +27%/内存 +70MB；切到
+OpenGL 后端后两者合并回同一个 GL context，资源开销打平。iOS/macOS 现有的硬解路径
+本来就是 `videotoolbox-gl`（GL 互操作，见 `mk-pkg-mpv` 的 `MACOS_VIDEO_OPTIONS`/
+`IOS_VIDEO_OPTIONS`），选 OpenGL 后端不需要新增/替换硬解桥接，风险更低。副作用是
+不需要 Windows D3D11 后端那条 `glslang+spirv-cross+shaderc` 的 SPIR-V→HLSL 转译链——
+OpenGL 直接吃 GLSL，只需要 glslang 一个依赖，省掉了 spirv-cross 和 shaderc 两个包。
+
+**与 v6 决策保持一致的部分**（v9 线的 Android/Windows 脚本也是这么做的，直接复用）：
+
+- **VP9 不能只留硬解**：VideoToolbox 是叠加在软解码器之上的 hwaccel，不是像
+  MediaCodec 那样的独立解码器命名空间，砍掉 `vp9` 软解会连 hwaccel 一起失效——跟
+  v2 记录的原因一样，这次也保留 `vp9` 软解
+- **AV1 没有硬解可选**：ffmpeg 这个 hwaccel 列表里没有 AV1 对应的 VideoToolbox
+  条目，所以不能照抄 Android/Windows v9"AV1 改纯硬解"的做法（它们各自有
+  `av1_mediacodec`/`av1_d3d11va` 可用）——darwin 的 AV1 继续是纯软解 `libdav1d`，
+  软解码器不能砍
+- **bsf 需要显式点亮**、**filter 维持空**：原因跟 v2 一致，未变
+
+**这版本连本地语法检查都没有**（本机是 Windows，没有 Nix/Xcode，glslang 的
+`cmake.subproject()` 用法、libplacebo 子模块拼接路径对不对、`mk-pkg-mpv` 的
+Nix 字符串插值转义对不对，一概没验证过），跟 v2 一样只能靠 CI 跑出真实报错来改。
+
+<details>
+<summary>历史记录：v2（照搬 Android v6，ffmpeg 6.0，已废弃——展开查看）</summary>
+
+v2 首次尝试（未验证）
 
 `media-kit/libmpv-darwin-build` 走 Nix flake，flavor 不是 shell 脚本而是 meson 的
 `-Dflavor=` combo 选项（`nix/packages/mk-pkg-ffmpeg/meson.build` 里按 flavor 字符串
@@ -82,6 +148,8 @@ configure 认识的合法值、movaslim 分支会不会漏了某个隐式依赖�
 （矩阵里最快的单一目标，用于验证 flavor 本身能不能通过 `meson setup`/编译/链接），
 还没扩展到 `ios`/`iossimulator`，也没有产物体积对比、符号核验、真机播放验证这些
 Android 定稿前做过的步骤。
+
+</details>
 
 ## ⭐ 2026-08-06 定稿结果（在下面"实测结果"一节基础上继续深挖）
 
