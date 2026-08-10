@@ -426,7 +426,7 @@ index 0000000..5b71daa
 +  '';
 +}
 diff --git a/nix/packages/mk-pkg-mpv/default.nix b/nix/packages/mk-pkg-mpv/default.nix
-index 543805a..636ffa1 100644
+index 543805a..3242724 100644
 --- a/nix/packages/mk-pkg-mpv/default.nix
 +++ b/nix/packages/mk-pkg-mpv/default.nix
 @@ -3,6 +3,7 @@
@@ -467,7 +467,36 @@ index 543805a..636ffa1 100644
  
    nativeBuildInputs = [
      pkgs.meson
-@@ -75,6 +85,9 @@ pkgs.stdenvNoCC.mkDerivation {
+@@ -47,7 +57,27 @@ let
+ 
+     cd $src
+     patch -p1 <${../../../patches/mpv-fix-missing-objc.patch}
+-    patch -p1 <${../../../patches/mpv-audiounit-shared-session.patch}
++    ${
++      if useLibplacebo then
++        ''
++          # Skipped for movaslim: this patch's hunk 4 targets mpv 0.36.0's
++          # AVAudioSession setup code in audio/out/ao_audiounit.m, which
++          # upstream itself rewrote by v0.41.0 (added an AO_INIT_EXCLUSIVE-
++          # based mix-with-others option) — the context no longer matches,
++          # so `patch` rejects that hunk. The feature this patch adds
++          # (reference-counted audio-session sharing across concurrent
++          # AudioUnit instances) is unrelated to movaslim/libplacebo and
++          # unused by mova today (single player instance) — skipping it
++          # entirely rather than hand-fixing the hunk against 0.41.0's new
++          # code shape, which is real but out of scope for this feasibility
++          # pass. Re-derive it for 0.41.0 before this becomes load-bearing.
++          echo "skipping mpv-audiounit-shared-session.patch for movaslim (see comment)"
++        ''
++      else
++        ''
++          patch -p1 <${../../../patches/mpv-audiounit-shared-session.patch}
++        ''
++    }
+     if [ "${variant}" == "${variants.audio}" ]; then
+       patch -p1 <${../../../patches/mpv-remove-libass.patch}
+     fi
+@@ -75,6 +105,9 @@ pkgs.stdenvNoCC.mkDerivation {
      ++ pkgs.lib.optionals (variant == "video") [
        uchardet
        libass
@@ -477,7 +506,7 @@ index 543805a..636ffa1 100644
      ];
    configurePhase = ''
      DISABLE_ALL_OPTIONS=(
-@@ -237,6 +250,17 @@ pkgs.stdenvNoCC.mkDerivation {
+@@ -237,6 +270,17 @@ pkgs.stdenvNoCC.mkDerivation {
        -Dios-gl=enabled `# iOS OpenGL ES hardware decoding interop support`
      )
  
@@ -495,7 +524,7 @@ index 543805a..636ffa1 100644
      OPTIONS=("''${DISABLE_ALL_OPTIONS[@]}")
  
      OPTIONS+=("''${COMMON_OPTIONS[@]}")
-@@ -256,6 +280,10 @@ pkgs.stdenvNoCC.mkDerivation {
+@@ -256,6 +300,10 @@ pkgs.stdenvNoCC.mkDerivation {
        fi
      fi
  
