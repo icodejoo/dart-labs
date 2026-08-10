@@ -1,3 +1,15 @@
+diff --git a/nix/packages/mk-pkg-dav1d/default.nix b/nix/packages/mk-pkg-dav1d/default.nix
+index c687365..9b64101 100644
+--- a/nix/packages/mk-pkg-dav1d/default.nix
++++ b/nix/packages/mk-pkg-dav1d/default.nix
+@@ -37,6 +37,7 @@ pkgs.stdenvNoCC.mkDerivation {
+       --native-file ${nativeFile} \
+       --cross-file ${crossFile} \
+       --prefix=$out \
++      --default-library=static \
+       -Dbitdepths="['8', '16']" \
+       -Denable_asm=false \
+       -Denable_tools=false \
 diff --git a/nix/packages/mk-pkg-ffmpeg/default.nix b/nix/packages/mk-pkg-ffmpeg/default.nix
 index 060869c..ca762ec 100644
 --- a/nix/packages/mk-pkg-ffmpeg/default.nix
@@ -62,10 +74,18 @@ index 060869c..ca762ec 100644
  in
  
 diff --git a/nix/packages/mk-pkg-ffmpeg/meson.build b/nix/packages/mk-pkg-ffmpeg/meson.build
-index 1b8afa3..83a05da 100644
+index 1b8afa3..899252c 100644
 --- a/nix/packages/mk-pkg-ffmpeg/meson.build
 +++ b/nix/packages/mk-pkg-ffmpeg/meson.build
-@@ -283,6 +283,136 @@ video_full_options = [
+@@ -42,7 +42,6 @@ common_options = [
+     '--prefix=@PREFIX@',
+     '--enable-small', # reduce libs size
+     '--enable-optimizations',
+-    '--enable-shared',
+     '--enable-network',
+     '--enable-pthreads',
+     '--enable-pic',
+@@ -283,6 +282,136 @@ video_full_options = [
      '--enable-decoder=h264',
  ]
  
@@ -202,7 +222,7 @@ index 1b8afa3..83a05da 100644
  audio_encodersgpl_options = [
      '--enable-encoders',
      '--enable-muxers',
-@@ -325,6 +455,11 @@ elif flavor == 'encodersgpl'
+@@ -325,8 +454,24 @@ elif flavor == 'encodersgpl'
          options += video_full_options
          options += video_encodersgpl_options
      endif
@@ -213,7 +233,20 @@ index 1b8afa3..83a05da 100644
 +    endif
  endif
  
++# Static, not shared — links ffmpeg's components straight into libmpv.dylib
++# (mirroring Android's shipped approach: one file, not this repo's default
++# N-separate-dylibs shape) so the final link step's dead-code elimination
++# can actually see across what used to be library boundaries. Applied
++# unconditionally (not just for movaslim) since nothing in this repo's CI
++# builds the other flavors regardless (see packages.lock.nix's version-bump
++# comments) — every other dependency package gets this same unconditional
++# static switch, to avoid threading a flavor/os check through every leaf
++# package individually.
++options += ['--enable-static', '--disable-shared']
++
  p = mod.add_project('configure',
+     configure_options : options,
+     cross_configure_options: [
 diff --git a/nix/packages/mk-pkg-ffmpeg/meson.options b/nix/packages/mk-pkg-ffmpeg/meson.options
 index a48d1db..d7cbb8e 100644
 --- a/nix/packages/mk-pkg-ffmpeg/meson.options
@@ -222,6 +255,30 @@ index a48d1db..d7cbb8e 100644
  option('variant', type : 'combo', choices : ['audio', 'video'])
 -option('flavor', type : 'combo', choices : ['default', 'full', 'encodersgpl'])
 +option('flavor', type : 'combo', choices : ['default', 'full', 'encodersgpl', 'movaslim'])
+diff --git a/nix/packages/mk-pkg-freetype/default.nix b/nix/packages/mk-pkg-freetype/default.nix
+index ddcd21b..cce9ecc 100644
+--- a/nix/packages/mk-pkg-freetype/default.nix
++++ b/nix/packages/mk-pkg-freetype/default.nix
+@@ -46,6 +46,7 @@ pkgs.stdenvNoCC.mkDerivation {
+       --native-file ${nativeFile} \
+       --cross-file ${crossFile} \
+       --prefix=$out \
++      --default-library=static \
+       -Dbrotli=disabled \
+       -Dbzip2=disabled \
+       -Dharfbuzz=enabled \
+diff --git a/nix/packages/mk-pkg-fribidi/default.nix b/nix/packages/mk-pkg-fribidi/default.nix
+index 9762a75..781f4cd 100644
+--- a/nix/packages/mk-pkg-fribidi/default.nix
++++ b/nix/packages/mk-pkg-fribidi/default.nix
+@@ -37,6 +37,7 @@ pkgs.stdenvNoCC.mkDerivation {
+       --native-file=${nativeFile} \
+       --cross-file ${crossFile} \
+       --prefix=$out \
++      --default-library=static \
+       -Ddeprecated=false \
+       -Ddocs=false \
+       -Dbin=false \
 diff --git a/nix/packages/mk-pkg-glslang/default.nix b/nix/packages/mk-pkg-glslang/default.nix
 new file mode 100644
 index 0000000..b479100
@@ -415,6 +472,35 @@ index 0000000..2af7096
 @@ -0,0 +1,2 @@
 +option('min-version-flag', type: 'string', value: '',
 +       description: 'Platform-appropriate -mmacosx-version-min/-miphoneos-version-min flag, computed in Nix (default.nix) since it depends on os, which meson cross-files here do not expose (host_machine.system() is "darwin" for macOS/iOS/iossimulator alike)')
+diff --git a/nix/packages/mk-pkg-harfbuzz/default.nix b/nix/packages/mk-pkg-harfbuzz/default.nix
+index ec1d6bd..73d0751 100644
+--- a/nix/packages/mk-pkg-harfbuzz/default.nix
++++ b/nix/packages/mk-pkg-harfbuzz/default.nix
+@@ -45,6 +45,7 @@ pkgs.stdenvNoCC.mkDerivation {
+       --native-file ${nativeFile} \
+       --cross-file ${crossFile} \
+       --prefix=$out \
++      --default-library=static \
+       -Dglib=disabled \
+       -Dgobject=disabled \
+       -Dcairo=disabled \
+diff --git a/nix/packages/mk-pkg-libass/meson.build b/nix/packages/mk-pkg-libass/meson.build
+index b4856a0..4532860 100644
+--- a/nix/packages/mk-pkg-libass/meson.build
++++ b/nix/packages/mk-pkg-libass/meson.build
+@@ -5,9 +5,11 @@ project('libass', 'c')
+ mod = import('unstable-external_project')
+ 
+ p = mod.add_project('configure',
++    # static, not shared — see mk-pkg-ffmpeg/meson.build's comment on why
+     configure_options : [
+         '--prefix=@PREFIX@',
+-        '--disable-static',
++        '--enable-static',
++        '--disable-shared',
+         '--enable-fast-install',
+         '--disable-dependency-tracking',
+         '--disable-test',
 diff --git a/nix/packages/mk-pkg-libplacebo/default.nix b/nix/packages/mk-pkg-libplacebo/default.nix
 new file mode 100644
 index 0000000..fb2a8c7
@@ -582,7 +668,7 @@ index 0000000..fb2a8c7
 +  '';
 +}
 diff --git a/nix/packages/mk-pkg-libpng/default.nix b/nix/packages/mk-pkg-libpng/default.nix
-index 9a5fafd..4548588 100644
+index 9a5fafd..6a25a00 100644
 --- a/nix/packages/mk-pkg-libpng/default.nix
 +++ b/nix/packages/mk-pkg-libpng/default.nix
 @@ -39,6 +39,22 @@ let
@@ -608,6 +694,16 @@ index 9a5fafd..4548588 100644
          cp -r $src $out
        '';
  in
+@@ -59,7 +75,8 @@ pkgs.stdenvNoCC.mkDerivation {
+     meson setup build $src \
+       --native-file ${nativeFile} \
+       --cross-file ${crossFile} \
+-      --prefix=$out
++      --prefix=$out \
++      --default-library=static
+   '';
+   buildPhase = ''
+     meson compile -vC build
 diff --git a/nix/packages/mk-pkg-libxml2/default.nix b/nix/packages/mk-pkg-libxml2/default.nix
 index bf1f92b..099d3d7 100644
 --- a/nix/packages/mk-pkg-libxml2/default.nix
@@ -642,11 +738,46 @@ index bf1f92b..099d3d7 100644
      cp ${./meson.build} $src/meson.build
  
      cp -r $src $out
+diff --git a/nix/packages/mk-pkg-libxml2/meson.build b/nix/packages/mk-pkg-libxml2/meson.build
+index 251ba7d..2d614eb 100644
+--- a/nix/packages/mk-pkg-libxml2/meson.build
++++ b/nix/packages/mk-pkg-libxml2/meson.build
+@@ -5,10 +5,12 @@ project('libxml2', 'c')
+ mod = import('unstable-external_project')
+ 
+ p = mod.add_project('configure',
++    # static, not shared — see mk-pkg-ffmpeg/meson.build's comment on why
++    # (links everything into a single libmpv.dylib, mirroring Android)
+     configure_options : [
+         '--prefix=@PREFIX@',
+-        '--disable-static',
+-        '--enable-shared',
++        '--enable-static',
++        '--disable-shared',
+         '--disable-dependency-tracking',
+         '--disable-silent-rules',
+         '--without-python'
+diff --git a/nix/packages/mk-pkg-mbedtls/default.nix b/nix/packages/mk-pkg-mbedtls/default.nix
+index e31e9cd..4b03486 100644
+--- a/nix/packages/mk-pkg-mbedtls/default.nix
++++ b/nix/packages/mk-pkg-mbedtls/default.nix
+@@ -58,8 +58,9 @@ pkgs.stdenvNoCC.mkDerivation {
+     cp $src/subprojects/mbedtls/include/mbedtls/*.h $out/include/mbedtls/
+     cp $src/subprojects/mbedtls/include/psa/*.h $out/include/psa/
+ 
+-    # install libs
+-    find build -type f -name '*.dylib' -exec sh -c 'cp {} $out/lib/' \;
++    # install libs — static (.a), not shared (.dylib), since
++    # USE_STATIC_MBEDTLS_LIBRARY was flipped on in meson.build
++    find build -type f -name '*.a' -exec sh -c 'cp {} $out/lib/' \;
+ 
+     # install pkgconfig file
+     cp ${./mbedtls.pc.in} $out/lib/pkgconfig/mbedtls.pc
 diff --git a/nix/packages/mk-pkg-mbedtls/meson.build b/nix/packages/mk-pkg-mbedtls/meson.build
-index aab0098..253cf6f 100644
+index aab0098..6079cec 100644
 --- a/nix/packages/mk-pkg-mbedtls/meson.build
 +++ b/nix/packages/mk-pkg-mbedtls/meson.build
-@@ -11,6 +11,17 @@ elif cpu == 'arm64'
+@@ -11,15 +11,29 @@ elif cpu == 'arm64'
      arch = 'arm64'
  endif
  
@@ -664,9 +795,14 @@ index aab0098..253cf6f 100644
  options = cmake.subproject_options()
  options.add_cmake_defines({
      'CMAKE_OSX_ARCHITECTURES': arch,
-@@ -20,6 +31,8 @@ options.add_cmake_defines({
-     'USE_STATIC_MBEDTLS_LIBRARY': false,
-     'USE_SHARED_MBEDTLS_LIBRARY': true,
+     'CMAKE_OSX_SYSROOT': meson.get_cross_property('cmake_osx_sysroot'),
+     'CMAKE_C_COMPILER_WORKS': true,
+     'CMAKE_CXX_COMPILER_WORKS': true,
+-    'USE_STATIC_MBEDTLS_LIBRARY': false,
+-    'USE_SHARED_MBEDTLS_LIBRARY': true,
++    # static, not shared — see mk-pkg-ffmpeg/meson.build's comment on why
++    'USE_STATIC_MBEDTLS_LIBRARY': true,
++    'USE_SHARED_MBEDTLS_LIBRARY': false,
      'LINK_WITH_PTHREAD': true,
 +    'ENABLE_PROGRAMS': false,
 +    'ENABLE_TESTING': false,
@@ -908,6 +1044,28 @@ index 543805a..f62c713 100644
      OPTIONS=("''${DISABLE_ALL_OPTIONS[@]}")
  
      OPTIONS+=("''${COMMON_OPTIONS[@]}")
+diff --git a/nix/packages/mk-pkg-uchardet/meson.build b/nix/packages/mk-pkg-uchardet/meson.build
+index f09d99f..0458e81 100644
+--- a/nix/packages/mk-pkg-uchardet/meson.build
++++ b/nix/packages/mk-pkg-uchardet/meson.build
+@@ -19,7 +19,16 @@ options.add_cmake_defines({
+     'CMAKE_BUILD_TYPE': 'Release',
+     'CMAKE_C_COMPILER_WORKS': true,
+     'CMAKE_CXX_COMPILER_WORKS': true,
+-    'BUILD_STATIC': false,
++    # static, not shared — see mk-pkg-ffmpeg/meson.build's comment on why.
++    # Verified against the actual pinned v0.0.8 source: BUILD_STATIC is
++    # only even defined as a CMake option when BUILD_SHARED_LIBS=ON (its
++    # own option() call is wrapped in `if (BUILD_SHARED_LIBS)` — a separate
++    # concern from the main library's shared/static-ness, which the main
++    # `add_library(${UCHARDET_LIBRARY} ...)` call controls implicitly via
++    # CMake's own built-in BUILD_SHARED_LIBS variable, no STATIC/SHARED
++    # keyword given explicitly). BUILD_SHARED_LIBS=false is what actually
++    # matters here.
++    'BUILD_SHARED_LIBS': false,
+     'BUILD_BINARY': false,
+ })
+ 
 diff --git a/nix/utils/constants/flavors.nix b/nix/utils/constants/flavors.nix
 index e2aa737..eeb29d4 100644
 --- a/nix/utils/constants/flavors.nix
