@@ -341,7 +341,7 @@ jobs:
   # and add real-device/simulator playback verification, mirroring how
   # Android went from a single arm64-v8a build to a validated multi-ABI one.
   darwin:
-    name: "iOS + macOS (v2: movaslim flavor, macos-arm64 only)"
+    name: "Darwin: macOS arm64 ONLY (movaslim flavor, no iOS yet)"
     runs-on: macos-15
     steps:
       - name: Platform info
@@ -552,6 +552,11 @@ jobs:
   windows:
     name: "Windows x86_64 (implemented, v1: native MSYS2 slim)"
     runs-on: windows-latest
+    # Temporarily disabled while we isolate the darwin movaslim feasibility
+    # run via workflow_dispatch (dispatch runs every job without `if: false`
+    # in one go, no per-job trigger exists) — re-enable once darwin's result
+    # is in, this is not a decision to deprioritize windows.
+    if: false
     defaults:
       run:
         shell: msys2 {0}
