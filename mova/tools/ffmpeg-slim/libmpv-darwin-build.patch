@@ -549,7 +549,7 @@ index 0000000..fb2a8c7
 +  '';
 +}
 diff --git a/nix/packages/mk-pkg-mpv/default.nix b/nix/packages/mk-pkg-mpv/default.nix
-index 543805a..fc7a53c 100644
+index 543805a..91368a5 100644
 --- a/nix/packages/mk-pkg-mpv/default.nix
 +++ b/nix/packages/mk-pkg-mpv/default.nix
 @@ -3,6 +3,7 @@
@@ -590,7 +590,7 @@ index 543805a..fc7a53c 100644
  
    nativeBuildInputs = [
      pkgs.meson
-@@ -47,7 +57,27 @@ let
+@@ -47,10 +57,61 @@ let
  
      cd $src
      patch -p1 <${../../../patches/mpv-fix-missing-objc.patch}
@@ -619,7 +619,41 @@ index 543805a..fc7a53c 100644
      if [ "${variant}" == "${variants.audio}" ]; then
        patch -p1 <${../../../patches/mpv-remove-libass.patch}
      fi
-@@ -75,8 +105,27 @@ pkgs.stdenvNoCC.mkDerivation {
++    ${pkgs.lib.optionalString useLibplacebo ''
++      # mpv v0.41.0 rewrote its macOS menu-bar/clipboard/dialog integration
++      # in Swift (osdep/mac/*.swift), and meson.build unconditionally adds
++      # player/clipboard/clipboard-mac.m + osdep/mac/app_bridge.m to the
++      # build whenever `cocoa` is enabled — both #include the
++      # meson/swiftc-generated osdep/mac/swift.h Objective-C bridging
++      # header. CI run 31366412122: "fatal error: 'osdep/mac/swift.h' file
++      # not found" — nothing in this repo has ever wired up a working
++      # Swift compile (nix/utils/xctoolchain/swiftc.nix exists but isn't
++      # used anywhere; getting meson's xcrun/swiftc detection + bridging
++      # header generation working in this sandboxed cross-build is real,
++      # unexplored scope, not a quick fix). `cocoa` itself must stay
++      # enabled regardless (MACOS_OPTIONS' own comment: "required in audio
++      # mode since v0.36.0"), so drop just these two Swift-dependent
++      # sources instead of the whole cocoa backend — accepted feature loss
++      # for this feasibility pass: mpv's macOS menu bar/clipboard/dialog
++      # integration won't work, core AVFoundation/CoreAudio/VideoToolbox
++      # paths mova actually uses are unaffected. The `error('cplayer
++      # enabled but no suitable swift version...')` guard a few hundred
++      # lines later doesn't need neutralizing — it's already gated on
++      # `get_option('cplayer')`, which COMMON_OPTIONS sets false.
++      # app_bridge.m is a full mid-list entry (safe to delete whole line);
++      # clipboard-mac.m is the last entry and closes the files(...) call, so
++      # its line is rewritten to keep the closing paren rather than deleted
++      # outright — a trailing comma before ')' is valid meson/Python-style
++      # syntax, so 'osdep/utils-mac.c', ending the list is fine.
++      sed -i \
++        -e "/'osdep\/mac\/app_bridge.m',/d" \
++        -e "s/'player\/clipboard\/clipboard-mac.m')/)/" \
++        "$src/meson.build"
++    ''}
+     cd -
+ 
+     cp -r $src $out
+@@ -75,8 +136,27 @@ pkgs.stdenvNoCC.mkDerivation {
      ++ pkgs.lib.optionals (variant == "video") [
        uchardet
        libass
@@ -647,7 +681,7 @@ index 543805a..fc7a53c 100644
      DISABLE_ALL_OPTIONS=(
        `# booleans`
        -Dgpl=false `# GPL (version 2 or later) build`
-@@ -84,7 +133,6 @@ pkgs.stdenvNoCC.mkDerivation {
+@@ -84,7 +164,6 @@ pkgs.stdenvNoCC.mkDerivation {
        -Dlibmpv=false `# libmpv library`
        -Dbuild-date=false `# whether to include binary compile time`
        -Dtests=false `# unit tests (development only)`
@@ -655,7 +689,7 @@ index 543805a..fc7a53c 100644
  
        `# misc features`
        -Dcdda=disabled `# cdda support (libcdio)`
-@@ -100,14 +148,11 @@ pkgs.stdenvNoCC.mkDerivation {
+@@ -100,14 +179,11 @@ pkgs.stdenvNoCC.mkDerivation {
        -Dlua=disabled `# Lua`
        -Dpthread-debug=disabled `# pthread runtime debugging wrappers`
        -Drubberband=disabled `# librubberband support`
@@ -670,7 +704,7 @@ index 543805a..fc7a53c 100644
        -Dzimg=disabled `# libzimg support (high quality software scaler)`
        -Dzlib=disabled `# zlib`
  
-@@ -146,8 +191,6 @@ pkgs.stdenvNoCC.mkDerivation {
+@@ -146,8 +222,6 @@ pkgs.stdenvNoCC.mkDerivation {
        -Dgl-win32=disabled `# OpenGL Win32 Backend`
        -Dgl-x11=disabled `# OpenGL X11/GLX (deprecated/legacy)`
        -Djpeg=disabled `# JPEG support`
@@ -679,7 +713,7 @@ index 543805a..fc7a53c 100644
        -Dsdl2-video=disabled `# SDL2 video output`
        -Dshaderc=disabled `# libshaderc SPIR-V compiler`
        -Dsixel=disabled `# Sixel`
-@@ -159,7 +202,6 @@ pkgs.stdenvNoCC.mkDerivation {
+@@ -159,7 +233,6 @@ pkgs.stdenvNoCC.mkDerivation {
        -Dvaapi-drm=disabled `# VAAPI (DRM/EGL support)`
        -Dvaapi-wayland=disabled `# VAAPI (Wayland support)`
        -Dvaapi-x11=disabled `# VAAPI (X11 support)`
@@ -687,7 +721,7 @@ index 543805a..fc7a53c 100644
        -Dvulkan=disabled `# Vulkan context support`
        -Dwayland=disabled `# Wayland`
        -Dx11=disabled `# X11`
-@@ -173,13 +215,9 @@ pkgs.stdenvNoCC.mkDerivation {
+@@ -173,13 +246,9 @@ pkgs.stdenvNoCC.mkDerivation {
        -Dd3d9-hwaccel=disabled `# DXVA2 hwaccel`
        -Dgl-dxinterop-d3d9=disabled `# OpenGL/DirectX Interop Backend DXVA2 interop`
        -Dios-gl=disabled `# iOS OpenGL ES hardware decoding interop support`
@@ -701,7 +735,7 @@ index 543805a..fc7a53c 100644
        -Dmacos-cocoa-cb=disabled `# macOS libmpv backend`
        -Dmacos-media-player=disabled `# macOS Media Player support`
        -Dmacos-touchbar=disabled `# macOS Touch Bar support`
-@@ -237,6 +275,18 @@ pkgs.stdenvNoCC.mkDerivation {
+@@ -237,6 +306,18 @@ pkgs.stdenvNoCC.mkDerivation {
        -Dios-gl=enabled `# iOS OpenGL ES hardware decoding interop support`
      )
  
