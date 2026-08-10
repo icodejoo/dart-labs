@@ -699,6 +699,34 @@ index 0000000..fb2a8c7
 +    meson install -C build
 +  '';
 +}
+diff --git a/nix/packages/mk-pkg-libpng/default.nix b/nix/packages/mk-pkg-libpng/default.nix
+index 9a5fafd..b36e922 100644
+--- a/nix/packages/mk-pkg-libpng/default.nix
++++ b/nix/packages/mk-pkg-libpng/default.nix
+@@ -56,10 +56,22 @@ pkgs.stdenvNoCC.mkDerivation {
+     pkgs.pkg-config
+   ];
+   configurePhase = ''
++    # -Dtests=false: libpng's wrapdb meson port builds `pngtest` (an
++    # executable linking against the libpng being built in the same tree)
++    # whenever meson's `tests` built-in option is true, its default — every
++    # other package here already passes this, libpng was the one gap. CI
++    # run 31370952160 (first attempt adding -fvisibility=hidden to every
++    # cross-file) failed here specifically: pngtest.c couldn't find
++    # png_write_chunk/png_set_write_status_fn/etc., now hidden by default
++    # and never re-exported for pngtest's benefit — nothing to do with
++    # mova's own runtime linkage (which only needs libpng16.dylib, never
++    # pngtest), just this one test binary breaking under stricter
++    # visibility.
+     meson setup build $src \
+       --native-file ${nativeFile} \
+       --cross-file ${crossFile} \
+-      --prefix=$out
++      --prefix=$out \
++      -Dtests=false
+   '';
+   buildPhase = ''
+     meson compile -vC build
 diff --git a/nix/packages/mk-pkg-mpv/default.nix b/nix/packages/mk-pkg-mpv/default.nix
 index 543805a..f62c713 100644
 --- a/nix/packages/mk-pkg-mpv/default.nix
