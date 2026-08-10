@@ -371,10 +371,10 @@ index 0000000..afe9aba
 +
 diff --git a/nix/packages/mk-pkg-libplacebo/default.nix b/nix/packages/mk-pkg-libplacebo/default.nix
 new file mode 100644
-index 0000000..3389479
+index 0000000..da16817
 --- /dev/null
 +++ b/nix/packages/mk-pkg-libplacebo/default.nix
-@@ -0,0 +1,135 @@
+@@ -0,0 +1,145 @@
 +{
 +  pkgs ? import ../../utils/default/pkgs.nix,
 +  os ? import ../../utils/default/os.nix,
@@ -390,6 +390,7 @@ index 0000000..3389479
 +  callPackage = pkgs.lib.callPackageWith { inherit pkgs os arch; };
 +  nativeFile = callPackage ../../utils/native-file/default.nix { };
 +  crossFile = callPackage ../../utils/cross-file/default.nix { };
++  xctoolchainLipo = callPackage ../../utils/xctoolchain/lipo.nix { };
 +  glslang = callPackage ../mk-pkg-glslang/default.nix { };
 +
 +  pname = import ../../utils/name/package.nix name;
@@ -478,6 +479,15 @@ index 0000000..3389479
 +    pkgs.ninja
 +    pkgs.pkg-config
 +    pkgs.python3
++    # meson's find_library() shells out to the bare `lipo` command (see
++    # nix/utils/xctoolchain/lipo.nix's comment — it doesn't use
++    # find_program()) to check a candidate library's architecture; without
++    # this on PATH, CI run 31363805395 died with a raw Python
++    # FileNotFoundError as soon as find_library() actually located
++    # glslang's .a files (progress from the previous "not found" error, not
++    # a regression — mk-pkg-mpv/mk-out-libs already carry this same
++    # nativeBuildInput for the same reason).
++    xctoolchainLipo
 +  ];
 +  # meson's cc.find_library()/cc.has_header() (used by libplacebo's
 +  # src/glsl/meson.build to locate glslang — it isn't a proper pkg-config
