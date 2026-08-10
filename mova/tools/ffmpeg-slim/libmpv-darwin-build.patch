@@ -11,8 +11,8 @@ diff -ruN -x .git static6c/nix/packages/mk-pkg-dav1d/default.nix static6b/nix/pa
        -Denable_tools=false \
 diff -ruN -x .git static6c/nix/packages/mk-pkg-ffmpeg/default.nix static6b/nix/packages/mk-pkg-ffmpeg/default.nix
 --- a/nix/packages/mk-pkg-ffmpeg/default.nix	2026-08-10 18:59:51.639082800 +0800
-+++ b/nix/packages/mk-pkg-ffmpeg/default.nix	2026-08-10 20:37:53.111891300 +0800
-@@ -1,102 +1,173 @@
++++ b/nix/packages/mk-pkg-ffmpeg/default.nix	2026-08-10 20:46:41.395696400 +0800
+@@ -1,102 +1,165 @@
 -{
 -  pkgs ? import ../../utils/default/pkgs.nix,
 -  os ? import ../../utils/default/os.nix,
@@ -254,19 +254,11 @@ diff -ruN -x .git static6c/nix/packages/mk-pkg-ffmpeg/default.nix static6b/nix/p
 +  );
 +  configurePhase = ''
 +    cat > pkg-config-wrapper <<WRAPPER
-+#!/usr/bin/env bash
++#!${pkgs.bash}/bin/bash
 +export PKG_CONFIG_PATH="$PKG_CONFIG_PATH"
 +exec ${pkgs.pkg-config}/bin/pkg-config "\$@"
 +WRAPPER
 +    chmod +x pkg-config-wrapper
-+    echo "DEBUG wrapper contents:"
-+    cat pkg-config-wrapper
-+    echo "DEBUG libxml2 via wrapper: $(./pkg-config-wrapper --modversion libxml-2.0 || echo MISSING)"
-+    echo "DEBUG dav1d modversion: $(./pkg-config-wrapper --modversion dav1d || echo MISSING)"
-+    ./pkg-config-wrapper --atleast-version=1.0.0 dav1d && echo "DEBUG dav1d atleast: OK" || echo "DEBUG dav1d atleast: FAIL"
-+    echo "DEBUG dav1d store contents:"
-+    find ${dav1d} -iname '*.pc' 2>&1 || true
-+    find ${dav1d}/lib 2>&1 | head -20 || true
 +
 +    meson setup build $src \
 +      --native-file ${nativeFile} \
