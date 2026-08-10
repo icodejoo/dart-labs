@@ -114,6 +114,10 @@ class MpvKernel implements MovaKernel {
   Future<void> setRate(double rate) => _player.setRate(rate);
 
   @override
+  Future<void> loadSubtitle(String uri) =>
+      _player.setSubtitleTrack(SubtitleTrack.uri(uri));
+
+  @override
   Future<Uint8List?> screenshot() => _player.screenshot(format: 'image/jpeg');
 
   @override

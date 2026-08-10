@@ -136,11 +136,42 @@ void main() {
     final events = <MovaEvent>[];
     final sub = e.events.listen(events.add);
     k.emitError('boom');
-    await Future<void>.delayed(Duration.zero);
+    // Errors are held back briefly (see MovaEngine's error debounce) so a
+    // self-recovering hiccup never reaches the UI; this one has no
+    // recovering position update, so it survives to surface.
+    //
+    // 错误会被短暂按住（见 MovaEngine 的错误防抖），使能自愈的小故障不会
+    // 抵达 UI；这次没有恢复性的位置更新，所以错误会扛过去并展示出来。
+    await Future<void>.delayed(const Duration(milliseconds: 500));
     expect(e.state.error, 'boom');
     expect(events.whereType<MovaErrorEvent>(), isNotEmpty);
     await sub.cancel();
   });
+
+  test(
+    'a position update landing before the error debounce fires suppresses '
+    'the error entirely (mpv can log an error-level line for a hiccup it '
+    'then recovers from on its own, e.g. an hwdec probe falling back to '
+    'software — a position update proves playback is genuinely still '
+    'advancing, so the user should never see an error flash for something '
+    'that was never actually a problem)',
+    () async {
+      k.emitError('Could not open codec.');
+      k.emitPosition(const Duration(seconds: 1));
+      await Future<void>.delayed(const Duration(milliseconds: 500));
+      expect(e.state.error, isNull);
+    },
+  );
+
+  test(
+    'an error that survives the debounce with no recovering position '
+    'update does surface',
+    () async {
+      k.emitError('boom');
+      await Future<void>.delayed(const Duration(milliseconds: 500));
+      expect(e.state.error, 'boom');
+    },
+  );
 
   test('showHud/hideControls drive MovaUiState', () async {
     e.showHud(MovaHud.volume);

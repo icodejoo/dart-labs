@@ -81,10 +81,30 @@ class MovaPlayer extends StatefulWidget {
 ///
 /// [MovaPlayer] 的状态；仅持有挂载后的一次性清晰度探测——其余一切都在每次
 /// 重建时由 [MovaApi] 的流派生而来。
-class _MovaPlayerState extends State<MovaPlayer> {
+class _MovaPlayerState extends State<MovaPlayer> with WidgetsBindingObserver {
+  /// Whether playback was running the last time the app went `inactive`
+  /// (captured there rather than at `paused`, since some platforms already
+  /// let the native surface auto-pause playback by the time `paused` fires —
+  /// checking [MovaApi.state] then could no longer tell a user pause from
+  /// one the OS just did).
+  ///
+  /// 上次应用进入 `inactive` 时播放是否仍在进行（在 `inactive` 而非 `paused`
+  /// 时机捕获——某些平台在 `paused` 触发前，原生画面就已经自行暂停了播放，
+  /// 那时再查 [MovaApi.state] 已经分不清是用户暂停的还是系统刚暂停的）。
+  bool? _wasPlayingBeforeBackground;
+
+  /// Whether the most recent pause was this widget's own doing (backgrounding
+  /// the app), as opposed to the user tapping pause. Only a lifecycle-owned
+  /// pause is auto-resumed on returning to the foreground.
+  ///
+  /// 最近一次暂停是否是本组件自己发起的（应用切到后台），而非用户手动点了
+  /// 暂停。只有生命周期自己发起的暂停，才会在回到前台时自动续播。
+  bool _pausedByLifecycle = false;
+
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     // `loadQualities()` is a no-op for non-HLS sources (MovaEngine just clears
     // the quality list), so it's always safe to call unconditionally here.
     //
@@ -93,6 +113,35 @@ class _MovaPlayerState extends State<MovaPlayer> {
     if (widget.autoLoadQualities) {
       widget.api.loadQualities();
     }
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    switch (state) {
+      case AppLifecycleState.inactive:
+        _wasPlayingBeforeBackground ??= widget.api.state.playing;
+      case AppLifecycleState.paused:
+      case AppLifecycleState.hidden:
+        final wasPlaying = _wasPlayingBeforeBackground ?? widget.api.state.playing;
+        if (wasPlaying) {
+          _pausedByLifecycle = true;
+          widget.api.pause();
+        }
+      case AppLifecycleState.resumed:
+        _wasPlayingBeforeBackground = null;
+        if (_pausedByLifecycle) {
+          _pausedByLifecycle = false;
+          widget.api.play();
+        }
+      case AppLifecycleState.detached:
+        break;
+    }
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
   }
 
   @override

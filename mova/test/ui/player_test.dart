@@ -59,4 +59,34 @@ void main() {
       await api2.dispose();
     },
   );
+
+  testWidgets(
+    'backgrounding while playing pauses, and returning to the foreground '
+    'resumes — but backgrounding while already paused (a user pause) leaves '
+    'it paused on return',
+    (t) async {
+      final api = FakeMovaApi();
+      api.push(const MovaState(playing: true));
+      await t.pumpWidget(MaterialApp(home: MovaPlayer(api: api)));
+      await t.pump();
+
+      t.binding.handleAppLifecycleStateChanged(AppLifecycleState.inactive);
+      t.binding.handleAppLifecycleStateChanged(AppLifecycleState.paused);
+      expect(api.calls, contains('pause'));
+
+      t.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+      expect(api.calls, contains('play'));
+
+      api.calls.clear();
+      api.push(const MovaState(playing: false));
+      t.binding.handleAppLifecycleStateChanged(AppLifecycleState.inactive);
+      t.binding.handleAppLifecycleStateChanged(AppLifecycleState.paused);
+      expect(api.calls, isNot(contains('pause')));
+
+      t.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+      expect(api.calls, isNot(contains('play')));
+
+      await api.dispose();
+    },
+  );
 }

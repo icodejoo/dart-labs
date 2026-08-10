@@ -484,15 +484,63 @@ jniLibs 合并时如果两份 `libmpv.so` 都在会直接报 merge 冲突。接�
       定稿 `dist/arm64-v8a/libmpv.so`）能正常软解播放 elysiatools 的 AV1 样例。
       8 秒 720p 低码率短片实测 CPU 87%~180%（多核）、RSS 内存比硬解多涨 70~90MB，
       肉眼无明显卡顿；**未测**高码率/长视频/1080p+ 场景，大概率更吃力，暂无数据。
-- [ ] 字幕：ASS/SRT/WebVTT 外挂字幕 + mov_text 内封字幕渲染——未测，demo 里还没有带字幕的源
-- [ ] 截图（png 编码器路径）——未测
-- [ ] HLS/FLV 直播流起播——未测（demo 已有 HLS 源，FLV 无）
-- [ ] **重点**：`FILTERS=""` 去掉 `overlay`/`equalizer` 之后，OSD、字幕合成、音量均衡
-      是否有可感知回归——仍未针对性验证，上面测的都是纯视频轨，没有触发这两个 avfilter
-      的路径
-- [ ] 播放中翻后台/来电中断恢复——未测
-- [ ] AV1 软解在高码率/长视频/1080p+ 场景下的 CPU/内存/发热/流畅度——上面只测了低码率
-      短片，结论不能直接套用到真实业务内容
+- [x] 字幕：mov_text 内封字幕渲染——STG-AL00 真机验证通过，字幕正常显示。测试源是
+      本地生成的 10 秒 testsrc + mov_text 中文字幕轨（`ffmpeg瘦身 · 字幕(mov_text内封)`
+      demo 入口），通过本机 HTTP server（自实现 Range 支持）+ `adb reverse` 喂给手机——
+      公开 CDN 链接（Bitmovin Sintel HLS）当时已失效，改走本地生成+本机 HTTP 更稳定。
+      **踩坑记录**：① `/sdcard/Download` 等公共目录在 Android 12 scoped storage 下
+      app 读不到，报 `failed to open`；② app 私有外部目录
+      `/sdcard/Android/data/<pkg>/files/` 用 `adb push` 塞文件在这台设备上同样打不开
+      （FUSE 权限映射跟 adb shell 不是一回事）；③ 直接上 `python -m http.server` 播放
+      报 `you can force it with --force-seekable=yes`——该 server 不支持 `Range`
+      请求，mpv 判定流不可寻址而拒绝播放，换成手写的支持 Range 的 handler 后正常。
+      ASS/SRT/WebVTT 外挂字幕格式（2026-08-10 补测）——给 `MovaApi`/`MovaKernel`
+      新加了 `loadSubtitle(uri)`（走 media_kit 的 `setSubtitleTrack`），demo 加了
+      字幕图标按钮依次加载三种格式，STG-AL00 真机三种都渲染正常。字幕合成是
+      libmpv 自己用 libass 直接烧进解码帧的，Flutter 侧（`Video` 组件）只是原样
+      显示这帧画面，不知道字幕这回事——`lib/src/ui/components/subtitle.dart`
+      那套字幕 UI 是给 STT 语音转字幕用的，跟外挂字幕文件是两条不同路径
+- [x] 截图——STG-AL00 真机验证通过（新加的 `MovaApi.screenshot()` + demo 相机按钮）。
+      **但这条路径其实不吃 ffmpeg 的 png 编码器**：media_kit 走 libmpv 的
+      `screenshot-raw` 拿原始 BGRA 像素，再用纯 Dart 的 `package:image` 编码成
+      JPEG——跟 `--strict-decode` 砍掉 png 编码器完全无关。原描述里"截图靠 png
+      编码器"说的是 mpv 原生 `screenshot` 命令（直接写文件到磁盘），那条才真的
+      吃 ffmpeg png 编码器，**仍未测**，优先级不高（demo 里没有直接调用入口，
+      属于小众用法）
+- [x] HLS 直播流起播——STG-AL00 真机验证通过（"直播 · DVR 可拖"/"直播 · 时移换源"
+      两个 demo 入口，同一 test-streams.mux.dev 源），起播/拖动/时移均正常
+- [x] FLV 容器/demuxer——STG-AL00 真机验证通过（`ffmpeg瘦身 · FLV容器` demo 入口，
+      本地生成的 .flv 通过 Range-HTTP server 喂给手机）。注意这测的是**容器/
+      demuxer 支持**，不是真正的直播推流场景（没有搭 RTMP/HTTP-FLV 直播服务器）
+- [x] **重点**：`FILTERS=""` 去掉 `overlay`/`equalizer` 之后，OSD、字幕合成是否有
+      可感知回归——STG-AL00 真机验证通过，mov_text 字幕正常叠加显示，无花屏/错位/
+      不显示。音量均衡（`equalizer`）这一半标记为**不适用**——`mova` 库里没有
+      任何 equalizer/音频均衡功能，业务代码从未用过这个 avfilter，砍掉它没有
+      对应功能需要回归验证，只是编译期可选滤镜的裁剪
+- [x] 播放中翻后台/来电中断恢复——STG-AL00 真机验证通过。过程中顺手补了个功能
+      （`MovaPlayer` 加 `WidgetsBindingObserver`）：切后台时若原本在播放则自动
+      暂停并标记"程序暂停"，回前台时仅当标记为"程序暂停"才自动续播，用户手动
+      暂停的维持暂停——修复前是"切后台暂停、回来不会自动恢复"
+- [x] AV1 软解在高码率/长视频/1080p+ 场景下的表现——STG-AL00 真机验证通过。测试源：
+      本地生成的 1080p、30 秒、约 9Mbps 的 AV1 文件（`ffmpeg瘦身 · AV1高码率长视频`
+      demo 入口），软解播放流畅、无卡顿/崩溃。**注意生成源文件时必须加
+      `-movflags +faststart`**——不加的话 moov atom 在文件尾，HTTP 播放时探测/
+      解码链路容易出问题，表现跟"设备不支持硬解"很像但其实是文件本身的问题，
+      之前 AV1 硬解那次探测卡死也是这个坑（见上方"AV1 硬解"记录）
+
+**顺手修的 bug（2026-08-10，跟瘦身无关但是在这轮真机测试中发现的）**：AV1 硬解
+探测失败后自动软解成功播放，但错误浮层（`ErrorComponent`）却一直卡在屏幕上不消失。
+根因是 `MpvKernel.error` 原样转发 media_kit 的 `Player.stream.error`，而 media_kit
+把 mpv 任何 `vd`/`ad`/`cplayer`/`stream`/`file`/`ffmpeg`(tcp) 前缀的 error 级别日志
+行都当成播放错误转发——包括"硬解探测失败→自动重试软解成功"这种**本来就会自愈**
+的场景（`[vd] Could not open codec.` 只是 mpv 换解码器前的一句过程日志，不是
+真正播放失败）。而 `MovaState.error` 此前只有 `open()`/`reload()` 会清空，导致这类
+自愈场景下错误浮层永久卡死。**修复（最终方案）**：不是"先显示再撤回"，而是**先按住 400ms 再决定要不要显示**——
+`MovaEngine`（`engine.dart`）收到内核错误后先启动一个 400ms 防抖计时器，若期间有
+新的位置更新到达（证明播放已自行恢复），直接取消计时器、错误从始至终不会展示；
+只有扛过防抖期、确实没有恢复的错误才会真正 emit 到 `state.error`。补了两个回归
+测试覆盖"被吞掉"和"确实展示"两种情况（`test/core/engine_test.dart`），全量测试
+通过，真机验证提示不再出现。
 
 **下次接手**：三个新 demo 入口（`ffmpeg瘦身 · HEVC/VP9/AV1`）已加进
 `example/lib/main.dart` 的 `_demos` 列表，真机上可直接点开测，不用再改代码找测试源

@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import 'events/events.dart';
 import 'model/fit.dart';
 import 'model/orientation.dart';
@@ -301,6 +303,37 @@ abstract class MovaApi {
   /// [v] 为 `true` 表示拖动手势（进度/音量/亮度）正在进行。[previewAt] 为
   /// 拖动过程中要展示的预览位置，`null` 表示不展示。
   void setDragging(bool v, {Duration? previewAt});
+
+  /// Loads and activates an external subtitle track from [uri].
+  ///
+  /// [uri] points at a standalone subtitle file (ASS/SRT/WebVTT), as opposed
+  /// to a track already muxed into the currently open media.
+  ///
+  /// 加载并激活一个外挂字幕轨。
+  ///
+  /// [uri] 指向一个独立的字幕文件（ASS/SRT/WebVTT），而非已封装进当前打开
+  /// 媒体里的字幕轨。
+  ///
+  /// Example / 示例:
+  /// ```dart
+  /// await api.loadSubtitle('https://host/movie.srt');
+  /// ```
+  Future<void> loadSubtitle(String uri);
+
+  /// Captures the current video frame as encoded JPEG bytes.
+  ///
+  /// Returns `null` if no frame is available to capture (e.g. before the
+  /// first frame has decoded).
+  ///
+  /// 截取当前视频帧，编码为 JPEG 字节。
+  ///
+  /// 若尚无可截取的帧（例如首帧还没解出来）则返回 `null`。
+  ///
+  /// Example / 示例:
+  /// ```dart
+  /// final bytes = await api.screenshot();
+  /// ```
+  Future<Uint8List?> screenshot();
 
   /// Releases all resources held by this instance; must be called exactly
   /// once when the player is torn down.

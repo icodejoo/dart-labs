@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:meta/meta.dart';
 
@@ -211,6 +212,22 @@ class MovaEngine implements MovaApi {
   Timer? _hudTimer;
   Timer? _autoHideTimer;
 
+  /// How long a kernel error is held back before it reaches [state], giving
+  /// a self-recovering hiccup (see [_errorSub]) a chance to prove itself via
+  /// a position update before the user ever sees anything.
+  ///
+  /// 内核错误在到达 [state] 前被按住多久——给一次能自愈的小故障（见
+  /// [_errorSub]）机会在用户看到任何东西之前，用一次位置更新证明自己没事。
+  static const _errorDebounceDuration = Duration(milliseconds: 400);
+
+  /// The in-flight debounce timer for the most recent kernel error, or null
+  /// once it has either fired (surfaced to [state]) or been cancelled by a
+  /// recovering position update.
+  ///
+  /// 最近一次内核错误正在进行中的防抖计时器；一旦触发（已展示到 [state]）
+  /// 或被恢复的位置更新取消，就变回 null。
+  Timer? _errorDebounceTimer;
+
   /// Creates an engine over [kernel] (defaults to a new [MpvKernel]),
   /// [options], [interceptors], and platform [brightness]/[pip]/[orientation]
   /// ports (each defaults to a zero-dependency fallback/noop).
@@ -290,6 +307,24 @@ class MovaEngine implements MovaApi {
       _updateTimeshift(v);
       _sttService.updatePosition(v);
       _progressRaw.add(MovaProg(position: v, buffer: _lastBuffer));
+      // A fresh position update is proof playback is genuinely still
+      // advancing — a truly broken/stuck stream could never produce one.
+      // Cancel any error still waiting out its debounce (see _errorSub) so
+      // it never surfaces at all, and clear one that already made it to
+      // [state] (a position landing right on the debounce boundary, or any
+      // other edge case) rather than leaving it stuck over a stream that is,
+      // in fact, playing.
+      //
+      // 位置更新持续到达，本身就证明播放确实还在推进——一个真正卡死/播放
+      // 失败的流不可能产生新的位置更新。取消仍在防抖等待中的错误（见
+      // _errorSub），使其压根不会显示；同时清掉已经落进 [state] 的错误
+      // （位置刚好卡在防抖边界之类的边缘情况），而不是让它挂在一个实际上
+      // 还在正常播放的流上。
+      _errorDebounceTimer?.cancel();
+      _errorDebounceTimer = null;
+      if (state.error != null) {
+        _state.emit(state.copyWith(clearError: true));
+      }
     });
     _bufferSub = _kernel.buffer.listen((v) {
       _lastBuffer = v;
@@ -315,9 +350,34 @@ class MovaEngine implements MovaApi {
       }
     });
     _errorSub = _kernel.error.listen((e) {
-      _state.emit(state.copyWith(error: e));
-      _events.add(MovaErrorEvent(e));
-      _chain.onError(e, StackTrace.current);
+      // The kernel's error stream mirrors mpv's own error-level log lines
+      // verbatim, which includes ones mpv fully recovers from on its own —
+      // e.g. "Could not open codec" during an hwdec probe that mpv
+      // immediately retries in software. There is no reliable way to tell a
+      // recoverable log line from a fatal one by its text alone, so instead:
+      // hold it for [_errorDebounce] before it ever reaches [state]. If a
+      // position update lands first (see _positionSub), that is proof
+      // playback recovered on its own, and this error is dropped — the user
+      // never sees an error flash for something that was never actually a
+      // problem. Only an error that survives the debounce untouched — i.e.
+      // playback really did not resume — is surfaced.
+      //
+      // 内核的错误流原样转发 mpv 自身的 error 级别日志行，其中包含 mpv 自己
+      // 就能恢复的那些——例如硬解探测阶段的 "Could not open codec"，mpv
+      // 随后立即重试软解。单看文本没法可靠区分"能自愈的日志"和"真正致命的
+      // 错误"，于是换个角度：先按住不发，等一小段防抖时间（见
+      // [_errorDebounce]）。如果位置更新先到达（见 _positionSub），就是
+      // 播放已经自行恢复的证据，这个错误直接丢弃——用户永远不会看到一个
+      // 其实从未真正发生过的问题闪一下。只有扛过防抖期、播放确实没有恢复
+      // 的错误，才会真正展示出来。
+      final timer = Timer(_errorDebounceDuration, () {
+        _errorDebounceTimer = null;
+        _state.emit(state.copyWith(error: e));
+        _events.add(MovaErrorEvent(e));
+        _chain.onError(e, StackTrace.current);
+      });
+      _errorDebounceTimer?.cancel();
+      _errorDebounceTimer = timer;
     });
     _previewService = _buildPreview(
       thumbDir: thumbDir,
@@ -988,6 +1048,12 @@ class MovaEngine implements MovaApi {
   }
 
   @override
+  Future<void> loadSubtitle(String uri) => _kernel.loadSubtitle(uri);
+
+  @override
+  Future<Uint8List?> screenshot() => _kernel.screenshot();
+
+  @override
   Future<void> dispose() async {
     await _playingSub.cancel();
     await _bufferingSub.cancel();
@@ -999,6 +1065,7 @@ class MovaEngine implements MovaApi {
     await _errorSub.cancel();
     _hudTimer?.cancel();
     _autoHideTimer?.cancel();
+    _errorDebounceTimer?.cancel();
     await _state.close();
     await _ui.close();
     await _events.close();

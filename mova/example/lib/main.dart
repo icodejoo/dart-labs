@@ -26,7 +26,7 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(theme: ThemeData.dark(), home: const SttEngineSpikePage());
+    return MaterialApp(theme: ThemeData.dark(), home: const PlayerPage());
   }
 }
 
@@ -100,6 +100,27 @@ final _demos = [
     MovaSource(
       'https://api.elysiatools.com/public/samples/av1/earth_720p_horizontal.mp4',
       title: 'AV1 硬解/软解验证',
+    ),
+  ),
+  _Demo(
+    'ffmpeg瘦身 · 字幕(mov_text内封)',
+    MovaSource(
+      'http://127.0.0.1:8756/mova-subtitle-test.mp4',
+      title: '字幕渲染 + avfilter 回归验证',
+    ),
+  ),
+  _Demo(
+    'ffmpeg瘦身 · AV1高码率长视频',
+    MovaSource(
+      'http://127.0.0.1:8756/mova-av1-highbitrate-fs.mp4',
+      title: 'AV1 软解高码率/长视频压力验证',
+    ),
+  ),
+  _Demo(
+    'ffmpeg瘦身 · FLV容器',
+    MovaSource(
+      'http://127.0.0.1:8756/mova-flv-test.flv',
+      title: 'FLV 容器/demuxer 验证',
     ),
   ),
   _Demo(
@@ -249,6 +270,67 @@ class _PlayerPageState extends State<PlayerPage> {
     super.dispose();
   }
 
+  /// Captures a screenshot via [MovaEngine.screenshot] and shows the result
+  /// (byte count + a preview dialog, or an error snackbar) — a manual probe
+  /// for the ffmpeg-slim png-encoder-path regression check.
+  ///
+  /// 通过 [MovaEngine.screenshot] 截图并展示结果（字节数 + 预览弹窗，或错误
+  /// 提示）——手动验证 ffmpeg 瘦身后 png 编码器路径是否还能用。
+  Future<void> _takeScreenshot() async {
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      final bytes = await _engine.screenshot();
+      if (bytes == null) {
+        messenger.showSnackBar(const SnackBar(content: Text('screenshot() 返回 null')));
+        return;
+      }
+      messenger.showSnackBar(SnackBar(content: Text('截图成功：${bytes.length} 字节')));
+      if (!mounted) return;
+      showDialog<void>(
+        context: context,
+        builder: (_) => Dialog(child: Image.memory(bytes)),
+      );
+    } catch (e) {
+      messenger.showSnackBar(SnackBar(content: Text('截图失败：$e')));
+    }
+  }
+
+  /// Index into [_extSubtitles] of the format to load on the next tap of the
+  /// external-subtitle demo button.
+  ///
+  /// 外挂字幕 demo 按钮下一次点击时要加载的格式，在 [_extSubtitles] 中的下标。
+  int _extSubIndex = 0;
+
+  /// The external subtitle formats cycled through by [_loadNextExtSubtitle]:
+  /// SRT, WebVTT, then ASS — each served from the same local HTTP fixture
+  /// server used by the other ffmpeg-slim demo sources.
+  ///
+  /// [_loadNextExtSubtitle] 依次加载的外挂字幕格式：SRT、WebVTT、ASS——都由
+  /// 其他 ffmpeg 瘦身 demo 源共用的本机 HTTP 测试文件服务器提供。
+  static const _extSubtitles = [
+    ('SRT', 'http://127.0.0.1:8756/ext.srt'),
+    ('WebVTT', 'http://127.0.0.1:8756/ext.vtt'),
+    ('ASS', 'http://127.0.0.1:8756/ext.ass'),
+  ];
+
+  /// Loads the next external subtitle format in [_extSubtitles] via
+  /// [MovaEngine.loadSubtitle] — a manual probe for the ffmpeg-slim
+  /// ASS/SRT/WebVTT external-subtitle regression check.
+  ///
+  /// 通过 [MovaEngine.loadSubtitle] 加载 [_extSubtitles] 里的下一种格式——
+  /// 手动验证 ffmpeg 瘦身后 ASS/SRT/WebVTT 外挂字幕这条路径还能用。
+  Future<void> _loadNextExtSubtitle() async {
+    final messenger = ScaffoldMessenger.of(context);
+    final (label, uri) = _extSubtitles[_extSubIndex];
+    _extSubIndex = (_extSubIndex + 1) % _extSubtitles.length;
+    try {
+      await _engine.loadSubtitle(uri);
+      messenger.showSnackBar(SnackBar(content: Text('已加载外挂字幕：$label')));
+    } catch (e) {
+      messenger.showSnackBar(SnackBar(content: Text('加载外挂字幕失败（$label）：$e')));
+    }
+  }
+
   /// Switches to demo source [i], rebuilding the engine because options are
   /// construction-time.
   ///
@@ -321,6 +403,16 @@ class _PlayerPageState extends State<PlayerPage> {
             onPressed: () => Navigator.of(context).push(
               MaterialPageRoute(builder: (_) => const SttEngineSpikePage()),
             ),
+          ),
+          IconButton(
+            tooltip: 'ffmpeg瘦身 · 截图验证',
+            icon: const Icon(Icons.camera_alt_rounded),
+            onPressed: _takeScreenshot,
+          ),
+          IconButton(
+            tooltip: 'ffmpeg瘦身 · 外挂字幕(依次 SRT/WebVTT/ASS)',
+            icon: const Icon(Icons.subtitles_rounded),
+            onPressed: _loadNextExtSubtitle,
           ),
           IconButton(
             tooltip: _previewOn ? '关闭预览' : '开启预览',

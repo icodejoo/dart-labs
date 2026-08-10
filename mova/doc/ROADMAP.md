@@ -55,15 +55,23 @@
       软解双通道，2026-08-06 真机验证 H.264/HEVC/VP9/AV1 通过），详见
       [tools/ffmpeg-slim/README.md](../tools/ffmpeg-slim/README.md)。armeabi-v7a/
       x86/x86_64 及 iOS/macOS/Windows/Linux 仍是 TODO（同一份 README 的"多平台进度"
-      表跟踪）；字幕渲染/截图/HLS-FLV直播/avfilter回归/后台中断/AV1高码率场景这 6 项
-      真机功能检查也还没测完（同 README"真机测试"一节），不阻塞标记本阶段完成。
+      表跟踪）；**真机功能检查已于 2026-08-10 收尾**——字幕渲染（mov_text 内封 +
+      ASS/SRT/WebVTT 外挂）/截图/HLS 直播/FLV 容器/avfilter 回归/后台中断恢复/
+      AV1 高码率长视频场景全部验证通过（equalizer 因库内无对应功能标记不适用；
+      mpv 原生 screenshot 命令因优先级低未测），详见 README"真机测试"一节。过程中
+      顺手给 `MovaApi` 补了 `screenshot()`/`loadSubtitle(uri)` 两个方法，并修了一个
+      "错误浮层可能对本会自愈的解码探测失败误报"的 bug（防抖 400ms）。
 - [ ] **三期** 语音转字幕（STT）：`ZipformerSttEngine` 本身已验证（2026-08-05，Windows
       桌面用真实模型+官方测试 wav 跑通，识别效果正确；Android 真机上验证时踩过两个坑，
       未复测确认稳定，见下方笔记）。**但"打开视频、实时出字幕"这个端到端场景做不出来
       ——`MovaSttEngine.feed()` 从没有任何调用点，从播放中的视频抽音频喂给引擎这条链路
-      完全没实现**，是比"验证引擎"更大的一块独立工作。**外挂字幕文件（视频自带字幕）
-      功能也完全没有**——`MovaSttApi` 只有实时识别一条路，没有"加载已有字幕文件"的接口，
-      需要新设计 API 形状。批量预转写（点播一次性转写缓存字幕文件）依赖二期 ffmpeg 瘦身
+      完全没实现**，是比"验证引擎"更大的一块独立工作。**外挂字幕文件加载**已有底层
+      能力（`MovaApi.loadSubtitle(uri)`，2026-08-10 为 ffmpeg 瘦身 avfilter 回归
+      测试新加，真机验证 ASS/SRT/WebVTT 均渲染正常）——但那是"喂一个已有字幕文件
+      给 libmpv 直接烧渲染"，跟 STT 场景要的"实时识别生成字幕、走 Flutter 层
+      `subtitle.dart` 组件展示"是两条不同链路，`MovaSttApi` 仍然只有实时识别一条路，
+      没有"批量预转写产出字幕文件"的接口，需要新设计 API 形状。批量预转写（点播
+      一次性转写缓存字幕文件）依赖二期 ffmpeg 瘦身
       产出的自建 ffmpeg + FFI 绑定——mpv `ao=pcm` 音频抽取方案真机实测失败且被证实是已知
       不可靠的老驱动，绕开 media_kit 直接 FFI 调 ffmpeg 也没有现成可用的库。详见
       [doc/notes/2026-08-04-stt-engine-decision.md](notes/2026-08-04-stt-engine-decision.md)。

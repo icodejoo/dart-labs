@@ -78,6 +78,22 @@ abstract class MovaKernel {
   /// 返回一个在速率应用后完成的 Future。
   Future<void> setRate(double rate);
 
+  /// Loads and activates an external subtitle track from [uri].
+  ///
+  /// [uri] points at a standalone subtitle file (ASS/SRT/WebVTT), as opposed
+  /// to a track already muxed into the currently open media.
+  ///
+  /// Returns a future that completes once the subtitle has been loaded and
+  /// selected.
+  ///
+  /// 加载并激活一个外挂字幕轨。
+  ///
+  /// [uri] 指向一个独立的字幕文件（ASS/SRT/WebVTT），而非已封装进当前打开
+  /// 媒体里的字幕轨。
+  ///
+  /// 返回一个在字幕加载并选中后完成的 Future。
+  Future<void> loadSubtitle(String uri);
+
   /// Captures the current video frame as an encoded image.
   ///
   /// Returns the encoded image bytes, or `null` if a screenshot could not be

@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:typed_data';
 
 import 'package:mova/src/core/api.dart';
 import 'package:mova/src/core/bus/bus.dart';
@@ -387,6 +388,17 @@ class FakeMovaApi implements MovaApi {
     calls.add('setDragging');
     lastDragging = v;
     lastPreviewAt = previewAt;
+  }
+
+  @override
+  Future<void> loadSubtitle(String uri) async {
+    calls.add('loadSubtitle');
+  }
+
+  @override
+  Future<Uint8List?> screenshot() async {
+    calls.add('screenshot');
+    return null;
   }
 
   @override
