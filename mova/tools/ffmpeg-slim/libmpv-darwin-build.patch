@@ -700,33 +700,32 @@ index 0000000..fb2a8c7
 +  '';
 +}
 diff --git a/nix/packages/mk-pkg-libpng/default.nix b/nix/packages/mk-pkg-libpng/default.nix
-index 9a5fafd..b36e922 100644
+index 9a5fafd..4548588 100644
 --- a/nix/packages/mk-pkg-libpng/default.nix
 +++ b/nix/packages/mk-pkg-libpng/default.nix
-@@ -56,10 +56,22 @@ pkgs.stdenvNoCC.mkDerivation {
-     pkgs.pkg-config
-   ];
-   configurePhase = ''
-+    # -Dtests=false: libpng's wrapdb meson port builds `pngtest` (an
-+    # executable linking against the libpng being built in the same tree)
-+    # whenever meson's `tests` built-in option is true, its default — every
-+    # other package here already passes this, libpng was the one gap. CI
-+    # run 31370952160 (first attempt adding -fvisibility=hidden to every
-+    # cross-file) failed here specifically: pngtest.c couldn't find
-+    # png_write_chunk/png_set_write_status_fn/etc., now hidden by default
-+    # and never re-exported for pngtest's benefit — nothing to do with
-+    # mova's own runtime linkage (which only needs libpng16.dylib, never
-+    # pngtest), just this one test binary breaking under stricter
-+    # visibility.
-     meson setup build $src \
-       --native-file ${nativeFile} \
-       --cross-file ${crossFile} \
--      --prefix=$out
-+      --prefix=$out \
-+      -Dtests=false
-   '';
-   buildPhase = ''
-     meson compile -vC build
+@@ -39,6 +39,22 @@ let
+         unzip ${libpngPatch} -d libpng-patch
+         rsync -a libpng-patch/libpng-*/ $src/
+ 
++        # This pinned wrapdb patch (1.6.40-1) builds `pngtest` (a test
++        # executable linking against the libpng being built in the same
++        # tree) completely unconditionally — no meson_options.txt, no
++        # `get_option('tests')` gate at all (confirmed by fetching this
++        # exact pinned patch: `test('pngtest', ...)` is a bare top-level
++        # statement in meson.build). CI run 31371744961's first fix
++        # attempt (`-Dtests=false`) failed with "Unknown options: tests"
++        # because that option genuinely doesn't exist here — a *newer*
++        # wrapdb revision (mesonbuild/wrapdb's `master` branch content,
++        # not this pinned 1.6.40-1 release) does declare one, which is
++        # what that fix was mistakenly checked against. sed the two lines
++        # out directly instead: nothing in mova's own runtime linkage
++        # needs pngtest, only libpng16.dylib itself.
++        sed -i "/^png_test = executable('pngtest', 'pngtest.c'/d; /^test('pngtest', png_test/d" \
++          $src/meson.build
++
+         cp -r $src $out
+       '';
+ in
 diff --git a/nix/packages/mk-pkg-mpv/default.nix b/nix/packages/mk-pkg-mpv/default.nix
 index 543805a..f62c713 100644
 --- a/nix/packages/mk-pkg-mpv/default.nix
