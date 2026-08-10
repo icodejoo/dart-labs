@@ -582,7 +582,7 @@ index 0000000..fb2a8c7
 +  '';
 +}
 diff --git a/nix/packages/mk-pkg-mpv/default.nix b/nix/packages/mk-pkg-mpv/default.nix
-index 543805a..91368a5 100644
+index 543805a..f62c713 100644
 --- a/nix/packages/mk-pkg-mpv/default.nix
 +++ b/nix/packages/mk-pkg-mpv/default.nix
 @@ -3,6 +3,7 @@
@@ -768,7 +768,36 @@ index 543805a..91368a5 100644
        -Dmacos-cocoa-cb=disabled `# macOS libmpv backend`
        -Dmacos-media-player=disabled `# macOS Media Player support`
        -Dmacos-touchbar=disabled `# macOS Touch Bar support`
-@@ -237,6 +306,18 @@ pkgs.stdenvNoCC.mkDerivation {
+@@ -230,6 +299,28 @@ pkgs.stdenvNoCC.mkDerivation {
+     IOS_OPTIONS=(
+       `# audio output features`
+       -Daudiounit=enabled `# AudioUnit output for iOS`
++      # `coreaudio` defaults to meson's 'auto' and is never explicitly
++      # touched elsewhere in this file — dependency('appleframeworks',
++      # modules: [...]) resolves `found=true` on iOS too (CoreAudio.
++      # framework technically ships there, just without the HAL device-
++      # management API surface these headers assume), so meson.build's
++      # `if features['audiounit'] or features['coreaudio'] or
++      # features['avfoundation']` unconditionally pulls in ao_coreaudio_
++      # chmap.c/ao_coreaudio_utils.c whenever audiounit alone is enabled.
++      # CI run 31368931873 (ios-arm64): "unknown type name 'AudioDeviceID'"
++      # — that type is macOS-HAL-only, guarded by `#if HAVE_COREAUDIO ||
++      # HAVE_AVFOUNDATION` in the header, which only evaluates true because
++      # coreaudio auto-enabled itself. Force it off explicitly for iOS.
++      -Dcoreaudio=disabled `# CoreAudio audio output (macOS-only HAL API, not iOS)`
++      # avfoundation is the other alternative in that same `or` condition —
++      # its framework genuinely exists and works on iOS (unlike coreaudio),
++      # so it very plausibly also auto-enables and re-triggers the same
++      # HAVE_AVFOUNDATION-guarded AudioDeviceID code path on its own even
++      # with coreaudio off. Disabled preemptively rather than risking
++      # another failed CI round-trip to discover the same class of bug
++      # from the other side of that `or` — audiounit alone is what mova
++      # actually needs for iOS audio output.
++      -Davfoundation=disabled `# AVFoundation audio output (redundant with audiounit here)`
+     )
+ 
+     IOS_VIDEO_OPTIONS=(
+@@ -237,6 +328,18 @@ pkgs.stdenvNoCC.mkDerivation {
        -Dios-gl=enabled `# iOS OpenGL ES hardware decoding interop support`
      )
  
