@@ -1,3 +1,53 @@
+diff --git a/nix/packages/mk-pkg-ffmpeg/default.nix b/nix/packages/mk-pkg-ffmpeg/default.nix
+index 060869c..8336065 100644
+--- a/nix/packages/mk-pkg-ffmpeg/default.nix
++++ b/nix/packages/mk-pkg-ffmpeg/default.nix
+@@ -42,16 +42,41 @@ let
+     chmod -R 777 $src
+ 
+     cd $src
+-    patch -p1 <${../../../patches/ffmpeg-fix-vp9-hwaccel.patch}
+-    patch -p1 <${../../../patches/ffmpeg-fix-hls-mp4-seek.patch}
+-    patch -p1 <${../../../patches/ffmpeg-fix-ios-hdr-texture.patch}
+-    patch -p1 <${../../../patches/ffmpeg-fix-dash-base-url-escape.patch}
++    # These four patches were written against ffmpeg 6.0 (the version this
++    # repo shipped default/full/encodersgpl on before the n9.0 bump below).
++    # movaslim jumps 3 major ffmpeg versions at once — CI run 31361900654
++    # hit a rejected hunk in ffmpeg-fix-hls-mp4-seek.patch against
++    # libavformat/hls.c, which upstream has clearly reworked since 6.0.
++    # Each of these is a targeted runtime
++    # bugfix (VP9 hwaccel edge case / HLS fMP4 seek / iOS HDR texture / DASH
++    # base URL escaping), not something compilation depends on — apply
++    # best-effort (fuzzy, non-fatal) rather than hard-failing the whole
++    # ffmpeg build over one stale hunk. Whichever ones don't apply need to be
++    # re-derived against n9.0 before their underlying bugs matter again;
++    # `*.rej` files are copied into $out below so that's diffable later
++    # instead of silently lost.
++    for p in \
++      ${../../../patches/ffmpeg-fix-vp9-hwaccel.patch} \
++      ${../../../patches/ffmpeg-fix-hls-mp4-seek.patch} \
++      ${../../../patches/ffmpeg-fix-ios-hdr-texture.patch} \
++      ${../../../patches/ffmpeg-fix-dash-base-url-escape.patch} \
++    ; do
++      if patch -p1 --fuzz=5 <"$p"; then
++        echo "applied: $p"
++      else
++        echo "::warning:: could not fully apply $p against ffmpeg ${version} — see *.rej"
++      fi
++    done
+     cd -
+ 
+     cp ${./meson.build} $src/meson.build
+     cp ${./meson.options} $src/meson.options
+ 
+     cp -r $src $out
++    # Nix's sandbox only allows writes under $out/$TMPDIR, so rejects can't
++    # be shipped as a separate output — just dump them to the build log
++    # (visible in CI) instead of losing them silently.
++    find $src -name '*.rej' -exec sh -c 'echo "--- $1 ---"; cat "$1"' _ {} \; || true
+   '';
+ in
+ 
 diff --git a/nix/packages/mk-pkg-ffmpeg/meson.build b/nix/packages/mk-pkg-ffmpeg/meson.build
 index 1b8afa3..83a05da 100644
 --- a/nix/packages/mk-pkg-ffmpeg/meson.build
