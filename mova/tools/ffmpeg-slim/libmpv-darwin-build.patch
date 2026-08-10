@@ -1,0 +1,184 @@
+diff --git a/nix/packages/mk-pkg-ffmpeg/meson.build b/nix/packages/mk-pkg-ffmpeg/meson.build
+index 1b8afa3..83a05da 100644
+--- a/nix/packages/mk-pkg-ffmpeg/meson.build
++++ b/nix/packages/mk-pkg-ffmpeg/meson.build
+@@ -283,6 +283,136 @@ video_full_options = [
+     '--enable-decoder=h264',
+ ]
+ 
++# mova slim flavor — mirrors mova/tools/ffmpeg-slim/flavors-mova-slim.sh
++# (the Android decoder/demuxer/protocol keep-list from
++# mova/doc/notes/2026-07-31-ffmpeg-slimming-options.md), adapted to this
++# platform: no MediaCodec-style separate hw decoder namespace here, so
++# VideoToolbox is a hwaccel layered on top of the plain software decoder
++# (h264/hevc/vp9 stay enabled as decoders; VideoToolbox is opportunistic).
++# AV1 has no VideoToolbox hwaccel in ffmpeg's hwaccel list on this platform,
++# so it's libdav1d software-only (same decoder Android uses as its AV1
++# fallback path). Legacy formats (VP8/MJPEG/MPEG-1/2/4/H.263/WMV/etc.) and
++# DASH (needs libxml2, ~740KB, not enabled here) are dropped, matching the
++# Android keep-list. Filters stay empty (no overlay/equalizer) — Android
++# real-device testing (2026-08-10) confirmed OSD/subtitle compositing has no
++# regression without them, since mpv's own scale/format conversion goes
++# through swscale/swresample directly, not lavfi.
++audio_movaslim_options = [
++    # decoders
++    '--enable-decoder=aac*',
++    '--enable-decoder=ac3',
++    '--enable-decoder=eac3',
++    '--enable-decoder=flac',
++    '--enable-decoder=mp3*',
++    '--enable-decoder=opus',
++    '--enable-decoder=pcm_s16le',
++    '--enable-decoder=pcm_s16be',
++    '--enable-decoder=pcm_s24le',
++    '--enable-decoder=pcm_s32le',
++    '--enable-decoder=pcm_f32le',
++    '--enable-decoder=pcm_u8',
++    '--enable-decoder=vorbis',
++
++    # parsers
++    '--enable-parser=aac*',
++    '--enable-parser=ac3',
++    '--enable-parser=flac',
++    '--enable-parser=mpegaudio',
++    '--enable-parser=vorbis',
++
++    # demuxers
++    '--enable-demuxer=aac',
++    '--enable-demuxer=ac3',
++    '--enable-demuxer=eac3',
++    '--enable-demuxer=flac',
++    '--enable-demuxer=mp3',
++    '--enable-demuxer=ogg',
++    '--enable-demuxer=wav',
++
++    # protocols — kept here regardless of variant, mirroring how the
++    # `default`/`full` flavors above always source protocols off the
++    # audio_*_options list even when variant == video.
++    '--enable-protocol=crypto', # HLS AES-128 encrypted segments
++    '--enable-protocol=data',
++    '--enable-protocol=ffrtmpcrypt',
++    '--enable-protocol=ffrtmphttp',
++    '--enable-protocol=file',
++    '--enable-protocol=hls',
++    '--enable-protocol=http',
++    '--enable-protocol=https',
++    '--enable-protocol=pipe',
++    '--enable-protocol=rtmp',
++    '--enable-protocol=rtmps',
++    '--enable-protocol=rtmpt',
++    '--enable-protocol=rtmpts',
++    '--enable-protocol=rtp',
++    '--enable-protocol=tcp',
++    '--enable-protocol=tls',
++    '--enable-protocol=udp',
++]
++
++video_movaslim_options = [
++    # decoders
++    '--enable-decoder=h264',
++    '--enable-decoder=hevc',
++    '--enable-decoder=vp9', # software decoder — VideoToolbox's vp9 hwaccel
++                             # wraps this rather than replacing it, unlike
++                             # Android's separate vp9_mediacodec decoder
++    '--enable-decoder=libdav1d', # av1, software-only on this platform
++    '--enable-decoder=png', # cover art / mpv screenshot command
++
++    '--enable-decoder=ass',
++    '--enable-decoder=ssa',
++    '--enable-decoder=subrip',
++    '--enable-decoder=text',
++    '--enable-decoder=webvtt',
++    '--enable-decoder=movtext',
++
++    # parsers
++    '--enable-parser=h264',
++    '--enable-parser=hevc',
++    '--enable-parser=vp9',
++    '--enable-parser=av1',
++    '--enable-parser=png',
++
++    # demuxers
++    '--enable-demuxer=mov',
++    '--enable-demuxer=matroska',
++    '--enable-demuxer=webm_dash_manifest',
++    '--enable-demuxer=mpegts',
++    '--enable-demuxer=hls',
++    '--enable-demuxer=flv',
++    '--enable-demuxer=live_flv',
++    '--enable-demuxer=data',
++    '--enable-demuxer=ass',
++    '--enable-demuxer=srt',
++    '--enable-demuxer=webvtt',
++
++    # hwaccels — only the codecs we actually decode get a hwaccel entry
++    '--enable-hwaccel=h264_videotoolbox',
++    '--enable-hwaccel=hevc_videotoolbox',
++    '--enable-hwaccel=vp9_videotoolbox',
++
++    # bitstream filters — needed for HLS TS<->MP4 NAL format conversion and
++    # AV1/VP9 superframe splitting; `--disable-all` zeroes bsfs same as
++    # decoders/demuxers, so these need explicit enabling (the `default`
++    # flavor above never does this and ends up with the full bsf set,
++    # since only `full`/`encodersgpl` call `--enable-bsfs` explicitly —
++    # movaslim opts into a minimal explicit list instead of either extreme)
++    '--enable-bsf=h264_mp4toannexb',
++    '--enable-bsf=hevc_mp4toannexb',
++    '--enable-bsf=aac_adtstoasc',
++    '--enable-bsf=vp9_superframe',
++    '--enable-bsf=vp9_superframe_split',
++    '--enable-bsf=av1_frame_split',
++    '--enable-bsf=av1_frame_merge',
++    '--enable-bsf=mov2textsub',
++    '--enable-bsf=extract_extradata',
++    '--enable-bsf=dump_extradata',
++    '--enable-bsf=setts',
++    '--enable-bsf=null',
++]
++
+ audio_encodersgpl_options = [
+     '--enable-encoders',
+     '--enable-muxers',
+@@ -325,6 +455,11 @@ elif flavor == 'encodersgpl'
+         options += video_full_options
+         options += video_encodersgpl_options
+     endif
++elif flavor == 'movaslim'
++    options += audio_movaslim_options
++    if variant == 'video'
++        options += video_movaslim_options
++    endif
+ endif
+ 
+ p = mod.add_project('configure',
+diff --git a/nix/packages/mk-pkg-ffmpeg/meson.options b/nix/packages/mk-pkg-ffmpeg/meson.options
+index a48d1db..d7cbb8e 100644
+--- a/nix/packages/mk-pkg-ffmpeg/meson.options
++++ b/nix/packages/mk-pkg-ffmpeg/meson.options
+@@ -1,2 +1,2 @@
+ option('variant', type : 'combo', choices : ['audio', 'video'])
+-option('flavor', type : 'combo', choices : ['default', 'full', 'encodersgpl'])
++option('flavor', type : 'combo', choices : ['default', 'full', 'encodersgpl', 'movaslim'])
+diff --git a/nix/utils/constants/flavors.nix b/nix/utils/constants/flavors.nix
+index e2aa737..eeb29d4 100644
+--- a/nix/utils/constants/flavors.nix
++++ b/nix/utils/constants/flavors.nix
+@@ -2,4 +2,8 @@
+   default = "default";
+   full = "full";
+   encodersgpl = "encodersgpl";
++  # mova slim flavor — mirrors the decoder/demuxer/protocol set already
++  # shipped for Android (mova/tools/ffmpeg-slim/flavors-mova-slim.sh),
++  # adapted to this platform's hwaccel (VideoToolbox instead of MediaCodec).
++  movaslim = "movaslim";
+ }
+diff --git a/nix/utils/default/flavors.nix b/nix/utils/default/flavors.nix
+index 12e8c7b..886cc60 100644
+--- a/nix/utils/default/flavors.nix
++++ b/nix/utils/default/flavors.nix
+@@ -5,4 +5,5 @@ in
+   flavors.default
+   flavors.full
+   flavors.encodersgpl
++  flavors.movaslim
+ ]

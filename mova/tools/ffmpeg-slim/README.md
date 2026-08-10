@@ -18,7 +18,7 @@ ABI/平台、字幕/截图/HLS-FLV/avfilter回归/后台中断/AV1高码率场�
 |---|---|---|
 | Android arm64-v8a | ✅ 已定稿并接入 mova 工程 | 6.52MiB（AV1 硬解+软解双通道，2026-08-06 真机复测后改判，CI 复现构建），见下方"定稿结果"，真机播放验证进行中 |
 | Android armeabi-v7a / x86 / x86_64 | ✅ CI 构建通过，未接入真机验证 | 同一套 flavor 脚本直接复用（`--disable-runtime-cpudetect` 已按架构条件判断，不用改），2026-08-06 CI 矩阵三个 ABI 全绿并核验 `dav1d_open` 符号；已接入 `example` 的 jniLibs，还没上真机测过 |
-| iOS + macOS | 🟡 CI 首次尝试中（v1） | **两者共用一个仓库** `media-kit/libmpv-darwin-build`（不是分开两个仓库，早前的假设是错的），Nix + 固定版本 Xcode 构建，`macos-15` runner。v1 直接用上游自带的"video/default" flavor（已含 VideoToolbox 硬解 + libdav1d 软解），没有照搬我们 Android 那份自定义解码器/demuxer 清单——留作后续，不是这轮的阻塞项 |
+| iOS + macOS | 🟡 CI 验证中（v2：movaslim flavor，仅 macos-arm64） | **两者共用一个仓库** `media-kit/libmpv-darwin-build`（不是分开两个仓库，早前的假设是错的），Nix + 固定版本 Xcode 构建，`macos-15` runner。v2 新增了自定义 `movaslim` flavor（[`libmpv-darwin-build.patch`](libmpv-darwin-build.patch)），照搬 Android 的解码器/demuxer/协议清单，硬解从 MediaCodec 换成 VideoToolbox——但 VideoToolbox 是叠加在软解码器之上的 hwaccel，不是像 MediaCodec 那样独立的解码器命名空间，所以 `vp9` 软解码器不能像 Android 那样砍掉（会连累 hwaccel），AV1 在这个 ffmpeg hwaccel 列表里没有 VideoToolbox 选项，只能纯软解 `libdav1d`。这一步先只构建 `macos-arm64`（矩阵里最快的单一目标：原生匹配 runner 架构，不用 iOS SDK 交叉编译，不用 lipo 合并 universal）验证 flavor 本身能不能配置/编译/链接成功，还没跑 ios/iossimulator 目标，也没有任何真机/模拟器播放验证 |
 | Windows | 🟡 CI 首次尝试中（v1） | 构建链是 `media-kit/libmpv-win32-video-build`（是 `zhongfly/mpv-winbuild` 的 fork，自带 CI 是未改名的上游发布流程，不直接照搬），改用 MSYS2 + mingw-w64 gcc 工具链直接跑它的 CMakeLists.txt，跳过 fork 自带的 clang+rustup+Docker 那套，先做 x86_64 |
 | Linux | 🟡 CI 首次尝试中（v1） | **media-kit 没有对应仓库**（早前假设的 `libmpv-linux-build` 不存在）——在 runner 本机原生构建 ffmpeg+mpv，不需要交叉编译；依赖走 apt 装现成的 `libass-dev`/`libfreetype6-dev` 等，不用像 Android 那样从源码build |
 
@@ -31,6 +31,57 @@ DEMUXERS/PROTOCOLS/BSFS 这些格式支持范围的清单是可以跨平台复�
 **本终稿的数据来自 Android arm64-v8a 真机构建链实测**，不是 Windows 推算。历史 Windows
 spike 过程与数据见 [../../doc/plans/2026-07-31-ffmpeg-slim-build-windows.md](../../doc/plans/2026-07-31-ffmpeg-slim-build-windows.md)，
 组件取舍依据见 [../../doc/notes/2026-07-31-ffmpeg-slimming-options.md](../../doc/notes/2026-07-31-ffmpeg-slimming-options.md)。
+
+## Darwin（iOS/macOS）movaslim flavor —— v2 首次尝试（未验证）
+
+`media-kit/libmpv-darwin-build` 走 Nix flake，flavor 不是 shell 脚本而是 meson 的
+`-Dflavor=` combo 选项（`nix/packages/mk-pkg-ffmpeg/meson.build` 里按 flavor 字符串
+`if/elif` 出一整段 `--enable-decoder=`/`--enable-demuxer=`/... 列表，拼给 ffmpeg
+configure）。要加自定义瘦身档位，改的不是 shell flavor 脚本，而是这个仓库的四个
+`.nix`/`.build`/`.options` 文件，打包在
+[`libmpv-darwin-build.patch`](libmpv-darwin-build.patch) 里：
+
+- `nix/utils/constants/flavors.nix` + `nix/utils/default/flavors.nix`：新增
+  `movaslim` 这个 flavor 枚举值（后者是 `create-cross-packages.nix` 用来生成 flake
+  输出属性的列表，两处都要加，漏一个 flake 里就枚举不出 `*-movaslim` 这些 target）
+- `nix/packages/mk-pkg-ffmpeg/meson.options`：`flavor` combo 的合法值列表里加
+  `'movaslim'`（meson 的 combo 选项校验，不加会在 `meson setup` 阶段直接报错）
+- `nix/packages/mk-pkg-ffmpeg/meson.build`：新增 `audio_movaslim_options`/
+  `video_movaslim_options` 两个列表 + `elif flavor == 'movaslim'` 分支，照搬
+  Android `flavors-mova-slim.sh` 的解码器/demuxer/协议/bsf 清单（见
+  [`flavors-mova-slim.sh`](flavors-mova-slim.sh) 与
+  [`2026-07-31-ffmpeg-slimming-options.md`](../../doc/notes/2026-07-31-ffmpeg-slimming-options.md)）
+
+**与 Android 版本的关键差异**（这是"照搬"而非"复制粘贴"的原因）：
+
+- **VP9 不能只留硬解**：Android 的 `vp9_mediacodec` 是完全独立于软解 `vp9` 的一个
+  解码器名字，砍掉软解只留硬解毫无问题。但 ffmpeg 的 VideoToolbox 是**叠加在软解码器
+  之上的 hwaccel**（`vp9_videotoolbox` 这个 hwaccel 条目本身不是解码器，是给 `vp9`
+  软解码器提供硬件加速路径），砍掉 `vp9` 软解码器会连 hwaccel 一起失效。所以 movaslim
+  里 `vp9` 软解码器必须保留，跟 Android 的"仅硬解"取舍不是同一回事
+- **AV1 没有硬解可选**：ffmpeg 在这个仓库暴露的 hwaccel 列表里根本没有 AV1 对应的
+  VideoToolbox 条目（`video_default_options` 的 hwaccel 段只到 `vp9_videotoolbox`
+  为止），所以 movaslim 的 AV1 直接是纯软解 `libdav1d`——没有 Android 那种"硬解优先，
+  软解兜底"的双通道可选，也没有取舍空间
+- **bsf 需要显式点亮**：这个仓库的 `--disable-all` 基线本来就会把 bsf 清零，`default`
+  flavor 从未显式 `--enable-bsf=...`（只有 `full`/`encodersgpl` 才 `--enable-bsfs`
+  整体打开），所以其实**现有 `default` flavor 是零 bsf 的**——但 mova 需要
+  `h264_mp4toannexb`/`hevc_mp4toannexb` 这类 bsf 做 HLS 的 TS↔MP4 NAL 格式转换，
+  movaslim 显式加了一份跟 Android 一致的 bsf 清单，这不是"瘦身"，是补一个 `default`
+  flavor 本来就缺、只是没被注意到的功能缺口
+- **filter 维持空**：跟 Android `FILTERS=""` 一致，不启用 `overlay`/`equalizer`——
+  Android 真机已验证过 OSD/字幕合成无回归（mpv 自己的 scale/format 转换走
+  swscale/swresample，不经过 lavfi），这个结论直接复用，没有重新论证
+
+**这一版是纯配置改动，完全没跑过 CI，也没有任何编译/链接/播放验证**——`meson.build`
+的语法、`--enable-decoder=`/`--enable-bsf=` 这些具体格式化字符串是不是 ffmpeg
+configure 认识的合法值、movaslim 分支会不会漏了某个隐式依赖（比如某个 demuxer 内部
+需要某个未启用的 parser），一概不知道，跟 Android 当初"静态盘点 → 实测→ 改 3-4 轮
+才定稿"是同一个过程的起点，不是终点。CI workflow（`build-mova-libmpv.yml` 的
+`darwin` job）目前只构建 `mk-out-libs-macos-arm64-video-movaslim` 这一个 target
+（矩阵里最快的单一目标，用于验证 flavor 本身能不能通过 `meson setup`/编译/链接），
+还没扩展到 `ios`/`iossimulator`，也没有产物体积对比、符号核验、真机播放验证这些
+Android 定稿前做过的步骤。
 
 ## ⭐ 2026-08-06 定稿结果（在下面"实测结果"一节基础上继续深挖）
 

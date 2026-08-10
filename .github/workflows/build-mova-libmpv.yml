@@ -322,21 +322,27 @@ jobs:
 
   # iOS + macOS share one upstream repo (media-kit/libmpv-darwin-build) built
   # via Nix + a pinned Xcode — there is no separate ios/macos repo despite
-  # what earlier comments here assumed. `nix develop -c make` with no TARGET
-  # builds the flake's default package, which is every ios/iossimulator/macos
-  # arch×variant×flavor combination in one go (see create-cross-package.nix),
-  # so this is one job, not a matrix. v1 ships the repo's own "video/default"
-  # flavor as-is (videotoolbox hwaccel + libdav1d already enabled upstream)
-  # rather than re-deriving our exact Android decoder/demuxer list through
-  # Nix overrides — that's a follow-up, not a blocker for a first real build.
+  # what earlier comments here assumed. The flake's per-target attrs are
+  # named "mk-out-libs-<os>-<arch>-<variant>-<flavor>" (see
+  # create-cross-package.nix); `nix build .#<attr>` builds just that one
+  # combination instead of every ios/iossimulator/macos arch×variant×flavor
+  # combination the default (TARGET-less) package would.
+  #
+  # v2: this now carries our own "movaslim" ffmpeg flavor (patch below),
+  # mirroring the Android decoder/demuxer/protocol keep-list from
+  # tools/ffmpeg-slim/flavors-mova-slim.sh, adapted to VideoToolbox hwaccel
+  # instead of MediaCodec — see the patch file's comments for the per-codec
+  # reasoning. This first CI attempt intentionally builds only ONE target
+  # (macos-arm64, the fastest combination: native to the macos-15 runner's
+  # arch, no iOS SDK cross-compile, no lipo universal-binary merge) to
+  # verify the movaslim flavor actually configures/compiles/links before
+  # spending CI time on the full ios/iossimulator/macos matrix. Once this
+  # goes green, broaden TARGET (or drop it) to cover the other combinations
+  # and add real-device/simulator playback verification, mirroring how
+  # Android went from a single arm64-v8a build to a validated multi-ABI one.
   darwin:
-    name: "iOS + macOS (implemented, v1: upstream default flavor)"
+    name: "iOS + macOS (v2: movaslim flavor, macos-arm64 only)"
     runs-on: macos-15
-    # Temporarily disabled: darwin build is slow (per-target full ffmpeg/mpv
-    # source rebuild, cold Nix cache) and we want to verify the other
-    # platforms (android/linux/windows) go green on their own first.
-    # Re-enable once the darwin job itself is separately debugged/sped up.
-    if: false
     steps:
       - name: Platform info
         run: sw_vers; uname -m
@@ -354,6 +360,10 @@ jobs:
           # No pinned ref yet (first attempt at this platform) — unlike the
           # Android build's ANDROID_LIBMPV_BUILD_REF, we don't have a
           # known-good commit to pin to. Pin this once a build here succeeds.
+
+      - name: Apply mova movaslim flavor patch
+        working-directory: build-root
+        run: git apply "$GITHUB_WORKSPACE/dart-labs/mova/tools/ffmpeg-slim/libmpv-darwin-build.patch"
 
       - uses: DeterminateSystems/nix-installer-action@v22
         with:
@@ -377,50 +387,32 @@ jobs:
             echo "path=$(xcode-select -p | sed 's|/Contents/Developer||')" >> "$GITHUB_OUTPUT"
           fi
 
-      - name: Build (all darwin targets, upstream default flavor)
+      - name: Build (macos-arm64 only, movaslim flavor)
         working-directory: build-root
-        run: nix develop -c make XCODE_PATH="${{ steps.xcode.outputs.path }}" VERSION=mova-ci
+        run: nix develop -c make XCODE_PATH="${{ steps.xcode.outputs.path }}" VERSION=mova-ci TARGET=mk-out-libs-macos-arm64-video-movaslim
 
       - name: Verify and collect
         working-directory: build-root
         run: |
           ls -la result/
-          test -n "$(ls result/*ios* 2>/dev/null)" || { echo "::error::no iOS archive in result/"; exit 1; }
-          test -n "$(ls result/*macos* 2>/dev/null)" || { echo "::error::no macOS archive in result/"; exit 1; }
+          test -n "$(ls result/*.dylib 2>/dev/null)" || { echo "::error::no .dylib found in result/ — single-target build (mk-out-libs) outputs raw dylibs, not an archive"; exit 1; }
           mkdir -p "$GITHUB_WORKSPACE/darwin-out"
-          cp result/*.tar.gz result/*.zip "$GITHUB_WORKSPACE/darwin-out/" 2>/dev/null || true
-          echo "### darwin build artifacts" >> "$GITHUB_STEP_SUMMARY"
+          cp result/*.dylib "$GITHUB_WORKSPACE/darwin-out/"
+          echo "### darwin build artifacts (macos-arm64, movaslim)" >> "$GITHUB_STEP_SUMMARY"
           ls -la "$GITHUB_WORKSPACE/darwin-out" >> "$GITHUB_STEP_SUMMARY"
+          du -h "$GITHUB_WORKSPACE"/darwin-out/*.dylib >> "$GITHUB_STEP_SUMMARY"
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: mova-libmpv-darwin
+          name: mova-libmpv-darwin-macos-arm64-movaslim
           path: darwin-out/*
           retention-days: 30
 
-      - name: Commit built artifacts to dist/
-        working-directory: dart-labs
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          mkdir -p mova/tools/ffmpeg-slim/dist/darwin
-          cp "$GITHUB_WORKSPACE"/darwin-out/* mova/tools/ffmpeg-slim/dist/darwin/
-          git add mova/tools/ffmpeg-slim/dist/darwin/
-          if git diff --cached --quiet; then
-            echo "No size/content change, skip commit"
-            exit 0
-          fi
-          git commit -m "chore(mova): add darwin (ios+macos) libmpv build, v1 upstream default flavor [skip ci]"
-          for i in 1 2 3 4 5; do
-            if git push; then exit 0; fi
-            echo "push rejected, rebasing and retrying ($i/5)..."
-            git fetch origin main
-            git rebase origin/main
-            sleep $((RANDOM % 8 + 2))
-          done
-          echo "::error::failed to push dist/darwin/ after retries"
-          exit 1
+      # Feasibility-only pass: no commit-to-dist/ step yet. This is a single
+      # macos-arm64 dylib set, not the full ios+macos product — wire up the
+      # dist/ commit (like android-arm64's) once the ios targets are added
+      # and real-device/simulator playback is verified, not before.
 
   # No upstream media-kit repo exists for Linux (unlike Android/darwin/win32)
   # — this builds ffmpeg+mpv from source natively on the runner itself, no
