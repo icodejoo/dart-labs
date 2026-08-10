@@ -354,7 +354,7 @@ jobs:
   # real-device/simulator playback verification, mirroring how Android went
   # from a single arm64-v8a build to a validated multi-ABI one.
   darwin:
-    name: "Darwin: iOS arm64 ONLY (movaslim flavor, macos-arm64 already green)"
+    name: "Darwin: macOS arm64 ONLY (movaslim flavor, size optimization pass)"
     runs-on: macos-15
     steps:
       - name: Platform info
@@ -407,19 +407,20 @@ jobs:
             echo "path=$(xcode-select -p | sed 's|/Contents/Developer||')" >> "$GITHUB_OUTPUT"
           fi
 
-      # macos-arm64 (this same job, prior runs) went green after 10 CI
-      # iterations — see tools/ffmpeg-slim/README.md's "Darwin movaslim
-      # flavor" section for the full fix list. Switching to ios-arm64 next:
-      # a real iOS device build, not the simulator — expect NEW breakage
-      # even though macos-arm64 is green, since iOS cross-compiles against
-      # the iPhoneOS SDK (different sysroot, no AppKit/Cocoa frameworks —
-      # which incidentally means the Swift clipboard/app-bridge issue fixed
-      # for macOS shouldn't recur here, since `cocoa` never resolves found
-      # on iOS regardless of the option value) via cross-files/ios-arm64.ini
-      # instead of macos-arm64.ini's native-architecture toolchain.
-      - name: Build (ios-arm64 only, movaslim flavor)
+      # macos-arm64 AND ios-arm64 both went green (see tools/ffmpeg-slim/
+      # README.md's "Darwin movaslim flavor" section for the full fix
+      # list). Switched back to macos-arm64 here to isolate a NEW variable:
+      # size-optimization flags (-fvisibility=hidden/-ffunction-sections/
+      # -fdata-sections/-Wl,-dead_strip, added to every cross-files/*.ini —
+      # unstripped/unoptimized dylibs summed to ~19.8MB, far above
+      # Android's optimized-and-stripped 6.5MB total). Testing against the
+      # already-proven macos-arm64 baseline first isolates whether the new
+      # flags themselves break anything (e.g. a dependency relying on
+      # default-visible symbols without its own export macros) before
+      # combining that risk with iOS-specific unknowns again.
+      - name: Build (macos-arm64 only, movaslim flavor + size optimization)
         working-directory: build-root
-        run: nix develop -c make XCODE_PATH="${{ steps.xcode.outputs.path }}" VERSION=mova-ci TARGET=mk-out-libs-ios-arm64-video-movaslim
+        run: nix develop -c make XCODE_PATH="${{ steps.xcode.outputs.path }}" VERSION=mova-ci TARGET=mk-out-libs-macos-arm64-video-movaslim
 
       - name: Verify and collect
         working-directory: build-root
@@ -428,14 +429,16 @@ jobs:
           test -n "$(ls result/*.dylib 2>/dev/null)" || { echo "::error::no .dylib found in result/ — single-target build (mk-out-libs) outputs raw dylibs, not an archive"; exit 1; }
           mkdir -p "$GITHUB_WORKSPACE/darwin-out"
           cp result/*.dylib "$GITHUB_WORKSPACE/darwin-out/"
-          echo "### darwin build artifacts (ios-arm64, movaslim)" >> "$GITHUB_STEP_SUMMARY"
+          echo "### darwin build artifacts (macos-arm64, movaslim, size-optimized)" >> "$GITHUB_STEP_SUMMARY"
           ls -la "$GITHUB_WORKSPACE/darwin-out" >> "$GITHUB_STEP_SUMMARY"
           du -h "$GITHUB_WORKSPACE"/darwin-out/*.dylib >> "$GITHUB_STEP_SUMMARY"
+          echo "### total (unstripped)" >> "$GITHUB_STEP_SUMMARY"
+          du -ch "$GITHUB_WORKSPACE"/darwin-out/*.dylib | tail -1 >> "$GITHUB_STEP_SUMMARY"
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: mova-libmpv-darwin-ios-arm64-movaslim
+          name: mova-libmpv-darwin-macos-arm64-movaslim-optimized
           path: darwin-out/*
           retention-days: 30
 
