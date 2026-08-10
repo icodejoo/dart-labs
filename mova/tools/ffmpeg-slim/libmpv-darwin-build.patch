@@ -760,6 +760,37 @@ index bf1f92b..099d3d7 100644
      cp ${./meson.build} $src/meson.build
  
      cp -r $src $out
+diff --git a/nix/packages/mk-pkg-mbedtls/meson.build b/nix/packages/mk-pkg-mbedtls/meson.build
+index aab0098..253cf6f 100644
+--- a/nix/packages/mk-pkg-mbedtls/meson.build
++++ b/nix/packages/mk-pkg-mbedtls/meson.build
+@@ -11,6 +11,17 @@ elif cpu == 'arm64'
+     arch = 'arm64'
+ endif
+ 
++# ENABLE_PROGRAMS (mbedtls's own CMake option, defaults ON): builds the
++# programs/ tree (key_app and dozens of other CLI example/test tools),
++# which link against the mbedtls library being built in the same tree.
++# CI run 31373063620 (movaslim size-optimization pass — every cross-file
++# now carries -fvisibility=hidden): programs/pkey/key_app.c failed the
++# same way libpng's pngtest and libxml2's xmlcatalog did before it —
++# undefined symbols the CLI tool needs that are no longer exported by
++# default. mova only needs libmbedtls/libmbedcrypto/libmbedx509 (via
++# mbedtls_dep below), never these example programs. ENABLE_TESTING=false
++# for the same reason on the test suite, which wasn't the one that failed
++# yet but is the same class of risk (also links against the in-tree lib).
+ options = cmake.subproject_options()
+ options.add_cmake_defines({
+     'CMAKE_OSX_ARCHITECTURES': arch,
+@@ -20,6 +31,8 @@ options.add_cmake_defines({
+     'USE_STATIC_MBEDTLS_LIBRARY': false,
+     'USE_SHARED_MBEDTLS_LIBRARY': true,
+     'LINK_WITH_PTHREAD': true,
++    'ENABLE_PROGRAMS': false,
++    'ENABLE_TESTING': false,
+ })
+ 
+ mbedtls = cmake.subproject('mbedtls',
 diff --git a/nix/packages/mk-pkg-mpv/default.nix b/nix/packages/mk-pkg-mpv/default.nix
 index 543805a..f62c713 100644
 --- a/nix/packages/mk-pkg-mpv/default.nix
