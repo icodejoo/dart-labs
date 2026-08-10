@@ -1,8 +1,7 @@
-diff --git a/nix/packages/mk-pkg-dav1d/default.nix b/nix/packages/mk-pkg-dav1d/default.nix
-index c687365..9b64101 100644
---- a/nix/packages/mk-pkg-dav1d/default.nix
-+++ b/nix/packages/mk-pkg-dav1d/default.nix
-@@ -37,6 +37,7 @@ pkgs.stdenvNoCC.mkDerivation {
+diff -ruN -x .git static6c/nix/packages/mk-pkg-dav1d/default.nix static6b/nix/packages/mk-pkg-dav1d/default.nix
+--- a/nix/packages/mk-pkg-dav1d/default.nix	2026-08-10 18:59:51.637083400 +0800
++++ b/nix/packages/mk-pkg-dav1d/default.nix	2026-08-10 18:59:42.963159400 +0800
+@@ -37,6 +37,7 @@
        --native-file ${nativeFile} \
        --cross-file ${crossFile} \
        --prefix=$out \
@@ -10,11 +9,10 @@ index c687365..9b64101 100644
        -Dbitdepths="['8', '16']" \
        -Denable_asm=false \
        -Denable_tools=false \
-diff --git a/nix/packages/mk-pkg-ffmpeg/default.nix b/nix/packages/mk-pkg-ffmpeg/default.nix
-index 060869c..2d051f0 100644
---- a/nix/packages/mk-pkg-ffmpeg/default.nix
-+++ b/nix/packages/mk-pkg-ffmpeg/default.nix
-@@ -42,16 +42,54 @@ let
+diff -ruN -x .git static6c/nix/packages/mk-pkg-ffmpeg/default.nix static6b/nix/packages/mk-pkg-ffmpeg/default.nix
+--- a/nix/packages/mk-pkg-ffmpeg/default.nix	2026-08-10 18:59:51.639082800 +0800
++++ b/nix/packages/mk-pkg-ffmpeg/default.nix	2026-08-10 18:59:42.964160900 +0800
+@@ -42,16 +42,54 @@
      chmod -R 777 $src
  
      cd $src
@@ -73,7 +71,7 @@ index 060869c..2d051f0 100644
    '';
  in
  
-@@ -80,6 +118,22 @@ pkgs.stdenvNoCC.mkDerivation {
+@@ -80,6 +118,22 @@
        libvpx
        libx264
      ];
@@ -96,11 +94,10 @@ index 060869c..2d051f0 100644
    configurePhase = ''
      meson setup build $src \
        --native-file ${nativeFile} \
-diff --git a/nix/packages/mk-pkg-ffmpeg/meson.build b/nix/packages/mk-pkg-ffmpeg/meson.build
-index 1b8afa3..899252c 100644
---- a/nix/packages/mk-pkg-ffmpeg/meson.build
-+++ b/nix/packages/mk-pkg-ffmpeg/meson.build
-@@ -42,7 +42,6 @@ common_options = [
+diff -ruN -x .git static6c/nix/packages/mk-pkg-ffmpeg/meson.build static6b/nix/packages/mk-pkg-ffmpeg/meson.build
+--- a/nix/packages/mk-pkg-ffmpeg/meson.build	2026-08-10 18:59:51.639082800 +0800
++++ b/nix/packages/mk-pkg-ffmpeg/meson.build	2026-08-10 18:59:42.965160700 +0800
+@@ -42,7 +42,6 @@
      '--prefix=@PREFIX@',
      '--enable-small', # reduce libs size
      '--enable-optimizations',
@@ -108,7 +105,7 @@ index 1b8afa3..899252c 100644
      '--enable-network',
      '--enable-pthreads',
      '--enable-pic',
-@@ -283,6 +282,136 @@ video_full_options = [
+@@ -283,6 +282,136 @@
      '--enable-decoder=h264',
  ]
  
@@ -245,7 +242,7 @@ index 1b8afa3..899252c 100644
  audio_encodersgpl_options = [
      '--enable-encoders',
      '--enable-muxers',
-@@ -325,8 +454,24 @@ elif flavor == 'encodersgpl'
+@@ -325,8 +454,24 @@
          options += video_full_options
          options += video_encodersgpl_options
      endif
@@ -270,19 +267,28 @@ index 1b8afa3..899252c 100644
  p = mod.add_project('configure',
      configure_options : options,
      cross_configure_options: [
-diff --git a/nix/packages/mk-pkg-ffmpeg/meson.options b/nix/packages/mk-pkg-ffmpeg/meson.options
-index a48d1db..d7cbb8e 100644
---- a/nix/packages/mk-pkg-ffmpeg/meson.options
-+++ b/nix/packages/mk-pkg-ffmpeg/meson.options
+diff -ruN -x .git static6c/nix/packages/mk-pkg-ffmpeg/meson.options static6b/nix/packages/mk-pkg-ffmpeg/meson.options
+--- a/nix/packages/mk-pkg-ffmpeg/meson.options	2026-08-10 18:59:51.640083400 +0800
++++ b/nix/packages/mk-pkg-ffmpeg/meson.options	2026-08-10 18:59:42.966160300 +0800
 @@ -1,2 +1,2 @@
  option('variant', type : 'combo', choices : ['audio', 'video'])
 -option('flavor', type : 'combo', choices : ['default', 'full', 'encodersgpl'])
 +option('flavor', type : 'combo', choices : ['default', 'full', 'encodersgpl', 'movaslim'])
-diff --git a/nix/packages/mk-pkg-freetype/default.nix b/nix/packages/mk-pkg-freetype/default.nix
-index ddcd21b..cce9ecc 100644
---- a/nix/packages/mk-pkg-freetype/default.nix
-+++ b/nix/packages/mk-pkg-freetype/default.nix
-@@ -46,6 +46,7 @@ pkgs.stdenvNoCC.mkDerivation {
+diff -ruN -x .git static6c/nix/packages/mk-pkg-freetype/default.nix static6b/nix/packages/mk-pkg-freetype/default.nix
+--- a/nix/packages/mk-pkg-freetype/default.nix	2026-08-10 18:59:51.643703500 +0800
++++ b/nix/packages/mk-pkg-freetype/default.nix	2026-08-10 18:59:49.982274500 +0800
+@@ -41,11 +41,18 @@
+     harfbuzz
+     libpng
+   ];
++  PKG_CONFIG_PATH = pkgs.lib.concatStringsSep ":" (
++    map (dep: "${dep}/lib/pkgconfig") [
++      harfbuzz
++      libpng
++    ]
++  );
+   configurePhase = ''
+     meson setup build $src \
        --native-file ${nativeFile} \
        --cross-file ${crossFile} \
        --prefix=$out \
@@ -290,11 +296,10 @@ index ddcd21b..cce9ecc 100644
        -Dbrotli=disabled \
        -Dbzip2=disabled \
        -Dharfbuzz=enabled \
-diff --git a/nix/packages/mk-pkg-fribidi/default.nix b/nix/packages/mk-pkg-fribidi/default.nix
-index 9762a75..781f4cd 100644
---- a/nix/packages/mk-pkg-fribidi/default.nix
-+++ b/nix/packages/mk-pkg-fribidi/default.nix
-@@ -37,6 +37,7 @@ pkgs.stdenvNoCC.mkDerivation {
+diff -ruN -x .git static6c/nix/packages/mk-pkg-fribidi/default.nix static6b/nix/packages/mk-pkg-fribidi/default.nix
+--- a/nix/packages/mk-pkg-fribidi/default.nix	2026-08-10 18:59:51.645694600 +0800
++++ b/nix/packages/mk-pkg-fribidi/default.nix	2026-08-10 18:59:42.968176200 +0800
+@@ -37,6 +37,7 @@
        --native-file=${nativeFile} \
        --cross-file ${crossFile} \
        --prefix=$out \
@@ -302,11 +307,9 @@ index 9762a75..781f4cd 100644
        -Ddeprecated=false \
        -Ddocs=false \
        -Dbin=false \
-diff --git a/nix/packages/mk-pkg-glslang/default.nix b/nix/packages/mk-pkg-glslang/default.nix
-new file mode 100644
-index 0000000..b479100
---- /dev/null
-+++ b/nix/packages/mk-pkg-glslang/default.nix
+diff -ruN -x .git static6c/nix/packages/mk-pkg-glslang/default.nix static6b/nix/packages/mk-pkg-glslang/default.nix
+--- a/nix/packages/mk-pkg-glslang/default.nix	1970-01-01 08:00:00.000000000 +0800
++++ b/nix/packages/mk-pkg-glslang/default.nix	2026-08-10 18:59:42.969173500 +0800
 @@ -0,0 +1,94 @@
 +{
 +  pkgs ? import ../../utils/default/pkgs.nix,
@@ -402,11 +405,9 @@ index 0000000..b479100
 +    find build -name 'build_info.h' -exec cp {} $out/include/glslang/ \; 2>/dev/null || true
 +  '';
 +}
-diff --git a/nix/packages/mk-pkg-glslang/meson.build b/nix/packages/mk-pkg-glslang/meson.build
-new file mode 100644
-index 0000000..a61be27
---- /dev/null
-+++ b/nix/packages/mk-pkg-glslang/meson.build
+diff -ruN -x .git static6c/nix/packages/mk-pkg-glslang/meson.build static6b/nix/packages/mk-pkg-glslang/meson.build
+--- a/nix/packages/mk-pkg-glslang/meson.build	1970-01-01 08:00:00.000000000 +0800
++++ b/nix/packages/mk-pkg-glslang/meson.build	2026-08-10 18:59:42.970173300 +0800
 @@ -0,0 +1,79 @@
 +# glslang ships CMake, not meson — wrapped via meson's cmake module the same
 +# way mk-pkg-mbedtls wraps mbedtls's own CMake build (see that package's
@@ -487,19 +488,16 @@ index 0000000..a61be27
 +glslang_proj = cmake.subproject('glslang', options: options)
 +glslang_dep = glslang_proj.dependency('glslang')
 +
-diff --git a/nix/packages/mk-pkg-glslang/meson.options b/nix/packages/mk-pkg-glslang/meson.options
-new file mode 100644
-index 0000000..2af7096
---- /dev/null
-+++ b/nix/packages/mk-pkg-glslang/meson.options
+diff -ruN -x .git static6c/nix/packages/mk-pkg-glslang/meson.options static6b/nix/packages/mk-pkg-glslang/meson.options
+--- a/nix/packages/mk-pkg-glslang/meson.options	1970-01-01 08:00:00.000000000 +0800
++++ b/nix/packages/mk-pkg-glslang/meson.options	2026-08-10 18:59:42.971173300 +0800
 @@ -0,0 +1,2 @@
 +option('min-version-flag', type: 'string', value: '',
 +       description: 'Platform-appropriate -mmacosx-version-min/-miphoneos-version-min flag, computed in Nix (default.nix) since it depends on os, which meson cross-files here do not expose (host_machine.system() is "darwin" for macOS/iOS/iossimulator alike)')
-diff --git a/nix/packages/mk-pkg-harfbuzz/default.nix b/nix/packages/mk-pkg-harfbuzz/default.nix
-index ec1d6bd..73d0751 100644
---- a/nix/packages/mk-pkg-harfbuzz/default.nix
-+++ b/nix/packages/mk-pkg-harfbuzz/default.nix
-@@ -45,6 +45,7 @@ pkgs.stdenvNoCC.mkDerivation {
+diff -ruN -x .git static6c/nix/packages/mk-pkg-harfbuzz/default.nix static6b/nix/packages/mk-pkg-harfbuzz/default.nix
+--- a/nix/packages/mk-pkg-harfbuzz/default.nix	2026-08-10 18:59:51.647701000 +0800
++++ b/nix/packages/mk-pkg-harfbuzz/default.nix	2026-08-10 18:59:42.971173300 +0800
+@@ -45,6 +45,7 @@
        --native-file ${nativeFile} \
        --cross-file ${crossFile} \
        --prefix=$out \
@@ -507,11 +505,27 @@ index ec1d6bd..73d0751 100644
        -Dglib=disabled \
        -Dgobject=disabled \
        -Dcairo=disabled \
-diff --git a/nix/packages/mk-pkg-libass/meson.build b/nix/packages/mk-pkg-libass/meson.build
-index b4856a0..91d3c55 100644
---- a/nix/packages/mk-pkg-libass/meson.build
-+++ b/nix/packages/mk-pkg-libass/meson.build
-@@ -4,10 +4,20 @@ project('libass', 'c')
+diff -ruN -x .git static6c/nix/packages/mk-pkg-libass/default.nix static6b/nix/packages/mk-pkg-libass/default.nix
+--- a/nix/packages/mk-pkg-libass/default.nix	2026-08-10 18:59:51.648700700 +0800
++++ b/nix/packages/mk-pkg-libass/default.nix	2026-08-10 18:59:49.929300100 +0800
+@@ -53,6 +53,13 @@
+     harfbuzz
+     freetype
+   ];
++  PKG_CONFIG_PATH = pkgs.lib.concatStringsSep ":" (
++    map (dep: "${dep}/lib/pkgconfig") [
++      fribidi
++      harfbuzz
++      freetype
++    ]
++  );
+   configurePhase = ''
+     meson setup build $src \
+       --native-file ${nativeFile} \
+diff -ruN -x .git static6c/nix/packages/mk-pkg-libass/meson.build static6b/nix/packages/mk-pkg-libass/meson.build
+--- a/nix/packages/mk-pkg-libass/meson.build	2026-08-10 18:59:51.649700600 +0800
++++ b/nix/packages/mk-pkg-libass/meson.build	2026-08-10 18:59:42.972173800 +0800
+@@ -4,10 +4,20 @@
  
  mod = import('unstable-external_project')
  
@@ -533,11 +547,9 @@ index b4856a0..91d3c55 100644
          '--enable-fast-install',
          '--disable-dependency-tracking',
          '--disable-test',
-diff --git a/nix/packages/mk-pkg-libplacebo/default.nix b/nix/packages/mk-pkg-libplacebo/default.nix
-new file mode 100644
-index 0000000..fb2a8c7
---- /dev/null
-+++ b/nix/packages/mk-pkg-libplacebo/default.nix
+diff -ruN -x .git static6c/nix/packages/mk-pkg-libplacebo/default.nix static6b/nix/packages/mk-pkg-libplacebo/default.nix
+--- a/nix/packages/mk-pkg-libplacebo/default.nix	1970-01-01 08:00:00.000000000 +0800
++++ b/nix/packages/mk-pkg-libplacebo/default.nix	2026-08-10 18:59:42.973173400 +0800
 @@ -0,0 +1,160 @@
 +{
 +  pkgs ? import ../../utils/default/pkgs.nix,
@@ -699,11 +711,10 @@ index 0000000..fb2a8c7
 +    meson install -C build
 +  '';
 +}
-diff --git a/nix/packages/mk-pkg-libpng/default.nix b/nix/packages/mk-pkg-libpng/default.nix
-index 9a5fafd..6a25a00 100644
---- a/nix/packages/mk-pkg-libpng/default.nix
-+++ b/nix/packages/mk-pkg-libpng/default.nix
-@@ -39,6 +39,22 @@ let
+diff -ruN -x .git static6c/nix/packages/mk-pkg-libpng/default.nix static6b/nix/packages/mk-pkg-libpng/default.nix
+--- a/nix/packages/mk-pkg-libpng/default.nix	2026-08-10 18:59:51.653694500 +0800
++++ b/nix/packages/mk-pkg-libpng/default.nix	2026-08-10 18:59:42.974173100 +0800
+@@ -39,6 +39,22 @@
          unzip ${libpngPatch} -d libpng-patch
          rsync -a libpng-patch/libpng-*/ $src/
  
@@ -726,7 +737,7 @@ index 9a5fafd..6a25a00 100644
          cp -r $src $out
        '';
  in
-@@ -59,7 +75,8 @@ pkgs.stdenvNoCC.mkDerivation {
+@@ -59,7 +75,8 @@
      meson setup build $src \
        --native-file ${nativeFile} \
        --cross-file ${crossFile} \
@@ -736,11 +747,10 @@ index 9a5fafd..6a25a00 100644
    '';
    buildPhase = ''
      meson compile -vC build
-diff --git a/nix/packages/mk-pkg-libxml2/default.nix b/nix/packages/mk-pkg-libxml2/default.nix
-index bf1f92b..e9d4d5d 100644
---- a/nix/packages/mk-pkg-libxml2/default.nix
-+++ b/nix/packages/mk-pkg-libxml2/default.nix
-@@ -27,6 +27,43 @@ let
+diff -ruN -x .git static6c/nix/packages/mk-pkg-libxml2/default.nix static6b/nix/packages/mk-pkg-libxml2/default.nix
+--- a/nix/packages/mk-pkg-libxml2/default.nix	2026-08-10 18:59:51.664695100 +0800
++++ b/nix/packages/mk-pkg-libxml2/default.nix	2026-08-10 18:59:42.975173300 +0800
+@@ -27,6 +27,43 @@
      patch -p1 <${../../../patches/ltmain-target-passthrough.patch}
      cd -
  
@@ -784,11 +794,10 @@ index bf1f92b..e9d4d5d 100644
      cp ${./meson.build} $src/meson.build
  
      cp -r $src $out
-diff --git a/nix/packages/mk-pkg-libxml2/meson.build b/nix/packages/mk-pkg-libxml2/meson.build
-index 251ba7d..1089a27 100644
---- a/nix/packages/mk-pkg-libxml2/meson.build
-+++ b/nix/packages/mk-pkg-libxml2/meson.build
-@@ -4,15 +4,36 @@ project('libxml2', 'c')
+diff -ruN -x .git static6c/nix/packages/mk-pkg-libxml2/meson.build static6b/nix/packages/mk-pkg-libxml2/meson.build
+--- a/nix/packages/mk-pkg-libxml2/meson.build	2026-08-10 18:59:51.666694400 +0800
++++ b/nix/packages/mk-pkg-libxml2/meson.build	2026-08-10 18:59:42.976173400 +0800
+@@ -4,15 +4,36 @@
  
  mod = import('unstable-external_project')
  
@@ -827,11 +836,10 @@ index 251ba7d..1089a27 100644
      verbose: true,
  )
  
-diff --git a/nix/packages/mk-pkg-mbedtls/default.nix b/nix/packages/mk-pkg-mbedtls/default.nix
-index e31e9cd..4b03486 100644
---- a/nix/packages/mk-pkg-mbedtls/default.nix
-+++ b/nix/packages/mk-pkg-mbedtls/default.nix
-@@ -58,8 +58,9 @@ pkgs.stdenvNoCC.mkDerivation {
+diff -ruN -x .git static6c/nix/packages/mk-pkg-mbedtls/default.nix static6b/nix/packages/mk-pkg-mbedtls/default.nix
+--- a/nix/packages/mk-pkg-mbedtls/default.nix	2026-08-10 18:59:51.669694200 +0800
++++ b/nix/packages/mk-pkg-mbedtls/default.nix	2026-08-10 18:59:42.976173400 +0800
+@@ -58,8 +58,9 @@
      cp $src/subprojects/mbedtls/include/mbedtls/*.h $out/include/mbedtls/
      cp $src/subprojects/mbedtls/include/psa/*.h $out/include/psa/
  
@@ -843,11 +851,10 @@ index e31e9cd..4b03486 100644
  
      # install pkgconfig file
      cp ${./mbedtls.pc.in} $out/lib/pkgconfig/mbedtls.pc
-diff --git a/nix/packages/mk-pkg-mbedtls/meson.build b/nix/packages/mk-pkg-mbedtls/meson.build
-index aab0098..6079cec 100644
---- a/nix/packages/mk-pkg-mbedtls/meson.build
-+++ b/nix/packages/mk-pkg-mbedtls/meson.build
-@@ -11,15 +11,29 @@ elif cpu == 'arm64'
+diff -ruN -x .git static6c/nix/packages/mk-pkg-mbedtls/meson.build static6b/nix/packages/mk-pkg-mbedtls/meson.build
+--- a/nix/packages/mk-pkg-mbedtls/meson.build	2026-08-10 18:59:51.671696300 +0800
++++ b/nix/packages/mk-pkg-mbedtls/meson.build	2026-08-10 18:59:42.977173200 +0800
+@@ -11,15 +11,29 @@
      arch = 'arm64'
  endif
  
@@ -879,10 +886,9 @@ index aab0098..6079cec 100644
  })
  
  mbedtls = cmake.subproject('mbedtls',
-diff --git a/nix/packages/mk-pkg-mpv/default.nix b/nix/packages/mk-pkg-mpv/default.nix
-index 543805a..ac593b5 100644
---- a/nix/packages/mk-pkg-mpv/default.nix
-+++ b/nix/packages/mk-pkg-mpv/default.nix
+diff -ruN -x .git static6c/nix/packages/mk-pkg-mpv/default.nix static6b/nix/packages/mk-pkg-mpv/default.nix
+--- a/nix/packages/mk-pkg-mpv/default.nix	2026-08-10 18:59:51.675694200 +0800
++++ b/nix/packages/mk-pkg-mpv/default.nix	2026-08-10 18:59:42.978185100 +0800
 @@ -3,6 +3,7 @@
    os ? import ../../utils/default/os.nix,
    arch ? pkgs.callPackage ../../utils/default/arch.nix { },
@@ -891,7 +897,7 @@ index 543805a..ac593b5 100644
  }:
  
  let
-@@ -11,13 +12,21 @@ let
+@@ -11,13 +12,21 @@
    inherit (packageLock) version;
  
    variants = import ../../utils/constants/variants.nix;
@@ -913,7 +919,7 @@ index 543805a..ac593b5 100644
        ;
    };
    nativeFile = callPackage ../../utils/native-file/default.nix { };
-@@ -26,6 +35,7 @@ let
+@@ -26,6 +35,7 @@
    ffmpeg = callPackage ../mk-pkg-ffmpeg/default.nix { };
    uchardet = callPackage ../mk-pkg-uchardet/default.nix { };
    libass = callPackage ../mk-pkg-libass/default.nix { };
@@ -921,7 +927,7 @@ index 543805a..ac593b5 100644
  
    nativeBuildInputs = [
      pkgs.meson
-@@ -47,10 +57,61 @@ let
+@@ -47,10 +57,61 @@
  
      cd $src
      patch -p1 <${../../../patches/mpv-fix-missing-objc.patch}
@@ -984,7 +990,7 @@ index 543805a..ac593b5 100644
      cd -
  
      cp -r $src $out
-@@ -75,8 +136,38 @@ pkgs.stdenvNoCC.mkDerivation {
+@@ -75,8 +136,38 @@
      ++ pkgs.lib.optionals (variant == "video") [
        uchardet
        libass
@@ -1023,7 +1029,7 @@ index 543805a..ac593b5 100644
      DISABLE_ALL_OPTIONS=(
        `# booleans`
        -Dgpl=false `# GPL (version 2 or later) build`
-@@ -84,7 +175,6 @@ pkgs.stdenvNoCC.mkDerivation {
+@@ -84,7 +175,6 @@
        -Dlibmpv=false `# libmpv library`
        -Dbuild-date=false `# whether to include binary compile time`
        -Dtests=false `# unit tests (development only)`
@@ -1031,7 +1037,7 @@ index 543805a..ac593b5 100644
  
        `# misc features`
        -Dcdda=disabled `# cdda support (libcdio)`
-@@ -100,14 +190,11 @@ pkgs.stdenvNoCC.mkDerivation {
+@@ -100,14 +190,11 @@
        -Dlua=disabled `# Lua`
        -Dpthread-debug=disabled `# pthread runtime debugging wrappers`
        -Drubberband=disabled `# librubberband support`
@@ -1046,7 +1052,7 @@ index 543805a..ac593b5 100644
        -Dzimg=disabled `# libzimg support (high quality software scaler)`
        -Dzlib=disabled `# zlib`
  
-@@ -146,8 +233,6 @@ pkgs.stdenvNoCC.mkDerivation {
+@@ -146,8 +233,6 @@
        -Dgl-win32=disabled `# OpenGL Win32 Backend`
        -Dgl-x11=disabled `# OpenGL X11/GLX (deprecated/legacy)`
        -Djpeg=disabled `# JPEG support`
@@ -1055,7 +1061,7 @@ index 543805a..ac593b5 100644
        -Dsdl2-video=disabled `# SDL2 video output`
        -Dshaderc=disabled `# libshaderc SPIR-V compiler`
        -Dsixel=disabled `# Sixel`
-@@ -159,7 +244,6 @@ pkgs.stdenvNoCC.mkDerivation {
+@@ -159,7 +244,6 @@
        -Dvaapi-drm=disabled `# VAAPI (DRM/EGL support)`
        -Dvaapi-wayland=disabled `# VAAPI (Wayland support)`
        -Dvaapi-x11=disabled `# VAAPI (X11 support)`
@@ -1063,7 +1069,7 @@ index 543805a..ac593b5 100644
        -Dvulkan=disabled `# Vulkan context support`
        -Dwayland=disabled `# Wayland`
        -Dx11=disabled `# X11`
-@@ -173,13 +257,9 @@ pkgs.stdenvNoCC.mkDerivation {
+@@ -173,13 +257,9 @@
        -Dd3d9-hwaccel=disabled `# DXVA2 hwaccel`
        -Dgl-dxinterop-d3d9=disabled `# OpenGL/DirectX Interop Backend DXVA2 interop`
        -Dios-gl=disabled `# iOS OpenGL ES hardware decoding interop support`
@@ -1077,7 +1083,7 @@ index 543805a..ac593b5 100644
        -Dmacos-cocoa-cb=disabled `# macOS libmpv backend`
        -Dmacos-media-player=disabled `# macOS Media Player support`
        -Dmacos-touchbar=disabled `# macOS Touch Bar support`
-@@ -230,6 +310,28 @@ pkgs.stdenvNoCC.mkDerivation {
+@@ -230,6 +310,28 @@
      IOS_OPTIONS=(
        `# audio output features`
        -Daudiounit=enabled `# AudioUnit output for iOS`
@@ -1106,7 +1112,7 @@ index 543805a..ac593b5 100644
      )
  
      IOS_VIDEO_OPTIONS=(
-@@ -237,6 +339,18 @@ pkgs.stdenvNoCC.mkDerivation {
+@@ -237,6 +339,18 @@
        -Dios-gl=enabled `# iOS OpenGL ES hardware decoding interop support`
      )
  
@@ -1125,11 +1131,10 @@ index 543805a..ac593b5 100644
      OPTIONS=("''${DISABLE_ALL_OPTIONS[@]}")
  
      OPTIONS+=("''${COMMON_OPTIONS[@]}")
-diff --git a/nix/packages/mk-pkg-uchardet/default.nix b/nix/packages/mk-pkg-uchardet/default.nix
-index f3111a9..645c93d 100644
---- a/nix/packages/mk-pkg-uchardet/default.nix
-+++ b/nix/packages/mk-pkg-uchardet/default.nix
-@@ -58,9 +58,10 @@ pkgs.stdenvNoCC.mkDerivation {
+diff -ruN -x .git static6c/nix/packages/mk-pkg-uchardet/default.nix static6b/nix/packages/mk-pkg-uchardet/default.nix
+--- a/nix/packages/mk-pkg-uchardet/default.nix	2026-08-10 18:59:51.677695200 +0800
++++ b/nix/packages/mk-pkg-uchardet/default.nix	2026-08-10 18:59:42.979183700 +0800
+@@ -58,9 +58,10 @@
      # install headers
      cp $src/subprojects/uchardet/src/uchardet.h $out/include/uchardet/
  
@@ -1143,11 +1148,10 @@ index f3111a9..645c93d 100644
  
      # install pkgconfig file
      cp ${./uchardet.pc.in} $out/lib/pkgconfig/uchardet.pc
-diff --git a/nix/packages/mk-pkg-uchardet/meson.build b/nix/packages/mk-pkg-uchardet/meson.build
-index f09d99f..0458e81 100644
---- a/nix/packages/mk-pkg-uchardet/meson.build
-+++ b/nix/packages/mk-pkg-uchardet/meson.build
-@@ -19,7 +19,16 @@ options.add_cmake_defines({
+diff -ruN -x .git static6c/nix/packages/mk-pkg-uchardet/meson.build static6b/nix/packages/mk-pkg-uchardet/meson.build
+--- a/nix/packages/mk-pkg-uchardet/meson.build	2026-08-10 18:59:51.678696100 +0800
++++ b/nix/packages/mk-pkg-uchardet/meson.build	2026-08-10 18:59:42.980183400 +0800
+@@ -19,7 +19,16 @@
      'CMAKE_BUILD_TYPE': 'Release',
      'CMAKE_C_COMPILER_WORKS': true,
      'CMAKE_CXX_COMPILER_WORKS': true,
@@ -1165,10 +1169,9 @@ index f09d99f..0458e81 100644
      'BUILD_BINARY': false,
  })
  
-diff --git a/nix/utils/constants/flavors.nix b/nix/utils/constants/flavors.nix
-index e2aa737..eeb29d4 100644
---- a/nix/utils/constants/flavors.nix
-+++ b/nix/utils/constants/flavors.nix
+diff -ruN -x .git static6c/nix/utils/constants/flavors.nix static6b/nix/utils/constants/flavors.nix
+--- a/nix/utils/constants/flavors.nix	2026-08-10 18:59:51.684695900 +0800
++++ b/nix/utils/constants/flavors.nix	2026-08-10 18:59:42.980183400 +0800
 @@ -2,4 +2,8 @@
    default = "default";
    full = "full";
@@ -1178,20 +1181,18 @@ index e2aa737..eeb29d4 100644
 +  # adapted to this platform's hwaccel (VideoToolbox instead of MediaCodec).
 +  movaslim = "movaslim";
  }
-diff --git a/nix/utils/default/flavors.nix b/nix/utils/default/flavors.nix
-index 12e8c7b..886cc60 100644
---- a/nix/utils/default/flavors.nix
-+++ b/nix/utils/default/flavors.nix
-@@ -5,4 +5,5 @@ in
+diff -ruN -x .git static6c/nix/utils/default/flavors.nix static6b/nix/utils/default/flavors.nix
+--- a/nix/utils/default/flavors.nix	2026-08-10 18:59:51.692237500 +0800
++++ b/nix/utils/default/flavors.nix	2026-08-10 18:59:42.981183100 +0800
+@@ -5,4 +5,5 @@
    flavors.default
    flavors.full
    flavors.encodersgpl
 +  flavors.movaslim
  ]
-diff --git a/packages.lock.nix b/packages.lock.nix
-index aed6a72..0919ca2 100644
---- a/packages.lock.nix
-+++ b/packages.lock.nix
+diff -ruN -x .git static6c/packages.lock.nix static6b/packages.lock.nix
+--- a/packages.lock.nix	2026-08-10 18:59:51.714881900 +0800
++++ b/packages.lock.nix	2026-08-10 18:59:42.982183500 +0800
 @@ -5,9 +5,25 @@
      sha256 = "a4003623cdc0109dec3aac8435520aa3fb12c4d69454fa227f2658cdb6dab5fa";
    };
