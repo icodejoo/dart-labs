@@ -11,15 +11,154 @@ diff -ruN -x .git static6c/nix/packages/mk-pkg-dav1d/default.nix static6b/nix/pa
        -Denable_tools=false \
 diff -ruN -x .git static6c/nix/packages/mk-pkg-ffmpeg/default.nix static6b/nix/packages/mk-pkg-ffmpeg/default.nix
 --- a/nix/packages/mk-pkg-ffmpeg/default.nix	2026-08-10 18:59:51.639082800 +0800
-+++ b/nix/packages/mk-pkg-ffmpeg/default.nix	2026-08-10 19:14:15.750753600 +0800
-@@ -42,16 +42,54 @@
-     chmod -R 777 $src
- 
-     cd $src
++++ b/nix/packages/mk-pkg-ffmpeg/default.nix	2026-08-10 19:20:20.556818700 +0800
+@@ -1,102 +1,157 @@
+-{
+-  pkgs ? import ../../utils/default/pkgs.nix,
+-  os ? import ../../utils/default/os.nix,
+-  arch ? pkgs.callPackage ../../utils/default/arch.nix { },
+-  variant ? import ../../utils/default/variant.nix,
+-  flavor ? import ../../utils/default/flavor.nix,
+-}:
+-
+-let
+-  name = "ffmpeg";
+-  packageLock = (import ../../../packages.lock.nix).${name};
+-  inherit (packageLock) version;
+-
+-  flavors = import ../../utils/constants/flavors.nix;
+-  variants = import ../../utils/constants/variants.nix;
+-  callPackage = pkgs.lib.callPackageWith {
+-    inherit
+-      pkgs
+-      os
+-      arch
+-      variant
+-      flavor
+-      ;
+-  };
+-  nativeFile = callPackage ../../utils/native-file/default.nix { };
+-  crossFile = callPackage ../../utils/cross-file/default.nix { };
+-  mbedtls = callPackage ../mk-pkg-mbedtls/default.nix { };
+-  dav1d = callPackage ../mk-pkg-dav1d/default.nix { };
+-  libxml2 = callPackage ../mk-pkg-libxml2/default.nix { };
+-  libvorbis = callPackage ../mk-pkg-libvorbis/default.nix { };
+-  libvpx = callPackage ../mk-pkg-libvpx/default.nix { };
+-  libx264 = callPackage ../mk-pkg-libx264/default.nix { };
+-
+-  pname = import ../../utils/name/package.nix name;
+-  src = callPackage ../../utils/fetch-tarball/default.nix {
+-    name = "${pname}-source-${version}";
+-    inherit (packageLock) url sha256;
+-  };
+-  patchedSource = pkgs.runCommand "${pname}-patched-source-${version}" { } ''
+-    cp -r ${src} src
+-    export src=$PWD/src
+-    chmod -R 777 $src
+-
+-    cd $src
 -    patch -p1 <${../../../patches/ffmpeg-fix-vp9-hwaccel.patch}
 -    patch -p1 <${../../../patches/ffmpeg-fix-hls-mp4-seek.patch}
 -    patch -p1 <${../../../patches/ffmpeg-fix-ios-hdr-texture.patch}
 -    patch -p1 <${../../../patches/ffmpeg-fix-dash-base-url-escape.patch}
+-    cd -
+-
+-    cp ${./meson.build} $src/meson.build
+-    cp ${./meson.options} $src/meson.options
+-
+-    cp -r $src $out
+-  '';
+-in
+-
+-pkgs.stdenvNoCC.mkDerivation {
+-  name = "${pname}-${os}-${arch}-${variant}-${flavor}-${version}";
+-  pname = pname;
+-  inherit version;
+-  src = patchedSource;
+-  dontUnpack = true;
+-  enableParallelBuilding = true;
+-  nativeBuildInputs = [
+-    pkgs.meson
+-    pkgs.ninja
+-    pkgs.pkg-config
+-  ];
+-  buildInputs =
+-    [ mbedtls ]
+-    ++ pkgs.lib.optionals (flavor == flavors.encodersgpl) [
+-      libvorbis
+-    ]
+-    ++ pkgs.lib.optionals (variant == variants.video) [
+-      dav1d
+-      libxml2
+-    ]
+-    ++ pkgs.lib.optionals (variant == variants.video && flavor == flavors.encodersgpl) [
+-      libvpx
+-      libx264
+-    ];
+-  configurePhase = ''
+-    meson setup build $src \
+-      --native-file ${nativeFile} \
+-      --cross-file ${crossFile} \
+-      --prefix=$out \
+-      -Dvariant=${variant} \
+-      -Dflavor=${flavor} |
+-      tee configure.log
+-  '';
+-  buildPhase = ''
+-    meson compile -vC build $(basename $src)
+-  '';
+-  installPhase = ''
+-    # manual install to preserve symlinks (meson install -C build)
+-    cp -r build/dist$out $out
+-
+-    # copy configure.log
+-    cp configure.log $out/share/ffmpeg/
+-  '';
+-}
++{
++  pkgs ? import ../../utils/default/pkgs.nix,
++  os ? import ../../utils/default/os.nix,
++  arch ? pkgs.callPackage ../../utils/default/arch.nix { },
++  variant ? import ../../utils/default/variant.nix,
++  flavor ? import ../../utils/default/flavor.nix,
++}:
++
++let
++  name = "ffmpeg";
++  packageLock = (import ../../../packages.lock.nix).${name};
++  inherit (packageLock) version;
++
++  flavors = import ../../utils/constants/flavors.nix;
++  variants = import ../../utils/constants/variants.nix;
++  callPackage = pkgs.lib.callPackageWith {
++    inherit
++      pkgs
++      os
++      arch
++      variant
++      flavor
++      ;
++  };
++  nativeFile = callPackage ../../utils/native-file/default.nix { };
++  crossFile = callPackage ../../utils/cross-file/default.nix { };
++  mbedtls = callPackage ../mk-pkg-mbedtls/default.nix { };
++  dav1d = callPackage ../mk-pkg-dav1d/default.nix { };
++  libxml2 = callPackage ../mk-pkg-libxml2/default.nix { };
++  libvorbis = callPackage ../mk-pkg-libvorbis/default.nix { };
++  libvpx = callPackage ../mk-pkg-libvpx/default.nix { };
++  libx264 = callPackage ../mk-pkg-libx264/default.nix { };
++
++  pname = import ../../utils/name/package.nix name;
++  src = callPackage ../../utils/fetch-tarball/default.nix {
++    name = "${pname}-source-${version}";
++    inherit (packageLock) url sha256;
++  };
++  patchedSource = pkgs.runCommand "${pname}-patched-source-${version}" { } ''
++    cp -r ${src} src
++    export src=$PWD/src
++    chmod -R 777 $src
++
++    cd $src
 +    # These four patches were written against ffmpeg 6.0 (the version this
 +    # repo shipped default/full/encodersgpl on before the n9.0 bump below).
 +    # movaslim jumps 3 major ffmpeg versions at once — CI run 31361900654
@@ -58,23 +197,44 @@ diff -ruN -x .git static6c/nix/packages/mk-pkg-ffmpeg/default.nix static6b/nix/p
 +        echo "::warning:: could not fully apply $p against ffmpeg ${version} — see *.rej"
 +      fi
 +    done
-     cd -
- 
-     cp ${./meson.build} $src/meson.build
-     cp ${./meson.options} $src/meson.options
- 
-     cp -r $src $out
++    cd -
++
++    cp ${./meson.build} $src/meson.build
++    cp ${./meson.options} $src/meson.options
++
++    cp -r $src $out
 +    # Nix's sandbox only allows writes under $out/$TMPDIR, so rejects can't
 +    # be shipped as a separate output — just dump them to the build log
 +    # (visible in CI) instead of losing them silently.
 +    find $src -name '*.rej' -exec sh -c 'echo "--- $1 ---"; cat "$1"' _ {} \; || true
-   '';
- in
- 
-@@ -80,13 +118,30 @@
-       libvpx
-       libx264
-     ];
++  '';
++in
++
++pkgs.stdenvNoCC.mkDerivation {
++  name = "${pname}-${os}-${arch}-${variant}-${flavor}-${version}";
++  pname = pname;
++  inherit version;
++  src = patchedSource;
++  dontUnpack = true;
++  enableParallelBuilding = true;
++  nativeBuildInputs = [
++    pkgs.meson
++    pkgs.ninja
++    pkgs.pkg-config
++  ];
++  buildInputs =
++    [ mbedtls ]
++    ++ pkgs.lib.optionals (flavor == flavors.encodersgpl) [
++      libvorbis
++    ]
++    ++ pkgs.lib.optionals (variant == variants.video) [
++      dav1d
++      libxml2
++    ]
++    ++ pkgs.lib.optionals (variant == variants.video && flavor == flavors.encodersgpl) [
++      libvpx
++      libx264
++    ];
 +  # CI runs 31379586940/31380265939 (reproducible, not a caching fluke):
 +  # "ERROR: libxml-2.0 not found using pkg-config" from ffmpeg's own
 +  # ./configure, despite libxml2 building and installing libxml-2.0.pc
@@ -91,33 +251,685 @@ diff -ruN -x .git static6c/nix/packages/mk-pkg-ffmpeg/default.nix static6b/nix/p
 +  PKG_CONFIG_PATH = pkgs.lib.concatStringsSep ":" (
 +    map (dep: "${dep}/lib/pkgconfig") ([ mbedtls ] ++ pkgs.lib.optionals (variant == variants.video) [ dav1d libxml2 ])
 +  );
-   configurePhase = ''
-     meson setup build $src \
-       --native-file ${nativeFile} \
-       --cross-file ${crossFile} \
-       --prefix=$out \
-       -Dvariant=${variant} \
--      -Dflavor=${flavor} |
++  configurePhase = ''
++    meson setup build $src \
++      --native-file ${nativeFile} \
++      --cross-file ${crossFile} \
++      --prefix=$out \
++      -Dvariant=${variant} \
 +      -Dflavor=${flavor} \
-+      -Dpkg_config_path="$PKG_CONFIG_PATH" |
-       tee configure.log
-   '';
-   buildPhase = ''
++      -Dffmpeg_pkg_config_path="$PKG_CONFIG_PATH" |
++      tee configure.log
++  '';
++  buildPhase = ''
++    meson compile -vC build $(basename $src)
++  '';
++  installPhase = ''
++    # manual install to preserve symlinks (meson install -C build)
++    cp -r build/dist$out $out
++
++    # copy configure.log
++    cp configure.log $out/share/ffmpeg/
++  '';
++}
 diff -ruN -x .git static6c/nix/packages/mk-pkg-ffmpeg/meson.build static6b/nix/packages/mk-pkg-ffmpeg/meson.build
 --- a/nix/packages/mk-pkg-ffmpeg/meson.build	2026-08-10 18:59:51.639082800 +0800
-+++ b/nix/packages/mk-pkg-ffmpeg/meson.build	2026-08-10 19:14:15.635802000 +0800
-@@ -42,7 +42,6 @@
-     '--prefix=@PREFIX@',
-     '--enable-small', # reduce libs size
-     '--enable-optimizations',
++++ b/nix/packages/mk-pkg-ffmpeg/meson.build	2026-08-10 19:20:20.428326000 +0800
+@@ -1,370 +1,521 @@
+-# https://mesonbuild.com/External-Project-module.html
+-
+-project('ffmpeg', 'c', 'cpp', 'objc')
+-
+-mod = import('unstable-external_project')
+-
+-# build binaries
+-c = meson.get_compiler('c')
+-cpp = meson.get_compiler('cpp')
+-objc = meson.get_compiler('objc')
+-nm = find_program('nm')
+-ar = find_program('ar')
+-strip = find_program('strip')
+-pkg_config = find_program('pkg-config')
+-
+-# build options
+-c_args = get_option('c_args')
+-cpp_args = get_option('cpp_args')
+-objc_args = get_option('objc_args')
+-c_link_args = get_option('c_link_args')
+-
+-# parameters
+-variant = get_option('variant')
+-flavor = get_option('flavor')
+-
+-# options
+-disable_all_options = [
+-    '--disable-autodetect',
+-    '--disable-all',
+-    '--disable-x86asm',
+-    '--disable-runtime-cpudetect',
+-    '--disable-debug',
+-    '--disable-stripping',
+-    '--disable-optimizations',
+-    '--disable-static',
+-    '--disable-shared',
+-    '--disable-pthreads',
+-    '--disable-safe-bitstream-reader',
+-]
+-
+-common_options = [
+-    '--prefix=@PREFIX@',
+-    '--enable-small', # reduce libs size
+-    '--enable-optimizations',
 -    '--enable-shared',
-     '--enable-network',
-     '--enable-pthreads',
-     '--enable-pic',
-@@ -283,6 +282,136 @@
-     '--enable-decoder=h264',
- ]
- 
+-    '--enable-network',
+-    '--enable-pthreads',
+-    '--enable-pic',
+-    '--enable-mbedtls', # tls support (mbedtls)
+-    '--enable-version3',
+-    '--enable-safe-bitstream-reader',
+-    '--enable-stripping',
+-    '--enable-avcodec',
+-    '--enable-avformat',
+-    '--enable-swresample',
+-    '--enable-swscale',
+-    '--enable-avfilter',
+-
+-    # '--enable-gpl', # uncomment it to include GPL code
+-    # '--enable-nonfree', # uncomment it to include unredistributable code
+-]
+-
+-audio_common_options = [
+-    '--enable-zlib', # rasc support
+-    '--enable-audiotoolbox',
+-]
+-
+-video_common_options = [
+-    '--enable-neon', # improve hevc (h265) support on arm
+-    '--enable-libxml2', # dash support
+-    '--enable-videotoolbox',
+-    '--enable-libdav1d', # av1 support
+-]
+-
+-# https://github.com/media-kit/libmpv-android-audio-build/blob/260666c0fef8c154971b5faf3f78da27c2bf2c40/buildscripts/flavors/default.sh
+-audio_default_options = [
+-    # decoders
+-    '--enable-decoder=aac*',
+-    '--enable-decoder=ac3',
+-    '--enable-decoder=alac',
+-    '--enable-decoder=als',
+-    '--enable-decoder=ape',
+-    '--enable-decoder=atrac*',
+-    '--enable-decoder=eac3',
+-    '--enable-decoder=flac',
+-    '--enable-decoder=gsm*',
+-    '--enable-decoder=mp1*',
+-    '--enable-decoder=mp2*',
+-    '--enable-decoder=mp3*',
+-    '--enable-decoder=mpc*',
+-    '--enable-decoder=opus',
+-    '--enable-decoder=ra*',
+-    '--enable-decoder=ralf',
+-    '--enable-decoder=shorten',
+-    '--enable-decoder=tak',
+-    '--enable-decoder=tta',
+-    '--enable-decoder=vorbis',
+-    '--enable-decoder=wavpack',
+-    '--enable-decoder=wma*',
+-    '--enable-decoder=pcm*',
+-    '--enable-decoder=dsd*',
+-    '--enable-decoder=dca', # required by dts
+-
+-    # parsers   
+-    '--enable-parser=aac*',
+-    '--enable-parser=ac3',
+-    '--enable-parser=cook',
+-    '--enable-parser=dca',
+-    '--enable-parser=flac',
+-    '--enable-parser=gsm',
+-    '--enable-parser=mpegaudio',
+-    '--enable-parser=tak',
+-    '--enable-parser=vorbis',
+-
+-    # demuxers
+-    '--enable-demuxer=aac',
+-    '--enable-demuxer=ac3',
+-    '--enable-demuxer=aiff',
+-    '--enable-demuxer=ape',
+-    '--enable-demuxer=asf',
+-    '--enable-demuxer=au',
+-    '--enable-demuxer=avi',
+-    '--enable-demuxer=flac',
+-    '--enable-demuxer=flv',
+-    '--enable-demuxer=matroska',
+-    '--enable-demuxer=mov',
+-    '--enable-demuxer=m4v',
+-    '--enable-demuxer=mp3',
+-    '--enable-demuxer=mpc*',
+-    '--enable-demuxer=ogg',
+-    '--enable-demuxer=pcm*',
+-    '--enable-demuxer=rm',
+-    '--enable-demuxer=shorten',
+-    '--enable-demuxer=tak',
+-    '--enable-demuxer=tta',
+-    '--enable-demuxer=wav',
+-    '--enable-demuxer=wv',
+-    '--enable-demuxer=xwma',
+-    '--enable-demuxer=dsf',
+-    '--enable-demuxer=dts',
+-    '--enable-demuxer=truehd',
+-
+-    # protocols
+-    '--enable-protocol=async',
+-    '--enable-protocol=cache',
+-    '--enable-protocol=crypto',
+-    '--enable-protocol=data',
+-    '--enable-protocol=ffrtmphttp',
+-    '--enable-protocol=file',
+-    '--enable-protocol=ftp',
+-    '--enable-protocol=hls',
+-    '--enable-protocol=http',
+-    '--enable-protocol=httpproxy',
+-    '--enable-protocol=https',
+-    '--enable-protocol=pipe',
+-    '--enable-protocol=rtmp',
+-    '--enable-protocol=rtmps',
+-    '--enable-protocol=rtmpt',
+-    '--enable-protocol=rtmpts',
+-    '--enable-protocol=rtp',
+-    '--enable-protocol=subfile',
+-    '--enable-protocol=tcp',
+-    '--enable-protocol=tls',
+-    # '--enable-protocol=srt', # WARNING: Option --enable-protocol=srt did not match anything
+-
+-    # filters
+-    '--enable-filter=overlay',
+-    '--enable-filter=equalizer',
+-]
+-
+-# https://github.com/media-kit/libmpv-android-video-build/blob/7353af784df9bab3256acd8d90f208024d16ab96/buildscripts/flavors/default.sh
+-video_default_options = [
+-    # decoders
+-    '--enable-decoder=flv',
+-    '--enable-decoder=h263',
+-    '--enable-decoder=h263i',
+-    '--enable-decoder=h263p',
+-    '--enable-decoder=h264', # h264*
+-    '--enable-decoder=mpeg1video',
+-    '--enable-decoder=mpeg2video', # mpeg2*
+-    '--enable-decoder=mpeg4', # mpeg4*
+-    '--enable-decoder=vp6',
+-    '--enable-decoder=vp6a',
+-    '--enable-decoder=vp6f',
+-    '--enable-decoder=vp8', # vp8*
+-    '--enable-decoder=vp9', # vp9*
+-    '--enable-decoder=hevc', # hevc*
+-    '--enable-decoder=av1', # av1*
+-    '--enable-decoder=libdav1d',
+-    '--enable-decoder=theora',
+-    '--enable-decoder=msmpeg4v1', # msmpeg*
+-    '--enable-decoder=msmpeg4v2', # msmpeg*
+-    '--enable-decoder=msmpeg4v3', # msmpeg*
+-    '--enable-decoder=mjpeg',
+-    '--enable-decoder=wmv1', # wmv*
+-    '--enable-decoder=wmv2', # wmv*
+-    '--enable-decoder=wmv3', # wmv*
+-    '--enable-decoder=wmv3image', # wmv*
+-
+-    '--enable-decoder=ssa',
+-    '--enable-decoder=ass',
+-    '--enable-decoder=dvbsub',
+-    '--enable-decoder=dvdsub',
+-    '--enable-decoder=srt',
+-    '--enable-decoder=stl',
+-    '--enable-decoder=subrip',
+-    '--enable-decoder=subviewer',
+-    '--enable-decoder=subviewer1',
+-    '--enable-decoder=text',
+-    '--enable-decoder=vplayer',
+-    '--enable-decoder=webvtt',
+-    '--enable-decoder=movtext',
+-
+-    # parsers
+-    '--enable-parser=h263',
+-    '--enable-parser=h264',
+-    '--enable-parser=hevc',
+-    # '--enable-parser=mpeg4', # WARNING: Option --enable-parser=mpeg4 did not match anything
+-    '--enable-parser=mpeg4video',
+-    '--enable-parser=mpegvideo',
+-
+-    # demuxers
+-    '--enable-demuxer=concat',
+-    '--enable-demuxer=data',
+-    '--enable-demuxer=flv',
+-    '--enable-demuxer=hls',
+-    # '--enable-demuxer=latm', # WARNING: Option --enable-demuxer=latm did not match anything
+-    '--enable-demuxer=live_flv',
+-    '--enable-demuxer=loas',
+-    '--enable-demuxer=m4v',
+-    '--enable-demuxer=mov',
+-    '--enable-demuxer=mpegps',
+-    '--enable-demuxer=mpegts',
+-    '--enable-demuxer=mpegvideo',
+-    '--enable-demuxer=hevc',
+-    '--enable-demuxer=rtsp',
+-    # '--enable-demuxer=mpeg4', # WARNING: Option --enable-demuxer=mpeg4 did not match anything
+-    '--enable-demuxer=mjpeg',
+-    '--enable-demuxer=avi',
+-    '--enable-demuxer=av1',
+-    '--enable-demuxer=matroska',
+-    '--enable-demuxer=dash', # --enable-libxml2 required
+-    '--enable-demuxer=webm_dash_manifest',
+-
+-    '--enable-demuxer=ass',
+-    '--enable-demuxer=srt',
+-    '--enable-demuxer=stl',
+-    '--enable-demuxer=webvtt',
+-    '--enable-demuxer=subviewer',
+-    '--enable-demuxer=subviewer1',
+-    '--enable-demuxer=vplayer',
+-
+-    # hwaccels
+-    '--enable-hwaccel=h263_videotoolbox',
+-    '--enable-hwaccel=h264_videotoolbox',
+-    '--enable-hwaccel=hevc_videotoolbox',
+-    '--enable-hwaccel=mpeg1_videotoolbox',
+-    '--enable-hwaccel=mpeg2_videotoolbox',
+-    '--enable-hwaccel=mpeg4_videotoolbox',
+-    '--enable-hwaccel=vp9_videotoolbox',
+-]
+-
+-audio_full_options = [
+-    '--enable-decoders',
+-    '--enable-hwaccels',
+-    '--enable-parsers',
+-    '--enable-demuxers',
+-    '--enable-protocols',
+-    '--enable-bsfs',
+-
+-    # filters
+-    '--enable-filter=overlay',
+-    '--enable-filter=equalizer',
+-
+-    # TODO: `media_kit` checks the presence of the h264 decoder to determine if
+-    # `ffmpeg` is an audio or video variant, so we disable it for the audio
+-    # variant.
+-    # Ideally, we should only enable the audio decoders…
+-    '--disable-decoder=h264',
+-]
+-
+-video_full_options = [
+-    '--enable-decoder=h264',
+-]
+-
+-audio_encodersgpl_options = [
+-    '--enable-encoders',
+-    '--enable-muxers',
+-    '--enable-filters',
+-    '--enable-libvorbis',
+-    # TODO: If audio_encoders is going to exist as its own package, be smarter about what encoders to include
+-]
+-
+-video_encodersgpl_options = [
+-    '--enable-libvpx',
+-    '--enable-libx264',
+-    '--enable-gpl'
+-]
+-
+-# disable all option
+-options = disable_all_options
+-
+-# common
+-options += common_options
+-options += audio_common_options
+-if variant == 'video'
+-    options += video_common_options
+-endif
+-
+-# components
+-if flavor == 'default'
+-    options += audio_default_options
+-    if variant == 'video'
+-        options += video_default_options
+-    endif
+-elif flavor == 'full'
+-    options += audio_full_options
+-    if variant == 'video'
+-        options += video_full_options
+-    endif
+-elif flavor == 'encodersgpl'
+-    options += audio_full_options
+-    options += audio_encodersgpl_options
+-    if variant == 'video'
+-        options += video_full_options
+-        options += video_encodersgpl_options
+-    endif
+-endif
+-
+-p = mod.add_project('configure',
+-    configure_options : options,
+-    cross_configure_options: [
+-        '--enable-cross-compile',
+-        '--target-os=@0@'.format(host_machine.system()),
+-        '--arch=@0@'.format(host_machine.cpu_family()),
+-
+-        '--nm=@0@'.format(nm.path()),
+-        '--ar=@0@'.format(ar.path()),
+-        '--as=@0@'.format(''.join(c.cmd_array())),
+-        '--strip=@0@'.format(strip.path()),
+-        '--cc=@0@'.format(''.join(c.cmd_array())),
+-        '--cxx=@0@'.format(''.join(cpp.cmd_array())),
+-        '--objcc=@0@'.format(''.join(objc.cmd_array())),
+-        '--ld=@0@'.format(''.join(c.cmd_array())),
+-        '--pkg-config=@0@'.format(pkg_config.path()),
+-
+-        '--host-cc=@0@'.format(''.join(c.cmd_array())),
+-        '--host-ld=@0@'.format(''.join(c.cmd_array())),
+-
+-        '--extra-cflags=@0@'.format(' '.join(c_args)),
+-        '--extra-cxxflags=@0@'.format(' '.join(cpp_args)),
+-        '--extra-objcflags=@0@'.format(' '.join(objc_args)),
+-        '--extra-ldflags=@0@'.format(' '.join(c_link_args)),
+-    ],
+-    verbose: true,
+-)
+-
+-libavfilter_dep = p.dependency('avfilter')
+-libswscale_dep = p.dependency('swscale')
+-libavcodec_dep = p.dependency('avcodec')
+-libavformat_dep = p.dependency('avformat')
+-libavutil_dep = p.dependency('avutil')
+-libswresample_dep = p.dependency('swresample')
+-
+-meson.override_dependency('libavfilter', libavfilter_dep)
+-meson.override_dependency('libswscale', libswscale_dep)
+-meson.override_dependency('libavcodec', libavcodec_dep)
+-meson.override_dependency('libavformat', libavformat_dep)
+-meson.override_dependency('libavutil', libavutil_dep)
+-meson.override_dependency('libswresample', libswresample_dep)
++# https://mesonbuild.com/External-Project-module.html
++
++project('ffmpeg', 'c', 'cpp', 'objc')
++
++mod = import('unstable-external_project')
++
++# build binaries
++c = meson.get_compiler('c')
++cpp = meson.get_compiler('cpp')
++objc = meson.get_compiler('objc')
++nm = find_program('nm')
++ar = find_program('ar')
++strip = find_program('strip')
++pkg_config = find_program('pkg-config')
++
++# build options
++c_args = get_option('c_args')
++cpp_args = get_option('cpp_args')
++objc_args = get_option('objc_args')
++c_link_args = get_option('c_link_args')
++
++# parameters
++variant = get_option('variant')
++flavor = get_option('flavor')
++
++# options
++disable_all_options = [
++    '--disable-autodetect',
++    '--disable-all',
++    '--disable-x86asm',
++    '--disable-runtime-cpudetect',
++    '--disable-debug',
++    '--disable-stripping',
++    '--disable-optimizations',
++    '--disable-static',
++    '--disable-shared',
++    '--disable-pthreads',
++    '--disable-safe-bitstream-reader',
++]
++
++common_options = [
++    '--prefix=@PREFIX@',
++    '--enable-small', # reduce libs size
++    '--enable-optimizations',
++    '--enable-network',
++    '--enable-pthreads',
++    '--enable-pic',
++    '--enable-mbedtls', # tls support (mbedtls)
++    '--enable-version3',
++    '--enable-safe-bitstream-reader',
++    '--enable-stripping',
++    '--enable-avcodec',
++    '--enable-avformat',
++    '--enable-swresample',
++    '--enable-swscale',
++    '--enable-avfilter',
++
++    # '--enable-gpl', # uncomment it to include GPL code
++    # '--enable-nonfree', # uncomment it to include unredistributable code
++]
++
++audio_common_options = [
++    '--enable-zlib', # rasc support
++    '--enable-audiotoolbox',
++]
++
++video_common_options = [
++    '--enable-neon', # improve hevc (h265) support on arm
++    '--enable-libxml2', # dash support
++    '--enable-videotoolbox',
++    '--enable-libdav1d', # av1 support
++]
++
++# https://github.com/media-kit/libmpv-android-audio-build/blob/260666c0fef8c154971b5faf3f78da27c2bf2c40/buildscripts/flavors/default.sh
++audio_default_options = [
++    # decoders
++    '--enable-decoder=aac*',
++    '--enable-decoder=ac3',
++    '--enable-decoder=alac',
++    '--enable-decoder=als',
++    '--enable-decoder=ape',
++    '--enable-decoder=atrac*',
++    '--enable-decoder=eac3',
++    '--enable-decoder=flac',
++    '--enable-decoder=gsm*',
++    '--enable-decoder=mp1*',
++    '--enable-decoder=mp2*',
++    '--enable-decoder=mp3*',
++    '--enable-decoder=mpc*',
++    '--enable-decoder=opus',
++    '--enable-decoder=ra*',
++    '--enable-decoder=ralf',
++    '--enable-decoder=shorten',
++    '--enable-decoder=tak',
++    '--enable-decoder=tta',
++    '--enable-decoder=vorbis',
++    '--enable-decoder=wavpack',
++    '--enable-decoder=wma*',
++    '--enable-decoder=pcm*',
++    '--enable-decoder=dsd*',
++    '--enable-decoder=dca', # required by dts
++
++    # parsers   
++    '--enable-parser=aac*',
++    '--enable-parser=ac3',
++    '--enable-parser=cook',
++    '--enable-parser=dca',
++    '--enable-parser=flac',
++    '--enable-parser=gsm',
++    '--enable-parser=mpegaudio',
++    '--enable-parser=tak',
++    '--enable-parser=vorbis',
++
++    # demuxers
++    '--enable-demuxer=aac',
++    '--enable-demuxer=ac3',
++    '--enable-demuxer=aiff',
++    '--enable-demuxer=ape',
++    '--enable-demuxer=asf',
++    '--enable-demuxer=au',
++    '--enable-demuxer=avi',
++    '--enable-demuxer=flac',
++    '--enable-demuxer=flv',
++    '--enable-demuxer=matroska',
++    '--enable-demuxer=mov',
++    '--enable-demuxer=m4v',
++    '--enable-demuxer=mp3',
++    '--enable-demuxer=mpc*',
++    '--enable-demuxer=ogg',
++    '--enable-demuxer=pcm*',
++    '--enable-demuxer=rm',
++    '--enable-demuxer=shorten',
++    '--enable-demuxer=tak',
++    '--enable-demuxer=tta',
++    '--enable-demuxer=wav',
++    '--enable-demuxer=wv',
++    '--enable-demuxer=xwma',
++    '--enable-demuxer=dsf',
++    '--enable-demuxer=dts',
++    '--enable-demuxer=truehd',
++
++    # protocols
++    '--enable-protocol=async',
++    '--enable-protocol=cache',
++    '--enable-protocol=crypto',
++    '--enable-protocol=data',
++    '--enable-protocol=ffrtmphttp',
++    '--enable-protocol=file',
++    '--enable-protocol=ftp',
++    '--enable-protocol=hls',
++    '--enable-protocol=http',
++    '--enable-protocol=httpproxy',
++    '--enable-protocol=https',
++    '--enable-protocol=pipe',
++    '--enable-protocol=rtmp',
++    '--enable-protocol=rtmps',
++    '--enable-protocol=rtmpt',
++    '--enable-protocol=rtmpts',
++    '--enable-protocol=rtp',
++    '--enable-protocol=subfile',
++    '--enable-protocol=tcp',
++    '--enable-protocol=tls',
++    # '--enable-protocol=srt', # WARNING: Option --enable-protocol=srt did not match anything
++
++    # filters
++    '--enable-filter=overlay',
++    '--enable-filter=equalizer',
++]
++
++# https://github.com/media-kit/libmpv-android-video-build/blob/7353af784df9bab3256acd8d90f208024d16ab96/buildscripts/flavors/default.sh
++video_default_options = [
++    # decoders
++    '--enable-decoder=flv',
++    '--enable-decoder=h263',
++    '--enable-decoder=h263i',
++    '--enable-decoder=h263p',
++    '--enable-decoder=h264', # h264*
++    '--enable-decoder=mpeg1video',
++    '--enable-decoder=mpeg2video', # mpeg2*
++    '--enable-decoder=mpeg4', # mpeg4*
++    '--enable-decoder=vp6',
++    '--enable-decoder=vp6a',
++    '--enable-decoder=vp6f',
++    '--enable-decoder=vp8', # vp8*
++    '--enable-decoder=vp9', # vp9*
++    '--enable-decoder=hevc', # hevc*
++    '--enable-decoder=av1', # av1*
++    '--enable-decoder=libdav1d',
++    '--enable-decoder=theora',
++    '--enable-decoder=msmpeg4v1', # msmpeg*
++    '--enable-decoder=msmpeg4v2', # msmpeg*
++    '--enable-decoder=msmpeg4v3', # msmpeg*
++    '--enable-decoder=mjpeg',
++    '--enable-decoder=wmv1', # wmv*
++    '--enable-decoder=wmv2', # wmv*
++    '--enable-decoder=wmv3', # wmv*
++    '--enable-decoder=wmv3image', # wmv*
++
++    '--enable-decoder=ssa',
++    '--enable-decoder=ass',
++    '--enable-decoder=dvbsub',
++    '--enable-decoder=dvdsub',
++    '--enable-decoder=srt',
++    '--enable-decoder=stl',
++    '--enable-decoder=subrip',
++    '--enable-decoder=subviewer',
++    '--enable-decoder=subviewer1',
++    '--enable-decoder=text',
++    '--enable-decoder=vplayer',
++    '--enable-decoder=webvtt',
++    '--enable-decoder=movtext',
++
++    # parsers
++    '--enable-parser=h263',
++    '--enable-parser=h264',
++    '--enable-parser=hevc',
++    # '--enable-parser=mpeg4', # WARNING: Option --enable-parser=mpeg4 did not match anything
++    '--enable-parser=mpeg4video',
++    '--enable-parser=mpegvideo',
++
++    # demuxers
++    '--enable-demuxer=concat',
++    '--enable-demuxer=data',
++    '--enable-demuxer=flv',
++    '--enable-demuxer=hls',
++    # '--enable-demuxer=latm', # WARNING: Option --enable-demuxer=latm did not match anything
++    '--enable-demuxer=live_flv',
++    '--enable-demuxer=loas',
++    '--enable-demuxer=m4v',
++    '--enable-demuxer=mov',
++    '--enable-demuxer=mpegps',
++    '--enable-demuxer=mpegts',
++    '--enable-demuxer=mpegvideo',
++    '--enable-demuxer=hevc',
++    '--enable-demuxer=rtsp',
++    # '--enable-demuxer=mpeg4', # WARNING: Option --enable-demuxer=mpeg4 did not match anything
++    '--enable-demuxer=mjpeg',
++    '--enable-demuxer=avi',
++    '--enable-demuxer=av1',
++    '--enable-demuxer=matroska',
++    '--enable-demuxer=dash', # --enable-libxml2 required
++    '--enable-demuxer=webm_dash_manifest',
++
++    '--enable-demuxer=ass',
++    '--enable-demuxer=srt',
++    '--enable-demuxer=stl',
++    '--enable-demuxer=webvtt',
++    '--enable-demuxer=subviewer',
++    '--enable-demuxer=subviewer1',
++    '--enable-demuxer=vplayer',
++
++    # hwaccels
++    '--enable-hwaccel=h263_videotoolbox',
++    '--enable-hwaccel=h264_videotoolbox',
++    '--enable-hwaccel=hevc_videotoolbox',
++    '--enable-hwaccel=mpeg1_videotoolbox',
++    '--enable-hwaccel=mpeg2_videotoolbox',
++    '--enable-hwaccel=mpeg4_videotoolbox',
++    '--enable-hwaccel=vp9_videotoolbox',
++]
++
++audio_full_options = [
++    '--enable-decoders',
++    '--enable-hwaccels',
++    '--enable-parsers',
++    '--enable-demuxers',
++    '--enable-protocols',
++    '--enable-bsfs',
++
++    # filters
++    '--enable-filter=overlay',
++    '--enable-filter=equalizer',
++
++    # TODO: `media_kit` checks the presence of the h264 decoder to determine if
++    # `ffmpeg` is an audio or video variant, so we disable it for the audio
++    # variant.
++    # Ideally, we should only enable the audio decoders…
++    '--disable-decoder=h264',
++]
++
++video_full_options = [
++    '--enable-decoder=h264',
++]
++
 +# mova slim flavor — mirrors mova/tools/ffmpeg-slim/flavors-mova-slim.sh
 +# (the Android decoder/demuxer/protocol keep-list from
 +# mova/doc/notes/2026-07-31-ffmpeg-slimming-options.md), adapted to this
@@ -248,20 +1060,55 @@ diff -ruN -x .git static6c/nix/packages/mk-pkg-ffmpeg/meson.build static6b/nix/p
 +    '--enable-bsf=null',
 +]
 +
- audio_encodersgpl_options = [
-     '--enable-encoders',
-     '--enable-muxers',
-@@ -325,10 +454,32 @@
-         options += video_full_options
-         options += video_encodersgpl_options
-     endif
++audio_encodersgpl_options = [
++    '--enable-encoders',
++    '--enable-muxers',
++    '--enable-filters',
++    '--enable-libvorbis',
++    # TODO: If audio_encoders is going to exist as its own package, be smarter about what encoders to include
++]
++
++video_encodersgpl_options = [
++    '--enable-libvpx',
++    '--enable-libx264',
++    '--enable-gpl'
++]
++
++# disable all option
++options = disable_all_options
++
++# common
++options += common_options
++options += audio_common_options
++if variant == 'video'
++    options += video_common_options
++endif
++
++# components
++if flavor == 'default'
++    options += audio_default_options
++    if variant == 'video'
++        options += video_default_options
++    endif
++elif flavor == 'full'
++    options += audio_full_options
++    if variant == 'video'
++        options += video_full_options
++    endif
++elif flavor == 'encodersgpl'
++    options += audio_full_options
++    options += audio_encodersgpl_options
++    if variant == 'video'
++        options += video_full_options
++        options += video_encodersgpl_options
++    endif
 +elif flavor == 'movaslim'
 +    options += audio_movaslim_options
 +    if variant == 'video'
 +        options += video_movaslim_options
 +    endif
- endif
- 
++endif
++
 +# Static, not shared — links ffmpeg's components straight into libmpv.dylib
 +# (mirroring Android's shipped approach: one file, not this repo's default
 +# N-separate-dylibs shape) so the final link step's dead-code elimination
@@ -276,22 +1123,59 @@ diff -ruN -x .git static6c/nix/packages/mk-pkg-ffmpeg/meson.build static6b/nix/p
 +# stdenvNoCC's external_project configure subprocess doesn't inherit the
 +# derivation's PKG_CONFIG_PATH env var (same gap fixed for AR above) —
 +# thread it through explicitly via a meson option instead.
-+pkg_config_path = get_option('pkg_config_path')
++ffmpeg_pkg_config_path = get_option('ffmpeg_pkg_config_path')
 +
- p = mod.add_project('configure',
-     configure_options : options,
-+    env : pkg_config_path != '' ? {'PKG_CONFIG_PATH': pkg_config_path} : {},
-     cross_configure_options: [
-         '--enable-cross-compile',
-         '--target-os=@0@'.format(host_machine.system()),
++p = mod.add_project('configure',
++    configure_options : options,
++    env : ffmpeg_pkg_config_path != '' ? {'PKG_CONFIG_PATH': ffmpeg_pkg_config_path} : {},
++    cross_configure_options: [
++        '--enable-cross-compile',
++        '--target-os=@0@'.format(host_machine.system()),
++        '--arch=@0@'.format(host_machine.cpu_family()),
++
++        '--nm=@0@'.format(nm.path()),
++        '--ar=@0@'.format(ar.path()),
++        '--as=@0@'.format(''.join(c.cmd_array())),
++        '--strip=@0@'.format(strip.path()),
++        '--cc=@0@'.format(''.join(c.cmd_array())),
++        '--cxx=@0@'.format(''.join(cpp.cmd_array())),
++        '--objcc=@0@'.format(''.join(objc.cmd_array())),
++        '--ld=@0@'.format(''.join(c.cmd_array())),
++        '--pkg-config=@0@'.format(pkg_config.path()),
++
++        '--host-cc=@0@'.format(''.join(c.cmd_array())),
++        '--host-ld=@0@'.format(''.join(c.cmd_array())),
++
++        '--extra-cflags=@0@'.format(' '.join(c_args)),
++        '--extra-cxxflags=@0@'.format(' '.join(cpp_args)),
++        '--extra-objcflags=@0@'.format(' '.join(objc_args)),
++        '--extra-ldflags=@0@'.format(' '.join(c_link_args)),
++    ],
++    verbose: true,
++)
++
++libavfilter_dep = p.dependency('avfilter')
++libswscale_dep = p.dependency('swscale')
++libavcodec_dep = p.dependency('avcodec')
++libavformat_dep = p.dependency('avformat')
++libavutil_dep = p.dependency('avutil')
++libswresample_dep = p.dependency('swresample')
++
++meson.override_dependency('libavfilter', libavfilter_dep)
++meson.override_dependency('libswscale', libswscale_dep)
++meson.override_dependency('libavcodec', libavcodec_dep)
++meson.override_dependency('libavformat', libavformat_dep)
++meson.override_dependency('libavutil', libavutil_dep)
++meson.override_dependency('libswresample', libswresample_dep)
 diff -ruN -x .git static6c/nix/packages/mk-pkg-ffmpeg/meson.options static6b/nix/packages/mk-pkg-ffmpeg/meson.options
 --- a/nix/packages/mk-pkg-ffmpeg/meson.options	2026-08-10 18:59:51.640083400 +0800
-+++ b/nix/packages/mk-pkg-ffmpeg/meson.options	2026-08-10 19:14:15.692629400 +0800
++++ b/nix/packages/mk-pkg-ffmpeg/meson.options	2026-08-10 19:20:20.492539600 +0800
 @@ -1,2 +1,3 @@
- option('variant', type : 'combo', choices : ['audio', 'video'])
+-option('variant', type : 'combo', choices : ['audio', 'video'])
 -option('flavor', type : 'combo', choices : ['default', 'full', 'encodersgpl'])
++option('variant', type : 'combo', choices : ['audio', 'video'])
 +option('flavor', type : 'combo', choices : ['default', 'full', 'encodersgpl', 'movaslim'])
-+option('pkg_config_path', type : 'string', value : '')
++option('ffmpeg_pkg_config_path', type : 'string', value : '')
 diff -ruN -x .git static6c/nix/packages/mk-pkg-freetype/default.nix static6b/nix/packages/mk-pkg-freetype/default.nix
 --- a/nix/packages/mk-pkg-freetype/default.nix	2026-08-10 18:59:51.643703500 +0800
 +++ b/nix/packages/mk-pkg-freetype/default.nix	2026-08-10 18:59:49.982274500 +0800
