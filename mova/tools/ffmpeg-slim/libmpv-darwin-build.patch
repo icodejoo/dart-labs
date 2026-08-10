@@ -11,7 +11,7 @@ diff -ruN -x .git static6c/nix/packages/mk-pkg-dav1d/default.nix static6b/nix/pa
        -Denable_tools=false \
 diff -ruN -x .git static6c/nix/packages/mk-pkg-ffmpeg/default.nix static6b/nix/packages/mk-pkg-ffmpeg/default.nix
 --- a/nix/packages/mk-pkg-ffmpeg/default.nix	2026-08-10 18:59:51.639082800 +0800
-+++ b/nix/packages/mk-pkg-ffmpeg/default.nix	2026-08-10 19:40:47.561043100 +0800
++++ b/nix/packages/mk-pkg-ffmpeg/default.nix	2026-08-10 19:49:18.891631900 +0800
 @@ -1,102 +1,165 @@
 -{
 -  pkgs ? import ../../utils/default/pkgs.nix,
@@ -258,7 +258,7 @@ diff -ruN -x .git static6c/nix/packages/mk-pkg-ffmpeg/default.nix static6b/nix/p
 +    pkg-config --cflags --libs libxml-2.0 || true
 +    echo "DEBUG manual ./configure repro:"
 +    mkdir -p /tmp/ffmpeg-manual-repro && cd /tmp/ffmpeg-manual-repro
-+    "$src/configure" --enable-libxml2 --pkg-config="$(command -v pkg-config)" --disable-static --disable-shared 2>&1 | tail -30 || true
++    "$src/configure" --enable-libxml2 --pkg-config="$(command -v pkg-config)" --enable-static --disable-shared --disable-x86asm 2>&1 | tail -30 || true
 +    cd -
 +    meson setup build $src \
 +      --native-file ${nativeFile} \
