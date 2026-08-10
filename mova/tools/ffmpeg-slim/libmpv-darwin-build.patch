@@ -507,8 +507,16 @@ diff -ruN -x .git static6c/nix/packages/mk-pkg-harfbuzz/default.nix static6b/nix
        -Dcairo=disabled \
 diff -ruN -x .git static6c/nix/packages/mk-pkg-libass/default.nix static6b/nix/packages/mk-pkg-libass/default.nix
 --- a/nix/packages/mk-pkg-libass/default.nix	2026-08-10 18:59:51.648700700 +0800
-+++ b/nix/packages/mk-pkg-libass/default.nix	2026-08-10 18:59:49.929300100 +0800
-@@ -53,6 +53,13 @@
++++ b/nix/packages/mk-pkg-libass/default.nix	2026-08-10 19:06:02.514279100 +0800
+@@ -15,6 +15,7 @@
+   fribidi = callPackage ../mk-pkg-fribidi/default.nix { };
+   harfbuzz = callPackage ../mk-pkg-harfbuzz/default.nix { };
+   freetype = callPackage ../mk-pkg-freetype/default.nix { };
++  libpng = callPackage ../mk-pkg-libpng/default.nix { };
+ 
+   pname = import ../../utils/name/package.nix name;
+   src = callPackage ../../utils/fetch-tarball/default.nix {
+@@ -53,6 +54,14 @@
      harfbuzz
      freetype
    ];
@@ -517,6 +525,7 @@ diff -ruN -x .git static6c/nix/packages/mk-pkg-libass/default.nix static6b/nix/p
 +      fribidi
 +      harfbuzz
 +      freetype
++      libpng
 +    ]
 +  );
    configurePhase = ''
