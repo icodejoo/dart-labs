@@ -11,8 +11,8 @@ diff -ruN -x .git static6c/nix/packages/mk-pkg-dav1d/default.nix static6b/nix/pa
        -Denable_tools=false \
 diff -ruN -x .git static6c/nix/packages/mk-pkg-ffmpeg/default.nix static6b/nix/packages/mk-pkg-ffmpeg/default.nix
 --- a/nix/packages/mk-pkg-ffmpeg/default.nix	2026-08-10 18:59:51.639082800 +0800
-+++ b/nix/packages/mk-pkg-ffmpeg/default.nix	2026-08-10 20:46:41.395696400 +0800
-@@ -1,102 +1,165 @@
++++ b/nix/packages/mk-pkg-ffmpeg/default.nix	2026-08-10 20:51:51.350228200 +0800
+@@ -1,102 +1,166 @@
 -{
 -  pkgs ? import ../../utils/default/pkgs.nix,
 -  os ? import ../../utils/default/os.nix,
@@ -259,6 +259,7 @@ diff -ruN -x .git static6c/nix/packages/mk-pkg-ffmpeg/default.nix static6b/nix/p
 +exec ${pkgs.pkg-config}/bin/pkg-config "\$@"
 +WRAPPER
 +    chmod +x pkg-config-wrapper
++    echo "DEBUG wrapper test: $(./pkg-config-wrapper --modversion libxml-2.0 2>&1 || echo FAILED)"
 +
 +    meson setup build $src \
 +      --native-file ${nativeFile} \
