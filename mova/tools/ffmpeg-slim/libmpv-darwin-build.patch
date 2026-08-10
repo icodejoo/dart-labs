@@ -1044,6 +1044,24 @@ index 543805a..f62c713 100644
      OPTIONS=("''${DISABLE_ALL_OPTIONS[@]}")
  
      OPTIONS+=("''${COMMON_OPTIONS[@]}")
+diff --git a/nix/packages/mk-pkg-uchardet/default.nix b/nix/packages/mk-pkg-uchardet/default.nix
+index f3111a9..645c93d 100644
+--- a/nix/packages/mk-pkg-uchardet/default.nix
++++ b/nix/packages/mk-pkg-uchardet/default.nix
+@@ -58,9 +58,10 @@ pkgs.stdenvNoCC.mkDerivation {
+     # install headers
+     cp $src/subprojects/uchardet/src/uchardet.h $out/include/uchardet/
+ 
+-    # install libs
+-    cp build/subprojects/uchardet/liblibuchardet.dylib $out/lib/libuchardet.dylib
+-    install_name_tool -id @rpath/libuchardet.dylib $out/lib/libuchardet.dylib
++    # install libs — static (.a), not shared (.dylib), since BUILD_SHARED_LIBS
++    # was flipped off in meson.build (install_name_tool doesn't apply to
++    # static archives, dropped along with the .dylib copy)
++    cp build/subprojects/uchardet/liblibuchardet.a $out/lib/libuchardet.a
+ 
+     # install pkgconfig file
+     cp ${./uchardet.pc.in} $out/lib/pkgconfig/uchardet.pc
 diff --git a/nix/packages/mk-pkg-uchardet/meson.build b/nix/packages/mk-pkg-uchardet/meson.build
 index f09d99f..0458e81 100644
 --- a/nix/packages/mk-pkg-uchardet/meson.build
