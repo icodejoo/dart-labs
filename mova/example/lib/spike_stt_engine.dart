@@ -163,7 +163,17 @@ class _SttEngineSpikePageState extends State<SttEngineSpikePage> {
     //
     // 先跑基线检查，再跑当前诊断路径——不需要文件选择器交互，因为
     // [_diagWavPath] 是固定、已知的磁盘路径。
-    _run('cpu').then((_) => _transcribePath(_diagWavPath));
+    _run('cpu').then((_) {
+      // Guard against diagnostic wav not existing on this machine — skip
+      // silently if the file is absent, since it's a developer convenience
+      // path meant only for the original author's local testing.
+      //
+      // 守护诊断 wav 在本机不存在的情况——若文件不存在则静默跳过，因为这是
+      // 开发便利路径，只供原作者本机测试用。
+      if (File(_diagWavPath).existsSync()) {
+        return _transcribePath(_diagWavPath);
+      }
+    });
   }
 
   /// Runs the seeded test wav through [ZipformerSttEngine.feed] on the given
