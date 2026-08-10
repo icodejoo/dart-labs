@@ -49,7 +49,7 @@
 - [x] **P3** 观看模式（#5）+ 锁定/沉浸（#4）+ 点播/直播控制条
 - [x] **P4** 方向与全屏（#3）：全屏切换 + 按宽高比定向 + 尺寸流自动重定向 + autoOrientation 开关
 - [x] **P5** 清晰度提取 / 手动切换 / ABR 自适应（#2）：HLS 档位改走 libmpv 原生 `tracks.video` + `setVideoTrack`（同会话切换，不重开），自解析 master playlist 那套已删；MP4 多文件源仍走重开 URL；缓冲卡顿降档保留；"自动"档委托 libmpv 原生 ABR。迁移记录见 [doc/plans/2026-08-04-quality-native-tracks-spike.md](plans/2026-08-04-quality-native-tracks-spike.md)
-- [x] **P6** 画中画 PiP（#1）：Android 系统级 PiP（ActivityAware + PictureInPictureParams，宽高比钳制）；iOS/桌面返回不支持（见风险），按钮仅在支持平台显示
+- [x] **P6** 画中画 PiP（#1）：Android 系统级 PiP（ActivityAware + PictureInPictureParams，宽高比钳制）；桌面/iOS `pipSupported` 仍为 `false`（iOS 骨架见下），但按钮不再隐藏——改为落到应用内悬浮窗降级（`MovaPipOverlay`，2026-08-10）；iOS 系统 PiP 骨架（假帧，未真机验证）同日随 iOS PiP 一并写下，详见 [doc/notes/2026-07-31-ios-pip-feasibility.md](notes/2026-07-31-ios-pip-feasibility.md) §8
 - [x] **P7** 发布准备：README、CHANGELOG、LICENSE(MIT)、pubspec 元数据/topics、example 源切换、`pub publish --dry-run` 通过
 - [x] **二期** ffmpeg 瘦身（LGPL）：Android arm64-v8a 定稿并接入（6.55MiB，AV1 硬解+
       软解双通道，2026-08-06 真机验证 H.264/HEVC/VP9/AV1 通过），详见

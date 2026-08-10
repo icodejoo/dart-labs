@@ -33,3 +33,9 @@ migrate_working_dir/
 # Ignore nested build dirs too (e.g. example/android/build gradle reports).
 build/
 /coverage/
+
+# ffmpeg-slim CI matrix dumps (gh run download pulls every arch x flavor
+# combo; only the two curated non-GPL flavor tar.gz are checked in by hand).
+tools/ffmpeg-slim/dist/darwin/*
+!tools/ffmpeg-slim/dist/darwin/libmpv-xcframeworks_mova-ci_ios-universal-video-default.tar.gz
+!tools/ffmpeg-slim/dist/darwin/libmpv-xcframeworks_mova-ci_macos-universal-video-default.tar.gz

@@ -49,6 +49,13 @@
 	</dict>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
+	<!-- Required for system PiP to keep running while the app is backgrounded
+	     (doc/notes/2026-07-31-ios-pip-feasibility.md §4/§8 阶段1). -->
+	<!-- 系统画中画在应用退到后台后继续运行所需（同上笔记 §4/§8 阶段1）。 -->
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>audio</string>
+	</array>
 	<key>UILaunchStoryboardName</key>
 	<string>LaunchScreen</string>
 	<key>UIMainStoryboardFile</key>
