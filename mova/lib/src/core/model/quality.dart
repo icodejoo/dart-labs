@@ -1,21 +1,32 @@
 /// A selectable video quality variant.
 ///
-/// For adaptive sources (HLS), "auto" delegates bitrate selection to the
-/// engine; a concrete variant pins playback to one rendition.
+/// For adaptive sources (HLS/DASH), "auto" delegates bitrate selection to the
+/// engine; a concrete variant pins playback to one rendition — either a
+/// native mpv track (via [trackId]) or, for non-adaptive multi-file sources,
+/// a reopen-able variant [uri].
 ///
 /// 可选择的视频清晰度档位。
 ///
-/// 对自适应源（HLS），"自动"把码率选择交给内核；具体档位则锁定到某一路。
+/// 对自适应源（HLS/DASH），"自动"把码率选择交给内核；具体档位则锁定到某一路——
+/// 或是一个原生 mpv 轨（经 [trackId]），或是（对非自适应的多文件源）一个可重开
+/// 的变体 [uri]。
 class MovaQual {
   /// Human label, e.g. "1080p" or "自动".
   ///
   /// 展示标签，如 "1080p" 或 "自动"。
   final String label;
 
-  /// Variant playlist URI; empty when [isAuto].
+  /// Variant playlist/file URI; empty when this quality routes through
+  /// [trackId] instead, or when [isAuto].
   ///
-  /// 变体播放列表地址；[isAuto] 时为空。
+  /// 变体播放列表/文件地址；当改走 [trackId] 或 [isAuto] 时为空。
   final String uri;
+
+  /// The native mpv video track id this quality maps to, or `null` when
+  /// there is no native track (routes through [uri] instead).
+  ///
+  /// 该清晰度映射到的原生 mpv 视频轨 id；无原生轨（改走 [uri]）时为 `null`。
+  final String? trackId;
 
   /// Advertised bandwidth in bits per second, if known.
   ///
@@ -42,7 +53,8 @@ class MovaQual {
   /// 创建一个清晰度档位。
   const MovaQual({
     required this.label,
-    required this.uri,
+    this.uri = '',
+    this.trackId,
     this.bandwidth,
     this.width,
     this.height,
@@ -51,91 +63,141 @@ class MovaQual {
 
   /// The adaptive "auto" entry (engine picks the bitrate).
   ///
+  /// [trackId] wires it to mpv's native `VideoTrack.auto()` when this entry
+  /// came from [qualitiesFromVideoTracks]; omit it for the non-adaptive
+  /// reopen-URL path, where there is no native track to switch to.
+  ///
   /// 自适应"自动"档（内核自动选码率）。
-  factory MovaQual.auto() => const MovaQual(label: '自动', uri: '', isAuto: true);
+  ///
+  /// 当该条目来自 [qualitiesFromVideoTracks] 时，[trackId] 把它接到 mpv 原生的
+  /// `VideoTrack.auto()`；非自适应的重开 URL 路径无原生轨可切，省略即可。
+  factory MovaQual.auto({String? trackId}) =>
+      MovaQual(label: '自动', isAuto: true, trackId: trackId);
+
+  @override
+  bool operator ==(Object other) =>
+      other is MovaQual &&
+      other.label == label &&
+      other.uri == uri &&
+      other.trackId == trackId &&
+      other.bandwidth == bandwidth &&
+      other.width == width &&
+      other.height == height &&
+      other.isAuto == isAuto;
+
+  @override
+  int get hashCode => Object.hash(label, uri, trackId, bandwidth, width, height, isAuto);
 }
 
-/// Parses an HLS master playlist into a quality list (auto first, then
-/// variants sorted highest-first). Returns an empty list if [content] is not
-/// a master playlist (no `#EXT-X-STREAM-INF`).
+/// A native video track reported by the kernel (e.g. an HLS/DASH variant
+/// enumerated by mpv), engine-agnostic mirror of media_kit's `VideoTrack`.
 ///
-/// 解析 HLS master playlist 为清晰度列表（"自动"在前，其余按从高到低排序）。
-/// 若 [content] 不是 master（无 `#EXT-X-STREAM-INF`），返回空列表。
+/// 内核报告的原生视频轨（如 mpv 枚举出的 HLS/DASH 变体），是 media_kit
+/// `VideoTrack` 的引擎无关镜像。
+class MovaVideoTrack {
+  /// The engine-native track id (e.g. mpv's `--vid`); `'auto'` is the
+  /// adaptive entry.
+  ///
+  /// 引擎原生的轨道 id（如 mpv 的 `--vid`）；`'auto'` 为自适应档。
+  final String id;
+
+  /// Human-readable title reported by the demuxer, if any.
+  ///
+  /// demuxer 上报的可读标题，若有。
+  final String? title;
+
+  /// Pixel width, if known.
+  ///
+  /// 像素宽，若已知。
+  final int? width;
+
+  /// Pixel height, if known.
+  ///
+  /// 像素高，若已知。
+  final int? height;
+
+  /// Advertised bitrate in bits per second, if known.
+  ///
+  /// 声明的码率（bps），若已知。
+  final int? bitrate;
+
+  /// Codec name, if known.
+  ///
+  /// 编解码器名称，若已知。
+  final String? codec;
+
+  /// Creates a native video track descriptor.
+  ///
+  /// 创建一个原生视频轨描述。
+  const MovaVideoTrack({
+    required this.id,
+    this.title,
+    this.width,
+    this.height,
+    this.bitrate,
+    this.codec,
+  });
+
+  /// Whether this is the adaptive "auto" entry.
+  ///
+  /// 是否为自适应"自动"档。
+  bool get isAuto => id == 'auto';
+
+  @override
+  bool operator ==(Object other) => other is MovaVideoTrack && other.id == id;
+
+  @override
+  int get hashCode => id.hashCode;
+
+  @override
+  String toString() =>
+      'MovaVideoTrack($id, title: $title, w: $width, h: $height, bitrate: $bitrate, codec: $codec)';
+}
+
+/// Builds a quality list (auto first, then variants sorted highest-first) from
+/// native mpv video tracks. Same-height variants are deduplicated, keeping
+/// the first (highest-bitrate, since callers pass tracks already
+/// bitrate-sorted) entry per height. A variant with no known height falls
+/// back to a bitrate-based label.
 ///
-/// - [content]: raw .m3u8 text / m3u8 原文
-/// - [base]: base URI to resolve relative variant paths / 用于解析相对路径的基地址
-/// - returns the quality list / 返回清晰度列表
+/// [tracks] must already exclude mpv's `id: 'no'` ("disable video output")
+/// entry — that filtering is the kernel's responsibility (see [MpvKernel]).
+///
+/// 从原生 mpv 视频轨构建清晰度列表（"自动"在前，其余按从高到低排序）。相同
+/// 高度的变体会去重，每个高度只保留第一条（因调用方已按码率排序，故为码率最高
+/// 的那条）。没有已知高度的变体退化为按码率的标签。
+///
+/// [tracks] 必须已排除 mpv 的 `id: 'no'`（"关闭视频输出"）条目——该过滤是内核
+/// （见 [MpvKernel]）的职责。
+///
+/// - [tracks]: native video tracks reported by the kernel / 内核上报的原生
+///   视频轨
+/// - returns the quality list, possibly empty when [tracks] has no non-auto
+///   entry / 返回清晰度列表；[tracks] 无非自动条目时可能为空
 ///
 /// Example / 示例:
 /// ```dart
-/// final qs = parseHlsMasterPlaylist(text, base: Uri.parse(url));
+/// final qs = qualitiesFromVideoTracks(tracks);
 /// ```
-List<MovaQual> parseHlsMasterPlaylist(String content, {Uri? base}) {
-  final lines = content.split(RegExp(r'\r?\n'));
-  final variants = <MovaQual>[];
-  for (var i = 0; i < lines.length; i++) {
-    final line = lines[i].trim();
-    if (!line.startsWith('#EXT-X-STREAM-INF:')) continue;
-    // The URI is the next non-empty, non-comment line.
-    // 地址是下一条非空、非注释行。
-    String? uri;
-    for (var j = i + 1; j < lines.length; j++) {
-      final n = lines[j].trim();
-      if (n.isEmpty || n.startsWith('#')) continue;
-      uri = n;
-      break;
+List<MovaQual> qualitiesFromVideoTracks(List<MovaVideoTrack> tracks) {
+  final variants = tracks.where((t) => !t.isAuto).toList()
+    ..sort((a, b) => (b.height ?? b.bitrate ?? 0).compareTo(a.height ?? a.bitrate ?? 0));
+  final seenHeights = <int>{};
+  final quals = <MovaQual>[];
+  for (final t in variants) {
+    if (t.height != null) {
+      if (!seenHeights.add(t.height!)) continue;
     }
-    if (uri == null) continue;
-    final attrs = _parseAttrs(line.substring('#EXT-X-STREAM-INF:'.length));
-    final bw = int.tryParse(attrs['BANDWIDTH'] ?? attrs['AVERAGE-BANDWIDTH'] ?? '');
-    int? w, h;
-    final res = attrs['RESOLUTION'];
-    if (res != null) {
-      final m = RegExp(r'(\d+)x(\d+)').firstMatch(res);
-      if (m != null) {
-        w = int.tryParse(m.group(1)!);
-        h = int.tryParse(m.group(2)!);
-      }
-    }
-    final resolved = base != null ? base.resolve(uri).toString() : uri;
-    variants.add(MovaQual(
-      label: h != null ? '${h}p' : (bw != null ? '${(bw / 1000).round()}kbps' : '未知'),
-      uri: resolved,
-      bandwidth: bw,
-      width: w,
-      height: h,
+    quals.add(MovaQual(
+      label: t.height != null
+          ? '${t.height}p'
+          : (t.bitrate != null ? '${(t.bitrate! / 1000).round()}kbps' : '未知'),
+      trackId: t.id,
+      bandwidth: t.bitrate,
+      width: t.width,
+      height: t.height,
     ));
   }
-  if (variants.isEmpty) return [];
-  variants.sort((a, b) => (b.height ?? b.bandwidth ?? 0).compareTo(a.height ?? a.bandwidth ?? 0));
-  return [MovaQual.auto(), ...variants];
-}
-
-/// Splits an HLS attribute list on commas not enclosed in double quotes.
-///
-/// 按不在双引号内的逗号切分 HLS 属性列表。
-Map<String, String> _parseAttrs(String s) {
-  final out = <String, String>{};
-  final buf = StringBuffer();
-  final parts = <String>[];
-  var inQuotes = false;
-  for (var i = 0; i < s.length; i++) {
-    final c = s[i];
-    if (c == '"') inQuotes = !inQuotes;
-    if (c == ',' && !inQuotes) {
-      parts.add(buf.toString());
-      buf.clear();
-    } else {
-      buf.write(c);
-    }
-  }
-  if (buf.isNotEmpty) parts.add(buf.toString());
-  for (final p in parts) {
-    final eq = p.indexOf('=');
-    if (eq <= 0) continue;
-    final key = p.substring(0, eq).trim();
-    final val = p.substring(eq + 1).trim().replaceAll('"', '');
-    out[key] = val;
-  }
-  return out;
+  if (quals.isEmpty) return [];
+  return [MovaQual.auto(trackId: 'auto'), ...quals];
 }

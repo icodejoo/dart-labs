@@ -37,6 +37,14 @@ UI 插件化：把 0.2.0 已有的组件树/皮肤/补丁沉淀为 **Plugin / Co
   栏显隐动画），隔离后不会连带播放层（视频画面）与常驻层（锁定切换）一起重新
   光栅化，反之亦然；对宿主 App 也一样——外部重绘不会牵连进这棵子树。纯内部渲染优化，
   无公开 API 变化。
+* **HLS 清晰度改走原生 mpv track（破坏性）**：`switchQuality`/`downshiftQuality`
+  不再自解析 `.m3u8` master playlist 重开变体 URL，改为 `MovaKernel.videoTracks` +
+  `setVideoTrack`（同会话切档、不重开、不 seek 回位）；`MovaQual` 新增可空
+  `trackId` 字段，`uri` 改为可选（MP4 多文件源等无原生轨的场景仍走原重开路径，
+  两条路并存）。真机实测确认比重开更快，但非真正无缝（详见
+  [doc/plans/2026-08-04-quality-native-tracks-spike.md](doc/plans/2026-08-04-quality-native-tracks-spike.md)）。
+  删除 `parseHlsMasterPlaylist`/`_parseAttrs`（公开 API 删除）；`MovaBufferAbr`/
+  `downshiftQuality` 保留。
 
 ## 0.2.0
 

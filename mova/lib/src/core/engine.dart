@@ -1,6 +1,4 @@
 import 'dart:async';
-import 'dart:convert';
-import 'dart:io';
 
 import 'package:meta/meta.dart';
 
@@ -777,6 +775,16 @@ class MovaEngine implements MovaApi {
     );
   }
 
+  /// How long [loadQualities] waits for the kernel to enumerate native video
+  /// tracks before giving up and reporting no qualities. mpv reports tracks
+  /// asynchronously once the HLS master playlist has been demuxed; on a slow
+  /// connection this can lag noticeably behind `open()` returning.
+  ///
+  /// [loadQualities] 等待内核枚举原生视频轨的最长时长，超时则放弃并报告无
+  /// 清晰度。mpv 对 HLS master playlist 完成解封装后才异步上报轨道；网络较慢
+  /// 时这可能明显滞后于 `open()` 返回。
+  static const Duration _videoTracksTimeout = Duration(seconds: 8);
+
   @override
   Future<void> loadQualities() async {
     final s = _source;
@@ -784,24 +792,44 @@ class MovaEngine implements MovaApi {
       _state.emit(state.copyWith(qualities: const [], clearQuality: true));
       return;
     }
+    List<MovaVideoTrack> tracks;
     try {
-      final content = await _httpGetString(s.uri);
-      final qs = parseHlsMasterPlaylist(content, base: Uri.parse(s.uri));
-      final cur = qs.isNotEmpty ? qs.first : null;
-      _state.emit(state.copyWith(
-        qualities: qs,
-        currentQuality: cur,
-        clearQuality: cur == null,
-      ));
-      _events.add(MovaQualListChg(qs));
-      if (cur != null) _events.add(MovaQualChg(cur));
-    } catch (_) {
-      _state.emit(state.copyWith(qualities: const [], clearQuality: true));
+      tracks = await _kernel.videoTracks
+          .firstWhere((t) => t.isNotEmpty)
+          .timeout(_videoTracksTimeout);
+    } on Object {
+      tracks = const [];
     }
+    final qs = qualitiesFromVideoTracks(tracks);
+    final cur = qs.isNotEmpty ? qs.first : null;
+    _state.emit(state.copyWith(
+      qualities: qs,
+      currentQuality: cur,
+      clearQuality: cur == null,
+    ));
+    _events.add(MovaQualListChg(qs));
+    if (cur != null) _events.add(MovaQualChg(cur));
   }
 
   @override
   Future<void> switchQuality(MovaQual q) async {
+    final trackId = q.trackId;
+    if (trackId != null) {
+      // Native track path (HLS/DASH): same-session switch, no reopen and no
+      // seek — mpv keeps the position.
+      //
+      // 原生轨路径（HLS/DASH）：同会话切换，不重开、不 seek——mpv 自行保持位置。
+      await _kernel.setVideoTrack(MovaVideoTrack(id: trackId));
+      _state.emit(state.copyWith(currentQuality: q));
+      _events.add(MovaQualChg(q));
+      return;
+    }
+    // Non-adaptive reopen path (e.g. MP4 multi-file sources): no single
+    // mechanism covers both, so this reopens the variant URL and restores
+    // position.
+    //
+    // 非自适应重开路径（如 MP4 多文件源）：没有单一机制能覆盖两者，因此重开
+    // 变体 URL 并恢复位置。
     final playUri = q.isAuto ? (_source?.uri ?? '') : q.uri;
     if (playUri.isEmpty) return;
     final pos = _lastPosition;
@@ -820,7 +848,7 @@ class MovaEngine implements MovaApi {
     final cur = state.currentQuality;
     if (cur == null || cur.isAuto) return;
     final variants = state.qualities.where((q) => !q.isAuto).toList();
-    final idx = variants.indexWhere((q) => q.uri == cur.uri);
+    final idx = variants.indexWhere((q) => (q.trackId ?? q.uri) == (cur.trackId ?? cur.uri));
     if (idx < 0 || idx + 1 >= variants.length) return;
     await switchQuality(variants[idx + 1]);
   }
@@ -1076,19 +1104,5 @@ class MovaEngine implements MovaApi {
         _events.add(MovaAbrDownShift(from, to));
       }
     }).whenComplete(() => _abrDownshiftInFlight = false));
-  }
-
-  /// GETs [url] as a UTF-8 string via a one-shot HTTP client.
-  ///
-  /// 用一次性 HTTP 客户端以 UTF-8 拉取 [url] 文本。
-  Future<String> _httpGetString(String url) async {
-    final client = HttpClient();
-    try {
-      final req = await client.getUrl(Uri.parse(url));
-      final resp = await req.close();
-      return await resp.transform(const Utf8Decoder()).join();
-    } finally {
-      client.close();
-    }
   }
 }

@@ -34,7 +34,7 @@ lib/
    │  ├─ options/strings.dart         # MovaStrs（文案外置，默认简体中文）
    │  ├─ options/theme.dart           # MovaTheme（配色/尺寸外置，ARGB int 存储）
    │  ├─ model/source.dart            # MovaSource / MovaStreamType
-   │  ├─ model/quality.dart           # MovaQual + parseHlsMasterPlaylist（纯函数）
+   │  ├─ model/quality.dart           # MovaQual/MovaVideoTrack + qualitiesFromVideoTracks（纯函数）
    │  ├─ model/fit.dart               # MovaFit(contain/cover/fill)
    │  └─ platform/ports.dart          # MovaBrightPort / MovaVolumePort / MovaPipPort / MovaOrientPort
    ├─ platform_impl/                  # ports 的具体实现（screen_brightness / MethodChannel / SystemChrome）

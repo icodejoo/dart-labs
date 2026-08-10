@@ -1,5 +1,7 @@
 import 'dart:typed_data';
 
+import '../model/quality.dart';
+
 /// Abstraction over the underlying playback engine (media_kit/mpv today).
 ///
 /// It isolates the rest of the codebase from the concrete engine so upper
@@ -146,6 +148,33 @@ abstract class MovaKernel {
   /// 供视频渲染组件使用的底层渲染句柄（如 `VideoController`）。
   /// 其具体类型由引擎决定，对核心层之外的调用者不透明。
   Object get renderHandle;
+
+  /// Emits the native video tracks available in the currently open media
+  /// (e.g. HLS/DASH variants) whenever the set changes.
+  ///
+  /// 当前打开媒体可用的原生视频轨（如 HLS/DASH 变体）发生变化时推送最新列表。
+  Stream<List<MovaVideoTrack>> get videoTracks;
+
+  /// Emits the currently selected native video track whenever it changes.
+  ///
+  /// 当前选中的原生视频轨发生变化时推送最新值。
+  Stream<MovaVideoTrack> get videoTrack;
+
+  /// Switches the native video track within the current playback session
+  /// (no reopen).
+  ///
+  /// [track] must be one of the entries most recently emitted by
+  /// [videoTracks].
+  ///
+  /// Returns a future that completes once the switch request has been
+  /// issued.
+  ///
+  /// 在当前会话内切换原生视频轨（不重开）。
+  ///
+  /// [track] 必须是 [videoTracks] 最近一次推送的条目之一。
+  ///
+  /// 返回一个在切换请求发出后完成的 Future。
+  Future<void> setVideoTrack(MovaVideoTrack track);
 }
 
 /// An immutable, value-comparable video frame size.
