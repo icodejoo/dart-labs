@@ -439,6 +439,13 @@ jobs:
           test -n "$(ls result/*.dylib 2>/dev/null)" || { echo "::error::no .dylib found in result/ — single-target build (mk-out-libs) outputs raw dylibs, not an archive"; exit 1; }
           mkdir -p "$GITHUB_WORKSPACE/darwin-out"
           cp result/*.dylib "$GITHUB_WORKSPACE/darwin-out/"
+          # result/*.dylib are Nix store paths — read-only, and `cp`
+          # preserves that permission bit onto the copies. Run 31375592021
+          # actually failed to strip anything at all ("Permission denied"
+          # on every single file), but the job still reported success
+          # because the strip loop treats a failure as a non-fatal
+          # warning — chmod first so strip can actually write in place.
+          chmod u+w "$GITHUB_WORKSPACE"/darwin-out/*.dylib
           echo "### darwin build artifacts (macos-arm64, movaslim, unstripped)" >> "$GITHUB_STEP_SUMMARY"
           ls -la "$GITHUB_WORKSPACE/darwin-out" >> "$GITHUB_STEP_SUMMARY"
           du -h "$GITHUB_WORKSPACE"/darwin-out/*.dylib >> "$GITHUB_STEP_SUMMARY"
