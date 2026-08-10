@@ -1824,7 +1824,7 @@ diff -ruN -x .git static6c/nix/packages/mk-pkg-mbedtls/meson.build static6b/nix/
  mbedtls = cmake.subproject('mbedtls',
 diff -ruN -x .git static6c/nix/packages/mk-pkg-mpv/default.nix static6b/nix/packages/mk-pkg-mpv/default.nix
 --- a/nix/packages/mk-pkg-mpv/default.nix	2026-08-10 18:59:51.675694200 +0800
-+++ b/nix/packages/mk-pkg-mpv/default.nix	2026-08-10 18:59:42.978185100 +0800
++++ b/nix/packages/mk-pkg-mpv/default.nix	2026-08-10 21:36:29.576199800 +0800
 @@ -3,6 +3,7 @@
    os ? import ../../utils/default/os.nix,
    arch ? pkgs.callPackage ../../utils/default/arch.nix { },
@@ -1855,15 +1855,19 @@ diff -ruN -x .git static6c/nix/packages/mk-pkg-mpv/default.nix static6b/nix/pack
        ;
    };
    nativeFile = callPackage ../../utils/native-file/default.nix { };
-@@ -26,6 +35,7 @@
+@@ -26,6 +35,11 @@
    ffmpeg = callPackage ../mk-pkg-ffmpeg/default.nix { };
    uchardet = callPackage ../mk-pkg-uchardet/default.nix { };
    libass = callPackage ../mk-pkg-libass/default.nix { };
++  fribidi = callPackage ../mk-pkg-fribidi/default.nix { };
++  harfbuzz = callPackage ../mk-pkg-harfbuzz/default.nix { };
++  freetype = callPackage ../mk-pkg-freetype/default.nix { };
++  libpng = callPackage ../mk-pkg-libpng/default.nix { };
 +  libplacebo = callPackage ../mk-pkg-libplacebo/default.nix { };
  
    nativeBuildInputs = [
      pkgs.meson
-@@ -47,10 +57,61 @@
+@@ -47,10 +61,61 @@
  
      cd $src
      patch -p1 <${../../../patches/mpv-fix-missing-objc.patch}
@@ -1926,7 +1930,7 @@ diff -ruN -x .git static6c/nix/packages/mk-pkg-mpv/default.nix static6b/nix/pack
      cd -
  
      cp -r $src $out
-@@ -75,8 +136,38 @@
+@@ -75,8 +140,45 @@
      ++ pkgs.lib.optionals (variant == "video") [
        uchardet
        libass
@@ -1941,7 +1945,14 @@ diff -ruN -x .git static6c/nix/packages/mk-pkg-mpv/default.nix static6b/nix/pack
 +  PKG_CONFIG_PATH = pkgs.lib.concatStringsSep ":" (
 +    map (dep: "${dep}/lib/pkgconfig") (
 +      [ ffmpeg ]
-+      ++ pkgs.lib.optionals (variant == "video") [ uchardet libass ]
++      ++ pkgs.lib.optionals (variant == "video") [
++        uchardet
++        libass
++        fribidi
++        harfbuzz
++        freetype
++        libpng
++      ]
 +      ++ pkgs.lib.optionals useLibplacebo [ libplacebo ]
 +    )
 +  );
@@ -1965,7 +1976,7 @@ diff -ruN -x .git static6c/nix/packages/mk-pkg-mpv/default.nix static6b/nix/pack
      DISABLE_ALL_OPTIONS=(
        `# booleans`
        -Dgpl=false `# GPL (version 2 or later) build`
-@@ -84,7 +175,6 @@
+@@ -84,7 +186,6 @@
        -Dlibmpv=false `# libmpv library`
        -Dbuild-date=false `# whether to include binary compile time`
        -Dtests=false `# unit tests (development only)`
@@ -1973,7 +1984,7 @@ diff -ruN -x .git static6c/nix/packages/mk-pkg-mpv/default.nix static6b/nix/pack
  
        `# misc features`
        -Dcdda=disabled `# cdda support (libcdio)`
-@@ -100,14 +190,11 @@
+@@ -100,14 +201,11 @@
        -Dlua=disabled `# Lua`
        -Dpthread-debug=disabled `# pthread runtime debugging wrappers`
        -Drubberband=disabled `# librubberband support`
@@ -1988,7 +1999,7 @@ diff -ruN -x .git static6c/nix/packages/mk-pkg-mpv/default.nix static6b/nix/pack
        -Dzimg=disabled `# libzimg support (high quality software scaler)`
        -Dzlib=disabled `# zlib`
  
-@@ -146,8 +233,6 @@
+@@ -146,8 +244,6 @@
        -Dgl-win32=disabled `# OpenGL Win32 Backend`
        -Dgl-x11=disabled `# OpenGL X11/GLX (deprecated/legacy)`
        -Djpeg=disabled `# JPEG support`
@@ -1997,7 +2008,7 @@ diff -ruN -x .git static6c/nix/packages/mk-pkg-mpv/default.nix static6b/nix/pack
        -Dsdl2-video=disabled `# SDL2 video output`
        -Dshaderc=disabled `# libshaderc SPIR-V compiler`
        -Dsixel=disabled `# Sixel`
-@@ -159,7 +244,6 @@
+@@ -159,7 +255,6 @@
        -Dvaapi-drm=disabled `# VAAPI (DRM/EGL support)`
        -Dvaapi-wayland=disabled `# VAAPI (Wayland support)`
        -Dvaapi-x11=disabled `# VAAPI (X11 support)`
@@ -2005,7 +2016,7 @@ diff -ruN -x .git static6c/nix/packages/mk-pkg-mpv/default.nix static6b/nix/pack
        -Dvulkan=disabled `# Vulkan context support`
        -Dwayland=disabled `# Wayland`
        -Dx11=disabled `# X11`
-@@ -173,13 +257,9 @@
+@@ -173,13 +268,9 @@
        -Dd3d9-hwaccel=disabled `# DXVA2 hwaccel`
        -Dgl-dxinterop-d3d9=disabled `# OpenGL/DirectX Interop Backend DXVA2 interop`
        -Dios-gl=disabled `# iOS OpenGL ES hardware decoding interop support`
@@ -2019,7 +2030,7 @@ diff -ruN -x .git static6c/nix/packages/mk-pkg-mpv/default.nix static6b/nix/pack
        -Dmacos-cocoa-cb=disabled `# macOS libmpv backend`
        -Dmacos-media-player=disabled `# macOS Media Player support`
        -Dmacos-touchbar=disabled `# macOS Touch Bar support`
-@@ -230,6 +310,28 @@
+@@ -230,6 +321,28 @@
      IOS_OPTIONS=(
        `# audio output features`
        -Daudiounit=enabled `# AudioUnit output for iOS`
@@ -2048,7 +2059,7 @@ diff -ruN -x .git static6c/nix/packages/mk-pkg-mpv/default.nix static6b/nix/pack
      )
  
      IOS_VIDEO_OPTIONS=(
-@@ -237,6 +339,18 @@
+@@ -237,6 +350,18 @@
        -Dios-gl=enabled `# iOS OpenGL ES hardware decoding interop support`
      )
  
