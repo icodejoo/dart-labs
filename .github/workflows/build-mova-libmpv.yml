@@ -376,7 +376,14 @@ jobs:
 
       - name: Apply mova movaslim flavor patch
         working-directory: build-root
-        run: git apply "$GITHUB_WORKSPACE/dart-labs/mova/tools/ffmpeg-slim/libmpv-darwin-build.patch"
+        run: |
+          git apply "$GITHUB_WORKSPACE/dart-labs/mova/tools/ffmpeg-slim/libmpv-darwin-build.patch"
+          # Nix flakes only evaluate git-tracked files (purity: the flake's
+          # source is the git index, not the raw working tree) — new files
+          # the patch adds (mk-pkg-glslang/, mk-pkg-libplacebo/) exist on
+          # disk but are invisible to `nix build` until staged. No commit
+          # needed, `git add` alone is enough to make them visible.
+          git add -A
 
       - uses: DeterminateSystems/nix-installer-action@v22
         with:
