@@ -224,10 +224,10 @@ index a48d1db..d7cbb8e 100644
 +option('flavor', type : 'combo', choices : ['default', 'full', 'encodersgpl', 'movaslim'])
 diff --git a/nix/packages/mk-pkg-glslang/default.nix b/nix/packages/mk-pkg-glslang/default.nix
 new file mode 100644
-index 0000000..d4a6a33
+index 0000000..b479100
 --- /dev/null
 +++ b/nix/packages/mk-pkg-glslang/default.nix
-@@ -0,0 +1,81 @@
+@@ -0,0 +1,94 @@
 +{
 +  pkgs ? import ../../utils/default/pkgs.nix,
 +  os ? import ../../utils/default/os.nix,
@@ -238,6 +238,17 @@ index 0000000..d4a6a33
 +  name = "glslang";
 +  packageLock = (import ../../../packages.lock.nix).${name};
 +  inherit (packageLock) version;
++
++  oses = import ../../utils/constants/oses.nix;
++  # std::filesystem needs macOS 10.15+ / iOS 13.0+ (see meson.build's
++  # comment on why this can't just be hardcoded to one flag — iOS and
++  # macOS need different flag names, not just different version numbers,
++  # and this meson.build has no way to tell them apart on its own).
++  minVersionFlag =
++    if os == oses.macos then
++      "-mmacosx-version-min=10.15"
++    else
++      "-miphoneos-version-min=13.0";
 +
 +  callPackage = pkgs.lib.callPackageWith { inherit pkgs os arch; };
 +  nativeFile = callPackage ../../utils/native-file/default.nix { };
@@ -252,6 +263,7 @@ index 0000000..d4a6a33
 +    mkdir -p $out/subprojects/glslang
 +    cp -r ${src}/* $out/subprojects/glslang/
 +    cp ${./meson.build} $out/meson.build
++    cp ${./meson.options} $out/meson.options
 +  '';
 +in
 +
@@ -273,7 +285,8 @@ index 0000000..d4a6a33
 +    meson setup build $src \
 +      --native-file ${nativeFile} \
 +      --cross-file ${crossFile} \
-+      --prefix=$out
++      --prefix=$out \
++      -Dmin-version-flag='${minVersionFlag}'
 +  '';
 +  buildPhase = ''
 +    meson compile -vC build
@@ -311,10 +324,10 @@ index 0000000..d4a6a33
 +}
 diff --git a/nix/packages/mk-pkg-glslang/meson.build b/nix/packages/mk-pkg-glslang/meson.build
 new file mode 100644
-index 0000000..afe9aba
+index 0000000..a61be27
 --- /dev/null
 +++ b/nix/packages/mk-pkg-glslang/meson.build
-@@ -0,0 +1,67 @@
+@@ -0,0 +1,79 @@
 +# glslang ships CMake, not meson — wrapped via meson's cmake module the same
 +# way mk-pkg-mbedtls wraps mbedtls's own CMake build (see that package's
 +# meson.build for the reference pattern this mirrors). The outer Nix
@@ -344,24 +357,36 @@ index 0000000..afe9aba
 +endif
 +
 +# glslang's GenericCodeGen/Include/InfoSink.h uses std::filesystem::path
-+# (macOS 10.15+), but this repo's cross-files/*.ini bakes a blanket
-+# -mmacosx-version-min=10.9 into every package's c_args/cpp_args (kept low
-+# for the amd64/universal builds' compatibility floor) — that leaks into
-+# glslang's CMake subproject and clang's availability annotations turn
-+# every std::filesystem call into a hard "unavailable" compile error at
-+# 10.9. Raising just glslang's deployment target (not the shared
-+# cross-file, which every other package still needs at 10.9) fixes it
-+# without touching anything else's compatibility floor. 10.15 is the
-+# minimum std::filesystem needs; arm64 Macs never shipped below 11.0
-+# anyway so this costs nothing in practice for the macos-arm64 target
-+# movaslim is being validated on first.
++# (needs macOS 10.15+ / iOS 13.0+), but this repo's cross-files/*.ini bakes
++# a blanket low deployment-target flag into every package's c_args/
++# cpp_args (kept low for the amd64/universal builds' compatibility floor)
++# — that leaks into glslang's CMake subproject and clang's availability
++# annotations turn every std::filesystem call into a hard "unavailable"
++# compile error at the low target. Raising just glslang's deployment
++# target (not the shared cross-file, which every other package still
++# needs low) fixes it without touching anything else's compatibility
++# floor.
++#
++# CI run 31367146786 (macos-arm64) went green hardcoding
++# -mmacosx-version-min=10.15, but that same flag broke run 31368304011
++# (ios-arm64) outright: passing a macOS deployment-target flag while
++# targeting the iPhoneOS SDK made clang's basic ABI detection fail
++# ("Detecting C compiler ABI info - failed"), which cascaded into "Could
++# NOT find Threads" before glslang's own sources were even reached — not
++# a std::filesystem-specific error at all, a wrong-flag-for-this-SDK
++# error. The right flag (-mmacosx-version-min vs -miphoneos-version-min)
++# depends on `os`, which isn't visible inside this meson.build
++# (`host_machine.system()` is 'darwin' for macOS/iOS/iossimulator alike
++# per this repo's cross-files/*.ini) — computed in Nix (default.nix, which
++# does have `os`) and threaded through via the min-version-flag option
++# instead.
++min_version_flag = get_option('min-version-flag')
 +options = cmake.subproject_options()
 +options.add_cmake_defines({
 +    'CMAKE_OSX_ARCHITECTURES': arch,
 +    'CMAKE_OSX_SYSROOT': meson.get_cross_property('cmake_osx_sysroot'),
-+    'CMAKE_OSX_DEPLOYMENT_TARGET': '10.15',
-+    'CMAKE_C_FLAGS': '-mmacosx-version-min=10.15',
-+    'CMAKE_CXX_FLAGS': '-mmacosx-version-min=10.15',
++    'CMAKE_C_FLAGS': min_version_flag,
++    'CMAKE_CXX_FLAGS': min_version_flag,
 +    'CMAKE_C_COMPILER_WORKS': true,
 +    'CMAKE_CXX_COMPILER_WORKS': true,
 +    'CMAKE_BUILD_TYPE': 'Release',
@@ -382,6 +407,14 @@ index 0000000..afe9aba
 +glslang_proj = cmake.subproject('glslang', options: options)
 +glslang_dep = glslang_proj.dependency('glslang')
 +
+diff --git a/nix/packages/mk-pkg-glslang/meson.options b/nix/packages/mk-pkg-glslang/meson.options
+new file mode 100644
+index 0000000..2af7096
+--- /dev/null
++++ b/nix/packages/mk-pkg-glslang/meson.options
+@@ -0,0 +1,2 @@
++option('min-version-flag', type: 'string', value: '',
++       description: 'Platform-appropriate -mmacosx-version-min/-miphoneos-version-min flag, computed in Nix (default.nix) since it depends on os, which meson cross-files here do not expose (host_machine.system() is "darwin" for macOS/iOS/iossimulator alike)')
 diff --git a/nix/packages/mk-pkg-libplacebo/default.nix b/nix/packages/mk-pkg-libplacebo/default.nix
 new file mode 100644
 index 0000000..fb2a8c7
