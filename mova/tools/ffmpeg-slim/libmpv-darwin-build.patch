@@ -371,10 +371,10 @@ index 0000000..afe9aba
 +
 diff --git a/nix/packages/mk-pkg-libplacebo/default.nix b/nix/packages/mk-pkg-libplacebo/default.nix
 new file mode 100644
-index 0000000..b214b52
+index 0000000..3389479
 --- /dev/null
 +++ b/nix/packages/mk-pkg-libplacebo/default.nix
-@@ -0,0 +1,118 @@
+@@ -0,0 +1,135 @@
 +{
 +  pkgs ? import ../../utils/default/pkgs.nix,
 +  os ? import ../../utils/default/os.nix,
@@ -445,6 +445,23 @@ index 0000000..b214b52
 +    # they never hit this gap). Bake the real path in directly instead of
 +    # round-tripping through a meson option that doesn't exist here.
 +    sed -i "s|cc.has_header('glslang/build_info.h')|cc.has_header('glslang/build_info.h', args: ['-I${glslang}/include'])|" \
++      $out/src/glsl/meson.build
++
++    # CPATH/LIBRARY_PATH (set as env vars on the outer derivation below) get
++    # this has_header() fix's job done for compiling, but CI run
++    # 31363239642 showed find_library() doesn't extend the same courtesy on
++    # macOS: "Library SPIRV found: NO" even with LIBRARY_PATH pointed right
++    # at it. This isn't the same CPATH/LIBRARY_PATH gap the Android/Windows
++    # scripts hit (those platforms' GNU-style linkers DO honor
++    # LIBRARY_PATH) — Apple's ld64/clang driver simply doesn't consult
++    # LIBRARY_PATH for `-l` search the way GNU toolchains do, full stop.
++    # meson's find_library() has a proper `dirs:` kwarg for exactly this
++    # (extra search directories, independent of the platform linker's own
++    # env-var conventions) — inject it on every cxx.find_library('NAME', ...)
++    # call in this file (glslang-default-resource-limits/SPIRV/glslang/
++    # MachineIndependent/OSDependent/GenericCodeGen/OGLCompiler etc.) rather
++    # than fighting the platform difference via environment variables.
++    sed -i -E "s|cxx\.find_library\('([a-zA-Z0-9_-]+)'|cxx.find_library('\1', dirs: ['${glslang}/lib']|g" \
 +      $out/src/glsl/meson.build
 +  '';
 +in
