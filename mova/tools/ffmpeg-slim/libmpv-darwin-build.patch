@@ -11,8 +11,8 @@ diff -ruN -x .git static6c/nix/packages/mk-pkg-dav1d/default.nix static6b/nix/pa
        -Denable_tools=false \
 diff -ruN -x .git static6c/nix/packages/mk-pkg-ffmpeg/default.nix static6b/nix/packages/mk-pkg-ffmpeg/default.nix
 --- a/nix/packages/mk-pkg-ffmpeg/default.nix	2026-08-10 18:59:51.639082800 +0800
-+++ b/nix/packages/mk-pkg-ffmpeg/default.nix	2026-08-10 21:01:20.167807900 +0800
-@@ -1,102 +1,171 @@
++++ b/nix/packages/mk-pkg-ffmpeg/default.nix	2026-08-10 21:10:45.090645600 +0800
+@@ -1,102 +1,173 @@
 -{
 -  pkgs ? import ../../utils/default/pkgs.nix,
 -  os ? import ../../utils/default/os.nix,
@@ -260,6 +260,7 @@ diff -ruN -x .git static6c/nix/packages/mk-pkg-ffmpeg/default.nix static6b/nix/p
 +WRAPPER
 +    chmod +x pkg-config-wrapper
 +
++    set +e
 +    meson setup build $src \
 +      --native-file ${nativeFile} \
 +      --cross-file ${crossFile} \
@@ -269,6 +270,7 @@ diff -ruN -x .git static6c/nix/packages/mk-pkg-ffmpeg/default.nix static6b/nix/p
 +      -Dpkg_config_wrapper="$PWD/pkg-config-wrapper" |
 +      tee configure.log
 +    ret=''${PIPESTATUS[0]}
++    set -e
 +    if [ "$ret" != "0" ]; then
 +      echo "DEBUG dumping ffbuild/config.log:"
 +      find build -name config.log -exec cat {} \; || true
