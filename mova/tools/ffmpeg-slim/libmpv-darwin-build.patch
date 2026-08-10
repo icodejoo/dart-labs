@@ -485,14 +485,23 @@ index ec1d6bd..73d0751 100644
        -Dgobject=disabled \
        -Dcairo=disabled \
 diff --git a/nix/packages/mk-pkg-libass/meson.build b/nix/packages/mk-pkg-libass/meson.build
-index b4856a0..4532860 100644
+index b4856a0..91d3c55 100644
 --- a/nix/packages/mk-pkg-libass/meson.build
 +++ b/nix/packages/mk-pkg-libass/meson.build
-@@ -5,9 +5,11 @@ project('libass', 'c')
+@@ -4,10 +4,20 @@ project('libass', 'c')
+ 
  mod = import('unstable-external_project')
  
++# Same AR-detection gap as mk-pkg-libxml2/meson.build (see its comment for
++# the full "libtool substitutes `false` as the archiver" explanation) —
++# applied here proactively rather than waiting for the identical failure
++# to show up in a separate CI round, since libass is the only other
++# autotools/libtool-based package in this static-linking conversion.
++ar = find_program('ar')
++
  p = mod.add_project('configure',
 +    # static, not shared — see mk-pkg-ffmpeg/meson.build's comment on why
++    env : {'AR': ar.full_path()},
      configure_options : [
          '--prefix=@PREFIX@',
 -        '--disable-static',
@@ -753,12 +762,31 @@ index bf1f92b..e9d4d5d 100644
  
      cp -r $src $out
 diff --git a/nix/packages/mk-pkg-libxml2/meson.build b/nix/packages/mk-pkg-libxml2/meson.build
-index 251ba7d..2d614eb 100644
+index 251ba7d..1089a27 100644
 --- a/nix/packages/mk-pkg-libxml2/meson.build
 +++ b/nix/packages/mk-pkg-libxml2/meson.build
-@@ -5,10 +5,12 @@ project('libxml2', 'c')
+@@ -4,15 +4,36 @@ project('libxml2', 'c')
+ 
  mod = import('unstable-external_project')
  
++# libxml2's own ./configure/libtool init couldn't detect a usable `ar` in
++# this cross-compilation setup ("checking command to parse nm output ...
++# failed") — harmless for a shared build (ar isn't needed to link a
++# .dylib), but fatal now that we're static: libtool silently substitutes
++# the literal shell command `false` as its archiver when it can't
++# identify one, so `ar cr libxml2.a ...` becomes `false cr libxml2.a ...`
++# and the whole link step exits nonzero. CI run 31379014374: "make[2]:
++# *** [Makefile:956: libxml2.la] Error 1" — traced to that "false cr"
++# line right above it. Same underlying gap the other autotools packages
++# (libass, and ffmpeg/mpv's own ./configure calls) don't hit because they
++# pass --ar=/--cc=/etc. explicitly on the command line instead of relying
++# on libtool's own cross-compiler autodetection. Pass AR explicitly via
++# env: rather than reworking libxml2's whole configure_options list to
++# take an --ar-style flag it may not even support (plain libxml2 autoconf
++# doesn't have one — AR is the standard automake/libtool override for
++# this, honored regardless).
++ar = find_program('ar')
++
  p = mod.add_project('configure',
 +    # static, not shared — see mk-pkg-ffmpeg/meson.build's comment on why
 +    # (links everything into a single libmpv.dylib, mirroring Android)
@@ -771,6 +799,11 @@ index 251ba7d..2d614eb 100644
          '--disable-dependency-tracking',
          '--disable-silent-rules',
          '--without-python'
+     ],
++    env : {'AR': ar.full_path()},
+     verbose: true,
+ )
+ 
 diff --git a/nix/packages/mk-pkg-mbedtls/default.nix b/nix/packages/mk-pkg-mbedtls/default.nix
 index e31e9cd..4b03486 100644
 --- a/nix/packages/mk-pkg-mbedtls/default.nix
