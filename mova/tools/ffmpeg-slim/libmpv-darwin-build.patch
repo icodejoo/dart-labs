@@ -371,10 +371,10 @@ index 0000000..afe9aba
 +
 diff --git a/nix/packages/mk-pkg-libplacebo/default.nix b/nix/packages/mk-pkg-libplacebo/default.nix
 new file mode 100644
-index 0000000..da16817
+index 0000000..fb2a8c7
 --- /dev/null
 +++ b/nix/packages/mk-pkg-libplacebo/default.nix
-@@ -0,0 +1,145 @@
+@@ -0,0 +1,160 @@
 +{
 +  pkgs ? import ../../utils/default/pkgs.nix,
 +  os ? import ../../utils/default/os.nix,
@@ -392,6 +392,10 @@ index 0000000..da16817
 +  crossFile = callPackage ../../utils/cross-file/default.nix { };
 +  xctoolchainLipo = callPackage ../../utils/xctoolchain/lipo.nix { };
 +  glslang = callPackage ../mk-pkg-glslang/default.nix { };
++  vulkanHeaders = callPackage ../../utils/fetch-tarball/default.nix {
++    name = "vulkan-headers-source-${lock.vulkanHeaders.version}";
++    inherit (lock.vulkanHeaders) url sha256;
++  };
 +
 +  pname = import ../../utils/name/package.nix name;
 +  src = callPackage ../../utils/fetch-tarball/default.nix {
@@ -497,7 +501,18 @@ index 0000000..da16817
 +  # paths. clang (like gcc) honors CPATH/LIBRARY_PATH for this — same
 +  # mechanism the shell experiments rely on (see their headers' comments on
 +  # this exact gap).
-+  CPATH = "${glslang}/include";
++  # vulkanHeaders: libplacebo's public src/include/libplacebo/vulkan.h
++  # unconditionally #includes <vulkan/vulkan.h> for its type declarations —
++  # even src/vulkan/stubs.c (the no-op backend built when -Dvulkan=disabled)
++  # pulls it in transitively, so real Vulkan headers are needed at compile
++  # time regardless of whether the Vulkan backend itself is enabled (CI run
++  # 31364298402: "fatal error: 'vulkan/vulkan.h' file not found"). Unlike
++  # the has_header()/find_library() special-casing above, this is a plain
++  # `clang -c ...` compile, so CPATH is genuinely honored here (CPATH is a
++  # C-preprocessor/frontend convention clang follows directly — the
++  # LIBRARY_PATH gap below is specifically about Apple's ld64 linker `-l`
++  # search, an unrelated mechanism).
++  CPATH = "${glslang}/include:${vulkanHeaders}/include";
 +  LIBRARY_PATH = "${glslang}/lib";
 +  configurePhase = ''
 +    meson setup build $src \
@@ -654,7 +669,7 @@ index 12e8c7b..886cc60 100644
 +  flavors.movaslim
  ]
 diff --git a/packages.lock.nix b/packages.lock.nix
-index aed6a72..9cd0401 100644
+index aed6a72..0919ca2 100644
 --- a/packages.lock.nix
 +++ b/packages.lock.nix
 @@ -5,9 +5,25 @@
@@ -686,7 +701,7 @@ index aed6a72..9cd0401 100644
    };
    fftools-ffi = {
      version = "9b0d4da0";
-@@ -64,6 +80,54 @@
+@@ -64,6 +80,69 @@
      url = "https://code.videolan.org/videolan/x264/-/archive/a8b68ebfaa68621b5ac8907610d3335971839d52/libx264-a8b68ebfaa68621b5ac8907610d3335971839d52.tar.gz";
      sha256 = "164688b63f11a6e4f6d945057fc5c57d5eefb97973d0029fb0303744e10839ff";
    };
@@ -738,10 +753,25 @@ index aed6a72..9cd0401 100644
 +    url = "https://github.com/Dav1dde/glad/archive/73db193f853e2ee079bf3ca8a64aa2eaf6459043.tar.gz";
 +    sha256 = "33dbeae44d8315ece57e14eba4b1b4a02ac5406d1c4f49cd20048c91522a6b9a";
 +  };
++  # libplacebo's public src/include/libplacebo/vulkan.h unconditionally
++  # #includes <vulkan/vulkan.h> for its type declarations — even
++  # src/vulkan/stubs.c (the no-op backend compiled in when -Dvulkan=disabled)
++  # pulls it in transitively, so real Vulkan headers are needed at compile
++  # time regardless of whether the Vulkan backend is actually enabled (CI
++  # run 31364298402: "fatal error: 'vulkan/vulkan.h' file not found"). Same
++  # tag tools/ffmpeg-slim/experiments/build-android-libmpv-v9.sh fetches for
++  # the same underlying reason (there: libavutil/hwcontext_vulkan.h and
++  # libplacebo's utils/libav.h needing it). Header-only — nothing to build,
++  # just extract and put the include dir on CPATH.
++  vulkanHeaders = {
++    version = "1.3.296";
++    url = "https://github.com/KhronosGroup/Vulkan-Headers/archive/refs/tags/v1.3.296.tar.gz";
++    sha256 = "e204e0b3c19f622d197df945737f5db913d6621830999b8578d34e80a7c90585";
++  };
    libxml2 = {
      version = "2.11.5";
      url = "https://download.gnome.org/sources/libxml2/2.11/libxml2-2.11.5.tar.xz";
-@@ -75,9 +139,16 @@
+@@ -75,9 +154,16 @@
      sha256 = "a420fcf7103e54e775c383e3751729b8fb2dcd087f6165befd13f28315f754f5";
    };
    mpv = {
