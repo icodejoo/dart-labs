@@ -11,7 +11,7 @@ index c687365..9b64101 100644
        -Denable_asm=false \
        -Denable_tools=false \
 diff --git a/nix/packages/mk-pkg-ffmpeg/default.nix b/nix/packages/mk-pkg-ffmpeg/default.nix
-index 060869c..ca762ec 100644
+index 060869c..2d051f0 100644
 --- a/nix/packages/mk-pkg-ffmpeg/default.nix
 +++ b/nix/packages/mk-pkg-ffmpeg/default.nix
 @@ -42,16 +42,54 @@ let
@@ -73,6 +73,29 @@ index 060869c..ca762ec 100644
    '';
  in
  
+@@ -80,6 +118,22 @@ pkgs.stdenvNoCC.mkDerivation {
+       libvpx
+       libx264
+     ];
++  # CI runs 31379586940/31380265939 (reproducible, not a caching fluke):
++  # "ERROR: libxml-2.0 not found using pkg-config" from ffmpeg's own
++  # ./configure, despite libxml2 building and installing libxml-2.0.pc
++  # successfully in the same run. mbedtls/dav1d don't hit this (ffmpeg's
++  # configure likely checks them via a non-pkg-config path), which is why
++  # only libxml2's check surfaces it. This package uses
++  # `stdenvNoCC.mkDerivation` (no C compiler wrapper) — pkg-config's usual
++  # "auto-populate PKG_CONFIG_PATH from buildInputs" setup-hook may not
++  # engage the same way it does under full stdenv, and every prior success
++  # happened to have libxml2 already cache-hit from an earlier run rather
++  # than freshly built in the same session, which likely papered over this
++  # rather than actually exercising the propagation path. Set it
++  # explicitly instead of relying on that implicit mechanism.
++  PKG_CONFIG_PATH = pkgs.lib.concatStringsSep ":" (
++    map (dep: "${dep}/lib/pkgconfig") ([ mbedtls ] ++ pkgs.lib.optionals (variant == variants.video) [ dav1d libxml2 ])
++  );
+   configurePhase = ''
+     meson setup build $src \
+       --native-file ${nativeFile} \
 diff --git a/nix/packages/mk-pkg-ffmpeg/meson.build b/nix/packages/mk-pkg-ffmpeg/meson.build
 index 1b8afa3..899252c 100644
 --- a/nix/packages/mk-pkg-ffmpeg/meson.build
@@ -857,7 +880,7 @@ index aab0098..6079cec 100644
  
  mbedtls = cmake.subproject('mbedtls',
 diff --git a/nix/packages/mk-pkg-mpv/default.nix b/nix/packages/mk-pkg-mpv/default.nix
-index 543805a..f62c713 100644
+index 543805a..ac593b5 100644
 --- a/nix/packages/mk-pkg-mpv/default.nix
 +++ b/nix/packages/mk-pkg-mpv/default.nix
 @@ -3,6 +3,7 @@
@@ -961,7 +984,7 @@ index 543805a..f62c713 100644
      cd -
  
      cp -r $src $out
-@@ -75,8 +136,27 @@ pkgs.stdenvNoCC.mkDerivation {
+@@ -75,8 +136,38 @@ pkgs.stdenvNoCC.mkDerivation {
      ++ pkgs.lib.optionals (variant == "video") [
        uchardet
        libass
@@ -969,6 +992,17 @@ index 543805a..f62c713 100644
 +    ++ pkgs.lib.optionals useLibplacebo [
 +      libplacebo
      ];
++  # Same explicit-PKG_CONFIG_PATH fix as mk-pkg-ffmpeg/default.nix — this
++  # package is also stdenvNoCC, same underlying risk of buildInputs' pkg-
++  # config paths not auto-propagating. Applied proactively here rather
++  # than waiting for the identical failure at this build step.
++  PKG_CONFIG_PATH = pkgs.lib.concatStringsSep ":" (
++    map (dep: "${dep}/lib/pkgconfig") (
++      [ ffmpeg ]
++      ++ pkgs.lib.optionals (variant == "video") [ uchardet libass ]
++      ++ pkgs.lib.optionals useLibplacebo [ libplacebo ]
++    )
++  );
    configurePhase = ''
 +    # mpv v0.41.0 removed several options that existed at 0.36.0 (the
 +    # version this file's option lists were originally written against) —
@@ -989,7 +1023,7 @@ index 543805a..f62c713 100644
      DISABLE_ALL_OPTIONS=(
        `# booleans`
        -Dgpl=false `# GPL (version 2 or later) build`
-@@ -84,7 +164,6 @@ pkgs.stdenvNoCC.mkDerivation {
+@@ -84,7 +175,6 @@ pkgs.stdenvNoCC.mkDerivation {
        -Dlibmpv=false `# libmpv library`
        -Dbuild-date=false `# whether to include binary compile time`
        -Dtests=false `# unit tests (development only)`
@@ -997,7 +1031,7 @@ index 543805a..f62c713 100644
  
        `# misc features`
        -Dcdda=disabled `# cdda support (libcdio)`
-@@ -100,14 +179,11 @@ pkgs.stdenvNoCC.mkDerivation {
+@@ -100,14 +190,11 @@ pkgs.stdenvNoCC.mkDerivation {
        -Dlua=disabled `# Lua`
        -Dpthread-debug=disabled `# pthread runtime debugging wrappers`
        -Drubberband=disabled `# librubberband support`
@@ -1012,7 +1046,7 @@ index 543805a..f62c713 100644
        -Dzimg=disabled `# libzimg support (high quality software scaler)`
        -Dzlib=disabled `# zlib`
  
-@@ -146,8 +222,6 @@ pkgs.stdenvNoCC.mkDerivation {
+@@ -146,8 +233,6 @@ pkgs.stdenvNoCC.mkDerivation {
        -Dgl-win32=disabled `# OpenGL Win32 Backend`
        -Dgl-x11=disabled `# OpenGL X11/GLX (deprecated/legacy)`
        -Djpeg=disabled `# JPEG support`
@@ -1021,7 +1055,7 @@ index 543805a..f62c713 100644
        -Dsdl2-video=disabled `# SDL2 video output`
        -Dshaderc=disabled `# libshaderc SPIR-V compiler`
        -Dsixel=disabled `# Sixel`
-@@ -159,7 +233,6 @@ pkgs.stdenvNoCC.mkDerivation {
+@@ -159,7 +244,6 @@ pkgs.stdenvNoCC.mkDerivation {
        -Dvaapi-drm=disabled `# VAAPI (DRM/EGL support)`
        -Dvaapi-wayland=disabled `# VAAPI (Wayland support)`
        -Dvaapi-x11=disabled `# VAAPI (X11 support)`
@@ -1029,7 +1063,7 @@ index 543805a..f62c713 100644
        -Dvulkan=disabled `# Vulkan context support`
        -Dwayland=disabled `# Wayland`
        -Dx11=disabled `# X11`
-@@ -173,13 +246,9 @@ pkgs.stdenvNoCC.mkDerivation {
+@@ -173,13 +257,9 @@ pkgs.stdenvNoCC.mkDerivation {
        -Dd3d9-hwaccel=disabled `# DXVA2 hwaccel`
        -Dgl-dxinterop-d3d9=disabled `# OpenGL/DirectX Interop Backend DXVA2 interop`
        -Dios-gl=disabled `# iOS OpenGL ES hardware decoding interop support`
@@ -1043,7 +1077,7 @@ index 543805a..f62c713 100644
        -Dmacos-cocoa-cb=disabled `# macOS libmpv backend`
        -Dmacos-media-player=disabled `# macOS Media Player support`
        -Dmacos-touchbar=disabled `# macOS Touch Bar support`
-@@ -230,6 +299,28 @@ pkgs.stdenvNoCC.mkDerivation {
+@@ -230,6 +310,28 @@ pkgs.stdenvNoCC.mkDerivation {
      IOS_OPTIONS=(
        `# audio output features`
        -Daudiounit=enabled `# AudioUnit output for iOS`
@@ -1072,7 +1106,7 @@ index 543805a..f62c713 100644
      )
  
      IOS_VIDEO_OPTIONS=(
-@@ -237,6 +328,18 @@ pkgs.stdenvNoCC.mkDerivation {
+@@ -237,6 +339,18 @@ pkgs.stdenvNoCC.mkDerivation {
        -Dios-gl=enabled `# iOS OpenGL ES hardware decoding interop support`
      )
  
