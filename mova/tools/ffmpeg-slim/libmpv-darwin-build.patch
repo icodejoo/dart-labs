@@ -11,8 +11,8 @@ diff -ruN -x .git static6c/nix/packages/mk-pkg-dav1d/default.nix static6b/nix/pa
        -Denable_tools=false \
 diff -ruN -x .git static6c/nix/packages/mk-pkg-ffmpeg/default.nix static6b/nix/packages/mk-pkg-ffmpeg/default.nix
 --- a/nix/packages/mk-pkg-ffmpeg/default.nix	2026-08-10 18:59:51.639082800 +0800
-+++ b/nix/packages/mk-pkg-ffmpeg/default.nix	2026-08-10 21:10:45.090645600 +0800
-@@ -1,102 +1,173 @@
++++ b/nix/packages/mk-pkg-ffmpeg/default.nix	2026-08-10 21:18:52.649666600 +0800
+@@ -1,102 +1,165 @@
 -{
 -  pkgs ? import ../../utils/default/pkgs.nix,
 -  os ? import ../../utils/default/os.nix,
@@ -260,7 +260,6 @@ diff -ruN -x .git static6c/nix/packages/mk-pkg-ffmpeg/default.nix static6b/nix/p
 +WRAPPER
 +    chmod +x pkg-config-wrapper
 +
-+    set +e
 +    meson setup build $src \
 +      --native-file ${nativeFile} \
 +      --cross-file ${crossFile} \
@@ -269,13 +268,6 @@ diff -ruN -x .git static6c/nix/packages/mk-pkg-ffmpeg/default.nix static6b/nix/p
 +      -Dflavor=${flavor} \
 +      -Dpkg_config_wrapper="$PWD/pkg-config-wrapper" |
 +      tee configure.log
-+    ret=''${PIPESTATUS[0]}
-+    set -e
-+    if [ "$ret" != "0" ]; then
-+      echo "DEBUG dumping ffbuild/config.log:"
-+      find build -name config.log -exec cat {} \; || true
-+      exit "$ret"
-+    fi
 +  '';
 +  buildPhase = ''
 +    meson compile -vC build $(basename $src)
@@ -290,8 +282,8 @@ diff -ruN -x .git static6c/nix/packages/mk-pkg-ffmpeg/default.nix static6b/nix/p
 +}
 diff -ruN -x .git static6c/nix/packages/mk-pkg-ffmpeg/meson.build static6b/nix/packages/mk-pkg-ffmpeg/meson.build
 --- a/nix/packages/mk-pkg-ffmpeg/meson.build	2026-08-10 18:59:51.639082800 +0800
-+++ b/nix/packages/mk-pkg-ffmpeg/meson.build	2026-08-10 21:01:20.111461000 +0800
-@@ -1,370 +1,528 @@
++++ b/nix/packages/mk-pkg-ffmpeg/meson.build	2026-08-10 21:18:52.594054800 +0800
+@@ -1,370 +1,536 @@
 -# https://mesonbuild.com/External-Project-module.html
 -
 -project('ffmpeg', 'c', 'cpp', 'objc')
@@ -687,8 +679,6 @@ diff -ruN -x .git static6c/nix/packages/mk-pkg-ffmpeg/meson.build static6b/nix/p
 +# environment the subprocess actually gets.
 +pkg_config_wrapper = get_option('pkg_config_wrapper')
 +pkg_config_bin = pkg_config_wrapper != '' ? pkg_config_wrapper : pkg_config.path()
-+message('DEBUG pkg_config_wrapper option = "@0@"'.format(pkg_config_wrapper))
-+message('DEBUG pkg_config_bin resolved = "@0@"'.format(pkg_config_bin))
 +
 +# build options
 +c_args = get_option('c_args')
@@ -1148,6 +1138,16 @@ diff -ruN -x .git static6c/nix/packages/mk-pkg-ffmpeg/meson.build static6b/nix/p
 +# static switch, to avoid threading a flavor/os check through every leaf
 +# package individually.
 +options += ['--enable-static', '--disable-shared']
++
++# Static libs (libxml2.a etc.) need their transitive deps (zlib, iconv)
++# linked in too, but those only appear in a .pc's Libs.private — which
++# plain `pkg-config --libs` omits. ffmpeg's own configure compile-test
++# link step (run 31391606468's config.log: "Undefined symbols ... _crc32
++# / _deflate / _iconv" from libxml2.a, since the test link command only
++# carried -lxml2, no -lz/-liconv) hits exactly this. --pkg-config-flags
++# makes ffmpeg pass --static to every pkg-config call it makes, pulling
++# Libs.private into scope.
++options += ['--pkg-config-flags=--static']
 +
 +p = mod.add_project('configure',
 +    configure_options : options,
