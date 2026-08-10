@@ -11,8 +11,8 @@ diff -ruN -x .git static6c/nix/packages/mk-pkg-dav1d/default.nix static6b/nix/pa
        -Denable_tools=false \
 diff -ruN -x .git static6c/nix/packages/mk-pkg-ffmpeg/default.nix static6b/nix/packages/mk-pkg-ffmpeg/default.nix
 --- a/nix/packages/mk-pkg-ffmpeg/default.nix	2026-08-10 18:59:51.639082800 +0800
-+++ b/nix/packages/mk-pkg-ffmpeg/default.nix	2026-08-10 19:20:20.556818700 +0800
-@@ -1,102 +1,157 @@
++++ b/nix/packages/mk-pkg-ffmpeg/default.nix	2026-08-10 19:26:50.670255900 +0800
+@@ -1,102 +1,158 @@
 -{
 -  pkgs ? import ../../utils/default/pkgs.nix,
 -  os ? import ../../utils/default/os.nix,
@@ -252,6 +252,7 @@ diff -ruN -x .git static6c/nix/packages/mk-pkg-ffmpeg/default.nix static6b/nix/p
 +    map (dep: "${dep}/lib/pkgconfig") ([ mbedtls ] ++ pkgs.lib.optionals (variant == variants.video) [ dav1d libxml2 ])
 +  );
 +  configurePhase = ''
++    echo "DEBUG PKG_CONFIG_PATH=$PKG_CONFIG_PATH"
 +    meson setup build $src \
 +      --native-file ${nativeFile} \
 +      --cross-file ${crossFile} \
@@ -274,8 +275,8 @@ diff -ruN -x .git static6c/nix/packages/mk-pkg-ffmpeg/default.nix static6b/nix/p
 +}
 diff -ruN -x .git static6c/nix/packages/mk-pkg-ffmpeg/meson.build static6b/nix/packages/mk-pkg-ffmpeg/meson.build
 --- a/nix/packages/mk-pkg-ffmpeg/meson.build	2026-08-10 18:59:51.639082800 +0800
-+++ b/nix/packages/mk-pkg-ffmpeg/meson.build	2026-08-10 19:20:20.428326000 +0800
-@@ -1,370 +1,521 @@
++++ b/nix/packages/mk-pkg-ffmpeg/meson.build	2026-08-10 19:26:50.606970700 +0800
+@@ -1,370 +1,522 @@
 -# https://mesonbuild.com/External-Project-module.html
 -
 -project('ffmpeg', 'c', 'cpp', 'objc')
@@ -1124,6 +1125,7 @@ diff -ruN -x .git static6c/nix/packages/mk-pkg-ffmpeg/meson.build static6b/nix/p
 +# derivation's PKG_CONFIG_PATH env var (same gap fixed for AR above) —
 +# thread it through explicitly via a meson option instead.
 +ffmpeg_pkg_config_path = get_option('ffmpeg_pkg_config_path')
++message('DEBUG ffmpeg_pkg_config_path = "@0@"'.format(ffmpeg_pkg_config_path))
 +
 +p = mod.add_project('configure',
 +    configure_options : options,
