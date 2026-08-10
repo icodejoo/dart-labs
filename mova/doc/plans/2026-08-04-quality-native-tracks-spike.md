@@ -181,3 +181,27 @@ MP4 多路 `sources` 仍走现有重开逻辑。T6 的实现思路本就是这�
 **未做/留给下一步：**
 
 1. T3 判定表"`h` 字段是否每个变体都齐"仍未测；建议换生产真实用的 CDN 源。
+
+## 附录 C：阶段 2 重做记录（2026-08-10）
+
+原阶段 2 代码改动在提交前意外丢失（未进任何分支/stash）。本次按本文档 + 附录 A/B
+的记录从零重做，行为与结论不变；以下补记与 media_kit 1.2.6 实际 API 核对过的细节：
+
+- media_kit 1.2.6 确认可用：`PlayerStream.tracks`（`Stream<Tracks>`，
+  `Tracks.video` 为 `List<VideoTrack>`）、`PlayerStream.track`（`Stream<Track>`，
+  取 `.video` 拿当前选中视频轨）、`Player.setVideoTrack(VideoTrack)`、
+  `VideoTrack.auto()`/`VideoTrack.no()`。与本文档设想的 API 名称一致，无需改名。
+- `MovaVideoTrack`/`qualitiesFromVideoTracks` 落地在 `core/model/quality.dart`，
+  `MovaQual` 新增可空 `trackId` 字段（`uri` 默认值改为 `''`）；
+  `MovaQual.auto({String? trackId})` 支持给自动档也接上 `trackId: 'auto'`，
+  使 `switchQuality` 只需按 `trackId != null` 一条判据路由，无需额外区分
+  「HLS 的自动」与「MP4 路径的自动」。
+- `MpvKernel` 新增 `videoTracks`/`videoTrack`/`setVideoTrack`，过滤掉 mpv 的
+  `id: 'no'` 轨（同附录 A 记录的坑）。
+- `engine.dart` 的 `loadQualities()` 保留原有 HLS 判定门槛（`uri` 含
+  `.m3u8`），命中则等 `_kernel.videoTracks` 首次非空推送（8 秒超时兜底，超时或
+  报错都归约为空清单）；`switchQuality()`/`downshiftQuality()` 按
+  `trackId ?? uri` 路由/定位，`MovaBufferAbr`/`downshiftQuality` 未删。
+- 删除范围与附录 B 一致：`parseHlsMasterPlaylist`/`_parseAttrs`/
+  `_httpGetString` 及跟着变孤儿的 `dart:convert`/`dart:io` 两个 import。
+- 校验：`flutter analyze`（lib+test）0 issues；`flutter test` 456 项全绿。

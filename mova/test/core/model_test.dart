@@ -1,44 +1,46 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mova/mova.dart';
 
-const _master = '''
-#EXTM3U
-#EXT-X-STREAM-INF:BANDWIDTH=1280000,RESOLUTION=1280x720
-720.m3u8
-#EXT-X-STREAM-INF:BANDWIDTH=2560000,RESOLUTION=1920x1080,CODECS="avc1.4d401f,mp4a.40.2"
-1080/index.m3u8
-#EXT-X-STREAM-INF:BANDWIDTH=640000,RESOLUTION=640x360
-360.m3u8
-''';
-
-const _mediaPlaylist = '''
-#EXTM3U
-#EXT-X-TARGETDURATION:10
-#EXTINF:9.9,
-seg0.ts
-#EXTINF:9.9,
-seg1.ts
-''';
-
 void main() {
-  group('parseHlsMasterPlaylist', () {
-    test('lists auto first, then variants highest-first', () {
-      final qs = parseHlsMasterPlaylist(_master, base: Uri.parse('https://h/media/master.m3u8'));
+  group('qualitiesFromVideoTracks', () {
+    test('lists auto first, then variants highest-first by height', () {
+      final qs = qualitiesFromVideoTracks(const [
+        MovaVideoTrack(id: 'auto'),
+        MovaVideoTrack(id: '0', height: 720, width: 1280, bitrate: 1280000),
+        MovaVideoTrack(id: '1', height: 1080, width: 1920, bitrate: 2560000),
+        MovaVideoTrack(id: '2', height: 360, width: 640, bitrate: 640000),
+      ]);
       expect(qs.first.isAuto, isTrue);
+      expect(qs.first.trackId, 'auto');
       expect(qs.map((q) => q.label).toList(), ['自动', '1080p', '720p', '360p']);
-    });
-
-    test('resolves relative variant URIs against the base', () {
-      final qs = parseHlsMasterPlaylist(_master, base: Uri.parse('https://h/media/master.m3u8'));
       final p1080 = qs.firstWhere((q) => q.label == '1080p');
-      expect(p1080.uri, 'https://h/media/1080/index.m3u8');
+      expect(p1080.trackId, '1');
       expect(p1080.width, 1920);
       expect(p1080.height, 1080);
       expect(p1080.bandwidth, 2560000);
     });
 
-    test('returns empty for a non-master media playlist', () {
-      expect(parseHlsMasterPlaylist(_mediaPlaylist), isEmpty);
+    test('deduplicates same-height variants, keeping the first (highest-bitrate)', () {
+      final qs = qualitiesFromVideoTracks(const [
+        MovaVideoTrack(id: '0', height: 1080, bitrate: 3000000),
+        MovaVideoTrack(id: '1', height: 1080, bitrate: 2000000),
+      ]);
+      final variants = qs.where((q) => !q.isAuto).toList();
+      expect(variants.length, 1);
+      expect(variants.single.trackId, '0');
+    });
+
+    test('falls back to a bitrate label when height is unknown', () {
+      final qs = qualitiesFromVideoTracks(const [
+        MovaVideoTrack(id: '0', bitrate: 1500000),
+      ]);
+      final variants = qs.where((q) => !q.isAuto).toList();
+      expect(variants.single.label, '1500kbps');
+    });
+
+    test('returns empty for no tracks or only the auto entry', () {
+      expect(qualitiesFromVideoTracks(const []), isEmpty);
+      expect(qualitiesFromVideoTracks(const [MovaVideoTrack(id: 'auto')]), isEmpty);
     });
   });
 

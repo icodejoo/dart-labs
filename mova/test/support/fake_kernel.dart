@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:typed_data';
 
 import 'package:mova/src/core/kernel/kernel.dart';
+import 'package:mova/src/core/model/quality.dart';
 
 /// A test double for [MovaKernel] that records every call it receives and lets
 /// tests push arbitrary state into its streams.
@@ -21,6 +22,15 @@ class FakeKernel implements MovaKernel {
   final StreamController<Duration> _buffer = StreamController<Duration>.broadcast();
   final StreamController<MovaSize> _size = StreamController<MovaSize>.broadcast();
   final StreamController<Object> _error = StreamController<Object>.broadcast();
+  final StreamController<List<MovaVideoTrack>> _videoTracks =
+      StreamController<List<MovaVideoTrack>>.broadcast();
+  final StreamController<MovaVideoTrack> _videoTrack = StreamController<MovaVideoTrack>.broadcast();
+
+  /// The argument of the most recent [setVideoTrack] call, or `null` if never
+  /// called.
+  ///
+  /// 最近一次 [setVideoTrack] 调用的参数；若从未调用过则为 `null`。
+  MovaVideoTrack? lastVideoTrack;
 
   /// The ordered list of method names invoked on this fake, e.g.
   /// `['open', 'play', 'seek']`.
@@ -107,6 +117,8 @@ class FakeKernel implements MovaKernel {
     await _buffer.close();
     await _size.close();
     await _error.close();
+    await _videoTracks.close();
+    await _videoTrack.close();
   }
 
   @override
@@ -135,6 +147,24 @@ class FakeKernel implements MovaKernel {
 
   @override
   Object get renderHandle => Object();
+
+  @override
+  Stream<List<MovaVideoTrack>> get videoTracks => _videoTracks.stream;
+
+  @override
+  Stream<MovaVideoTrack> get videoTrack => _videoTrack.stream;
+
+  @override
+  Future<void> setVideoTrack(MovaVideoTrack track) async {
+    calls.add('setVideoTrack');
+    lastVideoTrack = track;
+    _videoTrack.add(track);
+  }
+
+  /// Pushes a native video track list into [videoTracks].
+  ///
+  /// 向 [videoTracks] 推送一个原生视频轨列表。
+  void emitVideoTracks(List<MovaVideoTrack> tracks) => _videoTracks.add(tracks);
 
   /// Pushes a playing/paused state into [playing].
   ///

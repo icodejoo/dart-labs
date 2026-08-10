@@ -358,6 +358,43 @@ void main() {
     await sub.cancel();
   });
 
+  test('loadQualities() builds the list from native video tracks for an HLS '
+      'source', () async {
+    await e.open(const MovaSource('https://host/master.m3u8'));
+    final future = e.loadQualities();
+    k.emitVideoTracks(const [
+      MovaVideoTrack(id: 'auto'),
+      MovaVideoTrack(id: '0', height: 1080, bitrate: 2560000),
+      MovaVideoTrack(id: '1', height: 720, bitrate: 1280000),
+    ]);
+    await future;
+
+    expect(e.state.qualities.map((q) => q.label).toList(), ['自动', '1080p', '720p']);
+    expect(e.state.currentQuality?.label, '自动');
+  });
+
+  test('loadQualities() does not touch the kernel for a non-HLS source', () async {
+    await e.open(const MovaSource('https://host/a.mp4'));
+    k.calls.clear();
+
+    await e.loadQualities();
+
+    expect(k.calls, isEmpty);
+    expect(e.state.qualities, isEmpty);
+  });
+
+  test('switchQuality() with a trackId calls setVideoTrack, not open', () async {
+    await e.open(const MovaSource('https://host/master.m3u8'));
+    k.calls.clear();
+    const q = MovaQual(label: '1080p', trackId: '0', height: 1080);
+
+    await e.switchQuality(q);
+
+    expect(k.calls, ['setVideoTrack']);
+    expect(k.lastVideoTrack?.id, '0');
+    expect(e.state.currentQuality, q);
+  });
+
   test('setFullscreen re-applies orientation when size arrives later while '
       'fullscreen', () async {
     final spy = _SpyOrientationPort();

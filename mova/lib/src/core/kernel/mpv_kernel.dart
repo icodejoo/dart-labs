@@ -4,6 +4,7 @@ import 'dart:typed_data';
 import 'package:media_kit/media_kit.dart';
 import 'package:media_kit_video/media_kit_video.dart';
 
+import '../model/quality.dart';
 import 'kernel.dart';
 
 /// A [MovaKernel] implementation backed by media_kit's `Player`.
@@ -154,4 +155,31 @@ class MpvKernel implements MovaKernel {
 
   @override
   Object get renderHandle => _controller;
+
+  @override
+  Stream<List<MovaVideoTrack>> get videoTracks =>
+      _player.stream.tracks.map((t) => t.video.where((v) => v.id != 'no').map(_toMovaTrack).toList());
+
+  @override
+  Stream<MovaVideoTrack> get videoTrack => _player.stream.track
+      .map((t) => t.video)
+      .where((v) => v.id != 'no')
+      .map(_toMovaTrack);
+
+  @override
+  Future<void> setVideoTrack(MovaVideoTrack track) =>
+      _player.setVideoTrack(track.isAuto ? VideoTrack.auto() : VideoTrack(track.id, track.title, null));
+
+  /// Converts a media_kit [VideoTrack] to the engine-agnostic
+  /// [MovaVideoTrack].
+  ///
+  /// 把 media_kit 的 [VideoTrack] 转换为引擎无关的 [MovaVideoTrack]。
+  MovaVideoTrack _toMovaTrack(VideoTrack t) => MovaVideoTrack(
+        id: t.id,
+        title: t.title,
+        width: t.w,
+        height: t.h,
+        bitrate: t.bitrate,
+        codec: t.codec,
+      );
 }
