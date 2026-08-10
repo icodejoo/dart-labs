@@ -1,8 +1,8 @@
 diff --git a/nix/packages/mk-pkg-ffmpeg/default.nix b/nix/packages/mk-pkg-ffmpeg/default.nix
-index 060869c..8336065 100644
+index 060869c..ca762ec 100644
 --- a/nix/packages/mk-pkg-ffmpeg/default.nix
 +++ b/nix/packages/mk-pkg-ffmpeg/default.nix
-@@ -42,16 +42,41 @@ let
+@@ -42,16 +42,54 @@ let
      chmod -R 777 $src
  
      cd $src
@@ -23,8 +23,21 @@ index 060869c..8336065 100644
 +    # re-derived against n9.0 before their underlying bugs matter again;
 +    # `*.rej` files are copied into $out below so that's diffable later
 +    # instead of silently lost.
++    #
++    # ffmpeg-fix-vp9-hwaccel.patch is excluded entirely (not just
++    # best-effort) — CI run 31364922391 showed it's not a "rejected hunk"
++    # case like the others: it applies cleanly (fuzzy-matched) but the
++    # standalone `ff_vp9_videotoolbox_decoder` it adds to libavcodec/vp9.c
++    # references `FF_CODEC_CAP_ALLOCATE_PROGRESS`, an internal capability
++    # flag that doesn't exist in ffmpeg n9.0 — a hard compile error, not a
++    # skippable runtime-bugfix gap. It's also not needed here regardless:
++    # this patch's `vp9_videotoolbox` is a standalone decoder (mirroring
++    # MediaCodec's pattern), but movaslim's video_movaslim_options never
++    # enables that decoder — VP9 hardware acceleration here goes through
++    # `--enable-hwaccel=vp9_videotoolbox` layered on top of the plain `vp9`
++    # software decoder instead (see mk-pkg-ffmpeg/meson.build's movaslim
++    # branch comments on why VP9 can't go hw-only the way Android does).
 +    for p in \
-+      ${../../../patches/ffmpeg-fix-vp9-hwaccel.patch} \
 +      ${../../../patches/ffmpeg-fix-hls-mp4-seek.patch} \
 +      ${../../../patches/ffmpeg-fix-ios-hdr-texture.patch} \
 +      ${../../../patches/ffmpeg-fix-dash-base-url-escape.patch} \
