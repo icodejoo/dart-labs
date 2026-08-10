@@ -282,8 +282,8 @@ diff -ruN -x .git static6c/nix/packages/mk-pkg-ffmpeg/default.nix static6b/nix/p
 +}
 diff -ruN -x .git static6c/nix/packages/mk-pkg-ffmpeg/meson.build static6b/nix/packages/mk-pkg-ffmpeg/meson.build
 --- a/nix/packages/mk-pkg-ffmpeg/meson.build	2026-08-10 18:59:51.639082800 +0800
-+++ b/nix/packages/mk-pkg-ffmpeg/meson.build	2026-08-10 21:18:52.594054800 +0800
-@@ -1,370 +1,536 @@
++++ b/nix/packages/mk-pkg-ffmpeg/meson.build	2026-08-10 21:26:50.474011300 +0800
+@@ -1,370 +1,538 @@
 -# https://mesonbuild.com/External-Project-module.html
 -
 -project('ffmpeg', 'c', 'cpp', 'objc')
@@ -666,6 +666,7 @@ diff -ruN -x .git static6c/nix/packages/mk-pkg-ffmpeg/meson.build static6b/nix/p
 +objc = meson.get_compiler('objc')
 +nm = find_program('nm')
 +ar = find_program('ar')
++ranlib = find_program('ranlib')
 +strip = find_program('strip')
 +pkg_config = find_program('pkg-config')
 +
@@ -1158,6 +1159,7 @@ diff -ruN -x .git static6c/nix/packages/mk-pkg-ffmpeg/meson.build static6b/nix/p
 +
 +        '--nm=@0@'.format(nm.path()),
 +        '--ar=@0@'.format(ar.path()),
++        '--ranlib=@0@'.format(ranlib.path()),
 +        '--as=@0@'.format(''.join(c.cmd_array())),
 +        '--strip=@0@'.format(strip.path()),
 +        '--cc=@0@'.format(''.join(c.cmd_array())),
