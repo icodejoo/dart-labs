@@ -354,7 +354,7 @@ jobs:
   # real-device/simulator playback verification, mirroring how Android went
   # from a single arm64-v8a build to a validated multi-ABI one.
   darwin:
-    name: "Darwin: macOS arm64 ONLY (movaslim flavor, post-build strip)"
+    name: "Darwin: iOS arm64 ONLY (movaslim flavor, post-build strip)"
     runs-on: macos-15
     steps:
       - name: Platform info
@@ -428,9 +428,9 @@ jobs:
       # revert) confirmed causality empirically by removing them and going
       # green again. Pursuing a real post-build `strip` instead: zero
       # compile/link risk, since it only touches already-built dylibs.
-      - name: Build (macos-arm64 only, movaslim flavor)
+      - name: Build (ios-arm64 only, movaslim flavor)
         working-directory: build-root
-        run: nix develop -c make XCODE_PATH="${{ steps.xcode.outputs.path }}" VERSION=mova-ci TARGET=mk-out-libs-macos-arm64-video-movaslim
+        run: nix develop -c make XCODE_PATH="${{ steps.xcode.outputs.path }}" VERSION=mova-ci TARGET=mk-out-libs-ios-arm64-video-movaslim
 
       - name: Verify and collect
         working-directory: build-root
@@ -446,7 +446,7 @@ jobs:
           # because the strip loop treats a failure as a non-fatal
           # warning — chmod first so strip can actually write in place.
           chmod u+w "$GITHUB_WORKSPACE"/darwin-out/*.dylib
-          echo "### darwin build artifacts (macos-arm64, movaslim, unstripped)" >> "$GITHUB_STEP_SUMMARY"
+          echo "### darwin build artifacts (ios-arm64, movaslim, unstripped)" >> "$GITHUB_STEP_SUMMARY"
           ls -la "$GITHUB_WORKSPACE/darwin-out" >> "$GITHUB_STEP_SUMMARY"
           du -h "$GITHUB_WORKSPACE"/darwin-out/*.dylib >> "$GITHUB_STEP_SUMMARY"
           echo "### total (unstripped)" >> "$GITHUB_STEP_SUMMARY"
@@ -462,7 +462,7 @@ jobs:
           for f in "$GITHUB_WORKSPACE"/darwin-out/*.dylib; do
             strip -x "$f" || echo "::warning:: strip -x failed on $f"
           done
-          echo "### darwin build artifacts (macos-arm64, movaslim, stripped)" >> "$GITHUB_STEP_SUMMARY"
+          echo "### darwin build artifacts (ios-arm64, movaslim, stripped)" >> "$GITHUB_STEP_SUMMARY"
           du -h "$GITHUB_WORKSPACE"/darwin-out/*.dylib >> "$GITHUB_STEP_SUMMARY"
           echo "### total (stripped)" >> "$GITHUB_STEP_SUMMARY"
           du -ch "$GITHUB_WORKSPACE"/darwin-out/*.dylib | tail -1 >> "$GITHUB_STEP_SUMMARY"
@@ -470,7 +470,7 @@ jobs:
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: mova-libmpv-darwin-macos-arm64-movaslim-optimized
+          name: mova-libmpv-darwin-ios-arm64-movaslim-optimized
           path: darwin-out/*
           retention-days: 30
 
