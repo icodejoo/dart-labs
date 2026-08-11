@@ -1485,8 +1485,8 @@ diff -ruN -x .git static6c/nix/packages/mk-pkg-libass/meson.build static6b/nix/p
          '--disable-test',
 diff -ruN -x .git static6c/nix/packages/mk-pkg-libplacebo/default.nix static6b/nix/packages/mk-pkg-libplacebo/default.nix
 --- a/nix/packages/mk-pkg-libplacebo/default.nix	1970-01-01 08:00:00.000000000 +0800
-+++ b/nix/packages/mk-pkg-libplacebo/default.nix	2026-08-10 18:59:42.973173400 +0800
-@@ -0,0 +1,160 @@
++++ b/nix/packages/mk-pkg-libplacebo/default.nix	2026-08-11 12:30:00.000000000 +0800
+@@ -0,0 +1,165 @@
 +{
 +  pkgs ? import ../../utils/default/pkgs.nix,
 +  os ? import ../../utils/default/os.nix,
@@ -1635,8 +1635,13 @@ diff -ruN -x .git static6c/nix/packages/mk-pkg-libplacebo/default.nix static6b/n
 +      -Dvulkan=disabled \
 +      -Dopengl=enabled \
 +      -Dd3d11=disabled \
-+      -Dglslang=enabled \
++      -Dglslang=disabled \
 +      -Dshaderc=disabled \
++      -Dlcms=disabled \
++      -Ddovi=disabled \
++      -Dlibdovi=disabled \
++      -Dxxhash=disabled \
++      -Dunwind=disabled \
 +      -Ddemos=false \
 +      -Dtests=false
 +  '';
