@@ -2261,8 +2261,8 @@ diff -ruN -x .git static6c/packages.lock.nix static6b/packages.lock.nix
      version = "0.0.8";
 diff -ruN -x .git static6c/cross-files/ios-arm64.ini static6b/cross-files/ios-arm64.ini
 --- a/cross-files/ios-arm64.ini	2026-08-10 18:59:51.637083400 +0800
-+++ b/cross-files/ios-arm64.ini	2026-08-11 11:20:00.000000000 +0800
-@@ -5,6 +5,18 @@
++++ b/cross-files/ios-arm64.ini	2026-08-11 12:00:00.000000000 +0800
+@@ -5,6 +5,24 @@
  xcode         = '/Applications/Xcode.app'
  xctoolchain   = xcode + '/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin'
  xcplatform    = xcode + '/Contents/Developer/Platforms/' + platform_name + '.platform/Developer/SDKs/' + platform_name + '.sdk'
@@ -2276,14 +2276,20 @@ diff -ruN -x .git static6c/cross-files/ios-arm64.ini static6b/cross-files/ios-ar
 +# ffmpeg's PKG_CONFIG_PATH wrapper (see this patch's mk-pkg-ffmpeg hunk), so
 +# retrying here. `-Wl,-dead_strip` is ld64's equivalent of GNU ld's
 +# `--gc-sections` (ld64 has no --gc-sections flag).
-+size_args     = ['-fvisibility=hidden', '-ffunction-sections', '-fdata-sections']
-+size_link_args = ['-Wl,-dead_strip']
- 
++# -flto added 2026-08-11: Android's full-pipeline LTO pass gave -521KB on
++# top of the -fvisibility/-ffunction-sections/-fdata-sections/gc-sections
++# stack (see README's "定稿结果" table). Apple's ld64 understands LTO
++# bitcode natively via clang/ar/ranlib without a separate gcc-ar/llvm-ar
++# plugin dance (unlike GNU binutils), so this doesn't need the ar-wrapper
++# workarounds Android's LTO required.
++size_args     = ['-fvisibility=hidden', '-ffunction-sections', '-fdata-sections', '-flto']
++size_link_args = ['-Wl,-dead_strip', '-flto']
+
  [host_machine]
  system     = 'darwin'
-@@ -26,14 +38,14 @@
+@@ -26,14 +44,14 @@
  pkg-config = 'pkg-config'
- 
+
  [built-in options]
 -c_args           = ['-arch', arch, '-isysroot', xcplatform, min_version]
 -cpp_args         = ['-arch', arch, '-isysroot', xcplatform, min_version, '-stdlib=libc++']
@@ -2301,6 +2307,25 @@ diff -ruN -x .git static6c/cross-files/ios-arm64.ini static6b/cross-files/ios-ar
 +cpp_link_args    = ['-arch', arch, '-isysroot', xcplatform, min_version] + size_link_args
 +objc_link_args   = ['-arch', arch, '-isysroot', xcplatform, min_version] + size_link_args
 +objcpp_link_args = ['-arch', arch, '-isysroot', xcplatform, min_version] + size_link_args
- 
+
  [properties]
  cmake_osx_sysroot = xcplatform
+diff -ruN -x .git static6c/nix/packages/mk-pkg-ffmpeg/meson.build static6b/nix/packages/mk-pkg-ffmpeg/meson.build
+--- a/nix/packages/mk-pkg-ffmpeg/meson.build	2026-08-11 03:15:00.000000000 +0800
++++ b/nix/packages/mk-pkg-ffmpeg/meson.build	2026-08-11 12:00:00.000000000 +0800
+@@ -494,6 +494,15 @@
+ # Libs.private into scope.
+ options += ['--pkg-config-flags=--static']
+
++# LTO — Android's flavor script passes --enable-lto straight to ffmpeg's
++# own ./configure (this repo wraps ffmpeg's autotools build via meson's
++# external_project module, not meson's native build, so meson's b_lto
++# built-in option never reaches it). The actual `-flto` compiler/linker
++# flag reaches ffmpeg through --extra-cflags/--extra-ldflags below, which
++# already source c_args/c_link_args — cross-files/ios-arm64.ini now
++# carries -flto there too, so this only needs ffmpeg's own opt-in switch.
++options += ['--enable-lto']
++
+ p = mod.add_project('configure',
+     configure_options : options,
+     cross_configure_options: [
