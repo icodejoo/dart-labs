@@ -409,25 +409,24 @@ jobs:
 
       # macos-arm64 AND ios-arm64 both went green (see tools/ffmpeg-slim/
       # README.md's "Darwin movaslim flavor" section for the full fix
-      # list). Switched back to macos-arm64 here to isolate a NEW variable:
-      # size-optimization flags (-fvisibility=hidden/-ffunction-sections/
-      # -fdata-sections/-Wl,-dead_strip, added to every cross-files/*.ini —
-      # unstripped/unoptimized dylibs summed to ~19.8MB, far above
-      # Android's optimized-and-stripped 6.5MB total). Testing against the
-      # already-proven macos-arm64 baseline first isolates whether the new
-      # flags themselves break anything (e.g. a dependency relying on
-      # default-visible symbols without its own export macros) before
-      # combining that risk with iOS-specific unknowns again.
+      # list). Post-build `strip -x` alone (no compile-time size flags) got
+      # ios-arm64 from ~19.8MB unstripped down to 12.37MB (run 31453253677)
+      # — still far above Android's optimized-and-stripped 6.5MB total,
+      # because that run's cross-files/*.ini carried none of Android's
       # -fvisibility=hidden/-ffunction-sections/-fdata-sections/-Wl,-dead_strip
-      # were tried in the cross-files (a shared, single-point-of-change lever
-      # covering every dependency) and reverted — runs 31373514009/
-      # 31374345612 hit a reproducible "libxml-2.0 not found using
-      # pkg-config" failure in ffmpeg's own configure that traces back to
-      # meson's external_project module's cross-build PkgConfigInterface
-      # handling, root cause not fully pinned down. Run 31374922120 (this
-      # revert) confirmed causality empirically by removing them and going
-      # green again. Pursuing a real post-build `strip` instead: zero
-      # compile/link risk, since it only touches already-built dylibs.
+      # levers. Those were tried once before (runs 31373514009/31374345612)
+      # and reverted after a reproducible "libxml-2.0 not found using
+      # pkg-config" failure in ffmpeg's own configure (root cause then not
+      # pinned down — meson's external_project module not forwarding
+      # PKG_CONFIG_PATH into cross-build pkg-config lookups). That root
+      # cause is now fixed via mk-pkg-ffmpeg's PKG_CONFIG_PATH wrapper (see
+      # libmpv-darwin-build.patch), so the flags were retried on
+      # cross-files/ios-arm64.ini only (see that file's diff hunk in the
+      # patch) — run 31454544613 confirms it: builds clean, no libxml
+      # failure, and the stripped dylib drops from 12,374,408 B to
+      # 10,967,592 B (−1.41MB / −11.4%). Still short of Android's 6.5MB
+      # (iOS carries mpv 0.41's mandatory libplacebo+glslang, which Android
+      # doesn't need), but a real, verified step down — not reverted.
       - name: Build (ios-arm64 only, movaslim flavor)
         working-directory: build-root
         run: nix develop -c make XCODE_PATH="${{ steps.xcode.outputs.path }}" VERSION=mova-ci TARGET=mk-out-libs-ios-arm64-video-movaslim
