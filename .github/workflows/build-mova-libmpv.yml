@@ -330,12 +330,9 @@ jobs:
   # rather than re-deriving our exact Android decoder/demuxer list through
   # Nix overrides — that's a follow-up, not a blocker for a first real build.
   darwin:
-    name: "iOS + macOS (implemented, v1: upstream default flavor)"
+    name: "macOS (implemented, v1: upstream default flavor)"
     runs-on: macos-15
-    # Temporarily disabled: darwin build is slow (per-target full ffmpeg/mpv
-    # source rebuild, cold Nix cache) and we want to verify the other
-    # platforms (android/linux/windows) go green on their own first.
-    # Re-enable once the darwin job itself is separately debugged/sped up.
+    # Disabled while we isolate the new `ios` job below (only-iOS validation run).
     if: false
     steps:
       - name: Platform info
@@ -421,6 +418,102 @@ jobs:
           done
           echo "::error::failed to push dist/darwin/ after retries"
           exit 1
+
+  # First-attempt iOS build (2026-08-11) — validates ONLY that ffmpeg itself
+  # configures/builds for iOS arm64 with our movaslim decoder/demuxer list
+  # (flavors-mova-slim-ios.sh), NOT a full libmpv. mpv's own iOS cross-build
+  # (plus libass/freetype/harfbuzz/fribidi for subtitle rendering) is a
+  # separate, harder follow-up — see README's "iOS 瘦身配置" section. This job
+  # only needs dav1d (AV1 software decode) and mbedtls (TLS backend) cross-built
+  # for iOS, since libass/freetype/etc. are libmpv-side deps, not ffmpeg's.
+  ios:
+    name: "iOS arm64 (v1, ffmpeg-only validation of movaslim flavor)"
+    runs-on: macos-15
+    steps:
+      - name: Checkout dart-labs
+        uses: actions/checkout@v4
+
+      - name: Install build dependencies
+        run: brew install nasm pkg-config meson ninja cmake automake libtool
+
+      - name: Resolve iOS SDK + clang
+        id: ios
+        run: |
+          echo "sysroot=$(xcrun --sdk iphoneos --show-sdk-path)" >> "$GITHUB_OUTPUT"
+          echo "cc=$(xcrun --sdk iphoneos --find clang)" >> "$GITHUB_OUTPUT"
+          echo "ar=$(xcrun --sdk iphoneos --find ar)" >> "$GITHUB_OUTPUT"
+          echo "strip=$(xcrun --sdk iphoneos --find strip)" >> "$GITHUB_OUTPUT"
+
+      - name: Cross-build dav1d for iOS arm64
+        run: |
+          git clone --depth 1 --branch 1.2.0 https://github.com/videolan/dav1d.git dav1d-src
+          cat > ios-arm64.meson.cross <<EOF
+          [binaries]
+          c = '${{ steps.ios.outputs.cc }}'
+          ar = '${{ steps.ios.outputs.ar }}'
+          strip = '${{ steps.ios.outputs.strip }}'
+          pkgconfig = 'pkg-config'
+
+          [built-in options]
+          c_args = ['-arch', 'arm64', '-isysroot', '${{ steps.ios.outputs.sysroot }}', '-mios-version-min=13.0']
+          c_link_args = ['-arch', 'arm64', '-isysroot', '${{ steps.ios.outputs.sysroot }}', '-mios-version-min=13.0']
+
+          [host_machine]
+          system = 'darwin'
+          cpu_family = 'aarch64'
+          cpu = 'aarch64'
+          endian = 'little'
+          EOF
+          meson setup dav1d-build dav1d-src --cross-file ios-arm64.meson.cross \
+            --prefix="$GITHUB_WORKSPACE/deps" --libdir=lib --default-library=static \
+            -Denable_tools=false -Denable_tests=false
+          ninja -C dav1d-build
+          ninja -C dav1d-build install
+
+      - name: Cross-build mbedtls for iOS arm64
+        run: |
+          git clone --depth 1 --branch v3.5.1 https://github.com/Mbed-TLS/mbedtls.git mbedtls-src
+          cd mbedtls-src
+          git submodule update --init
+          cmake -S . -B build \
+            -DCMAKE_SYSTEM_NAME=iOS -DCMAKE_OSX_ARCHITECTURES=arm64 \
+            -DCMAKE_OSX_SYSROOT=iphoneos -DCMAKE_OSX_DEPLOYMENT_TARGET=13.0 \
+            -DCMAKE_INSTALL_PREFIX="$GITHUB_WORKSPACE/deps" \
+            -DENABLE_PROGRAMS=OFF -DENABLE_TESTING=OFF \
+            -DUSE_STATIC_MBEDTLS_LIBRARY=ON -DUSE_SHARED_MBEDTLS_LIBRARY=OFF
+          cmake --build build -j"$(sysctl -n hw.ncpu)"
+          cmake --install build
+
+      - name: Download ffmpeg source
+        run: git clone --depth 1 --branch n6.0 https://github.com/FFmpeg/FFmpeg.git ffmpeg-src
+
+      - name: Build ffmpeg with iOS movaslim flavor
+        working-directory: ffmpeg-src
+        env:
+          PREFIX: ${{ github.workspace }}/prefix
+          PKG_CONFIG_PATH: ${{ github.workspace }}/deps/lib/pkgconfig
+          # mbedtls has no .pc file, so ffmpeg's check_lib for it needs an
+          # explicit -I/-L rather than pkg-config discovery.
+          MOVA_EXTRA_CFLAGS: -I${{ github.workspace }}/deps/include
+          MOVA_EXTRA_LDFLAGS: -L${{ github.workspace }}/deps/lib
+        run: |
+          cp ../mova/tools/ffmpeg-slim/flavors-mova-slim-ios.sh .
+          chmod +x flavors-mova-slim-ios.sh
+          ./flavors-mova-slim-ios.sh
+
+      - name: Verify and collect
+        run: |
+          echo "### ffmpeg iOS movaslim build (libavcodec.a + friends, static)" >> "$GITHUB_STEP_SUMMARY"
+          find "$GITHUB_WORKSPACE/prefix" -name 'lib*.a' -exec ls -la {} \; >> "$GITHUB_STEP_SUMMARY"
+          mkdir -p "$GITHUB_WORKSPACE/ios-out"
+          cp -R "$GITHUB_WORKSPACE/prefix" "$GITHUB_WORKSPACE/ios-out/"
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: mova-ffmpeg-ios-arm64-movaslim
+          path: ios-out/*
+          retention-days: 14
 
   # No upstream media-kit repo exists for Linux (unlike Android/darwin/win32)
   # — this builds ffmpeg+mpv from source natively on the runner itself, no
@@ -560,6 +653,8 @@ jobs:
   windows:
     name: "Windows x86_64 (implemented, v1: native MSYS2 slim)"
     runs-on: windows-latest
+    # Disabled while we isolate the new `ios` job below (only-iOS validation run).
+    if: false
     defaults:
       run:
         shell: msys2 {0}
