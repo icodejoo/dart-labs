@@ -2334,3 +2334,59 @@ diff -ruN -x .git static6c/nix/packages/mk-pkg-ffmpeg/meson.build static6b/nix/p
  p = mod.add_project('configure',
      configure_options : options,
      cross_configure_options: [
+diff -ruN -x .git static6c/nix/packages/mk-pkg-ffmpeg/default.nix static6b/nix/packages/mk-pkg-ffmpeg/default.nix
+--- a/nix/packages/mk-pkg-ffmpeg/default.nix	2026-08-11 12:00:00.000000000 +0800
++++ b/nix/packages/mk-pkg-ffmpeg/default.nix	2026-08-11 13:00:00.000000000 +0800
+@@ -112,6 +112,13 @@
+     ]
+     ++ pkgs.lib.optionals (variant == variants.video) [
+       dav1d
++    ]
++    # libxml2 only exists to support ffmpeg's dash demuxer — movaslim
++    # never enables that demuxer (mova doesn't do DASH, only HLS/FLV/
++    # RTMP), so building it here would be pure dead weight (same
++    # enabled-but-never-called pattern as glslang before it was dropped;
++    # see meson.build's matching video_common_options guard).
++    ++ pkgs.lib.optionals (variant == variants.video && flavor != flavors.movaslim) [
+       libxml2
+     ]
+     ++ pkgs.lib.optionals (variant == variants.video && flavor == flavors.encodersgpl) [
+@@ -133,7 +140,11 @@
+   # module and ordinary dependency() calls read directly, cross-build
+   # aware, in place of the ambient environment.
+   PKG_CONFIG_PATH = pkgs.lib.concatStringsSep ":" (
+-    map (dep: "${dep}/lib/pkgconfig") ([ mbedtls ] ++ pkgs.lib.optionals (variant == variants.video) [ dav1d libxml2 ])
++    map (dep: "${dep}/lib/pkgconfig") (
++      [ mbedtls ]
++      ++ pkgs.lib.optionals (variant == variants.video) [ dav1d ]
++      ++ pkgs.lib.optionals (variant == variants.video && flavor != flavors.movaslim) [ libxml2 ]
++    )
+   );
+   configurePhase = ''
+     cat > pkg-config-wrapper <<WRAPPER
+diff -ruN -x .git static6c/nix/packages/mk-pkg-ffmpeg/meson.build static6b/nix/packages/mk-pkg-ffmpeg/meson.build
+--- a/nix/packages/mk-pkg-ffmpeg/meson.build	2026-08-11 12:00:00.000000000 +0800
++++ b/nix/packages/mk-pkg-ffmpeg/meson.build	2026-08-11 13:00:00.000000000 +0800
+@@ -78,11 +78,21 @@
+
+ video_common_options = [
+     '--enable-neon', # improve hevc (h265) support on arm
+-    '--enable-libxml2', # dash support
+     '--enable-videotoolbox',
+     '--enable-libdav1d', # av1 support
+ ]
+
++# DASH (--enable-libxml2's only consumer) isn't in movaslim's own demuxer
++# list — mova doesn't do DASH, only HLS/FLV/RTMP. Every other flavor here
++# still gets it via video_common_options for parity with upstream's
++# default/full/encodersgpl behavior; movaslim opts out since it's dead
++# weight it never actually uses (mirrors mk-pkg-ffmpeg/default.nix's
++# matching buildInputs guard, which drops the libxml2 Nix package
++# entirely for this flavor).
++if flavor != 'movaslim'
++    video_common_options += ['--enable-libxml2'] # dash support
++endif
++
+ # https://github.com/media-kit/libmpv-android-audio-build/blob/260666c0fef8c154971b5faf3f78da27c2bf2c40/buildscripts/flavors/default.sh
+ audio_default_options = [
+     # decoders
