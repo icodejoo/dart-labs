@@ -466,6 +466,34 @@ jobs:
           echo "### total (stripped)" >> "$GITHUB_STEP_SUMMARY"
           du -ch "$GITHUB_WORKSPACE"/darwin-out/*.dylib | tail -1 >> "$GITHUB_STEP_SUMMARY"
 
+          # Where's the remaining ~10.17MiB actually going? No static
+          # per-object breakdown exists (ffmpeg/mpv link straight into one
+          # dylib, no separate .a artifacts survive to this step), so
+          # approximate it via exported-symbol prefix — each dependency's
+          # public API uses a distinct, greppable prefix (pl_*=libplacebo,
+          # glslang::/spv*=glslang, av_*/sws_*/swr_*=ffmpeg, mpv_*=mpv,
+          # ass_*=libass, FT_*=freetype, hb_*=harfbuzz). Symbol *count* is
+          # a rough proxy for code size, not a real substitute for a
+          # per-object link map — good enough to tell "worth digging into
+          # libplacebo/glslang further" from "not worth it" without a whole
+          # separate experiment cycle.
+          echo "### exported symbol counts by owning library (rough proxy, stripped binary)" | tee -a "$GITHUB_STEP_SUMMARY"
+          for f in "$GITHUB_WORKSPACE"/darwin-out/*.dylib; do
+            echo "#### $f" | tee -a "$GITHUB_STEP_SUMMARY"
+            nm -gU "$f" > /tmp/syms.txt || echo "::warning:: nm failed on $f"
+            total=$(wc -l < /tmp/syms.txt)
+            echo "- total exported symbols: $total" | tee -a "$GITHUB_STEP_SUMMARY"
+            for pair in "libplacebo:_pl_" "glslang:_glslang\|_spv" "ffmpeg:_av_\|_sws_\|_swr_" "mpv:_mpv_" "libass:_ass_" "freetype:_FT_" "harfbuzz:_hb_" "dav1d:_dav1d_"; do
+              lib="${pair%%:*}"; pat="${pair#*:}"
+              n=$(grep -cE "$pat" /tmp/syms.txt || true)
+              echo "  - $lib: $n" | tee -a "$GITHUB_STEP_SUMMARY"
+            done
+          done
+          echo "### Mach-O segment sizes (size -m, stripped)" | tee -a "$GITHUB_STEP_SUMMARY"
+          for f in "$GITHUB_WORKSPACE"/darwin-out/*.dylib; do
+            size -m "$f" | tee -a "$GITHUB_STEP_SUMMARY"
+          done
+
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
