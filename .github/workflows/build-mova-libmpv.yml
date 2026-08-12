@@ -667,11 +667,11 @@ jobs:
           otool -L "$DYLIB"
           echo "### otool -L (expect only /usr/lib, /System, @rpath)" >> "$GITHUB_STEP_SUMMARY"
           otool -L "$DYLIB" >> "$GITHUB_STEP_SUMMARY"
-          # otool -L's first line is always the dylib's own install-name
-          # (which lives under $PREFIX since that's where we installed it) —
-          # exclude it, it's not a dependency. Everything else should be a
-          # /usr/lib or /System/Library system path.
-          if otool -L "$DYLIB" | tail -n +2 | grep -qE "$DEPS|$PREFIX"; then
+          # otool -L's first TWO lines are the header ("path:") and the
+          # dylib's own install-name entry (which legitimately lives under
+          # $PREFIX since that's where we installed it) — skip both;
+          # everything after should be a /usr/lib or /System/Library path.
+          if otool -L "$DYLIB" | tail -n +3 | grep -qE "$DEPS|$PREFIX"; then
             echo "::error::libmpv.dylib links a dependency dynamically instead of statically — check --prefer-static/--default-library=static above"
             exit 1
           fi
