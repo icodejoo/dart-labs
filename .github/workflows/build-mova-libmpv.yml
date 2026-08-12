@@ -620,7 +620,7 @@ jobs:
           meson setup mpv-build mpv-src --cross-file ios-arm64.meson.cross \
             --prefix="$PREFIX" --libdir=lib --default-library=shared --prefer-static \
             -Dgpl=false -Dlibmpv=true -Dcplayer=false -Dtests=false -Dbuild-date=false \
-            -Dcdda=disabled -Ddvbin=disabled -Ddvdnav=disabled -Diconv=enabled \
+            -Dcdda=disabled -Ddvbin=disabled -Ddvdnav=disabled -Diconv=disabled \
             -Djavascript=disabled -Dlcms2=disabled -Dlibarchive=disabled -Dlibavdevice=disabled \
             -Dlibbluray=disabled -Dlua=disabled -Drubberband=disabled -Dsdl2=disabled \
             -Dsdl2-gamepad=disabled -Duchardet=disabled -Dvapoursynth=disabled -Dzimg=disabled \
