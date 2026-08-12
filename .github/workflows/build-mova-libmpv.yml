@@ -484,6 +484,8 @@ jobs:
           [built-in options]
           c_args = ['-arch', 'arm64', '-isysroot', '$SYSROOT', '-mios-version-min=$IOS_MIN_VERSION', '-ffunction-sections', '-fdata-sections', '-fvisibility=hidden', '-fomit-frame-pointer']
           c_link_args = ['-arch', 'arm64', '-isysroot', '$SYSROOT', '-mios-version-min=$IOS_MIN_VERSION', '-Wl,-dead_strip']
+          cpp_args = ['-arch', 'arm64', '-isysroot', '$SYSROOT', '-mios-version-min=$IOS_MIN_VERSION', '-ffunction-sections', '-fdata-sections', '-fvisibility=hidden', '-fomit-frame-pointer']
+          cpp_link_args = ['-arch', 'arm64', '-isysroot', '$SYSROOT', '-mios-version-min=$IOS_MIN_VERSION', '-Wl,-dead_strip']
           objc_args = ['-arch', 'arm64', '-isysroot', '$SYSROOT', '-mios-version-min=$IOS_MIN_VERSION']
           objc_link_args = ['-arch', 'arm64', '-isysroot', '$SYSROOT', '-mios-version-min=$IOS_MIN_VERSION']
           b_lto = true
