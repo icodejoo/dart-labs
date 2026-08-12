@@ -18,7 +18,7 @@ ABI/平台、字幕/截图/HLS-FLV/avfilter回归/后台中断/AV1高码率场�
 |---|---|---|
 | Android arm64-v8a | ✅ 已定稿并接入 mova 工程 | 6.52MiB（AV1 硬解+软解双通道，2026-08-06 真机复测后改判，CI 复现构建），见下方"定稿结果"，真机播放验证进行中 |
 | Android armeabi-v7a / x86 / x86_64 | ✅ CI 构建通过，未接入真机验证 | 同一套 flavor 脚本直接复用（`--disable-runtime-cpudetect` 已按架构条件判断，不用改），2026-08-06 CI 矩阵三个 ABI 全绿并核验 `dav1d_open` 符号；已接入 `example` 的 jniLibs，还没上真机测过 |
-| iOS | 🟡 配置已写，未接构建链验证 | [`flavors-mova-slim-ios.sh`](flavors-mova-slim-ios.sh)——decoder/demuxer/protocol/bsf 清单照搬 Android，硬解 MediaCodec 换成 VideoToolbox（h264/hevc 双通道，vp9/av1 因 ffmpeg n6.0 没有对应 hwaccel 只能软解）。**曾有 `mova-libmpv-winbuild-zhangfly` 分支走 ffmpeg n9.0+mpv 0.41（v9 线）做过 CI 验证（10.15MiB），该分支已作废不用**——现在这份是配合 main 分支 ffmpeg 6.x（v6 线）重新写的纯配置，还没有依赖 iOS 交叉编译（libass/freetype/harfbuzz/fribidi/dav1d/mbedtls 这几个库目前没有现成的 iOS 交叉构建产物，Android 靠 buildscripts、Linux/Windows 靠 apt/pacman 白拿这一步，iOS 两者都没有）、没有接入 CI、没有真机验证 |
+| iOS | 🟢 CI 跑通完整 libmpv，未接入/未真机 | `ios` job（`flavors-mova-slim-ios.sh` + 8 个依赖库 meson 交叉构建 + mpv + strip），v6 线（跟 Android 同版本线：ffmpeg 6.0 + mpv 0.36）。**2026-08-12 定稿数字：6,280,448 字节（≈5.99 MiB）**，`otool -L` 验证纯静态链接、零外部依赖泄漏，比 Android 6.52MiB 还小（VP9/AV1 无 VideoToolbox hwaccel 只能软解，反而省了硬解胶水代码；TLS 用系统 securetransport 不用 vendor mbedtls）。h264/hevc **无法**收窄成纯硬解（架构性限制，非保守策略，见下方"iOS 瘦身配置"一节的详细论证）。尚未接入 mova 工程、尚未做任何真机/模拟器播放验证。**曾有 `mova-libmpv-winbuild-zhangfly` 分支走 ffmpeg n9.0+mpv 0.41（v9 线）做过 CI 验证（10.15MiB），该分支已作废不用**，不可比、不要复用 |
 | macOS | 🟡 CI 首次尝试中（v1，走另一套仓库） | `media-kit/libmpv-darwin-build`，Nix + 固定版本 Xcode，`macos-15` runner。v1 直接用上游自带的"video/default" flavor，未照搬瘦身清单 |
 | Windows | 🟡 CI 首次尝试中（v1） | 构建链是 `media-kit/libmpv-win32-video-build`（是 `zhongfly/mpv-winbuild` 的 fork，自带 CI 是未改名的上游发布流程，不直接照搬），改用 MSYS2 + mingw-w64 gcc 工具链直接跑它的 CMakeLists.txt，跳过 fork 自带的 clang+rustup+Docker 那套，先做 x86_64 |
 | Linux | 🟡 CI 首次尝试中（v1） | **media-kit 没有对应仓库**（早前假设的 `libmpv-linux-build` 不存在）——在 runner 本机原生构建 ffmpeg+mpv，不需要交叉编译；依赖走 apt 装现成的 `libass-dev`/`libfreetype6-dev` 等，不用像 Android 那样从源码build |
@@ -544,45 +544,78 @@ jniLibs 合并时如果两份 `libmpv.so` 都在会直接报 merge 冲突。接�
   `extractNativeLibs=false`，原生库必须在 APK 里"不压缩存储"直接 mmap，最终体积就是
   这个数字全额算进安装包，指望 deflate 压缩省一截是不现实的
 
-## iOS 瘦身配置（2026-08-11 新写，未过构建验证）
+## iOS 瘦身配置（2026-08-12 更新：CI 已跑通完整 libmpv）
 
-[`flavors-mova-slim-ios.sh`](flavors-mova-slim-ios.sh)：decoder/demuxer/protocol/bsf
-清单照搬 Android 那份定稿（[`flavors-mova-slim.sh`](flavors-mova-slim.sh)），硬解从
-MediaCodec 换成 VideoToolbox。**这是配置，不是验证过的构建产物**——跟 Android 那份
-（有真实 CI + 真机播放验证撑腰）性质不一样。
+[`flavors-mova-slim-ios.sh`](flavors-mova-slim-ios.sh)（ffmpeg 层配置）+
+`.github/workflows/build-mova-libmpv.yml` 的 `ios` job（依赖库交叉构建 + mpv
+构建 + strip + 静态链接校验，v6 线，跟 main 分支的 ffmpeg 6.x/mpv 0.36 一致）：
+decoder/demuxer/protocol/bsf 清单照搬 Android 那份定稿
+（[`flavors-mova-slim.sh`](flavors-mova-slim.sh)），硬解从 MediaCodec 换成
+VideoToolbox，TLS 用 iOS 系统自带的 securetransport（不像 Android 要额外
+vendor mbedtls）。**CI 已跑通、有真实产物体积**，但**尚未接入 mova 工程、
+未做任何真机/模拟器播放验证**——跟 Android 那份还差最后一步。
+
+**产物**：`libmpv.dylib` 6,280,448 字节（≈5.99 MiB），`strip -x` 后，
+`otool -L` 验证除系统框架（CoreText/CoreFoundation/VideoToolbox/CoreMedia/
+CoreVideo/AudioToolbox）和系统自带 libiconv/libbz2/libz 外零外部依赖——
+ffmpeg/dav1d/libass/freetype/harfbuzz/fribidi 全部静态链入这一个动态库，跟
+Android"ffmpeg 静态链进 libmpv.so"是同一个形状。比 Android 定稿的 6.52MiB
+还小（原因见下方"与 Android 的关键差异"）。
+
+**依赖库交叉构建方法**：dav1d/freetype/fribidi/harfbuzz/libass/mpv 全部自带
+meson 构建系统，**一份 meson cross file**（`c`/`cpp`/`objc` 都指向 `xcrun
+--sdk iphoneos --find clang`，`-isysroot` 指向 iOS SDK，`b_lto=true` +
+`buildtype=minsize` + `-fvisibility=hidden`/`-ffunction-sections`/
+`-fdata-sections` 镜像 Android 的编译器/链接器手段）就能全部搞定——不需要
+像 Android 那样依赖专门的 buildscripts 项目，比预想的容易。
 
 **与 Android 的关键差异**：
 
-- ffmpeg 的 VideoToolbox 支持是**hwaccel**，不是像 `h264_mediacodec` 那样的独立
-  decoder 名字——`--enable-videotoolbox --enable-hwaccels` 只是让已经启用的
-  h264/hevc 软解码器在运行时有机会把帧交给 `VTDecompressionSession`，`--enable-decoder`
-  里没有对应名字可加。ffmpeg n6.0（v6 线锁定版本）对 VP9/AV1 完全没有 VideoToolbox
-  hwaccel，所以这份配置里 vp9/av1 只能走软解——这是能力缺口，不是漏写。
-- h264/hevc 维持 Android 早期"硬解+软解双通道"的保守策略（Android 后来把 h264
-  收窄为纯硬解是**有真机数据撑腰**才做的决定），iOS 目前零真机验证，不具备同样收窄
-  的依据。
+- ffmpeg 的 VideoToolbox 支持是**hwaccel**，不是像 `h264_mediacodec` 那样的
+  独立 decoder 名字——`--enable-videotoolbox --enable-hwaccels` 只是让已经
+  启用的 h264/hevc **软解码器**在运行时有机会把帧交给 `VTDecompressionSession`。
+  ffmpeg n6.0（v6 线锁定版本）对 VP9/AV1 完全没有 VideoToolbox hwaccel，所以
+  vp9/av1 只能走软解——这是能力缺口，不是漏写；这也是 iOS 产物比 Android
+  （VP9/AV1 都有硬解）更小的原因之一。
+- **h264/hevc 无法像 Android 那样收窄成"纯硬解"，这是架构性的、不是保守
+  策略，2026-08-12 已确认排查清楚，之后不要再花时间尝试**：
+  - Android 的 MediaCodec 硬解在 ffmpeg 里是**完全独立的一份解码器实现**
+    （`h264_mediacodec`）——整段码流直接丢给 Android 系统黑盒，NAL 解析和
+    像素解码全部在黑盒内部完成，跟软解 `h264` decoder 毫无共享代码，所以
+    能二选一、砍掉软解不影响硬解。
+  - iOS 的 VideoToolbox 硬解**寄生在软解 decoder 内部**：ffmpeg 自己的
+    `h264`/`hevc` decoder 负责解析 NAL/slice header、维护参考帧关系（这一步
+    必须软件完成），只有"把压缩数据变成像素"这最后一步通过 hwaccel 回调
+    转发给 `VTDecompressionSession`。软解代码和硬解调度是**同一份代码**，
+    砍掉软解 decoder 会把硬解一并砍掉，没有"只留硬解"这个选项。
+  - 更激进的做法（直接改 ffmpeg 源码，把 `libavcodec/h264*.c`/`hevc*.c`
+    里纯像素解码的函数体〈IDCT/运动补偿/去块滤波/NEON 汇编〉物理删掉，只留
+    解析+hwaccel 胶水代码）**技术上可能可行，但 2026-08-12 评估后决定不做**：
+    没有 configure 开关能做到，得手动patch 源码、长期维护一份跟 ffmpeg 版本
+    绑定的私有 fork；而且失败模式比 Android 更差——VideoToolbox 只要遇到
+    解码会话超限/系统限流/冷门 SPS 组合等任何问题就会**完全无法播放**（没有
+    软解退路），不像现在这样至少能优雅降级。投入产出比不划算，明确不做。
 
-**尚未解决、导致这份配置目前跑不出真实产物的两件事**：
+**已知未测项，真机上出问题时来这里查决策记录**：
 
-1. **iOS 交叉编译的依赖库**（libass/freetype/harfbuzz/fribidi/dav1d/mbedtls）没有
-   现成来源。Android 靠 `libmpv-android-video-build` 的 buildscripts 从源码交叉构建；
-   Linux/Windows 靠 apt/pacman（host==target，直接装现成的）。iOS 两条路都没有——
-   没有 iOS 版的 buildscripts，也没有系统包管理器能装 iOS-target 的静态库，每个依赖
-   都需要单独摸索 iOS 交叉构建方法（大概率是 meson cross file + `xcrun` 工具链，
-   参照 Android 那份 `libmpv-android-video-build.patch` 的思路但换目标平台）。
-2. **没有接入任何 CI job**——`.github/workflows/build-mova-libmpv.yml` 里现在的
-   `darwin` job 走的是 `media-kit/libmpv-darwin-build`（Nix，另一条线，用于 macOS，
-   iOS 这块目前没有对应 job）。要让这份 flavor 真正跑起来，需要新增一个 `ios` job，
-   参照 `linux`/`windows` job 的"native/交叉编译 + 手写 ffmpeg configure"模式，而不是
-   `darwin` job 的 Nix 模式。
+- h264/hevc 双通道（硬解+软解都编进去了）——**从未真机验证**，如果发现某
+  个机型/内容下硬解和软解都有问题，先看是不是 ffmpeg n6.0 的 VideoToolbox
+  hwaccel 本身对某些 profile/level 支持不全，而不是当作"要不要收窄"的信号
+  （上面已经论证过收窄在架构上做不到）。
+- AV1/VP9 纯软解——ffmpeg n6.0 没有对应 hwaccel，如果真机测出功耗/发热问题，
+  这是已知代价（跟 Android 加回 AV1 软解时的实测结论一致，见上方"AV1 软解
+  / MJPEG 的实测取舍数据"一节），解法是升级 ffmpeg/mpv 版本线（等上游给
+  VideoToolbox 加 VP9/AV1 hwaccel）或产品层面砍掉这两个格式，不是这份配置
+  能单独解决的。
+- securetransport 替换 mbedtls 后能否正常握手 HTTPS/HLS AES-128/RTMPS——
+  CI 只验证了编译链接成功，实际网络握手行为未测。
 
-**下一步**（按依赖顺序，做之前都没验证过）：先摸清 dav1d/libass 等依赖的 iOS
-交叉构建方法（是否已有其他开源项目踩过、能否复用现成 cross file）→ 写 CI job 跑通
-一次真实 ffmpeg configure/make → 集成进 libmpv（还需要 mpv 自身的 iOS meson cross
-file，这份文件目前只碰了 ffmpeg 层）→ 接入 mova 工程 → 真机验证。**旧的 zhangfly
-分支（ffmpeg n9.0+mpv 0.41 v9 线，CI 验证到 10.15MiB）已作废，不要复用其代码或数据**
-——那条线版本号、依赖形态（libplacebo 强制依赖）都跟这份 v6 线配置不同，不可比也不可
-直接抄。
+**下一步**：接入 mova 工程（打包 xcframework 或直接 embed dylib）→ 真机/
+模拟器播放验证（参照 Android 当初的验证清单逐项过：H.264/HEVC 硬解+软解、
+AV1/VP9 软解、字幕、HLS/FLV 直播、HTTPS 握手、后台中断恢复）。**旧的
+zhangfly 分支（ffmpeg n9.0+mpv 0.41 v9 线，CI 验证到 10.15MiB）已作废，
+不要复用其代码或数据**——那条线版本号、依赖形态（libplacebo 强制依赖）都
+跟这份 v6 线配置不同，不可比也不可直接抄。
 
 ## 已知的进一步优化方向（未做，标注原因）
 
