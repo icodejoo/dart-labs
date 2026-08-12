@@ -453,6 +453,13 @@ jobs:
           # don't recognize. Installed via pip, ahead of any brew meson on PATH.
           pip3 install --break-system-packages "meson==1.3.2"
           echo "$(python3 -m site --user-base)/bin" >> "$GITHUB_PATH"
+          # mpv's TOOLS/macos-sdk-version.py (run unconditionally by
+          # meson.build whenever host_machine.system() == 'darwin', which is
+          # true for iOS too, not just macOS) imports the long-removed
+          # `distutils` stdlib module. Python 3.12+ (what's on this runner)
+          # dropped it; setuptools vendors a compatible shim that makes
+          # `import distutils` work again without patching mpv's source.
+          pip3 install --break-system-packages setuptools
 
       - name: Resolve iOS SDK + clang, write meson cross/native files
         id: ios
