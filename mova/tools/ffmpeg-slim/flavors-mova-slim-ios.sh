@@ -15,20 +15,19 @@
 #      version pinned for the v6 line, see README) has no VideoToolbox hwaccel
 #      for VP9 or AV1 at all, so unlike Android those two are software-only
 #      here — this is a real capability gap versus Android, not an oversight.
-#   2. Cross-building libass/freetype/harfbuzz/fribidi/dav1d/mbedtls *for
-#      iOS* (arm64, not the host mac's arch) from source is unsolved. Android
-#      gets this for free from libmpv-android-video-build's buildscripts;
-#      Linux/Windows get it for free from apt/pacman because host==target
-#      there. iOS has neither — there is no system package manager that ships
-#      iOS-target static libs. Until each dependency has a known-good iOS
-#      cross-build recipe, `../configure` below cannot actually succeed against
-#      a real prefix_dir.
+#   2. Cross-building libass/freetype/harfbuzz/fribidi/dav1d *for iOS* (arm64,
+#      not the host mac's arch) from source needs a meson cross file + xcrun
+#      toolchain — see the `ios` CI job in build-mova-libmpv.yml for the
+#      known-good recipe (all five ship meson build files, so one shared
+#      cross file covers all of them). TLS uses Apple's own securetransport
+#      backend instead of vendoring mbedtls, so that one dependency Android
+#      needs, iOS doesn't.
 #
 # Meant to be dropped next to Android's flavors-mova-slim.sh once an iOS build
 # harness exists to drive it (see README's iOS section for current status).
 #
-# Usage: cwd = ffmpeg source tree, PREFIX env var set, dav1d/mbedtls already
-# cross-built for iOS with their .pc files on PKG_CONFIG_PATH.
+# Usage: cwd = ffmpeg source tree, PREFIX env var set, dav1d already
+# cross-built for iOS with its .pc file on PKG_CONFIG_PATH.
 #   PREFIX=/path/to/out ./flavors-mova-slim-ios.sh
 
 PREFIX="${PREFIX:?PREFIX env var required (install prefix for make install)}"
@@ -67,7 +66,6 @@ FILTERS=""
 	\
 	--disable-gpl \
 	--disable-nonfree \
-	--enable-version3 \
 	--enable-static \
 	--disable-shared \
 	--disable-iconv \
@@ -102,7 +100,15 @@ FILTERS=""
 	--enable-optimizations \
 	--enable-runtime-cpudetect \
 	\
-	--enable-mbedtls \
+	# securetransport (Apple's Security.framework), not mbedtls: iOS/macOS
+	# ship a real system TLS stack, so there is no reason to vendor and
+	# statically link a TLS library the way Android has to (no system TLS
+	# backend there). ffmpeg's check_lib auto-adds -framework Security
+	# -framework CoreFoundation, both system frameworks — this also drops
+	# the --enable-version3 requirement mbedtls's dual Apache/GPL-2.0
+	# licensing forced (see Android's README note), so this build stays
+	# plain LGPLv2.1 instead of LGPLv3.
+	--enable-securetransport \
 	\
 	--enable-libdav1d \
 	\
