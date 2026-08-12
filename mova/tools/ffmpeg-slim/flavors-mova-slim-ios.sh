@@ -56,6 +56,10 @@ BSFS="null,extract_extradata,h264_mp4toannexb,hevc_mp4toannexb,aac_adtstoasc,vp9
 # Same "untested, needs real-device regression" caveat as Android's FILTERS="".
 FILTERS=""
 
+# ffmpeg's configure defaults to `enable debug` (bakes -g into every object
+# file) unless told otherwise — --disable-debug stops that at the source,
+# same fix as the meson deps' `debug = false` cross-file override.
+#
 # securetransport (Apple's Security.framework), not mbedtls: iOS/macOS ship a
 # real system TLS stack, so there is no reason to vendor and statically link
 # a TLS library the way Android has to (no system TLS backend there).
@@ -77,6 +81,7 @@ FILTERS=""
 	--disable-shared \
 	--disable-iconv \
 	--disable-stripping \
+	--disable-debug \
 	--pkg-config-flags=--static \
 	\
 	--disable-muxers \
