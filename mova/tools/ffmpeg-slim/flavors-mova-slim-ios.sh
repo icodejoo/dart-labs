@@ -56,6 +56,13 @@ BSFS="null,extract_extradata,h264_mp4toannexb,hevc_mp4toannexb,aac_adtstoasc,vp9
 # Same "untested, needs real-device regression" caveat as Android's FILTERS="".
 FILTERS=""
 
+# securetransport (Apple's Security.framework), not mbedtls: iOS/macOS ship a
+# real system TLS stack, so there is no reason to vendor and statically link
+# a TLS library the way Android has to (no system TLS backend there).
+# ffmpeg's check_lib auto-adds -framework Security -framework CoreFoundation,
+# both system frameworks — this also drops the --enable-version3 requirement
+# mbedtls's dual Apache/GPL-2.0 licensing forced (see Android's README note),
+# so this build stays plain LGPLv2.1 instead of LGPLv3.
 ./configure \
 	--target-os=darwin --arch="$target_arch" --cc="$cc" \
 	--sysroot="$sysroot" \
@@ -100,14 +107,6 @@ FILTERS=""
 	--enable-optimizations \
 	--enable-runtime-cpudetect \
 	\
-	# securetransport (Apple's Security.framework), not mbedtls: iOS/macOS
-	# ship a real system TLS stack, so there is no reason to vendor and
-	# statically link a TLS library the way Android has to (no system TLS
-	# backend there). ffmpeg's check_lib auto-adds -framework Security
-	# -framework CoreFoundation, both system frameworks — this also drops
-	# the --enable-version3 requirement mbedtls's dual Apache/GPL-2.0
-	# licensing forced (see Android's README note), so this build stays
-	# plain LGPLv2.1 instead of LGPLv3.
 	--enable-securetransport \
 	\
 	--enable-libdav1d \
