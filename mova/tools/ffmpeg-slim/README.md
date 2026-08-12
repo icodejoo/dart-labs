@@ -18,7 +18,7 @@ ABI/平台、字幕/截图/HLS-FLV/avfilter回归/后台中断/AV1高码率场�
 |---|---|---|
 | Android arm64-v8a | ✅ 已定稿并接入 mova 工程 | 6.52MiB（AV1 硬解+软解双通道，2026-08-06 真机复测后改判，CI 复现构建），见下方"定稿结果"，真机播放验证进行中 |
 | Android armeabi-v7a / x86 / x86_64 | ✅ CI 构建通过，未接入真机验证 | 同一套 flavor 脚本直接复用（`--disable-runtime-cpudetect` 已按架构条件判断，不用改），2026-08-06 CI 矩阵三个 ABI 全绿并核验 `dav1d_open` 符号；已接入 `example` 的 jniLibs，还没上真机测过 |
-| iOS | 🟢 CI 跑通完整 libmpv，未接入/未真机 | `ios` job（`flavors-mova-slim-ios.sh` + 8 个依赖库 meson 交叉构建 + mpv + strip），v6 线（跟 Android 同版本线：ffmpeg 6.0 + mpv 0.36）。**2026-08-12 定稿数字：6,280,448 字节（≈5.99 MiB）**，`otool -L` 验证纯静态链接、零外部依赖泄漏，比 Android 6.52MiB 还小（VP9/AV1 无 VideoToolbox hwaccel 只能软解，反而省了硬解胶水代码；TLS 用系统 securetransport 不用 vendor mbedtls）。h264/hevc **无法**收窄成纯硬解（架构性限制，非保守策略，见下方"iOS 瘦身配置"一节的详细论证）。尚未接入 mova 工程、尚未做任何真机/模拟器播放验证。**曾有 `mova-libmpv-winbuild-zhangfly` 分支走 ffmpeg n9.0+mpv 0.41（v9 线）做过 CI 验证（10.15MiB），该分支已作废不用**，不可比、不要复用 |
+| iOS | 🟢 CI 跑通完整 libmpv，未接入/未真机 | `ios` job（`flavors-mova-slim-ios.sh` + 8 个依赖库 meson 交叉构建 + mpv + strip），v6 线（跟 Android 同版本线：ffmpeg 6.0 + mpv 0.36）。**2026-08-12 定稿数字：6,247,184 字节（≈5.96 MiB）**，`otool -L` 验证纯静态链接、零外部依赖泄漏，比 Android 6.52MiB 还小（VP9/AV1 无 VideoToolbox hwaccel 只能软解，反而省了硬解胶水代码；TLS 用系统 securetransport 不用 vendor mbedtls）。h264/hevc **无法**收窄成纯硬解、libass 字体栈**不建议**砍（架构性限制/投入产出比不划算，见下方"iOS 瘦身配置"一节和"字幕栈瘦身评估"一节的详细论证）。尚未接入 mova 工程、尚未做任何真机/模拟器播放验证。**曾有 `mova-libmpv-winbuild-zhangfly` 分支走 ffmpeg n9.0+mpv 0.41（v9 线）做过 CI 验证（10.15MiB），该分支已作废不用**，不可比、不要复用 |
 | macOS | 🟡 CI 首次尝试中（v1，走另一套仓库） | `media-kit/libmpv-darwin-build`，Nix + 固定版本 Xcode，`macos-15` runner。v1 直接用上游自带的"video/default" flavor，未照搬瘦身清单 |
 | Windows | 🟡 CI 首次尝试中（v1） | 构建链是 `media-kit/libmpv-win32-video-build`（是 `zhongfly/mpv-winbuild` 的 fork，自带 CI 是未改名的上游发布流程，不直接照搬），改用 MSYS2 + mingw-w64 gcc 工具链直接跑它的 CMakeLists.txt，跳过 fork 自带的 clang+rustup+Docker 那套，先做 x86_64 |
 | Linux | 🟡 CI 首次尝试中（v1） | **media-kit 没有对应仓库**（早前假设的 `libmpv-linux-build` 不存在）——在 runner 本机原生构建 ffmpeg+mpv，不需要交叉编译；依赖走 apt 装现成的 `libass-dev`/`libfreetype6-dev` 等，不用像 Android 那样从源码build |
@@ -555,7 +555,12 @@ VideoToolbox，TLS 用 iOS 系统自带的 securetransport（不像 Android 要�
 vendor mbedtls）。**CI 已跑通、有真实产物体积**，但**尚未接入 mova 工程、
 未做任何真机/模拟器播放验证**——跟 Android 那份还差最后一步。
 
-**产物**：`libmpv.dylib` 6,280,448 字节（≈5.99 MiB），`strip -x` 后，
+**产物**：`libmpv.dylib` 6,247,184 字节（≈5.96 MiB），`strip -S -x` 后（`-S`
+清 DWARF 调试符号、`-x` 清不需要的全局符号；ffmpeg 侧配套加了
+`--disable-debug`，meson cross file 加了 `debug = false`——ffmpeg 默认
+`enable debug`、meson `minsize` buildtype 默认 `debug=true`，两处都会悄悄把
+`-g` 编译进每个目标文件，之前只做 `strip -x` 没清干净，补上后从 6.86MiB→
+5.99MiB→5.96MiB，最后这步只省了 32.5KB，收益不大但零风险，顺手做了），
 `otool -L` 验证除系统框架（CoreText/CoreFoundation/VideoToolbox/CoreMedia/
 CoreVideo/AudioToolbox）和系统自带 libiconv/libbz2/libz 外零外部依赖——
 ffmpeg/dav1d/libass/freetype/harfbuzz/fribidi 全部静态链入这一个动态库，跟
@@ -616,6 +621,56 @@ AV1/VP9 软解、字幕、HLS/FLV 直播、HTTPS 握手、后台中断恢复）�
 zhangfly 分支（ffmpeg n9.0+mpv 0.41 v9 线，CI 验证到 10.15MiB）已作废，
 不要复用其代码或数据**——那条线版本号、依赖形态（libplacebo 强制依赖）都
 跟这份 v6 线配置不同，不可比也不可直接抄。
+
+## 字幕栈瘦身评估（2026-08-12，结论：不砍，libass 保留）
+
+libass+freetype+harfbuzz+fribidi 这套字体栈占 iOS/Android 产物体积的一大块
+（Android 估算约 2MB，接近 iOS 现在整个 libmpv 的三分之一）。用户提出"只要
+基础字幕能力（纯文本+前景色/背景色/字号/位置，不要卡拉OK/动画特效），能不能
+把这块砍掉换体积"，逐层论证下来，**结论是不砍**，记录完整推理链，避免以后
+重新纠结同一个问题：
+
+1. **"只删特效、留基础"在技术上不存在这个选项**。libass 没有编译开关能单独
+   关闭 `\t`（动画过渡）/`\move`/`\p`（矢量绘图/卡拉OK）/`\blur`/`\clip` 这些
+   标签的解释逻辑——它们是 `ass_render.c` 里的普通代码分支，不是可选
+   feature。而且这些"特效代码"本身占的体积很小，**真正的大头是
+   freetype+harfbuzz+fribidi 这套"渲染任何文字都要用到"的基础设施**（字体
+   光栅化+文字整形+双向文字算法），画一行纯白字加背景色和画卡拉OK特效字幕
+   走的是同一条流水线，前者省不掉后者的成本。手动 patch 源码物理删动画
+   相关函数体，即使做成了也大概率只省几十 KB（相对整个 ~2MB 是九牛一毛），
+   还要背负"长期维护一份手术过的 ffmpeg/libass 私有 fork"的代价，评估后
+   明确不做。
+2. **libass/fribidi/harfbuzz 这三者在 libass 0.17.3 源码里是硬依赖**
+   （`meson.build` 里 `dependency('fribidi', ...)`/`dependency('harfbuzz', ...)`
+   都没有 `required: get_option(...)`，没有开关能单独关掉其中一个），所以
+   "留 libass 但去掉 harfbuzz/fribidi 换轻量文字整形"这条路也不存在。
+3. **ffmpeg 的字幕 decoder 本身不做任何渲染**——它只是把不同字幕容器格式
+   （SRT/WebVTT/ASS/mov_text）解析成统一的带标签文本（内部走 ASS 事件
+   格式），颜色/背景/字号/位置的**解释和栅格化**全部是 libass 的工作。SRT
+   格式本身没有这些概念（非标准的 `<font color>` 内联标签是唯一例外）；
+   WebVTT 规范里确实有位置/基础颜色，但 ffmpeg 的 webvtt decoder 支持
+   比较基础；ASS 的完整样式模型（`{\c\fs\pos...}` 覆写标签）由 libass 独家
+   解释。这意味着如果真要砍掉 libass 改 Flutter 渲染，Dart 侧至少要写一个
+   "极简 ASS 标签解释器"（认 `\c`/`\fs`/`\pos`/`\an`，忽略其余）才能达到跟
+   现在同等的基础效果，工作量比"直接不砍"高出一截。
+4. **`libmpv` 已经原生支持"统一基础样式覆盖"，不需要自己写解释器**：
+   `sub-color`/`sub-back-color`/`sub-font`/`sub-font-size`/`sub-margin-x`/
+   `sub-margin-y`/`sub-pos`/`sub-align-x`/`sub-align-y` 这些 mpv 属性，配合
+   **`sub-ass-override=force`**，可以强制用这套配置覆盖字幕文件自带的样式
+   （不管来源是外挂 SRT/WebVTT/ASS 还是内嵌 mov_text 轨道，统一生效）——
+   用户想要的"基础纯文本+统一前景色背景色"效果，`MovaApi`/`MovaOpts` 透传
+   这几个选项给 libmpv 就有了，不用碰 libass 内部也不用自己解析标签。
+5. **libmpv 同时能承接"AI 实时翻译字幕"这个未来场景**：mpv 支持
+   `osd-overlay` 命令或 `sub-add` 配合可动态更新的字幕源，把外部实时生成的
+   文本（翻译/STT 转写）持续喂给同一条 libass 渲染管线，不需要另起一套
+   Flutter 渲染逻辑。也就是说 libass 现在同时覆盖"静态字幕文件"和"动态
+   实时字幕"两个场景，砍掉它意味着这两个场景都要在 Dart 侧重新实现（含
+   "内嵌字幕轨道怎么从容器里抠出来喂给 Dart"这个完全没验证过的难题），
+   只为换 2MB，投入产出比不划算。
+
+**结论**：字幕相关瘦身到此为止，libass 全套保留。真要在这个方向上再拿到
+显著收益，唯一现实的路径是等 ffmpeg/mpv 版本升级或第三方轻量字幕渲染库
+出现，不是现在这份配置能解决的。
 
 ## 已知的进一步优化方向（未做，标注原因）
 
