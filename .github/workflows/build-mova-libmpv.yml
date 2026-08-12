@@ -663,6 +663,8 @@ jobs:
 
           # Confirm nothing leaked in as a dynamic dependency other than
           # system frameworks — otool -L should show no path into $DEPS/$PREFIX.
+          echo "### otool -L (expect only /usr/lib, /System, @rpath)"
+          otool -L "$DYLIB"
           echo "### otool -L (expect only /usr/lib, /System, @rpath)" >> "$GITHUB_STEP_SUMMARY"
           otool -L "$DYLIB" >> "$GITHUB_STEP_SUMMARY"
           if otool -L "$DYLIB" | grep -qE "$DEPS|$PREFIX"; then
