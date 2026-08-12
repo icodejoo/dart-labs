@@ -474,7 +474,10 @@ jobs:
           # Shared across dav1d/freetype/fribidi/harfbuzz/libass/mpv. Mirrors
           # the Android flavor's optimization flags (gc-sections/-fvisibility=
           # hidden/LTO/-Os-equivalent minsize) — see README's "进一步瘦身" section
-          # for why each one earns its keep.
+          # for why each one earns its keep. `debug = false` overrides
+          # meson's minsize-buildtype default (minsize implies debug=true,
+          # i.e. -g on every object file) — nothing here should ship DWARF
+          # debug info.
           # `sed` strips this heredoc's YAML-block indentation — a raw
           # `cat <<EOF` here would write the leading spaces straight into the
           # ini file, which meson's cross-file parser is not guaranteed to
@@ -497,6 +500,7 @@ jobs:
           objc_link_args = ['-arch', 'arm64', '-isysroot', '$SYSROOT', '-mios-version-min=$IOS_MIN_VERSION']
           b_lto = true
           buildtype = 'minsize'
+          debug = false
 
           [host_machine]
           system = 'darwin'
@@ -637,7 +641,11 @@ jobs:
         run: |
           DYLIB=$(find "$PREFIX" -iname 'libmpv*.dylib' | head -1)
           test -n "$DYLIB" || { echo "::error::libmpv*.dylib not found under prefix/"; find "$PREFIX" -type f -print; exit 1; }
-          strip -x "$DYLIB"
+          # -x alone only drops global symbols not needed for linking — it
+          # does NOT touch embedded DWARF debug info. -S drops that. This is
+          # macOS's standard "shipping dylib" combo (Android's analogous
+          # `llvm-strip --strip-all` does both in one flag).
+          strip -S -x "$DYLIB"
 
           echo "### libmpv.dylib size (iOS arm64, movaslim, static deps)" >> "$GITHUB_STEP_SUMMARY"
           SIZE_BYTES=$(stat -f%z "$DYLIB")
