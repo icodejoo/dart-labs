@@ -523,20 +523,6 @@ jobs:
           ninja -C dav1d-build
           ninja -C dav1d-build install
 
-      - name: Cross-build mbedtls for iOS arm64
-        run: |
-          git clone --depth 1 --branch v3.5.1 https://github.com/Mbed-TLS/mbedtls.git mbedtls-src
-          cd mbedtls-src
-          git submodule update --init
-          cmake -S . -B build \
-            -DCMAKE_SYSTEM_NAME=iOS -DCMAKE_OSX_ARCHITECTURES=arm64 \
-            -DCMAKE_OSX_SYSROOT=iphoneos -DCMAKE_OSX_DEPLOYMENT_TARGET="$IOS_MIN_VERSION" \
-            -DCMAKE_INSTALL_PREFIX="$DEPS" \
-            -DENABLE_PROGRAMS=OFF -DENABLE_TESTING=OFF \
-            -DUSE_STATIC_MBEDTLS_LIBRARY=ON -DUSE_SHARED_MBEDTLS_LIBRARY=OFF
-          cmake --build build -j"$(sysctl -n hw.ncpu)"
-          cmake --install build
-
       - name: Cross-build freetype for iOS arm64
         run: |
           git clone --depth 1 --branch VER-2-13-3 https://github.com/freetype/freetype.git freetype-src
@@ -599,10 +585,6 @@ jobs:
         working-directory: ffmpeg-src
         env:
           PKG_CONFIG_PATH: ${{ env.DEPS }}/lib/pkgconfig
-          # mbedtls has no .pc file, so ffmpeg's check_lib for it needs an
-          # explicit -I/-L rather than pkg-config discovery.
-          MOVA_EXTRA_CFLAGS: -I${{ env.DEPS }}/include
-          MOVA_EXTRA_LDFLAGS: -L${{ env.DEPS }}/lib
         run: |
           cp ../mova/tools/ffmpeg-slim/flavors-mova-slim-ios.sh .
           chmod +x flavors-mova-slim-ios.sh
