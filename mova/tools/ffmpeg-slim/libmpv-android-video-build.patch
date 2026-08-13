@@ -43,12 +43,13 @@ diff --git a/buildscripts/scripts/dav1d.sh b/buildscripts/scripts/dav1d.sh
 index 87a7198..833627b 100755
 --- a/buildscripts/scripts/dav1d.sh
 +++ b/buildscripts/scripts/dav1d.sh
-@@ -16,7 +16,7 @@ fi
+@@ -16,7 +16,8 @@ fi
  
  unset CC CXX # meson wants these unset
  
 -meson setup $build --cross-file "$prefix_dir"/crossfile.txt \
 +meson setup $build --cross-file "$prefix_dir"/crossfile.txt --native-file "$prefix_dir"/native.txt \
++	-Dbitdepths=8 \
  	-Denable_tests=false -Db_lto=true -Dstack_alignment=16
  
  ninja -C $build -j$cores

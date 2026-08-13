@@ -39,3 +39,10 @@ build/
 tools/ffmpeg-slim/dist/darwin/*
 !tools/ffmpeg-slim/dist/darwin/libmpv-xcframeworks_mova-ci_ios-universal-video-default.tar.gz
 !tools/ffmpeg-slim/dist/darwin/libmpv-xcframeworks_mova-ci_macos-universal-video-default.tar.gz
+
+# Windows libmpv build scratch workspace (full clone of the external
+# media-kit/libmpv-win32-video-cmake repo + build artifacts, several GB --
+# not meant to be vendored, see tools/ffmpeg-slim/README.md's Windows section)
+tools/ffmpeg-slim/dist/windows-native/
+tools/ffmpeg-slim/dist/windows-native2/
+tools/ffmpeg-slim/dist/windows-explore/

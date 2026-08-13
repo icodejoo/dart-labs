@@ -20,7 +20,7 @@ ABI/平台、字幕/截图/HLS-FLV/avfilter回归/后台中断/AV1高码率场�
 | Android armeabi-v7a / x86 / x86_64 | ✅ CI 构建通过，未接入真机验证 | 同一套 flavor 脚本直接复用（`--disable-runtime-cpudetect` 已按架构条件判断，不用改），2026-08-06 CI 矩阵三个 ABI 全绿并核验 `dav1d_open` 符号；已接入 `example` 的 jniLibs，还没上真机测过 |
 | iOS | 🟢 CI 跑通完整 libmpv，未接入/未真机 | `ios` job（`flavors-mova-slim-ios.sh` + 8 个依赖库 meson 交叉构建 + mpv + strip），v6 线（跟 Android 同版本线：ffmpeg 6.0 + mpv 0.36）。**2026-08-12 定稿数字：6,247,184 字节（≈5.96 MiB）**，`otool -L` 验证纯静态链接、零外部依赖泄漏，比 Android 6.52MiB 还小（VP9/AV1 无 VideoToolbox hwaccel 只能软解，反而省了硬解胶水代码；TLS 用系统 securetransport 不用 vendor mbedtls）。h264/hevc **无法**收窄成纯硬解、libass 字体栈**不建议**砍（架构性限制/投入产出比不划算，见下方"iOS 瘦身配置"一节和"字幕栈瘦身评估"一节的详细论证）。尚未接入 mova 工程、尚未做任何真机/模拟器播放验证。**曾有 `mova-libmpv-winbuild-zhangfly` 分支走 ffmpeg n9.0+mpv 0.41（v9 线）做过 CI 验证（10.15MiB），该分支已作废不用**，不可比、不要复用 |
 | macOS | 🟡 CI 首次尝试中（v1，走另一套仓库） | `media-kit/libmpv-darwin-build`，Nix + 固定版本 Xcode，`macos-15` runner。v1 直接用上游自带的"video/default" flavor，未照搬瘦身清单 |
-| Windows | 🟡 CI 首次尝试中（v1） | 构建链是 `media-kit/libmpv-win32-video-build`（是 `zhongfly/mpv-winbuild` 的 fork，自带 CI 是未改名的上游发布流程，不直接照搬），改用 MSYS2 + mingw-w64 gcc 工具链直接跑它的 CMakeLists.txt，跳过 fork 自带的 clang+rustup+Docker 那套，先做 x86_64 |
+| Windows | ✅ 本地 MSYS2 构建链跑通，未接入/未真机 | 构建链改用 `media-kit/libmpv-win32-video-cmake`（`libmpv-win32-video-build` 已归档/不可用，切到其活跃后继仓库），MSYS2 ucrt64 原生 gcc 工具链（`SKIP_TOOLCHAIN=ON` 跳过从零构建交叉编译器）+ Ninja，x86_64。**2026-08-13 定稿数字：28,274,176 字节（≈26.97 MiB）**，strip 后，含 D3D11VA 硬解，`mpv`/`libmpv-2.dll`/头文件全部产出。**比 media-kit 官方发行版（35.99 MiB，同架构 x86_64）还小 −25%**，且官方版没有针对"现代主流点播+直播"做任何裁剪（完整 openssl+libssh+libsrt+完整 libplacebo/vulkan/shaderc）——这是比 Android(6.52MiB)/iOS(5.96MiB) 更合理的参照系，那两个平台架构完全不同（MediaCodec 独立硬解/VideoToolbox 系统 API），不背 GPU-next 渲染管线这种包袱，直接比"差 4-5 倍"没有意义。详见下方"Windows 瘦身构建"一节 |
 | Linux | 🟡 CI 首次尝试中（v1） | **media-kit 没有对应仓库**（早前假设的 `libmpv-linux-build` 不存在）——在 runner 本机原生构建 ffmpeg+mpv，不需要交叉编译；依赖走 apt 装现成的 `libass-dev`/`libfreetype6-dev` 等，不用像 Android 那样从源码build |
 
 **关键差异提醒**：Android 这份 flavor 脚本里 `--enable-mediacodec`/`--enable-jni` 是
@@ -671,6 +671,231 @@ libass+freetype+harfbuzz+fribidi 这套字体栈占 iOS/Android 产物体积的�
 **结论**：字幕相关瘦身到此为止，libass 全套保留。真要在这个方向上再拿到
 显著收益，唯一现实的路径是等 ffmpeg/mpv 版本升级或第三方轻量字幕渲染库
 出现，不是现在这份配置能解决的。
+
+## Windows 瘦身构建（2026-08-13，MSYS2 本地构建链跑通）
+
+**构建环境**：Windows 10/11 + MSYS2（`C:\tools\msys64`，`ucrt64` 子系统）+ Ninja，
+**不用 WSL2/Docker**——2026 年 8 月的最新尝试改成原生 MSYS2 ucrt64 gcc 工具链直接跑，
+比当年 Android 那套 WSL2 方案更贴近"Windows 上直接构建 Windows 产物"。
+
+**仓库选择**：原计划用的 `media-kit/libmpv-win32-video-build` 已经**归档/不可用**
+（GitHub `archived`/`pushed_at` 长期无更新），改用它的活跃后继仓库
+**`media-kit/libmpv-win32-video-cmake`**（同作者/同组织，CMake 驱动而非纯 shell 脚本）。
+**教训**：在深挖某个仓库的"诡异 bug"之前，先用 GitHub API 查一下
+`archived`/`pushed_at`/`updated_at` ——本次因为没有先查，多花了不少时间在修一个后来
+发现是"仓库已废弃、根本不会再修"的假 bug 上。
+
+**关键配置**：`cmake -DSKIP_TOOLCHAIN=ON -DTARGET_ARCH=x86_64-w64-mingw32
+-DSINGLE_SOURCE_LOCATION="X:/src_packages" -G Ninja -B build_x86_64 -S .`，
+`SKIP_TOOLCHAIN` 是本次新加的选项（该仓库默认会先从零构建一整套交叉编译器，
+耗时且没必要——MSYS2 ucrt64 本身就自带完整原生 mingw-w64 gcc 工具链，跳过重复构建）。
+
+### 最终产物
+
+`build_x86_64/mpv-dev-x86_64-<date>-git-<rev>/libmpv-2.dll`：
+
+- **28,274,176 字节 ≈ 26.97 MiB**（`strip` 之后，符号单独在 `mpv-debug-*` 目录），
+  含 D3D11VA 硬解
+- 同批产出 `mpv-x86_64-*`（`mpv.exe`/`mpv.com`）与 `mpv-dev-*`（`client.h` 等头文件，
+  供 media_kit 集成用）
+- **比 media-kit 官方发行版还小 −25%**：实测下载了官方 2024-10-21 发布的
+  `mpv-dev-x86_64` 版本解压，`libmpv-2.dll` 是 **37,735,936 字节（≈35.99 MiB）**——
+  这是更合理的参照系，因为它是同一套构建配方、同架构，只是没针对"现代主流点播+直播"
+  做任何裁剪（完整 openssl+libssh+libsrt+完整 libplacebo/vulkan/shaderc）。**不要拿
+  Android(6.52MiB)/iOS(5.96MiB) 当基准比"差 4-5 倍"**——那两个平台架构完全不同
+  （MediaCodec 独立硬解/VideoToolbox 系统 API，不背 GPU-next 渲染管线），不是同一个
+  起跑线，直接比没有意义。
+
+### ⚠️ 修复了一个比体积更重要的功能缺口
+
+这套 cmake 仓库默认的 ffmpeg 配置里 `--disable-decoders` 之后，**从未有任何一行
+`--enable-decoder=h264`/`hevc`/`vp9` 之类的语句**——也就是说照抄默认配置出来的
+"能编译通过、产物也不小"的 libmpv **实际上放不了 H.264/HEVC/VP9/AV1 里的任何一个**，
+这比任何体积问题都严重，而且不会在编译期报错，只有真正尝试播放时才会暴露。同理
+D3D11VA/DXVA2 硬解 API 也被 `--disable-d3d11va`/`--disable-dxva2` 显式关闭，
+即便加上正确的 decoder 之后也只能纯 CPU 软解。这两处都已修复：
+
+- decoder/demuxer/protocol/parser/bsf 清单改为对齐 Android 定稿清单
+  （`flavors-mova-slim.sh`）的"现代主流点播+直播"范围，同时补全 h264/hevc/vp9/
+  libdav1d(av1)/png 视频解码器 + 完整字幕解码器（ass/ssa/subrip/text/webvtt/movtext）
+- 启用 `--enable-d3d11va`（Windows 现代硬解 API，DXVA2 是被取代的旧 API，维持关闭）——
+  h264/hevc 的硬解在 D3D11VA 架构下是**寄生在软解 decoder 内部**的（跟 iOS
+  VideoToolbox 同一个模式，见上方"iOS 瘦身配置"一节的详细论证），无法收窄成纯硬解，
+  这不是保守策略，是架构限制
+- 补上这些真正需要的解码器后体积从"一个没有实际解码能力的 34.62MiB"变成
+  "一个真正能播放视频的 26.97MiB"（D3D11VA 硬解本身只增加了约 25KB，代价极小）
+
+### 环境级踩坑（影响面广，其他包也可能中招）
+
+以下问题不是某一个依赖包的 bug，是这套"MSYS2 ucrt64 + `SKIP_TOOLCHAIN` + 长路径
+`subst` 别名"组合本身的坑，花的时间比逐包修复加起来还多：
+
+1. **`exec.in` 的 PATH 拼接把自己写死的路径顶掉了**——`exec.in`
+   （该仓库统一命令执行入口，所有子构建都通过它）把 `@CMAKE_INSTALL_PREFIX@/bin`
+   这个带盘符的 Windows 路径（`C:/...`）直接塞进冒号分隔的 `$PATH`，`C:` 那个冒号
+   被当成 PATH 分隔符，把路径从中截断成两截垃圾条目——这个坑从**第一次**构建就存在，
+   只是长期没暴露，因为没有任何包真的需要从这个目录找工具，直到后面手动放 `ar`/`ranlib`
+   shim 才发现"明明放了文件却死活找不到"。修法：用 `cygpath -u` 转成 POSIX 形式再拼。
+2. **`eval` 重新分词吞掉了带空格的编译参数**——`exec.in` 用
+   `eval "${args[@]}"` 执行最终命令，这一步会把数组元素**拼接成一个字符串再重新按空格
+   分词**，所以像 `-DCMAKE_CXX_FLAGS='${x} -fpermissive'`（CMakeLists.txt 里用单引号，
+   但单引号对 CMake 只是字面字符，不是语法层面的引号）这种"一个参数内部带空格"的写法，
+   会在 eval 阶段被拆成两个独立参数，导致 `-fpermissive` 被当成裸选项报
+   "Unknown argument"。**真正有效的修法不是避免空格，而是让参数内容本身带上转义的
+   `\"`**（例如 `[=[-DCMAKE_CXX_FLAGS=\"-D__STDC_FORMAT_MACROS -fpermissive\"]=]`）——
+   `\"` 在 CMake 生成的中转 `.cmake` 脚本里能正确转义存活，到 eval 阶段这对引号又会被
+   bash 当作真实的 shell 引号，把内部空格保护起来。踩过的弯路：先试过 CMake 语法双引号
+   包裹整个参数（编译期就会被 CMake 自己的 `set(command "...")` 语句里的裸引号
+   提前截断，产生"Argument not separated from preceding token"的语法错误）——所以
+   "空格保护"这件事必须同时扛过两层解析（CMake 生成阶段 + bash eval 阶段），只转义一层
+   不够。
+3. **MSYS2 ucrt64 没有 `x86_64-w64-mingw32-` 前缀的 `ar`/`ranlib`/`nm`/`objcopy`/
+   `strip`**——只有 `gcc-ar`/`gcc-ranlib`/`gcc-nm` 这些 gcc 包装版本（且它们依赖
+   `liblto_plugin.dll` 必须和自己在同一目录，复制到别处就找不到插件），plain
+   `ar.exe`/`ranlib.exe`/`nm.exe`/`objcopy.exe`/`strip.exe` 倒是有但没有目标三元组
+   前缀。openssl/ffmpeg 的 Makefile/configure 都是硬编码 `$(CROSS_COMPILE)ar` 这类
+   前缀名。修法：在根 `CMakeLists.txt` 里 `SKIP_TOOLCHAIN` 分支下用 `file(COPY_FILE)`
+   把这几个 plain 工具复制一份改名放进 `${CMAKE_INSTALL_PREFIX}/bin`（正好在
+   `exec.in` 的 PATH 最前面）。
+4. **`subst X:` 长路径别名下，"resolve 回真实盘符"这条隐藏规则会咬到用 realpath
+   的第三方脚本**——项目根目录路径太深触发 Windows `MAX_PATH`（260 字符）限制
+   （尤其是 shaderc 内嵌 glslang 这类深层 third_party），用 `subst X: <项目根目录>`
+   起一个短别名规避。但这只是"逻辑映射"，某些工具调用 Win32 的
+   `GetFinalPathNameByHandle`（Python `os.path.realpath`、部分 Perl `Cwd::realpath`
+   路径）时会把 `X:\...` 解析回真实的长 `C:\...` 路径——如果某段代码里一部分路径算术
+   用短别名、另一部分被这类 API 解析回长路径，两者混用会得到风马牛不相及的相对路径。
+   实际踩到两处：harfbuzz 的 `gen-harfbuzzcc.py`/`gen-harfbuzz-world.py`（`os.path.abspath`
+   +`os.path.relpath` 混用触发 `ValueError: path is on mount 'X:', start on mount 'C:'`，
+   修法是统一在两侧都用 `os.path.realpath`）和 openssl 的 `Configure`（Perl 的
+   `absolutedir()` helper 只在 `$^O eq "MSWin32"` 时用不解析盘符的 `rel2abs`，MSYS2
+   ucrt64 perl 报的 `$^O` 是 `"cygwin"` 不是 `"MSWin32"`，导致落到会解析的
+   `Cwd::realpath` 分支——不过这条最后发现是误诊，真正原因见下条）。
+5. **openssl 的 `apps/include`/`include/openssl` 输出目录压根没人创建**——上面第4条
+   一度以为是 subst 路径解析问题，深挖后发现真相简单得多：`Configure` 里那段写
+   `configuration.h` 的代码假设 `apps/include`/`include/openssl` 这两个构建期目录
+   已经存在（正常由 Makefile 的其他目标提前 `mkdir` 出来），而我们是直接单独调用
+   `Configure` 脚本、没有跑完整的 `make` 依赖链，这两个目录从未被创建，写文件时报
+   "No such file or directory"。修法：在 `packages/openssl.cmake` 的
+   `CONFIGURE_COMMAND` 前面加两条 `${CMAKE_COMMAND} -E make_directory`。**这是本次
+   踩坑里唯一一次"先深挖了错误方向再回头发现更简单真相"的案例，记录下来提醒自己
+   下次先看错误信息字面意思，别急着上升到"环境级"猜测**。
+
+### 包级踩坑（一次性，逐个修复）
+
+- **vulkan / spirv-cross 的官方 patch 文件因上游内容漂移，`git am --3way` 报
+  `sha1 information is lacking or useless`**——patch 本身没坏，是上游仓库自
+  patch 制作以来又有新提交，导致 patch 的上下文行和当前 HEAD 内容对不上。改用
+  `git apply`（更容忍上下文漂移）+ 失败时退化成"假定已等效应用"的宽松兜底（写了个
+  共享脚本 `apply-patch-idempotent.sh`）。
+- **fontconfig 的补丁同理**，改用 `patch -p1 --fuzz=3` 兜底（`git apply` 比
+  `patch(1)` 严格得多，fuzz 匹配能扛住行号偏移）。
+- **fontconfig 内嵌的 gperf 工具**（`subprojects/gperf`）里 `getopt.c`/`getopt.h`
+  用 `#ifdef __GNU_LIBRARY__` 分支出的旧式 K&R 空参数声明
+  （`extern int strncmp ();`）在 GCC 16 默认 C23 方言下被当成"零参数原型"，导致
+  "too many arguments to function" 编译错误——这是本 session 里第三次遇到同类
+  GCC16/C23 K&R 兼容性问题（前两次是 gmp/libiconv，靠全局 `CFLAGS=-std=gnu17`
+  绕过；这次因为触发条件是 `__GNU_LIBRARY__` 未定义分支，全局 `-std=gnu17` 没扛住，
+  只能手动改这两行声明）。
+- **graphengine / zimg 的官方仓库在 bitbucket.org/the-sekrit-twc**——两个都返回
+  "You may not have access to this repository or it no longer exists"（Bitbucket
+  近年收紧了匿名 git 访问），换成同作者的 GitHub 镜像
+  `github.com/sekrit-twc/{graphengine,zimg}` 解决。
+- **libjxl / freetype2 clone 偶发空 clone**（只有 `.git` 没有工作树文件）——纯网络
+  瞬断（`Failed to connect to github.com:443`），删除后重试即可，不是仓库或配置问题。
+- **ffmpeg 默认要求 `cuda_llvm`**（`--enable-cuda-llvm --enable-cuvid --enable-nvdec
+  --enable-nvenc --enable-ffnvcodec`，定义在 `cmake/packages_check.cmake`）——这台
+  构建机没有 CUDA 工具链，`configure` 报 "cuda_llvm requested but not found"。
+  在 `SKIP_TOOLCHAIN` 分支下改成全部 `--disable-*`：mova 只需要 D3D11VA 解码路径，
+  NVENC/NVDEC 属于可选加分项，不是本次目标。
+- **openal-soft 撞上 GCC16 C++20 modules 与 SSE intrinsics 头文件的编译器级冲突**
+  （`common/phase_shifter.cppm`/`alc/context.cppm` 编译时报
+  `conflicting language linkage for imported declaration '__m128 ...'`，
+  `xmmintrin.h` 里的内联函数在 C++ module 上下文下的语言链接属性和普通翻译单元
+  不一致，这是 GCC 该版本 modules 支持的已知不成熟点，不是配置问题）——回头检查发现
+  ffmpeg.cmake 里 `DEPENDS` 列了 `openal-soft` 但**从未真正传 `--enable-openal`
+  给 ffmpeg configure**，是个挂空依赖，直接从 `DEPENDS` 列表删掉，问题连带消失。
+- **mpv 的 `-Dpdf-build=enabled` 需要 `rst2pdf`**（文档生成工具，未安装）——不需要
+  文档，改 `-Dpdf-build=disabled`。
+- **mpv 配置期报 `Feature egl-angle cannot be enabled`**——`angle-headers` 包只提供
+  头文件，不提供实际编译好的 ANGLE（`libEGL`/`libGLESv2`）库，`SKIP_TOOLCHAIN`
+  环境下从未真正构建过 ANGLE 本体。`cmake/packages_check.cmake` 里 `mpv_gl` 变量
+  在 `SKIP_TOOLCHAIN` 时改成 `-Degl-angle=disabled`，保留普通 `-Dgl=enabled` 即可
+  （mpv 有完整的传统 OpenGL/D3D11 输出路径，不依赖 ANGLE）。
+- **mpv 自带的"去 libass"补丁不完整**——该仓库有一个
+  `mpv-0001-remove-libass.patch`，故意删掉 `sub/osd_libass.c`/`sub/ass_mp.{c,h}`/
+  `sub/sd_ass.c` 这几个文件（推测是为了避免某些许可或依赖层面的顾虑，但整个
+  依赖链里其实另外单独构建了 `libass` 给 ffmpeg/mpv 用，这个"去 libass"更像是
+  只针对 mpv 自身 OSD 渲染入口的一个特化裁剪，而非否定 libass 本身）。但
+  `sub/osd.h` 里声明的 `osd_get_function_sym`/`osd_get_text_size`/
+  `osd_set_external`/`osd_mangle_ass` 四个函数仍被 `player/command.c` 和
+  `player/osd.c` **无条件调用**，补丁没有同步清理这些调用点，导致链接期
+  `undefined reference`。`sub/osd.h` 里其实留了行注释"defined in osd_libass.c
+  and **osd_dummy.c**"——暗示本该有这么一个空实现兜底文件，但补丁作者忘了真的
+  创建它。**这个坑反复踩了 5+ 次**：最初用 patch 文件方式修（新增
+  `mpv-0002-osd-dummy-stub.patch`），但共享脚本 `apply-patch-idempotent.sh` 的
+  "假定已等效应用"兜底逻辑只检查 patch 能否反向 apply，不检查目标文件是否真的存在——
+  每次 mpv 源码因为 `git clone` 重新拉取（网络瞬断重试、或 `force_rebuild_git`
+  触发的完整 reclone）而重置时，这个假阳性就会让 `sub/osd_dummy.c` 悄悄消失但 patch
+  步骤仍显示"成功"。手写 patch 文件时还额外踩过一次 hunk 头行数写错
+  （`@@ -0,0 +1,31 @@` 但实际内容有 35 行），导致 `git apply` 只应用一部分、
+  `osd_mangle_ass` 函数体被整个截断丢失——这类 hunk 一律用 `git diff`/`git commit`
+  差分生成，不要手写行数。**最终修法**：不再依赖 patch 的幂等检测，在 `mpv.cmake` 的
+  `PATCH_COMMAND` 里加一条无条件执行的自愈脚本（`mpv-ensure-osd-dummy.sh`：每次都
+  强制 `cp` 模板文件 `mpv-osd_dummy.c` 到 `sub/osd_dummy.c` + 用 `grep`/`sed`
+  确保 `meson.build` 引用它），完全不依赖 git 状态判断，自愈而非"假设"。
+- **mpv.cmake 复制头文件的源路径写错**——`copy-binary` 步骤里
+  `<SOURCE_DIR>/include/mpv/client.h` 这个路径在 mpv 源码里根本不存在，真实路径是
+  `<SOURCE_DIR>/libmpv/client.h`（`include/mpv/` 更像是"安装后"的最终布局名字，
+  被误当成了源码路径），改一下 `sed` 批量替换即可。
+- **打包收尾的 `rename.sh` 脚本执行失败**（"inappropriate file type or format"）——
+  该仓库用 `file(WRITE ...)` 在 Windows 上生成的 `#!/bin/bash` 脚本带 CRLF 换行，
+  且 `ExternalProject_Add_Step` 直接把这个脚本路径当可执行文件调用（没有 `bash`
+  前缀），Windows 的 `CreateProcess` 不认识 shebang，需要显式 `COMMAND bash
+  ${RENAME} ...`。
+
+### 极限压缩实验记录（2026-08-13，一个变量一个变量测）
+
+在"修好功能缺口"之后（34.62MiB → 装上真正需要的解码器），继续测了几轮压缩手段，
+**一次只改一个变量**（吸取了 batch 测试翻车的教训，见下方"踩过的弯路"）：
+
+| 手段 | 结果 | 结论 |
+|---|---:|---|
+| **OpenSSL → SChannel**（ffmpeg 自身 TLS，Windows 系统自带 API，同 iOS securetransport 思路）+ 去掉 libssh/libsrt（都依赖 openssl 且都不在实际需要的协议范围内） | **34.62 MiB → 26.94 MiB（−7.68MiB / −22%）** | ✅ **本轮唯一有效的手段**，换掉一整个大依赖库的收益远超任何编译器 flag |
+| 去掉 ffmpeg 里 20 个零链接的挂空 DEPENDS（amf-headers/avisynth-headers/bzip2/libmodplug/libpng/libsoxr/libbs2b/libwebp/libzimg/libmysofa/fontconfig/harfbuzz/opus/speex/vorbis/libvpl/libjxl/libxml2/libplacebo 等，逐个用 `libavcodec.pc`/`libavformat.pc` 的 `Libs:`/`Requires:` 字段核实过零链接） | 体积不变（26.94 MiB） | 纯构建时间优化，这些库本来就没被链接进最终产物（ffmpeg 的 `--enable-libXXX` 语义是"只有匹配的 decoder/demuxer/filter 也启用时才真正使用"，光有 DEPENDS 不会让库被链接） |
+| 去掉 libplacebo 依赖的 vulkan/shaderc/spirv-cross（`-Dvulkan=disabled -Dshaderc=disabled`，同时精简 vulkan/shaderc/spirv-cross 三个包整个不用构建） | **体积零变化**（byte-for-byte 相同） | LTO + `--gc-sections` 早就把这部分死代码切干净了，砍依赖本身不影响产物 |
+| 把 `ar`/`ranlib` 从裸二进制复制改成正确调用 `gcc-ar`/`gcc-ranlib`（带 `--plugin=liblto_plugin.dll`，让静态库归档时真正保留 LTO 字节码，而非退化成非 LTO 的"胖"目标文件）——本身是修复此前一个隐藏 bug，全量重建验证 | **体积零变化**（byte-for-byte 相同） | 说明 LTO 在这套构建里本来就有效（`b_lto=true`/`--enable-lto=thin` 起作用了），这次只是排除了"会不会有更多没兑现的 LTO 收益"的疑虑 |
+| 单独测 `-fvisibility=hidden`（只加这一个 flag，不动其他） | **体积零变化**（byte-for-byte 相同） | **根因找到**：Android 该项收益（−669KB）来自 ELF/.so 默认导出所有符号，而 **Windows PE/COFF 默认恰恰相反**——DLL 里的符号默认不导出，必须显式 `__declspec(dllexport)`/`.def` 才会出现在导出表，mpv 自己用 `MPV_EXPORT` 宏做这件事。这个 flag 在 Windows 上是在解决一个根本不存在的问题 |
+| 单独测 `--cpu=x86-64-v2 --disable-runtime-cpudetect`（固定 SSE4.2 基线，砍掉 ffmpeg 为不同 SIMD 等级编译的多份 dispatch 变体，代价是放弃 ~2009 年前的老 CPU 兼容性） | 体积几乎不变（−2KB） | `--enable-small` 本身可能已经在 SIMD 变体数量上做过妥协，这条路径的冗余本来就不多 |
+
+**踩过的弯路**：曾经一次性 batch 打包 `-Doptimization=s`（从 `3` 改）+
+`-fvisibility=hidden` + `--gc-sections` 三个变量一起测，结果体积从 34.62MiB **涨到**
+53.53MiB——回滚后拆开单独测才发现真正拖累的是 `optimization=s` 这一项（具体机制未查，
+猜测是跟 `b_lto_mode=thin`——GCC 其实没有 clang 式的"thin LTO"，只有 fat LTO，混用
+可能导致某种双重编译或退化路径），而不是 visibility。**教训：多个变量一起改，出问题
+后无法定位是哪个变量的锅，必须回滚重测——这次拆开单独测才拿到干净结论**。
+
+**结论**：这套构建的编译器/链接器层面手段已经系统性测完，**26.97MiB（含 D3D11VA 硬解）
+是当前不碰 mpv/ffmpeg 源码前提下的现实下限**。唯一还没测的是物理 patch 源码删代码
+（比如砍掉 libplacebo 的 `vo_gpu_next` 渲染路径——但 libplacebo 在 mpv 0.39
+`meson.build` 里是硬依赖，没有 `required: get_option()` 开关，真要去掉必须手动改 mpv
+源码，风险等级等同于 iOS 那边评估过并放弃的"物理砍 ffmpeg h264 解码器像素代码"，
+用户已确认**暂不深入这个方向**。
+
+### 下一步（未做）
+
+- **接入 mova 工程**：目前只是产物验证阶段，还没接进 Flutter 侧（fork/path override
+  `media_kit_libs_windows_video`，方法同 Android 那节"与 media_kit 集成"）。
+- **真机（真实 Windows 机器）播放验证**：还没有跑过 `example` 应用实际播放视频，
+  只验证了"编译链接通过、产物存在"——这是目前性价比最高、也是唯一必须做的下一步，
+  优先级高于继续抠体积。
+- **UPX 后处理压缩**（搜索到的通用方案，未实测）：号称能把体积压到原来的 ~26%，
+  但 DLL 用 UPX 压缩的稳定性/兼容性不如 EXE，且可能触发杀毒软件误报，加载时也有
+  解压开销——如果要试，必须先验证 `LoadLibrary`/Dart FFI `DynamicLibrary.open`
+  加载 UPX 压缩后的 DLL 没有问题，再谈体积收益。
+- **libplacebo 硬依赖能否物理砍掉**：已评估，风险等级等同物理砍解码器代码，
+  用户已确认暂缓，见上方"极限压缩实验记录"结论。
+- **未跑 x86/x86_64（除本次 x86_64 外）其他架构**：`TARGET_ARCH` 目前只验证了
+  `x86_64-w64-mingw32`，i686/aarch64 交叉编译目标未测试。
 
 ## 已知的进一步优化方向（未做，标注原因）
 
