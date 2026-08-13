@@ -32,27 +32,41 @@ cpuflags=
 # can't use the hw path (no VP9 hwdec, emulators, exotic profiles) will fail
 # to play VP9 outright rather than falling back to software; accepted tradeoff
 # given VP9 hw decode is near-universal on Android 7.0+/2016+ SoCs.
-# AV1 software decode (libdav1d, +671KB) reinstated 2026-08-06 after real-device
-# testing on a Snapdragon "bengal"-tier phone (Android 12, current budget
-# segment, not an old/EOL device) hit "Could not open codec." for AV1 — that
-# chipset has no AV1 hwdec at all. VP9 stays hw-only (its hw coverage is much
-# closer to universal on Android 7.0+); AV1 hw coverage on the actual budget
-# install base isn't there yet, so AV1 gets both av1_mediacodec (hw, tried
-# first) and libdav1d (sw fallback) — the +671KB is worth it for "plays on low-
-# end devices" vs "hard fails".
+# AV1 software decode (libdav1d, +671KB) kept deliberately — real-device testing
+# on a Snapdragon "bengal"-tier phone (Android 12, budget segment, not an old/EOL
+# device) hit "Could not open codec." for AV1 hw. AV1 hwdec coverage on the
+# actual mid/low-tier Android install base still isn't there (unlike h264/hevc),
+# so this stays sw+hw even though the 2026-08-11 baseline is Android 10+.
+# H264 software decode dropped 2026-08-11 (baseline narrowed to Android 10+,
+# no low-end devices) — h264_mediacodec (hw) only. H264 hw decode is CDD-
+# mandated, so hw-only carries far less risk than the VP9 precedent. Still
+# NEEDS REAL-DEVICE REGRESSION TEST before shipping (untested) — the CDD
+# mandate doesn't cover every profile/level/concurrent-session/malformed-
+# stream edge case, which is why the previous sw+hw stance existed in the
+# first place (see README "多平台进度" decoder table).
+# HEVC software decode KEPT (2026-08-11 re-evaluated, not dropped) — hw
+# decode coverage is ~65% and NOT CDD-mandated (per README's decoder table),
+# so unlike h264/VP9, narrowing the baseline to Android 10+ alone doesn't
+# make hw-only safe; dropping this needs real usage-share data first, not
+# just an OS-version floor.
 # MJPEG dropped entirely — png decoder/encoder stays (cover art + screenshot).
-DECODERS_VIDEO="h264,hevc,libdav1d,png"
-DECODERS_AUDIO="aac,aac_latm,mp3,mp3float,opus,ac3,eac3,flac,vorbis,pcm_s16le,pcm_s16be,pcm_s24le,pcm_s32le,pcm_f32le,pcm_u8"
+DECODERS_VIDEO="hevc,libdav1d,png"
+# AC3/EAC3 (Dolby) dropped 2026-08-11 — mova's actual content is AAC/Opus,
+# never Dolby; unrelated to device age, purely "unused by this project".
+# mp3 (fixed-point) dropped in favor of mp3float (floating-point) — ffmpeg
+# ships both as alternate implementations of the same format, only one is
+# needed.
+DECODERS_AUDIO="aac,aac_latm,mp3float,opus,flac,vorbis,pcm_s16le,pcm_s16be,pcm_s24le,pcm_s32le,pcm_f32le,pcm_u8"
 DECODERS_SUB="ass,ssa,subrip,text,webvtt,movtext"
 DECODERS_MEDIACODEC="h264_mediacodec,hevc_mediacodec,vp9_mediacodec,av1_mediacodec"
 DECODERS="$DECODERS_VIDEO,$DECODERS_AUDIO,$DECODERS_SUB,$DECODERS_MEDIACODEC"
 
 ENCODERS="png"
-# vp9/av1 parsers kept even without their software decoders — mpv/ffmpeg
-# still needs them to find frame boundaries before handing frames to
-# vp9_mediacodec/av1_mediacodec.
-PARSERS="h264,hevc,vp9,av1,png,aac,aac_latm,ac3,flac,opus,vorbis,mpegaudio"
-DEMUXERS="mov,matroska,webm_dash_manifest,mpegts,hls,flv,live_flv,data,mp3,flac,ogg,wav,aac,ac3,eac3,ass,srt,webvtt"
+# h264/hevc/vp9/av1 parsers kept even without (or without needing) their
+# software decoders — mpv/ffmpeg still needs them to find frame boundaries
+# before handing frames to the *_mediacodec hw decoders.
+PARSERS="h264,hevc,vp9,av1,png,aac,aac_latm,flac,opus,vorbis,mpegaudio"
+DEMUXERS="mov,matroska,webm_dash_manifest,mpegts,hls,flv,live_flv,data,mp3,flac,ogg,wav,aac,ass,srt,webvtt"
 PROTOCOLS="file,fd,pipe,data,http,https,tcp,tls,crypto,rtmp,rtmps,rtmpt,rtmpts,ffrtmpcrypt,ffrtmphttp,udp,rtp"
 BSFS="null,extract_extradata,h264_mp4toannexb,hevc_mp4toannexb,aac_adtstoasc,vp9_superframe,vp9_superframe_split,av1_frame_split,av1_frame_merge,mov2textsub,dump_extradata,setts"
 # Testing zero filters (was "overlay,equalizer", matching media_kit's own
