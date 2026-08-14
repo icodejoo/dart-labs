@@ -86,20 +86,22 @@
    **6.61MiB（省 44%）**——依次叠加格式裁剪（去 VP8/VP9 软解）+ 编译器/链接器手段
    （`gc-sections`/`-Os`/`-fvisibility=hidden`/跨库 LTO/去 avfilter），逐项都有实测
    数字，不是理论估算。核验通过 MediaCodec 硬解 JavaVM 绑定符号
-   （`mpv_lavc_set_java_vm`）、VP9 硬解符号。**最终产物、可复用 flavor 脚本、
-   buildscripts 补丁、完整技术清单与踩坑记录见
-   [tools/ffmpeg-slim/README.md](tools/ffmpeg-slim/README.md)**（"⭐ 2026-08-06 定稿
-   结果"一节）。mpv 构建选项完整盘点见
-   [doc/notes/2026-07-31-libmpv-slimming-options.md](doc/notes/2026-07-31-libmpv-slimming-options.md)，
+   （`mpv_lavc_set_java_vm`）、VP9 硬解符号。**构建配方（flavor 脚本、buildscripts
+   补丁、CI）已迁到独立子工程 [../mova-libmpv/README.md](../mova-libmpv/README.md)
+   （2026-08-13），完整技术清单与踩坑记录见该文件（"⭐ 2026-08-06 定稿结果"一节）；
+   构建产物仍落在本工程 [tools/ffmpeg-slim/](tools/ffmpeg-slim/)（dist/ 下按平台
+   分目录）**。mpv 构建选项完整盘点见
+   [../mova-libmpv/doc/notes/2026-07-31-libmpv-slimming-options.md](../mova-libmpv/doc/notes/2026-07-31-libmpv-slimming-options.md)，
    ffmpeg 格式范围盘点见
-   [doc/notes/2026-07-31-ffmpeg-slimming-options.md](doc/notes/2026-07-31-ffmpeg-slimming-options.md)。
+   [../mova-libmpv/doc/notes/2026-07-31-ffmpeg-slimming-options.md](../mova-libmpv/doc/notes/2026-07-31-ffmpeg-slimming-options.md)
+   （2026-08-13 起这两份调研笔记也迁到 `mova-libmpv` 了）。
    **尚未做的**：① 去掉 avfilter（`overlay`/`equalizer`）这一步**未过真机播放验证**，
    上线前必须实测 OSD/字幕合成/音频均衡是否受影响；② armv7l/x86/x86_64 三个架构
    还没构建，`--disable-runtime-cpudetect` 这类 arm64 专属优化**不能**照抄过去；
    ③ 还没接入 `media_kit_libs_android_video`（fork 该 libs 包或用 path override
    把预编译 jar 换成自建产物，方法见 README"与 media_kit 集成"一节）；④ 历史 Windows
    spike 数据（ffmpeg 单独 6.26MB，省 79%）已被本次 Android 真机数据取代，仅供参考，
-   见 [doc/plans/2026-07-31-ffmpeg-slim-build-windows.md](doc/plans/2026-07-31-ffmpeg-slim-build-windows.md)。
+   见 [../mova-libmpv/doc/plans/2026-07-31-ffmpeg-slim-build-windows.md](../mova-libmpv/doc/plans/2026-07-31-ffmpeg-slim-build-windows.md)。
    **字幕相关选项（libass/subrandr/uchardet）明确保留待定，不要关**——用户认为 mpv
    原生字幕渲染可能有用，等瘦身构建实测出体积数字后再权衡（与
    [doc/notes/2026-07-31-stt-subtitle-feasibility.md](doc/notes/2026-07-31-stt-subtitle-feasibility.md)

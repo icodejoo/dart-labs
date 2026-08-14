@@ -1,6 +1,6 @@
 # ffmpeg 瘦身：解码器/容器/协议完整盘点（现代主流点播 + 直播范围）
 
-> 2026-07-31 · 调研笔记 · 对应遗留任务 #4「二期 ffmpeg 瘦身」（[CLAUDE.md](../../CLAUDE.md)
+> 2026-07-31 · 调研笔记 · 对应遗留任务 #4「二期 ffmpeg 瘦身」（[CLAUDE.md](../../../mova/CLAUDE.md)
 > 未开始项），与 [2026-07-31-libmpv-slimming-options.md](2026-07-31-libmpv-slimming-options.md)
 > 是同一件事的两个层面——那份盘点 libmpv 自己的构建选项（脚本引擎、字幕渲染、显示/音频
 > 输出后端），本文档盘点**libmpv 底下包的 ffmpeg**：解码器、容器格式（demuxer/muxer）、

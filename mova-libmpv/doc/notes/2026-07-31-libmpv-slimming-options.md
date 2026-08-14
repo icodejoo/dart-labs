@@ -1,6 +1,6 @@
 # libmpv/ffmpeg 瘦身：mpv 构建选项完整盘点
 
-> 2026-07-31 · 调研笔记 · 对应遗留任务 #4「二期 ffmpeg 瘦身」（[CLAUDE.md](../../CLAUDE.md)
+> 2026-07-31 · 调研笔记 · 对应遗留任务 #4「二期 ffmpeg 瘦身」（[CLAUDE.md](../../../mova/CLAUDE.md)
 > 未开始项）。选项来源：mpv 官方仓库 `master` 分支的
 > [`meson.options`](https://github.com/mpv-player/mpv/blob/master/meson.options)
 > （2026-07-31 拉取，逐条核对）。本文档只做**盘点与分类**，不是可执行的瘦身计划——真正
