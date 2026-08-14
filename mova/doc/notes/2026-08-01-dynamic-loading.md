@@ -16,7 +16,8 @@
 ## 1. 应用一：播放器原生库（libmpv/ffmpeg）
 
 - **iOS**：libmpv 是可执行代码，**不能运行时下载**，必须随包 → iOS 减体积只能靠**瘦身**
-  （见 [2026-07-31-ffmpeg-slim-build-windows.md](2026-07-31-ffmpeg-slim-build-windows.md)），
+  （见 [../../../mova-libmpv/doc/plans/2026-07-31-ffmpeg-slim-build-windows.md](../../../mova-libmpv/doc/plans/2026-07-31-ffmpeg-slim-build-windows.md)，
+  2026-08-13 迁到 `mova-libmpv`），
   不能靠动态加载。App Thinning 只按设备架构瘦分发，不是"运行时下载"。
 - **Android**：可用 DFM 把 `media_kit_libs_android_video` 的 `.so` 放进按需模块，基础包
   几乎不含播放器，首播时下载。代价：首播延迟 + 网络依赖 + 需改 media_kit 的加载接线

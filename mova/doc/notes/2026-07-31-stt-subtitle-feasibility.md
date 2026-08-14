@@ -125,7 +125,8 @@ mpv 的实时播放管线。
   裁剪连带影响。但用户认为 mpv 原生字幕渲染（`libass`，喂 `sub-add`/字幕轨）路径仍可能
   有用，**要求先保留 `libass`、等瘦身构建实测出体积数字后再综合权衡**，不要现在就删。
   两条路的取舍详见
-  [2026-07-31-libmpv-slimming-options.md](2026-07-31-libmpv-slimming-options.md) §5。
+  [../../../mova-libmpv/doc/notes/2026-07-31-libmpv-slimming-options.md](../../../mova-libmpv/doc/notes/2026-07-31-libmpv-slimming-options.md) §5
+  （2026-08-13 迁到 `mova-libmpv`）。
   下文（`MovaApi.subtitles`、字幕叠层组件）按 Flutter 侧方案描述，**若最终改走 mpv 原生
   渲染，这部分需要重新设计**。
 - **`MovaApi` 面**（若走 Flutter 侧方案）：预计新增 `MovaApi.subtitles`（字幕流，同 `preview`

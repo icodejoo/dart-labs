@@ -4,7 +4,9 @@ name: Build mova libmpv (all platforms)
 # itself isn't vendored in this repo (pulled fresh from upstream at build
 # time per platform), so "source changes" here means our build recipe: the
 # per-platform ffmpeg configure flavor + the buildscripts patch under
-# tools/ffmpeg-slim/. See mova/tools/ffmpeg-slim/README.md's "多平台进度"
+# mova-libmpv/ (the build-recipe subproject; built artifacts land in
+# mova/tools/ffmpeg-slim/dist/ instead, see the commit steps below). See
+# mova-libmpv/README.md's "多平台进度"
 # table for what's real vs. still-being-verified — every job below now
 # attempts a real build (no more no-op stubs), but darwin/linux/windows are
 # first-attempt "v1"s that haven't been through a green CI run yet the way
@@ -28,7 +30,7 @@ on:
   push:
     branches: [main]
     paths:
-      - 'mova/tools/ffmpeg-slim/**'
+      - 'mova-libmpv/**'
       - '.github/workflows/build-mova-libmpv.yml'
   workflow_dispatch:
 
@@ -74,10 +76,10 @@ jobs:
 
       - name: Apply mova slim-build patch
         working-directory: build-root
-        run: git apply ../mova/tools/ffmpeg-slim/libmpv-android-video-build.patch
+        run: git apply ../mova-libmpv/libmpv-android-video-build.patch
 
       - name: Copy mova ffmpeg flavor into place
-        run: cp mova/tools/ffmpeg-slim/flavors-mova-slim.sh build-root/buildscripts/scripts/ffmpeg.sh
+        run: cp mova-libmpv/flavors-mova-slim.sh build-root/buildscripts/scripts/ffmpeg.sh
 
       # sdkmanager's official NDK download is extremely slow (~0.12MB/s per
       # tools/ffmpeg-slim/README.md's "环境准备" section) — pull the zip
@@ -222,10 +224,10 @@ jobs:
 
       - name: Apply mova slim-build patch
         working-directory: build-root
-        run: git apply ../mova/tools/ffmpeg-slim/libmpv-android-video-build.patch
+        run: git apply ../mova-libmpv/libmpv-android-video-build.patch
 
       - name: Copy mova ffmpeg flavor into place
-        run: cp mova/tools/ffmpeg-slim/flavors-mova-slim.sh build-root/buildscripts/scripts/ffmpeg.sh
+        run: cp mova-libmpv/flavors-mova-slim.sh build-root/buildscripts/scripts/ffmpeg.sh
 
       # Both caches are keyed on pinned versions (NDK_VERSION /
       # ANDROID_LIBMPV_BUILD_REF), not on file hashes — the download scripts
@@ -590,7 +592,7 @@ jobs:
         env:
           PKG_CONFIG_PATH: ${{ env.DEPS }}/lib/pkgconfig
         run: |
-          cp ../mova/tools/ffmpeg-slim/flavors-mova-slim-ios.sh .
+          cp ../mova-libmpv/flavors-mova-slim-ios.sh .
           chmod +x flavors-mova-slim-ios.sh
           ./flavors-mova-slim-ios.sh
 
