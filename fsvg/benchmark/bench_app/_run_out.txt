@@ -1,0 +1,24 @@
+Launching lib\main.dart on Windows in profile mode...
+Building Windows application...                                    74.2s
+✓ Built build\windows\x64\runner\Profile\bench_app.exe
+[IMPORTANT:flutter/shell/platform/embedder/embedder_surface_gl_impeller.cc(126)] Using the Impeller rendering backend (OpenGLESSDF).
+
+Flutter run key commands.
+h List all available interactive commands.
+c Clear the screen
+q Quit (terminate the application on the device).
+
+A Dart VM Service on Windows is available at: http://127.0.0.1:5936/4FiSWboEi3Q=/
+The Flutter DevTools debugger and profiler on Windows is available at: http://127.0.0.1:5936/4FiSWboEi3Q=/devtools/?uri=ws://127.0.0.1:5936/4FiSWboEi3Q=/ws
+=== BENCH REPORT lib=BenchLib.fsvg items=1000 cycles=6 ===
+frames=643
+build : avg=1.591ms p50=1.372ms p90=2.725ms p99=4.504ms max=5.966ms (n=643)
+raster: avg=3.001ms p50=2.675ms p90=4.458ms p99=6.341ms max=8.117ms (n=643)
+framesOver16.6ms=0 framesOver8.3ms=0
+parse : avg=0.062ms p50=0.043ms p90=0.124ms p99=0.327ms max=1.337ms (n=1000) (fsvg only; flutter_svg has no equivalent public hook)
+rss_peak_mb=234.98
+rss_steady_after_scroll_mb=231.58
+rss_after_idle_mb=232.37
+=== END BENCH REPORT ===
+
+Lost connection to device.

@@ -1,0 +1,17 @@
+include: package:flutter_lints/flutter.yaml
+
+analyzer:
+  exclude:
+    - build/**
+    - android/**
+    - ios/**
+    - web/**
+    - windows/**
+    - macos/**
+    - linux/**
+    # F baseline, relocated out of lib/ (see benchmark/baseline_f/README.md) —
+    # not part of the shipped package, not wired into pubspec.yaml.
+    - benchmark/**
+
+# Additional information about this file can be found at
+# https://dart.dev/guides/language/analysis-options
