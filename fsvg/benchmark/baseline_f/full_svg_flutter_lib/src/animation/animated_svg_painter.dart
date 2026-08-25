@@ -1,0 +1,470 @@
+import 'dart:math' as math;
+import 'dart:typed_data';
+import 'dart:ui' as ui;
+
+import 'package:flutter/rendering.dart';
+
+import 'css_animations.dart';
+import 'css_cascade.dart';
+import 'css_named_colors.dart';
+import 'css_variables_calc.dart';
+import 'path_data.dart';
+import 'path_parser.dart';
+import 'preserve_aspect_ratio.dart';
+import 'smil/motion_path.dart';
+import 'switch_processing.dart';
+import 'svg_dom.dart';
+import 'svg_filters.dart';
+import 'svg_transform.dart';
+import 'svg_use_references.dart';
+import 'transform_3d.dart';
+
+part 'animated_svg_painter_cache.dart';
+part 'animated_svg_painter_types.dart';
+part 'animated_svg_painter_text_types.dart';
+part 'animated_svg_painter_use_constants.dart';
+part 'animated_svg_painter_use_context.dart';
+part 'animated_svg_painter_use.dart';
+part 'animated_svg_painter_use_foreign_object.dart';
+part 'animated_svg_painter_tree.dart';
+part 'animated_svg_painter_clip_mask.dart';
+part 'animated_svg_painter_clip_mask_geometry.dart';
+part 'animated_svg_painter_clip_mask_units.dart';
+part 'animated_svg_painter_clip_nested.dart';
+part 'animated_svg_painter_mask_luminance.dart';
+part 'animated_svg_painter_mask_clip_combination.dart';
+part 'animated_svg_painter_clip_mask_composition.dart';
+part 'animated_svg_painter_clip_mask_advanced.dart';
+part 'animated_svg_painter_shapes_basic.dart';
+part 'animated_svg_painter_shapes_lines.dart';
+part 'animated_svg_painter_shapes_rect.dart';
+part 'animated_svg_painter_shapes_image.dart';
+part 'animated_svg_painter_shapes_paths.dart';
+part 'animated_svg_painter_text_paint.dart';
+part 'animated_svg_painter_text_paint_path.dart';
+part 'animated_svg_painter_text_paint_glyph.dart';
+part 'animated_svg_painter_text_paint_plain.dart';
+part 'animated_svg_painter_text_style.dart';
+part 'animated_svg_painter_text_style_font.dart';
+part 'animated_svg_painter_text_style_decoration.dart';
+part 'animated_svg_painter_text_style_layout.dart';
+part 'animated_svg_painter_text_style_resolution.dart';
+part 'animated_svg_painter_text_positioning.dart';
+part 'animated_svg_painter_text_style_rendering.dart';
+part 'animated_svg_painter_text_decoration.dart';
+part 'animated_svg_painter_text_layout_measurement.dart';
+part 'animated_svg_painter_text_layout_render.dart';
+part 'animated_svg_painter_text_measurement.dart';
+part 'animated_svg_painter_svg_fonts.dart';
+part 'animated_svg_painter_geometry.dart';
+part 'animated_svg_painter_geometry_foreign_object.dart';
+part 'animated_svg_painter_geometry_path.dart';
+part 'animated_svg_painter_paints.dart';
+part 'animated_svg_painter_gradients.dart';
+part 'animated_svg_painter_gradients_resolver.dart';
+part 'animated_svg_painter_gradients_values.dart';
+part 'animated_svg_painter_matrix.dart';
+part 'animated_svg_painter_values.dart';
+part 'animated_svg_painter_transform.dart';
+part 'animated_svg_painter_markers.dart';
+part 'animated_svg_painter_patterns.dart';
+part 'animated_svg_painter_paint_order.dart';
+part 'animated_svg_painter_devtools.dart';
+
+/// CustomPainter for rendering an animated SVG
+///
+/// Uses SvgDocument with already-applied animated attribute values
+/// (via AnimatableSvgAttribute.effectiveValue).
+///
+/// For static subtrees (hasAnimations = false), cachedPicture can be used
+/// for optimization.
+class AnimatedSvgPainter extends CustomPainter {
+  /// Creates a painter for an animated SVG
+  AnimatedSvgPainter({
+    required this.document,
+    this.backgroundColor,
+    this.imagesByHref = const <String, ui.Image>{},
+    this.convolvedImagesByFilterKey = const <String, ui.Image>{},
+    this.lightingImagesByFilterKey = const <String, ui.Image>{},
+    this.displacementImagesByFilterKey = const <String, ui.Image>{},
+    this.animationTime,
+    this.hasAnimations = false,
+    this.clipToViewBox = false,
+    this.debugHighlightedNode,
+    // ignore: library_private_types_in_public_api
+    _RenderCache? renderCache,
+  }) : _renderCache = renderCache ?? _RenderCache();
+
+  /// SVG document with current (animated) attribute values
+  final SvgDocument document;
+
+  /// Background color (optional)
+  final ui.Color? backgroundColor;
+
+  /// Decoded raster images keyed by raw `href`/`xlink:href` value.
+  final Map<String, ui.Image> imagesByHref;
+
+  /// Precomputed convolution outputs keyed by `<href>|<filterId>`.
+  final Map<String, ui.Image> convolvedImagesByFilterKey;
+
+  /// Precomputed lighting outputs keyed by `<href>|<filterId>|<size>|<kind>`.
+  final Map<String, ui.Image> lightingImagesByFilterKey;
+
+  /// Precomputed displacement outputs keyed by `<filterId>|<size>`.
+  final Map<String, ui.Image> displacementImagesByFilterKey;
+
+  /// Current animation time in seconds (for cache invalidation).
+  final double? animationTime;
+
+  /// Whether the document has animations.
+  final bool hasAnimations;
+
+  /// When true, clips rendered content to the SVG viewBox.
+  ///
+  /// Per SVG spec, the root element defaults to overflow:hidden, but many
+  /// SVGs intentionally place animated decorations (e.g. coins) outside the
+  /// viewBox. Set this to true to enforce strict viewBox clipping and match
+  /// the behaviour of browsers viewing the SVG file directly (not embedded
+  /// in an HTML page with CSS-forced dimensions).
+  final bool clipToViewBox;
+
+  /// Debug-only live DOM node to outline after normal SVG painting.
+  final SvgNode? debugHighlightedNode;
+
+  /// Performance cache for computed render values.
+  final _RenderCache _renderCache;
+
+  final Map<String, _ResolvedGradientDefinition?> _gradientCache =
+      <String, _ResolvedGradientDefinition?>{};
+  final Map<String, _ResolvedMarkerDefinition?> _markerCache =
+      <String, _ResolvedMarkerDefinition?>{};
+  final Map<String, _ResolvedPatternDefinition?> _patternCache =
+      <String, _ResolvedPatternDefinition?>{};
+  final Map<String, MotionPath> _motionPathCache = <String, MotionPath>{};
+  Map<String, _SvgFontDefinition>? _svgFontsByFamilyCache;
+  Map<String, _SvgFontDefinition>? _svgFontsByIdCache;
+  Map<String, String>? _svgFontFamilyToFontIdCache;
+  _FilterPaintState _currentFilterPaintState =
+      const _FilterPaintState.initial();
+
+  @override
+  void paint(ui.Canvas canvas, ui.Size size) {
+    // Prepare cache for this frame
+    _renderCache.prepareFrame(animationTime, hasAnimations);
+
+    // Clear definition caches when animation time changes, so animated
+    // stop-color, marker, and pattern values are re-read from DOM nodes.
+    if (hasAnimations) {
+      _gradientCache.clear();
+      _markerCache.clear();
+      _patternCache.clear();
+    }
+
+    // Set up CSS rules from document for use-referenced content resolution
+    _currentDocumentCssRules = document.cssSelectorRules;
+    _currentDocumentCssResolver = _currentDocumentCssRules == null
+        ? null
+        : CssCascadeResolver(cssRules: _currentDocumentCssRules!);
+
+    // Compute the viewBox → size transform
+    final transform = _computeViewBoxTransform(size);
+
+    canvas.save();
+    canvas.transform(transform.storage);
+
+    // When clipToViewBox is enabled, clip to the SVG viewBox in SVG
+    // coordinate space so that content outside it (e.g. coins animated
+    // beyond the card boundary) is hidden, matching browser direct-URL
+    // rendering where overflow:hidden clips to the SVG viewport.
+    final viewBox = document.activeViewBox;
+    if (clipToViewBox && viewBox != null) {
+      canvas.clipRect(
+        ui.Rect.fromLTWH(
+          viewBox.left,
+          viewBox.top,
+          viewBox.width,
+          viewBox.height,
+        ),
+      );
+    }
+
+    // Apply background inside the transformed (and possibly clipped) context:
+    // 1) explicit widget parameter backgroundColor
+    // 2) fallback to root SVG style/background-color
+    // Drawing in SVG coordinate space ensures the background respects both
+    // the viewBox transform and the clipToViewBox clip, matching browser
+    // behaviour where background-color is bounded by the SVG viewport.
+    final resolvedBackgroundColor =
+        backgroundColor ?? _resolveDocumentBackgroundColor();
+    if (resolvedBackgroundColor != null) {
+      final bgRect = viewBox != null
+          ? ui.Rect.fromLTWH(
+              viewBox.left,
+              viewBox.top,
+              viewBox.width,
+              viewBox.height,
+            )
+          : ui.Rect.fromLTWH(0, 0, size.width, size.height);
+      canvas.drawRect(bgRect, ui.Paint()..color = resolvedBackgroundColor);
+    }
+
+    // Paint the root node
+    _paintNode(canvas, document.root);
+
+    final highlightedNode = debugHighlightedNode;
+    if (highlightedNode != null) {
+      _paintFullSvgDebugHighlight(this, canvas, document.root, highlightedNode);
+    }
+
+    canvas.restore();
+
+    // Clean up global CSS rules reference
+    _currentDocumentCssRules = null;
+    _currentDocumentCssResolver = null;
+  }
+
+  /// Computes the transformation matrix for the viewBox
+  Matrix4 _computeViewBoxTransform(ui.Size size) {
+    // Use active viewBox (from <view> element if selected, otherwise root viewBox).
+    // When no explicit viewBox is present, synthesize one from the document's
+    // declared width/height — per SVG spec the user coordinate system then maps
+    // 1:1 to the viewport defined by those dimensions.
+    var viewBox = document.activeViewBox;
+
+    if (viewBox == null) {
+      final docW = document.width;
+      final docH = document.height;
+      if (docW != null && docH != null && docW > 0 && docH > 0) {
+        viewBox = ui.Rect.fromLTWH(0, 0, docW, docH);
+      } else {
+        return Matrix4.identity();
+      }
+    }
+
+    final layout = resolveSvgViewportLayout(
+      viewport: ui.Rect.fromLTWH(0, 0, size.width, size.height),
+      sourceSize: viewBox.size,
+      preserveAspectRatio: document.activePreserveAspectRatio,
+    );
+    final scaleX = layout.destinationRect.width / viewBox.width;
+    final scaleY = layout.destinationRect.height / viewBox.height;
+    final translateX = layout.destinationRect.left - viewBox.left * scaleX;
+    final translateY = layout.destinationRect.top - viewBox.top * scaleY;
+
+    return Matrix4.identity()
+      ..translateByDouble(translateX, translateY, 0, 1)
+      ..scaleByDouble(scaleX, scaleY, 1, 1);
+  }
+
+  ui.Color? _resolveDocumentBackgroundColor() {
+    final root = document.root;
+
+    final backgroundAttr = _getString(root, 'background-color');
+    if (backgroundAttr != null && backgroundAttr.trim().isNotEmpty) {
+      final color = _parseColor(backgroundAttr);
+      if (color != null) {
+        return color;
+      }
+    }
+
+    final styleAttr = _getString(root, 'style');
+    if (styleAttr == null || styleAttr.trim().isEmpty) {
+      return null;
+    }
+
+    for (final declaration in styleAttr.split(';')) {
+      final colonIndex = declaration.indexOf(':');
+      if (colonIndex <= 0) {
+        continue;
+      }
+      final property = declaration
+          .substring(0, colonIndex)
+          .trim()
+          .toLowerCase();
+      if (property != 'background-color') {
+        continue;
+      }
+      final value = declaration.substring(colonIndex + 1).trim();
+      if (value.isEmpty) {
+        continue;
+      }
+      final color = _parseColor(value);
+      if (color != null) {
+        return color;
+      }
+    }
+
+    return null;
+  }
+
+  /// Paints a node and its children
+  void _paintNode(ui.Canvas canvas, SvgNode node, {Set<String>? useStack}) {
+    _paintNodeImpl(this, canvas, node, useStack: useStack);
+  }
+
+  /// Measures node bounds in current SVG user units.
+  ui.Rect measureNodeBounds(SvgNode node) {
+    return _getNodeBounds(node);
+  }
+
+  /// Measures the rendered SourceGraphic bounds used to size a filter target.
+  ///
+  /// Uses the same shared fill-geometry resolver as [measureNodeBounds] so
+  /// filter targets and bounding-box-based transforms agree on object bounds.
+  ui.Rect measureFilterTargetBounds(SvgNode node) {
+    return _resolveFilterTargetBounds(node);
+  }
+
+  /// Builds a stable cache identity for SourceGraphic precomputation.
+  ///
+  /// A definition may be painted through more than one `<use>` instance. The
+  /// construction-time node keys avoid collisions between id-less siblings,
+  /// while the ordered use chain distinguishes separate render instances of
+  /// the same definition.
+  static String sourceFilterTargetInstanceKey(
+    SvgNode targetNode,
+    Iterable<SvgNode> useChain,
+  ) {
+    final chainKey = useChain.map((node) => node.nodeKey).join('>');
+    return chainKey.isEmpty
+        ? targetNode.nodeKey
+        : '${targetNode.nodeKey}|$chainKey';
+  }
+
+  /// Paints a node subtree to the provided canvas.
+  ///
+  /// When [ignoreFilter] is true, the target node's `filter` attribute is
+  /// temporarily disabled so callers can capture SourceGraphic content. A
+  /// non-empty [useChain] replays the render instance's inherited properties
+  /// and, by default, coordinate transforms. Set [applyUseTransforms] to
+  /// false to capture in the target's local filter coordinate space while
+  /// preserving use-element inheritance.
+  void paintNodeForRaster(
+    ui.Canvas canvas,
+    SvgNode node, {
+    bool ignoreFilter = false,
+    List<SvgNode> useChain = const <SvgNode>[],
+    bool applyUseTransforms = true,
+  }) {
+    final nodesToDisable = <SvgNode>{
+      if (ignoreFilter) node,
+      if (ignoreFilter) ...useChain,
+    };
+    final originalFilters = <SvgNode, String>{};
+    for (final candidate in nodesToDisable) {
+      final originalFilter = candidate.getRawAttributeValue('filter');
+      if (originalFilter == null || originalFilter.trim().isEmpty) {
+        continue;
+      }
+      originalFilters[candidate] = originalFilter;
+      candidate.setAttribute('filter', 'none', rawValue: 'none');
+    }
+
+    // Raster-capture painters are constructed ad hoc and may not have run
+    // the normal paint entry point that initializes these globals, yet
+    // inherited style resolution depends on them. Initialize from the
+    // document when missing, and restore the previous values afterwards.
+    final previousCssRules = _currentDocumentCssRules;
+    final previousCssResolver = _currentDocumentCssResolver;
+    if (_currentDocumentCssRules == null) {
+      _currentDocumentCssRules = document.cssSelectorRules;
+      _currentDocumentCssResolver = _currentDocumentCssRules == null
+          ? null
+          : CssCascadeResolver(cssRules: _currentDocumentCssRules!);
+    }
+
+    try {
+      if (useChain.isEmpty) {
+        _paintNode(canvas, node);
+      } else {
+        _paintNodeForRasterInUseContext(
+          canvas,
+          node,
+          useChain,
+          applyUseTransforms: applyUseTransforms,
+        );
+      }
+    } finally {
+      _currentDocumentCssRules = previousCssRules;
+      _currentDocumentCssResolver = previousCssResolver;
+      for (final entry in originalFilters.entries) {
+        entry.key.setAttribute('filter', entry.value, rawValue: entry.value);
+      }
+    }
+  }
+
+  /// Replays the use-element chain so the captured SourceGraphic has the same
+  /// inherited properties as its render instance.
+  ///
+  /// Each use element adds a `_UseInheritanceContext` link so inheritable
+  /// properties such as `fill` flow into the painted subtree exactly as they
+  /// do during normal rendering. When [applyUseTransforms] is true, each use
+  /// also contributes its transform and x/y translation in _paintUse order.
+  void _paintNodeForRasterInUseContext(
+    ui.Canvas canvas,
+    SvgNode node,
+    List<SvgNode> useChain, {
+    required bool applyUseTransforms,
+  }) {
+    _UseInheritanceContext? useContext;
+    var saveCount = 0;
+    try {
+      for (final useNode in useChain) {
+        final hrefId = _extractHrefId(useNode);
+        if (hrefId == null || hrefId.isEmpty) {
+          return;
+        }
+        useContext = _UseInheritanceContext(
+          useNode: useNode,
+          parentContext: useContext,
+          cssRules: _currentDocumentCssRules ?? useContext?.cssRules,
+          shadowRootId: hrefId,
+        );
+        if (applyUseTransforms) {
+          canvas.save();
+          saveCount++;
+          _applyTransform(canvas, useNode);
+          canvas.translate(
+            _getNumber(useNode, 'x') ?? 0.0,
+            _getNumber(useNode, 'y') ?? 0.0,
+          );
+        }
+      }
+      // Simulate the SVG shadow tree: the clone's parent is the innermost
+      // <use>, so inherited-property lookups on the node must see the use
+      // chain rather than the node's definition-site ancestors. Restored in
+      // the finally below; this mutation assumes single-threaded capture.
+      final previousParent = node.parent;
+      node.parent = useChain.last;
+      try {
+        _paintNodeImplWithUseContext(
+          this,
+          canvas,
+          node,
+          useStack: <String>{
+            for (final useNode in useChain)
+              if (_extractHrefId(useNode) case final String hrefId) hrefId,
+          },
+          useContext: useContext,
+        );
+      } finally {
+        node.parent = previousParent;
+      }
+    } finally {
+      for (var i = 0; i < saveCount; i++) {
+        canvas.restore();
+      }
+    }
+  }
+
+  @override
+  bool shouldRepaint(AnimatedSvgPainter oldDelegate) {
+    // Always repaint, as animations may have changed values
+    return true;
+  }
+
+  @override
+  bool shouldRebuildSemantics(AnimatedSvgPainter oldDelegate) {
+    return false;
+  }
+}
