@@ -78,3 +78,28 @@
 5. 有实测正收益才覆盖 `prebuilt/android/jniLibs/*/libsvgx.so`，并跑 `dart run tool/build_prebuilt.dart --restage` 更新 `MANIFEST.json`。
 6. 在本文件"已落地"表格追加一行，并在 `docs/size-optimization-history.md` 按既有风格追加完整调研过程记录。
 7. 如果改动跨平台（比如换 nightly 版本号），如实标注"仅在 Android 验证，其余平台未逐一实测"这类方法学局限，不要假装已全平台验证。
+
+## 五、跨平台架构候选（不是 RUSTFLAGS 调优，是链接方式变更）
+
+这类候选不改 Rust 编译参数，改的是"静态链接 vs 动态链接"这个更底层的分发架构，收益量级和验证方式都跟上面几节的 flag 试验不同，单独记录。
+
+### iOS：staticlib + `-force_load` → cdylib + XCFramework（2026-08-26 立项，进行中）
+
+- **动机**：Windows 上实测过，同一份代码 staticlib 比 cdylib 大 **3.69×**（`svgx.lib` 1,813,706 字节 vs `svgx.dll` 491,008 字节，见 `docs/PRECOMPILED_MIGRATION_PLAN.md`）——staticlib 没有"最终链接"这一步，rustc 无法做死代码消除，项目又用 `-force_load` 主动关掉了 Xcode 端本可做的裁剪（保住 flutter_rust_bridge 的符号注册）。当前 iOS 产物：`ios/device/libsvgx.a` 1,153,600 字节（单架构 arm64）、`ios/simulator/libsvgx.a` 1,870,912 字节（lipo 合并 arm64-sim+x86_64）。
+- **方案**：iOS target 改产出 cdylib（`libsvgx.dylib`），打包成 `.xcframework`（device + simulator 两个 platform variant，simulator 内部仍需 lipo 合并 arm64+x86_64），`ios/svgx.podspec` 从 `vendored_libraries`+`-force_load` 改为 `vendored_frameworks`。iOS App Store 不允许裸 `.dylib`，必须走 framework 封装，但这一步完全由 CI 在打包阶段完成，`Embed & Sign` 由 CocoaPods+Xcode 自动处理，消费方零手动操作。
+- **状态**：已派 agent 实施+用 CI 的 macOS runner 验证（本机 Windows 没有 Apple 工具链，无法本地验证），结果未回收，见对话记录后续更新。
+- **已知风险**：CocoaPods 对"动态库"XCFramework 的支持比"静态库"XCFramework 成熟（项目之前否决静态 XCFramework 正是因为 CocoaPods 有对应 issue），但仍需 CI 实测确认没有新的坑。
+
+### macOS：staticlib + `-force_load` → cdylib + framework（2026-08-26 立项，**已完成并 CI 验证**）
+
+- **动机**：同样的 3.7× 结构性膨胀在 macOS 上存在。改造前 `prebuilt/macos/libsvgx.a` 1,849,136 字节（lipo 合并 arm64+x86_64 的 fat 归档）。
+- **实测收益**：改造后 `macos/svgx.framework/Versions/A/svgx` **881,208 字节**（同样是 arm64+x86_64 的 fat 二进制），加 786 字节的 `Info.plist` 共 881,994 字节，**降幅 52.3%**。导出符号 14 个 `frb_*`，`install_name` 为 `@rpath/svgx.framework/Versions/A/svgx`。
+- **方案（与 iOS 的差异）**：macOS 只有**一个平台变体**，arm64 与 x86_64 只是同一个 fat 二进制的两个架构，没有需要 XCFramework 去区分的 slice——因此**不套 `.xcframework`，直接分发一个通用 `.framework`**。但 bundle 必须是**版本化**的（`Versions/A/…` 加三个符号链接），macOS 的 `codesign` 不接受 iOS 那种扁平 framework。`macos/svgx.podspec` 从 `vendored_libraries`+`-force_load` 改为 `vendored_frameworks = 'svgx.framework'`，同时删掉 `Classes/`（有源文件时 CocoaPods 会另编一个同名 framework 撞车）。
+- **符号链接与 git**：三个符号链接以 mode `120000` 直接写进 index。它们**不进 MANIFEST.json** —— Windows 检出（`core.symlinks=false`）会把它们落成普通文本文件，纳入哈希会让清单依赖宿主。改由 CI 的 macOS job 断言其存在，那也是唯一能真正证明布局正确的手段。
+- **Notarization / Hardened Runtime**：未出现问题。产物不预签名，Xcode 在 `Embed & Sign` 阶段用消费方证书重新签名；CI 的 `codesign --verify` 对嵌入后的 bundle 检查通过。这条 macOS 专属风险到此关闭。
+
+### 已排除：把现有 fat `.a` 拆成两个单架构 `.a`，靠 `OTHER_LDFLAGS[arch=...]` 条件加载（2026-08-26）
+
+- **表面上的论证是"universal app 场景不亏、单架构 app 场景能省"，实际不成立**：`-force_load` + fat archive 机制下，链接器读取 fat `.a` 时本来就只抽取匹配当前目标架构的 thin slice——不管是不是拆成两个文件，单架构 app 场景下最终链接进产物的字节数已经是最小的了，没有"另一半被浪费"这回事。拆分唯一可能省的是**仓库/pod 下载体积**（fat 归档本身的 lipo 对齐开销），量级很小，不影响最终 app 体积。
+- **代价是真实的**：要按架构选文件必须绕开 `vendored_libraries`（该字段不支持按 `[arch=]` 条件筛选，会无脑把两个文件都塞进链接行），改手写 `OTHER_LDFLAGS[arch=arm64]`/`[arch=x86_64]` 条件分支——这条路径在 CocoaPods 生态里踩坑案例比 `[sdk=]`（设备/模拟器）分支少得多，正确性没法本机验证。
+- **结论**：收益边际、有真实正确性风险，不做。真正能解决体积问题的是上面的"改动态库"方向，不是这个。
