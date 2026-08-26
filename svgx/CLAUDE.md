@@ -678,8 +678,23 @@ logcat 明确:先尝试 Vulkan(`android_context_vk_impeller.cc`),随即回落到
 
 最接近的类比仍然是 [flutter/flutter#164735](https://github.com/flutter/flutter/issues/164735)("Black screen with Impeller enabled",无 GPU passthrough 的 macOS 虚拟机里 Impeller 拿不到真实 GPU 而黑屏,且 3.39+ 之后再也没有关掉 Impeller 的开关)——**架构上同类(虚拟化 GPU + 无法关闭的 Impeller),但不是同一个 bug**,如实记录为"最接近的先例",不要当成已确认的根因引用。
 
-### 六、以后在 WSA 上做目视验证的实操建议
+### 六、追加实测(2026-08-26):`EnableImpeller=false` manifest 开关仍然有效
+
+命令行 `--no-enable-impeller` 已经失效,但 **`AndroidManifest.xml` 里的等价 meta-data 开关目前(Flutter 3.47)仍然生效**,亲自实测两轮确认(先用纯 `Scaffold+AppBar+Text` 验证,再用真实 `SvgX.string`(含动画描边 + 静态渐变)+ `AppBar` 组合验证,WSA 上都恢复正常显示):
+
+```xml
+<!-- example/android/app/src/main/AndroidManifest.xml, <application> 标签内 -->
+<meta-data
+    android:name="io.flutter.embedding.android.EnableImpeller"
+    android:value="false" />
+```
+
+跑起来后 logcat 会打印一条明确的弃用警告(`[Action Required]: Impeller opt-out deprecated ... These options are going to go away in an upcoming Flutter release`)——**这条开关官方标注为即将移除,不是长期方案**,只在需要给 WSA 做目视验证时临时加,验证完就撤掉,**不要留在实际 example app / 发布配置里**:
+- 真机完全不需要它(真机上 `AppBar`+Impeller 从未出过问题,详见上文"逐层剥离"实测)。
+- 一旦某个未来 Flutter 版本真的把这个开关删掉,留着它反而会变成一处随时会失效的技术债。
+
+### 七、以后在 WSA 上做目视验证的实操建议
 
 1. **不要用 `adb screencap`**,用 Windows 侧的 `PrintWindow` 抓 WSA 窗口;截图前先用 `dumpsys window windows` 确认 `mHasSurface=true`。
-2. **验证页面不要用 `Scaffold(appBar: AppBar(...))`**——换成 `appBar: null`,或用 `PreferredSize + Container` 自制顶栏。这是目前唯一实测有效的规避手段(`--no-enable-impeller` 已失效)。
+2. **需要用到 `Scaffold(appBar: AppBar(...))` 的页面**,验证前临时在 `AndroidManifest.xml` 加上面那条 `EnableImpeller=false` meta-data,验证完记得撤掉;也可以选择直接把测试页面的 `AppBar` 换成 `appBar: null` + `PreferredSize/Container` 自制顶栏,两种规避手段都实测有效,看哪种对当次验证更省事。
 3. WSA 只适合当"能不能跑起来"的冒烟环境。**性能基准和最终目视验收要以真机为准**,WSA 的模拟 GLES 驱动既不代表真实 GPU 性能,也会制造上面这种假故障。
