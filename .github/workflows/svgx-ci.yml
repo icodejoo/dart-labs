@@ -1,0 +1,474 @@
+name: svgx CI
+
+# svgx ships a Rust core (parsed via flutter_rust_bridge + cargokit) behind a
+# Dart/Flutter plugin API. cargokit hooks the Rust cross-compile into each
+# platform's native build step (Gradle for Android, Xcode build phase for
+# iOS/macOS, CMake ExternalProject for Windows/Linux) — so CI verifies
+# cross-compilation by driving `flutter build <platform>` on the example app,
+# not by invoking `cargo build` per target manually. Pure-Rust unit tests
+# (rust/src/**) get their own standalone `cargo test` job that doesn't need
+# cargokit or Flutter at all.
+#
+# Toolchain policy (updated 2026-08-26 — nightly build-std is now wired into
+# the real packaging pipeline):
+#
+#   * Test/analyze jobs (rust-test, dart-analyze, flutter-test) and any *debug*
+#     platform build stay on **stable**. `cargo test` cannot run under
+#     `-Z build-std` at all (it hits `duplicate lang item`, because build-std
+#     compiles core/alloc for both host and target).
+#   * Any job that runs a **release** platform build (build-windows /
+#     build-ios / build-macos / build-linux) now goes through cargokit's
+#     `release` configuration, which `svgx/rust/cargokit.yaml` pins to
+#     `nightly-2026-06-24` + `-Z build-std=std,panic_abort` +
+#     `RUSTFLAGS=-Zunstable-options -Cpanic=immediate-abort`. That shrinks the
+#     packaged native library ~21.4% (624,640 -> 491,008 bytes on Windows,
+#     measured through `flutter build windows`). Those jobs therefore install
+#     the pinned nightly toolchain + the `rust-src` component explicitly.
+#     (cargokit would auto-install both via rustup, but doing it as a visible
+#     step keeps failures obvious and the version in one place.)
+#   * build-android uses `flutter build apk --debug`, i.e. cargokit's `debug`
+#     configuration, so it stays on stable and needs no nightly step.
+#   * build-android-release (new 2026-08-26) verifies `flutter build apk
+#     --release` in CI for the first time — this path had only been run
+#     locally before. It follows the same nightly + rust-src pattern as the
+#     other release jobs above.
+#
+# Bumping RUST_RELEASE_TOOLCHAIN must stay in sync with
+# `svgx/rust/cargokit.yaml`, `svgx/rust/build-release.ps1`, `svgx/README.md`
+# and `svgx/CLAUDE.md`.
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'svgx/**'
+      - '.github/workflows/svgx-ci.yml'
+  pull_request:
+    paths:
+      - 'svgx/**'
+      - '.github/workflows/svgx-ci.yml'
+
+env:
+  FLUTTER_VERSION: '3.47.0'
+  # Pinned nightly used by cargokit's `release` configuration (build-std).
+  # Must match `svgx/rust/cargokit.yaml`.
+  RUST_RELEASE_TOOLCHAIN: 'nightly-2026-06-24'
+
+jobs:
+  rust-test:
+    name: Rust unit tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@1.96.0
+
+      - name: Cache Cargo registry + target
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            svgx/rust/target
+          key: svgx-cargo-${{ runner.os }}-${{ hashFiles('svgx/rust/Cargo.lock') }}
+          restore-keys: |
+            svgx-cargo-${{ runner.os }}-
+
+      - name: cargo test
+        working-directory: svgx/rust
+        run: cargo test --all-features
+
+  dart-analyze:
+    name: Dart analyze + format
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          cache: true
+
+      - name: Package dependencies
+        working-directory: svgx
+        run: flutter pub get
+
+      - name: flutter analyze
+        working-directory: svgx
+        run: flutter analyze
+
+      - name: dart format check
+        working-directory: svgx
+        run: dart format --output=none --set-exit-if-changed .
+
+  flutter-test:
+    name: Flutter unit tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          cache: true
+
+      - name: Package dependencies
+        working-directory: svgx
+        run: flutter pub get
+
+      # No native build step here on purpose: svgx/test/*.dart wraps
+      # RustLib.init() in try/catch and skips itself with a printed message
+      # when the native library isn't loadable under plain `flutter test`
+      # (host VM, no platform build) — see rust_gradient_smoke_test.dart and
+      # rust_image_smoke_test.dart. Pure-Dart tests (animation/) still run
+      # for real either way.
+      - name: flutter test
+        working-directory: svgx
+        run: flutter test
+
+  # Platform build jobs are chained via `needs:` on purpose (see CLAUDE.md
+  # "CI/CD 执行方针"): one platform builds at a time, and `needs:` failure
+  # semantics (native to GitHub Actions) mean a failure stops the chain
+  # without wasting runner time on downstream platforms. Order rationale:
+  # cheapest/fastest runners first, most expensive last —
+  #   windows (windows-latest, desktop build)
+  #   -> android (ubuntu-latest, debug-only APK, fastest signal)
+  #   -> android-release (ubuntu-latest, release APK, nightly build-std)
+  #   -> linux (ubuntu-latest, desktop build)
+  #   -> macos (macos-latest, native desktop build)
+  #   -> ios (macos-latest, full Xcode toolchain, slowest/most complex)
+  # rust-test / dart-analyze / flutter-test are NOT part of this chain —
+  # they are fast, platform-agnostic checks and keep running in parallel.
+  build-windows:
+    name: Build example (Windows)
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          cache: true
+
+      - name: Enable Windows desktop
+        run: flutter config --enable-windows-desktop
+
+      # Release platform builds go through cargokit's `release` configuration,
+      # which svgx/rust/cargokit.yaml pins to a dated nightly plus
+      # `-Z build-std=std,panic_abort` (the latter needs the `rust-src`
+      # component). Installing it explicitly keeps the version visible here.
+      - name: Install pinned nightly toolchain (build-std)
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: ${{ env.RUST_RELEASE_TOOLCHAIN }}
+          components: rust-src
+
+      - name: Cache Cargo registry + target
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            svgx/rust/target
+          key: svgx-cargo-windows-${{ hashFiles('svgx/rust/Cargo.lock') }}
+          restore-keys: |
+            svgx-cargo-windows-
+
+      - name: Example dependencies
+        working-directory: svgx/example
+        run: flutter pub get
+
+      # cargokit's CMake ExternalProject step cross-compiles the Rust crate
+      # and links it into the plugin's native library as part of this build —
+      # no separate `cargo build` invocation needed.
+      - name: flutter build windows
+        working-directory: svgx/example
+        run: flutter build windows
+
+  build-android:
+    name: Build example (Android)
+    needs: build-windows
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          cache: true
+
+      - name: Install Android NDK 28
+        run: |
+          NDK_VERSION="28.0.13004108"
+          "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --install "ndk;$NDK_VERSION"
+          echo "ANDROID_NDK_HOME=$ANDROID_HOME/ndk/$NDK_VERSION" >> "$GITHUB_ENV"
+
+      - name: Cache Cargo registry + target
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            svgx/rust/target
+          key: svgx-cargo-android-${{ hashFiles('svgx/rust/Cargo.lock') }}
+          restore-keys: |
+            svgx-cargo-android-
+
+      - name: Cache Gradle caches + wrapper
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: svgx-gradle-${{ hashFiles('svgx/example/android/**/*.gradle*', 'svgx/example/android/gradle/wrapper/gradle-wrapper.properties') }}
+          restore-keys: |
+            svgx-gradle-
+
+      - name: Example dependencies
+        working-directory: svgx/example
+        run: flutter pub get
+
+      # Unsigned debug build — no signing keys involved. cargokit's Gradle
+      # hook cross-compiles the Rust crate for all 4 Android ABIs and bundles
+      # the resulting .so files into the APK.
+      - name: flutter build apk --debug
+        working-directory: svgx/example
+        run: flutter build apk --debug
+
+  build-android-release:
+    name: Build example (Android release)
+    needs: build-android
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          cache: true
+
+      - name: Install Android NDK 28
+        run: |
+          NDK_VERSION="28.0.13004108"
+          "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --install "ndk;$NDK_VERSION"
+          echo "ANDROID_NDK_HOME=$ANDROID_HOME/ndk/$NDK_VERSION" >> "$GITHUB_ENV"
+
+      # Release platform builds go through cargokit's `release` configuration,
+      # which svgx/rust/cargokit.yaml pins to a dated nightly plus
+      # `-Z build-std=std,panic_abort` (the latter needs the `rust-src`
+      # component). Installing it explicitly keeps the version visible here.
+      - name: Install pinned nightly toolchain (build-std)
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: ${{ env.RUST_RELEASE_TOOLCHAIN }}
+          components: rust-src
+
+      - name: Cache Cargo registry + target
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            svgx/rust/target
+          key: svgx-cargo-android-release-${{ hashFiles('svgx/rust/Cargo.lock') }}
+          restore-keys: |
+            svgx-cargo-android-release-
+
+      - name: Cache Gradle caches + wrapper
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: svgx-gradle-${{ hashFiles('svgx/example/android/**/*.gradle*', 'svgx/example/android/gradle/wrapper/gradle-wrapper.properties') }}
+          restore-keys: |
+            svgx-gradle-
+
+      - name: Example dependencies
+        working-directory: svgx/example
+        run: flutter pub get
+
+      # Unsigned release build — no signing keys involved in CI. cargokit's
+      # Gradle hook cross-compiles the Rust crate for all 4 Android ABIs
+      # through the pinned nightly build-std release configuration and
+      # bundles the resulting .so files into the APK. This is the first time
+      # this path runs in CI (previously only verified locally) — see
+      # svgx/CLAUDE.md.
+      - name: flutter build apk --release
+        working-directory: svgx/example
+        run: flutter build apk --release
+
+  build-ios:
+    name: Build example (iOS)
+    needs: build-macos
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          cache: true
+
+      # Release platform builds go through cargokit's `release` configuration,
+      # which svgx/rust/cargokit.yaml pins to a dated nightly plus
+      # `-Z build-std=std,panic_abort` (the latter needs the `rust-src`
+      # component). Installing it explicitly keeps the version visible here.
+      - name: Install pinned nightly toolchain (build-std)
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: ${{ env.RUST_RELEASE_TOOLCHAIN }}
+          components: rust-src
+
+      - name: Cache Cargo registry + target
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            svgx/rust/target
+          key: svgx-cargo-ios-${{ hashFiles('svgx/rust/Cargo.lock') }}
+          restore-keys: |
+            svgx-cargo-ios-
+
+      # Podfile.lock doesn't exist until `flutter pub get`/pod install has run
+      # at least once, so the first CI run on a given Cargo/Flutter version
+      # falls back to the restore-keys prefix; every run after that hits the
+      # precise key.
+      - name: Cache CocoaPods
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/Library/Caches/CocoaPods
+            svgx/example/ios/Pods
+          key: svgx-pods-ios-${{ hashFiles('svgx/example/ios/Podfile.lock') }}
+          restore-keys: |
+            svgx-pods-ios-
+
+      - name: Example dependencies
+        working-directory: svgx/example
+        run: flutter pub get
+
+      # --no-codesign: no signing identity/provisioning profile available in
+      # CI. cargokit's Xcode build phase cross-compiles the Rust crate for
+      # the iOS targets as part of this build.
+      - name: flutter build ios --no-codesign
+        working-directory: svgx/example
+        run: flutter build ios --no-codesign
+
+  build-macos:
+    name: Build example (macOS)
+    needs: build-linux
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          cache: true
+
+      - name: Enable macOS desktop
+        run: flutter config --enable-macos-desktop
+
+      # Release platform builds go through cargokit's `release` configuration,
+      # which svgx/rust/cargokit.yaml pins to a dated nightly plus
+      # `-Z build-std=std,panic_abort` (the latter needs the `rust-src`
+      # component). Installing it explicitly keeps the version visible here.
+      - name: Install pinned nightly toolchain (build-std)
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: ${{ env.RUST_RELEASE_TOOLCHAIN }}
+          components: rust-src
+
+      - name: Cache Cargo registry + target
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            svgx/rust/target
+          key: svgx-cargo-macos-${{ hashFiles('svgx/rust/Cargo.lock') }}
+          restore-keys: |
+            svgx-cargo-macos-
+
+      # Podfile.lock doesn't exist until `flutter pub get`/pod install has run
+      # at least once, so the first CI run on a given Cargo/Flutter version
+      # falls back to the restore-keys prefix; every run after that hits the
+      # precise key.
+      - name: Cache CocoaPods
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/Library/Caches/CocoaPods
+            svgx/example/macos/Pods
+          key: svgx-pods-macos-${{ hashFiles('svgx/example/macos/Podfile.lock') }}
+          restore-keys: |
+            svgx-pods-macos-
+
+      - name: Example dependencies
+        working-directory: svgx/example
+        run: flutter pub get
+
+      - name: flutter build macos
+        working-directory: svgx/example
+        run: flutter build macos
+
+  build-linux:
+    name: Build example (Linux)
+    needs: build-android-release
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Linux desktop build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ninja-build libgtk-3-dev cmake pkg-config
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          cache: true
+
+      - name: Enable Linux desktop
+        run: flutter config --enable-linux-desktop
+
+      # Release platform builds go through cargokit's `release` configuration,
+      # which svgx/rust/cargokit.yaml pins to a dated nightly plus
+      # `-Z build-std=std,panic_abort` (the latter needs the `rust-src`
+      # component). Installing it explicitly keeps the version visible here.
+      - name: Install pinned nightly toolchain (build-std)
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: ${{ env.RUST_RELEASE_TOOLCHAIN }}
+          components: rust-src
+
+      - name: Cache Cargo registry + target
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            svgx/rust/target
+          key: svgx-cargo-linux-${{ hashFiles('svgx/rust/Cargo.lock') }}
+          restore-keys: |
+            svgx-cargo-linux-
+
+      - name: Example dependencies
+        working-directory: svgx/example
+        run: flutter pub get
+
+      - name: flutter build linux
+        working-directory: svgx/example
+        run: flutter build linux
