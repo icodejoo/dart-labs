@@ -9,6 +9,7 @@ export 'src/rust/frb_generated.dart' show RustLib;
 // paint), see svgx CLAUDE.md architecture decision: animation stays in Dart
 // while Rust handles static parsing. Does NOT vendor any third-party engine.
 export 'src/animation/animated_svg_widget.dart' show SvgXAnimated;
+export 'src/animation/svg_document_cache.dart' show SvgDocumentCache;
 export 'src/animation/svg_theme.dart' show SvgTheme;
 
 // Rust (usvg) backed static SVG renderer.

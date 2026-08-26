@@ -28,6 +28,7 @@ import 'dart:ui' as ui;
 import 'package:flutter/widgets.dart';
 import 'package:svgx/src/animation/animated_svg_painter.dart';
 import 'package:svgx/src/animation/animation_detector.dart';
+import 'package:svgx/src/animation/svg_document_cache.dart';
 import 'package:svgx/src/animation/svg_document_parser.dart';
 import 'package:svgx/src/animation/svg_theme.dart';
 import 'package:svgx/src/rust_static_svg.dart';
@@ -114,6 +115,34 @@ List<MicroResult> runMicroBenchmarks() {
   final animIcons = animIconsReal;
   final cache = RustSvgPictureCache.instance;
 
+  // Calibration: a fixed pure-Dart scan over the same icon data, using only
+  // `String.length`/`String.codeUnitAt`. NEVER change this benchmark — its
+  // whole value is being a constant yardstick. Other work on the machine
+  // (this repo's parallel Rust build, for one) shifts every absolute number
+  // in a run by a common factor; dividing a measurement's change by this
+  // one's change separates "the code got faster" from "the machine got
+  // busier". Same paired-comparison logic `docs/performance-benchmarks.md`
+  // already applies with the flutter_svg arm, just at microbenchmark scale.
+  //
+  // 校准项：对同一批图标数据做固定的纯 Dart 扫描，只用
+  // `String.length`/`String.codeUnitAt`。**永远不要改动这个基准**——它的全部
+  // 价值就在于当一根恒定的标尺。机器上的其它负载（比如本仓库并行进行的 Rust
+  // 构建）会让一次运行里所有绝对值同乘一个系数；把某项的变化量除以本项的
+  // 变化量，就能把"代码变快了"与"机器变忙了"区分开。这与
+  // `docs/performance-benchmarks.md` 里用 flutter_svg 那一组做配对对照是同一个
+  // 逻辑，只是尺度落到微基准。
+  results.add(
+    _measure('calibration_codeunit_scan', staticIcons.length, () {
+      var angleBrackets = 0;
+      for (final src in staticIcons) {
+        for (var i = 0; i < src.length; i++) {
+          if (src.codeUnitAt(i) == 0x3C) angleBrackets++;
+        }
+      }
+      if (angleBrackets < 0) throw StateError('unreachable');
+    }, trials: 9),
+  );
+
   // --- Static path -------------------------------------------------------
   // Cold parse + ui.Picture record for 1000 distinct real icons: the
   // cache-miss cost every icon pays exactly once.
@@ -167,6 +196,32 @@ List<MicroResult> runMicroBenchmarks() {
     }),
   );
 
+  // The `<image>` sniff `SvgXStatic` used to run on *every* rebuild, versus
+  // the cache lookup that now takes its place on the warm path. The pattern
+  // below deliberately mirrors `SvgXStatic._imagePattern` (private) so the
+  // removed work can be quantified.
+  //
+  // `SvgXStatic` 过去**每次**重建都要做的 `<image>` 嗅探，对比现在热路径上取代
+  // 它的缓存查找。下面的正则刻意与私有的 `SvgXStatic._imagePattern` 一致，
+  // 以便量化被去掉的这部分开销。
+  final imagePattern = RegExp(r'<image[\s>]', caseSensitive: false);
+  results.add(
+    _measure('static_image_sniff_removed_work', staticIcons.length, () {
+      var hits = 0;
+      for (final src in staticIcons) {
+        if (imagePattern.hasMatch(src)) hits++;
+      }
+      if (hits < 0) throw StateError('unreachable');
+    }),
+  );
+  results.add(
+    _measure('static_cache_peek_added_work', staticIcons.length, () {
+      for (final src in staticIcons) {
+        cache.peek(src);
+      }
+    }),
+  );
+
   // --- Animation path ----------------------------------------------------
   // One-time document parse per animated icon: paid on every widget mount,
   // i.e. every time a cell scrolls into view in the anim_fps scenario.
@@ -178,6 +233,22 @@ List<MicroResult> runMicroBenchmarks() {
         parseAnimatedSvgDocument(src);
       }
     }, warmups: 2, trials: 5),
+  );
+
+  // Same mount work once the document cache is warm — what a re-mount costs
+  // after the first appearance of an icon.
+  // 文档缓存预热后同样的挂载工作——图标首次出现之后，再次挂载要付多少。
+  final documentCache = SvgDocumentCache.instance;
+  documentCache.maximumSize = animIcons.length + 50;
+  for (final src in animIcons) {
+    documentCache.getOrParse(src);
+  }
+  results.add(
+    _measure('anim_document_cache_hit', animIcons.length, () {
+      for (final src in animIcons) {
+        documentCache.getOrParse(src);
+      }
+    }),
   );
 
   // Per-frame paint cost: the dominant repeated work of the animation engine.
