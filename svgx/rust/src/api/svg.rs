@@ -362,21 +362,42 @@ pub struct SvgGradient {
 #[flutter_rust_bridge::frb(sync)]
 pub fn parse_svg(data: String, current_color: Option<u32>) -> Result<SvgScene, String> {
     let data = match current_color {
-        Some(argb) => inject_current_color(&data, argb),
+        Some(argb) => inject_current_color(data, argb),
         None => data,
     };
-    let opt = usvg::Options::default();
-    // No `opt.fontdb` assignment: usvg's `system-fonts`/`text` features are
-    // disabled (see rust/Cargo.toml), so `Options` has no `fontdb` field to
-    // set here. `<text>` sources still parse fine — they just yield no glyph
-    // geometry (see the `usvg::Node::Text` arm in `collect` below).
-    //
-    // 不再赋值 `opt.fontdb`：usvg 的 `system-fonts`/`text` feature 已关闭
-    // （见 rust/Cargo.toml），`Options` 上已没有 `fontdb` 字段可设。含
-    // `<text>` 的源依然能正常解析——只是不产生字形几何（见下方 `collect`
-    // 里的 `usvg::Node::Text` 分支）。
-    let tree = usvg::Tree::from_str(&data, &opt).map_err(|e| e.to_string())?;
+    let tree = usvg::Tree::from_str(&data, usvg_options()).map_err(|e| e.to_string())?;
     Ok(scene_from_tree(&tree))
+}
+
+/// The process-wide `usvg::Options`, built once.
+///
+/// `Options::default()` heap-allocates on every call (the default `font_family`
+/// String, the `languages` Vec plus its one String, and the two boxed
+/// `image_href_resolver` closures) and this crate never varies any of them per
+/// call, so building it per `parse_svg` was pure waste. Sharing one instance is
+/// sound because usvg declares both resolver closures `Send + Sync + 'static`
+/// and `Tree::from_str` only ever reads `Options`.
+///
+/// No `fontdb`/`font_resolver` field is set: usvg's `system-fonts`/`text`
+/// features are disabled (see rust/Cargo.toml), so those fields do not exist.
+/// `<text>` sources still parse fine — they just yield no glyph geometry (see
+/// the `usvg::Node::Text` arm in [collect]).
+///
+/// 进程级共享的 `usvg::Options`，只构建一次。
+///
+/// `Options::default()` 每次调用都会在堆上分配（默认 `font_family` String、
+/// `languages` Vec 及其中的一个 String、两个装箱的 `image_href_resolver`
+/// 闭包），而本 crate 从不按调用改动其中任何一项，所以每次 `parse_svg` 都重建
+/// 纯属浪费。共享一份是安全的：usvg 把两个 resolver 闭包声明为
+/// `Send + Sync + 'static`，且 `Tree::from_str` 只读 `Options`。
+///
+/// 不设置 `fontdb`/`font_resolver` 字段：usvg 的 `system-fonts`/`text` feature
+/// 已关闭（见 rust/Cargo.toml），这两个字段并不存在。含 `<text>` 的源依然能
+/// 正常解析——只是不产生字形几何（见 [collect] 里的 `usvg::Node::Text` 分支）。
+#[flutter_rust_bridge::frb(ignore)]
+fn usvg_options() -> &'static usvg::Options<'static> {
+    static OPTIONS: std::sync::OnceLock<usvg::Options<'static>> = std::sync::OnceLock::new();
+    OPTIONS.get_or_init(usvg::Options::default)
 }
 
 /// Flattens an already-parsed usvg tree into the wire [SvgScene].
@@ -416,22 +437,36 @@ pub(crate) fn scene_from_tree(tree: &usvg::Tree) -> SvgScene {
 /// 给根 `<svg>` 标签注入 `color="#RRGGBB"` 属性（若尚未声明）。让 usvg 自身的
 /// `currentColor` 级联解析（读取 `color` 属性并向上查找祖先）能用上调用方
 /// 提供的颜色——usvg 本身并未为此暴露专门的 Option。
-fn inject_current_color(data: &str, argb: u32) -> String {
-    let hex = format!("#{:06X}", argb & 0x00FF_FFFF);
+/// Takes [data] by value and hands it back untouched on every path that needs
+/// no injection, so the three early exits cost nothing; only the injecting path
+/// allocates, and it allocates exactly once (`String::with_capacity` at the
+/// final length, then hex nibbles pushed straight in — no `format!` temporaries).
+///
+/// 按值接收 [data]，不需要注入的分支原样返回，三个提前返回路径零成本；只有
+/// 真正注入的分支分配，且只分配一次（`String::with_capacity` 直接给到最终
+/// 长度，十六进制位逐个 push 进去——不产生 `format!` 中间量）。
+fn inject_current_color(data: String, argb: u32) -> String {
     let Some(tag_start) = data.find("<svg") else {
-        return data.to_string();
+        return data;
     };
     let insert_at = tag_start + "<svg".len();
     let Some(rel_tag_end) = data[insert_at..].find('>') else {
-        return data.to_string();
+        return data;
     };
     let tag_end = insert_at + rel_tag_end;
     if data[insert_at..tag_end].contains("color=") {
-        return data.to_string();
+        return data;
     }
-    let mut out = String::with_capacity(data.len() + hex.len() + 10);
+    const ATTR: &str = " color=\"#RRGGBB\"";
+    const HEX: &[u8; 16] = b"0123456789ABCDEF";
+    let mut out = String::with_capacity(data.len() + ATTR.len());
     out.push_str(&data[..insert_at]);
-    out.push_str(&format!(" color=\"{}\"", hex));
+    out.push_str(" color=\"#");
+    let rgb = argb & 0x00FF_FFFF;
+    for shift in [20, 16, 12, 8, 4, 0] {
+        out.push(HEX[((rgb >> shift) & 0xF) as usize] as char);
+    }
+    out.push('"');
     out.push_str(&data[insert_at..]);
     out
 }
@@ -713,39 +748,73 @@ fn map(t: &Transform, p: Point) -> (f32, f32) {
 
 /// Appends [p]'s segments, mapped through [t], onto [verbs]/[points].
 ///
-/// 把 [p] 的路径段经 [t] 映射后追加到 [verbs]/[points]。
+/// Reads tiny-skia's two parallel arrays (`verbs()`/`points()`) directly instead
+/// of driving the `segments()` iterator. tiny-skia documents `Path` as "compact
+/// storage, where segment types and numbers are stored separately", and the
+/// points array is already in exactly the order this wire format wants (move 1,
+/// line 1, quad 2, cubic 3, close 0 points) — so the iterator's per-segment
+/// last-point/last-move bookkeeping was pure overhead, and the raw slices give
+/// exact lengths to reserve up front instead of growing both Vecs by doubling.
+///
+/// 直接读 tiny-skia 的两个平行数组（`verbs()`/`points()`），不再驱动
+/// `segments()` 迭代器。tiny-skia 文档写明 `Path` 是"紧凑存储，段类型与数值
+/// 分开存放"，而点数组的顺序恰好就是本 wire 格式要的顺序（move 1 点、line 1
+/// 点、quad 2 点、cubic 3 点、close 0 点）——因此迭代器那套 last-point/
+/// last-move 记账纯属额外开销，且拿到裸切片就能提前按精确长度 reserve，
+/// 不必让两个 Vec 靠翻倍扩容长大。
 fn append_segments(p: &usvg::Path, t: &Transform, verbs: &mut Vec<u8>, points: &mut Vec<f32>) {
-    for seg in p.data().segments() {
-        match seg {
-            usvg::tiny_skia_path::PathSegment::MoveTo(pt) => {
-                verbs.push(0);
-                let (x, y) = map(t, pt);
-                points.push(x);
-                points.push(y);
-            }
-            usvg::tiny_skia_path::PathSegment::LineTo(pt) => {
-                verbs.push(1);
-                let (x, y) = map(t, pt);
-                points.push(x);
-                points.push(y);
-            }
-            usvg::tiny_skia_path::PathSegment::QuadTo(a, b) => {
-                verbs.push(2);
-                for pt in [a, b] {
-                    let (x, y) = map(t, pt);
-                    points.push(x);
-                    points.push(y);
-                }
-            }
-            usvg::tiny_skia_path::PathSegment::CubicTo(a, b, c) => {
-                verbs.push(3);
-                for pt in [a, b, c] {
-                    let (x, y) = map(t, pt);
-                    points.push(x);
-                    points.push(y);
-                }
-            }
-            usvg::tiny_skia_path::PathSegment::Close => verbs.push(4),
+    use usvg::tiny_skia_path::PathVerb;
+
+    let data = p.data();
+    let src_verbs = data.verbs();
+    verbs.reserve(src_verbs.len());
+    for v in src_verbs {
+        verbs.push(match v {
+            PathVerb::Move => 0,
+            PathVerb::Line => 1,
+            PathVerb::Quad => 2,
+            PathVerb::Cubic => 3,
+            PathVerb::Close => 4,
+        });
+    }
+    append_mapped_points(t, data.points(), points);
+}
+
+/// Appends [src] mapped through [t] as flattened x,y pairs onto [out].
+///
+/// Dispatches on the transform's shape *once for the whole slice* — the same
+/// four cases `Transform::map_points` picks between, in the same order and with
+/// the same arithmetic, so the output is bit-identical to the previous
+/// point-at-a-time `map_points(&mut [pt])` calls, which redid that dispatch per
+/// point (and, at `opt-level = "z"`, paid a real call per point too).
+///
+/// 把 [src] 经 [t] 映射后作为扁平 x,y 对追加到 [out]。
+///
+/// **对整个切片只做一次**变换形态分派——与 `Transform::map_points` 内部相同的
+/// 四个分支、相同顺序、相同算式，因此输出与此前逐点调用
+/// `map_points(&mut [pt])` 的结果逐位一致；而那种写法每个点都要重做一次分派
+/// （在 `opt-level = "z"` 下还要真的付一次函数调用）。
+fn append_mapped_points(t: &Transform, src: &[Point], out: &mut Vec<f32>) {
+    out.reserve(src.len() * 2);
+    if t.is_identity() {
+        for p in src {
+            out.push(p.x);
+            out.push(p.y);
+        }
+    } else if t.is_translate() {
+        for p in src {
+            out.push(p.x + t.tx);
+            out.push(p.y + t.ty);
+        }
+    } else if t.is_scale_translate() {
+        for p in src {
+            out.push(p.x * t.sx + t.tx);
+            out.push(p.y * t.sy + t.ty);
+        }
+    } else {
+        for p in src {
+            out.push(p.x * t.sx + p.y * t.kx + t.tx);
+            out.push(p.x * t.ky + p.y * t.sy + t.ty);
         }
     }
 }
