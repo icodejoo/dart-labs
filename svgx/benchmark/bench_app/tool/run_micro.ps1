@@ -25,17 +25,22 @@ if (-not (Test-Path $exe)) {
   exit 1
 }
 
-$best = [ordered]@{}
+$report = Join-Path ([System.IO.Path]::GetTempPath()) "svgx_micro_report.txt"
+if (Test-Path $report) { Remove-Item $report }
+$env:SVGX_MICRO_OUT = $report
+
 for ($i = 1; $i -le $Runs; $i++) {
-  $out = & $exe 2>$null
-  foreach ($line in $out) {
-    if ($line -match '^(?<name>\w+): min=(?<min>[\d.]+)us/unit') {
-      $name = $Matches['name']
-      $val = [double]$Matches['min']
-      if (-not $best.Contains($name) -or $val -lt $best[$name]) { $best[$name] = $val }
-    }
-  }
+  & $exe | Out-Null
   Write-Host "run $i done"
+}
+
+$best = [ordered]@{}
+foreach ($line in (Get-Content $report)) {
+  if ($line -match '(?<name>\w+): min=(?<min>[\d.]+)us/unit') {
+    $name = $Matches['name']
+    $val = [double]$Matches['min']
+    if (-not $best.Contains($name) -or $val -lt $best[$name]) { $best[$name] = $val }
+  }
 }
 
 Write-Host ""

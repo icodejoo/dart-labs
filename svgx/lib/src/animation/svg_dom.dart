@@ -240,4 +240,25 @@ class SvgNode {
   /// 填入（解码是异步的，解析不是）。解析完成前为 `null`，非 image 节点始终
   /// 为 `null`。
   ui.Image? resolvedImage;
+
+  /// Paint-time cache of this node's geometry [ui.Path], with
+  /// [geometryCacheKey] identifying what it was built from. Owned entirely by
+  /// `animated_svg_painter.dart`'s `_geometryPath` — nothing else reads or
+  /// writes these two fields.
+  ///
+  /// Lives on the node rather than on the painter because a painter instance
+  /// is created per frame while the node tree outlives every frame.
+  ///
+  /// 本节点几何 [ui.Path] 的绘制期缓存，[geometryCacheKey] 标识它是由什么构建
+  /// 出来的。完全由 `animated_svg_painter.dart` 的 `_geometryPath` 持有——没有
+  /// 其它地方读写这两个字段。
+  ///
+  /// 之所以挂在节点上而不是绘制器上：绘制器实例每帧新建一个，而节点树的寿命
+  /// 长于任何一帧。
+  ui.Path? cachedGeometry;
+
+  /// Identity key for [cachedGeometry] — see that field.
+  ///
+  /// [cachedGeometry] 的身份键——见该字段。
+  Object? geometryCacheKey;
 }
