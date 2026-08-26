@@ -70,6 +70,9 @@ Future<int> _run(List<String> args) async {
     // iOS XCFramework 必须放在 pod 根目录而非 `prebuilt/` 下（见
     // kIosXcframework），因此要单独枚举。
     found.addAll(iosXcframeworkFiles(root));
+    // Same for the macOS framework bundle (see kMacosFramework).
+    // macOS framework bundle 同理（见 kMacosFramework）。
+    found.addAll(macosFrameworkFiles(root));
     found.sort();
     // Restage rebuilds the picture from disk, so entries whose file is gone
     // (an artifact layout change, e.g. iOS `.a` -> `.xcframework`) must be
@@ -176,7 +179,6 @@ Future<int> _run(List<String> args) async {
   final produced = <String>[];
   for (final t in buildable) {
     if (t.output == null) continue;
-    if (t.group == 'macos') continue; // handled by the lipo step below
     final dest = File('${root.path}/prebuilt/${t.output}');
     dest.parent.createSync(recursive: true);
     File(built[t.triple]!).copySync(dest.path);
@@ -201,8 +203,11 @@ Future<int> _run(List<String> args) async {
     stdout.writeln('  -> rust/target/release/${t.cargoArtifact} (host loader)');
   }
 
-  // Apple lipo merges: iOS simulator (arm64 + x86_64) and macOS universal.
-  // Apple 侧 lipo 合并：iOS 模拟器（arm64 + x86_64）与 macOS 通用库。
+  // Apple framework packaging: the iOS XCFramework (device slice + a lipo'd
+  // simulator slice) and the single universal macOS framework.
+  //
+  // Apple 侧 framework 打包：iOS 的 XCFramework（device slice + lipo 合并的模拟器
+  // slice），以及 macOS 单个通用 framework。
   if (host == 'macos') {
     if (built.containsKey('aarch64-apple-ios') &&
         built.containsKey('aarch64-apple-ios-sim') &&
@@ -220,11 +225,12 @@ Future<int> _run(List<String> args) async {
     }
     if (built.containsKey('aarch64-apple-darwin') &&
         built.containsKey('x86_64-apple-darwin')) {
-      await _lipo(root, [
-        built['aarch64-apple-darwin']!,
-        built['x86_64-apple-darwin']!,
-      ], 'macos/libsvgx.a');
-      produced.add('macos/libsvgx.a');
+      produced.addAll(
+        await _buildMacosFramework(root, <String>[
+          built['aarch64-apple-darwin']!,
+          built['x86_64-apple-darwin']!,
+        ]),
+      );
     }
   }
 
@@ -423,26 +429,119 @@ Map<String, String>? _crossEnv(
   return env;
 }
 
-/// `lipo -create`s [inputs] into `prebuilt/<relative>`.
+/// Packages the macOS `cdylib` slices into `macos/svgx.framework` and returns
+/// the produced file paths as manifest keys.
 ///
-/// 把 [inputs] 用 `lipo -create` 合并到 `prebuilt/<relative>`。
-Future<void> _lipo(Directory root, List<String> inputs, String relative) async {
-  final dest = File('${root.path}/prebuilt/$relative');
-  dest.parent.createSync(recursive: true);
-  final r = await Process.run('lipo', <String>[
+/// 把 macOS 的 cdylib 各架构打包成 `macos/svgx.framework`，返回清单键形式的产物列表。
+///
+/// [dylibs] are the per-architecture cdylibs (`arm64`, `x86_64`) to `lipo` into
+/// one fat binary.
+///
+/// macOS has a single platform variant, so unlike iOS there is nothing for an
+/// XCFramework to disambiguate — one universal `.framework` is the whole story
+/// and `xcodebuild -create-xcframework` would only add a wrapper layer.
+/// Unlike iOS, the bundle must be *versioned* (`Versions/A/...` plus three
+/// symlinks): `codesign` rejects a flat framework on macOS with "bundle format
+/// unrecognized, invalid, or unsuitable", and Xcode signs every embedded
+/// framework at "Embed & Sign" time.
+///
+/// macOS 只有一个平台变体，不像 iOS 需要 XCFramework 去区分 slice——一个通用
+/// `.framework` 就是全部，再套 `xcodebuild -create-xcframework` 只是多一层包装。
+/// 与 iOS 不同的是 bundle 必须是*版本化*的（`Versions/A/...` 加三个符号链接）：
+/// macOS 的 `codesign` 会以 “bundle format unrecognized, invalid, or unsuitable”
+/// 拒绝扁平 framework，而 Xcode 在 “Embed & Sign” 阶段会给每个嵌入的 framework 签名。
+Future<List<String>> _buildMacosFramework(
+  Directory root,
+  List<String> dylibs,
+) async {
+  final staging = File('${root.path}/rust/target/macos-fat/libsvgx.dylib');
+  staging.parent.createSync(recursive: true);
+  await _exec('lipo', <String>[
     '-create',
-    ...inputs,
+    ...dylibs,
     '-output',
-    dest.path,
+    staging.path,
   ]);
-  if (r.exitCode != 0) {
-    throw StateError('lipo failed for $relative: ${r.stderr}');
+
+  // The old static layout (`prebuilt/macos/libsvgx.a`) must not survive next to
+  // the new bundle, and a stale bundle must not be merged into.
+  //
+  // 旧的静态布局（`prebuilt/macos/libsvgx.a`）不能与新 bundle 并存，陈旧的 bundle
+  // 也不能被增量合并。
+  final bundle = Directory('${root.path}/prebuilt/$kMacosFramework');
+  for (final stale in <Directory>[
+    bundle,
+    Directory('${root.path}/prebuilt/macos'),
+  ]) {
+    if (stale.existsSync()) stale.deleteSync(recursive: true);
   }
-  // `strip -x` drops local symbols from the archive while keeping every global
-  // symbol the linker (and -force_load) needs.
-  // `strip -x` 去掉归档里的本地符号，保留链接器与 -force_load 需要的全局符号。
-  await Process.run('strip', <String>['-x', dest.path]);
-  stdout.writeln('  -> prebuilt/$relative (${dest.lengthSync()} bytes)');
+
+  final versionA = Directory('${bundle.path}/Versions/A');
+  Directory('${versionA.path}/Resources').createSync(recursive: true);
+
+  final binary = File('${versionA.path}/$kMacosFrameworkName');
+  staging.copySync(binary.path);
+
+  // rustc writes an absolute install_name; dyld must resolve it through the
+  // embedding app's @rpath instead. The path includes `Versions/A` because
+  // that is where the real binary lives in a versioned bundle.
+  //
+  // rustc 写的是绝对路径 install_name；dyld 必须改为经宿主 App 的 @rpath 解析。路径
+  // 里带 `Versions/A`，因为版本化 bundle 的真实二进制就在那里。
+  await _exec('install_name_tool', <String>[
+    '-id',
+    '@rpath/$kMacosFrameworkName.framework/Versions/A/$kMacosFrameworkName',
+    binary.path,
+  ]);
+  // `-x` drops local symbols, `-S` debug symbols; the `#[no_mangle]` exports
+  // Dart looks up stay in the dynamic symbol table.
+  //
+  // `-x` 去局部符号，`-S` 去调试符号；Dart 要查的 `#[no_mangle]` 导出留在动态
+  // 符号表里。
+  await _exec('strip', <String>['-x', '-S', binary.path]);
+
+  File('${versionA.path}/Resources/Info.plist').writeAsStringSync(
+    '<?xml version="1.0" encoding="UTF-8"?>\n'
+    '<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" '
+    '"http://www.apple.com/DTDs/PropertyList-1.0.dtd">\n'
+    '<plist version="1.0">\n'
+    '<dict>\n'
+    '\t<key>CFBundleDevelopmentRegion</key>\n\t<string>en</string>\n'
+    '\t<key>CFBundleExecutable</key>\n\t<string>$kMacosFrameworkName</string>\n'
+    '\t<key>CFBundleIdentifier</key>\n\t<string>com.example.svgx</string>\n'
+    '\t<key>CFBundleInfoDictionaryVersion</key>\n\t<string>6.0</string>\n'
+    '\t<key>CFBundleName</key>\n\t<string>$kMacosFrameworkName</string>\n'
+    '\t<key>CFBundlePackageType</key>\n\t<string>FMWK</string>\n'
+    '\t<key>CFBundleShortVersionString</key>\n\t<string>1.0</string>\n'
+    '\t<key>CFBundleVersion</key>\n\t<string>1</string>\n'
+    '\t<key>CFBundleSupportedPlatforms</key>\n'
+    '\t<array>\n\t\t<string>MacOSX</string>\n\t</array>\n'
+    '\t<key>LSMinimumSystemVersion</key>\n'
+    '\t<string>$kMacosDeploymentTarget</string>\n'
+    '</dict>\n'
+    '</plist>\n',
+  );
+
+  // The three symlinks that make this a versioned bundle. Without
+  // `Versions/Current` neither CFBundle nor codesign recognises the layout.
+  //
+  // 让它成为版本化 bundle 的三个符号链接。缺了 `Versions/Current`，CFBundle 与
+  // codesign 都认不出这个布局。
+  Link('${bundle.path}/Versions/Current').createSync('A');
+  Link(
+    '${bundle.path}/$kMacosFrameworkName',
+  ).createSync('Versions/Current/$kMacosFrameworkName');
+  Link('${bundle.path}/Resources').createSync('Versions/Current/Resources');
+
+  final produced = macosFrameworkFiles(root);
+  final total = produced.fold<int>(
+    0,
+    (sum, rel) => sum + File('${root.path}/prebuilt/$rel').lengthSync(),
+  );
+  stdout.writeln(
+    '  -> $kMacosFramework (${produced.length} files, $total bytes)',
+  );
+  return produced;
 }
 
 /// Packages the iOS `cdylib` slices into `prebuilt/ios/svgx.xcframework` and

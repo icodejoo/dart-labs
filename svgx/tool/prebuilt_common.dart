@@ -214,17 +214,27 @@ const List<PrebuiltTarget> kTargets = <PrebuiltTarget>[
     requiresHost: 'macos',
   ),
 
-  // --- macOS: one universal static archive. ---
+  // --- macOS: cdylibs, `lipo`'d into one vendored `svgx.framework`. ---
+  //
+  // Same reasoning as iOS above (staticlib + `-force_load` defeats both rustc's
+  // and Xcode's dead-stripping). Unlike iOS there is only ONE platform variant,
+  // so arm64 and x86_64 are just two architectures of a single fat binary and
+  // no XCFramework is needed — see `_buildMacosFramework` in
+  // build_prebuilt.dart.
+  //
+  // 与上面的 iOS 同理（staticlib + `-force_load` 同时废掉 rustc 与 Xcode 的死代码
+  // 剥离）。但 macOS 只有一个平台变体，arm64 与 x86_64 只是同一个 fat 二进制的两个
+  // 架构，不需要 XCFramework——见 build_prebuilt.dart 的 `_buildMacosFramework`。
   PrebuiltTarget(
     triple: 'aarch64-apple-darwin',
     group: 'macos',
-    cargoArtifact: 'libsvgx.a',
+    cargoArtifact: 'libsvgx.dylib',
     requiresHost: 'macos',
   ),
   PrebuiltTarget(
     triple: 'x86_64-apple-darwin',
     group: 'macos',
-    cargoArtifact: 'libsvgx.a',
+    cargoArtifact: 'libsvgx.dylib',
     requiresHost: 'macos',
   ),
 
@@ -338,6 +348,77 @@ const String kIosFrameworkName = 'svgx';
 /// podspec 同目录。
 const String kIosXcframework = '../ios/svgx.xcframework';
 
+/// macOS deployment target declared by the shipped framework's `Info.plist`.
+///
+/// macOS 产物 framework 的 `Info.plist` 中声明的部署目标版本。
+///
+/// Mirrors the `s.platform` in `macos/svgx.podspec`; the two must not drift.
+/// (The arm64 slice's own `LC_BUILD_VERSION` is 11.0 — rustc's floor for
+/// `aarch64-apple-darwin` — which is fine: this key is the bundle's declared
+/// minimum, and dyld enforces the per-slice load command, not the plist.)
+///
+/// 与 `macos/svgx.podspec` 的 `s.platform` 保持一致，两者不得漂移。（arm64 slice 自
+/// 身的 `LC_BUILD_VERSION` 是 11.0——rustc 对 `aarch64-apple-darwin` 的下限——这没有
+/// 问题：本键只是 bundle 声明的最低版本，dyld 校验的是各 slice 的 load command。）
+const String kMacosDeploymentTarget = '10.11';
+
+/// Bundle name of the vendored macOS framework, and of its executable.
+///
+/// 分发的 macOS framework 包名，同时也是其可执行文件名。
+///
+/// MUST stay `svgx`, for the same reason as [kIosFrameworkName]:
+/// flutter_rust_bridge's loader falls back to
+/// `DynamicLibrary.open('<stem>.framework/<stem>')`.
+///
+/// 必须保持 `svgx`，理由同 [kIosFrameworkName]：flutter_rust_bridge 的加载器会回退到
+/// `DynamicLibrary.open('<stem>.framework/<stem>')`。
+const String kMacosFrameworkName = 'svgx';
+
+/// Path of the vendored macOS framework, relative to `prebuilt/` — which it
+/// deliberately escapes: it lives in the CocoaPods pod root, `svgx/macos/`.
+///
+/// 分发的 macOS framework 路径，相对 `prebuilt/`——它刻意跳出该目录，落在 CocoaPods
+/// 的 pod 根目录 `svgx/macos/` 下。
+///
+/// Same CocoaPods constraint as [kIosXcframework]: a `vendored_frameworks` path
+/// that leaves the pod root gets no FRAMEWORK_SEARCH_PATHS and is never embedded.
+///
+/// 与 [kIosXcframework] 受同一条 CocoaPods 限制：`vendored_frameworks` 一旦跳出 pod
+/// 根目录，既不会生成 FRAMEWORK_SEARCH_PATHS，也不会被嵌入。
+const String kMacosFramework = '../macos/svgx.framework';
+
+/// The two real files inside the macOS framework bundle, as manifest keys.
+///
+/// macOS framework bundle 内的两个真实文件，以清单键形式给出。
+///
+/// A macOS framework is a *versioned* bundle: besides these two files it also
+/// contains three symlinks (`Versions/Current`, `svgx`, `Resources`) that
+/// `codesign` requires. Symlinks are deliberately NOT hashed — a Windows
+/// checkout materialises them as plain text files, so hashing them would make
+/// the manifest host-dependent. Their presence is verified by the macOS CI
+/// build instead, which is the only thing that can actually prove the layout.
+///
+/// macOS framework 是*版本化* bundle：除这两个文件外还有三个 `codesign` 必需的符号
+/// 链接（`Versions/Current`、`svgx`、`Resources`）。符号链接刻意不参与哈希——Windows
+/// 检出会把它们落成普通文本文件，纳入哈希会让清单依赖宿主。它们的存在改由 macOS CI
+/// 构建校验，那也是唯一能真正证明布局正确的手段。
+const List<String> kMacosFrameworkFiles = <String>[
+  '$kMacosFramework/Versions/A/$kMacosFrameworkName',
+  '$kMacosFramework/Versions/A/Resources/Info.plist',
+];
+
+/// [kMacosFrameworkFiles] filtered down to the ones that exist on disk.
+///
+/// [kMacosFrameworkFiles] 中实际存在于磁盘的那些。
+///
+/// Example / 示例:
+/// ```dart
+/// macosFrameworkFiles(root); // ['../macos/svgx.framework/Versions/A/svgx', ...]
+/// ```
+List<String> macosFrameworkFiles(Directory root) => kMacosFrameworkFiles
+    .where((rel) => File('${root.path}/prebuilt/$rel').existsSync())
+    .toList();
+
 /// Artifacts that no single [PrebuiltTarget] owns, and that must nevertheless
 /// be present for a release to be complete.
 ///
@@ -354,7 +435,7 @@ const List<String> kExtraArtifacts = <String>[
   '$kIosXcframework/ios-arm64/$kIosFrameworkName.framework/$kIosFrameworkName',
   '$kIosXcframework/ios-arm64_x86_64-simulator/'
       '$kIosFrameworkName.framework/$kIosFrameworkName',
-  'macos/libsvgx.a',
+  ...kMacosFrameworkFiles,
 ];
 
 /// Every file inside the iOS XCFramework, as sorted manifest keys (i.e.
