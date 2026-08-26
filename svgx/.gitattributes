@@ -1,0 +1,17 @@
+# Force LF line endings for the Rust crate, regardless of a contributor's
+# local core.autocrlf setting. Without this, a Windows checkout (autocrlf=true)
+# smudges these files to CRLF on disk; tool/prebuilt_common.dart's
+# computeSourceHash() hashes raw file bytes, so a MANIFEST.json generated from
+# a CRLF working tree records a sourceHash that a Linux CI checkout (LF, no
+# conversion) can never reproduce — every prebuilt-sync check then fails with
+# a spurious "Rust sources changed" error, even when nothing actually did.
+#
+# 强制 rust/ crate 使用 LF 换行符，不受贡献者本地 core.autocrlf 设置影响。没有
+# 这条规则时，Windows 检出（autocrlf=true）会把这些文件在磁盘上转成 CRLF；
+# tool/prebuilt_common.dart 的 computeSourceHash() 是按原始字节哈希的，用 CRLF
+# 工作区生成的 MANIFEST.json 记录的 sourceHash，Linux CI 检出（LF，不转换）永远
+# 复现不出来——结果是每次 prebuilt-sync 校验都会假报"Rust 源码变了"，即便实际
+# 什么都没变。
+rust/**/*.rs text eol=lf
+rust/**/Cargo.toml text eol=lf
+rust/**/Cargo.lock text eol=lf

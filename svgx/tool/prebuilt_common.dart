@@ -74,8 +74,10 @@ const String kBaseRustFlags =
 /// 也确认了 `panic_abort` 自身的 `Cargo.toml`（只依赖 `core`，Android 上额外依赖
 /// `libc`/`alloc`——与 `backtrace` feature 无关），并已用该参数本地构建验证通过。
 const List<String> kBuildStdFlags = <String>[
-  '-Z', 'build-std=std,panic_abort',
-  '-Z', 'build-std-features=optimize_for_size',
+  '-Z',
+  'build-std=std,panic_abort',
+  '-Z',
+  'build-std-features=optimize_for_size',
 ];
 
 /// Android `minSdkVersion` the `.so` artifacts are linked against.
