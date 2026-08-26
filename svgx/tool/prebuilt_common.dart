@@ -316,10 +316,27 @@ const String kIosDeploymentTarget = '12.0';
 /// 强迫所有下游给 `RustLib.init()` 传自定义 `ExternalLibrary`。
 const String kIosFrameworkName = 'svgx';
 
-/// Path of the vendored XCFramework relative to `prebuilt/`.
+/// Path of the vendored XCFramework, relative to `prebuilt/` — which it
+/// deliberately escapes: it lives in the CocoaPods pod root, `svgx/ios/`.
 ///
-/// 分发的 XCFramework 相对 `prebuilt/` 的路径。
-const String kIosXcframework = 'ios/svgx.xcframework';
+/// 分发的 XCFramework 路径，相对 `prebuilt/`——它刻意跳出该目录，落在 CocoaPods 的
+/// pod 根目录 `svgx/ios/` 下。
+///
+/// A `vendored_frameworks` path that leaves the pod root is silently broken:
+/// CocoaPods emits no FRAMEWORK_SEARCH_PATHS for it and never adds it to the
+/// embed phase, so the app builds fine and then fails at launch
+/// (CocoaPods#7554, CocoaPods#10731). Measured here too: with
+/// `../prebuilt/ios/svgx.xcframework` both `flutter build ios` invocations
+/// succeeded and `Runner.app/Frameworks/` came out empty. Everything else stays
+/// under `prebuilt/`; only this one artifact has to sit next to the podspec.
+///
+/// `vendored_frameworks` 一旦跳出 pod 根目录就会静默失效：CocoaPods 既不生成
+/// FRAMEWORK_SEARCH_PATHS，也不把它加进 embed 阶段，于是 App 构建通过、启动即崩
+/// （CocoaPods#7554、CocoaPods#10731）。本项目实测同样如此：用
+/// `../prebuilt/ios/svgx.xcframework` 时两次 `flutter build ios` 都成功，而
+/// `Runner.app/Frameworks/` 是空的。其余产物仍在 `prebuilt/` 下，只有这一个必须与
+/// podspec 同目录。
+const String kIosXcframework = '../ios/svgx.xcframework';
 
 /// Artifacts that no single [PrebuiltTarget] owns, and that must nevertheless
 /// be present for a release to be complete.
@@ -339,6 +356,30 @@ const List<String> kExtraArtifacts = <String>[
       '$kIosFrameworkName.framework/$kIosFrameworkName',
   'macos/libsvgx.a',
 ];
+
+/// Every file inside the iOS XCFramework, as sorted manifest keys (i.e.
+/// relative to `prebuilt/`), or an empty list when it has not been built yet.
+///
+/// iOS XCFramework 内的全部文件，以清单键（即相对 `prebuilt/`）形式排序返回；尚未
+/// 构建时返回空列表。
+///
+/// Example / 示例:
+/// ```dart
+/// iosXcframeworkFiles(root); // ['../ios/svgx.xcframework/Info.plist', ...]
+/// ```
+List<String> iosXcframeworkFiles(Directory root) {
+  final dir = Directory('${root.path}/prebuilt/$kIosXcframework');
+  if (!dir.existsSync()) return const <String>[];
+  final files = <String>[];
+  for (final entity in dir.listSync(recursive: true)) {
+    if (entity is! File) continue;
+    final rel = entity.path
+        .substring(dir.path.length + 1)
+        .replaceAll(r'\', '/');
+    files.add('$kIosXcframework/$rel');
+  }
+  return files..sort();
+}
 
 /// Absolute path to the svgx package root, derived from this script's location.
 ///

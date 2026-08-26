@@ -431,7 +431,7 @@ jobs:
       - name: Check prebuilt iOS XCFramework exists
         id: guard
         run: |
-          xcf=svgx/prebuilt/ios/svgx.xcframework
+          xcf=svgx/ios/svgx.xcframework
           if [ -f "$xcf/Info.plist" ] \
              && [ -f "$xcf/ios-arm64/svgx.framework/svgx" ] \
              && [ -f "$xcf/ios-arm64_x86_64-simulator/svgx.framework/svgx" ]; then
