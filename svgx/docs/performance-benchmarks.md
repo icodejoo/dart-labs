@@ -205,3 +205,154 @@ cd benchmark/bench_app && flutter run -d windows --profile --dart-define=LIB=svg
 **诚实说明,不掩饰**:本轮只跑了一次 `LIB=svgx`,没有按"复测方法学调整"的⚠️补丁要求做同时段 `flutter_svg` 配对复测(受限于本次任务的时间预算),因此**无法排除机器噪声**——build/raster 绝对值有 20~40% 的波动区间是这台 Windows 开发机已反复记录过的模式,单次对比不能坐实"合并 `Option` 反而更慢"这个结论。能站得住的信号是 **parse avg/p50 基本没有随字段合并而进一步恶化**(0.054→0.062ms、0.044→0.043ms),说明序列化路径的常数开销至少没有变差;`build`/`raster`/内存这几项的绝对值上涨更可能是本次测量时机的系统噪声(与上一节记录的模式一致),而不是这次重构引入的新回归——但由于没有配对复测数据,这只是合理推测,不作为坐实结论记录。**遗留待办**:后续若怀疑该重构本身引入回归,应按规则补一次同时段 `flutter_svg` 配对复测(`LIB=compare`)来实锤区分噪声与真实回归。
 
 **复现**:`cd benchmark/bench_app && flutter run -d windows --profile --dart-define=LIB=svgx --dart-define=CYCLES=6 --dart-define=ITEMS=1000`
+
+## Rust 侧专项优化(2026-08-26):新增 Rust 微基准 + 三项已落地优化 + 一张 codegen 取舍表
+
+**与本文件其余章节的关系**:上面所有记录都是**端到端 Flutter 基准**(`bench_app`,Dart 侧观测)。这一节是**第一次给 Rust 侧单独装计时**——因为 Dart 侧只能看到一个合并数字(`parse` avg 0.026~0.071ms),分不清里面 usvg 占多少、我们自己的转换代码占多少、FRB 序列化占多少,而"该优化哪里"必须先回答这个问题。两套基准互补,不替代:Rust 微基准定位瓶颈,`bench_app` 验收整体无回归。
+
+### 新增工具:`rust/src/bench.rs`(常驻资产,勿删)
+
+- **位置与门控**:`rust/src/bench.rs`,由 `lib.rs` 的 `#[cfg(test)] mod bench;` 引入——**只在测试期编译,不进入发布的 cdylib**(已用体积实测确认,见下方"体积影响")。
+- **运行命令**:
+
+  ```
+  cd rust && cargo test --release -- --ignored --nocapture --test-threads=1
+  ```
+
+  用 `--release` 是刻意的:据 Cargo 官方 profile-selection 表,`cargo test --release` 走 `release` profile,因此 `opt-level="z"`/`lto=true`/`codegen-units=1` 与分发产物同一套 codegen(唯一例外是 `panic`——官方文档明写 "Tests, benchmarks, build scripts, and proc macros ignore the `panic` setting",测试二进制强制 unwind)。
+- **零新依赖,刻意不用 criterion**:criterion 需要把本 crate 当 rlib 链接,就得给 `[lib] crate-type` 加 `"rlib"`,而 **rustc 对 rlib 目标拒绝做 LTO**——那会悄悄废掉 `docs/SIZE_OPTIMIZATION.md` 已落地第 2 项赖以生效的 `lto = true`,并已有他人实测 cdylib 因此翻倍的先例。改用 `std::time::Instant` + 一个 `#[global_allocator]` 计数器,够用。
+- **语料**(优先用仓库已有真实资产,不编造):
+
+  | 语料 | 内容 | 用途 |
+  |---|---|---|
+  | `mdi1000` | 直接从 `benchmark/bench_app/lib/mdi_icons_1000.dart` 读出的 1000 个真实 Iconify `Mdi` 图标 | 与上面各章节同一套语料,主基准 |
+  | `effects` | 渐变 + clipPath/mask + pattern/blur 三份 | 覆盖纯图标语料碰不到的特效分支 |
+  | `bigpath2000cubics` | 单条 2000 段三次贝塞尔路径 | 把"每点几何成本"从"每文档成本"里剥离 |
+  | `maskfanout120x120` | 120 条路径挂在一个 120 条路径的 `<mask>` 下 | 暴露 wire 格式的 O(n×m),见下方专门小节 |
+
+- **输出的四个指标口径**:延迟分位数(µs)、**每次解析的分配次数/字节数**(计数用全局分配器,**完全确定性**——这台机器时间指标噪声 ±10%,分配次数是唯一不受噪声影响的硬信号)、阶段拆分、以及 FRB SSE 线路字节数。
+- **`bench_output_fingerprint`(几何输出指纹)**:对语料里每个 verb 字节 + 每个点的 `f32` 原始位做 FNV-1a。**存在的意义是把"几何改动没改变输出"从"测试还过"升级成"逐位一致"**——改几何代码时 stash 前后各跑一次比对即可。
+
+### baseline 实测与阶段归因(优化前,Windows 桌面,release profile,3 次取中位数)
+
+| 阶段 | avg | 占比 | 是谁的代码 |
+|---|---|---|---|
+| usvg 树构建(`Tree::from_xmltree`) | 9.249 µs | ~65% | **上游 usvg** |
+| usvg XML 解析(roxmltree) | 3.108 µs | ~22% | **上游 roxmltree** |
+| FRB SSE 序列化 | ~1.0 µs | ~7% | **FRB 生成代码** |
+| **我们的树→显示列表转换** | **1.309 µs** | **~9%** | **`rust/src/api/svg.rs`** |
+| `parse_svg` 端到端 | 14.193 µs | 100% | — |
+
+**这张表是本轮最重要的产出**:优化前我们自己能改的代码只占 9%,理论天花板就是 9%。所有"再优化 `convert_path`"的直觉都被这个数字限死了。
+
+### 已落地的三项优化(commit `03f33d0`)
+
+| # | 改动 | 机制 |
+|---|---|---|
+| 1 | `usvg::Options` 用 `OnceLock` 进程级共享,不再每次调用 `Options::default()` | `Options::default()` 每次都堆分配默认 `font_family` String、`languages` Vec 及其中的 String(实测正好 3 次;两个 `image_href_resolver` 闭包不捕获环境是 ZST,`Box` 它们不产生分配)。usvg 把两个 resolver 闭包声明为 `Send + Sync + 'static`,`Tree::from_str` 只读 `Options`,所以共享一份是安全的 |
+| 2 | `inject_current_color` 改为按值接收 `String`,三个提前返回路径原样返回;注入路径只分配 1 次 | 原来提前返回要 `data.to_string()` 全量复制,注入路径有 `format!("#{:06X}")` + `format!(" color=...")` + `with_capacity` 三次分配。现在 `with_capacity` 一次给到最终长度,十六进制位查表逐个 push |
+| 3 | `append_segments` 直读 tiny-skia 的平行 `verbs()`/`points()` 切片,精确 `reserve`,并把变换形态分派提出每点循环 | tiny-skia 文档写明 `Path` 是 "compact storage, where segment types and numbers are stored separately",点数组顺序恰好就是本 wire 格式要的顺序(move 1 点/line 1 点/quad 2 点/cubic 3 点/close 0 点),因此 `segments()` 迭代器的 last-point/last-move 记账是纯开销;裸切片还能提前按精确长度 reserve,不必让两个 Vec 靠翻倍扩容长大。分派用的是 `Transform::map_points` 内部**同样的四个分支、同样顺序、同样算式**,只是对整个切片做一次而不是每点做一次(原写法每点调一次 `map_points(&mut [pt])`,在 `opt-level="z"` 下还要真付一次函数调用) |
+
+**实测(3 次取中位数)**:
+
+| 指标 | 优化前 | 优化后 | 变化 |
+|---|---|---|---|
+| convert 阶段 avg(`mdi1000`) | 1.309 µs | 0.410 µs | **−69%** |
+| convert 阶段 avg(`bigpath2000cubics`) | 53.710 µs | 16.935 µs | **−68%** |
+| convert 阶段 avg(`effects`) | 2.263 µs | 1.393 µs | **−38%** |
+| `parse_svg` avg(`mdi1000`) | 14.193 µs | 12.600 µs | −11% |
+| `parse_svg` p50(`mdi1000`) | 12.900 µs | 11.700 µs | −9% |
+| `parse_svg` avg(`mdi1000` + currentColor) | 16.053 µs | 13.449 µs | −16% |
+| `parse_svg` p50(`mdi1000` + currentColor) | 14.700 µs | 12.300 µs | −16% |
+| **分配次数/次**(`mdi1000`) | **43.0** | **33.0** | **−10** |
+| **分配次数/次**(+ currentColor) | **47.0** | **34.0** | **−13** |
+| 分配字节/次(`mdi1000`) | 8996 | 8228 | −8.5% |
+
+**噪声诚实标注**:这台 Windows 开发机的时间指标本轮实测 run-to-run 波动约 ±10%(与本文件已反复记录的模式一致),所以 `parse_svg` 端到端的 −11%/−16% 是"中位数对中位数、且三次 run 全部低于优化前中位数"的方向性结论,**不是**噪声之外可单独坐实的量。真正硬的证据是两个:①**分配次数是确定性的**(43→33、47→34,每次运行数字完全一致);②`convert` 阶段 −69% 幅度远超噪声带,且 `bigpath` 那一档优化前三次读数是 53.47/53.71/53.56(极稳),优化后 15.72/16.94/23.45,不存在解释成噪声的空间。
+
+**几何输出逐位一致,不是"测试还过"**:`bench_output_fingerprint` 在 stash 改动前后打印完全相同的值——`mdi1000` `0x167a0958ca44c27b`、`effects` `0xf9de4655be1b408f`、`bigpath` `0x43cdd2e2268e3aee`。这是刻意做的验证,因为第 3 项改的是几何数值计算路径,单靠 24 个功能测试不足以证明没有 1-ULP 级别的漂移。
+
+**优化后的阶段归因**(说明为什么这条线到此为止):
+
+| 阶段 | avg | 占比 |
+|---|---|---|
+| usvg 树构建 | 10.142 µs | ~75% |
+| usvg XML 解析 | 3.179 µs | ~23% |
+| FRB SSE 序列化 | 0.894 µs | ~7% |
+| **我们的转换** | **0.441 µs** | **~3%** |
+| `parse_svg` 端到端 | 13.592 µs | 100% |
+
+**结论:我们自己那半边已经没有值得做的空间了**(3%)。后续任何"继续优化 `rust/src/api/svg.rs`"的提议,先回来看这个 3%。
+
+**体积影响(同一台机器、同一工具链、优化前后各重建一次的配对对照,不引用历史 MANIFEST 数字)**:
+
+| slice | 优化前 | 优化后 | 变化 |
+|---|---|---|---|
+| android arm64-v8a | 491,400 | 491,328 | −72 |
+| android armeabi-v7a | 338,856 | 338,584 | −272 |
+| android x86_64 | 548,792 | 548,480 | −312 |
+| android x86 | 572,968 | 572,528 | −440 |
+| windows x64 | 446,464 | 446,976 | **+512** |
+
+净效果**体积中性**(Android 四个 ABI 各小了几百字节,Windows 大了 512 字节)。也顺带确认 `bench.rs` 因为 `#[cfg(test)]` 门控确实没进发布产物——否则它那些语料字符串和格式化代码会是 KB 量级的增长。
+
+⚠️ **数据口径提醒**:committed `MANIFEST.json` 里 windows/x64 记录的是 491,008 字节,而在本 worktree 里重建**优化前的同一份源码**只得到 446,464 字节。这 44KB 差异与本次改动无关(优化前就存在),原因未查明(可能是构建时的绝对路径长度/依赖解析状态差异),因此上表 windows 一行**刻意用当场重建的 446,464 作对照组,不用 MANIFEST 里的 491,008**。Android 四个 ABI 不存在这个问题:当场重建优化前源码得到 491,400/338,856/548,792/572,968,与 MANIFEST 记录的 491,384/338,856/548,792/572,968 几乎逐字节吻合(arm64 差 16 字节)。
+
+### `opt-level`:实测取舍全表(**未落地,需要 owner 拍板**)
+
+既然 93%+ 的 Rust 侧成本在 usvg/roxmltree 里,唯一能碰到它们的杠杆是 codegen 参数。`docs/SIZE_OPTIMIZATION.md` 已落地第 2 项把 `opt-level` 定为 `"z"`,当时的理由是"常规 Rust release 体积优化标准做法",**没有留下与 `"s"`/`2`/`3` 的配对实测**。本轮把这张表补齐:
+
+| 配置 | `mdi1000` parse avg | vs `"z"` | arm64-v8a | armeabi-v7a | x86_64 | x86 | 四 ABI 合计 | vs `"z"` |
+|---|---|---|---|---|---|---|---|---|
+| **`opt-level = "z"`(现状)** | **12.288 µs** | — | 491,328 | 338,584 | 548,480 | 572,528 | **1,950,920** | — |
+| `opt-level = "s"` | 8.188 µs | **−33.4%** | 563,984 | 400,452 | 603,888 | 620,000 | 2,188,324 | **+12.2%** |
+| `opt-level = 2` | 7.409 µs | −39.7% | 651,048 | 483,252 | 738,648 | 766,416 | 2,639,364 | +35.3% |
+| `opt-level = 3` | 7.088 µs | −42.3% | 683,000 | 500,148 | 751,384 | 769,744 | 2,704,276 | +38.6% |
+
+**`"s"` 是帕累托甜点**:−33% 解析耗时只换 +12% 体积,而 `2`/`3` 再多换来的 6~9 个百分点耗时要付 23~26 个百分点体积。
+
+**为什么本轮没有改**:三条理由,都不是"没时间"。①`opt-level="z"` 是 `docs/SIZE_OPTIMIZATION.md` 已落地的决策,本任务范围明确要求"不违反现有体积优化结论";②**收益在当前量级上没有可感价值**——`parse_svg` 现在是 0.0136ms,而本文件已记录 1000 图标滚动 `framesOver16.6ms=0`、`framesOver8.3ms=0`,省下 4µs 落不到任何用户可见指标上,而 +237KB(四 ABI 合计)是实打实要下发的字节;③按 CLAUDE.md"存在多个可行方案时给出选项而非单方面决定"。**如果以后 svgx 的定位变化让首屏解析延迟真的成为瓶颈(例如单次要解析几百个大图、或下沉动画每帧采样到 Rust),这张表就是现成的决策依据,不用重新调研。**
+
+**方法学局限(必须一起读)**:时间列是**宿主 Windows x86_64 + stable 1.96 + 不带 build-std** 的 `cargo test --release` 实测;体积列是**Android 四 ABI + nightly-2026-06-24 + `-Z build-std` + `optimize_for_size`** 的真实产物字节数。**两列的编译配置不同**,所以"时间"这一列不能直接当成 Android 真机上的绝对值,只能当成 `opt-level` 之间的**相对**关系。`-Z build-std-features=optimize_for_size`(已落地第 7 项)对 std 内部实现也有同类的体积/速度取舍,本轮**未**测量——它需要走 build-std 产物 + Dart 侧端到端基准才能量化,记录为未覆盖缺口。
+
+### 按包 `opt-level` 覆盖:实测是死路(已排除,不要重复调研)
+
+既然 93% 的时间在 usvg 里,自然的想法是"只给 usvg 开高优化,别人保持 `z`",用 Cargo 的 `[profile.release.package.<pkg>] opt-level` 做定点打击(已查证:`opt-level`/`codegen-units` 可按包覆盖,`panic`/`lto`/`rpath` **不可**,所以 fat LTO 仍是全局生效)。实测结果是**每一种按包覆盖都被全局 `"s"` 在两个维度上同时压倒**:
+
+| 配置 | `mdi1000` parse avg | vs `"z"` | 四 ABI 合计 | vs `"z"` |
+|---|---|---|---|---|
+| `[package.usvg] opt-level = 3` | 11.699 µs | −4.8% | 2,250,680 | +15.4% |
+| usvg + tiny-skia-path + roxmltree + simplecss + svgtypes 全 `= 3` | 9.939 µs | −19.1% | 2,406,360 | +23.3% |
+| `[package."*"] opt-level = 3`(所有依赖) | 7.912 µs | −35.6% | 2,532,088 | +29.8% |
+| (对照)全局 `opt-level = "s"` | 8.188 µs | −33.4% | 2,188,324 | +12.2% |
+
+只给 usvg 开 `3` 反而最难看:换来 15.4% 体积,只买到 4.8% 速度——因为 fat LTO 之后 usvg 的热代码早已被跨 crate 内联进别处,单独提高它自己那个 CGU 的优化级别买不到多少东西,却把它的代码膨胀全额付了。**结论:按包覆盖这条路排除,以后不用再试。要动就动全局 `opt-level`,用上一张表决策。**
+
+### `maskfanout` 发现:wire 格式在"多路径 mask"下是 O(n×m)(**已量化,修法需 owner 拍板**)
+
+跑 `maskfanout120x120` 语料(120 条路径挂在一个 120 条路径的 `<mask>` 下)时暴露出一个真实的复杂度问题:
+
+| 指标 | 实测值 |
+|---|---|
+| `parse_svg` avg | **3,522 µs**(3.5 ms,单个 200×200 的 SVG) |
+| 其中 我们的 convert 阶段 | **2,873 µs(82%)** |
+| 其中 usvg(XML + 树构建) | 648 µs(18%) |
+| FRB SSE 序列化 | 3,890 µs |
+| **FRB 线路字节数** | **932,776 字节(0.93 MB)** |
+| 分配次数/次 | **31,148** |
+
+**根因在 wire 格式,不在实现**:`SvgPath.effects.mask` 是**每条路径各自拥有一份完整 `SvgMask`**(含该 mask 自己的全部 `paths`),所以 120 条被遮罩路径要深拷 120 份 120 条路径的 mask = 14,400 次路径克隆。Dart 侧同样吃这个亏:它会把同一个 mask 光栅化 120 次。
+
+**本轮的三项优化对这个语料完全无效,如实记录**:优化前 convert 阶段 3,012.9 µs,优化后 3,007.4 µs——**没有改善**,因为这个语料 100% 由深拷主导,而不是由段转换主导。这是"尝试后确认无效"的诚实记录,不是优化成果。
+
+**为什么没有顺手修**:唯一的修法是改 wire 格式——把 mask/clip 提成一张表 + 每条路径存索引。那既能把 O(n×m) 降成 O(n+m)、把 0.93MB 线路字节砍掉一个数量级,又能让 Dart 侧同一个 mask 只光栅化一次。但它**改的是 FFI 契约**,要同步动 `rust/src/api/svg.rs` 的结构体、重跑 FRB codegen、改 `lib/src/rust_static_svg.dart` 的绘制逻辑,并重新走一遍 `docs/animation-engine-features.md` 那 12 项像素级验证。按 CLAUDE.md 的规则(多方案/跨模块改动要先给选项),记录在案不擅自动手。
+
+**这个形状有多现实**:真实图标资产里基本不存在(图标的 mask 通常就一两个形状)。所以这不是"必须立刻修的 bug",而是"已量化的最坏情况上界 + 现成的修法方案"。**真要修的触发条件**:出现真实用户 SVG 落进这个形状并造成可观测卡顿时。
+
+### 测试状态与遗留待办
+
+- `cargo test`(`rust/`):**24 passed**(与基线同数量,无用例丢失),另加 2 个 `#[ignore]` 的基准/指纹用例。
+- `flutter analyze`:**No issues found**。
+- `flutter test`:**109 passed**。
+- ⚠️ **必须的后续动作**:本轮改了 `rust/src/**`,`prebuilt/MANIFEST.json` 的 `sourceHash` 随之变化。本机(Windows 宿主)已重建 android 四个 ABI + windows/x64;**`prebuilt/linux/x64` 与 `prebuilt/linux/arm64` 仍是旧哈希,`dart run tool/check_prebuilt.dart` 因此报 FAIL**——Linux slice 的 `requiresHost` 是 `linux`,物理上无法在 Windows 上构建。合入前必须按 `svgx-prebuilt.yml` 头部注释的既定流程走一遍:手动 dispatch "svgx prebuilt artifacts" workflow → 下载 `svgx-prebuilt` 产物 → 解压覆盖 `svgx/prebuilt/` → `dart run tool/build_prebuilt.dart --restage` → `dart run tool/check_prebuilt.dart` 必须 OK 才提交。windows/arm64 在本机同样无法构建(缺 arm64 `cl.exe` 交叉工具链),同一次 workflow 会一并产出。
+- **未复跑 `bench_app` 端到端基准**:按本文件"复测方法学调整"的规则本应补一轮 `LIB=compare`。**没跑的诚实理由不是省事,而是这轮改动的信号量级低于该基准的噪声底**——Rust 侧省下的是 1.6µs(0.0016ms),而 `bench_app` 已记录的 build/raster 绝对值噪声是 ±20%~110%(即毫秒量级),配对复测也分辨不出 0.0016ms。真正能证明这轮改动有效的证据是本节的确定性分配次数与 convert 阶段 −69%。**如果要跑,目的应该是"确认没有引入回归",不是"验证提速"**,且必须用 `LIB=compare` 同进程配对模式。
