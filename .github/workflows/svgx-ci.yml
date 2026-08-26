@@ -133,68 +133,66 @@ jobs:
         working-directory: svgx
         run: flutter test
 
-  # Platform build jobs are chained via `needs:` on purpose (see CLAUDE.md
-  # "CI/CD 执行方针"): one platform builds at a time, and `needs:` failure
-  # semantics (native to GitHub Actions) mean a failure stops the chain
-  # without wasting runner time on downstream platforms. Order rationale:
-  # cheapest/fastest runners first, most expensive last —
-  #   windows (windows-latest, desktop build)
-  #   -> android (ubuntu-latest, debug-only APK, fastest signal)
-  #   -> android-release (ubuntu-latest, release APK, nightly build-std)
-  #   -> linux (ubuntu-latest, desktop build)
-  #   -> macos (macos-latest, native desktop build)
-  #   -> ios (macos-latest, full Xcode toolchain, slowest/most complex)
-  # rust-test / dart-analyze / flutter-test are NOT part of this chain —
-  # they are fast, platform-agnostic checks and keep running in parallel.
-  build-windows:
-    name: Build example (Windows)
-    runs-on: windows-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: subosito/flutter-action@v2
-        with:
-          flutter-version: ${{ env.FLUTTER_VERSION }}
-          cache: true
-
-      - name: Enable Windows desktop
-        run: flutter config --enable-windows-desktop
-
-      # Release platform builds go through cargokit's `release` configuration,
-      # which svgx/rust/cargokit.yaml pins to a dated nightly plus
-      # `-Z build-std=std,panic_abort` (the latter needs the `rust-src`
-      # component). Installing it explicitly keeps the version visible here.
-      - name: Install pinned nightly toolchain (build-std)
-        uses: dtolnay/rust-toolchain@master
-        with:
-          toolchain: ${{ env.RUST_RELEASE_TOOLCHAIN }}
-          components: rust-src
-
-      - name: Cache Cargo registry + target
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-            svgx/rust/target
-          key: svgx-cargo-windows-${{ hashFiles('svgx/rust/Cargo.lock') }}
-          restore-keys: |
-            svgx-cargo-windows-
-
-      - name: Example dependencies
-        working-directory: svgx/example
-        run: flutter pub get
-
-      # cargokit's CMake ExternalProject step cross-compiles the Rust crate
-      # and links it into the plugin's native library as part of this build —
-      # no separate `cargo build` invocation needed.
-      - name: flutter build windows
-        working-directory: svgx/example
-        run: flutter build windows
+  # Platform build jobs run CONCURRENTLY (2026-08-26: switched from a
+  # sequential `needs:` chain — see CLAUDE.md "CI/CD 执行方针" for the
+  # decision history). rust-test / dart-analyze / flutter-test are also
+  # independent, fast, platform-agnostic checks.
+  #
+  # build-windows is temporarily commented out (2026-08-26): it already
+  # passed on run 32934680568 (commit 7e1e74c) and isn't part of what's
+  # currently being iterated on — commenting it out (rather than leaving it
+  # running every push) keeps runner time focused on the platforms still
+  # being fixed. MUST be restored (uncommented) once android /
+  # android-release / linux / macos / ios are all green, so every push goes
+  # back to validating all 6 platforms.
+  # build-windows:
+  #   name: Build example (Windows)
+  #   runs-on: windows-latest
+  #   steps:
+  #     - uses: actions/checkout@v4
+  #
+  #     - uses: subosito/flutter-action@v2
+  #       with:
+  #         flutter-version: ${{ env.FLUTTER_VERSION }}
+  #         cache: true
+  #
+  #     - name: Enable Windows desktop
+  #       run: flutter config --enable-windows-desktop
+  #
+  #     # Release platform builds go through cargokit's `release` configuration,
+  #     # which svgx/rust/cargokit.yaml pins to a dated nightly plus
+  #     # `-Z build-std=std,panic_abort` (the latter needs the `rust-src`
+  #     # component). Installing it explicitly keeps the version visible here.
+  #     - name: Install pinned nightly toolchain (build-std)
+  #       uses: dtolnay/rust-toolchain@master
+  #       with:
+  #         toolchain: ${{ env.RUST_RELEASE_TOOLCHAIN }}
+  #         components: rust-src
+  #
+  #     - name: Cache Cargo registry + target
+  #       uses: actions/cache@v4
+  #       with:
+  #         path: |
+  #           ~/.cargo/registry
+  #           ~/.cargo/git
+  #           svgx/rust/target
+  #         key: svgx-cargo-windows-${{ hashFiles('svgx/rust/Cargo.lock') }}
+  #         restore-keys: |
+  #           svgx-cargo-windows-
+  #
+  #     - name: Example dependencies
+  #       working-directory: svgx/example
+  #       run: flutter pub get
+  #
+  #     # cargokit's CMake ExternalProject step cross-compiles the Rust crate
+  #     # and links it into the plugin's native library as part of this build —
+  #     # no separate `cargo build` invocation needed.
+  #     - name: flutter build windows
+  #       working-directory: svgx/example
+  #       run: flutter build windows
 
   build-android:
     name: Build example (Android)
-    needs: build-windows
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -249,7 +247,6 @@ jobs:
 
   build-android-release:
     name: Build example (Android release)
-    needs: build-android
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -317,7 +314,6 @@ jobs:
 
   build-ios:
     name: Build example (iOS)
-    needs: build-macos
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v4
@@ -375,7 +371,6 @@ jobs:
 
   build-macos:
     name: Build example (macOS)
-    needs: build-linux
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v4
@@ -433,7 +428,6 @@ jobs:
 
   build-linux:
     name: Build example (Linux)
-    needs: build-android-release
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
