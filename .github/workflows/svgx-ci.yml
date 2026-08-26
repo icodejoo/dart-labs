@@ -32,10 +32,25 @@ on:
     paths:
       - 'svgx/**'
       - '.github/workflows/svgx-ci.yml'
+      # Docs-only changes don't affect anything this workflow builds or
+      # tests — excluding them keeps the full native build matrix from
+      # running on pure documentation commits.
+      - '!svgx/docs/**'
+      - '!svgx/**/*.md'
+      - '!svgx/LICENSE'
+      - '!svgx/.gitignore'
+      - '!svgx/.gitattributes'
+      - '!svgx/.pubignore'
   pull_request:
     paths:
       - 'svgx/**'
       - '.github/workflows/svgx-ci.yml'
+      - '!svgx/docs/**'
+      - '!svgx/**/*.md'
+      - '!svgx/LICENSE'
+      - '!svgx/.gitignore'
+      - '!svgx/.gitattributes'
+      - '!svgx/.pubignore'
 
 env:
   FLUTTER_VERSION: '3.47.0'
