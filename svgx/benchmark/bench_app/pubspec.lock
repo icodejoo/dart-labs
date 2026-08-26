@@ -115,13 +115,6 @@ packages:
     description: flutter
     source: sdk
     version: "0.0.0"
-  fsvg:
-    dependency: "direct main"
-    description:
-      path: "../.."
-      relative: true
-    source: path
-    version: "0.0.1"
   http:
     dependency: transitive
     description:
@@ -271,6 +264,13 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "1.4.1"
+  svgx:
+    dependency: "direct main"
+    description:
+      path: "../.."
+      relative: true
+    source: path
+    version: "0.0.1"
   term_glyph:
     dependency: transitive
     description:
