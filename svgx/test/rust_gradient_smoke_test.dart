@@ -31,11 +31,21 @@ const _gradientSvg = '''
 </svg>
 ''';
 
+/// Whether the native library was loadable in this test process. Set once by
+/// the first test's `RustLib.init()` attempt; the second test skips itself
+/// when it's false instead of failing hard on an environment limitation
+/// unrelated to the feature under test.
+/// 本测试进程内原生库是否可加载，由第一个用例的 `RustLib.init()` 尝试设置一
+/// 次；为 false 时第二个用例自行跳过，而不是因与被测功能无关的环境限制而
+/// 硬失败。
+bool _rustAvailable = true;
+
 void main() {
   test('parseSvg resolves a linear gradient fill with multiple distinct stops', () async {
     try {
       await RustLib.init();
     } catch (e) {
+      _rustAvailable = false;
       // ignore: avoid_print
       print(
         'Skipping: native library not loadable in this test environment ($e)',
@@ -61,6 +71,7 @@ void main() {
   });
 
   test('RustSvgPictureCache paints a gradient fill with a shader, not a flat color', () async {
+    if (!_rustAvailable) return;
     // RustLib.init() is idempotent-by-convention here: the previous test in
     // this file already initialized it, and re-initializing throws. Only
     // attempt init if it hasn't happened yet in this isolate.

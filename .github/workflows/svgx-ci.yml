@@ -99,7 +99,11 @@ jobs:
 
       - name: dart format check
         working-directory: svgx
-        run: dart format --output=none --set-exit-if-changed .
+        # Scoped to the package's own sources — `dart format` (unlike
+        # `flutter analyze`) does not honor analysis_options.yaml excludes,
+        # so a bare `.` also tries to reformat the unparseable vendored
+        # cargokit/build_tool sources and fails the whole check.
+        run: dart format --output=none --set-exit-if-changed lib test example/lib
 
   flutter-test:
     name: Flutter unit tests

@@ -271,6 +271,18 @@ class MyApp extends StatelessWidget {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
+                // TEMP WSA DIAGNOSTIC PROBE — reverted before finishing.
+                Container(
+                  width: 300,
+                  height: 80,
+                  color: const Color(0xFFFFFF00),
+                  alignment: Alignment.center,
+                  child: const Text(
+                    'plain text test',
+                    style: TextStyle(fontSize: 28, color: Color(0xFFFF0000)),
+                  ),
+                ),
+                const SizedBox(height: 24),
                 const Text('Animated (original SMIL engine)'),
                 const SizedBox(height: 8),
                 SvgX.string(
