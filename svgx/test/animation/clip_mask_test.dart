@@ -5,9 +5,9 @@
 // 动画路径中的 `<clipPath>`/`<mask>`：id 解析到 SvgNode 上、文档级注册、
 // 像素级裁剪/遮罩正确性，以及被引用内容自身带动画时逐帧采样正确。
 
-import 'dart:typed_data';
 import 'dart:ui' as ui;
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/painting.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:svgx/src/animation/animated_svg_painter.dart';
@@ -28,7 +28,7 @@ Future<ByteData> _renderPixels(
   AnimatedSvgPainter(
     root: document.root,
     intrinsicSize: Size(document.width, document.height),
-    time: time,
+    clock: ValueNotifier(time),
     theme: const SvgTheme(),
     fit: BoxFit.fill,
     alignment: Alignment.center,
@@ -183,7 +183,7 @@ void main() {
       AnimatedSvgPainter(
         root: root,
         intrinsicSize: const Size(100, 100),
-        time: Duration.zero,
+        clock: ValueNotifier(Duration.zero),
         theme: const SvgTheme(),
         fit: BoxFit.fill,
         alignment: Alignment.center,

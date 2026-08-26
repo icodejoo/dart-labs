@@ -8,9 +8,9 @@
 // 并绘制形状——含虚线描边。原创实现。
 
 import 'dart:math' as math;
-import 'dart:typed_data';
 import 'dart:ui' as ui;
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/rendering.dart';
 
 import 'smil_animation.dart';
@@ -38,18 +38,32 @@ import 'svg_theme.dart';
 /// 缓存 `Picture`只对帧间不变的内容划算，而正在播放的动画本质就是每帧都在
 /// 变——见 svgx CLAUDE.md 架构说明。
 class AnimatedSvgPainter extends CustomPainter {
-  /// Creates the painter for one frame. / 为一帧创建绘制器。
+  /// Creates the painter, sampling the timeline at whatever [clock] currently
+  /// holds.
+  ///
+  /// [clock] is handed to [CustomPainter.repaint], so a [CustomPaint] using
+  /// this painter repaints on every tick **without the owning widget
+  /// rebuilding** — the framework skips the build and layout phases entirely
+  /// (see the [CustomPainter] class docs). For a one-off render at a fixed
+  /// position (tests, offline recording) pass a `ValueNotifier(someDuration)`.
+  ///
+  /// 创建绘制器，按 [clock] 当前的值对时间线采样。
+  ///
+  /// [clock] 会交给 [CustomPainter.repaint]，因此使用本绘制器的 [CustomPaint]
+  /// 每次 tick 都会重绘，**而持有它的控件不会重建**——框架会完整跳过 build 与
+  /// layout 两个阶段（见 [CustomPainter] 类文档）。若只需在固定时刻渲染一次
+  /// （测试、离屏录制），传入 `ValueNotifier(某个Duration)` 即可。
   AnimatedSvgPainter({
     required this.root,
     required this.intrinsicSize,
-    required this.time,
+    required this.clock,
     required this.theme,
     required this.fit,
     required this.alignment,
     this.gradients = const {},
     this.clipPaths = const {},
     this.masks = const {},
-  }) : super();
+  }) : super(repaint: clock);
 
   /// `<clipPath>` definitions by id — see `SvgDocument.clipPaths`.
   ///
@@ -75,8 +89,14 @@ class AnimatedSvgPainter extends CustomPainter {
   /// The document's intrinsic (viewBox) size. / 文档固有（viewBox）尺寸。
   final Size intrinsicSize;
 
+  /// The animation clock this painter samples. Also drives repaints — see the
+  /// constructor.
+  ///
+  /// 本绘制器采样的动画时钟，同时驱动重绘——见构造函数。
+  final ValueListenable<Duration> clock;
+
   /// Current position on the animation timeline. / 当前所处的动画时间线位置。
-  final Duration time;
+  Duration get time => clock.value;
 
   /// Theme resolving `currentColor`. / 解析 `currentColor` 的主题。
   final SvgTheme theme;
@@ -809,6 +829,7 @@ class AnimatedSvgPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(AnimatedSvgPainter oldDelegate) =>
+      oldDelegate.clock != clock ||
       oldDelegate.time != time ||
       oldDelegate.root != root ||
       oldDelegate.theme != theme ||

@@ -603,11 +603,21 @@ class RustSvgPictureCache {
   /// Replays a verb/point stream (the encoding shared by [SvgPath] and
   /// [SvgClip]) into a [ui.Path].
   ///
-  /// 把动词/坐标流（[SvgPath] 与 [SvgClip] 共用的编码）重放为 [ui.Path]。
-  ui.Path _replay(List<int> verbs, List<double> points) {
+  /// Typed as [Uint8List]/[Float32List] rather than `List<int>`/`List<double>`
+  /// on purpose — that is what the FFI bridge actually produces, and reading
+  /// through the `List` interface instead makes every element access an
+  /// interface call returning a boxed value. An indexed loop is used over
+  /// `for (final verb in verbs)` for the same reason: no iterator allocation.
+  ///
+  /// 刻意声明为 [Uint8List]/[Float32List] 而非 `List<int>`/`List<double>`——
+  /// FFI 桥产出的本来就是这两种类型，而经由 `List` 接口读取会让每次元素访问都变成
+  /// 一次返回装箱值的接口调用。用带下标的循环而不是 `for (final verb in verbs)`
+  /// 也是同一个理由：不分配迭代器。
+  ui.Path _replay(Uint8List verbs, Float32List points) {
     final uiPath = ui.Path();
     var i = 0;
-    for (final verb in verbs) {
+    for (var v = 0; v < verbs.length; v++) {
+      final verb = verbs[v];
       switch (verb) {
         case 0: // move
           uiPath.moveTo(points[i], points[i + 1]);

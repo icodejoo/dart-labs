@@ -24,6 +24,7 @@
 // ignore_for_file: implementation_imports, avoid_print
 
 import 'dart:io';
+import 'dart:typed_data';
 import 'dart:ui' as ui;
 
 import 'package:flutter/widgets.dart';
@@ -295,6 +296,94 @@ List<MicroResult> runMicroBenchmarks() {
     }),
   );
 
+  // Paired primitive measurement for typing the display-list replay loop as
+  // Uint8List/Float32List (what the FFI bridge actually returns) instead of
+  // List<int>/List<double>. `static_parse_record` cannot resolve this on its
+  // own: most of its 21.5us is the Rust parse, so the replay loop's share is
+  // near the noise floor. Both variants run in the SAME process over the same
+  // data, so the comparison is immune to background load.
+  //
+  // 把显示列表重放循环声明为 Uint8List/Float32List（FFI 桥实际返回的类型）而不是
+  // List<int>/List<double> 这项改动的配对原语测量。`static_parse_record` 自身
+  // 分辨不出来：它 21.5us 里大部分是 Rust 解析，重放循环那一份接近噪声底噪。
+  // 两个变体在**同一个进程**里跑同一批数据，因此对后台负载免疫。
+  final replayVerbs = Uint8List(4000);
+  final replayPoints = Float32List(12000);
+  for (var i = 0; i < replayVerbs.length; i++) {
+    replayVerbs[i] = i % 5 == 0 ? 0 : (i % 4 == 0 ? 3 : 1);
+  }
+  for (var i = 0; i < replayPoints.length; i++) {
+    replayPoints[i] = (i % 97).toDouble();
+  }
+  results.add(
+    _measure('replay_typed_lists', 200, () {
+      for (var pass = 0; pass < 200; pass++) {
+        _replayTyped(replayVerbs, replayPoints);
+      }
+    }, trials: 9),
+  );
+  results.add(
+    _measure('replay_interface_lists', 200, () {
+      for (var pass = 0; pass < 200; pass++) {
+        _replayInterface(replayVerbs, replayPoints);
+      }
+    }, trials: 9),
+  );
+
+  // Paired primitive measurement for the "reuse a scratch Paint instead of
+  // allocating one per draw" change in `animated_svg_painter.dart`. Both
+  // variants run in the SAME process seconds apart, so — unlike an
+  // across-builds comparison — background load cannot favour either one. The
+  // per-draw delta between them, times the number of draws an icon issues per
+  // frame, is the change's real budget.
+  //
+  // `animated_svg_painter.dart` 里"复用临时 Paint 而非每次绘制新建一个"这项改动
+  // 的配对原语测量。两个变体在**同一个进程**里相隔数秒运行，因此与跨构建对比
+  // 不同，后台负载无法偏向任何一方。两者的单次绘制差值，乘以图标每帧发出的绘制
+  // 次数，就是这项改动真正的预算。
+  final scratchPath = ui.Path()
+    ..moveTo(0, 0)
+    ..lineTo(10, 10)
+    ..cubicTo(1, 2, 3, 4, 5, 6);
+  const drawColor = Color(0xFF3366CC);
+  results.add(
+    _measure('paint_fresh_alloc_per_draw', 20000, () {
+      final recorder = ui.PictureRecorder();
+      final canvas = Canvas(recorder);
+      for (var i = 0; i < 20000; i++) {
+        canvas.drawPath(
+          scratchPath,
+          Paint()
+            ..style = PaintingStyle.stroke
+            ..color = drawColor
+            ..strokeWidth = 2
+            ..strokeCap = StrokeCap.round
+            ..strokeJoin = StrokeJoin.round,
+        );
+      }
+      recorder.endRecording().dispose();
+    }, trials: 9),
+  );
+  final reusedPaint = Paint()..style = PaintingStyle.stroke;
+  results.add(
+    _measure('paint_reused_per_draw', 20000, () {
+      final recorder = ui.PictureRecorder();
+      final canvas = Canvas(recorder);
+      for (var i = 0; i < 20000; i++) {
+        canvas.drawPath(
+          scratchPath,
+          reusedPaint
+            ..shader = null
+            ..color = drawColor
+            ..strokeWidth = 2
+            ..strokeCap = StrokeCap.round
+            ..strokeJoin = StrokeJoin.round,
+        );
+      }
+      recorder.endRecording().dispose();
+    }, trials: 9),
+  );
+
   // SVG `d` parsing in isolation, over every `d` string in the 399 real
   // animated icons. Once geometry is cached per node this no longer runs every
   // frame, but it is still paid on a document's first paint, so it stays worth
@@ -328,17 +417,18 @@ List<MicroResult> runMicroBenchmarks() {
   const theme = SvgTheme();
   const paintSize = Size(32, 32);
   var frame = 0;
+  final clock = ValueNotifier(Duration.zero);
   results.add(
     _measure('anim_paint_frame', documents.length, () {
       frame++;
-      final time = Duration(milliseconds: 16 * frame);
+      clock.value = Duration(milliseconds: 16 * frame);
       for (final doc in documents) {
         final recorder = ui.PictureRecorder();
         final canvas = Canvas(recorder);
         AnimatedSvgPainter(
           root: doc.root,
           intrinsicSize: Size(doc.width, doc.height),
-          time: time,
+          clock: clock,
           theme: theme,
           fit: BoxFit.contain,
           alignment: Alignment.center,
@@ -352,6 +442,72 @@ List<MicroResult> runMicroBenchmarks() {
   );
 
   return results;
+}
+
+// Two copies of `rust_static_svg.dart`'s private `_replay` verb/point decoder,
+// differing ONLY in the static type of the two buffers (and hence in whether
+// element reads are typed-data loads or boxed interface calls). Kept in the
+// benchmark rather than the library because the point is to compare a variant
+// the library should NOT ship.
+//
+// `rust_static_svg.dart` 私有 `_replay` 动词/坐标解码器的两份拷贝，**唯一**区别
+// 是两个缓冲区的静态类型（从而决定元素读取是类型化数据加载还是装箱的接口调用）。
+// 放在基准里而不是库里，因为要比较的正是一个库**不应该**采用的变体。
+
+ui.Path _replayTyped(Uint8List verbs, Float32List points) {
+  final uiPath = ui.Path();
+  var i = 0;
+  for (var v = 0; v < verbs.length; v++) {
+    switch (verbs[v]) {
+      case 0:
+        uiPath.moveTo(points[i], points[i + 1]);
+        i += 2;
+      case 1:
+        uiPath.lineTo(points[i], points[i + 1]);
+        i += 2;
+      case 3:
+        uiPath.cubicTo(
+          points[i],
+          points[i + 1],
+          points[i + 2],
+          points[i + 3],
+          points[i + 4],
+          points[i + 5],
+        );
+        i += 6;
+      default:
+        break;
+    }
+  }
+  return uiPath;
+}
+
+ui.Path _replayInterface(List<int> verbs, List<double> points) {
+  final uiPath = ui.Path();
+  var i = 0;
+  for (final verb in verbs) {
+    switch (verb) {
+      case 0:
+        uiPath.moveTo(points[i], points[i + 1]);
+        i += 2;
+      case 1:
+        uiPath.lineTo(points[i], points[i + 1]);
+        i += 2;
+      case 3:
+        uiPath.cubicTo(
+          points[i],
+          points[i + 1],
+          points[i + 2],
+          points[i + 3],
+          points[i + 4],
+          points[i + 5],
+        );
+        i += 6;
+      default:
+        break;
+    }
+  }
+  return uiPath;
 }
 
 /// Prints [results] as a stdout report block, and appends the same block to
