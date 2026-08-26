@@ -9,10 +9,6 @@ analyzer:
     - windows/**
     - macos/**
     - linux/**
-    # cargokit's own build_tool Dart package (vendored by flutter_rust_bridge
-    # setup), has its own pubspec.yaml/deps not installed by our `dart pub
-    # get` — not part of svgx itself.
-    - cargokit/**
     # F baseline, relocated out of lib/ (see benchmark/baseline_f/README.md) —
     # not part of the shipped package, not wired into pubspec.yaml.
     - benchmark/**
