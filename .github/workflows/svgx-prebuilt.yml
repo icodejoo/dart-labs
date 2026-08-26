@@ -28,6 +28,16 @@ name: svgx prebuilt artifacts
 # 你只需要把结果提交进来。
 on:
   workflow_dispatch:
+    inputs:
+      legs:
+        description: >-
+          Comma-separated matrix legs to build (android,linux,windows,apple).
+          Narrow this to iterate on one platform without paying for the rest.
+        default: android,linux,windows,apple
+      apple_groups:
+        description: >-
+          Groups the apple leg builds, e.g. `--group ios` for iOS only.
+        default: --group ios --group macos
   push:
     tags:
       - 'svgx-v*'
@@ -35,27 +45,62 @@ on:
 env:
   FLUTTER_VERSION: '3.47.0'
   ANDROID_NDK_VERSION: '28.0.13004108'
+  # A partial run (fewer legs, or a narrowed apple group set) cannot produce a
+  # complete `prebuilt/` tree, so the `collect` job — which enforces exactly
+  # that completeness — only runs for a full one.
+  #
+  # 部分运行（少跑几条 leg，或收窄 apple 的 group）不可能产出完整的 `prebuilt/`
+  # 树，因此专门校验完整性的 `collect` job 只在完整运行时执行。
+  FULL_LEGS: android,linux,windows,apple
+  FULL_APPLE_GROUPS: --group ios --group macos
 
 jobs:
+  # Turns the dispatch inputs into the matrix actually run. A matrix cannot be
+  # filtered by a job-level `if` (the `matrix` context is not available there),
+  # so the filtering has to happen before the matrix exists.
+  #
+  # 把 dispatch 输入转成实际运行的矩阵。矩阵无法用 job 级 `if` 过滤（那里拿不到
+  # `matrix` 上下文），所以必须在矩阵产生之前就筛好。
+  plan:
+    name: Resolve matrix
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.pick.outputs.matrix }}
+      full: ${{ steps.pick.outputs.full }}
+    steps:
+      - id: pick
+        shell: bash
+        env:
+          LEGS: ${{ inputs.legs || env.FULL_LEGS }}
+          APPLE_GROUPS: ${{ inputs.apple_groups || env.FULL_APPLE_GROUPS }}
+        run: |
+          all=$(jq -nc --arg ag "$APPLE_GROUPS" '[
+            {name:"android", os:"ubuntu-latest",  groups:"--group android"},
+            {name:"linux",   os:"ubuntu-latest",  groups:"--group linux"},
+            {name:"windows", os:"windows-latest", groups:"--group windows"},
+            {name:"apple",   os:"macos-latest",   groups:$ag}
+          ]')
+          matrix=$(jq -c --arg legs "$LEGS" \
+            '[.[] | select(($legs | split(",")) | index(.name))]' <<<"$all")
+          [ "$(jq length <<<"$matrix")" -gt 0 ] \
+            || { echo "::error::legs=$LEGS matches no known leg"; exit 1; }
+          echo "matrix=$matrix" >> "$GITHUB_OUTPUT"
+          if [ "$LEGS" = "$FULL_LEGS" ] && [ "$APPLE_GROUPS" = "$FULL_APPLE_GROUPS" ]; then
+            echo "full=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "full=false" >> "$GITHUB_OUTPUT"
+            echo "::warning::partial run (legs=$LEGS, apple_groups=$APPLE_GROUPS) — the collect job is skipped."
+          fi
+          echo "matrix: $matrix"
+
   build:
     name: Build ${{ matrix.name }} slices
+    needs: plan
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
-        include:
-          - name: android
-            os: ubuntu-latest
-            groups: --group android
-          - name: linux
-            os: ubuntu-latest
-            groups: --group linux
-          - name: windows
-            os: windows-latest
-            groups: --group windows
-          - name: apple
-            os: macos-latest
-            groups: --group ios --group macos
+        include: ${{ fromJSON(needs.plan.outputs.matrix) }}
     steps:
       - uses: actions/checkout@v4
 
@@ -144,17 +189,31 @@ jobs:
             echo "$so requires up to: $(objdump -T "$so" | grep -o 'GLIBC_[0-9.]*' | sort -uV | tail -1)"
           done
 
-      # Confirms the archives really are fat where they are meant to be, and
-      # that -force_load will find the flutter_rust_bridge exports.
-      - name: Report Apple archive details
+      # Confirms each slice really is fat where it is meant to be and still
+      # carries the flutter_rust_bridge exports. iOS ships a dynamic
+      # XCFramework (symbols must survive in the dylib's export table); macOS
+      # still ships a static archive that the podspec -force_loads.
+      #
+      # 确认各 slice 该胖的地方确实是胖的，且仍带着 flutter_rust_bridge 导出。
+      # iOS 分发动态 XCFramework（符号必须留在 dylib 导出表里）；macOS 仍是由 podspec
+      # -force_load 的静态归档。
+      - name: Report Apple artifact details
         if: matrix.name == 'apple'
         working-directory: svgx
         run: |
-          for a in prebuilt/ios/device/libsvgx.a prebuilt/ios/simulator/libsvgx.a prebuilt/macos/libsvgx.a; do
-            echo "=== $a ($(stat -f%z "$a") bytes) ==="
-            lipo -info "$a"
-            nm -g "$a" 2>/dev/null | grep -c 'frbgen' | sed 's/^/  frbgen symbols: /'
+          for b in prebuilt/ios/svgx.xcframework/*/svgx.framework/svgx; do
+            echo "=== $b ($(stat -f%z "$b") bytes) ==="
+            lipo -info "$b"
+            otool -D "$b" | tail -1 | sed 's/^/  install_name: /'
+            nm -gU "$b" | grep -c 'frbgen' | sed 's/^/  frbgen exports: /'
           done
+          echo "=== prebuilt/ios/svgx.xcframework total ==="
+          find prebuilt/ios/svgx.xcframework -type f -exec stat -f%z {} + \
+            | awk '{t+=$1} END {print "  " t " bytes"}'
+          a=prebuilt/macos/libsvgx.a
+          echo "=== $a ($(stat -f%z "$a") bytes) ==="
+          lipo -info "$a"
+          nm -g "$a" 2>/dev/null | grep -c 'frbgen' | sed 's/^/  frbgen symbols: /'
 
       - uses: actions/upload-artifact@v4
         with:
@@ -164,7 +223,8 @@ jobs:
 
   collect:
     name: Collect into one downloadable set
-    needs: build
+    needs: [plan, build]
+    if: needs.plan.outputs.full == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4

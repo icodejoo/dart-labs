@@ -75,10 +75,14 @@ void main(List<String> args) {
       missing.add('$rel (${target.triple})');
     }
   }
-  // The two lipo-merged Apple artifacts have no single owning triple.
-  for (final rel in const ['ios/simulator/libsvgx.a', 'macos/libsvgx.a']) {
+  // Apple artifacts that no single triple owns: the macOS lipo'd archive and
+  // the iOS XCFramework (whose two slices are built from three triples).
+  //
+  // 不属于任何单个三元组的 Apple 产物：macOS 的 lipo 通用归档，以及 iOS 的
+  // XCFramework（两个 slice 由三个三元组构建而来）。
+  for (final rel in kExtraArtifacts) {
     if (!artifacts.containsKey(rel)) {
-      missing.add('$rel (lipo-merged)');
+      missing.add('$rel (Apple multi-triple artifact)');
     }
   }
 

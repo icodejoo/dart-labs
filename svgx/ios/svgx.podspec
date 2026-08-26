@@ -12,60 +12,61 @@ A new Flutter FFI plugin project.
   s.homepage         = 'http://example.com'
   s.license          = { :file => '../LICENSE' }
   s.author           = { 'Your Company' => 'email@example.com' }
-  s.module_name      = 'svgx'
 
-  # This will ensure the source files in Classes/ are included in the native
-  # builds of apps using this FFI plugin. Podspec does not support relative
-  # paths, so Classes contains a forwarder C file that relatively imports
-  # `../src/*` so that the C sources can be shared among all target platforms.
-  #
-  # Classes/dummy_file.c must stay: a pod needs at least one compilable source
-  # file for CocoaPods to create a target that can carry the OTHER_LDFLAGS
-  # below.
-  #
-  # Classes/dummy_file.c 必须保留：pod 至少要有一个可编译源文件，CocoaPods 才会
-  # 生成一个能承载下面 OTHER_LDFLAGS 的 target。
   s.source           = { :path => '.' }
-  s.source_files     = 'Classes/**/*'
   s.dependency 'Flutter'
-  s.platform = :ios, '11.0'
+  # Must not exceed kIosDeploymentTarget in tool/prebuilt_common.dart — that is
+  # the version the vendored binary itself is built for.
+  #
+  # 不得高于 tool/prebuilt_common.dart 的 kIosDeploymentTarget——那是分发二进制自身
+  # 的构建目标版本。
+  s.platform = :ios, '12.0'
   s.swift_version = '5.0'
 
-  # svgx ships precompiled Rust static libraries (see
-  # PRECOMPILED_MIGRATION_PLAN.md). There is no `script_phase` any more —
-  # nothing is compiled on the consumer's machine, and no Rust toolchain is
-  # required.
+  # svgx ships one precompiled Rust XCFramework (see
+  # docs/PRECOMPILED_MIGRATION_PLAN.md). There is no `script_phase` — nothing is
+  # compiled on the consumer's machine, and no Rust toolchain is required.
   #
-  # svgx 随包分发预编译的 Rust 静态库（见 PRECOMPILED_MIGRATION_PLAN.md）。
-  # 不再有 `script_phase`——用户机器上不编译任何东西，也不需要 Rust 工具链。
+  # svgx 随包分发一个预编译的 Rust XCFramework（见
+  # docs/PRECOMPILED_MIGRATION_PLAN.md）。没有 `script_phase`——用户机器上不编译任何
+  # 东西，也不需要 Rust 工具链。
   #
-  # Deliberately NOT using `s.vendored_libraries`: that would put both archives
-  # on the link line at once, and device/simulator both being arm64 makes them
-  # collide. `preserve_paths` is also unnecessary — Flutter consumes plugins as
-  # local `:path` pods (via .symlinks), so the archives are reachable in place
-  # at $(PODS_TARGET_SRCROOT)/../prebuilt/. This is the same mechanism the
-  # previous `$PODS_TARGET_SRCROOT/../cargokit/build_pod.sh` relied on.
+  # The Rust core is a `cdylib` wrapped in `svgx.framework`, not a `staticlib`:
+  # rustc dead-strips everything the `#[no_mangle]` exports cannot reach, which
+  # the old archive + `-force_load` combination specifically prevented.
   #
-  # 刻意不用 `s.vendored_libraries`：那会把两个归档同时放进链接行，而 device 与
-  # simulator 同为 arm64 会互相冲突。也不需要 `preserve_paths`——Flutter 是以本地
-  # `:path` pod（经 .symlinks）消费插件的，归档在
-  # $(PODS_TARGET_SRCROOT)/../prebuilt/ 原地即可访问，与此前
-  # `$PODS_TARGET_SRCROOT/../cargokit/build_pod.sh` 依赖的是同一套机制。
-  s.pod_target_xcconfig = {
-    'DEFINES_MODULE' => 'YES',
-    # Flutter.framework does not contain an i386 slice.
-    'EXCLUDED_ARCHS[sdk=iphonesimulator*]' => 'i386',
-    # -force_load is mandatory: nothing on the C side references the
-    # flutter_rust_bridge exports, so a plain static link dead-strips them.
-    # The per-SDK branch picks the right archive — device and simulator are
-    # both arm64, so `lipo` physically cannot merge them into one file.
-    #
-    # -force_load 是必须的：C 侧没有任何代码引用 flutter_rust_bridge 导出的符号，
-    # 普通静态链接会把它们死代码剥离掉。按 SDK 分支选对应归档——device 与
-    # simulator 都是 arm64，`lipo` 物理上无法合并成一个文件。
-    'OTHER_LDFLAGS[sdk=iphoneos*]' =>
-      '-force_load $(PODS_TARGET_SRCROOT)/../prebuilt/ios/device/libsvgx.a',
-    'OTHER_LDFLAGS[sdk=iphonesimulator*]' =>
-      '-force_load $(PODS_TARGET_SRCROOT)/../prebuilt/ios/simulator/libsvgx.a',
-  }
+  # Rust 核心是包在 `svgx.framework` 里的 `cdylib`，不再是 `staticlib`：rustc 会剥离
+  # `#[no_mangle]` 导出不可达的全部代码，而旧的“归档 + `-force_load`”组合恰恰阻止了
+  # 这一点。
+  #
+  # There are deliberately no `source_files` and no `Classes/` directory. With
+  # them, CocoaPods would build the pod into its own dynamic `svgx.framework`
+  # and collide with the vendored bundle of the same name. The name has to be
+  # `svgx`: flutter_rust_bridge's iOS loader ends up at
+  # `DynamicLibrary.open('svgx.framework/svgx')`, so renaming it would force
+  # every consumer to hand `RustLib.init()` a custom `ExternalLibrary`.
+  #
+  # 刻意不设 `source_files`、也不保留 `Classes/` 目录。一旦有源文件，CocoaPods 会把
+  # pod 自身也编成一个动态 `svgx.framework`，与同名的 vendored bundle 撞车。而名字
+  # 必须是 `svgx`：flutter_rust_bridge 的 iOS 加载器最终走
+  # `DynamicLibrary.open('svgx.framework/svgx')`，改名等于强迫所有下游给
+  # `RustLib.init()` 传自定义 `ExternalLibrary`。
+  #
+  # The XCFramework carries its own per-slice architecture split, so the old
+  # `[sdk=iphoneos*]` / `[sdk=iphonesimulator*]` branch and the
+  # `EXCLUDED_ARCHS` workaround are gone: `xcodebuild` picks the right slice.
+  # It is shipped unsigned — Xcode re-signs embedded frameworks with the
+  # consuming app's identity at "Embed & Sign" time.
+  #
+  # XCFramework 自带按 slice 的架构划分，所以旧的 `[sdk=...]` 分支与
+  # `EXCLUDED_ARCHS` 变通都已删除：`xcodebuild` 会自己选对 slice。产物不签名分发——
+  # Xcode 在 “Embed & Sign” 阶段会用宿主 App 的身份重新签名嵌入的 framework。
+  #
+  # Flutter consumes plugins as local `:path` pods (via .symlinks), so the
+  # `../prebuilt/` path resolves in place — the same mechanism the previous
+  # `$PODS_TARGET_SRCROOT/../cargokit/build_pod.sh` relied on.
+  #
+  # Flutter 以本地 `:path` pod（经 .symlinks）消费插件，`../prebuilt/` 原地即可解析
+  # ——与此前 `$PODS_TARGET_SRCROOT/../cargokit/build_pod.sh` 依赖的是同一套机制。
+  s.vendored_frameworks = '../prebuilt/ios/svgx.xcframework'
 end

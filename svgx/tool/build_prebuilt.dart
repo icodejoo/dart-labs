@@ -65,7 +65,13 @@ Future<int> _run(List<String> args) async {
       found.add(rel);
     }
     found.sort();
-    _updateManifest(root, found, _hostName());
+    // Restage rebuilds the picture from disk, so entries whose file is gone
+    // (an artifact layout change, e.g. iOS `.a` -> `.xcframework`) must be
+    // pruned rather than merged forward as dangling references.
+    //
+    // restage 以磁盘现状为准，因此文件已不存在的条目（产物布局变更，例如 iOS 从
+    // `.a` 改为 `.xcframework`）必须剔除，不能作为悬空引用继续保留。
+    _updateManifest(root, found, _hostName(), prune: true);
     for (final f in found) {
       stdout.writeln('  staged prebuilt/$f');
     }
@@ -187,13 +193,19 @@ Future<int> _run(List<String> args) async {
   // Apple lipo merges: iOS simulator (arm64 + x86_64) and macOS universal.
   // Apple 侧 lipo 合并：iOS 模拟器（arm64 + x86_64）与 macOS 通用库。
   if (host == 'macos') {
-    if (built.containsKey('aarch64-apple-ios-sim') &&
+    if (built.containsKey('aarch64-apple-ios') &&
+        built.containsKey('aarch64-apple-ios-sim') &&
         built.containsKey('x86_64-apple-ios')) {
-      await _lipo(root, [
-        built['aarch64-apple-ios-sim']!,
-        built['x86_64-apple-ios']!,
-      ], 'ios/simulator/libsvgx.a');
-      produced.add('ios/simulator/libsvgx.a');
+      produced.addAll(
+        await _buildIosXcframework(
+          root,
+          device: built['aarch64-apple-ios']!,
+          simulator: <String>[
+            built['aarch64-apple-ios-sim']!,
+            built['x86_64-apple-ios']!,
+          ],
+        ),
+      );
     }
     if (built.containsKey('aarch64-apple-darwin') &&
         built.containsKey('x86_64-apple-darwin')) {
@@ -342,6 +354,16 @@ Map<String, String>? _crossEnv(
     env['CC_aarch64_unknown_linux_gnu'] = cross;
   }
 
+  // Pin the iOS deployment target so the shipped binary's LC_BUILD_VERSION and
+  // the framework's Info.plist MinimumOSVersion always agree, whatever the
+  // current rustc happens to default to.
+  //
+  // 固定 iOS 部署目标，使产物的 LC_BUILD_VERSION 与 framework Info.plist 的
+  // MinimumOSVersion 始终一致，不受 rustc 默认值变动影响。
+  if (target.group == 'ios') {
+    env['IPHONEOS_DEPLOYMENT_TARGET'] = kIosDeploymentTarget;
+  }
+
   if (target.group == 'android') {
     final ndk = _findNdk();
     if (ndk == null) {
@@ -412,6 +434,160 @@ Future<void> _lipo(Directory root, List<String> inputs, String relative) async {
   stdout.writeln('  -> prebuilt/$relative (${dest.lengthSync()} bytes)');
 }
 
+/// Packages the iOS `cdylib` slices into `prebuilt/ios/svgx.xcframework` and
+/// returns the produced file paths, relative to `prebuilt/`.
+///
+/// 把 iOS 的 cdylib 各 slice 打包成 `prebuilt/ios/svgx.xcframework`，返回相对
+/// `prebuilt/` 的产物文件列表。
+///
+/// [device] is the `aarch64-apple-ios` dylib; [simulator] are the simulator
+/// dylibs to `lipo` into one fat slice.
+///
+/// A bare `.dylib` cannot be shipped this way: iOS only loads dynamic libraries
+/// that live inside a `.framework` bundle, and CocoaPods only embeds and
+/// codesigns `vendored_frameworks`. So each slice is wrapped in a real bundle
+/// first, and `xcodebuild -create-xcframework` is fed `-framework`, not
+/// `-library`.
+///
+/// 裸 `.dylib` 无法这样分发：iOS 只加载位于 `.framework` 包内的动态库，而
+/// CocoaPods 也只会嵌入并签名 `vendored_frameworks`。因此先把每个 slice 包成真正的
+/// bundle，再用 `xcodebuild -create-xcframework` 的 `-framework`（而非 `-library`）。
+Future<List<String>> _buildIosXcframework(
+  Directory root, {
+  required String device,
+  required List<String> simulator,
+}) async {
+  final staging = Directory('${root.path}/rust/target/ios-xcframework');
+  if (staging.existsSync()) staging.deleteSync(recursive: true);
+
+  final deviceFramework = await _makeIosFramework(
+    Directory('${staging.path}/device'),
+    device,
+    platform: 'iPhoneOS',
+  );
+  final simFat = File('${staging.path}/simulator-fat/libsvgx.dylib');
+  simFat.parent.createSync(recursive: true);
+  await _exec('lipo', <String>[
+    '-create',
+    ...simulator,
+    '-output',
+    simFat.path,
+  ]);
+  final simFramework = await _makeIosFramework(
+    Directory('${staging.path}/simulator'),
+    simFat.path,
+    platform: 'iPhoneSimulator',
+  );
+
+  // `-create-xcframework` refuses to write over an existing output, and the
+  // old static layout (`ios/device`, `ios/simulator`) must not survive
+  // alongside the new one.
+  //
+  // `-create-xcframework` 不覆盖已存在的输出，且旧的静态库布局
+  // （`ios/device`、`ios/simulator`）不能与新产物并存。
+  final iosDir = Directory('${root.path}/prebuilt/ios');
+  if (iosDir.existsSync()) iosDir.deleteSync(recursive: true);
+  iosDir.createSync(recursive: true);
+
+  final out = '${root.path}/prebuilt/$kIosXcframework';
+  await _exec('xcodebuild', <String>[
+    '-create-xcframework',
+    '-framework',
+    deviceFramework.path,
+    '-framework',
+    simFramework.path,
+    '-output',
+    out,
+  ]);
+
+  final produced = <String>[];
+  var total = 0;
+  for (final e in Directory(out).listSync(recursive: true)) {
+    if (e is! File) continue;
+    produced.add(
+      e.path.substring('${root.path}/prebuilt/'.length).replaceAll(r'\', '/'),
+    );
+    total += e.lengthSync();
+  }
+  produced.sort();
+  stdout.writeln(
+    '  -> prebuilt/$kIosXcframework '
+    '(${produced.length} files, $total bytes)',
+  );
+  return produced;
+}
+
+/// Wraps one iOS `cdylib` in a `<name>.framework` bundle under [dir] and
+/// returns the bundle directory.
+///
+/// 把一个 iOS cdylib 包成 [dir] 下的 `<name>.framework` bundle，返回该 bundle 目录。
+///
+/// [platform] is the `CFBundleSupportedPlatforms` entry: `iPhoneOS` or
+/// `iPhoneSimulator`.
+Future<Directory> _makeIosFramework(
+  Directory dir,
+  String dylib, {
+  required String platform,
+}) async {
+  final bundle = Directory('${dir.path}/$kIosFrameworkName.framework');
+  bundle.createSync(recursive: true);
+  final binary = File('${bundle.path}/$kIosFrameworkName');
+  File(dylib).copySync(binary.path);
+
+  // Rust links a cdylib with an absolute install_name; dyld must instead
+  // resolve it through the embedding app's @rpath (`@executable_path/
+  // Frameworks`, which CocoaPods sets up).
+  //
+  // rustc 给 cdylib 写的是绝对路径 install_name；dyld 必须改为经宿主 App 的
+  // @rpath（CocoaPods 会配置 `@executable_path/Frameworks`）解析。
+  await _exec('install_name_tool', <String>[
+    '-id',
+    '@rpath/$kIosFrameworkName.framework/$kIosFrameworkName',
+    binary.path,
+  ]);
+  // `-x` drops local symbols, `-S` debug symbols; the `#[no_mangle]` exports
+  // Dart looks up stay in the dynamic symbol table.
+  //
+  // `-x` 去局部符号，`-S` 去调试符号；Dart 要查的 `#[no_mangle]` 导出留在动态
+  // 符号表里。
+  await _exec('strip', <String>['-x', '-S', binary.path]);
+
+  File('${bundle.path}/Info.plist').writeAsStringSync(
+    '<?xml version="1.0" encoding="UTF-8"?>\n'
+    '<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" '
+    '"http://www.apple.com/DTDs/PropertyList-1.0.dtd">\n'
+    '<plist version="1.0">\n'
+    '<dict>\n'
+    '\t<key>CFBundleDevelopmentRegion</key>\n\t<string>en</string>\n'
+    '\t<key>CFBundleExecutable</key>\n\t<string>$kIosFrameworkName</string>\n'
+    '\t<key>CFBundleIdentifier</key>\n\t<string>com.example.svgx</string>\n'
+    '\t<key>CFBundleInfoDictionaryVersion</key>\n\t<string>6.0</string>\n'
+    '\t<key>CFBundleName</key>\n\t<string>$kIosFrameworkName</string>\n'
+    '\t<key>CFBundlePackageType</key>\n\t<string>FMWK</string>\n'
+    '\t<key>CFBundleShortVersionString</key>\n\t<string>1.0</string>\n'
+    '\t<key>CFBundleVersion</key>\n\t<string>1</string>\n'
+    '\t<key>CFBundleSupportedPlatforms</key>\n'
+    '\t<array>\n\t\t<string>$platform</string>\n\t</array>\n'
+    '\t<key>MinimumOSVersion</key>\n'
+    '\t<string>$kIosDeploymentTarget</string>\n'
+    '</dict>\n'
+    '</plist>\n',
+  );
+  return bundle;
+}
+
+/// Runs [exe] with [args], throwing when it fails.
+///
+/// 执行 [exe]，失败时抛异常。
+Future<void> _exec(String exe, List<String> args) async {
+  final r = await Process.run(exe, args);
+  if (r.exitCode != 0) {
+    throw StateError(
+      '$exe ${args.join(' ')} failed (${r.exitCode}):\n${r.stdout}\n${r.stderr}',
+    );
+  }
+}
+
 /// Locates an Android NDK from the usual environment variables.
 ///
 /// 从常见环境变量里定位 Android NDK。
@@ -459,11 +635,22 @@ String _androidClangPrefix(String triple) =>
 /// merging into any manifest entries built on another host.
 ///
 /// 记录刚产出的每个文件的源码哈希与内容摘要，并与其它宿主上生成的清单条目合并。
-void _updateManifest(Directory root, List<String> produced, String host) {
+///
+/// [prune] drops pre-existing entries not in [produced]; pass it only when
+/// [produced] is a complete listing of `prebuilt/` (i.e. from `--restage`).
+///
+/// [prune] 会剔除不在 [produced] 里的旧条目；仅当 [produced] 是 `prebuilt/` 的
+/// 完整清单时（即来自 `--restage`）才可传 true。
+void _updateManifest(
+  Directory root,
+  List<String> produced,
+  String host, {
+  bool prune = false,
+}) {
   final sourceHash = computeSourceHash(root);
   final existing = readManifest(root);
   final artifacts = <String, dynamic>{
-    ...?(existing?['artifacts'] as Map<String, dynamic>?),
+    if (!prune) ...?(existing?['artifacts'] as Map<String, dynamic>?),
   };
 
   for (final rel in produced) {
