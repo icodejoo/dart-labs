@@ -1,4 +1,11 @@
-// The Android Gradle Plugin builds the native code with the Android NDK.
+// svgx ships precompiled Rust native libraries instead of building them on the
+// consumer's machine (see PRECOMPILED_MIGRATION_PLAN.md). This module therefore
+// needs no NDK and no Rust toolchain — it only points AGP at the committed
+// .so files under `prebuilt/android/jniLibs/`.
+//
+// svgx 随包分发预编译的 Rust 原生库，不在用户机器上编译（见
+// PRECOMPILED_MIGRATION_PLAN.md）。因此本模块不需要 NDK、也不需要 Rust 工具链，
+// 只是把 AGP 指向 `prebuilt/android/jniLibs/` 下已提交的 .so。
 
 group 'com.flutter_rust_bridge.svgx'
 version '1.0'
@@ -10,7 +17,6 @@ buildscript {
     }
 
     dependencies {
-        // The Android Gradle Plugin knows how to build native code with the NDK.
         classpath 'com.android.tools.build:gradle:7.3.0'
     }
 }
@@ -36,11 +42,12 @@ android {
     // otherwise the example app's checkReleaseAarMetadata task fails.
     compileSdkVersion 36
 
-    // Use the NDK version
-    // declared in /android/app/build.gradle file of the Flutter project.
-    // Replace it with a version number if this plugin requires a specfic NDK version.
-    // (e.g. ndkVersion "23.1.7779620")
-    ndkVersion android.ndkVersion
+    // No `ndkVersion` on purpose: nothing here is compiled from native sources
+    // any more, so requiring the consumer to have an NDK installed would be a
+    // pure cost with no benefit.
+    //
+    // 刻意不写 `ndkVersion`：这里已经不再编译任何原生源码，要求下游装 NDK 是
+    // 纯粹的负担而无收益。
 
     compileOptions {
         sourceCompatibility JavaVersion.VERSION_1_8
@@ -48,12 +55,40 @@ android {
     }
 
     defaultConfig {
-        minSdkVersion 19
+        // The shipped .so files are linked against API 21 (NDK r28 no longer
+        // provides sysroots below that), which matches what cargokit produced
+        // before this migration.
+        //
+        // 分发的 .so 按 API 21 链接（NDK r28 已不再提供更低的 sysroot），与迁移前
+        // cargokit 的行为一致。
+        minSdkVersion 21
     }
-}
 
-apply from: "../cargokit/gradle/plugin.gradle"
-cargokit {
-    manifestDir = "../rust"
-    libname = "svgx"
+    sourceSets {
+        main {
+            // Committed, CI-reproducible Rust binaries — one per ABI. Verified
+            // 16 KB page-aligned (Google Play requirement for 64-bit native
+            // libraries); see `tool/build_prebuilt.dart`, which passes
+            // `-Wl,-z,max-page-size=16384` explicitly.
+            //
+            // 已提交、CI 可复现的 Rust 二进制，每个 ABI 一份。已验证 16 KB 页对齐
+            // （Google Play 对 64 位原生库的硬要求），见 `tool/build_prebuilt.dart`
+            // 里显式传入的 `-Wl,-z,max-page-size=16384`。
+            jniLibs.srcDirs = ['../prebuilt/android/jniLibs']
+        }
+    }
+
+    packagingOptions {
+        jniLibs {
+            // Already stripped at build time (Cargo.toml's `profile.release`
+            // sets `strip = true`). Telling AGP to keep them as-is avoids the
+            // "Unable to strip library" failure on machines with no NDK — which
+            // is now every consumer machine.
+            //
+            // 产物在构建期已 strip（Cargo.toml 的 `profile.release` 设了
+            // `strip = true`）。让 AGP 原样保留，可避免在没有 NDK 的机器上出现
+            // "Unable to strip library" 失败——而现在下游机器本来就都没有 NDK。
+            keepDebugSymbols += ['**/libsvgx.so']
+        }
+    }
 }
