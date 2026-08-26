@@ -561,8 +561,21 @@ Future<ui.Image?> _decodeDataUriImage(String? href) async {
   try {
     final bytes = base64Decode(href.substring(commaIndex + 1));
     final codec = await ui.instantiateImageCodec(Uint8List.fromList(bytes));
-    final frame = await codec.getNextFrame();
-    return frame.image;
+    // The codec owns decoder-side native buffers that are independent of the
+    // frame it hands out, and only one frame is ever pulled here (no animated
+    // GIF/APNG playback). Dropping the reference without disposing leaves
+    // those buffers to the GC's finalizer queue — invisible in the Dart heap,
+    // visible in RSS.
+    //
+    // codec 持有与它交出的帧相互独立的解码器侧原生缓冲，而这里只会取一帧
+    // （不做 GIF/APNG 动图播放）。只丢引用不 dispose，那些缓冲就留给 GC 的
+    // finalizer 队列——在 Dart heap 里看不见，在 RSS 里看得见。
+    try {
+      final frame = await codec.getNextFrame();
+      return frame.image;
+    } finally {
+      codec.dispose();
+    }
   } catch (_) {
     return null;
   }

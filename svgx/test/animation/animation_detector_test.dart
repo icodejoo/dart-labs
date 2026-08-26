@@ -83,5 +83,43 @@ void main() {
         isFalse,
       );
     });
+
+    // The answer is memoized per source string (see `maximumMemoSize`). These
+    // pin the two ways that can go wrong: a repeated question must give the
+    // same answer, and eviction past the cap must not resurrect a stale one.
+    //
+    // 结果按源串记忆（见 `maximumMemoSize`）。以下两例钉住它可能出错的两条路径：
+    // 重复提问必须得到相同答案；超过上限触发淘汰后也不能翻出过期答案。
+    group('memoization', () {
+      tearDown(() {
+        AnimationDetector.clearMemo();
+        AnimationDetector.maximumMemoSize = 1024;
+      });
+
+      test('repeated lookups keep returning the first answer', () {
+        const animated = '<svg><animate attributeName="x"/></svg>';
+        const static = '<svg><path d="M0 0L1 1"/></svg>';
+        for (var i = 0; i < 3; i++) {
+          expect(AnimationDetector.hasAnimations(animated), isTrue);
+          expect(AnimationDetector.hasAnimations(static), isFalse);
+        }
+      });
+
+      test('answers stay correct after the memo evicts them', () {
+        AnimationDetector.clearMemo();
+        AnimationDetector.maximumMemoSize = 2;
+        const animated = '<svg><animateTransform type="rotate"/></svg>';
+        expect(AnimationDetector.hasAnimations(animated), isTrue);
+        // Push three unrelated sources through so `animated`'s entry is gone.
+        // 塞三个无关源进去，把 `animated` 的记录挤出去。
+        for (var i = 0; i < 3; i++) {
+          expect(
+            AnimationDetector.hasAnimations('<svg><rect id="$i"/></svg>'),
+            isFalse,
+          );
+        }
+        expect(AnimationDetector.hasAnimations(animated), isTrue);
+      });
+    });
   });
 }

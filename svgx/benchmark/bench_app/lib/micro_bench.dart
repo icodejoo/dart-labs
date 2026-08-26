@@ -33,6 +33,7 @@ import 'package:svgx/src/animation/animation_detector.dart';
 import 'package:svgx/src/animation/svg_document_cache.dart';
 import 'package:svgx/src/animation/svg_document_parser.dart';
 import 'package:svgx/src/animation/svg_path_data.dart';
+import 'package:svgx/src/animation/svg_style.dart';
 import 'package:svgx/src/animation/svg_theme.dart';
 import 'package:svgx/src/rust_static_svg.dart';
 
@@ -453,7 +454,222 @@ List<MicroResult> runMicroBenchmarks() {
     ),
   );
 
+  // Diagnostic pair for the dashed-stroke path, which real line-md style icons
+  // hit on almost every shape (`stroke-dasharray` + an animated
+  // `stroke-dashoffset`). `dash_path_current` times the library's `dashPath`
+  // at a fresh offset each pass — i.e. exactly the per-frame cost;
+  // `dash_metrics_only` times just `Path.computeMetrics()` over the same
+  // paths, which is the irreducible floor `dashPath` cannot go below. The gap
+  // between them is the only part any Dart-side change could win back.
+  //
+  // 虚线描边路径的诊断配对项：真实 line-md 风格图标几乎每个形状都会命中它
+  // （`stroke-dasharray` + 被动画驱动的 `stroke-dashoffset`）。
+  // `dash_path_current` 每轮换一个新偏移量来跑库里的 `dashPath`——也就是逐帧的
+  // 真实成本；`dash_metrics_only` 只跑同一批路径的 `Path.computeMetrics()`，
+  // 那是 `dashPath` 无法突破的下限。两者的差值才是 Dart 侧改动可能拿回来的部分。
+  final dashSourcePaths = [
+    for (final d in pathDataStrings.take(400)) parseSvgPathData(d),
+  ];
+  const dashArray = <double>[24, 24];
+  var dashFrame = 0;
+  results.add(
+    _measure('dash_path_current', dashSourcePaths.length, () {
+      dashFrame++;
+      final offset = (dashFrame % 48).toDouble();
+      for (final p in dashSourcePaths) {
+        dashPath(p, dashArray: dashArray, dashOffset: offset);
+      }
+    }, trials: 9),
+  );
+  // Decisive paired comparison for the `dashPath` rewrite: `_dashPathLegacy`
+  // below is the pre-2026-08-26 implementation verbatim, so both variants run
+  // in the SAME process over the same paths seconds apart and background load
+  // cannot favour either. Needed because the cross-build reading of
+  // `dash_path_current` sits inside the per-benchmark wobble this suite shows
+  // even on untouched code.
+  //
+  // `dashPath` 重写的决定性配对对比：下面的 `_dashPathLegacy` 是改动前实现的
+  // 原样拷贝，两个变体在**同一进程**里相隔数秒跑同一批路径，后台负载无法偏向
+  // 任何一方。之所以必须这么测：`dash_path_current` 的跨构建读数落在本套件即便
+  // 对未改动代码也存在的逐项波动区间内。
+  var legacyFrame = 0;
+  results.add(
+    _measure('dash_path_legacy_paired', dashSourcePaths.length, () {
+      legacyFrame++;
+      final offset = (legacyFrame % 48).toDouble();
+      for (final p in dashSourcePaths) {
+        _dashPathLegacy(p, dashArray: dashArray, dashOffset: offset);
+      }
+    }, trials: 9),
+  );
+  var newFrame = 0;
+  results.add(
+    _measure('dash_path_new_paired', dashSourcePaths.length, () {
+      newFrame++;
+      final offset = (newFrame % 48).toDouble();
+      for (final p in dashSourcePaths) {
+        dashPath(p, dashArray: dashArray, dashOffset: offset);
+      }
+    }, trials: 9),
+  );
+  // Same paired comparison in the many-dashes-per-contour regime: the rewrite
+  // re-appends its first dash when a second one shows up, so a dense pattern is
+  // where it could plausibly lose. `[4, 4]` over icon-sized contours yields
+  // roughly 3-8 dashes each.
+  //
+  // 同一配对对比在"每条轮廓很多段虚线"这一régime下的版本：重写版在出现第二段
+  // 虚线时会把第一段重新追加一次，密集图案正是它可能吃亏的地方。`[4, 4]` 在
+  // 图标尺寸的轮廓上大约产出 3~8 段。
+  const denseDashArray = <double>[4, 4];
+  var denseLegacyFrame = 0;
+  results.add(
+    _measure('dash_dense_legacy_paired', dashSourcePaths.length, () {
+      denseLegacyFrame++;
+      final offset = (denseLegacyFrame % 8).toDouble();
+      for (final p in dashSourcePaths) {
+        _dashPathLegacy(p, dashArray: denseDashArray, dashOffset: offset);
+      }
+    }, trials: 9),
+  );
+  var denseNewFrame = 0;
+  results.add(
+    _measure('dash_dense_new_paired', dashSourcePaths.length, () {
+      denseNewFrame++;
+      final offset = (denseNewFrame % 8).toDouble();
+      for (final p in dashSourcePaths) {
+        dashPath(p, dashArray: denseDashArray, dashOffset: offset);
+      }
+    }, trials: 9),
+  );
+  results.add(
+    _measure('dash_metrics_only', dashSourcePaths.length, () {
+      var total = 0.0;
+      for (final p in dashSourcePaths) {
+        for (final metric in p.computeMetrics()) {
+          total += metric.length;
+        }
+      }
+      if (total < 0) throw StateError('unreachable');
+    }, trials: 9),
+  );
+
+  // Decisive paired comparison for the `parseSvgHexColor` rewrite: the same
+  // colour literals, both variants in the SAME process. Colours are resolved
+  // once per coloured attribute per node per frame on the animation path, so
+  // the per-call delta multiplies by roughly six per document per frame.
+  //
+  // `parseSvgHexColor` 重写的决定性配对对比：同一批颜色字面量，两个变体跑在
+  // **同一进程**里。动画路径上每帧、每个节点、每个颜色属性都要解析一次颜色，
+  // 因此单次调用的差值大致要乘以"每文档每帧六次"。
+  final colorLiterals = <String>[
+    for (var i = 0; i < 500; i++)
+      i % 5 == 0
+          ? '#${(i % 16).toRadixString(16)}'
+                '${((i + 3) % 16).toRadixString(16)}'
+                '${((i + 7) % 16).toRadixString(16)}'
+          : '#${(i * 37 % 0xFFFFFF).toRadixString(16).padLeft(6, '0')}',
+  ];
+  results.add(
+    _measure('hexcolor_legacy_paired', colorLiterals.length, () {
+      var acc = 0;
+      for (final literal in colorLiterals) {
+        acc ^= _parseSvgHexColorLegacy(literal)?.toARGB32() ?? 0;
+      }
+      if (acc == 0x12345678) throw StateError('unreachable');
+    }, trials: 9),
+  );
+  results.add(
+    _measure('hexcolor_new_paired', colorLiterals.length, () {
+      var acc = 0;
+      for (final literal in colorLiterals) {
+        acc ^= parseSvgHexColor(literal)?.toARGB32() ?? 0;
+      }
+      if (acc == 0x12345678) throw StateError('unreachable');
+    }, trials: 9),
+  );
+
   return results;
+}
+
+/// Verbatim copy of `svg_style.dart`'s `parseSvgHexColor` as it stood before
+/// the 2026-08-26 rewrite (substring + `int.parse` per channel).
+///
+/// `svg_style.dart` 的 `parseSvgHexColor` 在 2026-08-26 重写之前的原样拷贝
+/// （每个通道一次 substring + `int.parse`）。
+Color? _parseSvgHexColorLegacy(String v) {
+  if (!v.startsWith('#')) return null;
+  final hex = v.substring(1);
+  int channel(String s) => int.parse(s.length == 1 ? s * 2 : s, radix: 16);
+  switch (hex.length) {
+    case 3:
+      return Color.fromARGB(
+        255,
+        channel(hex[0]),
+        channel(hex[1]),
+        channel(hex[2]),
+      );
+    case 6:
+      return Color(0xFF000000 | int.parse(hex, radix: 16));
+    case 8:
+      final a = channel(hex.substring(6, 8));
+      final rgb = int.parse(hex.substring(0, 6), radix: 16);
+      return Color((a << 24) | rgb);
+    default:
+      return null;
+  }
+}
+
+// Verbatim copy of `svg_path_data.dart`'s `dashPath` as it stood before the
+// 2026-08-26 rewrite (doubled-pattern list, `fold` for the cycle length, a `%`
+// per pattern step, and an always-allocated union path). Kept here rather than
+// in the library because the point is to compare against a variant the library
+// should NOT ship.
+//
+// `svg_path_data.dart` 的 `dashPath` 在 2026-08-26 重写之前的原样拷贝（翻倍图案
+// 列表、用 `fold` 求周期长度、每步一次 `%`、并集路径总是分配）。放在基准里而不
+// 是库里，因为要比较的正是一个库**不应该**采用的变体。
+ui.Path _dashPathLegacy(
+  ui.Path source, {
+  required List<double> dashArray,
+  double dashOffset = 0,
+}) {
+  final pattern = dashArray.length.isOdd
+      ? [...dashArray, ...dashArray]
+      : dashArray;
+  final cycle = pattern.fold<double>(0, (sum, v) => sum + v);
+  if (cycle <= 0) return source;
+
+  final result = ui.Path();
+  for (final metric in source.computeMetrics()) {
+    var distance = -(dashOffset % cycle);
+    var patternIndex = 0;
+    var drawing = true;
+    while (distance + pattern[patternIndex % pattern.length] <= 0) {
+      distance += pattern[patternIndex % pattern.length];
+      patternIndex++;
+      drawing = !drawing;
+    }
+    while (distance < metric.length) {
+      final segmentLength = pattern[patternIndex % pattern.length];
+      final segmentEnd = distance + segmentLength;
+      if (drawing && segmentEnd > 0) {
+        final clampedStart = distance < 0 ? 0.0 : distance;
+        final clampedEnd = segmentEnd > metric.length
+            ? metric.length
+            : segmentEnd;
+        if (clampedEnd > clampedStart) {
+          result.addPath(
+            metric.extractPath(clampedStart, clampedEnd),
+            Offset.zero,
+          );
+        }
+      }
+      distance = segmentEnd;
+      patternIndex++;
+      drawing = !drawing;
+    }
+  }
+  return result;
 }
 
 // Two copies of `rust_static_svg.dart`'s private `_replay` verb/point decoder,

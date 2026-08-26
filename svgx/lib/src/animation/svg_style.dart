@@ -144,14 +144,85 @@ class ResolvedStyle {
   }
 }
 
+/// Memo for [_parseDasharray], keyed by the raw attribute string.
+///
+/// `stroke-dasharray` is re-resolved on every node on every frame (see
+/// [ResolvedStyle.inherit]), yet its value is a pure function of a string that
+/// almost never changes: `d`-style geometry is what animates in a line-md
+/// icon, the dash *pattern* is a constant like `"24"` while only
+/// `stroke-dashoffset` moves. So the parse is memoized rather than repeated
+/// ~60 times a second per dashed element.
+///
+/// Cardinality is what makes this safe: a document set uses a handful of
+/// distinct dash patterns, so [_dasharrayMemoLimit] is never reached in
+/// practice. Past the limit the memo is dropped wholesale (a generational
+/// clear, no LRU bookkeeping on the read path) and refills.
+///
+/// [_parseDasharray] 的记忆表，键为原始属性字符串。
+///
+/// `stroke-dasharray` 每帧、每个节点都会被重新解析（见
+/// [ResolvedStyle.inherit]），但它是一个几乎不变的字符串的纯函数：line-md 风格
+/// 图标里动的是 `stroke-dashoffset`，虚线*图案*本身是 `"24"` 这样的常量。因此把
+/// 解析结果记下来，而不是每秒对每个虚线元素重复约 60 次。
+///
+/// 低基数是这么做安全的前提：一批文档只会用到少数几种虚线图案，实践中根本触
+/// 不到 [_dasharrayMemoLimit]。超限时整表丢弃重建（分代式清空，读路径上不做
+/// LRU 记账）。
+final Map<String, List<double>> _dasharrayMemo = <String, List<double>>{};
+
+/// Entry cap for [_dasharrayMemo] — see that field.
+///
+/// [_dasharrayMemo] 的条目上限——见该字段。
+const int _dasharrayMemoLimit = 256;
+
+/// Parses a `stroke-dasharray` attribute value into its dash lengths, or an
+/// empty list for `none`/blank. Results are memoized — see [_dasharrayMemo].
+///
+/// 把 `stroke-dasharray` 属性值解析为各段长度；`none`/空值返回空列表。结果会被
+/// 记忆——见 [_dasharrayMemo]。
 List<double> _parseDasharray(String raw) {
+  final memoized = _dasharrayMemo[raw];
+  if (memoized != null) return memoized;
+  final parsed = _parseDasharrayUncached(raw);
+  if (_dasharrayMemo.length >= _dasharrayMemoLimit) _dasharrayMemo.clear();
+  _dasharrayMemo[raw] = parsed;
+  return parsed;
+}
+
+/// The uncached parse behind [_parseDasharray].
+///
+/// Splits on runs of whitespace/commas with a hand-rolled scan instead of
+/// `String.split(RegExp(...))`: the regex form allocates a match iterator, an
+/// intermediate `List<String>`, and three lazy-iterable wrappers for a value
+/// that is usually one or two numbers long.
+///
+/// [_parseDasharray] 背后的无缓存解析。
+///
+/// 用手写扫描按空白/逗号连续段切分，而不是 `String.split(RegExp(...))`：正则写法
+/// 要为一个通常只有一两个数字的值分配匹配迭代器、中间 `List<String>` 和三层惰性
+/// 可迭代包装。
+List<double> _parseDasharrayUncached(String raw) {
   final v = raw.trim();
   if (v.isEmpty || v == 'none') return const [];
-  return v
-      .split(RegExp(r'[\s,]+'))
-      .where((s) => s.isNotEmpty)
-      .map((s) => double.tryParse(s) ?? 0)
-      .toList();
+  final values = <double>[];
+  var start = -1;
+  for (var i = 0; i <= v.length; i++) {
+    final isSeparator =
+        i == v.length ||
+        switch (v.codeUnitAt(i)) {
+          0x20 || 0x09 || 0x0A || 0x0D || 0x0C || 0x2C => true,
+          _ => false,
+        };
+    if (isSeparator) {
+      if (start >= 0) {
+        values.add(double.tryParse(v.substring(start, i)) ?? 0);
+        start = -1;
+      }
+    } else if (start < 0) {
+      start = i;
+    }
+  }
+  return values.isEmpty ? const [] : List<double>.of(values, growable: false);
 }
 
 /// Parses `#RGB`/`#RRGGBB`/`#RRGGBBAA` hex colours, or null for anything else.
@@ -171,25 +242,70 @@ List<double> _parseDasharray(String raw) {
 /// ```dart
 /// parseSvgHexColor('#FF7A00'); // Color(0xFFFF7A00)
 /// ```
+// Digits are read straight out of [v] with `codeUnitAt` instead of being cut
+// out with `substring`/`operator []` and handed to `int.parse`. This runs once
+// per coloured attribute per node per frame on the animation path, and the
+// string-slicing form allocated on every call: one substring for `#RRGGBB`,
+// and seven strings for `#RGB` (a substring, then a one-character string plus
+// a doubled string per channel). Malformed digits now yield null instead of
+// throwing a `FormatException`, which matches what this function already does
+// for a wrong-length value.
+//
+// 各位十六进制数字直接用 `codeUnitAt` 从 [v] 里读，而不是先用
+// `substring`/`operator []` 切出来再交给 `int.parse`。动画路径上，本函数每帧、
+// 每个节点、每个颜色属性都要跑一次，而切字符串的写法每次调用都要分配：
+// `#RRGGBB` 一个 substring，`#RGB` 则是七个字符串（一个 substring，外加每个通道
+// 一个单字符串和一个翻倍串）。非法数字现在返回 null 而不是抛
+// `FormatException`——这与本函数对长度不合法的值本就采取的做法一致。
 Color? parseSvgHexColor(String v) {
-  if (!v.startsWith('#')) return null;
-  final hex = v.substring(1);
-  int channel(String s) => int.parse(s.length == 1 ? s * 2 : s, radix: 16);
-  switch (hex.length) {
-    case 3:
-      return Color.fromARGB(
-        255,
-        channel(hex[0]),
-        channel(hex[1]),
-        channel(hex[2]),
+  if (v.isEmpty || v.codeUnitAt(0) != 0x23) return null;
+  switch (v.length) {
+    case 4: // #RGB
+      final r = _hexDigit(v, 1);
+      final g = _hexDigit(v, 2);
+      final b = _hexDigit(v, 3);
+      if (r < 0 || g < 0 || b < 0) return null;
+      // Each nibble is duplicated into a full byte: 0xF -> 0xFF.
+      // 每个半字节复制成一个完整字节：0xF -> 0xFF。
+      return Color(
+        0xFF000000 | (r * 0x11) << 16 | (g * 0x11) << 8 | (b * 0x11),
       );
-    case 6:
-      return Color(0xFF000000 | int.parse(hex, radix: 16));
-    case 8:
-      final a = channel(hex.substring(6, 8));
-      final rgb = int.parse(hex.substring(0, 6), radix: 16);
+    case 7: // #RRGGBB
+      final rgb = _hexByte(v, 1, 3);
+      return rgb < 0 ? null : Color(0xFF000000 | rgb);
+    case 9: // #RRGGBBAA
+      final rgb = _hexByte(v, 1, 3);
+      final a = _hexByte(v, 7, 1);
+      if (rgb < 0 || a < 0) return null;
       return Color((a << 24) | rgb);
     default:
       return null;
   }
+}
+
+/// The hex value of the digit at [index] in [v], or -1 when it isn't one.
+///
+/// [v] 中 [index] 处十六进制数字的值；不是十六进制数字时返回 -1。
+int _hexDigit(String v, int index) {
+  final c = v.codeUnitAt(index);
+  if (c >= 0x30 && c <= 0x39) return c - 0x30; // 0-9
+  if (c >= 0x61 && c <= 0x66) return c - 0x57; // a-f
+  if (c >= 0x41 && c <= 0x46) return c - 0x37; // A-F
+  return -1;
+}
+
+/// [byteCount] hex byte pairs of [v] starting at [start], packed big-endian
+/// into one int, or -1 when any digit is invalid.
+///
+/// 从 [start] 开始读 [v] 的 [byteCount] 组十六进制字节对，按大端打包成一个整数；
+/// 任一数字非法时返回 -1。
+int _hexByte(String v, int start, int byteCount) {
+  var value = 0;
+  final end = start + byteCount * 2;
+  for (var i = start; i < end; i++) {
+    final digit = _hexDigit(v, i);
+    if (digit < 0) return -1;
+    value = (value << 4) | digit;
+  }
+  return value;
 }

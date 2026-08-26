@@ -176,9 +176,20 @@ class AnimatedSvgPainter extends CustomPainter {
     final effectiveAttributes = _effectiveAttributes(node);
     final style = inherited.inherit(effectiveAttributes, theme);
 
-    final clipDef = nested ? null : clipPaths[node.clipPathId];
-    final maskDef = nested ? null : masks[node.maskId];
+    // The id checks come first so the overwhelming majority of nodes — which
+    // reference neither a `<clipPath>` nor a `<mask>` — skip two map lookups
+    // per node per frame instead of hashing a null key twice.
+    //
+    // 先做 id 判空，使绝大多数既不引用 `<clipPath>` 也不引用 `<mask>` 的节点
+    // 每帧省掉两次 map 查找，而不是拿 null 键去哈希两次。
+    final clipPathId = node.clipPathId;
+    final maskId = node.maskId;
+    final clipDef = (nested || clipPathId == null)
+        ? null
+        : clipPaths[clipPathId];
+    final maskDef = (nested || maskId == null) ? null : masks[maskId];
     final blurSigma = node.blurSigma;
+    final hasBlur = blurSigma != null && blurSigma > 0;
     final needsClipMaskSave = clipDef != null || maskDef != null;
     if (needsClipMaskSave) canvas.save();
     if (clipDef != null) canvas.clipPath(_resolveClipPath(clipDef, time));
@@ -191,7 +202,7 @@ class AnimatedSvgPainter extends CustomPainter {
     // feGaussianBlur：把本节点（含子树）绘制进一个离屏图层，合成时对整个图层
     // 做模糊——而非逐笔画/填充分别模糊，这才符合 SVG 滤镜语义（滤镜作用于元素
     // 的*渲染结果*，而非其涂料本身）。
-    if (blurSigma != null && blurSigma > 0) {
+    if (hasBlur) {
       canvas.saveLayer(
         null,
         Paint()
@@ -213,7 +224,7 @@ class AnimatedSvgPainter extends CustomPainter {
         node.motionAnimations.isEmpty &&
         node.transform == null) {
       _paintNodeContent(canvas, node, style, effectiveAttributes);
-      if (blurSigma != null && blurSigma > 0) canvas.restore();
+      if (hasBlur) canvas.restore();
       if (maskDef != null) _applyMaskLayer(canvas, maskDef);
       if (needsClipMaskSave) canvas.restore();
       return;
@@ -232,7 +243,17 @@ class AnimatedSvgPainter extends CustomPainter {
     // 叠加在它之上。
     final staticTransform = node.transform;
     if (staticTransform != null) {
-      canvas.transform(_affineToMatrix4(staticTransform));
+      // Expanded once and kept on the node: `transform` is final and fixed at
+      // parse time, so the 4x4 form can never go stale (see
+      // [SvgNode.cachedTransformMatrix]). Previously every transformed node
+      // allocated a fresh Float64List(16) on every frame.
+      //
+      // 只展开一次并挂在节点上：`transform` 是 final 且在解析阶段就固定，4x4
+      // 形式不可能失效（见 [SvgNode.cachedTransformMatrix]）。此前每个带变换的
+      // 节点每帧都要新分配一个 Float64List(16)。
+      canvas.transform(
+        node.cachedTransformMatrix ??= _affineToMatrix4(staticTransform),
+      );
     }
     for (final transformAnimation in node.transformAnimations) {
       final sampled = transformAnimation.sample(time);
@@ -292,7 +313,7 @@ class AnimatedSvgPainter extends CustomPainter {
     _paintNodeContent(canvas, node, style, effectiveAttributes);
     canvas.restore(); // closes the transform save() a few lines above
 
-    if (blurSigma != null && blurSigma > 0) canvas.restore();
+    if (hasBlur) canvas.restore();
     if (maskDef != null) _applyMaskLayer(canvas, maskDef);
     if (needsClipMaskSave) canvas.restore();
   }
@@ -469,8 +490,15 @@ class AnimatedSvgPainter extends CustomPainter {
     switch (node.kind) {
       case SvgNodeKind.root:
       case SvgNodeKind.group:
-        for (final child in node.children) {
-          _paintNode(canvas, child, style);
+        // Indexed rather than `for (final child in ...)`: the latter allocates
+        // a list iterator per group per frame, and a real icon's tree is
+        // mostly groups.
+        //
+        // 用下标而非 `for (final child in ...)`：后者每个分组每帧都要分配一个
+        // 列表迭代器，而真实图标的树里分组占多数。
+        final children = node.children;
+        for (var i = 0; i < children.length; i++) {
+          _paintNode(canvas, children[i], style);
         }
       case SvgNodeKind.path:
       case SvgNodeKind.circle:
@@ -693,7 +721,7 @@ class AnimatedSvgPainter extends CustomPainter {
         style: TextStyle(
           fontSize: fontSize,
           fontFamily: attributes['font-family'],
-          color: fill.withValues(alpha: fill.a * style.opacity),
+          color: _fade(fill, style.opacity),
         ),
       ),
       textDirection: TextDirection.ltr,
@@ -754,6 +782,21 @@ class AnimatedSvgPainter extends CustomPainter {
     return out;
   }
 
+  /// [color] faded by [opacity], returning [color] untouched at full opacity.
+  ///
+  /// `Color.withValues` builds a whole new [Color] from four floating-point
+  /// components; at `opacity == 1` that new colour is equal to the one it was
+  /// derived from, so the allocation is pure waste — and full opacity is the
+  /// default every node inherits unless an `opacity` attribute says otherwise.
+  ///
+  /// [color] 按 [opacity] 淡化后的颜色；完全不透明时原样返回 [color]。
+  ///
+  /// `Color.withValues` 会用四个浮点分量构造一个全新的 [Color]；当
+  /// `opacity == 1` 时新颜色与原颜色相等，这次分配纯属浪费——而完全不透明正是
+  /// 每个节点在没有 `opacity` 属性时继承到的默认值。
+  static Color _fade(Color color, double opacity) =>
+      opacity == 1 ? color : color.withValues(alpha: color.a * opacity);
+
   void _paintShape(Canvas canvas, ui.Path path, ResolvedStyle style) {
     if (style.opacity <= 0) return;
     final fillShader = _gradientShader(
@@ -773,9 +816,7 @@ class AnimatedSvgPainter extends CustomPainter {
         path,
         Paint()
           ..style = PaintingStyle.fill
-          ..color = style.fill!.withValues(
-            alpha: style.fill!.a * style.opacity,
-          ),
+          ..color = _fade(style.fill!, style.opacity),
       );
     }
     final strokeShader = _gradientShader(
@@ -813,9 +854,7 @@ class AnimatedSvgPainter extends CustomPainter {
         strokePath,
         Paint()
           ..style = PaintingStyle.stroke
-          ..color = style.stroke!.withValues(
-            alpha: style.stroke!.a * style.opacity,
-          )
+          ..color = _fade(style.stroke!, style.opacity)
           ..strokeWidth = style.strokeWidth
           ..strokeCap = style.strokeLinecap
           ..strokeJoin = style.strokeLinejoin,

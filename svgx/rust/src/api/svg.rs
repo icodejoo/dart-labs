@@ -755,27 +755,33 @@ fn map(t: &Transform, p: Point) -> (f32, f32) {
 /// last-point/last-move bookkeeping was pure overhead, and the raw slices give
 /// exact lengths to reserve up front instead of growing both Vecs by doubling.
 ///
+/// The verb translation is fed to `Vec::extend` rather than a `reserve` + `push`
+/// loop: `Map<slice::Iter<_>, _>` is `TrustedLen`, so `extend` takes std's
+/// `extend_trusted` path — one exact `reserve`, then raw pointer writes with no
+/// per-element capacity check or length update.
+///
 /// 直接读 tiny-skia 的两个平行数组（`verbs()`/`points()`），不再驱动
 /// `segments()` 迭代器。tiny-skia 文档写明 `Path` 是"紧凑存储，段类型与数值
 /// 分开存放"，而点数组的顺序恰好就是本 wire 格式要的顺序（move 1 点、line 1
 /// 点、quad 2 点、cubic 3 点、close 0 点）——因此迭代器那套 last-point/
 /// last-move 记账纯属额外开销，且拿到裸切片就能提前按精确长度 reserve，
 /// 不必让两个 Vec 靠翻倍扩容长大。
+///
+/// 动词转换交给 `Vec::extend` 而不是 `reserve` + `push` 循环：
+/// `Map<slice::Iter<_>, _>` 实现了 `TrustedLen`，`extend` 因此走 std 的
+/// `extend_trusted` 分支——只做一次精确 `reserve`，随后用裸指针写入，
+/// 每个元素都不再有容量检查与长度自增。
 fn append_segments(p: &usvg::Path, t: &Transform, verbs: &mut Vec<u8>, points: &mut Vec<f32>) {
     use usvg::tiny_skia_path::PathVerb;
 
     let data = p.data();
-    let src_verbs = data.verbs();
-    verbs.reserve(src_verbs.len());
-    for v in src_verbs {
-        verbs.push(match v {
-            PathVerb::Move => 0,
-            PathVerb::Line => 1,
-            PathVerb::Quad => 2,
-            PathVerb::Cubic => 3,
-            PathVerb::Close => 4,
-        });
-    }
+    verbs.extend(data.verbs().iter().map(|v| match v {
+        PathVerb::Move => 0u8,
+        PathVerb::Line => 1,
+        PathVerb::Quad => 2,
+        PathVerb::Cubic => 3,
+        PathVerb::Close => 4,
+    }));
     append_mapped_points(t, data.points(), points);
 }
 
@@ -787,34 +793,41 @@ fn append_segments(p: &usvg::Path, t: &Transform, verbs: &mut Vec<u8>, points: &
 /// point-at-a-time `map_points(&mut [pt])` calls, which redid that dispatch per
 /// point (and, at `opt-level = "z"`, paid a real call per point too).
 ///
+/// Each branch emits its two coordinates as a `[f32; 2]` through `flat_map` and
+/// hands the result to `Vec::extend`. That iterator is `TrustedLen` — std has
+/// `unsafe impl TrustedLen for FlattenCompat<I, array::IntoIter<T, N>> where
+/// I: TrustedLen<Item = [T; N]>` — so `extend` reserves once for the exact final
+/// length and then writes through a raw pointer, instead of the `push`-per-
+/// coordinate form which re-checked capacity and bumped the length 2× per point.
+/// The arithmetic per coordinate is unchanged, so output stays bit-identical.
+///
 /// 把 [src] 经 [t] 映射后作为扁平 x,y 对追加到 [out]。
 ///
 /// **对整个切片只做一次**变换形态分派——与 `Transform::map_points` 内部相同的
 /// 四个分支、相同顺序、相同算式，因此输出与此前逐点调用
 /// `map_points(&mut [pt])` 的结果逐位一致；而那种写法每个点都要重做一次分派
 /// （在 `opt-level = "z"` 下还要真的付一次函数调用）。
+///
+/// 每个分支都用 `flat_map` 把两个坐标产出为 `[f32; 2]`，再交给 `Vec::extend`。
+/// 该迭代器是 `TrustedLen`——std 有
+/// `unsafe impl TrustedLen for FlattenCompat<I, array::IntoIter<T, N>> where
+/// I: TrustedLen<Item = [T; N]>`——因此 `extend` 按最终精确长度只 reserve 一次，
+/// 之后通过裸指针写入；而原先逐坐标 `push` 的写法，每个点都要做两次容量检查与
+/// 两次长度自增。每个坐标的算式没有改变，输出仍然逐位一致。
 fn append_mapped_points(t: &Transform, src: &[Point], out: &mut Vec<f32>) {
-    out.reserve(src.len() * 2);
     if t.is_identity() {
-        for p in src {
-            out.push(p.x);
-            out.push(p.y);
-        }
+        out.extend(src.iter().flat_map(|p| [p.x, p.y]));
     } else if t.is_translate() {
-        for p in src {
-            out.push(p.x + t.tx);
-            out.push(p.y + t.ty);
-        }
+        out.extend(src.iter().flat_map(|p| [p.x + t.tx, p.y + t.ty]));
     } else if t.is_scale_translate() {
-        for p in src {
-            out.push(p.x * t.sx + t.tx);
-            out.push(p.y * t.sy + t.ty);
-        }
+        out.extend(src.iter().flat_map(|p| [p.x * t.sx + t.tx, p.y * t.sy + t.ty]));
     } else {
-        for p in src {
-            out.push(p.x * t.sx + p.y * t.kx + t.tx);
-            out.push(p.x * t.ky + p.y * t.sy + t.ty);
-        }
+        out.extend(src.iter().flat_map(|p| {
+            [
+                p.x * t.sx + p.y * t.kx + t.tx,
+                p.x * t.ky + p.y * t.sy + t.ty,
+            ]
+        }));
     }
 }
 

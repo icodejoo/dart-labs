@@ -24,10 +24,22 @@ import 'mdi_icons_1000.dart';
 /// ```dart
 /// final icons = generateIcons(1000);
 /// ```
-List<String> generateIcons(int count) {
+List<String> generateIcons(int count, {int distinct = 0}) {
   assert(
     count <= mdiIcons1000.length,
     'only ${mdiIcons1000.length} icons baked',
   );
+  if (distinct > 0 && distinct < count) {
+    // Same grid, same scrolling, same widget count — but only `distinct`
+    // sources ever reach the parser/cache. Exists purely as a memory-
+    // attribution control: comparing this against the all-distinct run splits
+    // "RSS the grid and the engine cost" from "RSS svgx's own parse + cache
+    // cost", which no single absolute reading can separate.
+    //
+    // 网格、滚动、控件数量完全相同，但只有 `distinct` 个源会进到解析器/缓存。
+    // 它的唯一用途是内存归因对照：与全互异那一轮对比，就能把"网格与引擎自身
+    // 的 RSS"和"svgx 解析 + 缓存自身的 RSS"分开——单看一个绝对值永远分不开。
+    return List<String>.generate(count, (i) => mdiIcons1000[i % distinct]);
+  }
   return mdiIcons1000.take(count).toList();
 }

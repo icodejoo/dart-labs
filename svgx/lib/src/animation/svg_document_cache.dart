@@ -87,4 +87,12 @@ class SvgDocumentCache {
   ///
   /// 清空缓存（供测试 / 低内存处理调用）。
   void clear() => _entries.clear();
+
+  /// Number of parsed documents currently held. / 当前缓存的已解析文档数量。
+  ///
+  /// Example:
+  /// ```dart
+  /// print(SvgDocumentCache.instance.length);
+  /// ```
+  int get length => _entries.length;
 }
