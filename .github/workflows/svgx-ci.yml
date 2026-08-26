@@ -1,4 +1,7 @@
 name: svgx CI
+# (retrigger note: the two immediately-preceding pushes were interrupted by
+# the following push before their runs reached a terminal state — this
+# comment-only edit exists purely to get a clean push-triggered run.)
 
 # svgx ships a Rust core (parsed via flutter_rust_bridge + cargokit) behind a
 # Dart/Flutter plugin API. cargokit hooks the Rust cross-compile into each
