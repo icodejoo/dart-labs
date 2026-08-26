@@ -1,44 +1,31 @@
 name: svgx CI
-# (retrigger note: the two immediately-preceding pushes were interrupted by
-# the following push before their runs reached a terminal state — this
-# comment-only edit exists purely to get a clean push-triggered run.)
 
-# svgx ships a Rust core (parsed via flutter_rust_bridge + cargokit) behind a
-# Dart/Flutter plugin API. cargokit hooks the Rust cross-compile into each
-# platform's native build step (Gradle for Android, Xcode build phase for
-# iOS/macOS, CMake ExternalProject for Windows/Linux) — so CI verifies
-# cross-compilation by driving `flutter build <platform>` on the example app,
-# not by invoking `cargo build` per target manually. Pure-Rust unit tests
-# (rust/src/**) get their own standalone `cargo test` job that doesn't need
-# cargokit or Flutter at all.
+# svgx ships a Rust core (via flutter_rust_bridge) behind a Dart/Flutter plugin
+# API. As of the precompiled-binary migration (see
+# svgx/PRECOMPILED_MIGRATION_PLAN.md) the Rust crate is NOT compiled on a
+# consumer's machine, and not compiled by this workflow either: the native
+# libraries are committed under `svgx/prebuilt/` and the platform build files
+# only reference them.
 #
-# Toolchain policy (updated 2026-08-26 — nightly build-std is now wired into
-# the real packaging pipeline):
+# That changes what CI has to prove, from "can cargokit cross-compile on each
+# platform" to three separate things:
 #
-#   * Test/analyze jobs (rust-test, dart-analyze, flutter-test) and any *debug*
-#     platform build stay on **stable**. `cargo test` cannot run under
-#     `-Z build-std` at all (it hits `duplicate lang item`, because build-std
-#     compiles core/alloc for both host and target).
-#   * Any job that runs a **release** platform build (build-windows /
-#     build-ios / build-macos / build-linux) now goes through cargokit's
-#     `release` configuration, which `svgx/rust/cargokit.yaml` pins to
-#     `nightly-2026-06-24` + `-Z build-std=std,panic_abort` +
-#     `RUSTFLAGS=-Zunstable-options -Cpanic=immediate-abort`. That shrinks the
-#     packaged native library ~21.4% (624,640 -> 491,008 bytes on Windows,
-#     measured through `flutter build windows`). Those jobs therefore install
-#     the pinned nightly toolchain + the `rust-src` component explicitly.
-#     (cargokit would auto-install both via rustup, but doing it as a visible
-#     step keeps failures obvious and the version in one place.)
-#   * build-android uses `flutter build apk --debug`, i.e. cargokit's `debug`
-#     configuration, so it stays on stable and needs no nightly step.
-#   * build-android-release (new 2026-08-26) verifies `flutter build apk
-#     --release` in CI for the first time — this path had only been run
-#     locally before. It follows the same nightly + rust-src pattern as the
-#     other release jobs above.
+#   1. `prebuilt-sync` — do the committed binaries still correspond to the Rust
+#      sources in the tree? Without this, editing rust/src/** and forgetting to
+#      regenerate the binaries would ship a stale library silently. This is the
+#      protection that replaces cargokit's content-hash mechanism.
+#   2. `cargo-check` — does the Rust source still compile for every target
+#      triple we ship? Type-check only (no build-std, no LTO, no link), so it is
+#      cheap enough to run on every push while still catching platform-specific
+#      breakage that a host-only `cargo test` would miss.
+#   3. `build-*` — does a real downstream consumer build succeed, and does the
+#      prebuilt binary actually end up inside the produced bundle? The second
+#      half matters: the characteristic failure mode of precompiled distribution
+#      is "the build passes but the library was never packaged", which then
+#      explodes at runtime inside DynamicLibrary.open.
 #
-# Bumping RUST_RELEASE_TOOLCHAIN must stay in sync with
-# `svgx/rust/cargokit.yaml`, `svgx/rust/build-release.ps1`, `svgx/README.md`
-# and `svgx/CLAUDE.md`.
+# Producing the binaries is a separate, manually triggered workflow:
+# `.github/workflows/svgx-prebuilt.yml`.
 on:
   push:
     branches: [main]
@@ -52,9 +39,10 @@ on:
 
 env:
   FLUTTER_VERSION: '3.47.0'
-  # Pinned nightly used by cargokit's `release` configuration (build-std).
-  # Must match `svgx/rust/cargokit.yaml`.
-  RUST_RELEASE_TOOLCHAIN: 'nightly-2026-06-24'
+  # NDK used for the `cargo check` legs of the Android triples. `cargo check`
+  # still runs build scripts, and dart-sys compiles a C file, so a C compiler
+  # for the target is required even though nothing is linked.
+  ANDROID_NDK_VERSION: '28.0.13004108'
 
 jobs:
   rust-test:
@@ -102,11 +90,10 @@ jobs:
 
       - name: dart format check
         working-directory: svgx
-        # Scoped to the package's own sources — `dart format` (unlike
-        # `flutter analyze`) does not honor analysis_options.yaml excludes,
-        # so a bare `.` also tries to reformat the unparseable vendored
-        # cargokit/build_tool sources and fails the whole check.
-        run: dart format --output=none --set-exit-if-changed lib test example/lib
+        # Scoped to the package's own sources. `dart format` (unlike
+        # `flutter analyze`) does not honor analysis_options.yaml excludes, so a
+        # bare `.` would also try to reformat benchmark/baseline_f.
+        run: dart format --output=none --set-exit-if-changed lib test tool example/lib
 
   flutter-test:
     name: Flutter unit tests
@@ -124,25 +111,125 @@ jobs:
         run: flutter pub get
 
       # No native build step here on purpose: svgx/test/*.dart wraps
-      # RustLib.init() in try/catch and skips itself with a printed message
-      # when the native library isn't loadable under plain `flutter test`
-      # (host VM, no platform build) — see rust_gradient_smoke_test.dart and
-      # rust_image_smoke_test.dart. Pure-Dart tests (animation/) still run
-      # for real either way.
+      # RustLib.init() in try/catch and skips itself with a printed message when
+      # the native library isn't loadable under plain `flutter test`. Pure-Dart
+      # tests (animation/) still run for real either way.
       - name: flutter test
         working-directory: svgx
         run: flutter test
 
-  # Platform build jobs run CONCURRENTLY (2026-08-26: switched from a
-  # sequential `needs:` chain — see CLAUDE.md "CI/CD 执行方针" for the
-  # decision history). All 6 platforms (windows/android/android-release/
-  # linux/macos/ios) plus the 3 fast checks (rust-test/dart-analyze/
-  # flutter-test) have each passed at least once (see run 32935323155,
-  # commit 908eae1, and the earlier windows-only run 32934680568, commit
-  # 7e1e74c) — this is the restored full-verification state after that
-  # bring-up, kept as the steady-state config going forward.
+  # ---------------------------------------------------------------------------
+  # 1. Artifact/source sync — the staleness guard.
+  # ---------------------------------------------------------------------------
+  prebuilt-sync:
+    name: Prebuilt artifacts match Rust sources
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          cache: true
+
+      - name: Package dependencies
+        working-directory: svgx
+        run: flutter pub get
+
+      # Recomputes the SHA-256 of rust/Cargo.lock + rust/Cargo.toml +
+      # rust/src/** and compares it against what prebuilt/MANIFEST.json records
+      # for each committed binary, plus verifies each binary's own checksum.
+      #
+      # TODO(migration): drop `--allow-incomplete` once the Apple slices
+      # (ios/device, ios/simulator, macos) and windows/arm64 have been produced
+      # and committed. Until then that flag keeps "slice not built yet" a
+      # warning while every staleness check stays fatal.
+      - name: Verify prebuilt/MANIFEST.json
+        working-directory: svgx
+        run: dart run tool/check_prebuilt.dart --allow-incomplete
+
+  # ---------------------------------------------------------------------------
+  # 2. Per-triple compile sentinel — cheap, catches platform-specific breakage.
+  # ---------------------------------------------------------------------------
+  cargo-check:
+    name: cargo check (${{ matrix.name }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: android
+            os: ubuntu-latest
+            groups: --group android
+          - name: linux
+            os: ubuntu-latest
+            groups: --group linux
+          - name: windows
+            os: windows-latest
+            groups: --group windows
+          - name: apple
+            os: macos-latest
+            groups: --group ios --group macos
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          cache: true
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@1.96.0
+
+      - name: Install Android NDK
+        if: matrix.name == 'android'
+        run: |
+          "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --install "ndk;$ANDROID_NDK_VERSION"
+          echo "ANDROID_NDK_HOME=$ANDROID_HOME/ndk/$ANDROID_NDK_VERSION" >> "$GITHUB_ENV"
+
+      - name: Install aarch64 Linux cross compiler
+        if: matrix.name == 'linux'
+        run: sudo apt-get update && sudo apt-get install -y gcc-aarch64-linux-gnu
+
+      - name: Add Rust target triples
+        working-directory: svgx
+        shell: bash
+        run: |
+          for t in $(dart run tool/build_prebuilt.dart --list | awk '{print $2}'); do
+            rustup target add "$t" || true
+          done
+
+      - name: Cache Cargo registry + target
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            svgx/rust/target
+          key: svgx-check-${{ matrix.name }}-${{ hashFiles('svgx/rust/Cargo.lock') }}
+          restore-keys: |
+            svgx-check-${{ matrix.name }}-
+
+      - name: Package dependencies
+        working-directory: svgx
+        run: flutter pub get
+
+      # Type-check only: no -Z build-std, no LTO, no linking. The script reuses
+      # the exact cross-compile environment (NDK clang, cross gcc) that the
+      # artifact build uses, so a green check here means the same environment
+      # would at least get as far as codegen.
+      - name: cargo check per target
+        working-directory: svgx
+        run: dart run tool/build_prebuilt.dart --check ${{ matrix.groups }}
+
+  # ---------------------------------------------------------------------------
+  # 3. Downstream consumer builds — this is what a real user experiences.
+  # ---------------------------------------------------------------------------
+  # None of these install Rust, nightly, rust-src, or (for Android) an NDK.
+  # That absence IS the test: if any of them still needed a Rust toolchain, the
+  # migration would not have achieved its goal.
   build-windows:
-    name: Build example (Windows)
+    name: Consume prebuilt (Windows)
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
@@ -155,40 +242,29 @@ jobs:
       - name: Enable Windows desktop
         run: flutter config --enable-windows-desktop
 
-      # Release platform builds go through cargokit's `release` configuration,
-      # which svgx/rust/cargokit.yaml pins to a dated nightly plus
-      # `-Z build-std=std,panic_abort` (the latter needs the `rust-src`
-      # component). Installing it explicitly keeps the version visible here.
-      - name: Install pinned nightly toolchain (build-std)
-        uses: dtolnay/rust-toolchain@master
-        with:
-          toolchain: ${{ env.RUST_RELEASE_TOOLCHAIN }}
-          components: rust-src
-
-      - name: Cache Cargo registry + target
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-            svgx/rust/target
-          key: svgx-cargo-windows-${{ hashFiles('svgx/rust/Cargo.lock') }}
-          restore-keys: |
-            svgx-cargo-windows-
-
       - name: Example dependencies
         working-directory: svgx/example
         run: flutter pub get
 
-      # cargokit's CMake ExternalProject step cross-compiles the Rust crate
-      # and links it into the plugin's native library as part of this build —
-      # no separate `cargo build` invocation needed.
       - name: flutter build windows
         working-directory: svgx/example
         run: flutter build windows
 
+      # The build passing is not sufficient — assert the DLL was actually
+      # bundled, and that it is byte-identical to the committed artifact.
+      - name: Assert svgx.dll was bundled
+        working-directory: svgx
+        shell: bash
+        run: |
+          bundled="example/build/windows/x64/runner/Release/svgx.dll"
+          test -f "$bundled" || { echo "::error::svgx.dll missing from the runner bundle"; exit 1; }
+          a=$(sha256sum "$bundled" | cut -d' ' -f1)
+          b=$(sha256sum prebuilt/windows/x64/svgx.dll | cut -d' ' -f1)
+          echo "bundled=$a prebuilt=$b"
+          test "$a" = "$b" || { echo "::error::bundled DLL differs from prebuilt/"; exit 1; }
+
   build-android:
-    name: Build example (Android)
+    name: Consume prebuilt (Android debug)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -202,23 +278,6 @@ jobs:
         with:
           flutter-version: ${{ env.FLUTTER_VERSION }}
           cache: true
-
-      - name: Install Android NDK 28
-        run: |
-          NDK_VERSION="28.0.13004108"
-          "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --install "ndk;$NDK_VERSION"
-          echo "ANDROID_NDK_HOME=$ANDROID_HOME/ndk/$NDK_VERSION" >> "$GITHUB_ENV"
-
-      - name: Cache Cargo registry + target
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-            svgx/rust/target
-          key: svgx-cargo-android-${{ hashFiles('svgx/rust/Cargo.lock') }}
-          restore-keys: |
-            svgx-cargo-android-
 
       - name: Cache Gradle caches + wrapper
         uses: actions/cache@v4
@@ -234,15 +293,20 @@ jobs:
         working-directory: svgx/example
         run: flutter pub get
 
-      # Unsigned debug build — no signing keys involved. cargokit's Gradle
-      # hook cross-compiles the Rust crate for all 4 Android ABIs and bundles
-      # the resulting .so files into the APK.
       - name: flutter build apk --debug
         working-directory: svgx/example
         run: flutter build apk --debug
 
+      - name: Assert libsvgx.so is in the APK
+        working-directory: svgx/example
+        run: |
+          apk=build/app/outputs/flutter-apk/app-debug.apk
+          unzip -l "$apk" | grep -q 'lib/arm64-v8a/libsvgx.so' \
+            || { echo "::error::libsvgx.so missing from the APK"; exit 1; }
+          unzip -l "$apk" | grep 'libsvgx.so'
+
   build-android-release:
-    name: Build example (Android release)
+    name: Consume prebuilt (Android release)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -256,33 +320,6 @@ jobs:
         with:
           flutter-version: ${{ env.FLUTTER_VERSION }}
           cache: true
-
-      - name: Install Android NDK 28
-        run: |
-          NDK_VERSION="28.0.13004108"
-          "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --install "ndk;$NDK_VERSION"
-          echo "ANDROID_NDK_HOME=$ANDROID_HOME/ndk/$NDK_VERSION" >> "$GITHUB_ENV"
-
-      # Release platform builds go through cargokit's `release` configuration,
-      # which svgx/rust/cargokit.yaml pins to a dated nightly plus
-      # `-Z build-std=std,panic_abort` (the latter needs the `rust-src`
-      # component). Installing it explicitly keeps the version visible here.
-      - name: Install pinned nightly toolchain (build-std)
-        uses: dtolnay/rust-toolchain@master
-        with:
-          toolchain: ${{ env.RUST_RELEASE_TOOLCHAIN }}
-          components: rust-src
-
-      - name: Cache Cargo registry + target
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-            svgx/rust/target
-          key: svgx-cargo-android-release-${{ hashFiles('svgx/rust/Cargo.lock') }}
-          restore-keys: |
-            svgx-cargo-android-release-
 
       - name: Cache Gradle caches + wrapper
         uses: actions/cache@v4
@@ -298,132 +335,51 @@ jobs:
         working-directory: svgx/example
         run: flutter pub get
 
-      # Unsigned release build — no signing keys involved in CI. cargokit's
-      # Gradle hook cross-compiles the Rust crate for all 4 Android ABIs
-      # through the pinned nightly build-std release configuration and
-      # bundles the resulting .so files into the APK. This is the first time
-      # this path runs in CI (previously only verified locally) — see
-      # svgx/CLAUDE.md.
       - name: flutter build apk --release
         working-directory: svgx/example
         run: flutter build apk --release
 
-  build-ios:
-    name: Build example (iOS)
-    runs-on: macos-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: subosito/flutter-action@v2
-        with:
-          flutter-version: ${{ env.FLUTTER_VERSION }}
-          cache: true
-
-      # Release platform builds go through cargokit's `release` configuration,
-      # which svgx/rust/cargokit.yaml pins to a dated nightly plus
-      # `-Z build-std=std,panic_abort` (the latter needs the `rust-src`
-      # component). Installing it explicitly keeps the version visible here.
-      - name: Install pinned nightly toolchain (build-std)
-        uses: dtolnay/rust-toolchain@master
-        with:
-          toolchain: ${{ env.RUST_RELEASE_TOOLCHAIN }}
-          components: rust-src
-
-      - name: Cache Cargo registry + target
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-            svgx/rust/target
-          key: svgx-cargo-ios-${{ hashFiles('svgx/rust/Cargo.lock') }}
-          restore-keys: |
-            svgx-cargo-ios-
-
-      # Podfile.lock doesn't exist until `flutter pub get`/pod install has run
-      # at least once, so the first CI run on a given Cargo/Flutter version
-      # falls back to the restore-keys prefix; every run after that hits the
-      # precise key.
-      - name: Cache CocoaPods
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/Library/Caches/CocoaPods
-            svgx/example/ios/Pods
-          key: svgx-pods-ios-${{ hashFiles('svgx/example/ios/Podfile.lock') }}
-          restore-keys: |
-            svgx-pods-ios-
-
-      - name: Example dependencies
+      # 16 KB page alignment is a Google Play requirement for 64-bit native
+      # libraries. tool/build_prebuilt.dart passes
+      # `-Wl,-z,max-page-size=16384` when producing the .so files; this asserts
+      # the property survived all the way into the packaged APK, since that is
+      # the artifact Play actually inspects.
+      - name: Assert 16 KB page alignment in the APK
         working-directory: svgx/example
-        run: flutter pub get
-
-      # --no-codesign: no signing identity/provisioning profile available in
-      # CI. cargokit's Xcode build phase cross-compiles the Rust crate for
-      # the iOS targets as part of this build.
-      - name: flutter build ios --no-codesign
-        working-directory: svgx/example
-        run: flutter build ios --no-codesign
-
-  build-macos:
-    name: Build example (macOS)
-    runs-on: macos-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: subosito/flutter-action@v2
-        with:
-          flutter-version: ${{ env.FLUTTER_VERSION }}
-          cache: true
-
-      - name: Enable macOS desktop
-        run: flutter config --enable-macos-desktop
-
-      # Release platform builds go through cargokit's `release` configuration,
-      # which svgx/rust/cargokit.yaml pins to a dated nightly plus
-      # `-Z build-std=std,panic_abort` (the latter needs the `rust-src`
-      # component). Installing it explicitly keeps the version visible here.
-      - name: Install pinned nightly toolchain (build-std)
-        uses: dtolnay/rust-toolchain@master
-        with:
-          toolchain: ${{ env.RUST_RELEASE_TOOLCHAIN }}
-          components: rust-src
-
-      - name: Cache Cargo registry + target
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-            svgx/rust/target
-          key: svgx-cargo-macos-${{ hashFiles('svgx/rust/Cargo.lock') }}
-          restore-keys: |
-            svgx-cargo-macos-
-
-      # Podfile.lock doesn't exist until `flutter pub get`/pod install has run
-      # at least once, so the first CI run on a given Cargo/Flutter version
-      # falls back to the restore-keys prefix; every run after that hits the
-      # precise key.
-      - name: Cache CocoaPods
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/Library/Caches/CocoaPods
-            svgx/example/macos/Pods
-          key: svgx-pods-macos-${{ hashFiles('svgx/example/macos/Podfile.lock') }}
-          restore-keys: |
-            svgx-pods-macos-
-
-      - name: Example dependencies
-        working-directory: svgx/example
-        run: flutter pub get
-
-      - name: flutter build macos
-        working-directory: svgx/example
-        run: flutter build macos
+        run: |
+          apk=build/app/outputs/flutter-apk/app-release.apk
+          unzip -o -q "$apk" 'lib/*/libsvgx.so' -d /tmp/svgx-apk
+          fail=0
+          for so in /tmp/svgx-apk/lib/*/libsvgx.so; do
+            # -W (wide) is required: GNU readelf's default -l output wraps each
+            # 64-bit ELF program header onto two lines (Offset/VirtAddr/PhysAddr
+            # on one line, FileSiz/MemSiz/Flags/Align on the next). Without -W,
+            # `awk '/^  LOAD/ {print $NF}'` grabs the last field of the FIRST
+            # line (PhysAddr) instead of Align, silently misreporting alignment
+            # for every 64-bit ABI (arm64-v8a/x86_64) while 32-bit ABIs — whose
+            # narrower fields never wrap — happen to pass. Verified by
+            # reproducing locally: llvm-readelf (single-line output, unaffected
+            # by this bug) confirms both arm64-v8a and x86_64 are correctly
+            # 0x4000-aligned even when this unfixed script reported failure.
+            #
+            # -W(wide)是必需的:GNU readelf 默认的 -l 输出会把每条 64 位 ELF
+            # 程序头拆成两行(第一行 Offset/VirtAddr/PhysAddr,第二行
+            # FileSiz/MemSiz/Flags/Align)。不加 -W 时,
+            # `awk '/^  LOAD/ {print $NF}'` 取到的是第一行的最后一个字段
+            # (PhysAddr),而不是 Align,导致每个 64 位 ABI(arm64-v8a/x86_64)都被
+            # 静默误报对齐失败;32 位 ABI 字段较窄从不换行,才侥幸通过。本地用
+            # llvm-readelf(单行输出,不受此 bug 影响)复现确认:即便这个未修复的
+            # 脚本报告失败,arm64-v8a 和 x86_64 实际都正确 0x4000 对齐。
+            aligns=$(readelf -lW "$so" | awk '/^  LOAD/ {print $NF}' | sort -u)
+            echo "$so -> $aligns"
+            for a in $aligns; do
+              [ "$a" = "0x4000" ] || { echo "::error::$so has LOAD align $a, expected 0x4000 (16 KB)"; fail=1; }
+            done
+          done
+          exit $fail
 
   build-linux:
-    name: Build example (Linux)
+    name: Consume prebuilt (Linux)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -441,27 +397,6 @@ jobs:
       - name: Enable Linux desktop
         run: flutter config --enable-linux-desktop
 
-      # Release platform builds go through cargokit's `release` configuration,
-      # which svgx/rust/cargokit.yaml pins to a dated nightly plus
-      # `-Z build-std=std,panic_abort` (the latter needs the `rust-src`
-      # component). Installing it explicitly keeps the version visible here.
-      - name: Install pinned nightly toolchain (build-std)
-        uses: dtolnay/rust-toolchain@master
-        with:
-          toolchain: ${{ env.RUST_RELEASE_TOOLCHAIN }}
-          components: rust-src
-
-      - name: Cache Cargo registry + target
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-            svgx/rust/target
-          key: svgx-cargo-linux-${{ hashFiles('svgx/rust/Cargo.lock') }}
-          restore-keys: |
-            svgx-cargo-linux-
-
       - name: Example dependencies
         working-directory: svgx/example
         run: flutter pub get
@@ -469,3 +404,139 @@ jobs:
       - name: flutter build linux
         working-directory: svgx/example
         run: flutter build linux
+
+      - name: Assert libsvgx.so was bundled
+        working-directory: svgx/example
+        run: |
+          found=$(find build/linux -name libsvgx.so -path '*bundle*' | head -1)
+          test -n "$found" || { echo "::error::libsvgx.so missing from the Linux bundle"; exit 1; }
+          echo "bundled: $found"
+          echo "--- max glibc requirement ---"
+          objdump -T "$found" | grep -o 'GLIBC_[0-9.]*' | sort -uV | tail -1
+
+  build-ios:
+    name: Consume prebuilt (iOS)
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          cache: true
+
+      # TODO(migration): remove this guard once the iOS archives are committed.
+      # Until then this job reports honestly instead of failing on an absence
+      # that is expected and already documented.
+      - name: Check prebuilt iOS archives exist
+        id: guard
+        run: |
+          if [ -f svgx/prebuilt/ios/device/libsvgx.a ] && [ -f svgx/prebuilt/ios/simulator/libsvgx.a ]; then
+            echo "present=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "present=false" >> "$GITHUB_OUTPUT"
+            echo "::warning::svgx/prebuilt/ios/* not committed yet — run the svgx-prebuilt workflow to produce them."
+          fi
+
+      - name: Cache CocoaPods
+        if: steps.guard.outputs.present == 'true'
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/Library/Caches/CocoaPods
+            svgx/example/ios/Pods
+          key: svgx-pods-ios-${{ hashFiles('svgx/example/ios/Podfile.lock') }}
+          restore-keys: |
+            svgx-pods-ios-
+
+      - name: Example dependencies
+        if: steps.guard.outputs.present == 'true'
+        working-directory: svgx/example
+        run: flutter pub get
+
+      # Both SDKs must build: the whole point of the per-SDK OTHER_LDFLAGS
+      # branch in ios/svgx.podspec is that device and simulator each pick the
+      # right archive. Verifying only one of them verifies nothing.
+      - name: flutter build ios --no-codesign (device)
+        if: steps.guard.outputs.present == 'true'
+        working-directory: svgx/example
+        run: flutter build ios --no-codesign
+
+      - name: flutter build ios --simulator
+        if: steps.guard.outputs.present == 'true'
+        working-directory: svgx/example
+        run: flutter build ios --simulator
+
+      # The migration promised static linking — no stray dynamic library in the
+      # app bundle. Assert that, and assert -force_load actually preserved the
+      # flutter_rust_bridge exports rather than letting them be dead-stripped.
+      - name: Assert static linkage and surviving symbols
+        if: steps.guard.outputs.present == 'true'
+        working-directory: svgx/example
+        run: |
+          app=build/ios/iphoneos/Runner.app
+          if otool -L "$app/Runner" | grep -i 'svgx'; then
+            echo "::error::a dynamic svgx library leaked into the app bundle"; exit 1
+          fi
+          nm "$app/Runner" | grep -q 'frbgen' \
+            || { echo "::error::flutter_rust_bridge symbols were dead-stripped — -force_load is not taking effect"; exit 1; }
+          echo "static linkage OK, FRB symbols present"
+
+  build-macos:
+    name: Consume prebuilt (macOS)
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          cache: true
+
+      - name: Enable macOS desktop
+        run: flutter config --enable-macos-desktop
+
+      # TODO(migration): remove this guard once macos/libsvgx.a is committed.
+      - name: Check prebuilt macOS archive exists
+        id: guard
+        run: |
+          if [ -f svgx/prebuilt/macos/libsvgx.a ]; then
+            echo "present=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "present=false" >> "$GITHUB_OUTPUT"
+            echo "::warning::svgx/prebuilt/macos/libsvgx.a not committed yet — run the svgx-prebuilt workflow to produce it."
+          fi
+
+      - name: Cache CocoaPods
+        if: steps.guard.outputs.present == 'true'
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/Library/Caches/CocoaPods
+            svgx/example/macos/Pods
+          key: svgx-pods-macos-${{ hashFiles('svgx/example/macos/Podfile.lock') }}
+          restore-keys: |
+            svgx-pods-macos-
+
+      - name: Example dependencies
+        if: steps.guard.outputs.present == 'true'
+        working-directory: svgx/example
+        run: flutter pub get
+
+      - name: flutter build macos
+        if: steps.guard.outputs.present == 'true'
+        working-directory: svgx/example
+        run: flutter build macos
+
+      - name: Assert static linkage and surviving symbols
+        if: steps.guard.outputs.present == 'true'
+        working-directory: svgx/example
+        run: |
+          app=$(find build/macos/Build/Products/Release -maxdepth 1 -name '*.app' | head -1)
+          bin="$app/Contents/MacOS/$(basename "$app" .app)"
+          if otool -L "$bin" | grep -i 'svgx'; then
+            echo "::error::a dynamic svgx library leaked into the app bundle"; exit 1
+          fi
+          nm "$bin" | grep -q 'frbgen' \
+            || { echo "::error::flutter_rust_bridge symbols were dead-stripped — -force_load is not taking effect"; exit 1; }
+          echo "static linkage OK, FRB symbols present"
