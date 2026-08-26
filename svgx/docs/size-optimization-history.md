@@ -135,3 +135,61 @@
   四个 target 逐字节完全相同,无任何体积变化——与前提确认阶段的预期一致(项目未启用 `-Z function-sections`,该 flag 因此是无效果的空操作)。
 - **`cargo test`(`rust/`)**:**24 passed / 0 failed**,功能未受影响(但这项本就不是功能相关改动)。
 - **结论**:**跳过,不落地**。实测确认该 flag 在当前配置下是纯粹的空操作(zero-byte 差异),没有任何体积收益,徒增一个不产生价值的 `-Z` unstable flag,故已从 `tool/build_prebuilt.dart` 中移除。`prebuilt/android/jniLibs/*/libsvgx.so` 最终产物对应的是"仅 `optimize_for_size`"这一改动状态,不含本条改动。若未来想真正拿到这项收益,需要先评估是否要连带引入 `-Z function-sections`(会改变默认代码布局,需要单独评估影响)。
+
+## `-Wl,--retain-symbols-file=<file>`(摸底后判定不做,2026-08-26)
+
+- **动机**:候选项表里最后一个未验证项,也是被标注"工程量较大、风险较高"的一项。思路是给链接器一份显式的符号白名单,把白名单之外的符号全部当死代码丢弃。网上能查到的最激进案例(LTO+DCE 组合)宣称最高 −90%,但那是"库导出面很宽、白名单能砍掉绝大部分"的场景,与 svgx 的形态是否匹配需要先摸底才知道。
+- **纪律**:按 `docs/SIZE_OPTIMIZATION.md` 候选表里自己写下的前置条件——"动手前必须先用 `nm -D`/`readelf --dyn-syms` 摸清现有符号表基线"——先摸底再决定动不动手,不凭预期直接改构建脚本。
+
+### 第一步:摸清导出符号基线
+
+工具用 Android NDK r28.2.13676358 自带的 `llvm-nm.exe` / `llvm-readelf.exe`(`E:\sdk\android\ndk\28.2.13676358\toolchains\llvm\prebuilt\windows-x86_64\bin\`)。
+
+`llvm-nm -D --defined-only prebuilt/android/jniLibs/arm64-v8a/libsvgx.so` 的完整输出(**25 个符号,一个不多**):
+
+```
+frb_create_shutdown_callback                        frb_rust_vec_u8_free
+frb_dart_fn_deliver_output                          frb_rust_vec_u8_new
+frb_dart_opaque_dart2rust_encode                    frb_rust_vec_u8_resize
+frb_dart_opaque_drop_thread_box_persistent_handle   free_zero_copy_buffer_f32 / f64
+frb_dart_opaque_rust2dart_decode                    free_zero_copy_buffer_i8 / i16 / i32 / i64
+frb_free_wire_sync_rust2dart_dco                    free_zero_copy_buffer_u8 / u16 / u32 / u64
+frb_free_wire_sync_rust2dart_sse                    store_dart_post_cobject
+frb_get_rust_content_hash
+frb_init_frb_dart_api_dl
+frb_pde_ffi_dispatcher_primary
+frb_pde_ffi_dispatcher_sync
+```
+
+四个 ABI 逐一核对,**全部都是 25 个 defined 导出符号**(undefined 导入数分别为 arm64 63 / v7a 54 / x86 61 / x86_64 61,那是 libc/liblog 等外部依赖,与本项目导出无关):
+
+| ABI | defined 导出 | undefined 导入 | `.symtab` 段数 | `.dynstr` 大小 |
+|---|---|---|---|---|
+| arm64-v8a | 25 | 63 | 0 | 0x581(1409 B) |
+| armeabi-v7a | 25 | 54 | 0 | 0x507(1287 B) |
+| x86_64 | 25 | 61 | 0 | 0x561(1377 B) |
+| x86 | 25 | 61 | 0 | 0x561(1377 B) |
+
+这印证了 `docs/SIZE_OPTIMIZATION.md` 已排除区里 `-Zdefault-visibility=hidden` 那一行的判断:cdylib 已经靠 version script 把导出面收到了最小,`.text` 里的内部符号根本没进 `.dynsym`。
+
+### 第二步:核实"运行时必需"的最小集合
+
+不沿用之前 `--icf=all` 验证时留下的"PDE 分发模式、25 个导出符号"这个数字,重新从两侧核对:
+
+- Dart 侧生成代码本身不含符号名字符串。`lib/src/rust/frb_generated.io.dart` 里的 `RustLibWire` 只持有一个 `_lookup = dynamicLibrary.lookup`,把按名查找委托给了 flutter_rust_bridge 运行时——这正是 PDE(primary dispatcher)模式的形态:所有业务 API 不各自导出一个 `wire_xxx` 符号,而是统一走 `frb_pde_ffi_dispatcher_primary` / `_sync` 两个入口 + 索引分发。
+- 在 pub cache 的 `flutter_rust_bridge` 包源码里 grep 符号名字面量,查到**14 个 `frb_*`** 全部被按名 `dlsym`,与上面 dump 出的 14 个 `frb_*` 逐一对应,外加 `store_dart_post_cobject`(Dart VM 回调注册,`dart_api_dl` 必需)。合计 **15 个铁定不能丢**。
+- 剩下 10 个 `free_zero_copy_buffer_{i,u}{8,16,32,64}` / `_f{32,64}` 是 zero-copy 类型化数组的释放回调,由 Dart VM 的 external typed data finalizer 在运行时按名解析。**关键观察**:这 10 个符号在 `nm -D` 输出里只占 3 个不同地址(`0x31430` / `0x31450` / `0x31470` 和 `0x31490` 共 4 个,按位宽合并),`--icf=all` 早已把它们折叠掉了——也就是说这 10 个名字对应的代码体积几乎为零,只剩符号表条目本身的开销。
+
+### 第三步:算裁剪空间 —— 结论是接近零
+
+两条硬事实,任一条都足以否掉这项:
+
+1. **必需集合几乎等于全集**。25 个里 15 个铁定必需,另外 10 个是运行时按名解析的 finalizer,砍掉它们的收益上限是:`.dynsym` 条目 10 × 24 B = 240 B,加 `.dynstr` 里的名字约 280 B,加 `.hash`/`.gnu.hash` 桶的少量收缩,合计 **约 600 字节,占 arm64 产物 491,384 字节的 0.12%**。而代价是把一组"看起来没人引用、其实由 VM 按名解析"的符号删掉——这正是最容易在真机上炸成 `dlsym` failed 的那类改动。收益 0.12%、风险是运行时崩溃,性价比明确为负。
+2. **这个 flag 在当前配置下根本不产生作用**。用 `ld.lld --help` 确认其定位:它和 `--strip-all` / `--discard-all` / `--discard-locals` 归在同一族,过滤的是**静态符号表 `.symtab`**,而不是动态链接必需的 `.dynsym`(后者少一个符号就会导致运行时解析失败,链接器不会替你删)。而项目 `[profile.release]` 早已开了 `strip=true`,`llvm-readelf -S` 实测四个 ABI 的产物**全都是 0 个 `.symtab` 段**(总共只有 25 个 section,连 `llvm-nm` 不带 `-D` 都直接报 `no symbols`)。也就是说这个 flag 要过滤的东西已经被 `strip=true` 整段删光了,加上它是**保证为零**的空操作,和上一条 `-Zno-unique-section-names` 是同一类结局。
+
+> 顺带说明网上那个 −90% 案例为什么不适用:那类场景是一个导出面很宽的 C/C++ 库(动辄成千上万个导出符号),白名单能让链接器把大片不可达代码真正 DCE 掉。svgx 是 cdylib + FRB 的 PDE 分发模式,导出面本来就只有 25 个,代码可达性早已由 `lto=true` + version script 收紧到位,没有留给白名单发挥的空间。
+
+- **是否落地**:**不落地,不做任何代码改动**。既没有新建 `tool/android_retain_symbols.txt`,也没有动 `tool/build_prebuilt.dart` 的 `_crossEnv()`。
+- **为什么没走完"实测编译对比"流程**:这次在第一步摸底就拿到了确定性结论(`.symtab` 已不存在 → flag 必然零效果;必需符号占全集 15/25 → 上限 0.12%),继续跑一遍四 ABI 交叉编译只会得到一份和 `-Zno-unique-section-names` 一模一样的全零差值表,不产生新信息。本条记录里的所有符号数、段数、字节数均为上述 `llvm-nm` / `llvm-readelf` / `ls -l` 的真实输出,不含估算(唯一的估算是"约 600 字节"这个理论上限,已在文中标明算法)。
+- **产物状态**:`prebuilt/android/jniLibs/*/libsvgx.so` 未重建、未改动,仍是 `optimize_for_size` 落地后的那组产物(arm64-v8a 491,384 / armeabi-v7a 338,856 / x86_64 548,792 / x86 572,968 字节,已用 `ls -l` 重新核对)。`MANIFEST.json` 无需 restage。
+- **结论**:候选项表里这一行更新为"已摸底,判定不做"。至此候选表三项全部有了终局结论,**暂无其他待验证候选项**;后续瘦身若还要继续,剩下的只有"砍功能/砍依赖/砍 32 位 ABI"这类产品级取舍(见 `docs/SIZE_OPTIMIZATION.md` 已排除区末尾几行),不再是加编译 flag 能解决的范畴。

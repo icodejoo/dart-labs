@@ -33,15 +33,19 @@
 | x86_64 | 548,792 |
 | x86 | 572,968 |
 
+2026-08-26 评估 `--retain-symbols-file` 时用 `ls -l` 重新核对过这四个数字，与上表完全一致（该项最终未落地，产物未变）。
+
 ⚠️ **这组数字截至写入时是最新的，但可能已被后续正在验证的候选项（见下方"二、候选项"）覆盖**——引用前先看本节上方"已落地"表格是否已经追加了 #8 及之后的行，那里的"实测收益"列会给出更新的对照组。
 
 ## 二、候选项（调研过、有正面预期，尚未验证/落地）
 
 | 选项 | 预期收益 | 与现有配置的关系/冲突 | 未落地原因 |
 |---|---|---|---|
-| `-Wl,--retain-symbols-file=<file>`（链接器符号白名单） | 他人在 LTO+DCE 组合下实测最高 −90%（场景不同，数字仅供参考量级，不代表 svgx 能达到） | 与现有 flags 无冲突 | **工程量较大**：需要先枚举 flutter_rust_bridge 运行时真正需要的导出符号（`frbgen` 相关 + FFI 入口），写错漏掉必需符号会导致运行时找不到符号崩溃；动手前必须先用 `nm -D`/`readelf --dyn-syms` 摸清现有符号表基线 |
+| `-Wl,--retain-symbols-file=<file>`（链接器符号白名单） | 他人在 LTO+DCE 组合下实测最高 −90%（场景不同，数字仅供参考量级，不代表 svgx 能达到） | 与现有 flags 无冲突 | **已摸底，结论是不做**（2026-08-26）。按流程先用 NDK r28.2 的 `llvm-nm -D --defined-only` / `llvm-readelf -S` 摸清基线，两条硬事实直接否掉这项：①四个 ABI 的动态导出符号**各只有 25 个**，全部是 flutter_rust_bridge 运行时按名 `dlsym` 的桥接入口（14 个 `frb_*` + `store_dart_post_cobject` + 10 个 ICF 已折叠成 3 个地址的 `free_zero_copy_buffer_*`），**必需集合几乎等于全集**，理论上限也就省几百字节（≈0.13%）；②该 flag 过滤的是 `.symtab`，而 `[profile.release] strip=true` 已让产物**根本不含 `.symtab` 段**（`llvm-readelf -S` 实测 0 个），所以它在当前配置下是保证为零的空操作。收益上限远低于 1%、且写错白名单会引入运行时 `dlsym` 失败的崩溃风险，性价比为负。详见 `docs/size-optimization-history.md` |
 | `-Zno-unique-section-names` | 定性收益，只在 ELF（Android/Linux）目标生效，量级未知 | 风险低，与现有配置无冲突 | **已尝试，失败原因是：无收益**。2026-08-26 已用 `rustc +nightly-2026-06-24 -Z help` 确认该 flag 确实存在，并实测 Android 四个 target ——但四个 `.so` 逐字节完全无变化（0 差异）。原因：该 flag 的帮助文本注明只在 `-Z function-sections` 被使用时才有效果，而项目当前的 RUSTFLAGS 里没有传 `-Z function-sections`，因此是纯粹的空操作。已从 `tool/build_prebuilt.dart` 移除，详见 `docs/size-optimization-history.md` |
 | `-Zdump-mono-stats` | 不是瘦身选项本身，是诊断工具 | 无冲突 | 用途是配合 `cargo-bloat`/`twiggy` 定位泛型单态化的体积热点，指导后续裁剪方向，不直接产生体积变化——按需使用，不算"要不要落地"的候选 |
+
+**候选表已清空**：上表三行里，`--retain-symbols-file` 与 `-Zno-unique-section-names` 都已实测/摸底否掉，`-Zdump-mono-stats` 本就是诊断工具而非瘦身项。**暂无其他待验证的候选项**——历史上调研过并否决的方向全部列在下方"三、已排除"区，新想到的方向先去那张表里查一遍，别重复劳动。若要继续瘦身，剩下的空间基本只在"砍功能/砍依赖/砍 ABI"这类产品级取舍上（已排除表最后几行），不再是加一个编译 flag 能解决的了。
 
 ## 三、已排除（不要重新调研）
 
