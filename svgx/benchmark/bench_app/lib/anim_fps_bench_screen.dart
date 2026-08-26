@@ -147,7 +147,9 @@ class _AnimFpsBenchRunnerState extends State<AnimFpsBenchRunner> {
     // the class doc for why that separate mode exists.
     // `cycles == 0` 表示"保持静止，只看动画跑"——这个独立模式存在的原因见类注释。
     if (widget.cycles == 0) {
-      setState(() => _status = 'holding (${widget.holdSeconds}s, no scroll)...');
+      setState(
+        () => _status = 'holding (${widget.holdSeconds}s, no scroll)...',
+      );
       _frameTiming.active = true;
       await Future<void>.delayed(Duration(seconds: widget.holdSeconds));
       _frameTiming.active = false;

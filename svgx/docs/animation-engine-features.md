@@ -70,7 +70,7 @@
 
 **发现并修复的真实 bug(动画路径 `feGaussianBlur`)**:核查前 `lib/src/animation/svg_dom.dart`/`svg_document_parser.dart`/`animated_svg_painter.dart` 完全没有 `filter`/`feGaussianBlur` 相关代码——动画路径与静态路径是两条独立渲染管线,`filter` 属性此前在动画路径里被直接丢弃。修复:`SvgNode` 新增 `blurSigma`,`_parseBlurSigma` 识别 `filter="blur(Npx)"` 与 `filter="url(#id)"` 指向单个 `feGaussianBlur`,`animated_svg_painter.dart` 用 `saveLayer`+`ImageFilter.blur` 包裹节点子树。采样验证:无模糊时 255→0 硬跳变(1 像素内完成);`blur(8px)` 时横跨约 30 像素的渐变衰减,且原始几何边缘之外仍有渗出(bleed)。详见 `docs/bugfix-history.md`。
 
-**汇总**:`flutter test` 106/106 通过,`flutter analyze` 0 issue,`cargo test`(`rust/`)24/24 通过。
+**汇总**:`flutter test` 119/119 通过,`flutter analyze` 0 issue,`cargo test`(`rust/`)24/24 通过。(109 → 119 是 2026-08-26 的 Dart 侧性能优化专项新增的 10 个用例:`SvgDocumentCache` 5 例、动画组件不逐帧重建 2 例、`AnimationDetector` 合并正则的标签边界 2 例、`<clipPath>` 内 `transform` 回归 1 例;详见 `docs/performance-benchmarks.md` 与 `docs/bugfix-history.md`。)
 
 ## 历史沿革(早期能力清单已被取代,不再展开)
 

@@ -51,3 +51,26 @@
 **采样结果(50×100 蓝色矩形,几何右边缘在 x=50,y=50 行采样)**:无模糊时 `x=41..59` 的 alpha 序列硬跳变(255→0 只用 1 个像素);`filter="blur(8px)"` 时 `x=31..69` 呈现明显渐变衰减(横跨约 30 像素),且原始几何边缘之外多个像素仍有非零 alpha,证明确有渗出(bleed)。`filter="url(#id)"` 写法同样验证通过。
 
 **结果**:新增 `test/animation/blur_pixel_test.dart`、`test/animation/text_pixel_test.dart`(后者确认 `<text>` 原实现已正确,不是 bug,只是补齐像素断言力度),`flutter test` 106/106 通过,无回归。详见 `docs/animation-engine-features.md` 的能力清单与像素验证表格。
+
+## 动画路径 `<clipPath>` 内容上的 `transform` 被静默忽略(2026-08-26,做几何缓存时发现)
+
+在给动画路径加"几何 `ui.Path` 按节点缓存"这项性能优化时,顺手读 `_resolveClipPath` 的代码,发现这一行:
+
+```dart
+geometry.transform(_affineToMatrix4(accum));   // ← 返回值被丢弃
+union.addPath(geometry, Offset.zero);
+```
+
+`dart:ui` 的 `Path.transform` 是**返回**一份变换后的副本、**不修改**接收者(官方文档原文:"Returns a copy of the path with all the segments of every sub-path transformed by the given matrix")。所以这里的返回值被丢弃,加进并集的仍是**未经变换**的原始几何——`<clipPath>` 内部元素自身的 `transform`(以及其上的 `<animateTransform>` 采样结果)全部被静默忽略,裁剪区域落在错误的位置。附带代价:每个裁剪节点每帧还白白分配了一整份 Path 副本。
+
+**为什么一直没被发现**:`SvgNode.transform` 由 Rust 的 `parse_transform` 桥填入(`native_svg_values.dart`),而在纯 `flutter test` 环境下原生库加载不到、该函数按设计退化为返回 null。因此任何"从标记文本解析 + 断言像素"的测试里,`<clipPath>` 内容上的 `transform` 本来就是 null,走不到这个分支——**测试环境天然掩盖了这个 bug**。
+
+**修复**:改用 `addPath` 自带的 `matrix4` 参数,在追加线段时就地应用变换,既正确又不产生中间副本:
+
+```dart
+union.addPath(geometry, Offset.zero, matrix4: _affineToMatrix4(accum));
+```
+
+**回归测试**:`test/animation/clip_mask_test.dart` 新增 "a transform inside a clipPath is applied to its geometry"。它**手工构造 `SvgNode` 树**并直接给 `transform: const [1, 0, 0, 1, 50, 0]`,绕开上面那个"测试环境里 transform 恒为 null"的陷阱——否则测试会因为错误的原因通过。用例让裁剪矩形覆盖左半边再右移 50 单位,断言存活的是**右**半边(x=75 处 alpha=255、x=25 处 alpha=0);修复前存活的是左半边。**已实测验证:把修复改回原写法,该测试确实失败**(`Expected: <255> Actual: <0>`),不是只在修复后跑通就收工。
+
+**结果**:`flutter test` 119/119 通过,`flutter analyze` 0 issue。性能侧的记录见 `docs/performance-benchmarks.md` 的"Dart 侧性能优化专项(2026-08-26)"。

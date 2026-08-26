@@ -273,11 +273,17 @@ List<MicroResult> runMicroBenchmarks() {
   // 每个动画图标的一次性文档解析：每次控件挂载都要付，也就是 anim_fps 场景里
   // 每次格子滚进视口都要付。
   results.add(
-    _measure('anim_parse_document', animIcons.length, () {
-      for (final src in animIcons) {
-        parseAnimatedSvgDocument(src);
-      }
-    }, warmups: 2, trials: 5),
+    _measure(
+      'anim_parse_document',
+      animIcons.length,
+      () {
+        for (final src in animIcons) {
+          parseAnimatedSvgDocument(src);
+        }
+      },
+      warmups: 2,
+      trials: 5,
+    ),
   );
 
   // Same mount work once the document cache is warm — what a re-mount costs
@@ -419,26 +425,32 @@ List<MicroResult> runMicroBenchmarks() {
   var frame = 0;
   final clock = ValueNotifier(Duration.zero);
   results.add(
-    _measure('anim_paint_frame', documents.length, () {
-      frame++;
-      clock.value = Duration(milliseconds: 16 * frame);
-      for (final doc in documents) {
-        final recorder = ui.PictureRecorder();
-        final canvas = Canvas(recorder);
-        AnimatedSvgPainter(
-          root: doc.root,
-          intrinsicSize: Size(doc.width, doc.height),
-          clock: clock,
-          theme: theme,
-          fit: BoxFit.contain,
-          alignment: Alignment.center,
-          gradients: doc.gradients,
-          clipPaths: doc.clipPaths,
-          masks: doc.masks,
-        ).paint(canvas, paintSize);
-        recorder.endRecording().dispose();
-      }
-    }, warmups: 3, trials: 9),
+    _measure(
+      'anim_paint_frame',
+      documents.length,
+      () {
+        frame++;
+        clock.value = Duration(milliseconds: 16 * frame);
+        for (final doc in documents) {
+          final recorder = ui.PictureRecorder();
+          final canvas = Canvas(recorder);
+          AnimatedSvgPainter(
+            root: doc.root,
+            intrinsicSize: Size(doc.width, doc.height),
+            clock: clock,
+            theme: theme,
+            fit: BoxFit.contain,
+            alignment: Alignment.center,
+            gradients: doc.gradients,
+            clipPaths: doc.clipPaths,
+            masks: doc.masks,
+          ).paint(canvas, paintSize);
+          recorder.endRecording().dispose();
+        }
+      },
+      warmups: 3,
+      trials: 9,
+    ),
   );
 
   return results;
