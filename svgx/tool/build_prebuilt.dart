@@ -456,12 +456,7 @@ Future<List<String>> _buildMacosFramework(
 ) async {
   final staging = File('${root.path}/rust/target/macos-fat/libsvgx.dylib');
   staging.parent.createSync(recursive: true);
-  await _exec('lipo', <String>[
-    '-create',
-    ...dylibs,
-    '-output',
-    staging.path,
-  ]);
+  await _exec('lipo', <String>['-create', ...dylibs, '-output', staging.path]);
 
   // The old static layout (`prebuilt/macos/libsvgx.a`) must not survive next to
   // the new bundle, and a stale bundle must not be merged into.
@@ -528,9 +523,8 @@ Future<List<String>> _buildMacosFramework(
   // 让它成为版本化 bundle 的三个符号链接。缺了 `Versions/Current`，CFBundle 与
   // codesign 都认不出这个布局。
   Link('${bundle.path}/Versions/Current').createSync('A');
-  Link(
-    '${bundle.path}/$kMacosFrameworkName',
-  ).createSync('Versions/Current/$kMacosFrameworkName');
+  Link('${bundle.path}/$kMacosFrameworkName')
+      .createSync('Versions/Current/$kMacosFrameworkName');
   Link('${bundle.path}/Resources').createSync('Versions/Current/Resources');
 
   final produced = macosFrameworkFiles(root);
