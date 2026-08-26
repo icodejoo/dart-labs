@@ -19,6 +19,7 @@ import 'package:svgx/svgx.dart';
 
 import 'anim_icon_gen.dart';
 import 'frame_timing.dart';
+import 'report_sink.dart';
 import 'stats.dart';
 
 /// Immutable snapshot of a completed [AnimFpsBenchRunner] phase, used by the
@@ -64,10 +65,26 @@ class AnimFpsBenchResult {
   final int framesOver8_3;
 }
 
-/// Runs the 1000-animated-icon scroll benchmark and prints a report with
-/// real measured FPS to stdout.
+/// Runs the 1000-animated-icon benchmark and prints a report with real
+/// measured FPS to stdout.
 ///
-/// 跑 1000 个动画图标的滚动基准，把包含实测 FPS 的报告打印到 stdout。
+/// Two modes, because they measure different things:
+///  - **scrolling** ([cycles] > 0): the acceptance scenario. Its `build` time
+///    is dominated by `GridView` mounting and unmounting cells as they cross
+///    the viewport, which swamps the per-frame animation cost.
+///  - **holding still** ([cycles] == 0): no scrolling at all, so no cell
+///    churn — `build` time is then purely what the visible icons' tickers cost
+///    per frame. This is the only mode that can see a change to the per-frame
+///    driving path (e.g. rebuild-per-tick vs repaint-per-tick).
+///
+/// 跑 1000 个动画图标的基准，把包含实测 FPS 的报告打印到 stdout。
+///
+/// 两种模式，因为它们测的是不同的东西：
+///  - **滚动**（[cycles] > 0）：验收场景。它的 `build` 耗时由 `GridView` 在格子
+///    进出视口时的挂载/卸载主导，会把逐帧动画开销完全盖住。
+///  - **静止**（[cycles] == 0）：完全不滚动，因此没有格子进出——此时 `build`
+///    耗时就纯粹是可见图标的 ticker 每帧的开销。这是唯一能看见"逐帧驱动路径"
+///    改动（例如每 tick 重建 vs 每 tick 重绘）的模式。
 class AnimFpsBenchRunner extends StatefulWidget {
   /// Creates the runner for the given icon count and cycle count.
   ///
@@ -76,14 +93,23 @@ class AnimFpsBenchRunner extends StatefulWidget {
     super.key,
     required this.itemCount,
     required this.cycles,
+    this.holdSeconds = 6,
     this.onComplete,
   });
 
   /// Number of concurrently animating icons in the grid. / 网格中并发播放动画的图标数。
   final int itemCount;
 
-  /// Number of full up-down scroll cycles. / 上下滚动的完整轮次数。
+  /// Number of full up-down scroll cycles, or 0 to hold the grid still for
+  /// [holdSeconds] instead of scrolling.
+  ///
+  /// 上下滚动的完整轮次数；为 0 时不滚动，改为让网格静止 [holdSeconds] 秒。
   final int cycles;
+
+  /// Observation window for the no-scroll mode (`cycles == 0`).
+  ///
+  /// 不滚动模式（`cycles == 0`）的观测时长。
+  final int holdSeconds;
 
   /// Called with the final [AnimFpsBenchResult] once the run finishes, in
   /// addition to the usual stdout report. Null in standalone `LIB=anim_fps`
@@ -117,22 +143,34 @@ class _AnimFpsBenchRunnerState extends State<AnimFpsBenchRunner> {
     // 避免 ticker 启动抖动影响结果。
     await Future<void>.delayed(const Duration(milliseconds: 500));
 
-    setState(() => _status = 'scrolling (${widget.cycles} cycles)...');
-    _frameTiming.active = true;
-    final maxExtent = _scrollController.position.maxScrollExtent;
-    for (var i = 0; i < widget.cycles; i++) {
-      await _scrollController.animateTo(
-        maxExtent,
-        duration: const Duration(milliseconds: 900),
-        curve: Curves.easeInOut,
+    // `cycles == 0` means "hold still and just watch the animations run" — see
+    // the class doc for why that separate mode exists.
+    // `cycles == 0` 表示"保持静止，只看动画跑"——这个独立模式存在的原因见类注释。
+    if (widget.cycles == 0) {
+      setState(
+        () => _status = 'holding (${widget.holdSeconds}s, no scroll)...',
       );
-      await _scrollController.animateTo(
-        0,
-        duration: const Duration(milliseconds: 900),
-        curve: Curves.easeInOut,
-      );
+      _frameTiming.active = true;
+      await Future<void>.delayed(Duration(seconds: widget.holdSeconds));
+      _frameTiming.active = false;
+    } else {
+      setState(() => _status = 'scrolling (${widget.cycles} cycles)...');
+      _frameTiming.active = true;
+      final maxExtent = _scrollController.position.maxScrollExtent;
+      for (var i = 0; i < widget.cycles; i++) {
+        await _scrollController.animateTo(
+          maxExtent,
+          duration: const Duration(milliseconds: 900),
+          curve: Curves.easeInOut,
+        );
+        await _scrollController.animateTo(
+          0,
+          duration: const Duration(milliseconds: 900),
+          curve: Curves.easeInOut,
+        );
+      }
+      _frameTiming.active = false;
     }
-    _frameTiming.active = false;
 
     setState(() {
       _done = true;
@@ -165,9 +203,17 @@ class _AnimFpsBenchRunnerState extends State<AnimFpsBenchRunner> {
         'framesOver8.3ms=${result.framesOver8_3}',
       )
       ..writeln('=== END ANIM FPS BENCH REPORT ===');
-    // ignore: avoid_print
-    print(buf.toString());
+    emitReport(buf.toString());
     widget.onComplete?.call(result);
+    // Unattended repeat runs (tool/run_anim_fps.ps1) need the process to end on
+    // its own rather than sit on the exit button — this phase's numbers vary
+    // enough between runs that a single sample cannot be trusted, so measuring
+    // it means running it many times.
+    //
+    // 无人值守的重复运行（tool/run_anim_fps.ps1）需要进程自行结束，而不是停在
+    // 退出按钮上——本阶段的数字在多次运行间波动足够大，单次采样不可信，因此
+    // 测量它就意味着要跑很多次。
+    if (autoExitAfterReport && widget.onComplete == null) exit(0);
   }
 
   @override

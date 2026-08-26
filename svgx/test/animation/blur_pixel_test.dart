@@ -15,9 +15,9 @@
 // 无模糊的形状边缘必须是硬跳变；同一形状加了模糊后，边缘必须呈现渐变式的
 // alpha 衰减，并越过原始几何边缘产生渗出。
 
-import 'dart:typed_data';
 import 'dart:ui' as ui;
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/painting.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:svgx/src/animation/animated_svg_painter.dart';
@@ -38,7 +38,7 @@ Future<ByteData> _renderPixels(SvgDocument document) async {
   AnimatedSvgPainter(
     root: document.root,
     intrinsicSize: Size(document.width, document.height),
-    time: Duration.zero,
+    clock: ValueNotifier(Duration.zero),
     theme: const SvgTheme(),
     fit: BoxFit.fill,
     alignment: Alignment.center,

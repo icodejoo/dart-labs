@@ -60,5 +60,28 @@ void main() {
         isFalse,
       );
     });
+
+    // The four per-tag patterns were merged into one alternation for speed
+    // (see animation_detector.dart). These pin the property that made the
+    // merge safe: every alternative still requires `[\s>]` right after the
+    // tag name, so a longer tag name that merely starts with a supported one
+    // is not a match.
+    //
+    // 出于性能考虑，四条分标签正则被合并成了一条多分支正则（见
+    // animation_detector.dart）。以下两例钉住让合并成立的性质：每个分支都仍要求
+    // 标签名后紧跟 `[\s>]`，因此仅仅以受支持标签名开头的更长标签不算命中。
+    test('does not match a longer tag that merely starts with "animate"', () {
+      expect(
+        AnimationDetector.hasAnimations('<svg><animateWidget x="1"/></svg>'),
+        isFalse,
+      );
+    });
+
+    test('does not match a longer tag that merely starts with "set"', () {
+      expect(
+        AnimationDetector.hasAnimations('<svg><setter value="1"/></svg>'),
+        isFalse,
+      );
+    });
   });
 }

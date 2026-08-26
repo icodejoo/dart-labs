@@ -12,9 +12,9 @@
 // test/animation/text_node_test.dart。本文件进一步采样实际渲染出的像素字节，
 // 确认字形真的落在预期位置、预期颜色，且字形外围没有意外溢出的绘制。
 
-import 'dart:typed_data';
 import 'dart:ui' as ui;
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/painting.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:svgx/src/animation/animated_svg_painter.dart';
@@ -35,7 +35,7 @@ Future<ByteData> _renderPixels(SvgDocument document) async {
   AnimatedSvgPainter(
     root: document.root,
     intrinsicSize: Size(document.width, document.height),
-    time: Duration.zero,
+    clock: ValueNotifier(Duration.zero),
     theme: const SvgTheme(),
     fit: BoxFit.fill,
     alignment: Alignment.center,
