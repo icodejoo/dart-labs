@@ -62,11 +62,17 @@ A new Flutter FFI plugin project.
   # `EXCLUDED_ARCHS` 变通都已删除：`xcodebuild` 会自己选对 slice。产物不签名分发——
   # Xcode 在 “Embed & Sign” 阶段会用宿主 App 的身份重新签名嵌入的 framework。
   #
-  # Flutter consumes plugins as local `:path` pods (via .symlinks), so the
-  # `../prebuilt/` path resolves in place — the same mechanism the previous
-  # `$PODS_TARGET_SRCROOT/../cargokit/build_pod.sh` relied on.
+  # The bundle sits here, next to the podspec, and NOT under `prebuilt/` with
+  # every other artifact. A `vendored_frameworks` path that leaves the pod root
+  # is silently broken: CocoaPods emits no FRAMEWORK_SEARCH_PATHS for it and
+  # never adds it to the embed phase (CocoaPods#7554, CocoaPods#10731).
+  # Measured: with `../prebuilt/ios/svgx.xcframework` both `flutter build ios`
+  # invocations succeeded and `Runner.app/Frameworks/` came out empty.
   #
-  # Flutter 以本地 `:path` pod（经 .symlinks）消费插件，`../prebuilt/` 原地即可解析
-  # ——与此前 `$PODS_TARGET_SRCROOT/../cargokit/build_pod.sh` 依赖的是同一套机制。
-  s.vendored_frameworks = '../prebuilt/ios/svgx.xcframework'
+  # bundle 就放在这里、与 podspec 同级，而不是和其它产物一起放在 `prebuilt/` 下。
+  # `vendored_frameworks` 一旦跳出 pod 根目录就会静默失效：CocoaPods 既不生成
+  # FRAMEWORK_SEARCH_PATHS，也不把它加进 embed 阶段（CocoaPods#7554、
+  # CocoaPods#10731）。实测：用 `../prebuilt/ios/svgx.xcframework` 时两次
+  # `flutter build ios` 都成功，而 `Runner.app/Frameworks/` 是空的。
+  s.vendored_frameworks = 'svgx.xcframework'
 end

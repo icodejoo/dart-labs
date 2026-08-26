@@ -64,6 +64,12 @@ Future<int> _run(List<String> args) async {
       if (rel == 'MANIFEST.json') continue;
       found.add(rel);
     }
+    // The iOS XCFramework has to live in the pod root instead of under
+    // `prebuilt/` (see kIosXcframework), so it needs its own walk.
+    //
+    // iOS XCFramework 必须放在 pod 根目录而非 `prebuilt/` 下（见
+    // kIosXcframework），因此要单独枚举。
+    found.addAll(iosXcframeworkFiles(root));
     found.sort();
     // Restage rebuilds the picture from disk, so entries whose file is gone
     // (an artifact layout change, e.g. iOS `.a` -> `.xcframework`) must be
@@ -73,7 +79,12 @@ Future<int> _run(List<String> args) async {
     // `.a` 改为 `.xcframework`）必须剔除，不能作为悬空引用继续保留。
     _updateManifest(root, found, _hostName(), prune: true);
     for (final f in found) {
-      stdout.writeln('  staged prebuilt/$f');
+      // `../ios/...` keys already point outside `prebuilt/`; print them as the
+      // package-relative path they actually are.
+      // `../ios/...` 这类键本就指向 `prebuilt/` 之外，直接按其真实的包内相对路径打印。
+      stdout.writeln(
+        '  staged ${f.startsWith('../') ? f.substring(3) : 'prebuilt/$f'}',
+      );
     }
     return 0;
   }
@@ -480,16 +491,20 @@ Future<List<String>> _buildIosXcframework(
   );
 
   // `-create-xcframework` refuses to write over an existing output, and the
-  // old static layout (`ios/device`, `ios/simulator`) must not survive
-  // alongside the new one.
+  // old static layout (`prebuilt/ios/device`, `prebuilt/ios/simulator`) must
+  // not survive alongside the new one.
   //
   // `-create-xcframework` 不覆盖已存在的输出，且旧的静态库布局
-  // （`ios/device`、`ios/simulator`）不能与新产物并存。
-  final iosDir = Directory('${root.path}/prebuilt/ios');
-  if (iosDir.existsSync()) iosDir.deleteSync(recursive: true);
-  iosDir.createSync(recursive: true);
-
+  // （`prebuilt/ios/device`、`prebuilt/ios/simulator`）不能与新产物并存。
   final out = '${root.path}/prebuilt/$kIosXcframework';
+  for (final stale in <Directory>[
+    Directory(out),
+    Directory('${root.path}/prebuilt/ios'),
+  ]) {
+    if (stale.existsSync()) stale.deleteSync(recursive: true);
+  }
+  Directory(out).parent.createSync(recursive: true);
+
   await _exec('xcodebuild', <String>[
     '-create-xcframework',
     '-framework',
@@ -500,19 +515,13 @@ Future<List<String>> _buildIosXcframework(
     out,
   ]);
 
-  final produced = <String>[];
-  var total = 0;
-  for (final e in Directory(out).listSync(recursive: true)) {
-    if (e is! File) continue;
-    produced.add(
-      e.path.substring('${root.path}/prebuilt/'.length).replaceAll(r'\', '/'),
-    );
-    total += e.lengthSync();
-  }
-  produced.sort();
+  final produced = iosXcframeworkFiles(root);
+  final total = produced.fold<int>(
+    0,
+    (sum, rel) => sum + File('${root.path}/prebuilt/$rel').lengthSync(),
+  );
   stdout.writeln(
-    '  -> prebuilt/$kIosXcframework '
-    '(${produced.length} files, $total bytes)',
+    '  -> $kIosXcframework (${produced.length} files, $total bytes)',
   );
   return produced;
 }

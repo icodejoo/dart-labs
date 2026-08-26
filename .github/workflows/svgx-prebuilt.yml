@@ -201,24 +201,34 @@ jobs:
         if: matrix.name == 'apple'
         working-directory: svgx
         run: |
-          for b in prebuilt/ios/svgx.xcframework/*/svgx.framework/svgx; do
+          for b in ios/svgx.xcframework/*/svgx.framework/svgx; do
             echo "=== $b ($(stat -f%z "$b") bytes) ==="
             lipo -info "$b"
             otool -D "$b" | tail -1 | sed 's/^/  install_name: /'
             nm -gU "$b" | grep -c ' _frb_' | sed 's/^/  frb_ exports: /'
           done
-          echo "=== prebuilt/ios/svgx.xcframework total ==="
-          find prebuilt/ios/svgx.xcframework -type f -exec stat -f%z {} + \
+          echo "=== ios/svgx.xcframework total ==="
+          find ios/svgx.xcframework -type f -exec stat -f%z {} + \
             | awk '{t+=$1} END {print "  " t " bytes"}'
           a=prebuilt/macos/libsvgx.a
           echo "=== $a ($(stat -f%z "$a") bytes) ==="
           lipo -info "$a"
           nm -g "$a" 2>/dev/null | grep -c ' _frb_' | sed 's/^/  frb_ symbols: /'
 
+      # Two roots: `prebuilt/` holds every artifact except the iOS XCFramework,
+      # which has to sit in the CocoaPods pod root (see kIosXcframework). Both
+      # paths are listed on every leg so the uploaded tree is always rooted at
+      # `svgx/` and the legs merge cleanly in `collect`.
+      #
+      # 两个根：除 iOS XCFramework 外的全部产物在 `prebuilt/` 下，而 XCFramework 必须
+      # 放在 CocoaPods 的 pod 根目录（见 kIosXcframework）。每条 leg 都列出这两个路径，
+      # 保证上传的树统一以 `svgx/` 为根，`collect` 里也能干净地合并。
       - uses: actions/upload-artifact@v4
         with:
           name: svgx-prebuilt-${{ matrix.name }}
-          path: svgx/prebuilt/
+          path: |
+            svgx/prebuilt/
+            svgx/ios/svgx.xcframework
           if-no-files-found: error
 
   collect:
@@ -240,7 +250,7 @@ jobs:
         with:
           pattern: svgx-prebuilt-*
           merge-multiple: true
-          path: svgx/prebuilt
+          path: svgx
 
       - name: Package dependencies
         working-directory: svgx
@@ -265,12 +275,14 @@ jobs:
           echo '' >> "$GITHUB_STEP_SUMMARY"
           echo '| artifact | bytes |' >> "$GITHUB_STEP_SUMMARY"
           echo '|---|---:|' >> "$GITHUB_STEP_SUMMARY"
-          find prebuilt -type f ! -name MANIFEST.json | sort | while read -r f; do
+          find prebuilt ios/svgx.xcframework -type f ! -name MANIFEST.json | sort | while read -r f; do
             echo "| ${f#prebuilt/} | $(stat -c%s "$f") |" >> "$GITHUB_STEP_SUMMARY"
           done
 
       - uses: actions/upload-artifact@v4
         with:
           name: svgx-prebuilt
-          path: svgx/prebuilt/
+          path: |
+            svgx/prebuilt/
+            svgx/ios/svgx.xcframework
           if-no-files-found: error
