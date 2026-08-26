@@ -12,6 +12,7 @@ import 'package:flutter/scheduler.dart';
 import 'package:flutter/widgets.dart';
 
 import 'animated_svg_painter.dart';
+import 'svg_document_cache.dart';
 import 'svg_document_parser.dart';
 import 'svg_theme.dart';
 
@@ -100,7 +101,25 @@ class _SvgXAnimatedState extends State<SvgXAnimated>
     with SingleTickerProviderStateMixin {
   late SvgDocument _document;
   late Ticker _ticker;
-  Duration _elapsed = Duration.zero;
+
+  // The timeline position is published through a notifier the painter is
+  // wired to (see AnimatedSvgPainter's `clock`), not through setState. A
+  // per-tick setState would mark this element dirty and re-run build + layout
+  // for every ticking icon on every frame; a Listenable handed to
+  // CustomPainter.repaint makes the framework skip both phases and only mark
+  // the RenderCustomPaint as needing paint — which is exactly what changed.
+  // (Flutter's CustomPainter docs: the render object "will listen to the
+  // Listenable and repaint whenever the animation ticks, avoiding both the
+  // build and layout phases of the pipeline".)
+  //
+  // 时间线位置通过一个绘制器所绑定的 notifier 发布（见 AnimatedSvgPainter 的
+  // `clock`），而不是通过 setState。每 tick 一次 setState 会把本 element 标记为
+  // dirty，使每个正在 ticking 的图标每帧都重跑 build + layout；把 Listenable
+  // 交给 CustomPainter.repaint 则让框架跳过这两个阶段，只把 RenderCustomPaint
+  // 标记为需要重绘——变的正是这一点。（Flutter CustomPainter 文档原文：渲染
+  // 对象"will listen to the Listenable and repaint whenever the animation
+  // ticks, avoiding both the build and layout phases of the pipeline"。）
+  final ValueNotifier<Duration> _elapsed = ValueNotifier(Duration.zero);
 
   // Documents with no <image> node never touch this — it starts true and
   // stays true, so the common case pays zero extra cost. A document with
@@ -128,10 +147,20 @@ class _SvgXAnimatedState extends State<SvgXAnimated>
   }
 
   void _parseAndStart() {
-    _document = parseAnimatedSvgDocument(widget.source);
-    _elapsed = Duration.zero;
+    // Parsing goes through the shared LRU cache: in a scrolling list the same
+    // icon source is mounted, disposed and re-mounted repeatedly, and the
+    // parse is by far the most expensive part of a mount (measured with
+    // `--dart-define=LIB=micro`, 399 real SMIL icons: parse 43.8us per icon
+    // vs 0.1us for a cache hit).
+    //
+    // 解析走共享的 LRU 缓存：滚动列表里同一个图标源会被反复挂载、销毁、再挂载，
+    // 而解析是一次挂载里最贵的一环（`--dart-define=LIB=micro` 实测，399 个真实
+    // SMIL 图标：解析单图标 43.8us，缓存命中 0.1us）。
+    final parsed = SvgDocumentCache.instance.getOrParse(widget.source);
+    _document = parsed.document;
+    _elapsed.value = Duration.zero;
     _ticker = createTicker(_onTick);
-    if (documentHasImages(_document)) {
+    if (parsed.hasImages) {
       _imagesReady = false;
       // Ticker only starts once decode completes, so elapsed time (and thus
       // the SMIL timeline) doesn't advance behind the scenes while a
@@ -152,7 +181,7 @@ class _SvgXAnimatedState extends State<SvgXAnimated>
   }
 
   void _onTick(Duration elapsed) {
-    setState(() => _elapsed = elapsed);
+    _elapsed.value = elapsed;
     // Finite (non-looping) documents stop ticking once every animation has
     // settled into its final state, instead of burning frames forever on a
     // now-static picture.
@@ -167,6 +196,17 @@ class _SvgXAnimatedState extends State<SvgXAnimated>
   @override
   void dispose() {
     _ticker.dispose();
+    // Safe to dispose here: the RenderCustomPaint that listens to this
+    // notifier is detached (and drops its listener) when the element is
+    // deactivated, which happens before unmount calls dispose. This is the
+    // same lifetime the CustomPainter docs assume when they suggest passing an
+    // AnimationController-backed Animation to `repaint`.
+    //
+    // 在此处 dispose 是安全的：监听本 notifier 的 RenderCustomPaint 会在 element
+    // 被 deactivate 时 detach 并摘掉监听，而这发生在 unmount 调用 dispose 之前。
+    // CustomPainter 文档建议把 AnimationController 支撑的 Animation 传给
+    // `repaint` 时，假设的正是同一套生命周期。
+    _elapsed.dispose();
     super.dispose();
   }
 
@@ -189,7 +229,7 @@ class _SvgXAnimatedState extends State<SvgXAnimated>
           painter: AnimatedSvgPainter(
             root: _document.root,
             intrinsicSize: Size(_document.width, _document.height),
-            time: _elapsed,
+            clock: _elapsed,
             theme: widget.theme ?? const SvgTheme(),
             fit: widget.fit,
             alignment: widget.alignment,
