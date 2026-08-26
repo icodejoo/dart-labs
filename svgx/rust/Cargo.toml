@@ -1,0 +1,62 @@
+[package]
+name = "svgx"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+crate-type = ["cdylib", "staticlib"]
+
+[dependencies]
+flutter_rust_bridge = "=2.12.0"
+# Size optimization (re-applied 2026-08-26 after the fsvg→svgx rename lost it
+# to an accidental `git checkout`): usvg 0.44's only optional features are
+# `text`, `system-fonts`, `memmap-fonts` — all three are disabled here to drop
+# the font-shaping/system-font-loading machinery from the release binary.
+# Static-path `<text>` is sacrificed as a result (silently skipped, see the
+# `usvg::Node::Text` arm in `src/api/svg.rs`); the animation path's `<text>`
+# support (Flutter `TextPainter`-based) is a fully separate implementation and
+# is unaffected.
+#
+# 体积优化（2026-08-26 重新应用，fsvg→svgx 改名事故中被一次误操作的
+# `git checkout` 丢弃后二次执行）：usvg 0.44 仅有的三个可选 feature 就是
+# `text`/`system-fonts`/`memmap-fonts`，这里全部关闭，去掉字体排版/系统字体
+# 加载相关代码以缩小 release 体积。代价是静态路径的 `<text>` 不再展平为路径
+# （静默跳过，见 `src/api/svg.rs` 的 `usvg::Node::Text` 分支）；动画路径的
+# `<text>` 支持（基于 Flutter `TextPainter`，完全独立实现）不受影响。
+usvg = { version = "0.44", default-features = false }
+# CSS3/SVG named-colour table + `<transform-list>` grammar (MIT/Apache-2.0),
+# the same crate usvg itself parses SVG values with. Backs `parse_color` /
+# `parse_transform` so the Dart animation engine never hand-rolls either table.
+#
+# CSS3/SVG 具名颜色表 + `<transform-list>` 语法（MIT/Apache-2.0），与 usvg 自身
+# 解析 SVG 取值用的是同一个 crate。为 `parse_color`/`parse_transform` 提供支撑，
+# 使 Dart 动画引擎不必手写这两张表。
+svgtypes = "0.15"
+
+[profile.release]
+opt-level = "z"
+lto = true
+codegen-units = 1
+strip = true
+# panic="abort" 核实结论(2026-08-26):flutter_rust_bridge 2.12.0 的
+# `execute_sync`(handler/implementation/executor.rs)本身就不用 catch_unwind——
+# 只有 async 路径(execute_async/execute_normal)才 catch_unwind 把 panic 转成
+# Dart 侧错误。本项目三个导出函数(parse_svg/parse_color/parse_transform)全部
+# 标了 #[frb(sync)],走的正是不做 unwind 捕获的那条路径,因此 sync 调用里发生
+# panic 本来就不会被优雅地转换成 Dart 异常。panic="abort" 对本项目的实际行为
+# 没有削弱任何既有安全网,是纯粹的体积/性能收益(去掉 unwind 表),故采纳。
+#
+# panic="abort" verified safe (2026-08-26): flutter_rust_bridge 2.12.0's
+# `execute_sync` (handler/implementation/executor.rs) does NOT use
+# catch_unwind — only the async paths (execute_async/execute_normal) wrap
+# with catch_unwind to turn a panic into a Dart-side error. All three
+# exported functions here (parse_svg/parse_color/parse_transform) are
+# `#[frb(sync)]`, so they already go through the path with no unwind
+# capture — a panic in sync mode was never gracefully converted to a Dart
+# exception to begin with. panic="abort" therefore removes no existing
+# safety net for this project and is adopted as a pure size/perf win
+# (drops unwind tables).
+panic = "abort"
+
+[lints.rust]
+unexpected_cfgs = { level = "warn", check-cfg = ['cfg(frb_expand)'] }
