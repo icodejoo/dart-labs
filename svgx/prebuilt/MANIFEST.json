@@ -67,22 +67,6 @@
       "toolchain": "nightly-2026-06-24",
       "builtAt": "2026-08-26T09:40:51.707747Z"
     },
-    "ios/device/libsvgx.a": {
-      "sourceHash": "4c50e0ee5c1ffe3fe430946ffe6999d17371fb05808214120aa8843683e4aa9a",
-      "sha256": "e3435b7c7a99997b38e194201464d22558fa2bcd13f56bcf15fbfee463951a6c",
-      "bytes": 1153600,
-      "builtOnHost": "windows",
-      "toolchain": "nightly-2026-06-24",
-      "builtAt": "2026-08-26T09:40:51.630375Z"
-    },
-    "ios/simulator/libsvgx.a": {
-      "sourceHash": "4c50e0ee5c1ffe3fe430946ffe6999d17371fb05808214120aa8843683e4aa9a",
-      "sha256": "5abf93d49990f80468a1fb5a08a497b82da4d5353426709faec0a533c726fa9b",
-      "bytes": 1870912,
-      "builtOnHost": "windows",
-      "toolchain": "nightly-2026-06-24",
-      "builtAt": "2026-08-26T09:40:51.657643Z"
-    },
     "macos/libsvgx.a": {
       "sourceHash": "4c50e0ee5c1ffe3fe430946ffe6999d17371fb05808214120aa8843683e4aa9a",
       "sha256": "497ace91afbf630e9f4549655defa4fe7c668ec3ce0a4d5c3f662fd7834eed0b",

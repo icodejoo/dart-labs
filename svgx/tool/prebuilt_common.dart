@@ -174,29 +174,43 @@ const List<PrebuiltTarget> kTargets = <PrebuiltTarget>[
     output: 'android/jniLibs/x86/libsvgx.so',
   ),
 
-  // --- iOS: static archives, force_load'd by the podspec. ---
-  // Device and simulator are both arm64, so `lipo` physically cannot merge
-  // them into one archive; the podspec branches on `[sdk=...]` instead.
+  // --- iOS: cdylibs, packaged as one vendored `svgx.xcframework`. ---
   //
-  // device 与 simulator 同为 arm64，`lipo` 物理上无法合并成一个归档，podspec 改用
-  // `[sdk=...]` 条件分支二选一。
+  // A `staticlib` skips rustc's own dead-code elimination (every object must
+  // stay in the archive), and the `-force_load` it needed on the consumer side
+  // also disabled Xcode's stripping — together roughly 3.7x the bytes a
+  // `cdylib` needs. A `cdylib` is linked by rustc itself, so only the reachable
+  // graph of the `#[no_mangle]` exports survives.
+  //
+  // All three triples are inputs to the XCFramework, so none of them has a
+  // standalone `output`: device is one slice, and the two simulator triples are
+  // `lipo`'d into the other. See `_buildIosXcframework` in build_prebuilt.dart.
+  //
+  // iOS 改为 cdylib，并打包成一个 vendored `svgx.xcframework`。
+  // `staticlib` 跳过 rustc 自身的死代码消除（归档里每个 object 都必须保留），而它在
+  // 消费侧需要的 `-force_load` 又同时关掉了 Xcode 的裁剪——两者叠加约为 `cdylib`
+  // 的 3.7 倍体积。`cdylib` 由 rustc 自己链接，只有 `#[no_mangle]` 导出可达的部分
+  // 会保留。
+  //
+  // 三个三元组都只是 XCFramework 的输入，所以都没有独立 `output`：device 一个
+  // slice，两个 simulator 三元组 `lipo` 成另一个。见 build_prebuilt.dart 的
+  // `_buildIosXcframework`。
   PrebuiltTarget(
     triple: 'aarch64-apple-ios',
     group: 'ios',
-    cargoArtifact: 'libsvgx.a',
-    output: 'ios/device/libsvgx.a',
+    cargoArtifact: 'libsvgx.dylib',
     requiresHost: 'macos',
   ),
   PrebuiltTarget(
     triple: 'aarch64-apple-ios-sim',
     group: 'ios',
-    cargoArtifact: 'libsvgx.a',
+    cargoArtifact: 'libsvgx.dylib',
     requiresHost: 'macos',
   ),
   PrebuiltTarget(
     triple: 'x86_64-apple-ios',
     group: 'ios',
-    cargoArtifact: 'libsvgx.a',
+    cargoArtifact: 'libsvgx.dylib',
     requiresHost: 'macos',
   ),
 
@@ -271,6 +285,59 @@ const List<PrebuiltTarget> kTargets = <PrebuiltTarget>[
     output: 'linux/arm64/libsvgx.so',
     requiresHost: 'linux',
   ),
+];
+
+/// iOS deployment target the shipped `cdylib` and its framework wrapper
+/// declare.
+///
+/// iOS 产物（cdylib 与其 framework 包装）声明的部署目标版本。
+///
+/// Pinned explicitly rather than inherited from whatever the current rustc
+/// defaults to, so the `MinimumOSVersion` written into `Info.plist` and the
+/// `LC_BUILD_VERSION` inside the binary can never drift apart. Must stay >= the
+/// `s.platform` in `ios/svgx.podspec`.
+///
+/// 显式固定而不是沿用 rustc 当前默认值，保证写进 `Info.plist` 的
+/// `MinimumOSVersion` 与二进制里的 `LC_BUILD_VERSION` 不会漂移。必须不低于
+/// `ios/svgx.podspec` 里的 `s.platform`。
+const String kIosDeploymentTarget = '12.0';
+
+/// Bundle name of the vendored iOS framework, and of its executable.
+///
+/// 分发的 iOS framework 包名，同时也是其可执行文件名。
+///
+/// MUST stay `svgx`: flutter_rust_bridge's default iOS loader falls back to
+/// `DynamicLibrary.open('<stem>.framework/<stem>')` with `stem: 'svgx'`, so a
+/// different name would force every consumer to pass a custom
+/// `ExternalLibrary` into `RustLib.init()`.
+///
+/// 必须保持 `svgx`：flutter_rust_bridge 的默认 iOS 加载器最终会回退到
+/// `DynamicLibrary.open('<stem>.framework/<stem>')`（stem 为 `svgx`），改名等于
+/// 强迫所有下游给 `RustLib.init()` 传自定义 `ExternalLibrary`。
+const String kIosFrameworkName = 'svgx';
+
+/// Path of the vendored XCFramework relative to `prebuilt/`.
+///
+/// 分发的 XCFramework 相对 `prebuilt/` 的路径。
+const String kIosXcframework = 'ios/svgx.xcframework';
+
+/// Artifacts that no single [PrebuiltTarget] owns, and that must nevertheless
+/// be present for a release to be complete.
+///
+/// 不属于任何单个 [PrebuiltTarget]、但发布时必须存在的产物。
+///
+/// The iOS entries double as a structural check on the XCFramework: the slice
+/// directory names are the ones `xcodebuild -create-xcframework` derives from
+/// the binaries, so a wrong-platform slice shows up here as a missing file.
+///
+/// iOS 的几项同时充当 XCFramework 的结构校验：slice 目录名由
+/// `xcodebuild -create-xcframework` 依据二进制平台推导，平台错了就会表现为文件缺失。
+const List<String> kExtraArtifacts = <String>[
+  '$kIosXcframework/Info.plist',
+  '$kIosXcframework/ios-arm64/$kIosFrameworkName.framework/$kIosFrameworkName',
+  '$kIosXcframework/ios-arm64_x86_64-simulator/'
+      '$kIosFrameworkName.framework/$kIosFrameworkName',
+  'macos/libsvgx.a',
 ];
 
 /// Absolute path to the svgx package root, derived from this script's location.

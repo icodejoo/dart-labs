@@ -425,13 +425,16 @@ jobs:
           flutter-version: ${{ env.FLUTTER_VERSION }}
           cache: true
 
-      # TODO(migration): remove this guard once the iOS archives are committed.
-      # Until then this job reports honestly instead of failing on an absence
-      # that is expected and already documented.
-      - name: Check prebuilt iOS archives exist
+      # TODO(migration): remove this guard once the iOS XCFramework is
+      # committed. Until then this job reports honestly instead of failing on an
+      # absence that is expected and already documented.
+      - name: Check prebuilt iOS XCFramework exists
         id: guard
         run: |
-          if [ -f svgx/prebuilt/ios/device/libsvgx.a ] && [ -f svgx/prebuilt/ios/simulator/libsvgx.a ]; then
+          xcf=svgx/prebuilt/ios/svgx.xcframework
+          if [ -f "$xcf/Info.plist" ] \
+             && [ -f "$xcf/ios-arm64/svgx.framework/svgx" ] \
+             && [ -f "$xcf/ios-arm64_x86_64-simulator/svgx.framework/svgx" ]; then
             echo "present=true" >> "$GITHUB_OUTPUT"
           else
             echo "present=false" >> "$GITHUB_OUTPUT"
@@ -454,9 +457,9 @@ jobs:
         working-directory: svgx/example
         run: flutter pub get
 
-      # Both SDKs must build: the whole point of the per-SDK OTHER_LDFLAGS
-      # branch in ios/svgx.podspec is that device and simulator each pick the
-      # right archive. Verifying only one of them verifies nothing.
+      # Both SDKs must build: the XCFramework has one device slice and one
+      # simulator slice, and only building one of them verifies half the
+      # packaging.
       - name: flutter build ios --no-codesign (device)
         if: steps.guard.outputs.present == 'true'
         working-directory: svgx/example
@@ -467,20 +470,44 @@ jobs:
         working-directory: svgx/example
         run: flutter build ios --simulator
 
-      # The migration promised static linking — no stray dynamic library in the
-      # app bundle. Assert that, and assert -force_load actually preserved the
-      # flutter_rust_bridge exports rather than letting them be dead-stripped.
-      - name: Assert static linkage and surviving symbols
+      # svgx links the Rust core dynamically on iOS. Four things must hold, and
+      # each of them has failed at least once during the migration:
+      #   1. the vendored framework is actually embedded in the .app (otherwise
+      #      dyld aborts at launch);
+      #   2. Runner links it via @rpath (an absolute install_name would only
+      #      work on the build machine);
+      #   3. the flutter_rust_bridge exports are still in the framework's
+      #      dynamic symbol table, i.e. `strip` did not take them — this is the
+      #      dynamic-library equivalent of the old -force_load check, and the
+      #      same property `Assert libsvgx.so is in the APK` guards on Android;
+      #   4. the same symbols are NOT duplicated into Runner, which is what a
+      #      leftover static link would look like.
+      #
+      # svgx 在 iOS 上动态链接 Rust 核心。以下四点都必须成立（迁移过程中每一条都真实
+      # 出过问题）：1) vendored framework 确实被嵌入 .app；2) Runner 通过 @rpath 链接
+      # 它；3) flutter_rust_bridge 导出仍在 framework 的动态符号表中（等价于旧的
+      # -force_load 校验，也与 Android 侧校验的性质相同）；4) 这些符号没有同时出现在
+      # Runner 里——那才是残留静态链接的样子。
+      - name: Assert dynamic linkage and exported symbols
         if: steps.guard.outputs.present == 'true'
         working-directory: svgx/example
         run: |
           app=build/ios/iphoneos/Runner.app
-          if otool -L "$app/Runner" | grep -i 'svgx'; then
-            echo "::error::a dynamic svgx library leaked into the app bundle"; exit 1
+          fw="$app/Frameworks/svgx.framework/svgx"
+          test -f "$fw" \
+            || { echo "::error::svgx.framework was not embedded in the app bundle"; exit 1; }
+          otool -L "$app/Runner" | grep -q '@rpath/svgx.framework/svgx' \
+            || { echo "::error::Runner does not link @rpath/svgx.framework/svgx"; exit 1; }
+          otool -D "$fw" | grep -q '@rpath/svgx.framework/svgx' \
+            || { echo "::error::svgx.framework install_name is not @rpath-based"; exit 1; }
+          # -gU: defined, external (exported) symbols only.
+          nm -gU "$fw" | grep -q 'frbgen' \
+            || { echo "::error::flutter_rust_bridge exports are missing from svgx.framework"; exit 1; }
+          if nm "$app/Runner" | grep -q 'frbgen'; then
+            echo "::error::FRB symbols were also linked statically into Runner"; exit 1
           fi
-          nm "$app/Runner" | grep -q 'frbgen' \
-            || { echo "::error::flutter_rust_bridge symbols were dead-stripped — -force_load is not taking effect"; exit 1; }
-          echo "static linkage OK, FRB symbols present"
+          echo "dynamic linkage OK — $(nm -gU "$fw" | grep -c 'frbgen') frbgen exports, $(stat -f%z "$fw") bytes"
+          lipo -info "$fw"
 
   build-macos:
     name: Consume prebuilt (macOS)
