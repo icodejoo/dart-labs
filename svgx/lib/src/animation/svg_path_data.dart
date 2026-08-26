@@ -301,47 +301,83 @@ ui.Path dashPath(
   required List<double> dashArray,
   double dashOffset = 0,
 }) {
-  final pattern = dashArray.length.isOdd
-      ? [...dashArray, ...dashArray]
-      : dashArray;
-  final cycle = pattern.fold<double>(0, (sum, v) => sum + v);
+  // SVG's odd-length rule is pure index arithmetic, not a longer list: the
+  // conceptually-doubled pattern reads the same value at every index
+  // (`doubled[i] == dashArray[i % n]`) and the on/off phase is tracked by
+  // `drawing` flipping per segment regardless, so only the cycle *length*
+  // actually doubles. Building the doubled list allocated one `List<double>`
+  // per dashed element per frame for nothing.
+  //
+  // SVG 的奇数长度规则纯粹是下标运算，不需要更长的列表：概念上翻倍后的图案在
+  // 每个下标上取到的值完全相同（`doubled[i] == dashArray[i % n]`），而开/关相位
+  // 由 `drawing` 逐段翻转、与列表长度无关，真正翻倍的只有周期*长度*。构造翻倍
+  // 列表等于每个虚线元素每帧白白分配一个 `List<double>`。
+  final segments = dashArray.length;
+  var cycle = 0.0;
+  for (var i = 0; i < segments; i++) {
+    cycle += dashArray[i];
+  }
+  if (segments.isOdd) cycle *= 2;
   if (cycle <= 0) return source;
 
-  final result = ui.Path();
+  // The union path is materialized only once a *second* dash has to be
+  // appended. A reveal-style animation — `stroke-dasharray` at least as long
+  // as the contour plus an animated `stroke-dashoffset`, which is what every
+  // line-md style icon does — emits exactly one dash per frame, and handing
+  // that extracted path straight back saves allocating a second `ui.Path` and
+  // copying every segment of the dash into it, every frame.
+  //
+  // 并集路径只在真的需要追加**第二段**虚线时才创建。揭示式动画——
+  // `stroke-dasharray` 不短于轮廓长度、再配一个被动画驱动的
+  // `stroke-dashoffset`，也就是所有 line-md 风格图标的做法——每帧只产出一段
+  // 虚线，此时直接把抽取出的路径交回去，就省掉了每帧多分配一个 `ui.Path`
+  // 并把整段虚线逐线段拷进去的开销。
+  ui.Path? single;
+  ui.Path? union;
   for (final metric in source.computeMetrics()) {
     // Normalize the offset into [0, cycle) then walk backwards from zero so
     // a positive dashOffset pushes the pattern's start forward past the
     // path start, matching SVG's "dashoffset hides more of the start" look.
+    final contourLength = metric.length;
     var distance = -(dashOffset % cycle);
+    // Kept pre-wrapped in `[0, segments)` so the hot loop indexes `dashArray`
+    // directly instead of paying a `%` per step.
+    // 始终保持在 `[0, segments)` 区间内，使热循环可以直接下标访问 `dashArray`，
+    // 无需每步做一次 `%`。
     var patternIndex = 0;
     var drawing = true;
     // If the normalized offset landed us mid-segment, walk the pattern
     // forward until `distance` catches up to a segment boundary at/after it,
     // keeping the on/off phase consistent.
-    while (distance + pattern[patternIndex % pattern.length] <= 0) {
-      distance += pattern[patternIndex % pattern.length];
-      patternIndex++;
+    while (distance + dashArray[patternIndex] <= 0) {
+      distance += dashArray[patternIndex];
+      if (++patternIndex == segments) patternIndex = 0;
       drawing = !drawing;
     }
-    while (distance < metric.length) {
-      final segmentLength = pattern[patternIndex % pattern.length];
-      final segmentEnd = distance + segmentLength;
+    while (distance < contourLength) {
+      final segmentEnd = distance + dashArray[patternIndex];
       if (drawing && segmentEnd > 0) {
         final clampedStart = distance < 0 ? 0.0 : distance;
-        final clampedEnd = segmentEnd > metric.length
-            ? metric.length
+        final clampedEnd = segmentEnd > contourLength
+            ? contourLength
             : segmentEnd;
         if (clampedEnd > clampedStart) {
-          result.addPath(
-            metric.extractPath(clampedStart, clampedEnd),
-            ui.Offset.zero,
-          );
+          final dash = metric.extractPath(clampedStart, clampedEnd);
+          if (union != null) {
+            union.addPath(dash, ui.Offset.zero);
+          } else if (single != null) {
+            union = ui.Path()
+              ..addPath(single, ui.Offset.zero)
+              ..addPath(dash, ui.Offset.zero);
+          } else {
+            single = dash;
+          }
         }
       }
       distance = segmentEnd;
-      patternIndex++;
+      if (++patternIndex == segments) patternIndex = 0;
       drawing = !drawing;
     }
   }
-  return result;
+  return union ?? single ?? ui.Path();
 }

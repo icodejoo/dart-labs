@@ -136,13 +136,62 @@ class RustSvgPictureCache {
   Future<RustSvgPictureInfo> getOrRenderAsync(
     String source, {
     int? currentColorArgb,
-  }) async {
+  }) {
     final key = (source, currentColorArgb);
     final hit = _entries.remove(key);
     if (hit != null) {
       _entries[key] = hit;
-      return hit;
+      return Future<RustSvgPictureInfo>.value(hit);
     }
+    // Concurrent callers for the same key join the render already running
+    // instead of starting their own. [SvgXStatic] reaches this from `build`
+    // via a `FutureBuilder`, and a widget can rebuild many times while a
+    // bitmap decode is in flight — each of those rebuilds used to kick off a
+    // full parse + decode + record whose picture and decoded `ui.Image` were
+    // then overwritten in the cache and orphaned undisposed. Rendering is
+    // deterministic in the key, so sharing the one in-flight future is not
+    // just cheaper, it is the same answer.
+    //
+    // 同一个键的并发调用会加入已在进行的渲染，而不是各自再起一次。
+    // [SvgXStatic] 是在 `build` 里经 `FutureBuilder` 走到这儿的，而位图解码期间
+    // 控件可能重建很多次——过去每一次重建都会重新发起一整趟解析 + 解码 + 录制，
+    // 其 picture 与解码出的 `ui.Image` 随后在缓存里被覆盖、成为没人 dispose 的
+    // 孤儿。渲染结果由键唯一决定，所以共用同一个在途 future 不只是更省，
+    // 答案本来就是同一个。
+    final pending = _inFlight[key];
+    if (pending != null) return pending;
+    final future = _renderAsync(key, source, currentColorArgb);
+    _inFlight[key] = future;
+    // Deregistration is hung off the future rather than written into
+    // `_renderAsync`'s `finally`: an image-free source has no `await` at all,
+    // so that `finally` would run *before* the line above and leave the entry
+    // (and, through the key, the whole source string) stranded in the map
+    // forever. `whenComplete` always defers to a microtask, which is after
+    // this synchronous block and before any other caller can get in.
+    //
+    // 摘除动作挂在 future 上，而不是写进 `_renderAsync` 的 `finally`：无图片的
+    // 源整条路径上没有任何 `await`，那个 `finally` 会在上面这行**之前**执行，
+    // 于是条目（连同键里那整个源串）会永远卡在表里。`whenComplete` 一定推迟到
+    // 一个 microtask，那已经在本同步块之后、且早于任何其它调用方进来。
+    future.whenComplete(() {
+      if (identical(_inFlight[key], future)) _inFlight.remove(key);
+    });
+    return future;
+  }
+
+  /// In-flight async renders, keyed the same way as [_entries].
+  /// 正在进行中的异步渲染，键与 [_entries] 一致。
+  final Map<(String, int?), Future<RustSvgPictureInfo>> _inFlight =
+      <(String, int?), Future<RustSvgPictureInfo>>{};
+
+  /// Body of [getOrRenderAsync]'s cache-miss path.
+  ///
+  /// [getOrRenderAsync] 未命中分支的主体。
+  Future<RustSvgPictureInfo> _renderAsync(
+    (String, int?) key,
+    String source,
+    int? currentColorArgb,
+  ) async {
     final stopwatch = onParseMiss == null ? null : (Stopwatch()..start());
     final scene = parseSvg(data: source, currentColor: currentColorArgb);
     final RustSvgPictureInfo info;
@@ -163,8 +212,21 @@ class RustSvgPictureCache {
     final codec = await ui.instantiateImageCodec(
       Uint8List.fromList(image.data),
     );
-    final frame = await codec.getNextFrame();
-    return frame.image;
+    // Disposed as soon as the single frame is out: the codec keeps its own
+    // native decode buffers, separate from the returned image, and only one
+    // frame is ever requested. Left undisposed they survive until the GC gets
+    // round to the finalizer — a cost that shows up in RSS, not in the Dart
+    // heap.
+    //
+    // 取到唯一那一帧后立即 dispose：codec 持有自己的原生解码缓冲，与返回的
+    // image 相互独立，而这里只会取一帧。不 dispose 的话它们要等到 GC 处理
+    // finalizer 才释放——这笔成本体现在 RSS 上，而不是 Dart heap 上。
+    try {
+      final frame = await codec.getNextFrame();
+      return frame.image;
+    } finally {
+      codec.dispose();
+    }
   }
 
   /// Inserts [info] under [key], evicting the least-recently-used entry past
@@ -183,6 +245,38 @@ class RustSvgPictureCache {
   ///
   /// 清空缓存（供测试 / 低内存处理调用）。
   void clear() => _entries.clear();
+
+  /// Number of pictures currently held. / 当前缓存的 picture 数量。
+  ///
+  /// Example:
+  /// ```dart
+  /// print(RustSvgPictureCache.instance.length);
+  /// ```
+  int get length => _entries.length;
+
+  /// Approximate native (display-list) bytes held by the cached pictures.
+  ///
+  /// Sums each [ui.Picture.approximateBytesUsed]. Useful for sizing
+  /// [maximumSize] against a real icon set instead of guessing: an entry count
+  /// says nothing about cost, since one complex illustration can outweigh
+  /// hundreds of icons.
+  ///
+  /// 缓存中 picture 占用的近似原生（显示列表）字节数。
+  ///
+  /// 累加各 [ui.Picture.approximateBytesUsed]。用途是拿真实图标集去标定
+  /// [maximumSize] 而不是靠猜：条目数说明不了成本，一张复杂插画可能顶几百个图标。
+  ///
+  /// Example:
+  /// ```dart
+  /// final mb = RustSvgPictureCache.instance.approximateBytesUsed / 1e6;
+  /// ```
+  int get approximateBytesUsed {
+    var total = 0;
+    for (final info in _entries.values) {
+      total += info.picture.approximateBytesUsed;
+    }
+    return total;
+  }
 
   /// Parses [source] via Rust and records the display list into a picture.
   ///
@@ -442,7 +536,24 @@ class RustSvgPictureCache {
     for (final tilePath in pattern.paths) {
       _paintPath(tileCanvas, tilePath, nested: true);
     }
-    final image = recorder.endRecording().toImageSync(pxW, pxH);
+    // The tile's display list exists only to be rasterized into `image`, and
+    // nothing keeps it afterwards — but a dropped `ui.Picture` still holds its
+    // native display list until the GC finalizes it. With a `_maxPatternTilePx`
+    // tile this pairs with a rasterization of up to 1024x1024x4 bytes, so the
+    // recorder is closed out explicitly instead of being left on the finalizer
+    // queue.
+    //
+    // 贴片的显示列表只是为了光栅化成 `image`，之后没人再用——但被丢弃的
+    // `ui.Picture` 在 GC 回收 finalizer 之前仍占着原生显示列表。在
+    // `_maxPatternTilePx` 上限下它对应一次最大 1024x1024x4 字节的光栅化，
+    // 所以这里显式收尾，而不是把它扔进 finalizer 队列。
+    final tilePicture = recorder.endRecording();
+    final ui.Image image;
+    try {
+      image = tilePicture.toImageSync(pxW, pxH);
+    } finally {
+      tilePicture.dispose();
+    }
 
     // image pixels → tile-local → pattern-local → absolute.
     // 图像像素 → 贴片局部 → 图案局部 → 绝对空间。

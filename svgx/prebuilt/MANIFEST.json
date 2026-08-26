@@ -1,6 +1,6 @@
 {
   "schema": 1,
-  "sourceHash": "bbc2aa0d5d999f3de4bcd7290a56836f1e690d05294ec08cd6ff70f1307e88e0",
+  "sourceHash": "9c9f64e4d6f170e451b1d77b3c477eb5f5b06cf2681f4614cf38892b4d7e884e",
   "toolchain": "nightly-2026-06-24",
   "artifacts": {
     "../ios/svgx.xcframework/Info.plist": {
@@ -60,36 +60,36 @@
       "builtAt": "2026-08-26T12:03:09.615699Z"
     },
     "android/jniLibs/arm64-v8a/libsvgx.so": {
-      "sourceHash": "bbc2aa0d5d999f3de4bcd7290a56836f1e690d05294ec08cd6ff70f1307e88e0",
-      "sha256": "fc0a642460d71dbeb54a9d447c37724e67a9442f80fa5578160fa913ba68231e",
-      "bytes": 491328,
+      "sourceHash": "9c9f64e4d6f170e451b1d77b3c477eb5f5b06cf2681f4614cf38892b4d7e884e",
+      "sha256": "addee10c69a70aa9d0bfe2e84a61c415e90b0aaf8afb085ee8c1947c9b571b52",
+      "bytes": 491616,
       "builtOnHost": "windows",
       "toolchain": "nightly-2026-06-24",
-      "builtAt": "2026-08-26T10:31:22.511721Z"
+      "builtAt": "2026-08-26T13:23:42.393205Z"
     },
     "android/jniLibs/armeabi-v7a/libsvgx.so": {
-      "sourceHash": "bbc2aa0d5d999f3de4bcd7290a56836f1e690d05294ec08cd6ff70f1307e88e0",
-      "sha256": "74175edbdab21247c7c5958813a2987ccee694227c3008282428cf5a36ab81f7",
-      "bytes": 338584,
+      "sourceHash": "9c9f64e4d6f170e451b1d77b3c477eb5f5b06cf2681f4614cf38892b4d7e884e",
+      "sha256": "f3407f4549e8a350b81271188db72f6ca6953805d4a170574cc034c020ae3778",
+      "bytes": 338760,
       "builtOnHost": "windows",
       "toolchain": "nightly-2026-06-24",
-      "builtAt": "2026-08-26T10:31:22.515720Z"
+      "builtAt": "2026-08-26T13:23:42.397184Z"
     },
     "android/jniLibs/x86/libsvgx.so": {
-      "sourceHash": "bbc2aa0d5d999f3de4bcd7290a56836f1e690d05294ec08cd6ff70f1307e88e0",
-      "sha256": "e76d0e09dd4af7ec4943732714b584ed160c86c015abfca4b378e51930a33c29",
-      "bytes": 572528,
+      "sourceHash": "9c9f64e4d6f170e451b1d77b3c477eb5f5b06cf2681f4614cf38892b4d7e884e",
+      "sha256": "c805efe4d214193ea65d7c8dd833af58e823434c66c1638bc64d5dab4cef30e1",
+      "bytes": 572688,
       "builtOnHost": "windows",
       "toolchain": "nightly-2026-06-24",
-      "builtAt": "2026-08-26T10:31:22.525823Z"
+      "builtAt": "2026-08-26T13:23:42.407975Z"
     },
     "android/jniLibs/x86_64/libsvgx.so": {
-      "sourceHash": "bbc2aa0d5d999f3de4bcd7290a56836f1e690d05294ec08cd6ff70f1307e88e0",
-      "sha256": "6647e54f9fe991040bf13918164c96e6bfd1b819c2939c94835f01978e603c81",
-      "bytes": 548480,
+      "sourceHash": "9c9f64e4d6f170e451b1d77b3c477eb5f5b06cf2681f4614cf38892b4d7e884e",
+      "sha256": "d2325d1b8b4be7bafdaba06781a56ee9575589925b2e1834f344d5fa58125ab1",
+      "bytes": 548624,
       "builtOnHost": "windows",
       "toolchain": "nightly-2026-06-24",
-      "builtAt": "2026-08-26T10:31:22.520820Z"
+      "builtAt": "2026-08-26T13:23:42.402861Z"
     },
     "linux/arm64/libsvgx.so": {
       "sourceHash": "bbc2aa0d5d999f3de4bcd7290a56836f1e690d05294ec08cd6ff70f1307e88e0",
@@ -116,12 +116,12 @@
       "builtAt": "2026-08-26T12:03:09.647859Z"
     },
     "windows/x64/svgx.dll": {
-      "sourceHash": "bbc2aa0d5d999f3de4bcd7290a56836f1e690d05294ec08cd6ff70f1307e88e0",
-      "sha256": "7d88ed3fdf17dface2516e93c21474cdf76c048445293256fc6e882d5a2b78e2",
+      "sourceHash": "9c9f64e4d6f170e451b1d77b3c477eb5f5b06cf2681f4614cf38892b4d7e884e",
+      "sha256": "3becadc7662e5b459a8436ae16346618a83f7da9285613ef2e46811b0e48a62b",
       "bytes": 446976,
       "builtOnHost": "windows",
       "toolchain": "nightly-2026-06-24",
-      "builtAt": "2026-08-26T12:03:09.652859Z"
+      "builtAt": "2026-08-26T13:23:54.916713Z"
     }
   }
 }

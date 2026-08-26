@@ -319,6 +319,72 @@ fn report(label: &str, corpus: &[String], current_color: Option<u32>) {
     println!("[{label}/usvg-tree-only] {tree}");
     let (sse, bytes) = time_sse_encode(corpus);
     println!("[{label}/frb-sse-encode] {sse} wire_bytes/parse={bytes:.0}");
+    let p = alloc_phases(corpus);
+    println!(
+        "[{label}/alloc-phases] xml={:.1}({:.0}B) tree={:.1}({:.0}B) convert={:.1}({:.0}B) sse={:.1}({:.0}B)",
+        p[0].0, p[0].1, p[1].0, p[1].1, p[2].0, p[2].1, p[3].0, p[3].1
+    );
+}
+
+/// Runs `f` with the counting allocator armed, returning its value plus the
+/// (allocations, bytes) it made. Everything outside the closure — including the
+/// drop of the returned value — is excluded.
+///
+/// 在打开计数分配器的状态下运行 `f`，返回其结果以及期间的（分配次数, 字节数）。
+/// 闭包之外的一切——包括返回值的析构——都不计入。
+fn counted<T>(f: impl FnOnce() -> T) -> (T, u64, u64) {
+    let a0 = ALLOCS.load(Ordering::Relaxed);
+    let b0 = ALLOC_BYTES.load(Ordering::Relaxed);
+    COUNTING.store(true, Ordering::Relaxed);
+    let v = f();
+    COUNTING.store(false, Ordering::Relaxed);
+    (
+        v,
+        ALLOCS.load(Ordering::Relaxed) - a0,
+        ALLOC_BYTES.load(Ordering::Relaxed) - b0,
+    )
+}
+
+/// Per-phase allocation attribution: `[xml, usvg-tree, convert, frb-sse]`,
+/// each `(allocs/parse, bytes/parse)`.
+///
+/// The latency split already exists ([time_usvg_phases] / [time_convert] /
+/// [time_sse_encode]) but latency on this machine carries ~10% run-to-run
+/// noise, while allocation counts are exactly reproducible. Splitting them by
+/// phase is what turns "33 allocations per parse" into an actionable statement
+/// about *whose* allocations they are.
+///
+/// 分阶段的分配归因：`[xml, usvg 树, 转换, FRB SSE]`，各为
+/// `(每次解析分配次数, 每次解析字节数)`。
+///
+/// 延迟拆分已经有了（[time_usvg_phases]/[time_convert]/[time_sse_encode]），
+/// 但这台机器的延迟有约 10% 的跨运行噪声，而分配次数是完全可复现的。按阶段
+/// 拆开，才能把"每次解析 33 次分配"变成"这些分配分别是谁的"这种可行动的结论。
+fn alloc_phases(corpus: &[String]) -> [(f64, f64); 4] {
+    use crate::frb_generated::SseEncode;
+    use flutter_rust_bridge::for_generated::SseSerializer;
+
+    let opt = usvg::Options::default();
+    let mut acc = [(0u64, 0u64); 4];
+    let mut n = 0f64;
+    for s in corpus {
+        let (doc, a0, b0) = counted(|| usvg::roxmltree::Document::parse(s).expect("valid xml"));
+        let (tree, a1, b1) = counted(|| usvg::Tree::from_xmltree(&doc, &opt));
+        let Ok(tree) = tree else { continue };
+        let (scene, a2, b2) = counted(|| scene_from_tree(&tree));
+        let (len, a3, b3) = counted(move || {
+            let mut ser = SseSerializer::new();
+            scene.sse_encode(&mut ser);
+            ser.cursor.into_inner().len()
+        });
+        std::hint::black_box(len);
+        for (slot, (a, b)) in acc.iter_mut().zip([(a0, b0), (a1, b1), (a2, b2), (a3, b3)]) {
+            slot.0 += a;
+            slot.1 += b;
+        }
+        n += 1.0;
+    }
+    acc.map(|(a, b)| (a as f64 / n, b as f64 / n))
 }
 
 /// Times the FRB SSE serialization of an already-built scene, and reports the

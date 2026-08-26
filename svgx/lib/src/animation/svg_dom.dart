@@ -7,6 +7,7 @@
 // 形状/分组词汇，每个节点携带自身原始表现属性及挂载的 `<animate>` 时间线。
 // 原创实现。
 
+import 'dart:typed_data';
 import 'dart:ui' as ui;
 
 import 'smil_animation.dart';
@@ -261,4 +262,19 @@ class SvgNode {
   ///
   /// [cachedGeometry] 的身份键——见该字段。
   Object? geometryCacheKey;
+
+  /// Paint-time cache of [transform] expanded into the column-major 4x4
+  /// [Float64List] that `Canvas.transform` takes. Owned entirely by
+  /// `animated_svg_painter.dart`'s `_paintNode`.
+  ///
+  /// No cache key is needed: [transform] is final and set at parse time, so
+  /// the expansion can never go stale. Without it every transformed node
+  /// allocated and filled a fresh 16-slot list on every frame.
+  ///
+  /// [transform] 展开为 `Canvas.transform` 所需列主序 4x4 [Float64List] 后的
+  /// 绘制期缓存，完全由 `animated_svg_painter.dart` 的 `_paintNode` 持有。
+  ///
+  /// 不需要缓存键：[transform] 是 final 且在解析阶段就已确定，展开结果不可能
+  /// 失效。没有它的话，每个带变换的节点每帧都要新分配并填满一个 16 槽列表。
+  Float64List? cachedTransformMatrix;
 }

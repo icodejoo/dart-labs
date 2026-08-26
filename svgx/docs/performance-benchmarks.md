@@ -451,3 +451,52 @@ flutter run -d windows --profile --dart-define=LIB=compare --dart-define=CYCLES=
 ```
 
 **平台局限(沿用既有标注)**:仍只在 Windows 桌面 profile 模式测,Android 真机 PSS/`dumpsys meminfo` 复测仍是遗留缺口。本轮全程有另一个 agent 在同一台机器上并行编译 Rust,机器负载明显高于以往几轮——这正是上面两个校准项和 min-of-N 协议存在的原因,所有跨运行对比都已按校准项归一化后再下结论。
+
+## Dart 侧性能优化第二轮(2026-08-26,`svgx/perf-round-2`)
+
+**范围**:只改 `lib/**` 的 Dart 代码。承接上一节,**刻意不重复**上一节已实测判定"不划算"的三条(ResolvedStyle 三元组缓存、Paint 复用、`inherit` 闭包提顶层)。
+
+### 方法学补强:同进程配对原语成为主要证据
+
+上一节记录的教训在本轮被放大:本机 `LIB=micro` 的**跨构建**读数,即便对**完全没改过的**基准项也会漂移 −3%~+11%,而两个校准项有时会同向移动 12%、有时与其它项脱钩(实测过一次:两个校准项各降 7%,其余十余项却持平)。**结论:校准项能识别"整机变慢",但不足以把 2%~5% 量级的改动归因。**
+
+因此本轮凡是能配对的都配对:把改前实现原样拷进 `micro_bench.dart`(`_dashPathLegacy`、`_parseSvgHexColorLegacy`),两个变体在**同一进程**里相隔数秒跑同一批数据。这套协议自带体检:把库改动 `git stash` 掉重编译后,两条配对臂读数应当重合——实测 `dash_path_legacy_paired` 2.897 vs `dash_path_new_paired` 2.970(+2.5%)、`hexcolor_legacy_paired` 0.100 vs `hexcolor_new_paired` 0.098(−2.0%),**配对测量的噪声底噪约 ±4%**,远小于跨构建漂移。
+
+新增诊断项 `dash_path_current` / `dash_metrics_only`:后者是 `Path.computeMetrics()` 的**不可突破下限**,两者之差才是 Dart 侧能拿回来的部分。改动前实测 2.610 vs 0.655——`dashPath` 有 75% 的余量,这是本轮找到最大金矿的入口。
+
+### 逐项:落地的优化
+
+微基准均为 `tool/run_micro.ps1` best-of-12(本轮把 8 提到 12,min-of-N 又向下收敛约 5%)。
+
+| # | 优化 | 文件 | 测量方式 | 改前 | 改后 | 变化 |
+|---|---|---|---|---|---|---|
+| 1 | `stroke-dasharray` 解析按原串记忆(`_dasharrayMemo`,上限 256,超限整表丢弃),并把 `split(RegExp)` 换成手写扫描 | `svg_style.dart` | `anim_paint_frame`,校准项 0.974→0.951(几乎持平) | 14.115 | 13.033 | **−7.7%** 原始值,按 `calibration_alloc_and_record` 归一后约 −5.4% |
+| 2 | `dashPath` 重写:去掉奇数图案的翻倍列表分配、`fold` 闭包与逐步 `%`;并集路径改为**只在出现第二段虚线时才创建**(揭示式动画每帧只产一段,直接把抽取出的路径交回) | `svg_path_data.dart` | 同进程配对 `dash_path_legacy_paired` vs `dash_path_new_paired` | 2.603 | 2.120 | **−18.6%**(稀疏图案 `[24,24]`);密集图案 `[4,4]` 4.232→3.652 **−13.7%** |
+| 3 | `_paintNode` 每节点每帧的常量折叠打包:`clipPathId`/`maskId` 判空短路(省两次 map 查找)、blur 判定提成一个 bool、静态 `transform` 的 4x4 `Float64List` 缓存到节点(`SvgNode.cachedTransformMatrix`)、子节点改下标遍历(省迭代器分配)、`opacity == 1` 时跳过 `Color.withValues` | `animated_svg_painter.dart`、`svg_dom.dart` | `anim_paint_frame`,同一 micro_bench 文件下 stash/还原两次编译各 best-of-12,未改动的参照项漂移 ±2% | 12.536 | 12.273 | **−2.1%**,**刚刚越过分辨率**,如实记录 |
+| 4 | `parseSvgHexColor` 改为 `codeUnitAt` 逐位取值,不再 `substring`+`int.parse`(`#RRGGBB` 省 1 次字符串分配,`#RGB` 省 7 次) | `svg_style.dart` | 同进程配对 `hexcolor_legacy_paired` vs `hexcolor_new_paired` | 0.090 | 0.058 | **−35.6%** 单次调用。**在 `anim_paint_frame` 上分辨不出**(12.273→12.404,落在参照项漂移带内),按每文档每帧约 6 次折算约合 0.2us / 1.6% |
+| 5 | `AnimationDetector.hasAnimations` 按源串记忆结果(`maximumMemoSize` 默认 1024,FIFO 淘汰) | `animation_detector.dart` | `detect_animations_static_sources`、`static_route_and_lookup` | 0.389 / 0.478 | **0.008 / 0.070** | **−98% / −85%** |
+
+**第 4 项的行为微调**:非法十六进制数字现在返回 null 而不是抛 `FormatException`——与本函数对"长度不合法"本就返回 null 的做法一致,已在注释中标明。
+
+**第 5 项的诚实警告**:这是本轮唯一有**回归风险**的改动。工作集大于 `maximumMemoSize` 且按固定顺序循环访问时命中率为 0(某个源的记录恰好在它再次轮到前被淘汰),此时每次调用要付"扫描 + 一次失败查找",比不加缓存约慢 15%。默认 1024 远高于滚动界面同时在飞的图标数(基准的 1000 个也在其内),但这个失效形态必须记在这里,而不是藏起来。
+
+### 端到端:头对头 best-of-12
+
+把本轮全部 `lib/` 改动 `git stash` 后重编译作为基线,与改后二进制背靠背各跑 best-of-12。**两次运行的机器负载不相等**(基线那次校准项 `calibration_codeunit_scan` 0.261 / `calibration_alloc_and_record` 1.117,改后 0.244 / 0.994),十余个未改动参照项的中位倍率是 **1.13**,下表已据此把基线放缩后再比。
+
+| 指标 | 基线(原始 / 放缩后) | 改后 | 变化 |
+|---|---|---|---|
+| `anim_paint_frame` | 18.246 / 16.15 | **13.188** | **−18.3%** |
+| `detect_animations_static_sources` | 0.458 / 0.405 | **0.008** | **−98%** |
+| `static_route_and_lookup` | 0.592 / 0.524 | **0.072** | **−86%** |
+| `dashPath`(配对读数) | 2.603 | **2.120** | **−18.6%** |
+
+`flutter analyze`:**No issues found**。`flutter test`:**119 passed**(基线同为 119,无新增亦无减少)。
+
+### 识别到但**没有实测支撑**,因此没做
+
+- **`SvgXStatic._buildFromInfo` 里的 `Directionality.maybeOf(context)`**:`alignment` 是 `Alignment`(默认 `Alignment.center`)时 `resolve()` 根本不看 `TextDirection`,这次 `dependOnInheritedWidgetOfExactType` 既白付了查找与依赖登记,还让每个静态图标白白依赖 `Directionality`。改法只有一行(`alignment is Alignment` 就直接用)。**没做的理由是测不了**:`LIB=micro` 模式没有控件树,现有微基准里没有任何一项会走 `build()`;而滚动基准分辨不出这个量级(上一节已记录)。要落地它得先给 micro 加一个真实 Element 树的探针,那是下一轮的事。
+- **`_paintShape` 里每段虚线直接 `drawPath` 而不合并成一条路径**:能再省掉每段一次原生路径拷贝,但会增加显示列表里的绘制指令数,而 raster 侧成本 `LIB=micro` 测不到,不敢在没有 raster 证据的情况下动。
+- **`dashPath` 在"整条轮廓都被点亮"时直接返回 `source`**:对已 freeze 的揭示动画每帧都能命中,但闭合轮廓经 `extractPath` 会退化成开放路径,直接返回 `source` 会**改变闭合路径的描边接头外观**——是往更正确的方向变,但仍是行为变化,不在本轮性能任务范围内。
+
+**并行干扰的诚实标注**:本轮全程有另一个 agent 在同一仓库、同一台机器上编辑 `lib/src/animation/svg_document_parser.dart`、`lib/src/rust_static_svg.dart` 并反复编译 bench_app(期间有一次把 `build/` 里的产物换成了 `LIB=anim_fps` 变体,被"报告为空"抓到)。这正是本轮把主要证据从跨构建对比迁移到同进程配对的直接原因。

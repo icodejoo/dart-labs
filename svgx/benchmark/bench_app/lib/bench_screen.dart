@@ -13,6 +13,7 @@ import 'package:flutter_svg/flutter_svg.dart';
 import 'package:svgx/svgx.dart';
 
 import 'frame_timing.dart';
+import 'report_sink.dart';
 import 'stats.dart';
 import 'svg_gen.dart';
 
@@ -120,7 +121,16 @@ class BenchRunner extends StatefulWidget {
 }
 
 class _BenchRunnerState extends State<BenchRunner> {
-  late final List<String> _icons = generateIcons(widget.itemCount);
+  // `DISTINCT=n` keeps the grid at `itemCount` cells but reuses only n icon
+  // sources — the memory-attribution control described in [generateIcons].
+  // Unset (0) is the normal all-distinct benchmark.
+  //
+  // `DISTINCT=n` 保持网格仍是 `itemCount` 格，但只复用 n 个图标源——即
+  // [generateIcons] 里说明的内存归因对照。不设（0）就是常规的全互异基准。
+  late final List<String> _icons = generateIcons(
+    widget.itemCount,
+    distinct: const int.fromEnvironment('DISTINCT'),
+  );
   final _scrollController = ScrollController();
   final _frameTiming = FrameTimingCollector();
   final _parseDurations = <Duration>[];
@@ -131,6 +141,24 @@ class _BenchRunnerState extends State<BenchRunner> {
   int? _postIdleRssBytes;
   bool _done = false;
   String _status = 'warming up...';
+
+  // Memory-attribution probes (standalone mode only, see `_run`). Without them
+  // the report gives one absolute RSS number with nothing to attribute it to:
+  // `_warmupRssBytes` is the app + first screenful floor, and
+  // `_afterClearRssBytes` is what comes back when every svgx cache is dropped,
+  // which is the only way to tell "the caches hold N MB" apart from "the
+  // process just sits at N MB".
+  //
+  // 内存归因探针（仅独立模式，见 `_run`）。没有它们，报告只有一个孤立的 RSS
+  // 绝对值、无从归因：`_warmupRssBytes` 是"应用 + 首屏"的地板，
+  // `_afterClearRssBytes` 是清空 svgx 全部缓存后回落到的水平——这是区分
+  // "缓存占了 N MB"与"进程本来就在 N MB"的唯一办法。
+  int? _warmupRssBytes;
+  int? _afterUnmountRssBytes;
+  int? _afterClearRssBytes;
+  int? _cachedPictures;
+  int? _cachedPictureBytes;
+  bool _gridMounted = true;
 
   @override
   void initState() {
@@ -158,6 +186,7 @@ class _BenchRunnerState extends State<BenchRunner> {
     // Warmup: let the grid lay out once before measuring.
     // 预热：先让网格完成一次布局再开始计时。
     await Future<void>.delayed(const Duration(milliseconds: 500));
+    _warmupRssBytes = ProcessInfo.currentRss;
     _rssTimer = Timer.periodic(
       const Duration(milliseconds: 200),
       (_) => _sampleRss(),
@@ -185,6 +214,36 @@ class _BenchRunnerState extends State<BenchRunner> {
     await Future<void>.delayed(const Duration(seconds: 3));
     _postIdleRssBytes = ProcessInfo.currentRss;
     _rssTimer?.cancel();
+
+    // Attribution probe, standalone runs only: dropping every svgx cache after
+    // all three headline numbers are already recorded can't perturb them, and
+    // the RSS it gives back is the share the caches were actually holding.
+    // Skipped in `LIB=compare` so the sequential phases keep their documented
+    // behaviour (the next phase would otherwise start from a cleared cache).
+    //
+    // 归因探针，仅独立运行：三个头条数字都已记录之后再清空 svgx 全部缓存，
+    // 不会扰动它们，而 RSS 回落的幅度就是缓存实际占用的份额。`LIB=compare`
+    // 下跳过，保持顺序阶段的既有行为（否则下一阶段会从空缓存开始）。
+    if (widget.onComplete == null) {
+      // The grid has to come down first: clearing the caches while it is still
+      // mounted only makes the next rebuild re-parse and re-fill them.
+      // 必须先把网格卸下来：网格还挂着时清缓存，只会让下一次重建重新解析并把
+      // 缓存重新填满。
+      if (widget.lib == BenchLib.svgx) {
+        _cachedPictures = RustSvgPictureCache.instance.length;
+        _cachedPictureBytes = RustSvgPictureCache.instance.approximateBytesUsed;
+      }
+      setState(() {
+        _gridMounted = false;
+        _status = 'cache-clear attribution probe...';
+      });
+      await Future<void>.delayed(const Duration(seconds: 3));
+      _afterUnmountRssBytes = ProcessInfo.currentRss;
+      RustSvgPictureCache.instance.clear();
+      SvgDocumentCache.instance.clear();
+      await Future<void>.delayed(const Duration(seconds: 3));
+      _afterClearRssBytes = ProcessInfo.currentRss;
+    }
 
     setState(() {
       _done = true;
@@ -227,14 +286,41 @@ class _BenchRunnerState extends State<BenchRunner> {
       ..writeln(
         'rss_steady_after_scroll_mb=${result.rssSteadyMb.toStringAsFixed(2)}',
       )
-      ..writeln('rss_after_idle_mb=${result.rssIdleMb.toStringAsFixed(2)}')
-      ..writeln('=== END BENCH REPORT ===');
-    // Use print (not debugPrint) so long report lines aren't truncated in
-    // the `flutter run` console we scrape.
-    // 用 print（而非 debugPrint）避免长报告行在 `flutter run` 控制台里被截断。
-    // ignore: avoid_print
-    print(buf.toString());
+      ..writeln('rss_after_idle_mb=${result.rssIdleMb.toStringAsFixed(2)}');
+    if (_warmupRssBytes != null) {
+      buf.writeln(
+        'rss_after_warmup_mb=${(_warmupRssBytes! / 1e6).toStringAsFixed(2)}',
+      );
+    }
+    if (_afterUnmountRssBytes != null) {
+      buf.writeln(
+        'rss_after_grid_unmount_mb='
+        '${(_afterUnmountRssBytes! / 1e6).toStringAsFixed(2)}',
+      );
+    }
+    if (_afterClearRssBytes != null) {
+      buf.writeln(
+        'rss_after_cache_clear_mb='
+        '${(_afterClearRssBytes! / 1e6).toStringAsFixed(2)}',
+      );
+    }
+    if (_cachedPictures != null) {
+      buf
+        ..writeln('cached_pictures=$_cachedPictures')
+        ..writeln(
+          'cached_picture_mb='
+          '${(_cachedPictureBytes! / 1e6).toStringAsFixed(2)}',
+        );
+    }
+    buf.writeln('=== END BENCH REPORT ===');
+    // emitReport (not debugPrint) so long report lines aren't truncated in the
+    // `flutter run` console we scrape, and so an unattended N-run harness can
+    // read them back from SVGX_MICRO_OUT.
+    // 用 emitReport（而非 debugPrint）避免长报告行在 `flutter run` 控制台里被
+    // 截断，同时让无人值守的多次运行脚本能从 SVGX_MICRO_OUT 读回结果。
+    emitReport(buf.toString());
     widget.onComplete?.call(result);
+    if (autoExitAfterReport && widget.onComplete == null) exit(0);
   }
 
   @override
@@ -251,22 +337,25 @@ class _BenchRunnerState extends State<BenchRunner> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: Text('bench: ${widget.lib} ($_status)')),
-      body: GridView.builder(
-        controller: _scrollController,
-        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-          crossAxisCount: 8,
-        ),
-        itemCount: _icons.length,
-        itemBuilder: (context, index) {
-          final source = _icons[index];
-          return Padding(
-            padding: const EdgeInsets.all(4),
-            child: widget.lib == BenchLib.svgx
-                ? SvgXStatic(source, width: 32, height: 32)
-                : SvgPicture.string(source, width: 32, height: 32),
-          );
-        },
-      ),
+      body: !_gridMounted
+          ? const SizedBox.expand()
+          : GridView.builder(
+              controller: _scrollController,
+              gridDelegate:
+                  const SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: 8,
+                  ),
+              itemCount: _icons.length,
+              itemBuilder: (context, index) {
+                final source = _icons[index];
+                return Padding(
+                  padding: const EdgeInsets.all(4),
+                  child: widget.lib == BenchLib.svgx
+                      ? SvgXStatic(source, width: 32, height: 32)
+                      : SvgPicture.string(source, width: 32, height: 32),
+                );
+              },
+            ),
       floatingActionButton: _done
           ? FloatingActionButton.extended(
               onPressed: () => exit(0),
