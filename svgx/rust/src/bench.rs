@@ -316,6 +316,83 @@ fn time_usvg_phases(corpus: &[String]) -> (Stats, Stats) {
     (stats(xml), stats(tree))
 }
 
+/// FNV-1a over every verb byte and every point's raw `f32` bits across a
+/// corpus, so a geometry change can be shown to be **bit-identical** rather
+/// than merely "tests still pass". Compare the printed value before and after.
+///
+/// 对整个语料的每个 verb 字节与每个点的 `f32` 原始位做 FNV-1a，使几何改动能被
+/// 证明为**逐位一致**，而不只是"测试还过"。对比改动前后打印的值即可。
+fn fingerprint(corpus: &[String], current_color: Option<u32>) -> u64 {
+    let mut h: u64 = 0xcbf2_9ce4_8422_2325;
+    let mut eat = |b: u8| {
+        h ^= b as u64;
+        h = h.wrapping_mul(0x100_0000_01b3);
+    };
+    let mut eat_f32 = |v: f32, eat: &mut dyn FnMut(u8)| {
+        for b in v.to_bits().to_le_bytes() {
+            eat(b);
+        }
+    };
+    let mut walk = |paths: &[crate::api::svg::SvgPath], eat: &mut dyn FnMut(u8)| {
+        for p in paths {
+            for &v in &p.verbs {
+                eat(v);
+            }
+            for &c in &p.points {
+                for b in c.to_bits().to_le_bytes() {
+                    eat(b);
+                }
+            }
+        }
+    };
+    for s in corpus {
+        let scene = parse_svg(s.clone(), current_color).expect("corpus must parse");
+        eat_f32(scene.width, &mut eat);
+        eat_f32(scene.height, &mut eat);
+        walk(&scene.paths, &mut eat);
+        for p in &scene.paths {
+            if let Some(e) = &p.effects {
+                for c in &e.clips {
+                    for &v in &c.verbs {
+                        eat(v);
+                    }
+                    for &x in &c.points {
+                        for b in x.to_bits().to_le_bytes() {
+                            eat(b);
+                        }
+                    }
+                }
+                if let Some(m) = &e.mask {
+                    walk(&m.paths, &mut eat);
+                }
+                if let Some(pat) = &e.fill_pattern {
+                    walk(&pat.paths, &mut eat);
+                }
+            }
+        }
+    }
+    h
+}
+
+#[test]
+#[ignore = "output fingerprint, run explicitly with --ignored"]
+fn bench_output_fingerprint() {
+    let mdi = mdi_corpus();
+    println!("[fingerprint/mdi1000] {:#018x}", fingerprint(&mdi, None));
+    println!(
+        "[fingerprint/mdi1000+cc] {:#018x}",
+        fingerprint(&mdi, Some(0xFFFF7A00))
+    );
+    println!(
+        "[fingerprint/effects] {:#018x}",
+        fingerprint(&effects_corpus(), None)
+    );
+    println!(
+        "[fingerprint/bigpath] {:#018x}",
+        fingerprint(&big_path_corpus(), None)
+    );
+}
+
 #[test]
 #[ignore = "benchmark, run explicitly with --ignored"]
 fn bench_parse_svg() {
