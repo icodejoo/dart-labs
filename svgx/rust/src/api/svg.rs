@@ -434,17 +434,16 @@ pub(crate) fn scene_from_tree(tree: &usvg::Tree) -> SvgScene {
 /// the `color` attribute, walking up ancestors) a caller-provided value to
 /// resolve against, without usvg exposing a dedicated option for it.
 ///
+/// Takes [data] by value and hands it back untouched on every path that needs
+/// no injection, so the three early exits cost nothing; only the injecting path
+/// allocates, and it allocates exactly once.
+///
 /// 给根 `<svg>` 标签注入 `color="#RRGGBB"` 属性（若尚未声明）。让 usvg 自身的
 /// `currentColor` 级联解析（读取 `color` 属性并向上查找祖先）能用上调用方
 /// 提供的颜色——usvg 本身并未为此暴露专门的 Option。
-/// Takes [data] by value and hands it back untouched on every path that needs
-/// no injection, so the three early exits cost nothing; only the injecting path
-/// allocates, and it allocates exactly once (`String::with_capacity` at the
-/// final length, then hex nibbles pushed straight in — no `format!` temporaries).
 ///
 /// 按值接收 [data]，不需要注入的分支原样返回，三个提前返回路径零成本；只有
-/// 真正注入的分支分配，且只分配一次（`String::with_capacity` 直接给到最终
-/// 长度，十六进制位逐个 push 进去——不产生 `format!` 中间量）。
+/// 真正注入的分支分配，且只分配一次。
 fn inject_current_color(data: String, argb: u32) -> String {
     let Some(tag_start) = data.find("<svg") else {
         return data;

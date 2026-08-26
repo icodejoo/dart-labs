@@ -163,6 +163,37 @@ fn big_path_corpus() -> Vec<String> {
     )]
 }
 
+/// A group of many paths under one many-path `<mask>`. The wire format carries
+/// an owned `SvgMask` (with all of the mask's own paths) on **every** masked
+/// path, so this corpus exposes that as O(paths × mask-paths) — a shape real
+/// icons do not have, measured here so the cost is documented rather than
+/// assumed.
+///
+/// 一个多路径 `<mask>` 下挂着很多路径的分组。wire 格式让**每条**被遮罩的路径都
+/// 带一份自有的 `SvgMask`（含该遮罩自己的全部路径），因此本语料把这一点暴露为
+/// O(路径数 × 遮罩路径数)——真实图标不是这个形状，测出来是为了让成本有据可查，
+/// 而不是靠假设。
+fn mask_fanout_corpus() -> Vec<String> {
+    const N: usize = 120;
+    let mut mask_body = String::new();
+    let mut group_body = String::new();
+    for i in 0..N {
+        let f = i as f32;
+        mask_body.push_str(&format!(
+            "<rect x=\"{}\" y=\"{}\" width=\"7\" height=\"7\" fill=\"#fff\"/>",
+            f, f
+        ));
+        group_body.push_str(&format!(
+            "<rect x=\"{}\" y=\"{}\" width=\"9\" height=\"9\" fill=\"#00f\"/>",
+            f * 1.1,
+            f * 1.3
+        ));
+    }
+    vec![format!(
+        "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"200\" height=\"200\" viewBox=\"0 0 200 200\"><defs><mask id=\"m\">{mask_body}</mask></defs><g mask=\"url(#m)\">{group_body}</g></svg>"
+    )]
+}
+
 /// Per-parse latency percentiles in microseconds. / 单次解析延迟分位数（微秒）。
 struct Stats {
     n: usize,
@@ -286,6 +317,84 @@ fn report(label: &str, corpus: &[String], current_color: Option<u32>) {
     let (xml, tree) = time_usvg_phases(corpus);
     println!("[{label}/usvg-xml-only] {xml}");
     println!("[{label}/usvg-tree-only] {tree}");
+    let (sse, bytes) = time_sse_encode(corpus);
+    println!("[{label}/frb-sse-encode] {sse} wire_bytes/parse={bytes:.0}");
+}
+
+/// Times the FRB SSE serialization of an already-built scene, and reports the
+/// wire size. `parse_svg` is `#[frb(sync)]`, so this cost is paid inside the
+/// same blocking FFI call the Dart side measures — it is part of the
+/// Dart-observed "parse" number even though it is not parsing.
+///
+/// 给已构建好的 scene 的 FRB SSE 序列化计时，并报告线路字节数。`parse_svg` 是
+/// `#[frb(sync)]`，这笔成本就发生在 Dart 侧测量的那次阻塞 FFI 调用内部——它虽
+/// 然不是解析，却计入 Dart 观测到的"解析"耗时。
+fn time_sse_encode(corpus: &[String]) -> (Stats, f64) {
+    // The `SseEncode` trait is generated into `crate::frb_generated` by FRB's
+    // `frb_generated_sse_codec!` macro, not exported from the FRB crate itself.
+    // `SseEncode` trait 由 FRB 的 `frb_generated_sse_codec!` 宏生成在
+    // `crate::frb_generated` 里，并非 FRB crate 自身导出的类型。
+    use crate::frb_generated::SseEncode;
+    use flutter_rust_bridge::for_generated::SseSerializer;
+
+    let opt = usvg::Options::default();
+    let scenes: Vec<crate::api::svg::SvgScene> = corpus
+        .iter()
+        .filter_map(|s| usvg::Tree::from_str(s, &opt).ok())
+        .map(|t| scene_from_tree(&t))
+        .collect();
+    let mut samples = Vec::with_capacity(scenes.len() * PASSES);
+    let mut total_bytes = 0u64;
+    for pass in 0..(PASSES + WARMUP) {
+        for scene in &scenes {
+            // `sse_encode` consumes the scene, so each pass needs its own copy;
+            // the clone is outside the timed window.
+            // `sse_encode` 会消耗 scene，每遍都得有自己的副本；克隆在计时窗口外。
+            let owned = clone_scene(scene);
+            let mut ser = SseSerializer::new();
+            let t = Instant::now();
+            owned.sse_encode(&mut ser);
+            let dt = t.elapsed();
+            let n = ser.cursor.into_inner().len();
+            std::hint::black_box(n);
+            if pass >= WARMUP {
+                samples.push(dt.as_nanos() as f64 / 1000.0);
+                total_bytes += n as u64;
+            }
+        }
+    }
+    let bytes = total_bytes as f64 / samples.len() as f64;
+    (stats(samples), bytes)
+}
+
+/// `SvgScene` is not `Clone` (it never needs to be in production), so the
+/// benchmark rebuilds one field-by-field from its `Clone` members.
+///
+/// `SvgScene` 没有实现 `Clone`（生产代码里从不需要），基准这里按字段用它那些
+/// 实现了 `Clone` 的成员重建一份。
+fn clone_scene(s: &crate::api::svg::SvgScene) -> crate::api::svg::SvgScene {
+    crate::api::svg::SvgScene {
+        width: s.width,
+        height: s.height,
+        paths: s.paths.clone(),
+        images: s
+            .images
+            .iter()
+            .map(|i| crate::api::svg::SvgImage {
+                x: i.x,
+                y: i.y,
+                width: i.width,
+                height: i.height,
+                data: i.data.clone(),
+                format: match i.format {
+                    crate::api::svg::SvgImageFormat::Png => crate::api::svg::SvgImageFormat::Png,
+                    crate::api::svg::SvgImageFormat::Jpeg => crate::api::svg::SvgImageFormat::Jpeg,
+                    crate::api::svg::SvgImageFormat::Gif => crate::api::svg::SvgImageFormat::Gif,
+                    crate::api::svg::SvgImageFormat::Webp => crate::api::svg::SvgImageFormat::Webp,
+                },
+            })
+            .collect(),
+    }
 }
 
 /// Splits usvg's cost into "roxmltree XML parse" and "XML → usvg::Tree", to see
@@ -328,12 +437,12 @@ fn fingerprint(corpus: &[String], current_color: Option<u32>) -> u64 {
         h ^= b as u64;
         h = h.wrapping_mul(0x100_0000_01b3);
     };
-    let mut eat_f32 = |v: f32, eat: &mut dyn FnMut(u8)| {
+    let eat_f32 = |v: f32, eat: &mut dyn FnMut(u8)| {
         for b in v.to_bits().to_le_bytes() {
             eat(b);
         }
     };
-    let mut walk = |paths: &[crate::api::svg::SvgPath], eat: &mut dyn FnMut(u8)| {
+    let walk = |paths: &[crate::api::svg::SvgPath], eat: &mut dyn FnMut(u8)| {
         for p in paths {
             for &v in &p.verbs {
                 eat(v);
@@ -403,4 +512,5 @@ fn bench_parse_svg() {
     report("mdi1000/current-color", &mdi, Some(0xFFFF7A00));
     report("effects", &effects_corpus(), None);
     report("bigpath2000cubics", &big_path_corpus(), None);
+    report("maskfanout120x120", &mask_fanout_corpus(), None);
 }
