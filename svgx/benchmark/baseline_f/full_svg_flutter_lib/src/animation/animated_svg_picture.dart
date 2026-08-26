@@ -58,8 +58,11 @@ part 'animated_svg_picture_hit_test_advanced.dart';
 part 'animated_svg_picture_devtools.dart';
 
 /// Builder function to create an error widget for animated SVG loading errors.
-typedef AnimatedSvgErrorWidgetBuilder =
-    Widget Function(BuildContext context, Object error, StackTrace stackTrace);
+typedef AnimatedSvgErrorWidgetBuilder = Widget Function(
+  BuildContext context,
+  Object error,
+  StackTrace stackTrace,
+);
 
 /// Optional callback for loading external image bytes referenced by `<image>` href.
 ///

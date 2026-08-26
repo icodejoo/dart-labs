@@ -23,20 +23,24 @@ final _fieldPattern = RegExp(
 );
 
 void main() {
-  final pubCache = Platform.environment['PUB_CACHE'] ??
+  final pubCache =
+      Platform.environment['PUB_CACHE'] ??
       '${Platform.environment['LOCALAPPDATA']}\\Pub\\Cache';
-  final dir = Directory('$pubCache\\hosted\\pub.dev')
-      .listSync()
-      .whereType<Directory>()
-      .map((d) => d.path.split(Platform.pathSeparator).last)
-      .where((name) => name.startsWith('iconify_flutter-'))
-      .toList()
-    ..sort();
+  final dir =
+      Directory('$pubCache\\hosted\\pub.dev')
+          .listSync()
+          .whereType<Directory>()
+          .map((d) => d.path.split(Platform.pathSeparator).last)
+          .where((name) => name.startsWith('iconify_flutter-'))
+          .toList()
+        ..sort();
   if (dir.isEmpty) {
     stderr.writeln('iconify_flutter not found in pub cache');
     exit(1);
   }
-  final mdiFile = File('$pubCache\\hosted\\pub.dev\\${dir.last}\\lib\\icons\\mdi.dart');
+  final mdiFile = File(
+    '$pubCache\\hosted\\pub.dev\\${dir.last}\\lib\\icons\\mdi.dart',
+  );
   final source = mdiFile.readAsStringSync();
   final matches = _fieldPattern.allMatches(source).take(1000).toList();
   if (matches.length < 1000) {

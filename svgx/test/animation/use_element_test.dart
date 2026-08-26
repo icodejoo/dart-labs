@@ -88,35 +88,45 @@ void main() {
       expect(_countKind(document.root, SvgNodeKind.circle), 1);
     });
 
-    test('the instance carries the target\'s own animations (shadow-tree reading)', () {
-      final document = parseAnimatedSvgDocument(
-        '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24">'
-        '<defs><circle id="dot" cx="0" cy="0" r="1">'
-        '<animate attributeName="r" from="1" to="4" dur="1s" fill="freeze"/>'
-        '</circle></defs>'
-        '<use href="#dot"/>'
-        '</svg>',
-      );
+    test(
+      'the instance carries the target\'s own animations (shadow-tree reading)',
+      () {
+        final document = parseAnimatedSvgDocument(
+          '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24">'
+          '<defs><circle id="dot" cx="0" cy="0" r="1">'
+          '<animate attributeName="r" from="1" to="4" dur="1s" fill="freeze"/>'
+          '</circle></defs>'
+          '<use href="#dot"/>'
+          '</svg>',
+        );
 
-      final circle = document.root.children.single.children.single;
-      expect(circle.animations, hasLength(1));
-      expect(circle.animations.single.sample(const Duration(seconds: 2)), 4);
-    });
+        final circle = document.root.children.single.children.single;
+        expect(circle.animations, hasLength(1));
+        expect(circle.animations.single.sample(const Duration(seconds: 2)), 4);
+      },
+    );
 
-    test('the <use> element\'s presentation attributes land on the wrapper', () {
-      final document = parseAnimatedSvgDocument(
-        '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24">'
-        '<defs><circle id="dot" cx="0" cy="0" r="1"/></defs>'
-        '<use href="#dot" x="2" fill="none" stroke="currentColor"/>'
-        '</svg>',
-      );
-      final wrapper = document.root.children.single;
+    test(
+      'the <use> element\'s presentation attributes land on the wrapper',
+      () {
+        final document = parseAnimatedSvgDocument(
+          '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24">'
+          '<defs><circle id="dot" cx="0" cy="0" r="1"/></defs>'
+          '<use href="#dot" x="2" fill="none" stroke="currentColor"/>'
+          '</svg>',
+        );
+        final wrapper = document.root.children.single;
 
-      expect(wrapper.attributes['fill'], 'none');
-      expect(wrapper.attributes['stroke'], 'currentColor');
-      expect(wrapper.attributes.containsKey('x'), isFalse, reason: 'placement, not presentation');
-      expect(wrapper.attributes.containsKey('href'), isFalse);
-    });
+        expect(wrapper.attributes['fill'], 'none');
+        expect(wrapper.attributes['stroke'], 'currentColor');
+        expect(
+          wrapper.attributes.containsKey('x'),
+          isFalse,
+          reason: 'placement, not presentation',
+        );
+        expect(wrapper.attributes.containsKey('href'), isFalse);
+      },
+    );
 
     test('a dangling reference renders nothing, silently', () {
       final document = parseAnimatedSvgDocument(

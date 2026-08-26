@@ -15,10 +15,13 @@ import 'package:svgx/src/animation/svg_document_parser.dart';
 import 'package:svgx/src/animation/svg_theme.dart';
 
 SvgDocument _parse(String body) => parseAnimatedSvgDocument(
-      '<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100" viewBox="0 0 100 100">$body</svg>',
-    );
+  '<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100" viewBox="0 0 100 100">$body</svg>',
+);
 
-Future<ByteData> _renderPixels(SvgDocument document, {Duration time = Duration.zero}) async {
+Future<ByteData> _renderPixels(
+  SvgDocument document, {
+  Duration time = Duration.zero,
+}) async {
   final recorder = ui.PictureRecorder();
   final canvas = Canvas(recorder);
   AnimatedSvgPainter(
@@ -37,7 +40,8 @@ Future<ByteData> _renderPixels(SvgDocument document, {Duration time = Duration.z
   return bytes!;
 }
 
-int _alphaAt(ByteData pixels, int x, int y) => pixels.getUint8((y * 100 + x) * 4 + 3);
+int _alphaAt(ByteData pixels, int x, int y) =>
+    pixels.getUint8((y * 100 + x) * 4 + 3);
 
 void main() {
   group('parsing', () {
@@ -84,20 +88,34 @@ void main() {
       expect(_alphaAt(pixels, 90, 50), 0, reason: 'outside the clip region');
     });
 
-    test('an animated clip path is sampled at the current frame, not just at rest', () async {
-      final document = _parse(
-        '<defs><clipPath id="c"><rect x="0" y="0" width="10" height="100">'
-        '<animate attributeName="width" from="10" to="90" dur="1s" fill="freeze"/>'
-        '</rect></clipPath></defs>'
-        '<rect x="0" y="0" width="100" height="100" fill="#0000FF" clip-path="url(#c)"/>',
-      );
+    test(
+      'an animated clip path is sampled at the current frame, not just at rest',
+      () async {
+        final document = _parse(
+          '<defs><clipPath id="c"><rect x="0" y="0" width="10" height="100">'
+          '<animate attributeName="width" from="10" to="90" dur="1s" fill="freeze"/>'
+          '</rect></clipPath></defs>'
+          '<rect x="0" y="0" width="100" height="100" fill="#0000FF" clip-path="url(#c)"/>',
+        );
 
-      final atStart = await _renderPixels(document, time: Duration.zero);
-      expect(_alphaAt(atStart, 50, 50), 0, reason: 'clip is still narrow at t=0');
+        final atStart = await _renderPixels(document, time: Duration.zero);
+        expect(
+          _alphaAt(atStart, 50, 50),
+          0,
+          reason: 'clip is still narrow at t=0',
+        );
 
-      final atEnd = await _renderPixels(document, time: const Duration(seconds: 2));
-      expect(_alphaAt(atEnd, 50, 50), 255, reason: 'clip has widened past x=50 by the end');
-    });
+        final atEnd = await _renderPixels(
+          document,
+          time: const Duration(seconds: 2),
+        );
+        expect(
+          _alphaAt(atEnd, 50, 50),
+          255,
+          reason: 'clip has widened past x=50 by the end',
+        );
+      },
+    );
   });
 
   group('pixel-level mask', () {
@@ -108,8 +126,16 @@ void main() {
       );
       final pixels = await _renderPixels(document);
 
-      expect(_alphaAt(pixels, 10, 50), 255, reason: 'covered by white mask content');
-      expect(_alphaAt(pixels, 90, 50), 0, reason: 'not covered by any mask content');
+      expect(
+        _alphaAt(pixels, 10, 50),
+        255,
+        reason: 'covered by white mask content',
+      );
+      expect(
+        _alphaAt(pixels, 90, 50),
+        0,
+        reason: 'not covered by any mask content',
+      );
     });
 
     test('black mask content hides its area (near-zero luminance)', () async {
@@ -131,10 +157,21 @@ void main() {
       );
 
       final atStart = await _renderPixels(document, time: Duration.zero);
-      expect(_alphaAt(atStart, 50, 50), 0, reason: 'mask content has zero width at t=0');
+      expect(
+        _alphaAt(atStart, 50, 50),
+        0,
+        reason: 'mask content has zero width at t=0',
+      );
 
-      final atEnd = await _renderPixels(document, time: const Duration(seconds: 2));
-      expect(_alphaAt(atEnd, 50, 50), 255, reason: 'mask content has frozen full-width by the end');
+      final atEnd = await _renderPixels(
+        document,
+        time: const Duration(seconds: 2),
+      );
+      expect(
+        _alphaAt(atEnd, 50, 50),
+        255,
+        reason: 'mask content has frozen full-width by the end',
+      );
     });
   });
 }

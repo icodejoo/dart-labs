@@ -4,6 +4,7 @@
 library;
 
 import 'dart:ui' show Path, lerpDouble;
+
 import 'path_data.dart';
 part 'path_interpolation_helpers.dart';
 part 'path_interpolation_morpher.dart';

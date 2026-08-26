@@ -26,5 +26,7 @@ import 'anim_icons_real.dart';
 /// ```dart
 /// final icons = generateAnimIcons(1000);
 /// ```
-List<String> generateAnimIcons(int count) =>
-    List<String>.generate(count, (i) => animIconsReal[i % animIconsReal.length]);
+List<String> generateAnimIcons(int count) => List<String>.generate(
+  count,
+  (i) => animIconsReal[i % animIconsReal.length],
+);

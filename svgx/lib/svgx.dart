@@ -1,7 +1,8 @@
 library;
 
 export 'src/rust/api/simple.dart';
-export 'src/rust/api/svg.dart' show parseSvg, SvgScene, SvgPath, SvgImage, SvgImageFormat;
+export 'src/rust/api/svg.dart'
+    show parseSvg, SvgScene, SvgPath, SvgImage, SvgImageFormat;
 export 'src/rust/frb_generated.dart' show RustLib;
 
 // Original SMIL animation engine (parse -> timeline -> per-frame sample ->

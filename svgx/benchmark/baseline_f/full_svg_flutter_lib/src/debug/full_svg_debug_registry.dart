@@ -87,9 +87,8 @@ void _ensureServiceExtensionsRegistered() {
   if (_serviceExtensionsRegistered) return;
   for (final method in FullSvgDebugProtocol.methods) {
     developer.registerExtension(method, (name, parameters) async {
-      final payload = FullSvgDebugService(
-        FullSvgDebugRegistry.instance,
-      ).handle(name, parameters);
+      final payload = FullSvgDebugService(FullSvgDebugRegistry.instance)
+          .handle(name, parameters);
       return developer.ServiceExtensionResponse.result(jsonEncode(payload));
     });
   }

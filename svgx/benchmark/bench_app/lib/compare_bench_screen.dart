@@ -51,7 +51,16 @@ import 'bench_screen.dart';
 /// 由某次测量反推出的数值。
 const _settleBetweenPhases = Duration(seconds: 5);
 
-enum _Phase { svgxStatic, settle1, flutterSvgStatic, settle2, anim, settle3, animFps, done }
+enum _Phase {
+  svgxStatic,
+  settle1,
+  flutterSvgStatic,
+  settle2,
+  anim,
+  settle3,
+  animFps,
+  done,
+}
 
 /// Runs all four benchmark phases sequentially within one process lifetime
 /// and prints one consolidated report to stdout.
@@ -59,10 +68,15 @@ enum _Phase { svgxStatic, settle1, flutterSvgStatic, settle2, anim, settle3, ani
 /// 在同一个进程生命周期内顺序跑完全部四个基准阶段，把汇总报告打印到 stdout。
 class CompareBenchRunner extends StatefulWidget {
   /// Creates the sequential comparison runner. / 创建顺序对比运行器。
-  const CompareBenchRunner({super.key, required this.itemCount, required this.cycles});
+  const CompareBenchRunner({
+    super.key,
+    required this.itemCount,
+    required this.cycles,
+  });
 
   /// Number of distinct icons for the static/animated-FPS grids. / 静态/动画 FPS 网格的图标数。
   final int itemCount;
+
   /// Number of full up-down scroll cycles for the scrolling phases. / 滚动阶段的完整轮次数。
   final int cycles;
 
@@ -102,7 +116,10 @@ class _CompareBenchRunnerState extends State<CompareBenchRunner> {
 
   void _onSvgxStaticDone(BenchResult result) {
     _svgxResult = result;
-    _settleThen(_Phase.settle1, () => setState(() => _phase = _Phase.flutterSvgStatic));
+    _settleThen(
+      _Phase.settle1,
+      () => setState(() => _phase = _Phase.flutterSvgStatic),
+    );
   }
 
   void _onFlutterSvgStaticDone(BenchResult result) {
@@ -129,9 +146,17 @@ class _CompareBenchRunnerState extends State<CompareBenchRunner> {
   ///
   /// 按 `metric | svgx | flutter_svg | delta/ratio | verdict` 格式化一行指标，
   /// 与 CLAUDE.md 基准章节里已经在用的表格一致，方便直接粘贴。
-  String _row(String metric, double svgxVal, double flutterVal, {bool lowerIsBetter = true, String unit = 'ms'}) {
+  String _row(
+    String metric,
+    double svgxVal,
+    double flutterVal, {
+    bool lowerIsBetter = true,
+    String unit = 'ms',
+  }) {
     final ratio = flutterVal == 0 ? double.infinity : svgxVal / flutterVal;
-    final svgxWins = lowerIsBetter ? svgxVal <= flutterVal : svgxVal >= flutterVal;
+    final svgxWins = lowerIsBetter
+        ? svgxVal <= flutterVal
+        : svgxVal >= flutterVal;
     final verdict = svgxWins ? 'svgx wins' : 'flutter_svg wins';
     return '| $metric | ${svgxVal.toStringAsFixed(3)}$unit | ${flutterVal.toStringAsFixed(3)}$unit | '
         'ratio=${ratio.toStringAsFixed(3)} | $verdict |';
@@ -143,42 +168,152 @@ class _CompareBenchRunnerState extends State<CompareBenchRunner> {
     final anim = _animResult!;
     final animFps = _animFpsResult!;
     final buf = StringBuffer()
-      ..writeln('=== COMPARE BENCH REPORT (single-build sequential, items=${widget.itemCount} cycles=${widget.cycles}) ===')
-      ..writeln('wall_clock_total_s=${(_stopwatch.elapsedMilliseconds / 1000).toStringAsFixed(1)} '
-          '(compile time not included; measured from first frame of this widget)')
+      ..writeln(
+        '=== COMPARE BENCH REPORT (single-build sequential, items=${widget.itemCount} cycles=${widget.cycles}) ===',
+      )
+      ..writeln(
+        'wall_clock_total_s=${(_stopwatch.elapsedMilliseconds / 1000).toStringAsFixed(1)} '
+        '(compile time not included; measured from first frame of this widget)',
+      )
       ..writeln()
-      ..writeln('--- Phase 1+3: static 1000-icon matched pair (svgx vs flutter_svg, same session) ---')
+      ..writeln(
+        '--- Phase 1+3: static 1000-icon matched pair (svgx vs flutter_svg, same session) ---',
+      )
       ..writeln('| metric | svgx | flutter_svg | delta/ratio | verdict |')
       ..writeln('|---|---|---|---|---|')
-      ..writeln(_row('build avg', svgx.build.avgUs / 1000, flutterSvg.build.avgUs / 1000))
-      ..writeln(_row('build p50', svgx.build.p50Us / 1000, flutterSvg.build.p50Us / 1000))
-      ..writeln(_row('build p90', svgx.build.p90Us / 1000, flutterSvg.build.p90Us / 1000))
-      ..writeln(_row('build p99', svgx.build.p99Us / 1000, flutterSvg.build.p99Us / 1000))
-      ..writeln(_row('build max', svgx.build.maxUs / 1000, flutterSvg.build.maxUs / 1000))
-      ..writeln(_row('raster avg', svgx.raster.avgUs / 1000, flutterSvg.raster.avgUs / 1000))
-      ..writeln(_row('raster p50', svgx.raster.p50Us / 1000, flutterSvg.raster.p50Us / 1000))
-      ..writeln(_row('raster p90', svgx.raster.p90Us / 1000, flutterSvg.raster.p90Us / 1000))
-      ..writeln(_row('raster p99', svgx.raster.p99Us / 1000, flutterSvg.raster.p99Us / 1000))
-      ..writeln(_row('raster max', svgx.raster.maxUs / 1000, flutterSvg.raster.maxUs / 1000))
-      ..writeln(_row('framesOver8.3ms (count)', svgx.framesOver8_3.toDouble(), flutterSvg.framesOver8_3.toDouble(), unit: ''))
-      ..writeln(_row('framesOver16.6ms (count)', svgx.framesOver16_6.toDouble(), flutterSvg.framesOver16_6.toDouble(), unit: ''))
-      ..writeln(_row('rss peak', svgx.rssPeakMb, flutterSvg.rssPeakMb, unit: 'MB'))
-      ..writeln(_row('rss steady (post-scroll)', svgx.rssSteadyMb, flutterSvg.rssSteadyMb, unit: 'MB'))
-      ..writeln(_row('rss after idle', svgx.rssIdleMb, flutterSvg.rssIdleMb, unit: 'MB'))
-      ..writeln('| parse avg (svgx only, flutter_svg has no public hook) | ${_fmtMs(svgx.parse.avgUs)} | n/a | n/a | n/a |')
-      ..writeln('| parse p99 (svgx only) | ${_fmtMs(svgx.parse.p99Us)} | n/a | n/a | n/a |')
-      ..writeln('frames: svgx=${svgx.frameCount} flutter_svg=${flutterSvg.frameCount}')
+      ..writeln(
+        _row(
+          'build avg',
+          svgx.build.avgUs / 1000,
+          flutterSvg.build.avgUs / 1000,
+        ),
+      )
+      ..writeln(
+        _row(
+          'build p50',
+          svgx.build.p50Us / 1000,
+          flutterSvg.build.p50Us / 1000,
+        ),
+      )
+      ..writeln(
+        _row(
+          'build p90',
+          svgx.build.p90Us / 1000,
+          flutterSvg.build.p90Us / 1000,
+        ),
+      )
+      ..writeln(
+        _row(
+          'build p99',
+          svgx.build.p99Us / 1000,
+          flutterSvg.build.p99Us / 1000,
+        ),
+      )
+      ..writeln(
+        _row(
+          'build max',
+          svgx.build.maxUs / 1000,
+          flutterSvg.build.maxUs / 1000,
+        ),
+      )
+      ..writeln(
+        _row(
+          'raster avg',
+          svgx.raster.avgUs / 1000,
+          flutterSvg.raster.avgUs / 1000,
+        ),
+      )
+      ..writeln(
+        _row(
+          'raster p50',
+          svgx.raster.p50Us / 1000,
+          flutterSvg.raster.p50Us / 1000,
+        ),
+      )
+      ..writeln(
+        _row(
+          'raster p90',
+          svgx.raster.p90Us / 1000,
+          flutterSvg.raster.p90Us / 1000,
+        ),
+      )
+      ..writeln(
+        _row(
+          'raster p99',
+          svgx.raster.p99Us / 1000,
+          flutterSvg.raster.p99Us / 1000,
+        ),
+      )
+      ..writeln(
+        _row(
+          'raster max',
+          svgx.raster.maxUs / 1000,
+          flutterSvg.raster.maxUs / 1000,
+        ),
+      )
+      ..writeln(
+        _row(
+          'framesOver8.3ms (count)',
+          svgx.framesOver8_3.toDouble(),
+          flutterSvg.framesOver8_3.toDouble(),
+          unit: '',
+        ),
+      )
+      ..writeln(
+        _row(
+          'framesOver16.6ms (count)',
+          svgx.framesOver16_6.toDouble(),
+          flutterSvg.framesOver16_6.toDouble(),
+          unit: '',
+        ),
+      )
+      ..writeln(
+        _row('rss peak', svgx.rssPeakMb, flutterSvg.rssPeakMb, unit: 'MB'),
+      )
+      ..writeln(
+        _row(
+          'rss steady (post-scroll)',
+          svgx.rssSteadyMb,
+          flutterSvg.rssSteadyMb,
+          unit: 'MB',
+        ),
+      )
+      ..writeln(
+        _row(
+          'rss after idle',
+          svgx.rssIdleMb,
+          flutterSvg.rssIdleMb,
+          unit: 'MB',
+        ),
+      )
+      ..writeln(
+        '| parse avg (svgx only, flutter_svg has no public hook) | ${_fmtMs(svgx.parse.avgUs)} | n/a | n/a | n/a |',
+      )
+      ..writeln(
+        '| parse p99 (svgx only) | ${_fmtMs(svgx.parse.p99Us)} | n/a | n/a | n/a |',
+      )
+      ..writeln(
+        'frames: svgx=${svgx.frameCount} flutter_svg=${flutterSvg.frameCount}',
+      )
       ..writeln()
-      ..writeln('--- Phase 5: anim smoothness (12 concurrent SMIL icons, svgx-only — no equivalent flutter_svg SMIL rendering path exists, per CLAUDE.md honesty principle) ---')
-      ..writeln('frames=${anim.frameCount} build_avg=${_fmtMs(anim.build.avgUs)} build_max=${_fmtMs(anim.build.maxUs)} '
-          'raster_avg=${_fmtMs(anim.raster.avgUs)} raster_max=${_fmtMs(anim.raster.maxUs)} '
-          'framesOver16.6ms=${anim.framesOver16_6} framesOver8.3ms=${anim.framesOver8_3}')
+      ..writeln(
+        '--- Phase 5: anim smoothness (12 concurrent SMIL icons, svgx-only — no equivalent flutter_svg SMIL rendering path exists, per CLAUDE.md honesty principle) ---',
+      )
+      ..writeln(
+        'frames=${anim.frameCount} build_avg=${_fmtMs(anim.build.avgUs)} build_max=${_fmtMs(anim.build.maxUs)} '
+        'raster_avg=${_fmtMs(anim.raster.avgUs)} raster_max=${_fmtMs(anim.raster.maxUs)} '
+        'framesOver16.6ms=${anim.framesOver16_6} framesOver8.3ms=${anim.framesOver8_3}',
+      )
       ..writeln()
-      ..writeln('--- Phase 7: anim_fps (1000 animated icons scrolled, real FPS, svgx-only — no equivalent flutter_svg comparison, per CLAUDE.md honesty principle) ---')
-      ..writeln('frames=${animFps.frameCount} real_fps=${animFps.realFps.toStringAsFixed(2)} '
-          'build_avg=${_fmtMs(animFps.build.avgUs)} build_max=${_fmtMs(animFps.build.maxUs)} '
-          'raster_avg=${_fmtMs(animFps.raster.avgUs)} raster_max=${_fmtMs(animFps.raster.maxUs)} '
-          'framesOver16.6ms=${animFps.framesOver16_6} framesOver8.3ms=${animFps.framesOver8_3}')
+      ..writeln(
+        '--- Phase 7: anim_fps (1000 animated icons scrolled, real FPS, svgx-only — no equivalent flutter_svg comparison, per CLAUDE.md honesty principle) ---',
+      )
+      ..writeln(
+        'frames=${animFps.frameCount} real_fps=${animFps.realFps.toStringAsFixed(2)} '
+        'build_avg=${_fmtMs(animFps.build.avgUs)} build_max=${_fmtMs(animFps.build.maxUs)} '
+        'raster_avg=${_fmtMs(animFps.raster.avgUs)} raster_max=${_fmtMs(animFps.raster.maxUs)} '
+        'framesOver16.6ms=${animFps.framesOver16_6} framesOver8.3ms=${animFps.framesOver8_3}',
+      )
       ..writeln('=== END COMPARE BENCH REPORT ===');
     // Use print (not debugPrint) so long report lines aren't truncated in the
     // `flutter run` console we scrape.
@@ -194,15 +329,15 @@ class _CompareBenchRunnerState extends State<CompareBenchRunner> {
   }
 
   Widget _settleScaffold(String afterPhase) => Scaffold(
-        appBar: AppBar(title: const Text('compare bench: settling...')),
-        body: Center(
-          child: Text(
-            'settling ${_settleRemainingSec}s after $afterPhase before next phase\n'
-            '(letting GC/memory pressure clear before measuring the next phase)',
-            textAlign: TextAlign.center,
-          ),
-        ),
-      );
+    appBar: AppBar(title: const Text('compare bench: settling...')),
+    body: Center(
+      child: Text(
+        'settling ${_settleRemainingSec}s after $afterPhase before next phase\n'
+        '(letting GC/memory pressure clear before measuring the next phase)',
+        textAlign: TextAlign.center,
+      ),
+    ),
+  );
 
   @override
   Widget build(BuildContext context) {
@@ -244,7 +379,11 @@ class _CompareBenchRunnerState extends State<CompareBenchRunner> {
       case _Phase.done:
         return Scaffold(
           appBar: AppBar(title: const Text('compare bench: done')),
-          body: const Center(child: Text('All four phases complete. See stdout for the consolidated report.')),
+          body: const Center(
+            child: Text(
+              'All four phases complete. See stdout for the consolidated report.',
+            ),
+          ),
         );
     }
   }

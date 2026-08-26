@@ -96,7 +96,8 @@ class SvgXAnimated extends StatefulWidget {
 // `SmilAnimation.sample`/`SmilTransformAnimation.sample` 本身已经针对一个
 // 持续递增的全局时间做 begin/duration/repeat 运算——绑定的 controller 得每轮
 // 重置/重启，无法应对彼此独立计时的兄弟动画（例如错峰起始的 spinner 弧线）。
-class _SvgXAnimatedState extends State<SvgXAnimated> with SingleTickerProviderStateMixin {
+class _SvgXAnimatedState extends State<SvgXAnimated>
+    with SingleTickerProviderStateMixin {
   late SvgDocument _document;
   late Ticker _ticker;
   Duration _elapsed = Duration.zero;

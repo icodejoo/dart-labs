@@ -35,8 +35,10 @@ class SvgForeignObjectInfo {
 /// Callback for custom foreignObject rendering.
 /// Return a Widget to render custom content, or null to use default behavior (skip).
 /// The widget will be positioned within the foreignObject bounds.
-typedef SvgForeignObjectBuilder =
-    Widget? Function(BuildContext context, SvgForeignObjectInfo info);
+typedef SvgForeignObjectBuilder = Widget? Function(
+  BuildContext context,
+  SvgForeignObjectInfo info,
+);
 
 extension _AnimatedSvgPictureStateForeignObjectExtension
     on _AnimatedSvgPictureState {

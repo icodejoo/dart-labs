@@ -144,10 +144,16 @@ class CubicBezier {
 /// 解析——见 [parseSmilBeginSpec]。
 class SmilBeginSpec {
   /// Creates a begin specification. / 创建一个 begin 规格。
-  const SmilBeginSpec({required this.offset, this.syncbaseId, this.onSyncbaseEnd = false});
+  const SmilBeginSpec({
+    required this.offset,
+    this.syncbaseId,
+    this.onSyncbaseEnd = false,
+  });
 
   /// A plain `begin` offset with no reference. / 无引用的纯 `begin` 偏移。
-  const SmilBeginSpec.offset(this.offset) : syncbaseId = null, onSyncbaseEnd = false;
+  const SmilBeginSpec.offset(this.offset)
+    : syncbaseId = null,
+      onSyncbaseEnd = false;
 
   /// Offset added to the resolved base time (may be negative).
   ///
@@ -261,8 +267,10 @@ void resolveSmilBeginTimes(List<SmilTimed> animations) {
       } else if (target.repeatCount.indefinite) {
         animation.begin = kSmilNeverBegins; // an end that never arrives
       } else {
-        final activeMicros = (target.duration.inMicroseconds * target.repeatCount.count).round();
-        animation.begin = base + Duration(microseconds: activeMicros) + spec.offset;
+        final activeMicros =
+            (target.duration.inMicroseconds * target.repeatCount.count).round();
+        animation.begin =
+            base + Duration(microseconds: activeMicros) + spec.offset;
       }
     }
 
@@ -304,7 +312,8 @@ SmilBeginSpec parseSmilBeginSpec(String? raw) {
   final value = raw?.trim() ?? '';
   if (value.isEmpty) return const SmilBeginSpec.offset(Duration.zero);
 
-  final match = RegExp(r'^([^\s.+-]+)\.(begin|end)\s*(?:([+-])\s*(.+))?$').firstMatch(value);
+  final match = RegExp(r'^([^\s.+-]+)\.(begin|end)\s*(?:([+-])\s*(.+))?$')
+      .firstMatch(value);
   if (match == null) return SmilBeginSpec.offset(parseSmilDuration(value));
 
   final magnitude = parseSmilDuration(match.group(4));
@@ -353,7 +362,10 @@ class SmilAnimation implements SmilTimed {
     this.keySplines,
     this.elementId,
     this.beginSpec = const SmilBeginSpec.offset(Duration.zero),
-  }) : assert(values.length >= 2, 'an <animate> needs at least two keyframe values');
+  }) : assert(
+         values.length >= 2,
+         'an <animate> needs at least two keyframe values',
+       );
 
   @override
   final String? elementId;
@@ -444,9 +456,14 @@ class SmilAnimation implements SmilTimed {
     if (timing == null) return null;
 
     final segments = values.length - 1;
-    final effectiveKeyTimes =
-        calcMode == SmilCalcMode.paced ? _pacedKeyTimes<double>(values, (a, b) => (b - a).abs()) : keyTimes;
-    final segment = _locateSegment(timing.progress, segments, effectiveKeyTimes);
+    final effectiveKeyTimes = calcMode == SmilCalcMode.paced
+        ? _pacedKeyTimes<double>(values, (a, b) => (b - a).abs())
+        : keyTimes;
+    final segment = _locateSegment(
+      timing.progress,
+      segments,
+      effectiveKeyTimes,
+    );
     if (calcMode == SmilCalcMode.discrete) return values[segment.index];
 
     final a = values[segment.index];
@@ -522,7 +539,10 @@ class SmilTransformAnimation implements SmilTimed {
     this.keySplines,
     this.elementId,
     this.beginSpec = const SmilBeginSpec.offset(Duration.zero),
-  }) : assert(values.length >= 2, 'an <animateTransform> needs at least two keyframe values');
+  }) : assert(
+         values.length >= 2,
+         'an <animateTransform> needs at least two keyframe values',
+       );
 
   @override
   final String? elementId;
@@ -601,9 +621,14 @@ class SmilTransformAnimation implements SmilTimed {
     if (timing == null) return null;
 
     final segments = values.length - 1;
-    final effectiveKeyTimes =
-        calcMode == SmilCalcMode.paced ? _pacedKeyTimes<List<double>>(values, _vectorDistance) : keyTimes;
-    final segment = _locateSegment(timing.progress, segments, effectiveKeyTimes);
+    final effectiveKeyTimes = calcMode == SmilCalcMode.paced
+        ? _pacedKeyTimes<List<double>>(values, _vectorDistance)
+        : keyTimes;
+    final segment = _locateSegment(
+      timing.progress,
+      segments,
+      effectiveKeyTimes,
+    );
     if (calcMode == SmilCalcMode.discrete) return values[segment.index];
 
     final a = values[segment.index];
@@ -680,8 +705,11 @@ class SmilMotionAnimation implements SmilTimed {
     this.keyTimes,
     this.keySplines,
     this.calcMode = SmilCalcMode.linear,
-  })  : assert(samples.length >= 2, 'a motion path needs at least two samples'),
-        assert(keyPoints == null || keyPoints.length >= 2, 'keyPoints needs at least two values');
+  }) : assert(samples.length >= 2, 'a motion path needs at least two samples'),
+       assert(
+         keyPoints == null || keyPoints.length >= 2,
+         'keyPoints needs at least two values',
+       );
 
   /// Evenly-spaced-by-arc-length samples from the motion path, first to last.
   ///
@@ -764,9 +792,14 @@ class SmilMotionAnimation implements SmilTimed {
     final points = keyPoints;
     if (points != null) {
       final segments = points.length - 1;
-      final effectiveKeyTimes =
-          calcMode == SmilCalcMode.paced ? _pacedKeyTimes<double>(points, (a, b) => (b - a).abs()) : keyTimes;
-      final segment = _locateSegment(timing.progress, segments, effectiveKeyTimes);
+      final effectiveKeyTimes = calcMode == SmilCalcMode.paced
+          ? _pacedKeyTimes<double>(points, (a, b) => (b - a).abs())
+          : keyTimes;
+      final segment = _locateSegment(
+        timing.progress,
+        segments,
+        effectiveKeyTimes,
+      );
       if (calcMode == SmilCalcMode.discrete) {
         arcFraction = points[segment.index];
       } else {
@@ -777,7 +810,10 @@ class SmilMotionAnimation implements SmilTimed {
       }
     }
 
-    final scaled = (arcFraction * (samples.length - 1)).clamp(0.0, (samples.length - 1).toDouble());
+    final scaled = (arcFraction * (samples.length - 1)).clamp(
+      0.0,
+      (samples.length - 1).toDouble(),
+    );
     final index = scaled.floor().clamp(0, samples.length - 2);
     final localT = scaled - index;
     final a = samples[index];
@@ -829,7 +865,10 @@ class SmilColorAnimation implements SmilTimed {
     this.keySplines,
     this.elementId,
     this.beginSpec = const SmilBeginSpec.offset(Duration.zero),
-  }) : assert(values.length >= 2, 'a colour <animate> needs at least two keyframe values');
+  }) : assert(
+         values.length >= 2,
+         'a colour <animate> needs at least two keyframe values',
+       );
 
   @override
   final String? elementId;
@@ -881,9 +920,14 @@ class SmilColorAnimation implements SmilTimed {
     if (timing == null) return null;
 
     final segments = values.length - 1;
-    final effectiveKeyTimes =
-        calcMode == SmilCalcMode.paced ? _pacedKeyTimes<int>(values, _argbDistance) : keyTimes;
-    final segment = _locateSegment(timing.progress, segments, effectiveKeyTimes);
+    final effectiveKeyTimes = calcMode == SmilCalcMode.paced
+        ? _pacedKeyTimes<int>(values, _argbDistance)
+        : keyTimes;
+    final segment = _locateSegment(
+      timing.progress,
+      segments,
+      effectiveKeyTimes,
+    );
     if (calcMode == SmilCalcMode.discrete) return values[segment.index];
 
     final a = values[segment.index];
@@ -895,7 +939,10 @@ class SmilColorAnimation implements SmilTimed {
       return (ca + (cb - ca) * segT).round().clamp(0, 255);
     }
 
-    return (lerpChannel(24) << 24) | (lerpChannel(16) << 16) | (lerpChannel(8) << 8) | lerpChannel(0);
+    return (lerpChannel(24) << 24) |
+        (lerpChannel(16) << 16) |
+        (lerpChannel(8) << 8) |
+        lerpChannel(0);
   }
 }
 
@@ -1012,8 +1059,14 @@ _Segment _locateSegment(double progress, int segments, List<double>? keyTimes) {
 ///
 /// 当 [calcMode] 为 [SmilCalcMode.spline] 且 [segment] 下标存在对应 spline 时，
 /// 对其局部比例应用 `keySplines` 缓动；否则原样返回（区间内线性）。
-double _easedSegmentT(SmilCalcMode calcMode, List<CubicBezier>? keySplines, _Segment segment) {
-  if (calcMode != SmilCalcMode.spline || keySplines == null || segment.index >= keySplines.length) {
+double _easedSegmentT(
+  SmilCalcMode calcMode,
+  List<CubicBezier>? keySplines,
+  _Segment segment,
+) {
+  if (calcMode != SmilCalcMode.spline ||
+      keySplines == null ||
+      segment.index >= keySplines.length) {
     return segment.t;
   }
   return keySplines[segment.index].transform(segment.t);
@@ -1028,7 +1081,10 @@ double _easedSegmentT(SmilCalcMode calcMode, List<CubicBezier>? keySplines, _Seg
 /// 计算 `calcMode="paced"` 的关键帧时序：每个关键帧的时间比例正比于累计
 /// [distance]，使动画值以恒定速率变化，不受关键帧数值疏密不均影响。若总
 /// 距离为零（所有关键帧重合）则退化为均匀分布。
-List<double> _pacedKeyTimes<T>(List<T> values, double Function(T a, T b) distance) {
+List<double> _pacedKeyTimes<T>(
+  List<T> values,
+  double Function(T a, T b) distance,
+) {
   final n = values.length;
   final cumulative = List<double>.filled(n, 0);
   var total = 0.0;
@@ -1063,7 +1119,9 @@ Duration parseSmilDuration(String? raw) {
     seconds = double.tryParse(value);
   }
   seconds ??= 0;
-  return Duration(microseconds: (seconds * Duration.microsecondsPerSecond).round());
+  return Duration(
+    microseconds: (seconds * Duration.microsecondsPerSecond).round(),
+  );
 }
 
 /// Parses a SMIL `repeatCount` attribute: `"indefinite"`, a positive number,
@@ -1108,7 +1166,10 @@ List<CubicBezier>? parseSmilKeySplines(String? raw) {
   for (final segment in raw.split(';')) {
     final trimmed = segment.trim();
     if (trimmed.isEmpty) continue;
-    final parts = trimmed.split(RegExp(r'[\s,]+')).map(double.tryParse).toList();
+    final parts = trimmed
+        .split(RegExp(r'[\s,]+'))
+        .map(double.tryParse)
+        .toList();
     if (parts.length != 4 || parts.any((v) => v == null)) return null;
     splines.add(CubicBezier(parts[0]!, parts[1]!, parts[2]!, parts[3]!));
   }
@@ -1141,7 +1202,10 @@ List<double>? parseSmilKeyTimes(String? raw) {
 /// 返回 null——只对单一数值型表现属性做动画（见 [SmilAnimation] 类注释）。
 List<double>? parseSmilValues({String? values, String? from, String? to}) {
   if (values != null && values.trim().isNotEmpty) {
-    final parts = values.split(';').map((s) => double.tryParse(s.trim())).toList();
+    final parts = values
+        .split(';')
+        .map((s) => double.tryParse(s.trim()))
+        .toList();
     if (parts.any((v) => v == null) || parts.length < 2) return null;
     return parts.cast<double>();
   }
@@ -1170,7 +1234,11 @@ List<double>? parseSmilValues({String? values, String? from, String? to}) {
 /// 固定 3 分量形式。
 ///
 /// 若 `values` 与可用的 `from`/`to` 均无法解析，返回 null。
-List<List<double>>? parseSmilTransformKeyframes({String? values, String? from, String? to}) {
+List<List<double>>? parseSmilTransformKeyframes({
+  String? values,
+  String? from,
+  String? to,
+}) {
   List<double>? parseComponents(String raw) {
     final parts = raw
         .trim()

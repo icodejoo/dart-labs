@@ -194,7 +194,9 @@ SvgGradientDef resampleGradientAtTime(SvgGradientDef def, Duration time) {
   }
 
   final hasGeometryAnimation = node.animations.isNotEmpty;
-  final hasStopAnimation = def.stopNodes.any((n) => n.animations.isNotEmpty || n.colorAnimations.isNotEmpty);
+  final hasStopAnimation = def.stopNodes.any(
+    (n) => n.animations.isNotEmpty || n.colorAnimations.isNotEmpty,
+  );
   if (!hasGeometryAnimation && !hasStopAnimation) return def;
 
   final stops = <SvgGradientStop>[];
@@ -217,9 +219,13 @@ SvgGradientDef resampleGradientAtTime(SvgGradientDef def, Duration time) {
       // #RRGGBBAA (alpha last), hence the reorder.
       // v 是 0xAARRGGBB（见 SmilColorAnimation）；parseSvgHexColor 要的是
       // #RRGGBBAA（alpha 在末尾），因此重新排列字节顺序。
-      final a = (v >> 24) & 0xFF, r = (v >> 16) & 0xFF, g = (v >> 8) & 0xFF, b = v & 0xFF;
+      final a = (v >> 24) & 0xFF,
+          r = (v >> 16) & 0xFF,
+          g = (v >> 8) & 0xFF,
+          b = v & 0xFF;
       effective['stop-color'] =
-          '#${[r, g, b, a].map((c) => c.toRadixString(16).padLeft(2, '0')).join()}'.toUpperCase();
+          '#${[r, g, b, a].map((c) => c.toRadixString(16).padLeft(2, '0')).join()}'
+              .toUpperCase();
     }
     stops.add(stopFromAttributes(effective) ?? original);
   }
@@ -264,9 +270,15 @@ SvgGradientDef resampleGradientAtTime(SvgGradientDef def, Duration time) {
 /// final shader = buildGradientShader(def, path.getBounds(), 1);
 /// if (shader != null) paint.shader = shader;
 /// ```
-ui.Shader? buildGradientShader(SvgGradientDef def, Rect bounds, double opacity) {
+ui.Shader? buildGradientShader(
+  SvgGradientDef def,
+  Rect bounds,
+  double opacity,
+) {
   if (def.stops.isEmpty) return null;
-  if (def.objectBoundingBox && (bounds.width <= 0 || bounds.height <= 0)) return null;
+  if (def.objectBoundingBox && (bounds.width <= 0 || bounds.height <= 0)) {
+    return null;
+  }
 
   final colors = <Color>[];
   final offsets = <double>[];
@@ -349,10 +361,10 @@ Float64List _shaderMatrix(SvgGradientDef def, Rect bounds) {
 ///
 /// SVG `[a, b, c, d, e, f]` 约定下的仿射矩阵乘法 `a * b`。
 List<double> _concat(List<double> a, List<double> b) => [
-      a[0] * b[0] + a[2] * b[1],
-      a[1] * b[0] + a[3] * b[1],
-      a[0] * b[2] + a[2] * b[3],
-      a[1] * b[2] + a[3] * b[3],
-      a[0] * b[4] + a[2] * b[5] + a[4],
-      a[1] * b[4] + a[3] * b[5] + a[5],
-    ];
+  a[0] * b[0] + a[2] * b[1],
+  a[1] * b[0] + a[3] * b[1],
+  a[0] * b[2] + a[2] * b[3],
+  a[1] * b[2] + a[3] * b[3],
+  a[0] * b[4] + a[2] * b[5] + a[4],
+  a[1] * b[4] + a[3] * b[5] + a[5],
+];

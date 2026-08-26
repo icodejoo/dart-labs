@@ -45,16 +45,21 @@ class AnimFpsBenchResult {
 
   /// Total frames observed during the scroll window. / 滚动窗口内的总帧数。
   final int frameCount;
+
   /// Real measured average FPS (see [FrameTimingCollector.realAverageFps]).
   ///
   /// 实测平均 FPS（见 [FrameTimingCollector.realAverageFps]）。
   final double realFps;
+
   /// Build duration stats. / build 耗时统计。
   final DurationStats build;
+
   /// Raster duration stats. / raster 耗时统计。
   final DurationStats raster;
+
   /// Frames whose build exceeded 16.6ms. / build 超过 16.6ms 的帧数。
   final int framesOver16_6;
+
   /// Frames whose build exceeded 8.3ms. / build 超过 8.3ms 的帧数。
   final int framesOver8_3;
 }
@@ -76,8 +81,10 @@ class AnimFpsBenchRunner extends StatefulWidget {
 
   /// Number of concurrently animating icons in the grid. / 网格中并发播放动画的图标数。
   final int itemCount;
+
   /// Number of full up-down scroll cycles. / 上下滚动的完整轮次数。
   final int cycles;
+
   /// Called with the final [AnimFpsBenchResult] once the run finishes, in
   /// addition to the usual stdout report. Null in standalone `LIB=anim_fps`
   /// runs (behavior unchanged).
@@ -146,13 +153,17 @@ class _AnimFpsBenchRunnerState extends State<AnimFpsBenchRunner> {
       framesOver8_3: _frameTiming.framesOverBudget(8.3),
     );
     final buf = StringBuffer()
-      ..writeln('=== ANIM FPS BENCH REPORT items=${widget.itemCount} cycles=${widget.cycles} ===')
+      ..writeln(
+        '=== ANIM FPS BENCH REPORT items=${widget.itemCount} cycles=${widget.cycles} ===',
+      )
       ..writeln('frames=${result.frameCount}')
       ..writeln('real_fps=${result.realFps.toStringAsFixed(2)}')
       ..writeln('build : $b')
       ..writeln('raster: $r')
-      ..writeln('framesOver16.6ms=${result.framesOver16_6} '
-          'framesOver8.3ms=${result.framesOver8_3}')
+      ..writeln(
+        'framesOver16.6ms=${result.framesOver16_6} '
+        'framesOver8.3ms=${result.framesOver8_3}',
+      )
       ..writeln('=== END ANIM FPS BENCH REPORT ===');
     // ignore: avoid_print
     print(buf.toString());
@@ -171,7 +182,9 @@ class _AnimFpsBenchRunnerState extends State<AnimFpsBenchRunner> {
       appBar: AppBar(title: Text('anim fps bench ($_status)')),
       body: GridView.builder(
         controller: _scrollController,
-        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount: 8),
+        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+          crossAxisCount: 8,
+        ),
         itemCount: _icons.length,
         itemBuilder: (context, index) {
           final source = _icons[index];

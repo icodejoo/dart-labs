@@ -37,14 +37,21 @@ void main() {
       await RustLib.init();
     } catch (e) {
       // ignore: avoid_print
-      print('Skipping: native library not loadable in this test environment ($e)');
+      print(
+        'Skipping: native library not loadable in this test environment ($e)',
+      );
       return;
     }
 
     final scene = parseSvg(data: _gradientSvg, currentColor: null);
     expect(scene.paths, hasLength(1));
     final gradient = scene.paths.single.fillGradient;
-    expect(gradient, isNotNull, reason: 'fill="url(#grad1)" should resolve to a gradient, not a solid color');
+    expect(
+      gradient,
+      isNotNull,
+      reason:
+          'fill="url(#grad1)" should resolve to a gradient, not a solid color',
+    );
     expect(gradient!.stops, hasLength(2));
     expect(
       gradient.stops.map((s) => s.colorArgb).toSet(),

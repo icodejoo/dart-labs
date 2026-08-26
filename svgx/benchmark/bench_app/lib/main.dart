@@ -35,9 +35,11 @@ Future<void> main() async {
     return;
   }
   if (_libName == 'anim_fps') {
-    runApp(MaterialApp(
-      home: AnimFpsBenchRunner(itemCount: _items, cycles: _cycles),
-    ));
+    runApp(
+      MaterialApp(
+        home: AnimFpsBenchRunner(itemCount: _items, cycles: _cycles),
+      ),
+    );
     return;
   }
   if (_libName == 'compare') {
@@ -49,13 +51,17 @@ Future<void> main() async {
     // 单编译顺序模式：在这一个进程内依次跑完 svgx 静态 -> flutter_svg 静态 ->
     // anim -> anim_fps，再打印一份汇总报告。存在原因见
     // compare_bench_screen.dart（同一时段配对复测，一次编译代替最多四次）。
-    runApp(MaterialApp(
-      home: CompareBenchRunner(itemCount: _items, cycles: _cycles),
-    ));
+    runApp(
+      MaterialApp(
+        home: CompareBenchRunner(itemCount: _items, cycles: _cycles),
+      ),
+    );
     return;
   }
   final lib = _libName == 'flutter_svg' ? BenchLib.flutterSvg : BenchLib.svgx;
-  runApp(MaterialApp(
-    home: BenchRunner(lib: lib, cycles: _cycles, itemCount: _items),
-  ));
+  runApp(
+    MaterialApp(
+      home: BenchRunner(lib: lib, cycles: _cycles, itemCount: _items),
+    ),
+  );
 }

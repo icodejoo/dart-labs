@@ -19,7 +19,8 @@ import 'package:svgx/src/animation/svg_dom.dart';
 const _pngBase64 =
     'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==';
 
-const _imageSvg = '''
+const _imageSvg =
+    '''
 <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24">
   <image x="2" y="3" width="10" height="12" href="data:image/png;base64,$_pngBase64"/>
 </svg>
@@ -27,15 +28,22 @@ const _imageSvg = '''
 
 void main() {
   group('animation path: <image> node', () {
-    test('parseAnimatedSvgDocument produces an image node with the raw href', () {
-      final document = parseAnimatedSvgDocument(_imageSvg);
-      final imageNodes = _collectImageNodes(document.root);
+    test(
+      'parseAnimatedSvgDocument produces an image node with the raw href',
+      () {
+        final document = parseAnimatedSvgDocument(_imageSvg);
+        final imageNodes = _collectImageNodes(document.root);
 
-      expect(imageNodes, hasLength(1));
-      final node = imageNodes.single;
-      expect(node.attributes['href'], contains('base64,$_pngBase64'));
-      expect(node.resolvedImage, isNull, reason: 'not decoded until resolveImageNodes runs');
-    });
+        expect(imageNodes, hasLength(1));
+        final node = imageNodes.single;
+        expect(node.attributes['href'], contains('base64,$_pngBase64'));
+        expect(
+          node.resolvedImage,
+          isNull,
+          reason: 'not decoded until resolveImageNodes runs',
+        );
+      },
+    );
 
     test('documentHasImages detects the node without triggering decode', () {
       final document = parseAnimatedSvgDocument(_imageSvg);
@@ -81,6 +89,7 @@ List<SvgNode> _collectImageNodes(SvgNode node) {
       walk(child);
     }
   }
+
   walk(node);
   return out;
 }

@@ -36,7 +36,8 @@ ui.Path parseSvgPathData(String d) {
 
   double cx = 0, cy = 0; // current point / 当前点
   double startX = 0, startY = 0; // subpath start / 子路径起点
-  double? lastCtrlX, lastCtrlY; // last cubic/quad control point, for S/T reflection
+  double? lastCtrlX,
+      lastCtrlY; // last cubic/quad control point, for S/T reflection
   String? lastCommand;
 
   double num() => tokens[i++] as double;
@@ -93,7 +94,12 @@ ui.Path parseSvgPathData(String d) {
         }
       case 'C':
         {
-          var x1 = num(), y1 = num(), x2 = num(), y2 = num(), x = num(), y = num();
+          var x1 = num(),
+              y1 = num(),
+              x2 = num(),
+              y2 = num(),
+              x = num(),
+              y = num();
           if (isRelative) {
             x1 += cx;
             y1 += cy;
@@ -290,8 +296,14 @@ List<ui.Offset> parseSvgPoints(String raw) {
 ///
 /// [dashArray] 不能为空；奇数长度按 SVG 规则处理——图案在概念上翻倍
 /// （`[a, b, c]` 等价于 `[a, b, c, a, b, c]`）。
-ui.Path dashPath(ui.Path source, {required List<double> dashArray, double dashOffset = 0}) {
-  final pattern = dashArray.length.isOdd ? [...dashArray, ...dashArray] : dashArray;
+ui.Path dashPath(
+  ui.Path source, {
+  required List<double> dashArray,
+  double dashOffset = 0,
+}) {
+  final pattern = dashArray.length.isOdd
+      ? [...dashArray, ...dashArray]
+      : dashArray;
   final cycle = pattern.fold<double>(0, (sum, v) => sum + v);
   if (cycle <= 0) return source;
 
@@ -316,9 +328,14 @@ ui.Path dashPath(ui.Path source, {required List<double> dashArray, double dashOf
       final segmentEnd = distance + segmentLength;
       if (drawing && segmentEnd > 0) {
         final clampedStart = distance < 0 ? 0.0 : distance;
-        final clampedEnd = segmentEnd > metric.length ? metric.length : segmentEnd;
+        final clampedEnd = segmentEnd > metric.length
+            ? metric.length
+            : segmentEnd;
         if (clampedEnd > clampedStart) {
-          result.addPath(metric.extractPath(clampedStart, clampedEnd), ui.Offset.zero);
+          result.addPath(
+            metric.extractPath(clampedStart, clampedEnd),
+            ui.Offset.zero,
+          );
         }
       }
       distance = segmentEnd;

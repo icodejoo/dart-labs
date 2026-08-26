@@ -17,8 +17,8 @@ import 'package:svgx/src/animation/svg_dom.dart';
 import 'package:svgx/src/animation/svg_theme.dart';
 
 SvgDocument _parse(String body) => parseAnimatedSvgDocument(
-      '<svg xmlns="http://www.w3.org/2000/svg" width="100" height="40" viewBox="0 0 100 40">$body</svg>',
-    );
+  '<svg xmlns="http://www.w3.org/2000/svg" width="100" height="40" viewBox="0 0 100 40">$body</svg>',
+);
 
 void main() {
   group('parsing', () {
@@ -57,7 +57,10 @@ void main() {
   });
 
   group('painting', () {
-    Future<void> paint(SvgDocument document, {Duration time = Duration.zero}) async {
+    Future<void> paint(
+      SvgDocument document, {
+      Duration time = Duration.zero,
+    }) async {
       final recorder = ui.PictureRecorder();
       final canvas = Canvas(recorder);
       AnimatedSvgPainter(
@@ -89,19 +92,22 @@ void main() {
       await paint(_parse('<text x="10" y="20"></text>'));
     });
 
-    test('an <animate> on opacity is sampled for text via the generic mechanism', () async {
-      final document = _parse(
-        '<text x="10" y="20">Hi'
-        '<animate attributeName="opacity" from="0" to="1" dur="1s" fill="freeze"/>'
-        '</text>',
-      );
-      await paint(document, time: Duration.zero);
-      await paint(document, time: const Duration(seconds: 2));
+    test(
+      'an <animate> on opacity is sampled for text via the generic mechanism',
+      () async {
+        final document = _parse(
+          '<text x="10" y="20">Hi'
+          '<animate attributeName="opacity" from="0" to="1" dur="1s" fill="freeze"/>'
+          '</text>',
+        );
+        await paint(document, time: Duration.zero);
+        await paint(document, time: const Duration(seconds: 2));
 
-      final node = document.root.children.single;
-      expect(node.animations.single.attributeName, 'opacity');
-      expect(node.animations.single.sample(Duration.zero), 0);
-      expect(node.animations.single.sample(const Duration(seconds: 2)), 1);
-    });
+        final node = document.root.children.single;
+        expect(node.animations.single.attributeName, 'opacity');
+        expect(node.animations.single.sample(Duration.zero), 0);
+        expect(node.animations.single.sample(const Duration(seconds: 2)), 1);
+      },
+    );
   });
 }

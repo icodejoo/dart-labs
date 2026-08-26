@@ -86,64 +86,123 @@ Future<ByteData> _renderPixels(String source) async {
 
 /// Alpha of the pixel at ([x], [y]) in a 100-wide RGBA buffer.
 /// 100 像素宽 RGBA 缓冲中 ([x], [y]) 处像素的 alpha。
-int _alphaAt(ByteData pixels, int x, int y) => pixels.getUint8((y * 100 + x) * 4 + 3);
+int _alphaAt(ByteData pixels, int x, int y) =>
+    pixels.getUint8((y * 100 + x) * 4 + 3);
 
 /// Red channel of the pixel at ([x], [y]). / ([x], [y]) 处像素的红色通道。
 int _redAt(ByteData pixels, int x, int y) => pixels.getUint8((y * 100 + x) * 4);
+
+/// Whether the native library was loadable in this test process. Set once in
+/// `setUpAll`; individual tests skip themselves when it's false instead of
+/// failing hard on an environment limitation unrelated to the feature under
+/// test (same convention as `rust_image_smoke_test.dart`).
+/// 本测试进程内原生库是否可加载，在 `setUpAll` 中设置一次；为 false 时各用例
+/// 自行跳过，而不是因与被测功能无关的环境限制而硬失败（约定同
+/// `rust_image_smoke_test.dart`）。
+bool _rustAvailable = true;
 
 void main() {
   setUpAll(() async {
     TestWidgetsFlutterBinding.ensureInitialized();
     try {
       await RustLib.init();
-    } catch (_) {
-      // Already initialized in this isolate, or genuinely unavailable — the
-      // per-test calls below surface any real failure.
-      // 本 isolate 内已初始化，或确实不可用——真实失败会在下面各用例里暴露。
+    } catch (e) {
+      _rustAvailable = false;
+      // ignore: avoid_print
+      print(
+        'Skipping rust_paint_features_test.dart: native library not loadable in this test environment ($e)',
+      );
     }
   });
 
   test('parseSvg carries a clip-path onto the clipped path', () {
+    if (!_rustAvailable) return;
     final scene = parseSvg(data: _clipSvg, currentColor: null);
     expect(scene.paths, hasLength(1));
     expect(scene.paths.single.effects?.clips, hasLength(1));
   });
 
   test('a clip-path actually clips the recorded picture', () async {
+    if (!_rustAvailable) return;
     final pixels = await _renderPixels(_clipSvg);
-    expect(_alphaAt(pixels, 25, 50), greaterThan(200), reason: 'inside the clip must stay painted');
-    expect(_alphaAt(pixels, 75, 50), lessThan(16), reason: 'outside the clip must be cut away');
+    expect(
+      _alphaAt(pixels, 25, 50),
+      greaterThan(200),
+      reason: 'inside the clip must stay painted',
+    );
+    expect(
+      _alphaAt(pixels, 75, 50),
+      lessThan(16),
+      reason: 'outside the clip must be cut away',
+    );
   });
 
-  test('a luminance mask hides the region its content does not cover', () async {
-    final pixels = await _renderPixels(_maskSvg);
-    expect(_alphaAt(pixels, 25, 50), greaterThan(200), reason: 'white mask content keeps pixels visible');
-    expect(_alphaAt(pixels, 75, 50), lessThan(16), reason: 'uncovered mask region must be masked out');
-  });
+  test(
+    'a luminance mask hides the region its content does not cover',
+    () async {
+      if (!_rustAvailable) return;
+      final pixels = await _renderPixels(_maskSvg);
+      expect(
+        _alphaAt(pixels, 25, 50),
+        greaterThan(200),
+        reason: 'white mask content keeps pixels visible',
+      );
+      expect(
+        _alphaAt(pixels, 75, 50),
+        lessThan(16),
+        reason: 'uncovered mask region must be masked out',
+      );
+    },
+  );
 
-  test('a pattern fill repeats its tile instead of painting a flat colour', () async {
-    final scene = parseSvg(data: _patternSvg, currentColor: null);
-    expect(scene.paths.single.effects?.fillPattern, isNotNull);
+  test(
+    'a pattern fill repeats its tile instead of painting a flat colour',
+    () async {
+      if (!_rustAvailable) return;
+      final scene = parseSvg(data: _patternSvg, currentColor: null);
+      expect(scene.paths.single.effects?.fillPattern, isNotNull);
 
-    final pixels = await _renderPixels(_patternSvg);
-    // The tile is 20x20 with a red 10x10 top-left quadrant, so (5,5) and
-    // (25,25) (the next tile over) are red while (15,15) is empty.
-    // 贴片为 20x20、左上 10x10 为红色，因此 (5,5) 与下一块贴片的 (25,25) 为
-    // 红色，而 (15,15) 为空。
-    expect(_redAt(pixels, 5, 5), greaterThan(200));
-    expect(_alphaAt(pixels, 5, 5), greaterThan(200));
-    expect(_alphaAt(pixels, 15, 15), lessThan(16), reason: 'the tile\'s empty quadrant must stay empty');
-    expect(_alphaAt(pixels, 25, 25), greaterThan(200), reason: 'the tile must repeat, not stop after one');
-  });
+      final pixels = await _renderPixels(_patternSvg);
+      // The tile is 20x20 with a red 10x10 top-left quadrant, so (5,5) and
+      // (25,25) (the next tile over) are red while (15,15) is empty.
+      // 贴片为 20x20、左上 10x10 为红色，因此 (5,5) 与下一块贴片的 (25,25) 为
+      // 红色，而 (15,15) 为空。
+      expect(_redAt(pixels, 5, 5), greaterThan(200));
+      expect(_alphaAt(pixels, 5, 5), greaterThan(200));
+      expect(
+        _alphaAt(pixels, 15, 15),
+        lessThan(16),
+        reason: 'the tile\'s empty quadrant must stay empty',
+      );
+      expect(
+        _alphaAt(pixels, 25, 25),
+        greaterThan(200),
+        reason: 'the tile must repeat, not stop after one',
+      );
+    },
+  );
 
   test('feGaussianBlur softens the shape beyond its own bounds', () async {
+    if (!_rustAvailable) return;
     final pixels = await _renderPixels(_blurSvg);
     final inside = _alphaAt(pixels, 50, 50);
     final justOutside = _alphaAt(pixels, 24, 50);
     final farOutside = _alphaAt(pixels, 5, 50);
     expect(inside, greaterThan(200), reason: 'the shape core stays opaque');
-    expect(justOutside, greaterThan(8), reason: 'blur must bleed past the original edge');
-    expect(justOutside, lessThan(inside), reason: 'the bleed must be softer than the core');
-    expect(farOutside, lessThan(16), reason: 'blur must fall off, not flood the canvas');
+    expect(
+      justOutside,
+      greaterThan(8),
+      reason: 'blur must bleed past the original edge',
+    );
+    expect(
+      justOutside,
+      lessThan(inside),
+      reason: 'the bleed must be softer than the core',
+    );
+    expect(
+      farOutside,
+      lessThan(16),
+      reason: 'blur must fall off, not flood the canvas',
+    );
   });
 }

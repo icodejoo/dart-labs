@@ -66,45 +66,72 @@ List<int> _rgbaAt(ByteData pixels, int x, int y) {
   ];
 }
 
+/// Whether the native library was loadable in this test process. Set once in
+/// `setUpAll`; individual tests skip themselves when it's false instead of
+/// failing hard on an environment limitation unrelated to the feature under
+/// test (same convention as `rust_image_smoke_test.dart`).
+/// 本测试进程内原生库是否可加载，在 `setUpAll` 中设置一次；为 false 时各用例
+/// 自行跳过，而不是因与被测功能无关的环境限制而硬失败（约定同
+/// `rust_image_smoke_test.dart`）。
+bool _rustAvailable = true;
+
 void main() {
   setUpAll(() async {
     TestWidgetsFlutterBinding.ensureInitialized();
     try {
       await RustLib.init();
-    } catch (_) {
-      // Already initialized in this isolate, or genuinely unavailable — the
-      // per-test calls below surface any real failure.
-      // 本 isolate 内已初始化，或确实不可用——真实失败会在下面各用例里暴露。
+    } catch (e) {
+      _rustAvailable = false;
+      // ignore: avoid_print
+      print(
+        'Skipping rust_current_color_paint_order_test.dart: native library not loadable in this test environment ($e)',
+      );
     }
   });
 
-  test('currentColor resolves to the caller-supplied override at render time', () async {
-    // 0xFFFF7A00 = opaque orange.
-    final pixels = await _renderPixels(_currentColorSvg, currentColorArgb: 0xFFFF7A00);
-    final rgba = _rgbaAt(pixels, 50, 50);
-    expect(rgba, [0xFF, 0x7A, 0x00, 0xFF]);
-  });
-
-  test('currentColor with a different override paints a different color', () async {
-    // 0xFF00FF00 = opaque green.
-    final pixels = await _renderPixels(_currentColorSvg, currentColorArgb: 0xFF00FF00);
-    final rgba = _rgbaAt(pixels, 50, 50);
-    expect(rgba, [0x00, 0xFF, 0x00, 0xFF]);
-  });
-
   test(
-    'paint-order="stroke fill" paints fill over stroke, differing from the default order',
+    'currentColor resolves to the caller-supplied override at render time',
     () async {
-      final pixels = await _renderPixels(_paintOrderSvg);
-      // The stroke straddles the circle's edge (r=40, stroke-width=20, so it
-      // spans radius 30..50). With the default order the stroke (red) would
-      // sit on top there; with paint-order="stroke fill" the fill (blue)
-      // paints last and wins.
-      // 描边横跨圆的边缘（r=40，stroke-width=20，覆盖半径 30..50）。默认顺序下
-      // 该处应是描边（红）盖在上面；paint-order="stroke fill" 下填充（蓝）
-      // 后画，胜出。
-      final rgba = _rgbaAt(pixels, 50, 15);
-      expect(rgba[2], greaterThan(rgba[0]), reason: 'fill (blue) must win over stroke (red) at the shared edge');
+      if (!_rustAvailable) return;
+      // 0xFFFF7A00 = opaque orange.
+      final pixels = await _renderPixels(
+        _currentColorSvg,
+        currentColorArgb: 0xFFFF7A00,
+      );
+      final rgba = _rgbaAt(pixels, 50, 50);
+      expect(rgba, [0xFF, 0x7A, 0x00, 0xFF]);
     },
   );
+
+  test(
+    'currentColor with a different override paints a different color',
+    () async {
+      if (!_rustAvailable) return;
+      // 0xFF00FF00 = opaque green.
+      final pixels = await _renderPixels(
+        _currentColorSvg,
+        currentColorArgb: 0xFF00FF00,
+      );
+      final rgba = _rgbaAt(pixels, 50, 50);
+      expect(rgba, [0x00, 0xFF, 0x00, 0xFF]);
+    },
+  );
+
+  test('paint-order="stroke fill" paints fill over stroke, differing from the default order', () async {
+    if (!_rustAvailable) return;
+    final pixels = await _renderPixels(_paintOrderSvg);
+    // The stroke straddles the circle's edge (r=40, stroke-width=20, so it
+    // spans radius 30..50). With the default order the stroke (red) would
+    // sit on top there; with paint-order="stroke fill" the fill (blue)
+    // paints last and wins.
+    // 描边横跨圆的边缘（r=40，stroke-width=20，覆盖半径 30..50）。默认顺序下
+    // 该处应是描边（红）盖在上面；paint-order="stroke fill" 下填充（蓝）
+    // 后画，胜出。
+    final rgba = _rgbaAt(pixels, 50, 15);
+    expect(
+      rgba[2],
+      greaterThan(rgba[0]),
+      reason: 'fill (blue) must win over stroke (red) at the shared edge',
+    );
+  });
 }

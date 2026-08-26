@@ -31,9 +31,13 @@ import 'package:svgx/src/animation/svg_dom.dart';
 Future<bool>? _initAttempt;
 
 Future<bool> _nativeReady() {
-  return _initAttempt ??= RustLib.init().then((_) => true).catchError((Object e) {
+  return _initAttempt ??= RustLib.init().then((_) => true).catchError((
+    Object e,
+  ) {
     // ignore: avoid_print
-    print('Skipping: native library not loadable in this test environment ($e)');
+    print(
+      'Skipping: native library not loadable in this test environment ($e)',
+    );
     return false;
   });
 }
@@ -86,21 +90,24 @@ void main() {
   });
 
   group('static <g transform> (Rust parse_transform, resolved once)', () {
-    test('a transform list composes into one affine matrix on the node', () async {
-      if (!await _nativeReady()) return;
+    test(
+      'a transform list composes into one affine matrix on the node',
+      () async {
+        if (!await _nativeReady()) return;
 
-      final document = parseAnimatedSvgDocument(
-        '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24">'
-        '<g transform="translate(10,20)"><circle cx="0" cy="0" r="1"/></g>'
-        '</svg>',
-      );
-      final group = document.root.children.single;
+        final document = parseAnimatedSvgDocument(
+          '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24">'
+          '<g transform="translate(10,20)"><circle cx="0" cy="0" r="1"/></g>'
+          '</svg>',
+        );
+        final group = document.root.children.single;
 
-      expect(group.transform, isNotNull);
-      expect(group.transform, hasLength(6));
-      expect(group.transform![4], closeTo(10, 1e-6));
-      expect(group.transform![5], closeTo(20, 1e-6));
-    });
+        expect(group.transform, isNotNull);
+        expect(group.transform, hasLength(6));
+        expect(group.transform![4], closeTo(10, 1e-6));
+        expect(group.transform![5], closeTo(20, 1e-6));
+      },
+    );
 
     test('rotate about a pivot keeps the pivot fixed', () async {
       if (!await _nativeReady()) return;
@@ -118,17 +125,20 @@ void main() {
       expect(y, closeTo(12, 1e-4));
     });
 
-    test('a malformed transform leaves the node untransformed, no throw', () async {
-      if (!await _nativeReady()) return;
+    test(
+      'a malformed transform leaves the node untransformed, no throw',
+      () async {
+        if (!await _nativeReady()) return;
 
-      final document = parseAnimatedSvgDocument(
-        '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24">'
-        '<g transform="not-a-transform"><circle cx="0" cy="0" r="1"/></g>'
-        '</svg>',
-      );
+        final document = parseAnimatedSvgDocument(
+          '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24">'
+          '<g transform="not-a-transform"><circle cx="0" cy="0" r="1"/></g>'
+          '</svg>',
+        );
 
-      expect(document.root.children.single.transform, isNull);
-    });
+        expect(document.root.children.single.transform, isNull);
+      },
+    );
   });
 
   group('<animateTransform type="skewX"/"skewY">', () {
@@ -147,7 +157,10 @@ void main() {
       expect(rect.transformAnimations, hasLength(1));
       final anim = rect.transformAnimations.single;
       expect(anim.type, SmilTransformType.skewX);
-      expect(anim.sample(const Duration(milliseconds: 500))![0], closeTo(22.5, 1e-6));
+      expect(
+        anim.sample(const Duration(milliseconds: 500))![0],
+        closeTo(22.5, 1e-6),
+      );
       expect(anim.sample(const Duration(seconds: 2))![0], closeTo(45, 1e-6));
     });
 

@@ -25,6 +25,9 @@ import 'mdi_icons_1000.dart';
 /// final icons = generateIcons(1000);
 /// ```
 List<String> generateIcons(int count) {
-  assert(count <= mdiIcons1000.length, 'only ${mdiIcons1000.length} icons baked');
+  assert(
+    count <= mdiIcons1000.length,
+    'only ${mdiIcons1000.length} icons baked',
+  );
   return mdiIcons1000.take(count).toList();
 }

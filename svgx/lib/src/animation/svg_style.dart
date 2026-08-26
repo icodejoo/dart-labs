@@ -98,18 +98,29 @@ class ResolvedStyle {
       if (raw == null) return null;
       final v = raw.trim();
       if (!v.startsWith('url(') || !v.endsWith(')')) return null;
-      final inner = v.substring(4, v.length - 1).trim().replaceAll("'", '').replaceAll('"', '');
+      final inner = v
+          .substring(4, v.length - 1)
+          .trim()
+          .replaceAll("'", '')
+          .replaceAll('"', '');
       return inner.startsWith('#') ? inner.substring(1) : null;
     }
 
     return ResolvedStyle(
-      fill: attributes.containsKey('fill') ? parseColor(attributes['fill']!) : fill,
-      stroke: attributes.containsKey('stroke') ? parseColor(attributes['stroke']!) : stroke,
-      fillGradientId:
-          attributes.containsKey('fill') ? gradientId(attributes['fill']) : fillGradientId,
-      strokeGradientId:
-          attributes.containsKey('stroke') ? gradientId(attributes['stroke']) : strokeGradientId,
-      strokeWidth: double.tryParse(attributes['stroke-width'] ?? '') ?? strokeWidth,
+      fill: attributes.containsKey('fill')
+          ? parseColor(attributes['fill']!)
+          : fill,
+      stroke: attributes.containsKey('stroke')
+          ? parseColor(attributes['stroke']!)
+          : stroke,
+      fillGradientId: attributes.containsKey('fill')
+          ? gradientId(attributes['fill'])
+          : fillGradientId,
+      strokeGradientId: attributes.containsKey('stroke')
+          ? gradientId(attributes['stroke'])
+          : strokeGradientId,
+      strokeWidth:
+          double.tryParse(attributes['stroke-width'] ?? '') ?? strokeWidth,
       strokeLinecap: switch (attributes['stroke-linecap']) {
         'round' => StrokeCap.round,
         'square' => StrokeCap.square,
@@ -126,7 +137,8 @@ class ResolvedStyle {
           ? _parseDasharray(attributes['stroke-dasharray']!)
           : strokeDasharray,
       strokeDashoffset:
-          double.tryParse(attributes['stroke-dashoffset'] ?? '') ?? strokeDashoffset,
+          double.tryParse(attributes['stroke-dashoffset'] ?? '') ??
+          strokeDashoffset,
       opacity: double.tryParse(attributes['opacity'] ?? '') ?? opacity,
     );
   }
@@ -165,7 +177,12 @@ Color? parseSvgHexColor(String v) {
   int channel(String s) => int.parse(s.length == 1 ? s * 2 : s, radix: 16);
   switch (hex.length) {
     case 3:
-      return Color.fromARGB(255, channel(hex[0]), channel(hex[1]), channel(hex[2]));
+      return Color.fromARGB(
+        255,
+        channel(hex[0]),
+        channel(hex[1]),
+        channel(hex[2]),
+      );
     case 6:
       return Color(0xFF000000 | int.parse(hex, radix: 16));
     case 8:
