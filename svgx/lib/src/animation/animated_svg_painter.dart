@@ -104,6 +104,34 @@ class AnimatedSvgPainter extends CustomPainter {
     canvas.restore();
   }
 
+  /// [node]'s attributes with this frame's sampled `<animate>` values
+  /// overlaid.
+  ///
+  /// Returns [SvgNode.attributes] itself — no copy — for a node carrying no
+  /// `<animate>`, which is most nodes in a real animated icon (the root, the
+  /// groups, and every shape that is only *inherited* into rather than
+  /// animated). Callers treat the result as read-only, so sharing the node's
+  /// own map is safe. The copy this avoids was allocated once per node per
+  /// frame.
+  ///
+  /// [node] 的属性表，叠加本帧已采样的 `<animate>` 值。
+  ///
+  /// 节点自身没有 `<animate>` 时直接返回 [SvgNode.attributes] 本身——不拷贝；
+  /// 真实动画图标里大多数节点都属于这种情况（根节点、各分组，以及所有只是被
+  /// 继承而非被动画驱动的形状）。调用方只读使用返回值，因此共享节点自身的表是
+  /// 安全的。被省掉的这次拷贝原本是每节点每帧一次。
+  Map<String, String> _effectiveAttributes(SvgNode node) {
+    if (node.animations.isEmpty) return node.attributes;
+    final overlaid = Map<String, String>.of(node.attributes);
+    for (final animation in node.animations) {
+      final sampled = animation.sample(time);
+      if (sampled != null) {
+        overlaid[animation.attributeName] = sampled.toString();
+      }
+    }
+    return overlaid;
+  }
+
   /// Paints [node] at its position in the tree, resolving its animated style
   /// and any static/animated transforms.
   ///
@@ -125,13 +153,7 @@ class AnimatedSvgPainter extends CustomPainter {
     ResolvedStyle inherited, {
     bool nested = false,
   }) {
-    final effectiveAttributes = Map<String, String>.of(node.attributes);
-    for (final animation in node.animations) {
-      final sampled = animation.sample(time);
-      if (sampled != null) {
-        effectiveAttributes[animation.attributeName] = sampled.toString();
-      }
-    }
+    final effectiveAttributes = _effectiveAttributes(node);
     final style = inherited.inherit(effectiveAttributes, theme);
 
     final clipDef = nested ? null : clipPaths[node.clipPathId];
@@ -311,13 +333,7 @@ class AnimatedSvgPainter extends CustomPainter {
   ui.Path _resolveClipPath(SvgNode defRoot, Duration time) {
     final union = ui.Path();
     void walk(SvgNode node, List<double> matrix) {
-      final effectiveAttributes = Map<String, String>.of(node.attributes);
-      for (final animation in node.animations) {
-        final sampled = animation.sample(time);
-        if (sampled != null) {
-          effectiveAttributes[animation.attributeName] = sampled.toString();
-        }
-      }
+      final effectiveAttributes = _effectiveAttributes(node);
       var accum = matrix;
       if (node.transform != null) accum = _concatAffine(accum, node.transform!);
       for (final transformAnimation in node.transformAnimations) {
@@ -335,10 +351,29 @@ class AnimatedSvgPainter extends CustomPainter {
         }
         return;
       }
-      final geometry = _geometryPath(node.kind, effectiveAttributes);
+      final geometry = _geometryPath(node, effectiveAttributes);
       if (geometry == null) return;
-      geometry.transform(_affineToMatrix4(accum));
-      union.addPath(geometry, Offset.zero);
+      // `Path.transform` *returns* a transformed copy and leaves the receiver
+      // alone (dart:ui docs: "Returns a copy of the path with all the segments
+      // of every sub-path transformed by the given matrix"). This used to be
+      // written as a bare `geometry.transform(...)` statement whose result was
+      // dropped, so a transform inside a `<clipPath>` was silently ignored and
+      // a whole Path copy was allocated per clip node per frame for nothing.
+      // `addPath`'s own `matrix4` applies the transform as the segments are
+      // appended — correct, and with no intermediate copy.
+      //
+      // `Path.transform` 是**返回**一份变换后的副本、不动接收者的（dart:ui 文档：
+      // "Returns a copy of the path with all the segments of every sub-path
+      // transformed by the given matrix"）。这里原先写成了裸的
+      // `geometry.transform(...)` 语句、返回值被丢弃，于是 `<clipPath>` 内部的
+      // 变换被静默忽略，同时每个裁剪节点每帧还白白分配了一整份 Path 副本。
+      // 改用 `addPath` 自带的 `matrix4`，在追加线段时就地应用变换——既正确，
+      // 又不产生中间副本。
+      union.addPath(
+        geometry,
+        Offset.zero,
+        matrix4: _affineToMatrix4(accum),
+      );
     }
 
     walk(defRoot, const [1, 0, 0, 1, 0, 0]);
@@ -428,7 +463,7 @@ class AnimatedSvgPainter extends CustomPainter {
       case SvgNodeKind.line:
       case SvgNodeKind.polyline:
       case SvgNodeKind.polygon:
-        final path = _geometryPath(node.kind, attributes);
+        final path = _geometryPath(node, attributes);
         if (path != null) _paintShape(canvas, path, style);
       case SvgNodeKind.text:
         _paintText(canvas, node, style, attributes);
@@ -470,7 +505,67 @@ class AnimatedSvgPainter extends CustomPainter {
   /// 由 [_paintNodeContent]（实际绘制）与 [_resolveClipPath]（构建
   /// `<clipPath>` 的并集路径）共用，使两者读取完全相同的几何逻辑——不存在一份
   /// 会与绘制路径走岔的"裁剪专用几何"实现。
-  ui.Path? _geometryPath(SvgNodeKind kind, Map<String, String> attributes) {
+  ui.Path? _geometryPath(SvgNode node, Map<String, String> attributes) {
+    // Geometry is rebuilt from strings on every frame unless it can be proven
+    // unchanged, and the proof is an identity check on whatever the shape is
+    // built from (see [SvgNode.cachedGeometry]):
+    //
+    //  - `<path>`: the `d` string. `node.attributes['d']` hands back the very
+    //    same String instance every frame, so a `<path>` whose `d` isn't
+    //    animated — which is every real `stroke-dashoffset`/`stroke-dasharray`
+    //    line-md style icon — parses its path data once instead of once per
+    //    frame. This is the case worth optimizing: `d` parsing is by far the
+    //    most expensive geometry build.
+    //  - every other shape: the attribute map instance. A node with no
+    //    `<animate>` gets `node.attributes` itself from
+    //    [_effectiveAttributes], so the key is stable; a node with animations
+    //    gets a fresh map per frame and simply rebuilds, which for
+    //    `addOval`/`addRect`-shaped geometry costs almost nothing.
+    //
+    // Correctness under a document shared between widgets (see
+    // `SvgDocumentCache`): both keys are time-independent, so two widgets
+    // painting the same document at different timeline positions either share
+    // a valid entry or miss and rebuild — never read a stale one.
+    //
+    // 除非能证明几何没变，否则每帧都要从字符串重建几何，而"证明"就是对构建来源
+    // 做一次身份比较（见 [SvgNode.cachedGeometry]）：
+    //
+    //  - `<path>`：用 `d` 字符串。`node.attributes['d']` 每帧返回的是同一个
+    //    String 实例，因此 `d` 未被动画驱动的 `<path>`——也就是所有真实的
+    //    `stroke-dashoffset`/`stroke-dasharray` line-md 风格图标——路径数据只
+    //    解析一次而不是每帧一次。这正是值得优化的情形：`d` 解析是各类几何构建
+    //    里最贵的一项。
+    //  - 其它形状：用属性表实例。没有 `<animate>` 的节点从
+    //    [_effectiveAttributes] 拿到的就是 `node.attributes` 本身，键是稳定的；
+    //    有动画的节点每帧拿到新表，于是直接重建，而 `addOval`/`addRect` 这类
+    //    几何重建几乎不花钱。
+    //
+    // 文档在多个控件间共享（见 `SvgDocumentCache`）时的正确性：两个键都与时间
+    // 无关，所以在不同时间线位置绘制同一文档的两个控件，要么共享一个有效条目，
+    // 要么未命中后重建——绝不会读到过期结果。
+    final Object? cacheKey = node.kind == SvgNodeKind.path
+        ? attributes['d']
+        : attributes;
+    if (cacheKey != null && identical(node.geometryCacheKey, cacheKey)) {
+      return node.cachedGeometry;
+    }
+    final built = _buildGeometryPath(node.kind, attributes);
+    if (cacheKey != null) {
+      node.geometryCacheKey = cacheKey;
+      node.cachedGeometry = built;
+    }
+    return built;
+  }
+
+  /// Builds a geometry shape's [ui.Path] from scratch — the uncached half of
+  /// [_geometryPath], which holds all the actual shape logic.
+  ///
+  /// 从零构建几何形状的 [ui.Path]——[_geometryPath] 的无缓存那一半，实际的形状
+  /// 逻辑都在这里。
+  ui.Path? _buildGeometryPath(
+    SvgNodeKind kind,
+    Map<String, String> attributes,
+  ) {
     switch (kind) {
       case SvgNodeKind.path:
         final d = attributes['d'];

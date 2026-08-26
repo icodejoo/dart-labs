@@ -23,6 +23,7 @@
 
 // ignore_for_file: implementation_imports, avoid_print
 
+import 'dart:io';
 import 'dart:ui' as ui;
 
 import 'package:flutter/widgets.dart';
@@ -30,6 +31,7 @@ import 'package:svgx/src/animation/animated_svg_painter.dart';
 import 'package:svgx/src/animation/animation_detector.dart';
 import 'package:svgx/src/animation/svg_document_cache.dart';
 import 'package:svgx/src/animation/svg_document_parser.dart';
+import 'package:svgx/src/animation/svg_path_data.dart';
 import 'package:svgx/src/animation/svg_theme.dart';
 import 'package:svgx/src/rust_static_svg.dart';
 
@@ -293,6 +295,28 @@ List<MicroResult> runMicroBenchmarks() {
     }),
   );
 
+  // SVG `d` parsing in isolation, over every `d` string in the 399 real
+  // animated icons. Once geometry is cached per node this no longer runs every
+  // frame, but it is still paid on a document's first paint, so it stays worth
+  // measuring on its own rather than hiding inside `anim_paint_frame`.
+  //
+  // 单独测 SVG `d` 解析，样本是 399 个真实动画图标里的每一条 `d` 字符串。几何
+  // 按节点缓存之后它不再每帧运行，但文档首帧绘制仍要付，所以值得单独测量，
+  // 而不是藏在 `anim_paint_frame` 里。
+  final pathDataStrings = <String>[];
+  for (final src in animIcons) {
+    for (final match in RegExp(r'\sd="([^"]+)"').allMatches(src)) {
+      pathDataStrings.add(match.group(1)!);
+    }
+  }
+  results.add(
+    _measure('path_data_parse', pathDataStrings.length, () {
+      for (final d in pathDataStrings) {
+        parseSvgPathData(d);
+      }
+    }),
+  );
+
   // Per-frame paint cost: the dominant repeated work of the animation engine.
   // Documents are parsed once up front (not timed); each timed pass paints
   // every document at a fresh timeline position into a throwaway recorder.
@@ -330,9 +354,20 @@ List<MicroResult> runMicroBenchmarks() {
   return results;
 }
 
-/// Prints [results] as a stdout report block the harness can scrape.
+/// Prints [results] as a stdout report block, and appends the same block to
+/// the file named by the `SVGX_MICRO_OUT` environment variable when it is set.
 ///
-/// 把 [results] 打印成外部脚本可抓取的 stdout 报告块。
+/// The file is needed because Flutter's Windows runner reattaches stdout to
+/// the parent console (`AttachConsole` + reopened stdio), so a caller that
+/// pipes or redirects the process gets nothing — which makes the repeat-runner
+/// in `tool/run_micro.ps1` impossible to build on stdout alone.
+///
+/// 把 [results] 作为报告块打印到 stdout；若设置了 `SVGX_MICRO_OUT` 环境变量，
+/// 同时把同一份内容追加写入该文件。
+///
+/// 之所以需要写文件：Flutter 的 Windows runner 会把 stdout 重新挂到父控制台
+/// （`AttachConsole` + 重开标准流），因此对该进程做管道/重定向的调用方什么都
+/// 拿不到——只靠 stdout 就没法实现 `tool/run_micro.ps1` 里的重复运行器。
 void printMicroReport(List<MicroResult> results) {
   final buf = StringBuffer()..writeln('=== MICRO BENCH REPORT ===');
   for (final r in results) {
@@ -340,4 +375,8 @@ void printMicroReport(List<MicroResult> results) {
   }
   buf.writeln('=== END MICRO BENCH REPORT ===');
   print(buf.toString());
+  final outPath = Platform.environment['SVGX_MICRO_OUT'];
+  if (outPath != null && outPath.isNotEmpty) {
+    File(outPath).writeAsStringSync(buf.toString(), mode: FileMode.append);
+  }
 }
