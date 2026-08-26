@@ -1,0 +1,30 @@
+# Files excluded from the published pub package.
+#
+# 发布到 pub 的包里要排除的文件。
+#
+# Since svgx switched to shipping precompiled native binaries
+# (PRECOMPILED_MIGRATION_PLAN.md), consumers never compile the Rust crate — so
+# the Rust sources and the multi-hundred-MB `rust/target/` build tree are pure
+# dead weight downstream. `prebuilt/` is deliberately NOT listed here: those
+# binaries are the whole point of the package.
+#
+# svgx 改为分发预编译原生二进制后（见 PRECOMPILED_MIGRATION_PLAN.md），下游不再
+# 编译 Rust crate，因此 Rust 源码和几百 MB 的 `rust/target/` 构建树对下游是纯粹的
+# 负担。`prebuilt/` 刻意不在此列——那些二进制正是本包存在的意义。
+rust/
+
+# Performance-baseline harness and the vendored `full_svg_flutter` comparison
+# baseline. Never imported by lib/, excluded from analysis, not useful to
+# consumers.
+#
+# 性能基准脚手架与作为对照基线 vendor 进来的 `full_svg_flutter`。lib/ 从不引用，
+# 已在静态分析中排除，对下游也无用。
+benchmark/
+
+# Build-time-only scripts (produce/verify prebuilt/, hash Rust sources). Never
+# imported by lib/; their only dependencies (crypto/ffi/ffigen) are
+# dev_dependencies that never reach consumers anyway.
+#
+# 仅构建期使用的脚本（产出/校验 prebuilt/、计算 Rust 源码哈希）。lib/ 从不引用；
+# 其唯一依赖（crypto/ffi/ffigen）本就是不会传递给下游的 dev_dependencies。
+tool/

@@ -17,6 +17,11 @@ dependencies:
   xml: '>=6.0.0 <8.0.0'
 
 dev_dependencies:
+  # Used only by tool/*.dart (the prebuilt-artifact build + sync checker) to
+  # hash Rust sources and binaries. Dev-only: never reaches consumers.
+  # 仅供 tool/*.dart（预编译产物构建与同步校验）计算源码/二进制哈希，
+  # dev 依赖不会传递给下游。
+  crypto: ^3.0.0
   ffi: ^2.1.3
   ffigen: ^20.1.1
   flutter_test:

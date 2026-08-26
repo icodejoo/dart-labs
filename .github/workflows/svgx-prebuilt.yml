@@ -1,0 +1,205 @@
+name: svgx prebuilt artifacts
+
+# Produces the precompiled native libraries that svgx commits under
+# `svgx/prebuilt/` (see svgx/PRECOMPILED_MIGRATION_PLAN.md).
+#
+# This is deliberately NOT part of svgx-ci.yml and deliberately NOT run on every
+# push: a full `-Z build-std` + LTO release build for 13 target slices across
+# three runner operating systems is expensive, and the artifacts only need to
+# change when rust/** changes. svgx-ci.yml's cheap `cargo check` matrix is what
+# guards every push.
+#
+# 产出 svgx 提交在 `svgx/prebuilt/` 下的预编译原生库。刻意不放进 svgx-ci.yml、也
+# 刻意不在每次 push 上跑：13 个 slice 的完整 `-Z build-std` + LTO release 构建横跨
+# 三种 runner 操作系统，代价很高，而产物只在 rust/** 变化时才需要更新。
+#
+# How to use / 用法:
+#   1. Actions -> "svgx prebuilt artifacts" -> Run workflow.
+#   2. Download the `svgx-prebuilt` artifact from the finished run.
+#   3. Unzip it over `svgx/prebuilt/` in a local checkout.
+#   4. `cd svgx && dart run tool/build_prebuilt.dart --restage`
+#      (regenerates MANIFEST.json from the files now on disk)
+#   5. `dart run tool/check_prebuilt.dart` -> must print OK, then commit.
+#
+# Step 3-5 is also how the Apple slices get produced without owning a Mac: the
+# macos-latest runner builds them, you just commit the result.
+#
+# 第 3-5 步也是“没有 Mac 也能产出 Apple slice”的做法：macos-latest runner 负责构建，
+# 你只需要把结果提交进来。
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - 'svgx-v*'
+
+env:
+  FLUTTER_VERSION: '3.47.0'
+  ANDROID_NDK_VERSION: '28.0.13004108'
+
+jobs:
+  build:
+    name: Build ${{ matrix.name }} slices
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: android
+            os: ubuntu-latest
+            groups: --group android
+          - name: linux
+            os: ubuntu-latest
+            groups: --group linux
+          - name: windows
+            os: windows-latest
+            groups: --group windows
+          - name: apple
+            os: macos-latest
+            groups: --group ios --group macos
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          cache: true
+
+      # The pinned dated nightly plus rust-src is what makes
+      # `-Z build-std=std,panic_abort` + `-Cpanic=immediate-abort` possible;
+      # that combination recompiles std with the immediate-abort panic strategy
+      # and shrinks the shipped library by roughly 21%. The version lives in
+      # svgx/tool/prebuilt_common.dart (kToolchain) — this reads it from there
+      # rather than duplicating the string, so there is exactly one source of
+      # truth.
+      - name: Resolve pinned toolchain
+        id: tc
+        shell: bash
+        run: |
+          tc=$(grep -oP "kToolchain = '\K[^']+" svgx/tool/prebuilt_common.dart)
+          echo "toolchain=$tc" >> "$GITHUB_OUTPUT"
+          echo "pinned toolchain: $tc"
+
+      - name: Install pinned nightly toolchain
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: ${{ steps.tc.outputs.toolchain }}
+          components: rust-src
+
+      - name: Install Android NDK
+        if: matrix.name == 'android'
+        run: |
+          "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --install "ndk;$ANDROID_NDK_VERSION"
+          echo "ANDROID_NDK_HOME=$ANDROID_HOME/ndk/$ANDROID_NDK_VERSION" >> "$GITHUB_ENV"
+
+      - name: Install aarch64 Linux cross compiler
+        if: matrix.name == 'linux'
+        run: sudo apt-get update && sudo apt-get install -y gcc-aarch64-linux-gnu
+
+      - name: Package dependencies
+        working-directory: svgx
+        run: flutter pub get
+
+      - name: Add Rust target triples
+        working-directory: svgx
+        shell: bash
+        run: |
+          for t in $(dart run tool/build_prebuilt.dart --list | awk '{print $2}'); do
+            rustup target add --toolchain ${{ steps.tc.outputs.toolchain }} "$t" || true
+          done
+
+      - name: Build artifacts
+        working-directory: svgx
+        run: dart run tool/build_prebuilt.dart ${{ matrix.groups }}
+
+      - name: Verify Android 16 KB page alignment
+        if: matrix.name == 'android'
+        working-directory: svgx
+        run: |
+          fail=0
+          for so in prebuilt/android/jniLibs/*/libsvgx.so; do
+            aligns=$(readelf -l "$so" | awk '/^  LOAD/ {print $NF}' | sort -u)
+            echo "$so -> $aligns"
+            for a in $aligns; do
+              [ "$a" = "0x4000" ] || { echo "::error::$so LOAD align $a != 0x4000"; fail=1; }
+            done
+          done
+          exit $fail
+
+      - name: Report Linux glibc floor
+        if: matrix.name == 'linux'
+        working-directory: svgx
+        run: |
+          for so in prebuilt/linux/*/libsvgx.so; do
+            echo "$so requires up to: $(objdump -T "$so" | grep -o 'GLIBC_[0-9.]*' | sort -uV | tail -1)"
+          done
+
+      # Confirms the archives really are fat where they are meant to be, and
+      # that -force_load will find the flutter_rust_bridge exports.
+      - name: Report Apple archive details
+        if: matrix.name == 'apple'
+        working-directory: svgx
+        run: |
+          for a in prebuilt/ios/device/libsvgx.a prebuilt/ios/simulator/libsvgx.a prebuilt/macos/libsvgx.a; do
+            echo "=== $a ($(stat -f%z "$a") bytes) ==="
+            lipo -info "$a"
+            nm -g "$a" 2>/dev/null | grep -c 'frbgen' | sed 's/^/  frbgen symbols: /'
+          done
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: svgx-prebuilt-${{ matrix.name }}
+          path: svgx/prebuilt/
+          if-no-files-found: error
+
+  collect:
+    name: Collect into one downloadable set
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          cache: true
+
+      # Merging the per-runner uploads into one tree reproduces exactly the
+      # `svgx/prebuilt/` layout that gets committed.
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: svgx-prebuilt-*
+          merge-multiple: true
+          path: svgx/prebuilt
+
+      - name: Package dependencies
+        working-directory: svgx
+        run: flutter pub get
+
+      # Each runner wrote a MANIFEST.json describing only its own slices;
+      # --restage rewrites one manifest covering everything now on disk.
+      - name: Regenerate MANIFEST.json across all slices
+        working-directory: svgx
+        run: dart run tool/build_prebuilt.dart --restage
+
+      # Strict (no --allow-incomplete): a full artifact run must produce every
+      # slice. If this fails, a matrix leg silently dropped something.
+      - name: Verify completeness and source sync
+        working-directory: svgx
+        run: dart run tool/check_prebuilt.dart
+
+      - name: Summarise
+        working-directory: svgx
+        run: |
+          echo '### svgx prebuilt artifacts' >> "$GITHUB_STEP_SUMMARY"
+          echo '' >> "$GITHUB_STEP_SUMMARY"
+          echo '| artifact | bytes |' >> "$GITHUB_STEP_SUMMARY"
+          echo '|---|---:|' >> "$GITHUB_STEP_SUMMARY"
+          find prebuilt -type f ! -name MANIFEST.json | sort | while read -r f; do
+            echo "| ${f#prebuilt/} | $(stat -c%s "$f") |" >> "$GITHUB_STEP_SUMMARY"
+          done
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: svgx-prebuilt
+          path: svgx/prebuilt/
+          if-no-files-found: error
