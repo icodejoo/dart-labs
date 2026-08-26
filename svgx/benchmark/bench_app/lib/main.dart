@@ -21,6 +21,7 @@ import 'micro_bench.dart';
 const _libName = String.fromEnvironment('LIB', defaultValue: 'svgx');
 const _cycles = int.fromEnvironment('CYCLES', defaultValue: 6);
 const _items = int.fromEnvironment('ITEMS', defaultValue: 1000);
+const _holdSeconds = int.fromEnvironment('HOLD', defaultValue: 6);
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -50,7 +51,11 @@ Future<void> main() async {
   if (_libName == 'anim_fps') {
     runApp(
       MaterialApp(
-        home: AnimFpsBenchRunner(itemCount: _items, cycles: _cycles),
+        home: AnimFpsBenchRunner(
+          itemCount: _items,
+          cycles: _cycles,
+          holdSeconds: _holdSeconds,
+        ),
       ),
     );
     return;

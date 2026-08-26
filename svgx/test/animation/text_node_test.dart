@@ -9,6 +9,7 @@
 
 import 'dart:ui' as ui;
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/painting.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:svgx/src/animation/animated_svg_painter.dart';
@@ -66,7 +67,7 @@ void main() {
       AnimatedSvgPainter(
         root: document.root,
         intrinsicSize: Size(document.width, document.height),
-        time: time,
+        clock: ValueNotifier(time),
         theme: const SvgTheme(),
         fit: BoxFit.fill,
         alignment: Alignment.center,
