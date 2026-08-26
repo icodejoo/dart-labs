@@ -501,12 +501,12 @@ jobs:
           otool -D "$fw" | grep -q '@rpath/svgx.framework/svgx' \
             || { echo "::error::svgx.framework install_name is not @rpath-based"; exit 1; }
           # -gU: defined, external (exported) symbols only.
-          nm -gU "$fw" | grep -q 'frbgen' \
+          nm -gU "$fw" | grep -q '_frb_pde_ffi_dispatcher_primary$' \
             || { echo "::error::flutter_rust_bridge exports are missing from svgx.framework"; exit 1; }
-          if nm "$app/Runner" | grep -q 'frbgen'; then
+          if nm "$app/Runner" | grep -q '_frb_pde_ffi_dispatcher_primary$'; then
             echo "::error::FRB symbols were also linked statically into Runner"; exit 1
           fi
-          echo "dynamic linkage OK — $(nm -gU "$fw" | grep -c 'frbgen') frbgen exports, $(stat -f%z "$fw") bytes"
+          echo "dynamic linkage OK — $(nm -gU "$fw" | grep -c ' _frb_') frb_ exports, $(stat -f%z "$fw") bytes"
           lipo -info "$fw"
 
   build-macos:
@@ -564,6 +564,6 @@ jobs:
           if otool -L "$bin" | grep -i 'svgx'; then
             echo "::error::a dynamic svgx library leaked into the app bundle"; exit 1
           fi
-          nm "$bin" | grep -q 'frbgen' \
+          nm "$bin" | grep -q '_frb_pde_ffi_dispatcher_primary$' \
             || { echo "::error::flutter_rust_bridge symbols were dead-stripped — -force_load is not taking effect"; exit 1; }
           echo "static linkage OK, FRB symbols present"
