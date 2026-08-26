@@ -7,6 +7,8 @@
 // 选择，这样可以在 `flutter run --profile` 下无人值守运行，报告打印到 stdout，
 // 由外部脚本抓取。
 
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:svgx/svgx.dart';
 
@@ -14,6 +16,7 @@ import 'anim_bench_screen.dart';
 import 'anim_fps_bench_screen.dart';
 import 'bench_screen.dart';
 import 'compare_bench_screen.dart';
+import 'micro_bench.dart';
 
 const _libName = String.fromEnvironment('LIB', defaultValue: 'svgx');
 const _cycles = int.fromEnvironment('CYCLES', defaultValue: 6);
@@ -30,6 +33,16 @@ Future<void> main() async {
   // 静默回退成空白 SizedBox（默认 errorBuilder 为空），基准就会变成在测「渲染
   // 空盒子」而非 svgx 的真实开销。
   await RustLib.init();
+  if (_libName == 'micro') {
+    // Deterministic Dart-side microbenchmarks: no widget tree, no GPU, no
+    // scrolling — see micro_bench.dart for why the scrolling suite alone
+    // can't attribute Dart-level improvements on this machine.
+    //
+    // 确定性的 Dart 侧微基准：无控件树、无 GPU、无滚动——为什么单靠滚动基准
+    // 无法在本机归因 Dart 层改进，见 micro_bench.dart。
+    printMicroReport(runMicroBenchmarks());
+    exit(0);
+  }
   if (_libName == 'anim') {
     runApp(const MaterialApp(home: AnimBenchRunner()));
     return;
