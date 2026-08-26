@@ -81,7 +81,7 @@ jobs:
             {name:"apple",   os:"macos-latest",   groups:$ag}
           ]')
           matrix=$(jq -c --arg legs "$LEGS" \
-            '[.[] | select(($legs | split(",")) | index(.name))]' <<<"$all")
+            '[.[] | select(.name as $n | ($legs | split(",")) | index($n))]' <<<"$all")
           [ "$(jq length <<<"$matrix")" -gt 0 ] \
             || { echo "::error::legs=$LEGS matches no known leg"; exit 1; }
           echo "matrix=$matrix" >> "$GITHUB_OUTPUT"
