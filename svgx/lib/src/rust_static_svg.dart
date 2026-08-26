@@ -103,7 +103,10 @@ class RustSvgPictureCache {
   /// 不含图片的源不会走异步解码这一步；调用方若不确定可以直接调用本方法，
   /// 无图片时会退化为与 [getOrRender] 相同的同步工作，包在一个同步 resolve 的
   /// [Future] 里。
-  Future<RustSvgPictureInfo> getOrRenderAsync(String source, {int? currentColorArgb}) async {
+  Future<RustSvgPictureInfo> getOrRenderAsync(
+    String source, {
+    int? currentColorArgb,
+  }) async {
     final key = (source, currentColorArgb);
     final hit = _entries.remove(key);
     if (hit != null) {
@@ -127,7 +130,9 @@ class RustSvgPictureCache {
   /// Decodes one [SvgImage]'s raw bytes into a [ui.Image].
   /// 把 [SvgImage] 的原始字节解码为 [ui.Image]。
   Future<ui.Image> _decodeImage(SvgImage image) async {
-    final codec = await ui.instantiateImageCodec(Uint8List.fromList(image.data));
+    final codec = await ui.instantiateImageCodec(
+      Uint8List.fromList(image.data),
+    );
     final frame = await codec.getNextFrame();
     return frame.image;
   }
@@ -181,14 +186,22 @@ class RustSvgPictureCache {
   /// 把 [scene] 的图片（[decodedImages] 已解码，按下标对应 [SvgScene.images]）
   /// 再加路径录制进一张 picture。图片先于路径绘制——简化的 z-order 假设，
   /// 不与文档顺序交错。
-  RustSvgPictureInfo _recordScene(SvgScene scene, List<ui.Image> decodedImages) {
+  RustSvgPictureInfo _recordScene(
+    SvgScene scene,
+    List<ui.Image> decodedImages,
+  ) {
     final recorder = ui.PictureRecorder();
     final canvas = Canvas(recorder);
     for (var i = 0; i < decodedImages.length; i++) {
       final img = scene.images[i];
       canvas.drawImageRect(
         decodedImages[i],
-        Rect.fromLTWH(0, 0, decodedImages[i].width.toDouble(), decodedImages[i].height.toDouble()),
+        Rect.fromLTWH(
+          0,
+          0,
+          decodedImages[i].width.toDouble(),
+          decodedImages[i].height.toDouble(),
+        ),
         Rect.fromLTWH(img.x, img.y, img.width, img.height),
         Paint(),
       );
@@ -244,10 +257,14 @@ class RustSvgPictureCache {
   /// （不再递归处理裁剪/遮罩/模糊/图案）——限制说明见 svgx CLAUDE.md。
   void _paintPath(Canvas canvas, SvgPath path, {bool nested = false}) {
     final uiPath = _toUiPath(path);
-    uiPath.fillType = path.evenOdd ? ui.PathFillType.evenOdd : ui.PathFillType.nonZero;
+    uiPath.fillType = path.evenOdd
+        ? ui.PathFillType.evenOdd
+        : ui.PathFillType.nonZero;
 
     final effects = path.effects;
-    final clips = nested ? const <SvgClip>[] : (effects?.clips ?? const <SvgClip>[]);
+    final clips = nested
+        ? const <SvgClip>[]
+        : (effects?.clips ?? const <SvgClip>[]);
     final blur = nested ? null : effects?.blur;
     final mask = nested ? null : effects?.mask;
     final needsSave = clips.isNotEmpty || blur != null || mask != null;
@@ -259,10 +276,16 @@ class RustSvgPictureCache {
     if (blur != null) {
       canvas.saveLayer(
         null,
-        Paint()..imageFilter = ui.ImageFilter.blur(sigmaX: blur.stdDevX, sigmaY: blur.stdDevY),
+        Paint()
+          ..imageFilter = ui.ImageFilter.blur(
+            sigmaX: blur.stdDevX,
+            sigmaY: blur.stdDevY,
+          ),
       );
     }
-    final Rect? maskRect = mask == null ? null : Rect.fromLTWH(mask.x, mask.y, mask.width, mask.height);
+    final Rect? maskRect = mask == null
+        ? null
+        : Rect.fromLTWH(mask.x, mask.y, mask.width, mask.height);
     if (mask != null) {
       canvas
         ..clipRect(maskRect!)
@@ -276,11 +299,11 @@ class RustSvgPictureCache {
         uiPath,
         shader != null
             ? (Paint()
-              ..style = PaintingStyle.fill
-              ..shader = shader)
+                ..style = PaintingStyle.fill
+                ..shader = shader)
             : (Paint()
-              ..style = PaintingStyle.fill
-              ..color = Color(path.fillArgb)),
+                ..style = PaintingStyle.fill
+                ..color = Color(path.fillArgb)),
       );
     }
 
@@ -291,13 +314,13 @@ class RustSvgPictureCache {
         uiPath,
         shader != null
             ? (Paint()
-              ..style = PaintingStyle.stroke
-              ..strokeWidth = path.strokeWidth
-              ..shader = shader)
+                ..style = PaintingStyle.stroke
+                ..strokeWidth = path.strokeWidth
+                ..shader = shader)
             : (Paint()
-              ..style = PaintingStyle.stroke
-              ..color = Color(path.strokeArgb)
-              ..strokeWidth = path.strokeWidth),
+                ..style = PaintingStyle.stroke
+                ..color = Color(path.strokeArgb)
+                ..strokeWidth = path.strokeWidth),
       );
     }
 
@@ -397,10 +420,14 @@ class RustSvgPictureCache {
       <double>[1, 0, 0, 1, pattern.x, pattern.y],
       <double>[pattern.width / pxW, 0, 0, pattern.height / pxH, 0, 0],
     );
-    final full = _composeAffine(
-      <double>[m[0], m[1], m[2], m[3], m[4], m[5]],
-      toPatternLocal,
-    );
+    final full = _composeAffine(<double>[
+      m[0],
+      m[1],
+      m[2],
+      m[3],
+      m[4],
+      m[5],
+    ], toPatternLocal);
     return ui.ImageShader(
       image,
       TileMode.repeated,
@@ -425,21 +452,24 @@ class RustSvgPictureCache {
   /// 合成两个 `[a, b, c, d, e, f]` 仿射变换（`x' = a·x + c·y + e`，
   /// `y' = b·x + d·y + f`），返回 `first ∘ second`——先作用 [second]，再作用
   /// [first]。
-  List<double> _composeAffine(List<double> first, List<double> second) => <double>[
-    first[0] * second[0] + first[2] * second[1],
-    first[1] * second[0] + first[3] * second[1],
-    first[0] * second[2] + first[2] * second[3],
-    first[1] * second[2] + first[3] * second[3],
-    first[0] * second[4] + first[2] * second[5] + first[4],
-    first[1] * second[4] + first[3] * second[5] + first[5],
-  ];
+  List<double> _composeAffine(List<double> first, List<double> second) =>
+      <double>[
+        first[0] * second[0] + first[2] * second[1],
+        first[1] * second[0] + first[3] * second[1],
+        first[0] * second[2] + first[2] * second[3],
+        first[1] * second[2] + first[3] * second[3],
+        first[0] * second[4] + first[2] * second[5] + first[4],
+        first[1] * second[4] + first[3] * second[5] + first[5],
+      ];
 
   /// Replays an [SvgClip]'s verbs/points into a [ui.Path] usable with
   /// [Canvas.clipPath]. / 把 [SvgClip] 的动词/坐标重放为可供
   /// [Canvas.clipPath] 使用的 [ui.Path]。
   ui.Path _toUiClipPath(SvgClip clip) {
     final path = _replay(clip.verbs, clip.points);
-    path.fillType = clip.evenOdd ? ui.PathFillType.evenOdd : ui.PathFillType.nonZero;
+    path.fillType = clip.evenOdd
+        ? ui.PathFillType.evenOdd
+        : ui.PathFillType.nonZero;
     return path;
   }
 
@@ -488,15 +518,29 @@ class RustSvgPictureCache {
     // ui.Gradient 至少需要 2 个颜色；单色标渐变（SVG 语法允许，虽属退化用法）
     // 通过复制该色标渲染为该颜色的纯色，而非直接崩溃。
     if (colors.length < 2) {
-      colors = colors.isEmpty ? const [Color(0xFF000000), Color(0xFF000000)] : [colors[0], colors[0]];
+      colors = colors.isEmpty
+          ? const [Color(0xFF000000), Color(0xFF000000)]
+          : [colors[0], colors[0]];
     }
     if (gradient.kind == 1) {
       final m = gradient.matrix;
       final matrix4 = Float64List.fromList(<double>[
-        m[0], m[1], 0, 0,
-        m[2], m[3], 0, 0,
-        0, 0, 1, 0,
-        m[4], m[5], 0, 1,
+        m[0],
+        m[1],
+        0,
+        0,
+        m[2],
+        m[3],
+        0,
+        0,
+        0,
+        0,
+        1,
+        0,
+        m[4],
+        m[5],
+        0,
+        1,
       ]);
       return ui.Gradient.radial(
         Offset(gradient.x2, gradient.y2),
@@ -542,7 +586,12 @@ class RustSvgPictureCache {
           uiPath.lineTo(points[i], points[i + 1]);
           i += 2;
         case 2: // quad
-          uiPath.quadraticBezierTo(points[i], points[i + 1], points[i + 2], points[i + 3]);
+          uiPath.quadraticBezierTo(
+            points[i],
+            points[i + 1],
+            points[i + 2],
+            points[i + 3],
+          );
           i += 4;
         case 3: // cubic
           uiPath.cubicTo(
@@ -631,7 +680,10 @@ class SvgXStatic extends StatelessWidget {
   //
   // 廉价语法级嗅探（思路同 AnimationDetector），让绝大多数无图片的场景保持
   // 全同步 build 路径、零额外开销——只有可能内嵌位图的源才走下面的异步分支。
-  static final RegExp _imagePattern = RegExp(r'<image[\s>]', caseSensitive: false);
+  static final RegExp _imagePattern = RegExp(
+    r'<image[\s>]',
+    caseSensitive: false,
+  );
 
   @override
   Widget build(BuildContext context) {
@@ -645,7 +697,11 @@ class SvgXStatic extends StatelessWidget {
       ),
       builder: (context, snapshot) {
         if (snapshot.hasError) {
-          return errorBuilder?.call(context, snapshot.error!, snapshot.stackTrace ?? StackTrace.empty) ??
+          return errorBuilder?.call(
+                context,
+                snapshot.error!,
+                snapshot.stackTrace ?? StackTrace.empty,
+              ) ??
               SizedBox(width: width, height: height);
         }
         if (!snapshot.hasData) {
@@ -669,7 +725,8 @@ class SvgXStatic extends StatelessWidget {
         currentColorArgb: theme?.currentColor.toARGB32(),
       );
     } catch (error, stackTrace) {
-      return errorBuilder?.call(context, error, stackTrace) ?? SizedBox(width: width, height: height);
+      return errorBuilder?.call(context, error, stackTrace) ??
+          SizedBox(width: width, height: height);
     }
     return _buildFromInfo(context, info);
   }

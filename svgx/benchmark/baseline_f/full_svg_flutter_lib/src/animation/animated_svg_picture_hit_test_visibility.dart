@@ -560,9 +560,8 @@ extension _AnimatedSvgPictureStateHitTestVisibilityExtension
     }
 
     // Handle rgb() function
-    final rgbMatch = RegExp(
-      r'rgb\s*\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*\)',
-    ).firstMatch(colorStr);
+    final rgbMatch = RegExp(r'rgb\s*\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*\)')
+        .firstMatch(colorStr);
     if (rgbMatch != null) {
       final r = int.tryParse(rgbMatch.group(1)!);
       final g = int.tryParse(rgbMatch.group(2)!);

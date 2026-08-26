@@ -119,7 +119,12 @@ class AnimatedSvgPainter extends CustomPainter {
   /// [clipPaths]/[masks]）绘制的内容：SVG 的嵌套 mask/clip 不在范围内，因此
   /// 嵌套内容自身永不再查找 `clip-path`/`mask` 引用（最近祖先的裁剪/遮罩已经
   /// 生效）——见 svgx CLAUDE.md 任务记录。
-  void _paintNode(Canvas canvas, SvgNode node, ResolvedStyle inherited, {bool nested = false}) {
+  void _paintNode(
+    Canvas canvas,
+    SvgNode node,
+    ResolvedStyle inherited, {
+    bool nested = false,
+  }) {
     final effectiveAttributes = Map<String, String>.of(node.attributes);
     for (final animation in node.animations) {
       final sampled = animation.sample(time);
@@ -147,7 +152,11 @@ class AnimatedSvgPainter extends CustomPainter {
     if (blurSigma != null && blurSigma > 0) {
       canvas.saveLayer(
         null,
-        Paint()..imageFilter = ui.ImageFilter.blur(sigmaX: blurSigma, sigmaY: blurSigma),
+        Paint()
+          ..imageFilter = ui.ImageFilter.blur(
+            sigmaX: blurSigma,
+            sigmaY: blurSigma,
+          ),
       );
     }
     // The destination layer mask content composites into via BlendMode.dstIn
@@ -180,7 +189,9 @@ class AnimatedSvgPainter extends CustomPainter {
     // 元素自身的静态 transform="..." 先应用；SVG 语义下 <animateTransform>
     // 叠加在它之上。
     final staticTransform = node.transform;
-    if (staticTransform != null) canvas.transform(_affineToMatrix4(staticTransform));
+    if (staticTransform != null) {
+      canvas.transform(_affineToMatrix4(staticTransform));
+    }
     for (final transformAnimation in node.transformAnimations) {
       final sampled = transformAnimation.sample(time);
       if (sampled == null) continue; // not started / ended without freeze
@@ -199,10 +210,28 @@ class AnimatedSvgPainter extends CustomPainter {
           canvas.translate(-cx, -cy);
         case SmilTransformType.skewX:
           // skewX(a) = matrix(1, 0, tan(a), 1, 0, 0)
-          canvas.transform(_affineToMatrix4([1, 0, math.tan(sampled[0] * math.pi / 180), 1, 0, 0]));
+          canvas.transform(
+            _affineToMatrix4([
+              1,
+              0,
+              math.tan(sampled[0] * math.pi / 180),
+              1,
+              0,
+              0,
+            ]),
+          );
         case SmilTransformType.skewY:
           // skewY(a) = matrix(1, tan(a), 0, 1, 0, 0)
-          canvas.transform(_affineToMatrix4([1, math.tan(sampled[0] * math.pi / 180), 0, 1, 0, 0]));
+          canvas.transform(
+            _affineToMatrix4([
+              1,
+              math.tan(sampled[0] * math.pi / 180),
+              0,
+              1,
+              0,
+              0,
+            ]),
+          );
       }
     }
     // <animateMotion> composes on top of the element's other transforms (SVG
@@ -214,7 +243,9 @@ class AnimatedSvgPainter extends CustomPainter {
       final sampled = motion.sample(time);
       if (sampled == null) continue;
       canvas.translate(sampled.x, sampled.y);
-      if (sampled.angleDegrees != 0) canvas.rotate(sampled.angleDegrees * math.pi / 180);
+      if (sampled.angleDegrees != 0) {
+        canvas.rotate(sampled.angleDegrees * math.pi / 180);
+      }
     }
     _paintNodeContent(canvas, node, style, effectiveAttributes);
     canvas.restore(); // closes the transform save() a few lines above
@@ -283,14 +314,19 @@ class AnimatedSvgPainter extends CustomPainter {
       final effectiveAttributes = Map<String, String>.of(node.attributes);
       for (final animation in node.animations) {
         final sampled = animation.sample(time);
-        if (sampled != null) effectiveAttributes[animation.attributeName] = sampled.toString();
+        if (sampled != null) {
+          effectiveAttributes[animation.attributeName] = sampled.toString();
+        }
       }
       var accum = matrix;
       if (node.transform != null) accum = _concatAffine(accum, node.transform!);
       for (final transformAnimation in node.transformAnimations) {
         final sampled = transformAnimation.sample(time);
         if (sampled == null) continue;
-        accum = _concatAffine(accum, _transformSampleToAffine(transformAnimation.type, sampled));
+        accum = _concatAffine(
+          accum,
+          _transformSampleToAffine(transformAnimation.type, sampled),
+        );
       }
 
       if (node.kind == SvgNodeKind.root || node.kind == SvgNodeKind.group) {
@@ -321,7 +357,10 @@ class AnimatedSvgPainter extends CustomPainter {
   /// 的 `switch (transformAnimation.type)`）等价，只是以可组合矩阵而非直接
   /// canvas 调用的形式——[_resolveClipPath] 需要它，因为它构建的是 `ui.Path`
   /// 而非发出 canvas 指令。
-  static List<double> _transformSampleToAffine(SmilTransformType type, List<double> sampled) {
+  static List<double> _transformSampleToAffine(
+    SmilTransformType type,
+    List<double> sampled,
+  ) {
     switch (type) {
       case SmilTransformType.translate:
         return [1, 0, 0, 1, sampled[0], sampled[1]];
@@ -331,7 +370,10 @@ class AnimatedSvgPainter extends CustomPainter {
         final rad = sampled[0] * math.pi / 180;
         final cosr = math.cos(rad), sinr = math.sin(rad);
         final cx = sampled[1], cy = sampled[2];
-        final rotation = _concatAffine([1, 0, 0, 1, cx, cy], [cosr, sinr, -sinr, cosr, 0, 0]);
+        final rotation = _concatAffine(
+          [1, 0, 0, 1, cx, cy],
+          [cosr, sinr, -sinr, cosr, 0, 0],
+        );
         return _concatAffine(rotation, [1, 0, 0, 1, -cx, -cy]);
       case SmilTransformType.skewX:
         return [1, 0, math.tan(sampled[0] * math.pi / 180), 1, 0, 0];
@@ -349,13 +391,13 @@ class AnimatedSvgPainter extends CustomPainter {
   /// `svg_gradient.dart` 私有的 `_concat` 公式相同，单独保留是因为这是六行的
   /// 自包含公式，不值得为此引入共享工具导入。
   static List<double> _concatAffine(List<double> a, List<double> b) => [
-        a[0] * b[0] + a[2] * b[1],
-        a[1] * b[0] + a[3] * b[1],
-        a[0] * b[2] + a[2] * b[3],
-        a[1] * b[2] + a[3] * b[3],
-        a[0] * b[4] + a[2] * b[5] + a[4],
-        a[1] * b[4] + a[3] * b[5] + a[5],
-      ];
+    a[0] * b[0] + a[2] * b[1],
+    a[1] * b[0] + a[3] * b[1],
+    a[0] * b[2] + a[2] * b[3],
+    a[1] * b[2] + a[3] * b[3],
+    a[0] * b[4] + a[2] * b[5] + a[4],
+    a[1] * b[4] + a[3] * b[5] + a[5],
+  ];
 
   // [attributes] is the element's *animated* attribute map (node.attributes
   // with any sampled <animate> values overlaid — see _paintNode) — geometry
@@ -367,7 +409,12 @@ class AnimatedSvgPainter extends CustomPainter {
   // <animate> 值——见 _paintNode）——几何读取必须用它，不能直接读
   // node.attributes，否则 attributeName 指向几何属性
   // （x/y/cx/cy/r/width/height/……）的 <animate> 会被静默地画不出效果。
-  void _paintNodeContent(Canvas canvas, SvgNode node, ResolvedStyle style, Map<String, String> attributes) {
+  void _paintNodeContent(
+    Canvas canvas,
+    SvgNode node,
+    ResolvedStyle style,
+    Map<String, String> attributes,
+  ) {
     switch (node.kind) {
       case SvgNodeKind.root:
       case SvgNodeKind.group:
@@ -387,7 +434,9 @@ class AnimatedSvgPainter extends CustomPainter {
         _paintText(canvas, node, style, attributes);
       case SvgNodeKind.image:
         final img = node.resolvedImage;
-        if (img == null) return; // not yet decoded / failed to decode: skip silently
+        if (img == null) {
+          return; // not yet decoded / failed to decode: skip silently
+        }
         final x = double.tryParse(attributes['x'] ?? '0') ?? 0;
         final y = double.tryParse(attributes['y'] ?? '0') ?? 0;
         final w = double.tryParse(attributes['width'] ?? '0') ?? 0;
@@ -430,13 +479,16 @@ class AnimatedSvgPainter extends CustomPainter {
         final cx = double.tryParse(attributes['cx'] ?? '0') ?? 0;
         final cy = double.tryParse(attributes['cy'] ?? '0') ?? 0;
         final r = double.tryParse(attributes['r'] ?? '0') ?? 0;
-        return ui.Path()..addOval(Rect.fromCircle(center: Offset(cx, cy), radius: r));
+        return ui.Path()
+          ..addOval(Rect.fromCircle(center: Offset(cx, cy), radius: r));
       case SvgNodeKind.rect:
         final x = double.tryParse(attributes['x'] ?? '0') ?? 0;
         final y = double.tryParse(attributes['y'] ?? '0') ?? 0;
         final w = double.tryParse(attributes['width'] ?? '0') ?? 0;
         final h = double.tryParse(attributes['height'] ?? '0') ?? 0;
-        if (w <= 0 || h <= 0) return null; // SVG: non-positive size renders nothing
+        if (w <= 0 || h <= 0) {
+          return null; // SVG: non-positive size renders nothing
+        }
         var rx = double.tryParse(attributes['rx'] ?? '');
         var ry = double.tryParse(attributes['ry'] ?? '');
         rx ??= ry;
@@ -446,7 +498,10 @@ class AnimatedSvgPainter extends CustomPainter {
           final clampedRx = rx > w / 2 ? w / 2 : rx;
           final clampedRy = ry > h / 2 ? h / 2 : ry;
           path.addRRect(
-            RRect.fromRectAndRadius(Rect.fromLTWH(x, y, w, h), Radius.elliptical(clampedRx, clampedRy)),
+            RRect.fromRectAndRadius(
+              Rect.fromLTWH(x, y, w, h),
+              Radius.elliptical(clampedRx, clampedRy),
+            ),
           );
         } else {
           path.addRect(Rect.fromLTWH(x, y, w, h));
@@ -457,7 +512,13 @@ class AnimatedSvgPainter extends CustomPainter {
         final cy = double.tryParse(attributes['cy'] ?? '0') ?? 0;
         final rx = double.tryParse(attributes['rx'] ?? '0') ?? 0;
         final ry = double.tryParse(attributes['ry'] ?? '0') ?? 0;
-        return ui.Path()..addOval(Rect.fromCenter(center: Offset(cx, cy), width: rx * 2, height: ry * 2));
+        return ui.Path()..addOval(
+          Rect.fromCenter(
+            center: Offset(cx, cy),
+            width: rx * 2,
+            height: ry * 2,
+          ),
+        );
       case SvgNodeKind.line:
         final x1 = double.tryParse(attributes['x1'] ?? '0') ?? 0;
         final y1 = double.tryParse(attributes['y1'] ?? '0') ?? 0;
@@ -500,7 +561,12 @@ class AnimatedSvgPainter extends CustomPainter {
   ///
   /// `x`/`y` 是 SVG 文本在*基线*上的锚点；[TextPainter] 从左上角原点开始绘制，
   /// 因此垂直偏移通过 [TextPainter.computeDistanceToActualBaseline] 校正。
-  void _paintText(Canvas canvas, SvgNode node, ResolvedStyle style, Map<String, String> attributes) {
+  void _paintText(
+    Canvas canvas,
+    SvgNode node,
+    ResolvedStyle style,
+    Map<String, String> attributes,
+  ) {
     final content = node.textContent;
     if (content == null || content.isEmpty || style.opacity <= 0) return;
     final fill = style.fill;
@@ -527,7 +593,9 @@ class AnimatedSvgPainter extends CustomPainter {
       'end' => -painter.width,
       _ => 0.0,
     };
-    final baseline = painter.computeDistanceToActualBaseline(TextBaseline.alphabetic);
+    final baseline = painter.computeDistanceToActualBaseline(
+      TextBaseline.alphabetic,
+    );
     painter.paint(canvas, Offset(x + dx, y - baseline));
   }
 
@@ -550,7 +618,11 @@ class AnimatedSvgPainter extends CustomPainter {
     if (id == null) return null;
     final def = gradients[id];
     if (def == null) return null;
-    return buildGradientShader(resampleGradientAtTime(def, time), path.getBounds(), opacity);
+    return buildGradientShader(
+      resampleGradientAtTime(def, time),
+      path.getBounds(),
+      opacity,
+    );
   }
 
   /// Expands an SVG affine `[a, b, c, d, e, f]` into the column-major 4x4
@@ -573,7 +645,11 @@ class AnimatedSvgPainter extends CustomPainter {
 
   void _paintShape(Canvas canvas, ui.Path path, ResolvedStyle style) {
     if (style.opacity <= 0) return;
-    final fillShader = _gradientShader(style.fillGradientId, path, style.opacity);
+    final fillShader = _gradientShader(
+      style.fillGradientId,
+      path,
+      style.opacity,
+    );
     if (fillShader != null) {
       canvas.drawPath(
         path,
@@ -586,15 +662,25 @@ class AnimatedSvgPainter extends CustomPainter {
         path,
         Paint()
           ..style = PaintingStyle.fill
-          ..color = style.fill!.withValues(alpha: style.fill!.a * style.opacity),
+          ..color = style.fill!.withValues(
+            alpha: style.fill!.a * style.opacity,
+          ),
       );
     }
-    final strokeShader = _gradientShader(style.strokeGradientId, path, style.opacity);
+    final strokeShader = _gradientShader(
+      style.strokeGradientId,
+      path,
+      style.opacity,
+    );
     if (strokeShader != null && style.strokeWidth > 0) {
       canvas.drawPath(
         style.strokeDasharray.isEmpty
             ? path
-            : dashPath(path, dashArray: style.strokeDasharray, dashOffset: style.strokeDashoffset),
+            : dashPath(
+                path,
+                dashArray: style.strokeDasharray,
+                dashOffset: style.strokeDashoffset,
+              ),
         Paint()
           ..style = PaintingStyle.stroke
           ..shader = strokeShader
@@ -605,19 +691,20 @@ class AnimatedSvgPainter extends CustomPainter {
       return;
     }
     if (style.stroke != null && style.strokeWidth > 0) {
-      final strokePath =
-          style.strokeDasharray.isEmpty
-              ? path
-              : dashPath(
-                  path,
-                  dashArray: style.strokeDasharray,
-                  dashOffset: style.strokeDashoffset,
-                );
+      final strokePath = style.strokeDasharray.isEmpty
+          ? path
+          : dashPath(
+              path,
+              dashArray: style.strokeDasharray,
+              dashOffset: style.strokeDashoffset,
+            );
       canvas.drawPath(
         strokePath,
         Paint()
           ..style = PaintingStyle.stroke
-          ..color = style.stroke!.withValues(alpha: style.stroke!.a * style.opacity)
+          ..color = style.stroke!.withValues(
+            alpha: style.stroke!.a * style.opacity,
+          )
           ..strokeWidth = style.strokeWidth
           ..strokeCap = style.strokeLinecap
           ..strokeJoin = style.strokeLinejoin,

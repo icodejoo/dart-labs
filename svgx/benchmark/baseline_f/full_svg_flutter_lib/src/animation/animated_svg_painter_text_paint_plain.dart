@@ -201,9 +201,8 @@ extension AnimatedSvgPainterTextPlainExtension on AnimatedSvgPainter {
         final shaderPaint = ui.Paint()
           ..style = ui.PaintingStyle.fill
           ..shader = shader
-          ..color = const ui.Color(
-            0xFFFFFFFF,
-          ).withValues(alpha: effectiveStyle.color.a);
+          ..color = const ui.Color(0xFFFFFFFF)
+              .withValues(alpha: effectiveStyle.color.a);
         final shaderParagraph = _buildTextParagraph(
           text,
           effectiveStyle,

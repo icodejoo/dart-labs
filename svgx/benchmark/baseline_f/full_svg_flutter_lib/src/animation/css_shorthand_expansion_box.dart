@@ -615,7 +615,6 @@ bool _isOffsetRotate(String value) {
   final lower = value.toLowerCase();
   if (rotateKeywords.contains(lower)) return true;
   // Check for angle values
-  return RegExp(
-    r'^[+-]?(\d+\.?\d*|\.\d+)(deg|rad|grad|turn)?$',
-  ).hasMatch(value);
+  return RegExp(r'^[+-]?(\d+\.?\d*|\.\d+)(deg|rad|grad|turn)?$')
+      .hasMatch(value);
 }

@@ -49,8 +49,14 @@ class AnimationDetector {
   // animation_detector.dart`），它已经用分标签正则规避了这个坑；具体正则是
   // 针对本引擎更小的支持标签集（不含 CSS 检测——见 svgx CLAUDE.md 的 CSS
   // 章节）重新写的。
-  static final RegExp _animatePattern = RegExp(r'<animate[\s>]', caseSensitive: false);
-  static final RegExp _animateTransformPattern = RegExp(r'<animateTransform[\s>]', caseSensitive: false);
+  static final RegExp _animatePattern = RegExp(
+    r'<animate[\s>]',
+    caseSensitive: false,
+  );
+  static final RegExp _animateTransformPattern = RegExp(
+    r'<animateTransform[\s>]',
+    caseSensitive: false,
+  );
   // `<animateMotion>` hits the exact same "animate" + immediately-following
   // capital letter pitfall as `<animateTransform>` (see the class doc above)
   // — it was missing here entirely, which silently routed animateMotion-only
@@ -63,7 +69,10 @@ class AnimationDetector {
   // `<animateMotion>` 的 SVG 被静默路由去静态 usvg 路径（usvg 会丢弃 SMIL，
   // 元素直接静止不动）。2026-08-25 排查 example 应用的 `<animateMotion>` 示例
   // 不动时发现。
-  static final RegExp _animateMotionPattern = RegExp(r'<animateMotion[\s>]', caseSensitive: false);
+  static final RegExp _animateMotionPattern = RegExp(
+    r'<animateMotion[\s>]',
+    caseSensitive: false,
+  );
   static final RegExp _setPattern = RegExp(r'<set[\s>]', caseSensitive: false);
 
   /// Returns true if [source] contains a SMIL `<animate>`,

@@ -286,9 +286,8 @@ extension AnimatedSvgPainterTextStyleFontExtension on AnimatedSvgPainter {
 
       // Parse feature tag and value
       // Format: "'tag'" or "'tag' value" or '"tag" value'
-      final match = RegExp(
-        r'''['"]([a-zA-Z0-9]{4})['"](?:\s+(\d+|on|off))?''',
-      ).firstMatch(trimmed);
+      final match = RegExp(r'''['"]([a-zA-Z0-9]{4})['"](?:\s+(\d+|on|off))?''')
+          .firstMatch(trimmed);
 
       if (match != null) {
         final tag = match.group(1)!;

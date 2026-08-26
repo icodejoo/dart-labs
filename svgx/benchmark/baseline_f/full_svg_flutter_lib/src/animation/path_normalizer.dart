@@ -7,6 +7,7 @@
 library;
 
 import 'dart:math' as math;
+
 import 'path_data.dart';
 part 'path_normalizer_alignment.dart';
 part 'path_normalizer_curves.dart';

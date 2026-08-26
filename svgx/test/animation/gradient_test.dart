@@ -18,8 +18,8 @@ import 'package:svgx/src/animation/svg_style.dart';
 import 'package:svgx/src/animation/svg_theme.dart';
 
 SvgDocument _parse(String body) => parseAnimatedSvgDocument(
-      '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24">$body</svg>',
-    );
+  '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24">$body</svg>',
+);
 
 void main() {
   group('gradient definitions', () {
@@ -40,7 +40,11 @@ void main() {
       expect(def.stops.last.color.a, closeTo(0.5, 0.01));
       expect(def.x2, 1);
       expect(def.y2, 1);
-      expect(def.objectBoundingBox, isTrue, reason: 'SVG default gradientUnits');
+      expect(
+        def.objectBoundingBox,
+        isTrue,
+        reason: 'SVG default gradientUnits',
+      );
       expect(def.tileMode, TileMode.clamp);
     });
 
@@ -110,26 +114,32 @@ void main() {
         '</linearGradient></defs>',
       );
 
-      expect(document.gradients['g']!.stops.first.color, const Color(0xFF123456));
+      expect(
+        document.gradients['g']!.stops.first.color,
+        const Color(0xFF123456),
+      );
     });
   });
 
   group('animated gradients', () {
-    test('an <animate> on a gradient attribute resamples geometry per frame', () {
-      final document = _parse(
-        '<defs><linearGradient id="g" x1="0" y1="0" x2="0" y2="0">'
-        '<animate attributeName="x2" from="0" to="1" dur="1s" fill="freeze"/>'
-        '<stop offset="0" stop-color="#FF0000"/><stop offset="1" stop-color="#0000FF"/>'
-        '</linearGradient></defs>',
-      );
-      final def = document.gradients['g']!;
+    test(
+      'an <animate> on a gradient attribute resamples geometry per frame',
+      () {
+        final document = _parse(
+          '<defs><linearGradient id="g" x1="0" y1="0" x2="0" y2="0">'
+          '<animate attributeName="x2" from="0" to="1" dur="1s" fill="freeze"/>'
+          '<stop offset="0" stop-color="#FF0000"/><stop offset="1" stop-color="#0000FF"/>'
+          '</linearGradient></defs>',
+        );
+        final def = document.gradients['g']!;
 
-      final atStart = resampleGradientAtTime(def, Duration.zero);
-      expect(atStart.x2, 0);
+        final atStart = resampleGradientAtTime(def, Duration.zero);
+        expect(atStart.x2, 0);
 
-      final atEnd = resampleGradientAtTime(def, const Duration(seconds: 2));
-      expect(atEnd.x2, 1);
-    });
+        final atEnd = resampleGradientAtTime(def, const Duration(seconds: 2));
+        expect(atEnd.x2, 1);
+      },
+    );
 
     test('an <animate attributeName="stop-color"> on a <stop> resamples its colour', () {
       final document = _parse(
@@ -149,78 +159,115 @@ void main() {
       expect(atEnd.stops.first.color, const Color(0xFFFFFFFF));
     });
 
-    test('an <animate attributeName="stop-opacity"> resamples the stop\'s alpha', () {
-      final document = _parse(
-        '<defs><linearGradient id="g">'
-        '<stop offset="0" stop-color="#FF0000">'
-        '<animate attributeName="stop-opacity" from="0" to="1" dur="1s" fill="freeze"/>'
-        '</stop>'
-        '<stop offset="1" stop-color="#0000FF"/>'
-        '</linearGradient></defs>',
-      );
-      final def = document.gradients['g']!;
+    test(
+      'an <animate attributeName="stop-opacity"> resamples the stop\'s alpha',
+      () {
+        final document = _parse(
+          '<defs><linearGradient id="g">'
+          '<stop offset="0" stop-color="#FF0000">'
+          '<animate attributeName="stop-opacity" from="0" to="1" dur="1s" fill="freeze"/>'
+          '</stop>'
+          '<stop offset="1" stop-color="#0000FF"/>'
+          '</linearGradient></defs>',
+        );
+        final def = document.gradients['g']!;
 
-      final atStart = resampleGradientAtTime(def, Duration.zero);
-      expect(atStart.stops.first.color.a, closeTo(0, 0.01));
+        final atStart = resampleGradientAtTime(def, Duration.zero);
+        expect(atStart.stops.first.color.a, closeTo(0, 0.01));
 
-      final atEnd = resampleGradientAtTime(def, const Duration(seconds: 2));
-      expect(atEnd.stops.first.color.a, closeTo(1, 0.01));
-    });
+        final atEnd = resampleGradientAtTime(def, const Duration(seconds: 2));
+        expect(atEnd.stops.first.color.a, closeTo(1, 0.01));
+      },
+    );
 
-    test('calcMode="discrete" on stop-color holds each keyframe, no blending', () {
-      final document = _parse(
-        '<defs><linearGradient id="g">'
-        '<stop offset="0" stop-color="#000000">'
-        '<animate attributeName="stop-color" values="#000000;#FFFFFF" calcMode="discrete" '
-        'dur="1s" fill="freeze"/>'
-        '</stop>'
-        '<stop offset="1" stop-color="#0000FF"/>'
-        '</linearGradient></defs>',
-      );
-      final def = document.gradients['g']!;
+    test(
+      'calcMode="discrete" on stop-color holds each keyframe, no blending',
+      () {
+        final document = _parse(
+          '<defs><linearGradient id="g">'
+          '<stop offset="0" stop-color="#000000">'
+          '<animate attributeName="stop-color" values="#000000;#FFFFFF" calcMode="discrete" '
+          'dur="1s" fill="freeze"/>'
+          '</stop>'
+          '<stop offset="1" stop-color="#0000FF"/>'
+          '</linearGradient></defs>',
+        );
+        final def = document.gradients['g']!;
 
-      final midway = resampleGradientAtTime(def, const Duration(milliseconds: 400));
-      expect(midway.stops.first.color, const Color(0xFF000000));
-    });
+        final midway = resampleGradientAtTime(
+          def,
+          const Duration(milliseconds: 400),
+        );
+        expect(midway.stops.first.color, const Color(0xFF000000));
+      },
+    );
 
-    test('a gradient with no animations resamples to an unchanged def (fast path)', () {
-      final document = _parse(
-        '<defs><linearGradient id="g">'
-        '<stop offset="0" stop-color="#FF0000"/><stop offset="1" stop-color="#0000FF"/>'
-        '</linearGradient></defs>',
-      );
-      final def = document.gradients['g']!;
+    test(
+      'a gradient with no animations resamples to an unchanged def (fast path)',
+      () {
+        final document = _parse(
+          '<defs><linearGradient id="g">'
+          '<stop offset="0" stop-color="#FF0000"/><stop offset="1" stop-color="#0000FF"/>'
+          '</linearGradient></defs>',
+        );
+        final def = document.gradients['g']!;
 
-      expect(identical(resampleGradientAtTime(def, const Duration(seconds: 1)), def), isTrue);
-    });
+        expect(
+          identical(
+            resampleGradientAtTime(def, const Duration(seconds: 1)),
+            def,
+          ),
+          isTrue,
+        );
+      },
+    );
 
-    test('a def built without animatedNode (e.g. directly in a test) is untouched', () {
-      const def = SvgGradientDef(
-        radial: false,
-        objectBoundingBox: true,
-        tileMode: TileMode.clamp,
-        stops: [SvgGradientStop(0, Color(0xFFFF0000)), SvgGradientStop(1, Color(0xFF0000FF))],
-      );
+    test(
+      'a def built without animatedNode (e.g. directly in a test) is untouched',
+      () {
+        const def = SvgGradientDef(
+          radial: false,
+          objectBoundingBox: true,
+          tileMode: TileMode.clamp,
+          stops: [
+            SvgGradientStop(0, Color(0xFFFF0000)),
+            SvgGradientStop(1, Color(0xFF0000FF)),
+          ],
+        );
 
-      expect(identical(resampleGradientAtTime(def, const Duration(seconds: 1)), def), isTrue);
-    });
+        expect(
+          identical(
+            resampleGradientAtTime(def, const Duration(seconds: 1)),
+            def,
+          ),
+          isTrue,
+        );
+      },
+    );
   });
 
   group('paint wiring', () {
-    test('fill="url(#id)" resolves to a gradient id on the style, not a colour', () {
-      final style = ResolvedStyle.initial.inherit(
-        {'fill': 'url(#g)', 'stroke': 'url("#s")'},
-        const SvgTheme(),
-      );
+    test(
+      'fill="url(#id)" resolves to a gradient id on the style, not a colour',
+      () {
+        final style = ResolvedStyle.initial.inherit({
+          'fill': 'url(#g)',
+          'stroke': 'url("#s")',
+        }, const SvgTheme());
 
-      expect(style.fillGradientId, 'g');
-      expect(style.strokeGradientId, 's');
-      expect(style.fill, isNull);
-    });
+        expect(style.fillGradientId, 'g');
+        expect(style.strokeGradientId, 's');
+        expect(style.fill, isNull);
+      },
+    );
 
     test('a plain colour clears any inherited gradient reference', () {
-      final withGradient = ResolvedStyle.initial.inherit({'fill': 'url(#g)'}, const SvgTheme());
-      final overridden = withGradient.inherit({'fill': '#00FF00'}, const SvgTheme());
+      final withGradient = ResolvedStyle.initial.inherit({
+        'fill': 'url(#g)',
+      }, const SvgTheme());
+      final overridden = withGradient.inherit({
+        'fill': '#00FF00',
+      }, const SvgTheme());
 
       expect(overridden.fillGradientId, isNull);
       expect(overridden.fill, const Color(0xFF00FF00));
@@ -239,11 +286,17 @@ void main() {
     );
 
     test('builds a shader over a real bounding box', () {
-      expect(buildGradientShader(def, const Rect.fromLTWH(0, 0, 10, 10), 1), isNotNull);
+      expect(
+        buildGradientShader(def, const Rect.fromLTWH(0, 0, 10, 10), 1),
+        isNotNull,
+      );
     });
 
     test('returns null for a degenerate bounding box', () {
-      expect(buildGradientShader(def, const Rect.fromLTWH(0, 0, 0, 10), 1), isNull);
+      expect(
+        buildGradientShader(def, const Rect.fromLTWH(0, 0, 0, 10), 1),
+        isNull,
+      );
     });
 
     test('tolerates duplicate/non-increasing stop offsets', () {
@@ -259,7 +312,10 @@ void main() {
         ],
       );
 
-      expect(buildGradientShader(hardEdge, const Rect.fromLTWH(0, 0, 10, 10), 1), isNotNull);
+      expect(
+        buildGradientShader(hardEdge, const Rect.fromLTWH(0, 0, 10, 10), 1),
+        isNotNull,
+      );
     });
 
     test('a single-stop gradient still builds', () {
@@ -270,7 +326,10 @@ void main() {
         stops: [SvgGradientStop(0, Color(0xFFFF0000))],
       );
 
-      expect(buildGradientShader(single, const Rect.fromLTWH(0, 0, 10, 10), 1), isNotNull);
+      expect(
+        buildGradientShader(single, const Rect.fromLTWH(0, 0, 10, 10), 1),
+        isNotNull,
+      );
     });
   });
 }

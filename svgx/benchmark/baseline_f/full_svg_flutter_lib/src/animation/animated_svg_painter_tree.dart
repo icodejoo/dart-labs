@@ -1194,12 +1194,11 @@ ui.Color? _resolveFilterPaintSourceColorImpl(
   return painter._applyOpacity(color, opacity * paintOpacity);
 }
 
-typedef _FilterSourcePainter =
-    void Function({
-      ui.ImageFilter? imageFilter,
-      ui.ColorFilter? colorFilter,
-      ui.BlendMode? blendMode,
-    });
+typedef _FilterSourcePainter = void Function({
+  ui.ImageFilter? imageFilter,
+  ui.ColorFilter? colorFilter,
+  ui.BlendMode? blendMode,
+});
 
 class _FilterRenderTarget {
   const _FilterRenderTarget({

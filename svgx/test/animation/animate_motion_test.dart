@@ -16,8 +16,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:svgx/src/animation/svg_document_parser.dart';
 
 SvgDocument _parse(String body) => parseAnimatedSvgDocument(
-      '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24">$body</svg>',
-    );
+  '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24">$body</svg>',
+);
 
 void main() {
   group('<animateMotion>', () {
@@ -30,9 +30,15 @@ void main() {
       final motion = document.root.children.single.motionAnimations.single;
 
       expect(motion.sample(Duration.zero)!.x, closeTo(0, 0.5));
-      expect(motion.sample(const Duration(milliseconds: 500))!.x, closeTo(50, 0.5));
+      expect(
+        motion.sample(const Duration(milliseconds: 500))!.x,
+        closeTo(50, 0.5),
+      );
       expect(motion.sample(const Duration(seconds: 2))!.x, closeTo(100, 0.5));
-      expect(motion.sample(const Duration(milliseconds: 500))!.y, closeTo(0, 0.5));
+      expect(
+        motion.sample(const Duration(milliseconds: 500))!.y,
+        closeTo(0, 0.5),
+      );
     });
 
     test('motion is paced by length, not by segment count', () {
@@ -96,7 +102,10 @@ void main() {
       final motion = document.root.children.single.motionAnimations.single;
 
       // Straight down: the tangent points at +90 degrees.
-      expect(motion.sample(const Duration(milliseconds: 500))!.angleDegrees, closeTo(90, 1));
+      expect(
+        motion.sample(const Duration(milliseconds: 500))!.angleDegrees,
+        closeTo(90, 1),
+      );
     });
 
     test('rotate="auto-reverse" faces the other way', () {
@@ -107,7 +116,10 @@ void main() {
       );
       final motion = document.root.children.single.motionAnimations.single;
 
-      expect(motion.sample(const Duration(milliseconds: 500))!.angleDegrees, closeTo(270, 1));
+      expect(
+        motion.sample(const Duration(milliseconds: 500))!.angleDegrees,
+        closeTo(270, 1),
+      );
     });
 
     test('a numeric rotate is a constant angle; the default is none', () {
@@ -122,8 +134,14 @@ void main() {
         '</circle>',
       ).root.children.single.motionAnimations.single;
 
-      expect(withAngle.sample(const Duration(milliseconds: 500))!.angleDegrees, 45);
-      expect(withoutAngle.sample(const Duration(milliseconds: 500))!.angleDegrees, 0);
+      expect(
+        withAngle.sample(const Duration(milliseconds: 500))!.angleDegrees,
+        45,
+      );
+      expect(
+        withoutAngle.sample(const Duration(milliseconds: 500))!.angleDegrees,
+        0,
+      );
     });
 
     test('without fill="freeze" the motion stops applying once it ends', () {
@@ -137,47 +155,65 @@ void main() {
       expect(motion.sample(const Duration(seconds: 2)), isNull);
     });
 
-    test('keyPoints reroutes progress to a non-default arc-length fraction', () {
-      // Without keyPoints, t=0.5 sits at the arc-length midpoint (x=50). With
-      // keyPoints="0;0.9;1" and keyTimes="0;0.5;1", at t=0.5 the element must
-      // sit at 90% of the arc length instead (x=90).
-      //
-      // 没有 keyPoints 时，t=0.5 处于弧长中点（x=50）。带
-      // keyPoints="0;0.9;1"、keyTimes="0;0.5;1" 时，t=0.5 处元素应改为处于弧长
-      // 的 90%（x=90）。
-      final document = _parse(
-        '<circle cx="0" cy="0" r="1">'
-        '<animateMotion path="M0 0 L100 0" keyPoints="0;0.9;1" keyTimes="0;0.5;1" dur="1s" fill="freeze"/>'
-        '</circle>',
-      );
-      final motion = document.root.children.single.motionAnimations.single;
+    test(
+      'keyPoints reroutes progress to a non-default arc-length fraction',
+      () {
+        // Without keyPoints, t=0.5 sits at the arc-length midpoint (x=50). With
+        // keyPoints="0;0.9;1" and keyTimes="0;0.5;1", at t=0.5 the element must
+        // sit at 90% of the arc length instead (x=90).
+        //
+        // 没有 keyPoints 时，t=0.5 处于弧长中点（x=50）。带
+        // keyPoints="0;0.9;1"、keyTimes="0;0.5;1" 时，t=0.5 处元素应改为处于弧长
+        // 的 90%（x=90）。
+        final document = _parse(
+          '<circle cx="0" cy="0" r="1">'
+          '<animateMotion path="M0 0 L100 0" keyPoints="0;0.9;1" keyTimes="0;0.5;1" dur="1s" fill="freeze"/>'
+          '</circle>',
+        );
+        final motion = document.root.children.single.motionAnimations.single;
 
-      expect(motion.sample(const Duration(milliseconds: 500))!.x, closeTo(90, 1));
-    });
+        expect(
+          motion.sample(const Duration(milliseconds: 500))!.x,
+          closeTo(90, 1),
+        );
+      },
+    );
 
-    test('without keyPoints, behaviour is exactly unchanged (backward compatible)', () {
-      final document = _parse(
-        '<circle cx="0" cy="0" r="1">'
-        '<animateMotion path="M0 0 L100 0" dur="1s" fill="freeze"/>'
-        '</circle>',
-      );
-      final motion = document.root.children.single.motionAnimations.single;
+    test(
+      'without keyPoints, behaviour is exactly unchanged (backward compatible)',
+      () {
+        final document = _parse(
+          '<circle cx="0" cy="0" r="1">'
+          '<animateMotion path="M0 0 L100 0" dur="1s" fill="freeze"/>'
+          '</circle>',
+        );
+        final motion = document.root.children.single.motionAnimations.single;
 
-      expect(motion.keyPoints, isNull);
-      expect(motion.sample(const Duration(milliseconds: 500))!.x, closeTo(50, 0.5));
-    });
+        expect(motion.keyPoints, isNull);
+        expect(
+          motion.sample(const Duration(milliseconds: 500))!.x,
+          closeTo(50, 0.5),
+        );
+      },
+    );
 
-    test('calcMode="discrete" on keyPoints holds each keyPoint, no interpolation', () {
-      final document = _parse(
-        '<circle cx="0" cy="0" r="1">'
-        '<animateMotion path="M0 0 L100 0" keyPoints="0;1" keyTimes="0;1" calcMode="discrete" '
-        'dur="1s" fill="freeze"/>'
-        '</circle>',
-      );
-      final motion = document.root.children.single.motionAnimations.single;
+    test(
+      'calcMode="discrete" on keyPoints holds each keyPoint, no interpolation',
+      () {
+        final document = _parse(
+          '<circle cx="0" cy="0" r="1">'
+          '<animateMotion path="M0 0 L100 0" keyPoints="0;1" keyTimes="0;1" calcMode="discrete" '
+          'dur="1s" fill="freeze"/>'
+          '</circle>',
+        );
+        final motion = document.root.children.single.motionAnimations.single;
 
-      expect(motion.sample(const Duration(milliseconds: 400))!.x, closeTo(0, 0.5));
-    });
+        expect(
+          motion.sample(const Duration(milliseconds: 400))!.x,
+          closeTo(0, 0.5),
+        );
+      },
+    );
 
     test('malformed keyPoints (fewer than two entries) is dropped like other malformed timing', () {
       final document = _parse(
@@ -190,17 +226,20 @@ void main() {
       expect(motion.keyPoints, isNull);
     });
 
-    test('motion timing joins the document duration and syncbase resolution', () {
-      final document = _parse(
-        '<circle cx="0" cy="0" r="1">'
-        '<animate id="a" attributeName="r" from="0" to="1" dur="1s"/>'
-        '<animateMotion path="M0 0 L10 0" dur="2s" begin="a.end"/>'
-        '</circle>',
-      );
-      final motion = document.root.children.single.motionAnimations.single;
+    test(
+      'motion timing joins the document duration and syncbase resolution',
+      () {
+        final document = _parse(
+          '<circle cx="0" cy="0" r="1">'
+          '<animate id="a" attributeName="r" from="0" to="1" dur="1s"/>'
+          '<animateMotion path="M0 0 L10 0" dur="2s" begin="a.end"/>'
+          '</circle>',
+        );
+        final motion = document.root.children.single.motionAnimations.single;
 
-      expect(motion.begin, const Duration(seconds: 1));
-      expect(document.totalDuration, const Duration(seconds: 3));
-    });
+        expect(motion.begin, const Duration(seconds: 1));
+        expect(document.totalDuration, const Duration(seconds: 3));
+      },
+    );
   });
 }

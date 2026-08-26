@@ -13,7 +13,8 @@ import 'package:svgx/svgx.dart';
 const _pngBase64 =
     'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==';
 
-const _imageSvg = '''
+const _imageSvg =
+    '''
 <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24">
   <image x="2" y="3" width="10" height="12" href="data:image/png;base64,$_pngBase64"/>
 </svg>
@@ -25,7 +26,9 @@ void main() {
       await RustLib.init();
     } catch (e) {
       // ignore: avoid_print
-      print('Skipping: native library not loadable in this test environment ($e)');
+      print(
+        'Skipping: native library not loadable in this test environment ($e)',
+      );
       return;
     }
 

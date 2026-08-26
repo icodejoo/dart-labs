@@ -15,30 +15,50 @@ import 'package:svgx/src/animation/animation_detector.dart';
 void main() {
   group('AnimationDetector.hasAnimations', () {
     test('detects a bare <animate> tag', () {
-      expect(AnimationDetector.hasAnimations('<svg><animate attributeName="x"/></svg>'), isTrue);
-    });
-
-    test('detects <animateTransform>, not confused by the shared "animate" prefix', () {
       expect(
-        AnimationDetector.hasAnimations('<svg><animateTransform attributeName="transform"/></svg>'),
+        AnimationDetector.hasAnimations(
+          '<svg><animate attributeName="x"/></svg>',
+        ),
         isTrue,
       );
     });
 
+    test(
+      'detects <animateTransform>, not confused by the shared "animate" prefix',
+      () {
+        expect(
+          AnimationDetector.hasAnimations(
+            '<svg><animateTransform attributeName="transform"/></svg>',
+          ),
+          isTrue,
+        );
+      },
+    );
+
     test('detects <animateMotion> even with no <animate>/<animateTransform>/<set> present', () {
       expect(
-        AnimationDetector.hasAnimations('<svg><animateMotion path="M0,0 L10,10"/></svg>'),
+        AnimationDetector.hasAnimations(
+          '<svg><animateMotion path="M0,0 L10,10"/></svg>',
+        ),
         isTrue,
         reason: '<animateMotion>-only SVGs must not be misrouted to the static path',
       );
     });
 
     test('detects <set>', () {
-      expect(AnimationDetector.hasAnimations('<svg><set attributeName="fill"/></svg>'), isTrue);
+      expect(
+        AnimationDetector.hasAnimations(
+          '<svg><set attributeName="fill"/></svg>',
+        ),
+        isTrue,
+      );
     });
 
     test('returns false for a plain static SVG', () {
-      expect(AnimationDetector.hasAnimations('<svg><path d="M0,0 L1,1"/></svg>'), isFalse);
+      expect(
+        AnimationDetector.hasAnimations('<svg><path d="M0,0 L1,1"/></svg>'),
+        isFalse,
+      );
     });
   });
 }

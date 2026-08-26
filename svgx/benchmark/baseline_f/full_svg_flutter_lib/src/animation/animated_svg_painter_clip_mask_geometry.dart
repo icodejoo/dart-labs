@@ -260,7 +260,8 @@ extension AnimatedSvgPainterClipMaskGeometryExtension on AnimatedSvgPainter {
       return;
     }
     final referenced = document.root.findById(hrefId);
-    if (referenced == null || !isSvgUseReferenceAllowedTag(referenced.tagName)) {
+    if (referenced == null ||
+        !isSvgUseReferenceAllowedTag(referenced.tagName)) {
       return;
     }
 

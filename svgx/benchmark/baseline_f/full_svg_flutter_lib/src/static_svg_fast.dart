@@ -56,14 +56,22 @@ class StaticSvgPictureCache {
   /// Returns a cached picture for [source]/[theme], rendering + caching on miss.
   ///
   /// 返回 [source]/[theme] 对应的缓存 picture，未命中则渲染并缓存。
-  PictureInfo getOrRender(String source, {SvgTheme? theme, ColorMapper? colorMapper}) {
+  PictureInfo getOrRender(
+    String source, {
+    SvgTheme? theme,
+    ColorMapper? colorMapper,
+  }) {
     final key = _PictureKey(source, theme, identityHashCode(colorMapper));
     final hit = _entries.remove(key);
     if (hit != null) {
       _entries[key] = hit; // move to most-recently-used
       return hit;
     }
-    final info = renderSvgToPicture(source, theme: theme, colorMapper: colorMapper);
+    final info = renderSvgToPicture(
+      source,
+      theme: theme,
+      colorMapper: colorMapper,
+    );
     _entries[key] = info;
     // Evict LRU without disposing: a dropped picture may still be painted by a
     // live widget; its native memory is reclaimed by the GC finalizer instead.
@@ -146,8 +154,11 @@ class StaticSvgFast extends StatelessWidget {
   Widget build(BuildContext context) {
     final PictureInfo info;
     try {
-      info = StaticSvgPictureCache.instance
-          .getOrRender(source, theme: theme, colorMapper: colorMapper);
+      info = StaticSvgPictureCache.instance.getOrRender(
+        source,
+        theme: theme,
+        colorMapper: colorMapper,
+      );
     } catch (error, stackTrace) {
       return errorBuilder?.call(context, error, stackTrace) ??
           SizedBox(width: width, height: height);

@@ -142,7 +142,10 @@ SvgDocument parseAnimatedSvgDocument(String source) {
   double width = double.tryParse(svgElement.getAttribute('width') ?? '') ?? 0;
   double height = double.tryParse(svgElement.getAttribute('height') ?? '') ?? 0;
   if (viewBox != null) {
-    final parts = viewBox.split(RegExp(r'[\s,]+')).map(double.tryParse).toList();
+    final parts = viewBox
+        .split(RegExp(r'[\s,]+'))
+        .map(double.tryParse)
+        .toList();
     if (parts.length == 4 && parts.every((v) => v != null)) {
       width = width == 0 ? parts[2]! : width;
       height = height == 0 ? parts[3]! : height;
@@ -154,7 +157,8 @@ SvgDocument parseAnimatedSvgDocument(String source) {
   final context = _ParseContext(
     elementsById: {
       for (final element in document.descendants.whereType<XmlElement>())
-        if (element.getAttribute('id') != null) element.getAttribute('id')!: element,
+        if (element.getAttribute('id') != null)
+          element.getAttribute('id')!: element,
     },
   );
   final root = _parseElement(svgElement, SvgNodeKind.root, context);
@@ -180,7 +184,9 @@ SvgDocument parseAnimatedSvgDocument(String source) {
       hasIndefiniteLoop = true;
       continue;
     }
-    final activeMicros = (animation.duration.inMicroseconds * animation.repeatCount.count).round();
+    final activeMicros =
+        (animation.duration.inMicroseconds * animation.repeatCount.count)
+            .round();
     final end = animation.begin + Duration(microseconds: activeMicros);
     if (end > maxEnd) maxEnd = end;
   }
@@ -319,7 +325,9 @@ SvgGradientDef? _buildGradient(
     r: number('r', 0.5),
     fx: attributes.containsKey('fx') ? number('fx', 0.5) : null,
     fy: attributes.containsKey('fy') ? number('fy', 0.5) : null,
-    gradientTransform: rawTransform == null ? null : parseTransformMatrix(rawTransform),
+    gradientTransform: rawTransform == null
+        ? null
+        : parseTransformMatrix(rawTransform),
     stopNodes: stopNodes,
     animatedNode: animatedNode,
   );
@@ -331,7 +339,17 @@ SvgGradientDef? _buildGradient(
 ///
 /// `<animate>` 可直接作用在 `<linearGradient>`/`<radialGradient>` 元素本身
 /// （而非其 `<stop>` 子元素）上的数值属性——见 [_parseGradientAttributeAnimations]。
-const _gradientNumericAttributes = {'x1', 'y1', 'x2', 'y2', 'cx', 'cy', 'r', 'fx', 'fy'};
+const _gradientNumericAttributes = {
+  'x1',
+  'y1',
+  'x2',
+  'y2',
+  'cx',
+  'cy',
+  'r',
+  'fx',
+  'fy',
+};
 
 /// Builds the [SvgNode] carrying a gradient element's own `<animate>`
 /// children targeting `x1`/`y1`/`x2`/`y2`/`cx`/`cy`/`r`/`fx`/`fy` — resampled
@@ -347,7 +365,10 @@ const _gradientNumericAttributes = {'x1', 'y1', 'x2', 'y2', 'cx', 'cy', 'r', 'fx
 /// [SvgGradientDef] 的静态几何。其属性表镜像元素自身的属性，因此没有匹配动画
 /// 时重采样只会原样复现原始值（重采样器中与 `_stopFromAttributes` 相同的回退
 /// 模式）。
-SvgNode _parseGradientAttributeAnimations(XmlElement element, _ParseContext context) {
+SvgNode _parseGradientAttributeAnimations(
+  XmlElement element,
+  _ParseContext context,
+) {
   final attributes = <String, String>{
     for (final a in element.attributes) a.name.local: a.value,
   };
@@ -355,14 +376,21 @@ SvgNode _parseGradientAttributeAnimations(XmlElement element, _ParseContext cont
   for (final child in element.childElements) {
     if (child.name.local != 'animate') continue;
     final attributeName = child.getAttribute('attributeName');
-    if (attributeName == null || !_gradientNumericAttributes.contains(attributeName)) continue;
+    if (attributeName == null ||
+        !_gradientNumericAttributes.contains(attributeName)) {
+      continue;
+    }
     final anim = _parseAnimate(child);
     if (anim != null) {
       animations.add(anim);
       context.animations.add(anim);
     }
   }
-  return SvgNode(kind: SvgNodeKind.group, attributes: attributes, animations: animations);
+  return SvgNode(
+    kind: SvgNodeKind.group,
+    attributes: attributes,
+    animations: animations,
+  );
 }
 
 /// Builds one [SvgNode] per `<stop>` child, parallel to (and in the same
@@ -403,12 +431,14 @@ List<SvgNode> _parseStopNodes(XmlElement element, _ParseContext context) {
         }
       }
     }
-    nodes.add(SvgNode(
-      kind: SvgNodeKind.group,
-      attributes: attributes,
-      animations: numericAnimations,
-      colorAnimations: colorAnimations,
-    ));
+    nodes.add(
+      SvgNode(
+        kind: SvgNodeKind.group,
+        attributes: attributes,
+        animations: numericAnimations,
+        colorAnimations: colorAnimations,
+      ),
+    );
   }
   return nodes;
 }
@@ -430,12 +460,18 @@ SmilColorAnimation? _parseAnimateColor(XmlElement element) {
       : (from != null && to != null ? '$from;$to' : null);
   if (raw == null) return null;
 
-  final tokens = raw.split(';').map((s) => s.trim()).where((s) => s.isNotEmpty).toList();
+  final tokens = raw
+      .split(';')
+      .map((s) => s.trim())
+      .where((s) => s.isNotEmpty)
+      .toList();
   if (tokens.length < 2) return null;
 
   final packed = <int>[];
   for (final token in tokens) {
-    final hex = token.startsWith('#') ? token : (resolveColorToHex(token) ?? token);
+    final hex = token.startsWith('#')
+        ? token
+        : (resolveColorToHex(token) ?? token);
     final color = parseSvgHexColor(hex);
     if (color == null) return null;
     packed.add(color.toARGB32());
@@ -580,7 +616,11 @@ class _ParseContext {
   int useDepth = 0;
 }
 
-SvgNode _parseElement(XmlElement element, SvgNodeKind kind, _ParseContext context) {
+SvgNode _parseElement(
+  XmlElement element,
+  SvgNodeKind kind,
+  _ParseContext context,
+) {
   final attributes = <String, String>{
     for (final a in element.attributes) a.name.local: a.value,
   };
@@ -593,7 +633,8 @@ SvgNode _parseElement(XmlElement element, SvgNodeKind kind, _ParseContext contex
   // 在解析本元素子树期间，把它自身的 id 标记为"解析中"，使其内部指回祖先的
   // <use> 与其它引用环走同一套环检测。
   final selfId = attributes['id'];
-  final markedSelfId = selfId != null && context.resolvingUseTargets.add(selfId);
+  final markedSelfId =
+      selfId != null && context.resolvingUseTargets.add(selfId);
 
   final animations = <SmilAnimation>[];
   final transformAnimations = <SmilTransformAnimation>[];
@@ -682,7 +723,9 @@ double? _parseBlurSigma(String? raw, _ParseContext context) {
   final id = _urlId(value);
   if (id == null) return null;
   final filterElement = context.elementsById[id];
-  if (filterElement == null || filterElement.name.local != 'filter') return null;
+  if (filterElement == null || filterElement.name.local != 'filter') {
+    return null;
+  }
   for (final child in filterElement.childElements) {
     if (child.name.local != 'feGaussianBlur') continue;
     return double.tryParse(child.getAttribute('stdDeviation') ?? '');
@@ -707,7 +750,11 @@ String? _urlId(String? raw) {
   if (raw == null) return null;
   final v = raw.trim();
   if (!v.startsWith('url(') || !v.endsWith(')')) return null;
-  final inner = v.substring(4, v.length - 1).trim().replaceAll("'", '').replaceAll('"', '');
+  final inner = v
+      .substring(4, v.length - 1)
+      .trim()
+      .replaceAll("'", '')
+      .replaceAll('"', '');
   return inner.startsWith('#') ? inner.substring(1) : null;
 }
 
@@ -742,12 +789,17 @@ const _motionSampleCount = 128;
 /// 支持 `auto`、`auto-reverse` 以及固定角度数值。
 ///
 /// 没有可用路径时返回 null（该动画等同于不存在），符合本引擎静默降级的约定。
-SmilMotionAnimation? _parseAnimateMotion(XmlElement element, _ParseContext context) {
+SmilMotionAnimation? _parseAnimateMotion(
+  XmlElement element,
+  _ParseContext context,
+) {
   var pathData = element.getAttribute('path');
   if (pathData == null) {
     for (final child in element.childElements) {
       if (child.name.local != 'mpath') continue;
-      final href = {for (final a in child.attributes) a.name.local: a.value}['href']?.trim();
+      final href = {
+        for (final a in child.attributes) a.name.local: a.value,
+      }['href']?.trim();
       if (href == null || !href.startsWith('#')) continue;
       pathData = context.elementsById[href.substring(1)]?.getAttribute('d');
       break;
@@ -755,7 +807,10 @@ SmilMotionAnimation? _parseAnimateMotion(XmlElement element, _ParseContext conte
   }
   if (pathData == null || pathData.trim().isEmpty) return null;
 
-  final samples = _sampleMotionPath(parseSvgPathData(pathData), element.getAttribute('rotate'));
+  final samples = _sampleMotionPath(
+    parseSvgPathData(pathData),
+    element.getAttribute('rotate'),
+  );
   if (samples == null) return null;
 
   final beginSpec = parseSmilBeginSpec(element.getAttribute('begin'));
@@ -815,7 +870,9 @@ List<SmilMotionSample>? _sampleMotionPath(ui.Path path, String? rotate) {
       }
       distance -= candidate.length;
     }
-    final tangent = metric.getTangentForOffset(distance.clamp(0.0, metric.length));
+    final tangent = metric.getTangentForOffset(
+      distance.clamp(0.0, metric.length),
+    );
     if (tangent == null) return null;
     // ui.Tangent.angle is measured counter-clockwise-negative (it is
     // `-atan2(dy, dx)`), while Canvas.rotate takes the plain atan2 sense —
@@ -826,7 +883,9 @@ List<SmilMotionSample>? _sampleMotionPath(ui.Path path, String? rotate) {
     final angle = autoRotate
         ? -tangent.angle * 180 / math.pi + (reverse ? 180 : 0)
         : fixedAngle;
-    samples.add(SmilMotionSample(tangent.position.dx, tangent.position.dy, angle));
+    samples.add(
+      SmilMotionSample(tangent.position.dx, tangent.position.dy, angle),
+    );
   }
   return samples;
 }
@@ -878,7 +937,15 @@ void _normalizeColorAttributes(Map<String, String> attributes) {
 ///
 /// 属于 `<use>` 元素自身摆放方式、而非其产出实例的属性——不应作为表现属性
 /// 泄漏到包装分组上。
-const _usePlacementAttributes = {'href', 'x', 'y', 'width', 'height', 'transform', 'id'};
+const _usePlacementAttributes = {
+  'href',
+  'x',
+  'y',
+  'width',
+  'height',
+  'transform',
+  'id',
+};
 
 /// Resolves `<use href="#id">` into a real subtree.
 ///
@@ -947,7 +1014,8 @@ SvgNode? _resolveUse(XmlElement useElement, _ParseContext context) {
     kind: SvgNodeKind.group,
     attributes: {
       for (final entry in attributes.entries)
-        if (!_usePlacementAttributes.contains(entry.key)) entry.key: entry.value,
+        if (!_usePlacementAttributes.contains(entry.key))
+          entry.key: entry.value,
     },
     children: [instance],
     transform: _usePlacementTransform(attributes),
@@ -1026,7 +1094,9 @@ SmilTransformAnimation? _parseAnimateTransform(XmlElement element) {
   final beginSpec = parseSmilBeginSpec(element.getAttribute('begin'));
   return SmilTransformAnimation(
     type: type,
-    values: [for (final frame in rawFrames) _normalizeTransformComponents(type, frame)],
+    values: [
+      for (final frame in rawFrames) _normalizeTransformComponents(type, frame),
+    ],
     duration: parseSmilDuration(element.getAttribute('dur')),
     elementId: element.getAttribute('id'),
     beginSpec: beginSpec,
@@ -1049,7 +1119,10 @@ SmilTransformAnimation? _parseAnimateTransform(XmlElement element) {
 /// 语法）填充/派生为 [SmilTransformAnimation] 期望的固定 3 分量形式：
 /// `translate` → `[tx, ty(=0)]`，`scale` → `[sx, sy(=sx)]`，`rotate` →
 /// `[angle, cx(=0), cy(=0)]`，`skewX`/`skewY` → `[angle]`。
-List<double> _normalizeTransformComponents(SmilTransformType type, List<double> raw) {
+List<double> _normalizeTransformComponents(
+  SmilTransformType type,
+  List<double> raw,
+) {
   switch (type) {
     case SmilTransformType.translate:
       final tx = raw.isNotEmpty ? raw[0] : 0.0;

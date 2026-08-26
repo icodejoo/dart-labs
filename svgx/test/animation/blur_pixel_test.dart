@@ -28,9 +28,9 @@ const _size = 100;
 const _sizeD = 100.0;
 
 SvgDocument _parse(String body) => parseAnimatedSvgDocument(
-      '<svg xmlns="http://www.w3.org/2000/svg" width="$_size" height="$_size" '
-      'viewBox="0 0 $_size $_size">$body</svg>',
-    );
+  '<svg xmlns="http://www.w3.org/2000/svg" width="$_size" height="$_size" '
+  'viewBox="0 0 $_size $_size">$body</svg>',
+);
 
 Future<ByteData> _renderPixels(SvgDocument document) async {
   final recorder = ui.PictureRecorder();
@@ -51,7 +51,8 @@ Future<ByteData> _renderPixels(SvgDocument document) async {
   return bytes!;
 }
 
-int _alphaAt(ByteData pixels, int x, int y) => pixels.getUint8((y * _size + x) * 4 + 3);
+int _alphaAt(ByteData pixels, int x, int y) =>
+    pixels.getUint8((y * _size + x) * 4 + 3);
 
 /// Samples a horizontal line of alpha values straddling x=[centerX], from
 /// [centerX] - [halfSpan] to [centerX] + [halfSpan] inclusive, at row [y].
@@ -59,15 +60,18 @@ int _alphaAt(ByteData pixels, int x, int y) => pixels.getUint8((y * _size + x) *
 /// 在第 [y] 行采样横跨 x=[centerX] 的一段水平线上的 alpha 值，范围是
 /// [centerX] - [halfSpan] 到 [centerX] + [halfSpan]（含端点）。
 List<int> _alphaLine(ByteData pixels, int centerX, int y, int halfSpan) => [
-      for (var x = centerX - halfSpan; x <= centerX + halfSpan; x++) _alphaAt(pixels, x, y),
-    ];
+  for (var x = centerX - halfSpan; x <= centerX + halfSpan; x++)
+    _alphaAt(pixels, x, y),
+];
 
 void main() {
   group('no blur: hard edge', () {
     test('alpha jumps 255->0 within 1-2 pixels at the shape edge, no falloff', () async {
       // A 50x100 solid rect: geometric right edge sits at x=50.
       // 一个 50x100 的实心矩形：几何右边缘在 x=50。
-      final document = _parse('<rect x="0" y="0" width="50" height="100" fill="#0000FF"/>');
+      final document = _parse(
+        '<rect x="0" y="0" width="50" height="100" fill="#0000FF"/>',
+      );
       final pixels = await _renderPixels(document);
 
       final line = _alphaLine(pixels, 50, 50, 9); // x = 41..59
@@ -84,7 +88,8 @@ void main() {
       expect(
         partial,
         lessThanOrEqualTo(2),
-        reason: 'no-blur edge should not have a gradual alpha ramp; sampled line: $line',
+        reason:
+            'no-blur edge should not have a gradual alpha ramp; sampled line: $line',
       );
     });
   });
@@ -104,14 +109,19 @@ void main() {
       expect(
         partial,
         greaterThanOrEqualTo(6),
-        reason: 'blurred edge should ramp gradually over several pixels; sampled line: $line',
+        reason:
+            'blurred edge should ramp gradually over several pixels; sampled line: $line',
       );
 
       // Proof of bleed: nonzero alpha several px past the original geometric
       // edge (x=50), where the unblurred shape would be fully transparent.
       // 渗出的证据：原始几何边缘（x=50）之外数像素处仍有非零 alpha——未模糊的
       // 形状在这里应当是完全透明的。
-      expect(_alphaAt(pixels, 58, 50), greaterThan(0), reason: 'blur bleeds past the geometric edge');
+      expect(
+        _alphaAt(pixels, 58, 50),
+        greaterThan(0),
+        reason: 'blur bleeds past the geometric edge',
+      );
 
       // The falloff must actually be monotonic-ish (decreasing as we move
       // away from the shape interior), confirming this is a real blur kernel
@@ -134,9 +144,14 @@ void main() {
       expect(
         partial,
         greaterThanOrEqualTo(6),
-        reason: 'url(#id) feGaussianBlur should ramp gradually too; sampled line: $line',
+        reason:
+            'url(#id) feGaussianBlur should ramp gradually too; sampled line: $line',
       );
-      expect(_alphaAt(pixels, 58, 50), greaterThan(0), reason: 'blur bleeds past the geometric edge');
+      expect(
+        _alphaAt(pixels, 58, 50),
+        greaterThan(0),
+        reason: 'blur bleeds past the geometric edge',
+      );
     });
   });
 }

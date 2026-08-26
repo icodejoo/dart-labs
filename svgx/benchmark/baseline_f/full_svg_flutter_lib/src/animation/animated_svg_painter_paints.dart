@@ -51,9 +51,8 @@ extension AnimatedSvgPainterPaintsExtension on AnimatedSvgPainter {
     if (shader != null) {
       paint
         ..shader = shader
-        ..color = const ui.Color(
-          0xFFFFFFFF,
-        ).withValues(alpha: effectiveOpacity);
+        ..color = const ui.Color(0xFFFFFFFF)
+            .withValues(alpha: effectiveOpacity);
     } else {
       final fillSourceNode = _findInheritedAttributeSourceNode(node, 'fill');
       final color =
@@ -164,9 +163,8 @@ extension AnimatedSvgPainterPaintsExtension on AnimatedSvgPainter {
     if (shader != null) {
       paint
         ..shader = shader
-        ..color = const ui.Color(
-          0xFFFFFFFF,
-        ).withValues(alpha: effectiveOpacity);
+        ..color = const ui.Color(0xFFFFFFFF)
+            .withValues(alpha: effectiveOpacity);
     } else {
       final strokeSourceNode = _findInheritedAttributeSourceNode(
         node,

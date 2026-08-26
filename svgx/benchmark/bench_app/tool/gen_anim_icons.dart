@@ -24,15 +24,17 @@ final _fieldPattern = RegExp(
 );
 
 void main() {
-  final pubCache = Platform.environment['PUB_CACHE'] ??
+  final pubCache =
+      Platform.environment['PUB_CACHE'] ??
       '${Platform.environment['LOCALAPPDATA']}\\Pub\\Cache';
-  final dir = Directory('$pubCache\\hosted\\pub.dev')
-      .listSync()
-      .whereType<Directory>()
-      .map((d) => d.path.split(Platform.pathSeparator).last)
-      .where((name) => name.startsWith('iconify_flutter-'))
-      .toList()
-    ..sort();
+  final dir =
+      Directory('$pubCache\\hosted\\pub.dev')
+          .listSync()
+          .whereType<Directory>()
+          .map((d) => d.path.split(Platform.pathSeparator).last)
+          .where((name) => name.startsWith('iconify_flutter-'))
+          .toList()
+        ..sort();
   if (dir.isEmpty) {
     stderr.writeln('iconify_flutter not found in pub cache');
     exit(1);
@@ -40,7 +42,8 @@ void main() {
   final pkgDir = '$pubCache\\hosted\\pub.dev\\${dir.last}';
   final icons = <String>[];
   for (final file in ['lib/icons/line_md.dart', 'lib/icons/eos_icons.dart']) {
-    final source = File('$pkgDir\\${file.replaceAll('/', '\\')}').readAsStringSync();
+    final source = File('$pkgDir\\${file.replaceAll('/', '\\')}')
+        .readAsStringSync();
     final matches = _fieldPattern.allMatches(source);
     // Only keep icons that actually carry a SMIL animation tag — a handful of
     // fields in these sets are static companion glyphs.
@@ -70,5 +73,7 @@ void main() {
   buffer.writeln('];');
 
   File('lib/anim_icons_real.dart').writeAsStringSync(buffer.toString());
-  stderr.writeln('Wrote ${icons.length} animated icons to lib/anim_icons_real.dart');
+  stderr.writeln(
+    'Wrote ${icons.length} animated icons to lib/anim_icons_real.dart',
+  );
 }

@@ -303,9 +303,8 @@ double _parseAngleToDegrees(String value, {double fontSize = 16.0}) {
 }
 
 double _parseNumber(String value, {required double fallback}) {
-  final match = RegExp(
-    r'^[+-]?(?:\d+\.?\d*|\.\d+)(?:[eE][+-]?\d+)?',
-  ).firstMatch(value.trim());
+  final match = RegExp(r'^[+-]?(?:\d+\.?\d*|\.\d+)(?:[eE][+-]?\d+)?')
+      .firstMatch(value.trim());
   if (match == null) {
     return fallback;
   }

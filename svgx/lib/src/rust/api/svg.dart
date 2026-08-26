@@ -4,6 +4,7 @@
 // ignore_for_file: invalid_use_of_internal_member, unused_import, unnecessary_import
 
 import '../frb_generated.dart';
+
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
 // These functions are ignored because they are not marked as `pub`: `append_clip_geometry`, `append_segments`, `append_subtree_paths`, `build_clips`, `build_gradient`, `build_mask`, `build_pattern`, `collect`, `concat`, `convert_gradient_stops`, `convert_image`, `convert_path`, `extend_inherited`, `gaussian_blur_of`, `inject_current_color`, `map`, `paint_argb`, `some_if_present`, `spread_to_u8`, `stop_rgb`, `system_fontdb`, `token_matrix`

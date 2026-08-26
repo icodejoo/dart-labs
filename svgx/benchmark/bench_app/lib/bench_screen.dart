@@ -48,24 +48,33 @@ class BenchResult {
 
   /// Library this result was measured for. / 本结果对应的被测库。
   final BenchLib lib;
+
   /// Total frames observed during the scroll window. / 滚动窗口内观测到的总帧数。
   final int frameCount;
+
   /// Build duration stats. / build 耗时统计。
   final DurationStats build;
+
   /// Raster duration stats. / raster 耗时统计。
   final DurationStats raster;
+
   /// Frames whose build exceeded 16.6ms. / build 超过 16.6ms 的帧数。
   final int framesOver16_6;
+
   /// Frames whose build exceeded 8.3ms. / build 超过 8.3ms 的帧数。
   final int framesOver8_3;
+
   /// Parse duration stats (empty/zero for flutter_svg, no public hook).
   ///
   /// 解析耗时统计（flutter_svg 无公开钩子，恒为空/零）。
   final DurationStats parse;
+
   /// Peak RSS in MB observed during the run. / 运行期间观测到的 RSS 峰值（MB）。
   final double rssPeakMb;
+
   /// RSS in MB right after the scroll cycles finish. / 滚动结束时的 RSS（MB）。
   final double rssSteadyMb;
+
   /// RSS in MB after the post-scroll idle window. / 滚动后静置窗口结束时的 RSS（MB）。
   final double rssIdleMb;
 }
@@ -87,10 +96,13 @@ class BenchRunner extends StatefulWidget {
 
   /// Library under test. / 被测库。
   final BenchLib lib;
+
   /// Number of full up-down scroll cycles. / 上下滚动的完整轮次数。
   final int cycles;
+
   /// Number of distinct icons in the grid. / 网格中不同图标的数量。
   final int itemCount;
+
   /// Called with the final [BenchResult] once the phase finishes, in addition
   /// to (not instead of) the usual stdout report — used by the sequential
   /// `LIB=compare` mode to build a consolidated report without re-parsing
@@ -146,7 +158,10 @@ class _BenchRunnerState extends State<BenchRunner> {
     // Warmup: let the grid lay out once before measuring.
     // 预热：先让网格完成一次布局再开始计时。
     await Future<void>.delayed(const Duration(milliseconds: 500));
-    _rssTimer = Timer.periodic(const Duration(milliseconds: 200), (_) => _sampleRss());
+    _rssTimer = Timer.periodic(
+      const Duration(milliseconds: 200),
+      (_) => _sampleRss(),
+    );
 
     setState(() => _status = 'scrolling (${widget.cycles} cycles)...');
     _frameTiming.active = true;
@@ -195,15 +210,23 @@ class _BenchRunnerState extends State<BenchRunner> {
       rssIdleMb: (_postIdleRssBytes ?? 0) / 1e6,
     );
     final buf = StringBuffer()
-      ..writeln('=== BENCH REPORT lib=${widget.lib} items=${widget.itemCount} cycles=${widget.cycles} ===')
+      ..writeln(
+        '=== BENCH REPORT lib=${widget.lib} items=${widget.itemCount} cycles=${widget.cycles} ===',
+      )
       ..writeln('frames=${result.frameCount}')
       ..writeln('build : $b')
       ..writeln('raster: $r')
-      ..writeln('framesOver16.6ms=${result.framesOver16_6} '
-          'framesOver8.3ms=${result.framesOver8_3}')
-      ..writeln('parse : $parse (svgx only; flutter_svg has no equivalent public hook)')
+      ..writeln(
+        'framesOver16.6ms=${result.framesOver16_6} '
+        'framesOver8.3ms=${result.framesOver8_3}',
+      )
+      ..writeln(
+        'parse : $parse (svgx only; flutter_svg has no equivalent public hook)',
+      )
       ..writeln('rss_peak_mb=${result.rssPeakMb.toStringAsFixed(2)}')
-      ..writeln('rss_steady_after_scroll_mb=${result.rssSteadyMb.toStringAsFixed(2)}')
+      ..writeln(
+        'rss_steady_after_scroll_mb=${result.rssSteadyMb.toStringAsFixed(2)}',
+      )
       ..writeln('rss_after_idle_mb=${result.rssIdleMb.toStringAsFixed(2)}')
       ..writeln('=== END BENCH REPORT ===');
     // Use print (not debugPrint) so long report lines aren't truncated in
@@ -230,7 +253,9 @@ class _BenchRunnerState extends State<BenchRunner> {
       appBar: AppBar(title: Text('bench: ${widget.lib} ($_status)')),
       body: GridView.builder(
         controller: _scrollController,
-        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount: 8),
+        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+          crossAxisCount: 8,
+        ),
         itemCount: _icons.length,
         itemBuilder: (context, index) {
           final source = _icons[index];

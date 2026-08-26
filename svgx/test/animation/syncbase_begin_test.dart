@@ -22,8 +22,8 @@ List<SmilAnimation> _animationsOf(SvgNode node) {
 }
 
 SvgDocument _parse(String body) => parseAnimatedSvgDocument(
-      '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24">$body</svg>',
-    );
+  '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24">$body</svg>',
+);
 
 void main() {
   group('parseSmilBeginSpec', () {
@@ -41,8 +41,14 @@ void main() {
     });
 
     test('reads positive and negative offsets', () {
-      expect(parseSmilBeginSpec('ring.begin+2s').offset, const Duration(seconds: 2));
-      expect(parseSmilBeginSpec('ring.end - 500ms').offset, const Duration(milliseconds: -500));
+      expect(
+        parseSmilBeginSpec('ring.begin+2s').offset,
+        const Duration(seconds: 2),
+      );
+      expect(
+        parseSmilBeginSpec('ring.end - 500ms').offset,
+        const Duration(milliseconds: -500),
+      );
       expect(parseSmilBeginSpec('ring.begin+2s').onSyncbaseEnd, isFalse);
     });
 
@@ -85,7 +91,10 @@ void main() {
         '</circle>',
       );
 
-      expect(_animationsOf(document.root)[1].begin, const Duration(milliseconds: 2500));
+      expect(
+        _animationsOf(document.root)[1].begin,
+        const Duration(milliseconds: 2500),
+      );
     });
 
     test('a chain A -> B -> C resolves transitively', () {
@@ -100,7 +109,10 @@ void main() {
 
       expect(animations[0].begin, const Duration(seconds: 1)); // c
       expect(animations[1].begin, const Duration(seconds: 2)); // b = c.end
-      expect(animations[2].begin, const Duration(milliseconds: 4500)); // a = b.end + 0.5s
+      expect(
+        animations[2].begin,
+        const Duration(milliseconds: 4500),
+      ); // a = b.end + 0.5s
     });
 
     test('a forward reference (target declared later) still resolves', () {
@@ -159,7 +171,10 @@ void main() {
         '</circle>',
       );
 
-      expect(_animationsOf(document.root).single.begin, const Duration(seconds: 2));
+      expect(
+        _animationsOf(document.root).single.begin,
+        const Duration(seconds: 2),
+      );
     });
 
     test('<animateTransform> participates in the same resolution', () {
@@ -170,7 +185,8 @@ void main() {
         'dur="1s" begin="a.end"/>'
         '</rect>',
       );
-      final transform = document.root.children.single.transformAnimations.single;
+      final transform =
+          document.root.children.single.transformAnimations.single;
 
       expect(transform.begin, const Duration(seconds: 2));
     });

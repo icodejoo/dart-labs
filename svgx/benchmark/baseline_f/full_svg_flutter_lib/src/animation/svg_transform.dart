@@ -106,9 +106,9 @@ class SvgTransform {
     for (final match in regex.allMatches(transformString)) {
       final type = match.group(1)!.toLowerCase();
       final valuesStr = match.group(2)!;
-      final values = _tokenizeSvgNumbers(
-        valuesStr,
-      ).map((s) => _parseValueWithUnit(s)).toList();
+      final values = _tokenizeSvgNumbers(valuesStr)
+          .map((s) => _parseValueWithUnit(s))
+          .toList();
 
       final transformType = switch (type) {
         'translate' => SvgTransformType.translate,

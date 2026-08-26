@@ -25,9 +25,9 @@ const _size = 100;
 const _sizeD = 100.0;
 
 SvgDocument _parse(String body) => parseAnimatedSvgDocument(
-      '<svg xmlns="http://www.w3.org/2000/svg" width="$_size" height="$_size" '
-      'viewBox="0 0 $_size $_size">$body</svg>',
-    );
+  '<svg xmlns="http://www.w3.org/2000/svg" width="$_size" height="$_size" '
+  'viewBox="0 0 $_size $_size">$body</svg>',
+);
 
 Future<ByteData> _renderPixels(SvgDocument document) async {
   final recorder = ui.PictureRecorder();
@@ -60,9 +60,13 @@ List<int> _rgbaAt(ByteData pixels, int x, int y) {
 }
 
 bool _closeToRed(List<int> rgba, {int tol = 30}) =>
-    (rgba[0] - 255).abs() <= tol && rgba[1] <= tol && rgba[2] <= tol && rgba[3] > 200;
+    (rgba[0] - 255).abs() <= tol &&
+    rgba[1] <= tol &&
+    rgba[2] <= tol &&
+    rgba[3] > 200;
 
-bool _isBackground(List<int> rgba) => rgba[3] == 0; // transparent canvas backdrop
+bool _isBackground(List<int> rgba) =>
+    rgba[3] == 0; // transparent canvas backdrop
 
 void main() {
   group('glyph-level pixel verification', () {
@@ -92,30 +96,56 @@ void main() {
       expect(
         redHits,
         greaterThan(0),
-        reason: 'expected at least one near-red, mostly-opaque pixel inside the glyph bbox; '
+        reason:
+            'expected at least one near-red, mostly-opaque pixel inside the glyph bbox; '
             'samples: $samples',
       );
 
       // Corners far from the text must remain untouched background
       // (transparent) — proof nothing stray gets painted outside the glyph.
       // 远离文本的四角必须保持未触碰的透明背景——证明字形之外没有意外溢出绘制。
-      expect(_isBackground(_rgbaAt(pixels, 2, 2)), isTrue, reason: 'top-left corner');
-      expect(_isBackground(_rgbaAt(pixels, _size - 3, 2)), isTrue, reason: 'top-right corner');
-      expect(_isBackground(_rgbaAt(pixels, 2, _size - 3)), isTrue, reason: 'bottom-left corner');
-      expect(_isBackground(_rgbaAt(pixels, _size - 3, _size - 3)), isTrue, reason: 'bottom-right corner');
+      expect(
+        _isBackground(_rgbaAt(pixels, 2, 2)),
+        isTrue,
+        reason: 'top-left corner',
+      );
+      expect(
+        _isBackground(_rgbaAt(pixels, _size - 3, 2)),
+        isTrue,
+        reason: 'top-right corner',
+      );
+      expect(
+        _isBackground(_rgbaAt(pixels, 2, _size - 3)),
+        isTrue,
+        reason: 'bottom-left corner',
+      );
+      expect(
+        _isBackground(_rgbaAt(pixels, _size - 3, _size - 3)),
+        isTrue,
+        reason: 'bottom-right corner',
+      );
     });
 
-    test('fill="none" text paints no red pixels anywhere (glyph genuinely absent)', () async {
-      final document = _parse('<text x="20" y="70" font-size="60" fill="none">I</text>');
-      final pixels = await _renderPixels(document);
+    test(
+      'fill="none" text paints no red pixels anywhere (glyph genuinely absent)',
+      () async {
+        final document = _parse(
+          '<text x="20" y="70" font-size="60" fill="none">I</text>',
+        );
+        final pixels = await _renderPixels(document);
 
-      var redFound = false;
-      for (var y = 0; y < _size; y += 4) {
-        for (var x = 0; x < _size; x += 4) {
-          if (_closeToRed(_rgbaAt(pixels, x, y))) redFound = true;
+        var redFound = false;
+        for (var y = 0; y < _size; y += 4) {
+          for (var x = 0; x < _size; x += 4) {
+            if (_closeToRed(_rgbaAt(pixels, x, y))) redFound = true;
+          }
         }
-      }
-      expect(redFound, isFalse, reason: 'fill="none" must render no glyph pixels at all');
-    });
+        expect(
+          redFound,
+          isFalse,
+          reason: 'fill="none" must render no glyph pixels at all',
+        );
+      },
+    );
   });
 }

@@ -26,8 +26,11 @@ export 'src/svg_theme.dart';
 
 /// Builder function to create an error widget. This builder is called when
 /// the image failed loading.
-typedef SvgErrorWidgetBuilder =
-    Widget Function(BuildContext context, Object error, StackTrace stackTrace);
+typedef SvgErrorWidgetBuilder = Widget Function(
+  BuildContext context,
+  Object error,
+  StackTrace stackTrace,
+);
 
 /// Instance for [Svg]'s utility methods, which can produce a [DrawableRoot]
 /// or [PictureInfo] from [String] or [Uint8List].
@@ -1319,8 +1322,7 @@ class _StaticSvgViewState extends State<_StaticSvgView> {
       result = Semantics(
         label: widget.semanticsLabel,
         image: true,
-        textDirection:
-            Directionality.maybeOf(context) ?? TextDirection.ltr,
+        textDirection: Directionality.maybeOf(context) ?? TextDirection.ltr,
         child: result,
       );
     }

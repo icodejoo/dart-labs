@@ -149,9 +149,8 @@ class TimingParser {
   /// Parse event condition: "click", "mouseover+1s"
   static EventCondition? _parseEvent(String value) {
     // Pattern: [targetId.]eventName[+/-offset]
-    final match = RegExp(
-      r'^(?:([a-zA-Z0-9_-]+)\.)?([a-zA-Z]+)([+-].+)?$',
-    ).firstMatch(value);
+    final match = RegExp(r'^(?:([a-zA-Z0-9_-]+)\.)?([a-zA-Z]+)([+-].+)?$')
+        .firstMatch(value);
     if (match == null) return null;
 
     final targetId = match.group(1);

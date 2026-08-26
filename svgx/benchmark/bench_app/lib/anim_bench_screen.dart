@@ -40,12 +40,16 @@ class AnimBenchResult {
 
   /// Total frames observed during the observation window. / 观测窗口内的总帧数。
   final int frameCount;
+
   /// Build duration stats. / build 耗时统计。
   final DurationStats build;
+
   /// Raster duration stats. / raster 耗时统计。
   final DurationStats raster;
+
   /// Frames whose build exceeded 16.6ms. / build 超过 16.6ms 的帧数。
   final int framesOver16_6;
+
   /// Frames whose build exceeded 8.3ms. / build 超过 8.3ms 的帧数。
   final int framesOver8_3;
 }
@@ -130,12 +134,16 @@ class _AnimBenchRunnerState extends State<AnimBenchRunner> {
       framesOver8_3: _frameTiming.framesOverBudget(8.3),
     );
     final buf = StringBuffer()
-      ..writeln('=== ANIM BENCH REPORT icons=$_concurrentIcons window=${_observeDuration.inSeconds}s ===')
+      ..writeln(
+        '=== ANIM BENCH REPORT icons=$_concurrentIcons window=${_observeDuration.inSeconds}s ===',
+      )
       ..writeln('frames=${result.frameCount}')
       ..writeln('build : $b')
       ..writeln('raster: $r')
-      ..writeln('framesOver16.6ms=${result.framesOver16_6} '
-          'framesOver8.3ms=${result.framesOver8_3}')
+      ..writeln(
+        'framesOver16.6ms=${result.framesOver16_6} '
+        'framesOver8.3ms=${result.framesOver8_3}',
+      )
       ..writeln('=== END ANIM BENCH REPORT ===');
     // ignore: avoid_print
     print(buf.toString());
@@ -153,7 +161,9 @@ class _AnimBenchRunnerState extends State<AnimBenchRunner> {
     return Scaffold(
       appBar: AppBar(title: const Text('anim bench')),
       body: GridView.builder(
-        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount: 4),
+        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+          crossAxisCount: 4,
+        ),
         itemCount: _concurrentIcons,
         itemBuilder: (context, index) {
           final source = _icons[index % _icons.length];

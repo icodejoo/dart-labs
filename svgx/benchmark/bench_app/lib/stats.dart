@@ -11,7 +11,14 @@ class DurationStats {
   /// Computes stats from raw sample durations. / 由原始样本耗时计算统计量。
   factory DurationStats.fromDurations(List<Duration> samples) {
     if (samples.isEmpty) {
-      return const DurationStats._(count: 0, avgUs: 0, p50Us: 0, p90Us: 0, p99Us: 0, maxUs: 0);
+      return const DurationStats._(
+        count: 0,
+        avgUs: 0,
+        p50Us: 0,
+        p90Us: 0,
+        p99Us: 0,
+        maxUs: 0,
+      );
     }
     final us = samples.map((d) => d.inMicroseconds).toList()..sort();
     double pct(double p) {
@@ -41,18 +48,24 @@ class DurationStats {
 
   /// Sample count. / 样本数。
   final int count;
+
   /// Average in microseconds. / 均值（微秒）。
   final double avgUs;
+
   /// 50th percentile in microseconds. / p50（微秒）。
   final double p50Us;
+
   /// 90th percentile in microseconds. / p90（微秒）。
   final double p90Us;
+
   /// 99th percentile in microseconds. / p99（微秒）。
   final double p99Us;
+
   /// Max in microseconds. / 最大值（微秒）。
   final double maxUs;
 
-  String get _ms => 'avg=${(avgUs / 1000).toStringAsFixed(3)}ms '
+  String get _ms =>
+      'avg=${(avgUs / 1000).toStringAsFixed(3)}ms '
       'p50=${(p50Us / 1000).toStringAsFixed(3)}ms '
       'p90=${(p90Us / 1000).toStringAsFixed(3)}ms '
       'p99=${(p99Us / 1000).toStringAsFixed(3)}ms '

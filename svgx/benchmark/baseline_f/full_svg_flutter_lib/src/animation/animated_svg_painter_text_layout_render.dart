@@ -363,9 +363,8 @@ extension AnimatedSvgPainterTextLayoutRenderExtension on AnimatedSvgPainter {
     if (strokeShader != null) {
       strokePaint
         ..shader = strokeShader
-        ..color = const ui.Color(
-          0xFFFFFFFF,
-        ).withValues(alpha: effectiveOpacity);
+        ..color = const ui.Color(0xFFFFFFFF)
+            .withValues(alpha: effectiveOpacity);
     }
 
     final lineCap = _getInheritedString(node, 'stroke-linecap');
@@ -651,9 +650,8 @@ extension AnimatedSvgPainterTextLayoutRenderExtension on AnimatedSvgPainter {
     for (final setting in settings) {
       final trimmed = setting.trim();
       if (trimmed.isEmpty) continue;
-      final match = RegExp(
-        r"""['"]([a-zA-Z0-9]{4})['"](?:\s+([\d.+-]+))?""",
-      ).firstMatch(trimmed);
+      final match = RegExp(r"""['"]([a-zA-Z0-9]{4})['"](?:\s+([\d.+-]+))?""")
+          .firstMatch(trimmed);
       if (match != null) {
         final axis = match.group(1)!;
         final val = double.tryParse(match.group(2) ?? '1') ?? 1.0;
