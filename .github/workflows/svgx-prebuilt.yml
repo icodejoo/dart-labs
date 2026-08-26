@@ -205,7 +205,7 @@ jobs:
             echo "=== $b ($(stat -f%z "$b") bytes) ==="
             lipo -info "$b"
             otool -D "$b" | tail -1 | sed 's/^/  install_name: /'
-            nm -gU "$b" | grep -c 'frbgen' | sed 's/^/  frbgen exports: /'
+            nm -gU "$b" | grep -c ' _frb_' | sed 's/^/  frb_ exports: /'
           done
           echo "=== prebuilt/ios/svgx.xcframework total ==="
           find prebuilt/ios/svgx.xcframework -type f -exec stat -f%z {} + \
@@ -213,7 +213,7 @@ jobs:
           a=prebuilt/macos/libsvgx.a
           echo "=== $a ($(stat -f%z "$a") bytes) ==="
           lipo -info "$a"
-          nm -g "$a" 2>/dev/null | grep -c 'frbgen' | sed 's/^/  frbgen symbols: /'
+          nm -g "$a" 2>/dev/null | grep -c ' _frb_' | sed 's/^/  frb_ symbols: /'
 
       - uses: actions/upload-artifact@v4
         with:

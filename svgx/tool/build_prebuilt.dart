@@ -653,11 +653,28 @@ void _updateManifest(
     if (!prune) ...?(existing?['artifacts'] as Map<String, dynamic>?),
   };
 
+  final previous =
+      (existing?['artifacts'] as Map<String, dynamic>?) ?? <String, dynamic>{};
+
   for (final rel in produced) {
     final file = File('${root.path}/prebuilt/$rel');
+    final digest = _sha256OfFile(file);
+    // A byte-identical artifact was not rebuilt, so its provenance still holds.
+    // Re-stamping it would falsely claim the restaging host built it and churn
+    // `builtAt` on every run.
+    //
+    // 内容完全一致说明该产物没有被重建，原有溯源信息依然成立。重新打戳会谎称
+    // 是 restage 所在宿主构建的，还会让 `builtAt` 每次都变。
+    final prior = previous[rel] as Map<String, dynamic>?;
+    if (prior != null &&
+        prior['sha256'] == digest &&
+        prior['sourceHash'] == sourceHash) {
+      artifacts[rel] = prior;
+      continue;
+    }
     artifacts[rel] = <String, dynamic>{
       'sourceHash': sourceHash,
-      'sha256': _sha256OfFile(file),
+      'sha256': digest,
       'bytes': file.lengthSync(),
       'builtOnHost': host,
       'toolchain': kToolchain,
