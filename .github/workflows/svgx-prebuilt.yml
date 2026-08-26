@@ -117,7 +117,10 @@ jobs:
         run: |
           fail=0
           for so in prebuilt/android/jniLibs/*/libsvgx.so; do
-            aligns=$(readelf -l "$so" | awk '/^  LOAD/ {print $NF}' | sort -u)
+            # -W required — see the matching comment in svgx-ci.yml's "Assert
+            # 16 KB page alignment in the APK" step for why (GNU readelf wraps
+            # 64-bit ELF program headers onto two lines without it).
+            aligns=$(readelf -lW "$so" | awk '/^  LOAD/ {print $NF}' | sort -u)
             echo "$so -> $aligns"
             for a in $aligns; do
               [ "$a" = "0x4000" ] || { echo "::error::$so LOAD align $a != 0x4000"; fail=1; }

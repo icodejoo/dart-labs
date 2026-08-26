@@ -383,7 +383,7 @@ Map<String, String>? _crossEnv(
     // 找桥接导出的，折叠不影响调用，是纯粹的体积收益。
     env['RUSTFLAGS'] =
         '${env['RUSTFLAGS']} -C link-arg=-Wl,-z,max-page-size=16384'
-            ' -C link-arg=-Wl,--icf=all'
+                ' -C link-arg=-Wl,--icf=all'
             .trim();
   }
 

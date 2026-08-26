@@ -351,7 +351,26 @@ jobs:
           unzip -o -q "$apk" 'lib/*/libsvgx.so' -d /tmp/svgx-apk
           fail=0
           for so in /tmp/svgx-apk/lib/*/libsvgx.so; do
-            aligns=$(readelf -l "$so" | awk '/^  LOAD/ {print $NF}' | sort -u)
+            # -W (wide) is required: GNU readelf's default -l output wraps each
+            # 64-bit ELF program header onto two lines (Offset/VirtAddr/PhysAddr
+            # on one line, FileSiz/MemSiz/Flags/Align on the next). Without -W,
+            # `awk '/^  LOAD/ {print $NF}'` grabs the last field of the FIRST
+            # line (PhysAddr) instead of Align, silently misreporting alignment
+            # for every 64-bit ABI (arm64-v8a/x86_64) while 32-bit ABIs — whose
+            # narrower fields never wrap — happen to pass. Verified by
+            # reproducing locally: llvm-readelf (single-line output, unaffected
+            # by this bug) confirms both arm64-v8a and x86_64 are correctly
+            # 0x4000-aligned even when this unfixed script reported failure.
+            #
+            # -W(wide)是必需的:GNU readelf 默认的 -l 输出会把每条 64 位 ELF
+            # 程序头拆成两行(第一行 Offset/VirtAddr/PhysAddr,第二行
+            # FileSiz/MemSiz/Flags/Align)。不加 -W 时,
+            # `awk '/^  LOAD/ {print $NF}'` 取到的是第一行的最后一个字段
+            # (PhysAddr),而不是 Align,导致每个 64 位 ABI(arm64-v8a/x86_64)都被
+            # 静默误报对齐失败;32 位 ABI 字段较窄从不换行,才侥幸通过。本地用
+            # llvm-readelf(单行输出,不受此 bug 影响)复现确认:即便这个未修复的
+            # 脚本报告失败,arm64-v8a 和 x86_64 实际都正确 0x4000 对齐。
+            aligns=$(readelf -lW "$so" | awk '/^  LOAD/ {print $NF}' | sort -u)
             echo "$so -> $aligns"
             for a in $aligns; do
               [ "$a" = "0x4000" ] || { echo "::error::$so has LOAD align $a, expected 0x4000 (16 KB)"; fail=1; }
