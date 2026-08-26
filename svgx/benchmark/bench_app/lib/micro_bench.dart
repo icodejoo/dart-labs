@@ -143,6 +143,48 @@ List<MicroResult> runMicroBenchmarks() {
     }, trials: 9),
   );
 
+  // Second calibration, for the allocation-heavy benchmarks. The scan above
+  // allocates nothing, so it tracks raw CPU contention but is blind to the
+  // GC/allocator/memory-bandwidth pressure that dominates noise in paint-shaped
+  // work — observed directly: between two runs the scan held at 0.265us while
+  // `anim_paint_frame` moved 16%. This one allocates a map, a path and a paint
+  // and records them into a display list per iteration, using framework APIs
+  // only. NEVER change it either.
+  //
+  // 第二个校准项，服务于分配密集的基准。上面那个扫描不做任何分配，能反映纯 CPU
+  // 争用，但对绘制型工作里占主导的 GC/分配器/内存带宽压力完全不敏感——这是实际
+  // 观测到的：两次运行之间扫描项稳定在 0.265us，而 `anim_paint_frame` 波动了
+  // 16%。本项每轮迭代分配一个 map、一条 path 和一个 paint 并录制进显示列表，
+  // 只用框架 API。**同样永远不要改动它**。
+  const calibrationAttributes = <String, String>{
+    'fill': '#ff0000',
+    'stroke': 'none',
+    'stroke-width': '2',
+    'd': 'M0 0L10 10',
+  };
+  results.add(
+    _measure('calibration_alloc_and_record', 1000, () {
+      final recorder = ui.PictureRecorder();
+      final canvas = Canvas(recorder);
+      for (var i = 0; i < 1000; i++) {
+        final copied = Map<String, String>.of(calibrationAttributes);
+        final path = ui.Path()
+          ..moveTo(0, 0)
+          ..lineTo(10, i.toDouble())
+          ..cubicTo(1, 2, 3, 4, 5, 6)
+          ..close();
+        canvas.drawPath(
+          path,
+          Paint()
+            ..style = PaintingStyle.fill
+            ..color = const Color(0xFFFF0000),
+        );
+        if (copied.length != 4) throw StateError('unreachable');
+      }
+      recorder.endRecording().dispose();
+    }, trials: 9),
+  );
+
   // --- Static path -------------------------------------------------------
   // Cold parse + ui.Picture record for 1000 distinct real icons: the
   // cache-miss cost every icon pays exactly once.
