@@ -555,15 +555,34 @@ jobs:
         working-directory: svgx/example
         run: flutter build macos
 
-      - name: Assert static linkage and surviving symbols
+      # macOS keeps the static archive, but "static archive" never meant
+      # "statically linked into the executable": Flutter's Podfile uses
+      # `use_frameworks!`, so CocoaPods builds the pod into its own dynamic
+      # `svgx.framework` and -force_load pulls the archive's symbols into that
+      # framework. The old assertion here demanded the opposite and had been
+      # failing on main ever since it was written. What actually has to hold is
+      # that the framework exists and carries the exports — the same property
+      # the iOS job checks, just on a pod-built framework instead of a vendored
+      # one.
+      #
+      # macOS 仍用静态归档，但“静态归档”从来不等于“静态链接进可执行文件”：Flutter 的
+      # Podfile 带 `use_frameworks!`，CocoaPods 会把 pod 编成它自己的动态
+      # `svgx.framework`，-force_load 把归档里的符号拉进这个 framework。这里原来的断言
+      # 要求的恰好相反，自写下之日起就一直在 main 上失败。真正需要成立的是：framework
+      # 存在且带着导出符号——与 iOS job 校验的性质相同，只是这个 framework 由 pod 自己
+      # 编出来、而非 vendored。
+      - name: Assert dynamic linkage and exported symbols
         if: steps.guard.outputs.present == 'true'
         working-directory: svgx/example
         run: |
           app=$(find build/macos/Build/Products/Release -maxdepth 1 -name '*.app' | head -1)
           bin="$app/Contents/MacOS/$(basename "$app" .app)"
-          if otool -L "$bin" | grep -i 'svgx'; then
-            echo "::error::a dynamic svgx library leaked into the app bundle"; exit 1
-          fi
-          nm "$bin" | grep -q '_frb_pde_ffi_dispatcher_primary$' \
-            || { echo "::error::flutter_rust_bridge symbols were dead-stripped — -force_load is not taking effect"; exit 1; }
-          echo "static linkage OK, FRB symbols present"
+          fw="$app/Contents/Frameworks/svgx.framework/Versions/A/svgx"
+          test -f "$fw" \
+            || { echo "::error::svgx.framework was not embedded in the app bundle"; exit 1; }
+          otool -L "$bin" | grep -q '@rpath/svgx.framework/Versions/A/svgx' \
+            || { echo "::error::the app does not link @rpath/svgx.framework"; exit 1; }
+          nm -gU "$fw" | grep -q '_frb_pde_ffi_dispatcher_primary$' \
+            || { echo "::error::flutter_rust_bridge exports are missing — -force_load is not taking effect"; exit 1; }
+          echo "dynamic linkage OK — $(nm -gU "$fw" | grep -c ' _frb_') frb_ exports, $(stat -f%z "$fw") bytes"
+          lipo -info "$fw"
