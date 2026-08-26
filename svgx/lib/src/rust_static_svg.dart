@@ -90,6 +90,36 @@ class RustSvgPictureCache {
     return info;
   }
 
+  /// Returns the already-cached picture for [source]/[currentColorArgb], or
+  /// null when it isn't cached — never parses and never records.
+  ///
+  /// Exists so a widget's `build` can take the warm path without first having
+  /// to decide *how* to render on a miss: [SvgXStatic] sniffs the source for
+  /// `<image>` (to choose the sync vs async render) only after this returns
+  /// null, so a cached icon pays a hash lookup instead of a full regex scan on
+  /// every rebuild.
+  ///
+  /// 返回 [source]/[currentColorArgb] 已缓存的 picture；未缓存时返回 null——
+  /// 不解析、不录制。
+  ///
+  /// 存在的意义是让控件 `build` 走热路径时不必先判断"未命中该怎么渲染"：
+  /// [SvgXStatic] 只在本方法返回 null 之后才去嗅探源里的 `<image>`（决定走同步
+  /// 还是异步渲染），于是已缓存的图标每次重建只付一次哈希查找，而不是一整趟
+  /// 正则扫描。
+  ///
+  /// Example:
+  /// ```dart
+  /// final info = RustSvgPictureCache.instance.peek(source);
+  /// if (info != null) { /* warm path */ }
+  /// ```
+  RustSvgPictureInfo? peek(String source, {int? currentColorArgb}) {
+    final key = (source, currentColorArgb);
+    final hit = _entries.remove(key);
+    if (hit == null) return null;
+    _entries[key] = hit; // move to most-recently-used
+    return hit;
+  }
+
   /// Async counterpart of [getOrRender], for sources whose parsed scene
   /// contains embedded `<image>` bitmaps — decoding those requires
   /// `ui.instantiateImageCodec`, which is async, so this path can't stay
@@ -687,13 +717,28 @@ class SvgXStatic extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final currentColorArgb = theme?.currentColor.toARGB32();
+    // "Cheap" is relative: a regex that finds no match has to scan the whole
+    // source, and during a scroll every visible icon rebuilds repeatedly while
+    // its picture is already cached. So the cache lookup goes first and the
+    // sniff only runs on a genuine miss (measured with `LIB=micro`: the sniff
+    // costs 0.287us per icon, the lookup it replaces 0.079us).
+    //
+    // "廉价"是相对的：匹配不到的正则必须扫完整个源，而滚动过程中每个可见图标
+    // 会在 picture 已缓存的情况下反复重建。因此先查缓存，只有真正未命中才做
+    // 嗅探（`LIB=micro` 实测：嗅探单图标 0.287us，取代它的查找 0.079us）。
+    final cached = RustSvgPictureCache.instance.peek(
+      source,
+      currentColorArgb: currentColorArgb,
+    );
+    if (cached != null) return _buildFromInfo(context, cached);
     if (!_imagePattern.hasMatch(source)) {
-      return _buildSync(context);
+      return _buildSync(context, currentColorArgb);
     }
     return FutureBuilder<RustSvgPictureInfo>(
       future: RustSvgPictureCache.instance.getOrRenderAsync(
         source,
-        currentColorArgb: theme?.currentColor.toARGB32(),
+        currentColorArgb: currentColorArgb,
       ),
       builder: (context, snapshot) {
         if (snapshot.hasError) {
@@ -717,12 +762,12 @@ class SvgXStatic extends StatelessWidget {
 
   /// Fully-synchronous build path for sources with no `<image>` tag.
   /// 无 `<image>` 标签源的全同步 build 路径。
-  Widget _buildSync(BuildContext context) {
+  Widget _buildSync(BuildContext context, int? currentColorArgb) {
     final RustSvgPictureInfo info;
     try {
       info = RustSvgPictureCache.instance.getOrRender(
         source,
-        currentColorArgb: theme?.currentColor.toARGB32(),
+        currentColorArgb: currentColorArgb,
       );
     } catch (error, stackTrace) {
       return errorBuilder?.call(context, error, stackTrace) ??

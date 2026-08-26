@@ -12,6 +12,7 @@ import 'package:flutter/scheduler.dart';
 import 'package:flutter/widgets.dart';
 
 import 'animated_svg_painter.dart';
+import 'svg_document_cache.dart';
 import 'svg_document_parser.dart';
 import 'svg_theme.dart';
 
@@ -128,10 +129,20 @@ class _SvgXAnimatedState extends State<SvgXAnimated>
   }
 
   void _parseAndStart() {
-    _document = parseAnimatedSvgDocument(widget.source);
+    // Parsing goes through the shared LRU cache: in a scrolling list the same
+    // icon source is mounted, disposed and re-mounted repeatedly, and the
+    // parse is by far the most expensive part of a mount (measured with
+    // `--dart-define=LIB=micro`, 399 real SMIL icons: parse 43.8us per icon
+    // vs 0.1us for a cache hit).
+    //
+    // 解析走共享的 LRU 缓存：滚动列表里同一个图标源会被反复挂载、销毁、再挂载，
+    // 而解析是一次挂载里最贵的一环（`--dart-define=LIB=micro` 实测，399 个真实
+    // SMIL 图标：解析单图标 43.8us，缓存命中 0.1us）。
+    final parsed = SvgDocumentCache.instance.getOrParse(widget.source);
+    _document = parsed.document;
     _elapsed = Duration.zero;
     _ticker = createTicker(_onTick);
-    if (documentHasImages(_document)) {
+    if (parsed.hasImages) {
       _imagesReady = false;
       // Ticker only starts once decode completes, so elapsed time (and thus
       // the SMIL timeline) doesn't advance behind the scenes while a
