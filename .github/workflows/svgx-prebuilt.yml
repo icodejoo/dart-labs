@@ -75,7 +75,15 @@ jobs:
         id: tc
         shell: bash
         run: |
-          tc=$(grep -oP "kToolchain = '\K[^']+" svgx/tool/prebuilt_common.dart)
+          # sed instead of `grep -oP` (Perl regex `\K`): the macos-latest
+          # runner's /usr/bin/grep is BSD grep, which rejects -P outright
+          # ("invalid option -- P"). sed's basic substitution is portable
+          # across BSD and GNU.
+          #
+          # 用 sed 而不是 `grep -oP`(Perl 正则 `\K`):macos-latest runner 的
+          # /usr/bin/grep 是 BSD grep,直接拒绝 -P("invalid option -- P")。
+          # sed 的基础替换语法在 BSD/GNU 上都通用。
+          tc=$(sed -n "s/.*kToolchain = '\([^']*\)'.*/\1/p" svgx/tool/prebuilt_common.dart)
           echo "toolchain=$tc" >> "$GITHUB_OUTPUT"
           echo "pinned toolchain: $tc"
 
