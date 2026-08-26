@@ -1,0 +1,5 @@
+# CodeGraph local index (per-project, not source)
+.codegraph/
+
+# Session scratch artifacts
+.tmp_screenshots/
