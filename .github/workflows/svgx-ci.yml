@@ -523,15 +523,27 @@ jobs:
       - name: Enable macOS desktop
         run: flutter config --enable-macos-desktop
 
-      # TODO(migration): remove this guard once macos/libsvgx.a is committed.
-      - name: Check prebuilt macOS archive exists
+      # TODO(migration): remove this guard once the macOS framework is
+      # committed. The three symlinks are checked too (`-L`): a Windows
+      # checkout with core.symlinks=false materialises them as plain text
+      # files, which would break codesign in a way nothing else here catches.
+      #
+      # TODO(migration)：macOS framework 提交后删除此守卫。三个符号链接也一并检查
+      # （`-L`）：Windows 上 core.symlinks=false 的检出会把它们落成普通文本文件，
+      # 那会在别处都发现不了的地方搞垮 codesign。
+      - name: Check prebuilt macOS framework exists
         id: guard
         run: |
-          if [ -f svgx/prebuilt/macos/libsvgx.a ]; then
+          fw=svgx/macos/svgx.framework
+          if [ -f "$fw/Versions/A/svgx" ] \
+             && [ -f "$fw/Versions/A/Resources/Info.plist" ] \
+             && [ -L "$fw/Versions/Current" ] \
+             && [ -L "$fw/svgx" ] \
+             && [ -L "$fw/Resources" ]; then
             echo "present=true" >> "$GITHUB_OUTPUT"
           else
             echo "present=false" >> "$GITHUB_OUTPUT"
-            echo "::warning::svgx/prebuilt/macos/libsvgx.a not committed yet — run the svgx-prebuilt workflow to produce it."
+            echo "::warning::svgx/macos/svgx.framework not committed (or its symlinks are missing) — run the svgx-prebuilt workflow to produce it."
           fi
 
       - name: Cache CocoaPods
@@ -555,34 +567,45 @@ jobs:
         working-directory: svgx/example
         run: flutter build macos
 
-      # macOS keeps the static archive, but "static archive" never meant
-      # "statically linked into the executable": Flutter's Podfile uses
-      # `use_frameworks!`, so CocoaPods builds the pod into its own dynamic
-      # `svgx.framework` and -force_load pulls the archive's symbols into that
-      # framework. The old assertion here demanded the opposite and had been
-      # failing on main ever since it was written. What actually has to hold is
-      # that the framework exists and carries the exports — the same property
-      # the iOS job checks, just on a pod-built framework instead of a vendored
-      # one.
+      # svgx links the Rust core dynamically on macOS, out of a *vendored*
+      # framework (it used to be a pod-built one wrapping a -force_load'd static
+      # archive). The same four properties the iOS job checks must hold, plus
+      # one macOS-only structural check: the embedded bundle has to keep its
+      # versioned layout, because Xcode's "Embed & Sign" phase codesigns it and
+      # codesign rejects a flat framework on macOS.
       #
-      # macOS 仍用静态归档，但“静态归档”从来不等于“静态链接进可执行文件”：Flutter 的
-      # Podfile 带 `use_frameworks!`，CocoaPods 会把 pod 编成它自己的动态
-      # `svgx.framework`，-force_load 把归档里的符号拉进这个 framework。这里原来的断言
-      # 要求的恰好相反，自写下之日起就一直在 main 上失败。真正需要成立的是：framework
-      # 存在且带着导出符号——与 iOS job 校验的性质相同，只是这个 framework 由 pod 自己
-      # 编出来、而非 vendored。
+      # svgx 在 macOS 上动态链接 Rust 核心，且来自 *vendored* framework（此前是 pod
+      # 自己编的 framework，里面 -force_load 一个静态归档）。iOS job 校验的四点在这里
+      # 同样必须成立，另加一条 macOS 独有的结构校验：嵌入的 bundle 必须保持版本化布局，
+      # 因为 Xcode 的 “Embed & Sign” 阶段会给它签名，而 macOS 的 codesign 不接受扁平
+      # framework。
       - name: Assert dynamic linkage and exported symbols
         if: steps.guard.outputs.present == 'true'
         working-directory: svgx/example
         run: |
           app=$(find build/macos/Build/Products/Release -maxdepth 1 -name '*.app' | head -1)
           bin="$app/Contents/MacOS/$(basename "$app" .app)"
-          fw="$app/Contents/Frameworks/svgx.framework/Versions/A/svgx"
+          bundle="$app/Contents/Frameworks/svgx.framework"
+          fw="$bundle/Versions/A/svgx"
           test -f "$fw" \
             || { echo "::error::svgx.framework was not embedded in the app bundle"; exit 1; }
+          test -L "$bundle/Versions/Current" && test -L "$bundle/svgx" \
+            || { echo "::error::the embedded svgx.framework lost its versioned-bundle symlinks"; exit 1; }
           otool -L "$bin" | grep -q '@rpath/svgx.framework/Versions/A/svgx' \
             || { echo "::error::the app does not link @rpath/svgx.framework"; exit 1; }
+          otool -D "$fw" | grep -q '@rpath/svgx.framework/Versions/A/svgx' \
+            || { echo "::error::svgx.framework install_name is not @rpath-based"; exit 1; }
+          # -gU: defined, external (exported) symbols only.
           nm -gU "$fw" | grep -q '_frb_pde_ffi_dispatcher_primary$' \
-            || { echo "::error::flutter_rust_bridge exports are missing — -force_load is not taking effect"; exit 1; }
+            || { echo "::error::flutter_rust_bridge exports are missing from svgx.framework"; exit 1; }
+          if nm "$bin" | grep -q '_frb_pde_ffi_dispatcher_primary$'; then
+            echo "::error::FRB symbols were also linked statically into the app binary"; exit 1
+          fi
+          # Xcode signs the embedded bundle; a malformed layout only surfaces
+          # here. Reported, not asserted, when the app itself is unsigned.
+          #
+          # Xcode 会给嵌入的 bundle 签名；布局有问题只有在这一步才暴露。App 本身未签名
+          # 时这里只报告、不断言。
+          codesign --verify --verbose "$bundle" || echo "::warning::codesign --verify on the embedded framework was not clean (see above)"
           echo "dynamic linkage OK — $(nm -gU "$fw" | grep -c ' _frb_') frb_ exports, $(stat -f%z "$fw") bytes"
           lipo -info "$fw"

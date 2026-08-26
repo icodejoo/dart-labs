@@ -75,11 +75,12 @@ void main(List<String> args) {
       missing.add('$rel (${target.triple})');
     }
   }
-  // Apple artifacts that no single triple owns: the macOS lipo'd archive and
-  // the iOS XCFramework (whose two slices are built from three triples).
+  // Apple artifacts that no single triple owns: the iOS XCFramework (two slices
+  // built from three triples) and the universal macOS framework (one fat binary
+  // lipo'd from two triples).
   //
-  // 不属于任何单个三元组的 Apple 产物：macOS 的 lipo 通用归档，以及 iOS 的
-  // XCFramework（两个 slice 由三个三元组构建而来）。
+  // 不属于任何单个三元组的 Apple 产物：iOS 的 XCFramework（两个 slice 由三个三元组
+  // 构建），以及 macOS 的通用 framework（由两个三元组 lipo 成一个 fat 二进制）。
   for (final rel in kExtraArtifacts) {
     if (!artifacts.containsKey(rel)) {
       missing.add('$rel (Apple multi-triple artifact)');

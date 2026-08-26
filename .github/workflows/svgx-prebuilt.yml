@@ -190,45 +190,60 @@ jobs:
           done
 
       # Confirms each slice really is fat where it is meant to be and still
-      # carries the flutter_rust_bridge exports. iOS ships a dynamic
-      # XCFramework (symbols must survive in the dylib's export table); macOS
-      # still ships a static archive that the podspec -force_loads.
+      # carries the flutter_rust_bridge exports. Both Apple platforms now ship
+      # dynamic libraries, so the symbols must survive in the dylib's export
+      # table: iOS as an XCFramework, macOS as one universal versioned
+      # framework.
       #
-      # 确认各 slice 该胖的地方确实是胖的，且仍带着 flutter_rust_bridge 导出。
-      # iOS 分发动态 XCFramework（符号必须留在 dylib 导出表里）；macOS 仍是由 podspec
-      # -force_load 的静态归档。
+      # 确认各 slice 该胖的地方确实是胖的，且仍带着 flutter_rust_bridge 导出。两个
+      # Apple 平台现在都分发动态库，符号必须留在 dylib 的导出表里：iOS 是 XCFramework，
+      # macOS 是一个通用的版本化 framework。
       - name: Report Apple artifact details
         if: matrix.name == 'apple'
         working-directory: svgx
         run: |
-          for b in ios/svgx.xcframework/*/svgx.framework/svgx; do
+          for b in ios/svgx.xcframework/*/svgx.framework/svgx \
+                   macos/svgx.framework/Versions/A/svgx; do
+            [ -f "$b" ] || continue
             echo "=== $b ($(stat -f%z "$b") bytes) ==="
             lipo -info "$b"
             otool -D "$b" | tail -1 | sed 's/^/  install_name: /'
             nm -gU "$b" | grep -c ' _frb_' | sed 's/^/  frb_ exports: /'
           done
-          echo "=== ios/svgx.xcframework total ==="
-          find ios/svgx.xcframework -type f -exec stat -f%z {} + \
-            | awk '{t+=$1} END {print "  " t " bytes"}'
-          a=prebuilt/macos/libsvgx.a
-          echo "=== $a ($(stat -f%z "$a") bytes) ==="
-          lipo -info "$a"
-          nm -g "$a" 2>/dev/null | grep -c ' _frb_' | sed 's/^/  frb_ symbols: /'
+          for bundle in ios/svgx.xcframework macos/svgx.framework; do
+            [ -d "$bundle" ] || continue
+            echo "=== $bundle total (symlinks excluded) ==="
+            find "$bundle" -type f -exec stat -f%z {} + \
+              | awk '{t+=$1} END {print "  " t " bytes"}'
+          done
 
-      # Two roots: `prebuilt/` holds every artifact except the iOS XCFramework,
-      # which has to sit in the CocoaPods pod root (see kIosXcframework). Both
-      # paths are listed on every leg so the uploaded tree is always rooted at
-      # `svgx/` and the legs merge cleanly in `collect`.
+      # Three roots: `prebuilt/` holds every artifact except the two Apple
+      # bundles, which have to sit in their CocoaPods pod roots (see
+      # kIosXcframework / kMacosFramework). All three paths are listed on every
+      # leg so the uploaded tree is always rooted at `svgx/` and the legs merge
+      # cleanly in `collect`.
       #
-      # 两个根：除 iOS XCFramework 外的全部产物在 `prebuilt/` 下，而 XCFramework 必须
-      # 放在 CocoaPods 的 pod 根目录（见 kIosXcframework）。每条 leg 都列出这两个路径，
-      # 保证上传的树统一以 `svgx/` 为根，`collect` 里也能干净地合并。
+      # NOTE: upload-artifact resolves symlinks, so the macOS framework's three
+      # versioned-bundle symlinks arrive as duplicated regular files in the
+      # download. Recreate them (`Versions/Current -> A`, `svgx ->
+      # Versions/Current/svgx`, `Resources -> Versions/Current/Resources`) when
+      # committing the bundle; nothing else in the tree contains symlinks.
+      #
+      # 三个根：除两个 Apple bundle 外的全部产物在 `prebuilt/` 下，而这两个 bundle 必须
+      # 放在各自 CocoaPods 的 pod 根目录（见 kIosXcframework / kMacosFramework）。每条
+      # leg 都列出这三个路径，保证上传的树统一以 `svgx/` 为根，`collect` 里也能干净合并。
+      #
+      # 注意：upload-artifact 会解引用符号链接，macOS framework 的三个版本化 bundle 符号
+      # 链接在下载物里会变成重复的普通文件。提交 bundle 时需要手工重建它们
+      # （`Versions/Current -> A`、`svgx -> Versions/Current/svgx`、
+      # `Resources -> Versions/Current/Resources`）；树里其它地方没有符号链接。
       - uses: actions/upload-artifact@v4
         with:
           name: svgx-prebuilt-${{ matrix.name }}
           path: |
             svgx/prebuilt/
             svgx/ios/svgx.xcframework
+            svgx/macos/svgx.framework
           if-no-files-found: error
 
   collect:
@@ -275,7 +290,7 @@ jobs:
           echo '' >> "$GITHUB_STEP_SUMMARY"
           echo '| artifact | bytes |' >> "$GITHUB_STEP_SUMMARY"
           echo '|---|---:|' >> "$GITHUB_STEP_SUMMARY"
-          find prebuilt ios/svgx.xcframework -type f ! -name MANIFEST.json | sort | while read -r f; do
+          find prebuilt ios/svgx.xcframework macos/svgx.framework -type f ! -name MANIFEST.json | sort | while read -r f; do
             echo "| ${f#prebuilt/} | $(stat -c%s "$f") |" >> "$GITHUB_STEP_SUMMARY"
           done
 
@@ -285,4 +300,5 @@ jobs:
           path: |
             svgx/prebuilt/
             svgx/ios/svgx.xcframework
+            svgx/macos/svgx.framework
           if-no-files-found: error
