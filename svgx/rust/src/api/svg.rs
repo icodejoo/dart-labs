@@ -376,6 +376,21 @@ pub fn parse_svg(data: String, current_color: Option<u32>) -> Result<SvgScene, S
     // `<text>` 的源依然能正常解析——只是不产生字形几何（见下方 `collect`
     // 里的 `usvg::Node::Text` 分支）。
     let tree = usvg::Tree::from_str(&data, &opt).map_err(|e| e.to_string())?;
+    Ok(scene_from_tree(&tree))
+}
+
+/// Flattens an already-parsed usvg tree into the wire [SvgScene].
+///
+/// Split out of [parse_svg] so the benchmark harness can time this conversion
+/// on its own, separately from usvg's XML parse — the two have very different
+/// cost profiles and only this half is ours to optimize.
+///
+/// 把已解析的 usvg 树展平为跨 FFI 的 [SvgScene]。
+///
+/// 从 [parse_svg] 拆出来，便于基准 harness 单独给这段转换计时，与 usvg 的 XML
+/// 解析分开——两者成本画像差别很大，而只有这一半是我们能优化的。
+#[flutter_rust_bridge::frb(ignore)]
+pub(crate) fn scene_from_tree(tree: &usvg::Tree) -> SvgScene {
     let size = tree.size();
     let mut paths = Vec::new();
     let mut images = Vec::new();
@@ -385,12 +400,12 @@ pub fn parse_svg(data: String, current_color: Option<u32>) -> Result<SvgScene, S
     // 而不是从空开始。
     let root_ctx = extend_inherited(&Inherited::default(), tree.root()).unwrap_or_default();
     collect(tree.root(), &root_ctx, &mut paths, &mut images);
-    Ok(SvgScene {
+    SvgScene {
         width: size.width(),
         height: size.height(),
         paths,
         images,
-    })
+    }
 }
 
 /// Injects a `color="#RRGGBB"` attribute into the root `<svg>` tag, unless it
