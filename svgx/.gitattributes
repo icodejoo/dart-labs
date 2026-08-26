@@ -15,3 +15,16 @@
 rust/**/*.rs text eol=lf
 rust/**/Cargo.toml text eol=lf
 rust/**/Cargo.lock text eol=lf
+
+# The vendored Apple bundles are build products, not source. Their `Info.plist`
+# files are the only text-shaped entries in them, and prebuilt/MANIFEST.json
+# hashes raw bytes — so a Windows checkout with core.autocrlf=true would smudge
+# them to CRLF and make every prebuilt-sync check fail on that machine. Marking
+# the whole bundle `-text` disables all end-of-line conversion.
+#
+# 两个 Apple vendored bundle 是构建产物而非源码。里面唯一像文本的就是 `Info.plist`，
+# 而 prebuilt/MANIFEST.json 按原始字节哈希——Windows 上 core.autocrlf=true 的检出会把
+# 它们转成 CRLF，导致该机器上每次 prebuilt-sync 校验都失败。整个 bundle 标记 `-text`
+# 即可关闭全部换行符转换。
+ios/svgx.xcframework/** -text
+macos/svgx.framework/** -text
