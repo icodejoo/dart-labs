@@ -205,3 +205,99 @@ cd benchmark/bench_app && flutter run -d windows --profile --dart-define=LIB=svg
 **诚实说明,不掩饰**:本轮只跑了一次 `LIB=svgx`,没有按"复测方法学调整"的⚠️补丁要求做同时段 `flutter_svg` 配对复测(受限于本次任务的时间预算),因此**无法排除机器噪声**——build/raster 绝对值有 20~40% 的波动区间是这台 Windows 开发机已反复记录过的模式,单次对比不能坐实"合并 `Option` 反而更慢"这个结论。能站得住的信号是 **parse avg/p50 基本没有随字段合并而进一步恶化**(0.054→0.062ms、0.044→0.043ms),说明序列化路径的常数开销至少没有变差;`build`/`raster`/内存这几项的绝对值上涨更可能是本次测量时机的系统噪声(与上一节记录的模式一致),而不是这次重构引入的新回归——但由于没有配对复测数据,这只是合理推测,不作为坐实结论记录。**遗留待办**:后续若怀疑该重构本身引入回归,应按规则补一次同时段 `flutter_svg` 配对复测(`LIB=compare`)来实锤区分噪声与真实回归。
 
 **复现**:`cd benchmark/bench_app && flutter run -d windows --profile --dart-define=LIB=svgx --dart-define=CYCLES=6 --dart-define=ITEMS=1000`
+
+## Dart 侧性能优化专项(2026-08-26)
+
+**触发原因**:一轮只针对 `lib/` 下 Dart 代码的性能优化任务(Rust 侧由另一个 agent 并行进行,两边文件不重叠)。范围:静态路径的 `ui.Picture` 缓存与 widget 重建逻辑、动画路径的解析/采样/绘制、FFI 结果到 Dart 数据结构的搬运。
+
+### 先解决"测不出来"的问题:两套新增测量工具
+
+**问题**:本文件已反复记录,滚动版基准在这台机器上的 build/raster 绝对值跨运行波动 20%~110%,`svgx/flutter_svg` 的 build 比值历史区间是 0.317~0.527(同一份代码)。这个噪声底噪**根本分辨不出 10%~30% 量级的 Dart 侧改动**——本轮确实撞上了:同一份二进制连续两次运行,`anim_paint_frame` 一次 29.7us、一次 23.4us(相差 21%,代码完全没变)。所以先补测量工具,再谈优化。
+
+**工具一:`LIB=micro` 确定性微基准**(`benchmark/bench_app/lib/micro_bench.dart`)
+
+- 在进程内用紧凑循环直接跑被优化的 Dart 函数,无 GPU、无滚动、无控件树;每项重复多轮,报告**最小值**(CPU 密集循环的标准低噪统计量:噪声只会增加耗时)。
+- **两个校准项,永远不要改动它们**:`calibration_codeunit_scan`(纯 `String.codeUnitAt` 扫描,不分配)与 `calibration_alloc_and_record`(每轮分配 map/path/paint 并录制进显示列表,只用框架 API)。用途是把"代码变快了"与"机器变忙了"分开——与本文件既有的"用 flutter_svg 那一组做配对对照"是同一逻辑,只是尺度落到微基准。**实测证明单一校准项不够**:纯扫描项稳定在 0.265us 时,`anim_paint_frame` 波动了 16%,因为纯扫描对 GC/分配器/内存带宽压力完全不敏感——这就是加第二个分配型校准项的原因。
+- **`tool/run_micro.ps1`**:把已编译好的 exe 跑 N 次取逐指标最小值(min-of-N 自下方收敛到真实开销),直接跑 exe 而非 `flutter run`,省掉每次重复的重新编译。
+- **配对原语对比**:凡是"改法 A vs 改法 B"这种问题,一律把**两个变体放进同一个进程**依次跑(`paint_fresh_alloc_per_draw` vs `paint_reused_per_draw`、`replay_typed_lists` vs `replay_interface_lists`)。同一进程相隔数秒,后台负载无法偏向任何一方——这是本轮唯一能给出**决定性**结论的测量形式。
+- **踩坑记录**:Flutter 的 Windows runner 会 `AttachConsole` 并重开标准流,把 stdout 挂回父控制台,因此对该进程做管道/重定向的调用方**什么都拿不到**。重复运行器必须靠文件通信(`SVGX_MICRO_OUT` 环境变量,见 `report_sink.dart`)。另外 `bool.fromEnvironment` **只**接受 `"true"`/`"false"` 两个精确字符串,`--dart-define=AUTOEXIT=1` 会静默求值为 false——为此白跑了一轮基准。
+
+**工具二:`anim_fps` 新增静止模式(`CYCLES=0`)+ `tool/run_anim_fps.ps1`**
+
+- **为什么必须新增**:滚动版 anim_fps 的 `build` 耗时由 `GridView` 在格子进出视口时的挂载/卸载主导,会把**逐帧**动画开销完全盖住。用它去判断"逐帧驱动路径"的改动会得到假阴性——本轮实测:同一场景下"每 tick 一次 setState"与"Listenable 重绘"的 build avg 中位数分别是 3.194ms 与 3.189ms,**完全看不出差别**。静止模式(不滚动,只观测 6 秒)去掉了格子进出,`build` 耗时就纯粹是可见图标 ticker 的每帧开销。
+- **另一个重要发现**:`LIB=compare` 里的 anim_fps 阶段**不能**与独立运行的 anim_fps 相互比较。它排在第四个阶段,前面三个阶段已经把 1000 张 svgx picture、1000 张 flutter_svg picture、399 份文档堆在内存里,测量条件完全不同——同一份代码,compare 模式里 build avg 是 3.601~4.293ms,独立运行是 3.123~3.391ms。本轮一度因为只看 compare 模式的单次数字而误判为回归。
+
+### 端到端结果:1000 动画图标(独立运行,各 5 次,取 min/中位/max)
+
+方法学:`--dart-define=LIB=anim_fps --dart-define=AUTOEXIT=1`,每个变体连续跑 5 次;基线是把 `svgx/lib` 整体 `git checkout` 回 `bd19f7c`(本轮改动前)编译出来的,不是套用历史记录的数字。
+
+**场景 A:来回滚动 6 轮(既有验收场景)**
+
+| 维度 | 优化前(bd19f7c) | 优化后 | 变化 |
+|---|---|---|---|
+| build avg 中位(区间) | 5.519ms(5.323~6.059) | **3.189ms**(3.123~3.391) | **−42.2%**,区间完全不重叠 |
+| raster avg 中位(区间) | 7.983ms(7.639~8.584) | **6.550ms**(6.211~6.662) | **−18.0%**,区间完全不重叠 |
+| real_fps 中位(区间) | 55.12(53.43~56.05) | **58.55**(58.04~58.83) | **+6.2%**,区间完全不重叠 |
+| framesOver8.3ms 中位(区间) | 86(72~114) | **13**(7~14) | **−85%**,区间完全不重叠 |
+
+**场景 B:静止 6 秒(新增,隔离逐帧开销)**
+
+| 维度 | 优化前(bd19f7c) | 优化后 | 变化 |
+|---|---|---|---|
+| build avg 中位(区间) | 0.567ms(0.537~0.580) | **0.356ms**(0.342~0.365) | **−37.2%**,区间完全不重叠 |
+| raster avg 中位(区间) | 3.366ms(3.175~3.484) | **2.621ms**(2.609~2.671) | **−22.1%**,区间完全不重叠 |
+| real_fps 中位 | 59.99 | 59.96 | 持平(两者都已贴满 60Hz) |
+
+**raster 也变快的机制推测(标注为推测,未直接验证)**:显示列表内容本身没变,合理解释是几何路径缓存让每帧复用**同一个 `ui.Path` 实例**,而 Impeller 的路径细分(tessellation)缓存是按路径身份索引的,于是省掉了逐帧重复细分。未做 GPU 侧验证,仅作机制解释。
+
+**静态路径配对复测(`LIB=compare`,同进程同时段)**:svgx build avg 0.600ms vs flutter_svg 1.610ms(ratio 0.373),raster avg 1.274ms vs 1.835ms,内存峰值 231.06MB vs 289.33MB,掉帧 0/0 对 0/0,**每一项都是 svgx 胜**(含历史上偶尔失手的 `raster max`:2.599ms vs 4.006ms)。**诚实标注**:静态路径的改动经微基准实测是每图标每次重建省下约 1.27us,按滚动中每帧新建格子数量折算约占 build 阶段 8%,而本文件记录的 build 比值历史噪声区间是 0.317~0.527——**滚动基准分辨不出这个量级**,本轮 ratio 从 0.341 变成 0.373 落在噪声区间内,不能当作变好或变坏的证据。静态路径的证据以微基准为准。
+
+### 逐项:落地的优化(全部有实测支撑)
+
+微基准数字均为 `tool/run_micro.ps1` best-of-8;凡跨运行对比都标注了两个校准项,以便判断机器负载。
+
+| # | 优化 | 测量方式 | 优化前 | 优化后 | 变化 |
+|---|---|---|---|---|---|
+| 1 | `AnimationDetector` 四条分标签正则合并成一条多分支正则 | `detect_animations_static_sources`;同一运行内 `static_image_sniff_removed_work`(单条正则)×4 作为旧实现的同场代理 | ~1.47us/图标(0.368×4) | 0.515us/图标 | **−65%**;跨运行原始值 1.142→0.515 |
+| 2 | `SvgXStatic.build` 先查 picture 缓存,只在真正未命中时才做 `<image>` 正则嗅探 | 同一运行内 `static_image_sniff_removed_work` vs `static_cache_peek_added_work` | 0.297us/图标(正则) | 0.040us/图标(哈希查找) | **每次重建每图标省 0.257us** |
+| 3 | `SvgDocumentCache`:已解析动画文档的进程级 LRU | 同一运行内 `anim_parse_document` vs `anim_document_cache_hit` | 40.015us/图标(完整 XML 解析+建时间线) | 0.023us/图标 | **重新挂载成本降到约 1/1700** |
+| 4 | `_paintNode` 在节点没有 `<animate>` 时直接复用 `node.attributes`,不再每节点每帧拷贝一份属性表 | `anim_paint_frame` | 21.789us | 21.115us | −3.1%(小,按实测值如实记录) |
+| 5 | `_geometryPath` 把构建好的 `ui.Path` 按"构建来源身份"缓存在节点上(`<path>` 用 `d` 字符串,其余用属性表实例) | `anim_paint_frame` | 21.115us | 15.238us | **−27.8%** 原始值;该轮 `calibration_alloc_and_record` 1.053 对基线 0.934(机器忙 +12.7%),归一化后约 **−35%** |
+| 6 | `SvgXAnimated` 改用绑定到 `AnimatedSvgPainter.clock` 的 `ValueNotifier` 发布时间线,不再每 tick 一次 `setState`(经 `CustomPainter.repaint` 跳过 build+layout 两个阶段) | 静止模式 build avg,各 5 次 | 0.376ms 中位(0.362~0.403) | 0.356ms 中位(0.342~0.365) | **−5.3%**,`framesOver8.3ms` 上限 1→0。滚动场景**测不出差别**(3.194 vs 3.189ms),已如实记录 |
+| 7 | `rust_static_svg` 的 `_replay` 形参改成 `Uint8List`/`Float32List`(FFI 桥实际返回的类型)并改用带下标的循环 | 同一进程内配对 `replay_typed_lists` vs `replay_interface_lists` | 125.2~129.2us | 118.8~121.0us | **重放循环本身 −3%~−6%**;`static_parse_record` 分辨不出(其 21.5us 大头是 Rust 解析) |
+
+**附带修掉的一个真实 bug(动画路径 `<clipPath>`)**:`_resolveClipPath` 里 `geometry.transform(matrix)` 被当成裸语句调用,但 dart:ui 的 `Path.transform` 是**返回**变换后的副本、不动接收者("Returns a copy of the path with all the segments of every sub-path transformed by the given matrix"),所以返回值被丢弃——`<clipPath>` 内容上的变换被静默忽略,同时每个裁剪节点每帧还白白分配一整份 Path 副本。改用 `addPath` 自带的 `matrix4` 参数,既正确又无中间副本。新增回归测试,并**验证过去掉修复后该测试确实失败**;该测试手工搭 `SvgNode` 树,因为 `SvgNode.transform` 由 Rust `parse_transform` 桥填入,在纯 `flutter test` 环境下会退化为 null,用标记文本解析会让测试因为错误的原因通过。详见 `docs/bugfix-history.md`。
+
+### 逐项:尝试后回退的方向(有实测,结论是不值得)
+
+**这三项都不是"感觉没用"就放弃,是量出来不划算才回退的。**
+
+| 方向 | 测量方式 | 结果 | 处置 |
+|---|---|---|---|
+| 把每个节点的 `ResolvedStyle` 按(属性表实例、继承样式实例、`currentColor`)三元组缓存在节点上 | `anim_paint_frame`,A/B 两次构建,校准项几乎一致(0.926 vs 0.938) | 13.561us(无缓存) vs 13.895us(有缓存),**慢 2.5%** | **已回退**。原因:真实动画图标里绝大多数带 `<animate>` 的节点每帧都拿到新属性表,本来就命中不了缓存;省下来的 `inherit` 调用抵不过每节点 3 次身份比较 + 4 次字段写入 |
+| `_paintShape` 复用一个 scratch `Paint`,不再每次绘制新建 | 同一进程内配对 `paint_fresh_alloc_per_draw` vs `paint_reused_per_draw` | 0.311us(新建) vs 0.367us(复用),**复用反而慢 18%** | **已回退**。机制推测:复用时必须写 `shader = null`,这会实体化 `Paint._objects`,让引擎侧失去 `_objects == null` 的快路径;而 Dart 的 bump 分配器新建一个 `Paint` 本来就极便宜。**这条结论对静态路径同样适用**(`rust_static_svg._paintPath` 里的 `Paint()` 不要改成复用),记录在案免得再试一次 |
+| `ResolvedStyle.inherit` 里把两个局部闭包提成顶层函数、`containsKey`+`[]` 四次查找并成一次 | `anim_paint_frame`,A/B 两次构建 | 13.018us(旧) vs 12.825~13.268us(新),校准归一化后约 −1.5% | **已回退**。低于本项指标的分辨率(同一份代码 best-of-8 跨运行仍有约 3.5% 波动),拿不出实测支撑就不留 |
+
+### 识别到但刻意没做
+
+- **`svg_path_data.dart` 的 `_tokenize` 逐字符重写**(现在每个字符都会 `d[i]` 分配一个单字符 String、`c.trim().isEmpty` 再分配、`'MmLl...'.contains(c)` 做一次子串搜索)。改成基于 `codeUnitAt` 的扫描确实会更快,但**上面第 5 项几何缓存落地之后,`d` 解析已经从"每帧一次"变成"每份文档一次"**:`path_data_parse` 实测 1.72us/条,整场 1000 图标基准里总共只跑 399 份文档,端到端预算已经不值得动它。留作记录,而不是留作待办。
+
+**复现方式**:
+
+```
+# 确定性微基准(推荐先跑这个判断 Dart 侧改动)
+cd benchmark/bench_app
+flutter build windows --profile --dart-define=LIB=micro
+pwsh tool/run_micro.ps1 -Runs 8
+
+# 1000 动画图标,滚动 / 静止,各跑 5 次看分布
+flutter build windows --profile --dart-define=LIB=anim_fps --dart-define=AUTOEXIT=1 --dart-define=CYCLES=6
+pwsh tool/run_anim_fps.ps1 -Runs 5
+flutter build windows --profile --dart-define=LIB=anim_fps --dart-define=AUTOEXIT=1 --dart-define=CYCLES=0 --dart-define=HOLD=6
+pwsh tool/run_anim_fps.ps1 -Runs 5
+
+# 静态路径配对对照(仍是端到端结论的最终依据)
+flutter run -d windows --profile --dart-define=LIB=compare --dart-define=CYCLES=6 --dart-define=ITEMS=1000
+```
+
+**平台局限(沿用既有标注)**:仍只在 Windows 桌面 profile 模式测,Android 真机 PSS/`dumpsys meminfo` 复测仍是遗留缺口。本轮全程有另一个 agent 在同一台机器上并行编译 Rust,机器负载明显高于以往几轮——这正是上面两个校准项和 min-of-N 协议存在的原因,所有跨运行对比都已按校准项归一化后再下结论。

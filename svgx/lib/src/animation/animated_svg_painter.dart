@@ -389,11 +389,7 @@ class AnimatedSvgPainter extends CustomPainter {
       // 变换被静默忽略，同时每个裁剪节点每帧还白白分配了一整份 Path 副本。
       // 改用 `addPath` 自带的 `matrix4`，在追加线段时就地应用变换——既正确，
       // 又不产生中间副本。
-      union.addPath(
-        geometry,
-        Offset.zero,
-        matrix4: _affineToMatrix4(accum),
-      );
+      union.addPath(geometry, Offset.zero, matrix4: _affineToMatrix4(accum));
     }
 
     walk(defRoot, const [1, 0, 0, 1, 0, 0]);
