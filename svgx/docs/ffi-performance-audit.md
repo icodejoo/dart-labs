@@ -101,4 +101,82 @@ return ans;
 
 **什么时候值得重新评估(留口子,不是关死)**:仅当以下条件**同时**成立——(a) 动画的每帧采样真的下沉到 Rust,即 FFI 从"一次性"变成"每帧";且 (b) profile 实测数据搬运在帧预算里占比 >10%。在那之前不要再为这个问题开调研。
 
-**结论稳定性**:本问题已做五次交叉验证(DCO 专项、Uint8List 传闻、手写 dart:ffi、FRB 源码级定论、共享内存 arena),方向一致——**现状(FRB sync + SSE)是当前数据形状与量级下的最优解,以后无需重新调研。**
+**结论稳定性**:本问题已做五次交叉验证(DCO 专项、Uint8List 传闻、手写 dart:ffi、FRB 源码级定论、共享内存 arena),方向一致——**现状(FRB sync + SSE)是当前数据形状与量级下的最优解。**
+
+## 补充调研六(2026-08-26,**实测**:把上面的推理换成数字)
+
+前五次都是推理与源码论证。这次直接测了。**结论没有被推翻,但补上了三个推理时没看到的事实**(尤其第 2、3 条,它们比"占比小"更能决定这个方向的死活)。
+
+**复现方式**:隔离 worktree 分支 `bench/ffi-copy-share`(`.claude/worktrees/ffi-copy-bench`),两个测试文件 `svgx/test/ffi_copy_share_bench_test.dart`、`svgx/test/raster_vs_gpu_bench_test.dart`,数据源为 `benchmark/bench_app/lib/mdi_icons_1000.dart` 那 1000 个真实 Mdi 图标。为给对照方最有利条件,Rust 侧临时改 `opt-level = "z"` → `3` 并临时引入 `resvg`(**都只在该 worktree 内,正式库依旧不依赖 resvg**)。
+
+### 实验一:一次 `parse_svg` 的层次拆解(1000 图标 × 10 轮)
+
+| 层 | ns/icon | 占 `parseSvg` | 共享内存能消除吗 |
+|---|---|---|---|
+| **A** `parseSvg` 总计 | 14203 | 100% | — |
+| **L1** SSE decode(Dart 侧反序列化) | **422** | **2.97%** | ✅ **唯一能消的** |
+| **L2** 纯读坐标(不调 dart:ui) | 554 | 3.90% | ❌ 内存在哪都要读 |
+| **L3** 重建 `ui.Path` | 2077 | 14.62% | ❌ |
+| **L3−L2** 纯 Dart→native 调用 | **1523** | **10.72%** | ❌ |
+
+搬运的数据量:**406 字节/图标**(94140 个 `f32` + 29809 个 verb,摊到 1000 个图标)——比之前估的"几 KB"小一个数量级。
+
+**读法**:共享内存的收益上界是 **2.97%**,而它消不掉的 `ui.Path` native 调用是 **10.72%**——后者是前者的 **3.6 倍**。另外 422ns 解 406 字节远慢于纯 memcpy(几十 ns 量级),说明 L1 的大头是**逐字段遍历嵌套结构**而非 bulk copy;共享 arena 只能省掉里面那点 memcpy,结构遍历照做。**即真实收益远低于 2.97% 这个上界。**
+
+### 实验二:resvg CPU 光栅 + 共享内存读像素 vs 现有 Flutter GPU 管线(48×48,3 轮)
+
+| 路径 | 测点 | us/icon |
+|---|---|---|
+| **GPU**(现有) | G1 `parseSvg` | 27.96 ※ |
+| | G2 重建 `ui.Path` | 3.95 |
+| | G3 录制 `ui.Picture` | 5.52 |
+| | **CPU 合计** | **37.42** |
+| **RASTER**(resvg) | R1 纯光栅(丢弃像素) | 29.99 |
+| | R2 光栅 + **共享内存**读回 | 34.24 → handoff **4.25** |
+| | R3 光栅 + SSE 拷贝读回 | 37.26 → handoff **7.27** |
+| | R4 像素 → `ui.Image` | **122.00** |
+| | **CPU 合计(R2+R4)** | **156.23** |
+
+※ 该轮 warmup 不足(仅 200 图标),G1 偏高;实验一充分预热下同一 dll 测得 14.20。用 14.20 修正后 GPU 侧 CPU 合计 23.67 us/icon。
+
+**三个推理阶段没看到的事实**:
+
+1. **共享内存的 handoff 不是 0,是 4.25us**。它有自己的簿记成本:Rust 侧 alloc + `Box::into_raw`、FFI 返回句柄、Dart 侧 `Pointer.fromAddress` + `asTypedList`、外加 `free_pixels` **第二次 FFI 调用**。对 9216 字节的像素,共享内存只省掉 **41%**(3.02/7.27)的搬运成本,**不是 100%**。数据越小,这个固定簿记占比越高——对 406 字节的 `parse_svg` 场景,它很可能**净亏**。
+2. **真正的拷贝瓶颈不在 Rust→Dart,在 Dart→engine**。`R4 = 122us/icon`,是 handoff(4–7us)的 **17–29 倍**。任何要显示的像素最终都得过 `ImmutableBuffer.fromUint8List` 交给 engine,那一跳的拷贝无法用共享内存绕开。**共享内存省下的 3us,在下游这一跳面前直接消失。**
+3. **CPU 光栅路线整体比 GPU 路线贵 4.2 倍(用修正后的 G1 则为 6.6 倍)CPU**,而 GPU 路线这份 CPU 成本里**还不含光栅化本身**(已卸载到 GPU)。单是 resvg 光栅 R1=29.99us 就已逼近整条 GPU 路径的 CPU 总成本。这为 `CLAUDE.md` 架构决策"不采用 resvg / 光栅化交给 Flutter GPU"补上了本项目自己的实测证据(此前理由是无动画 + 体积 +0.5MB)。
+
+### 方法学局限(如实标注)
+
+- **环境是 `flutter test` host VM(JIT),不是 profile AOT**。Dart 侧的 L1/L2/L3 被 JIT 拖慢,Rust 侧是 AOT 的 dll 不受影响 → **L1 占比被高估**,AOT 下只会更低。偏差方向对结论保守。
+- 10000 次 `Stopwatch.start/stop` 的开销全部计入 L1,同样是高估。
+- **headless 环境未测真实 GPU 光栅耗时**,GPU 路径只统计了 CPU 侧成本。参考量级见 `docs/performance-benchmarks.md` 的 raster avg 1.5–1.8ms(1000 图标一屏)。
+- 实验二 warmup 不足导致 G1 偏高,使 raster/gpu 比值被**低估**(4.2x 是下界,修正后 6.6x)。偏差方向同样对结论保守。
+- R4 的 122us 含 3 次 `await` 的异步调度开销,可能高估;但即便扣除,9216 字节拷贝 + engine 侧纹理准备仍远大于 handoff 量级。
+
+### 最终结论
+
+**不做共享内存 arena,不换 CPU 光栅路线。**收益上界实测 2.97% 且真实值更低,而共享内存自身的固定簿记成本在本项目 406 字节/图标的数据量级下很可能把这点收益吃光;真正的拷贝大头(Dart→engine,122us)共享内存够不着。**本问题至此从"推理结论"升级为"实测结论",彻底闭环。**
+
+重新评估的触发条件不变(见补充调研五):动画每帧采样下沉 Rust **且** profile 实测搬运占帧预算 >10%。
+
+## 补充调研七(2026-08-26,"让 resvg 调 GPU 提速"可行性)
+
+**结论:resvg 不能调 GPU;换成 Rust 侧的 GPU 渲染器(vello)也是错误方向。**
+
+> 数据来源标注:23.67us / 122us / 29.99us 来自补充调研六本项目实测;readback 量级、tiny-skia 声明来自公开资料引用,**未单独实测**。
+
+- **resvg 本身没有 GPU 后端可调**。它唯一的渲染后端 `tiny-skia` 在 README 里把 GPU rendering 明确列为 *out of scope / not planned*。resvg 早期有过 qt/cairo/raqote/skia 多后端,后来全部移除统一到 tiny-skia,**连开关都不存在**。
+- **真正的障碍不在渲染器,在两个 GPU 上下文之间的桥**。Rust 用 wgpu/vello 渲染,结果在 Rust 自己的 GPU 上下文里;Flutter 用 Impeller/Skia 的上下文。跨过去只有两条路,都不通:
+
+  | 路径 | 成本 | 判定 |
+  |---|---|---|
+  | GPU readback(GPU→CPU→Flutter GPU) | readback 普遍毫秒级;公开数据:Android 720p RGBA GPU→CPU ~5ms + CPU→GPU ~5ms | 现有整条 GPU 路径 CPU 成本仅 **23.67us**,一次 readback 是其 **200 倍以上**。出局 |
+  | external texture 共享(`Texture` widget + `TextureRegistry`) | 每平台需写原生插件代码(纯 FFI plugin 做不到);**每个纹理需一个 textureId + 一个 Texture widget** | 该模型是为"一路视频/相机预览"设计,不适用于 **1000 个 24dp 图标**;桌面支持弱。出局 |
+
+- **现有方案本来就在用 GPU**。`ui.Picture` → Impeller/Skia 就是 GPU 光栅。问题从不是"要不要 GPU",而是"用谁的 GPU"——现在用 Flutter 自己那块:零桥接、零额外上下文,Impeller 还能跨图标批合并 draw。引入第二个 GPU 上下文只是凭空多一道墙。
+- **小图标场景 GPU 也不划算**:48×48 = 2304 像素。GPU 优势在并行填充**大量**像素,而每次 draw 的固定开销(command buffer 提交、state change、同步)是常数(wgpu 的 state change 开销本身即被记录为"相对 vulkan 偏高")。这点填充量撑不起固定成本。
+- **体积直接否决**:wgpu + vello 是**几 MB 级**依赖,而本项目正为 resvg 的 0.5MB 纠结(见 `docs/SIZE_OPTIMIZATION.md`)。
+
+**统一规律(补充调研六的延伸)**:**任何"Rust 侧自己出像素"的方案,都必须在 Rust 与 Flutter engine 之间过一道墙**——CPU 光栅过的是 memcpy 墙(实测 R4 = 122us/icon),GPU 光栅过的是 readback 墙(毫秒级,更厚)。而现有方案**根本不过墙**:它把几何(406 字节 verbs/points)交给 Flutter,由 Flutter 自己在 GPU 上光栅。
+
+**因此 `CLAUDE.md` 架构决策"光栅化交给 Flutter GPU,Rust 永不参与"的真正价值不是省 CPU,而是完全绕开了这道墙。**此结论一并闭环,后续不必再为"Rust 侧上 GPU"重新调研。
