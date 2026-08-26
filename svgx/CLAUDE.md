@@ -637,3 +637,49 @@ Rust 1.96 / flutter_rust_bridge 2.12 / Flutter 3.47 / Dart 3.13 / Android NDK 28
 - `test/animation/animate_motion_test.dart`(扩展)
 - `test/animation/gradient_test.dart`(扩展)
 - `example/lib/main.dart`(扩展)
+
+## WSA(Windows Subsystem for Android)上"内容全黑"的真实成因(2026-08-26 实测定位,结论:与 svgx 无关)
+
+之前在 WSA(`adb` 地址 `127.0.0.1:58526`,`product:windows_x86_64`)上目视验收 svgx 时,看到画面整片漆黑,一度怀疑是 svgx 自己的渲染管线在 WSA 的虚拟 GPU 上挂了。这一轮做了完整的逐层剥离实验,把触发条件钉死了,记录在此,以后不用再从头怀疑一遍。
+
+### 一、先纠正两个"看起来像 bug、其实是环境假象"的坑
+
+- **`adb exec-out screencap` 在 WSA 上根本拍不到应用画面**。WSA 的应用是 freeform 窗口,由 Windows 宿主侧合成,Android 侧的 display buffer 是空的——试过 `-d 100`/`-d 101`/`-d 129`,全部返回纯黑 2560x1440,和应用实际画的是什么毫无关系。**别再用 screencap 判断 WSA 上的渲染结果**。可靠办法是在 Windows 侧按窗口类名(`com.example.svgx_example`)找到 HWND,用 `PrintWindow(hwnd, hdc, 2)` 抓图。
+- **窗口经常处于"有 HWND 但没有 surface"的状态**(`dumpsys window windows` 里 `mViewVisibility=0x4/0x8`、`mHasSurface=false`),这时候截到的是桌面背景,不是"应用渲染成透明/全黑"。截图前必须先确认 Android 侧 `mHasSurface=true`,否则会把"窗口没显示"误读成"渲染失败"。
+
+### 二、Impeller 在 WSA 上的实际后端
+
+logcat 明确:先尝试 Vulkan(`android_context_vk_impeller.cc`),随即回落到 **OpenGLES**(`android_context_gl_impeller.cc`),走的是 `/vendor/lib64/egl/libEGL_emulation.so`(goldfish 模拟驱动,且 `/dev/goldfish_pipe` 缺失,一直刷 `open_verbose: both vsock and goldfish_pipe paths failed`)。也就是说 WSA 上跑的是 **Impeller + 模拟 GLES 驱动**,不是原生 GPU。
+
+**`--no-enable-impeller` / manifest 里的 `io.flutter.embedding.android.EnableImpeller=false` 在当前 Flutter 3.47 上已经失效**——实测加了这条 meta-data 重新打包,logcat 依然是 "Using the Impeller rendering backend (OpenGLES)",画面也没有任何变化。Android 侧的 Skia 后端已经被移除,这条常见的规避手段现在不成立,别再浪费一次编译去试。
+
+### 三、逐层剥离的实测结论:触发点是 Material `AppBar`,不是 svgx
+
+全部在 **release 模式**(`flutter build apk --release --target-platform android-x64` + `adb install`)下做,每个变体一张 `PrintWindow` 截图:
+
+| 变体 | 结果 |
+|---|---|
+| 纯 `Text` / `Container` / `Center` / 真实溢出裁剪的 `SingleChildScrollView` / `Opacity`(saveLayer)/ `ClipRRect` / `RepaintBoundary` | **全部正常渲染** |
+| svgx 静态图标 + 动画图标(含 `<image>` 位图、动画 `<mask>`、静态/动画渐变 shader、`<text>`、`<animateMotion>`、`<use>`、`skewX`) | **全部正常渲染** |
+| `Scaffold(appBar: AppBar(...), body: ...)` | **AppBar 那一条正常画出来,AppBar 以下整个 body 全黑**——连 `Scaffold.backgroundColor` 显式设成纯绿都不画,body 里只放一个黄底红字的 `Text` 也是黑的 |
+| 去掉 `appBar`(其余完全不变) | **立刻全部正常** |
+| `AppBar(elevation: 0, scrolledUnderElevation: 0, backgroundColor: 蓝, systemOverlayStyle: light)` | **仍然全黑** → 不是 elevation / surfaceTint 的锅 |
+| 不用 AppBar,单独调 `SystemChrome.setSystemUIOverlayStyle(...)` | **正常** → 不是 SystemUiOverlayStyle 的锅 |
+| 自制顶栏 `PreferredSize + Container`(同样 56 高) | **正常** → 不是"顶部有一条栏"的锅 |
+| 自制顶栏 `PreferredSize + Material(elevation: 4)` | **正常** → 不是 `Material` 本身的锅 |
+
+### 四、结论(明确、不含糊)
+
+**WSA 上看到的"svgx 内容全黑",不是 svgx 的 bug,svgx 的静态路径和动画引擎在 WSA + Impeller(GLES 模拟驱动)下渲染完全正常。**真正的触发点是 Flutter 自己的 Material `AppBar`:只要 `Scaffold` 挂了 `AppBar`,在 WSA 这套模拟 GLES 驱动上,AppBar 以下的整块画面就不会被合成出来(呈现为窗口的透明底色,看上去就是全黑);把 `AppBar` 拿掉,同一个页面、同一批 svgx 组件立刻全部正常显示。这是 **Flutter 引擎 + WSA 模拟 GPU 驱动**这一层的问题,与本库无关。
+
+### 五、上游 issue 状态:**没有找到精确匹配**
+
+搜过 flutter/flutter 的 Impeller 黑屏系列(#160866、#155973、#154103、#164717、#154531、#160948、#159851、#165298)以及 WSA 相关(#137905),**没有任何一条描述"AppBar 导致其余画面全黑"或 WSA 上的这个具体现象**。WSA 本身微软已于 2025 年 3 月停止支持,上游也基本不会再有人报这个平台的问题。
+
+最接近的类比仍然是 [flutter/flutter#164735](https://github.com/flutter/flutter/issues/164735)("Black screen with Impeller enabled",无 GPU passthrough 的 macOS 虚拟机里 Impeller 拿不到真实 GPU 而黑屏,且 3.39+ 之后再也没有关掉 Impeller 的开关)——**架构上同类(虚拟化 GPU + 无法关闭的 Impeller),但不是同一个 bug**,如实记录为"最接近的先例",不要当成已确认的根因引用。
+
+### 六、以后在 WSA 上做目视验证的实操建议
+
+1. **不要用 `adb screencap`**,用 Windows 侧的 `PrintWindow` 抓 WSA 窗口;截图前先用 `dumpsys window windows` 确认 `mHasSurface=true`。
+2. **验证页面不要用 `Scaffold(appBar: AppBar(...))`**——换成 `appBar: null`,或用 `PreferredSize + Container` 自制顶栏。这是目前唯一实测有效的规避手段(`--no-enable-impeller` 已失效)。
+3. WSA 只适合当"能不能跑起来"的冒烟环境。**性能基准和最终目视验收要以真机为准**,WSA 的模拟 GLES 驱动既不代表真实 GPU 性能,也会制造上面这种假故障。
