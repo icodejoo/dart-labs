@@ -31,12 +31,14 @@
 // 基准机制（滚动、计时采集、RSS 采样全部留在原文件里）。
 
 import 'dart:async';
+import 'dart:io';
 
 import 'package:flutter/material.dart';
 
 import 'anim_bench_screen.dart';
 import 'anim_fps_bench_screen.dart';
 import 'bench_screen.dart';
+import 'report_sink.dart';
 
 /// Idle window inserted between phases so one phase's GC/memory pressure
 /// doesn't bleed into the next phase's measurement. Chosen to be longer than
@@ -320,6 +322,21 @@ class _CompareBenchRunnerState extends State<CompareBenchRunner> {
     // 用 print（而非 debugPrint）避免长报告行在 `flutter run` 控制台里被截断。
     // ignore: avoid_print
     print(buf.toString());
+    // Every phase widget (`BenchRunner`/`AnimBenchRunner`/`AnimFpsBenchRunner`)
+    // is driven here with an `onComplete` callback, which is exactly the
+    // condition each of their own `autoExitAfterReport` checks treats as "a
+    // sequential harness owns the exit decision" (see `bench_screen.dart`'s
+    // `_printReport`) — so none of them ever call `exit(0)`, and without this
+    // call `--dart-define=AUTOEXIT=1` would silently do nothing in `compare`
+    // mode, leaving the process attached forever after printing.
+    //
+    // 这里跑的每个阶段 widget（`BenchRunner`/`AnimBenchRunner`/
+    // `AnimFpsBenchRunner`）都带着 `onComplete` 回调，而这正是它们各自
+    // `autoExitAfterReport` 检查里"顺序 harness 自己决定何时退出"那个条件
+    // （见 `bench_screen.dart` 的 `_printReport`）——所以它们都不会调用
+    // `exit(0)`，没有这行的话 `--dart-define=AUTOEXIT=1` 在 `compare` 模式下
+    // 会静默失效，打印完报告后进程会一直挂着。
+    if (autoExitAfterReport) exit(0);
   }
 
   @override
@@ -329,7 +346,7 @@ class _CompareBenchRunnerState extends State<CompareBenchRunner> {
   }
 
   Widget _settleScaffold(String afterPhase) => Scaffold(
-    appBar: AppBar(title: const Text('compare bench: settling...')),
+    appBar: AppBar(title: const Text('compare bench: settling...'), clipBehavior: Clip.none),
     body: Center(
       child: Text(
         'settling ${_settleRemainingSec}s after $afterPhase before next phase\n'
@@ -378,7 +395,7 @@ class _CompareBenchRunnerState extends State<CompareBenchRunner> {
         );
       case _Phase.done:
         return Scaffold(
-          appBar: AppBar(title: const Text('compare bench: done')),
+          appBar: AppBar(title: const Text('compare bench: done'), clipBehavior: Clip.none),
           body: const Center(
             child: Text(
               'All four phases complete. See stdout for the consolidated report.',

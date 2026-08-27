@@ -74,3 +74,44 @@ union.addPath(geometry, Offset.zero, matrix4: _affineToMatrix4(accum));
 **回归测试**:`test/animation/clip_mask_test.dart` 新增 "a transform inside a clipPath is applied to its geometry"。它**手工构造 `SvgNode` 树**并直接给 `transform: const [1, 0, 0, 1, 50, 0]`,绕开上面那个"测试环境里 transform 恒为 null"的陷阱——否则测试会因为错误的原因通过。用例让裁剪矩形覆盖左半边再右移 50 单位,断言存活的是**右**半边(x=75 处 alpha=255、x=25 处 alpha=0);修复前存活的是左半边。**已实测验证:把修复改回原写法,该测试确实失败**(`Expected: <255> Actual: <0>`),不是只在修复后跑通就收工。
 
 **结果**:`flutter test` 119/119 通过,`flutter analyze` 0 issue。性能侧的记录见 `docs/performance-benchmarks.md` 的"Dart 侧性能优化专项(2026-08-26)"。
+
+## 动画路径缺少 SVG 视口裁剪 → mask/blur 的 `saveLayer` 全屏化，真机 100 个动画图标即永久黑屏(2026-08-27)
+
+**现象**：真机(华为 STG-AL00,Android 12,Impeller **GLES** 后端 —— 不是 Vulkan,实测 timeline 里出现的是 `SurfaceGLES::WrapOnScreenFBO`)上,`benchmark/bench_app` profile 模式跑 `LIB=bare`/`LIB=anim_fps` 的千图标动画网格,**永久黑屏、无任何崩溃/异常/报错日志**;`1.raster` 线程持续 ~100% CPU 超过两分钟,`dumpsys SurfaceFlinger` 的 `queued-frames=0`,屏幕截图恒为 16225 字节纯黑 PNG。100 项黑屏、10 项正常。看起来完全像 GPU 驱动死锁/活锁。
+
+**排查手段**：`simpleperf` 在这台华为机上被内核挡死(`perf_event_open: Permission denied`,`security.perf_harden=0` 也无效),无 root 也用不了 `debuggerd`。真正拿到证据的是 **VM Service timeline**(`benchmark/bench_app/tool/capture_timeline.dart`)—— Flutter engine 的 C++ `TRACE_EVENT` 与 Dart timeline 共用同一个记录器,所以 raster 线程的原生调用区间是能抓到的。按 `Rasterizer::DoDraw` 切帧统计,黑屏状态下每一帧稳定是:
+
+```
+frame 0: dur=2530.2ms encodes=57 saveLayers=56
+frame 1: dur=2443.3ms encodes=57 saveLayers=56
+...(共 11 帧,每帧 2.2-2.5 秒)
+```
+
+**根因**(不是死锁,是一帧真的要画 2.4 秒)：`animated_svg_painter.dart` 的 `_paintNode` 为 `<mask>` 和 `feGaussianBlur` 开 `canvas.saveLayer(null, ...)`。bounds 传 `null` 意味着"无界",渲染器只能拿**当前裁剪区**来决定离屏渲染目标的尺寸;而 `CustomPaint` **不裁剪自己的画布**,动画路径此前也没有自己加裁剪 —— 于是裁剪区就是整个窗口(1080x2376)。399 个真实 line-md/eos 图标里有 65 个用 `<mask>`(16.3%),约 140 个可见格子里就有约 23 个带 mask,每个 mask 要开 2 个图层(目标层 + 覆盖度层)= 约 56 个 `saveLayer`,每个都分配一张**全屏**离屏纹理并跑一个全屏渲染通道:timeline 里对应 57 个 `RenderPassGLES::EncodeCommandsInReactor`,每个约 43ms,合计每帧约 2450ms。屏幕因此始终不更新、raster 线程 100% 忙 —— 所谓"黑屏卡死"只是"一帧要 2.4 秒"。
+
+**为什么静态路径没这个问题**：`rust_static_svg.dart` 一直是对的 —— 它 `canvas.clipRect(maskRect)` 之后再 `canvas.saveLayer(maskRect, Paint())`,bounds 是显式的。这是两条路径之间一个纯粹的疏漏性不对称。
+
+**为什么之前一直没暴露**：`flutter test` 用 `TestWidgetsFlutterBinding`,离屏图层大小不影响任何断言,像素测试全过;`LIB=compare` 在真机上"能跑"是因为它的动画阶段可见格子更少、成本还没越过肉眼可察的临界点(实测 ~7 FPS)。
+
+**修复**(`lib/src/animation/animated_svg_painter.dart` 的 `paint()`)：绘制任何内容之前先裁剪到 SVG 视口:
+
+```dart
+canvas.clipRect(Rect.fromLTWH(0, 0, intrinsicSize.width, intrinsicSize.height));
+```
+
+这一行同时解决两件事:(1) **正确性** —— 按 SVG 规范最外层 `<svg>` 的 `overflow` 默认为 hidden,超出 viewBox 的内容不该绘制,静态(usvg)路径本来就是这个行为;(2) **性能** —— 无界 `saveLayer` 的覆盖范围从整个窗口塌缩到图标盒子(32x32 逻辑像素)。
+
+**真机实测(同一台 STG-AL00,每次都 force-stop + uninstall 干净重装)**：
+
+| 场景 | 修复前 | 修复后 |
+|---|---|---|
+| `LIB=bare ITEMS=1000` 冷启动截图 | 16225 字节纯黑,永不变化 | 124150 字节,整屏图标正常渲染 |
+| 每帧 raster 耗时(timeline 按 `Rasterizer::DoDraw` 切帧) | ~2450ms/帧 | raster avg 23.3ms / p90 32.0ms |
+| `1.raster` 线程 CPU(动画播完后) | 100%,持续 2 分钟以上 | 空闲(`top -H` 里 0 running) |
+| `LIB=anim_fps ITEMS=1000`(6 轮滚动) | **从来跑不完,永久黑屏,一次报告都没产出过** | `frames=226 real_fps=20.79`,build avg 35.4ms(滚动时 GridView 挂载churn 主导),raster avg 23.3ms,rss_peak 207MB |
+
+**结果**：`flutter test` 147/147 通过,`dart analyze` 无新增 issue。
+
+**顺带清理**：本轮排查期间加的一次性诊断开关全部移除 —— `DASH_NO_AA`(`animated_svg_painter.dart`)、`STRIP_DASHARRAY`/`USE_SPINNER`(`anim_icon_gen.dart`)、`WARM_FIRST`/`SKIP_PROBE`(`anim_fps_bench_screen.dart`)。`benchmark/bench_app/lib/bare_anim_grid.dart`(`LIB=bare`)保留为这个 bug 的最小回归用例。
+
+**被否决的方向,记录在案**：中途试过"渐进挂载/首帧热身"(分 20 帧把已构建条目数爬升到满额)。真机实测**仍然黑屏**,而且方向本身是错的 —— 它只是把并发压力往后摊,没有降低单帧成本。用户明确否决:"如果连 35 个图标都无法并发,那就是不可用状态。"

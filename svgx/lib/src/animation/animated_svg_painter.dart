@@ -13,6 +13,7 @@ import 'dart:ui' as ui;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/rendering.dart';
 
+import '../svg_affine.dart';
 import 'smil_animation.dart';
 
 import 'svg_dom.dart';
@@ -120,6 +121,48 @@ class AnimatedSvgPainter extends CustomPainter {
     canvas.save();
     canvas.translate(dx, dy);
     canvas.scale(sx, sy);
+    // Clip to the SVG viewport before painting anything. Two reasons, the
+    // second one measured:
+    //
+    //  1. Correctness: the outermost `<svg>` has `overflow: hidden` per the
+    //     SVG spec, so content escaping the viewBox must not paint. The static
+    //     (usvg) path already behaves this way; this path used to not.
+    //  2. Performance — this is why it matters at scale. `_paintNode` opens
+    //     `saveLayer(null, ...)` layers for `<mask>` and `feGaussianBlur`.
+    //     A null bounds means "unbounded", so the renderer sizes the offscreen
+    //     render target from the *current clip*, and `CustomPaint` does not
+    //     clip its canvas — the clip was therefore the whole window. Every
+    //     masked icon allocated two FULL-SCREEN offscreen textures and two
+    //     full-screen render passes per frame, no matter that the icon draws
+    //     into 32x32 logical pixels. Measured on a Huawei STG-AL00 (Android
+    //     12, Impeller GLES) with ~140 visible line-md icons of which ~23 use
+    //     `<mask>`: 56 `saveLayer`s became 57 `RenderPassGLES::
+    //     EncodeCommandsInReactor` passes at ~43ms each = ~2450ms per frame.
+    //     The screen never updated and the raster thread sat at 100% CPU —
+    //     which looked like a driver hang but was simply a frame that took
+    //     2.4 seconds. With this clip in place the same layers are sized to
+    //     the icon box instead of the window.
+    //
+    // 绘制任何内容前先裁剪到 SVG 视口。两个原因，第二个是实测得出的：
+    //
+    //  1. 正确性：按 SVG 规范，最外层 `<svg>` 的 `overflow` 默认为 hidden，
+    //     超出 viewBox 的内容不应绘制。静态（usvg）路径本来就是这个行为，
+    //     而本路径此前没有。
+    //  2. 性能——这才是规模化时的关键。`_paintNode` 会为 `<mask>` 与
+    //     `feGaussianBlur` 开 `saveLayer(null, ...)` 图层。bounds 传 null 意味
+    //     着"无界"，渲染器于是按*当前裁剪区*来决定离屏渲染目标的尺寸，而
+    //     `CustomPaint` 并不裁剪自己的画布——于是裁剪区就是整个窗口。每个带
+    //     mask 的图标每帧都要分配两张**全屏**离屏纹理、跑两个全屏渲染通道，
+    //     哪怕这个图标只画在 32x32 逻辑像素里。在华为 STG-AL00（Android 12，
+    //     Impeller GLES）上实测：约 140 个可见 line-md 图标中约 23 个用了
+    //     `<mask>`，56 次 `saveLayer` 变成 57 个
+    //     `RenderPassGLES::EncodeCommandsInReactor` 通道、每个约 43ms，
+    //     合计每帧约 2450ms。屏幕因此始终不更新、raster 线程 100% CPU——看着
+    //     像驱动挂死，实际只是一帧要画 2.4 秒。加上这个裁剪后，同样的图层会
+    //     按图标盒子而不是按窗口来分配尺寸。
+    canvas.clipRect(
+      Rect.fromLTWH(0, 0, intrinsicSize.width, intrinsicSize.height),
+    );
     _paintNode(canvas, root, ResolvedStyle.initial);
     canvas.restore();
   }
@@ -134,12 +177,90 @@ class AnimatedSvgPainter extends CustomPainter {
   /// own map is safe. The copy this avoids was allocated once per node per
   /// frame.
   ///
+  /// A node WITH `<animate>`s must get a genuinely fresh [Map] every frame —
+  /// [_geometryPath] relies on that fresh-instance identity as a cheap
+  /// "did this shape's inputs change" cache-invalidation signal for every
+  /// shape kind besides `<path>` (see its doc comment). A reused,
+  /// mutated-in-place map was tried here and reverted: it broke that
+  /// invalidation (the identity never changes once reused), silently
+  /// freezing animated `<rect>`/`<circle>`/etc. geometry at whatever shape
+  /// was cached on the first frame — caught by
+  /// `test/animation/effective_attributes_reuse_test.dart`.
+  ///
   /// [node] 的属性表，叠加本帧已采样的 `<animate>` 值。
   ///
   /// 节点自身没有 `<animate>` 时直接返回 [SvgNode.attributes] 本身——不拷贝；
   /// 真实动画图标里大多数节点都属于这种情况（根节点、各分组，以及所有只是被
   /// 继承而非被动画驱动的形状）。调用方只读使用返回值，因此共享节点自身的表是
   /// 安全的。被省掉的这次拷贝原本是每节点每帧一次。
+  ///
+  /// 带 `<animate>` 的节点每帧必须拿到一份真正全新的 [Map]——除 `<path>`
+  /// 外的每种形状，[_geometryPath] 都靠这份全新实例的身份，作为"这个形状的
+  /// 输入是否变了"的廉价缓存失效信号（见其文档注释）。这里曾试过跨帧复用、
+  /// 原地修改的表，后来回滚：它破坏了那个失效机制（复用后身份永不再变），
+  /// 悄悄把带动画的 `<rect>`/`<circle>` 等几何冻结在第一帧缓存的形状上——由
+  /// `test/animation/effective_attributes_reuse_test.dart` 捕获。
+  /// `attributes[key]` parsed as a double, or [fallback] when absent/invalid.
+  ///
+  /// `attributes[key]` 解析为 double；缺失或非法时返回 [fallback]。
+  static double _num(
+    Map<String, String> attributes,
+    String key, [
+    double fallback = 0,
+  ]) => double.tryParse(attributes[key] ?? '') ?? fallback;
+
+  /// [node]'s presentation style with [inherited] folded in, reusing the
+  /// result cached on the node when the three inputs it was resolved from are
+  /// unchanged (see [SvgNode.cachedStyle]).
+  ///
+  /// `ResolvedStyle.inherit` is not cheap for something that ran once per node
+  /// per frame: roughly a dozen string-keyed map lookups, up to four colour /
+  /// url / dash parses, and a fresh [ResolvedStyle] allocation. Yet in a real
+  /// animated icon almost every node's style is *constant* — a line-md icon
+  /// animates `stroke-dashoffset` or a transform, while `fill`, `stroke`,
+  /// `stroke-width` and friends never move. The cache turns that whole
+  /// computation into three [identical] checks for the static majority.
+  ///
+  /// Validity is proven by identity on all three inputs rather than by value
+  /// equality, which is both cheaper and conservative — a false miss only
+  /// costs a recompute, and a false hit is impossible. See
+  /// [SvgNode.cachedStyle] for why each input's identity is stable exactly
+  /// when the style genuinely cannot have changed.
+  ///
+  /// 返回把 [inherited] 折叠进去后 [node] 的表现样式；当解析它所依赖的三个输入
+  /// 都没变时，直接复用挂在节点上的缓存结果（见 [SvgNode.cachedStyle]）。
+  ///
+  /// 对一个"每节点每帧都要跑一次"的操作来说，`ResolvedStyle.inherit` 并不便宜：
+  /// 大约十几次以字符串为键的 map 查找、最多四次颜色/url/虚线解析，以及一次
+  /// 全新的 [ResolvedStyle] 分配。然而真实动画图标里几乎每个节点的样式都是
+  /// *恒定*的——line-md 风格图标动的是 `stroke-dashoffset` 或某个变换，而
+  /// `fill`、`stroke`、`stroke-width` 之类从不变化。这个缓存把静态的大多数节点
+  /// 的整套计算压成三次 [identical] 比较。
+  ///
+  /// 有效性用三个输入的身份比较来证明，而不是值相等：既更便宜，又是保守的
+  /// ——误判未命中只损失一次重算，误判命中不可能发生。每个输入的身份为何恰好在
+  /// "样式确实不可能变化"时保持稳定，见 [SvgNode.cachedStyle]。
+  ResolvedStyle _resolveStyle(
+    SvgNode node,
+    ResolvedStyle inherited,
+    Map<String, String> attributes,
+  ) {
+    final cached = node.cachedStyle;
+    if (cached != null &&
+        identical(node.styleInheritedKey, inherited) &&
+        identical(node.styleAttributesKey, attributes) &&
+        identical(node.styleThemeKey, theme)) {
+      return cached as ResolvedStyle;
+    }
+    final resolved = inherited.inherit(attributes, theme);
+    node
+      ..cachedStyle = resolved
+      ..styleInheritedKey = inherited
+      ..styleAttributesKey = attributes
+      ..styleThemeKey = theme;
+    return resolved;
+  }
+
   Map<String, String> _effectiveAttributes(SvgNode node) {
     if (node.animations.isEmpty) return node.attributes;
     final overlaid = Map<String, String>.of(node.attributes);
@@ -174,7 +295,7 @@ class AnimatedSvgPainter extends CustomPainter {
     bool nested = false,
   }) {
     final effectiveAttributes = _effectiveAttributes(node);
-    final style = inherited.inherit(effectiveAttributes, theme);
+    final style = _resolveStyle(node, inherited, effectiveAttributes);
 
     // The id checks come first so the overwhelming majority of nodes — which
     // reference neither a `<clipPath>` nor a `<mask>` — skip two map lookups
@@ -193,6 +314,25 @@ class AnimatedSvgPainter extends CustomPainter {
     final needsClipMaskSave = clipDef != null || maskDef != null;
     if (needsClipMaskSave) canvas.save();
     if (clipDef != null) canvas.clipPath(_resolveClipPath(clipDef, time));
+    // Layer nesting follows SVG's filter -> mask pipeline: the mask
+    // destination layer opens FIRST (outer) and the blur layer opens SECOND
+    // (inner, nested inside it), so closing the blur layer composites
+    // blurred content into the mask-destination layer, and the mask is then
+    // applied to that already-blurred result — i.e. `Mask(Blur(content))`,
+    // not `Blur(Mask(content))`.
+    //
+    // 图层嵌套遵循 SVG 的 filter -> mask 管线：遮罩目标图层*先*开（外层），
+    // 模糊图层*后*开（内层，嵌套其中）——这样关闭模糊图层时，模糊后的内容
+    // 会合成进遮罩目标图层，遮罩随后作用于这个已经模糊过的结果，即
+    // `Mask(Blur(content))`，而非 `Blur(Mask(content))`。
+    //
+    // The destination layer mask content composites into via BlendMode.dstIn
+    // (see _maskCoveragePaint) — opened now so it wraps everything painted
+    // below, including any transform this node applies.
+    //
+    // mask 内容经 BlendMode.dstIn（见 _maskCoveragePaint）合成进的目标图层——
+    // 现在开启，使其包裹下方绘制的一切，包括本节点应用的任何变换。
+    if (maskDef != null) canvas.saveLayer(null, Paint());
     // feGaussianBlur: paint this node (and its subtree) into an offscreen
     // layer, then blur the whole layer on composite — rather than blurring
     // each stroke/fill individually, which is what SVG's filter semantics
@@ -212,13 +352,6 @@ class AnimatedSvgPainter extends CustomPainter {
           ),
       );
     }
-    // The destination layer mask content composites into via BlendMode.dstIn
-    // (see _maskCoveragePaint) — opened now so it wraps everything painted
-    // below, including any transform this node applies.
-    //
-    // mask 内容经 BlendMode.dstIn（见 _maskCoveragePaint）合成进的目标图层——
-    // 现在开启，使其包裹下方绘制的一切，包括本节点应用的任何变换。
-    if (maskDef != null) canvas.saveLayer(null, Paint());
 
     if (node.transformAnimations.isEmpty &&
         node.motionAnimations.isEmpty &&
@@ -252,7 +385,7 @@ class AnimatedSvgPainter extends CustomPainter {
       // 形式不可能失效（见 [SvgNode.cachedTransformMatrix]）。此前每个带变换的
       // 节点每帧都要新分配一个 Float64List(16)。
       canvas.transform(
-        node.cachedTransformMatrix ??= _affineToMatrix4(staticTransform),
+        node.cachedTransformMatrix ??= affineToMatrix4(staticTransform),
       );
     }
     for (final transformAnimation in node.transformAnimations) {
@@ -274,7 +407,7 @@ class AnimatedSvgPainter extends CustomPainter {
         case SmilTransformType.skewX:
           // skewX(a) = matrix(1, 0, tan(a), 1, 0, 0)
           canvas.transform(
-            _affineToMatrix4([
+            affineToMatrix4([
               1,
               0,
               math.tan(sampled[0] * math.pi / 180),
@@ -286,7 +419,7 @@ class AnimatedSvgPainter extends CustomPainter {
         case SmilTransformType.skewY:
           // skewY(a) = matrix(1, tan(a), 0, 1, 0, 0)
           canvas.transform(
-            _affineToMatrix4([
+            affineToMatrix4([
               1,
               math.tan(sampled[0] * math.pi / 180),
               0,
@@ -376,11 +509,11 @@ class AnimatedSvgPainter extends CustomPainter {
     void walk(SvgNode node, List<double> matrix) {
       final effectiveAttributes = _effectiveAttributes(node);
       var accum = matrix;
-      if (node.transform != null) accum = _concatAffine(accum, node.transform!);
+      if (node.transform != null) accum = concatAffine(accum, node.transform!);
       for (final transformAnimation in node.transformAnimations) {
         final sampled = transformAnimation.sample(time);
         if (sampled == null) continue;
-        accum = _concatAffine(
+        accum = concatAffine(
           accum,
           _transformSampleToAffine(transformAnimation.type, sampled),
         );
@@ -410,7 +543,7 @@ class AnimatedSvgPainter extends CustomPainter {
       // 变换被静默忽略，同时每个裁剪节点每帧还白白分配了一整份 Path 副本。
       // 改用 `addPath` 自带的 `matrix4`，在追加线段时就地应用变换——既正确，
       // 又不产生中间副本。
-      union.addPath(geometry, Offset.zero, matrix4: _affineToMatrix4(accum));
+      union.addPath(geometry, Offset.zero, matrix4: affineToMatrix4(accum));
     }
 
     walk(defRoot, const [1, 0, 0, 1, 0, 0]);
@@ -442,34 +575,17 @@ class AnimatedSvgPainter extends CustomPainter {
         final rad = sampled[0] * math.pi / 180;
         final cosr = math.cos(rad), sinr = math.sin(rad);
         final cx = sampled[1], cy = sampled[2];
-        final rotation = _concatAffine(
+        final rotation = concatAffine(
           [1, 0, 0, 1, cx, cy],
           [cosr, sinr, -sinr, cosr, 0, 0],
         );
-        return _concatAffine(rotation, [1, 0, 0, 1, -cx, -cy]);
+        return concatAffine(rotation, [1, 0, 0, 1, -cx, -cy]);
       case SmilTransformType.skewX:
         return [1, 0, math.tan(sampled[0] * math.pi / 180), 1, 0, 0];
       case SmilTransformType.skewY:
         return [1, math.tan(sampled[0] * math.pi / 180), 0, 1, 0, 0];
     }
   }
-
-  /// Affine `a * b` in SVG's `[a, b, c, d, e, f]` convention — same formula as
-  /// `svg_gradient.dart`'s private `_concat`, kept separate since it's a
-  /// six-line self-contained formula not worth threading a shared-utility
-  /// import for.
-  ///
-  /// SVG `[a, b, c, d, e, f]` 约定下的仿射矩阵乘法 `a * b`——与
-  /// `svg_gradient.dart` 私有的 `_concat` 公式相同，单独保留是因为这是六行的
-  /// 自包含公式，不值得为此引入共享工具导入。
-  static List<double> _concatAffine(List<double> a, List<double> b) => [
-    a[0] * b[0] + a[2] * b[1],
-    a[1] * b[0] + a[3] * b[1],
-    a[0] * b[2] + a[2] * b[3],
-    a[1] * b[2] + a[3] * b[3],
-    a[0] * b[4] + a[2] * b[5] + a[4],
-    a[1] * b[4] + a[3] * b[5] + a[5],
-  ];
 
   // [attributes] is the element's *animated* attribute map (node.attributes
   // with any sampled <animate> values overlaid — see _paintNode) — geometry
@@ -516,10 +632,10 @@ class AnimatedSvgPainter extends CustomPainter {
         if (img == null) {
           return; // not yet decoded / failed to decode: skip silently
         }
-        final x = double.tryParse(attributes['x'] ?? '0') ?? 0;
-        final y = double.tryParse(attributes['y'] ?? '0') ?? 0;
-        final w = double.tryParse(attributes['width'] ?? '0') ?? 0;
-        final h = double.tryParse(attributes['height'] ?? '0') ?? 0;
+        final x = _num(attributes, 'x');
+        final y = _num(attributes, 'y');
+        final w = _num(attributes, 'width');
+        final h = _num(attributes, 'height');
         if (w <= 0 || h <= 0) return;
         canvas.drawImageRect(
           img,
@@ -615,16 +731,16 @@ class AnimatedSvgPainter extends CustomPainter {
         final d = attributes['d'];
         return d == null ? null : parseSvgPathData(d);
       case SvgNodeKind.circle:
-        final cx = double.tryParse(attributes['cx'] ?? '0') ?? 0;
-        final cy = double.tryParse(attributes['cy'] ?? '0') ?? 0;
-        final r = double.tryParse(attributes['r'] ?? '0') ?? 0;
+        final cx = _num(attributes, 'cx');
+        final cy = _num(attributes, 'cy');
+        final r = _num(attributes, 'r');
         return ui.Path()
           ..addOval(Rect.fromCircle(center: Offset(cx, cy), radius: r));
       case SvgNodeKind.rect:
-        final x = double.tryParse(attributes['x'] ?? '0') ?? 0;
-        final y = double.tryParse(attributes['y'] ?? '0') ?? 0;
-        final w = double.tryParse(attributes['width'] ?? '0') ?? 0;
-        final h = double.tryParse(attributes['height'] ?? '0') ?? 0;
+        final x = _num(attributes, 'x');
+        final y = _num(attributes, 'y');
+        final w = _num(attributes, 'width');
+        final h = _num(attributes, 'height');
         if (w <= 0 || h <= 0) {
           return null; // SVG: non-positive size renders nothing
         }
@@ -647,10 +763,10 @@ class AnimatedSvgPainter extends CustomPainter {
         }
         return path;
       case SvgNodeKind.ellipse:
-        final cx = double.tryParse(attributes['cx'] ?? '0') ?? 0;
-        final cy = double.tryParse(attributes['cy'] ?? '0') ?? 0;
-        final rx = double.tryParse(attributes['rx'] ?? '0') ?? 0;
-        final ry = double.tryParse(attributes['ry'] ?? '0') ?? 0;
+        final cx = _num(attributes, 'cx');
+        final cy = _num(attributes, 'cy');
+        final rx = _num(attributes, 'rx');
+        final ry = _num(attributes, 'ry');
         return ui.Path()..addOval(
           Rect.fromCenter(
             center: Offset(cx, cy),
@@ -659,10 +775,10 @@ class AnimatedSvgPainter extends CustomPainter {
           ),
         );
       case SvgNodeKind.line:
-        final x1 = double.tryParse(attributes['x1'] ?? '0') ?? 0;
-        final y1 = double.tryParse(attributes['y1'] ?? '0') ?? 0;
-        final x2 = double.tryParse(attributes['x2'] ?? '0') ?? 0;
-        final y2 = double.tryParse(attributes['y2'] ?? '0') ?? 0;
+        final x1 = _num(attributes, 'x1');
+        final y1 = _num(attributes, 'y1');
+        final x2 = _num(attributes, 'x2');
+        final y2 = _num(attributes, 'y2');
         return ui.Path()
           ..moveTo(x1, y1)
           ..lineTo(x2, y2);
@@ -711,8 +827,8 @@ class AnimatedSvgPainter extends CustomPainter {
     final fill = style.fill;
     if (fill == null) return; // fill="none": SVG renders no glyphs
 
-    final x = double.tryParse(attributes['x'] ?? '0') ?? 0;
-    final y = double.tryParse(attributes['y'] ?? '0') ?? 0;
+    final x = _num(attributes, 'x');
+    final y = _num(attributes, 'y');
     final fontSize = double.tryParse(attributes['font-size'] ?? '') ?? 16;
 
     final painter = TextPainter(
@@ -762,24 +878,6 @@ class AnimatedSvgPainter extends CustomPainter {
       path.getBounds(),
       opacity,
     );
-  }
-
-  /// Expands an SVG affine `[a, b, c, d, e, f]` into the column-major 4x4
-  /// matrix `Canvas.transform` wants.
-  ///
-  /// 把 SVG 仿射矩阵 `[a, b, c, d, e, f]` 展开为 `Canvas.transform` 需要的
-  /// 列主序 4x4 矩阵。
-  static Float64List _affineToMatrix4(List<double> m) {
-    final out = Float64List(16);
-    out[0] = m[0]; // a
-    out[1] = m[1]; // b
-    out[4] = m[2]; // c
-    out[5] = m[3]; // d
-    out[10] = 1;
-    out[12] = m[4]; // e
-    out[13] = m[5]; // f
-    out[15] = 1;
-    return out;
   }
 
   /// [color] faded by [opacity], returning [color] untouched at full opacity.
@@ -843,13 +941,13 @@ class AnimatedSvgPainter extends CustomPainter {
       return;
     }
     if (style.stroke != null && style.strokeWidth > 0) {
-      final strokePath = style.strokeDasharray.isEmpty
-          ? path
-          : dashPath(
+      final strokePath = style.strokeDasharray.isNotEmpty
+          ? dashPath(
               path,
               dashArray: style.strokeDasharray,
               dashOffset: style.strokeDashoffset,
-            );
+            )
+          : path;
       canvas.drawPath(
         strokePath,
         Paint()

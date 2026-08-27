@@ -187,6 +187,15 @@ class _AnimFpsBenchRunnerState extends State<AnimFpsBenchRunner> {
       const Duration(milliseconds: 200),
       (_) => _sampleRss(),
     );
+    // See [warmUpFrameTimingChannel]: confirms the engine's timing-report
+    // channel is actually live before opening the real measurement window,
+    // instead of risking a `frames=0` false result when this phase happens
+    // to run first right after a cold install/launch.
+    //
+    // 见 [warmUpFrameTimingChannel]：打开真正的计时窗口前先确认引擎的
+    // 上报通道确实存活，避免本阶段恰好在冷安装/冷启动后第一个跑时测出假的
+    // `frames=0`。
+    await warmUpFrameTimingChannel(_frameTiming);
 
     // `cycles == 0` means "hold still and just watch the animations run" — see
     // the class doc for why that separate mode exists.
@@ -323,7 +332,7 @@ class _AnimFpsBenchRunnerState extends State<AnimFpsBenchRunner> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text('anim fps bench ($_status)')),
+      appBar: AppBar(title: Text('anim fps bench ($_status)'), clipBehavior: Clip.none),
       body: !_gridMounted
           ? const SizedBox.expand()
           : GridView.builder(

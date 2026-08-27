@@ -186,6 +186,16 @@ class _BenchRunnerState extends State<BenchRunner> {
     // Warmup: let the grid lay out once before measuring.
     // 预热：先让网格完成一次布局再开始计时。
     await Future<void>.delayed(const Duration(milliseconds: 500));
+    // Confirm the engine's FrameTiming report channel is actually delivering
+    // callbacks before opening the real measurement window — see
+    // [warmUpFrameTimingChannel] for why this matters on a real device (it
+    // was the root cause of a `frames=0` result for whichever phase happened
+    // to run first, right after a cold install/launch).
+    //
+    // 在打开真正的计时窗口前，先确认引擎的 FrameTiming 上报通道确实在交付
+    // 回调——为什么这在真机上很重要见 [warmUpFrameTimingChannel]（这正是
+    // 冷安装/冷启动后恰好排第一位的阶段测出 `frames=0` 的根因）。
+    await warmUpFrameTimingChannel(_frameTiming);
     _warmupRssBytes = ProcessInfo.currentRss;
     _rssTimer = Timer.periodic(
       const Duration(milliseconds: 200),
@@ -336,7 +346,7 @@ class _BenchRunnerState extends State<BenchRunner> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text('bench: ${widget.lib} ($_status)')),
+      appBar: AppBar(title: Text('bench: ${widget.lib} ($_status)'), clipBehavior: Clip.none),
       body: !_gridMounted
           ? const SizedBox.expand()
           : GridView.builder(

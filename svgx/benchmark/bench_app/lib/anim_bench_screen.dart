@@ -117,6 +117,15 @@ class _AnimBenchRunnerState extends State<AnimBenchRunner> {
 
   Future<void> _run() async {
     await Future<void>.delayed(const Duration(milliseconds: 300));
+    // See [warmUpFrameTimingChannel]: confirms the engine's timing-report
+    // channel is actually live before opening the real measurement window,
+    // instead of risking a `frames=0` false result when this phase happens
+    // to run first right after a cold install/launch.
+    //
+    // 见 [warmUpFrameTimingChannel]：打开真正的计时窗口前先确认引擎的
+    // 上报通道确实存活，避免本阶段恰好在冷安装/冷启动后第一个跑时测出假的
+    // `frames=0`。
+    await warmUpFrameTimingChannel(_frameTiming);
     _frameTiming.active = true;
     await Future<void>.delayed(_observeDuration);
     _frameTiming.active = false;
@@ -159,7 +168,7 @@ class _AnimBenchRunnerState extends State<AnimBenchRunner> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('anim bench')),
+      appBar: AppBar(title: const Text('anim bench'), clipBehavior: Clip.none),
       body: GridView.builder(
         gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
           crossAxisCount: 4,

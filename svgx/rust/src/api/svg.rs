@@ -33,23 +33,47 @@ pub struct SvgScene {
 /// 仅覆盖 `usvg::ImageKind::Raster`（PNG/JPEG/GIF/WEBP）；嵌套引用另一份 SVG 的
 /// `<image>`（`ImageKind::SVG`）在收集阶段静默跳过——本轮不做。
 pub struct SvgImage {
-    /// Absolute-space X. / 绝对坐标 X。
+    /// Local (untransformed) object-bbox X. / 本地（未变换）物体包围盒 X。
     pub x: f32,
-    /// Absolute-space Y. / 绝对坐标 Y。
+    /// Local (untransformed) object-bbox Y. / 本地（未变换）物体包围盒 Y。
     pub y: f32,
-    /// Absolute-space width. / 绝对坐标宽度。
+    /// Local (untransformed) object-bbox width. / 本地（未变换）物体包围盒宽度。
     pub width: f32,
-    /// Absolute-space height. / 绝对坐标高度。
+    /// Local (untransformed) object-bbox height. / 本地（未变换）物体包围盒高度。
     pub height: f32,
+    /// `[x, y, width, height]` mapped through this transform lands in
+    /// absolute space; carries any rotation/skew from ancestor groups
+    /// (`img.abs_transform()`), same 6-element convention as
+    /// [SvgPattern.matrix]/[SvgGradient.matrix]. Two corners + width/height
+    /// alone can't represent a rotated/skewed image, hence shipping the full
+    /// matrix instead.
+    ///
+    /// 把 `[x, y, width, height]` 经此变换映射即落入绝对空间；携带祖先分组的
+    /// 任意旋转/斜切（`img.abs_transform()`），与 [SvgPattern.matrix]/
+    /// [SvgGradient.matrix] 同样的 6 元素约定。仅凭两角点 + 宽高无法表达
+    /// 旋转/斜切后的图片，因此改为整体传出变换矩阵。
+    pub matrix: Vec<f32>,
     /// Raw (still-encoded) image bytes, e.g. PNG file bytes.
     /// 原始（仍是编码态）图片字节，例如 PNG 文件字节。
     pub data: Vec<u8>,
     /// Encoding format of [data]. / [data] 的编码格式。
     pub format: SvgImageFormat,
+    /// Clip regions inherited from ancestor groups, same semantics as
+    /// [SvgEffects.clips]. / 从祖先分组继承的裁剪区域，语义同
+    /// [SvgEffects.clips]。
+    pub clips: Vec<SvgClip>,
+    /// Mask inherited from the nearest ancestor group that declares one,
+    /// same semantics as [SvgEffects.mask]. / 来自最近声明了遮罩的祖先分组的
+    /// 遮罩，语义同 [SvgEffects.mask]。
+    pub mask: Option<SvgMask>,
+    /// Blur inherited from an ancestor group, same semantics as
+    /// [SvgEffects.blur]. / 来自祖先分组的模糊，语义同 [SvgEffects.blur]。
+    pub blur: Option<SvgBlur>,
 }
 
 /// Raster encodings usvg can hand back for `<image>`.
 /// usvg 对 `<image>` 可返回的位图编码类型。
+#[derive(Clone, Copy)]
 pub enum SvgImageFormat {
     Png,
     Jpeg,
@@ -449,11 +473,36 @@ fn inject_current_color(data: String, argb: u32) -> String {
         return data;
     };
     let insert_at = tag_start + "<svg".len();
-    let Some(rel_tag_end) = data[insert_at..].find('>') else {
+    // Quote-aware scan for the tag's closing '>': a plain `str::find('>')`
+    // stops early at a literal '>' inside a quoted attribute value (e.g.
+    // `data-note="a>b"`), which is legal, unremarkable XML — that would land
+    // `tag_end` mid-attribute and corrupt the tag on injection.
+    //
+    // 带引号感知的标签闭合 `>` 扫描：朴素的 `str::find('>')` 会在带引号的属性
+    // 值内碰到字面 `>`（如 `data-note="a>b"`）就提前停下——这是合法、常见的
+    // XML——导致 `tag_end` 落在属性值中间，注入时把标签弄坏。
+    let bytes = data.as_bytes();
+    let mut i = insert_at;
+    let mut quote: Option<u8> = None;
+    let mut tag_end = None;
+    while i < bytes.len() {
+        let b = bytes[i];
+        match quote {
+            Some(q) if b == q => quote = None,
+            Some(_) => {}
+            None if b == b'"' || b == b'\'' => quote = Some(b),
+            None if b == b'>' => {
+                tag_end = Some(i);
+                break;
+            }
+            None => {}
+        }
+        i += 1;
+    }
+    let Some(tag_end) = tag_end else {
         return data;
     };
-    let tag_end = insert_at + rel_tag_end;
-    if data[insert_at..tag_end].contains("color=") {
+    if has_attribute(&data[insert_at..tag_end], "color") {
         return data;
     }
     const ATTR: &str = " color=\"#RRGGBB\"";
@@ -468,6 +517,39 @@ fn inject_current_color(data: String, argb: u32) -> String {
     out.push('"');
     out.push_str(&data[insert_at..]);
     out
+}
+
+/// Whether [tag_tail] (a tag's raw attribute text) declares an attribute
+/// literally named [name] — i.e. [name] appears as its own token immediately
+/// followed by `=`, not as a suffix of a longer name. A plain substring
+/// search on `"color="` would false-positive on `data-color="foo"`.
+///
+/// [tag_tail]（标签的原始属性文本）是否声明了一个字面名为 [name] 的属性——
+/// 即 [name] 作为独立词元出现且紧跟 `=`，而非作为更长属性名的后缀。对
+/// `"color="` 做纯子串搜索会在 `data-color="foo"` 上误判。
+fn has_attribute(tag_tail: &str, name: &str) -> bool {
+    let bytes = tag_tail.as_bytes();
+    let mut search_from = 0;
+    while let Some(rel) = tag_tail[search_from..].find(name) {
+        let start = search_from + rel;
+        let end = start + name.len();
+        let before_ok = start == 0 || !is_attr_name_char(bytes[start - 1]);
+        let after_ok = end < bytes.len() && bytes[end] == b'=';
+        if before_ok && after_ok {
+            return true;
+        }
+        search_from = start + 1;
+        if search_from >= tag_tail.len() {
+            break;
+        }
+    }
+    false
+}
+
+/// Whether [b] can appear inside an XML/HTML attribute name.
+/// [b] 是否可以出现在 XML/HTML 属性名内部。
+fn is_attr_name_char(b: u8) -> bool {
+    b.is_ascii_alphanumeric() || b == b'-' || b == b'_' || b == b':'
 }
 
 /// Group-level state a path inherits from its ancestors: clip regions, the
@@ -522,7 +604,7 @@ fn collect(group: &usvg::Group, ctx: &Inherited, out: &mut Vec<SvgPath>, images:
                 }
             }
             usvg::Node::Image(img) => {
-                if let Some(si) = convert_image(img) {
+                if let Some(si) = convert_image(img, ctx) {
                     images.push(si);
                 }
             }
@@ -624,25 +706,66 @@ fn build_clips(clip: &usvg::ClipPath, base: &Transform, out: &mut Vec<SvgClip>) 
         points: Vec::new(),
         even_odd: false,
     };
-    append_clip_geometry(clip.root(), &t, &mut region);
+    // A clipPath's children are all flattened into one verbs/points buffer
+    // with a single fill-rule flag — [SvgClip] has no per-subpath fill rule.
+    // `saw_evenodd`/`saw_nonzero` track whether that single flag can be
+    // trusted: only when EVERY child agrees on even-odd is `even_odd = true`
+    // correct. A mix (e.g. one evenodd child overlapping one nonzero child)
+    // falls back to nonzero, which behaves as a plain union for the common
+    // case of same-wound, non-self-intersecting children — wrong only for a
+    // self-intersecting *nonzero* child mixed with an evenodd sibling, a
+    // narrower miss than XOR-cancelling genuinely disjoint children's overlap.
+    //
+    // 一个 clipPath 的所有子形状被压平进同一份 verbs/points 缓冲，配一个单一
+    // 的填充规则标志——[SvgClip] 没有逐子路径的填充规则。`saw_evenodd`/
+    // `saw_nonzero` 用来判断这单一标志是否可信：只有*所有*子元素都用
+    // even-odd 时，`even_odd = true` 才是对的。混用（例如一个 evenodd 子形状
+    // 与一个 nonzero 子形状重叠）回退为 nonzero——对同向缠绕、自身不相交的
+    // 子形状而言表现等同于普通并集，仅在"自相交的 nonzero 子形状与 evenodd
+    // 兄弟混用"这种更窄的场景下仍不准确，比把本应不相交子形状的重叠区域
+    // XOR 抵消掉的原错误范围更小。
+    let mut saw_evenodd = false;
+    let mut saw_nonzero = false;
+    append_clip_geometry(
+        clip.root(),
+        &t,
+        &mut region,
+        &mut saw_evenodd,
+        &mut saw_nonzero,
+    );
+    region.even_odd = saw_evenodd && !saw_nonzero;
     if !region.verbs.is_empty() {
         out.push(region);
     }
 }
 
-/// Flattens every shape under [group] into [region] as one union path.
+/// Flattens every shape under [group] into [region] as one union path,
+/// tracking each child's fill rule into [saw_evenodd]/[saw_nonzero] — see
+/// [build_clips] for how those settle [region]'s single `even_odd` flag.
 ///
-/// 把 [group] 下的每个形状展平进 [region]，合成一条并集路径。
-fn append_clip_geometry(group: &usvg::Group, base: &Transform, region: &mut SvgClip) {
+/// 把 [group] 下的每个形状展平进 [region]，合成一条并集路径，并把每个子元素的
+/// 填充规则记录进 [saw_evenodd]/[saw_nonzero]——[region] 单一 `even_odd`
+/// 标志如何由二者敲定见 [build_clips]。
+fn append_clip_geometry(
+    group: &usvg::Group,
+    base: &Transform,
+    region: &mut SvgClip,
+    saw_evenodd: &mut bool,
+    saw_nonzero: &mut bool,
+) {
     for node in group.children() {
         match node {
-            usvg::Node::Group(g) => append_clip_geometry(g, base, region),
+            usvg::Node::Group(g) => {
+                append_clip_geometry(g, base, region, saw_evenodd, saw_nonzero)
+            }
             usvg::Node::Path(p) => {
                 let t = base.pre_concat(p.abs_transform());
                 append_segments(p, &t, &mut region.verbs, &mut region.points);
                 if let Some(f) = p.fill() {
                     if matches!(f.rule(), usvg::FillRule::EvenOdd) {
-                        region.even_odd = true;
+                        *saw_evenodd = true;
+                    } else {
+                        *saw_nonzero = true;
                     }
                 }
             }
@@ -708,7 +831,7 @@ fn append_subtree_paths(group: &usvg::Group, base: &Transform, out: &mut Vec<Svg
 ///
 /// 把 usvg `<image>` 节点转成 [SvgImage]。嵌套 SVG 的 image
 /// （`ImageKind::SVG`）跳过（返回 `None`）——本轮不做嵌套显示列表展平。
-fn convert_image(img: &usvg::Image) -> Option<SvgImage> {
+fn convert_image(img: &usvg::Image, ctx: &Inherited) -> Option<SvgImage> {
     let (data, format) = match img.kind() {
         usvg::ImageKind::PNG(d) => (d.as_ref().clone(), SvgImageFormat::Png),
         usvg::ImageKind::JPEG(d) => (d.as_ref().clone(), SvgImageFormat::Jpeg),
@@ -716,25 +839,29 @@ fn convert_image(img: &usvg::Image) -> Option<SvgImage> {
         usvg::ImageKind::WEBP(d) => (d.as_ref().clone(), SvgImageFormat::Webp),
         usvg::ImageKind::SVG(_) => return None,
     };
-    // Map the local object bbox (0,0,size) through abs_transform, same
-    // approach convert_path uses for its own points — abs_transform already
-    // bakes in the preserveAspectRatio meet/slice fit + centering, so this
-    // yields the actual rendered rect in absolute space.
+    // Ship the local object bbox plus the full `abs_transform` matrix rather
+    // than pre-mapping two corners into an axis-aligned absolute rect: the
+    // latter can't represent a rotated/skewed ancestor transform (see
+    // [SvgImage.matrix] doc comment) — `convert_path` avoids the same trap by
+    // mapping every point individually instead of just a bbox's corners.
     //
-    // 把本地物体包围盒 (0,0,size) 通过 abs_transform 映射，与 convert_path
-    // 处理自身点集的方式一致——abs_transform 已烘焙 preserveAspectRatio 的
-    // meet/slice 适配与居中，得到的就是绝对空间中实际渲染的矩形。
+    // 传出本地物体包围盒加完整的 `abs_transform` 矩阵，而非预先把两角点映射成
+    // 轴对齐的绝对矩形：后者无法表达旋转/斜切的祖先变换（见 [SvgImage.matrix]
+    // 文档注释）——`convert_path` 靠逐点映射而非只取包围盒两角点，避开了同样
+    // 的陷阱。
     let t = img.abs_transform();
     let bbox = img.bounding_box();
-    let (x0, y0) = map(&t, Point::from_xy(bbox.left(), bbox.top()));
-    let (x1, y1) = map(&t, Point::from_xy(bbox.right(), bbox.bottom()));
     Some(SvgImage {
-        x: x0,
-        y: y0,
-        width: x1 - x0,
-        height: y1 - y0,
+        x: bbox.left(),
+        y: bbox.top(),
+        width: bbox.width(),
+        height: bbox.height(),
+        matrix: transform_to_vec6(&t),
         data,
         format,
+        clips: ctx.clips.clone(),
+        mask: ctx.mask.clone(),
+        blur: ctx.blur.clone(),
     })
 }
 
@@ -743,6 +870,15 @@ fn map(t: &Transform, p: Point) -> (f32, f32) {
     let mut a = [p];
     t.map_points(&mut a);
     (a[0].x, a[0].y)
+}
+
+/// Flattens [t] into the 6-element `[sx, ky, kx, sy, tx, ty]` vector the
+/// Dart side expects for pattern/radial-gradient matrices.
+///
+/// 把 [t] 展平为 Dart 侧期望的图案/径向渐变矩阵的 6 元素
+/// `[sx, ky, kx, sy, tx, ty]` 向量。
+fn transform_to_vec6(t: &Transform) -> Vec<f32> {
+    vec![t.sx, t.ky, t.kx, t.sy, t.tx, t.ty]
 }
 
 /// Appends [p]'s segments, mapped through [t], onto [verbs]/[points].
@@ -921,14 +1057,7 @@ fn build_pattern(paint: &usvg::Paint, abs: &Transform) -> Option<SvgPattern> {
         y: rect.y(),
         width: rect.width(),
         height: rect.height(),
-        matrix: vec![
-            combined.sx,
-            combined.ky,
-            combined.kx,
-            combined.sy,
-            combined.tx,
-            combined.ty,
-        ],
+        matrix: transform_to_vec6(&combined),
         paths,
     })
 }
@@ -993,14 +1122,7 @@ fn build_gradient(paint: &usvg::Paint, abs: &Transform, opacity: f32) -> Option<
                 x2: rg.cx(),
                 y2: rg.cy(),
                 radius: rg.r().get(),
-                matrix: vec![
-                    combined.sx,
-                    combined.ky,
-                    combined.kx,
-                    combined.sy,
-                    combined.tx,
-                    combined.ty,
-                ],
+                matrix: transform_to_vec6(&combined),
                 stops: convert_gradient_stops(rg.stops(), opacity),
                 spread: spread_to_u8(rg.spread_method()),
             })
@@ -1022,10 +1144,17 @@ fn convert_gradient_stops(stops: &[usvg::Stop], opacity: f32) -> Vec<SvgGradient
             let a = ((s.opacity().get() * opacity).clamp(0.0, 1.0) * 255.0).round() as u32;
             SvgGradientStop {
                 offset: s.offset().get(),
-                color_argb: (a << 24) | ((c.red as u32) << 16) | ((c.green as u32) << 8) | (c.blue as u32),
+                color_argb: argb(a, c.red, c.green, c.blue),
             }
         })
         .collect()
+}
+
+/// Packs 8-bit channels into a 0xAARRGGBB word.
+///
+/// 把 8 位通道打包为 0xAARRGGBB 字。
+fn argb(a: u32, r: u8, g: u8, b: u8) -> u32 {
+    (a << 24) | ((r as u32) << 16) | ((g as u32) << 8) | (b as u32)
 }
 
 /// Maps usvg's `SpreadMethod` to the wire encoding (0=pad, 1=reflect, 2=repeat).
@@ -1052,7 +1181,7 @@ fn paint_argb(paint: &usvg::Paint, opacity: f32) -> u32 {
         usvg::Paint::Pattern(_) => (128, 128, 128),
     };
     let a = (opacity.clamp(0.0, 1.0) * 255.0).round() as u32;
-    (a << 24) | ((r as u32) << 16) | ((g as u32) << 8) | (b as u32)
+    argb(a, r, g, b)
 }
 
 /// First gradient stop color, or black. / 渐变首个色标颜色，否则黑。
@@ -1366,6 +1495,65 @@ mod tests {
         assert_eq!(scene.paths[0].fill_argb, 0xFF00FF00);
     }
 
+    #[test]
+    fn current_color_injection_is_quote_aware_around_literal_gt_in_attributes() {
+        // A literal unescaped `>` inside a quoted attribute value is legal,
+        // unremarkable XML — a naive `find('>')` would stop there instead of
+        // at the tag's real closing `>`.
+        //
+        // 带引号的属性值内出现字面未转义的 `>` 是合法、常见的 XML——朴素的
+        // `find('>')` 会在这里而非标签真正的结束 `>` 处停下。
+        let svg = r##"<svg data-note="a>b" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24">
+            <path d="M2 2 L22 2 L22 22 Z" fill="currentColor"/>
+        </svg>"##;
+        let scene = parse_svg(svg.to_string(), Some(0xFFFF7A00)).expect("valid svg should parse");
+        assert_eq!(scene.paths[0].fill_argb, 0xFFFF7A00);
+    }
+
+    #[test]
+    fn current_color_injection_is_not_fooled_by_a_decoy_color_suffixed_attribute() {
+        // `data-color="..."` must not be mistaken for a real `color` attribute
+        // (a plain substring search on `"color="` would false-positive here).
+        //
+        // `data-color="..."` 不应被误判为真正的 `color` 属性（对 `"color="` 做
+        // 纯子串搜索会在这里误判）。
+        let svg = r##"<svg data-color="foo" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24">
+            <path d="M2 2 L22 2 L22 22 Z" fill="currentColor"/>
+        </svg>"##;
+        let scene = parse_svg(svg.to_string(), Some(0xFFFF7A00)).expect("valid svg should parse");
+        assert_eq!(scene.paths[0].fill_argb, 0xFFFF7A00);
+    }
+
+    #[test]
+    fn mixed_fill_rule_clip_children_do_not_xor_cancel_their_overlap() {
+        // Two overlapping, non-self-intersecting rects with different
+        // fill-rules: the combined clip region must still cover the overlap
+        // (union), not exclude it (which a naive single evenodd flag would).
+        //
+        // 两个重叠、自身不相交的矩形，各自不同的 fill-rule：合并后的裁剪区域
+        // 仍应覆盖重叠部分（并集），而非把它排除掉（朴素的单一 evenodd 标志
+        // 会导致排除）。
+        let svg = r##"<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24">
+            <clipPath id="c">
+                <rect x="0" y="0" width="10" height="10" fill-rule="nonzero"/>
+                <rect x="5" y="5" width="10" height="10" fill-rule="evenodd"/>
+            </clipPath>
+            <path d="M0 0 L24 0 L24 24 L0 24 Z" fill="#000000" clip-path="url(#c)"/>
+        </svg>"##;
+        let scene = parse_svg(svg.to_string(), None).expect("valid svg should parse");
+        let clips = &scene.paths[0]
+            .effects
+            .as_ref()
+            .expect("path should carry a clip effect")
+            .clips;
+        assert_eq!(clips.len(), 1);
+        assert!(
+            !clips[0].even_odd,
+            "mixed fill rules among clip children must not fall back to a \
+             single even-odd flag that XORs their overlap away"
+        );
+    }
+
     // paint-order="stroke fill" reverses the default fill-then-stroke order;
     // `stroke_first` must reflect that.
     //
@@ -1395,16 +1583,28 @@ mod tests {
         // 10x12 box under the default `preserveAspectRatio="xMidYMid meet"`,
         // so the actual rendered rect is a 10x10 square centered vertically
         // within it (not a naive readout of the `<image>` tag's own
-        // x/y/width/height attributes).
+        // x/y/width/height attributes). `x`/`y`/`width`/`height` are in the
+        // image's own LOCAL space (pre-`matrix`) — mapping the local
+        // top-left corner through `matrix` (a plain translate here, no
+        // rotation in this fixture) is what recovers the absolute (2, 4)
+        // placement.
         //
         // fixture 的 1x1 固有 PNG 尺寸在默认 `preserveAspectRatio="xMidYMid
         // meet"` 下适配进指定的 10x12 盒子，实际渲染矩形是一个在盒内垂直居中
         // 的 10x10 正方形（并非 `<image>` 标签自身 x/y/width/height 属性的
-        // 直接读数）。
-        assert_eq!(img.x, 2.0);
-        assert_eq!(img.y, 4.0);
-        assert_eq!(img.width, 10.0);
-        assert_eq!(img.height, 10.0);
+        // 直接读数）。`x`/`y`/`width`/`height` 处于图片自身的本地空间
+        // （`matrix` 变换之前）——把本地左上角经 `matrix`（此 fixture 中只是
+        // 平移，不含旋转）映射，才能得到绝对空间里的 (2, 4) 位置。
+        assert_eq!(img.matrix.len(), 6, "expected a 6-element affine matrix");
+        let m = &img.matrix;
+        let abs_x = m[0] * img.x + m[2] * img.y + m[4];
+        let abs_y = m[1] * img.x + m[3] * img.y + m[5];
+        let abs_w = (m[0] * m[0] + m[1] * m[1]).sqrt() * img.width;
+        let abs_h = (m[2] * m[2] + m[3] * m[3]).sqrt() * img.height;
+        assert_eq!(abs_x, 2.0);
+        assert_eq!(abs_y, 4.0);
+        assert_eq!(abs_w, 10.0);
+        assert_eq!(abs_h, 10.0);
         assert!(!img.data.is_empty(), "expected raw decoded PNG bytes");
         assert!(matches!(img.format, SvgImageFormat::Png));
     }

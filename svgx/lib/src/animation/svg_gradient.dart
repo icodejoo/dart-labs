@@ -30,6 +30,7 @@ import 'dart:ui' as ui;
 
 import 'package:flutter/painting.dart';
 
+import '../svg_affine.dart';
 import 'svg_dom.dart';
 import 'svg_style.dart';
 
@@ -343,28 +344,6 @@ Float64List _shaderMatrix(SvgGradientDef def, Rect bounds) {
       ? <double>[bounds.width, 0, 0, bounds.height, bounds.left, bounds.top]
       : <double>[1, 0, 0, 1, 0, 0];
   final own = def.gradientTransform;
-  if (own != null) matrix = _concat(matrix, own);
-
-  final out = Float64List(16);
-  out[0] = matrix[0];
-  out[1] = matrix[1];
-  out[4] = matrix[2];
-  out[5] = matrix[3];
-  out[10] = 1;
-  out[12] = matrix[4];
-  out[13] = matrix[5];
-  out[15] = 1;
-  return out;
+  if (own != null) matrix = concatAffine(matrix, own);
+  return affineToMatrix4(matrix);
 }
-
-/// Affine `a * b` in SVG's `[a, b, c, d, e, f]` convention.
-///
-/// SVG `[a, b, c, d, e, f]` 约定下的仿射矩阵乘法 `a * b`。
-List<double> _concat(List<double> a, List<double> b) => [
-  a[0] * b[0] + a[2] * b[1],
-  a[1] * b[0] + a[3] * b[1],
-  a[0] * b[2] + a[2] * b[3],
-  a[1] * b[2] + a[3] * b[3],
-  a[0] * b[4] + a[2] * b[5] + a[4],
-  a[1] * b[4] + a[3] * b[5] + a[5],
-];

@@ -215,6 +215,9 @@ impl std::fmt::Display for Stats {
 }
 
 fn stats(mut samples: Vec<f64>) -> Stats {
+    if samples.is_empty() {
+        return Stats { n: 0, avg: 0.0, p50: 0.0, p90: 0.0, p99: 0.0, max: 0.0 };
+    }
     samples.sort_by(|a, b| a.partial_cmp(b).unwrap());
     let n = samples.len();
     let pick = |q: f64| samples[((n as f64 * q) as usize).min(n - 1)];
@@ -262,12 +265,20 @@ fn time_corpus(corpus: &[String], current_color: Option<u32>) -> Stats {
 ///
 /// 只给 usvg 树 → [crate::api::svg::SvgScene] 的转换计时，usvg 解析提到循环外
 /// ——也就是 `src/api/svg.rs` 里真正属于我们、可优化的那部分代码。
-fn time_convert(corpus: &[String]) -> Stats {
+/// Parses every source in `corpus` into a `usvg::Tree`, silently dropping ones
+/// that fail to parse.
+///
+/// 把 `corpus` 里每个源解析为 `usvg::Tree`，解析失败的静默丢弃。
+fn build_trees(corpus: &[String]) -> Vec<usvg::Tree> {
     let opt = usvg::Options::default();
-    let trees: Vec<usvg::Tree> = corpus
+    corpus
         .iter()
         .filter_map(|s| usvg::Tree::from_str(s, &opt).ok())
-        .collect();
+        .collect()
+}
+
+fn time_convert(corpus: &[String]) -> Stats {
+    let trees = build_trees(corpus);
     for _ in 0..WARMUP {
         for t in &trees {
             std::hint::black_box(scene_from_tree(t).paths.len());
@@ -403,11 +414,9 @@ fn time_sse_encode(corpus: &[String]) -> (Stats, f64) {
     use crate::frb_generated::SseEncode;
     use flutter_rust_bridge::for_generated::SseSerializer;
 
-    let opt = usvg::Options::default();
-    let scenes: Vec<crate::api::svg::SvgScene> = corpus
+    let scenes: Vec<crate::api::svg::SvgScene> = build_trees(corpus)
         .iter()
-        .filter_map(|s| usvg::Tree::from_str(s, &opt).ok())
-        .map(|t| scene_from_tree(&t))
+        .map(scene_from_tree)
         .collect();
     let mut samples = Vec::with_capacity(scenes.len() * PASSES);
     let mut total_bytes = 0u64;
@@ -451,13 +460,12 @@ fn clone_scene(s: &crate::api::svg::SvgScene) -> crate::api::svg::SvgScene {
                 y: i.y,
                 width: i.width,
                 height: i.height,
+                matrix: i.matrix.clone(),
                 data: i.data.clone(),
-                format: match i.format {
-                    crate::api::svg::SvgImageFormat::Png => crate::api::svg::SvgImageFormat::Png,
-                    crate::api::svg::SvgImageFormat::Jpeg => crate::api::svg::SvgImageFormat::Jpeg,
-                    crate::api::svg::SvgImageFormat::Gif => crate::api::svg::SvgImageFormat::Gif,
-                    crate::api::svg::SvgImageFormat::Webp => crate::api::svg::SvgImageFormat::Webp,
-                },
+                format: i.format,
+                clips: i.clips.clone(),
+                mask: i.mask.clone(),
+                blur: i.blur.clone(),
             })
             .collect(),
     }
