@@ -4,9 +4,10 @@
 // ignore_for_file: invalid_use_of_internal_member, unused_import, unnecessary_import
 
 import '../frb_generated.dart';
+
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
-// These functions are ignored because they are not marked as `pub`: `append_clip_geometry`, `append_mapped_points`, `append_segments`, `append_subtree_paths`, `argb`, `build_clips`, `build_gradient`, `build_mask`, `build_pattern`, `collect`, `concat`, `convert_gradient_stops`, `convert_image`, `convert_path`, `extend_inherited`, `gaussian_blur_of`, `has_attribute`, `inject_current_color`, `is_attr_name_char`, `map`, `paint_argb`, `scene_from_tree`, `some_if_present`, `spread_to_u8`, `stop_rgb`, `token_matrix`, `transform_to_vec6`, `usvg_options`
+// These functions are ignored because they are not marked as `pub`: `append_clip_geometry`, `append_mapped_points`, `append_segments`, `append_subtree_paths`, `argb`, `build_clips`, `build_gradient`, `build_mask`, `build_pattern`, `collect`, `concat`, `convert_gradient_stops`, `convert_image`, `convert_path`, `extend_inherited`, `gaussian_blur_of`, `has_attribute`, `inject_current_color`, `is_attr_name_char`, `map`, `paint_argb`, `resolve_paint`, `scene_from_tree`, `some_if_present`, `spread_to_u8`, `stop_rgb`, `token_matrix`, `transform_to_vec6`, `usvg_options`
 // These types are ignored because they are neither used by any `pub` functions nor (for structs and enums) marked `#[frb(unignore)]`: `Inherited`
 // These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`
 // These functions are ignored (category: IgnoreBecauseOwnerTyShouldIgnore): `default`
@@ -650,6 +651,16 @@ class SvgPath {
 /// 空间内的贴片矩形；[matrix]（`[a, b, c, d, e, f]`）把图案局部空间映射到显示
 /// 列表其余部分所用的绝对空间。
 class SvgPattern {
+  /// The `<pattern>` element's own `id` — always present, since a pattern is
+  /// only ever reachable via `url(#id)` and usvg drops any pattern def with
+  /// no `id`. Lets the Dart side dedupe the (expensive) tile rasterization
+  /// when the same pattern is referenced by many shapes.
+  ///
+  /// `<pattern>` 元素自身的 `id`——必然存在，因为图案只能通过 `url(#id)`
+  /// 引用，usvg 会丢弃没有 `id` 的图案定义。供 Dart 侧在同一图案被多个形状
+  /// 引用时，对（昂贵的）贴片光栅化做去重。
+  final String id;
+
   /// Tile rect left, in pattern-local space. / 贴片矩形左边界（图案局部空间）。
   final double x;
 
@@ -670,6 +681,7 @@ class SvgPattern {
   final List<SvgPath> paths;
 
   const SvgPattern({
+    required this.id,
     required this.x,
     required this.y,
     required this.width,
@@ -680,6 +692,7 @@ class SvgPattern {
 
   @override
   int get hashCode =>
+      id.hashCode ^
       x.hashCode ^
       y.hashCode ^
       width.hashCode ^
@@ -692,6 +705,7 @@ class SvgPattern {
       identical(this, other) ||
       other is SvgPattern &&
           runtimeType == other.runtimeType &&
+          id == other.id &&
           x == other.x &&
           y == other.y &&
           width == other.width &&

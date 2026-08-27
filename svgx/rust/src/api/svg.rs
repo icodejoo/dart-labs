@@ -146,6 +146,15 @@ pub struct SvgMask {
 /// 列表其余部分所用的绝对空间。
 #[derive(Clone)]
 pub struct SvgPattern {
+    /// The `<pattern>` element's own `id` — always present, since a pattern is
+    /// only ever reachable via `url(#id)` and usvg drops any pattern def with
+    /// no `id`. Lets the Dart side dedupe the (expensive) tile rasterization
+    /// when the same pattern is referenced by many shapes.
+    ///
+    /// `<pattern>` 元素自身的 `id`——必然存在，因为图案只能通过 `url(#id)`
+    /// 引用，usvg 会丢弃没有 `id` 的图案定义。供 Dart 侧在同一图案被多个形状
+    /// 引用时，对（昂贵的）贴片光栅化做去重。
+    pub id: String,
     /// Tile rect left, in pattern-local space. / 贴片矩形左边界（图案局部空间）。
     pub x: f32,
     /// Tile rect top, in pattern-local space. / 贴片矩形上边界（图案局部空间）。
@@ -993,23 +1002,24 @@ fn convert_path(p: &usvg::Path, base: &Transform) -> Option<SvgPath> {
     append_segments(p, &t, &mut verbs, &mut points);
 
     let (has_fill, fill_argb, even_odd, fill_gradient, fill_pattern) = match p.fill() {
-        Some(f) => (
-            true,
-            paint_argb(f.paint(), f.opacity().get()),
-            matches!(f.rule(), usvg::FillRule::EvenOdd),
-            build_gradient(f.paint(), &t, f.opacity().get()),
-            build_pattern(f.paint(), &t),
-        ),
+        Some(f) => {
+            let (argb, gradient, pattern) = resolve_paint(f.paint(), &t, f.opacity().get());
+            (
+                true,
+                argb,
+                matches!(f.rule(), usvg::FillRule::EvenOdd),
+                gradient,
+                pattern,
+            )
+        }
         None => (false, 0, false, None, None),
     };
-    let (has_stroke, stroke_argb, stroke_width, stroke_gradient, stroke_pattern) = match p.stroke() {
-        Some(s) => (
-            true,
-            paint_argb(s.paint(), s.opacity().get()),
-            s.width().get(),
-            build_gradient(s.paint(), &t, s.opacity().get()),
-            build_pattern(s.paint(), &t),
-        ),
+    let (has_stroke, stroke_argb, stroke_width, stroke_gradient, stroke_pattern) = match p.stroke()
+    {
+        Some(s) => {
+            let (argb, gradient, pattern) = resolve_paint(s.paint(), &t, s.opacity().get());
+            (true, argb, s.width().get(), gradient, pattern)
+        }
         None => (false, 0, 0.0, None, None),
     };
 
@@ -1053,6 +1063,7 @@ fn build_pattern(paint: &usvg::Paint, abs: &Transform) -> Option<SvgPattern> {
     let mut paths = Vec::new();
     append_subtree_paths(pattern.root(), &Transform::default(), &mut paths);
     Some(SvgPattern {
+        id: pattern.id().to_string(),
         x: rect.x(),
         y: rect.y(),
         width: rect.width(),
@@ -1173,6 +1184,24 @@ fn spread_to_u8(s: usvg::SpreadMethod) -> u8 {
 ///
 /// 把 paint 解析为实色 0xAARRGGBB；渐变取首个色标（spike 限制），
 /// 图案回退灰色。
+/// Resolves one `usvg::Paint` (a fill or a stroke) into the flat ARGB fallback
+/// color plus its gradient/pattern shader, if any — the three calls that
+/// `convert_path` needs for either its fill or its stroke.
+///
+/// 把一个 `usvg::Paint`（填充或描边）解析为纯色 ARGB 兜底值，加上它的渐变/图案
+/// shader（如果有）——`convert_path` 无论处理填充还是描边都需要这三次调用。
+fn resolve_paint(
+    paint: &usvg::Paint,
+    t: &Transform,
+    opacity: f32,
+) -> (u32, Option<SvgGradient>, Option<SvgPattern>) {
+    (
+        paint_argb(paint, opacity),
+        build_gradient(paint, t, opacity),
+        build_pattern(paint, t),
+    )
+}
+
 fn paint_argb(paint: &usvg::Paint, opacity: f32) -> u32 {
     let (r, g, b) = match paint {
         usvg::Paint::Color(c) => (c.red, c.green, c.blue),

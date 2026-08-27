@@ -62,6 +62,23 @@ class RustSvgPictureCache {
   /// 基准测试/单测可以设置它来采集解析耗时分布。
   void Function(Duration elapsed)? onParseMiss;
 
+  /// Rasterized pattern tiles already built during the [_recordScene] call in
+  /// progress, keyed by `id@pxWxpxH` — set up and torn down around that one
+  /// call (see there), never held between renders. Multiple shapes in the
+  /// same document referencing the same `<pattern>` at the same resolution
+  /// share one rasterization instead of repeating it per reference; a
+  /// different resolution (a different caller scale) still gets its own tile,
+  /// since [_buildPatternShader]'s per-reference transform matrix is baked
+  /// into a separate, cheap [ui.ImageShader] wrapper every time regardless.
+  ///
+  /// 正在进行的 [_recordScene] 调用中已构建的贴片光栅化结果，键为
+  /// `id@pxWxpxH`——围绕那一次调用建立与拆除（见那里），从不跨渲染保留。
+  /// 同一文档里多个形状引用同一个 `<pattern>` 且分辨率相同时，共用一次光栅化
+  /// 而非按引用次数重复；分辨率不同（调用方缩放不同）仍各自光栅化一份，因为
+  /// [_buildPatternShader] 每次引用各自的变换矩阵，始终包进一个独立、廉价的
+  /// [ui.ImageShader] 包装层。
+  Map<String, ui.Image>? _patternTileCache;
+
   /// Returns a cached picture for [source], parsing + recording on a miss.
   ///
   /// [currentColorArgb] (0xAARRGGBB) substitutes for `currentColor` in the
@@ -79,16 +96,37 @@ class RustSvgPictureCache {
   /// SVG 非法时会抛出 Rust 解析器/录制过程的异常；调用方应捕获并回退到错误组件。
   RustSvgPictureInfo getOrRender(String source, {int? currentColorArgb}) {
     final key = (source, currentColorArgb);
-    final hit = _entries.remove(key);
-    if (hit != null) {
-      _entries[key] = hit; // move to most-recently-used
-      return hit;
-    }
-    final stopwatch = onParseMiss == null ? null : (Stopwatch()..start());
+    final hit = _touch(key);
+    if (hit != null) return hit;
+    final stopwatch = _startParseMissStopwatch();
     final info = _render(source, currentColorArgb);
-    if (stopwatch != null) onParseMiss!(stopwatch.elapsed);
+    _reportParseMiss(stopwatch);
     _store(key, info);
     return info;
+  }
+
+  /// Moves [key]'s entry to most-recently-used and returns it, or null if
+  /// [key] isn't cached. / 把 [key] 对应的条目标记为最近使用并返回；未缓存
+  /// 则返回 null。
+  RustSvgPictureInfo? _touch((String, int?) key) {
+    final hit = _entries.remove(key);
+    if (hit == null) return null;
+    _entries[key] = hit;
+    return hit;
+  }
+
+  /// Starts a parse-miss timer only when [onParseMiss] is wired up, so a
+  /// caller with no listener skips the `Stopwatch` allocation entirely.
+  /// [onParseMiss] 没有监听者时跳过 `Stopwatch` 分配。
+  Stopwatch? _startParseMissStopwatch() =>
+      onParseMiss == null ? null : (Stopwatch()..start());
+
+  /// Reports [stopwatch]'s elapsed time to [onParseMiss], a no-op when
+  /// [stopwatch] is null (mirrors [_startParseMissStopwatch]).
+  /// 把 [stopwatch] 的耗时上报给 [onParseMiss]；[stopwatch] 为 null 时不做
+  /// 任何事（与 [_startParseMissStopwatch] 对应）。
+  void _reportParseMiss(Stopwatch? stopwatch) {
+    if (stopwatch != null) onParseMiss!(stopwatch.elapsed);
   }
 
   /// Returns the already-cached picture for [source]/[currentColorArgb], or
@@ -113,13 +151,8 @@ class RustSvgPictureCache {
   /// final info = RustSvgPictureCache.instance.peek(source);
   /// if (info != null) { /* warm path */ }
   /// ```
-  RustSvgPictureInfo? peek(String source, {int? currentColorArgb}) {
-    final key = (source, currentColorArgb);
-    final hit = _entries.remove(key);
-    if (hit == null) return null;
-    _entries[key] = hit; // move to most-recently-used
-    return hit;
-  }
+  RustSvgPictureInfo? peek(String source, {int? currentColorArgb}) =>
+      _touch((source, currentColorArgb));
 
   /// Async counterpart of [getOrRender], for sources whose parsed scene
   /// contains embedded `<image>` bitmaps — decoding those requires
@@ -193,7 +226,7 @@ class RustSvgPictureCache {
     String source,
     int? currentColorArgb,
   ) async {
-    final stopwatch = onParseMiss == null ? null : (Stopwatch()..start());
+    final stopwatch = _startParseMissStopwatch();
     final scene = parseSvg(data: source, currentColor: currentColorArgb);
     final RustSvgPictureInfo info;
     if (scene.images.isEmpty) {
@@ -220,7 +253,7 @@ class RustSvgPictureCache {
         image.dispose();
       }
     }
-    if (stopwatch != null) onParseMiss!(stopwatch.elapsed);
+    _reportParseMiss(stopwatch);
     _store(key, info);
     return info;
   }
@@ -333,16 +366,21 @@ class RustSvgPictureCache {
     SvgScene scene,
     List<ui.Image> decodedImages,
   ) {
-    final recorder = ui.PictureRecorder();
-    final canvas = Canvas(recorder);
-    for (var i = 0; i < decodedImages.length; i++) {
-      _paintImage(canvas, scene.images[i], decodedImages[i]);
+    _patternTileCache = <String, ui.Image>{};
+    try {
+      final recorder = ui.PictureRecorder();
+      final canvas = Canvas(recorder);
+      for (var i = 0; i < decodedImages.length; i++) {
+        _paintImage(canvas, scene.images[i], decodedImages[i]);
+      }
+      for (final path in scene.paths) {
+        _paintPath(canvas, path);
+      }
+      final picture = recorder.endRecording();
+      return RustSvgPictureInfo(picture, Size(scene.width, scene.height));
+    } finally {
+      _patternTileCache = null;
     }
-    for (final path in scene.paths) {
-      _paintPath(canvas, path);
-    }
-    final picture = recorder.endRecording();
-    return RustSvgPictureInfo(picture, Size(scene.width, scene.height));
   }
 
   /// Draws one decoded `<image>`, applying its inherited clip/mask/blur (see
@@ -576,23 +614,26 @@ class RustSvgPictureCache {
     return paint;
   }
 
-  /// Shader for [path]'s fill: its pattern if it has one, else its gradient,
-  /// else null (flat color). / [path] 填充所用的 shader：优先图案，其次渐变，
-  /// 都没有则返回 null（纯色）。
-  ui.Shader? _fillShader(SvgPath path) {
-    final pattern = path.effects?.fillPattern;
+  /// Shader for a pattern/gradient pair: pattern wins when present, else the
+  /// gradient, else null (flat color). Shared by [_fillShader]/[_strokeShader]
+  /// since fill and stroke resolve identically once each has picked out its
+  /// own pattern/gradient. / 图案/渐变二元组对应的 shader：有图案则优先图案，
+  /// 否则用渐变，都没有则返回 null（纯色）。填充与描边一旦各自取出了自己的
+  /// 图案/渐变，解析方式完全相同，故由 [_fillShader]/[_strokeShader] 共用。
+  ui.Shader? _paintShader(SvgPattern? pattern, SvgGradient? gradient) {
     if (pattern != null) return _buildPatternShader(pattern);
-    final gradient = path.fillGradient;
     return gradient == null ? null : _buildGradientShader(gradient);
   }
 
+  /// Shader for [path]'s fill: its pattern if it has one, else its gradient,
+  /// else null (flat color). / [path] 填充所用的 shader：优先图案，其次渐变，
+  /// 都没有则返回 null（纯色）。
+  ui.Shader? _fillShader(SvgPath path) =>
+      _paintShader(path.effects?.fillPattern, path.fillGradient);
+
   /// Shader for [path]'s stroke. / [path] 描边所用的 shader。
-  ui.Shader? _strokeShader(SvgPath path) {
-    final pattern = path.effects?.strokePattern;
-    if (pattern != null) return _buildPatternShader(pattern);
-    final gradient = path.strokeGradient;
-    return gradient == null ? null : _buildGradientShader(gradient);
-  }
+  ui.Shader? _strokeShader(SvgPath path) =>
+      _paintShader(path.effects?.strokePattern, path.strokeGradient);
 
   /// Rasterizes a [SvgPattern]'s tile into a [ui.Image] and wraps it in a
   /// repeating [ui.ImageShader].
@@ -614,30 +655,34 @@ class RustSvgPictureCache {
     final pxW = (pattern.width * scaleX).ceil().clamp(1, _maxPatternTilePx);
     final pxH = (pattern.height * scaleY).ceil().clamp(1, _maxPatternTilePx);
 
-    final recorder = ui.PictureRecorder();
-    final tileCanvas = Canvas(recorder)
-      ..scale(pxW / pattern.width, pxH / pattern.height)
-      ..translate(-pattern.x, -pattern.y);
-    for (final tilePath in pattern.paths) {
-      _paintPath(tileCanvas, tilePath, nested: true);
-    }
-    // The tile's display list exists only to be rasterized into `image`, and
-    // nothing keeps it afterwards — but a dropped `ui.Picture` still holds its
-    // native display list until the GC finalizes it. With a `_maxPatternTilePx`
-    // tile this pairs with a rasterization of up to 1024x1024x4 bytes, so the
-    // recorder is closed out explicitly instead of being left on the finalizer
-    // queue.
-    //
-    // 贴片的显示列表只是为了光栅化成 `image`，之后没人再用——但被丢弃的
-    // `ui.Picture` 在 GC 回收 finalizer 之前仍占着原生显示列表。在
-    // `_maxPatternTilePx` 上限下它对应一次最大 1024x1024x4 字节的光栅化，
-    // 所以这里显式收尾，而不是把它扔进 finalizer 队列。
-    final tilePicture = recorder.endRecording();
-    final ui.Image image;
-    try {
-      image = tilePicture.toImageSync(pxW, pxH);
-    } finally {
-      tilePicture.dispose();
+    final tileKey = '${pattern.id}@${pxW}x$pxH';
+    var image = _patternTileCache?[tileKey];
+    if (image == null) {
+      final recorder = ui.PictureRecorder();
+      final tileCanvas = Canvas(recorder)
+        ..scale(pxW / pattern.width, pxH / pattern.height)
+        ..translate(-pattern.x, -pattern.y);
+      for (final tilePath in pattern.paths) {
+        _paintPath(tileCanvas, tilePath, nested: true);
+      }
+      // The tile's display list exists only to be rasterized into `image`,
+      // and nothing keeps it afterwards — but a dropped `ui.Picture` still
+      // holds its native display list until the GC finalizes it. With a
+      // `_maxPatternTilePx` tile this pairs with a rasterization of up to
+      // 1024x1024x4 bytes, so the recorder is closed out explicitly instead
+      // of being left on the finalizer queue.
+      //
+      // 贴片的显示列表只是为了光栅化成 `image`，之后没人再用——但被丢弃的
+      // `ui.Picture` 在 GC 回收 finalizer 之前仍占着原生显示列表。在
+      // `_maxPatternTilePx` 上限下它对应一次最大 1024x1024x4 字节的光栅化，
+      // 所以这里显式收尾，而不是把它扔进 finalizer 队列。
+      final tilePicture = recorder.endRecording();
+      try {
+        image = tilePicture.toImageSync(pxW, pxH);
+      } finally {
+        tilePicture.dispose();
+      }
+      _patternTileCache?[tileKey] = image;
     }
 
     // image pixels → tile-local → pattern-local → absolute.

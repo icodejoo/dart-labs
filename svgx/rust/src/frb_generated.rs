@@ -573,6 +573,7 @@ impl SseDecode for crate::api::svg::SvgPath {
 impl SseDecode for crate::api::svg::SvgPattern {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_id = <String>::sse_decode(deserializer);
         let mut var_x = <f32>::sse_decode(deserializer);
         let mut var_y = <f32>::sse_decode(deserializer);
         let mut var_width = <f32>::sse_decode(deserializer);
@@ -580,6 +581,7 @@ impl SseDecode for crate::api::svg::SvgPattern {
         let mut var_matrix = <Vec<f32>>::sse_decode(deserializer);
         let mut var_paths = <Vec<crate::api::svg::SvgPath>>::sse_decode(deserializer);
         return crate::api::svg::SvgPattern {
+            id: var_id,
             x: var_x,
             y: var_y,
             width: var_width,
@@ -854,6 +856,7 @@ impl flutter_rust_bridge::IntoIntoDart<crate::api::svg::SvgPath> for crate::api:
 impl flutter_rust_bridge::IntoDart for crate::api::svg::SvgPattern {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         [
+            self.id.into_into_dart().into_dart(),
             self.x.into_into_dart().into_dart(),
             self.y.into_into_dart().into_dart(),
             self.width.into_into_dart().into_dart(),
@@ -1177,6 +1180,7 @@ impl SseEncode for crate::api::svg::SvgPath {
 impl SseEncode for crate::api::svg::SvgPattern {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <String>::sse_encode(self.id, serializer);
         <f32>::sse_encode(self.x, serializer);
         <f32>::sse_encode(self.y, serializer);
         <f32>::sse_encode(self.width, serializer);

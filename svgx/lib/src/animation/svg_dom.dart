@@ -535,4 +535,35 @@ class SvgNode {
   /// 构建 [cachedDashedPath] 时所用的虚线相位——按值比较，因为三个输入里通常正是
   /// 它被 `<animate>` 驱动。
   double? dashedPathOffsetKey;
+
+  /// Paint-time cache of this `<text>` node's laid-out `TextPainter`
+  /// (untyped here to keep this file free of `package:flutter/painting.dart`
+  /// — cast by `animated_svg_painter.dart`'s `_paintText`, the only reader).
+  ///
+  /// `TextPainter.layout()` runs real text shaping, so rebuilding it every
+  /// frame for text that (per this engine's supported feature set) never
+  /// actually animates its content/font/anchor is pure waste — this lets
+  /// `_paintText` skip straight to `paint()` once the two keys below still
+  /// match.
+  ///
+  /// 该 `<text>` 节点已排版 `TextPainter` 的绘制期缓存（此处不标类型，以保持
+  /// 本文件不依赖 `package:flutter/painting.dart`——由唯一的读者
+  /// `animated_svg_painter.dart` 的 `_paintText` 做类型转换）。
+  ///
+  /// `TextPainter.layout()` 会跑真正的文本排版；而按本引擎当前支持的特性集，
+  /// 文本内容/字体/锚点从不会被动画驱动，每帧重建纯属浪费——只要下面两个键仍
+  /// 匹配，`_paintText` 就能直接跳到 `paint()`。
+  Object? cachedTextPainter;
+
+  /// Identity of the attribute map [cachedTextPainter] was built from — see
+  /// that field.
+  ///
+  /// 构建 [cachedTextPainter] 时所用属性表的身份——见该字段。
+  Object? textPainterAttributesKey;
+
+  /// Identity of the resolved style [cachedTextPainter]'s fill color was
+  /// built from — see that field.
+  ///
+  /// 构建 [cachedTextPainter] 的填充色时所用已解析样式的身份——见该字段。
+  Object? textPainterStyleKey;
 }

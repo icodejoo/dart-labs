@@ -41,6 +41,14 @@ import 'svg_gradient.dart';
 import 'svg_path_data.dart';
 import 'svg_style.dart';
 
+/// [element]'s attributes as a `local-name -> value` map, dropping any
+/// namespace prefix.
+///
+/// [element] 的属性表，键为去掉命名空间前缀的本地名。
+Map<String, String> _attributesOf(XmlElement element) => <String, String>{
+  for (final a in element.attributes) a.name.local: a.value,
+};
+
 /// The result of parsing an animated SVG document: the element tree plus its
 /// intrinsic size and total animation duration.
 ///
@@ -285,9 +293,7 @@ SvgGradientDef? _buildGradient(
   final id = element.getAttribute('id');
   if (id != null && !visiting.add(id)) return null; // href cycle
 
-  final attributes = <String, String>{
-    for (final a in element.attributes) a.name.local: a.value,
-  };
+  final attributes = _attributesOf(element);
   var stops = _parseStops(element);
   var stopNodes = _parseStopNodes(element, context);
 
@@ -312,9 +318,7 @@ SvgGradientDef? _buildGradient(
     if (!chainVisited.add(parentId)) break; // href cycle
     final parent = elementsById[parentId];
     if (parent == null || !_gradientTags.contains(parent.name.local)) break;
-    final parentAttributes = <String, String>{
-      for (final a in parent.attributes) a.name.local: a.value,
-    };
+    final parentAttributes = _attributesOf(parent);
     for (final entry in parentAttributes.entries) {
       attributes.putIfAbsent(entry.key, () => entry.value);
     }
@@ -412,9 +416,7 @@ SvgNode _parseGradientAttributeAnimations(
   XmlElement element,
   _ParseContext context,
 ) {
-  final attributes = <String, String>{
-    for (final a in element.attributes) a.name.local: a.value,
-  };
+  final attributes = _attributesOf(element);
   final animations = <SmilAnimation>[];
   for (final child in element.childElements) {
     if (child.name.local != 'animate') continue;
@@ -451,9 +453,7 @@ List<SvgNode> _parseStopNodes(XmlElement element, _ParseContext context) {
   final nodes = <SvgNode>[];
   for (final child in element.childElements) {
     if (child.name.local != 'stop') continue;
-    final attributes = <String, String>{
-      for (final a in child.attributes) a.name.local: a.value,
-    };
+    final attributes = _attributesOf(child);
     _normalizeColorAttributes(attributes);
     final numericAnimations = <SmilAnimation>[];
     final colorAnimations = <SmilColorAnimation>[];
@@ -544,9 +544,7 @@ List<SvgGradientStop> _parseStops(XmlElement element) {
   final stops = <SvgGradientStop>[];
   for (final child in element.childElements) {
     if (child.name.local != 'stop') continue;
-    final attributes = <String, String>{
-      for (final a in child.attributes) a.name.local: a.value,
-    };
+    final attributes = _attributesOf(child);
     _normalizeColorAttributes(attributes);
     final stop = stopFromAttributes(attributes);
     if (stop != null) stops.add(stop);
@@ -689,9 +687,7 @@ SvgNode _parseElement(
   SvgNodeKind kind,
   _ParseContext context,
 ) {
-  final attributes = <String, String>{
-    for (final a in element.attributes) a.name.local: a.value,
-  };
+  final attributes = _attributesOf(element);
   _normalizeColorAttributes(attributes);
 
   // Mark this element's own id as "being parsed" for the duration of its
@@ -853,9 +849,7 @@ SmilMotionAnimation? _parseAnimateMotion(
   if (pathData == null) {
     for (final child in element.childElements) {
       if (child.name.local != 'mpath') continue;
-      final href = {
-        for (final a in child.attributes) a.name.local: a.value,
-      }['href']?.trim();
+      final href = _attributesOf(child)['href']?.trim();
       if (href == null || !href.startsWith('#')) continue;
       pathData = context.elementsById[href.substring(1)]?.getAttribute('d');
       break;
@@ -1036,9 +1030,7 @@ const _usePlacementAttributes = {
 /// 不是本地 `#id`、目标不存在、目标标签不可渲染、引用成环，或嵌套超过
 /// [_maxUseDepth]。
 SvgNode? _resolveUse(XmlElement useElement, _ParseContext context) {
-  final attributes = <String, String>{
-    for (final a in useElement.attributes) a.name.local: a.value,
-  };
+  final attributes = _attributesOf(useElement);
   final href = attributes['href']?.trim(); // covers xlink:href (local name)
   if (href == null || !href.startsWith('#')) return null;
   final id = href.substring(1);

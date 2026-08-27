@@ -5,11 +5,14 @@
 
 import 'api/simple.dart';
 import 'api/svg.dart';
+
 import 'dart:async';
 import 'dart:convert';
+
 import 'frb_generated.dart';
 import 'frb_generated.io.dart'
     if (dart.library.js_interop) 'frb_generated.web.dart';
+
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
 /// Main entrypoint of the Rust API
@@ -503,15 +506,16 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   SvgPattern dco_decode_svg_pattern(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
-    if (arr.length != 6)
-      throw Exception('unexpected arr length: expect 6 but see ${arr.length}');
+    if (arr.length != 7)
+      throw Exception('unexpected arr length: expect 7 but see ${arr.length}');
     return SvgPattern(
-      x: dco_decode_f_32(arr[0]),
-      y: dco_decode_f_32(arr[1]),
-      width: dco_decode_f_32(arr[2]),
-      height: dco_decode_f_32(arr[3]),
-      matrix: dco_decode_list_prim_f_32_strict(arr[4]),
-      paths: dco_decode_list_svg_path(arr[5]),
+      id: dco_decode_String(arr[0]),
+      x: dco_decode_f_32(arr[1]),
+      y: dco_decode_f_32(arr[2]),
+      width: dco_decode_f_32(arr[3]),
+      height: dco_decode_f_32(arr[4]),
+      matrix: dco_decode_list_prim_f_32_strict(arr[5]),
+      paths: dco_decode_list_svg_path(arr[6]),
     );
   }
 
@@ -930,6 +934,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   @protected
   SvgPattern sse_decode_svg_pattern(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_id = sse_decode_String(deserializer);
     var var_x = sse_decode_f_32(deserializer);
     var var_y = sse_decode_f_32(deserializer);
     var var_width = sse_decode_f_32(deserializer);
@@ -937,6 +942,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     var var_matrix = sse_decode_list_prim_f_32_strict(deserializer);
     var var_paths = sse_decode_list_svg_path(deserializer);
     return SvgPattern(
+      id: var_id,
       x: var_x,
       y: var_y,
       width: var_width,
@@ -1314,6 +1320,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   @protected
   void sse_encode_svg_pattern(SvgPattern self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.id, serializer);
     sse_encode_f_32(self.x, serializer);
     sse_encode_f_32(self.y, serializer);
     sse_encode_f_32(self.width, serializer);

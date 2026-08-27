@@ -1373,19 +1373,29 @@ class AnimatedSvgPainter extends CustomPainter {
 
     final x = _num(attributes, 'x');
     final y = _num(attributes, 'y');
-    final fontSize = double.tryParse(attributes['font-size'] ?? '') ?? 16;
 
-    final painter = TextPainter(
-      text: TextSpan(
-        text: content,
-        style: TextStyle(
-          fontSize: fontSize,
-          fontFamily: attributes['font-family'],
-          color: _fade(fill, style.opacity),
+    TextPainter painter;
+    if (node.cachedTextPainter != null &&
+        identical(node.textPainterAttributesKey, attributes) &&
+        identical(node.textPainterStyleKey, style)) {
+      painter = node.cachedTextPainter! as TextPainter;
+    } else {
+      final fontSize = double.tryParse(attributes['font-size'] ?? '') ?? 16;
+      painter = TextPainter(
+        text: TextSpan(
+          text: content,
+          style: TextStyle(
+            fontSize: fontSize,
+            fontFamily: attributes['font-family'],
+            color: _fade(fill, style.opacity),
+          ),
         ),
-      ),
-      textDirection: TextDirection.ltr,
-    )..layout();
+        textDirection: TextDirection.ltr,
+      )..layout();
+      node.cachedTextPainter = painter;
+      node.textPainterAttributesKey = attributes;
+      node.textPainterStyleKey = style;
+    }
 
     final dx = switch (attributes['text-anchor']) {
       'middle' => -painter.width / 2,
