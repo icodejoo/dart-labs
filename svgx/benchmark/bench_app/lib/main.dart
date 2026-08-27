@@ -20,6 +20,7 @@ import 'bare_anim_grid.dart';
 import 'bench_screen.dart';
 import 'compare_bench_screen.dart';
 import 'micro_bench.dart';
+import 'one_anim_bench_screen.dart';
 
 const _libName = String.fromEnvironment('LIB', defaultValue: 'svgx');
 const _cycles = int.fromEnvironment('CYCLES', defaultValue: 6);
@@ -109,6 +110,21 @@ Future<void> main() async {
   }
   if (_libName == 'anim') {
     runApp(const MaterialApp(home: AnimBenchRunner()));
+    return;
+  }
+  // Single-icon steady state: what ONE animated icon costs per frame, with no
+  // concurrency to amortize it. See one_anim_bench_screen.dart's header for why
+  // this is a different question from the 1000-icon grid above.
+  //
+  // 单图标稳态：**一个**动画图标每帧的成本，没有并发可以摊薄它。为什么这与上面的
+  // 千图标网格是两个不同的问题，见 one_anim_bench_screen.dart 的文件头说明。
+  if (_libName == 'one_anim') {
+    runApp(
+      const MaterialApp(
+        debugShowCheckedModeBanner: false,
+        home: OneAnimBenchScreen(),
+      ),
+    );
     return;
   }
   if (_libName == 'anim_fps') {

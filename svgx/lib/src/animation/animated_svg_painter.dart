@@ -214,39 +214,6 @@ class AnimatedSvgPainter extends CustomPainter {
     canvas.restore();
   }
 
-  /// [node]'s attributes with this frame's sampled `<animate>` values
-  /// overlaid.
-  ///
-  /// Returns [SvgNode.attributes] itself — no copy — for a node carrying no
-  /// `<animate>`, which is most nodes in a real animated icon (the root, the
-  /// groups, and every shape that is only *inherited* into rather than
-  /// animated). Callers treat the result as read-only, so sharing the node's
-  /// own map is safe. The copy this avoids was allocated once per node per
-  /// frame.
-  ///
-  /// A node WITH `<animate>`s must get a genuinely fresh [Map] every frame —
-  /// [_geometryPath] relies on that fresh-instance identity as a cheap
-  /// "did this shape's inputs change" cache-invalidation signal for every
-  /// shape kind besides `<path>` (see its doc comment). A reused,
-  /// mutated-in-place map was tried here and reverted: it broke that
-  /// invalidation (the identity never changes once reused), silently
-  /// freezing animated `<rect>`/`<circle>`/etc. geometry at whatever shape
-  /// was cached on the first frame — caught by
-  /// `test/animation/effective_attributes_reuse_test.dart`.
-  ///
-  /// [node] 的属性表，叠加本帧已采样的 `<animate>` 值。
-  ///
-  /// 节点自身没有 `<animate>` 时直接返回 [SvgNode.attributes] 本身——不拷贝；
-  /// 真实动画图标里大多数节点都属于这种情况（根节点、各分组，以及所有只是被
-  /// 继承而非被动画驱动的形状）。调用方只读使用返回值，因此共享节点自身的表是
-  /// 安全的。被省掉的这次拷贝原本是每节点每帧一次。
-  ///
-  /// 带 `<animate>` 的节点每帧必须拿到一份真正全新的 [Map]——除 `<path>`
-  /// 外的每种形状，[_geometryPath] 都靠这份全新实例的身份，作为"这个形状的
-  /// 输入是否变了"的廉价缓存失效信号（见其文档注释）。这里曾试过跨帧复用、
-  /// 原地修改的表，后来回滚：它破坏了那个失效机制（复用后身份永不再变），
-  /// 悄悄把带动画的 `<rect>`/`<circle>` 等几何冻结在第一帧缓存的形状上——由
-  /// `test/animation/effective_attributes_reuse_test.dart` 捕获。
   /// `attributes[key]` parsed as a double, or [fallback] when absent/invalid.
   ///
   /// `attributes[key]` 解析为 double；缺失或非法时返回 [fallback]。
@@ -308,15 +275,105 @@ class AnimatedSvgPainter extends CustomPainter {
     return resolved;
   }
 
+  /// [node]'s attributes with this frame's sampled `<animate>` values
+  /// overlaid.
+  ///
+  /// Returns [SvgNode.attributes] itself — no copy — for a node carrying no
+  /// `<animate>`, which is most nodes in a real animated icon (the root, the
+  /// groups, and every shape that is only *inherited* into rather than
+  /// animated). Callers treat the result as read-only, so sharing the node's
+  /// own map is safe. The copy this avoids was allocated once per node per
+  /// frame.
+  ///
+  /// A node WITH `<animate>`s gets the map cached on it from the previous
+  /// frame for as long as **every** one of its timelines samples to the value
+  /// it sampled to last frame, and a genuinely fresh [Map] the instant any of
+  /// them moves — see [SvgNode.cachedAnimatedAttributes] for why reusing the
+  /// instance is what matters (it is what keeps [_resolveStyle]'s and
+  /// [_geometryPath]'s identity-keyed caches alive through the settled steady
+  /// state that dominates real icons) and for how this differs from the
+  /// mutated-in-place reuse that was tried here and reverted — that one held
+  /// the identity stable while the contents changed, silently freezing
+  /// animated `<rect>`/`<circle>`/etc. geometry at the first frame's shape,
+  /// caught by `test/animation/effective_attributes_reuse_test.dart`.
+  ///
+  /// [node] 的属性表，叠加本帧已采样的 `<animate>` 值。
+  ///
+  /// 节点自身没有 `<animate>` 时直接返回 [SvgNode.attributes] 本身——不拷贝；
+  /// 真实动画图标里大多数节点都属于这种情况（根节点、各分组，以及所有只是被
+  /// 继承而非被动画驱动的形状）。调用方只读使用返回值，因此共享节点自身的表是
+  /// 安全的。被省掉的这次拷贝原本是每节点每帧一次。
+  ///
+  /// 带 `<animate>` 的节点：只要它**每一条**时间线本帧采样到的值都与上一帧相同，
+  /// 就拿回上一帧缓存在它身上的那张表；一旦任意一条发生变化，立刻拿到一份真正
+  /// 全新的 [Map]——为什么"复用同一个实例"才是关键（正是它让
+  /// [_resolveStyle] 与 [_geometryPath] 那两个以身份为键的缓存能在真实图标占
+  /// 绝大多数时间的"已定格稳态"里持续命中），以及它与此前试过又回滚的"原地修改
+  /// 式复用"差别在哪（那次是身份稳定而内容在变，悄悄把带动画的
+  /// `<rect>`/`<circle>` 等几何冻结在第一帧的形状上，由
+  /// `test/animation/effective_attributes_reuse_test.dart` 捕获），见
+  /// [SvgNode.cachedAnimatedAttributes]。
+  ///
+  /// [node] — the node whose attributes to resolve. / 要解析属性的节点。
+  ///
+  /// Returns a read-only attribute map with sampled overrides applied.
+  ///
+  ///   返回叠加了采样覆盖值的只读属性表。
   Map<String, String> _effectiveAttributes(SvgNode node) {
-    if (node.animations.isEmpty) return node.attributes;
-    final overlaid = Map<String, String>.of(node.attributes);
-    for (final animation in node.animations) {
-      final sampled = animation.sample(time);
-      if (sampled != null) {
-        overlaid[animation.attributeName] = sampled.toString();
+    final animations = node.animations;
+    if (animations.isEmpty) return node.attributes;
+    // Sample every timeline into the node's sample key, noting whether any of
+    // them moved since the last frame. Sampling has to happen either way — it
+    // is the only way to know whether anything changed — so the comparison
+    // rides along on a pass that was already being made, and costs one double
+    // compare per animation.
+    //
+    // 把每条时间线采样进本节点的采样键，同时记录是否有任何一条相对上一帧发生了
+    // 变化。无论如何都得采样——这是判断"有没有变"的唯一途径——因此比较只是搭在
+    // 一趟本来就要走的遍历上，每条动画多付一次 double 比较。
+    final count = animations.length;
+    var key = node.animatedSampleKey;
+    var changed = false;
+    if (key == null || key.length != count) {
+      key = Float64List(count);
+      node.animatedSampleKey = key;
+      changed = true;
+    }
+    for (var i = 0; i < count; i++) {
+      // See [SvgNode.animatedSampleKey]: negative infinity marks "this
+      // timeline produced no value at this instant". It has to be a non-finite
+      // marker because every finite number is a legitimate sample, and it has
+      // to be an infinity rather than NaN because NaN compares unequal to
+      // itself, which would report a change on every single frame.
+      //
+      // 见 [SvgNode.animatedSampleKey]：负无穷标记"该时间线在此刻没有产出值"。
+      // 它必须是非有限值，因为任何有限数都是合法采样；又必须用无穷而不是 NaN，
+      // 因为 NaN 与自身比较不相等，会导致每一帧都被判为"有变化"。
+      final sampled = animations[i].sample(time) ?? double.negativeInfinity;
+      if (sampled != key[i]) {
+        key[i] = sampled;
+        changed = true;
       }
     }
+    final cached = node.cachedAnimatedAttributes;
+    if (!changed && cached != null) return cached;
+
+    final overlaid = Map<String, String>.of(node.attributes);
+    for (var i = 0; i < count; i++) {
+      final sampled = key[i];
+      // A timeline with no value at this instant contributes no override, so
+      // the element's own static attribute shows through — this is what makes
+      // an `<animate>` that ended *without* `fill="freeze"` snap back to the
+      // static value instead of leaking its last sampled one.
+      //
+      // 此刻没有值的时间线不贡献任何覆盖，于是元素自身的静态属性显现出来——这正是
+      // 一个结束时*未*设置 `fill="freeze"` 的 `<animate>` 会弹回静态值、而不是
+      // 残留最后一次采样值的原因。
+      if (sampled != double.negativeInfinity) {
+        overlaid[animations[i].attributeName] = sampled.toString();
+      }
+    }
+    node.cachedAnimatedAttributes = overlaid;
     return overlaid;
   }
 
@@ -1111,7 +1168,7 @@ class AnimatedSvgPainter extends CustomPainter {
       case SvgNodeKind.polyline:
       case SvgNodeKind.polygon:
         final path = _geometryPath(node, attributes);
-        if (path != null) _paintShape(canvas, path, style);
+        if (path != null) _paintShape(canvas, node, path, style);
       case SvgNodeKind.text:
         _paintText(canvas, node, style, attributes);
       case SvgNodeKind.image:
@@ -1382,7 +1439,51 @@ class AnimatedSvgPainter extends CustomPainter {
   static Color _fade(Color color, double opacity) =>
       opacity == 1 ? color : color.withValues(alpha: color.a * opacity);
 
-  void _paintShape(Canvas canvas, ui.Path path, ResolvedStyle style) {
+  /// The stroke path to draw for [node]: [path] itself for a solid stroke, or
+  /// its dashed derivative, reusing the one cached on the node when all three
+  /// inputs `dashPath` reads are unchanged (see [SvgNode.cachedDashedPath]).
+  ///
+  /// 为 [node] 绘制描边时应使用的路径：实线描边直接用 [path] 本身，否则用它的
+  /// 虚线派生路径；当 `dashPath` 读取的三个输入都没变时，复用缓存在节点上的那条
+  /// （见 [SvgNode.cachedDashedPath]）。
+  ///
+  /// [node] — the node being stroked, which owns the cache.
+  ///
+  ///   正在被描边的节点，缓存挂在它身上。
+  ///
+  /// [path] — the node's solid geometry path. / 节点的实线几何路径。
+  ///
+  /// [style] — the resolved style carrying the dash pattern and phase.
+  ///
+  ///   携带虚线图案与相位的已解析样式。
+  ///
+  /// Returns the path to hand to `drawPath`. / 返回交给 `drawPath` 的路径。
+  ui.Path _strokePath(SvgNode node, ui.Path path, ResolvedStyle style) {
+    final dashArray = style.strokeDasharray;
+    if (dashArray.isEmpty) return path;
+    final dashOffset = style.strokeDashoffset;
+    final cached = node.cachedDashedPath;
+    if (cached != null &&
+        identical(node.dashedPathSourceKey, path) &&
+        identical(node.dashedPathArrayKey, dashArray) &&
+        node.dashedPathOffsetKey == dashOffset) {
+      return cached;
+    }
+    final dashed = dashPath(path, dashArray: dashArray, dashOffset: dashOffset);
+    node
+      ..cachedDashedPath = dashed
+      ..dashedPathSourceKey = path
+      ..dashedPathArrayKey = dashArray
+      ..dashedPathOffsetKey = dashOffset;
+    return dashed;
+  }
+
+  void _paintShape(
+    Canvas canvas,
+    SvgNode node,
+    ui.Path path,
+    ResolvedStyle style,
+  ) {
     if (style.opacity <= 0) return;
     final fillShader = _gradientShader(
       style.fillGradientId,
@@ -1411,13 +1512,7 @@ class AnimatedSvgPainter extends CustomPainter {
     );
     if (strokeShader != null && style.strokeWidth > 0) {
       canvas.drawPath(
-        style.strokeDasharray.isEmpty
-            ? path
-            : dashPath(
-                path,
-                dashArray: style.strokeDasharray,
-                dashOffset: style.strokeDashoffset,
-              ),
+        _strokePath(node, path, style),
         Paint()
           ..style = PaintingStyle.stroke
           ..shader = strokeShader
@@ -1428,15 +1523,8 @@ class AnimatedSvgPainter extends CustomPainter {
       return;
     }
     if (style.stroke != null && style.strokeWidth > 0) {
-      final strokePath = style.strokeDasharray.isNotEmpty
-          ? dashPath(
-              path,
-              dashArray: style.strokeDasharray,
-              dashOffset: style.strokeDashoffset,
-            )
-          : path;
       canvas.drawPath(
-        strokePath,
+        _strokePath(node, path, style),
         Paint()
           ..style = PaintingStyle.stroke
           ..color = _fade(style.stroke!, style.opacity)

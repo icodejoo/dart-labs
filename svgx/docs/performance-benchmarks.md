@@ -1133,3 +1133,105 @@ powershell -File benchmark/bench_app/tool/run_android_anim_fps.ps1
 ```
 
 看 timeline 时要回答的具体问题:`io.flutter.ui | BUILD` 桶里 self time 最高的是 `SvgXAnimated` / `SvgX` / `CustomPaint` 这些 svgx 自己的控件,还是 `KeyedSubtree` / `RepaintBoundary` / `_SliverGridDelegate` 之类框架层的格子机械开销?主机侧归因预测是**后者约占 2/3**;真机若也如此,则 build 端剩下的杠杆只有"少挂载"(减少每格层数、或让格子不被销毁),而不是继续优化 svgx 的计算。
+
+## 调研并否决:Impeller shader 预热(2026-08-27)
+
+**假设**:Impeller 可能对"特定绘制组合"(虚线描边+特定 BlendMode+mask)懒编译 shader,第一次遇到时有编译开销,冷启动直接挂载 1000 图标网格可能撞上这个尖峰,预热能把它挪到用户感知不到的地方。
+
+**否决,未实现,四条独立证据**(纯源码/文档审查,未做真机验证):
+
+1. **引擎自己已经在做这件事,而且做得更好**——Flutter 3.47.1 已合入的改动让 Impeller 在 renderer setup 阶段就主动预建整套 PSO(pipeline state object),并**彻底删掉了 lazy shader 模式**,还加了能插队到调用线程执行的编译队列。应用层预热只是在和引擎自己的队列抢跑,不会更快。
+2. **官方预热 API 碰不到花时间的那个东西**——`ShaderWarmUp.execute()` 是录 `ui.Picture` + 离屏 `picture.toImage()`(默认 100×100),而 Impeller 真正贵的是**按渲染目标配置(MSAA/像素格式/stencil)键控**的 PSO,离屏小图的配置大概率跟真实渲染目标不匹配,预热建出来的可能是错的变体,白做。且 `painting/binding.dart` 里明确写着预热**同步跑在 raster 线程、会推迟首帧**——是净亏,不是净赚。
+3. **SkSL 预编译通路已删**——`--bundle-sksl-path` 在 Flutter 3.32.0 移除,3.47.1 的 `flutter_tools` 源码里零命中。
+4. **`dart:ui` 没有暴露管线预编译的口子**,唯一的 shader 相关 API 是 `FragmentProgram`,svgx 不用。
+
+`shader_warm_up.dart` 全文措辞是针对旧 Skia 后端写的(`GrGLProgramBuilder::finalize`、`--trace-skia`),是`--no-enable-impeller`回退路径的遗留物——**对 Impeller 项目的语境不适用**,以后不用再往这个方向想。
+
+## 单图标稳态视角(2026-08-27):真实场景是"少量图标",不是千图标网格
+
+**视角转变**:在此之前,本文档记录的每一轮性能工作(黑屏修复、跳帧、mask saveLayer 各方案、build 端 timeline 剖析、GridView 批处理)**全部是在"1000 图标并发滚动"这个 artificial benchmark 下做出的判断**,优化的都是"成本如何在并发图标之间摊薄"。但真实使用场景是导航栏字形、按钮态、loading spinner:**1 个到几十个动画图标,静止不动**。这是另一个问题:要问的是"任何一个动画图标每帧、稳态运行要花多少 CPU/GPU",这个成本与并发数无关。
+
+两条使它成为**不同问题**的硬性理由:
+
+1. `SvgXAnimationQuality.adaptiveFrameSkipping` 只在并发数 **> `frameSkipThreshold`(24)** 时生效,`approximatesMasksAt` 同样受该阈值门控。因此少量图标场景下**两项降级全都不生效**,跑的是精确逐帧路径——之前所有"1000 图标视角"下的 mask 结论,在这个视角下既不适用也未被验证过。
+2. 摊到 1000 个图标上看不见的每帧成本,在只有一个图标时就是全部成本。
+
+### 关键前提:只有"循环"图标才存在稳态成本
+
+**有限动画图标的稳态成本恰好为零**,这不是估计而是代码事实:最后一条时间线定格后,`_SvgXAnimatedState._onGlobalTick` 会调用 `_stopTicking()` 从共享时钟退订,图标彻底停止重绘。399 份真实语料里 58 份是 `repeatCount="indefinite"`(其中 35 份带 `<mask>`,23 份不带),**只有这 58 份会永远逐帧付费**。因此本轮的所有测量都收窄到这 58 份,并在 t > 3s(越过全部 `fill="freeze"` 揭示动画)采样——那正是这类图标在屏幕上几乎全部时间所处的状态:**一部分已定格,另一部分仍在循环**。
+
+### 新增常驻测量资产
+
+| 资产 | 是什么 |
+|---|---|
+| `benchmark/bench_app/lib/one_anim_bench_screen.dart`(`LIB=one_anim`) | 单图标稳态端到端基准。判别指标**不能是 FPS**(一个图标在任何设备上都跑满帧,`real_fps` 饱和失敏),改为在图标**数量**(0/1/4/16,全部低于降级阈值)上扫描每帧 `build`/`raster` 耗时,取**斜率**作为边际单图标成本。数量 0 阶段是管线底噪(一个每 tick 重绘的 `CustomPaint`,不含任何 svgx)。plain / masked 两趟独立扫描。**用互异的源**挂载多个图标,否则它们会共享同一份已解析文档与逐节点缓存,斜率会偏向对本库有利 |
+| `micro_bench.dart` 的 `anim_settled_loop_current` / `_caches_defeated` / `_walk_only` 三臂 | 同进程配对测量。`_caches_defeated` 在每次绘制前把本轮新增的两个缓存置空,**精确复现改动前的行为**;`_walk_only` 做完全相同的遍历但只读不清,于是遍历自身的开销在 `defeated − walk_only` 里相互抵消,不会被记到需要它的那条臂上 |
+
+### 剖析结论:成本清单(按占比排序)
+
+Windows x64 profile,Impeller,3 次运行取中位数,`ONEHOLD=6`(每阶段约 730 帧)。边际单图标成本 = (n16 − n1)/15:
+
+| 图标类型 | build(UI 线程)/图标/帧 | raster(GPU)/图标/帧 | 占 60Hz 帧预算(16.67ms) |
+|---|---|---|---|
+| 循环 · 不带 mask | **13.47us** | **15.52us** | 0.08% + 0.09% |
+| 循环 · 带 `<mask>` | **24.37us** | **50.43us** | 0.15% + 0.30% |
+
+**mask 溢价:+10.9us UI / +34.9us GPU 每图标每帧**,raster 是不带 mask 的约 3.25 倍——这就是那两个 `saveLayer` 离屏渲染通道,在单图标场景下既无门控也无共享,每帧必付。
+
+**结论性判断(如实记录)**:单图标/少量图标场景**不存在每帧成本问题**。1 个循环 spinner 约占 60Hz 帧预算的 0.2%;即便 16 个带 mask 的 spinner 同屏,也只有 0.45ms UI + 0.84ms GPU ≈ 2.7% + 5%。之前"1000 图标视角"下最大的单项(mask saveLayer)在这个视角下依然是最大单项,但它的绝对值已经小到不值得用画质去换——这也正面支持了 `approximateSimpleMasksAsClip` 保持 opt-in 且受并发门控的现状。
+
+### 落地的优化:两个"输入没变就别重算"的缓存
+
+真实 spinner 的稳态形状是:`stroke-dashoffset` 揭示动画**已定格**(每帧采样出同一个数),而一个 `animateTransform` 旋转**仍在跑**,所以图标必须每帧重绘。此前的代码在这个状态下每帧仍要:为带 `<animate>` 的节点新建一张属性表 → 于是 `cachedStyle` / `cachedGeometry` 那两个以**属性表实例身份**为键的缓存**每帧必然未命中** → 跑完整的 `ResolvedStyle.inherit`(十几次字符串键查找 + 颜色/虚线解析 + 对象分配) → 再跑 `dashPath`(含 `Path.computeMetrics()` 原生展平轮廓)。**全部是在重算一个上一帧刚算过、且输入逐位相同的结果。**
+
+| # | 优化 | 文件 | 机制 |
+|---|---|---|---|
+| 1 | `_effectiveAttributes` 只要**每一条**时间线本帧采样值都与上一帧相同,就交回上一帧那张属性表(`SvgNode.cachedAnimatedAttributes`);任一采样值一动立即构建全新表 | `animated_svg_painter.dart`、`svg_dom.dart` | 把 `cachedStyle`/`cachedGeometry` 的**永久未命中变成命中**,收益级联:分组复用了表就产出同一个 `ResolvedStyle` 实例,其子节点的 `styleInheritedKey` 也继续有效 |
+| 2 | `dashPath` 结果按(源路径身份、虚线图案身份、虚线相位值)记忆到节点(`SvgNode.cachedDashedPath`) | 同上 | 定格的 dashoffset + 已缓存的几何 ⇒ 三个输入全不变,省掉 `computeMetrics()` + `extractPath` + Path 分配 |
+
+**为什么这次成立、而 `_effectiveAttributes` 此前那次复用被回滚**:那次是每节点保留一张表并**原地修改**,身份稳定而内容在变,把带动画的 `<rect>`/`<circle>` 几何冻结在第一帧形状上。这次只在内容**可证明**逐位相同时才复用身份;任何采样值一动就构建真正全新的表,依赖它的缓存精确失效。缓存键是**采样值而非时间线位置**,因此被两个控件在不同时刻共享的文档(`SvgDocumentCache`)要么共享有效条目、要么未命中重建,**不可能读到过期数据**——与 `cachedMaskClip` 依赖的是同一个性质。
+
+### 效果:两个独立仪器互相印证
+
+**(a) 同进程配对微基准**(`LIB=micro`,best-of-8,58 份循环文档,时间线每轮推进一个 60Hz 帧):
+
+| 臂 | us/图标/帧 |
+|---|---|
+| `anim_settled_loop_caches_defeated`(= 改动前) | 12.379 |
+| `anim_settled_loop_walk_only`(= 改动后 + 同一趟遍历,只读) | 8.879 |
+| `anim_settled_loop_current`(= 改动后) | 8.638 |
+
+遍历自身开销 = 8.879 − 8.638 = **0.241us**。把它从两边消掉:改动前 12.138 → 改动后 8.638,**−3.50us = −28.8%**。
+
+**(b) 端到端真实管线**(`LIB=one_anim`,Windows profile,两个二进制**只差那两处缓存的判定**,各 3 次运行取中位数斜率):
+
+| 图标类型 | build/图标/帧 · 缓存关 | build/图标/帧 · 缓存开 | 变化 | raster(对照) |
+|---|---|---|---|---|
+| 循环 · 不带 mask | 17.99us | **13.47us** | **−4.52us = −25.1%** | 14.85 → 15.52us(噪声内,符合预期:本改动纯 UI 线程) |
+| 循环 · 带 mask | 25.41us | 24.37us | −1.04us = −4.1% | 51.05 → 50.43us |
+
+**两个仪器一致**(−28.8% vs −25.1%),这是本轮结论的主要依据。
+
+**为什么带 mask 的收益小得多(如实记录)**:masked 语料里的动画大多是**持续在动**的(如 `values="12;11;12;13;12"` 跑 30s,每帧采样值都不同),采样键每帧都变、缓存必然未命中。收益集中在"揭示动画已定格 + 变换仍在循环"这一形状,也就是 line-md 风格 spinner——恰好是真实场景里最常见的那种。
+
+### 正确性防线
+
+`test/animation/paint_frame_cache_test.dart`(5 项,像素级)。全部经过**变异测试**验证其敏感性:把缓存判定改成"永远命中"后,变异 1(属性表)杀死 5 项测试、变异 2(虚线记忆)杀死 2 项。覆盖:持续运动的几何属性必须每帧不同;动画中的 `stroke-dashoffset` 揭示必须严格增长;已定格的揭示 + 仍在跑的旋转必须继续旋转且揭示保持完整(防止把虚线路径连同变换一起缓存);**一棵共享节点树被乱序时刻绘制,每个观察者必须拿到与它单独绘制时逐字节相同的像素**;未设 `fill="freeze"` 的动画结束后仍要弹回静态值。`flutter analyze` 无问题,`flutter test` 189 passed(基线 184)。
+
+### 识别到但**本轮没做**(如实标注为未验证)
+
+- **`SmilTransformAnimation.sample()` 每帧新建一个 3 元素 `List<double>`**,`_resolveTiming` / `_locateSegment` 各返回一个小对象。在上述两项缓存落地后,`sample()` 成为新的下限(它必须每帧跑——那是判断"有没有变"的唯一途径)。但按现有实测证据不动它:本文档已记录 Dart 的 bump 分配极便宜(`Paint` 新建 0.257us,复用反而慢 18%),而 8.638us/图标/帧 已只占帧预算 0.05%。**没有实测支撑的改动不做。**
+- **`_effectiveAttributes` 里 double → String → double 往返仍然存在**,但只发生在采样值**真的变了**的那一帧。上一轮记录的"需要连带重新设计失效键"这个障碍**已经不成立了**(本轮的采样值键就是那个新失效键),所以这条从"不可行"降级为"还没做":真正改掉它要给 `ResolvedStyle.inherit` 与 `_num` 加一条数值侧信道。收益上限约等于每帧变化的属性数 × 一次 `toString` + 一次 `tryParse`。
+- **`ui.ImageFilter.blur` 与其 `Paint` 每帧为每个带模糊的节点新建**(`blurSigma` 是解析期固定值,可无键缓存到节点)。真实语料里带模糊的循环图标极少,未测,不动。
+- **真机验证未完成**:vivo V2283A(10CD9H112600159)在线,但 `adb install -r` 被设备的"USB 安装确认"弹窗拦下(`INSTALL_FAILED_ABORTED: User rejected permissions`),需要在机上手动点确认。以上端到端数字**仅在 Windows x64 desktop profile / Impeller 上测得**。ARM 真机复测命令:
+
+```
+cd benchmark/bench_app
+fvm flutter build apk --profile --dart-define=LIB=one_anim --dart-define=AUTOEXIT=1 --dart-define=ONEHOLD=6
+adb -s <serial> install -r build/app/outputs/flutter-apk/app-profile.apk   # 需在机上点确认
+adb -s <serial> logcat -c
+adb -s <serial> shell am start -n com.example.bench_app/.MainActivity
+adb -s <serial> logcat -d -s flutter:I | grep -E "count=|ONE ANIM"
+```
+
+预期方向:ARM 上 build 斜率会明显高于桌面(CPU 更弱),raster 斜率的 mask 溢价也会更大(华为 STG-AL00 上单个离屏通道曾实测约 221us,远高于桌面 GPU)——**若 mask 溢价在 ARM 上占到帧预算的显著比例,那才是重新评估 `approximateSimpleMasksAsClip` 默认值的时机**,而判定应当用 `LIB=one_anim` 的少量图标斜率,而不是千图标网格。
