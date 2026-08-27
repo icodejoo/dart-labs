@@ -1,92 +1,84 @@
 # svgx
 
-A new Flutter FFI plugin project.
+High-performance static & animated SVG rendering for Flutter.
 
-## Getting Started
+* **Static SVG** parses through Rust (`usvg`) into a cached `ui.Picture`, then
+  renders with Flutter's own GPU pipeline — no CPU rasterizer.
+* **Animated SVG** (SMIL — `<animate>`, `<animateTransform>`,
+  `<animateMotion>`, `<set>`) runs through an original Dart-side engine:
+  parse once, sample and paint every frame in pure Dart, so no per-frame data
+  crosses the Rust FFI boundary.
+* One widget, `SvgX`, auto-detects which path a source needs.
 
-This project is a starting point for a Flutter
-[FFI plugin](https://flutter.dev/to/ffi-package),
-a specialized package that includes native code directly invoked with Dart FFI.
+## Usage
 
-## Project structure
+```dart
+import 'package:svgx/svgx.dart';
 
-This template uses the following structure:
-
-* `src`: Contains the native source code, and a CmakeFile.txt file for building
-  that source code into a dynamic library.
-
-* `lib`: Contains the Dart code that defines the API of the plugin, and which
-  calls into the native code using `dart:ffi`.
-
-* platform folders (`android`, `ios`, `windows`, etc.): Contains the build files
-  for building and bundling the native code library with the platform application.
-
-## Building and bundling native code
-
-The `pubspec.yaml` specifies FFI plugins as follows:
-
-```yaml
-  plugin:
-    platforms:
-      some_platform:
-        ffiPlugin: true
+SvgX.string(
+  svgSource,
+  width: 48,
+  height: 48,
+)
 ```
 
-This configuration invokes the native build for the various target platforms
-and bundles the binaries in Flutter applications using these FFI plugins.
+`SvgX` inspects the source for SMIL animation markers and dispatches to the
+static or animated renderer accordingly — most callers never need to think
+about which path they're on.
 
-This can be combined with dartPluginClass, such as when FFI is used for the
-implementation of one platform in a federated plugin:
+### Recoloring
 
-```yaml
-  plugin:
-    implements: some_other_plugin
-    platforms:
-      some_platform:
-        dartPluginClass: SomeClass
-        ffiPlugin: true
+```dart
+SvgX.string(
+  svgSource,
+  width: 24,
+  height: 24,
+  colorFilter: ColorFilter.mode(Colors.blue, BlendMode.srcIn),
+)
 ```
 
-A plugin can have both FFI and method channels:
+`currentColor` in the source is controlled separately via `SvgTheme`, honored
+by both the static and animated rendering paths:
 
-```yaml
-  plugin:
-    platforms:
-      some_platform:
-        pluginClass: SomeName
-        ffiPlugin: true
+```dart
+SvgX.string(svgSource, theme: SvgTheme(currentColor: Colors.blue))
 ```
 
-The native build systems that are invoked by FFI (and method channel) plugins are:
+### Animation quality
 
-* For Android: Gradle, which invokes the Android NDK for native builds.
-  * See the documentation in android/build.gradle.
-* For iOS and MacOS: Xcode, via CocoaPods.
-  * See the documentation in ios/svgx.podspec.
-  * See the documentation in macos/svgx.podspec.
-* For Linux and Windows: CMake.
-  * See the documentation in linux/CMakeLists.txt.
-  * See the documentation in windows/CMakeLists.txt.
+For the animated path, `SvgXAnimationQuality` trades fidelity for throughput
+under high concurrency (e.g. a scrolling grid of many animated icons) —
+adaptive frame-skipping is the default; see its class doc for the full set of
+opt-in/opt-out trade-offs and exactly what each one costs.
 
-## Binding to native code
+```dart
+SvgX.string(
+  svgSource,
+  quality: const SvgXAnimationQuality(),
+)
+```
 
-To use the native code, bindings in Dart are needed.
-To avoid writing these by hand, they are generated from the header file
-(`src/svgx.h`) by `package:ffigen`.
-Regenerate the bindings by running `dart run ffigen --config ffigen.yaml`.
+### Static-only / animated-only widgets
 
-## Invoking native code
+`SvgXStatic` and `SvgXAnimated` are the two renderers `SvgX` dispatches to,
+exported for callers who already know which one they need (e.g. an icon set
+known ahead of time to be all-static).
 
-Very short-running native functions can be directly invoked from any isolate.
-For example, see `sum` in `lib/svgx.dart`.
+## Why not `flutter_svg`?
 
-Longer-running functions should be invoked on a helper isolate to avoid
-dropping frames in Flutter applications.
-For example, see `sumAsync` in `lib/svgx.dart`.
+`svgx` exists to replace `flutter_svg` + `iconify_flutter` with a single
+library that also does animation. Static parsing is delegated to `usvg` (the
+same crate `resvg` builds on), so static feature coverage tracks a mature,
+actively-maintained parser rather than a hand-rolled one. Rendering — static
+and animated alike — stays on Flutter's own GPU pipeline; nothing is
+rasterized on the CPU.
 
-## Flutter help
+## Status
 
-For help getting started with Flutter, view our
-[online documentation](https://docs.flutter.dev), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+Actively developed. See `docs/` in the repository for the full acceptance
+criteria, supported-feature matrix, and performance benchmark history.
 
+## Contributing
+
+Issues and PRs welcome at the
+[repository](https://github.com/icodejoo/dart-labs/tree/main/svgx).

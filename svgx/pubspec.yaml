@@ -1,7 +1,16 @@
 name: svgx
-description: "A new Flutter FFI plugin project."
-version: 0.0.1
-homepage:
+description: "High-performance static & animated SVG rendering for Flutter. Rust (usvg) parses, Flutter's own GPU pipeline renders — no CPU rasterizer, SMIL animation support."
+version: 0.1.0
+homepage: https://github.com/icodejoo/dart-labs/tree/main/svgx
+repository: https://github.com/icodejoo/dart-labs
+issue_tracker: https://github.com/icodejoo/dart-labs/issues
+
+topics:
+  - svg
+  - animation
+  - icons
+  - rust
+  - ffi
 
 environment:
   sdk: ^3.13.0
