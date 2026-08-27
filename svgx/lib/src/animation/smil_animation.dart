@@ -435,6 +435,14 @@ class SmilAnimation implements SmilTimed {
   /// 匹配时该段回退为线性缓动。
   final List<CubicBezier>? keySplines;
 
+  /// Cached [_pacedKeyTimes] result for [SmilCalcMode.paced], computed once on
+  /// first [sample] rather than every frame — it is a pure function of
+  /// [values], which never changes after parsing.
+  ///
+  /// [SmilCalcMode.paced] 的 [_pacedKeyTimes] 缓存结果，只在首次 [sample] 时
+  /// 计算一次，而非每帧都算——它是 [values] 的纯函数，解析完成后再不会变。
+  List<double>? _cachedPacedKeyTimes;
+
   /// Samples the animated value at global timeline time [t].
   ///
   /// Returns null when the animation hasn't started yet, or has ended without
@@ -457,7 +465,10 @@ class SmilAnimation implements SmilTimed {
 
     final segments = values.length - 1;
     final effectiveKeyTimes = calcMode == SmilCalcMode.paced
-        ? _pacedKeyTimes<double>(values, (a, b) => (b - a).abs())
+        ? (_cachedPacedKeyTimes ??= _pacedKeyTimes<double>(
+            values,
+            (a, b) => (b - a).abs(),
+          ))
         : keyTimes;
     final segment = _locateSegment(
       timing.progress,
@@ -600,6 +611,10 @@ class SmilTransformAnimation implements SmilTimed {
   /// [SmilAnimation.keySplines]。
   final List<CubicBezier>? keySplines;
 
+  /// Cached [_pacedKeyTimes] result; see [SmilAnimation._cachedPacedKeyTimes].
+  /// 缓存的 [_pacedKeyTimes] 结果；见 [SmilAnimation._cachedPacedKeyTimes]。
+  List<double>? _cachedPacedKeyTimes;
+
   /// Samples the animated transform components at global timeline time [t].
   ///
   /// Returns null under the same conditions as [SmilAnimation.sample] — the
@@ -622,7 +637,10 @@ class SmilTransformAnimation implements SmilTimed {
 
     final segments = values.length - 1;
     final effectiveKeyTimes = calcMode == SmilCalcMode.paced
-        ? _pacedKeyTimes<List<double>>(values, _vectorDistance)
+        ? (_cachedPacedKeyTimes ??= _pacedKeyTimes<List<double>>(
+            values,
+            _vectorDistance,
+          ))
         : keyTimes;
     final segment = _locateSegment(
       timing.progress,
@@ -764,6 +782,10 @@ class SmilMotionAnimation implements SmilTimed {
   @override
   final SmilBeginSpec beginSpec;
 
+  /// Cached [_pacedKeyTimes] result; see [SmilAnimation._cachedPacedKeyTimes].
+  /// 缓存的 [_pacedKeyTimes] 结果；见 [SmilAnimation._cachedPacedKeyTimes]。
+  List<double>? _cachedPacedKeyTimes;
+
   /// Samples the element's position (and `rotate="auto"` angle) at global
   /// timeline time [t], or null when the animation isn't active — same
   /// convention as [SmilAnimation.sample].
@@ -793,7 +815,10 @@ class SmilMotionAnimation implements SmilTimed {
     if (points != null) {
       final segments = points.length - 1;
       final effectiveKeyTimes = calcMode == SmilCalcMode.paced
-          ? _pacedKeyTimes<double>(points, (a, b) => (b - a).abs())
+          ? (_cachedPacedKeyTimes ??= _pacedKeyTimes<double>(
+              points,
+              (a, b) => (b - a).abs(),
+            ))
           : keyTimes;
       final segment = _locateSegment(
         timing.progress,
@@ -904,6 +929,10 @@ class SmilColorAnimation implements SmilTimed {
   /// 每段的缓动曲线；见 [SmilAnimation.keySplines]。
   final List<CubicBezier>? keySplines;
 
+  /// Cached [_pacedKeyTimes] result; see [SmilAnimation._cachedPacedKeyTimes].
+  /// 缓存的 [_pacedKeyTimes] 结果；见 [SmilAnimation._cachedPacedKeyTimes]。
+  List<double>? _cachedPacedKeyTimes;
+
   /// Samples the animated colour (as `0xAARRGGBB`) at global timeline time
   /// [t]; same null convention as [SmilAnimation.sample].
   ///
@@ -921,7 +950,7 @@ class SmilColorAnimation implements SmilTimed {
 
     final segments = values.length - 1;
     final effectiveKeyTimes = calcMode == SmilCalcMode.paced
-        ? _pacedKeyTimes<int>(values, _argbDistance)
+        ? (_cachedPacedKeyTimes ??= _pacedKeyTimes<int>(values, _argbDistance))
         : keyTimes;
     final segment = _locateSegment(
       timing.progress,

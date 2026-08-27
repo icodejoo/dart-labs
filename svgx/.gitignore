@@ -40,3 +40,6 @@ migrate_working_dir/
 # 注意：`prebuilt/` 刻意不加入 ignore。svgx 直接把预编译原生二进制提交进 git
 # （不用 Git LFS——pub 的 git checkout 拉不到 LFS 指针指向的实体文件）。
 # 把它 ignore 掉会静默破坏所有下游。
+
+# FVM Version Cache
+.fvm/

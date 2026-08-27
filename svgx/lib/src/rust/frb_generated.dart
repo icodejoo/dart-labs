@@ -5,14 +5,11 @@
 
 import 'api/simple.dart';
 import 'api/svg.dart';
-
 import 'dart:async';
 import 'dart:convert';
-
 import 'frb_generated.dart';
 import 'frb_generated.io.dart'
     if (dart.library.js_interop) 'frb_generated.web.dart';
-
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
 /// Main entrypoint of the Rust API
@@ -442,15 +439,19 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   SvgImage dco_decode_svg_image(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
-    if (arr.length != 6)
-      throw Exception('unexpected arr length: expect 6 but see ${arr.length}');
+    if (arr.length != 10)
+      throw Exception('unexpected arr length: expect 10 but see ${arr.length}');
     return SvgImage(
       x: dco_decode_f_32(arr[0]),
       y: dco_decode_f_32(arr[1]),
       width: dco_decode_f_32(arr[2]),
       height: dco_decode_f_32(arr[3]),
-      data: dco_decode_list_prim_u_8_strict(arr[4]),
-      format: dco_decode_svg_image_format(arr[5]),
+      matrix: dco_decode_list_prim_f_32_strict(arr[4]),
+      data: dco_decode_list_prim_u_8_strict(arr[5]),
+      format: dco_decode_svg_image_format(arr[6]),
+      clips: dco_decode_list_svg_clip(arr[7]),
+      mask: dco_decode_opt_box_autoadd_svg_mask(arr[8]),
+      blur: dco_decode_opt_box_autoadd_svg_blur(arr[9]),
     );
   }
 
@@ -845,15 +846,23 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     var var_y = sse_decode_f_32(deserializer);
     var var_width = sse_decode_f_32(deserializer);
     var var_height = sse_decode_f_32(deserializer);
+    var var_matrix = sse_decode_list_prim_f_32_strict(deserializer);
     var var_data = sse_decode_list_prim_u_8_strict(deserializer);
     var var_format = sse_decode_svg_image_format(deserializer);
+    var var_clips = sse_decode_list_svg_clip(deserializer);
+    var var_mask = sse_decode_opt_box_autoadd_svg_mask(deserializer);
+    var var_blur = sse_decode_opt_box_autoadd_svg_blur(deserializer);
     return SvgImage(
       x: var_x,
       y: var_y,
       width: var_width,
       height: var_height,
+      matrix: var_matrix,
       data: var_data,
       format: var_format,
+      clips: var_clips,
+      mask: var_mask,
+      blur: var_blur,
     );
   }
 
@@ -1257,8 +1266,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_f_32(self.y, serializer);
     sse_encode_f_32(self.width, serializer);
     sse_encode_f_32(self.height, serializer);
+    sse_encode_list_prim_f_32_strict(self.matrix, serializer);
     sse_encode_list_prim_u_8_strict(self.data, serializer);
     sse_encode_svg_image_format(self.format, serializer);
+    sse_encode_list_svg_clip(self.clips, serializer);
+    sse_encode_opt_box_autoadd_svg_mask(self.mask, serializer);
+    sse_encode_opt_box_autoadd_svg_blur(self.blur, serializer);
   }
 
   @protected

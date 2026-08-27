@@ -8,6 +8,7 @@
 
 import 'package:flutter/painting.dart';
 
+import 'svg_dom.dart';
 import 'svg_theme.dart';
 
 /// A fully-resolved set of presentation attributes for one element, after
@@ -92,20 +93,6 @@ class ResolvedStyle {
       return parseSvgHexColor(v);
     }
 
-    /// A `url(#id)` paint reference, or null when the value isn't one.
-    /// `url(#id)` 涂料引用；不是引用时返回 null。
-    String? gradientId(String? raw) {
-      if (raw == null) return null;
-      final v = raw.trim();
-      if (!v.startsWith('url(') || !v.endsWith(')')) return null;
-      final inner = v
-          .substring(4, v.length - 1)
-          .trim()
-          .replaceAll("'", '')
-          .replaceAll('"', '');
-      return inner.startsWith('#') ? inner.substring(1) : null;
-    }
-
     return ResolvedStyle(
       fill: attributes.containsKey('fill')
           ? parseColor(attributes['fill']!)
@@ -114,10 +101,10 @@ class ResolvedStyle {
           ? parseColor(attributes['stroke']!)
           : stroke,
       fillGradientId: attributes.containsKey('fill')
-          ? gradientId(attributes['fill'])
+          ? parseUrlId(attributes['fill'])
           : fillGradientId,
       strokeGradientId: attributes.containsKey('stroke')
-          ? gradientId(attributes['stroke'])
+          ? parseUrlId(attributes['stroke'])
           : strokeGradientId,
       strokeWidth:
           double.tryParse(attributes['stroke-width'] ?? '') ?? strokeWidth,

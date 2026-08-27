@@ -14,6 +14,7 @@ import 'package:svgx/svgx.dart';
 
 import 'anim_bench_screen.dart';
 import 'anim_fps_bench_screen.dart';
+import 'bare_anim_grid.dart';
 import 'bench_screen.dart';
 import 'compare_bench_screen.dart';
 import 'micro_bench.dart';
@@ -43,6 +44,10 @@ Future<void> main() async {
     // 无法在本机归因 Dart 层改进，见 micro_bench.dart。
     printMicroReport(runMicroBenchmarks());
     exit(0);
+  }
+  if (_libName == 'bare') {
+    runApp(MaterialApp(home: BareAnimGrid(itemCount: _items)));
+    return;
   }
   if (_libName == 'anim') {
     runApp(const MaterialApp(home: AnimBenchRunner()));

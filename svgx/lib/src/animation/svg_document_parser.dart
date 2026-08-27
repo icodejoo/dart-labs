@@ -267,22 +267,41 @@ SvgGradientDef? _buildGradient(
   var stops = _parseStops(element);
   var stopNodes = _parseStopNodes(element, context);
 
-  final href = attributes['href']?.trim();
-  if (href != null && href.startsWith('#')) {
-    final parent = elementsById[href.substring(1)];
+  // Walks the full href chain (not just the immediate parent) merging each
+  // ancestor's own attributes, so a geometry attribute (x1/y1/.../fy) missing
+  // on both this element AND its immediate parent still resolves from a
+  // grandparent (a → b → c where only `c` declares it). `chainVisited` bounds
+  // the walk against a cyclic href the same way [visiting] bounds the
+  // recursive stop-list resolution below.
+  //
+  // 遍历完整的 href 链（而非只查直接父级），合并每一级祖先自身的属性——使得
+  // 某个几何属性（x1/y1/…/fy）在本元素与其直接父级上都缺失时，仍能从祖父级
+  // 解析出来（a → b → c，只有 `c` 声明了该属性）。`chainVisited` 约束遍历，
+  // 防止 href 成环，与下方 [visiting] 约束递归解析色标列表同理。
+  final immediateHref = attributes['href']?.trim();
+  final chainVisited = <String>{if (id != null) id};
+  var current = element;
+  while (true) {
+    final h = current.getAttribute('href')?.trim();
+    if (h == null || !h.startsWith('#')) break;
+    final parentId = h.substring(1);
+    if (!chainVisited.add(parentId)) break; // href cycle
+    final parent = elementsById[parentId];
+    if (parent == null || !_gradientTags.contains(parent.name.local)) break;
+    final parentAttributes = <String, String>{
+      for (final a in parent.attributes) a.name.local: a.value,
+    };
+    for (final entry in parentAttributes.entries) {
+      attributes.putIfAbsent(entry.key, () => entry.value);
+    }
+    current = parent;
+  }
+  if (immediateHref != null && immediateHref.startsWith('#') && stops.isEmpty) {
+    final parent = elementsById[immediateHref.substring(1)];
     if (parent != null && _gradientTags.contains(parent.name.local)) {
-      final inheritedElement = parent;
-      final inherited = <String, String>{
-        for (final a in inheritedElement.attributes) a.name.local: a.value,
-      };
-      for (final entry in inherited.entries) {
-        attributes.putIfAbsent(entry.key, () => entry.value);
-      }
-      if (stops.isEmpty) {
-        final parentDef = _buildGradient(inheritedElement, context, visiting);
-        stops = parentDef?.stops ?? const [];
-        stopNodes = parentDef?.stopNodes ?? const [];
-      }
+      final parentDef = _buildGradient(parent, context, visiting);
+      stops = parentDef?.stops ?? const [];
+      stopNodes = parentDef?.stopNodes ?? const [];
     }
   }
   if (id != null) visiting.remove(id);
@@ -701,8 +720,8 @@ SvgNode _parseElement(
     transformAnimations: transformAnimations,
     motionAnimations: motionAnimations,
     transform: rawTransform == null ? null : parseTransformMatrix(rawTransform),
-    clipPathId: _urlId(attributes['clip-path']),
-    maskId: _urlId(attributes['mask']),
+    clipPathId: parseUrlId(attributes['clip-path']),
+    maskId: parseUrlId(attributes['mask']),
     blurSigma: _parseBlurSigma(attributes['filter'], context),
     // Only <text> ever gets a non-null [XmlNode.innerText] read here — no
     // <tspan> support, so the whole subtree's text is taken flat.
@@ -733,7 +752,7 @@ double? _parseBlurSigma(String? raw, _ParseContext context) {
   final cssMatch = _cssBlurPattern.firstMatch(value);
   if (cssMatch != null) return double.tryParse(cssMatch.group(1)!);
 
-  final id = _urlId(value);
+  final id = parseUrlId(value);
   if (id == null) return null;
   final filterElement = context.elementsById[id];
   if (filterElement == null || filterElement.name.local != 'filter') {
@@ -754,23 +773,6 @@ double? _parseBlurSigma(String? raw, _ParseContext context) {
 /// themselves animated (only their *content* can be — see svgx CLAUDE.md
 /// task notes).
 ///
-/// 从 `url(#id)`（或 `url('#id')`/`url("#id")`）涂料/效果引用中取出 `#id`；
-/// [raw] 不是此形式时返回 null——用于 `clip-path`/`mask`（见 [_parseElement]）；
-/// 与 `svg_style.dart` 的 `ResolvedStyle.inherit` 中等价的逐帧辅助函数思路一致，
-/// 但此处只在解析阶段运行一次，因为 `clip-path`/`mask` 引用的目标本身不会被
-/// 动画切换（只有其*内容*可能被动画——见 svgx CLAUDE.md 任务记录）。
-String? _urlId(String? raw) {
-  if (raw == null) return null;
-  final v = raw.trim();
-  if (!v.startsWith('url(') || !v.endsWith(')')) return null;
-  final inner = v
-      .substring(4, v.length - 1)
-      .trim()
-      .replaceAll("'", '')
-      .replaceAll('"', '');
-  return inner.startsWith('#') ? inner.substring(1) : null;
-}
-
 /// How many arc-length samples an `<animateMotion>` path is reduced to at
 /// parse time. Dense enough that per-frame linear interpolation between
 /// neighbouring samples is visually exact for icon-sized motion, and cheap

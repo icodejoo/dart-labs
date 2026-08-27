@@ -16,6 +16,7 @@ import 'package:flutter/widgets.dart';
 
 import 'animation/svg_theme.dart';
 import 'rust/api/svg.dart';
+import 'svg_affine.dart';
 
 /// A recorded static SVG picture plus its intrinsic (viewport) size.
 ///
@@ -200,6 +201,24 @@ class RustSvgPictureCache {
     } else {
       final decoded = await Future.wait(scene.images.map(_decodeImage));
       info = _recordScene(scene, decoded);
+      // Recording draws each image into the picture's own native display
+      // list, which keeps its own (ref-counted) reference to the underlying
+      // texture — so the Dart-side handle can (and, to avoid an
+      // otherwise-permanent leak, must) be disposed right after, the same way
+      // [_decodeImage] disposes its codec right after the single frame is
+      // out. Without this, nothing ever disposes these images — not on LRU
+      // eviction, not on [clear] — leaving native image memory to whenever
+      // the GC gets round to the finalizer.
+      //
+      // 录制会把每张图片画进 picture 自身的原生显示列表，而后者持有对底层
+      // 纹理的独立（引用计数）引用——所以 Dart 侧的句柄可以（且为避免永久
+      // 泄漏、必须）在此之后立即 dispose，与 [_decodeImage] 取到唯一那一帧后
+      // 立即 dispose codec 是同一个道理。不这样做的话，这些 image 永远不会被
+      // dispose——LRU 淘汰不会、[clear] 也不会——原生图片内存只能等 GC 处理
+      // finalizer。
+      for (final image in decoded) {
+        image.dispose();
+      }
     }
     if (stopwatch != null) onParseMiss!(stopwatch.elapsed);
     _store(key, info);
@@ -317,24 +336,74 @@ class RustSvgPictureCache {
     final recorder = ui.PictureRecorder();
     final canvas = Canvas(recorder);
     for (var i = 0; i < decodedImages.length; i++) {
-      final img = scene.images[i];
-      canvas.drawImageRect(
-        decodedImages[i],
-        Rect.fromLTWH(
-          0,
-          0,
-          decodedImages[i].width.toDouble(),
-          decodedImages[i].height.toDouble(),
-        ),
-        Rect.fromLTWH(img.x, img.y, img.width, img.height),
-        Paint(),
-      );
+      _paintImage(canvas, scene.images[i], decodedImages[i]);
     }
     for (final path in scene.paths) {
       _paintPath(canvas, path);
     }
     final picture = recorder.endRecording();
     return RustSvgPictureInfo(picture, Size(scene.width, scene.height));
+  }
+
+  /// Draws one decoded `<image>`, applying its inherited clip/mask/blur (see
+  /// [SvgImage.clips]/[SvgImage.mask]/[SvgImage.blur]) with the same
+  /// filter-then-mask layer nesting [_paintPath] uses, then its [image.matrix]
+  /// — the full affine from [image]'s local (untransformed) box into absolute
+  /// space, which may include rotation/skew from an ancestor `transform`
+  /// that a plain destination [Rect] couldn't represent.
+  ///
+  /// 绘制一个已解码的 `<image>`，应用其继承的 clip/mask/blur（见
+  /// [SvgImage.clips]/[SvgImage.mask]/[SvgImage.blur]），图层嵌套顺序与
+  /// [_paintPath] 一致（先滤镜后遮罩），再应用 [image.matrix]——从 [image]
+  /// 本地（未变换）盒子到绝对空间的完整仿射，可能含祖先 `transform` 带来的
+  /// 旋转/斜切，是普通目标 [Rect] 表达不了的。
+  void _paintImage(Canvas canvas, SvgImage image, ui.Image decoded) {
+    final blur = image.blur;
+    final mask = image.mask;
+    final needsSave =
+        image.clips.isNotEmpty || blur != null || mask != null;
+    if (needsSave) canvas.save();
+    for (final clip in image.clips) {
+      canvas.clipPath(_toUiClipPath(clip));
+    }
+    final Rect? maskRect = mask == null
+        ? null
+        : Rect.fromLTWH(mask.x, mask.y, mask.width, mask.height);
+    if (mask != null) {
+      canvas
+        ..clipRect(maskRect!)
+        ..saveLayer(maskRect, Paint());
+    }
+    if (blur != null) {
+      canvas.saveLayer(
+        null,
+        Paint()
+          ..imageFilter = ui.ImageFilter.blur(
+            sigmaX: blur.stdDevX,
+            sigmaY: blur.stdDevY,
+          ),
+      );
+    }
+    canvas.save();
+    canvas.transform(affineToMatrix4(image.matrix));
+    canvas.drawImageRect(
+      decoded,
+      Rect.fromLTWH(0, 0, decoded.width.toDouble(), decoded.height.toDouble()),
+      Rect.fromLTWH(image.x, image.y, image.width, image.height),
+      Paint(),
+    );
+    canvas.restore();
+    if (blur != null) canvas.restore();
+    if (mask != null) {
+      canvas.saveLayer(maskRect, _maskCoveragePaint(mask.kind));
+      for (final maskPath in mask.paths) {
+        _paintPath(canvas, maskPath, nested: true);
+      }
+      canvas
+        ..restore()
+        ..restore();
+    }
+    if (needsSave) canvas.restore();
   }
 
   /// Luminance coefficients used to turn a `<mask>`'s rendered content into
@@ -397,6 +466,25 @@ class RustSvgPictureCache {
     for (final clip in clips) {
       canvas.clipPath(_toUiClipPath(clip));
     }
+    // Layer nesting follows SVG's filter -> mask pipeline: the mask
+    // destination layer opens FIRST (outer) and the blur layer opens SECOND
+    // (inner, nested inside it), so closing the blur layer composites
+    // blurred content into the mask-destination layer, and the mask is then
+    // applied to that already-blurred result — i.e. `Mask(Blur(content))`,
+    // not `Blur(Mask(content))`.
+    //
+    // 图层嵌套遵循 SVG 的 filter -> mask 管线：遮罩目标图层*先*开（外层），
+    // 模糊图层*后*开（内层，嵌套其中）——这样关闭模糊图层时，模糊后的内容
+    // 会合成进遮罩目标图层，遮罩随后作用于这个已经模糊过的结果，即
+    // `Mask(Blur(content))`，而非 `Blur(Mask(content))`。
+    final Rect? maskRect = mask == null
+        ? null
+        : Rect.fromLTWH(mask.x, mask.y, mask.width, mask.height);
+    if (mask != null) {
+      canvas
+        ..clipRect(maskRect!)
+        ..saveLayer(maskRect, Paint());
+    }
     if (blur != null) {
       canvas.saveLayer(
         null,
@@ -406,14 +494,6 @@ class RustSvgPictureCache {
             sigmaY: blur.stdDevY,
           ),
       );
-    }
-    final Rect? maskRect = mask == null
-        ? null
-        : Rect.fromLTWH(mask.x, mask.y, mask.width, mask.height);
-    if (mask != null) {
-      canvas
-        ..clipRect(maskRect!)
-        ..saveLayer(maskRect, Paint());
     }
 
     void paintFill() {
@@ -456,6 +536,13 @@ class RustSvgPictureCache {
       paintStroke();
     }
 
+    // Closing the blur layer first composites the blurred content into the
+    // mask-destination layer beneath it (or straight onto the canvas when
+    // there's no mask) — see the layer-nesting comment above.
+    //
+    // 先关闭模糊图层，会把模糊后的内容合成进下方的遮罩目标图层（无遮罩时
+    // 则直接合成到画布上）——见上方图层嵌套的注释。
+    if (blur != null) canvas.restore();
     if (mask != null) {
       // Composite the mask's own content as coverage: its luminance (or alpha)
       // becomes the destination layer's alpha via BlendMode.dstIn.
@@ -469,7 +556,6 @@ class RustSvgPictureCache {
         ..restore()
         ..restore();
     }
-    if (blur != null) canvas.restore();
     if (needsSave) canvas.restore();
   }
 
@@ -557,11 +643,11 @@ class RustSvgPictureCache {
 
     // image pixels → tile-local → pattern-local → absolute.
     // 图像像素 → 贴片局部 → 图案局部 → 绝对空间。
-    final toPatternLocal = _composeAffine(
+    final toPatternLocal = concatAffine(
       <double>[1, 0, 0, 1, pattern.x, pattern.y],
       <double>[pattern.width / pxW, 0, 0, pattern.height / pxH, 0, 0],
     );
-    final full = _composeAffine(<double>[
+    final full = concatAffine(<double>[
       m[0],
       m[1],
       m[2],
@@ -585,23 +671,6 @@ class RustSvgPictureCache {
   /// `sqrt(a² + b²)`, the magnitude of one affine basis vector.
   /// `sqrt(a² + b²)`，仿射变换某个基向量的模长。
   double _hypot(double a, double b) => math.sqrt(a * a + b * b);
-
-  /// Composes two `[a, b, c, d, e, f]` affines (`x' = a·x + c·y + e`,
-  /// `y' = b·x + d·y + f`), returning `first ∘ second` — [second] applies
-  /// first, then [first].
-  ///
-  /// 合成两个 `[a, b, c, d, e, f]` 仿射变换（`x' = a·x + c·y + e`，
-  /// `y' = b·x + d·y + f`），返回 `first ∘ second`——先作用 [second]，再作用
-  /// [first]。
-  List<double> _composeAffine(List<double> first, List<double> second) =>
-      <double>[
-        first[0] * second[0] + first[2] * second[1],
-        first[1] * second[0] + first[3] * second[1],
-        first[0] * second[2] + first[2] * second[3],
-        first[1] * second[2] + first[3] * second[3],
-        first[0] * second[4] + first[2] * second[5] + first[4],
-        first[1] * second[4] + first[3] * second[5] + first[5],
-      ];
 
   /// Replays an [SvgClip]'s verbs/points into a [ui.Path] usable with
   /// [Canvas.clipPath]. / 把 [SvgClip] 的动词/坐标重放为可供

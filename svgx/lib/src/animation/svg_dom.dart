@@ -12,6 +12,30 @@ import 'dart:ui' as ui;
 
 import 'smil_animation.dart';
 
+/// Extracts `#id` out of a `url(#id)` (or `url('#id')`/`url("#id")`)
+/// paint/effect reference; returns null when [raw] isn't of that form.
+///
+/// Shared by parse-time `clip-path`/`mask` resolution
+/// (`svg_document_parser.dart`) and per-frame `fill`/`stroke` resolution
+/// (`svg_style.dart`'s `ResolvedStyle.inherit`).
+///
+/// 从 `url(#id)`（或 `url('#id')`/`url("#id")`）涂料/效果引用中取出 `#id`；
+/// [raw] 不是此形式时返回 null。
+///
+/// 供解析阶段的 `clip-path`/`mask` 解析（`svg_document_parser.dart`）与逐帧的
+/// `fill`/`stroke` 解析（`svg_style.dart` 的 `ResolvedStyle.inherit`）共用。
+String? parseUrlId(String? raw) {
+  if (raw == null) return null;
+  final v = raw.trim();
+  if (!v.startsWith('url(') || !v.endsWith(')')) return null;
+  final inner = v
+      .substring(4, v.length - 1)
+      .trim()
+      .replaceAll("'", '')
+      .replaceAll('"', '');
+  return inner.startsWith('#') ? inner.substring(1) : null;
+}
+
 /// The element kinds this engine understands.
 ///
 /// `<use>` doesn't appear here: it is resolved away at parse time into a
@@ -262,6 +286,59 @@ class SvgNode {
   ///
   /// [cachedGeometry] 的身份键——见该字段。
   Object? geometryCacheKey;
+
+  /// Paint-time cache of this node's resolved presentation style, together
+  /// with the three identities it was resolved from
+  /// ([styleInheritedKey]/[styleAttributesKey]/[styleThemeKey]). Owned
+  /// entirely by `animated_svg_painter.dart`'s `_resolveStyle` — nothing else
+  /// reads or writes these four fields.
+  ///
+  /// Typed `Object?` rather than `ResolvedStyle?` only to keep the dependency
+  /// one-way: `svg_style.dart` imports this file (for [parseUrlId]), so this
+  /// file cannot name `ResolvedStyle` without creating a cycle. The single
+  /// owner casts on read — same arrangement as [geometryCacheKey].
+  ///
+  /// Why it is sound to cache: `ResolvedStyle.inherit` is a pure function of
+  /// the inherited style, the attribute map, and the theme, so identity on all
+  /// three is a conservative (stricter-than-needed) validity proof. A node
+  /// carrying `<animate>`s gets a fresh attribute map every frame and so
+  /// always misses; a node *under* an animated ancestor sees a fresh inherited
+  /// style instance and so always misses. Everything else — the large static
+  /// majority of a real icon's tree — hits.
+  ///
+  /// 本节点已解析表现样式的绘制期缓存，连同它是由哪三个身份解析出来的
+  /// （[styleInheritedKey]/[styleAttributesKey]/[styleThemeKey]）。完全由
+  /// `animated_svg_painter.dart` 的 `_resolveStyle` 持有——没有其它地方读写这
+  /// 四个字段。
+  ///
+  /// 声明为 `Object?` 而非 `ResolvedStyle?`，只是为了保持依赖单向：
+  /// `svg_style.dart` 会导入本文件（取 [parseUrlId]），因此本文件无法直接命名
+  /// `ResolvedStyle`，否则构成循环。唯一持有者在读取时做类型转换——与
+  /// [geometryCacheKey] 的安排一致。
+  ///
+  /// 为什么这样缓存是正确的：`ResolvedStyle.inherit` 是继承样式、属性表、主题
+  /// 三者的纯函数，因此对三者做身份比较是一个保守（比必要条件更严格）的有效性
+  /// 证明。带 `<animate>` 的节点每帧拿到全新属性表，必然未命中；处于动画祖先
+  /// *之下*的节点每帧看到全新的继承样式实例，也必然未命中。其余节点——真实图标
+  /// 树里占多数的静态部分——命中。
+  Object? cachedStyle;
+
+  /// Identity of the inherited style [cachedStyle] was resolved from — see
+  /// that field.
+  ///
+  /// 解析出 [cachedStyle] 时所用继承样式的身份——见该字段。
+  Object? styleInheritedKey;
+
+  /// Identity of the attribute map [cachedStyle] was resolved from — see
+  /// that field.
+  ///
+  /// 解析出 [cachedStyle] 时所用属性表的身份——见该字段。
+  Object? styleAttributesKey;
+
+  /// Identity of the theme [cachedStyle] was resolved from — see that field.
+  ///
+  /// 解析出 [cachedStyle] 时所用主题的身份——见该字段。
+  Object? styleThemeKey;
 
   /// Paint-time cache of [transform] expanded into the column-major 4x4
   /// [Float64List] that `Canvas.transform` takes. Owned entirely by

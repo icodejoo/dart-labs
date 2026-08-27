@@ -500,3 +500,57 @@ flutter run -d windows --profile --dart-define=LIB=compare --dart-define=CYCLES=
 - **`dashPath` 在"整条轮廓都被点亮"时直接返回 `source`**:对已 freeze 的揭示动画每帧都能命中,但闭合轮廓经 `extractPath` 会退化成开放路径,直接返回 `source` 会**改变闭合路径的描边接头外观**——是往更正确的方向变,但仍是行为变化,不在本轮性能任务范围内。
 
 **并行干扰的诚实标注**:本轮全程有另一个 agent 在同一仓库、同一台机器上编辑 `lib/src/animation/svg_document_parser.dart`、`lib/src/rust_static_svg.dart` 并反复编译 bench_app(期间有一次把 `build/` 里的产物换成了 `LIB=anim_fps` 变体,被"报告为空"抓到)。这正是本轮把主要证据从跨构建对比迁移到同进程配对的直接原因。
+
+## 2026-08-27 一轮:真机 1000 并发动画图标,build 瓶颈归因与消除
+
+**背景**:上一轮修掉 `saveLayer(null, ...)` 无界离屏图层的真机黑屏 bug(每帧 2450ms,见 `docs/bugfix-history.md`)之后,`LIB=anim_fps ITEMS=1000` 的瓶颈从 raster 转到了 **build**:raster avg 约 21.8ms,而 build avg 约 34ms,`real_fps` 约 21.9。本轮专门打 build。
+
+### 方法学:真机 logcat 分布,不是单次采样
+
+新增 `benchmark/bench_app/tool/run_android_anim_fps.ps1`。已有的 `tool/run_anim_fps.ps1` 只能跑 Windows exe(靠 `SVGX_MICRO_OUT` 文件),真机上经 `am start` 启动的 activity 设不了环境变量,所以新脚本改从 **logcat 的 `flutter` tag** 抓报告,并逐指标打印 min/median/max。设备:华为 STG-AL00(Android 12,Impeller GLES),`flutter build apk --profile`,每个变体 4–5 次运行。
+
+本阶段噪声实测:同一份代码 4 次运行 `real_fps` 落在约 ±0.35、`build_avg` 约 ±0.6ms。下面凡是小于这个幅度的差异都当作"测不出"处理。
+
+### 归因:第一刀就命中
+
+诊断出的根因是 `SvgDocumentCache` 的容量,而不是绘制代码:语料有 **399** 个互异图标,而缓存上限是 **200**。滚动网格产生的是"按固定顺序循环访问一个大于缓存的工作集"——这正是 LRU 的病态输入,每个条目都恰好在再次被请求的前一步被淘汰,命中率不是偏低而是**恰好为 0**。
+
+先用现成的 `DOCCACHE` 旋钮验证假设,**一行代码都不改**:
+
+| 变体 | build avg | raster avg | real_fps |
+|---|---|---|---|
+| 基线(上限 200,低于工作集) | 33.96ms | 21.78ms | 21.86 |
+| `DOCCACHE=500`(高于工作集) | 20.92ms | 22.40ms | 29.20 |
+
+假设成立。每次未命中的代价不只是重跑 XML 解析,被丢弃的文档还会带走它已经预热好的逐节点几何缓存(`SvgNode.cachedGeometry`),于是下次挂载连图标里每一个 `d` 字符串都要重新解析。
+
+### 逐项:落地的优化(全部为真机 A/B 中位数)
+
+| # | 优化 | 文件 | build avg | real_fps |
+|---|---|---|---|---|
+| — | 基线 | — | 33.96ms | 21.86 |
+| 1 | 文档缓存默认上限 200 → 1000,**且淘汰策略由 LRU 改为随机** | `svg_document_cache.dart` | **21.53ms** | **29.63** |
+| 2 | `ResolvedStyle` 按(继承样式 / 属性表 / 主题)三重身份缓存到节点 | `animated_svg_painter.dart`、`svg_dom.dart` | **20.25ms** | **30.00** |
+| — | 最终树 5 次运行复核 | — | 20.58ms | 29.64 |
+
+**合计:build avg −39%(33.96 → 20.58ms),`real_fps` +36%(21.86 → 29.64)。**
+
+第 1 项为什么不只是"把上限调大":调大上限只能救开这一套语料,任何用户在新上限处会撞上同一个悬崖。改成随机淘汰才是把悬崖本身铲掉——容量 C 的缓存循环扫描 N 份文档时,随机淘汰大约能留住 C/N,命中率是平滑退化而不是崩到零。而 LRU 的固有优势("最近用过"预测"还会再用")在这里本就没有价值,因为循环里每份文档回来的概率相同。回归防线:`test/animation/svg_document_cache_test.dart` 的 `a cyclic scan larger than the cache still hits (no LRU thrash)`,断言这种访问模式下命中数 > 0(严格 LRU 恰好为 0)。顺带把命中路径上原本为维护 recency 而做的 `remove` + 重新插入去掉了——随机淘汰不看插入顺序,那次记账已无意义。
+
+第 2 项的量级偏小但可判定:两个变体的 build 分布**不重叠**(仅缓存修复 min=20.757ms,叠加样式缓存后 max=20.271ms)。`ResolvedStyle.inherit` 原本每节点每帧都跑一遍约十几次字符串键 map 查找 + 最多四次颜色/url/虚线解析 + 一次对象分配,而真实动画图标里动的是 `stroke-dashoffset` 或某个变换,`fill`/`stroke`/`stroke-width` 恒定不变,所以静态的大多数节点被压成三次 `identical` 比较。
+
+**内存代价**:完整持有 399 份已解析文档而非 200 份,`rss_peak_mb` 中位数 234.79 → 240.94,约 **+5MB**。
+
+### 测了但**没有效果**,因此回滚
+
+- **去掉 `SvgXAnimated.build` 里的逐图标 `RepaintBoundary`**。这次是在瓶颈已经从 build 移到 raster **之后**测的——也就是"逐图标图层正是 raster 耗时元凶"这个假设最有理由成立的时机,不是沿用旧结论。结果全部落在波动内:`real_fps` 30.00 → 30.13,build 20.25 → 20.24ms,raster 21.86 → 21.98ms。**已回滚**,理由记在代码注释里:网格场景显示不出它的收益(所有图标共用一个时钟,本来就同帧全脏),但单个动画图标处在因自身原因重绘的父树里时,去掉它并不免费。这与 flutter_svg 社区的实测一致(dnfield 反复推荐 RepaintBoundary,但 #560 / #111 多人实测对"很多小图标的大列表"无效,只有 #257 的"单个大 SVG 在滚动容器里"确认有效)。
+
+### 识别到但**本轮没做**(如实标注为未验证)
+
+- **`_SharedAnimationClock._onTick` 每帧 `List.of(_listeners)`**:为防迭代中途 unsubscribe 而每帧拷一份约 250 元素的 List。量级估计在几十 us/帧,**低于本基准约 ±0.6ms 的分辨率**,无法用真机 A/B 判定,因此不动——不做没有实测支撑的改动。
+- **`_effectiveAttributes` 的 double → String → double 往返**:采样值经 `sampled.toString()` 写进属性表,再由 `ResolvedStyle.inherit` / `_num` 用 `double.tryParse` 解回来。改成数值侧信道会与 `_geometryPath` 依赖"属性表实例身份"做失效判定的机制冲突(见该方法注释里已回滚过的那次教训),需要连带重新设计失效键,超出本轮范围。
+- **同一文档多实例共享每帧录制的 `ui.Picture`**(思路来自 vector_graphics 的 `RasterKey(assetKey, width, height)`:把 dpr/尺寸折成整数物理像素进 key,而 colorFilter/opacity 不进 key、改在 paint 时作用于共享产物)。svgx 动画路径要享受它,得让同一文档的所有实例**相位锁定**到同一个 t。本基准显示不出收益(屏上约 160 格取自 399 个互异图标的连续区间,几乎不重复),**因此不实现**——但真实场景(同一个 spinner 在列表里出现几十次)收益会很大,记在这里备查。
+
+### raster 现在是新的墙
+
+最终树 build 20.58ms / raster 21.59ms:**瓶颈已经回到 raster**,`real_fps` 约 29.6 基本就是 raster 21.6ms 决定的。想再往上走必须打 raster 侧,首选目标是带 `<mask>` 的图标每帧仍要开的 `saveLayer`(约 140 个可见图标里约 23 个用 mask;上一轮的 `clipRect` 已经把这些图层从"全屏"收到"图标盒",但没有消掉图层本身)。这不在本轮范围内。

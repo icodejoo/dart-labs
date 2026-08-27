@@ -4,12 +4,11 @@
 // ignore_for_file: invalid_use_of_internal_member, unused_import, unnecessary_import
 
 import '../frb_generated.dart';
-
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
-// These functions are ignored because they are not marked as `pub`: `append_clip_geometry`, `append_segments`, `append_subtree_paths`, `build_clips`, `build_gradient`, `build_mask`, `build_pattern`, `collect`, `concat`, `convert_gradient_stops`, `convert_image`, `convert_path`, `extend_inherited`, `gaussian_blur_of`, `inject_current_color`, `map`, `paint_argb`, `some_if_present`, `spread_to_u8`, `stop_rgb`, `system_fontdb`, `token_matrix`
+// These functions are ignored because they are not marked as `pub`: `append_clip_geometry`, `append_mapped_points`, `append_segments`, `append_subtree_paths`, `argb`, `build_clips`, `build_gradient`, `build_mask`, `build_pattern`, `collect`, `concat`, `convert_gradient_stops`, `convert_image`, `convert_path`, `extend_inherited`, `gaussian_blur_of`, `has_attribute`, `inject_current_color`, `is_attr_name_char`, `map`, `paint_argb`, `scene_from_tree`, `some_if_present`, `spread_to_u8`, `stop_rgb`, `token_matrix`, `transform_to_vec6`, `usvg_options`
 // These types are ignored because they are neither used by any `pub` functions nor (for structs and enums) marked `#[frb(unignore)]`: `Inherited`
-// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`
 // These functions are ignored (category: IgnoreBecauseOwnerTyShouldIgnore): `default`
 
 /// Parses [data] (SVG markup) into an [SvgScene]. Errors return a message.
@@ -379,17 +378,30 @@ class SvgGradientStop {
 /// 仅覆盖 `usvg::ImageKind::Raster`（PNG/JPEG/GIF/WEBP）；嵌套引用另一份 SVG 的
 /// `<image>`（`ImageKind::SVG`）在收集阶段静默跳过——本轮不做。
 class SvgImage {
-  /// Absolute-space X. / 绝对坐标 X。
+  /// Local (untransformed) object-bbox X. / 本地（未变换）物体包围盒 X。
   final double x;
 
-  /// Absolute-space Y. / 绝对坐标 Y。
+  /// Local (untransformed) object-bbox Y. / 本地（未变换）物体包围盒 Y。
   final double y;
 
-  /// Absolute-space width. / 绝对坐标宽度。
+  /// Local (untransformed) object-bbox width. / 本地（未变换）物体包围盒宽度。
   final double width;
 
-  /// Absolute-space height. / 绝对坐标高度。
+  /// Local (untransformed) object-bbox height. / 本地（未变换）物体包围盒高度。
   final double height;
+
+  /// `[x, y, width, height]` mapped through this transform lands in
+  /// absolute space; carries any rotation/skew from ancestor groups
+  /// (`img.abs_transform()`), same 6-element convention as
+  /// [SvgPattern.matrix]/[SvgGradient.matrix]. Two corners + width/height
+  /// alone can't represent a rotated/skewed image, hence shipping the full
+  /// matrix instead.
+  ///
+  /// 把 `[x, y, width, height]` 经此变换映射即落入绝对空间；携带祖先分组的
+  /// 任意旋转/斜切（`img.abs_transform()`），与 [SvgPattern.matrix]/
+  /// [SvgGradient.matrix] 同样的 6 元素约定。仅凭两角点 + 宽高无法表达
+  /// 旋转/斜切后的图片，因此改为整体传出变换矩阵。
+  final Float32List matrix;
 
   /// Raw (still-encoded) image bytes, e.g. PNG file bytes.
   /// 原始（仍是编码态）图片字节，例如 PNG 文件字节。
@@ -398,13 +410,31 @@ class SvgImage {
   /// Encoding format of [data]. / [data] 的编码格式。
   final SvgImageFormat format;
 
+  /// Clip regions inherited from ancestor groups, same semantics as
+  /// [SvgEffects.clips]. / 从祖先分组继承的裁剪区域，语义同
+  /// [SvgEffects.clips]。
+  final List<SvgClip> clips;
+
+  /// Mask inherited from the nearest ancestor group that declares one,
+  /// same semantics as [SvgEffects.mask]. / 来自最近声明了遮罩的祖先分组的
+  /// 遮罩，语义同 [SvgEffects.mask]。
+  final SvgMask? mask;
+
+  /// Blur inherited from an ancestor group, same semantics as
+  /// [SvgEffects.blur]. / 来自祖先分组的模糊，语义同 [SvgEffects.blur]。
+  final SvgBlur? blur;
+
   const SvgImage({
     required this.x,
     required this.y,
     required this.width,
     required this.height,
+    required this.matrix,
     required this.data,
     required this.format,
+    required this.clips,
+    this.mask,
+    this.blur,
   });
 
   @override
@@ -413,8 +443,12 @@ class SvgImage {
       y.hashCode ^
       width.hashCode ^
       height.hashCode ^
+      matrix.hashCode ^
       data.hashCode ^
-      format.hashCode;
+      format.hashCode ^
+      clips.hashCode ^
+      mask.hashCode ^
+      blur.hashCode;
 
   @override
   bool operator ==(Object other) =>
@@ -425,8 +459,12 @@ class SvgImage {
           y == other.y &&
           width == other.width &&
           height == other.height &&
+          matrix == other.matrix &&
           data == other.data &&
-          format == other.format;
+          format == other.format &&
+          clips == other.clips &&
+          mask == other.mask &&
+          blur == other.blur;
 }
 
 /// Raster encodings usvg can hand back for `<image>`.
