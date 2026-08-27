@@ -1,11 +1,13 @@
-// Opt-out-able, deliberately LOSSY performance trade-offs for the animated
-// SVG path. Everything configured here trades animation fidelity for frame
-// throughput, applies only above a concurrency threshold, and is documented
-// with exactly what it gives up — see the class doc. Original implementation.
+// Opt-out-able performance trade-offs for the animated SVG path. The lossy
+// ones trade animation fidelity for frame throughput, apply only above a
+// concurrency threshold, and are documented with exactly what they give up.
+// [SvgXAnimationQuality.tightMaskLayerBounds] is the one lossless switch here
+// — see the class doc. Original implementation.
 //
-// 动画 SVG 路径上**故意有损**、可关闭的性能取舍。这里配置的每一项都是拿动画
-// 保真度换帧吞吐，且只在并发量超过阈值后才生效，并明确写清放弃了什么——见类
-// 注释。原创实现。
+// 动画 SVG 路径上可关闭的性能取舍。其中有损的那些是拿动画保真度换帧吞吐，只在
+// 并发量超过阈值后才生效，并明确写清放弃了什么。
+// [SvgXAnimationQuality.tightMaskLayerBounds] 是这里唯一无损的开关——见类注释。
+// 原创实现。
 
 import 'package:flutter/foundation.dart';
 
@@ -166,12 +168,24 @@ class SvgXAnimationQuality {
   ///   [frameSkipThreshold] 的并发门控。**默认为 false**——为什么这一项默认关闭
   ///   而跳帧默认开启，见 [approximateSimpleMasksAsClip]。
   ///
+  /// [tightMaskLayerBounds] — size a `<mask>`'s two `saveLayer` offscreen
+  ///   targets to the mask content's own bounds instead of leaving them
+  ///   unbounded (i.e. sized to the whole icon box). **Lossless**, unlike
+  ///   everything else on this class, and therefore on by default at any
+  ///   concurrency — see the field for the equivalence proof and the escape
+  ///   hatch's purpose.
+  ///
+  ///   把 `<mask>` 的两个 `saveLayer` 离屏目标按 mask 内容自身的边界来分配，而不是
+  ///   留成无界（即按整个图标盒分配）。与本类其它项不同，这一项**无损**，因此在
+  ///   任何并发量下都默认开启——等价性证明与这个开关存在的意义见该字段。
+  ///
   const SvgXAnimationQuality({
     this.adaptiveFrameSkipping = true,
     this.frameSkipThreshold = 24,
     this.maxFrameDivisor = 2,
     this.offscreenLayerFrameDivisor = 3,
     this.approximateSimpleMasksAsClip = false,
+    this.tightMaskLayerBounds = true,
   }) : assert(frameSkipThreshold >= 0),
        assert(maxFrameDivisor >= 1),
        assert(offscreenLayerFrameDivisor >= 1);
@@ -300,6 +314,65 @@ class SvgXAnimationQuality {
   /// 设备上重新判定即可，它就是为此存在的。见 `docs/performance-benchmarks.md`。
   final bool approximateSimpleMasksAsClip;
 
+  /// Whether a `<mask>`'s two offscreen layers are sized to the mask content's
+  /// own bounds rather than left unbounded.
+  ///
+  /// **This one is lossless**, which is why it is the only switch here that is
+  /// on by default *and* not concurrency-gated. `_paintNode` opens the mask
+  /// pipeline's layers with `saveLayer(null, ...)`; a null bounds means the
+  /// renderer sizes the offscreen target from the current clip, which for this
+  /// painter is the whole SVG viewport. Sizing them to the mask's own bounds
+  /// instead cannot change a pixel:
+  ///
+  ///  - the content layer: content outside the mask's bounds has no mask
+  ///    coverage over it, so `BlendMode.dstIn` erases it regardless;
+  ///  - the coverage layer: the mask draws nothing outside its own bounds.
+  ///
+  /// Verified by pixel-exact comparison against the unbounded pipeline across
+  /// static, animated, transformed, stroked, multi-shape and hole-punching
+  /// masks — see `test/animation/mask_layer_bounds_test.dart`. Cases where the
+  /// bounds cannot be computed safely (a `<text>` mask, or a blur anywhere in
+  /// or on the masked subtree, whose output spreads past its input's bounds)
+  /// fall back to the unbounded layers automatically.
+  ///
+  /// Why it is worth doing — the same real-device evidence that killed the
+  /// "merge many icons' masks into one shared layer" idea. On a Huawei
+  /// STG-AL00 (Impeller GLES) an *icon-sized* offscreen pass costs ~221us,
+  /// while the accidentally *window-sized* passes of the pre-fix black-screen
+  /// bug cost ~43ms each — a ~195x cost difference for a ~274x area
+  /// difference. Offscreen pass cost on that device is therefore dominated by
+  /// area, not by a fixed per-pass overhead, so the lever that pays is
+  /// shrinking each layer, not batching layers together.
+  ///
+  /// The escape hatch exists for a renderer-specific surprise (a backend that
+  /// mis-clips an explicitly-bounded layer), not for a fidelity trade-off.
+  ///
+  /// `<mask>` 的两个离屏图层是否按 mask 内容自身的边界分配，而不是留成无界。
+  ///
+  /// **这一项是无损的**，因此它是这里唯一既默认开启、又不受并发门控的开关。
+  /// `_paintNode` 用 `saveLayer(null, ...)` 开启 mask 管线的图层；bounds 为 null
+  /// 意味着渲染器按当前裁剪区来决定离屏目标尺寸，而对本绘制器来说那就是整个 SVG
+  /// 视口。改按 mask 自身边界分配不可能改变任何一个像素：
+  ///
+  ///  - 内容图层：mask 边界之外的内容头上没有任何 mask 覆盖度，`BlendMode.dstIn`
+  ///    本来就会把它擦掉；
+  ///  - 覆盖度图层：mask 在自己的边界之外什么都不画。
+  ///
+  /// 已用像素级比对针对静态、动画、带变换、带描边、多形状与打洞 mask 与无界管线
+  /// 逐一核对——见 `test/animation/mask_layer_bounds_test.dart`。无法安全计算边界的
+  /// 情形（`<text>` mask，或被遮罩子树上/内部任何位置的模糊——其输出会扩散到输入
+  /// 边界之外）会自动回退到无界图层。
+  ///
+  /// 为什么值得做——依据正是否掉"把多个图标的 mask 合并进一个共享图层"这个想法的
+  /// 同一份真机证据。在华为 STG-AL00（Impeller GLES）上，*图标尺寸*的离屏通道约
+  /// 221us，而修复前黑屏 bug 里那些意外变成*窗口尺寸*的通道每个约 43ms——面积差约
+  /// 274 倍，耗时差约 195 倍。因此在该设备上离屏通道的开销由面积主导，而不是由每个
+  /// 通道的固定开销主导，能赚钱的杠杆是把每个图层缩小，而不是把图层合并。
+  ///
+  /// 留这个开关是为了应对渲染后端层面的意外（某个后端错误地裁剪了显式指定 bounds
+  /// 的图层），不是为了做保真度取舍。
+  final bool tightMaskLayerBounds;
+
   /// Whether the mask-as-clip approximation is in force at [concurrency]
   /// concurrently-animating icons.
   ///
@@ -360,7 +433,8 @@ class SvgXAnimationQuality {
       other.frameSkipThreshold == frameSkipThreshold &&
       other.maxFrameDivisor == maxFrameDivisor &&
       other.offscreenLayerFrameDivisor == offscreenLayerFrameDivisor &&
-      other.approximateSimpleMasksAsClip == approximateSimpleMasksAsClip;
+      other.approximateSimpleMasksAsClip == approximateSimpleMasksAsClip &&
+      other.tightMaskLayerBounds == tightMaskLayerBounds;
 
   @override
   int get hashCode => Object.hash(
@@ -369,6 +443,7 @@ class SvgXAnimationQuality {
     maxFrameDivisor,
     offscreenLayerFrameDivisor,
     approximateSimpleMasksAsClip,
+    tightMaskLayerBounds,
   );
 
   @override
@@ -377,5 +452,6 @@ class SvgXAnimationQuality {
       'frameSkipThreshold: $frameSkipThreshold, '
       'maxFrameDivisor: $maxFrameDivisor, '
       'offscreenLayerFrameDivisor: $offscreenLayerFrameDivisor, '
-      'approximateSimpleMasksAsClip: $approximateSimpleMasksAsClip)';
+      'approximateSimpleMasksAsClip: $approximateSimpleMasksAsClip, '
+      'tightMaskLayerBounds: $tightMaskLayerBounds)';
 }
