@@ -409,4 +409,130 @@ class SvgNode {
   ///
   /// 构建 [cachedMaskClip] 时所用的已采样动画值的签名——见该字段。
   List<double>? maskClipSampleKey;
+
+  /// Paint-time cache of this node's attribute map with its `<animate>`
+  /// overrides applied, together with the sampled values it was built from
+  /// ([animatedSampleKey]). Owned entirely by
+  /// `animated_svg_painter.dart`'s `_effectiveAttributes`.
+  ///
+  /// Why this is the *identity* of the map that matters, not just its
+  /// contents: [cachedStyle] and [cachedGeometry] both prove their validity by
+  /// an `identical` check against the attribute map they were resolved from. A
+  /// node carrying any `<animate>` used to get a brand-new `Map` on every
+  /// frame, so both of those caches missed on every frame **even when the
+  /// sampled value had not actually changed** — which is the steady state of
+  /// most real icons: a `fill="freeze"` reveal settles after a few hundred
+  /// milliseconds and then reports the same number forever while some *other*
+  /// animation (a looping rotation, a slow motion) keeps the icon repainting.
+  /// Handing back the same map instance for as long as every sample is
+  /// unchanged turns those permanent misses into hits, and the saving
+  /// cascades: a group's reused map yields the same [ResolvedStyle] instance,
+  /// which keeps its children's `styleInheritedKey` valid too.
+  ///
+  /// Why it is sound where the earlier reverted attempt was not: that attempt
+  /// kept one map per node and **mutated it in place**, so its identity stayed
+  /// stable while its contents changed — freezing animated `<rect>`/`<circle>`
+  /// geometry at the first frame's shape (see
+  /// `test/animation/effective_attributes_reuse_test.dart`). Here the identity
+  /// is reused only while the contents are *provably* identical; the instant
+  /// any sample moves, a genuinely fresh map is built and the dependent caches
+  /// invalidate exactly as they always did.
+  ///
+  /// The key is the sampled values, never the timeline position — so a
+  /// document shared between two widgets at different times (see
+  /// `SvgDocumentCache`) either shares a valid entry or misses and rebuilds,
+  /// and can never read a stale one. Same property [cachedMaskClip] relies on.
+  ///
+  /// 本节点叠加了 `<animate>` 覆盖值后的属性表的绘制期缓存，连同构建它时所用的
+  /// 采样值（[animatedSampleKey]）。完全由 `animated_svg_painter.dart` 的
+  /// `_effectiveAttributes` 持有。
+  ///
+  /// 为什么关键在于这张表的*身份*而不只是内容：[cachedStyle] 与
+  /// [cachedGeometry] 都靠对"解析时所用属性表"做 `identical` 比较来证明自身有效。
+  /// 而带任何 `<animate>` 的节点此前每帧都会拿到一张全新的 `Map`，于是这两个缓存
+  /// 每帧都未命中——**即便采样值其实没有变化**。而后者正是多数真实图标的稳态：
+  /// `fill="freeze"` 的揭示动画在几百毫秒后就定格，之后永远报同一个数，而此时
+  /// *另一个*动画（循环旋转、缓慢位移）仍在让图标持续重绘。只要所有采样值都没变
+  /// 就交回同一张表实例，能把这些永久未命中变成命中，而且收益会级联：分组复用了
+  /// 表，就会产出同一个 [ResolvedStyle] 实例，从而让其子节点的
+  /// `styleInheritedKey` 也继续有效。
+  ///
+  /// 为什么它成立、而此前被回滚的那次尝试不成立：那次尝试是每节点保留一张表并
+  /// **原地修改**，于是身份保持稳定而内容却在变——把带动画的 `<rect>`/`<circle>`
+  /// 几何冻结在第一帧的形状上（见
+  /// `test/animation/effective_attributes_reuse_test.dart`）。这里只在内容
+  /// *可证明*完全相同时才复用身份；任何一个采样值一动，就会构建一张真正全新的表，
+  /// 依赖它的各缓存会像以往一样精确失效。
+  ///
+  /// 缓存键是采样值，绝不是时间线位置——因此被两个控件在不同时刻共享的文档
+  /// （见 `SvgDocumentCache`）要么共享一个有效条目，要么未命中后重建，绝不会读到
+  /// 过期结果。[cachedMaskClip] 依赖的正是同一个性质。
+  Map<String, String>? cachedAnimatedAttributes;
+
+  /// The values every entry of [animations] sampled to when
+  /// [cachedAnimatedAttributes] was built, positionally — see that field.
+  ///
+  /// A timeline that produced no value (not started, or ended without
+  /// freezing) is recorded as negative infinity, so "absent" can never collide
+  /// with a legitimate sampled number. Overwritten in place on a miss rather
+  /// than reallocated: nothing keys off this list's identity, only its
+  /// contents.
+  ///
+  /// 构建 [cachedAnimatedAttributes] 时 [animations] 每一项各自采样到的值，按位置
+  /// 对应——见该字段。
+  ///
+  /// 没有产出值的时间线（尚未开始，或已结束且不定格）记为负无穷，因此"缺失"绝不会
+  /// 与某个合法采样数值混淆。未命中时原地覆写而非重新分配：没有任何东西以这个列表
+  /// 的身份为键，只看它的内容。
+  Float64List? animatedSampleKey;
+
+  /// Paint-time cache of the dashed stroke path built from this node's
+  /// geometry, with the three inputs it was built from
+  /// ([dashedPathSourceKey]/[dashedPathArrayKey]/[dashedPathOffsetKey]). Owned
+  /// entirely by `animated_svg_painter.dart`'s `_paintShape`.
+  ///
+  /// `dashPath` is the most expensive single step in painting a line-md style
+  /// icon: it runs `Path.computeMetrics()` — which flattens the contour in
+  /// native code — and then extracts a sub-path out of it, per dashed shape
+  /// per frame. Yet its output is a pure function of the source path, the dash
+  /// pattern and the dash phase, and in the steady state of a real icon all
+  /// three are constant: the `stroke-dashoffset` reveal has frozen and the
+  /// geometry is already cached, while the icon keeps repainting because a
+  /// *transform* is animating. A rotating spinner therefore re-derived a dashed
+  /// path it had already built, sixty times a second.
+  ///
+  /// 由本节点几何构建出的虚线描边路径的绘制期缓存，连同构建它时所用的三个输入
+  /// （[dashedPathSourceKey]/[dashedPathArrayKey]/[dashedPathOffsetKey]）。完全由
+  /// `animated_svg_painter.dart` 的 `_paintShape` 持有。
+  ///
+  /// `dashPath` 是绘制 line-md 风格图标里最贵的单个步骤：它要跑
+  /// `Path.computeMetrics()`（在原生侧把轮廓展平），再从中抽取一段子路径，且是每个
+  /// 虚线形状每帧一次。然而它的输出是"源路径 + 虚线图案 + 虚线相位"的纯函数，而真实
+  /// 图标的稳态下这三者都是常量：`stroke-dashoffset` 揭示动画已经定格、几何本就已
+  /// 缓存，图标之所以还在重绘是因为有个*变换*在动。于是一个旋转的 spinner 每秒六十次
+  /// 重新推导一条它早就构建好的虚线路径。
+  ui.Path? cachedDashedPath;
+
+  /// Identity of the source geometry path [cachedDashedPath] was built from —
+  /// see that field.
+  ///
+  /// 构建 [cachedDashedPath] 时所用源几何路径的身份——见该字段。
+  Object? dashedPathSourceKey;
+
+  /// Identity of the dash-pattern list [cachedDashedPath] was built from — see
+  /// that field. Stable across frames because `ResolvedStyle`'s dash arrays
+  /// come from the memo in `svg_style.dart`, which hands back the same list
+  /// instance for the same attribute string.
+  ///
+  /// 构建 [cachedDashedPath] 时所用虚线图案列表的身份——见该字段。它跨帧稳定，
+  /// 因为 `ResolvedStyle` 的虚线数组来自 `svg_style.dart` 里的记忆表，同一个属性
+  /// 字符串会拿回同一个列表实例。
+  Object? dashedPathArrayKey;
+
+  /// Dash phase [cachedDashedPath] was built at — compared by value, since it
+  /// is the one input of the three that a `<animate>` typically drives.
+  ///
+  /// 构建 [cachedDashedPath] 时所用的虚线相位——按值比较，因为三个输入里通常正是
+  /// 它被 `<animate>` 驱动。
+  double? dashedPathOffsetKey;
 }

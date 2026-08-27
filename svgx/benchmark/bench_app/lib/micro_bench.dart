@@ -32,6 +32,7 @@ import 'package:svgx/src/animation/animated_svg_painter.dart';
 import 'package:svgx/src/animation/animation_detector.dart';
 import 'package:svgx/src/animation/svg_document_cache.dart';
 import 'package:svgx/src/animation/svg_document_parser.dart';
+import 'package:svgx/src/animation/svg_dom.dart';
 import 'package:svgx/src/animation/svg_path_data.dart';
 import 'package:svgx/src/animation/svg_style.dart';
 import 'package:svgx/src/animation/svg_theme.dart';
@@ -550,6 +551,178 @@ List<MicroResult> runMicroBenchmarks() {
         }
       }
       if (total < 0) throw StateError('unreachable');
+    }, trials: 9),
+  );
+
+  // --- Single-icon steady state ------------------------------------------
+  // The three arms below answer a question the 399-document `anim_paint_frame`
+  // above cannot: what does ONE animated icon cost per frame once it has
+  // settled — the navigation-bar / button / loading-spinner case, where nothing
+  // is amortized across concurrent icons and the adaptive frame-skipping never
+  // engages (its threshold is 24 concurrent icons).
+  //
+  // The corpus is deliberately narrowed to the 58 `repeatCount="indefinite"`
+  // documents. A finite document is not a steady state at all: once every
+  // timeline has settled, `SvgXAnimated` unsubscribes from the shared clock and
+  // stops repainting entirely, so its steady-state cost is exactly zero. Only a
+  // looping document keeps paying per frame forever, and it is sampled here at
+  // t > 3s, past every `fill="freeze"` reveal — the state such an icon spends
+  // essentially its whole on-screen life in: one part frozen, another part
+  // looping.
+  //
+  // 下面三条臂回答的是上面那条 399 文档 `anim_paint_frame` 回答不了的问题：**一个**
+  // 动画图标在进入稳态之后每帧要花多少钱——也就是导航栏/按钮/loading spinner 场景，
+  // 那里没有任何成本能靠并发图标摊薄，而自适应跳帧也永远不会生效（它的阈值是 24 个
+  // 并发图标）。
+  //
+  // 语料刻意收窄到 58 份 `repeatCount="indefinite"` 文档。有限文档根本不存在稳态：
+  // 所有时间线定格之后，`SvgXAnimated` 会从共享时钟退订、彻底停止重绘，其稳态成本
+  // 恰好为零。只有循环文档会永远逐帧付费，这里在 t > 3s 采样它，越过所有
+  // `fill="freeze"` 揭示动画——那正是这类图标在屏幕上几乎全部时间所处的状态：一部分
+  // 已定格，另一部分仍在循环。
+  final loopingDocuments = [
+    for (final src in animIcons)
+      if (src.contains('indefinite')) parseAnimatedSvgDocument(src),
+  ];
+  const settledStart = Duration(seconds: 3);
+
+  /// Paints every looping document once at [at], into a throwaway recorder.
+  ///
+  /// 在 [at] 时刻把每份循环文档各绘制一次，写进一个一次性 recorder。
+  ///
+  /// [at] — timeline position to sample. / 采样的时间线位置。
+  ///
+  /// [clock] — notifier handed to the painter. / 交给绘制器的 notifier。
+  void paintLoopingAt(Duration at, ValueNotifier<Duration> clock) {
+    clock.value = at;
+    for (final doc in loopingDocuments) {
+      final recorder = ui.PictureRecorder();
+      final canvas = Canvas(recorder);
+      AnimatedSvgPainter(
+        root: doc.root,
+        intrinsicSize: Size(doc.width, doc.height),
+        clock: clock,
+        theme: theme,
+        fit: BoxFit.contain,
+        alignment: Alignment.center,
+        gradients: doc.gradients,
+        clipPaths: doc.clipPaths,
+        masks: doc.masks,
+      ).paint(canvas, paintSize);
+      recorder.endRecording().dispose();
+    }
+  }
+
+  /// Walks every looping document's node tree. With [clear] true it nulls the
+  /// two caches added for the settled steady state
+  /// (`cachedAnimatedAttributes`, `cachedDashedPath`), which reproduces the
+  /// pre-change behaviour EXACTLY: the old code built a fresh attribute map for
+  /// every animated node on every frame (so the style cache and the
+  /// non-`<path>` geometry cache missed for those nodes, just as they do here)
+  /// and re-ran `dashPath` on every dashed shape on every frame. With [clear]
+  /// false it reads the same fields without writing them, so the traversal
+  /// itself — which is inside the timed region for both arms — cancels out of
+  /// the comparison instead of being charged to the arm that needs it.
+  ///
+  /// 遍历每份循环文档的节点树。[clear] 为 true 时清空为"已定格稳态"新增的两个缓存
+  /// （`cachedAnimatedAttributes`、`cachedDashedPath`），这样能**精确**复现改动前的
+  /// 行为：旧代码每帧都为每个带动画的节点新建一张属性表（于是样式缓存与非 `<path>`
+  /// 几何缓存对这些节点都未命中，与此处一致），并对每个虚线形状每帧重跑一次
+  /// `dashPath`。[clear] 为 false 时只读同样这些字段而不写，于是这趟遍历本身——它在
+  /// 两条臂里都落在计时区内——会在对比中相互抵消，而不是被记到需要它的那条臂上。
+  ///
+  /// [clear] — whether to null the caches or merely read them.
+  ///
+  ///   是清空这些缓存，还是仅仅读取它们。
+  ///
+  /// Returns a value derived from the fields read, so the read arm cannot be
+  /// optimized away.
+  ///
+  ///   返回一个由所读字段推导出的值，使"只读"那条臂不会被优化掉。
+  int walkLoopingCaches({required bool clear}) {
+    var seen = 0;
+    void walk(SvgNode node) {
+      if (clear) {
+        node
+          ..cachedAnimatedAttributes = null
+          ..cachedDashedPath = null;
+      } else {
+        if (node.cachedAnimatedAttributes != null) seen++;
+        if (node.cachedDashedPath != null) seen++;
+      }
+      final children = node.children;
+      for (var i = 0; i < children.length; i++) {
+        walk(children[i]);
+      }
+    }
+
+    for (final doc in loopingDocuments) {
+      walk(doc.root);
+      for (final mask in doc.masks.values) {
+        walk(mask);
+      }
+      for (final clip in doc.clipPaths.values) {
+        walk(clip);
+      }
+    }
+    return seen;
+  }
+
+  // Arm A — what a settled looping icon actually costs per frame now. The
+  // timeline advances by one 60Hz frame per pass, exactly as a real ticking
+  // icon does, so every pass re-samples every timeline (the looping ones move,
+  // the frozen ones do not) rather than repainting a frozen instant.
+  //
+  // A 臂——一个已定格的循环图标现在每帧的真实成本。时间线每轮推进一个 60Hz 帧，
+  // 与真实 ticking 图标完全一致，因此每轮都会重新采样每条时间线（循环的那些在动，
+  // 定格的那些不动），而不是对同一个静止时刻反复重绘。
+  var settledFrame = 0;
+  final settledClock = ValueNotifier(settledStart);
+  results.add(
+    _measure('anim_settled_loop_current', loopingDocuments.length, () {
+      settledFrame++;
+      paintLoopingAt(
+        settledStart + Duration(microseconds: 16667 * settledFrame),
+        settledClock,
+      );
+    }, trials: 9),
+  );
+
+  // Arm B — the same work with the two settled-state caches defeated, i.e. the
+  // pre-change implementation, in the SAME process over the same documents.
+  var defeatedFrame = 0;
+  final defeatedClock = ValueNotifier(settledStart);
+  results.add(
+    _measure('anim_settled_loop_caches_defeated', loopingDocuments.length, () {
+      defeatedFrame++;
+      walkLoopingCaches(clear: true);
+      paintLoopingAt(
+        settledStart + Duration(microseconds: 16667 * defeatedFrame),
+        defeatedClock,
+      );
+    }, trials: 9),
+  );
+
+  // Arm C — arm A plus the identical traversal, reading instead of clearing.
+  // (B - C) is the cost of the forced cache misses with the walk removed from
+  // both sides; (C - A) is what the walk itself costs, reported so the reader
+  // can see it rather than having to trust that it is small.
+  //
+  // C 臂——A 臂加上完全相同的遍历，只读不清。(B − C) 是把遍历从两边都消掉之后、
+  // 强制缓存未命中的真实成本；(C − A) 是这趟遍历自身的开销，单独报出来，好让读者
+  // 能直接看到它，而不必相信它"很小"。
+  var walkedFrame = 0;
+  final walkedClock = ValueNotifier(settledStart);
+  results.add(
+    _measure('anim_settled_loop_walk_only', loopingDocuments.length, () {
+      walkedFrame++;
+      if (walkLoopingCaches(clear: false) < 0) {
+        throw StateError('unreachable');
+      }
+      paintLoopingAt(
+        settledStart + Duration(microseconds: 16667 * walkedFrame),
+        walkedClock,
+      );
     }, trials: 9),
   );
 
