@@ -965,7 +965,7 @@ unbounded=1150.6µs/帧(全部文档)  tight=1398.3µs/帧  delta=+247.7µs  →
 单独跑该文件复测一次:`delta_us_per_document=4.23`;与其它基准文件并行跑时(测试框架会并发跑多个文件、争抢 CPU)是 5.49。取 **+4.1~5.5µs/图标/帧**。作为对照,已被否决的 clip 近似同口径是 +27.6µs/图标/帧(mask 在动时),本项约是它的 **1/6**。
 - 外扩量的取舍:外扩 1 逻辑像素时 `offscreenAreaRemoved=26.0%`(同样 488 次比对全部逐位一致),外扩 2 像素时 21.5%。**保留 2 像素**——多出的 4.5 个百分点不值得动用理论上刚好够用的余量(描边 miter 外扩已经正好卡在 miterlimit=4 的上界)。
 
-**默认值决定:默认开启(`tightMaskLayerBounds: true`),并保留关闭开关。** 依据:等价性已在真实语料 488 次全帧比对上做到逐位一致(不是"看起来一样"),不存在保真度风险;UI 线程代价 +4.1~5.5µs/图标/帧;`SvgXAnimationQuality.exact` 也保持开启,因为它无损、与"精确渲染"不矛盾。开关留给渲染后端层面的意外(某个后端错误地裁剪显式指定 bounds 的图层),不是留给保真度取舍。
+**当初的默认值决定(已被下文最终结论撤销,以下按原始记录保留,供参考):默认开启(`tightMaskLayerBounds: true`),并保留关闭开关。** 依据:等价性已在真实语料 488 次全帧比对上做到逐位一致(不是"看起来一样"),不存在保真度风险;UI 线程代价 +4.1~5.5µs/图标/帧;`SvgXAnimationQuality.exact` 也保持开启,因为它无损、与"精确渲染"不矛盾。开关留给渲染后端层面的意外(某个后端错误地裁剪显式指定 bounds 的图层),不是留给保真度取舍。
 
 **真机验证还没做——净收益(raster 少的是否多于 build 多的)在真机上尚未测量。** 已在 `benchmark/bench_app/lib/anim_fps_bench_screen.dart` 加好专用两臂 A/B(与 `QUALITYAB` 分开,因为这两臂的像素逐位一致,唯一差别只有开销):
 
@@ -998,7 +998,36 @@ real_fps       56.90         56.64        基本打平,无提升
 
 早期两次单独运行(未纳入上面 5 次统计)曾观测到 looselayers 的 raster max 达到 45.3ms 和 87.1ms(远高于 tightlayers 同期的 21.9/25.7ms),一度以为是稳定的"消除卡顿尖峰"效应,但正式的 5 次连续测量未能复现如此大的峰值差距(两组 max 分布有重叠)——如实记录:那两次极端值更可能是测量噪声/设备热状态波动,不作为本项优化的确定收益宣称。
 
-**决定:保留 `tightMaskLayerBounds` 默认开启**——它是等价性已验证(488 次全帧比对逐位一致)的无损优化,即使在这台设备上尚未在 fps 层面体现收益,也没有下行风险,维持默认值不变。
+**当初的决定(已被下一小节撤销,原始记录保留供参考):保留 `tightMaskLayerBounds` 默认开启**——它是等价性已验证(488 次全帧比对逐位一致)的无损优化,即使在这台设备上尚未在 fps 层面体现收益,也没有下行风险,维持默认值不变。
+
+### 第二台设备复测与最终决定:撤销(2026-08-27,华为 STG-AL00,消除臂序偏置后)
+
+只在 vivo 一台设备上"raster 有改善但没传导到 fps"还不足以下定论——不同机型瓶颈分布不同,单机结果可能只是这台设备恰好不卡在 mask saveLayer 上,不能排除这项优化在别的设备上是净赚的。因此换回本文档其它轮次的基线机型华为 STG-AL00 复测,并加了反序臂(`ARMFLIP=true`)配平,消除"先跑的臂吃了系统冷启动/温度红利"这个混淆因素。
+
+正序、反序各跑一遍,合并两侧数据后:
+
+```
+              looselayers   tightlayers   delta
+real_fps      34.56         34.75         基本打平(噪声量级,+0.5%,方向不稳定)
+```
+
+反序配平前的单侧数据曾显示更大的差异,但那正是臂序偏置的产物——换到反序后差距显著收窄,说明此前疑似的"tightlayers 更快"信号相当一部分来自跑第二臂时设备更热/系统更热身,而不是优化本身。
+
+**最终结论,合并两台设备的证据:**
+
+```
+              looselayers   tightlayers   delta
+vivo V2283A   56.90         56.64         基本打平(无提升)
+华为 STG-AL00  34.56         34.75         基本打平(消除偏置后,噪声量级)
+```
+
+两台设备的 real_fps 均无实质提升——vivo 上仅有的信号是 raster 平均值的小幅改善(-0.38ms,统计上稳定但量级太小),且这个改善从未传导到最终 fps;华为上消除臂序偏置后连 raster 端的信号都不再稳定站得住。**判定为不通用/收益不足以证明是一项值得长期维护的优化,代码已撤销**,`SvgXAnimationQuality.tightMaskLayerBounds` 字段与 `AnimatedSvgPainter` 里对应的按 mask 内容边界分配 saveLayer 的实现(含 `_maskLayerBounds`/`debugMaskLayerBounds`/`_userUnitsPerDevicePixel`/`_transformRect`)已从代码库中移除,`saveLayer` 恢复为无界(按当前裁剪区、即整个 SVG 视口分配)。
+
+**保留下来、依然有效的部分**(即使具体实现被撤销,这些调研成果本身没有过时):
+
+- 上面"第一步"到"第四步"的成本模型(`cost = fixed + k·area`,固定开销约 90µs/通道、面积开销约 0.017µs/像素²)与"合并多个 mask saveLayer 会更差"的否决推导——这是独立于 tightMaskLayerBounds 具体实现的分析,继续由 `test/animation/mask_layer_merge_semantics_test.dart` 提供证据支撑,未受本次撤销影响。
+- 488 次全帧比对验证的"按 mask 内容边界分配层与无界分配在像素上等价"这一数学事实本身依然成立,只是判定为"值得实现的优化"不成立——如果以后有新证据(比如某类设备上 mask saveLayer 确实是主要瓶颈),可以参考本节的做法重新实现,不必从头再推一遍等价性论证。
+- `canvas.clipRect(...)` 视口裁剪(黑屏 bug 的正确性修复)与此次撤销无关,继续保留。
 
 ## 调研并否决:定格图标位图缓存(2026-08-27)
 
@@ -1015,3 +1044,92 @@ real_fps       56.90         56.64        基本打平,无提升
 
 对应实现代码保留在独立 worktree(`svgx-frozen-bitmap` 分支)供参考,**未合并进主分支**——因为按当前设计,合并只会引入无收益的额外开销。
 
+
+## 2026-08-27 五轮:build 阶段的精确剖析工具 + 主机侧成本归因
+
+**背景**:raster 端已经用 timeline 精确到过 `RenderPassGLES::EncodeCommandsInReactor`(每个 mask 渲染通道约 221µs),但 **build 端一直只有一个聚合数字**(华为 STG-AL00 约 13.95ms / vivo V2283A 约 7.4~7.9ms),从未拆解到具体子机制。本轮先补工具与归因,不急于改代码。
+
+### 为什么 build 一直拆不开:缺的是埋点,不是分析
+
+`tool/capture_timeline.dart` 抓到的 timeline 里,build 侧只有粗粒度的 `BUILD` / `LAYOUT` / `PAINT` 三个 slice。框架其实自带更细的埋点,但默认关闭:
+
+- `debugProfileBuildsEnabled`(`widgets/debug.dart`)→ `Element.rebuild` / `inflateWidget` / `updateChild` 各开一个**以控件 runtimeType 命名**的 slice(`framework.dart:2747/4035/4566` 的 `FlutterTimeline.startSync('${widget.runtimeType}')`)。
+- `debugProfileLayoutsEnabled` / `debugProfilePaintsEnabled`(`rendering/debug.dart`)→ 布局与绘制按**渲染对象 runtimeType** 开 slice(`rendering/object.dart:2796/3500` 等)。
+
+三者在框架里都由 `!kReleaseMode` 守卫,**profile 模式下可用**。已加开关:
+
+```
+--dart-define=PROFILEWIDGETS=1
+```
+
+(读法与 `QUALITYAB` 一致,接受 `1`/`true`,不用 `bool.fromEnvironment` 的坑。)注意:埋点本身有写入成本,**开着它测出来的 build 绝对值是被抬高的**,只能用来做归因排序,头条数字必须关掉它重测。
+
+### `capture_timeline.dart` 的汇总从"total"改成"self time + 按阶段分桶"
+
+旧汇总按事件名累加 total(自身+后代)时间,这个口径**必然**把最外层 slice 排在最前(`Frame` 一定大于它内部的一切),也就是只能复述"BUILD 花了 14ms"这个本来就已知的答案。改为:
+
+- 按 (pid,tid) 栈配对 B/E,算出每个 slice 的 **self time = total − 直接子级之和**;self time 在整条 trace 上可加,每一微秒恰好记在一个 slice 上。
+- 读 `M`/`thread_name` 元数据,输出按 `io.flutter.ui` / `io.flutter.raster` 分线程——不这样做 UI 线程与 raster 线程会落进同一个桶。
+- 每个 slice 归属到调用栈上最内层的粗粒度阶段(`BUILD`/`LAYOUT`/`PAINT`/`Animate`/`Frame`/…),按阶段分块输出。
+- 已知局限(如实记录):`X` 事件的嵌套子级无法从平铺列表还原,其 self time 按完整耗时上报;框架的 build/layout/paint 埋点全是 B/E,所以只影响引擎侧 C++ slice。
+
+**离线校验**(不需要真机):用合成 trace 跑 `--summarize`,验证 self time 加总恒等(BUILD 180 = BUILD 自身 60 + 2×SvgXAnimated 80 + CustomPaint 40;`SvgXAnimated` total 120 / self 80;`Frame` self 100 = 800 − 700)、线程名与阶段归属均正确。
+
+### 主机侧成本归因:一个动画图标格子的钱花在哪
+
+新增 `benchmark/bench_app/test/mount_cost_attribution_bench_test.dart`,按 `GridView` 重挂载实际执行的步骤拆开(399 个真实 SMIL 图标语料,取多轮最小值;**主机 Dart CPU,无 GPU、无滚动物理,绝对值不迁移到手机,能迁移的是比例**):
+
+| 步骤 | 主机耗时 | 付费频率 | 性质 |
+|---|---|---|---|
+| `route_decision`(`hasAnimations`,带 memo) | **0.20 µs/图标** | 每次 build | 已优化到底,可忽略 |
+| `document_cold`(XML 解析 + 时间线构建) | **45~58 µs/图标** | 每个互异源一生一次 | **必须做的工作** |
+| `document_warm`(`SvgDocumentCache` 命中) | **0.02~0.03 µs/图标** | 每次重挂载 | 已优化到底,可忽略 |
+| `mount_and_layout`(inflate + attach + 布局 + 首帧绘制) | **40~58 µs/图标** | 每格每次进入视口 | 见下 |
+| `paint_steady`(新时间线位置重录一遍) | **15~25 µs/图标** | 每帧每可见图标(跳帧后约一半) | 见下 |
+| 差值 `mount_minus_paint` | **≈25~37 µs/图标** | 每格每次进入视口 | **纯 Flutter 框架的 Element/RenderObject/布局机械开销** |
+
+**核心结论:svgx 自己那一侧在 build 阶段已经没有可见冗余了。** 重挂载时不重复解析(0.02µs),也不重复解析路径或重算样式——因为 `SvgNode` 对象本身通过 `SvgDocumentCache` 共享,`cachedGeometry` 的键是 `d` 字符串实例、`cachedStyle` 的键是 `(ResolvedStyle.initial, node.attributes, const SvgTheme())` 三个身份稳定的输入,所以重挂载后的首帧绘制**直接命中**这两层缓存,与稳态帧一样便宜。剩下的 build 成本里,约 2/3 是框架自己的树机械开销(每格约 25~37µs),1/3 是图标自身的绘制录制。
+
+### 顺带否掉的两个候选嫌疑(有数据支撑)
+
+**1. `AnimatedSvgPainter._paintNode` 的递归遍历——不值得扁平化。** 语料结构实测(`paint-walk size over the real corpus`):2085 个节点 / 399 个图标 = **平均 5.2 节点/图标**,单图标最多 14 个,**最大树深 4**,且 **51.9% 的节点带 `<animate>`**(值在动的节点根本无法预先烘成静态指令列表)。对一次只有 5 层递归、一半节点每帧都在变的遍历做"扁平化缓存成渲染指令列表",省不下有意义的时间,还会引入一份要跟 SMIL 采样同步失效的新状态。**否决。**
+
+（附:先尝试过用"冻结时钟 vs 推进时钟"的计时拆分来量化遍历占比,**作为不可靠方法丢弃**——固定时钟位置落在某一个特定虚线相位上(它决定 `dashPath` 产出多少段)而非整段扫描的平均值,且后跑的臂 VM 更热,结果报出冻结臂比推进臂*更慢*,物理上不可能。改用精确计数。)
+
+**2. `_effectiveAttributes` / `ResolvedStyle` 缓存——已无未覆盖的重复计算。** 见上一段的键身份分析:静态节点每帧命中,动画节点每帧必然重算(这是语义要求,不是漏洞)。
+
+### 已落地的一项改动:去掉每个图标一层冗余的 `SizedBox`
+
+`SvgXAnimated` 与 `SvgXStatic` 都曾把无 child 的 `CustomPaint` 套在同尺寸 `SizedBox` 里。但 `RenderCustomPaint.computeSizeForNoChild` 返回的就是 `constraints.constrain(preferredSize)`(SDK `rendering/custom_paint.dart:580`),与 `SizedBox` 包一层的结果在**所有**约束状态下都相同。已移除,每个图标少一个 `Element` + 一个 `RenderConstrainedBox`。
+
+等价性验证(`test/animation/widget_tree_depth_test.dart`,主机 5 项全绿):四种约束状态(紧于图标 20×20 / 松于图标 / 松到父级 / 紧且大于图标 64×64)下最终尺寸逐项不变,且树里确认不再出现 `RenderConstrainedBox`。改动前该测试如预期失败(链路为 `RenderRepaintBoundary → RenderConstrainedBox → RenderCustomPaint`)。
+
+**性能上如实说明:这项改动在主机侧测不出收益,不宣称是性能优化。** 两个配对 A/B(都已修掉"后跑的臂 VM 更热"这个顺序混淆——早期版本因此可复现地报出"多一层反而便宜 10µs/图标",物理上不可能)结果符号在多次运行间翻转:
+
+- 挂载专项(`mount_plus_1_layer` − `mount_and_layout`):−6.9 / +2.4 / +0.8 / −3.4 µs/图标。
+- 1000 格滚动 churn(`grid_cell_churn_bench_test.dart`,每窗口 80 步):−2.3% / +7.8% / +5.7%。
+
+即**一层的代价落在主机噪声底噪之下**(理论量级 1~2µs,与 +2.4/+0.8 的观测一致,但无法与噪声分离)。保留这项改动的理由是它是"已证明像素等价的结构简化",而非它带来了可测的收益;真机上是否有收益仍待验证。
+
+### 待真机验证(设备在线时按顺序跑)
+
+```powershell
+# 0) 确认设备
+adb devices
+
+# 1) 归因跑:开细粒度埋点,抓 timeline,看 BUILD/LAYOUT/PAINT 各自的 self-time 分解
+#    (build 绝对值会被埋点抬高,只看排序与占比)
+flutter run --profile -d <device> --dart-define=LIB=anim_fps --dart-define=ITEMS=1000 `
+  --dart-define=PROFILEWIDGETS=1 --dart-define=AUTOEXIT=0
+# 另开一个终端,用 flutter run 打印的 VM Service URL:
+dart run benchmark/bench_app/tool/capture_timeline.dart <vm-service-uri> 25 timeline_build.json
+
+# 2) 离线重算(可反复)
+dart run benchmark/bench_app/tool/capture_timeline.dart --summarize timeline_build.json
+
+# 3) 头条数字复测:关掉埋点,确认 SizedBox 移除没有回归
+#    (与 56cf019 的基线对比:华为 STG-AL00 build avg ≈13.95ms)
+powershell -File benchmark/bench_app/tool/run_android_anim_fps.ps1
+```
+
+看 timeline 时要回答的具体问题:`io.flutter.ui | BUILD` 桶里 self time 最高的是 `SvgXAnimated` / `SvgX` / `CustomPaint` 这些 svgx 自己的控件,还是 `KeyedSubtree` / `RepaintBoundary` / `_SliverGridDelegate` 之类框架层的格子机械开销?主机侧归因预测是**后者约占 2/3**;真机若也如此,则 build 端剩下的杠杆只有"少挂载"(减少每格层数、或让格子不被销毁),而不是继续优化 svgx 的计算。
