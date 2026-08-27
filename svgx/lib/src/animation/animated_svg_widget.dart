@@ -15,6 +15,7 @@ import 'animated_svg_painter.dart';
 import 'svg_document_cache.dart';
 import 'svg_document_parser.dart';
 import 'svg_theme.dart';
+import 'svgx_animation_quality.dart';
 
 /// Renders a SMIL-animated SVG string using this project's original
 /// animation engine (parse → timeline → per-frame sample → paint).
@@ -54,6 +55,7 @@ class SvgXAnimated extends StatefulWidget {
     this.fit = BoxFit.contain,
     this.alignment = Alignment.center,
     this.theme,
+    this.quality,
   });
 
   /// Raw SVG markup containing SMIL `<animate>` elements.
@@ -77,6 +79,20 @@ class SvgXAnimated extends StatefulWidget {
   ///
   /// 控制 `currentColor` 的主题；默认不透明黑色。
   final SvgTheme? theme;
+
+  /// How much per-icon animation smoothness this instance may trade away for
+  /// frame throughput under high concurrency; null uses
+  /// [SvgXAnimationQuality.defaultQuality].
+  ///
+  /// Pass [SvgXAnimationQuality.exact] to opt this icon out of all
+  /// degradation. See [SvgXAnimationQuality] for exactly what is given up.
+  ///
+  /// 本实例在高并发下可以拿多少"单图标动画流畅度"去换帧吞吐；null 表示使用
+  /// [SvgXAnimationQuality.defaultQuality]。
+  ///
+  /// 传 [SvgXAnimationQuality.exact] 可让本图标完全不参与降级。具体牺牲了什么
+  /// 见 [SvgXAnimationQuality]。
+  final SvgXAnimationQuality? quality;
 
   @override
   State<SvgXAnimated> createState() => _SvgXAnimatedState();
@@ -132,50 +148,175 @@ class _SharedAnimationClock {
 
   Ticker? _ticker;
   Duration _elapsed = Duration.zero;
-  final Set<ValueChanged<Duration>> _listeners = {};
+  final List<_ClockSubscription> _subscriptions = <_ClockSubscription>[];
+
+  /// Display frames seen since the shared ticker started, the counter every
+  /// subscription's frame-divisor test is taken against.
+  ///
+  /// 共享 ticker 启动以来经过的显示帧数，每个订阅的帧除数判定都以它为基准。
+  int _tickCount = 0;
+
+  /// Monotonic phase allocator. Consecutive subscribers get consecutive
+  /// phases, so under any divisor N a run of subscribers spreads evenly
+  /// across all N frames of the cycle rather than all landing on the same
+  /// one — in a scrolling grid, cells mount in visual order, so this makes
+  /// "half the icons repaint this frame, the other half next frame" fall out
+  /// for free. Never reset while subscribers exist; wrap-around at 2^53 is
+  /// irrelevant since only `% divisor` is ever read.
+  ///
+  /// 单调递增的相位分配器。相邻订阅者拿到相邻相位，因此在任意除数 N 下，一串
+  /// 订阅者会均匀铺满周期里的 N 帧，而不是全挤在同一帧——滚动网格里格子是按视觉
+  /// 顺序挂载的，于是"这一帧重绘一半图标、下一帧重绘另一半"就自然成立了。有
+  /// 订阅者存在期间绝不重置；只会读它的 `% divisor`，因此 2^53 回绕无关紧要。
+  int _nextPhase = 0;
 
   /// Elapsed time since the shared ticker last started from idle.
   ///
   /// 共享 ticker 上一次从空闲状态启动以来经过的时间。
   Duration get elapsed => _elapsed;
 
+  /// How many icons are animating right now — the concurrency figure every
+  /// [SvgXAnimationQuality] gate is evaluated against.
+  ///
+  /// 当前有多少图标在播放动画——所有 [SvgXAnimationQuality] 门控判定所依据的并发
+  /// 数值。
+  int get subscriberCount => _subscriptions.length;
+
   void _onTick(Duration elapsed) {
     _elapsed = elapsed;
-    // Snapshot before iterating: a listener's own callback may call
-    // [unsubscribe] on itself (a finite animation settling), which would
-    // otherwise mutate [_listeners] mid-iteration.
+    final tick = ++_tickCount;
+    // Concurrency is measured as "how many icons are subscribed right now",
+    // which is what the degradation threshold is defined against. Icons whose
+    // finite animations have already settled have unsubscribed themselves (see
+    // [_SvgXAnimatedState._onGlobalTick]), so a screen of mostly-finished
+    // icons correctly counts as low concurrency and stops degrading.
     //
-    // 迭代前先拍快照：某个监听者自己的回调可能在其中调用 [unsubscribe]（有限
-    // 动画进入定格），若不这样做会在迭代中途修改 [_listeners]。
-    for (final listener in List<ValueChanged<Duration>>.of(_listeners)) {
-      listener(elapsed);
+    // 并发量的度量是"当前有多少图标处于订阅状态"，降级阈值正是针对这个定义的。
+    // 有限动画已经定格的图标会自行取消订阅（见
+    // [_SvgXAnimatedState._onGlobalTick]），因此一屏大多已播完的图标会正确地被
+    // 算作低并发、不再降级。
+    final concurrency = _subscriptions.length;
+    // Snapshot before iterating: a subscriber's own callback may call
+    // [unsubscribe] on itself (a finite animation settling), which would
+    // otherwise mutate [_subscriptions] mid-iteration.
+    //
+    // 迭代前先拍快照：某个订阅者自己的回调可能在其中调用 [unsubscribe]（有限
+    // 动画进入定格），若不这样做会在迭代中途修改 [_subscriptions]。
+    for (final subscription in List<_ClockSubscription>.of(_subscriptions)) {
+      final divisor = subscription.quality().frameDivisorFor(
+        concurrency: concurrency,
+        usesOffscreenLayers: subscription.usesOffscreenLayers,
+      );
+      // The whole point of the degradation: this subscriber's timeline does
+      // not advance on this frame, so its `CustomPaint` stays clean and the
+      // framework neither re-records its picture (UI-thread PAINT cost) nor
+      // necessarily re-runs its offscreen render passes (raster-thread cost).
+      //
+      // 降级的全部意义就在这里：本订阅者的时间线这一帧不推进，于是它的
+      // `CustomPaint` 保持干净，框架既不会重录它的 picture（UI 线程 PAINT
+      // 开销），也不一定需要重跑它的离屏渲染通道（raster 线程开销）。
+      if (divisor > 1 && (tick + subscription.phase) % divisor != 0) continue;
+      subscription.onTick(elapsed);
     }
   }
 
-  /// Registers [listener] to be called with the shared elapsed time on every
-  /// tick, starting the shared ticker if this is the first subscriber.
+  /// Registers [onTick] to be called with the shared elapsed time on eligible
+  /// ticks, starting the shared ticker if this is the first subscriber.
   ///
-  /// 注册 [listener]，每次 tick 都会带着共享经过时间被调用；若这是第一个
+  /// 注册 [onTick]，在符合条件的 tick 上带着共享经过时间被调用；若这是第一个
   /// 订阅者，则启动共享 ticker。
-  void subscribe(ValueChanged<Duration> listener) {
-    _listeners.add(listener);
+  ///
+  /// [onTick] — the per-tick callback. / 逐 tick 回调。
+  ///
+  /// [usesOffscreenLayers] — whether this subscriber's document needs
+  ///   `saveLayer` (see [SvgDocument.usesOffscreenLayers]); such documents may
+  ///   be throttled harder.
+  ///
+  ///   本订阅者的文档是否需要 `saveLayer`（见
+  ///   [SvgDocument.usesOffscreenLayers]）；这类文档可能被压得更狠。
+  ///
+  /// [quality] — read on every tick rather than captured, so reassigning
+  ///   [SvgXAnimationQuality.defaultQuality] takes effect on live icons
+  ///   without them having to re-subscribe.
+  ///
+  ///   每 tick 现读而非订阅时捕获，因此重新赋值
+  ///   [SvgXAnimationQuality.defaultQuality] 对已存活的图标立即生效，无需重新
+  ///   订阅。
+  ///
+  /// Returns the handle to pass back to [unsubscribe].
+  ///
+  ///   返回用于传回 [unsubscribe] 的句柄。
+  _ClockSubscription subscribe(
+    ValueChanged<Duration> onTick, {
+    required bool usesOffscreenLayers,
+    required SvgXAnimationQuality Function() quality,
+  }) {
+    final subscription = _ClockSubscription(
+      onTick: onTick,
+      phase: _nextPhase++,
+      usesOffscreenLayers: usesOffscreenLayers,
+      quality: quality,
+    );
+    _subscriptions.add(subscription);
     _ticker ??= Ticker(_onTick)..start();
+    return subscription;
   }
 
-  /// Unregisters [listener]; stops (and disposes) the shared ticker once the
-  /// last subscriber leaves, resetting [elapsed] so the next subscriber
+  /// Unregisters [subscription]; stops (and disposes) the shared ticker once
+  /// the last subscriber leaves, resetting [elapsed] so the next subscriber
   /// starts from a clean baseline.
   ///
-  /// 取消注册 [listener]；最后一个订阅者离开时停止（并 dispose）共享
+  /// 取消注册 [subscription]；最后一个订阅者离开时停止（并 dispose）共享
   /// ticker，同时重置 [elapsed]，使下一个订阅者从干净的基线开始。
-  void unsubscribe(ValueChanged<Duration> listener) {
-    _listeners.remove(listener);
-    if (_listeners.isEmpty) {
+  void unsubscribe(_ClockSubscription subscription) {
+    _subscriptions.remove(subscription);
+    if (_subscriptions.isEmpty) {
       _ticker?.dispose();
       _ticker = null;
       _elapsed = Duration.zero;
+      _tickCount = 0;
     }
   }
+}
+
+/// One [SvgXAnimated] instance's registration with [_SharedAnimationClock],
+/// carrying everything the clock needs to decide whether that instance gets
+/// this frame.
+///
+/// 一个 [SvgXAnimated] 实例在 [_SharedAnimationClock] 上的注册记录，携带时钟
+/// 判定"这一帧要不要给它"所需的全部信息。
+class _ClockSubscription {
+  /// Creates a subscription record. / 创建一条订阅记录。
+  _ClockSubscription({
+    required this.onTick,
+    required this.phase,
+    required this.usesOffscreenLayers,
+    required this.quality,
+  });
+
+  /// Called on every tick this subscription is eligible for.
+  ///
+  /// 在本订阅符合条件的每个 tick 上被调用。
+  final ValueChanged<Duration> onTick;
+
+  /// This subscription's offset within the frame-divisor cycle — see
+  /// [_SharedAnimationClock._nextPhase].
+  ///
+  /// 本订阅在帧除数周期内的偏移——见 [_SharedAnimationClock._nextPhase]。
+  final int phase;
+
+  /// Whether this subscription's document needs a `saveLayer` offscreen
+  /// target, which makes its frames the expensive ones.
+  ///
+  /// 本订阅的文档是否需要 `saveLayer` 离屏目标——这决定了它的帧属于昂贵的那类。
+  final bool usesOffscreenLayers;
+
+  /// Resolves the quality profile in force for this subscription, evaluated
+  /// per tick — see [_SharedAnimationClock.subscribe].
+  ///
+  /// 解析本订阅当前生效的画质配置，逐 tick 求值——见
+  /// [_SharedAnimationClock.subscribe]。
+  final SvgXAnimationQuality Function() quality;
 }
 
 class _SvgXAnimatedState extends State<SvgXAnimated> {
@@ -190,10 +331,11 @@ class _SvgXAnimatedState extends State<SvgXAnimated> {
   /// 注释。
   Duration _startOffset = Duration.zero;
 
-  /// Whether this instance is currently subscribed to the shared clock.
+  /// This instance's live registration with the shared clock, or null when it
+  /// is not currently ticking.
   ///
-  /// 本实例当前是否已订阅共享时钟。
-  bool _ticking = false;
+  /// 本实例在共享时钟上的存活注册记录；当前未 ticking 时为 null。
+  _ClockSubscription? _subscription;
 
   // The timeline position is published through a notifier the painter is
   // wired to (see AnimatedSvgPainter's `clock`), not through setState. A
@@ -290,15 +432,40 @@ class _SvgXAnimatedState extends State<SvgXAnimated> {
 
   void _startTicking() {
     _startOffset = _SharedAnimationClock.instance.elapsed;
-    _SharedAnimationClock.instance.subscribe(_onGlobalTick);
-    _ticking = true;
+    _subscription = _SharedAnimationClock.instance.subscribe(
+      _onGlobalTick,
+      usesOffscreenLayers: _document.usesOffscreenLayers,
+      // A closure rather than a captured value so a mid-flight change to
+      // either the widget's own `quality` or the global default is picked up
+      // on the next tick — see [_SharedAnimationClock.subscribe].
+      //
+      // 用闭包而非捕获的值，这样控件自身的 `quality` 或全局默认值中途发生变化
+      // 都能在下一个 tick 生效——见 [_SharedAnimationClock.subscribe]。
+      quality: () => widget.quality ?? SvgXAnimationQuality.defaultQuality,
+    );
   }
 
   void _stopTicking() {
-    if (!_ticking) return;
-    _SharedAnimationClock.instance.unsubscribe(_onGlobalTick);
-    _ticking = false;
+    final subscription = _subscription;
+    if (subscription == null) return;
+    _SharedAnimationClock.instance.unsubscribe(subscription);
+    _subscription = null;
   }
+
+  /// Whether the painter may substitute a clip path for an eligible `<mask>`
+  /// on this frame — a method (not a field) so the closure handed to the
+  /// painter stays stable across builds while still reading the live
+  /// concurrency and quality profile.
+  ///
+  /// 本帧绘制器是否可以用裁剪路径替代合格的 `<mask>`——写成方法（而非字段），使
+  /// 交给绘制器的闭包在多次 build 间保持稳定，同时仍然读取实时的并发数与画质配置。
+  ///
+  /// Returns true when the approximation is in force.
+  ///
+  ///   近似生效时返回 true。
+  bool _approximateMasks() =>
+      (widget.quality ?? SvgXAnimationQuality.defaultQuality)
+          .approximatesMasksAt(_SharedAnimationClock.instance.subscriberCount);
 
   void _onGlobalTick(Duration globalElapsed) {
     final local = globalElapsed - _startOffset;
@@ -356,6 +523,19 @@ class _SvgXAnimatedState extends State<SvgXAnimated> {
           gradients: _document.gradients,
           clipPaths: _document.clipPaths,
           masks: _document.masks,
+          // Evaluated per paint, not per build: concurrency changes as cells
+          // scroll in and out, and this painter is not rebuilt on every tick
+          // (that is the whole point of driving it through `repaint`).
+          //
+          // 逐次绘制求值，而非逐次 build：并发数会随格子滚进滚出而变化，而本绘制器
+          // 并不会每 tick 重建（通过 `repaint` 驱动它的全部意义正在此）。
+          approximateMasks: _approximateMasks,
+          // Carried alongside the closure only so the painter's shouldRepaint
+          // can see a runtime quality change — see AnimatedSvgPainter.quality.
+          //
+          // 与闭包一并传入，唯一目的是让绘制器的 shouldRepaint 能看到运行时的画质
+          // 变化——见 AnimatedSvgPainter.quality。
+          quality: widget.quality ?? SvgXAnimationQuality.defaultQuality,
         ),
       ),
     );

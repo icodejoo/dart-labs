@@ -554,3 +554,330 @@ flutter run -d windows --profile --dart-define=LIB=compare --dart-define=CYCLES=
 ### raster 现在是新的墙
 
 最终树 build 20.58ms / raster 21.59ms:**瓶颈已经回到 raster**,`real_fps` 约 29.6 基本就是 raster 21.6ms 决定的。想再往上走必须打 raster 侧,首选目标是带 `<mask>` 的图标每帧仍要开的 `saveLayer`(约 140 个可见图标里约 23 个用 mask;上一轮的 `clipRect` 已经把这些图层从"全屏"收到"图标盒",但没有消掉图层本身)。这不在本轮范围内。
+
+## 2026-08-27 二轮:timeline 归因 + "有损换流畅"的两项降级
+
+**触发**:上一节结尾留下的问题——build 已经打到 20.58ms,raster 21.59ms 成为新的墙,`real_fps` 约 29.6。用户明确授权"为了流畅可以牺牲精度/色彩/动画细粒度",并要求**先用 timeline 摊清每帧成本再决定往哪砸**,优先级是 **绕过 > 降级 > 优化实现细节**。
+
+### 第一步:真机 VM/引擎 timeline 归因(不再靠猜)
+
+工具是已有的 `benchmark/bench_app/tool/capture_timeline.dart`(注意必须用 `fvm dart run`,仓库根的 SDK 语言版本高于 bench_app 允许的上限)。做法:`fvm flutter run -d 7NQBB23606003715 --profile --dart-define=LIB=anim_fps --dart-define=ITEMS=1000 --dart-define=CYCLES=40`,拿 `flutter run` 打印的 VM Service URL 抓 18s。**注意 VM timeline 是环形缓冲**,18s 只留下最近约 1s(49–51 帧),因此下面的数字是稳态窗口而不是全程累计。
+
+每帧成本(总耗时 ÷ 帧数),按占比排序:
+
+| 环节 | 线程 | 每帧 | 次数/帧 | 说明 |
+|---|---|---|---|---|
+| `GPURasterizer::Draw` | raster | 21.75ms | 1 | 与 `raster_avg` 22.3ms 吻合,是下面各项的父 slice |
+| **`RenderPassGLES::EncodeCommandsInReactor`** | raster | **10.94ms** | **49.4** | 每个约 **221.3µs**,占 raster 约 **50%**,单项最大 |
+| `ReactorGLES::Operation` | raster | 11.09ms | 49.4 | 就是上面那批通道的 GL 提交,同源 |
+| **`PAINT`** | UI | **17.53ms** | 1 | 占 build 20.77ms 的 **84%**,build 的真正大头 |
+| `COMPOSITING` | UI | 1.23ms | 1 | |
+| `LAYOUT` | UI | 1.10ms | 1 | |
+| `BUILD` | UI | 0.74ms | 66 | 上一轮修完缓存后 widget 层已不是瓶颈 |
+| `TexImage2DInitialization` | raster | 0.087ms | 10.9 | **"每帧重复分配纹理"这条嫌疑到此排除**,量级可忽略 |
+| `CollectNewGeneration` | UI | — | 4 次共 99.86ms | **单次 25ms**,是抖动尖峰来源(逐帧 Map/Path 分配压力) |
+
+**归因坐实**:`Canvas::saveLayer` 计数 2330 ÷ 49 帧 = **每帧 47.5 次**。语料里 61/399 图标带 `<mask>`(约 140 个可见格 × 15% ≈ 23 个),每个 mask 开 2 层 = 46,加根通道 = 49——与上表的 49.4 个渲染通道完全对上。语料里 `feGaussianBlur` 与 `<clipPath>` 出现次数均为 **0**,所以这一坨渲染通道 **100% 来自 `<mask>`**。
+
+**结论指向"绕过"而非"优化"**:221µs/通道对一个 32×32 图标来说几乎全是固定开销(GLES 下 FBO 绑定 + resolve),与绘制面积无关。**能减的只有通道的"个数",不是每个通道的成本**。同理,UI 侧 17.53ms 的 PAINT 是"每帧把 140 个图标的 display list 重录一遍",省它的唯一办法是**不重录**。
+
+### 第二项降级前先说清:为什么"降采样"能同时打掉这两项
+
+一个图标的 `CustomPaint` 这一帧不脏,框架就不会重录它的 picture(PAINT 直接省掉,**这是确定的**),它的 retained layer 也有机会被复用。于是新增 `SvgXAnimationQuality`(`lib/src/animation/svgx_animation_quality.dart`,已从 `lib/svgx.dart` 导出):
+
+- **降级 1:错相位逐图标跳帧**。并发动画图标数超过 `frameSkipThreshold`(默认 24)后,每个图标每 N 帧才推进一次自己的 SMIL 时间线;普通文档 N=2(60Hz 屏上即 30Hz),需要离屏图层(`mask`/模糊)的文档 N=3(20Hz)。相位由 `_SharedAnimationClock` 连号发放,滚动网格里格子按视觉顺序挂载,于是"这一帧重绘一半、下一帧另一半"自然成立。
+- **降级 2:简单 mask 改画成裁剪**。内容只有完全不透明纯黑/纯白填充的 `<mask>` 表达的是二值覆盖区域,而裁剪路径就是二值覆盖区域,于是直接画成 `clipPath`,**该 mask 的两个 saveLayer 一个都不开**。
+
+两项都**只在超过同一个并发阈值后生效**,阈值以内渲染路径与此前完全一致(单图标/少量图标场景零影响);都可以全局 `SvgXAnimationQuality.defaultQuality = SvgXAnimationQuality.exact` 或逐控件 `SvgXAnimated.string(src, quality: SvgXAnimationQuality.exact)` 关掉。
+
+**牺牲了什么,逐项写清**:
+- 降级 1 的代价是**时间维度**的:几何/颜色/描边/渐变/mask 覆盖度全部仍然精确计算,像素与以前一致,只是采样点变少。可察觉的是快动画的运动变粗糙(0.2s 的 `stroke-dashoffset` 展开在 30Hz 下约 6 个离散步而非约 12 步)。**没有任何东西位移、变色或消失**。
+- 降级 2 的代价是**mask 边界的边缘抗锯齿**:精确管线把光栅化出的覆盖度斜坡乘进内容 alpha,裁剪则对边界本身抗锯齿,Impeller 上两条斜坡略有差异——图标尺寸下是 mask 轮廓上的亚像素差异。会损失更多的 mask(带描边、任何不透明度、非二值/渐变填充、文本、嵌套 clip/mask/模糊)一律被拒,保持精确管线。另外**同时带 mask 与 blur 的节点也被拒**,这是正确性护栏不是性能护栏:裁剪装在画布上会被其下的模糊图层继承,产出 `Blur(Mask())` 而非规范要求的 `Mask(Blur())`。
+
+### 降级 1 的真机 A/B(跨构建,5 次运行取中位数)
+
+设备华为 STG-AL00(Android 12,Impeller GLES),`fvm flutter build apk --profile --dart-define=LIB=anim_fps --dart-define=ITEMS=1000 --dart-define=AUTOEXIT=1`,`tool/run_android_anim_fps.ps1 -Runs 5`。
+
+| 变体 | real_fps | build avg | raster avg |
+|---|---|---|---|
+| 基线(上一节最终树) | 29.21 | 20.77ms | 22.31ms |
+| + 错相位跳帧 | **34.39** | **13.89ms** | 25.66ms |
+
+**`real_fps` +17.7%,build −33%。** build 的降幅与 timeline 的预测一致(PAINT 占 build 84%,少重录约一半图标)。
+
+**raster 反而涨了 15%,不掩饰**:合理解释是帧率从 29.2 升到 34.4 之后单位时间内 GPU 工作量更多、设备更热,而**每帧的渲染通道个数并没有减少**——跳过重绘让 retained layer 被复用,但 Flutter 的 raster cache 的 key 含变换矩阵,滚动中每帧变换都在变,缓存必然失效,所以那 49 个通道照旧每帧重发。这正是必须再做降级 2 的原因:raster 现在是硬上限(25.7ms),而它一半是 mask 通道。
+
+### 降级 2:确定性统计与主机侧成本实测
+
+降级 2 的证据分两层:**确定性主机侧**的覆盖率与 UI 线程成本(本节),以及**真机三臂配对**的端到端净效果(见下方「三臂同二进制配对实测」)。先给主机侧,因为只有它能把「改动本身值多少」与「这台设备上划不划算」分开回答。
+
+**覆盖率**——`benchmark/bench_app/test/mask_eligibility_survey_test.dart`,遍历全部 399 个真实图标:
+
+```
+corpus=399 iconsWithMaskedNodes=61 maskDefs=65 eligibleDefs=31
+maskedNodeRefs=65 eligibleRefs=31 saveLayersRemovedShare=47.7%
+```
+
+**65 个被引用的 mask 里 31 个(47.7%)走裁剪快路径**。被拒的 34 个**全部**因为 mask 内容用了 `stroke` 涂料——dart:ui 没有暴露 stroke→outline 转换,无法把描边变成裁剪路径。这是这条快路径覆盖率的**硬上限,不是实现偷懒**。
+
+**UI 线程成本**——`benchmark/bench_app/test/mask_clip_cost_bench_test.dart`,只取 61 个带 mask 的图标,逐帧推进时间线录制 60 帧,min-of-5:
+
+| 情形 | 61 个文档合计 µs/帧 | 相对精确管线的每文档差 |
+|---|---|---|
+| 精确 mask 管线 | 1305.2 | — |
+| 近似,mask 在动(缓存多数未命中) | 3080.9 | **+29.11µs** |
+| 近似,mask 已定格(缓存 100% 命中) | 842.2 | **−7.59µs** |
+
+两个方向都要说清:
+- mask **在动**时,近似把工作从 GPU 搬到 CPU——每帧要重建裁剪路径,而重建意味着逐节点分配 4x4 矩阵、把每个形状的线段 `addPath` 复制进并集路径,都是原生开销。**这是净增的 UI 线程成本。**
+- mask **定格后**(SMIL 的 `fill="freeze"` 揭示动画都会定格),近似反而**比精确管线更便宜**:一次 `clipPath` 取代了把整个 mask 子树的绘制指令重录一遍。
+
+这个"定格后更便宜"是加了 `SvgNode.cachedMaskClip` **采样签名缓存**之后才成立的:先用一趟廉价的纯采样遍历把子树里所有动画值压成一条扁平签名(不碰属性表、不分配矩阵、不复制路径),签名与缓存路径构建时一致就直接复用。**键必须是采样值而不是时间线位置**——用时间做键会每一帧都未命中。
+
+按 timeline 实测的每渲染通道 221.3µs 折算 raster 侧收益:约 23 个可见带 mask 图标里约 11 个合格,每个省 2 个通道 ≈ **4.9ms/帧**。而 UI 侧代价在这台手机上按主机数字乘以 CPU 差距推算是 1~2ms/帧量级。**方向指向净赚,但这是推算,不是端到端实测**——见下文"未能完成的验证"。
+
+### 降级 2 开发过程中**由微基准抓出的一个真实 bug**(不是性能问题,是崩溃)
+
+`mask_clip_cost_bench_test.dart` 连续扫 60 帧时抛出 `Bad state: Path.combine() failed`。只采样单个固定时刻(最初的覆盖率统计就是这么做的)**暴露不出来**——退化输入只在特定时刻出现(被动画到零尺寸的形状、采样成奇异矩阵的变换、或 `shown` 为空而 `hidden` 非空)。
+
+两处修复:
+1. **`Path.combine` 加 try/catch**,失败时退回"不做相减的并集"。理由写在代码注释里:为了一条纯属可选的快路径而让一整帧抛异常是不可接受的;退回方向是保守的(宁可多显示一点,也不要把图标擦掉)。
+2. 顺带修掉一个**语义 bug**:`fill="none"` 与 `fill="#000"` 原先被合并成"无覆盖"。两者不同——黑色会在与白色重叠处**去掉**覆盖度,而 `fill="none"` 什么都不画、必须**什么都不改变**。原实现会在每一处 `fill="none"` 轮廓穿过白色区域的地方打出不该有的洞。现在用三态 `_MaskCoverage`(`shows`/`hides`/`paintsNothing`/`notBinary`)区分,回归测试见 `test/animation/mask_clip_approximation_test.dart` 的 `a fill="none" shape in the mask punches no hole` 与 `a mask shape with no fill at all hides, per SVG initial value`。
+
+**这一条值得单独记下的方法学教训**:对"按时间采样"的渲染路径做正确性验证,**必须扫一段连续时间,不能只测一个时刻**。
+
+### 新增的同二进制三臂配对模式(`QUALITYAB=true`)
+
+跨构建对比在本套件里已经反复被证明不可靠(本文件多处记录过 raster_avg 在同一份代码的相邻构建间移动 15% 量级)。但 `--dart-define` 是**编译期**的,一个二进制没法带两组配置——**除非配置是运行时可切的**。而 `SvgXAnimationQuality` 恰好是:`_SharedAnimationClock` 每 tick 都重读画质配置,所以在进程中途翻转 `SvgXAnimationQuality.defaultQuality`,能在下一帧就把已经挂载好的 1000 个图标全部重新调好,**无需任何重挂载**。
+
+于是 `anim_fps_bench_screen.dart` 新增 `--dart-define=QUALITYAB=true`:同一次启动内依次测三臂,每臂一个独立的 `FrameTimingCollector`,报告里以 `arm=<label>` 前缀输出(不带前缀的头条键位置不变,现有脚本不受影响):
+
+| 臂 | 配置 | 隔离出什么 |
+|---|---|---|
+| `exact` | `SvgXAnimationQuality.exact` | 对照组,两项降级都关 |
+| `skiponly` | `approximateSimpleMasksAsClip: false` | 只有跳帧,即 UI 线程 PAINT 的节省 |
+| `full` | `SvgXAnimationQuality.balanced` | 出厂默认,叠加 mask 近似的 raster 节省 |
+
+**顺序偏置是保守方向,如实标注**:三臂按 exact → skiponly → full 顺序跑,先跑的臂拿到的是最凉的设备。也就是说温度漂移**偏向对照组、不利于本轮的两项降级**——因此如果 `full` 仍然胜出,这个胜出是可信的。(`ARMFLIP=true` 可以反转顺序,本轮没用上,原因见下。)
+
+**一个踩到的坑,记下来避免再犯**:`const bool.fromEnvironment('X')` 只认字符串 `"true"`,传 `--dart-define=X=1` 会被判为 **false**。第一次三臂运行因此静默退化成单臂(报告里根本没有 `arm=` 行)。本文件早先记录的 `NOCLEAR=1` 用法同样有这个问题,尚未修。
+
+### 三臂同二进制配对实测(4 次干净运行,这是本轮的主证据)
+
+设备华为 STG-AL00(Android 12,Impeller GLES),`--dart-define=LIB=anim_fps --dart-define=ITEMS=1000 --dart-define=AUTOEXIT=1 --dart-define=QUALITYAB=true`,`CYCLES=6`。同一进程内依次测三臂,4 次运行取中位数:
+
+| 臂 | real_fps 中位数 | build avg 中位数 | raster avg 中位数 | 4 次 real_fps 全量 |
+|---|---|---|---|---|
+| `exact`(不降级,对照) | 29.54 | 20.494ms | 22.100ms | 29.46 / 29.66 / 29.52 / 29.54 |
+| `skiponly`(**出厂默认**,仅跳帧) | **34.58** | **14.007ms** | 26.058ms | 34.73 / 33.74 / 34.58 / 34.05 |
+| `full`(再叠加 mask 转 clip) | 33.74 | 16.555ms | **23.278ms** | 33.74 / 32.80 / 32.90 / 33.90 |
+
+**降级 1(跳帧)= 本轮的净胜项**:`real_fps` 29.54 → 34.58(**+17.1%**),build 20.494 → 14.007ms(**−31.7%**)。两臂的 `real_fps` 与 `build` 分布**完全不重叠**(exact 最高 29.66 < skiponly 最低 33.74;exact 最低 20.448ms > skiponly 最高 14.352ms),这不是噪声。而且它与另一套独立方法学(跨构建 5+5 次运行,+17.7%)相互印证。
+
+**降级 2(mask 转 clip)= 交易成立,但净效果为微负,因此默认关闭**:
+- raster **确实变好**:26.058 → 23.278ms(**−2.78ms**),两臂分布不重叠(skiponly 最低 25.656 > full 最高 23.591)。这与 timeline 的机制预测同向:去掉了 47.7% 的 mask 渲染通道。
+- build **确实变差**:14.007 → 16.555ms(**+2.55ms**),同样不重叠。这就是主机侧微基准量到的"每帧重建裁剪路径"成本,在 ARM CPU 上放大后的样子。
+- `real_fps` 净效果 34.58 → 33.74(**−2.4%**),4 次里 3 次 `skiponly` 胜出、1 次持平(33.74 vs 33.74)。
+
+**诚实标注顺序偏置**:三臂按 exact → skiponly → full 顺序跑,`full` 排最后、拿到最热的设备,因此这 −2.4% 里含有温度成分,**真实效果可能比 −2.4% 更接近持平**。但"接近持平"依然不足以支撑"默认开启一项有损渲染改动"——把 2.78ms 的 GPU 时间换成 2.55ms 的 CPU 时间,在这台设备上是一笔不赚钱的交易。
+
+**因此的处置**:
+- `SvgXAnimationQuality` 的**出厂默认 = 只跳帧**(`approximateSimpleMasksAsClip: false`)。
+- mask 转 clip 保留为 **opt-in**:`SvgXAnimationQuality(approximateSimpleMasksAsClip: true)`。它在**另一类设备上可能是赚的**——判据很清楚:如果目标设备的 GPU 相对 CPU 更弱(离屏渲染通道更贵、路径构建更便宜),这笔交易就会翻转。`QUALITYAB=true` 三臂模式就是用来在新设备上重新判定它的现成工具。
+
+### 踩到并修掉的两个测量基础设施 bug(不记下来会反复浪费时间)
+
+1. **logcat 单条消息截断**:把三臂数据块**追加**进头条报告后,整条日志超过 logcat 单条消息上限,末尾的 `=== END ANIM FPS BENCH REPORT ===` 被静默截掉——而所有 harness 脚本都靠这一行判断"跑完了"。后果:**明明跑完并打印了数字的运行被判成超时**,我一度错误地把它归因为"手机被真人占用"(还截图看到前台是购物应用,更加确信了这个错误结论),白白浪费了十几次测量尝试。修法:三臂数据块作为**独立的一条**报告消息发出(带自己的 `=== END ANIM FPS BENCH ARMS ===` 标记),头条报告体积不变,现有脚本全部照旧可用。
+2. **`bool.fromEnvironment` 只认 `"true"`**:`--dart-define=QUALITYAB=1` 静默求值为 **false**,第一次三臂运行因此退化成单臂(报告里根本没有 `arm=` 行)。`report_sink.dart` 早就为 `AUTOEXIT` 记录过同一个坑,我还是踩了。现在 `QUALITYAB`/`ARMFLIP` 都改成读 `String.fromEnvironment` 再比对 `'1'`/`'true'`,两种写法都接受。
+
+**教训**:测量工具链本身的失败模式必须能与被测对象的失败模式区分开。"运行没产出结果"当时有两个同样合理的解释(设备被占用 / 脚本判据失效),我先信了前者,而验证后者只需要看一眼 logcat 里 `arm=` 行是否存在——**下次先怀疑自己的判据**。
+
+### 目视验证:三臂截图对比(真机)
+
+用 `--dart-define=QUALITYAB=true` 的三臂二进制截图,靠 AppBar 上的 `[exact]`/`[skiponly]`/`[full]` 标签确认每张图属于哪一臂。
+
+**静止态**(`CYCLES=0 HOLD=14`,所有揭示动画都已定格,同一屏同一批图标):三张截图**肉眼完全一致**——图标形状、位置、粗细、缺口都对得上,没有变形、没有错位、没有丢图标,`[full]` 臂(mask 转 clip 生效)与 `[exact]` 臂看不出差别。这与"损失仅限 mask 边界亚像素抗锯齿"的预期一致。
+
+**运动中**(`CYCLES=6` 滚动,大量图标正处于揭示动画中途):`[exact]` 与 `[full]` 两臂都是正常的 line-md 图标半展开形态——云朵、心形、月亮、箭头等带 mask 的图标轮廓正确,没有出现被裁掉一半、边缘锯齿化、或该显示的部分不显示的情况。滚动位置在两张图之间不同,因此这是"形态与特征一致"的判断,**不是逐像素比对**;逐像素比对由 `test/animation/mask_clip_approximation_test.dart` 在受控条件下完成(远离抗锯齿边界处要求 alpha 完全相等)。
+
+### 测了/查了但**不做**的方向
+
+- **纹理重复分配**:timeline 里 `TexImage2DInitialization` 每帧 10.9 次但只有 0.087ms/帧。**排除**,不是瓶颈。
+- **关抗锯齿 / 降 `filterQuality` / 量化颜色插值**:**没有跑 A/B,理由是 timeline 已经说明成本不在那里**——raster 的钱花在 49 个渲染通道的固定建立开销(221µs/个)上,不在片元着色上;`filterQuality` 只对 `drawImageRect` 生效而本语料 `<image>` 数量为 0;颜色插值是 Dart 侧算术,在 17.53ms 的 PAINT 面前不可见。关抗锯齿会让每个图标的边缘都变差(全局画质代价),换来的却是 timeline 指明不存在的收益。**这是基于 trace 的推断,不是实测 A/B**,如此标注。
+- **用 `Picture.toImageSync()` 自己把带 mask 的图标缓存成 `ui.Image`**:这是真正能绕开剩下那 34 个 stroke mask 的办法——我们自己按"时间线采样点"做 key,不像 Flutter raster cache 那样把变换矩阵放进 key,所以**滚动中依然有效**。每帧只 `drawImageRect`,渲染通道降到"每 N 帧一个"。**本轮没做**:需要把 devicePixelRatio 传进绘制层、在 `paint()` 里调 `toImageSync` 并管理每图标的纹理生命周期,工程量与风险都不小,而在没有端到端 A/B 窗口的情况下不适合动。**记在这里作为下一轮 raster 侧的首选目标。**
+- **把 mask 的 2 个 saveLayer 压成 1 个**:推演过,不成立。精确 mask 必须先把"内容"累积成一层、再把"mask 覆盖度"累积成另一层才能做 `dstIn`;把 `luminanceToAlpha` 下放到 mask 内每个绘制指令上可以省掉内层,但多个内容绘制指令各自 `srcIn` 会互相擦除。只有"内容和 mask 都恰好是单个绘制指令"时才成立,语料里这种情况占比太低,不值得为它加一条特例分支。
+- **`_SharedAnimationClock._onTick` 每帧 `List.of`**:仍然保留(上一节已记录量级低于本基准分辨率)。本轮把 `Set` 换成 `List` 后 `unsubscribe` 从 O(1) 变成 O(n),但 n 是"已挂载的动画图标数"(网格里约 150–250),每次卸载几百次指针比较,相对 20ms 帧预算可忽略——**同样没有实测支撑,只是量级判断**。
+
+## 2026-08-27 三轮:把"mask 转 clip"升级成"几何求交,直接画最终路径"
+
+> **状态:已否决,代码已撤销(2026-08-27)。** 不是"默认关闭、开关还留着"——`approximateSimpleMasksAsPathIntersect` 字段、`AnimatedSvgPainter` 里对应的绘制路径(`intersectMasks`/`_paintMaskedContentAsIntersection`/`_resolveIntersectedPath` 等)、`SvgNode.cachedMaskIntersect` 等缓存字段,以及专用测试 `test/animation/mask_intersect_approximation_test.dart`,均已从代码库中删除。下面的真机数据与结论**原样保留**,供以后有人想重新尝试这个方向时直接参考,不必重新测一遍——若要重新实现,基础设施(4 臂/`ARMFLIP` 配平方法学、微基准脚手架)仍在,可以参照本节复现。否决原因见"结论 4":求交在 raster 上确实比 clip 近似更省,但换来的 build 端开销更贵仍旧打不过"只跳帧"的出厂默认方案——真正的瓶颈在 UI 线程(build),不在 GPU 光栅化。
+>
+> `benchmark/bench_app/test/mask_clip_cost_bench_test.dart`、`benchmark/bench_app/test/mask_eligibility_survey_test.dart` 中原本共用的 intersect 相关测量代码已一并移除,只保留支撑 `approximateSimpleMasksAsClip`(仍在用)与"静态 mask 烘焙"否决结论(`bothFullyStatic=0`)的部分。
+
+**动机(用户原话)**:"mask 不参与绘制,直接解析为最终结果直接绘制。比如一个方块被 mask 以后是五角星,能不能直接算出五角星的点阵路径后,直接绘制五角星,跳过 mask"。
+
+上一轮的 `approximateSimpleMasksAsClip` 只是把两个 `saveLayer` 换成了一次 `canvas.clipPath`——**内容还是照常画一遍,再被裁掉一部分**,显示列表里仍有 `save`/`clipPath`/`restore` 三件套,光栅化时仍要遵守这个裁剪。本轮新增 `approximateSimpleMasksAsPathIntersect`:合格时用 `Path.combine(PathOperation.intersect, 内容几何, mask 几何)` **预先算出最终路径**,然后一次普通 `drawPath` 画出——这一帧里既没有离屏图层,**也没有裁剪**。被五角星 mask 的方块,发出去的就是五角星本身。
+
+### 实现的关键:缓存粒度(这决定它是赚还是亏)
+
+`Path.combine` 是原生布尔运算 + 一次新路径分配,是这条路径上唯一真正贵的一步,而它是纯函数。因此逐叶子形状缓存求交结果(`SvgNode.cachedMaskIntersect`),三个键**全部**参与比较:
+
+| 键 | 比较方式 | 为什么这样够 |
+|---|---|---|
+| `maskIntersectMaskKey` | 身份(`identical`) | `_resolveMaskClipPath` 在 mask 采样签名不变时返回**同一个** `ui.Path` 实例(上一轮的 `cachedMaskClip`),所以已定格/静止的 mask 在这里只花一次指针比较 |
+| `maskIntersectGeometryKey` | 身份(`identical`) | `cachedGeometry` 在形状几何属性不变时保持同一个 `ui.Path` |
+| `maskIntersectMatrixKey` | 按值(6 个 double) | `<animateTransform>` 每帧产出新列表,但常常采样出**相同数值** |
+
+上一轮 build 端 +2.55ms 的来源已经查清,**不是"没缓存好"**:主机侧微基准显示,mask 定格(签名缓存命中)时裁剪近似比精确管线**便宜** 6.66µs/图标/帧,而 mask **在动**时贵 28.53µs/图标/帧——贵的那部分是"重建 mask 并集路径"本身,缓存按定义无法消除。求交版本继承了同一条路径并在它之后再加一次布尔运算,所以本轮的预期是"raster 更省、build 更贵",实测也正是如此。
+
+### 主机侧微基准(确定性,61 个带 mask 图标,60 帧,min-of-5)
+
+`benchmark/bench_app/test/mask_clip_cost_bench_test.dart`,相对精确管线的每图标每帧增量:
+
+| 场景 | 裁剪近似 | 几何求交 |
+|---|---|---|
+| mask 在动(每帧推进时间线) | **+28.53µs** | **+38.80µs** |
+| mask 定格(签名缓存 100% 命中) | **−6.66µs** | **−0.96µs** |
+
+即:UI 线程上求交**确实比裁剪更贵**(动态 +10µs、定格时优势从 −6.7µs 缩到 −1.0µs)。这个方向在真机 build 数字上也复现了。
+
+### 覆盖率(确定性统计,真实 399 图标语料)
+
+`benchmark/bench_app/test/mask_eligibility_survey_test.dart` 新增第二项统计:
+
+```
+clipEligibleRefs=31 intersectEligibleRefs=31
+shapesDrawnAsIntersections=27 intersectShareOfClipEligible=100.0%
+```
+
+**裁剪合格的 31 个 mask 引用,100% 也满足求交对内容的要求**(纯色填充、无描边、无渐变)。即在这份语料上求交能完整接管裁剪近似的全部收益,不需要退回裁剪。这不是普遍规律——求交对内容多加了一层条件,所以严格更窄;只是真实图标集里被 mask 的内容恰好都很朴素。
+
+### 真机四臂配对实测(**双向配平**,共 8 次干净运行,这是本轮主证据)
+
+设备华为 STG-AL00(Android 12,Impeller GLES),`--dart-define=LIB=anim_fps --dart-define=ITEMS=1000 --dart-define=AUTOEXIT=1 --dart-define=QUALITYAB=true --dart-define=CYCLES=6`。新增第四臂 `intersect`。
+
+**为什么这次必须配平顺序**:`full` 与 `intersect` 是相邻两臂,预期差异只有 1ms 量级,而上一轮已如实记录"后跑的臂拿到更热的设备"。因此本轮跑了两组各 4 次:正序(`exact → skiponly → full → intersect`)与反序(`ARMFLIP=true`,`intersect → full → skiponly → exact`),下表是 **8 次合并的中位数**。
+
+| 臂 | real_fps | build avg | raster avg |
+|---|---|---|---|
+| `exact`(不降级,对照) | 29.14 | 21.014ms | 22.579ms |
+| `skiponly`(**出厂默认**,仅跳帧) | **34.00** | **13.945ms** | 25.961ms |
+| `full`(跳帧 + mask 转 clip) | 32.48 | 17.401ms | 23.191ms |
+| `intersect`(跳帧 + mask 转几何求交) | 33.07 | 17.703ms | **22.080ms** |
+
+逐次原始数据(正序 4 次 + 反序 4 次,已排序):
+
+| 臂 | real_fps 全量 | build avg 全量 | raster avg 全量 |
+|---|---|---|---|
+| `full` | 31.42 / 31.75 / 32.36 / 32.38 / 32.57 / 32.71 / 33.09 / 33.30 | 16.547 / 16.838 / 17.087 / 17.337 / 17.465 / 17.644 / 17.807 / 18.452 | 22.959 / 23.070 / 23.158 / 23.185 / 23.196 / 23.201 / 23.292 / 23.495 |
+| `intersect` | 31.76 / 31.83 / 32.22 / 33.04 / 33.10 / 33.40 / 33.67 / 33.83 | 16.897 / 17.113 / 17.129 / 17.495 / 17.910 / 18.006 / 18.264 / 18.361 | 21.575 / 21.644 / 21.884 / 21.990 / 22.169 / 22.406 / 22.459 / 22.597 |
+
+**结论 1:求交在 raster 上确实赢过裁剪,而且是硬信号。** raster 23.191 → 22.080ms(**−1.11ms**),两臂 8 次的分布**完全不重叠**(`full` 最低 22.959 > `intersect` 最高 22.597),且正序、反序**两组各自内部也都不重叠**——顺序偏置无法解释它。机制上说得通:裁剪只去掉了离屏通道,求交把裁剪本身也去掉了。求交的 raster(22.080)甚至已经低于 `exact` 臂(22.579)——也就是说,跳帧引入的那部分 raster 涨幅被完全抵消掉了。
+
+**结论 2:build 上求交比裁剪略贵,但差异落在噪声里。** 17.401 → 17.703ms(**+0.30ms**),分布**重叠**(`intersect` 最低 16.897 < `full` 最高 18.452)。方向与主机侧微基准一致(+10µs/图标/帧),量级也对得上,但这个基准分辨不出它。
+
+**结论 3:因此"求交 vs 裁剪"这一问的答案是:求交更划算,它严格优于上一轮的裁剪近似。** real_fps 32.48 → 33.07(**+1.8%**)。诚实标注:两臂 real_fps 分布**重叠**,+1.8% 本身不是硬信号;能坐实的是 raster 的 −1.11ms(不重叠)配上 build 的 +0.30ms(重叠),即"用一笔量不出来的 CPU 开销换到一笔量得出来的 GPU 节省"。**顺序配平的作用在这里很直观**:正序里 `intersect` 排最后、拿最热的设备,读数是 fps 32.22 / build 18.264;反序里它排最前、拿最凉的设备,读数是 fps 33.67 / build 17.495——单跑正序会得出"求交比裁剪差"的相反结论,单跑反序会得出"求交大胜"的夸大结论,**两组都跑才是真相**。
+
+**结论 4:但求交仍然打不过"只跳帧"的出厂默认,所以默认依旧关闭。** `skiponly` 的 real_fps 34.00 高于 `intersect` 的 33.07,而 `skiponly` 的 build(13.945ms)低了 3.76ms——两臂 build 分布不重叠。1000 图标场景的墙是 build,不是 raster;任何把工作从 raster 搬到 build 的做法在这台设备上都是逆风。
+
+**处置**:
+- **出厂默认不变** = 只跳帧(两项 mask 近似都关)。
+- 新增 opt-in 开关 `SvgXAnimationQuality(approximateSimpleMasksAsPathIntersect: true)`。
+- **要 opt-in 时,推荐用求交而不是裁剪**——同样的合格性前提下它严格更好。两者可同时打开(`approximateSimpleMasksAsClip: true` 一起给),此时求交处理它能处理的、裁剪接住其余的;在本语料上求交覆盖率已是 100%,裁剪只在内容含描边/渐变时才接得到活。
+- 判据不变:**若目标设备的墙在 raster 而不是 build**(GPU 相对 CPU 更弱),这两个开关就会翻正,而求交是其中更赚的那个。四臂模式(`QUALITYAB=true`,配 `ARMFLIP=true` 做反序)就是在新设备上重新判定的现成工具。
+
+### 又踩到一次同样的测量基础设施 bug(第三次了,这次彻底修掉)
+
+上一轮把逐臂数据从"追加到头条报告"改成"独立的一整块消息",以躲开 logcat 单条消息截断。**加上第四臂后那一整块也顶过了上限**,截断正好落在第四臂数字中间:`arm=intersect build : ...` 之后就没了,`arm=intersect raster:` 这一行在抓到的日志里**根本不存在**。后果是整整 4 次运行的测量,恰恰在它专门要测的那一臂上拿不到 raster 数字(每次运行只抓到 18 行而不是 20 行,这是发现它的线索)。
+
+修法:改成**逐臂一条消息**(`=== ANIM FPS BENCH ARM <label> ===`),消息大小与臂数无关,再加臂也不会复活。
+
+**教训**:同一个失败模式已经用两种不同形态咬了三次(追加到头条 → 独立整块 → 整块也超限)。前两次的修法都只是"把当前这个块塞回上限以内",治的是症状;这次改成"让消息大小与数量解耦",治的是原因。**遇到第二次出现的同类 bug,应该直接怀疑修法的结构而不是再调一次尺寸。**
+
+### 目视验证:四臂截图对比(真机,静止态)
+
+`--dart-define=QUALITYAB=true --dart-define=CYCLES=0 --dart-define=HOLD=14`,一次启动内每 2 秒截一张共 28 张,靠 AppBar 上的 `[exact]`/`[skiponly]`/`[full]`/`[intersect]` 标签定位臂边界(标签区域的逐帧变化落在第 5、10、16、21 张,即四臂分别对应第 1–4、5–9、10–15、16–20 张)。四臂全程处于同一滚动位置(列表顶部),因此可以直接逐像素比较。
+
+**量化结果**(整个内容区、不含 AppBar 的平均通道差,相对第 1 张 `exact` 帧):
+
+| 帧属于哪一臂 | 相对首张 `exact` 帧的平均差 |
+|---|---|
+| `exact`(第 1–4 张,**同一臂内部**) | 0.000 / 0.800 / 1.304 / 1.659 |
+| `intersect`(第 16–20 张) | 1.092 / 1.281 / 1.167 / 1.535 / 1.485 |
+
+**结论:换臂带来的差异,没有超出同一臂内部帧与帧之间的差异。** 语料里大量 line-md 图标是无限循环动画,静止态下也一直在动,所以任意两个时刻本来就有 0.8–1.7 的平均差;`intersect` 臂的帧落在完全相同的区间内。这不是"逐像素相等"的证明(循环动画下不可能有),而是"求交近似没有引入任何超出动画自身相位差的结构性差异"。
+
+**肉眼对比**(截取 mask 最密集的云朵/杯子那几行,`exact` 帧与 `intersect` 帧上下并排):云朵轮廓、缺口位置、线宽、杯子的开口完全对得上,没有变形、没有镂空、没有错位、没有图标消失。唯一可见的差别是云朵内部上/下箭头的长度不同——那是 SMIL 动画相位,不是 mask 产物。
+
+逐像素严格比对由 `test/animation/mask_intersect_approximation_test.dart` 在受控条件(固定时刻、无循环动画)下完成:五角星 mask 场景要求远离抗锯齿边界的采样点 alpha 与 red **完全相等**。
+
+### 调研并否决:"把 mask 合并交给 Rust 侧 usvg/tiny-skia 在解析期一次性算掉"
+
+**提案**:既然方向已经是"不渲染 mask,而是把它合并进最终路径",那这个合并没必要在 Dart 里自己再写一遍/逐帧再算一遍——直接用 Rust 侧 usvg(或它内部的 `tiny_skia_path`)在解析期算出最终结果交给 Dart,Dart 只负责画路径。
+
+这个提案有两个前提,**两个都被实测否掉了**。
+
+**前提一(可行性):必须存在"mask 定义与被遮罩内容两侧都完全不受时间线影响"的 mask。** 否则不存在唯一的"最终路径"可以烘焙——任一侧每帧在动,预先算好就是错的。确定性统计(`benchmark/bench_app/test/mask_eligibility_survey_test.dart` 第三项,已钉成断言):
+
+```
+maskRefs=65 maskDefStatic=10 contentStatic=40 bothFullyStatic=0
+```
+
+**65 个 mask 引用里,两侧同时静态的有 0 个。** 分布也很说得通:40 个是"内容静态、mask 在动"(line-md 的揭示动画就是拿动的 mask 去擦静态图形),10 个是"mask 静态、内容在动",两者**没有交集**。机制上这不是巧合——**图标集里的 mask 之所以存在,就是因为它要动**;真要是两侧都不动,作者直接画出最终形状就好了,根本不会写 mask。
+
+这一条已钉成 `expect(bothFullyStatic, 0)`:若哪天语料更新让它非 0,解析期烘焙就值得做,而这个测试会大声失败来通知。
+
+**前提二(收益):必须存在"逐帧重复做、但其实可以只做一次"的合并工作。** 而逐形状求交缓存(`SvgNode.cachedMaskIntersect`,三键比较)已经把所有能合并的帧都合并掉了。同一套件第四项,时间线按 60Hz 推进 60 帧:
+
+```
+shapeFrames=1593 combinesActuallyRan=1523 cacheHitRate=4.4%
+```
+
+即**逐帧真的重跑 `Path.combine` 的比例是 95.6%,而这 95.6% 全部是"这一帧的几何确实和上一帧不同"**——不是缓存没做好,是内容真的变了。剩下 4.4% 是相邻帧恰好采样出相同数值或动画已定格,已经被缓存吃掉了。**没有任何一部分是解析期能预先算掉的。**
+
+**另外两点澄清,避免以后再绕同一个弯**:
+
+1. **`Path.combine` 不是"我们自己实现的算法"**。`dart:ui` 的 `Path.combine` 直接调用 Skia/Impeller 的路径布尔运算,与 usvg 内部用 `tiny_skia_path` 做的是同一类底层能力,只是换了个引擎入口。所以"用 usvg 就不用自己写一遍"这个动机本身不成立——两边都不是我们写的,区别只在**什么时候算**(解析期一次 vs 每帧),而上面两项数据已经说明"解析期一次"在动画帧上不成立。
+2. **"完全静态的 SVG 用 Rust/usvg 把 mask 算掉"这件事早就在做了,而且是默认行为**。`lib/src/svgx_widget.dart` 靠 `AnimationDetector.hasAnimations(source)` 分流:源串里没有 SMIL 标记的文档**根本不会进入 Dart 动画引擎**,而是走 U(Rust usvg)解析 → 显示列表 → Dart 建 `ui.Picture` 缓存那条静态路径,mask 由 usvg 处理并烘焙进缓存好的 `Picture`,每帧零 mask 工作。也就是说提案想要的东西,在它唯一成立的场景(整份文档静态)里已经是现状;Dart 动画引擎里剩下的 mask,**定义上全是带动画的那些**——这也正是 `bothFullyStatic=0` 的结构性原因。
+
+**结论**:方向否决,不投入 Rust 侧改动。运行时逐帧 `Path.combine`(上文 `intersect` 臂)保持为该场景的手段。**注意这不是"懒得做",而是覆盖率实测为 0 且可省工作量实测为 0**——两项都钉进了确定性测试,语料一变就会报警。
+
+## 2026-08-27 准备中:跳帧 + clip 近似组合是否叠加收益(等待真机)
+
+**要验证的假设**:跳帧(降低重画频率)与 mask-转-clip 近似(降低单次重画成本)在设计上正交,组合起来能否把 `skiponly` 单独开启时那个反常偏高的 raster(25.96ms,高于 `exact` 的 22.58ms)压下来,同时不吃掉 `skiponly` 在 build 上的优势。
+
+**重要发现,先纠正一个前提**:着手准备这轮测试时发现,"跳帧 + clip 组合"其实**已经在测过了,只是没有用这个名字**——见上面"三臂/四臂"两轮的 `full` 臂。`SvgXAnimationQuality` 的构造函数里 `adaptiveFrameSkipping` 默认就是 `true`,而 `full` 臂的配置是 `SvgXAnimationQuality(approximateSimpleMasksAsClip: true)`,只覆盖了 clip 这一个字段——也就是说 `full` 从一开始就是"跳帧默认开 + clip 手动开"的组合,不是"只测 clip、不测跳帧"的隔离项。四臂轮真机数据(见上文"真机四臂配对实测"表)已经直接回答了这轮要问的问题:
+
+| 臂 | real_fps | build | raster |
+|---|---|---|---|
+| `exact` | 29.14 | 21.01ms | 22.58ms |
+| `skiponly`(仅跳帧) | **34.00** | **13.95ms** | 25.96ms |
+| `full`(跳帧 + clip,即本轮要的"组合") | 32.48 | 17.40ms | **23.19ms** |
+
+也就是说反常假设**部分成立、部分不成立**:组合确实把 raster 从 25.96ms 拉回到 23.19ms(比单独跳帧更接近 `exact` 的 22.58ms,方向支持"跳帧改变了重绘分布、clip 能部分修正"这个猜想),但 build 从 13.95ms 涨到 17.40ms,净 real_fps 反而比只跳帧更低(32.48 < 34.00)——1000 图标场景的瓶颈是 build 而不是 raster,这笔交易在这台设备上依旧不划算,与 `docs` 里"结论 4"的判断一致。
+
+**代码层面的准备(已完成)**:
+
+1. `lib/src/animation/svgx_animation_quality.dart`——**不需要新代码**。`adaptiveFrameSkipping` 与 `approximateSimpleMasksAsClip` 是两个完全独立的构造参数,`frameDivisorFor`/`approximatesMasksAt` 各自只读自己对应的字段,没有任何互斥或"二选一"的硬编码逻辑,`SvgXAnimationQuality(adaptiveFrameSkipping: true, approximateSimpleMasksAsClip: true)` 这种组合本来就能自由构造(`full` 臂事实上就是这么用的,只是没显式写出 `adaptiveFrameSkipping: true`)。
+2. `benchmark/bench_app/lib/anim_fps_bench_screen.dart`——`QUALITYAB=true` 模式下新增第四臂 **`combined`**,紧跟在 `full` 之后。它的配置与 `full` 完全一致(两个字段都用 `true` 显式写出,不依赖默认值),目的不是产生新数据,而是给这个组合一个不会被误认成"只测 clip"的独立名字,并作为对 `full` 现有数据的一次同批次复测/交叉验证——如果 `combined` 与 `full` 的结果出现大且可复现的差距,那本身就是新发现(比如四臂之后设备温度漂移更严重),而不是"配置真的不同"。
+
+**主机侧验证结果(已完成,均在开发机上跑,不涉及任何真机/adb)**:
+
+- `fvm flutter analyze`(`svgx` 主包):干净,`No issues found!`。
+- `fvm flutter analyze`(`benchmark/bench_app`):1 个错误,`test/widget_test.dart:16` 引用了不存在的 `MyApp` 类——**与本轮改动无关**,是该脚手架测试文件本来就有的历史遗留问题(未被本轮 diff 触碰,`git diff --stat` 确认)。
+- `fvm flutter test`(`svgx` 主包):176 个测试全部通过(部分依赖原生 `svgx.dll` 的测试在本机被跳过,是本机没有编译好的动态库导致,与本轮改动无关)。
+- `fvm flutter test test/mask_clip_cost_bench_test.dart test/mask_eligibility_survey_test.dart`(`benchmark/bench_app`,主机侧微基准,不需要设备):3 个测试全部通过,数字与既有记录一致(`saveLayersRemovedShare=47.7%`、`bothFullyStatic=0`、mask 在动时裁剪近似 +29.75µs/图标/帧、定格时 −5.69µs/图标/帧)——说明当前代码状态(跳帧默认开 + `approximateSimpleMasksAsClip` opt-in 字段都健在)没有引入逻辑冲突或数值层面的意外变化。
+
+**真机验证还没做**。等真机可用后,直接跑(设备与参数与上面两轮四臂测试保持一致,便于横向比较):
+
+```
+--dart-define=LIB=anim_fps --dart-define=ITEMS=1000 --dart-define=AUTOEXIT=1 --dart-define=QUALITYAB=true --dart-define=CYCLES=6
+```
+
+即可在同一进程内背靠背跑完 `exact` → `skiponly` → `full` → `combined` 四臂,报告里每臂各有一条独立的 `=== ANIM FPS BENCH ARM <label> ===` 消息(`real_fps`/`build`/`raster` 齐全,不会被 logcat 截断)。若要做双向配平(排除臂序温度漂移),按之前四臂轮的方法再跑一组反序:
+
+```
+--dart-define=LIB=anim_fps --dart-define=ITEMS=1000 --dart-define=AUTOEXIT=1 --dart-define=QUALITYAB=true --dart-define=CYCLES=6 --dart-define=ARMFLIP=true
+```
+
+**预期与建议**:鉴于 `combined` 与已有 `full` 配置完全相同,预期两者数字在噪声范围内一致,这轮真机测试与其说是"验证新组合",不如说是"确认现有 `full` 结论可复现,并顺带把这个组合的名字理清楚"。若真机确认 `combined` ≈ `full`(32-33 fps 区间,raster 明显低于 `skiponly`、build 明显高于 `skiponly`),则本轮假设已有答案:组合能改善 raster 异常但改善不了净 fps,`skiponly`-only 仍是出厂默认的正确选择,不需要为这个组合专门开新的 opt-in 项。

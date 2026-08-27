@@ -10,6 +10,7 @@ import 'package:flutter/widgets.dart';
 import 'animation/animated_svg_widget.dart';
 import 'animation/animation_detector.dart';
 import 'animation/svg_theme.dart';
+import 'animation/svgx_animation_quality.dart';
 import 'rust_static_svg.dart';
 
 /// Renders an SVG string, automatically picking the animated or static
@@ -47,6 +48,7 @@ class SvgX extends StatelessWidget {
     this.alignment = Alignment.center,
     this.colorFilter,
     this.theme,
+    this.quality,
   });
 
   /// Raw SVG markup, animated or static. / 原始 SVG 源，动画或静态均可。
@@ -73,6 +75,14 @@ class SvgX extends StatelessWidget {
   /// 控制 `currentColor` 的主题，动画与静态两条渲染路径均生效。
   final SvgTheme? theme;
 
+  /// Animation quality/performance trade-off, forwarded to
+  /// [SvgXAnimated.string]; ignored for a static source (the static path
+  /// renders a cached `ui.Picture` and has no per-frame sampling to degrade).
+  ///
+  /// 动画的画质/性能取舍，转发给 [SvgXAnimated.string]；静态源忽略此参数
+  /// （静态路径渲染的是缓存好的 `ui.Picture`，没有逐帧采样可降级）。
+  final SvgXAnimationQuality? quality;
+
   @override
   Widget build(BuildContext context) {
     if (AnimationDetector.hasAnimations(source)) {
@@ -83,6 +93,7 @@ class SvgX extends StatelessWidget {
         fit: fit,
         alignment: alignment,
         theme: theme,
+        quality: quality,
       );
     }
     return SvgXStatic(
