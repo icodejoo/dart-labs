@@ -164,6 +164,19 @@ class AnimatedSvgPainter extends CustomPainter {
     final sy = dest.height / intrinsicSize.height;
     final dx = (size.width - dest.width) * ((alignment.x + 1) / 2);
     final dy = (size.height - dest.height) * ((alignment.y + 1) / 2);
+    // Recorded for [_maskLayerBounds]; the tighter axis is used so the padding
+    // it derives is at least the requested number of device pixels on both.
+    // Note this is logical-pixels-per-user-unit, not physical: the device
+    // pixel ratio is applied by the layer above, so a padding of "two pixels"
+    // here is two logical pixels — deliberately generous rather than exact,
+    // since over-padding only costs offscreen area.
+    //
+    // 供 [_maskLayerBounds] 使用；取较紧的那个轴，使它推导出的外扩量在两个轴上
+    // 都不少于所要求的设备像素数。注意这是"逻辑像素/用户单位"而非物理像素：设备
+    // 像素比由上层图层施加，所以这里的"两个像素"是两个逻辑像素——刻意取宽松而非
+    // 精确值，因为外扩过头只多花一点离屏面积。
+    final scale = sx.abs() < sy.abs() ? sx.abs() : sy.abs();
+    _userUnitsPerDevicePixel = scale > 0 ? 1 / scale : 1;
 
     canvas.save();
     canvas.translate(dx, dy);
@@ -175,7 +188,9 @@ class AnimatedSvgPainter extends CustomPainter {
     //     SVG spec, so content escaping the viewBox must not paint. The static
     //     (usvg) path already behaves this way; this path used to not.
     //  2. Performance — this is why it matters at scale. `_paintNode` opens
-    //     `saveLayer(null, ...)` layers for `<mask>` and `feGaussianBlur`.
+    //     `saveLayer` layers for `<mask>` and `feGaussianBlur`, and passes a
+    //     null bounds for the blur (and for a mask whose bounds cannot be
+    //     established — see `_maskLayerBounds`).
     //     A null bounds means "unbounded", so the renderer sizes the offscreen
     //     render target from the *current clip*, and `CustomPaint` does not
     //     clip its canvas — the clip was therefore the whole window. Every
@@ -415,6 +430,35 @@ class AnimatedSvgPainter extends CustomPainter {
         maskDef = null;
       }
     }
+    // LOSSLESS: size the mask pipeline's two offscreen layers to the mask
+    // content's own bounds instead of leaving them unbounded (= sized to the
+    // whole SVG viewport, see this class's `paint`). Why it cannot change a
+    // pixel, why it is worth doing, and when it bails out: see
+    // [SvgXAnimationQuality.tightMaskLayerBounds] and [_maskLayerBounds].
+    //
+    // 无损：把 mask 管线的两个离屏图层按 mask 内容自身的边界分配，而不是留成无界
+    // （即按整个 SVG 视口分配，见本类 `paint`）。为何不可能改变任何像素、为何值得
+    // 做、以及何时会放弃：见 [SvgXAnimationQuality.tightMaskLayerBounds] 与
+    // [_maskLayerBounds]。
+    Rect? maskLayerBounds;
+    if (maskDef != null && !hasBlur && quality.tightMaskLayerBounds) {
+      maskLayerBounds = _maskLayerBounds(maskDef, time);
+      // Nothing this node paints can survive a mask whose coverage lies
+      // entirely outside the visible clip (an off-canvas reveal mask before it
+      // slides in, or a mask that paints nothing at all at this instant), so
+      // the whole subtree — and both of its offscreen passes — is skipped
+      // outright. Exact, not an approximation: `dstIn` would have erased every
+      // pixel of it.
+      //
+      // 当一个 mask 的覆盖度整体落在可见裁剪区之外时（还没滑进来的离屏揭示
+      // mask，或此刻根本不画任何东西的 mask），本节点画的一切都不可能存活，于是
+      // 整个子树——连同它的两个离屏通道——被直接跳过。这是精确的，不是近似：
+      // `dstIn` 本来就会把它的每个像素都擦掉。
+      if (maskLayerBounds != null &&
+          !maskLayerBounds.overlaps(canvas.getLocalClipBounds())) {
+        return;
+      }
+    }
     final needsClipMaskSave =
         clipDef != null || maskDef != null || maskClip != null;
     if (needsClipMaskSave) canvas.save();
@@ -438,7 +482,7 @@ class AnimatedSvgPainter extends CustomPainter {
     //
     // mask 内容经 BlendMode.dstIn（见 _maskCoveragePaint）合成进的目标图层——
     // 现在开启，使其包裹下方绘制的一切，包括本节点应用的任何变换。
-    if (maskDef != null) canvas.saveLayer(null, Paint());
+    if (maskDef != null) canvas.saveLayer(maskLayerBounds, Paint());
     // feGaussianBlur: paint this node (and its subtree) into an offscreen
     // layer, then blur the whole layer on composite — rather than blurring
     // each stroke/fill individually, which is what SVG's filter semantics
@@ -464,7 +508,9 @@ class AnimatedSvgPainter extends CustomPainter {
         node.transform == null) {
       _paintNodeContent(canvas, node, style, effectiveAttributes);
       if (hasBlur) canvas.restore();
-      if (maskDef != null) _applyMaskLayer(canvas, maskDef);
+      if (maskDef != null) {
+        _applyMaskLayer(canvas, maskDef, maskLayerBounds);
+      }
       if (needsClipMaskSave) canvas.restore();
       return;
     }
@@ -553,20 +599,24 @@ class AnimatedSvgPainter extends CustomPainter {
     canvas.restore(); // closes the transform save() a few lines above
 
     if (hasBlur) canvas.restore();
-    if (maskDef != null) _applyMaskLayer(canvas, maskDef);
+    if (maskDef != null) _applyMaskLayer(canvas, maskDef, maskLayerBounds);
     if (needsClipMaskSave) canvas.restore();
   }
 
   /// Composites [maskDef]'s content (sampled at [time]) as coverage over
   /// whatever was just painted into the current destination layer, then
   /// closes that layer — the second half of the mask machinery `_paintNode`
-  /// opens with `canvas.saveLayer(null, Paint())`.
+  /// opens with `canvas.saveLayer(layerBounds, Paint())` — [layerBounds] must
+  /// be the same value that call was given (see [_maskLayerBounds]), or null
+  /// when the layers are left unbounded.
   ///
   /// 把 [maskDef] 的内容（在 [time] 采样）作为覆盖度合成到刚绘制进当前目标图层
   /// 的内容之上，然后关闭该图层——是 `_paintNode` 用
-  /// `canvas.saveLayer(null, Paint())` 开启的 mask 机制的后半段。
-  void _applyMaskLayer(Canvas canvas, SvgNode maskDef) {
-    canvas.saveLayer(null, _maskCoveragePaint());
+  /// `canvas.saveLayer(layerBounds, Paint())` 开启的 mask 机制的后半段——
+  /// [layerBounds] 必须与那次调用传入的值一致（见 [_maskLayerBounds]），图层保持
+  /// 无界时为 null。
+  void _applyMaskLayer(Canvas canvas, SvgNode maskDef, Rect? layerBounds) {
+    canvas.saveLayer(layerBounds, _maskCoveragePaint());
     _paintNode(canvas, maskDef, ResolvedStyle.initial, nested: true);
     canvas
       ..restore()
@@ -591,6 +641,242 @@ class AnimatedSvgPainter extends CustomPainter {
       0, 0, 0, 0, 0, //
       0.2125, 0.7154, 0.0721, 0, 0,
     ]);
+
+  /// User units per device pixel along the tighter axis, captured by [paint]
+  /// from the box-fit scale it applies. Used by [_maskLayerBounds] to pad its
+  /// bounds by a couple of device pixels; without a scale to convert through,
+  /// "a pixel of slack" is not expressible in the user-space coordinates the
+  /// bounds are computed in.
+  ///
+  /// 沿较紧的那个轴，一个设备像素等于多少用户单位；由 [paint] 从它应用的
+  /// box-fit 缩放中记录。供 [_maskLayerBounds] 把边界外扩几个设备像素之用：没有
+  /// 这个换算比例，"留一个像素余量"在计算边界所用的用户空间坐标里无法表达。
+  double _userUnitsPerDevicePixel = 1;
+
+  /// The bounds a `<mask>` definition's coverage can possibly occupy at
+  /// [time], in the coordinate space the mask's two `saveLayer`s are opened in
+  /// (this node's space *before* its own transform — see [_paintNode]), or
+  /// null when that cannot be established safely.
+  ///
+  /// Sizing both mask layers to this is lossless: the coverage layer draws
+  /// nothing outside it, and content outside it has no coverage over it so
+  /// `BlendMode.dstIn` erases it anyway — see
+  /// [SvgXAnimationQuality.tightMaskLayerBounds] for the full argument and the
+  /// pixel-level verification.
+  ///
+  /// Deliberately conservative in five places, because an over-estimate only
+  /// costs offscreen area while an under-estimate would clip real coverage:
+  ///
+  ///  1. Returns null (keep the layers unbounded) for a `<text>` mask — glyph
+  ///     bounds need a laid-out [TextPainter], not geometry — and for a blur
+  ///     anywhere inside the mask, whose output spreads past its input's
+  ///     bounds. (A blur on the *masked* node is handled by [_paintNode],
+  ///     which does not call this at all in that case.)
+  ///  2. Returns null when a node carries a `style` attribute or an explicit
+  ///     `stroke-miterlimit`: both can widen the painted region through a
+  ///     channel this walk does not parse.
+  ///  3. Inflates stroked geometry by twice its stroke width — half a width
+  ///     for the stroke itself plus room for a miter join at the default
+  ///     `stroke-miterlimit` of 4.
+  ///  4. Ignores any `clip-path`/`mask` on the mask's own children, which can
+  ///     only shrink their coverage.
+  ///  5. Pads the result by two device pixels, so that antialiasing spill
+  ///     along the outermost geometry's edge — coverage that lands in pixels
+  ///     straddling the exact geometric bound — stays inside the layer.
+  ///
+  /// [defRoot] — the mask definition's root node. / mask 定义的根节点。
+  ///
+  /// [time] — timeline position to sample the mask's animations at.
+  ///
+  ///   对 mask 自身动画采样的时间线位置。
+  ///
+  /// Returns the padded bounds, an empty [Rect] when the mask paints nothing
+  /// at all at [time] (the masked subtree is then fully invisible), or null
+  /// when the bounds are indeterminate.
+  ///
+  ///   返回外扩后的边界；mask 在 [time] 什么都不画时返回空 [Rect]（此时被遮罩子树
+  ///   完全不可见）；边界无法确定时返回 null。
+  ///
+  /// 一个 `<mask>` 定义的覆盖度在 [time] 可能占据的边界，坐标空间与该 mask 两个
+  /// `saveLayer` 开启时所处的空间一致（本节点自身变换*之前*的空间——见
+  /// [_paintNode]）；无法安全确定时返回 null。
+  ///
+  /// 把两个 mask 图层都按它来分配是无损的：覆盖度图层在它之外什么都不画，而它之外
+  /// 的内容头上没有覆盖度，`BlendMode.dstIn` 本来就会擦掉——完整论证与像素级验证见
+  /// [SvgXAnimationQuality.tightMaskLayerBounds]。
+  ///
+  /// 有五处刻意保守，因为高估只多花一点离屏面积，而低估会裁掉真实的覆盖度：
+  ///
+  ///  1. `<text>` mask（字形边界需要已排版的 [TextPainter]，不是几何图形）与 mask
+  ///     内部任意位置的模糊（其输出会扩散到输入边界之外）都返回 null（保持图层
+  ///     无界）。（*被遮罩*节点自身的模糊由 [_paintNode] 处理——那种情况下它根本
+  ///     不会调用本方法。）
+  ///  2. 节点带 `style` 属性或显式 `stroke-miterlimit` 时返回 null：两者都可能通过
+  ///     本遍历不解析的渠道扩大实际绘制区域。
+  ///  3. 带描边的几何按其描边宽度的两倍外扩——描边本身占半个宽度，其余留给默认
+  ///     `stroke-miterlimit` 为 4 时的尖角连接。
+  ///  4. 忽略 mask 自己子节点上的 `clip-path`/`mask`，它们只会缩小覆盖度。
+  ///  5. 结果外扩两个设备像素，使最外层几何边缘的抗锯齿溢出——落在跨越精确几何
+  ///     边界那些像素里的覆盖度——仍然留在图层内。
+  Rect? _maskLayerBounds(SvgNode defRoot, Duration time) {
+    Rect? union;
+    var indeterminate = false;
+
+    void walk(
+      SvgNode node,
+      List<double> matrix,
+      String? inheritedStroke,
+      double inheritedStrokeWidth,
+    ) {
+      if (indeterminate) return;
+      final blurSigma = node.blurSigma;
+      if (blurSigma != null && blurSigma > 0) {
+        indeterminate = true;
+        return;
+      }
+      final attributes = _effectiveAttributes(node);
+      if (attributes.containsKey('style') ||
+          attributes.containsKey('stroke-miterlimit')) {
+        indeterminate = true;
+        return;
+      }
+      var accum = matrix;
+      if (node.transform != null) accum = concatAffine(accum, node.transform!);
+      for (final transformAnimation in node.transformAnimations) {
+        final sampled = transformAnimation.sample(time);
+        if (sampled == null) continue;
+        accum = concatAffine(
+          accum,
+          _transformSampleToAffine(transformAnimation.type, sampled),
+        );
+      }
+      for (final motion in node.motionAnimations) {
+        final sampled = motion.sample(time);
+        if (sampled == null) continue;
+        accum = concatAffine(accum, [1, 0, 0, 1, sampled.x, sampled.y]);
+        if (sampled.angleDegrees != 0) {
+          final rad = sampled.angleDegrees * math.pi / 180;
+          final cosr = math.cos(rad), sinr = math.sin(rad);
+          accum = concatAffine(accum, [cosr, sinr, -sinr, cosr, 0, 0]);
+        }
+      }
+      final stroke = attributes['stroke'] ?? inheritedStroke;
+      final strokeWidth =
+          double.tryParse(attributes['stroke-width'] ?? '') ??
+          inheritedStrokeWidth;
+
+      Rect? local;
+      switch (node.kind) {
+        case SvgNodeKind.root:
+        case SvgNodeKind.group:
+          for (final child in node.children) {
+            walk(child, accum, stroke, strokeWidth);
+          }
+          return;
+        case SvgNodeKind.text:
+          indeterminate = true;
+          return;
+        case SvgNodeKind.image:
+          final w = _num(attributes, 'width');
+          final h = _num(attributes, 'height');
+          if (w <= 0 || h <= 0) return;
+          local = Rect.fromLTWH(
+            _num(attributes, 'x'),
+            _num(attributes, 'y'),
+            w,
+            h,
+          );
+        case SvgNodeKind.path:
+        case SvgNodeKind.circle:
+        case SvgNodeKind.rect:
+        case SvgNodeKind.ellipse:
+        case SvgNodeKind.line:
+        case SvgNodeKind.polyline:
+        case SvgNodeKind.polygon:
+          final geometry = _geometryPath(node, attributes);
+          if (geometry == null) return;
+          local = geometry.getBounds();
+      }
+      if (stroke != null && stroke != 'none' && strokeWidth > 0) {
+        local = local.inflate(strokeWidth * 2);
+      }
+      final transformed = _transformRect(local, accum);
+      union = union == null ? transformed : union!.expandToInclude(transformed);
+    }
+
+    walk(defRoot, const [1, 0, 0, 1, 0, 0], null, 1);
+    if (indeterminate) return null;
+    if (union == null) return Rect.zero; // mask paints nothing at this instant
+    return union!.inflate(2 * _userUnitsPerDevicePixel);
+  }
+
+  /// The bounds this painter would give [maskDef]'s two `saveLayer`s at the
+  /// current [time] — [_maskLayerBounds]'s answer, exposed so the offscreen
+  /// area it saves can be surveyed over a real icon corpus. Call [paint] first:
+  /// the padding is derived from the box-fit scale that records.
+  ///
+  /// 本绘制器在当前 [time] 会给 [maskDef] 的两个 `saveLayer` 的边界——即
+  /// [_maskLayerBounds] 的结果，暴露出来是为了能在真实图标语料上统计它省下的离屏
+  /// 面积。请先调用 [paint]：外扩量取自那里记录的 box-fit 缩放。
+  ///
+  /// [maskDef] — the mask definition's root node. / mask 定义的根节点。
+  ///
+  /// Returns the same value [_paintNode] would use. / 返回与 [_paintNode] 所用相同的值。
+  @visibleForTesting
+  Rect? debugMaskLayerBounds(SvgNode maskDef) =>
+      _maskLayerBounds(maskDef, time);
+
+  /// [rect]'s axis-aligned bounding box after the affine [matrix]
+  /// (`[a, b, c, d, e, f]`, the same layout `svg_affine.dart` uses) is applied
+  /// to it.
+  ///
+  /// Written out rather than going through [MatrixUtils.transformRect] to
+  /// avoid expanding the affine into a [Matrix4] — this runs once per mask
+  /// shape per masked node per frame.
+  ///
+  /// 对 [rect] 应用仿射矩阵 [matrix]（`[a, b, c, d, e, f]`，与
+  /// `svg_affine.dart` 相同的布局）后的轴对齐包围盒。
+  ///
+  /// 手写而不走 [MatrixUtils.transformRect]，是为了免去把仿射矩阵展开成
+  /// [Matrix4]——本函数每帧、每个被遮罩节点、每个 mask 形状都要跑一次。
+  ///
+  /// [rect] — the rectangle to transform. / 待变换的矩形。
+  ///
+  /// [matrix] — the affine to apply. / 要应用的仿射矩阵。
+  ///
+  /// Returns the transformed bounding box. / 返回变换后的包围盒。
+  static Rect _transformRect(Rect rect, List<double> matrix) {
+    final a = matrix[0], b = matrix[1], c = matrix[2];
+    final d = matrix[3], e = matrix[4], f = matrix[5];
+    // Only two opposite corners are needed for a matrix with no rotation or
+    // skew (b == c == 0), which is the overwhelmingly common case; the general
+    // path maps all four.
+    //
+    // 无旋转、无斜切（b == c == 0）时只需两个对角顶点即可，而这是绝大多数情形；
+    // 一般情形下四个顶点全部映射。
+    final x1 = a * rect.left + c * rect.top + e;
+    final y1 = b * rect.left + d * rect.top + f;
+    final x2 = a * rect.right + c * rect.bottom + e;
+    final y2 = b * rect.right + d * rect.bottom + f;
+    if (b == 0 && c == 0) {
+      return Rect.fromLTRB(
+        math.min(x1, x2),
+        math.min(y1, y2),
+        math.max(x1, x2),
+        math.max(y1, y2),
+      );
+    }
+    final x3 = a * rect.right + c * rect.top + e;
+    final y3 = b * rect.right + d * rect.top + f;
+    final x4 = a * rect.left + c * rect.bottom + e;
+    final y4 = b * rect.left + d * rect.bottom + f;
+    return Rect.fromLTRB(
+      math.min(math.min(x1, x2), math.min(x3, x4)),
+      math.min(math.min(y1, y2), math.min(y3, y4)),
+      math.max(math.max(x1, x2), math.max(x3, x4)),
+      math.max(math.max(y1, y2), math.max(y3, y4)),
+    );
+  }
 
   /// Whether [defRoot], used as a `<mask>` definition, can be replaced by an
   /// equivalent clip path — cached on the node, since the answer depends only

@@ -141,6 +141,24 @@ const bool _qualityAb = _qualityAbRaw == '1' || _qualityAbRaw == 'true';
 const String _armFlipRaw = String.fromEnvironment('ARMFLIP');
 const bool _armFlip = _armFlipRaw == '1' || _armFlipRaw == 'true';
 
+// `MASKBOUNDSAB=1`: a focused two-arm A/B for
+// `SvgXAnimationQuality.tightMaskLayerBounds` — unbounded mask layers (the
+// pre-optimization behaviour) against layers sized to the mask's own bounds.
+// Separate from `QUALITYAB` on purpose: that ladder layers three *lossy*
+// degradations on top of each other, while this one compares two renderings
+// that are bit-identical (verified over the whole corpus by
+// `test/mask_layer_bounds_survey_test.dart`), so the only thing its two arms
+// can differ in is cost.
+//
+// `MASKBOUNDSAB=1`：针对 `SvgXAnimationQuality.tightMaskLayerBounds` 的两臂
+// 专项 A/B——无界 mask 图层（优化前的行为）对比按 mask 自身边界分配的图层。刻意
+// 与 `QUALITYAB` 分开：后者是把三项*有损*降级层层叠加的阶梯，而这一项对比的两种
+// 渲染是逐位一致的（由 `test/mask_layer_bounds_survey_test.dart` 在全语料上验证），
+// 因此它的两臂唯一可能不同的就是开销。
+const String _maskBoundsAbRaw = String.fromEnvironment('MASKBOUNDSAB');
+const bool _maskBoundsAb =
+    _maskBoundsAbRaw == '1' || _maskBoundsAbRaw == 'true';
+
 class _AnimFpsBenchRunnerState extends State<AnimFpsBenchRunner> {
   late final List<String> _icons = generateAnimIcons(widget.itemCount);
   final _scrollController = ScrollController();
@@ -222,6 +240,21 @@ class _AnimFpsBenchRunnerState extends State<AnimFpsBenchRunner> {
               approximateSimpleMasksAsClip: true,
             ),
           ),
+        ]
+      : _maskBoundsAb
+      ? [
+          // Pre-optimization control: the mask pipeline's two `saveLayer`s
+          // left unbounded, i.e. sized to the whole icon box by the clip.
+          //
+          // 优化前的对照组：mask 管线的两个 `saveLayer` 保持无界，即由裁剪区决定、
+          // 按整个图标盒分配。
+          (
+            label: 'looselayers',
+            quality: const SvgXAnimationQuality(tightMaskLayerBounds: false),
+          ),
+          // The shipped default: same pixels, layers sized to the mask.
+          // 出厂默认：同样的像素，图层按 mask 尺寸分配。
+          (label: 'tightlayers', quality: SvgXAnimationQuality.balanced),
         ]
       : [(label: 'default', quality: SvgXAnimationQuality.defaultQuality)];
 
