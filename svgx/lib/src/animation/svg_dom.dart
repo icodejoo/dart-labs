@@ -354,4 +354,59 @@ class SvgNode {
   /// 不需要缓存键：[transform] 是 final 且在解析阶段就已确定，展开结果不可能
   /// 失效。没有它的话，每个带变换的节点每帧都要新分配并填满一个 16 槽列表。
   Float64List? cachedTransformMatrix;
+
+  /// For a node used as a `<mask>` definition root: whether its content is
+  /// simple enough that the mask can be replaced by an equivalent clip path,
+  /// which needs no `saveLayer` at all. Null until first computed; owned
+  /// entirely by `animated_svg_painter.dart`'s mask approximation.
+  ///
+  /// No cache key is needed: eligibility depends only on the parsed subtree's
+  /// *structure* (which shape kinds, whether anything paints a stroke or a
+  /// partial opacity, whether the fills are pure black/white), all of which
+  /// is fixed at parse time. What animates inside an eligible mask is
+  /// geometry and transforms, which the clip path resamples per frame just
+  /// like the exact path does — so an eligible mask stays eligible for the
+  /// document's whole life.
+  ///
+  /// 对于被用作 `<mask>` 定义根的节点：其内容是否足够简单，以至于这个 mask 可以
+  /// 用等价的裁剪路径替代，从而完全不需要 `saveLayer`。首次计算前为 null；完全由
+  /// `animated_svg_painter.dart` 的 mask 近似逻辑持有。
+  ///
+  /// 不需要缓存键：是否合格只取决于已解析子树的*结构*（有哪些形状种类、是否有任何
+  /// 东西绘制描边或部分不透明度、填充是否为纯黑/纯白），这些在解析阶段就已固定。
+  /// 合格 mask 内部会动的是几何与变换，而裁剪路径会像精确路径一样逐帧重新采样
+  /// ——因此一个合格的 mask 在文档的整个生命周期内都保持合格。
+  bool? maskClipEligible;
+
+  /// For a node used as an eligible `<mask>` definition root: the clip path
+  /// last built from its content, and the sampled-animation signature it was
+  /// built from. Owned entirely by `animated_svg_painter.dart`'s
+  /// `_resolveMaskClipPath`.
+  ///
+  /// Rebuilding the path means walking the subtree, allocating a 4x4 matrix
+  /// per node, and copying every node's geometry segments into a union path —
+  /// all native work, all per masked icon per frame. Yet a real icon's mask
+  /// spends most of its on-screen life *not moving*: SMIL reveals are
+  /// `fill="freeze"` and settle, and adjacent frames of a slow motion often
+  /// sample to the same numbers. Keying on the sampled values (rather than on
+  /// the timeline position) is what lets those frames reuse the path — a
+  /// time-based key would miss on every single frame.
+  ///
+  /// 对于被用作合格 `<mask>` 定义根的节点：上一次由其内容构建出的裁剪路径，以及
+  /// 构建它时所用的"已采样动画签名"。完全由 `animated_svg_painter.dart` 的
+  /// `_resolveMaskClipPath` 持有。
+  ///
+  /// 重建这条路径意味着遍历子树、每个节点分配一个 4x4 矩阵、并把每个节点的几何
+  /// 线段全部复制进一条并集路径——全是原生工作，且是每个带 mask 的图标每帧都要做
+  /// 一遍。然而真实图标的 mask 在屏幕上的大部分时间是*不动*的：SMIL 揭示动画是
+  /// `fill="freeze"` 会定格，而慢速运动的相邻帧也常常采样出相同的数值。以采样值
+  /// （而非时间线位置）为键，正是让这些帧能复用路径的关键——用时间做键会每一帧都
+  /// 未命中。
+  ui.Path? cachedMaskClip;
+
+  /// Signature of the sampled animation values [cachedMaskClip] was built
+  /// from — see that field.
+  ///
+  /// 构建 [cachedMaskClip] 时所用的已采样动画值的签名——见该字段。
+  List<double>? maskClipSampleKey;
 }

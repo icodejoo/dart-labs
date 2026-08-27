@@ -56,7 +56,30 @@ class SvgDocument {
     this.gradients = const {},
     this.clipPaths = const {},
     this.masks = const {},
+    this.usesOffscreenLayers = false,
   });
+
+  /// Whether painting this document requires at least one `canvas.saveLayer`
+  /// offscreen render target — true when any element carries a `mask`
+  /// reference or a Gaussian-blur `filter`.
+  ///
+  /// This is a *rasterization cost* signal, not a feature flag: an offscreen
+  /// layer means the GPU allocates a render target, switches to it, replays
+  /// the subtree into it, and composites the result back — on a mid-range
+  /// GLES device that is measurably the most expensive thing this engine can
+  /// ask for per frame (see `docs/performance-benchmarks.md`). It is used to
+  /// let the frame-rate degradation in `SvgXAnimationQuality` treat these
+  /// documents more aggressively than cheap ones.
+  ///
+  /// 绘制本文档是否至少需要一个 `canvas.saveLayer` 离屏渲染目标——任何元素带
+  /// `mask` 引用或高斯模糊 `filter` 时为 true。
+  ///
+  /// 这是一个*光栅化成本*信号，不是功能开关：一个离屏图层意味着 GPU 要分配
+  /// 渲染目标、切换过去、把子树重放进去、再把结果合成回来——在中端 GLES 设备上
+  /// 实测这是本引擎每帧能提出的最贵请求（见 `docs/performance-benchmarks.md`）。
+  /// 它的用途是让 `SvgXAnimationQuality` 里的帧率降级对这类文档比对廉价文档
+  /// 更激进。
+  final bool usesOffscreenLayers;
 
   /// `<clipPath>` definitions by id, as parsed [SvgNode] subtrees (their own
   /// `<animate>`/`<animateTransform>` children intact) — referenced by
@@ -200,6 +223,7 @@ SvgDocument parseAnimatedSvgDocument(String source) {
     gradients: gradients,
     clipPaths: clipPaths,
     masks: masks,
+    usesOffscreenLayers: context.sawOffscreenLayer,
   );
 }
 
@@ -279,7 +303,7 @@ SvgGradientDef? _buildGradient(
   // 解析出来（a → b → c，只有 `c` 声明了该属性）。`chainVisited` 约束遍历，
   // 防止 href 成环，与下方 [visiting] 约束递归解析色标列表同理。
   final immediateHref = attributes['href']?.trim();
-  final chainVisited = <String>{if (id != null) id};
+  final chainVisited = <String>{?id};
   var current = element;
   while (true) {
     final h = current.getAttribute('href')?.trim();
@@ -646,6 +670,18 @@ class _ParseContext {
   final List<SmilTimed> animations = <SmilTimed>[];
   final Set<String> resolvingUseTargets = <String>{};
   int useDepth = 0;
+
+  /// Set true as soon as any parsed element carries a `mask` reference or a
+  /// blur `filter` — i.e. something `AnimatedSvgPainter` can only draw by
+  /// opening a `canvas.saveLayer` offscreen render target. Collected here,
+  /// during the walk the parser already does, so nothing has to re-walk the
+  /// tree later to answer "is this document expensive to rasterize?".
+  ///
+  /// 只要有任何被解析的元素带 `mask` 引用或模糊 `filter`，就置为 true——也就是
+  /// `AnimatedSvgPainter` 只能靠 `canvas.saveLayer` 开离屏渲染目标才能画出来的
+  /// 情形。在解析器本来就要做的这趟遍历里顺手收集，因此后续无需再遍历一次树来
+  /// 回答"这份文档光栅化贵不贵"。
+  bool sawOffscreenLayer = false;
 }
 
 SvgNode _parseElement(
@@ -711,6 +747,11 @@ SvgNode _parseElement(
   if (markedSelfId) context.resolvingUseTargets.remove(selfId);
 
   final rawTransform = attributes['transform'];
+  final maskId = parseUrlId(attributes['mask']);
+  final blurSigma = _parseBlurSigma(attributes['filter'], context);
+  if (maskId != null || (blurSigma != null && blurSigma > 0)) {
+    context.sawOffscreenLayer = true;
+  }
 
   return SvgNode(
     kind: kind,
@@ -721,8 +762,8 @@ SvgNode _parseElement(
     motionAnimations: motionAnimations,
     transform: rawTransform == null ? null : parseTransformMatrix(rawTransform),
     clipPathId: parseUrlId(attributes['clip-path']),
-    maskId: parseUrlId(attributes['mask']),
-    blurSigma: _parseBlurSigma(attributes['filter'], context),
+    maskId: maskId,
+    blurSigma: blurSigma,
     // Only <text> ever gets a non-null [XmlNode.innerText] read here — no
     // <tspan> support, so the whole subtree's text is taken flat.
     // 只有 <text> 才会读取 [XmlNode.innerText]——不支持 <tspan>，直接取整个

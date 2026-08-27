@@ -48,6 +48,7 @@
 - `<use>` 指向 `<symbol>`/`<svg>` 时,不应用其 `width`/`height`/`viewBox` 缩放(按普通 `<g>` 处理);`<use>` 自身的 `width`/`height` 同样忽略。
 - 不支持嵌套 mask/clip(嵌套内容里的 `clip-path`/`mask` 属性被忽略);mask 内容里的 `<image>` 不支持。
 - mask 未读取 SVG 的 `maskUnits`/`x`/`y`/`width`/`height`(始终用整个画布做图层边界,而非官方默认的 bbox ±10%/120%)。
+- **高并发下的故意有损降级**(`SvgXAnimationQuality`,阈值 24 个并发动画图标以内一律不生效):(1) 逐图标降采样,**默认开启**——超过阈值后普通图标按 30Hz、带 `mask`/模糊的文档按 20Hz 推进时间线,像素不变、只是时间采样点变少;(2) 内容为纯不透明黑/白填充的 `<mask>` 改用等价 `clipPath` 绘制,**默认关闭、需手动开启**(真机实测它把 raster 换成了 build、净 real_fps −2.4%,详见 `docs/performance-benchmarks.md`),代价是 mask 边界的边缘抗锯齿略有差异(带描边/任何不透明度/非二值或渐变填充/文本/嵌套 clip-mask-模糊 的 mask 一律保持精确管线;同时带 mask 与 blur 的节点也保持精确管线,因为裁剪会把管线重排成 `Blur(Mask())`)。两项均可用 `SvgXAnimationQuality.exact` 全局或逐控件关闭(第 2 项另需显式 `approximateSimpleMasksAsClip: true` 才会启用),完整说明与实测归因见 `docs/performance-benchmarks.md`。**已评估并否决**:更进一步把合格 mask 与纯色内容几何求交(`Path.combine`)、连 `clipPath` 都省掉的方案(曾短暂加入为 `approximateSimpleMasksAsPathIntersect`)已实测——raster 确实比方案(2)更省,但 build 端开销更贵,仍打不过"只跳帧"的默认方案,代码已撤销,详细数据见 `docs/performance-benchmarks.md`「2026-08-27 三轮」一节。
 
 ## 像素级验证结果(12 项已实现功能的真实像素验证)
 

@@ -21,6 +21,7 @@ import 'svg_gradient.dart';
 import 'svg_path_data.dart';
 import 'svg_style.dart';
 import 'svg_theme.dart';
+import 'svgx_animation_quality.dart';
 
 /// Paints an [SvgDocument]'s (see `svg_document_parser.dart`) element tree at
 /// a given [time] on the animation timeline, scaled from the document's
@@ -64,7 +65,53 @@ class AnimatedSvgPainter extends CustomPainter {
     this.gradients = const {},
     this.clipPaths = const {},
     this.masks = const {},
+    this.approximateMasks = _neverApproximate,
+    this.quality = SvgXAnimationQuality.exact,
   }) : super(repaint: clock);
+
+  /// Default for [approximateMasks]: never approximate. Keeps every direct
+  /// construction of this painter (tests, offline rendering) on the exact
+  /// mask pipeline unless a caller deliberately opts in.
+  ///
+  /// [approximateMasks] 的默认值：永不近似。使本绘制器的每一处直接构造（测试、
+  /// 离屏渲染）都走精确 mask 管线，除非调用方明确选择开启。
+  static bool _neverApproximate() => false;
+
+  /// Consulted at paint time (not at construction) to decide whether an
+  /// eligible `<mask>` may be drawn as a clip path instead of via two
+  /// `saveLayer` offscreen passes — see
+  /// [SvgXAnimationQuality.approximatesMasksAt].
+  ///
+  /// A callback rather than a bool because the answer depends on how many
+  /// icons are animating *right now*, which changes as cells scroll in and
+  /// out without this painter being rebuilt.
+  ///
+  /// 在绘制时（而非构造时）被询问，用于决定一个合格的 `<mask>` 是否可以改画成
+  /// 裁剪路径，而不走两个 `saveLayer` 离屏通道——见
+  /// [SvgXAnimationQuality.approximatesMasksAt]。
+  ///
+  /// 用回调而不是 bool，是因为答案取决于*当下*有多少图标在播放动画，而这个数量
+  /// 会随着格子滚进滚出而变化，且不会重建本绘制器。
+  final bool Function() approximateMasks;
+
+  /// The quality profile [approximateMasks] resolves against, carried purely
+  /// so [shouldRepaint] can notice it changing.
+  ///
+  /// [approximateMasks] is a closure, and a closure is a fresh object on every
+  /// build — comparing it would force a repaint on every rebuild, while
+  /// ignoring it would miss a genuine change (reassigning
+  /// [SvgXAnimationQuality.defaultQuality] at runtime alters what gets
+  /// painted). The immutable profile has value equality, so comparing it
+  /// answers "could the painting differ?" correctly in both directions.
+  ///
+  /// [approximateMasks] 所依据的画质配置，携带它的唯一目的是让 [shouldRepaint]
+  /// 能察觉到它发生了变化。
+  ///
+  /// [approximateMasks] 是闭包，而闭包每次 build 都是新对象——拿它做比较会导致每次
+  /// 重建都强制重绘，而完全忽略它则会漏掉真实变化（运行时重新赋值
+  /// [SvgXAnimationQuality.defaultQuality] 会改变画出来的东西）。这份不可变配置
+  /// 有值相等语义，因此比较它能在两个方向上都正确回答"绘制结果是否可能不同"。
+  final SvgXAnimationQuality quality;
 
   /// `<clipPath>` definitions by id — see `SvgDocument.clipPaths`.
   ///
@@ -308,12 +355,71 @@ class AnimatedSvgPainter extends CustomPainter {
     final clipDef = (nested || clipPathId == null)
         ? null
         : clipPaths[clipPathId];
-    final maskDef = (nested || maskId == null) ? null : masks[maskId];
+    var maskDef = (nested || maskId == null) ? null : masks[maskId];
+    // LOSSY FAST PATH, off by default and concurrency-gated by the caller
+    // (see [approximateMasks]): a `<mask>` whose content is nothing but
+    // fully-opaque pure-black/pure-white fills expresses a *binary* coverage
+    // region, and a binary coverage region is exactly what a clip path is.
+    // Drawing it as a clip removes both of this mask's `saveLayer`s — measured
+    // on a Huawei STG-AL00 (Impeller GLES) at ~221us of GPU render-pass time
+    // each, the single largest line item in the batch-animation raster budget
+    // (see docs/performance-benchmarks.md).
+    //
+    // What is given up, precisely: edge antialiasing. The exact pipeline
+    // rasterizes the mask into a layer and multiplies its coverage into the
+    // content's alpha, so an edge is a smooth alpha ramp; a clip path
+    // antialiases the edge itself, which on Impeller is a slightly different
+    // (marginally harder) ramp. At icon sizes this is a sub-pixel difference
+    // along the mask boundary and nothing else — no geometry moves, no colour
+    // shifts, and the animation of the mask's own content is still resampled
+    // every frame exactly as before. Masks that would lose more than that
+    // (any stroke paint, any opacity, any non-binary colour, any gradient,
+    // nested clip/mask/blur) are rejected by [_maskIsClipEligible] and keep
+    // the exact pipeline.
+    //
+    // 有损快路径，默认关闭，且由调用方做并发门控（见 [approximateMasks]）：内容
+    // 只有完全不透明的纯黑/纯白填充的 `<mask>`，表达的是一个*二值*覆盖区域，而
+    // 二值覆盖区域正是裁剪路径本身。把它画成裁剪可以去掉该 mask 的两个
+    // `saveLayer`——在华为 STG-AL00（Impeller GLES）上实测每个约 221us 的 GPU
+    // 渲染通道时间，是批量动画 raster 预算里最大的单项（见
+    // docs/performance-benchmarks.md）。
+    //
+    // 确切放弃了什么：边缘抗锯齿。精确管线把 mask 光栅化进一个图层，再把它的覆盖度
+    // 乘进内容的 alpha，因此边缘是一条平滑的 alpha 斜坡；裁剪路径则对边缘本身做
+    // 抗锯齿，在 Impeller 上是一条略有不同（略硬）的斜坡。在图标尺寸下，这就是沿
+    // mask 边界的一个亚像素差异，仅此而已——没有任何几何位移、没有任何颜色偏移，
+    // 且 mask 自身内容的动画仍然像以前一样逐帧重采样。会损失更多的 mask（任何描边
+    // 涂料、任何不透明度、任何非二值颜色、任何渐变、嵌套的 clip/mask/模糊）都会被
+    // [_maskIsClipEligible] 拒掉，继续走精确管线。
     final blurSigma = node.blurSigma;
     final hasBlur = blurSigma != null && blurSigma > 0;
-    final needsClipMaskSave = clipDef != null || maskDef != null;
+    ui.Path? maskClip;
+    // `!hasBlur` is not a performance guard, it is a correctness one. The
+    // exact pipeline nests the layers to produce `Mask(Blur(content))`; a clip
+    // installed on the canvas is inherited by the blur layer opened below it,
+    // which would instead produce `Blur(Mask(content))` — the blur would be
+    // clipped off at the mask boundary rather than the mask being applied to
+    // the already-spread blur. A node carrying both therefore keeps the exact
+    // pipeline. (Rejecting blur *inside* the mask definition is a separate
+    // check, in [_maskSubtreeIsBinary].)
+    //
+    // `!hasBlur` 不是性能护栏，是正确性护栏。精确管线通过图层嵌套产出的是
+    // `Mask(Blur(content))`；而装在画布上的裁剪会被其下开启的模糊图层继承，于是
+    // 产出的变成 `Blur(Mask(content))`——模糊会在 mask 边界处被切掉，而不是让
+    // mask 作用于已经扩散开的模糊结果。因此同时带这两者的节点保持精确管线。
+    //（拒绝 mask 定义*内部*的模糊是另一项检查，在 [_maskSubtreeIsBinary] 里。）
+    if (maskDef != null && !hasBlur) {
+      final asClip = approximateMasks();
+      if (asClip && _maskIsClipEligible(maskDef)) {
+        maskClip = _resolveMaskClipPath(maskDef, time);
+        maskDef = null;
+      }
+    }
+    final needsClipMaskSave =
+        clipDef != null || maskDef != null || maskClip != null;
     if (needsClipMaskSave) canvas.save();
     if (clipDef != null) canvas.clipPath(_resolveClipPath(clipDef, time));
+    if (maskClip != null) canvas.clipPath(maskClip);
     // Layer nesting follows SVG's filter -> mask pipeline: the mask
     // destination layer opens FIRST (outer) and the blur layer opens SECOND
     // (inner, nested inside it), so closing the blur layer composites
@@ -485,6 +591,385 @@ class AnimatedSvgPainter extends CustomPainter {
       0, 0, 0, 0, 0, //
       0.2125, 0.7154, 0.0721, 0, 0,
     ]);
+
+  /// Whether [defRoot], used as a `<mask>` definition, can be replaced by an
+  /// equivalent clip path — cached on the node, since the answer depends only
+  /// on parse-time structure (see [SvgNode.maskClipEligible]).
+  ///
+  /// 作为 `<mask>` 定义使用的 [defRoot] 能否用等价裁剪路径替代——结果缓存在节点
+  /// 上，因为答案只取决于解析期的结构（见 [SvgNode.maskClipEligible]）。
+  ///
+  /// [defRoot] — the mask definition's root node. / mask 定义的根节点。
+  ///
+  /// Returns true when the mask is pure binary coverage.
+  ///
+  ///   mask 为纯二值覆盖时返回 true。
+  static bool _maskIsClipEligible(SvgNode defRoot) =>
+      defRoot.maskClipEligible ??= _maskSubtreeIsBinary(defRoot, null);
+
+  /// Recursive half of [_maskIsClipEligible]. [inheritedFill] is the nearest
+  /// ancestor's `fill` value, threaded down because a `<g fill="#fff">`
+  /// wrapper is how real icons paint a whole mask subtree white.
+  ///
+  /// [_maskIsClipEligible] 的递归部分。[inheritedFill] 是最近祖先的 `fill` 值，
+  /// 向下传递是因为真实图标正是用 `<g fill="#fff">` 这样的包装分组把整个 mask
+  /// 子树刷白的。
+  ///
+  /// [node] — subtree root to inspect. / 待检查的子树根。
+  ///
+  /// [inheritedFill] — inherited `fill` attribute value, or null.
+  ///
+  ///   继承到的 `fill` 属性值，或 null。
+  ///
+  /// Returns true when every node in the subtree is binary-safe.
+  ///
+  ///   子树内每个节点都二值安全时返回 true。
+  static bool _maskSubtreeIsBinary(SvgNode node, String? inheritedFill) {
+    // A nested clip/mask/blur inside the mask means coverage this flat clip
+    // path cannot represent.
+    //
+    // mask 内部嵌套 clip/mask/模糊，意味着这条扁平裁剪路径无法表达的覆盖度。
+    if (node.clipPathId != null ||
+        node.maskId != null ||
+        (node.blurSigma != null && node.blurSigma! > 0)) {
+      return false;
+    }
+    final attributes = node.attributes;
+    // Any opacity at all makes coverage fractional; a clip is all-or-nothing.
+    // `style` is rejected wholesale rather than parsed — it could carry any of
+    // the above through a channel this check does not read.
+    //
+    // 任何不透明度都会让覆盖度变成分数值，而裁剪是全有或全无。`style` 整体拒掉而
+    // 不去解析——它可能通过本检查读不到的渠道携带上述任意一项。
+    if (attributes.containsKey('opacity') ||
+        attributes.containsKey('fill-opacity') ||
+        attributes.containsKey('stroke-opacity') ||
+        attributes.containsKey('style')) {
+      return false;
+    }
+    for (final animation in node.animations) {
+      // Any opacity keyframe makes coverage fractional at some instant.
+      // 任何不透明度关键帧都会让某个时刻的覆盖度变成分数值。
+      if (animation.attributeName.contains('opacity')) return false;
+      // A keyframe on `fill` would let the coverage class change *after* this
+      // eligibility answer has been cached on the node — the cache is keyed on
+      // parse-time structure precisely because nothing here may vary with
+      // time. (Numeric `<animate>` on `fill` is a documented gap in this
+      // engine, so such a document is malformed anyway; rejecting it keeps the
+      // fast path's invariant true regardless.)
+      //
+      // 作用在 `fill` 上的关键帧会让覆盖度分类在这个合格性结论被缓存到节点上
+      // *之后*发生变化——而缓存之所以以解析期结构为键，恰恰是因为这里的任何东西
+      // 都不允许随时间变化。（数值型 `<animate>` 作用于 `fill` 是本引擎已记录的
+      // 缺口，这样的文档本身就是畸形的；无论如何拒掉它都能让快路径的不变式成立。）
+      if (animation.attributeName == 'fill') return false;
+    }
+    // Colour keyframes could animate a fill from white to a mid grey.
+    // 颜色关键帧可能把填充从白色动画到中间灰。
+    if (node.colorAnimations.isNotEmpty) return false;
+    // Stroke paint would need a stroke outline to become a clip path, and
+    // dart:ui exposes no stroke-to-path conversion — these masks keep the
+    // exact pipeline. This is the single biggest reason for rejection in real
+    // icon sets (34 of 65 mask definitions in the benchmark corpus).
+    //
+    // 描边涂料要变成裁剪路径需要 stroke outline，而 dart:ui 没有暴露
+    // stroke 转 path 的能力——这类 mask 保持精确管线。这是真实图标集里最主要的
+    // 拒绝原因（基准语料 65 个 mask 定义里有 34 个）。
+    final stroke = attributes['stroke'];
+    if (stroke != null && stroke != 'none') return false;
+
+    final fill = attributes['fill'] ?? inheritedFill;
+    switch (node.kind) {
+      case SvgNodeKind.root:
+      case SvgNodeKind.group:
+        break; // paints nothing itself
+      case SvgNodeKind.path:
+      case SvgNodeKind.circle:
+      case SvgNodeKind.rect:
+      case SvgNodeKind.ellipse:
+      case SvgNodeKind.polygon:
+        if (_maskFillCoverage(fill) == _MaskCoverage.notBinary) return false;
+      case SvgNodeKind.line:
+      case SvgNodeKind.polyline:
+        // Unclosed geometry: SVG fills it by implicit closure, and matching
+        // that exactly through a clip path is not worth the risk of getting
+        // the winding wrong on content that is almost always stroke-painted
+        // anyway (and stroke paint is already rejected above).
+        //
+        // 未闭合几何：SVG 会按隐式闭合来填充，而这类内容几乎总是用描边绘制的
+        // （而描边在上面已经被拒），为它精确匹配裁剪路径的绕行规则不值得冒错的
+        // 风险。
+        return false;
+      case SvgNodeKind.text:
+      case SvgNodeKind.image:
+        // Glyph coverage and bitmap alpha are not geometry.
+        // 字形覆盖度与位图 alpha 都不是几何图形。
+        return false;
+    }
+    for (final child in node.children) {
+      if (!_maskSubtreeIsBinary(child, fill)) return false;
+    }
+    return true;
+  }
+
+  /// Classifies what a mask shape's `fill` contributes to coverage.
+  ///
+  /// 把一个 mask 形状的 `fill` 对覆盖度的贡献分类。
+  ///
+  /// [fill] — the resolved `fill` attribute value, or null when neither the
+  ///   shape nor any ancestor set one.
+  ///
+  ///   已解析的 `fill` 属性值；形状自身与所有祖先都没设置时为 null。
+  ///
+  /// Returns the coverage classification. / 返回覆盖度分类。
+  static _MaskCoverage _maskFillCoverage(String? fill) {
+    // `fill="none"` paints nothing at all. That is NOT the same as painting
+    // black: black *removes* coverage where it overlaps something white,
+    // whereas an unpainted shape leaves whatever is underneath alone. Folding
+    // the two together would punch phantom holes wherever a `fill="none"`
+    // outline crossed a white region.
+    //
+    // `fill="none"` 什么都不画。这与"画黑色"**不是**一回事：黑色会在与白色重叠处
+    // *去掉*覆盖度，而未被绘制的形状则不影响其下方的任何东西。把两者混为一谈，
+    // 会在每一处 `fill="none"` 轮廓穿过白色区域的地方打出不该有的洞。
+    if (fill == 'none') return _MaskCoverage.paintsNothing;
+    // No `fill` anywhere up the chain: SVG's initial value is black, which in
+    // a mask means "hide".
+    //
+    // 整条继承链上都没有 `fill`：SVG 的初始值是黑色，在 mask 里意味着"隐藏"。
+    if (fill == null) return _MaskCoverage.hides;
+    final color = parseSvgHexColor(fill);
+    // A gradient, `currentColor`, or anything unparseable: not binary.
+    // 渐变、`currentColor`，或任何解析不出来的东西：不是二值。
+    if (color == null) return _MaskCoverage.notBinary;
+    if (color.a < 1) {
+      return _MaskCoverage.notBinary; // translucent: fractional coverage
+    }
+    // SVG luminanceToAlpha, the same coefficients [_maskCoveragePaint] uses.
+    // SVG 的 luminanceToAlpha，与 [_maskCoveragePaint] 用的是同一组系数。
+    final luminance = 0.2125 * color.r + 0.7154 * color.g + 0.0721 * color.b;
+    if (luminance >= 0.999) return _MaskCoverage.shows;
+    if (luminance <= 0.001) return _MaskCoverage.hides;
+    return _MaskCoverage.notBinary; // mid grey: genuinely partial coverage
+  }
+
+  /// Builds the clip path standing in for an eligible `<mask>`: the union of
+  /// its full-coverage (white) geometry, minus the union of its no-coverage
+  /// (black) geometry, with every node's static/animated transform sampled at
+  /// [time] exactly as [_resolveClipPath] does.
+  ///
+  /// The subtraction approximates SVG's painting order — in the exact
+  /// pipeline a black shape painted *after* a white one erases the overlap,
+  /// while one painted *before* it is covered up again. Flattening both into
+  /// one difference gets the common case (holes punched into a white region)
+  /// right and the reversed case wrong; real mask content in icon sets does
+  /// not rely on the reversed case.
+  ///
+  /// 构建替代合格 `<mask>` 的裁剪路径：其完全覆盖（白色）几何的并集，减去无覆盖
+  /// （黑色）几何的并集，每个节点的静态/动画变换都在 [time] 采样，与
+  /// [_resolveClipPath] 完全一致。
+  ///
+  /// 这个相减是对 SVG 绘制顺序的近似——精确管线里，画在白色形状*之后*的黑色形状
+  /// 会擦掉重叠部分，而画在它*之前*的则会被重新盖住。把两者压平成一次相减，能把
+  /// 常见情形（在白色区域上打洞）做对，反向情形做错；图标集里真实的 mask 内容不
+  /// 依赖反向情形。
+  ///
+  /// [defRoot] — the mask definition's root node. / mask 定义的根节点。
+  ///
+  /// [time] — timeline position to sample at. / 采样的时间线位置。
+  ///
+  /// Returns the substitute clip path. / 返回替代用的裁剪路径。
+  ui.Path _resolveMaskClipPath(SvgNode defRoot, Duration time) {
+    // Cheap pass first: sample every animation in the mask subtree into a flat
+    // signature, touching no attribute maps, allocating no matrices and
+    // copying no path segments. If it matches the signature the cached path
+    // was built from, that path is still correct and the expensive pass is
+    // skipped entirely — see [SvgNode.cachedMaskClip].
+    //
+    // 先跑廉价的一趟：把 mask 子树里每个动画采样成一条扁平签名，不碰属性表、不分配
+    // 矩阵、不复制路径线段。若它与缓存路径构建时的签名一致，那条路径依然正确，昂贵
+    // 的那一趟就完全跳过——见 [SvgNode.cachedMaskClip]。
+    final signature = _maskSampleSignature(defRoot, time);
+    final cachedPath = defRoot.cachedMaskClip;
+    if (cachedPath != null &&
+        _sameSignature(defRoot.maskClipSampleKey, signature)) {
+      return cachedPath;
+    }
+    final shown = ui.Path();
+    final hidden = ui.Path();
+    var anyHidden = false;
+
+    void walk(SvgNode node, List<double> matrix, String? inheritedFill) {
+      final effectiveAttributes = _effectiveAttributes(node);
+      var accum = matrix;
+      if (node.transform != null) accum = concatAffine(accum, node.transform!);
+      for (final transformAnimation in node.transformAnimations) {
+        final sampled = transformAnimation.sample(time);
+        if (sampled == null) continue;
+        accum = concatAffine(
+          accum,
+          _transformSampleToAffine(transformAnimation.type, sampled),
+        );
+      }
+      for (final motion in node.motionAnimations) {
+        final sampled = motion.sample(time);
+        if (sampled == null) continue;
+        accum = concatAffine(accum, [1, 0, 0, 1, sampled.x, sampled.y]);
+      }
+      final fill = effectiveAttributes['fill'] ?? inheritedFill;
+
+      if (node.kind == SvgNodeKind.root || node.kind == SvgNodeKind.group) {
+        for (final child in node.children) {
+          walk(child, accum, fill);
+        }
+        return;
+      }
+      final coverage = _maskFillCoverage(fill);
+      // Nothing is painted, so nothing is contributed — in particular this
+      // shape must NOT be subtracted. See [_maskFillCoverage].
+      //
+      // 什么都没画，因此什么都不贡献——尤其是这个形状**不能**被减掉。见
+      // [_maskFillCoverage]。
+      if (coverage == _MaskCoverage.paintsNothing) return;
+      final geometry = _geometryPath(node, effectiveAttributes);
+      if (geometry == null) return;
+      final matrix4 = affineToMatrix4(accum);
+      if (coverage == _MaskCoverage.shows) {
+        shown.addPath(geometry, Offset.zero, matrix4: matrix4);
+      } else {
+        hidden.addPath(geometry, Offset.zero, matrix4: matrix4);
+        anyHidden = true;
+      }
+    }
+
+    walk(defRoot, const [1, 0, 0, 1, 0, 0], null);
+    // `Path.combine` allocates a fresh path and runs a real boolean op, so it
+    // is skipped entirely for the common mask that only paints white.
+    //
+    // It is also fallible: dart:ui throws `Bad state: Path.combine() failed`
+    // on degenerate input, and a mask whose geometry is driven by SMIL can be
+    // degenerate at particular instants (a `<rect>` animated through zero
+    // size, a transform sampled to a singular matrix). This was hit by real
+    // corpus data in `benchmark/bench_app/test/mask_clip_cost_bench_test.dart`
+    // while sweeping 60 consecutive frames — a single fixed sample instant had
+    // not exposed it. A throw here would take down a whole frame for what is
+    // only an optional fast path, so a failure falls back to the union without
+    // the subtraction: the same coverage the exact pipeline would produce
+    // minus the holes, which is the conservative direction (it shows slightly
+    // too much rather than erasing the icon).
+    //
+    // `Path.combine` 会新分配一条路径并跑一次真正的布尔运算，因此对"只画白色"
+    // 的常见 mask 完全跳过它。
+    //
+    // 它同时也是会失败的：输入退化时 dart:ui 会抛
+    // `Bad state: Path.combine() failed`，而由 SMIL 驱动几何的 mask 在某些特定
+    // 时刻确实可能退化（`<rect>` 被动画到零尺寸、变换被采样成奇异矩阵）。这是
+    // `benchmark/bench_app/test/mask_clip_cost_bench_test.dart` 连续扫 60 帧时被
+    // 真实语料数据撞出来的——只采样单个固定时刻则暴露不出来。在这里抛异常会为了
+    // 一条纯属可选的快路径而毁掉一整帧，因此失败时退回"不做相减的并集"：与精确
+    // 管线相同的覆盖度、只是少了那些洞，这是保守方向（宁可多显示一点，也不要把
+    // 图标擦掉）。
+    var built = shown;
+    if (anyHidden) {
+      try {
+        built = ui.Path.combine(ui.PathOperation.difference, shown, hidden);
+      } on StateError {
+        built = shown;
+      }
+    }
+    defRoot
+      ..cachedMaskClip = built
+      ..maskClipSampleKey = signature;
+    return built;
+  }
+
+  /// Flattens every sampled animation value in a `<mask>` definition's subtree
+  /// into one list, in a fixed document order — the cache key for
+  /// [SvgNode.cachedMaskClip].
+  ///
+  /// Reads the timelines directly instead of going through
+  /// [_effectiveAttributes], so the fast path allocates one growable list and
+  /// nothing else: no per-node attribute map, no matrices, no paths. A
+  /// timeline that has not begun (or ended without freezing) samples to null,
+  /// which is recorded as a distinct marker so "not yet started" and "started
+  /// at value 0" never collide.
+  ///
+  /// 把一个 `<mask>` 定义子树内所有已采样的动画值按固定的文档顺序压平成一个列表
+  /// ——[SvgNode.cachedMaskClip] 的缓存键。
+  ///
+  /// 直接读时间线而不经过 [_effectiveAttributes]，因此快路径只分配一个可增长列表、
+  /// 别无其它：没有逐节点属性表、没有矩阵、没有路径。尚未开始（或已结束且不定格）
+  /// 的时间线采样为 null，会被记为一个独立标记，因此"还没开始"与"已开始且值为 0"
+  /// 绝不会混淆。
+  ///
+  /// [defRoot] — the mask definition's root node. / mask 定义的根节点。
+  ///
+  /// [time] — timeline position to sample at. / 采样的时间线位置。
+  ///
+  /// Returns the flattened signature. / 返回压平后的签名。
+  List<double> _maskSampleSignature(SvgNode defRoot, Duration time) {
+    // Sentinel for "this timeline produced no value at this instant". Any
+    // finite sampled number is a legitimate value, so the marker has to be a
+    // non-finite one; negative infinity compares equal to itself (unlike NaN,
+    // which would make every comparison miss).
+    //
+    // "该时间线在此刻没有产出值"的哨兵。任何有限的采样数都是合法值，所以标记必须
+    // 取一个非有限值；负无穷与自身比较相等（不像 NaN，用 NaN 会让每次比较都未命中）。
+    const absent = double.negativeInfinity;
+    final signature = <double>[];
+    void walk(SvgNode node) {
+      for (final animation in node.animations) {
+        final sampled = animation.sample(time);
+        signature.add(sampled ?? absent);
+      }
+      for (final transformAnimation in node.transformAnimations) {
+        final sampled = transformAnimation.sample(time);
+        if (sampled == null) {
+          signature.add(absent);
+        } else {
+          signature.addAll(sampled);
+        }
+      }
+      for (final motion in node.motionAnimations) {
+        final sampled = motion.sample(time);
+        if (sampled == null) {
+          signature.add(absent);
+        } else {
+          signature
+            ..add(sampled.x)
+            ..add(sampled.y)
+            ..add(sampled.angleDegrees);
+        }
+      }
+      for (final child in node.children) {
+        walk(child);
+      }
+    }
+
+    walk(defRoot);
+    return signature;
+  }
+
+  /// Whether two mask sample signatures describe the same frame.
+  ///
+  /// 两条 mask 采样签名是否描述同一帧。
+  ///
+  /// [cached] — the signature the cached path was built from, or null.
+  ///
+  ///   缓存路径构建时所用的签名，或 null。
+  ///
+  /// [current] — this frame's signature. / 本帧的签名。
+  ///
+  /// Returns true when the cached path is still valid.
+  ///
+  ///   缓存路径仍然有效时返回 true。
+  static bool _sameSignature(List<double>? cached, List<double> current) {
+    if (cached == null || cached.length != current.length) return false;
+    for (var i = 0; i < cached.length; i++) {
+      if (cached[i] != current[i]) return false;
+    }
+    return true;
+  }
 
   /// Builds the union clip path for a `<clipPath>` definition, sampling any
   /// `<animate>`/`<animateTransform>` on its content at [time] — this is what
@@ -970,5 +1455,40 @@ class AnimatedSvgPainter extends CustomPainter {
       oldDelegate.alignment != alignment ||
       oldDelegate.gradients != gradients ||
       oldDelegate.clipPaths != clipPaths ||
-      oldDelegate.masks != masks;
+      oldDelegate.masks != masks ||
+      oldDelegate.quality != quality;
+}
+
+/// What one shape inside a `<mask>` definition contributes to the mask's
+/// coverage, as far as the binary clip-path approximation is concerned — see
+/// `AnimatedSvgPainter._maskFillCoverage`.
+///
+/// 就二值裁剪路径近似而言，`<mask>` 定义内的一个形状对该 mask 覆盖度的贡献
+/// ——见 `AnimatedSvgPainter._maskFillCoverage`。
+enum _MaskCoverage {
+  /// Fully-opaque white: the region is fully revealed.
+  ///
+  /// 完全不透明的白色：该区域完全显示。
+  shows,
+
+  /// Fully-opaque black (or SVG's initial `fill: black` when nothing set one):
+  /// the region is fully hidden, removing coverage where it overlaps [shows].
+  ///
+  /// 完全不透明的黑色（或谁都没设置时 SVG 的初始值 `fill: black`）：该区域完全
+  /// 隐藏，并在与 [shows] 重叠处去掉覆盖度。
+  hides,
+
+  /// `fill="none"`: the shape is not painted, so it neither reveals nor hides
+  /// anything and must be ignored entirely.
+  ///
+  /// `fill="none"`：形状未被绘制，因此既不显示也不隐藏任何东西，必须完全忽略。
+  paintsNothing,
+
+  /// A mid grey, a translucent colour, a gradient, `currentColor`, or anything
+  /// unparseable: real fractional coverage, which a clip path cannot express —
+  /// the whole mask is then ineligible for the approximation.
+  ///
+  /// 中间灰、半透明颜色、渐变、`currentColor`，或任何解析不出来的值：真正的分数
+  /// 覆盖度，裁剪路径无法表达——此时整个 mask 都不适用该近似。
+  notBinary,
 }

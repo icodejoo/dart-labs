@@ -11,6 +11,10 @@ export 'src/rust/frb_generated.dart' show RustLib;
 export 'src/animation/animated_svg_widget.dart' show SvgXAnimated;
 export 'src/animation/svg_document_cache.dart' show SvgDocumentCache;
 export 'src/animation/svg_theme.dart' show SvgTheme;
+// Opt-out-able, deliberately lossy performance trade-offs for the animated
+// path — read its class doc before changing the default, it says exactly what
+// fidelity is traded away and at what concurrency.
+export 'src/animation/svgx_animation_quality.dart' show SvgXAnimationQuality;
 
 // Rust (usvg) backed static SVG renderer.
 export 'src/rust_static_svg.dart' show SvgXStatic, RustSvgPictureCache;
