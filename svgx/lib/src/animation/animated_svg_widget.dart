@@ -508,35 +508,54 @@ class _SvgXAnimatedState extends State<SvgXAnimated> {
       // 内嵌 <image> 位图解码期间的简单占位——按任务范围不做专门状态机。
       return SizedBox(width: w, height: h);
     }
-    final child = SizedBox(
-      width: w,
-      height: h,
-      child: CustomPaint(
-        size: Size(w, h),
-        painter: AnimatedSvgPainter(
-          root: _document.root,
-          intrinsicSize: Size(_document.width, _document.height),
-          clock: _elapsed,
-          theme: widget.theme ?? const SvgTheme(),
-          fit: widget.fit,
-          alignment: widget.alignment,
-          gradients: _document.gradients,
-          clipPaths: _document.clipPaths,
-          masks: _document.masks,
-          // Evaluated per paint, not per build: concurrency changes as cells
-          // scroll in and out, and this painter is not rebuilt on every tick
-          // (that is the whole point of driving it through `repaint`).
-          //
-          // 逐次绘制求值，而非逐次 build：并发数会随格子滚进滚出而变化，而本绘制器
-          // 并不会每 tick 重建（通过 `repaint` 驱动它的全部意义正在此）。
-          approximateMasks: _approximateMasks,
-          // Carried alongside the closure only so the painter's shouldRepaint
-          // can see a runtime quality change — see AnimatedSvgPainter.quality.
-          //
-          // 与闭包一并传入，唯一目的是让绘制器的 shouldRepaint 能看到运行时的画质
-          // 变化——见 AnimatedSvgPainter.quality。
-          quality: widget.quality ?? SvgXAnimationQuality.defaultQuality,
-        ),
+    // No `SizedBox` around this `CustomPaint`, deliberately: a childless
+    // `CustomPaint` already sizes itself to `size`
+    // (`RenderCustomPaint.computeSizeForNoChild` returns
+    // `constraints.constrain(preferredSize)`), which is exactly what a
+    // `SizedBox(width: w, height: h)` wrapper would have produced — under every
+    // constraint regime, including a grid cell's tight constraints where both
+    // are overridden identically, and a parent tighter than the icon where both
+    // clamp the same way. The wrapper was therefore a `RenderConstrainedBox`
+    // that could not change a single pixel, and in a scrolling grid the
+    // framework paid to inflate it, attach it, lay it out and walk it once per
+    // cell per appearance. Size equivalence across all four constraint regimes,
+    // and the absence of the layer, are locked down by
+    // `test/animation/widget_tree_depth_test.dart`.
+    //
+    // 刻意不给这个 `CustomPaint` 套 `SizedBox`：无 child 的 `CustomPaint` 本就会把
+    // 自己撑到 `size`（`RenderCustomPaint.computeSizeForNoChild` 返回
+    // `constraints.constrain(preferredSize)`），这与 `SizedBox(width: w,
+    // height: h)` 包一层的结果完全一致——在任何约束状态下都一致，包括网格格子的紧
+    // 约束（两者都被同样地覆盖）以及比图标更紧的父级（两者都以同样方式收敛）。
+    // 因此那层包装只是一个不可能改变任何像素的 `RenderConstrainedBox`，而在滚动
+    // 网格里，框架要为每格每次出现付一次 inflate、attach、布局与遍历的代价。四种
+    // 约束状态下的尺寸等价性、以及该层级确实消失，由
+    // `test/animation/widget_tree_depth_test.dart` 锁定。
+    final child = CustomPaint(
+      size: Size(w, h),
+      painter: AnimatedSvgPainter(
+        root: _document.root,
+        intrinsicSize: Size(_document.width, _document.height),
+        clock: _elapsed,
+        theme: widget.theme ?? const SvgTheme(),
+        fit: widget.fit,
+        alignment: widget.alignment,
+        gradients: _document.gradients,
+        clipPaths: _document.clipPaths,
+        masks: _document.masks,
+        // Evaluated per paint, not per build: concurrency changes as cells
+        // scroll in and out, and this painter is not rebuilt on every tick
+        // (that is the whole point of driving it through `repaint`).
+        //
+        // 逐次绘制求值，而非逐次 build：并发数会随格子滚进滚出而变化，而本绘制器
+        // 并不会每 tick 重建（通过 `repaint` 驱动它的全部意义正在此）。
+        approximateMasks: _approximateMasks,
+        // Carried alongside the closure only so the painter's shouldRepaint
+        // can see a runtime quality change — see AnimatedSvgPainter.quality.
+        //
+        // 与闭包一并传入，唯一目的是让绘制器的 shouldRepaint 能看到运行时的画质
+        // 变化——见 AnimatedSvgPainter.quality。
+        quality: widget.quality ?? SvgXAnimationQuality.defaultQuality,
       ),
     );
     // Kept deliberately, and re-tested rather than assumed. Removing this

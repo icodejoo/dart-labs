@@ -360,8 +360,7 @@ class RustSvgPictureCache {
   void _paintImage(Canvas canvas, SvgImage image, ui.Image decoded) {
     final blur = image.blur;
     final mask = image.mask;
-    final needsSave =
-        image.clips.isNotEmpty || blur != null || mask != null;
+    final needsSave = image.clips.isNotEmpty || blur != null || mask != null;
     if (needsSave) canvas.save();
     for (final clip in image.clips) {
       canvas.clipPath(_toUiClipPath(clip));
@@ -985,7 +984,26 @@ class SvgXStatic extends StatelessWidget {
         alignment: resolved,
       ),
     );
-    child = SizedBox(width: w, height: h, child: child);
+    // No `SizedBox` wrapper: a childless `CustomPaint` already sizes itself to
+    // `size` via `RenderCustomPaint.computeSizeForNoChild` ->
+    // `constraints.constrain(preferredSize)`, which is what a
+    // `SizedBox(width: w, height: h)` around it produced — identically under
+    // tight, loose and parent-tighter-than-icon constraints alike. It was a
+    // `RenderConstrainedBox` per icon that could not change a pixel, inflated,
+    // attached, laid out and walked once per cell per appearance in a scrolling
+    // grid. Same removal, same reasoning as the animated path — see
+    // `animation/animated_svg_widget.dart`, whose
+    // `test/animation/widget_tree_depth_test.dart` pins the size equivalence
+    // across every constraint regime.
+    //
+    // 不套 `SizedBox`：无 child 的 `CustomPaint` 本就通过
+    // `RenderCustomPaint.computeSizeForNoChild` -> `constraints.constrain(
+    // preferredSize)` 把自己撑到 `size`，与在它外面套 `SizedBox(width: w,
+    // height: h)` 的结果完全相同——紧约束、松约束、父级比图标更紧三种情形都一致。
+    // 它此前只是每个图标一个不可能改变任何像素的 `RenderConstrainedBox`，而在滚动
+    // 网格里每格每次出现都要 inflate、attach、布局、遍历一遍。与动画路径是同一处
+    // 移除、同一套理由——见 `animation/animated_svg_widget.dart`，其
+    // `test/animation/widget_tree_depth_test.dart` 钉住了各约束状态下的尺寸等价性。
     if (colorFilter != null) {
       child = ColorFiltered(colorFilter: colorFilter!, child: child);
     }

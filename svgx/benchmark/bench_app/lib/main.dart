@@ -10,6 +10,8 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart'
+    show debugProfileLayoutsEnabled, debugProfilePaintsEnabled;
 import 'package:svgx/svgx.dart';
 
 import 'anim_bench_screen.dart';
@@ -24,8 +26,64 @@ const _cycles = int.fromEnvironment('CYCLES', defaultValue: 6);
 const _items = int.fromEnvironment('ITEMS', defaultValue: 1000);
 const _holdSeconds = int.fromEnvironment('HOLD', defaultValue: 6);
 
+// `PROFILEWIDGETS=1` turns on the framework's own fine-grained timeline
+// instrumentation for the whole run. Read as a string compared against
+// '1'/'true' rather than through `bool.fromEnvironment`, for the reason
+// `anim_fps_bench_screen.dart` documents at length (that constructor accepts
+// ONLY the exact strings "true"/"false", so `=1` silently evaluates false and
+// costs a whole wasted measurement round).
+//
+// What it buys, and why the build phase had never been decomposed before: with
+// these three flags off — the default, including under `flutter run --profile`
+// — the engine timeline carries only the coarse `BUILD` / `LAYOUT` / `PAINT`
+// slices, so `tool/capture_timeline.dart` can say "BUILD cost 14ms" and
+// nothing more. With them on, `Element.rebuild`,
+// `RenderObject.layout` and `PaintingContext.paintChild` each open a slice
+// NAMED AFTER the widget / render object being processed
+// (`framework.dart`'s `FlutterTimeline.startSync('${widget.runtimeType}')`,
+// `object.dart`'s equivalents for layout and paint), which is what makes a
+// per-mechanism cost list possible at all: `SvgXAnimated`, `CustomPaint`,
+// `RenderCustomPaint`, `RenderConstrainedBox`, `RenderSliverGrid` all become
+// separately-summed line items.
+//
+// All three are `!kReleaseMode`-guarded in the framework, so they are live in
+// profile mode and cost nothing in release. They are NOT free: every slice is
+// a real timeline write, so a `PROFILEWIDGETS=1` run's absolute build numbers
+// are inflated and must never be compared against a normal run's. Use it for
+// *attribution* (which slice dominates), and re-measure the headline numbers
+// with it off.
+//
+// `PROFILEWIDGETS=1` 为整次运行打开框架自带的细粒度时间线埋点。按字符串读取并与
+// '1'/'true' 比较，而不用 `bool.fromEnvironment`，理由见
+// `anim_fps_bench_screen.dart` 的详细记录（那个构造器**只**接受精确字符串
+// "true"/"false"，因此 `=1` 会静默为 false，白费一整轮测量）。
+//
+// 它带来什么、以及为什么 build 阶段此前从未被拆解过：这三个开关关闭时——也就是
+// 默认状态，`flutter run --profile` 下也一样——引擎时间线里只有粗粒度的
+// `BUILD` / `LAYOUT` / `PAINT` 三个 slice，于是
+// `tool/capture_timeline.dart` 只能说出"BUILD 花了 14ms"，再无下文。打开后，
+// `Element.rebuild`、`RenderObject.layout`、`PaintingContext.paintChild` 各自会
+// 开一个**以被处理的控件/渲染对象命名**的 slice（framework.dart 里的
+// `FlutterTimeline.startSync('${widget.runtimeType}')`，以及 object.dart 里布局
+// 与绘制的对应写法），这正是"按子机制归因"得以成立的前提：`SvgXAnimated`、
+// `CustomPaint`、`RenderCustomPaint`、`RenderConstrainedBox`、`RenderSliverGrid`
+// 会成为可以分别累加的独立条目。
+//
+// 三个开关在框架里都由 `!kReleaseMode` 守卫，因此 profile 模式下生效、release
+// 下零成本。但它们**不是免费的**：每个 slice 都是一次真实的时间线写入，所以
+// `PROFILEWIDGETS=1` 那次运行的 build 绝对值是被抬高过的，绝不能拿去和普通运行
+// 比较。它用于**归因**（哪个 slice 占大头），头条数字要关掉它再测。
+const String _profileWidgetsRaw = String.fromEnvironment('PROFILEWIDGETS');
+const bool _profileWidgets =
+    _profileWidgetsRaw == '1' || _profileWidgetsRaw == 'true';
+
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  if (_profileWidgets) {
+    debugProfileBuildsEnabled = true;
+    debugProfileLayoutsEnabled = true;
+    debugProfilePaintsEnabled = true;
+  }
   // Required once before any parseSvg() FFI call; forgetting this makes
   // SvgXStatic silently fall back to a blank SizedBox on every render (its
   // errorBuilder is null by default), which would otherwise make this
