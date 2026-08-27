@@ -46,21 +46,15 @@ bool _nativeUnavailable = false;
 /// ```dart
 /// resolveColorToHex('red'); // '#FF0000FF'
 /// ```
-String? resolveColorToHex(String raw) {
-  if (_nativeUnavailable) return null;
-  try {
-    final rgba = rust.parseColor(s: raw);
-    if (rgba == null) return null;
-    final hex = StringBuffer('#');
-    for (final byte in rgba) {
-      hex.write(byte.toRadixString(16).padLeft(2, '0'));
-    }
-    return hex.toString().toUpperCase();
-  } catch (_) {
-    _nativeUnavailable = true;
-    return null;
+String? resolveColorToHex(String raw) => _viaRust(() {
+  final rgba = rust.parseColor(s: raw);
+  if (rgba == null) return null;
+  final hex = StringBuffer('#');
+  for (final byte in rgba) {
+    hex.write(byte.toRadixString(16).padLeft(2, '0'));
   }
-}
+  return hex.toString().toUpperCase();
+});
 
 /// Parses a full SVG `transform` list into the composed affine matrix
 /// `[a, b, c, d, e, f]` via Rust, or null when malformed / the native library
@@ -80,12 +74,22 @@ String? resolveColorToHex(String raw) {
 /// ```dart
 /// parseTransformMatrix('translate(10,20)'); // [1, 0, 0, 1, 10, 20]
 /// ```
-List<double>? parseTransformMatrix(String raw) {
+List<double>? parseTransformMatrix(String raw) => _viaRust(() {
+  final matrix = rust.parseTransform(s: raw);
+  if (matrix == null || matrix.length != 6) return null;
+  return matrix.map((v) => v.toDouble()).toList(growable: false);
+});
+
+/// Runs [call], a Rust FFI lookup, latching [_nativeUnavailable] and
+/// returning null on any failure so a document full of unsupported
+/// constructs doesn't pay repeated exception costs.
+///
+/// 执行 [call]（一次 Rust FFI 调用）；失败时锁定 [_nativeUnavailable] 并返回
+/// null，避免一份含大量不支持结构的文档反复付出异常开销。
+T? _viaRust<T>(T? Function() call) {
   if (_nativeUnavailable) return null;
   try {
-    final matrix = rust.parseTransform(s: raw);
-    if (matrix == null || matrix.length != 6) return null;
-    return matrix.map((v) => v.toDouble()).toList(growable: false);
+    return call();
   } catch (_) {
     _nativeUnavailable = true;
     return null;
