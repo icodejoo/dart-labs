@@ -8,7 +8,7 @@ Initial release.
 * Animated SVG rendering via an original Dart-side SMIL engine (`<animate>`,
   `<animateTransform>`, `<animateMotion>`, `<set>`) — parses once, samples and
   paints every frame in pure Dart, no per-frame FFI crossing.
-* `SvgX` dispatches automatically to the static or animated path based on
+* `Svgx` dispatches automatically to the static or animated path based on
   whether the source contains SMIL animation markers.
-* `SvgXAnimationQuality` for opt-in/opt-out performance trade-offs on the
+* `SvgxAnimationQuality` for opt-in/opt-out performance trade-offs on the
   animated path (adaptive frame-skipping, mask-as-clip approximation).

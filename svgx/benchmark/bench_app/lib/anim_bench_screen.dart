@@ -1,11 +1,11 @@
 // Animation smoothness check: renders several concurrently-playing SMIL
 // animated icons (svgx's original Dart animation engine, dispatched via
-// SvgX.string) and collects frame build/raster timing while they animate,
+// Svgx.string) and collects frame build/raster timing while they animate,
 // to confirm no main-thread blocking/jank per the performance acceptance
 // criteria's animation requirement.
 //
 // 动画流畅度检查：渲染若干个同时播放的 SMIL 动画图标（svgx 原创 Dart 动画引擎，
-// 经 SvgX.string 分发），在播放期间采集帧 build/raster 耗时，用于验证性能验收
+// 经 Svgx.string 分发），在播放期间采集帧 build/raster 耗时，用于验证性能验收
 // 条件里"动画不得阻塞主线程"这一项。
 
 import 'dart:async';
@@ -178,7 +178,7 @@ class _AnimBenchRunnerState extends State<AnimBenchRunner> {
           final source = _icons[index % _icons.length];
           return Padding(
             padding: const EdgeInsets.all(8),
-            child: SvgX.string(source, width: 48, height: 48),
+            child: Svgx.string(source, width: 48, height: 48),
           );
         },
       ),

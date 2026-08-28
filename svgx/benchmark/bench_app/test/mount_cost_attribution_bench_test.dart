@@ -8,7 +8,7 @@
 //
 // The five steps, in the order a re-mounting cell runs them:
 //
-//  1. `route_decision`   — `SvgX.build`'s `AnimationDetector.hasAnimations`.
+//  1. `route_decision`   — `Svgx.build`'s `AnimationDetector.hasAnimations`.
 //  2. `document_cold`    — `SvgDocumentCache` miss: full XML parse + timeline
 //                          build. Paid once per distinct source, ever.
 //  3. `document_warm`    — the same call on a hit. Paid on every re-mount.
@@ -37,7 +37,7 @@
 //
 // 五个步骤，按重挂载格子的执行顺序：
 //
-//  1. `route_decision`   —— `SvgX.build` 里的 `AnimationDetector.hasAnimations`。
+//  1. `route_decision`   —— `Svgx.build` 里的 `AnimationDetector.hasAnimations`。
 //  2. `document_cold`    —— `SvgDocumentCache` 未命中：完整 XML 解析 + 时间线构建。
 //                            每个互异源一生只付一次。
 //  3. `document_warm`    —— 同一调用在命中时的开销。每次重挂载都要付。
@@ -151,9 +151,9 @@ void main() {
     final mountedSources = sources.take(_mountedIcons).toList();
 
     /// Builds a screenful of icons, optionally with the redundant sizing layer
-    /// that `SvgXAnimated` used to wrap its `CustomPaint` in reintroduced.
+    /// that `SvgxAnimated` used to wrap its `CustomPaint` in reintroduced.
     ///
-    /// 构建一屏图标，可选地重新引入 `SvgXAnimated` 此前套在 `CustomPaint` 外面的那层
+    /// 构建一屏图标，可选地重新引入 `SvgxAnimated` 此前套在 `CustomPaint` 外面的那层
     /// 冗余定尺寸层。
     ///
     /// [extraSizingLayer] — true adds one `SizedBox` (hence one
@@ -171,10 +171,10 @@ void main() {
               SizedBox(
                 width: 32,
                 height: 32,
-                child: SvgX.string(source, width: 32, height: 32),
+                child: Svgx.string(source, width: 32, height: 32),
               )
             else
-              SvgX.string(source, width: 32, height: 32),
+              Svgx.string(source, width: 32, height: 32),
         ],
       ),
     );

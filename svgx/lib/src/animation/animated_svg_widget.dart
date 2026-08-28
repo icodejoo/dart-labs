@@ -28,7 +28,7 @@ import 'svgx_animation_quality.dart';
 ///
 /// Example:
 /// ```dart
-/// SvgXAnimated.string(svgSource, width: 48, height: 48)
+/// SvgxAnimated.string(svgSource, width: 48, height: 48)
 /// ```
 ///
 /// 用本项目原创动画引擎（解析 → 时间线 → 逐帧采样 → 绘制）渲染 SMIL 动画
@@ -41,13 +41,13 @@ import 'svgx_animation_quality.dart';
 ///
 /// 用例：
 /// ```dart
-/// SvgXAnimated.string(svgSource, width: 48, height: 48)
+/// SvgxAnimated.string(svgSource, width: 48, height: 48)
 /// ```
-class SvgXAnimated extends StatefulWidget {
+class SvgxAnimated extends StatefulWidget {
   /// Creates the animated renderer from a raw SVG string.
   ///
   /// 用原始 SVG 字符串创建动画渲染组件。
-  const SvgXAnimated.string(
+  const SvgxAnimated.string(
     this.source, {
     super.key,
     this.width,
@@ -82,23 +82,23 @@ class SvgXAnimated extends StatefulWidget {
 
   /// How much per-icon animation smoothness this instance may trade away for
   /// frame throughput under high concurrency; null uses
-  /// [SvgXAnimationQuality.defaultQuality].
+  /// [SvgxAnimationQuality.defaultQuality].
   ///
-  /// Pass [SvgXAnimationQuality.exact] to opt this icon out of all
-  /// degradation. See [SvgXAnimationQuality] for exactly what is given up.
+  /// Pass [SvgxAnimationQuality.exact] to opt this icon out of all
+  /// degradation. See [SvgxAnimationQuality] for exactly what is given up.
   ///
   /// 本实例在高并发下可以拿多少"单图标动画流畅度"去换帧吞吐；null 表示使用
-  /// [SvgXAnimationQuality.defaultQuality]。
+  /// [SvgxAnimationQuality.defaultQuality]。
   ///
-  /// 传 [SvgXAnimationQuality.exact] 可让本图标完全不参与降级。具体牺牲了什么
-  /// 见 [SvgXAnimationQuality]。
-  final SvgXAnimationQuality? quality;
+  /// 传 [SvgxAnimationQuality.exact] 可让本图标完全不参与降级。具体牺牲了什么
+  /// 见 [SvgxAnimationQuality]。
+  final SvgxAnimationQuality? quality;
 
   @override
-  State<SvgXAnimated> createState() => _SvgXAnimatedState();
+  State<SvgxAnimated> createState() => _SvgxAnimatedState();
 }
 
-// Process-wide shared [Ticker] driving every [SvgXAnimated] instance's
+// Process-wide shared [Ticker] driving every [SvgxAnimated] instance's
 // timeline, instead of each instance creating (and the framework scheduling)
 // its own. A scroll grid of N concurrent animated icons previously meant N
 // separate `Ticker`s all registered with `SchedulerBinding` — real-device
@@ -122,7 +122,7 @@ class SvgXAnimated extends StatefulWidget {
 // Backgrounding the whole app still stops everything, since `SchedulerBinding`
 // stops scheduling frames regardless of ticker muting.
 //
-// 全进程共享的 [Ticker]，驱动所有 [SvgXAnimated] 实例的时间线，而非每个实例各建
+// 全进程共享的 [Ticker]，驱动所有 [SvgxAnimated] 实例的时间线，而非每个实例各建
 // 一个（框架也各自调度一个）。此前 N 个并发动画图标的滚动网格意味着 N 个
 // 独立 `Ticker` 各自向 `SchedulerBinding` 注册——真机实测 N=1000 时这个规模下
 // 单图标开销会严重叠加（见 docs/performance-benchmarks.md 的 anim_fps
@@ -176,9 +176,9 @@ class _SharedAnimationClock {
   Duration get elapsed => _elapsed;
 
   /// How many icons are animating right now — the concurrency figure every
-  /// [SvgXAnimationQuality] gate is evaluated against.
+  /// [SvgxAnimationQuality] gate is evaluated against.
   ///
-  /// 当前有多少图标在播放动画——所有 [SvgXAnimationQuality] 门控判定所依据的并发
+  /// 当前有多少图标在播放动画——所有 [SvgxAnimationQuality] 门控判定所依据的并发
   /// 数值。
   int get subscriberCount => _subscriptions.length;
 
@@ -188,12 +188,12 @@ class _SharedAnimationClock {
     // Concurrency is measured as "how many icons are subscribed right now",
     // which is what the degradation threshold is defined against. Icons whose
     // finite animations have already settled have unsubscribed themselves (see
-    // [_SvgXAnimatedState._onGlobalTick]), so a screen of mostly-finished
+    // [_SvgxAnimatedState._onGlobalTick]), so a screen of mostly-finished
     // icons correctly counts as low concurrency and stops degrading.
     //
     // 并发量的度量是"当前有多少图标处于订阅状态"，降级阈值正是针对这个定义的。
     // 有限动画已经定格的图标会自行取消订阅（见
-    // [_SvgXAnimatedState._onGlobalTick]），因此一屏大多已播完的图标会正确地被
+    // [_SvgxAnimatedState._onGlobalTick]），因此一屏大多已播完的图标会正确地被
     // 算作低并发、不再降级。
     final concurrency = _subscriptions.length;
     // Snapshot before iterating: a subscriber's own callback may call
@@ -236,11 +236,11 @@ class _SharedAnimationClock {
   ///   [SvgDocument.usesOffscreenLayers]）；这类文档可能被压得更狠。
   ///
   /// [quality] — read on every tick rather than captured, so reassigning
-  ///   [SvgXAnimationQuality.defaultQuality] takes effect on live icons
+  ///   [SvgxAnimationQuality.defaultQuality] takes effect on live icons
   ///   without them having to re-subscribe.
   ///
   ///   每 tick 现读而非订阅时捕获，因此重新赋值
-  ///   [SvgXAnimationQuality.defaultQuality] 对已存活的图标立即生效，无需重新
+  ///   [SvgxAnimationQuality.defaultQuality] 对已存活的图标立即生效，无需重新
   ///   订阅。
   ///
   /// Returns the handle to pass back to [unsubscribe].
@@ -249,7 +249,7 @@ class _SharedAnimationClock {
   _ClockSubscription subscribe(
     ValueChanged<Duration> onTick, {
     required bool usesOffscreenLayers,
-    required SvgXAnimationQuality Function() quality,
+    required SvgxAnimationQuality Function() quality,
   }) {
     final subscription = _ClockSubscription(
       onTick: onTick,
@@ -279,11 +279,11 @@ class _SharedAnimationClock {
   }
 }
 
-/// One [SvgXAnimated] instance's registration with [_SharedAnimationClock],
+/// One [SvgxAnimated] instance's registration with [_SharedAnimationClock],
 /// carrying everything the clock needs to decide whether that instance gets
 /// this frame.
 ///
-/// 一个 [SvgXAnimated] 实例在 [_SharedAnimationClock] 上的注册记录，携带时钟
+/// 一个 [SvgxAnimated] 实例在 [_SharedAnimationClock] 上的注册记录，携带时钟
 /// 判定"这一帧要不要给它"所需的全部信息。
 class _ClockSubscription {
   /// Creates a subscription record. / 创建一条订阅记录。
@@ -316,10 +316,10 @@ class _ClockSubscription {
   ///
   /// 解析本订阅当前生效的画质配置，逐 tick 求值——见
   /// [_SharedAnimationClock.subscribe]。
-  final SvgXAnimationQuality Function() quality;
+  final SvgxAnimationQuality Function() quality;
 }
 
-class _SvgXAnimatedState extends State<SvgXAnimated> {
+class _SvgxAnimatedState extends State<SvgxAnimated> {
   late SvgDocument _document;
 
   /// This instance's local-timeline start point, as an offset into
@@ -388,7 +388,7 @@ class _SvgXAnimatedState extends State<SvgXAnimated> {
   }
 
   @override
-  void didUpdateWidget(SvgXAnimated oldWidget) {
+  void didUpdateWidget(SvgxAnimated oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.source != widget.source) {
       _stopTicking();
@@ -441,7 +441,7 @@ class _SvgXAnimatedState extends State<SvgXAnimated> {
       //
       // 用闭包而非捕获的值，这样控件自身的 `quality` 或全局默认值中途发生变化
       // 都能在下一个 tick 生效——见 [_SharedAnimationClock.subscribe]。
-      quality: () => widget.quality ?? SvgXAnimationQuality.defaultQuality,
+      quality: () => widget.quality ?? SvgxAnimationQuality.defaultQuality,
     );
   }
 
@@ -464,7 +464,7 @@ class _SvgXAnimatedState extends State<SvgXAnimated> {
   ///
   ///   近似生效时返回 true。
   bool _approximateMasks() =>
-      (widget.quality ?? SvgXAnimationQuality.defaultQuality)
+      (widget.quality ?? SvgxAnimationQuality.defaultQuality)
           .approximatesMasksAt(_SharedAnimationClock.instance.subscriberCount);
 
   void _onGlobalTick(Duration globalElapsed) {
@@ -555,7 +555,7 @@ class _SvgXAnimatedState extends State<SvgXAnimated> {
         //
         // 与闭包一并传入，唯一目的是让绘制器的 shouldRepaint 能看到运行时的画质
         // 变化——见 AnimatedSvgPainter.quality。
-        quality: widget.quality ?? SvgXAnimationQuality.defaultQuality,
+        quality: widget.quality ?? SvgxAnimationQuality.defaultQuality,
       ),
     );
     // Kept deliberately, and re-tested rather than assumed. Removing this

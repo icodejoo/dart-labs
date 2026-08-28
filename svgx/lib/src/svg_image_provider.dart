@@ -1,15 +1,23 @@
-// ImageProvider bridge for SvgX, so an SVG can be used anywhere Flutter
+// ImageProvider bridge for Svgx, so an SVG can be used anywhere Flutter
 // wants an ImageProvider — DecorationImage being the motivating case (a
-// CustomPainter has no such slot). Static sources rasterize once; animated
+// CustomPainter has no such slot). One concrete class per source kind
+// (StringSvgx/AssetSvgx/NetworkSvgx/FileSvgx/MemorySvgx), mirroring the
+// AssetImage/NetworkImage/FileImage/MemoryImage family rather than one class
+// with named constructors — each has its own concrete, directly-comparable
+// fields, so none of them need a synthetic identity key the way a single
+// closure-capturing class would. Static sources rasterize once; animated
 // (SMIL) sources rasterize on their own timer at a self-imposed frame rate —
-// see [SvgImageProvider]'s class doc for why that frame rate exists and why
-// it's lower than the 60Hz SvgXAnimated widget path uses.
+// see the shared class doc below (`_svgxDoc`) for why that frame rate exists
+// and why it's lower than the 60Hz SvgxAnimated widget path uses.
 //
-// SvgX 的 ImageProvider 桥接层，让 SVG 能用在 Flutter 期待 ImageProvider 的任何
+// Svgx 的 ImageProvider 桥接层，让 SVG 能用在 Flutter 期待 ImageProvider 的任何
 // 地方——促成这个需求的场景是 DecorationImage（CustomPainter 没有这个插槛）。
-// 静态源只光栅化一次；动画（SMIL）源按自定的帧率用自己的定时器光栅化——为什么
-// 有这个帧率、为什么比 SvgXAnimated 控件路径的 60Hz 更低，见
-// [SvgImageProvider] 的类文档。
+// 每种源各自一个具体类（StringSvgx/AssetSvgx/NetworkSvgx/FileSvgx/MemorySvgx），
+// 对应 AssetImage/NetworkImage/FileImage/MemoryImage 那一套，而不是一个类里塞
+// 命名构造函数——每个类都有自己具体、可直接比较的字段，都不需要像单个闭包捕获类
+// 那样造一个合成身份键。静态源只光栅化一次；动画（SMIL）源按自定的帧率用自己的
+// 定时器光栅化——为什么有这个帧率、为什么比 SvgxAnimated 控件路径的 60Hz 更低，
+// 见下面共享的类文档（`_svgxDoc`）。
 
 import 'dart:async';
 import 'dart:convert';
@@ -30,19 +38,17 @@ import 'rust_static_svg.dart';
 import 'svg_source_loader.dart';
 
 /// Oversampling factor applied on top of the device's own pixel density when
-/// rasterizing through [SvgImageProvider] — see `_resolveSize`'s doc comment
-/// (on `_SvgImageStreamCompleter`) for why an offscreen `toImage` snapshot
-/// needs this and a direct-to-surface [SvgXAnimated]/[SvgXStatic] paint
-/// doesn't.
+/// rasterizing an SVG image provider — see `_resolveSize`'s doc comment (on
+/// `_SvgImageStreamCompleter`) for why an offscreen `toImage` snapshot needs
+/// this and a direct-to-surface [SvgxAnimated]/[SvgxStatic] paint doesn't.
 ///
-/// 通过 [SvgImageProvider] 光栅化时，在设备自身像素密度之上再叠加的超采样倍数
+/// 通过 SVG image provider 光栅化时，在设备自身像素密度之上再叠加的超采样倍数
 /// ——为什么离屏 `toImage` 快照需要它、而直接画上表面的
-/// [SvgXAnimated]/[SvgXStatic] 不需要，见 `_SvgImageStreamCompleter` 上
+/// [SvgxAnimated]/[SvgxStatic] 不需要，见 `_SvgImageStreamCompleter` 上
 /// `_resolveSize` 的文档注释。
 const _supersample = 2;
 
-/// An [ImageProvider] over an SVG source — usable anywhere Flutter wants one,
-/// e.g. `DecorationImage(image: SvgImageProvider.asset('icon.svg'))`.
+/// Creates a provider from a raw SVG string.
 ///
 /// **Static sources** rasterize once, cached by Flutter's own [ImageCache]
 /// through normal [ImageProvider] value equality — no different from
@@ -50,208 +56,68 @@ const _supersample = 2;
 ///
 /// **Animated (SMIL) sources** rasterize repeatedly, one frame at a time,
 /// pushed through a custom [ImageStreamCompleter] — but at a *self-imposed*
-/// frame rate ([animationFrameRate], default 30), not the 60Hz
-/// [SvgXAnimated] widget path uses. That's a deliberate, structural
-/// trade-off, not a shortcut: [SvgXAnimated] hands `dart:ui` a [ui.Picture]
-/// directly for the GPU to consume, while every frame here is additionally
-/// rasterized into a brand-new [ui.Image] first — `DecorationImage`'s
-/// contract only knows how to consume a decoded image, not a paint callback
-/// — and a fresh offscreen render-target allocation every frame is a real,
-/// measured cost the engine team calls out as something that "should not
-/// occur in a frame workload" (see
-/// https://github.com/flutter/flutter/issues/13498). Halving the rate to
-/// 30Hz halves how often that allocation happens; it does not remove it. If
-/// an SVG needs to look smooth at 60Hz, prefer [SvgXAnimated]/`SvgX` (a real
-/// widget in the tree) over squeezing it through an [ImageProvider].
+/// frame rate ([animationFrameRate], default 30), not the 60Hz [SvgxAnimated]
+/// widget path uses. That's a deliberate, structural trade-off, not a
+/// shortcut: [SvgxAnimated] hands `dart:ui` a [ui.Picture] directly for the
+/// GPU to consume, while every frame here is additionally rasterized into a
+/// brand-new [ui.Image] first — `DecorationImage`'s contract only knows how
+/// to consume a decoded image, not a paint callback — and a fresh offscreen
+/// render-target allocation every frame is a real, measured cost the engine
+/// team calls out as something that "should not occur in a frame workload"
+/// (see https://github.com/flutter/flutter/issues/13498). Halving the rate
+/// to 30Hz halves how often that allocation happens; it does not remove it.
+/// If an SVG needs to look smooth at 60Hz, prefer [SvgxAnimated]/`Svgx` (a
+/// real widget in the tree) over squeezing it through an [ImageProvider].
 ///
 /// A rasterized animated frame only ever shows this document's *base*
 /// (non-animated-property) appearance if [SvgDocumentCache] fails to parse
 /// it as animated for some reason — in the ordinary case the same SMIL
-/// engine [SvgXAnimated] uses drives every frame, so animation content is
+/// engine [SvgxAnimated] uses drives every frame, so animation content is
 /// fully supported here, just at a lower, capped rate.
 ///
 /// [width]/[height] pick the raster resolution. Both are optional:
-/// - Neither given → falls back to [PaintingContext]'s [ImageConfiguration]
-///   size when the resolving widget provides one (`DecorationImage` does),
-///   else the primary display's logical width with height derived from the
-///   SVG's own intrinsic aspect ratio.
+/// - Neither given → falls back to the primary display's logical width with
+///   height derived from the SVG's own intrinsic aspect ratio.
 /// - Only one given → the other is derived from the SVG's own intrinsic
 ///   aspect ratio.
 ///
-/// 覆盖 SVG 源的 [ImageProvider]——可以用在 Flutter 期待 ImageProvider 的任何
-/// 地方，例如 `DecorationImage(image: SvgImageProvider.asset('icon.svg'))`。
+/// 用原始 SVG 字符串创建 provider。
 ///
 /// **静态源**只光栅化一次，通过 [ImageProvider] 常规的值相等语义接入 Flutter
 /// 自带的 [ImageCache]——这一点上跟 [AssetImage]/[NetworkImage] 没有区别。
 ///
 /// **动画（SMIL）源**反复光栅化，一次一帧，经自定义 [ImageStreamCompleter]
 /// 推送——但按*自定*帧率（[animationFrameRate]，默认 30），不是
-/// [SvgXAnimated] 控件路径用的 60Hz。这是刻意的结构性取舍，不是抄近路：
-/// [SvgXAnimated] 把 [ui.Picture] 直接交给 `dart:ui` 给 GPU 消费，而这里每一帧
+/// [SvgxAnimated] 控件路径用的 60Hz。这是刻意的结构性取舍，不是抄近路：
+/// [SvgxAnimated] 把 [ui.Picture] 直接交给 `dart:ui` 给 GPU 消费，而这里每一帧
 /// 都要先额外光栅化成一张全新的 [ui.Image]——`DecorationImage` 的契约只认已解码
 /// 的图像，不认绘制回调——每帧一次全新的离屏渲染目标分配是真实、已被实测的
 /// 成本，引擎团队自己就说这"不该发生在帧工作负载里"（见
 /// https://github.com/flutter/flutter/issues/13498）。把频率减半到 30Hz 能让这次
 /// 分配的发生次数减半，但消除不了它。若 SVG 需要在 60Hz 下看起来流畅，优先用
-/// [SvgXAnimated]/`SvgX`（组件树里的真实控件），而不是硬塞进 [ImageProvider]。
+/// [SvgxAnimated]/`Svgx`（组件树里的真实控件），而不是硬塞进 [ImageProvider]。
 ///
 /// 只有当 [SvgDocumentCache] 出于某种原因未能把它解析为动画文档时，光栅化出的
 /// 动画帧才会只显示该文档的*基底*（未受动画属性驱动）外观——正常情况下驱动每一
-/// 帧的是与 [SvgXAnimated] 相同的 SMIL 引擎，所以动画内容在这里是完整支持的，
+/// 帧的是与 [SvgxAnimated] 相同的 SMIL 引擎，所以动画内容在这里是完整支持的，
 /// 只是帧率更低、有上限。
 ///
 /// [width]/[height] 决定光栅分辨率。二者均可选：
-/// - 都不给 → 落到解析该 provider 的 [ImageConfiguration] 携带的尺寸（
-///   `DecorationImage` 会传）；再没有则落到主显示器的逻辑宽度，高度按 SVG 自身
-///   固有宽高比推导。
+/// - 都不给 → 落到主显示器的逻辑宽度，高度按 SVG 自身固有宽高比推导。
 /// - 只给一个 → 另一个按 SVG 自身固有宽高比推导。
-class SvgImageProvider extends ImageProvider<SvgImageProvider> {
-  /// Creates a provider from a raw SVG string. / 用原始 SVG 字符串创建 provider。
-  const SvgImageProvider.string(
-    String source, {
+class StringSvgx extends ImageProvider<StringSvgx> {
+  /// Creates the provider. / 创建 provider。
+  const StringSvgx(
+    this.source, {
     this.width,
     this.height,
     this.colorFilter,
     this.theme,
     this.animationFrameRate = 30,
-  }) : _source = source,
-       _load = null,
-       _key = null;
+  });
 
-  /// Creates a provider from an SVG asset, resolved the same way [AssetImage]
-  /// resolves [name]/[bundle]/[package].
-  ///
-  /// 用 SVG asset 创建 provider，`name`/`bundle`/`package` 的解析方式与
-  /// [AssetImage] 一致。
-  SvgImageProvider.asset(
-    String name, {
-    AssetBundle? bundle,
-    String? package,
-    this.width,
-    this.height,
-    this.colorFilter,
-    this.theme,
-    this.animationFrameRate = 30,
-  }) : _source = null,
-       _load = (() =>
-           SvgSourceLoader.instance.asset(name, bundle: bundle, package: package)),
-       _key = (
-         SvgImageProvider,
-         'asset',
-         name,
-         bundle,
-         package,
-         width,
-         height,
-         colorFilter,
-         theme,
-         animationFrameRate,
-       );
-
-  /// Creates a provider from an SVG fetched over HTTP(S).
-  ///
-  /// 用通过 HTTP(S) 拉取的 SVG 创建 provider。
-  SvgImageProvider.network(
-    String url, {
-    Map<String, String>? headers,
-    this.width,
-    this.height,
-    this.colorFilter,
-    this.theme,
-    this.animationFrameRate = 30,
-  }) : _source = null,
-       _load = (() => SvgSourceLoader.instance.network(url, headers: headers)),
-       _key = (
-         SvgImageProvider,
-         'network',
-         url,
-         headers,
-         width,
-         height,
-         colorFilter,
-         theme,
-         animationFrameRate,
-       );
-
-  /// Creates a provider from an SVG file on disk.
-  ///
-  /// 用磁盘上的 SVG 文件创建 provider。
-  SvgImageProvider.file(
-    File file, {
-    this.width,
-    this.height,
-    this.colorFilter,
-    this.theme,
-    this.animationFrameRate = 30,
-  }) : _source = null,
-       _load = (() => SvgSourceLoader.instance.file(file)),
-       _key = (
-         SvgImageProvider,
-         'file',
-         file.path,
-         width,
-         height,
-         colorFilter,
-         theme,
-         animationFrameRate,
-       );
-
-  /// Creates a provider from raw SVG bytes already in memory, decoded as
-  /// UTF-8.
-  ///
-  /// 用内存中已有的原始 SVG 字节创建 provider，按 UTF-8 解码。
-  SvgImageProvider.memory(
-    Uint8List bytes, {
-    this.width,
-    this.height,
-    this.colorFilter,
-    this.theme,
-    this.animationFrameRate = 30,
-  }) : _source = utf8.decode(bytes),
-       _load = null,
-       _key = null;
-
-  /// Source string when constructed via [SvgImageProvider.string]; null for
-  /// the asset/network constructors, which load lazily via [_load].
-  ///
-  /// [SvgImageProvider.string] 构造时的源字符串；asset/network 构造函数为
-  /// null，那两者经 [_load] 惰性加载。
-  final String? _source;
-
-  /// Lazily fetches the source text for the asset/network constructors —
-  /// null for [SvgImageProvider.string], which already has [_source].
-  ///
-  /// asset/network 构造函数用来惰性拉取源文本——[SvgImageProvider.string]
-  /// 已经有 [_source]，故为 null。
-  final Future<String> Function()? _load;
-
-  /// Value-equality key for asset/network instances — [_load] is a closure
-  /// (never value-equal to another closure), so equality/[hashCode] can't
-  /// compare it directly the way [SvgImageProvider.string] compares
-  /// [_source]; this is the stand-in [ImageProvider]'s [ImageCache] hashes
-  /// and compares instead.
-  ///
-  /// asset/network 实例的值相等键——[_load] 是闭包（永远不会与另一个闭包值相等），
-  /// 所以 equality/[hashCode] 没法像 [SvgImageProvider.string] 比较 [_source]
-  /// 那样直接比较它；这是 [ImageProvider] 的 [ImageCache] 转而拿来做哈希/比较的
-  /// 替代键。
-  ///
-  /// Known limitation: [SvgImageProvider.network]'s key embeds its `headers`
-  /// map by reference (a record field, so it compares/hashes via the map's
-  /// own `==`/`hashCode`, which is identity for a non-`const` [Map]) — two
-  /// requests to the same URL with separately-constructed-but-equal-content
-  /// header maps therefore miss [ImageCache]'s dedup and each rasterize their
-  /// own copy. Benign (extra work, not a wrong image), and `headers` is
-  /// typically a literal at the call site (and const literals canonicalize),
-  /// so not worth a deep-equality key for now.
-  ///
-  /// 已知局限：[SvgImageProvider.network] 的 key 按引用内嵌 `headers` 表
-  /// （record 字段，比较/哈希走该 map 自身的 `==`/`hashCode`，对非 `const`
-  /// [Map] 就是身份比较）——两次对同一 URL 的请求若各自构造了内容相同但实例不同
-  /// 的 headers 表，就不会在 [ImageCache] 里命中同一条目，各自光栅化一份。
-  /// 无害（多做一次工，不会给错图），且 `headers` 在调用处通常是字面量（const
-  /// 字面量会被规范化为同一实例），暂不值得为此换成深度相等的 key。
-  final Object? _key;
+  /// Raw SVG markup, animated or static. / 原始 SVG 源，动画或静态均可。
+  final String source;
 
   /// Target raster width; see the class doc for the full resolution order.
   ///
@@ -280,52 +146,374 @@ class SvgImageProvider extends ImageProvider<SvgImageProvider> {
   final int animationFrameRate;
 
   @override
-  Future<SvgImageProvider> obtainKey(ImageConfiguration configuration) =>
-      SynchronousFuture<SvgImageProvider>(this);
-
-  /// The value this provider is identified by — [_key] for the
-  /// asset/network/file constructors (already carrying every field that
-  /// distinguishes one instance from another), or the tuple of [_source]
-  /// plus every other field for [SvgImageProvider.string]/[.memory] (whose
-  /// [_key] is null since there's no closure-captured loader to stand in
-  /// for).
-  ///
-  /// 本 provider 的身份值——asset/network/file 构造函数用 [_key]（已经带全了
-  /// 区分两个实例所需的每个字段）；[SvgImageProvider.string]/[.memory] 用
-  /// [_source] 加其余每个字段的元组（它们的 [_key] 为 null，因为没有闭包捕获的
-  /// 加载器需要替代）。
-  Object get _identity =>
-      _key ?? (_source, width, height, colorFilter, theme, animationFrameRate);
+  Future<StringSvgx> obtainKey(ImageConfiguration configuration) =>
+      SynchronousFuture<StringSvgx>(this);
 
   @override
   bool operator ==(Object other) =>
-      other is SvgImageProvider && other._identity == _identity;
+      other is StringSvgx &&
+      other.source == source &&
+      other.width == width &&
+      other.height == height &&
+      other.colorFilter == colorFilter &&
+      other.theme == theme &&
+      other.animationFrameRate == animationFrameRate;
 
   @override
-  int get hashCode => _identity.hashCode;
+  int get hashCode =>
+      Object.hash(source, width, height, colorFilter, theme, animationFrameRate);
 
   @override
-  ImageStreamCompleter loadImage(
-    SvgImageProvider key,
-    ImageDecoderCallback decode,
-  ) {
-    final sourceFuture = _source != null
-        ? SynchronousFuture<String>(_source)
-        : _load!();
-    return _SvgImageStreamCompleter(sourceFuture: sourceFuture, provider: this);
-  }
+  ImageStreamCompleter loadImage(StringSvgx key, ImageDecoderCallback decode) =>
+      _svgImageStreamCompleter(
+        sourceFuture: SynchronousFuture<String>(source),
+        width: width,
+        height: height,
+        colorFilter: colorFilter,
+        theme: theme,
+        animationFrameRate: animationFrameRate,
+      );
 }
 
-/// [ImageStreamCompleter] for [SvgImageProvider] — resolves the source text,
-/// then dispatches to a one-shot static raster or a repeating animated raster
-/// loop, whichever the parsed source needs.
+/// Creates a provider from an SVG asset, resolved the same way [AssetImage]
+/// resolves [assetName]/[bundle]/[package] — see [StringSvgx]'s class doc for
+/// the rest of the static/animated/[width]/[height] behavior shared by every
+/// class in this family.
 ///
-/// [SvgImageProvider] 对应的 [ImageStreamCompleter]——先解析出源文本，再按需要
-/// 分派到一次性静态光栅化或反复执行的动画光栅化循环。
+/// 用 SVG asset 创建 provider，`assetName`/`bundle`/`package` 的解析方式与
+/// [AssetImage] 一致——本家族其余共有的静态/动画/[width]/[height] 行为见
+/// [StringSvgx] 的类文档。
+class AssetSvgx extends ImageProvider<AssetSvgx> {
+  /// Creates the provider. / 创建 provider。
+  const AssetSvgx(
+    this.assetName, {
+    this.bundle,
+    this.package,
+    this.width,
+    this.height,
+    this.colorFilter,
+    this.theme,
+    this.animationFrameRate = 30,
+  });
+
+  /// The asset key, before [package] resolution. / asset key（[package] 解析前）。
+  final String assetName;
+
+  /// Bundle to load from; the ambient [rootBundle] when null.
+  ///
+  /// 加载所用的 bundle；为 null 时用环境 [rootBundle]。
+  final AssetBundle? bundle;
+
+  /// Package [assetName] belongs to, resolved the same way [AssetImage] does.
+  ///
+  /// [assetName] 所属的包，解析方式与 [AssetImage] 一致。
+  final String? package;
+
+  final double? width;
+  final double? height;
+  final ColorFilter? colorFilter;
+  final SvgTheme? theme;
+  final int animationFrameRate;
+
+  @override
+  Future<AssetSvgx> obtainKey(ImageConfiguration configuration) =>
+      SynchronousFuture<AssetSvgx>(this);
+
+  @override
+  bool operator ==(Object other) =>
+      other is AssetSvgx &&
+      other.assetName == assetName &&
+      other.bundle == bundle &&
+      other.package == package &&
+      other.width == width &&
+      other.height == height &&
+      other.colorFilter == colorFilter &&
+      other.theme == theme &&
+      other.animationFrameRate == animationFrameRate;
+
+  @override
+  int get hashCode => Object.hash(
+    assetName,
+    bundle,
+    package,
+    width,
+    height,
+    colorFilter,
+    theme,
+    animationFrameRate,
+  );
+
+  @override
+  ImageStreamCompleter loadImage(AssetSvgx key, ImageDecoderCallback decode) =>
+      _svgImageStreamCompleter(
+        sourceFuture: SvgSourceLoader.instance.asset(
+          assetName,
+          bundle: bundle,
+          package: package,
+        ),
+        width: width,
+        height: height,
+        colorFilter: colorFilter,
+        theme: theme,
+        animationFrameRate: animationFrameRate,
+      );
+}
+
+/// Creates a provider from an SVG fetched over HTTP(S). No response-level
+/// caching beyond [SvgSourceLoader]'s in-memory LRU — this is a plain
+/// one-shot fetch, not a full [NetworkImage]-style HTTP cache. See
+/// [StringSvgx]'s class doc for the rest of the shared behavior.
+///
+/// 用通过 HTTP(S) 拉取的 SVG 创建 provider。除 [SvgSourceLoader] 的内存 LRU 外
+/// 没有额外的响应级缓存——这是一次性拉取，不是完整的 [NetworkImage] 式 HTTP
+/// 缓存。其余共有行为见 [StringSvgx] 的类文档。
+class NetworkSvgx extends ImageProvider<NetworkSvgx> {
+  /// Creates the provider. / 创建 provider。
+  const NetworkSvgx(
+    this.url, {
+    this.headers,
+    this.width,
+    this.height,
+    this.colorFilter,
+    this.theme,
+    this.animationFrameRate = 30,
+  });
+
+  /// URL to fetch the SVG source from. / 拉取 SVG 源所用的 URL。
+  final String url;
+
+  /// Extra HTTP request headers. / 额外的 HTTP 请求头。
+  final Map<String, String>? headers;
+
+  final double? width;
+  final double? height;
+  final ColorFilter? colorFilter;
+  final SvgTheme? theme;
+  final int animationFrameRate;
+
+  @override
+  Future<NetworkSvgx> obtainKey(ImageConfiguration configuration) =>
+      SynchronousFuture<NetworkSvgx>(this);
+
+  // `headers` compares by the Map's own `==` (identity for a non-`const`
+  // Map), same known, benign limitation documented on `SvgSourceLoader` —
+  // two equal-content-but-separately-built header maps miss `ImageCache`'s
+  // dedup and each rasterize their own copy; harmless extra work, not a
+  // wrong image, and `headers` is typically a literal at the call site
+  // (where const canonicalization already makes this a non-issue).
+  //
+  // `headers` 按该 Map 自身的 `==` 比较（非 `const` Map 就是身份比较），是
+  // `SvgSourceLoader` 上记录过的同一个已知、无害的局限——两份内容相同但分别
+  // 构造的 headers 表会各自光栅化一份、错过 `ImageCache` 的去重；无害（多做
+  // 一次工，不会给错图），且 `headers` 在调用处通常是字面量（此时 const
+  // 规范化已经让这不成问题）。
+  @override
+  bool operator ==(Object other) =>
+      other is NetworkSvgx &&
+      other.url == url &&
+      other.headers == headers &&
+      other.width == width &&
+      other.height == height &&
+      other.colorFilter == colorFilter &&
+      other.theme == theme &&
+      other.animationFrameRate == animationFrameRate;
+
+  @override
+  int get hashCode => Object.hash(
+    url,
+    headers,
+    width,
+    height,
+    colorFilter,
+    theme,
+    animationFrameRate,
+  );
+
+  @override
+  ImageStreamCompleter loadImage(NetworkSvgx key, ImageDecoderCallback decode) =>
+      _svgImageStreamCompleter(
+        sourceFuture: SvgSourceLoader.instance.network(url, headers: headers),
+        width: width,
+        height: height,
+        colorFilter: colorFilter,
+        theme: theme,
+        animationFrameRate: animationFrameRate,
+      );
+}
+
+/// Creates a provider from an SVG file on disk. See [StringSvgx]'s class doc
+/// for the rest of the shared behavior.
+///
+/// 用磁盘上的 SVG 文件创建 provider。其余共有行为见 [StringSvgx] 的类文档。
+class FileSvgx extends ImageProvider<FileSvgx> {
+  /// Creates the provider. / 创建 provider。
+  const FileSvgx(
+    this.file, {
+    this.width,
+    this.height,
+    this.colorFilter,
+    this.theme,
+    this.animationFrameRate = 30,
+  });
+
+  /// The SVG file to load. / 要加载的 SVG 文件。
+  final File file;
+
+  final double? width;
+  final double? height;
+  final ColorFilter? colorFilter;
+  final SvgTheme? theme;
+  final int animationFrameRate;
+
+  @override
+  Future<FileSvgx> obtainKey(ImageConfiguration configuration) =>
+      SynchronousFuture<FileSvgx>(this);
+
+  @override
+  bool operator ==(Object other) =>
+      other is FileSvgx &&
+      // `File` has no value-equality override of its own (identity only),
+      // so this compares `path` explicitly instead — matching `FileImage`'s
+      // own `==`, which does the same for the same reason.
+      //
+      // `File` 自身没有值相等重写（只有身份比较），所以这里改为显式比较
+      // `path`——与 `FileImage` 自己的 `==` 做法一致，理由相同。
+      other.file.path == file.path &&
+      other.width == width &&
+      other.height == height &&
+      other.colorFilter == colorFilter &&
+      other.theme == theme &&
+      other.animationFrameRate == animationFrameRate;
+
+  @override
+  int get hashCode => Object.hash(
+    file.path,
+    width,
+    height,
+    colorFilter,
+    theme,
+    animationFrameRate,
+  );
+
+  @override
+  ImageStreamCompleter loadImage(FileSvgx key, ImageDecoderCallback decode) =>
+      _svgImageStreamCompleter(
+        sourceFuture: SvgSourceLoader.instance.file(file),
+        width: width,
+        height: height,
+        colorFilter: colorFilter,
+        theme: theme,
+        animationFrameRate: animationFrameRate,
+      );
+}
+
+/// Creates a provider from raw SVG bytes already in memory, decoded as
+/// UTF-8. See [StringSvgx]'s class doc for the rest of the shared behavior.
+///
+/// 用内存中已有的原始 SVG 字节创建 provider，按 UTF-8 解码。其余共有行为见
+/// [StringSvgx] 的类文档。
+class MemorySvgx extends ImageProvider<MemorySvgx> {
+  /// Creates the provider. / 创建 provider。
+  const MemorySvgx(
+    this.bytes, {
+    this.width,
+    this.height,
+    this.colorFilter,
+    this.theme,
+    this.animationFrameRate = 30,
+  });
+
+  /// Raw SVG bytes, decoded as UTF-8. / 原始 SVG 字节，按 UTF-8 解码。
+  final Uint8List bytes;
+
+  final double? width;
+  final double? height;
+  final ColorFilter? colorFilter;
+  final SvgTheme? theme;
+  final int animationFrameRate;
+
+  @override
+  Future<MemorySvgx> obtainKey(ImageConfiguration configuration) =>
+      SynchronousFuture<MemorySvgx>(this);
+
+  @override
+  bool operator ==(Object other) =>
+      other is MemorySvgx &&
+      // `Uint8List` has no value-equality override, same as `MemoryImage`'s
+      // own `bytes` field — two calls that happen to pass identical-content
+      // but separately-allocated byte lists won't dedupe in `ImageCache`,
+      // mirroring `MemoryImage`'s documented behavior exactly.
+      //
+      // `Uint8List` 没有值相等重写，与 `MemoryImage` 自己的 `bytes` 字段同理
+      // ——两次调用即便内容相同但字节数组是分别分配的，不会在 `ImageCache` 里
+      // 去重，与 `MemoryImage` 文档记录的行为完全一致。
+      other.bytes == bytes &&
+      other.width == width &&
+      other.height == height &&
+      other.colorFilter == colorFilter &&
+      other.theme == theme &&
+      other.animationFrameRate == animationFrameRate;
+
+  @override
+  int get hashCode => Object.hash(
+    bytes,
+    width,
+    height,
+    colorFilter,
+    theme,
+    animationFrameRate,
+  );
+
+  @override
+  ImageStreamCompleter loadImage(MemorySvgx key, ImageDecoderCallback decode) =>
+      _svgImageStreamCompleter(
+        sourceFuture: SynchronousFuture<String>(utf8.decode(bytes)),
+        width: width,
+        height: height,
+        colorFilter: colorFilter,
+        theme: theme,
+        animationFrameRate: animationFrameRate,
+      );
+}
+
+/// Shared entry point every class in this file's [ImageProvider.loadImage]
+/// delegates to — the one place that knows how to turn "a future resolving
+/// to SVG source text plus a few render options" into an [ImageStreamCompleter],
+/// regardless of which concrete provider class asked for it.
+///
+/// 本文件里每个类的 [ImageProvider.loadImage] 都委托到这个共享入口——唯一知道
+/// 怎么把"一个 resolve 出 SVG 源文本的 future 加上几个渲染选项"变成
+/// [ImageStreamCompleter] 的地方，不管是哪个具体 provider 类发起的请求。
+ImageStreamCompleter _svgImageStreamCompleter({
+  required Future<String> sourceFuture,
+  required double? width,
+  required double? height,
+  required ColorFilter? colorFilter,
+  required SvgTheme? theme,
+  required int animationFrameRate,
+}) => _SvgImageStreamCompleter(
+  sourceFuture: sourceFuture,
+  width: width,
+  height: height,
+  colorFilter: colorFilter,
+  theme: theme,
+  animationFrameRate: animationFrameRate,
+);
+
+/// [ImageStreamCompleter] shared by every SVG [ImageProvider] in this file —
+/// resolves the source text, then dispatches to a one-shot static raster or
+/// a repeating animated raster loop, whichever the parsed source needs.
+///
+/// 本文件里每个 SVG [ImageProvider] 共用的 [ImageStreamCompleter]——先解析出
+/// 源文本，再按需要分派到一次性静态光栅化或反复执行的动画光栅化循环。
 class _SvgImageStreamCompleter extends ImageStreamCompleter {
   _SvgImageStreamCompleter({
     required Future<String> sourceFuture,
-    required SvgImageProvider provider,
+    required this.width,
+    required this.height,
+    required this.colorFilter,
+    required this.theme,
+    required this.animationFrameRate,
   }) {
     addOnLastListenerRemovedCallback(() {
       _timer?.cancel();
@@ -343,7 +531,7 @@ class _SvgImageStreamCompleter extends ImageStreamCompleter {
       _stopwatch?.stop();
     });
     sourceFuture.then(
-      (source) => _start(source, provider),
+      _start,
       onError: (Object error, StackTrace stackTrace) {
         reportError(
           context: ErrorDescription('while loading an SVG image'),
@@ -353,6 +541,12 @@ class _SvgImageStreamCompleter extends ImageStreamCompleter {
       },
     );
   }
+
+  final double? width;
+  final double? height;
+  final ColorFilter? colorFilter;
+  final SvgTheme? theme;
+  final int animationFrameRate;
 
   Timer? _timer;
 
@@ -381,27 +575,27 @@ class _SvgImageStreamCompleter extends ImageStreamCompleter {
     if (_timer == null) _resumeTicking?.call();
   }
 
-  void _start(String source, SvgImageProvider provider) {
+  void _start(String source) {
     if (AnimationDetector.hasAnimations(source)) {
-      _startAnimated(source, provider);
+      _startAnimated(source);
     } else {
-      _emitStatic(source, provider);
+      _emitStatic(source);
     }
   }
 
-  Future<void> _emitStatic(String source, SvgImageProvider provider) async {
+  Future<void> _emitStatic(String source) async {
     try {
-      final currentColorArgb = provider.theme?.currentColor.toARGB32();
+      final currentColorArgb = theme?.currentColor.toARGB32();
       final info = await RustSvgPictureCache.instance.getOrRenderAsync(
         source,
         currentColorArgb: currentColorArgb,
       );
-      final (w, h, scale) = _resolveSize(provider, info.size);
+      final (w, h, scale) = _resolveSize(info.size);
       final image = await rasterizeSvgPicture(
         info,
         width: w,
         height: h,
-        colorFilter: provider.colorFilter,
+        colorFilter: colorFilter,
       );
       setImage(ImageInfo(image: image, scale: scale));
     } catch (error, stackTrace) {
@@ -413,7 +607,7 @@ class _SvgImageStreamCompleter extends ImageStreamCompleter {
     }
   }
 
-  void _startAnimated(String source, SvgImageProvider provider) {
+  void _startAnimated(String source) {
     final parsed = SvgDocumentCache.instance.getOrParse(source);
     final document = parsed.document;
     final ready = parsed.hasImages
@@ -433,14 +627,14 @@ class _SvgImageStreamCompleter extends ImageStreamCompleter {
       // 跳到"已暂停"状态，与 `addOnLastListenerRemovedCallback` 会置入的状态
       // 相同。下面仍会设好 `_resumeTicking`，之后真有监听者出现时能正常启动。
       final intrinsicSize = Size(document.width, document.height);
-      final (w, h, scale) = _resolveSize(provider, intrinsicSize);
+      final (w, h, scale) = _resolveSize(intrinsicSize);
       final stopwatch = _stopwatch = Stopwatch()..start();
       final clock = ValueNotifier<Duration>(Duration.zero);
       final painter = AnimatedSvgPainter(
         root: document.root,
         intrinsicSize: intrinsicSize,
         clock: clock,
-        theme: provider.theme ?? const SvgTheme(),
+        theme: theme ?? const SvgTheme(),
         fit: BoxFit.contain,
         alignment: Alignment.center,
         gradients: document.gradients,
@@ -449,16 +643,11 @@ class _SvgImageStreamCompleter extends ImageStreamCompleter {
       );
       Future<void> renderFrame() async {
         clock.value = stopwatch.elapsed;
-        final image = await _rasterizePainter(
-          painter,
-          w,
-          h,
-          provider.colorFilter,
-        );
+        final image = await _rasterizePainter(painter, w, h, colorFilter);
         setImage(ImageInfo(image: image, scale: scale));
       }
       final interval = Duration(
-        milliseconds: (1000 / provider.animationFrameRate).round(),
+        milliseconds: (1000 / animationFrameRate).round(),
       );
       void restart() {
         stopwatch.start();
@@ -474,39 +663,34 @@ class _SvgImageStreamCompleter extends ImageStreamCompleter {
     });
   }
 
-  /// Resolution order for the *logical* raster size: explicit width/height
+  /// Resolution order for the *logical* raster size: explicit [width]/[height]
   /// first, an aspect-ratio-derived missing half second, then
-  /// [SchedulerBinding]'s primary view as a last resort — see
-  /// [SvgImageProvider]'s class doc. The returned pixel dimensions are that
-  /// logical size scaled by the view's `devicePixelRatio`, paired with a
-  /// matching [ImageInfo.scale] so the rasterized image is exactly as sharp
-  /// on a high-DPI display as [SvgXAnimated]/[SvgXStatic] are — painting
-  /// and [ui.Picture.toImage] both at the *logical* size then relying on
-  /// Flutter to stretch the result up to fill the physical pixels would
-  /// reproduce exactly the visible aliasing/blur this guards against.
+  /// [SchedulerBinding]'s primary view as a last resort. The returned pixel
+  /// dimensions are that logical size scaled by the view's
+  /// `devicePixelRatio`, paired with a matching [ImageInfo.scale] so the
+  /// rasterized image is exactly as sharp on a high-DPI display as
+  /// [SvgxAnimated]/[SvgxStatic] are — painting and [ui.Picture.toImage] both
+  /// at the *logical* size then relying on Flutter to stretch the result up
+  /// to fill the physical pixels would reproduce exactly the visible
+  /// aliasing/blur this guards against.
   ///
   /// [ImageConfiguration]'s own `size` isn't consulted here: by the time
-  /// [ImageProvider.loadImage] runs, the configuration that produced [key]
-  /// isn't threaded through to this completer (only [key] itself is) — a
+  /// [ImageProvider.loadImage] runs, the configuration that produced the key
+  /// isn't threaded through to this completer (only the key itself is) — a
   /// caller that needs to pin the raster to its exact box size should pass
-  /// explicit [SvgImageProvider.width]/[SvgImageProvider.height].
+  /// explicit [width]/[height].
   ///
-  /// 光栅*逻辑*尺寸的解析优先级：显式 width/height 优先，其次按宽高比推导缺失的
-  /// 那一半，最后落到 [SchedulerBinding] 的主视图兜底——见 [SvgImageProvider]
-  /// 类文档。返回的像素尺寸是该逻辑尺寸乘上视图的 `devicePixelRatio`，并配一个
-  /// 对应的 [ImageInfo.scale]，使光栅化出的图像在高 DPI 屏幕上跟
-  /// [SvgXAnimated]/[SvgXStatic] 一样清晰——若只按*逻辑*尺寸去画+
-  /// [ui.Picture.toImage]，再让 Flutter 把结果拉伸填满物理像素，正好会重现这里
-  /// 要规避的锯齿/模糊。
+  /// 光栅*逻辑*尺寸的解析优先级：显式 [width]/[height] 优先，其次按宽高比推导
+  /// 缺失的那一半，最后落到 [SchedulerBinding] 的主视图兜底。返回的像素尺寸是
+  /// 该逻辑尺寸乘上视图的 `devicePixelRatio`，并配一个对应的 [ImageInfo.scale]，
+  /// 使光栅化出的图像在高 DPI 屏幕上跟 [SvgxAnimated]/[SvgxStatic] 一样清晰——
+  /// 若只按*逻辑*尺寸去画+ [ui.Picture.toImage]，再让 Flutter 把结果拉伸填满
+  /// 物理像素，正好会重现这里要规避的锯齿/模糊。
   ///
   /// 这里不查 [ImageConfiguration] 自带的 `size`：[ImageProvider.loadImage]
-  /// 运行时，产出 [key] 的那份 configuration 并未一路传给这个 completer（只传了
-  /// [key] 本身）——需要精确贴合容器尺寸的调用方应显式传
-  /// [SvgImageProvider.width]/[SvgImageProvider.height]。
-  (int width, int height, double scale) _resolveSize(
-    SvgImageProvider provider,
-    Size intrinsicSize,
-  ) {
+  /// 运行时，产出 key 的那份 configuration 并未一路传给这个 completer（只传了
+  /// key 本身）——需要精确贴合容器尺寸的调用方应显式传 [width]/[height]。
+  (int width, int height, double scale) _resolveSize(Size intrinsicSize) {
     // A zero/negative/NaN intrinsic dimension (a malformed or not-yet-known
     // SVG size) would otherwise divide out to a non-finite aspect ratio that
     // silently propagates into `.round()` below.
@@ -516,8 +700,8 @@ class _SvgImageStreamCompleter extends ImageStreamCompleter {
     final aspect = intrinsicSize.width > 0 && intrinsicSize.height > 0
         ? intrinsicSize.width / intrinsicSize.height
         : 1.0;
-    double? w = provider.width;
-    double? h = provider.height;
+    double? w = width;
+    double? h = height;
     if (w != null && h == null) h = w / aspect;
     if (h != null && w == null) w = h * aspect;
     final view = SchedulerBinding.instance.platformDispatcher.views.first;
@@ -530,7 +714,7 @@ class _SvgImageStreamCompleter extends ImageStreamCompleter {
     // compositing smooth the result — a supersampling AA pass. This matters
     // specifically because this image comes from `ui.Picture.toImage`, an
     // *offscreen* render target: unlike the main swapchain surface
-    // `SvgXAnimated`/`SvgXStatic` paint onto directly (which the engine gives
+    // `SvgxAnimated`/`SvgxStatic` paint onto directly (which the engine gives
     // MSAA), an ad-hoc offscreen target rasterizes each frame's vector edges
     // single-sample, i.e. aliased, regardless of how correctly its overall
     // pixel *density* matches the device — raising the density alone (the
@@ -540,7 +724,7 @@ class _SvgImageStreamCompleter extends ImageStreamCompleter {
     // 在设备自身像素密度之上再超采样 [_supersample] 倍，再让 Flutter 合成阶段
     // 正常的（双线性过滤）降采样把结果磨平——相当于一次超采样抗锯齿。这里之所以
     // 单独需要它：这张图来自 `ui.Picture.toImage`，是一个*离屏*渲染目标——不同于
-    // `SvgXAnimated`/`SvgXStatic` 直接画上去、引擎会给 MSAA 的主 swapchain 表面，
+    // `SvgxAnimated`/`SvgxStatic` 直接画上去、引擎会给 MSAA 的主 swapchain 表面，
     // 临时搭建的离屏目标本就按单样本（即有锯齿）光栅化每一帧的矢量边缘，跟它整体
     // 像素*密度*对不对没关系——只把密度提高（上面乘 devicePixelRatio 那步）能让
     // 图像更清晰，但不会让一条压根没做多重采样的边缘变平滑。

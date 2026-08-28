@@ -1,7 +1,7 @@
 // Cheap syntactic sniff for whether an SVG source needs the animated engine
-// at all, so [SvgX] can route plain icons to the faster Rust static path.
+// at all, so [Svgx] can route plain icons to the faster Rust static path.
 //
-// 廉价的语法级嗅探，判断 SVG 源是否需要动画引擎，供 [SvgX] 把普通图标路由到
+// 廉价的语法级嗅探，判断 SVG 源是否需要动画引擎，供 [Svgx] 把普通图标路由到
 // 更快的 Rust 静态路径。
 
 import 'dart:collection';
@@ -90,7 +90,7 @@ class AnimationDetector {
   // Memo of past answers, in insertion order so the oldest can be dropped once
   // [maximumMemoSize] is reached.
   //
-  // Why it earns its keep: `SvgX.build` asks this question on every rebuild of
+  // Why it earns its keep: `Svgx.build` asks this question on every rebuild of
   // every icon, and a source with no animation markers is the expensive case —
   // `hasMatch` has to scan the *whole* string before it can answer "no". A
   // scrolling list mounts, disposes and re-mounts the same handful of hundreds
@@ -100,7 +100,7 @@ class AnimationDetector {
   //
   // 记录过往答案的表，按插入顺序存放，达到 [maximumMemoSize] 时丢弃最旧的一条。
   //
-  // 它凭什么值得存在：`SvgX.build` 对每个图标的每次重建都要问一遍这个问题，而
+  // 它凭什么值得存在：`Svgx.build` 对每个图标的每次重建都要问一遍这个问题，而
   // 不含动画标记的源恰恰是最贵的情形——`hasMatch` 必须扫完**整个**字符串才能
   // 回答"没有"。滚动列表会把同一批几百个源反复挂载、销毁、再挂载，于是同样的
   // 全量扫描无限重复。`--dart-define=LIB=micro` 在 1000 个真实 Mdi 图标上实测：

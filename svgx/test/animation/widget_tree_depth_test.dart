@@ -68,7 +68,7 @@ void main() {
   testWidgets('animated icon builds no redundant sizing layer', (tester) async {
     await tester.pumpWidget(
       const Center(
-        child: SvgXAnimated.string(_animatedSource, width: 32, height: 32),
+        child: SvgxAnimated.string(_animatedSource, width: 32, height: 32),
       ),
     );
     await tester.pump(const Duration(milliseconds: 16));
@@ -84,22 +84,22 @@ void main() {
     // computeSizeForNoChild` -> `constraints.constrain(preferredSize)`），因此再
     // 用同尺寸的 `SizedBox` 包一层，是加了一层不可能改变结果的层级。
     expect(
-      _renderChain(tester, find.byType(SvgXAnimated)),
+      _renderChain(tester, find.byType(SvgxAnimated)),
       isNot(contains('RenderConstrainedBox')),
     );
     expect(
-      _widgetChain(tester, find.byType(SvgXAnimated)),
+      _widgetChain(tester, find.byType(SvgxAnimated)),
       isNot(contains('SizedBox')),
     );
   });
 
   testWidgets('static icon builds no redundant sizing layer', (tester) async {
     await tester.pumpWidget(
-      const Center(child: SvgXStatic(_staticSource, width: 32, height: 32)),
+      const Center(child: SvgxStatic(_staticSource, width: 32, height: 32)),
     );
     await tester.pump();
     expect(
-      _renderChain(tester, find.byType(SvgXStatic)),
+      _renderChain(tester, find.byType(SvgxStatic)),
       isNot(contains('RenderConstrainedBox')),
     );
   }, skip: true); // needs the Rust FFI library / 需要 Rust FFI 动态库
@@ -137,7 +137,7 @@ void main() {
           alignment: Alignment.topLeft,
           child: ConstrainedBox(
             constraints: constraints,
-            child: const SvgXAnimated.string(
+            child: const SvgxAnimated.string(
               _animatedSource,
               width: 32,
               height: 32,

@@ -41,7 +41,7 @@ const String kRotationMarkerSvg =
     '</rect></svg>';
 
 // A static (no `<animate>`) filled path using `currentColor` — exercises the
-// Rust static path's new `currentColor` substitution via `SvgXStatic`'s
+// Rust static path's new `currentColor` substitution via `SvgxStatic`'s
 // `theme` param, resolved through `parse_svg`'s `current_color` FFI arg.
 const String kStaticCurrentColorSvg =
     '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24">'
@@ -205,11 +205,11 @@ Future<void> main() async {
   runApp(const MyApp());
 }
 
-/// Remounts an [SvgX.string] on a timer so a non-repeating (no
+/// Remounts an [Svgx.string] on a timer so a non-repeating (no
 /// `repeatCount="indefinite"`) demo animation replays instead of staying
 /// frozen at its final frame once played.
 ///
-/// 定时重新挂载 [SvgX.string]，让不带 `repeatCount="indefinite"` 的演示动画
+/// 定时重新挂载 [Svgx.string]，让不带 `repeatCount="indefinite"` 的演示动画
 /// 反复重播，而不是播放一次后永远定格在终态。
 class _RestartingSvg extends StatefulWidget {
   const _RestartingSvg(
@@ -249,7 +249,7 @@ class _RestartingSvgState extends State<_RestartingSvg> {
 
   @override
   Widget build(BuildContext context) {
-    return SvgX.string(
+    return Svgx.string(
       widget.source,
       key: ValueKey(_generation),
       width: widget.width,
@@ -285,7 +285,7 @@ class MyApp extends StatelessWidget {
                 const SizedBox(height: 24),
                 const Text('Animated (original SMIL engine)'),
                 const SizedBox(height: 8),
-                SvgX.string(
+                Svgx.string(
                   kConfirmCircleSvg,
                   width: 96,
                   height: 96,
@@ -296,7 +296,7 @@ class MyApp extends StatelessWidget {
                 const SizedBox(height: 48),
                 const Text('Looping animateTransform (svg-spinners 180-ring)'),
                 const SizedBox(height: 8),
-                SvgX.string(
+                Svgx.string(
                   kSpinnerSvg,
                   width: 96,
                   height: 96,
@@ -307,15 +307,15 @@ class MyApp extends StatelessWidget {
                   'Rotation marker (unambiguous animateTransform proof)',
                 ),
                 const SizedBox(height: 8),
-                SvgX.string(kRotationMarkerSvg, width: 96, height: 96),
+                Svgx.string(kRotationMarkerSvg, width: 96, height: 96),
                 const SizedBox(height: 48),
                 const Text('Static (Rust usvg path)'),
                 const SizedBox(height: 8),
-                SvgX.string(kStaticCheckCircleSvg, width: 96, height: 96),
+                Svgx.string(kStaticCheckCircleSvg, width: 96, height: 96),
                 const SizedBox(height: 48),
                 const Text('Static currentColor (theme override → purple)'),
                 const SizedBox(height: 8),
-                SvgX.string(
+                Svgx.string(
                   kStaticCurrentColorSvg,
                   width: 96,
                   height: 96,
@@ -329,13 +329,13 @@ class MyApp extends StatelessWidget {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    SvgX.string(
+                    Svgx.string(
                       _paintOrderCircleSvg(strokeFirst: false),
                       width: 96,
                       height: 96,
                     ),
                     const SizedBox(width: 32),
-                    SvgX.string(
+                    Svgx.string(
                       _paintOrderCircleSvg(strokeFirst: true),
                       width: 96,
                       height: 96,
@@ -345,27 +345,27 @@ class MyApp extends StatelessWidget {
                 const SizedBox(height: 48),
                 const Text('Embedded <image> (base64 PNG)'),
                 const SizedBox(height: 8),
-                SvgX.string(kEmbeddedImageSvg, width: 96, height: 96),
+                Svgx.string(kEmbeddedImageSvg, width: 96, height: 96),
                 const SizedBox(height: 48),
                 const Text(
                   'Named CSS colors (fill="tomato" stroke="cornflowerblue")',
                 ),
                 const SizedBox(height: 8),
-                SvgX.string(kNamedColorsSvg, width: 96, height: 96),
+                Svgx.string(kNamedColorsSvg, width: 96, height: 96),
                 const SizedBox(height: 48),
                 const Text(
                   'Static <g transform="translate() rotate() scale()">',
                 ),
                 const SizedBox(height: 8),
-                SvgX.string(kGroupTransformSvg, width: 96, height: 96),
+                Svgx.string(kGroupTransformSvg, width: 96, height: 96),
                 const SizedBox(height: 48),
                 const Text('animateTransform type="skewX"'),
                 const SizedBox(height: 8),
-                SvgX.string(kSkewXSvg, width: 96, height: 96),
+                Svgx.string(kSkewXSvg, width: 96, height: 96),
                 const SizedBox(height: 48),
                 const Text('<use> of a <defs> shape with its own <animate>'),
                 const SizedBox(height: 8),
-                SvgX.string(kUseAnimatedSvg, width: 96, height: 96),
+                Svgx.string(kUseAnimatedSvg, width: 96, height: 96),
                 const SizedBox(height: 48),
                 const Text('Syncbase begin relay (begin="firstAnim.end")'),
                 const SizedBox(height: 8),
@@ -378,34 +378,34 @@ class MyApp extends StatelessWidget {
                 const SizedBox(height: 48),
                 const Text('<animateMotion rotate="auto"> along a path'),
                 const SizedBox(height: 8),
-                SvgX.string(kAnimateMotionSvg, width: 96, height: 96),
+                Svgx.string(kAnimateMotionSvg, width: 96, height: 96),
                 const SizedBox(height: 48),
                 const Text('Static linearGradient fill'),
                 const SizedBox(height: 8),
-                SvgX.string(kLinearGradientSvg, width: 96, height: 96),
+                Svgx.string(kLinearGradientSvg, width: 96, height: 96),
                 const SizedBox(height: 48),
                 const Text('Animated <mask> (Task 1)'),
                 const SizedBox(height: 8),
-                SvgX.string(kAnimatedMaskSvg, width: 96, height: 96),
+                Svgx.string(kAnimatedMaskSvg, width: 96, height: 96),
                 const SizedBox(height: 48),
                 const Text('<text> with animated opacity (Task 2)'),
                 const SizedBox(height: 8),
-                SvgX.string(kTextSvg, width: 160, height: 48),
+                Svgx.string(kTextSvg, width: 160, height: 48),
                 const SizedBox(height: 48),
                 const Text('<animateMotion keyPoints/keyTimes> (Task 3)'),
                 const SizedBox(height: 8),
-                SvgX.string(kAnimateMotionKeyPointsSvg, width: 96, height: 96),
+                Svgx.string(kAnimateMotionKeyPointsSvg, width: 96, height: 96),
                 const SizedBox(height: 48),
                 const Text('Animated gradient: geometry + stop-color (Task 4)'),
                 const SizedBox(height: 8),
-                SvgX.string(kAnimatedGradientSvg, width: 96, height: 96),
+                Svgx.string(kAnimatedGradientSvg, width: 96, height: 96),
                 const SizedBox(height: 48),
-                const Text('SvgX.asset'),
+                const Text('Svgx.asset'),
                 const SizedBox(height: 8),
-                SvgX.asset('assets/icon.svg', width: 96, height: 96),
+                Svgx.asset('assets/icon.svg', width: 96, height: 96),
                 const SizedBox(height: 48),
                 const Text(
-                  'SvgImageProvider in a DecorationImage — animated spinner, '
+                  'StringSvgx in a DecorationImage — animated spinner, '
                   'rasterized per-frame through ImageProvider (not '
                   'CustomPainter)',
                 ),
@@ -415,7 +415,7 @@ class MyApp extends StatelessWidget {
                   height: 96,
                   decoration: BoxDecoration(
                     image: DecorationImage(
-                      image: SvgImageProvider.string(
+                      image: StringSvgx(
                         kSpinnerSvg,
                         width: 96,
                         height: 96,

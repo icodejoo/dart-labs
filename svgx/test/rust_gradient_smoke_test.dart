@@ -86,7 +86,7 @@ void main() {
     RustSvgPictureCache.instance.clear();
     // Recording must not throw, and must actually consult fillGradient rather
     // than silently falling back to a solid Paint().color — exercised via the
-    // public SvgXStatic build path further up, but recorded here directly to
+    // public SvgxStatic build path further up, but recorded here directly to
     // pin the underlying cache API's behavior.
     final info = RustSvgPictureCache.instance.getOrRender(_gradientSvg);
     expect(info.picture, isNotNull);

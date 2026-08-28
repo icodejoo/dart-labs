@@ -1,6 +1,6 @@
 // Minimal regression harness for the real-device black-screen bug fixed in
 // `lib/src/animation/animated_svg_painter.dart`: a bare
-// `Scaffold(GridView.builder(...))` of concurrently-animating `SvgX.string`
+// `Scaffold(GridView.builder(...))` of concurrently-animating `Svgx.string`
 // icons, mounted all at once on the first frame with no RepaintBoundary,
 // scrolling, or instrumentation of its own. Before the fix, ~100 items went
 // permanently black on a Huawei STG-AL00 (Impeller GLES) because every
@@ -10,7 +10,7 @@
 //
 // `lib/src/animation/animated_svg_painter.dart` 修复的真机黑屏 bug 的最小回归
 // 用例：一个光秃秃的 `Scaffold(GridView.builder(...))`，格子是并发动画的
-// `SvgX.string` 图标，首帧一次性全部挂载，自身不带 RepaintBoundary、滚动或任何
+// `Svgx.string` 图标，首帧一次性全部挂载，自身不带 RepaintBoundary、滚动或任何
 // 探针。修复前在华为 STG-AL00（Impeller GLES）上约 100 项就会永久黑屏，原因是
 // 每个用了 `<mask>` 的图标都在分配全屏离屏渲染目标。
 //
@@ -49,7 +49,7 @@ class _BareAnimGridState extends State<BareAnimGrid> {
         ),
         itemCount: widget.itemCount,
         itemBuilder: (context, index) =>
-            SvgX.string(_icons[index], width: 32, height: 32),
+            Svgx.string(_icons[index], width: 32, height: 32),
       ),
     );
   }

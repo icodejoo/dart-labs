@@ -6,7 +6,7 @@
 // been decomposed, and the leading structural suspicion was widget-tree depth
 // per cell — every layer is an `Element` to inflate, a `RenderObject` to
 // create and attach, a node to lay out, and a node to walk on paint, once per
-// cell per appearance. `SvgXAnimated`/`SvgXStatic` used to wrap their childless
+// cell per appearance. `SvgxAnimated`/`SvgxStatic` used to wrap their childless
 // `CustomPaint` in a `SizedBox` of identical dimensions, which
 // `RenderCustomPaint.computeSizeForNoChild` already made redundant. This test
 // measures the removal by reproducing the removed layer as an explicit
@@ -29,7 +29,7 @@
 // 为什么用这种测量形状。该基准的 build 阶段此前从未被拆解，而首要的结构性怀疑就是
 // 每格的控件树深度——每一层都意味着一个要 inflate 的 `Element`、一个要创建并
 // attach 的 `RenderObject`、一个要布局的节点、一个绘制时要遍历的节点，且每格每次
-// 出现都要付一次。`SvgXAnimated`/`SvgXStatic` 此前把无 child 的 `CustomPaint` 套在
+// 出现都要付一次。`SvgxAnimated`/`SvgxStatic` 此前把无 child 的 `CustomPaint` 套在
 // 同尺寸的 `SizedBox` 里，而 `RenderCustomPaint.computeSizeForNoChild` 早已让这层
 // 成为冗余。本测试通过在第二臂里用显式 `SizedBox` 复现被移除的那一层来测量它，
 // 于是两臂在**同一进程**、同一份预热文档缓存上运行，差异恰好是每格一个
@@ -106,7 +106,7 @@ void main() {
         ),
         itemCount: sources.length,
         itemBuilder: (context, index) {
-          final Widget icon = SvgX.string(
+          final Widget icon = Svgx.string(
             sources[index],
             width: 32,
             height: 32,

@@ -149,7 +149,7 @@ class _AnimFpsBenchRunnerState extends State<AnimFpsBenchRunner> {
   bool _gridMounted = true;
   String _status = 'warming up...';
 
-  // The `SvgXAnimationQuality` arms measured in this one process, in run
+  // The `SvgxAnimationQuality` arms measured in this one process, in run
   // order. `QUALITYAB=1` measures the no-degradation control, then each
   // degradation layered on, back to back inside a single launch; otherwise
   // just one arm runs, exactly as before.
@@ -162,7 +162,7 @@ class _AnimFpsBenchRunnerState extends State<AnimFpsBenchRunner> {
   // quality profile every tick, so flipping the global default retunes the
   // 1000 already-mounted icons on the next frame with no remount.
   //
-  // 本进程内要测的 `SvgXAnimationQuality` 实验臂，按运行顺序排列。`QUALITYAB=1`
+  // 本进程内要测的 `SvgxAnimationQuality` 实验臂，按运行顺序排列。`QUALITYAB=1`
   // 会在同一次启动内背靠背地测"不降级对照组"以及逐层叠加上去的各项降级；否则只跑
   // 一臂，行为与此前完全一致。
   //
@@ -171,29 +171,29 @@ class _AnimFpsBenchRunnerState extends State<AnimFpsBenchRunner> {
   // 拿到两臂的唯一办法——而它之所以可行，恰恰因为 `_SharedAnimationClock` 每 tick
   // 都重读画质配置，于是翻转全局默认值能在下一帧就把已经挂载好的 1000 个图标重新
   // 调好，无需任何重挂载。
-  List<({String label, SvgXAnimationQuality quality})> _qualityArms = _qualityAb
+  List<({String label, SvgxAnimationQuality quality})> _qualityArms = _qualityAb
       ? [
           // Control: no degradation of any kind.
           // 对照组：不做任何降级。
-          (label: 'exact', quality: SvgXAnimationQuality.exact),
+          (label: 'exact', quality: SvgxAnimationQuality.exact),
           // The shipped default: frame skipping only. Isolates the UI-thread
           // PAINT saving on its own.
           // 出厂默认：只跳帧。单独隔离出 UI 线程 PAINT 的节省。
-          (label: 'skiponly', quality: SvgXAnimationQuality.balanced),
+          (label: 'skiponly', quality: SvgxAnimationQuality.balanced),
           // Frame skipping plus the opt-in mask-as-clip approximation, which
           // trades UI-thread clip-path construction for raster-thread render
           // passes. This arm exists specifically to settle whether that trade
           // is net positive on a real device — the measurement
-          // `SvgXAnimationQuality.approximateSimpleMasksAsClip` is waiting on
+          // `SvgxAnimationQuality.approximateSimpleMasksAsClip` is waiting on
           // before it can be defaulted on.
           //
           // 跳帧 + 需手动开启的 mask-转-clip 近似，它用 UI 线程的裁剪路径构建换
           // raster 线程的渲染通道。这一臂的存在目的就是判定这笔交易在真机上是否
-          // 净赚——正是 `SvgXAnimationQuality.approximateSimpleMasksAsClip` 在等的
+          // 净赚——正是 `SvgxAnimationQuality.approximateSimpleMasksAsClip` 在等的
           // 那个测量，测出来才谈得上默认开启。
           (
             label: 'full',
-            quality: SvgXAnimationQuality(approximateSimpleMasksAsClip: true),
+            quality: SvgxAnimationQuality(approximateSimpleMasksAsClip: true),
           ),
           // IMPORTANT — read before assuming this is new ground: `full` above
           // is ALREADY frame skipping + clip approximation together, because
@@ -217,13 +217,13 @@ class _AnimFpsBenchRunnerState extends State<AnimFpsBenchRunner> {
           // 带来的温度漂移),而不是"配置不同"的证据。
           (
             label: 'combined',
-            quality: const SvgXAnimationQuality(
+            quality: const SvgxAnimationQuality(
               adaptiveFrameSkipping: true,
               approximateSimpleMasksAsClip: true,
             ),
           ),
         ]
-      : [(label: 'default', quality: SvgXAnimationQuality.defaultQuality)];
+      : [(label: 'default', quality: SvgxAnimationQuality.defaultQuality)];
 
   // Each measured arm's collector, in the order the arms actually ran (which
   // `ARMFLIP` may have reversed) — the report prints one block per entry.
@@ -367,7 +367,7 @@ class _AnimFpsBenchRunnerState extends State<AnimFpsBenchRunner> {
       //
       // 下一个 tick 就会把所有已挂载的图标重新调好——为什么无需重挂载见
       // [_qualityArms]。
-      SvgXAnimationQuality.defaultQuality = quality;
+      SvgxAnimationQuality.defaultQuality = quality;
       // A fresh collector per arm; the first arm's frames must not leak into
       // the second arm's statistics.
       //
@@ -583,7 +583,7 @@ class _AnimFpsBenchRunnerState extends State<AnimFpsBenchRunner> {
                 final source = _icons[index];
                 return Padding(
                   padding: const EdgeInsets.all(4),
-                  child: SvgX.string(source, width: 32, height: 32),
+                  child: Svgx.string(source, width: 32, height: 32),
                 );
               },
             ),

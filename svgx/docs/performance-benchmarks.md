@@ -35,7 +35,7 @@
   - svgx 侧缓存上限显式设为 `itemCount + 50`,避免默认 200 条 LRU 在 1000 个不同图标场景下产生"缓存抖动"而不公平地放大解析次数;flutter_svg 一侧未做等价配置(它没有暴露等价的图片级缓存旋钮)。
   - flutter_svg 没有公开的"仅测解析耗时"钩子,所以"解析耗时"这一维度对 flutter_svg 只能不测(不是伪造成"更差"或"更好"),用 build 耗时的整体差距佐证。
   - 内存泄漏检查用的是"多轮滚动 + 3 秒静置后再采样"的替代方案,没有可靠的强制 GC 公开 API 可用(未验证到本 Flutter/Dart 版本有稳定可用的强制 GC 调试钩子),按任务要求如实标注这一点。
-  - 动画流畅度:12 个并发播放的 `line-md` SMIL 动画图标(`SvgX.string` 走原创动画引擎)观测 6 秒,`framesOver16.6ms=0`、`framesOver8.3ms=0`(58 帧,build avg 0.461ms/max 1.497ms,raster avg 1.053ms/max 2.294ms)——动画引擎无主线程阻塞迹象。
+  - 动画流畅度:12 个并发播放的 `line-md` SMIL 动画图标(`Svgx.string` 走原创动画引擎)观测 6 秒,`framesOver16.6ms=0`、`framesOver8.3ms=0`(58 帧,build avg 0.461ms/max 1.497ms,raster avg 1.053ms/max 2.294ms)——动画引擎无主线程阻塞迹象。
 - 复现方式:`cd benchmark/bench_app && flutter run -d windows --profile --dart-define=LIB=svgx|flutter_svg|anim --dart-define=CYCLES=6 --dart-define=ITEMS=1000`,报告打印到 stdout。
 
 ## 性能复测(功能批次:currentColor/PaintOrder + 动画引擎扩展后)
@@ -69,7 +69,7 @@
 
 **新增用例:1000 动画图标来回滚动,真实 FPS(应用户要求新增)**:
 
-- 场景:`benchmark/bench_app/lib/anim_fps_bench_screen.dart`(`--dart-define=LIB=anim_fps`),1000 格 `GridView`(8 列),每格是一个真实播放中的 SMIL 动画图标(`SvgX.string`,原创动画引擎),来回滚动 6 轮(同静态基准的滚动参数)。
+- 场景:`benchmark/bench_app/lib/anim_fps_bench_screen.dart`(`--dart-define=LIB=anim_fps`),1000 格 `GridView`(8 列),每格是一个真实播放中的 SMIL 动画图标(`Svgx.string`,原创动画引擎),来回滚动 6 轮(同静态基准的滚动参数)。
 - 图标来源:`tool/gen_anim_icons.dart` 从 `iconify_flutter` 的 `LineMd`+`EosIcons`(已核实这两个集合 100% 是 SMIL、0% CSS,见 `CLAUDE.md` CSS 动画结论)烘焙出 399 个真实互异的 SMIL 动画图标,平铺填满 1000 格(`lib/anim_icon_gen.dart`)——凑不出 1000 个互不相同的真实动画图标,如实标注为"399 个真实互异图标平铺",而非编造出 1000 个不存在的资产。
 - FPS 口径:**实测值,不是从 build/raster 耗时估算,也不是固定假设值**——`frame_timing.dart` 新增 `realAverageFps`,取每帧 `FrameTiming.timestampInMicroseconds(FramePhase.rasterFinish)`(引擎上报的真实光栅完成时刻),用首尾时间戳算 `(帧数-1)/经过时间`。
 - 实测结果:`frames=645`,**`real_fps=59.95`**(即真实贴近 60Hz 显示器的满帧率),`build avg=4.650ms max=13.206ms`,`raster avg=2.306ms max=5.794ms`,`framesOver16.6ms=0`(相对 60Hz 预算零掉帧),`framesOver8.3ms=18`(相对更严格的 120Hz 预算有少量超出,但 display 是 60Hz,不构成真实掉帧)。
@@ -409,11 +409,11 @@ cd benchmark/bench_app && flutter run -d windows --profile --dart-define=LIB=svg
 | # | 优化 | 测量方式 | 优化前 | 优化后 | 变化 |
 |---|---|---|---|---|---|
 | 1 | `AnimationDetector` 四条分标签正则合并成一条多分支正则 | `detect_animations_static_sources`;同一运行内 `static_image_sniff_removed_work`(单条正则)×4 作为旧实现的同场代理 | ~1.47us/图标(0.368×4) | 0.515us/图标 | **−65%**;跨运行原始值 1.142→0.515 |
-| 2 | `SvgXStatic.build` 先查 picture 缓存,只在真正未命中时才做 `<image>` 正则嗅探 | 同一运行内 `static_image_sniff_removed_work` vs `static_cache_peek_added_work` | 0.297us/图标(正则) | 0.040us/图标(哈希查找) | **每次重建每图标省 0.257us** |
+| 2 | `SvgxStatic.build` 先查 picture 缓存,只在真正未命中时才做 `<image>` 正则嗅探 | 同一运行内 `static_image_sniff_removed_work` vs `static_cache_peek_added_work` | 0.297us/图标(正则) | 0.040us/图标(哈希查找) | **每次重建每图标省 0.257us** |
 | 3 | `SvgDocumentCache`:已解析动画文档的进程级 LRU | 同一运行内 `anim_parse_document` vs `anim_document_cache_hit` | 40.015us/图标(完整 XML 解析+建时间线) | 0.023us/图标 | **重新挂载成本降到约 1/1700** |
 | 4 | `_paintNode` 在节点没有 `<animate>` 时直接复用 `node.attributes`,不再每节点每帧拷贝一份属性表 | `anim_paint_frame` | 21.789us | 21.115us | −3.1%(小,按实测值如实记录) |
 | 5 | `_geometryPath` 把构建好的 `ui.Path` 按"构建来源身份"缓存在节点上(`<path>` 用 `d` 字符串,其余用属性表实例) | `anim_paint_frame` | 21.115us | 15.238us | **−27.8%** 原始值;该轮 `calibration_alloc_and_record` 1.053 对基线 0.934(机器忙 +12.7%),归一化后约 **−35%** |
-| 6 | `SvgXAnimated` 改用绑定到 `AnimatedSvgPainter.clock` 的 `ValueNotifier` 发布时间线,不再每 tick 一次 `setState`(经 `CustomPainter.repaint` 跳过 build+layout 两个阶段) | 静止模式 build avg,各 5 次 | 0.376ms 中位(0.362~0.403) | 0.356ms 中位(0.342~0.365) | **−5.3%**,`framesOver8.3ms` 上限 1→0。滚动场景**测不出差别**(3.194 vs 3.189ms),已如实记录 |
+| 6 | `SvgxAnimated` 改用绑定到 `AnimatedSvgPainter.clock` 的 `ValueNotifier` 发布时间线,不再每 tick 一次 `setState`(经 `CustomPainter.repaint` 跳过 build+layout 两个阶段) | 静止模式 build avg,各 5 次 | 0.376ms 中位(0.362~0.403) | 0.356ms 中位(0.342~0.365) | **−5.3%**,`framesOver8.3ms` 上限 1→0。滚动场景**测不出差别**(3.194 vs 3.189ms),已如实记录 |
 | 7 | `rust_static_svg` 的 `_replay` 形参改成 `Uint8List`/`Float32List`(FFI 桥实际返回的类型)并改用带下标的循环 | 同一进程内配对 `replay_typed_lists` vs `replay_interface_lists` | 125.2~129.2us | 118.8~121.0us | **重放循环本身 −3%~−6%**;`static_parse_record` 分辨不出(其 21.5us 大头是 Rust 解析) |
 
 **附带修掉的一个真实 bug(动画路径 `<clipPath>`)**:`_resolveClipPath` 里 `geometry.transform(matrix)` 被当成裸语句调用,但 dart:ui 的 `Path.transform` 是**返回**变换后的副本、不动接收者("Returns a copy of the path with all the segments of every sub-path transformed by the given matrix"),所以返回值被丢弃——`<clipPath>` 内容上的变换被静默忽略,同时每个裁剪节点每帧还白白分配一整份 Path 副本。改用 `addPath` 自带的 `matrix4` 参数,既正确又无中间副本。新增回归测试,并**验证过去掉修复后该测试确实失败**;该测试手工搭 `SvgNode` 树,因为 `SvgNode.transform` 由 Rust `parse_transform` 桥填入,在纯 `flutter test` 环境下会退化为 null,用标记文本解析会让测试因为错误的原因通过。详见 `docs/bugfix-history.md`。
@@ -495,7 +495,7 @@ flutter run -d windows --profile --dart-define=LIB=compare --dart-define=CYCLES=
 
 ### 识别到但**没有实测支撑**,因此没做
 
-- **`SvgXStatic._buildFromInfo` 里的 `Directionality.maybeOf(context)`**:`alignment` 是 `Alignment`(默认 `Alignment.center`)时 `resolve()` 根本不看 `TextDirection`,这次 `dependOnInheritedWidgetOfExactType` 既白付了查找与依赖登记,还让每个静态图标白白依赖 `Directionality`。改法只有一行(`alignment is Alignment` 就直接用)。**没做的理由是测不了**:`LIB=micro` 模式没有控件树,现有微基准里没有任何一项会走 `build()`;而滚动基准分辨不出这个量级(上一节已记录)。要落地它得先给 micro 加一个真实 Element 树的探针,那是下一轮的事。
+- **`SvgxStatic._buildFromInfo` 里的 `Directionality.maybeOf(context)`**:`alignment` 是 `Alignment`(默认 `Alignment.center`)时 `resolve()` 根本不看 `TextDirection`,这次 `dependOnInheritedWidgetOfExactType` 既白付了查找与依赖登记,还让每个静态图标白白依赖 `Directionality`。改法只有一行(`alignment is Alignment` 就直接用)。**没做的理由是测不了**:`LIB=micro` 模式没有控件树,现有微基准里没有任何一项会走 `build()`;而滚动基准分辨不出这个量级(上一节已记录)。要落地它得先给 micro 加一个真实 Element 树的探针,那是下一轮的事。
 - **`_paintShape` 里每段虚线直接 `drawPath` 而不合并成一条路径**:能再省掉每段一次原生路径拷贝,但会增加显示列表里的绘制指令数,而 raster 侧成本 `LIB=micro` 测不到,不敢在没有 raster 证据的情况下动。
 - **`dashPath` 在"整条轮廓都被点亮"时直接返回 `source`**:对已 freeze 的揭示动画每帧都能命中,但闭合轮廓经 `extractPath` 会退化成开放路径,直接返回 `source` 会**改变闭合路径的描边接头外观**——是往更正确的方向变,但仍是行为变化,不在本轮性能任务范围内。
 
@@ -543,7 +543,7 @@ flutter run -d windows --profile --dart-define=LIB=compare --dart-define=CYCLES=
 
 ### 测了但**没有效果**,因此回滚
 
-- **去掉 `SvgXAnimated.build` 里的逐图标 `RepaintBoundary`**。这次是在瓶颈已经从 build 移到 raster **之后**测的——也就是"逐图标图层正是 raster 耗时元凶"这个假设最有理由成立的时机,不是沿用旧结论。结果全部落在波动内:`real_fps` 30.00 → 30.13,build 20.25 → 20.24ms,raster 21.86 → 21.98ms。**已回滚**,理由记在代码注释里:网格场景显示不出它的收益(所有图标共用一个时钟,本来就同帧全脏),但单个动画图标处在因自身原因重绘的父树里时,去掉它并不免费。这与 flutter_svg 社区的实测一致(dnfield 反复推荐 RepaintBoundary,但 #560 / #111 多人实测对"很多小图标的大列表"无效,只有 #257 的"单个大 SVG 在滚动容器里"确认有效)。
+- **去掉 `SvgxAnimated.build` 里的逐图标 `RepaintBoundary`**。这次是在瓶颈已经从 build 移到 raster **之后**测的——也就是"逐图标图层正是 raster 耗时元凶"这个假设最有理由成立的时机,不是沿用旧结论。结果全部落在波动内:`real_fps` 30.00 → 30.13,build 20.25 → 20.24ms,raster 21.86 → 21.98ms。**已回滚**,理由记在代码注释里:网格场景显示不出它的收益(所有图标共用一个时钟,本来就同帧全脏),但单个动画图标处在因自身原因重绘的父树里时,去掉它并不免费。这与 flutter_svg 社区的实测一致(dnfield 反复推荐 RepaintBoundary,但 #560 / #111 多人实测对"很多小图标的大列表"无效,只有 #257 的"单个大 SVG 在滚动容器里"确认有效)。
 
 ### 识别到但**本轮没做**(如实标注为未验证)
 
@@ -583,12 +583,12 @@ flutter run -d windows --profile --dart-define=LIB=compare --dart-define=CYCLES=
 
 ### 第二项降级前先说清:为什么"降采样"能同时打掉这两项
 
-一个图标的 `CustomPaint` 这一帧不脏,框架就不会重录它的 picture(PAINT 直接省掉,**这是确定的**),它的 retained layer 也有机会被复用。于是新增 `SvgXAnimationQuality`(`lib/src/animation/svgx_animation_quality.dart`,已从 `lib/svgx.dart` 导出):
+一个图标的 `CustomPaint` 这一帧不脏,框架就不会重录它的 picture(PAINT 直接省掉,**这是确定的**),它的 retained layer 也有机会被复用。于是新增 `SvgxAnimationQuality`(`lib/src/animation/svgx_animation_quality.dart`,已从 `lib/svgx.dart` 导出):
 
 - **降级 1:错相位逐图标跳帧**。并发动画图标数超过 `frameSkipThreshold`(默认 24)后,每个图标每 N 帧才推进一次自己的 SMIL 时间线;普通文档 N=2(60Hz 屏上即 30Hz),需要离屏图层(`mask`/模糊)的文档 N=3(20Hz)。相位由 `_SharedAnimationClock` 连号发放,滚动网格里格子按视觉顺序挂载,于是"这一帧重绘一半、下一帧另一半"自然成立。
 - **降级 2:简单 mask 改画成裁剪**。内容只有完全不透明纯黑/纯白填充的 `<mask>` 表达的是二值覆盖区域,而裁剪路径就是二值覆盖区域,于是直接画成 `clipPath`,**该 mask 的两个 saveLayer 一个都不开**。
 
-两项都**只在超过同一个并发阈值后生效**,阈值以内渲染路径与此前完全一致(单图标/少量图标场景零影响);都可以全局 `SvgXAnimationQuality.defaultQuality = SvgXAnimationQuality.exact` 或逐控件 `SvgXAnimated.string(src, quality: SvgXAnimationQuality.exact)` 关掉。
+两项都**只在超过同一个并发阈值后生效**,阈值以内渲染路径与此前完全一致(单图标/少量图标场景零影响);都可以全局 `SvgxAnimationQuality.defaultQuality = SvgxAnimationQuality.exact` 或逐控件 `SvgxAnimated.string(src, quality: SvgxAnimationQuality.exact)` 关掉。
 
 **牺牲了什么,逐项写清**:
 - 降级 1 的代价是**时间维度**的:几何/颜色/描边/渐变/mask 覆盖度全部仍然精确计算,像素与以前一致,只是采样点变少。可察觉的是快动画的运动变粗糙(0.2s 的 `stroke-dashoffset` 展开在 30Hz 下约 6 个离散步而非约 12 步)。**没有任何东西位移、变色或消失**。
@@ -648,15 +648,15 @@ maskedNodeRefs=65 eligibleRefs=31 saveLayersRemovedShare=47.7%
 
 ### 新增的同二进制三臂配对模式(`QUALITYAB=true`)
 
-跨构建对比在本套件里已经反复被证明不可靠(本文件多处记录过 raster_avg 在同一份代码的相邻构建间移动 15% 量级)。但 `--dart-define` 是**编译期**的,一个二进制没法带两组配置——**除非配置是运行时可切的**。而 `SvgXAnimationQuality` 恰好是:`_SharedAnimationClock` 每 tick 都重读画质配置,所以在进程中途翻转 `SvgXAnimationQuality.defaultQuality`,能在下一帧就把已经挂载好的 1000 个图标全部重新调好,**无需任何重挂载**。
+跨构建对比在本套件里已经反复被证明不可靠(本文件多处记录过 raster_avg 在同一份代码的相邻构建间移动 15% 量级)。但 `--dart-define` 是**编译期**的,一个二进制没法带两组配置——**除非配置是运行时可切的**。而 `SvgxAnimationQuality` 恰好是:`_SharedAnimationClock` 每 tick 都重读画质配置,所以在进程中途翻转 `SvgxAnimationQuality.defaultQuality`,能在下一帧就把已经挂载好的 1000 个图标全部重新调好,**无需任何重挂载**。
 
 于是 `anim_fps_bench_screen.dart` 新增 `--dart-define=QUALITYAB=true`:同一次启动内依次测三臂,每臂一个独立的 `FrameTimingCollector`,报告里以 `arm=<label>` 前缀输出(不带前缀的头条键位置不变,现有脚本不受影响):
 
 | 臂 | 配置 | 隔离出什么 |
 |---|---|---|
-| `exact` | `SvgXAnimationQuality.exact` | 对照组,两项降级都关 |
+| `exact` | `SvgxAnimationQuality.exact` | 对照组,两项降级都关 |
 | `skiponly` | `approximateSimpleMasksAsClip: false` | 只有跳帧,即 UI 线程 PAINT 的节省 |
-| `full` | `SvgXAnimationQuality.balanced` | 出厂默认,叠加 mask 近似的 raster 节省 |
+| `full` | `SvgxAnimationQuality.balanced` | 出厂默认,叠加 mask 近似的 raster 节省 |
 
 **顺序偏置是保守方向,如实标注**:三臂按 exact → skiponly → full 顺序跑,先跑的臂拿到的是最凉的设备。也就是说温度漂移**偏向对照组、不利于本轮的两项降级**——因此如果 `full` 仍然胜出,这个胜出是可信的。(`ARMFLIP=true` 可以反转顺序,本轮没用上,原因见下。)
 
@@ -682,8 +682,8 @@ maskedNodeRefs=65 eligibleRefs=31 saveLayersRemovedShare=47.7%
 **诚实标注顺序偏置**:三臂按 exact → skiponly → full 顺序跑,`full` 排最后、拿到最热的设备,因此这 −2.4% 里含有温度成分,**真实效果可能比 −2.4% 更接近持平**。但"接近持平"依然不足以支撑"默认开启一项有损渲染改动"——把 2.78ms 的 GPU 时间换成 2.55ms 的 CPU 时间,在这台设备上是一笔不赚钱的交易。
 
 **因此的处置**:
-- `SvgXAnimationQuality` 的**出厂默认 = 只跳帧**(`approximateSimpleMasksAsClip: false`)。
-- mask 转 clip 保留为 **opt-in**:`SvgXAnimationQuality(approximateSimpleMasksAsClip: true)`。它在**另一类设备上可能是赚的**——判据很清楚:如果目标设备的 GPU 相对 CPU 更弱(离屏渲染通道更贵、路径构建更便宜),这笔交易就会翻转。`QUALITYAB=true` 三臂模式就是用来在新设备上重新判定它的现成工具。
+- `SvgxAnimationQuality` 的**出厂默认 = 只跳帧**(`approximateSimpleMasksAsClip: false`)。
+- mask 转 clip 保留为 **opt-in**:`SvgxAnimationQuality(approximateSimpleMasksAsClip: true)`。它在**另一类设备上可能是赚的**——判据很清楚:如果目标设备的 GPU 相对 CPU 更弱(离屏渲染通道更贵、路径构建更便宜),这笔交易就会翻转。`QUALITYAB=true` 三臂模式就是用来在新设备上重新判定它的现成工具。
 
 ### 踩到并修掉的两个测量基础设施 bug(不记下来会反复浪费时间)
 
@@ -782,7 +782,7 @@ shapesDrawnAsIntersections=27 intersectShareOfClipEligible=100.0%
 
 **处置**:
 - **出厂默认不变** = 只跳帧(两项 mask 近似都关)。
-- 新增 opt-in 开关 `SvgXAnimationQuality(approximateSimpleMasksAsPathIntersect: true)`。
+- 新增 opt-in 开关 `SvgxAnimationQuality(approximateSimpleMasksAsPathIntersect: true)`。
 - **要 opt-in 时,推荐用求交而不是裁剪**——同样的合格性前提下它严格更好。两者可同时打开(`approximateSimpleMasksAsClip: true` 一起给),此时求交处理它能处理的、裁剪接住其余的;在本语料上求交覆盖率已是 100%,裁剪只在内容含描边/渐变时才接得到活。
 - 判据不变:**若目标设备的墙在 raster 而不是 build**(GPU 相对 CPU 更弱),这两个开关就会翻正,而求交是其中更赚的那个。四臂模式(`QUALITYAB=true`,配 `ARMFLIP=true` 做反序)就是在新设备上重新判定的现成工具。
 
@@ -846,7 +846,7 @@ shapeFrames=1593 combinesActuallyRan=1523 cacheHitRate=4.4%
 
 **要验证的假设**:跳帧(降低重画频率)与 mask-转-clip 近似(降低单次重画成本)在设计上正交,组合起来能否把 `skiponly` 单独开启时那个反常偏高的 raster(25.96ms,高于 `exact` 的 22.58ms)压下来,同时不吃掉 `skiponly` 在 build 上的优势。
 
-**重要发现,先纠正一个前提**:着手准备这轮测试时发现,"跳帧 + clip 组合"其实**已经在测过了,只是没有用这个名字**——见上面"三臂/四臂"两轮的 `full` 臂。`SvgXAnimationQuality` 的构造函数里 `adaptiveFrameSkipping` 默认就是 `true`,而 `full` 臂的配置是 `SvgXAnimationQuality(approximateSimpleMasksAsClip: true)`,只覆盖了 clip 这一个字段——也就是说 `full` 从一开始就是"跳帧默认开 + clip 手动开"的组合,不是"只测 clip、不测跳帧"的隔离项。四臂轮真机数据(见上文"真机四臂配对实测"表)已经直接回答了这轮要问的问题:
+**重要发现,先纠正一个前提**:着手准备这轮测试时发现,"跳帧 + clip 组合"其实**已经在测过了,只是没有用这个名字**——见上面"三臂/四臂"两轮的 `full` 臂。`SvgxAnimationQuality` 的构造函数里 `adaptiveFrameSkipping` 默认就是 `true`,而 `full` 臂的配置是 `SvgxAnimationQuality(approximateSimpleMasksAsClip: true)`,只覆盖了 clip 这一个字段——也就是说 `full` 从一开始就是"跳帧默认开 + clip 手动开"的组合,不是"只测 clip、不测跳帧"的隔离项。四臂轮真机数据(见上文"真机四臂配对实测"表)已经直接回答了这轮要问的问题:
 
 | 臂 | real_fps | build | raster |
 |---|---|---|---|
@@ -858,7 +858,7 @@ shapeFrames=1593 combinesActuallyRan=1523 cacheHitRate=4.4%
 
 **代码层面的准备(已完成)**:
 
-1. `lib/src/animation/svgx_animation_quality.dart`——**不需要新代码**。`adaptiveFrameSkipping` 与 `approximateSimpleMasksAsClip` 是两个完全独立的构造参数,`frameDivisorFor`/`approximatesMasksAt` 各自只读自己对应的字段,没有任何互斥或"二选一"的硬编码逻辑,`SvgXAnimationQuality(adaptiveFrameSkipping: true, approximateSimpleMasksAsClip: true)` 这种组合本来就能自由构造(`full` 臂事实上就是这么用的,只是没显式写出 `adaptiveFrameSkipping: true`)。
+1. `lib/src/animation/svgx_animation_quality.dart`——**不需要新代码**。`adaptiveFrameSkipping` 与 `approximateSimpleMasksAsClip` 是两个完全独立的构造参数,`frameDivisorFor`/`approximatesMasksAt` 各自只读自己对应的字段,没有任何互斥或"二选一"的硬编码逻辑,`SvgxAnimationQuality(adaptiveFrameSkipping: true, approximateSimpleMasksAsClip: true)` 这种组合本来就能自由构造(`full` 臂事实上就是这么用的,只是没显式写出 `adaptiveFrameSkipping: true`)。
 2. `benchmark/bench_app/lib/anim_fps_bench_screen.dart`——`QUALITYAB=true` 模式下新增第四臂 **`combined`**,紧跟在 `full` 之后。它的配置与 `full` 完全一致(两个字段都用 `true` 显式写出,不依赖默认值),目的不是产生新数据,而是给这个组合一个不会被误认成"只测 clip"的独立名字,并作为对 `full` 现有数据的一次同批次复测/交叉验证——如果 `combined` 与 `full` 的结果出现大且可复现的差距,那本身就是新发现(比如四臂之后设备温度漂移更严重),而不是"配置真的不同"。
 
 **主机侧验证结果(已完成,均在开发机上跑,不涉及任何真机/adb)**:
@@ -965,7 +965,7 @@ unbounded=1150.6µs/帧(全部文档)  tight=1398.3µs/帧  delta=+247.7µs  →
 单独跑该文件复测一次:`delta_us_per_document=4.23`;与其它基准文件并行跑时(测试框架会并发跑多个文件、争抢 CPU)是 5.49。取 **+4.1~5.5µs/图标/帧**。作为对照,已被否决的 clip 近似同口径是 +27.6µs/图标/帧(mask 在动时),本项约是它的 **1/6**。
 - 外扩量的取舍:外扩 1 逻辑像素时 `offscreenAreaRemoved=26.0%`(同样 488 次比对全部逐位一致),外扩 2 像素时 21.5%。**保留 2 像素**——多出的 4.5 个百分点不值得动用理论上刚好够用的余量(描边 miter 外扩已经正好卡在 miterlimit=4 的上界)。
 
-**当初的默认值决定(已被下文最终结论撤销,以下按原始记录保留,供参考):默认开启(`tightMaskLayerBounds: true`),并保留关闭开关。** 依据:等价性已在真实语料 488 次全帧比对上做到逐位一致(不是"看起来一样"),不存在保真度风险;UI 线程代价 +4.1~5.5µs/图标/帧;`SvgXAnimationQuality.exact` 也保持开启,因为它无损、与"精确渲染"不矛盾。开关留给渲染后端层面的意外(某个后端错误地裁剪显式指定 bounds 的图层),不是留给保真度取舍。
+**当初的默认值决定(已被下文最终结论撤销,以下按原始记录保留,供参考):默认开启(`tightMaskLayerBounds: true`),并保留关闭开关。** 依据:等价性已在真实语料 488 次全帧比对上做到逐位一致(不是"看起来一样"),不存在保真度风险;UI 线程代价 +4.1~5.5µs/图标/帧;`SvgxAnimationQuality.exact` 也保持开启,因为它无损、与"精确渲染"不矛盾。开关留给渲染后端层面的意外(某个后端错误地裁剪显式指定 bounds 的图层),不是留给保真度取舍。
 
 **真机验证还没做——净收益(raster 少的是否多于 build 多的)在真机上尚未测量。** 已在 `benchmark/bench_app/lib/anim_fps_bench_screen.dart` 加好专用两臂 A/B(与 `QUALITYAB` 分开,因为这两臂的像素逐位一致,唯一差别只有开销):
 
@@ -1021,7 +1021,7 @@ vivo V2283A   56.90         56.64         基本打平(无提升)
 华为 STG-AL00  34.56         34.75         基本打平(消除偏置后,噪声量级)
 ```
 
-两台设备的 real_fps 均无实质提升——vivo 上仅有的信号是 raster 平均值的小幅改善(-0.38ms,统计上稳定但量级太小),且这个改善从未传导到最终 fps;华为上消除臂序偏置后连 raster 端的信号都不再稳定站得住。**判定为不通用/收益不足以证明是一项值得长期维护的优化,代码已撤销**,`SvgXAnimationQuality.tightMaskLayerBounds` 字段与 `AnimatedSvgPainter` 里对应的按 mask 内容边界分配 saveLayer 的实现(含 `_maskLayerBounds`/`debugMaskLayerBounds`/`_userUnitsPerDevicePixel`/`_transformRect`)已从代码库中移除,`saveLayer` 恢复为无界(按当前裁剪区、即整个 SVG 视口分配)。
+两台设备的 real_fps 均无实质提升——vivo 上仅有的信号是 raster 平均值的小幅改善(-0.38ms,统计上稳定但量级太小),且这个改善从未传导到最终 fps;华为上消除臂序偏置后连 raster 端的信号都不再稳定站得住。**判定为不通用/收益不足以证明是一项值得长期维护的优化,代码已撤销**,`SvgxAnimationQuality.tightMaskLayerBounds` 字段与 `AnimatedSvgPainter` 里对应的按 mask 内容边界分配 saveLayer 的实现(含 `_maskLayerBounds`/`debugMaskLayerBounds`/`_userUnitsPerDevicePixel`/`_transformRect`)已从代码库中移除,`saveLayer` 恢复为无界(按当前裁剪区、即整个 SVG 视口分配)。
 
 **保留下来、依然有效的部分**(即使具体实现被撤销,这些调研成果本身没有过时):
 
@@ -1073,7 +1073,7 @@ vivo V2283A   56.90         56.64         基本打平(无提升)
 - 每个 slice 归属到调用栈上最内层的粗粒度阶段(`BUILD`/`LAYOUT`/`PAINT`/`Animate`/`Frame`/…),按阶段分块输出。
 - 已知局限(如实记录):`X` 事件的嵌套子级无法从平铺列表还原,其 self time 按完整耗时上报;框架的 build/layout/paint 埋点全是 B/E,所以只影响引擎侧 C++ slice。
 
-**离线校验**(不需要真机):用合成 trace 跑 `--summarize`,验证 self time 加总恒等(BUILD 180 = BUILD 自身 60 + 2×SvgXAnimated 80 + CustomPaint 40;`SvgXAnimated` total 120 / self 80;`Frame` self 100 = 800 − 700)、线程名与阶段归属均正确。
+**离线校验**(不需要真机):用合成 trace 跑 `--summarize`,验证 self time 加总恒等(BUILD 180 = BUILD 自身 60 + 2×SvgxAnimated 80 + CustomPaint 40;`SvgxAnimated` total 120 / self 80;`Frame` self 100 = 800 − 700)、线程名与阶段归属均正确。
 
 ### 主机侧成本归因:一个动画图标格子的钱花在哪
 
@@ -1100,7 +1100,7 @@ vivo V2283A   56.90         56.64         基本打平(无提升)
 
 ### 已落地的一项改动:去掉每个图标一层冗余的 `SizedBox`
 
-`SvgXAnimated` 与 `SvgXStatic` 都曾把无 child 的 `CustomPaint` 套在同尺寸 `SizedBox` 里。但 `RenderCustomPaint.computeSizeForNoChild` 返回的就是 `constraints.constrain(preferredSize)`(SDK `rendering/custom_paint.dart:580`),与 `SizedBox` 包一层的结果在**所有**约束状态下都相同。已移除,每个图标少一个 `Element` + 一个 `RenderConstrainedBox`。
+`SvgxAnimated` 与 `SvgxStatic` 都曾把无 child 的 `CustomPaint` 套在同尺寸 `SizedBox` 里。但 `RenderCustomPaint.computeSizeForNoChild` 返回的就是 `constraints.constrain(preferredSize)`(SDK `rendering/custom_paint.dart:580`),与 `SizedBox` 包一层的结果在**所有**约束状态下都相同。已移除,每个图标少一个 `Element` + 一个 `RenderConstrainedBox`。
 
 等价性验证(`test/animation/widget_tree_depth_test.dart`,主机 5 项全绿):四种约束状态(紧于图标 20×20 / 松于图标 / 松到父级 / 紧且大于图标 64×64)下最终尺寸逐项不变,且树里确认不再出现 `RenderConstrainedBox`。改动前该测试如预期失败(链路为 `RenderRepaintBoundary → RenderConstrainedBox → RenderCustomPaint`)。
 
@@ -1132,7 +1132,7 @@ dart run benchmark/bench_app/tool/capture_timeline.dart --summarize timeline_bui
 powershell -File benchmark/bench_app/tool/run_android_anim_fps.ps1
 ```
 
-看 timeline 时要回答的具体问题:`io.flutter.ui | BUILD` 桶里 self time 最高的是 `SvgXAnimated` / `SvgX` / `CustomPaint` 这些 svgx 自己的控件,还是 `KeyedSubtree` / `RepaintBoundary` / `_SliverGridDelegate` 之类框架层的格子机械开销?主机侧归因预测是**后者约占 2/3**;真机若也如此,则 build 端剩下的杠杆只有"少挂载"(减少每格层数、或让格子不被销毁),而不是继续优化 svgx 的计算。
+看 timeline 时要回答的具体问题:`io.flutter.ui | BUILD` 桶里 self time 最高的是 `SvgxAnimated` / `Svgx` / `CustomPaint` 这些 svgx 自己的控件,还是 `KeyedSubtree` / `RepaintBoundary` / `_SliverGridDelegate` 之类框架层的格子机械开销?主机侧归因预测是**后者约占 2/3**;真机若也如此,则 build 端剩下的杠杆只有"少挂载"(减少每格层数、或让格子不被销毁),而不是继续优化 svgx 的计算。
 
 ## 调研并否决:Impeller shader 预热(2026-08-27)
 
@@ -1153,12 +1153,12 @@ powershell -File benchmark/bench_app/tool/run_android_anim_fps.ps1
 
 两条使它成为**不同问题**的硬性理由:
 
-1. `SvgXAnimationQuality.adaptiveFrameSkipping` 只在并发数 **> `frameSkipThreshold`(24)** 时生效,`approximatesMasksAt` 同样受该阈值门控。因此少量图标场景下**两项降级全都不生效**,跑的是精确逐帧路径——之前所有"1000 图标视角"下的 mask 结论,在这个视角下既不适用也未被验证过。
+1. `SvgxAnimationQuality.adaptiveFrameSkipping` 只在并发数 **> `frameSkipThreshold`(24)** 时生效,`approximatesMasksAt` 同样受该阈值门控。因此少量图标场景下**两项降级全都不生效**,跑的是精确逐帧路径——之前所有"1000 图标视角"下的 mask 结论,在这个视角下既不适用也未被验证过。
 2. 摊到 1000 个图标上看不见的每帧成本,在只有一个图标时就是全部成本。
 
 ### 关键前提:只有"循环"图标才存在稳态成本
 
-**有限动画图标的稳态成本恰好为零**,这不是估计而是代码事实:最后一条时间线定格后,`_SvgXAnimatedState._onGlobalTick` 会调用 `_stopTicking()` 从共享时钟退订,图标彻底停止重绘。399 份真实语料里 58 份是 `repeatCount="indefinite"`(其中 35 份带 `<mask>`,23 份不带),**只有这 58 份会永远逐帧付费**。因此本轮的所有测量都收窄到这 58 份,并在 t > 3s(越过全部 `fill="freeze"` 揭示动画)采样——那正是这类图标在屏幕上几乎全部时间所处的状态:**一部分已定格,另一部分仍在循环**。
+**有限动画图标的稳态成本恰好为零**,这不是估计而是代码事实:最后一条时间线定格后,`_SvgxAnimatedState._onGlobalTick` 会调用 `_stopTicking()` 从共享时钟退订,图标彻底停止重绘。399 份真实语料里 58 份是 `repeatCount="indefinite"`(其中 35 份带 `<mask>`,23 份不带),**只有这 58 份会永远逐帧付费**。因此本轮的所有测量都收窄到这 58 份,并在 t > 3s(越过全部 `fill="freeze"` 揭示动画)采样——那正是这类图标在屏幕上几乎全部时间所处的状态:**一部分已定格,另一部分仍在循环**。
 
 ### 新增常驻测量资产
 

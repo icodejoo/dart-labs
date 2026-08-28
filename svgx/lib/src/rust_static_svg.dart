@@ -133,7 +133,7 @@ class RustSvgPictureCache {
   /// null when it isn't cached — never parses and never records.
   ///
   /// Exists so a widget's `build` can take the warm path without first having
-  /// to decide *how* to render on a miss: [SvgXStatic] sniffs the source for
+  /// to decide *how* to render on a miss: [SvgxStatic] sniffs the source for
   /// `<image>` (to choose the sync vs async render) only after this returns
   /// null, so a cached icon pays a hash lookup instead of a full regex scan on
   /// every rebuild.
@@ -142,7 +142,7 @@ class RustSvgPictureCache {
   /// 不解析、不录制。
   ///
   /// 存在的意义是让控件 `build` 走热路径时不必先判断"未命中该怎么渲染"：
-  /// [SvgXStatic] 只在本方法返回 null 之后才去嗅探源里的 `<image>`（决定走同步
+  /// [SvgxStatic] 只在本方法返回 null 之后才去嗅探源里的 `<image>`（决定走同步
   /// 还是异步渲染），于是已缓存的图标每次重建只付一次哈希查找，而不是一整趟
   /// 正则扫描。
   ///
@@ -178,7 +178,7 @@ class RustSvgPictureCache {
       return Future<RustSvgPictureInfo>.value(hit);
     }
     // Concurrent callers for the same key join the render already running
-    // instead of starting their own. [SvgXStatic] reaches this from `build`
+    // instead of starting their own. [SvgxStatic] reaches this from `build`
     // via a `FutureBuilder`, and a widget can rebuild many times while a
     // bitmap decode is in flight — each of those rebuilds used to kick off a
     // full parse + decode + record whose picture and decoded `ui.Image` were
@@ -187,7 +187,7 @@ class RustSvgPictureCache {
     // just cheaper, it is the same answer.
     //
     // 同一个键的并发调用会加入已在进行的渲染，而不是各自再起一次。
-    // [SvgXStatic] 是在 `build` 里经 `FutureBuilder` 走到这儿的，而位图解码期间
+    // [SvgxStatic] 是在 `build` 里经 `FutureBuilder` 走到这儿的，而位图解码期间
     // 控件可能重建很多次——过去每一次重建都会重新发起一整趟解析 + 解码 + 录制，
     // 其 picture 与解码出的 `ui.Image` 随后在缓存里被覆盖、成为没人 dispose 的
     // 孤儿。渲染结果由键唯一决定，所以共用同一个在途 future 不只是更省，
@@ -898,20 +898,20 @@ class RustSvgPictureCache {
 ///
 /// Parses [source] once via FFI, caches the resulting [ui.Picture], and
 /// replays it on every rebuild. Intended for SVGs without `<animate>`/CSS
-/// keyframes — see [SvgX] for the dispatch widget that picks this vs the
+/// keyframes — see [Svgx] for the dispatch widget that picks this vs the
 /// animated renderer automatically.
 ///
 /// 通过 Rust `usvg` 解析器渲染静态（无动画）SVG。对 [source] 只过一次 FFI 解析，
 /// 缓存生成的 [ui.Picture]，此后每次重建直接重放。适用于不含 `<animate>`/CSS
-/// keyframes 的 SVG——需要自动判定走哪条渲染路径请用 [SvgX]。
+/// keyframes 的 SVG——需要自动判定走哪条渲染路径请用 [Svgx]。
 ///
 /// Example:
 /// ```dart
-/// SvgXStatic('<svg ...>...</svg>', width: 48, height: 48)
+/// SvgxStatic('<svg ...>...</svg>', width: 48, height: 48)
 /// ```
-class SvgXStatic extends StatelessWidget {
+class SvgxStatic extends StatelessWidget {
   /// Creates the Rust-backed static SVG renderer. / 创建 Rust 静态 SVG 渲染器。
-  const SvgXStatic(
+  const SvgxStatic(
     this.source, {
     super.key,
     this.width,
@@ -942,10 +942,10 @@ class SvgXStatic extends StatelessWidget {
   final ColorFilter? colorFilter;
 
   /// Theme controlling `currentColor`; defaults to opaque black. Mirrors
-  /// [SvgXAnimated]'s `theme` param for API consistency across the animated
+  /// [SvgxAnimated]'s `theme` param for API consistency across the animated
   /// and static paths.
   ///
-  /// 控制 `currentColor` 的主题；默认不透明黑色。与 [SvgXAnimated] 的 `theme`
+  /// 控制 `currentColor` 的主题；默认不透明黑色。与 [SvgxAnimated] 的 `theme`
   /// 参数保持一致的 API 形状，覆盖动画与静态两条路径。
   final SvgTheme? theme;
 

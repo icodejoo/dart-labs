@@ -43,7 +43,7 @@ const _holdSeconds = int.fromEnvironment('HOLD', defaultValue: 6);
 // NAMED AFTER the widget / render object being processed
 // (`framework.dart`'s `FlutterTimeline.startSync('${widget.runtimeType}')`,
 // `object.dart`'s equivalents for layout and paint), which is what makes a
-// per-mechanism cost list possible at all: `SvgXAnimated`, `CustomPaint`,
+// per-mechanism cost list possible at all: `SvgxAnimated`, `CustomPaint`,
 // `RenderCustomPaint`, `RenderConstrainedBox`, `RenderSliverGrid` all become
 // separately-summed line items.
 //
@@ -66,7 +66,7 @@ const _holdSeconds = int.fromEnvironment('HOLD', defaultValue: 6);
 // `Element.rebuild`、`RenderObject.layout`、`PaintingContext.paintChild` 各自会
 // 开一个**以被处理的控件/渲染对象命名**的 slice（framework.dart 里的
 // `FlutterTimeline.startSync('${widget.runtimeType}')`，以及 object.dart 里布局
-// 与绘制的对应写法），这正是"按子机制归因"得以成立的前提：`SvgXAnimated`、
+// 与绘制的对应写法），这正是"按子机制归因"得以成立的前提：`SvgxAnimated`、
 // `CustomPaint`、`RenderCustomPaint`、`RenderConstrainedBox`、`RenderSliverGrid`
 // 会成为可以分别累加的独立条目。
 //
@@ -86,11 +86,11 @@ Future<void> main() async {
     debugProfilePaintsEnabled = true;
   }
   // Required once before any parseSvg() FFI call; forgetting this makes
-  // SvgXStatic silently fall back to a blank SizedBox on every render (its
+  // SvgxStatic silently fall back to a blank SizedBox on every render (its
   // errorBuilder is null by default), which would otherwise make this
   // benchmark measure "building empty boxes" instead of real svgx work.
   //
-  // 首次调用 parseSvg() 前必须初始化一次；漏掉这步会导致 SvgXStatic 每次渲染都
+  // 首次调用 parseSvg() 前必须初始化一次；漏掉这步会导致 SvgxStatic 每次渲染都
   // 静默回退成空白 SizedBox（默认 errorBuilder 为空），基准就会变成在测「渲染
   // 空盒子」而非 svgx 的真实开销。
   await RustLib.init();

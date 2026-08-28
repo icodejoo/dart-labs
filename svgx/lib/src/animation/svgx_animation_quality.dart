@@ -9,7 +9,7 @@
 
 import 'package:flutter/foundation.dart';
 
-/// Controls how aggressively `SvgXAnimated` is allowed to degrade animation
+/// Controls how aggressively `SvgxAnimated` is allowed to degrade animation
 /// smoothness-per-icon in exchange for overall frame throughput when many
 /// animated icons play at once.
 ///
@@ -63,11 +63,11 @@ import 'package:flutter/foundation.dart';
 ///
 /// ## Turning it off
 ///
-/// Globally: `SvgXAnimationQuality.defaultQuality = SvgXAnimationQuality.exact;`
+/// Globally: `SvgxAnimationQuality.defaultQuality = SvgxAnimationQuality.exact;`
 ///
-/// Per widget: `SvgXAnimated.string(src, quality: SvgXAnimationQuality.exact)`
+/// Per widget: `SvgxAnimated.string(src, quality: SvgxAnimationQuality.exact)`
 ///
-/// 控制"同时播放大量动画图标"时，`SvgXAnimated` 可以多激进地牺牲单图标的动画
+/// 控制"同时播放大量动画图标"时，`SvgxAnimated` 可以多激进地牺牲单图标的动画
 /// 流畅度，来换取整体帧吞吐。
 ///
 /// ## 到底牺牲了什么
@@ -109,24 +109,24 @@ import 'package:flutter/foundation.dart';
 ///
 /// ## 怎么关掉
 ///
-/// 全局：`SvgXAnimationQuality.defaultQuality = SvgXAnimationQuality.exact;`
+/// 全局：`SvgxAnimationQuality.defaultQuality = SvgxAnimationQuality.exact;`
 ///
-/// 单个控件：`SvgXAnimated.string(src, quality: SvgXAnimationQuality.exact)`
+/// 单个控件：`SvgxAnimated.string(src, quality: SvgxAnimationQuality.exact)`
 ///
 /// Example:
 /// ```dart
 /// // Never degrade — exact 60Hz sampling for every icon, at any count.
-/// SvgXAnimationQuality.defaultQuality = SvgXAnimationQuality.exact;
+/// SvgxAnimationQuality.defaultQuality = SvgxAnimationQuality.exact;
 ///
 /// // Degrade sooner and harder on low-end hardware.
-/// SvgXAnimationQuality.defaultQuality = const SvgXAnimationQuality(
+/// SvgxAnimationQuality.defaultQuality = const SvgxAnimationQuality(
 ///   frameSkipThreshold: 8,
 ///   maxFrameDivisor: 3,
 ///   offscreenLayerFrameDivisor: 4,
 /// );
 /// ```
 @immutable
-class SvgXAnimationQuality {
+class SvgxAnimationQuality {
   /// Creates a quality profile.
   ///
   /// 创建一份画质/性能配置。
@@ -136,10 +136,10 @@ class SvgXAnimationQuality {
   ///
   ///   总开关；false 表示任何并发量下都不为任何图标跳帧（精确采样）。
   ///
-  /// [frameSkipThreshold] — number of concurrently-animating `SvgXAnimated`
+  /// [frameSkipThreshold] — number of concurrently-animating `SvgxAnimated`
   ///   instances at or below which nothing is degraded.
   ///
-  ///   并发播放的 `SvgXAnimated` 实例数在此值及以下时不做任何降级。
+  ///   并发播放的 `SvgxAnimated` 实例数在此值及以下时不做任何降级。
   ///
   /// [maxFrameDivisor] — sample one display frame in N for an ordinary
   ///   document once the threshold is exceeded. 1 disables skipping for them.
@@ -166,7 +166,7 @@ class SvgXAnimationQuality {
   ///   [frameSkipThreshold] 的并发门控。**默认为 false**——为什么这一项默认关闭
   ///   而跳帧默认开启，见 [approximateSimpleMasksAsClip]。
   ///
-  const SvgXAnimationQuality({
+  const SvgxAnimationQuality({
     this.adaptiveFrameSkipping = true,
     this.frameSkipThreshold = 24,
     this.maxFrameDivisor = 2,
@@ -191,23 +191,23 @@ class SvgXAnimationQuality {
   /// 之所以选它（而不是 [exact]）作为默认：在降级不生效的场景里它是不可见的
   /// ——只显示少量动画图标的界面永远达不到阈值，行为完全一致；而在成百个动画
   /// 图标的网格场景里，不降级的替代结果并不是"更高保真"，而是"所有人一起掉帧"。
-  static const SvgXAnimationQuality balanced = SvgXAnimationQuality();
+  static const SvgxAnimationQuality balanced = SvgxAnimationQuality();
 
   /// No degradation ever: every icon samples its timeline on every display
   /// frame regardless of how many are playing.
   ///
   /// 永不降级：无论多少图标在播放，每个图标都在每个显示帧采样自己的时间线。
-  static const SvgXAnimationQuality exact = SvgXAnimationQuality(
+  static const SvgxAnimationQuality exact = SvgxAnimationQuality(
     adaptiveFrameSkipping: false,
     approximateSimpleMasksAsClip: false,
   );
 
-  /// Profile used by any `SvgXAnimated` that does not pass its own. Assign to
+  /// Profile used by any `SvgxAnimated` that does not pass its own. Assign to
   /// change it process-wide; takes effect on the next frame.
   ///
-  /// 任何未自带配置的 `SvgXAnimated` 所使用的配置。赋值即可全进程修改，下一帧
+  /// 任何未自带配置的 `SvgxAnimated` 所使用的配置。赋值即可全进程修改，下一帧
   /// 生效。
-  static SvgXAnimationQuality defaultQuality = balanced;
+  static SvgxAnimationQuality defaultQuality = balanced;
 
   /// Master switch — see the constructor. / 总开关——见构造函数。
   final bool adaptiveFrameSkipping;
@@ -355,7 +355,7 @@ class SvgXAnimationQuality {
 
   @override
   bool operator ==(Object other) =>
-      other is SvgXAnimationQuality &&
+      other is SvgxAnimationQuality &&
       other.adaptiveFrameSkipping == adaptiveFrameSkipping &&
       other.frameSkipThreshold == frameSkipThreshold &&
       other.maxFrameDivisor == maxFrameDivisor &&
@@ -373,7 +373,7 @@ class SvgXAnimationQuality {
 
   @override
   String toString() =>
-      'SvgXAnimationQuality(adaptiveFrameSkipping: $adaptiveFrameSkipping, '
+      'SvgxAnimationQuality(adaptiveFrameSkipping: $adaptiveFrameSkipping, '
       'frameSkipThreshold: $frameSkipThreshold, '
       'maxFrameDivisor: $maxFrameDivisor, '
       'offscreenLayerFrameDivisor: $offscreenLayerFrameDivisor, '

@@ -23,28 +23,28 @@ import 'svg_source_loader.dart';
 ///
 /// Detection is done via [AnimationDetector.hasAnimations]: if the source
 /// contains SMIL (`<animate>`, `<set>`) animation markers, it renders through
-/// [SvgXAnimated.string] (this project's original SMIL engine); otherwise it
-/// renders through [SvgXStatic] (Rust `usvg` parser → cached [ui.Picture]).
+/// [SvgxAnimated.string] (this project's original SMIL engine); otherwise it
+/// renders through [SvgxStatic] (Rust `usvg` parser → cached [ui.Picture]).
 /// CSS `@keyframes`/`animation-*` animation is not yet detected/supported —
 /// see `lib/src/animation/animation_detector.dart`.
 ///
 /// 渲染 SVG 字符串，自动选择动画或静态渲染路径。
 ///
 /// 通过 [AnimationDetector.hasAnimations] 判定：若源串含 SMIL（`<animate>`、
-/// `<set>`）动画标记，走 [SvgXAnimated.string]（本项目原创 SMIL 引擎）；否则走
-/// [SvgXStatic]（Rust `usvg` 解析器 → 缓存的 [ui.Picture]）。CSS
+/// `<set>`）动画标记，走 [SvgxAnimated.string]（本项目原创 SMIL 引擎）；否则走
+/// [SvgxStatic]（Rust `usvg` 解析器 → 缓存的 [ui.Picture]）。CSS
 /// `@keyframes`/`animation-*` 动画暂不检测/支持——见
 /// `lib/src/animation/animation_detector.dart`。
 ///
 /// Example:
 /// ```dart
-/// SvgX.string(svgSource, width: 48, height: 48)
+/// Svgx.string(svgSource, width: 48, height: 48)
 /// ```
-class SvgX extends StatelessWidget {
+class Svgx extends StatelessWidget {
   /// Creates the dispatch widget from a raw SVG string.
   ///
   /// 用原始 SVG 字符串创建分发组件。
-  const SvgX.string(
+  const Svgx.string(
     this.source, {
     super.key,
     this.width,
@@ -81,8 +81,8 @@ class SvgX extends StatelessWidget {
     Alignment alignment = Alignment.center,
     ColorFilter? colorFilter,
     SvgTheme? theme,
-    SvgXAnimationQuality? quality,
-  }) => _AsyncSvgX(
+    SvgxAnimationQuality? quality,
+  }) => _AsyncSvgx(
     key: key,
     loadKey: (name, bundle, package),
     load: () => SvgSourceLoader.instance.asset(name, bundle: bundle, package: package),
@@ -112,8 +112,8 @@ class SvgX extends StatelessWidget {
     Alignment alignment = Alignment.center,
     ColorFilter? colorFilter,
     SvgTheme? theme,
-    SvgXAnimationQuality? quality,
-  }) => _AsyncSvgX(
+    SvgxAnimationQuality? quality,
+  }) => _AsyncSvgx(
     key: key,
     loadKey: (url, headers),
     load: () => SvgSourceLoader.instance.network(url, headers: headers),
@@ -138,8 +138,8 @@ class SvgX extends StatelessWidget {
     Alignment alignment = Alignment.center,
     ColorFilter? colorFilter,
     SvgTheme? theme,
-    SvgXAnimationQuality? quality,
-  }) => _AsyncSvgX(
+    SvgxAnimationQuality? quality,
+  }) => _AsyncSvgx(
     key: key,
     loadKey: file,
     load: () => SvgSourceLoader.instance.file(file),
@@ -154,11 +154,11 @@ class SvgX extends StatelessWidget {
 
   /// Creates the dispatch widget from raw SVG bytes already in memory,
   /// decoded as UTF-8 — unlike [asset]/[network]/[file], this is
-  /// synchronous (no [_AsyncSvgX] loading state), the same way
+  /// synchronous (no [_AsyncSvgx] loading state), the same way
   /// [MemoryImage] never shows a loading frame.
   ///
   /// 用内存中已有的原始 SVG 字节创建分发组件，按 UTF-8 解码——跟
-  /// [asset]/[network]/[file] 不同，这是同步的（没有 [_AsyncSvgX] 的加载态），
+  /// [asset]/[network]/[file] 不同，这是同步的（没有 [_AsyncSvgx] 的加载态），
   /// 与 [MemoryImage] 从不展示加载帧同理。
   static Widget memory(
     Uint8List bytes, {
@@ -169,8 +169,8 @@ class SvgX extends StatelessWidget {
     Alignment alignment = Alignment.center,
     ColorFilter? colorFilter,
     SvgTheme? theme,
-    SvgXAnimationQuality? quality,
-  }) => SvgX.string(
+    SvgxAnimationQuality? quality,
+  }) => Svgx.string(
     utf8.decode(bytes),
     key: key,
     width: width,
@@ -207,17 +207,17 @@ class SvgX extends StatelessWidget {
   final SvgTheme? theme;
 
   /// Animation quality/performance trade-off, forwarded to
-  /// [SvgXAnimated.string]; ignored for a static source (the static path
+  /// [SvgxAnimated.string]; ignored for a static source (the static path
   /// renders a cached `ui.Picture` and has no per-frame sampling to degrade).
   ///
-  /// 动画的画质/性能取舍，转发给 [SvgXAnimated.string]；静态源忽略此参数
+  /// 动画的画质/性能取舍，转发给 [SvgxAnimated.string]；静态源忽略此参数
   /// （静态路径渲染的是缓存好的 `ui.Picture`，没有逐帧采样可降级）。
-  final SvgXAnimationQuality? quality;
+  final SvgxAnimationQuality? quality;
 
   @override
   Widget build(BuildContext context) {
     if (AnimationDetector.hasAnimations(source)) {
-      return SvgXAnimated.string(
+      return SvgxAnimated.string(
         source,
         width: width,
         height: height,
@@ -227,7 +227,7 @@ class SvgX extends StatelessWidget {
         quality: quality,
       );
     }
-    return SvgXStatic(
+    return SvgxStatic(
       source,
       width: width,
       height: height,
@@ -239,8 +239,8 @@ class SvgX extends StatelessWidget {
   }
 }
 
-/// Loads a source string via [load] once, then hands it to [SvgX.string] —
-/// backs [SvgX.asset]/[SvgX.network].
+/// Loads a source string via [load] once, then hands it to [Svgx.string] —
+/// backs [Svgx.asset]/[Svgx.network].
 ///
 /// A [StatefulWidget] rather than a `FutureBuilder`, specifically to avoid
 /// [FutureBuilder]'s flicker-on-rebuild: [FutureBuilder] treats every rebuild
@@ -248,24 +248,24 @@ class SvgX extends StatelessWidget {
 /// not synchronously within the same build), so a parent rebuilding this
 /// widget every frame — anything above it doing so, not just this widget's
 /// own lifecycle — would bounce the loaded content back to the blank
-/// placeholder and immediately forward again, every time. [_AsyncSvgXState]
+/// placeholder and immediately forward again, every time. [_AsyncSvgxState]
 /// instead keeps the loaded source across rebuilds and only kicks off a new
 /// load in [didUpdateWidget] when [loadKey] actually changes — the same
 /// reason [Image] doesn't reload an unchanged [AssetImage] on every rebuild.
 ///
-/// 用 [load] 加载一次源字符串，再交给 [SvgX.string]——支撑
-/// [SvgX.asset]/[SvgX.network]。
+/// 用 [load] 加载一次源字符串，再交给 [Svgx.string]——支撑
+/// [Svgx.asset]/[Svgx.network]。
 ///
 /// 用 [StatefulWidget] 而非 `FutureBuilder`，专为规避 [FutureBuilder] 的
 /// "重建即闪烁"问题：[FutureBuilder] 把每次重建都当成一个全新的 [Future]
 /// （即便是缓存命中，也要等到下一个 microtask 才 resolve，不会在同一次 build
 /// 内同步完成），于是只要父级重建本控件——不只是本控件自身生命周期内，是
 /// *任何*上层重建都会触发——已加载好的内容就会先弹回空白占位、再立刻弹回来，
-/// 每次都这样。[_AsyncSvgXState] 则跨重建保留已加载的源，只在 [loadKey] 真的
+/// 每次都这样。[_AsyncSvgxState] 则跨重建保留已加载的源，只在 [loadKey] 真的
 /// 变化时才在 [didUpdateWidget] 里重新加载——[Image] 不会为一个没变的
 /// [AssetImage] 每次重建都重新加载，是同一个道理。
-class _AsyncSvgX extends StatefulWidget {
-  const _AsyncSvgX({
+class _AsyncSvgx extends StatefulWidget {
+  const _AsyncSvgx({
     super.key,
     required this.loadKey,
     required this.load,
@@ -279,9 +279,9 @@ class _AsyncSvgX extends StatefulWidget {
   });
 
   /// Identity of what [load] fetches — compared by value in
-  /// [_AsyncSvgXState.didUpdateWidget] to decide whether to reload.
+  /// [_AsyncSvgxState.didUpdateWidget] to decide whether to reload.
   ///
-  /// [load] 拉取内容的身份——在 [_AsyncSvgXState.didUpdateWidget] 里按值比较，
+  /// [load] 拉取内容的身份——在 [_AsyncSvgxState.didUpdateWidget] 里按值比较，
   /// 决定是否要重新加载。
   final Object loadKey;
 
@@ -296,13 +296,13 @@ class _AsyncSvgX extends StatefulWidget {
   final Alignment alignment;
   final ColorFilter? colorFilter;
   final SvgTheme? theme;
-  final SvgXAnimationQuality? quality;
+  final SvgxAnimationQuality? quality;
 
   @override
-  State<_AsyncSvgX> createState() => _AsyncSvgXState();
+  State<_AsyncSvgx> createState() => _AsyncSvgxState();
 }
 
-class _AsyncSvgXState extends State<_AsyncSvgX> {
+class _AsyncSvgxState extends State<_AsyncSvgx> {
   String? _source;
   Object? _error;
 
@@ -321,7 +321,7 @@ class _AsyncSvgXState extends State<_AsyncSvgX> {
   }
 
   @override
-  void didUpdateWidget(_AsyncSvgX oldWidget) {
+  void didUpdateWidget(_AsyncSvgx oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (widget.loadKey != oldWidget.loadKey) _load();
   }
@@ -367,7 +367,7 @@ class _AsyncSvgXState extends State<_AsyncSvgX> {
     if (_source == null || _resultKey != widget.loadKey) {
       return SizedBox(width: widget.width, height: widget.height);
     }
-    return SvgX.string(
+    return Svgx.string(
       _source!,
       width: widget.width,
       height: widget.height,

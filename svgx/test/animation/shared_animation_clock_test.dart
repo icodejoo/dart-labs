@@ -1,5 +1,5 @@
 // Regression test for the shared-Ticker optimization in
-// animated_svg_widget.dart's `_SharedAnimationClock`: every `SvgXAnimated`
+// animated_svg_widget.dart's `_SharedAnimationClock`: every `SvgxAnimated`
 // instance used to create (and register with `SchedulerBinding`) its own
 // `Ticker`; now they all subscribe to one process-wide shared ticker. This
 // verifies the refactor preserves per-instance timeline semantics:
@@ -11,7 +11,7 @@
 //   fresh instance mounted after all others unmount starts at zero too
 //
 // 共享 Ticker 优化（animated_svg_widget.dart 的 `_SharedAnimationClock`）的
-// 回归测试：此前每个 `SvgXAnimated` 实例都各自创建（并向 `SchedulerBinding`
+// 回归测试：此前每个 `SvgxAnimated` 实例都各自创建（并向 `SchedulerBinding`
 // 注册）一个 `Ticker`；现在它们全部订阅同一个进程级共享 ticker。本测试验证
 // 重构后仍保留逐实例的时间线语义：
 // - 后挂载实例的时间线从零开始，与共享时钟已经为更早的实例跑了多久无关
@@ -67,7 +67,7 @@ void main() {
       await tester.pumpWidget(
         const MaterialApp(
           home: Column(
-            children: [SvgXAnimated.string(_spinner, width: 24, height: 24)],
+            children: [SvgxAnimated.string(_spinner, width: 24, height: 24)],
           ),
         ),
       );
@@ -76,7 +76,7 @@ void main() {
       for (var i = 0; i < 20; i++) {
         await tester.pump(const Duration(milliseconds: 16));
       }
-      final firstFinder = find.byType(SvgXAnimated).first;
+      final firstFinder = find.byType(SvgxAnimated).first;
       final firstClockBeforeSecondMounts = _clockOf(firstFinder, tester);
       expect(
         firstClockBeforeSecondMounts,
@@ -94,13 +94,13 @@ void main() {
         const MaterialApp(
           home: Column(
             children: [
-              SvgXAnimated.string(_spinner, width: 24, height: 24),
-              SvgXAnimated.string(_spinner, width: 24, height: 24),
+              SvgxAnimated.string(_spinner, width: 24, height: 24),
+              SvgxAnimated.string(_spinner, width: 24, height: 24),
             ],
           ),
         ),
       );
-      final secondFinder = find.byType(SvgXAnimated).at(1);
+      final secondFinder = find.byType(SvgxAnimated).at(1);
       final secondClockAtMount = _clockOf(secondFinder, tester);
       expect(
         secondClockAtMount,
@@ -130,13 +130,13 @@ void main() {
         const MaterialApp(
           home: Column(
             children: [
-              SvgXAnimated.string(_quickFlash, width: 24, height: 24),
-              SvgXAnimated.string(_spinner, width: 24, height: 24),
+              SvgxAnimated.string(_quickFlash, width: 24, height: 24),
+              SvgxAnimated.string(_spinner, width: 24, height: 24),
             ],
           ),
         ),
       );
-      final spinnerFinder = find.byType(SvgXAnimated).at(1);
+      final spinnerFinder = find.byType(SvgxAnimated).at(1);
       final beforeSettle = _clockOf(spinnerFinder, tester);
 
       // Advance well past _quickFlash's 10ms duration, so it settles and
@@ -163,14 +163,14 @@ void main() {
     (tester) async {
       await tester.pumpWidget(
         const MaterialApp(
-          home: SvgXAnimated.string(_spinner, width: 24, height: 24),
+          home: SvgxAnimated.string(_spinner, width: 24, height: 24),
         ),
       );
       for (var i = 0; i < 20; i++) {
         await tester.pump(const Duration(milliseconds: 16));
       }
       expect(
-        _clockOf(find.byType(SvgXAnimated), tester),
+        _clockOf(find.byType(SvgxAnimated), tester),
         greaterThan(Duration.zero),
       );
 
@@ -190,11 +190,11 @@ void main() {
       // 继续。
       await tester.pumpWidget(
         const MaterialApp(
-          home: SvgXAnimated.string(_spinner, width: 24, height: 24),
+          home: SvgxAnimated.string(_spinner, width: 24, height: 24),
         ),
       );
       expect(
-        _clockOf(find.byType(SvgXAnimated), tester),
+        _clockOf(find.byType(SvgxAnimated), tester),
         lessThan(const Duration(milliseconds: 50)),
       );
     },
