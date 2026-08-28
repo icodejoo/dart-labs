@@ -103,7 +103,7 @@ class SvgxAnimated extends StatefulWidget {
 // its own. A scroll grid of N concurrent animated icons previously meant N
 // separate `Ticker`s all registered with `SchedulerBinding` — real-device
 // profiling with N=1000 showed this scale is where the per-icon overhead
-// compounds badly (see docs/performance-benchmarks.md's anim_fps numbers).
+// compounds badly (see doc/performance-benchmarks.md's anim_fps numbers).
 // One shared clock means one `Ticker`/one `SchedulerBinding` registration
 // regardless of how many icons are animating.
 //
@@ -125,7 +125,7 @@ class SvgxAnimated extends StatefulWidget {
 // 全进程共享的 [Ticker]，驱动所有 [SvgxAnimated] 实例的时间线，而非每个实例各建
 // 一个（框架也各自调度一个）。此前 N 个并发动画图标的滚动网格意味着 N 个
 // 独立 `Ticker` 各自向 `SchedulerBinding` 注册——真机实测 N=1000 时这个规模下
-// 单图标开销会严重叠加（见 docs/performance-benchmarks.md 的 anim_fps
+// 单图标开销会严重叠加（见 doc/performance-benchmarks.md 的 anim_fps
 // 数据）。一个共享时钟意味着无论多少图标在动画，都只有一个
 // `Ticker`/一次 `SchedulerBinding` 注册。
 //

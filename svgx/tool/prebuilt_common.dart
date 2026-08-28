@@ -272,7 +272,7 @@ const List<PrebuiltTarget> kTargets = <PrebuiltTarget>[
   // So Linux stays on glibc. Measured floor: an artifact built on Ubuntu 24.04
   // (glibc 2.39) requires at most GLIBC_2.34, i.e. it runs on RHEL 9 / Debian 12
   // / Ubuntu 22.04 and newer. Building on the ubuntu-22.04 runner lowers that
-  // floor further; see docs/PRECOMPILED_MIGRATION_PLAN.md.
+  // floor further; see doc/PRECOMPILED_MIGRATION_PLAN.md.
   //
   // musl 纸面上更优（全静态、无 glibc 下限），但实测不可用：
   //   1. musl target 默认 `crt-static`，Rust 直接丢弃 `cdylib`，根本不产出 .so；

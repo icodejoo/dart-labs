@@ -420,7 +420,7 @@ class AnimatedSvgPainter extends CustomPainter {
     // Drawing it as a clip removes both of this mask's `saveLayer`s — measured
     // on a Huawei STG-AL00 (Impeller GLES) at ~221us of GPU render-pass time
     // each, the single largest line item in the batch-animation raster budget
-    // (see docs/performance-benchmarks.md).
+    // (see doc/performance-benchmarks.md).
     //
     // What is given up, precisely: edge antialiasing. The exact pipeline
     // rasterizes the mask into a layer and multiplies its coverage into the
@@ -439,7 +439,7 @@ class AnimatedSvgPainter extends CustomPainter {
     // 二值覆盖区域正是裁剪路径本身。把它画成裁剪可以去掉该 mask 的两个
     // `saveLayer`——在华为 STG-AL00（Impeller GLES）上实测每个约 221us 的 GPU
     // 渲染通道时间，是批量动画 raster 预算里最大的单项（见
-    // docs/performance-benchmarks.md）。
+    // doc/performance-benchmarks.md）。
     //
     // 确切放弃了什么：边缘抗锯齿。精确管线把 mask 光栅化进一个图层，再把它的覆盖度
     // 乘进内容的 alpha，因此边缘是一条平滑的 alpha 斜坡；裁剪路径则对边缘本身做

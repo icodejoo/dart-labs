@@ -75,7 +75,7 @@ class SvgDocument {
   /// layer means the GPU allocates a render target, switches to it, replays
   /// the subtree into it, and composites the result back — on a mid-range
   /// GLES device that is measurably the most expensive thing this engine can
-  /// ask for per frame (see `docs/performance-benchmarks.md`). It is used to
+  /// ask for per frame (see `doc/performance-benchmarks.md`). It is used to
   /// let the frame-rate degradation in `SvgxAnimationQuality` treat these
   /// documents more aggressively than cheap ones.
   ///
@@ -84,7 +84,7 @@ class SvgDocument {
   ///
   /// 这是一个*光栅化成本*信号，不是功能开关：一个离屏图层意味着 GPU 要分配
   /// 渲染目标、切换过去、把子树重放进去、再把结果合成回来——在中端 GLES 设备上
-  /// 实测这是本引擎每帧能提出的最贵请求（见 `docs/performance-benchmarks.md`）。
+  /// 实测这是本引擎每帧能提出的最贵请求（见 `doc/performance-benchmarks.md`）。
   /// 它的用途是让 `SvgxAnimationQuality` 里的帧率降级对这类文档比对廉价文档
   /// 更激进。
   final bool usesOffscreenLayers;

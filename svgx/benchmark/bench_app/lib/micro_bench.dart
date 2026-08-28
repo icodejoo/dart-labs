@@ -2,7 +2,7 @@
 //
 // Why this exists: the scrolling `LIB=compare` suite measures the whole
 // pipeline (scroll physics + GPU raster + OS scheduling) and, as
-// `docs/performance-benchmarks.md` records, this machine's absolute build/
+// `doc/performance-benchmarks.md` records, this machine's absolute build/
 // raster numbers swing by 20%–110% between runs. That noise floor makes it
 // impossible to attribute a 10–30% Dart-side improvement with the scrolling
 // benchmark alone. These microbenchmarks instead run the exact Dart functions
@@ -14,7 +14,7 @@
 // still has the last word on end-to-end numbers.
 //
 // 为什么需要它：滚动版 `LIB=compare` 测的是整条管线（滚动物理 + GPU 光栅 +
-// 操作系统调度），而 `docs/performance-benchmarks.md` 已记录本机 build/raster
+// 操作系统调度），而 `doc/performance-benchmarks.md` 已记录本机 build/raster
 // 绝对值在多次运行间会波动 20%~110%。这个噪声底噪使得仅靠滚动基准无法归因
 // 10%~30% 量级的 Dart 侧改进。本文件改为在进程内用紧凑循环直接跑被优化的
 // Dart 函数（无 GPU、无滚动、无控件树），每项测量重复多轮，报告**最小**耗时
@@ -126,7 +126,7 @@ List<MicroResult> runMicroBenchmarks() {
   // (this repo's parallel Rust build, for one) shifts every absolute number
   // in a run by a common factor; dividing a measurement's change by this
   // one's change separates "the code got faster" from "the machine got
-  // busier". Same paired-comparison logic `docs/performance-benchmarks.md`
+  // busier". Same paired-comparison logic `doc/performance-benchmarks.md`
   // already applies with the flutter_svg arm, just at microbenchmark scale.
   //
   // 校准项：对同一批图标数据做固定的纯 Dart 扫描，只用
@@ -134,7 +134,7 @@ List<MicroResult> runMicroBenchmarks() {
   // 价值就在于当一根恒定的标尺。机器上的其它负载（比如本仓库并行进行的 Rust
   // 构建）会让一次运行里所有绝对值同乘一个系数；把某项的变化量除以本项的
   // 变化量，就能把"代码变快了"与"机器变忙了"区分开。这与
-  // `docs/performance-benchmarks.md` 里用 flutter_svg 那一组做配对对照是同一个
+  // `doc/performance-benchmarks.md` 里用 flutter_svg 那一组做配对对照是同一个
   // 逻辑，只是尺度落到微基准。
   results.add(
     _measure('calibration_codeunit_scan', staticIcons.length, () {
