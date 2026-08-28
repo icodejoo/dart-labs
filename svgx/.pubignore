@@ -28,3 +28,16 @@ benchmark/
 # 仅构建期使用的脚本（产出/校验 prebuilt/、计算 Rust 源码哈希）。lib/ 从不引用；
 # 其唯一依赖（crypto/ffi/ffigen）本就是不会传递给下游的 dev_dependencies。
 tool/
+
+# Local build output (test/analyzer caches, native_assets.json, etc.) — never
+# part of the package; `.gitignore`'s `/build/` doesn't reach `pub publish`
+# here because this package isn't the git repository root (dart-labs is a
+# monorepo), so pub falls back to listing every file under this directory
+# instead of consulting git's ignore rules for it. `.pubignore` isn't subject
+# to that same fallback.
+#
+# 本地构建产物（测试/analyzer 缓存、native_assets.json 等）——从不属于这个包；
+# `.gitignore` 里的 `/build/` 在这里管不到 `pub publish`，因为这个包不是 git
+# 仓库根目录（dart-labs 是 monorepo），pub 于是退化成列出该目录下的每一个文件，
+# 而不去查它的 git 忽略规则。`.pubignore` 不受这个退化行为影响。
+build/
