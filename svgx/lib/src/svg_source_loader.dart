@@ -1,9 +1,9 @@
 // Shared async loader + bounded cache for SVG source text coming from an
-// asset bundle or the network, so `SvgX.asset`/`SvgX.network` and
+// asset bundle or the network, so `Svgx.asset`/`Svgx.network` and
 // `SvgImageProvider.asset`/`.network` never fetch the same source twice.
 //
 // 共享的异步 SVG 源文本加载器 + 有界缓存，供 asset/网络加载。使
-// `SvgX.asset`/`SvgX.network` 与 `SvgImageProvider.asset`/`.network` 不会
+// `Svgx.asset`/`Svgx.network` 与 `SvgImageProvider.asset`/`.network` 不会
 // 对同一个源重复拉取。
 
 import 'dart:collection';
@@ -15,13 +15,13 @@ import 'package:flutter/services.dart';
 /// Loads and caches SVG source text fetched from an asset bundle or a URL.
 ///
 /// Not part of the public API — reached only through [SvgSourceLoader.asset]/
-/// [SvgSourceLoader.network], called by the `SvgX.asset`/`.network` widget
+/// [SvgSourceLoader.network], called by the `Svgx.asset`/`.network` widget
 /// constructors and by `SvgImageProvider`.
 ///
 /// 加载并缓存来自 asset bundle 或 URL 的 SVG 源文本。
 ///
 /// 不属于公开 API——只经由 [SvgSourceLoader.asset]/[SvgSourceLoader.network]
-/// 到达，供 `SvgX.asset`/`.network` 控件构造函数与 `SvgImageProvider` 使用。
+/// 到达，供 `Svgx.asset`/`.network` 控件构造函数与 `SvgImageProvider` 使用。
 class SvgSourceLoader {
   SvgSourceLoader._();
 
@@ -74,7 +74,7 @@ class SvgSourceLoader {
         final response = await request.close();
         if (response.statusCode != HttpStatus.ok) {
           throw HttpException(
-            'SvgX.network: $url returned HTTP ${response.statusCode}',
+            'Svgx.network: $url returned HTTP ${response.statusCode}',
             uri: Uri.parse(url),
           );
         }

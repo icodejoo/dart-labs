@@ -1,18 +1,18 @@
 // Tests for the opt-out-able, deliberately lossy high-concurrency
-// degradation added in `SvgXAnimationQuality`: the pure divisor policy, the
+// degradation added in `SvgxAnimationQuality`: the pure divisor policy, the
 // parser flag that marks a document as needing `saveLayer` (which is what
 // makes it eligible for harder throttling), and the observable behaviour of
 // the staggered per-icon frame skipping in `_SharedAnimationClock` — that
 // under load only a fraction of icons advance their timeline on any one
 // frame, that the fraction is spread rather than all-or-nothing, that every
 // icon still progresses over time (nothing freezes), and that
-// `SvgXAnimationQuality.exact` genuinely disables all of it.
+// `SvgxAnimationQuality.exact` genuinely disables all of it.
 //
-// `SvgXAnimationQuality` 新增的"可关闭、故意有损"的高并发降级的测试：纯除数
+// `SvgxAnimationQuality` 新增的"可关闭、故意有损"的高并发降级的测试：纯除数
 // 策略、把文档标记为需要 `saveLayer` 的解析器标志（这决定它是否适用更狠的
 // 节流）、以及 `_SharedAnimationClock` 里错相位逐图标跳帧的可观测行为——负载下
 // 任一帧只有一部分图标推进时间线、这部分是铺开的而非全有全无、每个图标随时间
-// 仍然都在前进（不会冻结），以及 `SvgXAnimationQuality.exact` 确实把这一切关掉。
+// 仍然都在前进（不会冻结），以及 `SvgxAnimationQuality.exact` 确实把这一切关掉。
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -35,17 +35,17 @@ const _spinner =
     'values="0 12 12;360 12 12" dur="1s" repeatCount="indefinite"/>'
     '</circle></svg>';
 
-/// The timeline position [SvgXAnimated] instance [index] is currently
+/// The timeline position [SvgxAnimated] instance [index] is currently
 /// painting, read off the painter the same way
 /// `shared_animation_clock_test.dart` does.
 ///
-/// 第 [index] 个 [SvgXAnimated] 实例当前正在绘制的时间线位置，读取方式与
+/// 第 [index] 个 [SvgxAnimated] 实例当前正在绘制的时间线位置，读取方式与
 /// `shared_animation_clock_test.dart` 一致。
 Duration _clockAt(int index, WidgetTester tester) {
   final paint = tester.widget<CustomPaint>(
     find
         .descendant(
-          of: find.byType(SvgXAnimated).at(index),
+          of: find.byType(SvgxAnimated).at(index),
           matching: find.byType(CustomPaint),
         )
         .first,
@@ -53,12 +53,12 @@ Duration _clockAt(int index, WidgetTester tester) {
   return (paint.painter! as AnimatedSvgPainter).clock.value;
 }
 
-Widget _grid(int count, {SvgXAnimationQuality? quality}) => MaterialApp(
+Widget _grid(int count, {SvgxAnimationQuality? quality}) => MaterialApp(
   home: Column(
     mainAxisSize: MainAxisSize.min,
     children: [
       for (var i = 0; i < count; i++)
-        SvgXAnimated.string(_spinner, width: 4, height: 4, quality: quality),
+        SvgxAnimated.string(_spinner, width: 4, height: 4, quality: quality),
     ],
   ),
 );
@@ -67,12 +67,12 @@ void main() {
   setUp(SvgDocumentCache.instance.clear);
   tearDown(() {
     SvgDocumentCache.instance.clear();
-    SvgXAnimationQuality.defaultQuality = SvgXAnimationQuality.balanced;
+    SvgxAnimationQuality.defaultQuality = SvgxAnimationQuality.balanced;
   });
 
   group('frameDivisorFor policy', () {
     test('nothing is degraded at or below the threshold', () {
-      const quality = SvgXAnimationQuality(frameSkipThreshold: 24);
+      const quality = SvgxAnimationQuality(frameSkipThreshold: 24);
       for (final concurrency in [1, 10, 24]) {
         expect(
           quality.frameDivisorFor(
@@ -94,7 +94,7 @@ void main() {
     });
 
     test('above the threshold, offscreen-layer documents throttle harder', () {
-      const quality = SvgXAnimationQuality(
+      const quality = SvgxAnimationQuality(
         frameSkipThreshold: 24,
         maxFrameDivisor: 2,
         offscreenLayerFrameDivisor: 3,
@@ -118,7 +118,7 @@ void main() {
         //
         // 守住 frameDivisorFor 里的取大：调用方把离屏除数配得*低于*
         // maxFrameDivisor 时，不能反而让昂贵的文档比廉价的刷得更勤。
-        const quality = SvgXAnimationQuality(
+        const quality = SvgxAnimationQuality(
           frameSkipThreshold: 0,
           maxFrameDivisor: 4,
           offscreenLayerFrameDivisor: 2,
@@ -132,7 +132,7 @@ void main() {
 
     test('exact never degrades, at any concurrency', () {
       expect(
-        SvgXAnimationQuality.exact.frameDivisorFor(
+        SvgxAnimationQuality.exact.frameDivisorFor(
           concurrency: 100000,
           usesOffscreenLayers: true,
         ),
@@ -189,7 +189,7 @@ void main() {
       'under load only some icons advance on a given frame, and the skipped '
       'ones are a spread rather than all-or-nothing',
       (tester) async {
-        SvgXAnimationQuality.defaultQuality = const SvgXAnimationQuality(
+        SvgxAnimationQuality.defaultQuality = const SvgxAnimationQuality(
           frameSkipThreshold: 4,
           maxFrameDivisor: 2,
         );
@@ -226,7 +226,7 @@ void main() {
     testWidgets('every icon still progresses over successive frames', (
       tester,
     ) async {
-      SvgXAnimationQuality.defaultQuality = const SvgXAnimationQuality(
+      SvgxAnimationQuality.defaultQuality = const SvgxAnimationQuality(
         frameSkipThreshold: 4,
         maxFrameDivisor: 2,
         offscreenLayerFrameDivisor: 3,
@@ -250,7 +250,7 @@ void main() {
     testWidgets('exact quality advances every icon on every frame', (
       tester,
     ) async {
-      SvgXAnimationQuality.defaultQuality = const SvgXAnimationQuality(
+      SvgxAnimationQuality.defaultQuality = const SvgxAnimationQuality(
         frameSkipThreshold: 4,
         maxFrameDivisor: 2,
       );
@@ -261,7 +261,7 @@ void main() {
       // 逐控件覆盖，同时全局默认是降级的——证明这个 opt-out 在控件级别也生效，
       // 不是只能全局关。
       await tester.pumpWidget(
-        _grid(count, quality: SvgXAnimationQuality.exact),
+        _grid(count, quality: SvgxAnimationQuality.exact),
       );
       await tester.pump(const Duration(milliseconds: 16));
 
@@ -275,7 +275,7 @@ void main() {
     });
 
     testWidgets('below the threshold nothing is skipped', (tester) async {
-      SvgXAnimationQuality.defaultQuality = const SvgXAnimationQuality(
+      SvgxAnimationQuality.defaultQuality = const SvgxAnimationQuality(
         frameSkipThreshold: 4,
         maxFrameDivisor: 2,
       );

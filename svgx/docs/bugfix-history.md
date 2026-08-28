@@ -8,7 +8,7 @@
 
 ### 1. `<image>` base64 PNG 完全不显示 —— 根因是 example 的 base64 数据本身损坏,不是引擎 bug
 
-逐字节核实:`example/lib/main.dart` 里 `kEmbeddedImageSvg` 手打的 base64 字符串解码后 IDAT zlib 流只还原出 3 字节,而 1x1 RGBA PNG 至少需要 5 字节(1 filter + 4 通道)——数据被截断/打错。usvg 解析嵌入位图时需要先解出其固有尺寸,遇到损坏的 PNG 数据会导致整个 `parse_svg` 返回 `Err`,而 `SvgXStatic` 在没有 `errorBuilder` 时的兜底就是渲染一个空白 `SizedBox`——这就是"完全不显示"的表现,但触发原因是数据损坏而非渲染逻辑缺陷。
+逐字节核实:`example/lib/main.dart` 里 `kEmbeddedImageSvg` 手打的 base64 字符串解码后 IDAT zlib 流只还原出 3 字节,而 1x1 RGBA PNG 至少需要 5 字节(1 filter + 4 通道)——数据被截断/打错。usvg 解析嵌入位图时需要先解出其固有尺寸,遇到损坏的 PNG 数据会导致整个 `parse_svg` 返回 `Err`,而 `SvgxStatic` 在没有 `errorBuilder` 时的兜底就是渲染一个空白 `SizedBox`——这就是"完全不显示"的表现,但触发原因是数据损坏而非渲染逻辑缺陷。
 
 **修复**:把 `kEmbeddedImageSvg` 的 base64 换成 `rust/src/api/svg.rs` 测试里已验证过的合法 1x1 PNG(`iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==`)。引擎侧的 `<image>` 解析/解码/绘制链路本身未发现问题(`rust/src/api/svg.rs::convert_image`、`rust_static_svg.dart::getOrRenderAsync/_decodeImage` 代码审查 + 既有测试均覆盖过合法数据路径,行为正确)。
 
@@ -40,7 +40,7 @@
 
 ## 动画路径 `feGaussianBlur` 完全未实现(2026-08-25,像素验证补齐时发现)
 
-在补齐"像素级验证结果"表格第 11 项(feGaussianBlur)的动画侧像素断言时,发现此前"动画路径消费该 sigma 走的是同一套静态 Picture 缓存路径"这个判断是**误判**:动画路径(`SvgXAnimated`/`AnimatedSvgPainter`)与静态路径(`SvgXStatic`/Rust usvg)是两条完全独立的渲染管线,前者从不经过后者的 Picture 缓存,`filter` 属性在动画路径里此前是被直接丢弃的——不是"结构性证据薄弱",是**功能缺失**。
+在补齐"像素级验证结果"表格第 11 项(feGaussianBlur)的动画侧像素断言时,发现此前"动画路径消费该 sigma 走的是同一套静态 Picture 缓存路径"这个判断是**误判**:动画路径(`SvgxAnimated`/`AnimatedSvgPainter`)与静态路径(`SvgxStatic`/Rust usvg)是两条完全独立的渲染管线,前者从不经过后者的 Picture 缓存,`filter` 属性在动画路径里此前是被直接丢弃的——不是"结构性证据薄弱",是**功能缺失**。
 
 **修复**(最小范围实现,非泛化 filter 系统):
 

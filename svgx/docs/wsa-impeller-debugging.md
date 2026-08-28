@@ -42,7 +42,7 @@ logcat 明确:先尝试 Vulkan(`android_context_vk_impeller.cc`),随即回落到
 
 ## 六、追加实测:`EnableImpeller=false` manifest 开关仍然有效(2026-08-26 起,确认延续到 Flutter 3.47)
 
-命令行 `--no-enable-impeller` 已经失效,但 **`AndroidManifest.xml` 里的等价 meta-data 开关目前(Flutter 3.47)仍然生效**,亲自实测两轮确认(先用纯 `Scaffold+AppBar+Text` 验证,再用真实 `SvgX.string`(含动画描边 + 静态渐变)+ `AppBar` 组合验证,WSA 上都恢复正常显示):
+命令行 `--no-enable-impeller` 已经失效,但 **`AndroidManifest.xml` 里的等价 meta-data 开关目前(Flutter 3.47)仍然生效**,亲自实测两轮确认(先用纯 `Scaffold+AppBar+Text` 验证,再用真实 `Svgx.string`(含动画描边 + 静态渐变)+ `AppBar` 组合验证,WSA 上都恢复正常显示):
 
 ```xml
 <!-- example/android/app/src/main/AndroidManifest.xml, <application> 标签内 -->
@@ -69,7 +69,7 @@ Widget appBar = ClipRect(
 
 `RenderClipRect.paint()` 在 `clipBehavior != Clip.none` 时会调用 `context.pushClipRect(...)`,强制 `needsCompositing = true`,往合成层树里挂一个 `ClipRectLayer`。这是链路里唯一"任何 AppBar 都会触发、且和 elevation 无关"的合成层来源,和已经实测的"哪怕 `elevation:0` 依然全黑"完全吻合。同一份 `Material` 组件在 `elevation:0` 时源码明确标注走 fast path、**不会** `Canvas.saveLayer`(`material.dart` 里有对应注释),所以之前"AppBar 默认阴影触发 saveLayer"这个猜测方向已被推翻。
 
-**实测验证**:`AppBar(clipBehavior: Clip.none)` 在 WSA 上亲自跑通两轮(先纯 `Text`,再 `SvgX.string` 真实内容),body 立刻恢复正常显示,Impeller **全程保持启用,未降级**。这比"整体关闭 Impeller"精准得多。
+**实测验证**:`AppBar(clipBehavior: Clip.none)` 在 WSA 上亲自跑通两轮(先纯 `Text`,再 `Svgx.string` 真实内容),body 立刻恢复正常显示,Impeller **全程保持启用,未降级**。这比"整体关闭 Impeller"精准得多。
 
 ## 八、两套修复方案(互补;方案 B 是当前实际生效的默认行为,方案 A 仅留档未应用到代码)
 

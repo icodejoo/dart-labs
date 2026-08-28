@@ -8,7 +8,7 @@
 // String-in / plain-data-out boundary between "how the SVG source gets
 // turned into a timeline" and "how the timeline gets sampled + painted"
 // (`smil_animation.dart`, `animated_svg_painter.dart`, `animated_svg_widget.dart`,
-// and the `SvgX` dispatch in `svgx_widget.dart` only ever see [SvgDocument]/
+// and the `Svgx` dispatch in `svgx_widget.dart` only ever see [SvgDocument]/
 // [SvgNode]/[SmilAnimation] — plain data classes, no xml types). Per
 // CLAUDE.md's architecture notes, parsing + timeline-building may move to
 // Rust/FFI later if profiling calls for it; that would only mean swapping
@@ -19,7 +19,7 @@
 // 本文件是唯一允许出现 `package:xml`（或任何解析技术细节）的地方：
 // [parseAnimatedSvgDocument] 是"SVG 源串如何变成时间线"与"时间线如何被采样
 // 和绘制"（`smil_animation.dart`、`animated_svg_painter.dart`、
-// `animated_svg_widget.dart`，以及 `svgx_widget.dart` 里的 `SvgX` 分发）之间
+// `animated_svg_widget.dart`，以及 `svgx_widget.dart` 里的 `Svgx` 分发）之间
 // 唯一的、字符串进/纯数据出的边界——下游只认 [SvgDocument]/[SvgNode]/
 // [SmilAnimation] 这些纯数据类，不认识任何 xml 类型。按 CLAUDE.md 的架构
 // 决策，解析 + 建时间线未来可能下沉到 Rust/FFI；届时只需替换本函数的实现，
@@ -76,7 +76,7 @@ class SvgDocument {
   /// the subtree into it, and composites the result back — on a mid-range
   /// GLES device that is measurably the most expensive thing this engine can
   /// ask for per frame (see `docs/performance-benchmarks.md`). It is used to
-  /// let the frame-rate degradation in `SvgXAnimationQuality` treat these
+  /// let the frame-rate degradation in `SvgxAnimationQuality` treat these
   /// documents more aggressively than cheap ones.
   ///
   /// 绘制本文档是否至少需要一个 `canvas.saveLayer` 离屏渲染目标——任何元素带
@@ -85,7 +85,7 @@ class SvgDocument {
   /// 这是一个*光栅化成本*信号，不是功能开关：一个离屏图层意味着 GPU 要分配
   /// 渲染目标、切换过去、把子树重放进去、再把结果合成回来——在中端 GLES 设备上
   /// 实测这是本引擎每帧能提出的最贵请求（见 `docs/performance-benchmarks.md`）。
-  /// 它的用途是让 `SvgXAnimationQuality` 里的帧率降级对这类文档比对廉价文档
+  /// 它的用途是让 `SvgxAnimationQuality` 里的帧率降级对这类文档比对廉价文档
   /// 更激进。
   final bool usesOffscreenLayers;
 

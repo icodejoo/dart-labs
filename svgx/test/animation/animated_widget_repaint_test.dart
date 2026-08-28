@@ -1,4 +1,4 @@
-// Guards the 2026-08-26 optimization that stopped [SvgXAnimated] calling
+// Guards the 2026-08-26 optimization that stopped [SvgxAnimated] calling
 // setState once per Ticker tick.
 //
 // The timeline position is now published through a [ValueNotifier] wired to
@@ -10,7 +10,7 @@
 // per-icon cost, which in the 1000-animated-icon benchmark is the single
 // largest number there — hence a test rather than a comment.
 //
-// 守护 2026-08-26 那项优化：[SvgXAnimated] 不再每次 Ticker tick 调用一次
+// 守护 2026-08-26 那项优化：[SvgxAnimated] 不再每次 Ticker tick 调用一次
 // setState。
 //
 // 时间线位置现在通过一个绑定到 [AnimatedSvgPainter] `clock` 的 [ValueNotifier]
@@ -48,7 +48,7 @@ const _spinner =
 // 的——setState 只会把自己的 element 标脏，祖先的 build 两种情况下都不会重跑。
 Finder _svgCustomPaint() => find
     .descendant(
-      of: find.byType(SvgXAnimated),
+      of: find.byType(SvgxAnimated),
       matching: find.byType(CustomPaint),
     )
     .first;
@@ -63,11 +63,11 @@ void main() {
   setUp(SvgDocumentCache.instance.clear);
   tearDown(SvgDocumentCache.instance.clear);
 
-  testWidgets('an animating SvgX does not rebuild while ticking', (
+  testWidgets('an animating Svgx does not rebuild while ticking', (
     tester,
   ) async {
     await tester.pumpWidget(
-      const MaterialApp(home: SvgX.string(_spinner, width: 24, height: 24)),
+      const MaterialApp(home: Svgx.string(_spinner, width: 24, height: 24)),
     );
 
     final firstPaint = tester.widget<CustomPaint>(_svgCustomPaint());
@@ -101,11 +101,11 @@ void main() {
     );
   });
 
-  testWidgets('an animating SvgX disposes cleanly while still ticking', (
+  testWidgets('an animating Svgx disposes cleanly while still ticking', (
     tester,
   ) async {
     await tester.pumpWidget(
-      const MaterialApp(home: SvgX.string(_spinner, width: 24, height: 24)),
+      const MaterialApp(home: Svgx.string(_spinner, width: 24, height: 24)),
     );
     await tester.pump(const Duration(milliseconds: 16));
 

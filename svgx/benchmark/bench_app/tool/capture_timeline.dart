@@ -93,11 +93,11 @@ Future<void> main(List<String> args) async {
 /// The coarse pipeline phases the framework/engine wrap their work in. A
 /// slice's cost is attributed to the innermost of these on its stack, which is
 /// what turns "BUILD cost 14ms" into "of BUILD's 14ms, this much was
-/// `SvgXAnimated` and this much was `RenderObjectToWidgetAdapter`".
+/// `SvgxAnimated` and this much was `RenderObjectToWidgetAdapter`".
 ///
 /// 框架/引擎用来包裹各阶段工作的粗粒度阶段名。每个 slice 的开销归属到其调用栈上
 /// 最内层的这些阶段之一——正是这一步把"BUILD 花了 14ms"变成"BUILD 的 14ms 里，
-/// 这么多是 `SvgXAnimated`，这么多是 `RenderObjectToWidgetAdapter`"。
+/// 这么多是 `SvgxAnimated`，这么多是 `RenderObjectToWidgetAdapter`"。
 const Set<String> _phaseNames = {
   'BUILD',
   'LAYOUT',

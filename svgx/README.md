@@ -8,28 +8,28 @@ High-performance static & animated SVG rendering for Flutter.
   `<animateMotion>`, `<set>`) runs through an original Dart-side engine:
   parse once, sample and paint every frame in pure Dart, so no per-frame data
   crosses the Rust FFI boundary.
-* One widget, `SvgX`, auto-detects which path a source needs.
+* One widget, `Svgx`, auto-detects which path a source needs.
 
 ## Usage
 
 ```dart
 import 'package:svgx/svgx.dart';
 
-SvgX.string(
+Svgx.string(
   svgSource,
   width: 48,
   height: 48,
 )
 ```
 
-`SvgX` inspects the source for SMIL animation markers and dispatches to the
+`Svgx` inspects the source for SMIL animation markers and dispatches to the
 static or animated renderer accordingly — most callers never need to think
 about which path they're on.
 
 ### Recoloring
 
 ```dart
-SvgX.string(
+Svgx.string(
   svgSource,
   width: 24,
   height: 24,
@@ -41,26 +41,26 @@ SvgX.string(
 by both the static and animated rendering paths:
 
 ```dart
-SvgX.string(svgSource, theme: SvgTheme(currentColor: Colors.blue))
+Svgx.string(svgSource, theme: SvgTheme(currentColor: Colors.blue))
 ```
 
 ### Animation quality
 
-For the animated path, `SvgXAnimationQuality` trades fidelity for throughput
+For the animated path, `SvgxAnimationQuality` trades fidelity for throughput
 under high concurrency (e.g. a scrolling grid of many animated icons) —
 adaptive frame-skipping is the default; see its class doc for the full set of
 opt-in/opt-out trade-offs and exactly what each one costs.
 
 ```dart
-SvgX.string(
+Svgx.string(
   svgSource,
-  quality: const SvgXAnimationQuality(),
+  quality: const SvgxAnimationQuality(),
 )
 ```
 
 ### Static-only / animated-only widgets
 
-`SvgXStatic` and `SvgXAnimated` are the two renderers `SvgX` dispatches to,
+`SvgxStatic` and `SvgxAnimated` are the two renderers `Svgx` dispatches to,
 exported for callers who already know which one they need (e.g. an icon set
 known ahead of time to be all-static).
 

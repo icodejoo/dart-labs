@@ -361,7 +361,7 @@ class _BenchRunnerState extends State<BenchRunner> {
                 return Padding(
                   padding: const EdgeInsets.all(4),
                   child: widget.lib == BenchLib.svgx
-                      ? SvgXStatic(source, width: 32, height: 32)
+                      ? SvgxStatic(source, width: 32, height: 32)
                       : SvgPicture.string(source, width: 32, height: 32),
                 );
               },

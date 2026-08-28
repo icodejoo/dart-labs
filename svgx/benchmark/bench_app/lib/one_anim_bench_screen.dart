@@ -9,7 +9,7 @@
 // icons, standing still. That is a different question with a different answer,
 // for two concrete reasons:
 //
-//   1. `SvgXAnimationQuality.adaptiveFrameSkipping` only engages above
+//   1. `SvgxAnimationQuality.adaptiveFrameSkipping` only engages above
 //      `frameSkipThreshold` (24) concurrent icons, so every count this screen
 //      measures runs the exact, every-single-frame path. Nothing is degraded,
 //      and nothing can be.
@@ -18,8 +18,8 @@
 //
 // Only `repeatCount="indefinite"` documents are used, and this is the crux of
 // the whole measurement rather than a detail: a FINITE animated icon has no
-// steady state to measure. Once its last timeline settles, `SvgXAnimated`
-// unsubscribes from the shared clock (see `_SvgXAnimatedState._onGlobalTick`)
+// steady state to measure. Once its last timeline settles, `SvgxAnimated`
+// unsubscribes from the shared clock (see `_SvgxAnimatedState._onGlobalTick`)
 // and the icon stops repainting altogether — its steady-state cost is exactly
 // zero, and a benchmark that included one would be averaging a real cost with
 // a structural zero. A looping icon is the only kind that keeps paying, and it
@@ -46,14 +46,14 @@
 // 批处理、逐格图层共享。但真实应用显示的是导航栏字形、按钮态、loading spinner：
 // 一个到几十个动画图标，静止不动。这是另一个问题、另一个答案，有两条具体理由：
 //
-//   1. `SvgXAnimationQuality.adaptiveFrameSkipping` 只在并发图标数超过
+//   1. `SvgxAnimationQuality.adaptiveFrameSkipping` 只在并发图标数超过
 //      `frameSkipThreshold`（24）时才生效，因此本屏幕测的每一个数量都走精确的
 //      逐帧路径。什么都没降级，也降级不了。
 //   2. 摊到 1000 个图标上看不见的每帧成本，在只有一个图标时就是全部成本。
 //
 // 只使用 `repeatCount="indefinite"` 文档，而这是整个测量的关键、不是细节：**有限**
-// 动画图标根本没有稳态可测。当它最后一条时间线定格后，`SvgXAnimated` 会从共享时钟
-// 退订（见 `_SvgXAnimatedState._onGlobalTick`），图标彻底停止重绘——其稳态成本恰好
+// 动画图标根本没有稳态可测。当它最后一条时间线定格后，`SvgxAnimated` 会从共享时钟
+// 退订（见 `_SvgxAnimatedState._onGlobalTick`），图标彻底停止重绘——其稳态成本恰好
 // 为零，把它算进来等于拿真实成本去和一个结构性的零求平均。只有循环图标会一直付费，
 // 而这里是在它的 `fill="freeze"` 揭示动画定格之后采样的，那正是这类图标在屏幕上几乎
 // 全部时间所处的状态。
@@ -79,11 +79,11 @@ import 'frame_timing.dart';
 import 'report_sink.dart';
 
 /// Icon counts swept per corpus, in phase order. Every value is below
-/// [SvgXAnimationQuality.frameSkipThreshold] (24) so the exact per-frame path
+/// [SvgxAnimationQuality.frameSkipThreshold] (24) so the exact per-frame path
 /// runs throughout — see this file's header.
 ///
 /// 每个语料所扫描的图标数量，按阶段顺序排列。每个值都低于
-/// [SvgXAnimationQuality.frameSkipThreshold]（24），因此全程走精确逐帧路径——见本
+/// [SvgxAnimationQuality.frameSkipThreshold]（24），因此全程走精确逐帧路径——见本
 /// 文件头部说明。
 const List<int> _counts = <int>[0, 1, 4, 16];
 
@@ -358,7 +358,7 @@ class _OneAnimBenchScreenState extends State<OneAnimBenchScreen>
                   : Wrap(
                       children: [
                         for (final src in _mounted)
-                          SvgXAnimated.string(
+                          SvgxAnimated.string(
                             src,
                             width: _iconSize,
                             height: _iconSize,

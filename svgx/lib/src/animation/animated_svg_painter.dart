@@ -66,7 +66,7 @@ class AnimatedSvgPainter extends CustomPainter {
     this.clipPaths = const {},
     this.masks = const {},
     this.approximateMasks = _neverApproximate,
-    this.quality = SvgXAnimationQuality.exact,
+    this.quality = SvgxAnimationQuality.exact,
   }) : super(repaint: clock);
 
   /// Default for [approximateMasks]: never approximate. Keeps every direct
@@ -80,7 +80,7 @@ class AnimatedSvgPainter extends CustomPainter {
   /// Consulted at paint time (not at construction) to decide whether an
   /// eligible `<mask>` may be drawn as a clip path instead of via two
   /// `saveLayer` offscreen passes — see
-  /// [SvgXAnimationQuality.approximatesMasksAt].
+  /// [SvgxAnimationQuality.approximatesMasksAt].
   ///
   /// A callback rather than a bool because the answer depends on how many
   /// icons are animating *right now*, which changes as cells scroll in and
@@ -88,7 +88,7 @@ class AnimatedSvgPainter extends CustomPainter {
   ///
   /// 在绘制时（而非构造时）被询问，用于决定一个合格的 `<mask>` 是否可以改画成
   /// 裁剪路径，而不走两个 `saveLayer` 离屏通道——见
-  /// [SvgXAnimationQuality.approximatesMasksAt]。
+  /// [SvgxAnimationQuality.approximatesMasksAt]。
   ///
   /// 用回调而不是 bool，是因为答案取决于*当下*有多少图标在播放动画，而这个数量
   /// 会随着格子滚进滚出而变化，且不会重建本绘制器。
@@ -100,7 +100,7 @@ class AnimatedSvgPainter extends CustomPainter {
   /// [approximateMasks] is a closure, and a closure is a fresh object on every
   /// build — comparing it would force a repaint on every rebuild, while
   /// ignoring it would miss a genuine change (reassigning
-  /// [SvgXAnimationQuality.defaultQuality] at runtime alters what gets
+  /// [SvgxAnimationQuality.defaultQuality] at runtime alters what gets
   /// painted). The immutable profile has value equality, so comparing it
   /// answers "could the painting differ?" correctly in both directions.
   ///
@@ -109,9 +109,9 @@ class AnimatedSvgPainter extends CustomPainter {
   ///
   /// [approximateMasks] 是闭包，而闭包每次 build 都是新对象——拿它做比较会导致每次
   /// 重建都强制重绘，而完全忽略它则会漏掉真实变化（运行时重新赋值
-  /// [SvgXAnimationQuality.defaultQuality] 会改变画出来的东西）。这份不可变配置
+  /// [SvgxAnimationQuality.defaultQuality] 会改变画出来的东西）。这份不可变配置
   /// 有值相等语义，因此比较它能在两个方向上都正确回答"绘制结果是否可能不同"。
-  final SvgXAnimationQuality quality;
+  final SvgxAnimationQuality quality;
 
   /// `<clipPath>` definitions by id — see `SvgDocument.clipPaths`.
   ///

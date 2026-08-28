@@ -20,10 +20,10 @@ import 'package:iconify_flutter/icons/line_md.dart';
 **功能验收状态:PASS**。
 
 - **2026-08-25,spike 阶段**:当时是把 F 整包 vendor 进来的临时方案,未做资产分流,见 git 历史。
-- **架构正式落地(第一版)PASS,但随后被打回重做**:第一版按资产分流做了:静态走 `rust/src/api/svg.rs` 的 `parse_svg`(usvg 0.44)→ FRB → `lib/src/rust_static_svg.dart` 的 `SvgXStatic`;动画路径当时**直接 vendor 了整份 F 到 `lib/src/fvendor/` 并从 `lib/svgx.dart` 导出**——这违反了 `CLAUDE.md`"硬规则:`lib/` 禁止 vendor 第三方引擎代码",**已被否决**。
+- **架构正式落地(第一版)PASS,但随后被打回重做**:第一版按资产分流做了:静态走 `rust/src/api/svg.rs` 的 `parse_svg`(usvg 0.44)→ FRB → `lib/src/rust_static_svg.dart` 的 `SvgxStatic`;动画路径当时**直接 vendor 了整份 F 到 `lib/src/fvendor/` 并从 `lib/svgx.dart` 导出**——这违反了 `CLAUDE.md`"硬规则:`lib/` 禁止 vendor 第三方引擎代码",**已被否决**。
 - **原创动画引擎重写:PASS**:
   1. `lib/src/fvendor/` 已移出 `lib/`,搬到 `benchmark/baseline_f/full_svg_flutter_lib/`(仅作未来性能对比基准,`analysis_options.yaml` 已排除 `benchmark/**`),`lib/svgx.dart` 不再导出它。
-  2. `lib/src/animation/` 下是原创 SMIL 引擎,接入 `svgx_widget.dart` 的 `SvgX.string` 分发,替换掉了 vendor 的 `AnimatedSvgPicture`。
+  2. `lib/src/animation/` 下是原创 SMIL 引擎,接入 `svgx_widget.dart` 的 `Svgx.string` 分发,替换掉了 vendor 的 `AnimatedSvgPicture`。
   3. F 已重新定位为 `benchmark/baseline_f/` 下的对比基准,不进 `lib/`。
   4. 功能验收已用原创引擎重新跑过,截图(`benchmark/acceptance_screenshot.png`)确认圆环+对勾正确渲染,`fill="none"` 修正依然生效。
 
