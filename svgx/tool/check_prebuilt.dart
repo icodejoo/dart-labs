@@ -58,7 +58,7 @@ void main(List<String> args) {
       'Rust sources changed since the prebuilt binaries were generated.\n'
       '    manifest sourceHash : $manifestHash\n'
       '    current  sourceHash : $currentHash\n'
-      '    -> Rebuild the artifacts (see docs/PRECOMPILED_MIGRATION_PLAN.md) and commit them.',
+      '    -> Rebuild the artifacts (see doc/PRECOMPILED_MIGRATION_PLAN.md) and commit them.',
     );
   }
 

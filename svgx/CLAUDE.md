@@ -78,7 +78,7 @@
 4. **Dart 先行是刻意的,但必须留切换缝隙,不是关死这扇门**:
    - **为什么先 Dart**:动画解析是一次性、小体量成本,用 Dart 快速验证 SMIL 语义正确性(改一行热重载就能看效果),比隔着 FFI+FRB codegen 反复调试快得多。这是效率选择,不是"Rust 做不到"。
    - **必须保留的缝隙**:动画引擎对外的接口要设计成**可替换实现**,而不是把"用 Dart 解析"焊死在调用方代码里。解析入口收敛成一个清晰的函数/接口边界(输入 SVG 字符串 → 输出一个自描述的时间线数据模型,不含 Dart 专属类型),`svgx_widget.dart` 的分发逻辑只依赖这个边界。时间线数据模型本身要能被一次性的 Rust 解析结果填充。不要为了"将来可能换 Rust"而现在就搭一层花哨的抽象/插件系统。
-   - **已验证满足**:唯一解析入口是 `SvgDocument parseAnimatedSvgDocument(String source)`(`lib/src/animation/svg_document_parser.dart`),返回纯数据模型,`package:xml` 类型只存在于这一个文件内。详见 `docs/acceptance-criteria.md`。
+   - **已验证满足**:唯一解析入口是 `SvgDocument parseAnimatedSvgDocument(String source)`(`lib/src/animation/svg_document_parser.dart`),返回纯数据模型,`package:xml` 类型只存在于这一个文件内。详见 `doc/acceptance-criteria.md`。
 
 ## 环境
 
@@ -86,18 +86,18 @@ Rust 1.96 / flutter_rust_bridge 2.12 / Flutter 3.47 / Dart 3.13 / Android NDK 28
 
 ## 文档索引
 
-细节文档全部收在 `docs/` 下,不散落在根目录(`README.md`/`CHANGELOG.md`/本文件三者因平台/工具强制约定留根目录;`example/README.md` 是 Flutter 脚手架生成的子包文档,不在本索引范围)。
+细节文档全部收在 `doc/` 下,不散落在根目录(`README.md`/`CHANGELOG.md`/本文件三者因平台/工具强制约定留根目录;`example/README.md` 是 Flutter 脚手架生成的子包文档,不在本索引范围)。
 
 | 文件 | 讲什么 | 什么时候该去读 |
 |---|---|---|
-| `docs/acceptance-criteria.md` | 功能验收标准 + 性能验收硬指标(1000 图标滚动、真实 FPS 等)+ 是否达标的结论性记录 | 要确认"这个库到底算不算做完了""性能门槛是什么"时 |
-| `docs/animation-engine-features.md` | **能力清单权威参考**:静态路径 + 动画路径当前分别支持/不支持哪些标签和语法,含 12 项功能的像素级验证结果 | 要确认"某个 SVG 特性 svgx 支不支持"、开发新功能前先看现状时 |
-| `docs/performance-benchmarks.md` | 性能基准套件说明 + 每一轮功能改动后的完整复测数据(`LIB=compare` 方法学、`SvgEffects` 重构前后对比等) | 要复测性能、要看某轮改动是否引入回归、要理解基准方法学演进时 |
-| `docs/ffi-performance-audit.md` | FFI(Dart↔Rust)数据搬运的专项审计结论:为什么不用 DCO/ZeroCopyBuffer、为什么不手写 dart:ffi、为什么不开 Dart/Rust 共享内存 arena(含 FRB 源码级证据) | 有人提议"用零拷贝/共享内存/手写 FFI 优化 parse_svg"时,先看这份,已有稳定结论 |
-| `docs/bugfix-history.md` | 历史上"发现并修复"的真实 bug 记录(3 个 demo bug、动画路径 blur 缺失等) | 想了解踩过哪些坑、或又发现类似问题要往哪追加记录时 |
-| `docs/wsa-impeller-debugging.md` | WSA(Windows Subsystem for Android)上"内容全黑"问题的完整排查记录,结论:与 svgx 无关,是 Material AppBar + Impeller 模拟驱动的问题 | 在 WSA/模拟器上做目视验证遇到黑屏时 |
-| `docs/size-optimization-history.md` | 体积优化每一项改动的**完整调研过程**(动机、前提确认、实测数据、方法学局限) | 想知道"当初为什么这么决定"时 |
-| `docs/SIZE_OPTIMIZATION.md` | 体积优化**结论速查表**:已落地/候选/已排除三张表 + 验证方法论 | 讨论瘦身方向前先查这份,别重复调研 |
-| `docs/PRECOMPILED_MIGRATION_PLAN.md` | 预编译产物(prebuilt .so/.dll)迁移方案 | 涉及预编译分发、CI 构建产物相关改动时 |
+| `doc/acceptance-criteria.md` | 功能验收标准 + 性能验收硬指标(1000 图标滚动、真实 FPS 等)+ 是否达标的结论性记录 | 要确认"这个库到底算不算做完了""性能门槛是什么"时 |
+| `doc/animation-engine-features.md` | **能力清单权威参考**:静态路径 + 动画路径当前分别支持/不支持哪些标签和语法,含 12 项功能的像素级验证结果 | 要确认"某个 SVG 特性 svgx 支不支持"、开发新功能前先看现状时 |
+| `doc/performance-benchmarks.md` | 性能基准套件说明 + 每一轮功能改动后的完整复测数据(`LIB=compare` 方法学、`SvgEffects` 重构前后对比等) | 要复测性能、要看某轮改动是否引入回归、要理解基准方法学演进时 |
+| `doc/ffi-performance-audit.md` | FFI(Dart↔Rust)数据搬运的专项审计结论:为什么不用 DCO/ZeroCopyBuffer、为什么不手写 dart:ffi、为什么不开 Dart/Rust 共享内存 arena(含 FRB 源码级证据) | 有人提议"用零拷贝/共享内存/手写 FFI 优化 parse_svg"时,先看这份,已有稳定结论 |
+| `doc/bugfix-history.md` | 历史上"发现并修复"的真实 bug 记录(3 个 demo bug、动画路径 blur 缺失等) | 想了解踩过哪些坑、或又发现类似问题要往哪追加记录时 |
+| `doc/wsa-impeller-debugging.md` | WSA(Windows Subsystem for Android)上"内容全黑"问题的完整排查记录,结论:与 svgx 无关,是 Material AppBar + Impeller 模拟驱动的问题 | 在 WSA/模拟器上做目视验证遇到黑屏时 |
+| `doc/size-optimization-history.md` | 体积优化每一项改动的**完整调研过程**(动机、前提确认、实测数据、方法学局限) | 想知道"当初为什么这么决定"时 |
+| `doc/SIZE_OPTIMIZATION.md` | 体积优化**结论速查表**:已落地/候选/已排除三张表 + 验证方法论 | 讨论瘦身方向前先查这份,别重复调研 |
+| `doc/PRECOMPILED_MIGRATION_PLAN.md` | 预编译产物(prebuilt .so/.dll)迁移方案 | 涉及预编译分发、CI 构建产物相关改动时 |
 | `README.md` | pub.dev 包主页展示内容(根目录强制位置,不要移动) | 面向库使用者 |
 | `CHANGELOG.md` | 版本变更记录(根目录强制位置,不要移动) | 发版时 |

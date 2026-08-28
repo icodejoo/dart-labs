@@ -59,7 +59,7 @@ import 'package:flutter/foundation.dart';
 /// to ~49 such passes at ~221us each — the single largest line item in the
 /// budget, and the reason both degradations above target them: one produces
 /// fewer of those frames, the other emits fewer passes per frame. See
-/// `docs/performance-benchmarks.md` for the full attribution.
+/// `doc/performance-benchmarks.md` for the full attribution.
 ///
 /// ## Turning it off
 ///
@@ -105,7 +105,7 @@ import 'package:flutter/foundation.dart';
 /// STG-AL00，Impeller GLES，1000 个并发动画图标）把 21.7ms 的 raster 帧里约
 /// 10.9ms 归因到约 49 个这样的通道、每个约 221us——是整个预算里最大的单项，也正是
 /// 上面两项降级都瞄准它的原因：一个让这类帧产生得更少，另一个让每帧发出的通道更少。
-/// 完整归因见 `docs/performance-benchmarks.md`。
+/// 完整归因见 `doc/performance-benchmarks.md`。
 ///
 /// ## 怎么关掉
 ///
@@ -276,7 +276,7 @@ class SvgxAnimationQuality {
   /// offscreen render passes cost more there, path construction costs less, and
   /// the sign flips. Re-decide it with the benchmark's three-arm mode
   /// (`--dart-define=QUALITYAB=true`), which exists for exactly this. See
-  /// `docs/performance-benchmarks.md`.
+  /// `doc/performance-benchmarks.md`.
   ///
   /// **与跳帧不同，本项默认关闭（opt-in）**，原因是证据不足，而不是对正确性没底
   /// （正确性由 `test/animation/mask_clip_approximation_test.dart` 覆盖）。已实测
@@ -297,7 +297,7 @@ class SvgxAnimationQuality {
   ///
   /// 但在 GPU 相对 CPU 更弱的设备上它很可能是赚的——那里离屏渲染通道更贵、路径构建
   /// 更便宜，符号就会翻转。用基准的三臂模式（`--dart-define=QUALITYAB=true`）在新
-  /// 设备上重新判定即可，它就是为此存在的。见 `docs/performance-benchmarks.md`。
+  /// 设备上重新判定即可，它就是为此存在的。见 `doc/performance-benchmarks.md`。
   final bool approximateSimpleMasksAsClip;
 
   /// Whether the mask-as-clip approximation is in force at [concurrency]

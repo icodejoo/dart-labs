@@ -75,7 +75,7 @@ rasterized on the CPU.
 
 ## Status
 
-Actively developed. See `docs/` in the repository for the full acceptance
+Actively developed. See `doc/` in the repository for the full acceptance
 criteria, supported-feature matrix, and performance benchmark history.
 
 ## Contributing
