@@ -399,6 +399,31 @@ class MyApp extends StatelessWidget {
                 const Text('Animated gradient: geometry + stop-color (Task 4)'),
                 const SizedBox(height: 8),
                 SvgX.string(kAnimatedGradientSvg, width: 96, height: 96),
+                const SizedBox(height: 48),
+                const Text('SvgX.asset'),
+                const SizedBox(height: 8),
+                SvgX.asset('assets/icon.svg', width: 96, height: 96),
+                const SizedBox(height: 48),
+                const Text(
+                  'SvgImageProvider in a DecorationImage — animated spinner, '
+                  'rasterized per-frame through ImageProvider (not '
+                  'CustomPainter)',
+                ),
+                const SizedBox(height: 8),
+                Container(
+                  width: 96,
+                  height: 96,
+                  decoration: BoxDecoration(
+                    image: DecorationImage(
+                      image: SvgImageProvider.string(
+                        kSpinnerSvg,
+                        width: 96,
+                        height: 96,
+                        theme: const SvgTheme(currentColor: Color(0xFF2A6DF4)),
+                      ),
+                    ),
+                  ),
+                ),
               ],
             ),
           ),
