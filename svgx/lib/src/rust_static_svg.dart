@@ -379,6 +379,23 @@ class RustSvgPictureCache {
       final picture = recorder.endRecording();
       return RustSvgPictureInfo(picture, Size(scene.width, scene.height));
     } finally {
+      // Each cached tile image was recorded into an `ImageShader`, which the
+      // path(s) painted with it baked into `picture`'s own native display
+      // list — an independent (refcounted) reference, same reasoning as
+      // `_paintImage`/`_decodeImage` disposing their one-shot images right
+      // after recording. Once `_recordScene` is done, nothing else will ever
+      // read these Dart-side handles again, so leaving them undisposed would
+      // just leak native texture memory until the GC gets round to the
+      // finalizer.
+      //
+      // 每张缓存的贴片 image 都被录制进了一个 `ImageShader`，用它填充的路径把这
+      // 个 shader 烘焙进了 `picture` 自身的原生显示列表——一份独立的（引用计数）
+      // 引用，与 `_paintImage`/`_decodeImage` 在录制完立刻 dispose 一次性 image
+      // 是同一个道理。`_recordScene` 结束后不会再有任何人读取这些 Dart 侧句柄，
+      // 不 dispose 就只是让原生纹理内存一直占着，直到 GC 处理到 finalizer 才释放。
+      for (final image in _patternTileCache!.values) {
+        image.dispose();
+      }
       _patternTileCache = null;
     }
   }
@@ -1096,4 +1113,58 @@ class _RustPicturePainter extends CustomPainter {
       old.pictureSize != pictureSize ||
       old.fit != fit ||
       old.alignment != alignment;
+}
+
+/// Rasterizes [info]'s picture into a [width]x[height] [ui.Image], applying
+/// [colorFilter] first if given — the pixel-producing counterpart to
+/// [_RustPicturePainter]'s `CustomPainter.paint`, for a caller (
+/// `SvgImageProvider`) that needs a raw [ui.Image] rather than something to
+/// hand a [CustomPaint].
+///
+/// Uses the async [ui.Picture.toImage], not `toImageSync` — the async variant
+/// hands back an already GPU-resident image via an IO-thread hop instead of
+/// materializing host-side pixel data that then has to be re-uploaded, which
+/// matters here because a caller doing this every animation frame (as
+/// `SvgImageProvider`'s animated path does) would otherwise pay that
+/// re-upload cost 24-30 times a second. See
+/// https://github.com/flutter/flutter/issues/13498.
+///
+/// 把 [info] 的 picture 光栅化成一张 [width]x[height] 的 [ui.Image]，若给了
+/// [colorFilter] 先应用它——是 [_RustPicturePainter] 的 `CustomPainter.paint`
+/// 对应的"产出像素"版本，供需要原始 [ui.Image]（而非交给 [CustomPaint]）的调用方
+/// （`SvgImageProvider`）使用。
+///
+/// 用异步的 [ui.Picture.toImage]，不用 `toImageSync`——异步版本经由 IO 线程跳转
+/// 直接拿到已驻留 GPU 的图像，而不是先在宿主侧生成像素数据再重新上传；这里之所以
+/// 要紧，是因为像 `SvgImageProvider` 的动画路径那样每个动画帧都调一次的调用方，
+/// 否则就要每秒付 24~30 次这笔重新上传的成本。见
+/// https://github.com/flutter/flutter/issues/13498。
+Future<ui.Image> rasterizeSvgPicture(
+  RustSvgPictureInfo info, {
+  required int width,
+  required int height,
+  BoxFit fit = BoxFit.contain,
+  Alignment alignment = Alignment.center,
+  ColorFilter? colorFilter,
+}) async {
+  final recorder = ui.PictureRecorder();
+  final canvas = Canvas(recorder);
+  final w = width.toDouble();
+  final h = height.toDouble();
+  if (colorFilter != null) {
+    canvas.saveLayer(Rect.fromLTWH(0, 0, w, h), Paint()..colorFilter = colorFilter);
+  }
+  _RustPicturePainter(
+    picture: info.picture,
+    pictureSize: info.size,
+    fit: fit,
+    alignment: alignment,
+  ).paint(canvas, Size(w, h));
+  if (colorFilter != null) canvas.restore();
+  final framePicture = recorder.endRecording();
+  try {
+    return await framePicture.toImage(width, height);
+  } finally {
+    framePicture.dispose();
+  }
 }

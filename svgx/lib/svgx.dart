@@ -19,6 +19,10 @@ export 'src/animation/svgx_animation_quality.dart' show SvgXAnimationQuality;
 // Rust (usvg) backed static SVG renderer.
 export 'src/rust_static_svg.dart' show SvgXStatic, RustSvgPictureCache;
 
+// ImageProvider bridge (DecorationImage, precacheImage, etc.) — see its class
+// doc for the animated-source frame-rate trade-off.
+export 'src/svg_image_provider.dart' show SvgImageProvider;
+
 // Primary public API: dispatches to animated (original SMIL engine) or
 // static (Rust) rendering.
 export 'src/svgx_widget.dart' show SvgX;
