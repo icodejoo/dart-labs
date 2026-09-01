@@ -1341,3 +1341,27 @@ flutter run -d 7NQBB23606003715 --profile --dart-define=LIB=compare --dart-defin
 5. **anim_fps real_fps 均值 34.47**,明显低于 Windows 桌面记录的 ~59.85~59.94——这是预期之内的移动 GPU 算力差距(1000 图标动画滚动场景对 GPU 吞吐要求高),不代表回归。
 
 **遗留待办**:raster avg/p50 反转这一发现建议后续用更细粒度的 DevTools timeline 或 Rust 侧微基准做归因,确认是绘制调用模式问题还是 Impeller 平台差异,再决定是否需要针对移动端做专项优化。
+
+#### A/B 验证结果:逐图标 `RepaintBoundary`(未坐实,2026-09-01)
+
+**假设**:上面第 1 条提到的 raster 反转,怀疑根因是 `lib/src/rust_static_svg.dart` 的 `SvgxStatic._buildFromInfo` 给每个图标无条件套了一层独立 `RepaintBoundary`(第 1072 行 `return RepaintBoundary(child: child);`)。1000 格网格场景下所有图标同帧全部重绘,`RepaintBoundary` 的图层保留收益用不上,反而在移动端 tile-based GPU 上"每帧提升+合成大量独立层"可能有明显常数开销。
+
+**方法**:同一台设备(华为 STG-AL00,`7NQBB23606003715`,Android 12),同一条命令,只跑单侧 `LIB=svgx`(不比 flutter_svg,省时间):
+
+```
+cd benchmark/bench_app
+flutter run -d 7NQBB23606003715 --profile --dart-define=LIB=svgx --dart-define=CYCLES=6 --dart-define=ITEMS=1000
+```
+
+组 A 为现状基线;组 B 把上述 `return RepaintBoundary(child: child);` 临时改成 `return child;`(其余逻辑不变),测完后已用 `git checkout -- lib/src/rust_static_svg.dart` 精确还原,`flutter analyze` 复查无新增问题。**仅各跑 1 次,非多次均值,存在单次运行噪声的可能。**
+
+原始数据(单位 ms,均取自 `raster:` 一行,n=帧数):
+
+| 组 | RepaintBoundary | frames | raster avg | raster p50 | raster p90 | raster p99 | raster max | build avg |
+|---|---|---|---|---|---|---|---|---|
+| A(基线) | 有 | 614 | 11.541 | 12.136 | 15.212 | 20.521 | 40.457 | 7.445 |
+| B(去掉) | 无 | 624 | 11.630 | 11.748 | 15.486 | 22.604 | 43.433 | 7.025 |
+
+内存(`rss_peak_mb`):A=170.35,B=173.25,差距在噪声量级,无明显变化。
+
+**结论**:假设**未坐实**。raster avg 两组几乎相同(11.541 vs 11.630ms,B 反而略高),p50/p90/p99/max 均在噪声范围内互有高低,没有出现"去掉 RepaintBoundary 后 raster 显著下降"的信号。这与本文档"测了但没有效果,因此回滚"一节中动画路径(`SvgxAnimated.build`)同类实验的结论一致(那次是 `real_fps`/build/raster 全部落在波动内)——静态路径这次的单点验证方向相同,进一步印证"逐图标 `RepaintBoundary` 不是 Android 真机 raster 反转的根因"这个方向,但因为只跑了 1 次、且尚未排除其他候选(绘制调用模式差异、Impeller 平台差异等),**不能就此关闭"根因未明"的遗留问题**,仍建议后续用 DevTools timeline 做更细粒度归因。
