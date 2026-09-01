@@ -1526,3 +1526,34 @@ point ratio (svgx/flutter_svg) = 1.000
 **结论:"单条路径更复杂"假设同样不成立**。verb 总数(29809 vs 29805)与点总数(47070 vs 47058)相差不到 0.03%,量级上是两个解析器对贝塞尔/弧线处理的取整误差,不是系统性差距。至此,"画什么"这条线——命令条数(深挖四)、单条路径复杂度(本节)——两个维度都已排除。深挖三观测到的 `SurfaceFrame::Encode`/`RenderPassGLES::EncodeCommandsInReactor` 耗时差距依然真实存在,根因要往"怎么画"方向找:`save`/`restore`/`transform` 等状态切换次数、`Paint` 对象构造与属性/blend mode 切换次数,是下一步待测的候选。
 
 **局限说明**:只统计了路径构建的 4 类回调,没有统计 `Paint`/渐变/图案/文本等其它编解码器事件;1000 个图标全为矢量路径,该结论同样不覆盖含位图的 SVG。
+
+#### 深挖六:save/restore/transform/Paint 状态切换,同样打平(2026-09-01)
+
+深挖四、五排除了"画什么"(命令条数、单条路径复杂度)。本节转向"怎么画":两边录制进 `ui.Picture` 的过程中,画布状态切换(`save`/`restore`/`saveLayer`/`transform` 系列)与 `Paint` 状态切换次数是否有差异。
+
+**方法**:扩展 `CountingCanvas`,在原有的 `noSuchMethod` switch 转发点(`save`/`restore`/`saveLayer`/`translate`/`scale`/`transform`)顺手计数,不新增拦截点:
+
+- `saveCount`/`restoreCount`/`saveLayerCount`:调用次数。
+- `peakSaveDepth`:save 嵌套深度峰值(跨图标取最大值,不求和——深度不是可跨图标累加的量)。
+- `transformCallCount`:`translate`+`scale`+`transform` 合并计数。
+- `paintArgCount`:携带非空 `Paint` 的绘制调用次数。
+- `paintChangeCount`:相邻两次绘制调用的 Paint(颜色、blendMode、style、描边宽度四元组)发生变化的次数——GPU 后端要不要重新绑定 paint 状态的代理指标。
+
+**真机数据**(华为 STG-AL00,`LIB=cmdcount`,1000 个 Mdi 图标):
+
+```
+--- draw-state churn: save/restore/transform/Paint ---
+save        : svgx=0 flutter_svg=0
+restore     : svgx=0 flutter_svg=0
+saveLayer   : svgx=0 flutter_svg=0
+peakSaveDepth (max across icons): svgx=0 flutter_svg=0
+transform*  : svgx=0 flutter_svg=0
+paintArgs   : svgx=1000 flutter_svg=1000  ratio=1.000
+paintChange : svgx=0 flutter_svg=0
+```
+
+**结论**:`save`/`restore`/`saveLayer`/`transform` 两侧都是 **0**——两个库都把单路径坐标直接烘焙成绝对坐标写进 `drawPath` 参数,录制过程中没有额外的画布状态操作;`paintArgs` 相等(1000/1000,与深挖四"每图标恰好 1 条 `drawPath`"一致);`paintChange` 也是 0,但这一项在本节语料上天然测不出信号——每个图标只录制 1 次绘制,没有"相邻调用"可比较,不能反推"两边 Paint 切换频率一致",只能说这批语料没提供这项指标的区分度。
+
+**Dart 侧插桩这条路至此穷尽**:命令数量(深挖四)、单条路径复杂度(深挖五)、画布/Paint 状态切换(本节)三个维度全部打平,说明两个库喂给 `ui.Picture` 的逻辑指令流在这批语料上是等价的。深挖三观测到的 `SurfaceFrame::Encode`(4.28x)/`RenderPassGLES::EncodeCommandsInReactor`(2.59x)耗时差距依然真实存在,根因必然在更底层——`ui.Picture` 到 GPU 命令编码这一层本身,而不是 Dart 侧任何可观测的指令特征,需要重新回到 Perfetto/Skia trace,往子 slice 粒度继续查。
+
+**局限说明**:`paintChangeCount` 在单绘制语料上无区分度(见上);未统计渐变/图案/文本相关的状态类调用;1000 个图标全为矢量路径,不含 `<image>` 标签。
