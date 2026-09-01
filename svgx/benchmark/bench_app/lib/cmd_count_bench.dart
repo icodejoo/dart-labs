@@ -41,6 +41,7 @@ import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/painting.dart' show Canvas;
+import 'package:svgx/src/rust/api/svg.dart' show parseSvg;
 import 'package:svgx/svgx.dart';
 import 'package:vector_graphics/src/listener.dart' show FlutterVectorGraphicsListener, PictureFactory;
 import 'package:vector_graphics_codec/vector_graphics_codec.dart';
@@ -271,15 +272,187 @@ class _CountingPictureFactory implements PictureFactory {
   }
 }
 
-/// One icon's measured draw-op count for each library. / 单个图标在两个库下各自测得的绘制指令数。
+/// A no-op [VectorGraphicsCodecListener] that only counts path-building
+/// callbacks (`onPathMoveTo`/`onPathLineTo`/`onPathCubicTo`/`onPathClose`),
+/// giving an exact, per-verb count of what the compiled vector_graphics
+/// binary asks a `ui.Path` to do — the same granularity as svgx's
+/// `SvgPath.verbs`/`SvgPath.points` (see `_svgxVerbAndPointCount`), so the two
+/// counts are directly comparable rather than proxied through a runtime API
+/// like `Path.computeMetrics()`.
+///
+/// 只统计路径构建回调（`onPathMoveTo`/`onPathLineTo`/`onPathCubicTo`/
+/// `onPathClose`）的空操作 [VectorGraphicsCodecListener]，给出编译后的
+/// vector_graphics 二进制要求 `ui.Path` 做什么的精确逐动词计数——与 svgx 的
+/// `SvgPath.verbs`/`SvgPath.points`（见 `_svgxVerbAndPointCount`）粒度一致，
+/// 两侧计数因此可以直接比较，而不必借助 `Path.computeMetrics()` 这类运行时
+/// 代理指标。
+class _VerbCountingListener extends VectorGraphicsCodecListener {
+  int verbCount = 0;
+  int pointCount = 0;
+
+  @override
+  void onPathMoveTo(double x, double y) {
+    verbCount++;
+    pointCount++;
+  }
+
+  @override
+  void onPathLineTo(double x, double y) {
+    verbCount++;
+    pointCount++;
+  }
+
+  @override
+  void onPathCubicTo(double x1, double y1, double x2, double y2, double x3, double y3) {
+    verbCount++;
+    pointCount += 3;
+  }
+
+  @override
+  void onPathClose() {
+    verbCount++;
+  }
+
+  // Everything below is irrelevant to verb/point counting and intentionally
+  // a no-op. / 以下均与逐动词/坐标点计数无关，刻意留空。
+  @override
+  void onSize(double width, double height) {}
+  @override
+  void onPaintObject({
+    required int color,
+    required int? strokeCap,
+    required int? strokeJoin,
+    required int blendMode,
+    required double? strokeMiterLimit,
+    required double? strokeWidth,
+    required int paintStyle,
+    required int id,
+    required int? shaderId,
+  }) {}
+  @override
+  void onPathStart(int id, int fillType) {}
+  @override
+  void onPathFinished() {}
+  @override
+  void onDrawPath(int pathId, int? paintId, int? patternId) {}
+  @override
+  void onDrawVertices(Float32List vertices, Uint16List? indices, int? paintId) {}
+  @override
+  void onSaveLayer(int paintId) {}
+  @override
+  void onClipPath(int pathId) {}
+  @override
+  void onRestoreLayer() {}
+  @override
+  void onMask() {}
+  @override
+  void onRadialGradient(
+    double centerX,
+    double centerY,
+    double radius,
+    double? focalX,
+    double? focalY,
+    Int32List colors,
+    Float32List? offsets,
+    Float64List? transform,
+    int tileMode,
+    int id,
+  ) {}
+  @override
+  void onLinearGradient(
+    double fromX,
+    double fromY,
+    double toX,
+    double toY,
+    Int32List colors,
+    Float32List? offsets,
+    int tileMode,
+    int id,
+  ) {}
+  @override
+  void onTextConfig(
+    String text,
+    String? fontFamily,
+    double xAnchorMultiplier,
+    int fontWeight,
+    double fontSize,
+    int decoration,
+    int decorationStyle,
+    int decorationColor,
+    int id,
+  ) {}
+  @override
+  void onDrawText(int textId, int? fillId, int? strokeId, int? patternId) {}
+  @override
+  void onImage(int imageId, int format, Uint8List data, {VectorGraphicsErrorListener? onError}) {}
+  @override
+  void onDrawImage(int imageId, double x, double y, double width, double height, Float64List? transform) {}
+  @override
+  void onPatternStart(int patternId, double x, double y, double width, double height, Float64List transform) {}
+  @override
+  void onTextPosition(
+    int textPositionId,
+    double? x,
+    double? y,
+    double? dx,
+    double? dy,
+    bool reset,
+    Float64List? transform,
+  ) {}
+  @override
+  void onUpdateTextPosition(int textPositionId) {}
+}
+
+/// Sums `verbs.length`/`points.length ~/ 2` across every path in [source]'s
+/// parsed `SvgScene` — the exact verb/point counts svgx's Rust parser
+/// produced, at the same granularity `_VerbCountingListener` counts for
+/// flutter_svg (moveTo/lineTo/cubicTo/close, 1/1/3/0 points respectively).
+///
+/// 汇总 [source] 解析出的 `SvgScene` 里每条路径的 `verbs.length`/
+/// `points.length ~/ 2`——svgx Rust 解析器产出的精确动词/坐标点数，与
+/// `_VerbCountingListener` 给 flutter_svg 计数的粒度一致（moveTo/lineTo/
+/// cubicTo/close 分别对应 1/1/3/0 个坐标点）。
+(int verbs, int points) _svgxVerbAndPointCount(String source) {
+  final scene = parseSvg(data: source);
+  var verbs = 0;
+  var points = 0;
+  for (final path in scene.paths) {
+    verbs += path.verbs.length;
+    points += path.points.length ~/ 2;
+  }
+  return (verbs, points);
+}
+
+/// One icon's measured draw-op count and path complexity for each library.
+/// 单个图标在两个库下各自测得的绘制指令数与路径复杂度。
 class CmdCountRow {
-  const CmdCountRow(this.svgx, this.flutterSvg);
+  const CmdCountRow(
+    this.svgx,
+    this.flutterSvg,
+    this.svgxVerbs,
+    this.svgxPoints,
+    this.flutterSvgVerbs,
+    this.flutterSvgPoints,
+  );
 
   /// svgx's `getOrRender` draw-op count for this icon. / 该图标在 svgx `getOrRender` 下的绘制指令数。
   final int svgx;
 
   /// flutter_svg's compile+decode draw-op count for this icon. / 该图标在 flutter_svg 编译+解码下的绘制指令数。
   final int flutterSvg;
+
+  /// svgx path verb count (moveTo/lineTo/cubicTo/close) for this icon.
+  /// 该图标在 svgx 下的路径动词数（moveTo/lineTo/cubicTo/close）。
+  final int svgxVerbs;
+
+  /// svgx path coordinate-pair count for this icon. / 该图标在 svgx 下的路径坐标点数。
+  final int svgxPoints;
+
+  /// flutter_svg path verb count for this icon. / 该图标在 flutter_svg 下的路径动词数。
+  final int flutterSvgVerbs;
+
+  /// flutter_svg path coordinate-pair count for this icon. / 该图标在 flutter_svg 下的路径坐标点数。
+  final int flutterSvgPoints;
 }
 
 /// Runs the draw-op count comparison over every icon in [mdiIcons1000],
@@ -332,7 +505,25 @@ Future<void> runCmdCountBench() async {
     pictureInfo.picture.dispose();
     final flutterSvgCount = factory.lastCanvas!.total;
 
-    rows.add(CmdCountRow(svgxCount, flutterSvgCount));
+    // Verb/point complexity, at the codec's own decode granularity — reuses
+    // the same compiled `bytes` from the draw-op count above rather than
+    // re-encoding.
+    // 逐动词/坐标点复杂度，用编解码器自身的解码粒度——复用上面绘制指令计数
+    // 时已经编译好的 `bytes`，不重新编译。
+    final verbListener = _VerbCountingListener();
+    const VectorGraphicsCodec().decode(ByteData.sublistView(bytes), verbListener);
+    final (svgxVerbs, svgxPoints) = _svgxVerbAndPointCount(source);
+
+    rows.add(
+      CmdCountRow(
+        svgxCount,
+        flutterSvgCount,
+        svgxVerbs,
+        svgxPoints,
+        verbListener.verbCount,
+        verbListener.pointCount,
+      ),
+    );
   }
   RustSvgxPictureCache.debugWrapRecordingCanvas = null;
   RustSvgxPictureCache.instance.clear();
@@ -343,11 +534,30 @@ Future<void> runCmdCountBench() async {
   final flutterSvgAvg = flutterSvgTotal / rows.length;
   final ratio = flutterSvgTotal == 0 ? double.infinity : svgxTotal / flutterSvgTotal;
 
+  final svgxVerbTotal = rows.fold<int>(0, (a, r) => a + r.svgxVerbs);
+  final flutterVerbTotal = rows.fold<int>(0, (a, r) => a + r.flutterSvgVerbs);
+  final svgxPointTotal = rows.fold<int>(0, (a, r) => a + r.svgxPoints);
+  final flutterPointTotal = rows.fold<int>(0, (a, r) => a + r.flutterSvgPoints);
+  final verbRatio = flutterVerbTotal == 0 ? double.infinity : svgxVerbTotal / flutterVerbTotal;
+  final pointRatio = flutterPointTotal == 0 ? double.infinity : svgxPointTotal / flutterPointTotal;
+
   final buf = StringBuffer()
     ..writeln('=== CMD COUNT REPORT (icons=${rows.length}) ===')
     ..writeln('svgx        : total=$svgxTotal avg=${svgxAvg.toStringAsFixed(2)}')
     ..writeln('flutter_svg : total=$flutterSvgTotal avg=${flutterSvgAvg.toStringAsFixed(2)}')
     ..writeln('ratio (svgx/flutter_svg) = ${ratio.toStringAsFixed(3)}')
+    ..writeln()
+    ..writeln('--- per-drawPath complexity (verb/point counts, moveTo/lineTo/cubicTo/close granularity) ---')
+    ..writeln(
+      'svgx        : verbs_total=$svgxVerbTotal verbs_avg=${(svgxVerbTotal / rows.length).toStringAsFixed(2)} '
+      'points_total=$svgxPointTotal points_avg=${(svgxPointTotal / rows.length).toStringAsFixed(2)}',
+    )
+    ..writeln(
+      'flutter_svg : verbs_total=$flutterVerbTotal verbs_avg=${(flutterVerbTotal / rows.length).toStringAsFixed(2)} '
+      'points_total=$flutterPointTotal points_avg=${(flutterPointTotal / rows.length).toStringAsFixed(2)}',
+    )
+    ..writeln('verb ratio (svgx/flutter_svg)  = ${verbRatio.toStringAsFixed(3)}')
+    ..writeln('point ratio (svgx/flutter_svg) = ${pointRatio.toStringAsFixed(3)}')
     ..writeln('=== END CMD COUNT REPORT ===');
   emitReport(buf.toString());
   exit(0);
