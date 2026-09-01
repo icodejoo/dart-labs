@@ -85,7 +85,7 @@ class ResolvedStyle {
   ///
   /// 返回一份拷贝，用 [attributes] 中存在的属性覆盖 `this` 继承来的值，并按
   /// [theme] 解析 `currentColor`。
-  ResolvedStyle inherit(Map<String, String> attributes, SvgTheme theme) {
+  ResolvedStyle inherit(Map<String, String> attributes, SvgxTheme theme) {
     Color? parseColor(String raw) {
       final v = raw.trim();
       if (v == 'none') return null;

@@ -15,6 +15,7 @@ import 'animation/animated_svg_widget.dart';
 import 'animation/animation_detector.dart';
 import 'animation/svg_theme.dart';
 import 'animation/svgx_animation_quality.dart';
+import 'rust/frb_generated.dart';
 import 'rust_static_svg.dart';
 import 'svg_source_loader.dart';
 
@@ -41,6 +42,26 @@ import 'svg_source_loader.dart';
 /// Svgx.string(svgSource, width: 48, height: 48)
 /// ```
 class Svgx extends StatelessWidget {
+  /// Initializes the native (Rust) rendering backend. Call once, before
+  /// rendering any Svgx widget — typically in `main()` before `runApp`.
+  /// Calling it again after the first successful call is a no-op.
+  ///
+  /// 初始化原生（Rust）渲染后端，在渲染任何 Svgx 组件前调用一次——通常放在
+  /// `main()` 里 `runApp` 之前。首次成功调用后再次调用是空操作。
+  ///
+  /// Example:
+  /// ```dart
+  /// void main() async {
+  ///   WidgetsFlutterBinding.ensureInitialized();
+  ///   await Svgx.ensureInitialized();
+  ///   runApp(const MyApp());
+  /// }
+  /// ```
+  static Future<void> ensureInitialized() {
+    if (RustLib.instance.initialized) return Future<void>.value();
+    return RustLib.init();
+  }
+
   /// Creates the dispatch widget from a raw SVG string.
   ///
   /// 用原始 SVG 字符串创建分发组件。
@@ -80,7 +101,7 @@ class Svgx extends StatelessWidget {
     BoxFit fit = BoxFit.contain,
     Alignment alignment = Alignment.center,
     ColorFilter? colorFilter,
-    SvgTheme? theme,
+    SvgxTheme? theme,
     SvgxAnimationQuality? quality,
   }) => _AsyncSvgx(
     key: key,
@@ -111,7 +132,7 @@ class Svgx extends StatelessWidget {
     BoxFit fit = BoxFit.contain,
     Alignment alignment = Alignment.center,
     ColorFilter? colorFilter,
-    SvgTheme? theme,
+    SvgxTheme? theme,
     SvgxAnimationQuality? quality,
   }) => _AsyncSvgx(
     key: key,
@@ -137,7 +158,7 @@ class Svgx extends StatelessWidget {
     BoxFit fit = BoxFit.contain,
     Alignment alignment = Alignment.center,
     ColorFilter? colorFilter,
-    SvgTheme? theme,
+    SvgxTheme? theme,
     SvgxAnimationQuality? quality,
   }) => _AsyncSvgx(
     key: key,
@@ -168,7 +189,7 @@ class Svgx extends StatelessWidget {
     BoxFit fit = BoxFit.contain,
     Alignment alignment = Alignment.center,
     ColorFilter? colorFilter,
-    SvgTheme? theme,
+    SvgxTheme? theme,
     SvgxAnimationQuality? quality,
   }) => Svgx.string(
     utf8.decode(bytes),
@@ -204,7 +225,7 @@ class Svgx extends StatelessWidget {
   /// static rendering paths.
   ///
   /// 控制 `currentColor` 的主题，动画与静态两条渲染路径均生效。
-  final SvgTheme? theme;
+  final SvgxTheme? theme;
 
   /// Animation quality/performance trade-off, forwarded to
   /// [SvgxAnimated.string]; ignored for a static source (the static path
@@ -295,7 +316,7 @@ class _AsyncSvgx extends StatefulWidget {
   final BoxFit fit;
   final Alignment alignment;
   final ColorFilter? colorFilter;
-  final SvgTheme? theme;
+  final SvgxTheme? theme;
   final SvgxAnimationQuality? quality;
 
   @override

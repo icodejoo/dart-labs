@@ -253,7 +253,7 @@ void main() {
         final style = ResolvedStyle.initial.inherit({
           'fill': 'url(#g)',
           'stroke': 'url("#s")',
-        }, const SvgTheme());
+        }, const SvgxTheme());
 
         expect(style.fillGradientId, 'g');
         expect(style.strokeGradientId, 's');
@@ -264,10 +264,10 @@ void main() {
     test('a plain colour clears any inherited gradient reference', () {
       final withGradient = ResolvedStyle.initial.inherit({
         'fill': 'url(#g)',
-      }, const SvgTheme());
+      }, const SvgxTheme());
       final overridden = withGradient.inherit({
         'fill': '#00FF00',
-      }, const SvgTheme());
+      }, const SvgxTheme());
 
       expect(overridden.fillGradientId, isNull);
       expect(overridden.fill, const Color(0xFF00FF00));

@@ -40,11 +40,11 @@ class RustSvgPictureInfo {
 /// raw SVG source string.
 ///
 /// 进程级 LRU 缓存，缓存 Rust 解析出的静态 SVG picture，键为原始 SVG 源串。
-class RustSvgPictureCache {
-  RustSvgPictureCache._();
+class RustSvgxPictureCache {
+  RustSvgxPictureCache._();
 
   /// Shared instance. / 共享单例。
-  static final RustSvgPictureCache instance = RustSvgPictureCache._();
+  static final RustSvgxPictureCache instance = RustSvgxPictureCache._();
 
   final LinkedHashMap<(String, int?), RustSvgPictureInfo> _entries =
       LinkedHashMap<(String, int?), RustSvgPictureInfo>();
@@ -148,7 +148,7 @@ class RustSvgPictureCache {
   ///
   /// Example:
   /// ```dart
-  /// final info = RustSvgPictureCache.instance.peek(source);
+  /// final info = RustSvgxPictureCache.instance.peek(source);
   /// if (info != null) { /* warm path */ }
   /// ```
   RustSvgPictureInfo? peek(String source, {int? currentColorArgb}) =>
@@ -302,7 +302,7 @@ class RustSvgPictureCache {
   ///
   /// Example:
   /// ```dart
-  /// print(RustSvgPictureCache.instance.length);
+  /// print(RustSvgxPictureCache.instance.length);
   /// ```
   int get length => _entries.length;
 
@@ -320,7 +320,7 @@ class RustSvgPictureCache {
   ///
   /// Example:
   /// ```dart
-  /// final mb = RustSvgPictureCache.instance.approximateBytesUsed / 1e6;
+  /// final mb = RustSvgxPictureCache.instance.approximateBytesUsed / 1e6;
   /// ```
   int get approximateBytesUsed {
     var total = 0;
@@ -947,7 +947,7 @@ class SvgxStatic extends StatelessWidget {
   ///
   /// 控制 `currentColor` 的主题；默认不透明黑色。与 [SvgxAnimated] 的 `theme`
   /// 参数保持一致的 API 形状，覆盖动画与静态两条路径。
-  final SvgTheme? theme;
+  final SvgxTheme? theme;
 
   /// Builder shown when parsing/recording throws (bad SVG, FFI error, etc.).
   ///
@@ -978,7 +978,7 @@ class SvgxStatic extends StatelessWidget {
     // "廉价"是相对的：匹配不到的正则必须扫完整个源，而滚动过程中每个可见图标
     // 会在 picture 已缓存的情况下反复重建。因此先查缓存，只有真正未命中才做
     // 嗅探（`LIB=micro` 实测：嗅探单图标 0.287us，取代它的查找 0.079us）。
-    final cached = RustSvgPictureCache.instance.peek(
+    final cached = RustSvgxPictureCache.instance.peek(
       source,
       currentColorArgb: currentColorArgb,
     );
@@ -987,7 +987,7 @@ class SvgxStatic extends StatelessWidget {
       return _buildSync(context, currentColorArgb);
     }
     return FutureBuilder<RustSvgPictureInfo>(
-      future: RustSvgPictureCache.instance.getOrRenderAsync(
+      future: RustSvgxPictureCache.instance.getOrRenderAsync(
         source,
         currentColorArgb: currentColorArgb,
       ),
@@ -1016,7 +1016,7 @@ class SvgxStatic extends StatelessWidget {
   Widget _buildSync(BuildContext context, int? currentColorArgb) {
     final RustSvgPictureInfo info;
     try {
-      info = RustSvgPictureCache.instance.getOrRender(
+      info = RustSvgxPictureCache.instance.getOrRender(
         source,
         currentColorArgb: currentColorArgb,
       );

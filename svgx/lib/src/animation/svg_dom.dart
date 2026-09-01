@@ -440,7 +440,7 @@ class SvgNode {
   ///
   /// The key is the sampled values, never the timeline position — so a
   /// document shared between two widgets at different times (see
-  /// `SvgDocumentCache`) either shares a valid entry or misses and rebuilds,
+  /// `SvgxDocumentCache`) either shares a valid entry or misses and rebuilds,
   /// and can never read a stale one. Same property [cachedMaskClip] relies on.
   ///
   /// 本节点叠加了 `<animate>` 覆盖值后的属性表的绘制期缓存，连同构建它时所用的
@@ -465,7 +465,7 @@ class SvgNode {
   /// 依赖它的各缓存会像以往一样精确失效。
   ///
   /// 缓存键是采样值，绝不是时间线位置——因此被两个控件在不同时刻共享的文档
-  /// （见 `SvgDocumentCache`）要么共享一个有效条目，要么未命中后重建，绝不会读到
+  /// （见 `SvgxDocumentCache`）要么共享一个有效条目，要么未命中后重建，绝不会读到
   /// 过期结果。[cachedMaskClip] 依赖的正是同一个性质。
   Map<String, String>? cachedAnimatedAttributes;
 

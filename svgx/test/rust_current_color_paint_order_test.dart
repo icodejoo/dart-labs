@@ -1,5 +1,5 @@
 // Pixel-level tests for the static path's `currentColor` substitution and
-// `paint-order` handling. Each renders a scene through `RustSvgPictureCache`
+// `paint-order` handling. Each renders a scene through `RustSvgxPictureCache`
 // and reads back real pixels, mirroring the convention in
 // `rust_paint_features_test.dart`.
 //
@@ -8,7 +8,7 @@
 // `rust_image_smoke_test.dart`.
 //
 // 静态路径 `currentColor` 替换与 `paint-order` 处理的像素级测试。每个用例都
-// 通过 `RustSvgPictureCache` 渲染并回读真实像素，约定同
+// 通过 `RustSvgxPictureCache` 渲染并回读真实像素，约定同
 // `rust_paint_features_test.dart`。
 //
 // 尽力而为：若在纯 `flutter test`（host VM，未走 Flutter 构建）下原生库无法
@@ -44,8 +44,8 @@ const _paintOrderSvg = '''
 /// 渲染 [source] 并按 100x100 回读原始 RGBA 像素；给定 [currentColorArgb] 时
 /// 用它解析 `currentColor`。
 Future<ByteData> _renderPixels(String source, {int? currentColorArgb}) async {
-  RustSvgPictureCache.instance.clear();
-  final info = RustSvgPictureCache.instance.getOrRender(
+  RustSvgxPictureCache.instance.clear();
+  final info = RustSvgxPictureCache.instance.getOrRender(
     source,
     currentColorArgb: currentColorArgb,
   );

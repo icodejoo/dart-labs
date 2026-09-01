@@ -234,13 +234,13 @@ class _AnimFpsBenchRunnerState extends State<AnimFpsBenchRunner> {
 
   // Memory probes. The static bench has reported RSS since day one, but this
   // phase never has — so the animated path's footprint (399 parsed documents
-  // held in `SvgDocumentCache`, 1000 live tickers, 1000 painters) has been
+  // held in `SvgxDocumentCache`, 1000 live tickers, 1000 painters) has been
   // unmeasured the whole time. Same probe shape as `bench_screen.dart`:
   // a warmup floor, a peak, a post-run steady/idle pair, then what unmounting
   // the grid and dropping the document cache actually gives back.
   //
   // 内存探针。静态基准从第一天起就报 RSS，本阶段从来没有——也就是说动画路径的
-  // 占用（`SvgDocumentCache` 里 399 份已解析文档、1000 个 ticker、1000 个
+  // 占用（`SvgxDocumentCache` 里 399 份已解析文档、1000 个 ticker、1000 个
   // painter）一直没被测过。探针形状与 `bench_screen.dart` 一致：预热地板、峰值、
   // 结束后的稳态/静置，再看卸掉网格、丢掉文档缓存到底能还回来多少。
   final _rssSamplesBytes = <int>[];
@@ -256,18 +256,18 @@ class _AnimFpsBenchRunnerState extends State<AnimFpsBenchRunner> {
   @override
   void initState() {
     super.initState();
-    // `DOCCACHE=n` overrides SvgDocumentCache's default cap. This corpus has
+    // `DOCCACHE=n` overrides SvgxDocumentCache's default cap. This corpus has
     // 399 distinct documents against a default cap of 200, so the default
     // guarantees eviction thrash: half the set is re-parsed on every pass.
     // The knob exists to measure what that thrash costs in RSS, which is a
     // cache-capacity question the suite had no way to ask before.
     //
-    // `DOCCACHE=n` 覆盖 SvgDocumentCache 的默认上限。本语料有 399 份互异文档，
+    // `DOCCACHE=n` 覆盖 SvgxDocumentCache 的默认上限。本语料有 399 份互异文档，
     // 而默认上限是 200，也就是说默认配置必然抖动：每一趟都要重新解析半个语料。
     // 这个旋钮的用途是量出这份抖动在 RSS 上的代价——这是本套件此前无法提出的
     // 缓存容量问题。
     const docCache = int.fromEnvironment('DOCCACHE');
-    if (docCache > 0) SvgDocumentCache.instance.maximumSize = docCache;
+    if (docCache > 0) SvgxDocumentCache.instance.maximumSize = docCache;
     if (_qualityArms.length > 1) {
       // Arm order alternates run-to-run (`ARMFLIP=1`) so a monotonic drift
       // over the process's lifetime — device warming up across the two
@@ -405,7 +405,7 @@ class _AnimFpsBenchRunnerState extends State<AnimFpsBenchRunner> {
     // 归因探针，仅独立运行——头条数字都已记录，下面的动作扰动不了它们。
     // 为什么必须先卸网格再清缓存，见 `bench_screen.dart`。
     if (widget.onComplete == null) {
-      _cachedDocuments = SvgDocumentCache.instance.length;
+      _cachedDocuments = SvgxDocumentCache.instance.length;
       setState(() {
         _gridMounted = false;
         _status = 'cache-clear attribution probe...';
@@ -422,7 +422,7 @@ class _AnimFpsBenchRunnerState extends State<AnimFpsBenchRunner> {
       // 清空两个采样点之间的下降，就无法与"恰好有一次 major GC 落在这个窗口"
       // 区分开——本路径实测仅静置就掉了约 280MB，这种混淆并非假想。
       if (!const bool.fromEnvironment('NOCLEAR')) {
-        SvgDocumentCache.instance.clear();
+        SvgxDocumentCache.instance.clear();
       }
       await Future<void>.delayed(const Duration(seconds: 3));
       _afterClearRssBytes = ProcessInfo.currentRss;

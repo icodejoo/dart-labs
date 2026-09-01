@@ -4,8 +4,8 @@ import 'package:svgx/svgx.dart';
 
 void main() {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();
-  setUpAll(() async => await RustLib.init());
-  test('Can call rust function', () async {
-    expect(greet(name: "Tom"), "Hello, Tom!");
+  setUpAll(() async => await Svgx.ensureInitialized());
+  test('Native backend initializes without throwing', () async {
+    await Svgx.ensureInitialized();
   });
 }

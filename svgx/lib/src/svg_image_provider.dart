@@ -70,7 +70,7 @@ const _supersample = 2;
 /// real widget in the tree) over squeezing it through an [ImageProvider].
 ///
 /// A rasterized animated frame only ever shows this document's *base*
-/// (non-animated-property) appearance if [SvgDocumentCache] fails to parse
+/// (non-animated-property) appearance if [SvgxDocumentCache] fails to parse
 /// it as animated for some reason — in the ordinary case the same SMIL
 /// engine [SvgxAnimated] uses drives every frame, so animation content is
 /// fully supported here, just at a lower, capped rate.
@@ -97,7 +97,7 @@ const _supersample = 2;
 /// 分配的发生次数减半，但消除不了它。若 SVG 需要在 60Hz 下看起来流畅，优先用
 /// [SvgxAnimated]/`Svgx`（组件树里的真实控件），而不是硬塞进 [ImageProvider]。
 ///
-/// 只有当 [SvgDocumentCache] 出于某种原因未能把它解析为动画文档时，光栅化出的
+/// 只有当 [SvgxDocumentCache] 出于某种原因未能把它解析为动画文档时，光栅化出的
 /// 动画帧才会只显示该文档的*基底*（未受动画属性驱动）外观——正常情况下驱动每一
 /// 帧的是与 [SvgxAnimated] 相同的 SMIL 引擎，所以动画内容在这里是完整支持的，
 /// 只是帧率更低、有上限。
@@ -137,7 +137,7 @@ class StringSvgx extends ImageProvider<StringSvgx> {
   final ColorFilter? colorFilter;
 
   /// Theme controlling `currentColor`. / 控制 `currentColor` 的主题。
-  final SvgTheme? theme;
+  final SvgxTheme? theme;
 
   /// How often an animated source re-rasterizes, in frames per second — see
   /// the class doc for why this exists and defaults below 60.
@@ -212,7 +212,7 @@ class AssetSvgx extends ImageProvider<AssetSvgx> {
   final double? width;
   final double? height;
   final ColorFilter? colorFilter;
-  final SvgTheme? theme;
+  final SvgxTheme? theme;
   final int animationFrameRate;
 
   @override
@@ -288,7 +288,7 @@ class NetworkSvgx extends ImageProvider<NetworkSvgx> {
   final double? width;
   final double? height;
   final ColorFilter? colorFilter;
-  final SvgTheme? theme;
+  final SvgxTheme? theme;
   final int animationFrameRate;
 
   @override
@@ -362,7 +362,7 @@ class FileSvgx extends ImageProvider<FileSvgx> {
   final double? width;
   final double? height;
   final ColorFilter? colorFilter;
-  final SvgTheme? theme;
+  final SvgxTheme? theme;
   final int animationFrameRate;
 
   @override
@@ -429,7 +429,7 @@ class MemorySvgx extends ImageProvider<MemorySvgx> {
   final double? width;
   final double? height;
   final ColorFilter? colorFilter;
-  final SvgTheme? theme;
+  final SvgxTheme? theme;
   final int animationFrameRate;
 
   @override
@@ -489,7 +489,7 @@ ImageStreamCompleter _svgImageStreamCompleter({
   required double? width,
   required double? height,
   required ColorFilter? colorFilter,
-  required SvgTheme? theme,
+  required SvgxTheme? theme,
   required int animationFrameRate,
 }) => _SvgImageStreamCompleter(
   sourceFuture: sourceFuture,
@@ -545,7 +545,7 @@ class _SvgImageStreamCompleter extends ImageStreamCompleter {
   final double? width;
   final double? height;
   final ColorFilter? colorFilter;
-  final SvgTheme? theme;
+  final SvgxTheme? theme;
   final int animationFrameRate;
 
   Timer? _timer;
@@ -586,7 +586,7 @@ class _SvgImageStreamCompleter extends ImageStreamCompleter {
   Future<void> _emitStatic(String source) async {
     try {
       final currentColorArgb = theme?.currentColor.toARGB32();
-      final info = await RustSvgPictureCache.instance.getOrRenderAsync(
+      final info = await RustSvgxPictureCache.instance.getOrRenderAsync(
         source,
         currentColorArgb: currentColorArgb,
       );
@@ -608,7 +608,7 @@ class _SvgImageStreamCompleter extends ImageStreamCompleter {
   }
 
   void _startAnimated(String source) {
-    final parsed = SvgDocumentCache.instance.getOrParse(source);
+    final parsed = SvgxDocumentCache.instance.getOrParse(source);
     final document = parsed.document;
     final ready = parsed.hasImages
         ? resolveImageNodes(document)
@@ -634,7 +634,7 @@ class _SvgImageStreamCompleter extends ImageStreamCompleter {
         root: document.root,
         intrinsicSize: intrinsicSize,
         clock: clock,
-        theme: theme ?? const SvgTheme(),
+        theme: theme ?? const SvgxTheme(),
         fit: BoxFit.contain,
         alignment: Alignment.center,
         gradients: document.gradients,

@@ -37,11 +37,11 @@ Svgx.string(
 )
 ```
 
-`currentColor` in the source is controlled separately via `SvgTheme`, honored
+`currentColor` in the source is controlled separately via `SvgxTheme`, honored
 by both the static and animated rendering paths:
 
 ```dart
-Svgx.string(svgSource, theme: SvgTheme(currentColor: Colors.blue))
+Svgx.string(svgSource, theme: SvgxTheme(currentColor: Colors.blue))
 ```
 
 ### Animation quality

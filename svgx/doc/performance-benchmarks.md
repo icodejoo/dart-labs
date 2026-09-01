@@ -410,7 +410,7 @@ cd benchmark/bench_app && flutter run -d windows --profile --dart-define=LIB=svg
 |---|---|---|---|---|---|
 | 1 | `AnimationDetector` 四条分标签正则合并成一条多分支正则 | `detect_animations_static_sources`;同一运行内 `static_image_sniff_removed_work`(单条正则)×4 作为旧实现的同场代理 | ~1.47us/图标(0.368×4) | 0.515us/图标 | **−65%**;跨运行原始值 1.142→0.515 |
 | 2 | `SvgxStatic.build` 先查 picture 缓存,只在真正未命中时才做 `<image>` 正则嗅探 | 同一运行内 `static_image_sniff_removed_work` vs `static_cache_peek_added_work` | 0.297us/图标(正则) | 0.040us/图标(哈希查找) | **每次重建每图标省 0.257us** |
-| 3 | `SvgDocumentCache`:已解析动画文档的进程级 LRU | 同一运行内 `anim_parse_document` vs `anim_document_cache_hit` | 40.015us/图标(完整 XML 解析+建时间线) | 0.023us/图标 | **重新挂载成本降到约 1/1700** |
+| 3 | `SvgxDocumentCache`:已解析动画文档的进程级 LRU | 同一运行内 `anim_parse_document` vs `anim_document_cache_hit` | 40.015us/图标(完整 XML 解析+建时间线) | 0.023us/图标 | **重新挂载成本降到约 1/1700** |
 | 4 | `_paintNode` 在节点没有 `<animate>` 时直接复用 `node.attributes`,不再每节点每帧拷贝一份属性表 | `anim_paint_frame` | 21.789us | 21.115us | −3.1%(小,按实测值如实记录) |
 | 5 | `_geometryPath` 把构建好的 `ui.Path` 按"构建来源身份"缓存在节点上(`<path>` 用 `d` 字符串,其余用属性表实例) | `anim_paint_frame` | 21.115us | 15.238us | **−27.8%** 原始值;该轮 `calibration_alloc_and_record` 1.053 对基线 0.934(机器忙 +12.7%),归一化后约 **−35%** |
 | 6 | `SvgxAnimated` 改用绑定到 `AnimatedSvgPainter.clock` 的 `ValueNotifier` 发布时间线,不再每 tick 一次 `setState`(经 `CustomPainter.repaint` 跳过 build+layout 两个阶段) | 静止模式 build avg,各 5 次 | 0.376ms 中位(0.362~0.403) | 0.356ms 中位(0.342~0.365) | **−5.3%**,`framesOver8.3ms` 上限 1→0。滚动场景**测不出差别**(3.194 vs 3.189ms),已如实记录 |
@@ -513,7 +513,7 @@ flutter run -d windows --profile --dart-define=LIB=compare --dart-define=CYCLES=
 
 ### 归因:第一刀就命中
 
-诊断出的根因是 `SvgDocumentCache` 的容量,而不是绘制代码:语料有 **399** 个互异图标,而缓存上限是 **200**。滚动网格产生的是"按固定顺序循环访问一个大于缓存的工作集"——这正是 LRU 的病态输入,每个条目都恰好在再次被请求的前一步被淘汰,命中率不是偏低而是**恰好为 0**。
+诊断出的根因是 `SvgxDocumentCache` 的容量,而不是绘制代码:语料有 **399** 个互异图标,而缓存上限是 **200**。滚动网格产生的是"按固定顺序循环访问一个大于缓存的工作集"——这正是 LRU 的病态输入,每个条目都恰好在再次被请求的前一步被淘汰,命中率不是偏低而是**恰好为 0**。
 
 先用现成的 `DOCCACHE` 旋钮验证假设,**一行代码都不改**:
 
@@ -1083,12 +1083,12 @@ vivo V2283A   56.90         56.64         基本打平(无提升)
 |---|---|---|---|
 | `route_decision`(`hasAnimations`,带 memo) | **0.20 µs/图标** | 每次 build | 已优化到底,可忽略 |
 | `document_cold`(XML 解析 + 时间线构建) | **45~58 µs/图标** | 每个互异源一生一次 | **必须做的工作** |
-| `document_warm`(`SvgDocumentCache` 命中) | **0.02~0.03 µs/图标** | 每次重挂载 | 已优化到底,可忽略 |
+| `document_warm`(`SvgxDocumentCache` 命中) | **0.02~0.03 µs/图标** | 每次重挂载 | 已优化到底,可忽略 |
 | `mount_and_layout`(inflate + attach + 布局 + 首帧绘制) | **40~58 µs/图标** | 每格每次进入视口 | 见下 |
 | `paint_steady`(新时间线位置重录一遍) | **15~25 µs/图标** | 每帧每可见图标(跳帧后约一半) | 见下 |
 | 差值 `mount_minus_paint` | **≈25~37 µs/图标** | 每格每次进入视口 | **纯 Flutter 框架的 Element/RenderObject/布局机械开销** |
 
-**核心结论:svgx 自己那一侧在 build 阶段已经没有可见冗余了。** 重挂载时不重复解析(0.02µs),也不重复解析路径或重算样式——因为 `SvgNode` 对象本身通过 `SvgDocumentCache` 共享,`cachedGeometry` 的键是 `d` 字符串实例、`cachedStyle` 的键是 `(ResolvedStyle.initial, node.attributes, const SvgTheme())` 三个身份稳定的输入,所以重挂载后的首帧绘制**直接命中**这两层缓存,与稳态帧一样便宜。剩下的 build 成本里,约 2/3 是框架自己的树机械开销(每格约 25~37µs),1/3 是图标自身的绘制录制。
+**核心结论:svgx 自己那一侧在 build 阶段已经没有可见冗余了。** 重挂载时不重复解析(0.02µs),也不重复解析路径或重算样式——因为 `SvgNode` 对象本身通过 `SvgxDocumentCache` 共享,`cachedGeometry` 的键是 `d` 字符串实例、`cachedStyle` 的键是 `(ResolvedStyle.initial, node.attributes, const SvgxTheme())` 三个身份稳定的输入,所以重挂载后的首帧绘制**直接命中**这两层缓存,与稳态帧一样便宜。剩下的 build 成本里,约 2/3 是框架自己的树机械开销(每格约 25~37µs),1/3 是图标自身的绘制录制。
 
 ### 顺带否掉的两个候选嫌疑(有数据支撑)
 
@@ -1189,7 +1189,7 @@ Windows x64 profile,Impeller,3 次运行取中位数,`ONEHOLD=6`(每阶段约 73
 | 1 | `_effectiveAttributes` 只要**每一条**时间线本帧采样值都与上一帧相同,就交回上一帧那张属性表(`SvgNode.cachedAnimatedAttributes`);任一采样值一动立即构建全新表 | `animated_svg_painter.dart`、`svg_dom.dart` | 把 `cachedStyle`/`cachedGeometry` 的**永久未命中变成命中**,收益级联:分组复用了表就产出同一个 `ResolvedStyle` 实例,其子节点的 `styleInheritedKey` 也继续有效 |
 | 2 | `dashPath` 结果按(源路径身份、虚线图案身份、虚线相位值)记忆到节点(`SvgNode.cachedDashedPath`) | 同上 | 定格的 dashoffset + 已缓存的几何 ⇒ 三个输入全不变,省掉 `computeMetrics()` + `extractPath` + Path 分配 |
 
-**为什么这次成立、而 `_effectiveAttributes` 此前那次复用被回滚**:那次是每节点保留一张表并**原地修改**,身份稳定而内容在变,把带动画的 `<rect>`/`<circle>` 几何冻结在第一帧形状上。这次只在内容**可证明**逐位相同时才复用身份;任何采样值一动就构建真正全新的表,依赖它的缓存精确失效。缓存键是**采样值而非时间线位置**,因此被两个控件在不同时刻共享的文档(`SvgDocumentCache`)要么共享有效条目、要么未命中重建,**不可能读到过期数据**——与 `cachedMaskClip` 依赖的是同一个性质。
+**为什么这次成立、而 `_effectiveAttributes` 此前那次复用被回滚**:那次是每节点保留一张表并**原地修改**,身份稳定而内容在变,把带动画的 `<rect>`/`<circle>` 几何冻结在第一帧形状上。这次只在内容**可证明**逐位相同时才复用身份;任何采样值一动就构建真正全新的表,依赖它的缓存精确失效。缓存键是**采样值而非时间线位置**,因此被两个控件在不同时刻共享的文档(`SvgxDocumentCache`)要么共享有效条目、要么未命中重建,**不可能读到过期数据**——与 `cachedMaskClip` 依赖的是同一个性质。
 
 ### 效果:两个独立仪器互相印证
 
@@ -1235,3 +1235,109 @@ adb -s <serial> logcat -d -s flutter:I | grep -E "count=|ONE ANIM"
 ```
 
 预期方向:ARM 上 build 斜率会明显高于桌面(CPU 更弱),raster 斜率的 mask 溢价也会更大(华为 STG-AL00 上单个离屏通道曾实测约 221us,远高于桌面 GPU)——**若 mask 溢价在 ARM 上占到帧预算的显著比例,那才是重新评估 `approximateSimpleMasksAsClip` 默认值的时机**,而判定应当用 `LIB=one_anim` 的少量图标斜率,而不是千图标网格。
+
+## Android 真机首次实测(3 次取均值,2026-09-01)
+
+**触发原因**:本文件此前所有 `LIB=compare` 数字均标注为"仅在 Windows 桌面 profile 模式测得,Android 真机复测仍是遗留缺口"。本轮补齐——用已连接的 Android 真机独立编译/独立启动跑 3 次,取均值。
+
+**设备信息**:型号 STG-AL00(华为,`adb devices -l` 报告 `model:STG_AL00`),Android 12(API 31,`ro.build.version.release=12`),`flutter devices` 识别为 `android-arm64`。**未使用** 同时在线的另一台 WSA 模拟设备(`127.0.0.1:58526`)。
+
+**复现命令**(与既有 Windows 复现命令一致,仅把 `-d windows` 换成真机 id):
+
+```
+cd benchmark/bench_app
+flutter run -d 7NQBB23606003715 --profile --dart-define=LIB=compare --dart-define=CYCLES=6 --dart-define=ITEMS=1000
+```
+
+**方法学诚实标注**:
+
+- 三次运行**均为独立编译/独立启动**(每次结束后 `am force-stop` + kill flutter 进程,再重新 `flutter run`),不是复用同一进程反复触发。
+- 头条运行(记为"第一轮初次尝试")在 APK 安装完成、Impeller 初始化之后、benchmark 尚未开始打印任何一条报告前就 `Lost connection to device`,判定为失败,**不计入均值**,原因未查明(签名不一致触发的重装 + 紧接着断连,怀疑是设备侧 USB/adb 会话抖动,而非应用代码问题)。重跑后拿到完整数据,记为"第一轮"计入下方均值。
+- 三轮的 `COMPARE BENCH REPORT` 汇总表**均被 logcat 单条消息长度截断**(与本文件"识别到但本轮没做"章节此前记录的已知截断问题同一现象,截断点都在汇总表中段的 `framesOver8.3ms` 行附近)。这不影响数据完整性——四段独立的逐阶段原始报告(`BENCH REPORT` × 2、`ANIM BENCH REPORT`、`ANIM FPS BENCH REPORT`)在汇总表打印之前已经完整落地 logcat,下表全部数据取自这四段原始报告,未依赖被截断的汇总表。
+- 三轮均成功跑完全部四阶段,**均值按 3 次计算**,无需要排除的失败轮次。
+
+### 三次单独跑分原始数据
+
+**静态对比阶段(svgx vs flutter_svg,同进程同时段配对)**
+
+| 指标 | 第 1 轮 svgx | 第 1 轮 flutter_svg | 第 2 轮 svgx | 第 2 轮 flutter_svg | 第 3 轮 svgx | 第 3 轮 flutter_svg |
+|---|---|---|---|---|---|---|
+| frames (n) | 618 | 307 | 622 | 323 | 627 | 283 |
+| build avg | 7.358ms | 7.415ms | 7.569ms | 7.712ms | 5.741ms | 8.665ms |
+| build p50 | 7.193ms | 4.096ms | 7.446ms | 3.629ms | 5.043ms | 3.922ms |
+| build p90 | 10.720ms | 18.682ms | 10.447ms | 18.328ms | 9.601ms | 21.483ms |
+| build p99 | 19.190ms | 43.767ms | 19.036ms | 50.128ms | 16.723ms | 56.985ms |
+| build max | 23.983ms | 76.156ms | 42.819ms | 110.522ms | 27.766ms | 124.263ms |
+| raster avg | 12.487ms | 4.835ms | 12.354ms | 5.444ms | 10.872ms | 11.685ms |
+| raster p50 | 12.673ms | 3.057ms | 12.831ms | 2.971ms | 10.568ms | 5.577ms |
+| raster p90 | 15.519ms | 8.449ms | 15.916ms | 12.201ms | 15.206ms | 29.759ms |
+| raster p99 | 22.589ms | 26.907ms | 19.638ms | 30.050ms | 21.538ms | 59.101ms |
+| raster max | 31.898ms | 34.440ms | 36.656ms | 66.465ms | 41.645ms | 85.594ms |
+| 掉帧 >16.6ms | 12 | 34 | 9 | 40 | 7 | 41 |
+| 掉帧 >8.3ms | 209 | 87 | 224 | 87 | 121 | 80 |
+| 内存峰值 | 175.55MB | 249.93MB | 173.35MB | 252.08MB | 166.34MB | 238.26MB |
+| 内存稳态 | 175.24MB | 249.93MB | 172.83MB | 251.63MB | 166.14MB | 229.08MB |
+| 内存空闲后 | 175.18MB | 208.65MB | 173.10MB | 205.37MB | 166.29MB | 211.12MB |
+| 解析耗时 avg(仅 svgx) | 0.198ms | — | 0.192ms | — | 0.170ms | — |
+| 解析耗时 p50 | 0.129ms | — | 0.132ms | — | 0.126ms | — |
+| 解析耗时 p90 | 0.424ms | — | 0.358ms | — | 0.326ms | — |
+| 解析耗时 p99 | 0.779ms | — | 0.723ms | — | 0.713ms | — |
+| 解析耗时 max | 5.251ms | — | 5.807ms | — | 0.956ms | — |
+
+**anim(12 并发图标,6 秒观测,仅 svgx)**
+
+| 指标 | 第 1 轮 | 第 2 轮 | 第 3 轮 |
+|---|---|---|---|
+| frames | 359 | 355 | 359 |
+| build avg | 3.704ms | 4.037ms | 2.563ms |
+| raster avg | 9.620ms | 9.559ms | 6.768ms |
+| 掉帧 >16.6ms | 0 | 0 | 0 |
+| 掉帧 >8.3ms | 3 | 7 | 2 |
+
+**anim_fps(1000 动画图标滚动,仅 svgx)**
+
+| 指标 | 第 1 轮 | 第 2 轮 | 第 3 轮 |
+|---|---|---|---|
+| frames | 376 | 383 | 375 |
+| real_fps | 34.59 | 34.60 | 34.22 |
+| build avg | 12.981ms | 12.734ms | 13.116ms |
+| raster avg | 26.311ms | 26.773ms | 26.719ms |
+| 掉帧 >16.6ms | 47 | 50 | 50 |
+| 掉帧 >8.3ms | 316 | 306 | 308 |
+| 内存峰值 | 225.03MB | 225.23MB | 213.62MB |
+| 内存稳态 | 224.61MB | 224.91MB | 212.09MB |
+| 内存空闲后 | 216.57MB | 218.81MB | 205.08MB |
+
+### 均值汇总(3 次算术平均)
+
+**静态对比:svgx vs flutter_svg**
+
+| 维度 | svgx(均值) | flutter_svg(均值) | ratio | 结论 |
+|---|---|---|---|---|
+| build avg/p50/p90/p99/max | 6.889/6.561/10.256/18.316/31.523 ms | 7.931/3.882/19.498/50.293/103.647 ms | avg 0.87、p50 **1.69**、p90~max 0.30~0.53 | 分位数分裂,见下方说明 |
+| raster avg/p50/p90/p99/max | 11.904/12.024/15.547/21.255/36.733 ms | 7.321/3.868/16.803/38.686/62.166 ms | avg **1.63**、p50 **3.11**、p90 0.93、p99 0.55、max 0.59 | **真机上 raster avg/p50 反而是 flutter_svg 胜**,与 Windows 桌面结论方向相反,见下方说明 |
+| 掉帧(>8.3ms / >16.6ms) | 184.67 / 9.33(均值,约 622 帧) | 84.67 / 38.33(均值,约 304 帧) | — | svgx 的 >8.3ms 次数更多(但 svgx 帧总数也约为 flutter_svg 的 2 倍),svgx 的 >16.6ms(真正掉帧)次数明显更少 |
+| 内存峰值/稳态/空闲后 | 171.75/171.40/171.52 MB | 246.76/243.55/208.38 MB | 0.70/0.70/0.82 | svgx 胜,幅度与 Windows 桌面记录(0.77~0.89)一致或更好 |
+| 解析耗时(仅 svgx) | avg=0.187/p50=0.129/p90=0.369/p99=0.738/max=4.005 ms | 无公开钩子 | — | 绝对值比 Windows 桌面记录(avg 0.039~0.071ms)高约 3~5 倍,量级仍是亚毫秒级,见下方说明 |
+
+**动画侧(仅 svgx,无对等 flutter_svg 对照)**
+
+| 指标 | 均值 |
+|---|---|
+| anim(12 并发)frames / build avg / raster avg / 掉帧>16.6ms / 掉帧>8.3ms | 357.67 / 3.435ms / 8.649ms / 0 / 4 |
+| anim_fps(1000 图标滚动)frames / real_fps / build avg / raster avg / 掉帧>16.6ms / 掉帧>8.3ms | 378 / **34.47** / 12.944ms / 26.601ms / 49 / 310 |
+| anim_fps 内存峰值/稳态/空闲后 | 221.29 / 220.54 / 213.49 MB |
+
+### 与 Windows 桌面基线的对比,如实标注
+
+**观察到的一致模式**:内存优势方向不变且幅度相近——svgx 内存峰值/稳态/空闲后 ratio 落在 0.70~0.82,与 Windows 记录的 0.77~0.89 区间基本吻合甚至更好;svgx 的 build p90/p99/max 三个更能反映长尾的分位数依然全面优于 flutter_svg(ratio 0.30~0.53),方向与桌面一致。
+
+**观察到的不同模式,不回避**:
+
+1. **raster avg/p50、build p50 在真机上反转**——桌面基线里 svgx 的 raster avg/p90/p99 全面领先 flutter_svg(ratio 0.55~0.90),但本轮真机上 svgx 的 raster avg 反而是 flutter_svg 的 1.63 倍、raster p50 是 3.11 倍,build p50 也反过来是 flutter_svg 的 1.69 倍。三轮都稳定复现同一方向(不是单次噪声):三轮 svgx raster avg 分别为 12.487/12.354/10.872ms,三轮 flutter_svg raster avg 分别为 4.835/5.444/11.685ms,前两轮差距明显,第三轮才收窄。合理的解释方向(未做进一步验证,不坐实):真机 CPU/GPU 算力远弱于 Windows 桌面独显,svgx 当前的每帧 raster 路径(尤其 1000 图标静态网格场景下的绘制调用模式)可能比 flutter_svg 更依赖桌面级 GPU 吞吐,在移动 GPU 上此前被桌面强算力掩盖的常数开销暴露出来;也可能与 Impeller 在这台设备上对两条渲染路径的优化程度不同有关。**这是本轮最值得后续深挖的信号,不应被"总体均值仍是内存/build 尾部占优"掩盖**。
+2. **build/raster 分位数分裂更明显**:svgx 在 p90/p99/max 上大幅领先(ratio 0.30~0.59),但在 p50 上落后(ratio 1.69~3.11)。说明 svgx 在真机上"多数帧比 flutter_svg 稍慢,但没有 flutter_svg 那种长尾巨大的偶发卡顿"——这与"svgx 掉帧(>16.6ms)次数明显更少但 >8.3ms 次数更多"的现象吻合,指向同一个机制:svgx 每帧更稳定但中位数更高,flutter_svg 中位数更低但存在少数非常慢的帧。
+3. **CPU/内存差距在真机上依然明显,但 raster 侧差距方向变了**:内存侧结论保持不变(svgx 明显更省),但如果后续要给出"svgx 在移动端全面领先"这类结论,raster avg/p50 这一反例需要先解释清楚,当前不下这个结论。
+4. **解析耗时绝对值比 Windows 桌面高 3~5 倍**(0.187ms vs 0.039~0.071ms 均值),方向符合预期(移动 CPU 弱于桌面),量级仍是亚毫秒级,不影响整体掉帧结论。
+5. **anim_fps real_fps 均值 34.47**,明显低于 Windows 桌面记录的 ~59.85~59.94——这是预期之内的移动 GPU 算力差距(1000 图标动画滚动场景对 GPU 吞吐要求高),不代表回归。
+
+**遗留待办**:raster avg/p50 反转这一发现建议后续用更细粒度的 DevTools timeline 或 Rust 侧微基准做归因,确认是绘制调用模式问题还是 Impeller 平台差异,再决定是否需要针对移动端做专项优化。

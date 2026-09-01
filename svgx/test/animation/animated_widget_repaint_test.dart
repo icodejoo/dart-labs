@@ -60,8 +60,8 @@ Duration laterPainterClock(CustomPaint paint) =>
     (paint.painter! as AnimatedSvgPainter).clock.value;
 
 void main() {
-  setUp(SvgDocumentCache.instance.clear);
-  tearDown(SvgDocumentCache.instance.clear);
+  setUp(SvgxDocumentCache.instance.clear);
+  tearDown(SvgxDocumentCache.instance.clear);
 
   testWidgets('an animating Svgx does not rebuild while ticking', (
     tester,

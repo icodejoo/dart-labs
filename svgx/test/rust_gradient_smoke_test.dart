@@ -1,6 +1,6 @@
 // Regression test for the 2026-08-25 static-path gradient bug: `parse_svg`
 // already resolved `<linearGradient>` fills into `SvgPath.fillGradient` with
-// full stop lists, but `RustSvgPictureCache`'s recorder never read that
+// full stop lists, but `RustSvgxPictureCache`'s recorder never read that
 // field — every gradient fill painted as a flat single color (the Rust
 // `paint_argb` fallback, which just uses the gradient's first stop).
 //
@@ -10,7 +10,7 @@
 //
 // 2026-08-25 静态路径渐变 bug 的回归测试：`parse_svg` 早就把
 // `<linearGradient>` 填充解析进了带完整色标列表的 `SvgPath.fillGradient`，
-// 但 `RustSvgPictureCache` 的录制器从未读取这个字段——所有渐变填充都渲染成
+// 但 `RustSvgxPictureCache` 的录制器从未读取这个字段——所有渐变填充都渲染成
 // 单一纯色（Rust 侧 `paint_argb` 的回退逻辑，只取渐变首个色标）。
 //
 // 尽力而为：若在纯 `flutter test`（host VM，未走 Flutter 构建）下原生库无法
@@ -70,7 +70,7 @@ void main() {
     );
   });
 
-  test('RustSvgPictureCache paints a gradient fill with a shader, not a flat color', () async {
+  test('RustSvgxPictureCache paints a gradient fill with a shader, not a flat color', () async {
     if (!_rustAvailable) return;
     // RustLib.init() is idempotent-by-convention here: the previous test in
     // this file already initialized it, and re-initializing throws. Only
@@ -83,12 +83,12 @@ void main() {
       // real failure.
     }
 
-    RustSvgPictureCache.instance.clear();
+    RustSvgxPictureCache.instance.clear();
     // Recording must not throw, and must actually consult fillGradient rather
     // than silently falling back to a solid Paint().color — exercised via the
     // public SvgxStatic build path further up, but recorded here directly to
     // pin the underlying cache API's behavior.
-    final info = RustSvgPictureCache.instance.getOrRender(_gradientSvg);
+    final info = RustSvgxPictureCache.instance.getOrRender(_gradientSvg);
     expect(info.picture, isNotNull);
   });
 }

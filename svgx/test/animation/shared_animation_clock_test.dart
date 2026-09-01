@@ -57,8 +57,8 @@ Duration _clockOf(Finder svgXAnimated, WidgetTester tester) {
 }
 
 void main() {
-  setUp(SvgDocumentCache.instance.clear);
-  tearDown(SvgDocumentCache.instance.clear);
+  setUp(SvgxDocumentCache.instance.clear);
+  tearDown(SvgxDocumentCache.instance.clear);
 
   testWidgets(
     "a later-mounted instance's local timeline starts at zero even though "

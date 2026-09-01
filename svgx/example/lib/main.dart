@@ -201,7 +201,7 @@ const String kAnimatedGradientSvg =
     '</svg>';
 
 Future<void> main() async {
-  await RustLib.init();
+  await Svgx.ensureInitialized();
   runApp(const MyApp());
 }
 
@@ -291,7 +291,7 @@ class MyApp extends StatelessWidget {
                   height: 96,
                   // The SVG strokes use `currentColor`; resolve it to orange so
                   // the circle + checkmark draw-on animation is clearly visible.
-                  theme: const SvgTheme(currentColor: Color(0xFFFF7A00)),
+                  theme: const SvgxTheme(currentColor: Color(0xFFFF7A00)),
                 ),
                 const SizedBox(height: 48),
                 const Text('Looping animateTransform (svg-spinners 180-ring)'),
@@ -300,7 +300,7 @@ class MyApp extends StatelessWidget {
                   kSpinnerSvg,
                   width: 96,
                   height: 96,
-                  theme: const SvgTheme(currentColor: Color(0xFF2A6DF4)),
+                  theme: const SvgxTheme(currentColor: Color(0xFF2A6DF4)),
                 ),
                 const SizedBox(height: 48),
                 const Text(
@@ -319,7 +319,7 @@ class MyApp extends StatelessWidget {
                   kStaticCurrentColorSvg,
                   width: 96,
                   height: 96,
-                  theme: const SvgTheme(currentColor: Color(0xFF9B30FF)),
+                  theme: const SvgxTheme(currentColor: Color(0xFF9B30FF)),
                 ),
                 const SizedBox(height: 48),
                 const Text(
@@ -419,7 +419,7 @@ class MyApp extends StatelessWidget {
                         kSpinnerSvg,
                         width: 96,
                         height: 96,
-                        theme: const SvgTheme(currentColor: Color(0xFF2A6DF4)),
+                        theme: const SvgxTheme(currentColor: Color(0xFF2A6DF4)),
                       ),
                     ),
                   ),
