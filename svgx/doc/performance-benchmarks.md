@@ -1404,3 +1404,75 @@ flutter run -d 7NQBB23606003715 --profile --dart-define=LIB=svgx --dart-define=C
 4. 需要评估烘焙分辨率策略:本次固定按 96x96 物理像素估算,实际应按 `SvgxStatic` 真实渲染尺寸 × 设备 `devicePixelRatio` 动态决定,并设置上限防止大尺寸插画烘焙出过大的位图。
 
 **局限说明**:本次只跑了 1 次 A/B,非多次取均值,存在单次运行噪声;临时实现未处理边界情况(换色失效、烘焙分辨率固定、无预烘焙调度),仅供方向性参考,不构成最终结论。
+
+#### 深挖三:Perfetto/Skia trace 分析(2026-09-01)
+
+前面三节都是"改一个开关、看头条数字动没动"的黑盒 A/B:排除了 mask/clip/blur/pattern 的 saveLayer 开销、排除了逐图标 `RepaintBoundary`,`drawPicture` 重放只解释了约 15.6%。本节换一条路——直接抓真机运行时的引擎时间线,看 raster 线程上到底是哪一类调用在烧时间,而不再继续猜。**这是第一次拿到 svgx 与 flutter_svg 在同一台设备上的 raster 线程逐 slice 对照。**
+
+**抓取方法(成功)**
+
+不用 `--trace-startup`:它的语义是"只跟踪启动、然后立刻退出并落盘",而本基准的滚动阶段发生在启动之后,窗口对不上。改用**引擎 trace 开关 + VM Service 拉取**的组合,复用仓库里已有的 `benchmark/bench_app/tool/capture_timeline.dart`(它连上 VM Service、`setVMTimelineFlags` 打开全部可用流、录制 N 秒后 `getVMTimeline` 拉回原始 Chrome trace 格式事件,并按 (线程 | 阶段) 做 self-time 归因):
+
+```
+# 终端 1:开 Skia 跟踪 + 无限 trace buffer(默认环形 buffer 会把滚动早期事件冲掉)
+cd benchmark/bench_app
+flutter run -d 7NQBB23606003715 --profile --trace-skia --endless-trace-buffer \
+  --dart-define=LIB=svgx --dart-define=CYCLES=6 --dart-define=ITEMS=1000
+
+# 终端 2:等上面打印出 "A Dart VM Service ... is available at: http://127.0.0.1:PORT/TOKEN=/" 后立刻
+dart run tool/capture_timeline.dart "http://127.0.0.1:PORT/TOKEN=/" 40 skia_svgx.json
+```
+
+`--dart-define=LIB=flutter_svg` 同法再跑一次作对照。两次抓取各 40 秒,均完整覆盖了 6 轮滚动(trace 里 `Rasterizer::DrawToSurfaces` 的次数与基准报告的 `frames=` 基本吻合:svgx 654 vs 620,flutter_svg 306 vs 270,差额是滚动前后的少量帧)。
+
+**没有用到的备选路径**:设备上 `adb -s 7NQBB23606003715 shell perfetto --help` 可用(Android 12 自带),但 `--trace-skia` 这条路一次跑通,拿到的是带 Flutter/Impeller 语义的具名 slice,比 perfetto 的 `sched/gfx/view` 粗粒度数据更直接,因此没有再走系统级抓取。
+
+**同轮次基准头条数字**(开了 `--trace-skia`,绝对值被埋点抬高,只用于确认 trace 覆盖到了正确的阶段,**不要拿去和其它小节的数字横比**):
+
+| lib | frames | build avg | raster avg | raster p50 | raster p90 | raster p99 |
+|---|---|---|---|---|---|---|
+| svgx | 620 | 7.011 | 12.000 | 12.251 | 14.985 | 23.314 |
+| flutter_svg | 270 | 8.416 | 6.518 | 3.204 | 11.273 | 45.545 |
+
+**关键发现:raster 线程 self-time 逐 slice 对照**
+
+两边 raster 线程的全部时间都落在 `Rasterizer::DrawToSurfaces` 这个阶段下。按帧数归一(svgx 654 帧 / 7911.36ms,flutter_svg 306 帧 / 2264.60ms):
+
+| slice(raster 线程) | svgx μs/帧 | flutter_svg μs/帧 | 差值 | 倍数 | 占差距 |
+|---|---|---|---|---|---|
+| `SurfaceFrame::Encode` | 3372 | 788 | **+2584** | 4.28x | **+55.0%** |
+| `RenderPassGLES::EncodeCommandsInReactor` | 3862 | 1492 | **+2371** | 2.59x | **+50.5%** |
+| `LayerTree::Paint` | 642 | 110 | +532 | 5.83x | +11.3% |
+| `LayerTree::Preroll` | 348 | 173 | +174 | 2.01x | +3.7% |
+| `FlushOps` | 69 | 34 | +35 | 2.04x | +0.7% |
+| `CreateGlyphAtlas` | 33 | 42 | -9 | 0.79x | -0.2% |
+| `SurfaceGLES::WrapOnScreenFBO` | 25 | 48 | -23 | 0.52x | -0.5% |
+| `Rasterizer::DrawToSurfaces`(自身) | 276 | 363 | -87 | 0.76x | -1.8% |
+| `SurfaceFrame::Submit` | 3374 | 4109 | -736 | 0.82x | -15.7% |
+| **raster self 合计** | **12097** | **7401** | **+4696** | 1.63x | 100% |
+
+(`self_ms` 已扣掉子级,整条 trace 上可加;`SurfaceFrame::Submit` 的 total 包含 `Encode`,`Encode` 的 total 又包含 `RenderPassGLES::EncodeCommandsInReactor`,所以只能比 self,不能比 total。)
+
+由此得到四条结论:
+
+1. **差距几乎全部来自 GPU 命令编码,不是绘制内容本身。** `SurfaceFrame::Encode`(Impeller 把 DisplayList 翻译成渲染通道命令)与 `RenderPassGLES::EncodeCommandsInReactor`(把这些命令真正下发成 GL 调用)两项合计 +4955μs/帧,已经超过全部 4696μs 的差距(其余项净负)。**svgx 的 raster 慢,慢在"每帧要编码的绘制命令太多",而不是某一次绘制太贵。**
+
+2. **`drawPicture` 重放确实只是配角,深挖二的 15.6% 得到了机制层面的解释和上界。** `LayerTree::Paint`(矢量指令重放/DisplayList 录制)在 svgx 侧只有 642μs/帧,占 raster self 的 5.3%,只贡献了 11.3% 的差距。深挖二里位图烘焙之所以能省 15.6%,不是因为省掉了"重放"这一步本身,而是因为把 N 条绘制命令塌缩成了 1 条 `drawImageRect`——省的是上面第 1 条的编码成本。这也解释了它为什么没能一次性抹平差距(烘焙只覆盖了静态路径的一部分场景)。
+
+3. **不是渲染通道变多了,是单个通道里命令变多了——这与深挖一排除 saveLayer 的结论互相印证。** 每帧渲染通道数两边几乎相同:svgx 665/654 = 1.017,flutter_svg 316/306 = 1.033。如果问题出在 mask/clip/blur 触发的离屏 saveLayer,通道数会明显上升,但没有。成本涨在**同一个通道内部**的命令量上。
+
+4. **这台设备跑的是 Impeller 的 GLES 后端,不是 Vulkan。** trace 里出现的是 `RenderPassGLES` / `ReactorGLES` / `BlitPassGLES` / `SurfaceGLES::WrapOnScreenFBO`;`ContextVK::Setup` 只出现 1 次(72ms)随后走了 GLES 路径。GLES 后端的每命令编码开销显著高于 Vulkan,这放大了第 1 条的影响。另外 `LinkProgram` 在两边都是 **71 次**(svgx 1419ms / flutter_svg 1274ms,均在启动期的 `(no phase)` 桶里,不在帧内),数量完全一致,说明**着色器变体数量不是 svgx 的问题**,那是 Impeller 自身的管线预热成本。
+
+**结论强度(如实标注)**
+
+这是**方向性证据,不是微秒级精确结论**,理由有四:(a) `--trace-skia` 本身有可观埋点开销,会同时抬高两边的绝对值,只有**相对结构**可信;(b) 每侧只抓了 1 次,没有多次取中位数;(c) 两侧帧数不同(654 vs 306,flutter_svg 因 build 侧更慢而掉帧更多),按帧归一化假设了每帧工作量可比,这个假设在滚动场景下大致成立但不严格;(d) `SurfaceFrame::Submit` 那 -736μs/帧**不应被解读为"svgx 提交更快"**——这个 slice 里混有等待 GPU/vsync 的阻塞时间,帧率不同的两次运行之间不可直接比较,它是本表里最不可信的一行。相比之下,`Encode` 与 `RenderPassGLES::EncodeCommandsInReactor` 是纯 CPU 编码工作、与等待无关,那两行的 4.28x / 2.59x 才是本节真正的结论。
+
+**后续修复方向建议(按预期收益排序)**
+
+1. **优先级最高:量化并压缩每个图标产生的绘制命令条数。** 当前缺一个直接证据——svgx 与 flutter_svg 各自为一个典型图标向 DisplayList 里写了多少条命令。建议加一个确定性的主机侧统计(遍历语料,统计每图标的 `drawPath`/`save`/`restore`/`clip`/paint 切换次数),这是把本节从"方向性"升级为"可量化"的关键一步,也是后续所有优化的验收指标。
+2. **合并同 paint 的相邻路径。** 若 svgx 现在是"每条 SVG path 一次 `drawPath`",而相邻路径共享同一 fill/stroke paint,合并成单条复合 `Path` 可直接按比例砍掉编码成本。需要先确认合并不改变 paint order 语义。
+3. **消除冗余的 save/restore 与 transform 下发。** 每一次状态切换在 GLES 后端都是实打实的编码成本;检查静态路径上是否为每个节点无条件 `save`/`restore`,可否按"该节点是否真的改变了状态"来跳过。
+4. **把深挖二的位图烘焙做成正式的可选策略**(按深挖二已列的 4 条建议实施)。本节证明了它的作用机制是"塌缩命令数",因此它对**命令数多的复杂图标**收益最大,可以据此设计自动决策阈值(例如命令数超过某个门限才烘焙),而不是一刀切。
+5. **不要在"着色器预热 / 减少 saveLayer / 去 RepaintBoundary"上继续投入**——本节与深挖一、深挖二的数据已经把这三条排除干净了。
+
+**原始数据留存**:两份 trace 为 `skia_svgx.json`(16.6MB)与 `skia_fsvg.json`,均为 Chrome trace 格式,可直接拖进 Perfetto UI 或 DevTools 时间线查看;也可用 `dart run tool/capture_timeline.dart --summarize <file>` 离线复现上面的 self-time 分解表(不需要连设备)。文件本身未入库(体积原因),需要复现时按上面的命令重抓即可。
