@@ -147,7 +147,7 @@ class AnimatedSvgPainter extends CustomPainter {
   Duration get time => clock.value;
 
   /// Theme resolving `currentColor`. / 解析 `currentColor` 的主题。
-  final SvgTheme theme;
+  final SvgxTheme theme;
 
   /// How the document is inscribed into the paint box. / 文档如何适配绘制盒。
   final BoxFit fit;
@@ -1227,7 +1227,7 @@ class AnimatedSvgPainter extends CustomPainter {
     //    `addOval`/`addRect`-shaped geometry costs almost nothing.
     //
     // Correctness under a document shared between widgets (see
-    // `SvgDocumentCache`): both keys are time-independent, so two widgets
+    // `SvgxDocumentCache`): both keys are time-independent, so two widgets
     // painting the same document at different timeline positions either share
     // a valid entry or miss and rebuild — never read a stale one.
     //
@@ -1244,7 +1244,7 @@ class AnimatedSvgPainter extends CustomPainter {
     //    有动画的节点每帧拿到新表，于是直接重建，而 `addOval`/`addRect` 这类
     //    几何重建几乎不花钱。
     //
-    // 文档在多个控件间共享（见 `SvgDocumentCache`）时的正确性：两个键都与时间
+    // 文档在多个控件间共享（见 `SvgxDocumentCache`）时的正确性：两个键都与时间
     // 无关，所以在不同时间线位置绘制同一文档的两个控件，要么共享一个有效条目，
     // 要么未命中后重建——绝不会读到过期结果。
     final Object? cacheKey = node.kind == SvgNodeKind.path

@@ -69,14 +69,14 @@ void main() {
     // Parse every distinct source up front so neither arm pays a cold parse:
     // the thing under measurement is the widget/render layer, not the XML
     // parser, and a cold miss costs ~44us against a ~0.1us hit (see
-    // `SvgDocumentCache`), which would swamp everything else.
+    // `SvgxDocumentCache`), which would swamp everything else.
     //
     // 先把所有互异源解析好，使两臂都不付冷解析成本：被测的是控件/渲染层，不是 XML
-    // 解析器，而一次冷未命中约 44us、命中约 0.1us（见 `SvgDocumentCache`），会把其它
+    // 解析器，而一次冷未命中约 44us、命中约 0.1us（见 `SvgxDocumentCache`），会把其它
     // 一切都盖掉。
-    SvgDocumentCache.instance.maximumSize = animIconsReal.length + 50;
+    SvgxDocumentCache.instance.maximumSize = animIconsReal.length + 50;
     for (final source in animIconsReal) {
-      SvgDocumentCache.instance.getOrParse(source);
+      SvgxDocumentCache.instance.getOrParse(source);
     }
 
     /// Builds the grid for one arm.

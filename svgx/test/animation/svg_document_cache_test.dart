@@ -44,13 +44,13 @@ const _withImage =
 String _variant(int i) => _staticIsh.replaceFirst('r="10"', 'r="${i + 1}"');
 
 void main() {
-  setUp(SvgDocumentCache.instance.clear);
-  tearDown(SvgDocumentCache.instance.clear);
+  setUp(SvgxDocumentCache.instance.clear);
+  tearDown(SvgxDocumentCache.instance.clear);
 
-  group('SvgDocumentCache', () {
+  group('SvgxDocumentCache', () {
     test('returns the identical document instance on a repeat parse', () {
-      final first = SvgDocumentCache.instance.getOrParse(_staticIsh);
-      final second = SvgDocumentCache.instance.getOrParse(_staticIsh);
+      final first = SvgxDocumentCache.instance.getOrParse(_staticIsh);
+      final second = SvgxDocumentCache.instance.getOrParse(_staticIsh);
 
       expect(first.hasImages, isFalse);
       expect(
@@ -61,8 +61,8 @@ void main() {
     });
 
     test('parses distinct sources into distinct documents', () {
-      final a = SvgDocumentCache.instance.getOrParse(_staticIsh);
-      final b = SvgDocumentCache.instance.getOrParse(
+      final a = SvgxDocumentCache.instance.getOrParse(_staticIsh);
+      final b = SvgxDocumentCache.instance.getOrParse(
         _staticIsh.replaceFirst('r="10"', 'r="8"'),
       );
 
@@ -70,8 +70,8 @@ void main() {
     });
 
     test('never caches a document containing <image> nodes', () {
-      final first = SvgDocumentCache.instance.getOrParse(_withImage);
-      final second = SvgDocumentCache.instance.getOrParse(_withImage);
+      final first = SvgxDocumentCache.instance.getOrParse(_withImage);
+      final second = SvgxDocumentCache.instance.getOrParse(_withImage);
 
       expect(first.hasImages, isTrue);
       expect(second.hasImages, isTrue);
@@ -85,13 +85,13 @@ void main() {
     });
 
     test('never holds more than maximumSize entries', () {
-      final previousMax = SvgDocumentCache.instance.maximumSize;
-      addTearDown(() => SvgDocumentCache.instance.maximumSize = previousMax);
-      SvgDocumentCache.instance.maximumSize = 2;
+      final previousMax = SvgxDocumentCache.instance.maximumSize;
+      addTearDown(() => SvgxDocumentCache.instance.maximumSize = previousMax);
+      SvgxDocumentCache.instance.maximumSize = 2;
 
       for (var i = 0; i < 10; i++) {
-        SvgDocumentCache.instance.getOrParse(_variant(i));
-        expect(SvgDocumentCache.instance.length, lessThanOrEqualTo(2));
+        SvgxDocumentCache.instance.getOrParse(_variant(i));
+        expect(SvgxDocumentCache.instance.length, lessThanOrEqualTo(2));
       }
     });
 
@@ -106,7 +106,7 @@ void main() {
     // Asserting "> 0 hits" rather than a specific rate is deliberate: the
     // point of the fix is that the cliff is gone, and a bound that depends on
     // the RNG draw would be a flaky test. Measured effect of this failure mode
-    // on a real device is recorded on `SvgDocumentCache.maximumSize`.
+    // on a real device is recorded on `SvgxDocumentCache.maximumSize`.
     //
     // 2026-08-27 那次真实修复的回归防线。严格 LRU 与滚动图标网格产生的访问模式
     // 有病态的相互作用：按固定顺序循环访问一个比缓存更大的工作集时，每个条目
@@ -116,25 +116,25 @@ void main() {
     //
     // 刻意断言"命中数 > 0"而不是某个具体命中率：本次修复的要点是那个悬崖消失
     // 了，而依赖具体随机抽样结果的界会让测试变得不稳定。这个失效模式在真机上的
-    // 实测影响记录在 `SvgDocumentCache.maximumSize` 上。
+    // 实测影响记录在 `SvgxDocumentCache.maximumSize` 上。
     test('a cyclic scan larger than the cache still hits (no LRU thrash)', () {
-      final previousMax = SvgDocumentCache.instance.maximumSize;
-      addTearDown(() => SvgDocumentCache.instance.maximumSize = previousMax);
+      final previousMax = SvgxDocumentCache.instance.maximumSize;
+      addTearDown(() => SvgxDocumentCache.instance.maximumSize = previousMax);
       const workingSet = 20;
-      SvgDocumentCache.instance.maximumSize = 10;
+      SvgxDocumentCache.instance.maximumSize = 10;
 
       final sources = List<String>.generate(workingSet, _variant);
       // First pass fills the cache; later passes are the ones that can hit.
       // 第一趟负责填满缓存，能命中的是后面几趟。
       for (final source in sources) {
-        SvgDocumentCache.instance.getOrParse(source);
+        SvgxDocumentCache.instance.getOrParse(source);
       }
 
       final seen = <String, Object>{};
       var hits = 0;
       for (var pass = 0; pass < 4; pass++) {
         for (final source in sources) {
-          final document = SvgDocumentCache.instance.getOrParse(source).document;
+          final document = SvgxDocumentCache.instance.getOrParse(source).document;
           if (identical(seen[source], document)) hits++;
           seen[source] = document;
         }
@@ -148,11 +148,11 @@ void main() {
     });
 
     test('clear() drops cached documents', () {
-      final first = SvgDocumentCache.instance.getOrParse(_staticIsh);
-      SvgDocumentCache.instance.clear();
+      final first = SvgxDocumentCache.instance.getOrParse(_staticIsh);
+      SvgxDocumentCache.instance.clear();
 
       expect(
-        SvgDocumentCache.instance.getOrParse(_staticIsh).document,
+        SvgxDocumentCache.instance.getOrParse(_staticIsh).document,
         isNot(same(first.document)),
       );
     });

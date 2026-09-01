@@ -118,7 +118,7 @@ List<MicroResult> runMicroBenchmarks() {
   final results = <MicroResult>[];
   final staticIcons = mdiIcons1000;
   final animIcons = animIconsReal;
-  final cache = RustSvgPictureCache.instance;
+  final cache = RustSvgxPictureCache.instance;
 
   // Calibration: a fixed pure-Dart scan over the same icon data, using only
   // `String.length`/`String.codeUnitAt`. NEVER change this benchmark — its
@@ -291,7 +291,7 @@ List<MicroResult> runMicroBenchmarks() {
   // Same mount work once the document cache is warm — what a re-mount costs
   // after the first appearance of an icon.
   // 文档缓存预热后同样的挂载工作——图标首次出现之后，再次挂载要付多少。
-  final documentCache = SvgDocumentCache.instance;
+  final documentCache = SvgxDocumentCache.instance;
   documentCache.maximumSize = animIcons.length + 50;
   for (final src in animIcons) {
     documentCache.getOrParse(src);
@@ -422,7 +422,7 @@ List<MicroResult> runMicroBenchmarks() {
   final documents = [
     for (final src in animIcons) parseAnimatedSvgDocument(src),
   ];
-  const theme = SvgTheme();
+  const theme = SvgxTheme();
   const paintSize = Size(32, 32);
   var frame = 0;
   final clock = ValueNotifier(Duration.zero);

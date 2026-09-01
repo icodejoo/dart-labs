@@ -58,7 +58,7 @@ Future<ByteData> _renderAt(SvgDocument document, Duration t) async {
     root: document.root,
     intrinsicSize: Size(document.width, document.height),
     clock: ValueNotifier(t),
-    theme: const SvgTheme(),
+    theme: const SvgxTheme(),
     fit: BoxFit.fill,
     alignment: Alignment.center,
     gradients: document.gradients,
@@ -238,14 +238,14 @@ void main() {
     'one shared node tree painted at out-of-order times gives every observer '
     'the same pixels it would get painting alone',
     () async {
-      // Two widgets can share one parsed document (see `SvgDocumentCache`) and
+      // Two widgets can share one parsed document (see `SvgxDocumentCache`) and
       // sample it at different timeline positions in the same frame, so both
       // caches get overwritten by whichever observer painted last. Keying on
       // sampled values (not on time) is what makes that merely a miss rather
       // than a stale read. Interleaving two timelines must therefore produce
       // byte-identical output to painting each one on its own.
       //
-      // 两个控件可以共享同一份已解析文档（见 `SvgDocumentCache`），并在同一帧里以
+      // 两个控件可以共享同一份已解析文档（见 `SvgxDocumentCache`），并在同一帧里以
       // 不同的时间线位置对它采样，于是两个缓存都会被最后绘制的那个观察者覆写。以
       // 采样值（而非时间）为键，才使这种情况只是未命中而不是读到过期数据。因此把
       // 两条时间线交错绘制，输出必须与各自单独绘制逐字节一致。

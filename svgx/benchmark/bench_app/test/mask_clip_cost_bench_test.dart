@@ -80,7 +80,7 @@ void main() {
             root: document.root,
             intrinsicSize: Size(document.width, document.height),
             clock: ValueNotifier(time),
-            theme: const SvgTheme(),
+            theme: const SvgxTheme(),
             fit: BoxFit.contain,
             alignment: Alignment.center,
             gradients: document.gradients,

@@ -1,16 +1,16 @@
 // Process-wide bounded cache of parsed animated [SvgDocument]s, mirroring what
-// `RustSvgPictureCache` does for the static path. Without it, every mount of
+// `RustSvgxPictureCache` does for the static path. Without it, every mount of
 // an animated icon re-runs the full XML parse + timeline build — which, in a
 // scrolling list, is once per cell per appearance.
 //
-// Eviction is random, not LRU — see [SvgDocumentCache._evictOne] for the
+// Eviction is random, not LRU — see [SvgxDocumentCache._evictOne] for the
 // measured reason.
 //
 // 进程级有上限缓存，缓存已解析的动画 [SvgDocument]，与静态路径的
-// `RustSvgPictureCache` 对应。没有它的话，动画图标每次挂载都要重跑一遍完整的
+// `RustSvgxPictureCache` 对应。没有它的话，动画图标每次挂载都要重跑一遍完整的
 // XML 解析 + 时间线构建——在滚动列表里就是每格每次出现都跑一次。
 //
-// 淘汰策略是随机而非 LRU——实测理由见 [SvgDocumentCache._evictOne]。
+// 淘汰策略是随机而非 LRU——实测理由见 [SvgxDocumentCache._evictOne]。
 
 import 'dart:collection';
 import 'dart:math' as math;
@@ -38,13 +38,13 @@ import 'svg_document_parser.dart';
 ///
 /// Example:
 /// ```dart
-/// SvgDocumentCache.instance.maximumSize = 500;
+/// SvgxDocumentCache.instance.maximumSize = 500;
 /// ```
-class SvgDocumentCache {
-  SvgDocumentCache._();
+class SvgxDocumentCache {
+  SvgxDocumentCache._();
 
   /// Shared instance. / 共享单例。
-  static final SvgDocumentCache instance = SvgDocumentCache._();
+  static final SvgxDocumentCache instance = SvgxDocumentCache._();
 
   final LinkedHashMap<String, SvgDocument> _entries =
       LinkedHashMap<String, SvgDocument>();
@@ -120,7 +120,7 @@ class SvgDocumentCache {
   /// Example:
   /// ```dart
   /// final (document: doc, hasImages: _) =
-  ///     SvgDocumentCache.instance.getOrParse(svgSource);
+  ///     SvgxDocumentCache.instance.getOrParse(svgSource);
   /// ```
   ({SvgDocument document, bool hasImages}) getOrParse(String source) {
     // A plain lookup, with no recency bookkeeping: this used to `remove` the
@@ -199,7 +199,7 @@ class SvgDocumentCache {
   ///
   /// Example:
   /// ```dart
-  /// print(SvgDocumentCache.instance.length);
+  /// print(SvgxDocumentCache.instance.length);
   /// ```
   int get length => _entries.length;
 }

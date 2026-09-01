@@ -51,7 +51,7 @@ void main() {
   });
 
   group('ResolvedStyle.inherit stroke-dasharray', () {
-    const theme = SvgTheme();
+    const theme = SvgxTheme();
 
     test('splits on whitespace and commas alike', () {
       expect(

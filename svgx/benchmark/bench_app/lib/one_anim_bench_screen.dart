@@ -202,7 +202,7 @@ class _OneAnimBenchScreenState extends State<OneAnimBenchScreen>
   /// settle.
   ///
   /// Distinct sources, not one source repeated: repeating a source would share
-  /// a single parsed document (see `SvgDocumentCache`) and therefore a single
+  /// a single parsed document (see `SvgxDocumentCache`) and therefore a single
   /// set of per-node paint caches across all instances, so instances 2..N would
   /// ride on the first one's cache fills and the measured slope would flatter
   /// the library. Distinct documents make each icon pay its own way, which is
@@ -211,7 +211,7 @@ class _OneAnimBenchScreenState extends State<OneAnimBenchScreen>
   /// 从 [corpus] 挂载 [count] 个**互不相同**的循环图标，并等待控件树稳定。
   ///
   /// 用互异的源、而不是同一个源重复：重复同一个源会让所有实例共享同一份已解析文档
-  /// （见 `SvgDocumentCache`），从而共享同一套逐节点绘制缓存，于是第 2..N 个实例会
+  /// （见 `SvgxDocumentCache`），从而共享同一套逐节点绘制缓存，于是第 2..N 个实例会
   /// 蹭第一个实例填好的缓存，测出来的斜率会偏向对本库有利。互异文档让每个图标自己
   /// 付自己的账，而这才是"单图标成本"应有的含义。
   ///

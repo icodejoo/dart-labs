@@ -48,7 +48,7 @@ Future<ByteData> _renderPixelsAt(SvgDocument document, Duration t) async {
     root: document.root,
     intrinsicSize: Size(document.width, document.height),
     clock: ValueNotifier(t),
-    theme: const SvgTheme(),
+    theme: const SvgxTheme(),
     fit: BoxFit.fill,
     alignment: Alignment.center,
     gradients: document.gradients,

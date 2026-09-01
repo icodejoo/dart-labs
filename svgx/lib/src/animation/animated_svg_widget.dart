@@ -8,6 +8,8 @@
 // 在每帧对时间线采样并通过 [AnimatedSvgPainter] 重绘。这是替代 vendor 的 F
 // 中 `AnimatedSvgPicture` 的原创实现——见 svgx CLAUDE.md。原创实现。
 
+import 'dart:math' show max;
+
 import 'package:flutter/scheduler.dart';
 import 'package:flutter/widgets.dart';
 
@@ -56,7 +58,13 @@ class SvgxAnimated extends StatefulWidget {
     this.alignment = Alignment.center,
     this.theme,
     this.quality,
-  });
+    this.maxFps,
+    this.playbackRate = 1.0,
+    this.onAnimationStart,
+    this.onAnimationComplete,
+    this.onAnimationLoop,
+  }) : assert(maxFps == null || maxFps > 0, 'maxFps must be positive'),
+       assert(playbackRate > 0, 'playbackRate must be positive');
 
   /// Raw SVG markup containing SMIL `<animate>` elements.
   ///
@@ -78,7 +86,7 @@ class SvgxAnimated extends StatefulWidget {
   /// Theme controlling `currentColor`; defaults to opaque black.
   ///
   /// 控制 `currentColor` 的主题；默认不透明黑色。
-  final SvgTheme? theme;
+  final SvgxTheme? theme;
 
   /// How much per-icon animation smoothness this instance may trade away for
   /// frame throughput under high concurrency; null uses
@@ -93,6 +101,70 @@ class SvgxAnimated extends StatefulWidget {
   /// 传 [SvgxAnimationQuality.exact] 可让本图标完全不参与降级。具体牺牲了什么
   /// 见 [SvgxAnimationQuality]。
   final SvgxAnimationQuality? quality;
+
+  /// Caps how often this instance samples its timeline and repaints,
+  /// independent of [quality]'s concurrency-triggered throttling; null means
+  /// no cap beyond whatever [quality] already imposes. The stricter (larger)
+  /// of the two frame divisors always wins — this can only slow an icon down
+  /// further, never speed one up past its display's refresh rate.
+  ///
+  /// 独立于 [quality] 的并发触发降级之外，为本实例的时间线采样/重绘频率设一个
+  /// 上限；null 表示不设额外上限，只受 [quality] 约束。两者取更严格（更大）的
+  /// 那个跳帧除数——这只能让图标更慢，不会让它超过所在显示器的刷新率。
+  final double? maxFps;
+
+  /// Speeds up (>1.0) or slows down (<1.0) how fast this instance's SMIL
+  /// timeline advances relative to wall-clock time; every `<animate>`
+  /// element's `begin`/`dur`/`repeatCount` scales together, since they are
+  /// all sampled against the same scaled clock.
+  ///
+  /// Fixed for this instance's lifetime — set once at construction. Changing
+  /// it on an already-mounted instance (e.g. via `setState` in the parent)
+  /// is unsupported and will make the timeline jump, because the running
+  /// instance's clock offset is not rebased; swap in a new [SvgxAnimated]
+  /// (e.g. by changing its [Key]) if you need a different rate at runtime.
+  ///
+  /// 相对挂钟时间加速（>1.0）或减速（<1.0）本实例 SMIL 时间线的推进速度；每个
+  /// `&lt;animate&gt;` 元素的 `begin`/`dur`/`repeatCount` 会整体同步缩放，因为它们
+  /// 都是对同一条被缩放过的时钟采样的。
+  ///
+  /// 在本实例的生命周期内固定——只在构造时设定一次。对一个已挂载的实例中途
+  /// 修改它（比如父级 `setState`）不受支持，会让时间线跳变，因为运行中实例的
+  /// 时钟偏移不会被重新校准；运行时需要换速率的话，换一个新的 [SvgxAnimated]
+  /// 实例（比如改它的 [Key]）。
+  final double playbackRate;
+
+  /// Called once, on the first tick after this instance starts ticking.
+  ///
+  /// 本实例开始 ticking 后的第一个 tick 上调用一次。
+  final VoidCallback? onAnimationStart;
+
+  /// Called once when a finite (non-looping) document naturally settles into
+  /// its final frame — never called for a document with
+  /// [SvgDocument.hasIndefiniteLoop], and never called when ticking stops for
+  /// any other reason (source swap, unmount).
+  ///
+  /// 有限（非循环）文档自然播完定格时调用一次——[SvgDocument.hasIndefiniteLoop]
+  /// 的文档永不触发，因其他原因（源切换、卸载）停止 ticking 时也不触发。
+  final VoidCallback? onAnimationComplete;
+
+  /// Called each time an [SvgDocument.hasIndefiniteLoop] document completes
+  /// one more period of [SvgDocument.totalDuration], with the (1-based)
+  /// iteration count just completed.
+  ///
+  /// Never called when [SvgDocument.totalDuration] is [Duration.zero] (no
+  /// finite animation in the document to derive a period from) — this is a
+  /// silent no-op, not an error, since such a document has no well-defined
+  /// loop period.
+  ///
+  /// 每当一个 [SvgDocument.hasIndefiniteLoop] 文档多播完一个
+  /// [SvgDocument.totalDuration] 周期时调用一次，参数是刚完成的（从1开始计数的）
+  /// 迭代序号。
+  ///
+  /// [SvgDocument.totalDuration] 为 [Duration.zero] 时（文档里没有任何有限动画
+  /// 可以推导出周期）永不触发——这是静默不触发，不是报错，因为这种文档本来就
+  /// 没有明确定义的循环周期。
+  final ValueChanged<int>? onAnimationLoop;
 
   @override
   State<SvgxAnimated> createState() => _SvgxAnimatedState();
@@ -203,9 +275,17 @@ class _SharedAnimationClock {
     // 迭代前先拍快照：某个订阅者自己的回调可能在其中调用 [unsubscribe]（有限
     // 动画进入定格），若不这样做会在迭代中途修改 [_subscriptions]。
     for (final subscription in List<_ClockSubscription>.of(_subscriptions)) {
-      final divisor = subscription.quality().frameDivisorFor(
-        concurrency: concurrency,
-        usesOffscreenLayers: subscription.usesOffscreenLayers,
+      // The stricter (larger) of the quality-driven divisor and this
+      // instance's own fps cap wins — either one can only slow ticking down.
+      //
+      // 画质驱动的除数和本实例自身的 fps 上限取更严格（更大）的那个——两者都只
+      // 会让 ticking 变慢。
+      final divisor = max(
+        subscription.quality().frameDivisorFor(
+          concurrency: concurrency,
+          usesOffscreenLayers: subscription.usesOffscreenLayers,
+        ),
+        subscription.fpsDivisor(),
       );
       // The whole point of the degradation: this subscriber's timeline does
       // not advance on this frame, so its `CustomPaint` stays clean and the
@@ -250,12 +330,14 @@ class _SharedAnimationClock {
     ValueChanged<Duration> onTick, {
     required bool usesOffscreenLayers,
     required SvgxAnimationQuality Function() quality,
+    required int Function() fpsDivisor,
   }) {
     final subscription = _ClockSubscription(
       onTick: onTick,
       phase: _nextPhase++,
       usesOffscreenLayers: usesOffscreenLayers,
       quality: quality,
+      fpsDivisor: fpsDivisor,
     );
     _subscriptions.add(subscription);
     _ticker ??= Ticker(_onTick)..start();
@@ -292,6 +374,7 @@ class _ClockSubscription {
     required this.phase,
     required this.usesOffscreenLayers,
     required this.quality,
+    required this.fpsDivisor,
   });
 
   /// Called on every tick this subscription is eligible for.
@@ -317,6 +400,14 @@ class _ClockSubscription {
   /// 解析本订阅当前生效的画质配置，逐 tick 求值——见
   /// [_SharedAnimationClock.subscribe]。
   final SvgxAnimationQuality Function() quality;
+
+  /// Resolves this subscription's own fps-cap-derived frame divisor, read
+  /// live on every tick for the same reason [quality] is — see
+  /// [_SharedAnimationClock.subscribe].
+  ///
+  /// 解析本订阅自身由 fps 上限推导出的跳帧除数，和 [quality] 一样逐 tick 现读——
+  /// 见 [_SharedAnimationClock.subscribe]。
+  final int Function() fpsDivisor;
 }
 
 class _SvgxAnimatedState extends State<SvgxAnimated> {
@@ -381,6 +472,20 @@ class _SvgxAnimatedState extends State<SvgxAnimated> {
   // `_ticker`，抢在新文档自己的解码完成之前。
   int _parseGeneration = 0;
 
+  /// Whether [SvgxAnimated.onAnimationStart] has already fired for the
+  /// current document — reset on every [_parseAndStart].
+  ///
+  /// [SvgxAnimated.onAnimationStart] 是否已经为当前文档触发过——每次
+  /// [_parseAndStart] 重置。
+  bool _started = false;
+
+  /// The last (1-based) [SvgxAnimated.onAnimationLoop] iteration reported for
+  /// the current document — reset on every [_parseAndStart].
+  ///
+  /// 当前文档已报告过的最后一个（从1开始计数的）[SvgxAnimated.onAnimationLoop]
+  /// 迭代序号——每次 [_parseAndStart] 重置。
+  int _lastLoopIteration = 0;
+
   @override
   void initState() {
     super.initState();
@@ -407,9 +512,11 @@ class _SvgxAnimatedState extends State<SvgxAnimated> {
     // 而解析是一次挂载里最贵的一环（`--dart-define=LIB=micro` 实测，399 个真实
     // SMIL 图标：解析单图标 43.8us，缓存命中 0.1us）。
     final generation = ++_parseGeneration;
-    final parsed = SvgDocumentCache.instance.getOrParse(widget.source);
+    final parsed = SvgxDocumentCache.instance.getOrParse(widget.source);
     _document = parsed.document;
     _elapsed.value = Duration.zero;
+    _started = false;
+    _lastLoopIteration = 0;
     if (parsed.hasImages) {
       _imagesReady = false;
       // Ticking only starts once decode completes, so elapsed time (and thus
@@ -442,14 +549,32 @@ class _SvgxAnimatedState extends State<SvgxAnimated> {
       // 用闭包而非捕获的值，这样控件自身的 `quality` 或全局默认值中途发生变化
       // 都能在下一个 tick 生效——见 [_SharedAnimationClock.subscribe]。
       quality: () => widget.quality ?? SvgxAnimationQuality.defaultQuality,
+      fpsDivisor: _fpsDivisor,
     );
   }
 
-  void _stopTicking() {
+  /// Resolves [SvgxAnimated.maxFps] into a frame divisor against this
+  /// instance's current display refresh rate — read live on every tick (see
+  /// [_SharedAnimationClock.subscribe]), so it naturally follows a refresh
+  /// rate change (e.g. moving windows across displays) without resubscribing.
+  ///
+  /// 把 [SvgxAnimated.maxFps] 解析成相对本实例当前显示器刷新率的跳帧除数——
+  /// 逐 tick 现读（见 [_SharedAnimationClock.subscribe]），因此刷新率变化
+  /// （比如窗口跨屏移动）无需重新订阅就能自然生效。
+  int _fpsDivisor() {
+    final maxFps = widget.maxFps;
+    if (maxFps == null) return 1;
+    final refreshRate = View.of(context).display.refreshRate;
+    if (refreshRate <= 0) return 1;
+    return max(1, (refreshRate / maxFps).round());
+  }
+
+  void _stopTicking({bool settled = false}) {
     final subscription = _subscription;
     if (subscription == null) return;
     _SharedAnimationClock.instance.unsubscribe(subscription);
     _subscription = null;
+    if (settled) widget.onAnimationComplete?.call();
   }
 
   /// Whether the painter may substitute a clip path for an eligible `<mask>`
@@ -468,16 +593,43 @@ class _SvgxAnimatedState extends State<SvgxAnimated> {
           .approximatesMasksAt(_SharedAnimationClock.instance.subscriberCount);
 
   void _onGlobalTick(Duration globalElapsed) {
-    final local = globalElapsed - _startOffset;
-    _elapsed.value = local;
-    // Finite (non-looping) documents stop ticking once every animation has
-    // settled into its final state, instead of burning frames forever on a
-    // now-static picture.
+    final raw = globalElapsed - _startOffset;
+    // playbackRate is fixed at construction (see its doc comment) — no
+    // rebasing is attempted here, so this is the only place it is applied.
     //
-    // 有限（不循环）的文档在所有动画都进入最终状态后停止 ticking，而不是
-    // 对着一张已经静止的画面持续消耗帧。
-    if (!_document.hasIndefiniteLoop && local >= _document.totalDuration) {
-      _stopTicking();
+    // playbackRate 在构造时就固定（见其文档注释）——这里不做任何重新校准，是
+    // 它唯一被应用的地方。
+    final local = widget.playbackRate == 1.0
+        ? raw
+        : Duration(microseconds: (raw.inMicroseconds * widget.playbackRate).round());
+    _elapsed.value = local;
+    if (!_started) {
+      _started = true;
+      widget.onAnimationStart?.call();
+    }
+    final totalDuration = _document.totalDuration;
+    if (_document.hasIndefiniteLoop) {
+      // A well-defined period only exists when at least one finite animation
+      // contributed to totalDuration — otherwise this is a silent no-op, not
+      // an error, per onAnimationLoop's doc comment.
+      //
+      // 只有当至少一个有限动画对 totalDuration 有贡献时，"周期"才有明确定义——
+      // 否则按 onAnimationLoop 文档注释所写，这是静默不触发，不是报错。
+      if (totalDuration > Duration.zero) {
+        final iteration = local.inMicroseconds ~/ totalDuration.inMicroseconds;
+        if (iteration > _lastLoopIteration) {
+          _lastLoopIteration = iteration;
+          widget.onAnimationLoop?.call(iteration);
+        }
+      }
+    } else if (local >= totalDuration) {
+      // Finite (non-looping) documents stop ticking once every animation has
+      // settled into its final state, instead of burning frames forever on a
+      // now-static picture.
+      //
+      // 有限（不循环）的文档在所有动画都进入最终状态后停止 ticking，而不是
+      // 对着一张已经静止的画面持续消耗帧。
+      _stopTicking(settled: true);
     }
   }
 
@@ -537,7 +689,7 @@ class _SvgxAnimatedState extends State<SvgxAnimated> {
         root: _document.root,
         intrinsicSize: Size(_document.width, _document.height),
         clock: _elapsed,
-        theme: widget.theme ?? const SvgTheme(),
+        theme: widget.theme ?? const SvgxTheme(),
         fit: widget.fit,
         alignment: widget.alignment,
         gradients: _document.gradients,

@@ -64,9 +64,9 @@ Widget _grid(int count, {SvgxAnimationQuality? quality}) => MaterialApp(
 );
 
 void main() {
-  setUp(SvgDocumentCache.instance.clear);
+  setUp(SvgxDocumentCache.instance.clear);
   tearDown(() {
-    SvgDocumentCache.instance.clear();
+    SvgxDocumentCache.instance.clear();
     SvgxAnimationQuality.defaultQuality = SvgxAnimationQuality.balanced;
   });
 

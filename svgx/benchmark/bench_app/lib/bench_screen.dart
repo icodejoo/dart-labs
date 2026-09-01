@@ -170,8 +170,8 @@ class _BenchRunnerState extends State<BenchRunner> {
       //
       // 把缓存上限设为能容纳数据集里所有不同图标，让测量反映稳态复用（真实应用
       // 会按图标集大小配置缓存），而不是默认上限过小导致的 LRU 抖动。
-      RustSvgPictureCache.instance.maximumSize = widget.itemCount + 50;
-      RustSvgPictureCache.instance.onParseMiss = _parseDurations.add;
+      RustSvgxPictureCache.instance.maximumSize = widget.itemCount + 50;
+      RustSvgxPictureCache.instance.onParseMiss = _parseDurations.add;
     }
     WidgetsBinding.instance.addPostFrameCallback((_) => _run());
   }
@@ -240,8 +240,8 @@ class _BenchRunnerState extends State<BenchRunner> {
       // 必须先把网格卸下来：网格还挂着时清缓存，只会让下一次重建重新解析并把
       // 缓存重新填满。
       if (widget.lib == BenchLib.svgx) {
-        _cachedPictures = RustSvgPictureCache.instance.length;
-        _cachedPictureBytes = RustSvgPictureCache.instance.approximateBytesUsed;
+        _cachedPictures = RustSvgxPictureCache.instance.length;
+        _cachedPictureBytes = RustSvgxPictureCache.instance.approximateBytesUsed;
       }
       setState(() {
         _gridMounted = false;
@@ -249,8 +249,8 @@ class _BenchRunnerState extends State<BenchRunner> {
       });
       await Future<void>.delayed(const Duration(seconds: 3));
       _afterUnmountRssBytes = ProcessInfo.currentRss;
-      RustSvgPictureCache.instance.clear();
-      SvgDocumentCache.instance.clear();
+      RustSvgxPictureCache.instance.clear();
+      SvgxDocumentCache.instance.clear();
       await Future<void>.delayed(const Duration(seconds: 3));
       _afterClearRssBytes = ProcessInfo.currentRss;
     }
@@ -338,7 +338,7 @@ class _BenchRunnerState extends State<BenchRunner> {
     _rssTimer?.cancel();
     _frameTiming.dispose();
     if (widget.lib == BenchLib.svgx) {
-      RustSvgPictureCache.instance.onParseMiss = null;
+      RustSvgxPictureCache.instance.onParseMiss = null;
     }
     super.dispose();
   }

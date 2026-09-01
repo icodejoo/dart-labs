@@ -1,4 +1,4 @@
-// Lifetime/bookkeeping tests for `RustSvgPictureCache`, added with the memory
+// Lifetime/bookkeeping tests for `RustSvgxPictureCache`, added with the memory
 // round: the async render path used to start a fresh parse + decode + record
 // for every caller that arrived while one was already running, and each of
 // those extra runs produced a `ui.Picture` (plus, for `<image>` sources, a
@@ -8,7 +8,7 @@
 // `flutter test` (host VM, no Flutter build step), same convention as
 // `rust_image_smoke_test.dart`.
 //
-// `RustSvgPictureCache` 的生命周期/记账测试，随内存专项一起加入：异步渲染路径
+// `RustSvgxPictureCache` 的生命周期/记账测试，随内存专项一起加入：异步渲染路径
 // 过去对每一个在渲染进行中到达的调用方都会重开一趟解析 + 解码 + 录制，而每一趟
 // 多出来的运行都会产生一个 `ui.Picture`（含 `<image>` 的源还多一个解码出的
 // `ui.Image`），随后在缓存里被覆盖、丢给 GC。
@@ -38,16 +38,16 @@ void main() {
     }
   });
 
-  setUp(RustSvgPictureCache.instance.clear);
+  setUp(RustSvgxPictureCache.instance.clear);
   tearDown(() {
-    RustSvgPictureCache.instance
+    RustSvgxPictureCache.instance
       ..onParseMiss = null
       ..clear();
   });
 
   test('concurrent getOrRenderAsync for one key renders exactly once', () async {
     if (!rustAvailable) return;
-    final cache = RustSvgPictureCache.instance;
+    final cache = RustSvgxPictureCache.instance;
     var misses = 0;
     cache.onParseMiss = (_) => misses++;
 
@@ -65,7 +65,7 @@ void main() {
 
   test('a settled async render leaves no in-flight bookkeeping behind', () async {
     if (!rustAvailable) return;
-    final cache = RustSvgPictureCache.instance;
+    final cache = RustSvgxPictureCache.instance;
     var misses = 0;
     cache.onParseMiss = (_) => misses++;
 
@@ -82,7 +82,7 @@ void main() {
 
   test('length and approximateBytesUsed track the cached entries', () async {
     if (!rustAvailable) return;
-    final cache = RustSvgPictureCache.instance;
+    final cache = RustSvgxPictureCache.instance;
     expect(cache.length, 0);
     expect(cache.approximateBytesUsed, 0);
 
@@ -97,7 +97,7 @@ void main() {
 
   test('the LRU evicts down to maximumSize', () async {
     if (!rustAvailable) return;
-    final cache = RustSvgPictureCache.instance;
+    final cache = RustSvgxPictureCache.instance;
     final previousMax = cache.maximumSize;
     cache.maximumSize = 2;
     try {

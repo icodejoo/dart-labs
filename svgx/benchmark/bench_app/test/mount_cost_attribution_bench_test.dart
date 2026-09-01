@@ -9,7 +9,7 @@
 // The five steps, in the order a re-mounting cell runs them:
 //
 //  1. `route_decision`   — `Svgx.build`'s `AnimationDetector.hasAnimations`.
-//  2. `document_cold`    — `SvgDocumentCache` miss: full XML parse + timeline
+//  2. `document_cold`    — `SvgxDocumentCache` miss: full XML parse + timeline
 //                          build. Paid once per distinct source, ever.
 //  3. `document_warm`    — the same call on a hit. Paid on every re-mount.
 //  4. `mount_and_layout` — inflating the cell's widgets into elements, creating
@@ -38,7 +38,7 @@
 // 五个步骤，按重挂载格子的执行顺序：
 //
 //  1. `route_decision`   —— `Svgx.build` 里的 `AnimationDetector.hasAnimations`。
-//  2. `document_cold`    —— `SvgDocumentCache` 未命中：完整 XML 解析 + 时间线构建。
+//  2. `document_cold`    —— `SvgxDocumentCache` 未命中：完整 XML 解析 + 时间线构建。
 //                            每个互异源一生只付一次。
 //  3. `document_warm`    —— 同一调用在命中时的开销。每次重挂载都要付。
 //  4. `mount_and_layout` —— 把格子的控件 inflate 成 element、创建并 attach 其渲染
@@ -104,7 +104,7 @@ double _minPerUnitUs(int units, void Function() body, {int warmups = 2}) {
 void main() {
   testWidgets('per-icon build-phase cost, step by step', (tester) async {
     final sources = animIconsReal;
-    final cache = SvgDocumentCache.instance..maximumSize = sources.length + 50;
+    final cache = SvgxDocumentCache.instance..maximumSize = sources.length + 50;
     final report = <String, double>{};
 
     // 1. Route decision. Memoized, so this is the steady-state cost after the
@@ -245,7 +245,7 @@ void main() {
     final documents = [
       for (final source in mountedSources) cache.getOrParse(source).document,
     ];
-    const theme = SvgTheme();
+    const theme = SvgxTheme();
     final clock = ValueNotifier<Duration>(Duration.zero);
     var frame = 0;
     report['paint_steady'] = _minPerUnitUs(documents.length, () {

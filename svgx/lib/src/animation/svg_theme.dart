@@ -11,20 +11,20 @@ import 'package:flutter/painting.dart';
 ///
 /// Example:
 /// ```dart
-/// const theme = SvgTheme(currentColor: Color(0xFFFF7A00));
+/// const theme = SvgxTheme(currentColor: Color(0xFFFF7A00));
 /// ```
 ///
 /// 控制本引擎渲染动画 SVG 时 `currentColor` 如何解析的主题。
 ///
 /// 用例：
 /// ```dart
-/// const theme = SvgTheme(currentColor: Color(0xFFFF7A00));
+/// const theme = SvgxTheme(currentColor: Color(0xFFFF7A00));
 /// ```
-class SvgTheme {
+class SvgxTheme {
   /// Creates a theme; [currentColor] defaults to opaque black.
   ///
   /// 创建主题；[currentColor] 默认不透明黑色。
-  const SvgTheme({this.currentColor = const Color(0xFF000000)});
+  const SvgxTheme({this.currentColor = const Color(0xFF000000)});
 
   /// The color substituted for the `currentColor` keyword.
   ///

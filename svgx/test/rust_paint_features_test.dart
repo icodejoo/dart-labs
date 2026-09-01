@@ -1,6 +1,6 @@
 // Pixel-level tests for the static path's newer paint features: `<clipPath>`,
 // `<mask>`, `<pattern>` and the `feGaussianBlur` filter MVP. Each renders a
-// scene through `RustSvgPictureCache` and reads back real pixels, so a
+// scene through `RustSvgxPictureCache` and reads back real pixels, so a
 // silently-dropped clip/mask/pattern shows up as a failure rather than a
 // "did not throw" pass.
 //
@@ -9,7 +9,7 @@
 // `rust_image_smoke_test.dart`.
 //
 // 静态路径较新绘制特性的像素级测试：`<clipPath>`、`<mask>`、`<pattern>` 以及
-// `feGaussianBlur` 滤镜 MVP。每个用例都通过 `RustSvgPictureCache` 渲染并回读
+// `feGaussianBlur` 滤镜 MVP。每个用例都通过 `RustSvgxPictureCache` 渲染并回读
 // 真实像素，这样"裁剪/遮罩/图案被静默丢弃"会直接失败，而不是靠"没抛异常"
 // 蒙混过关。
 //
@@ -77,8 +77,8 @@ const _blurSvg = '''
 /// Renders [source] and reads back its raw RGBA pixels at 100x100.
 /// 渲染 [source] 并按 100x100 回读原始 RGBA 像素。
 Future<ByteData> _renderPixels(String source) async {
-  RustSvgPictureCache.instance.clear();
-  final info = RustSvgPictureCache.instance.getOrRender(source);
+  RustSvgxPictureCache.instance.clear();
+  final info = RustSvgxPictureCache.instance.getOrRender(source);
   final image = await info.picture.toImage(100, 100);
   final bytes = await image.toByteData(format: ui.ImageByteFormat.rawRgba);
   return bytes!;
