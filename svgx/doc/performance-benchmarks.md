@@ -1365,3 +1365,42 @@ flutter run -d 7NQBB23606003715 --profile --dart-define=LIB=svgx --dart-define=C
 内存(`rss_peak_mb`):A=170.35,B=173.25,差距在噪声量级,无明显变化。
 
 **结论**:假设**未坐实**。raster avg 两组几乎相同(11.541 vs 11.630ms,B 反而略高),p50/p90/p99/max 均在噪声范围内互有高低,没有出现"去掉 RepaintBoundary 后 raster 显著下降"的信号。这与本文档"测了但没有效果,因此回滚"一节中动画路径(`SvgxAnimated.build`)同类实验的结论一致(那次是 `real_fps`/build/raster 全部落在波动内)——静态路径这次的单点验证方向相同,进一步印证"逐图标 `RepaintBoundary` 不是 Android 真机 raster 反转的根因"这个方向,但因为只跑了 1 次、且尚未排除其他候选(绘制调用模式差异、Impeller 平台差异等),**不能就此关闭"根因未明"的遗留问题**,仍建议后续用 DevTools timeline 做更细粒度归因。
+
+#### 深挖二:`drawPicture` 重放 vs 位图烘焙 A/B(2026-09-01)
+
+**假设**:flutter_svg 底层 `vector_graphics` 把矢量 `Picture` 一次性 `toImageSync` 烘焙成位图缓存,之后每帧只是 blit 位图(近似零成本);而 svgx 每帧都用 `canvas.drawPicture(picture)` 重放完整矢量指令,在移动 tile-based GPU 上开销可能明显更高,是 raster avg/p50 反转的根因之一。
+
+**改动说明**:临时修改 `lib/src/rust_static_svg.dart`(测完已用 `git checkout` 精确还原,范围仅此一个文件):
+
+- 给 `RustSvgPictureInfo` 加一个非 final 的 `debugBakedImage` 字段(连带把它的构造函数从 `const` 改为普通构造函数,否则非 final 字段无法通过编译),用来缓存烘焙出的 `ui.Image`。
+- `_RustPicturePainter` 改为持有整个 `RustSvgPictureInfo`(而非只持有 `picture`/`pictureSize`),`paint` 首次调用时用 `toImageSync` 把 `picture` 按 96x96 物理像素(对应基准场景 32x32 逻辑像素 cell、该华为设备约 3x 的 devicePixelRatio 估算)烘焙成 `ui.Image` 并写回 `info.debugBakedImage`,之后每帧改用 `canvas.drawImageRect(image, srcRect, dstRect, paint)` 绘制;`toImageSync` 抛异常时当帧回退到原来的 `drawPicture`(实测未触发,日志中未出现回退/异常记录)。
+- **已知副作用,如实记录**:该临时实现把烘焙图缓存挂在 `RustSvgPictureInfo` 实例上,与全局图片缓存共享生命周期,`currentColor` 动态换色在首次烘焙后不会更新(不影响本次基准,因为基准图标不换色)。
+
+**方法**:同一台设备(华为 STG-AL00,`7NQBB23606003715`,Android 12),同一条命令,只跑单侧 `LIB=svgx`:
+
+```
+cd benchmark/bench_app
+flutter run -d 7NQBB23606003715 --profile --dart-define=LIB=svgx --dart-define=CYCLES=6 --dart-define=ITEMS=1000
+```
+
+组 A 为现状基线(`drawPicture` 重放);组 B 为上述位图烘焙改动。**仅各跑 1 次,非多次均值,存在单次运行噪声的可能。**测完已 `git checkout -- lib/src/rust_static_svg.dart` 还原,`flutter analyze` 复查确认只剩原有的 5 个 Rust FFI 生成代码相关既有报错,无新增。
+
+原始数据(单位 ms,均取自 `raster:`/`build:` 一行,n=帧数):
+
+| 组 | 绘制方式 | n | build avg | build p50 | build p90 | build p99 | build max | raster avg | raster p50 | raster p90 | raster p99 | raster max |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| A(基线) | drawPicture 重放 | 621 | 7.424 | 7.370 | 10.268 | 18.270 | 27.527 | 12.060 | 12.367 | 15.232 | 20.789 | 36.366 |
+| B(位图烘焙) | toImageSync + drawImageRect | 574 | 7.777 | 7.439 | 10.370 | 29.742 | 73.181 | 10.177 | 10.973 | 13.074 | 18.095 | 22.939 |
+
+内存(`rss_peak_mb`):A=182.48,B=248.97,B 比 A 高约 36%(位图缓存常驻内存的预期代价,`rss_after_warmup_mb` 也从 153.98 涨到 159.86,幅度小得多,说明主要增量发生在滚动铺开全部图标烘焙之后)。
+
+**对比结论**:假设**方向上部分坐实,但幅度有限**。raster avg 从 12.060ms 降到 10.177ms(降幅约 15.6%),raster p50/p90/p99/max 全线下降(p50 降 11.3%,p90 降 14.2%,p99 降 13.0%,max 降 36.9%),说明位图烘焙确实能省下一部分 raster 时间,方向支持"drawPicture 重放比 blit 位图更贵"这个机制。但降幅远没有大到"接近或反超"文档前面记录的 flutter_svg raster avg 数字(桌面/真机基线里 flutter_svg raster avg 曾低至 4.8~11.7ms 区间);同时 build 侧 p99/max 明显变差(18.270→29.742ms,27.527→73.181ms),推测是首次烘焙(`toImageSync`)把原本摊在 raster 线程的一次性开销转嫁到了触发它的那一帧 UI 线程上,抵消了部分收益。综合看:**假设方向成立(drawPicture 重放确有额外常数开销),但不是 raster 反转的唯一或主要根因**,内存代价(+36%)也不可忽视。
+
+**后续正式修复方向建议**:
+
+1. 把位图烘焙做成可选策略(例如 `SvgxStatic(cacheAsBitmap: true)` 或按图标复杂度/预期重绘频率自动决策),而非默认行为——用内存换 raster 时间只在"同一图标高频重绘、复杂度较高、不换色"的场景划算。
+2. 首帧烘焙开销需要挪出 UI 线程关键路径:优先用异步 `toImage`(配合占位帧回退到 `drawPicture`),或在图标首次进入缓存时就后台预烘焙,避免像本次实验那样在 `paint` 同步调用 `toImageSync` 导致 build p99/max 变差。
+3. 必须处理 `currentColor` 动态换色场景下的缓存失效:烘焙图应当和 `RustSvgxPictureCache` 现有的 `(source, currentColorArgb)` 缓存键对齐,换色时视为不同键、各自独立烘焙,而不是像本次临时实现那样一次性挂死在 `RustSvgPictureInfo` 上。
+4. 需要评估烘焙分辨率策略:本次固定按 96x96 物理像素估算,实际应按 `SvgxStatic` 真实渲染尺寸 × 设备 `devicePixelRatio` 动态决定,并设置上限防止大尺寸插画烘焙出过大的位图。
+
+**局限说明**:本次只跑了 1 次 A/B,非多次取均值,存在单次运行噪声;临时实现未处理边界情况(换色失效、烘焙分辨率固定、无预烘焙调度),仅供方向性参考,不构成最终结论。
