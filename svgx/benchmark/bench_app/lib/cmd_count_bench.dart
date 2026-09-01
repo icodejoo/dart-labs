@@ -79,63 +79,129 @@ class CountingCanvas implements Canvas {
 
   int _bump(String name) => counts[name] = (counts[name] ?? 0) + 1;
 
+  // --- "How it's drawn" instrumentation (deep-dive six): save/restore
+  // nesting, transform-family calls, and Paint churn — added once deep-dive
+  // four/five had ruled out "what's drawn" (command count, per-path
+  // verb/point complexity) as the cause of the Android raster gap.
+  //
+  // "怎么画"的插桩（深挖六）：save/restore 嵌套、变换类调用、Paint 状态切换——
+  // 在深挖四/五排除了"画什么"（命令数、单条路径 verb/点复杂度）作为 Android
+  // raster 差距的根因之后加入。
+
+  /// `save()` call count. / `save()` 调用次数。
+  int saveCount = 0;
+
+  /// `restore()` call count. / `restore()` 调用次数。
+  int restoreCount = 0;
+
+  /// `saveLayer()` call count — counted separately from [saveCount] since it
+  /// implies an offscreen layer, a materially different cost.
+  /// `saveLayer()` 调用次数——与 [saveCount] 分开计，因为它意味着一次离屏层，
+  /// 成本量级不同。
+  int saveLayerCount = 0;
+
+  /// Peak `save()` nesting depth reached (relative to this canvas' starting
+  /// depth). / `save()` 嵌套深度的峰值（相对本 canvas 的起始深度）。
+  int peakSaveDepth = 0;
+
+  int _saveDepth = 0;
+
+  /// `translate()`/`scale()`/`transform()` call count, combined.
+  /// `translate()`/`scale()`/`transform()` 调用次数之和。
+  int transformCallCount = 0;
+
+  /// Number of draw calls that carried a non-null [ui.Paint].
+  /// 携带非空 [ui.Paint] 的绘制调用次数。
+  int paintArgCount = 0;
+
+  /// Number of consecutive draw-call Paint arguments whose (color, blend
+  /// mode, style, stroke width) tuple differs from the previous draw call's —
+  /// a proxy for how often the GPU backend has to re-bind paint state instead
+  /// of reusing what's already bound.
+  ///
+  /// 相邻两次绘制调用的 Paint（颜色、混合模式、style、描边宽度）元组不同的
+  /// 次数——用作 GPU 后端要重新绑定 paint 状态、而非复用已绑定状态的频率代理。
+  int paintChangeCount = 0;
+
+  (int, ui.BlendMode, ui.PaintingStyle, double)? _lastPaintDescriptor;
+
+  void _trackPaint(ui.Paint? paint) {
+    if (paint == null) return;
+    paintArgCount++;
+    final descriptor = (paint.color.toARGB32(), paint.blendMode, paint.style, paint.strokeWidth);
+    if (_lastPaintDescriptor != null && _lastPaintDescriptor != descriptor) {
+      paintChangeCount++;
+    }
+    _lastPaintDescriptor = descriptor;
+  }
+
   @override
   void drawPath(ui.Path path, ui.Paint paint) {
     _bump('drawPath');
+    _trackPaint(paint);
     _inner.drawPath(path, paint);
   }
 
   @override
   void drawImage(ui.Image image, ui.Offset offset, ui.Paint paint) {
     _bump('drawImage');
+    _trackPaint(paint);
     _inner.drawImage(image, offset, paint);
   }
 
   @override
   void drawImageRect(ui.Image image, ui.Rect src, ui.Rect dst, ui.Paint paint) {
     _bump('drawImageRect');
+    _trackPaint(paint);
     _inner.drawImageRect(image, src, dst, paint);
   }
 
   @override
   void drawImageNine(ui.Image image, ui.Rect center, ui.Rect dst, ui.Paint paint) {
     _bump('drawImageNine');
+    _trackPaint(paint);
     _inner.drawImageNine(image, center, dst, paint);
   }
 
   @override
   void drawRect(ui.Rect rect, ui.Paint paint) {
     _bump('drawRect');
+    _trackPaint(paint);
     _inner.drawRect(rect, paint);
   }
 
   @override
   void drawRRect(ui.RRect rrect, ui.Paint paint) {
     _bump('drawRRect');
+    _trackPaint(paint);
     _inner.drawRRect(rrect, paint);
   }
 
   @override
   void drawOval(ui.Rect rect, ui.Paint paint) {
     _bump('drawOval');
+    _trackPaint(paint);
     _inner.drawOval(rect, paint);
   }
 
   @override
   void drawCircle(ui.Offset c, double radius, ui.Paint paint) {
     _bump('drawCircle');
+    _trackPaint(paint);
     _inner.drawCircle(c, radius, paint);
   }
 
   @override
   void drawArc(ui.Rect rect, double startAngle, double sweepAngle, bool useCenter, ui.Paint paint) {
     _bump('drawArc');
+    _trackPaint(paint);
     _inner.drawArc(rect, startAngle, sweepAngle, useCenter, paint);
   }
 
   @override
   void drawLine(ui.Offset p1, ui.Offset p2, ui.Paint paint) {
     _bump('drawLine');
+    _trackPaint(paint);
     _inner.drawLine(p1, p2, paint);
   }
 
@@ -180,6 +246,7 @@ class CountingCanvas implements Canvas {
   @override
   void drawPaint(ui.Paint paint) {
     _bump('drawPaint');
+    _trackPaint(paint);
     _inner.drawPaint(paint);
   }
 
@@ -218,15 +285,22 @@ class CountingCanvas implements Canvas {
     // 显式 switch 转发，而不是通用反射调用。
     switch (name) {
       case #save:
+        saveCount++;
+        _saveDepth++;
+        if (_saveDepth > peakSaveDepth) peakSaveDepth = _saveDepth;
         c.save();
         return null;
       case #restore:
+        restoreCount++;
+        if (_saveDepth > 0) _saveDepth--;
         c.restore();
         return null;
       case #translate:
+        transformCallCount++;
         c.translate(positional[0] as double, positional[1] as double);
         return null;
       case #scale:
+        transformCallCount++;
         c.scale(positional[0] as double, positional.length > 1 ? positional[1] as double : positional[0] as double);
         return null;
       case #clipRect:
@@ -240,9 +314,16 @@ class CountingCanvas implements Canvas {
         c.clipPath(positional[0] as ui.Path, doAntiAlias: (named[#doAntiAlias] as bool?) ?? true);
         return null;
       case #saveLayer:
+        saveLayerCount++;
+        // `saveLayer` also opens a save-stack frame — count it toward the
+        // nesting depth alongside plain `save()`.
+        // `saveLayer` 同样会开启一层保存栈——与普通 `save()` 一起计入嵌套深度。
+        _saveDepth++;
+        if (_saveDepth > peakSaveDepth) peakSaveDepth = _saveDepth;
         c.saveLayer(positional[0] as ui.Rect?, positional[1] as ui.Paint);
         return null;
       case #transform:
+        transformCallCount++;
         c.transform(positional[0] as Float64List);
         return null;
       case #getSaveCount:
@@ -423,8 +504,37 @@ class _VerbCountingListener extends VectorGraphicsCodecListener {
   return (verbs, points);
 }
 
-/// One icon's measured draw-op count and path complexity for each library.
-/// 单个图标在两个库下各自测得的绘制指令数与路径复杂度。
+/// Snapshot of a [CountingCanvas]'s "how it's drawn" counters at the end of
+/// one icon's recording — save/restore/transform/Paint-churn, the deep-dive-
+/// six metrics (see [CountingCanvas]'s corresponding fields for what each
+/// one measures).
+///
+/// [CountingCanvas] 一个图标录制结束时的"怎么画"计数快照——save/restore/
+/// transform/Paint 状态切换，深挖六的几项指标（各自含义见 [CountingCanvas]
+/// 对应字段）。
+class DrawStateCounts {
+  /// Captures the current counter values off [canvas]. / 从 [canvas] 上捕获当前计数值。
+  DrawStateCounts.from(CountingCanvas canvas)
+    : saveCount = canvas.saveCount,
+      restoreCount = canvas.restoreCount,
+      saveLayerCount = canvas.saveLayerCount,
+      peakSaveDepth = canvas.peakSaveDepth,
+      transformCallCount = canvas.transformCallCount,
+      paintArgCount = canvas.paintArgCount,
+      paintChangeCount = canvas.paintChangeCount;
+
+  final int saveCount;
+  final int restoreCount;
+  final int saveLayerCount;
+  final int peakSaveDepth;
+  final int transformCallCount;
+  final int paintArgCount;
+  final int paintChangeCount;
+}
+
+/// One icon's measured draw-op count, path complexity, and draw-state churn
+/// for each library.
+/// 单个图标在两个库下各自测得的绘制指令数、路径复杂度与绘制状态切换。
 class CmdCountRow {
   const CmdCountRow(
     this.svgx,
@@ -433,6 +543,8 @@ class CmdCountRow {
     this.svgxPoints,
     this.flutterSvgVerbs,
     this.flutterSvgPoints,
+    this.svgxState,
+    this.flutterSvgState,
   );
 
   /// svgx's `getOrRender` draw-op count for this icon. / 该图标在 svgx `getOrRender` 下的绘制指令数。
@@ -453,6 +565,14 @@ class CmdCountRow {
 
   /// flutter_svg path coordinate-pair count for this icon. / 该图标在 flutter_svg 下的路径坐标点数。
   final int flutterSvgPoints;
+
+  /// svgx's save/restore/transform/Paint-churn counts for this icon.
+  /// 该图标在 svgx 下的 save/restore/transform/Paint 切换计数。
+  final DrawStateCounts svgxState;
+
+  /// flutter_svg's save/restore/transform/Paint-churn counts for this icon.
+  /// 该图标在 flutter_svg 下的 save/restore/transform/Paint 切换计数。
+  final DrawStateCounts flutterSvgState;
 }
 
 /// Runs the draw-op count comparison over every icon in [mdiIcons1000],
@@ -522,6 +642,8 @@ Future<void> runCmdCountBench() async {
         svgxPoints,
         verbListener.verbCount,
         verbListener.pointCount,
+        DrawStateCounts.from(svgxCounter.canvas!),
+        DrawStateCounts.from(factory.lastCanvas!),
       ),
     );
   }
@@ -557,7 +679,57 @@ Future<void> runCmdCountBench() async {
       'points_total=$flutterPointTotal points_avg=${(flutterPointTotal / rows.length).toStringAsFixed(2)}',
     )
     ..writeln('verb ratio (svgx/flutter_svg)  = ${verbRatio.toStringAsFixed(3)}')
-    ..writeln('point ratio (svgx/flutter_svg) = ${pointRatio.toStringAsFixed(3)}')
+    ..writeln('point ratio (svgx/flutter_svg) = ${pointRatio.toStringAsFixed(3)}');
+
+  // "How it's drawn": save/restore/saveLayer/transform-family call counts,
+  // peak save-nesting depth (max across icons, not summed — depth doesn't
+  // add up across icons the way a call count does), and Paint churn.
+  //
+  // "怎么画"：save/restore/saveLayer/变换类调用次数、save 嵌套深度峰值
+  // （跨图标取最大值而非求和——深度不像调用次数那样可以跨图标累加）、以及
+  // Paint 状态切换。
+  final svgxSaves = rows.fold<int>(0, (a, r) => a + r.svgxState.saveCount);
+  final flutterSaves = rows.fold<int>(0, (a, r) => a + r.flutterSvgState.saveCount);
+  final svgxRestores = rows.fold<int>(0, (a, r) => a + r.svgxState.restoreCount);
+  final flutterRestores = rows.fold<int>(0, (a, r) => a + r.flutterSvgState.restoreCount);
+  final svgxSaveLayers = rows.fold<int>(0, (a, r) => a + r.svgxState.saveLayerCount);
+  final flutterSaveLayers = rows.fold<int>(0, (a, r) => a + r.flutterSvgState.saveLayerCount);
+  final svgxPeakDepth = rows.fold<int>(0, (a, r) => a > r.svgxState.peakSaveDepth ? a : r.svgxState.peakSaveDepth);
+  final flutterPeakDepth = rows.fold<int>(
+    0,
+    (a, r) => a > r.flutterSvgState.peakSaveDepth ? a : r.flutterSvgState.peakSaveDepth,
+  );
+  final svgxTransforms = rows.fold<int>(0, (a, r) => a + r.svgxState.transformCallCount);
+  final flutterTransforms = rows.fold<int>(0, (a, r) => a + r.flutterSvgState.transformCallCount);
+  final svgxPaintArgs = rows.fold<int>(0, (a, r) => a + r.svgxState.paintArgCount);
+  final flutterPaintArgs = rows.fold<int>(0, (a, r) => a + r.flutterSvgState.paintArgCount);
+  final svgxPaintChanges = rows.fold<int>(0, (a, r) => a + r.svgxState.paintChangeCount);
+  final flutterPaintChanges = rows.fold<int>(0, (a, r) => a + r.flutterSvgState.paintChangeCount);
+
+  double ratioOf(num svgxVal, num flutterVal) => flutterVal == 0 ? double.infinity : svgxVal / flutterVal;
+
+  buf
+    ..writeln()
+    ..writeln('--- draw-state churn: save/restore/transform/Paint (deep-dive six) ---')
+    ..writeln(
+      'save        : svgx=$svgxSaves flutter_svg=$flutterSaves ratio=${ratioOf(svgxSaves, flutterSaves).toStringAsFixed(3)}',
+    )
+    ..writeln(
+      'restore     : svgx=$svgxRestores flutter_svg=$flutterRestores ratio=${ratioOf(svgxRestores, flutterRestores).toStringAsFixed(3)}',
+    )
+    ..writeln(
+      'saveLayer   : svgx=$svgxSaveLayers flutter_svg=$flutterSaveLayers ratio=${ratioOf(svgxSaveLayers, flutterSaveLayers).toStringAsFixed(3)}',
+    )
+    ..writeln('peakSaveDepth (max across icons): svgx=$svgxPeakDepth flutter_svg=$flutterPeakDepth')
+    ..writeln(
+      'transform*  : svgx=$svgxTransforms flutter_svg=$flutterTransforms ratio=${ratioOf(svgxTransforms, flutterTransforms).toStringAsFixed(3)}',
+    )
+    ..writeln(
+      'paintArgs   : svgx=$svgxPaintArgs flutter_svg=$flutterPaintArgs ratio=${ratioOf(svgxPaintArgs, flutterPaintArgs).toStringAsFixed(3)}',
+    )
+    ..writeln(
+      'paintChange : svgx=$svgxPaintChanges flutter_svg=$flutterPaintChanges ratio=${ratioOf(svgxPaintChanges, flutterPaintChanges).toStringAsFixed(3)}',
+    )
     ..writeln('=== END CMD COUNT REPORT ===');
   emitReport(buf.toString());
   exit(0);
