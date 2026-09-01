@@ -62,6 +62,19 @@ class RustSvgxPictureCache {
   /// 基准测试/单测可以设置它来采集解析耗时分布。
   void Function(Duration elapsed)? onParseMiss;
 
+  /// Optional hook wrapping the [Canvas] used to record a scene into a
+  /// [ui.Picture]. No-op by default (zero overhead); the bench app's
+  /// `LIB=cmdcount` mode sets this to a counting wrapper to measure how many
+  /// primitive draw ops one `getOrRender` call records, without needing a
+  /// real widget tree or GPU rasterization.
+  ///
+  /// 可选钩子：包装用于把场景录制进 [ui.Picture] 的 [Canvas]。默认不设置
+  /// （零开销）；基准应用的 `LIB=cmdcount` 模式会设置它为计数包装器，从而在
+  /// 不需要真实控件树或 GPU 光栅化的情况下，测出一次 `getOrRender` 调用录制了
+  /// 多少条原始绘制指令。
+  @visibleForTesting
+  static Canvas Function(Canvas canvas)? debugWrapRecordingCanvas;
+
   /// Rasterized pattern tiles already built during the [_recordScene] call in
   /// progress, keyed by `id@pxWxpxH` — set up and torn down around that one
   /// call (see there), never held between renders. Multiple shapes in the
@@ -369,7 +382,7 @@ class RustSvgxPictureCache {
     _patternTileCache = <String, ui.Image>{};
     try {
       final recorder = ui.PictureRecorder();
-      final canvas = Canvas(recorder);
+      final canvas = debugWrapRecordingCanvas?.call(Canvas(recorder)) ?? Canvas(recorder);
       for (var i = 0; i < decodedImages.length; i++) {
         _paintImage(canvas, scene.images[i], decodedImages[i]);
       }
