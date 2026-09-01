@@ -111,6 +111,20 @@ const Set<String> _phaseNames = {
   'PipelineItem',
   'Rasterizer::DoDraw',
   'Rasterizer::DrawToSurfaces',
+  // Added for deep-dive seven (see doc/performance-benchmarks.md): these two
+  // were deep-dive three's self-time leaders (4.28x / 2.59x) but were
+  // themselves leaves in that summary — everything inside them landed in
+  // 'Rasterizer::DrawToSurfaces''s flat bucket instead of its own. Bucketing
+  // by these two names as well surfaces what's *inside* GPU command
+  // encoding, not just its total cost.
+  //
+  // 为深挖七新增（见 doc/performance-benchmarks.md）：这两个是深挖三里 self
+  // time 领先的两项（4.28x / 2.59x），但在那次汇总里自身是叶子节点——它们
+  // 内部的一切都落进了 'Rasterizer::DrawToSurfaces' 的扁平桶，而非各自独立
+  // 的桶。把这两个名字也纳入分桶，才能看清 GPU 命令编码*内部*是什么，而不只
+  // 是它的总开销。
+  'SurfaceFrame::Encode',
+  'RenderPassGLES::EncodeCommandsInReactor',
 };
 
 /// One named slice's accumulated cost, split into total (self+descendants) and

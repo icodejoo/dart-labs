@@ -1557,3 +1557,51 @@ paintChange : svgx=0 flutter_svg=0
 **Dart 侧插桩这条路至此穷尽**:命令数量(深挖四)、单条路径复杂度(深挖五)、画布/Paint 状态切换(本节)三个维度全部打平,说明两个库喂给 `ui.Picture` 的逻辑指令流在这批语料上是等价的。深挖三观测到的 `SurfaceFrame::Encode`(4.28x)/`RenderPassGLES::EncodeCommandsInReactor`(2.59x)耗时差距依然真实存在,根因必然在更底层——`ui.Picture` 到 GPU 命令编码这一层本身,而不是 Dart 侧任何可观测的指令特征,需要重新回到 Perfetto/Skia trace,往子 slice 粒度继续查。
 
 **局限说明**:`paintChangeCount` 在单绘制语料上无区分度(见上);未统计渐变/图案/文本相关的状态类调用;1000 个图标全为矢量路径,不含 `<image>` 标签。
+
+#### 深挖七:trace 子 slice 是叶子节点,倍数在两次运行间漂移(2026-09-01)
+
+深挖六排除了 Dart 侧一切可观测的指令特征(数量、复杂度、状态切换)。本节回到深挖三的 trace,往 `SurfaceFrame::Encode`/`RenderPassGLES::EncodeCommandsInReactor` 内部再挖一层,看它们各自还能不能拆出更细的子 slice。
+
+**方法**:给 `tool/capture_timeline.dart` 的 `_phaseNames` 集合加了这两个名字,让汇总时把它们内部的子调用单独分桶,而不是像深挖三那样混进 `Rasterizer::DrawToSurfaces` 的扁平列表。然后对 svgx / flutter_svg 各重新跑一次 `--trace-skia --endless-trace-buffer`(40 秒,6 轮滚动,1000 图标),抓法与深挖三一致。
+
+**真机数据**(华为 STG-AL00):
+
+svgx(637 帧):
+
+```
+RenderPassGLES::EncodeCommandsInReactor — self=2373.12ms, count=646
+  └─ 自身 2372.97ms 100.0%,唯一子项 TexImage2DInitialization 0.16ms
+
+SurfaceFrame::Encode — self=2227.87ms, count=637
+  └─ 自身 2119.19ms 95.1%,可见子项(FlushOps/CreateGlyphAtlas/ConsolidateHandles/
+     BlitPassGLES::EncodeCommandsInReactor/…)合计不到 5%
+```
+
+flutter_svg(327 帧):
+
+```
+RenderPassGLES::EncodeCommandsInReactor — self=651.66ms, count=338
+  └─ 自身 651.55ms 100.0%,唯一子项同上量级可忽略
+
+SurfaceFrame::Encode — self=345.39ms, count=327
+  └─ 自身 282.55ms 81.8%,可见子项合计约 18%(仍以 ConsolidateHandles/FlushOps/
+     CreateGlyphAtlas 为主,单项均 <5%)
+```
+
+按帧归一:
+
+| slice | svgx μs/帧 | flutter_svg μs/帧 | 本次倍数 | 深挖三倍数 |
+|---|---|---|---|---|
+| `SurfaceFrame::Encode` | 3497.7 | 1056.2 | 3.31x | 4.28x |
+| `RenderPassGLES::EncodeCommandsInReactor` | 3725.5 | 1992.6 | 1.87x | 2.59x |
+
+**解读(如实标注为证据,不是根因结论)**:
+
+1. `RenderPassGLES::EncodeCommandsInReactor` 在两侧都是**叶子节点**——自身 self time 占比 100.0%,说明引擎自己的埋点没有在这个调用内部再插桩任何东西,不分库都一样,不是分析遗漏。
+2. `SurfaceFrame::Encode` 两侧都有绝大部分是"未命名自身耗时"(svgx 95.1%、flutter_svg 81.8%),可见的具名子项在两侧都很小。这条 slice 内部真正吃时间的部分(大概率是 DisplayList 遍历/tessellation)同样没有更细的具名埋点。
+3. 差距**方向**复现了,但**量级**在两次独立运行之间明显漂移(Encode 4.28x→3.31x,EncodeCommandsInReactor 2.59x→1.87x)——与深挖三自己标注的局限一致(每侧只抓 1 次、无中位数、`--trace-skia` 自带埋点开销),具体倍数不应被当成稳定值引用,但"svgx 在这两个 slice 上系统性更贵"这个方向性结论两次独立复现,可信度比单次观测更高。
+4. **trace 这条路到这里基本走到头了**:两个 slice 在两个库上呈现的是同一种结构(以自身耗时为主、几乎没有再拆分的余地),继续往下需要 Skia/Impeller 源码级埋点,超出黑盒 trace 分析的能力范围。
+
+**旁证,与本次排查目标无关但如实记录**:flutter_svg 这次 trace 里出现约 10 个 `DartWorker` 线程,每个 self time 6.5~6.9 秒,几乎全落在 `HandleMessage`,应是 `compute()` 把 SVG 编译丢到后台 isolate 池的开销。这些是独立 OS 线程上的时间,不在 raster/UI 关键路径上,与本节排查的 raster 差距无直接关系。
+
+**局限说明**:每侧仍然只抓了 1 次,倍数漂移幅度本身说明单次 trace 的置信区间较宽;两份原始 trace(`skia_svgx_v2.json`/`skia_fsvg_v2.json`)体积较大,未入库,需要复现时按深挖三记录的命令重抓即可。
