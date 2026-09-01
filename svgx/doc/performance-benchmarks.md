@@ -1501,3 +1501,28 @@ ratio (svgx/flutter_svg) = 1.000
 **结论:"命令条数更多"假设不成立**。两边每个图标都恰好产生 1 条 `drawPath`,总数完全相等——核对了语料抽样(`mdi_icons_1000.dart`),绝大多数 Mdi 图标就是单个 `<path fill="currentColor" d="...">`,无描边、无 clip/mask,两个库在这条指标上理论上就该打平,实测也确实打平。深挖三里"每帧要编码的绘制命令太多"这个猜测的**条数**维度被证伪了;深挖三观测到的 `SurfaceFrame::Encode`/`RenderPassGLES::EncodeCommandsInReactor` 耗时差距真实存在,但根因不在指令**数量**上,要往指令**内容复杂度**(单条 `drawPath` 对应的 `Path` verb 数/点数、Paint 状态切换次数等)方向继续查。
 
 **局限说明**:只统计了 `drawPath` 等约 15 个"绘制"方法调用次数,没有统计 `save`/`restore`/`clipRect`/`transform` 等状态类调用,也没有统计单条 `drawPath` 内部路径的复杂度(下一步方向)。1000 个图标全为矢量路径,无 `<image>` 标签,该结论不覆盖含位图的 SVG。
+
+#### 深挖五:单条路径的 verb/点数复杂度,同样一致(2026-09-01)
+
+深挖四证明了两边"画几条路径"一致,但没排除"每条路径画得更复杂"——同样是 1 条 `drawPath`,里面塞的贝塞尔曲线数量可以天差地别。本节把这条也量化掉。
+
+**方法**:不再借助 `CountingCanvas`(那一层只看得到 `Path` 对象本身,dart:ui 的 `Path` 是引擎侧不透明类型,读不出已经写进去的 verb 序列),改为在**两个库编译/解析源串产出路径数据的那一步**直接读取逐动词计数,口径对齐(moveTo/lineTo 各占 1 个坐标点,cubicTo 占 3 个,close 占 0 个):
+
+- flutter_svg:新增 `_VerbCountingListener extends VectorGraphicsCodecListener`,只实现 `onPathMoveTo`/`onPathLineTo`/`onPathCubicTo`/`onPathClose` 四个回调计数,其余全部空实现,直接喂给 `VectorGraphicsCodec().decode()`——跳过 Picture 录制本身,拿到的是编译后二进制流里的精确逐动词序列,不是运行时代理指标(比如 `Path.computeMetrics()` 给的弧长/子路径数,那是近似值)。
+- svgx:直接调用已公开的 Rust FFI 函数 `parseSvg()`(`package:svgx/src/rust/api/svg.dart`),对每条 `SvgPath` 求和 `verbs.length` 与 `points.length ~/ 2`——是 Rust 解析器产出的原始数据,同一枚 verb 编码语义,与 flutter_svg 侧的计数粒度一致,可直接比较。
+
+两者都在 `cmd_count_bench.dart` 的 `runCmdCountBench()` 里对同一批 `bytes`/`source` 复用,不重新编译或重新解析一遍。
+
+**真机数据**(华为 STG-AL00,`LIB=cmdcount`,1000 个 Mdi 图标):
+
+```
+--- per-drawPath complexity (verb/point counts) ---
+svgx        : verbs_total=29809 verbs_avg=29.81  points_total=47070 points_avg=47.07
+flutter_svg : verbs_total=29805 verbs_avg=29.80  points_total=47058 points_avg=47.06
+verb ratio (svgx/flutter_svg)  = 1.000
+point ratio (svgx/flutter_svg) = 1.000
+```
+
+**结论:"单条路径更复杂"假设同样不成立**。verb 总数(29809 vs 29805)与点总数(47070 vs 47058)相差不到 0.03%,量级上是两个解析器对贝塞尔/弧线处理的取整误差,不是系统性差距。至此,"画什么"这条线——命令条数(深挖四)、单条路径复杂度(本节)——两个维度都已排除。深挖三观测到的 `SurfaceFrame::Encode`/`RenderPassGLES::EncodeCommandsInReactor` 耗时差距依然真实存在,根因要往"怎么画"方向找:`save`/`restore`/`transform` 等状态切换次数、`Paint` 对象构造与属性/blend mode 切换次数,是下一步待测的候选。
+
+**局限说明**:只统计了路径构建的 4 类回调,没有统计 `Paint`/渐变/图案/文本等其它编解码器事件;1000 个图标全为矢量路径,该结论同样不覆盖含位图的 SVG。
