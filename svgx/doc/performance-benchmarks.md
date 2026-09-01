@@ -1628,3 +1628,30 @@ SurfaceFrame::Encode — self=345.39ms, count=327
 | Path 构造源码 | 八(本节) | 无差异 |
 
 **暂停排查,如实标注现状**:Dart 侧一切可观测的指令特征、trace 能拆到的最细粒度、以及两个库 Path 构造的源码本身,五条独立方向全部指向"喂给 GPU 的逻辑内容等价"。`SurfaceFrame::Encode`/`RenderPassGLES::EncodeCommandsInReactor` 的耗时差距是真实、可复现的(方向上两次独立 trace 一致),但根因大概率在这套工具链够不着的层面——Impeller/Skia 引擎内部对某些具体数据模式的处理路径,或 Android 真机 GPU 驱动层——而不是 Dart/Flutter 侧任何可控代码。继续往下需要 Skia/Impeller 源码级 profiling 或更专业的 GPU 抓帧工具,投入量级明显不同于本轮的黑盒插桩/trace 分析,建议本轮到此为止,留给后续视优先级决定是否投入。
+
+#### 支线:svgx 合成层数量假设(证伪)与 flutter_svg 自身的 compute() 解码扎堆假设(未坐实,2026-09-01)
+
+本轮排查过程中冒出的两条支线,与上面"svgx raster 均值落后 flutter_svg"的主线**没有直接关系**,单独记录。
+
+**支线一:"svgx 按图标缓存 Picture → 更多合成层"——源码核查后证伪**。深挖七发现同一 40 秒 trace 窗口内 svgx 产生 637 帧、flutter_svg 只有 327 帧,一度怀疑是 svgx 的 `RustSvgxPictureCache`(每图标一份独立 `ui.Picture`)导致每个图标在合成阶段被当成独立 layer,带来固定的每层编码开销。核查 Flutter SDK 源码(`packages/flutter/lib/src/widgets/sliver.dart`)发现 `SliverChildBuilderDelegate`(`GridView.builder` 内部用的就是它)**默认 `addRepaintBoundaries: true`**——也就是说不管 svgx 还是 flutter_svg,每个网格 cell 本来就会被 `GridView.builder` 自动包一层独立 `RepaintBoundary`,这是网格本身的默认行为,两侧的合成层数量级本应相同,不是 svgx 独有的架构开销。这也补上了 2026-09-01 早些时候"逐图标 `RepaintBoundary` A/B"(文档"未坐实"那节)测不出差异的解释:那次去掉的只是 `SvgxStatic` 自己额外加的一层冗余嵌套,`GridView.builder` 的默认边界从未被移除,A/B 两组本就不该有差别。**假设证伪,不建议再往"数 layer 数量"方向投入插桩。**
+
+**支线二:flutter_svg 自身的 `compute()` 异步解码是否导致 raster p99 尖峰——机制成立,因果关系未被坐实**。
+
+*机制核查(读源码,证据扎实)*:`vector_graphics-1.2.3/lib/src/vector_graphics.dart` 的 `_VectorGraphicWidgetState.didChangeDependencies` 用 `unawaited(_loadAssetBytes())` 发起异步加载,不 `await`——`compute()` 本身确实不阻塞 UI isolate,原先"阻塞关键帧"的说法不成立,已修正。但 `_loadPicture` 链路里,`loader.loadBytes(context)`(后台 isolate,只做 XML→二进制编译)完成后紧跟的 `.then((data) => decodeVectorGraphics(data, ...))`——也就是把二进制流回放构造 `ui.Path`、录制进 `ui.Picture`——是在 **UI isolate 上同步执行**的,再触发 `setState`。`GridView.builder` 快速滚动时会在很短时间内连续把多个新 cell 的懒加载触发出去,如果它们的后台编译恰好在相近时间窗口完成,UI 线程要在同一帧或相邻几帧里扎堆做多份解码+首绘工作,这是一个源码上站得住的候选机制。
+
+*真机验证(trace 数据,未坐实)*:在真机 STG-AL00 上重新抓了一次 flutter_svg 的 `--trace-skia` trace(313 帧,量级与之前几轮一致),用 `[尖峰帧起点-50ms, 尖峰帧终点]` 窗口统计附近 `DartWorker` 线程 `HandleMessage` 完成事件数:
+
+- raster 帧耗时:mean=9.37ms,p90=18.80ms,p99=59.01ms,max=109.97ms
+- 尖峰帧(超过 `max(2×均值,16.6ms)`=18.73ms)共 32 个
+- 全部 313 帧的平均附近 `HandleMessage` 数 = **48.275**,尖峰帧的平均数 = **51.844**——仅高 7%,不构成有效区分
+- 32 个尖峰帧里 **23 个(72%)附近完全 0 次** `HandleMessage`,且集中在采集窗口较早的阶段(冷启动类开销嫌疑更大,而非解码扎堆)
+- `HandleMessage` 总数(15847 次/约 15 秒活跃窗口)频率过高,量级远超"1000 个图标各自一次解码完成"应有的数量级,说明这个事件很可能混杂了 Dart isolate/GC 协调等通用消息,不是专指 SVG 解码 isolate 的返回消息,导致这个信号本身区分度不足
+
+**结论:"isolate 解码完成扎堆导致 raster p99 尖峰"这条具体因果链,没有被这次 trace 数据坐实**。不是分析方法有误才没找到信号——数据本身显示尖峰帧和非尖峰帧在"附近有没有 isolate 完成事件"这个维度上几乎没有差别。机制层面的源码证据(`compute()` 不阻塞、但 `decodeVectorGraphics` 在 UI isolate 同步执行)依然成立、值得记录,但"这个机制在真机上真的导致了可观测的尖峰"这一步,现有数据不支持,不据此下结论。**这条支线本身与主线("svgx raster 均值为什么落后")无关**,是 flutter_svg 自身一个真实存在、但尚未证实机制的性能特征,留给以后有余力再查。
+
+**真机 trace 抓取过程中踩的两个环境坑,记录供以后复现时避免**:
+
+1. **前台被打断**:两次采集帧数异常偏低(17 帧、13 帧),查 `adb shell dumpsys activity activities | grep mResumedActivity` 发现设备前台被切到了另一个 App,bench_app 被系统暂停(`logcat` 里能看到 `PauseActivityItem{finished=true}`)。抓取前应确认 `mResumedActivity` 就是 `com.example.bench_app`,并适当延长设备息屏时间(`adb shell settings put system screen_off_timeout <ms>`)。
+2. **`AUTOEXIT=1` 与长时间 trace 采集不兼容**:基准跑完后 App 会 `exit(0)`,如果这发生在 `capture_timeline.dart` 的采集窗口结束之前,`getVMTimeline` 调用会因为 VM Service 连接已断开而直接抛异常、不落盘。长时间(如 40 秒)trace 采集应去掉 `AUTOEXIT`,让 App 完成后停在原地而不是退出。
+
+**局限说明**:trace 只抓了 1 次(修复环境问题后的这一次);`HandleMessage` 事件语义未经逐条溯源确认(只是从频率量级推断可能混杂了非解码消息),如果要进一步坐实或证伪这条支线,需要更精确的埋点(比如给 `decodeVectorGraphics` 前后手动打点,而不是复用泛化的引擎 `HandleMessage` 事件)。
