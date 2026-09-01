@@ -1605,3 +1605,26 @@ SurfaceFrame::Encode — self=345.39ms, count=327
 **旁证,与本次排查目标无关但如实记录**:flutter_svg 这次 trace 里出现约 10 个 `DartWorker` 线程,每个 self time 6.5~6.9 秒,几乎全落在 `HandleMessage`,应是 `compute()` 把 SVG 编译丢到后台 isolate 池的开销。这些是独立 OS 线程上的时间,不在 raster/UI 关键路径上,与本节排查的 raster 差距无直接关系。
 
 **局限说明**:每侧仍然只抓了 1 次,倍数漂移幅度本身说明单次 trace 的置信区间较宽;两份原始 trace(`skia_svgx_v2.json`/`skia_fsvg_v2.json`)体积较大,未入库,需要复现时按深挖三记录的命令重抓即可。
+
+#### 深挖八:Path 构造源码 review,同样无差异——五条方向排查完毕,暂停(2026-09-01)
+
+深挖七确认 trace 子 slice 已经挖到引擎埋点的尽头。本节做最后一件事:不跑真机、不写代码,单纯逐行对比两个库把 verb/点数据构造成 `ui.Path` 的源码,看有没有 trace 看不出来但源码能看出来的差异(比如 fillType 默认值不同、AntiAlias 设置不同、多余的 subpath)。
+
+**对比对象**:
+
+- svgx:`lib/src/rust_static_svg.dart` 的 `_toUiPath`/`_replay`(第 855~907 行)。
+- flutter_svg:`vector_graphics-1.2.3`(pub-cache)的 `lib/src/listener.dart`,`FlutterVectorGraphicsListener` 的 `onPathStart`/`onPathMoveTo`/`onPathLineTo`/`onPathCubicTo`/`onPathClose`/`onDrawPath`/`onPaintObject`。
+
+**结论:源码层面也没有找到差异**。两边都是同一套序列:`Path()` → 按 verb 顺序调 `moveTo`/`lineTo`/`cubicTo`/`close` → 显式设置 `fillType`(evenOdd/nonZero 对应 SVG 的 `fill-rule`,两边都设,不存在一边用默认值的情况)→ 交给 `canvas.drawPath(path, paint)`。`Paint()` 在两边都没有显式设 `isAntiAlias`(同用引擎默认值 true),`blendMode` 也都只在非默认值时才设(本次语料全部命中默认路径)。唯一的结构性不同是 svgx 的 verb 编码多一个 `quad`(二次贝塞尔)分支、vector_graphics 编解码器没有对应回调,但深挖五已经测出两边总点数几乎相等(相差 0.03%),说明这条分支在这批语料(usvg 输出已把二次贝塞尔拉高成三次)上基本没被触发,不构成实质差异。没有发现"一方多做了额外操作"(多余 `moveTo`、多余 subpath、多余 `reset`),这与深挖六测出的两边 `save`/`clip`/`transform` 全为 0 互相印证。
+
+**五条方向排查完毕,总结**:
+
+| 方向 | 深挖 | 结论 |
+|---|---|---|
+| 绘制命令数量 | 四 | 打平(两边均 1000 条 `drawPath`) |
+| 单条路径复杂度(verb/点数) | 五 | 打平(相差 <0.03%) |
+| 画布/Paint 状态切换 | 六 | 打平(save/restore/transform 均为 0) |
+| trace 子 slice | 七 | 两侧结构一致,已挖到引擎埋点尽头,倍数方向复现但幅度漂移 |
+| Path 构造源码 | 八(本节) | 无差异 |
+
+**暂停排查,如实标注现状**:Dart 侧一切可观测的指令特征、trace 能拆到的最细粒度、以及两个库 Path 构造的源码本身,五条独立方向全部指向"喂给 GPU 的逻辑内容等价"。`SurfaceFrame::Encode`/`RenderPassGLES::EncodeCommandsInReactor` 的耗时差距是真实、可复现的(方向上两次独立 trace 一致),但根因大概率在这套工具链够不着的层面——Impeller/Skia 引擎内部对某些具体数据模式的处理路径,或 Android 真机 GPU 驱动层——而不是 Dart/Flutter 侧任何可控代码。继续往下需要 Skia/Impeller 源码级 profiling 或更专业的 GPU 抓帧工具,投入量级明显不同于本轮的黑盒插桩/trace 分析,建议本轮到此为止,留给后续视优先级决定是否投入。
