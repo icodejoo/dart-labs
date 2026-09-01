@@ -1476,3 +1476,28 @@ dart run tool/capture_timeline.dart "http://127.0.0.1:PORT/TOKEN=/" 40 skia_svgx
 5. **不要在"着色器预热 / 减少 saveLayer / 去 RepaintBoundary"上继续投入**——本节与深挖一、深挖二的数据已经把这三条排除干净了。
 
 **原始数据留存**:两份 trace 为 `skia_svgx.json`(16.6MB)与 `skia_fsvg.json`,均为 Chrome trace 格式,可直接拖进 Perfetto UI 或 DevTools 时间线查看;也可用 `dart run tool/capture_timeline.dart --summarize <file>` 离线复现上面的 self-time 分解表(不需要连设备)。文件本身未入库(体积原因),需要复现时按上面的命令重抓即可。
+
+#### 深挖四:绘制指令条数量化,`drawPath` 一致(2026-09-01)
+
+深挖三末尾把"量化并压缩每个图标产生的绘制命令条数"列为优先级最高的后续方向。本节直接量化它。
+
+**背景**:深挖三怀疑差距来自"svgx 每帧要编码的绘制命令太多",但没有实测过条数,只是从 `SurfaceFrame::Encode`/`RenderPassGLES::EncodeCommandsInReactor` 两项耗时反推的猜测。
+
+**方法**:不在真实 widget 树上包装 Canvas——两个库都会把源串解析结果缓存成一份 `ui.Picture`,paint 时都只调一次 `drawPicture`,在那一层量不出差异。改为在**两个库各自把场景录制进 `ui.Picture`** 的那一步插桩计数,离屏跑、不经过 GPU 光栅化:
+
+- svgx:给 `RustSvgxPictureCache`(`lib/src/rust_static_svg.dart`)新增 `@visibleForTesting static Canvas Function(Canvas)? debugWrapRecordingCanvas` 钩子,默认 `null`(零开销),插在 `_recordScene` 构建 `Canvas(recorder)` 处,可以拦截 `getOrRender` 的真实录制过程——`SvgxStatic` 调用的正是这个方法。
+- flutter_svg:不改它的源码,绕开 `SvgPicture` widget,直接调用它底层用的同一套代码——`vector_graphics_compiler` 的 `encodeSvg()` + `vector_graphics` 的 `FlutterVectorGraphicsListener(pictureFactory: ...)`,通过公开的 `PictureFactory` 注入点(标了 `@visibleForTesting` 但语言层面不私有)换成计数 Canvas。`encodeSvg` 默认开着的 masking/clipping/overdraw 三个优化器依赖真机上未初始化的原生 `libpathops` 库,会直接抛异常;查了 flutter_svg 自己 `loaders.dart` 里 `SvgStringLoader._load` 的运行时调用,发现它自己也是三个都传 `false`,照抄同样的参数以保证测的是它真实生产路径。
+
+计数对象是 `CountingCanvas`(`implements Canvas`,显式重写 `drawPath`/`drawImage`/`drawRect` 等约 15 个绘制方法并计数,其余方法经 `noSuchMethod` 原样转发给真实 Canvas),工具落在 `benchmark/bench_app/lib/cmd_count_bench.dart`,`main.dart` 新增 `LIB=cmdcount` 分支驱动。
+
+**真机数据**(华为 STG-AL00,`LIB=cmdcount`,1000 个 Mdi 图标):
+
+```
+svgx        : total=1000 avg=1.00
+flutter_svg : total=1000 avg=1.00
+ratio (svgx/flutter_svg) = 1.000
+```
+
+**结论:"命令条数更多"假设不成立**。两边每个图标都恰好产生 1 条 `drawPath`,总数完全相等——核对了语料抽样(`mdi_icons_1000.dart`),绝大多数 Mdi 图标就是单个 `<path fill="currentColor" d="...">`,无描边、无 clip/mask,两个库在这条指标上理论上就该打平,实测也确实打平。深挖三里"每帧要编码的绘制命令太多"这个猜测的**条数**维度被证伪了;深挖三观测到的 `SurfaceFrame::Encode`/`RenderPassGLES::EncodeCommandsInReactor` 耗时差距真实存在,但根因不在指令**数量**上,要往指令**内容复杂度**(单条 `drawPath` 对应的 `Path` verb 数/点数、Paint 状态切换次数等)方向继续查。
+
+**局限说明**:只统计了 `drawPath` 等约 15 个"绘制"方法调用次数,没有统计 `save`/`restore`/`clipRect`/`transform` 等状态类调用,也没有统计单条 `drawPath` 内部路径的复杂度(下一步方向)。1000 个图标全为矢量路径,无 `<image>` 标签,该结论不覆盖含位图的 SVG。

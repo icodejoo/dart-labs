@@ -18,6 +18,7 @@ import 'anim_bench_screen.dart';
 import 'anim_fps_bench_screen.dart';
 import 'bare_anim_grid.dart';
 import 'bench_screen.dart';
+import 'cmd_count_bench.dart';
 import 'compare_bench_screen.dart';
 import 'micro_bench.dart';
 import 'one_anim_bench_screen.dart';
@@ -137,6 +138,26 @@ Future<void> main() async {
         ),
       ),
     );
+    return;
+  }
+  if (_libName == 'cmdcount') {
+    // Off-screen draw-op count comparison: no widget tree, no scrolling, no
+    // GPU rasterization — see cmd_count_bench.dart for why this measures the
+    // hypothesis directly instead of proxying through frame timing.
+    //
+    // 离屏绘制指令数对比：无控件树、无滚动、无 GPU 光栅化——为什么这样直接测量
+    // 假设而不是靠帧耗时代理，见 cmd_count_bench.dart。
+    //
+    // Still wrapped in a minimal `runApp` (not a bare `await` + `exit`): with
+    // no widget tree at all the engine never paints a first frame, which
+    // looked like a hung/black screen on the real device even though the
+    // computation itself was progressing. `CmdCountScreen` gives it
+    // something to draw while the (CPU-only) counting runs.
+    //
+    // 仍然套一层最小 `runApp`（而非直接 `await` + `exit`）：完全没有控件树时
+    // 引擎连第一帧都不会画，在真机上看起来就像卡死黑屏，即便计算本身在正常
+    // 推进。`CmdCountScreen` 让它在（纯 CPU）计数运行期间至少有东西可画。
+    runApp(const MaterialApp(home: CmdCountScreen()));
     return;
   }
   if (_libName == 'compare') {
