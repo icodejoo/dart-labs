@@ -67,12 +67,7 @@ import 'json_converters.dart' show LenientConverter, DisableLenient;
 /// `part 'x.g.dart';` 才会运行，而如果把这行也保留、同时再加一个 part，会导致
 /// 每个生成的顶层声明重复定义。所以只能整体替换掉这条流水线。
 Builder autoDefaultJsonBuilder(BuilderOptions options) {
-  var configJson = options.config;
-  if (_nonJsonSerializableKeys.any(configJson.containsKey)) {
-    configJson = Map.of(configJson)
-      ..removeWhere((key, _) => _nonJsonSerializableKeys.contains(key));
-  }
-  final config = JsonSerializable.fromJson(configJson);
+  final config = JsonSerializable.fromJson(_resolveJsonSerializableConfig(options.config));
 
   final rawLenient = options.config[_lenientOptionKey];
   final yml = _YamlLenientConfig.fromOptions(rawLenient is Map ? rawLenient : null);
@@ -85,6 +80,35 @@ Builder autoDefaultJsonBuilder(BuilderOptions options) {
     '.g.dart',
     formatOutput: _formatCode,
   );
+}
+
+/// `explicit_to_json:` key this builder defaults to `true` when a consuming
+/// project's `build.yaml` doesn't set it at all.
+///
+/// 消费方 `build.yaml` 完全没配 `explicit_to_json:` 时，本 builder 兜底成
+/// `true` 用的键名。
+const _explicitToJsonKey = 'explicit_to_json';
+
+/// Strips this builder's own `options:` keys (see [_nonJsonSerializableKeys])
+/// and fills in `explicit_to_json: true` when the consuming project's
+/// `build.yaml` doesn't mention it at all — nested `@JsonSerializable`
+/// fields almost always need their own `.toJson()` called explicitly, and
+/// stock `json_serializable` defaults that to `false`, so every consumer
+/// would otherwise have to opt in by hand. An explicit `explicit_to_json:
+/// false` in the consuming project's own config is still honored — this
+/// only fills the gap when the key is absent.
+///
+/// 摘掉本 builder 自己的 `options:` 键（见 [_nonJsonSerializableKeys]），并且
+/// 在消费方 `build.yaml` 完全没提 `explicit_to_json:` 时兜底成 `true`——嵌套的
+/// `@JsonSerializable` 字段几乎总是需要显式调用 `.toJson()`，而官方
+/// `json_serializable` 默认是 `false`，不然每个消费方都得自己手动开一遍。
+/// 消费方自己显式写的 `explicit_to_json: false`依然生效——这里只是在完全
+/// 没写这个键时补上默认值。
+Map<String, Object?> _resolveJsonSerializableConfig(Map<String, Object?> rawConfig) {
+  final configJson = Map<String, Object?>.of(rawConfig)
+    ..removeWhere((key, _) => _nonJsonSerializableKeys.contains(key));
+  configJson.putIfAbsent(_explicitToJsonKey, () => true);
+  return configJson;
 }
 
 /// yml `options:` key holding this builder's own `lenient:` section.
@@ -830,3 +854,14 @@ String? debugApplyLenientRewrite(
     _YamlLenientConfig.fromOptions(lenientOptions),
   );
 }
+
+/// Test-only entry point into [_resolveJsonSerializableConfig] — lets a test
+/// assert on the merged `options:` map (this builder's own keys stripped,
+/// `explicit_to_json` defaulted) without spinning up a real [BuilderOptions]
+/// or [Builder].
+///
+/// 仅供测试的入口，暴露 [_resolveJsonSerializableConfig] 的结果——不用真的
+/// 构造 [BuilderOptions]/[Builder]，就能断言合并后的 `options:` map（本
+/// builder 自己的键已摘掉、`explicit_to_json` 已经补上默认值）。
+Map<String, Object?> debugResolveJsonSerializableConfig(Map<String, Object?> rawConfig) =>
+    _resolveJsonSerializableConfig(rawConfig);

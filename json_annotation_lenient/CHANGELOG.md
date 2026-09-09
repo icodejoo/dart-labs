@@ -1,5 +1,18 @@
 # Changelog
 
+## 1.1.0
+
+### Changed
+- **Behavior change:** `autoDefaultJsonBuilder` now defaults `explicit_to_json`
+  to `true` when a consuming project's `build.yaml` doesn't set it at all
+  (nested `@JsonSerializable` fields need it to serialize correctly almost
+  all the time, and the stock `json_serializable` default of `false` meant
+  every consumer had to opt in by hand). If your project relies on the old
+  implicit-`toJson` behavior for nested objects, add `explicit_to_json:
+  false` explicitly under this builder's `options:` — an explicit value in
+  either direction is always honored; this only fills the gap when the key
+  is absent.
+
 ## 1.0.0
 
 ### Fixed

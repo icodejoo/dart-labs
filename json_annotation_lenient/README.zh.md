@@ -35,7 +35,7 @@ epoch 数值。官方 `json_serializable` 遇到这些都会直接抛异常。
 
 ```yaml
 dependencies:
-  json_annotation_lenient: ^1.0.0
+  json_annotation_lenient: ^1.1.0
 ```
 
 即使某个项目只在编译期使用它，`json_annotation_lenient` 也设计成一个**普通**依赖
@@ -144,6 +144,12 @@ dart run build_runner build --delete-conflicting-outputs
 `JsonSerializableGenerator`（`explicit_to_json`、`field_rename` 等 ——
 和官方 `json_serializable` builder 接受的选项一致），只有下面这个
 `lenient:` 段是 builder 自己消费的。
+
+**完全不写 `explicit_to_json` 时默认是 `true`**——嵌套的 `@JsonSerializable`
+字段几乎总是需要显式调用 `.toJson()` 才能正确序列化，而官方
+`json_serializable` 默认是 `false`，导致每个使用方都得自己手动开一遍。如果
+你的项目依赖旧的隐式 `toJson` 行为，自己显式写 `explicit_to_json: false`
+即可——不管写成哪个值，显式写的都会被尊重。
 
 ### `options.lenient` —— 全局宽松配置，一个注解都不用写
 
