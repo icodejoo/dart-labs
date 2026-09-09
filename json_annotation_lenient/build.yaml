@@ -1,0 +1,17 @@
+# `json_annotation_lenient:auto_default` replaces the stock `json_serializable` builder — see
+# lib/src/auto_default_builder.dart for why and what it changes
+# (auto-fills type-based defaults for non-nullable fields with no explicit
+# @JsonKey(defaultValue:), and routes fields through Lenient*Converter when
+# a class/field opts in via @LenientConverter).
+# `auto_apply: none` — this builder is meant to be explicitly enabled by a
+# *consuming* project's own build.yaml (disabling json_serializable there and
+# opting into `json_annotation_lenient:auto_default`), not auto-applied to every
+# dependent package; the latter would double-run alongside a consumer's own
+# `auto_default`-style builder and collide on output assets.
+builders:
+  auto_default:
+    import: "package:json_annotation_lenient/builder.dart"
+    builder_factories: ["autoDefaultJsonBuilder"]
+    build_extensions: {".dart": [".g.dart"]}
+    auto_apply: none
+    build_to: source
