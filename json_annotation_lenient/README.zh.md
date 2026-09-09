@@ -130,6 +130,18 @@ targets:
 dart run build_runner build --delete-conflicting-outputs
 ```
 
+builder 已经用 `dart_style` 包格式化过每个生成的 `.g.dart` 了，但这是一个独立
+发布在 pub.dev 上的包，和你 SDK 自带的 `dart format` 命令用的格式化器不是
+同一个版本——两者会不同步（pub.dev 上的 `dart_style` 有时会落后于较新 Dart
+SDK 内置的格式化器），导致生成的文件跟你项目里其它代码跑 `dart format .`
+的结果对不上。如果你的项目在 CI 或 pre-commit 里强制跑
+`dart format --set-exit-if-changed` 检查，生成之后记得再串一次真正的格式化，
+跟你 SDK 实际用的格式化器保持一致：
+
+```
+dart run build_runner build --delete-conflicting-outputs && dart format .
+```
+
 启用这个 builder 之后：
 
 - 没有显式 `@JsonKey(defaultValue:)` 的非空字段，统一按类型兜底默认值

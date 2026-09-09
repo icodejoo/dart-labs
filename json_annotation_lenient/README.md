@@ -136,6 +136,20 @@ Then run `build_runner` as usual:
 dart run build_runner build --delete-conflicting-outputs
 ```
 
+The builder already formats every generated `.g.dart` with the `dart_style`
+package, but that's a separate pub package from the formatter your SDK's own
+`dart format` CLI ships with — the two can drift out of sync (`dart_style` on
+pub.dev may lag behind the formatter bundled in a newer Dart SDK release),
+which can leave generated files that don't match a plain `dart format .` run
+on the rest of your project. If your project enforces a
+`dart format --set-exit-if-changed` check (in CI or a pre-commit hook), chain
+a real format pass after generation to stay in sync with your SDK's actual
+formatter:
+
+```
+dart run build_runner build --delete-conflicting-outputs && dart format .
+```
+
 With this builder active:
 
 - Every non-nullable field with no explicit `@JsonKey(defaultValue:)` falls
