@@ -1,5 +1,24 @@
 # Changelog
 
+## 1.2.0
+
+### Added
+- New `options.page_width` / `options.trailing_commas` for
+  `json_annotation_lenient:auto_default` — `dart_style`'s public
+  `DartFormatter` API never reads a project's `analysis_options.yaml`
+  `formatter:` section at all (that logic is private to `dart_style`'s own
+  CLI), so generated `.g.dart` previously always used `dart_style`'s
+  built-in defaults regardless of your project's configured page width or
+  trailing-comma style. Set these explicitly to match.
+- The builder now also auto-detects `formatter: page_width:`/
+  `trailing_commas:` from the nearest `analysis_options.yaml` (walking up
+  from the project root) when `options.page_width`/`options.trailing_commas`
+  aren't set explicitly — a from-scratch, simplified reimplementation that
+  follows a single local (non-`package:`) `include:` path per file. An
+  `analysis_options.yaml` whose `formatter:` section lives behind a
+  `package:` include isn't picked up; use the explicit options in that case.
+  An explicit `options:` value always wins over auto-detection.
+
 ## 1.1.0
 
 ### Changed
