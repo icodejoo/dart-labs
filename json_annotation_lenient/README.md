@@ -38,7 +38,7 @@ never use `@LenientConverter`.
 
 ```yaml
 dependencies:
-  json_annotation_lenient: ^0.3.0
+  json_annotation_lenient: ^1.0.0
 ```
 
 `json_annotation_lenient` is designed to be a **regular** dependency (not

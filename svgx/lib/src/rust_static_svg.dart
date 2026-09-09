@@ -15,6 +15,7 @@ import 'dart:ui' as ui;
 import 'package:flutter/widgets.dart';
 
 import 'animation/svg_theme.dart';
+import 'cold_mount_budget.dart';
 import 'rust/api/svg.dart';
 import 'svg_affine.dart';
 
@@ -996,14 +997,76 @@ class SvgxStatic extends StatelessWidget {
       currentColorArgb: currentColorArgb,
     );
     if (cached != null) return _buildFromInfo(context, cached);
-    if (!_imagePattern.hasMatch(source)) {
-      return _buildSync(context, currentColorArgb);
+    if (_imagePattern.hasMatch(source)) {
+      return _buildAsync(
+        context,
+        RustSvgxPictureCache.instance.getOrRenderAsync(
+          source,
+          currentColorArgb: currentColorArgb,
+        ),
+      );
     }
-    return FutureBuilder<RustSvgPictureInfo>(
-      future: RustSvgxPictureCache.instance.getOrRenderAsync(
-        source,
-        currentColorArgb: currentColorArgb,
+    // A genuine cold miss with no embedded image: normally fully synchronous,
+    // but only while this frame's ColdMountFrameBudget still has room — see
+    // its class doc. The overwhelming common case (a handful of misses, or
+    // none) never touches the budget-exhausted branch at all.
+    //
+    // 真正的冷未命中且不含内嵌图片：正常情况下全同步，但仅限本帧的
+    // ColdMountFrameBudget 还有余量时——见其类文档。绝大多数寻常情况（少量
+    // 未命中甚至没有）根本不会碰到预算耗尽这个分支。
+    final budget = ColdMountFrameBudget.instance;
+    if (budget.hasRoom) {
+      return _buildSync(context, currentColorArgb, budget);
+    }
+    return _buildAsync(
+      context,
+      budget.runDeferred(
+        () => RustSvgxPictureCache.instance.getOrRender(
+          source,
+          currentColorArgb: currentColorArgb,
+        ),
       ),
+    );
+  }
+
+  /// Fully-synchronous build path for sources with no `<image>` tag, run
+  /// through [budget] so its wall-clock cost counts against this frame's
+  /// time budget.
+  ///
+  /// 无 `<image>` 标签源的全同步 build 路径，经 [budget] 执行，使其耗时计入
+  /// 本帧的时间预算。
+  Widget _buildSync(
+    BuildContext context,
+    int? currentColorArgb,
+    ColdMountFrameBudget budget,
+  ) {
+    final RustSvgPictureInfo info;
+    try {
+      info = budget.runNow(
+        () => RustSvgxPictureCache.instance.getOrRender(
+          source,
+          currentColorArgb: currentColorArgb,
+        ),
+      );
+    } catch (error, stackTrace) {
+      return errorBuilder?.call(context, error, stackTrace) ??
+          SizedBox(width: width, height: height);
+    }
+    return _buildFromInfo(context, info);
+  }
+
+  /// Shared async build path: waits on [future] behind a [FutureBuilder],
+  /// showing a blank placeholder while pending and [errorBuilder] (or the
+  /// same placeholder) on failure. Used both by the `<image>`-embedding
+  /// decode path and by [budget]-deferred cold renders — same waiting shape,
+  /// different reason for waiting.
+  ///
+  /// 共用的异步 build 路径：在 [FutureBuilder] 之后等待 [future]，等待期间
+  /// 显示空白占位符，失败时用 [errorBuilder]（或同一占位符）。`<image>` 内嵌
+  /// 解码路径与 [budget] 推迟的冷渲染都用它——等待的形状相同，等待的原因不同。
+  Widget _buildAsync(BuildContext context, Future<RustSvgPictureInfo> future) {
+    return FutureBuilder<RustSvgPictureInfo>(
+      future: future,
       builder: (context, snapshot) {
         if (snapshot.hasError) {
           return errorBuilder?.call(
@@ -1014,30 +1077,14 @@ class SvgxStatic extends StatelessWidget {
               SizedBox(width: width, height: height);
         }
         if (!snapshot.hasData) {
-          // Simple loading placeholder while the bitmap decode is in flight —
-          // no dedicated state machine per the task's scope.
-          // 位图解码进行中的简单占位——按任务范围不做专门的状态机。
+          // Simple loading placeholder while pending — no dedicated state
+          // machine per the task's scope.
+          // 等待期间的简单占位——按任务范围不做专门的状态机。
           return SizedBox(width: width, height: height);
         }
         return _buildFromInfo(context, snapshot.data!);
       },
     );
-  }
-
-  /// Fully-synchronous build path for sources with no `<image>` tag.
-  /// 无 `<image>` 标签源的全同步 build 路径。
-  Widget _buildSync(BuildContext context, int? currentColorArgb) {
-    final RustSvgPictureInfo info;
-    try {
-      info = RustSvgxPictureCache.instance.getOrRender(
-        source,
-        currentColorArgb: currentColorArgb,
-      );
-    } catch (error, stackTrace) {
-      return errorBuilder?.call(context, error, stackTrace) ??
-          SizedBox(width: width, height: height);
-    }
-    return _buildFromInfo(context, info);
   }
 
   /// Shared layout/paint wiring once a [RustSvgPictureInfo] is in hand,
