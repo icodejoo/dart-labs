@@ -38,7 +38,7 @@ never use `@LenientConverter`.
 
 ```yaml
 dependencies:
-  json_annotation_lenient: ^1.0.0
+  json_annotation_lenient: ^1.1.0
 ```
 
 `json_annotation_lenient` is designed to be a **regular** dependency (not
@@ -152,6 +152,13 @@ the underlying `JsonSerializableGenerator` (`explicit_to_json`,
 `field_rename`, ... — the same options the stock `json_serializable` builder
 accepts) — except for the `lenient:` section below, which the builder consumes
 itself.
+
+**`explicit_to_json` defaults to `true`** when you don't set it at all —
+nested `@JsonSerializable` fields need their own `.toJson()` called
+explicitly to serialize correctly, and the stock `json_serializable` default
+of `false` meant every consumer had to opt in by hand. Write
+`explicit_to_json: false` yourself if you rely on the old implicit-`toJson`
+behavior — an explicit value in either direction is always honored.
 
 ### `options.lenient` — project-wide leniency, no annotations needed
 
