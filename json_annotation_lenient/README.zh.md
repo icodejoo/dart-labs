@@ -35,7 +35,7 @@ epoch 数值。官方 `json_serializable` 遇到这些都会直接抛异常。
 
 ```yaml
 dependencies:
-  json_annotation_lenient: ^0.3.0
+  json_annotation_lenient: ^1.0.0
 ```
 
 即使某个项目只在编译期使用它，`json_annotation_lenient` 也设计成一个**普通**依赖

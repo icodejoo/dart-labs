@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.3.0
+## 1.0.0
 
 ### Fixed
 - `LenientBoolConverter` now accepts numeric `double` values and normalizes

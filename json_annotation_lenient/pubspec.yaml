@@ -1,6 +1,6 @@
 name: json_annotation_lenient
 description: "Lenient JSON conversion for json_serializable — coerce loose int/double/num/bool/String/DateTime values instead of throwing, plus a drop-in build_runner builder that auto-fills type-based defaults for missing fields."
-version: 0.3.0
+version: 1.0.0
 homepage: https://github.com/icodejoo/dart-labs/tree/main/json_annotation_lenient
 repository: https://github.com/icodejoo/dart-labs
 issue_tracker: https://github.com/icodejoo/dart-labs/issues
