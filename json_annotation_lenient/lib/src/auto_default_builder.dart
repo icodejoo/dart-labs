@@ -67,10 +67,14 @@ import 'json_converters.dart' show LenientConverter, DisableLenient;
 /// `part 'x.g.dart';` 才会运行，而如果把这行也保留、同时再加一个 part，会导致
 /// 每个生成的顶层声明重复定义。所以只能整体替换掉这条流水线。
 Builder autoDefaultJsonBuilder(BuilderOptions options) {
-  final config = JsonSerializable.fromJson(_resolveJsonSerializableConfig(options.config));
+  final config = JsonSerializable.fromJson(
+    _resolveJsonSerializableConfig(options.config),
+  );
 
   final rawLenient = options.config[_lenientOptionKey];
-  final yml = _YamlLenientConfig.fromOptions(rawLenient is Map ? rawLenient : null);
+  final yml = _YamlLenientConfig.fromOptions(
+    rawLenient is Map ? rawLenient : null,
+  );
 
   return PartBuilder(
     [
@@ -104,7 +108,9 @@ const _explicitToJsonKey = 'explicit_to_json';
 /// `json_serializable` 默认是 `false`，不然每个消费方都得自己手动开一遍。
 /// 消费方自己显式写的 `explicit_to_json: false`依然生效——这里只是在完全
 /// 没写这个键时补上默认值。
-Map<String, Object?> _resolveJsonSerializableConfig(Map<String, Object?> rawConfig) {
+Map<String, Object?> _resolveJsonSerializableConfig(
+  Map<String, Object?> rawConfig,
+) {
   final configJson = Map<String, Object?>.of(rawConfig)
     ..removeWhere((key, _) => _nonJsonSerializableKeys.contains(key));
   configJson.putIfAbsent(_explicitToJsonKey, () => true);
@@ -122,7 +128,10 @@ const _lenientOptionKey = 'lenient';
 ///
 /// 本 builder 自己消费的 `options:` 键——必须先摘掉再把剩下的交给
 /// [JsonSerializable.fromJson]，否则它会因为不认识这些键而报错。
-const _nonJsonSerializableKeys = <String>{'run_only_if_triggered', _lenientOptionKey};
+const _nonJsonSerializableKeys = <String>{
+  'run_only_if_triggered',
+  _lenientOptionKey,
+};
 
 /// yml type key -> Dart type name, e.g. `dateTime` -> `DateTime`. Mirrors the
 /// keys of [_converterClassNames].
@@ -322,7 +331,8 @@ Set<String> _readEnabledTypes(ConstantReader reader) => {
   if (reader.read('dateTimeEnabled').boolValue) 'DateTime',
 };
 
-bool _readDateTimeUtc(ConstantReader reader) => reader.read('dateTimeUtc').boolValue;
+bool _readDateTimeUtc(ConstantReader reader) =>
+    reader.read('dateTimeUtc').boolValue;
 
 const _converterClassNames = <String, String>{
   'int': 'LenientIntConverter',
@@ -366,12 +376,15 @@ class _LenientAwareGenerator extends Generator {
       final className = element.name;
       if (className == null) continue;
 
-      final classAnnotation = _lenientConverterChecker.firstAnnotationOfExact(element);
+      final classAnnotation = _lenientConverterChecker.firstAnnotationOfExact(
+        element,
+      );
       final enabled = classAnnotation == null
           ? const <String>{}
           : _readEnabledTypes(ConstantReader(classAnnotation));
-      final classDateTimeUtc =
-          classAnnotation == null ? false : _readDateTimeUtc(ConstantReader(classAnnotation));
+      final classDateTimeUtc = classAnnotation == null
+          ? false
+          : _readDateTimeUtc(ConstantReader(classAnnotation));
 
       final disabledFields = <String>{};
       final fieldOverrides = <String, Set<String>>{};
@@ -382,7 +395,8 @@ class _LenientAwareGenerator extends Generator {
       // visible here too, not just `element.fields` (which excludes them).
       final allFields = <FieldElement>[
         ...element.fields,
-        for (final supertype in element.allSupertypes) ...supertype.element.fields,
+        for (final supertype in element.allSupertypes)
+          ...supertype.element.fields,
       ];
       for (final field in allFields) {
         final fieldName = field.name;
@@ -391,7 +405,9 @@ class _LenientAwareGenerator extends Generator {
           disabledFields.add(fieldName);
           continue;
         }
-        final fieldAnnotation = _lenientConverterChecker.firstAnnotationOfExact(field);
+        final fieldAnnotation = _lenientConverterChecker.firstAnnotationOfExact(
+          field,
+        );
         if (fieldAnnotation != null) {
           final reader = ConstantReader(fieldAnnotation);
           fieldOverrides[fieldName] = _readEnabledTypes(reader);
@@ -401,7 +417,9 @@ class _LenientAwareGenerator extends Generator {
 
       // Skip entirely only if nothing on this class is relevant — avoids
       // building an empty config for every plain @JsonSerializable() class.
-      if (classAnnotation == null && disabledFields.isEmpty && fieldOverrides.isEmpty) {
+      if (classAnnotation == null &&
+          disabledFields.isEmpty &&
+          fieldOverrides.isEmpty) {
         continue;
       }
       configs[className] = _ClassLenientConfig(
@@ -419,9 +437,8 @@ class _LenientAwareGenerator extends Generator {
     // yml-only setup (no @LenientConverter/@DisableLenient anywhere) is the
     // case most likely to omit that import, since nothing else in the file
     // would otherwise need it.
-    final hasLenientImport = library.element.firstFragment.importedLibraries.any(
-      (lib) => lib.identifier.contains('json_annotation_lenient'),
-    );
+    final hasLenientImport = library.element.firstFragment.importedLibraries
+        .any((lib) => lib.identifier.contains('json_annotation_lenient'));
     if (configs.isNotEmpty && !hasLenientImport) {
       log.warning(
         "options.lenient (or @LenientConverter) is active for ${library.element.identifier} "
@@ -430,7 +447,13 @@ class _LenientAwareGenerator extends Generator {
       );
     }
 
-    return _applyDefaults(raw, configs, _yml, routeThroughConverters: hasLenientImport) ?? raw;
+    return _applyDefaults(
+          raw,
+          configs,
+          _yml,
+          routeThroughConverters: hasLenientImport,
+        ) ??
+        raw;
   }
 }
 
@@ -508,7 +531,8 @@ String? _applyDefaults(
         // The field's own @JsonKey(defaultValue:) wins; the yml default is
         // the project-wide fallback; neither means "let the converter use
         // its own built-in default".
-        final defaultSource = scalar.defaultSource ?? yml.defaultFor(scalar.typeName);
+        final defaultSource =
+            scalar.defaultSource ?? yml.defaultFor(scalar.typeName);
         final callArgs = defaultSource == null
             ? scalar.jsonAccess
             : '${scalar.jsonAccess}, $defaultSource';
@@ -552,9 +576,8 @@ String? _applyDefaults(
 /// `json['x'] as bool? ?? true`、`(json['x'] as num).toInt()`、
 /// `(json['x'] as num?)?.toInt() ?? 5`——提取出原始 JSON 取值表达式、字段的
 /// 逻辑类型，以及已有的默认值（如果有）。
-({String jsonAccess, String typeName, String? defaultSource})? _extractScalarShape(
-  Expression expr,
-) {
+({String jsonAccess, String typeName, String? defaultSource})?
+_extractScalarShape(Expression expr) {
   Expression core = expr;
   String? defaultSource;
   if (expr is BinaryExpression && expr.operator.lexeme == '??') {
@@ -602,7 +625,9 @@ String? _applyDefaults(
     if (args.length != 1 || args.single is! AsExpression) return null;
     final inner = args.single as AsExpression;
     final innerType = inner.type;
-    if (innerType is! NamedType || innerType.name.lexeme != 'String') return null;
+    if (innerType is! NamedType || innerType.name.lexeme != 'String') {
+      return null;
+    }
     return (
       jsonAccess: inner.expression.toSource(),
       typeName: 'DateTime',
@@ -645,7 +670,8 @@ String? _applyDefaults(
     }
 
     final elseExpr = expr.elseExpression;
-    if (elseExpr is! MethodInvocation || elseExpr.methodName.name != 'fromJson') {
+    if (elseExpr is! MethodInvocation ||
+        elseExpr.methodName.name != 'fromJson') {
       return null;
     }
     final creation = elseExpr.target;
@@ -673,7 +699,8 @@ String? _applyDefaults(
     if (type is NamedType && type.question == null) {
       // A yml `defaultValue:` for this type replaces the built-in fallback
       // (`'Map'` has no yml counterpart, so it always keeps `const {}`).
-      final defaultText = yml.defaultFor(type.name.lexeme) ?? _typeDefaults[type.name.lexeme];
+      final defaultText =
+          yml.defaultFor(type.name.lexeme) ?? _typeDefaults[type.name.lexeme];
       if (defaultText != null) {
         // `json['x'] as String` throws on a null value before `??` ever
         // runs — non-nullable casts don't evaluate to null, they throw.
@@ -711,7 +738,8 @@ String? _applyDefaults(
     if (type.name.lexeme != 'num') return null;
 
     final isInt = expr.methodName.name == 'toInt';
-    final defaultText = yml.defaultFor(isInt ? 'int' : 'double') ?? (isInt ? '0' : '0.0');
+    final defaultText =
+        yml.defaultFor(isInt ? 'int' : 'double') ?? (isInt ? '0' : '0.0');
     final operand = target.expression.toSource();
     return (
       expr.offset,
@@ -729,7 +757,8 @@ String? _applyDefaults(
     // no `?.`-chainable form, so the fix lives inside its single argument:
     // `Map<K, V>.from(json['x'] as Map? ?? const {})`.
     final ctorType = expr.constructorName.type;
-    if (ctorType.name.lexeme != 'Map' || expr.constructorName.name?.name != 'from') {
+    if (ctorType.name.lexeme != 'Map' ||
+        expr.constructorName.name?.name != 'from') {
       return null;
     }
     final args = expr.argumentList.arguments;
@@ -774,7 +803,9 @@ String? _applyDefaults(
       final indexSource = innerExpr.expression.toSource();
       final typeSource = type.toSource();
       final mapArgSource = mapCall.argumentList.arguments.single.toSource();
-      final fallback = expr.methodName.name == 'toSet' ? 'const {}' : 'const []';
+      final fallback = expr.methodName.name == 'toSet'
+          ? 'const {}'
+          : 'const []';
       return (
         expr.offset,
         expr.end,
@@ -863,5 +894,6 @@ String? debugApplyLenientRewrite(
 /// 仅供测试的入口，暴露 [_resolveJsonSerializableConfig] 的结果——不用真的
 /// 构造 [BuilderOptions]/[Builder]，就能断言合并后的 `options:` map（本
 /// builder 自己的键已摘掉、`explicit_to_json` 已经补上默认值）。
-Map<String, Object?> debugResolveJsonSerializableConfig(Map<String, Object?> rawConfig) =>
-    _resolveJsonSerializableConfig(rawConfig);
+Map<String, Object?> debugResolveJsonSerializableConfig(
+  Map<String, Object?> rawConfig,
+) => _resolveJsonSerializableConfig(rawConfig);

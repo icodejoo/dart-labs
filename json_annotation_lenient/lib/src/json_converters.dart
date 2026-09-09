@@ -116,10 +116,7 @@ class LenientIntConverter implements JsonConverter<int, dynamic> {
     double v => _finiteDoubleToInt(v, json),
     String v =>
       int.tryParse(v) ??
-          _finiteDoubleToInt(
-            double.tryParse(v) ?? _throwInt(json),
-            json,
-          ),
+          _finiteDoubleToInt(double.tryParse(v) ?? _throwInt(json), json),
     _ => _throwInt(json),
   };
 
@@ -248,7 +245,9 @@ class LenientBoolConverter implements JsonConverter<bool, dynamic> {
     String v => switch (v.trim().toLowerCase()) {
       'true' || '1' || 'yes' || 'y' || 'on' => true,
       'false' || '0' || 'no' || 'n' || 'off' || '' => false,
-      _ => throw FormatException('Cannot convert to bool: unsupported string ($v)'),
+      _ => throw FormatException(
+        'Cannot convert to bool: unsupported string ($v)',
+      ),
     },
     _ => throw FormatException(
       'Cannot convert to bool: unsupported value (${json.runtimeType}: $json)',
@@ -389,7 +388,9 @@ class LenientDateTimeConverter implements JsonConverter<DateTime, dynamic> {
 
   static DateTime _fromEpoch(num value, bool utc) {
     if (!value.isFinite) {
-      throw FormatException('Cannot convert to DateTime: not a finite number ($value)');
+      throw FormatException(
+        'Cannot convert to DateTime: not a finite number ($value)',
+      );
     }
     final magnitude = value.abs();
     if (magnitude >= 1e14) {
@@ -400,7 +401,9 @@ class LenientDateTimeConverter implements JsonConverter<DateTime, dynamic> {
     }
     final millis = value * 1000;
     if (!millis.isFinite || millis.abs() > 8640000000000000) {
-      throw FormatException('Cannot convert to DateTime: epoch value out of range ($value)');
+      throw FormatException(
+        'Cannot convert to DateTime: epoch value out of range ($value)',
+      );
     }
     return DateTime.fromMillisecondsSinceEpoch(millis.round(), isUtc: utc);
   }
@@ -414,7 +417,9 @@ class LenientDateTimeConverter implements JsonConverter<DateTime, dynamic> {
       final month = int.parse(dateMatch.group(2)!);
       final day = int.parse(dateMatch.group(3)!);
       if (month >= 1 && month <= 12 && day >= 1 && day <= 31) {
-        return utc ? DateTime.utc(year, month, day) : DateTime(year, month, day);
+        return utc
+            ? DateTime.utc(year, month, day)
+            : DateTime(year, month, day);
       }
     }
 

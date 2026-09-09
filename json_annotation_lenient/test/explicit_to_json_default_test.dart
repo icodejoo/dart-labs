@@ -18,12 +18,16 @@ void main() {
     });
 
     test('an explicit false is honored, not overridden', () {
-      final resolved = debugResolveJsonSerializableConfig(const {'explicit_to_json': false});
+      final resolved = debugResolveJsonSerializableConfig(const {
+        'explicit_to_json': false,
+      });
       expect(resolved['explicit_to_json'], isFalse);
     });
 
     test('an explicit true is left untouched', () {
-      final resolved = debugResolveJsonSerializableConfig(const {'explicit_to_json': true});
+      final resolved = debugResolveJsonSerializableConfig(const {
+        'explicit_to_json': true,
+      });
       expect(resolved['explicit_to_json'], isTrue);
     });
 

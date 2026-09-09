@@ -11,12 +11,27 @@ void main() {
     test('passes through int', () => expect(c.fromJson(42), 42));
     test('truncates double', () => expect(c.fromJson(42.9), 42));
     test('parses integer string', () => expect(c.fromJson('42'), 42));
-    test('parses decimal string via double fallback', () => expect(c.fromJson('42.5'), 42));
+    test(
+      'parses decimal string via double fallback',
+      () => expect(c.fromJson('42.5'), 42),
+    );
     test('null falls back to defaultValue', () => expect(c.fromJson(null), 0));
-    test('null falls back to explicit defaultValue', () => expect(c.fromJson(null, 7), 7));
-    test('NaN throws', () => expect(() => c.fromJson(double.nan), throwsFormatException));
-    test('non-numeric string throws', () => expect(() => c.fromJson('abc'), throwsFormatException));
-    test('unsupported type throws', () => expect(() => c.fromJson(true), throwsFormatException));
+    test(
+      'null falls back to explicit defaultValue',
+      () => expect(c.fromJson(null, 7), 7),
+    );
+    test(
+      'NaN throws',
+      () => expect(() => c.fromJson(double.nan), throwsFormatException),
+    );
+    test(
+      'non-numeric string throws',
+      () => expect(() => c.fromJson('abc'), throwsFormatException),
+    );
+    test(
+      'unsupported type throws',
+      () => expect(() => c.fromJson(true), throwsFormatException),
+    );
     test('toJson passes through', () => expect(c.toJson(5), 5));
   });
 
@@ -26,9 +41,18 @@ void main() {
     test('passes through double', () => expect(c.fromJson(4.2), 4.2));
     test('widens int', () => expect(c.fromJson(4), 4.0));
     test('parses numeric string', () => expect(c.fromJson('4.2'), 4.2));
-    test('null falls back to defaultValue', () => expect(c.fromJson(null), 0.0));
-    test('non-numeric string throws', () => expect(() => c.fromJson('abc'), throwsFormatException));
-    test('unsupported type throws', () => expect(() => c.fromJson(true), throwsFormatException));
+    test(
+      'null falls back to defaultValue',
+      () => expect(c.fromJson(null), 0.0),
+    );
+    test(
+      'non-numeric string throws',
+      () => expect(() => c.fromJson('abc'), throwsFormatException),
+    );
+    test(
+      'unsupported type throws',
+      () => expect(() => c.fromJson(true), throwsFormatException),
+    );
   });
 
   group('LenientNumConverter', () {
@@ -38,7 +62,10 @@ void main() {
     test('keeps double subtype', () => expect(c.fromJson(4.2), isA<double>()));
     test('parses numeric string', () => expect(c.fromJson('4.2'), 4.2));
     test('null falls back to defaultValue', () => expect(c.fromJson(null), 0));
-    test('non-numeric string throws', () => expect(() => c.fromJson('abc'), throwsFormatException));
+    test(
+      'non-numeric string throws',
+      () => expect(() => c.fromJson('abc'), throwsFormatException),
+    );
   });
 
   group('LenientBoolConverter', () {
@@ -61,9 +88,18 @@ void main() {
       expect(c.fromJson('no'), isFalse);
       expect(c.fromJson(''), isFalse);
     });
-    test('unrecognized string throws', () => expect(() => c.fromJson('banana'), throwsFormatException));
-    test('null falls back to defaultValue', () => expect(c.fromJson(null), isFalse));
-    test('unsupported type throws', () => expect(() => c.fromJson([1]), throwsFormatException));
+    test(
+      'unrecognized string throws',
+      () => expect(() => c.fromJson('banana'), throwsFormatException),
+    );
+    test(
+      'null falls back to defaultValue',
+      () => expect(c.fromJson(null), isFalse),
+    );
+    test(
+      'unsupported type throws',
+      () => expect(() => c.fromJson([1]), throwsFormatException),
+    );
   });
 
   group('LenientStringConverter', () {
@@ -73,7 +109,10 @@ void main() {
     test('stringifies num', () => expect(c.fromJson(4.2), '4.2'));
     test('stringifies bool', () => expect(c.fromJson(true), 'true'));
     test('null falls back to defaultValue', () => expect(c.fromJson(null), ''));
-    test('unsupported type throws', () => expect(() => c.fromJson([1]), throwsFormatException));
+    test(
+      'unsupported type throws',
+      () => expect(() => c.fromJson([1]), throwsFormatException),
+    );
   });
 
   group('LenientDateTimeConverter yyyyMMdd', () {
@@ -86,7 +125,10 @@ void main() {
     test('8-digit epoch-shaped but invalid date falls back to epoch seconds', () {
       // month=13 is not a valid yyyyMMdd -> treated as an epoch-seconds number.
       final result = c.fromJson('20241301');
-      expect(result, DateTime.fromMillisecondsSinceEpoch(20241301 * 1000, isUtc: false));
+      expect(
+        result,
+        DateTime.fromMillisecondsSinceEpoch(20241301 * 1000, isUtc: false),
+      );
     });
   });
 }
