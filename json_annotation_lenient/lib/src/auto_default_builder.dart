@@ -1,6 +1,8 @@
 // This file is a build_runner-only tool, never shipped or imported by an
 // app's runtime code.
 
+import 'dart:io';
+
 import 'package:analyzer/dart/analysis/utilities.dart';
 import 'package:analyzer/dart/ast/ast.dart';
 import 'package:analyzer/dart/element/element.dart';
@@ -10,6 +12,7 @@ import 'package:json_annotation/json_annotation.dart';
 import 'package:json_serializable/json_serializable.dart';
 import 'package:pub_semver/pub_semver.dart';
 import 'package:source_gen/source_gen.dart';
+import 'package:yaml/yaml.dart';
 
 import 'json_converters.dart' show LenientConverter, DisableLenient;
 
@@ -76,14 +79,185 @@ Builder autoDefaultJsonBuilder(BuilderOptions options) {
     rawLenient is Map ? rawLenient : null,
   );
 
+  final explicitPageWidth = _readPageWidth(options.config);
+  final explicitTrailingCommas = _readTrailingCommas(options.config);
+  // Only bother walking the filesystem when at least one of the two is
+  // actually missing — an explicit `options:` value always wins anyway.
+  final detected = (explicitPageWidth == null || explicitTrailingCommas == null)
+      ? _detectFormatterOptionsFromAnalysisOptions()
+      : _emptyDetectedFormatterOptions;
+
   return PartBuilder(
     [
       _LenientAwareGenerator(JsonSerializableGenerator(config: config), yml),
       const JsonEnumGenerator(),
     ],
     '.g.dart',
-    formatOutput: _formatCode,
+    formatOutput: _formatCodeWith(
+      explicitPageWidth ?? detected.pageWidth,
+      explicitTrailingCommas ?? detected.trailingCommas,
+    ),
   );
+}
+
+/// `page_width:` key for this builder's own `options:` — see [_readPageWidth].
+///
+/// 本 builder 自己的 `options:` 里 `page_width:` 键名——见 [_readPageWidth]。
+const _pageWidthOptionKey = 'page_width';
+
+/// `trailing_commas:` key for this builder's own `options:` — see
+/// [_readTrailingCommas]. Same values `dart_style` itself accepts in
+/// `analysis_options.yaml`'s `formatter:` section: `'automate'`/`'preserve'`.
+///
+/// 本 builder 自己的 `options:` 里 `trailing_commas:` 键名——见
+/// [_readTrailingCommas]。取值和 `dart_style` 自己在 `analysis_options.yaml`
+/// 的 `formatter:` 段里认的一样：`'automate'`/`'preserve'`。
+const _trailingCommasOptionKey = 'trailing_commas';
+
+/// Reads `options.page_width` as an `int`, or null when absent/mistyped.
+/// An explicit value here always wins over whatever
+/// [_detectFormatterOptionsFromAnalysisOptions] finds.
+///
+/// 把 `options.page_width` 读成 `int`；没写或类型不对就返回 null。这里显式写的
+/// 值永远优先于 [_detectFormatterOptionsFromAnalysisOptions] 探测到的结果。
+int? _readPageWidth(Map<String, Object?> rawConfig) {
+  final value = rawConfig[_pageWidthOptionKey];
+  return value is int ? value : null;
+}
+
+/// Reads `options.trailing_commas` as a [TrailingCommas], or null when
+/// absent/mistyped. Same precedence as [_readPageWidth].
+///
+/// 把 `options.trailing_commas` 读成 [TrailingCommas]；没写或类型不对就返回
+/// null。优先级规则同 [_readPageWidth]。
+TrailingCommas? _readTrailingCommas(Map<String, Object?> rawConfig) =>
+    _parseTrailingCommas(rawConfig[_trailingCommasOptionKey]);
+
+/// Parses the two string values `dart_style` itself accepts for
+/// `trailing_commas` (`'automate'`/`'preserve'`) into a [TrailingCommas], or
+/// null for anything else (absent, wrong type, unrecognized string).
+///
+/// 把 `dart_style` 自己认的两个 `trailing_commas` 字符串取值
+/// （`'automate'`/`'preserve'`）解析成 [TrailingCommas]；其它情况（没写、
+/// 类型不对、字符串不认识）一律返回 null。
+TrailingCommas? _parseTrailingCommas(Object? value) => switch (value) {
+  'automate' => TrailingCommas.automate,
+  'preserve' => TrailingCommas.preserve,
+  _ => null,
+};
+
+/// Result of [_detectFormatterOptionsFromAnalysisOptions] — either field may
+/// be null when nothing was found (or nothing needed finding).
+///
+/// [_detectFormatterOptionsFromAnalysisOptions] 的结果——没探测到（或者根本
+/// 不需要探测）的字段就是 null。
+typedef _DetectedFormatterOptions = ({
+  int? pageWidth,
+  TrailingCommas? trailingCommas,
+});
+
+const _emptyDetectedFormatterOptions = (pageWidth: null, trailingCommas: null);
+
+/// Walks up from the current working directory — the project root
+/// `build_runner` is invoked from — looking for the nearest
+/// `analysis_options.yaml`, and reads its `formatter: page_width:`/
+/// `trailing_commas:` keys, the same two (and only two) keys `dart_style`'s
+/// own CLI reads there (see [_readPageWidth]'s dartdoc for why we can't just
+/// call into `dart_style`'s own reader). This is a from-scratch,
+/// deliberately simplified reimplementation: it only follows a single local
+/// (non-`package:`) `include:` path per file, not the full include-merging
+/// `dart_style` itself supports — an `analysis_options.yaml` whose
+/// `formatter:` section lives behind a `package:` include won't be picked
+/// up; set `options.page_width`/`options.trailing_commas` explicitly in
+/// that case.
+///
+/// Only called once from [autoDefaultJsonBuilder] — not from inside the
+/// per-file `formatOutput` callback, which is synchronous and has no
+/// filesystem access at all. A real, synchronous filesystem read is safe
+/// here specifically because this runs directly on the local machine during
+/// builder construction, not inside build_runner's sandboxed per-asset
+/// build graph.
+///
+/// 从当前工作目录（也就是跑 build_runner 时的项目根目录）向上查找最近的
+/// `analysis_options.yaml`，读出 `formatter: page_width:`/`trailing_commas:`
+/// ——跟 `dart_style` 自己 CLI 读的那两个（也只有那两个）键一样（为什么不能
+/// 直接调用 `dart_style` 自己的读取逻辑，见 [_readPageWidth] 的 dartdoc）。
+/// 这里是从零实现的简化版：每个文件只跟随一层本地（非 `package:`）的
+/// `include:` 路径，不支持 `dart_style` 自己那种完整的 include 合并——如果
+/// `formatter:` 配置藏在一个 `package:` include 背后，探测不到；这种情况下
+/// 请显式配置 `options.page_width`/`options.trailing_commas`。
+///
+/// 只在 [autoDefaultJsonBuilder] 里调用一次——不是在同步、完全没有文件系统
+/// 访问权限的 `formatOutput` 回调里。这里真去做同步文件系统读取是安全的，
+/// 因为这段代码是在 builder 构造阶段、直接跑在本机进程里的，不在
+/// build_runner 沙箱化的逐 asset 构建图里面。
+_DetectedFormatterOptions _detectFormatterOptionsFromAnalysisOptions() {
+  var dir = Directory.current;
+  while (true) {
+    final file = File(
+      '${dir.path}${Platform.pathSeparator}analysis_options.yaml',
+    );
+    if (file.existsSync()) {
+      try {
+        return _readFormatterSection(file, <String>{});
+      } on Object {
+        // Malformed yaml, unreadable file, etc. — behave as if nothing was
+        // configured rather than failing the whole build over a formatting
+        // nicety.
+        return _emptyDetectedFormatterOptions;
+      }
+    }
+
+    final parent = dir.parent;
+    if (parent.path == dir.path) break;
+    dir = parent;
+  }
+  return _emptyDetectedFormatterOptions;
+}
+
+/// Reads the `formatter:` section of [file], following a single local
+/// `include:` path (skipped if it's a `package:` URI) for whichever key
+/// [file] itself doesn't set. [visited] guards against an include cycle.
+///
+/// 读取 [file] 的 `formatter:` 段；[file] 自己没设的键会跟一层本地
+/// `include:` 路径（`package:` URI 直接跳过）。[visited] 用来防止 include
+/// 循环引用。
+_DetectedFormatterOptions _readFormatterSection(
+  File file,
+  Set<String> visited,
+) {
+  if (!visited.add(file.absolute.path)) return _emptyDetectedFormatterOptions;
+
+  final doc = loadYaml(file.readAsStringSync());
+  if (doc is! Map) return _emptyDetectedFormatterOptions;
+
+  var pageWidth = switch (doc['formatter']) {
+    Map formatter => switch (formatter['page_width']) {
+      final int width => width,
+      _ => null,
+    },
+    _ => null,
+  };
+  var trailingCommas = switch (doc['formatter']) {
+    Map formatter => _parseTrailingCommas(formatter['trailing_commas']),
+    _ => null,
+  };
+
+  if (pageWidth == null || trailingCommas == null) {
+    final include = doc['include'];
+    if (include is String && !include.startsWith('package:')) {
+      final includeFile = File(
+        '${file.parent.path}${Platform.pathSeparator}$include',
+      );
+      if (includeFile.existsSync()) {
+        final fromInclude = _readFormatterSection(includeFile, visited);
+        pageWidth ??= fromInclude.pageWidth;
+        trailingCommas ??= fromInclude.trailingCommas;
+      }
+    }
+  }
+
+  return (pageWidth: pageWidth, trailingCommas: trailingCommas);
 }
 
 /// `explicit_to_json:` key this builder defaults to `true` when a consuming
@@ -131,6 +305,8 @@ const _lenientOptionKey = 'lenient';
 const _nonJsonSerializableKeys = <String>{
   'run_only_if_triggered',
   _lenientOptionKey,
+  _pageWidthOptionKey,
+  _trailingCommasOptionKey,
 };
 
 /// yml type key -> Dart type name, e.g. `dateTime` -> `DateTime`. Mirrors the
@@ -254,8 +430,26 @@ String _dartStringLiteral(String value) {
   return "'$escaped'";
 }
 
-String _formatCode(String code, Version languageVersion) =>
-    DartFormatter(languageVersion: languageVersion).format(code);
+/// Builds the [PartBuilder.formatOutput] callback, closing over the
+/// resolved `pageWidth`/`trailingCommas` (explicit `options:` value, or
+/// whatever [_detectFormatterOptionsFromAnalysisOptions] found) —
+/// [PartBuilder] only passes `(code, languageVersion)` to this callback, so
+/// these have to be captured ahead of time rather than threaded through per
+/// call.
+///
+/// 构造 [PartBuilder.formatOutput] 回调，把解析好的 `pageWidth`/`trailingCommas`
+/// （显式 `options:` 值，或者 [_detectFormatterOptionsFromAnalysisOptions]
+/// 探测到的结果）提前捕获进闭包——[PartBuilder] 调用这个回调时只传
+/// `(code, languageVersion)`，这些配置没法逐次传进来，只能提前捕获。
+String Function(String code, Version languageVersion) _formatCodeWith(
+  int? pageWidth,
+  TrailingCommas? trailingCommas,
+) =>
+    (code, languageVersion) => DartFormatter(
+      languageVersion: languageVersion,
+      pageWidth: pageWidth,
+      trailingCommas: trailingCommas,
+    ).format(code);
 
 /// Per-class config extracted from `@LenientConverter(...)` and
 /// `@DisableLenient()` — which scalar types should route through a
@@ -897,3 +1091,22 @@ String? debugApplyLenientRewrite(
 Map<String, Object?> debugResolveJsonSerializableConfig(
   Map<String, Object?> rawConfig,
 ) => _resolveJsonSerializableConfig(rawConfig);
+
+/// Test-only entry point into [_readPageWidth].
+///
+/// 仅供测试的入口，暴露 [_readPageWidth]。
+int? debugReadPageWidth(Map<String, Object?> rawConfig) =>
+    _readPageWidth(rawConfig);
+
+/// Test-only entry point into [_readFormatterSection] — lets a test point it
+/// at a real `analysis_options.yaml` file it wrote to a temp directory,
+/// without needing to change [Directory.current] (which
+/// [_detectFormatterOptionsFromAnalysisOptions] itself walks up from).
+///
+/// 仅供测试的入口，暴露 [_readFormatterSection]——让测试可以指向自己写到临时
+/// 目录里的一份真实 `analysis_options.yaml`，不用去改
+/// [Directory.current]（[_detectFormatterOptionsFromAnalysisOptions] 自己
+/// 才需要从那里往上走）。
+({int? pageWidth, TrailingCommas? trailingCommas}) debugReadFormatterSection(
+  File file,
+) => _readFormatterSection(file, <String>{});

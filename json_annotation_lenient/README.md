@@ -137,11 +137,15 @@ dart run build_runner build --delete-conflicting-outputs
 ```
 
 The builder already formats every generated `.g.dart` with the `dart_style`
-package, but that's a separate pub package from the formatter your SDK's own
-`dart format` CLI ships with — the two can drift out of sync (`dart_style` on
-pub.dev may lag behind the formatter bundled in a newer Dart SDK release),
-which can leave generated files that don't match a plain `dart format .` run
-on the rest of your project. If your project enforces a
+package, and automatically picks up your project's own `page_width`/
+`trailing_commas` from `analysis_options.yaml` if it sets them (see
+`options.page_width`/`options.trailing_commas` below for the details and
+limitations of that auto-detection). Even so, `dart_style` on pub.dev is a
+separate package from the formatter your SDK's own `dart format` CLI ships
+with, and the two can drift out of sync (pub.dev's release may lag behind
+the formatter bundled in a newer Dart SDK release) — which can still leave
+generated files that don't quite match a plain `dart format .` run on the
+rest of your project. If your project enforces a
 `dart format --set-exit-if-changed` check (in CI or a pre-commit hook), chain
 a real format pass after generation to stay in sync with your SDK's actual
 formatter:
@@ -246,6 +250,36 @@ written under `dateTime` is ignored rather than treated as an error.
 
 The whole section is parsed leniently: a malformed entry (wrong shape, wrong
 value type) is skipped rather than failing the build.
+
+### `options.page_width` / `options.trailing_commas` — matching your formatter config
+
+`dart_style`'s public `DartFormatter` class — the only thing this builder (or
+any other `PartBuilder`-based generator) can call — never reads a project's
+`analysis_options.yaml` at all; the logic that does is private to
+`dart_style`'s own CLI. Without help, generated `.g.dart` always uses
+`dart_style`'s built-in page width (80) and trailing-comma policy
+(`automate`), no matter what your project has configured.
+
+To close that gap, this builder:
+
+1. Auto-detects `formatter: page_width:`/`trailing_commas:` from the nearest
+   `analysis_options.yaml` (walking up from the directory `build_runner` is
+   run from) — a from-scratch, deliberately simplified reimplementation that
+   follows at most one local (non-`package:`) `include:` path per file. An
+   `analysis_options.yaml` whose `formatter:` section lives behind a
+   `package:` include (e.g. a shared team lint package) isn't picked up this
+   way.
+2. Falls back to whatever you set explicitly:
+
+   ```yaml
+   options:
+     page_width: 100
+     trailing_commas: preserve # or 'automate'
+   ```
+
+   An explicit `options:` value here always wins over auto-detection —
+   useful both as an override and as the escape hatch for the `package:`
+   include case above.
 
 ---
 

@@ -130,13 +130,15 @@ targets:
 dart run build_runner build --delete-conflicting-outputs
 ```
 
-builder 已经用 `dart_style` 包格式化过每个生成的 `.g.dart` 了，但这是一个独立
-发布在 pub.dev 上的包，和你 SDK 自带的 `dart format` 命令用的格式化器不是
-同一个版本——两者会不同步（pub.dev 上的 `dart_style` 有时会落后于较新 Dart
-SDK 内置的格式化器），导致生成的文件跟你项目里其它代码跑 `dart format .`
-的结果对不上。如果你的项目在 CI 或 pre-commit 里强制跑
-`dart format --set-exit-if-changed` 检查，生成之后记得再串一次真正的格式化，
-跟你 SDK 实际用的格式化器保持一致：
+builder 已经用 `dart_style` 包格式化过每个生成的 `.g.dart` 了，而且会自动从
+`analysis_options.yaml` 里读取你项目自己配的 `page_width`/`trailing_commas`
+（如果配了的话——细节和局限见下面 `options.page_width`/`options.trailing_commas`
+一节）。即便如此，pub.dev 上的 `dart_style` 是一个独立发布的包，和你 SDK 自带
+的 `dart format` 命令用的格式化器不是同一个版本——两者仍可能不同步（pub.dev
+上的发布有时会落后于较新 Dart SDK 内置的格式化器），导致生成的文件跟你项目里
+其它代码跑 `dart format .` 的结果对不太上。如果你的项目在 CI 或 pre-commit 里
+强制跑 `dart format --set-exit-if-changed` 检查，生成之后记得再串一次真正的
+格式化，跟你 SDK 实际用的格式化器保持一致：
 
 ```
 dart run build_runner build --delete-conflicting-outputs && dart format .
@@ -232,6 +234,33 @@ yml 的 `defaultValue:` 对没走宽松转换的普通字段也生效 —— 配
 
 整段配置都是宽松解析的：某一项格式不对（结构不对、值类型不对）会被跳过，
 不会让整个构建失败。
+
+### `options.page_width` / `options.trailing_commas` —— 对齐你的格式化配置
+
+`dart_style` 公开的 `DartFormatter` 类——这个 builder（以及任何基于
+`PartBuilder` 的生成器）唯一能调用的东西——完全不读项目的
+`analysis_options.yaml`；真正读那个文件的逻辑是 `dart_style` 自己 CLI 私有
+的。没有额外处理的话，生成的 `.g.dart` 永远只会用 `dart_style` 内置的默认值
+（page width 80、trailing comma 策略 `automate`），不管你项目里实际配的是
+什么。
+
+为了填上这个坑，这个 builder 会：
+
+1. 自动从最近的 `analysis_options.yaml`（从跑 build_runner 的目录往上找）
+   探测 `formatter: page_width:`/`trailing_commas:`——这是从零实现的简化版，
+   每个文件最多跟一层本地（非 `package:`）的 `include:` 路径。如果
+   `formatter:` 配置藏在一个 `package:` include 背后（比如团队共享的 lint
+   包），探测不到。
+2. 兜底到你显式写的配置：
+
+   ```yaml
+   options:
+     page_width: 100
+     trailing_commas: preserve # 或 'automate'
+   ```
+
+   这里显式写的值永远优先于自动探测的结果——既可以用来覆盖，也是上面
+   `package:` include 场景下的退路。
 
 ---
 
