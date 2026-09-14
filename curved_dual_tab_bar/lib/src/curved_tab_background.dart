@@ -46,6 +46,11 @@ class CurvedTabBackground extends StatefulWidget {
     this.inactiveGradient,
     this.dividerColor,
     this.dividerWidth = 1.5,
+    this.dividerGradient,
+    this.dividerCap = StrokeCap.butt,
+    this.dividerShadow,
+    this.topControlOffset = Offset.zero,
+    this.bottomControlOffset = Offset.zero,
     this.activeBorderColor,
     this.inactiveBorderColor,
     this.splitBorderWidth = 1.5,
@@ -93,7 +98,12 @@ class CurvedTabBackground extends StatefulWidget {
   ///
   /// 前景完全不依赖 `t` 时可以整个不传——这时直接渲染 [child]，不用自己写
   /// 一句透传的 `(context, t, child) => child!`。
-  final Widget Function(BuildContext context, double animateValue, Widget? child)? builder;
+  final Widget Function(
+    BuildContext context,
+    double animateValue,
+    Widget? child,
+  )?
+  builder;
 
   /// Passed straight through to [builder] on every rebuild, without being
   /// rebuilt itself; rendered as-is if [builder] is omitted. See [builder].
@@ -185,11 +195,56 @@ class CurvedTabBackground extends StatefulWidget {
   /// 时才看得出分界。
   final Color? dividerColor;
 
-  /// Stroke width for the S-curve seam. Ignored when [dividerColor] is
-  /// `null`.
+  /// Stroke width for the S-curve seam. Ignored unless [dividerColor] or
+  /// [dividerGradient] is set.
   ///
-  /// S 曲线描边的宽度。[dividerColor] 为 `null` 时不生效。
+  /// S 曲线描边的宽度。[dividerColor] 和 [dividerGradient] 都为 `null` 时
+  /// 不生效。
   final double dividerWidth;
+
+  /// Overrides [dividerColor] with a gradient stroke for the S-curve seam.
+  ///
+  /// 用渐变替代 [dividerColor]，作为 S 曲线描边的颜色。
+  final Gradient? dividerGradient;
+
+  /// Stroke cap for the S-curve seam (and its [dividerShadow], if any).
+  /// Defaults to [StrokeCap.butt] — a flat cut right at the top/bottom
+  /// edges. [StrokeCap.round] extends a rounded cap past them instead.
+  ///
+  /// S 曲线描边（以及 [dividerShadow]，如果有）的线帽样式。默认
+  /// [StrokeCap.butt]——在顶/底边处直接齐平截断。[StrokeCap.round] 则会
+  /// 在边缘外多出一段圆头。
+  final StrokeCap dividerCap;
+
+  /// Soft shadow/glow stroked once behind the S-curve seam, using the same
+  /// path — its [BoxShadow.color]/[BoxShadow.blurRadius]/[BoxShadow.offset]
+  /// apply as they would to any shadow, and [BoxShadow.spreadRadius] widens
+  /// the stroke (added to [dividerWidth] on each side) rather than growing a
+  /// filled shape. Ignored unless [dividerColor] or [dividerGradient] is
+  /// set.
+  ///
+  /// 在 S 曲线描边后面，沿同一条路径再描一遍的柔和阴影/发光——
+  /// [BoxShadow.color]/[BoxShadow.blurRadius]/[BoxShadow.offset] 跟用在普通
+  /// 阴影上的效果一样，[BoxShadow.spreadRadius] 则是把描边加宽（在
+  /// [dividerWidth] 两侧各加一份），而不是撑大一个填充形状。[dividerColor]
+  /// 和 [dividerGradient] 都为 `null` 时不生效。
+  final BoxShadow? dividerShadow;
+
+  /// Offset added to the top endpoint's control point (which otherwise sits
+  /// at the horizontal center, giving a flat tangent at the top edge — see
+  /// the curve construction note below). Use this to break that flatness or
+  /// shift where the curve's upper bulge sits, independent of
+  /// [leanAmplitude].
+  ///
+  /// 加到顶部端点控制点上的偏移量（该控制点默认落在水平中心，让曲线在顶边
+  /// 处切线是水平的）。用它可以打破这种"贴平"的效果，或者独立于
+  /// [leanAmplitude] 去改变曲线上半部分鼓起的位置。
+  final Offset topControlOffset;
+
+  /// Same as [topControlOffset], for the bottom endpoint's control point.
+  ///
+  /// 跟 [topControlOffset] 一样，只是作用于底部端点的控制点。
+  final Offset bottomControlOffset;
 
   /// Outline color for whichever side is currently selected — traces that
   /// side's whole region (top/side/bottom edges, not just the seam).
@@ -233,7 +288,8 @@ class CurvedTabBackground extends StatefulWidget {
   State<CurvedTabBackground> createState() => _CurvedTabBackgroundState();
 }
 
-class _CurvedTabBackgroundState extends State<CurvedTabBackground> with SingleTickerProviderStateMixin {
+class _CurvedTabBackgroundState extends State<CurvedTabBackground>
+    with SingleTickerProviderStateMixin {
   AnimationController? _controller;
 
   @override
@@ -253,10 +309,15 @@ class _CurvedTabBackgroundState extends State<CurvedTabBackground> with SingleTi
   @override
   void didUpdateWidget(covariant CurvedTabBackground oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (widget.progress == null && oldWidget.selectedIndex != widget.selectedIndex) {
+    if (widget.progress == null &&
+        oldWidget.selectedIndex != widget.selectedIndex) {
       final target = widget.selectedIndex == 1 ? 1.0 : 0.0;
       if (widget.animated) {
-        _controller!.animateTo(target, duration: widget.duration, curve: widget.curve);
+        _controller!.animateTo(
+          target,
+          duration: widget.duration,
+          curve: widget.curve,
+        );
       } else {
         _controller!.value = target;
       }
@@ -272,8 +333,10 @@ class _CurvedTabBackgroundState extends State<CurvedTabBackground> with SingleTi
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
-    final unselectedColor = widget.unselectedColor ?? colorScheme.surfaceContainerHigh;
-    final unselectedBorderColor = widget.unselectedBorderColor ?? colorScheme.outlineVariant;
+    final unselectedColor =
+        widget.unselectedColor ?? colorScheme.surfaceContainerHigh;
+    final unselectedBorderColor =
+        widget.unselectedBorderColor ?? colorScheme.outlineVariant;
     final activeColor = widget.activeColor ?? colorScheme.surface;
 
     return AnimatedBuilder(
@@ -294,12 +357,33 @@ class _CurvedTabBackgroundState extends State<CurvedTabBackground> with SingleTi
             leanSign: 2 * t - 1,
             leftColor: Color.lerp(activeColor, widget.inactiveColor, t)!,
             rightColor: Color.lerp(widget.inactiveColor, activeColor, t)!,
-            leftGradient: LinearGradient.lerp(widget.activeGradient, widget.inactiveGradient, t),
-            rightGradient: LinearGradient.lerp(widget.inactiveGradient, widget.activeGradient, t),
+            leftGradient: LinearGradient.lerp(
+              widget.activeGradient,
+              widget.inactiveGradient,
+              t,
+            ),
+            rightGradient: LinearGradient.lerp(
+              widget.inactiveGradient,
+              widget.activeGradient,
+              t,
+            ),
             dividerColor: widget.dividerColor,
             dividerWidth: widget.dividerWidth,
-            leftBorderColor: Color.lerp(widget.activeBorderColor, widget.inactiveBorderColor, t),
-            rightBorderColor: Color.lerp(widget.inactiveBorderColor, widget.activeBorderColor, t),
+            dividerGradient: widget.dividerGradient,
+            dividerCap: widget.dividerCap,
+            dividerShadow: widget.dividerShadow,
+            topControlOffset: widget.topControlOffset,
+            bottomControlOffset: widget.bottomControlOffset,
+            leftBorderColor: Color.lerp(
+              widget.activeBorderColor,
+              widget.inactiveBorderColor,
+              t,
+            ),
+            rightBorderColor: Color.lerp(
+              widget.inactiveBorderColor,
+              widget.activeBorderColor,
+              t,
+            ),
             splitBorderWidth: widget.splitBorderWidth,
           ),
           child: widget.builder?.call(context, t, child) ?? child,

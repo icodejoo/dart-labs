@@ -29,7 +29,7 @@
 
 ```yaml
 dependencies:
-  curved_dual_tab_bar: ^0.1.0
+  curved_dual_tab_bar: ^0.2.0
 ```
 
 ## Usage
@@ -65,7 +65,31 @@ CurvedTabBackground(
 
 ### Styling
 
-Both widgets accept `activeColor`/`inactiveColor` (or `activeGradient`/`inactiveGradient`), `unselectedColor`/`unselectedBorderColor`, `dividerColor`/`dividerWidth`, `activeBorderColor`/`inactiveBorderColor`, `borderRadius`, `leanAmplitude` (how much the S-curve leans), and `duration`/`curve` for the transition animation. See the [example app](https://github.com/icodejoo/dart-labs/tree/main/curved_dual_tab_bar/example) for every combination demoed side by side.
+Both widgets accept `activeColor`/`inactiveColor` (or `activeGradient`/`inactiveGradient`), `unselectedColor`/`unselectedBorderColor`, `activeBorderColor`/`inactiveBorderColor`, `borderRadius`, `leanAmplitude` (how much the S-curve leans), and `duration`/`curve` for the transition animation. See the [example app](https://github.com/icodejoo/dart-labs/tree/main/curved_dual_tab_bar/example) for every combination demoed side by side.
+
+### Divider styling
+
+The seam itself has its own set of knobs, independent of the fill colors:
+
+```dart
+CurvedDualTabBar(
+  titles: const ['DEPOSIT', 'WITHDRAW'],
+  selectedIndex: selectedIndex,
+  onChanged: (i) => setState(() => selectedIndex = i),
+  dividerGradient: const LinearGradient(colors: [Colors.pink, Colors.purple, Colors.blue]),
+  dividerWidth: 3,
+  dividerCap: StrokeCap.round,
+  dividerShadow: const BoxShadow(color: Colors.black26, blurRadius: 10, spreadRadius: 1),
+  topControlOffset: const Offset(16, 6),
+  bottomControlOffset: const Offset(-16, -6),
+)
+```
+
+- `dividerColor`/`dividerWidth` — solid stroke color and width.
+- `dividerGradient` — overrides `dividerColor` with a gradient stroke.
+- `dividerCap` — `StrokeCap.butt` (default, flat cut at the top/bottom edges) or `.round`/`.square`.
+- `dividerShadow` — a `BoxShadow` stroked once behind the seam as a soft glow/shadow; its `spreadRadius` widens the stroke rather than growing a filled shape.
+- `topControlOffset`/`bottomControlOffset` — nudge the curve's own bezier control points directly. The curve's default shape keeps a flat tangent at the top/bottom edges (so it grazes them like a wave crest/trough); these offsets break that and let you reshape the S-curve independent of `leanAmplitude`.
 
 ## Why exactly 2 tabs?
 

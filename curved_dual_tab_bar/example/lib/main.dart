@@ -35,6 +35,7 @@ class CurvedDualTabBarDemoPage extends HookWidget {
     final depositSelected = useState(0);
     final customSelected = useState(1);
     final gradientSelected = useState(0);
+    final dividerStyleSelected = useState(0);
 
     final nativeTabController = useTabController(initialLength: 2);
     final nativeSelected = useState(0);
@@ -138,6 +139,33 @@ class CurvedDualTabBarDemoPage extends HookWidget {
                   colors: [Colors.transparent, Colors.transparent],
                 ),
                 activeTextColor: Colors.white,
+                overlayColor: const WidgetStatePropertyAll(Colors.transparent),
+                splashFactory: NoSplash.splashFactory,
+              ),
+              const SizedBox(height: 24),
+              const Text('分割线细节：渐变描边 + 圆头线帽 + 发光阴影 + 控制点偏移（曲线不再贴平首尾边）'),
+              const SizedBox(height: 8),
+              CurvedDualTabBar(
+                titles: const ['LEFT', 'RIGHT'],
+                selectedIndex: dividerStyleSelected.value,
+                onChanged: (i) => dividerStyleSelected.value = i,
+                unselectedBorderColor: Colors.transparent,
+                dividerGradient: const LinearGradient(
+                  colors: [
+                    Color(0xFFEC4899),
+                    Color(0xFF7C4DFF),
+                    Color(0xFF2196F3),
+                  ],
+                ),
+                dividerWidth: 3,
+                dividerCap: StrokeCap.round,
+                dividerShadow: const BoxShadow(
+                  color: Color(0x807C4DFF),
+                  blurRadius: 10,
+                  spreadRadius: 1,
+                ),
+                topControlOffset: const Offset(16, 6),
+                bottomControlOffset: const Offset(-16, -6),
                 overlayColor: const WidgetStatePropertyAll(Colors.transparent),
                 splashFactory: NoSplash.splashFactory,
               ),
