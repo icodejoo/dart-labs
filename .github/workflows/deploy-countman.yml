@@ -16,7 +16,7 @@ permissions:
   contents: write
 
 concurrency:
-  group: gh-pages
+  group: gh-pages-countman
   cancel-in-progress: false
 
 jobs:
