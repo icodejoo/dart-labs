@@ -135,10 +135,21 @@ class CountingCanvas implements Canvas {
     _lastPaintDescriptor = descriptor;
   }
 
+  /// Every [ui.Path] handed to [drawPath], in call order — the exact objects
+  /// the rasterizer will have to fill, kept so geometry/topology (contour
+  /// count, fill rule, arc length, bounds) can be measured off the real
+  /// path rather than off either library's intermediate representation.
+  ///
+  /// 按调用顺序记录交给 [drawPath] 的每个 [ui.Path]——正是光栅化器要填充的那些
+  /// 对象，留存下来以便直接在真实 path 上测量几何/拓扑（contour 数、填充规则、
+  /// 弧长、包围盒），而不是在两个库各自的中间表示上测。
+  final List<ui.Path> recordedPaths = <ui.Path>[];
+
   @override
   void drawPath(ui.Path path, ui.Paint paint) {
     _bump('drawPath');
     _trackPaint(paint);
+    recordedPaths.add(path);
     _inner.drawPath(path, paint);
   }
 
@@ -371,27 +382,51 @@ class _VerbCountingListener extends VectorGraphicsCodecListener {
   int verbCount = 0;
   int pointCount = 0;
 
+  /// The verb opcodes in stream order, using svgx's `SvgPath.verbs` encoding
+  /// (0=move 1=line 2=quad 3=cubic 4=close) so the two sides' sequences can be
+  /// diffed element by element.
+  ///
+  /// 按流顺序记录的动词操作码，采用 svgx `SvgPath.verbs` 的编码
+  /// （0 移动 1 直线 2 二次 3 三次 4 闭合），以便两侧序列可逐元素 diff。
+  final List<int> verbs = <int>[];
+
+  /// Flattened x,y coordinate pairs in stream order, matching [verbs].
+  /// 与 [verbs] 对应、按流顺序展平的 x,y 坐标对。
+  final List<double> points = <double>[];
+
+  /// `fillType` raw values seen on `onPathStart` (0=nonZero, 1=evenOdd, per
+  /// the codec's encoding). / `onPathStart` 上看到的 `fillType` 原始值
+  /// （按编解码器编码：0 非零环绕，1 奇偶）。
+  final List<int> fillTypes = <int>[];
+
   @override
   void onPathMoveTo(double x, double y) {
     verbCount++;
     pointCount++;
+    verbs.add(0);
+    points..add(x)..add(y);
   }
 
   @override
   void onPathLineTo(double x, double y) {
     verbCount++;
     pointCount++;
+    verbs.add(1);
+    points..add(x)..add(y);
   }
 
   @override
   void onPathCubicTo(double x1, double y1, double x2, double y2, double x3, double y3) {
     verbCount++;
     pointCount += 3;
+    verbs.add(3);
+    points..add(x1)..add(y1)..add(x2)..add(y2)..add(x3)..add(y3);
   }
 
   @override
   void onPathClose() {
     verbCount++;
+    verbs.add(4);
   }
 
   // Everything below is irrelevant to verb/point counting and intentionally
@@ -411,7 +446,10 @@ class _VerbCountingListener extends VectorGraphicsCodecListener {
     required int? shaderId,
   }) {}
   @override
-  void onPathStart(int id, int fillType) {}
+  void onPathStart(int id, int fillType) {
+    fillTypes.add(fillType);
+  }
+
   @override
   void onPathFinished() {}
   @override
@@ -504,6 +542,108 @@ class _VerbCountingListener extends VectorGraphicsCodecListener {
   return (verbs, points);
 }
 
+/// One side's raw verb/point/fill-rule stream for a single icon, flattened
+/// across all of that icon's paths — the input to the element-by-element diff
+/// that upgrades deep-dive five's "totals are equal" into "sequences are
+/// identical".
+///
+/// 单个图标在某一侧的原始动词/坐标/填充规则流，跨该图标全部路径展平——用于逐元素
+/// diff，把深挖五的"总量相等"升级成"序列完全一致"。
+class VerbStream {
+  /// Wraps the three parallel streams. / 包装三条并行的流。
+  const VerbStream(this.verbs, this.points, this.fillTypes);
+
+  /// Verb opcodes (0=move 1=line 2=quad 3=cubic 4=close). / 动词操作码。
+  final List<int> verbs;
+
+  /// Flattened x,y coordinate pairs. / 展平的 x,y 坐标对。
+  final List<double> points;
+
+  /// Per-path fill rule: 0=nonZero, 1=evenOdd. / 逐路径填充规则：0 非零，1 奇偶。
+  final List<int> fillTypes;
+}
+
+/// Reads svgx's parsed scene into a [VerbStream] at the same granularity
+/// [_VerbCountingListener] produces for flutter_svg.
+///
+/// 把 svgx 解析出的场景读成 [VerbStream]，粒度与 [_VerbCountingListener] 为
+/// flutter_svg 产出的一致。
+VerbStream _svgxVerbStream(String source) {
+  final scene = parseSvg(data: source);
+  final verbs = <int>[];
+  final points = <double>[];
+  final fillTypes = <int>[];
+  for (final path in scene.paths) {
+    fillTypes.add(path.evenOdd ? 1 : 0);
+    verbs.addAll(path.verbs);
+    points.addAll(path.points);
+  }
+  return VerbStream(verbs, points, fillTypes);
+}
+
+/// Geometry/topology of one icon's real [ui.Path] objects — the variables that
+/// actually drive fill tessellation cost, as opposed to the verb/point totals
+/// deep-dive five already proved equal.
+///
+/// [contours] counts independent sub-paths (one per `moveTo`), which is also
+/// exactly what `Path.computeMetrics()` enumerates; [arcLength] sums every
+/// contour's perimeter, a direct proxy for the anti-aliased edge work; and
+/// [evenOddPaths] tracks the fill rule, since even-odd fills take a more
+/// expensive stencil route than non-zero on both Skia and Impeller.
+///
+/// 单个图标真实 [ui.Path] 对象的几何/拓扑——真正决定填充 tessellation 成本的变量，
+/// 而非深挖五已证明相等的动词/点总量。[contours] 统计独立子路径数（每个 `moveTo`
+/// 一个），也正是 `Path.computeMetrics()` 枚举出来的东西；[arcLength] 汇总各
+/// contour 周长，是抗锯齿边缘工作量的直接代理；[evenOddPaths] 记录填充规则，因为
+/// 奇偶填充在 Skia 与 Impeller 上都走比非零环绕更贵的 stencil 路径。
+class GeomStats {
+  /// Measures [paths] (one icon's worth of `drawPath` arguments).
+  /// 测量 [paths]（一个图标的全部 `drawPath` 参数）。
+  factory GeomStats.from(List<ui.Path> paths) {
+    var contours = 0;
+    var arcLength = 0.0;
+    var evenOdd = 0;
+    var minL = double.infinity, minT = double.infinity;
+    var maxR = -double.infinity, maxB = -double.infinity;
+    for (final path in paths) {
+      if (path.fillType == ui.PathFillType.evenOdd) evenOdd++;
+      for (final metric in path.computeMetrics()) {
+        contours++;
+        arcLength += metric.length;
+      }
+      final b = path.getBounds();
+      if (b.left < minL) minL = b.left;
+      if (b.top < minT) minT = b.top;
+      if (b.right > maxR) maxR = b.right;
+      if (b.bottom > maxB) maxB = b.bottom;
+    }
+    final bounds = paths.isEmpty || minL == double.infinity
+        ? ui.Rect.zero
+        : ui.Rect.fromLTRB(minL, minT, maxR, maxB);
+    return GeomStats._(paths.length, contours, arcLength, evenOdd, bounds);
+  }
+
+  const GeomStats._(this.pathCount, this.contours, this.arcLength, this.evenOddPaths, this.bounds);
+
+  /// Number of `drawPath` calls this icon made. / 该图标的 `drawPath` 调用数。
+  final int pathCount;
+
+  /// Total independent sub-paths across those paths. / 这些路径的独立子路径总数。
+  final int contours;
+
+  /// Summed contour perimeter, in the picture's own coordinate space.
+  /// contour 周长之和（在 picture 自身坐标空间内）。
+  final double arcLength;
+
+  /// How many of those paths use the even-odd fill rule. / 其中使用奇偶填充规则的路径数。
+  final int evenOddPaths;
+
+  /// Union of every path's bounds — catches a coordinate-space mismatch
+  /// between the two libraries. / 所有路径包围盒的并集——用于发现两个库之间的
+  /// 坐标空间差异。
+  final ui.Rect bounds;
+}
+
 /// Snapshot of a [CountingCanvas]'s "how it's drawn" counters at the end of
 /// one icon's recording — save/restore/transform/Paint-churn, the deep-dive-
 /// six metrics (see [CountingCanvas]'s corresponding fields for what each
@@ -544,8 +684,29 @@ class CmdCountRow {
     this.flutterSvgVerbs,
     this.flutterSvgPoints,
     this.svgxState,
-    this.flutterSvgState,
-  );
+    this.flutterSvgState, {
+    required this.index,
+    required this.svgxGeom,
+    required this.flutterSvgGeom,
+    required this.svgxStream,
+    required this.flutterSvgStream,
+  });
+
+  /// Index into `mdiIcons1000`, so an outlier can be traced back to its source
+  /// string. / 在 `mdiIcons1000` 中的下标，便于把离群图标追溯回源串。
+  final int index;
+
+  /// svgx's real-`ui.Path` geometry for this icon. / 该图标在 svgx 下真实 `ui.Path` 的几何。
+  final GeomStats svgxGeom;
+
+  /// flutter_svg's real-`ui.Path` geometry for this icon. / 该图标在 flutter_svg 下真实 `ui.Path` 的几何。
+  final GeomStats flutterSvgGeom;
+
+  /// svgx's raw verb/point/fill-rule stream for this icon. / 该图标在 svgx 下的原始动词/坐标/填充规则流。
+  final VerbStream svgxStream;
+
+  /// flutter_svg's raw verb/point/fill-rule stream for this icon. / 该图标在 flutter_svg 下的原始动词/坐标/填充规则流。
+  final VerbStream flutterSvgStream;
 
   /// svgx's `getOrRender` draw-op count for this icon. / 该图标在 svgx `getOrRender` 下的绘制指令数。
   final int svgx;
@@ -585,7 +746,8 @@ class CmdCountRow {
 /// 把一份报告打印到 stdout 后退出。
 Future<void> runCmdCountBench() async {
   final rows = <CmdCountRow>[];
-  for (final source in mdiIcons1000) {
+  for (var iconIndex = 0; iconIndex < mdiIcons1000.length; iconIndex++) {
+    final source = mdiIcons1000[iconIndex];
     // Fresh render every time: a cache hit would skip picture recording
     // entirely and read back 0.
     // 每次都强制重新渲染：缓存命中会完全跳过 picture 录制，读回 0。
@@ -621,6 +783,14 @@ Future<void> runCmdCountBench() async {
     final factory = _CountingPictureFactory();
     final listener = FlutterVectorGraphicsListener(pictureFactory: factory);
     const VectorGraphicsCodec().decode(ByteData.sublistView(bytes), listener);
+    // Geometry is measured before `toPicture()`/`dispose()` so the captured
+    // `ui.Path` objects are read while the decode that produced them is still
+    // the most recent state.
+    // 几何在 `toPicture()`/`dispose()` 之前测量，确保读取捕获到的 `ui.Path`
+    // 对象时，产生它们的那次解码仍是最近状态。
+    final flutterSvgGeom = GeomStats.from(factory.lastCanvas!.recordedPaths);
+    final svgxGeom = GeomStats.from(svgxCounter.canvas!.recordedPaths);
+
     final pictureInfo = listener.toPicture();
     pictureInfo.picture.dispose();
     final flutterSvgCount = factory.lastCanvas!.total;
@@ -644,6 +814,11 @@ Future<void> runCmdCountBench() async {
         verbListener.pointCount,
         DrawStateCounts.from(svgxCounter.canvas!),
         DrawStateCounts.from(factory.lastCanvas!),
+        index: iconIndex,
+        svgxGeom: svgxGeom,
+        flutterSvgGeom: flutterSvgGeom,
+        svgxStream: _svgxVerbStream(source),
+        flutterSvgStream: VerbStream(verbListener.verbs, verbListener.points, verbListener.fillTypes),
       ),
     );
   }
@@ -730,9 +905,156 @@ Future<void> runCmdCountBench() async {
     ..writeln(
       'paintChange : svgx=$svgxPaintChanges flutter_svg=$flutterPaintChanges ratio=${ratioOf(svgxPaintChanges, flutterPaintChanges).toStringAsFixed(3)}',
     )
-    ..writeln('=== END CMD COUNT REPORT ===');
+    ;
+  _appendGeometryReport(buf, rows);
+  buf.writeln('=== END CMD COUNT REPORT ===');
   emitReport(buf.toString());
   exit(0);
+}
+
+/// Appends the deep-dive-thirteen geometry/topology section to [buf]: contour
+/// counts, fill-rule split, contour arc length, path bounds, and an
+/// element-by-element verb/coordinate diff — all per icon, not just summed, so
+/// a systematic difference concentrated in a subset of icons can't hide inside
+/// an equal total (which is exactly what deep-dive five could not rule out).
+///
+/// 把深挖十三的几何/拓扑小节追加进 [buf]：contour 数、填充规则占比、contour 弧长、
+/// 路径包围盒，以及逐元素的动词/坐标 diff——全部**逐图标**统计而非只看总和，
+/// 这样"集中在一部分图标上的系统性差异"就无法藏在相等的总量里（这正是深挖五
+/// 排除不掉的东西）。
+void _appendGeometryReport(StringBuffer buf, List<CmdCountRow> rows) {
+  var svgxContours = 0, fsvgContours = 0;
+  var svgxArc = 0.0, fsvgArc = 0.0;
+  var svgxEvenOdd = 0, fsvgEvenOdd = 0;
+  var svgxPaths = 0, fsvgPaths = 0;
+  var contourMismatch = 0, fillRuleMismatch = 0, boundsMismatch = 0;
+  var verbSeqMismatch = 0, verbLenMismatch = 0, pointLenMismatch = 0;
+  var maxCoordDelta = 0.0;
+  var maxCoordDeltaIcon = -1;
+  final contourDiffs = <(int index, int delta)>[];
+  final arcRatios = <(int index, double ratio)>[];
+
+  for (final r in rows) {
+    svgxContours += r.svgxGeom.contours;
+    fsvgContours += r.flutterSvgGeom.contours;
+    svgxArc += r.svgxGeom.arcLength;
+    fsvgArc += r.flutterSvgGeom.arcLength;
+    svgxEvenOdd += r.svgxGeom.evenOddPaths;
+    fsvgEvenOdd += r.flutterSvgGeom.evenOddPaths;
+    svgxPaths += r.svgxGeom.pathCount;
+    fsvgPaths += r.flutterSvgGeom.pathCount;
+
+    final cDelta = r.svgxGeom.contours - r.flutterSvgGeom.contours;
+    if (cDelta != 0) {
+      contourMismatch++;
+      contourDiffs.add((r.index, cDelta));
+    }
+    if (r.svgxGeom.evenOddPaths != r.flutterSvgGeom.evenOddPaths) fillRuleMismatch++;
+
+    final sb = r.svgxGeom.bounds, fb = r.flutterSvgGeom.bounds;
+    // 0.05px: well below anything that could change tessellation, but above
+    // the float32 round-trip the Rust FFI bridge imposes on coordinates.
+    // 0.05px：远低于任何能改变 tessellation 的量级，但高于 Rust FFI 桥对坐标做的
+    // float32 往返误差。
+    if ((sb.left - fb.left).abs() > 0.05 ||
+        (sb.top - fb.top).abs() > 0.05 ||
+        (sb.right - fb.right).abs() > 0.05 ||
+        (sb.bottom - fb.bottom).abs() > 0.05) {
+      boundsMismatch++;
+    }
+
+    if (r.flutterSvgGeom.arcLength > 0) {
+      arcRatios.add((r.index, r.svgxGeom.arcLength / r.flutterSvgGeom.arcLength));
+    }
+
+    final sv = r.svgxStream.verbs, fv = r.flutterSvgStream.verbs;
+    if (sv.length != fv.length) {
+      verbLenMismatch++;
+      verbSeqMismatch++;
+    } else {
+      for (var i = 0; i < sv.length; i++) {
+        if (sv[i] != fv[i]) {
+          verbSeqMismatch++;
+          break;
+        }
+      }
+    }
+    final sp = r.svgxStream.points, fp = r.flutterSvgStream.points;
+    if (sp.length != fp.length) {
+      pointLenMismatch++;
+    } else {
+      for (var i = 0; i < sp.length; i++) {
+        final d = (sp[i] - fp[i]).abs();
+        if (d > maxCoordDelta) {
+          maxCoordDelta = d;
+          maxCoordDeltaIcon = r.index;
+        }
+      }
+    }
+  }
+
+  contourDiffs.sort((a, b) => b.$2.abs().compareTo(a.$2.abs()));
+  arcRatios.sort((a, b) => b.$2.compareTo(a.$2));
+
+  String pct(int n, int d) => d == 0 ? 'n/a' : '${(100 * n / d).toStringAsFixed(2)}%';
+  double ratio(num a, num b) => b == 0 ? double.infinity : a / b;
+
+  buf
+    ..writeln()
+    ..writeln('--- geometry & topology of the real ui.Path objects (deep-dive 13) ---')
+    ..writeln(
+      'contours    : svgx=$svgxContours (avg ${(svgxContours / rows.length).toStringAsFixed(3)})  '
+      'flutter_svg=$fsvgContours (avg ${(fsvgContours / rows.length).toStringAsFixed(3)})  '
+      'ratio=${ratio(svgxContours, fsvgContours).toStringAsFixed(4)}',
+    )
+    ..writeln('contours per-icon mismatch: $contourMismatch / ${rows.length} icons')
+    ..writeln(
+      'arcLength   : svgx=${svgxArc.toStringAsFixed(1)} flutter_svg=${fsvgArc.toStringAsFixed(1)} '
+      'ratio=${ratio(svgxArc, fsvgArc).toStringAsFixed(4)}',
+    )
+    ..writeln(
+      'fillRule    : svgx evenOdd=$svgxEvenOdd/$svgxPaths (${pct(svgxEvenOdd, svgxPaths)})  '
+      'flutter_svg evenOdd=$fsvgEvenOdd/$fsvgPaths (${pct(fsvgEvenOdd, fsvgPaths)})',
+    )
+    ..writeln('fillRule per-icon mismatch: $fillRuleMismatch / ${rows.length} icons')
+    ..writeln('bounds per-icon mismatch (>0.05px): $boundsMismatch / ${rows.length} icons')
+    ..writeln()
+    ..writeln('--- element-by-element verb/coordinate diff (upgrades deep-dive 5) ---')
+    ..writeln('verb-sequence mismatch : $verbSeqMismatch / ${rows.length} icons '
+        '(of which length differs: $verbLenMismatch)')
+    ..writeln('point-count mismatch   : $pointLenMismatch / ${rows.length} icons')
+    ..writeln('max |coord delta| over length-matched icons: '
+        '${maxCoordDelta.toStringAsFixed(6)} (icon #$maxCoordDeltaIcon)');
+
+  if (contourDiffs.isNotEmpty) {
+    buf.writeln('top contour-count outliers (icon: svgx-flutter_svg):');
+    for (final d in contourDiffs.take(10)) {
+      final r = rows.firstWhere((e) => e.index == d.$1);
+      buf.writeln(
+        '  #${d.$1}: delta=${d.$2}  svgx=${r.svgxGeom.contours} flutter_svg=${r.flutterSvgGeom.contours}',
+      );
+    }
+  }
+  if (arcRatios.isNotEmpty) {
+    buf.writeln('top arcLength ratio outliers (svgx/flutter_svg):');
+    for (final a in arcRatios.take(5)) {
+      buf.writeln('  #${a.$1}: ratio=${a.$2.toStringAsFixed(4)}');
+    }
+    final worst = arcRatios.last;
+    buf.writeln('  lowest: #${worst.$1}: ratio=${worst.$2.toStringAsFixed(4)}');
+  }
+  // `Rect.toString()` is stripped in profile builds, so format the numbers by
+  // hand — the absolute coordinate space matters here (it is what the
+  // tessellator's flatness tolerance is applied in).
+  // profile 构建下 `Rect.toString()` 会被裁掉，所以手工格式化数字——这里的绝对
+  // 坐标空间很关键（tessellator 的平坦度容差正是在这个空间里生效的）。
+  String fmt(ui.Rect r) =>
+      'LTRB(${r.left.toStringAsFixed(3)},${r.top.toStringAsFixed(3)},'
+      '${r.right.toStringAsFixed(3)},${r.bottom.toStringAsFixed(3)})';
+  buf.writeln(
+    'sample bounds (icon #${rows.first.index}): svgx=${fmt(rows.first.svgxGeom.bounds)} '
+    'flutter_svg=${fmt(rows.first.flutterSvgGeom.bounds)}',
+  );
 }
 
 /// Tiny mutable box so the `debugWrapRecordingCanvas` closure below can hand

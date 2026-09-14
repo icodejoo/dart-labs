@@ -2,6 +2,13 @@
 
 High-performance static & animated SVG rendering for Flutter.
 
+## Demo
+
+[icodejoo.github.io/dart-labs/svgx](https://icodejoo.github.io/dart-labs/svgx/) —
+a static showcase (feature tour, live SVG previews, and measured performance
+numbers). Not a live in-browser Flutter demo: svgx's static path renders
+through Rust (`usvg`) via native FFI, which has no web/wasm build here.
+
 * **Static SVG** parses through Rust (`usvg`) into a cached `ui.Picture`, then
   renders with Flutter's own GPU pipeline — no CPU rasterizer.
 * **Animated SVG** (SMIL — `<animate>`, `<animateTransform>`,
@@ -64,14 +71,12 @@ Svgx.string(
 exported for callers who already know which one they need (e.g. an icon set
 known ahead of time to be all-static).
 
-## Why not `flutter_svg`?
+## Design
 
-`svgx` exists to replace `flutter_svg` + `iconify_flutter` with a single
-library that also does animation. Static parsing is delegated to `usvg` (the
-same crate `resvg` builds on), so static feature coverage tracks a mature,
-actively-maintained parser rather than a hand-rolled one. Rendering — static
-and animated alike — stays on Flutter's own GPU pipeline; nothing is
-rasterized on the CPU.
+Static parsing is delegated to `usvg` (the same crate `resvg` builds on), so
+static feature coverage tracks a mature, actively-maintained parser rather
+than a hand-rolled one. Rendering — static and animated alike — stays on
+Flutter's own GPU pipeline; nothing is rasterized on the CPU.
 
 ## Status
 
