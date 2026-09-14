@@ -52,4 +52,34 @@ void main() {
       throwsAssertionError,
     );
   });
+
+  testWidgets('renders with divider gradient/cap/shadow and control offsets', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: CurvedDualTabBar(
+            titles: const ['DEPOSIT', 'WITHDRAW'],
+            selectedIndex: 0,
+            onChanged: (_) {},
+            dividerGradient: const LinearGradient(
+              colors: [Colors.pink, Colors.blue],
+            ),
+            dividerCap: StrokeCap.round,
+            dividerShadow: const BoxShadow(
+              color: Colors.black26,
+              blurRadius: 6,
+              spreadRadius: 1,
+            ),
+            topControlOffset: const Offset(10, 4),
+            bottomControlOffset: const Offset(-10, -4),
+          ),
+        ),
+      ),
+    );
+
+    expect(tester.takeException(), isNull);
+    expect(find.text('DEPOSIT'), findsOneWidget);
+  });
 }

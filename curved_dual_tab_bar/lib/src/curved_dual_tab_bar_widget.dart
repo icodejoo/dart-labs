@@ -50,6 +50,11 @@ class CurvedDualTabBar extends StatefulWidget {
     this.inactiveGradient,
     this.dividerColor,
     this.dividerWidth = 1.5,
+    this.dividerGradient,
+    this.dividerCap = StrokeCap.butt,
+    this.dividerShadow,
+    this.topControlOffset = Offset.zero,
+    this.bottomControlOffset = Offset.zero,
     this.activeBorderColor,
     this.inactiveBorderColor,
     this.splitBorderWidth = 1.5,
@@ -86,7 +91,10 @@ class CurvedDualTabBar extends StatefulWidget {
     this.dragStartBehavior = DragStartBehavior.start,
     this.tabAlignment,
     this.textScaler,
-  }) : assert(titles.length == 2, 'CurvedDualTabBar only supports exactly 2 tabs');
+  }) : assert(
+         titles.length == 2,
+         'CurvedDualTabBar only supports exactly 2 tabs',
+       );
 
   /// The two tab labels, e.g. `['DEPOSIT', 'WITHDRAW']`.
   ///
@@ -172,6 +180,31 @@ class CurvedDualTabBar extends StatefulWidget {
   ///
   /// 见 [CurvedTabBackground.dividerWidth]。
   final double dividerWidth;
+
+  /// See [CurvedTabBackground.dividerGradient].
+  ///
+  /// 见 [CurvedTabBackground.dividerGradient]。
+  final Gradient? dividerGradient;
+
+  /// See [CurvedTabBackground.dividerCap].
+  ///
+  /// 见 [CurvedTabBackground.dividerCap]。
+  final StrokeCap dividerCap;
+
+  /// See [CurvedTabBackground.dividerShadow].
+  ///
+  /// 见 [CurvedTabBackground.dividerShadow]。
+  final BoxShadow? dividerShadow;
+
+  /// See [CurvedTabBackground.topControlOffset].
+  ///
+  /// 见 [CurvedTabBackground.topControlOffset]。
+  final Offset topControlOffset;
+
+  /// See [CurvedTabBackground.bottomControlOffset].
+  ///
+  /// 见 [CurvedTabBackground.bottomControlOffset]。
+  final Offset bottomControlOffset;
 
   /// See [CurvedTabBackground.activeBorderColor].
   ///
@@ -379,7 +412,8 @@ class CurvedDualTabBar extends StatefulWidget {
   State<CurvedDualTabBar> createState() => _CurvedDualTabBarState();
 }
 
-class _CurvedDualTabBarState extends State<CurvedDualTabBar> with SingleTickerProviderStateMixin {
+class _CurvedDualTabBarState extends State<CurvedDualTabBar>
+    with SingleTickerProviderStateMixin {
   // Owned by this widget only when the caller doesn't supply its own
   // `controller`; `null` whenever an external controller is in charge, so
   // `dispose` never tears down something it doesn't own.
@@ -394,7 +428,11 @@ class _CurvedDualTabBarState extends State<CurvedDualTabBar> with SingleTickerPr
   void initState() {
     super.initState();
     if (widget.controller == null) {
-      _internalController = TabController(length: 2, initialIndex: widget.selectedIndex, vsync: this);
+      _internalController = TabController(
+        length: 2,
+        initialIndex: widget.selectedIndex,
+        vsync: this,
+      );
     }
     if (_tabController.index != widget.selectedIndex) {
       _tabController.index = widget.selectedIndex;
@@ -417,7 +455,11 @@ class _CurvedDualTabBarState extends State<CurvedDualTabBar> with SingleTickerPr
       oldController?.removeListener(_handleTabControllerTick);
 
       if (widget.controller == null) {
-        _internalController ??= TabController(length: 2, initialIndex: oldController?.index ?? 0, vsync: this);
+        _internalController ??= TabController(
+          length: 2,
+          initialIndex: oldController?.index ?? 0,
+          vsync: this,
+        );
       } else if (oldWidget.controller == null) {
         _internalController?.dispose();
         _internalController = null;
@@ -427,7 +469,11 @@ class _CurvedDualTabBarState extends State<CurvedDualTabBar> with SingleTickerPr
 
     if (_tabController.index != widget.selectedIndex) {
       if (widget.animated) {
-        _tabController.animateTo(widget.selectedIndex, duration: widget.duration, curve: widget.curve);
+        _tabController.animateTo(
+          widget.selectedIndex,
+          duration: widget.duration,
+          curve: widget.curve,
+        );
       } else {
         _tabController.index = widget.selectedIndex;
       }
@@ -445,8 +491,10 @@ class _CurvedDualTabBarState extends State<CurvedDualTabBar> with SingleTickerPr
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
     final activeTextColor = widget.activeTextColor ?? colorScheme.onSurface;
-    final inactiveTextColor = widget.inactiveTextColor ?? colorScheme.onSurfaceVariant;
-    final baseTextStyle = widget.textStyle ?? Theme.of(context).textTheme.titleMedium;
+    final inactiveTextColor =
+        widget.inactiveTextColor ?? colorScheme.onSurfaceVariant;
+    final baseTextStyle =
+        widget.textStyle ?? Theme.of(context).textTheme.titleMedium;
 
     return CurvedTabBackground(
       selectedIndex: widget.selectedIndex,
@@ -465,6 +513,11 @@ class _CurvedDualTabBarState extends State<CurvedDualTabBar> with SingleTickerPr
       inactiveGradient: widget.inactiveGradient,
       dividerColor: widget.dividerColor,
       dividerWidth: widget.dividerWidth,
+      dividerGradient: widget.dividerGradient,
+      dividerCap: widget.dividerCap,
+      dividerShadow: widget.dividerShadow,
+      topControlOffset: widget.topControlOffset,
+      bottomControlOffset: widget.bottomControlOffset,
       activeBorderColor: widget.activeBorderColor,
       inactiveBorderColor: widget.inactiveBorderColor,
       splitBorderWidth: widget.splitBorderWidth,
@@ -489,7 +542,8 @@ class _CurvedDualTabBarState extends State<CurvedDualTabBar> with SingleTickerPr
         indicatorWeight: widget.indicatorWeight,
         indicatorPadding: widget.indicatorPadding,
         indicatorAnimation: widget.indicatorAnimation,
-        automaticIndicatorColorAdjustment: widget.automaticIndicatorColorAdjustment,
+        automaticIndicatorColorAdjustment:
+            widget.automaticIndicatorColorAdjustment,
         dividerColor: widget.tabDividerColor,
         dividerHeight: widget.tabDividerHeight,
         labelColor: activeTextColor,

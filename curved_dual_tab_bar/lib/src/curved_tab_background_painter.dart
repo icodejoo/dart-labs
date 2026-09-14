@@ -24,6 +24,11 @@ class _CurvedTabBackgroundDecoration extends Decoration {
     this.rightGradient,
     this.dividerColor,
     this.dividerWidth = 1.5,
+    this.dividerGradient,
+    this.dividerCap = StrokeCap.butt,
+    this.dividerShadow,
+    this.topControlOffset = Offset.zero,
+    this.bottomControlOffset = Offset.zero,
     this.leftBorderColor,
     this.rightBorderColor,
     this.splitBorderWidth = 1.5,
@@ -43,12 +48,18 @@ class _CurvedTabBackgroundDecoration extends Decoration {
   final LinearGradient? rightGradient;
   final Color? dividerColor;
   final double dividerWidth;
+  final Gradient? dividerGradient;
+  final StrokeCap dividerCap;
+  final BoxShadow? dividerShadow;
+  final Offset topControlOffset;
+  final Offset bottomControlOffset;
   final Color? leftBorderColor;
   final Color? rightBorderColor;
   final double splitBorderWidth;
 
   @override
-  BoxPainter createBoxPainter([VoidCallback? onChanged]) => _CurvedTabBackgroundPainter(this);
+  BoxPainter createBoxPainter([VoidCallback? onChanged]) =>
+      _CurvedTabBackgroundPainter(this);
 }
 
 class _CurvedTabBackgroundPainter extends BoxPainter {
@@ -63,17 +74,31 @@ class _CurvedTabBackgroundPainter extends BoxPainter {
 
     canvas.save();
     canvas.translate(offset.dx, offset.dy);
-    canvas.clipRRect(RRect.fromRectAndCorners(Offset.zero & size, topLeft: topRadius, topRight: topRadius));
+    canvas.clipRRect(
+      RRect.fromRectAndCorners(
+        Offset.zero & size,
+        topLeft: topRadius,
+        topRight: topRadius,
+      ),
+    );
 
     // Layer 1: base fill.
-    canvas.drawRect(Offset.zero & size, Paint()..color = decoration.backgroundColor);
+    canvas.drawRect(
+      Offset.zero & size,
+      Paint()..color = decoration.backgroundColor,
+    );
 
     // Layer 2: static resting pill, inset from the top, unaffected by
     // selection.
     //
     // 第 2 层：静态底板，从顶部缩进，不受选中态影响。
     final pillRRect = RRect.fromRectAndCorners(
-      Rect.fromLTWH(0, decoration.unselectedTopInset, size.width, size.height - decoration.unselectedTopInset),
+      Rect.fromLTWH(
+        0,
+        decoration.unselectedTopInset,
+        size.width,
+        size.height - decoration.unselectedTopInset,
+      ),
       topLeft: topRadius,
       topRight: topRadius,
     );
@@ -99,15 +124,25 @@ class _CurvedTabBackgroundPainter extends BoxPainter {
     // 像波峰/波谷一样贴着边缘过渡，而不是跟边缘成直角对接，倾斜全部发生在
     // 中段。
     final centerX = size.width / 2;
-    final leanOffset = size.width * decoration.leanAmplitude * decoration.leanSign;
+    final leanOffset =
+        size.width * decoration.leanAmplitude * decoration.leanSign;
     final topPoint = Offset(centerX + leanOffset, 0);
     final bottomPoint = Offset(centerX - leanOffset, size.height);
-    final controlTop = Offset(centerX, topPoint.dy);
-    final controlBottom = Offset(centerX, bottomPoint.dy);
+    final controlTop =
+        Offset(centerX, topPoint.dy) + decoration.topControlOffset;
+    final controlBottom =
+        Offset(centerX, bottomPoint.dy) + decoration.bottomControlOffset;
 
     final curvePath = Path()
       ..moveTo(topPoint.dx, topPoint.dy)
-      ..cubicTo(controlTop.dx, controlTop.dy, controlBottom.dx, controlBottom.dy, bottomPoint.dx, bottomPoint.dy);
+      ..cubicTo(
+        controlTop.dx,
+        controlTop.dy,
+        controlBottom.dx,
+        controlBottom.dy,
+        bottomPoint.dx,
+        bottomPoint.dy,
+      );
 
     // Both regions bake their own outer top corner into the path (instead
     // of relying on the enclosing `clipRRect` to round a sharp corner) —
@@ -118,22 +153,58 @@ class _CurvedTabBackgroundPainter extends BoxPainter {
     // 去裁一个直角）——不然沿路径描边的边框会在圆角处被裁掉。
     final leftPath = Path()
       ..moveTo(0, topRadius.x)
-      ..arcTo(Rect.fromCircle(center: Offset(topRadius.x, topRadius.x), radius: topRadius.x), math.pi, math.pi / 2, false)
+      ..arcTo(
+        Rect.fromCircle(
+          center: Offset(topRadius.x, topRadius.x),
+          radius: topRadius.x,
+        ),
+        math.pi,
+        math.pi / 2,
+        false,
+      )
       ..lineTo(topPoint.dx, topPoint.dy)
-      ..cubicTo(controlTop.dx, controlTop.dy, controlBottom.dx, controlBottom.dy, bottomPoint.dx, bottomPoint.dy)
+      ..cubicTo(
+        controlTop.dx,
+        controlTop.dy,
+        controlBottom.dx,
+        controlBottom.dy,
+        bottomPoint.dx,
+        bottomPoint.dy,
+      )
       ..lineTo(0, size.height)
       ..close();
     final rightPath = Path()
       ..moveTo(size.width - topRadius.x, 0)
-      ..arcTo(Rect.fromCircle(center: Offset(size.width - topRadius.x, topRadius.x), radius: topRadius.x), math.pi * 1.5, math.pi / 2, false)
+      ..arcTo(
+        Rect.fromCircle(
+          center: Offset(size.width - topRadius.x, topRadius.x),
+          radius: topRadius.x,
+        ),
+        math.pi * 1.5,
+        math.pi / 2,
+        false,
+      )
       ..lineTo(size.width, size.height)
       ..lineTo(bottomPoint.dx, bottomPoint.dy)
-      ..cubicTo(controlBottom.dx, controlBottom.dy, controlTop.dx, controlTop.dy, topPoint.dx, topPoint.dy)
+      ..cubicTo(
+        controlBottom.dx,
+        controlBottom.dy,
+        controlTop.dx,
+        controlTop.dy,
+        topPoint.dx,
+        topPoint.dy,
+      )
       ..lineTo(size.width - topRadius.x, 0)
       ..close();
 
-    canvas.drawPath(leftPath, _resolvePaint(decoration.leftColor, decoration.leftGradient, size));
-    canvas.drawPath(rightPath, _resolvePaint(decoration.rightColor, decoration.rightGradient, size));
+    canvas.drawPath(
+      leftPath,
+      _resolvePaint(decoration.leftColor, decoration.leftGradient, size),
+    );
+    canvas.drawPath(
+      rightPath,
+      _resolvePaint(decoration.rightColor, decoration.rightGradient, size),
+    );
 
     // Each side's own full outline (top/side/bottom edges plus its half of
     // the curve), independent of the seam-only stroke below.
@@ -163,17 +234,43 @@ class _CurvedTabBackgroundPainter extends BoxPainter {
 
     // The seam's own stroke, drawn on top of both fills so it reads clearly
     // regardless of whether leftColor/rightColor actually differ.
+    // [dividerGradient] overrides [dividerColor] the same way
+    // leftGradient/rightGradient override the fill colors. An optional
+    // [dividerShadow] is stroked once first, offset/blurred/widened per its
+    // own fields, as a soft glow/shadow sitting behind the crisp seam.
     //
     // 分界线自己的描边，画在两块填充之上，不管 leftColor/rightColor
-    // 是否真的不同都能看得清楚。
+    // 是否真的不同都能看得清楚。[dividerGradient] 覆盖 [dividerColor] 的
+    // 方式跟 leftGradient/rightGradient 覆盖填充色一样。可选的
+    // [dividerShadow] 会先描一遍（按自己的 offset/blur/宽度），作为叠在
+    // 清晰描边下面的柔和阴影/发光。
     final dividerColor = decoration.dividerColor;
-    if (dividerColor != null) {
+    final dividerGradient = decoration.dividerGradient;
+    if (dividerColor != null || dividerGradient != null) {
+      final dividerShadow = decoration.dividerShadow;
+      if (dividerShadow != null) {
+        canvas.save();
+        canvas.translate(dividerShadow.offset.dx, dividerShadow.offset.dy);
+        canvas.drawPath(
+          curvePath,
+          dividerShadow.toPaint()
+            ..style = PaintingStyle.stroke
+            ..strokeWidth =
+                decoration.dividerWidth + dividerShadow.spreadRadius * 2
+            ..strokeCap = decoration.dividerCap,
+        );
+        canvas.restore();
+      }
+
+      final paint = dividerGradient != null
+          ? (Paint()..shader = dividerGradient.createShader(Offset.zero & size))
+          : (Paint()..color = dividerColor!);
       canvas.drawPath(
         curvePath,
-        Paint()
+        paint
           ..style = PaintingStyle.stroke
           ..strokeWidth = decoration.dividerWidth
-          ..color = dividerColor,
+          ..strokeCap = decoration.dividerCap,
       );
     }
 
