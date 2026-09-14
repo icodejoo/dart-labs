@@ -17,7 +17,7 @@ permissions:
   contents: write
 
 concurrency:
-  group: gh-pages-curved_dual_tab_bar
+  group: gh-pages
   cancel-in-progress: false
 
 jobs:
