@@ -209,10 +209,29 @@ class AssetSvgx extends ImageProvider<AssetSvgx> {
   /// [assetName] 所属的包，解析方式与 [AssetImage] 一致。
   final String? package;
 
+  /// Target raster width; see [StringSvgx]'s class doc for the full resolution order.
+  ///
+  /// 目标光栅宽度；完整的解析优先级见 [StringSvgx] 类文档。
   final double? width;
+
+  /// Target raster height; see [StringSvgx]'s class doc for the full resolution order.
+  ///
+  /// 目标光栅高度；完整的解析优先级见 [StringSvgx] 类文档。
   final double? height;
+
+  /// Recolor filter, baked into the rasterized pixels.
+  ///
+  /// 重着色滤镜，直接烘焙进光栅化的像素里。
   final ColorFilter? colorFilter;
+
+  /// Theme controlling `currentColor`. / 控制 `currentColor` 的主题。
   final SvgxTheme? theme;
+
+  /// How often an animated source re-rasterizes, in frames per second — see
+  /// [StringSvgx]'s class doc for why this exists and defaults below 60.
+  ///
+  /// 动画源重新光栅化的频率（帧/秒）——为什么存在、为什么默认低于 60，见
+  /// [StringSvgx] 类文档。
   final int animationFrameRate;
 
   @override
@@ -285,10 +304,29 @@ class NetworkSvgx extends ImageProvider<NetworkSvgx> {
   /// Extra HTTP request headers. / 额外的 HTTP 请求头。
   final Map<String, String>? headers;
 
+  /// Target raster width; see [StringSvgx]'s class doc for the full resolution order.
+  ///
+  /// 目标光栅宽度；完整的解析优先级见 [StringSvgx] 类文档。
   final double? width;
+
+  /// Target raster height; see [StringSvgx]'s class doc for the full resolution order.
+  ///
+  /// 目标光栅高度；完整的解析优先级见 [StringSvgx] 类文档。
   final double? height;
+
+  /// Recolor filter, baked into the rasterized pixels.
+  ///
+  /// 重着色滤镜，直接烘焙进光栅化的像素里。
   final ColorFilter? colorFilter;
+
+  /// Theme controlling `currentColor`. / 控制 `currentColor` 的主题。
   final SvgxTheme? theme;
+
+  /// How often an animated source re-rasterizes, in frames per second — see
+  /// [StringSvgx]'s class doc for why this exists and defaults below 60.
+  ///
+  /// 动画源重新光栅化的频率（帧/秒）——为什么存在、为什么默认低于 60，见
+  /// [StringSvgx] 类文档。
   final int animationFrameRate;
 
   @override
@@ -359,10 +397,29 @@ class FileSvgx extends ImageProvider<FileSvgx> {
   /// The SVG file to load. / 要加载的 SVG 文件。
   final File file;
 
+  /// Target raster width; see [StringSvgx]'s class doc for the full resolution order.
+  ///
+  /// 目标光栅宽度；完整的解析优先级见 [StringSvgx] 类文档。
   final double? width;
+
+  /// Target raster height; see [StringSvgx]'s class doc for the full resolution order.
+  ///
+  /// 目标光栅高度；完整的解析优先级见 [StringSvgx] 类文档。
   final double? height;
+
+  /// Recolor filter, baked into the rasterized pixels.
+  ///
+  /// 重着色滤镜，直接烘焙进光栅化的像素里。
   final ColorFilter? colorFilter;
+
+  /// Theme controlling `currentColor`. / 控制 `currentColor` 的主题。
   final SvgxTheme? theme;
+
+  /// How often an animated source re-rasterizes, in frames per second — see
+  /// [StringSvgx]'s class doc for why this exists and defaults below 60.
+  ///
+  /// 动画源重新光栅化的频率（帧/秒）——为什么存在、为什么默认低于 60，见
+  /// [StringSvgx] 类文档。
   final int animationFrameRate;
 
   @override
@@ -426,10 +483,29 @@ class MemorySvgx extends ImageProvider<MemorySvgx> {
   /// Raw SVG bytes, decoded as UTF-8. / 原始 SVG 字节，按 UTF-8 解码。
   final Uint8List bytes;
 
+  /// Target raster width; see [StringSvgx]'s class doc for the full resolution order.
+  ///
+  /// 目标光栅宽度；完整的解析优先级见 [StringSvgx] 类文档。
   final double? width;
+
+  /// Target raster height; see [StringSvgx]'s class doc for the full resolution order.
+  ///
+  /// 目标光栅高度；完整的解析优先级见 [StringSvgx] 类文档。
   final double? height;
+
+  /// Recolor filter, baked into the rasterized pixels.
+  ///
+  /// 重着色滤镜，直接烘焙进光栅化的像素里。
   final ColorFilter? colorFilter;
+
+  /// Theme controlling `currentColor`. / 控制 `currentColor` 的主题。
   final SvgxTheme? theme;
+
+  /// How often an animated source re-rasterizes, in frames per second — see
+  /// [StringSvgx]'s class doc for why this exists and defaults below 60.
+  ///
+  /// 动画源重新光栅化的频率（帧/秒）——为什么存在、为什么默认低于 60，见
+  /// [StringSvgx] 类文档。
   final int animationFrameRate;
 
   @override

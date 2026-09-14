@@ -20,8 +20,11 @@ import 'bare_anim_grid.dart';
 import 'bench_screen.dart';
 import 'cmd_count_bench.dart';
 import 'compare_bench_screen.dart';
+import 'complex_svg_samples.dart';
+import 'imgprovider_bench_screen.dart';
 import 'micro_bench.dart';
 import 'one_anim_bench_screen.dart';
+import 'static20_bench_screen.dart';
 
 const _libName = String.fromEnvironment('LIB', defaultValue: 'svgx');
 const _cycles = int.fromEnvironment('CYCLES', defaultValue: 6);
@@ -158,6 +161,94 @@ Future<void> main() async {
     // 引擎连第一帧都不会画，在真机上看起来就像卡死黑屏，即便计算本身在正常
     // 推进。`CmdCountScreen` 让它在（纯 CPU）计数运行期间至少有东西可画。
     runApp(const MaterialApp(home: CmdCountScreen()));
+    return;
+  }
+  if (_libName == 'static20') {
+    // Static N-icon window, one library per process. Deliberately NOT a
+    // sequential in-process comparison like `LIB=compare`: the whole point of
+    // this benchmark is that each library is measured in a freshly started,
+    // never-contaminated process (no JIT warmth, GC state or resident memory
+    // carried over from the other library), so the caller runs it twice with
+    // `TARGET=svgx` / `TARGET=flutter_svg` and force-stops in between.
+    //
+    // 静态 N 图标窗口，每个进程只测一个库。刻意**不**做成 `LIB=compare` 那样的
+    // 同进程顺序对比：本基准的全部意义就在于每个库都在一个全新、未被污染的进程
+    // 里测量（不继承另一个库留下的 JIT 预热、GC 状态或驻留内存），因此调用方要
+    // 用 `TARGET=svgx` / `TARGET=flutter_svg` 跑两次，中间 force-stop。
+    const target = String.fromEnvironment('TARGET', defaultValue: 'svgx');
+    const rounds = int.fromEnvironment('ROUNDS', defaultValue: 20);
+    // Its own icon-count default (20), independent of the scrolling grid's
+    // 1000, so forgetting `ITEMS=` still runs the benchmark this mode is for.
+    // 自带图标数默认值（20），与滚动网格的 1000 无关，这样漏传 `ITEMS=` 也仍然
+    // 跑的是本模式该跑的基准。
+    const staticItems = int.fromEnvironment('ITEMS', defaultValue: 20);
+    // `MODE=cold` (default) is deep-dive 16's every-round-from-scratch setup;
+    // `MODE=hot` re-renders the same sources with the caches left alone;
+    // `MODE=hotpin` additionally keeps an offstage copy mounted so
+    // flutter_svg's reference-counted live-picture cache survives the unmount.
+    //
+    // `MODE=cold`（默认）是深挖十六那套每轮从零渲染；`MODE=hot` 保留缓存、重复渲
+    // 染同一批源；`MODE=hotpin` 再额外常驻一份 offstage 副本，让 flutter_svg 按
+    // 引用计数的 live picture 缓存熬过卸载。
+    const modeName = String.fromEnvironment('MODE', defaultValue: 'cold');
+    // Idle seconds before round 1. Default 2 reproduces deep-dive 16; use ~8 to
+    // push every round past this device's 3~4s post-launch CPU boost, which is
+    // required for a valid round-1-vs-round-N (cold vs hot) comparison.
+    // 第 1 轮前的静置秒数。默认 2 与深挖十六一致；取 ~8 可把所有轮次推出本机启动
+    // 后 3~4 秒的 CPU 加速窗口——"第 1 轮 vs 第 N 轮"(冷 vs 热)的对比必须这么做。
+    const settle = int.fromEnvironment('SETTLE', defaultValue: 2);
+    // `SOURCES=complex` swaps the MDI-icon corpus for `complexSvgSamples`
+    // (mask/gradient/clipPath) — used with `ROUNDS=1` for the cold-start-only
+    // deep-dive; `ITEMS`/rounds>1 machinery still works but is beside the
+    // point for that comparison.
+    //
+    // `SOURCES=complex` 把 MDI 图标语料换成 `complexSvgSamples`
+    // （mask/gradient/clipPath）——配合 `ROUNDS=1` 用于只测冷启动的深挖；
+    // `ITEMS`/多轮机制仍然可用，但对那个对比而言不是重点。
+    const sourcesName = String.fromEnvironment('SOURCES', defaultValue: 'mdi');
+    final mode = switch (modeName) {
+      'hot' => Static20Mode.hot,
+      'hotpin' => Static20Mode.hotPinned,
+      _ => Static20Mode.cold,
+    };
+    final sources = sourcesName == 'complex' ? complexSvgSamples : null;
+    runApp(
+      MaterialApp(
+        debugShowCheckedModeBanner: false,
+        home: Static20BenchRunner(
+          lib: target == 'flutter_svg' ? BenchLib.flutterSvg : BenchLib.svgx,
+          itemCount: sources?.length ?? staticItems,
+          rounds: rounds,
+          holdSeconds: _holdSeconds,
+          mode: mode,
+          settleSeconds: settle,
+          sources: sources,
+        ),
+      ),
+    );
+    return;
+  }
+  if (_libName == 'imgprovider') {
+    // `_supersample` A/B target (lib/src/svg_image_provider.dart) — the only
+    // path in svgx that constant affects. svgx-vs-svgx only; flutter_svg has
+    // no equivalent offscreen-`toImage` ImageProvider to compare against.
+    //
+    // `_supersample` A/B 的测试对象（lib/src/svg_image_provider.dart）——svgx
+    // 里唯一受该常量影响的路径。仅 svgx 对 svgx；flutter_svg 没有等价的离屏
+    // `toImage` ImageProvider 可供对比。
+    const rounds = int.fromEnvironment('ROUNDS', defaultValue: 20);
+    const items = int.fromEnvironment('ITEMS', defaultValue: 20);
+    const settle = int.fromEnvironment('SETTLE', defaultValue: 2);
+    runApp(
+      MaterialApp(
+        debugShowCheckedModeBanner: false,
+        home: ImgProviderBenchRunner(
+          itemCount: items,
+          rounds: rounds,
+          settleSeconds: settle,
+        ),
+      ),
+    );
     return;
   }
   if (_libName == 'compare') {

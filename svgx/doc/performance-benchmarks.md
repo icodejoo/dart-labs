@@ -1677,3 +1677,733 @@ SurfaceFrame::Encode — self=345.39ms, count=327
 2. 量化两侧的纹理提升命中率:先确认引擎 trace 里是否有 RasterCache 相关埋点(本轮的 `--trace-skia` 汇总里未见到,可能需要打开其它 trace 流或换用更底层的抓取方式);或者用 `debugDisableRasterCache` 之类的框架调试开关做 A/B——如果关掉光栅缓存后,flutter_svg 的 raster 明显变差而 svgx 几乎不变,那就直接坐实了"flutter_svg 在吃这个缓存的红利、svgx 没吃到"。
 
 这条方向本轮**未做任何验证**,以上全部是基于既有数据的推理与假设,如实标注为"下一步最值得优先查的线索",不是结论。
+
+#### 深挖九:RasterCache / 纹理提升假设——**引擎源码层面直接证伪**(2026-09-01)
+
+上一节把"引擎自动光栅缓存 / 纹理提升"列为最强假设。本节直接读 Flutter 3.47.0 随附的引擎源码把它**证伪**——不需要真机 A/B,因为源码给出的是二值结论,比 A/B 更硬。
+
+**证据链(本机 SDK 内的引擎源码,`E:\sdk\flutter\engine\src\flutter`,SDK git HEAD `4cf24164269a` 与 `flutter --version` 的 framework revision 完全一致,即这份源码就是当前跑的这个引擎)**:
+
+1. `shell/common/rasterizer.cc:805-808` —— 是否启用光栅缓存,由 surface 自己说了算:
+
+   ```cpp
+   bool ignore_raster_cache = true;
+   if (surface_->EnableRasterCache()) {
+     ignore_raster_cache = false;
+   }
+   ```
+
+2. `flow/surface.cc:25` 的**默认实现**返回 `true`(旧 Skia 后端走这条),但**所有 Impeller surface 全部 override 成 `false`**:
+
+   | 文件 | 行 | 返回值 |
+   |---|---|---|
+   | `shell/gpu/gpu_surface_gl_impeller.cc` | 170 | `return false;` |
+   | `shell/gpu/gpu_surface_vulkan_impeller.cc` | 311 | `return false;` |
+   | `shell/gpu/gpu_surface_metal_impeller.mm` | 372 | `return false;` |
+   | `flow/surface.cc`(默认,Skia 后端用) | 25 | `return true;` |
+
+3. `ignore_raster_cache=true` 一路传到 `flow/compositor_context.cc:133` 的 `layer_tree.Preroll(...)`,在 `flow/layers/layer_tree.cc:45-47` 直接把缓存句柄置空:
+
+   ```cpp
+   .raster_cache = ignore_raster_cache ? nullptr : &frame.context().raster_cache(),
+   ```
+
+   `raster_cache == nullptr` 意味着 `RasterCacheItem` 根本不会被创建、`TryToPrepareRasterCache` 不会被调用,整套判定逻辑(访问次数阈值、复杂度打分)一次都跑不到。
+
+4. `git log -S` 显示 `GPUSurfaceGLImpeller::EnableRasterCache` 从 2022-05-17 Impeller GLES 后端首次接入(`7df5e81ea81`)起就是 `false`,**从未启用过**。
+
+**结论:在 Impeller 后端下,经典 RasterCache 是全局关闭的,svgx 和 flutter_svg 谁都吃不到**。而深挖三已经确认这台华为 STG-AL00 跑的正是 Impeller GLES(trace 里全是 `RenderPassGLES`/`ReactorGLES`)。因此"一边命中纹理 blit 便宜路径、另一边每帧重走编码管线"这个假设**不成立**——两边都在每帧重走编码管线。**假设证伪,不需要也不应该再为它安排真机 A/B**。
+
+**顺带把上一节提到的两个具体验证手段也一并结掉**:
+
+- `debugDisableRasterCache` 这个 API **在 3.47 的 framework 里不存在**(`packages/flutter/lib/src/rendering/debug.dart` 只有 `debugDisableClipLayers`/`debugDisablePhysicalShapeLayers`/`debugDisableOpacityLayers`,分别在 245/256/270 行)。引擎侧 45 条命令行开关的全表在 `shell/common/switch_defs.h`,里面**也没有** `--disable-raster-cache` 之类的东西。这个 API 名字是旧 Skia 时代的记忆,不要再照着找。
+- 引擎确实有 RasterCache 的 trace 计数器,名字是 `"RasterCache"` / `"LayerCount"` / `"LayerMBytes"` / `"PictureCount"` / `"PictureMBytes"`(`flow/raster_cache.cc:270-281` 的 `TraceStatsToTimeline`)。**之前几轮 `--trace-skia` trace 里翻不到它们,不是漏看,是它们在 Impeller 下压根不会被触发**——这条负向观测反过来又印证了上面的源码结论。
+
+**Impeller 有没有别的替代缓存机制?** 通读 `impeller/` 目录,只找到 `RenderTargetCache`(渲染目标/附件复用,`impeller/entity/render_target_cache.h`)和 `TextShadowCache`(文字阴影,`impeller/entity/contents/text_shadow_cache.h`),**没有任何 layer / picture / DisplayList 粒度的纹理缓存**。也就是说 Impeller 目前的设计就是**每帧重新 tessellate + 重新编码**,没有"内容没变就复用上一帧纹理"这一层。这同时也解释清楚了深挖二的 15.6%:手工 `toImageSync` 烘焙之所以只能拿回一部分,不是因为"没精确复现引擎的缓存前提",而是因为**引擎根本没有这个缓存前提可复现**——那 15.6% 就是应用层自己造缓存能拿到的全部,不存在被浪费掉的引擎红利。
+
+**这轮排查因此改写了问题本身**:既然两边都在每帧全量重编码,那 `SurfaceFrame::Encode` 的差距就必须在"同样一批 `drawPath`,Impeller 为什么给 svgx 的那批编码得更贵"里找。深挖四~八证明了 verb 数、点数、命令条数、状态切换全部对等,那剩下的变量只可能是**几何数据本身的形状特征**(路径的凹凸性/自交/contour 数量,直接影响 tessellation 产出的三角形数量与 stencil pass 次数),而这个维度**从来没有被测过**——它不等于"点数",两条点数相同的路径可以 tessellate 出数量差一个量级的三角形。这是替换掉本假设后的新头号线索。
+
+**遗留的一个可做、且零代码改动的旁证实验(等设备回来再做)**:`--enable-impeller=false` 在 3.47 仍然可用(`shell/platform/android/io/flutter/embedding/engine/FlutterEngineFlags.java:153`,Skia GL 后端 `gpu_surface_gl_skia.cc` 也还在),而 Skia 后端下 `EnableRasterCache()` 走默认实现返回 `true`,光栅缓存是**开着**的。因此:
+
+```
+flutter run -d 7NQBB23606003715 --profile --enable-impeller=false \
+  --dart-define=LIB=compare --dart-define=CYCLES=6 --dart-define=ITEMS=1000
+```
+
+跟现有 Impeller 基线对照,可以一次回答两件事:(a) 1.6x 的差距在 Skia 后端下还在不在——如果消失,说明这是 **Impeller 特有**的问题,直接把根因锁死在 tessellation/编码路径上;(b) 打开光栅缓存后两边各自能提升多少。注意 `shell.cc:527-538` 显示 `--no-enable-impeller` 回退路径在 3.47 已标记 deprecated,会打警告日志,这条路以后不一定长期可用,要做趁早。**本节未执行该实验(设备离线),不记录任何数字。**
+
+#### 深挖十:GPU 层面观测手段调研——找到一个引擎自带的、零安装的真 GPU 计时器(2026-09-01)
+
+深挖七确认 Dart 插桩 + `--trace-skia` 已经到顶(关键 slice 都是叶子节点)。本节调研"绕开引擎自报耗时、直接看 GPU 侧"的工具。**设备当次离线(`adb devices` 只剩 WSA 模拟器 `127.0.0.1:58526`,`7NQBB23606003715` 不在列),因此本节只有调研结论和可执行方案,没有任何实测数据。**
+
+**最重要的发现:Impeller GLES 后端自带一个逐帧 GPU 计时器,不需要装任何第三方工具、不需要 root。**
+
+`impeller/renderer/backend/gles/gpu_tracer_gles.cc` 用 `GL_EXT_disjoint_timer_query` 在每帧的 GPU 命令流首尾打 `BeginQueryEXT(GL_TIME_ELAPSED_EXT)` / `EndQueryEXT`,拿到的是**GPU 真实执行这一帧所花的时间**(不是 CPU 侧编码耗时),并以 trace counter 形式吐出来:
+
+```cpp
+FML_TRACE_COUNTER("flutter", "GPUTracer",
+                  reinterpret_cast<int64_t>(this),  // Trace Counter ID
+                  "FrameTimeMS", gpu_ms);
+```
+
+这正好补上现有工具链缺的那一块:`SurfaceFrame::Encode` 量的是 **CPU 编码**,`GPUTracer/FrameTimeMS` 量的是 **GPU 执行**。两个数一起看就能判断 svgx 到底是"CPU 编码更慢"还是"喂给 GPU 的三角形更多导致 GPU 也更慢"——而这恰好就是深挖九结尾提出的新头号线索(tessellation 产出的几何量)的直接验证手段。
+
+**启用条件(逐条从源码确认,不是猜的)**:
+
+1. **构建模式**:`enabled_` 的赋值整段包在 `#ifdef IMPELLER_DEBUG` 里(`gpu_tracer_gles.cc:12-16`)。`impeller/tools/args.gni:9-10` 定义 `impeller_debug = flutter_runtime_mode == "debug" || flutter_runtime_mode == "profile"` —— **profile 构建满足条件**,现有基准的 `--profile` 跑法不用改。release 下这个计时器是死代码。
+2. **开关**:只能通过 AndroidManifest meta-data 打开,**没有对应的 `flutter run` 命令行参数**。`FlutterEngineFlags.java:259-260` 用的是双参 `Flag` 构造函数,而 `Flag` 类第 54-56 行显示双参版本等价于 `allowedInRelease=false`,并强制 `io.flutter.embedding.android.` 前缀。具体做法是往 `benchmark/bench_app/android/app/src/profile/AndroidManifest.xml`(profile-only,不污染 release)的 `<application>` 里加:
+
+   ```xml
+   <meta-data android:name="io.flutter.embedding.android.EnableOpenGLGPUTracing"
+              android:value="true" />
+   ```
+
+   注意 `gpu_tracer_gles.h:23-26` 的类注释里那段示例写的是 `android:value="false"`,那是**示例给的关闭态**,要打开必须写 `true`。
+3. **设备驱动**:必须有 `GL_EXT_disjoint_timer_query` 扩展,否则 `enabled_` 保持 false、静默不输出。Mali-G51(Kirin 710)是否暴露这个扩展**未经验证**,只能上机试:开了 meta-data 跑一次,看 timeline 里有没有 `GPUTracer` 这个 counter,有就是支持。
+4. **风险**:头文件明确写了"a substantial number of GPUs where usage of this API is known to cause crashes",所以才做成默认关闭的显式 opt-in;源码注释里还提到 Pixel 6 Pro 上每帧查询多个 query object 会崩。华为这台会不会崩未知,**做实验时要有"一开就崩"的心理准备**,崩了就如实记录不可用。
+
+**建议的实验流程(设备回来后)**:改 profile manifest → `flutter run -d 7NQBB23606003715 --profile --dart-define=LIB=svgx ...` → 用现有 `benchmark/bench_app/tool/capture_timeline.dart` 抓 timeline → 从 JSON 里筛 `name == "GPUTracer"` 的 counter 事件、取 `FrameTimeMS` 序列算 mean/p50/p90 → 换 `LIB=fsvg` 重跑一次对照 → **测完立刻 `git checkout` 还原 manifest**。
+
+**其余工具逐个调研结论(设备离线,全部为可行性判断,未实测)**:
+
+| 工具 | 判定 | 依据 |
+|---|---|---|
+| **Impeller `GPUTracer`(上文)** | **首选**,零安装零 root,唯一不确定是驱动扩展 | 引擎源码已确认 profile 可用 |
+| `dumpsys gfxinfo <pkg>` / `framestats` | **对本场景无意义,不要用** | gfxinfo 统计的是 HWUI 渲染器;Impeller 直接走 GLES 绕开 HWUI,数据会是空的或全零 |
+| `dumpsys SurfaceFlinger --latency <layer>` / `--timestats` | 可用,零依赖,但只给 present 时间不给 GPU 内部数据 | 不管渲染器是谁 SurfaceFlinger 都能看到最终 buffer;先 `dumpsys SurfaceFlinger --list` 找 layer 名。适合当 raster 耗时的独立交叉验证,不能定位根因 |
+| Perfetto `gpu.renderstages` / `gpu.counters` | 大概率拿不到数据 | 这两个数据源要求 GPU 厂商驱动注册 Perfetto producer,renderstages 基本是高通 Adreno 生态;海思闭源 Mali 驱动大概率没有。`android.gpu.memory`(`gpu_mem_total` ftrace tracepoint)是通用内核事件,更可能可用但信息量小 |
+| Perfetto 保底配置(`linux.ftrace` gfx/sched + `android.surfaceflinger.frametimeline`) | 可用,但粒度粗于现有 `--trace-skia` | 深挖三已经记过这条备选,结论不变 |
+| **Arm Performance Studio / Streamline** | 理论上最合适 Mali,但要装工具 + 上机验权限 | 专为 Mali 设计,非 root 可用,靠 `adb push gatord` 读内核驱动计数器。不确定点是 EMUI 是否锁了 `/dev/mali0`,上机跑一次 `adb shell /data/local/tmp/gatord` 看有没有 permission denied 就知道。**本机未安装**(`C:\Program Files\Arm` 不存在),需要 Arm 开发者账号下载,引入前应先征得同意 |
+| Android GPU Inspector (AGI) | 基本排除 | 官方支持设备清单不含华为/海思;Mali 只覆盖 G76/G77/G78/G710 这类中高端,G51 不在列;且 AGI 对 GLES 只支持 GPU 计数器、不支持完整帧抓取,主力是 Vulkan |
+| RenderDoc(GLES) | 能拿到最深的 per-drawcall 数据,但要求 APK debuggable | 需要重打包/重签名两个基准 APK,成本和风险都不低,列为兜底 |
+| Mali sysfs(`/sys/class/misc/mali0/device/utilization` 等) | 大概率需要 root | 零售版 EMUI 上基本 permission denied |
+| Mali Offline Compiler | 仅静态 shader 成本估算,不反映运行时负载 | 可做佐证,不能定位本问题 |
+| GAPID | 已废弃,并入 AGI | 不用管 |
+
+**排序建议**:先做 Impeller `GPUTracer`(零成本、直接回答"GPU 侧到底有没有更忙"这个关键问题),再做深挖九结尾那条 `--enable-impeller=false` 的 Skia/Impeller 对照(同样零代码改动),这两条如果能把根因收敛到 tessellation,就不必再动 Streamline / RenderDoc 这类重型工具。
+
+**本节局限,如实标注**:全部内容为源码阅读 + 工具文档调研,**没有任何一条在真机上跑过**。GPU 计时器能不能在这台华为上真的打开(驱动扩展 + 会不会崩),以及 Streamline 的 `/dev/mali0` 权限,都必须等设备接回来实测才能定论。
+
+#### 深挖十一:GPUTracer 实测——**GPU 真实执行时间也差 2.4x,不是纯 CPU 编码问题**(2026-09-01)
+
+深挖十只给了方案没有数据。本节把方案跑通并拿到实测:svgx 与 flutter_svg 在同一台真机上的**每帧 GPU 真实执行时间**对照。
+
+**先纠正深挖十的两处事实错误(都是没上机猜的)**
+
+1. **这台 STG-AL00 的 GPU 不是 Mali-G51,是高通 Adreno 610。** `adb -s 7NQBB23606003715 shell dumpsys SurfaceFlinger | grep GLES:` 输出 `GLES: Qualcomm, Adreno (TM) 610, OpenGL ES 3.2 V@0502.0`。深挖十里"海思 Kirin 710 + Mali"的前提是错的,连带那张工具表里"Mali 闭源驱动大概率没有 Perfetto producer""Streamline 最合适"两条判断也要重估——Adreno 生态反而是 Perfetto `gpu.renderstages` 与 AGI 的主场。
+2. **`EnableOpenGLGPUTracing` 这个 meta-data 单独加上去不生效**,trace 里一条 `GPUTracer` counter 都没有(第一次实验就是这么失败的,manifest 已确认合入 APK:`build/app/intermediates/packaged_manifests/profile/.../AndroidManifest.xml` 里能搜到该 meta-data)。原因是引擎的一处**开关串线**:
+
+   - 本设备走的是 `AndroidRenderingAPI::kImpellerAutoselect`(动态选择:先试 Vulkan,失败回落 GLES。日志实证:`android_context_vk_impeller.cc(62) Using the Impeller rendering backend (Vulkan).` 紧接着 `android_context_gl_impeller.cc(104) Using the Impeller rendering backend (OpenGLES).`)。
+   - `platform_view_android.cc:59` 的 `CreateContextSettings()` 写死 `settings.enable_gpu_tracing = p_settings.enable_vulkan_gpu_tracing;`,而 `AndroidContextDynamicImpeller::SetupImpellerContext()`(`android_context_dynamic_impeller.cc:193-195`)回落 GLES 时把**这同一个字段**传给 `AndroidContextGLImpeller`。
+   - `enable_opengl_gpu_tracing` 只在 `platform_view_android.cc:127` 那条**显式 `kImpellerOpenGLES`** 分支里被读到——而 autoselect 永远走不到那条分支。
+
+   **结论:在 autoselect(即默认)路径下,要打开 GLES 的 GPU 计时器,必须设 `EnableVulkanGPUTracing`。** 实际生效的写法(两条都加,`EnableOpenGLGPUTracing` 留着表意):
+
+   ```xml
+   <!-- benchmark/bench_app/android/app/src/profile/AndroidManifest.xml 的 <application> 内 -->
+   <meta-data android:name="io.flutter.embedding.android.EnableOpenGLGPUTracing" android:value="true" />
+   <meta-data android:name="io.flutter.embedding.android.EnableVulkanGPUTracing" android:value="true" />
+   ```
+
+3. **驱动支持,也没崩。** `dumpsys SurfaceFlinger` 里能搜到 `GL_EXT_disjoint_timer_query`;开启后跑满 4 次完整基准,一次崩溃都没有。深挖十里"Pixel 6 Pro 会崩"的风险在这台机器上没有兑现。
+
+**实测方法**:profile manifest 加上两条 meta-data 后,`flutter run -d 7NQBB23606003715 --profile --trace-skia --endless-trace-buffer --dart-define=LIB=svgx|flutter_svg --dart-define=CYCLES=6 --dart-define=ITEMS=1000`,用 `dart run tool/capture_timeline.dart <uri> 40 out.json` 抓 40 秒,再从 JSON 里筛 `ph=="C" && name=="GPUTracer"` 的 counter 事件取 `FrameTimeMS`。**每侧跑两次**(顺序 svgx → fsvg → fsvg → svgx,消除单向臂序偏置)。测完 `git checkout` 还原 manifest,已还原。
+
+**主结果**
+
+| 指标 | svgx #1 | svgx #2 | flutter_svg #1 | flutter_svg #2 | 均值倍数 |
+|---|---|---|---|---|---|
+| **GPUTracer FrameTimeMS mean** | 18.027 | 17.960 | 7.366 | 7.770 | **2.38x** |
+| GPUTracer p50 | 17.902 | 17.829 | 3.945 | 3.954 | **4.52x** |
+| GPUTracer p90 | 21.010 | 20.525 | 20.615 | 20.214 | 1.02x |
+| GPUTracer 样本数(帧) | 415 | 417 | 274 | 279 | — |
+| `SurfaceFrame::Encode` self μs/帧 | 4370 | 4536 | 962 | 1046 | **4.43x** |
+| `RenderPassGLES::EncodeCommandsInReactor` self μs/帧 | 4813 | 5117 | 2760 | 2414 | 1.92x |
+| 基准 raster avg(同次运行) | 25.941 | 26.045 | 11.239 | 9.745 | 2.48x |
+
+**结论:GPU 真的更忙,不是"只有 CPU 编码慢"。** 深挖十给的判定标准是"GPU 时间接近但 Encode 差距大 → 问题在 CPU 编码"。实测是**两边都差**:GPU 真实执行时间 mean 差 2.38x、p50 差 4.52x,和 `SurfaceFrame::Encode` 的 4.43x 同向同量级。也就是说 svgx 喂给 GPU 的**实际工作量**就是更大,CPU 侧编码更贵只是同一个上游原因的下游表现(顶点数据更多 → 写进命令缓冲更慢 + 光栅化更慢)。**深挖九结尾提出的"几何数据形状特征 / tessellation 产出的三角形数量"这条头号线索,重要性由此上升而不是下降。**
+
+**两条值得单独记下的观测**
+
+- **flutter_svg 的 GPU 耗时是双峰的,svgx 是平的。** flutter_svg p50 只有 3.95ms 但 p90 有 20.6ms,而 svgx 从 p50 到 p90 都稳定在 17.8~21.0ms——两边的 **p90 几乎相等(1.02x)**。按 2 秒分桶看时间序列,svgx 全程平坦在 ~18ms,flutter_svg 在 2.7 / 4.3 / 12.5 / 5.2 / 8.4 / 10.4ms 之间大幅起伏。这说明差距来自"flutter_svg 有大量非常便宜的帧",而不是"svgx 有少数特别贵的帧"。
+- **`RasterCache` counter 在 Impeller 下确实会被打出来,但值恒为 0。** 深挖九说"Impeller 下这些 counter 压根不会被触发",实测更精确的表述是:counter 事件存在(svgx 416 个、flutter_svg 275 个,每帧一个),但 `LayerCount=0 / LayerMBytes=0 / PictureCount=0 / PictureMBytes=0`。结论不变(一个都没缓存),但以后不要再按"搜不到 RasterCache 就说明没触发"来判断。
+
+**本节局限,如实标注**
+
+- **GPU 计时器本身开销极大**,把 raster 从 ~11ms 抬到 ~26ms(svgx)。所有绝对值都被抬高过,**只有 svgx/flutter_svg 的比值可用**,不要和其它小节的绝对数字横比。
+- 上面这个"flutter_svg 便宜帧特别多"的形状,存在一个**未排除的替代解释**:快速滚动中 flutter_svg 有一部分格子的图标还没解码完、那一帧实际画的内容更少,从而同时压低它的 GPU 时间和 Encode 时间。本轮只有一张弱证据——在 flutter_svg 静态阶段随机抓的一张真机截图上,可见网格是**满的、没有空白格**——但那不是受控采样。**在把 2.38x 当成"纯几何成本差"引用之前,应该先做一次受控验证**(例如在真实滚动中统计每帧实际下发的 `drawPath` 条数,而不是像深挖四那样在离屏确定性环境里数)。
+
+#### 深挖十二:Skia 后端对照——**差距不是 Impeller 特有的,换成 Skia 后反而放大到 6~7x**(2026-09-01)
+
+深挖九/十都把 `--enable-impeller=false` 的 Skia 对照列为"零代码改动、应该尽早做"的实验。本节执行它。
+
+**先记一条工具事实**:Flutter 3.47 里 `--enable-impeller=false` 这种**带值写法会被直接拒绝**(`Flag option "--enable-impeller" should not be given a value.`),因为 `flutter_command.dart:1271` 用的是 `argParser.addFlag`。正确写法是 **`--no-enable-impeller`**。它仍然可用,但会打一段 deprecation 警告(`shell.cc(528) [Action Required]: Impeller opt-out deprecated.`),这条路以后会消失,要用趁早。
+
+**A/B 设计**:同一份代码、同一台设备、同一天连续跑。为了排除"svgx 阶段先跑、把 Skia 的着色器编译成本全吃了"这种臂序偏置,**同时用两种口径各测一遍**:
+- 配对口径:`LIB=compare`(一个进程内先 svgx 后 flutter_svg),Impeller / Skia 各一次;
+- 独立口径:`LIB=svgx` 与 `LIB=flutter_svg` 各起一个进程(各自承担自己的冷启动与着色器预热),Skia 下各一次。
+
+**结果**
+
+| 后端 / 口径 | svgx raster avg | flutter_svg raster avg | 倍数 | svgx raster p50 | flutter_svg raster p50 | p50 倍数 |
+|---|---|---|---|---|---|---|
+| Impeller GLES,配对(`LIB=compare`) | 12.119ms | 5.761ms | **2.10x** | 12.472ms | 3.019ms | 4.13x |
+| **Skia GLES,配对**(`LIB=compare`) | **102.802ms** | **13.990ms** | **7.35x** | 61.944ms | 2.833ms | 21.9x |
+| **Skia GLES,独立进程** | **121.200ms** | **19.304ms** | **6.28x** | 66.562ms | 2.999ms | 22.2x |
+
+同一个库自己前后对比(配对口径):
+
+| 库 | Impeller raster avg | Skia raster avg | Skia 相对 Impeller |
+|---|---|---|---|
+| svgx | 12.119ms | 102.802ms | **8.5x 更慢** |
+| flutter_svg | 5.761ms | 13.990ms | 2.4x 更慢 |
+
+**结论一:假设的"如果 Skia 下差距消失 → 问题是 Impeller 特有"这条分支被否掉了,而且是反方向否掉的。** Skia 后端下差距不但没缩小,反而从 2.1x 放大到 6.3~7.3x(p50 从 4.1x 放大到 22x)。配对口径与独立口径给出同一个量级(7.35x / 6.28x),说明这不是着色器预热的臂序偏置。**根因不在 Impeller 的实现细节里,而在更底层、两套渲染器共有的东西上——也就是 svgx 交给光栅化器的那批 `ui.Path` 本身,填充成本天生就比 flutter_svg 那批高。**
+
+**结论二:"引擎光栅缓存"这条线彻底死掉,不留余地。** 深挖九用源码证明 Impeller 下 RasterCache 恒关;Skia 后端下 `flow/surface.cc:25` 的 `EnableRasterCache()` 返回 `true`,缓存是**开着**的——而 svgx 在开着缓存的 Skia 上反而慢了 8.5 倍。"svgx 没吃到缓存红利"这个方向到此可以完全放弃。
+
+**结论三:和深挖十一互相印证,共同指向同一个上游原因。** 深挖十一测出 GPU 真实执行时间差 2.38x,本节测出换一套完全不同的光栅化实现(Skia Ganesh 的 path renderer,和 Impeller 的 tessellator 是两套独立代码)差距只会更大。两条独立证据同时排除了"某一家引擎的实现 bug",只剩下"输入数据本身不对等"这一种解释。而深挖四~八已经证明**条数、verb 数、点数、状态切换、构造源码**全部对等——所以差异必然落在这些**聚合指标看不见的几何形状特征**上。
+
+**下一步建议(按性价比排序)**
+
+1. **先补上深挖十一那条未排除的替代解释**:在真实滚动中统计每帧实际下发的 `drawPath` 条数(不是深挖四的离屏确定性环境)。如果 flutter_svg 在滚动中确实画得更少,后面所有"几何成本"的量级结论都要打折。这一步不做,后面的活可能白干。
+2. **把深挖五的"总量相等"升级成"逐图标相等"**:深挖五比的是 1000 个图标的 verb/点**总数**(29809 vs 29805、47070 vs 47058),这只能证明总量相等,**不能证明逐图标、逐点相等**。直接把两侧前 N 个图标的 verb 序列和点坐标 dump 出来做数值 diff,能一次性确认或推翻"内容等价"这个已经被引用了五节的前提。
+3. **量化几何形状特征**(深挖九结尾的头号线索,现在有了两条实测支撑):在现有 `cmd_count_bench` 的确定性环境里,对两侧的每条 `ui.Path` 统计 **contour(子路径)数量**、`Path.computeMetrics()` 的段数、以及 fillType 分布(`evenOdd` 占比——even-odd 在 Skia GPU 侧走的是比 nonzero 更贵的 stencil 路径)。这三项都是"点数相同但填充成本可以差一个量级"的直接来源,且全部可以在主机侧确定性测出,不需要真机。
+4. 只有以上三步都测不出差异,才值得再上 Streamline / RenderDoc / Perfetto `gpu.renderstages`(注意:GPU 是 Adreno 610 不是 Mali,工具选型要按深挖十那张表的修正版重挑)。
+
+**本节局限,如实标注**:每种配置只跑了 1 次(Skia 侧 2 种口径共 2 次),没有中位数;`LIB=compare` 那份完整报告在 logcat 里被截断,只抓到了 Phase 1+3 静态配对表的前半段(build/raster 全部行都在,`framesOver8.3ms` 之后的行丢失)。Skia 下 svgx 的分布极度双峰(p50 61.9ms / p90 285.3ms / max 419.7ms),95 帧上下的样本量对 p90/p99 来说偏小,这几个尾部数字不要当稳定值引用;avg 与 p50 的方向性结论则被两种独立口径复现。
+
+#### 深挖十三:逐图标几何/拓扑量化——**两侧 `ui.Path` 实质完全相同,"几何形状特征"这条头号线索被证伪**(2026-09-01)
+
+深挖十二结尾把"量化几何形状特征"(contour 数、`computeMetrics()` 段数、evenOdd 占比)列为第 3 条建议,并把深挖五的"总量相等"升级成"逐图标相等"列为第 2 条。本节把这两条**一次性做完**,结论是:**两侧交给光栅化器的 `ui.Path` 对象在几何与拓扑上完全等价,这条从深挖九一路撑到深挖十二的头号假设不成立。**
+
+**方法(纯主机侧,确定性,不需要真机)**:在既有 `LIB=cmdcount` 工具上扩展,不新起炉灶:
+
+- `CountingCanvas` 新增 `recordedPaths`,把 `drawPath(path, paint)` 收到的**真实 `ui.Path` 对象**留存下来。这是关键改进:深挖五量的是两个库各自的**中间表示**(svgx 的 `SvgPath.verbs/points` vs vector_graphics 二进制流的回调序列),本节量的是**光栅化器真正要填充的那个对象本身**,中间任何一步的差异都会在这里暴露。
+- 新增 `GeomStats`:对每个图标的 `ui.Path` 统计 `computeMetrics()` 枚举出的 **contour(独立子路径)数**、各 contour 的**弧长之和**、**`fillType`(evenOdd/nonZero)**、以及**包围盒并集**(用来发现两侧坐标空间是否一致——tessellator 的平坦度容差正是在这个空间里生效的)。
+- `_VerbCountingListener` 从"只计数"扩展为"记录序列":保存 verb 操作码序列、展平的坐标序列、以及 `onPathStart` 给出的 fillType。svgx 侧用 `parseSvg()` 产出同粒度的 `VerbStream`。两侧做**逐元素 diff**。
+- 运行环境:Windows 桌面 profile(`flutter run -d windows --profile --dart-define=LIB=cmdcount`)。选主机侧是因为这条链路(Rust 解析器 + 纯 Dart 的 vector_graphics 编译器)与平台无关,且**同一次运行里 verb/point 总数与深挖五在真机上测出的数字逐位相同**(29809/47070 vs 29805/47058),这本身就交叉验证了主机侧复现真机结果这一前提。
+
+**实测数据**(1000 个 Mdi 图标):
+
+```
+--- geometry & topology of the real ui.Path objects (deep-dive 13) ---
+contours    : svgx=3535 (avg 3.535)  flutter_svg=3535 (avg 3.535)  ratio=1.0000
+contours per-icon mismatch: 0 / 1000 icons
+arcLength   : svgx=123050.8 flutter_svg=123052.9 ratio=1.0000
+fillRule    : svgx evenOdd=0/1000 (0.00%)  flutter_svg evenOdd=0/1000 (0.00%)
+fillRule per-icon mismatch: 0 / 1000 icons
+bounds per-icon mismatch (>0.05px): 2 / 1000 icons
+
+--- element-by-element verb/coordinate diff (upgrades deep-dive 5) ---
+verb-sequence mismatch : 3 / 1000 icons (of which length differs: 3)
+point-count mismatch   : 3 / 1000 icons
+max |coord delta| over length-matched icons: 0.000279 (icon #395)
+top arcLength ratio outliers (svgx/flutter_svg): 全部 = 1.0000,最低的一个 #980 = 0.9903
+```
+
+**逐条结论**
+
+| 指标 | 结果 | 判定 |
+|---|---|---|
+| **contour(子路径)数** | 3535 vs 3535,**逐图标 0/1000 不匹配** | 完全一致。不是"总和相等但分布不同"——是每一个图标都对上了 |
+| **`computeMetrics()` 段数** | 同上(`computeMetrics()` 枚举的就是 contour) | 完全一致 |
+| **contour 弧长总和** | 123050.8 vs 123052.9,ratio **1.0000** | 完全一致。抗锯齿边缘工作量的直接代理,两侧等量 |
+| **fillType(evenOdd 占比)** | **两侧都是 0%**,1000 条路径全部 nonZero | 无差异,而且这条语料**根本没有 evenOdd**,"even-odd 走更贵的 stencil 路径"在这批图标上完全不适用 |
+| **坐标空间(包围盒)** | 只有 2/1000 图标超出 0.05px 容差 | 两侧在同一个 24×24 用户空间里,不存在"一边按 24 录制、一边按 32 录制"这种缩放差 |
+| **逐元素 verb 序列** | 997/1000 图标**逐 verb 完全相同**;3 个长度不同 | 深挖五的"总量相等"升级为"序列相同"成立 |
+| **逐元素坐标** | 长度匹配的图标里最大坐标偏差 **0.000279px** | 就是 Rust FFI 桥 float32 往返的舍入误差,不是几何差异 |
+
+**这意味着什么(排查逻辑的转折点)**
+
+深挖九提出、深挖十一/十二两条独立实测"加持"过的头号假设是:*两边内容等价的前提可能是假的,聚合指标看不见的几何形状特征上有系统性差异,导致 svgx 那批 Path 天生填充更贵*。本节直接在**光栅化器要填的那个 `ui.Path` 对象**上把这个假设测穿了——contour 数、弧长、填充规则、坐标空间、verb 序列、逐点坐标,**六项全部逐图标一致**。这不是"总量相等所以大概等价"的弱证据,是"每一个图标都对得上"的强证据。
+
+**因此:"svgx 的 Path 本身填充成本更高"这个解释被排除。** 深挖十二结论三里"只剩下'输入数据本身不对等'这一种解释"的推断,前半段(排除引擎实现 bug)仍然成立,但后半段的落点错了——输入数据是对等的。
+
+**那 GPU 为什么还是更忙?** 逻辑上只剩一条路:**每帧实际提交给光栅化器的图标数量两侧不一样**。深挖四~八和本节全部是在**离屏确定性环境**里测"一个图标会产生什么",从来没有测过**真实滚动中一帧里到底画了多少个图标**——而深挖十一恰好留了一条未排除的替代解释在那里(flutter_svg 双峰、p50 只有 3.9ms、p90 与 svgx 相等)。这条现在从"备选解释"升级成"唯一剩下的解释",由深挖十四验证。
+
+**顺带确认的一条源码事实(与上面互相印证)**:`vector_graphics-1.2.3/lib/src/vector_graphics.dart` 的 `_loadAssetBytes` 第一件事就是查 `_livePictureCache`,**命中时同步 `setState` 并 `return`,不经过任何 `await`**;未命中才走 `compute()` 异步编译。而这个缓存是**按存活控件引用计数**的(`_maybeReleasePicture` 在 `count` 归零时 `remove` 并 `dispose`),不是 LRU——**格子滚出视口被销毁,它的 picture 立刻被驱逐**。所以在滚动网格里,flutter_svg 每次滚入一个新图标都是缓存未命中,必然要空白若干帧;svgx 的 `RustSvgxPictureCache` 是容量 1050 的 LRU,滚出不驱逐,永远同步命中。**两侧在"一帧里画满没画满"这件事上存在结构性不对称**,这是本节把矛头交给深挖十四的直接依据。
+
+**本节局限,如实标注**:
+- 运行在 Windows 桌面而非真机(理由与交叉验证见方法段);
+- `encodeSvg` 的三个优化器按 flutter_svg 运行时的真实配置全部关闭,与深挖四一致;
+- 3 个 verb 序列不匹配的图标未逐个溯源到原始 SVG(占比 0.3%,即使全部是 svgx 更复杂也无法解释 2.4x);
+- 本节只覆盖这批全为单路径、无描边、无 clip/mask 的 Mdi 图标,结论不外推到含渐变/mask/位图的 SVG。
+
+#### 深挖十四:**根因找到了——flutter_svg 在滚动中根本没把图标画出来,86% 的格子是空白;修正后 svgx 反过来快 1.64x**(2026-09-01)
+
+深挖十三把"两侧几何等价"钉死之后,只剩一条解释:**每帧实际提交给光栅化器的图标数量两侧不一样**。深挖十一自己也留了这条未排除的替代解释在那里。本节把它测掉,结果是:**这不只是"有点污染",它就是全部**——从 2026-09-01 早晨的第一次真机实测到深挖十二为止,一整条"svgx raster 落后 flutter_svg 1.6~2.4x"的排查线,前提本身是错的。
+
+**机制(先讲清楚为什么会这样,源码证据)**
+
+`vector_graphics-1.2.3/lib/src/vector_graphics.dart`:
+
+- `_livePictureCache`(第 328 行)是一个**按存活控件引用计数**的 Map,不是 LRU。
+- `_maybeReleasePicture`(第 355-364 行):`data.count -= 1;` 归零就 `_livePictureCache.remove(data.key)` 并 `data.pictureInfo.picture.dispose()`。**格子滚出视口被 dispose,它的 picture 立刻被销毁。**
+- `_loadAssetBytes`(第 405-414 行):命中 `_livePictureCache` 时**在任何 `await` 之前**同步 `setState` 并 `return`;未命中则走 `compute()` 后台编译,回来才 `setState`。
+- 未命中期间 `build` 走的是 `placeholderBuilder?.call(context) ?? SizedBox(width, height)`——**一个什么都不画的空盒子**。
+
+在 `GridView` 里快速滚动时,滚入的每个格子都是新图标 → 必然缓存未命中 → 必然空白若干帧。而 svgx 的 `RustSvgxPictureCache` 是容量 1050 的 **LRU**(基准里 `maximumSize = itemCount + 50`),滚出不驱逐,且 `getOrRender` 是**同步**的——首屏之后永远同步命中,一帧都不空白。
+
+**测量方法(逐帧格子占用率普查)**
+
+在 `bench_screen.dart` 里加两个纯统计控件,两侧对称,不改任何渲染逻辑:
+
+- `_CellMarker`:包住每个网格格子,`initState`/`dispose` 里维护全局 `mounted` 计数。两个库共用同一个包装,所以 `mounted` 是**对照量**。
+- `_BlankMarker`:作为 flutter_svg 的 `placeholderBuilder` 传入,布局与它默认的占位符(同尺寸 `SizedBox`,不画任何东西)完全一致,只是额外维护全局 `blank` 计数。svgx 同步渲染,没有占位符概念,`blank` 按构造恒为 0,是**基线**。
+- 在被测滚动窗口内用自我重挂的 `addPostFrameCallback` **每帧采一次** `(mounted, blank)`,采样点在 build/layout/paint 之后,反映的正是这一帧交给光栅化器的内容。
+
+**基线实测**(真机 STG-AL00,`LIB=compare CYCLES=6 ITEMS=1000`,Impeller,一次运行内配对):
+
+```
+svgx        : census_frames=631  cells_mounted_avg=210.28  cells_blank_avg=0.00    blank=0.00%   frames_fully_painted=631/631
+flutter_svg : census_frames=332  cells_mounted_avg=208.55  cells_blank_avg=180.01  blank=86.31%  frames_fully_painted=0/332
+```
+
+**读数**:两侧挂载的格子数几乎相同(210.28 vs 208.55——同一个 GridView、同一批约束,符合预期,说明普查口径没问题)。但 flutter_svg 平均每帧有 **180 个格子是空白的,占 86.31%**;**332 帧里没有一帧是画满的,一帧都没有**。也就是说,滚动过程中 flutter_svg 实际只画了约 **28 个**图标,svgx 画了约 **210 个**——**7.4 倍的工作量差**。
+
+同一次运行的头条数字:
+
+| 指标 | svgx | flutter_svg | 倍数 |
+|---|---|---|---|
+| raster avg | 11.184ms | 5.923ms | flutter_svg 快 1.89x |
+| raster p50 | 11.614ms | 3.096ms | flutter_svg 快 3.75x |
+| raster p90 | 15.061ms | 14.792ms | 1.02x(**几乎相等**) |
+| 窗口内总帧数 | 630 | 333 | svgx 多 1.89x |
+| framesOver16.6ms | 6 | 36 | svgx 少 6x |
+
+这份表把深挖十一的每一个"谜"一次性解释干净了:**p50 差 3.75x 是因为 flutter_svg 大部分帧几乎是空的;p90 相等是因为偶尔画满的那些帧两边成本本来就一样;flutter_svg"便宜帧特别多"不是它效率高,是它没在画东西。** 深挖十一测出的 GPU 真实执行时间 2.38x、p50 4.52x,同样是这一件事。
+
+**受控 A/B:把两侧拉到"都画满"再比**
+
+用 `--dart-define=KEEPALIVE=1` 给每个格子加 `AutomaticKeepAliveClientMixin`(两侧对称施加),滚出视口的格子不再 dispose → flutter_svg 的 `_livePictureCache` 不再驱逐 → 第一轮滚完之后就同步命中、不再空白。这一步**不碰任何渲染代码**,只改格子的存活策略。注意 keep-alive 的格子被 `RenderSliverMultiBoxAdaptor` 放进 `_keepAliveBucket`,**不参与绘制**,所以它不会人为增加任何一侧的光栅化工作量。
+
+```
+svgx        : census_frames=634  cells_mounted_avg=972.61  cells_blank_avg=0.00   blank=0.00%  frames_fully_painted=634/634
+flutter_svg : census_frames=436  cells_mounted_avg=971.76  cells_blank_avg=78.21  blank=8.05%  frames_fully_painted=331/436
+```
+
+| 指标 | svgx(KEEPALIVE) | flutter_svg(KEEPALIVE) | 倍数 |
+|---|---|---|---|
+| **raster avg** | **11.706ms** | **19.191ms** | **svgx 快 1.64x** |
+| raster p50 | 12.369ms | 20.434ms | svgx 快 1.65x |
+| raster p90 | 14.314ms | 26.030ms | svgx 快 1.82x |
+| raster p99 | 21.443ms | 43.043ms | svgx 快 2.01x |
+| raster max | 37.581ms | 47.906ms | svgx 快 1.27x |
+| build avg | 6.907ms | 8.018ms | svgx 快 1.16x |
+| 窗口内总帧数 | 633 | 438 | svgx 多 1.45x |
+| framesOver16.6ms | 8 | 34 | svgx 少 4.25x |
+
+**结论一:方向彻底反转。** 同样是"都画满"的前提下,svgx 的 raster 是 **11.706ms**,flutter_svg 是 **19.191ms**——**svgx 快 1.64x**,而不是慢 1.89x。p50/p90/p99 全线领先,而且越到尾部领先越多。
+
+**结论二:svgx 侧是干净的对照。** 加 keep-alive 前后 svgx 的 raster 从 11.184ms 只变到 11.706ms(+4.7%,在运行间噪声量级内),blank 始终 0%,画满率始终 100%。**这个干预对 svgx 什么都没改变**,所以 flutter_svg 从 5.923ms 涨到 19.191ms(+224%)只可能来自一件事:它终于开始真的画图标了。
+
+**结论三:修正后的数字仍然对 flutter_svg 有利地偏保守。** flutter_svg 在 keep-alive 下仍有 8.05% 的平均空白率(`cells_blank_max=606`,集中在第一轮滚动填充期),436 帧里仍有 105 帧没画满。也就是说 **19.191ms 这个数还是被低估过的**,真实的公平差距只会比 1.64x 更大,不会更小。
+
+**这条结论作废/改写了哪些既有记录(必须明确写下来,否则以后会被继续引用)**
+
+| 既有记录 | 现在的判定 |
+|---|---|
+| 「Android 真机 svgx raster 落后 flutter_svg 1.6~2.4x」(2026-09-01 首次实测起,贯穿深挖一~十二) | **作废**。两侧画的图标数不对等,这个比值没有意义 |
+| 深挖十一「GPU 真实执行时间差 2.38x / p50 差 4.52x」 | **数字本身有效,归因作废**。GPU 确实更忙,因为 svgx 真的在画 210 个图标而 flutter_svg 在画 28 个 |
+| 深挖十一「flutter_svg GPU 耗时双峰、p90 与 svgx 相等」 | **解释找到了**:双峰 = 空白帧 vs 偶尔画满的帧;p90 相等 = 画满时两边成本本就相当 |
+| 深挖十二「Skia 后端下差距放大到 6~7x」 | **需要重测**。同样是在"flutter_svg 几乎没画"的前提下测的,Skia 下 svgx 画 210 个 vs flutter_svg 画 28 个,差距被同一个 bug 放大 |
+| 深挖九结尾 →深挖十二结尾「几何形状特征 / tessellation 三角形数量」头号线索 | 由深挖十三独立证伪,本节给出了它为什么找不到东西的原因——**根本没有几何差异要找** |
+| 深挖二「手工位图烘焙只拿回 15.6%」的"缺口是线索"解读 | **缺口不存在**。当时"要解释的 60%+ 差距"本身是假的 |
+
+**这不只是基准的锅,也是两个库真实的行为差异**
+
+需要同时记下另一面:即使在真实 App 里,flutter_svg 在快速滚动的图标列表中**确实会显示空白格再"跳"出图标**——`compute()` 异步编译 + 引用计数缓存滚出即驱逐,是它的设计选择,不是基准造出来的。svgx 同步解析 + LRU 缓存,滚动中始终是满的。所以正确的表述是:**svgx 用更多的每帧光栅化工作换来了"始终画满、不闪烁";flutter_svg 用"滚动中大面积留白"换来了更低的每帧光栅化开销。** 在此之上,把内容拉齐之后 svgx 的单位光栅化成本反而更低(1.64x)。这两句话都要说,只说任何一句都是不诚实的。
+
+**方法学教训(这轮最贵的一课)**
+
+深挖四~八、十三总共六节、两天的工作量,全部在回答"同一个图标,两边画得一样吗"——答案一直是"一样",而且是对的。**真正错的是从来没有人问"一帧里两边画了几个图标"**。以后凡是跨库的端到端渲染基准,**第一步就应该先证明两侧渲染出的内容等量**(画满率、可见元素数),再去比任何耗时数字。深挖十一自己已经把这条替代解释写进"本节局限"里了,深挖十二也把它列为"下一步建议第 1 条、不做的话后面的活可能白干"——**这个判断是对的,而且比当时以为的还要致命**。
+
+**本节局限,如实标注**:
+- 每种配置只跑了 1 次(基线 1 次、KEEPALIVE 1 次),没有中位数;但效应量极大(86.31% vs 0%),且 svgx 侧对照在两次运行间只漂移 4.7%,方向性结论不依赖重复。
+- `KEEPALIVE=1` 让 1000 个格子全部常驻,**不是真实 App 的配置**,它是为了把"画了多少"这个变量拉平而设的实验性对照,不能当作 flutter_svg 的推荐用法。
+- keep-alive 下 flutter_svg 仍有 8.05% 残余空白(第一轮填充期),所以 1.64x 是**下界**。
+- 第一次 KEEPALIVE 尝试因设备前台被其它 App 抢走、`MainActivity` 被 `DestroyActivityItem` 销毁而作废(与深挖"支线"里记的是同一个坑),重跑前先 `am force-stop` 干扰应用并回到桌面才成功;这份日志未采用。
+- 本节全部插桩(`_CellMarker`/`_BlankMarker`/普查采样/`KEEPALIVE` 开关)是实验性代码,数据记录完毕后已 `git checkout` 还原,`bench_screen.dart` 回到原样。深挖十三扩展的 `cmd_count_bench.dart` 几何测量工具予以保留(与深挖四~六扩展同一文件的先例一致)。
+
+**下一步建议**
+
+1. **先把结论倒回去**:上面那张"作废/改写"表里的每一条,尤其是深挖十二的 Skia 对照,需要在 `KEEPALIVE=1` 前提下重测一遍,才知道 Skia 下真实差距是多少。
+2. **把画满率做成基准的一等公民**:`bench_screen.dart` 应该常驻一个"每帧可见元素数/画满率"的统计并打进报告,任何跨库耗时对比都必须附带它,否则数字不可采信。这是本轮唯一值得沉淀进工具链的东西。
+3. **svgx 侧真正的优化方向要重新选**:既然 raster 已经反超,继续在"为什么 raster 慢"上投入没有意义。真机上更值得看的是 svgx 的 `framesOver8.3ms=186/633`(约 29% 的帧超过半帧预算)——这是 60fps 下的真实抖动来源,与两库对比无关,是 svgx 自己的绝对性能问题。
+
+#### 深挖十五:svgx 自身卡帧归因——**主角是 raster 线程的 Impeller 命令编码,不是冷解析,也不是 svgx 的 Dart 代码**(2026-09-02)
+
+深挖十四把对比线结案后留下的第 3 条建议是"转向 svgx 自己的绝对性能:`framesOver8.3ms=186/633`"。本节只跑 svgx 一侧,不做任何跨库对比,回答三个问题:**这些超预算的帧超在哪个阶段?有没有系统性模式?是不是"新图标首次滚入视口"的一次性成本?**
+
+**先纠正一处口径**:`FrameTimingCollector.framesOverBudget` 只看 **build** 耗时(`frame_timing.dart:108`,`_build.where(...)`),所以深挖十四那个 `framesOver8.3ms=186/633` 是**只统计 build 的**。要回答"帧卡在哪",必须把 raster 也按同一门限统计一遍——本节新增的逐帧序列导出(`BSERIES`/`RSERIES`)就是为此。
+
+**方法**:在 `bench_screen.dart` / `frame_timing.dart` 上加三样实验性插桩(测完已还原):逐帧 build/raster 序列导出、`KEEPALIVE=1`(沿用深挖十四)、`PREWARM=1`(计时窗口打开前把 1000 个图标全部 `getOrRender` 进 LRU,让窗口内零缓存未命中)。全部 `LIB=svgx`、1000 图标、8 列网格、32px。
+
+**五次真机运行的头条数字**(华为 STG-AL00,Impeller GLES,profile):
+
+| 运行 | 配置 | frames | build avg | raster avg | build>8.3ms | raster>8.3ms | build 或 raster >16.6ms |
+|---|---|---|---|---|---|---|---|
+| A | KEEPALIVE, 6 轮 | 628 | 7.349 | 12.161 | 221 (35.2%) | — | — |
+| A2 | KEEPALIVE, 6 轮 | 629 | 7.432 | 12.308 | 253 (40.2%) | **559 (88.9%)** | 33 (5.2%) |
+| B | 默认, 6 轮 | 620 | 7.461 | 12.336 | 214 (34.5%) | **551 (88.9%)** | 43 (6.9%) |
+| C | PREWARM, 6 轮 | 617 | 7.784 | 13.074 | 257 (41.7%) | **585 (94.8%)** | 64 (10.4%) |
+| E | 默认, 12 轮 | 1254 | 7.517 | 12.611 | 443 (35.3%) | **1145 (91.3%)** | 87 (6.9%) |
+
+**结论一:超预算的主角是 raster,不是 build。** 按 60fps 半帧预算(8.3ms)统计,build 超标 34~42%,**raster 超标 89~95%**——raster 的 p50 本身就是 12.7~13.0ms,已经越过 8.3ms,也就是说这个场景下**几乎每一帧的 raster 都超半帧预算**。深挖十四引用的"29% 的帧超预算"只统计了 build,把主要矛盾漏掉了。反过来看 vsync 全预算(16.6ms):两个阶段合起来只有 5~10% 的帧超标,所以这个场景在 60Hz 上**大体仍能跑满帧**,它是"离 60fps 只剩一点余量",而不是"在掉帧"。
+
+**结论二:不是"新图标首次滚入视口"的冷成本——这条假设被 PREWARM 对照直接证伪。**
+
+- 冷解析总量极小:`PREWARM=1` 把 1000 个图标全部解析 + 录制成 `ui.Picture` 只花 **102.9ms**(**0.103ms/图标**);常规运行里 `parse` 分布是 avg 0.187~0.192ms、p99 0.6~0.8ms、max 4.6~7.9ms(n=1000),摊在第一轮滚动的约 100 帧上约 1.9ms/帧。
+- 更关键的是,把这份成本**整个挪到窗口之外**以后,`build>8.3ms` 不降反升(C 的 41.7% vs B 的 34.5%),raster 也没有变好。**"LRU 未命中路径(Rust FFI 解析 / Picture 录制)是卡帧来源"这个假设不成立**,不需要再去拆 FFI 调用开销、usvg 解析开销、Picture 录制开销这三段。
+- 逐帧序列也印证:超预算的帧**均匀散布在整个窗口**,不集中在头部。按十分位统计 `build>8.3ms` 的占比(运行 B):23% / 6% / 11% / 42% / 39% / 56% / 37% / 27% / 47% / 52%。
+
+**结论三:一个必须写进方法学的测量陷阱——这台设备前 3 秒是"另一台机器"。**
+
+上面那串十分位有个反直觉的形状:**前 2~3 个十分位比后面便宜**(运行 B 的 build 十分位均值:6.6 / 5.8 / 6.1 / 8.2 / 8.1 / 8.1 / 7.7 / 8.0 / 7.9 / 8.2;raster 同向:12.4 / 9.7 / 12.5 / 12.8 / 13.0 / ...)。跑一次 `adb shell` 逐 0.4s 采样 `scaling_cur_freq` 得到答案:
+
+```
+样本 1-8 :  cpu4/cpu6 = 2400000 kHz(满频)
+样本 9 起 :  cpu4/cpu6 多数落在 806400 ~ 1766400 kHz,偶尔回到 2400000
+```
+
+**大核在启动后约前 3~4 秒被钉在 2.4GHz(启动加速),之后回落到 0.8~1.8GHz。** 也就是说任何真机运行的**前 2~3 秒是在一台快 1.4~2.3 倍的机器上测的**,不能和稳态段落横比。CYCLES=12 的运行 E 里这个便宜段也确实只覆盖前 3 个十分位(约 6.5s),没有随窗口等比拉长,与"固定时长的启动加速"大体相符(不完全吻合,加速退出的时机本身有抖动)。**以后任何真机数字,窗口起始的头几秒都应该丢弃或单独标注。**
+
+**结论四:trace 归因——raster 的 6 成是 Impeller 的 GPU 命令编码,UI 线程的 8 成多是 `GridView` 的格子机械开销,svgx 自己只占一小块。**
+
+抓一次 `--trace-skia --endless-trace-buffer --dart-define=PROFILEWIDGETS=1`(45s,863546 个事件,556 个 raster 帧),按 self time 归因:
+
+raster 线程(合计 6863ms / 556 帧 = **12.34ms/帧**,与基准报告的 raster avg 吻合):
+
+| slice | self ms | μs/帧 | 占 raster |
+|---|---|---|---|
+| `RenderPassGLES::EncodeCommandsInReactor` | 2216.6 | 3986 | **32.3%** |
+| `SurfaceFrame::Submit`(含等 GPU/vsync,不可当纯成本读) | 1994.4 | 3587 | 29.1% |
+| `SurfaceFrame::Encode` | 1854.1 | 3335 | **27.0%** |
+| `LayerTree::Paint` | 348.3 | 626 | 5.1% |
+| `LayerTree::Preroll` | 180.1 | 324 | 2.6% |
+| `Rasterizer::DrawToSurfaces`(自身) | 147.4 | 265 | 2.1% |
+
+两项纯 CPU 的命令编码合计 **7.3ms/帧 = raster 的 59.3%**。这与深挖三测出的 svgx 侧结构一致(那一节的 svgx 列本身不受深挖十四的口径错误影响),并且和深挖九的源码结论互相印证:**Impeller 没有任何 layer/picture 粒度的纹理缓存,所以视口里那约 210 个图标的绘制命令每一帧都要完整重编码一次。**
+
+UI 线程各阶段 self time(557 帧;`PROFILEWIDGETS` 埋点会抬高绝对值,只看结构):
+
+| 阶段 | self ms | ms/帧 |
+|---|---|---|
+| BUILD | 1739.9 | 3.12 |
+| PAINT | 1731.1 | 3.11 |
+| LAYOUT | 1607.2 | 2.89 |
+| COMPOSITING | 889.7 | 1.60 |
+| FINALIZE TREE | 197.7 | 0.35 |
+
+BUILD 内部按控件:`SvgxStatic` 17.0% / `BUILD` 自身 14.4% / `RepaintBoundary` 13.3% / `KeepAlive` 9.4% / `IndexedSemantics` 7.5% / `Padding`(基准自己加的) 7.1% / `KeyedSubtree` 6.1% / `_SelectionKeepAlive` 6.0% / `AutomaticKeepAlive` 5.9% / `NotificationListener<KeepAliveNotification>` 5.1% / `CustomPaint` 3.9%。
+PAINT 内部:`RenderSliverGrid` 25.1% / `RenderIndexedSemantics` 22.9% / **`RenderCustomPaint`(svgx 真正画图标)17.3%** / `RenderPadding` 13.8% / `RenderRepaintBoundary` 8.7%。
+LAYOUT 内部:`RenderSliverGrid` 51.6% / `RenderIndexedSemantics` 26.0% / `RenderRepaintBoundary` 10.4% / `RenderPadding` 5.2% / `RenderCustomPaint` 2.1%。
+
+把 BUILD/LAYOUT/PAINT 三阶段的具名 slice 合起来算,**svgx 自己的控件(`SvgxStatic` + `CustomPaint` + `RenderCustomPaint`)只占 698ms / 5078ms = 13.7%**,其余是 `GridView.builder` 默认给每个格子套的 7 层框架控件(`RepaintBoundary`/`AutomaticKeepAlive`/`KeepAlive`/`_SelectionKeepAlive`/`NotificationListener<KeepAliveNotification>`/`IndexedSemantics`/`KeyedSubtree`)加 `RenderSliverGrid` 自身。这在真机上验证了 2026-08-27 五轮主机侧归因的预测("框架树机械开销约占 2/3"),而且真机上比预测的还要偏向框架侧。
+
+一条顺带得到的机制事实:`SvgxStatic` 在窗口内只 build 了 10416 次 / 530 帧 = **19.7 次/帧**,`RenderCustomPaint` 也只 paint 了 18.2 次/帧——**每格自带的 `RepaintBoundary` 让只有新滚入的那约 20 个格子重建 + 重绘,其余约 190 个格子只参与合成**。但 raster 线程那边没有这个便宜:Impeller 每帧仍要把全部约 210 个图标重新编码一次。**"UI 线程只处理增量、raster 线程处理全量"是这个场景的成本结构。**
+
+**这意味着 svgx 侧还剩哪些真实杠杆**
+
+1. **减少每帧要编码的绘制命令数**,是唯一能打到主要矛盾(raster 59%)上的方向。深挖二那次手工位图烘焙拿到 15.6%,深挖九已经解释清楚为什么它是应用层能拿到的全部(引擎没有可复用的缓存前提)。把它做成**可选策略**(静态图标 + 命中阈值才烘焙)仍然是排序第一的候选。
+2. **不要再在 Dart 侧 build 路径上投入**:svgx 只占 UI 线程具名 slice 的 13.7%,而 UI 线程本身又不是主要矛盾。
+3. **不要再查冷解析/FFI/Picture 录制**:PREWARM 对照已证伪(0.103ms/图标,挪走后没有任何改善)。
+4. 场景层面的建议(属于调用方而非库):千图标网格里 `SliverChildBuilderDelegate` 的 `addSemanticIndexes: false` / `addAutomaticKeepAlives: false` 能砍掉 BUILD/LAYOUT 里相当一部分格子机械开销——但这不是 svgx 能替使用者决定的。
+
+**本节局限,如实标注**
+
+- 每种配置 1~2 次运行,没有多次取中位数;但 `raster>8.3ms` 在四次独立运行里落在 88.9%~94.8%、`build>8.3ms` 落在 34.5%~41.7%,方向性结论不依赖重复。
+- trace 那一次同时开了 `--trace-skia` 和 `PROFILEWIDGETS=1`,**绝对值被显著抬高**,只能读结构不能读数值;尤其 `RenderIndexedSemantics` 这类**高频低耗**行(LAYOUT 里 110872 次、self 3.78μs/次),其 self time 里相当比例就是埋点本身的写入成本,框架侧占比被高估。高单次成本的行(`SvgxStatic` 28.4μs、`RenderCustomPaint` 29.5μs、`RenderSliverGrid` 1565μs)更可信。
+- `SurfaceFrame::Submit` 含等待,深挖三已标注过,本表沿用同一警告。
+- CPU 频率采样只做了一次、且与基准窗口没有严格对齐,"前 3~4 秒满频"是方向性证据,不是精确的加速时长。
+- 本节全部插桩(`BSERIES`/`RSERIES` 导出、`KEEPALIVE`、`PREWARM`、`FrameTimingCollector` 的两个序列 getter)是实验性代码,数据记录完毕后已 `git checkout` 还原。
+
+#### 深挖十六:新基准「静态窗口 20 图标」——**口径对齐、进程隔离、自证冷渲染**(2026-09-02)
+
+深挖十四的教训是"跨库耗时对比必须先证明两侧渲染出的内容等量"。滚动网格基准要满足这一条,得靠 `KEEPALIVE=1` 这种非真实配置去打补丁。本节新建一个**从设计上就不可能踩那个坑**的最小基准,并给出第一份可信的静态场景对照数字。
+
+**设计约束(每一条都对应一个踩过的坑)**
+
+| 约束 | 对应的坑 |
+|---|---|
+| **20 个图标,一个静态窗口,不滚动** | 滚动 + 懒构建 + 滚出视口驱逐,正是深挖十四那条错误结论的全部机制来源 |
+| **每个库一个独立进程**,测完 `am force-stop` 并确认 `pidof` 为空再测下一个 | 不让前一个库的 JIT/GC/驻留内存污染后一个 |
+| **同一条"画满"判定规则**:占位符探针(`_BlankProbe`)全部销毁才停表 | svgx 同步渲染恒为 0 个占位符,flutter_svg 每个还在后台 isolate 编译的格子占一个;两边用同一条规则 |
+| **每一轮换一套唯一缓存键**(在 `</svg>` 前插一条 `<!--rN-->` 注释) | 第一次实测时 flutter_svg 有部分轮次 `blank_peak=0`,即命中了 `_livePictureCache` 而不是真渲染——**两个库都按源字符串做缓存键**,不换键就会一边测缓存命中、一边测真实渲染。注释不产生任何几何,渲染工作完全相同 |
+| **报告里自带冷渲染自证**:`rounds_with_full_blank`(异步库应为 N/N)与 `svgx_parse_misses`(应为 `rounds×icons`) | 让读者不必相信作者,直接看报告就能判断这次测量是否有效 |
+| 20 轮"挂载 → 画满 → 卸载" | 内核 CPU 计数器粒度是 10ms,单轮测不出;20 轮累积后再除 |
+
+实现:`benchmark/bench_app/lib/static20_bench_screen.dart`(新增,保留)。CPU 读 `/proc/self/stat` 的 `utime+stime`(全进程、含 raster 线程与所有 isolate),RSS 读 `ProcessInfo.currentRss` 并用 `/proc/self/status` 的 `VmRSS` 交叉校验,另在进程仍存活时用 `adb shell dumpsys meminfo` 取一次系统侧读数。
+
+**复现命令**
+
+```powershell
+adb -s 7NQBB23606003715 shell am force-stop com.example.bench_app
+adb -s 7NQBB23606003715 shell pidof com.example.bench_app   # 必须为空
+cd benchmark/bench_app
+flutter run -d 7NQBB23606003715 --profile --dart-define=LIB=static20 `
+  --dart-define=TARGET=svgx --dart-define=ITEMS=20 --dart-define=ROUNDS=20 --dart-define=HOLD=6
+# 报告打印后、进程还活着时:
+adb -s 7NQBB23606003715 shell dumpsys meminfo com.example.bench_app
+# 然后 force-stop、确认 pidof 为空,再把 TARGET 换成 flutter_svg 重跑一遍
+```
+
+**实测数据**(华为 STG-AL00,Android 12,Adreno 610,Impeller GLES,profile 模式;每个库 2 次独立进程,均通过冷渲染自证:svgx `parse_misses=400/400`,flutter_svg `rounds_with_full_blank=20/20`)
+
+| 指标 | svgx 运行1 | svgx 运行2 | flutter_svg 运行1 | flutter_svg 运行2 | 均值倍数 |
+|---|---|---|---|---|---|
+| **画满耗时**(稳态轮次均值,20 图标) | 42.55ms | 41.47ms | 102.06ms | 129.75ms | **svgx 快 2.76x** |
+| 画满耗时(单图标均值) | 2.128ms | 2.073ms | 5.103ms | 6.487ms | 同上 |
+| 首轮冷启动画满(20 图标) | 27.53ms | 22.37ms | 124.10ms | 172.82ms | svgx 快 5.9x |
+| **进程 CPU 时间**(每轮 20 图标) | 75.5ms | 71.5ms | 484.0ms | 438.0ms | **svgx 省 6.27x** |
+| 进程 CPU 时间(单图标) | 3.775ms | 3.575ms | 24.200ms | 21.900ms | 同上 |
+| 轮次期间 CPU 占用率 | 25.4% | 24.2% | 135.5% | 114.2% | flutter_svg 跨核并发 |
+| 静置 6s 的 CPU 占用率 | 0.50% | 0.50% | 0.67% | 0.00% | 两边都≈0 |
+| **RSS 增量**(20 图标,进程内 `ProcessInfo.currentRss`) | 2.09MB | 2.66MB | 39.01MB | 27.19MB | **svgx 省 13.9x** |
+| RSS 增量(单图标) | 102.2KB | 129.8KB | 1904.6KB | 1327.8KB | 同上 |
+| 静态窗口 RSS 绝对值 | 142.94MB | 138.50MB | 190.14MB | 166.58MB | +37.6MB |
+| `dumpsys meminfo` TOTAL PSS | 137.8MB | 136.8MB | 158.5MB | 154.8MB | +19.3MB |
+| `dumpsys meminfo` Native Heap PSS | 16.2MB | 16.0MB | 20.9MB | 20.9MB | +4.8MB |
+| 逐帧工作量之和(build+raster,每轮) | 55.02ms | 51.75ms | 50.42ms | 62.66ms | **1.06x,基本打平** |
+| 窗口内帧数(20 轮) | 40 | 40 | 108 | 123 | flutter_svg 多花约 3 倍的帧才画满 |
+
+**汇总表(两次运行取均值,20 图标总值 / 单图标均值)**
+
+| 指标 | svgx(总/单) | flutter_svg(总/单) | 倍数 |
+|---|---|---|---|
+| 画满耗时 | **42.0ms / 2.10ms** | 115.9ms / 5.80ms | svgx 快 **2.76x** |
+| 进程 CPU | **73.5ms / 3.68ms** | 461.0ms / 23.05ms | svgx 省 **6.27x** |
+| RSS 增量 | **2.38MB / 119KB** | 33.10MB / 1616KB | svgx 省 **13.9x** |
+
+**读数与机制解释(不要只看倍数)**
+
+1. **"逐帧工作量"基本打平(1.06x),但"进程 CPU"差 6.27x——这两个数不矛盾,它们量的不是同一件事。** `FrameTiming` 的 build/raster 只覆盖 UI 线程与 raster 线程;flutter_svg 把 SVG 编译丢给 `compute()` 的后台 isolate,那部分工作**根本不出现在帧耗时里**,但它照样烧 CPU、照样耗电。`/proc/self/stat` 是全进程口径,所以能看见。轮次期间 CPU 占用率 114%~135%(超过 100%)正是多核并发编译的直接证据。**"把工作挪到别的线程"不等于工作消失了**,这正是本基准选择全进程 CPU 口径的原因。
+2. **flutter_svg 每轮要为 20 个图标各起一次 `compute()`**(20 轮共 400 次 isolate 派生 + 400 次编译)。这不是"它的编译器比 usvg 慢 6 倍",而是"每个未缓存的 SVG 都要付一次 isolate 派生 + 消息往返的固定成本"。svgx 是同步 FFI 调用,没有这一层。
+3. **画满耗时 2.76x 是用户可见的延迟差**,不是纯计算差:svgx 在挂载的那一帧里就画完了(40 帧 / 20 轮 = 每轮 2 帧:挂载 1 帧 + 卸载 1 帧),flutter_svg 要等后台编译回来才画(108~123 帧 / 20 轮 ≈ 每轮 5~6 帧)。
+4. **svgx 的画满耗时有一个 vsync 地板**:首轮 22~28ms,稳态轮次反而是 41~43ms——不是稳态更慢,而是每轮之间有 250ms 静置,静置后第一帧要重新拿 vsync,墙钟里包含了这段等待。**这一项只能跨库比,不能拿 svgx 自己的首轮和稳态轮互比。**
+5. **RSS 差距 13.9x 里有一部分是 isolate 堆**:flutter_svg 每轮派生 20 个 isolate,每个都有自己的堆与 GC 状态,回收滞后于卸载。`dumpsys` 的 TOTAL PSS 差 19.3MB、Native Heap PSS 差 4.8MB,两个独立口径同向,差距是实的,但绝对值不要当成"20 个图标占了 33MB"——它是"跑完 20 轮冷渲染之后,进程还没回落的那部分"。
+6. **静置期两边都≈0% CPU**:静态窗口真的静止,没有任何一方在空转。
+
+**这份数据只回答"冷渲染 20 个图标"这一个问题**
+
+每轮换唯一缓存键是为了让两侧都真的做渲染。**它测的是冷路径。**两个库的热路径行为完全不同(svgx 是容量可配的 LRU + 同步命中;flutter_svg 是按存活控件引用计数、格子销毁即驱逐——见深挖十四的源码分析),热路径对比是另一个问题,不能用本节数字外推。同样,本节语料是 20 个单路径、无描边、无 clip/mask 的 Mdi 图标,不外推到含渐变/mask/位图的 SVG。
+
+**本节局限,如实标注**
+
+- 每个库 2 次运行,没有中位数;但三项指标的两次运行都同向且量级一致(CPU 6.41x/6.13x,RSS 18.7x/10.2x,耗时 2.40x/3.13x),效应量远大于运行间漂移。
+- CPU 计数器粒度 10ms,单轮 CPU(71~484ms)已远超粒度,但报告里的 `cpu_per_icon_ms` 是"每轮 CPU ÷ 20",其中含挂载/卸载两帧的固定引擎开销,**不是纯粹的单图标渲染成本**;两个库的这份固定开销相同,所以**差值**可归因,绝对值不可。
+- 深挖十五发现的"设备前 3~4 秒大核满频"同样作用于本基准的前几轮(20 轮总时长 5~10s),两侧对称,但会让绝对值偏乐观。
+- 首次实测(未换唯一键)的那一对数据已作废:当时 flutter_svg `blank_peak min=0`,说明部分轮次命中缓存,它报出的 `cpu_per_icon=4.475ms` 严重低估。**保留这条记录是为了说明:没有冷渲染自证指标,这个基准会给出一个看起来很合理、但错了 5 倍的数字。**
+
+#### 深挖十七:热路径(缓存命中后重复渲染)基准——**冷路径 3.3x/7.3x 的差距,到热路径收敛到 1.06~1.19x,基本打平**(2026-09-02)
+
+深挖十六末尾自己标注了"这份数据只回答冷渲染这一个问题"。本节把缺的那一半补上:**同一批 20 个图标反复挂载/卸载 20 轮,第 1 轮建立缓存,第 2~20 轮全部命中**——对应真实场景里"用户在同一批已加载的内容之间来回滚动/来回进出页面"。
+
+**实现:给 `static20_bench_screen.dart` 加一个 `MODE`,不新建文件**
+
+| MODE | 行为 | 对应场景 |
+|---|---|---|
+| `cold`(默认) | 每轮换唯一缓存键 + 清空 svgx LRU,即深挖十六 | 首次进入页面、批量加载全新 SVG |
+| `hot` | 每轮渲染**同一批源**、不清任何缓存 | 滚走再滚回来、退出页面再进来 |
+| `hotpin` | 同 `hot`,另外常驻挂载一份 offstage 副本 | 同一图标在多处同时存在(引用计数不归零) |
+
+另外新增 `SETTLE`(第一轮开始前的静置秒数,默认 2 保持深挖十六可复现)。**这是本节被迫加的**:第一次跑 `MODE=hot` 用默认 2s,得到 `round1_cpu=40ms` 而 `rounds2n_cpu_avg=54ms`——**冷轮比热轮还便宜**。逐轮 CPU 序列 `40,30,40,20,20,70,50,70,70,...` 一眼看出原因:前 5 轮落在深挖十五记录的"启动后 3~4 秒大核钉 2.4GHz"窗口里。**"第 1 轮 vs 第 N 轮"这种同一次运行内的纵向对比,必须先把所有轮次推出加速窗口**,否则结论方向都会反。本节全部数据用 `SETTLE=8`。
+
+**自证指标:新增"占位符构造计数",它比 `blank_peak` 硬**
+
+深挖十六的 `blank_peak` 是在帧后回调里**采样** `_blank` 集合的峰值。本节实测发现它不够:flutter_svg 在热轮里报 `blank_peak=0`,而"采样之间一闪而过的占位符"同样会给出 0,两者无法区分。于是给 `_BlankProbe` 加了一个构造计数(`round_probe_mounts_series`)——占位符只要被**构造过一次**就一定加一,与采样时机无关。实测热轮该值为 **0**,确认 flutter_svg 是真的同步返回,不是测量漏采。svgx 侧对应的自证是 `round_misses_series`,热路径下必须是 `20,0,0,...`,实测完全吻合。
+
+**复现命令**
+
+```powershell
+adb -s 7NQBB23606003715 shell am force-stop com.example.bench_app
+adb -s 7NQBB23606003715 shell pidof com.example.bench_app   # 必须为空
+cd benchmark/bench_app
+flutter run -d 7NQBB23606003715 --profile --dart-define=LIB=static20 `
+  --dart-define=TARGET=svgx --dart-define=MODE=hot --dart-define=ITEMS=20 `
+  --dart-define=ROUNDS=20 --dart-define=HOLD=6 --dart-define=SETTLE=8 --dart-define=AUTOEXIT=1
+# force-stop、确认 pidof 为空,再把 TARGET 换成 flutter_svg 重跑
+```
+
+**实测数据 `MODE=hot`**(华为 STG-AL00,Android 12,Adreno 610,Impeller GLES,profile;每库 2 次独立进程)
+
+| 指标(20 图标/轮) | svgx#1 | svgx#2 | flutter_svg#1 | flutter_svg#2 |
+|---|---|---|---|---|
+| **第 1 轮(冷)画满耗时** | 54.15ms | 37.10ms | 149.44ms | 154.25ms |
+| **第 1 轮(冷)进程 CPU** | 90ms | 70ms | **600ms** | **560ms** |
+| **第 2~20 轮(热)画满均值** | 25.22ms | 23.97ms | 32.58ms | 36.83ms |
+| **第 2~20 轮(热)CPU 均值** | 64.21ms | 57.37ms | 66.84ms | 68.42ms |
+| 逐帧工作量(build+raster)/轮 | 45.89ms | 41.02ms | 51.45ms | 51.58ms |
+| 20 轮总帧数 | 40 | 40 | 43 | 43 |
+| RSS 增量(整个 20 轮窗口) | 0.77MB | 7.77MB | 12.82MB | 13.53MB |
+| 占位符构造数(第 2~20 轮) | 0 | 0 | **0** | **0** |
+| svgx 解析未命中 | 20(=1 轮×20) | 20 | — | — |
+| svgx 单次解析+录制 | avg 1.266ms | avg 0.702ms | — | — |
+
+**`MODE=hotpin` 对照**(各 1 次;锚点在计时窗口之外就已加载完,所以两库连第 1 轮都是热的)
+
+| 指标 | svgx | flutter_svg |
+|---|---|---|
+| 第 1 轮画满 / CPU | 22.40ms / 80ms | 31.84ms / 70ms |
+| 第 2~20 轮画满均值 | 29.71ms | 24.32ms |
+| 第 2~20 轮 CPU 均值 | 65.26ms | 62.63ms |
+| 逐帧工作量/轮 | 46.59ms | 43.66ms |
+| RSS 增量 | 0.89MB | 4.83MB |
+
+**汇总:冷 vs 热,svgx vs flutter_svg**(热路径取 hot+hotpin 共 3 次运行均值)
+
+| 场景 | svgx(总/单图标) | flutter_svg(总/单图标) | 倍数 |
+|---|---|---|---|
+| **冷** 画满耗时 | 45.6ms / 2.28ms | 151.8ms / 7.59ms | svgx 快 **3.33x** |
+| **冷** 进程 CPU | 80ms / 4.0ms | 580ms / 29.0ms | svgx 省 **7.25x** |
+| **热** 画满耗时 | 26.3ms / 1.32ms | 31.2ms / 1.56ms | svgx 快 **1.19x** |
+| **热** 进程 CPU | 62.3ms / 3.11ms | 66.0ms / 3.30ms | svgx 省 **1.06x** |
+| **热** 逐帧工作量/轮 | 44.5ms | 48.9ms | 1.10x |
+
+**结论一:热路径上两个库打平,冷路径的倍数不能外推到热路径。** svgx 的 1.19x/1.06x 落在运行间漂移之内(svgx 三次画满均值 23.97/25.22/29.71,flutter_svg 24.32/32.58/36.83,区间重叠),`hotpin` 里 flutter_svg 甚至反过来略快。**只要内容已经缓存,选哪个库对这一帧的开销没有可感知影响。** 深挖十六的 2.76x/6.27x 是**冷路径专属**的结论。
+
+**结论二:热路径下成本已经不由 SVG 库决定,而由 Flutter 的控件挂载+绘制机械开销决定——两边共用一个约 3ms/图标的地板。** 纯缓存命中、零解析、零编译的情况下,两个库每轮仍要花 57~68ms CPU 画 20 个图标(≈3.1~3.4ms/图标)。这与深挖十五的归因完全一致:UI 线程的大头是 `GridView`/框架控件的机械开销,raster 线程的大头是 Impeller 每帧全量重编码——**这两项谁都省不掉,与用哪个 SVG 库无关。**
+
+**结论三:svgx 的冷热差只有一层薄薄的解析成本,flutter_svg 的冷热差是一个数量级。** svgx 冷 80ms → 热 62.3ms,差 ~18ms;而它自报的单次解析+录制是 0.70~1.27ms × 20 图标 = 14~25ms——**两个独立口径对得上**,说明 svgx 的冷成本确实就是"解析+录制"这一项,没有别的隐藏开销。flutter_svg 冷 580ms → 热 66ms,差 514ms(≈26ms/图标),这一整块是 `compute()` isolate 派生 + vector_graphics 编译,正是深挖十六归因的那部分。
+
+**结论四(一条必须记下来的机制更正):flutter_svg 的 live picture 缓存在"卸载后用同一份源重新挂载"时并没有被驱逐。** 深挖十四读源码得出"按存活控件引用计数,格子销毁即驱逐",据此推断 flutter_svg 不存在同步热路径。本节实测推翻了这个推断的**后半句**:热轮里 `round_probe_mounts=0`,说明 `_loadAssetBytes` 在 `didChangeDependencies` 里就走了 `_livePictureCache` 命中分支、同步 `setState`,连一帧占位符都没出现过。**机制没有查实**——源码上 `_maybeReleasePicture` 在 `count` 归零时才 `remove`,观测意味着 `count` 卸载后没有回到 0(即存在一次未配对的 `count += 1`,疑似 `didChangeDependencies`/`didUpdateWidget` 重复触发 `_loadAssetBytes` 与首次加载竞争所致),但本节没有验证这条,**不要当成已确认的结论引用**。RSS 在热轮里仍持续爬升(flutter_svg 12.8~13.5MB vs svgx 0.8~7.8MB)与"条目被保留、`picture` 未 dispose"这个方向一致,但同样只是旁证。**这条更正不影响深挖十四的头条结论**——那一节讲的是滚动中不断滚入**全新**图标,那属于冷路径,与本节无关。
+
+**结论五:热路径的内存差距缩小但没消失。** `hotpin` 那对是最干净的口径(两库的冷渲染都发生在计时窗口之外,窗口内是纯热):svgx RSS 增量 0.89MB、flutter_svg 4.83MB。20 个图标反复挂卸 20 轮理论上不该产生任何净增长,两边的增量都属于堆/GC 漂移,flutter_svg 的漂移大约 5 倍于 svgx。
+
+**本节局限,如实标注**
+
+- `MODE=hot` 每库 2 次、`MODE=hotpin` 每库 1 次,没有中位数。**热路径这个 1.06~1.19x 的效应量小于运行间漂移,因此本节只支持"打平"这个结论,不支持"svgx 在热路径上更快"**;冷路径的 3.33x/7.25x 则远大于漂移,可以放心引用。
+- 画满耗时含 vsync 地板与轮间 250ms 静置后的取帧等待(深挖十六第 4 条已说明),跨库可比、库内冷热轮之间只能粗比。
+- CPU 计数器粒度 10ms,单轮热 CPU 只有 40~100ms,**单轮读数的相对误差高达 10~25%**;本节所有 CPU 结论都取 19 轮均值,不引用单轮值。
+- `SETTLE=8` 让本节的绝对值与深挖十六(`SETTLE=2`,前几轮吃到 CPU 加速)不能直接横比;冷路径倍数(本节 3.33x/7.25x vs 深挖十六 2.76x/6.27x)方向与量级一致,可互相印证。
+- 语料仍是 20 个单路径、无描边、无 clip/mask 的 Mdi 图标,不外推到含渐变/mask/位图的 SVG。
+
+#### 深挖十八:**结论适用性评估——这套基准结论在真实项目里会不会真的卡?**(2026-09-02,纯分析,无新实验)
+
+本节不产生新数据,只把深挖一~十七已有的真机数字重新组织,回答一个具体问题:**"1000 个纯色 Mdi 图标网格"和"20 图标静态窗口"这两套简单语料,是不是已经把两个库都推到了性能上限附近?这种语料上测出的差异,在真实项目里还成立吗、会不会真的让用户感到卡?**
+
+**先把三条已经坐实的结构性事实摆出来,它们决定了答案**
+
+| 事实 | 证据 | 与库的关系 |
+|---|---|---|
+| Impeller **没有任何 layer/picture 粒度的纹理缓存**,视口内每个图标的绘制命令**每帧全量重编码** | 深挖九(引擎源码:Impeller 下 RasterCache 全局关闭)+ 深挖十一(counter 实测恒 0)+ 深挖十五(trace:两项纯 CPU 编码合计 7.3ms/帧 = raster 的 59.3%) | **与库无关**,两库同受 |
+| 真正静止不动的界面,成本为 **0** | 深挖十六 `cpu_pct_during_hold` = 0.50%/0.67%/0.00%;深挖十七 = 0.50%~1.00% | 与库无关 |
+| 冷路径差 3.33x 耗时 / 7.25x CPU;热路径打平(1.06~1.19x) | 深挖十六、深挖十七 | **只有冷路径由库决定** |
+
+**回答一:"是不是已经推到上限了?"——不是上限,是"余量很薄"。而且这个余量是引擎给的,不是库给的。**
+
+深挖十五在 1000 图标网格(视口内约 210 个图标)上实测:raster p50 **12.7~13.0ms**,已越过 60fps 半帧预算 8.3ms(89%~95% 的帧超标),但 build+raster 合起来超 16.6ms 全预算的只有 **5%~10%**——**这个场景在 60Hz 上大体仍能跑满帧,是"离掉帧只剩一点余量",不是在掉帧**。
+
+余量从哪来、往哪去,可以直接算:raster 的 7.3ms/帧是"约 210 个图标的命令编码",这一项**随同屏图标数近似线性**;剩下约 5ms 是较固定的提交/等待。要把 raster 推到 16.6ms,编码部分需要涨到约 11.6ms,对应同屏图标数约 **300~340 个**。也就是说:
+
+- 同屏 **200 个以内**普通图标:两个库都跑满帧,选谁都不卡。
+- 同屏 **300+ 个**(复杂 dashboard、图标墙):按线性外推会开始真掉帧,**且两个库一起掉**,因为瓶颈是 Impeller 的重编码,不是 SVG 解析。**这条外推没有实测过,只是从深挖十五的成本结构推的,数量级参考,不要当精确阈值用。**
+- 界面**不滚不动**时:成本 0(实测静置 CPU ≈0.5%)。所以"图标多"本身不可怕,"图标多 + 每帧都在动"才可怕。
+
+**回答二:"简单语料上的差异,在真实项目里还成立吗?"——分两种场景,答案相反。**
+
+**(a)首次批量渲染未缓存的 SVG——差异成立,而且是用户能直接感觉到的。** 深挖十七实测 20 个图标的冷渲染:flutter_svg **151.8ms**(≈9 个 vsync 周期的空白/占位),svgx **45.6ms**。CPU 更悬殊:580ms vs 80ms(7.25x)。这不是"计算快一点",而是**打开图标选择器/下拉刷新新内容区/首次进入列表页时,一段肉眼可见的占位期**。而且 flutter_svg 的冷成本里约 26ms/图标是 `compute()` isolate 派生 + 编译的**固定开销,与 SVG 复杂度基本无关**——图标越多,这一项越是线性堆叠。**这条结论对真实项目的适用性最强。**
+
+**(b)来回滚动/反复进出同一批已缓存内容——差异不成立,两库打平。** 深挖十七实测热路径 1.06~1.19x,落在运行间漂移内。原因在结构里:纯缓存命中时两个库每图标仍各花约 **3.1~3.4ms CPU**,这是 Flutter 控件挂载 + 绘制的机械地板(深挖十五已归因:svgx 自己的控件只占 UI 线程具名 slice 的 13.7%,其余是 `GridView.builder` 默认套的 7 层框架控件)。**库在这一段能做的事已经接近零。**
+
+**回答三:语料局限——这是本次全部结论适用性最大的缺口,必须如实标注。**
+
+当前语料是 1000/20 个 **Mdi 纯色单 path** 图标:深挖四核对了语料抽样(`mdi_icons_1000.dart`),确认"绝大多数 Mdi 图标就是单个 `<path fill="currentColor" d="...">`,无描边、无 clip/mask",每图标恰好 **1 条 `drawPath`**;深挖五确认平均约 **30 个 verb / 47 个点**;深挖三实测两侧每帧渲染通道数几乎相同(1.017 / 1.033),即**整批语料一次离屏 `saveLayer` 都没触发过**,渐变/mask/pattern 这些会开离屏层的特效在本次测量中等于不存在。真实项目若用了多层 path、渐变、mask,以下三条会变,且方向**不一致**:
+
+1. **每图标的绘制命令数与 tessellation 产出上升 → Impeller 每帧重编码成本按比例放大,两库同向变差。** 深挖十一已实测 GPU 侧真实执行时间与命令编码同向,这条外推有实测支撑。**结论:复杂图标会更早触到上面那个 300 图标级别的天花板,而且是两个库一起触。**
+2. **mask/clipPath 会触发离屏 `saveLayer`,本次语料完全没触发过**(深挖三实测两侧每帧渲染通道数几乎相同,1.017/1.033,说明没有离屏层)。svgx 在这条路径上有两项专门优化(2026-08-27 三轮"mask 几何求交、直接画最终路径";四轮"mask 图层按 mask 自身边界分配"),flutter_svg 没有对应处理——**复杂语料下差距有可能反而扩大,但完全没有实测,不承诺、不引用。**
+3. **flutter_svg 冷路径的 isolate 派生固定成本与 SVG 复杂度无关**,SVG 越复杂,这一项在总成本中占比越低 → **冷路径 7.25x 的 CPU 优势在复杂 SVG 上会收窄。**
+
+三条方向不一致,所以**不能用一句"复杂 SVG 下结论依然成立"糊过去**。诚实的表述是:**本次全部倍数只在"纯色单 path 小图标"这一类语料上被验证过。**
+
+**务实建议:什么时候可以直接采信,什么时候必须自己跑一遍**
+
+| 你的场景 | 建议 |
+|---|---|
+| 图标体系是纯色单 path(Material/Mdi/Feather/Lucide 这一类),同屏 200 个以内 | **直接采信**,与本次语料同构。关注点只有冷路径(首次加载体验) |
+| 首屏/图标选择器/下拉刷新会**一次性渲染几十个未缓存图标** | **直接采信冷路径结论**,这是 svgx 优势最实的地方(20 图标 151.8ms → 45.6ms) |
+| 内容基本固定,用户只是来回滚动已加载内容 | **两库都行**,不必为性能换库;真要优化,方向是 `SliverChildBuilderDelegate` 的 `addSemanticIndexes:false` / `addAutomaticKeepAlives:false`(深挖十五结论四),收益比换库大 |
+| 同屏 300+ 图标 **且**持续滚动/动画 | **重新验证**。两个库都会逼近 Impeller 重编码天花板,这是引擎限制,换库解决不了;先考虑降低同屏数量或做位图烘焙(深挖二:15.6%,是应用层能拿到的上限) |
+| SVG 含**渐变 / mask / clipPath / 多层 path / 内嵌位图** | **必须重新验证**。本次语料一个都没覆盖,任何倍数都不适用 |
+| 需要动画 SVG | 本节不涉及,见 `LIB=anim` / `anim_fps` 系列 |
+
+**自测成本很低,工具是现成的**:把自己项目里最重的那批 SVG 塞进 `benchmark/bench_app/lib/svg_gen.dart` 的 `generateIcons`,然后跑
+
+```powershell
+# 冷路径(首次加载体验)
+flutter run -d <device> --profile --dart-define=LIB=static20 --dart-define=TARGET=svgx `
+  --dart-define=MODE=cold --dart-define=ITEMS=20 --dart-define=ROUNDS=20 --dart-define=SETTLE=8
+# 热路径(反复进出)把 MODE 换成 hot;每次换库前 adb shell am force-stop 并确认 pidof 为空
+```
+
+报告自带冷/热自证指标(`round_misses_series` / `round_probe_mounts_series`),**不用相信任何人的结论,看这两行就知道自己这次测的到底是冷是热**。滚动场景则用 `LIB=compare` + `ITEMS=<你的同屏数量>`,重点看 `raster` 的 p50 有没有越过 16.6ms。
+
+**一句话结论**:当前结论**没有**被简单语料"推到上限"而失真——它们准确描述了一件事,即**两个库的差距集中在冷路径(首次渲染),热路径由 Flutter/Impeller 的公共地板决定**;真实项目里会不会卡,主要取决于同屏图标数量和是否持续重绘(引擎问题,与选库无关),而选 svgx 能实打实兑现的是**首次加载那一段的延迟与 CPU/内存**。唯一不能外推的是**语料复杂度**,含渐变/mask 的 SVG 必须自己跑一遍。
+
+#### 深挖十九:`SvgImageProvider` 的 2x 超采样(清晰度换性能)A/B——**噪声量级,数据不支持关闭它**(2026-09-02)
+
+**假设**:`lib/src/svg_image_provider.dart` 里 `const _supersample = 2`(在设备自身 `devicePixelRatio` 之上再叠加 2x 超采样,用于弥补 `ui.Picture.toImage` 离屏快照没有 MSAA 的问题)会让光栅化的像素数变成不加超采样时的 4 倍,理应有可测的 CPU/耗时代价;如果代价明显,去掉它换回"原始清晰度"(`_supersample = 1`)可能是划算的性能优化。
+
+**范围说明**:这个常量只影响 `StringSvgx`/`AssetSvgx`/`NetworkSvgx`/`FileSvgx`/`MemorySvgx`(即 `SvgImageProvider` 家族,`Image(image: ...)`/`DecorationImage` 用法),**不影响** `SvgxStatic`/`SvgxAnimated`(直接画上表面,引擎给 MSAA)。本仓库此前所有基准(`bench_screen.dart`、`static20_bench_screen.dart` 等)全部走 `SvgxStatic`/`SvgPicture.string`,没有一个碰到过这条路径,因此是 svgx 对 svgx 的自比较,不涉及 flutter_svg(它没有等价的离屏 `toImage` ImageProvider)。
+
+**新增基准**:`benchmark/bench_app/lib/imgprovider_bench_screen.dart`(`LIB=imgprovider`)。不搭组件树,直接用 `ImageProvider.resolve` + 一次性 `ImageStreamListener` 驱动 `StringSvgx`(等价于 `precacheImage` 的驱动方式),20 个图标、20 轮,每轮沿用深挖十六的"`</svg>` 前插入 `<!--r$round-->` 注释"手法确保源字符串真正改变,并在每轮之间清空 Flutter 自己的 `ImageCache`(`clear()` + `clearLiveImages()`),避免 Flutter 缓存命中掩盖光栅化开销。
+
+**方法**:同一台设备(华为 STG-AL00,`7NQBB23606003715`),命令:
+
+```
+cd benchmark/bench_app
+flutter run -d 7NQBB23606003715 --profile --dart-define=LIB=imgprovider --dart-define=ROUNDS=20 --dart-define=ITEMS=20 --dart-define=AUTOEXIT=1
+```
+
+组 A(基线,`_supersample=2`)跑 2 次,组 B(临时改 `_supersample=1`)跑 3 次,跑完立即 `git checkout -- lib/src/svg_image_provider.dart` 还原(已核实还原后 `git diff` 为空,`flutter analyze` 无新增问题)。
+
+原始数据(单位 ms,`cpu_per_round_avg_ms` 取自报告的 `cpu_per_round_avg_ms` 行,是每轮 20 图标的进程 CPU 总量):
+
+| 组 | supersample | 第几次运行 | cpu_per_round_avg_ms | warm_rounds_avg_total_ms |
+|---|---|---|---|---|
+| A(基线) | 2 | 1 | 53.50 | 39.36 |
+| A(基线) | 2 | 2 | 53.00 | 39.08 |
+| B(去掉) | 1 | 1 | 53.00 | 39.08 |
+| B(去掉) | 1 | 2 | 28.50 | 22.04 |
+| B(去掉) | 1 | 3 | 51.00 | 37.39 |
+
+**结论**:假设**未被数据支持**。组 A 两次运行几乎完全一致(53.50 / 53.00ms),但组 B 三次运行本身就有近 2 倍的组内波动(53.00 / 28.50 / 51.00ms)——**同一份代码、同一个配置,组内波动已经跟"去掉超采样"预期要证明的效应量同级或更大**,说明这台设备在本次测试窗口内本身有不小的调度/热节流噪声,3 次运行不足以把信号从噪声里分离出来。把两组样本放在一起看(A: 53.5, 53.0；B: 53.0, 28.5, 51.0),中位数几乎相同,**没有观察到"去掉超采样后明显更快"的方向性信号**。
+
+**建议**:不要仅凭本次数据关闭 `_supersample`——2x 超采样是这条路径上唯一防止离屏 `toImage` 快照出现锯齿的机制,去掉它有实打实的画质代价(见 `1171ae3` 提交信息里对锯齿问题的说明),而性能收益在本次测量中拿不出可信证据。若仍想推进,需要更多轮次(建议 ≥10 组、每组 ≥20 轮)、更长的设备静置时间排除热节流波动,或换一台噪声更小的设备复测,而不是基于 3 次单点运行做决策。
+
+**局限说明**:`SvgImageProvider` 路径此前完全没有基准覆盖,新建的 `imgprovider_bench_screen.dart` 本身也只跑了共 5 次,采样量偏小;`ImageProvider.resolve` 是否与真实 `Image` 组件树内的 `toImage` 调用时机完全一致未做交叉验证(理论上应该一致,`loadImage` 触发方式相同)。
+
+#### 深挖二十:mask/gradient/clipPath 语料的冷启动对比——**svgx 明显更快,补上了深挖十八留下的"含渐变/mask 的 SVG 必须自己跑一遍"这个缺口**(2026-09-02)
+
+**背景**:深挖十八的结论明确写了"语料复杂度不能外推,含渐变/mask 的 SVG 必须自己跑一遍"——此前所有对比(深挖十四~十七)全部用 MDI 真实图标集,里面 `<mask>`/`<linearGradient>`/`<radialGradient>`/`<clipPath>` 出现得很少或没有。本节补上这个缺口。
+
+**语料**:新建 `benchmark/bench_app/lib/complex_svg_samples.dart`,6 个手写 32x32 viewBox 的 SVG:2 个用 `<mask>`(纯色遮罩 + 渐变遮罩)、2 个纯渐变填充(线性 + 径向)、2 个 `<clipPath>`(多边形被圆裁剪 + 两个矩形被椭圆裁剪)。
+
+**基准改动**:给 `Static20BenchRunner` 加了一个可选的 `sources` 参数(默认 `null`,不影响任何既有调用方),给定时替换掉内部按 `itemCount` 生成 MDI 图标的逻辑,报告里的图标数也相应改成 `sources.length`。`main.dart` 新增 `SOURCES=complex` dart-define,在既有 `LIB=static20` 分支里生效。
+
+只测冷启动:`ROUNDS=1`,只看 `cold_round_total_ms`/`cpu_per_round_ms`/RSS,不跑深挖十七那套热路径多轮。两个库分别在独立进程里跑(`am force-stop` 后重启),延续本文档一直强调的"跨库对比不能同进程"原则。
+
+**方法**:
+
+```
+cd benchmark/bench_app
+adb -s 7NQBB23606003715 shell am force-stop com.example.bench_app
+flutter run -d 7NQBB23606003715 --profile --dart-define=LIB=static20 --dart-define=TARGET=svgx --dart-define=SOURCES=complex --dart-define=ROUNDS=1 --dart-define=SETTLE=3 --dart-define=HOLD=1 --dart-define=AUTOEXIT=1
+# 同法，TARGET=flutter_svg，中间 force-stop
+```
+
+原始数据(单位 ms,均为 6 图标窗口的整窗口总值,`n=1` 轮 x 2 次运行):
+
+| 库 | 运行 | cold_round_total_ms | cold_round_per_icon_ms | cpu_per_round_ms(=cpu_per_icon_ms×6) | rss_mb |
+|---|---|---|---|---|---|
+| svgx | 1 | 41.64 | 6.94 | 120.0 | 147.80 |
+| svgx | 2 | 16.11 | 2.69 | 90.0 | 131.56 |
+| flutter_svg | 1 | 83.86 | 13.98 | 300.0 | 137.27 |
+| flutter_svg | 2 | 85.82 | 14.30 | 310.0 | 140.41 |
+
+**冷渲染自证**(两次运行均满足):svgx 侧 `svgx_parse_misses=6`(=图标数,证明确实全部冷解析)且 `round_blank_peak_series=0`(同步渲染,从未出现占位符);flutter_svg 侧 `round_blank_peak_series=6`(=图标数,证明窗口确实画满过、走的是真实异步渲染而非缓存命中)。两侧都通过了本文档一贯要求的"先证明画的东西对等"这一关。
+
+**结论**:在含 mask/gradient/clipPath 的语料上,**svgx 冷启动明显更快**——总耗时 svgx 16~42ms 对 flutter_svg 84~86ms(约 2~5x),CPU 更悬殊,svgx 90~120ms 对 flutter_svg 300~310ms(约 2.6~3.4x)。方向与深挖十四~十六在纯 MDI 图标语料上的冷路径结论(svgx 大幅领先)一致,**没有出现"渐变/mask/clipPath 让 flutter_svg 反超或拉近差距"的迹象**——至少在 usvg(svgx 后端)与 vector_graphics(flutter_svg 后端)各自处理这三种技巧的路径上,svgx 的冷启动优势保持。
+
+**局限说明**:样本量很小(仅 6 个图标、每库仅 2 次运行),不能像深挖十四~十七那样做 p50/p90/p99 分位数分析;3 种技巧各只有 2 个样本,无法单独拆分出"mask 比 gradient 更/更不利于哪个库"这类细粒度结论;RSS 差异(147.80 vs 137.27 等)在这个量级的窗口下噪声占比高,不构成结论。若要进一步细化,应扩大到每种技巧各 10+ 个样本、多轮次。

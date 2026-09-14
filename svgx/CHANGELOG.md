@@ -1,3 +1,8 @@
+## 0.1.1
+
+* Docs: completed dartdoc coverage on the full public API surface; README no
+  longer compares against `flutter_svg`.
+
 ## 0.1.0
 
 Initial release.
