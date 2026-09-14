@@ -9,14 +9,13 @@ on:
       - 'dioman/example/pubspec.yaml'
       - 'dioman/pubspec.yaml'
       - '.github/workflows/deploy-dioman.yml'
-      - '.github/workflows/update-root-index.yml'
   workflow_dispatch:
 
 permissions:
   contents: write
 
 concurrency:
-  group: gh-pages-dioman
+  group: gh-pages
   cancel-in-progress: false
 
 jobs:
