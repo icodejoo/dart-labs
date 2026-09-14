@@ -17,7 +17,7 @@ permissions:
   contents: write
 
 concurrency:
-  group: gh-pages
+  group: gh-pages-ffuzzy
   cancel-in-progress: false
 
 jobs:

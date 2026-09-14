@@ -17,7 +17,7 @@ permissions:
   contents: write
 
 concurrency:
-  group: gh-pages
+  group: gh-pages-layerman
   cancel-in-progress: false
 
 jobs:
