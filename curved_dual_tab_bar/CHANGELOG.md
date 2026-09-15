@@ -1,3 +1,7 @@
+## 0.2.2
+
+* `selectedIndex`/`onChanged` are now optional. When omitted, whichever `TabController` is in charge (explicit `controller`, or an ancestor `DefaultTabController`) becomes the sole source of truth: this widget no longer force-syncs the controller back to a caller-tracked index on every rebuild, so it can't fight a sibling `TabBarView`'s swipe. Passing both still runs the widget as a classic controlled component, unchanged from before.
+
 ## 0.2.1
 
 * `CurvedDualTabBar.controller` resolution now falls back to an ancestor `DefaultTabController` before creating its own internal controller (priority: explicit `controller` > `DefaultTabController.of(context)` > internal). Lets the bar share one `TabController`/animation with a sibling `TabBarView` without wiring it manually, so the curve/indicator tracks a swipe in real time instead of only snapping once it settles.
