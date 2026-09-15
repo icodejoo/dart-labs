@@ -1,3 +1,7 @@
+## 0.2.1
+
+* `CurvedDualTabBar.controller` resolution now falls back to an ancestor `DefaultTabController` before creating its own internal controller (priority: explicit `controller` > `DefaultTabController.of(context)` > internal). Lets the bar share one `TabController`/animation with a sibling `TabBarView` without wiring it manually, so the curve/indicator tracks a swipe in real time instead of only snapping once it settles.
+
 ## 0.2.0
 
 * Add divider styling: `dividerGradient` (gradient stroke, overrides `dividerColor`), `dividerCap` (`StrokeCap`), `dividerShadow` (a `BoxShadow` stroked behind the seam as a glow/shadow).
