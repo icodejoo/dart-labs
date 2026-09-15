@@ -299,12 +299,20 @@ class CurvedDualTabBar extends StatefulWidget {
   final bool automaticIndicatorColorAdjustment;
 
   /// Externally-supplied [TabController], forwarded to [TabBar.controller].
-  /// When omitted, this widget creates and owns its own controller
-  /// internally, kept in sync with [selectedIndex]/[onChanged] either way.
+  /// When omitted, an ancestor [DefaultTabController] is used instead if one
+  /// exists; only when neither is available does this widget create and own
+  /// a controller internally. Whichever one ends up in charge is kept in
+  /// sync with [selectedIndex]/[onChanged] the same way. Pass the same
+  /// controller a sibling `TabBarView` uses to keep this bar's curve/
+  /// indicator perfectly in sync with that view's drag/swipe, instead of
+  /// only snapping once [selectedIndex] changes at the end of it.
   ///
-  /// 外部传入的 [TabController]，透传给 [TabBar.controller]。缺省时本组件
-  /// 会自己创建并持有一个 controller；不管哪种情况，都会跟
-  /// [selectedIndex]/[onChanged] 保持同步。
+  /// 外部传入的 [TabController]，透传给 [TabBar.controller]。缺省时优先用
+  /// 祖先的 [DefaultTabController]（如果存在）；只有两者都没有时，本组件才
+  /// 会自己创建并持有一个内部 controller。不管最终用的是哪一个，都会跟
+  /// [selectedIndex]/[onChanged] 保持同步。把兄弟 `TabBarView` 用的同一个
+  /// controller 传进来，可以让本组件的曲线/指示器和那个视图的拖拽/滑动
+  /// 完全同步，而不是等滑动结束、[selectedIndex] 变化后才跳一下。
   final TabController? controller;
 
   /// Forwarded to [TabBar.scrollController].
@@ -414,30 +422,66 @@ class CurvedDualTabBar extends StatefulWidget {
 
 class _CurvedDualTabBarState extends State<CurvedDualTabBar>
     with SingleTickerProviderStateMixin {
-  // Owned by this widget only when the caller doesn't supply its own
-  // `controller`; `null` whenever an external controller is in charge, so
-  // `dispose` never tears down something it doesn't own.
+  // Lazily created only when neither an explicit `widget.controller` nor an
+  // ancestor `DefaultTabController` is available. Left alive (not disposed)
+  // if a later rebuild finds one of those instead, in case the dependency
+  // swings back — `dispose` is the only place that tears it down.
   //
-  // 只有调用方没传自己的 `controller` 时才由本组件持有；用了外部 controller
-  // 时始终是 `null`，这样 `dispose` 就不会去销毁不属于自己的东西。
+  // 仅在既没有显式的 `widget.controller`、也没有祖先 `DefaultTabController`
+  // 时才惰性创建。即使后续构建改用了其中之一，也不会立刻销毁它——万一
+  // 依赖关系又变回来；只有 `dispose` 会真正销毁它。
   TabController? _internalController;
 
-  TabController get _tabController => widget.controller ?? _internalController!;
+  // Currently active controller, resolved with priority: explicit
+  // `widget.controller` > ancestor `DefaultTabController.of(context)` >
+  // `_internalController`. Recomputed in [_syncTabController], which needs
+  // `context` for the `DefaultTabController` lookup, so it can only run
+  // from `didChangeDependencies`/`didUpdateWidget`, never `initState`.
+  //
+  // 当前生效的 controller，按优先级解析：显式的 `widget.controller` >
+  // 祖先 `DefaultTabController.of(context)` > `_internalController`。
+  // 在 [_syncTabController] 里重新计算——它需要 `context` 去查找
+  // `DefaultTabController`，所以只能从 `didChangeDependencies`/
+  // `didUpdateWidget` 里调用，不能放在 `initState`。
+  TabController? _resolvedController;
+
+  TabController get _tabController => _resolvedController!;
 
   @override
-  void initState() {
-    super.initState();
-    if (widget.controller == null) {
-      _internalController = TabController(
-        length: 2,
-        initialIndex: widget.selectedIndex,
-        vsync: this,
-      );
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _syncTabController();
+  }
+
+  /// Resolves the effective controller — explicit [CurvedDualTabBar.controller]
+  /// first, then an ancestor [DefaultTabController], finally a lazily-created
+  /// internal one — and moves the tick listener over if it changed.
+  ///
+  /// 解析当前生效的 controller——优先取显式的 [CurvedDualTabBar.controller]，
+  /// 其次取祖先 [DefaultTabController]，最后才惰性创建一个内部
+  /// controller——如果发生变化就把 tick 监听挪过去。
+  void _syncTabController() {
+    final next =
+        widget.controller ??
+        DefaultTabController.maybeOf(context) ??
+        (_internalController ??= TabController(
+          length: 2,
+          initialIndex: widget.selectedIndex,
+          vsync: this,
+        ));
+    assert(
+      next.length == 2,
+      'CurvedDualTabBar only supports a TabController with length 2',
+    );
+
+    if (identical(next, _resolvedController)) return;
+
+    _resolvedController?.removeListener(_handleTabControllerTick);
+    _resolvedController = next;
+    if (next.index != widget.selectedIndex) {
+      next.index = widget.selectedIndex;
     }
-    if (_tabController.index != widget.selectedIndex) {
-      _tabController.index = widget.selectedIndex;
-    }
-    _tabController.addListener(_handleTabControllerTick);
+    next.addListener(_handleTabControllerTick);
   }
 
   void _handleTabControllerTick() {
@@ -451,20 +495,7 @@ class _CurvedDualTabBarState extends State<CurvedDualTabBar>
     super.didUpdateWidget(oldWidget);
 
     if (widget.controller != oldWidget.controller) {
-      final oldController = oldWidget.controller ?? _internalController;
-      oldController?.removeListener(_handleTabControllerTick);
-
-      if (widget.controller == null) {
-        _internalController ??= TabController(
-          length: 2,
-          initialIndex: oldController?.index ?? 0,
-          vsync: this,
-        );
-      } else if (oldWidget.controller == null) {
-        _internalController?.dispose();
-        _internalController = null;
-      }
-      _tabController.addListener(_handleTabControllerTick);
+      _syncTabController();
     }
 
     if (_tabController.index != widget.selectedIndex) {
@@ -482,7 +513,7 @@ class _CurvedDualTabBarState extends State<CurvedDualTabBar>
 
   @override
   void dispose() {
-    _tabController.removeListener(_handleTabControllerTick);
+    _resolvedController?.removeListener(_handleTabControllerTick);
     _internalController?.dispose();
     super.dispose();
   }
