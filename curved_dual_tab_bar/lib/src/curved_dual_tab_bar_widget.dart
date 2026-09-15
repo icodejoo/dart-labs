@@ -46,7 +46,7 @@ part of 'curved_dual_tab_bar.dart';
 ///   ),
 /// )
 /// ```
-class CurvedDualTabBar extends StatefulWidget {
+class CurvedDualTabBar extends StatefulWidget implements PreferredSizeWidget {
   const CurvedDualTabBar({
     super.key,
     required this.titles,
@@ -448,6 +448,17 @@ class CurvedDualTabBar extends StatefulWidget {
 
   @override
   State<CurvedDualTabBar> createState() => _CurvedDualTabBarState();
+
+  /// Lets this widget drop straight into [Scaffold.appBar] without a manual
+  /// [PreferredSize] wrapper — same contract [TabBar] itself satisfies.
+  /// Callers still need their own [SafeArea]/[AppBar] if they want the
+  /// status bar avoided; this only reports the bar's own height.
+  ///
+  /// 让本组件能像 [TabBar] 一样直接塞进 [Scaffold.appBar]，不用手动包一层
+  /// [PreferredSize]。状态栏避让仍需调用方自己套 [SafeArea]/[AppBar]，这里
+  /// 只上报本身的高度。
+  @override
+  Size get preferredSize => Size.fromHeight(height);
 }
 
 class _CurvedDualTabBarState extends State<CurvedDualTabBar>

@@ -1,3 +1,7 @@
+## 0.2.3
+
+* `CurvedDualTabBar` now implements `PreferredSizeWidget`, so it can be dropped straight into `Scaffold.appBar` (`appBar: CurvedDualTabBar(...)`) the same way `TabBar` can, without wrapping it in a manual `PreferredSize`. `preferredSize` reports `Size.fromHeight(height)`; callers still need their own `SafeArea`/`AppBar` if they want the status bar avoided.
+
 ## 0.2.2
 
 * `selectedIndex`/`onChanged` are now optional. When omitted, whichever `TabController` is in charge (explicit `controller`, or an ancestor `DefaultTabController`) becomes the sole source of truth: this widget no longer force-syncs the controller back to a caller-tracked index on every rebuild, so it can't fight a sibling `TabBarView`'s swipe. Passing both still runs the widget as a classic controlled component, unchanged from before.
