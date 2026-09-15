@@ -107,6 +107,7 @@ class CurvedDualTabBar extends StatefulWidget implements PreferredSizeWidget {
     this.dragStartBehavior = DragStartBehavior.start,
     this.tabAlignment,
     this.textScaler,
+    this.safeArea = true,
   }) : assert(
          titles.length == 2,
          'CurvedDualTabBar only supports exactly 2 tabs',
@@ -446,6 +447,16 @@ class CurvedDualTabBar extends StatefulWidget implements PreferredSizeWidget {
   /// 透传给 [TabBar.textScaler]。
   final TextScaler? textScaler;
 
+  /// Whether to wrap the bar in a top-only [SafeArea] so it clears the status
+  /// bar/notch when dropped straight into [Scaffold.appBar] (see
+  /// [preferredSize]). Set to `false` if an ancestor already handles safe-area
+  /// insets, or if this bar isn't sitting at the very top of the screen.
+  ///
+  /// 是否用只处理顶部的 [SafeArea] 包裹本组件，让它在直接塞进
+  /// [Scaffold.appBar] 时（见 [preferredSize]）能避开状态栏/刘海。如果祖先
+  /// 已经处理过安全区，或者本组件不是贴着屏幕最顶端使用，设为 `false`。
+  final bool safeArea;
+
   @override
   State<CurvedDualTabBar> createState() => _CurvedDualTabBarState();
 
@@ -576,6 +587,15 @@ class _CurvedDualTabBarState extends State<CurvedDualTabBar>
     final baseTextStyle =
         widget.textStyle ?? Theme.of(context).textTheme.titleMedium;
 
+    final bar = _buildBar(activeTextColor, inactiveTextColor, baseTextStyle);
+    return widget.safeArea ? SafeArea(bottom: false, child: bar) : bar;
+  }
+
+  Widget _buildBar(
+    Color activeTextColor,
+    Color inactiveTextColor,
+    TextStyle? baseTextStyle,
+  ) {
     return CurvedTabBackground(
       // Only used by `CurvedTabBackground` as the initial tween value when
       // no `progress` is given; `progress` is always supplied below, so
