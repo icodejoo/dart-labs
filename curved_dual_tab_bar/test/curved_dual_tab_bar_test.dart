@@ -82,4 +82,36 @@ void main() {
     expect(tester.takeException(), isNull);
     expect(find.text('DEPOSIT'), findsOneWidget);
   });
+
+  testWidgets('DefaultTabController alone drives selection when selectedIndex/onChanged are omitted', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: DefaultTabController(
+            length: 2,
+            child: Column(
+              children: [
+                CurvedDualTabBar(titles: const ['DEPOSIT', 'WITHDRAW']),
+                const Expanded(
+                  child: TabBarView(
+                    children: [Text('deposit body'), Text('withdraw body')],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+
+    expect(find.text('deposit body'), findsOneWidget);
+
+    await tester.tap(find.text('WITHDRAW'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('withdraw body'), findsOneWidget);
+    expect(find.text('deposit body'), findsNothing);
+  });
 }

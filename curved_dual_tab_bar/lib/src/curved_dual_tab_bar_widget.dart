@@ -22,7 +22,7 @@ part of 'curved_dual_tab_bar.dart';
 /// 大部分在本组件曲线样式里没有对应项的 [TabBar] 属性都做了透传（见构造函数
 /// 末尾那些参数），调用方不会被限制在本组件显式重新暴露的那几个里。
 ///
-/// Example:
+/// Example (self-managed state):
 /// ```dart
 /// CurvedDualTabBar(
 ///   titles: const ['DEPOSIT', 'WITHDRAW'],
@@ -30,12 +30,28 @@ part of 'curved_dual_tab_bar.dart';
 ///   onChanged: (i) => setState(() => selectedIndex = i),
 /// )
 /// ```
+///
+/// Example (controller as the sole source of truth — an ancestor
+/// [DefaultTabController] shared with a sibling `TabBarView`, or an explicit
+/// [controller]): omit [selectedIndex]/[onChanged] entirely, the controller
+/// drives everything.
+/// ```dart
+/// DefaultTabController(
+///   length: 2,
+///   child: Column(
+///     children: [
+///       const CurvedDualTabBar(titles: ['DEPOSIT', 'WITHDRAW']),
+///       const Expanded(child: TabBarView(children: [DepositPage(), WithdrawPage()])),
+///     ],
+///   ),
+/// )
+/// ```
 class CurvedDualTabBar extends StatefulWidget {
   const CurvedDualTabBar({
     super.key,
     required this.titles,
-    required this.selectedIndex,
-    required this.onChanged,
+    this.selectedIndex,
+    this.onChanged,
     this.height = 56,
     this.borderRadius = 20,
     this.leanAmplitude = 0.1,
@@ -101,15 +117,29 @@ class CurvedDualTabBar extends StatefulWidget {
   /// 两个 Tab 文案，比如 `['DEPOSIT', 'WITHDRAW']`。
   final List<String> titles;
 
-  /// Currently selected tab, 0 or 1.
+  /// Currently selected tab, 0 or 1. Omit this (along with [onChanged]) when
+  /// a [controller] — explicit or an ancestor [DefaultTabController] — is
+  /// already the sole source of truth for the selection: without it, this
+  /// widget never force-syncs the controller back to a caller-tracked value,
+  /// so it can't fight a `TabBarView` swipe that already moved the shared
+  /// controller. Provide it to run this widget as a classic controlled
+  /// component instead (own [State.setState] managing the index).
   ///
-  /// 当前选中的 Tab，取值 0 或 1。
-  final int selectedIndex;
+  /// 当前选中的 Tab，取值 0 或 1。当 [controller]（不管是显式传入的，还是
+  /// 祖先的 [DefaultTabController]）已经是选中态的唯一真相来源时，把这个
+  /// （连同 [onChanged]）一起省略掉：省略后本组件不会再把 controller 强行
+  /// 同步回调用方记录的值，也就不会跟已经被 `TabBarView` 滑动改过的共享
+  /// controller"打架"。想把本组件当成传统的受控组件用（自己
+  /// `setState` 管理下标）时再传它。
+  final int? selectedIndex;
 
-  /// Called with the tapped tab's index.
+  /// Called with the tapped tab's index. Only meaningful when
+  /// [selectedIndex] is also provided (controlled-component mode); safe to
+  /// omit when a shared [controller] already drives selection.
   ///
-  /// 点击某个 Tab 时回调其下标。
-  final ValueChanged<int> onChanged;
+  /// 点击某个 Tab 时回调其下标。只有在同时提供了 [selectedIndex]（受控组件
+  /// 模式）时才有意义；当共享 [controller] 已经在驱动选中态时可以省略。
+  final ValueChanged<int>? onChanged;
 
   /// Bar height. See [CurvedTabBackground.height].
   ///
@@ -466,7 +496,7 @@ class _CurvedDualTabBarState extends State<CurvedDualTabBar>
         DefaultTabController.maybeOf(context) ??
         (_internalController ??= TabController(
           length: 2,
-          initialIndex: widget.selectedIndex,
+          initialIndex: widget.selectedIndex ?? 0,
           vsync: this,
         ));
     assert(
@@ -478,15 +508,15 @@ class _CurvedDualTabBarState extends State<CurvedDualTabBar>
 
     _resolvedController?.removeListener(_handleTabControllerTick);
     _resolvedController = next;
-    if (next.index != widget.selectedIndex) {
-      next.index = widget.selectedIndex;
+    if (widget.selectedIndex != null && next.index != widget.selectedIndex) {
+      next.index = widget.selectedIndex!;
     }
     next.addListener(_handleTabControllerTick);
   }
 
   void _handleTabControllerTick() {
     if (!_tabController.indexIsChanging) {
-      widget.onChanged(_tabController.index);
+      widget.onChanged?.call(_tabController.index);
     }
   }
 
@@ -498,15 +528,23 @@ class _CurvedDualTabBarState extends State<CurvedDualTabBar>
       _syncTabController();
     }
 
+    // No caller-tracked `selectedIndex` to reconcile against — the
+    // controller (shared or internal) is the only source of truth, so
+    // there's nothing to force it back to.
+    //
+    // 没有调用方自己记录的 `selectedIndex` 可以对照——controller（不管共享
+    // 还是内部）就是唯一真相来源，没有什么需要强行同步回去的。
+    if (widget.selectedIndex == null) return;
+
     if (_tabController.index != widget.selectedIndex) {
       if (widget.animated) {
         _tabController.animateTo(
-          widget.selectedIndex,
+          widget.selectedIndex!,
           duration: widget.duration,
           curve: widget.curve,
         );
       } else {
-        _tabController.index = widget.selectedIndex;
+        _tabController.index = widget.selectedIndex!;
       }
     }
   }
@@ -528,7 +566,17 @@ class _CurvedDualTabBarState extends State<CurvedDualTabBar>
         widget.textStyle ?? Theme.of(context).textTheme.titleMedium;
 
     return CurvedTabBackground(
-      selectedIndex: widget.selectedIndex,
+      // Only used by `CurvedTabBackground` as the initial tween value when
+      // no `progress` is given; `progress` is always supplied below, so
+      // this never actually drives anything — `_tabController.index` is
+      // just a harmless, always-available fallback when there's no
+      // caller-tracked `selectedIndex`.
+      //
+      // `CurvedTabBackground`只在没有传 `progress` 时才用这个值做补间初值；
+      // 下面总是传了 `progress`，所以这里实际上从不会真正生效——没有调用方
+      // 自己记录的 `selectedIndex` 时，`_tabController.index` 只是个随手可用
+      // 的无害兜底值。
+      selectedIndex: widget.selectedIndex ?? _tabController.index,
       progress: _tabController.animation,
       height: widget.height,
       borderRadius: widget.borderRadius,
