@@ -245,6 +245,52 @@ import Flutter widget 与直接依赖 `MovaApi` 的地方。
   短广告降级路径、断网预热超时兜底，均需真机逐项验证，详见
   [doc/plans/2026-09-16-seamless-swap.md](plans/2026-09-16-seamless-swap.md) Task 11。
 
+## 仅音频模式（`audioOnly`，0.4.x，默认关闭）
+
+`MpvKernel({bool audioOnly = false})` / `MovaEngine({bool audioOnly = false})` /
+`createMovaEngine({bool audioOnly = false})`。为 `true` 时**不建立任何视频管线**，
+`renderHandle` 为 `null`。**不新增任何公开类，barrel 一行未改。**
+
+**机制**：media_kit 的 `Player` 一创建就是 mpv 的 `--vid=no`
+（`player/native/player/real.dart` 的 `_create()`），**只有** `VideoController.create()`
+会把它改回 `vid=auto`。所以核心改动就是把 `MpvKernel` 构造里那句无条件的
+`VideoController(_player)` 包进 `if (!audioOnly)`——不建那个对象，libmpv 就已经是纯音频
+播放器：解码帧缓冲、GPU 纹理、Flutter `Texture` 注册这三项是 0 而不是变小。
+**这依赖 media_kit 1.2.6 的默认值，升级 media_kit 时须重验此条**
+（`test/core/audio_only_test.dart` 有两条源级结构守卫钉住 `if (!audioOnly)` 这层包裹）。
+
+三条设计决定及其理由：
+
+- **不进 `MovaOpts`**。`MovaOpts` 的语义是运行期可 `copyWith` 替换的配置（12 节全部
+  如此），而 `audioOnly` 是**引擎构造期一次性的资源决策**：内核的渲染句柄一次绑定、
+  永不重绑，`copyWith(audioOnly: true)` 无法生效，放进去等于造一个骗人的口子。
+  `test/core/openness_audio_test.dart` 有一条反对账测试，钉死配置节数量仍是 12。
+  运行期可观测的信号就是 `renderHandle == null` 本身，因此也没有 `MovaState.audioOnly`。
+- **不加 `MovaStreamType.audio`**。"音频"是引擎的资源形态，不是源的流类型。同一条
+  `audioOnly` 引擎既能放 vod 音频也能放 live 音频；同一条纯音频 URL 也完全可以在普通
+  引擎上播（只是白背视频管线）。两者正交，混进 `MovaSource` 会造出 2×2 的无意义组合。
+- **不换 `media_kit_libs_*_audio`**。那是编译期二选一，换了 mova 的视频功能会物理失效，
+  与"既要视频又要音频"的目标用户直接冲突。包体积因此不随模式变。
+
+**`MpvFrameExtractor` 的处置**：`createMovaEngine()` 原本无条件注入它，而它在首次
+`extract()` 时会新开**第二个** `Player` 并为其建 `VideoController`——一整条额外的视频
+管线。`audioOnly: true` 时默认不再注入（`extractor ?? (audioOnly ? null : MpvFrameExtractor())`），
+宿主显式传入的 `extractor` 仍然胜出。`MpvKernel.screenshot()` 在 `audioOnly` 下短路返回
+`null`，让拖动预览兜底走既有的"抽帧器没给结果 → 平滑降级"路径，而不是抛 mpv 错误。
+
+**UI 层零改动**：`_RenderSurface` 的 `handle is VideoController` 三元判定天然把 `null`
+落进 else 分支拿到黑色占位；音频场景的封面/波形/歌词面直接用 `MovaPlayer.surface`
+这个已有口子传入，因此**不做 `MovaAudioSkin`**。
+
+**明确不做**：`MovaAudioSkin`；后台常驻/锁屏/通知栏/耳机线控/音频焦点/gapless/歌单
+这一整套系统集成面——分流判据是"需不需要熄屏后台常驻 + 系统媒体控制"，需要就走
+`just_audio` + `audio_service`。
+
+**真机验证未做**：功能正确性、三阶段 `dumpsys meminfo` 内存对账、`vid` 属性直接确认、
+电量/CPU 抽查、关闭态回归，均需真机逐项验证，详见
+[doc/plans/2026-09-16-audio-only.md](plans/2026-09-16-audio-only.md) Task 5。
+README 与可行性笔记 §1 里的开销数字目前仍是**推算量级，不是实测**。
+
 ## PiP（原生）
 
 - Dart 侧经 `MovaPipPort`；Android `MovaPlugin.kt` 用

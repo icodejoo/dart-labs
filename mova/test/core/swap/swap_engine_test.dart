@@ -312,6 +312,41 @@ void main() {
       expect(api.renderHandle, 'shadow-handle');
     });
 
+    test('an audio-only engine (null renderHandle) forwards through without throwing', () {
+      // FakeMovaApi's renderHandle defaults to null — exactly the audio-only
+      // shape, where no VideoController was ever created.
+      //
+      // FakeMovaApi 的 renderHandle 默认就是 null——正是仅音频形态：从未创建
+      // 过 VideoController。
+      expect(made.first.renderHandle, isNull);
+      expect(api.renderHandle, isNull);
+    });
+
+    test('commit() between two audio-only engines still bumps renderEpoch', () async {
+      await api.prepare(
+        const MovaSource('https://host/content.m4a'),
+        at: const Duration(seconds: 5),
+        cue: const MovaWarmCue(remaining: Duration(seconds: 1), total: Duration(seconds: 10)),
+      );
+      await settle();
+      final shadow = made[1];
+      expect(shadow.renderHandle, isNull);
+      await warmToReady(shadow, at: const Duration(seconds: 5));
+      final before = api.state.renderEpoch;
+
+      final ok = await api.commit();
+      await settle();
+
+      expect(ok, isTrue);
+      expect(api.renderHandle, isNull);
+      expect(
+        api.state.renderEpoch,
+        before + 1,
+        reason: 'swap bookkeeping must not be skipped just because there is no '
+            'render handle / 切换簿记不得因为没有渲染句柄就被跳过',
+      );
+    });
+
     test('commit() success: old engine state no longer forwarded, new engine state is', () async {
       await api.prepare(
         const MovaSource('https://host/content.mp4'),

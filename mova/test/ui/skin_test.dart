@@ -167,4 +167,35 @@ void main() {
     expect(find.byIcon(Icons.lock_open_rounded), findsOneWidget);
     await api.dispose();
   });
+
+  testWidgets('the default skin assembles fully with a null renderHandle', (t) async {
+    // Audio-only: no render handle at all. The skin must not degrade — the
+    // control bars, gesture layer and centre play button all stay on the tree.
+    //
+    // 仅音频：根本没有渲染句柄。皮肤不得因此退化——控制条、手势层、中央播放键
+    // 都必须仍在树上。
+    final api = FakeMovaApi();
+    expect(api.renderHandle, isNull);
+    const skin = MovaDefSkin();
+    await t.pumpWidget(MaterialApp(
+      home: MovaScope(
+        api: api,
+        child: Builder(builder: (c) {
+          final bundle = buildSlots(c, api, skin.components());
+          return skin.assemble(c, bundle, const ColoredBox(color: Color(0xFF000000)));
+        }),
+      ),
+    ));
+    await t.pump();
+
+    expect(t.takeException(), isNull);
+    // Centre play button, persistent lock toggle and the bottom bar's seek
+    // bar — one witness per layer.
+    // 中央播放键、常驻锁定切换、底栏进度条——每层各取一个见证。
+    expect(find.byIcon(Icons.play_circle_filled_rounded), findsOneWidget);
+    expect(find.byIcon(Icons.lock_open_rounded), findsOneWidget);
+    expect(find.byType(Slider), findsOneWidget);
+    expect(find.byType(GestureDetector), findsWidgets);
+    await api.dispose();
+  });
 }

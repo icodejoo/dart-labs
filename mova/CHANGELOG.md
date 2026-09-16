@@ -16,6 +16,19 @@
 * 清晰度切换（`switchQuality`）与 feed 引擎池均**未**接入本特性——前者只做了接口形状
   契约测试与落点注释，后者结构性不适用（双画面并存需求）。真机验证（黑屏是否真的消除、
   内存/解码 session 是否符合预期、短广告降级路径）尚未进行。
+* **仅音频模式（`audioOnly`，默认关闭）**：`MpvKernel` / `MovaEngine` /
+  `createMovaEngine()` 新增 `bool audioOnly = false` 构造参数。为 `true` 时完全跳过
+  `VideoController` 的创建——media_kit 的 `Player` 默认就是 mpv 的 `--vid=no`，不挂接
+  `VideoController` 就等于让 libmpv 只解音频，解码帧缓冲/GPU 纹理/Flutter `Texture`
+  注册这三项是 0 而不是变小；`createMovaEngine()` 在此模式下也不再默认注入
+  `MpvFrameExtractor`（它首次抽帧会新开第二个 `Player` 并为其建 `VideoController`）。
+  **契约变更**：`MovaKernel.renderHandle` 由 `Object` 放宽为 `Object?`（`MovaApi` 与
+  `MovaEngine` 侧本就可空，此为契约补齐）。UI 层零改动——`null` 句柄天然走占位分支，
+  音频场景的封面/波形/歌词面用已有的 `MovaPlayer.surface` 传入。**不新增任何公开类，
+  barrel 一行未改**；`audioOnly` 刻意不进 `MovaOpts`（构造期资源决策，`copyWith` 无法
+  生效），也不加 `MovaStreamType.audio`（与流类型正交）。`MovaAudioSkin` 与后台常驻/
+  锁屏/通知栏等系统集成面**不在本次范围**（分流判据见 README）。**真机验证尚未进行**
+  （功能正确性、三阶段 `dumpsys meminfo` 内存对账、`vid` 属性直接确认、电量/CPU 抽查）。
 
 ---
 ## 0.3.0
