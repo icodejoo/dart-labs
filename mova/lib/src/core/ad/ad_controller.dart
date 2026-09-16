@@ -127,8 +127,23 @@ class MovaAdCtrl {
   StreamSubscription<MovaProg>? _progressSub;
   final StreamController<void> _changes = StreamController<void>.broadcast();
   final StreamController<void> _contentEnded = StreamController<void>.broadcast();
+  final StreamController<Object> _contentError = StreamController<Object>.broadcast();
 
+  /// The resolved content source, memoised; null until it has been resolved.
+  ///
+  /// 已解析的正片源缓存；解析前为 null。
   MovaSource? _content;
+
+  /// The pending resolver for a [loadDeferred] call; null on the plain [load]
+  /// path.
+  ///
+  /// [loadDeferred] 调用留下的待解析器；普通 [load] 路径上为 null。
+  MovaSourceResolver? _resolve;
+
+  /// The in-flight resolution, shared by every caller until it settles.
+  ///
+  /// 在途的解析，在其结算前由所有调用方共享。
+  Future<MovaSource?>? _resolving;
   _Phase _phase = _Phase.idle;
   MovaAdBreak? _current;
   final Set<MovaAdBreak> _played = <MovaAdBreak>{};
@@ -198,6 +213,12 @@ class MovaAdCtrl {
   /// 的组合接缝。
   Stream<void> get contentEnded => _contentEnded.stream;
 
+  /// Fires when the content source resolver passed to [loadDeferred] failed;
+  /// carries the thrown object.
+  ///
+  /// 当传给 [loadDeferred] 的正片源解析器失败时触发；携带抛出的对象。
+  Stream<Object> get contentError => _contentError.stream;
+
   /// Loads [content] with its scheduled ads: plays a pre-roll first when one is
   /// configured, otherwise starts the content directly.
   ///
@@ -206,9 +227,62 @@ class MovaAdCtrl {
   /// - [content]: the main content source / 正片源
   Future<void> load(MovaSource content) async {
     _content = content;
+    _resolve = null;
+    await _beginLoad();
+  }
+
+  /// Loads content whose source is resolved lazily, with its scheduled ads.
+  ///
+  /// Behaves exactly like [load] except that [resolve] is not called until the
+  /// content is actually about to be opened — after every pre-roll has
+  /// finished, or (when seamless swapping is on) a couple of seconds before
+  /// the last pre-roll ends, when the content starts warming up. The result is
+  /// memoised: [resolve] is called at most once per [loadDeferred].
+  ///
+  /// If [resolve] throws or rejects, the controller goes idle and the error is
+  /// reported on [contentError]; the host decides whether to call
+  /// [loadDeferred] again.
+  ///
+  /// 带排期广告地加载一段"源需要惰性解析"的正片。
+  ///
+  /// 与 [load] 完全相同，区别只在于 [resolve] 直到正片真的要被打开时才调用——
+  /// 即所有前贴片播完之后，或（开启无缝切换时）最后一条前贴片结束前一两秒、
+  /// 正片开始预热之时。结果会被记忆化：每次 [loadDeferred] 最多调用一次
+  /// [resolve]。
+  ///
+  /// [resolve] 抛出或 reject 时，控制器转入空闲，错误经 [contentError] 上报；
+  /// 是否重新调用 [loadDeferred] 由宿主决定。
+  ///
+  /// - [resolve]: resolves the content source on demand / 按需解析正片源
+  ///
+  /// Example / 示例:
+  /// ```dart
+  /// await ads.loadDeferred(() async {
+  ///   final play = await api.requestPlayback(videoId);  // DRM / signed URL
+  ///   return MovaSource(play.url, title: play.title);
+  /// });
+  /// ```
+  Future<void> loadDeferred(MovaSourceResolver resolve) async {
+    _content = null;
+    _resolve = resolve;
+    await _beginLoad();
+  }
+
+  /// The shared start-of-playback path for [load] and [loadDeferred]: resets
+  /// per-load bookkeeping, then plays the first pre-roll or the content.
+  ///
+  /// [load] 与 [loadDeferred] 共用的起播路径：重置每次加载的簿记，然后播放第一条
+  /// 前贴片或正片。
+  Future<void> _beginLoad() async {
     _played.clear();
     _contentResumeAt = Duration.zero;
     _lastContentPosition = Duration.zero;
+    // Fail loudly on a misconfigured schedule, on developer machines only.
+    //
+    // 配错的排期要大声失败，且只在开发者机器上。
+    for (final b in _breaks) {
+      b.assertValid();
+    }
     if (_enabled) {
       final pre = _firstOfKind(MovaAdBreakKind.pre);
       if (pre != null) {
@@ -217,6 +291,47 @@ class MovaAdCtrl {
       }
     }
     await _playContent();
+  }
+
+  /// Returns the content source, resolving and memoising it on first use.
+  ///
+  /// Returns null when there is nothing to resolve, or when the host's
+  /// resolver failed — in which case the failure has already been reported on
+  /// [contentError] and the lazy slot has been reset so a later
+  /// [loadDeferred] can retry.
+  ///
+  /// 返回正片源，首次使用时解析并记忆化。
+  ///
+  /// 无可解析内容、或宿主的解析器失败时返回 null——后者已经把失败上报到
+  /// [contentError]，并重置了惰性槽，使之后的 [loadDeferred] 能重试。
+  Future<MovaSource?> _contentSource() {
+    final cached = _content;
+    if (cached != null) return Future<MovaSource?>.value(cached);
+    final resolve = _resolve;
+    if (resolve == null) return Future<MovaSource?>.value(null);
+    // Share one in-flight resolution: the warm-up path calls this on every
+    // progress tick, and the host's resolver must still be called exactly once.
+    //
+    // 共享同一次在途解析：预热路径每个进度 tick 都会调用本方法，而宿主的解析器
+    // 仍必须恰好只被调用一次。
+    return _resolving ??= _doResolve(resolve);
+  }
+
+  /// Runs [resolve] once, memoising the result and clearing the in-flight slot.
+  ///
+  /// 执行一次 [resolve]，记忆化结果并清空在途槽位。
+  Future<MovaSource?> _doResolve(MovaSourceResolver resolve) async {
+    try {
+      final resolved = await resolve();
+      _content = resolved;
+      return resolved;
+    } catch (e) {
+      _resolve = null;
+      if (!_contentError.isClosed) _contentError.add(e);
+      return null;
+    } finally {
+      _resolving = null;
+    }
   }
 
   /// Immediately interrupts the content to play [ad] at an arbitrary point,
@@ -334,7 +449,7 @@ class MovaAdCtrl {
     _phase = _Phase.content;
     _current = null;
     _changes.add(null);
-    final c = _content;
+    final c = await _contentSource();
     if (c == null) return;
     final swap = _swap;
     if (swap != null && await swap.commit(waitForReady: true)) {
@@ -433,13 +548,11 @@ class MovaAdCtrl {
       // 询问已配置的触发策略此刻是否该开始在后台预热正片；由触发策略（而非
       // 本控制器）根据广告剩余时长与广告总时长决定。
       final swap = _swap;
-      final content = _content;
-      if (swap != null && swap.swapEnabled && content != null) {
+      if (swap != null && swap.swapEnabled) {
         final adDuration = _api.state.duration;
-        unawaited(swap.prepare(
-          content,
-          at: _contentResumeAt,
-          cue: MovaWarmCue(remaining: adDuration - _adPosition, total: adDuration),
+        unawaited(_warmContentBehindAd(
+          swap,
+          MovaWarmCue(remaining: adDuration - _adPosition, total: adDuration),
         ));
       }
       return;
@@ -454,6 +567,23 @@ class MovaAdCtrl {
         }
       }
     }
+  }
+
+  /// Warms the content up behind the currently playing ad, resolving the
+  /// content source first when it was deferred.
+  ///
+  /// Uses the default [MovaWarmPlan]: the ad→content direction keeps the
+  /// shadow rolling and is lead-timed, exactly as in 0.4.0.
+  ///
+  /// 在正在播放的广告背后预热正片；正片源是延迟解析的则先解析。
+  ///
+  /// 使用默认的 [MovaWarmPlan]：ad→content 方向的影子一路播着、按提前量触发，
+  /// 与 0.4.0 完全一致。
+  Future<void> _warmContentBehindAd(MovaSwapCtl swap, MovaWarmCue cue) async {
+    final content = await _contentSource();
+    if (content == null) return;
+    if (_phase != _Phase.ad) return;
+    await swap.prepare(content, at: _contentResumeAt, cue: cue);
   }
 
   /// Notifies the host hook of an ad lifecycle [type] for break [b].
@@ -471,5 +601,6 @@ class MovaAdCtrl {
     await _swap?.abandon();
     await _changes.close();
     await _contentEnded.close();
+    await _contentError.close();
   }
 }

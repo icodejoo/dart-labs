@@ -5,6 +5,7 @@ import 'package:mova/src/core/model/ad.dart';
 import 'package:mova/src/core/model/source.dart';
 import 'package:mova/src/core/options/options.dart';
 import 'package:mova/src/core/state/progress.dart';
+import 'package:mova/src/core/swap/ctl.dart';
 import '../support/fake_api.dart';
 
 const _content = MovaSource('https://host/content.m3u8');
@@ -566,6 +567,139 @@ void main() {
       await settle();
       await c.dispose();
       expect(swap.calls, contains('abandon'));
+    });
+  });
+
+  group('MovaAdCtrl.loadDeferred — lazy content source resolution', () {
+    const pre = MovaAdBreak(
+      kind: MovaAdBreakKind.pre,
+      source: MovaSource('https://host/pre.mp4'),
+    );
+    const mid = MovaAdBreak(
+      kind: MovaAdBreakKind.mid,
+      source: MovaSource('https://host/mid.mp4'),
+      offset: Duration(seconds: 30),
+    );
+    const resolved = MovaSource('https://host/signed-content.m3u8');
+
+    /// Builds an api + controller over [breaks], plus a counting resolver.
+    ///
+    /// 基于 [breaks] 构造 api + 控制器，外加一个计数型解析器。
+    (FakeMovaApi, MovaAdCtrl, List<int>) deferredBuild(
+      List<MovaAdBreak> breaks, {
+      MovaSwapCtl? swap,
+    }) {
+      final api = FakeMovaApi(
+        options: MovaOpts(ads: MovaAdConfig(enabled: true, breaks: breaks)),
+      );
+      return (api, MovaAdCtrl(api, swap: swap), <int>[]);
+    }
+
+    test('the resolver is NOT called while a pre-roll is playing', () async {
+      final (api, c, calls) = deferredBuild([pre]);
+      await c.loadDeferred(() async {
+        calls.add(1);
+        return resolved;
+      });
+      await settle();
+      expect(c.isShowingAd, isTrue);
+      expect(api.source?.uri, 'https://host/pre.mp4');
+      expect(calls, isEmpty, reason: 'the content URL must stay unresolved until it is needed');
+    });
+
+    test('the resolver runs exactly once when the pre-roll finishes, and its source is opened', () async {
+      final (api, c, calls) = deferredBuild([pre]);
+      await c.loadDeferred(() async {
+        calls.add(1);
+        return resolved;
+      });
+      await settle();
+      api.pushEvent(const MovaDone());
+      await settle();
+      expect(calls, hasLength(1));
+      expect(api.source?.uri, resolved.uri);
+    });
+
+    test('with no pre-roll the resolver runs immediately and the content starts', () async {
+      final (api, c, calls) = deferredBuild([]);
+      await c.loadDeferred(() async {
+        calls.add(1);
+        return resolved;
+      });
+      await settle();
+      expect(calls, hasLength(1));
+      expect(api.source?.uri, resolved.uri);
+      expect(c.isShowingAd, isFalse);
+    });
+
+    test('the resolved source is memoised across a mid-roll round trip', () async {
+      final (api, c, calls) = deferredBuild([mid]);
+      await c.loadDeferred(() async {
+        calls.add(1);
+        return resolved;
+      });
+      await settle();
+      expect(calls, hasLength(1));
+      api.pushProgress(const MovaProg(position: Duration(seconds: 31)));
+      await settle();
+      expect(c.isShowingAd, isTrue);
+      api.pushEvent(const MovaDone());
+      await settle();
+      expect(calls, hasLength(1), reason: 'resolution is memoised, not repeated per ad');
+      expect(api.source?.uri, resolved.uri);
+    });
+
+    test('the warm-up path prepares the resolved source, still resolving only once', () async {
+      final swap = FakeSwapCtl();
+      final (api, c, calls) = deferredBuild([pre], swap: swap);
+      await c.loadDeferred(() async {
+        calls.add(1);
+        return resolved;
+      });
+      await settle();
+      for (var i = 1; i <= 3; i++) {
+        api.pushProgress(MovaProg(position: Duration(seconds: i)));
+        await settle();
+      }
+      expect(swap.calls, contains('prepare'));
+      expect(calls, hasLength(1), reason: 'every tick shares one in-flight resolution');
+    });
+
+    test('a throwing resolver reports on contentError and opens nothing', () async {
+      final (api, c, _) = deferredBuild([]);
+      final errors = <Object>[];
+      final sub = c.contentError.listen(errors.add);
+      final boom = StateError('no entitlement');
+      await c.loadDeferred(() async => throw boom);
+      await settle();
+      expect(errors, [same(boom)]);
+      expect(c.isShowingAd, isFalse);
+      expect(api.calls, isNot(contains('open')));
+      await sub.cancel();
+    });
+
+    test('after a failed resolution a second loadDeferred can retry', () async {
+      final (api, c, _) = deferredBuild([]);
+      await c.loadDeferred(() async => throw StateError('first'));
+      await settle();
+      expect(api.calls, isNot(contains('open')));
+      await c.loadDeferred(() async => resolved);
+      await settle();
+      expect(api.source?.uri, resolved.uri);
+    });
+
+    test('the plain load(MovaSource) path is byte-for-byte unchanged', () async {
+      final api = FakeMovaApi(
+        options: MovaOpts(ads: MovaAdConfig(enabled: true, breaks: [pre])),
+      );
+      final c = MovaAdCtrl(api);
+      await c.load(_content);
+      await settle();
+      expect(api.source?.uri, 'https://host/pre.mp4');
+      api.pushEvent(const MovaDone());
+      await settle();
+      expect(api.calls.where((e) => e == 'open'), hasLength(2));
+      expect(api.source?.uri, _content.uri);
     });
   });
 }
