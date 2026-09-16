@@ -3,6 +3,7 @@ import 'dart:async';
 import '../api.dart';
 import '../events/events.dart';
 import '../model/ad.dart';
+import 'fail.dart';
 import '../model/source.dart';
 import '../options/ad_config.dart';
 import '../state/progress.dart';
@@ -587,20 +588,97 @@ class MovaAdCtrl {
     _delayTimer = null;
   }
 
-  /// Hands the screen over to [b] once its pending phase is done.
+  /// Hands the screen over to [b] once its pending phase is done: commits the
+  /// warmed shadow when the break waits for readiness, otherwise cuts to it
+  /// the way it always has.
   ///
-  /// 待播阶段结束后，把画面交给 [b]。
+  /// When the commit fails (nothing was warm, or the readiness policy timed
+  /// out), [MovaAdConfig.notReadyAction] decides between a hard cut — today's
+  /// behaviour, which the fallback must reproduce — and dropping the break so
+  /// the content is never interrupted.
+  ///
+  /// 待播阶段结束后把画面交给 [b]：该广告位要等待就绪时提交预热好的影子，否则
+  /// 按一贯方式直接切入。
+  ///
+  /// 提交失败（压根没预热上，或就绪判据超时）时，由
+  /// [MovaAdConfig.notReadyAction] 在硬切（今天的行为，降级必须重现它）与丢弃该
+  /// 广告位（正片完全不被打断）之间裁决。
   Future<void> _beginAd(MovaAdBreak b) async {
     _cancelDelayTimer();
+    if (!_wantsWait(b)) {
+      _pending = null;
+      await _playAd(b);
+      return;
+    }
+    // Make sure a warm-up actually exists before committing. With a countdown
+    // the progress ticks have been warming all along and this is a no-op; with
+    // no countdown (the default mid-roll shape) this *is* the warm-up, and the
+    // whole wait then happens inside the commit below.
+    //
+    // 提交之前先确保真的有一次预热存在。有倒计时时，进度 tick 一路都在预热，这里
+    // 是空操作；没有倒计时时（中插的默认形态），这里*就是*那次预热，随后整段等待
+    // 都发生在下面的 commit 里。
+    await _swap!.prepare(b.source, plan: _cfg.effectiveWarmPlan);
+    if (await _swap.commit(waitForReady: true)) {
+      _pending = null;
+      await _playAd(b, alreadyOnScreen: true);
+      return;
+    }
+    switch (_cfg.notReadyAction) {
+      case MovaAdNotReady.hardCut:
+        _pending = null;
+        await _playAd(b);
+      case MovaAdNotReady.dropBreak:
+        // Deliberately not routed through the failure policy: notReadyAction
+        // is already the verdict at this layer, and stacking two policies here
+        // would make the behaviour impossible to reason about.
+        //
+        // 刻意不走失败兜底策略：notReadyAction 已经是这一层的裁决，在此叠加第二层
+        // 策略会让行为变得无法推理。
+        _fire(MovaAdEventType.failed, b, error: MovaAdFailKind.warmFailed);
+        _abandonPending();
+    }
+  }
+
+  /// Drops the pending break and hands the screen back to the content, which
+  /// has been playing all along.
+  ///
+  /// 丢弃待播广告位，把画面交还给一直在播的正片。
+  void _abandonPending() {
+    _cancelDelayTimer();
     _pending = null;
-    await _playAd(b);
+    _phase = _Phase.content;
+    unawaited(_swap?.abandon());
+    _changes.add(null);
   }
 
   /// Switches playback to ad break [b].
   ///
+  /// [alreadyOnScreen] means a warmed shadow engine has just been promoted and
+  /// is already showing [b], so no `open()` is issued and the shadow is not
+  /// abandoned — but every piece of phase bookkeeping still runs, because
+  /// taking the seamless path must never silently skip an event or a state
+  /// update.
+  ///
   /// 把播放切换到广告位 [b]。
-  Future<void> _playAd(MovaAdBreak b) async {
+  ///
+  /// [alreadyOnScreen] 表示一个预热好的影子引擎刚刚转正、画面上已经是 [b]，因此
+  /// 不下发 `open()`、也不拆掉该影子——但所有阶段簿记照常执行，因为走了无缝路径
+  /// 绝不能悄悄漏掉任何一个事件或状态更新。
+  Future<void> _playAd(MovaAdBreak b, {bool alreadyOnScreen = false}) async {
     _cancelSlotTimer();
+    // A break that wants to wait but never had a pending window to warm up in
+    // — a pre-roll or a post-roll — takes the one-call form instead.
+    // `swapTo` *is* eager warm-up + commit(waitForReady: true) + fallback to
+    // open(), which is exactly the semantics needed here, so this costs no new
+    // logic. It falls back on its own, and the phase bookkeeping below runs
+    // either way.
+    //
+    // 一条想等待、却没有待播窗口可供预热的广告位——前贴片或后贴片——改走一次性
+    // 调用形式。`swapTo` 本身*就是*立即预热 + commit(waitForReady: true) + 回落
+    // open()，语义严丝合缝，因此一行新逻辑都不用写。它会自行回落，下面的阶段
+    // 簿记两种情况下都照常执行。
+    final oneShot = !alreadyOnScreen && _phase != _Phase.pending && _wantsWait(b);
     // Suppress content-side STT while the ad plays; restore it on resume only
     // if the host actually had it running (attach() does not reset it).
     //
@@ -620,8 +698,12 @@ class MovaAdCtrl {
     //
     // 丢弃为同一 pod 里上一条广告预热的影子——它的落点已经不对（或者压根
     // 预热的是正片，而这里正是 pod 连播中途），不再有用。
-    unawaited(_swap?.abandon());
-    await _api.open(b.source);
+    if (oneShot) {
+      await _swap!.swapTo(b.source);
+    } else if (!alreadyOnScreen) {
+      unawaited(_swap?.abandon());
+      await _api.open(b.source);
+    }
     // With durationFromFirstFrame off the slot is counted from open(); with it
     // on, the first progress tick arms the timer instead.
     //
@@ -860,6 +942,27 @@ class MovaAdCtrl {
       // 同一时刻只排队一条待播广告。
       _lastContentPosition = p.position;
       _contentResumeAt = p.position;
+      final waiting = _pending;
+      if (waiting != null && _wantsWait(waiting)) {
+        // Warm the ad up behind the still-playing content. The plan is the
+        // content→ad one: eager (the delay window exists precisely to be spent
+        // warming up) and holding at frame zero (an ad that quietly played its
+        // first seconds in the shadow would be delivered with its head
+        // missing). `at` is always zero — an ad always starts at its start.
+        //
+        // 在仍在播放的正片背后预热广告。用的是 content→ad 方向的计划：立即触发
+        // （delay 窗口存在的意义就是拿来预热）、并停在第 0 帧（一条在影子里悄悄
+        // 播掉了开头几秒的广告，交付出去就是缺头的）。`at` 恒为零——广告总是从
+        // 自己的开头播起。
+        unawaited(_swap!.prepare(
+          waiting.source,
+          plan: _cfg.effectiveWarmPlan,
+          cue: MovaWarmCue(
+            remaining: delayRemaining,
+            total: waiting.delay > Duration.zero ? waiting.delay : null,
+          ),
+        ));
+      }
       return;
     }
     if (_phase == _Phase.content) {
@@ -901,10 +1004,12 @@ class MovaAdCtrl {
     await swap.prepare(content, at: _contentResumeAt, cue: cue);
   }
 
-  /// Notifies the host hook of an ad lifecycle [type] for break [b].
+  /// Notifies the host hook of an ad lifecycle [type] for break [b], carrying
+  /// [error] for failures.
   ///
-  /// 就广告位 [b] 的生命周期 [type] 通知宿主钩子。
-  void _fire(MovaAdEventType type, MovaAdBreak b) => _onAdEvent?.call(MovaAdEvent(type, b));
+  /// 就广告位 [b] 的生命周期 [type] 通知宿主钩子；失败时携带 [error]。
+  void _fire(MovaAdEventType type, MovaAdBreak b, {Object? error}) =>
+      _onAdEvent?.call(MovaAdEvent(type, b, error: error));
 
   /// Releases subscriptions and closes the change stream; call once on
   /// teardown.

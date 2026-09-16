@@ -7,6 +7,7 @@ import 'package:mova/src/core/model/source.dart';
 import 'package:mova/src/core/options/options.dart';
 import 'package:mova/src/core/state/progress.dart';
 import 'package:mova/src/core/swap/ctl.dart';
+import 'package:mova/src/core/swap/trigger.dart';
 import '../support/fake_api.dart';
 
 const _content = MovaSource('https://host/content.m3u8');
@@ -1256,4 +1257,358 @@ void main() {
       });
     });
   });
+
+  group('waiting for ad readiness — per-kind defaults and atomic cut-in', () {
+    /// Builds api + controller with an optional swap ctl, wait policy and
+    /// not-ready action.
+    ///
+    /// 构造 api + 控制器，可选地带切换能力面、等待策略与等不到时的动作。
+    (FakeMovaApi, MovaAdCtrl, List<MovaAdEvent>) waitBuild(
+      List<MovaAdBreak> breaks, {
+      MovaSwapCtl? swap,
+      MovaAdWaitPolicy? wait,
+      MovaAdNotReady notReady = MovaAdNotReady.hardCut,
+    }) {
+      final events = <MovaAdEvent>[];
+      final api = FakeMovaApi(
+        options: MovaOpts(
+          ads: MovaAdConfig(
+            enabled: true,
+            breaks: breaks,
+            onAdEvent: events.add,
+            waitForAdReady: wait ?? const MovaAdWaitByKind(),
+            notReadyAction: notReady,
+          ),
+        ),
+      );
+      return (api, MovaAdCtrl(api, swap: swap), events);
+    }
+
+    /// Lets the controller's async chains settle inside a [fakeAsync] zone.
+    ///
+    /// 在 [fakeAsync] 区域内让控制器的异步链结算完毕。
+    void flush(FakeAsync async) => async.elapse(const Duration(milliseconds: 1));
+
+    const pre = MovaAdBreak(
+      kind: MovaAdBreakKind.pre,
+      source: MovaSource('https://host/pre.mp4'),
+    );
+    const post = MovaAdBreak(
+      kind: MovaAdBreakKind.post,
+      source: MovaSource('https://host/post.mp4'),
+    );
+    const mid = MovaAdBreak(
+      kind: MovaAdBreakKind.mid,
+      source: MovaSource('https://host/mid.mp4'),
+      offset: Duration(seconds: 30),
+    );
+
+    test('with no swap ctl nothing is ever prepared or swapped; everything opens', () {
+      fakeAsync((async) {
+        final (api, c, _) = waitBuild([mid]);
+        c.load(_content);
+        flush(async);
+        api.pushProgress(const MovaProg(position: Duration(seconds: 31)));
+        flush(async);
+        expect(c.isShowingAd, isTrue);
+        expect(api.calls.where((e) => e == 'open'), hasLength(2));
+      });
+    });
+
+    test('a disabled swap ctl behaves the same, even though waitsFor says yes', () {
+      fakeAsync((async) {
+        final swap = FakeSwapCtl()..swapEnabled = false;
+        final (api, c, _) = waitBuild([mid], swap: swap);
+        c.load(_content);
+        flush(async);
+        api.pushProgress(const MovaProg(position: Duration(seconds: 31)));
+        flush(async);
+        expect(swap.calls, isNot(contains('prepare')));
+        expect(swap.calls, isNot(contains('swapTo')));
+        expect(c.isShowingAd, isTrue);
+      });
+    });
+
+    test('a mid-roll waits by default: it prepares, and the content is not interrupted', () {
+      fakeAsync((async) {
+        final swap = FakeSwapCtl();
+        const delayed = MovaAdBreak(
+          kind: MovaAdBreakKind.mid,
+          source: MovaSource('https://host/mid.mp4'),
+          offset: Duration(seconds: 30),
+          delay: Duration(seconds: 3),
+        );
+        final (api, c, _) = waitBuild([delayed], swap: swap);
+        c.load(_content);
+        flush(async);
+        api.pushProgress(const MovaProg(position: Duration(seconds: 31)));
+        flush(async);
+        expect(c.isAdPending, isTrue);
+        api.pushProgress(const MovaProg(position: Duration(seconds: 32)));
+        flush(async);
+        expect(swap.calls, contains('prepare'));
+        expect(api.source?.uri, _content.uri);
+      });
+    });
+
+    test('a pre-roll does NOT wait by default: no prepare, no swapTo', () {
+      fakeAsync((async) {
+        final swap = FakeSwapCtl();
+        final (api, c, _) = waitBuild([pre], swap: swap);
+        c.load(_content);
+        flush(async);
+        expect(swap.calls, isNot(contains('prepare')));
+        expect(swap.calls, isNot(contains('swapTo')));
+        expect(api.source?.uri, 'https://host/pre.mp4');
+      });
+    });
+
+    test('a post-roll does NOT wait by default either', () {
+      fakeAsync((async) {
+        final swap = FakeSwapCtl();
+        final (api, c, _) = waitBuild([post], swap: swap);
+        c.load(_content);
+        flush(async);
+        swap.calls.clear();
+        api.pushEvent(const MovaDone());
+        flush(async);
+        expect(swap.calls, isNot(contains('swapTo')));
+        expect(api.source?.uri, 'https://host/post.mp4');
+      });
+    });
+
+    test('MovaAdWaitByKind(mid: false) puts mid-rolls back on the hard-cut path', () {
+      fakeAsync((async) {
+        final swap = FakeSwapCtl();
+        final (api, c, _) = waitBuild([mid], swap: swap, wait: const MovaAdWaitByKind(mid: false));
+        c.load(_content);
+        flush(async);
+        api.pushProgress(const MovaProg(position: Duration(seconds: 31)));
+        flush(async);
+        expect(swap.calls, isNot(contains('prepare')));
+        expect(c.isShowingAd, isTrue);
+      });
+    });
+
+    test('MovaAdWaitByKind(pre: true) routes the pre-roll through swapTo, not open', () {
+      fakeAsync((async) {
+        final swap = FakeSwapCtl()..commitResult = true;
+        final (api, c, _) = waitBuild([pre], swap: swap, wait: const MovaAdWaitByKind(pre: true));
+        c.load(_content);
+        flush(async);
+        expect(swap.calls, contains('swapTo'));
+        expect(api.calls, isNot(contains('open')));
+        expect(c.isShowingAd, isTrue);
+      });
+    });
+
+    test('MovaAdBreak.waitForReady false overrides the mid default of true', () {
+      fakeAsync((async) {
+        final swap = FakeSwapCtl();
+        const forced = MovaAdBreak(
+          kind: MovaAdBreakKind.mid,
+          source: MovaSource('https://host/mid.mp4'),
+          offset: Duration(seconds: 30),
+          waitForReady: false,
+        );
+        final (api, c, _) = waitBuild([forced], swap: swap);
+        c.load(_content);
+        flush(async);
+        api.pushProgress(const MovaProg(position: Duration(seconds: 31)));
+        flush(async);
+        expect(swap.calls, isNot(contains('prepare')));
+        expect(c.isShowingAd, isTrue);
+      });
+    });
+
+    test('MovaAdBreak.waitForReady true overrides the pre default of false', () {
+      fakeAsync((async) {
+        final swap = FakeSwapCtl()..commitResult = true;
+        const forced = MovaAdBreak(
+          kind: MovaAdBreakKind.pre,
+          source: MovaSource('https://host/pre.mp4'),
+          waitForReady: true,
+        );
+        final (api, c, _) = waitBuild([forced], swap: swap);
+        c.load(_content);
+        flush(async);
+        expect(swap.calls, contains('swapTo'));
+      });
+    });
+
+    test('an injected MovaAdWaitPolicy is actually consulted and obeyed', () {
+      fakeAsync((async) {
+        final policy = RecordingAdWaitPolicy(answer: false);
+        final swap = FakeSwapCtl();
+        final (api, c, _) = waitBuild([mid], swap: swap, wait: policy);
+        c.load(_content);
+        flush(async);
+        api.pushProgress(const MovaProg(position: Duration(seconds: 31)));
+        flush(async);
+        expect(policy.calls, greaterThan(0));
+        expect(swap.calls, isNot(contains('prepare')), reason: 'the policy said do not wait');
+        expect(c.isShowingAd, isTrue);
+      });
+    });
+
+    test('the warm-up uses the content→ad plan, always at position zero', () {
+      fakeAsync((async) {
+        final swap = FakeSwapCtl();
+        const delayed = MovaAdBreak(
+          kind: MovaAdBreakKind.mid,
+          source: MovaSource('https://host/mid.mp4'),
+          offset: Duration(seconds: 30),
+          delay: Duration(seconds: 3),
+        );
+        final (api, c, _) = waitBuild([delayed], swap: swap);
+        c.load(_content);
+        flush(async);
+        api.pushProgress(const MovaProg(position: Duration(seconds: 31)));
+        flush(async);
+        api.pushProgress(const MovaProg(position: Duration(seconds: 32)));
+        flush(async);
+        expect(swap.lastPlan!.pauseWhenReady, isTrue);
+        expect(swap.lastPlan!.trigger, isA<MovaEagerWarm>());
+        expect(swap.lastPrepareAt, Duration.zero);
+      });
+    });
+
+    test('the cue carries the countdown when there is one, and nothing when there is not', () {
+      fakeAsync((async) {
+        final swap = FakeSwapCtl();
+        const delayed = MovaAdBreak(
+          kind: MovaAdBreakKind.mid,
+          source: MovaSource('https://host/mid.mp4'),
+          offset: Duration(seconds: 30),
+          delay: Duration(seconds: 5),
+        );
+        final (api, c, _) = waitBuild([delayed], swap: swap);
+        c.load(_content);
+        flush(async);
+        api.pushProgress(const MovaProg(position: Duration(seconds: 30)));
+        flush(async);
+        api.pushProgress(const MovaProg(position: Duration(seconds: 32)));
+        flush(async);
+        expect(swap.lastCue!.total, const Duration(seconds: 5));
+        expect(swap.lastCue!.remaining, const Duration(seconds: 3));
+
+        // A zero-delay mid-roll: the warm-up still starts, with an empty cue.
+        final swap2 = FakeSwapCtl();
+        final (api2, c2, _) = waitBuild([mid], swap: swap2);
+        c2.load(_content);
+        flush(async);
+        api2.pushProgress(const MovaProg(position: Duration(seconds: 31)));
+        flush(async);
+        expect(swap2.calls, contains('prepare'));
+        expect(swap2.lastCue!.remaining, isNull);
+        expect(swap2.lastCue!.total, isNull);
+      });
+    });
+
+    test('a successful commit cuts in with no open(), and keeps every bit of bookkeeping', () {
+      fakeAsync((async) {
+        final swap = FakeSwapCtl()..commitResult = true;
+        final (api, c, events) = waitBuild([mid], swap: swap);
+        c.load(_content);
+        flush(async);
+        api.calls.clear();
+        swap.calls.clear();
+        var changes = 0;
+        final sub = c.changes.listen((_) => changes++);
+        api.pushProgress(const MovaProg(position: Duration(seconds: 31)));
+        flush(async);
+        expect(api.calls, isNot(contains('open')));
+        expect(c.isShowingAd, isTrue);
+        expect(c.currentBreak, same(mid));
+        expect(events.map((e) => e.type), contains(MovaAdEventType.started));
+        expect(changes, greaterThan(0));
+        expect(swap.calls, isNot(contains('abandon')),
+            reason: 'the shadow has just been promoted; it must not be torn down');
+        sub.cancel();
+      });
+    });
+
+    test('a failed commit with hardCut falls back to open(), the way it always did', () {
+      fakeAsync((async) {
+        final swap = FakeSwapCtl()..commitResult = false;
+        final (api, c, _) = waitBuild([mid], swap: swap);
+        c.load(_content);
+        flush(async);
+        api.calls.clear();
+        api.pushProgress(const MovaProg(position: Duration(seconds: 31)));
+        flush(async);
+        expect(api.calls, contains('open'));
+        expect(c.isShowingAd, isTrue);
+        expect(api.source?.uri, 'https://host/mid.mp4');
+      });
+    });
+
+    test('a failed commit with dropBreak never interrupts the content', () {
+      fakeAsync((async) {
+        final swap = FakeSwapCtl()..commitResult = false;
+        final (api, c, events) = waitBuild(
+          [mid],
+          swap: swap,
+          notReady: MovaAdNotReady.dropBreak,
+        );
+        c.load(_content);
+        flush(async);
+        api.calls.clear();
+        swap.calls.clear();
+        api.pushProgress(const MovaProg(position: Duration(seconds: 31)));
+        flush(async);
+        expect(api.calls, isNot(contains('open')));
+        expect(c.isShowingAd, isFalse);
+        expect(c.isAdPending, isFalse);
+        expect(events.map((e) => e.type), contains(MovaAdEventType.failed));
+        expect(swap.calls.where((e) => e == 'abandon'), hasLength(1));
+        // The break is marked played, so it does not re-trigger on later ticks.
+        api.pushProgress(const MovaProg(position: Duration(seconds: 40)));
+        flush(async);
+        expect(c.isShowingAd, isFalse);
+      });
+    });
+
+    test('the ad→content direction still warms with the default plan, unmixed', () {
+      fakeAsync((async) {
+        final swap = FakeSwapCtl();
+        final (api, c, _) = waitBuild([pre], swap: swap);
+        c.load(_content);
+        flush(async);
+        swap.calls.clear();
+        api.pushProgress(const MovaProg(position: Duration(seconds: 1)));
+        flush(async);
+        expect(swap.calls, contains('prepare'));
+        expect(swap.lastPlan!.pauseWhenReady, isFalse,
+            reason: 'ad→content keeps rolling; only content→ad holds at frame zero');
+        expect(swap.lastPlan!.trigger, isNull, reason: 'the configured trigger applies');
+      });
+    });
+  });
+}
+
+/// A [MovaAdWaitPolicy] that records how often the controller consulted it.
+///
+/// 一个记录控制器咨询次数的 [MovaAdWaitPolicy]。
+class RecordingAdWaitPolicy implements MovaAdWaitPolicy {
+  /// What [waitFor] answers.
+  ///
+  /// [waitFor] 的回答。
+  final bool answer;
+
+  /// How many times [waitFor] was called.
+  ///
+  /// [waitFor] 被调用的次数。
+  int calls = 0;
+
+  /// Creates a recording wait policy answering [answer].
+  ///
+  /// 创建一个回答 [answer] 的记录型等待策略。
+  RecordingAdWaitPolicy({this.answer = true});
+
+  @override
+  bool waitFor(MovaAdBreak adBreak) {
+    calls++;
+    return answer;
+  }
 }
