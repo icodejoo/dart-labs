@@ -981,6 +981,47 @@ void main() {
     await e.seek(const Duration(seconds: 1));
     expect(e.state.renderEpoch, 0);
   });
+
+  test('audioOnly uses the injected kernel and still forwards every verb', () async {
+    // An injected kernel is used exactly as given: if audioOnly had made the
+    // engine build its own MpvKernel instead, `Player()` would need a real
+    // libmpv and this test could not run at all.
+    //
+    // 注入的内核一律原样使用：若 audioOnly 让 engine 转而自建 MpvKernel，
+    // `Player()` 会需要真实 libmpv，本测试根本跑不起来。
+    final kernel = FakeKernel.audioOnly();
+    final engine = MovaEngine(kernel: kernel, audioOnly: true);
+    addTearDown(engine.dispose);
+
+    expect(engine.renderHandle, isNull);
+    await engine.open(const MovaSource('https://host/a.m4a'));
+    await engine.play();
+    // A seek is parked until a duration is known — same as for video, an
+    // audio-only source is no exception.
+    //
+    // 时长未知前 seek 会被暂存——与视频一致，仅音频源也不例外。
+    kernel.emitDuration(const Duration(minutes: 3));
+    await Future<void>.delayed(Duration.zero);
+    await engine.seek(const Duration(seconds: 9));
+    expect(kernel.lastUri, 'https://host/a.m4a');
+    expect(kernel.lastSeek, const Duration(seconds: 9));
+    expect(kernel.calls, containsAllInOrder(<String>['open', 'play', 'seek']));
+  });
+
+  test('the audioOnly parameter changes nothing when left at its default', () {
+    final kernel = FakeKernel();
+    final engine = MovaEngine(kernel: kernel);
+    addTearDown(engine.dispose);
+
+    expect(engine.renderHandle, isNotNull);
+    expect(identical(engine.renderHandle, kernel.renderHandle), isTrue);
+    expect(
+      engine.debugExtractor,
+      isNull,
+      reason: "the bare constructor has never wired an extractor by default / "
+          '裸构造函数从来就不默认接抽帧器',
+    );
+  });
 }
 
 /// A spy [MovaOrientPort] that records every `apply(...)` call's

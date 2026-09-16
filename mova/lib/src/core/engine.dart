@@ -103,6 +103,12 @@ class MovaEngine implements MovaApi {
   /// 应用/重置全屏方向与系统 UI。
   final MovaOrientPort _orientation;
 
+  /// Pulls single frames for the scrub-preview fallback; `null` when no
+  /// frame-extraction fallback is wired (an audio-only engine, among others).
+  ///
+  /// 为拖动预览兜底抽取单帧；未接线时为 `null`（仅音频引擎即是其中一种情形）。
+  final MovaFramePuller? _extractor;
+
   /// The scrub-preview service assembled from [MovaOpts.preview].
   ///
   /// 依据 [MovaOpts.preview] 装配出来的拖动预览服务。
@@ -227,8 +233,23 @@ class MovaEngine implements MovaApi {
   /// [thumbDir]/[extractor]/[fetcher] 提供预览流水线的平台侧零件；三者均可
   /// 省略，省略时对应能力降级（无磁盘缓存 / 无抽帧兜底 / 使用 `dart:io`
   /// 的 HTTP 客户端）而不是报错。
+  ///
+  /// [audioOnly] is forwarded to the default [MpvKernel] so no video pipeline
+  /// is built; it has no effect when [kernel] is supplied, since an injected
+  /// kernel is used exactly as given. There is deliberately no
+  /// `MovaState.audioOnly` and no `MovaOpts` section for it: this is a
+  /// construction-time resource decision (the kernel's render handle is bound
+  /// once and never re-bound), and the observable runtime signal is simply
+  /// `renderHandle == null`.
+  ///
+  /// [audioOnly] 会透传给默认构造的 [MpvKernel]，使其不建立视频管线；当显式
+  /// 传入 [kernel] 时它不起作用——注入的内核一律原样使用。这里刻意不提供
+  /// `MovaState.audioOnly`，也不为它新增 `MovaOpts` 配置节：这是构造期的资源
+  /// 决策（内核的渲染句柄一次绑定、永不重绑），而运行期可观测的信号就是
+  /// `renderHandle == null` 本身。
   MovaEngine({
     MovaKernel? kernel,
+    bool audioOnly = false,
     this.options = const MovaOpts(),
     List<MovaHook> interceptors = const [],
     MovaBrightPort? brightness,
@@ -238,7 +259,8 @@ class MovaEngine implements MovaApi {
     MovaThumbDirProv? thumbDir,
     MovaFramePuller? extractor,
     MovaHttpFetch? fetcher,
-  })  : _kernel = kernel ?? MpvKernel(),
+  })  : _kernel = kernel ?? MpvKernel(audioOnly: audioOnly),
+        _extractor = extractor, // ignore: prefer_initializing_formals
         _chain = MovaHookChain(interceptors),
         _brightness = brightness ?? FallbackBrightnessPort(),
         _volume = volume, // ignore: prefer_initializing_formals
@@ -321,7 +343,7 @@ class MovaEngine implements MovaApi {
     });
     _previewService = _buildPreview(
       thumbDir: thumbDir,
-      extractor: extractor,
+      extractor: _extractor,
       fetcher: fetcher,
     );
     // Probe pip support once. The UI hides the pip button until this answers,
@@ -976,6 +998,15 @@ class MovaEngine implements MovaApi {
   /// 仅供测试使用。
   @visibleForTesting
   MovaPipPort get debugPipPort => _pip;
+
+  /// The frame extractor this engine was constructed with (`null` = no
+  /// frame-extraction fallback); see [debugBrightnessPort] for why this is
+  /// exposed only for tests.
+  ///
+  /// 该 engine 构造时使用的抽帧器（`null` 表示没有抽帧兜底）；为何只对测试暴露
+  /// 见 [debugBrightnessPort]。
+  @visibleForTesting
+  MovaFramePuller? get debugExtractor => _extractor;
 
   /// The orientation port this engine was constructed with; see
   /// [debugBrightnessPort] for why this is exposed only for tests.

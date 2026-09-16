@@ -67,6 +67,18 @@ MovaVolumePort? _defaultVolumePort() {
 /// - [kernel]: the playback kernel; defaults to a new `MpvKernel` (see
 ///   [MovaEngine.new]) / 播放内核，省略时默认新建 `MpvKernel`（见
 ///   [MovaEngine.new]）
+/// - [audioOnly]: builds an audio-only engine — the default kernel skips its
+///   `VideoController` and the frame-extraction fallback is left unwired,
+///   so no video pipeline of any kind is created. `renderHandle` is then
+///   `null` and `MovaPlayer` renders its placeholder (or the `surface` you
+///   pass it). Ignored when [kernel] is supplied. Hosts should also turn
+///   scrub preview off (`MovaPrevConfig(enabled: false)`) — there are no
+///   frames to preview /
+///   构建仅音频引擎——默认内核跳过 `VideoController`，抽帧兜底也不接线，
+///   因此不会创建任何形式的视频管线。此时 `renderHandle` 为 `null`，
+///   `MovaPlayer` 渲染占位符（或你传入的 `surface`）。传入 [kernel] 时本参数
+///   被忽略。宿主还应关掉拖动预览（`MovaPrevConfig(enabled: false)`）——
+///   没有帧可预览
 /// - [options]: engine configuration / engine 配置
 /// - [interceptors]: interceptor chain consulted before open/seek/play /
 ///   在 open/seek/play 前咨询的拦截链
@@ -98,6 +110,7 @@ MovaVolumePort? _defaultVolumePort() {
 /// 返回一个可供 app 代码直接使用的 [MovaEngine]。
 MovaEngine createMovaEngine({
   MovaKernel? kernel,
+  bool audioOnly = false,
   MovaOpts options = const MovaOpts(),
   List<MovaHook> interceptors = const [],
   MovaBrightPort? brightness,
@@ -110,6 +123,7 @@ MovaEngine createMovaEngine({
 }) {
   return MovaEngine(
     kernel: kernel,
+    audioOnly: audioOnly,
     options: options.preview.probe == null
         ? options.copyWith(preview: options.preview.copyWith(probe: ConnectivityNetProbe()))
         : options,
@@ -119,7 +133,15 @@ MovaEngine createMovaEngine({
     pip: pip ?? ChannelPipPort(),
     orientation: orientation ?? SystemChromeOrientationPort(),
     thumbDir: thumbDir ?? const TempThumbDirProvider(),
-    extractor: extractor ?? MpvFrameExtractor(),
+    // An audio-only engine has no frames, and MpvFrameExtractor would open a
+    // *second* Player with its own VideoController on first use — a whole
+    // extra video pipeline, exactly what audioOnly exists to avoid. Leave it
+    // unwired unless the host insists.
+    //
+    // 仅音频引擎没有帧可抽，而 MpvFrameExtractor 在首次使用时会新开**第二个**
+    // Player 并为其建 VideoController——那是一整条额外的视频管线，恰恰是
+    // audioOnly 要避免的东西。除非宿主显式指定，否则不接线。
+    extractor: extractor ?? (audioOnly ? null : MpvFrameExtractor()),
     fetcher: fetcher,
   );
 }
