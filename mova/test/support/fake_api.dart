@@ -16,6 +16,7 @@ import 'package:mova/src/core/state/ui_state.dart';
 import 'package:mova/src/core/stt/api.dart';
 import 'package:mova/src/core/stt/cue.dart';
 import 'package:mova/src/core/swap/ctl.dart';
+import 'package:mova/src/core/swap/plan.dart';
 import 'package:mova/src/core/swap/trigger.dart';
 
 /// A test double for [MovaApi] that records every capability call it receives
@@ -503,6 +504,11 @@ class FakeSwapCtl implements MovaSwapCtl {
   /// 最近一次 [prepare] 调用的 `cue` 参数。
   MovaWarmCue? lastCue;
 
+  /// The `plan` argument of the most recent [prepare] call.
+  ///
+  /// 最近一次 [prepare] 调用的 `plan` 参数。
+  MovaWarmPlan? lastPlan;
+
   /// The value [commit] returns; settable by tests, defaults to false.
   ///
   /// [commit] 的返回值；可由测试赋值，默认 false。
@@ -529,10 +535,12 @@ class FakeSwapCtl implements MovaSwapCtl {
     MovaSource source, {
     Duration at = Duration.zero,
     MovaWarmCue cue = const MovaWarmCue(),
+    MovaWarmPlan plan = const MovaWarmPlan(),
   }) async {
     calls.add('prepare');
     lastPrepareAt = at;
     lastCue = cue;
+    lastPlan = plan;
   }
 
   @override

@@ -57,6 +57,7 @@ export 'src/core/stt/srt.dart';
 export 'src/core/stt/subtitle_dir_provider.dart';
 export 'src/core/stt/subtitle_store.dart';
 export 'src/core/swap/ctl.dart';
+export 'src/core/swap/plan.dart';
 export 'src/core/swap/swap_engine.dart';
 export 'src/core/swap/trigger.dart';
 export 'src/core/swap/warm.dart';
