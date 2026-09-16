@@ -4,6 +4,7 @@
 
 list(APPEND FLUTTER_PLUGIN_LIST
   connectivity_plus
+  just_audio_windows
   media_kit_libs_windows_video
   media_kit_video
   mova

@@ -35,6 +35,25 @@ dependencies:
     path: ../../mova_stt
   file_picker: ^11.0.3
 
+  # One-off, example-only: used by lib/perf_probe_just_audio.dart to compare
+  # just_audio's in-process memory against mova's on identical audio content.
+  # NOT a dependency of the mova package itself — deliberately confined here.
+  #
+  # just_audio has no first-party Windows implementation (official platforms
+  # are Android/iOS/macOS/web), so a federated backend is required on desktop.
+  # just_audio_windows (WinRT MediaPlayer) is chosen over just_audio_media_kit
+  # because the latter wraps the very same libmpv mova uses, which would make
+  # the comparison circular rather than informative.
+  #
+  # 一次性、仅 example 使用：供 lib/perf_probe_just_audio.dart 在相同音频内容上
+  # 对比 just_audio 与 mova 的进程内内存。**不是** mova 包自身的依赖，刻意只放这里。
+  #
+  # just_audio 在 Windows 上没有第一方实现（官方平台为 Android/iOS/macOS/web），
+  # 桌面必须外挂联邦后端。这里选 just_audio_windows（WinRT MediaPlayer）而非
+  # just_audio_media_kit——后者包的正是 mova 用的同一个 libmpv，对比会变成循环论证。
+  just_audio: ^0.10.6
+  just_audio_windows: ^0.2.3
+
 dev_dependencies:
   integration_test:
     sdk: flutter

@@ -36,8 +36,22 @@ import 'package:mova/mova.dart';
 
 /// Which mode this process measures: `video` or `audio`.
 ///
+/// Read from the process environment rather than `--dart-define` so that
+/// changing it does not force a fresh release AOT rebuild between runs — the
+/// measurement is identical either way, but a run costs seconds instead of
+/// minutes.
+///
 /// 本进程测量哪种模式：`video` 或 `audio`。
-const _mode = String.fromEnvironment('MOVA_PERF_MODE', defaultValue: 'video');
+///
+/// 从进程环境变量读取而非 `--dart-define`，这样改它不会在每轮之间触发一次完整的
+/// release AOT 重编——测量方法完全相同，但一轮的代价从几分钟降到几秒。
+final _mode = Platform.environment['MOVA_PERF_MODE'] ?? 'video';
+
+/// The media both modes play; override to compare against another player on
+/// identical content.
+///
+/// 两种模式共用的素材；可覆盖，以便在完全相同的内容上与其他播放器对比。
+final _mediaUri = Platform.environment['MOVA_PERF_URI'] ?? _material.uri;
 
 /// How long to let playback stabilise before sampling.
 ///
@@ -129,7 +143,8 @@ class _ProbeAppState extends State<_ProbeApp> {
       _phase = 'playing';
     });
 
-    await engine.open(_material);
+    stdout.writeln('MOVA_PERF|$_mode|uri|$_mediaUri');
+    await engine.open(MovaSource(_mediaUri, title: _material.title));
     await Future<void>.delayed(_settle);
 
     // Phase 1: steady-state playback, with the surface actually mounted.

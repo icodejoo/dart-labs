@@ -126,6 +126,103 @@ ffmpeg 的各种表、demuxer 缓存、网络缓冲、Dart 堆这些**两种模�
   桌面进程里是常态，**不足以判定泄漏，也不足以判定没有**——连播多轮看采样是否逐轮
   爬升才是泄漏判据，那一项仍欠着（Task 5）。
 
+### 1.6 对照 `just_audio`：同一段音频，两个播放器（Windows 桌面实测）
+
+起因：看到 audioOnly 仍要 ~96 MiB，合理的质疑是"播个音频背这么多内存，划不划算"，
+于是拿业界常用的 [`just_audio`](https://pub.dev/packages/just_audio) 在**同一段音频**
+上实测对比。探针 `example/lib/perf_probe_just_audio.dart`，方法学与 §1.5 完全一致。
+
+#### 素材：同一份音频内容，不是换素材
+
+为避免"偷换素材导致结论失真"，音频是从 §1.5 那条 mp4 里**直接 demux 出来**的，
+没有重新编码：
+
+```bash
+ffmpeg -i source.mp4 -vn -acodec copy source_audio.m4a   # AAC 131 kbps / 60.07s
+```
+
+两个播放器解的是**逐字节相同的 AAC 码流**，只是容器（mp4 → m4a）与播放器不同。
+为排除网络抖动，两边都播**本地文件**。作为交叉验证：mova audioOnly 在这条本地 m4a 上
+测得 +92.63 / +94.89 MiB，与 §1.5 在远端 mp4 上测得的 +97.72 / +94.52 MiB 基本一致
+——**说明容器与本地/远端之差对结论没有影响**，两组数可以互相印证。
+
+#### ⚠️ 公平性前提：`just_audio` 在 Windows 上没有第一方实现
+
+这一条必须先说，否则数字会被误读：
+
+- `just_audio` 官方支持的平台是 **Android / iOS / macOS / web**，**不含 Windows**。
+  桌面必须外挂一个联邦后端，而**选哪个后端直接决定了在测什么**。
+- `just_audio_media_kit` 包的正是 **mova 用的同一个 media_kit/libmpv**——用它对比等于
+  拿 libmpv 比 libmpv，是循环论证，**故意没用**。
+- 本次用 **`just_audio_windows` 0.2.3**（社区维护，发布者 bdlukaa.dev，非 just_audio
+  作者），底层是 **WinRT `MediaPlayer`**，即操作系统自己的媒体栈。它在架构上对应
+  `just_audio` 在 Android/iOS 上薄封装 ExoPlayer/`AVPlayer` 的做法，所以才有参考价值。
+
+#### 实测数字（Windows 桌面，release，`ProcessInfo.currentRss`，MiB）
+
+| 播放器 / 模式 | 轮次 | 基线 | 播放中 | 播放中 − 基线 |
+|---|---|---|---|---|
+| mova 视频引擎 | #0 / #1 | 137.49 / 179.89 | 337.58 / 374.17 | **+200.09 / +194.28**（均值 197.19） |
+| mova audioOnly（远端 mp4） | #0 / #1 | 179.60 / 180.23 | 277.32 / 274.75 | **+97.72 / +94.52**（均值 96.12） |
+| mova audioOnly（本地 m4a） | #0 / #1 | 182.01 / 180.27 | 274.64 / 275.16 | **+92.63 / +94.89**（均值 93.76） |
+| **`just_audio`（本地 m4a）** | #0 / #1 / #2 | 179.50 / 177.40 / 177.23 | 199.96 / 198.19 / 198.29 | **+20.46 / +20.79 / +21.06**（均值 **20.77**） |
+
+同素材（本地 m4a）直接对比：**mova audioOnly 93.76 MiB vs `just_audio` 20.77 MiB，
+差约 73 MiB，倍率约 4.5×。** 三轮 `just_audio` 极差 0.60 MiB，重复性极好。
+所有 `just_audio` 轮次均确认 `playing=true`、`position` 走到 8.2–8.5 秒，是真在放，
+不是加载失败后的空转读数。
+
+#### 为什么差这么多：架构差异，不是"谁代码写得差"
+
+- **mova/media_kit 把整个 libmpv + ffmpeg 常驻在你的进程里**。这笔钱买的是"四端同一套
+  解码行为 + 一套自研手势/控制/时移/ABR/广告层"，代价是 demuxer、解码器、各种表、
+  网络缓冲全都记在你的 RSS 上。
+- **`just_audio` 是薄封装**：Dart 侧基本只有 method channel 与状态机，真正的解码交给
+  平台播放器（Windows 上是 WinRT `MediaPlayer`，Android 是 ExoPlayer，iOS 是 `AVPlayer`）。
+- **⚠️ 而且这 20.77 MiB 很可能系统性偏低**：Windows 媒体栈有相当一部分工作发生在
+  **本进程之外**（Media Foundation / `Windows.Media.Playback` 的服务宿主进程），
+  `ProcessInfo.currentRss` 看不到那部分。所以这个数字的正确读法是
+  **"对我的 App 进程便宜"，不等于"对整机便宜"**；而 mova 完全在进程内，它的 RSS 就是
+  全部成本。**两个数字回答的是不同问题，不能当同一个量直接相减来谈"系统总开销"。**
+  不过对"我的进程会不会 OOM / 内存预算够不够"这个实际问题，进程内 RSS 恰恰是对的指标。
+
+#### 顺带发现的坑（社区后端成熟度）
+
+- **`just_audio_windows` 的 `setFilePath()` 静默失效**：`processingState` 报
+  `ready`、但 `duration` 为 `null`、`playing` 恒 `false`、`position` 不走。
+  换成 `setAudioSource(AudioSource.file(path))` 才真正播放。第一次测就是栽在这上面——
+  如果不校验 `playing`/`position` 就记数字，会把"没在放"的 196 MiB 当成播放读数写进报告。
+  **这也是本次探针一定要打 `playing`/`position` 打点的原因。**
+- 该后端文档自列的未支持项：ICY metadata、音频裁剪、通话打断、缓冲选项、变调、
+  静音跳过、均衡器、音量增强。
+
+#### 结论：值不值得为纯音频引入 `just_audio`
+
+数据说话，分三种情况，不是一句话能盖：
+
+1. **App 只放音频、完全不放视频** → **值得，而且不只是内存**。mova 会为了一段音频把
+   libmpv 拖进来（运行期 +73 MiB，还有 §1.4 说的 ~11.8 MiB/ABI 的 `libmpv.so` 包体积），
+   纯亏；`just_audio` 在 Android/iOS/macOS 是**第一方支持**、生态成熟，再加
+   `audio_service` 就能拿到 mova 根本没有的熄屏后台常驻/锁屏控制。这与 §3.4 的分流判据
+   一致，本次只是给它补上了数字。
+2. **App 既放视频又放音频（本工程的实际情况）** → **不值得只为内存引入**。视频路径
+   已经让 libmpv 常驻，音频再走 mova 的增量成本只是"多一个 engine 实例"；换来的是
+   两套播放器 API、两套怪癖（如上面那个 `setFilePath` 坑）、两份依赖，而省下的 73 MiB
+   只在"正在放音频且没在放视频"的那段时间里成立。**除非确实需要熄屏后台常驻 + 系统
+   媒体控制**——那才是引入 `just_audio` + `audio_service` 的真正理由，内存只是附带。
+3. **内存预算极紧的场景**（低端机、同进程还跑别的重活）→ 73 MiB 是实打实的，
+   值得单独评估；但要先确认目标平台上 `just_audio` 的后端是第一方还是社区的。
+
+**一句话**：这次对比**没有推翻** §3.4 的分流判据，反而给它补上了量级——
+判据仍然是"**需不需要熄屏后台常驻 + 系统媒体控制**"，内存差（4.5×、约 73 MiB）
+是这个判据的一个附加砝码，而不是一个新的独立判据。
+
+> **本节全部为 Windows 桌面实测，且 `just_audio` 走的是社区维护的 WinRT 后端，
+> 与它在 Android/iOS 上的第一方实现（ExoPlayer/`AVPlayer`）是不同代码路径。
+> 移动端的相对数字需要在真机上重测，不能照搬本节结论。**
+> 本次的 `just_audio` 依赖只加在 `example/pubspec.yaml`，**mova 包自身没有引入任何
+> 新依赖**。
+
 ---
 
 ## 2. mova 现在的架构够不够：够，而且成本比想象低
