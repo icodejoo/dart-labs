@@ -191,6 +191,88 @@ final engine = MovaEngine(
 默认 `off`（保持 0.1.0 禁拖行为）；`timeshift` 模式没有 `urlBuilder` 就不生效；
 `windowResolver` 用于服务端带外声明窗口的场景。
 
+## 广告编排（delay / duration / 就绪等待 / 失败兜底）
+
+`MovaAdCtrl` 除了按排期播前/中/后贴片，还能表达广告业务的真实时序。**除广告位时长外，
+所有新能力默认关闭或默认不改变行为。**
+
+### 正片源延迟解析
+
+正片地址常常要等前贴片播完之后才定得下来（DRM/权益校验、用户画像，或页面加载时签发的
+签名 URL 早已过期）。`loadDeferred` 接一个"源的承诺"而不是源：
+
+```dart
+await ads.loadDeferred(() async {
+  final play = await api.requestPlayback(videoId); // DRM / 签名 URL
+  return MovaSource(play.url, title: play.title);
+});
+ads.contentError.listen((e) => /* 解析失败，由宿主决定是否重试 */);
+```
+
+resolver 直到正片真的要被打开时才调用（所有前贴片播完之后），结果记忆化。
+`load(MovaSource)` 的语义一字未改。
+
+### 广告位时长与倒计时
+
+```dart
+MovaAdBreak(
+  kind: MovaAdBreakKind.mid,
+  source: MovaSource('https://cdn/ad.mp4'),
+  offset: const Duration(seconds: 600),
+  delay: const Duration(seconds: 3),     // "3 秒后播放广告"，期间正片继续播
+  duration: const Duration(seconds: 15), // 买下的广告位是 15 秒，与素材长度无关
+  skippableAfter: const Duration(seconds: 5),
+);
+```
+
+* `duration`：素材更长会被准时收回，更短则播完即续播。
+* `delay`：只对中插有意义；一个 pod 里只有**第一条**的 delay 生效。
+
+两者的到期判定都是普通 `Timer`，到期后走与 `skip()` 完全相同的同步续播路径——**不**查询
+媒体时长、**不** seek 到素材尾部（真机上靠近真实 EOF 的 seek 会可靠地卡死播放器）。
+`duration` 必须长于 `skippableAfter`，否则 `assertValid()` 会在 debug 下大声失败。
+
+### 等广告真的就绪再切入
+
+判据一句话：**等待的价值，等于等待期间屏幕上那张画面的价值。** 中插期间那张画面是用户
+正在看的正片，把它切成转圈既毁体验又把曝光花在黑矩形上；前/后贴片则没有正在进行的观看
+体验需要保护。所以默认是 `pre` 否 / `mid` 是 / `post` 否：
+
+```dart
+MovaAdConfig(
+  waitForAdReady: const MovaAdWaitByKind(post: true), // 后贴片也等（高价值下集预告）
+  adReadyTimeout: const Duration(seconds: 5),
+  notReadyAction: MovaAdNotReady.hardCut,             // 等不到就照今天的样子切
+);
+```
+
+三层覆盖，越具体优先级越高：`MovaAdBreak.waitForReady` > 注入的 `MovaAdWaitPolicy` >
+按 kind 的默认值。**仅在宿主接了 `MovaSwapCtl` 且 `MovaSwapConfig.enabled` 为 `true` 时
+才可能生效**——两者默认都是关的，所以不接切换引擎的宿主行为逐字节不变。
+
+等待与 `delay` 倒计时是两件独立的事：`delay == 0` + 等待正是中插的默认形态——用户看不到
+任何倒计时，只会觉得"广告是无缝接上的"。两者同时开启时，接管时刻是
+**max(倒计时走完, 广告就绪)**。
+
+### 加载失败兜底
+
+```dart
+MovaAdConfig(
+  failPolicy: const MovaAdRetrySkip(maxRetries: 0), // 默认：不重试，跳过这一条
+  loadTimeout: const Duration(seconds: 8),          // 多久没有首帧算失败
+);
+```
+
+四条失败路径——`open()` 抛出、播放期间播放器报错、始终没有首帧、预热未能及时就绪——
+统一汇流到 `MovaAdFailPolicy`，返回 `retry` / `skipBreak` / `abandonPod`。内置另一个
+`MovaAdAbandonPod`（首次失败即放弃整个 pod）。默认"观众的时间优先"：对一个坏掉的广告
+地址重试，代价是让观众为一个他本来就没想看的东西再卡一次。
+
+> **真机验证尚未进行**：等待是否真的消除黑屏、`adReadyTimeout`/`loadTimeout` 的默认值
+> 是否合理、双活解码窗口在中低端机上的表现，均需真机逐项验证。checklist 见
+> [doc/plans/2026-09-16-ad-swap-enhancements.md](doc/plans/2026-09-16-ad-swap-enhancements.md)
+> Task 12。
+
 ## 无缝引擎切换（可选）
 
 `MovaSwapEngine` 本身就是一个 `MovaApi`：在一个稳定的渲染面背后持有当前生效引擎，以及

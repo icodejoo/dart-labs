@@ -1,5 +1,6 @@
 import 'package:fake_async/fake_async.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:mova/mova.dart' as barrel;
 import 'package:mova/src/core/ad/ad_controller.dart';
 import 'package:mova/src/core/ad/fail.dart';
 import 'package:mova/src/core/model/ad.dart';
@@ -190,6 +191,32 @@ void main() {
         expect(swap.lastPlan!.pauseWhenReady, isTrue);
         expect(swap.lastPlan!.trigger, isA<MovaEagerWarm>());
       });
+    });
+  });
+
+  group('barrel visibility — the 0.5.0 public surface is reachable from package:mova/mova.dart', () {
+    test('MovaWarmPlan is exported', () {
+      const plan = barrel.MovaWarmPlan(pauseWhenReady: true);
+      expect(plan.pauseWhenReady, isTrue);
+    });
+
+    test('MovaAdFailPolicy and its built-ins are exported', () {
+      const barrel.MovaAdFailPolicy policy = barrel.MovaAdRetrySkip(maxRetries: 1);
+      expect(policy, isA<barrel.MovaAdFailPolicy>());
+      expect(const barrel.MovaAdAbandonPod(), isA<barrel.MovaAdFailPolicy>());
+      expect(barrel.MovaAdFailKind.values, isNotEmpty);
+      expect(barrel.MovaAdFailAction.values, isNotEmpty);
+    });
+
+    test('MovaAdNotReady, MovaAdWaitPolicy and MovaSourceResolver are exported', () {
+      expect(barrel.MovaAdNotReady.dropBreak, isA<barrel.MovaAdNotReady>());
+      const barrel.MovaAdWaitPolicy wait = barrel.MovaAdWaitByKind();
+      expect(wait.waitFor(_mid), isTrue);
+      Future<barrel.MovaSource> resolve() async =>
+          const barrel.MovaSource('https://host/x.mp4');
+      const barrel.MovaSourceResolver? unset = null;
+      expect(resolve, isA<barrel.MovaSourceResolver>());
+      expect(unset, isNull);
     });
   });
 }

@@ -245,6 +245,99 @@ import Flutter widget 与直接依赖 `MovaApi` 的地方。
   短广告降级路径、断网预热超时兜底，均需真机逐项验证，详见
   [doc/plans/2026-09-16-seamless-swap.md](plans/2026-09-16-seamless-swap.md) Task 11。
 
+## 广告编排增强（0.5.0）
+
+**一句话结论：不新建任何预热机制。** `MovaWarmTrigger`/`MovaWarmPolicy`/`MovaSwapEngine`
+三个抽象**零类型改动**直接复用，"正片背后暖广告"只是把同一套 `prepare` → 就绪判据 →
+`commit` 用在另一个方向上；`MovaSwapCtl` 的 `prepare`/`commit`/`abandon`/`swapTo` 四个
+动词语义已经够用，**不新增任何方法**。
+
+| 抽象 | content→ad 方向怎么用 | 改动 |
+|---|---|---|
+| `MovaWarmTrigger` | 用 `MovaEagerWarm`（delay 窗口的全部意义就是拿来预热） | 零 |
+| `MovaWarmPolicy` | 用 `MovaBufferWarm`，`target: 0`，超时取 `adReadyTimeout` | 零 |
+| `MovaSwapEngine` | `prepare(ad, at: 0, plan: …)` → `commit(waitForReady: true)` | 接 `plan` |
+| `MovaSwapCtl` | 两段式服务中插，一次式 `swapTo` 服务前/后贴片 | `prepare` 加 `plan` |
+
+唯一的接口增量是 `MovaWarmPlan`（`core/swap/plan.dart`）：把"本次预热用哪个触发策略、
+哪个就绪判据、就绪后是否停在起点"这三件**每次预热各不相同**的事从全局 `MovaSwapConfig`
+里解耦出来。同一个 `MovaSwapEngine` 实例现在要跑两个方向的预热，三者取值都不同：
+
+| | ad→content（0.4.0） | content→ad（0.5.0） |
+|---|---|---|
+| 触发 | `MovaLeadWarm(lead: 2s)` | `MovaEagerWarm()` |
+| 超时 | `MovaSwapConfig.readyTimeout`（8s） | `MovaAdConfig.adReadyTimeout`（5s） |
+| 就绪后停住 | 否（一路播着等 commit） | **是**（广告必须从第 0 帧给用户看） |
+
+把它们塞进 `MovaSwapConfig` 等于让通用切换模块知道"广告"这个概念，正是要避免的耦合方向。
+
+### 是否等待就绪：按 kind 取默认值
+
+**判据：等待的价值，等于等待期间屏幕上那张画面的价值。** `MovaAdWaitByKind` 默认
+`pre: false` / `mid: true` / `post: false`——中插期间屏幕上是用户正在看的正片，前/后贴片
+期间没有正在进行的观看体验需要保护。三层覆盖**全部收在 `MovaAdConfig.waitsFor()` 一处**：
+
+```
+break.waitForReady ?? config.waitForAdReady.waitFor(break)
+```
+
+`ad_controller.dart` 里**不许出现任何与等待相关的 `kind` 判断**，否则宿主的覆盖就绕不
+过去了（`openness_ad_test.dart` 把三层各自都能生效做成了可执行断言）。
+
+"等待"与"`delay` 倒计时"是两件独立的事：前者用户不可见、上界是 `adReadyTimeout`；后者
+是宿主指定的可见倒计时。`delay == 0` + 等待正是中插的**默认形态**（无角标）。两者同时
+开启时接管时刻是 `max(倒计时走完, 广告就绪)`。
+
+**这不破坏"默认行为不变"**：等待要真正发生需同时满足宿主传了 `swap`、
+`MovaSwapConfig.enabled` 为 true、且解析结果为等待——前两件 0.4.0 默认都是关的。
+
+### 不依赖媒体时间轴（硬约束）
+
+`delay` 与 `duration` 的到期一律用 `Timer` 判定，到期后走与 `skip()` 完全相同的同步续播
+路径。**任何一处都不许用 `MovaDone`、`state.duration` 或 seek 到素材尾部来实现这两个
+语义**：真机上临近真实 EOF 的 seek 会可靠卡死 mpv/media_kit，大文件时长在真机网络下可能
+长时间解析不出来。`_resuming` 守卫保证 duration 到期、素材 `MovaDone`、用户 `skip()`
+三条路撞在同一 tick 时只续播一次。
+
+### 状态机：三态变四态
+
+新增 `_Phase.pending`——广告已到期但尚未接管、正片刻意继续播放。此阶段不得再触发别的
+中插；续播点跟随实时位置，因此取到的是广告**真正接管那一刻**的位置。pod 内只有第一条
+会经过 `_beginDelay`，后续几条由 `_nextPodMid()` 直接串联（同一插入点 = offset 不晚于
+续播点），这同时修掉了"中插 pod 根本没串联、会闪回正片"的既有缺陷。
+
+### 顺带修掉的 0.4.0 潜伏缺陷
+
+1. 注入的 `readyPolicy` 每次预热都是同一实例却从不 `reset()`，第二次预热会继承上次的
+   连续 tick 计数，一次侥幸 tick 就能提交切换。
+2. `at == Duration.zero` 仍下发一次无意义的 `seek(0)`——刚 `open()` 完就 seek 是纯粹的
+   风险敞口。
+3. 影子引擎的 `MovaErrorEvent` 从未被监听，加载失败会一直预热到超时。
+
+### 与代码的对应
+
+| 文件 | 职责 |
+|---|---|
+| `core/swap/plan.dart` | `MovaWarmPlan` |
+| `core/ad/fail.dart` | `MovaAdFailKind` / `MovaAdFail` / `MovaAdFailAction` / `MovaAdFailPolicy` / `MovaAdRetrySkip` / `MovaAdAbandonPod` |
+| `core/options/ad_config.dart` | `MovaAdWaitPolicy` / `MovaAdWaitByKind` / `MovaAdNotReady` + 7 个旋钮 + `waitsFor` / `effectiveWarmPlan` / `effectiveFailPolicy` |
+| `core/model/ad.dart` | `delay` / `duration` / `waitForReady` / `assertValid()`；`MovaAdEventType.pending`/`.failed`；`MovaAdEvent.error` |
+| `core/model/source.dart` | `MovaSourceResolver` |
+| `core/ad/ad_controller.dart` | `_Phase.pending`、三条定时器、延迟源解析、就绪等待编排、失败兜底 |
+| `ui/components/ad_overlay.dart` | delay 倒计时角标 |
+
+> **`assertValid()` 为什么是方法而不是构造器 assert**：`MovaAdBreak` 是 `const` 的，而
+> Dart 的常量求值器无法比较 `Duration`——`>`、`==`、`.inMicroseconds` 它都不支持——写成
+> 构造器初始化列表里的 `assert` 会让**每一处** `const MovaAdBreak(...)` 都变成编译错误
+> （合法的也不例外，实测如此）。改为由 `MovaAdCtrl` 在 `load`/`loadDeferred` 时逐条调用，
+> 保留"开发期大声失败、release 零成本"，放弃的只是"编译期失败"。
+
+- **真机验证未做**：等待是否真的消除黑屏、`adReadyTimeout`/`loadTimeout` 默认值是否合理、
+  双活解码窗口在中低端机上的表现、坏 URL 在真机上以哪种形式报出来、`duration` 对超长素材
+  是否真的不卡死，均需真机逐项验证，详见
+  [doc/plans/2026-09-16-ad-swap-enhancements.md](plans/2026-09-16-ad-swap-enhancements.md)
+  Task 12。
+
 ## PiP（原生）
 
 - Dart 侧经 `MovaPipPort`；Android `MovaPlugin.kt` 用

@@ -1,6 +1,6 @@
 name: mova
 description: "media_kit (libmpv/ffmpeg) 视频播放器插件：手势、点播/直播控制条、清晰度切换与自适应、画中画。"
-version: 0.3.0
+version: 0.5.0
 homepage: https://github.com/icodejoo/dart-labs/tree/main/mova
 repository: https://github.com/icodejoo/dart-labs/tree/main/mova
 topics:

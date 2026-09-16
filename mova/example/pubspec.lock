@@ -389,7 +389,7 @@ packages:
       path: ".."
       relative: true
     source: path
-    version: "0.3.0"
+    version: "0.5.0"
   mova_stt:
     dependency: "direct main"
     description:

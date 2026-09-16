@@ -1,3 +1,41 @@
+## 0.5.0
+
+广告编排增强：把 `MovaAdCtrl` 从"能按排期播广告"推进到"能按广告业务的真实时序播广告"。
+**除"广告位时长 `duration`"外全部默认关闭/默认不改变行为**，0.4.0 的每一条既有路径保留。
+
+* **正片源延迟解析**：新增 `MovaAdCtrl.loadDeferred(MovaSourceResolver)` 与
+  `contentError`。正片地址常常要等前贴片播完之后、按 DRM/权益/签名 URL 时效才定得下来；
+  resolver 直到正片真要被打开时才调用，结果记忆化。`load(MovaSource)` 语义逐字不变。
+* **广告位 `duration` / `delay` 与素材时间轴解耦**：`MovaAdBreak.duration` 是"买下的
+  广告位时长"（素材更长更短都按它收回），`MovaAdBreak.delay` 是"N 秒后播放广告"的可见
+  倒计时窗口（期间正片继续播）。两者到期一律用 `Timer` 判定、走与 `skip()` 完全相同的
+  同步续播路径，**绝不**查询 `state.duration`、也绝不 seek 到素材尾部。
+* **按广告位类型决定是否等待就绪**：新增 `MovaAdWaitPolicy` 与内置 `MovaAdWaitByKind`，
+  默认 `pre` 否 / `mid` 是 / `post` 否——判据是"等待的价值等于等待期间屏幕上那张画面的
+  价值"。三层覆盖（`MovaAdBreak.waitForReady` > 注入策略 > 按 kind 默认）收在
+  `MovaAdConfig.waitsFor()` 一处。仅在宿主接了 `MovaSwapCtl` 且 `MovaSwapConfig.enabled`
+  为 true 时才可能生效，因此不接切换引擎的宿主行为逐字节不变。
+* **新增 `_Phase.pending` 阶段**与 `isAdPending` / `pendingBreak` / `delayRemaining`：
+  广告已到期但尚未接管、正片刻意继续播放。中插走 `prepare` + `commit(waitForReady: true)`
+  两段式，前/后贴片走 `swapTo` 一次式。等不到时按 `MovaAdNotReady` 裁决
+  （`hardCut` 默认，等于今天的行为；`dropBreak` 则正片完全不被打断）。
+* **广告加载失败兜底**：新增 `MovaAdFailPolicy`（内置 `MovaAdRetrySkip` 默认 0 次重试、
+  `MovaAdAbandonPod`）与 `MovaAdFailKind`。四条失败路径——`open()` 抛出、播放器报错、
+  始终无首帧（`loadTimeout`）、预热未就绪——统一汇流。
+* **`MovaWarmPlan`**：给 `MovaSwapCtl.prepare` 加可选具名参数，把"本次预热用哪个触发
+  策略、哪个就绪判据、就绪后是否停在起点"从全局配置解耦出来。同一个 `MovaSwapEngine`
+  现在服务两个预热方向（广告背后暖正片、正片背后暖广告），两者取值不同。
+* **顺带修掉三处既有缺陷**：注入的 `readyPolicy` 从不被 `reset()`；`at == 0` 仍下发
+  无谓的 `seek(0)`；中插 pod 根本没有串联、会在两条广告之间闪回正片。
+* **UI**：`MovaStrs.adStartingIn` 与倒计时角标。中插的默认形态（`delay == 0`、静默等待
+  就绪）刻意不渲染任何东西——那段等待对用户就该是不存在的。
+* **真机验证未做**（计划 Task 12）：等待是否真的消除黑屏、`adReadyTimeout`/`loadTimeout`
+  的默认值是否合理、双活解码窗口在中低端机上的表现、坏 URL 在真机上以哪种形式报出来，
+  均需真机逐项验证。详见
+  [doc/plans/2026-09-16-ad-swap-enhancements.md](doc/plans/2026-09-16-ad-swap-enhancements.md)。
+
+---
+
 ## 0.4.0
 
 无缝引擎切换（可选，默认关闭）：新增 `MovaSwapEngine`（`MovaApi` 实现，持有生效引擎 +
