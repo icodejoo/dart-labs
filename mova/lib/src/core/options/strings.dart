@@ -96,6 +96,23 @@ class MovaStrs {
   /// "跳过广告"按钮的文案。
   final String skipAd;
 
+  /// Builds the countdown copy shown while the content plays on and an ad is
+  /// about to take over.
+  ///
+  /// A function rather than a plain string because the number is embedded in
+  /// the sentence and every language puts it somewhere else; a `'$n' + suffix`
+  /// concatenation would not survive translation.
+  ///
+  /// 构造"正片继续播、广告即将接管"期间显示的倒计时文案。
+  ///
+  /// 用函数而非纯字符串，因为数字嵌在句子中间、各语言的位置都不一样；
+  /// `'$n' + 后缀` 式拼接经不起翻译。
+  ///
+  /// - [seconds]: whole seconds left / 剩余整秒数
+  ///
+  /// Returns the rendered copy / 返回渲染后的文案。
+  final String Function(int seconds) adStartingIn;
+
   /// Creates a strings bundle; defaults to the product's Simplified Chinese
   /// copy.
   ///
@@ -117,6 +134,7 @@ class MovaStrs {
     this.cancel = '取消',
     this.adBadge = '广告',
     this.skipAd = '跳过广告',
+    this.adStartingIn = movaDefaultAdStartingIn,
   });
 
   /// Resolves the display label for a [MovaFit] mode.
@@ -152,7 +170,8 @@ class MovaStrs {
           playNow == other.playNow &&
           cancel == other.cancel &&
           adBadge == other.adBadge &&
-          skipAd == other.skipAd;
+          skipAd == other.skipAd &&
+          adStartingIn == other.adStartingIn;
 
   @override
   int get hashCode => Object.hash(
@@ -172,5 +191,25 @@ class MovaStrs {
         cancel,
         adBadge,
         skipAd,
+        adStartingIn,
       );
 }
+
+/// Default copy for the "ad starts in N seconds" countdown.
+///
+/// A top-level function so it can be a `const` default for
+/// [MovaStrs.adStartingIn].
+///
+/// "N 秒后播放广告"倒计时的默认文案。
+///
+/// 写成顶层函数，以便作为 [MovaStrs.adStartingIn] 的 `const` 默认值。
+///
+/// - [seconds]: whole seconds left / 剩余整秒数
+///
+/// Returns the rendered copy / 返回渲染后的文案。
+///
+/// Example / 示例:
+/// ```dart
+/// movaDefaultAdStartingIn(5); // '5 秒后播放广告'
+/// ```
+String movaDefaultAdStartingIn(int seconds) => '$seconds 秒后播放广告';
