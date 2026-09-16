@@ -26,7 +26,7 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(theme: ThemeData.dark(), home: const SttEngineSpikePage());
+    return MaterialApp(theme: ThemeData.dark(), home: const PlayerPage());
   }
 }
 
@@ -292,6 +292,13 @@ class _PlayerPageState extends State<PlayerPage> {
             icon: const Icon(Icons.ad_units_rounded),
             onPressed: () => Navigator.of(context).push(
               MaterialPageRoute(builder: (_) => const AdDemoPage()),
+            ),
+          ),
+          IconButton(
+            tooltip: '无缝广告演示（默认开启 MovaSwapEngine）',
+            icon: const Icon(Icons.bolt_rounded),
+            onPressed: () => Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => const SeamlessAdDemoPage()),
             ),
           ),
           IconButton(
@@ -604,6 +611,127 @@ final _adBreaks = [
   ),
 ];
 
+/// A minimal, always-seamless ad demo: no manual toggle, seamless swapping is
+/// on from the moment the page opens, and the shadow starts warming the
+/// content up the instant the ad itself starts (via [MovaEagerWarm]) rather
+/// than waiting for the ad's last couple of seconds — so the content gets
+/// the ad's *entire* runtime to actually download and buffer over the
+/// network, instead of the ~2s [MovaLeadWarm] budget that turned out to be
+/// too tight for a real network fetch on a real device. This page exists
+/// purely to acceptance-test "no black frame, or at most a flash" — see
+/// doc/plans/2026-09-16-seamless-swap.md Task 11.
+///
+/// 一个默认即开启无缝、没有手动开关的最小广告演示：从页面一打开就是无缝切换
+/// 状态，且影子引擎从广告**一开始播放**就开始预热正片（用 [MovaEagerWarm]），
+/// 而不是等到广告最后一两秒——这样正片能拿到整段广告的时长去真正走网络下载、
+/// 缓冲，而不是 [MovaLeadWarm] 那约 2 秒的预算（真机上验证过对真实网络下载来说
+/// 太紧）。这个页面存在的唯一目的就是验收"没有黑屏，或最多一闪而过"——见
+/// doc/plans/2026-09-16-seamless-swap.md Task 11。
+class SeamlessAdDemoPage extends StatefulWidget {
+  /// Creates the always-seamless ad demo page.
+  ///
+  /// 创建默认无缝的广告演示页面。
+  const SeamlessAdDemoPage({super.key});
+
+  @override
+  State<SeamlessAdDemoPage> createState() => _SeamlessAdDemoPageState();
+}
+
+/// State for [SeamlessAdDemoPage]; owns the [MovaSwapEngine] and its ad
+/// controller for the lifetime of the page.
+///
+/// [SeamlessAdDemoPage] 的状态；在页面生命周期内持有 [MovaSwapEngine] 与其
+/// 广告控制器。
+class _SeamlessAdDemoPageState extends State<SeamlessAdDemoPage> {
+  /// The swap engine ads run on — always seamless on this page.
+  ///
+  /// 广告运行其上的切换引擎——本页始终无缝。
+  late final MovaSwapEngine _engine;
+
+  /// Orchestrates the pre/mid/post-roll ads and drives [_engine]'s swap.
+  ///
+  /// 编排前/中/后贴片广告，并驱动 [_engine] 的切换。
+  late final MovaAdCtrl _controller;
+
+  /// The most recent ad lifecycle event, shown so the callback is visible.
+  ///
+  /// 最近一次广告生命周期事件，展示出来以便看到回调。
+  final ValueNotifier<String> _lastEvent = ValueNotifier<String>('—');
+
+  @override
+  void initState() {
+    super.initState();
+    final opts = MovaOpts(
+      ads: MovaAdConfig(enabled: true, breaks: _adBreaks, onAdEvent: _onAdEvent),
+      // MovaEagerWarm: start warming the instant the ad starts, not just its
+      // last couple of seconds — see the class doc above for why.
+      //
+      // MovaEagerWarm：广告一开始播放就预热，而非只在最后一两秒——原因见
+      // 上方类注释。
+      swap: const MovaSwapConfig(enabled: true, trigger: MovaEagerWarm()),
+    );
+    _engine = MovaSwapEngine(engineFactory: () => createMovaEngine(options: opts));
+    _controller = MovaAdCtrl(_engine, swap: _engine);
+    _controller.load(_adContent);
+  }
+
+  /// Records an ad event for display.
+  ///
+  /// 记录一次广告事件用于展示。
+  void _onAdEvent(MovaAdEvent e) {
+    final url = e.type == MovaAdEventType.clicked ? e.adBreak.clickThroughUrl : null;
+    _lastEvent.value = url == null ? e.type.name : '${e.type.name} → $url';
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    _engine.dispose();
+    _lastEvent.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('无缝广告演示（默认开启）')),
+      body: Column(
+        children: [
+          AspectRatio(
+            aspectRatio: 16 / 9,
+            child: MovaPlayer(
+              api: _engine,
+              skin: MovaDefSkin(
+                patches: [MovaPatch.add(MovaSlot.overlay, AdOverlayComponent(_controller))],
+              ),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              children: [
+                TextButton.icon(
+                  onPressed: () => _controller.playAdNow(MovaAdBreak(
+                    kind: MovaAdBreakKind.mid,
+                    source: MovaSource(_feedSources[2]),
+                    skippableAfter: const Duration(seconds: 2),
+                  )),
+                  icon: const Icon(Icons.ad_units_rounded),
+                  label: const Text('此刻插入广告'),
+                ),
+                ValueListenableBuilder<String>(
+                  valueListenable: _lastEvent,
+                  builder: (context, value, _) => Text('广告事件：$value'),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 /// A page demoing pre/mid-roll ads plus runtime insertion: a [MovaAdCtrl]
 /// orchestrates the content↔ad source swaps, [AdOverlayComponent] renders the
 /// badge/skip/countdown, a button inserts an ad at the current position via
@@ -629,10 +757,12 @@ class AdDemoPage extends StatefulWidget {
 ///
 /// [AdDemoPage] 的状态；持有引擎、广告控制器，以及用于展示的最近一次广告事件。
 class _AdDemoPageState extends State<AdDemoPage> {
-  /// The playback facade the ads run on.
+  /// The playback facade the ads run on — a plain [MovaEngine], or a
+  /// [MovaSwapEngine] wrapping one when [_seamless] is on.
   ///
-  /// 广告运行其上的播放能力面。
-  late MovaEngine _engine;
+  /// 广告运行其上的播放能力面——普通 [MovaEngine]，或 [_seamless] 开启时包裹
+  /// 它的 [MovaSwapEngine]。
+  late MovaApi _engine;
 
   /// Orchestrates the pre/mid/post-roll and runtime-inserted ads.
   ///
@@ -644,16 +774,55 @@ class _AdDemoPageState extends State<AdDemoPage> {
   /// 最近一次广告生命周期事件，展示出来以便看到回调。
   final ValueNotifier<String> _lastEvent = ValueNotifier<String>('—');
 
+  /// Whether the ad→content resume uses [MovaSwapEngine] (no black
+  /// frame) instead of today's plain `open()` rebuild. Off by default,
+  /// matching [MovaSwapConfig.enabled]'s own default — this toggle is what
+  /// on-device verification (Task 11) flips back and forth to compare.
+  ///
+  /// 广告→正片续播是否走 [MovaSwapEngine]（无黑屏），而非今天的普通 `open()`
+  /// 重建。默认关闭，对齐 [MovaSwapConfig.enabled] 自身的默认值——这个开关就是
+  /// 真机验证（Task 11）用来来回切换对比的那个。
+  bool _seamless = false;
+
   @override
   void initState() {
     super.initState();
-    _engine = createMovaEngine(
-      options: MovaOpts(
-        ads: MovaAdConfig(enabled: true, breaks: _adBreaks, onAdEvent: _onAdEvent),
-      ),
-    );
-    _controller = MovaAdCtrl(_engine);
+    _buildEngine();
+  }
+
+  /// (Re)builds [_engine]/[_controller] for the current [_seamless] setting.
+  ///
+  /// 按当前 [_seamless] 设置（重新）构建 [_engine]/[_controller]。
+  void _buildEngine() {
+    MovaOpts optsFor() => MovaOpts(
+          ads: MovaAdConfig(enabled: true, breaks: _adBreaks, onAdEvent: _onAdEvent),
+          swap: MovaSwapConfig(enabled: _seamless),
+        );
+    if (_seamless) {
+      final swap = MovaSwapEngine(engineFactory: () => createMovaEngine(options: optsFor()));
+      _engine = swap;
+      _controller = MovaAdCtrl(swap, swap: swap);
+    } else {
+      final engine = createMovaEngine(options: optsFor());
+      _engine = engine;
+      _controller = MovaAdCtrl(engine);
+    }
     _controller.load(_adContent);
+  }
+
+  /// Tears down the current engine/controller and rebuilds with [_seamless]
+  /// flipped.
+  ///
+  /// 释放当前引擎/控制器，并以翻转后的 [_seamless] 重建。
+  Future<void> _toggleSeamless(bool value) async {
+    final oldController = _controller;
+    final oldEngine = _engine;
+    setState(() {
+      _seamless = value;
+      _buildEngine();
+    });
+    await oldController.dispose();
+    await oldEngine.dispose();
   }
 
   /// Records an ad event for display; a real host would act on a
@@ -697,6 +866,17 @@ class _AdDemoPageState extends State<AdDemoPage> {
             padding: const EdgeInsets.all(16),
             child: Column(
               children: [
+                // Toggles between the plain open()-rebuild resume and the
+                // seamless MovaSwapEngine path, for on-device A/B comparison.
+                //
+                // 在普通 open() 重建续播与无缝 MovaSwapEngine 路径间切换，
+                // 供真机 A/B 对比。
+                SwitchListTile(
+                  value: _seamless,
+                  onChanged: _toggleSeamless,
+                  title: const Text('无缝切换（MovaSwapEngine）'),
+                  subtitle: const Text('开启后广告→正片续播不经过黑屏/loading'),
+                ),
                 // Insert an ad at the current content position on demand.
                 //
                 // 按需在当前正片位置插播一条广告。

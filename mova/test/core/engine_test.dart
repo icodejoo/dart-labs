@@ -975,6 +975,12 @@ void main() {
     expect(seen, 55);
     expect(await port.get(), 70);
   });
+
+  test('renderEpoch stays 0 on a plain MovaEngine through opens and seeks', () async {
+    await e.open(const MovaSource('https://host/a.mp4'));
+    await e.seek(const Duration(seconds: 1));
+    expect(e.state.renderEpoch, 0);
+  });
 }
 
 /// A spy [MovaOrientPort] that records every `apply(...)` call's

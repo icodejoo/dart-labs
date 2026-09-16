@@ -8,6 +8,17 @@ import 'package:mova/src/ui/skins/default_skin.dart';
 
 import '../support/fake_api.dart';
 
+/// Finds the render surface's inner placeholder/video widget's key, used to
+/// tell whether the surface actually rebuilt and re-read [MovaApi.renderHandle].
+///
+/// 找到渲染面内部占位/视频组件的 key，用于判断渲染面是否真的重建并重新读取了
+/// [MovaApi.renderHandle]。
+Key? _surfaceKey(WidgetTester t) {
+  final matches = t.widgetList<ColoredBox>(find.byWidgetPredicate(
+      (w) => w is ColoredBox && w.key.runtimeType.toString() == '_RenderHandleKey'));
+  return matches.first.key;
+}
+
 void main() {
   testWidgets('MovaPlayer provides its api down the tree and renders the skin', (t) async {
     final api = FakeMovaApi();
@@ -59,4 +70,46 @@ void main() {
       await api2.dispose();
     },
   );
+
+  testWidgets(
+    'changing renderHandle alone, without pushing a state change, does not rebuild the render surface',
+    (t) async {
+      final api = FakeMovaApi();
+      await t.pumpWidget(MaterialApp(home: MovaPlayer(api: api)));
+      await t.pump();
+      final before = _surfaceKey(t);
+
+      api.renderHandle = 'new-handle';
+      await t.pump();
+      final after = _surfaceKey(t);
+
+      expect(after, equals(before));
+      await api.dispose();
+    },
+  );
+
+  testWidgets(
+    'changing renderHandle and bumping renderEpoch rebuilds the surface with the new handle',
+    (t) async {
+      final api = FakeMovaApi();
+      await t.pumpWidget(MaterialApp(home: MovaPlayer(api: api)));
+      await t.pump();
+
+      api.renderHandle = 'new-handle';
+      api.bumpRenderEpoch();
+      await t.pump();
+      await t.pump();
+
+      expect((_surfaceKey(t) as ValueKey<Object?>).value, 'new-handle');
+      await api.dispose();
+    },
+  );
+
+  testWidgets('renderEpoch stays 0 across a plain FakeMovaApi state push', (t) async {
+    final api = FakeMovaApi();
+    await t.pumpWidget(MaterialApp(home: MovaPlayer(api: api)));
+    await t.pump();
+    expect(api.state.renderEpoch, 0);
+    await api.dispose();
+  });
 }

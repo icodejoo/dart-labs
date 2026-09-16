@@ -51,4 +51,23 @@ void main() {
     expect(s.copyWith(pipSupported: true).pipSupported, isTrue);
     expect(s.copyWith(pipSupported: true), isNot(equals(s)));
   });
+
+  test('MovaState.renderEpoch defaults to 0', () {
+    const s = MovaState();
+    expect(s.renderEpoch, 0);
+  });
+
+  test('MovaState.copyWith(renderEpoch:) replaces only that field', () {
+    const s = MovaState();
+    final n = s.copyWith(renderEpoch: 1);
+    expect(n.renderEpoch, 1);
+    expect(n.fit, s.fit);
+    expect(n.volume, s.volume);
+  });
+
+  test('states differing only by renderEpoch are not equal (must not be deduped by the bus)', () {
+    const a = MovaState();
+    final b = a.copyWith(renderEpoch: 1);
+    expect(b, isNot(equals(a)));
+  });
 }

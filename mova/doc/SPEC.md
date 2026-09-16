@@ -203,6 +203,48 @@ import Flutter widget 与直接依赖 `MovaApi` 的地方。
   timeshiftBadgeColor`）间切换；`backToLive`（原 `backToEdge`，已删除并改名）
   调 `backToLiveEdge()` 而非 `reload()`。
 
+## 无缝引擎切换（0.4.0，默认关闭）
+
+- `MovaSwapEngine`（`lib/src/core/swap/swap_engine.dart`）本身实现 `MovaApi` +
+  `MovaSwapCtl`：宿主把它交给 `MovaPlayer`，UI 只认这一份稳定的对外面；它自持
+  `MovaBus<MovaState>` + 三个 broadcast controller，把订阅从旧引擎重接到新引擎——
+  **绝不直接转发 `active.states`**，否则组件在 `initState` 里订阅的流会在换引擎后死掉。
+- `MovaOpts.swap`（`MovaSwapConfig`）默认 `enabled: false`；关闭时 `MovaSwapEngine`
+  是纯直通代理，永不创建影子引擎，每个能力方法原样转发给工厂产出的唯一引擎。
+- 预热拆成两层可插拔纯逻辑（脱离 Flutter/内核，单测覆盖）：
+  - **触发策略** `MovaWarmTrigger`（`lib/src/core/swap/trigger.dart`）：
+    `MovaLeadWarm`（按 `remaining`/`total` 倒推，短于 `minWarmDuration` 的片段
+    一律不预热）用于可预测切换点（广告）；`MovaEagerWarm`（恒真）用于不可预测切换点
+    （`swapTo`／未来的清晰度热切换）。
+  - **就绪判据** `MovaWarmPolicy`（`lib/src/core/swap/warm.dart`）：`MovaBufferWarm`
+    是 `MovaBufferAbr` 的镜像——后者数缓冲上升沿判"该降档"，前者数连续 `stableTicks`
+    次"已到达目标位置 + 未卡顿 + 已缓冲 `lookahead`"判"可以切"；`elapsed >= timeout`
+    时返回 `giveUp`（调用方据此拆影子、回落普通 `open()`），优先级高于 `ready`。
+- `MovaState.renderEpoch`：普通 `MovaEngine` 恒为 0；`MovaSwapEngine` 每次 `commit()`
+  成功后递增，`_RenderSurface` 的 selector 纳入它以强制重读 `renderHandle`
+  （`lib/src/ui/player.dart` 的 `_RenderSurface`，selector 从 `(fit, zoom)` 扩为
+  `(fit, zoom, epoch)`）。
+- 原子切换顺序（`MovaSwapEngine._commitNow`）：`active.pause()` → 影子
+  `setVolume(active.state.volume)` → 影子 `play()` → 转发订阅从旧引擎重接到新引擎
+  → `active`/`renderEpoch` 换指 → `unawaited(old.dispose())`（先换指再释放，释放是慢
+  的原生调用，不能挡在换指前面）。
+- `MovaAdCtrl` 新增可选 `swap` 构造参数（应为同一个 `MovaSwapEngine` 实例）：广告播放
+  期间每个 progress tick 都调 `swap.prepare(content, at: 续播点, cue: ...)`；
+  `_playContent` 先 `swap.commit()`，成功则跳过 `open`/`seek`，失败回落今天的路径；
+  `_playAd` 开头 `swap.abandon()`（丢弃为上一条广告预热的影子）。不传 `swap` 时行为
+  与 0.3.0 逐字节一致。
+- **清晰度切换未接入**：`MovaEngine.switchQuality()` 的语义已与
+  `swapTo(MovaSource(uri), at: position)` 一一对应，但只做了接口形状契约测试
+  （`test/core/swap/swap_engine_test.dart` 的 Task 8 分组）+ 落点注释
+  （`engine.dart` `switchQuality()` 上方），真正接入时还差一件事：影子引擎起步时
+  `currentQuality`/`qualities` 为空，转正后需重新播种。
+- **feed 引擎池明确排除**：`core/feed/engine_pool.dart` 的拖拽场景要求两页画面
+  同时在渲染树上连续插值（双画面并存），结构性不适用本模型的单渲染面离散替换；
+  两者仅共享 `MovaEngineFact` 这一条底层原语。
+- **真机验证未做**：黑屏是否真的消除、中插续播点误差、内存/解码 session 三阶段采样、
+  短广告降级路径、断网预热超时兜底，均需真机逐项验证，详见
+  [doc/plans/2026-09-16-seamless-swap.md](plans/2026-09-16-seamless-swap.md) Task 11。
+
 ## PiP（原生）
 
 - Dart 侧经 `MovaPipPort`；Android `MovaPlugin.kt` 用

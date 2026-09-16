@@ -155,6 +155,18 @@ class MovaState {
   /// （例如重新打开同一流类型的另一个源）。
   final String? sourceTitle;
 
+  /// Monotonic counter bumped whenever the render handle behind this state
+  /// changes identity. Always 0 for a plain [MovaEngine]; only
+  /// [MovaSwapEngine] advances it, and only to force the render surface to
+  /// re-read [MovaApi.renderHandle] — the surface selector watches fit/zoom
+  /// and would otherwise never rebuild on a swap.
+  ///
+  /// 单调递增计数器，在该状态背后的渲染句柄身份变化时加一。对普通
+  /// [MovaEngine] 恒为 0；只有 [MovaSwapEngine] 会推进它，其唯一用途是强制
+  /// 渲染面重新读取 [MovaApi.renderHandle]——渲染面的 selector 观察的是
+  /// fit/zoom，否则切换时永远不会重建。
+  final int renderEpoch;
+
   /// Creates a state snapshot; all fields default to the 0.1.0 baseline
   /// behaviour (stopped, full volume/brightness/rate/zoom, contain fit,
   /// VOD, not seekable-live).
@@ -186,6 +198,7 @@ class MovaState {
     this.timeshiftBehind,
     this.error,
     this.sourceTitle,
+    this.renderEpoch = 0,
   });
 
   /// Returns a copy with the given fields replaced.
@@ -225,6 +238,7 @@ class MovaState {
     Duration? timeshiftBehind,
     Object? error,
     String? sourceTitle,
+    int? renderEpoch,
     bool clearQuality = false,
     bool clearTimeshift = false,
     bool clearError = false,
@@ -255,6 +269,7 @@ class MovaState {
       timeshiftBehind: clearTimeshift ? null : (timeshiftBehind ?? this.timeshiftBehind),
       error: clearError ? null : (error ?? this.error),
       sourceTitle: clearSourceTitle ? null : (sourceTitle ?? this.sourceTitle),
+      renderEpoch: renderEpoch ?? this.renderEpoch,
     );
   }
 
@@ -285,7 +300,8 @@ class MovaState {
         other.seekableWindow == seekableWindow &&
         other.timeshiftBehind == timeshiftBehind &&
         other.error == error &&
-        other.sourceTitle == sourceTitle;
+        other.sourceTitle == sourceTitle &&
+        other.renderEpoch == renderEpoch;
   }
 
   @override
@@ -301,6 +317,7 @@ class MovaState {
         timeshiftBehind,
         error,
         sourceTitle,
+        renderEpoch,
       );
 }
 

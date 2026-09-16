@@ -1,3 +1,23 @@
+## 0.4.0
+
+无缝引擎切换（可选，默认关闭）：新增 `MovaSwapEngine`（`MovaApi` 实现，持有生效引擎 +
+预热中的影子引擎，原子换指，把"广告播完回正片"从黑屏/loading 变成逐帧无缝）。
+
+* **`MovaSwapEngine`**：自持流的代理层，UI 只认这一份稳定的 `MovaApi`；换引擎时不重挂
+  组件树、不丢订阅。`MovaOpts.swap`（`MovaSwapConfig`）默认 `enabled: false`，关闭时是
+  纯直通代理。
+* **预热触发 + 就绪判据两层可插拔**：`MovaWarmTrigger`（`MovaLeadWarm` 按剩余时长倒推、
+  `MovaEagerWarm` 立即触发）与 `MovaWarmPolicy`（`MovaBufferWarm`，`MovaBufferAbr` 的
+  镜像）。
+* **`MovaAdCtrl` 接入**：新增可选 `swap` 构造参数（同一个 `MovaSwapEngine` 实例），广告
+  播放期间在后台预热正片，结束时原子切回；不传时行为与 0.3.0 逐字节一致。
+* **`MovaState.renderEpoch`**：普通引擎恒为 0；仅 `MovaSwapEngine` 提交切换后递增，用于
+  触发渲染面重新读取 `renderHandle`。
+* 清晰度切换（`switchQuality`）与 feed 引擎池均**未**接入本特性——前者只做了接口形状
+  契约测试与落点注释，后者结构性不适用（双画面并存需求）。真机验证（黑屏是否真的消除、
+  内存/解码 session 是否符合预期、短广告降级路径）尚未进行。
+
+---
 ## 0.3.0
 
 UI 插件化：把 0.2.0 已有的组件树/皮肤/补丁沉淀为 **Plugin / Component / Skin**

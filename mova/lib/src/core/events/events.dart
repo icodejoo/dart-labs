@@ -4,6 +4,7 @@ import '../model/quality.dart';
 import '../model/source.dart';
 import '../options/preview_config.dart';
 import '../options/stt_config.dart';
+import '../swap/ctl.dart';
 
 /// Base type of everything broadcast on [MovaApi.events].
 ///
@@ -388,6 +389,21 @@ class MovaSttBlock extends MovaEvent {
   ///
   /// 用 [reason] 创建事件。
   const MovaSttBlock(this.reason);
+}
+
+/// A seamless engine swap transitioned to a new phase.
+///
+/// 无缝引擎切换迁移到了新的阶段。
+class MovaSwapChg extends MovaEvent {
+  /// The phase now in effect.
+  ///
+  /// 当前生效的阶段。
+  final MovaSwapPhase phase;
+
+  /// Creates the event with [phase].
+  ///
+  /// 用 [phase] 创建事件。
+  const MovaSwapChg(this.phase);
 }
 
 /// A playback error occurred.

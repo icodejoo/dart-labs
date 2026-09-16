@@ -154,6 +154,19 @@ class _MovaPlayerState extends State<MovaPlayer> {
 /// 原始视频渲染画面：当前 [MovaApi.renderHandle] 为 [VideoController] 时渲染
 /// 真实的 media_kit [Video]，否则渲染黑色占位符——后者让组件测试无需接触
 /// 真实 media_kit 播放器即可跑通整棵皮肤/scope 树。
+/// A key wrapping the current [MovaApi.renderHandle], distinct from any key a
+/// skin might place elsewhere in the tree — lets tests confirm the render
+/// surface actually re-read the handle after a rebuild.
+///
+/// 包裹当前 [MovaApi.renderHandle] 的 key，与皮肤在树中别处可能使用的 key
+/// 区分——供测试确认渲染面在重建后确实重新读取了句柄。
+class _RenderHandleKey extends ValueKey<Object?> {
+  /// Creates the key from [handle].
+  ///
+  /// 用 [handle] 创建该 key。
+  const _RenderHandleKey(super.handle);
+}
+
 class _RenderSurface extends StatelessWidget {
   /// Creates the render surface.
   ///
@@ -165,13 +178,24 @@ class _RenderSurface extends StatelessWidget {
     final api = MovaScope.of(context);
     return ColoredBox(
       color: const Color(0xFF000000),
-      child: MovaSelect<({MovaFit fit, double zoom})>(
-        selector: (s) => (fit: s.fit, zoom: s.zoom),
+      child: MovaSelect<({MovaFit fit, double zoom, int epoch})>(
+        selector: (s) => (fit: s.fit, zoom: s.zoom, epoch: s.renderEpoch),
         builder: (context, value) {
           final handle = api.renderHandle;
+          // Keyed by the handle's identity so tests can observe whether a
+          // swap's new handle was actually picked up on rebuild (see
+          // MovaState.renderEpoch).
+          //
+          // 按句柄身份做 key，使测试能观察到重建时是否真的读取了切换后的新
+          // 句柄（见 MovaState.renderEpoch）。
           final video = handle is VideoController
-              ? Video(controller: handle, controls: NoVideoControls, fit: movaBoxFit(value.fit))
-              : const ColoredBox(color: Color(0xFF000000));
+              ? Video(
+                  key: _RenderHandleKey(handle),
+                  controller: handle,
+                  controls: NoVideoControls,
+                  fit: movaBoxFit(value.fit),
+                )
+              : ColoredBox(key: _RenderHandleKey(handle), color: const Color(0xFF000000));
           return ClipRect(
             child: Transform.scale(scale: value.zoom, child: video),
           );

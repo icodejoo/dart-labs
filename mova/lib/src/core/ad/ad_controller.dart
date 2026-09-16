@@ -5,6 +5,8 @@ import '../events/events.dart';
 import '../model/ad.dart';
 import '../model/source.dart';
 import '../state/progress.dart';
+import '../swap/ctl.dart';
+import '../swap/trigger.dart';
 
 /// Returns the first not-yet-played mid-roll break whose [MovaAdBreak.offset] has
 /// been reached at [position]; null when none is due.
@@ -83,24 +85,41 @@ enum _Phase {
 class MovaAdCtrl {
   /// Creates a controller bound to [api], seeded from [MovaOpts.ads].
   ///
+  /// [swap] enables seamless ad→content swaps: it should be the same
+  /// [MovaSwapEngine] passed as [api], so the controller can drive it to
+  /// warm the content up before the ad ends. Omit it (or pass an [api] that
+  /// is not a swap engine) to keep today's plain `open()` behaviour.
+  ///
   /// 创建绑定到 [api] 的控制器，初值取自 [MovaOpts.ads]。
   ///
+  /// [swap] 用于开启广告→正片的无缝切换：它应当就是同时作为 [api] 传入的那个
+  /// `MovaSwapEngine`，使控制器能驱动它在广告结束前预热正片。省略它（或传入
+  /// 非切换引擎的 [api]）即保持今天的普通 `open()` 行为。
+  ///
   /// - [api]: the player capability surface to drive / 要驱动的播放器能力面
+  /// - [swap]: optional seamless-swap capability, same instance as [api] /
+  ///   可选的无缝切换能力面，与 [api] 是同一实例
   ///
   /// Example / 示例:
   /// ```dart
-  /// final ads = MovaAdCtrl(api);
+  /// final api = MovaSwapEngine(engineFactory: createMovaEngine);
+  /// final ads = MovaAdCtrl(api, swap: api);
   /// await ads.load(const MovaSource('https://host/movie.m3u8'));
   /// ```
-  MovaAdCtrl(this._api)
+  MovaAdCtrl(this._api, {MovaSwapCtl? swap})
       : _breaks = _api.options.ads.breaks,
         _onAdEvent = _api.options.ads.onAdEvent,
-        _enabled = _api.options.ads.enabled {
+        _enabled = _api.options.ads.enabled,
+        // The public parameter name (`swap`) must stay distinct from the
+        // private field it seeds (`_swap`).
+        // ignore: prefer_initializing_formals
+        _swap = swap {
     _eventSub = _api.events.listen(_onEvent);
     _progressSub = _api.progress.listen(_onProgress);
   }
 
   final MovaApi _api;
+  final MovaSwapCtl? _swap;
   final List<MovaAdBreak> _breaks;
   final void Function(MovaAdEvent)? _onAdEvent;
   final bool _enabled;
@@ -274,20 +293,59 @@ class MovaAdCtrl {
     _played.add(b);
     _changes.add(null);
     _fire(MovaAdEventType.started, b);
+    // Drop any shadow warmed for a previous ad in the same pod — it targeted
+    // the wrong resume point (or the content, mid-pod) and is no longer
+    // useful.
+    //
+    // 丢弃为同一 pod 里上一条广告预热的影子——它的落点已经不对（或者压根
+    // 预热的是正片，而这里正是 pod 连播中途），不再有用。
+    unawaited(_swap?.abandon());
     await _api.open(b.source);
   }
 
-  /// Switches playback to the content, optionally resuming at [at].
+  /// Switches playback to the content, optionally resuming at [at]. Tries a
+  /// seamless swap first when [_swap] is configured; falls back to the plain
+  /// `open()`/`seek()` path when swapping is disabled, was never warmed, or
+  /// failed.
   ///
-  /// 把播放切换回正片，可选地从 [at] 续播。
+  /// Uses `commit(waitForReady: true)` rather than a bare `commit()`: the ad
+  /// ending (`MovaDone`) and the shadow's readiness policy reporting `ready`
+  /// are two independent clocks, and by design the shadow is only asked to
+  /// warm up in the ad's last couple of seconds (see [MovaLeadWarm]) — so it
+  /// is common for the shadow to still be `warming`, not yet `ready`, at the
+  /// exact instant the ad's last frame plays. A bare `commit()` would treat
+  /// that near-miss as an outright failure and fall back to a full `open()`
+  /// rebuild, defeating the swap almost every time. Waiting lets the commit
+  /// succeed as soon as the shadow catches up, bounded by the readiness
+  /// policy's own timeout — worst case it degrades to the same fallback, just
+  /// a little later.
+  ///
+  /// 把播放切换回正片，可选地从 [at] 续播。配置了 [_swap] 时先尝试无缝切换；
+  /// 切换被禁用、从未预热过、或切换失败时回落到普通 `open()`/`seek()` 路径。
+  ///
+  /// 用 `commit(waitForReady: true)` 而非裸 `commit()`：广告结束（`MovaDone`）
+  /// 和影子引擎的就绪判据报告 `ready` 是两个独立的时钟——按设计，影子只在广告
+  /// 最后一两秒才被要求预热（见 [MovaLeadWarm]），所以广告最后一帧播放的那个
+  /// 精确瞬间，影子往往还处于 `warming`、尚未 `ready`，是很常见的情况。裸
+  /// `commit()` 会把这种"差一点点"直接判为失败、回落到完整的 `open()` 重建，
+  /// 导致无缝切换几乎每次都落空。等待能让影子一追上就立刻提交成功，且受就绪
+  /// 判据自身的超时约束——最坏情况也只是稍晚一点退化到同样的回落路径。
   Future<void> _playContent({Duration at = Duration.zero}) async {
     _phase = _Phase.content;
     _current = null;
     _changes.add(null);
     final c = _content;
     if (c == null) return;
-    await _api.open(c);
-    if (at > Duration.zero) await _api.seek(at);
+    final swap = _swap;
+    if (swap != null && await swap.commit(waitForReady: true)) {
+      // Already seamlessly switched to the content by the warmed shadow;
+      // no open/seek needed.
+      //
+      // 已由预热好的影子无缝切到正片；无需再 open/seek。
+    } else {
+      await _api.open(c);
+      if (at > Duration.zero) await _api.seek(at);
+    }
     // Restore STT only if it was running before the ad interrupted content.
     //
     // 仅当广告打断正片前 STT 在运行时才恢复。
@@ -368,6 +426,22 @@ class MovaAdCtrl {
   void _onProgress(MovaProg p) {
     if (_phase == _Phase.ad) {
       _adPosition = p.position;
+      // Ask the configured trigger whether it is time to start warming the
+      // content up in the background; the trigger (not this controller)
+      // decides based on how much of the ad is left and how long it is.
+      //
+      // 询问已配置的触发策略此刻是否该开始在后台预热正片；由触发策略（而非
+      // 本控制器）根据广告剩余时长与广告总时长决定。
+      final swap = _swap;
+      final content = _content;
+      if (swap != null && swap.swapEnabled && content != null) {
+        final adDuration = _api.state.duration;
+        unawaited(swap.prepare(
+          content,
+          at: _contentResumeAt,
+          cue: MovaWarmCue(remaining: adDuration - _adPosition, total: adDuration),
+        ));
+      }
       return;
     }
     if (_phase == _Phase.content) {
@@ -394,6 +468,7 @@ class MovaAdCtrl {
   Future<void> dispose() async {
     await _eventSub?.cancel();
     await _progressSub?.cancel();
+    await _swap?.abandon();
     await _changes.close();
     await _contentEnded.close();
   }

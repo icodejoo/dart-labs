@@ -15,6 +15,8 @@ import 'package:mova/src/core/state/state.dart';
 import 'package:mova/src/core/state/ui_state.dart';
 import 'package:mova/src/core/stt/api.dart';
 import 'package:mova/src/core/stt/cue.dart';
+import 'package:mova/src/core/swap/ctl.dart';
+import 'package:mova/src/core/swap/trigger.dart';
 
 /// A test double for [MovaApi] that records every capability call it receives
 /// and lets tests push arbitrary state/events into its streams.
@@ -225,6 +227,13 @@ class FakeMovaApi implements MovaApi {
   /// 推送一个新的状态快照，[state] 及所有当前/未来的 [states] 订阅者立即
   /// 可见。
   void push(MovaState next) => _state.emit(next);
+
+  /// Convenience for tests: bumps [MovaState.renderEpoch] by one, simulating
+  /// what [MovaSwapEngine] does on a committed swap.
+  ///
+  /// 测试便捷方法：把 [MovaState.renderEpoch] 加一，模拟 [MovaSwapEngine]
+  /// 提交切换后的行为。
+  void bumpRenderEpoch() => push(state.copyWith(renderEpoch: state.renderEpoch + 1));
 
   /// Pushes a new UI state snapshot, visible immediately via [uiState] and
   /// to any current/future [uiStates] subscribers.
@@ -470,6 +479,84 @@ class FakePreviewApi implements MovaPrevApi {
   ///
   /// 关闭底层流。
   Future<void> dispose() => _thumbs.close();
+}
+
+/// A test double for [MovaSwapCtl] that records every call it receives, so
+/// callers like `MovaAdCtrl` can be tested against the swap verbs alone
+/// without a real [MovaSwapEngine].
+///
+/// [MovaSwapCtl] 的测试替身：记录收到的每次调用，使 `MovaAdCtrl` 这类调用方
+/// 无需真实 [MovaSwapEngine] 也能对着切换动词做测试。
+class FakeSwapCtl implements MovaSwapCtl {
+  /// Ordered method names invoked on this fake.
+  ///
+  /// 在该替身上被调用的方法名有序列表。
+  final List<String> calls = <String>[];
+
+  /// The `at` argument of the most recent [prepare] call.
+  ///
+  /// 最近一次 [prepare] 调用的 `at` 参数。
+  Duration? lastPrepareAt;
+
+  /// The `cue` argument of the most recent [prepare] call.
+  ///
+  /// 最近一次 [prepare] 调用的 `cue` 参数。
+  MovaWarmCue? lastCue;
+
+  /// The value [commit] returns; settable by tests, defaults to false.
+  ///
+  /// [commit] 的返回值；可由测试赋值，默认 false。
+  bool commitResult = false;
+
+  /// The `waitForReady` argument of the most recent [commit] call.
+  ///
+  /// 最近一次 [commit] 调用的 `waitForReady` 参数。
+  bool? lastWaitForReady;
+
+  @override
+  bool swapEnabled = true;
+
+  @override
+  MovaSwapPhase swapPhase = MovaSwapPhase.idle;
+
+  final StreamController<MovaSwapPhase> _phases = StreamController<MovaSwapPhase>.broadcast();
+
+  @override
+  Stream<MovaSwapPhase> get swapPhases => _phases.stream;
+
+  @override
+  Future<void> prepare(
+    MovaSource source, {
+    Duration at = Duration.zero,
+    MovaWarmCue cue = const MovaWarmCue(),
+  }) async {
+    calls.add('prepare');
+    lastPrepareAt = at;
+    lastCue = cue;
+  }
+
+  @override
+  Future<bool> commit({bool waitForReady = false}) async {
+    calls.add('commit');
+    lastWaitForReady = waitForReady;
+    return commitResult;
+  }
+
+  @override
+  Future<void> abandon() async {
+    calls.add('abandon');
+  }
+
+  @override
+  Future<bool> swapTo(MovaSource source, {Duration at = Duration.zero}) async {
+    calls.add('swapTo');
+    return commitResult;
+  }
+
+  /// Closes the backing stream.
+  ///
+  /// 关闭底层流。
+  Future<void> dispose() => _phases.close();
 }
 
 /// A test double for [MovaSttApi] that records start/stop calls and lets tests

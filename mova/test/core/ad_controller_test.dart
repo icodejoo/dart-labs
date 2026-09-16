@@ -5,7 +5,6 @@ import 'package:mova/src/core/model/ad.dart';
 import 'package:mova/src/core/model/source.dart';
 import 'package:mova/src/core/options/options.dart';
 import 'package:mova/src/core/state/progress.dart';
-
 import '../support/fake_api.dart';
 
 const _content = MovaSource('https://host/content.m3u8');
@@ -384,5 +383,189 @@ void main() {
     await settle();
     expect(c.isShowingAd, isFalse);
     expect(api.calls, isEmpty);
+  });
+
+  group('MovaAdCtrl with a MovaSwapCtl (seamless ad→content swap)', () {
+    const pre = MovaAdBreak(
+      kind: MovaAdBreakKind.pre,
+      source: MovaSource('https://host/pre.mp4'),
+    );
+    const mid = MovaAdBreak(
+      kind: MovaAdBreakKind.mid,
+      source: MovaSource('https://host/mid.mp4'),
+      offset: Duration(seconds: 30),
+    );
+
+    test('not passing swap: behaviour is byte-for-byte unchanged (pre-roll uses open)', () async {
+      final (api, c, _) = build([pre]);
+      await c.load(_content);
+      await settle();
+      expect(api.source?.uri, 'https://host/pre.mp4');
+      api.pushEvent(const MovaDone());
+      await settle();
+      expect(api.calls, contains('open'));
+      expect(api.source?.uri, _content.uri);
+    });
+
+    test('not passing swap: mid-roll still uses open+seek to resume content', () async {
+      final (api, c, _) = build([mid]);
+      await c.load(_content);
+      await settle();
+      api.pushProgress(const MovaProg(position: Duration(seconds: 31)));
+      await settle();
+      api.pushEvent(const MovaDone());
+      await settle();
+      expect(c.isShowingAd, isFalse);
+      expect(api.calls, contains('open'));
+      expect(api.lastSeek, const Duration(seconds: 31));
+    });
+
+    test('swapEnabled false on the swap ctl: prepare is never called, _playContent still opens', () async {
+      final events = <MovaAdEvent>[];
+      final api = FakeMovaApi(
+        options: MovaOpts(ads: MovaAdConfig(enabled: true, breaks: [pre], onAdEvent: events.add)),
+      );
+      final swap = FakeSwapCtl()..swapEnabled = false;
+      final c = MovaAdCtrl(api, swap: swap);
+      await c.load(_content);
+      await settle();
+      api.pushEvent(const MovaDone());
+      await settle();
+      expect(swap.calls, isNot(contains('prepare')));
+      expect(api.calls, contains('open'));
+    });
+
+    test('every progress tick during the ad calls prepare with a shrinking remaining and fixed total', () async {
+      final api = FakeMovaApi(options: MovaOpts(ads: MovaAdConfig(enabled: true, breaks: [pre])));
+      final swap = FakeSwapCtl();
+      final c = MovaAdCtrl(api, swap: swap);
+      await c.load(_content);
+      await settle();
+      api.push(api.state.copyWith(duration: const Duration(seconds: 10)));
+
+      api.pushProgress(const MovaProg(position: Duration(seconds: 3)));
+      await settle();
+      expect(swap.lastCue!.remaining, const Duration(seconds: 7));
+      expect(swap.lastCue!.total, const Duration(seconds: 10));
+
+      api.pushProgress(const MovaProg(position: Duration(seconds: 8)));
+      await settle();
+      expect(swap.lastCue!.remaining, const Duration(seconds: 2));
+      expect(swap.lastCue!.total, const Duration(seconds: 10));
+    });
+
+    test('prepare is called with the saved content-resume position (zero for a pre-roll)', () async {
+      final api = FakeMovaApi(options: MovaOpts(ads: MovaAdConfig(enabled: true, breaks: [pre])));
+      final swap = FakeSwapCtl();
+      final c = MovaAdCtrl(api, swap: swap);
+      await c.load(_content);
+      await settle();
+      api.pushProgress(const MovaProg(position: Duration(seconds: 1)));
+      await settle();
+      expect(swap.lastPrepareAt, Duration.zero);
+    });
+
+    test('prepare uses the mid-roll saved resume position, not zero', () async {
+      final api = FakeMovaApi(options: MovaOpts(ads: MovaAdConfig(enabled: true, breaks: [mid])));
+      final swap = FakeSwapCtl();
+      final c = MovaAdCtrl(api, swap: swap);
+      await c.load(_content);
+      await settle();
+      api.pushProgress(const MovaProg(position: Duration(seconds: 31)));
+      await settle();
+      swap.calls.clear();
+      api.pushProgress(const MovaProg(position: Duration(seconds: 1)));
+      await settle();
+      expect(swap.lastPrepareAt, const Duration(seconds: 31));
+    });
+
+    test('commit() returning true: no open/seek happens on the api', () async {
+      final api = FakeMovaApi(options: MovaOpts(ads: MovaAdConfig(enabled: true, breaks: [pre])));
+      final swap = FakeSwapCtl()..commitResult = true;
+      final c = MovaAdCtrl(api, swap: swap);
+      await c.load(_content);
+      await settle();
+      api.calls.clear();
+      api.pushEvent(const MovaDone());
+      await settle();
+      expect(c.isShowingAd, isFalse);
+      expect(api.calls, isNot(contains('open')));
+      expect(api.calls, isNot(contains('seek')));
+    });
+
+    test('_playContent commits with waitForReady: true, not a bare commit()', () async {
+      // Regression test for the bug where a bare commit() nearly always lost
+      // the race against the readiness policy (the shadow is typically still
+      // `warming`, not yet `ready`, at the exact instant the ad ends), so the
+      // seamless path almost never actually engaged on real devices.
+      //
+      // 回归测试：裸 commit() 几乎总是输给就绪判据的时序竞争（广告结束的精确
+      // 瞬间，影子引擎通常还是 `warming`、尚未 `ready`），导致无缝路径在真机上
+      // 几乎从未真正生效。
+      final api = FakeMovaApi(options: MovaOpts(ads: MovaAdConfig(enabled: true, breaks: [pre])));
+      final swap = FakeSwapCtl()..commitResult = true;
+      final c = MovaAdCtrl(api, swap: swap);
+      await c.load(_content);
+      await settle();
+      api.pushEvent(const MovaDone());
+      await settle();
+      expect(swap.lastWaitForReady, isTrue);
+    });
+
+    test('commit() returning false: falls back to open (and seek for mid-roll)', () async {
+      final api = FakeMovaApi(options: MovaOpts(ads: MovaAdConfig(enabled: true, breaks: [mid])));
+      final swap = FakeSwapCtl()..commitResult = false;
+      final c = MovaAdCtrl(api, swap: swap);
+      await c.load(_content);
+      await settle();
+      api.pushProgress(const MovaProg(position: Duration(seconds: 31)));
+      await settle();
+      api.pushEvent(const MovaDone());
+      await settle();
+      expect(api.calls, contains('open'));
+      expect(api.lastSeek, const Duration(seconds: 31));
+    });
+
+    test('STT restore still applies on the seamless path', () async {
+      final api = FakeMovaApi(options: MovaOpts(ads: MovaAdConfig(enabled: true, breaks: [mid])));
+      final swap = FakeSwapCtl()..commitResult = true;
+      final c = MovaAdCtrl(api, swap: swap);
+      await c.load(_content);
+      await settle();
+      await api.stt.start();
+      api.pushProgress(const MovaProg(position: Duration(seconds: 31)));
+      await settle();
+      expect(api.stt.isRunning, isFalse);
+      api.pushEvent(const MovaDone());
+      await settle();
+      expect(api.stt.isRunning, isTrue);
+    });
+
+    test('_playAd calls abandon (ad-pod scenario)', () async {
+      const pre2 = MovaAdBreak(
+        kind: MovaAdBreakKind.pre,
+        source: MovaSource('https://host/pre2.mp4'),
+      );
+      final api = FakeMovaApi(options: MovaOpts(ads: MovaAdConfig(enabled: true, breaks: [pre, pre2])));
+      final swap = FakeSwapCtl();
+      final c = MovaAdCtrl(api, swap: swap);
+      await c.load(_content);
+      await settle();
+      expect(swap.calls, contains('abandon'));
+      swap.calls.clear();
+      api.pushEvent(const MovaDone()); // pre -> pre2, another _playAd
+      await settle();
+      expect(swap.calls, contains('abandon'));
+    });
+
+    test('dispose calls abandon', () async {
+      final api = FakeMovaApi(options: MovaOpts(ads: MovaAdConfig(enabled: true, breaks: [pre])));
+      final swap = FakeSwapCtl();
+      final c = MovaAdCtrl(api, swap: swap);
+      await c.load(_content);
+      await settle();
+      await c.dispose();
+      expect(swap.calls, contains('abandon'));
+    });
   });
 }

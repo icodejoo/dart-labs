@@ -6,6 +6,8 @@ import 'package:mova/src/core/options/options.dart';
 import 'package:mova/src/core/preview/net_probe.dart';
 import 'package:mova/src/core/preview/platform_kind.dart';
 import 'package:mova/src/core/state/state.dart';
+import 'package:mova/src/core/swap/trigger.dart';
+import 'package:mova/src/core/swap/warm.dart';
 
 void main() {
   test('MovaOpts gesture defaults follow the mainstream side↔action mapping', () {
@@ -180,5 +182,55 @@ void main() {
     expect(n.danmaku.enabled, isTrue);
     expect(n.gesture, o.gesture);
     expect(n, isNot(o));
+  });
+
+  test('MovaSwapConfig defaults are off with the documented tuning values', () {
+    const c = MovaSwapConfig();
+    expect(c.enabled, isFalse);
+    expect(c.leadTime, const Duration(seconds: 2));
+    expect(c.minWarmDuration, const Duration(seconds: 5));
+    expect(c.readyTimeout, const Duration(seconds: 8));
+    expect(c.muteWhileWarm, isTrue);
+    expect(c.trigger, isNull);
+    expect(c.readyPolicy, isNull);
+  });
+
+  test('MovaSwapConfig.effectiveTrigger falls back to a seeded MovaLeadWarm, or returns the injected one', () {
+    const c = MovaSwapConfig(leadTime: Duration(seconds: 3), minWarmDuration: Duration(seconds: 6));
+    final t = c.effectiveTrigger;
+    expect(t, isA<MovaLeadWarm>());
+    expect((t as MovaLeadWarm).lead, const Duration(seconds: 3));
+    expect(t.minDuration, const Duration(seconds: 6));
+
+    const injected = MovaEagerWarm();
+    const c2 = MovaSwapConfig(trigger: injected);
+    expect(c2.effectiveTrigger, same(injected));
+  });
+
+  test('MovaSwapConfig.newReadyPolicy returns a fresh instance each call, or the injected one', () {
+    const c = MovaSwapConfig();
+    final a = c.newReadyPolicy();
+    final b = c.newReadyPolicy();
+    expect(identical(a, b), isFalse);
+
+    final injected = MovaBufferWarm();
+    final c2 = MovaSwapConfig(readyPolicy: injected);
+    expect(c2.newReadyPolicy(), same(injected));
+  });
+
+  test('MovaSwapConfig.copyWith replaces one field only', () {
+    const c = MovaSwapConfig();
+    final n = c.copyWith(enabled: true);
+    expect(n.enabled, isTrue);
+    expect(n.leadTime, c.leadTime);
+    expect(n.muteWhileWarm, c.muteWhileWarm);
+  });
+
+  test('MovaOpts exposes a swap section that defaults to MovaSwapConfig and is independently replaceable', () {
+    const o = MovaOpts();
+    expect(o.swap, const MovaSwapConfig());
+    final n = o.copyWith(swap: const MovaSwapConfig(enabled: true));
+    expect(n.swap.enabled, isTrue);
+    expect(n.gesture, o.gesture);
   });
 }

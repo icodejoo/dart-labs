@@ -20,7 +20,24 @@
 基于 media_kit（libmpv/ffmpeg）的 Flutter 视频播放插件，自研手势与控制层，
 支持点播/直播，发布到 pub.dev。属于 `dart-labs` monorepo 的子工程。
 
-## 当前状态（0.3.0）
+## 当前状态（0.4.0）
+
+**0.4.0 无缝引擎切换已完成（默认关闭）**：新增 `MovaSwapEngine`（`lib/src/core/swap/`）——
+一个本身实现 `MovaApi` 的代理，持有生效引擎 + 短暂预热中的影子引擎，就绪后原子换指，
+把"广告播完回正片"从黑屏/loading 变成逐帧无缝。`MovaOpts.swap`（`MovaSwapConfig`）默认
+`enabled: false`，关闭时是纯直通代理，行为与 0.3.0 逐字节一致。预热拆成两层可插拔纯逻辑：
+触发策略 `MovaWarmTrigger`（`MovaLeadWarm`/`MovaEagerWarm`）与就绪判据 `MovaWarmPolicy`
+（`MovaBufferWarm`，`MovaBufferAbr` 的镜像）。新增 `MovaState.renderEpoch`（普通引擎恒
+0，仅切换后递增，触发渲染面重读 `renderHandle`）。`MovaAdCtrl` 接了可选 `swap` 参数即可
+接入；清晰度切换（`switchQuality`）只做了接口形状契约测试 + 落点注释，未真正接入；
+feed 引擎池结构性不适用本模型，明确排除。详见
+[doc/plans/2026-09-16-seamless-swap.md](doc/plans/2026-09-16-seamless-swap.md)、
+[doc/SPEC.md](doc/SPEC.md)"无缝引擎切换"一节。测试全绿（535 项，含本次新增
+83 项）、`flutter analyze` 0 issues（1 条与本次改动无关的既有 `feed_player.dart`
+警告，早于本次改动已存在）。**真机验证未做**（Task 11：黑屏是否真的消除、中插续播点
+误差、内存/解码 session 三阶段采样、短广告降级路径，均需真机逐项验证）。
+
+以下为 0.3.0 阶段成果（仍有效）：
 
 **0.3.0 UI 插件化已完成**（承 0.2.0 阶段 A–D）：把组件树/皮肤/补丁沉淀为
 **Plugin / Component / Skin** 三层契约——`MovaPlugin` 能力 mixin（`api` + `bind()`，
@@ -60,6 +77,13 @@
 260 项测试全绿，`flutter analyze` 0 issues。
 
 ## 剩余任务
+
+0. **0.4.0 无缝引擎切换——真机验证未做（Task 11，每次启动请提醒用户此项未完成）**：
+   Task 1–10 已完成（配置面、`renderEpoch`、预热触发/就绪判据、`MovaSwapEngine` 骨架
+   与原子切换、`MovaAdCtrl` 接入、清晰度切换契约测试、开放性对账、barrel/example/文档）。
+   剩 Task 11 的真机 checklist：广告黑屏是否真的消除、中插续播点误差、切换瞬间音画是否
+   有跳变、内存/解码 session 三阶段采样是否有泄漏、短广告降级路径、断网预热超时兜底。
+   计划见 [doc/plans/2026-09-16-seamless-swap.md](doc/plans/2026-09-16-seamless-swap.md)。
 
 按 doc/DESIGN-0.2.0.md §12 的阶段划分。**逐 Task 计划已写好，直接照做即可**：
 

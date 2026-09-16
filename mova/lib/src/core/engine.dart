@@ -800,6 +800,19 @@ class MovaEngine implements MovaApi {
     }
   }
 
+  /// Seamless variant switching is *not* wired here on purpose: swapping
+  /// engines mid-stream is [MovaSwapEngine]'s job, and this method's
+  /// semantics already map onto `swapTo(MovaSource(uri), at: position)`
+  /// one-to-one. The only piece still missing when that day comes is
+  /// carrying [MovaState.currentQuality] across the swap — the shadow engine
+  /// starts with an empty quality list, so the promoted engine must be
+  /// re-seeded with it. See doc/plans/2026-09-16-seamless-swap.md Task 8.
+  ///
+  /// 此处刻意*不*接无缝换档：流中途换引擎是 [MovaSwapEngine] 的职责，且本方法
+  /// 的语义已与 `swapTo(MovaSource(uri), at: position)` 一一对应。真要做那天
+  /// 唯一还缺的一块，是把 [MovaState.currentQuality] 带过切换——影子引擎起步时
+  /// 清晰度列表为空，转正后必须重新播种。见
+  /// doc/plans/2026-09-16-seamless-swap.md Task 8。
   @override
   Future<void> switchQuality(MovaQual q) async {
     final playUri = q.isAuto ? (_source?.uri ?? '') : q.uri;

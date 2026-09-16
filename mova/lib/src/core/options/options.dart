@@ -8,6 +8,7 @@ export 'playlist_config.dart';
 export 'preview_config.dart';
 export 'stt_config.dart';
 export 'strings.dart';
+export 'swap_config.dart';
 export 'theme.dart';
 
 import 'abr_config.dart';
@@ -20,6 +21,7 @@ import 'playlist_config.dart';
 import 'preview_config.dart';
 import 'stt_config.dart';
 import 'strings.dart';
+import 'swap_config.dart';
 import 'theme.dart';
 
 /// Top-level, immutable configuration bundle for a mova player.
@@ -90,6 +92,11 @@ class MovaOpts {
   /// 外置视觉主题。
   final MovaTheme theme;
 
+  /// Seamless engine-swapping configuration.
+  ///
+  /// 无缝引擎切换配置。
+  final MovaSwapConfig swap;
+
   /// Creates an options bundle; every section defaults to its own defaults.
   ///
   /// 创建配置集合；每一节均使用其自身默认值。
@@ -105,6 +112,7 @@ class MovaOpts {
     this.ads = const MovaAdConfig(),
     this.strings = const MovaStrs(),
     this.theme = const MovaTheme(),
+    this.swap = const MovaSwapConfig(),
   });
 
   /// Returns a copy with the given sections replaced; omitted sections keep
@@ -123,6 +131,7 @@ class MovaOpts {
   /// - [ads]: replacement ad config / 替换用的广告配置
   /// - [strings]: replacement strings / 替换用的文案
   /// - [theme]: replacement theme / 替换用的主题
+  /// - [swap]: replacement swap config / 替换用的切换配置
   ///
   /// Returns the new [MovaOpts] instance / 返回新的 [MovaOpts] 实例。
   MovaOpts copyWith({
@@ -137,6 +146,7 @@ class MovaOpts {
     MovaAdConfig? ads,
     MovaStrs? strings,
     MovaTheme? theme,
+    MovaSwapConfig? swap,
   }) {
     return MovaOpts(
       preview: preview ?? this.preview,
@@ -150,6 +160,7 @@ class MovaOpts {
       ads: ads ?? this.ads,
       strings: strings ?? this.strings,
       theme: theme ?? this.theme,
+      swap: swap ?? this.swap,
     );
   }
 
@@ -168,9 +179,10 @@ class MovaOpts {
           playlist == other.playlist &&
           ads == other.ads &&
           strings == other.strings &&
-          theme == other.theme;
+          theme == other.theme &&
+          swap == other.swap;
 
   @override
   int get hashCode => Object.hash(preview, live, gesture, abr, controls, danmaku,
-      stt, playlist, ads, strings, theme);
+      stt, playlist, ads, strings, Object.hash(theme, swap));
 }

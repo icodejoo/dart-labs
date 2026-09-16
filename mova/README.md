@@ -20,6 +20,10 @@ Flutter 视频播放库，自研手势与控制层，支持点播与直播。
   或时移（拖动即换源），带"回到直播"按钮与时移角标。
 - **Scrub preview / 拖动预览缩略图**：拖动进度条或横滑手势时，进度条上方浮出目标时刻的
   缩略图气泡（WebVTT 雪碧图 / libmpv 抽帧兜底，两级缓存，默认仅 WiFi）。
+- **Seamless engine swapping / 无缝引擎切换（可选）**：`MovaSwapEngine` 在一个稳定渲染面
+  背后持有当前引擎与预热中的影子引擎，就绪后原子换指，消除"广告播完回正片"等场景的
+  黑屏/loading。默认关闭（`MovaOpts.swap.enabled`），`MovaAdCtrl` 传入同一个
+  `MovaSwapEngine` 作 `swap:` 参数即可接入；详见下方用法。
 
 ## Platform support / 平台支持
 
@@ -186,6 +190,28 @@ final engine = MovaEngine(
 
 默认 `off`（保持 0.1.0 禁拖行为）；`timeshift` 模式没有 `urlBuilder` 就不生效；
 `windowResolver` 用于服务端带外声明窗口的场景。
+
+## 无缝引擎切换（可选）
+
+`MovaSwapEngine` 本身就是一个 `MovaApi`：在一个稳定的渲染面背后持有当前生效引擎，以及
+一个可选的、正在预热的影子引擎；影子就绪后原子换指，UI 完全无感（不重挂、不黑屏）。
+默认 **关闭**（`MovaSwapConfig.enabled` 为 `false`），关闭时是纯直通代理，行为与直接用
+`MovaEngine` 完全一致。
+
+```dart
+final api = MovaSwapEngine(engineFactory: createMovaEngine);
+// 或带上配置：createMovaEngine(options: MovaOpts(swap: MovaSwapConfig(enabled: true)))
+final ads = MovaAdCtrl(api, swap: api); // swap 传同一个实例
+runApp(MovaPlayer(api: api));
+```
+
+`MovaAdCtrl` 接了 `swap:` 参数后，会在广告播放期间按 `MovaSwapConfig` 配置的触发策略
+（默认 `MovaLeadWarm`：结束前 2 秒开始预热，短于 5 秒的广告不预热）后台预热正片，广告一
+结束就原子切换回正片，不再经过 `open()` 的黑屏/loading。清晰度切换目前仍走
+`switchQuality()` 的传统路径（`engine.dart` 顶部有落点注释，说明如何映射到
+`MovaSwapCtl.swapTo`）；`core/feed/engine_pool.dart` 的双画面并存需求不适用本模型，
+两者仅共享 `MovaEngineFact` 这条原语。详见
+[doc/plans/2026-09-16-seamless-swap.md](doc/plans/2026-09-16-seamless-swap.md)。
 
 ## 平台端口
 
