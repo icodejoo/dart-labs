@@ -1,3 +1,4 @@
+import 'package:fake_async/fake_async.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mova/src/core/ad/ad_controller.dart';
 import 'package:mova/src/core/events/events.dart';
@@ -700,6 +701,225 @@ void main() {
       await settle();
       expect(api.calls.where((e) => e == 'open'), hasLength(2));
       expect(api.source?.uri, _content.uri);
+    });
+  });
+
+  group('MovaAdBreak.duration — fixed-length slots driven by a plain Timer', () {
+    /// Builds api + controller for [breaks] with an event sink, optionally
+    /// counting the slot from `open()` instead of the first frame.
+    ///
+    /// 为 [breaks] 构造 api + 控制器与事件收集器，可选择从 `open()` 而非首帧起算。
+    (FakeMovaApi, MovaAdCtrl, List<MovaAdEvent>) slotBuild(
+      List<MovaAdBreak> breaks, {
+      bool fromFirstFrame = true,
+    }) {
+      final events = <MovaAdEvent>[];
+      final api = FakeMovaApi(
+        options: MovaOpts(
+          ads: MovaAdConfig(
+            enabled: true,
+            breaks: breaks,
+            onAdEvent: events.add,
+            durationFromFirstFrame: fromFirstFrame,
+          ),
+        ),
+      );
+      return (api, MovaAdCtrl(api), events);
+    }
+
+    /// Lets the controller's async chains settle inside a [fakeAsync] zone.
+    ///
+    /// 在 [fakeAsync] 区域内让控制器的异步链结算完毕。
+    void flush(FakeAsync async) => async.elapse(const Duration(milliseconds: 1));
+
+    const midPlain = MovaAdBreak(
+      kind: MovaAdBreakKind.mid,
+      source: MovaSource('https://host/mid.mp4'),
+      offset: Duration(seconds: 30),
+    );
+    const mid15 = MovaAdBreak(
+      kind: MovaAdBreakKind.mid,
+      source: MovaSource('https://host/mid.mp4'),
+      offset: Duration(seconds: 30),
+      duration: Duration(seconds: 15),
+    );
+
+    test('a null duration leaves behaviour byte-for-byte unchanged (no timer)', () {
+      fakeAsync((async) {
+        final (api, c, _) = slotBuild([midPlain]);
+        c.load(_content);
+        flush(async);
+        api.pushProgress(const MovaProg(position: Duration(seconds: 31)));
+        flush(async);
+        expect(c.isShowingAd, isTrue);
+        api.pushProgress(const MovaProg(position: Duration(seconds: 1)));
+        async.elapse(const Duration(minutes: 5));
+        expect(c.isShowingAd, isTrue, reason: 'with no duration the ad still ends on MovaDone only');
+        api.pushEvent(const MovaDone());
+        flush(async);
+        expect(c.isShowingAd, isFalse);
+      });
+    });
+
+    test('a 15s slot resumes the content on expiry, without any MovaDone', () {
+      fakeAsync((async) {
+        final (api, c, _) = slotBuild([mid15]);
+        c.load(_content);
+        flush(async);
+        api.pushProgress(const MovaProg(position: Duration(seconds: 31)));
+        flush(async);
+        api.pushProgress(const MovaProg(position: Duration(seconds: 1)));
+        flush(async);
+        expect(c.isShowingAd, isTrue);
+        async.elapse(const Duration(seconds: 15));
+        flush(async);
+        expect(c.isShowingAd, isFalse);
+        expect(api.source?.uri, _content.uri);
+      });
+    });
+
+    test('slot expiry reports completed, not skipped', () {
+      fakeAsync((async) {
+        final (api, c, events) = slotBuild([mid15]);
+        c.load(_content);
+        flush(async);
+        api.pushProgress(const MovaProg(position: Duration(seconds: 31)));
+        flush(async);
+        api.pushProgress(const MovaProg(position: Duration(seconds: 1)));
+        async.elapse(const Duration(seconds: 16));
+        flush(async);
+        expect(events.map((e) => e.type), contains(MovaAdEventType.completed));
+        expect(events.map((e) => e.type), isNot(contains(MovaAdEventType.skipped)));
+      });
+    });
+
+    test('slot expiry takes exactly the same resume path as skip(): back to the saved position', () {
+      fakeAsync((async) {
+        final (api, c, _) = slotBuild([mid15]);
+        c.load(_content);
+        flush(async);
+        api.pushProgress(const MovaProg(position: Duration(seconds: 31)));
+        flush(async);
+        api.pushProgress(const MovaProg(position: Duration(seconds: 1)));
+        async.elapse(const Duration(seconds: 16));
+        flush(async);
+        expect(api.lastSeek, const Duration(seconds: 31));
+      });
+    });
+
+    test('an early MovaDone resumes at once, and the later timer does not resume a second time', () {
+      fakeAsync((async) {
+        final (api, c, _) = slotBuild([mid15]);
+        c.load(_content);
+        flush(async);
+        api.pushProgress(const MovaProg(position: Duration(seconds: 31)));
+        flush(async);
+        api.pushProgress(const MovaProg(position: Duration(seconds: 1)));
+        flush(async);
+        api.calls.clear();
+        api.pushEvent(const MovaDone());
+        flush(async);
+        expect(api.calls.where((e) => e == 'open'), hasLength(1));
+        async.elapse(const Duration(seconds: 30));
+        flush(async);
+        expect(api.calls.where((e) => e == 'open'), hasLength(1),
+            reason: 'the cancelled slot timer must not resume a second time');
+      });
+    });
+
+    test('an early skip() resumes at once, and the later timer does not resume a second time', () {
+      fakeAsync((async) {
+        const skippable = MovaAdBreak(
+          kind: MovaAdBreakKind.mid,
+          source: MovaSource('https://host/mid.mp4'),
+          offset: Duration(seconds: 30),
+          duration: Duration(seconds: 15),
+          skippableAfter: Duration(seconds: 5),
+        );
+        final (api, c, _) = slotBuild([skippable]);
+        c.load(_content);
+        flush(async);
+        api.pushProgress(const MovaProg(position: Duration(seconds: 31)));
+        flush(async);
+        api.pushProgress(const MovaProg(position: Duration(seconds: 6)));
+        flush(async);
+        api.calls.clear();
+        c.skip();
+        flush(async);
+        expect(api.calls.where((e) => e == 'open'), hasLength(1));
+        async.elapse(const Duration(seconds: 30));
+        flush(async);
+        expect(api.calls.where((e) => e == 'open'), hasLength(1));
+      });
+    });
+
+    test('durationFromFirstFrame true: the clock starts at the first tick, not at open()', () {
+      fakeAsync((async) {
+        final (api, c, _) = slotBuild([mid15]);
+        c.load(_content);
+        flush(async);
+        api.pushProgress(const MovaProg(position: Duration(seconds: 31)));
+        flush(async);
+        // No ad-side progress yet: a slow load must not eat into the slot.
+        async.elapse(const Duration(seconds: 20));
+        flush(async);
+        expect(c.isShowingAd, isTrue, reason: 'the slot has not started counting yet');
+        api.pushProgress(const MovaProg(position: Duration(seconds: 1)));
+        flush(async);
+        async.elapse(const Duration(seconds: 15));
+        flush(async);
+        expect(c.isShowingAd, isFalse);
+      });
+    });
+
+    test('durationFromFirstFrame false: the clock starts at open(), with no tick at all', () {
+      fakeAsync((async) {
+        final (api, c, _) = slotBuild([mid15], fromFirstFrame: false);
+        c.load(_content);
+        flush(async);
+        api.pushProgress(const MovaProg(position: Duration(seconds: 31)));
+        flush(async);
+        expect(c.isShowingAd, isTrue);
+        async.elapse(const Duration(seconds: 15));
+        flush(async);
+        expect(c.isShowingAd, isFalse);
+        expect(api.source?.uri, _content.uri);
+      });
+    });
+
+    test('inside a pod each break counts its own duration independently', () {
+      fakeAsync((async) {
+        const pre1 = MovaAdBreak(
+          kind: MovaAdBreakKind.pre,
+          source: MovaSource('https://host/pre1.mp4'),
+          duration: Duration(seconds: 5),
+        );
+        const pre2 = MovaAdBreak(
+          kind: MovaAdBreakKind.pre,
+          source: MovaSource('https://host/pre2.mp4'),
+          duration: Duration(seconds: 5),
+        );
+        final (api, c, _) = slotBuild([pre1, pre2]);
+        c.load(_content);
+        flush(async);
+        expect(api.source?.uri, 'https://host/pre1.mp4');
+
+        api.pushProgress(const MovaProg(position: Duration(seconds: 1)));
+        flush(async);
+        async.elapse(const Duration(seconds: 4));
+        expect(api.source?.uri, 'https://host/pre1.mp4', reason: 'only 4s of pre1 elapsed');
+        async.elapse(const Duration(seconds: 1));
+        flush(async);
+        expect(api.source?.uri, 'https://host/pre2.mp4');
+
+        api.pushProgress(const MovaProg(position: Duration(seconds: 1)));
+        flush(async);
+        async.elapse(const Duration(seconds: 4));
+        expect(api.source?.uri, 'https://host/pre2.mp4', reason: 'pre2 gets its own full 5s');
+        async.elapse(const Duration(seconds: 1));
+        flush(async);
+        expect(api.source?.uri, _content.uri);
+      });
     });
   });
 }

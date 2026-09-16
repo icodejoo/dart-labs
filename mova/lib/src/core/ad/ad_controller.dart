@@ -4,6 +4,7 @@ import '../api.dart';
 import '../events/events.dart';
 import '../model/ad.dart';
 import '../model/source.dart';
+import '../options/ad_config.dart';
 import '../state/progress.dart';
 import '../swap/ctl.dart';
 import '../swap/trigger.dart';
@@ -107,7 +108,8 @@ class MovaAdCtrl {
   /// await ads.load(const MovaSource('https://host/movie.m3u8'));
   /// ```
   MovaAdCtrl(this._api, {MovaSwapCtl? swap})
-      : _breaks = _api.options.ads.breaks,
+      : _cfg = _api.options.ads,
+        _breaks = _api.options.ads.breaks,
         _onAdEvent = _api.options.ads.onAdEvent,
         _enabled = _api.options.ads.enabled,
         // The public parameter name (`swap`) must stay distinct from the
@@ -120,6 +122,11 @@ class MovaAdCtrl {
 
   final MovaApi _api;
   final MovaSwapCtl? _swap;
+
+  /// The ad configuration snapshot this controller runs on.
+  ///
+  /// 本控制器运行所依据的广告配置快照。
+  final MovaAdConfig _cfg;
   final List<MovaAdBreak> _breaks;
   final void Function(MovaAdEvent)? _onAdEvent;
   final bool _enabled;
@@ -161,6 +168,24 @@ class MovaAdCtrl {
   ///
   /// 当前广告开始时 STT 识别是否在运行，以便只在宿主本就开启时才恢复。
   bool _sttWasRunning = false;
+
+  /// Enforces [MovaAdBreak.duration] for the ad on screen; null when the
+  /// current break has no fixed slot length.
+  ///
+  /// 为屏幕上的广告落实 [MovaAdBreak.duration]；当前广告位没有固定时长时为 null。
+  Timer? _slotTimer;
+
+  /// Guards against two resume paths firing in the same tick.
+  ///
+  /// The slot timer expiring, the media's own [MovaDone] and the viewer's
+  /// [skip] are now three independent clocks that can land together; without
+  /// this the content would be opened twice.
+  ///
+  /// 防止两条续播路径在同一 tick 内同时触发。
+  ///
+  /// 广告位定时器到期、素材自身的 [MovaDone]、观众的 [skip]，如今是三个可能撞在
+  /// 一起的独立时钟；没有这道守卫，正片会被 open 两次。
+  bool _resuming = false;
 
   /// Whether an ad is currently on screen.
   ///
@@ -395,6 +420,7 @@ class MovaAdCtrl {
   ///
   /// 把播放切换到广告位 [b]。
   Future<void> _playAd(MovaAdBreak b) async {
+    _cancelSlotTimer();
     // Suppress content-side STT while the ad plays; restore it on resume only
     // if the host actually had it running (attach() does not reset it).
     //
@@ -416,6 +442,48 @@ class MovaAdCtrl {
     // 预热的是正片，而这里正是 pod 连播中途），不再有用。
     unawaited(_swap?.abandon());
     await _api.open(b.source);
+    // With durationFromFirstFrame off the slot is counted from open(); with it
+    // on, the first progress tick arms the timer instead.
+    //
+    // durationFromFirstFrame 关闭时广告位从 open() 起算；开启时改由第一个进度
+    // tick 起表。
+    if (!_cfg.durationFromFirstFrame) _armSlotTimer(b);
+  }
+
+  /// Starts the fixed-length slot timer for [b], if it has a
+  /// [MovaAdBreak.duration] and one is not already running.
+  ///
+  /// The deadline is a plain [Timer]: the media timeline is never consulted
+  /// and never seeked, because a large file's duration can take a long time to
+  /// resolve on a real mobile network and a seek near the real EOF reliably
+  /// wedges the player on device.
+  ///
+  /// 为 [b] 起固定时长的广告位定时器——前提是它有 [MovaAdBreak.duration] 且尚未
+  /// 起表。
+  ///
+  /// 到期判定是一个普通 [Timer]：完全不查询、不 seek 媒体时间轴，因为大文件的
+  /// 时长在真机移动网络下可能很久解析不出来，而靠近真实 EOF 的 seek 在真机上会
+  /// 可靠地把播放器卡死。
+  void _armSlotTimer(MovaAdBreak b) {
+    final d = b.duration;
+    if (d == null || _slotTimer != null) return;
+    _slotTimer = Timer(d, () {
+      if (_phase != _Phase.ad || !identical(_current, b)) return;
+      // The slot the advertiser bought has been delivered in full, so this is
+      // a completion, not a skip.
+      //
+      // 广告主买下的这段时长已经足额交付，因此这是"播完"，不是"跳过"。
+      _fire(MovaAdEventType.completed, b);
+      unawaited(_resumeAfterAd(b));
+    });
+  }
+
+  /// Cancels any running slot timer.
+  ///
+  /// 取消正在运行的广告位定时器（若有）。
+  void _cancelSlotTimer() {
+    _slotTimer?.cancel();
+    _slotTimer = null;
   }
 
   /// Switches playback to the content, optionally resuming at [at]. Tries a
@@ -446,6 +514,7 @@ class MovaAdCtrl {
   /// 导致无缝切换几乎每次都落空。等待能让影子一追上就立刻提交成功，且受就绪
   /// 判据自身的超时约束——最坏情况也只是稍晚一点退化到同样的回落路径。
   Future<void> _playContent({Duration at = Duration.zero}) async {
+    _cancelSlotTimer();
     _phase = _Phase.content;
     _current = null;
     _changes.add(null);
@@ -496,6 +565,7 @@ class MovaAdCtrl {
   ///
   /// 在正片（及其后贴片）播完后转入空闲，并触发 [contentEnded] 供播放列表组合使用。
   void _goIdleAfterContent() {
+    _cancelSlotTimer();
     _phase = _Phase.idle;
     _current = null;
     _changes.add(null);
@@ -508,24 +578,30 @@ class MovaAdCtrl {
   /// 广告 [finished] 结束后续播正确内容：前贴片 → 正片从头，中插 → 正片从保存
   /// 位置，后贴片 → 空闲（结束）。
   Future<void> _resumeAfterAd(MovaAdBreak finished) async {
+    if (_resuming) return;
+    _resuming = true;
+    _cancelSlotTimer();
     switch (finished.kind) {
       case MovaAdBreakKind.pre:
         // Ad pod: chain any further pre-rolls before the content starts.
         //
         // 广告 pod：正片开始前，依次连播其余前贴片。
         final nextPre = _firstOfKind(MovaAdBreakKind.pre);
+        _resuming = false;
         if (nextPre != null) {
           await _playAd(nextPre);
         } else {
           await _playContent();
         }
       case MovaAdBreakKind.mid:
+        _resuming = false;
         await _playContent(at: _contentResumeAt);
       case MovaAdBreakKind.post:
         // Ad pod: chain any further post-rolls before going idle.
         //
         // 广告 pod：转入空闲前，依次连播其余后贴片。
         final nextPost = _firstOfKind(MovaAdBreakKind.post);
+        _resuming = false;
         if (nextPost != null) {
           await _playAd(nextPost);
         } else {
@@ -541,6 +617,12 @@ class MovaAdCtrl {
   void _onProgress(MovaProg p) {
     if (_phase == _Phase.ad) {
       _adPosition = p.position;
+      // First rendered frame of this ad: the slot the advertiser bought is
+      // *visible* seconds, so a slow load must not eat into it.
+      //
+      // 这条广告的首个已渲染帧：广告主买的是*可见*秒数，加载慢不应该吃掉这段时长。
+      final playing = _current;
+      if (_cfg.durationFromFirstFrame && playing != null) _armSlotTimer(playing);
       // Ask the configured trigger whether it is time to start warming the
       // content up in the background; the trigger (not this controller)
       // decides based on how much of the ad is left and how long it is.
@@ -596,6 +678,7 @@ class MovaAdCtrl {
   ///
   /// 释放订阅并关闭变更流；销毁时调用一次。
   Future<void> dispose() async {
+    _cancelSlotTimer();
     await _eventSub?.cancel();
     await _progressSub?.cancel();
     await _swap?.abandon();
