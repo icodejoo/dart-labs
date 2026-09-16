@@ -94,6 +94,12 @@ void main() {
     final (api, c, events) = build(pre);
     await c.load(_content);
     await pumpComponent(t, api, AdOverlayComponent(c));
+    // The ad has rendered its first frame, which is also what clears the
+    // no-first-frame deadline.
+    //
+    // 广告已产出首帧——这同时也是解除"始终没有首帧"判定期限的那一下。
+    api.pushProgress(const MovaProg(position: Duration(seconds: 1)));
+    await t.pump();
     await t.tapAt(const Offset(400, 300));
     await t.pump();
     final clicked = events.where((e) => e.type == MovaAdEventType.clicked);

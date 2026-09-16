@@ -3,12 +3,12 @@ import 'dart:async';
 import '../api.dart';
 import '../events/events.dart';
 import '../model/ad.dart';
-import 'fail.dart';
 import '../model/source.dart';
 import '../options/ad_config.dart';
 import '../state/progress.dart';
 import '../swap/ctl.dart';
 import '../swap/trigger.dart';
+import 'fail.dart';
 
 /// Returns the first not-yet-played mid-roll break whose [MovaAdBreak.offset] has
 /// been reached at [position]; null when none is due.
@@ -226,6 +226,16 @@ class MovaAdCtrl {
   /// 观众眼前走动的那个数。到期判定本身仍由 [_delayTimer] 驱动，绝不由它决定。
   Duration _pendingFrom = Duration.zero;
 
+  /// Fires when the current ad produced no first frame in time.
+  ///
+  /// 当前广告未能及时产出首帧时触发。
+  Timer? _loadTimer;
+
+  /// Attempt counter per break, fed to [MovaAdFailPolicy]; cleared per load.
+  ///
+  /// 每条广告位的尝试次数计数，喂给 [MovaAdFailPolicy]；每次加载时清空。
+  final Map<MovaAdBreak, int> _attempts = <MovaAdBreak, int>{};
+
   /// Whether an ad is currently on screen.
   ///
   /// 当前是否正在播放广告。
@@ -369,6 +379,7 @@ class MovaAdCtrl {
   /// 前贴片或正片。
   Future<void> _beginLoad() async {
     _played.clear();
+    _attempts.clear();
     _contentResumeAt = Duration.zero;
     _lastContentPosition = Duration.zero;
     // Fail loudly on a misconfigured schedule, on developer machines only.
@@ -667,6 +678,7 @@ class MovaAdCtrl {
   /// 绝不能悄悄漏掉任何一个事件或状态更新。
   Future<void> _playAd(MovaAdBreak b, {bool alreadyOnScreen = false}) async {
     _cancelSlotTimer();
+    _cancelLoadTimer();
     // A break that wants to wait but never had a pending window to warm up in
     // — a pre-roll or a post-roll — takes the one-call form instead.
     // `swapTo` *is* eager warm-up + commit(waitForReady: true) + fallback to
@@ -702,8 +714,19 @@ class MovaAdCtrl {
       await _swap!.swapTo(b.source);
     } else if (!alreadyOnScreen) {
       unawaited(_swap?.abandon());
-      await _api.open(b.source);
+      try {
+        await _api.open(b.source);
+      } catch (e) {
+        await _onAdFailure(b, MovaAdFailKind.openThrew, e);
+        return;
+      }
     }
+    // Nothing on screen yet: give the ad a bounded window to produce its first
+    // frame, cancelled by that frame's own progress tick.
+    //
+    // 画面上还什么都没有：给广告一个有界的窗口去产出首帧，该窗口由首帧自己的
+    // 进度 tick 取消。
+    _armLoadTimer(b);
     // With durationFromFirstFrame off the slot is counted from open(); with it
     // on, the first progress tick arms the timer instead.
     //
@@ -748,6 +771,84 @@ class MovaAdCtrl {
     _slotTimer = null;
   }
 
+  /// Starts the no-first-frame deadline for [b].
+  ///
+  /// 为 [b] 起"始终没有首帧"的判定期限。
+  void _armLoadTimer(MovaAdBreak b) {
+    _cancelLoadTimer();
+    _loadTimer = Timer(_cfg.loadTimeout, () {
+      if (_phase != _Phase.ad || !identical(_current, b)) return;
+      unawaited(_onAdFailure(b, MovaAdFailKind.loadTimeout));
+    });
+  }
+
+  /// Cancels the no-first-frame deadline, if one is running.
+  ///
+  /// 取消"始终没有首帧"的判定期限（若有）。
+  void _cancelLoadTimer() {
+    _loadTimer?.cancel();
+    _loadTimer = null;
+  }
+
+  /// Applies [MovaAdConfig.failPolicy] to a break that would not play.
+  ///
+  /// Every failure route — a throwing `open()`, a player error during the ad,
+  /// and a missing first frame — converges here, so the host's policy sees one
+  /// consistent stream of attempts. A retried break gets a fresh
+  /// [MovaAdBreak.duration]: what the advertiser bought is that many *visible*
+  /// seconds, and the failed attempt showed none of them.
+  ///
+  /// 对一条播不出来的广告位施加 [MovaAdConfig.failPolicy]。
+  ///
+  /// 每一条失败路径——open() 抛出、广告期间播放器报错、始终没有首帧——都汇流到
+  /// 这里，使宿主的策略看到的是一串一致的尝试记录。重试的广告位会重新获得完整的
+  /// [MovaAdBreak.duration]：广告主买的是那么多*可见*秒数，而失败的那次一秒都没
+  /// 给到。
+  Future<void> _onAdFailure(MovaAdBreak b, MovaAdFailKind kind, [Object? error]) async {
+    _cancelLoadTimer();
+    _cancelSlotTimer();
+    final attempt = (_attempts[b] ?? 0) + 1;
+    _attempts[b] = attempt;
+    _fire(MovaAdEventType.failed, b, error: error);
+    final action = _cfg.effectiveFailPolicy.onFailure(
+      MovaAdFail(adBreak: b, kind: kind, attempt: attempt, error: error),
+    );
+    switch (action) {
+      case MovaAdFailAction.retry:
+        // A retry re-announces `started`: each real attempt to put the ad on
+        // screen is its own impression attempt, so the host sees
+        // started → failed → started rather than a silent second try.
+        //
+        // 重试会再次宣告 `started`：每一次真正把广告送上屏幕的尝试都是一次独立的
+        // 曝光尝试，因此宿主看到的是 started → failed → started，而不是一次静默的
+        // 第二次尝试。
+        await _playAd(b);
+      case MovaAdFailAction.skipBreak:
+        await _resumeAfterAd(b);
+      case MovaAdFailAction.abandonPod:
+        _markPodPlayed(b);
+        await _resumeAfterAd(b);
+    }
+  }
+
+  /// Marks every remaining break of [b]'s pod as played.
+  ///
+  /// For mid-rolls the pod is only the breaks inserted at the same point —
+  /// swallowing every later mid-roll would not be "abandon the pod", it would
+  /// be "turn ads off".
+  ///
+  /// 把 [b] 所在 pod 的所有剩余广告位标记为已播。
+  ///
+  /// 对中插而言，pod 仅指插在同一位置的那几条——把后面几十分钟的中插全吃掉就不是
+  /// "放弃这个 pod"，而是"关掉广告"了。
+  void _markPodPlayed(MovaAdBreak b) {
+    for (final other in _breaks) {
+      if (other.kind != b.kind) continue;
+      if (b.kind == MovaAdBreakKind.mid && other.offset > _contentResumeAt) continue;
+      _played.add(other);
+    }
+  }
+
   /// Switches playback to the content, optionally resuming at [at]. Tries a
   /// seamless swap first when [_swap] is configured; falls back to the plain
   /// `open()`/`seek()` path when swapping is disabled, was never warmed, or
@@ -777,6 +878,7 @@ class MovaAdCtrl {
   /// 判据自身的超时约束——最坏情况也只是稍晚一点退化到同样的回落路径。
   Future<void> _playContent({Duration at = Duration.zero}) async {
     _cancelSlotTimer();
+    _cancelLoadTimer();
     _cancelDelayTimer();
     _phase = _Phase.content;
     _current = null;
@@ -808,6 +910,17 @@ class MovaAdCtrl {
   ///
   /// 响应媒体播放结束：广告播完则续播正片；正片播完则播后贴片（若有）再转空闲。
   void _onEvent(MovaEvent e) {
+    // Playback errors are only this controller's business while an ad is on
+    // screen; a content-side error belongs to the host and flows on untouched.
+    //
+    // 播放错误只在广告在屏时归本控制器管；正片侧的错误属于宿主，原样继续流出。
+    if (e is MovaErrorEvent) {
+      final playing = _current;
+      if (_phase == _Phase.ad && playing != null) {
+        unawaited(_onAdFailure(playing, MovaAdFailKind.playerError, e.error));
+      }
+      return;
+    }
     if (e is! MovaDone) return;
     if (_phase == _Phase.ad) {
       final finished = _current;
@@ -840,6 +953,7 @@ class MovaAdCtrl {
   /// 在正片（及其后贴片）播完后转入空闲，并触发 [contentEnded] 供播放列表组合使用。
   void _goIdleAfterContent() {
     _cancelSlotTimer();
+    _cancelLoadTimer();
     _cancelDelayTimer();
     _phase = _Phase.idle;
     _current = null;
@@ -914,6 +1028,10 @@ class MovaAdCtrl {
       //
       // 这条广告的首个已渲染帧：广告主买的是*可见*秒数，加载慢不应该吃掉这段时长。
       final playing = _current;
+      // The first frame has landed, so the load deadline has been met.
+      //
+      // 首帧已经落地，加载期限已达成。
+      _cancelLoadTimer();
       if (_cfg.durationFromFirstFrame && playing != null) _armSlotTimer(playing);
       // Ask the configured trigger whether it is time to start warming the
       // content up in the background; the trigger (not this controller)
@@ -1017,6 +1135,7 @@ class MovaAdCtrl {
   /// 释放订阅并关闭变更流；销毁时调用一次。
   Future<void> dispose() async {
     _cancelSlotTimer();
+    _cancelLoadTimer();
     _cancelDelayTimer();
     await _eventSub?.cancel();
     await _progressSub?.cancel();

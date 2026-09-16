@@ -1,6 +1,7 @@
 import 'package:fake_async/fake_async.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mova/src/core/ad/ad_controller.dart';
+import 'package:mova/src/core/ad/fail.dart';
 import 'package:mova/src/core/events/events.dart';
 import 'package:mova/src/core/model/ad.dart';
 import 'package:mova/src/core/model/source.dart';
@@ -722,6 +723,13 @@ void main() {
             breaks: breaks,
             onAdEvent: events.add,
             durationFromFirstFrame: fromFirstFrame,
+            // These tests deliberately let an ad sit without a first frame to
+            // prove the slot clock has not started; the no-first-frame
+            // deadline is a separate concern, exercised in its own group.
+            //
+            // 本组用例刻意让广告长时间没有首帧，以证明广告位时钟尚未起算；
+            // "始终没有首帧"的判定期限是另一回事，由它自己那组用例覆盖。
+            loadTimeout: const Duration(minutes: 10),
           ),
         ),
       );
@@ -1585,6 +1593,320 @@ void main() {
       });
     });
   });
+
+  group('ad failure fallback', () {
+    /// Builds api + controller with an optional failure policy.
+    ///
+    /// 构造 api + 控制器，可选地带失败兜底策略。
+    (FakeMovaApi, MovaAdCtrl, List<MovaAdEvent>) failBuild(
+      List<MovaAdBreak> breaks, {
+      MovaAdFailPolicy? policy,
+      Duration loadTimeout = const Duration(seconds: 8),
+    }) {
+      final events = <MovaAdEvent>[];
+      final api = FakeMovaApi(
+        options: MovaOpts(
+          ads: MovaAdConfig(
+            enabled: true,
+            breaks: breaks,
+            onAdEvent: events.add,
+            failPolicy: policy,
+            loadTimeout: loadTimeout,
+            // Keep these tests on the plain open() path.
+            waitForAdReady: const MovaAdWaitByKind(mid: false),
+          ),
+        ),
+      );
+      return (api, MovaAdCtrl(api), events);
+    }
+
+    /// Counts how many times [uri] was opened, throwing attempts included.
+    ///
+    /// 统计 [uri] 被 open 了多少次，含抛出的那些尝试。
+    int opensOf(FakeMovaApi api, String uri) =>
+        api.openedUris.where((u) => u == uri).length;
+
+    /// Lets the controller's async chains settle inside a [fakeAsync] zone.
+    ///
+    /// 在 [fakeAsync] 区域内让控制器的异步链结算完毕。
+    void flush(FakeAsync async) => async.elapse(const Duration(milliseconds: 1));
+
+    const pre = MovaAdBreak(
+      kind: MovaAdBreakKind.pre,
+      source: MovaSource('https://host/pre.mp4'),
+    );
+    const mid = MovaAdBreak(
+      kind: MovaAdBreakKind.mid,
+      source: MovaSource('https://host/mid.mp4'),
+      offset: Duration(seconds: 30),
+    );
+
+    test('with no failure the policy is never consulted', () {
+      fakeAsync((async) {
+        final policy = RecordingFailPolicy();
+        final (api, c, _) = failBuild([pre], policy: policy);
+        c.load(_content);
+        flush(async);
+        api.pushProgress(const MovaProg(position: Duration(seconds: 1)));
+        flush(async);
+        api.pushEvent(const MovaDone());
+        flush(async);
+        expect(policy.seen, isEmpty);
+        expect(api.source?.uri, _content.uri);
+      });
+    });
+
+    test('a throwing open() reports failed with kind openThrew and the thrown object', () {
+      fakeAsync((async) {
+        final policy = RecordingFailPolicy();
+        final (api, c, events) = failBuild([pre], policy: policy);
+        final boom = StateError('404');
+        api.openThrows = boom;
+        api.openThrowsFor = 'https://host/pre.mp4';
+        c.load(_content);
+        flush(async);
+        expect(policy.seen, hasLength(1));
+        expect(policy.seen.first.kind, MovaAdFailKind.openThrew);
+        expect(policy.seen.first.error, same(boom));
+        expect(events.map((e) => e.type), contains(MovaAdEventType.failed));
+        expect(events.firstWhere((e) => e.type == MovaAdEventType.failed).error, same(boom));
+      });
+    });
+
+    test('the default policy skips the break after one failed attempt', () {
+      fakeAsync((async) {
+        final (api, c, _) = failBuild([pre]);
+        api.openThrows = StateError('404');
+        api.openThrowsFor = 'https://host/pre.mp4';
+        c.load(_content);
+        flush(async);
+        expect(opensOf(api, 'https://host/pre.mp4'), 1, reason: 'no retry by default');
+        expect(c.isShowingAd, isFalse);
+        expect(api.source?.uri, _content.uri, reason: 'the skip path resumes the content');
+      });
+    });
+
+    test('MovaAdRetrySkip(maxRetries: 2) tries three times, then gives up', () {
+      fakeAsync((async) {
+        final (api, c, _) = failBuild([pre], policy: const MovaAdRetrySkip(maxRetries: 2));
+        api.openThrows = StateError('404');
+        api.openThrowsFor = 'https://host/pre.mp4';
+        c.load(_content);
+        flush(async);
+        expect(opensOf(api, 'https://host/pre.mp4'), 3,
+            reason: 'the first attempt plus two retries');
+        expect(c.isShowingAd, isFalse);
+      });
+    });
+
+    test('a retry that succeeds plays the ad, reporting started, failed, started', () {
+      fakeAsync((async) {
+        final (api, c, events) = failBuild([pre], policy: const MovaAdRetrySkip(maxRetries: 1));
+        // Throw on the first open only, so the retry succeeds.
+        api.openThrows = StateError('transient');
+        api.openThrowsOnce = true;
+        api.openThrowsFor = 'https://host/pre.mp4';
+        c.load(_content);
+        flush(async);
+        expect(opensOf(api, 'https://host/pre.mp4'), 2,
+            reason: 'the failed attempt plus the successful retry');
+        expect(c.isShowingAd, isTrue);
+        expect(api.source?.uri, 'https://host/pre.mp4');
+        expect(
+          events.map((e) => e.type).toList(),
+          containsAllInOrder([
+            MovaAdEventType.started,
+            MovaAdEventType.failed,
+            MovaAdEventType.started,
+          ]),
+        );
+      });
+    });
+
+    test('MovaAdAbandonPod drops every remaining pre-roll of the pod', () {
+      fakeAsync((async) {
+        const p2 = MovaAdBreak(
+          kind: MovaAdBreakKind.pre,
+          source: MovaSource('https://host/pre2.mp4'),
+        );
+        const p3 = MovaAdBreak(
+          kind: MovaAdBreakKind.pre,
+          source: MovaSource('https://host/pre3.mp4'),
+        );
+        final (api, c, _) = failBuild([pre, p2, p3], policy: const MovaAdAbandonPod());
+        api.openThrows = StateError('404');
+        api.openThrowsFor = 'https://host/pre.mp4';
+        c.load(_content);
+        flush(async);
+        expect(opensOf(api, 'https://host/pre2.mp4'), 0);
+        expect(opensOf(api, 'https://host/pre3.mp4'), 0);
+        expect(c.isShowingAd, isFalse);
+        expect(api.source?.uri, _content.uri, reason: 'pre2 and pre3 must not play');
+      });
+    });
+
+    test('abandonPod on a mid-roll spares later mid-rolls at other offsets', () {
+      fakeAsync((async) {
+        const later = MovaAdBreak(
+          kind: MovaAdBreakKind.mid,
+          source: MovaSource('https://host/later.mp4'),
+          offset: Duration(minutes: 20),
+        );
+        final (api, c, _) = failBuild([mid, later], policy: const MovaAdAbandonPod());
+        c.load(_content);
+        flush(async);
+        api.openThrows = StateError('404');
+        api.openThrowsFor = 'https://host/mid.mp4';
+        api.pushProgress(const MovaProg(position: Duration(seconds: 31)));
+        flush(async);
+        expect(c.isShowingAd, isFalse);
+        api.pushProgress(const MovaProg(position: Duration(minutes: 21)));
+        flush(async);
+        expect(c.isShowingAd, isTrue, reason: 'a pod is one insertion point, not the whole schedule');
+        expect(api.source?.uri, 'https://host/later.mp4');
+      });
+    });
+
+    test('a player error during an ad goes through the failure policy', () {
+      fakeAsync((async) {
+        final policy = RecordingFailPolicy();
+        final (api, c, _) = failBuild([pre], policy: policy);
+        c.load(_content);
+        flush(async);
+        api.pushEvent(MovaErrorEvent('decode failed'));
+        flush(async);
+        expect(policy.seen, hasLength(1));
+        expect(policy.seen.first.kind, MovaAdFailKind.playerError);
+      });
+    });
+
+    test('a player error during the content does not reach the failure policy', () {
+      fakeAsync((async) {
+        final policy = RecordingFailPolicy();
+        final (api, c, _) = failBuild([], policy: policy);
+        c.load(_content);
+        flush(async);
+        api.pushEvent(MovaErrorEvent('network blip'));
+        flush(async);
+        expect(policy.seen, isEmpty);
+      });
+    });
+
+    test('an ad that never produces a first frame fails on loadTimeout', () {
+      fakeAsync((async) {
+        final policy = RecordingFailPolicy();
+        final (api, c, _) = failBuild([pre], policy: policy);
+        c.load(_content);
+        flush(async);
+        async.elapse(const Duration(seconds: 8));
+        flush(async);
+        expect(policy.seen, hasLength(1));
+        expect(policy.seen.first.kind, MovaAdFailKind.loadTimeout);
+      });
+    });
+
+    test('once the first frame lands the load deadline no longer applies', () {
+      fakeAsync((async) {
+        final policy = RecordingFailPolicy();
+        final (api, c, _) = failBuild([pre], policy: policy);
+        c.load(_content);
+        flush(async);
+        api.pushProgress(const MovaProg(position: Duration(milliseconds: 200)));
+        flush(async);
+        async.elapse(const Duration(seconds: 30));
+        flush(async);
+        expect(policy.seen, isEmpty);
+        expect(c.isShowingAd, isTrue);
+      });
+    });
+
+    test('skipBreak takes the same resume path as skip(): back to the saved position', () {
+      fakeAsync((async) {
+        final (api, c, _) = failBuild([mid]);
+        c.load(_content);
+        flush(async);
+        api.openThrows = StateError('404');
+        api.openThrowsFor = 'https://host/mid.mp4';
+        api.pushProgress(const MovaProg(position: Duration(seconds: 31)));
+        flush(async);
+        expect(api.lastSeek, const Duration(seconds: 31));
+      });
+    });
+
+    test('one failed break in a pod does not take its siblings down', () {
+      fakeAsync((async) {
+        const p2 = MovaAdBreak(
+          kind: MovaAdBreakKind.pre,
+          source: MovaSource('https://host/pre2.mp4'),
+        );
+        final (api, c, _) = failBuild([pre, p2]);
+        api.openThrows = StateError('404');
+        api.openThrowsFor = 'https://host/pre.mp4';
+        c.load(_content);
+        flush(async);
+        expect(api.source?.uri, 'https://host/pre2.mp4', reason: 'the sibling still plays');
+      });
+    });
+
+    test('a retried break gets a fresh duration, counted from its new first frame', () {
+      fakeAsync((async) {
+        const timed = MovaAdBreak(
+          kind: MovaAdBreakKind.pre,
+          source: MovaSource('https://host/pre.mp4'),
+          duration: Duration(seconds: 10),
+        );
+        final (api, c, _) = failBuild(
+          [timed],
+          policy: const MovaAdRetrySkip(maxRetries: 1),
+          loadTimeout: const Duration(minutes: 10),
+        );
+        api.openThrows = StateError('transient');
+        api.openThrowsOnce = true;
+        api.openThrowsFor = 'https://host/pre.mp4';
+        c.load(_content);
+        flush(async);
+        expect(c.isShowingAd, isTrue, reason: 'the retry re-opened successfully');
+        // The retried break starts its 10s slot from its own first frame, so a
+        // long wait with no frame yet must not end it.
+        async.elapse(const Duration(seconds: 20));
+        flush(async);
+        expect(c.isShowingAd, isTrue, reason: 'no first frame yet, so the slot has not started');
+        api.pushProgress(const MovaProg(position: Duration(milliseconds: 100)));
+        flush(async);
+        async.elapse(const Duration(seconds: 9));
+        expect(c.isShowingAd, isTrue, reason: 'the retried ad gets its full 10s');
+        async.elapse(const Duration(seconds: 1));
+        flush(async);
+        expect(c.isShowingAd, isFalse);
+      });
+    });
+  });
+}
+
+/// A [MovaAdFailPolicy] that records every failure it is shown.
+///
+/// 一个记录所有被告知失败的 [MovaAdFailPolicy]。
+class RecordingFailPolicy implements MovaAdFailPolicy {
+  /// Every failure passed to [onFailure], in order.
+  ///
+  /// 依次传给 [onFailure] 的所有失败记录。
+  final List<MovaAdFail> seen = <MovaAdFail>[];
+
+  /// What [onFailure] answers.
+  ///
+  /// [onFailure] 的回答。
+  final MovaAdFailAction action;
+
+  /// Creates a recording failure policy answering [action].
+  ///
+  /// 创建一个回答 [action] 的记录型失败策略。
+  RecordingFailPolicy({this.action = MovaAdFailAction.skipBreak});
+
+  @override
+  MovaAdFailAction onFailure(MovaAdFail failure) {
+    seen.add(failure);
+    return action;
+  }
 }
 
 /// A [MovaAdWaitPolicy] that records how often the controller consulted it.

@@ -222,6 +222,34 @@ class FakeMovaApi implements MovaApi {
   /// [MovaState.sourceTitle]（与真实 engine 一样推入 [state]）。
   MovaSource? source;
 
+  /// When non-null, [open] throws it instead of succeeding; lets tests drive
+  /// the ad-failure paths.
+  ///
+  /// 非空时 [open] 抛出它而不是成功返回；供测试驱动广告失败路径。
+  Object? openThrows;
+
+  /// When true, [openThrows] is cleared after the first throw, so the next
+  /// attempt succeeds — the transient-failure-then-retry scenario.
+  ///
+  /// 为 true 时 [openThrows] 在首次抛出后被清空，使下一次尝试成功——即"瞬时失败
+  /// 后重试"的场景。
+  bool openThrowsOnce = false;
+
+  /// Restricts [openThrows] to one source uri; null makes every open throw.
+  ///
+  /// 把 [openThrows] 限定到某一个源地址；为 null 时所有 open 都抛。
+  String? openThrowsFor;
+
+  /// Every uri [open] was called with, throwing attempts included.
+  ///
+  /// [open] 被调用过的所有地址，含抛出的那些尝试。
+  final List<String> openedUris = <String>[];
+
+  /// How many times [open] was called, counting the throwing ones.
+  ///
+  /// [open] 被调用的次数，含抛出的那些。
+  int openCalls = 0;
+
   /// Pushes a new state snapshot, visible immediately via [state] and to
   /// any current/future [states] subscribers.
   ///
@@ -264,6 +292,13 @@ class FakeMovaApi implements MovaApi {
   @override
   Future<void> open(MovaSource source, {bool autoPlay = true}) async {
     calls.add('open');
+    openCalls++;
+    openedUris.add(source.uri);
+    final boom = openThrows;
+    if (boom != null && (openThrowsFor == null || openThrowsFor == source.uri)) {
+      if (openThrowsOnce) openThrows = null;
+      throw boom;
+    }
     lastAutoPlay = autoPlay;
     this.source = source;
     push(state.copyWith(
