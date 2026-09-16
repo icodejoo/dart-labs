@@ -27,7 +27,27 @@ class FakeKernel implements MovaKernel {
   /// final k = FakeKernel(renderHandle: null); // audio-only / 仅音频
   /// ```
   FakeKernel({Object? renderHandle = _unset})
-      : _renderHandle = identical(renderHandle, _unset) ? Object() : renderHandle;
+      : _renderHandle = identical(renderHandle, _unset) ? Object() : renderHandle,
+        _audioOnly = false;
+
+  /// Creates a fake kernel emulating an audio-only one: no render handle and
+  /// no screenshot, every other verb unchanged.
+  ///
+  /// 创建一个模拟仅音频形态的假内核：无渲染句柄、不支持截图，其余动词行为不变。
+  ///
+  /// Example / 示例:
+  /// ```dart
+  /// final engine = MovaEngine(kernel: FakeKernel.audioOnly());
+  /// expect(engine.renderHandle, isNull);
+  /// ```
+  FakeKernel.audioOnly()
+      : _renderHandle = null,
+        _audioOnly = true;
+
+  /// Whether this fake emulates an audio-only kernel.
+  ///
+  /// 该假对象是否在模拟仅音频内核。
+  final bool _audioOnly;
 
   /// Sentinel marking "caller passed nothing", so that an explicit
   /// `renderHandle: null` stays null instead of being replaced by the default.
@@ -118,7 +138,7 @@ class FakeKernel implements MovaKernel {
   @override
   Future<Uint8List?> screenshot() async {
     calls.add('screenshot');
-    return fakeShot;
+    return _audioOnly ? null : fakeShot;
   }
 
   @override
