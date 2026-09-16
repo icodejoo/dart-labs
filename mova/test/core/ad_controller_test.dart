@@ -922,4 +922,338 @@ void main() {
       });
     });
   });
+
+  group('_Phase.pending — the delay countdown, with the content playing on', () {
+    /// Builds api + controller for [breaks], optionally with a swap ctl and a
+    /// custom wait policy.
+    ///
+    /// 为 [breaks] 构造 api + 控制器，可选地带切换能力面与自定义等待策略。
+    (FakeMovaApi, MovaAdCtrl, List<MovaAdEvent>) pendBuild(
+      List<MovaAdBreak> breaks, {
+      MovaSwapCtl? swap,
+      MovaAdWaitPolicy? wait,
+    }) {
+      final events = <MovaAdEvent>[];
+      final api = FakeMovaApi(
+        options: MovaOpts(
+          ads: MovaAdConfig(
+            enabled: true,
+            breaks: breaks,
+            onAdEvent: events.add,
+            waitForAdReady: wait ?? const MovaAdWaitByKind(),
+          ),
+        ),
+      );
+      return (api, MovaAdCtrl(api, swap: swap), events);
+    }
+
+    /// Lets the controller's async chains settle inside a [fakeAsync] zone.
+    ///
+    /// 在 [fakeAsync] 区域内让控制器的异步链结算完毕。
+    void flush(FakeAsync async) => async.elapse(const Duration(milliseconds: 1));
+
+    const midNoDelay = MovaAdBreak(
+      kind: MovaAdBreakKind.mid,
+      source: MovaSource('https://host/mid.mp4'),
+      offset: Duration(seconds: 30),
+    );
+    const mid5 = MovaAdBreak(
+      kind: MovaAdBreakKind.mid,
+      source: MovaSource('https://host/mid.mp4'),
+      offset: Duration(seconds: 30),
+      delay: Duration(seconds: 5),
+    );
+
+    test('a zero delay with no swap engine keeps the mid-roll path byte-for-byte unchanged', () {
+      fakeAsync((async) {
+        final (api, c, events) = pendBuild([midNoDelay]);
+        c.load(_content);
+        flush(async);
+        api.pushProgress(const MovaProg(position: Duration(seconds: 31)));
+        flush(async);
+        expect(c.isAdPending, isFalse);
+        expect(c.isShowingAd, isTrue);
+        expect(api.source?.uri, 'https://host/mid.mp4');
+        expect(events.map((e) => e.type), isNot(contains(MovaAdEventType.pending)));
+      });
+    });
+
+    test('a 5s delay enters pending: the content is not interrupted', () {
+      fakeAsync((async) {
+        final (api, c, _) = pendBuild([mid5]);
+        c.load(_content);
+        flush(async);
+        api.pushProgress(const MovaProg(position: Duration(seconds: 31)));
+        flush(async);
+        expect(c.isAdPending, isTrue);
+        expect(c.isShowingAd, isFalse);
+        expect(c.pendingBreak, same(mid5));
+        expect(api.source?.uri, _content.uri);
+      });
+    });
+
+    test('entering pending fires a pending event but not started yet', () {
+      fakeAsync((async) {
+        final (api, c, events) = pendBuild([mid5]);
+        c.load(_content);
+        flush(async);
+        api.pushProgress(const MovaProg(position: Duration(seconds: 31)));
+        flush(async);
+        expect(events.map((e) => e.type), contains(MovaAdEventType.pending));
+        expect(events.map((e) => e.type), isNot(contains(MovaAdEventType.started)));
+      });
+    });
+
+    test('entering pending emits once on changes', () {
+      fakeAsync((async) {
+        final (api, c, _) = pendBuild([mid5]);
+        var changes = 0;
+        final sub = c.changes.listen((_) => changes++);
+        c.load(_content);
+        flush(async);
+        changes = 0;
+        api.pushProgress(const MovaProg(position: Duration(seconds: 31)));
+        flush(async);
+        expect(changes, 1);
+        sub.cancel();
+      });
+    });
+
+    test('delayRemaining counts down with the content ticks and stays positive until expiry', () {
+      fakeAsync((async) {
+        final (api, c, _) = pendBuild([mid5]);
+        c.load(_content);
+        flush(async);
+        api.pushProgress(const MovaProg(position: Duration(seconds: 31)));
+        flush(async);
+        expect(c.delayRemaining, const Duration(seconds: 5));
+        api.pushProgress(const MovaProg(position: Duration(seconds: 33)));
+        flush(async);
+        expect(c.delayRemaining, const Duration(seconds: 3));
+        expect(c.delayRemaining, greaterThan(Duration.zero));
+      });
+    });
+
+    test('after the countdown the ad takes over and reports started', () {
+      fakeAsync((async) {
+        final (api, c, events) = pendBuild([mid5]);
+        c.load(_content);
+        flush(async);
+        api.pushProgress(const MovaProg(position: Duration(seconds: 31)));
+        flush(async);
+        async.elapse(const Duration(seconds: 5));
+        flush(async);
+        expect(c.isShowingAd, isTrue);
+        expect(c.isAdPending, isFalse);
+        expect(api.source?.uri, 'https://host/mid.mp4');
+        expect(events.map((e) => e.type), contains(MovaAdEventType.started));
+      });
+    });
+
+    test('the content is never touched during the countdown', () {
+      fakeAsync((async) {
+        final (api, c, _) = pendBuild([mid5]);
+        c.load(_content);
+        flush(async);
+        api.pushProgress(const MovaProg(position: Duration(seconds: 31)));
+        flush(async);
+        api.calls.clear();
+        for (var s = 32; s <= 34; s++) {
+          api.pushProgress(MovaProg(position: Duration(seconds: s)));
+          flush(async);
+        }
+        expect(api.calls, isNot(contains('pause')));
+        expect(api.calls, isNot(contains('open')));
+        expect(api.calls, isNot(contains('seek')));
+      });
+    });
+
+    test('the resume point is where the ad actually took over, not where the countdown began', () {
+      fakeAsync((async) {
+        final (api, c, _) = pendBuild([mid5]);
+        c.load(_content);
+        flush(async);
+        api.pushProgress(const MovaProg(position: Duration(seconds: 30)));
+        flush(async);
+        api.pushProgress(const MovaProg(position: Duration(seconds: 35)));
+        flush(async);
+        async.elapse(const Duration(seconds: 5));
+        flush(async);
+        expect(c.isShowingAd, isTrue);
+        api.pushEvent(const MovaDone());
+        flush(async);
+        expect(api.lastSeek, const Duration(seconds: 35));
+      });
+    });
+
+    test('inside a mid-roll pod the countdown pops exactly once and the content never flashes back', () {
+      fakeAsync((async) {
+        const a = MovaAdBreak(
+          kind: MovaAdBreakKind.mid,
+          source: MovaSource('https://host/mid1.mp4'),
+          offset: Duration(seconds: 30),
+          delay: Duration(seconds: 3),
+        );
+        const b = MovaAdBreak(
+          kind: MovaAdBreakKind.mid,
+          source: MovaSource('https://host/mid2.mp4'),
+          offset: Duration(seconds: 30),
+          delay: Duration(seconds: 3),
+        );
+        final (api, c, events) = pendBuild([a, b]);
+        c.load(_content);
+        flush(async);
+        api.pushProgress(const MovaProg(position: Duration(seconds: 31)));
+        flush(async);
+        async.elapse(const Duration(seconds: 3));
+        flush(async);
+        expect(api.source?.uri, 'https://host/mid1.mp4');
+        api.pushEvent(const MovaDone());
+        flush(async);
+        expect(api.source?.uri, 'https://host/mid2.mp4',
+            reason: 'the pod chains directly, with no content in between');
+        expect(events.where((e) => e.type == MovaAdEventType.pending), hasLength(1));
+        expect(c.isAdPending, isFalse);
+      });
+    });
+
+    test('no second mid-roll may be triggered while one is pending', () {
+      fakeAsync((async) {
+        const later = MovaAdBreak(
+          kind: MovaAdBreakKind.mid,
+          source: MovaSource('https://host/later.mp4'),
+          offset: Duration(seconds: 60),
+        );
+        final (api, c, _) = pendBuild([mid5, later]);
+        c.load(_content);
+        flush(async);
+        api.pushProgress(const MovaProg(position: Duration(seconds: 31)));
+        flush(async);
+        api.pushProgress(const MovaProg(position: Duration(seconds: 61)));
+        flush(async);
+        expect(c.pendingBreak, same(mid5));
+        expect(api.source?.uri, _content.uri);
+      });
+    });
+
+    test('playAdNow with a delay goes through pending and resumes at the takeover point', () {
+      fakeAsync((async) {
+        final (api, c, _) = pendBuild([]);
+        c.load(_content);
+        flush(async);
+        api.pushProgress(const MovaProg(position: Duration(seconds: 10)));
+        flush(async);
+        const runtime = MovaAdBreak(
+          kind: MovaAdBreakKind.mid,
+          source: MovaSource('https://host/flash.mp4'),
+          delay: Duration(seconds: 4),
+        );
+        c.playAdNow(runtime);
+        flush(async);
+        expect(c.isAdPending, isTrue);
+        api.pushProgress(const MovaProg(position: Duration(seconds: 12)));
+        flush(async);
+        async.elapse(const Duration(seconds: 4));
+        flush(async);
+        expect(c.isShowingAd, isTrue);
+        api.pushEvent(const MovaDone());
+        flush(async);
+        expect(api.lastSeek, const Duration(seconds: 12));
+      });
+    });
+
+    test('playAdNow is a no-op while an ad is already pending', () {
+      fakeAsync((async) {
+        final (api, c, _) = pendBuild([mid5]);
+        c.load(_content);
+        flush(async);
+        api.pushProgress(const MovaProg(position: Duration(seconds: 31)));
+        flush(async);
+        expect(c.isAdPending, isTrue);
+        c.playAdNow(const MovaAdBreak(
+          kind: MovaAdBreakKind.mid,
+          source: MovaSource('https://host/other.mp4'),
+        ));
+        flush(async);
+        expect(c.pendingBreak, same(mid5));
+        expect(api.source?.uri, _content.uri);
+      });
+    });
+
+    test('the content ending during pending drops the queued break and runs the post-roll path', () {
+      fakeAsync((async) {
+        const post = MovaAdBreak(
+          kind: MovaAdBreakKind.post,
+          source: MovaSource('https://host/post.mp4'),
+        );
+        final (api, c, _) = pendBuild([mid5, post]);
+        c.load(_content);
+        flush(async);
+        api.pushProgress(const MovaProg(position: Duration(seconds: 31)));
+        flush(async);
+        expect(c.isAdPending, isTrue);
+        api.pushEvent(const MovaDone());
+        flush(async);
+        expect(c.isAdPending, isFalse);
+        expect(api.source?.uri, 'https://host/post.mp4');
+        async.elapse(const Duration(seconds: 10));
+        flush(async);
+        expect(api.source?.uri, 'https://host/post.mp4',
+            reason: 'the cancelled delay timer must not fire the dropped mid-roll');
+      });
+    });
+
+    test('skip() is a no-op during pending', () {
+      fakeAsync((async) {
+        final (api, c, _) = pendBuild([mid5]);
+        c.load(_content);
+        flush(async);
+        api.pushProgress(const MovaProg(position: Duration(seconds: 31)));
+        flush(async);
+        api.calls.clear();
+        c.skip();
+        flush(async);
+        expect(c.isAdPending, isTrue);
+        expect(api.calls, isEmpty);
+      });
+    });
+
+    test('a zero delay still goes through pending when the break waits for readiness', () {
+      fakeAsync((async) {
+        final swap = FakeSwapCtl();
+        final (api, c, events) = pendBuild([midNoDelay], swap: swap);
+        c.load(_content);
+        flush(async);
+        api.pushProgress(const MovaProg(position: Duration(seconds: 31)));
+        flush(async);
+        // The pending phase is entered (mid-rolls wait by default) but, with no
+        // countdown to run, it is left again in the same turn — the readiness
+        // wait itself lives inside _beginAd.
+        //
+        // 待播阶段被进入（中插默认等待），但没有倒计时可走，因此同一轮内即离开——
+        // 就绪等待本身发生在 _beginAd 内部。
+        expect(events.map((e) => e.type), contains(MovaAdEventType.pending));
+        expect(events.map((e) => e.type), contains(MovaAdEventType.started));
+        expect(c.delayRemaining, isNull, reason: 'a silent wait renders no countdown');
+      });
+    });
+
+    test('a zero delay with waiting turned off never enters pending', () {
+      fakeAsync((async) {
+        final swap = FakeSwapCtl();
+        final (api, c, _) = pendBuild(
+          [midNoDelay],
+          swap: swap,
+          wait: const MovaAdWaitByKind(mid: false),
+        );
+        c.load(_content);
+        flush(async);
+        api.pushProgress(const MovaProg(position: Duration(seconds: 31)));
+        flush(async);
+        expect(c.isAdPending, isFalse);
+        expect(c.isShowingAd, isTrue);
+        expect(api.source?.uri, 'https://host/mid.mp4');
+      });
+    });
+  });
 }

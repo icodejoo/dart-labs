@@ -45,6 +45,19 @@ enum _Phase {
   /// 未加载，或正片连同所有广告都已播完。
   idle,
 
+  /// A mid-roll is due but has not taken over yet, while the content
+  /// deliberately keeps playing — either because its [MovaAdBreak.delay]
+  /// countdown is running, or because the ad is being warmed up in the
+  /// background and is not ready to be shown, or both. Distinct from [content]
+  /// because no *further* mid-roll may be triggered here, and distinct from
+  /// [ad] because nothing has interrupted the viewer yet.
+  ///
+  /// 一条中插已到期但尚未接管，而正片刻意继续播放——可能是其
+  /// [MovaAdBreak.delay] 倒计时正在走，可能是广告正在后台预热、还不能见人，
+  /// 也可能两者同时。与 [content] 不同之处在于此阶段不得再触发*别的*中插；
+  /// 与 [ad] 不同之处在于观众此刻还没有被打断。
+  pending,
+
   /// An ad break is playing.
   ///
   /// 正在播放一个广告位。
@@ -187,6 +200,31 @@ class MovaAdCtrl {
   /// 一起的独立时钟；没有这道守卫，正片会被 open 两次。
   bool _resuming = false;
 
+  /// The break counting down / warming up in [_Phase.pending].
+  ///
+  /// [_Phase.pending] 阶段正在倒计时 / 预热中的广告位。
+  MovaAdBreak? _pending;
+
+  /// Fires when the pending break's [MovaAdBreak.delay] runs out; null when
+  /// the pending break has no visible countdown.
+  ///
+  /// 待播广告位的 [MovaAdBreak.delay] 走完时触发；该广告位没有可见倒计时时为 null。
+  Timer? _delayTimer;
+
+  /// The content position the pending phase began at, used to render the
+  /// countdown.
+  ///
+  /// Derived from the progress stream rather than a wall clock on purpose: the
+  /// countdown is a *display* value, and the content position is the one
+  /// number that is already ticking in front of the viewer. Expiry itself is
+  /// still driven by [_delayTimer], never by this.
+  ///
+  /// 进入待播阶段时的正片位置，用于渲染倒计时。
+  ///
+  /// 刻意取自进度流而非墙钟：倒计时是一个*展示*值，而正片位置正是此刻已经在
+  /// 观众眼前走动的那个数。到期判定本身仍由 [_delayTimer] 驱动，绝不由它决定。
+  Duration _pendingFrom = Duration.zero;
+
   /// Whether an ad is currently on screen.
   ///
   /// 当前是否正在播放广告。
@@ -196,6 +234,36 @@ class MovaAdCtrl {
   ///
   /// 当前正在播放的广告位；无则为 null。
   MovaAdBreak? get currentBreak => _current;
+
+  /// Whether an ad is counting down to take over while the content still
+  /// plays.
+  ///
+  /// 是否有一条广告正在倒计时、即将接管，而正片仍在播放。
+  bool get isAdPending => _phase == _Phase.pending;
+
+  /// The break that is counting down, or null when none is.
+  ///
+  /// 正在倒计时的广告位；没有则为 null。
+  MovaAdBreak? get pendingBreak => _pending;
+
+  /// Time left before the pending ad takes over, or null when none is pending
+  /// or the pending break has no visible countdown.
+  ///
+  /// Null for the default mid-roll shape (`delay == 0`, waiting silently for
+  /// readiness): that wait is meant to be invisible, so there is nothing to
+  /// render.
+  ///
+  /// 距待播广告接管还剩的时长；没有待播广告、或待播广告位没有可见倒计时时为 null。
+  ///
+  /// 中插的默认形态（`delay == 0`、静默等待就绪）下返回 null：那段等待本就该是
+  /// 用户无感的，没有任何东西需要渲染。
+  Duration? get delayRemaining {
+    final b = _pending;
+    if (b == null || b.delay <= Duration.zero) return null;
+    final elapsed = _lastContentPosition - _pendingFrom;
+    final left = b.delay - elapsed;
+    return left > Duration.zero ? left : Duration.zero;
+  }
 
   /// Elapsed time into the current ad (from zero).
   ///
@@ -382,14 +450,30 @@ class MovaAdCtrl {
   /// ));
   /// ```
   Future<void> playAdNow(MovaAdBreak ad) async {
+    // A no-op while one is already queued: only one ad may be pending at a
+    // time, and cancelling a queued ad is a host product decision, not the
+    // player's.
+    //
+    // 已经有一条在排队时为空操作：同一时刻只允许一条待播广告，而取消一条已排队
+    // 的广告是宿主的产品决策，不是播放器的。
     if (_phase != _Phase.content) return;
     _contentResumeAt = _lastContentPosition;
+    if (ad.delay > Duration.zero || _wantsWait(ad)) {
+      _beginDelay(ad);
+      return;
+    }
     await _playAd(ad);
   }
 
   /// Skips the current ad if it is skippable right now; no-op otherwise.
   ///
+  /// Also a no-op in [_Phase.pending]: there is no ad on screen to skip yet,
+  /// and cancelling an ad that is about to play is a host product decision.
+  ///
   /// 若当前广告此刻可跳过则跳过；否则为空操作。
+  ///
+  /// 在 [_Phase.pending] 阶段同样是空操作：屏幕上还没有广告可跳，而"取消一条
+  /// 即将播放的广告"是宿主的产品决策。
   void skip() {
     if (_phase != _Phase.ad || !canSkip) return;
     final b = _current!;
@@ -409,11 +493,107 @@ class MovaAdCtrl {
   /// Returns the first not-yet-played break of [kind], or null.
   ///
   /// 返回首个尚未播放的、类型为 [kind] 的广告位；没有则为 null。
+  /// Returns the next unplayed mid-roll inserted at the same point as the one
+  /// that just finished, or null when the pod is exhausted.
+  ///
+  /// "The same point" means an offset at or before the current resume
+  /// position — that is what makes two breaks one pod. Later mid-rolls are
+  /// deliberately excluded: chaining into those would not be a pod, it would
+  /// be playing the rest of the schedule back to back.
+  ///
+  /// 返回与刚播完那条插在同一位置的下一条未播中插；pod 已耗尽时返回 null。
+  ///
+  /// "同一位置"指 offset 不晚于当前续播点——这正是两条广告算作同一个 pod 的
+  /// 定义。更晚的中插被刻意排除：串到那些上去就不是 pod 了，而是把剩下的排期
+  /// 一口气连播完。
+  MovaAdBreak? _nextPodMid() {
+    for (final b in _breaks) {
+      if (b.kind == MovaAdBreakKind.mid &&
+          !_played.contains(b) &&
+          b.offset <= _contentResumeAt) {
+        return b;
+      }
+    }
+    return null;
+  }
+
   MovaAdBreak? _firstOfKind(MovaAdBreakKind kind) {
     for (final b in _breaks) {
       if (b.kind == kind && !_played.contains(b)) return b;
     }
     return null;
+  }
+
+  /// Whether [b] should be warmed up and cut to only once it is ready.
+  ///
+  /// Waiting needs somewhere to warm up in; with no swap engine the whole
+  /// question is moot and the per-kind default never even gets consulted. The
+  /// three-layer override (break → injected policy → per-kind default) lives
+  /// entirely inside [MovaAdConfig.waitsFor] — this controller must never
+  /// branch on [MovaAdBreakKind] itself, or the host's override would become
+  /// unreachable.
+  ///
+  /// [b] 是否应当先预热、待其就绪后才切入。
+  ///
+  /// 等待需要一个可供预热之处；没有切换引擎时这个问题根本不成立，按类型的
+  /// 默认值压根不会被查询。三层覆盖（广告位 → 注入策略 → 按 kind 默认）完全封在
+  /// [MovaAdConfig.waitsFor] 里——本控制器绝不自行对 [MovaAdBreakKind] 分支，
+  /// 否则宿主的覆盖就绕不过去了。
+  bool _wantsWait(MovaAdBreak b) {
+    final swap = _swap;
+    return swap != null && swap.swapEnabled && _cfg.waitsFor(b);
+  }
+
+  /// Enters [_Phase.pending] for [b]: the content plays on while the countdown
+  /// runs and/or the ad warms up in the background.
+  ///
+  /// [b] is marked played immediately so the countdown window cannot keep
+  /// re-matching it on every tick.
+  ///
+  /// 为 [b] 进入 [_Phase.pending]：倒计时走动和/或广告后台预热期间，正片继续播放。
+  ///
+  /// [b] 会被立刻标记为已播，使倒计时窗口内不会每个 tick 都重复命中它。
+  void _beginDelay(MovaAdBreak b) {
+    _phase = _Phase.pending;
+    _pending = b;
+    _pendingFrom = _lastContentPosition;
+    _played.add(b);
+    _cancelDelayTimer();
+    _fire(MovaAdEventType.pending, b);
+    _changes.add(null);
+    // Only a host-configured delay produces a countdown timer. With no delay
+    // the pending phase is entered and left in one go, and the readiness wait
+    // (if any) happens inside [_beginAd] — so "at least the countdown, at most
+    // the countdown plus the readiness timeout" holds either way.
+    //
+    // 只有宿主配置的 delay 才会起倒计时定时器。没有 delay 时待播阶段进入即离开，
+    // 就绪等待（若有）发生在 [_beginAd] 内部——因此"至少走完倒计时、最多再加一个
+    // 就绪超时"这条在两种情形下都成立。
+    if (b.delay > Duration.zero) {
+      _delayTimer = Timer(b.delay, () {
+        if (_phase != _Phase.pending || !identical(_pending, b)) return;
+        unawaited(_beginAd(b));
+      });
+    } else {
+      unawaited(_beginAd(b));
+    }
+  }
+
+  /// Cancels the delay countdown timer, if one is running.
+  ///
+  /// 取消倒计时定时器（若有）。
+  void _cancelDelayTimer() {
+    _delayTimer?.cancel();
+    _delayTimer = null;
+  }
+
+  /// Hands the screen over to [b] once its pending phase is done.
+  ///
+  /// 待播阶段结束后，把画面交给 [b]。
+  Future<void> _beginAd(MovaAdBreak b) async {
+    _cancelDelayTimer();
+    _pending = null;
+    await _playAd(b);
   }
 
   /// Switches playback to ad break [b].
@@ -515,8 +695,10 @@ class MovaAdCtrl {
   /// 判据自身的超时约束——最坏情况也只是稍晚一点退化到同样的回落路径。
   Future<void> _playContent({Duration at = Duration.zero}) async {
     _cancelSlotTimer();
+    _cancelDelayTimer();
     _phase = _Phase.content;
     _current = null;
+    _pending = null;
     _changes.add(null);
     final c = await _contentSource();
     if (c == null) return;
@@ -550,7 +732,17 @@ class MovaAdCtrl {
       if (finished == null) return;
       _fire(MovaAdEventType.completed, finished);
       unawaited(_resumeAfterAd(finished));
-    } else if (_phase == _Phase.content) {
+    } else if (_phase == _Phase.content || _phase == _Phase.pending) {
+      // The content ended while a mid-roll was queued behind it: that break is
+      // scheduled *inside* the content, so with the content gone it is moot.
+      //
+      // 正片在一条中插排队期间播完了：那条广告位是排在正片*内部*的，正片没了
+      // 它也就没有意义了。
+      if (_phase == _Phase.pending) {
+        _cancelDelayTimer();
+        _pending = null;
+        unawaited(_swap?.abandon());
+      }
       final post = _enabled ? _firstOfKind(MovaAdBreakKind.post) : null;
       if (post != null) {
         unawaited(_playAd(post));
@@ -566,8 +758,10 @@ class MovaAdCtrl {
   /// 在正片（及其后贴片）播完后转入空闲，并触发 [contentEnded] 供播放列表组合使用。
   void _goIdleAfterContent() {
     _cancelSlotTimer();
+    _cancelDelayTimer();
     _phase = _Phase.idle;
     _current = null;
+    _pending = null;
     _changes.add(null);
     _contentEnded.add(null);
   }
@@ -594,8 +788,24 @@ class MovaAdCtrl {
           await _playContent();
         }
       case MovaAdBreakKind.mid:
+        // Ad pod: chain straight into the next mid-roll inserted at the same
+        // point. Without this the second break of a pod only plays after the
+        // content has been resumed and ticked once — which flashes the content
+        // between two ads and, now that pending exists, would pop a second
+        // countdown. Only the *first* break of a pod ever goes through
+        // [_beginDelay]; chained ones go straight to [_playAd].
+        //
+        // 广告 pod：直接串到插在同一位置的下一条中插。没有这一步，pod 的第二条
+        // 要等正片被续播、再 tick 一次才播——这会在两条广告之间闪一下正片，而且
+        // 在有了待播阶段之后还会再弹一次倒计时。一个 pod 里只有*第一条*会经过
+        // [_beginDelay]，被串联的后续几条一律直接走 [_playAd]。
+        final nextMid = _nextPodMid();
         _resuming = false;
-        await _playContent(at: _contentResumeAt);
+        if (nextMid != null) {
+          await _playAd(nextMid);
+        } else {
+          await _playContent(at: _contentResumeAt);
+        }
       case MovaAdBreakKind.post:
         // Ad pod: chain any further post-rolls before going idle.
         //
@@ -639,13 +849,36 @@ class MovaAdCtrl {
       }
       return;
     }
+    if (_phase == _Phase.pending) {
+      // The content deliberately plays on. The resume point tracks the live
+      // position, so it ends up being where the ad *actually* takes over — not
+      // where the countdown started. No further mid-roll may be triggered from
+      // here: one pending ad at a time.
+      //
+      // 正片刻意继续播放。续播点跟随实时位置，因此最终取到的是广告*真正*接管
+      // 那一刻的位置，而不是倒计时开始那一刻。此阶段不得再触发别的中插：
+      // 同一时刻只排队一条待播广告。
+      _lastContentPosition = p.position;
+      _contentResumeAt = p.position;
+      return;
+    }
     if (_phase == _Phase.content) {
       _lastContentPosition = p.position;
       if (_enabled) {
         final due = dueMidRoll(_breaks, p.position, _played);
         if (due != null) {
           _contentResumeAt = p.position;
-          unawaited(_playAd(due));
+          // A countdown, a background warm-up, or both, put the break through
+          // the pending phase first; otherwise it takes over immediately, the
+          // way it always has.
+          //
+          // 有倒计时、有后台预热、或两者兼有时，先让该广告位走一遍待播阶段；
+          // 否则立刻接管，与一贯行为相同。
+          if (due.delay > Duration.zero || _wantsWait(due)) {
+            _beginDelay(due);
+          } else {
+            unawaited(_playAd(due));
+          }
         }
       }
     }
@@ -679,6 +912,7 @@ class MovaAdCtrl {
   /// 释放订阅并关闭变更流；销毁时调用一次。
   Future<void> dispose() async {
     _cancelSlotTimer();
+    _cancelDelayTimer();
     await _eventSub?.cancel();
     await _progressSub?.cancel();
     await _swap?.abandon();
