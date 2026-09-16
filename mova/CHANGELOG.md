@@ -27,8 +27,12 @@
   音频场景的封面/波形/歌词面用已有的 `MovaPlayer.surface` 传入。**不新增任何公开类，
   barrel 一行未改**；`audioOnly` 刻意不进 `MovaOpts`（构造期资源决策，`copyWith` 无法
   生效），也不加 `MovaStreamType.audio`（与流类型正交）。`MovaAudioSkin` 与后台常驻/
-  锁屏/通知栏等系统集成面**不在本次范围**（分流判据见 README）。**真机验证尚未进行**
-  （功能正确性、三阶段 `dumpsys meminfo` 内存对账、`vid` 属性直接确认、电量/CPU 抽查）。
+  锁屏/通知栏等系统集成面**不在本次范围**（分流判据见 README）。
+  **Windows 桌面端已实测**（`ProcessInfo.currentRss`，同一条素材各两轮）：播放期内存
+  增量视频 197 MiB vs 音频 96 MiB，**省约 101 MiB、约 2.05×**（不是文档原先推算的
+  两个数量级——RSS 含 Flutter engine/libmpv 自身常驻开销），并直接确认 `audioOnly`
+  下 `MovaState.size` 为 `0x0`、`renderHandle` 为 `null`；数据见
+  `doc/notes/2026-09-16-audio-only-feasibility.md` §1.5。**Android/iOS 真机验证仍未进行。**
 
 ---
 ## 0.3.0

@@ -237,9 +237,19 @@ media_kit 的 `Player` 一创建就是 mpv 的 `--vid=no`，**只有** `VideoCon
 Flutter `Texture` 注册这三项直接是 0，而不只是变小**——它们正是视频侧内存开销的全部。
 量级上：内存约差两个数量级（MB 级 vs 近百 MB 级），CPU 与电量差一个数量级以上。
 
-> ⚠️ 上述数字是按编解码参数与公开工程共识**推算的量级，不是本仓库的实测数字**。
-> 实测数字见 [doc/plans/2026-09-16-audio-only.md](doc/plans/2026-09-16-audio-only.md)
-> Task 5 回写的附录 A（**真机验证尚未进行**）。
+> ⚠️ 上述"两个数量级"是按编解码参数**推算的分项量级**，只在单独比帧缓冲/GPU 纹理
+> 这几项时成立，**不要用它推整机内存**。
+>
+> **Windows 桌面端已有实测**（同一条 854×480 素材，`ProcessInfo.currentRss`，各两轮）：
+> 视频模式播放期内存增量均值 **197 MiB**，audioOnly **96 MiB**，
+> **省约 101 MiB，倍率约 2.05×**——是约 2 倍，不是两个数量级，因为 RSS 还包含
+> Flutter engine 与 libmpv 自身那份两种模式都要付的常驻开销。同一轮实测还直接确认了
+> `audioOnly` 下 `MovaState.size` 为 `0x0`（视频轨压根没解码）、`renderHandle` 为
+> `null`。完整数据与口径说明见
+> [doc/notes/2026-09-16-audio-only-feasibility.md](doc/notes/2026-09-16-audio-only-feasibility.md) §1.5。
+>
+> **Android/iOS 真机验证仍未进行**，桌面 RSS 与移动端 `dumpsys meminfo` 不能直接类比。
+> 复现方式见 [example/README.md](example/README.md) 的 RSS 探针一节。
 
 反直觉的一点：**包体积不随模式变**。只要还链着 `media_kit_libs_video`，那 ~11.8 MiB/ABI
 的 `libmpv.so`（含 ffmpeg）就照样在包里，不管你运行时放不放视频。
