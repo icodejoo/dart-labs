@@ -872,9 +872,13 @@ jobs:
             mingw-w64-x86_64-freetype
             mingw-w64-x86_64-harfbuzz
             mingw-w64-x86_64-fribidi
-            mingw-w64-x86_64-dav1d
-            mingw-w64-x86_64-mbedtls
             mingw-w64-x86_64-zlib
+          # mbedtls dropped (Task 1: TLS backend switches to system SChannel,
+          # zero extra bytes + LGPLv2.1 instead of v3) and dav1d dropped (Task 4:
+          # built from source below — pacman's build isn't size-optimized and,
+          # combined with -ffunction-sections, is a net *regression*; see
+          # doc/plans/2026-09-17-windows-libmpv-slim.md §12 for the measurements
+          # behind every flag choice in this job from here on).
 
       - name: Pin meson via pip
         run: |
@@ -925,16 +929,34 @@ jobs:
         run: |
           # MSYS2/MINGW64 gcc is already the target toolchain — no --cross-prefix.
           # Windows hardaccel is d3d11va/dxva2 (not vaapi/vdpau).
+          # Task 1 (2026-09-17 verified): mbedtls -> system SChannel. Zero extra
+          # bytes (SChannel is a Windows system API, not vendored code) and it
+          # drops --enable-version3 (mbedtls's dual Apache-2.0/GPL-2.0 licensing
+          # was the only reason that flag was needed), so the shipped license
+          # goes back from LGPLv3 to LGPLv2.1. Verified https/tls/rtmps stay
+          # enabled; only ffrtmpcrypt (RTMPE, not TLS-based) drops, which is
+          # fine — rtmps still works. Measured: -773,632 bytes (-5.0%).
+          #
+          # Deliberately NOT adding --extra-cflags="-ffunction-sections ..."
+          # here (that was this plan's original Task 2): measured on this exact
+          # ffmpeg build, it made libavcodec.a balloon 27.5MB -> 32.9MB (+20%)
+          # and the final linked+stripped DLL went from 14.70MiB to 32.58MiB
+          # (+124%). ffmpeg's decoder code paths are almost entirely reachable
+          # at runtime, so --gc-sections has essentially no dead code to
+          # recover here — the flag is pure per-function section/relocation
+          # overhead with no offsetting benefit. See
+          # doc/plans/2026-09-17-windows-libmpv-slim.md §12 "发现 2" for the
+          # full measurement and the (opposite) mpv-only result.
           ./configure \
             --target-os=mingw32 \
             --arch=x86_64 \
-            --disable-gpl --disable-nonfree --enable-version3 \
+            --disable-gpl --disable-nonfree \
             --enable-static --disable-shared --pkg-config-flags=--static \
             --disable-doc --disable-programs --disable-avdevice --disable-postproc \
             --disable-muxers --disable-decoders --disable-encoders --disable-demuxers \
             --disable-parsers --disable-protocols --disable-devices --disable-filters \
             --enable-small --enable-optimizations \
-            --enable-mbedtls --enable-zlib --enable-libdav1d \
+            --enable-schannel --enable-zlib --enable-libdav1d \
             --enable-d3d11va --enable-dxva2 \
             --enable-avutil --enable-avcodec --enable-avfilter --enable-avformat \
             --enable-swscale --enable-swresample \
@@ -945,9 +967,39 @@ jobs:
             --enable-protocol=file,fd,pipe,data,http,https,tcp,tls,crypto,rtmp,rtmps,rtmpt,rtmpts,ffrtmpcrypt,ffrtmphttp,udp,rtp \
             --enable-bsf=null,extract_extradata,h264_mp4toannexb,hevc_mp4toannexb,aac_adtstoasc,vp9_superframe,vp9_superframe_split,av1_frame_split,av1_frame_merge,mov2textsub,dump_extradata,setts \
             --enable-network \
-            --prefix="$WS/prefix"
+            --prefix="$WS/prefix" 2>&1 | tee "$WS/ffconf.log"
+          grep -q 'License: LGPL version 2.1' "$WS/ffconf.log" \
+            || { echo "::error::License is not LGPLv2.1 — SChannel switch didn't take effect or a version3-only component crept back in"; exit 1; }
+          for proto in https tls rtmps; do
+            grep -qw "$proto" "$WS/ffconf.log" \
+              || { echo "::error::protocol '$proto' missing after the SChannel switch — TLS backend isn't actually working"; exit 1; }
+          done
           make -j"$(nproc)"
           make install
+
+      - name: Build dav1d from source (Task 4, static, -Os, no section splitting)
+        run: |
+          # 2026-09-17 verified: pacman's mingw-w64-x86_64-dav1d ships tools/
+          # tests/every SIMD variant, distro-generic optimization. Rebuilding
+          # from source with buildtype=minsize (-Os) — deliberately WITHOUT
+          # -ffunction-sections/-fdata-sections, which measured as a
+          # regression here just like on ffmpeg above (same reason: dav1d's
+          # AV1 decode paths are almost entirely reachable, so section
+          # splitting is pure overhead) — measured -223,232 bytes (-1.6%) on
+          # the final linked DLL, and the archive itself shrinks
+          # 3,109,140 -> 2,842,692 bytes. -Dbitdepths=8,16 keeps 10-bit AV1
+          # (desktop HDR content is common enough that dropping it to save a
+          # few hundred KB isn't a good trade — see plan §6.1 for Android's
+          # opposite call on mobile).
+          git clone --depth 1 --branch 1.2.1 https://code.videolan.org/videolan/dav1d.git dav1d-src
+          cd dav1d-src
+          meson setup _build --prefix="$WS/prefix" --libdir=lib \
+            --default-library=static --buildtype=minsize \
+            -Ddebug=false -Db_ndebug=true \
+            -Denable_tools=false -Denable_tests=false -Denable_examples=false \
+            -Dbitdepths=8,16
+          ninja -C _build
+          ninja -C _build install
 
       - name: Build mpv (native, against pacman libass/freetype and our ffmpeg)
         working-directory: mpv-src
@@ -970,10 +1022,29 @@ jobs:
           # an explicit -lstdc++ (the flag only substitutes a C++ driver's own
           # auto-added -lstdc++, not one we pass ourselves) — -Wl,-Bstatic ...
           # -Wl,-Bdynamic bracketing the two problem libs is what actually works.
-          # Cost: +114,176 bytes (+0.7%) locally verified, correctness over size.
+          # Cost: +107,008 bytes (+0.7%) locally verified, correctness over size.
+          #
+          # Task 3 + extra (2026-09-17 verified, doc/plans/2026-09-17-windows-
+          # libmpv-slim.md §12): buildtype=minsize (-Os) + -Ddebug=false (minsize
+          # alone turns debug=true back on) + -Db_ndebug=true (drop asserts) +
+          # -ffunction-sections/-fdata-sections + -Wl,--gc-sections together:
+          # -424,448 bytes. Unlike ffmpeg/dav1d above, mpv's own object files
+          # DO have real dead code (many optional subsystems compiled in but
+          # unreachable with cplayer=false etc.), so section splitting pays off
+          # here specifically — it's a net loss everywhere else in this job.
+          # -Oz instead of buildtype's default -Os: the single biggest lever in
+          # the whole plan, -1,575,424 bytes (-11.2%) on top of everything else,
+          # verified against the full symbol/self-containment checklist below.
+          # (The same swap on ffmpeg's build above measured +512 bytes — noise —
+          # so it's mpv-only; ffmpeg's code is already tight enough that generic
+          # extra optimization has nothing left to gain.)
           meson setup build --prefix="$WS/prefix" --libdir=lib --default-library=shared \
             --prefer-static \
-            -Dc_link_args="-Wl,-Bstatic -lstdc++ -lwinpthread -Wl,-Bdynamic -ldwrite -lole32 -lrpcrt4 -static-libgcc -Wl,-Map=$(cygpath -m "$WS")/libmpv.map" \
+            -Dbuildtype=minsize -Ddebug=false -Db_ndebug=true \
+            -Dc_args="-Oz -ffunction-sections -fdata-sections -fomit-frame-pointer" \
+            -Dcpp_args="-Oz -ffunction-sections -fdata-sections -fomit-frame-pointer" \
+            -Dc_link_args="-Wl,-Bstatic -lstdc++ -lwinpthread -Wl,-Bdynamic -ldwrite -lole32 -lrpcrt4 -static-libgcc -Wl,--gc-sections -Wl,-Map=$(cygpath -m "$WS")/libmpv.map" \
+            -Dcpp_link_args="-Wl,--gc-sections" \
             -Dgpl=false -Dlibmpv=true -Dcplayer=false -Dtests=false
           ninja -C build
           ninja -C build install
@@ -1019,16 +1090,32 @@ jobs:
               && { echo "::error::产物导入了 $bad —— 不再自包含，用户机器上会因缺少 MinGW 运行时而加载失败"; exit 1; }
           done
 
+          # Symbol check, BEFORE strip (these are internal symbols, not part of
+          # mpv's public export table, so they disappear from `nm` once
+          # stripped — see plan §8). --gc-sections is now active on the mpv
+          # link (Task 3), which is the first point in this job with a real
+          # "silently discarded live code" risk, so check every dependency
+          # this build actually exercises, not just dav1d.
+          fail=0
+          for s in mpv_create mpv_initialize mpv_command mpv_set_option_string \
+                   mpv_render_context_create mpv_terminate_destroy \
+                   dav1d_open ass_library_init ass_renderer_init ass_set_fonts \
+                   hb_shape FT_Init_FreeType fribidi_get_par_embedding_levels_ex; do
+            nm --defined-only "$DLL" 2>/dev/null | grep -qw "$s" \
+              || { echo "::error::缺少符号 $s —— 被 --gc-sections 砍掉或依赖没链进来"; fail=1; }
+          done
+          test "$fail" = 0 || exit 1
+
           strip -s "$DLL"
 
           echo "### libmpv.dll size (windows x86_64)" >> "$GITHUB_STEP_SUMMARY"
           SIZE_BYTES=$(stat -c%s "$DLL")
           echo "$SIZE_BYTES bytes ($(numfmt --to=iec-i --suffix=B "$SIZE_BYTES" 2>/dev/null || echo "$SIZE_BYTES B"))" >> "$GITHUB_STEP_SUMMARY"
 
-          # Pacman dav1d is shared — expect either a defined symbol or a DLL import.
-          nm --defined-only "$DLL" 2>/dev/null | grep -q dav1d_open \
-            || objdump -p "$DLL" | grep -qi dav1d \
-            || { echo "::error::dav1d not linked (no defined dav1d_open, no dav1d DLL import) — AV1 decode silently dropped"; exit 1; }
+          # dav1d (and everything else) already checked above, before strip —
+          # post-strip nm can't see internal symbols and dav1d is no longer
+          # auto-exported now that it's built from source (2026-09-17 local
+          # verification), so a post-strip check here would always fail.
 
           cp "$DLL" "$WS/libmpv-2-windows-x86_64.dll"
 
