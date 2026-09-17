@@ -183,6 +183,11 @@ jobs:
               exit 0
             fi
             git commit -m "chore(mova): rebuild slimmed libmpv.so (android arm64-v8a) [skip ci]"
+            # actions/checkout doesn't install LFS hooks, so a plain `git
+            # push` here would push the pointer commit while silently
+            # leaving the actual binary missing from the LFS store (404 for
+            # anyone who later checks it out) — push LFS content explicitly.
+            git lfs push origin main
             if git push; then exit 0; fi
             echo "push rejected (race with a sibling job), retrying from a fresh baseline ($i/5)..."
             sleep $((RANDOM % 8 + 2))
@@ -325,6 +330,7 @@ jobs:
               exit 0
             fi
             git commit -m "chore(mova): rebuild slimmed libmpv.so (android ${{ matrix.abi }}) [skip ci]"
+            git lfs push origin main
             if git push; then exit 0; fi
             echo "push rejected (race with a sibling matrix leg), retrying from a fresh baseline ($i/5)..."
             sleep $((RANDOM % 8 + 2))
@@ -427,6 +433,7 @@ jobs:
               exit 0
             fi
             git commit -m "chore(mova): add darwin (ios+macos) libmpv build, v1 upstream default flavor [skip ci]"
+            git lfs push origin main
             if git push; then exit 0; fi
             echo "push rejected, retrying from a fresh baseline ($i/5)..."
             sleep $((RANDOM % 8 + 2))
@@ -818,6 +825,7 @@ jobs:
               exit 0
             fi
             git commit -m "chore(mova): add linux x86_64 libmpv build, v1 native [skip ci]"
+            git lfs push origin main
             if git push; then exit 0; fi
             echo "push rejected, retrying from a fresh baseline ($i/5)..."
             sleep $((RANDOM % 8 + 2))
@@ -1009,6 +1017,7 @@ jobs:
               exit 0
             fi
             git commit -m "chore(mova): add windows x86_64 libmpv-2.dll build, v1 native MSYS2 slim [skip ci]"
+            git lfs push origin main
             if git push; then exit 0; fi
             echo "push rejected, retrying from a fresh baseline ($i/5)..."
             sleep $((RANDOM % 8 + 2))
