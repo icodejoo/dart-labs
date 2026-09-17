@@ -16,10 +16,14 @@ name: Build mova libmpv (all platforms)
 # not a copy-paste of the Android shell-script pattern:
 #   - android-arm64 / android-other-abi: media-kit/libmpv-android-video-build,
 #     NDK cross-compile, shell flavor script (flavors-mova-slim.sh).
-#   - darwin (iOS+macOS, one job — there's no separate ios/macos repo):
-#     media-kit/libmpv-darwin-build, Nix + pinned Xcode, builds every
-#     ios/iossimulator/macos target in one `make` invocation. v1 ships the
-#     repo's own default flavor as-is (not our custom decoder/demuxer list).
+#   - darwin (macOS job) / ios: both drive media-kit/libmpv-darwin-build,
+#     Nix + pinned Xcode. `darwin` builds every ios/iossimulator/macos target
+#     in one bare `make` invocation, upstream's own default flavor. `ios` is
+#     scoped to just `TARGET=archive-libs-ios-arm64-video-default` (device
+#     arm64 only) for a fast iOS-only iteration loop — still upstream's
+#     default flavor, not mova's custom decoder/demuxer list; that slimming
+#     (flavors-mova-slim-ios.sh, currently unused/orphaned) is a follow-up
+#     once this validation build goes green.
 #   - linux: no upstream media-kit repo exists at all — native build on the
 #     runner itself (no cross-compile), deps from apt instead of source.
 #   - windows: same native-slim pattern as linux, on MSYS2/MINGW64 — NOT
@@ -54,9 +58,8 @@ jobs:
   android-arm64:
     name: Android arm64-v8a (implemented)
     runs-on: ubuntu-22.04
-    # Re-enabled 2026-09-17 for a full-platform rebuild (was green before, just
-    # paused while linux/windows were being iterated on).
-    if: true
+    # paused — iOS-focused iteration (2026-09-17), see ios job below
+    if: false
     steps:
       - name: Checkout dart-labs
         uses: actions/checkout@v4
@@ -227,9 +230,8 @@ jobs:
             abi: x86
           - arch: x86_64
             abi: x86_64
-    # Re-enabled 2026-09-17 for a full-platform rebuild (was green before, just
-    # paused while linux/windows were being iterated on).
-    if: true
+    # paused — iOS-focused iteration (2026-09-17), see ios job below
+    if: false
     steps:
       - name: Checkout dart-labs
         uses: actions/checkout@v4
@@ -385,8 +387,8 @@ jobs:
   darwin:
     name: "macOS (implemented, v1: upstream default flavor)"
     runs-on: macos-15
-    # Re-enabled 2026-09-17 for a full-platform rebuild, alongside `ios`.
-    if: true
+    # paused — iOS-focused iteration (2026-09-17), see ios job below
+    if: false
     steps:
       - name: Platform info
         run: sw_vers; uname -m
@@ -476,260 +478,90 @@ jobs:
           echo "::error::failed to push dist/darwin/ after retries"
           exit 1
 
-  # Full iOS pipeline (2026-08-12) — cross-builds ffmpeg AND mpv (plus every
-  # library mpv hard-depends on for subtitle rendering: libass/freetype/
-  # harfbuzz/fribidi) for iOS arm64, then links everything statically into a
-  # single libmpv.dylib the same shape as Android's "ffmpeg statically linked
-  # into libmpv.so": every dependency is a static .a, only system frameworks
-  # (VideoToolbox/AudioToolbox/CoreText/...) and the final libmpv itself are
-  # dynamic. This is a genuine first attempt (no prior CI run has gone green
-  # on this) — expect iteration the same way linux/windows needed several
-  # rounds of real-failure fixes before going green (see their step comments).
-  #
-  # All the cross-compiled deps use meson (dav1d/freetype/fribidi/harfbuzz/
-  # libass/mpv all ship meson build files) sharing one cross file, mirroring
-  # Android's buildscripts pattern (README's "进一步瘦身需要的 buildscripts 补丁"
-  # section) of native-file + b_lto=false to route around meson's LTO-leaking-
-  # into-host-tools bug for fribidi's own build-time table generator.
+  # iOS-only fast-iteration job (2026-09-17, v3) — replaces the previous
+  # from-scratch custom cross-build (which built ffmpeg/dav1d/freetype/
+  # fribidi/harfbuzz/libass/mpv all by hand and never went green). Reuses the
+  # same upstream repo/toolchain as the `darwin` job above
+  # (media-kit/libmpv-darwin-build, Nix + pinned Xcode) but scopes the build
+  # to a single flake target — device arm64, libs format, video variant,
+  # default flavor — instead of `darwin`'s bare `make` (every ios/
+  # iossimulator/macos combination). This mirrors how android-arm64
+  # bootstrapped from media-kit/libmpv-android-video-build before mova's
+  # custom flavor patch was layered on: get a real green build on upstream's
+  # own default flavor first, then slim it (mova's iOS flavor script,
+  # flavors-mova-slim-ios.sh, is parked/unused until that follow-up).
+  # Deliberately does NOT commit to mova/tools/ffmpeg-slim/dist/ yet — this
+  # is a first-green validation pass, not a shipping artifact.
   ios:
-    name: "iOS arm64 (v2: full libmpv, static deps)"
+    name: "iOS arm64 (v3: media-kit/libmpv-darwin-build, default flavor, validation)"
     runs-on: macos-15
-    env:
-      IOS_MIN_VERSION: "13.0"
-      DEPS: ${{ github.workspace }}/deps
-      PREFIX: ${{ github.workspace }}/prefix
+    if: true
     steps:
       - name: Checkout dart-labs
         uses: actions/checkout@v4
+        with:
+          path: dart-labs
 
-      - name: Install build dependencies
+      - name: Checkout libmpv-darwin-build
+        uses: actions/checkout@v4
+        with:
+          repository: media-kit/libmpv-darwin-build
+          path: build-root
+          # No pinned ref yet (first attempt at this TARGET) — same as
+          # `darwin`'s note above; pin once a build here succeeds.
+
+      - uses: DeterminateSystems/nix-installer-action@v22
+        with:
+          extra-conf: |
+            sandbox = true
+            sandbox-fallback = false
+
+      - uses: DeterminateSystems/magic-nix-cache-action@v13
+        with:
+          use-flakehub: false
+
+      - name: Resolve Xcode path
+        id: xcode
         run: |
-          brew install nasm pkg-config ninja cmake automake libtool
-          # Same pin as android/linux/windows (README's "meson 版本坑"): mpv's
-          # own build passes --prefer-static, which older meson releases
-          # don't recognize. Installed via pip, ahead of any brew meson on PATH.
-          pip3 install --break-system-packages "meson==1.3.2"
-          echo "$(python3 -m site --user-base)/bin" >> "$GITHUB_PATH"
-          # mpv's TOOLS/macos-sdk-version.py (run unconditionally by
-          # meson.build whenever host_machine.system() == 'darwin', which is
-          # true for iOS too, not just macOS) imports the long-removed
-          # `distutils` stdlib module. Python 3.12+ (what's on this runner)
-          # dropped it; setuptools vendors a compatible shim that makes
-          # `import distutils` work again without patching mpv's source.
-          pip3 install --break-system-packages setuptools
-
-      - name: Resolve iOS SDK + clang, write meson cross/native files
-        id: ios
-        run: |
-          SYSROOT=$(xcrun --sdk iphoneos --show-sdk-path)
-          CC=$(xcrun --sdk iphoneos --find clang)
-          AR=$(xcrun --sdk iphoneos --find ar)
-          STRIP=$(xcrun --sdk iphoneos --find strip)
-          echo "sysroot=$SYSROOT" >> "$GITHUB_OUTPUT"
-          echo "cc=$CC" >> "$GITHUB_OUTPUT"
-
-          # Shared across dav1d/freetype/fribidi/harfbuzz/libass/mpv. Mirrors
-          # the Android flavor's optimization flags (gc-sections/-fvisibility=
-          # hidden/LTO/-Os-equivalent minsize) — see README's "进一步瘦身" section
-          # for why each one earns its keep. `debug = false` overrides
-          # meson's minsize-buildtype default (minsize implies debug=true,
-          # i.e. -g on every object file) — nothing here should ship DWARF
-          # debug info.
-          # `sed` strips this heredoc's YAML-block indentation — a raw
-          # `cat <<EOF` here would write the leading spaces straight into the
-          # ini file, which meson's cross-file parser is not guaranteed to
-          # tolerate on section headers.
-          cat <<EOF | sed -e 's/^[[:space:]]*//' > "$GITHUB_WORKSPACE/ios-arm64.meson.cross"
-          [binaries]
-          c = '$CC'
-          cpp = '$CC'
-          objc = '$CC'
-          ar = '$AR'
-          strip = '$STRIP'
-          pkgconfig = 'pkg-config'
-
-          [built-in options]
-          c_args = ['-arch', 'arm64', '-isysroot', '$SYSROOT', '-mios-version-min=$IOS_MIN_VERSION', '-ffunction-sections', '-fdata-sections', '-fvisibility=hidden', '-fomit-frame-pointer']
-          c_link_args = ['-arch', 'arm64', '-isysroot', '$SYSROOT', '-mios-version-min=$IOS_MIN_VERSION', '-Wl,-dead_strip']
-          cpp_args = ['-arch', 'arm64', '-isysroot', '$SYSROOT', '-mios-version-min=$IOS_MIN_VERSION', '-ffunction-sections', '-fdata-sections', '-fvisibility=hidden', '-fomit-frame-pointer']
-          cpp_link_args = ['-arch', 'arm64', '-isysroot', '$SYSROOT', '-mios-version-min=$IOS_MIN_VERSION', '-Wl,-dead_strip']
-          objc_args = ['-arch', 'arm64', '-isysroot', '$SYSROOT', '-mios-version-min=$IOS_MIN_VERSION']
-          objc_link_args = ['-arch', 'arm64', '-isysroot', '$SYSROOT', '-mios-version-min=$IOS_MIN_VERSION']
-          b_lto = true
-          buildtype = 'minsize'
-          debug = false
-
-          [host_machine]
-          system = 'darwin'
-          cpu_family = 'aarch64'
-          cpu = 'aarch64'
-          endian = 'little'
-          EOF
-
-          # Host-tool LTO-leak workaround (README: meson's cross-file
-          # [built-in options] leak into native build-time tools, e.g.
-          # fribidi's own gen-unicode-version table generator, which the
-          # host's plain linker then can't parse as LTO bitcode).
-          cat <<EOF | sed -e 's/^[[:space:]]*//' > "$GITHUB_WORKSPACE/native.ini"
-          [built-in options]
-          b_lto = false
-          EOF
-
-      - name: Cross-build dav1d for iOS arm64
-        run: |
-          git clone --depth 1 --branch 1.2.0 https://github.com/videolan/dav1d.git dav1d-src
-          meson setup dav1d-build dav1d-src --cross-file ios-arm64.meson.cross \
-            --prefix="$DEPS" --libdir=lib --default-library=static \
-            -Denable_tools=false -Denable_tests=false
-          ninja -C dav1d-build
-          ninja -C dav1d-build install
-
-      - name: Cross-build freetype for iOS arm64
-        run: |
-          git clone --depth 1 --branch VER-2-13-3 https://github.com/freetype/freetype.git freetype-src
-          # Minimal font rasterizer: no compressed-font/color-bitmap support,
-          # no harfbuzz round-trip (harfbuzz depends on freetype, not the
-          # other way round, for our use).
-          meson setup freetype-build freetype-src --cross-file ios-arm64.meson.cross \
-            --prefix="$DEPS" --libdir=lib --default-library=static \
-            -Dbrotli=disabled -Dbzip2=disabled -Dharfbuzz=disabled -Dpng=disabled -Dzlib=disabled -Dmmap=disabled -Dtests=disabled
-          ninja -C freetype-build
-          ninja -C freetype-build install
-        env:
-          PKG_CONFIG_PATH: ${{ env.DEPS }}/lib/pkgconfig
-
-      - name: Cross-build fribidi for iOS arm64
-        run: |
-          git clone --depth 1 --branch v1.0.13 https://github.com/fribidi/fribidi.git fribidi-src
-          # --native-file: fribidi's own build runs a host-native table
-          # generator (gen-unicode-version) that b_lto=true from the cross
-          # file would otherwise poison (README's LTO-leak note).
-          meson setup fribidi-build fribidi-src --cross-file ios-arm64.meson.cross --native-file native.ini \
-            --prefix="$DEPS" --libdir=lib --default-library=static \
-            -Ddocs=false -Dbin=false -Dtests=false -Ddeprecated=false
-          ninja -C fribidi-build
-          ninja -C fribidi-build install
-
-      - name: Cross-build harfbuzz for iOS arm64
-        run: |
-          git clone --depth 1 --branch 8.3.0 https://github.com/harfbuzz/harfbuzz.git harfbuzz-src
-          meson setup harfbuzz-build harfbuzz-src --cross-file ios-arm64.meson.cross \
-            --prefix="$DEPS" --libdir=lib --default-library=static \
-            -Dglib=disabled -Dgobject=disabled -Dcairo=disabled -Dchafa=disabled -Dicu=disabled \
-            -Dgraphite=disabled -Dgraphite2=disabled -Dcoretext=disabled -Dfreetype=enabled \
-            -Dtests=disabled -Dintrospection=disabled -Ddocs=disabled -Dutilities=disabled
-          ninja -C harfbuzz-build
-          ninja -C harfbuzz-build install
-        env:
-          PKG_CONFIG_PATH: ${{ env.DEPS }}/lib/pkgconfig
-
-      - name: Cross-build libass for iOS arm64
-        run: |
-          git clone --depth 1 --branch 0.17.3 https://github.com/libass/libass.git libass-src
-          # coretext=enabled: libass requires a system font provider
-          # (fontconfig or coretext) or its build refuses to configure;
-          # fontconfig isn't cross-built here, CoreText is a real iOS
-          # framework so this is the correct (not a workaround) choice.
-          meson setup libass-build libass-src --cross-file ios-arm64.meson.cross \
-            --prefix="$DEPS" --libdir=lib --default-library=static \
-            -Dfontconfig=disabled -Dcoretext=enabled -Ddirectwrite=disabled -Dasm=disabled \
-            -Dlibunibreak=disabled -Dtest=false -Dprofile=false
-          ninja -C libass-build
-          ninja -C libass-build install
-        env:
-          PKG_CONFIG_PATH: ${{ env.DEPS }}/lib/pkgconfig
-
-      - name: Download ffmpeg source
-        run: git clone --depth 1 --branch n6.0 https://github.com/FFmpeg/FFmpeg.git ffmpeg-src
-
-      - name: Build ffmpeg with iOS movaslim flavor
-        working-directory: ffmpeg-src
-        env:
-          PKG_CONFIG_PATH: ${{ env.DEPS }}/lib/pkgconfig
-        run: |
-          cp ../mova-libmpv/flavors-mova-slim-ios.sh .
-          chmod +x flavors-mova-slim-ios.sh
-          ./flavors-mova-slim-ios.sh
-
-      - name: Cross-build mpv for iOS arm64 (static deps, dynamic libmpv)
-        env:
-          PKG_CONFIG_PATH: ${{ env.DEPS }}/lib/pkgconfig:${{ env.PREFIX }}/lib/pkgconfig
-        run: |
-          git clone https://github.com/mpv-player/mpv.git mpv-src
-          git -C mpv-src checkout 78d43740f52db817d98bcf24fb30a76ab6fa13ff
-          # --default-library=shared + --prefer-static: the one dynamic
-          # output is libmpv.dylib itself; every dependency it pulls in
-          # (ffmpeg/dav1d/libass/freetype/harfbuzz/fribidi) is linked in
-          # statically — same shape as Android's "ffmpeg statically linked
-          # into libmpv.so". gpl=false is mandatory (mpv defaults to GPL).
-          # Most feature/AO/VO toggles below are explicit disables for
-          # subsystems this build has no cross-built dependency for, or
-          # that don't apply off pure-iOS (cocoa/d3d11/vaapi/...); ios-gl is
-          # the real iOS OpenGL ES + VideoToolbox hwdec interop path, kept
-          # enabled; audiounit is the real iOS audio output, kept enabled.
-          meson setup mpv-build mpv-src --cross-file ios-arm64.meson.cross \
-            --prefix="$PREFIX" --libdir=lib --default-library=shared --prefer-static \
-            -Dgpl=false -Dlibmpv=true -Dcplayer=false -Dtests=false -Dbuild-date=false \
-            -Dcdda=disabled -Ddvbin=disabled -Ddvdnav=disabled -Diconv=disabled \
-            -Djavascript=disabled -Dlcms2=disabled -Dlibarchive=disabled -Dlibavdevice=disabled \
-            -Dlibbluray=disabled -Dlua=disabled -Drubberband=disabled -Dsdl2=disabled \
-            -Dsdl2-gamepad=disabled -Duchardet=disabled -Dvapoursynth=disabled -Dzimg=disabled \
-            -Dzlib=enabled -Dcplugins=disabled \
-            -Dalsa=disabled -Daudiounit=enabled -Dcoreaudio=disabled -Djack=disabled \
-            -Dopensles=disabled -Doss-audio=disabled -Dpipewire=disabled -Dpulse=disabled \
-            -Dsdl2-audio=disabled -Dsndio=disabled -Dwasapi=disabled \
-            -Dcaca=disabled -Dcocoa=disabled -Dd3d11=disabled -Ddirect3d=disabled \
-            -Ddmabuf-wayland=disabled -Ddrm=disabled -Degl=disabled -Degl-android=disabled \
-            -Dgbm=disabled -Dgl=enabled -Dgl-cocoa=disabled -Dgl-win32=disabled -Dgl-x11=disabled \
-            -Djpeg=disabled -Dlibplacebo=disabled -Dsdl2-video=disabled -Dshaderc=disabled \
-            -Dsixel=disabled -Dspirv-cross=disabled -Dplain-gl=enabled -Dvdpau=disabled \
-            -Dvaapi=disabled -Dvulkan=disabled -Dwayland=disabled -Dx11=disabled -Dxv=disabled \
-            -Dandroid-media-ndk=disabled -Dcuda-hwaccel=disabled -Dcuda-interop=disabled \
-            -Dd3d-hwaccel=disabled -Dd3d9-hwaccel=disabled -Dgl-dxinterop-d3d9=disabled \
-            -Dios-gl=enabled -Drpi-mmal=disabled -Dvideotoolbox-gl=disabled -Dvulkan-interop=disabled \
-            -Dmacos-10-11-features=disabled -Dmacos-10-12-2-features=disabled \
-            -Dmacos-10-14-features=disabled -Dmacos-cocoa-cb=disabled -Dmacos-media-player=disabled \
-            -Dmacos-touchbar=disabled -Dswift-build=disabled \
-            -Dhtml-build=disabled -Dmanpage-build=disabled -Dpdf-build=disabled
-          ninja -C mpv-build
-          ninja -C mpv-build install
-
-      - name: Strip and verify
-        run: |
-          DYLIB=$(find "$PREFIX" -iname 'libmpv*.dylib' | head -1)
-          test -n "$DYLIB" || { echo "::error::libmpv*.dylib not found under prefix/"; find "$PREFIX" -type f -print; exit 1; }
-          # -x alone only drops global symbols not needed for linking — it
-          # does NOT touch embedded DWARF debug info. -S drops that. This is
-          # macOS's standard "shipping dylib" combo (Android's analogous
-          # `llvm-strip --strip-all` does both in one flag).
-          strip -S -x "$DYLIB"
-
-          echo "### libmpv.dylib size (iOS arm64, movaslim, static deps)" >> "$GITHUB_STEP_SUMMARY"
-          SIZE_BYTES=$(stat -f%z "$DYLIB")
-          echo "$SIZE_BYTES bytes ($(echo "scale=2; $SIZE_BYTES/1048576" | bc) MiB)" >> "$GITHUB_STEP_SUMMARY"
-
-          # Confirm nothing leaked in as a dynamic dependency other than
-          # system frameworks — otool -L should show no path into $DEPS/$PREFIX.
-          echo "### otool -L (expect only /usr/lib, /System, @rpath)"
-          otool -L "$DYLIB"
-          echo "### otool -L (expect only /usr/lib, /System, @rpath)" >> "$GITHUB_STEP_SUMMARY"
-          otool -L "$DYLIB" >> "$GITHUB_STEP_SUMMARY"
-          # otool -L's first TWO lines are the header ("path:") and the
-          # dylib's own install-name entry (which legitimately lives under
-          # $PREFIX since that's where we installed it) — skip both;
-          # everything after should be a /usr/lib or /System/Library path.
-          if otool -L "$DYLIB" | tail -n +3 | grep -qE "$DEPS|$PREFIX"; then
-            echo "::error::libmpv.dylib links a dependency dynamically instead of statically — check --prefer-static/--default-library=static above"
-            exit 1
+          # Same fallback as the `darwin` job's identical step.
+          if [ -d /Applications/Xcode_16.1.0.app ]; then
+            echo "path=$(realpath /Applications/Xcode_16.1.0.app)" >> "$GITHUB_OUTPUT"
+          else
+            echo "::warning::Xcode_16.1.0.app not found, falling back to xcode-select's default — may not match what the flake expects"
+            echo "path=$(xcode-select -p | sed 's|/Contents/Developer||')" >> "$GITHUB_OUTPUT"
           fi
 
+      - name: Build (iOS device arm64 only, upstream default flavor)
+        working-directory: build-root
+        # TARGET name built from nix/utils/flake/create-cross-package.nix's
+        # naming scheme: <packageName>-<format>-<os>-<arch>-<variant>-<flavor>.
+        # This is the smallest single flake output that produces a real
+        # libmpv for iOS device — no simulator, no macOS, no xcframework zip.
+        run: nix develop -c make TARGET=archive-libs-ios-arm64-video-default XCODE_PATH="${{ steps.xcode.outputs.path }}" VERSION=mova-ci
+
+      - name: Verify and extract
+        working-directory: build-root
+        run: |
+          ls -la result/
+          ARCHIVE=$(find result -name '*.tar.gz' | head -1)
+          test -n "$ARCHIVE" || { echo "::error::no .tar.gz archive in result/"; exit 1; }
+
           mkdir -p "$GITHUB_WORKSPACE/ios-out"
-          cp "$DYLIB" "$GITHUB_WORKSPACE/ios-out/libmpv.dylib"
+          tar -xzvf "$ARCHIVE" -C "$GITHUB_WORKSPACE/ios-out"
+
+          DYLIB=$(find "$GITHUB_WORKSPACE/ios-out" -iname 'libmpv*.dylib' | head -1)
+          test -n "$DYLIB" || { echo "::error::libmpv*.dylib not found inside archive"; find "$GITHUB_WORKSPACE/ios-out" -type f -print; exit 1; }
+
+          echo "### libmpv.dylib (iOS arm64, upstream default flavor)" >> "$GITHUB_STEP_SUMMARY"
+          ls -la "$DYLIB" >> "$GITHUB_STEP_SUMMARY"
+          SIZE_BYTES=$(stat -f%z "$DYLIB")
+          echo "$SIZE_BYTES bytes ($(echo "scale=2; $SIZE_BYTES/1048576" | bc) MiB)" >> "$GITHUB_STEP_SUMMARY"
+          size -m "$DYLIB" >> "$GITHUB_STEP_SUMMARY" || true
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: mova-libmpv-ios-arm64-movaslim
+          name: mova-libmpv-ios-arm64-default
           path: ios-out/*
           retention-days: 14
 
@@ -742,11 +574,11 @@ jobs:
   linux:
     name: "Linux x86_64 (implemented, v1: native build)"
     runs-on: ubuntu-22.04
-    # Re-enabled 2026-09-17 for a full-platform rebuild. The dist/linux-x86_64/
-    # artifact currently committed predates this job's -Dgpl=false meson flag
-    # (see the mpv build step below) — this run replaces it with one built
-    # from the flag that's already in this file, no script change needed.
-    if: true
+    # paused — iOS-focused iteration (2026-09-17), see ios job below. The
+    # dist/linux-x86_64/ artifact currently committed predates this job's
+    # -Dgpl=false meson flag (see the mpv build step below); rebuild once
+    # re-enabled.
+    if: false
     steps:
       - name: Checkout dart-labs
         uses: actions/checkout@v4
@@ -942,9 +774,9 @@ jobs:
   windows:
     name: "Windows x86_64 (implemented, v1: native MSYS2 slim)"
     runs-on: windows-latest
-    # Re-enabled 2026-09-17 for a full-platform rebuild, alongside `ios`. Never
-    # gone green before — expect iteration.
-    if: true
+    # paused — iOS-focused iteration (2026-09-17), see ios job below. Never
+    # gone green before — expect iteration once re-enabled.
+    if: false
     defaults:
       run:
         shell: msys2 {0}
