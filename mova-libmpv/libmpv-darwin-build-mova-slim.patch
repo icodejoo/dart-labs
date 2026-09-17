@@ -494,10 +494,10 @@ index 15efce7..a9d765a 100644
    buildPhase = ''
      meson compile -vC build $(basename $src)
 diff --git a/nix/packages/mk-pkg-libass/meson.build b/nix/packages/mk-pkg-libass/meson.build
-index b4856a0..085fc5b 100644
+index b4856a0..e131cd0 100644
 --- a/nix/packages/mk-pkg-libass/meson.build
 +++ b/nix/packages/mk-pkg-libass/meson.build
-@@ -4,10 +4,15 @@ project('libass', 'c')
+@@ -4,10 +4,32 @@ project('libass', 'c')
  
  mod = import('unstable-external_project')
  
@@ -505,6 +505,23 @@ index b4856a0..085fc5b 100644
 +# fold libass statically into libmpv.dylib instead of shipping it as its own
 +# dylib — every other flavor keeps the upstream default (shared).
 +linking = get_option('linking')
++
++# Root cause of the real error the --disable-silent-rules diagnostic below
++# uncovered (run 35201918026, 2026-09-17): "libtool: link: false cr
++# libass/.libs/libass.a ..." — libtool was invoking the literal `false`
++# command instead of `ar`. autotools' AC_CHECK_TOOL macro refuses to fall
++# back to an unprefixed `ar`/`ranlib` when cross-compiling (--host is set)
++# and substitutes `false` instead unless AR/RANLIB are given explicitly —
++# invisible while every flavor only built shared libs (ar/ranlib are only
++# invoked to create a static .a), fatal now that movaslim's static build
++# needs them. CC resolves fine without this because external_project
++# handles meson's own compiler abstraction automatically; AR/RANLIB aren't
++# part of that and were never wired through here (mk-pkg-ffmpeg/meson.build
++# already does the equivalent for ffmpeg's own custom --ar=/--nm= flags —
++# same gap, different config-flag convention: plain autotools reads AR=/
++# RANLIB= as trailing VAR=value configure arguments).
++ar = find_program('ar')
++ranlib = find_program('ranlib')
 +
  p = mod.add_project('configure',
      configure_options : [
@@ -514,22 +531,20 @@ index b4856a0..085fc5b 100644
          '--enable-fast-install',
          '--disable-dependency-tracking',
          '--disable-test',
-@@ -24,6 +29,18 @@ p = mod.add_project('configure',
+@@ -24,6 +46,16 @@ p = mod.add_project('configure',
          '--with-pic',
          '--with-aix-soname=aix',
          '--without-gnu-ld',
-+        # Diagnostic only (2026-09-17): the static-linking build fails at
-+        # `CCLD libass/libass.la` with no visible error — automake's
-+        # silent-rules default hides the actual failing compiler/linker
-+        # invocation ("  CCLD  libass/libass.la" instead of the real
-+        # command). Tried `env: ['V=1', ...]` on add_project first (run
-+        # 35201059125) — meson's external_project module doesn't actually
-+        # propagate `env:` into the underlying make invocation (a known
-+        # meson bug, mesonbuild/meson#13895), so output was unchanged.
-+        # --disable-silent-rules is an autotools CONFIGURE flag instead —
-+        # baked into the generated Makefile itself, not dependent on env
-+        # passthrough. Remove once root cause is found and fixed.
++        # Kept from the diagnostic pass that found the AR/RANLIB bug above —
++        # verbose output is generally useful for this build, no reason to
++        # revert it now that the real fix is in.
 +        '--disable-silent-rules',
++        # The actual fix (see the ar/ranlib comment above `p = ...`):
++        # trailing VAR=value arguments are autoconf's standard convention,
++        # equivalent to setting them in the environment, and don't depend
++        # on external_project's env: passthrough at all.
++        'AR=@0@'.format(ar.path()),
++        'RANLIB=@0@'.format(ranlib.path()),
      ],
      verbose: true,
  )
