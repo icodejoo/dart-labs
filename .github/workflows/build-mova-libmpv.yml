@@ -995,6 +995,12 @@ jobs:
           retention-days: 30
 
       - name: Commit built artifact to dist/
+        # Override the job-wide `shell: msys2 {0}` default — this step only
+        # needs git/git-lfs, not the MSYS2 toolchain, and MSYS2's PATH doesn't
+        # include the Windows Git install where git-lfs.exe actually lives
+        # (2026-09-17: every push attempt failed pre-push with "git-lfs was
+        # not found on your path" under msys2, never a real content clash).
+        shell: bash
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
