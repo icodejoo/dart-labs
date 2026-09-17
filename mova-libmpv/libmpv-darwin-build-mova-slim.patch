@@ -494,7 +494,7 @@ index 15efce7..a9d765a 100644
    buildPhase = ''
      meson compile -vC build $(basename $src)
 diff --git a/nix/packages/mk-pkg-libass/meson.build b/nix/packages/mk-pkg-libass/meson.build
-index b4856a0..fd9c653 100644
+index b4856a0..89857d6 100644
 --- a/nix/packages/mk-pkg-libass/meson.build
 +++ b/nix/packages/mk-pkg-libass/meson.build
 @@ -4,10 +4,15 @@ project('libass', 'c')
@@ -514,6 +514,20 @@ index b4856a0..fd9c653 100644
          '--enable-fast-install',
          '--disable-dependency-tracking',
          '--disable-test',
+@@ -26,6 +31,13 @@ p = mod.add_project('configure',
+         '--without-gnu-ld',
+     ],
+     verbose: true,
++    # Diagnostic only (2026-09-17): the static-linking build fails at `CCLD
++    # libass/libass.la` with no visible error — automake's silent-rules
++    # default hides the actual failing compiler/linker invocation. V=1 /
++    # AM_DEFAULT_VERBOSITY=1 forces full command output so the real error
++    # is visible in CI logs instead of just "Error 1". Remove once root
++    # cause is found and fixed.
++    env: ['V=1', 'AM_DEFAULT_VERBOSITY=1'],
+ )
+ 
+ libass_dep = p.dependency('libass')
 diff --git a/nix/packages/mk-pkg-libass/meson.options b/nix/packages/mk-pkg-libass/meson.options
 new file mode 100644
 index 0000000..65c31dd
