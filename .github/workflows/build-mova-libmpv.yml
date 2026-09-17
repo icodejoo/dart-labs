@@ -530,7 +530,18 @@ jobs:
         # dart-labs was checked out to path: dart-labs (not the default
         # $GITHUB_WORKSPACE root, unlike the Android jobs' single checkout) —
         # the patch lives under that subdirectory, not a sibling of build-root.
-        run: git apply ../dart-labs/mova-libmpv/libmpv-darwin-build-mova-slim.patch
+        #
+        # `git add -A` after apply: `nix develop`/`make` reads this checkout
+        # via a `git+file://` flake source, which Nix filters to ONLY
+        # git-tracked files — a plain `git apply` leaves new files (like the
+        # patch's new mk-pkg-libass/meson.options) untracked, so Nix silently
+        # never sees them and the build fails with "Path ... is not tracked
+        # by Git" (hit this in run 35197895620, 2026-09-17). Config-only
+        # `git add`, no commit needed — Nix only cares about the index/tree,
+        # not history.
+        run: |
+          git apply ../dart-labs/mova-libmpv/libmpv-darwin-build-mova-slim.patch
+          git add -A
 
       - uses: DeterminateSystems/nix-installer-action@v22
         with:
