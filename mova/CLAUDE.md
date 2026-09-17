@@ -126,26 +126,28 @@ feed 引擎池结构性不适用本模型，明确排除。详见
 
 ## 剩余任务
 
-**libmpv 瘦身产物的 CI/git 集成——进行中，2026-09-17 中途暂停，恢复时先读这条**：
+**libmpv 瘦身产物的 CI/git 集成——进行中，Task 1–3 已完成（2026-09-17），恢复时先读这条**：
 目标是照抄 `media_kit_libs_android_video` 的思路（包本身不含二进制，构建时下载+校验），
 但用户拍板改成**随包发布**（不做构建时下载，直接把编译产物随仓库/包分发，理由是内网
 构建环境不应该依赖运行时联网下载）。为了让"随包发布"不至于把 `.git` 历史撑爆（实测
 `mova/tools/ffmpeg-slim/dist/` 这条路径已经在历史里累积了 990 MiB，262 个 blob，且
-`git clone` 会把这些历史版本全部下载下来），拍板方案是 **Git LFS**（本机已装
-`git-lfs 3.7.1`，但 codeup/GitHub 是否都支持还没验证；用户已明确"不用管 codeup，它只是
-备用仓"，可以只保证 GitHub 那份干净）。
+`git clone` 会把这些历史版本全部下载下来），拍板方案是 **Git LFS**。
 
-**待恢复时按顺序做**：
-1. 用 `git filter-repo`（已装，`pip install git-filter-repo`，不在 PATH，装在
-   `C:\Users\jelon\AppData\Roaming\Python\Python314\Scripts\git-filter-repo.exe`）在一个
-   **独立临时 clone**里（不要在主工作区/带 worktree 的仓库里直接跑，filter-repo 对多
-   worktree 场景不友好）把 `mova/tools/ffmpeg-slim/dist/` 这条路径**从 GitHub main 的全部
-   历史里剥离**，force push 回 GitHub（不动 codeup）。
-2. 在同一次操作里，把**当前**的 `dist/` 内容重新加回去，这次用 `.gitattributes` +
-   `git lfs track` 接管，之后的每次重建不再让 `.git` 历史线性增长。
-3. 主工作区（`C:\workspace\dart-labs`）事后要 `fetch` + 对齐本地 `main`——**注意本地当时
-   还有两个 worktree 分支**（若已合并进 main 则无影响；若还没合并，务必先合并/处理掉，
-   否则它们的公共祖先提交哈希会因历史改写而"消失"，需要 `git rebase --onto` 才能续接）。
+**Task 1–3 已完成**：在独立临时 clone 里用 `git filter-repo` 把
+`mova/tools/ffmpeg-slim/dist/` 从 main 的全部历史里剥离（`.git` 898M→68M），重新用
+`.gitattributes` + `git lfs track` 接管当前 `dist/` 内容并 force push。**范围比最初计划
+更大**：用户 2026-09-17 当场改主意，**codeup 也一并做了同样的 filter-repo + force push**
+（不是最初"只保证 GitHub 干净、不用管 codeup"的方案）——已验证 codeup 支持 Git LFS
+（不支持 locking API，无影响，`lfs.<url>/info/lfs.locksverify` 可选择性关闭静默该提示）。
+两个远程现在历史一致、都在 LFS 之下。主工作区 `main` 已 `reset --hard` 对齐到新历史
+（`efc8b5a`），本地 5 个已合并的旧分支（`bench/ffi-copy-share`、3 个 `worktree-agent-*`、
+`worktree-rust-perf-opt`）未处理但已确认全部完全合并进旧 main，改写后可安全删除（未删，
+纯本地悬挂引用，不影响正常工作）；`mova-libmpv-winbuild-zhangfly` 是未合并的独立分支，
+未被改写、未受影响。**pre-push 钩子已手动合并**（项目用 lefthook 管 `.git/hooks/pre-push`，
+不能用 `git lfs install` 直接覆盖，改为在文件末尾追加 `git lfs pre-push` 调用，
+`post-checkout`/`post-commit`/`post-merge` 三个钩子为空白，直接新建）。
+
+**待恢复时按顺序做剩余 Task**：
 4. **CI 的"提交产物回 dist/"重试逻辑有 bug**（android-arm64/android-other-abi×3/darwin/
    linux/windows 五个 job 共用同一段脚本）：2026-09-17 windows job 实测复现——`git push`
    被拒后 `git fetch + git rebase origin/main`，但工作区不干净导致 `rebase` 直接报错退出
