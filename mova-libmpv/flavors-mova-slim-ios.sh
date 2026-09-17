@@ -3,6 +3,13 @@
 # demuxers/protocols/bsfs) mirror flavors-mova-slim.sh (Android) as closely as
 # the platform allows; hwaccel is VideoToolbox instead of MediaCodec.
 #
+# ⚠️ SUPERSEDED (2026-09-17): the iOS build path moved to Nix+meson via
+# media-kit/libmpv-darwin-build instead of this plain autotools `./configure`
+# approach — see `libmpv-darwin-build-mova-slim.patch`'s `movaslim` flavor,
+# which ports this file's DECODERS/ENCODERS/PARSERS/DEMUXERS/BSFS *values*
+# into that pipeline. This script itself is no longer wired into any CI job
+# and is kept only as a historical record of the component-list design.
+#
 # ⚠️ This is a CONFIG, not a proven build pipeline (unlike the Android flavor,
 # which has a real CI run + real-device playback behind it). Two things are
 # still open and must be resolved before this can produce a real artifact:

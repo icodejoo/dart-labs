@@ -19,11 +19,13 @@ name: Build mova libmpv (all platforms)
 #   - darwin (macOS job) / ios: both drive media-kit/libmpv-darwin-build,
 #     Nix + pinned Xcode. `darwin` builds every ios/iossimulator/macos target
 #     in one bare `make` invocation, upstream's own default flavor. `ios` is
-#     scoped to just `TARGET=mk-out-archive-libs-ios-arm64-video-default` (device
-#     arm64 only) for a fast iOS-only iteration loop — still upstream's
-#     default flavor, not mova's custom decoder/demuxer list; that slimming
-#     (flavors-mova-slim-ios.sh, currently unused/orphaned) is a follow-up
-#     once this validation build goes green.
+#     scoped to just `TARGET=mk-out-archive-libs-ios-arm64-video-movaslim`
+#     (device arm64 only) for a fast iOS-only iteration loop, using mova's
+#     own `movaslim` flavor added on top of upstream via
+#     `mova-libmpv/libmpv-darwin-build-mova-slim.patch` (ffmpeg's own
+#     component list ported from flavors-mova-slim-ios.sh, plus
+#     securetransport instead of mbedtls) — see the `ios` job's own comment
+#     for what's trimmed and what isn't (yet).
 #   - linux: no upstream media-kit repo exists at all — native build on the
 #     runner itself (no cross-compile), deps from apt instead of source.
 #   - windows: same native-slim pattern as linux, on MSYS2/MINGW64 — NOT
@@ -483,17 +485,30 @@ jobs:
   # fribidi/harfbuzz/libass/mpv all by hand and never went green). Reuses the
   # same upstream repo/toolchain as the `darwin` job above
   # (media-kit/libmpv-darwin-build, Nix + pinned Xcode) but scopes the build
-  # to a single flake target — device arm64, libs format, video variant,
-  # default flavor — instead of `darwin`'s bare `make` (every ios/
-  # iossimulator/macos combination). This mirrors how android-arm64
-  # bootstrapped from media-kit/libmpv-android-video-build before mova's
-  # custom flavor patch was layered on: get a real green build on upstream's
-  # own default flavor first, then slim it (mova's iOS flavor script,
-  # flavors-mova-slim-ios.sh, is parked/unused until that follow-up).
+  # to a single flake target — device arm64, libs format, video variant —
+  # instead of `darwin`'s bare `make` (every ios/iossimulator/macos
+  # combination). This mirrors how android-arm64 bootstrapped from
+  # media-kit/libmpv-android-video-build before mova's custom flavor patch
+  # was layered on: got a real green build on upstream's own default flavor
+  # first (run 35194396206), then slimmed it (v3.1, 2026-09-17) via a new
+  # `movaslim` flavor added by `libmpv-darwin-build-mova-slim.patch` —
+  # trimmed decoder/demuxer/parser/bsf list (mirrors mova's already-designed
+  # but previously orphaned flavors-mova-slim-ios.sh) + securetransport
+  # instead of mbedtls + skips libxml2/uchardet from the bundled dylibs.
+  # NOTE: the `libs` archive format bundles ffmpeg/mpv/dav1d/libass/
+  # freetype/harfbuzz/fribidi as SEPARATE .dylib files (mk-out-libs/
+  # default.nix's `deps` list, copied verbatim regardless of what mpv
+  # actually links) — this patch trims each library's own content but does
+  # NOT merge them into one statically-linked libmpv.dylib the way Android's
+  # single .so (or the old, never-green v2 iOS line) does. Getting there
+  # would mean re-linking mpv+ffmpeg statically inside this Nix/meson
+  # pipeline — a real follow-up, not done in this pass. Expect the total
+  # bundle size to shrink meaningfully but likely still exceed Android's
+  # single-file ~6.5MiB for that architectural reason.
   # Deliberately does NOT commit to mova/tools/ffmpeg-slim/dist/ yet — this
-  # is a first-green validation pass, not a shipping artifact.
+  # is a validation pass, not a shipping artifact.
   ios:
-    name: "iOS arm64 (v3: media-kit/libmpv-darwin-build, default flavor, validation)"
+    name: "iOS arm64 (v3.1: media-kit/libmpv-darwin-build, movaslim flavor)"
     runs-on: macos-15
     if: true
     steps:
@@ -509,6 +524,13 @@ jobs:
           path: build-root
           # No pinned ref yet (first attempt at this TARGET) — same as
           # `darwin`'s note above; pin once a build here succeeds.
+
+      - name: Apply mova slim-build patch
+        working-directory: build-root
+        # dart-labs was checked out to path: dart-labs (not the default
+        # $GITHUB_WORKSPACE root, unlike the Android jobs' single checkout) —
+        # the patch lives under that subdirectory, not a sibling of build-root.
+        run: git apply ../dart-labs/mova-libmpv/libmpv-darwin-build-mova-slim.patch
 
       - uses: DeterminateSystems/nix-installer-action@v22
         with:
@@ -531,7 +553,7 @@ jobs:
             echo "path=$(xcode-select -p | sed 's|/Contents/Developer||')" >> "$GITHUB_OUTPUT"
           fi
 
-      - name: Build (iOS device arm64 only, upstream default flavor)
+      - name: Build (iOS device arm64 only, mova movaslim flavor)
         working-directory: build-root
         # TARGET name built from nix/utils/flake/create-cross-package.nix's
         # naming scheme: <packageName>-<format>-<os>-<arch>-<variant>-<flavor>.
@@ -545,7 +567,7 @@ jobs:
         # corrected attribute. This is the smallest single flake output that
         # produces a real libmpv for iOS device — no simulator, no macOS, no
         # xcframework zip.
-        run: nix develop -c make TARGET=mk-out-archive-libs-ios-arm64-video-default XCODE_PATH="${{ steps.xcode.outputs.path }}" VERSION=mova-ci
+        run: nix develop -c make TARGET=mk-out-archive-libs-ios-arm64-video-movaslim XCODE_PATH="${{ steps.xcode.outputs.path }}" VERSION=mova-ci
 
       - name: Verify and extract
         working-directory: build-root
@@ -567,16 +589,27 @@ jobs:
           DYLIB=$(find "$GITHUB_WORKSPACE/ios-out" -iname 'libmpv*.dylib' | head -1)
           test -n "$DYLIB" || { echo "::error::libmpv*.dylib not found inside archive"; find "$GITHUB_WORKSPACE/ios-out" -type f -print; exit 1; }
 
-          echo "### libmpv.dylib (iOS arm64, upstream default flavor)" >> "$GITHUB_STEP_SUMMARY"
+          echo "### libmpv.dylib (iOS arm64, movaslim flavor)" >> "$GITHUB_STEP_SUMMARY"
           ls -la "$DYLIB" >> "$GITHUB_STEP_SUMMARY"
           SIZE_BYTES=$(stat -f%z "$DYLIB")
           echo "$SIZE_BYTES bytes ($(echo "scale=2; $SIZE_BYTES/1048576" | bc) MiB)" >> "$GITHUB_STEP_SUMMARY"
           size -m "$DYLIB" >> "$GITHUB_STEP_SUMMARY" || true
 
+          # libmpv.dylib alone isn't the whole story — the `libs` archive
+          # format ships it alongside separately-linked ffmpeg/dav1d/libass/
+          # freetype/harfbuzz/fribidi/etc. dylibs (see this job's top-of-file
+          # comment). Report the whole bundle's total size too, since that's
+          # the real number comparable to Android's single statically-linked
+          # libmpv.so.
+          echo "### total bundle size (all .dylib files, iOS arm64, movaslim flavor)" >> "$GITHUB_STEP_SUMMARY"
+          ls -la "$GITHUB_WORKSPACE/ios-out"/*/*.dylib >> "$GITHUB_STEP_SUMMARY"
+          TOTAL_BYTES=$(find "$GITHUB_WORKSPACE/ios-out" -name '*.dylib' -exec stat -f%z {} \; | awk '{s+=$1} END {print s}')
+          echo "$TOTAL_BYTES bytes ($(echo "scale=2; $TOTAL_BYTES/1048576" | bc) MiB) total across $(find "$GITHUB_WORKSPACE/ios-out" -name '*.dylib' | wc -l | tr -d ' ') files" >> "$GITHUB_STEP_SUMMARY"
+
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: mova-libmpv-ios-arm64-default
+          name: mova-libmpv-ios-arm64-movaslim
           path: ios-out/*
           retention-days: 14
 

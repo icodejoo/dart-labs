@@ -1,0 +1,255 @@
+diff --git a/nix/packages/mk-out-libs/default.nix b/nix/packages/mk-out-libs/default.nix
+index 7540281..ea32671 100644
+--- a/nix/packages/mk-out-libs/default.nix
++++ b/nix/packages/mk-out-libs/default.nix
+@@ -55,6 +55,10 @@ if arch != archs.universal then
+       [
+         mpv
+         ffmpeg
++      ]
++      # movaslim's ffmpeg is built with securetransport, not mbedtls (see
++      # mk-pkg-ffmpeg's meson.build/default.nix) — nothing to bundle here.
++      ++ pkgs.lib.optionals (flavor != flavors.movaslim) [
+         mbedtls
+       ]
+       ++ pkgs.lib.optionals (flavor == flavors.encodersgpl) [
+@@ -64,14 +68,20 @@ if arch != archs.universal then
+       ]
+       ++ pkgs.lib.optionals (variant == variants.video) [
+         dav1d
+-        libxml2
+-        uchardet
+         libass
+         harfbuzz
+         fribidi
+         freetype
+         libpng
+       ]
++      # libxml2 (dash demuxer) and uchardet (mpv builds with -Duchardet=
++      # disabled regardless of flavor, so this dylib is always dead weight —
++      # left alone for default/full/encodersgpl to keep this patch's blast
++      # radius to movaslim only) are both skipped for movaslim specifically.
++      ++ pkgs.lib.optionals (variant == variants.video && flavor != flavors.movaslim) [
++        libxml2
++        uchardet
++      ]
+       ++ pkgs.lib.optionals (variant == variants.video && flavor == flavors.encodersgpl) [
+         libvpx
+         libx264
+diff --git a/nix/packages/mk-pkg-ffmpeg/default.nix b/nix/packages/mk-pkg-ffmpeg/default.nix
+index 060869c..37a4a71 100644
+--- a/nix/packages/mk-pkg-ffmpeg/default.nix
++++ b/nix/packages/mk-pkg-ffmpeg/default.nix
+@@ -68,12 +68,18 @@ pkgs.stdenvNoCC.mkDerivation {
+     pkgs.pkg-config
+   ];
+   buildInputs =
+-    [ mbedtls ]
++    # movaslim uses --enable-securetransport instead (see meson.build) — no
++    # mbedtls dependency to build or ship.
++    pkgs.lib.optionals (flavor != flavors.movaslim) [ mbedtls ]
+     ++ pkgs.lib.optionals (flavor == flavors.encodersgpl) [
+       libvorbis
+     ]
+     ++ pkgs.lib.optionals (variant == variants.video) [
+       dav1d
++    ]
++    # libxml2 is only needed for the dash demuxer, which movaslim doesn't
++    # enable (see meson.build's video_dash_options).
++    ++ pkgs.lib.optionals (variant == variants.video && flavor != flavors.movaslim) [
+       libxml2
+     ]
+     ++ pkgs.lib.optionals (variant == variants.video && flavor == flavors.encodersgpl) [
+diff --git a/nix/packages/mk-pkg-ffmpeg/meson.build b/nix/packages/mk-pkg-ffmpeg/meson.build
+index 35457c2..b81f530 100644
+--- a/nix/packages/mk-pkg-ffmpeg/meson.build
++++ b/nix/packages/mk-pkg-ffmpeg/meson.build
+@@ -46,8 +46,6 @@ common_options = [
+     '--enable-network',
+     '--enable-pthreads',
+     '--enable-pic',
+-    '--enable-mbedtls', # tls support (mbedtls)
+-    '--enable-version3',
+     '--enable-safe-bitstream-reader',
+     '--enable-stripping',
+     '--enable-avcodec',
+@@ -60,6 +58,22 @@ common_options = [
+     # '--enable-nonfree', # uncomment it to include unredistributable code
+ ]
+ 
++# TLS backend: split out from common_options so mova's movaslim flavor can
++# swap mbedtls for Apple's system TLS (securetransport) — drops 3 dylibs
++# (libmbedtls/libmbedx509/libmbedcrypto from the mk-out-libs bundle) and the
++# --enable-version3 requirement mbedtls's dual Apache/GPL-2.0 licensing
++# forces (same reasoning as mova's Linux/Windows flavors, which made the
++# same swap to openssl/SChannel — see mova-libmpv/README.md).
++tls_default_options = [
++    '--enable-mbedtls', # tls support (mbedtls)
++    '--enable-version3',
++]
++
++tls_movaslim_options = [
++    '--enable-securetransport', # Apple's own TLS (Security.framework) — no
++                                 # extra dylib to ship, no version3 bump
++]
++
+ audio_common_options = [
+     '--enable-zlib', # rasc support
+     '--enable-audiotoolbox',
+@@ -67,11 +81,87 @@ audio_common_options = [
+ 
+ video_common_options = [
+     '--enable-neon', # improve hevc (h265) support on arm
+-    '--enable-libxml2', # dash support
+     '--enable-videotoolbox',
+     '--enable-libdav1d', # av1 support
+ ]
+ 
++# dash support (libxml2) is its own toggle: mova's movaslim flavor doesn't
++# need the dash demuxer, and libxml2.dylib is one of the largest deps in the
++# mk-out-libs bundle (~2MiB) — see mk-out-libs/default.nix's matching skip.
++video_dash_options = [
++    '--enable-libxml2', # dash support
++]
++
++# mova's own trimmed video component list (mirrors mova-libmpv/
++# flavors-mova-slim-ios.sh's DECODERS/ENCODERS/PARSERS/DEMUXERS/BSFS — that
++# script targeted a plain autotools build and is now orphaned by the switch
++# to this Nix+meson pipeline, but its component *values* are what mova
++# actually wants and are ported here unchanged). Deliberately narrower than
++# video_default_options above: no flv/h263/mpeg1/mpeg2/mpeg4/vp6/vp8/theora/
++# msmpeg4/wmv/mjpeg legacy-codec support, no dvbsub/dvdsub/pgssub image
++# subtitle decoders — mova only targets modern VOD/live (h264/hevc/vp9/av1
++# video, text-based subtitle formats).
++video_movaslim_options = [
++    # decoders
++    '--enable-decoder=h264',
++    '--enable-decoder=hevc',
++    '--enable-decoder=vp9',
++    '--enable-decoder=libdav1d', # av1 via dav1d only, no native av1 decoder
++    '--enable-decoder=png',
++    '--enable-decoder=ssa',
++    '--enable-decoder=ass',
++    '--enable-decoder=srt',
++    '--enable-decoder=subrip',
++    '--enable-decoder=text',
++    '--enable-decoder=webvtt',
++    '--enable-decoder=movtext',
++
++    # encoders
++    '--enable-encoder=png',
++
++    # parsers
++    '--enable-parser=h264',
++    '--enable-parser=hevc',
++    '--enable-parser=vp9',
++    '--enable-parser=av1',
++    '--enable-parser=png',
++
++    # demuxers
++    '--enable-demuxer=mov',
++    '--enable-demuxer=matroska',
++    '--enable-demuxer=webm_dash_manifest',
++    '--enable-demuxer=mpegts',
++    '--enable-demuxer=hls',
++    '--enable-demuxer=flv',
++    '--enable-demuxer=live_flv',
++    '--enable-demuxer=data',
++    '--enable-demuxer=ass',
++    '--enable-demuxer=srt',
++    '--enable-demuxer=webvtt',
++
++    # bitstream filters (default/full flavors above enable none individually
++    # — "full" only turns them on in bulk via --enable-bsfs; movaslim opts
++    # into just the ones mova's remux/seek paths need)
++    '--enable-bsf=null',
++    '--enable-bsf=extract_extradata',
++    '--enable-bsf=h264_mp4toannexb',
++    '--enable-bsf=hevc_mp4toannexb',
++    '--enable-bsf=aac_adtstoasc',
++    '--enable-bsf=vp9_superframe',
++    '--enable-bsf=vp9_superframe_split',
++    '--enable-bsf=av1_frame_split',
++    '--enable-bsf=av1_frame_merge',
++    '--enable-bsf=mov2textsub',
++    '--enable-bsf=dump_extradata',
++    '--enable-bsf=setts',
++
++    # hwaccels — only h264/hevc have a VideoToolbox hwaccel in this ffmpeg
++    # version; vp9/av1 stay software-only via libdav1d (same real capability
++    # gap flavors-mova-slim-ios.sh documented, not an oversight here either)
++    '--enable-hwaccel=h264_videotoolbox',
++    '--enable-hwaccel=hevc_videotoolbox',
++]
++
+ # https://github.com/media-kit/libmpv-android-audio-build/blob/260666c0fef8c154971b5faf3f78da27c2bf2c40/buildscripts/flavors/default.sh
+ audio_default_options = [
+     # decoders
+@@ -303,9 +393,19 @@ options = disable_all_options
+ 
+ # common
+ options += common_options
++if flavor == 'movaslim'
++    options += tls_movaslim_options
++else
++    options += tls_default_options
++endif
+ options += audio_common_options
+ if variant == 'video'
+     options += video_common_options
++    # movaslim skips the dash demuxer/libxml2 dependency entirely (see
++    # video_dash_options's comment) — every other flavor keeps it.
++    if flavor != 'movaslim'
++        options += video_dash_options
++    endif
+ endif
+ 
+ # components
+@@ -326,6 +426,14 @@ elif flavor == 'encodersgpl'
+         options += video_full_options
+         options += video_encodersgpl_options
+     endif
++elif flavor == 'movaslim'
++    # audio path is untouched (mova's slimming work so far is video-only —
++    # flavors-mova-slim-ios.sh never touched the audio variant either);
++    # reuse audio_default_options as-is.
++    options += audio_default_options
++    if variant == 'video'
++        options += video_movaslim_options
++    endif
+ endif
+ 
+ p = mod.add_project('configure',
+diff --git a/nix/packages/mk-pkg-ffmpeg/meson.options b/nix/packages/mk-pkg-ffmpeg/meson.options
+index a48d1db..d7cbb8e 100644
+--- a/nix/packages/mk-pkg-ffmpeg/meson.options
++++ b/nix/packages/mk-pkg-ffmpeg/meson.options
+@@ -1,2 +1,2 @@
+ option('variant', type : 'combo', choices : ['audio', 'video'])
+-option('flavor', type : 'combo', choices : ['default', 'full', 'encodersgpl'])
++option('flavor', type : 'combo', choices : ['default', 'full', 'encodersgpl', 'movaslim'])
+diff --git a/nix/utils/constants/flavors.nix b/nix/utils/constants/flavors.nix
+index e2aa737..ac4fa51 100644
+--- a/nix/utils/constants/flavors.nix
++++ b/nix/utils/constants/flavors.nix
+@@ -2,4 +2,10 @@
+   default = "default";
+   full = "full";
+   encodersgpl = "encodersgpl";
++  # mova's own decoder/demuxer/parser slim list (video variant only —
++  # audio_default_options is reused as-is) plus securetransport instead of
++  # mbedtls for TLS (drops 3 dylibs + the --enable-version3 GPLv3-adjacent
++  # requirement, mirroring mova/tools/ffmpeg-slim's already-designed but
++  # never-wired-up flavors-mova-slim-ios.sh).
++  movaslim = "movaslim";
+ }
+diff --git a/nix/utils/default/flavors.nix b/nix/utils/default/flavors.nix
+index 12e8c7b..886cc60 100644
+--- a/nix/utils/default/flavors.nix
++++ b/nix/utils/default/flavors.nix
+@@ -5,4 +5,5 @@ in
+   flavors.default
+   flavors.full
+   flavors.encodersgpl
++  flavors.movaslim
+ ]
