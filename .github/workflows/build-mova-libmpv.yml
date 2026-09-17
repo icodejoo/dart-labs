@@ -719,34 +719,71 @@ jobs:
       - name: Install build + runtime dependencies
         run: |
           sudo apt-get update
+          # libmbedtls-dev dropped for libssl-dev (2026-09-17, see below).
           sudo apt-get install -y ninja-build pkg-config nasm autoconf automake libtool python3-pip \
             libass-dev libfreetype6-dev libharfbuzz-dev libfribidi-dev libdav1d-dev \
-            libmbedtls-dev libvpx-dev zlib1g-dev libva-dev libvdpau-dev
+            libssl-dev libvpx-dev zlib1g-dev libva-dev libvdpau-dev
           pip3 install --user "meson==1.3.2"
           echo "$HOME/.local/bin" >> "$GITHUB_PATH"
 
       - name: Download ffmpeg and mpv sources
         run: |
-          git clone --depth 1 --branch n6.0 https://github.com/FFmpeg/FFmpeg.git ffmpeg-src
+          # n6.0.1, not n6.0: n6.0's inline asm in libavcodec/x86/mathops.h
+          # feeds a non-immediate operand to shr/sar, which binutils >= 2.41
+          # rejects ("operand type mismatch for 'shr'") — same bug the windows
+          # job hit, fixed the same way. ubuntu-22.04's binutils 2.38 happens
+          # to predate that threshold so n6.0 built here by luck, not because
+          # the recipe was actually safe (2026-08-13 local WSL2 verification
+          # on binutils 2.42 reproduced the failure) — a runner image bump
+          # would have broken this silently. Locked to n6.0.1 pre-emptively.
+          git clone --depth 1 --branch n6.0.1 https://github.com/FFmpeg/FFmpeg.git ffmpeg-src
           # mpv's main branch needs a newer libavcodec than ffmpeg n6.0 ships
           # (meson: "found 60.3.100 but need >= 60.31.102") — pin to the same
           # mpv commit the Android build already verified pairs with ffmpeg
-          # 6.0 (see tools/ffmpeg-slim/README.md's "实测结果" section), instead
-          # of guessing another ref.
+          # 6.0.x (see tools/ffmpeg-slim/README.md's "实测结果" section),
+          # instead of guessing another ref.
           git clone https://github.com/mpv-player/mpv.git mpv-src
           git -C mpv-src checkout 78d43740f52db817d98bcf24fb30a76ab6fa13ff
 
       - name: Build slimmed ffmpeg (native, static)
         working-directory: ffmpeg-src
         run: |
+          # 2026-08-13 local WSL2 verification (mova-libmpv/README.md "Linux
+          # 瘦身构建"): mbedtls -> openssl is size-neutral (+64 bytes noise —
+          # these deps are dynamically linked .so's on Linux, unlike Android/
+          # iOS/Windows, so swapping which one you use barely touches
+          # libmpv.so's own bytes) but drops --enable-version3 (mbedtls's
+          # dual-licensing was the only reason for it), so the shipped
+          # license goes back to LGPLv2.1 — same reasoning as the Windows
+          # SChannel switch. --disable-symver: ffmpeg is statically linked in
+          # here, so its ELF symbol-versioning scheme (@@LIBAVCODEC_60) is
+          # dead weight — free win, no functional effect.
+          # -fvisibility=hidden + -ffunction-sections/-fdata-sections +
+          # --gc-sections: verified -368,608 bytes (-4.5%) on top of the
+          # openssl baseline, dynamic export count 4,003 -> 443 (same order
+          # of magnitude as Android's 4692->610). mpv's own MPV_EXPORT-marked
+          # public API stays exported (mpv sets visibility("default")
+          # explicitly on those symbols), so hiding everything else by
+          # default doesn't touch the real API surface. This is real here
+          # (ELF) — the same flag measured zero-effect on Windows's PE/COFF
+          # target, see doc/plans/2026-09-17-windows-libmpv-slim.md §0.3.
+          # NOT adding -flto: tried and it broke mpv's final link
+          # ("relocation R_X86_64_PC32 against undefined symbol ... recompile
+          # with -fPIC" — ffmpeg's x86 NASM objects don't satisfy LTO
+          # bitcode's -fPIC requirement when mixed at link time). Not our
+          # config's fault, ffmpeg's own asm generation limits it; Android/
+          # iOS's LTO success doesn't transfer, they cross-compile via a
+          # different meson-only toolchain path with no raw NASM objects.
           ./configure \
-            --disable-gpl --disable-nonfree --enable-version3 \
+            --disable-gpl --disable-nonfree \
             --enable-static --disable-shared --pkg-config-flags=--static \
             --disable-doc --disable-programs --disable-avdevice --disable-postproc \
             --disable-muxers --disable-decoders --disable-encoders --disable-demuxers \
             --disable-parsers --disable-protocols --disable-devices --disable-filters \
-            --enable-small --enable-optimizations \
-            --enable-mbedtls --enable-zlib --enable-libdav1d \
+            --enable-small --enable-optimizations --disable-symver \
+            --extra-cflags="-fvisibility=hidden -ffunction-sections -fdata-sections" \
+            --extra-ldflags="-Wl,--gc-sections" \
+            --enable-openssl --enable-zlib --enable-libdav1d \
             --enable-vaapi --enable-vdpau \
             --enable-avutil --enable-avcodec --enable-avfilter --enable-avformat \
             --enable-swscale --enable-swresample \
@@ -757,7 +794,13 @@ jobs:
             --enable-protocol=file,fd,pipe,data,http,https,tcp,tls,crypto,rtmp,rtmps,rtmpt,rtmpts,ffrtmpcrypt,ffrtmphttp,udp,rtp \
             --enable-bsf=null,extract_extradata,h264_mp4toannexb,hevc_mp4toannexb,aac_adtstoasc,vp9_superframe,vp9_superframe_split,av1_frame_split,av1_frame_merge,mov2textsub,dump_extradata,setts \
             --enable-network \
-            --prefix="$GITHUB_WORKSPACE/prefix"
+            --prefix="$GITHUB_WORKSPACE/prefix" 2>&1 | tee "$GITHUB_WORKSPACE/ffconf.log"
+          grep -q 'License: LGPL version 2.1' "$GITHUB_WORKSPACE/ffconf.log" \
+            || { echo "::error::License is not LGPLv2.1 — openssl switch didn't take effect or a version3-only component crept back in"; exit 1; }
+          for proto in https tls rtmps; do
+            grep -qw "$proto" "$GITHUB_WORKSPACE/ffconf.log" \
+              || { echo "::error::protocol '$proto' missing after the openssl switch — TLS backend isn't actually working"; exit 1; }
+          done
           make -j"$(nproc)"
           make install
 
@@ -771,7 +814,18 @@ jobs:
           # slim build exists to stay LGPL (same flag the android flavor sets).
           # The dist/linux-x86_64/ artifact from run 31092096967 predates this
           # flag and must be rebuilt before it can ship.
+          # buildtype=minsize (-Os) + debug=false (minsize alone silently
+          # turns debug=true back on) + b_ndebug=true (drop asserts): mpv's
+          # meson build never had a buildtype set before, so it was building
+          # at meson's debugoptimized default (-O2 + debug=true) this whole
+          # time — a pure missing-config gap. Verified -286,624 bytes (-3.7%)
+          # on top of the ffmpeg-side gains above. -fvisibility=hidden +
+          # -ffunction-sections/-fdata-sections + --gc-sections here too, for
+          # the same reason as ffmpeg above.
           meson setup build --prefix="$GITHUB_WORKSPACE/prefix" --libdir=lib --default-library=shared \
+            -Dbuildtype=minsize -Ddebug=false -Db_ndebug=true \
+            -Dc_args="-fvisibility=hidden -ffunction-sections -fdata-sections" \
+            -Dc_link_args="-Wl,--gc-sections" \
             -Dgpl=false -Dlibmpv=true -Dcplayer=false -Dtests=false
           ninja -C build
           ninja -C build install
@@ -797,6 +851,16 @@ jobs:
           nm -D --defined-only "$LIBMPV" | grep -q dav1d_open \
             || ldd "$LIBMPV" | grep -q libdav1d \
             || { echo "::error::dav1d not linked (no defined dav1d_open, no libdav1d NEEDED) — AV1 decode silently dropped"; exit 1; }
+
+          # -fvisibility=hidden (2026-09-17) hides everything by default —
+          # confirm mpv's actual public API (MPV_EXPORT-marked, explicit
+          # visibility("default")) survived. Dynamic symbol table isn't
+          # touched by `strip --strip-all`, so this works post-strip.
+          for s in mpv_create mpv_initialize mpv_command mpv_set_option_string \
+                   mpv_render_context_create mpv_terminate_destroy; do
+            nm -D --defined-only "$LIBMPV" | grep -qw "$s" \
+              || { echo "::error::public API symbol $s missing — -fvisibility=hidden over-hid it"; exit 1; }
+          done
 
           cp "$LIBMPV" "$GITHUB_WORKSPACE/libmpv-linux-x86_64.so"
 
