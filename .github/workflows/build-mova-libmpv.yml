@@ -924,11 +924,46 @@ jobs:
             echo "patched $f"
           done
 
+      - name: Build dav1d from source (Task 4, static, -Os, no section splitting)
+        run: |
+          # 2026-09-17 verified: pacman's mingw-w64-x86_64-dav1d ships tools/
+          # tests/every SIMD variant, distro-generic optimization. Rebuilding
+          # from source with buildtype=minsize (-Os) — deliberately WITHOUT
+          # -ffunction-sections/-fdata-sections, which measured as a
+          # regression here just like on ffmpeg below (same reason: dav1d's
+          # AV1 decode paths are almost entirely reachable, so section
+          # splitting is pure overhead) — measured -223,232 bytes (-1.6%) on
+          # the final linked DLL, and the archive itself shrinks
+          # 3,109,140 -> 2,842,692 bytes. -Dbitdepths=8,16 keeps 10-bit AV1
+          # (desktop HDR content is common enough that dropping it to save a
+          # few hundred KB isn't a good trade — see plan §6.1 for Android's
+          # opposite call on mobile).
+          #
+          # Must run BEFORE ffmpeg's build: ffmpeg's --enable-libdav1d needs
+          # dav1d.pc discoverable via pkg-config at ffmpeg's *configure* time,
+          # and the mingw-w64-x86_64-dav1d pacman package is no longer
+          # installed (see the setup-msys2 install list above) — CI hit this
+          # exact ordering bug once already ("dav1d >= 0.5.0 not found using
+          # pkg-config", run 35186094304) before this step was moved here.
+          git clone --depth 1 --branch 1.2.1 https://code.videolan.org/videolan/dav1d.git dav1d-src
+          cd dav1d-src
+          meson setup _build --prefix="$WS/prefix" --libdir=lib \
+            --default-library=static --buildtype=minsize \
+            -Ddebug=false -Db_ndebug=true \
+            -Denable_tools=false -Denable_tests=false -Denable_examples=false \
+            -Dbitdepths=8,16
+          ninja -C _build
+          ninja -C _build install
+
       - name: Build slimmed ffmpeg (native, static)
         working-directory: ffmpeg-src
         run: |
           # MSYS2/MINGW64 gcc is already the target toolchain — no --cross-prefix.
           # Windows hardaccel is d3d11va/dxva2 (not vaapi/vdpau).
+          # dav1d now lives in $WS/prefix (Task 4, built from source above),
+          # not pacman's default /mingw64 prefix that pkg-config searches
+          # automatically — must add it explicitly or configure can't find it.
+          export PKG_CONFIG_PATH="$WS/prefix/lib/pkgconfig:/mingw64/lib/pkgconfig"
           # Task 1 (2026-09-17 verified): mbedtls -> system SChannel. Zero extra
           # bytes (SChannel is a Windows system API, not vendored code) and it
           # drops --enable-version3 (mbedtls's dual Apache-2.0/GPL-2.0 licensing
@@ -976,30 +1011,6 @@ jobs:
           done
           make -j"$(nproc)"
           make install
-
-      - name: Build dav1d from source (Task 4, static, -Os, no section splitting)
-        run: |
-          # 2026-09-17 verified: pacman's mingw-w64-x86_64-dav1d ships tools/
-          # tests/every SIMD variant, distro-generic optimization. Rebuilding
-          # from source with buildtype=minsize (-Os) — deliberately WITHOUT
-          # -ffunction-sections/-fdata-sections, which measured as a
-          # regression here just like on ffmpeg above (same reason: dav1d's
-          # AV1 decode paths are almost entirely reachable, so section
-          # splitting is pure overhead) — measured -223,232 bytes (-1.6%) on
-          # the final linked DLL, and the archive itself shrinks
-          # 3,109,140 -> 2,842,692 bytes. -Dbitdepths=8,16 keeps 10-bit AV1
-          # (desktop HDR content is common enough that dropping it to save a
-          # few hundred KB isn't a good trade — see plan §6.1 for Android's
-          # opposite call on mobile).
-          git clone --depth 1 --branch 1.2.1 https://code.videolan.org/videolan/dav1d.git dav1d-src
-          cd dav1d-src
-          meson setup _build --prefix="$WS/prefix" --libdir=lib \
-            --default-library=static --buildtype=minsize \
-            -Ddebug=false -Db_ndebug=true \
-            -Denable_tools=false -Denable_tests=false -Denable_examples=false \
-            -Dbitdepths=8,16
-          ninja -C _build
-          ninja -C _build install
 
       - name: Build mpv (native, against pacman libass/freetype and our ffmpeg)
         working-directory: mpv-src
