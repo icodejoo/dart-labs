@@ -589,7 +589,7 @@ index 9a5fafd..33c4819 100644
    buildPhase = ''
      meson compile -vC build
 diff --git a/nix/packages/mk-pkg-mpv/default.nix b/nix/packages/mk-pkg-mpv/default.nix
-index 543805a..a0754ea 100644
+index 543805a..7718ba7 100644
 --- a/nix/packages/mk-pkg-mpv/default.nix
 +++ b/nix/packages/mk-pkg-mpv/default.nix
 @@ -3,6 +3,13 @@
@@ -614,7 +614,7 @@ index 543805a..a0754ea 100644
    variants = import ../../utils/constants/variants.nix;
    oses = import ../../utils/constants/oses.nix;
    callPackage = pkgs.lib.callPackageWith {
-@@ -18,8 +26,16 @@ let
+@@ -18,14 +26,35 @@ let
        os
        arch
        variant
@@ -631,7 +631,39 @@ index 543805a..a0754ea 100644
    nativeFile = callPackage ../../utils/native-file/default.nix { };
    crossFile = callPackage ../../utils/cross-file/default.nix { };
    xctoolchainLipo = callPackage ../../utils/xctoolchain/lipo.nix { };
-@@ -260,6 +276,7 @@ pkgs.stdenvNoCC.mkDerivation {
+   ffmpeg = callPackage ../mk-pkg-ffmpeg/default.nix { };
+   uchardet = callPackage ../mk-pkg-uchardet/default.nix { };
+   libass = callPackage ../mk-pkg-libass/default.nix { };
++  # movaslim only: same class of bug as libass's own libpng fix above (see
++  # mk-pkg-libass/default.nix) one level up the chain — meson's
++  # auto-generated libass.pc for a --enable-static build promotes libass's
++  # own private deps (harfbuzz/fribidi/freetype/libpng) into the PUBLIC
++  # `Requires:` field, so mpv's own pkg-config resolution of libass now
++  # needs all four resolvable too. Hit as "Dependency lookup for libass
++  # with method 'pkgconfig' failed: ... Package harfbuzz was not found"
++  # (run 35202892060, 2026-09-17) — add them directly to mpv's buildInputs,
++  # movaslim-gated since shared-flavor libass.pc keeps these private.
++  harfbuzz = callPackage ../mk-pkg-harfbuzz/default.nix { };
++  fribidi = callPackage ../mk-pkg-fribidi/default.nix { };
++  freetype = callPackage ../mk-pkg-freetype/default.nix { };
++  libpng = callPackage ../mk-pkg-libpng/default.nix { };
+ 
+   nativeBuildInputs = [
+     pkgs.meson
+@@ -75,6 +104,12 @@ pkgs.stdenvNoCC.mkDerivation {
+     ++ pkgs.lib.optionals (variant == "video") [
+       uchardet
+       libass
++    ]
++    ++ pkgs.lib.optionals (variant == "video" && flavor == flavors.movaslim) [
++      harfbuzz
++      fribidi
++      freetype
++      libpng
+     ];
+   configurePhase = ''
+     DISABLE_ALL_OPTIONS=(
+@@ -260,6 +295,7 @@ pkgs.stdenvNoCC.mkDerivation {
        --native-file ${nativeFile} \
        --cross-file ${crossFile} \
        --prefix=$out \
