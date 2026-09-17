@@ -638,7 +638,7 @@ index 9a5fafd..97268d2 100644
 +  '';
  }
 diff --git a/nix/packages/mk-pkg-mpv/default.nix b/nix/packages/mk-pkg-mpv/default.nix
-index 543805a..7718ba7 100644
+index 543805a..521285d 100644
 --- a/nix/packages/mk-pkg-mpv/default.nix
 +++ b/nix/packages/mk-pkg-mpv/default.nix
 @@ -3,6 +3,13 @@
@@ -663,7 +663,7 @@ index 543805a..7718ba7 100644
    variants = import ../../utils/constants/variants.nix;
    oses = import ../../utils/constants/oses.nix;
    callPackage = pkgs.lib.callPackageWith {
-@@ -18,14 +26,35 @@ let
+@@ -18,14 +26,47 @@ let
        os
        arch
        variant
@@ -677,6 +677,18 @@ index 543805a..7718ba7 100644
 +  # .so and the old, never-green v2 iOS line's --prefer-static approach).
 +  # `--prefer-static` below is belt-and-suspenders for the same effect.
 +  preferStaticDeps = if flavor == flavors.movaslim then [ "--prefer-static" ] else [ ];
++  # movaslim only: meson's dependency('iconv') 'system' method tries a bare
++  # `-liconv` link check with no explicit search path — this breaks under
++  # --prefer-static specifically (matches a known unresolved meson bug on
++  # Darwin cross builds, mesonbuild/meson#12455 "Dependency iconv for iOS
++  # on macOS cannot be found"; every other flavor never hits this since
++  # they don't pass --prefer-static at all). Hit as "Dependency iconv not
++  # found, tried builtin and system" (run 35204952169, 2026-09-17). mova's
++  # slimmed feature set has no real need for iconv (legacy charset
++  # conversion for exotic subtitle encodings, outside mova's webvtt/srt/
++  # ass-focused scope) — simplest safe fix is disabling it outright for
++  # movaslim rather than fighting meson's detection.
++  iconvOption = if flavor == flavors.movaslim then "-Diconv=disabled" else "-Diconv=enabled";
    nativeFile = callPackage ../../utils/native-file/default.nix { };
    crossFile = callPackage ../../utils/cross-file/default.nix { };
    xctoolchainLipo = callPackage ../../utils/xctoolchain/lipo.nix { };
@@ -699,7 +711,7 @@ index 543805a..7718ba7 100644
  
    nativeBuildInputs = [
      pkgs.meson
-@@ -75,6 +104,12 @@ pkgs.stdenvNoCC.mkDerivation {
+@@ -75,6 +116,12 @@ pkgs.stdenvNoCC.mkDerivation {
      ++ pkgs.lib.optionals (variant == "video") [
        uchardet
        libass
@@ -712,7 +724,16 @@ index 543805a..7718ba7 100644
      ];
    configurePhase = ''
      DISABLE_ALL_OPTIONS=(
-@@ -260,6 +295,7 @@ pkgs.stdenvNoCC.mkDerivation {
+@@ -198,7 +245,7 @@ pkgs.stdenvNoCC.mkDerivation {
+       -Dbuild-date=true `# whether to include binary compile time`
+ 
+       `# misc features`
+-      -Diconv=enabled `# iconv`
++      ${iconvOption} `# iconv`
+     )
+ 
+     COMMON_VIDEO_OPTIONS=(
+@@ -260,6 +307,7 @@ pkgs.stdenvNoCC.mkDerivation {
        --native-file ${nativeFile} \
        --cross-file ${crossFile} \
        --prefix=$out \
