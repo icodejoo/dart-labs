@@ -162,11 +162,13 @@ feed 引擎池结构性不适用本模型，明确排除。详见
 6. LFS 化 + 历史清理都做完后，**重新触发一次全平台 CI**，确认全部 6 个 job（4 Android
    ABI + linux + windows；darwin 视时间预算决定是否一起跑）能在新的 LFS 流程下跑绿并正确
    提交。
-7. **接线到 mova 实际构建**：现状 `example/android/app/build.gradle.kts` 已有
-   `pickFirsts += "**/libmpv.so"` 的合并逻辑，但 `jniLibs/` 下的 `.so` 是手动拷贝的旧文件，
-   跟 `dist/` 当前产物 MD5 对不上（已实测确认），说明这条集成从没被自动化同步过。LFS 化后
-   要么写个脚本/Gradle task 把 `dist/<abi>/libmpv.so` 同步进 `jniLibs/`，要么直接让
-   `jniLibs/` 本身也纳入 LFS 管理、CI 直接写到那个路径。iOS 侧同理（podspec 尚未接线）。
+7. **接线到 mova 实际构建——Android 侧已完成（2026-09-17）**：`example/android/app/
+   build.gradle.kts` 新增 `syncMovaLibmpv` Gradle task（`Copy`，从
+   `tools/ffmpeg-slim/dist/<abi>/libmpv.so` 拷进 `src/main/jniLibs/<abi>/`，四个 ABI 目录名
+   两边天然一致），挂在 `preBuild` 之前，每次构建自动同步，不会再像过去那样悄悄漂移。
+   已本地验证：同步后 `jniLibs/` 四个 `.so` 的 MD5 与 `dist/` 逐一比对完全一致（此前是
+   手动拷贝的旧文件，对不上）。**iOS 侧尚未接线**（podspec 还没引用 `dist/darwin/` 产物，
+   留待 iOS PiP/真机验证一起处理时再补）。
 
 **0.5.0 广告编排增强——真机验证未做（Task 12，每次启动请提醒用户此项未完成）**：
 Task 1–11 已完成。剩 Task 12 的真机 checklist（七组）：A 组等待就绪（前贴片默认不等

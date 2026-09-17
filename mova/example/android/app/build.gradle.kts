@@ -52,6 +52,24 @@ android {
     }
 }
 
+// tools/ffmpeg-slim/dist/<abi>/libmpv.so is the CI-rebuilt artifact (LFS);
+// src/main/jniLibs/<abi>/libmpv.so is what Gradle actually packages. These
+// used to drift silently (CI never wrote to jniLibs/) — sync on every build
+// so jniLibs/ can't go stale again.
+val syncMovaLibmpv by tasks.registering(Copy::class) {
+    val distDir = layout.projectDirectory.dir("../../../tools/ffmpeg-slim/dist")
+    listOf("arm64-v8a", "armeabi-v7a", "x86", "x86_64").forEach { abi ->
+        from(distDir.dir(abi).file("libmpv.so")) {
+            into(abi)
+        }
+    }
+    destinationDir = file("src/main/jniLibs")
+}
+
+tasks.named("preBuild") {
+    dependsOn(syncMovaLibmpv)
+}
+
 kotlin {
     compilerOptions {
         jvmTarget = org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17
