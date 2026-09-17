@@ -148,12 +148,15 @@ feed 引擎池结构性不适用本模型，明确排除。详见
 `post-checkout`/`post-commit`/`post-merge` 三个钩子为空白，直接新建）。
 
 **待恢复时按顺序做剩余 Task**：
-4. **CI 的"提交产物回 dist/"重试逻辑有 bug**（android-arm64/android-other-abi×3/darwin/
-   linux/windows 五个 job 共用同一段脚本）：2026-09-17 windows job 实测复现——`git push`
-   被拒后 `git fetch + git rebase origin/main`，但工作区不干净导致 `rebase` 直接报错退出
-   （`cannot rebase: You have unstaged changes`）。根源和修法记在
-   `mova-libmpv/README.md`「多平台进度」表 Windows 那一行。**这个 bug 要在改造成 LFS 之前
-   或同时一起修**，不然 LFS 化之后这五个 job 还是会用同一套有 bug 的重试逻辑。
+4. **CI 的"提交产物回 dist/"重试逻辑 bug——已修复（2026-09-17），未经 CI 验证**：
+   android-arm64/android-other-abi×3/darwin/linux/windows 五个 job 共用的重试逻辑已从
+   "先本地 commit，push 被拒就 `fetch + rebase`"改造成"每次重试先 `fetch + reset --hard
+   origin/main` 拿干净基线，再在其上 mkdir/cp/add/commit"，从根源上避免
+   `cannot rebase: You have unstaged changes`（不用查清楚具体是什么让工作区变脏，
+   `reset --hard` 无论原因都能保证纯净）。改动见 `.github/workflows/build-mova-libmpv.yml`
+   五处并列的"Commit built artifact to dist/"步骤，详情记在
+   `mova-libmpv/README.md`「多平台进度」表 Windows 那一行。**这个修复本身还没被真实 CI
+   跑过验证过**，留给 Task 6 的全平台重跑一并确认。
 5. darwin(macOS) job 上次被我们主动 `gh run cancel` 打断（不是构建失败，只是编译到一半，
    这个 job 天然要 45-90 分钟+），下次重跑要给够时间，别提前取消。
 6. LFS 化 + 历史清理都做完后，**重新触发一次全平台 CI**，确认全部 6 个 job（4 Android

@@ -161,24 +161,30 @@ jobs:
 
       - name: Commit built artifact to dist/
         run: |
-          mkdir -p mova/tools/ffmpeg-slim/dist/arm64-v8a
-          cp libmpv-arm64-v8a.so mova/tools/ffmpeg-slim/dist/arm64-v8a/libmpv.so
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add mova/tools/ffmpeg-slim/dist/arm64-v8a/libmpv.so
-          if git diff --cached --quiet; then
-            echo "No size/content change, skip commit"
-            exit 0
-          fi
-          git commit -m "chore(mova): rebuild slimmed libmpv.so (android arm64-v8a) [skip ci]"
           # This job runs concurrently with android-other-abi's 3 matrix legs
           # (and now darwin/linux/windows too) — all push to the same branch,
-          # each touching a disjoint dist/<abi>/ path, so retry on rejection.
+          # each touching a disjoint dist/<abi>/ path. Every retry starts from
+          # a fresh fetch+reset baseline and creates a brand-new commit on top
+          # of it, instead of rebasing an already-made local commit — the old
+          # "commit once, then rebase on conflict" approach could hit
+          # `cannot rebase: You have unstaged changes` if the working tree
+          # wasn't pristine when the rebase ran (see mova-libmpv/README.md's
+          # 2026-09-17 windows CI finding).
           for i in 1 2 3 4 5; do
-            if git push; then exit 0; fi
-            echo "push rejected (race with a sibling job), rebasing and retrying ($i/5)..."
             git fetch origin main
-            git rebase origin/main
+            git reset --hard origin/main
+            mkdir -p mova/tools/ffmpeg-slim/dist/arm64-v8a
+            cp libmpv-arm64-v8a.so mova/tools/ffmpeg-slim/dist/arm64-v8a/libmpv.so
+            git add mova/tools/ffmpeg-slim/dist/arm64-v8a/libmpv.so
+            if git diff --cached --quiet; then
+              echo "No size/content change, skip commit"
+              exit 0
+            fi
+            git commit -m "chore(mova): rebuild slimmed libmpv.so (android arm64-v8a) [skip ci]"
+            if git push; then exit 0; fi
+            echo "push rejected (race with a sibling job), retrying from a fresh baseline ($i/5)..."
             sleep $((RANDOM % 8 + 2))
           done
           echo "::error::failed to push dist/arm64-v8a/ after retries"
@@ -303,22 +309,24 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          mkdir -p mova/tools/ffmpeg-slim/dist/${{ matrix.abi }}
-          cp "$GITHUB_WORKSPACE/libmpv-${{ matrix.abi }}.so" mova/tools/ffmpeg-slim/dist/${{ matrix.abi }}/libmpv.so
-          git add mova/tools/ffmpeg-slim/dist/${{ matrix.abi }}/libmpv.so
-          if git diff --cached --quiet; then
-            echo "No size/content change, skip commit"
-            exit 0
-          fi
-          git commit -m "chore(mova): rebuild slimmed libmpv.so (android ${{ matrix.abi }}) [skip ci]"
           # 3 matrix legs (armeabi-v7a/x86/x86_64) push to the same branch
-          # concurrently — each only touches its own dist/<abi>/ path, so a
-          # rebase on conflict is always trivial, never a real content clash.
+          # concurrently — each only touches its own dist/<abi>/ path. Every
+          # retry starts from a fresh fetch+reset baseline and creates a
+          # brand-new commit on top of it, instead of rebasing an
+          # already-made local commit (see arm64-v8a job above for why).
           for i in 1 2 3 4 5; do
-            if git push; then exit 0; fi
-            echo "push rejected (race with a sibling matrix leg), rebasing and retrying ($i/5)..."
             git fetch origin main
-            git rebase origin/main
+            git reset --hard origin/main
+            mkdir -p mova/tools/ffmpeg-slim/dist/${{ matrix.abi }}
+            cp "$GITHUB_WORKSPACE/libmpv-${{ matrix.abi }}.so" mova/tools/ffmpeg-slim/dist/${{ matrix.abi }}/libmpv.so
+            git add mova/tools/ffmpeg-slim/dist/${{ matrix.abi }}/libmpv.so
+            if git diff --cached --quiet; then
+              echo "No size/content change, skip commit"
+              exit 0
+            fi
+            git commit -m "chore(mova): rebuild slimmed libmpv.so (android ${{ matrix.abi }}) [skip ci]"
+            if git push; then exit 0; fi
+            echo "push rejected (race with a sibling matrix leg), retrying from a fresh baseline ($i/5)..."
             sleep $((RANDOM % 8 + 2))
           done
           echo "::error::failed to push dist/${{ matrix.abi }}/libmpv.so after retries"
@@ -405,19 +413,22 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          mkdir -p mova/tools/ffmpeg-slim/dist/darwin
-          cp "$GITHUB_WORKSPACE"/darwin-out/* mova/tools/ffmpeg-slim/dist/darwin/
-          git add mova/tools/ffmpeg-slim/dist/darwin/
-          if git diff --cached --quiet; then
-            echo "No size/content change, skip commit"
-            exit 0
-          fi
-          git commit -m "chore(mova): add darwin (ios+macos) libmpv build, v1 upstream default flavor [skip ci]"
+          # Every retry starts from a fresh fetch+reset baseline and creates
+          # a brand-new commit on top of it, instead of rebasing an
+          # already-made local commit (see arm64-v8a job for why).
           for i in 1 2 3 4 5; do
-            if git push; then exit 0; fi
-            echo "push rejected, rebasing and retrying ($i/5)..."
             git fetch origin main
-            git rebase origin/main
+            git reset --hard origin/main
+            mkdir -p mova/tools/ffmpeg-slim/dist/darwin
+            cp "$GITHUB_WORKSPACE"/darwin-out/* mova/tools/ffmpeg-slim/dist/darwin/
+            git add mova/tools/ffmpeg-slim/dist/darwin/
+            if git diff --cached --quiet; then
+              echo "No size/content change, skip commit"
+              exit 0
+            fi
+            git commit -m "chore(mova): add darwin (ios+macos) libmpv build, v1 upstream default flavor [skip ci]"
+            if git push; then exit 0; fi
+            echo "push rejected, retrying from a fresh baseline ($i/5)..."
             sleep $((RANDOM % 8 + 2))
           done
           echo "::error::failed to push dist/darwin/ after retries"
@@ -793,19 +804,22 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          mkdir -p mova/tools/ffmpeg-slim/dist/linux-x86_64
-          cp "$GITHUB_WORKSPACE/libmpv-linux-x86_64.so" mova/tools/ffmpeg-slim/dist/linux-x86_64/libmpv.so
-          git add mova/tools/ffmpeg-slim/dist/linux-x86_64/libmpv.so
-          if git diff --cached --quiet; then
-            echo "No size/content change, skip commit"
-            exit 0
-          fi
-          git commit -m "chore(mova): add linux x86_64 libmpv build, v1 native [skip ci]"
+          # Every retry starts from a fresh fetch+reset baseline and creates
+          # a brand-new commit on top of it, instead of rebasing an
+          # already-made local commit (see arm64-v8a job for why).
           for i in 1 2 3 4 5; do
-            if git push; then exit 0; fi
-            echo "push rejected, rebasing and retrying ($i/5)..."
             git fetch origin main
-            git rebase origin/main
+            git reset --hard origin/main
+            mkdir -p mova/tools/ffmpeg-slim/dist/linux-x86_64
+            cp "$GITHUB_WORKSPACE/libmpv-linux-x86_64.so" mova/tools/ffmpeg-slim/dist/linux-x86_64/libmpv.so
+            git add mova/tools/ffmpeg-slim/dist/linux-x86_64/libmpv.so
+            if git diff --cached --quiet; then
+              echo "No size/content change, skip commit"
+              exit 0
+            fi
+            git commit -m "chore(mova): add linux x86_64 libmpv build, v1 native [skip ci]"
+            if git push; then exit 0; fi
+            echo "push rejected, retrying from a fresh baseline ($i/5)..."
             sleep $((RANDOM % 8 + 2))
           done
           echo "::error::failed to push dist/linux-x86_64/ after retries"
@@ -976,19 +990,27 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          mkdir -p mova/tools/ffmpeg-slim/dist/windows-x86_64
-          cp "$WS/libmpv-2-windows-x86_64.dll" mova/tools/ffmpeg-slim/dist/windows-x86_64/libmpv-2.dll
-          git add mova/tools/ffmpeg-slim/dist/windows-x86_64/libmpv-2.dll
-          if git diff --cached --quiet; then
-            echo "No size/content change, skip commit"
-            exit 0
-          fi
-          git commit -m "chore(mova): add windows x86_64 libmpv-2.dll build, v1 native MSYS2 slim [skip ci]"
+          # 2026-09-17: this job hit `cannot rebase: You have unstaged
+          # changes` here because the old flow committed locally first and
+          # only then tried to rebase that commit on conflict — any stray
+          # dirty state in the tree (MSYS2 line-ending conversion, etc.) made
+          # the rebase itself fail. Every retry now starts from a fresh
+          # fetch+reset baseline and creates a brand-new commit on top of it
+          # instead, which sidesteps the dirty-tree case entirely regardless
+          # of what caused it.
           for i in 1 2 3 4 5; do
-            if git push; then exit 0; fi
-            echo "push rejected, rebasing and retrying ($i/5)..."
             git fetch origin main
-            git rebase origin/main
+            git reset --hard origin/main
+            mkdir -p mova/tools/ffmpeg-slim/dist/windows-x86_64
+            cp "$WS/libmpv-2-windows-x86_64.dll" mova/tools/ffmpeg-slim/dist/windows-x86_64/libmpv-2.dll
+            git add mova/tools/ffmpeg-slim/dist/windows-x86_64/libmpv-2.dll
+            if git diff --cached --quiet; then
+              echo "No size/content change, skip commit"
+              exit 0
+            fi
+            git commit -m "chore(mova): add windows x86_64 libmpv-2.dll build, v1 native MSYS2 slim [skip ci]"
+            if git push; then exit 0; fi
+            echo "push rejected, retrying from a fresh baseline ($i/5)..."
             sleep $((RANDOM % 8 + 2))
           done
           echo "::error::failed to push dist/windows-x86_64/ after retries"
