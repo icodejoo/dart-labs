@@ -114,10 +114,27 @@ index 060869c..37a4a71 100644
      ]
      ++ pkgs.lib.optionals (variant == variants.video && flavor == flavors.encodersgpl) [
 diff --git a/nix/packages/mk-pkg-ffmpeg/meson.build b/nix/packages/mk-pkg-ffmpeg/meson.build
-index 35457c2..3e186db 100644
+index 35457c2..376d5ae 100644
 --- a/nix/packages/mk-pkg-ffmpeg/meson.build
 +++ b/nix/packages/mk-pkg-ffmpeg/meson.build
-@@ -42,12 +42,9 @@ common_options = [
+@@ -12,6 +12,16 @@ nm = find_program('nm')
+ ar = find_program('ar')
+ strip = find_program('strip')
+ pkg_config = find_program('pkg-config')
++# movaslim's ffmpeg builds --enable-static (see linking_movaslim_options
++# below), which makes ffmpeg's own build invoke `ar` then `ranlib` to finish
++# each .a archive. ranlib was never resolved or passed through here at all
++# (only needed for static builds, which upstream's default/full/encodersgpl
++# flavors never exercise) — without it, ffmpeg's configure falls back to a
++# bare "ranlib" on $PATH, which doesn't exist in the Nix sandbox ("make:
++# ranlib: No such file or directory", hit in run 35198317213, 2026-09-17).
++# The cross-file already defines the real one (Xcode toolchain's ranlib) —
++# just needed wiring through like ar/nm/strip.
++ranlib = find_program('ranlib')
+ 
+ # build options
+ c_args = get_option('c_args')
+@@ -42,12 +52,9 @@ common_options = [
      '--prefix=@PREFIX@',
      '--enable-small', # reduce libs size
      '--enable-optimizations',
@@ -130,7 +147,7 @@ index 35457c2..3e186db 100644
      '--enable-safe-bitstream-reader',
      '--enable-stripping',
      '--enable-avcodec',
-@@ -60,6 +57,38 @@ common_options = [
+@@ -60,6 +67,38 @@ common_options = [
      # '--enable-nonfree', # uncomment it to include unredistributable code
  ]
  
@@ -169,7 +186,7 @@ index 35457c2..3e186db 100644
  audio_common_options = [
      '--enable-zlib', # rasc support
      '--enable-audiotoolbox',
-@@ -67,11 +96,87 @@ audio_common_options = [
+@@ -67,11 +106,87 @@ audio_common_options = [
  
  video_common_options = [
      '--enable-neon', # improve hevc (h265) support on arm
@@ -258,7 +275,7 @@ index 35457c2..3e186db 100644
  # https://github.com/media-kit/libmpv-android-audio-build/blob/260666c0fef8c154971b5faf3f78da27c2bf2c40/buildscripts/flavors/default.sh
  audio_default_options = [
      # decoders
-@@ -303,9 +408,21 @@ options = disable_all_options
+@@ -303,9 +418,21 @@ options = disable_all_options
  
  # common
  options += common_options
@@ -280,7 +297,7 @@ index 35457c2..3e186db 100644
  endif
  
  # components
-@@ -326,6 +443,14 @@ elif flavor == 'encodersgpl'
+@@ -326,6 +453,14 @@ elif flavor == 'encodersgpl'
          options += video_full_options
          options += video_encodersgpl_options
      endif
@@ -295,6 +312,14 @@ index 35457c2..3e186db 100644
  endif
  
  p = mod.add_project('configure',
+@@ -337,6 +472,7 @@ p = mod.add_project('configure',
+ 
+         '--nm=@0@'.format(nm.path()),
+         '--ar=@0@'.format(ar.path()),
++        '--ranlib=@0@'.format(ranlib.path()),
+         '--as=@0@'.format(''.join(c.cmd_array())),
+         '--strip=@0@'.format(strip.path()),
+         '--cc=@0@'.format(''.join(c.cmd_array())),
 diff --git a/nix/packages/mk-pkg-ffmpeg/meson.options b/nix/packages/mk-pkg-ffmpeg/meson.options
 index a48d1db..d7cbb8e 100644
 --- a/nix/packages/mk-pkg-ffmpeg/meson.options
@@ -472,13 +497,6 @@ index b4856a0..fd9c653 100644
          '--enable-fast-install',
          '--disable-dependency-tracking',
          '--disable-test',
-diff --git a/nix/packages/mk-pkg-libass/meson.options b/nix/packages/mk-pkg-libass/meson.options
-new file mode 100644
-index 0000000..65c31dd
---- /dev/null
-+++ b/nix/packages/mk-pkg-libass/meson.options
-@@ -0,0 +1 @@
-+option('linking', type : 'combo', choices : ['shared', 'static'], value : 'shared')
 diff --git a/nix/packages/mk-pkg-libpng/default.nix b/nix/packages/mk-pkg-libpng/default.nix
 index 9a5fafd..33c4819 100644
 --- a/nix/packages/mk-pkg-libpng/default.nix
