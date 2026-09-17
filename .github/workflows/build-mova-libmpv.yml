@@ -19,7 +19,7 @@ name: Build mova libmpv (all platforms)
 #   - darwin (macOS job) / ios: both drive media-kit/libmpv-darwin-build,
 #     Nix + pinned Xcode. `darwin` builds every ios/iossimulator/macos target
 #     in one bare `make` invocation, upstream's own default flavor. `ios` is
-#     scoped to just `TARGET=archive-libs-ios-arm64-video-default` (device
+#     scoped to just `TARGET=mk-out-archive-libs-ios-arm64-video-default` (device
 #     arm64 only) for a fast iOS-only iteration loop — still upstream's
 #     default flavor, not mova's custom decoder/demuxer list; that slimming
 #     (flavors-mova-slim-ios.sh, currently unused/orphaned) is a follow-up
@@ -535,9 +535,17 @@ jobs:
         working-directory: build-root
         # TARGET name built from nix/utils/flake/create-cross-package.nix's
         # naming scheme: <packageName>-<format>-<os>-<arch>-<variant>-<flavor>.
-        # This is the smallest single flake output that produces a real
-        # libmpv for iOS device — no simulator, no macOS, no xcframework zip.
-        run: nix develop -c make TARGET=archive-libs-ios-arm64-video-default XCODE_PATH="${{ steps.xcode.outputs.path }}" VERSION=mova-ci
+        # packageName is the literal nix/packages/ subdirectory name
+        # (packages-with-targets.nix derives it via readDir), which is
+        # "mk-out-archive" — NOT the package's internal `name = "archive"`
+        # variable used only for its derivation's own `name`/`pname`
+        # attributes. First run (35192404441, 2026-09-17) used the wrong
+        # "archive-..." prefix and failed with "flake ... does not provide
+        # attribute ... archive-libs-ios-arm64-video-default"; this is the
+        # corrected attribute. This is the smallest single flake output that
+        # produces a real libmpv for iOS device — no simulator, no macOS, no
+        # xcframework zip.
+        run: nix develop -c make TARGET=mk-out-archive-libs-ios-arm64-video-default XCODE_PATH="${{ steps.xcode.outputs.path }}" VERSION=mova-ci
 
       - name: Verify and extract
         working-directory: build-root
