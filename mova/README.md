@@ -213,6 +213,58 @@ runApp(MovaPlayer(api: api));
 两者仅共享 `MovaEngineFact` 这条原语。详见
 [doc/plans/2026-09-16-seamless-swap.md](doc/plans/2026-09-16-seamless-swap.md)。
 
+## 仅音频模式（`audioOnly`）
+
+同一个项目里既要放视频也要放纯音频时，音频那条路不该背视频的资源开销。
+`audioOnly: true` 构造出的引擎**不建立任何视频管线**：默认内核跳过 `VideoController`，
+抽帧兜底也不接线。此时 `renderHandle` 为 `null`，`MovaPlayer` 渲染黑色占位——
+或者你传给它的任意 `surface`（封面、波形、歌词面）。
+
+默认 **关闭**（`audioOnly` 为 `false`），关闭时行为与不加这个参数时逐字节相同。
+
+```dart
+final engine = createMovaEngine(
+  audioOnly: true,
+  options: const MovaOpts(preview: MovaPrevConfig(enabled: false)), // 没有帧可预览
+);
+runApp(MovaPlayer(api: engine, surface: CoverArt(url: coverUrl)));
+```
+
+### 省下多少
+
+media_kit 的 `Player` 一创建就是 mpv 的 `--vid=no`，**只有** `VideoController.create()`
+会把它改回 `vid=auto`。因此不挂接它，libmpv 就只解音频：**解码帧缓冲、GPU 纹理、
+Flutter `Texture` 注册这三项直接是 0，而不只是变小**——它们正是视频侧内存开销的全部。
+量级上：内存约差两个数量级（MB 级 vs 近百 MB 级），CPU 与电量差一个数量级以上。
+
+> ⚠️ 上述"两个数量级"是按编解码参数**推算的分项量级**，只在单独比帧缓冲/GPU 纹理
+> 这几项时成立，**不要用它推整机内存**。
+>
+> **Windows 桌面端已有实测**（同一条 854×480 素材，`ProcessInfo.currentRss`，各两轮）：
+> 视频模式播放期内存增量均值 **197 MiB**，audioOnly **96 MiB**，
+> **省约 101 MiB，倍率约 2.05×**——是约 2 倍，不是两个数量级，因为 RSS 还包含
+> Flutter engine 与 libmpv 自身那份两种模式都要付的常驻开销。同一轮实测还直接确认了
+> `audioOnly` 下 `MovaState.size` 为 `0x0`（视频轨压根没解码）、`renderHandle` 为
+> `null`。完整数据与口径说明见
+> [doc/notes/2026-09-16-audio-only-feasibility.md](doc/notes/2026-09-16-audio-only-feasibility.md) §1.5。
+>
+> **Android/iOS 真机验证仍未进行**，桌面 RSS 与移动端 `dumpsys meminfo` 不能直接类比。
+> 复现方式见 [example/README.md](example/README.md) 的 RSS 探针一节。
+
+反直觉的一点：**包体积不随模式变**。只要还链着 `media_kit_libs_video`，那 ~11.8 MiB/ABI
+的 `libmpv.so`（含 ffmpeg）就照样在包里，不管你运行时放不放视频。
+
+### 该用 mova 还是换 just_audio
+
+> 需要熄屏后台常驻 + 系统媒体控制吗？
+> 需要 → `just_audio` + `audio_service`。
+> 不需要（只是前台界面里放一段音频） → mova 的 `audioOnly` 模式，别多引一个插件。
+
+mova 在音频模式下**没有**这些东西：后台常驻、锁屏/通知栏、耳机线控、音频焦点、
+gapless、歌单。补齐它们是一整套四端原生工程，不在 mova 的范围内。反过来，控制条、
+手势、时移、ABR、广告、拦截器这些 mova 已有的东西在音频模式下照常工作——换插件反而
+要把它们再实现一遍。
+
 ## 平台端口
 
 `MovaEngine()` 裸构造默认走 noop 端口（供纯 Dart 单测使用），应用代码应改用

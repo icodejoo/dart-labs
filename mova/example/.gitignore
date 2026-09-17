@@ -43,3 +43,10 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+
+# Perf-probe media, generated locally by ffmpeg from the upstream sample.
+# Regenerate with the command in ../doc/notes/2026-09-16-audio-only-feasibility.md;
+# never commit multi-MB media.
+#
+# 性能探针用的本地素材，由 ffmpeg 从上游样本生成，不入库。
+perf_assets/

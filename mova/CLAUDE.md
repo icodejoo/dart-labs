@@ -32,10 +32,31 @@
 接入；清晰度切换（`switchQuality`）只做了接口形状契约测试 + 落点注释，未真正接入；
 feed 引擎池结构性不适用本模型，明确排除。详见
 [doc/plans/2026-09-16-seamless-swap.md](doc/plans/2026-09-16-seamless-swap.md)、
-[doc/SPEC.md](doc/SPEC.md)"无缝引擎切换"一节。测试全绿（535 项，含本次新增
-83 项）、`flutter analyze` 0 issues（1 条与本次改动无关的既有 `feed_player.dart`
-警告，早于本次改动已存在）。**真机验证未做**（Task 11：黑屏是否真的消除、中插续播点
-误差、内存/解码 session 三阶段采样、短广告降级路径，均需真机逐项验证）。
+[doc/SPEC.md](doc/SPEC.md)"无缝引擎切换"一节。**真机验证未做**（Task 11：黑屏是否真的
+消除、中插续播点误差、内存/解码 session 三阶段采样、短广告降级路径，均需真机逐项验证）。
+
+**0.4.x 仅音频模式（`audioOnly`）已完成（默认关闭）**：`MpvKernel` / `MovaEngine` /
+`createMovaEngine()` 新增 `bool audioOnly = false` 构造参数。为 `true` 时完全跳过
+`VideoController` 的创建——media_kit 的 `Player` 默认就是 mpv 的 `--vid=no`，只有
+`VideoController.create()` 会把它改回 `vid=auto`，因此不挂接它就等于让 libmpv 只解
+音频：解码帧缓冲/GPU 纹理/Flutter `Texture` 注册三项是 0 而非变小。`createMovaEngine()`
+在此模式下也不再默认注入 `MpvFrameExtractor`（它首次抽帧会新开第二个 `Player` 并为其建
+`VideoController`）。`MovaKernel.renderHandle` 由 `Object` 放宽为 `Object?`。
+**不新增任何公开类、barrel 一行未改、UI 层零改动**（`null` 句柄天然走占位分支，音频的
+封面/波形/歌词面用已有的 `MovaPlayer.surface` 传入，故不做 `MovaAudioSkin`）。
+`audioOnly` 刻意不进 `MovaOpts`（构造期资源决策，`copyWith` 无法生效），也不加
+`MovaStreamType.audio`（与流类型正交）。**Windows 桌面端已实测**（`ProcessInfo.currentRss`，
+同一条素材各两轮）：播放期内存增量视频 197 MiB vs 音频 96 MiB，省约 101 MiB、约 2.05×——
+**是约 2 倍而非推算的两个数量级**（RSS 含 Flutter engine/libmpv 自身常驻开销），
+同时直接确认 `audioOnly` 下 `MovaState.size` 为 `0x0`（视频轨未解码）、`renderHandle`
+为 `null`；数据见 [doc/notes/2026-09-16-audio-only-feasibility.md](doc/notes/2026-09-16-audio-only-feasibility.md) §1.5。
+计划见
+[doc/plans/2026-09-16-audio-only.md](doc/plans/2026-09-16-audio-only.md)、
+[doc/SPEC.md](doc/SPEC.md)"仅音频模式"一节。**真机验证未做**（Task 5）。
+
+**当前测试基线：560 项全绿**（0.4.0 落地时为 536，仅音频模式新增 24 项）、
+`flutter analyze` 0 issues（1 条与上述改动均无关的既有 `feed_player.dart` 警告，
+早于这些改动已存在）。
 
 以下为 0.3.0 阶段成果（仍有效）：
 
@@ -77,6 +98,23 @@ feed 引擎池结构性不适用本模型，明确排除。详见
 260 项测试全绿，`flutter analyze` 0 issues。
 
 ## 剩余任务
+
+**0.4.x 仅音频模式——真机验证未做（Task 5，每次启动请提醒用户此项未完成）**：
+Task 1–4 已完成（`renderHandle` 契约放宽、`MpvKernel` 不建视频管线、
+`MovaEngine`/`createMovaEngine()` 透传、UI/swap 兼容护栏与文档）。剩 Task 5 的真机
+checklist：纯音频源与带视频轨源的播放正确性（后者应只出声不出画）、三阶段
+`dumpsys meminfo` 内存对账（视频 / 音频 / 释放后）、电量/CPU 量级抽查、
+连播多轮看是否逐轮爬升（泄漏判据）、关闭态全 demo 回归。
+**其中两项已在 Windows 桌面端提前拿到实测答案**（见笔记 §1.5）：① 内存——桌面 RSS
+实测视频 197 MiB vs 音频 96 MiB，约 2.05×，**已如实回写笔记，把"两个数量级"的口径
+更正为分项量级**；② `vid=no` 已直接确认（audio 模式 `size` 为 `0x0`）。
+**但桌面 RSS 与移动端 `dumpsys meminfo` 不能直接类比**，移动端那笔账（MediaCodec/
+纹理分栏）仍需真机重做。
+**已就绪的前置**：`example/lib/audio_only_demo.dart`（独立 demo 页，带真实事件打点）
+与 `example/lib/perf_probe_audio_only.dart`（RSS 探针，`--dart-define` 选模式）。
+计划见 [doc/plans/2026-09-16-audio-only.md](doc/plans/2026-09-16-audio-only.md)。
+另：`MovaAudioSkin`（封面/歌词/波形专用皮肤，第二档，约 6–8 Task）**明确不做**，
+将来若确有需要再评估——当前用 `MovaPlayer.surface` 已够。
 
 0. **0.4.0 无缝引擎切换——真机验证未做（Task 11，每次启动请提醒用户此项未完成）**：
    Task 1–10 已完成（配置面、`renderEpoch`、预热触发/就绪判据、`MovaSwapEngine` 骨架

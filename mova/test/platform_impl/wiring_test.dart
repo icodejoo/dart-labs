@@ -1,11 +1,14 @@
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:path_provider_platform_interface/path_provider_platform_interface.dart';
 import 'package:plugin_platform_interface/plugin_platform_interface.dart';
 import 'package:mova/src/core/engine.dart';
 import 'package:mova/src/core/platform/ports.dart';
+import 'package:mova/src/core/preview/extractor.dart';
 import 'package:mova/src/platform_impl/brightness_impl.dart';
+import 'package:mova/src/platform_impl/mpv_extractor_impl.dart';
 import 'package:mova/src/platform_impl/orientation_impl.dart';
 import 'package:mova/src/platform_impl/pip_impl.dart';
 import 'package:mova/src/platform_impl/wiring.dart';
@@ -36,6 +39,28 @@ class _FakeBrightnessPort implements MovaBrightPort {
 
   @override
   Future<void> set(double value) => Future.value();
+}
+
+/// A fake [MovaFramePuller] used only to prove that an explicitly injected
+/// extractor still wins under `audioOnly: true`.
+///
+/// 仅用于证明显式注入的抽帧器在 `audioOnly: true` 下仍然胜出的假
+/// [MovaFramePuller]。
+class _FakeFramePuller implements MovaFramePuller {
+  @override
+  Future<Uint8List?> extract(
+    String uri,
+    Duration at, {
+    required int width,
+    required bool hwdec,
+  }) async =>
+      null;
+
+  @override
+  Future<void> release() async {}
+
+  @override
+  Future<void> dispose() async {}
 }
 
 void main() {
@@ -77,6 +102,53 @@ void main() {
       // Ports that weren't overridden still get the real adapter.
       //
       // 未被覆盖的端口仍然接入真实适配器。
+      expect(engine.debugPipPort, isA<ChannelPipPort>());
+      expect(engine.debugOrientationPort, isA<SystemChromeOrientationPort>());
+    });
+
+    test('audioOnly leaves the frame-extraction fallback unwired', () {
+      final engine = createMovaEngine(kernel: FakeKernel(), audioOnly: true);
+      addTearDown(engine.dispose);
+
+      expect(
+        engine.debugExtractor,
+        isNull,
+        reason: 'MpvFrameExtractor would open a second Player with its own '
+            'VideoController on first use — a whole extra video pipeline / '
+            'MpvFrameExtractor 首次使用时会新开第二个 Player 并为其建 '
+            'VideoController，那是一整条额外的视频管线',
+      );
+    });
+
+    test('the frame extractor defaults to MpvFrameExtractor when audioOnly is off', () {
+      final engine = createMovaEngine(kernel: FakeKernel());
+      addTearDown(engine.dispose);
+
+      expect(engine.debugExtractor, isA<MpvFrameExtractor>());
+    });
+
+    test('an explicitly injected extractor still wins under audioOnly', () {
+      final puller = _FakeFramePuller();
+      final engine = createMovaEngine(
+        kernel: FakeKernel(),
+        audioOnly: true,
+        extractor: puller,
+      );
+      addTearDown(engine.dispose);
+
+      expect(
+        engine.debugExtractor,
+        same(puller),
+        reason: 'the host may wire its own extractor; audioOnly only changes '
+            'the default / 宿主可以自己接抽帧器，audioOnly 只改默认值',
+      );
+    });
+
+    test('audioOnly does not disturb the other platform ports', () {
+      final engine = createMovaEngine(kernel: FakeKernel(), audioOnly: true);
+      addTearDown(engine.dispose);
+
+      expect(engine.debugBrightnessPort, isA<ScreenBrightnessPort>());
       expect(engine.debugPipPort, isA<ChannelPipPort>());
       expect(engine.debugOrientationPort, isA<SystemChromeOrientationPort>());
     });

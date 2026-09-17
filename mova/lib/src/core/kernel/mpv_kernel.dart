@@ -22,12 +22,34 @@ class MpvKernel implements MovaKernel {
   /// [player] lets callers inject an existing `Player` (e.g. for testing or
   /// custom configuration); when omitted a new `Player()` is created.
   ///
+  /// [audioOnly] skips creating the `VideoController` entirely. media_kit's
+  /// `Player` already starts with mpv's `--vid=no` and it is *only*
+  /// `VideoController.create()` that flips it back to `vid=auto`
+  /// (media_kit 1.2.6, `player/native/player/real.dart` `_create()` and
+  /// `video_controller/native_video_controller/real.dart`), so not attaching
+  /// one leaves libmpv decoding audio and nothing else: no decoded frame
+  /// buffers, no GPU texture, no Flutter `Texture` registration. Those three
+  /// are the whole of the video-side memory cost, and in audio-only mode they
+  /// are zero rather than merely smaller.
+  ///
   /// 创建基于 media_kit 的内核。
   ///
   /// [player] 允许调用者注入一个已存在的 `Player`（如用于测试或自定义配置）；
   /// 省略时会创建一个新的 `Player()`。
-  MpvKernel({Player? player}) : _player = player ?? Player() {
-    _controller = VideoController(_player);
+  ///
+  /// [audioOnly] 表示完全跳过 `VideoController` 的创建。media_kit 的 `Player`
+  /// 一创建就是 mpv 的 `--vid=no`，**只有** `VideoController.create()` 会把它
+  /// 改回 `vid=auto`（media_kit 1.2.6，见 `player/native/player/real.dart` 的
+  /// `_create()` 与 `video_controller/native_video_controller/real.dart`），
+  /// 因此不挂接它就等于让 libmpv 只解音频：没有解码帧缓冲、没有 GPU 纹理、
+  /// 没有 Flutter `Texture` 注册。这三项就是视频侧内存开销的全部，在仅音频
+  /// 模式下它们是 0，而不只是变小。
+  ///
+  /// 升级 media_kit 时须重验"默认 `--vid=no`"这一条。
+  MpvKernel({Player? player, this.audioOnly = false}) : _player = player ?? Player() {
+    if (!audioOnly) {
+      _controller = VideoController(_player);
+    }
     _widthSub = _player.stream.width.listen((w) {
       _lastWidth = w ?? 0;
       _widthSeen = true;
@@ -50,10 +72,16 @@ class MpvKernel implements MovaKernel {
   /// 被包裹的 media_kit 播放器实例。
   final Player _player;
 
-  /// The video controller used to attach this kernel to a video widget.
+  /// Whether this kernel was built without a video pipeline.
   ///
-  /// 用于把该内核挂接到视频组件上的控制器。
-  late final VideoController _controller;
+  /// 该内核是否在不带视频管线的形态下构造。
+  final bool audioOnly;
+
+  /// The video controller used to attach this kernel to a video widget;
+  /// `null` when [audioOnly].
+  ///
+  /// 用于把该内核挂接到视频组件上的控制器；[audioOnly] 时为 `null`。
+  VideoController? _controller;
 
   StreamSubscription<int?>? _widthSub;
   StreamSubscription<int?>? _heightSub;
@@ -113,8 +141,22 @@ class MpvKernel implements MovaKernel {
   @override
   Future<void> setRate(double rate) => _player.setRate(rate);
 
+  /// Captures the current video frame as an encoded image, or `null` when
+  /// there is no video pipeline to capture from.
+  ///
+  /// Short-circuiting here rather than letting mpv fail keeps the scrub-preview
+  /// frame-extraction fallback (`MovaPrevSource`) on its documented
+  /// "extractor returned nothing → degrade gracefully" path instead of
+  /// surfacing an mpv error to the host.
+  ///
+  /// 截取当前视频帧并编码为图片；没有视频管线可截时返回 `null`。
+  ///
+  /// 在此短路而不是让 mpv 自己失败，可以让拖动预览的抽帧兜底
+  /// （`MovaPrevSource`）走它既有的"抽帧器没给结果 → 平滑降级"路径，而不是把
+  /// 一个 mpv 错误抛给宿主。
   @override
-  Future<Uint8List?> screenshot() => _player.screenshot(format: 'image/jpeg');
+  Future<Uint8List?> screenshot() async =>
+      audioOnly ? null : _player.screenshot(format: 'image/jpeg');
 
   @override
   Future<void> dispose() async {
@@ -149,5 +191,5 @@ class MpvKernel implements MovaKernel {
   Stream<Object> get error => _player.stream.error;
 
   @override
-  Object get renderHandle => _controller;
+  Object? get renderHandle => _controller;
 }

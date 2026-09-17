@@ -13,6 +13,56 @@ import 'package:mova/src/core/kernel/kernel.dart';
 ///
 /// 在整个测试套件中（本任务及后续任务）作为唯一共享的假内核实现。
 class FakeKernel implements MovaKernel {
+  /// Creates a fake kernel.
+  ///
+  /// 创建一个假内核。
+  ///
+  /// - [renderHandle]: the handle this fake reports; defaults to a fresh
+  ///   opaque object, pass `null` to emulate an audio-only kernel /
+  ///   该假对象对外报告的句柄；默认是一个新建的不透明对象，传 `null` 可模拟
+  ///   仅音频内核
+  ///
+  /// Example / 示例:
+  /// ```dart
+  /// final k = FakeKernel(renderHandle: null); // audio-only / 仅音频
+  /// ```
+  FakeKernel({Object? renderHandle = _unset})
+      : _renderHandle = identical(renderHandle, _unset) ? Object() : renderHandle,
+        _audioOnly = false;
+
+  /// Creates a fake kernel emulating an audio-only one: no render handle and
+  /// no screenshot, every other verb unchanged.
+  ///
+  /// 创建一个模拟仅音频形态的假内核：无渲染句柄、不支持截图，其余动词行为不变。
+  ///
+  /// Example / 示例:
+  /// ```dart
+  /// final engine = MovaEngine(kernel: FakeKernel.audioOnly());
+  /// expect(engine.renderHandle, isNull);
+  /// ```
+  FakeKernel.audioOnly()
+      : _renderHandle = null,
+        _audioOnly = true;
+
+  /// Whether this fake emulates an audio-only kernel.
+  ///
+  /// 该假对象是否在模拟仅音频内核。
+  final bool _audioOnly;
+
+  /// Sentinel marking "caller passed nothing", so that an explicit
+  /// `renderHandle: null` stays null instead of being replaced by the default.
+  ///
+  /// 用于区分"调用者没传"的哨兵值，使显式传入的 `renderHandle: null` 保持为
+  /// null，而不会被默认值顶替。
+  static const Object _unset = Object();
+
+  /// The stable handle this fake reports; stable identity matters because
+  /// `_RenderSurface` keys itself by handle identity.
+  ///
+  /// 该假对象报告的稳定句柄；身份稳定很重要，因为 `_RenderSurface` 正是按句柄
+  /// 身份做 key。
+  final Object? _renderHandle;
+
   final StreamController<bool> _playing = StreamController<bool>.broadcast();
   final StreamController<bool> _buffering = StreamController<bool>.broadcast();
   final StreamController<bool> _completed = StreamController<bool>.broadcast();
@@ -88,7 +138,7 @@ class FakeKernel implements MovaKernel {
   @override
   Future<Uint8List?> screenshot() async {
     calls.add('screenshot');
-    return fakeShot;
+    return _audioOnly ? null : fakeShot;
   }
 
   @override
@@ -129,7 +179,7 @@ class FakeKernel implements MovaKernel {
   Stream<Object> get error => _error.stream;
 
   @override
-  Object get renderHandle => Object();
+  Object? get renderHandle => _renderHandle;
 
   /// Pushes a playing/paused state into [playing].
   ///

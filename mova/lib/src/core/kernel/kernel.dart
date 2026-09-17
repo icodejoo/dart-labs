@@ -143,9 +143,20 @@ abstract class MovaKernel {
   /// `VideoController`). Its concrete type is engine-specific and opaque to
   /// callers outside the core layer.
   ///
+  /// `null` means this kernel has no video pipeline at all — the audio-only
+  /// case, where no `VideoController` was ever created and no Flutter texture
+  /// was ever registered. It is *not* an error state and must not be treated
+  /// as one: `MovaPlayer` already renders a placeholder (or the host's own
+  /// `surface`) for any handle that is not a `VideoController`.
+  ///
   /// 供视频渲染组件使用的底层渲染句柄（如 `VideoController`）。
   /// 其具体类型由引擎决定，对核心层之外的调用者不透明。
-  Object get renderHandle;
+  ///
+  /// `null` 表示该内核**根本没有视频管线**——即仅音频场景：从未创建过
+  /// `VideoController`，也从未注册过 Flutter 纹理。它**不是**错误状态，也不得
+  /// 被当作错误处理：对任何非 `VideoController` 的句柄，`MovaPlayer` 本来就会
+  /// 渲染占位符（或宿主自己传入的 `surface`）。
+  Object? get renderHandle;
 }
 
 /// An immutable, value-comparable video frame size.

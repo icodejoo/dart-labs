@@ -112,4 +112,63 @@ void main() {
     expect(api.state.renderEpoch, 0);
     await api.dispose();
   });
+
+  testWidgets('a null renderHandle mounts the placeholder branch without throwing', (t) async {
+    // The audio-only shape: no VideoController was ever created, so the
+    // handle is null and the surface falls into the placeholder branch.
+    //
+    // 仅音频形态：从未创建过 VideoController，句柄为 null，渲染面落入占位分支。
+    final api = FakeMovaApi();
+    expect(api.renderHandle, isNull);
+    await t.pumpWidget(MaterialApp(home: MovaPlayer(api: api)));
+    await t.pump();
+
+    expect(t.takeException(), isNull);
+    expect((_surfaceKey(t) as ValueKey<Object?>).value, isNull);
+    await api.dispose();
+  });
+
+  testWidgets('a custom surface replaces the render surface entirely under audio-only', (t) async {
+    // Proves the audio-only cover/waveform/lyrics panel needs no MovaAudioSkin:
+    // MovaPlayer.surface is already the hook for it.
+    //
+    // 证明仅音频场景的封面/波形/歌词面无需 MovaAudioSkin：MovaPlayer.surface
+    // 本来就是那个口子。
+    final api = FakeMovaApi();
+    await t.pumpWidget(MaterialApp(
+      home: MovaPlayer(
+        api: api,
+        surface: const ColoredBox(key: ValueKey('cover'), color: Color(0xFF123456)),
+      ),
+    ));
+    await t.pump();
+
+    expect(find.byKey(const ValueKey('cover')), findsOneWidget);
+    expect(
+      find.byWidgetPredicate((w) => w.key.runtimeType.toString() == '_RenderHandleKey'),
+      findsNothing,
+      reason: '_RenderSurface is never constructed when a surface is supplied / '
+          '传入 surface 时 _RenderSurface 根本不会被构造',
+    );
+    await api.dispose();
+  });
+
+  testWidgets('switching from an audio-only handle to a video one rebuilds the surface', (t) async {
+    // The reverse path MovaSwapEngine makes possible: one tree, audio engine
+    // swapped out for a video engine.
+    //
+    // MovaSwapEngine 打开的反向路径：同一棵树上，音频引擎换成视频引擎。
+    final api = FakeMovaApi();
+    await t.pumpWidget(MaterialApp(home: MovaPlayer(api: api)));
+    await t.pump();
+    expect((_surfaceKey(t) as ValueKey<Object?>).value, isNull);
+
+    api.renderHandle = 'video-handle';
+    api.bumpRenderEpoch();
+    await t.pump();
+    await t.pump();
+
+    expect((_surfaceKey(t) as ValueKey<Object?>).value, 'video-handle');
+    await api.dispose();
+  });
 }
