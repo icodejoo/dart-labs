@@ -143,7 +143,7 @@ index 060869c..37a4a71 100644
      ]
      ++ pkgs.lib.optionals (variant == variants.video && flavor == flavors.encodersgpl) [
 diff --git a/nix/packages/mk-pkg-ffmpeg/meson.build b/nix/packages/mk-pkg-ffmpeg/meson.build
-index 35457c2..4f2e898 100644
+index 35457c2..7df0daa 100644
 --- a/nix/packages/mk-pkg-ffmpeg/meson.build
 +++ b/nix/packages/mk-pkg-ffmpeg/meson.build
 @@ -12,6 +12,16 @@ nm = find_program('nm')
@@ -215,7 +215,7 @@ index 35457c2..4f2e898 100644
  audio_common_options = [
      '--enable-zlib', # rasc support
      '--enable-audiotoolbox',
-@@ -67,11 +106,87 @@ audio_common_options = [
+@@ -67,11 +106,159 @@ audio_common_options = [
  
  video_common_options = [
      '--enable-neon', # improve hevc (h265) support on arm
@@ -373,10 +373,10 @@ index 35457c2..4f2e898 100644
 +    '--enable-protocol=hls',
 +]
 +
-+# https://github.com/media-kit/libmpv-android-audio-build/blob/260666c0fef8c154971b5faf3f78da27c2bf2c40/buildscripts/flavors/default.sh
-+audio_default_options = [
+ # https://github.com/media-kit/libmpv-android-audio-build/blob/260666c0fef8c154971b5faf3f78da27c2bf2c40/buildscripts/flavors/default.sh
+ audio_default_options = [
      # decoders
-@@ -303,9 +418,21 @@ options = disable_all_options
+@@ -303,9 +490,21 @@ options = disable_all_options
  
  # common
  options += common_options
@@ -398,7 +398,7 @@ index 35457c2..4f2e898 100644
  endif
  
  # components
-@@ -326,6 +453,14 @@ elif flavor == 'encodersgpl'
+@@ -326,6 +525,19 @@ elif flavor == 'encodersgpl'
          options += video_full_options
          options += video_encodersgpl_options
      endif
@@ -418,7 +418,7 @@ index 35457c2..4f2e898 100644
  endif
  
  p = mod.add_project('configure',
-@@ -337,6 +472,7 @@ p = mod.add_project('configure',
+@@ -337,6 +549,7 @@ p = mod.add_project('configure',
  
          '--nm=@0@'.format(nm.path()),
          '--ar=@0@'.format(ar.path()),
@@ -426,7 +426,7 @@ index 35457c2..4f2e898 100644
          '--as=@0@'.format(''.join(c.cmd_array())),
          '--strip=@0@'.format(strip.path()),
          '--cc=@0@'.format(''.join(c.cmd_array())),
-@@ -348,10 +484,16 @@ p = mod.add_project('configure',
+@@ -348,10 +561,16 @@ p = mod.add_project('configure',
          '--host-cc=@0@'.format(''.join(c.cmd_array())),
          '--host-ld=@0@'.format(''.join(c.cmd_array())),
  
@@ -958,7 +958,7 @@ index 543805a..59ce637 100644
        tee configure.log
    '';
 diff --git a/nix/utils/constants/flavors.nix b/nix/utils/constants/flavors.nix
-index e2aa737..ac4fa51 100644
+index e2aa737..076ee8b 100644
 --- a/nix/utils/constants/flavors.nix
 +++ b/nix/utils/constants/flavors.nix
 @@ -2,4 +2,10 @@
