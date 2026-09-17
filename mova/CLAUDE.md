@@ -180,6 +180,21 @@ feed 引擎池结构性不适用本模型，明确排除。详见
    `No such file or directory`——x86 架构的构建本身有问题，需要单独排查（未开始），
    和 arm64-v8a/armeabi-v7a/x86_64 用的是同一套 flavor 脚本、只是架构参数不同，
    具体哪一步吞掉了失败还没查。
+
+   **⚠️ 运维踩坑记录（2026-09-17）——`git lfs push --object-id origin` 在双 push-url
+   remote 下不可靠**：本仓库 `origin` 同时配置了 codeup（fetch+push）与 GitHub
+   （仅 push）两个 push URL。手工用 `git lfs push --object-id origin <oid...>`
+   补传缺失对象时，它只会实际传到其中一个端点（不确定具体解析规则，实测观察到的现象
+   是"报告全部成功"但 codeup 端仍然 404），**不会对两个 push URL 都传**。CI 那五个
+   job 各自只 push 到 GitHub（`actions/checkout` 的 token 只对 GitHub 有效），所以
+   **CI 每次重建产物后，codeup 端总会比 GitHub 缺新对象**——这不是一次性问题，是
+   这套双仓架构的常态，每次 CI 重建完都需要手动从 GitHub 拉真实内容、再显式推到
+   一个单独指向 codeup 的 remote（不要用 `origin`，用类似
+   `git remote add codeup-explicit let188@...:codeup/dart-labs.git` 建一个专用
+   remote 再 `git lfs push --object-id codeup-explicit <oid...>`）才能补齐。
+   **验证方法**：`git clone --branch main --single-branch <url> <tmpdir>` 全新
+   clone 一次，比对 `dist/*/*` 每个文件的字节数，这是唯一可靠的验证手段——
+   `git lfs pull` 在本地已有 `.git/lfs/objects/` 缓存时会掩盖远端缺失对象的问题。
 7. **接线到 mova 实际构建——Android 侧已完成（2026-09-17）**：`example/android/app/
    build.gradle.kts` 新增 `syncMovaLibmpv` Gradle task（`Copy`，从
    `tools/ffmpeg-slim/dist/<abi>/libmpv.so` 拷进 `src/main/jniLibs/<abi>/`，四个 ABI 目录名
