@@ -126,6 +126,43 @@ feed 引擎池结构性不适用本模型，明确排除。详见
 
 ## 剩余任务
 
+**libmpv 瘦身产物的 CI/git 集成——进行中，2026-09-17 中途暂停，恢复时先读这条**：
+目标是照抄 `media_kit_libs_android_video` 的思路（包本身不含二进制，构建时下载+校验），
+但用户拍板改成**随包发布**（不做构建时下载，直接把编译产物随仓库/包分发，理由是内网
+构建环境不应该依赖运行时联网下载）。为了让"随包发布"不至于把 `.git` 历史撑爆（实测
+`mova/tools/ffmpeg-slim/dist/` 这条路径已经在历史里累积了 990 MiB，262 个 blob，且
+`git clone` 会把这些历史版本全部下载下来），拍板方案是 **Git LFS**（本机已装
+`git-lfs 3.7.1`，但 codeup/GitHub 是否都支持还没验证；用户已明确"不用管 codeup，它只是
+备用仓"，可以只保证 GitHub 那份干净）。
+
+**待恢复时按顺序做**：
+1. 用 `git filter-repo`（已装，`pip install git-filter-repo`，不在 PATH，装在
+   `C:\Users\jelon\AppData\Roaming\Python\Python314\Scripts\git-filter-repo.exe`）在一个
+   **独立临时 clone**里（不要在主工作区/带 worktree 的仓库里直接跑，filter-repo 对多
+   worktree 场景不友好）把 `mova/tools/ffmpeg-slim/dist/` 这条路径**从 GitHub main 的全部
+   历史里剥离**，force push 回 GitHub（不动 codeup）。
+2. 在同一次操作里，把**当前**的 `dist/` 内容重新加回去，这次用 `.gitattributes` +
+   `git lfs track` 接管，之后的每次重建不再让 `.git` 历史线性增长。
+3. 主工作区（`C:\workspace\dart-labs`）事后要 `fetch` + 对齐本地 `main`——**注意本地当时
+   还有两个 worktree 分支**（若已合并进 main 则无影响；若还没合并，务必先合并/处理掉，
+   否则它们的公共祖先提交哈希会因历史改写而"消失"，需要 `git rebase --onto` 才能续接）。
+4. **CI 的"提交产物回 dist/"重试逻辑有 bug**（android-arm64/android-other-abi×3/darwin/
+   linux/windows 五个 job 共用同一段脚本）：2026-09-17 windows job 实测复现——`git push`
+   被拒后 `git fetch + git rebase origin/main`，但工作区不干净导致 `rebase` 直接报错退出
+   （`cannot rebase: You have unstaged changes`）。根源和修法记在
+   `mova-libmpv/README.md`「多平台进度」表 Windows 那一行。**这个 bug 要在改造成 LFS 之前
+   或同时一起修**，不然 LFS 化之后这五个 job 还是会用同一套有 bug 的重试逻辑。
+5. darwin(macOS) job 上次被我们主动 `gh run cancel` 打断（不是构建失败，只是编译到一半，
+   这个 job 天然要 45-90 分钟+），下次重跑要给够时间，别提前取消。
+6. LFS 化 + 历史清理都做完后，**重新触发一次全平台 CI**，确认全部 6 个 job（4 Android
+   ABI + linux + windows；darwin 视时间预算决定是否一起跑）能在新的 LFS 流程下跑绿并正确
+   提交。
+7. **接线到 mova 实际构建**：现状 `example/android/app/build.gradle.kts` 已有
+   `pickFirsts += "**/libmpv.so"` 的合并逻辑，但 `jniLibs/` 下的 `.so` 是手动拷贝的旧文件，
+   跟 `dist/` 当前产物 MD5 对不上（已实测确认），说明这条集成从没被自动化同步过。LFS 化后
+   要么写个脚本/Gradle task 把 `dist/<abi>/libmpv.so` 同步进 `jniLibs/`，要么直接让
+   `jniLibs/` 本身也纳入 LFS 管理、CI 直接写到那个路径。iOS 侧同理（podspec 尚未接线）。
+
 **0.5.0 广告编排增强——真机验证未做（Task 12，每次启动请提醒用户此项未完成）**：
 Task 1–11 已完成。剩 Task 12 的真机 checklist（七组）：A 组等待就绪（前贴片默认不等
 vs 中插默认等，需逐帧数黑屏帧数、跑 10 次取时延分布来验证 `adReadyTimeout` 5s 是否
