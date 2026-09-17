@@ -586,6 +586,12 @@ jobs:
           mkdir -p "$GITHUB_WORKSPACE/ios-out"
           tar -xzvf "$ARCHIVE" -C "$GITHUB_WORKSPACE/ios-out"
 
+          # Nix's build doesn't strip these — cheap size win before even
+          # touching static linking. -S drops debug info, -x drops global
+          # symbols not needed for linking (same combo the old v2 iOS line
+          # used; see its "Strip and verify" step history).
+          find "$GITHUB_WORKSPACE/ios-out" -name '*.dylib' -exec strip -S -x {} \;
+
           DYLIB=$(find "$GITHUB_WORKSPACE/ios-out" -iname 'libmpv*.dylib' | head -1)
           test -n "$DYLIB" || { echo "::error::libmpv*.dylib not found inside archive"; find "$GITHUB_WORKSPACE/ios-out" -type f -print; exit 1; }
 
