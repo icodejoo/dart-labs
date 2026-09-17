@@ -1,10 +1,16 @@
 diff --git a/nix/packages/mk-out-libs/default.nix b/nix/packages/mk-out-libs/default.nix
-index 7540281..ea32671 100644
+index 7540281..7c75b64 100644
 --- a/nix/packages/mk-out-libs/default.nix
 +++ b/nix/packages/mk-out-libs/default.nix
-@@ -55,6 +55,10 @@ if arch != archs.universal then
+@@ -54,7 +54,16 @@ if arch != archs.universal then
+     deps =
        [
          mpv
++      ]
++      # movaslim builds ffmpeg static-only (see mk-pkg-ffmpeg's meson.build)
++      # and mpv links it in directly — no separate ffmpeg.dylib to bundle.
++      # Every other flavor still ships it as its own shared dylib.
++      ++ pkgs.lib.optionals (flavor != flavors.movaslim) [
          ffmpeg
 +      ]
 +      # movaslim's ffmpeg is built with securetransport, not mbedtls (see
@@ -13,9 +19,17 @@ index 7540281..ea32671 100644
          mbedtls
        ]
        ++ pkgs.lib.optionals (flavor == flavors.encodersgpl) [
-@@ -64,14 +68,20 @@ if arch != archs.universal then
+@@ -62,16 +71,27 @@ if arch != archs.universal then
+         libvorbis
+         libogg
        ]
-       ++ pkgs.lib.optionals (variant == variants.video) [
+-      ++ pkgs.lib.optionals (variant == variants.video) [
++      # movaslim builds dav1d/libass/harfbuzz/fribidi/freetype/libpng all
++      # static-only too (see each mk-pkg-*/default.nix's `-Ddefault_library`/
++      # `-Dlinking` override) and mpv links them in directly — same reasoning
++      # as ffmpeg above. Every other flavor still ships them as separate
++      # shared dylibs.
++      ++ pkgs.lib.optionals (variant == variants.video && flavor != flavors.movaslim) [
          dav1d
 -        libxml2
 -        uchardet
@@ -36,6 +50,45 @@ index 7540281..ea32671 100644
        ++ pkgs.lib.optionals (variant == variants.video && flavor == flavors.encodersgpl) [
          libvpx
          libx264
+diff --git a/nix/packages/mk-pkg-dav1d/default.nix b/nix/packages/mk-pkg-dav1d/default.nix
+index c687365..99d9730 100644
+--- a/nix/packages/mk-pkg-dav1d/default.nix
++++ b/nix/packages/mk-pkg-dav1d/default.nix
+@@ -2,6 +2,12 @@
+   pkgs ? import ../../utils/default/pkgs.nix,
+   os ? import ../../utils/default/os.nix,
+   arch ? pkgs.callPackage ../../utils/default/arch.nix { },
++  # movaslim-only: not part of upstream's original signature. callPackageWith
++  # auto-injects this from any caller whose own inherited set includes
++  # `flavor` (e.g. mk-pkg-ffmpeg's own dav1d dependency) — callers that don't
++  # know about it (most of upstream) just get the "default" fallback below,
++  # unchanged behavior.
++  flavor ? import ../../utils/default/flavor.nix,
+ }:
+ 
+ let
+@@ -9,9 +15,13 @@ let
+   packageLock = (import ../../../packages.lock.nix).${name};
+   inherit (packageLock) version;
+ 
++  flavors = import ../../utils/constants/flavors.nix;
+   callPackage = pkgs.lib.callPackageWith { inherit pkgs os arch; };
+   nativeFile = callPackage ../../utils/native-file/default.nix { };
+   crossFile = callPackage ../../utils/cross-file/default.nix { };
++  # movaslim folds dav1d statically into libmpv.dylib instead of shipping it
++  # as its own dylib (see mk-out-libs/default.nix's matching skip).
++  defaultLibrary = if flavor == flavors.movaslim then "static" else "shared";
+ 
+   pname = import ../../utils/name/package.nix name;
+   src = callPackage ../../utils/fetch-tarball/default.nix {
+@@ -37,6 +47,7 @@ pkgs.stdenvNoCC.mkDerivation {
+       --native-file ${nativeFile} \
+       --cross-file ${crossFile} \
+       --prefix=$out \
++      -Ddefault_library=${defaultLibrary} \
+       -Dbitdepths="['8', '16']" \
+       -Denable_asm=false \
+       -Denable_tools=false \
 diff --git a/nix/packages/mk-pkg-ffmpeg/default.nix b/nix/packages/mk-pkg-ffmpeg/default.nix
 index 060869c..37a4a71 100644
 --- a/nix/packages/mk-pkg-ffmpeg/default.nix
@@ -61,10 +114,14 @@ index 060869c..37a4a71 100644
      ]
      ++ pkgs.lib.optionals (variant == variants.video && flavor == flavors.encodersgpl) [
 diff --git a/nix/packages/mk-pkg-ffmpeg/meson.build b/nix/packages/mk-pkg-ffmpeg/meson.build
-index 35457c2..b81f530 100644
+index 35457c2..3e186db 100644
 --- a/nix/packages/mk-pkg-ffmpeg/meson.build
 +++ b/nix/packages/mk-pkg-ffmpeg/meson.build
-@@ -46,8 +46,6 @@ common_options = [
+@@ -42,12 +42,9 @@ common_options = [
+     '--prefix=@PREFIX@',
+     '--enable-small', # reduce libs size
+     '--enable-optimizations',
+-    '--enable-shared',
      '--enable-network',
      '--enable-pthreads',
      '--enable-pic',
@@ -73,7 +130,7 @@ index 35457c2..b81f530 100644
      '--enable-safe-bitstream-reader',
      '--enable-stripping',
      '--enable-avcodec',
-@@ -60,6 +58,22 @@ common_options = [
+@@ -60,6 +57,38 @@ common_options = [
      # '--enable-nonfree', # uncomment it to include unredistributable code
  ]
  
@@ -83,6 +140,22 @@ index 35457c2..b81f530 100644
 +# --enable-version3 requirement mbedtls's dual Apache/GPL-2.0 licensing
 +# forces (same reasoning as mova's Linux/Windows flavors, which made the
 +# same swap to openssl/SChannel — see mova-libmpv/README.md).
++# Linking mode: every flavor except movaslim ships ffmpeg as its own
++# separate .dylib (shared, dynamically linked by mpv and bundled alongside
++# it — see mk-out-libs/default.nix). movaslim instead builds ffmpeg
++# static-only (no .dylib at all) so mpv can fold it directly into the one
++# libmpv.dylib mova ships, matching Android's single-.so shape and avoiding
++# the per-dylib overhead (headers, exported symbol tables, load-time
++# indirection) of several separate shared libraries.
++linking_default_options = [
++    '--enable-shared',
++]
++
++linking_movaslim_options = [
++    '--enable-static',
++    '--disable-shared',
++]
++
 +tls_default_options = [
 +    '--enable-mbedtls', # tls support (mbedtls)
 +    '--enable-version3',
@@ -96,7 +169,7 @@ index 35457c2..b81f530 100644
  audio_common_options = [
      '--enable-zlib', # rasc support
      '--enable-audiotoolbox',
-@@ -67,11 +81,87 @@ audio_common_options = [
+@@ -67,11 +96,87 @@ audio_common_options = [
  
  video_common_options = [
      '--enable-neon', # improve hevc (h265) support on arm
@@ -185,13 +258,15 @@ index 35457c2..b81f530 100644
  # https://github.com/media-kit/libmpv-android-audio-build/blob/260666c0fef8c154971b5faf3f78da27c2bf2c40/buildscripts/flavors/default.sh
  audio_default_options = [
      # decoders
-@@ -303,9 +393,19 @@ options = disable_all_options
+@@ -303,9 +408,21 @@ options = disable_all_options
  
  # common
  options += common_options
 +if flavor == 'movaslim'
++    options += linking_movaslim_options
 +    options += tls_movaslim_options
 +else
++    options += linking_default_options
 +    options += tls_default_options
 +endif
  options += audio_common_options
@@ -205,7 +280,7 @@ index 35457c2..b81f530 100644
  endif
  
  # components
-@@ -326,6 +426,14 @@ elif flavor == 'encodersgpl'
+@@ -326,6 +443,14 @@ elif flavor == 'encodersgpl'
          options += video_full_options
          options += video_encodersgpl_options
      endif
@@ -228,6 +303,266 @@ index a48d1db..d7cbb8e 100644
  option('variant', type : 'combo', choices : ['audio', 'video'])
 -option('flavor', type : 'combo', choices : ['default', 'full', 'encodersgpl'])
 +option('flavor', type : 'combo', choices : ['default', 'full', 'encodersgpl', 'movaslim'])
+diff --git a/nix/packages/mk-pkg-freetype/default.nix b/nix/packages/mk-pkg-freetype/default.nix
+index ddcd21b..f4d854c 100644
+--- a/nix/packages/mk-pkg-freetype/default.nix
++++ b/nix/packages/mk-pkg-freetype/default.nix
+@@ -2,6 +2,8 @@
+   pkgs ? import ../../utils/default/pkgs.nix,
+   os ? import ../../utils/default/os.nix,
+   arch ? pkgs.callPackage ../../utils/default/arch.nix { },
++  # movaslim-only, see mk-pkg-dav1d/default.nix's identical comment.
++  flavor ? import ../../utils/default/flavor.nix,
+ }:
+ 
+ let
+@@ -9,12 +11,14 @@ let
+   packageLock = (import ../../../packages.lock.nix).${name};
+   inherit (packageLock) version;
+ 
+-  callPackage = pkgs.lib.callPackageWith { inherit pkgs os arch; };
++  flavors = import ../../utils/constants/flavors.nix;
++  callPackage = pkgs.lib.callPackageWith { inherit pkgs os arch flavor; };
+   nativeFile = callPackage ../../utils/native-file/default.nix { };
+   crossFile = callPackage ../../utils/cross-file/default.nix { };
+   xctoolchainLipo = callPackage ../../utils/xctoolchain/lipo.nix { };
+   harfbuzz = callPackage ../mk-pkg-harfbuzz/default.nix { };
+   libpng = callPackage ../mk-pkg-libpng/default.nix { };
++  defaultLibrary = if flavor == flavors.movaslim then "static" else "shared";
+ 
+   pname = import ../../utils/name/package.nix name;
+   src = callPackage ../../utils/fetch-tarball/default.nix {
+@@ -46,6 +50,7 @@ pkgs.stdenvNoCC.mkDerivation {
+       --native-file ${nativeFile} \
+       --cross-file ${crossFile} \
+       --prefix=$out \
++      -Ddefault_library=${defaultLibrary} \
+       -Dbrotli=disabled \
+       -Dbzip2=disabled \
+       -Dharfbuzz=enabled \
+diff --git a/nix/packages/mk-pkg-fribidi/default.nix b/nix/packages/mk-pkg-fribidi/default.nix
+index 9762a75..8ea0cab 100644
+--- a/nix/packages/mk-pkg-fribidi/default.nix
++++ b/nix/packages/mk-pkg-fribidi/default.nix
+@@ -2,6 +2,8 @@
+   pkgs ? import ../../utils/default/pkgs.nix,
+   os ? import ../../utils/default/os.nix,
+   arch ? pkgs.callPackage ../../utils/default/arch.nix { },
++  # movaslim-only, see mk-pkg-dav1d/default.nix's identical comment.
++  flavor ? import ../../utils/default/flavor.nix,
+ }:
+ 
+ let
+@@ -9,9 +11,11 @@ let
+   packageLock = (import ../../../packages.lock.nix).${name};
+   inherit (packageLock) version;
+ 
++  flavors = import ../../utils/constants/flavors.nix;
+   callPackage = pkgs.lib.callPackageWith { inherit pkgs os arch; };
+   nativeFile = callPackage ../../utils/native-file/default.nix { };
+   crossFile = callPackage ../../utils/cross-file/default.nix { };
++  defaultLibrary = if flavor == flavors.movaslim then "static" else "shared";
+ 
+   pname = import ../../utils/name/package.nix name;
+   src = callPackage ../../utils/fetch-tarball/default.nix {
+@@ -37,6 +41,7 @@ pkgs.stdenvNoCC.mkDerivation {
+       --native-file=${nativeFile} \
+       --cross-file ${crossFile} \
+       --prefix=$out \
++      -Ddefault_library=${defaultLibrary} \
+       -Ddeprecated=false \
+       -Ddocs=false \
+       -Dbin=false \
+diff --git a/nix/packages/mk-pkg-harfbuzz/default.nix b/nix/packages/mk-pkg-harfbuzz/default.nix
+index ec1d6bd..9a88d18 100644
+--- a/nix/packages/mk-pkg-harfbuzz/default.nix
++++ b/nix/packages/mk-pkg-harfbuzz/default.nix
+@@ -2,6 +2,8 @@
+   pkgs ? import ../../utils/default/pkgs.nix,
+   os ? import ../../utils/default/os.nix,
+   arch ? pkgs.callPackage ../../utils/default/arch.nix { },
++  # movaslim-only, see mk-pkg-dav1d/default.nix's identical comment.
++  flavor ? import ../../utils/default/flavor.nix,
+ }:
+ 
+ let
+@@ -9,7 +11,9 @@ let
+   packageLock = (import ../../../packages.lock.nix).${name};
+   inherit (packageLock) version;
+ 
++  flavors = import ../../utils/constants/flavors.nix;
+   callPackage = pkgs.lib.callPackageWith { inherit pkgs os arch; };
++  defaultLibrary = if flavor == flavors.movaslim then "static" else "shared";
+   nativeFile = callPackage ../../utils/native-file/default.nix { };
+   crossFile = callPackage ../../utils/cross-file/default.nix { };
+ 
+@@ -45,6 +49,7 @@ pkgs.stdenvNoCC.mkDerivation {
+       --native-file ${nativeFile} \
+       --cross-file ${crossFile} \
+       --prefix=$out \
++      -Ddefault_library=${defaultLibrary} \
+       -Dglib=disabled \
+       -Dgobject=disabled \
+       -Dcairo=disabled \
+diff --git a/nix/packages/mk-pkg-libass/default.nix b/nix/packages/mk-pkg-libass/default.nix
+index 15efce7..07ffa0f 100644
+--- a/nix/packages/mk-pkg-libass/default.nix
++++ b/nix/packages/mk-pkg-libass/default.nix
+@@ -2,6 +2,8 @@
+   pkgs ? import ../../utils/default/pkgs.nix,
+   os ? import ../../utils/default/os.nix,
+   arch ? pkgs.callPackage ../../utils/default/arch.nix { },
++  # movaslim-only, see mk-pkg-dav1d/default.nix's identical comment.
++  flavor ? import ../../utils/default/flavor.nix,
+ }:
+ 
+ let
+@@ -9,12 +11,14 @@ let
+   packageLock = (import ../../../packages.lock.nix).${name};
+   inherit (packageLock) version;
+ 
+-  callPackage = pkgs.lib.callPackageWith { inherit pkgs os arch; };
++  flavors = import ../../utils/constants/flavors.nix;
++  callPackage = pkgs.lib.callPackageWith { inherit pkgs os arch flavor; };
+   nativeFile = callPackage ../../utils/native-file/default.nix { };
+   crossFile = callPackage ../../utils/cross-file/default.nix { };
+   fribidi = callPackage ../mk-pkg-fribidi/default.nix { };
+   harfbuzz = callPackage ../mk-pkg-harfbuzz/default.nix { };
+   freetype = callPackage ../mk-pkg-freetype/default.nix { };
++  defaultLibrary = if flavor == flavors.movaslim then "static" else "shared";
+ 
+   pname = import ../../utils/name/package.nix name;
+   src = callPackage ../../utils/fetch-tarball/default.nix {
+@@ -31,6 +35,7 @@ let
+     cd -
+ 
+     cp ${./meson.build} $src/meson.build
++    cp ${./meson.options} $src/meson.options
+ 
+     cp -r $src $out
+   '';
+@@ -57,7 +62,8 @@ pkgs.stdenvNoCC.mkDerivation {
+     meson setup build $src \
+       --native-file ${nativeFile} \
+       --cross-file ${crossFile} \
+-      --prefix=$out
++      --prefix=$out \
++      -Dlinking=${defaultLibrary}
+   '';
+   buildPhase = ''
+     meson compile -vC build $(basename $src)
+diff --git a/nix/packages/mk-pkg-libass/meson.build b/nix/packages/mk-pkg-libass/meson.build
+index b4856a0..fd9c653 100644
+--- a/nix/packages/mk-pkg-libass/meson.build
++++ b/nix/packages/mk-pkg-libass/meson.build
+@@ -4,10 +4,15 @@ project('libass', 'c')
+ 
+ mod = import('unstable-external_project')
+ 
++# movaslim passes -Dlinking=static (see mk-pkg-libass/default.nix) so mpv can
++# fold libass statically into libmpv.dylib instead of shipping it as its own
++# dylib — every other flavor keeps the upstream default (shared).
++linking = get_option('linking')
++
+ p = mod.add_project('configure',
+     configure_options : [
+         '--prefix=@PREFIX@',
+-        '--disable-static',
++    ] + (linking == 'static' ? ['--enable-static', '--disable-shared'] : ['--disable-static', '--enable-shared']) + [
+         '--enable-fast-install',
+         '--disable-dependency-tracking',
+         '--disable-test',
+diff --git a/nix/packages/mk-pkg-libass/meson.options b/nix/packages/mk-pkg-libass/meson.options
+new file mode 100644
+index 0000000..65c31dd
+--- /dev/null
++++ b/nix/packages/mk-pkg-libass/meson.options
+@@ -0,0 +1 @@
++option('linking', type : 'combo', choices : ['shared', 'static'], value : 'shared')
+diff --git a/nix/packages/mk-pkg-libpng/default.nix b/nix/packages/mk-pkg-libpng/default.nix
+index 9a5fafd..33c4819 100644
+--- a/nix/packages/mk-pkg-libpng/default.nix
++++ b/nix/packages/mk-pkg-libpng/default.nix
+@@ -2,6 +2,8 @@
+   pkgs ? import ../../utils/default/pkgs.nix,
+   os ? import ../../utils/default/os.nix,
+   arch ? pkgs.callPackage ../../utils/default/arch.nix { },
++  # movaslim-only, see mk-pkg-dav1d/default.nix's identical comment.
++  flavor ? import ../../utils/default/flavor.nix,
+ }:
+ 
+ let
+@@ -10,7 +12,9 @@ let
+   packagePatchLock = (import ../../../packages.lock.nix).libpngPatch;
+   inherit (packageLock) version;
+ 
++  flavors = import ../../utils/constants/flavors.nix;
+   callPackage = pkgs.lib.callPackageWith { inherit pkgs os arch; };
++  defaultLibrary = if flavor == flavors.movaslim then "static" else "shared";
+   nativeFile = callPackage ../../utils/native-file/default.nix { };
+   crossFile = callPackage ../../utils/cross-file/default.nix { };
+ 
+@@ -59,7 +63,8 @@ pkgs.stdenvNoCC.mkDerivation {
+     meson setup build $src \
+       --native-file ${nativeFile} \
+       --cross-file ${crossFile} \
+-      --prefix=$out
++      --prefix=$out \
++      -Ddefault_library=${defaultLibrary}
+   '';
+   buildPhase = ''
+     meson compile -vC build
+diff --git a/nix/packages/mk-pkg-mpv/default.nix b/nix/packages/mk-pkg-mpv/default.nix
+index 543805a..a0754ea 100644
+--- a/nix/packages/mk-pkg-mpv/default.nix
++++ b/nix/packages/mk-pkg-mpv/default.nix
+@@ -3,6 +3,13 @@
+   os ? import ../../utils/default/os.nix,
+   arch ? pkgs.callPackage ../../utils/default/arch.nix { },
+   variant ? import ../../utils/default/variant.nix,
++  # movaslim-only, see mk-pkg-dav1d/default.nix's identical comment. Without
++  # threading this through to mpv's own `callPackage` below, mpv would keep
++  # linking against a "default"-flavor ffmpeg/libass built by a SEPARATE,
++  # unrelated call site elsewhere (e.g. mk-out-libs' own standalone `ffmpeg`
++  # var) rather than the movaslim (trimmed + statically-built) one actually
++  # requested for this build.
++  flavor ? import ../../utils/default/flavor.nix,
+ }:
+ 
+ let
+@@ -10,6 +17,7 @@ let
+   packageLock = (import ../../../packages.lock.nix).${name};
+   inherit (packageLock) version;
+ 
++  flavors = import ../../utils/constants/flavors.nix;
+   variants = import ../../utils/constants/variants.nix;
+   oses = import ../../utils/constants/oses.nix;
+   callPackage = pkgs.lib.callPackageWith {
+@@ -18,8 +26,16 @@ let
+       os
+       arch
+       variant
++      flavor
+       ;
+   };
++  # movaslim's ffmpeg/dav1d/libass/harfbuzz/fribidi/freetype/libpng are all
++  # static-only (no .dylib) — meson's dependency() resolution for mpv's own
++  # build finds only the .a via pkg-config and links it in directly, folding
++  # everything into the one libmpv.dylib mova ships (mirrors Android's single
++  # .so and the old, never-green v2 iOS line's --prefer-static approach).
++  # `--prefer-static` below is belt-and-suspenders for the same effect.
++  preferStaticDeps = if flavor == flavors.movaslim then [ "--prefer-static" ] else [ ];
+   nativeFile = callPackage ../../utils/native-file/default.nix { };
+   crossFile = callPackage ../../utils/cross-file/default.nix { };
+   xctoolchainLipo = callPackage ../../utils/xctoolchain/lipo.nix { };
+@@ -260,6 +276,7 @@ pkgs.stdenvNoCC.mkDerivation {
+       --native-file ${nativeFile} \
+       --cross-file ${crossFile} \
+       --prefix=$out \
++      ${pkgs.lib.concatStringsSep " " preferStaticDeps} \
+       "''${OPTIONS[@]}" |
+       tee configure.log
+   '';
 diff --git a/nix/utils/constants/flavors.nix b/nix/utils/constants/flavors.nix
 index e2aa737..ac4fa51 100644
 --- a/nix/utils/constants/flavors.nix
