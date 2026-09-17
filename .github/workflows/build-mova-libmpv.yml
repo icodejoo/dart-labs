@@ -31,6 +31,8 @@ on:
     branches: [main]
     paths:
       - 'mova-libmpv/**'
+      - '!mova-libmpv/**.md'
+      - '!mova-libmpv/doc/**'
       - '.github/workflows/build-mova-libmpv.yml'
   workflow_dispatch:
 
