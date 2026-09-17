@@ -124,6 +124,16 @@ jobs:
         working-directory: build-root/buildscripts
         run: ./patch.sh
 
+      - name: Clear stale mpv build directory (2026-09-17, Android x86 fix)
+        working-directory: build-root/buildscripts
+        # See the identical step in android-other-abi for why: the "deps"
+        # cache is keyed only on ANDROID_LIBMPV_BUILD_REF, not per-arch, so
+        # a stale already-configured build dir from an earlier point in the
+        # cache's history can make meson silently keep old flags instead of
+        # the current --default-library shared. Applying the same guard here
+        # even though arm64-v8a hasn't shown the symptom, for consistency.
+        run: rm -rf deps/mpv/_build-arm64
+
       - name: Build libmpv for arm64-v8a
         working-directory: build-root/buildscripts
         run: ./build.sh --arch arm64 mpv
@@ -280,6 +290,29 @@ jobs:
       - name: Apply upstream source patches
         working-directory: build-root/buildscripts
         run: ./patch.sh
+
+      - name: Clear stale mpv build directory (2026-09-17, Android x86 fix)
+        working-directory: build-root/buildscripts
+        run: |
+          # The "deps" cache above is keyed only on ANDROID_LIBMPV_BUILD_REF,
+          # not per-architecture, and mpv's own per-arch _build-<suffix>
+          # directories live inside it. x86's build (run 35186650404 and
+          # earlier) produced a static libmpv.a despite mpv.sh always passing
+          # --default-library shared — meson was reusing a stale, already-
+          # configured build directory from an earlier point in this cache's
+          # history instead of applying the current flags ("Run meson setup
+          # --reconfigure to force Meson to regenerate" appeared repeatedly
+          # in that log, which is meson's signal that it's reusing existing
+          # config rather than re-evaluating it). Force a clean directory per
+          # arch so this can't happen regardless of what the shared cache
+          # last held.
+          suffix=""
+          case "${{ matrix.arch }}" in
+            arm64) suffix="-arm64" ;;
+            x86) suffix="-x86" ;;
+            x86_64) suffix="-x64" ;;
+          esac
+          rm -rf "deps/mpv/_build${suffix}"
 
       - name: Build libmpv for ${{ matrix.abi }}
         working-directory: build-root/buildscripts
