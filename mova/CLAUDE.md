@@ -130,9 +130,20 @@ feed 引擎池结构性不适用本模型，明确排除。详见
 一直失败的 Android x86——根因是共享 build 缓存跨架构污染导致 meson 复用 stale 配置
 构建出静态库，已修复）。**同日追加 Windows/Linux 的编译器级瘦身**（Windows 14.66→
 13.41 MiB −8.5%，Linux 8,189,568→7,550,784 字节 −7.8%，均为 `-Os` 级别；`-Oz` 在
-Windows 上本地测出 −11.2% 但 CI 复现失败，已回退）。iOS/macOS 仍是 upstream 默认
-flavor，未接入 mova 裁剪清单，是独立于本轮的更大工作量。Task 1–6 已完成，Task 7 剩
-iOS 侧未接线：
+Windows 上本地测出 −11.2% 但 CI 复现失败，已回退）。**iOS 已于同日追加完成**（其他四
+平台 job 暂时 `if: false`，CI 现在只跑 iOS 做快速迭代）：先复用 `media-kit/libmpv-darwin-build`
+的默认 flavor 拿到第一次真实全绿（18.48MiB/18 个独立 dylib），再叠加 mova 自己的
+`movaslim` flavor（`mova-libmpv/libmpv-darwin-build-mova-slim.patch`，decoder/demuxer 裁剪
++ securetransport 替 mbedtls）降到 10.76MiB/13 个文件，最后把 ffmpeg/dav1d/freetype/
+fribidi/harfbuzz/libpng/libass 全部改成静态链接进单一 `libmpv.dylib`（跟 Android 同一种
+"单文件"形态才可比）+ 编译器级瘦身（`buildtype=minsize`/`debug=false`/`b_ndebug=true`），
+**最终 CI 实测 7,489,408 字节 ≈7.14MiB，仅比 Android 的 6.52MiB 高约 9.5%**（两平台硬解
+API——MediaCodec vs VideoToolbox——架构本就不同，这个差距已经很合理）。静态化过程连环
+踩坑（5 层 pkg-config `Requires:` 传递依赖、libtool `ar`/`ranlib` 被替换成 `false`、
+meson `-Dc_args=` 会替换而非追加 cross-file 的 `-arch`/`-isysroot` 导致 libpng 头文件检测
+失败）详见 `mova-libmpv/README.md`「多平台进度」表 iOS 那一行的完整记录。macOS/其余平台
+仍是 upstream 默认 flavor 未裁剪，是独立于本轮的更大工作量。Task 1–6 已完成，Task 7 剩
+Android jniLibs 已接线，iOS 侧尚未把 `dist/darwin/` 产物接进 podspec：
 目标是照抄 `media_kit_libs_android_video` 的思路（包本身不含二进制，构建时下载+校验），
 但用户拍板改成**随包发布**（不做构建时下载，直接把编译产物随仓库/包分发，理由是内网
 构建环境不应该依赖运行时联网下载）。为了让"随包发布"不至于把 `.git` 历史撑爆（实测
