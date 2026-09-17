@@ -52,8 +52,9 @@ jobs:
   android-arm64:
     name: Android arm64-v8a (implemented)
     runs-on: ubuntu-22.04
-    # Already green — temporarily disabled while iterating on linux/windows fixes.
-    if: false
+    # Re-enabled 2026-09-17 for a full-platform rebuild (was green before, just
+    # paused while linux/windows were being iterated on).
+    if: true
     steps:
       - name: Checkout dart-labs
         uses: actions/checkout@v4
@@ -203,8 +204,9 @@ jobs:
             abi: x86
           - arch: x86_64
             abi: x86_64
-    # Already green — temporarily disabled while iterating on linux/windows fixes.
-    if: false
+    # Re-enabled 2026-09-17 for a full-platform rebuild (was green before, just
+    # paused while linux/windows were being iterated on).
+    if: true
     steps:
       - name: Checkout dart-labs
         uses: actions/checkout@v4
@@ -334,8 +336,8 @@ jobs:
   darwin:
     name: "macOS (implemented, v1: upstream default flavor)"
     runs-on: macos-15
-    # Disabled while we isolate the new `ios` job below (only-iOS validation run).
-    if: false
+    # Re-enabled 2026-09-17 for a full-platform rebuild, alongside `ios`.
+    if: true
     steps:
       - name: Platform info
         run: sw_vers; uname -m
@@ -687,8 +689,11 @@ jobs:
   linux:
     name: "Linux x86_64 (implemented, v1: native build)"
     runs-on: ubuntu-22.04
-    # Already green (run 31092096967) — disabled while iterating on windows.
-    if: false
+    # Re-enabled 2026-09-17 for a full-platform rebuild. The dist/linux-x86_64/
+    # artifact currently committed predates this job's -Dgpl=false meson flag
+    # (see the mpv build step below) — this run replaces it with one built
+    # from the flag that's already in this file, no script change needed.
+    if: true
     steps:
       - name: Checkout dart-labs
         uses: actions/checkout@v4
@@ -816,8 +821,9 @@ jobs:
   windows:
     name: "Windows x86_64 (implemented, v1: native MSYS2 slim)"
     runs-on: windows-latest
-    # Disabled while we isolate the new `ios` job below (only-iOS validation run).
-    if: false
+    # Re-enabled 2026-09-17 for a full-platform rebuild, alongside `ios`. Never
+    # gone green before — expect iteration.
+    if: true
     defaults:
       run:
         shell: msys2 {0}
