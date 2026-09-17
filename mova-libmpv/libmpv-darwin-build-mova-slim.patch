@@ -430,7 +430,7 @@ index ec1d6bd..9a88d18 100644
        -Dgobject=disabled \
        -Dcairo=disabled \
 diff --git a/nix/packages/mk-pkg-libass/default.nix b/nix/packages/mk-pkg-libass/default.nix
-index 15efce7..07ffa0f 100644
+index 15efce7..a9d765a 100644
 --- a/nix/packages/mk-pkg-libass/default.nix
 +++ b/nix/packages/mk-pkg-libass/default.nix
 @@ -2,6 +2,8 @@
@@ -442,7 +442,7 @@ index 15efce7..07ffa0f 100644
  }:
  
  let
-@@ -9,12 +11,14 @@ let
+@@ -9,12 +11,25 @@ let
    packageLock = (import ../../../packages.lock.nix).${name};
    inherit (packageLock) version;
  
@@ -454,11 +454,22 @@ index 15efce7..07ffa0f 100644
    fribidi = callPackage ../mk-pkg-fribidi/default.nix { };
    harfbuzz = callPackage ../mk-pkg-harfbuzz/default.nix { };
    freetype = callPackage ../mk-pkg-freetype/default.nix { };
++  # movaslim only: freetype is built --default-library=static here, and
++  # meson's auto-generated freetype2.pc for a static library promotes its
++  # own private deps (libpng) into the PUBLIC `Requires:` field, since a
++  # static consumer must link them transitively too. libass's own pkg-config
++  # resolution of freetype2 then needs libpng.pc resolvable — but libpng was
++  # never in libass's own buildInputs (only freetype's), and Nix's stdenv
++  # only puts DIRECT buildInputs' .pc dirs on PKG_CONFIG_PATH, not
++  # transitive ones. Hit as "Package 'libpng', required by 'freetype2', not
++  # found" (run 35199633008, 2026-09-17) — add it directly, shared flavors
++  # are unaffected (freetype2.pc's Requires stays private there).
++  libpng = callPackage ../mk-pkg-libpng/default.nix { };
 +  defaultLibrary = if flavor == flavors.movaslim then "static" else "shared";
  
    pname = import ../../utils/name/package.nix name;
    src = callPackage ../../utils/fetch-tarball/default.nix {
-@@ -31,6 +35,7 @@ let
+@@ -31,6 +46,7 @@ let
      cd -
  
      cp ${./meson.build} $src/meson.build
@@ -466,7 +477,13 @@ index 15efce7..07ffa0f 100644
  
      cp -r $src $out
    '';
-@@ -57,7 +62,8 @@ pkgs.stdenvNoCC.mkDerivation {
+@@ -52,12 +68,14 @@ pkgs.stdenvNoCC.mkDerivation {
+     fribidi
+     harfbuzz
+     freetype
++    libpng
+   ];
+   configurePhase = ''
      meson setup build $src \
        --native-file ${nativeFile} \
        --cross-file ${crossFile} \
