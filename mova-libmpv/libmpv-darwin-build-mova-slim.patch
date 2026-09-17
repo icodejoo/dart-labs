@@ -556,7 +556,7 @@ index 0000000..65c31dd
 @@ -0,0 +1 @@
 +option('linking', type : 'combo', choices : ['shared', 'static'], value : 'shared')
 diff --git a/nix/packages/mk-pkg-libpng/default.nix b/nix/packages/mk-pkg-libpng/default.nix
-index 9a5fafd..822d2d1 100644
+index 9a5fafd..97268d2 100644
 --- a/nix/packages/mk-pkg-libpng/default.nix
 +++ b/nix/packages/mk-pkg-libpng/default.nix
 @@ -2,6 +2,8 @@
@@ -588,7 +588,7 @@ index 9a5fafd..822d2d1 100644
    '';
    buildPhase = ''
      meson compile -vC build
-@@ -67,4 +72,20 @@ pkgs.stdenvNoCC.mkDerivation {
+@@ -67,4 +72,48 @@ pkgs.stdenvNoCC.mkDerivation {
    installPhase = ''
      meson install -C build
    '';
@@ -605,8 +605,36 @@ index 9a5fafd..822d2d1 100644
 +  # libpng16.pc's own Libs/Libs.private (system lib, always on the default
 +  # link path), so dropping the Requires: line loses nothing real — it's
 +  # metadata for a transitive .pc lookup that was never going to resolve.
++  # This libpng version (1.6.40, via the wrapdb libpng_1.6.40-1 patch)
++  # generates TWO real .pc files, not one real + a symlink like newer
++  # libpng/meson releases: `libpng16.pc` (the actual library metadata) AND
++  # a separate stub `libpng.pc` (for the unversioned pkg-config name).
++  # Confirmed via CI log (run 35204285916, 2026-09-17): "Configuring
++  # libpng16.pc" and "Configuring libpng.pc" both appear, and the
++  # downstream error explicitly says "required by 'libpng'" — the STUB
++  # file, not libpng16.pc, is what actually carries the zlib reference (an
++  # earlier attempt at this fix only sed'd libpng16.pc and didn't help).
++  # Sweep every .pc file this package installs instead of guessing which
++  # one(s) carry it.
++  # Removes just the `zlib` token from a Requires/Requires.private line
++  # rather than deleting the whole line — the stub libpng.pc's Requires may
++  # legitimately list other real deps (e.g. libpng16) alongside zlib on the
++  # same line, so blindly deleting the line would break that too. pkg-config
++  # accepts either comma- or space-separated Requires lists, so normalizing
++  # commas to spaces after stripping the token is safe and avoids dangling
++  # punctuation (e.g. "libpng16, zlib" -> "libpng16 ,      -> normalize ->
++  # "libpng16").
 +  postFixup = pkgs.lib.optionalString (flavor == flavors.movaslim) ''
-+    sed -i '/^Requires:.*zlib/d; /^Requires\.private:.*zlib/d' $out/lib/pkgconfig/libpng16.pc
++    sed -i -E '
++      /^Requires(\.private)?:/ {
++        s/\bzlib\b//g
++        s/,/ /g
++        s/[[:space:]]+/ /g
++        s/[[:space:]]*$//
++      }
++    ' $out/lib/pkgconfig/*.pc
++    echo "--- movaslim libpng .pc files after zlib-Requires strip ---"
++    cat $out/lib/pkgconfig/*.pc
 +  '';
  }
 diff --git a/nix/packages/mk-pkg-mpv/default.nix b/nix/packages/mk-pkg-mpv/default.nix
