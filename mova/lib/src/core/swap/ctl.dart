@@ -1,4 +1,5 @@
 import '../model/source.dart';
+import 'plan.dart';
 import 'trigger.dart';
 
 /// Which stage of a swap the engine is in.
@@ -55,9 +56,20 @@ abstract class MovaSwapCtl {
   /// 可安全地在每个进度 tick 上调用：切换被禁用、触发策略拒绝、或同一源的
   /// 影子引擎已在预热时，均为空操作。
   ///
+  /// [plan] overrides the trigger / readiness policy / hold-at-target
+  /// behaviour for this one warm-up. It exists because a single engine now
+  /// warms in two directions — content behind an ad, and an ad behind
+  /// content — and those two want different answers. Omit it for 0.4.0
+  /// behaviour.
+  ///
+  /// [plan] 为本次预热覆盖触发策略 / 就绪判据 / 就绪后是否停在目标帧。它的存在
+  /// 是因为同一个引擎现在要在两个方向上预热——广告背后的正片、正片背后的
+  /// 广告——两者要的答案不同。不传即 0.4.0 行为。
+  ///
   /// - [source]: the media to warm up / 要预热的媒体
   /// - [at]: the position the swap should land on / 切换应落在的位置
   /// - [cue]: what is known about the switch point / 关于切换点的已知信息
+  /// - [plan]: per-warm-up overrides / 单次预热的参数覆盖
   ///
   /// Example / 示例:
   /// ```dart
@@ -68,6 +80,7 @@ abstract class MovaSwapCtl {
     MovaSource source, {
     Duration at = Duration.zero,
     MovaWarmCue cue = const MovaWarmCue(),
+    MovaWarmPlan plan = const MovaWarmPlan(),
   });
 
   /// Promotes a ready shadow engine to be the live one and disposes the old.

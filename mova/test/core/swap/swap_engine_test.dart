@@ -11,6 +11,7 @@ import 'package:mova/src/core/state/progress.dart';
 import 'package:mova/src/core/state/state.dart';
 import 'package:mova/src/core/state/ui_state.dart';
 import 'package:mova/src/core/swap/ctl.dart';
+import 'package:mova/src/core/swap/plan.dart';
 import 'package:mova/src/core/swap/swap_engine.dart';
 import 'package:mova/src/core/swap/trigger.dart';
 import 'package:mova/src/core/swap/warm.dart';
@@ -553,4 +554,263 @@ void main() {
       expect(made2.first.lastSeek, const Duration(seconds: 5));
     });
   });
+
+  group('MovaSwapEngine — 0.5.0 Task 1: MovaWarmPlan overrides and latent-defect fixes', () {
+    late List<FakeMovaApi> made;
+
+    /// Builds an engine whose every produced fake engine carries [o].
+    ///
+    /// 构造一个引擎，其产出的每个假引擎都带有 [o]。
+    MovaSwapEngine build(MovaOpts o) {
+      made = <FakeMovaApi>[];
+      return MovaSwapEngine(engineFactory: () {
+        final f = FakeMovaApi(options: o);
+        made.add(f);
+        return f;
+      });
+    }
+
+    /// A cue that the default [MovaLeadWarm] accepts.
+    ///
+    /// 默认 [MovaLeadWarm] 会接受的一条线索。
+    const okCue = MovaWarmCue(remaining: Duration(seconds: 1), total: Duration(seconds: 10));
+
+    /// A satisfying warm-up tick for the default [MovaBufferWarm].
+    ///
+    /// 对默认 [MovaBufferWarm] 而言满足条件的一次预热 tick。
+    const goodTick = MovaProg(position: Duration(seconds: 5), buffer: Duration(seconds: 6));
+
+    test('no plan: the trigger and readiness policy still come from MovaSwapConfig', () async {
+      final trigger = RecordingTrigger();
+      final policy = RecordingPolicy();
+      final api = build(MovaOpts(
+        swap: MovaSwapConfig(enabled: true, trigger: trigger, readyPolicy: policy),
+      ));
+      await api.prepare(const MovaSource('https://host/a.mp4'), cue: okCue);
+      await settle();
+      expect(trigger.calls, 1, reason: 'configured trigger must still be consulted');
+      made[1].pushProgress(goodTick);
+      await settle();
+      expect(policy.log, contains('onSignal'), reason: 'configured policy must still be fed');
+    });
+
+    test('plan.trigger wins: the configured trigger is never consulted', () async {
+      final configured = RecordingTrigger(answer: false);
+      final injected = RecordingTrigger();
+      final api = build(MovaOpts(swap: MovaSwapConfig(enabled: true, trigger: configured)));
+      await api.prepare(
+        const MovaSource('https://host/a.mp4'),
+        plan: MovaWarmPlan(trigger: injected),
+      );
+      await settle();
+      expect(configured.calls, 0);
+      expect(injected.calls, 1);
+      expect(made, hasLength(2), reason: 'the injected trigger said yes, so a shadow exists');
+    });
+
+    test('plan.policy wins: the configured readiness policy is never fed', () async {
+      final configured = RecordingPolicy();
+      final injected = RecordingPolicy();
+      final api = build(MovaOpts(swap: MovaSwapConfig(enabled: true, readyPolicy: configured)));
+      await api.prepare(
+        const MovaSource('https://host/a.mp4'),
+        cue: okCue,
+        plan: MovaWarmPlan(policy: injected),
+      );
+      await settle();
+      made[1].pushProgress(goodTick);
+      await settle();
+      expect(configured.log, isEmpty);
+      expect(injected.log, contains('onSignal'));
+    });
+
+    test('an injected policy is reset() before it sees its first signal', () async {
+      final injected = RecordingPolicy();
+      final api = build(const MovaOpts(swap: MovaSwapConfig(enabled: true)));
+      await api.prepare(
+        const MovaSource('https://host/a.mp4'),
+        cue: okCue,
+        plan: MovaWarmPlan(policy: injected),
+      );
+      await settle();
+      made[1].pushProgress(goodTick);
+      await settle();
+      expect(injected.log, ['reset', 'onSignal']);
+    });
+
+    test('reusing one policy instance across two warm-ups restarts its consecutive count', () async {
+      final policy = MovaBufferWarm();
+      final api = build(const MovaOpts(swap: MovaSwapConfig(enabled: true)));
+
+      await api.prepare(
+        const MovaSource('https://host/a.mp4'),
+        cue: okCue,
+        plan: MovaWarmPlan(policy: policy),
+      );
+      await settle();
+      made[1].pushProgress(goodTick);
+      await settle();
+      expect(policy.stable, 1, reason: 'one satisfying tick, stableTicks defaults to 2');
+      await api.abandon();
+
+      await api.prepare(
+        const MovaSource('https://host/b.mp4'),
+        cue: okCue,
+        plan: MovaWarmPlan(policy: policy),
+      );
+      await settle();
+      made[2].pushProgress(goodTick);
+      await settle();
+      expect(api.swapPhase, MovaSwapPhase.warming,
+          reason: 'without reset() the stale count would have committed on one lucky tick');
+      made[2].pushProgress(goodTick);
+      await settle();
+      expect(api.swapPhase, MovaSwapPhase.ready);
+    });
+
+    test('at == Duration.zero issues no seek on the shadow; at > zero still does', () async {
+      final api = build(const MovaOpts(swap: MovaSwapConfig(enabled: true)));
+      await api.prepare(const MovaSource('https://host/a.mp4'), cue: okCue);
+      await settle();
+      expect(made[1].calls, isNot(contains('seek')));
+      await api.abandon();
+
+      await api.prepare(
+        const MovaSource('https://host/a.mp4'),
+        at: const Duration(seconds: 7),
+        cue: okCue,
+      );
+      await settle();
+      expect(made[2].lastSeek, const Duration(seconds: 7));
+    });
+
+    test('pauseWhenReady false (the default) never pauses the shadow on ready', () async {
+      final api = build(const MovaOpts(swap: MovaSwapConfig(enabled: true)));
+      await api.prepare(const MovaSource('https://host/a.mp4'), cue: okCue);
+      await settle();
+      made[1].pushProgress(goodTick);
+      await settle();
+      made[1].pushProgress(goodTick);
+      await settle();
+      expect(api.swapPhase, MovaSwapPhase.ready);
+      expect(made[1].calls, isNot(contains('pause')));
+    });
+
+    test('pauseWhenReady true pauses on ready, and only seeks back when at > zero', () async {
+      final api = build(const MovaOpts(swap: MovaSwapConfig(enabled: true)));
+      await api.prepare(
+        const MovaSource('https://host/ad.mp4'),
+        cue: okCue,
+        plan: const MovaWarmPlan(pauseWhenReady: true),
+      );
+      await settle();
+      made[1].pushProgress(goodTick);
+      await settle();
+      made[1].pushProgress(goodTick);
+      await settle();
+      expect(made[1].calls, contains('pause'));
+      expect(made[1].calls, isNot(contains('seek')), reason: 'at == 0, so no rewind is needed');
+      await api.abandon();
+
+      await api.prepare(
+        const MovaSource('https://host/ad.mp4'),
+        at: const Duration(seconds: 3),
+        cue: okCue,
+        plan: const MovaWarmPlan(pauseWhenReady: true),
+      );
+      await settle();
+      made[2].pushProgress(goodTick);
+      await settle();
+      made[2].pushProgress(goodTick);
+      await settle();
+      expect(made[2].calls, contains('pause'));
+      expect(made[2].lastSeek, const Duration(seconds: 3));
+    });
+
+    test('pauseWhenReady true pauses exactly once however often the policy reports ready', () async {
+      final api = build(const MovaOpts(swap: MovaSwapConfig(enabled: true)));
+      await api.prepare(
+        const MovaSource('https://host/ad.mp4'),
+        cue: okCue,
+        plan: const MovaWarmPlan(pauseWhenReady: true),
+      );
+      await settle();
+      for (var i = 0; i < 5; i++) {
+        made[1].pushProgress(goodTick);
+        await settle();
+      }
+      expect(made[1].calls.where((c) => c == 'pause'), hasLength(1));
+    });
+
+    test('a MovaErrorEvent from the shadow abandons the warm-up and fails an awaiting commit', () async {
+      final api = build(const MovaOpts(swap: MovaSwapConfig(enabled: true)));
+      await api.prepare(const MovaSource('https://host/ad.mp4'), cue: okCue);
+      await settle();
+      final shadow = made[1];
+      final commitFuture = api.commit(waitForReady: true);
+      await settle();
+      shadow.pushEvent(MovaErrorEvent('boom'));
+      final ok = await commitFuture;
+      await settle();
+      expect(ok, isFalse);
+      expect(shadow.calls, contains('dispose'));
+      expect(api.swapPhase, MovaSwapPhase.idle);
+      expect(api.active, same(made.first));
+    });
+  });
+}
+
+/// A [MovaWarmTrigger] that counts how often it was consulted.
+///
+/// 一个记录被咨询次数的 [MovaWarmTrigger]。
+class RecordingTrigger implements MovaWarmTrigger {
+  /// What [shouldWarm] answers.
+  ///
+  /// [shouldWarm] 的回答。
+  final bool answer;
+
+  /// How many times [shouldWarm] was called.
+  ///
+  /// [shouldWarm] 被调用的次数。
+  int calls = 0;
+
+  /// Creates a recording trigger answering [answer].
+  ///
+  /// 创建一个回答 [answer] 的记录型触发策略。
+  RecordingTrigger({this.answer = true});
+
+  @override
+  bool shouldWarm(MovaWarmCue cue) {
+    calls++;
+    return answer;
+  }
+}
+
+/// A [MovaWarmPolicy] that records the order of its calls.
+///
+/// 一个记录调用顺序的 [MovaWarmPolicy]。
+class RecordingPolicy implements MovaWarmPolicy {
+  /// Ordered method names invoked on this policy.
+  ///
+  /// 在该判据上被调用的方法名有序列表。
+  final List<String> log = <String>[];
+
+  /// What [onSignal] answers.
+  ///
+  /// [onSignal] 的回答。
+  final MovaWarmVerdict verdict;
+
+  /// Creates a recording policy answering [verdict].
+  ///
+  /// 创建一个回答 [verdict] 的记录型判据。
+  RecordingPolicy({this.verdict = MovaWarmVerdict.waiting});
+
+  @override
+  MovaWarmVerdict onSignal(MovaWarmSignal signal) {
+    log.add('onSignal');
+    return verdict;
+  }
+
+  @override
+  void reset() => log.add('reset');
 }

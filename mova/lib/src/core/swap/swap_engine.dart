@@ -15,6 +15,7 @@ import '../state/state.dart';
 import '../state/ui_state.dart';
 import '../stt/api.dart';
 import 'ctl.dart';
+import 'plan.dart';
 import 'trigger.dart';
 import 'warm.dart';
 
@@ -89,6 +90,12 @@ class MovaSwapEngine implements MovaApi, MovaSwapCtl {
   StreamSubscription<MovaState>? _shadowStateSub;
   StreamSubscription<MovaProg>? _shadowProgressSub;
 
+  /// Watches the shadow engine's own event stream so a load failure there ends
+  /// the warm-up instead of silently warming forever.
+  ///
+  /// 监听影子引擎自身的事件流，使其加载失败时结束预热，而不是悄悄地一直预热。
+  StreamSubscription<MovaEvent>? _shadowEventSub;
+
   /// Render-epoch counter merged into every forwarded state; bumped once per
   /// committed swap so the render surface always re-reads [renderHandle].
   ///
@@ -104,6 +111,35 @@ class MovaSwapEngine implements MovaApi, MovaSwapCtl {
   bool _shadowBuffering = false;
   Completer<bool>? _readyCompleter;
   bool _disposed = false;
+
+  /// The plan driving the warm-up currently in flight.
+  ///
+  /// 驱动当前在途预热的计划。
+  MovaWarmPlan _warmPlan = const MovaWarmPlan();
+
+  /// Whether [MovaWarmPlan.pauseWhenReady] has already been honoured for this
+  /// warm-up, so a policy that keeps reporting ready only pauses once.
+  ///
+  /// 本次预热是否已经执行过 [MovaWarmPlan.pauseWhenReady]，使持续报告就绪的
+  /// 判据只触发一次暂停。
+  bool _heldAtTarget = false;
+
+  /// The in-flight hold-at-target operation, awaited before a commit plays the
+  /// shadow so a late `pause()` can never land after that `play()`.
+  ///
+  /// 在途的"停在目标帧"操作；提交切换在播放影子引擎前会先等待它，使迟到的
+  /// `pause()` 不可能落在那次 `play()` 之后。
+  Future<void>? _holding;
+
+  /// Pauses the shadow and rewinds it to the warm-up target so the swap starts
+  /// exactly there.
+  ///
+  /// 暂停影子引擎并回绕到预热目标点，使切换恰好从该处开始。
+  Future<void> _holdAtTarget(MovaApi shadow) async {
+    await shadow.pause();
+    if (_disposed || !identical(_shadow, shadow)) return;
+    if (_warmAt > Duration.zero) await shadow.seek(_warmAt);
+  }
 
   /// The swap configuration in effect, taken from the active engine's options.
   ///
@@ -244,6 +280,7 @@ class MovaSwapEngine implements MovaApi, MovaSwapCtl {
     await _detach();
     await _shadowStateSub?.cancel();
     await _shadowProgressSub?.cancel();
+    await _shadowEventSub?.cancel();
     await _active.dispose();
     final shadow = _shadow;
     _shadow = null;
@@ -269,43 +306,78 @@ class MovaSwapEngine implements MovaApi, MovaSwapCtl {
     MovaSource source, {
     Duration at = Duration.zero,
     MovaWarmCue cue = const MovaWarmCue(),
+    MovaWarmPlan plan = const MovaWarmPlan(),
   }) =>
-      _startWarm(source, at: at, trigger: _config.effectiveTrigger, cue: cue);
+      _startWarm(source, at: at, cue: cue, plan: plan);
 
-  /// Shared shadow-creation path for [prepare] and [swapTo]; [trigger] is
+  /// Shared shadow-creation path for [prepare] and [swapTo]; [plan] is
   /// injected so [swapTo] can force eager warming regardless of the
-  /// configured trigger.
+  /// configured trigger, and so an ad warm-up can hold at frame zero.
   ///
-  /// [prepare]、[swapTo] 共用的影子创建路径；[trigger] 由调用方注入，使
-  /// [swapTo] 能无视已配置的触发策略、强制立即预热。
+  /// [prepare]、[swapTo] 共用的影子创建路径；[plan] 由调用方注入，使
+  /// [swapTo] 能无视已配置的触发策略、强制立即预热，也使广告方向的预热能停在
+  /// 第 0 帧。
   Future<void> _startWarm(
     MovaSource source, {
     required Duration at,
-    required MovaWarmTrigger trigger,
     required MovaWarmCue cue,
+    required MovaWarmPlan plan,
   }) async {
     if (!swapEnabled) return;
     if (_shadow != null) return;
+    final trigger = plan.trigger ?? _config.effectiveTrigger;
     if (!trigger.shouldWarm(cue)) return;
 
     final shadow = _engineFactory();
     _shadow = shadow;
     _warmAt = at;
+    _warmPlan = plan;
+    _heldAtTarget = false;
     _warmLive = source.type == MovaStreamType.live;
-    _policy = _config.newReadyPolicy();
+    // An injected policy is the *same instance* on every warm-up, so it must
+    // be reset before use — otherwise the second warm-up inherits the first
+    // one's consecutive-tick counter and a single lucky tick commits a swap.
+    //
+    // 注入的判据在每次预热时都是*同一个实例*，因此使用前必须重置——否则第二次
+    // 预热会继承第一次的连续 tick 计数，一次侥幸的 tick 就能把切换提交出去。
+    _policy = (plan.policy ?? _config.newReadyPolicy())..reset();
     _warmClock = Stopwatch()..start();
 
     if (_config.muteWhileWarm) unawaited(shadow.setVolume(0));
     await shadow.open(source, autoPlay: true);
-    if (!_warmLive) await shadow.seek(at);
+    // Seeking to zero right after open() buys nothing and is pure risk: a seek
+    // issued before the first frame lands has been observed to wedge the
+    // player on device. The pre-roll→content and content→ad directions both
+    // warm at zero, so this guard covers the common case.
+    //
+    // 刚 open() 完就 seek(0) 毫无收益、纯属风险敞口：首帧落地前下发的 seek 在
+    // 真机上被观测到会把播放器卡死。前贴片→正片与正片→广告两个方向都在 0 处
+    // 预热，因此这道守卫覆盖的正是常见情形。
+    if (!_warmLive && at > Duration.zero) await shadow.seek(at);
 
     if (_disposed || !identical(_shadow, shadow)) return;
 
     _shadowBuffering = false;
     _shadowStateSub = shadow.states.listen((s) => _shadowBuffering = s.buffering);
     _shadowProgressSub = shadow.progress.listen((p) => _evaluate(shadow, p.position, p.buffer));
+    _shadowEventSub = shadow.events.listen((e) {
+      if (e is MovaErrorEvent) _onShadowError(shadow);
+    });
 
     _setPhase(MovaSwapPhase.warming);
+  }
+
+  /// Ends the warm-up the same way a [MovaWarmVerdict.giveUp] does when the
+  /// shadow engine itself reports a playback error.
+  ///
+  /// 影子引擎自身报告播放错误时，以与 [MovaWarmVerdict.giveUp] 完全相同的方式
+  /// 结束本次预热。
+  void _onShadowError(MovaApi shadow) {
+    if (_disposed || !identical(_shadow, shadow)) return;
+    final c = _readyCompleter;
+    _readyCompleter = null;
+    unawaited(abandon());
+    c?.complete(false);
   }
 
   /// Feeds one warm-up observation to the readiness policy and reacts to its
@@ -330,6 +402,17 @@ class MovaSwapEngine implements MovaApi, MovaSwapCtl {
       case MovaWarmVerdict.waiting:
         break;
       case MovaWarmVerdict.ready:
+        // Hold the shadow at the warm-up target the first time it reports
+        // ready, so the swap starts from that exact frame instead of wherever
+        // the shadow has silently played on to. The rewind lands inside the
+        // already-buffered range and never goes near the media's end.
+        //
+        // 在首次报告就绪时把影子停在预热目标点，使切换从那一帧开始，而不是从
+        // 影子悄悄播到的位置开始。这次回绕落在已缓冲区间内，绝不靠近素材尾部。
+        if (_warmPlan.pauseWhenReady && !_heldAtTarget) {
+          _heldAtTarget = true;
+          _holding = _holdAtTarget(shadow);
+        }
         if (_phase != MovaSwapPhase.ready) _setPhase(MovaSwapPhase.ready);
         final c = _readyCompleter;
         if (c != null) {
@@ -373,14 +456,17 @@ class MovaSwapEngine implements MovaApi, MovaSwapCtl {
     final old = _active;
 
     await old.pause();
+    await _holding;
     await shadow.setVolume(old.state.volume);
     await shadow.play();
 
     await _detach();
     await _shadowStateSub?.cancel();
     await _shadowProgressSub?.cancel();
+    await _shadowEventSub?.cancel();
     _shadowStateSub = null;
     _shadowProgressSub = null;
+    _shadowEventSub = null;
 
     _active = shadow;
     _shadow = null;
@@ -389,6 +475,9 @@ class MovaSwapEngine implements MovaApi, MovaSwapCtl {
 
     _policy = null;
     _warmClock = null;
+    _holding = null;
+    _warmPlan = const MovaWarmPlan();
+    _heldAtTarget = false;
     _setPhase(MovaSwapPhase.idle);
 
     unawaited(old.dispose());
@@ -402,10 +491,15 @@ class MovaSwapEngine implements MovaApi, MovaSwapCtl {
     _shadow = null;
     _policy = null;
     _warmClock = null;
+    _holding = null;
+    _warmPlan = const MovaWarmPlan();
+    _heldAtTarget = false;
     await _shadowStateSub?.cancel();
     await _shadowProgressSub?.cancel();
+    await _shadowEventSub?.cancel();
     _shadowStateSub = null;
     _shadowProgressSub = null;
+    _shadowEventSub = null;
     await shadow.dispose();
     if (_phase != MovaSwapPhase.idle) _setPhase(MovaSwapPhase.idle);
     // Unblock any commit(waitForReady: true) still awaiting this shadow —
@@ -428,7 +522,12 @@ class MovaSwapEngine implements MovaApi, MovaSwapCtl {
       return false;
     }
 
-    await _startWarm(source, at: at, trigger: const MovaEagerWarm(), cue: const MovaWarmCue());
+    await _startWarm(
+      source,
+      at: at,
+      cue: const MovaWarmCue(),
+      plan: const MovaWarmPlan(trigger: MovaEagerWarm()),
+    );
     final ok = _shadow != null && await commit(waitForReady: true);
     if (!ok) {
       await _active.open(source);

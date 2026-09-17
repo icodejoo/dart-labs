@@ -1,4 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:mova/src/core/ad/fail.dart';
+import 'package:mova/src/core/model/ad.dart';
 import 'package:mova/src/core/model/danmaku.dart';
 import 'package:mova/src/core/model/fit.dart';
 import 'package:mova/src/core/model/source.dart';
@@ -6,6 +8,7 @@ import 'package:mova/src/core/options/options.dart';
 import 'package:mova/src/core/preview/net_probe.dart';
 import 'package:mova/src/core/preview/platform_kind.dart';
 import 'package:mova/src/core/state/state.dart';
+import 'package:mova/src/core/swap/plan.dart';
 import 'package:mova/src/core/swap/trigger.dart';
 import 'package:mova/src/core/swap/warm.dart';
 
@@ -233,4 +236,126 @@ void main() {
     expect(n.swap.enabled, isTrue);
     expect(n.gesture, o.gesture);
   });
+
+  group('MovaAdConfig — 0.5.0 ad orchestration knobs', () {
+    const adBreak = MovaAdBreak(kind: MovaAdBreakKind.mid, source: MovaSource('https://h/ad.mp4'));
+
+    test('all seven new knobs carry their documented defaults', () {
+      const c = MovaAdConfig();
+      expect(c.waitForAdReady, isA<MovaAdWaitByKind>());
+      expect(c.adReadyTimeout, const Duration(seconds: 5));
+      expect(c.notReadyAction, MovaAdNotReady.hardCut);
+      expect(c.failPolicy, isNull);
+      expect(c.loadTimeout, const Duration(seconds: 8));
+      expect(c.durationFromFirstFrame, isTrue);
+      expect(c.adWarmPlan, isNull);
+    });
+
+    test('MovaAdWaitByKind defaults: pre false, mid true, post false', () {
+      const p = MovaAdWaitByKind();
+      expect(p.pre, isFalse, reason: 'nothing is on screen to protect before a pre-roll');
+      expect(p.mid, isTrue, reason: 'the content the viewer is watching is worth protecting');
+      expect(p.post, isFalse, reason: 'the content is over; nothing to protect');
+    });
+
+    test('MovaAdWaitByKind.waitFor answers per kind, and the defaults can be rewritten wholesale', () {
+      const def = MovaAdWaitByKind();
+      MovaAdBreak of(MovaAdBreakKind k) => MovaAdBreak(kind: k, source: const MovaSource('https://h/a.mp4'));
+      expect(def.waitFor(of(MovaAdBreakKind.pre)), isFalse);
+      expect(def.waitFor(of(MovaAdBreakKind.mid)), isTrue);
+      expect(def.waitFor(of(MovaAdBreakKind.post)), isFalse);
+
+      const custom = MovaAdWaitByKind(mid: false, post: true);
+      expect(custom.waitFor(of(MovaAdBreakKind.pre)), isFalse);
+      expect(custom.waitFor(of(MovaAdBreakKind.mid)), isFalse);
+      expect(custom.waitFor(of(MovaAdBreakKind.post)), isTrue);
+    });
+
+    test('MovaAdBreak.waitForReady overrides the per-kind default in both directions', () {
+      const c = MovaAdConfig();
+      const forcedOn = MovaAdBreak(
+        kind: MovaAdBreakKind.pre,
+        source: MovaSource('https://h/pre.mp4'),
+        waitForReady: true,
+      );
+      const forcedOff = MovaAdBreak(
+        kind: MovaAdBreakKind.mid,
+        source: MovaSource('https://h/mid.mp4'),
+        waitForReady: false,
+      );
+      expect(c.waitsFor(forcedOn), isTrue, reason: 'pre defaults to false but the break says true');
+      expect(c.waitsFor(forcedOff), isFalse, reason: 'mid defaults to true but the break says false');
+    });
+
+    test('waitsFor falls through to the injected policy when the break stays silent', () {
+      final policy = RecordingWaitPolicy(answer: true);
+      final c = MovaAdConfig(waitForAdReady: policy);
+      expect(c.waitsFor(adBreak), isTrue);
+      expect(policy.calls, 1, reason: 'the injected policy must actually be consulted');
+    });
+
+    test('effectiveWarmPlan / effectiveFailPolicy default sensibly and honour injection', () {
+      const c = MovaAdConfig(adReadyTimeout: Duration(seconds: 3));
+      final plan = c.effectiveWarmPlan;
+      expect(plan.trigger, isA<MovaEagerWarm>());
+      expect(plan.policy, isA<MovaBufferWarm>());
+      expect((plan.policy! as MovaBufferWarm).timeout, const Duration(seconds: 3));
+      expect(plan.pauseWhenReady, isTrue);
+      expect(c.effectiveFailPolicy, isA<MovaAdRetrySkip>());
+
+      const injected = MovaWarmPlan(pauseWhenReady: false);
+      const abandon = MovaAdAbandonPod();
+      const c2 = MovaAdConfig(adWarmPlan: injected, failPolicy: abandon);
+      expect(c2.effectiveWarmPlan, same(injected));
+      expect(c2.effectiveFailPolicy, same(abandon));
+    });
+
+    test('copyWith replaces one new field at a time, and MovaOpts.copyWith(ads:) is section-local', () {
+      const c = MovaAdConfig();
+      expect(c.copyWith(adReadyTimeout: const Duration(seconds: 9)).adReadyTimeout,
+          const Duration(seconds: 9));
+      expect(c.copyWith(adReadyTimeout: const Duration(seconds: 9)).loadTimeout, c.loadTimeout);
+      expect(c.copyWith(notReadyAction: MovaAdNotReady.dropBreak).notReadyAction,
+          MovaAdNotReady.dropBreak);
+      expect(c.copyWith(loadTimeout: const Duration(seconds: 2)).loadTimeout,
+          const Duration(seconds: 2));
+      expect(c.copyWith(durationFromFirstFrame: false).durationFromFirstFrame, isFalse);
+      expect(c.copyWith(failPolicy: const MovaAdAbandonPod()).failPolicy, isA<MovaAdAbandonPod>());
+      expect(c.copyWith(waitForAdReady: const MovaAdWaitByKind(mid: false)).waitForAdReady,
+          const MovaAdWaitByKind(mid: false));
+      expect(c.copyWith(adWarmPlan: const MovaWarmPlan()).adWarmPlan, isNotNull);
+
+      const o = MovaOpts();
+      final n = o.copyWith(ads: const MovaAdConfig(loadTimeout: Duration(seconds: 1)));
+      expect(n.ads.loadTimeout, const Duration(seconds: 1));
+      expect(n.swap, o.swap);
+      expect(n.gesture, o.gesture);
+    });
+  });
+}
+
+/// A [MovaAdWaitPolicy] that records how often it was consulted.
+///
+/// 一个记录被咨询次数的 [MovaAdWaitPolicy]。
+class RecordingWaitPolicy implements MovaAdWaitPolicy {
+  /// What [waitFor] answers.
+  ///
+  /// [waitFor] 的回答。
+  final bool answer;
+
+  /// How many times [waitFor] was called.
+  ///
+  /// [waitFor] 被调用的次数。
+  int calls = 0;
+
+  /// Creates a recording wait policy answering [answer].
+  ///
+  /// 创建一个回答 [answer] 的记录型等待策略。
+  RecordingWaitPolicy({this.answer = true});
+
+  @override
+  bool waitFor(MovaAdBreak adBreak) {
+    calls++;
+    return answer;
+  }
 }

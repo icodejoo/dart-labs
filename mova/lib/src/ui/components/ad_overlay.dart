@@ -102,16 +102,51 @@ class _AdOverlayViewState extends State<_AdOverlayView> with MovaPlugin<_AdOverl
   ///
   /// 广告在屏期间推进跟踪的广告位置。
   void _onProgress(MovaProg p) {
-    if (widget.controller.isShowingAd) setState(() => _adPos = p.position);
+    if (widget.controller.isShowingAd) {
+      setState(() => _adPos = p.position);
+    } else if (widget.controller.isAdPending) {
+      // The delay countdown is derived from the content position, so it only
+      // moves when a content tick arrives.
+      //
+      // 倒计时由正片位置推导，因此只在正片 tick 到达时才走动。
+      setState(() {});
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     final controller = widget.controller;
-    final b = controller.currentBreak;
-    if (!controller.isShowingAd || b == null) return const SizedBox.shrink();
     final theme = widget.api.options.theme;
     final strings = widget.api.options.strings;
+    // The pending phase: the content is still playing and the viewer has not
+    // been interrupted, so this renders *only* the countdown — no ad badge, and
+    // no full-surface tap layer that would swallow the content's own gestures.
+    //
+    // Deliberately nothing at all for the default mid-roll shape (delay zero,
+    // silently waiting for readiness): that wait is meant to be imperceptible,
+    // and drawing a "loading the ad" hint would turn something the viewer never
+    // notices into something they do.
+    //
+    // 待播阶段：正片仍在播放、观众尚未被打断，因此这里*只*渲染倒计时——没有广告
+    // 角标，也没有会吞掉正片自身手势的全屏点击层。
+    //
+    // 对中插的默认形态（delay 为零、静默等待就绪）刻意什么都不画：那段等待本就
+    // 该是用户无感的，画一个"正在加载广告"的提示只会把本来无感的事变成有感的事。
+    final pendingLeft = controller.delayRemaining;
+    if (controller.isAdPending && pendingLeft != null) {
+      final left = (pendingLeft.inMilliseconds / 1000).ceil().clamp(0, 1 << 31);
+      return Stack(
+        children: [
+          Positioned(
+            bottom: 24,
+            right: 16,
+            child: _Countdown(text: strings.adStartingIn(left), theme: theme),
+          ),
+        ],
+      );
+    }
+    final b = controller.currentBreak;
+    if (!controller.isShowingAd || b == null) return const SizedBox.shrink();
     final after = b.skippableAfter;
     final canSkip = after != null && _adPos >= after;
     // Round the remaining time up so a 4.9s remainder reads "5", not "4".
@@ -147,7 +182,7 @@ class _AdOverlayViewState extends State<_AdOverlayView> with MovaPlugin<_AdOverl
                     theme: theme,
                     onTap: controller.skip,
                   )
-                : _Countdown(seconds: secondsLeft, theme: theme),
+                : _Countdown(text: '$secondsLeft', theme: theme),
           ),
       ],
     );
@@ -245,19 +280,20 @@ class _SkipButton extends StatelessWidget {
   }
 }
 
-/// The "skippable in N seconds" countdown pill.
+/// A countdown pill: "skippable in N seconds" during an ad, or "the ad starts
+/// in N seconds" while the content plays on.
 ///
-/// "N 秒后可跳过"倒计时小药丸。
+/// 倒计时小药丸：广告期间显示"N 秒后可跳过"，正片继续播期间显示"N 秒后播放广告"。
 class _Countdown extends StatelessWidget {
   /// Creates the countdown pill.
   ///
   /// 创建倒计时药丸。
-  const _Countdown({required this.seconds, required this.theme});
+  const _Countdown({required this.text, required this.theme});
 
-  /// Whole seconds remaining until the ad becomes skippable.
+  /// The already-rendered copy to show.
   ///
-  /// 距广告可跳过还剩的整秒数。
-  final int seconds;
+  /// 要显示的、已渲染好的文案。
+  final String text;
 
   /// The theme supplying colors.
   ///
@@ -273,7 +309,7 @@ class _Countdown extends StatelessWidget {
         borderRadius: BorderRadius.circular(999),
       ),
       child: Text(
-        '$seconds',
+        text,
         style: TextStyle(
           color: Color(theme.textColor),
           fontSize: 13,

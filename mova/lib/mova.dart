@@ -6,6 +6,7 @@
 library;
 
 export 'src/core/ad/ad_controller.dart';
+export 'src/core/ad/fail.dart';
 export 'src/core/api.dart';
 export 'src/core/compat.dart';
 export 'src/core/engine.dart';
@@ -57,6 +58,7 @@ export 'src/core/stt/srt.dart';
 export 'src/core/stt/subtitle_dir_provider.dart';
 export 'src/core/stt/subtitle_store.dart';
 export 'src/core/swap/ctl.dart';
+export 'src/core/swap/plan.dart';
 export 'src/core/swap/swap_engine.dart';
 export 'src/core/swap/trigger.dart';
 export 'src/core/swap/warm.dart';

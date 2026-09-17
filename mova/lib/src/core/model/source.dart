@@ -46,3 +46,19 @@ class MovaSource {
   /// ```
   const MovaSource(this.uri, {this.type = MovaStreamType.vod, this.title});
 }
+
+/// Resolves the content source on demand, called only when the player is
+/// actually about to open it.
+///
+/// Exists so a host can hand `MovaAdCtrl` a promise of a source rather than a
+/// source: the real content URL is commonly decided *after* the pre-roll has
+/// played — by entitlement/DRM checks, by the viewer profile, or simply
+/// because a signed URL minted at page load would already have expired by the
+/// time the ads finish.
+///
+/// 按需解析正片源，仅在播放器真的要打开它时才被调用。
+///
+/// 它的存在是为了让宿主能把"一个源的承诺"而非"一个源"交给 `MovaAdCtrl`：
+/// 真实的正片地址常常是在前贴片播完*之后*才定下来的——取决于权益/DRM 校验、
+/// 用户画像，或者仅仅因为页面加载时签发的签名 URL 到广告播完早就过期了。
+typedef MovaSourceResolver = Future<MovaSource> Function();

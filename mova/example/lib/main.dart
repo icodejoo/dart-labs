@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:mova/mova.dart';
 
@@ -299,6 +301,13 @@ class _PlayerPageState extends State<PlayerPage> {
             icon: const Icon(Icons.bolt_rounded),
             onPressed: () => Navigator.of(context).push(
               MaterialPageRoute(builder: (_) => const SeamlessAdDemoPage()),
+            ),
+          ),
+          IconButton(
+            tooltip: '广告编排演示（delay / duration / 等待就绪 / 失败兜底）',
+            icon: const Icon(Icons.timer_rounded),
+            onPressed: () => Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => const AdOrchestrationDemoPage()),
             ),
           ),
           IconButton(
@@ -894,6 +903,239 @@ class _AdDemoPageState extends State<AdDemoPage> {
                   builder: (context, value, _) => Text('广告事件：$value'),
                 ),
               ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Ad-orchestration demo for 0.5.0: the `delay` countdown, the fixed-slot
+/// `duration`, the per-kind readiness wait, and the load-failure fallback —
+/// each behind its own switch so a device run can flip one variable at a time.
+///
+/// A separate page from [AdDemoPage] on purpose: these four knobs interact, and
+/// the on-screen log below is what makes a device run evidential. The log is
+/// fed by **real** callbacks — [MovaAdConfig.onAdEvent] and the engine's own
+/// [MovaSwapChg] events — not by print statements, so a release build on a
+/// phone with no logcat access still shows what actually happened and when.
+///
+/// 0.5.0 的广告编排演示：`delay` 倒计时、定长 `duration`、按类型的就绪等待、
+/// 加载失败兜底——每项各有开关，使真机验证能一次只动一个变量。
+///
+/// 刻意与 [AdDemoPage] 分开建页：这四个旋钮彼此有交互，而下方的屏上日志正是让
+/// 真机验证"有据可查"的关键。日志由**真实**回调打点——[MovaAdConfig.onAdEvent]
+/// 与引擎自身的 [MovaSwapChg] 事件——而非 print，因此在拿不到 logcat 的手机
+/// release 包上也能看清到底发生了什么、何时发生。
+class AdOrchestrationDemoPage extends StatefulWidget {
+  /// Creates the ad-orchestration demo page.
+  ///
+  /// 创建广告编排演示页面。
+  const AdOrchestrationDemoPage({super.key});
+
+  @override
+  State<AdOrchestrationDemoPage> createState() => _AdOrchestrationDemoPageState();
+}
+
+/// State for [AdOrchestrationDemoPage]; rebuilds the engine whenever a switch
+/// changes, because the ad schedule is read once at construction.
+///
+/// [AdOrchestrationDemoPage] 的状态；任一开关变化都重建引擎，因为广告排期在构造时
+/// 只读取一次。
+class _AdOrchestrationDemoPageState extends State<AdOrchestrationDemoPage> {
+  /// The swap engine every variant runs on; waiting for readiness needs one.
+  ///
+  /// 所有变体都运行其上的切换引擎；等待就绪必须有它。
+  late MovaSwapEngine _engine;
+
+  /// Orchestrates the demo's ad schedule.
+  ///
+  /// 编排本演示的广告排期。
+  late MovaAdCtrl _controller;
+
+  /// Subscription to the engine's own events, for the swap-phase log lines.
+  ///
+  /// 对引擎自身事件的订阅，用于记录切换阶段日志行。
+  StreamSubscription<MovaEvent>? _eventSub;
+
+  /// Whether the mid-roll carries a 3s visible countdown.
+  ///
+  /// 中插是否带 3 秒可见倒计时。
+  bool _delay = false;
+
+  /// Whether the mid-roll is force-resumed after 8s regardless of the media.
+  ///
+  /// 中插是否在 8 秒后被强制续播（与素材长度无关）。
+  bool _duration = false;
+
+  /// Whether mid-rolls wait for readiness before cutting in (the 0.5.0
+  /// default).
+  ///
+  /// 中插是否等待就绪后才切入（0.5.0 的默认值）。
+  bool _waitForMid = true;
+
+  /// Whether the mid-roll points at a deliberately broken URL.
+  ///
+  /// 中插是否指向一个故意写坏的地址。
+  bool _breakTheAd = false;
+
+  /// The most recent log lines, newest last.
+  ///
+  /// 最近的日志行，最新的在最后。
+  final ValueNotifier<List<String>> _log = ValueNotifier<List<String>>(<String>[]);
+
+  /// Wall-clock origin for the log's relative timestamps.
+  ///
+  /// 日志相对时间戳的墙钟起点。
+  final Stopwatch _clock = Stopwatch()..start();
+
+  @override
+  void initState() {
+    super.initState();
+    _build();
+  }
+
+  /// Appends one timestamped line to the on-screen log.
+  ///
+  /// 向屏上日志追加一行带时间戳的记录。
+  void _note(String line) {
+    final t = (_clock.elapsedMilliseconds / 1000).toStringAsFixed(2);
+    final next = <String>[..._log.value, '[${t}s] $line'];
+    _log.value = next.length <= 40 ? next : next.sublist(next.length - 40);
+  }
+
+  /// The mid-roll for the current switch combination.
+  ///
+  /// 当前开关组合对应的中插广告位。
+  MovaAdBreak get _mid => MovaAdBreak(
+        kind: MovaAdBreakKind.mid,
+        source: MovaSource(
+          _breakTheAd ? 'https://host.invalid/definitely-missing.mp4' : _feedSources[2],
+        ),
+        offset: const Duration(seconds: 10),
+        delay: _delay ? const Duration(seconds: 3) : Duration.zero,
+        duration: _duration ? const Duration(seconds: 8) : null,
+        // skippableAfter stays below duration: the assert in assertValid()
+        // would otherwise fire, since a slot reclaimed before the skip control
+        // appears is unskippable in practice.
+        //
+        // skippableAfter 保持小于 duration：否则 assertValid() 里的断言会触发，
+        // 因为在跳过控件出现之前就被收回的广告位实际上不可跳过。
+        skippableAfter: const Duration(seconds: 3),
+      );
+
+  /// (Re)builds the engine and controller for the current switches.
+  ///
+  /// 按当前开关（重新）构建引擎与控制器。
+  void _build() {
+    MovaOpts opts() => MovaOpts(
+          ads: MovaAdConfig(
+            enabled: true,
+            breaks: [
+              // A pre-roll, to show it does NOT wait by default.
+              //
+              // 一条前贴片，用于展示它默认*不*等待。
+              MovaAdBreak(
+                kind: MovaAdBreakKind.pre,
+                source: MovaSource(_feedSources[1]),
+                skippableAfter: const Duration(seconds: 3),
+              ),
+              _mid,
+            ],
+            onAdEvent: (e) =>
+                _note('ad ${e.type.name}${e.error == null ? '' : ' (${e.error})'}'),
+            waitForAdReady: MovaAdWaitByKind(mid: _waitForMid),
+          ),
+          swap: const MovaSwapConfig(enabled: true),
+        );
+    _engine = MovaSwapEngine(engineFactory: () => createMovaEngine(options: opts()));
+    _controller = MovaAdCtrl(_engine, swap: _engine);
+    _eventSub = _engine.events.listen((e) {
+      if (e is MovaSwapChg) _note('swap ${e.phase.name}');
+    });
+    _controller.load(_adContent);
+  }
+
+  /// Tears the current engine down and rebuilds with the new switch values.
+  ///
+  /// 释放当前引擎并以新的开关值重建。
+  Future<void> _rebuild(VoidCallback apply) async {
+    final oldController = _controller;
+    final oldEngine = _engine;
+    final oldSub = _eventSub;
+    setState(() {
+      apply();
+      _clock.reset();
+      _log.value = <String>[];
+      _build();
+    });
+    await oldSub?.cancel();
+    await oldController.dispose();
+    await oldEngine.dispose();
+  }
+
+  @override
+  void dispose() {
+    _eventSub?.cancel();
+    _controller.dispose();
+    _engine.dispose();
+    _log.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('广告编排演示')),
+      body: ListView(
+        children: [
+          AspectRatio(
+            aspectRatio: 16 / 9,
+            child: MovaPlayer(
+              api: _engine,
+              skin: MovaDefSkin(
+                patches: [MovaPatch.add(MovaSlot.overlay, AdOverlayComponent(_controller))],
+              ),
+            ),
+          ),
+          SwitchListTile(
+            value: _delay,
+            onChanged: (v) => _rebuild(() => _delay = v),
+            title: const Text('delay：中插前 3 秒倒计时'),
+            subtitle: const Text('倒计时期间正片继续播，角标显示"N 秒后播放广告"'),
+          ),
+          SwitchListTile(
+            value: _duration,
+            onChanged: (v) => _rebuild(() => _duration = v),
+            title: const Text('duration：中插固定 8 秒'),
+            subtitle: const Text('素材更长也会被准时收回，且不应卡死'),
+          ),
+          SwitchListTile(
+            value: _waitForMid,
+            onChanged: (v) => _rebuild(() => _waitForMid = v),
+            title: const Text('等待就绪（中插，默认开）'),
+            subtitle: const Text('开：预热好才原子切入；关：立刻硬切。前贴片始终不等待'),
+          ),
+          SwitchListTile(
+            value: _breakTheAd,
+            onChanged: (v) => _rebuild(() => _breakTheAd = v),
+            title: const Text('把中插换成坏地址'),
+            subtitle: const Text('走失败兜底：默认跳过该条、正片正常续播'),
+          ),
+          const Divider(),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: Text('事件日志（真实回调打点）', style: Theme.of(context).textTheme.titleSmall),
+          ),
+          ValueListenableBuilder<List<String>>(
+            valueListenable: _log,
+            builder: (context, lines, _) => Padding(
+              padding: const EdgeInsets.all(16),
+              child: Text(
+                lines.isEmpty ? '—' : lines.join('\n'),
+                style: const TextStyle(fontFamily: 'monospace', fontSize: 12),
+              ),
             ),
           ),
         ],

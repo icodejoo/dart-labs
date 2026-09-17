@@ -20,6 +20,26 @@
 基于 media_kit（libmpv/ffmpeg）的 Flutter 视频播放插件，自研手势与控制层，
 支持点播/直播，发布到 pub.dev。属于 `dart-labs` monorepo 的子工程。
 
+## 当前状态（0.5.0）
+
+**0.5.0 广告编排增强已完成**：把 `MovaAdCtrl` 从"能按排期播广告"推进到"能按广告业务的
+真实时序播广告"——正片源延迟解析（`loadDeferred`/`contentError`）、广告位 `duration`/
+`delay` 与素材时间轴解耦（一律 `Timer` 驱动，绝不碰 `state.duration`/尾部 seek）、
+按广告位类型决定是否等待就绪（`MovaAdWaitByKind` 默认 pre 否 / **mid 是** / post 否，
+三层覆盖收在 `MovaAdConfig.waitsFor()` 一处）、加载失败兜底（`MovaAdFailPolicy`）、
+以及 `MovaWarmPlan`（给 `prepare` 加可选具名参数，让同一个 `MovaSwapEngine` 服务两个
+预热方向）。**不新建任何预热机制**，三个既有抽象零类型改动直接复用。控制器新增第四态
+`_Phase.pending`。顺带修掉 0.4.0 三处潜伏缺陷（注入判据从不 `reset()`、`at==0` 仍下发
+无谓 `seek(0)`、影子 `MovaErrorEvent` 无人监听）与"中插 pod 根本没串联、会闪回正片"。
+**除广告位时长外全部默认关闭/默认不改变行为**；等待要生效还需宿主接了 `swap` 且
+`MovaSwapConfig.enabled` 为 true，两者 0.4.0 默认都是关的。测试 **656 项全绿**
+（基线 536，本批新增 120 项）、`flutter analyze` 0 issues（1 条与本次改动无关的既有
+`feed_player.dart` 警告）。**真机验证未做**（计划 Task 12，见「剩余任务」第 0 条）。
+详见 [doc/plans/2026-09-16-ad-swap-enhancements.md](doc/plans/2026-09-16-ad-swap-enhancements.md)、
+[doc/SPEC.md](doc/SPEC.md)「广告编排增强」一节。
+
+以下为 0.4.0 阶段成果（仍有效）：
+
 ## 当前状态（0.4.0）
 
 **0.4.0 无缝引擎切换已完成（默认关闭）**：新增 `MovaSwapEngine`（`lib/src/core/swap/`）——
@@ -98,6 +118,17 @@ feed 引擎池结构性不适用本模型，明确排除。详见
 260 项测试全绿，`flutter analyze` 0 issues。
 
 ## 剩余任务
+
+**0.5.0 广告编排增强——真机验证未做（Task 12，每次启动请提醒用户此项未完成）**：
+Task 1–11 已完成。剩 Task 12 的真机 checklist（七组）：A 组等待就绪（前贴片默认不等
+vs 中插默认等，需逐帧数黑屏帧数、跑 10 次取时延分布来验证 `adReadyTimeout` 5s 是否
+合理）、B 组失败降级（坏 URL 在真机上到底以 `openThrew` 还是 `playerError` 报出来是
+最值得看的发现点；黑洞 URL 下 `open()` 会不会永不返回）、C 组倒计时期间正片是否流畅
+（双活解码，中低端机是最大风险）、D 组 pod 内只弹一次、E 组 `duration` 对超长素材是否
+真的不卡死（这是"不依赖媒体时间轴"约束的反向验证）、F 组关闭态回归、G 组结论回写。
+example 已建独立页 `AdOrchestrationDemoPage`（四个开关 + 真实回调打点的屏上事件日志，
+无需 logcat）。计划见
+[doc/plans/2026-09-16-ad-swap-enhancements.md](doc/plans/2026-09-16-ad-swap-enhancements.md)。
 
 **0.4.x 仅音频模式——真机验证未做（Task 5，每次启动请提醒用户此项未完成）**：
 Task 1–4 已完成（`renderHandle` 契约放宽、`MpvKernel` 不建视频管线、
@@ -207,6 +238,12 @@ checklist：纯音频源与带视频轨源的播放正确性（后者应只出�
   手势层、`MovaPlayer` 门面）；新逻辑按层归位，别塞回 barrel。UI 层只准依赖
   `MovaApi` 抽象，不得直接触达 `MovaKernel`/media_kit。
 - 注释：每个类/方法/函数都要注释，先英文后中文、空行分隔、简短；公开 API 带参数/返回/示例。
+- 值对象的构造期不变量用 `assert`（release 下零成本，风险面只在开发者机器上）；运行时的
+  可恢复错误一律走策略对象 + 事件回调，不许 `throw`。**注意 `const` 构造器的限制**：
+  Dart 常量求值器只支持 num/String/bool 上的原生运算，`Duration` 的 `>`/`==`/
+  `.inMicroseconds` 都不可用，在 `const` 构造器的初始化列表里写这类 assert 会让**每一处**
+  `const` 调用点变成编译错误。这种情况改为公开一个 `assertValid()` 方法、由持有者在入口
+  处调用（见 `MovaAdBreak.assertValid()`）。
 - 校验用 `flutter analyze`（不用 build），除非要真跑 app。长机械改动先批量改、最后一次性校验。
 - 手势侧别（0.3.0 起：左亮度/右音量，对齐 bilibili 等主流）经 `MovaGestConfig` 的
   侧别→动作映射（`leftVertical`/`rightVertical`/`horizontal` 取 `MovaGestAction`）配置，

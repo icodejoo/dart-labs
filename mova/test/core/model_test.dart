@@ -107,4 +107,115 @@ void main() {
       expect(calls, 1);
     });
   });
+
+  group('MovaAdBreak — 0.5.0 delay / duration / waitForReady', () {
+    const adSource = MovaSource('https://host/ad.mp4');
+
+    test('the three new fields default to zero / null / null', () {
+      const b = MovaAdBreak(kind: MovaAdBreakKind.mid, source: adSource);
+      expect(b.delay, Duration.zero);
+      expect(b.duration, isNull);
+      expect(b.waitForReady, isNull);
+    });
+
+    test('the three new fields can be set and read back', () {
+      const b = MovaAdBreak(
+        kind: MovaAdBreakKind.mid,
+        source: adSource,
+        delay: Duration(seconds: 3),
+        duration: Duration(seconds: 15),
+        waitForReady: true,
+      );
+      expect(b.delay, const Duration(seconds: 3));
+      expect(b.duration, const Duration(seconds: 15));
+      expect(b.waitForReady, isTrue);
+    });
+
+    test('assertValid passes when duration outlasts skippableAfter', () {
+      const b = MovaAdBreak(
+        kind: MovaAdBreakKind.pre,
+        source: adSource,
+        duration: Duration(seconds: 15),
+        skippableAfter: Duration(seconds: 5),
+      );
+      expect(b.assertValid, returnsNormally);
+    });
+
+    test('assertValid rejects duration equal to skippableAfter: the skip control never appears', () {
+      const b = MovaAdBreak(
+        kind: MovaAdBreakKind.pre,
+        source: adSource,
+        duration: Duration(seconds: 5),
+        skippableAfter: Duration(seconds: 5),
+      );
+      expect(b.assertValid, throwsA(isA<AssertionError>()));
+    });
+
+    test('assertValid rejects duration shorter than skippableAfter', () {
+      const b = MovaAdBreak(
+        kind: MovaAdBreakKind.pre,
+        source: adSource,
+        duration: Duration(seconds: 3),
+        skippableAfter: Duration(seconds: 5),
+      );
+      expect(b.assertValid, throwsA(isA<AssertionError>()));
+    });
+
+    test('assertValid accepts a null duration alongside a non-null skippableAfter', () {
+      const b = MovaAdBreak(
+        kind: MovaAdBreakKind.pre,
+        source: adSource,
+        skippableAfter: Duration(seconds: 5),
+      );
+      expect(b.duration, isNull);
+      expect(b.assertValid, returnsNormally);
+    });
+
+    test('assertValid rejects a non-zero delay on a pre-roll or a post-roll', () {
+      const pre = MovaAdBreak(
+        kind: MovaAdBreakKind.pre,
+        source: adSource,
+        delay: Duration(seconds: 3),
+      );
+      const post = MovaAdBreak(
+        kind: MovaAdBreakKind.post,
+        source: adSource,
+        delay: Duration(seconds: 3),
+      );
+      expect(pre.assertValid, throwsA(isA<AssertionError>()));
+      expect(post.assertValid, throwsA(isA<AssertionError>()));
+    });
+
+    test('assertValid accepts a non-zero delay on a mid-roll', () {
+      const b = MovaAdBreak(
+        kind: MovaAdBreakKind.mid,
+        source: adSource,
+        offset: Duration(seconds: 30),
+        delay: Duration(seconds: 3),
+      );
+      expect(b.delay, const Duration(seconds: 3));
+      expect(b.assertValid, returnsNormally);
+    });
+
+    test('waitForReady can be forced either way on every kind, including pre and post', () {
+      for (final kind in MovaAdBreakKind.values) {
+        final on = MovaAdBreak(kind: kind, source: adSource, waitForReady: true);
+        final off = MovaAdBreak(kind: kind, source: adSource, waitForReady: false);
+        expect(on.waitForReady, isTrue);
+        expect(off.waitForReady, isFalse);
+        expect(on.assertValid, returnsNormally, reason: 'the model must not second-guess the host');
+        expect(off.assertValid, returnsNormally);
+      }
+    });
+
+    test('waitForReady true coexists with a zero delay — the default mid-roll shape', () {
+      const b = MovaAdBreak(
+        kind: MovaAdBreakKind.mid,
+        source: adSource,
+        waitForReady: true,
+      );
+      expect(b.waitForReady, isTrue);
+      expect(b.delay, Duration.zero);
+    });
+  });
 }
