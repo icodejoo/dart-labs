@@ -556,7 +556,7 @@ index 0000000..65c31dd
 @@ -0,0 +1 @@
 +option('linking', type : 'combo', choices : ['shared', 'static'], value : 'shared')
 diff --git a/nix/packages/mk-pkg-libpng/default.nix b/nix/packages/mk-pkg-libpng/default.nix
-index 9a5fafd..33c4819 100644
+index 9a5fafd..822d2d1 100644
 --- a/nix/packages/mk-pkg-libpng/default.nix
 +++ b/nix/packages/mk-pkg-libpng/default.nix
 @@ -2,6 +2,8 @@
@@ -588,6 +588,27 @@ index 9a5fafd..33c4819 100644
    '';
    buildPhase = ''
      meson compile -vC build
+@@ -67,4 +72,20 @@ pkgs.stdenvNoCC.mkDerivation {
+   installPhase = ''
+     meson install -C build
+   '';
++  # movaslim only: libpng's own meson.build auto-generates libpng16.pc with
++  # `Requires: zlib` (publicly, since libpng's headers reference zlib
++  # types) — but there is no zlib.pc anywhere in this build (iOS's system
++  # libz is found by ffmpeg/mpv etc. via plain -lz + the SDK's default
++  # library search path, never through pkg-config). Harmless while libpng
++  # was only ever a leaf dependency (nothing resolved libpng.pc
++  # transitively), but movaslim's libass->libpng chain now does exactly
++  # that, and pkg-config refuses to resolve a Requires: for a package with
++  # no .pc file: "Package zlib was not found in the pkg-config search path"
++  # (run 35203587065, 2026-09-17). The actual `-lz` link flag is already in
++  # libpng16.pc's own Libs/Libs.private (system lib, always on the default
++  # link path), so dropping the Requires: line loses nothing real — it's
++  # metadata for a transitive .pc lookup that was never going to resolve.
++  postFixup = pkgs.lib.optionalString (flavor == flavors.movaslim) ''
++    sed -i '/^Requires:.*zlib/d; /^Requires\.private:.*zlib/d' $out/lib/pkgconfig/libpng16.pc
++  '';
+ }
 diff --git a/nix/packages/mk-pkg-mpv/default.nix b/nix/packages/mk-pkg-mpv/default.nix
 index 543805a..7718ba7 100644
 --- a/nix/packages/mk-pkg-mpv/default.nix
