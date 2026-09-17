@@ -301,8 +301,80 @@ index 35457c2..4f2e898 100644
 +    '--enable-hwaccel=hevc_videotoolbox',
 +]
 +
- # https://github.com/media-kit/libmpv-android-audio-build/blob/260666c0fef8c154971b5faf3f78da27c2bf2c40/buildscripts/flavors/default.sh
- audio_default_options = [
++# mova's own trimmed audio component list (mirrors mova-libmpv/
++# flavors-mova-slim.sh's Android DECODERS_AUDIO/PARSERS/DEMUXERS — same
++# reasoning as video_movaslim_options above: audio_default_options below
++# drops in every legacy/niche codec ffmpeg knows (DTS/TrueHD/AC3/EAC3/WMA*/
++# APE/ATRAC*/ALS/GSM*/MPC*/RA*/Shorten/TAK/TTA/WavPack/DSD*/mp1/mp2 decoders,
++# plus asf/avi/rm/aiff/au/wv/xwma/dsf/dts/truehd demuxers) that mova's HLS/
++# MP4 VOD+live pipeline never produces — none of mova's ad/live/VOD sources
++# carry them, and each one is a dylib-size line item for a codec that never
++# gets exercised. Keeps: AAC (HLS/MP4 default audio), MP3, Opus, FLAC,
++# Vorbis (ogg/webm audio) and raw/linear PCM (wav, and some mp4 sources).
++# Demuxers add mp3/flac/ogg/wav/aac on top of video_movaslim_options' mov/
++# matroska/mpegts/hls so mova's audioOnly mode (0.4.x, see mova/CLAUDE.md)
++# can also open a bare standalone audio file, not just audio-in-video.
++audio_movaslim_options = [
++    # decoders
++    '--enable-decoder=aac',
++    '--enable-decoder=aac_latm',
++    '--enable-decoder=mp3float',
++    '--enable-decoder=opus',
++    '--enable-decoder=flac',
++    '--enable-decoder=vorbis',
++    '--enable-decoder=pcm_s16le',
++    '--enable-decoder=pcm_s16be',
++    '--enable-decoder=pcm_s24le',
++    '--enable-decoder=pcm_s32le',
++    '--enable-decoder=pcm_f32le',
++    '--enable-decoder=pcm_u8',
++
++    # parsers
++    '--enable-parser=aac',
++    '--enable-parser=aac_latm',
++    '--enable-parser=flac',
++    '--enable-parser=opus',
++    '--enable-parser=vorbis',
++    '--enable-parser=mpegaudio', # mp3
++
++    # demuxers — standalone audio containers only; mov/matroska/mpegts/hls
++    # (audio-in-video) already come from video_movaslim_options above
++    '--enable-demuxer=mp3',
++    '--enable-demuxer=flac',
++    '--enable-demuxer=ogg',
++    '--enable-demuxer=wav',
++    '--enable-demuxer=aac',
++
++    # filters — kept as-is from audio_default_options below (mpv's OSD/
++    # subtitle overlay and mova's ad-volume ducking both depend on these;
++    # cutting avfilter usage entirely is tracked separately, see mova/
++    # CLAUDE.md's ffmpeg-slim "avfilter" open item, not part of this pass)
++    '--enable-filter=overlay',
++    '--enable-filter=equalizer',
++]
++
++# mova's own protocol whitelist. mova is an HLS-first VOD/live player (see
++# mova/CLAUDE.md); it never opens FTP, RTMP-family, raw RTP/UDP live feeds,
++# or the io/cache/subfile/httpproxy indirection protocols — those are all
++# dropped. HLS's manifest+segment fetch rides entirely on http(s)/tcp/tls;
++# `hls` here is ffmpeg's *protocol* (used internally by the hls demuxer for
++# nested playlists), not the demuxer already enabled above. `crypto` is
++# required for HLS AES-128 segment decryption. `file`/`data`/`pipe` cover
++# local files and media_kit's in-memory/pipe sources.
++protocol_movaslim_options = [
++    '--enable-protocol=file',
++    '--enable-protocol=data',
++    '--enable-protocol=pipe',
++    '--enable-protocol=http',
++    '--enable-protocol=https',
++    '--enable-protocol=tcp',
++    '--enable-protocol=tls',
++    '--enable-protocol=crypto',
++    '--enable-protocol=hls',
++]
++
++# https://github.com/media-kit/libmpv-android-audio-build/blob/260666c0fef8c154971b5faf3f78da27c2bf2c40/buildscripts/flavors/default.sh
++audio_default_options = [
      # decoders
 @@ -303,9 +418,21 @@ options = disable_all_options
  
@@ -331,10 +403,15 @@ index 35457c2..4f2e898 100644
          options += video_encodersgpl_options
      endif
 +elif flavor == 'movaslim'
-+    # audio path is untouched (mova's slimming work so far is video-only —
-+    # flavors-mova-slim-ios.sh never touched the audio variant either);
-+    # reuse audio_default_options as-is.
-+    options += audio_default_options
++    # audio + protocol are now trimmed to mova's own whitelist too (see
++    # audio_movaslim_options/protocol_movaslim_options above) — this used to
++    # reuse audio_default_options/the upstream protocol defaults as-is
++    # ("audio path is untouched"), which meant movaslim was shipping every
++    # legacy audio codec and every protocol (FTP/RTMP family/raw RTP/UDP)
++    # upstream knows about, none of which mova's HLS-first VOD/live pipeline
++    # ever exercises.
++    options += audio_movaslim_options
++    options += protocol_movaslim_options
 +    if variant == 'video'
 +        options += video_movaslim_options
 +    endif
@@ -888,11 +965,11 @@ index e2aa737..ac4fa51 100644
    default = "default";
    full = "full";
    encodersgpl = "encodersgpl";
-+  # mova's own decoder/demuxer/parser slim list (video variant only —
-+  # audio_default_options is reused as-is) plus securetransport instead of
-+  # mbedtls for TLS (drops 3 dylibs + the --enable-version3 GPLv3-adjacent
-+  # requirement, mirroring mova/tools/ffmpeg-slim's already-designed but
-+  # never-wired-up flavors-mova-slim-ios.sh).
++  # mova's own decoder/demuxer/parser slim list (video AND audio variants,
++  # plus a protocol whitelist) plus securetransport instead of mbedtls for
++  # TLS (drops 3 dylibs + the --enable-version3 GPLv3-adjacent requirement,
++  # mirroring mova/tools/ffmpeg-slim's already-designed but never-wired-up
++  # flavors-mova-slim-ios.sh / flavors-mova-slim.sh).
 +  movaslim = "movaslim";
  }
 diff --git a/nix/utils/default/flavors.nix b/nix/utils/default/flavors.nix
