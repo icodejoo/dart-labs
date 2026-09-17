@@ -1043,17 +1043,20 @@ jobs:
           # DO have real dead code (many optional subsystems compiled in but
           # unreachable with cplayer=false etc.), so section splitting pays off
           # here specifically — it's a net loss everywhere else in this job.
-          # -Oz instead of buildtype's default -Os: the single biggest lever in
-          # the whole plan, -1,575,424 bytes (-11.2%) on top of everything else,
-          # verified against the full symbol/self-containment checklist below.
-          # (The same swap on ffmpeg's build above measured +512 bytes — noise —
-          # so it's mpv-only; ffmpeg's code is already tight enough that generic
-          # extra optimization has nothing left to gain.)
+          # -Oz was tried in place of buildtype's default -Os (locally measured
+          # -1,575,424 bytes, -11.2%) but real CI produced a DLL only ~11,776
+          # bytes smaller than the plain -Os build (14,042,624 vs the -Os
+          # baseline's 14,054,400) — nowhere near the local win, and the gap
+          # was never root-caused (possible meson/gcc flag-merge-order
+          # difference between the local toolchain snapshot and CI's). Given
+          # the discrepancy is unexplained, reverted to -Os (buildtype=minsize's
+          # own default — no explicit -O override needed) rather than ship an
+          # optimization level whose real-world effect couldn't be confirmed.
           meson setup build --prefix="$WS/prefix" --libdir=lib --default-library=shared \
             --prefer-static \
             -Dbuildtype=minsize -Ddebug=false -Db_ndebug=true \
-            -Dc_args="-Oz -ffunction-sections -fdata-sections -fomit-frame-pointer" \
-            -Dcpp_args="-Oz -ffunction-sections -fdata-sections -fomit-frame-pointer" \
+            -Dc_args="-ffunction-sections -fdata-sections -fomit-frame-pointer" \
+            -Dcpp_args="-ffunction-sections -fdata-sections -fomit-frame-pointer" \
             -Dc_link_args="-Wl,-Bstatic -lstdc++ -lwinpthread -Wl,-Bdynamic -ldwrite -lole32 -lrpcrt4 -static-libgcc -Wl,--gc-sections -Wl,-Map=$(cygpath -m "$WS")/libmpv.map" \
             -Dcpp_link_args="-Wl,--gc-sections" \
             -Dgpl=false -Dlibmpv=true -Dcplayer=false -Dtests=false
