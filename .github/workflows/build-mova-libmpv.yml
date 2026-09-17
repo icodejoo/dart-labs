@@ -551,7 +551,14 @@ jobs:
         working-directory: build-root
         run: |
           ls -la result/
-          ARCHIVE=$(find result -name '*.tar.gz' | head -1)
+          # -L: `result` is a symlink into the Nix store — plain `find result`
+          # (no trailing slash, no -L) does not dereference it and silently
+          # matches nothing, even though `ls -la result/` above (trailing
+          # slash forces dereference) shows the archive right there. This
+          # bit the first real build (run 35193860905, 2026-09-17): the nix
+          # build succeeded and produced the tar.gz, but this step still
+          # errored "no .tar.gz archive in result/".
+          ARCHIVE=$(find -L result -name '*.tar.gz' | head -1)
           test -n "$ARCHIVE" || { echo "::error::no .tar.gz archive in result/"; exit 1; }
 
           mkdir -p "$GITHUB_WORKSPACE/ios-out"
