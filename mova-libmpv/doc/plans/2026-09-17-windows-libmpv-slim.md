@@ -203,9 +203,17 @@ mbedtls 是 vendored 的第三方密码学库，被整个静态吸进 DLL；SCha
   静默丢掉 HTTPS 比多 0.5 MiB 严重得多。
 - 失败信号：产物变小但 `https` 从协议列表里消失 = 假成功。
 
-## 4. Task 2：ffmpeg 加分节编译参数
+## 4. ~~Task 2：ffmpeg 加分节编译参数~~ ——已废弃，实测净负收益 +124%，不要做
 
-**改的文件**：`.github/workflows/build-mova-libmpv.yml`（ffmpeg configure）
+> **2026-09-17 本地验证已推翻本 Task**：给 ffmpeg 加 `-ffunction-sections
+> -fdata-sections` 不是预测的 ±0，而是让最终产物从 14.70MiB 炸到
+> **32.58MiB（+124%）**——`libavcodec.a` 单独从 27.5MB 涨到 32.9MB（+20%），
+> 根源是 COFF 格式下逐函数分节的 section 头/重定位开销，在 ffmpeg 这种
+> "几乎全部代码都真实被调用、没有死代码可回收"的库上是纯负担，
+> `--gc-sections` 完全补不回来。**跳过本 Task，直接进 Task 3。**
+> 完整数据见 §12 执行记录"发现 2"。以下原方案内容保留仅供追溯，不要执行。
+
+**改的文件**：~~`.github/workflows/build-mova-libmpv.yml`（ffmpeg configure）~~（已废弃）
 
 ```diff
              --enable-small --enable-optimizations \
@@ -570,7 +578,17 @@ libass（autotools）：CFLAGS/CXXFLAGS 追加 `-flto`。
   `mpv_terminate_destroy`，能抓住"导出表齐全但初始化就崩"这一类问题。
   runner 上无 GPU/无显示器，只能测到初始化层，**不能替代真机播放验证**。
 
-## 9. 体积预测表
+## 9. 体积预测表（原始估算，**已被 §12 的本地实测结果推翻，仅供追溯**）
+
+> **2026-09-17 更新**：以下预测表是本计划最初写就时的估算，**本地全流程验证
+> 已经证明其中好几项预测错误**（Task 2 从"±0"变成实测"+124%"、Task 4/5 的
+> `-ffunction-sections` 判断需要修正、Task 5 从"−800K~−1.5M"变成实测"0"，
+> 且发现了预测表完全没覆盖的 `-Oz`（−1.57MB，全计划最大单项收益））。
+> **要看真实数字，直接看 §12「最终验证结果」表，不要用这张表做决策。**
+> 本表保留只是为了让后来者看到"最初以为会怎样"和"实测怎样"的落差，
+> 本身就是一条值得记住的教训：**编译期体积优化必须逐项实测，类比其他平台/
+> 项目的经验只能定方向，不能定数字，尤其是"分节编译"这类手段的收益/负收益
+> 完全取决于目标代码库有多少真实死代码可回收，没有放之四海而皆准的预测。**
 
 基于 §0.2 的拆分（ffmpeg+mpv ≈ 7.8 MiB / 静态依赖 ≈ 6.8 MiB）分别估算，
 **不是拿 Android 的 −27% 直接乘**——Android 那 −27% 里贡献最大的
@@ -639,26 +657,123 @@ Linux 那一份反而更好做（它是纯 ELF，Android 的经验可以直接�
 包括 Windows 用不上的 `-fvisibility=hidden`）。
 建议作为紧接着的下一个独立计划，**不要塞进本计划的任何一个 Task**。
 
-## 12. 执行记录（执行者填写）
+## 12. 执行记录（2026-09-17 本地全流程真实验证，已完成）
 
-> 每个 Task 做完/失败都在这里追加：CI run 链接、commit sha、实测字节数、
-> 符号核验结果、遇到的报错原文。失败也是结论——如实记录，不要为了"成功"
-> 而一次改多个变量，也不要为了让某个 flag 跑通而牺牲功能。
+> 本节记录的是**本地用真实 MINGW64 工具链（MSYS2，非 CI 本身）跑通整条
+> ffmpeg n6.0.1 + mpv 78d43740f5 构建链**得到的结果——每一步都过了完整
+> symbol/自包含核验。之所以先在本地验证而不是逐个 push CI，是因为这一轮
+> 挖出的三处发现都会直接推翻计划原文的预测，本地一次链路能跑几十次
+> 迭代，而 CI 一次 run 要等 10+ 分钟，且每次 push 到 GitHub main 都会因为
+> `mova-libmpv/**` 路径过滤器触发全平台重建（见 `mova/CLAUDE.md`「剩余任务」
+> libmpv 迁移 Task 6 附近记录的教训）。**这些数字尚未被真实 CI run 复现
+> 确认**，下一步是把本节验证通过的配置落进 workflow 并推一次 CI 做最终确认
+> （本地 MINGW64 环境的构建结果历史上跟 CI 的差异只有 0.05%，见下方
+> "本地环境保真度验证"，可信度高）。
 
-### Task 0 归因基线
+### 本地环境保真度验证
 
-（待填：前 15 行归因表、DLL 导入表、6.58 MiB vs 14.66 MiB 疑点的结论）
+本机没装 MINGW64（只有 UCRT64），先 `pacman -S mingw-w64-x86_64-toolchain` 等
+装出跟 CI 完全一致的子系统，然后完整跑一遍**未做任何优化改动**的原始配方，
+比对 CI 实测的 15,368,704 字节：本地产出 15,361,536 字节，**差 7,168 字节
+（0.05%）**——确认本地构建链忠实复现 CI，后续本地测出的数字可信。
 
-### Task 1 ~ Task 7
+### 三个推翻计划原文预测的发现（按重要性排序）
 
-| Task | commit | CI run | 字节数 | Δ | 符号核验 | 备注 |
-|---|---|---|---:|---:|---|---|
-| 基线 | — | — | 15,368,704 | — | — | 2026-09-17 `dist/` 实测 |
-| 0 归因 | | | | ±0（预期） | | |
-| 1 SChannel | | | | | | 同时确认 License: LGPLv2.1 |
-| 2 ffmpeg 分节 | | | | | | 微涨属正常 |
-| 3 mpv minsize+gc | | | | | | 第一个有砍活代码风险的 Task |
-| 4 dav1d 源码 | | | | | | |
-| 5 ft/fribidi/hb 源码 | | | | | | |
-| 6 libass 源码 | | | | | | |
-| 7 LTO | | | | | | 失败即回滚，不追 |
+**发现 1：Task 0 揭露产物其实不自包含（正确性 bug，非体积问题）**——
+`meson`/`ninja` 产出的 `libmpv-2.dll` 导入表里有 `libgcc_s_seh-1.dll`/
+`libstdc++-6.dll`/`libwinpthread-1.dll`，用户机器没装 MinGW 运行时就会
+`LoadLibrary` 失败。用 `-static-libgcc` + `-Wl,-Bstatic -lstdc++ -lwinpthread
+-Wl,-Bdynamic` 括号修复（`-static-libstdc++` 单独无效，因为是 C 驱动手动
+`-lstdc++`，不是 C++ 驱动自动加的那个），代价 +107,008 字节（+0.7%），
+正确性优先于体积。**新真基线：15,475,712 字节**（原 15,368,704 是带 bug
+的错误基线，不能拿来当起点）。顺带发现 `-Wl,-Map=$WS/...`（POSIX 路径）会让
+`ld.exe` 报 "cannot open map file" 直接链接失败，须用 `cygpath -m` 转换。
+
+**发现 2：`-ffunction-sections`/`-fdata-sections` 不能无脑套用在 ffmpeg/依赖库
+上——对这类"几乎全部代码都会被用到"的库是纯负收益，不是计划原文预测的 ±0**：
+- 给 ffmpeg 加这两个 flag（Task 2 原方案），`libavcodec.a` 从 27.5MB 涨到
+  32.9MB（+20%），最终链接产物从 14.70MiB **炸到 32.58MiB（+124%）**。
+  根源：COFF 格式下每个函数独立成 section 带来的 section 头/重定位开销，
+  在 gc-sections 找不到死代码可回收时（ffmpeg 的解码器代码路径基本全部
+  真实被调用）是纯负担。**Task 2 已从方案中整体剔除，不要加到 ffmpeg**。
+- 同一模式在 dav1d 上复现：加了这两个 flag 从源码构建 dav1d，链接后
+  **反而 +62,976 字节**；去掉这两个 flag（只留 `buildtype=minsize`/`-Os`），
+  从源码构建 dav1d 才真正带来 **−223,232 字节**的净收益，且 archive 本身
+  从 pacman 版的 3.11MB 降到 2.84MB。**结论：`-ffunction-sections` 只应用在
+  mpv 自己的编译单元上**（mpv 有真实死代码——大量可选子系统在当前功能
+  裁剪下不会被触达，gc-sections 在这里才有东西可回收，实测 mpv 单独应用
+  两个 flag + `--gc-sections` 拿到 −424,448 字节）；ffmpeg 和所有从源码
+  构建的依赖库（dav1d/freetype/fribidi/harfbuzz/libass）**一律不要加**这两个
+  flag，只给 `-Os`/`buildtype=minsize`。
+
+**发现 3：`-Oz` 比 `-Os` 有巨大额外收益，但只在 mpv 自己的代码上生效**——
+`buildtype=minsize` 默认给的是 `-Os`（已用 `compile_commands.json` 实测确认），
+换成更激进的 `-Oz`（GCC 支持，`gcc -Oz` 编译测试成功）：**只在 mpv 的
+`c_args`/`cpp_args` 里加，−1,575,424 字节（−11.2%）**，是全计划单项收益
+最大的一步，全部符号核验通过（`mpv_create`/`dav1d_open`/`ass_library_init`/
+`hb_shape`/`FT_Init_FreeType`/`fribidi_get_par_embedding_levels_ex`/
+D3D11VA hwaccel 全部在，导入表干净）。**但同样加到 ffmpeg 上几乎零收益**
+（`libavcodec.a` 27,550,380→27,551,636，最终链接产物 +512 字节，噪声级）——
+再次印证"ffmpeg 的代码路径已经足够紧，通用编译期优化对它边际收益趋近于零，
+真正的空间在 mpv 自己的可选子系统和依赖库的功能裁剪上"这条本轮反复验证的
+规律。**灵感来源**：`svgx`（本 monorepo 另一个 Rust 项目）的 `opt-level="z"`
+是同一个优化级别的 Rust 说法，他们的 `opt-level` 全对照表独立得出同样结论
+（`"z"` 是体积帕累托最优，`"s"` 多付 12% 体积只换 33% 速度）——两个完全不同
+工具链、互不知情的项目收敛到同一结论，可信度高。详见 `svgx/doc/SIZE_OPTIMIZATION.md`。
+
+### 两个测过但不采纳的候选
+
+- **`-fno-asynchronous-unwind-tables`**（灵感来自 svgx 的 `panic="abort"`
+  移除 unwind 机制）：实测 −87,552 字节（−0.7%，`.pdata`/`.xdata` section
+  仍在但变小），**但不采纳**——Windows x64 ABI 强制要求完整 unwind 信息用于
+  SEH 栈展开，这个 flag 只影响"精确到每条指令"的展开粒度，削弱后可能在真实
+  异常/崩溃场景下让栈展开不完整，播放器的崩溃报告/异常路径可靠性优先于
+  0.7% 体积。
+- **lld + `--icf=all`**（灵感来自 svgx 在 Android 上用 lld ICF 拿到 −1.29%，
+  同时修正了本计划早先"ICF 无收益"的判断——**那个判断只对 GNU bfd ld 成立**，
+  lld 的 ICF 实现完全是另一回事）：`pacman -S mingw-w64-x86_64-lld` 装上后
+  `-fuse-ld=lld` 直接链接失败——`gcc` 驱动给共享库链接自动注入
+  `--allow-shlib-undefined`，这是 bfd/gold 的选项，lld 的 **MinGW/COFF 端口
+  不支持**（lld 的 ELF 端口支持，但 mova 这里编译目标是 PE/COFF）。修这个
+  需要更深的链接器层面 workaround，而 svgx 自己在 Android 上实测的收益也只有
+  −1.29%，投入产出比不划算，**不追**。
+
+### 最终验证结果（本地，2026-09-17）
+
+| 阶段 | 字节 | Δ | 累计 vs 真基线(15,475,712) |
+|---|---:|---:|---:|
+| CI 原基线（有自包含 bug，不能用） | 15,368,704 | — | — |
+| **Task 0 修复自包含（新真基线）** | **15,475,712** | +107,008 | 基线 |
+| Task 1 SChannel | 14,702,080 | −773,632 | −5.0% |
+| ~~Task 2 ffmpeg 分节~~（已剔除，净负收益） | — | — | — |
+| Task 3 mpv `minsize`+分节+`--gc-sections` | 14,277,632 | −424,448 | −7.7% |
+| Task 4 dav1d 源码构建（不分节） | 14,054,400 | −223,232 | −9.2% |
+| Task 5 freetype/fribidi/harfbuzz 源码构建 | 14,054,400 | **0**（实测无收益，见下） | −9.2% |
+| **追加：mpv 用 `-Oz` 替代 `-Os`** | **12,478,976** | **−1,575,424** | **−19.4%** |
+| Task 6 libass 源码构建 | 未测（本地 `autoreconf` 环境损坏，见下） | — | — |
+
+**Task 5 追记（重要，推翻计划 §6.2 的预测）**：把 freetype/fribidi/harfbuzz
+从 pacman 换成从源码构建（不分节，只 `minsize`），**最终链接字节数一字不差
+（14,054,400 前后相同）**。原因：`--gc-sections` 在 Task 3 已经把能省的都省了，
+只要保证 `pkg-config` 正确解析到自建版本（`pkg-config --variable=prefix
+harfbuzz` 已验证指向自建 prefix），从源码重建这几个库相对 pacman 版本
+**没有额外收益**——除非同时对它们做功能裁剪（关掉 harfbuzz 的 icu/glib/
+cairo、freetype 的 brotli/bzip2/png、libass 的 fontconfig），但那些功能本来
+就没被 mpv 实际调用到，`--gc-sections` 早就会在链接期把它们的代码路径排除，
+不需要在源头上关掉编译选项。**结论：Task 5 不值得做**，除非有其他非体积
+理由（比如避免拉入 fontconfig 这种"Windows 上本不该存在的 Linux 风格依赖"，
+但那是代码卫生问题，不是体积问题）。
+
+**Task 6 未完成原因**：libass 走 autotools，需要 `autoreconf`，本机
+`perl-Error`/`Autom4te::ChannelDefs` 模块损坏（`pacman -S perl` 重装无效），
+是本地环境问题，不是技术方案问题。CI 的 ubuntu/windows-latest 镜像大概率没有
+这个环境损坏，**留给 CI 环境实测**，且基于 Task 5 的模式（`--gc-sections`
+早已吃满收益），预期 Task 6 大概率也是零收益或很小收益，优先级降低。
+
+### 下一步
+
+把本节验证通过的最终配置（Task 1 SChannel + Task 3 mpv `-Oz`/`minsize`/
+分节/`--gc-sections`/自包含修复 + Task 4 dav1d 源码构建）落进
+`.github/workflows/build-mova-libmpv.yml` 的 `windows` job，推一次真实 CI
+做最终确认（预期误差 <0.1%，参考本节"本地环境保真度验证"）。Task 5/6
+按上述结论降低优先级，不在这一轮落地。
