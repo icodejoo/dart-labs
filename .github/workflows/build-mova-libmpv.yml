@@ -962,9 +962,18 @@ jobs:
           # -lstdc++/-ldwrite: static libharfbuzz.a is C++ and uses DirectWrite,
           # but libmpv is a C target so the C driver links neither (the
           # operator new/delete undefined refs in run 31096129335).
+          # Local verification (2026-09-17, doc/plans/2026-09-17-windows-libmpv-slim.md
+          # Task 0) found the DLL was NOT actually self-contained despite the comment
+          # above: it dynamically imported libgcc_s_seh-1.dll/libstdc++-6.dll/
+          # libwinpthread-1.dll. -static-libgcc alone drops the first; plain
+          # -static-libstdc++ has no effect here because we invoke the C driver with
+          # an explicit -lstdc++ (the flag only substitutes a C++ driver's own
+          # auto-added -lstdc++, not one we pass ourselves) — -Wl,-Bstatic ...
+          # -Wl,-Bdynamic bracketing the two problem libs is what actually works.
+          # Cost: +114,176 bytes (+0.7%) locally verified, correctness over size.
           meson setup build --prefix="$WS/prefix" --libdir=lib --default-library=shared \
             --prefer-static \
-            -Dc_link_args="-lstdc++ -ldwrite -lole32 -lrpcrt4" \
+            -Dc_link_args="-Wl,-Bstatic -lstdc++ -lwinpthread -Wl,-Bdynamic -ldwrite -lole32 -lrpcrt4 -static-libgcc -Wl,-Map=$(cygpath -m "$WS")/libmpv.map" \
             -Dgpl=false -Dlibmpv=true -Dcplayer=false -Dtests=false
           ninja -C build
           ninja -C build install
@@ -974,6 +983,42 @@ jobs:
           # Meson on mingw names the shared lib libmpv-2.dll (soversion baked in).
           DLL=$(find "$WS/prefix" -iname 'libmpv*.dll' | head -1)
           test -n "$DLL" || { echo "::error::libmpv*.dll not found under prefix/"; find "$WS/prefix" -type f -print; exit 1; }
+
+          # Task 0 (doc/plans/2026-09-17-windows-libmpv-slim.md): size attribution
+          # by input archive/object, from the linker map, BEFORE strip removes the
+          # symbol names the map references. Must not change the DLL's bytes.
+          if [ -f "$WS/libmpv.map" ]; then
+            echo "### 体积归因（按输入归档，链接期字节，未 strip）" >> "$GITHUB_STEP_SUMMARY"
+            echo '```' >> "$GITHUB_STEP_SUMMARY"
+            awk '
+              /^ \.[^ ]+$/ { pending=1; next }
+              {
+                if (pending) { line = " x " $0; pending = 0 } else { line = $0 }
+                n = split(line, f, /[ \t]+/)
+                if (n >= 5 && f[3] ~ /^0x/ && f[4] ~ /^0x/ && f[5] ~ /\.(a|o)/) {
+                  obj = f[5]; sub(/\(.*/, "", obj)
+                  size[obj] += strtonum(f[4])
+                }
+              }
+              END { for (o in size) printf "%12d  %s\n", size[o], o }
+            ' "$WS/libmpv.map" | sort -rn | head -40 >> "$GITHUB_STEP_SUMMARY"
+            echo '```' >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "::warning::libmpv.map 未生成，体积归因缺失（检查 -Wl,-Map 是否被 meson 吞掉）"
+          fi
+
+          # Self-containment check: this build's whole point is one standalone
+          # DLL, not one that hunts for MSYS2 runtime DLLs on the user's machine.
+          # 2026-09-17 local verification caught this actually failing (see the
+          # -Wl,-Bstatic/-static-libgcc comment on the meson setup step above) —
+          # hard-fail so it can't silently regress again.
+          echo "### DLL 导入表" >> "$GITHUB_STEP_SUMMARY"
+          objdump -p "$DLL" | grep -i 'DLL Name' | sort -u >> "$GITHUB_STEP_SUMMARY"
+          for bad in libstdc++ libgcc_s libwinpthread; do
+            objdump -p "$DLL" | grep -i 'DLL Name' | grep -qi "$bad" \
+              && { echo "::error::产物导入了 $bad —— 不再自包含，用户机器上会因缺少 MinGW 运行时而加载失败"; exit 1; }
+          done
+
           strip -s "$DLL"
 
           echo "### libmpv.dll size (windows x86_64)" >> "$GITHUB_STEP_SUMMARY"
