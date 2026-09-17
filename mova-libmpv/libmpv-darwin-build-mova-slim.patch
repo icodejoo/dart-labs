@@ -143,7 +143,7 @@ index 060869c..37a4a71 100644
      ]
      ++ pkgs.lib.optionals (variant == variants.video && flavor == flavors.encodersgpl) [
 diff --git a/nix/packages/mk-pkg-ffmpeg/meson.build b/nix/packages/mk-pkg-ffmpeg/meson.build
-index 35457c2..7df0daa 100644
+index 35457c2..d056d0c 100644
 --- a/nix/packages/mk-pkg-ffmpeg/meson.build
 +++ b/nix/packages/mk-pkg-ffmpeg/meson.build
 @@ -12,6 +12,16 @@ nm = find_program('nm')
@@ -215,7 +215,7 @@ index 35457c2..7df0daa 100644
  audio_common_options = [
      '--enable-zlib', # rasc support
      '--enable-audiotoolbox',
-@@ -67,11 +106,159 @@ audio_common_options = [
+@@ -67,11 +106,169 @@ audio_common_options = [
  
  video_common_options = [
      '--enable-neon', # improve hevc (h265) support on arm
@@ -354,13 +354,16 @@ index 35457c2..7df0daa 100644
 +]
 +
 +# mova's own protocol whitelist. mova is an HLS-first VOD/live player (see
-+# mova/CLAUDE.md); it never opens FTP, RTMP-family, raw RTP/UDP live feeds,
-+# or the io/cache/subfile/httpproxy indirection protocols — those are all
-+# dropped. HLS's manifest+segment fetch rides entirely on http(s)/tcp/tls;
-+# `hls` here is ffmpeg's *protocol* (used internally by the hls demuxer for
-+# nested playlists), not the demuxer already enabled above. `crypto` is
-+# required for HLS AES-128 segment decryption. `file`/`data`/`pipe` cover
-+# local files and media_kit's in-memory/pipe sources.
++# mova/CLAUDE.md) but RTMP push/pull and raw RTP/UDP live feeds are still
++# real sources it needs to open — keep the full RTMP family and udp/rtp.
++# Only the io/cache/subfile/httpproxy indirection protocols and FTP are
++# dropped (mova never opens ftp:// sources, and those four are transport
++# wrappers mova's own request paths never route through). HLS's manifest+
++# segment fetch rides on http(s)/tcp/tls; `hls` here is ffmpeg's *protocol*
++# (used internally by the hls demuxer for nested playlists), not the
++# demuxer already enabled above. `crypto` is required for HLS AES-128
++# segment decryption. `file`/`data`/`pipe` cover local files and
++# media_kit's in-memory/pipe sources.
 +protocol_movaslim_options = [
 +    '--enable-protocol=file',
 +    '--enable-protocol=data',
@@ -371,12 +374,19 @@ index 35457c2..7df0daa 100644
 +    '--enable-protocol=tls',
 +    '--enable-protocol=crypto',
 +    '--enable-protocol=hls',
++    '--enable-protocol=rtmp',
++    '--enable-protocol=rtmps',
++    '--enable-protocol=rtmpt',
++    '--enable-protocol=rtmpts',
++    '--enable-protocol=ffrtmphttp',
++    '--enable-protocol=udp',
++    '--enable-protocol=rtp',
 +]
 +
  # https://github.com/media-kit/libmpv-android-audio-build/blob/260666c0fef8c154971b5faf3f78da27c2bf2c40/buildscripts/flavors/default.sh
  audio_default_options = [
      # decoders
-@@ -303,9 +490,21 @@ options = disable_all_options
+@@ -303,9 +500,21 @@ options = disable_all_options
  
  # common
  options += common_options
@@ -398,7 +408,7 @@ index 35457c2..7df0daa 100644
  endif
  
  # components
-@@ -326,6 +525,19 @@ elif flavor == 'encodersgpl'
+@@ -326,6 +535,20 @@ elif flavor == 'encodersgpl'
          options += video_full_options
          options += video_encodersgpl_options
      endif
@@ -407,9 +417,10 @@ index 35457c2..7df0daa 100644
 +    # audio_movaslim_options/protocol_movaslim_options above) — this used to
 +    # reuse audio_default_options/the upstream protocol defaults as-is
 +    # ("audio path is untouched"), which meant movaslim was shipping every
-+    # legacy audio codec and every protocol (FTP/RTMP family/raw RTP/UDP)
-+    # upstream knows about, none of which mova's HLS-first VOD/live pipeline
-+    # ever exercises.
++    # legacy audio codec upstream knows about (DTS/TrueHD/WMA/APE/ATRAC/etc.)
++    # plus FTP and the async/cache/subfile/httpproxy indirection protocols,
++    # none of which mova's HLS-first VOD/live pipeline ever exercises. RTMP
++    # and raw RTP/UDP live feeds ARE real mova sources and stay enabled.
 +    options += audio_movaslim_options
 +    options += protocol_movaslim_options
 +    if variant == 'video'
@@ -418,7 +429,7 @@ index 35457c2..7df0daa 100644
  endif
  
  p = mod.add_project('configure',
-@@ -337,6 +549,7 @@ p = mod.add_project('configure',
+@@ -337,6 +560,7 @@ p = mod.add_project('configure',
  
          '--nm=@0@'.format(nm.path()),
          '--ar=@0@'.format(ar.path()),
@@ -426,7 +437,7 @@ index 35457c2..7df0daa 100644
          '--as=@0@'.format(''.join(c.cmd_array())),
          '--strip=@0@'.format(strip.path()),
          '--cc=@0@'.format(''.join(c.cmd_array())),
-@@ -348,10 +561,16 @@ p = mod.add_project('configure',
+@@ -348,10 +572,16 @@ p = mod.add_project('configure',
          '--host-cc=@0@'.format(''.join(c.cmd_array())),
          '--host-ld=@0@'.format(''.join(c.cmd_array())),
  
