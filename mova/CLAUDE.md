@@ -148,20 +148,38 @@ feed 引擎池结构性不适用本模型，明确排除。详见
 `post-checkout`/`post-commit`/`post-merge` 三个钩子为空白，直接新建）。
 
 **待恢复时按顺序做剩余 Task**：
-4. **CI 的"提交产物回 dist/"重试逻辑 bug——已修复（2026-09-17），未经 CI 验证**：
-   android-arm64/android-other-abi×3/darwin/linux/windows 五个 job 共用的重试逻辑已从
-   "先本地 commit，push 被拒就 `fetch + rebase`"改造成"每次重试先 `fetch + reset --hard
-   origin/main` 拿干净基线，再在其上 mkdir/cp/add/commit"，从根源上避免
-   `cannot rebase: You have unstaged changes`（不用查清楚具体是什么让工作区变脏，
-   `reset --hard` 无论原因都能保证纯净）。改动见 `.github/workflows/build-mova-libmpv.yml`
-   五处并列的"Commit built artifact to dist/"步骤，详情记在
-   `mova-libmpv/README.md`「多平台进度」表 Windows 那一行。**这个修复本身还没被真实 CI
-   跑过验证过**，留给 Task 6 的全平台重跑一并确认。
+4. **CI 的"提交产物回 dist/"重试逻辑——三个连环 bug，2026-09-17 当天全部现场发现并修复**：
+   a) **rebase-on-dirty-tree**：原先"先本地 commit，push 被拒就 `fetch + rebase`"在工作区
+      不纯净时会 `cannot rebase: You have unstaged changes`；改成"每次重试先 `fetch +
+      reset --hard origin/main` 拿干净基线，再在其上 mkdir/cp/add/commit"，从根源上避免
+      （不用查清楚具体是什么弄脏了工作区）。
+   b) **LFS 内容从未真正上传**（比 a 更隐蔽、后果更重）：`actions/checkout` 不装 LFS 的
+      pre-push/post-commit 钩子，五个 job 原来的 `git push` 因此只推了合法的 LFS *指针*
+      提交，**从未上传过对应的二进制内容**——GitHub main 一度处于"5 个提交存在、但一
+      `checkout` 就 404"的坏状态（arm64-v8a/armeabi-v7a/x86_64/linux-x86_64/darwin×2 共
+      6 个对象缺失，已用 `gh run download` 从该次 run 的 artifact 里取出比对 SHA256 一致
+      后手工塞进 `.git/lfs/objects/` 并 `git lfs push --object-id` 补传，已用干净 clone
+      验证可正常下载）。修复：commit 后、push 前显式插入 `git lfs push origin main`。
+   c) **windows job 专属**：该 job 全部 step 默认 `shell: msys2 {0}`，其 PATH 不含
+      Windows Git 自带的 `git-lfs.exe`，导致 pre-push 钩子直接因"找不到 git-lfs"报错
+      退出——现象和 a 长得很像（`error: failed to push`），但根因完全不同，5 次重试
+      每次都在同一处失败。修复：把"Commit built artifact to dist/"这一步单独覆盖成
+      `shell: bash`（不需要 MSYS2 工具链）。
+   三处改动都在 `.github/workflows/build-mova-libmpv.yml`，详情记在
+   `mova-libmpv/README.md`「多平台进度」表 Windows 那一行。**已过一轮真实 CI 验证**
+   （run 35172861864 起，见 Task 6）。
 5. darwin(macOS) job 上次被我们主动 `gh run cancel` 打断（不是构建失败，只是编译到一半，
-   这个 job 天然要 45-90 分钟+），下次重跑要给够时间，别提前取消。
-6. LFS 化 + 历史清理都做完后，**重新触发一次全平台 CI**，确认全部 6 个 job（4 Android
-   ABI + linux + windows；darwin 视时间预算决定是否一起跑）能在新的 LFS 流程下跑绿并正确
-   提交。
+   这个 job 天然要 45-90 分钟+）——**2026-09-17 已按此要求完整跑完一次，没有提前取消，
+   成功**。
+6. **LFS 化 + 历史清理 + 上述三个 bug 修复后的全平台重跑——已完成（2026-09-17，
+   run 35172861864）**：8 个 job 里 7 个绿（Android arm64-v8a/armeabi-v7a/x86_64、
+   iOS、Linux、Windows、macOS/darwin 全部成功，dist/ 提交与 LFS 内容都正确落地）。
+   唯一失败的是 **Android x86，且是与本次 LFS/CI 修复完全无关的新发现**：
+   "Build libmpv for x86" 那步没有真正报错退出，但压根没产出
+   `prefix/x86/usr/local/lib/libmpv.so`，导致下一步 "Strip and verify" 报
+   `No such file or directory`——x86 架构的构建本身有问题，需要单独排查（未开始），
+   和 arm64-v8a/armeabi-v7a/x86_64 用的是同一套 flavor 脚本、只是架构参数不同，
+   具体哪一步吞掉了失败还没查。
 7. **接线到 mova 实际构建——Android 侧已完成（2026-09-17）**：`example/android/app/
    build.gradle.kts` 新增 `syncMovaLibmpv` Gradle task（`Copy`，从
    `tools/ffmpeg-slim/dist/<abi>/libmpv.so` 拷进 `src/main/jniLibs/<abi>/`，四个 ABI 目录名
