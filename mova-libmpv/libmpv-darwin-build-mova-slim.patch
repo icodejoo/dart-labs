@@ -638,7 +638,7 @@ index 9a5fafd..97268d2 100644
 +  '';
  }
 diff --git a/nix/packages/mk-pkg-mpv/default.nix b/nix/packages/mk-pkg-mpv/default.nix
-index 543805a..521285d 100644
+index 543805a..47c3bd2 100644
 --- a/nix/packages/mk-pkg-mpv/default.nix
 +++ b/nix/packages/mk-pkg-mpv/default.nix
 @@ -3,6 +3,13 @@
@@ -663,7 +663,7 @@ index 543805a..521285d 100644
    variants = import ../../utils/constants/variants.nix;
    oses = import ../../utils/constants/oses.nix;
    callPackage = pkgs.lib.callPackageWith {
-@@ -18,14 +26,47 @@ let
+@@ -18,14 +26,54 @@ let
        os
        arch
        variant
@@ -689,6 +689,13 @@ index 543805a..521285d 100644
 +  # ass-focused scope) — simplest safe fix is disabling it outright for
 +  # movaslim rather than fighting meson's detection.
 +  iconvOption = if flavor == flavors.movaslim then "-Diconv=disabled" else "-Diconv=enabled";
++  # mpv's uchardet feature hard-requires iconv (meson.build: "Feature
++  # uchardet cannot be enabled: iconv was not found!" — run 35205934219,
++  # 2026-09-17, right after disabling iconv above) — must go together.
++  # mk-out-libs/default.nix already drops uchardet.dylib from the movaslim
++  # bundle on the (until now unverified) assumption that mpv doesn't
++  # actually use it; this makes that true rather than just assumed.
++  uchardetOption = if flavor == flavors.movaslim then "-Duchardet=disabled" else "-Duchardet=enabled";
    nativeFile = callPackage ../../utils/native-file/default.nix { };
    crossFile = callPackage ../../utils/cross-file/default.nix { };
    xctoolchainLipo = callPackage ../../utils/xctoolchain/lipo.nix { };
@@ -711,10 +718,15 @@ index 543805a..521285d 100644
  
    nativeBuildInputs = [
      pkgs.meson
-@@ -75,6 +116,12 @@ pkgs.stdenvNoCC.mkDerivation {
+@@ -73,8 +121,16 @@ pkgs.stdenvNoCC.mkDerivation {
+   buildInputs =
+     [ ffmpeg ]
      ++ pkgs.lib.optionals (variant == "video") [
-       uchardet
+-      uchardet
        libass
++    ]
++    ++ pkgs.lib.optionals (variant == "video" && flavor != flavors.movaslim) [
++      uchardet
 +    ]
 +    ++ pkgs.lib.optionals (variant == "video" && flavor == flavors.movaslim) [
 +      harfbuzz
@@ -724,7 +736,7 @@ index 543805a..521285d 100644
      ];
    configurePhase = ''
      DISABLE_ALL_OPTIONS=(
-@@ -198,7 +245,7 @@ pkgs.stdenvNoCC.mkDerivation {
+@@ -198,12 +254,12 @@ pkgs.stdenvNoCC.mkDerivation {
        -Dbuild-date=true `# whether to include binary compile time`
  
        `# misc features`
@@ -733,7 +745,13 @@ index 543805a..521285d 100644
      )
  
      COMMON_VIDEO_OPTIONS=(
-@@ -260,6 +307,7 @@ pkgs.stdenvNoCC.mkDerivation {
+       `# misc features`
+-      -Duchardet=enabled `# uchardet support`
++      ${uchardetOption} `# uchardet support`
+       -Dzlib=enabled `# zlib`
+ 
+       `# video output features`
+@@ -260,6 +316,7 @@ pkgs.stdenvNoCC.mkDerivation {
        --native-file ${nativeFile} \
        --cross-file ${crossFile} \
        --prefix=$out \
