@@ -174,6 +174,17 @@ feed 引擎池结构性不适用本模型，明确排除。详见
   侧别→动作映射（`leftVertical`/`rightVertical`/`horizontal` 取 `MovaGestAction`）配置，
   非写死；默认值即上述主流约定。（0.2.0 及之前是"左音量/右亮度"，已翻转，别按旧注释改回。）
 - 新函数/模块配单测；纯逻辑（解析/ABR/映射/格式化）务必抽出来测，UI 用 WidgetTester。
+- **完成一个 Task/里程碑并提交后，立刻用当次实测的 `flutter test` 输出更新 `CLAUDE.md` 与相关 `doc/plans/*.md` 里的测试基线数字。** 这个数字过时会让下一次规划文档（尤其是 Opus 拆的计划）从错误的起点开始推导任务数与验收标准，多次发生过。
+- **真机验证前必须先设计基于真实事件的测量方法**（如 `renderEpoch`/`MovaDone` 事件戳），不用墙钟计时、不用临近素材 EOF 的 seek——这两种方法在本项目里已反复导致"测试工具自己的 bug 被误判为产品 bug"的返工。验收 demo 要为该功能单独建一个页面，不与其他 spike 混用；每次测量注意防缓存（URL 加 timestamp）、多次取平均。详见 `feedback_real_device_verification` 记忆。
+
+## 落地工作流：Opus 拆方案 + Sonnet 落地
+
+本项目验证有效的标准流程，新功能默认按此走：
+
+1. **Opus 规划 agent**（只读探索 + 写文档，不动 `lib/`）把需求拆成 `doc/plans/<date>-<feature>.md`：架构决策、逐 Task 的文件改动、代码块、单测断言、验收标准、测试数量推进表。
+2. 主 agent 把计划文档落盘到仓库。
+3. **Sonnet（或 Opus，视复杂度）落地 agent** 按计划逐 Task 实现，每个 Task 一个 commit，`flutter analyze` 0 issues + `flutter test` 全绿再往下走。
+4. 真机验证单独一轮，产出实测数字回写计划文档与 `feedback_real_device_verification`。
 
 ## 命令
 
