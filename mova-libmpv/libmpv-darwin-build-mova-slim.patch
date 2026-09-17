@@ -497,6 +497,13 @@ index b4856a0..fd9c653 100644
          '--enable-fast-install',
          '--disable-dependency-tracking',
          '--disable-test',
+diff --git a/nix/packages/mk-pkg-libass/meson.options b/nix/packages/mk-pkg-libass/meson.options
+new file mode 100644
+index 0000000..65c31dd
+--- /dev/null
++++ b/nix/packages/mk-pkg-libass/meson.options
+@@ -0,0 +1 @@
++option('linking', type : 'combo', choices : ['shared', 'static'], value : 'shared')
 diff --git a/nix/packages/mk-pkg-libpng/default.nix b/nix/packages/mk-pkg-libpng/default.nix
 index 9a5fafd..33c4819 100644
 --- a/nix/packages/mk-pkg-libpng/default.nix
