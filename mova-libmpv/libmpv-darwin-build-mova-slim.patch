@@ -51,7 +51,7 @@ index 7540281..7c75b64 100644
          libvpx
          libx264
 diff --git a/nix/packages/mk-pkg-dav1d/default.nix b/nix/packages/mk-pkg-dav1d/default.nix
-index c687365..4513092 100644
+index c687365..1670aeb 100644
 --- a/nix/packages/mk-pkg-dav1d/default.nix
 +++ b/nix/packages/mk-pkg-dav1d/default.nix
 @@ -2,6 +2,12 @@
@@ -67,7 +67,7 @@ index c687365..4513092 100644
  }:
  
  let
-@@ -9,9 +15,21 @@ let
+@@ -9,9 +15,32 @@ let
    packageLock = (import ../../../packages.lock.nix).${name};
    inherit (packageLock) version;
  
@@ -84,12 +84,23 @@ index c687365..4513092 100644
 +  # dead-strip at link time. Verified single-file static build (9.94MiB,
 +  # run 35206555833) never applied any of this yet; this is the next lever
 +  # toward Android's 6.52MiB. `b_ndebug=true` drops assert()s too.
++  #
++  # NOTE (2026-09-17, run 35207906272): originally also added
++  # -Dc_args="-fvisibility=hidden -ffunction-sections -fdata-sections" and
++  # -Dc_link_args="-Wl,-dead_strip" here — reverted. Setting c_args/
++  # c_link_args via -D on the meson command line REPLACES (does not append
++  # to) the cross-file's own c_args, which carry the essential
++  # -arch/-isysroot/-miphoneos-version-min flags — this broke libpng's
++  # `cc.get_define('ZLIB_VERSION', prefix: '#include <zlib.h>')` header
++  # check ("ERROR: Could not get define 'ZLIB_VERSION'") since the
++  # preprocessor invocation lost its sysroot. Only the c_args-free options
++  # below are safe to set this way.
 +  optimizeArgs = pkgs.lib.optionalString (flavor == flavors.movaslim) ''
-+    -Dbuildtype=minsize -Ddebug=false -Db_ndebug=true -Dc_args="-fvisibility=hidden -ffunction-sections -fdata-sections" -Dc_link_args="-Wl,-dead_strip"'';
++    -Dbuildtype=minsize -Ddebug=false -Db_ndebug=true'';
  
    pname = import ../../utils/name/package.nix name;
    src = callPackage ../../utils/fetch-tarball/default.nix {
-@@ -37,6 +55,7 @@ pkgs.stdenvNoCC.mkDerivation {
+@@ -37,6 +66,7 @@ pkgs.stdenvNoCC.mkDerivation {
        --native-file ${nativeFile} \
        --cross-file ${crossFile} \
        --prefix=$out \
@@ -97,7 +108,7 @@ index c687365..4513092 100644
        -Dbitdepths="['8', '16']" \
        -Denable_asm=false \
        -Denable_tools=false \
-@@ -49,7 +68,8 @@ pkgs.stdenvNoCC.mkDerivation {
+@@ -49,7 +79,8 @@ pkgs.stdenvNoCC.mkDerivation {
        -Dfuzzer_ldflags= \
        -Dstack_alignment=0 \
        -Dxxhash_muxer=auto \
@@ -366,7 +377,7 @@ index a48d1db..d7cbb8e 100644
 -option('flavor', type : 'combo', choices : ['default', 'full', 'encodersgpl'])
 +option('flavor', type : 'combo', choices : ['default', 'full', 'encodersgpl', 'movaslim'])
 diff --git a/nix/packages/mk-pkg-freetype/default.nix b/nix/packages/mk-pkg-freetype/default.nix
-index ddcd21b..88d74ca 100644
+index ddcd21b..c32d1c2 100644
 --- a/nix/packages/mk-pkg-freetype/default.nix
 +++ b/nix/packages/mk-pkg-freetype/default.nix
 @@ -2,6 +2,8 @@
@@ -378,7 +389,7 @@ index ddcd21b..88d74ca 100644
  }:
  
  let
-@@ -9,12 +11,17 @@ let
+@@ -9,12 +11,20 @@ let
    packageLock = (import ../../../packages.lock.nix).${name};
    inherit (packageLock) version;
  
@@ -391,13 +402,16 @@ index ddcd21b..88d74ca 100644
    harfbuzz = callPackage ../mk-pkg-harfbuzz/default.nix { };
    libpng = callPackage ../mk-pkg-libpng/default.nix { };
 +  defaultLibrary = if flavor == flavors.movaslim then "static" else "shared";
-+  # movaslim only: see mk-pkg-dav1d/default.nix's identical comment.
++  # movaslim only: see mk-pkg-dav1d/default.nix's identical comment (incl.
++  # the c_args/c_link_args revert note — -D on the command line replaces
++  # cross-file c_args instead of appending, dropping essential sysroot/arch
++  # flags; only c_args-free options are safe here).
 +  optimizeArgs = pkgs.lib.optionalString (flavor == flavors.movaslim) ''
-+    -Dbuildtype=minsize -Ddebug=false -Db_ndebug=true -Dc_args="-fvisibility=hidden -ffunction-sections -fdata-sections" -Dc_link_args="-Wl,-dead_strip"'';
++    -Dbuildtype=minsize -Ddebug=false -Db_ndebug=true'';
  
    pname = import ../../utils/name/package.nix name;
    src = callPackage ../../utils/fetch-tarball/default.nix {
-@@ -46,13 +53,15 @@ pkgs.stdenvNoCC.mkDerivation {
+@@ -46,13 +56,15 @@ pkgs.stdenvNoCC.mkDerivation {
        --native-file ${nativeFile} \
        --cross-file ${crossFile} \
        --prefix=$out \
@@ -415,7 +429,7 @@ index ddcd21b..88d74ca 100644
    buildPhase = ''
      meson compile -vC build
 diff --git a/nix/packages/mk-pkg-fribidi/default.nix b/nix/packages/mk-pkg-fribidi/default.nix
-index 9762a75..66c644c 100644
+index 9762a75..3ce639a 100644
 --- a/nix/packages/mk-pkg-fribidi/default.nix
 +++ b/nix/packages/mk-pkg-fribidi/default.nix
 @@ -2,6 +2,8 @@
@@ -427,7 +441,7 @@ index 9762a75..66c644c 100644
  }:
  
  let
-@@ -9,9 +11,14 @@ let
+@@ -9,9 +11,15 @@ let
    packageLock = (import ../../../packages.lock.nix).${name};
    inherit (packageLock) version;
  
@@ -436,13 +450,14 @@ index 9762a75..66c644c 100644
    nativeFile = callPackage ../../utils/native-file/default.nix { };
    crossFile = callPackage ../../utils/cross-file/default.nix { };
 +  defaultLibrary = if flavor == flavors.movaslim then "static" else "shared";
-+  # movaslim only: see mk-pkg-dav1d/default.nix's identical comment.
++  # movaslim only: see mk-pkg-dav1d/default.nix's identical comment (incl.
++  # the c_args/c_link_args revert note).
 +  optimizeArgs = pkgs.lib.optionalString (flavor == flavors.movaslim) ''
-+    -Dbuildtype=minsize -Ddebug=false -Db_ndebug=true -Dc_args="-fvisibility=hidden -ffunction-sections -fdata-sections" -Dc_link_args="-Wl,-dead_strip"'';
++    -Dbuildtype=minsize -Ddebug=false -Db_ndebug=true'';
  
    pname = import ../../utils/name/package.nix name;
    src = callPackage ../../utils/fetch-tarball/default.nix {
-@@ -37,11 +44,13 @@ pkgs.stdenvNoCC.mkDerivation {
+@@ -37,11 +45,13 @@ pkgs.stdenvNoCC.mkDerivation {
        --native-file=${nativeFile} \
        --cross-file ${crossFile} \
        --prefix=$out \
@@ -458,7 +473,7 @@ index 9762a75..66c644c 100644
    buildPhase = ''
      meson compile -vC build
 diff --git a/nix/packages/mk-pkg-harfbuzz/default.nix b/nix/packages/mk-pkg-harfbuzz/default.nix
-index ec1d6bd..58c4f55 100644
+index ec1d6bd..7252e81 100644
 --- a/nix/packages/mk-pkg-harfbuzz/default.nix
 +++ b/nix/packages/mk-pkg-harfbuzz/default.nix
 @@ -2,6 +2,8 @@
@@ -470,7 +485,7 @@ index ec1d6bd..58c4f55 100644
  }:
  
  let
-@@ -9,9 +11,14 @@ let
+@@ -9,9 +11,15 @@ let
    packageLock = (import ../../../packages.lock.nix).${name};
    inherit (packageLock) version;
  
@@ -479,13 +494,14 @@ index ec1d6bd..58c4f55 100644
 +  defaultLibrary = if flavor == flavors.movaslim then "static" else "shared";
    nativeFile = callPackage ../../utils/native-file/default.nix { };
    crossFile = callPackage ../../utils/cross-file/default.nix { };
-+  # movaslim only: see mk-pkg-dav1d/default.nix's identical comment.
++  # movaslim only: see mk-pkg-dav1d/default.nix's identical comment (incl.
++  # the c_args/c_link_args revert note).
 +  optimizeArgs = pkgs.lib.optionalString (flavor == flavors.movaslim) ''
-+    -Dbuildtype=minsize -Ddebug=false -Db_ndebug=true -Dc_args="-fvisibility=hidden -ffunction-sections -fdata-sections" -Dc_link_args="-Wl,-dead_strip"'';
++    -Dbuildtype=minsize -Ddebug=false -Db_ndebug=true'';
  
    nativeBuildInputs = [
      pkgs.meson
-@@ -45,6 +52,7 @@ pkgs.stdenvNoCC.mkDerivation {
+@@ -45,6 +53,7 @@ pkgs.stdenvNoCC.mkDerivation {
        --native-file ${nativeFile} \
        --cross-file ${crossFile} \
        --prefix=$out \
@@ -493,7 +509,7 @@ index ec1d6bd..58c4f55 100644
        -Dglib=disabled \
        -Dgobject=disabled \
        -Dcairo=disabled \
-@@ -63,7 +71,8 @@ pkgs.stdenvNoCC.mkDerivation {
+@@ -63,7 +72,8 @@ pkgs.stdenvNoCC.mkDerivation {
        -Dicu_builtin=false \
        -Dexperimental_api=false \
        -Dragel_subproject=false \
@@ -568,7 +584,7 @@ index 15efce7..a9d765a 100644
    buildPhase = ''
      meson compile -vC build $(basename $src)
 diff --git a/nix/packages/mk-pkg-libass/meson.build b/nix/packages/mk-pkg-libass/meson.build
-index b4856a0..13d2256 100644
+index b4856a0..ba8d316 100644
 --- a/nix/packages/mk-pkg-libass/meson.build
 +++ b/nix/packages/mk-pkg-libass/meson.build
 @@ -4,10 +4,32 @@ project('libass', 'c')
@@ -605,11 +621,10 @@ index b4856a0..13d2256 100644
          '--enable-fast-install',
          '--disable-dependency-tracking',
          '--disable-test',
-@@ -24,7 +46,25 @@ p = mod.add_project('configure',
+@@ -24,6 +46,27 @@ p = mod.add_project('configure',
          '--with-pic',
          '--with-aix-soname=aix',
          '--without-gnu-ld',
--    ],
 +        # Kept from the diagnostic pass that found the AR/RANLIB bug above —
 +        # verbose output is generally useful for this build, no reason to
 +        # revert it now that the real fix is in.
@@ -620,18 +635,20 @@ index b4856a0..13d2256 100644
 +        # on external_project's env: passthrough at all.
 +        'AR=@0@'.format(ar.path()),
 +        'RANLIB=@0@'.format(ranlib.path()),
-+    ] + (linking == 'static' ? [
-+        # Compiler-level slimming (movaslim always requests static linking
-+        # for libass, so `linking == 'static'` doubles as the movaslim gate
-+        # here — no separate `flavor` option needed on this sub-meson.build).
-+        # Mirrors Android's flavor recipe: -Os-equivalent, no debug info,
-+        # per-function/data sections + dead-strip at link time.
-+        'CFLAGS=-Os -fvisibility=hidden -ffunction-sections -fdata-sections',
-+        'LDFLAGS=-Wl,-dead_strip',
-+    ] : []),
++        # NOTE (2026-09-17): a CFLAGS=/LDFLAGS= trailing pair was tried here
++        # for compiler-level slimming (mirroring Android's flavor recipe)
++        # but reverted before ever reaching a real build — the sibling
++        # c_args/c_link_args revert in mk-pkg-libpng/default.nix (run
++        # 35207906272) showed that overriding these at this layer clobbers
++        # essential -arch/-isysroot flags the external_project module
++        # otherwise supplies via environment (autoconf gives a positional
++        # VAR=value argument precedence over the same-named env var), and
++        # libass never got the chance to prove or disprove that itself
++        # (libpng failed first in the same run, so libass's build was never
++        # reached). Not worth re-attempting without a safer mechanism.
+     ],
      verbose: true,
  )
- 
 diff --git a/nix/packages/mk-pkg-libass/meson.options b/nix/packages/mk-pkg-libass/meson.options
 new file mode 100644
 index 0000000..65c31dd
@@ -640,7 +657,7 @@ index 0000000..65c31dd
 @@ -0,0 +1 @@
 +option('linking', type : 'combo', choices : ['shared', 'static'], value : 'shared')
 diff --git a/nix/packages/mk-pkg-libpng/default.nix b/nix/packages/mk-pkg-libpng/default.nix
-index 9a5fafd..c665f3c 100644
+index 9a5fafd..8f6a9ff 100644
 --- a/nix/packages/mk-pkg-libpng/default.nix
 +++ b/nix/packages/mk-pkg-libpng/default.nix
 @@ -2,6 +2,8 @@
@@ -652,7 +669,7 @@ index 9a5fafd..c665f3c 100644
  }:
  
  let
-@@ -10,9 +12,14 @@ let
+@@ -10,9 +12,16 @@ let
    packagePatchLock = (import ../../../packages.lock.nix).libpngPatch;
    inherit (packageLock) version;
  
@@ -661,13 +678,15 @@ index 9a5fafd..c665f3c 100644
 +  defaultLibrary = if flavor == flavors.movaslim then "static" else "shared";
    nativeFile = callPackage ../../utils/native-file/default.nix { };
    crossFile = callPackage ../../utils/cross-file/default.nix { };
-+  # movaslim only: see mk-pkg-dav1d/default.nix's identical comment.
++  # movaslim only: see mk-pkg-dav1d/default.nix's identical comment (incl.
++  # the c_args/c_link_args revert note — this is exactly the package whose
++  # zlib.h header-define check broke from that, run 35207906272).
 +  optimizeArgs = pkgs.lib.optionalString (flavor == flavors.movaslim) ''
-+    -Dbuildtype=minsize -Ddebug=false -Db_ndebug=true -Dc_args="-fvisibility=hidden -ffunction-sections -fdata-sections" -Dc_link_args="-Wl,-dead_strip"'';
++    -Dbuildtype=minsize -Ddebug=false -Db_ndebug=true'';
  
    pname = import ../../utils/name/package.nix name;
    src = callPackage ../../utils/fetch-tarball/default.nix {
-@@ -59,7 +66,9 @@ pkgs.stdenvNoCC.mkDerivation {
+@@ -59,7 +68,9 @@ pkgs.stdenvNoCC.mkDerivation {
      meson setup build $src \
        --native-file ${nativeFile} \
        --cross-file ${crossFile} \
@@ -678,7 +697,7 @@ index 9a5fafd..c665f3c 100644
    '';
    buildPhase = ''
      meson compile -vC build
-@@ -67,4 +76,48 @@ pkgs.stdenvNoCC.mkDerivation {
+@@ -67,4 +78,48 @@ pkgs.stdenvNoCC.mkDerivation {
    installPhase = ''
      meson install -C build
    '';
@@ -728,7 +747,7 @@ index 9a5fafd..c665f3c 100644
 +  '';
  }
 diff --git a/nix/packages/mk-pkg-mpv/default.nix b/nix/packages/mk-pkg-mpv/default.nix
-index 543805a..f50f8ca 100644
+index 543805a..59ce637 100644
 --- a/nix/packages/mk-pkg-mpv/default.nix
 +++ b/nix/packages/mk-pkg-mpv/default.nix
 @@ -3,6 +3,13 @@
@@ -753,7 +772,7 @@ index 543805a..f50f8ca 100644
    variants = import ../../utils/constants/variants.nix;
    oses = import ../../utils/constants/oses.nix;
    callPackage = pkgs.lib.callPackageWith {
-@@ -18,14 +26,61 @@ let
+@@ -18,14 +26,65 @@ let
        os
        arch
        variant
@@ -770,10 +789,14 @@ index 543805a..f50f8ca 100644
 +  # movaslim only: compiler-level slimming for mpv itself, mirroring
 +  # Android's flavor recipe and the same flags now applied to every static
 +  # dep (dav1d/freetype/fribidi/harfbuzz/libpng/ffmpeg/libass) — see each of
-+  # their default.nix/meson.build for the identical comment. libmpv.dylib
-+  # itself (not just its statically-folded deps) benefits from this too.
++  # their default.nix/meson.build for the identical comment, including the
++  # c_args/c_link_args revert note (-D on the command line replaces rather
++  # than appends to the cross-file's own c_args, dropping essential
++  # -arch/-isysroot flags — confirmed the hard way when it broke libpng's
++  # zlib.h header-define check, run 35207906272). Only c_args-free options
++  # are safe to set this way.
 +  optimizeArgs = pkgs.lib.optionalString (flavor == flavors.movaslim) ''
-+    -Dbuildtype=minsize -Ddebug=false -Db_ndebug=true -Dc_args="-fvisibility=hidden -ffunction-sections -fdata-sections" -Dc_link_args="-Wl,-dead_strip"'';
++    -Dbuildtype=minsize -Ddebug=false -Db_ndebug=true'';
 +  # movaslim only: meson's dependency('iconv') 'system' method tries a bare
 +  # `-liconv` link check with no explicit search path — this breaks under
 +  # --prefer-static specifically (matches a known unresolved meson bug on
@@ -815,7 +838,7 @@ index 543805a..f50f8ca 100644
  
    nativeBuildInputs = [
      pkgs.meson
-@@ -73,8 +128,16 @@ pkgs.stdenvNoCC.mkDerivation {
+@@ -73,8 +132,16 @@ pkgs.stdenvNoCC.mkDerivation {
    buildInputs =
      [ ffmpeg ]
      ++ pkgs.lib.optionals (variant == "video") [
@@ -833,7 +856,7 @@ index 543805a..f50f8ca 100644
      ];
    configurePhase = ''
      DISABLE_ALL_OPTIONS=(
-@@ -198,12 +261,12 @@ pkgs.stdenvNoCC.mkDerivation {
+@@ -198,12 +265,12 @@ pkgs.stdenvNoCC.mkDerivation {
        -Dbuild-date=true `# whether to include binary compile time`
  
        `# misc features`
@@ -848,7 +871,7 @@ index 543805a..f50f8ca 100644
        -Dzlib=enabled `# zlib`
  
        `# video output features`
-@@ -260,6 +323,8 @@ pkgs.stdenvNoCC.mkDerivation {
+@@ -260,6 +327,8 @@ pkgs.stdenvNoCC.mkDerivation {
        --native-file ${nativeFile} \
        --cross-file ${crossFile} \
        --prefix=$out \
