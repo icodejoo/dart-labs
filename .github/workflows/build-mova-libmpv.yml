@@ -60,16 +60,13 @@ jobs:
   android-arm64:
     name: Android arm64-v8a (implemented)
     runs-on: ubuntu-22.04
-    # re-enabled temporarily (2026-09-18) ONLY to A/B -fomit-frame-pointer
-    # (removed from flavors-mova-slim.sh/libmpv-android-video-build.patch —
-    # iOS/macOS's darwin cross-file A/B showed it's a size REGRESSION there,
-    # want real data on whether Android's existing -fomit-frame-pointer is
-    # actually earning its keep or was copied in without ever being A/B'd).
-    # The "Commit built artifact to dist/" step below is if:false'd for this
-    # run specifically — this is a size-measurement pass, not a release; do
-    # not let an unverified experimental variant overwrite the real-device-
-    # verified 6.52MiB dist/ build. Revert both ifs back to normal after.
-    if: true
+    # paused — iOS/macOS-focused iteration, see darwin/ios jobs below.
+    # 2026-09-18: A/B'd -fomit-frame-pointer here (run 35305095749) while
+    # briefly re-enabled — turned out to be a size REGRESSION on Android too
+    # (6,190,732 -> 6,050,104 bytes, -2.27%, after removing it from
+    # flavors-mova-slim.sh/libmpv-android-video-build.patch), same direction
+    # as iOS/macOS's own A/B. The flag is gone for good now; re-pausing.
+    if: false
     steps:
       - name: Checkout dart-labs
         uses: actions/checkout@v4
@@ -185,10 +182,6 @@ jobs:
           retention-days: 30
 
       - name: Commit built artifact to dist/
-        # disabled for the 2026-09-18 -fomit-frame-pointer A/B run — see the
-        # job-level `if: true` comment above. Restore (remove this line) once
-        # the A/B is done and this job goes back to being paused.
-        if: false
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
