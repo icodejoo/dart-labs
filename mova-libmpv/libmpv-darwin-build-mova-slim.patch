@@ -51,7 +51,7 @@ index 7540281..7c75b64 100644
          libvpx
          libx264
 diff --git a/nix/packages/mk-pkg-dav1d/default.nix b/nix/packages/mk-pkg-dav1d/default.nix
-index c687365..1670aeb 100644
+index c687365..cfa8952 100644
 --- a/nix/packages/mk-pkg-dav1d/default.nix
 +++ b/nix/packages/mk-pkg-dav1d/default.nix
 @@ -2,6 +2,12 @@
@@ -67,12 +67,17 @@ index c687365..1670aeb 100644
  }:
  
  let
-@@ -9,9 +15,32 @@ let
+@@ -9,9 +15,39 @@ let
    packageLock = (import ../../../packages.lock.nix).${name};
    inherit (packageLock) version;
  
+-  callPackage = pkgs.lib.callPackageWith { inherit pkgs os arch; };
 +  flavors = import ../../utils/constants/flavors.nix;
-   callPackage = pkgs.lib.callPackageWith { inherit pkgs os arch; };
++  # `flavor` must be inherited here too: crossFile below is flavor-aware
++  # (movaslim appends -fvisibility=hidden/-ffunction-sections/-fdata-sections
++  # + -Wl,-dead_strip into the generated cross-file), and callPackageWith only
++  # auto-injects arguments present in THIS set.
++  callPackage = pkgs.lib.callPackageWith { inherit pkgs os arch flavor; };
    nativeFile = callPackage ../../utils/native-file/default.nix { };
    crossFile = callPackage ../../utils/cross-file/default.nix { };
 +  # movaslim folds dav1d statically into libmpv.dylib instead of shipping it
@@ -94,13 +99,16 @@ index c687365..1670aeb 100644
 +  # `cc.get_define('ZLIB_VERSION', prefix: '#include <zlib.h>')` header
 +  # check ("ERROR: Could not get define 'ZLIB_VERSION'") since the
 +  # preprocessor invocation lost its sysroot. Only the c_args-free options
-+  # below are safe to set this way.
++  # below are safe to set this way. The -f*-sections/-fvisibility/
++  # -dead_strip flags are now applied via nix/utils/cross-file/default.nix
++  # instead, which APPENDS them to the cross-file's own c_args/c_link_args
++  # and therefore keeps the sysroot/arch flags intact.
 +  optimizeArgs = pkgs.lib.optionalString (flavor == flavors.movaslim) ''
 +    -Dbuildtype=minsize -Ddebug=false -Db_ndebug=true'';
  
    pname = import ../../utils/name/package.nix name;
    src = callPackage ../../utils/fetch-tarball/default.nix {
-@@ -37,6 +66,7 @@ pkgs.stdenvNoCC.mkDerivation {
+@@ -37,6 +73,7 @@ pkgs.stdenvNoCC.mkDerivation {
        --native-file ${nativeFile} \
        --cross-file ${crossFile} \
        --prefix=$out \
@@ -108,7 +116,7 @@ index c687365..1670aeb 100644
        -Dbitdepths="['8', '16']" \
        -Denable_asm=false \
        -Denable_tools=false \
-@@ -49,7 +79,8 @@ pkgs.stdenvNoCC.mkDerivation {
+@@ -49,7 +86,8 @@ pkgs.stdenvNoCC.mkDerivation {
        -Dfuzzer_ldflags= \
        -Dstack_alignment=0 \
        -Dxxhash_muxer=auto \
@@ -143,7 +151,7 @@ index 060869c..37a4a71 100644
      ]
      ++ pkgs.lib.optionals (variant == variants.video && flavor == flavors.encodersgpl) [
 diff --git a/nix/packages/mk-pkg-ffmpeg/meson.build b/nix/packages/mk-pkg-ffmpeg/meson.build
-index 35457c2..d056d0c 100644
+index 35457c2..03c256b 100644
 --- a/nix/packages/mk-pkg-ffmpeg/meson.build
 +++ b/nix/packages/mk-pkg-ffmpeg/meson.build
 @@ -12,6 +12,16 @@ nm = find_program('nm')
@@ -437,25 +445,27 @@ index 35457c2..d056d0c 100644
          '--as=@0@'.format(''.join(c.cmd_array())),
          '--strip=@0@'.format(strip.path()),
          '--cc=@0@'.format(''.join(c.cmd_array())),
-@@ -348,10 +572,16 @@ p = mod.add_project('configure',
+@@ -348,9 +572,19 @@ p = mod.add_project('configure',
          '--host-cc=@0@'.format(''.join(c.cmd_array())),
          '--host-ld=@0@'.format(''.join(c.cmd_array())),
  
 -        '--extra-cflags=@0@'.format(' '.join(c_args)),
-+        '--extra-cflags=@0@'.format(' '.join(c_args) + (flavor == 'movaslim' ? ' -Os -fvisibility=hidden -ffunction-sections -fdata-sections' : '')),
++        # movaslim only: -Os is the one size flag that must still be added by
++        # hand — ffmpeg's configure is an external project, so meson's
++        # buildtype=minsize never reaches it. -fvisibility=hidden /
++        # -ffunction-sections / -fdata-sections used to be appended here too;
++        # they now ride in c_args itself (nix/utils/cross-file/default.nix
++        # appends them to the generated cross-file for movaslim), so repeating
++        # them here would just duplicate the same flag on every clang line.
++        '--extra-cflags=@0@'.format(' '.join(c_args) + (flavor == 'movaslim' ? ' -Os' : '')),
          '--extra-cxxflags=@0@'.format(' '.join(cpp_args)),
          '--extra-objcflags=@0@'.format(' '.join(objc_args)),
--        '--extra-ldflags=@0@'.format(' '.join(c_link_args)),
-+        # movaslim only: compiler-level slimming mirroring Android's flavor
-+        # recipe (mova-libmpv/flavors-mova-slim.sh) — -Os-equivalent, no
-+        # debug info (--disable-debug above already drops -g), per-function/
-+        # data sections (paired -f*-sections above) + dead-strip at link
-+        # time. Verified single-file static build (9.94MiB, run
-+        # 35206555833) never applied any of this yet.
-+        '--extra-ldflags=@0@'.format(' '.join(c_link_args) + (flavor == 'movaslim' ? ' -Wl,-dead_strip' : '')),
++        # movaslim's -Wl,-dead_strip now comes from c_link_args itself (the
++        # cross-file generator appends it for movaslim), so nothing extra is
++        # spliced in here any more.
+         '--extra-ldflags=@0@'.format(' '.join(c_link_args)),
      ],
      verbose: true,
- )
 diff --git a/nix/packages/mk-pkg-ffmpeg/meson.options b/nix/packages/mk-pkg-ffmpeg/meson.options
 index a48d1db..d7cbb8e 100644
 --- a/nix/packages/mk-pkg-ffmpeg/meson.options
@@ -517,7 +527,7 @@ index ddcd21b..c32d1c2 100644
    buildPhase = ''
      meson compile -vC build
 diff --git a/nix/packages/mk-pkg-fribidi/default.nix b/nix/packages/mk-pkg-fribidi/default.nix
-index 9762a75..3ce639a 100644
+index 9762a75..3b3adb2 100644
 --- a/nix/packages/mk-pkg-fribidi/default.nix
 +++ b/nix/packages/mk-pkg-fribidi/default.nix
 @@ -2,6 +2,8 @@
@@ -529,12 +539,17 @@ index 9762a75..3ce639a 100644
  }:
  
  let
-@@ -9,9 +11,15 @@ let
+@@ -9,9 +11,19 @@ let
    packageLock = (import ../../../packages.lock.nix).${name};
    inherit (packageLock) version;
  
+-  callPackage = pkgs.lib.callPackageWith { inherit pkgs os arch; };
 +  flavors = import ../../utils/constants/flavors.nix;
-   callPackage = pkgs.lib.callPackageWith { inherit pkgs os arch; };
++  # `flavor` must be inherited here too: crossFile below is flavor-aware
++  # (movaslim appends -fvisibility=hidden/-ffunction-sections/-fdata-sections
++  # + -Wl,-dead_strip into the generated cross-file), and callPackageWith only
++  # auto-injects arguments present in THIS set.
++  callPackage = pkgs.lib.callPackageWith { inherit pkgs os arch flavor; };
    nativeFile = callPackage ../../utils/native-file/default.nix { };
    crossFile = callPackage ../../utils/cross-file/default.nix { };
 +  defaultLibrary = if flavor == flavors.movaslim then "static" else "shared";
@@ -545,7 +560,7 @@ index 9762a75..3ce639a 100644
  
    pname = import ../../utils/name/package.nix name;
    src = callPackage ../../utils/fetch-tarball/default.nix {
-@@ -37,11 +45,13 @@ pkgs.stdenvNoCC.mkDerivation {
+@@ -37,11 +49,13 @@ pkgs.stdenvNoCC.mkDerivation {
        --native-file=${nativeFile} \
        --cross-file ${crossFile} \
        --prefix=$out \
@@ -561,7 +576,7 @@ index 9762a75..3ce639a 100644
    buildPhase = ''
      meson compile -vC build
 diff --git a/nix/packages/mk-pkg-harfbuzz/default.nix b/nix/packages/mk-pkg-harfbuzz/default.nix
-index ec1d6bd..7252e81 100644
+index ec1d6bd..4a77e5b 100644
 --- a/nix/packages/mk-pkg-harfbuzz/default.nix
 +++ b/nix/packages/mk-pkg-harfbuzz/default.nix
 @@ -2,6 +2,8 @@
@@ -573,12 +588,17 @@ index ec1d6bd..7252e81 100644
  }:
  
  let
-@@ -9,9 +11,15 @@ let
+@@ -9,9 +11,19 @@ let
    packageLock = (import ../../../packages.lock.nix).${name};
    inherit (packageLock) version;
  
+-  callPackage = pkgs.lib.callPackageWith { inherit pkgs os arch; };
 +  flavors = import ../../utils/constants/flavors.nix;
-   callPackage = pkgs.lib.callPackageWith { inherit pkgs os arch; };
++  # `flavor` must be inherited here too: crossFile below is flavor-aware
++  # (movaslim appends -fvisibility=hidden/-ffunction-sections/-fdata-sections
++  # + -Wl,-dead_strip into the generated cross-file), and callPackageWith only
++  # auto-injects arguments present in THIS set.
++  callPackage = pkgs.lib.callPackageWith { inherit pkgs os arch flavor; };
 +  defaultLibrary = if flavor == flavors.movaslim then "static" else "shared";
    nativeFile = callPackage ../../utils/native-file/default.nix { };
    crossFile = callPackage ../../utils/cross-file/default.nix { };
@@ -589,7 +609,7 @@ index ec1d6bd..7252e81 100644
  
    nativeBuildInputs = [
      pkgs.meson
-@@ -45,6 +53,7 @@ pkgs.stdenvNoCC.mkDerivation {
+@@ -45,6 +57,7 @@ pkgs.stdenvNoCC.mkDerivation {
        --native-file ${nativeFile} \
        --cross-file ${crossFile} \
        --prefix=$out \
@@ -597,7 +617,7 @@ index ec1d6bd..7252e81 100644
        -Dglib=disabled \
        -Dgobject=disabled \
        -Dcairo=disabled \
-@@ -63,7 +72,8 @@ pkgs.stdenvNoCC.mkDerivation {
+@@ -63,7 +76,8 @@ pkgs.stdenvNoCC.mkDerivation {
        -Dicu_builtin=false \
        -Dexperimental_api=false \
        -Dragel_subproject=false \
@@ -745,7 +765,7 @@ index 0000000..65c31dd
 @@ -0,0 +1 @@
 +option('linking', type : 'combo', choices : ['shared', 'static'], value : 'shared')
 diff --git a/nix/packages/mk-pkg-libpng/default.nix b/nix/packages/mk-pkg-libpng/default.nix
-index 9a5fafd..8f6a9ff 100644
+index 9a5fafd..f55ea6b 100644
 --- a/nix/packages/mk-pkg-libpng/default.nix
 +++ b/nix/packages/mk-pkg-libpng/default.nix
 @@ -2,6 +2,8 @@
@@ -757,12 +777,17 @@ index 9a5fafd..8f6a9ff 100644
  }:
  
  let
-@@ -10,9 +12,16 @@ let
+@@ -10,9 +12,20 @@ let
    packagePatchLock = (import ../../../packages.lock.nix).libpngPatch;
    inherit (packageLock) version;
  
+-  callPackage = pkgs.lib.callPackageWith { inherit pkgs os arch; };
 +  flavors = import ../../utils/constants/flavors.nix;
-   callPackage = pkgs.lib.callPackageWith { inherit pkgs os arch; };
++  # `flavor` must be inherited here too: crossFile below is flavor-aware
++  # (movaslim appends -fvisibility=hidden/-ffunction-sections/-fdata-sections
++  # + -Wl,-dead_strip into the generated cross-file), and callPackageWith only
++  # auto-injects arguments present in THIS set.
++  callPackage = pkgs.lib.callPackageWith { inherit pkgs os arch flavor; };
 +  defaultLibrary = if flavor == flavors.movaslim then "static" else "shared";
    nativeFile = callPackage ../../utils/native-file/default.nix { };
    crossFile = callPackage ../../utils/cross-file/default.nix { };
@@ -774,7 +799,7 @@ index 9a5fafd..8f6a9ff 100644
  
    pname = import ../../utils/name/package.nix name;
    src = callPackage ../../utils/fetch-tarball/default.nix {
-@@ -59,7 +68,9 @@ pkgs.stdenvNoCC.mkDerivation {
+@@ -59,7 +72,9 @@ pkgs.stdenvNoCC.mkDerivation {
      meson setup build $src \
        --native-file ${nativeFile} \
        --cross-file ${crossFile} \
@@ -785,7 +810,7 @@ index 9a5fafd..8f6a9ff 100644
    '';
    buildPhase = ''
      meson compile -vC build
-@@ -67,4 +78,48 @@ pkgs.stdenvNoCC.mkDerivation {
+@@ -67,4 +82,48 @@ pkgs.stdenvNoCC.mkDerivation {
    installPhase = ''
      meson install -C build
    '';
@@ -1005,6 +1030,46 @@ index e2aa737..076ee8b 100644
 +  # flavors-mova-slim-ios.sh / flavors-mova-slim.sh).
 +  movaslim = "movaslim";
  }
+diff --git a/nix/utils/cross-file/default.nix b/nix/utils/cross-file/default.nix
+index 747f5d4..00d560d 100644
+--- a/nix/utils/cross-file/default.nix
++++ b/nix/utils/cross-file/default.nix
+@@ -2,10 +2,35 @@
+   pkgs ? import ../default/pkgs.nix,
+   os ? import ../default/os.nix,
+   arch ? pkgs.callPackage ../default/arch.nix { },
++  # movaslim-only, see mk-pkg-dav1d/default.nix's identical comment. Callers
++  # that don't inherit `flavor` (upstream's, plus native-file/default.nix)
++  # keep getting the untouched cross-file.
++  flavor ? import ../default/flavor.nix,
+ }:
+ 
++let
++  flavors = import ../constants/flavors.nix;
++  # movaslim only: compiler-level slimming appended to the cross-file's
++  # `[built-in options]` instead of passed as `-Dc_args=` on each package's
++  # `meson setup` line — meson's command-line `-Dc_args=` REPLACES the
++  # cross-file value rather than appending to it, which silently dropped
++  # `-arch/-isysroot/-m*-version-min` and broke libpng's zlib.h check
++  # (run 35207906272). Editing the generated ini keeps those flags and adds
++  # ours after them. Pairs per-function/data sections with -dead_strip so
++  # the linker can drop unreferenced code across the statically-folded libs
++  # (dav1d/freetype/fribidi/harfbuzz/libpng/libass/ffmpeg -> libmpv.dylib).
++  # -fvisibility=hidden is safe for libmpv itself: mpv annotates its public
++  # client API with MPV_EXPORT (visibility("default")) and already builds
++  # with hidden visibility upstream.
++  slimArgs = pkgs.lib.optionalString (flavor == flavors.movaslim) ''
++    sed -i -E "/^(c|cpp|objc|objcpp)_args[[:space:]]*=/ s/\]\$/, '-fvisibility=hidden', '-ffunction-sections', '-fdata-sections']/" cross-file.ini
++    sed -i -E "/^(c|cpp|objc|objcpp)_link_args[[:space:]]*=/ s/\]\$/, '-Wl,-dead_strip']/" cross-file.ini
++  '';
++in
++
+ pkgs.runCommand "mk-cross-file-${os}-${arch}.ini" { } ''
+   cp ${../../../cross-files/${os}-${arch}.ini} cross-file.ini
+   sed -i "s|/Applications/Xcode.app|${pkgs.darwin.xcode}|g" cross-file.ini
++  ${slimArgs}
+   cp cross-file.ini $out
+ ''
 diff --git a/nix/utils/default/flavors.nix b/nix/utils/default/flavors.nix
 index 12e8c7b..886cc60 100644
 --- a/nix/utils/default/flavors.nix
