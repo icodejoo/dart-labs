@@ -40,7 +40,7 @@ index 33282bd..6d2dac4 100755
  
  build () {
 diff --git a/buildscripts/scripts/dav1d.sh b/buildscripts/scripts/dav1d.sh
-index 87a7198..833627b 100755
+index 87a7198..a02b7f3 100755
 --- a/buildscripts/scripts/dav1d.sh
 +++ b/buildscripts/scripts/dav1d.sh
 @@ -16,7 +16,8 @@ fi
@@ -93,7 +93,7 @@ index 101c900..d405ba9 100755
  
  ninja -C $build -j$cores
 diff --git a/buildscripts/scripts/libass.sh b/buildscripts/scripts/libass.sh
-index fd95d94..2bef624 100755
+index fd95d94..9c41a30 100755
 --- a/buildscripts/scripts/libass.sh
 +++ b/buildscripts/scripts/libass.sh
 @@ -18,7 +18,7 @@ mkdir -p _build$ndk_suffix
@@ -101,12 +101,12 @@ index fd95d94..2bef624 100755
  
  ../configure \
 -	CFLAGS=-fPIC CXXFLAGS=-fPIC \
-+	CFLAGS="-fPIC -Os -ffunction-sections -fdata-sections -fvisibility=hidden -flto -fomit-frame-pointer" CXXFLAGS="-fPIC -Os -ffunction-sections -fdata-sections -fvisibility=hidden -flto -fomit-frame-pointer" \
++	CFLAGS="-fPIC -Os -ffunction-sections -fdata-sections -fvisibility=hidden -flto" CXXFLAGS="-fPIC -Os -ffunction-sections -fdata-sections -fvisibility=hidden -flto" \
  	--host=$ndk_triple \
  	--with-pic \
  	--disable-asm \
 diff --git a/buildscripts/scripts/libxml2.sh b/buildscripts/scripts/libxml2.sh
-index 4418462..63ed521 100755
+index 4418462..0d09816 100755
 --- a/buildscripts/scripts/libxml2.sh
 +++ b/buildscripts/scripts/libxml2.sh
 @@ -18,7 +18,7 @@ mkdir -p _build$ndk_suffix
@@ -114,12 +114,12 @@ index 4418462..63ed521 100755
  
  ../configure \
 -    CFLAGS=-fPIC CXXFLAGS=-fPIC \
-+    CFLAGS="-fPIC -Os -ffunction-sections -fdata-sections -fvisibility=hidden -flto -fomit-frame-pointer" CXXFLAGS="-fPIC -Os -ffunction-sections -fdata-sections -fvisibility=hidden -flto -fomit-frame-pointer" \
++    CFLAGS="-fPIC -Os -ffunction-sections -fdata-sections -fvisibility=hidden -flto" CXXFLAGS="-fPIC -Os -ffunction-sections -fdata-sections -fvisibility=hidden -flto" \
  	--host=$ndk_triple \
      --disable-shared \
      --enable-static \
 diff --git a/buildscripts/scripts/mbedtls.sh b/buildscripts/scripts/mbedtls.sh
-index 220a812..bea7e3d 100755
+index 220a812..11817b2 100755
 --- a/buildscripts/scripts/mbedtls.sh
 +++ b/buildscripts/scripts/mbedtls.sh
 @@ -14,5 +14,5 @@ fi
@@ -128,8 +128,8 @@ index 220a812..bea7e3d 100755
  
 -make CFLAGS=-fPIC CXXFLAGS=-fPIC -j$cores no_test
 -make CFLAGS=-fPIC CXXFLAGS=-fPIC DESTDIR="$prefix_dir" install
-+make CFLAGS="-fPIC -Os -ffunction-sections -fdata-sections -fvisibility=hidden -flto -fomit-frame-pointer" CXXFLAGS="-fPIC -Os -ffunction-sections -fdata-sections -fvisibility=hidden -flto -fomit-frame-pointer" -j$cores no_test
-+make CFLAGS="-fPIC -Os -ffunction-sections -fdata-sections -fvisibility=hidden -flto -fomit-frame-pointer" CXXFLAGS="-fPIC -Os -ffunction-sections -fdata-sections -fvisibility=hidden -flto -fomit-frame-pointer" DESTDIR="$prefix_dir" install
++make CFLAGS="-fPIC -Os -ffunction-sections -fdata-sections -fvisibility=hidden -flto" CXXFLAGS="-fPIC -Os -ffunction-sections -fdata-sections -fvisibility=hidden -flto" -j$cores no_test
++make CFLAGS="-fPIC -Os -ffunction-sections -fdata-sections -fvisibility=hidden -flto" CXXFLAGS="-fPIC -Os -ffunction-sections -fdata-sections -fvisibility=hidden -flto" DESTDIR="$prefix_dir" install
 diff --git a/buildscripts/scripts/mpv.sh b/buildscripts/scripts/mpv.sh
 index 7e4ea4e..a709ac8 100755
 --- a/buildscripts/scripts/mpv.sh

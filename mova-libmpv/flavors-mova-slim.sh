@@ -87,7 +87,7 @@ cpudetect_flag="--enable-runtime-cpudetect"
 	--target-os=android --enable-cross-compile --cross-prefix=$ndk_triple- --ar=$AR --cc=$CC --nm=llvm-nm --ranlib=$RANLIB \
 	--arch=${ndk_triple%%-*} --cpu=$cpu --pkg-config=pkg-config \
 	--enable-lto \
-	--extra-cflags="-I$prefix_dir/include $cpuflags -ffunction-sections -fdata-sections -fvisibility=hidden -flto -fomit-frame-pointer" \
+	--extra-cflags="-I$prefix_dir/include $cpuflags -ffunction-sections -fdata-sections -fvisibility=hidden -flto" \
 	--extra-ldflags="-L$prefix_dir/lib -Wl,--gc-sections -flto" \
 	\
 	--disable-gpl \
