@@ -465,6 +465,31 @@ jobs:
           DYLIB=$(find "$GITHUB_WORKSPACE/darwin-out" -iname 'libmpv*.dylib' | head -1)
           test -n "$DYLIB" || { echo "::error::libmpv*.dylib not found inside archive"; find "$GITHUB_WORKSPACE/darwin-out" -type f -print; exit 1; }
 
+          # Symbol export check: cross-file/default.nix now appends
+          # -fvisibility=hidden to movaslim's c_args (compile-slimming
+          # commit), which applies to mpv itself too, not just its
+          # statically-folded deps — mpv is expected to stay safe because
+          # its public client API is annotated MPV_EXPORT
+          # (visibility("default")), but that was never verified against a
+          # real build, only reasoned about (see commit that added
+          # -fvisibility=hidden). Fail loudly here instead of finding out
+          # only after this ships into mova and something using libmpv.h
+          # fails to link/dlopen.
+          echo "### exported symbol check (libmpv.dylib, macOS arm64)" >> "$GITHUB_STEP_SUMMARY"
+          MISSING_SYMS=""
+          for sym in mpv_create mpv_initialize mpv_command mpv_command_async mpv_set_option mpv_observe_property mpv_render_context_create mpv_render_context_render mpv_wait_event mpv_terminate_destroy; do
+            if nm -gU "$DYLIB" | grep -q " T _${sym}\$"; then
+              echo "✅ $sym" >> "$GITHUB_STEP_SUMMARY"
+            else
+              echo "❌ $sym MISSING" >> "$GITHUB_STEP_SUMMARY"
+              MISSING_SYMS="$MISSING_SYMS $sym"
+            fi
+          done
+          if [ -n "$MISSING_SYMS" ]; then
+            echo "::error::libmpv.dylib is missing expected exported symbols:$MISSING_SYMS (likely -fvisibility=hidden swallowed the public API — check MPV_EXPORT annotations survived)"
+            exit 1
+          fi
+
           echo "### libmpv.dylib (macOS arm64, movaslim flavor)" >> "$GITHUB_STEP_SUMMARY"
           ls -la "$DYLIB" >> "$GITHUB_STEP_SUMMARY"
           SIZE_BYTES=$(stat -f%z "$DYLIB")
