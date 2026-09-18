@@ -1058,10 +1058,10 @@ index e2aa737..076ee8b 100644
 +  movaslim = "movaslim";
  }
 diff --git a/nix/utils/cross-file/default.nix b/nix/utils/cross-file/default.nix
-index 747f5d4..3e6e7c0 100644
+index 747f5d4..dee50a4 100644
 --- a/nix/utils/cross-file/default.nix
 +++ b/nix/utils/cross-file/default.nix
-@@ -2,10 +2,77 @@
+@@ -2,10 +2,64 @@
    pkgs ? import ../default/pkgs.nix,
    os ? import ../default/os.nix,
    arch ? pkgs.callPackage ../default/arch.nix { },
@@ -1114,21 +1114,8 @@ index 747f5d4..3e6e7c0 100644
 +  # would only cover the pure-meson packages and mpv itself, missing the two
 +  # external_project (autotools) builds, ffmpeg and libass, which inherit
 +  # these cross-file values via their CFLAGS/LDFLAGS instead.
-+  # `-fomit-frame-pointer` (2026-09-18): ported from mova's Android build
-+  # (libmpv-android-video-build.patch's buildscripts/build.sh crossfile.txt +
-+  # every autotools script's CFLAGS), which has carried this alongside the
-+  # same buildtype=minsize/b_lto/fvisibility=hidden/gc-sections combo since
-+  # before this darwin cross-file append existed. Free to add, but likely a
-+  # near no-op here specifically: Apple's arm64 ABI mandates preserving the
-+  # frame-pointer chain for reliable backtracing (crash symbolication, perf
-+  # tools), so Apple clang is documented to keep the frame pointer on arm64
-+  # regardless of this flag — unlike Android's non-Apple aarch64 target,
-+  # where omitting it is a normal, effective code-size optimization. Kept
-+  # for parity with Android's recipe and because it costs nothing if it's
-+  # silently ignored; watch the CI size delta to see whether it does anything
-+  # here at all.
 +  slimArgs = pkgs.lib.optionalString (flavor == flavors.movaslim) ''
-+    sed -i -E "/^(c|cpp|objc|objcpp)_args[[:space:]]*=/ s/\]\$/, '-fvisibility=hidden', '-ffunction-sections', '-fdata-sections', '-flto=full', '-fomit-frame-pointer']/" cross-file.ini
++    sed -i -E "/^(c|cpp|objc|objcpp)_args[[:space:]]*=/ s/\]\$/, '-fvisibility=hidden', '-ffunction-sections', '-fdata-sections', '-flto=full']/" cross-file.ini
 +    sed -i -E "/^(c|cpp|objc|objcpp)_link_args[[:space:]]*=/ s/\]\$/, '-Wl,-dead_strip', '-flto=full']/" cross-file.ini
 +  '';
 +in
