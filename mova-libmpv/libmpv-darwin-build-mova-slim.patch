@@ -835,7 +835,7 @@ index 9a5fafd..8f6a9ff 100644
 +  '';
  }
 diff --git a/nix/packages/mk-pkg-mpv/default.nix b/nix/packages/mk-pkg-mpv/default.nix
-index 543805a..59ce637 100644
+index 543805a..2714ec6 100644
 --- a/nix/packages/mk-pkg-mpv/default.nix
 +++ b/nix/packages/mk-pkg-mpv/default.nix
 @@ -3,6 +3,13 @@
@@ -926,7 +926,7 @@ index 543805a..59ce637 100644
  
    nativeBuildInputs = [
      pkgs.meson
-@@ -73,8 +132,16 @@ pkgs.stdenvNoCC.mkDerivation {
+@@ -73,8 +132,38 @@ pkgs.stdenvNoCC.mkDerivation {
    buildInputs =
      [ ffmpeg ]
      ++ pkgs.lib.optionals (variant == "video") [
@@ -941,10 +941,32 @@ index 543805a..59ce637 100644
 +      fribidi
 +      freetype
 +      libpng
++    ]
++    # movaslim/macOS only: mpv's `-Dzlib=enabled` (COMMON_VIDEO_OPTIONS
++    # below, unconditional for every video build) resolves via meson's
++    # built-in ZlibSystemDependency, which on Apple platforms is supposed to
++    # short-circuit to "found" whenever host_machine is darwin and the C
++    # compiler is recognized as AppleClang (mesonbuild/dependencies/dev.py
++    # ZlibSystemDependency.__init__) — no header/library probing needed.
++    # `mk-out-archive-libs-macos-arm64-video-movaslim` (run 35294281245,
++    # 2026-09-18) hit "Run-time dependency zlib found: NO (tried pkgconfig
++    # and system)" instead, meaning that shortcut didn't trigger for this
++    # cross-file's clang and meson fell through to the manual find_library
++    # + has_header probe, which then also failed (root cause on the exact
++    # meson/clang combination not confirmed — the equivalent iOS movaslim
++    # build has never hit this). Sidestep the flaky "system" method
++    # entirely by giving meson a real zlib.pc via nixpkgs' own zlib instead:
++    # nixpkgs' `pkgs` here is the native build-machine package set
++    # (aarch64-darwin on the macos-15 GHA runner), which happens to already
++    # match the macos-arm64 target's arch/OS exactly (unlike the iOS
++    # target, which cross-compiles to a different sysroot — do NOT add this
++    # for iOS, a macOS-native zlib.dylib would be the wrong platform there).
++    ++ pkgs.lib.optionals (variant == "video" && flavor == flavors.movaslim && os == oses.macos) [
++      pkgs.zlib
      ];
    configurePhase = ''
      DISABLE_ALL_OPTIONS=(
-@@ -198,12 +265,12 @@ pkgs.stdenvNoCC.mkDerivation {
+@@ -198,12 +287,12 @@ pkgs.stdenvNoCC.mkDerivation {
        -Dbuild-date=true `# whether to include binary compile time`
  
        `# misc features`
@@ -959,7 +981,7 @@ index 543805a..59ce637 100644
        -Dzlib=enabled `# zlib`
  
        `# video output features`
-@@ -260,6 +327,8 @@ pkgs.stdenvNoCC.mkDerivation {
+@@ -260,6 +349,8 @@ pkgs.stdenvNoCC.mkDerivation {
        --native-file ${nativeFile} \
        --cross-file ${crossFile} \
        --prefix=$out \
