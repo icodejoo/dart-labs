@@ -1058,10 +1058,10 @@ index e2aa737..076ee8b 100644
 +  movaslim = "movaslim";
  }
 diff --git a/nix/utils/cross-file/default.nix b/nix/utils/cross-file/default.nix
-index 747f5d4..ac887dc 100644
+index 747f5d4..dee50a4 100644
 --- a/nix/utils/cross-file/default.nix
 +++ b/nix/utils/cross-file/default.nix
-@@ -2,10 +2,56 @@
+@@ -2,10 +2,64 @@
    pkgs ? import ../default/pkgs.nix,
    os ? import ../default/os.nix,
    arch ? pkgs.callPackage ../default/arch.nix { },
@@ -1086,15 +1086,23 @@ index 747f5d4..ac887dc 100644
 +  # client API with MPV_EXPORT (visibility("default")) and already builds
 +  # with hidden visibility upstream.
 +  #
-+  # `-flto=thin` goes one level deeper than -ffunction-sections/-dead_strip:
++  # `-flto=full` goes one level deeper than -ffunction-sections/-dead_strip:
 +  # those only let the linker drop whole sections that nothing references,
-+  # while ThinLTO defers codegen to link time and can inline and eliminate
++  # while LTO defers codegen to link time and can inline and eliminate
 +  # ACROSS translation units and across the separately-built static archives
 +  # (dav1d/freetype/fribidi/harfbuzz/libpng/libass/ffmpeg all fold into the
 +  # one libmpv.dylib, so the whole program is visible to the LTO step).
-+  # ThinLTO rather than full LTO: it is Apple's/clang's recommended mode,
-+  # parallel and far lighter on RAM than monolithic `-flto`, which matters
-+  # inside a Nix sandbox on a GHA runner.
++  # `-flto=thin` (2026-09-18, run 35297495705) only bought 0.86% over plain
++  # gc-sections+dead_strip (7.83MiB -> 7.76MiB) — ThinLTO's per-module
++  # summary-based analysis is conservative about cross-module inlining
++  # compared to full LTO's single whole-program IR merge. Trying full LTO
++  # to see whether the extra devirtualization/inlining opportunities it
++  # gets from having everything in one IR module are worth the cost: it is
++  # NOT parallel like ThinLTO and merges all of ffmpeg+5 static libs+mpv's
++  # own objects into one LLVM module before codegen, which can be
++  # significantly slower and more memory-hungry inside the Nix sandbox on
++  # a GHA runner — if this times out or OOMs, revert this one line back to
++  # `thin` rather than abandoning LTO entirely.
 +  # It must appear in BOTH the compile args (so each .o is emitted as LLVM
 +  # bitcode instead of native code) and the link args (so the clang driver
 +  # tells ld64 to run the LTO codegen pass); giving it only to the compiler
@@ -1107,8 +1115,8 @@ index 747f5d4..ac887dc 100644
 +  # external_project (autotools) builds, ffmpeg and libass, which inherit
 +  # these cross-file values via their CFLAGS/LDFLAGS instead.
 +  slimArgs = pkgs.lib.optionalString (flavor == flavors.movaslim) ''
-+    sed -i -E "/^(c|cpp|objc|objcpp)_args[[:space:]]*=/ s/\]\$/, '-fvisibility=hidden', '-ffunction-sections', '-fdata-sections', '-flto=thin']/" cross-file.ini
-+    sed -i -E "/^(c|cpp|objc|objcpp)_link_args[[:space:]]*=/ s/\]\$/, '-Wl,-dead_strip', '-flto=thin']/" cross-file.ini
++    sed -i -E "/^(c|cpp|objc|objcpp)_args[[:space:]]*=/ s/\]\$/, '-fvisibility=hidden', '-ffunction-sections', '-fdata-sections', '-flto=full']/" cross-file.ini
++    sed -i -E "/^(c|cpp|objc|objcpp)_link_args[[:space:]]*=/ s/\]\$/, '-Wl,-dead_strip', '-flto=full']/" cross-file.ini
 +  '';
 +in
 +
