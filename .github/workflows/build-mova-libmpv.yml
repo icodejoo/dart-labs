@@ -377,20 +377,27 @@ jobs:
           echo "::error::failed to push dist/${{ matrix.abi }}/libmpv.so after retries"
           exit 1
 
-  # iOS + macOS share one upstream repo (media-kit/libmpv-darwin-build) built
-  # via Nix + a pinned Xcode — there is no separate ios/macos repo despite
-  # what earlier comments here assumed. `nix develop -c make` with no TARGET
-  # builds the flake's default package, which is every ios/iossimulator/macos
-  # arch×variant×flavor combination in one go (see create-cross-package.nix),
-  # so this is one job, not a matrix. v1 ships the repo's own "video/default"
-  # flavor as-is (videotoolbox hwaccel + libdav1d already enabled upstream)
-  # rather than re-deriving our exact Android decoder/demuxer list through
-  # Nix overrides — that's a follow-up, not a blocker for a first real build.
+  # macOS movaslim job (2026-09-18) — reuses the exact same upstream repo,
+  # Nix/Xcode toolchain and mova-slim patch as the `ios` job below, just with
+  # a macos-arm64 TARGET instead of ios-arm64. Investigated first (see
+  # mova-libmpv chat history / memory): the movaslim flavor added by
+  # libmpv-darwin-build-mova-slim.patch has zero os-specific branching — every
+  # gate in the patch is `flavor == movaslim`, not `os == ios` — and `macos`
+  # is already a valid os/TARGET combination in the upstream flake
+  # (nix/utils/constants/oses.nix, nix/utils/targets/libs-frameworks.nix list
+  # macos-arm64/amd64/universal). securetransport (used instead of mbedtls)
+  # is Apple's native Security.framework, available on macOS the same as
+  # iOS. So this patch needs zero changes — only the TARGET string differs.
+  # Scoped to macos-arm64 only for the first pass (skip amd64/universal until
+  # arm64 is green — universal lipo-merges two arch outputs, an extra
+  # untested step; amd64 uses a 10.9 deployment target that's never been
+  # exercised by this patch).
+  # Deliberately does NOT commit to mova/tools/ffmpeg-slim/dist/ yet — same
+  # as `ios`, this is a validation pass first.
   darwin:
-    name: "macOS (implemented, v1: upstream default flavor)"
+    name: "macOS arm64 (media-kit/libmpv-darwin-build, movaslim flavor)"
     runs-on: macos-15
-    # paused — iOS-focused iteration (2026-09-17), see ios job below
-    if: false
+    if: true
     steps:
       - name: Platform info
         run: sw_vers; uname -m
@@ -405,9 +412,16 @@ jobs:
         with:
           repository: media-kit/libmpv-darwin-build
           path: build-root
-          # No pinned ref yet (first attempt at this platform) — unlike the
-          # Android build's ANDROID_LIBMPV_BUILD_REF, we don't have a
-          # known-good commit to pin to. Pin this once a build here succeeds.
+          # No pinned ref yet (first attempt at this TARGET) — same as the
+          # `ios` job's identical note; pin once a build here succeeds.
+
+      - name: Apply mova slim-build patch
+        working-directory: build-root
+        # Same patch, same `git add -A` requirement as the `ios` job below
+        # (Nix's git+file:// flake source only sees git-tracked files).
+        run: |
+          git apply ../dart-labs/mova-libmpv/libmpv-darwin-build-mova-slim.patch
+          git add -A
 
       - uses: DeterminateSystems/nix-installer-action@v22
         with:
@@ -422,8 +436,7 @@ jobs:
       - name: Resolve Xcode path
         id: xcode
         run: |
-          # The repo's own CI pins Xcode_16.1.0.app; fall back to whatever
-          # Xcode the runner has if that exact version isn't preinstalled.
+          # Same fallback as the `ios` job's identical step.
           if [ -d /Applications/Xcode_16.1.0.app ]; then
             echo "path=$(realpath /Applications/Xcode_16.1.0.app)" >> "$GITHUB_OUTPUT"
           else
@@ -431,54 +444,44 @@ jobs:
             echo "path=$(xcode-select -p | sed 's|/Contents/Developer||')" >> "$GITHUB_OUTPUT"
           fi
 
-      - name: Build (all darwin targets, upstream default flavor)
+      - name: Build (macOS arm64 only, mova movaslim flavor)
         working-directory: build-root
-        run: nix develop -c make XCODE_PATH="${{ steps.xcode.outputs.path }}" VERSION=mova-ci
+        run: nix develop -c make TARGET=mk-out-archive-libs-macos-arm64-video-movaslim XCODE_PATH="${{ steps.xcode.outputs.path }}" VERSION=mova-ci
 
-      - name: Verify and collect
+      - name: Verify and extract
         working-directory: build-root
         run: |
           ls -la result/
-          test -n "$(ls result/*ios* 2>/dev/null)" || { echo "::error::no iOS archive in result/"; exit 1; }
-          test -n "$(ls result/*macos* 2>/dev/null)" || { echo "::error::no macOS archive in result/"; exit 1; }
-          mkdir -p "$GITHUB_WORKSPACE/darwin-out"
-          cp result/*.tar.gz result/*.zip "$GITHUB_WORKSPACE/darwin-out/" 2>/dev/null || true
-          echo "### darwin build artifacts" >> "$GITHUB_STEP_SUMMARY"
-          ls -la "$GITHUB_WORKSPACE/darwin-out" >> "$GITHUB_STEP_SUMMARY"
+          # -L: dereference the Nix-store symlink, same reasoning as the
+          # `ios` job's identical step (bit us there in run 35193860905).
+          ARCHIVE=$(find -L result -name '*.tar.gz' | head -1)
+          test -n "$ARCHIVE" || { echo "::error::no .tar.gz archive in result/"; exit 1; }
 
-      - name: Upload artifacts
+          mkdir -p "$GITHUB_WORKSPACE/darwin-out"
+          tar -xzvf "$ARCHIVE" -C "$GITHUB_WORKSPACE/darwin-out"
+
+          find "$GITHUB_WORKSPACE/darwin-out" -name '*.dylib' -exec strip -S -x {} \;
+
+          DYLIB=$(find "$GITHUB_WORKSPACE/darwin-out" -iname 'libmpv*.dylib' | head -1)
+          test -n "$DYLIB" || { echo "::error::libmpv*.dylib not found inside archive"; find "$GITHUB_WORKSPACE/darwin-out" -type f -print; exit 1; }
+
+          echo "### libmpv.dylib (macOS arm64, movaslim flavor)" >> "$GITHUB_STEP_SUMMARY"
+          ls -la "$DYLIB" >> "$GITHUB_STEP_SUMMARY"
+          SIZE_BYTES=$(stat -f%z "$DYLIB")
+          echo "$SIZE_BYTES bytes ($(echo "scale=2; $SIZE_BYTES/1048576" | bc) MiB)" >> "$GITHUB_STEP_SUMMARY"
+          size -m "$DYLIB" >> "$GITHUB_STEP_SUMMARY" || true
+
+          echo "### total bundle size (all .dylib files, macOS arm64, movaslim flavor)" >> "$GITHUB_STEP_SUMMARY"
+          ls -la "$GITHUB_WORKSPACE/darwin-out"/*/*.dylib >> "$GITHUB_STEP_SUMMARY"
+          TOTAL_BYTES=$(find "$GITHUB_WORKSPACE/darwin-out" -name '*.dylib' -exec stat -f%z {} \; | awk '{s+=$1} END {print s}')
+          echo "$TOTAL_BYTES bytes ($(echo "scale=2; $TOTAL_BYTES/1048576" | bc) MiB) total across $(find "$GITHUB_WORKSPACE/darwin-out" -name '*.dylib' | wc -l | tr -d ' ') files" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: mova-libmpv-darwin
+          name: mova-libmpv-macos-arm64-movaslim
           path: darwin-out/*
-          retention-days: 30
-
-      - name: Commit built artifacts to dist/
-        working-directory: dart-labs
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          # Every retry starts from a fresh fetch+reset baseline and creates
-          # a brand-new commit on top of it, instead of rebasing an
-          # already-made local commit (see arm64-v8a job for why).
-          for i in 1 2 3 4 5; do
-            git fetch origin main
-            git reset --hard origin/main
-            mkdir -p mova/tools/ffmpeg-slim/dist/darwin
-            cp "$GITHUB_WORKSPACE"/darwin-out/* mova/tools/ffmpeg-slim/dist/darwin/
-            git add mova/tools/ffmpeg-slim/dist/darwin/
-            if git diff --cached --quiet; then
-              echo "No size/content change, skip commit"
-              exit 0
-            fi
-            git commit -m "chore(mova): add darwin (ios+macos) libmpv build, v1 upstream default flavor [skip ci]"
-            git lfs push origin main
-            if git push; then exit 0; fi
-            echo "push rejected, retrying from a fresh baseline ($i/5)..."
-            sleep $((RANDOM % 8 + 2))
-          done
-          echo "::error::failed to push dist/darwin/ after retries"
-          exit 1
+          retention-days: 14
 
   # iOS-only fast-iteration job (2026-09-17, v3) — replaces the previous
   # from-scratch custom cross-build (which built ffmpeg/dav1d/freetype/
@@ -510,7 +513,8 @@ jobs:
   ios:
     name: "iOS arm64 (v3.1: media-kit/libmpv-darwin-build, movaslim flavor)"
     runs-on: macos-15
-    if: true
+    # paused — macOS-focused iteration (2026-09-18), see darwin job above
+    if: false
     steps:
       - name: Checkout dart-labs
         uses: actions/checkout@v4
