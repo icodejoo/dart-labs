@@ -538,8 +538,11 @@ jobs:
   ios:
     name: "iOS arm64 (v3.1: media-kit/libmpv-darwin-build, movaslim flavor)"
     runs-on: macos-15
-    # paused — macOS-focused iteration (2026-09-18), see darwin job above
-    if: false
+    # re-enabled (2026-09-18) alongside darwin to verify the shared movaslim
+    # patch's latest changes (webm_dash_manifest removal, full LTO) don't
+    # regress iOS — both jobs consume the same patch, only the TARGET arch
+    # differs.
+    if: true
     steps:
       - name: Checkout dart-labs
         uses: actions/checkout@v4
