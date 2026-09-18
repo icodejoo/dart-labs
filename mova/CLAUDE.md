@@ -137,8 +137,11 @@ Windows 上本地测出 −11.2% 但 CI 复现失败，已回退）。**iOS 已�
 + securetransport 替 mbedtls）降到 10.76MiB/13 个文件，最后把 ffmpeg/dav1d/freetype/
 fribidi/harfbuzz/libpng/libass 全部改成静态链接进单一 `libmpv.dylib`（跟 Android 同一种
 "单文件"形态才可比）+ 编译器级瘦身（`buildtype=minsize`/`debug=false`/`b_ndebug=true`），
-**最终 CI 实测 7,489,408 字节 ≈7.14MiB，仅比 Android 的 6.52MiB 高约 9.5%**（两平台硬解
-API——MediaCodec vs VideoToolbox——架构本就不同，这个差距已经很合理）。静态化过程连环
+CI 实测 7,489,408 字节 ≈7.14MiB，仅比 Android 的 6.52MiB 高约 9.5%（两平台硬解
+API——MediaCodec vs VideoToolbox——架构本就不同，这个差距已经很合理）。**再叠加 audio/protocol
+白名单收窄**（movaslim 音频 decoder/demuxer 只留 mova 实际用得上的一批，协议只砍掉
+ftp/async/cache/subfile/httpproxy，RTMP/RTP/UDP 因为是真实直播源保留）后，**当前记录：
+CI 实测 6,534,448 字节 ≈6.23MiB，反超 Android 的 6.52MiB 约 4.4%**。静态化过程连环
 踩坑（5 层 pkg-config `Requires:` 传递依赖、libtool `ar`/`ranlib` 被替换成 `false`、
 meson `-Dc_args=` 会替换而非追加 cross-file 的 `-arch`/`-isysroot` 导致 libpng 头文件检测
 失败）详见 `mova-libmpv/README.md`「多平台进度」表 iOS 那一行的完整记录。macOS/其余平台
