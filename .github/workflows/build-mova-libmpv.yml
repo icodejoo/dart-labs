@@ -638,6 +638,27 @@ jobs:
           DYLIB=$(find "$GITHUB_WORKSPACE/ios-out" -iname 'libmpv*.dylib' | head -1)
           test -n "$DYLIB" || { echo "::error::libmpv*.dylib not found inside archive"; find "$GITHUB_WORKSPACE/ios-out" -type f -print; exit 1; }
 
+          # Symbol export check: same rationale and check as the `darwin`
+          # job's identical step — movaslim's -fvisibility=hidden (cross-file/
+          # default.nix) applies to mpv itself here too, and this was only
+          # ever verified on the macOS build (run 35300824995), never on
+          # this iOS target directly. host `nm -gU` reads the iOS arm64
+          # Mach-O's symbol table fine even though it can't execute it.
+          echo "### exported symbol check (libmpv.dylib, iOS arm64)" >> "$GITHUB_STEP_SUMMARY"
+          MISSING_SYMS=""
+          for sym in mpv_create mpv_initialize mpv_command mpv_command_async mpv_set_option mpv_observe_property mpv_render_context_create mpv_render_context_render mpv_wait_event mpv_terminate_destroy; do
+            if nm -gU "$DYLIB" | grep -q " T _${sym}\$"; then
+              echo "✅ $sym" >> "$GITHUB_STEP_SUMMARY"
+            else
+              echo "❌ $sym MISSING" >> "$GITHUB_STEP_SUMMARY"
+              MISSING_SYMS="$MISSING_SYMS $sym"
+            fi
+          done
+          if [ -n "$MISSING_SYMS" ]; then
+            echo "::error::libmpv.dylib is missing expected exported symbols:$MISSING_SYMS (likely -fvisibility=hidden swallowed the public API — check MPV_EXPORT annotations survived)"
+            exit 1
+          fi
+
           echo "### libmpv.dylib (iOS arm64, movaslim flavor)" >> "$GITHUB_STEP_SUMMARY"
           ls -la "$DYLIB" >> "$GITHUB_STEP_SUMMARY"
           SIZE_BYTES=$(stat -f%z "$DYLIB")
