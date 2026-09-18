@@ -60,13 +60,13 @@ jobs:
   android-arm64:
     name: Android arm64-v8a (implemented)
     runs-on: ubuntu-22.04
-    # paused — iOS/macOS-focused iteration, see darwin/ios jobs below.
     # 2026-09-18: A/B'd -fomit-frame-pointer here (run 35305095749) while
     # briefly re-enabled — turned out to be a size REGRESSION on Android too
     # (6,190,732 -> 6,050,104 bytes, -2.27%, after removing it from
     # flavors-mova-slim.sh/libmpv-android-video-build.patch), same direction
-    # as iOS/macOS's own A/B. The flag is gone for good now; re-pausing.
-    if: false
+    # as iOS/macOS's own A/B. The flag is gone for good now.
+    # re-enabled (2026-09-18) now that macOS/iOS movaslim validation is done.
+    if: true
     steps:
       - name: Checkout dart-labs
         uses: actions/checkout@v4
@@ -237,8 +237,8 @@ jobs:
             abi: x86
           - arch: x86_64
             abi: x86_64
-    # paused — iOS-focused iteration (2026-09-17), see ios job below
-    if: false
+    # re-enabled (2026-09-18) now that macOS/iOS movaslim validation is done.
+    if: true
     steps:
       - name: Checkout dart-labs
         uses: actions/checkout@v4
@@ -399,8 +399,8 @@ jobs:
   # lipo-merges two arch outputs internally (upstream's own TARGET, not
   # something this patch does); amd64 uses a 10.9 deployment target that
   # had not been exercised by this patch before this matrix.
-  # Deliberately does NOT commit to mova/tools/ffmpeg-slim/dist/ yet — same
-  # as `ios`, this is a validation pass first.
+  # All three archs went green on run 35312415642 — now commits its
+  # libmpv.dylib to mova/tools/ffmpeg-slim/dist/macos-<arch>/, same as `ios`.
   darwin:
     name: "macOS ${{ matrix.arch }} (media-kit/libmpv-darwin-build, movaslim flavor)"
     runs-on: macos-15
@@ -519,6 +519,41 @@ jobs:
           path: darwin-out/*
           retention-days: 14
 
+      - name: Commit built artifact to dist/
+        working-directory: dart-labs
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          # This job runs concurrently with its own other matrix legs (and
+          # android/linux/windows too) — all push to the same branch, each
+          # touching a disjoint dist/<subdir>/ path. Every retry starts from
+          # a fresh fetch+reset baseline and creates a brand-new commit on
+          # top of it, instead of rebasing an already-made local commit (see
+          # android-arm64 job's identical step for why).
+          for i in 1 2 3 4 5; do
+            git fetch origin main
+            git reset --hard origin/main
+            mkdir -p mova/tools/ffmpeg-slim/dist/macos-${{ matrix.arch }}
+            DYLIB=$(find "$GITHUB_WORKSPACE/darwin-out" -iname 'libmpv*.dylib' | head -1)
+            cp "$DYLIB" mova/tools/ffmpeg-slim/dist/macos-${{ matrix.arch }}/libmpv.dylib
+            git add mova/tools/ffmpeg-slim/dist/macos-${{ matrix.arch }}/libmpv.dylib
+            if git diff --cached --quiet; then
+              echo "No size/content change, skip commit"
+              exit 0
+            fi
+            git commit -m "chore(mova): rebuild slimmed libmpv.dylib (macOS ${{ matrix.arch }}, movaslim) [skip ci]"
+            # actions/checkout doesn't install LFS hooks, so a plain `git
+            # push` here would push the pointer commit while silently
+            # leaving the actual binary missing from the LFS store — push
+            # LFS content explicitly (see android-arm64 job's identical step).
+            git lfs push origin main
+            if git push; then exit 0; fi
+            echo "push rejected (race with a sibling job), retrying from a fresh baseline ($i/5)..."
+            sleep $((RANDOM % 8 + 2))
+          done
+          echo "::error::failed to push dist/macos-${{ matrix.arch }}/ after retries"
+          exit 1
+
   # iOS-only fast-iteration job (2026-09-17, v3) — replaces the previous
   # from-scratch custom cross-build (which built ffmpeg/dav1d/freetype/
   # fribidi/harfbuzz/libass/mpv all by hand and never went green). Reuses the
@@ -544,8 +579,8 @@ jobs:
   # pipeline — a real follow-up, not done in this pass. Expect the total
   # bundle size to shrink meaningfully but likely still exceed Android's
   # single-file ~6.5MiB for that architectural reason.
-  # Deliberately does NOT commit to mova/tools/ffmpeg-slim/dist/ yet — this
-  # is a validation pass, not a shipping artifact.
+  # Went green on run 35312415642 — now commits its libmpv.dylib to
+  # mova/tools/ffmpeg-slim/dist/ios-arm64/, same as `darwin`.
   ios:
     name: "iOS arm64 (v3.1: media-kit/libmpv-darwin-build, movaslim flavor)"
     runs-on: macos-15
@@ -694,6 +729,33 @@ jobs:
           path: ios-out/*
           retention-days: 14
 
+      - name: Commit built artifact to dist/
+        working-directory: dart-labs
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          # Same retry/fetch/reset/lfs-push idiom as android-arm64's and
+          # darwin's identical steps — this job runs concurrently with them.
+          for i in 1 2 3 4 5; do
+            git fetch origin main
+            git reset --hard origin/main
+            mkdir -p mova/tools/ffmpeg-slim/dist/ios-arm64
+            DYLIB=$(find "$GITHUB_WORKSPACE/ios-out" -iname 'libmpv*.dylib' | head -1)
+            cp "$DYLIB" mova/tools/ffmpeg-slim/dist/ios-arm64/libmpv.dylib
+            git add mova/tools/ffmpeg-slim/dist/ios-arm64/libmpv.dylib
+            if git diff --cached --quiet; then
+              echo "No size/content change, skip commit"
+              exit 0
+            fi
+            git commit -m "chore(mova): rebuild slimmed libmpv.dylib (iOS arm64, movaslim) [skip ci]"
+            git lfs push origin main
+            if git push; then exit 0; fi
+            echo "push rejected (race with a sibling job), retrying from a fresh baseline ($i/5)..."
+            sleep $((RANDOM % 8 + 2))
+          done
+          echo "::error::failed to push dist/ios-arm64/ after retries"
+          exit 1
+
   # No upstream media-kit repo exists for Linux (unlike Android/darwin/win32)
   # — this builds ffmpeg+mpv from source natively on the runner itself, no
   # cross-compile toolchain needed. Dependencies (libass/freetype/harfbuzz/
@@ -703,11 +765,11 @@ jobs:
   linux:
     name: "Linux x86_64 (implemented, v1: native build)"
     runs-on: ubuntu-22.04
-    # paused — iOS-focused iteration (2026-09-17), see ios job below. The
-    # dist/linux-x86_64/ artifact currently committed predates this job's
-    # -Dgpl=false meson flag (see the mpv build step below); rebuild once
-    # re-enabled.
-    if: false
+    # re-enabled (2026-09-18) now that macOS/iOS movaslim validation is done.
+    # The dist/linux-x86_64/ artifact currently committed predates this job's
+    # -Dgpl=false meson flag (see the mpv build step below); rebuilt now that
+    # this job runs again.
+    if: true
     steps:
       - name: Checkout dart-labs
         uses: actions/checkout@v4
@@ -903,9 +965,9 @@ jobs:
   windows:
     name: "Windows x86_64 (implemented, v1: native MSYS2 slim)"
     runs-on: windows-latest
-    # paused — iOS-focused iteration (2026-09-17), see ios job below. Never
-    # gone green before — expect iteration once re-enabled.
-    if: false
+    # re-enabled (2026-09-18) now that macOS/iOS movaslim validation is done.
+    # Never gone green before — expect iteration.
+    if: true
     defaults:
       run:
         shell: msys2 {0}
