@@ -171,4 +171,69 @@ void main() {
     expect((_surfaceKey(t) as ValueKey<Object?>).value, 'video-handle');
     await api.dispose();
   });
+
+  testWidgets(
+    'the same api mounted at a different tree position keeps the same render '
+    'handle — the executable proof behind the mini window\'s "no re-decode" '
+    'claim (0.6.0), since a real device test cannot be run here',
+    (t) async {
+      final api = FakeMovaApi();
+      api.renderHandle = 'stable-handle';
+      await t.pumpWidget(MaterialApp(home: Center(child: MovaPlayer(api: api))));
+      await t.pump();
+      final atPage = (_surfaceKey(t) as ValueKey<Object?>).value;
+
+      // Unmount from the page position, remount at a different tree
+      // position — mirroring what MovaMiniCtl.hide()/showInPage do: the page
+      // stops holding a MovaPlayer on this api, and it reappears elsewhere
+      // (the mini window). renderHandle never changes identity in between.
+      //
+      // 从页面位置卸载，在树的另一个位置重新挂载——对应 MovaMiniCtl.hide()/
+      // showInPage 的实际效果：页面不再持有该 api 的 MovaPlayer，它在别处
+      // （小窗）重新出现。期间 renderHandle 身份自始至终不变。
+      await t.pumpWidget(MaterialApp(
+        home: Align(alignment: Alignment.bottomRight, child: MovaPlayer(api: api)),
+      ));
+      await t.pump();
+      final atMini = (_surfaceKey(t) as ValueKey<Object?>).value;
+
+      expect(atMini, atPage);
+      expect(atMini, 'stable-handle');
+      await api.dispose();
+    },
+  );
+
+  testWidgets('MovaState.mini true does not by itself change renderEpoch or the render surface', (t) async {
+    final api = FakeMovaApi();
+    await t.pumpWidget(MaterialApp(home: MovaPlayer(api: api)));
+    await t.pump();
+    final before = _surfaceKey(t);
+
+    api.emitMini(true);
+    await t.pump();
+    final after = _surfaceKey(t);
+
+    expect(after, equals(before));
+    expect(api.state.renderEpoch, 0);
+    await api.dispose();
+  });
+
+  testWidgets(
+    'a swap-driven renderEpoch bump still rebuilds the render surface while MovaState.mini is true '
+    '(the mini window\'s _RenderSurface shares the same MovaSelect logic as the page — must not regress)',
+    (t) async {
+      final api = FakeMovaApi();
+      api.emitMini(true);
+      await t.pumpWidget(MaterialApp(home: MovaPlayer(api: api)));
+      await t.pump();
+
+      api.renderHandle = 'post-swap-handle';
+      api.bumpRenderEpoch();
+      await t.pump();
+      await t.pump();
+
+      expect((_surfaceKey(t) as ValueKey<Object?>).value, 'post-swap-handle');
+      await api.dispose();
+    },
+  );
 }
