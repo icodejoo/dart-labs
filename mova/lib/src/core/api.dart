@@ -204,6 +204,27 @@ abstract class MovaApi {
   /// [v] 为 `true` 表示进入全屏，`false` 表示退出。
   Future<void> setFullscreen(bool v);
 
+  /// Enters or leaves the in-app mini window.
+  ///
+  /// Pure UI state: no platform channel, no PiP API. The host's
+  /// `MovaMiniHost` is what actually renders the window; this method is the
+  /// single source of truth both it and the page-side chrome read from.
+  /// Entering implicitly leaves fullscreen (they cannot both be meaningful).
+  ///
+  /// 进入或退出 App 内小窗。
+  ///
+  /// 纯 UI 状态：不走任何平台通道，不碰 PiP API。真正渲染小窗的是宿主侧的
+  /// `MovaMiniHost`；本方法只是它与页面侧 chrome 共同读取的唯一真值源。
+  /// 进入小窗会隐式退出全屏（二者不可能同时有意义）。
+  ///
+  /// - [v]: `true` 进入小窗，`false` 退出 / enter when `true`
+  ///
+  /// Example / 示例:
+  /// ```dart
+  /// await api.setMini(true);   // 页面 chrome 自动收起，宿主的 MovaMiniHost 弹出小窗
+  /// ```
+  Future<void> setMini(bool v);
+
   /// Forces the screen orientation, independent of fullscreen.
   ///
   /// [MovaOrient.auto] restores the aspect-ratio/fullscreen-derived

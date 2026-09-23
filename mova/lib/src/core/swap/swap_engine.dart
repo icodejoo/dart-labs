@@ -245,6 +245,9 @@ class MovaSwapEngine implements MovaApi, MovaSwapCtl {
   Future<void> setFullscreen(bool v) => _active.setFullscreen(v);
 
   @override
+  Future<void> setMini(bool v) => _active.setMini(v);
+
+  @override
   Future<void> setOrientation(MovaOrient o) => _active.setOrientation(o);
 
   @override

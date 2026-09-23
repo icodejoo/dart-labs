@@ -336,6 +336,21 @@ class MovaPipChg extends MovaEvent {
   const MovaPipChg(this.value);
 }
 
+/// The in-app mini window state changed.
+///
+/// App 内小窗状态发生变化。
+class MovaMiniChg extends MovaEvent {
+  /// Whether the mini window is now active.
+  ///
+  /// 小窗当前是否处于激活状态。
+  final bool mini;
+
+  /// Creates the event with [mini].
+  ///
+  /// 用 [mini] 创建事件。
+  const MovaMiniChg(this.mini);
+}
+
 /// The live timeshift offset changed.
 ///
 /// 直播时移偏移量发生变化。

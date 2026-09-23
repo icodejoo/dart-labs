@@ -777,6 +777,14 @@ class MovaEngine implements MovaApi {
   }
 
   @override
+  Future<void> setMini(bool v) async {
+    if (state.mini == v) return; // 幂等，避免无谓事件
+    if (v && state.fullscreen) await setFullscreen(false);
+    _state.emit(state.copyWith(mini: v));
+    _events.add(MovaMiniChg(v));
+  }
+
+  @override
   Future<void> setOrientation(MovaOrient o) async {
     _state.emit(state.copyWith(orientation: o));
     await _applyOrientation();
@@ -1033,6 +1041,13 @@ class MovaEngine implements MovaApi {
 
   @override
   Future<void> dispose() async {
+    // Disposing while the mini window still renders this engine leaves the
+    // host painting a dead texture — almost always a page that disposed the
+    // engine it had just handed off. Debug-only, zero release cost.
+    //
+    // 小窗仍在渲染本引擎时 dispose，会让宿主继续绘制一个已死的纹理——几乎总是
+    // 某个页面把刚交接出去的引擎顺手销毁了。仅 debug 生效，release 零成本。
+    assert(!state.mini, 'dispose() while MovaState.mini is true — see MovaMiniCtl docs');
     await _playingSub.cancel();
     await _bufferingSub.cancel();
     await _completedSub.cancel();

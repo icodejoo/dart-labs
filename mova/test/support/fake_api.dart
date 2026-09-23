@@ -121,6 +121,17 @@ class FakeMovaApi implements MovaApi {
   /// 最近一次 [setFullscreen] 调用的参数；若从未调用过则为 `null`。
   bool? lastFullscreen;
 
+  /// The argument of the most recent [setMini] call, or `null` if never
+  /// called.
+  ///
+  /// 最近一次 [setMini] 调用的参数；若从未调用过则为 `null`。
+  bool? lastMini;
+
+  /// Whether [dispose] has been called on this fake.
+  ///
+  /// 该假对象是否已被 [dispose]。
+  bool disposed = false;
+
   /// The argument of the most recent [setOrientation] call, or `null` if
   /// never called.
   ///
@@ -377,6 +388,20 @@ class FakeMovaApi implements MovaApi {
   }
 
   @override
+  Future<void> setMini(bool v) async {
+    calls.add('setMini');
+    lastMini = v;
+    push(state.copyWith(mini: v));
+  }
+
+  /// Pushes a [MovaState] with [mini] set, without going through [setMini] —
+  /// lets tests simulate the state changing out from under a widget.
+  ///
+  /// 推送一个 [mini] 已设置的 [MovaState]，不经过 [setMini]——供测试模拟状态
+  /// 在组件之外发生变化。
+  void emitMini(bool mini) => push(state.copyWith(mini: mini));
+
+  @override
   Future<void> setOrientation(MovaOrient o) async {
     calls.add('setOrientation');
     lastOrientation = o;
@@ -437,6 +462,7 @@ class FakeMovaApi implements MovaApi {
   @override
   Future<void> dispose() async {
     calls.add('dispose');
+    disposed = true;
     await _progress.close();
     await _events.close();
     await _state.close();

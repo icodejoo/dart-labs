@@ -23,4 +23,20 @@ void main() {
     expect(api.lastSeek, const Duration(seconds: 3));
     await api.dispose();
   });
+
+  test('FakeMovaApi.setMini records the call, updates lastMini and pushes mini into state', () async {
+    final api = FakeMovaApi();
+    await api.setMini(true);
+    expect(api.calls, ['setMini']);
+    expect(api.lastMini, isTrue);
+    expect(api.state.mini, isTrue);
+    await api.dispose();
+  });
+
+  test('FakeMovaApi.dispose sets disposed to true', () async {
+    final api = FakeMovaApi();
+    expect(api.disposed, isFalse);
+    await api.dispose();
+    expect(api.disposed, isTrue);
+  });
 }

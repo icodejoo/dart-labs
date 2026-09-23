@@ -90,6 +90,7 @@ void main() {
       await api.setRate(1.5);
       await api.setFit(MovaFit.cover);
       await api.setFullscreen(true);
+      await api.setMini(true);
       await api.switchQuality(MovaQual.auto());
       await api.reload();
       await api.backToLiveEdge();
@@ -103,6 +104,7 @@ void main() {
         'setRate',
         'setFit',
         'setFullscreen',
+        'setMini',
         'switchQuality',
         'reload',
         'backToLiveEdge',
@@ -277,6 +279,24 @@ void main() {
       expect(oldEngine.calls, contains('pause'));
       expect(oldEngine.calls, contains('dispose'));
       expect(shadow.calls, contains('play'));
+    });
+
+    test('setMini forwards to the currently active engine, and to the new one after a swap', () async {
+      await api.setMini(true);
+      expect(made[0].lastMini, isTrue);
+
+      await api.prepare(
+        const MovaSource('https://host/content.mp4'),
+        at: const Duration(seconds: 5),
+        cue: const MovaWarmCue(remaining: Duration(seconds: 1), total: Duration(seconds: 10)),
+      );
+      await settle();
+      final shadow = made[1];
+      await warmToReady(shadow, at: const Duration(seconds: 5));
+      await api.commit();
+
+      await api.setMini(false);
+      expect(shadow.lastMini, isFalse);
     });
 
     test('commit() success bumps renderEpoch, observable from states', () async {

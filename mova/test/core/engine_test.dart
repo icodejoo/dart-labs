@@ -1022,6 +1022,78 @@ void main() {
           '裸构造函数从来就不默认接抽帧器',
     );
   });
+
+  group('setMini', () {
+    test('flips MovaState.mini and emits exactly one MovaMiniChg', () async {
+      final events = <MovaEvent>[];
+      final sub = e.events.listen(events.add);
+      await e.setMini(true);
+      await Future<void>.delayed(Duration.zero);
+      expect(e.state.mini, isTrue);
+      expect(events.whereType<MovaMiniChg>().map((ev) => ev.mini), [true]);
+      await sub.cancel();
+      await e.setMini(false); // 让 tearDown 的 dispose() 不触发 mini 态 assert
+    });
+
+    test('repeated setMini(true) is idempotent and emits no further event', () async {
+      await e.setMini(true);
+      final events = <MovaEvent>[];
+      final sub = e.events.listen(events.add);
+      await e.setMini(true);
+      await Future<void>.delayed(Duration.zero);
+      expect(events.whereType<MovaMiniChg>(), isEmpty);
+      await e.setMini(false); // 让 tearDown 的 dispose() 不触发 mini 态 assert
+      await sub.cancel();
+    });
+
+    test('entering mini while fullscreen leaves fullscreen first, then mini (event order)', () async {
+      await e.setFullscreen(true);
+      final events = <MovaEvent>[];
+      final sub = e.events.listen(events.add);
+      await e.setMini(true);
+      await Future<void>.delayed(Duration.zero);
+      expect(e.state.fullscreen, isFalse);
+      expect(e.state.mini, isTrue);
+      final relevant = events.where((ev) => ev is MovaFullScreenChg || ev is MovaMiniChg).toList();
+      expect(relevant, [isA<MovaFullScreenChg>(), isA<MovaMiniChg>()]);
+      await e.setMini(false);
+      await sub.cancel();
+    });
+
+    test('setMini(false) never re-sets fullscreen', () async {
+      await e.setFullscreen(true);
+      await e.setMini(true);
+      await e.setMini(false);
+      expect(e.state.fullscreen, isFalse);
+    });
+
+    test('setMini never touches pip/orientation/volume ports', () async {
+      final pip = _YesPip();
+      final orientation = _SpyOrientationPort();
+      final volume = _RecordingVolumePort(current: 50);
+      final engine = MovaEngine(kernel: FakeKernel(), pip: pip, orientation: orientation, volume: volume);
+      await engine.setMini(true);
+      expect(orientation.calls, isEmpty);
+      expect(volume.lastSet, isNull);
+      await engine.setMini(false);
+      await engine.dispose();
+    });
+
+    test('dispose() while state.mini is true triggers a debug assert', () async {
+      final engine = MovaEngine(kernel: FakeKernel());
+      await engine.setMini(true);
+      expect(() => engine.dispose(), throwsA(isA<AssertionError>()));
+      await engine.setMini(false);
+      await engine.dispose();
+    });
+
+    test('dispose() after setMini(false) again disposes normally', () async {
+      final engine = MovaEngine(kernel: FakeKernel());
+      await engine.setMini(true);
+      await engine.setMini(false);
+      await engine.dispose();
+    });
+  });
 }
 
 /// A spy [MovaOrientPort] that records every `apply(...)` call's
