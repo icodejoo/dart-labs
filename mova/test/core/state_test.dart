@@ -70,4 +70,33 @@ void main() {
     final b = a.copyWith(renderEpoch: 1);
     expect(b, isNot(equals(a)));
   });
+
+  test('MovaState.mini defaults to false', () {
+    const s = MovaState();
+    expect(s.mini, isFalse);
+  });
+
+  test('MovaState.copyWith(mini:) replaces only that field', () {
+    const s = MovaState();
+    final n = s.copyWith(mini: true);
+    expect(n.mini, isTrue);
+    expect(n.fit, s.fit);
+    expect(n.volume, s.volume);
+  });
+
+  test('MovaState.copyWith() with no args leaves mini unchanged', () {
+    const s = MovaState(mini: true);
+    expect(s.copyWith().mini, isTrue);
+  });
+
+  test('states differing only by mini are not equal', () {
+    const a = MovaState();
+    final b = a.copyWith(mini: true);
+    expect(b, isNot(equals(a)));
+    expect(b.hashCode, isNot(equals(a.hashCode)));
+  });
+
+  test('MovaState() default equals a manually-constructed default (mini included)', () {
+    expect(const MovaState(), const MovaState(mini: false));
+  });
 }

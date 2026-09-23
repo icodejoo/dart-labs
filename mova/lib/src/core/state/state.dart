@@ -64,6 +64,17 @@ class MovaState {
   /// 自身的 UI 只是晚一两帧出现，而不会先闪一个点了没反应的按钮。
   final bool pipSupported;
 
+  /// Whether the picture is currently rendered in the in-app mini window.
+  ///
+  /// Orthogonal to [pip] (system-level) and mutually exclusive with it and
+  /// with [fullscreen]: the engine clears the other two when this turns on.
+  ///
+  /// 画面当前是否渲染在 App 内小窗里。
+  ///
+  /// 与 [pip]（系统级）正交，且与它和 [fullscreen] 互斥：该位置真时 engine 会
+  /// 清掉另外两个。
+  final bool mini;
+
   /// Total media duration; `Duration.zero` if unknown (e.g. live).
   ///
   /// 媒体总时长；未知时（如直播）为 `Duration.zero`。
@@ -182,6 +193,7 @@ class MovaState {
     this.orientation = MovaOrient.auto,
     this.pip = false,
     this.pipSupported = false,
+    this.mini = false,
     this.duration = Duration.zero,
     this.width = 0,
     this.height = 0,
@@ -222,6 +234,7 @@ class MovaState {
     MovaOrient? orientation,
     bool? pip,
     bool? pipSupported,
+    bool? mini,
     Duration? duration,
     int? width,
     int? height,
@@ -253,6 +266,7 @@ class MovaState {
       orientation: orientation ?? this.orientation,
       pip: pip ?? this.pip,
       pipSupported: pipSupported ?? this.pipSupported,
+      mini: mini ?? this.mini,
       duration: duration ?? this.duration,
       width: width ?? this.width,
       height: height ?? this.height,
@@ -285,6 +299,7 @@ class MovaState {
         other.orientation == orientation &&
         other.pip == pip &&
         other.pipSupported == pipSupported &&
+        other.mini == mini &&
         other.duration == duration &&
         other.width == width &&
         other.height == height &&
@@ -318,6 +333,7 @@ class MovaState {
         error,
         sourceTitle,
         renderEpoch,
+        mini,
       );
 }
 
