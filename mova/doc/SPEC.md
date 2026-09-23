@@ -338,6 +338,62 @@ break.waitForReady ?? config.waitForAdReady.waitFor(break)
   [doc/plans/2026-09-16-ad-swap-enhancements.md](plans/2026-09-16-ad-swap-enhancements.md)
   Task 12。
 
+## App 内小窗（MovaMini，0.6.0，默认关闭）
+
+在不依赖任何系统 PiP API 的前提下，让画面从页面里"缩"成一个可拖拽的悬浮小窗——不重新
+解码、不黑屏。默认关闭（`MovaMiniConfig.enabled` 为 `false`），四端通用。
+
+**与系统 PiP / 系统悬浮窗的三方关系（互斥矩阵）**：
+
+| | 画在哪 | 权限 | 与 mova 的关系 |
+|---|---|---|---|
+| `enterPip()`（系统 PiP） | 系统 WindowManager，App 之外 | Android 需系统支持 | `MovaState.pip` |
+| `flutter_overlay_window` 类系统悬浮窗 | 同上 | `SYSTEM_ALERT_WINDOW` | 未接入，与本功能正交 |
+| App 内小窗（本节） | Flutter 绘制树内，**不出 App** | 零权限 | `MovaState.mini` |
+
+`MovaState.mini`/`pip`/`fullscreen` 三者：`mini` 与 `pip` 正交（各自独立的 bool，互不清
+对方）；`mini` 与 `fullscreen` 互斥——`MovaEngine.setMini(true)` 在 `state.fullscreen` 为
+真时会先 `setFullscreen(false)`（先发 `MovaFullScreenChg` 再发 `MovaMiniChg`），反向
+`setMini(false)` **不会**恢复全屏。
+
+**为什么不重新解码**：`MovaApi`/`MovaEngine`/`MpvKernel` 是纯 Dart 对象，生命周期与
+widget 树无关；`_RenderSurface` 每次 build 都重读 `api.renderHandle` 并按
+`_RenderHandleKey(handle)` 做 key——句柄没变，Flutter 复用同一个 `Texture`。
+`test/ui/player_test.dart` 有一条"同一 api 在两个树位置先后挂载，renderHandle 不变"的
+契约测试，是这条命题在单测层面能做到的最强证明（真机验证见下）。**硬约束**：同一时刻
+只允许一个 `MovaPlayer` 持有该 api 的渲染面，`MovaMiniCtl`/`MovaMiniMount` 负责互斥。
+
+**两种挂载方式的分工与 `MovaMiniMount` 互斥规则**：
+
+| | 方式 A · 页内悬浮 | 方式 B · 跨路由持久 |
+|---|---|---|
+| 入口 | `MovaMiniCtl.showInPage(context, api)` | `MovaMiniCtl.show(api)` + `MovaMiniHost` |
+| 挂载 | `Overlay.of(context, rootOverlay: false)` 插 `OverlayEntry`，mova 实现 | 宿主级 `Stack`，mova 只给便利壳 |
+| 生命周期 | 跟随该页面（page 被 pop，小窗随之消失） | 独立于路由栈 |
+| `MovaMiniCtl.mount` | `MovaMiniMount.page` | `MovaMiniMount.persistent` |
+
+`MovaMiniHost` 只在 `mount == persistent` 时渲染，`page` 时渲染空——避免宿主同时接了
+`MovaMiniHost` 又调 `showInPage` 时出现两个渲染面。`MovaMiniMount` 是纯 UI 层枚举，
+不进 core（core 只关心 `MovaState.mini` 这一个 bool）。
+
+**不可回退的架构约束**：`MovaMiniWindow` 挂载无关——自身是撑满外部约束的 `Stack`
+（`LayoutBuilder` 取 `bounds`，不用 `MediaQuery.size`），永远不许自己是 `Positioned`；
+两种外壳（`OverlayEntry` / `Positioned.fill`）只是"把它放到哪里"的差异，
+`test/ui/mini/mini_mount_test.dart` 的等价性用例是这条约束的可执行守卫。
+
+**落点纯逻辑**（`core/mini/placement.dart`，零 Flutter 依赖）：`MovaMiniRect`/
+`MovaMiniInsets` 是 `Rect`/`EdgeInsets` 的极简 core 层替身；`clampToBounds` 每帧拖动都用，
+`MovaCornerSnap.settle` 只在松手时用——垂直方向永远只钳制不吸边，快速水平甩动优先于
+中心位置判据（惯性优先）。
+
+**误用防护**：`MovaMiniCtl.isShowing(api)` 让页面 `dispose()` 前自检；
+`MovaEngine.dispose()` 在 `state.mini == true` 时打一条 debug-only `assert`（release
+零成本）。`MovaMiniCtl._detachEntry()` 单点收口 entry 摘除，`entry.mounted` 判据防止
+宿主 Overlay 先于 ctl 死亡（页面被 pop）导致的重复 remove 崩溃。
+
+**真机验证未做**（计划 Task 12），checklist 见
+[doc/plans/2026-09-23-app-inline-pip-overlay.md](doc/plans/2026-09-23-app-inline-pip-overlay.md)。
+
 ## 仅音频模式（`audioOnly`，0.4.x，默认关闭）
 
 `MpvKernel({bool audioOnly = false})` / `MovaEngine({bool audioOnly = false})` /

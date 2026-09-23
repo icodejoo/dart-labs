@@ -1,3 +1,27 @@
+## 0.6.0
+
+App 内小窗（`MovaMini`）：在不依赖任何系统 PiP API 的前提下，让画面从页面里"缩"成一个
+可拖拽的悬浮小窗，不重新解码、不黑屏。默认 **关闭**（`MovaMiniConfig.enabled` 为
+`false` 时全链路零行为变化）。
+
+* **两种挂载方式并存**：`MovaMiniCtl.showInPage`（方式 A，页内悬浮，`OverlayEntry` 插入
+  最近祖先 `Overlay`，随页面生灭）与 `MovaMiniCtl.show` + `MovaMiniHost`（方式 B，跨路由
+  持久，`MaterialApp.builder` 下的 `Stack`）。核心逻辑收在挂载无关的 `MovaMiniWindow`
+  （自身是撑满外部约束的 `Stack`，`bounds` 取 `LayoutBuilder` 约束而非
+  `MediaQuery.size`），两种外壳只是"把它放到哪里"的差异。
+* **core 层极薄改动**：`MovaState.mini`（与 `fullscreen`/`pip` 同构）、
+  `MovaApi.setMini`（幂等、进入小窗隐式退出全屏）、`MovaMiniChg` 事件、
+  `MovaMiniConfig`（默认值 + 配置项 + 可注入 `MovaMiniPlacement` 落点策略三件套）、
+  纯函数 `core/mini/placement.dart`（吸边/钳制/安全区避让，零 Flutter 依赖）。
+  `engine.dart` 播放链路一行不动。
+* **拖拽/吸边/关闭**：`MovaCornerSnap` 默认吸角（惯性优先、垂直方向只钳制不吸边）；
+  `dismissible` 甩出关闭；`MovaMiniSkin` 极简 chrome（中央播放/暂停 + 缓冲 + 关闭）。
+* **误用防护**：`MovaMiniCtl.isShowing` + `MovaEngine.dispose()` 的 debug-only
+  `assert(!state.mini)`，防止页面把刚交接出去的引擎顺手销毁。
+* 详见 README「App 内小窗」一节、
+  [doc/plans/2026-09-23-app-inline-pip-overlay.md](doc/plans/2026-09-23-app-inline-pip-overlay.md)。
+  **真机验证未做**（Task 12）。
+
 ## 0.5.0
 
 广告编排增强：把 `MovaAdCtrl` 从"能按排期播广告"推进到"能按广告业务的真实时序播广告"。

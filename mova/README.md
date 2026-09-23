@@ -295,6 +295,90 @@ runApp(MovaPlayer(api: api));
 两者仅共享 `MovaEngineFact` 这条原语。详见
 [doc/plans/2026-09-16-seamless-swap.md](doc/plans/2026-09-16-seamless-swap.md)。
 
+## App 内小窗（`MovaMini`，可选）
+
+在不依赖任何系统 PiP API 的前提下，让画面从页面里"缩"成一个可拖拽的悬浮小窗——不重新
+解码、不黑屏。与系统级 PiP（`MovaApi.enterPip()`）和 Android 那类需要权限的系统悬浮窗
+（`SYSTEM_ALERT_WINDOW`）都不是一回事：本功能完全是 Flutter 自己绘制树里的合成，永远不
+出 App，四端零权限、行为一致。默认 **关闭**（`MovaMiniConfig.enabled` 为 `false`）。
+
+核心洞察：`MovaApi`/`MovaEngine` 是纯 Dart 对象，生命周期与 widget 树无关；只要宿主在
+路由之外持有同一个 `MovaApi` 实例，把 `MovaPlayer` 从页面里卸载、在小窗里重新挂载，
+libmpv 侧一个字节都不会重新解码——重挂的只是 Flutter 的 `Texture` widget。
+
+两种挂载方式并存，按需选用，互不取代：
+
+### 方式 A · 页内悬浮（mova 实现）
+
+就在当前页面内部浮着：不受页面滚动内容影响、可拖拽移动位置；页面被 pop，小窗随之消失
+（这正是"页内"该有的语义，不是缺陷）；`push` 新路由会盖住它，`pop` 回来又在。
+
+```dart
+final mini = MovaMiniCtl();
+
+// 打开小窗：
+await mini.showInPage(context, api);
+
+// 页面 dispose() 里必须调一次 hide() 或 close()，否则 MovaState.mini 会停在
+// true 而无人渲染：
+@override
+void dispose() {
+  if (mini.isShowing(api)) mini.hide();
+  super.dispose();
+}
+```
+
+### 方式 B · 跨路由持久（mova 只给便利壳 + 文档）
+
+跨路由常驻：push/pop 任意多层，小窗一直在最上。mova 只保证底层能力
+（controller 与路由生命周期解耦）；`MovaMiniHost` 是一个约 30 行的可选便利壳：
+
+```dart
+final miniCtl = MovaMiniCtl(); // 建在 app 根，路由之外
+
+MaterialApp(
+  builder: (context, child) => MovaMiniHost(ctl: miniCtl, child: child!),
+  home: const HomePage(),
+)
+
+// 播放页里点"缩小"：
+await miniCtl.show(api);
+Navigator.of(context).pop();   // 引擎不受影响，画面在小窗里继续
+```
+
+不想用 `MovaMiniHost` 也可以，等价的手写 `Stack`：
+
+```dart
+builder: (context, child) => Stack(children: [
+  child!,
+  // 用 ListenableBuilder/AnimatedBuilder 订阅 miniCtl：
+  if (miniCtl.api != null)
+    Positioned.fill(child: MovaMiniWindow(
+      ctl: miniCtl, api: miniCtl.api!, config: miniCtl.api!.options.mini)),
+]),
+```
+
+### ⚠️ 谁 dispose engine
+
+mova 一贯的约定是"宿主持有 engine"——`MovaPlayer`/`MovaMiniCtl` 从不 dispose 传进来的
+`api`。**页面 `dispose()` 里顺手 `api.dispose()` 是最常见的错误用法**，会在交接瞬间把
+正在小窗里播的引擎干掉。`MovaMiniCtl.isShowing(api)` 让页面在 `dispose` 前自检；
+`MovaEngine.dispose()` 在 `state.mini == true` 时还会打一条 debug-only 的 `assert` 兜底
+（release 零成本）。
+
+### 与系统 PiP / 系统悬浮窗的关系
+
+三者正交、互斥生效：① `enterPip()`（Android 系统级）把**整个 Activity**缩成系统悬浮窗，
+退出 App 后仍在；② `flutter_overlay_window` 一类**系统悬浮窗**需要 `SYSTEM_ALERT_WINDOW`
+权限，画在自家 App **之外**；③ 本功能只在自家 App 前台的绘制树里做文章，**不出 App**，
+但没有任何平台门槛。Flutter 的 `Overlay`/`OverlayEntry` 与 Android 的系统悬浮窗只是同名，
+毫无关系。
+
+demo 见 [example/lib/mini_window_demo.dart](example/lib/mini_window_demo.dart)（
+`flutter run -t lib/mini_window_demo.dart`）。详见
+[doc/plans/2026-09-23-app-inline-pip-overlay.md](doc/plans/2026-09-23-app-inline-pip-overlay.md)、
+[doc/SPEC.md](doc/SPEC.md)「App 内小窗（MovaMini）」一节。**真机验证未做**（Task 12）。
+
 ## 仅音频模式（`audioOnly`）
 
 同一个项目里既要放视频也要放纯音频时，音频那条路不该背视频的资源开销。

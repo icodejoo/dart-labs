@@ -20,6 +20,23 @@
 基于 media_kit（libmpv/ffmpeg）的 Flutter 视频播放插件，自研手势与控制层，
 支持点播/直播，发布到 pub.dev。属于 `dart-labs` monorepo 的子工程。
 
+## 当前状态（0.6.0）
+
+**0.6.0 App 内小窗（`MovaMini`）已完成代码落地（真机验证未做）**：不依赖任何系统 PiP
+API，让画面从页面里"缩"成一个可拖拽的悬浮小窗——不重新解码、不黑屏。默认
+**关闭**（`MovaMiniConfig.enabled` 为 `false`）。两种挂载方式并存：方式 A 页内悬浮
+（`MovaMiniCtl.showInPage`，mova 实现 `OverlayEntry` 插入）、方式 B 跨路由持久
+（`MovaMiniCtl.show` + `MovaMiniHost` 便利壳）。核心逻辑收在挂载无关的 `MovaMiniWindow`
+一处（自身是撑满外部约束的 `Stack`，两种外壳只是"放到哪里"的差异）。core 层仅加
+`MovaState.mini`/`MovaApi.setMini`/`MovaMiniChg`/`MovaMiniConfig`/
+`core/mini/placement.dart` 五处，播放链路一行不动。测试 **803 项全绿**（基线 709，
+本批新增 94）、`flutter analyze` 0 issues（1 条既有 `feed_player.dart` 警告，与本次
+改动无关）。详见 [doc/plans/2026-09-23-app-inline-pip-overlay.md](doc/plans/2026-09-23-app-inline-pip-overlay.md)、
+[doc/SPEC.md](doc/SPEC.md)「App 内小窗（MovaMini）」一节。**真机验证未做**（计划 Task 12，
+见「剩余任务」）。
+
+以下为 0.5.0 阶段成果（仍有效）：
+
 ## 当前状态（0.5.0）
 
 > **合并后的当前测试基线：709 项全绿**（2026-09-17，`audioOnly` 与 0.5.0 广告编排增强
@@ -41,7 +58,9 @@
 **除广告位时长外全部默认关闭/默认不改变行为**；等待要生效还需宿主接了 `swap` 且
 `MovaSwapConfig.enabled` 为 true，两者 0.4.0 默认都是关的。测试 **656 项全绿**
 （基线 536，本批新增 120 项）、`flutter analyze` 0 issues（1 条与本次改动无关的既有
-`feed_player.dart` 警告）。**真机验证未做**（计划 Task 12，见「剩余任务」第 0 条）。
+`feed_player.dart` 警告）。**真机验证部分完成**（2026-09-23，STG AL00 arm64 Android 12；
+前贴片不等待路径、中插坏 URL 失败降级、失败事件只触发一次三项已拿到客观证据，其余
+仍未测，详见「剩余任务」第 0 条）。
 详见 [doc/plans/2026-09-16-ad-swap-enhancements.md](doc/plans/2026-09-16-ad-swap-enhancements.md)、
 [doc/SPEC.md](doc/SPEC.md)「广告编排增强」一节。
 
@@ -59,8 +78,11 @@
 接入；清晰度切换（`switchQuality`）只做了接口形状契约测试 + 落点注释，未真正接入；
 feed 引擎池结构性不适用本模型，明确排除。详见
 [doc/plans/2026-09-16-seamless-swap.md](doc/plans/2026-09-16-seamless-swap.md)、
-[doc/SPEC.md](doc/SPEC.md)"无缝引擎切换"一节。**真机验证未做**（Task 11：黑屏是否真的
-消除、中插续播点误差、内存/解码 session 三阶段采样、短广告降级路径，均需真机逐项验证）。
+[doc/SPEC.md](doc/SPEC.md)"无缝引擎切换"一节。**真机验证部分完成**（2026-09-23：用
+`main_seamless_test.dart` 实测 skip 触发后 `renderEpoch` 1→2 确认切换机制真实生效，
+广告→正片切换间隔（skip 调用到 renderEpoch 落地，基于真实事件戳）= 806ms；黑屏是否真的
+消除、切换瞬间音画是否跳变、内存/解码 session 三阶段采样、短广告降级路径、断网预热
+超时兜底仍未测，见「剩余任务」第 0 条）。
 
 **0.4.x 仅音频模式（`audioOnly`）已完成（默认关闭）**：`MpvKernel` / `MovaEngine` /
 `createMovaEngine()` 新增 `bool audioOnly = false` 构造参数。为 `true` 时完全跳过
@@ -77,9 +99,14 @@ feed 引擎池结构性不适用本模型，明确排除。详见
 **是约 2 倍而非推算的两个数量级**（RSS 含 Flutter engine/libmpv 自身常驻开销），
 同时直接确认 `audioOnly` 下 `MovaState.size` 为 `0x0`（视频轨未解码）、`renderHandle`
 为 `null`；数据见 [doc/notes/2026-09-16-audio-only-feasibility.md](doc/notes/2026-09-16-audio-only-feasibility.md) §1.5。
-计划见
+**真机三阶段内存对账已实测**（2026-09-23，STG AL00，`ProcessInfo.currentRss`，两次独立
+运行）：video 模式 baseline 108.89→playing 156.73（+47.84）→disposed 155.63 MiB，audio
+模式 baseline 99.45→playing 117.18（+17.73）→disposed 121.73 MiB，真机播放期增量比约
+2.7×（桌面此前是约 2.05×，量级一致、真机差距更大）；`renderHandle`/`size` 在 audio
+模式下分别确认为 `null`/`0x0`。计划见
 [doc/plans/2026-09-16-audio-only.md](doc/plans/2026-09-16-audio-only.md)、
-[doc/SPEC.md](doc/SPEC.md)"仅音频模式"一节。**真机验证未做**（Task 5）。
+[doc/SPEC.md](doc/SPEC.md)"仅音频模式"一节。**真机验证部分完成**（Task 5，剩余项见
+「剩余任务」）。
 
 **当前测试基线：560 项全绿**（0.4.0 落地时为 536，仅音频模式新增 24 项）、
 `flutter analyze` 0 issues（1 条与上述改动均无关的既有 `feed_player.dart` 警告，
@@ -125,6 +152,15 @@ feed 引擎池结构性不适用本模型，明确排除。详见
 260 项测试全绿，`flutter analyze` 0 issues。
 
 ## 剩余任务
+
+**0.6.0 App 内小窗——真机验证未做（Task 12，每次启动请提醒用户此项未完成）**：
+Task 1–11 已完成（core 五处改动、`MovaMiniCtl`/`MovaMiniWindow`/`MovaMiniHost`/
+`MovaMiniSkin`、开放性对账、example demo、文档）。剩 Task 12 的真机 checklist（七组，
+详见计划文档）：A 组不重新解码（`renderEpoch`/position 连续性、三阶段内存对比）、
+B 组交接那一帧（黑帧数、音频不中断）、C 组跨路由/生命周期（方式 A 页内滚动零漂移、
+方式 B 跨两层路由、两种方式互斥、转屏钳回、与系统 PiP 互斥）、D 组手感（拖动跟手、
+吸边动画、甩出阈值）、E 组误用防护（assert 命中/release 不崩）、F 组关闭态回归、
+G 组结论回写。计划见 [doc/plans/2026-09-23-app-inline-pip-overlay.md](doc/plans/2026-09-23-app-inline-pip-overlay.md)。
 
 **libmpv 瘦身产物的 CI/git 集成——2026-09-17 全平台 CI 首次全绿**（8/8 job，含此前
 一直失败的 Android x86——根因是共享 build 缓存跨架构污染导致 meson 复用 stale 配置
@@ -223,39 +259,53 @@ Android jniLibs 已接线，iOS 侧尚未把 `dist/darwin/` 产物接进 podspec
    手动拷贝的旧文件，对不上）。**iOS 侧尚未接线**（podspec 还没引用 `dist/darwin/` 产物，
    留待 iOS PiP/真机验证一起处理时再补）。
 
-**0.5.0 广告编排增强——真机验证未做（Task 12，每次启动请提醒用户此项未完成）**：
-Task 1–11 已完成。剩 Task 12 的真机 checklist（七组）：A 组等待就绪（前贴片默认不等
-vs 中插默认等，需逐帧数黑屏帧数、跑 10 次取时延分布来验证 `adReadyTimeout` 5s 是否
-合理）、B 组失败降级（坏 URL 在真机上到底以 `openThrew` 还是 `playerError` 报出来是
-最值得看的发现点；黑洞 URL 下 `open()` 会不会永不返回）、C 组倒计时期间正片是否流畅
-（双活解码，中低端机是最大风险）、D 组 pod 内只弹一次、E 组 `duration` 对超长素材是否
-真的不卡死（这是"不依赖媒体时间轴"约束的反向验证）、F 组关闭态回归、G 组结论回写。
+**0.5.0 广告编排增强——真机验证部分完成（Task 12，每次启动请提醒用户此项仍有剩余项未完成）**：
+Task 1–11 已完成。Task 12 真机 checklist 七组，**2026-09-23（STG AL00 arm64 Android 12）
+已拿到客观证据的**：前贴片默认不等待路径正常播完、swap ready→ad completed→swap idle
+事件全部触发；B 组失败降级——中插换坏地址后 15.94s 触发加载、16.05s 即失败，日志显示
+`ad failed (Failed to open https://host.invalid/definitely-missing.mp4.)`，**确认真机上
+坏 URL 走 openThrew（`open()` 直接失败），不是 playerError**，正片自动无缝续播、未见
+卡死；D 组同一广告位失败事件只触发一次、未见重复弹出，客观验证通过。**仍未测**：A 组
+等待就绪的黑屏帧数与时延分布（需视觉判断+多次统计验证 `adReadyTimeout` 5s 是否合理）、
+C 组倒计时期间正片流畅度（双活解码，中低端机风险，主观判断）、E 组超长素材 `duration`
+场景（本轮未构造超长素材）、F 组关闭态回归、G 组结论回写（尚待补全）。
 example 已建独立页 `AdOrchestrationDemoPage`（四个开关 + 真实回调打点的屏上事件日志，
 无需 logcat）。计划见
 [doc/plans/2026-09-16-ad-swap-enhancements.md](doc/plans/2026-09-16-ad-swap-enhancements.md)。
 
-**0.4.x 仅音频模式——真机验证未做（Task 5，每次启动请提醒用户此项未完成）**：
+**0.4.x 仅音频模式——真机验证部分完成（Task 5，每次启动请提醒用户此项仍有剩余项未完成）**：
 Task 1–4 已完成（`renderHandle` 契约放宽、`MpvKernel` 不建视频管线、
-`MovaEngine`/`createMovaEngine()` 透传、UI/swap 兼容护栏与文档）。剩 Task 5 的真机
-checklist：纯音频源与带视频轨源的播放正确性（后者应只出声不出画）、三阶段
-`dumpsys meminfo` 内存对账（视频 / 音频 / 释放后）、电量/CPU 量级抽查、
-连播多轮看是否逐轮爬升（泄漏判据）、关闭态全 demo 回归。
-**其中两项已在 Windows 桌面端提前拿到实测答案**（见笔记 §1.5）：① 内存——桌面 RSS
-实测视频 197 MiB vs 音频 96 MiB，约 2.05×，**已如实回写笔记，把"两个数量级"的口径
-更正为分项量级**；② `vid=no` 已直接确认（audio 模式 `size` 为 `0x0`）。
-**但桌面 RSS 与移动端 `dumpsys meminfo` 不能直接类比**，移动端那笔账（MediaCodec/
-纹理分栏）仍需真机重做。
+`MovaEngine`/`createMovaEngine()` 透传、UI/swap 兼容护栏与文档）。Task 5 真机 checklist
+中，**2026-09-23（STG AL00 arm64 Android 12）已用 `ProcessInfo.currentRss` 实测完成
+三阶段内存对账**（两次独立运行）：video 模式 baseline 108.89→playing 156.73（+47.84）
+→disposed 155.63 MiB，audio 模式 baseline 99.45→playing 117.18（+17.73）→disposed
+121.73 MiB，真机播放期增量比约 2.7×（桌面此前约 2.05×，量级一致、真机差距更大）；
+`renderHandle`（audio 模式为 null）、`size`（audio 模式为 `0x0`）均已在真机确认。
+dispose 后内存几乎未回落——不能排除泄漏，但也非直接证据，需多轮连播才能下结论。
+**仍未测**：带视频轨源在 audioOnly 下是否真的只出声不出画（本轮只测了纯音频源）、
+`dumpsys meminfo` 分栏对账（MediaCodec/纹理，本轮用的是 `ProcessInfo.currentRss` 不是
+`dumpsys meminfo`）、电量/CPU 量级抽查、连播多轮内存爬升判据（本轮只做了单轮三阶段）、
+关闭态全 demo 回归。
+**顺带发现探针缺陷（未修复，仅记录）**：`example/lib/perf_probe_audio_only.dart` 用
+`stdout.writeln` 而非 `print()`，release 包在 Android 上不会出现在 logcat；且用
+`Platform.environment` 读取模式参数，但 `--dart-define` 不会注入 Android 进程的 OS
+环境变量，导致该探针的模式切换实际上从未真正生效过——待修。
 **已就绪的前置**：`example/lib/audio_only_demo.dart`（独立 demo 页，带真实事件打点）
-与 `example/lib/perf_probe_audio_only.dart`（RSS 探针，`--dart-define` 选模式）。
+与 `example/lib/perf_probe_audio_only.dart`（RSS 探针，`--dart-define` 选模式，见上方
+缺陷记录）。
 计划见 [doc/plans/2026-09-16-audio-only.md](doc/plans/2026-09-16-audio-only.md)。
 另：`MovaAudioSkin`（封面/歌词/波形专用皮肤，第二档，约 6–8 Task）**明确不做**，
 将来若确有需要再评估——当前用 `MovaPlayer.surface` 已够。
 
-0. **0.4.0 无缝引擎切换——真机验证未做（Task 11，每次启动请提醒用户此项未完成）**：
+0. **0.4.0 无缝引擎切换——真机验证部分完成（Task 11，每次启动请提醒用户此项仍有剩余项未完成）**：
    Task 1–10 已完成（配置面、`renderEpoch`、预热触发/就绪判据、`MovaSwapEngine` 骨架
    与原子切换、`MovaAdCtrl` 接入、清晰度切换契约测试、开放性对账、barrel/example/文档）。
-   剩 Task 11 的真机 checklist：广告黑屏是否真的消除、中插续播点误差、切换瞬间音画是否
-   有跳变、内存/解码 session 三阶段采样是否有泄漏、短广告降级路径、断网预热超时兜底。
+   **2026-09-23（STG AL00 arm64 Android 12）已用 `main_seamless_test.dart` 实测**：skip
+   触发后 `renderEpoch` 从 1 跳到 2，确认切换机制真实生效；广告→正片切换间隔（skip 调用
+   到 renderEpoch 落地，基于真实事件戳，非墙钟估算）= 806ms。**仍未测**：广告黑屏是否
+   真的消除（视觉主观判断）、中插续播点误差、切换瞬间音画是否有跳变（主观）、内存/解码
+   session 三阶段采样（本轮未做，只测了 renderEpoch 和耗时）、短广告降级路径、断网预热
+   超时兜底。
    计划见 [doc/plans/2026-09-16-seamless-swap.md](doc/plans/2026-09-16-seamless-swap.md)。
 
 按 doc/DESIGN-0.2.0.md §12 的阶段划分。**逐 Task 计划已写好，直接照做即可**：
@@ -270,9 +320,14 @@ checklist：纯音频源与带视频轨源的播放正确性（后者应只出�
 3. **阶段 D：收尾——进行中**。同上文件的 Task 10–14：iOS podspec 元数据已对齐
    pubspec（Task 10 完成，注意版本号需手动同步）、example 已加直播/时移两个 demo
    （Task 11 完成，仅桌面冒烟，未做交互验证）、README/CHANGELOG/SPEC 已更新（Task 12）、
-   `pub publish --dry-run` 待最终校验（Task 13）、**真机一轮验证仍未做**（Task 14；
-   手势手感、HLS 联网切档、Android PiP 实际行为、iOS 整体、直播/时移 UI；均承自 0.1.0
-   仍未验证，且阶段 A 重构、预览、时移三块都从未上过真机）。
+   `pub publish --dry-run` 待最终校验（Task 13）、**Task 14 真机验证部分完成**
+   （2026-09-23，STG AL00 arm64 Android 12）：HLS 联网切档——加载后事件序列出现两次独立
+   `MovaSizeChg`（伴随 `MovaBufferChg`/`MovaDurChg`/`MovaReady`），符合分辨率切换的真实
+   信号，确认真实发生；Android PiP——`engine.pipSupported = true`、`enterPip() = true`、
+   触发后收到 `MovaPipChg` 事件，`adb shell dumpsys activity` 确认
+   `mIsInPictureInPictureMode=true`、`mWindowingMode=pinned`，**真机确认真实生效**。
+   **仍未测**：手势手感（左亮度/右音量的实际触感，主观）、直播/时移 UI 交互、iOS 整体
+   （本轮只有 Android 设备）。
 
 **承自 fvideo（改名前）、排在 0.2.0 之后**——mova 就是 fvideo，遗留任务全部承接：
 
