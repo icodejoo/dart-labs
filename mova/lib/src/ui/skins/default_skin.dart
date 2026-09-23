@@ -139,7 +139,8 @@ class MovaDefSkin implements MovaSkin {
   Widget buildOperableLayer(BuildContext context, MovaSlotBundle slots) {
     return Positioned.fill(
       child: RepaintBoundary(
-        child: _PipHidden(
+        child: _MiniHidden(
+          child: _PipHidden(
           child: _LockedHidden(
             child: Stack(
               children: [
@@ -217,6 +218,7 @@ class MovaDefSkin implements MovaSkin {
                 Positioned.fill(child: Stack(children: slots[MovaSlot.hud])),
               ],
             ),
+          ),
           ),
         ),
       ),
@@ -306,6 +308,36 @@ class _BarVisibility extends StatelessWidget {
 /// 系统级画中画悬浮窗只有几十逻辑像素见方，也没有自己的手势操作面——宿主
 /// 系统会提供自己的播放/暂停/关闭按钮——因此 mova 的整套 chrome（手势层、
 /// 各栏、HUD）在其中毫无用处，反而会盖住系统自带的控制。
+/// Hides [child] outright while [MovaState.mini] is active.
+///
+/// The picture has been handed to the in-app mini window, which carries its
+/// own minimal chrome (`MovaMiniSkin`); the page-side chrome would otherwise
+/// keep painting over a surface that is no longer there.
+///
+/// [MovaState.mini] 生效期间直接隐藏 [child]。
+///
+/// 画面已交给 App 内小窗，小窗自带极简 chrome（`MovaMiniSkin`）；否则页面侧的
+/// chrome 会继续绘制在一个已经不在那里的画面之上。
+class _MiniHidden extends StatelessWidget {
+  /// Creates the mini-visibility wrapper around [child].
+  ///
+  /// 创建包裹 [child] 的小窗显隐控制组件。
+  const _MiniHidden({required this.child});
+
+  /// The chrome whose visibility this widget controls.
+  ///
+  /// 该组件控制其显隐的 chrome 内容。
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return MovaSelect<bool>(
+      selector: (s) => s.mini,
+      builder: (context, mini) => mini ? const SizedBox.shrink() : child,
+    );
+  }
+}
+
 class _PipHidden extends StatelessWidget {
   /// Creates the pip-visibility wrapper around [child].
   ///
