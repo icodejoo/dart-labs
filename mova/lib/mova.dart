@@ -16,6 +16,7 @@ export 'src/core/feed/feed_controller.dart';
 export 'src/core/feed/feed_prefetcher.dart';
 export 'src/core/interceptor/interceptor.dart';
 export 'src/core/live/timeshift.dart';
+export 'src/core/mini/placement.dart';
 export 'src/core/model/ad.dart';
 export 'src/core/model/danmaku.dart';
 export 'src/core/model/feed_item.dart';

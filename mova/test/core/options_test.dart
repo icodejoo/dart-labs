@@ -3,6 +3,7 @@ import 'package:mova/src/core/ad/fail.dart';
 import 'package:mova/src/core/model/ad.dart';
 import 'package:mova/src/core/model/danmaku.dart';
 import 'package:mova/src/core/model/fit.dart';
+import 'package:mova/src/core/mini/placement.dart';
 import 'package:mova/src/core/model/source.dart';
 import 'package:mova/src/core/options/options.dart';
 import 'package:mova/src/core/preview/net_probe.dart';
@@ -330,6 +331,56 @@ void main() {
       expect(n.ads.loadTimeout, const Duration(seconds: 1));
       expect(n.swap, o.swap);
       expect(n.gesture, o.gesture);
+    });
+  });
+
+  group('MovaMiniConfig — in-app mini window', () {
+    test('defaults: disabled, 180x(16/9), bottomRight corner', () {
+      const c = MovaMiniConfig();
+      expect(c.enabled, isFalse);
+      expect(c.width, 180);
+      expect(c.aspectRatio, 16 / 9);
+      expect(c.initialCorner, MovaMiniCorner.bottomRight);
+      expect(c.margin, 12);
+      expect(c.snapToEdge, isTrue);
+      expect(c.dismissible, isTrue);
+      expect(c.settleDuration, const Duration(milliseconds: 220));
+    });
+
+    test('MovaOpts().mini equals a default MovaMiniConfig, and MovaOpts equality/hashCode include it', () {
+      const o = MovaOpts();
+      expect(o.mini, const MovaMiniConfig());
+      final n = o.copyWith(mini: const MovaMiniConfig(enabled: true));
+      expect(n.mini.enabled, isTrue);
+      expect(n, isNot(equals(o)));
+      expect(n.hashCode, isNot(equals(o.hashCode)));
+      expect(n.preview, o.preview);
+    });
+
+    test('copyWith replaces only the given field', () {
+      const c = MovaMiniConfig();
+      final n = c.copyWith(enabled: true);
+      expect(n.enabled, isTrue);
+      expect(n.width, c.width);
+      expect(n.aspectRatio, c.aspectRatio);
+    });
+
+    test('effectivePlacement falls back to MovaCornerSnap when placement is null, else returns it verbatim', () {
+      const c = MovaMiniConfig();
+      expect(c.effectivePlacement, isA<MovaCornerSnap>());
+      final injected = MovaCornerSnap(snap: false);
+      final c2 = MovaMiniConfig(placement: injected);
+      expect(c2.effectivePlacement, same(injected));
+    });
+
+    test('constructor asserts reject non-positive width/aspectRatio and negative margin', () {
+      expect(() => MovaMiniConfig(width: 0), throwsA(isA<AssertionError>()));
+      expect(() => MovaMiniConfig(aspectRatio: -1), throwsA(isA<AssertionError>()));
+      expect(() => MovaMiniConfig(margin: -1), throwsA(isA<AssertionError>()));
+    });
+
+    test('default MovaOpts() equals a freshly-constructed default (0.5.0 regression guard)', () {
+      expect(const MovaOpts(), const MovaOpts());
     });
   });
 }

@@ -73,6 +73,7 @@ void main() {
           'strings',
           'theme',
           'swap',
+          'mini',
         ],
         reason: 'audioOnly is a construction-time resource decision — the '
             "kernel's render handle is bound once and never re-bound, so a "

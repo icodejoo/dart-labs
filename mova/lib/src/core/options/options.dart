@@ -4,6 +4,7 @@ export 'controls_config.dart';
 export 'danmaku_config.dart';
 export 'gesture_config.dart';
 export 'live_config.dart';
+export 'mini_config.dart';
 export 'playlist_config.dart';
 export 'preview_config.dart';
 export 'stt_config.dart';
@@ -17,6 +18,7 @@ import 'controls_config.dart';
 import 'danmaku_config.dart';
 import 'gesture_config.dart';
 import 'live_config.dart';
+import 'mini_config.dart';
 import 'playlist_config.dart';
 import 'preview_config.dart';
 import 'stt_config.dart';
@@ -97,6 +99,11 @@ class MovaOpts {
   /// 无缝引擎切换配置。
   final MovaSwapConfig swap;
 
+  /// In-app mini window configuration.
+  ///
+  /// App 内小窗配置。
+  final MovaMiniConfig mini;
+
   /// Creates an options bundle; every section defaults to its own defaults.
   ///
   /// 创建配置集合；每一节均使用其自身默认值。
@@ -113,6 +120,7 @@ class MovaOpts {
     this.strings = const MovaStrs(),
     this.theme = const MovaTheme(),
     this.swap = const MovaSwapConfig(),
+    this.mini = const MovaMiniConfig(),
   });
 
   /// Returns a copy with the given sections replaced; omitted sections keep
@@ -132,6 +140,7 @@ class MovaOpts {
   /// - [strings]: replacement strings / 替换用的文案
   /// - [theme]: replacement theme / 替换用的主题
   /// - [swap]: replacement swap config / 替换用的切换配置
+  /// - [mini]: replacement mini-window config / 替换用的小窗配置
   ///
   /// Returns the new [MovaOpts] instance / 返回新的 [MovaOpts] 实例。
   MovaOpts copyWith({
@@ -147,6 +156,7 @@ class MovaOpts {
     MovaStrs? strings,
     MovaTheme? theme,
     MovaSwapConfig? swap,
+    MovaMiniConfig? mini,
   }) {
     return MovaOpts(
       preview: preview ?? this.preview,
@@ -161,6 +171,7 @@ class MovaOpts {
       strings: strings ?? this.strings,
       theme: theme ?? this.theme,
       swap: swap ?? this.swap,
+      mini: mini ?? this.mini,
     );
   }
 
@@ -180,9 +191,10 @@ class MovaOpts {
           ads == other.ads &&
           strings == other.strings &&
           theme == other.theme &&
-          swap == other.swap;
+          swap == other.swap &&
+          mini == other.mini;
 
   @override
   int get hashCode => Object.hash(preview, live, gesture, abr, controls, danmaku,
-      stt, playlist, ads, strings, Object.hash(theme, swap));
+      stt, playlist, ads, strings, Object.hash(theme, swap, mini));
 }
