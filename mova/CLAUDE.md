@@ -179,14 +179,24 @@ cdb/gdb 拿真实调用栈）。已配置
 **没有**崩溃弹窗/事件日志/原生故障——那是另一个已在 demo 里修复的问题
 （`_engine.dispose()` 缺 `catchError`），不要和这个原生崩溃混为一谈。
 
-**0.6.0 App 内小窗——真机验证未做（Task 12，每次启动请提醒用户此项未完成）**：
-Task 1–11 已完成（core 五处改动、`MovaMiniCtl`/`MovaMiniWindow`/`MovaMiniHost`/
-`MovaMiniSkin`、开放性对账、example demo、文档）。剩 Task 12 的真机 checklist（七组，
-详见计划文档）：A 组不重新解码（`renderEpoch`/position 连续性、三阶段内存对比）、
-B 组交接那一帧（黑帧数、音频不中断）、C 组跨路由/生命周期（方式 A 页内滚动零漂移、
-方式 B 跨两层路由、两种方式互斥、转屏钳回、与系统 PiP 互斥）、D 组手感（拖动跟手、
-吸边动画、甩出阈值）、E 组误用防护（assert 命中/release 不崩）、F 组关闭态回归、
-G 组结论回写。计划见 [doc/plans/2026-09-23-app-inline-pip-overlay.md](doc/plans/2026-09-23-app-inline-pip-overlay.md)。
+**0.6.0 App 内小窗——Windows 桌面真机验证部分完成（Task 12，每次启动请提醒用户
+Android 专属三项仍未完成）**：Task 1–11 已完成（core 五处改动、`MovaMiniCtl`/
+`MovaMiniWindow`/`MovaMiniHost`/`MovaMiniSkin`、开放性对账、example demo、文档）。
+**2026-09-24（Windows 桌面，`--no-enable-impeller` 强制 Skia 后端）用户手工走完
+A–F 六组，均目测通过**：A 组不重新解码——位置连续、交接无跳变（**未记录具体
+`position`/`renderEpoch` 数值，只是目测确认，不满足项目"基于真实事件数字"的
+验证约定**，三阶段内存对比本轮未做）；B 组交接无黑帧、音频不中断；C 组页内
+小窗滚动零漂移、跨路由两层小窗全程最上层持续播放、方式 A/B 互斥；D 组拖动
+跟手、吸边正常、甩动无误触发关闭；E 组 debug assert 正确触发并被捕获上报，
+未发生原生崩溃；F 组既有 demo 无回归。**验证中顺带发现并修复一个 demo 自身
+次生 bug**：`_MisuseDemoState` 触发 assert 后若同一帧内又导航到别的入口，
+新引擎事件流回调会在 widget 树锁定期间同步刷新 `_eventLog`，炸出
+`setState()/markNeedsBuild() called when widget tree was locked`——与
+`MovaMiniCtl`/`MovaEngine` 核心逻辑无关，已修复为 `addPostFrameCallback` 推迟
+通知（`example/lib/mini_window_demo.dart`）。**仍未测（Android 专属，本轮无
+设备连接）**：转屏钳回、切后台再回前台、与系统 PiP（`enterPip()`）互斥。
+计划见 [doc/plans/2026-09-23-app-inline-pip-overlay.md](doc/plans/2026-09-23-app-inline-pip-overlay.md)
+（该文件本轮被系统进程锁定写入失败，结论暂未同步进去，待解锁后补）。
 
 **libmpv 瘦身产物的 CI/git 集成——2026-09-17 全平台 CI 首次全绿**（8/8 job，含此前
 一直失败的 Android x86——根因是共享 build 缓存跨架构污染导致 meson 复用 stale 配置

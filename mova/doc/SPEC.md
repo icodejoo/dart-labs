@@ -398,7 +398,13 @@ widget 树无关；`_RenderSurface` 每次 build 都重读 `api.renderHandle` �
 小窗），宿主需要"点画面回整页"效果时自行接 `ctl.onTapContent = (api) => ctl.hide()`。
 关闭按钮的行为不受影响，始终调 `MovaMiniCtl.close()`。
 
-**真机验证未做**（计划 Task 12），checklist 见
+**Windows 桌面真机验证部分完成**（计划 Task 12，2026-09-24，`--no-enable-impeller`
+强制 Skia 后端）：A–F 六组用户手工目测均通过（A 组未记录具体
+`position`/`renderEpoch` 数值,不满足"基于真实事件数字"的项目约定；其余五组
+正常）。Android 专属三项（转屏钳回、切后台再回前台、与系统 PiP 互斥）本轮无
+设备连接,未测。验证中顺带发现并修复一个 demo 自身次生 bug：`_MisuseDemoState`
+触发 assert 后若同一帧内又导航，新引擎事件流回调会在 widget 树锁定期间同步
+刷新 `_eventLog`，已改用 `addPostFrameCallback` 推迟通知。checklist 见
 [doc/plans/2026-09-23-app-inline-pip-overlay.md](doc/plans/2026-09-23-app-inline-pip-overlay.md)。
 
 **⚠️ 2026-09-24 Windows 真机验证发现一个未解决的原生崩溃**：`mini_window_demo`

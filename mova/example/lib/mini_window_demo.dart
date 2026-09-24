@@ -50,18 +50,28 @@ final ValueNotifier<List<String>> _eventLog = ValueNotifier(const []);
 
 void _log(String line) {
   final now = TimeOfDay.now();
-  _eventLog.value = [
-    '${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}:${DateTime.now().second.toString().padLeft(2, '0')} $line',
-    ..._eventLog.value,
-  ].take(30).toList();
+  final entry =
+      '${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}:${DateTime.now().second.toString().padLeft(2, '0')} $line';
+  // 引擎事件可能在页面切换/dispose 的同一帧里同步触发（真机验证 2026-09-24
+  // 实测复现：故意错误用法页面报错后紧接着导航，帧仍锁定时这里同步刷新
+  // ValueNotifier 会炸出 "setState() ... locked"）——推到下一帧再通知。
+  WidgetsBinding.instance.addPostFrameCallback((_) {
+    _eventLog.value = [entry, ..._eventLog.value].take(30).toList();
+  });
 }
 
 /// Wires [engine]'s event stream into [_log]; call once per engine created.
 ///
 /// 把 [engine] 的事件流接进 [_log]；每个新建的 engine 调一次。
 void _wireEventLog(MovaEngine engine) {
+  // 交接命题（A 组：不重新解码）的测量锚点——事件触发瞬间的 position/
+  // renderEpoch，不用墙钟；renderEpoch 不变 + position 不归零/不回退才算通过。
+  var lastPosition = Duration.zero;
+  engine.progress.listen((p) => lastPosition = p.position);
   engine.events.listen((e) {
-    if (e is MovaMiniChg) _log('MovaMiniChg(${e.mini})');
+    if (e is MovaMiniChg) {
+      _log('MovaMiniChg(${e.mini}) position=$lastPosition renderEpoch=${engine.state.renderEpoch}');
+    }
     if (e is MovaPipChg) _log('MovaPipChg(${e.value})');
     if (e is MovaFullScreenChg) _log('MovaFullScreenChg(${e.value})');
   });
