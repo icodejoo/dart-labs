@@ -1086,9 +1086,14 @@ D3D11VA/DXVA2 硬解 API 也被 `--disable-d3d11va`/`--disable-dxva2` 显式关�
 
 - **接入 mova 工程**：目前只是产物验证阶段，还没接进 Flutter 侧（fork/path override
   `media_kit_libs_windows_video`，方法同 Android 那节"与 media_kit 集成"）。
-- **真机（真实 Windows 机器）播放验证**：还没有跑过 `example` 应用实际播放视频，
-  只验证了"编译链接通过、产物存在"——这是目前性价比最高、也是唯一必须做的下一步，
-  优先级高于继续抠体积。
+- ~~**真机（真实 Windows 机器）播放验证**~~ **已完成（2026-09-24）**：不是这条记录的
+  本地 26.97MiB 构建路径本身，而是同一目标（真实 Windows 机器上播放验证）经 CI 瘦身
+  产物路径（`dist/windows-x86_64/libmpv-2.dll`，见上方"多平台进度"表 Windows 行 §13）
+  完成——用 `flutter run -d windows -t lib/main.dart` 实跑 mova example，画面+声音正常，
+  且过程中定位并修复了一个真实崩溃（gcc 16.2.0 编译 mpv `m_config_frontend.c` 的
+  miscompilation，改用 clang 编译 mpv 那一步修复），CI 全平台（含 Windows）随后也验证
+  通过（GitHub Actions run 35948800700）。**本节这条本地构建链自己仍未接入 mova 工程**，
+  下一条"接入 mova 工程"依旧有效——已验证的是 CI/`dist/` 那条产线。
 - **UPX 后处理压缩**（搜索到的通用方案，未实测）：号称能把体积压到原来的 ~26%，
   但 DLL 用 UPX 压缩的稳定性/兼容性不如 EXE，且可能触发杀毒软件误报，加载时也有
   解压开销——如果要试，必须先验证 `LoadLibrary`/Dart FFI `DynamicLibrary.open`
