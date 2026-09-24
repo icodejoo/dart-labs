@@ -483,6 +483,27 @@ void main() {
       expect(swap.lastPrepareAt, const Duration(seconds: 31));
     });
 
+    test('the content warmed behind an ad is held at the resume point, not left rolling', () async {
+      // Regression (device-measured, STG AL00): the shadow was warmed with the
+      // default plan and kept playing in real time while the ad was on screen,
+      // so the commit landed 2.8s past the resume target and the viewer lost
+      // that much of the film. Resume target 6006ms → actual 8842ms.
+      //
+      // 回归（真机实测，STG AL00）：影子当初用默认计划预热、在广告在屏期间一路
+      // 按真实时间播，提交切换时落点比续播目标晚了 2.8 秒，用户平白丢掉这么多
+      // 正片。续播目标 6006ms → 实际落点 8842ms。
+      final api = FakeMovaApi(options: MovaOpts(ads: MovaAdConfig(enabled: true, breaks: [mid])));
+      final swap = FakeSwapCtl();
+      final c = MovaAdCtrl(api, swap: swap);
+      await c.load(_content);
+      await settle();
+      api.pushProgress(const MovaProg(position: Duration(seconds: 31)));
+      await settle();
+      api.pushProgress(const MovaProg(position: Duration(seconds: 1)));
+      await settle();
+      expect(swap.lastPlan!.pauseWhenReady, isTrue);
+    });
+
     test('commit() returning true: no open/seek happens on the api', () async {
       final api = FakeMovaApi(options: MovaOpts(ads: MovaAdConfig(enabled: true, breaks: [pre])));
       final swap = FakeSwapCtl()..commitResult = true;
@@ -1577,7 +1598,7 @@ void main() {
       });
     });
 
-    test('the ad→content direction still warms with the default plan, unmixed', () {
+    test('the ad→content direction holds at the resume point but keeps the configured trigger', () {
       fakeAsync((async) {
         final swap = FakeSwapCtl();
         final (api, c, _) = waitBuild([pre], swap: swap);
@@ -1587,9 +1608,15 @@ void main() {
         api.pushProgress(const MovaProg(position: Duration(seconds: 1)));
         flush(async);
         expect(swap.calls, contains('prepare'));
-        expect(swap.lastPlan!.pauseWhenReady, isFalse,
-            reason: 'ad→content keeps rolling; only content→ad holds at frame zero');
+        // Both directions hold: a shadow left rolling drifts forward by the
+        // whole overlap window, which for ad→content means the viewer loses
+        // that many seconds of the film.
+        //
+        // 两个方向都要钉住：影子一路播下去会整整漂过一个重叠窗口，对 ad→content
+        // 而言就是用户白白丢掉那么多秒正片。
+        expect(swap.lastPlan!.pauseWhenReady, isTrue);
         expect(swap.lastPlan!.trigger, isNull, reason: 'the configured trigger applies');
+        expect(swap.lastPlan!.policy, isNull, reason: 'the configured readiness policy applies');
       });
     });
   });

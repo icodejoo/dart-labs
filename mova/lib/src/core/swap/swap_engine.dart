@@ -134,11 +134,25 @@ class MovaSwapEngine implements MovaApi, MovaSwapCtl {
   /// Pauses the shadow and rewinds it to the warm-up target so the swap starts
   /// exactly there.
   ///
+  /// The rewind also runs for a zero target. By the time a policy reports
+  /// ready the shadow has been decoding for a while and has drifted past frame
+  /// zero (measured on device: ~300ms for an ad), so skipping the rewind here
+  /// would deliver exactly the headless ad [MovaWarmPlan.pauseWhenReady]
+  /// exists to prevent. This is not the `seek(0)` that [_startWarm]
+  /// deliberately avoids: that one fires before the first frame lands, this
+  /// one only after the readiness policy has seen buffered, playing frames.
+  ///
   /// 暂停影子引擎并回绕到预热目标点，使切换恰好从该处开始。
+  ///
+  /// 目标为零时同样回绕。判据报告就绪时影子已经解码了一会儿、早漂过第 0 帧
+  /// （真机实测广告约 300ms），此时省掉回绕，交付出去的正是
+  /// [MovaWarmPlan.pauseWhenReady] 要防的那条缺头广告。这与 [_startWarm] 刻意
+  /// 回避的那次 `seek(0)` 不是一回事：那次发生在首帧落地之前，这次发生在就绪
+  /// 判据已经看到缓冲充足、正常播放的帧之后。
   Future<void> _holdAtTarget(MovaApi shadow) async {
     await shadow.pause();
     if (_disposed || !identical(_shadow, shadow)) return;
-    if (_warmAt > Duration.zero) await shadow.seek(_warmAt);
+    if (!_warmLive) await shadow.seek(_warmAt);
   }
 
   /// The swap configuration in effect, taken from the active engine's options.

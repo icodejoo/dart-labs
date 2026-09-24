@@ -327,12 +327,32 @@ Task 1–11 已完成。Task 12 真机 checklist 七组，**2026-09-23（STG AL0
 事件全部触发；B 组失败降级——中插换坏地址后 15.94s 触发加载、16.05s 即失败，日志显示
 `ad failed (Failed to open https://host.invalid/definitely-missing.mp4.)`，**确认真机上
 坏 URL 走 openThrew（`open()` 直接失败），不是 playerError**，正片自动无缝续播、未见
-卡死；D 组同一广告位失败事件只触发一次、未见重复弹出，客观验证通过。**仍未测**：A 组
-等待就绪的黑屏帧数与时延分布（需视觉判断+多次统计验证 `adReadyTimeout` 5s 是否合理）、
-C 组倒计时期间正片流畅度（双活解码，中低端机风险，主观判断）、E 组超长素材 `duration`
-场景（本轮未构造超长素材）、F 组关闭态回归、G 组结论回写（尚待补全）。
-example 已建独立页 `AdOrchestrationDemoPage`（四个开关 + 真实回调打点的屏上事件日志，
-无需 logcat）。计划见
+卡死；D 组同一广告位失败事件只触发一次、未见重复弹出，客观验证通过。
+**2026-09-24（同一台 STG AL00）追加自动化真机验证，新建独立测试文件
+`example/lib/main_ad_orchestration_verify.dart`（未提交，跑法：
+`flutter run -t lib/main_ad_orchestration_verify.dart -d <device-id> --release`）**：
+A 组——中插"等待就绪"从 `pending`（命中 `dueMidRoll`）到 `started`（原子提交完成）
+的真实事件时间戳差，5 次采样 `[1973, 1310, 1360, 1993, 1361]`ms，**min=1310ms,
+max=1993ms, avg=1599ms**；**重要澄清（推翻此前假设）**：这段等待期间**不是黑屏**——
+按设计 `_Phase.pending` 阶段正片持续正常播放、广告在影子引擎里静默预热，只有就绪后
+才原子切入，这 1.3–2s 窗口对观众无感，符合无缝切换设计初衷。E 组——`duration=5000ms`
+场景下即便广告素材本身远比 `duration` 长，`started`→`completed` 实测间隔
+**5013ms（误差仅 13ms）**，收回后正片持续推进未卡死，**PASS**。F 组——
+`MovaAdConfig.enabled=false`+`MovaSwapConfig.enabled=false` 且排期仍配了广告位，
+8 秒观察窗内 `adEventsFired=0`、`renderEpoch` 全程恒为 0（纯直通），正片正常推进，
+**关闭态零改变，PASS**。**C 组（倒计时期间正片流畅度）已查清并 PASS**：加了逐采样
+诊断（相对 pending 的毫秒偏移 + position + `MovaState.buffering`）重跑后确认，
+`pending`→`started` 实测 3050ms（与 `offset(3s)+delay(3s)` 中 delay 的理论值 3000ms
+吻合），期间 position 从 3.086s 平滑推进到 6.089s、每 ~200ms 一个采样点、间距均匀，
+`buffering` 全程为 `false`——**正片在广告延迟倒计时期间播放平滑，双活解码未影响
+正片播放**。此前一轮报的 `SUSPECT STALL` 是测试判据缺陷：`monotonic` 检查把"广告
+`started` 那一刻 position 从 6.089s 合法重置到广告自己的 0.033s"误判成了卡顿，
+且那一轮采样窗口本身没对齐好（绝大部分采样点落在了广告已开始之后，并未真正覆盖
+倒计时期间）。**结论：产品行为正常，是测试探针问题，已定位并留有诊断日志**（判定
+逻辑本身未改——若未来要把这条判据用作自动化门禁而非人工读诊断日志，需要加一个
+"`started` 事件后允许一次位置回退"的例外）。G 组结论回写即本条目。
+example 另有一个手动交互页 `AdOrchestrationDemoPage`（四个开关 + 真实回调打点的屏上
+事件日志，无需 logcat），与上述自动化测试文件相互独立。计划见
 [doc/plans/2026-09-16-ad-swap-enhancements.md](doc/plans/2026-09-16-ad-swap-enhancements.md)。
 
 **0.4.x 仅音频模式——真机验证部分完成（Task 5，每次启动请提醒用户此项仍有剩余项未完成）**：
@@ -364,10 +384,46 @@ dispose 后内存几乎未回落——不能排除泄漏，但也非直接证据
    与原子切换、`MovaAdCtrl` 接入、清晰度切换契约测试、开放性对账、barrel/example/文档）。
    **2026-09-23（STG AL00 arm64 Android 12）已用 `main_seamless_test.dart` 实测**：skip
    触发后 `renderEpoch` 从 1 跳到 2，确认切换机制真实生效；广告→正片切换间隔（skip 调用
-   到 renderEpoch 落地，基于真实事件戳，非墙钟估算）= 806ms。**仍未测**：广告黑屏是否
-   真的消除（视觉主观判断）、中插续播点误差、切换瞬间音画是否有跳变（主观）、内存/解码
-   session 三阶段采样（本轮未做，只测了 renderEpoch 和耗时）、短广告降级路径、断网预热
-   超时兜底。
+   到 renderEpoch 落地，基于真实事件戳，非墙钟估算）= 806ms。
+   **2026-09-24（同一台 STG AL00）追加验证，新建 `example/lib/main_seamless_swap_verify.dart`
+   （未提交）**：
+   - **中插续播点误差——首次测量方向搞反了，已定位真实根因并修复**：初版探针
+     报"提前 2210ms"，实际是探针自身的 bug（一次插播会有两次 `renderEpoch`
+     跳变，探针的 Completer 在第一次——正片→广告——就完成了，读到的其实是广告
+     引擎的 position，非正片续播位置）。**真实根因**：`MovaAdCtrl.
+     _warmContentBehindAd` 用的是默认 `MovaWarmPlan`（`pauseWhenReady: false`），
+     广告背后预热正片的影子引擎以 `autoPlay: true` 按真实时间一路播，commit 时
+     已经漂移了整个广告剩余时长——真机实测续播目标 6006ms、实际落点 **8842ms**
+     （偏差 **+2836ms 偏晚**，用户无声丢掉这段正片，不是偏早）。同一机制在
+     content→ad 方向也在漏：`_holdAtTarget`（`lib/src/core/swap/swap_engine.dart`）
+     对目标为 0 的情形跳过回绕，导致广告缺头约 300ms。**已修复**：
+     `_warmContentBehindAd` 显式传 `MovaWarmPlan(pauseWhenReady: true)`；
+     `_holdAtTarget` 的回绕守卫从 `_warmAt > 0` 改成 `!_warmLive`（直播源仍不
+     seek）。`test/core/ad_controller_test.dart`/`test/core/swap/
+     swap_engine_test.dart` 各补 1 项回归，**测试从 803 推进到 809**，
+     `flutter analyze` 0 issues（仅剩那条既有 `feed_player.dart` 警告）。
+     **真机复测**（新探针 `example/lib/main_resume_accuracy_verify.dart`，未
+     提交，基于两次 `renderEpoch` 跳变而非一次，修正了初版探针的测量 bug）：
+     修复前 6006ms→8842ms（+2836ms）；修复后两次采样分别 5964ms→6006ms
+     （+42ms）、5630ms→5672ms（+42ms）——42ms 是 progress 流 200ms 节流下的
+     一个采样格，已接近测量下限。**⚠️ 顺带发现第二个未修问题（与本次偏差无
+     因果关系，另案处理）**：`_startWarm` 里 `open()` 后立刻下发的 `seek(at)`
+     在真机上偶发被 `MovaEngine` 的 `_parkedSeek` 寄存丢弃（3 次运行 1 次生效、
+     2 次丢弃），丢弃时续播位置仍正确（因为现在 commit 期会回绕），但切换会
+     多等约 2.4 秒——排查方向在 `MovaEngine.seek`/`_applyParkedSeek`，未修复。
+   - **短广告降级路径——PASS**：预热窗口压到 300ms、广告仅持有 250ms 即
+     `skip()`，未见卡死/异常，`renderEpoch` 仍成功递增（即便预热窗口压缩到这个
+     程度，无缝路径依然走成功，没有出现"预热来不及、界面卡住"）。
+   - **断网预热超时兜底——PASS**：广告播放中用 `adb shell svc wifi/data
+     disable` 真实断网，等过 `readyTimeout=5s` 窗口后在断网状态下调用
+     `skip()`，未卡死，同步正常返回（走的是非无缝路径完成续播），随后已恢复网络。
+   - **内存/解码 session 三阶段采样——数据不可信，需单独重跑**：baseline=
+     160.15MiB → 正片播放=130.90MiB(-29.25) → 双引擎并存=149.48MiB(-10.67) →
+     切回正片=150.31MiB(-9.84)，出现负增量，说明四组测试共享同一进程顺序执行，
+     前面组留下的引擎/GC 残留污染了本组的 baseline，不满足"三阶段对账"应有的
+     干净起点。要拿到可信数字需要把这组单独拆成独立进程启动，本轮未做。
+   - **广告黑屏是否真的消除、切换瞬间音画是否跳变——仍未测**（均需要逐帧录屏/
+     人眼判断，本轮无可用工具，明确跳过而非编造）。
    计划见 [doc/plans/2026-09-16-seamless-swap.md](doc/plans/2026-09-16-seamless-swap.md)。
 
 按 doc/DESIGN-0.2.0.md §12 的阶段划分。**逐 Task 计划已写好，直接照做即可**：

@@ -35,15 +35,19 @@ class MovaWarmPlan {
   /// Whether the shadow pauses and rewinds to the warm-up target the moment it
   /// reports ready, so the swap starts playback from that exact frame.
   ///
-  /// Required for ads: an ad warmed with `autoPlay: true` would otherwise burn
-  /// its first seconds invisibly in the shadow engine, and the viewer would be
-  /// shown an ad that is already two seconds in — an impression the advertiser
-  /// paid for and nobody saw.
+  /// Required in both directions: a shadow warmed with `autoPlay: true` runs
+  /// in real time while the visible engine shows something else, so by commit
+  /// time it has drifted forward by the whole overlap window. For an ad that
+  /// means an impression delivered with its head missing; for the content
+  /// behind an ad it means the viewer silently loses that many seconds of the
+  /// film (measured on device: a 2.8s hole).
   ///
   /// 影子引擎一报告就绪，是否立即暂停并回到预热目标点，使切换后从那一帧开始播。
   ///
-  /// 广告必须开：否则以 `autoPlay: true` 预热的广告会在影子引擎里把开头几秒
-  /// 白白播掉，用户看到的是一条已经播了两秒的广告——广告主付了钱、没人看见。
+  /// 两个方向都必须开：以 `autoPlay: true` 预热的影子在屏幕上放着别的东西时仍
+  /// 按真实时间往前跑，到提交切换那一刻已经整整漂过一个重叠窗口。对广告，这是
+  /// 交付出一条缺头的曝光；对广告背后的正片，这是让用户无声无息丢掉那么多秒
+  /// 正片（真机实测 2.8 秒的缺口）。
   final bool pauseWhenReady;
 
   /// Creates a warm-up plan; all-defaults reproduces 0.4.0 behaviour.

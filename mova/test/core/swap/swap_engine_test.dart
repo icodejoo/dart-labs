@@ -716,7 +716,7 @@ void main() {
       expect(made[1].calls, isNot(contains('pause')));
     });
 
-    test('pauseWhenReady true pauses on ready, and only seeks back when at > zero', () async {
+    test('pauseWhenReady true pauses on ready and rewinds to the target, zero included', () async {
       final api = build(const MovaOpts(swap: MovaSwapConfig(enabled: true)));
       await api.prepare(
         const MovaSource('https://host/ad.mp4'),
@@ -729,7 +729,15 @@ void main() {
       made[1].pushProgress(goodTick);
       await settle();
       expect(made[1].calls, contains('pause'));
-      expect(made[1].calls, isNot(contains('seek')), reason: 'at == 0, so no rewind is needed');
+      // Regression: the shadow has been decoding in real time since open(), so
+      // by the ready tick it has drifted past frame zero. Skipping the rewind
+      // here delivers a headless ad — the exact thing pauseWhenReady exists
+      // to prevent.
+      //
+      // 回归点：影子自 open() 起就在按真实时间解码，到就绪那一 tick 早已漂过
+      // 第 0 帧。此处省掉回绕，交付出去的就是一条缺头广告——正是
+      // pauseWhenReady 要防的那件事。
+      expect(made[1].lastSeek, Duration.zero);
       await api.abandon();
 
       await api.prepare(
@@ -745,6 +753,23 @@ void main() {
       await settle();
       expect(made[2].calls, contains('pause'));
       expect(made[2].lastSeek, const Duration(seconds: 3));
+    });
+
+    test('pauseWhenReady true on a live source pauses but never seeks', () async {
+      final api = build(const MovaOpts(swap: MovaSwapConfig(enabled: true)));
+      await api.prepare(
+        const MovaSource('https://host/live.m3u8', type: MovaStreamType.live),
+        cue: okCue,
+        plan: const MovaWarmPlan(pauseWhenReady: true),
+      );
+      await settle();
+      made[1].pushProgress(goodTick);
+      await settle();
+      made[1].pushProgress(goodTick);
+      await settle();
+      expect(made[1].calls, contains('pause'));
+      expect(made[1].calls, isNot(contains('seek')),
+          reason: 'a live stream has no fixed target frame to rewind to');
     });
 
     test('pauseWhenReady true pauses exactly once however often the policy reports ready', () async {

@@ -1303,6 +1303,37 @@ String movaDefaultAdStartingIn(int seconds) => '$seconds 秒后播放广告';
   各自 `duration` 独立生效/三条前贴片 pod）未测。
 - A-2/A-3、C 组、E 组、F 组、G 组本轮**均未测**，checklist 状态与上表一致，未回写。
 
+**2026-09-24 补充记录**（同一台 STG AL00，自动化真机测试，新建
+`example/lib/main_ad_orchestration_verify.dart`，未提交；**注意口径**：以下均为基于
+`MovaAdEvent`/`MovaState`/`MovaProg` 真实事件时间戳的客观数字，**不是**逐帧录屏，
+不满足 A-2/C 原定的"逐帧数黑屏帧数"精度要求，是退一步的事件级验证，聊胜于无）：
+- [x] **A-2 第 2 条的事件级替代**：中插默认等待（`delay: 0`）路径下，从
+  `MovaAdEventType.pending`（`dueMidRoll` 命中）到 `MovaAdEventType.started`
+  （原子提交完成）的真实间隔，5 次采样 `[1973, 1310, 1360, 1993, 1361]`ms，
+  **min=1310ms max=1993ms avg=1599ms**——量级上支持默认 `adReadyTimeout: 5s`
+  留有充分余量（实测最大值不到超时的一半）。**重要澄清**：这段等待期间正片持续
+  正常播放、广告在影子引擎里静默预热，**不是黑屏**，与本节此前"逐帧数黑屏帧数"的
+  假设前提不符（好消息：无缝切换的设计意图已兑现）。A-2 其余子项（弱网分布、
+  硬切对比帧数、延迟总账、`delay:3s` 的 max(倒计时,就绪) 语义、`pauseWhenReady`
+  逐帧确认首帧）**仍未测**。A-1 第 2/3/4 条、A-3 全部**仍未测**。
+- [x] **C 组的事件级替代，已排除卡顿**：`delay: 3s` 场景下，`pending`→`started`
+  实测 3050ms（与 delay 理论值 3000ms 吻合），期间逐 ~200ms 采样 position，从
+  3.086s 平滑推进到 6.089s，`MovaState.buffering` 全程为 `false`——**正片在广告
+  延迟倒计时期间播放平滑，双活解码（正片+影子广告同时缓冲/解码）未导致正片卡顿**。
+  （中低端机重跑、倒计时角标数字校验、手势可用性、三阶段 `dumpsys meminfo` 仍未测；
+  本次用的是单一中高端机型 STG AL00。）
+- [x] **E 组第 1 条**：`duration: 5s` + 复用正片 URL（远长于 5s）作为广告素材：
+  `started`→`completed` 实测 5013ms（误差仅 13ms），收回后 3 秒观察窗内正片位置
+  持续推进（未卡死）——**确认"不依赖媒体时间轴"这条设计约束真实兑现**。E 组第
+  2/3 条（真实 3s 短素材提前播完、`durationFromFirstFrame` 起算点）仍未测。
+- [x] **F 组事件级验证**：`MovaAdConfig.enabled=false` + `MovaSwapConfig.enabled=
+  false`（排期仍配置中插，证明确实被忽略）：8 秒观察窗内零 `MovaAdEvent` 触发、
+  `MovaState.renderEpoch` 全程恒为 0（`MovaSwapEngine` 纯直通）、正片位置正常
+  推进——关闭态零改变。
+- G 组：A-2/C/E 三组已有真实数字支持"默认值合理、设计约束兑现、无需追加设备能力
+  门槛"的初步结论，但**均未达原定逐帧精度**，不构成最终回写默认值的充分依据，
+  仍需后续找到合适工具链（逐帧录屏/scrcpy）补齐 A-1/A-2/A-3/C 的逐帧证据。
+
 ---
 
 **决策与结论摘要：** 本次**不新建任何预热机制**——`MovaWarmTrigger`/`MovaWarmPolicy` **零改动**直接复用（ad→content 用 `MovaLeadWarm`，content→ad 用 `MovaEagerWarm` + `target: 0` 的 `MovaBufferWarm`），`MovaSwapCtl` 的 `prepare`/`commit`/`abandon`/`swapTo` 四个动词**语义已足够、不新增方法**，唯一的接口增量是给 `prepare` 加一个可选具名参数 `MovaWarmPlan plan`。**"是否等广告就绪才切入"落成 `MovaAdWaitPolicy` + 内置 `MovaAdWaitByKind`**——判据是"等待的价值等于等待期间屏幕上那张画面的价值"：默认 `pre` 否 / `mid` 是 / `post` 否，三层覆盖（`MovaAdBreak.waitForReady` > 注入策略 > 按 kind 默认）全部收在 `MovaAdConfig.waitsFor()` 一处，控制器里不许出现任何 `kind` 判断分支。前/后贴片走 `swapTo` 一次式路径，中插走 `prepare`+`commit` 两段式路径——这进一步印证了 `MovaSwapCtl` 四个动词各自的适用场景，不需要新方法。"等待"与"`delay` 倒计时"被拆成两件独立的事：中插的默认形态是 `delay == 0` 的**无角标**后台等待。顺带修掉 0.4.0 两处潜伏缺陷（注入的判据从不 `reset()`、`at == 0` 仍下发无谓 `seek(0)`）与"中插 pod 今天根本没串联、会闪回正片"的既有缺陷。`delay`/`duration` 一律 `Timer` 驱动、走 `skip()` 那条已在真机验证过的同步续播路径，绝不碰媒体时间轴；`duration < skippableAfter` 用 `const` 构造器里的 `assert`（编译期失败、release 零成本）挡住。**共拆 12 个 Task**，测试从 **536** 推进到 **654**，外加真机 checklist 七组（A 组按 pre/mid 拆成 A-1/A-2/A-3 分别验证，因为两者默认行为不同）。

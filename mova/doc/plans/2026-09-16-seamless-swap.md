@@ -934,6 +934,47 @@ class MovaSwapEngine implements MovaApi, MovaSwapCtl {
   的阶段③不回落疑点）、C 组短广告降级、断网预热兜底均**未在本轮复测**，上一轮记录的
   开放问题（阶段③内存不回落）依然待查。
 
+**2026-09-24 补充记录**（同一设备 STG AL00，新建独立文件
+`example/lib/main_seamless_swap_verify.dart`，未提交）：
+- [x] **B 组"中插回切续播点准确"——初测方向搞反，已定位真实根因并修复**：
+  首次探针报"提前 2210ms"，实为探针自身 bug（一次插播里两次 `renderEpoch`
+  跳变，Completer 在第一次——正片→广告——就完成，误把广告引擎的 position
+  当成了正片续播位置）。**真实根因**：`MovaAdCtrl._warmContentBehindAd`
+  用默认 `MovaWarmPlan`（`pauseWhenReady: false`），广告背后预热正片的影子
+  引擎 `autoPlay: true` 按真实时间一路播，commit 时已经漂过整个广告剩余
+  时长——真机实测续播目标 6006ms、实际落点 **8842ms（+2836ms 偏晚**，用户
+  无声丢掉这段正片，不是偏早）。同一机制在 content→ad 方向也在漏：
+  `_holdAtTarget`（`lib/src/core/swap/swap_engine.dart`）对目标为 0 的情形
+  跳过回绕，导致广告缺头约 300ms。**已修复**：`_warmContentBehindAd` 显式
+  传 `MovaWarmPlan(pauseWhenReady: true)`；`_holdAtTarget` 回绕守卫从
+  `_warmAt > 0` 改成 `!_warmLive`（直播源仍不 seek）。`ad_controller_test.dart`
+  /`swap_engine_test.dart` 各补 1 项回归，测试从 803 推进到 **809**，
+  `flutter analyze` 0 issues。真机复测（新探针 `example/lib/
+  main_resume_accuracy_verify.dart`，基于两次 `renderEpoch` 跳变，修正了
+  初版探针的测量 bug）：修复前 6006ms→8842ms（+2836ms）；修复后两次采样
+  5964ms→6006ms（+42ms）、5630ms→5672ms（+42ms）——42ms 是 progress 流
+  200ms 节流下的一个采样格，已接近测量下限。**顺带发现第二个未修问题**
+  （与本次偏差无因果关系，另案）：`_startWarm` 里紧跟 `open()` 下发的
+  `seek(at)` 在真机上偶发被 `MovaEngine` 的 `_parkedSeek` 丢弃（3 次运行
+  1 次生效、2 次丢弃），丢弃时续播位置仍正确（commit 期已有回绕兜底），
+  但切换会多等约 2.4 秒——排查方向在 `MovaEngine.seek`/`_applyParkedSeek`。
+- [x] **C 组短广告降级路径——PASS**：预热窗口压到 300ms、广告仅持有 250ms 即
+  `skip()`，未见卡死/异常，`renderEpoch` 仍成功递增——即便预热窗口压缩到这个
+  程度，无缝路径依然走成功，没有出现"预热来不及、界面卡住"。
+- [x] **C 组断网/弱网预热超时兜底——PASS**：用真实 `adb shell svc wifi/data
+  disable` 断网（测完已用 `svc wifi/data enable` 恢复），广告播放中断网，等过
+  `readyTimeout=5s` 窗口后在断网状态下调用 `skip()`，未卡死，同步正常返回
+  （走的是非无缝路径完成续播）。
+- [x] **B 组三阶段内存采样——重新采样但数据仍不可信，需第三次单独重跑**：
+  baseline=160.15MiB → 正片播放=130.90MiB(-29.25) → 双引擎并存=149.48MiB(-10.67)
+  → 切回正片=150.31MiB(-9.84)，出现负增量。**原因已查清且与上一轮不同**：这次
+  不是页面导航污染，而是四组测试在同一个进程内顺序执行，前面组（尤其短广告/断网
+  两组）留下的引擎/GC 残留污染了本组自己的 baseline，不满足"三阶段对账"应有的
+  干净起点。**结论：要拿到可信数字，B 组的内存采样必须单独拆成独立一次进程启动**
+  （不与其他组共享进程），本轮未做。
+- A 组黑屏/跳变的视觉判断（需要逐帧录屏/人眼工具，本轮仍无可用工具，明确跳过而
+  非编造）**仍未测**。
+
 ---
 
 **决策与结论摘要：** 模块定名 **`MovaSwapEngine`**（笔记暂拟的 `MovaSeamlessSwap` 改掉——它是一个 `MovaApi` 实现，与 `MovaEngine` 同族更好读；"seamless"概念保留在 `MovaOpts.swap`/`MovaSwapConfig`）。关键取舍：**不改 `MovaEngine`/`MovaKernel` 的 `late final renderHandle`**，改为在 `MovaApi` 层做稳定代理，`engine.dart` 可执行代码零改动；代理必须自持流而非转发底层流，否则组件 `initState` 的订阅会在换引擎后死掉。为触发渲染面重建新增 `MovaState.renderEpoch`（普通引擎恒 0）。预热拆成两个可插拔纯逻辑：触发策略（`MovaLeadWarm`/`MovaEagerWarm`）与就绪判据（`MovaBufferWarm`，`MovaBufferAbr` 的镜像）。清晰度切换只做接口形状契约测试 + 注释标落点，不做深实现；feed 引擎池明确排除。**共拆 11 个 Task**，测试从 289 推进到 374，外加真机 checklist 五组。

@@ -7,6 +7,7 @@ import '../model/source.dart';
 import '../options/ad_config.dart';
 import '../state/progress.dart';
 import '../swap/ctl.dart';
+import '../swap/plan.dart';
 import '../swap/trigger.dart';
 import 'fail.dart';
 
@@ -1108,18 +1109,29 @@ class MovaAdCtrl {
   /// Warms the content up behind the currently playing ad, resolving the
   /// content source first when it was deferred.
   ///
-  /// Uses the default [MovaWarmPlan]: the ad→content direction keeps the
-  /// shadow rolling and is lead-timed, exactly as in 0.4.0.
+  /// Keeps the configured trigger and readiness policy, but holds the shadow
+  /// at the resume point: the content behind an ad is *paused* content, so a
+  /// shadow left rolling drifts forward by however long the ad still had to
+  /// run and the viewer silently loses that many seconds of the film. Measured
+  /// on device (STG AL00): resume target 6006ms, actual landing 8842ms — a
+  /// 2.8s hole, exactly the ad time left after the warm-up started.
   ///
   /// 在正在播放的广告背后预热正片；正片源是延迟解析的则先解析。
   ///
-  /// 使用默认的 [MovaWarmPlan]：ad→content 方向的影子一路播着、按提前量触发，
-  /// 与 0.4.0 完全一致。
+  /// 沿用已配置的触发策略与就绪判据，但把影子钉在续播点：广告背后的正片是
+  /// *暂停*着的，影子若一路播下去，就会按广告剩余时长往前漂，用户于是无声无息
+  /// 地丢掉那么多秒正片。真机实测（STG AL00）：续播目标 6006ms、实际落点
+  /// 8842ms——2.8 秒的缺口，恰好等于预热开始后广告还剩的时长。
   Future<void> _warmContentBehindAd(MovaSwapCtl swap, MovaWarmCue cue) async {
     final content = await _contentSource();
     if (content == null) return;
     if (_phase != _Phase.ad) return;
-    await swap.prepare(content, at: _contentResumeAt, cue: cue);
+    await swap.prepare(
+      content,
+      at: _contentResumeAt,
+      cue: cue,
+      plan: const MovaWarmPlan(pauseWhenReady: true),
+    );
   }
 
   /// Notifies the host hook of an ad lifecycle [type] for break [b], carrying
