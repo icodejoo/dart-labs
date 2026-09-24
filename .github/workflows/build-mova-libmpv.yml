@@ -986,6 +986,7 @@ jobs:
             automake
             libtool
             mingw-w64-x86_64-toolchain
+            mingw-w64-x86_64-clang
             mingw-w64-x86_64-ninja
             mingw-w64-x86_64-nasm
             mingw-w64-x86_64-pkgconf
@@ -1001,6 +1002,16 @@ jobs:
           # combined with -ffunction-sections, is a net *regression*; see
           # doc/plans/2026-09-17-windows-libmpv-slim.md §12 for the measurements
           # behind every flag choice in this job from here on).
+          #
+          # mingw-w64-x86_64-clang added 2026-09-24: root-caused a real-device
+          # crash (segfault inside mpv_create(), every single launch) to a
+          # gcc 16.2.0 miscompilation, NOT to any slimming flag here — bisected
+          # gc-sections/minsize/b_ndebug/static-vs-dynamic-winpthread/-O0, all
+          # six variants crashed identically. Rebuilding ONLY the mpv link step
+          # (not ffmpeg/dav1d, which stay on gcc, see below) with clang instead
+          # made it disappear, reproducibly (5/5 clean runs), at effectively
+          # the same size (-0.2%). See doc/plans/2026-09-17-windows-libmpv-slim.md
+          # §13 for the full bisection trail.
 
       - name: Pin meson via pip
         run: |
@@ -1138,6 +1149,18 @@ jobs:
         working-directory: mpv-src
         run: |
           export PKG_CONFIG_PATH="$WS/prefix/lib/pkgconfig:/mingw64/lib/pkgconfig"
+          # 2026-09-24: mpv itself (only mpv — ffmpeg/dav1d above stay on gcc,
+          # untouched, no crash was ever traced to them) now compiles/links
+          # with clang instead of gcc. Root cause of the mpv_create() segfault
+          # that was crashing every real-device launch was gcc 16.2.0
+          # miscompiling mpv at this exact commit (bisected out every slimming
+          # flag first: gc-sections, minsize, b_ndebug, static/dynamic
+          # winpthread, -O0 — all six gcc variants crashed identically; only
+          # swapping the compiler fixed it, verified 5/5 clean runs against
+          # the byte-for-byte production ffmpeg config). See
+          # doc/plans/2026-09-17-windows-libmpv-slim.md §13.
+          export CC=clang
+          export CXX=clang++
           # -Dgpl=false is not optional: mpv defaults to GPL, and this whole
           # slim build exists to stay LGPL (same flag the android flavor sets).
           # --prefer-static: our ffmpeg is static-only, and a mingw DLL cannot
@@ -1174,11 +1197,18 @@ jobs:
           # the discrepancy is unexplained, reverted to -Os (buildtype=minsize's
           # own default — no explicit -O override needed) rather than ship an
           # optimization level whose real-world effect couldn't be confirmed.
+          # -fomit-frame-pointer dropped here (2026-09-24): it was only ever
+          # A/B-verified together with gcc (see the -Oz note above), never in
+          # combination with clang — rather than ship an untested flag pairing
+          # on top of a compiler swap made for correctness, keep the clang
+          # build to just the flags actually verified crash-free (see plan
+          # §13). Revisit as a separate, isolated A/B if the last bit of size
+          # matters later.
           meson setup build --prefix="$WS/prefix" --libdir=lib --default-library=shared \
             --prefer-static \
             -Dbuildtype=minsize -Ddebug=false -Db_ndebug=true \
-            -Dc_args="-ffunction-sections -fdata-sections -fomit-frame-pointer" \
-            -Dcpp_args="-ffunction-sections -fdata-sections -fomit-frame-pointer" \
+            -Dc_args="-ffunction-sections -fdata-sections" \
+            -Dcpp_args="-ffunction-sections -fdata-sections" \
             -Dc_link_args="-Wl,-Bstatic -lstdc++ -lwinpthread -Wl,-Bdynamic -ldwrite -lole32 -lrpcrt4 -static-libgcc -Wl,--gc-sections -Wl,-Map=$(cygpath -m "$WS")/libmpv.map" \
             -Dcpp_link_args="-Wl,--gc-sections" \
             -Dgpl=false -Dlibmpv=true -Dcplayer=false -Dtests=false

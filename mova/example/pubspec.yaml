@@ -67,6 +67,19 @@ dev_dependencies:
   # rules and activating additional ones.
   flutter_lints: ^6.0.0
 
+# Windows-only real-device verification of mova-libmpv's own CI-built
+# libmpv-2.dll (dist/windows-x86_64/), swapped in for media_kit's upstream
+# prebuilt one. See mova/packages/media_kit_libs_windows_video_slim.
+# 2026-09-24 根因已查明并修复：此前用 gcc 16.2.0 编译该 slim dll 时踩到
+# 编译器 miscompilation bug，导致 mpv_create() 内部悬空指针、必现 Access
+# Violation。已改用 clang 重新编译，体积几乎无损失，问题解决——详见
+# mova-libmpv/README.md 与 doc/plans/2026-09-17-windows-libmpv-slim.md
+# 的「真机崩溃根因排查」一节。当前 override 保持启用，长期用这份自建
+# slim 版本做真机验证。
+dependency_overrides:
+  media_kit_libs_windows_video:
+    path: ../packages/media_kit_libs_windows_video_slim
+
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec
 

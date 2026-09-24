@@ -48,9 +48,29 @@ pre-push 钩子每次都在"找不到 git-lfs"这步报错退出（现象跟①�
 `.github/workflows/build-mova-libmpv.yml`。**2026-09-17 编译器级瘦身 Task 1/3/4 落地并
 CI 确认**（mbedtls→SChannel、mpv `buildtype=minsize`+分节+`--gc-sections`、dav1d 从源码
 构建）：`-Oz` 曾本地测出 −11.2% 但 CI 实测收益消失（14,042,624 vs 本地 12,478,976，
-差距未查明），已回退到 `-Os`。**最终 CI 实测：14,061,568 字节（≈13.41 MiB）**，相对
+差距未查明），已回退到 `-Os`。当时 CI 实测：14,061,568 字节（≈13.41 MiB），相对
 CI 原基线（15,368,704，那个基线还带自包含 bug）−8.5%，相对 media_kit 官方版
-（29,764,622）−52.8%。详见 `doc/plans/2026-09-17-windows-libmpv-slim.md` §12。 |
+（29,764,622）−52.8%。详见 `doc/plans/2026-09-17-windows-libmpv-slim.md` §12。
+**2026-09-24 真机播放崩溃排查 + 编译器换成 clang（详见 §13）**：上面这份 14,061,568
+字节的产物在真实播放场景下（mova example 普通页与小窗页）100% 复现崩溃——
+`mpv_create()` 内部段错误，进程直接终止。用最小 C 冒烟测试（`LoadLibrary` +
+`mpv_create`/`mpv_initialize`/`mpv_terminate_destroy`）快速排查，逐一构建
+6 种变体（`--gc-sections`/分节开关、`buildtype=minsize`/`b_ndebug` 开关、
+静态/动态 winpthread、`-O0` 最保守优化）**全部复现同一崩溃**——排除了 Task 1/3/4
+任何一项瘦身参数导致的可能。用 `-O0` + 调试符号定位到 `options/m_config_frontend.c`
+里对一个字符串选项旧值做快照/释放时读到悬空指针（`ta.c` canary 校验失败）。装了
+`mingw-w64-x86_64-clang`（clang 22.1.8，MSYS2 直接可装），**同一份源码 + 同一套构建
+参数，只把 mpv 这一步的编译器从 gcc 16.2.0 换成 clang，其余（包括 ffmpeg/dav1d，
+继续用 gcc）不变**：`mpv_create`/`mpv_initialize`/`mpv_terminate_destroy` 连续 5 次
+全部正常返回，零崩溃；体积 **14,033,920 字节**，比原 gcc 产物还小 27,648 字节
+（约 −0.2%），基本无损失。**结论：根因是 gcc 16.2.0（MSYS2 滚动发行当前版本）编译
+这段 mpv 代码时的一个真实 miscompilation，不是任何瘦身参数、也不是 mpv 源码本身在
+所有平台下都会犯的逻辑 bug**（Android/Linux 用同一 mpv 提交+ffmpeg 配对早已真机/CI
+验证正常）。已把 CI workflow 的 `windows` job 改为 mpv 那一步单独用 clang
+（`CC=clang CXX=clang++`），`dist/windows-x86_64/libmpv-2.dll` 已更新为
+clang 产物（14,033,920 字节），并在 `mova/example` 用 `flutter run -d windows`
+真实播放验证通过（画面持续渲染、`AUDIOSES.DLL`/`MMDevApi.dll` 均被加载，
+WASAPI 音频会话正常打开，进程全程无崩溃）。CI 侧尚待推一次真实验证确认。 |
 | Linux | ✅ **2026-09-17 CI 首次真实跑绿并完成 -Os 级编译器瘦身** | **media-kit 没有对应仓库**（早前假设的 `libmpv-linux-build` 不存在）——在 runner 本机原生构建 ffmpeg+mpv，不需要交叉编译；依赖走 apt 装现成的 `libass-dev`/`libfreetype6-dev` 等，不用像 Android 那样从源码build。套用 2026-08-13 本地 WSL2 验证过的配方：ffmpeg n6.0→n6.0.1（binutils≥2.41 兼容性）、mbedtls→openssl（License 回到 LGPLv2.1）、`-fvisibility=hidden`+`--gc-sections`+`--disable-symver`、mpv `buildtype=minsize`+`b_ndebug`。**最终 CI 实测：7,550,784 字节（≈7.20 MiB）**，相对原基线 8,189,568 −7.8%，跟本地测的 7,530,112 几乎完全吻合。未上 `-flto`（ffmpeg 的 NASM 目标文件与 LTO 混链会报 `-fPIC` 相关链接失败，已验证放弃） |
 
 **关键差异提醒**：Android 这份 flavor 脚本里 `--enable-mediacodec`/`--enable-jni` 是

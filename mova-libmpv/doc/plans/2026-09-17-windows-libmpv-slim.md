@@ -777,3 +777,117 @@ cairo、freetype 的 brotli/bzip2/png、libass 的 fontconfig），但那些功�
 `.github/workflows/build-mova-libmpv.yml` 的 `windows` job，推一次真实 CI
 做最终确认（预期误差 <0.1%，参考本节"本地环境保真度验证"）。Task 5/6
 按上述结论降低优先级，不在这一轮落地。
+
+**2026-09-18 落地结果**：Task 1（SChannel）+ Task 3（mpv `minsize`/分节/
+`--gc-sections`/自包含修复）+ Task 4（dav1d 源码构建）已落进 CI 并跑绿，
+`dist/windows-x86_64/libmpv-2.dll` 定稿 **14,061,568 字节（≈13.41MiB）**。
+`-Oz` 在真实 CI 上收益远低于本地（仅 −11,776 字节，差异未查明原因），
+已回退用回 `-Os`（buildtype=minsize 默认值），故最终 CI 数字比本节 §12
+表格里"追加 `-Oz`"那行的 12,478,976 字节大，以此处 14,061,568 为准。
+
+### Task 7 LTO 执行记录（2026-09-18，本地验证，未推 CI）
+
+对 dav1d（`-Db_lto=true`）、ffmpeg（`--enable-lto --ar=gcc-ar
+--ranlib=gcc-ranlib --nm=gcc-nm`）、mpv（`-Db_lto=true`）三处同时开启 LTO，
+本地 MINGW64 全流程构建（复用本节"本地环境保真度验证"确认过的同一套
+工具链）：
+
+- **产物 14,073,856 字节，比不开 LTO 的当前 CI 基线（14,061,568）大
+  +12,288 字节（+0.09%）**——净负收益，不是"零变化"。
+- **已排除假阴性**：用 `objdump -h` 检查 `ffmpeg-src/libavcodec/avcodec.o`，
+  `.gnu.lto_*` 系列 section（`lto_.inline`/`lto_.ipa_sra`/`lto_.symtab` 等）
+  大量存在，证明 `gcc-ar`/`gcc-ranlib` 真的把 LTO bitcode 写进了归档、
+  链接器真的做了跨库 LTO——不是 §7.3 提醒的"忘配 gcc-ar 导致的假阴性"。
+- 符号核验全过（`mpv_create`/`dav1d_open`/`ass_library_init`/`hb_shape`/
+  `FT_Init_FreeType`/`fribidi_get_par_embedding_levels_ex` 等全部在），
+  导入表干净（无 libstdc++/libgcc_s/libwinpthread），链接没有失败、
+  没有 ICE——不是 §7.2 预警的"NASM 目标文件与 LTO bitcode 混链失败"那类
+  硬故障，纯粹是这份代码在当前裁剪程度下已经没有 LTO 能挖的跨库死代码。
+- **结论：Windows 线不上 LTO**——跟 ffmpeg/dav1d 单独测 `-ffunction-sections`
+  时"代码路径本来就全部可达，编译期手段无死代码可回收"是同一条规律的
+  延续。工作区改动已 `git checkout` 撤销，**没有推 CI**，本节记录到此为止,
+  不再重试。
+
+## 13. 真机崩溃根因排查（2026-09-24）：gcc 16.2.0 miscompilation，非任何瘦身参数
+
+**症状**：`dist/windows-x86_64/libmpv-2.dll`（2026-09-18 定稿，14,061,568 字节）
+在真实播放场景下 100% 复现崩溃——mova example app（普通播放页与小窗页）刚创建
+播放器/引擎就整个进程终止（`flutter run` 输出 `Lost connection to device.`，
+无 Dart 异常栈）。cdb 抓栈定位到崩在 `mpv_create` 内部 5 层深处，读一个
+`0xFFFFFFFFFFFFFFFF` 哨兵地址，形态像"某张哨兵结尾的表被越界读取"。
+
+**排查方法**：没有直接上 Flutter/cdb 反复试（太慢），先写了一个几十行的
+C 冒烟程序（`LoadLibrary` + 取 `mpv_create`/`mpv_initialize`/
+`mpv_terminate_destroy` 函数指针 + 依次调用），几秒钟内即可验证一个构建
+变体是否崩溃，比每次跑 Flutter app 快得多。本机 MSYS2 环境（`/c/tools/msys64`）
+已有全套工具链（`gcc`/`meson`/`ninja`/`nasm`/`pkg-config`），当前版本
+**gcc 16.2.0（MSYS2 项目构建）+ GNU ld 2.47.20260726 + mingw-w64-headers
+14.0.0**——MSYS2 是滚动发行、CI 的 `msys2/setup-msys2@v2` 每次都拉最新包，
+CI 在 2026-09-18 构建产物时大概率也是这一代工具链。
+
+**第一步：排除所有瘦身相关变量**。用同一份 mpv 源码（commit
+`78d43740f52db817d98bcf24fb30a76ab6fa13ff`）+ 同一份本地构建的静态 ffmpeg/
+dav1d，逐一构建并用冒烟程序测试：
+
+| 变体 | `--gc-sections`/分节 | `buildtype=minsize`/`b_ndebug` | winpthread 链接 | 结果 |
+|---|---|---|---|---|
+| 当前 CI 产物（下载自 dist/） | 有 | 有 | 静态 | **崩溃** |
+| `with`（历史 `-fomit-frame-pointer` A/B 遗留） | 有 | 有 | 静态 | **崩溃** |
+| `without`（同上，无 `-fomit-frame-pointer`） | 有 | 有 | 静态 | **崩溃** |
+| `nogc`（去掉分节+`--gc-sections`） | 无 | 有 | 静态 | **崩溃** |
+| `plain`（完全默认 buildtype，无 minsize/ndebug/gc） | 无 | 无 | 静态 | **崩溃** |
+| `dynpthread`（`-Db_ndebug`/minsize/gc 都保留，winpthread 改动态链接） | 有 | 有 | 动态 | **崩溃** |
+| `-O0`（`buildtype=debug`，最保守优化级别） | 无 | 无 | 静态 | **崩溃**（assert 触发而非段错误，但同一个 bug） |
+
+六种变体、覆盖了 Task 1（本节未直接测但逻辑上与此无关）/Task 3/Task 4
+涉及的全部编译期开关，**结果全部复现同一个崩溃**——结论：这不是任何一项
+瘦身手段（`--gc-sections`/`minsize`/`b_ndebug`/静态 winpthread）导致的。
+
+**第二步：定位真实故障点**。用 `-O0` + 保留调试符号的构建，配合本机 cdb/gdb：
+崩溃发生在 `mpv_create()` → `mp_create()`（`player/main.c`）解析内置
+`etc/builtin.conf` 期间——`options/m_config_frontend.c` 的
+`m_config_set_option_cli` 在给某个字符串选项（如 `screenshot-directory`）
+做"读旧值快照→稍后释放"时，读到的旧值指针实际指向 `def_config`（编译进二进制
+的内置配置文本）内部，而不是一块真正 `talloc` 分配的内存——被当作 ta 分配物
+`talloc_free()` 时，`ta.c` 的 canary 校验（`assert(h->canary == CANARY)`，
+`CANARY = 0xD3ADB3EF`）失败/或在优化构建下直接读到野指针段错误。**针对性验证**：
+把 `etc/builtin.conf` 里触发这条路径的 `screenshot-directory=~~desktop/` 那行
+删除重新编译，**依然崩溃**——说明这是这条代码路径上更系统性的悬空指针问题，
+不是这一行配置本身的问题，逻辑上像是 mpv 这个版本本身可能存在的一个悬空指针
+bug；但因为 Android/Linux CI 用同一个 mpv 提交+ffmpeg 配对已真机验证播放正常，
+若是纯粹与工具链无关的源码逻辑 bug，理应在所有平台上都发作，与实际观察矛盾。
+
+**第三步：怀疑工具链本身**。当前 gcc 16.2.0 是明显异常新（很可能是滚动发行
+刚推送不久的版本），本机装了 `mingw-w64-x86_64-clang`（clang 22.1.8，同一个
+MSYS2 mingw64 环境直接可装，无需 llvm-mingw/MSVC）。用**完全相同的源码 +
+完全相同的构建参数**，只把 `CC=clang CXX=clang++`（其余不变：
+`--prefer-static`、`buildtype=minsize`/`Ddebug=false`/`Db_ndebug=true`、
+`-ffunction-sections -fdata-sections`、`-Wl,--gc-sections`、
+`-Dgpl=false -Dlibmpv=true -Dcplayer=false -Dtests=false`）重新链接 mpv：
+
+- **`mpv_create`/`mpv_initialize`/`mpv_terminate_destroy` 连续跑 5 次全部
+  正常返回，零崩溃**。
+- 为了体积可比，额外用 gcc 重新编译了一份与生产 CI **逐字节相同配置**的
+  ffmpeg（n6.0.1 + SChannel + dav1d 源码构建，同一份 `./configure` 命令行），
+  ffmpeg 本身继续用 gcc 编译（.a 静态归档，mingw ABI 兼容，混用没有问题），
+  只有 mpv 链接这一步换 clang——**stripped DLL = 14,033,920 字节，比当前
+  CI 产物（14,061,568 字节）还小 27,648 字节（约 −0.2%）**，体积基本无损失。
+- 换编译器后是在 5 次独立连续调用里稳定复现"不崩"，不是运气好绕开一次；
+  说明这确实是 gcc 16.2.0 编译这段 mpv 代码时的一个真实编译器层面问题
+  （miscompilation），而不是"侥幸没触发、本质 bug 还在"。
+
+**结论**：根因是本机/CI 当前 MSYS2 滚动发行的 gcc 16.2.0 在编译 mpv 这个
+提交的某段代码（`options/m_config_frontend.c` 附近，选项快照/释放逻辑）时
+产生了错误代码，不是 Task 1/3/4 任何一项瘦身参数的问题，也不必 patch mpv
+源码或更换 mpv 提交/版本（那是范围更大、需要重新验证 ffmpeg 配对的改动）。
+**修复方案：`.github/workflows/build-mova-libmpv.yml` 的 `windows` job 里，
+mpv 编译/链接那一步单独换用 `mingw-w64-x86_64-clang`（`CC=clang CXX=clang++`），
+ffmpeg/dav1d 两步继续用 gcc 不动**——已按此改动 workflow 并把本地验证过的
+clang 产物覆盖到 `dist/windows-x86_64/libmpv-2.dll`（14,033,920 字节）。
+
+**已知未做的小尾巴**：clang 版本暂时去掉了 `-fomit-frame-pointer`（此前只在
+gcc 下做过 A/B，没和 clang 一起验证过，这次为了不引入未经测试的参数组合，
+保守地先不带这个 flag——如果之后想再抠这最后一点体积，需要单独对 clang 做
+一次 `-fomit-frame-pointer` 的 A/B）。真实 CI 跑一次做最终确认（本地本来就
+比对了逐字节相同的生产 ffmpeg 配置，预期误差很小）、以及本节以外的
+Flutter 真实播放验证（画面+声音），见 `CLAUDE.md`/README 对应记录。
