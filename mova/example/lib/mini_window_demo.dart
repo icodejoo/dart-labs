@@ -172,6 +172,20 @@ class _HubPageState extends State<_HubPage> {
           ),
           const Divider(),
           ListTile(
+            title: const Text('小窗态下触发系统 PiP（Android，验证互斥）'),
+            subtitle: const Text('预期：先 setMini(false) 收起小窗，再进系统 PiP，而非叠加'),
+            trailing: const Icon(Icons.picture_in_picture_alt),
+            onTap: () async {
+              final api = _miniCtl.api;
+              if (api == null) {
+                _log('触发 PiP 失败：当前没有显示中的小窗');
+                return;
+              }
+              final ok = await api.enterPip();
+              _log('enterPip() -> $ok');
+            },
+          ),
+          ListTile(
             title: const Text('故意错误用法：dispose 前不检查 isShowing'),
             subtitle: const Text('debug 下应触发 MovaEngine.dispose() 的 mini 态 assert'),
             trailing: const Icon(Icons.warning_amber_rounded),
