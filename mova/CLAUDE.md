@@ -422,12 +422,30 @@ dispose 后内存几乎未回落——不能排除泄漏，但也非直接证据
      bug：复用引擎播放新源时上一条素材的 position 会漏进新源的第一个
      `MovaProg`。`test/core/engine_test.dart` 补 2 项单测，**测试从 809
      推进到 811**，`flutter analyze` 0 issues，真机复测 6 轮 3068–3782ms、
-     6/6 寄存 6/6 落地，与改动前同分布，无回归。**排查中顺带发现一个新的
-     未修真 bug（另案）**：`MovaEngine.switchQuality`（约 846-856 行）清晰度
-     切换/ABR 自动降档路径是 `await _kernel.open(...); await
-     _kernel.seek(pos);`——无条件直接打内核、完全绕开寄存机制，正是上面证实
-     会被 mpv 丢弃并卡死播放器的那个模式，且"清晰度切换只做了接口形状契约
-     测试、真机从未验过"，建议单独立项。
+     6/6 寄存 6/6 落地，与改动前同分布，无回归。**排查中顺带发现并已修复
+     第二个真 bug**：`MovaEngine.switchQuality`（清晰度切换/ABR 自动降档
+     路径）此前是 `await _kernel.open(...); await _kernel.seek(pos);`——
+     无条件直接打内核、完全绕开寄存机制，正是上面证实会被 mpv 丢弃并卡死
+     播放器的那个模式，且"清晰度切换只做了接口形状契约测试、真机从未验过"。
+     **已修复**：抽出共享 helper `_seekOrPark`（`seek()`/`switchQuality`
+     共用同一套"寄存还是直发"判据）与 `_forgetMediaProgress`（`open()`/
+     `switchQuality` 共用的进度重置），`switchQuality` 换档后的续播 seek
+     现在走同一套安全保证，刻意保留语义边界（不触发 `_chain.beforeOpen`、
+     不清 `qualities`/`sourceTitle`、不发 `MovaSourceChg`——换档不是换片）。
+     **真机验证（STG AL00，真实多码率 HLS
+     `https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8`）**：修复前对照组
+     裸 `_kernel.seek()` 在真机 HLS 场景下被 mpv 静默丢弃，换档后 position
+     直接归零、从头重播；修复后两轮续播误差 66–166ms（基于真实
+     `MovaSeeked`/`progress` 事件，非墙钟估算）。**顺带发现并一并修复**：
+     ABR 默认开启时，换档重载引起的短暂缓冲会被 `MovaBufferAbr` 误判成
+     "网络扛不住"，约 0.5s 后背靠背再触发一次 `downshiftQuality`→
+     `switchQuality`，把刚寄存的续播 seek 冲掉、position 又跌回 0——
+     `switchQuality` 里补了 `_abrPolicy.reset()`（清卡顿计数，不影响连续
+     逐档下降的正常行为，已用单测验证幂等/无害）。ABR 开启态真机复测两轮：
+     不再出现背靠背 `MovaQualChg`，续播误差 66–117ms。
+     `test/core/engine_test.dart` 新增 4 项回归（811→**815** 全绿），
+     `flutter analyze` 0 issues。真机探针
+     `example/lib/main_quality_switch_verify.dart`（未提交）。
    - **短广告降级路径——PASS**：预热窗口压到 300ms、广告仅持有 250ms 即
      `skip()`，未见卡死/异常，`renderEpoch` 仍成功递增（即便预热窗口压缩到这个
      程度，无缝路径依然走成功，没有出现"预热来不及、界面卡住"）。

@@ -135,6 +135,119 @@ void main() {
     expect(k.lastSeek, const Duration(seconds: 30));
   });
 
+  test('switchQuality parks the resume seek instead of issuing it right after '
+      'the variant reload', () async {
+    const high = MovaQual(label: '1080p', uri: 'https://host/1080.m3u8', height: 1080);
+    const low = MovaQual(label: '480p', uri: 'https://host/480.m3u8', height: 480);
+    await e.open(const MovaSource('https://host/master.m3u8'));
+    k.emitDuration(const Duration(minutes: 5));
+    k.emitPosition(const Duration(seconds: 42));
+    await Future<void>.delayed(Duration.zero);
+    e.debugSetQualities(const [high, low], current: high);
+
+    k.calls.clear();
+    await e.switchQuality(low);
+    // Same hazard as open(): a seek issued this early is dropped by mpv and
+    // wedges the player on device, so it must be parked.
+    //
+    // 与 open() 同一隐患：这么早下发的 seek 会被 mpv 丢弃、真机上还会把播放器
+    // 卡死，因此必须寄存。
+    expect(k.lastUri, low.uri);
+    expect(k.calls, isNot(contains('seek')),
+        reason: 'resume seek must park, not reach the kernel');
+    expect(e.state.duration, Duration.zero);
+    // The new variant reports its duration → the resume position is replayed.
+    //
+    // 新档位报告时长 → 续播位置被补发。
+    k.emitDuration(const Duration(minutes: 5));
+    await Future<void>.delayed(Duration.zero);
+    expect(k.lastSeek, const Duration(seconds: 42),
+        reason: 'must resume where playback was, not restart from zero');
+  });
+
+  test('switchQuality announces the new variant without waiting for the parked '
+      'resume seek', () async {
+    const high = MovaQual(label: '1080p', uri: 'https://host/1080.m3u8', height: 1080);
+    const low = MovaQual(label: '480p', uri: 'https://host/480.m3u8', height: 480);
+    await e.open(const MovaSource('https://host/master.m3u8'));
+    k.emitDuration(const Duration(minutes: 5));
+    k.emitPosition(const Duration(seconds: 42));
+    await Future<void>.delayed(Duration.zero);
+    e.debugSetQualities(const [high, low], current: high);
+
+    final events = <MovaEvent>[];
+    final sub = e.events.listen(events.add);
+    await e.switchQuality(low);
+    await Future<void>.delayed(Duration.zero);
+    expect(e.state.currentQuality, low);
+    expect(events.whereType<MovaQualChg>().single.quality, low);
+    // A variant switch is not a source change, so none of open()'s
+    // source-level side effects may fire.
+    //
+    // 换档不是换源，open() 那些源级副作用一个都不该发生。
+    expect(events.whereType<MovaSourceChg>(), isEmpty);
+    expect(e.state.qualities, const [high, low]);
+    await sub.cancel();
+  });
+
+  test('switchQuality clears the ABR stall tally, so the reload\'s own '
+      'buffering cannot immediately trigger a downshift', () async {
+    const high = MovaQual(label: '1080p', uri: 'https://host/1080.m3u8', height: 1080);
+    const mid = MovaQual(label: '720p', uri: 'https://host/720.m3u8', height: 720);
+    const low = MovaQual(label: '480p', uri: 'https://host/480.m3u8', height: 480);
+    await e.open(const MovaSource('https://host/master.m3u8'));
+    e.debugSetQualities(const [high, mid, low], current: high);
+
+    final events = <MovaEvent>[];
+    final sub = e.events.listen(events.add);
+
+    // 两次卡顿：默认阈值 3，还差一次。
+    for (var i = 0; i < 2; i++) {
+      k.emitBuffering(true);
+      k.emitBuffering(false);
+      await Future<void>.delayed(Duration.zero);
+    }
+    await e.switchQuality(mid);
+
+    // 换档后的第一次卡顿：若不清计数，这就是第 3 次、会立刻再降一档，并把刚
+    // 寄存的续播 seek 冲掉（真机上实测过这个现象）。
+    k.emitBuffering(true);
+    k.emitBuffering(false);
+    for (var i = 0; i < 3; i++) {
+      await Future<void>.delayed(Duration.zero);
+    }
+    expect(events.whereType<MovaAbrDownShift>(), isEmpty);
+    expect(e.state.currentQuality, mid);
+
+    // 但 ABR 并没有被关掉：换档后重新攒够 3 次卡顿照样降档。
+    for (var i = 0; i < 2; i++) {
+      k.emitBuffering(true);
+      k.emitBuffering(false);
+    }
+    for (var i = 0; i < 5; i++) {
+      await Future<void>.delayed(Duration.zero);
+    }
+    expect(events.whereType<MovaAbrDownShift>().length, 1);
+    expect(e.state.currentQuality, low);
+
+    await sub.cancel();
+  });
+
+  test('switchQuality never seeks for a live source', () async {
+    const high = MovaQual(label: '1080p', uri: 'https://host/1080.m3u8', height: 1080);
+    const low = MovaQual(label: '480p', uri: 'https://host/480.m3u8', height: 480);
+    await e.open(const MovaSource('https://host/live.m3u8', type: MovaStreamType.live));
+    k.emitPosition(const Duration(seconds: 42));
+    await Future<void>.delayed(Duration.zero);
+    e.debugSetQualities(const [high, low], current: high);
+
+    k.calls.clear();
+    await e.switchQuality(low);
+    k.emitDuration(const Duration(minutes: 5));
+    await Future<void>.delayed(Duration.zero);
+    expect(k.calls, isNot(contains('seek')));
+  });
+
   test('opening a new source resets the tracked position, so seekBy counts '
       'from zero', () async {
     await e.open(const MovaSource('https://host/a.mp4'));

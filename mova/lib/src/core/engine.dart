@@ -541,8 +541,6 @@ class MovaEngine implements MovaApi {
     final allowed = await _chain.beforeOpen(source);
     if (!allowed) return;
     _source = source;
-    _pendingSeekTarget = null;
-    _parkedSeek = null;
     // Forget everything the *previous* media reported. This is what makes the
     // "park or seek now" decision in [seek] deterministic: an `open()` that is
     // immediately followed by a `seek()` (the ad→content resume path, and every
@@ -563,8 +561,7 @@ class MovaEngine implements MovaApi {
     // 不做这次重置，该判断就取决于 media_kit 自己那次"duration 归零"是否恰好
     // 在 `open()` 剩余的 await 期间被派发——实测每一轮都是，但终究是竞态，而
     // 输的那一侧是卡死。
-    _lastPosition = Duration.zero;
-    _lastBuffer = Duration.zero;
+    _forgetMediaProgress();
     _previewService.attach(source);
     _sttService.attach(source);
     _abrPolicy.reset();
@@ -650,35 +647,69 @@ class MovaEngine implements MovaApi {
       await _seekTimeshift(clamped);
       return;
     }
-    // A VOD source whose duration hasn't arrived yet can't be sought — mpv
-    // drops the request outright. Park it (still reporting the target
-    // optimistically so the scrubber sits where the user asked) and let the
-    // duration listener replay it once the media first reports in.
+    // Every UI seek trigger — slider tap/drag, horizontal swipe, double-tap
+    // step — funnels through here, so all of them share the same
+    // park-or-seek decision and pinned-until-settled reporting.
     //
-    // 点播源在时长到达前无法 seek——mpv 会直接丢弃该请求。先寄存（同时乐观上报
-    // 目标位置，让进度条停在用户所选处），待时长监听器在媒体首次报告时长后补发。
-    if (state.type == MovaStreamType.vod && state.duration <= Duration.zero) {
-      _parkedSeek = clamped;
-      _lastPosition = clamped;
-      _progressRaw.add(MovaProg(position: clamped, buffer: _lastBuffer));
-      _events.add(MovaSeek(clamped));
-      return;
+    // 所有 UI 触发 seek 的入口——进度条点击/拖动、横滑、双击步进——都汇入此处，
+    // 因此共用同一套"寄存还是直发"判据与"钉住直到结算"的上报行为。
+    await _seekOrPark(clamped, notify: true);
+  }
+
+  /// Issues a seek, or parks it when the media can't service one yet.
+  ///
+  /// The park branch is the whole point: a VOD source whose duration hasn't
+  /// arrived cannot be sought — mpv not only drops the request, it wedges
+  /// (measured on STG AL00, see [open]). Parking hands the target to
+  /// [_applyParkedSeek], which replays it the moment the duration lands.
+  /// Either way the target position is reported optimistically first, and
+  /// [_pendingSeekTarget] suppresses the stale echoes that follow (see
+  /// `_positionSub`).
+  ///
+  /// This is the single decision point shared by [seek] (the UI path, which
+  /// wants [MovaSeek]/[MovaSeeked] events) and [switchQuality] (the
+  /// resume-after-variant-reload path, which must not emit seek events).
+  ///
+  /// 下发一次 seek；若媒体尚无法服务 seek 则先寄存。
+  ///
+  /// 寄存分支才是重点：时长尚未到达的点播源无法 seek——mpv 不只是丢弃请求，
+  /// 还会卡死（STG AL00 实测，见 [open]）。寄存把目标交给 [_applyParkedSeek]，
+  /// 待时长到达即刻补发。两条分支都会先乐观上报目标位置，并由
+  /// [_pendingSeekTarget] 抑制随后的陈旧回声（见 `_positionSub`）。
+  ///
+  /// 这是 [seek]（UI 路径，需要 [MovaSeek]/[MovaSeeked] 事件）与
+  /// [switchQuality]（换档后续播路径，不该发 seek 事件）共用的唯一判据落点。
+  ///
+  /// - [to]: already-clamped target position / 已 clamp 的目标位置
+  /// - [notify]: whether to emit [MovaSeek]/[MovaSeeked] / 是否发 seek 事件
+  Future<void> _seekOrPark(Duration to, {bool notify = false}) async {
+    final park = state.type == MovaStreamType.vod && state.duration <= Duration.zero;
+    if (park) {
+      _parkedSeek = to;
+    } else {
+      _pendingSeekTarget = to;
     }
-    // Optimistically report the target position before the kernel round trip
-    // even starts, and arm suppression of the stale echoes that follow (see
-    // _positionSub). Every UI seek trigger — slider tap/drag, horizontal
-    // swipe, double-tap step — funnels through this one method, so all three
-    // get this pinned-until-settled behavior for free.
-    //
-    // 在内核往返尚未开始之前就乐观上报目标位置，并布防后续陈旧回声的抑制
-    // （见 _positionSub）。所有 UI 触发 seek 的入口——进度条点击/拖动、横滑、
-    // 双击步进——都汇入这一个方法，因此三者都自动获得"钉住直到结算"的行为。
-    _pendingSeekTarget = clamped;
-    _lastPosition = clamped;
-    _progressRaw.add(MovaProg(position: clamped, buffer: _lastBuffer));
-    _events.add(MovaSeek(clamped));
-    await _kernel.seek(clamped);
-    _events.add(MovaSeeked(clamped));
+    _lastPosition = to;
+    _progressRaw.add(MovaProg(position: to, buffer: _lastBuffer));
+    if (notify) _events.add(MovaSeek(to));
+    if (park) return;
+    await _kernel.seek(to);
+    if (notify) _events.add(MovaSeeked(to));
+  }
+
+  /// Forgets everything the *previous* media reported, so the park-or-seek
+  /// decision in [_seekOrPark] is deterministic right after a kernel reload.
+  /// Shared by [open] (new source) and [switchQuality] (same title, new
+  /// variant).
+  ///
+  /// 把*上一条*素材报告过的一切忘掉，使内核重新加载后 [_seekOrPark] 的
+  /// "寄存还是直发"判据是确定的。由 [open]（换源）与 [switchQuality]
+  /// （同一部片换档）共用。
+  void _forgetMediaProgress() {
+    _pendingSeekTarget = null;
+    _parkedSeek = null;
+    _lastPosition = Duration.zero;
+    _lastBuffer = Duration.zero;
   }
 
   /// Replays a [_parkedSeek] once the media first reports a real duration.
@@ -872,10 +903,58 @@ class MovaEngine implements MovaApi {
     if (playUri.isEmpty) return;
     final pos = _lastPosition;
     final wasPlaying = _lastPlaying;
+    final live = state.type == MovaStreamType.live;
+    // Reloading a variant is a kernel `open()` just like a source change, so
+    // it carries the exact same hazard: the resume seek that follows must
+    // *not* go straight to `_kernel.seek()`, or mpv wedges (see [open]).
+    // Forget the old media's progress and zero out `duration` first, which
+    // makes [_seekOrPark] below deterministically park the resume position
+    // until the new variant reports its own duration. Deliberately narrow:
+    // no hook notification, no qualities/sourceTitle clearing, no
+    // MovaSourceChg — this is the same title at another bitrate, not a new
+    // source.
+    //
+    // 换档在内核侧同样是一次 `open()`，因此隐患完全相同：随后的续播 seek
+    // 绝不能直接走 `_kernel.seek()`，否则 mpv 会卡死（见 [open]）。先忘掉旧
+    // 素材的进度并把 `duration` 归零，使下面的 [_seekOrPark] 确定性地寄存续播
+    // 位置，直到新档位报告自己的时长。刻意只做这么多：不通知 hook、不清空
+    // qualities/sourceTitle、不发 MovaSourceChg——这是同一部片的另一个码率，
+    // 不是换了一部新片。
+    _forgetMediaProgress();
+    // Drop the stall tally: the buffering burst a variant reload causes is
+    // the reload's own cost, not evidence the network can't sustain the
+    // current variant. Measured on device (STG AL00, mux x36xhzz): without
+    // this, a manual switch pushed the counter over the threshold ~0.5s
+    // later and ABR fired a second back-to-back `open()`, which discarded
+    // the parked resume seek and restarted playback from zero.
+    //
+    // Safe for the ABR's own path (downshiftQuality → here): the default
+    // [MovaBufferAbr] already zeroes its counter when it signals a
+    // downshift, so this only additionally clears the rising-edge memory —
+    // it cannot swallow a downshift that was about to happen. Stepping down
+    // several variants in a row still works: each step counts afresh from
+    // zero either way.
+    //
+    // 清掉卡顿计数：换档重载引起的那阵缓冲是重载自身的代价，不能当成"网络扛
+    // 不住当前档位"的证据。真机实测（STG AL00，mux x36xhzz）：不清的话，手动
+    // 换档后约 0.5s 计数就越过阈值，ABR 紧接着又发一次 `open()`，把寄存的续播
+    // seek 冲掉、播放从 0 重来。
+    //
+    // 对 ABR 自己那条路径（downshiftQuality → 本方法）也是安全的：默认的
+    // [MovaBufferAbr] 在发出降档信号时就已把计数归零，这里只是额外清掉上升沿
+    // 记忆，不会吞掉本该发生的降档；连续逐档下降依旧成立——每一档本来就是从
+    // 零重新计数。
+    _abrPolicy.reset();
+    _state.emit(state.copyWith(duration: Duration.zero, currentQuality: q));
     await _kernel.open(playUri, play: wasPlaying);
-    if (state.type != MovaStreamType.live) await _kernel.seek(pos);
-    _state.emit(state.copyWith(currentQuality: q));
+    // Announce the new variant as soon as the load command is issued: the
+    // resume seek may be parked until the duration arrives, and delaying the
+    // event until then would leave the UI showing the old label for seconds.
+    //
+    // 加载命令一下发就宣布新档位：续播 seek 可能要寄存到时长到达才生效，把
+    // 事件拖到那时才发会让 UI 上的档位标签滞后好几秒。
     _events.add(MovaQualChg(q));
+    if (!live && pos > Duration.zero) await _seekOrPark(pos);
   }
 
   /// Steps down one variant (used by the ABR monitor). No-op in auto mode,
