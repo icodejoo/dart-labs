@@ -153,16 +153,27 @@ feed 引擎池结构性不适用本模型，明确排除。详见
 
 ## 剩余任务
 
-**⚠️ Windows 真机播放中途 100% 复现 libmpv 原生崩溃，未解决，每次启动请提醒用户此项未完成**：
-`mini_window_demo` 在播放中途（非引擎刚创建时）触发 `0xc0000005` 访问越界，
-故障模块是自研瘦身版 `libmpv-2.dll`，Windows 事件日志三次复现故障偏移完全一致
-（`libmpv-2.dll+0x94d927`）。已排除：不是已用 clang 修复的 `mpv_create()`
-崩溃（位置、时机都不同，且已确认 CI 产物确实是 clang 编译）、不是网络流本身、
-不是小尺寸渲染面、不是 `createMovaEngine()`/`MovaPlayer` 封装本身、不是
-`showInPage()` 挂载动作本身、不是 `MovaMiniCtl.show()`+`Navigator.pop()` 的
-路由转场竞态——这几种场景自动化复现均不崩，**崩溃似乎只在真人鼠标/拖拽交互下
-触发**。故障地址落在静态链接的 ffmpeg/libav 内部（非 mpv 导出符号区间），dll
-无调试符号，需要本地重建带符号版本配合 cdb/gdb 才能拿到真实调用栈。详见
+**Windows 真机播放中途 libmpv 原生崩溃——已解决（用户 2026-09-24 拍板标记解决，
+规避手段：`--no-enable-impeller` 强制走 Skia 后端）**。注意这是**规避手段而非
+调用栈级根因**（未拿到带符号 dll + 崩溃转储做最终确认，样本量也只有 3 次以上
+未复现），后续如复现请先怀疑 Impeller 相关改动或 Flutter 升级带来的默认值变化。
+`mini_window_demo` 在播放中途（非引擎刚创建时）触发
+`0xc0000005` 访问越界，故障模块是自研瘦身版 `libmpv-2.dll`，Windows 事件日志三次复现
+故障偏移完全一致（`libmpv-2.dll+0x94d927`）。已排除：不是已用 clang 修复的
+`mpv_create()` 崩溃（位置、时机都不同，且已确认 CI 产物确实是 clang 编译）、不是网络
+流本身、不是小尺寸渲染面、不是 `createMovaEngine()`/`MovaPlayer` 封装本身、不是
+`showInPage()` 挂载动作本身、不是 `MovaMiniCtl.show()`+`Navigator.pop()` 的路由转场
+竞态——这几种场景自动化复现均不崩，**崩溃似乎只在真人鼠标/拖拽交互下触发**。故障地址
+落在静态链接的 ffmpeg/libav 内部（非 mpv 导出符号区间），dll 无调试符号，反汇编看不出
+函数名。**新发现**：Flutter 3.47 起 Windows 桌面端 Impeller 已非纯 opt-in（`--no-
+enable-impeller` 是真实变量切换，不是空操作），用该参数强制走 legacy Skia 后端启动
+demo 后，同样的"播放中途+真人拖拽"场景连续 3 次以上未复现崩溃（此前是 100% 必现）——
+指向 libmpv 的 GPU 纹理/渲染句柄与 Impeller（可能是其 ANGLE/D3D 层）交互时的资源竞争
+或生命周期问题，但**尚未确认是否 100% 规避**（样本量仍小，只是从"必现"变成"多次不
+现"，未排除低概率复现）、**尚未定位到具体触发机制**（仍需带符号 dll + 崩溃转储配合
+cdb/gdb 拿真实调用栈）。已配置
+`HKLM\SOFTWARE\Microsoft\Windows\Windows Error Reporting\LocalDumps\mova_example.exe`
+收集转储到 `_crash_dumps/`（本轮未复现崩溃故未拿到 `.dmp`，配置仍保留）。详见
 [doc/SPEC.md](doc/SPEC.md)「App 内小窗（MovaMini）」一节的详细排查记录。
 **注意区分**：`_MisuseDemo` 页面故意触发的 debug assert 会导致窗口无声消失但
 **没有**崩溃弹窗/事件日志/原生故障——那是另一个已在 demo 里修复的问题

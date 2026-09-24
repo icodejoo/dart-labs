@@ -415,9 +415,23 @@ widget 树无关；`_RenderSurface` 每次 build 都重读 `api.renderHandle` �
 故障地址（RVA `0x94d927`）落在静态链接的 ffmpeg/libav 内部代码里（远超 mpv
 自身导出符号地址区间 `0x92xxxx`），dll 是 `minsize` 编译无调试符号，反汇编看
 不出函数名，需要本地重建一份带符号的 dll 配合 cdb/gdb 才能拿到真实调用栈。
-下次排查前先配置 `HKLM\SOFTWARE\Microsoft\Windows\Windows Error
-Reporting\LocalDumps\mova_example.exe` 收集崩溃转储（本轮验证完已还原删除），
-再请人工复现一次拿 `.dmp`。**注意区分**：`_MisuseDemo` 页面故意不检查
+已配置 `HKLM\SOFTWARE\Microsoft\Windows\Windows Error
+Reporting\LocalDumps\mova_example.exe`（`DumpFolder` 指向
+`mova/_crash_dumps/`，`DumpType=2` 全量转储，`DumpCount=5`）收集崩溃转储，
+配置保留未还原，供下次复现时直接抓 `.dmp`。
+
+**2026-09-24 追加：找到强关联规避手段，但未拿到调用栈级根因**。Flutter 3.47
+起 Windows 桌面端 Impeller 已非纯 opt-in（`svgx` 子工程已记录
+`EnableImpeller=false` 在 3.47 上仍有效），并非本项目此前假设的"桌面端默认还
+是 Skia"。用 `flutter run -d windows --no-enable-impeller` 强制走 legacy Skia
+后端启动 `mini_window_demo` 后，同样的"播放中途 + 真人鼠标拖拽小窗"场景连续
+**3 次以上**未复现崩溃（此前同样场景 100% 必现）。指向 libmpv 的 GPU 渲染
+句柄/纹理与 Impeller 渲染后端（猜测是其 ANGLE/D3D 层）交互时的资源竞争或生命
+周期问题，但：① 样本量仍小，只是"必现→多次未现"，**未严格排除低概率复现**；
+② **未定位到具体触发机制**——本轮未复现崩溃，`_crash_dumps/` 里没有新增
+`.dmp` 可供对照分析，无法确认是否真的是同一条故障路径被规避，还是恰好没撞上。
+下一步：分别在 Impeller 开/关两种状态下各拿一次崩溃（或"多次不崩"）的转储，
+配合带符号 dll 比对调用栈，才能真正定论。**注意区分**：`_MisuseDemo` 页面故意不检查
 `isShowing` 触发 `MovaEngine.dispose()` 的 debug-only assert 时，因为
 `dispose()` 是 async 但 `State.dispose()` 没 await 它，assert 失败会变成未捕获
 的 Future 错误直接杀死整个 isolate——**表现为窗口无声消失、无崩溃弹窗、无
