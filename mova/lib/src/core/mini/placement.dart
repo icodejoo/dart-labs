@@ -174,6 +174,42 @@ MovaMiniRect clampToBounds(
   return MovaMiniRect(left: left, top: top, width: width, height: height);
 }
 
+/// Remaps [r] from [oldBounds] to [newBounds] by preserving its *relative*
+/// position (e.g. "near the bottom-right corner") instead of its raw pixel
+/// coordinates. Needed because a bare [clampToBounds] only guarantees
+/// validity, not intent: after a bounds shape change (rotation swaps width
+/// and height), reusing the old absolute `left`/`top` can leave the window
+/// stranded far from where it visually was — real-device verification
+/// (2026-09-24) found the window "走位" toward an edge across repeated
+/// rotations. Callers should still run the result through [clampToBounds]
+/// as a safety net (this function does not itself guarantee validity when
+/// [oldBounds] is degenerate, e.g. zero-sized).
+///
+/// 把 [r] 从 [oldBounds] 映射到 [newBounds]，保持的是**相对位置**（如"贴在
+/// 右下角"）而不是绝对像素坐标。必要性：单纯 [clampToBounds] 只保证"合法"
+/// 而不保证"符合直觉"——bounds 形状变化（转屏导致宽高互换）后直接沿用旧的
+/// 绝对 `left`/`top`，可能让小窗停在离原视觉位置很远的地方——真机验证
+/// （2026-09-24）实测到连续转屏会"走位"往某个方向跑。调用方仍应把结果过一遍
+/// [clampToBounds] 兜底（[oldBounds] 退化为零尺寸等情形本函数本身不保证
+/// 合法性）。
+MovaMiniRect remapProportionally(
+  MovaMiniRect r, {
+  required MovaMiniRect oldBounds,
+  required MovaMiniRect newBounds,
+}) {
+  final oldAvailW = oldBounds.width - r.width;
+  final oldAvailH = oldBounds.height - r.height;
+  final fracX = oldAvailW > 0 ? ((r.left - oldBounds.left) / oldAvailW).clamp(0.0, 1.0) : 0.0;
+  final fracY = oldAvailH > 0 ? ((r.top - oldBounds.top) / oldAvailH).clamp(0.0, 1.0) : 0.0;
+
+  final newAvailW = newBounds.width - r.width;
+  final newAvailH = newBounds.height - r.height;
+  return r.copyWith(
+    left: newBounds.left + fracX * newAvailW,
+    top: newBounds.top + fracY * newAvailH,
+  );
+}
+
 /// Returns the rect for [corner] — the window's first appearance.
 ///
 /// 返回 [corner] 对应的矩形——小窗首次出现的位置。

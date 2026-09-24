@@ -97,15 +97,22 @@ class _MovaMiniWindowState extends State<MovaMiniWindow> {
               insets: insets,
               margin: widget.config.margin,
             );
-        // Re-clamp only when the surrounding constraints/insets actually
+        // Re-anchor only when the surrounding constraints/insets actually
         // changed since the last build (rotation, host resize) — not on
         // every rebuild, which would fight a placement policy that
         // deliberately returns a rect outside the default margin/snap rules.
+        // Proportional remap first (keeps "near this corner" across a bounds
+        // shape change like rotation), clamp second (safety net for validity)
+        // — real-device verification (2026-09-24) found bare clamping alone
+        // lets the window drift toward an edge across repeated rotations.
         //
-        // 只在外部约束/内边距相较上次 build 确实变化时才重新钳制（转屏、宿主
+        // 只在外部约束/内边距相较上次 build 确实变化时才重新锚定（转屏、宿主
         // resize）——而非每次 rebuild 都钳，否则会跟"故意返回默认边距/吸边
-        // 规则之外矩形"的落点策略打架。
+        // 规则之外矩形"的落点策略打架。先按比例重新映射（转屏这类 bounds
+        // 形状变化后仍"贴在原来那个角落附近"），再钳制兜底合法性——真机验证
+        // （2026-09-24）发现只钳制会导致连续转屏后小窗往一侧走位。
         if (_lastBounds != null && (_lastBounds != bounds || _lastInsets != insets)) {
+          rect = remapProportionally(rect, oldBounds: _lastBounds!, newBounds: bounds);
           rect = clampToBounds(rect, bounds: bounds, insets: insets, margin: widget.config.margin);
         }
         _lastBounds = bounds;

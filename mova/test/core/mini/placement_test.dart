@@ -148,4 +148,40 @@ void main() {
       expect(a, isNot(equals(c)));
     });
   });
+
+  group('remapProportionally', () {
+    test('preserves relative position across a rotation (bounds swap)', () {
+      // Portrait 400x800, window snapped near the bottom-right corner.
+      const portrait = MovaMiniRect(left: 0, top: 0, width: 400, height: 800);
+      const r = MovaMiniRect(left: 280, top: 730, width: 120, height: 70);
+      // Rotate to landscape: bounds swap width/height.
+      const landscape = MovaMiniRect(left: 0, top: 0, width: 800, height: 400);
+      final remapped = remapProportionally(r, oldBounds: portrait, newBounds: landscape);
+      // Still ~"bottom-right": far right, far down — not stuck near the old
+      // absolute pixel coordinates, which real-device verification
+      // (2026-09-24) found drifting toward an edge across rotations.
+      expect(remapped.left, closeTo(800 - 120, 1));
+      expect(remapped.top, closeTo(400 - 70, 1));
+    });
+
+    test('round-trips back to (approximately) the original rect', () {
+      const portrait = MovaMiniRect(left: 0, top: 0, width: 400, height: 800);
+      const landscape = MovaMiniRect(left: 0, top: 0, width: 800, height: 400);
+      const r = MovaMiniRect(left: 40, top: 600, width: 120, height: 70);
+      final toLandscape = remapProportionally(r, oldBounds: portrait, newBounds: landscape);
+      final backToPortrait =
+          remapProportionally(toLandscape, oldBounds: landscape, newBounds: portrait);
+      expect(backToPortrait.left, closeTo(r.left, 0.01));
+      expect(backToPortrait.top, closeTo(r.top, 0.01));
+    });
+
+    test('degenerate old bounds (zero available space) does not divide by zero', () {
+      const oldBounds = MovaMiniRect(left: 0, top: 0, width: 120, height: 70);
+      const r = MovaMiniRect(left: 0, top: 0, width: 120, height: 70);
+      const newBounds = MovaMiniRect(left: 0, top: 0, width: 400, height: 800);
+      final remapped = remapProportionally(r, oldBounds: oldBounds, newBounds: newBounds);
+      expect(remapped.left, 0);
+      expect(remapped.top, 0);
+    });
+  });
 }
