@@ -1288,6 +1288,21 @@ String movaDefaultAdStartingIn(int seconds) => '$seconds 秒后播放广告';
 - [ ] E 组若发现 `duration` 仍受素材影响 → 回到 Task 5 重新定位隐性依赖。
 - [ ] **以上任一组未达精度即不得回写默认值**，照 0.4.0 Task 11 的写法如实记录"未能按原定精度验证"，不编造数字。
 
+**2026-09-23 补充记录**（STG AL00，arm64，Android 12，`AdOrchestrationDemoPage` 屏上
+事件日志，非逐帧录屏）：
+- A-1：全默认配置下前贴片确认不等待，正常播完，`swap ready`→`ad completed`→
+  `swap idle` 全部触发（事件序列层面确认，**非逐帧首屏判定**，第 2/3/4 条子项
+  ——显式 `pre: true` 对比时长、弱网回落——未测）。
+- [x] **B 组第一条**：中插换成坏地址后，事件日志显示 15.94s 触发加载、16.05s 即
+  失败，`ad failed (Failed to open https://host.invalid/definitely-missing.mp4.)`——
+  **确认真机上坏 URL 走 `openThrew`（`open()` 直接失败/抛出），不是 `playerError`**，
+  DNS 解析失败很快返回，正片自动无缝续播，未见卡死。B 组其余子项（重试次数、黑洞
+  URL、断网、pod 首条坏掉、`notReadyAction` 两种降级）未测。
+- [x] **D 组第一条的一部分**：同一广告位失败事件只触发一次，未见重复弹出——客观验证
+  通过（基于事件日志计数，非逐帧画面确认无闪回）。D 组其余子项（pod 连播/两条广告
+  各自 `duration` 独立生效/三条前贴片 pod）未测。
+- A-2/A-3、C 组、E 组、F 组、G 组本轮**均未测**，checklist 状态与上表一致，未回写。
+
 ---
 
 **决策与结论摘要：** 本次**不新建任何预热机制**——`MovaWarmTrigger`/`MovaWarmPolicy` **零改动**直接复用（ad→content 用 `MovaLeadWarm`，content→ad 用 `MovaEagerWarm` + `target: 0` 的 `MovaBufferWarm`），`MovaSwapCtl` 的 `prepare`/`commit`/`abandon`/`swapTo` 四个动词**语义已足够、不新增方法**，唯一的接口增量是给 `prepare` 加一个可选具名参数 `MovaWarmPlan plan`。**"是否等广告就绪才切入"落成 `MovaAdWaitPolicy` + 内置 `MovaAdWaitByKind`**——判据是"等待的价值等于等待期间屏幕上那张画面的价值"：默认 `pre` 否 / `mid` 是 / `post` 否，三层覆盖（`MovaAdBreak.waitForReady` > 注入策略 > 按 kind 默认）全部收在 `MovaAdConfig.waitsFor()` 一处，控制器里不许出现任何 `kind` 判断分支。前/后贴片走 `swapTo` 一次式路径，中插走 `prepare`+`commit` 两段式路径——这进一步印证了 `MovaSwapCtl` 四个动词各自的适用场景，不需要新方法。"等待"与"`delay` 倒计时"被拆成两件独立的事：中插的默认形态是 `delay == 0` 的**无角标**后台等待。顺带修掉 0.4.0 两处潜伏缺陷（注入的判据从不 `reset()`、`at == 0` 仍下发无谓 `seek(0)`）与"中插 pod 今天根本没串联、会闪回正片"的既有缺陷。`delay`/`duration` 一律 `Timer` 驱动、走 `skip()` 那条已在真机验证过的同步续播路径，绝不碰媒体时间轴；`duration < skippableAfter` 用 `const` 构造器里的 `assert`（编译期失败、release 零成本）挡住。**共拆 12 个 Task**，测试从 **536** 推进到 **654**，外加真机 checklist 七组（A 组按 pre/mid 拆成 A-1/A-2/A-3 分别验证，因为两者默认行为不同）。

@@ -924,6 +924,16 @@ class MovaSwapEngine implements MovaApi, MovaSwapCtl {
   复测 B 项三阶段采样，确认阶段③是否真的不回落；③ 视 ②的结果决定是否需要回写
   `MovaBufferWarm`/`MovaSwapConfig` 的默认值。
 
+**2026-09-23 补充记录**（同一设备 STG AL00，用专门构造的 `main_seamless_test.dart`
+读取真实事件戳，解决了上一轮"拿不到 `MovaSwapChg`/事件时间戳"的限制）：
+- [x] 切换机制真实生效的直接证据：skip 触发后 `MovaState.renderEpoch` 从 1 跳到 2，
+  确认原子切指路径确实执行了（不是表面上"看起来没黑屏"的巧合）。
+- [x] 切换耗时（基于真实事件戳，非墙钟估算）：从 skip 调用到 `renderEpoch` 落地 =
+  **806ms**。
+- 本轮**只测了这两项**，A 组黑屏/跳变的视觉判断、B 组内存三阶段采样（含上一轮未解决
+  的阶段③不回落疑点）、C 组短广告降级、断网预热兜底均**未在本轮复测**，上一轮记录的
+  开放问题（阶段③内存不回落）依然待查。
+
 ---
 
 **决策与结论摘要：** 模块定名 **`MovaSwapEngine`**（笔记暂拟的 `MovaSeamlessSwap` 改掉——它是一个 `MovaApi` 实现，与 `MovaEngine` 同族更好读；"seamless"概念保留在 `MovaOpts.swap`/`MovaSwapConfig`）。关键取舍：**不改 `MovaEngine`/`MovaKernel` 的 `late final renderHandle`**，改为在 `MovaApi` 层做稳定代理，`engine.dart` 可执行代码零改动；代理必须自持流而非转发底层流，否则组件 `initState` 的订阅会在换引擎后死掉。为触发渲染面重建新增 `MovaState.renderEpoch`（普通引擎恒 0）。预热拆成两个可插拔纯逻辑：触发策略（`MovaLeadWarm`/`MovaEagerWarm`）与就绪判据（`MovaBufferWarm`，`MovaBufferAbr` 的镜像）。清晰度切换只做接口形状契约测试 + 注释标落点，不做深实现；feed 引擎池明确排除。**共拆 11 个 Task**，测试从 289 推进到 374，外加真机 checklist 五组。

@@ -447,6 +447,23 @@ MovaEngine createMovaEngine({
 
 **这是唯一能把笔记 §1 的推算变成实测数字的机会**，也是本计划里唯一无法靠单测收敛的部分。笔记自己标注了"以上不是本仓库的实测数字"，本 Task 就是去把那个标注撤掉。
 
+> **2026-09-23 真机实测进度（STG AL00，arm64，Android 12，release 包）**：拿到的是
+> B 组的**简化版**——用 `ProcessInfo.currentRss`（而非本节要求的 `dumpsys meminfo` 四栏）
+> 做了两次独立的三阶段对账：video 模式 baseline 108.89→playing 156.73（+47.84）
+> →disposed 155.63 MiB；audio 模式 baseline 99.45→playing 117.18（+17.73）→disposed
+> 121.73 MiB。真机播放期增量比约 **2.7×**（桌面此前实测约 2.05×，量级一致、真机差距
+> 更大）。C 组"vid 属性确认"部分完成：`renderHandle` 在 audio 模式下确认为 `null`、
+> `MovaState.size` 确认为 `0x0`（A 组最后一条一并验证），但未做 `getProperty('vid')`
+> 打印或 `dumpsys media.player`/`SurfaceFlinger` 的外部证据核验。dispose 后内存几乎
+> 未回落——不构成泄漏的直接证据（未做 B 组"连播 10 条"的爬升判据），仅记录观察。
+> **A 组仅测了纯音频源起播，带视频轨源（mp4）的"只出声不出画"未测**；B 组四栏对账表
+> 未填、诚实结论条目未按 `dumpsys meminfo` 口径改写；D（电量/CPU）、E（关闭态回归）、
+> F（结论回写到笔记/README/SPEC）均未做。**探针缺陷（未修）**：
+> `example/lib/perf_probe_audio_only.dart` 用 `stdout.writeln` 而非 `print()`，release
+> 包在 Android 上不进 logcat；且用 `Platform.environment` 读取模式参数，但
+> `--dart-define` 不会注入 Android 进程环境变量，导致该探针的模式切换实际从未生效——
+> 本轮数字是绕开探针、用其他方式采集得到的，不代表探针本身已验证可用。
+
 测法沿用 feed 引擎池当年的三阶段 `dumpsys meminfo` 对比（`doc/SPEC.md:324` 记录的那次：`example/lib/spike_dual_engine.dart` + 单引擎基线 / 加一个预热引擎 / 释放后回收）。本次的三阶段换成 **视频引擎 / 音频引擎 / 释放后**，对照同一条素材。
 
 ### 前置：example 需要一个开关
