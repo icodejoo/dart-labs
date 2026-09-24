@@ -20,8 +20,8 @@ import 'mini_skin.dart';
 ///
 /// Drag moves it (clamped every frame); release hands the rect to
 /// [MovaMiniConfig.effectivePlacement] and animates to the result. Tapping
-/// the picture calls [MovaMiniCtl.hide]; tapping the close affordance calls
-/// [MovaMiniCtl.close].
+/// the picture invokes [MovaMiniCtl.onTapContent] (a no-op unless the host
+/// sets it); tapping the close affordance always calls [MovaMiniCtl.close].
 ///
 /// 可拖拽的小窗本体，内部用借来的 api 挂一个 `MovaPlayer`。
 ///
@@ -32,7 +32,8 @@ import 'mini_skin.dart';
 /// 是 [Positioned]。
 ///
 /// 拖动即移动（每帧钳制）；松手把矩形交给 [MovaMiniConfig.effectivePlacement]
-/// 并动画到结果。点画面调 [MovaMiniCtl.hide]；点关闭按钮调 [MovaMiniCtl.close]。
+/// 并动画到结果。点画面触发 [MovaMiniCtl.onTapContent]（宿主未设置时是空操作）；
+/// 点关闭按钮总是调 [MovaMiniCtl.close]。
 class MovaMiniWindow extends StatefulWidget {
   /// Creates the mini window.
   ///
@@ -129,7 +130,7 @@ class _MovaMiniWindowState extends State<MovaMiniWindow> {
                 onPanStart: (_) => setState(() => _dragging = true),
                 onPanUpdate: (details) => _onDrag(details, bounds, insets),
                 onPanEnd: (details) => _onDragEnd(details, bounds, insets),
-                onTap: () => widget.ctl.hide(),
+                onTap: () => widget.ctl.onTapContent?.call(widget.api),
                 child: ClipRRect(
                   borderRadius: BorderRadius.circular(8),
                   child: Material(

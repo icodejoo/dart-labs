@@ -391,8 +391,39 @@ widget 树无关；`_RenderSurface` 每次 build 都重读 `api.renderHandle` �
 零成本）。`MovaMiniCtl._detachEntry()` 单点收口 entry 摘除，`entry.mounted` 判据防止
 宿主 Overlay 先于 ctl 死亡（页面被 pop）导致的重复 remove 崩溃。
 
+**"点画面"手势不再硬编码（2026-09-24 真机验证发现问题后改动）**：早期实现里点击小窗
+画面内容会直接调 `ctl.hide()`，真机验证时发现——没有配套"回到整页"UI 的宿主页面上，
+这看起来就是"点一下小窗就凭空消失了"，容易被误当成关闭。改为 `MovaMiniCtl.onTapContent`
+（`void Function(MovaApi api)?`）回调，默认 `null`（点画面无效果，只有关闭 ✕ 按钮能收起
+小窗），宿主需要"点画面回整页"效果时自行接 `ctl.onTapContent = (api) => ctl.hide()`。
+关闭按钮的行为不受影响，始终调 `MovaMiniCtl.close()`。
+
 **真机验证未做**（计划 Task 12），checklist 见
 [doc/plans/2026-09-23-app-inline-pip-overlay.md](doc/plans/2026-09-23-app-inline-pip-overlay.md)。
+
+**⚠️ 2026-09-24 Windows 真机验证发现一个未解决的原生崩溃**：`mini_window_demo`
+在播放中途（非引擎刚创建时）100% 概率触发 `0xc0000005` 访问越界，故障模块是
+自研瘦身版 `libmpv-2.dll`，Windows 事件日志三次复现故障偏移完全一致
+（`libmpv-2.dll+0x94d927`）。**已排除**：不是 `doc/plans/2026-09-17-windows-libmpv-slim.md
+§13` 那个已用 clang 修复的 `mpv_create()` 崩溃（那个崩在引擎创建时，这个崩在
+播放中途，代码位置也不同，且 CI 日志确认当前 dist/ 产物确实是 clang 编译的）；
+不是网络流本身（裸 `media_kit` `Player` 播放同一 URL 不崩）；不是小尺寸渲染面；
+不是 `createMovaEngine()`/`MovaPlayer` 封装本身（全屏播放不崩）；不是
+`showInPage()` 挂载动作本身（自动触发不崩）；不是 `MovaMiniCtl.show()` 后紧跟
+`Navigator.pop()` 的路由转场竞态（自动化复现该精确时序不崩）。**崩溃似乎只在
+真人鼠标/拖拽交互下触发**，自动化模拟同样的状态变化走不到那条代码路径。
+故障地址（RVA `0x94d927`）落在静态链接的 ffmpeg/libav 内部代码里（远超 mpv
+自身导出符号地址区间 `0x92xxxx`），dll 是 `minsize` 编译无调试符号，反汇编看
+不出函数名，需要本地重建一份带符号的 dll 配合 cdb/gdb 才能拿到真实调用栈。
+下次排查前先配置 `HKLM\SOFTWARE\Microsoft\Windows\Windows Error
+Reporting\LocalDumps\mova_example.exe` 收集崩溃转储（本轮验证完已还原删除），
+再请人工复现一次拿 `.dmp`。**注意区分**：`_MisuseDemo` 页面故意不检查
+`isShowing` 触发 `MovaEngine.dispose()` 的 debug-only assert 时，因为
+`dispose()` 是 async 但 `State.dispose()` 没 await 它，assert 失败会变成未捕获
+的 Future 错误直接杀死整个 isolate——**表现为窗口无声消失、无崩溃弹窗、无
+原生崩溃日志**，和上述真正的原生崩溃（有 `0xc0000005` 事件、故障模块是
+`libmpv-2.dll`）是两回事，靠"有没有 Windows 崩溃弹窗/事件日志"可以区分。
+后者已在 `mini_window_demo.dart` 里补了 `catchError` 上报，不再杀死整个 app。
 
 ## 仅音频模式（`audioOnly`，0.4.x，默认关闭）
 

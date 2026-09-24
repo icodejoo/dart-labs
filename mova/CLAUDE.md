@@ -153,6 +153,21 @@ feed 引擎池结构性不适用本模型，明确排除。详见
 
 ## 剩余任务
 
+**⚠️ Windows 真机播放中途 100% 复现 libmpv 原生崩溃，未解决，每次启动请提醒用户此项未完成**：
+`mini_window_demo` 在播放中途（非引擎刚创建时）触发 `0xc0000005` 访问越界，
+故障模块是自研瘦身版 `libmpv-2.dll`，Windows 事件日志三次复现故障偏移完全一致
+（`libmpv-2.dll+0x94d927`）。已排除：不是已用 clang 修复的 `mpv_create()`
+崩溃（位置、时机都不同，且已确认 CI 产物确实是 clang 编译）、不是网络流本身、
+不是小尺寸渲染面、不是 `createMovaEngine()`/`MovaPlayer` 封装本身、不是
+`showInPage()` 挂载动作本身、不是 `MovaMiniCtl.show()`+`Navigator.pop()` 的
+路由转场竞态——这几种场景自动化复现均不崩，**崩溃似乎只在真人鼠标/拖拽交互下
+触发**。故障地址落在静态链接的 ffmpeg/libav 内部（非 mpv 导出符号区间），dll
+无调试符号，需要本地重建带符号版本配合 cdb/gdb 才能拿到真实调用栈。详见
+[doc/SPEC.md](doc/SPEC.md)「App 内小窗（MovaMini）」一节的详细排查记录。
+**注意区分**：`_MisuseDemo` 页面故意触发的 debug assert 会导致窗口无声消失但
+**没有**崩溃弹窗/事件日志/原生故障——那是另一个已在 demo 里修复的问题
+（`_engine.dispose()` 缺 `catchError`），不要和这个原生崩溃混为一谈。
+
 **0.6.0 App 内小窗——真机验证未做（Task 12，每次启动请提醒用户此项未完成）**：
 Task 1–11 已完成（core 五处改动、`MovaMiniCtl`/`MovaMiniWindow`/`MovaMiniHost`/
 `MovaMiniSkin`、开放性对账、example demo、文档）。剩 Task 12 的真机 checklist（七组，
@@ -251,13 +266,24 @@ Android jniLibs 已接线，iOS 侧尚未把 `dist/darwin/` 产物接进 podspec
    **验证方法**：`git clone --branch main --single-branch <url> <tmpdir>` 全新
    clone 一次，比对 `dist/*/*` 每个文件的字节数，这是唯一可靠的验证手段——
    `git lfs pull` 在本地已有 `.git/lfs/objects/` 缓存时会掩盖远端缺失对象的问题。
-7. **接线到 mova 实际构建——Android 侧已完成（2026-09-17）**：`example/android/app/
-   build.gradle.kts` 新增 `syncMovaLibmpv` Gradle task（`Copy`，从
-   `tools/ffmpeg-slim/dist/<abi>/libmpv.so` 拷进 `src/main/jniLibs/<abi>/`，四个 ABI 目录名
-   两边天然一致），挂在 `preBuild` 之前，每次构建自动同步，不会再像过去那样悄悄漂移。
-   已本地验证：同步后 `jniLibs/` 四个 `.so` 的 MD5 与 `dist/` 逐一比对完全一致（此前是
-   手动拷贝的旧文件，对不上）。**iOS 侧尚未接线**（podspec 还没引用 `dist/darwin/` 产物，
-   留待 iOS PiP/真机验证一起处理时再补）。
+7. **接线到 mova 实际构建——Android/Windows 已完成，iOS 未接线**：
+   - **Android（2026-09-17）**：`example/android/app/build.gradle.kts` 新增
+     `syncMovaLibmpv` Gradle task（`Copy`，从 `tools/ffmpeg-slim/dist/<abi>/libmpv.so`
+     拷进 `src/main/jniLibs/<abi>/`，四个 ABI 目录名两边天然一致），挂在 `preBuild`
+     之前，每次构建自动同步。已本地验证：同步后 `jniLibs/` 四个 `.so` 的 MD5 与
+     `dist/` 逐一比对完全一致。
+   - **Windows（2026-09-24 确认，随「真机播放验证」一起落地，此前记录未同步）**：
+     `example/pubspec.yaml` 用 `dependency_overrides` 把 `media_kit_libs_windows_video`
+     指到本地 fork 包 `packages/media_kit_libs_windows_video_slim`。该 fork 的
+     `windows/CMakeLists.txt` 跳过官方 7z 下载，直接指向
+     `tools/ffmpeg-slim/dist/windows-x86_64/libmpv-2.dll`（mova-libmpv CI 产出的自研
+     瘦身版），并从 `windows-devlib/libmpv.dll.a`（用 `gendef`+`dlltool` 针对该 dll
+     导出表手工生成，dll 换版本要重新生成）+ `mpv-headers/*.h`（pin 在
+     build-mova-libmpv.yml windows job 用的 mpv commit）拼出 `media_kit_video` 链接期
+     需要的目录结构。真机验证（`flutter run -d windows` 画面+声音正常）用的就是这条
+     链路，不是临时替换测试——**Windows 是真实生效的接线，不是仅验证未接线**。
+   - **iOS 尚未接线**（podspec 还没引用 `dist/darwin/` 产物，留待 iOS PiP/真机验证
+     一起处理时再补）。
 
 **0.5.0 广告编排增强——真机验证部分完成（Task 12，每次启动请提醒用户此项仍有剩余项未完成）**：
 Task 1–11 已完成。Task 12 真机 checklist 七组，**2026-09-23（STG AL00 arm64 Android 12）

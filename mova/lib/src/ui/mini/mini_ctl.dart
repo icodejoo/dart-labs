@@ -85,6 +85,17 @@ class MovaMiniCtl extends ChangeNotifier {
   /// [close] 之后触发；宿主销毁引擎的挂钩。
   void Function(MovaApi api)? onClosed;
 
+  /// Called when the user taps the mini window's picture (not the close
+  /// button). `null` (the default) means the tap does nothing — the host
+  /// decides what "tapping the content" should mean, e.g. wiring it to
+  /// [hide] to return to a full-page player, or leaving it unset so only the
+  /// close (✕) button can dismiss the window.
+  ///
+  /// 用户点击小窗画面（非关闭按钮）时触发。默认为 `null`——点击不产生任何
+  /// 效果，由宿主自行决定"点画面"该做什么，例如接到 [hide] 实现"回到整页
+  /// 播放"，或者不设置以确保只有关闭（✕）按钮能收起小窗。
+  void Function(MovaApi api)? onTapContent;
+
   /// Hands [api] to the mini window and flips `MovaState.mini` on, **without
   /// mounting anything itself** — a host-level [Stack] (e.g. `MovaMiniHost`
   /// under `MaterialApp.builder`) is what renders it. Mount B / 方式 B。

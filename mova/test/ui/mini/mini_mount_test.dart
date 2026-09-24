@@ -284,8 +284,9 @@ void main() {
       expect(rectA, rectB);
     });
 
-    testWidgets('tapping the picture calls hide() under either shell', (tester) async {
+    testWidgets('tapping the picture invokes onTapContent under either shell when wired to hide()', (tester) async {
       final ctlA = MovaMiniCtl();
+      ctlA.onTapContent = (_) => ctlA.hide();
       final apiA = FakeMovaApi(options: _enabledOpts);
       late BuildContext ctxA;
       await tester.pumpWidget(MaterialApp(
@@ -302,6 +303,7 @@ void main() {
       expect(apiA.lastMini, isFalse);
 
       final ctlB = MovaMiniCtl();
+      ctlB.onTapContent = (_) => ctlB.hide();
       final apiB = FakeMovaApi(options: _enabledOpts);
       await tester.pumpWidget(MaterialApp(
         builder: (context, child) => MovaMiniHost(ctl: ctlB, child: child!),

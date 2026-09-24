@@ -36,6 +36,8 @@ const _demoSource = MovaSource(
 ///
 /// 整个 demo app 共用的路由外状态——在 app 根节点建一次，与 README 方式 B
 /// "第一步"完全对齐。
+// onTapContent 留空（默认无操作）：本 demo 刻意只允许显式点击关闭（✕）按钮
+// 收起小窗，避免真机验证时误触画面就把小窗“弄没了”。
 final _miniCtl = MovaMiniCtl();
 
 /// Append-only log of real events (`MovaMiniChg`/`MovaPipChg`/
@@ -286,9 +288,12 @@ class _PersistentPlayerPageState extends State<_PersistentPlayerPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text('方式 B · 跨路由持久')),
-      body: Center(
+      // 用 SingleChildScrollView 兜底：窗口偏窄/偏矮时 16:9 的 AspectRatio 会
+      // 撑出比可视区域更高的高度，Center+Column(mainAxisSize.min) 挡不住这种
+      // 溢出，会把下面的按钮挤出屏幕——加滚动容器保证按钮始终可达。
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(16),
         child: Column(
-          mainAxisSize: MainAxisSize.min,
           children: [
             AspectRatio(
               aspectRatio: 16 / 9,
@@ -337,8 +342,21 @@ class _MisuseDemoState extends State<_MisuseDemo> {
 
   @override
   void dispose() {
-    // 故意不检查 isShowing —— 这是文档明令警告的错误用法。
-    _engine.dispose();
+    // 故意不检查 isShowing —— 这是文档明令警告的错误用法，用来演示
+    // MovaEngine.dispose() 的 debug-only assert。但 dispose() 是 async 的，
+    // State.dispose() 又不能 await 它——不接住这个 Future 的错误，assert
+    // 失败会变成没人处理的 Future rejection，直接杀死整个 isolate/app（表现
+    // 为窗口悄无声息消失，无崩溃弹窗、无原生崩溃日志），而不是仅在控制台打印
+    // 一条调试期错误。这里补一个 catchError 只做展示用途的错误上报，不改变
+    // "不检查 isShowing"这个故意错误用法本身。
+    _engine.dispose().catchError((Object error, StackTrace stack) {
+      FlutterError.reportError(FlutterErrorDetails(
+        exception: error,
+        stack: stack,
+        library: 'mova mini_window_demo',
+        context: ErrorDescription('故意错误用法页面 dispose() 时未检查 isShowing'),
+      ));
+    });
     super.dispose();
   }
 
@@ -346,9 +364,11 @@ class _MisuseDemoState extends State<_MisuseDemo> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text('故意错误用法')),
-      body: Center(
+      // 同 _PersistentPlayerPage：加滚动容器兜底，避免窗口偏窄/偏矮时
+      // AspectRatio 撑出溢出（曾在真机上引发密集纹理重建循环并使应用崩溃）。
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(16),
         child: Column(
-          mainAxisSize: MainAxisSize.min,
           children: [
             AspectRatio(aspectRatio: 16 / 9, child: MovaPlayer(api: _engine)),
             const SizedBox(height: 16),

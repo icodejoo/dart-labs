@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:mova/src/core/api.dart';
 import 'package:mova/src/core/mini/placement.dart';
 import 'package:mova/src/core/options/options.dart';
 import 'package:mova/src/ui/mini/mini_ctl.dart';
@@ -103,7 +104,7 @@ void main() {
     expect(topLeft.dy, closeTo(5, 1));
   });
 
-  testWidgets('tapping the picture calls ctl.hide(), not ctl.close()', (tester) async {
+  testWidgets('tapping the picture is a no-op when onTapContent is unset', (tester) async {
     await pumpWindow(tester, ctl: ctl, api: api);
     await ctl.show(api);
     // The exact center coincides with MovaMiniSkin's center play/pause
@@ -117,8 +118,24 @@ void main() {
     final rect = tester.getRect(find.byKey(const ValueKey('movaMiniWindowGesture')));
     await tester.tapAt(rect.bottomLeft + const Offset(4, -4));
     await tester.pump(const Duration(milliseconds: 500));
-    expect(api.lastMini, isFalse);
+    // Default: no host-supplied onTapContent means tapping the content does
+    // nothing — only the close button can dismiss the window.
+    //
+    // 默认：宿主未设置 onTapContent 时，点画面无任何效果——只有关闭按钮能
+    // 收起小窗。
+    expect(ctl.isShowing(api), isTrue);
     expect(api.calls, isNot(contains('pause')));
+  });
+
+  testWidgets('tapping the picture invokes onTapContent when the host wires it', (tester) async {
+    await pumpWindow(tester, ctl: ctl, api: api);
+    await ctl.show(api);
+    MovaApi? tapped;
+    ctl.onTapContent = (a) => tapped = a;
+    final rect = tester.getRect(find.byKey(const ValueKey('movaMiniWindowGesture')));
+    await tester.tapAt(rect.bottomLeft + const Offset(4, -4));
+    await tester.pump();
+    expect(tapped, same(api));
   });
 
   testWidgets('tapping the close button calls ctl.close()', (tester) async {
