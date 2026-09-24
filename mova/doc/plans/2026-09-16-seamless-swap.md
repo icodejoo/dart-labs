@@ -953,11 +953,20 @@ class MovaSwapEngine implements MovaApi, MovaSwapCtl {
   main_resume_accuracy_verify.dart`，基于两次 `renderEpoch` 跳变，修正了
   初版探针的测量 bug）：修复前 6006ms→8842ms（+2836ms）；修复后两次采样
   5964ms→6006ms（+42ms）、5630ms→5672ms（+42ms）——42ms 是 progress 流
-  200ms 节流下的一个采样格，已接近测量下限。**顺带发现第二个未修问题**
-  （与本次偏差无因果关系，另案）：`_startWarm` 里紧跟 `open()` 下发的
-  `seek(at)` 在真机上偶发被 `MovaEngine` 的 `_parkedSeek` 丢弃（3 次运行
-  1 次生效、2 次丢弃），丢弃时续播位置仍正确（commit 期已有回绕兜底），
-  但切换会多等约 2.4 秒——排查方向在 `MovaEngine.seek`/`_applyParkedSeek`。
+  200ms 节流下的一个采样格，已接近测量下限。**第二个疑点已排查，确认不是
+  代码 bug**：`_startWarm` 里紧跟 `open()` 下发的 `seek(at)` 曾观察到 3 次
+  运行 1 次快（20ms）、2 次慢（2.4s）。真机对照实验（裸 media_kit 三变体）
+  证实：无寄存机制时过早 seek 会被 mpv 丢弃且**卡死播放器**；mova 的寄存
+  机制 12/12 轮全部正确走到、全部真实落地，0 轮丢弃——那 2.4 秒就是 mpv
+  报出 duration 本身的网络加载耗时（实测 3068–5327ms），与寄存机制无关。
+  顺手做了一次加固：`MovaEngine.open()` 同步重置
+  `duration`/`_lastPosition`/`_lastBuffer` 为 0，把"寄存还是直发"的判据从
+  隐性竞态变成确定性的；顺带修掉复用引擎播放新源时上一条素材 position
+  漏进新源首个 `MovaProg` 的真 bug。测试从 809 推进到 **811**，
+  `flutter analyze` 0 issues，真机复测 6 轮无回归（3068–3782ms）。**排查中
+  发现新的未修真 bug（另案）**：`MovaEngine.switchQuality` 清晰度切换/ABR
+  自动降档路径无条件直接打内核、完全绕开寄存机制，是同一种会被 mpv 丢弃并
+  卡死的模式，且从未真机验过。
 - [x] **C 组短广告降级路径——PASS**：预热窗口压到 300ms、广告仅持有 250ms 即
   `skip()`，未见卡死/异常，`renderEpoch` 仍成功递增——即便预热窗口压缩到这个
   程度，无缝路径依然走成功，没有出现"预热来不及、界面卡住"。

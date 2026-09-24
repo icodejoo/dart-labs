@@ -543,6 +543,28 @@ class MovaEngine implements MovaApi {
     _source = source;
     _pendingSeekTarget = null;
     _parkedSeek = null;
+    // Forget everything the *previous* media reported. This is what makes the
+    // "park or seek now" decision in [seek] deterministic: an `open()` that is
+    // immediately followed by a `seek()` (the ad→content resume path, and every
+    // warm-up in `MovaSwapEngine`) must always park, because mpv has only been
+    // handed the load command and cannot service a seek yet — measured on
+    // device (STG AL00): such a seek is not merely dropped, it wedges the
+    // player (position never leaves 0 and even `dispose()` then hangs). Without
+    // this reset the decision rides on whether media_kit's own
+    // "duration → zero" reset happened to be delivered during `open()`'s
+    // remaining awaits — true in every run measured, but a race nonetheless,
+    // and the losing side is the wedge.
+    //
+    // 把*上一条*素材报告过的一切忘掉。这正是让 [seek] 里"寄存还是立刻下发"的
+    // 判断变确定的关键：紧跟在 `open()` 之后的 `seek()`（广告→正片续播路径，
+    // 以及 `MovaSwapEngine` 的每一次预热）必须一律寄存——此刻 mpv 只是刚收到
+    // 加载命令，根本无法服务 seek。真机实测（STG AL00）：这种 seek 不只是被
+    // 丢弃，还会把播放器卡死（position 永远停在 0，连 `dispose()` 都挂住）。
+    // 不做这次重置，该判断就取决于 media_kit 自己那次"duration 归零"是否恰好
+    // 在 `open()` 剩余的 await 期间被派发——实测每一轮都是，但终究是竞态，而
+    // 输的那一侧是卡死。
+    _lastPosition = Duration.zero;
+    _lastBuffer = Duration.zero;
     _previewService.attach(source);
     _sttService.attach(source);
     _abrPolicy.reset();
@@ -550,6 +572,7 @@ class MovaEngine implements MovaApi {
       qualities: const [],
       type: source.type,
       sourceTitle: source.title,
+      duration: Duration.zero,
       clearQuality: true,
       clearError: true,
       clearSourceTitle: source.title == null,

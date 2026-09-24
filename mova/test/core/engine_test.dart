@@ -113,6 +113,45 @@ void main() {
     expect(k.lastSeek, const Duration(seconds: 120));
   });
 
+  test('opening a new source forgets the previous media duration, so the next '
+      'seek still parks', () async {
+    await e.open(const MovaSource('https://host/a.mp4'));
+    k.emitDuration(const Duration(minutes: 5));
+    await Future<void>.delayed(Duration.zero);
+    expect(e.state.duration, const Duration(minutes: 5));
+    // Re-opening must zero the duration synchronously: a seek issued right
+    // after open() has to park, because mpv has only been handed the load
+    // command and drops (and on device wedges on) a seek that early.
+    //
+    // 重新 open 必须同步把时长归零：紧随 open() 之后的 seek 必须寄存——此刻
+    // mpv 只是刚收到加载命令，这么早的 seek 会被丢弃（真机上还会卡死）。
+    await e.open(const MovaSource('https://host/b.mp4'));
+    expect(e.state.duration, Duration.zero);
+    k.calls.clear();
+    await e.seek(const Duration(seconds: 30));
+    expect(k.calls, isEmpty, reason: 'seek must park, not reach the kernel');
+    k.emitDuration(const Duration(minutes: 5));
+    await Future<void>.delayed(Duration.zero);
+    expect(k.lastSeek, const Duration(seconds: 30));
+  });
+
+  test('opening a new source resets the tracked position, so seekBy counts '
+      'from zero', () async {
+    await e.open(const MovaSource('https://host/a.mp4'));
+    k.emitDuration(const Duration(minutes: 5));
+    k.emitPosition(const Duration(seconds: 42));
+    await Future<void>.delayed(Duration.zero);
+    // A stale position from the previous media would aim this jump at 52s.
+    //
+    // 若残留上一条素材的位置，这一跳会瞄到 52 秒去。
+    await e.open(const MovaSource('https://host/b.mp4'));
+    k.calls.clear();
+    await e.seekBy(const Duration(seconds: 10));
+    k.emitDuration(const Duration(minutes: 5));
+    await Future<void>.delayed(Duration.zero);
+    expect(k.lastSeek, const Duration(seconds: 10));
+  });
+
   test('opening a new source discards a still-parked seek', () async {
     await e.open(const MovaSource('https://host/a.mp4'));
     await e.seek(const Duration(seconds: 30)); // parked (no duration reported)
