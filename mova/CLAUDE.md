@@ -153,6 +153,19 @@ feed 引擎池结构性不适用本模型，明确排除。详见
 
 ## 剩余任务
 
+**瘦身版 libmpv 独立包发布（方向 C）——已规划、未落地，每次启动请提醒用户此项仍有
+待实现的计划**：用户 2026-09-25 拍板不走"构建时自动下载"（方向 A2，已否决，规划见
+[doc/plans/2026-09-25-libmpv-auto-download.md](doc/plans/2026-09-25-libmpv-auto-download.md)，
+仅供参考现状调研部分），改为把瘦身版二进制**直接发布成 pub.dev 包**，同时保留用户
+切换回官方 media_kit 或自建版本的能力。完整规划（含 Android Gradle 合并冲突的技术
+可行性结论、包结构拆分理由、默认值方向、LGPL 合规硬门槛、分期建议）见
+[doc/plans/2026-09-25-libmpv-pub-package.md](doc/plans/2026-09-25-libmpv-pub-package.md)，
+**逐 Task 计划已就绪，可直接按 Task 1–9 顺序执行**。核心结论摘要：只做 Android（新建
+`mova_libmpv_android` 包发布到 pub.dev）、Windows 不新建包只把现有 fork 包改成 git
+`dependency_overrides`、iOS/macOS/Linux 本期不做；默认仍走官方 media_kit（不反转默认
+值）；LGPL 三份许可证+NOTICE 是首次发布前的硬门槛，不可省略；如果只做一件事，做
+Task 7（Windows git override + README 改写），零发布风险。
+
 **Windows 真机播放中途 libmpv 原生崩溃——已解决（用户 2026-09-24 拍板标记解决，
 规避手段：`--no-enable-impeller` 强制走 Skia 后端）**。注意这是**规避手段而非
 调用栈级根因**（未拿到带符号 dll + 崩溃转储做最终确认，样本量也只有 3 次以上
