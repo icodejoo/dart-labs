@@ -65,7 +65,7 @@
   `Future<void> setVideoTrack(MovaVideoTrack)`。`MovaVideoTrack` 定义在
   `core/model/quality.dart`（不是 kernel.dart——因为 `qualitiesFromVideoTracks`
   是导出的公开函数，参数类型必须也可从 barrel 访问，放 kernel.dart 会泄漏未导出
-  类型到公开签名）；`MpvKernel` 映射到 `player.stream.tracks`/`player.stream.track`/
+  类型到公开签名）；`MovaMpvKernel` 映射到 `player.stream.tracks`/`player.stream.track`/
   `player.setVideoTrack`，并过滤掉 mpv 的 `id:'no'`（"关闭视频"）条目——真机 spike
   踩过这个坑，见附录 A。`FakeKernel` 补了 `emitVideoTracks`/`lastVideoTrack` 测试桩。
   `purity_test` 仍绿（media_kit 依赖只在 `mpv_kernel.dart`）。

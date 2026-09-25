@@ -32,13 +32,13 @@ abstract class MovaSttModelDirProv {
 /// 恒定返回同一路径的 [MovaSttModelDirProv]。
 ///
 /// 既支持宿主固定模型缓存位置，也让测试无需依赖插件通道。
-class FixedSttModelDirProvider implements MovaSttModelDirProv {
+class MovaFixedSttModelDirProvider implements MovaSttModelDirProv {
   /// Creates a provider pinned to [path].
   ///
   /// 创建一个固定指向 [path] 的 provider。
   ///
   /// - [path]: absolute cache directory path / 缓存目录的绝对路径
-  const FixedSttModelDirProvider(this.path);
+  const MovaFixedSttModelDirProvider(this.path);
 
   /// The fixed cache directory path.
   ///

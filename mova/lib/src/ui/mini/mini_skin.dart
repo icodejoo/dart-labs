@@ -40,9 +40,9 @@ class MovaMiniSkin implements MovaSkin {
 
   @override
   List<MovaComp> components() => [
-        CenterPlayComponent(),
-        BufferingComponent(),
-        MiniCloseComponent(onClose: onClose),
+        MovaCenterPlayComponent(),
+        MovaBufferingComponent(),
+        MovaMiniCloseComponent(onClose: onClose),
       ];
 
   @override
@@ -60,13 +60,13 @@ class MovaMiniSkin implements MovaSkin {
 /// The mini window's close (✕) button, top-right corner.
 ///
 /// 小窗的关闭（✕）按钮，位于右上角。
-class MiniCloseComponent extends MovaComp {
+class MovaMiniCloseComponent extends MovaComp {
   /// Creates the close-button leaf component.
   ///
   /// 创建关闭按钮叶子组件。
   ///
   /// - [onClose]: tap handler / 点击回调
-  MiniCloseComponent({this.onClose});
+  MovaMiniCloseComponent({this.onClose});
 
   /// Tap handler; a no-op button when `null`.
   ///

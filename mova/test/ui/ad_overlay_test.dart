@@ -41,7 +41,7 @@ void main() {
     );
     final (api, c, _) = build(pre, enabled: false);
     await c.load(_content);
-    await pumpComponent(t, api, AdOverlayComponent(c));
+    await pumpComponent(t, api, MovaAdOverlayComponent(c));
     expect(find.text('广告'), findsNothing);
     await api.dispose();
   });
@@ -54,7 +54,7 @@ void main() {
     );
     final (api, c, _) = build(pre);
     await c.load(_content);
-    await pumpComponent(t, api, AdOverlayComponent(c));
+    await pumpComponent(t, api, MovaAdOverlayComponent(c));
     expect(find.text('广告'), findsOneWidget);
     expect(find.text('跳过广告'), findsNothing);
 
@@ -73,7 +73,7 @@ void main() {
     );
     final (api, c, _) = build(pre);
     await c.load(_content);
-    await pumpComponent(t, api, AdOverlayComponent(c));
+    await pumpComponent(t, api, MovaAdOverlayComponent(c));
     api.pushProgress(const MovaProg(position: Duration(seconds: 6)));
     await t.pump();
     await t.pump();
@@ -94,7 +94,7 @@ void main() {
     );
     final (api, c, events) = build(pre);
     await c.load(_content);
-    await pumpComponent(t, api, AdOverlayComponent(c));
+    await pumpComponent(t, api, MovaAdOverlayComponent(c));
     // The ad has rendered its first frame, which is also what clears the
     // no-first-frame deadline.
     //
@@ -156,7 +156,7 @@ void main() {
   testWidgets('renders nothing when neither an ad nor a pending one exists', (t) async {
     final (api, c, pendEvents) = pendingBuild(delay: const Duration(seconds: 5));
     await c.load(_content);
-    await pumpComponent(t, api, AdOverlayComponent(c));
+    await pumpComponent(t, api, MovaAdOverlayComponent(c));
     expect(find.byType(Text), findsNothing);
     await api.dispose();
   });
@@ -164,7 +164,7 @@ void main() {
   testWidgets('a delay countdown renders the adStartingIn copy', (t) async {
     final (api, c, pendEvents) = pendingBuild(delay: const Duration(seconds: 5));
     await c.load(_content);
-    await pumpComponent(t, api, AdOverlayComponent(c));
+    await pumpComponent(t, api, MovaAdOverlayComponent(c));
     api.pushProgress(const MovaProg(position: Duration(seconds: 31)));
     await t.pump();
     await t.pump();
@@ -176,7 +176,7 @@ void main() {
   testWidgets('the pending phase renders no ad badge', (t) async {
     final (api, c, pendEvents) = pendingBuild(delay: const Duration(seconds: 5));
     await c.load(_content);
-    await pumpComponent(t, api, AdOverlayComponent(c));
+    await pumpComponent(t, api, MovaAdOverlayComponent(c));
     api.pushProgress(const MovaProg(position: Duration(seconds: 31)));
     await t.pump();
     await t.pump();
@@ -187,7 +187,7 @@ void main() {
   testWidgets('the pending phase does not swallow taps on the content', (t) async {
     final (api, c, pendEvents) = pendingBuild(delay: const Duration(seconds: 5));
     await c.load(_content);
-    await pumpComponent(t, api, AdOverlayComponent(c));
+    await pumpComponent(t, api, MovaAdOverlayComponent(c));
     api.pushProgress(const MovaProg(position: Duration(seconds: 31)));
     await t.pump();
     await t.pump();
@@ -204,7 +204,7 @@ void main() {
   testWidgets('the countdown number decrements as content ticks arrive', (t) async {
     final (api, c, pendEvents) = pendingBuild(delay: const Duration(seconds: 5));
     await c.load(_content);
-    await pumpComponent(t, api, AdOverlayComponent(c));
+    await pumpComponent(t, api, MovaAdOverlayComponent(c));
     api.pushProgress(const MovaProg(position: Duration(seconds: 30)));
     await t.pump();
     await t.pump();
@@ -220,7 +220,7 @@ void main() {
   testWidgets('the countdown gives way to the ad badge when the ad takes over', (t) async {
     final (api, c, pendEvents) = pendingBuild(delay: const Duration(seconds: 5));
     await c.load(_content);
-    await pumpComponent(t, api, AdOverlayComponent(c));
+    await pumpComponent(t, api, MovaAdOverlayComponent(c));
     api.pushProgress(const MovaProg(position: Duration(seconds: 31)));
     await t.pump();
     await t.pump();
@@ -243,7 +243,7 @@ void main() {
     final swap = FakeSwapCtl();
     final (api, c, pendEvents) = pendingBuild(delay: Duration.zero, swap: swap);
     await c.load(_content);
-    await pumpComponent(t, api, AdOverlayComponent(c));
+    await pumpComponent(t, api, MovaAdOverlayComponent(c));
     expect(c.delayRemaining, isNull);
     expect(find.byType(Text), findsNothing);
     await api.dispose();

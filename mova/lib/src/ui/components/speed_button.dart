@@ -6,10 +6,10 @@ import '../slots/component.dart';
 import '../slots/slot.dart';
 import 'common.dart';
 
-/// The fixed cycle of playback-rate multipliers [SpeedButtonComponent] steps
+/// The fixed cycle of playback-rate multipliers [MovaSpeedButtonComponent] steps
 /// through.
 ///
-/// [SpeedButtonComponent] 循环切换所用的固定倍速档位表。
+/// [MovaSpeedButtonComponent] 循环切换所用的固定倍速档位表。
 const List<double> _kSpeedSteps = [0.5, 0.75, 1.0, 1.25, 1.5, 2.0];
 
 /// Playback-rate cycling button; label shows the active multiplier (e.g.
@@ -22,11 +22,11 @@ const List<double> _kSpeedSteps = [0.5, 0.75, 1.0, 1.25, 1.5, 2.0];
 /// [_kSpeedSteps] 中的下一档，到头后回绕。
 ///
 /// 只是在既有 [MovaApi.setRate] 之上新增的 UI——无需任何新的 core 能力。
-class SpeedButtonComponent extends MovaComp {
+class MovaSpeedButtonComponent extends MovaComp {
   /// Creates the speed-button leaf component.
   ///
   /// 创建倍速按钮叶子组件。
-  SpeedButtonComponent();
+  MovaSpeedButtonComponent();
 
   @override
   String get name => 'speedButton';

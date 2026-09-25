@@ -83,8 +83,8 @@ void main() {
       expect(
         src,
         contains('Object? get renderHandle'),
-        reason: 'MpvKernel must expose the widened nullable handle contract / '
-            'MpvKernel 必须暴露放宽后的可空句柄契约',
+        reason: 'MovaMpvKernel must expose the widened nullable handle contract / '
+            'MovaMpvKernel 必须暴露放宽后的可空句柄契约',
       );
     });
   });

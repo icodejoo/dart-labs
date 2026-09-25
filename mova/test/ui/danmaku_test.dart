@@ -10,8 +10,8 @@ import '../support/pump.dart';
 void main() {
   testWidgets('renders nothing when disabled', (t) async {
     final api = FakeMovaApi();
-    await pumpComponent(t, api, DanmakuTrackComponent());
-    expect(find.byType(DanmakuTrackComponent), findsNothing);
+    await pumpComponent(t, api, MovaDanmakuTrackComponent());
+    expect(find.byType(MovaDanmakuTrackComponent), findsNothing);
     await api.dispose();
   });
 
@@ -25,7 +25,7 @@ void main() {
         ),
       ),
     );
-    await pumpComponent(t, api, DanmakuTrackComponent());
+    await pumpComponent(t, api, MovaDanmakuTrackComponent());
     expect(find.text('hello'), findsNothing);
 
     api.pushProgress(const MovaProg(position: Duration(seconds: 6)));
@@ -49,7 +49,7 @@ void main() {
         ),
       ),
     );
-    await pumpComponent(t, api, DanmakuTrackComponent());
+    await pumpComponent(t, api, MovaDanmakuTrackComponent());
 
     api.pushProgress(const MovaProg(position: Duration(seconds: 3)));
     await t.pump();

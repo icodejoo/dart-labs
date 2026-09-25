@@ -97,7 +97,7 @@ void main() {
 
   test('every MovaPrevConfig injection point accepts a custom strategy', () {
     final p = MovaPrevConfig(
-      probe: AlwaysAllowNetProbe(),
+      probe: MovaAlwaysAllowNetProbe(),
       cacheKeyBuilder: (s, b, w) => 'custom',
       vttUrlResolver: (s) => Uri.parse('https://cdn/t.vtt'),
       onBlocked: (_) {},

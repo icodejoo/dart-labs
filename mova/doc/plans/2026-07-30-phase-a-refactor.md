@@ -4,7 +4,7 @@
 
 **Goal:** 把 mova 从「controls 直连 controller」重构为「core 行为层 + ui 表现层，Stream 通信，UI 是可寻址可打补丁的组件树」，且**对外功能零变化**。
 
-**Architecture:** core 层零 Flutter 依赖，`MovaEngine` 包一个抽象 `MovaKernel`（唯一 media_kit 实现是 `MpvKernel`），把内核属性流归约成 `MovaState`/`MovaProg`/`MovaUiState` 三条广播流 + 一条 `MovaEvent` 事件流。UI 通过 `MovaScope` 拿 `MovaApi`，用 `MovaSelect` 做字段级重建，界面由 `MovaComp` 组件树 + `MovaSkin` 装配，外部用 `MovaPatch` 按路径增删换组件。UI → core 只走方法调用，core → UI 只走流。
+**Architecture:** core 层零 Flutter 依赖，`MovaEngine` 包一个抽象 `MovaKernel`（唯一 media_kit 实现是 `MovaMpvKernel`），把内核属性流归约成 `MovaState`/`MovaProg`/`MovaUiState` 三条广播流 + 一条 `MovaEvent` 事件流。UI 通过 `MovaScope` 拿 `MovaApi`，用 `MovaSelect` 做字段级重建，界面由 `MovaComp` 组件树 + `MovaSkin` 装配，外部用 `MovaPatch` 按路径增删换组件。UI → core 只走方法调用，core → UI 只走流。
 
 **Tech Stack:** Dart 3.12 / Flutter ≥3.3、media_kit ^1.2.6、media_kit_video ^2.0.1、screen_brightness ^2.1.11、flutter_test。阶段 A **不加任何新依赖**。
 
@@ -523,7 +523,7 @@ git commit -m "feat(mova): add immutable MovaState/MovaProg/MovaUiState snapshot
 
 ---
 
-## Task 4: 内核抽象 + FakeKernel + MpvKernel
+## Task 4: 内核抽象 + FakeKernel + MovaMpvKernel
 
 **Files:**
 - Create: `lib/src/core/kernel/kernel.dart`, `lib/src/core/kernel/mpv_kernel.dart`, `test/support/fake_kernel.dart`
@@ -531,7 +531,7 @@ git commit -m "feat(mova): add immutable MovaState/MovaProg/MovaUiState snapshot
 
 **Interfaces:**
 - Consumes: 无
-- Produces: `abstract class MovaKernel`（方法：`Future<void> open(String uri,{bool play})`、`play()`、`pause()`、`seek(Duration)`、`setVolume(double)`、`setRate(double)`、`Future<Uint8List?> screenshot()`、`Future<void> dispose()`；流：`Stream<bool> playing/buffering/completed`、`Stream<Duration> position/duration/buffer`、`Stream<MovaSize> size`、`Stream<Object> error`；`Object get renderHandle`）、`class MovaSize({int width,int height})`、`class MpvKernel implements MovaKernel`、`class FakeKernel implements MovaKernel`（带 `emitPlaying(bool)`/`emitBuffering(bool)`/`emitPosition(Duration)`/`emitDuration(Duration)`/`emitBuffer(Duration)`/`emitSize(int,int)`/`emitCompleted(bool)`/`emitError(Object)` 与调用记录 `List<String> calls`、`Duration? lastSeek`、`String? lastUri`）
+- Produces: `abstract class MovaKernel`（方法：`Future<void> open(String uri,{bool play})`、`play()`、`pause()`、`seek(Duration)`、`setVolume(double)`、`setRate(double)`、`Future<Uint8List?> screenshot()`、`Future<void> dispose()`；流：`Stream<bool> playing/buffering/completed`、`Stream<Duration> position/duration/buffer`、`Stream<MovaSize> size`、`Stream<Object> error`；`Object get renderHandle`）、`class MovaSize({int width,int height})`、`class MovaMpvKernel implements MovaKernel`、`class FakeKernel implements MovaKernel`（带 `emitPlaying(bool)`/`emitBuffering(bool)`/`emitPosition(Duration)`/`emitDuration(Duration)`/`emitBuffer(Duration)`/`emitSize(int,int)`/`emitCompleted(bool)`/`emitError(Object)` 与调用记录 `List<String> calls`、`Duration? lastSeek`、`String? lastUri`）
 
 - [ ] **Step 1: 写失败测试 `test/core/kernel_contract_test.dart`**
 
@@ -586,7 +586,7 @@ Expected: FAIL — `MovaKernel isn't defined`
 /// Creates the media_kit-backed kernel.
 ///
 /// 创建基于 media_kit 的内核。
-MpvKernel({Player? player});
+MovaMpvKernel({Player? player});
 ```
 
 - [ ] **Step 6: 跑测试与分析**
@@ -816,7 +816,7 @@ git commit -m "feat(mova): add MovaHook hook points and serial chain"
 
 **Interfaces:**
 - Consumes: 无
-- Produces: `abstract class MovaBrightPort { Future<double> get(); Future<void> set(double); }`、`abstract class MovaPipPort { Future<bool> isSupported(); Future<bool> enter({int? width,int? height}); }`、`abstract class MovaOrientPort { Future<void> apply({required bool fullscreen, required bool immersive, required int width, required int height}); Future<void> reset(); }`、`FallbackBrightnessPort`（永远返回 1.0，core 默认值）、`NoopPipPort`（永远 false）、`NoopOrientationPort`；实现类 `ScreenBrightnessPort`、`ChannelPipPort`、`SystemChromeOrientationPort`（带 `List<DeviceOrientation> preferredOrientationsFor(int width,int height)` 顶层函数）
+- Produces: `abstract class MovaBrightPort { Future<double> get(); Future<void> set(double); }`、`abstract class MovaPipPort { Future<bool> isSupported(); Future<bool> enter({int? width,int? height}); }`、`abstract class MovaOrientPort { Future<void> apply({required bool fullscreen, required bool immersive, required int width, required int height}); Future<void> reset(); }`、`MovaFallbackBrightnessPort`（永远返回 1.0，core 默认值）、`MovaNoopPipPort`（永远 false）、`MovaNoopOrientationPort`；实现类 `MovaScreenBrightnessPort`、`MovaChannelPipPort`、`MovaSystemChromeOrientationPort`（带 `List<DeviceOrientation> preferredOrientationsFor(int width,int height)` 顶层函数）
 
 - [ ] **Step 1: 写失败测试 `test/core/ports_test.dart`**
 
@@ -826,14 +826,14 @@ import 'package:mova/src/core/platform/ports.dart';
 
 void main() {
   test('fallback brightness port reports full brightness and ignores writes', () async {
-    final p = FallbackBrightnessPort();
+    final p = MovaFallbackBrightnessPort();
     expect(await p.get(), 1.0);
     await p.set(0.2);
     expect(await p.get(), 1.0);
   });
 
   test('noop pip port is unsupported', () async {
-    final p = NoopPipPort();
+    final p = MovaNoopPipPort();
     expect(await p.isSupported(), isFalse);
     expect(await p.enter(width: 16, height: 9), isFalse);
   });
@@ -846,7 +846,7 @@ void main() {
 - [ ] **Step 2: 跑测试确认失败**
 
 Run: `flutter test test/core/ports_test.dart`
-Expected: FAIL — `FallbackBrightnessPort isn't defined`
+Expected: FAIL — `MovaFallbackBrightnessPort isn't defined`
 
 - [ ] **Step 3: 实现端口与三个实现**
 
@@ -960,7 +960,7 @@ MovaEngine({
 });
 ```
 
-`kernel` 为空时用 `MpvKernel()`；三个 port 为空时用 noop/fallback。另有 `static void ensureInitialized()`（转发 `MediaKit.ensureInitialized()`，放在 `mpv_kernel.dart` 里由 engine 转发，保持 core 不直连 media_kit：engine 调 `MpvKernel.ensureInitialized()`）。
+`kernel` 为空时用 `MovaMpvKernel()`；三个 port 为空时用 noop/fallback。另有 `static void ensureInitialized()`（转发 `MediaKit.ensureInitialized()`，放在 `mpv_kernel.dart` 里由 engine 转发，保持 core 不直连 media_kit：engine 调 `MovaMpvKernel.ensureInitialized()`）。
 
 - [ ] **Step 1: 写失败测试 `test/core/engine_test.dart`**
 
@@ -1408,7 +1408,7 @@ git commit -m "feat(mova): add addressable component tree with slots and patches
 
 **Interfaces:**
 - Consumes: `MovaApi`, `MovaComp`, `MovaSlot`, `MovaGestConfig`, `MovaHud`
-- Produces: `class GestureLayerComponent extends MovaComp`（`name='gestureLayer'`, `slot=MovaSlot.gesture`）、`class HudLayerComponent extends MovaComp`（`name='hudLayer'`, `slot=MovaSlot.hud`, children: `VolumeHudComponent`/`BrightnessHudComponent`/`SeekHudComponent`/`ZoomHudComponent`，四个都在同文件内定义）
+- Produces: `class MovaGestureLayerComponent extends MovaComp`（`name='gestureLayer'`, `slot=MovaSlot.gesture`）、`class MovaHudLayerComponent extends MovaComp`（`name='hudLayer'`, `slot=MovaSlot.hud`, children: `MovaVolumeHudComponent`/`MovaBrightnessHudComponent`/`MovaSeekHudComponent`/`MovaZoomHudComponent`，四个都在同文件内定义）
 
 - [ ] **Step 1: 先写共享 pump 辅助 `test/support/pump.dart`**
 
@@ -1451,7 +1451,7 @@ Future<void> pumpComponent(
 
 - [ ] **Step 2: 迁移测试到 `test/ui/gesture_test.dart`**
 
-四项原测试改为 `await pumpComponent(t, api, GestureLayerComponent())`，用 `t.dragFrom` 驱动，
+四项原测试改为 `await pumpComponent(t, api, MovaGestureLayerComponent())`，用 `t.dragFrom` 驱动，
 断言 `api.calls` 与 `api.lastVolume`/`lastBrightness`/`lastSeek`。第五项新增：
 
 ```dart
@@ -1463,7 +1463,7 @@ testWidgets('horizontal drag seeks a live source when liveSeekable is true', (t)
     seekableWindow: Duration(minutes: 5),
     duration: Duration(minutes: 5),
   ));
-  await pumpComponent(t, api, GestureLayerComponent());
+  await pumpComponent(t, api, MovaGestureLayerComponent());
   await t.dragFrom(t.getCenter(find.byType(GestureDetector)), const Offset(100, 0));
   await t.pumpAndSettle();
   expect(api.calls, contains('seek'));
@@ -1476,17 +1476,17 @@ testWidgets('horizontal drag seeks a live source when liveSeekable is true', (t)
 - [ ] **Step 3: 跑测试确认失败**
 
 Run: `flutter test test/ui/gesture_test.dart`
-Expected: FAIL — `GestureLayerComponent isn't defined`
+Expected: FAIL — `MovaGestureLayerComponent isn't defined`
 
 - [ ] **Step 4: 实现两个组件**
 
-`GestureLayerComponent.build` 返回原 `MovaGestDetect` 的等价实现：轴向锁定阈值 8px、横滑
+`MovaGestureLayerComponent.build` 返回原 `MovaGestDetect` 的等价实现：轴向锁定阈值 8px、横滑
 `seconds = dx / width * options.gesture.hSeekSpanPerScreen.inSeconds`、左竖滑音量
 `start + frac*100`、右竖滑亮度 `start + frac`、双击 `±doubleTapStep`、双指 `scale` clamp 到
 `options.gesture.maxZoom`。拖动过程中 `api.setDragging(true, previewAt: target)` + `api.showHud(MovaHud.seek)`，
 释放时 `api.seek(target)` 并 `api.setDragging(false)`。所有门控读 `api.options.gesture` 与 `api.state`。
 
-`HudLayerComponent` 用 `MovaUiSelect<MovaHud>` 决定显示哪个 HUD，文案取 `api.options.strings`，
+`MovaHudLayerComponent` 用 `MovaUiSelect<MovaHud>` 决定显示哪个 HUD，文案取 `api.options.strings`，
 配色取 `api.options.theme`。
 
 - [ ] **Step 5: 跑测试确认通过**
@@ -1506,7 +1506,7 @@ git commit -m "feat(mova): port gesture layer and HUDs to components"
 ## Task 13: 组件平移 2 —— 顶栏
 
 **Files:**
-- Create: `lib/src/ui/components/top_bar.dart`（含 `TopBarComponent` + `TitleComponent`/`PipButtonComponent`/`QualityButtonComponent`/`FitButtonComponent`/`FullscreenButtonComponent`/`LockButtonComponent`）, `lib/src/ui/components/common.dart`（`MovaIconButton`/`MovaGradBar`，自 `controls_common.dart` 迁入并改吃 `MovaTheme`）
+- Create: `lib/src/ui/components/top_bar.dart`（含 `MovaTopBarComponent` + `MovaTitleComponent`/`MovaPipButtonComponent`/`MovaQualityButtonComponent`/`MovaFitButtonComponent`/`MovaFullscreenButtonComponent`/`LockButtonComponent`）, `lib/src/ui/components/common.dart`（`MovaIconButton`/`MovaGradBar`，自 `controls_common.dart` 迁入并改吃 `MovaTheme`）
 - Test: `test/ui/top_bar_test.dart`
 
 **Interfaces:**
@@ -1518,7 +1518,7 @@ git commit -m "feat(mova): port gesture layer and HUDs to components"
 ```dart
 testWidgets('fit button cycles the fill mode and shows the configured label', (t) async {
   final api = FakeMovaApi();
-  await pumpComponent(t, api, TopBarComponent());
+  await pumpComponent(t, api, MovaTopBarComponent());
   expect(find.text('适应'), findsOneWidget);
   await t.tap(find.byIcon(Icons.aspect_ratio_rounded));
   await t.pump();
@@ -1529,7 +1529,7 @@ testWidgets('fit button cycles the fill mode and shows the configured label', (t
 
 testWidgets('pip button is hidden when pip is unsupported', (t) async {
   final api = FakeMovaApi()..pipSupported = false;
-  await pumpComponent(t, api, TopBarComponent());
+  await pumpComponent(t, api, MovaTopBarComponent());
   expect(find.byIcon(Icons.picture_in_picture_alt_rounded), findsNothing);
   await api.dispose();
 });
@@ -1537,14 +1537,14 @@ testWidgets('pip button is hidden when pip is unsupported', (t) async {
 testWidgets('quality button is hidden when there are no variants', (t) async {
   final api = FakeMovaApi();
   api.push(const MovaState());
-  await pumpComponent(t, api, TopBarComponent());
+  await pumpComponent(t, api, MovaTopBarComponent());
   expect(find.byIcon(Icons.high_quality_rounded), findsNothing);
   await api.dispose();
 });
 
 testWidgets('replacing MovaStrs changes the fit label without touching components', (t) async {
   final api = FakeMovaApi(options: const MovaOpts(strings: MovaStrs(fitContain: 'Fit')));
-  await pumpComponent(t, api, TopBarComponent());
+  await pumpComponent(t, api, MovaTopBarComponent());
   expect(find.text('Fit'), findsOneWidget);
   await api.dispose();
 });
@@ -1555,7 +1555,7 @@ testWidgets('replacing MovaStrs changes the fit label without touching component
 - [ ] **Step 2: 跑测试确认失败**
 
 Run: `flutter test test/ui/top_bar_test.dart`
-Expected: FAIL — `TopBarComponent isn't defined`
+Expected: FAIL — `MovaTopBarComponent isn't defined`
 
 - [ ] **Step 3: 实现顶栏组件**
 
@@ -1580,12 +1580,12 @@ git commit -m "feat(mova): port top bar into per-button components"
 ## Task 14: 组件平移 3 —— 中心播放键、VOD 底栏、覆盖层
 
 **Files:**
-- Create: `lib/src/ui/components/center_play.dart`, `lib/src/ui/components/bottom_bar.dart`（`BottomBarComponent` + `PositionLabelComponent`/`SeekBarComponent`/`DurationLabelComponent`）, `lib/src/ui/components/overlays.dart`（`BufferingComponent`/`ErrorComponent`/`LockMaskComponent`）
+- Create: `lib/src/ui/components/center_play.dart`, `lib/src/ui/components/bottom_bar.dart`（`MovaBottomBarComponent` + `MovaPositionLabelComponent`/`MovaSeekBarComponent`/`MovaDurationLabelComponent`）, `lib/src/ui/components/overlays.dart`（`MovaBufferingComponent`/`MovaErrorComponent`/`MovaLockMaskComponent`）
 - Test: `test/ui/bottom_bar_test.dart`, `test/ui/overlays_test.dart`
 
 **Interfaces:**
 - Consumes: `MovaApi`, `MovaProgSelect`, `MovaSelect`, `MovaUiSelect`
-- Produces: `CenterPlayComponent`（children: `PlayPauseComponent`）、`BottomBarComponent` 及 3 个子组件、3 个 overlay 组件
+- Produces: `MovaCenterPlayComponent`（children: `MovaPlayPauseComponent`）、`MovaBottomBarComponent` 及 3 个子组件、3 个 overlay 组件
 
 - [ ] **Step 1: 写失败测试**
 
@@ -1593,7 +1593,7 @@ git commit -m "feat(mova): port top bar into per-button components"
 testWidgets('seek bar commits the dragged position on release', (t) async {
   final api = FakeMovaApi();
   api.push(const MovaState(duration: Duration(minutes: 2)));
-  await pumpComponent(t, api, BottomBarComponent());
+  await pumpComponent(t, api, MovaBottomBarComponent());
   await t.drag(find.byType(Slider), const Offset(200, 0));
   await t.pumpAndSettle();
   expect(api.calls, contains('seek'));
@@ -1602,7 +1602,7 @@ testWidgets('seek bar commits the dragged position on release', (t) async {
 
 testWidgets('seek bar is disabled when duration is zero', (t) async {
   final api = FakeMovaApi();
-  await pumpComponent(t, api, BottomBarComponent());
+  await pumpComponent(t, api, MovaBottomBarComponent());
   expect(t.widget<Slider>(find.byType(Slider)).onChanged, isNull);
   await api.dispose();
 });
@@ -1610,7 +1610,7 @@ testWidgets('seek bar is disabled when duration is zero', (t) async {
 testWidgets('position label follows the throttled progress stream', (t) async {
   final api = FakeMovaApi();
   api.push(const MovaState(duration: Duration(minutes: 2)));
-  await pumpComponent(t, api, BottomBarComponent());
+  await pumpComponent(t, api, MovaBottomBarComponent());
   api.pushProgress(const MovaProg(position: Duration(seconds: 65)));
   await t.pump();
   expect(find.text('01:05'), findsOneWidget);
@@ -1619,7 +1619,7 @@ testWidgets('position label follows the throttled progress stream', (t) async {
 
 testWidgets('buffering overlay shows only while buffering', (t) async {
   final api = FakeMovaApi();
-  await pumpComponent(t, api, LockMaskComponent());
+  await pumpComponent(t, api, MovaLockMaskComponent());
   expect(find.byType(CircularProgressIndicator), findsNothing);
   api.push(const MovaState(buffering: true));
   await t.pump();
@@ -1630,7 +1630,7 @@ testWidgets('buffering overlay shows only while buffering', (t) async {
 testWidgets('lock mask swallows taps when locked', (t) async {
   final api = FakeMovaApi();
   api.push(const MovaState(locked: true));
-  await pumpComponent(t, api, LockMaskComponent());
+  await pumpComponent(t, api, MovaLockMaskComponent());
   await t.tapAt(const Offset(200, 200));
   await t.pump();
   expect(api.calls.where((c) => c == 'playOrPause'), isEmpty);
@@ -1641,13 +1641,13 @@ testWidgets('lock mask swallows taps when locked', (t) async {
 - [ ] **Step 2: 跑测试确认失败**
 
 Run: `flutter test test/ui/bottom_bar_test.dart test/ui/overlays_test.dart`
-Expected: FAIL — `BottomBarComponent isn't defined`
+Expected: FAIL — `MovaBottomBarComponent isn't defined`
 
 - [ ] **Step 3: 实现**
 
-`SeekBarComponent` 内部保留 `_dragValue` 本地状态（拖动中不回读 progress，避免抖动），
+`MovaSeekBarComponent` 内部保留 `_dragValue` 本地状态（拖动中不回读 progress，避免抖动），
 `onChanged` 时 `api.setDragging(true, previewAt: v)`，`onChangeEnd` 时 `api.seek(v)` + `api.setDragging(false)`。
-`ErrorComponent` 读 `state.error`，非空时显示文案 + 重试按钮（调 `api.reload()`）。
+`MovaErrorComponent` 读 `state.error`，非空时显示文案 + 重试按钮（调 `api.reload()`）。
 
 - [ ] **Step 4: 跑测试确认通过**
 
@@ -1668,12 +1668,12 @@ git commit -m "feat(mova): port center play, VOD bottom bar and overlay componen
 阶段 A 只做 0.1.0 等价功能：LIVE 标 + 回到边缘。时移相关组件在阶段 C 加。
 
 **Files:**
-- Create: `lib/src/ui/components/live_bar.dart`（`LiveBarComponent` + `LiveBadgeComponent` + `BackToEdgeComponent`）
+- Create: `lib/src/ui/components/live_bar.dart`（`LiveBarComponent` + `MovaLiveBadgeComponent` + `BackToEdgeComponent`）
 - Test: `test/ui/live_bar_test.dart`
 
 **Interfaces:**
 - Consumes: `MovaApi`, `MovaStrs`, `MovaTheme`
-- Produces: `LiveBarComponent`（`name='bottomBar'`, `slot=MovaSlot.bottom`）、`LiveBadgeComponent`（`name='liveBadge'`）、`BackToEdgeComponent`（`name='backToEdge'`）
+- Produces: `LiveBarComponent`（`name='bottomBar'`, `slot=MovaSlot.bottom`）、`MovaLiveBadgeComponent`（`name='liveBadge'`）、`BackToEdgeComponent`（`name='backToEdge'`）
 
 - [ ] **Step 1: 写失败测试**
 
@@ -1809,7 +1809,7 @@ git commit -m "feat(mova): add MovaSkin abstraction and default VOD/live skins"
 - Test: `test/ui/player_test.dart`
 
 **Interfaces:**
-- Consumes: `MovaApi`, `MovaSkin`, `MovaDefSkin`, `buildSlots`, `movaBoxFit`, `MpvKernel.renderHandle`
+- Consumes: `MovaApi`, `MovaSkin`, `MovaDefSkin`, `buildSlots`, `movaBoxFit`, `MovaMpvKernel.renderHandle`
 - Produces:
 
 ```dart

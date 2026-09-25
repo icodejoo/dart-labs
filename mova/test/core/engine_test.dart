@@ -1120,9 +1120,9 @@ void main() {
     await e2.dispose();
   });
 
-  test('CallbackVolumePort forwards set to its callback and reports get', () async {
+  test('MovaCallbackVolumePort forwards set to its callback and reports get', () async {
     double? seen;
-    final port = CallbackVolumePort((p) => seen = p, onGet: () async => 70);
+    final port = MovaCallbackVolumePort((p) => seen = p, onGet: () async => 70);
     await port.set(55);
     expect(seen, 55);
     expect(await port.get(), 70);
@@ -1136,10 +1136,10 @@ void main() {
 
   test('audioOnly uses the injected kernel and still forwards every verb', () async {
     // An injected kernel is used exactly as given: if audioOnly had made the
-    // engine build its own MpvKernel instead, `Player()` would need a real
+    // engine build its own MovaMpvKernel instead, `Player()` would need a real
     // libmpv and this test could not run at all.
     //
-    // 注入的内核一律原样使用：若 audioOnly 让 engine 转而自建 MpvKernel，
+    // 注入的内核一律原样使用：若 audioOnly 让 engine 转而自建 MovaMpvKernel，
     // `Player()` 会需要真实 libmpv，本测试根本跑不起来。
     final kernel = FakeKernel.audioOnly();
     final engine = MovaEngine(kernel: kernel, audioOnly: true);

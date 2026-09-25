@@ -8,10 +8,10 @@ import '../support/fake_api.dart';
 import '../support/pump.dart';
 
 void main() {
-  group('SubtitleButtonComponent', () {
+  group('MovaSubtitleButtonComponent', () {
     testWidgets('renders nothing when no engine is configured', (t) async {
       final api = FakeMovaApi();
-      await pumpComponent(t, api, SubtitleButtonComponent());
+      await pumpComponent(t, api, MovaSubtitleButtonComponent());
 
       expect(find.byIcon(Icons.subtitles_off_rounded), findsNothing);
       expect(find.byIcon(Icons.subtitles_rounded), findsNothing);
@@ -22,7 +22,7 @@ void main() {
     testWidgets('tapping the "on" row starts stt and flips the icon', (t) async {
       final api = FakeMovaApi();
       api.stt.languages = ['zh', 'en'];
-      await pumpComponent(t, api, SubtitleButtonComponent());
+      await pumpComponent(t, api, MovaSubtitleButtonComponent());
 
       expect(find.byIcon(Icons.subtitles_off_rounded), findsOneWidget);
 
@@ -41,7 +41,7 @@ void main() {
     testWidgets('tapping the off row stops stt and flips the icon back', (t) async {
       final api = FakeMovaApi();
       api.stt.languages = ['zh', 'en'];
-      await pumpComponent(t, api, SubtitleButtonComponent());
+      await pumpComponent(t, api, MovaSubtitleButtonComponent());
 
       await t.tap(find.byIcon(Icons.subtitles_off_rounded));
       await t.pumpAndSettle();
@@ -62,10 +62,10 @@ void main() {
     });
   });
 
-  group('SubtitleOverlayComponent', () {
+  group('MovaSubtitleOverlayComponent', () {
     testWidgets('renders nothing when no engine is configured', (t) async {
       final api = FakeMovaApi();
-      await pumpComponent(t, api, SubtitleOverlayComponent());
+      await pumpComponent(t, api, MovaSubtitleOverlayComponent());
       expect(find.byType(Text), findsNothing);
       await api.dispose();
     });
@@ -73,7 +73,7 @@ void main() {
     testWidgets('renders nothing until a cue covers the current position', (t) async {
       final api = FakeMovaApi();
       api.stt.languages = ['zh', 'en'];
-      await pumpComponent(t, api, SubtitleOverlayComponent());
+      await pumpComponent(t, api, MovaSubtitleOverlayComponent());
       expect(find.byType(Text), findsNothing);
       await api.dispose();
     });
@@ -81,7 +81,7 @@ void main() {
     testWidgets('shows the cue text once one is pushed', (t) async {
       final api = FakeMovaApi();
       api.stt.languages = ['zh', 'en'];
-      await pumpComponent(t, api, SubtitleOverlayComponent());
+      await pumpComponent(t, api, MovaSubtitleOverlayComponent());
 
       api.stt.push(const MovaSttCue(text: '大家好', start: Duration.zero, end: Duration(seconds: 5)));
       await t.pump();
@@ -95,7 +95,7 @@ void main() {
     testWidgets('hides again once a progress tick moves past the cue end', (t) async {
       final api = FakeMovaApi();
       api.stt.languages = ['zh', 'en'];
-      await pumpComponent(t, api, SubtitleOverlayComponent());
+      await pumpComponent(t, api, MovaSubtitleOverlayComponent());
 
       api.stt.push(const MovaSttCue(text: '大家好', start: Duration.zero, end: Duration(seconds: 2)));
       await t.pump();

@@ -23,11 +23,11 @@ import '../slots/slot.dart';
 /// 与手势层的横滑）都已经通过 `MovaApi.setDragging` 发布该字段，因此本组件
 /// 无需感知它们中的任何一个。可用 `MovaPatch.replace('preview', MyBubble())`
 /// 整块替换。
-class PreviewComponent extends MovaComp {
+class MovaPreviewComponent extends MovaComp {
   /// Creates the preview-bubble component.
   ///
   /// 创建预览气泡组件。
-  PreviewComponent();
+  MovaPreviewComponent();
 
   @override
   String get name => 'preview';
@@ -40,10 +40,10 @@ class PreviewComponent extends MovaComp {
       _PreviewBubble(api: api);
 }
 
-/// Stateful body of [PreviewComponent]: tracks the scrub position from
+/// Stateful body of [MovaPreviewComponent]: tracks the scrub position from
 /// [MovaApi.uiStates] and the resolved thumbnail from `MovaApi.preview.thumbs`.
 ///
-/// [PreviewComponent] 的有状态主体：从 [MovaApi.uiStates] 跟踪拖动位置，从
+/// [MovaPreviewComponent] 的有状态主体：从 [MovaApi.uiStates] 跟踪拖动位置，从
 /// `MovaApi.preview.thumbs` 跟踪已解析的缩略图。
 class _PreviewBubble extends StatefulWidget {
   /// Creates the bubble widget.

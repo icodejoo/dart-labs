@@ -38,7 +38,7 @@ Flutter 视频播放库，自研手势与控制层，支持点播与直播。
 
 ```yaml
 dependencies:
-  mova: ^0.3.0
+  mova: ^0.1.0
 ```
 
 Android 要用画中画，需在 `AndroidManifest.xml` 的 Activity 上声明：
@@ -435,28 +435,28 @@ gapless、歌单。补齐它们是一整套四端原生工程，不在 mova 的�
 
 `MovaEngine()` 裸构造默认走 noop 端口（供纯 Dart 单测使用），应用代码应改用
 `lib/src/platform_impl/wiring.dart` 的 `createMovaEngine()`——它默认接好
-`ScreenBrightnessPort()` / `ChannelPipPort()` / `SystemChromeOrientationPort()`，
+`MovaScreenBrightnessPort()` / `MovaChannelPipPort()` / `MovaSystemChromeOrientationPort()`，
 并额外接好预览相关的端口（缩略图目录/抽帧器/网络探针的真实实现）。
 
 ### 音量端口 / Volume
 
 右侧竖滑调音量走 `MovaVolumePort`。`createMovaEngine()` 默认在 **Android** 上接
-`SystemVolumePort()`（原生 `AudioManager`，调**系统媒体音量**、与硬件音量键联动，
+`MovaSystemVolumePort()`（原生 `AudioManager`，调**系统媒体音量**、与硬件音量键联动，
 不引第三方依赖）；**iOS**（系统限制代码改音量）与**桌面**回退到播放器自身音量。
 
-任意平台都能自己接管——传入 `CallbackVolumePort`，回调收到目标百分比（0–100），
+任意平台都能自己接管——传入 `MovaCallbackVolumePort`，回调收到目标百分比（0–100），
 由你决定怎么落地（例如用自己的系统音量方案）：
 
 ```dart
 final engine = createMovaEngine(
   options: options,
-  volume: CallbackVolumePort((percent) => myAudio.setSystemVolume(percent)),
+  volume: MovaCallbackVolumePort((percent) => myAudio.setSystemVolume(percent)),
 );
 ```
 
 不传回调时，Android 走内置系统音量、其它平台走播放器音量——都无需额外代码。
 
-`SystemChromeOrientationPort` 只处理移动端的方向锁定/沉浸式系统 UI；在
+`MovaSystemChromeOrientationPort` 只处理移动端的方向锁定/沉浸式系统 UI；在
 Windows/macOS/Linux 上没有对应的"真全屏"概念（把 OS 窗口撑满屏幕、去掉标题栏），
 调用 `setFullscreen(true)` 在桌面端不会有可见效果。mova 不内置窗口管理
 依赖，桌面端真全屏留给宿主自己接：

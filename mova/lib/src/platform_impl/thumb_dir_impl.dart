@@ -15,14 +15,14 @@ import '../core/preview/dir_provider.dart';
 ///
 /// 放在 `lib/src/core/**` 之外，因为 `path_provider` 是 Flutter 插件，
 /// core 层必须与插件解耦。
-class TempThumbDirProvider implements MovaThumbDirProv {
+class MovaTempThumbDirProvider implements MovaThumbDirProv {
   /// Creates a provider rooted at the temporary directory.
   ///
   /// 创建一个以临时目录为根的 provider。
   ///
   /// - [folderName]: sub-folder name under the temp directory /
   ///   临时目录下的子文件夹名
-  const TempThumbDirProvider({this.folderName = 'mova_thumbs'});
+  const MovaTempThumbDirProvider({this.folderName = 'mova_thumbs'});
 
   /// Sub-folder name under the platform temporary directory.
   ///

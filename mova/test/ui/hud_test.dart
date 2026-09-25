@@ -12,7 +12,7 @@ void main() {
     final api = FakeMovaApi();
     api.push(const MovaState(volume: 30));
     api.pushUi(const MovaUiState(hud: MovaHud.volume));
-    await pumpComponent(t, api, HudLayerComponent());
+    await pumpComponent(t, api, MovaHudLayerComponent());
     await t.pump();
     expect(find.text('30%'), findsOneWidget);
     expect(find.byIcon(Icons.volume_up_rounded), findsOneWidget);
@@ -23,7 +23,7 @@ void main() {
     final api = FakeMovaApi();
     api.push(const MovaState(volume: 0));
     api.pushUi(const MovaUiState(hud: MovaHud.volume));
-    await pumpComponent(t, api, HudLayerComponent());
+    await pumpComponent(t, api, MovaHudLayerComponent());
     await t.pump();
     expect(find.text('0%'), findsOneWidget);
     expect(find.byIcon(Icons.volume_off_rounded), findsOneWidget);
@@ -34,7 +34,7 @@ void main() {
     final api = FakeMovaApi();
     api.push(const MovaState(brightness: 0.4));
     api.pushUi(const MovaUiState(hud: MovaHud.brightness));
-    await pumpComponent(t, api, HudLayerComponent());
+    await pumpComponent(t, api, MovaHudLayerComponent());
     await t.pump();
     expect(find.text('40%'), findsOneWidget);
     expect(find.byIcon(Icons.brightness_6_rounded), findsOneWidget);
@@ -44,7 +44,7 @@ void main() {
   testWidgets('seek HUD shows hudText when set (double-tap path)', (t) async {
     final api = FakeMovaApi();
     api.pushUi(const MovaUiState(hud: MovaHud.seek, hudText: '00:20'));
-    await pumpComponent(t, api, HudLayerComponent());
+    await pumpComponent(t, api, MovaHudLayerComponent());
     await t.pump();
     expect(find.text('00:20'), findsOneWidget);
     await api.dispose();
@@ -53,7 +53,7 @@ void main() {
   testWidgets('seek HUD falls back to previewAt when hudText is absent (drag path)', (t) async {
     final api = FakeMovaApi();
     api.pushUi(const MovaUiState(hud: MovaHud.seek, previewAt: Duration(seconds: 20)));
-    await pumpComponent(t, api, HudLayerComponent());
+    await pumpComponent(t, api, MovaHudLayerComponent());
     await t.pump();
     expect(find.text('00:20'), findsOneWidget);
     await api.dispose();
@@ -62,7 +62,7 @@ void main() {
   testWidgets('seek HUD shows nothing (not a blank badge) when neither is set', (t) async {
     final api = FakeMovaApi();
     api.pushUi(const MovaUiState(hud: MovaHud.seek));
-    await pumpComponent(t, api, HudLayerComponent());
+    await pumpComponent(t, api, MovaHudLayerComponent());
     await t.pump();
     expect(find.text(''), findsNothing);
     await api.dispose();
@@ -71,7 +71,7 @@ void main() {
   testWidgets('no HUD is shown when hud is none', (t) async {
     final api = FakeMovaApi();
     api.pushUi(const MovaUiState(hud: MovaHud.none));
-    await pumpComponent(t, api, HudLayerComponent());
+    await pumpComponent(t, api, MovaHudLayerComponent());
     await t.pump();
     expect(find.byType(Icon), findsNothing);
     await api.dispose();

@@ -31,11 +31,11 @@ import 'cue.dart';
 abstract class MovaSttEngine {
   /// Language codes this engine instance was loaded for (e.g. `['zh', 'en']`).
   ///
-  /// Empty for an engine that recognizes nothing (see [NoopSttEngine]).
+  /// Empty for an engine that recognizes nothing (see [MovaNoopSttEngine]).
   ///
   /// 该引擎实例加载时对应的语言代码（如 `['zh', 'en']`）。
   ///
-  /// 不具备识别能力的引擎（见 [NoopSttEngine]）返回空列表。
+  /// 不具备识别能力的引擎（见 [MovaNoopSttEngine]）返回空列表。
   List<String> get languages;
 
   /// Recognized cues, emitted as they become available.
@@ -80,14 +80,14 @@ abstract class MovaSttEngine {
 
 /// A zero-dependency [MovaSttEngine] no-op: recognizes nothing, emits no cues.
 ///
-/// The default until a real engine is wired (mirrors [NoopPipPort] for an
+/// The default until a real engine is wired (mirrors [MovaNoopPipPort] for an
 /// unsupported capability, rather than a fallback value).
 ///
 /// 零依赖的 [MovaSttEngine] 空实现：不识别任何内容，不产出字幕。
 ///
-/// 在真实引擎接入前的默认值（对应"能力不支持"，仿照 [NoopPipPort] 的处理
+/// 在真实引擎接入前的默认值（对应"能力不支持"，仿照 [MovaNoopPipPort] 的处理
 /// 方式，而非兜底数值）。
-class NoopSttEngine implements MovaSttEngine {
+class MovaNoopSttEngine implements MovaSttEngine {
   @override
   List<String> get languages => const [];
 

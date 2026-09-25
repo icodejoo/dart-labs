@@ -88,7 +88,7 @@ void main() {
         const MovaPrevConfig(network: MovaPrevNet.never).network,
         MovaPrevNet.never,
       );
-      expect(MovaPrevConfig(probe: AlwaysAllowNetProbe()).probe, isA<MovaNetProbe>());
+      expect(MovaPrevConfig(probe: MovaAlwaysAllowNetProbe()).probe, isA<MovaNetProbe>());
     });
   });
 
@@ -170,7 +170,7 @@ void main() {
       expect(const MovaPrevConfig(diskMaxBytes: 1024).diskMaxBytes, 1024);
       expect(const MovaPrevConfig(diskDir: '/tmp/x').diskDir, '/tmp/x');
       expect(
-        const MovaPrevConfig(dirProvider: FixedThumbDirProvider('/tmp/y')).dirProvider,
+        const MovaPrevConfig(dirProvider: MovaFixedThumbDirProvider('/tmp/y')).dirProvider,
         isA<MovaThumbDirProv>(),
       );
     });
@@ -204,7 +204,7 @@ void main() {
 
   group('DESIGN 6.1 row: bubble appearance', () {
     test('default component is addressable and replaceable by patch', () {
-      expect(PreviewComponent().name, 'preview');
+      expect(MovaPreviewComponent().name, 'preview');
       final patched = MovaDefSkin(
         patches: [MovaPatch.remove('preview')],
       ).components();

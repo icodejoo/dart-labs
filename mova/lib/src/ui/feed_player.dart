@@ -79,8 +79,8 @@ class MovaFeedPlayer extends StatefulWidget {
   ///   gets warmed beyond what the pool already opens; defaults to 1 /
   ///   在池已打开的范围之外，再对往后多少条条目预热*网络*链路；默认 1
   /// - [prefetcher]: network warm-up strategy; defaults to
-  ///   [NetworkWarmFeedPrefetcher] / 网络预热策略，默认
-  ///   [NetworkWarmFeedPrefetcher]
+  ///   [MovaNetworkWarmFeedPrefetcher] / 网络预热策略，默认
+  ///   [MovaNetworkWarmFeedPrefetcher]
   /// - [fit]: video fill mode, applied to each engine as the pool creates it;
   ///   defaults to [MovaFit.cover] (full-bleed, no letterboxing) since a
   ///   douyin-style feed's whole point is edge-to-edge video — [MovaFit.contain]

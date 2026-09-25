@@ -55,11 +55,11 @@ enum _DragMode {
 /// 直接操作播放状态。每个方向执行哪个动作由 [MovaGestConfig] 配置（侧别↔动作
 /// 映射）；默认对齐主流约定（左亮度、右音量、横滑进度）。直播源的进度手势受
 /// `liveSeekable`/`allowWhenLive` 门控。
-class GestureLayerComponent extends MovaComp {
+class MovaGestureLayerComponent extends MovaComp {
   /// Creates a gesture-layer component.
   ///
   /// 创建手势层组件。
-  GestureLayerComponent();
+  MovaGestureLayerComponent();
 
   @override
   String get name => 'gestureLayer';

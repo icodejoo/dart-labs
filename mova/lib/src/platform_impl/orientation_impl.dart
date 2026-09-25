@@ -71,7 +71,7 @@ List<DeviceOrientation> resolveOrientations(
 ///
 /// 基于 [SystemChrome] 实现的 [MovaOrientPort]，驱动首选设备方向与沉浸式
 /// 系统 UI 模式。
-class SystemChromeOrientationPort implements MovaOrientPort {
+class MovaSystemChromeOrientationPort implements MovaOrientPort {
   @override
   Future<void> apply({
     required bool fullscreen,

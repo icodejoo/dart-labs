@@ -4,7 +4,7 @@
 > mova 一个插件包圆，但**音频那条路不能背视频的资源开销**。
 
 **结论先行：选 ③ 折中，且这个折中比预想的便宜得多——因为 media_kit 的
-`Player` 默认就是 `--vid=no`（不解码视频），是 mova 自己在 `MpvKernel` 构造里
+`Player` 默认就是 `--vid=no`（不解码视频），是 mova 自己在 `MovaMpvKernel` 构造里
 无条件 `VideoController(_player)` 把视频管线打开的。所以"音频模式"的核心
 改动只有一句：不建那个 `VideoController`。放开 `MovaKernel.renderHandle` 的
 可空性 + 一个 `audioOnly` 开关 + 一份文档，约 3–4 Task，远不到阶段 C（9 Task）
@@ -251,10 +251,10 @@ await controller.setProperties({
 });
 ```
 
-而 mova 的 `MpvKernel` 构造函数里（`lib/src/core/kernel/mpv_kernel.dart:29-30`）：
+而 mova 的 `MovaMpvKernel` 构造函数里（`lib/src/core/kernel/mpv_kernel.dart:29-30`）：
 
 ```dart
-MpvKernel({Player? player}) : _player = player ?? Player() {
+MovaMpvKernel({Player? player}) : _player = player ?? Player() {
   _controller = VideoController(_player);   // ← 就是这一句，无条件打开视频管线
 ```
 
@@ -415,7 +415,7 @@ GitHub star：just_audio ~1.2k、audioplayers ~2.1k、audio_service ~854、media
 照阶段 B/C 的规矩拆一份逐 Task 计划落在 `doc/plans/`，骨架大致是：
 
 1. `MovaKernel.renderHandle` 放宽为 `Object?`（`kernel.dart:148`），跑一遍 `flutter analyze` 确认无连带破坏。
-2. `MpvKernel({bool audioOnly = false})`：`audioOnly` 时不建 `VideoController`，`renderHandle` 返回 `null`，`screenshot()` 返回 `null`。
+2. `MovaMpvKernel({bool audioOnly = false})`：`audioOnly` 时不建 `VideoController`，`renderHandle` 返回 `null`，`screenshot()` 返回 `null`。
 3. `createMovaEngine(audioOnly: ...)` 透传（`wiring.dart:99`）；`MovaSource` 上是否也要一个 `audio` 类型待定（当前 `MovaStreamType` 只有 vod/live，`model/source.dart:4-14`）——倾向**不加**，因为"音频"是引擎构造期的资源决策，不是源的流类型。
 4. 单测：`audioOnly` 引擎的 `renderHandle` 为 null；`MovaPlayer` 在 null handle 下不抛、渲染占位；`surface` 参数传自定义封面面时正常。
 5. README/SPEC 补一节，写清 §3.4 的分流判据。

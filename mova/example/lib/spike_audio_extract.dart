@@ -11,7 +11,7 @@ import 'package:mova/mova.dart';
 const _spikeSourceUri =
     'https://storage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4';
 
-/// A verification harness for [MpvAudioExtractor] — the unverified spike
+/// A verification harness for [MovaAudioExtractor] — the unverified spike
 /// documented in `doc/notes/2026-08-04-stt-engine-decision.md`'s "批量预
 /// 转写" section. Answers three open questions on real hardware instead of
 /// guessing:
@@ -29,7 +29,7 @@ const _spikeSourceUri =
 /// Not a demo and not shipped behaviour — exists purely to read real
 /// numbers off real hardware.
 ///
-/// [MpvAudioExtractor] 的验证装置——对应
+/// [MovaAudioExtractor] 的验证装置——对应
 /// `doc/notes/2026-08-04-stt-engine-decision.md`"批量预转写"一节里标注的
 /// 未验证 spike。在真机上回答三个悬而未决的问题，而不是靠猜：
 ///
@@ -58,7 +58,7 @@ class AudioExtractSpikePage extends StatefulWidget {
 /// [AudioExtractSpikePage] 的状态；持有被测试的抽取器，以及最近一次运行的
 /// 可读结果。
 class _AudioExtractSpikePageState extends State<AudioExtractSpikePage> {
-  final MpvAudioExtractor _extractor = MpvAudioExtractor();
+  final MovaAudioExtractor _extractor = MovaAudioExtractor();
 
   /// Human-readable result of the most recent [_runExtraction], shown on
   /// screen so a screenshot alone captures the full outcome.
@@ -95,12 +95,12 @@ class _AudioExtractSpikePageState extends State<AudioExtractSpikePage> {
       // Cut down from extractWav's internal 30-minute timeout — if this spike
       // hasn't finished in 60s, `player.stream.completed` almost certainly
       // never fired (the exact unverified risk flagged on
-      // MpvAudioExtractor), and there's no reason to wait half an hour to
+      // MovaAudioExtractor), and there's no reason to wait half an hour to
       // find that out.
       //
       // 从 extractWav 内部的 30 分钟超时砍下来——如果这个 spike 60 秒内没跑完，
       // 几乎可以肯定是 `player.stream.completed` 根本没触发（正是
-      // MpvAudioExtractor 上标注的那个未验证风险），没理由等半小时才知道这点。
+      // MovaAudioExtractor 上标注的那个未验证风险），没理由等半小时才知道这点。
       final path = await _extractor.extractWav(_spikeSourceUri).timeout(
         const Duration(seconds: 60),
         onTimeout: () {

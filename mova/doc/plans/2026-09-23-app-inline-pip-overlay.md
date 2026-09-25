@@ -14,7 +14,7 @@
 本计划是 iOS PiP 缺口的跨平台降级方案（即那份笔记里的"阶段 3：跨平台应用内悬浮窗"），
 同时也是 Android 上"不想申请 PiP 权限/不想让用户离开 App"场景的首选。
 
-**Architecture:** 核心洞察——**画面不动，widget 动**。`MovaEngine`/`MpvKernel`/`VideoController`
+**Architecture:** 核心洞察——**画面不动，widget 动**。`MovaEngine`/`MovaMpvKernel`/`VideoController`
 是纯 Dart 对象，它们的生命周期与 widget 树**完全无关**；只要宿主在路由之外持有同一个
 `MovaApi` 实例，把 `MovaPlayer` 从页面里卸载、在小窗里重新挂载，libmpv 侧一个字节都不会重新解码
 ——重挂的只是 Flutter 的 `Texture` widget，`renderHandle` 指向的 `VideoController` 自始至终没变。
@@ -156,7 +156,7 @@ README 同时给出等价的手写 `Stack` 代码，宿主用哪种都行、不�
                   └─ _RenderSurface 读 api.renderHandle → Video(controller: 同一个)
 ```
 
-- `MpvKernel` 的 `_controller` 是构造期建立的，`dispose()` 才销毁。widget 卸载**不触发** dispose。
+- `MovaMpvKernel` 的 `_controller` 是构造期建立的，`dispose()` 才销毁。widget 卸载**不触发** dispose。
 - `_RenderSurface` 每次 build 都重读 `api.renderHandle` 并按 `_RenderHandleKey(handle)` 做 key
   —— 句柄没变，Flutter 复用同一个 `Texture`，**不重建纹理**。
 - `player.dart` 的 `ValueKey(widget.api)`：小窗与页面用的是**同一个 api 引用**，

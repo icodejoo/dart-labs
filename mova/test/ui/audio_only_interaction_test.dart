@@ -150,11 +150,11 @@ void main() {
     });
 
     testWidgets('the speed button cycles the rate across repeated taps', (t) async {
-      // The bilibili skin puts a SpeedButtonComponent in the top bar; the
+      // The bilibili skin puts a MovaSpeedButtonComponent in the top bar; the
       // default skin has none. Audio is exactly where playback rate matters
       // most (podcasts/audiobooks), so it is worth exercising here.
       //
-      // bilibili 皮肤在顶栏放了 SpeedButtonComponent，默认皮肤没有。倍速恰恰
+      // bilibili 皮肤在顶栏放了 MovaSpeedButtonComponent，默认皮肤没有。倍速恰恰
       // 是音频场景（播客/有声书）最在意的能力，值得在这里走一遍。
       final api = await pumpAudioPlayer(t, bilibili: true);
 
@@ -192,7 +192,7 @@ void main() {
       final api = FakeMovaApi();
       api.push(const MovaState(volume: 50, brightness: 0.5));
       expect(api.renderHandle, isNull);
-      await pumpComponent(t, api, GestureLayerComponent());
+      await pumpComponent(t, api, MovaGestureLayerComponent());
 
       await t.dragFrom(const Offset(600, 300), const Offset(0, -150));
       await t.pumpAndSettle();
@@ -206,7 +206,7 @@ void main() {
     testWidgets('a horizontal drag still scrubs, and a second one scrubs again', (t) async {
       final api = FakeMovaApi();
       api.push(const MovaState(duration: Duration(seconds: 200)));
-      await pumpComponent(t, api, GestureLayerComponent());
+      await pumpComponent(t, api, MovaGestureLayerComponent());
 
       await t.dragFrom(const Offset(300, 300), const Offset(150, 0));
       await t.pumpAndSettle();
@@ -229,7 +229,7 @@ void main() {
       // 当前是哪种模式。
       final api = FakeMovaApi();
       api.push(const MovaState(volume: 50, brightness: 0.5));
-      await pumpComponent(t, api, GestureLayerComponent());
+      await pumpComponent(t, api, MovaGestureLayerComponent());
 
       await t.dragFrom(const Offset(200, 300), const Offset(0, -150));
       await t.pumpAndSettle();

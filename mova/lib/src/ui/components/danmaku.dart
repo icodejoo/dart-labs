@@ -22,11 +22,11 @@ import '../slots/slot.dart';
 /// 仅做展示（见 [MovaDanmakuConfig] 的文档注释）：播放位置跨过弹幕的
 /// [MovaDanmakuItem.time] 时生成一条弹幕，在 [MovaDanmakuConfig.crossDuration]
 /// 内从右向左滚动划过，按轮询方式分配横向轨道以减少重叠。
-class DanmakuTrackComponent extends MovaComp {
+class MovaDanmakuTrackComponent extends MovaComp {
   /// Creates the danmaku-track component.
   ///
   /// 创建弹幕轨道组件。
-  DanmakuTrackComponent();
+  MovaDanmakuTrackComponent();
 
   @override
   String get name => 'danmakuTrack';

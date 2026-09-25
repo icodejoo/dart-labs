@@ -65,10 +65,10 @@ class MovaEngine implements MovaApi {
   final MovaOpts options;
 
   /// The kernel's render handle (a media_kit `VideoController` for
-  /// [MpvKernel]), forwarded verbatim so `MovaPlayer` can feed it to the
+  /// [MovaMpvKernel]), forwarded verbatim so `MovaPlayer` can feed it to the
   /// `Video` widget.
   ///
-  /// 内核的渲染句柄（[MpvKernel] 场景下是 media_kit 的 `VideoController`），
+  /// 内核的渲染句柄（[MovaMpvKernel] 场景下是 media_kit 的 `VideoController`），
   /// 原样转发，供 `MovaPlayer` 传给 `Video` 组件。
   @override
   Object? get renderHandle => _kernel.renderHandle;
@@ -217,11 +217,11 @@ class MovaEngine implements MovaApi {
   Timer? _hudTimer;
   Timer? _autoHideTimer;
 
-  /// Creates an engine over [kernel] (defaults to a new [MpvKernel]),
+  /// Creates an engine over [kernel] (defaults to a new [MovaMpvKernel]),
   /// [options], [interceptors], and platform [brightness]/[pip]/[orientation]
   /// ports (each defaults to a zero-dependency fallback/noop).
   ///
-  /// 基于 [kernel]（省略时默认新建 [MpvKernel]）、[options]、[interceptors]
+  /// 基于 [kernel]（省略时默认新建 [MovaMpvKernel]）、[options]、[interceptors]
   /// 及平台 [brightness]/[pip]/[orientation] 端口（各自省略时默认使用零依赖
   /// 兜底/空实现）创建一个 engine。
   ///
@@ -234,7 +234,7 @@ class MovaEngine implements MovaApi {
   /// 省略，省略时对应能力降级（无磁盘缓存 / 无抽帧兜底 / 使用 `dart:io`
   /// 的 HTTP 客户端）而不是报错。
   ///
-  /// [audioOnly] is forwarded to the default [MpvKernel] so no video pipeline
+  /// [audioOnly] is forwarded to the default [MovaMpvKernel] so no video pipeline
   /// is built; it has no effect when [kernel] is supplied, since an injected
   /// kernel is used exactly as given. There is deliberately no
   /// `MovaState.audioOnly` and no `MovaOpts` section for it: this is a
@@ -242,7 +242,7 @@ class MovaEngine implements MovaApi {
   /// once and never re-bound), and the observable runtime signal is simply
   /// `renderHandle == null`.
   ///
-  /// [audioOnly] 会透传给默认构造的 [MpvKernel]，使其不建立视频管线；当显式
+  /// [audioOnly] 会透传给默认构造的 [MovaMpvKernel]，使其不建立视频管线；当显式
   /// 传入 [kernel] 时它不起作用——注入的内核一律原样使用。这里刻意不提供
   /// `MovaState.audioOnly`，也不为它新增 `MovaOpts` 配置节：这是构造期的资源
   /// 决策（内核的渲染句柄一次绑定、永不重绑），而运行期可观测的信号就是
@@ -259,13 +259,13 @@ class MovaEngine implements MovaApi {
     MovaThumbDirProv? thumbDir,
     MovaFramePuller? extractor,
     MovaHttpFetch? fetcher,
-  })  : _kernel = kernel ?? MpvKernel(audioOnly: audioOnly),
+  })  : _kernel = kernel ?? MovaMpvKernel(audioOnly: audioOnly),
         _extractor = extractor, // ignore: prefer_initializing_formals
         _chain = MovaHookChain(interceptors),
-        _brightness = brightness ?? FallbackBrightnessPort(),
+        _brightness = brightness ?? MovaFallbackBrightnessPort(),
         _volume = volume, // ignore: prefer_initializing_formals
-        _pip = pip ?? NoopPipPort(),
-        _orientation = orientation ?? NoopOrientationPort() {
+        _pip = pip ?? MovaNoopPipPort(),
+        _orientation = orientation ?? MovaNoopOrientationPort() {
     _abrPolicy = options.abr.policy ?? MovaBufferAbr(threshold: options.abr.stallThreshold);
     // throttleStream's own controller is already broadcast (see its doc
     // comment for why that matters), so no further wrapping is needed here.
@@ -382,12 +382,12 @@ class MovaEngine implements MovaApi {
   /// 最近的 `position`（反之亦然）——用于推送合并后的 [MovaProg] 快照。
   Duration _lastBuffer = Duration.zero;
 
-  /// One-time global engine init; forwards to [MpvKernel.ensureInitialized].
+  /// One-time global engine init; forwards to [MovaMpvKernel.ensureInitialized].
   /// Call before constructing any [MovaEngine].
   ///
-  /// 全局一次性 engine 初始化；转发给 [MpvKernel.ensureInitialized]。创建任何
+  /// 全局一次性 engine 初始化；转发给 [MovaMpvKernel.ensureInitialized]。创建任何
   /// [MovaEngine] 前调用。
-  static void ensureInitialized() => MpvKernel.ensureInitialized();
+  static void ensureInitialized() => MovaMpvKernel.ensureInitialized();
 
   @override
   Stream<MovaEvent> get events => _events.stream;
@@ -440,7 +440,7 @@ class MovaEngine implements MovaApi {
   }) {
     final cfg = options.preview;
     final dir = cfg.dirProvider ??
-        (cfg.diskDir != null ? FixedThumbDirProvider(cfg.diskDir!) : thumbDir);
+        (cfg.diskDir != null ? MovaFixedThumbDirProvider(cfg.diskDir!) : thumbDir);
     final cache = cfg.cache ??
         (dir == null
             ? MovaMemoryThumbCache(maxEntries: cfg.memMaxEntries)
@@ -451,7 +451,7 @@ class MovaEngine implements MovaApi {
     return MovaPrevSvc(
       config: cfg,
       cache: cache,
-      probe: cfg.probe ?? AlwaysAllowNetProbe(),
+      probe: cfg.probe ?? MovaAlwaysAllowNetProbe(),
       sources: cfg.sources ?? _defaultThumbSources(cfg, extractor, fetcher),
       onBlocked: _onPreviewBlocked,
     );
@@ -480,7 +480,7 @@ class MovaEngine implements MovaApi {
     if (cfg.vttEnabled) {
       final fixed = cfg.vttUrl;
       chain.add(MovaVttThumbSource(
-        fetcher: fetcher ?? IoHttpFetcher(),
+        fetcher: fetcher ?? MovaIoHttpFetcher(),
         resolveUrl: cfg.vttUrlResolver ??
             (fixed == null ? defaultVttUrl : (_) => Uri.tryParse(fixed)),
       ));

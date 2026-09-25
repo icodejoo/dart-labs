@@ -16,7 +16,7 @@ import '../core/platform/ports.dart';
 /// 目前只有 Android 实现了这些通道方法；在无原生实现的平台上，通道返回
 /// null/false，本端口退化为尽力而为的空操作（回报 100）。因此 `createMovaEngine`
 /// 只在 Android 上接入它，iOS/桌面保持播放器音量路径——见 `wiring.dart`。
-class SystemVolumePort implements MovaVolumePort {
+class MovaSystemVolumePort implements MovaVolumePort {
   @override
   Future<double> get() async {
     final v = await MovaPlat.instance.getSystemVolume();

@@ -7,13 +7,13 @@ import '../model/source.dart';
 ///
 /// A port rather than a direct `HttpClient` call so tests can verify calls
 /// without touching the network and hosts can swap in a real byte-level disk
-/// cache later. [NetworkWarmFeedPrefetcher] is the only implementation
+/// cache later. [MovaNetworkWarmFeedPrefetcher] is the only implementation
 /// shipped today — see the scope note on [prime].
 ///
 /// 在观众滑到某个 feed 条目之前，为它预热网络/CDN 状态。
 ///
 /// 做成端口而非直接调 `HttpClient`，好让测试无需碰网络即可校验调用，宿主
-/// 日后也能换成真正的字节级磁盘缓存。目前只提供 [NetworkWarmFeedPrefetcher]
+/// 日后也能换成真正的字节级磁盘缓存。目前只提供 [MovaNetworkWarmFeedPrefetcher]
 /// 一种实现——范围说明见 [prime]。
 abstract class MovaFeedPrefch {
   /// Best-effort warm-up for [source]; must never throw and must never block
@@ -39,7 +39,7 @@ abstract class MovaFeedPrefch {
 /// *解码*链路是 `MovaFeedEnginePool` 的职责——它会提前在各自的引擎上打开即将
 /// 播放的条目——因此本 prefetcher 只覆盖池够不到的更远条目（见
 /// `MovaFeedCtrl.prefetchDepth`）。
-class NetworkWarmFeedPrefetcher implements MovaFeedPrefch {
+class MovaNetworkWarmFeedPrefetcher implements MovaFeedPrefch {
   /// Creates a network-warming prefetcher.
   ///
   /// 创建一个网络预热 prefetcher。
@@ -47,7 +47,7 @@ class NetworkWarmFeedPrefetcher implements MovaFeedPrefch {
   /// - [rangeBytes]: how many bytes to request via a `Range` header / 通过
   ///   `Range` 头请求的字节数
   /// - [timeout]: total per-request deadline / 单次请求总超时
-  const NetworkWarmFeedPrefetcher({
+  const MovaNetworkWarmFeedPrefetcher({
     this.rangeBytes = 65536,
     this.timeout = const Duration(seconds: 5),
   });

@@ -302,14 +302,14 @@ void main() {
   // Scenario 4 / 场景 4
   group('scenario 4: audio-only edge cases / 仅音频边界场景', () {
     test('a source carrying a video track: audio plays, handle stays null', () async {
-      // BOUNDARY / 界限：with a real MpvKernel, mpv's `--vid=no` means the
+      // BOUNDARY / 界限：with a real MovaMpvKernel, mpv's `--vid=no` means the
       // video track is never decoded, so no frame is ever produced and the
       // reported size stays 0x0. A fake kernel cannot prove that — it can only
       // prove the engine side behaves correctly for either report. **Whether
       // a real mp4 truly renders no first frame needs on-device verification
       // (plan Task 5).**
       //
-      // 界限：用真实 MpvKernel 时，mpv 的 `--vid=no` 意味着视频轨压根不解码，
+      // 界限：用真实 MovaMpvKernel 时，mpv 的 `--vid=no` 意味着视频轨压根不解码，
       // 不会产出任何帧，上报的尺寸恒为 0x0。假内核证明不了这一点——它只能证明
       // 无论内核报什么，engine 侧行为都正确。**真实 mp4 是否确实不出首帧，
       // 需真机验证（计划 Task 5）。**

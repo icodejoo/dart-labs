@@ -25,7 +25,7 @@ void main() {
     await controller.ensure(0);
     final notifier = ValueNotifier(controller.likeStateOf(0));
 
-    await pumpComponent(t, api, LikeButtonComponent(controller: controller, index: 0, likeNotifier: notifier));
+    await pumpComponent(t, api, MovaLikeButtonComponent(controller: controller, index: 0, likeNotifier: notifier));
     expect(find.text('5'), findsOneWidget);
     expect(find.byIcon(Icons.favorite_border_rounded), findsOneWidget);
 
@@ -48,7 +48,7 @@ void main() {
       commentCount: 42,
       onComment: () => tapped++,
     );
-    await pumpComponent(t, api, CommentButtonComponent(item: item));
+    await pumpComponent(t, api, MovaCommentButtonComponent(item: item));
 
     expect(find.text('42'), findsOneWidget);
     await t.tap(find.byIcon(Icons.chat_bubble_rounded));
@@ -65,7 +65,7 @@ void main() {
       shareCount: 7,
       onShare: () => tapped++,
     );
-    await pumpComponent(t, api, ShareButtonComponent(item: item));
+    await pumpComponent(t, api, MovaShareButtonComponent(item: item));
 
     expect(find.text('7'), findsOneWidget);
     await t.tap(find.byIcon(Icons.reply_rounded));
@@ -83,7 +83,7 @@ void main() {
       onAvatarTap: () => avatarTaps++,
       onFollowTap: () => followTaps++,
     );
-    await pumpComponent(t, api, AvatarComponent(item: item));
+    await pumpComponent(t, api, MovaAvatarComponent(item: item));
 
     await t.tap(find.byIcon(Icons.person_rounded));
     expect(avatarTaps, 1);
@@ -100,7 +100,7 @@ void main() {
     await pumpComponent(
       t,
       api,
-      FeedInfoComponent(item: MovaFeedItem(source: const MovaSource('https://h/0.mp4'), authorName: 'bob')),
+      MovaFeedInfoComponent(item: MovaFeedItem(source: const MovaSource('https://h/0.mp4'), authorName: 'bob')),
     );
     expect(find.text('@bob'), findsOneWidget);
     expect(find.byIcon(Icons.music_note_rounded), findsNothing);

@@ -21,7 +21,7 @@ import 'skin.dart';
 /// live sources, extended with the new buffering/error/lock overlays that
 /// 0.1.0 never had.
 ///
-/// [components] is a single static tree — the adaptive [BottomBarComponent]
+/// [components] is a single static tree — the adaptive [MovaBottomBarComponent]
 /// renders its VOD or live layout internally from [MovaState.type], so the skin
 /// no longer swaps whole subtrees by state.
 ///
@@ -48,7 +48,7 @@ import 'skin.dart';
 /// 内置 [MovaSkin]：对点播与直播都复刻 0.1.0 的默认外观，并扩展了 0.1.0 从未有
 /// 过的缓冲/错误/锁定叠加层。
 ///
-/// [components] 是单一静态树——自适应的 [BottomBarComponent] 依据
+/// [components] 是单一静态树——自适应的 [MovaBottomBarComponent] 依据
 /// [MovaState.type] 在内部渲染点播或直播布局，皮肤不再按状态整体替换子树。
 ///
 /// [assemble] 由后到前渲染三层，每层经一个可覆写的受保护方法
@@ -79,16 +79,16 @@ class MovaDefSkin implements MovaSkin {
 
   @override
   List<MovaComp> components() => applyPatches([
-    GestureLayerComponent(),
-    HudLayerComponent(),
-    TopBarComponent(),
-    CenterPlayComponent(),
-    PreviewComponent(),
-    SubtitleOverlayComponent(),
-    BottomBarComponent(),
-    BufferingComponent(),
-    ErrorComponent(),
-    LockMaskComponent(),
+    MovaGestureLayerComponent(),
+    MovaHudLayerComponent(),
+    MovaTopBarComponent(),
+    MovaCenterPlayComponent(),
+    MovaPreviewComponent(),
+    MovaSubtitleOverlayComponent(),
+    MovaBottomBarComponent(),
+    MovaBufferingComponent(),
+    MovaErrorComponent(),
+    MovaLockMaskComponent(),
   ], patches);
 
   @override
@@ -363,7 +363,7 @@ class _PipHidden extends StatelessWidget {
 /// Locking is meant to prevent accidental touches during e.g. in-pocket
 /// playback; leaving every button visible-but-inert (the pre-fix behaviour)
 /// still invites taps that silently do nothing. Hiding the whole chrome and
-/// leaving only [LockMaskComponent]'s own unlock affordance (rendered in
+/// leaving only [MovaLockMaskComponent]'s own unlock affordance (rendered in
 /// [MovaSlot.overlay], unaffected by this wrapper) matches what users expect
 /// from a "locked" screen.
 ///
@@ -371,7 +371,7 @@ class _PipHidden extends StatelessWidget {
 ///
 /// 锁定的本意是防止兜里误触之类的意外点击；此前的行为是把所有按钮留着但让它们
 /// 失效，反而诱使用户点一个悄无声息没反应的东西。隐藏整套 chrome、只留
-/// [LockMaskComponent] 自带的解锁入口（渲染在 [MovaSlot.overlay]，不受本组件
+/// [MovaLockMaskComponent] 自带的解锁入口（渲染在 [MovaSlot.overlay]，不受本组件
 /// 影响），更符合"锁定屏"该有的样子。
 class _LockedHidden extends StatelessWidget {
   /// Creates the lock-visibility wrapper around [child].

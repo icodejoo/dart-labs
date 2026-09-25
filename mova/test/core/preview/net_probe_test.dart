@@ -41,8 +41,8 @@ class _FixedProbe implements MovaNetProbe {
 }
 
 void main() {
-  test('AlwaysAllowNetProbe permits heavy traffic and never errors', () async {
-    final p = AlwaysAllowNetProbe();
+  test('MovaAlwaysAllowNetProbe permits heavy traffic and never errors', () async {
+    final p = MovaAlwaysAllowNetProbe();
     expect(await p.allowHeavy(), isTrue);
     expect(await p.changes.first, isTrue);
     await p.dispose();

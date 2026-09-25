@@ -105,7 +105,7 @@ void main() {
     return MovaPrevSvc(
       config: config,
       cache: cache,
-      probe: probe ?? AlwaysAllowNetProbe(),
+      probe: probe ?? MovaAlwaysAllowNetProbe(),
       sources: [source],
       onBlocked: config.onBlocked,
     )..attach(src);
@@ -232,7 +232,7 @@ void main() {
         network: MovaPrevNet.always,
       ),
       cache: cache,
-      probe: AlwaysAllowNetProbe(),
+      probe: MovaAlwaysAllowNetProbe(),
       sources: [source],
       onBlocked: reasons.add,
     );
@@ -250,7 +250,7 @@ void main() {
         network: MovaPrevNet.always,
       ),
       cache: cache,
-      probe: AlwaysAllowNetProbe(),
+      probe: MovaAlwaysAllowNetProbe(),
       sources: const <MovaThumbSource>[],
       onBlocked: reasons.add,
     )..attach(src);
@@ -265,7 +265,7 @@ void main() {
     service = MovaPrevSvc(
       config: noDebounce,
       cache: cache,
-      probe: AlwaysAllowNetProbe(),
+      probe: MovaAlwaysAllowNetProbe(),
       sources: [first, second],
     )..attach(src);
     service.requestAt(const Duration(seconds: 10));
@@ -306,7 +306,7 @@ void main() {
         cacheKeyBuilder: (s, b, w) => 'custom_${b}_$w',
       ),
       cache: cache,
-      probe: AlwaysAllowNetProbe(),
+      probe: MovaAlwaysAllowNetProbe(),
       sources: [source],
     )..attach(src);
     service.requestAt(const Duration(seconds: 20));

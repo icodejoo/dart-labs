@@ -5,7 +5,7 @@ import '../core/platform/ports.dart';
 /// method-channel calls.
 ///
 /// 转发到 [MovaPlat.instance] 方法通道调用的 [MovaPipPort] 实现。
-class ChannelPipPort implements MovaPipPort {
+class MovaChannelPipPort implements MovaPipPort {
   @override
   Future<bool> isSupported() => MovaPlat.instance.isPipSupported();
 

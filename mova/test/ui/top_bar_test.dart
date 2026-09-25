@@ -14,7 +14,7 @@ import '../support/pump.dart';
 void main() {
   testWidgets('fit button cycles the fill mode and shows the configured label', (t) async {
     final api = FakeMovaApi();
-    await pumpComponent(t, api, TopBarComponent());
+    await pumpComponent(t, api, MovaTopBarComponent());
     expect(find.text('适应'), findsOneWidget);
     await t.tap(find.byIcon(Icons.aspect_ratio_rounded));
     await t.pump();
@@ -25,14 +25,14 @@ void main() {
 
   testWidgets('pip button is hidden when the platform reports no pip support', (t) async {
     final api = FakeMovaApi()..pipSupported = false;
-    await pumpComponent(t, api, TopBarComponent());
+    await pumpComponent(t, api, MovaTopBarComponent());
     expect(find.byIcon(Icons.picture_in_picture_alt_rounded), findsNothing);
     await api.dispose();
   });
 
   testWidgets('pip button shows and enters pip when supported', (t) async {
     final api = FakeMovaApi()..pipSupported = true;
-    await pumpComponent(t, api, TopBarComponent());
+    await pumpComponent(t, api, MovaTopBarComponent());
     await t.tap(find.byIcon(Icons.picture_in_picture_alt_rounded));
     await t.pump();
     expect(api.calls, contains('enterPip'));
@@ -43,7 +43,7 @@ void main() {
     debugDefaultTargetPlatformOverride = TargetPlatform.android;
     final api = FakeMovaApi();
     try {
-      await pumpComponent(t, api, TopBarComponent());
+      await pumpComponent(t, api, MovaTopBarComponent());
       expect(find.byIcon(Icons.screen_rotation_rounded), findsOneWidget);
 
       // From the default auto state, one tap forces landscape.
@@ -66,7 +66,7 @@ void main() {
     debugDefaultTargetPlatformOverride = TargetPlatform.windows;
     final api = FakeMovaApi();
     try {
-      await pumpComponent(t, api, TopBarComponent());
+      await pumpComponent(t, api, MovaTopBarComponent());
       expect(find.byIcon(Icons.screen_rotation_rounded), findsNothing);
     } finally {
       debugDefaultTargetPlatformOverride = null;
@@ -77,21 +77,21 @@ void main() {
   testWidgets('quality button is hidden when there are no variants', (t) async {
     final api = FakeMovaApi();
     api.push(const MovaState());
-    await pumpComponent(t, api, TopBarComponent());
+    await pumpComponent(t, api, MovaTopBarComponent());
     expect(find.byIcon(Icons.high_quality_rounded), findsNothing);
     await api.dispose();
   });
 
   testWidgets('replacing MovaStrs changes the fit label without touching components', (t) async {
     final api = FakeMovaApi(options: const MovaOpts(strings: MovaStrs(fitContain: 'Fit')));
-    await pumpComponent(t, api, TopBarComponent());
+    await pumpComponent(t, api, MovaTopBarComponent());
     expect(find.text('Fit'), findsOneWidget);
     await api.dispose();
   });
 
   testWidgets('title shows the current source title, empty when none', (t) async {
     final api = FakeMovaApi();
-    await pumpComponent(t, api, TopBarComponent());
+    await pumpComponent(t, api, MovaTopBarComponent());
     expect(find.text(''), findsOneWidget);
 
     await api.open(const MovaSource('https://host/video.mp4', title: 'My Video'));
@@ -113,7 +113,7 @@ void main() {
   testWidgets('title updates when re-opening a different source of the same stream type', (t) async {
     final api = FakeMovaApi();
     await api.open(const MovaSource('https://host/a.mp4', title: 'A'));
-    await pumpComponent(t, api, TopBarComponent());
+    await pumpComponent(t, api, MovaTopBarComponent());
     expect(find.text('A'), findsOneWidget);
     expect(api.state.type, MovaStreamType.vod);
 

@@ -6,10 +6,10 @@
 **Architecture:** `ChunkManifest`（纯计算的时间切片清单）+ `ChunkScheduler`（高/低两条
 优先级队列，固定 worker 池）+ 边界重叠去重（分片解码带 3-5s 重叠，按"cue 中点落在本片
 [start,end) 内"归属）+ 展示层合并（`SplayTreeMap<Duration, MovaSttCue>` 按分片完成事件增量
-合入，`SubtitleOverlayComponent` 现有的按 `progress` 取当前 cue 逻辑不用改）。
+合入，`MovaSubtitleOverlayComponent` 现有的按 `progress` 取当前 cue 逻辑不用改）。
 
 **⚠️ 硬依赖，未满足前不可实现**：本方案要求端上能按 `(uri, startMs, durationMs)` 抽取一段
-WAV。当前唯一相关实现 `MpvAudioExtractor`（`platform_impl/mpv_audio_extractor_impl.dart`）
+WAV。当前唯一相关实现 `MovaAudioExtractor`（`platform_impl/mpv_audio_extractor_impl.dart`）
 已真机实测判死刑（mpv `ao=pcm`/`ao-pcm-file` 静默失败，mpv 官方历史 issue #7833 同症状）。
 必须先有二期 ffmpeg 瘦身产出的自建 FFI 绑定（`vm_extract_audio_chunk` 或等价物）才能接入
 阶段 3 及之后。阶段 1/2/6 是纯 Dart 逻辑，不依赖此前提，可以现在先做。
@@ -98,7 +98,7 @@ bool cueBelongsToChunk(MovaSttCue cue, SttChunk chunk) {
 
 ## 5. 展示层合并
 
-`SubtitleOverlayComponent` 现有逻辑（监听 `api.stt.cues` + `api.progress`，按当前位置取
+`MovaSubtitleOverlayComponent` 现有逻辑（监听 `api.stt.cues` + `api.progress`，按当前位置取
 覆盖的 cue）不用大改；改造点在 `MovaSttSvc`：cue 来源从"一次性 transcribe 返回的
 List"改成"按分片完成事件增量合入 `SplayTreeMap<Duration, MovaSttCue>`"。
 
@@ -126,7 +126,7 @@ abstract class MovaSttApi {
 | 2 | 边界去重纯函数 + seek 防抖纯函数 | 否 |
 | 3 | 接入真实 extractor + `ZipformerSttEngine` 单片解码联调 | 是 |
 | 4 | seek 抢占接入真实 `MovaApi` seek 事件 | 是（联调） |
-| 5 | `SubtitleOverlayComponent`/`MovaSttSvc` 接入合并展示 | 是 |
+| 5 | `MovaSubtitleOverlayComponent`/`MovaSttSvc` 接入合并展示 | 是 |
 | 6 | 断点续存缓存（按分片存取） | 否/是均可，独立模块 |
 | 7 | 真机端到端验证（本项目 STT 相关迄今全部未做过完整端到端真机验证，见
      [2026-08-05 STT 验收记录](../../../../.claude/../..) 相关 memory） | — |

@@ -17,11 +17,11 @@ import '../slots/slot.dart';
 /// 本次重构计划中新增——0.1.0 从未展示过可见的缓冲指示（缓冲仅内部用于驱动
 /// ABR 降档）。样式为普通 [CircularProgressIndicator]，刻意保持简单，因为
 /// 没有 0.1.0 基线可对齐。
-class BufferingComponent extends MovaComp {
+class MovaBufferingComponent extends MovaComp {
   /// Creates the buffering-overlay leaf component.
   ///
   /// 创建缓冲叠加层叶子组件。
-  BufferingComponent();
+  MovaBufferingComponent();
 
   @override
   String get name => 'buffering';
@@ -55,11 +55,11 @@ class BufferingComponent extends MovaComp {
 ///
 /// 本次重构计划中新增——0.1.0 完全没有错误态 UI。布局与文案为合理的简单
 /// 默认实现，并非移植自 0.1.0。
-class ErrorComponent extends MovaComp {
+class MovaErrorComponent extends MovaComp {
   /// Creates the error-overlay leaf component.
   ///
   /// 创建错误叠加层叶子组件。
-  ErrorComponent();
+  MovaErrorComponent();
 
   @override
   String get name => 'error';
@@ -108,11 +108,11 @@ class ErrorComponent extends MovaComp {
 /// 只负责吞掉点击，使下层手势/按钮在锁定期间收不到事件；未锁定时不渲染任何
 /// 内容。解锁入口本身是独立的、恒定处于最上层的一层（见
 /// [MovaDefSkin.assemble]），因此无论槽位/层叠顺序如何，都不会被本遮罩盖住。
-class LockMaskComponent extends MovaComp {
+class MovaLockMaskComponent extends MovaComp {
   /// Creates the lock-mask leaf component.
   ///
   /// 创建锁定遮罩叶子组件。
-  LockMaskComponent();
+  MovaLockMaskComponent();
 
   @override
   String get name => 'lockMask';

@@ -31,7 +31,7 @@ void main() {
   testWidgets('a non-seekable live bar shows the LIVE badge and no seek bar', (t) async {
     final api = FakeMovaApi();
     api.push(const MovaState(type: MovaStreamType.live));
-    await pumpComponent(t, api, BottomBarComponent());
+    await pumpComponent(t, api, MovaBottomBarComponent());
     expect(find.text('LIVE'), findsOneWidget);
     expect(find.byType(Slider), findsNothing);
     await api.dispose();
@@ -40,7 +40,7 @@ void main() {
   testWidgets('a seekable live bar shows the seek bar', (t) async {
     final api = FakeMovaApi();
     api.push(_atEdge);
-    await pumpComponent(t, api, BottomBarComponent());
+    await pumpComponent(t, api, MovaBottomBarComponent());
     expect(find.byType(Slider), findsOneWidget);
     await api.dispose();
   });
@@ -48,7 +48,7 @@ void main() {
   testWidgets('the badge reads LIVE at the edge and 时移 while replaying', (t) async {
     final api = FakeMovaApi();
     api.push(_atEdge);
-    await pumpComponent(t, api, BottomBarComponent());
+    await pumpComponent(t, api, MovaBottomBarComponent());
     expect(find.text('LIVE'), findsOneWidget);
     api.push(_behind);
     await t.pump();
@@ -61,7 +61,7 @@ void main() {
   testWidgets('the timeshift label shows the lag and hides at the edge', (t) async {
     final api = FakeMovaApi();
     api.push(_behind);
-    await pumpComponent(t, api, BottomBarComponent());
+    await pumpComponent(t, api, MovaBottomBarComponent());
     expect(find.text('-01:05'), findsOneWidget);
     api.push(_atEdge);
     await t.pump();
@@ -73,7 +73,7 @@ void main() {
   testWidgets('the back-to-live button calls backToLiveEdge, not reload', (t) async {
     final api = FakeMovaApi();
     api.push(_behind);
-    await pumpComponent(t, api, BottomBarComponent());
+    await pumpComponent(t, api, MovaBottomBarComponent());
     await t.tap(find.byIcon(Icons.sync_rounded));
     await t.pump();
     expect(api.calls, contains('backToLiveEdge'));
@@ -86,7 +86,7 @@ void main() {
       options: const MovaOpts(strings: MovaStrs(live: 'ON AIR')),
     );
     api.push(_atEdge);
-    await pumpComponent(t, api, BottomBarComponent());
+    await pumpComponent(t, api, MovaBottomBarComponent());
     expect(find.text('ON AIR'), findsOneWidget);
     await api.dispose();
   });
@@ -94,7 +94,7 @@ void main() {
   testWidgets('the live seek bar spans the DVR window, not the duration', (t) async {
     final api = FakeMovaApi();
     api.push(_atEdge);
-    await pumpComponent(t, api, BottomBarComponent());
+    await pumpComponent(t, api, MovaBottomBarComponent());
     final slider = t.widget<Slider>(find.byType(Slider));
     expect(slider.max, 300000.0);
     await api.dispose();

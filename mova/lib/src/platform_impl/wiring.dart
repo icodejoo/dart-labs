@@ -19,9 +19,8 @@ import '../core/platform/ports.dart';
 import '../core/preview/dir_provider.dart';
 import '../core/preview/extractor.dart';
 import '../core/preview/fetcher.dart';
+import '../core/preview/net_probe.dart';
 import 'brightness_impl.dart';
-import 'mpv_extractor_impl.dart';
-import 'net_probe_impl.dart';
 import 'orientation_impl.dart';
 import 'pip_impl.dart';
 import 'thumb_dir_impl.dart';
@@ -36,14 +35,14 @@ import 'volume_impl.dart';
 MovaVolumePort? _defaultVolumePort() {
   switch (defaultTargetPlatform) {
     case TargetPlatform.android:
-      return SystemVolumePort();
+      return MovaSystemVolumePort();
     default:
       return null;
   }
 }
 
 /// Creates a [MovaEngine] wired to the real platform adapters
-/// ([ScreenBrightnessPort], [ChannelPipPort], [SystemChromeOrientationPort],
+/// ([MovaScreenBrightnessPort], [MovaChannelPipPort], [MovaSystemChromeOrientationPort],
 /// and — since phase B — [MovaThumbDirProv]/[MovaFramePuller] for scrub
 /// preview) instead of [MovaEngine]'s own noop/fallback defaults.
 ///
@@ -54,8 +53,8 @@ MovaVolumePort? _defaultVolumePort() {
 /// thumbnails actually work. Any port can still be overridden (e.g. with a
 /// fake, in a widget test that exercises the real engine wiring).
 ///
-/// 创建一个接入真实平台适配器（[ScreenBrightnessPort]、[ChannelPipPort]、
-/// [SystemChromeOrientationPort]，以及阶段 B 起新增的拖动预览端口
+/// 创建一个接入真实平台适配器（[MovaScreenBrightnessPort]、[MovaChannelPipPort]、
+/// [MovaSystemChromeOrientationPort]，以及阶段 B 起新增的拖动预览端口
 /// [MovaThumbDirProv]/[MovaFramePuller]）的 [MovaEngine]，而非使用 [MovaEngine]
 /// 自身的空/兜底默认实现。
 ///
@@ -64,8 +63,8 @@ MovaVolumePort? _defaultVolumePort() {
 /// 画中画、全屏方向、拖动预览缩略图这些功能才能真正生效。每个端口仍可分别
 /// 覆盖（例如在验证真实 engine 接线的 widget 测试中传入 fake）。
 ///
-/// - [kernel]: the playback kernel; defaults to a new `MpvKernel` (see
-///   [MovaEngine.new]) / 播放内核，省略时默认新建 `MpvKernel`（见
+/// - [kernel]: the playback kernel; defaults to a new `MovaMpvKernel` (see
+///   [MovaEngine.new]) / 播放内核，省略时默认新建 `MovaMpvKernel`（见
 ///   [MovaEngine.new]）
 /// - [audioOnly]: builds an audio-only engine — the default kernel skips its
 ///   `VideoController` and the frame-extraction fallback is left unwired,
@@ -82,28 +81,47 @@ MovaVolumePort? _defaultVolumePort() {
 /// - [options]: engine configuration / engine 配置
 /// - [interceptors]: interceptor chain consulted before open/seek/play /
 ///   在 open/seek/play 前咨询的拦截链
-/// - [brightness]: overrides the real [ScreenBrightnessPort] default /
-///   覆盖默认的真实 [ScreenBrightnessPort]
+/// - [brightness]: overrides the real [MovaScreenBrightnessPort] default /
+///   覆盖默认的真实 [MovaScreenBrightnessPort]
 /// - [volume]: overrides the default volume port. Defaults to the native
-///   [SystemVolumePort] on Android and `null` (player-volume path) elsewhere;
-///   pass a [CallbackVolumePort] to drive system volume yourself on any
-///   platform / 覆盖默认音量端口。Android 默认接原生 [SystemVolumePort]，其余
-///   平台默认 `null`（播放器音量路径）；任意平台都可传 [CallbackVolumePort]
+///   [MovaSystemVolumePort] on Android and `null` (player-volume path) elsewhere;
+///   pass a [MovaCallbackVolumePort] to drive system volume yourself on any
+///   platform / 覆盖默认音量端口。Android 默认接原生 [MovaSystemVolumePort]，其余
+///   平台默认 `null`（播放器音量路径）；任意平台都可传 [MovaCallbackVolumePort]
 ///   自行驱动系统音量
-/// - [pip]: overrides the real [ChannelPipPort] default / 覆盖默认的真实
-///   [ChannelPipPort]
-/// - [orientation]: overrides the real [SystemChromeOrientationPort] default
-///   / 覆盖默认的真实 [SystemChromeOrientationPort]
-/// - [thumbDir]: overrides the real [TempThumbDirProvider] default used for
-///   the on-disk thumbnail cache / 覆盖默认的真实 [TempThumbDirProvider]（磁盘
-///   缩略图缓存目录）
-/// - [extractor]: overrides the real [MpvFrameExtractor] default used as the
-///   frame-extraction fallback source / 覆盖默认的真实 [MpvFrameExtractor]
-///   （抽帧兜底来源）
+/// - [pip]: overrides the real [MovaChannelPipPort] default / 覆盖默认的真实
+///   [MovaChannelPipPort]
+/// - [orientation]: overrides the real [MovaSystemChromeOrientationPort] default
+///   / 覆盖默认的真实 [MovaSystemChromeOrientationPort]
+/// - [thumbDir]: overrides the real [MovaTempThumbDirProvider] default used for
+///   the on-disk thumbnail cache / 覆盖默认的真实 [MovaTempThumbDirProvider]（磁盘
+///   缓存图缓存目录）
+/// - [extractor]: the scrub-preview frame-extraction fallback source. `null`
+///   by default — unlike the other ports, this one is **not** wired to a
+///   platform default here, because the only default implementation
+///   (`MovaFrameExtractor`, `package:mova/mova.dart`) pulls in
+///   `media_kit_video` as a *statically reachable* dependency the moment this
+///   function references it, defeating tree-shaking for hosts that never use
+///   scrub preview. Pass `MovaFrameExtractor()` explicitly to opt in / 拖动预览
+///   的抽帧兜底来源。默认为 `null`——与其余端口不同，本参数**不会**在这里接一个
+///   平台默认实现，因为唯一的默认实现（`MovaFrameExtractor`，见
+///   `package:mova/mova.dart`）一旦被本函数引用就会把 `media_kit_video`
+///   变成静态可达依赖，让从不使用拖动预览的宿主也摇不掉它。要启用请显式传入
+///   `MovaFrameExtractor()`
+/// - [probe]: the connectivity probe consulted under `wifiOnly` preview
+///   network policy. `null` by default for the same tree-shaking reason as
+///   [extractor] — the default implementation (`MovaConnectivityNetProbe`) pulls
+///   in `connectivity_plus`; [MovaEngine] itself already falls back to a
+///   pure-Dart `MovaAlwaysAllowNetProbe()` when this stays unset, so `wifiOnly`
+///   preview policy is simply not enforced unless you opt in / `wifiOnly`
+///   预览网络策略要咨询的连通性探针。默认为 `null`，原因与 [extractor] 相同——
+///   默认实现（`MovaConnectivityNetProbe`）会引入 `connectivity_plus`；未设置时
+///   [MovaEngine] 自己会兜底为纯 Dart 的 `MovaAlwaysAllowNetProbe()`，即不显式启用
+///   时 `wifiOnly` 策略不会被强制执行
 /// - [fetcher]: overrides the HTTP fetcher used to pull WebVTT tracks and
-///   sprites; left null, [MovaEngine] falls back to its own `IoHttpFetcher()` /
+///   sprites; left null, [MovaEngine] falls back to its own `MovaIoHttpFetcher()` /
 ///   覆盖拉取 WebVTT 轨与雪碧图的 HTTP 客户端；留空则由 [MovaEngine] 自己兜底为
-///   `IoHttpFetcher()`
+///   `MovaIoHttpFetcher()`
 ///
 /// Returns a [MovaEngine] ready for use by app code.
 ///
@@ -119,29 +137,20 @@ MovaEngine createMovaEngine({
   MovaOrientPort? orientation,
   MovaThumbDirProv? thumbDir,
   MovaFramePuller? extractor,
+  MovaNetProbe? probe,
   MovaHttpFetch? fetcher,
 }) {
   return MovaEngine(
     kernel: kernel,
     audioOnly: audioOnly,
-    options: options.preview.probe == null
-        ? options.copyWith(preview: options.preview.copyWith(probe: ConnectivityNetProbe()))
-        : options,
+    options: probe == null ? options : options.copyWith(preview: options.preview.copyWith(probe: probe)),
     interceptors: interceptors,
-    brightness: brightness ?? ScreenBrightnessPort(),
+    brightness: brightness ?? MovaScreenBrightnessPort(),
     volume: volume ?? _defaultVolumePort(),
-    pip: pip ?? ChannelPipPort(),
-    orientation: orientation ?? SystemChromeOrientationPort(),
-    thumbDir: thumbDir ?? const TempThumbDirProvider(),
-    // An audio-only engine has no frames, and MpvFrameExtractor would open a
-    // *second* Player with its own VideoController on first use — a whole
-    // extra video pipeline, exactly what audioOnly exists to avoid. Leave it
-    // unwired unless the host insists.
-    //
-    // 仅音频引擎没有帧可抽，而 MpvFrameExtractor 在首次使用时会新开**第二个**
-    // Player 并为其建 VideoController——那是一整条额外的视频管线，恰恰是
-    // audioOnly 要避免的东西。除非宿主显式指定，否则不接线。
-    extractor: extractor ?? (audioOnly ? null : MpvFrameExtractor()),
+    pip: pip ?? MovaChannelPipPort(),
+    orientation: orientation ?? MovaSystemChromeOrientationPort(),
+    thumbDir: thumbDir ?? const MovaTempThumbDirProvider(),
+    extractor: extractor,
     fetcher: fetcher,
   );
 }

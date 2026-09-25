@@ -56,7 +56,7 @@ void main() {
       'https://example.com/tokens.txt': Uint8List.fromList([4, 5]),
     });
     final downloader = MovaSttModelLoader(
-      dir: FixedSttModelDirProvider(tempDir.path),
+      dir: MovaFixedSttModelDirProvider(tempDir.path),
       fetcher: fetcher,
     );
 
@@ -77,7 +77,7 @@ void main() {
       'https://example.com/tokens.txt': Uint8List.fromList([4, 5]),
     });
     final downloader = MovaSttModelLoader(
-      dir: FixedSttModelDirProvider(tempDir.path),
+      dir: MovaFixedSttModelDirProvider(tempDir.path),
       fetcher: fetcher,
     );
 
@@ -101,7 +101,7 @@ void main() {
       'https://example.com/tokens.txt': Uint8List.fromList([4, 5]),
     });
     final downloader = MovaSttModelLoader(
-      dir: FixedSttModelDirProvider(tempDir.path),
+      dir: MovaFixedSttModelDirProvider(tempDir.path),
       fetcher: fetcher,
     );
 
@@ -117,7 +117,7 @@ void main() {
       'https://example.com/tokens.txt': Uint8List.fromList([4, 5]),
     });
     final downloader = MovaSttModelLoader(
-      dir: FixedSttModelDirProvider(tempDir.path),
+      dir: MovaFixedSttModelDirProvider(tempDir.path),
       fetcher: fetcher,
     );
 
@@ -135,7 +135,7 @@ void main() {
   test('throws MovaSttModelLoadError when a file cannot be fetched', () async {
     final fetcher = _FakeFetcher({'https://example.com/encoder.onnx': null});
     final downloader = MovaSttModelLoader(
-      dir: FixedSttModelDirProvider(tempDir.path),
+      dir: MovaFixedSttModelDirProvider(tempDir.path),
       fetcher: fetcher,
     );
 
@@ -151,7 +151,7 @@ void main() {
       'https://example.com/tokens.txt': Uint8List.fromList([4, 5]),
     });
     final downloader = MovaSttModelLoader(
-      dir: FixedSttModelDirProvider(tempDir.path),
+      dir: MovaFixedSttModelDirProvider(tempDir.path),
       fetcher: fetcher,
     );
     await downloader.ensure(buildSpec());

@@ -297,7 +297,7 @@ abstract class MovaApi {
   ///
   /// [hud] is the HUD variant to display. [text] is explicit display text for
   /// HUD variants that have no other state to derive it from — currently
-  /// only [SeekHudComponent]'s double-tap path uses this; the drag-seek path
+  /// only [MovaSeekHudComponent]'s double-tap path uses this; the drag-seek path
   /// keeps deriving its text from [MovaUiState.previewAt], and volume/
   /// brightness/zoom derive theirs from [MovaState] directly. Omitting [text]
   /// clears any previously set value.
@@ -305,7 +305,7 @@ abstract class MovaApi {
   /// 显示一个临时 HUD 浮层。
   ///
   /// [hud] 为要展示的 HUD 类型。[text] 是为那些没有其他状态可推导展示文本的
-  /// HUD 变体准备的显式文本——目前只有 [SeekHudComponent] 的双击路径会用它；
+  /// HUD 变体准备的显式文本——目前只有 [MovaSeekHudComponent] 的双击路径会用它；
   /// 拖动进度路径仍从 [MovaUiState.previewAt] 推导文本，音量/亮度/缩放则直接从
   /// [MovaState] 推导。不传 [text] 会清空之前设置的值。
   void showHud(MovaHud hud, {String? text});

@@ -7,28 +7,28 @@
 `lib/src/core/platform/ports.dart`），并在 `lib/src/platform_impl/` 下实现了
 对应的真实适配器：
 
-- `ScreenBrightnessPort`（`lib/src/platform_impl/brightness_impl.dart`）
-- `ChannelPipPort`（`lib/src/platform_impl/pip_impl.dart`）
-- `SystemChromeOrientationPort`（`lib/src/platform_impl/orientation_impl.dart`）
+- `MovaScreenBrightnessPort`（`lib/src/platform_impl/brightness_impl.dart`）
+- `MovaChannelPipPort`（`lib/src/platform_impl/pip_impl.dart`）
+- `MovaSystemChromeOrientationPort`（`lib/src/platform_impl/orientation_impl.dart`）
 
 但全仓库没有任何地方真正 `new` 过这三个类
-（`grep -rn "ScreenBrightnessPort()\|ChannelPipPort()\|SystemChromeOrientationPort()" lib/ example/ test/`
+（`grep -rn "MovaScreenBrightnessPort()\|MovaChannelPipPort()\|MovaSystemChromeOrientationPort()" lib/ example/ test/`
 零命中）。`MovaEngine` 构造函数（`lib/src/core/engine.dart`）在端口未显式注入时
 落到零依赖兜底实现：
 
 ```dart
-_brightness = brightness ?? FallbackBrightnessPort(),
-_pip = pip ?? NoopPipPort(),
-_orientation = orientation ?? NoopOrientationPort()
+_brightness = brightness ?? MovaFallbackBrightnessPort(),
+_pip = pip ?? MovaNoopPipPort(),
+_orientation = orientation ?? MovaNoopOrientationPort()
 ```
 
 而 `example/lib/main.dart` 一直构造裸 `MovaEngine()`。净效果：0.1.0 里可用的
 三个功能在 0.2.0 里全部失效——
 
-1. 右侧竖向拖拽（亮度手势）：`FallbackBrightnessPort` 恒报 1.0 并丢弃写入，
+1. 右侧竖向拖拽（亮度手势）：`MovaFallbackBrightnessPort` 恒报 1.0 并丢弃写入，
    屏幕亮度永不变化。
-2. `enterPip()`：`NoopPipPort` 恒返回 `false`，Android 上 PiP 按钮无反应。
-3. `setFullscreen()`：`NoopOrientationPort` 什么都不做，既不切换设备方向，
+2. `enterPip()`：`MovaNoopPipPort` 恒返回 `false`，Android 上 PiP 按钮无反应。
+3. `setFullscreen()`：`MovaNoopOrientationPort` 什么都不做，既不切换设备方向，
    也不进入沉浸式系统 UI。
 
 这违反了阶段 A 自身声明的"功能零变化"验收口径，且因为"漏调用一个构造"在
@@ -39,7 +39,7 @@ diff review 里完全不可见，才会被漏检。
 1. **新增 `lib/src/platform_impl/wiring.dart`**：导出工厂函数 `createMovaEngine(...)`，
    参数与 `MovaEngine` 构造函数一一对应（`kernel`/`options`/`interceptors`/
    `brightness`/`pip`/`orientation`），三个端口参数默认使用真实适配器
-   （`ScreenBrightnessPort()`/`ChannelPipPort()`/`SystemChromeOrientationPort()`），
+   （`MovaScreenBrightnessPort()`/`MovaChannelPipPort()`/`MovaSystemChromeOrientationPort()`），
    同时仍允许调用方逐个覆盖（例如测试里传入 fake）。`MovaEngine` 自身构造函数
    保持完全不变（默认仍是 noop/兜底），因为 `lib/src/core/**` 不允许引入
    `package:flutter/*` 或 `platform_impl/*`（由 `test/core/purity_test.dart`
@@ -60,10 +60,10 @@ diff review 里完全不可见，才会被漏检。
    `_engine = createMovaEngine();`。
 
 5. **平台防护性检查**：逐一读了三个适配器的源码，确认无需额外加平台判断——
-   - `ScreenBrightnessPort`：`get()`/`set()` 内部已 try/catch，异常时分别兜底
+   - `MovaScreenBrightnessPort`：`get()`/`set()` 内部已 try/catch，异常时分别兜底
      为 `1.0` / 静默忽略，桌面等不支持 `screen_brightness` 的平台上安全。
-   - `ChannelPipPort`：纯转发到 `MovaPlat.instance`，本身不做 IO。
-   - `SystemChromeOrientationPort`：只调用 Flutter 自带的 `SystemChrome`
+   - `MovaChannelPipPort`：纯转发到 `MovaPlat.instance`，本身不做 IO。
+   - `MovaSystemChromeOrientationPort`：只调用 Flutter 自带的 `SystemChrome`
      API，跨平台可用（不支持的平台上是无操作，不会抛异常）。
    三者构造函数本身都不触碰任何原生通道，`createMovaEngine()` 无条件构造它们
    是安全的。
@@ -79,7 +79,7 @@ diff review 里完全不可见，才会被漏检。
 1. `createMovaEngine defaults every port to the real platform adapter` ——
    用 `FakeKernel` 构造 `createMovaEngine(kernel: FakeKernel())`，断言
    `debugBrightnessPort`/`debugPipPort`/`debugOrientationPort` 的运行时类型
-   分别是 `ScreenBrightnessPort`/`ChannelPipPort`/`SystemChromeOrientationPort`。
+   分别是 `MovaScreenBrightnessPort`/`MovaChannelPipPort`/`MovaSystemChromeOrientationPort`。
    这是本次修复的核心回归测试：只检查类型而不检查行为，就是为了在"某处
    忘记调用真实构造函数"这类问题上不依赖人工评审。
 2. `createMovaEngine an explicitly injected port overrides the real-adapter default` ——

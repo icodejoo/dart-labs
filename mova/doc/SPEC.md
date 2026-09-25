@@ -83,10 +83,10 @@ import Flutter widget 与直接依赖 `MovaApi` 的地方。
 
 - `MovaComp`：`name`（树内寻址用）+ `slot`（归属的 `MovaSlot`）+
   `children` + `build(context, api, children)`。叶子组件 `children` 为空；
-  组合组件（如 `TopBarComponent`）持有多个子组件。
+  组合组件（如 `MovaTopBarComponent`）持有多个子组件。
 - `MovaSkin.components()`（0.3.0 起无参）返回**静态**顶层组件列表——树不随状态
   变化，显隐由组件各自的 `MovaSelect` 响应式决定。VOD/直播底栏合并为一个自适应
-  `BottomBarComponent`：暴露两套布局子组件的并集（顶层 `name` 恒为 `bottomBar`，
+  `MovaBottomBarComponent`：暴露两套布局子组件的并集（顶层 `name` 恒为 `bottomBar`，
   patch 路径不随流类型错位），只挂载与当前 `state.type` 相关的那些。
 - `MovaPlugin`（`ui/scope/plugin.dart`）：给「事件副作用型」有状态组件的能力 mixin，
   提供 `api`（`MovaScope.readOf` 非依赖读，`initState` 安全）与 `bind()`（订阅并在
@@ -144,9 +144,9 @@ import Flutter widget 与直接依赖 `MovaApi` 的地方。
   横滑动作由 `horizontal`（默认 `seek`）决定；`MovaGestAction.none` 可禁用某方向。
   volume/brightness 拖动均会 `showHud(...)`，HUD 徽标带图标 + 百分比（如 `🔊40%`）。
 - 音量落点：`setVolume` 经 `MovaVolumePort` 路由——接了端口走它（系统音量/宿主回调），
-  否则经内核走播放器音量。`createMovaEngine` 默认仅 Android 接 `SystemVolumePort`
+  否则经内核走播放器音量。`createMovaEngine` 默认仅 Android 接 `MovaSystemVolumePort`
   （原生 `AudioManager` 调系统媒体音量，无新依赖），iOS/桌面回退播放器音量；任意
-  平台可传 `CallbackVolumePort` 接管。构造时从端口 `get()` 播种 `state.volume` 作手势基线。
+  平台可传 `MovaCallbackVolumePort` 接管。构造时从端口 `get()` 播种 `state.volume` 作手势基线。
 - 亮度：经 `MovaBrightPort`（生产实现用 `screen_brightness`）调系统屏幕亮度，
   平台不支持时兜底 1.0。
 - 双指缩放：`onScaleUpdate` 进入 zoom，`clamp(1, maxZoom)`。
@@ -197,7 +197,7 @@ import Flutter widget 与直接依赖 `MovaApi` 的地方。
   当前打开的时移地址。
 - `autoBackToLiveOnStall`（默认关）：仅在**确实处于时移状态**且发生卡顿时才
   自动跳回边缘，避免悄悄丢弃用户主动选定的回看位置。
-- UI 树 `bottomBar/{liveBadge, seekBar, timeshift, backToLive}`：`SeekBarComponent`
+- UI 树 `bottomBar/{liveBadge, seekBar, timeshift, backToLive}`：`MovaSeekBarComponent`
   对可拖直播取 `seekableWindow` 而非 `duration`（同一组件同时服务 VOD 与直播）；
   `liveBadge` 按 `timeshiftBehind == null` 在红色 `LIVE`/灰色 `时移`（`MovaTheme.
   timeshiftBadgeColor`）间切换；`backToLive`（原 `backToEdge`，已删除并改名）
@@ -356,7 +356,7 @@ break.waitForReady ?? config.waitForAdReady.waitFor(break)
 真时会先 `setFullscreen(false)`（先发 `MovaFullScreenChg` 再发 `MovaMiniChg`），反向
 `setMini(false)` **不会**恢复全屏。
 
-**为什么不重新解码**：`MovaApi`/`MovaEngine`/`MpvKernel` 是纯 Dart 对象，生命周期与
+**为什么不重新解码**：`MovaApi`/`MovaEngine`/`MovaMpvKernel` 是纯 Dart 对象，生命周期与
 widget 树无关；`_RenderSurface` 每次 build 都重读 `api.renderHandle` 并按
 `_RenderHandleKey(handle)` 做 key——句柄没变，Flutter 复用同一个 `Texture`。
 `test/ui/player_test.dart` 有一条"同一 api 在两个树位置先后挂载，renderHandle 不变"的
@@ -454,13 +454,13 @@ Reporting\LocalDumps\mova_example.exe`（`DumpFolder` 指向
 
 ## 仅音频模式（`audioOnly`，0.4.x，默认关闭）
 
-`MpvKernel({bool audioOnly = false})` / `MovaEngine({bool audioOnly = false})` /
+`MovaMpvKernel({bool audioOnly = false})` / `MovaEngine({bool audioOnly = false})` /
 `createMovaEngine({bool audioOnly = false})`。为 `true` 时**不建立任何视频管线**，
 `renderHandle` 为 `null`。**不新增任何公开类，barrel 一行未改。**
 
 **机制**：media_kit 的 `Player` 一创建就是 mpv 的 `--vid=no`
 （`player/native/player/real.dart` 的 `_create()`），**只有** `VideoController.create()`
-会把它改回 `vid=auto`。所以核心改动就是把 `MpvKernel` 构造里那句无条件的
+会把它改回 `vid=auto`。所以核心改动就是把 `MovaMpvKernel` 构造里那句无条件的
 `VideoController(_player)` 包进 `if (!audioOnly)`——不建那个对象，libmpv 就已经是纯音频
 播放器：解码帧缓冲、GPU 纹理、Flutter `Texture` 注册这三项是 0 而不是变小。
 **这依赖 media_kit 1.2.6 的默认值，升级 media_kit 时须重验此条**
@@ -479,10 +479,10 @@ Reporting\LocalDumps\mova_example.exe`（`DumpFolder` 指向
 - **不换 `media_kit_libs_*_audio`**。那是编译期二选一，换了 mova 的视频功能会物理失效，
   与"既要视频又要音频"的目标用户直接冲突。包体积因此不随模式变。
 
-**`MpvFrameExtractor` 的处置**：`createMovaEngine()` 原本无条件注入它，而它在首次
+**`MovaFrameExtractor` 的处置**：`createMovaEngine()` 原本无条件注入它，而它在首次
 `extract()` 时会新开**第二个** `Player` 并为其建 `VideoController`——一整条额外的视频
-管线。`audioOnly: true` 时默认不再注入（`extractor ?? (audioOnly ? null : MpvFrameExtractor())`），
-宿主显式传入的 `extractor` 仍然胜出。`MpvKernel.screenshot()` 在 `audioOnly` 下短路返回
+管线。`audioOnly: true` 时默认不再注入（`extractor ?? (audioOnly ? null : MovaFrameExtractor())`），
+宿主显式传入的 `extractor` 仍然胜出。`MovaMpvKernel.screenshot()` 在 `audioOnly` 下短路返回
 `null`，让拖动预览兜底走既有的"抽帧器没给结果 → 平滑降级"路径，而不是抛 mpv 错误。
 
 **UI 层零改动**：`_RenderSurface` 的 `handle is VideoController` 三元判定天然把 `null`
@@ -506,17 +506,17 @@ README 与可行性笔记 §1 里的开销数字目前仍是**推算量级，不
 - **iOS 系统 PiP：待定任务（未完成）**。可行性已调研，方向为
   `AVSampleBufferDisplayLayer` + `CVPixelBuffer`（Android 是 Activity 级 PiP，无需取帧；
   iOS 必须自渲染取帧）；落地卡在一次需 Mac + iOS 15+ 真机的门槛 spike。**契约维持不变**：
-  落地前 `isPipSupported()` 仍返回 `false`、`PipButtonComponent` 自动隐藏；落地后仅原生
+  落地前 `isPipSupported()` 仍返回 `false`、`MovaPipButtonComponent` 自动隐藏；落地后仅原生
   返回值变化，Dart/UI 零改动。完整研究 + 落地计划见
   [doc/notes/2026-07-31-ios-pip-feasibility.md](notes/2026-07-31-ios-pip-feasibility.md)。
 - `MovaState.pipSupported` / `MovaApi.pipSupported`（阶段 C）：engine 构造后不久
   用 `MovaPipPort.isSupported()` 探测一次（默认 `false`，探测失败也归约为
-  `false` 而不抛出）；`PipButtonComponent` 据此隐藏自身，不支持的平台上按钮
+  `false` 而不抛出）；`MovaPipButtonComponent` 据此隐藏自身，不支持的平台上按钮
   根本不出现，而不是出现了点了没反应。
 
 ## 全屏（桌面平台的已知边界）
 
-`SystemChromeOrientationPort`（`MovaOrientPort` 的默认实现）只处理移动端的
+`MovaSystemChromeOrientationPort`（`MovaOrientPort` 的默认实现）只处理移动端的
 方向锁定与沉浸式系统 UI；Windows/macOS/Linux 上没有"真全屏"的对应概念（撑满
 屏幕、去掉标题栏），因此 `setFullscreen(true)` 在桌面端不会有可见效果——2026-07-31
 Windows 实跑证实。这不是回归，是能力从未在桌面实现过。mova 不内置窗口管理
@@ -533,7 +533,7 @@ Windows 实跑证实。这不是回归，是能力从未在桌面实现过。mov
 （`orientation_impl.dart`，已抽出纯函数单测）在 `auto` 时回退到
 `preferredOrientationsFor(w,h)`，否则直接取横/竖屏对。engine 侧由 `_applyOrientation()`
 统一根据 `state.fullscreen + state.orientation` 应用，`setFullscreen`/`setOrientation`
-/尺寸到达三处共用它。UI 侧 `OrientationButtonComponent`（顶栏，name
+/尺寸到达三处共用它。UI 侧 `MovaOrientationButtonComponent`（顶栏，name
 `orientationButton`）仅在 `defaultTargetPlatform` 为 Android/iOS 时渲染——桌面端强制
 方向本就无效，与 pip 按钮的隐藏思路一致——点击经 `MovaOrient.toggled` 横↔竖切换。
 
@@ -545,13 +545,13 @@ Windows 实跑证实。这不是回归，是能力从未在桌面实现过。mov
 - **`MovaBilibiliSkin`**（`ui/skins/bilibili_skin.dart`）：`extends MovaDefSkin`，
   纯"补丁档"定制（`MovaPatch.add`/`insertAfter`），零布局改写——bilibili 的默认
   控制条与手势侧别（左亮度/右音量）本就对齐 0.3.0 默认值。新增
-  `DanmakuTrackComponent`（`ui/components/danmaku.dart`，挂 `MovaSlot.overlay`，
-  不受锁定/自动隐藏门控）+ 顶栏 `SpeedButtonComponent`（`ui/components/
+  `MovaDanmakuTrackComponent`（`ui/components/danmaku.dart`，挂 `MovaSlot.overlay`，
+  不受锁定/自动隐藏门控）+ 顶栏 `MovaSpeedButtonComponent`（`ui/components/
   speed_button.dart`，`0.5x~2x` 六档循环，走既有 `MovaApi.setRate`，未新增 core
-  能力）。**倍速按钮落在顶栏而非底栏**：`TopBarComponent.build()` 用
-  `...children.sublist(1)` 展开全部子节点，而自适应的 `BottomBarComponent`
+  能力）。**倍速按钮落在顶栏而非底栏**：`MovaTopBarComponent.build()` 用
+  `...children.sublist(1)` 展开全部子节点，而自适应的 `MovaBottomBarComponent`
   按下标显式取子节点（`children[0]`/`children[2]`/`children[4]`），补丁插入的
-  新兄弟节点会被静默丢弃——这是从 `BottomBarComponent` 现有实现读出的真实约束，
+  新兄弟节点会被静默丢弃——这是从 `MovaBottomBarComponent` 现有实现读出的真实约束，
   非设计偏好。
 - **弹幕（`MovaDanmakuConfig`/`MovaDanmakuItem`）**：**只做展示**，无发送框/输入/
   去重限流引擎（`MovaOpts.danmaku`，默认 `enabled: false`）；`items` 是宿主给
@@ -599,7 +599,7 @@ Windows 实跑证实。这不是回归，是能力从未在桌面实现过。mov
   - **音频不重叠**：只有活跃页 `play()`，`MovaFeedEnginePool.focus(index)` 把
     其余所有已绑定引擎 `pause()`；预热邻居一律 `open(autoPlay: false)` 停在
     首帧。
-  - **`NetworkWarmFeedPrefetcher` 保留，但只覆盖池够不到的更远条目**：
+  - **`MovaNetworkWarmFeedPrefetcher` 保留，但只覆盖池够不到的更远条目**：
     `prefetchDepth` 范围内、已在引擎窗口里的索引会被跳过——那些正在被真正
     打开，重复发一次 Range GET 毫无收益。默认 `prefetchDepth: 1` + 默认
     `poolSize: 3` 的组合下，网络预取实际不发出任何请求。
@@ -628,14 +628,14 @@ Windows 实跑证实。这不是回归，是能力从未在桌面实现过。mov
     代价**：每页有自己的 Surface，那次 resize/重建发生在预热阶段（观众还在看
     上一条），而非切换瞬间。
   - **点赞状态 mova 端到端本地持有**（`MovaFeedItem.initialLiked`/
-    `initialLikeCount`/`onLikeChanged`）：双击（`DouyinGestureLayerComponent`）
-    与竖排点赞按钮（`LikeButtonComponent`）经同一个 `ValueNotifier`（由
+    `initialLikeCount`/`onLikeChanged`）：双击（`MovaDouyinGestureLayerComponent`）
+    与竖排点赞按钮（`MovaLikeButtonComponent`）经同一个 `ValueNotifier`（由
     `MovaFeedPlayer` 的 State 按 index 缓存、跨该页历次重建存活）保持同步；
     `MovaFeedCtrl.toggleLike` 把切换结果写回条目缓存，滑走再滑回时仍是
     切换后的值；不做回滚，是否持久化交给 `onLikeChanged` 回调。评论/分享/
     头像/关注一律只是回调，mova 不持有这些业务状态。
   - **手势冲突靠"不引入组件"规避**：`MovaDouyinSkin.components()` 压根不挂载
-    `GestureLayerComponent`（默认皮肤的亮度/音量竖滑手势），纵向拖拽完全归
+    `MovaGestureLayerComponent`（默认皮肤的亮度/音量竖滑手势），纵向拖拽完全归
     `PageView` 所有；这是组件化架构的直接收益，不需要任何特判代码。
   - **数据源**：`MovaFeedLoader = Future<MovaFeedItem?> Function(int index)`，
     异步按需解析，返回 `null` 表示 feed 结束；`MovaFeedCtrl` 内部按索引
@@ -703,7 +703,7 @@ flutter pub publish --dry-run                     # 发布校验
    `platform_kind`/`api`/`service`）、`lib/src/core/options/preview_config.dart`
    （`MovaPrevConfig`）、`lib/src/platform_impl/`（`mpv_extractor_impl`/
    `net_probe_impl`/`thumb_dir_impl`）、`lib/src/ui/components/preview.dart`
-   （`PreviewComponent`，挂 `MovaSlot.bottomAbove`，气泡水平位置随拖动比例跟随，
+   （`MovaPreviewComponent`，挂 `MovaSlot.bottomAbove`，气泡水平位置随拖动比例跟随，
    钳制不越界）。新增公开面：`MovaApi.preview`（`MovaPrevApi`）、
    `MovaOpts.preview`（`MovaPrevConfig`）、`MovaPrevBlock` 事件；
    `createMovaEngine()` 新增 `thumbDir`/`extractor`/`fetcher` 三个可选参数。
@@ -750,7 +750,7 @@ Android+iOS 落地中，见下**）+ AI MCP 集成钩子（仍为纯前瞻记录
   原生实现、无原生能力则 noop）。第一版曾建议默认依赖 whisper.cpp（FFI），已推翻。
   曾评估"MCP 兜底转写"，**已否决**（MCP 是请求/响应协议非实时流式，延迟不可控；且与
   MCP 钩子本该扮演的"被动暴露上下文"角色冲突）——缺口不专门补，复用既有
-  `MovaVolumePort`/`CallbackVolumePort` 的注入模式给宿主一个通用 `MovaSttEngine` 口子即可。
+  `MovaVolumePort`/`MovaCallbackVolumePort` 的注入模式给宿主一个通用 `MovaSttEngine` 口子即可。
 - **MCP 钩子（与上方字幕功能解耦，不承担转写职责）**：预计不会成为核心依赖，更可能是
   一个可选的 `MovaHook` 实现或独立的事件流消费者，订阅播放状态/字幕文本等只读
   上下文，并可选择性地接收外部指令——是**被动**暴露/接受控制的角色，不用作"主动请求
@@ -778,7 +778,7 @@ Android+iOS 落地中，见下**）+ AI MCP 集成钩子（仍为纯前瞻记录
   研究 + 落地计划见 [doc/notes/2026-07-31-ios-pip-feasibility.md](notes/2026-07-31-ios-pip-feasibility.md)。
 - **真机未验证**（手势手感、HLS 联网切档、Android PiP 实际行为、iOS 整体播放）
   承自 0.1.0，并入阶段 D 一并验证。
-- **锁定态无法解锁**：`LockMaskComponent`（`lib/src/ui/components/overlays.dart`）
+- **锁定态无法解锁**：`MovaLockMaskComponent`（`lib/src/ui/components/overlays.dart`）
   的注释里早已写明这是刻意的范围缩减——只吞点击、不提供任何解锁交互，0.1.0
   "点一下锁屏图层短暂弹出解锁按钮"的完整流程被推迟。阶段 B Windows 实跑
   （2026-07-31）验证到：锁定后确实连 UI 都无法解锁，只能重启应用。留待阶段 D

@@ -22,7 +22,7 @@ void main() {
   ///
   /// 构造一个以本用例临时目录为根的磁盘缓存。
   MovaDiskThumbCache cache({int maxBytes = 1 << 20}) => MovaDiskThumbCache(
-        dir: FixedThumbDirProvider(tmp.path),
+        dir: MovaFixedThumbDirProvider(tmp.path),
         maxBytes: maxBytes,
       );
 
@@ -115,7 +115,7 @@ void main() {
   test('an unusable directory degrades to a silent no-op cache', () async {
     final blocker = File('${tmp.path}/blocker')..writeAsStringSync('x');
     final c = MovaDiskThumbCache(
-      dir: FixedThumbDirProvider('${blocker.path}/nested'),
+      dir: MovaFixedThumbDirProvider('${blocker.path}/nested'),
       maxBytes: 1 << 20,
     );
     await c.write('k', _bytes(4));

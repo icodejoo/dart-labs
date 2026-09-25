@@ -1,11 +1,11 @@
 /// A single scrolling bullet-comment ("danmaku") entry.
 ///
-/// Purely a data value — [DanmakuTrackComponent] (in `ui/components/`) is the
+/// Purely a data value — [MovaDanmakuTrackComponent] (in `ui/components/`) is the
 /// only thing that interprets [time]/[text]/[color]; core never renders.
 ///
 /// 单条滚动弹幕。
 ///
-/// 纯数据值——只有 `ui/components/` 里的 `DanmakuTrackComponent` 解释
+/// 纯数据值——只有 `ui/components/` 里的 `MovaDanmakuTrackComponent` 解释
 /// [time]/[text]/[color]；core 层从不渲染。
 class MovaDanmakuItem {
   /// The comment text.

@@ -39,13 +39,13 @@ abstract class MovaHttpFetch {
 ///
 /// 相比 `package:http` 选它是为了让预览功能不引入任何新依赖；所有失败路径都
 /// 收敛为 null，坏掉的缩略图轨绝不会冒充成播放错误。
-class IoHttpFetcher implements MovaHttpFetch {
+class MovaIoHttpFetcher implements MovaHttpFetch {
   /// Creates a fetcher with a per-request [timeout].
   ///
   /// 创建一个每请求超时为 [timeout] 的 fetcher。
   ///
   /// - [timeout]: total per-request deadline / 单次请求的总超时
-  IoHttpFetcher({this.timeout = const Duration(seconds: 10)});
+  MovaIoHttpFetcher({this.timeout = const Duration(seconds: 10)});
 
   /// Total per-request deadline.
   ///

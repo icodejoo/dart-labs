@@ -31,7 +31,7 @@ typedef MovaSttBlockCb = void Function(MovaSttBlockReason reason);
 ///
 /// Off by default (STT is expensive: model download + on-device inference).
 /// [engine] is the injection point for "which recognizer runs" — leave it
-/// `null` to get [NoopSttEngine] (no recognition happens) until a real engine
+/// `null` to get [MovaNoopSttEngine] (no recognition happens) until a real engine
 /// (e.g. a sherpa-onnx Zipformer binding from `platform_impl/`) is wired via
 /// `createMovaEngine(stt: ...)`. Only one engine is supported per player
 /// instance in this version — see
@@ -41,7 +41,7 @@ typedef MovaSttBlockCb = void Function(MovaSttBlockReason reason);
 /// 语音转字幕功能的配置。
 ///
 /// 默认关闭（STT 代价不小：模型下载 + 端上推理）。[engine] 是"用哪个识别器"
-/// 的注入点——留空得到 [NoopSttEngine]（不做任何识别），直到通过
+/// 的注入点——留空得到 [MovaNoopSttEngine]（不做任何识别），直到通过
 /// `createMovaEngine(stt: ...)` 接入真实引擎（如 `platform_impl/` 下的
 /// sherpa-onnx Zipformer 绑定）。本版本每个播放器实例只支持一个引擎——多语言
 /// 路由的预留设计见 `doc/notes/2026-08-04-stt-engine-decision.md`。
@@ -57,9 +57,9 @@ class MovaSttConfig {
   final bool enabled;
 
   /// The recognizer to feed decoded audio into; `null` means no recognition
-  /// happens (see [NoopSttEngine]).
+  /// happens (see [MovaNoopSttEngine]).
   ///
-  /// 接收解码音频的识别器；为空表示不做任何识别（见 [NoopSttEngine]）。
+  /// 接收解码音频的识别器；为空表示不做任何识别（见 [MovaNoopSttEngine]）。
   final MovaSttEngine? engine;
 
   /// Called whenever a [start] request is refused; null means stay silent.

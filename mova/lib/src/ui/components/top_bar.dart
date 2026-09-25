@@ -27,11 +27,11 @@ import 'subtitle.dart';
 /// 每个子按钮在各自 `build` 里独立判断是否显示（不适用时返回
 /// `SizedBox.shrink()`），而非由该父组件用 `if` 统一控制——这样 patch 掉某个
 /// 按钮不会影响其他按钮。
-class TopBarComponent extends MovaComp {
+class MovaTopBarComponent extends MovaComp {
   /// Creates the top-bar composite with its 6 fixed children.
   ///
   /// 创建带 6 个固定子组件的顶栏组合组件。
-  TopBarComponent();
+  MovaTopBarComponent();
 
   @override
   String get name => 'topBar';
@@ -41,13 +41,13 @@ class TopBarComponent extends MovaComp {
 
   @override
   List<MovaComp> get children => [
-        TitleComponent(),
-        PipButtonComponent(),
-        QualityButtonComponent(),
-        SubtitleButtonComponent(),
-        FitButtonComponent(),
-        OrientationButtonComponent(),
-        FullscreenButtonComponent(),
+        MovaTitleComponent(),
+        MovaPipButtonComponent(),
+        MovaQualityButtonComponent(),
+        MovaSubtitleButtonComponent(),
+        MovaFitButtonComponent(),
+        MovaOrientationButtonComponent(),
+        MovaFullscreenButtonComponent(),
       ];
 
   @override
@@ -79,11 +79,11 @@ class TopBarComponent extends MovaComp {
 /// 通过 [MovaSelect] 直接读取 [MovaState.sourceTitle]，因此标题本身变化时即
 /// 会重建——包括重新打开同一 [MovaState.type]（例如点播换点播）的另一个源，
 /// 此时 `type` 不会变化，若改为监听 `type` 则会漏掉这种情况。
-class TitleComponent extends MovaComp {
+class MovaTitleComponent extends MovaComp {
   /// Creates the title leaf component.
   ///
   /// 创建标题叶子组件。
-  TitleComponent();
+  MovaTitleComponent();
 
   @override
   String get name => 'title';
@@ -120,11 +120,11 @@ class TitleComponent extends MovaComp {
 /// 可见性跟随 [MovaState.pipSupported]——engine 在构造后不久用
 /// `MovaPipPort.isSupported()` 解析一次。因此桌面端该按钮根本不会出现，而不是
 /// 出现了点了没反应。
-class PipButtonComponent extends MovaComp {
+class MovaPipButtonComponent extends MovaComp {
   /// Creates the pip-button leaf component.
   ///
   /// 创建画中画按钮叶子组件。
-  PipButtonComponent();
+  MovaPipButtonComponent();
 
   @override
   String get name => 'pipButton';
@@ -162,11 +162,11 @@ class PipButtonComponent extends MovaComp {
 /// 复刻 0.1.0 的 `showModalBottomSheet` 清晰度选择器（`player.dart` 的
 /// `_showQualityMenu`）：底部弹出列出全部 `MovaQual`，勾选当前档位，点击
 /// 调用 [MovaApi.switchQuality]。
-class QualityButtonComponent extends MovaComp {
+class MovaQualityButtonComponent extends MovaComp {
   /// Creates the quality-button leaf component.
   ///
   /// 创建清晰度按钮叶子组件。
-  QualityButtonComponent();
+  MovaQualityButtonComponent();
 
   @override
   String get name => 'qualityButton';
@@ -245,11 +245,11 @@ class QualityButtonComponent extends MovaComp {
 ///
 /// 观看模式循环切换按钮；标签取自 [MovaApi.options] 配置的 `MovaStrs`，点击
 /// 循环 `MovaFit.contain → cover → fill → contain`。
-class FitButtonComponent extends MovaComp {
+class MovaFitButtonComponent extends MovaComp {
   /// Creates the fit-button leaf component.
   ///
   /// 创建观看模式按钮叶子组件。
-  FitButtonComponent();
+  MovaFitButtonComponent();
 
   @override
   String get name => 'fitButton';
@@ -289,11 +289,11 @@ class FitButtonComponent extends MovaComp {
 /// 非移动端（`defaultTargetPlatform` 不是 Android/iOS）不渲染任何内容——那里
 /// 强制设备方向本就无效，与画中画按钮在不支持处隐藏一致。监听
 /// [MovaState.orientation]，使切换目标跟随当前强制状态。
-class OrientationButtonComponent extends MovaComp {
+class MovaOrientationButtonComponent extends MovaComp {
   /// Creates the orientation-button leaf component.
   ///
   /// 创建方向按钮叶子组件。
-  OrientationButtonComponent();
+  MovaOrientationButtonComponent();
 
   @override
   String get name => 'orientationButton';
@@ -324,11 +324,11 @@ class OrientationButtonComponent extends MovaComp {
 /// based on [MovaState.fullscreen].
 ///
 /// 全屏切换按钮；图标依据 [MovaState.fullscreen] 在进入/退出全屏两种图形间切换。
-class FullscreenButtonComponent extends MovaComp {
+class MovaFullscreenButtonComponent extends MovaComp {
   /// Creates the fullscreen-button leaf component.
   ///
   /// 创建全屏按钮叶子组件。
-  FullscreenButtonComponent();
+  MovaFullscreenButtonComponent();
 
   @override
   String get name => 'fullscreenButton';

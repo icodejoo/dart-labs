@@ -22,14 +22,14 @@ import '../slots/slot.dart';
 /// 由宿主接线：宿主构造一个 [MovaPlistCtrl] 传入（例如经皮肤补丁），因为
 /// 运行时下标在控制器上、不在 [MovaApi] 上。显隐由节流进度流对比
 /// [MovaState.duration] 与 [MovaPlistConfig.nextUpLeadTime] 决定。
-class NextUpComponent extends MovaComp {
+class MovaNextUpComponent extends MovaComp {
   /// Creates the next-up card bound to [controller].
   ///
   /// 创建绑定到 [controller] 的下一集卡片。
   ///
   /// - [controller]: the playlist controller driving navigation / 驱动导航的
   ///   播放列表控制器
-  NextUpComponent(this.controller);
+  MovaNextUpComponent(this.controller);
 
   /// The playlist controller this card reads and drives.
   ///
@@ -49,10 +49,10 @@ class NextUpComponent extends MovaComp {
   }
 }
 
-/// Stateful body of [NextUpComponent]: tracks visibility from progress ticks
+/// Stateful body of [MovaNextUpComponent]: tracks visibility from progress ticks
 /// and resets when the controller moves to another item.
 ///
-/// [NextUpComponent] 的有状态主体：依进度 tick 跟踪显隐，并在控制器切到另一项
+/// [MovaNextUpComponent] 的有状态主体：依进度 tick 跟踪显隐，并在控制器切到另一项
 /// 时重置。
 class _NextUpView extends StatefulWidget {
   /// Creates the internal next-up view.

@@ -9,7 +9,7 @@
 **Architecture:** 窗口/落后量/是否在边缘三件事抽成 `lib/src/core/live/timeshift.dart` 的纯函数
 （可单测、可注入覆盖）；`MovaEngine` 只做归约与门控，不含时移算术。`dvr` 模式复用内核原生 seek，
 `timeshift` 模式在 `seek()` 里用宿主提供的 `urlBuilder` 生成带起播时间的 URL 重开源。UI 侧
-`LiveBarComponent` 复用点播的 `SeekBarComponent`（DESIGN §5.4「一个组件同时服务 VOD 与可拖直播」），
+`LiveBarComponent` 复用点播的 `MovaSeekBarComponent`（DESIGN §5.4「一个组件同时服务 VOD 与可拖直播」），
 新增时移标签，`liveBadge` 按是否在边缘换配色与文案。
 
 **Tech Stack:** Dart 3.12.2 / Flutter ≥3.3、media_kit ^1.2.6、media_kit_video ^2.0.1、flutter_test。
@@ -102,10 +102,10 @@ brightness/PiP/orientation`（commit `9c2d4f0`）落地之后为 94 项测试全
 
 | 文件 | 改动 | 任务 |
 |---|---|---|
-| `lib/src/ui/components/bottom_bar.dart` | `SeekBarComponent` 的量程按直播窗口取值 | Task 6 |
+| `lib/src/ui/components/bottom_bar.dart` | `MovaSeekBarComponent` 的量程按直播窗口取值 | Task 6 |
 | `lib/src/ui/components/live_bar.dart` | 加 `seekBar` 与 `timeshift`，`liveBadge` 按边缘态变样，`backToEdge` → `backToLive` | Task 6 |
 | `lib/src/ui/skins/default_skin.dart` | 直播分支传 `seekable` | Task 6 |
-| `lib/src/ui/components/top_bar.dart` | `PipButtonComponent` 按能力位隐藏 | Task 8 |
+| `lib/src/ui/components/top_bar.dart` | `MovaPipButtonComponent` 按能力位隐藏 | Task 8 |
 
 **发布收尾（阶段 D）**
 
@@ -1308,11 +1308,11 @@ DESIGN §8 的 UI 部分 + §5.4 的直播树 `bottomBar/{liveBadge, seekBar, ti
 
 三处语义变更，都是**刻意的破坏性变更**（0.2.0 尚未发布，可接受，Task 12 写进 CHANGELOG）：
 
-1. `BackToEdgeComponent`（name `backToEdge`，调 `api.reload()`）→ `BackToLiveComponent`
+1. `BackToEdgeComponent`（name `backToEdge`，调 `api.reload()`）→ `MovaBackToLiveComponent`
    （name `backToLive`，调 `api.backToLiveEdge()`）。patch 路径 `bottomBar/backToEdge`
    随之变为 `bottomBar/backToLive`。
 2. `MovaStrs.backToEdge` 删除——它的唯一使用点被 `MovaStrs.backToLive` 取代，留着就是死配置。
-3. `SeekBarComponent` 的量程：直播可拖时取 `seekableWindow`，其余取 `duration`。
+3. `MovaSeekBarComponent` 的量程：直播可拖时取 `seekableWindow`，其余取 `duration`。
 
 **Files:**
 - Modify: `lib/src/ui/components/live_bar.dart`, `lib/src/ui/components/bottom_bar.dart`,
@@ -1326,9 +1326,9 @@ DESIGN §8 的 UI 部分 + §5.4 的直播树 `bottomBar/{liveBadge, seekBar, ti
 - Produces:
   - `MovaTheme.timeshiftBadgeColor`（默认 `0xFF616161`）
   - `class LiveBarComponent extends MovaComp { LiveBarComponent({bool seekable = false}); final bool seekable; }`
-  - `class TimeshiftLabelComponent extends MovaComp`（name `'timeshift'`）
-  - `class BackToLiveComponent extends MovaComp`（name `'backToLive'`）
-  - `LiveBadgeComponent` 按 `timeshiftBehind` 切换配色/文案（类名与 name 不变）
+  - `class MovaTimeshiftLabelComponent extends MovaComp`（name `'timeshift'`）
+  - `class MovaBackToLiveComponent extends MovaComp`（name `'backToLive'`）
+  - `MovaLiveBadgeComponent` 按 `timeshiftBehind` 切换配色/文案（类名与 name 不变）
 
 - [x] **Step 1: 改写并追加 `test/ui/live_bar_test.dart`**
 
@@ -1528,10 +1528,10 @@ class LiveBarComponent extends MovaComp {
   // 永不错位；变化的只是是否布置。
   @override
   List<MovaComp> get children => [
-        LiveBadgeComponent(),
-        SeekBarComponent(),
-        TimeshiftLabelComponent(),
-        BackToLiveComponent(),
+        MovaLiveBadgeComponent(),
+        MovaSeekBarComponent(),
+        MovaTimeshiftLabelComponent(),
+        MovaBackToLiveComponent(),
       ];
 
   @override
@@ -1564,11 +1564,11 @@ class LiveBarComponent extends MovaComp {
 ///
 /// 配色与文案都取自配置（[MovaTheme.accentColor] / [MovaTheme.timeshiftBadgeColor]、
 /// [MovaStrs.live] / [MovaStrs.timeshift]）。
-class LiveBadgeComponent extends MovaComp {
+class MovaLiveBadgeComponent extends MovaComp {
   /// Creates the live-badge leaf component.
   ///
   /// 创建直播角标叶子组件。
-  LiveBadgeComponent();
+  MovaLiveBadgeComponent();
 
   @override
   String get name => 'liveBadge';
@@ -1617,11 +1617,11 @@ class LiveBadgeComponent extends MovaComp {
 ///
 /// 处于直播边缘时不渲染任何内容，因此在用户真正回看之前，底栏与普通直播流
 /// 在视觉上完全一致。
-class TimeshiftLabelComponent extends MovaComp {
+class MovaTimeshiftLabelComponent extends MovaComp {
   /// Creates the timeshift-label leaf component.
   ///
   /// 创建时移标签叶子组件。
-  TimeshiftLabelComponent();
+  MovaTimeshiftLabelComponent();
 
   @override
   String get name => 'timeshift';
@@ -1666,11 +1666,11 @@ class TimeshiftLabelComponent extends MovaComp {
 /// **具体怎么回**完全交给 [MovaApi.backToLiveEdge]，由
 /// `MovaLiveConfig.effectiveBackToLive` 决定（DVR 跳到窗口末端，时移则重开原始
 /// 地址）。它取代了 0.1.0 里无条件调用 `reload()` 的 `backToEdge` 按钮。
-class BackToLiveComponent extends MovaComp {
+class MovaBackToLiveComponent extends MovaComp {
   /// Creates the back-to-live leaf component.
   ///
   /// 创建回到直播叶子组件。
-  BackToLiveComponent();
+  MovaBackToLiveComponent();
 
   @override
   String get name => 'backToLive';
@@ -1695,9 +1695,9 @@ class BackToLiveComponent extends MovaComp {
 }
 ```
 
-- [x] **Step 5: `SeekBarComponent` 量程改为按流类型取值**
+- [x] **Step 5: `MovaSeekBarComponent` 量程改为按流类型取值**
 
-`lib/src/ui/components/bottom_bar.dart` 的 `SeekBarComponent.build` 替换为：
+`lib/src/ui/components/bottom_bar.dart` 的 `MovaSeekBarComponent.build` 替换为：
 
 ```dart
   @override
@@ -1728,7 +1728,7 @@ class BackToLiveComponent extends MovaComp {
 `lib/src/ui/skins/default_skin.dart` 的 `components(MovaState s)` 里，把
 
 ```dart
-        s.type == MovaStreamType.live ? LiveBarComponent() : BottomBarComponent(),
+        s.type == MovaStreamType.live ? LiveBarComponent() : MovaBottomBarComponent(),
 ```
 
 改为
@@ -1736,7 +1736,7 @@ class BackToLiveComponent extends MovaComp {
 ```dart
         s.type == MovaStreamType.live
             ? LiveBarComponent(seekable: s.liveSeekable)
-            : BottomBarComponent(),
+            : MovaBottomBarComponent(),
 ```
 
 - [x] **Step 7: 跑测试与分析**
@@ -1778,7 +1778,7 @@ git commit -m "feat(mova): add seek bar, timeshift indicator and back-to-live bu
 - Test: `test/ui/gesture_test.dart`（追加 4 项，不动既有 4 项）
 
 **Interfaces:**
-- Consumes: `GestureLayerComponent`、`MovaState.liveSeekable`、`MovaGestConfig.allowWhenLive`
+- Consumes: `MovaGestureLayerComponent`、`MovaState.liveSeekable`、`MovaGestConfig.allowWhenLive`
 - Produces: 无
 
 - [x] **Step 1: 追加失败测试到 `test/ui/gesture_test.dart`**
@@ -1794,7 +1794,7 @@ git commit -m "feat(mova): add seek bar, timeshift indicator and back-to-live bu
       liveSeekable: true,
       seekableWindow: Duration(seconds: 300),
     ));
-    await pumpComponent(t, api, GestureLayerComponent());
+    await pumpComponent(t, api, MovaGestureLayerComponent());
     await t.drag(find.byType(GestureDetector).last, const Offset(120, 0));
     await t.pump();
     expect(api.calls, contains('seek'));
@@ -1804,7 +1804,7 @@ git commit -m "feat(mova): add seek bar, timeshift indicator and back-to-live bu
   testWidgets('horizontal drag stays blocked on a non-seekable live stream', (t) async {
     final api = FakeMovaApi();
     api.push(const MovaState(type: MovaStreamType.live));
-    await pumpComponent(t, api, GestureLayerComponent());
+    await pumpComponent(t, api, MovaGestureLayerComponent());
     await t.drag(find.byType(GestureDetector).last, const Offset(120, 0));
     await t.pump();
     expect(api.calls, isNot(contains('seek')));
@@ -1820,7 +1820,7 @@ git commit -m "feat(mova): add seek bar, timeshift indicator and back-to-live bu
       liveSeekable: true,
       seekableWindow: Duration(seconds: 300),
     ));
-    await pumpComponent(t, api, GestureLayerComponent());
+    await pumpComponent(t, api, MovaGestureLayerComponent());
     await t.drag(find.byType(GestureDetector).last, const Offset(120, 0));
     await t.pump();
     expect(api.calls, isNot(contains('seek')));
@@ -1834,7 +1834,7 @@ git commit -m "feat(mova): add seek bar, timeshift indicator and back-to-live bu
       liveSeekable: true,
       seekableWindow: Duration(seconds: 300),
     ));
-    await pumpComponent(t, seekable, GestureLayerComponent());
+    await pumpComponent(t, seekable, MovaGestureLayerComponent());
     await t.tap(find.byType(GestureDetector).last);
     await t.pump(const Duration(milliseconds: 50));
     await t.tap(find.byType(GestureDetector).last);
@@ -1844,7 +1844,7 @@ git commit -m "feat(mova): add seek bar, timeshift indicator and back-to-live bu
 
     final locked = FakeMovaApi();
     locked.push(const MovaState(type: MovaStreamType.live));
-    await pumpComponent(t, locked, GestureLayerComponent());
+    await pumpComponent(t, locked, MovaGestureLayerComponent());
     await t.tap(find.byType(GestureDetector).last);
     await t.pump(const Duration(milliseconds: 50));
     await t.tap(find.byType(GestureDetector).last);
@@ -1883,12 +1883,12 @@ git commit -m "test(mova): pin live-seek gesture gating for dvr streams"
 ## Task 8: `MovaApi.pipSupported` 同步能力位（阶段 A 遗留 backlog）
 
 阶段 A 收口 review 记下的缺口，源码注释里也写死了：`lib/src/ui/components/top_bar.dart:108-127`
-的 `PipButtonComponent` 类文档里有一整段 `GAP:` / `缺口：`，说明 `MovaApi` 没有同步的
+的 `MovaPipButtonComponent` 类文档里有一整段 `GAP:` / `缺口：`，说明 `MovaApi` 没有同步的
 「是否支持 PiP」getter，所以按钮在桌面上**永远渲染且点了没反应**。`test/ui/top_bar_test.dart:24-45`
 也把这个兜底行为写成了测试。本任务补上能力位。
 
-**与阶段 B 的关系**：`MovaEngine` 自身构造函数默认的 pip 端口仍是 `NoopPipPort`（恒 false，
-纯 Dart 单测要用），但真实的 `ChannelPipPort` 早就有人构造了——`fix(mova): wire real
+**与阶段 B 的关系**：`MovaEngine` 自身构造函数默认的 pip 端口仍是 `MovaNoopPipPort`（恒 false，
+纯 Dart 单测要用），但真实的 `MovaChannelPipPort` 早就有人构造了——`fix(mova): wire real
 platform adapters, restoring brightness/PiP/orientation`（commit `9c2d4f0`）已经补上
 `lib/src/platform_impl/wiring.dart` 的 `createMovaEngine()`，`example/lib/main.dart` 也已经
 改用它，这与阶段 B 是否落地无关。本任务只补 `MovaApi`/`MovaState` 上缺的同步能力位，不涉及
@@ -1901,8 +1901,8 @@ platform adapters, restoring brightness/PiP/orientation`（commit `9c2d4f0`）�
   `test/ui/top_bar_test.dart`（**删 1 项、加 2 项**）
 
 **Interfaces:**
-- Consumes: `MovaPipPort`（`core/platform/ports.dart`，已存在）、`ChannelPipPort` /
-  `ScreenBrightnessPort` / `SystemChromeOrientationPort`（`lib/src/platform_impl/*`，已存在）
+- Consumes: `MovaPipPort`（`core/platform/ports.dart`，已存在）、`MovaChannelPipPort` /
+  `MovaScreenBrightnessPort` / `MovaSystemChromeOrientationPort`（`lib/src/platform_impl/*`，已存在）
 - Produces:
   - `MovaState.pipSupported`（`bool`，默认 `false`，进 `copyWith`/`==`/`hashCode`）
   - `abstract class MovaApi { bool get pipSupported; }`
@@ -1984,14 +1984,14 @@ MovaApi)', …)` 整项），换成：
 ```dart
   testWidgets('pip button is hidden when the platform reports no pip support', (t) async {
     final api = FakeMovaApi()..pipSupported = false;
-    await pumpComponent(t, api, TopBarComponent());
+    await pumpComponent(t, api, MovaTopBarComponent());
     expect(find.byIcon(Icons.picture_in_picture_alt_rounded), findsNothing);
     await api.dispose();
   });
 
   testWidgets('pip button shows and enters pip when supported', (t) async {
     final api = FakeMovaApi()..pipSupported = true;
-    await pumpComponent(t, api, TopBarComponent());
+    await pumpComponent(t, api, MovaTopBarComponent());
     await t.tap(find.byIcon(Icons.picture_in_picture_alt_rounded));
     await t.pump();
     expect(api.calls, contains('enterPip'));
@@ -2077,9 +2077,9 @@ Expected: FAIL — `The named parameter 'pipSupported' isn't defined`（`MovaSta
     );
 ```
 
-- [x] **Step 6: `PipButtonComponent` 按能力位隐藏，`FakeMovaApi` 补镜像**
+- [x] **Step 6: `MovaPipButtonComponent` 按能力位隐藏，`FakeMovaApi` 补镜像**
 
-`lib/src/ui/components/top_bar.dart`：把 `PipButtonComponent` 类文档里从 `/// GAP:` 到
+`lib/src/ui/components/top_bar.dart`：把 `MovaPipButtonComponent` 类文档里从 `/// GAP:` 到
 `/// 报告。` 的整段缺口说明**删掉**，换成：
 
 ```dart
@@ -2547,7 +2547,7 @@ git commit -m "feat(mova): add live and timeshift demos to the example app"
 
 | 旧 | 新 | 说明 |
 |---|---|---|
-| `BackToEdgeComponent`（name `backToEdge`） | `BackToLiveComponent`（name `backToLive`） | patch 路径 `bottomBar/backToEdge` → `bottomBar/backToLive`；行为由 `reload()` 改为 `backToLiveEdge()` |
+| `BackToEdgeComponent`（name `backToEdge`） | `MovaBackToLiveComponent`（name `backToLive`） | patch 路径 `bottomBar/backToEdge` → `bottomBar/backToLive`；行为由 `reload()` 改为 `backToLiveEdge()` |
 | `MovaStrs.backToEdge` | `MovaStrs.backToLive` | 前者删除 |
 | `LiveBarComponent()` | `LiveBarComponent({bool seekable = false})` | 新增可选参数，旧写法仍可编译 |
 
@@ -2581,7 +2581,7 @@ final engine = MovaEngine(
 
 再补一节「平台端口」，说明 `MovaEngine()` 裸构造默认走 noop 端口（供纯 Dart 单测使用），
 应用代码应改用 `lib/src/platform_impl/wiring.dart` 的 `createMovaEngine()`——它默认接好
-`ScreenBrightnessPort()` / `ChannelPipPort()` / `SystemChromeOrientationPort()`，且与
+`MovaScreenBrightnessPort()` / `MovaChannelPipPort()` / `MovaSystemChromeOrientationPort()`，且与
 阶段 B/C 谁先落地无关；若阶段 B 已落地，`createMovaEngine()` 还会多接好预览相关的端口。
 
 - [x] **Step 3: SPEC**
@@ -2683,7 +2683,7 @@ Run: `cd example && flutter run -d <android-device-id>`
 
 1. 点播 mp4 能播、能暂停、进度条走。
 2. **左半屏竖滑改音量**、**右半屏竖滑改亮度**（侧别与 media_kit 内置相反，这是刻意的，
-   不要"修正"）。亮度必须真的改屏幕亮度——若无反应，说明 `ScreenBrightnessPort` 没接上
+   不要"修正"）。亮度必须真的改屏幕亮度——若无反应，说明 `MovaScreenBrightnessPort` 没接上
    （见 Task 8 Step 7）。
 3. 横滑改进度、双击左右快退快进 10s、双指缩放。
 4. 控制条 3 秒自动隐藏；点一下重新出现。

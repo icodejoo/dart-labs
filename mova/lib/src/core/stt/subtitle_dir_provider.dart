@@ -37,13 +37,13 @@ abstract class MovaSttSubDirProv {
 /// 恒定返回同一路径的 [MovaSttSubDirProv]。
 ///
 /// 既支持宿主固定字幕缓存位置，也让测试无需依赖插件通道。
-class FixedSttSubtitleDirProvider implements MovaSttSubDirProv {
+class MovaFixedSttSubtitleDirProvider implements MovaSttSubDirProv {
   /// Creates a provider pinned to [path].
   ///
   /// 创建一个固定指向 [path] 的 provider。
   ///
   /// - [path]: absolute cache directory path / 缓存目录的绝对路径
-  const FixedSttSubtitleDirProvider(this.path);
+  const MovaFixedSttSubtitleDirProvider(this.path);
 
   /// The fixed cache directory path.
   ///

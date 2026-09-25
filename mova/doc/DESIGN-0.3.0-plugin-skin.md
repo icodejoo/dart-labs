@@ -164,9 +164,9 @@ mixin MovaPlugin<T extends StatefulWidget> on State<T> {
 > **连带的接口变化**：`MovaSkin.components(MovaState s)` → `MovaSkin.components()`（去掉 state 参数，
 > 返回固定组件集）。补丁只需应用一次。
 >
-> **连带的命名问题**：现在 `LiveBarComponent` 与 `BottomBarComponent` 共用顶层 `name='bottomBar'`
+> **连带的命名问题**：现在 `LiveBarComponent` 与 `MovaBottomBarComponent` 共用顶层 `name='bottomBar'`
 > 作为 VOD/直播的替换点——静态树里同名会让补丁定位歧义。落地时**合并为一个自适应
-> `BottomBarComponent`**（内部 `MovaSelect((s)=>s.type)` 决定出直播条还是点播条内容），
+> `MovaBottomBarComponent`**（内部 `MovaSelect((s)=>s.type)` 决定出直播条还是点播条内容），
 > 保留单一 `bottomBar` 名给补丁；这也顺带消掉"两套都 mount"里更重的那半。
 
 ---
@@ -287,7 +287,7 @@ gesture, hud, top, center, bottomAbove, bottom, overlay, left, right
 - **MovaComp**：契约文档补"插槽无关"一条；现有组件抽查是否有写死方位的（`center_play` 用
   `Center`、`_LockToggleButton` 用 `Align(centerRight)`——后者在常驻层，属骨架不属组件，OK）。
 - **MovaSkin/MovaDefSkin**：`assemble` 拆成三个受保护方法；`components(state)` → 无参
-  `components()`（组件树静态化）；`LiveBarComponent`/`BottomBarComponent` 合并为一个自适应
+  `components()`（组件树静态化）；`LiveBarComponent`/`MovaBottomBarComponent` 合并为一个自适应
   底栏组件（内部按 `type` 自渲染）。补丁系统的应用时机从"每次状态变"降为"一次"。这是本次
   代码量主要来源，但集中在皮肤 + 底栏两个文件。
 - **MovaSlot**：加两枚举值 + `buildSlots` 处理；`assemble` 骨架决定 left/right 渲染到哪。

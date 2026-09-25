@@ -11,7 +11,7 @@ void main() {
   testWidgets('seek bar commits the dragged position on release', (t) async {
     final api = FakeMovaApi();
     api.push(const MovaState(duration: Duration(minutes: 2)));
-    await pumpComponent(t, api, BottomBarComponent());
+    await pumpComponent(t, api, MovaBottomBarComponent());
     await t.drag(find.byType(Slider), const Offset(200, 0));
     await t.pumpAndSettle();
     expect(api.calls, contains('seek'));
@@ -20,7 +20,7 @@ void main() {
 
   testWidgets('seek bar is disabled when duration is zero', (t) async {
     final api = FakeMovaApi();
-    await pumpComponent(t, api, BottomBarComponent());
+    await pumpComponent(t, api, MovaBottomBarComponent());
     expect(t.widget<Slider>(find.byType(Slider)).onChanged, isNull);
     await api.dispose();
   });
@@ -28,7 +28,7 @@ void main() {
   testWidgets('position label follows the throttled progress stream', (t) async {
     final api = FakeMovaApi();
     api.push(const MovaState(duration: Duration(minutes: 2)));
-    await pumpComponent(t, api, BottomBarComponent());
+    await pumpComponent(t, api, MovaBottomBarComponent());
     api.pushProgress(const MovaProg(position: Duration(seconds: 65)));
     await t.pump();
     await t.pump();

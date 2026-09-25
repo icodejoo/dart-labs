@@ -13,7 +13,7 @@ void main() {
   testWidgets('left vertical drag raises brightness (mainstream default)', (tester) async {
     final api = FakeMovaApi();
     api.push(const MovaState(volume: 50, brightness: 0.5));
-    await pumpComponent(tester, api, GestureLayerComponent());
+    await pumpComponent(tester, api, MovaGestureLayerComponent());
     await tester.dragFrom(const Offset(200, 300), const Offset(0, -150));
     await tester.pumpAndSettle();
     expect(api.calls, contains('setBrightness'));
@@ -29,7 +29,7 @@ void main() {
   testWidgets('right vertical drag raises volume (mainstream default)', (tester) async {
     final api = FakeMovaApi();
     api.push(const MovaState(volume: 50, brightness: 0.5));
-    await pumpComponent(tester, api, GestureLayerComponent());
+    await pumpComponent(tester, api, MovaGestureLayerComponent());
     await tester.dragFrom(const Offset(600, 300), const Offset(0, -150));
     await tester.pumpAndSettle();
     expect(api.calls, contains('setVolume'));
@@ -52,7 +52,7 @@ void main() {
       ),
     );
     api.push(const MovaState(volume: 50, brightness: 0.5));
-    await pumpComponent(tester, api, GestureLayerComponent());
+    await pumpComponent(tester, api, MovaGestureLayerComponent());
     await tester.dragFrom(const Offset(200, 300), const Offset(0, -150));
     await tester.pumpAndSettle();
     expect(api.calls, contains('setVolume'));
@@ -62,7 +62,7 @@ void main() {
 
   testWidgets('horizontal drag commits a forward seek (~90s full width)', (tester) async {
     final api = FakeMovaApi();
-    await pumpComponent(tester, api, GestureLayerComponent());
+    await pumpComponent(tester, api, MovaGestureLayerComponent());
     // +240px over an 800px width ⇒ roughly +240/800*90 ≈ 27s (minus touch slop).
     await tester.dragFrom(const Offset(400, 300), const Offset(240, 0));
     await tester.pumpAndSettle();
@@ -75,7 +75,7 @@ void main() {
   testWidgets('horizontal drag is ignored for live streams', (tester) async {
     final api = FakeMovaApi();
     api.push(const MovaState(type: MovaStreamType.live, liveSeekable: false));
-    await pumpComponent(tester, api, GestureLayerComponent());
+    await pumpComponent(tester, api, MovaGestureLayerComponent());
     await tester.dragFrom(const Offset(400, 300), const Offset(240, 0));
     await tester.pumpAndSettle();
     expect(api.calls, isNot(contains('seek')));
@@ -91,7 +91,7 @@ void main() {
       seekableWindow: Duration(minutes: 5),
       duration: Duration(minutes: 5),
     ));
-    await pumpComponent(t, api, GestureLayerComponent());
+    await pumpComponent(t, api, MovaGestureLayerComponent());
     await t.dragFrom(t.getCenter(find.byType(GestureDetector)), const Offset(100, 0));
     await t.pumpAndSettle();
     expect(api.calls, contains('seek'));
@@ -107,7 +107,7 @@ void main() {
       liveSeekable: true,
       seekableWindow: Duration(seconds: 300),
     ));
-    await pumpComponent(t, api, GestureLayerComponent());
+    await pumpComponent(t, api, MovaGestureLayerComponent());
     await t.dragFrom(t.getCenter(find.byType(GestureDetector)), const Offset(100, 0));
     await t.pumpAndSettle();
     expect(api.calls, isNot(contains('seek')));
@@ -117,7 +117,7 @@ void main() {
   testWidgets('double tap raises the seek HUD with the target duration as text '
       '(regression: toast used to render empty)', (t) async {
     final api = FakeMovaApi();
-    await pumpComponent(t, api, GestureLayerComponent());
+    await pumpComponent(t, api, MovaGestureLayerComponent());
     final size = t.getSize(find.byType(GestureDetector));
     // Tap the right half so the step seeks forward from position zero.
     final rightSide = t.getTopLeft(find.byType(GestureDetector)) +
@@ -143,7 +143,7 @@ void main() {
       liveSeekable: true,
       seekableWindow: Duration(minutes: 5),
     ));
-    await pumpComponent(t, seekable, GestureLayerComponent());
+    await pumpComponent(t, seekable, MovaGestureLayerComponent());
     final center = t.getCenter(find.byType(GestureDetector));
     await t.tapAt(center);
     await t.pump(const Duration(milliseconds: 50));
@@ -154,7 +154,7 @@ void main() {
 
     final blocked = FakeMovaApi();
     blocked.push(const MovaState(type: MovaStreamType.live, liveSeekable: false));
-    await pumpComponent(t, blocked, GestureLayerComponent());
+    await pumpComponent(t, blocked, MovaGestureLayerComponent());
     final center2 = t.getCenter(find.byType(GestureDetector));
     await t.tapAt(center2);
     await t.pump(const Duration(milliseconds: 50));

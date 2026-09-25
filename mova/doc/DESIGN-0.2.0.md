@@ -55,7 +55,7 @@ CSS 皮肤 → 组合装配。
                  ┌──────────────── core/ （行为）───────────────┐
                  │  MovaApi（抽象能力面）                          │
                  │  MovaEngine implements MovaApi                   │
-                 │    ├ MovaKernel（抽象内核）→ MpvKernel          │
+                 │    ├ MovaKernel（抽象内核）→ MovaMpvKernel          │
                  │    ├ MovaBus（broadcast + 节流/去重）           │
                  │    ├ 状态归约 → MovaState / MovaProg / MovaUiState │
                  │    ├ MovaHook 链（4 个拦截点）           │
@@ -104,7 +104,7 @@ lib/src/
       vtt.dart                         parseVttThumbs()（纯函数）
       vtt_source.dart                  MovaVttThumbSource
       extractor.dart                   MovaFramePuller 抽象
-      mpv_extractor.dart               MpvFrameExtractor（隐藏 Player）
+      mpv_extractor.dart               MovaFrameExtractor（隐藏 Player）
       cache.dart                       MovaThumbCache 抽象 + MovaTwoLevelCache
       service.dart                     MovaPrevSvc implements MovaPrevApi
       net_probe.dart                   MovaNetProbe 抽象
@@ -206,7 +206,7 @@ abstract class MovaKernel {
 }
 ```
 
-`MpvKernel` 是唯一 `import 'package:media_kit/media_kit.dart'` 的文件。
+`MovaMpvKernel` 是唯一 `import 'package:media_kit/media_kit.dart'` 的文件。
 
 ### 4.3 事件表（sealed）
 
@@ -451,7 +451,7 @@ class MovaOpts {
  ├ 磁盘命中？ → 异步读 → 显示 + 回填内存
  ├ sources 依次尝试：
  │   ├ MovaVttThumbSource：Index.cueAt(t) → 取 sprite 图（磁盘/网络）→ 按 #xywh 裁剪
- │   └ MpvFrameExtractor：hidden Player.seek(bucket) → screenshot() → JPEG
+ │   └ MovaFrameExtractor：hidden Player.seek(bucket) → screenshot() → JPEG
  └ 抽帧结果：
      ├ bucket 仍等于当前拖动桶 → 进内存 + 显示，用完落盘
      └ 已过期（拖到别处）→ 只落盘，等下次读
@@ -502,7 +502,7 @@ enum MovaPrevNet { wifiOnly, always, never }   // 默认 wifiOnly
 abstract class MovaNetProbe { Future<bool> allowHeavy(); Stream<bool> get changes; }
 ```
 
-默认实现 `ConnectivityNetProbe`（新增 `connectivity_plus`）：wifi/ethernet/vpn → 允许，
+默认实现 `MovaConnectivityNetProbe`（新增 `connectivity_plus`）：wifi/ethernet/vpn → 允许，
 mobile → 拦，unknown/桌面 → 允许（不误伤桌面）。用户可注入自己的 probe 接省流开关。
 
 ---

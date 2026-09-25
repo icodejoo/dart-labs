@@ -8,7 +8,7 @@ import '../support/pump.dart';
 void main() {
   testWidgets('shows the current rate and cycles through the fixed steps on tap', (t) async {
     final api = FakeMovaApi();
-    await pumpComponent(t, api, SpeedButtonComponent());
+    await pumpComponent(t, api, MovaSpeedButtonComponent());
 
     expect(find.text('1x'), findsOneWidget);
 
@@ -30,7 +30,7 @@ void main() {
   testWidgets('wraps from the last step back to the first', (t) async {
     final api = FakeMovaApi();
     api.push(api.state.copyWith(rate: 2.0));
-    await pumpComponent(t, api, SpeedButtonComponent());
+    await pumpComponent(t, api, MovaSpeedButtonComponent());
 
     expect(find.text('2x'), findsOneWidget);
     await t.tap(find.byIcon(Icons.speed_rounded));

@@ -79,8 +79,8 @@ LID 网关/兜底模型——架构上预留扩展点，但不在本期实现。
   文件大小跳过重复下载、逐文件进度流、任一文件失败即抛
   `MovaSttModelLoadError`——**不像预览缓存那样静默降级**，因为缺一个模型
   文件会直接挡住整个 STT 功能）、`lib/src/platform_impl/stt_model_dir_impl.dart`
-  （`TempSttModelDirProvider`，落在应用支持目录而非临时目录，避免被系统清理）。
-  复用 `IoHttpFetcher`（已在 core 里，无新依赖）。**`sha256` 字段目前只是占位**
+  （`MovaTempSttModelDirProvider`，落在应用支持目录而非临时目录，避免被系统清理）。
+  复用 `MovaIoHttpFetcher`（已在 core 里，无新依赖）。**`sha256` 字段目前只是占位**
   ——校验逻辑只做了"文件已存在且大小匹配 `sizeBytes`"这一层廉价检查，真正的哈希
   校验需要 `crypto` 包（又是一个新依赖，未评估，待定）。**磁盘按字节预算淘汰
   （同 `MovaDiskThumbCache` 的做法）尚未实现**——当前 `MovaSttModelLoader` 只有
@@ -181,12 +181,12 @@ LID 网关/兜底模型——架构上预留扩展点，但不在本期实现。
 
 ## UI（已落地一版，见下）
 
-- `SubtitleOverlayComponent`（`MovaSlot.overlay`）：渲染覆盖当前播放位置的字幕；
+- `MovaSubtitleOverlayComponent`（`MovaSlot.overlay`）：渲染覆盖当前播放位置的字幕；
   没有配置引擎时（`api.stt.languages` 为空）整体不渲染，对应
-  `PipButtonComponent` 的"不渲染死控件"约定。同时监听 `api.stt.cues`（新字幕
+  `MovaPipButtonComponent` 的"不渲染死控件"约定。同时监听 `api.stt.cues`（新字幕
   产出）与 `api.progress`（位置推进）——因为字幕可能在没有新字幕产出的情况下
   就因为 `end` 已过去而不再覆盖当前位置，只监听 `cues` 会漏掉这种情况。
-- `SubtitleButtonComponent`（`TopBarComponent` 的子组件）：同样在无引擎时不
+- `MovaSubtitleButtonComponent`（`MovaTopBarComponent` 的子组件）：同样在无引擎时不
   渲染。点击弹出底部选择器，本版本只有两行——"语言联合入口"（本版本只有
   一个引擎，所以是一整条 `zh/en` 而非每语言一行）与"关闭字幕"
   （`MovaStrs.subtitleOff`，新增字段，避免组件里出现字面量中文）。是否已
@@ -205,7 +205,7 @@ LID 网关/兜底模型——架构上预留扩展点，但不在本期实现。
   容忍常见变体（CRLF、BOM、块间空行），畸形块跳过而非抛异常。9 个测试
   （含 round-trip）。
 - `core/stt/subtitle_dir_provider.dart` + `platform_impl/stt_subtitle_dir_impl.dart`：
-  `MovaSttSubDirProv`/`TempSttSubtitleDirProvider`——与
+  `MovaSttSubDirProv`/`MovaTempSttSubtitleDirProvider`——与
   `MovaSttModelDirProv` 是**两个独立端口**（虽然默认都落在应用支持目录下的
   子文件夹），因为缓存的东西生命周期不同：字幕文件按来源 key、模型文件按
   模型 id key，宿主可能想分别清理。
@@ -221,9 +221,9 @@ LID 网关/兜底模型——架构上预留扩展点，但不在本期实现。
 - `core/stt/audio_extractor.dart` + `platform_impl/mpv_audio_extractor_impl.dart`：
   要批量转写，得先把视频的完整音轨解出来。候选方案是 mpv 的 `ao=pcm`/
   `ao-pcm-file` 音频输出驱动（借第二个无头 media_kit `Player`，跟
-  `MpvFrameExtractor` 抽帧同一套打法）。
+  `MovaFrameExtractor` 抽帧同一套打法）。
 
-  **⚠️ 2026-08-04 真机实测：方案不成立，`MpvAudioExtractor` 现有写法确认
+  **⚠️ 2026-08-04 真机实测：方案不成立，`MovaAudioExtractor` 现有写法确认
   失败。** 用 Android 真机（`STG AL00`，Android 12）跑了
   `example/lib/spike_audio_extract.dart`（10 秒测试片段
   `BigBuckBunny.mp4`）：`player.stream.completed` 60 秒内从未触发；用 `adb`

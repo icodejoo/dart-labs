@@ -8,7 +8,7 @@ import '../core/platform/ports.dart';
 ///
 /// 基于 `screen_brightness` 插件实现的 [MovaBrightPort]。读取应用当前屏幕
 /// 亮度并应用变更；插件出现任何异常时兜底为亮度 `1.0`。
-class ScreenBrightnessPort implements MovaBrightPort {
+class MovaScreenBrightnessPort implements MovaBrightPort {
   @override
   Future<double> get() async {
     try {

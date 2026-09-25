@@ -7,6 +7,7 @@ import 'package:plugin_platform_interface/plugin_platform_interface.dart';
 import 'package:mova/src/core/engine.dart';
 import 'package:mova/src/core/platform/ports.dart';
 import 'package:mova/src/core/preview/extractor.dart';
+import 'package:mova/src/core/preview/net_probe.dart';
 import 'package:mova/src/platform_impl/brightness_impl.dart';
 import 'package:mova/src/platform_impl/mpv_extractor_impl.dart';
 import 'package:mova/src/platform_impl/orientation_impl.dart';
@@ -46,6 +47,22 @@ class _FakeBrightnessPort implements MovaBrightPort {
 ///
 /// 仅用于证明显式注入的抽帧器在 `audioOnly: true` 下仍然胜出的假
 /// [MovaFramePuller]。
+/// A fake [MovaNetProbe] used only to prove that an explicit probe override
+/// is wired into [MovaOpts.preview] by `createMovaEngine`.
+///
+/// 仅用于证明显式传入的探针会被 `createMovaEngine` 接入
+/// [MovaOpts.preview] 的假 [MovaNetProbe]。
+class _FakeNetProbe implements MovaNetProbe {
+  @override
+  Future<bool> allowHeavy() async => true;
+
+  @override
+  Stream<bool> get changes => const Stream.empty();
+
+  @override
+  Future<void> dispose() async {}
+}
+
 class _FakeFramePuller implements MovaFramePuller {
   @override
   Future<Uint8List?> extract(
@@ -85,9 +102,9 @@ void main() {
       final engine = createMovaEngine(kernel: FakeKernel());
       addTearDown(engine.dispose);
 
-      expect(engine.debugBrightnessPort, isA<ScreenBrightnessPort>());
-      expect(engine.debugPipPort, isA<ChannelPipPort>());
-      expect(engine.debugOrientationPort, isA<SystemChromeOrientationPort>());
+      expect(engine.debugBrightnessPort, isA<MovaScreenBrightnessPort>());
+      expect(engine.debugPipPort, isA<MovaChannelPipPort>());
+      expect(engine.debugOrientationPort, isA<MovaSystemChromeOrientationPort>());
     });
 
     test('an explicitly injected port overrides the real-adapter default', () {
@@ -102,8 +119,8 @@ void main() {
       // Ports that weren't overridden still get the real adapter.
       //
       // 未被覆盖的端口仍然接入真实适配器。
-      expect(engine.debugPipPort, isA<ChannelPipPort>());
-      expect(engine.debugOrientationPort, isA<SystemChromeOrientationPort>());
+      expect(engine.debugPipPort, isA<MovaChannelPipPort>());
+      expect(engine.debugOrientationPort, isA<MovaSystemChromeOrientationPort>());
     });
 
     test('audioOnly leaves the frame-extraction fallback unwired', () {
@@ -113,18 +130,33 @@ void main() {
       expect(
         engine.debugExtractor,
         isNull,
-        reason: 'MpvFrameExtractor would open a second Player with its own '
+        reason: 'MovaFrameExtractor would open a second Player with its own '
             'VideoController on first use — a whole extra video pipeline / '
-            'MpvFrameExtractor 首次使用时会新开第二个 Player 并为其建 '
+            'MovaFrameExtractor 首次使用时会新开第二个 Player 并为其建 '
             'VideoController，那是一整条额外的视频管线',
       );
     });
 
-    test('the frame extractor defaults to MpvFrameExtractor when audioOnly is off', () {
+    test('the frame extractor defaults to null even when audioOnly is off', () {
+      // Changed 2026-09-25: MovaFrameExtractor pulls in media_kit_video as a
+      // statically reachable dependency the moment createMovaEngine()
+      // references it by default, defeating tree-shaking for hosts that
+      // never use scrub preview. Hosts must now opt in explicitly.
+      //
+      // 2026-09-25 变更：MovaFrameExtractor 一旦被 createMovaEngine() 默认引用，
+      // 就会把 media_kit_video 变成静态可达依赖，让从不使用拖动预览的宿主也摇
+      // 不掉它。宿主现在必须显式 opt-in。
       final engine = createMovaEngine(kernel: FakeKernel());
       addTearDown(engine.dispose);
 
-      expect(engine.debugExtractor, isA<MpvFrameExtractor>());
+      expect(engine.debugExtractor, isNull);
+    });
+
+    test('an explicitly injected MovaFrameExtractor is wired when passed', () {
+      final engine = createMovaEngine(kernel: FakeKernel(), extractor: MovaFrameExtractor());
+      addTearDown(engine.dispose);
+
+      expect(engine.debugExtractor, isA<MovaFrameExtractor>());
     });
 
     test('an explicitly injected extractor still wins under audioOnly', () {
@@ -144,13 +176,36 @@ void main() {
       );
     });
 
+    test('preview.probe defaults to null (core falls back to MovaAlwaysAllowNetProbe)', () {
+      // Changed 2026-09-25: MovaConnectivityNetProbe pulls in connectivity_plus as
+      // a statically reachable dependency the moment createMovaEngine()
+      // references it by default, defeating tree-shaking for hosts that never
+      // enable wifiOnly preview policy. Hosts must now opt in explicitly.
+      //
+      // 2026-09-25 变更：MovaConnectivityNetProbe 一旦被 createMovaEngine() 默认
+      // 引用，就会把 connectivity_plus 变成静态可达依赖，让从不启用 wifiOnly
+      // 预览策略的宿主也摇不掉它。宿主现在必须显式 opt-in。
+      final engine = createMovaEngine(kernel: FakeKernel());
+      addTearDown(engine.dispose);
+
+      expect(engine.options.preview.probe, isNull);
+    });
+
+    test('an explicitly injected probe is wired into MovaOpts.preview', () {
+      final probe = _FakeNetProbe();
+      final engine = createMovaEngine(kernel: FakeKernel(), probe: probe);
+      addTearDown(engine.dispose);
+
+      expect(engine.options.preview.probe, same(probe));
+    });
+
     test('audioOnly does not disturb the other platform ports', () {
       final engine = createMovaEngine(kernel: FakeKernel(), audioOnly: true);
       addTearDown(engine.dispose);
 
-      expect(engine.debugBrightnessPort, isA<ScreenBrightnessPort>());
-      expect(engine.debugPipPort, isA<ChannelPipPort>());
-      expect(engine.debugOrientationPort, isA<SystemChromeOrientationPort>());
+      expect(engine.debugBrightnessPort, isA<MovaScreenBrightnessPort>());
+      expect(engine.debugPipPort, isA<MovaChannelPipPort>());
+      expect(engine.debugOrientationPort, isA<MovaSystemChromeOrientationPort>());
     });
   });
 
@@ -162,8 +217,8 @@ void main() {
     final engine = MovaEngine(kernel: FakeKernel());
     addTearDown(engine.dispose);
 
-    expect(engine.debugBrightnessPort, isA<FallbackBrightnessPort>());
-    expect(engine.debugPipPort, isA<NoopPipPort>());
-    expect(engine.debugOrientationPort, isA<NoopOrientationPort>());
+    expect(engine.debugBrightnessPort, isA<MovaFallbackBrightnessPort>());
+    expect(engine.debugPipPort, isA<MovaNoopPipPort>());
+    expect(engine.debugOrientationPort, isA<MovaNoopOrientationPort>());
   });
 }

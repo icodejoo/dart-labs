@@ -2,9 +2,9 @@
 
 **Goal:** 让 `MovaKernel` / `MovaEngine` / `createMovaEngine()` 能以 `audioOnly: true` 构造。此时**不建视频管线**（不 `VideoController(_player)`、不注册 Flutter Texture、不落地隐藏抽帧 player），`renderHandle` 为 `null`，UI 层不崩且能渲染占位或宿主自定义 `surface`。默认 `false`，关闭时行为与今天逐字节相同。
 
-**Architecture:** 本计划**不新增任何类、不新增任何配置节、不新增任何文件到 `lib/`**。它的全部内容是：放宽一处返回类型的可空性、给两个构造函数各加一个 `bool` 参数、把它透传一层，外加文档与测试。依据见 `doc/notes/2026-09-16-audio-only-feasibility.md` §2.1 的决定性发现——media_kit 的 `Player()` 默认就是 `--vid=no`，是 `MpvKernel` 构造里那一句无条件的 `VideoController(_player)` 把视频管线打开的。**不建那个对象，libmpv 就已经是纯音频播放器。**
+**Architecture:** 本计划**不新增任何类、不新增任何配置节、不新增任何文件到 `lib/`**。它的全部内容是：放宽一处返回类型的可空性、给两个构造函数各加一个 `bool` 参数、把它透传一层，外加文档与测试。依据见 `doc/notes/2026-09-16-audio-only-feasibility.md` §2.1 的决定性发现——media_kit 的 `Player()` 默认就是 `--vid=no`，是 `MovaMpvKernel` 构造里那一句无条件的 `VideoController(_player)` 把视频管线打开的。**不建那个对象，libmpv 就已经是纯音频播放器。**
 
-**为什么不加 `MovaAudioConfig`：** 笔记 §2.3 提了"加一个 `MovaAudioConfig` 或直接在 `createMovaEngine()` 上加 `audioOnly` 参数都顺理成章"。结论取后者。`MovaOpts` 的语义是**运行期可 `copyWith` 替换的配置**（12 节全部如此），而 `audioOnly` 是**引擎构造期一次性的资源决策**：`MpvKernel` 的 `VideoController` 是 `late final`、构造期绑死，`copyWith` 一个 `audioOnly: true` 进来无法生效，放进 `MovaOpts` 等于造一个骗人的口子。Task 4 为此留了一条对账测试（`MovaOpts` 的配置节数量必须仍是 12）。
+**为什么不加 `MovaAudioConfig`：** 笔记 §2.3 提了"加一个 `MovaAudioConfig` 或直接在 `createMovaEngine()` 上加 `audioOnly` 参数都顺理成章"。结论取后者。`MovaOpts` 的语义是**运行期可 `copyWith` 替换的配置**（12 节全部如此），而 `audioOnly` 是**引擎构造期一次性的资源决策**：`MovaMpvKernel` 的 `VideoController` 是 `late final`、构造期绑死，`copyWith` 一个 `audioOnly: true` 进来无法生效，放进 `MovaOpts` 等于造一个骗人的口子。Task 4 为此留了一条对账测试（`MovaOpts` 的配置节数量必须仍是 12）。
 
 **为什么不加 `MovaStreamType.audio`：** 同笔记 §4 第 3 条的倾向——"音频"是引擎的资源形态，不是源的流类型。同一条 `audioOnly` 引擎可以既放 vod 音频也放 live 音频；同一条纯音频 URL 也完全可以在普通引擎上播（只是白背视频管线）。两者正交，混进 `MovaSource` 会造出 2×2 的无意义组合。
 
@@ -25,8 +25,8 @@
 - 注释规则（`CLAUDE.md`）：每个类/方法/getter/字段都要注释，**先英文一句、空行、后中文**；公开 API 用 `///`，带参数/返回/示例。本计划代码块里的注释按原样抄。
 - 校验用 `flutter analyze`（0 issues），不用 `flutter build`。每个 Task 结束 `flutter test` 全绿再 commit，信息用 `type(mova): message`。
 - **既有 535 项测试一项都不许删、不许改断言。** 只允许因新增可选参数/放宽可空性而做纯增量修改（Task 1 一处：`test/support/fake_kernel.dart`）。
-- **默认关闭是硬约束**：`audioOnly` 默认 `false`；为 `false` 时 `MpvKernel`/`MovaEngine`/`createMovaEngine()` 的行为必须与今天逐字节相同。每个 Task 都要有一条"关闭时行为不变"的测试。
-- **不新增公开类**：本计划结束后 `lib/mova.dart` barrel **一行不变**。`MovaKernel`/`MpvKernel` 保持不导出（`MpvKernel` 的构造参数 `Player? player` 会把 media_kit 类型泄进公开 API，这是它一直不导出的原因；`audioOnly` 参数就是留给宿主的那扇门）。
+- **默认关闭是硬约束**：`audioOnly` 默认 `false`；为 `false` 时 `MovaMpvKernel`/`MovaEngine`/`createMovaEngine()` 的行为必须与今天逐字节相同。每个 Task 都要有一条"关闭时行为不变"的测试。
+- **不新增公开类**：本计划结束后 `lib/mova.dart` barrel **一行不变**。`MovaKernel`/`MovaMpvKernel` 保持不导出（`MovaMpvKernel` 的构造参数 `Player? player` 会把 media_kit 类型泄进公开 API，这是它一直不导出的原因；`audioOnly` 参数就是留给宿主的那扇门）。
 
 ## 现状核实（2026-09-16 重新对行号）
 
@@ -35,9 +35,9 @@
 | 笔记中的定位 | 笔记给的行号 | 实际行号 | 结论 |
 |---|---|---|---|
 | `MovaKernel.renderHandle`（非空） | `kernel.dart:148` | `kernel.dart:148` | ✅ 准确 |
-| `MpvKernel` 构造里的 `VideoController(_player)` | `mpv_kernel.dart:29-30` | `mpv_kernel.dart:29-30` | ✅ 准确 |
-| `MpvKernel.renderHandle` | `mpv_kernel.dart:152` | `mpv_kernel.dart:152` | ✅ 准确 |
-| `MpvKernel.screenshot()` | `mpv_kernel.dart:117` | `mpv_kernel.dart:117` | ✅ 准确 |
+| `MovaMpvKernel` 构造里的 `VideoController(_player)` | `mpv_kernel.dart:29-30` | `mpv_kernel.dart:29-30` | ✅ 准确 |
+| `MovaMpvKernel.renderHandle` | `mpv_kernel.dart:152` | `mpv_kernel.dart:152` | ✅ 准确 |
+| `MovaMpvKernel.screenshot()` | `mpv_kernel.dart:117` | `mpv_kernel.dart:117` | ✅ 准确 |
 | `MovaApi.renderHandle`（已可空） | `api.dart:71` | `api.dart:71` | ✅ 准确 |
 | `MovaEngine.renderHandle` | `engine.dart:74` | `engine.dart:74` | ✅ 准确 |
 | `MovaSwapEngine.renderHandle` | `swap_engine.dart:161` | `swap_engine.dart:161` | ✅ 准确 |
@@ -48,7 +48,7 @@
 | 测试替身 `Object? renderHandle` | `fake_api.dart:182` | `fake_api.dart:184` | ⚠️ 偏移 2 行 |
 | 测试基线 | "289 可能不准" | **535** | ⚠️ **已过时** |
 
-**笔记漏掉的一项（本计划新增处理）：** `createMovaEngine()` 在 `wiring.dart:122` 无条件传 `extractor ?? MpvFrameExtractor()`。`MpvFrameExtractor` 内部会在首次 `extract()` 时建**第二个** `Player()` **并且 `VideoController(player)`**（`mpv_extractor_impl.dart:93-94`）——这是一条完整的第二路视频管线。它是惰性的，只有拖动预览真正触发抽帧兜底才会落地，但在 `audioOnly` 引擎上它 100% 是无意义开销（音频没有帧）。**Task 3 把它一并关掉**，否则"不建视频管线"这句话在 `createMovaEngine()` 这条路上是半真的。
+**笔记漏掉的一项（本计划新增处理）：** `createMovaEngine()` 在 `wiring.dart:122` 无条件传 `extractor ?? MovaFrameExtractor()`。`MovaFrameExtractor` 内部会在首次 `extract()` 时建**第二个** `Player()` **并且 `VideoController(player)`**（`mpv_extractor_impl.dart:93-94`）——这是一条完整的第二路视频管线。它是惰性的，只有拖动预览真正触发抽帧兜底才会落地，但在 `audioOnly` 引擎上它 100% 是无意义开销（音频没有帧）。**Task 3 把它一并关掉**，否则"不建视频管线"这句话在 `createMovaEngine()` 这条路上是半真的。
 
 ## 文件结构
 
@@ -141,7 +141,7 @@
 1. 先写失败测试（见下），确认 `FakeKernel(renderHandle: null)` 今天连编译都过不了（`Object` 不接受 `null`）。
 2. 改 `kernel.dart:148` 的返回类型与文档注释。
 3. 改 `fake_kernel.dart` 的 `renderHandle` 为稳定字段 + 可注入构造参数。
-4. `flutter analyze` 确认无连带破坏——重点看 `MpvKernel`（返回 `Object` 仍满足 `Object?`，不是破坏性改动）与 `MovaEngine.renderHandle`（本就可空）。
+4. `flutter analyze` 确认无连带破坏——重点看 `MovaMpvKernel`（返回 `Object` 仍满足 `Object?`，不是破坏性改动）与 `MovaEngine.renderHandle`（本就可空）。
 5. `flutter test`。
 
 **单测要求（`test/core/kernel_contract_test.dart` 追加 4 项）：**
@@ -154,7 +154,7 @@
 
 ---
 
-## Task 2: `MpvKernel({bool audioOnly = false})` — 不建视频管线
+## Task 2: `MovaMpvKernel({bool audioOnly = false})` — 不建视频管线
 
 本计划的核心。改动只有三处：不建 `VideoController`、`renderHandle` 返回 `null`、`screenshot()` 返回 `null`。
 
@@ -192,7 +192,7 @@
   /// 因此不挂接它就等于让 libmpv 只解音频：没有解码帧缓冲、没有 GPU 纹理、
   /// 没有 Flutter `Texture` 注册。这三项就是视频侧内存开销的全部，在仅音频
   /// 模式下它们是 0，而不只是变小。
-  MpvKernel({Player? player, this.audioOnly = false}) : _player = player ?? Player() {
+  MovaMpvKernel({Player? player, this.audioOnly = false}) : _player = player ?? Player() {
     if (!audioOnly) {
       _controller = VideoController(_player);
     }
@@ -232,7 +232,7 @@
   Object? get renderHandle => _controller;
 ```
 
-配套的 `FakeKernel` 具名构造（供 Task 2/3/4 复用；`MpvKernel` 本身需要 libmpv 原生库，无法在 `flutter test` 里构造，见下方"可测性说明"）：
+配套的 `FakeKernel` 具名构造（供 Task 2/3/4 复用；`MovaMpvKernel` 本身需要 libmpv 原生库，无法在 `flutter test` 里构造，见下方"可测性说明"）：
 
 ```dart
   /// Creates a fake kernel emulating an audio-only one: no render handle and
@@ -250,7 +250,7 @@
         _audioOnly = true;
 ```
 
-**可测性说明（写进本文档，不是遗漏）：** `MpvKernel` 的构造函数在 `player == null` 时会 `Player()`，需要真实 libmpv 动态库，`flutter test`（纯 Dart VM host）跑不起来；注入 `Player` 同样要原生库。所以**本仓库从来没有、本计划也不新增 `MpvKernel` 的直接单测**（`kernel_contract_test.dart` 测的一直是 `FakeKernel`）。本 Task 的验证因此分两层：
+**可测性说明（写进本文档，不是遗漏）：** `MovaMpvKernel` 的构造函数在 `player == null` 时会 `Player()`，需要真实 libmpv 动态库，`flutter test`（纯 Dart VM host）跑不起来；注入 `Player` 同样要原生库。所以**本仓库从来没有、本计划也不新增 `MovaMpvKernel` 的直接单测**（`kernel_contract_test.dart` 测的一直是 `FakeKernel`）。本 Task 的验证因此分两层：
 - **契约层**用 `FakeKernel.audioOnly()` 断言"音频内核长什么样"，后续 Task 3/4 全部站在它上面；
 - **结构层**加两条源级守卫测试，照 `test/core/purity_test.dart` 的既有先例（那也是读源文件做断言），钉死"`VideoController` 不得再被无条件构造"这一条本计划的立身之本。
 
@@ -277,7 +277,7 @@
 
 ## Task 3: `MovaEngine` / `createMovaEngine()` 透传 `audioOnly`
 
-两层透传，外加笔记漏掉的那件事：`createMovaEngine()` 在 `audioOnly` 下不再默认注入 `MpvFrameExtractor`。
+两层透传，外加笔记漏掉的那件事：`createMovaEngine()` 在 `audioOnly` 下不再默认注入 `MovaFrameExtractor`。
 
 **Files:**
 - Modify: `lib/src/core/engine.dart`, `lib/src/platform_impl/wiring.dart`
@@ -286,7 +286,7 @@
 **Produces（`engine.dart`）：**
 
 ```dart
-  /// [audioOnly] is forwarded to the default [MpvKernel] so no video pipeline
+  /// [audioOnly] is forwarded to the default [MovaMpvKernel] so no video pipeline
   /// is built; it has no effect when [kernel] is supplied, since an injected
   /// kernel is used exactly as given. There is deliberately no
   /// `MovaState.audioOnly` and no `MovaOpts` section for it: this is a
@@ -294,7 +294,7 @@
   /// once and never re-bound), and the observable runtime signal is simply
   /// `renderHandle == null`.
   ///
-  /// [audioOnly] 会透传给默认构造的 [MpvKernel]，使其不建立视频管线；当显式
+  /// [audioOnly] 会透传给默认构造的 [MovaMpvKernel]，使其不建立视频管线；当显式
   /// 传入 [kernel] 时它不起作用——注入的内核一律原样使用。这里刻意不提供
   /// `MovaState.audioOnly`，也不为它新增 `MovaOpts` 配置节：这是构造期的资源
   /// 决策（内核的渲染句柄一次绑定、永不重绑），而运行期可观测的信号就是
@@ -304,7 +304,7 @@
     bool audioOnly = false,
     this.options = const MovaOpts(),
     // …其余参数不变 / the rest unchanged
-  })  : _kernel = kernel ?? MpvKernel(audioOnly: audioOnly),
+  })  : _kernel = kernel ?? MovaMpvKernel(audioOnly: audioOnly),
         _extractor = extractor,
         // …其余初始化不变 / the rest unchanged
 ```
@@ -345,22 +345,22 @@ MovaEngine createMovaEngine({
     kernel: kernel,
     audioOnly: audioOnly,
     // …
-    // An audio-only engine has no frames, and MpvFrameExtractor would open a
+    // An audio-only engine has no frames, and MovaFrameExtractor would open a
     // *second* Player with its own VideoController on first use — a whole
     // extra video pipeline, exactly what audioOnly exists to avoid. Leave it
     // unwired unless the host insists.
     //
-    // 仅音频引擎没有帧可抽，而 MpvFrameExtractor 在首次使用时会新开**第二个**
+    // 仅音频引擎没有帧可抽，而 MovaFrameExtractor 在首次使用时会新开**第二个**
     // Player 并为其建 VideoController——那是一整条额外的视频管线，恰恰是
     // audioOnly 要避免的东西。除非宿主显式指定，否则不接线。
-    extractor: extractor ?? (audioOnly ? null : MpvFrameExtractor()),
+    extractor: extractor ?? (audioOnly ? null : MovaFrameExtractor()),
     // …
   );
 }
 ```
 
 **Steps:**
-1. `engine.dart`：加 `bool audioOnly = false` 参数（放在 `kernel` 之后、`options` 之前）、初始化列表改 `MpvKernel(audioOnly: audioOnly)`、新增 `final MovaFramePuller? _extractor` 字段与 `debugExtractor` getter（`_buildPreview` 的调用点改为传 `_extractor`，语义不变）。
+1. `engine.dart`：加 `bool audioOnly = false` 参数（放在 `kernel` 之后、`options` 之前）、初始化列表改 `MovaMpvKernel(audioOnly: audioOnly)`、新增 `final MovaFramePuller? _extractor` 字段与 `debugExtractor` getter（`_buildPreview` 的调用点改为传 `_extractor`，语义不变）。
 2. `wiring.dart`：加 `bool audioOnly = false` 参数并透传；`extractor` 默认值改为条件表达式。
 3. 补文档注释（两处 `///`，双语，带参数说明）。
 4. `flutter analyze` + `flutter test`。
@@ -369,12 +369,12 @@ MovaEngine createMovaEngine({
 
 `test/platform_impl/wiring_test.dart` 追加 4 项（复用既有的 `_FakePathProviderPlatform`）：
 1. `createMovaEngine(kernel: FakeKernel(), audioOnly: true).debugExtractor` 为 `null`。
-2. **关闭态回归护栏**：`createMovaEngine(kernel: FakeKernel()).debugExtractor` 是 `MpvFrameExtractor`（默认不变）。
+2. **关闭态回归护栏**：`createMovaEngine(kernel: FakeKernel()).debugExtractor` 是 `MovaFrameExtractor`（默认不变）。
 3. 显式注入的 `extractor` 在 `audioOnly: true` 时**仍然胜出**（宿主想自己接就能接，不被替用户做决定）。
-4. `audioOnly: true` 不影响其他端口：`debugBrightnessPort`/`debugPipPort`/`debugOrientationPort` 仍分别是 `ScreenBrightnessPort`/`ChannelPipPort`/`SystemChromeOrientationPort`。
+4. `audioOnly: true` 不影响其他端口：`debugBrightnessPort`/`debugPipPort`/`debugOrientationPort` 仍分别是 `MovaScreenBrightnessPort`/`MovaChannelPipPort`/`MovaSystemChromeOrientationPort`。
 
 `test/core/engine_test.dart` 追加 2 项：
-5. `MovaEngine(kernel: FakeKernel.audioOnly(), audioOnly: true)` 用的是**注入的那个 kernel**（`renderHandle` 为 `null`、未尝试新建 `MpvKernel`——若新建会因缺原生库直接抛，测试能跑过本身即是证明），且 `open`/`play`/`seek` 等动词照常转发到该 kernel。
+5. `MovaEngine(kernel: FakeKernel.audioOnly(), audioOnly: true)` 用的是**注入的那个 kernel**（`renderHandle` 为 `null`、未尝试新建 `MovaMpvKernel`——若新建会因缺原生库直接抛，测试能跑过本身即是证明），且 `open`/`play`/`seek` 等动词照常转发到该 kernel。
 6. **关闭态回归护栏**：`MovaEngine(kernel: FakeKernel())` 的构造签名变化不影响任何既有行为——`renderHandle` 非 null 且 `identical` 于 kernel 的句柄，`debugExtractor` 为 `null`（裸构造函数的既有默认）。
 
 **验收标准：** 550 项全绿；既有 `wiring_test.dart` 3 项、`engine_test.dart` 全部断言一条未改；`flutter analyze` 0 issues；`lib/mova.dart` 未改。
@@ -435,7 +435,7 @@ MovaEngine createMovaEngine({
     > 需要 → `just_audio` + `audio_service`。
     > 不需要（只是前台界面里放一段音频） → mova 的 `audioOnly` 模式，别多引一个插件。
   - 明确列出 mova 在音频模式下**没有**的东西：后台常驻、锁屏/通知栏、耳机线控、音频焦点、gapless、歌单。
-- **`doc/SPEC.md`**：新增「仅音频模式」一节，写清三条设计决定及其理由——① 为什么不进 `MovaOpts`（构造期决策 vs 运行期配置）；② 为什么不加 `MovaStreamType.audio`（正交概念，会造出 2×2 无意义组合）；③ 为什么不换 `media_kit_libs_*_audio`（编译期二选一，会让视频功能物理失效）。并记录 `MpvFrameExtractor` 那条"第二路视频管线"的处置。
+- **`doc/SPEC.md`**：新增「仅音频模式」一节，写清三条设计决定及其理由——① 为什么不进 `MovaOpts`（构造期决策 vs 运行期配置）；② 为什么不加 `MovaStreamType.audio`（正交概念，会造出 2×2 无意义组合）；③ 为什么不换 `media_kit_libs_*_audio`（编译期二选一，会让视频功能物理失效）。并记录 `MovaFrameExtractor` 那条"第二路视频管线"的处置。
 - **`CHANGELOG.md`**：在 0.4.0 条目下增补一条「仅音频模式（`audioOnly`）」，注明默认关闭、`renderHandle` 契约放宽为可空、`MovaAudioSkin` 与后台/锁屏集成**不在本次范围**、真机验证未进行。
 - **`CLAUDE.md`**：「当前状态」加一句 `audioOnly`；「剩余任务」加两条——`MovaAudioSkin`（第二档，若将来需要）与 Task 5 真机验证（未完成）。
 
@@ -517,7 +517,7 @@ Task 2 的全部依据是"media_kit 的 `Player` 默认 `--vid=no`，不挂 `Vid
 ### E. 回归（开关关闭态）
 
 - [ ] `audioOnly: false` 时逐条走一遍 example 的全部 demo（点播/直播/feed/广告/seamless），确认与本计划实施前行为无差异。
-- [ ] 拖动预览在 `audioOnly: false` 下仍走 `MpvFrameExtractor` 兜底（Task 3 改了它的默认注入条件，必须确认没误伤视频路径）。
+- [ ] 拖动预览在 `audioOnly: false` 下仍走 `MovaFrameExtractor` 兜底（Task 3 改了它的默认注入条件，必须确认没误伤视频路径）。
 
 ### F. 结论回写
 
@@ -528,4 +528,4 @@ Task 2 的全部依据是"media_kit 的 `Player` 默认 `--vid=no`，不挂 `Vid
 
 ---
 
-**决策与结论摘要：** 本计划共拆 **5 个 Task**（4 个代码/文档 + 1 个真机验证），测试从 **535** 推进到 **559**。核心改动小到可以一句话概括：**`kernel.dart:148` 的 `Object` 改成 `Object?`，`MpvKernel` 构造里的 `VideoController(_player)` 包一个 `if (!audioOnly)`。** 关键取舍：`audioOnly` **不进 `MovaOpts`**（构造期资源决策，`copyWith` 无法生效，放进去是骗人的口子）、**不加 `MovaStreamType.audio`**（与流类型正交）、**不新增任何公开类、barrel 一行不改**；UI 层 `_RenderSurface` **结构零改动**，音频画面通过已有的 `MovaPlayer.surface` 口子传封面/波形/歌词面，`MovaAudioSkin` 留给将来。相对笔记额外补的一件事：`createMovaEngine()` 在 `audioOnly` 下不再默认注入 `MpvFrameExtractor`——它会在首次抽帧时新开**第二个** `Player` 并为其建 `VideoController`，是一整条被笔记漏掉的视频管线。真机 checklist 六组，其中 B 组的三阶段 `dumpsys meminfo` 对账是把笔记 §1 的推算变成实测数字的唯一机会，且**明确要求即使结论与"两个数量级"不符也必须如实回写笔记**。
+**决策与结论摘要：** 本计划共拆 **5 个 Task**（4 个代码/文档 + 1 个真机验证），测试从 **535** 推进到 **559**。核心改动小到可以一句话概括：**`kernel.dart:148` 的 `Object` 改成 `Object?`，`MovaMpvKernel` 构造里的 `VideoController(_player)` 包一个 `if (!audioOnly)`。** 关键取舍：`audioOnly` **不进 `MovaOpts`**（构造期资源决策，`copyWith` 无法生效，放进去是骗人的口子）、**不加 `MovaStreamType.audio`**（与流类型正交）、**不新增任何公开类、barrel 一行不改**；UI 层 `_RenderSurface` **结构零改动**，音频画面通过已有的 `MovaPlayer.surface` 口子传封面/波形/歌词面，`MovaAudioSkin` 留给将来。相对笔记额外补的一件事：`createMovaEngine()` 在 `audioOnly` 下不再默认注入 `MovaFrameExtractor`——它会在首次抽帧时新开**第二个** `Player` 并为其建 `VideoController`，是一整条被笔记漏掉的视频管线。真机 checklist 六组，其中 B 组的三阶段 `dumpsys meminfo` 对账是把笔记 §1 的推算变成实测数字的唯一机会，且**明确要求即使结论与"两个数量级"不符也必须如实回写笔记**。

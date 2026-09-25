@@ -69,9 +69,9 @@ class MovaDouyinSkin implements MovaSkin {
 
   @override
   List<MovaComp> components() => [
-        DouyinGestureLayerComponent(controller: controller, index: index, likeNotifier: likeNotifier),
-        SocialRailComponent(item: item, controller: controller, index: index, likeNotifier: likeNotifier),
-        FeedInfoComponent(item: item),
+        MovaDouyinGestureLayerComponent(controller: controller, index: index, likeNotifier: likeNotifier),
+        MovaSocialRailComponent(item: item, controller: controller, index: index, likeNotifier: likeNotifier),
+        MovaFeedInfoComponent(item: item),
       ];
 
   @override

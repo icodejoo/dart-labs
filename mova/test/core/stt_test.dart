@@ -22,9 +22,9 @@ void main() {
     });
   });
 
-  group('NoopSttEngine', () {
+  group('MovaNoopSttEngine', () {
     test('reports no languages and emits no cues', () async {
-      final engine = NoopSttEngine();
+      final engine = MovaNoopSttEngine();
       expect(engine.languages, isEmpty);
       await expectLater(engine.cues, emitsDone);
       await engine.start(Duration.zero);
@@ -41,7 +41,7 @@ void main() {
     });
 
     test('copyWith replaces only given fields', () {
-      final engine = NoopSttEngine();
+      final engine = MovaNoopSttEngine();
       const config = MovaSttConfig();
       final updated = config.copyWith(enabled: true, engine: engine);
       expect(updated.enabled, isTrue);
@@ -50,10 +50,10 @@ void main() {
     });
 
     test('equality compares engine by identity', () {
-      final engine = NoopSttEngine();
+      final engine = MovaNoopSttEngine();
       final a = MovaSttConfig(enabled: true, engine: engine);
       final b = MovaSttConfig(enabled: true, engine: engine);
-      final c = MovaSttConfig(enabled: true, engine: NoopSttEngine());
+      final c = MovaSttConfig(enabled: true, engine: MovaNoopSttEngine());
       expect(a, b);
       expect(a, isNot(c));
     });

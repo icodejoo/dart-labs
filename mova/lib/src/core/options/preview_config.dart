@@ -62,10 +62,10 @@ class MovaPrevConfig {
   /// 何时允许运行需要联网的缩略图来源。
   final MovaPrevNet network;
 
-  /// Injected connectivity probe; null uses [AlwaysAllowNetProbe] in core and
+  /// Injected connectivity probe; null uses [MovaAlwaysAllowNetProbe] in core and
   /// the connectivity_plus probe when the host wires one in.
   ///
-  /// 注入的连通性探针；为 null 时 core 内部使用 [AlwaysAllowNetProbe]，宿主
+  /// 注入的连通性探针；为 null 时 core 内部使用 [MovaAlwaysAllowNetProbe]，宿主
   /// 接入时可换成基于 connectivity_plus 的探针。
   final MovaNetProbe? probe;
 

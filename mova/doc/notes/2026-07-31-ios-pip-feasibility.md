@@ -168,8 +168,8 @@ mpv PR #7857，2023 已合入）渲进我们自己的 IOSurface-backed `CVPixelB
   （`MovaMiniCtl`/`MovaMiniWindow`），并非"藏在 `enterPip()` 之下"的隐式降级，
   两者按需各自调用，互斥生效而非自动切换，详见 doc/SPEC.md「App 内小窗」一节的
   互斥矩阵。
-- **阶段 4 · Dart 收口**：`ChannelPipPort` 已就绪；`pipSupported` 探测在 iOS 返回
-  `true` 后 `PipButtonComponent` 自动显示；补方法通道单测（桩/假帧）。
+- **阶段 4 · Dart 收口**：`MovaChannelPipPort` 已就绪；`pipSupported` 探测在 iOS 返回
+  `true` 后 `MovaPipButtonComponent` 自动显示；补方法通道单测（桩/假帧）。
 - **阶段 5 · 真机验证**：PiP 启停、退后台续、手势/seek 同步、画质、退出恢复、与全屏/
   转屏共存。
 

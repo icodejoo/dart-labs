@@ -53,7 +53,7 @@ abstract class MovaNetProbe {
 ///
 /// 作为 core 层默认值，让未接入真实探针的宿主也能用上预览；基于插件的探针放在
 /// `lib/src/platform_impl/net_probe_impl.dart`。
-class AlwaysAllowNetProbe implements MovaNetProbe {
+class MovaAlwaysAllowNetProbe implements MovaNetProbe {
   @override
   Future<bool> allowHeavy() async => true;
 

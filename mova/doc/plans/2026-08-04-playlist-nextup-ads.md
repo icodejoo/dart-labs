@@ -25,7 +25,7 @@
 ## Part A：播放列表 + 下一集卡片（先做，风险最低）
 
 **架构：** core 出一个纯 Dart 的 `MovaPlistCtrl`（无 Flutter 依赖、可单测）+ `MovaPlistConfig`
-（`MovaOpts.playlist` 新节）；ui 出 `NextUpComponent`（挂 `MovaSlot.overlay`，按 position/duration 阈值现身）。
+（`MovaOpts.playlist` 新节）；ui 出 `MovaNextUpComponent`（挂 `MovaSlot.overlay`，按 position/duration 阈值现身）。
 换集 = 控制器调 `api.open(nextSource)`；不持有业务数据，剧集元数据由宿主给。
 
 - [x] **A1 模型 + 配置**（2026-08-04）：`core/model/playlist.dart` 的 `MovaPlistItem{source, title?, subtitle?,
@@ -39,20 +39,20 @@
   `playlist_controller_test.dart` 12 项：seed/clamp、next/prev 边界、jumpTo 越界、indexChanges、dispose 后不响应。
 - [x] **A3 自动续播**（2026-08-04）：控制器订阅 `api.events` 的 `MovaDone`——`autoPlayNext && hasNext` 时
   自动 `next()`。单测覆盖：自动前进、关掉不前进、末集不回绕、dispose 后不响应。
-- [x] **A4 下一集卡片组件**（2026-08-04）：`ui/components/next_up.dart` 的 `NextUpComponent(controller)`
+- [x] **A4 下一集卡片组件**（2026-08-04）：`ui/components/next_up.dart` 的 `MovaNextUpComponent(controller)`
   （`MovaSlot.overlay`）——`MovaPlugin` mixin `bind(api.progress)`，`duration - position <= nextUpLeadTime &&
   hasNext && !dismissed` 时淡入卡片（下一集标题/副标题/封面 + "立即播放"/"取消"），点立即播放调
   `next()`、取消置本项 dismissed，`indexChanges` 切项时重新武装。文案走 `MovaStrs`（新增 `nextUp`/`playNow`/
   `cancel`）。`next_up_test.dart` 5 项：禁用不渲染、远端隐藏、进窗现身、立即播放换源、取消不复现。
 - [ ] **A5 皮肤挂载 + example**：默认皮肤不强制挂（已确认，保持精简）；宿主经 `MovaPatch.add(MovaSlot.overlay,
-  NextUpComponent(controller))` 或自行组树挂载。**example 的 3 集播放列表 demo 待补**（本轮未做）。
+  MovaNextUpComponent(controller))` 或自行组树挂载。**example 的 3 集播放列表 demo 待补**（本轮未做）。
   全量 `flutter analyze` 0 + `flutter test` 422 项已过。
 
 ## Part B：广告（后做）
 
 **架构：** `MovaAdConfig`（`MovaOpts.ads` 新节）描述 pre/mid/post 贴片；一个 `MovaAdCtrl` 用
 `MovaHook.beforePlay` 门控正片（pre-roll 未放完不让播）+ 订阅 progress 触发 mid-roll；
-`AdOverlayComponent`（`MovaSlot.overlay`）出倒计时/跳过/点击跳转。广告播放期间 `suspend` STT/analytics 类副作用。
+`MovaAdOverlayComponent`（`MovaSlot.overlay`）出倒计时/跳过/点击跳转。广告播放期间 `suspend` STT/analytics 类副作用。
 
 - [x] **B1 模型 + 配置**（2026-08-04）：`core/model/ad.dart` 的 `MovaAdBreakKind{pre,mid,post}` + `MovaAdBreak
   {kind, source, offset, skippableAfter?, clickThroughUrl?}`（offset 仅 mid 有意义）+ `MovaAdEventType
@@ -65,7 +65,7 @@
   状态机；`skip()`/`notifyClicked()`；`changes` 流 + `isShowingAd`/`currentBreak`/`canSkip`/`skipIn` getter。
   纯函数 `dueMidRoll` 抽出可单测。`ad_controller_test.dart` 11 项（含 dueMidRoll 纯函数、pre/mid/post 流程、
   mid 不重复、skip 阈值、click 上报、dispose）。
-- [x] **B3 广告叠层**（2026-08-04）：`ui/components/ad_overlay.dart` 的 `AdOverlayComponent(controller)`
+- [x] **B3 广告叠层**（2026-08-04）：`ui/components/ad_overlay.dart` 的 `MovaAdOverlayComponent(controller)`
   （`MovaSlot.overlay`）——"广告"角标、`skippableAfter` 前显倒计时秒数/到点出"跳过广告"、整屏点按上报
   click-through。**点击跳转采用零依赖方案**（用户拍板）：只经 `onAdEvent(clicked)` 回调把
   `clickThroughUrl` 交给宿主，库不引 `url_launcher`、不自行打开 URL。文案走 `MovaStrs`（新增
@@ -79,7 +79,7 @@
   逐 tick 跟踪，作续播点）；仅在 content 阶段生效。配置侧的多个 mid-roll 任意 offset 本就支持（`dueMidRoll`
   已处理）。单测：playAdNow 插入+恢复、非 content 阶段空操作、两个任意 offset 的 mid 各触发一次且不重复。
 - [x] **B5 example**（2026-08-04）：`example/lib/main.dart` 加 `AdDemoPage`（AppBar `Icons.ad_units_rounded`
-  入口）——前贴片 + 10s 中插（均 3s 可跳过）、`AdOverlayComponent` 补进 overlay 槽、"此刻插入广告"按钮演示
+  入口）——前贴片 + 10s 中插（均 3s 可跳过）、`MovaAdOverlayComponent` 补进 overlay 槽、"此刻插入广告"按钮演示
   `playAdNow`、`onAdEvent` 事件文本展示（含 clicked → clickThroughUrl，零 url_launcher）。
   **全量 `flutter analyze` 0 + `flutter test` 442 项已过**（含新增 20 项广告测试）。**均未上真机。**
 

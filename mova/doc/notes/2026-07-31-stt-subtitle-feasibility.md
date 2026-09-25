@@ -103,7 +103,7 @@ mpv 的实时播放管线。
 
 ### 2.3 通用注入口子——不是"MCP 专用"，是复用既有模式
 
-砍掉 MCP 专项之后，缺口不需要专门补：延续 `MovaVolumePort`/`CallbackVolumePort` 那套
+砍掉 MCP 专项之后，缺口不需要专门补：延续 `MovaVolumePort`/`MovaCallbackVolumePort` 那套
 "抽象端口 + 默认实现 + 可注入覆盖"模式，宿主想在 Linux 上或想覆盖平台原生实现时，可以
 自己实现 `MovaSttEngine`（内部想接什么后端都行——云端 API、自建模型、自己的 MCP 调用），
 经 `createMovaEngine(stt: MyEngine())` 注入。这个口子**通用性比"专门集成 MCP"更强**（不
@@ -113,14 +113,14 @@ mpv 的实时播放管线。
 
 - **core 端口抽象**（`lib/src/core/`，暂拟 `MovaSttEngine`）：输入"URI + 时间范围"，输出
   带时间戳的文本片段流（**抽 PCM 这一步下沉到原生实现内部**，不在 core/Dart 侧过一遍字节，
-  见 §1）。默认实现按平台探测原生能力，探测不到则 noop/关闭（同 `FallbackBrightnessPort`
+  见 §1）。默认实现按平台探测原生能力，探测不到则 noop/关闭（同 `MovaFallbackBrightnessPort`
   的风格）；真实原生实现放 `lib/src/platform_impl/`（`NativeSttEngine` 之类，
   Android/iOS/macOS/Windows 分别实现，Linux 无实现即关闭）。
 - **音频抽取路径**：见 §1，走各平台原生轻量抽取 API（Android `MediaExtractor`+
   `MediaCodec`、iOS `AVAssetReader`），**不额外起 media_kit `Player`**，抽取与 STT 调用
   在同一次原生方法调用内完成。
 - **字幕渲染路径——待定，非已拍板**：倾向 Flutter 侧叠层组件（新增一个类似
-  `PreviewComponent` 的叠层组件，挂在既有组件树/皮肤/补丁机制上，不改变 `MovaApi` 之外的
+  `MovaPreviewComponent` 的叠层组件，挂在既有组件树/皮肤/补丁机制上，不改变 `MovaApi` 之外的
   契约）——理由是避免破坏组件化/`MovaTheme` 主题化架构、避免被画面的 `Transform.scale`/
   裁剪连带影响。但用户认为 mpv 原生字幕渲染（`libass`，喂 `sub-add`/字幕轨）路径仍可能
   有用，**要求先保留 `libass`、等瘦身构建实测出体积数字后再综合权衡**，不要现在就删。

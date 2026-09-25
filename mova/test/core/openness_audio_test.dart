@@ -40,13 +40,26 @@ void main() {
       final engine = createMovaEngine(kernel: FakeKernel());
       addTearDown(engine.dispose);
 
-      expect(engine.renderHandle, isNotNull);
       expect(
-        engine.debugExtractor,
+        engine.renderHandle,
         isNotNull,
-        reason: 'audioOnly defaults to false, so nothing about the video path '
-            'changes / audioOnly 默认 false，视频路径一切照旧',
+        reason: 'audioOnly defaults to false, so nothing about the render '
+            'handle changes / audioOnly 默认 false，渲染句柄一切照旧',
       );
+      // Changed 2026-09-25: the frame-extraction fallback (unlike the render
+      // handle) is orthogonal to audioOnly and now defaults to null
+      // regardless — MovaFrameExtractor pulls in media_kit_video as a
+      // statically reachable dependency the moment createMovaEngine()
+      // references it by default, defeating tree-shaking for hosts that
+      // never use scrub preview. See test/platform_impl/wiring_test.dart for
+      // the explicit-injection coverage.
+      //
+      // 2026-09-25 变更：抽帧兜底（与渲染句柄不同）跟 audioOnly 正交，现在
+      // 无论如何都默认 null——MovaFrameExtractor 一旦被 createMovaEngine()
+      // 默认引用，就会把 media_kit_video 变成静态可达依赖，让从不使用拖动预览
+      // 的宿主也摇不掉它。显式注入的覆盖见
+      // test/platform_impl/wiring_test.dart。
+      expect(engine.debugExtractor, isNull);
     });
 
     test('the audioOnly knob turns both the render handle and the extractor off', () {

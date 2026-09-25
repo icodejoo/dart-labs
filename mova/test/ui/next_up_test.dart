@@ -49,7 +49,7 @@ void main() {
 
   testWidgets('renders nothing when the playlist is disabled', (t) async {
     final (api, c) = build(enabled: false);
-    await pumpComponent(t, api, NextUpComponent(c));
+    await pumpComponent(t, api, MovaNextUpComponent(c));
     await tick(t, api, const Duration(seconds: 55), const Duration(seconds: 60));
     expect(find.text('即将播放'), findsNothing);
     await api.dispose();
@@ -57,7 +57,7 @@ void main() {
 
   testWidgets('stays hidden while far from the end', (t) async {
     final (api, c) = build();
-    await pumpComponent(t, api, NextUpComponent(c));
+    await pumpComponent(t, api, MovaNextUpComponent(c));
     await tick(t, api, const Duration(seconds: 10), const Duration(seconds: 60));
     expect(find.text('即将播放'), findsNothing);
     await api.dispose();
@@ -65,7 +65,7 @@ void main() {
 
   testWidgets('shows the next item once within the lead window', (t) async {
     final (api, c) = build();
-    await pumpComponent(t, api, NextUpComponent(c));
+    await pumpComponent(t, api, MovaNextUpComponent(c));
     await tick(t, api, const Duration(seconds: 55), const Duration(seconds: 60));
     expect(find.text('即将播放'), findsOneWidget);
     expect(find.text('E2'), findsOneWidget);
@@ -74,7 +74,7 @@ void main() {
 
   testWidgets('play-now opens the next source', (t) async {
     final (api, c) = build();
-    await pumpComponent(t, api, NextUpComponent(c));
+    await pumpComponent(t, api, MovaNextUpComponent(c));
     await tick(t, api, const Duration(seconds: 55), const Duration(seconds: 60));
     await t.tap(find.text('立即播放'));
     await t.pump();
@@ -85,7 +85,7 @@ void main() {
 
   testWidgets('cancel dismisses the card for the current item', (t) async {
     final (api, c) = build();
-    await pumpComponent(t, api, NextUpComponent(c));
+    await pumpComponent(t, api, MovaNextUpComponent(c));
     await tick(t, api, const Duration(seconds: 55), const Duration(seconds: 60));
     await t.tap(find.text('取消'));
     await t.pump();

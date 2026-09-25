@@ -13,11 +13,11 @@ import '../slots/slot.dart';
 ///
 /// 承载 4 种临时 HUD 浮层（音量/亮度/进度/缩放）的组合组件，只显示与当前
 /// [MovaUiState.hud] 匹配的那一个——对应 0.1.0"同时只显示一个 HUD"的行为。
-class HudLayerComponent extends MovaComp {
+class MovaHudLayerComponent extends MovaComp {
   /// Creates the HUD-layer composite with its 4 fixed children.
   ///
   /// 创建带 4 个固定子组件的 HUD 层组合组件。
-  HudLayerComponent();
+  MovaHudLayerComponent();
 
   @override
   String get name => 'hudLayer';
@@ -27,10 +27,10 @@ class HudLayerComponent extends MovaComp {
 
   @override
   List<MovaComp> get children => [
-        VolumeHudComponent(),
-        BrightnessHudComponent(),
-        SeekHudComponent(),
-        ZoomHudComponent(),
+        MovaVolumeHudComponent(),
+        MovaBrightnessHudComponent(),
+        MovaSeekHudComponent(),
+        MovaZoomHudComponent(),
       ];
 
   @override
@@ -42,11 +42,11 @@ class HudLayerComponent extends MovaComp {
 /// Volume HUD; visible only while [MovaUiState.hud] is [MovaHud.volume].
 ///
 /// 音量 HUD；仅在 [MovaUiState.hud] 为 [MovaHud.volume] 时可见。
-class VolumeHudComponent extends MovaComp {
+class MovaVolumeHudComponent extends MovaComp {
   /// Creates the volume HUD leaf component.
   ///
   /// 创建音量 HUD 叶子组件。
-  VolumeHudComponent();
+  MovaVolumeHudComponent();
 
   @override
   String get name => 'volumeHud';
@@ -76,11 +76,11 @@ class VolumeHudComponent extends MovaComp {
 /// Brightness HUD; visible only while [MovaUiState.hud] is [MovaHud.brightness].
 ///
 /// 亮度 HUD；仅在 [MovaUiState.hud] 为 [MovaHud.brightness] 时可见。
-class BrightnessHudComponent extends MovaComp {
+class MovaBrightnessHudComponent extends MovaComp {
   /// Creates the brightness HUD leaf component.
   ///
   /// 创建亮度 HUD 叶子组件。
-  BrightnessHudComponent();
+  MovaBrightnessHudComponent();
 
   @override
   String get name => 'brightnessHud';
@@ -122,11 +122,11 @@ class BrightnessHudComponent extends MovaComp {
 /// 填充 [MovaUiState.previewAt]；双击进度（经 [MovaApi.showHud] 的 `text` 参数）
 /// 则填充 [MovaUiState.hudText]——因为 [MovaUiState.previewAt] 同时驱动着拖动
 /// 预览缩略图气泡，双击不能触发它。两者都有值时以 [MovaUiState.hudText] 为准。
-class SeekHudComponent extends MovaComp {
+class MovaSeekHudComponent extends MovaComp {
   /// Creates the seek HUD leaf component.
   ///
   /// 创建进度 HUD 叶子组件。
-  SeekHudComponent();
+  MovaSeekHudComponent();
 
   @override
   String get name => 'seekHud';
@@ -156,11 +156,11 @@ class SeekHudComponent extends MovaComp {
 /// Zoom HUD; visible only while [MovaUiState.hud] is [MovaHud.zoom].
 ///
 /// 缩放 HUD；仅在 [MovaUiState.hud] 为 [MovaHud.zoom] 时可见。
-class ZoomHudComponent extends MovaComp {
+class MovaZoomHudComponent extends MovaComp {
   /// Creates the zoom HUD leaf component.
   ///
   /// 创建缩放 HUD 叶子组件。
-  ZoomHudComponent();
+  MovaZoomHudComponent();
 
   @override
   String get name => 'zoomHud';

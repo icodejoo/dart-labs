@@ -23,13 +23,13 @@ import '../slots/slot.dart';
 ///
 /// 由宿主接线：宿主构造一个 [MovaAdCtrl] 并传入（例如经皮肤补丁）。显隐跟随
 /// 控制器阶段；跳过倒计时依节流进度流对比 [MovaAdBreak.skippableAfter]。
-class AdOverlayComponent extends MovaComp {
+class MovaAdOverlayComponent extends MovaComp {
   /// Creates the ad overlay bound to [controller].
   ///
   /// 创建绑定到 [controller] 的广告叠层。
   ///
   /// - [controller]: the ad controller driving playback / 驱动播放的广告控制器
-  AdOverlayComponent(this.controller);
+  MovaAdOverlayComponent(this.controller);
 
   /// The ad controller this overlay reads and drives.
   ///
@@ -49,10 +49,10 @@ class AdOverlayComponent extends MovaComp {
   }
 }
 
-/// Stateful body of [AdOverlayComponent]: tracks the ad's elapsed position for
+/// Stateful body of [MovaAdOverlayComponent]: tracks the ad's elapsed position for
 /// the skip countdown and rebuilds when the ad phase changes.
 ///
-/// [AdOverlayComponent] 的有状态主体：为跳过倒计时跟踪广告已播位置，并在广告阶段
+/// [MovaAdOverlayComponent] 的有状态主体：为跳过倒计时跟踪广告已播位置，并在广告阶段
 /// 变化时重建。
 class _AdOverlayView extends StatefulWidget {
   /// Creates the internal ad overlay view.

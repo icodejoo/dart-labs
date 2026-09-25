@@ -35,14 +35,14 @@ import '../core/preview/extractor.dart';
 ///
 /// 内部对调用做了串行化：libmpv 无法在同一个 player 上并发处理两次
 /// seek + screenshot 往返。
-class MpvFrameExtractor implements MovaFramePuller {
+class MovaFrameExtractor implements MovaFramePuller {
   /// Creates an extractor; the hidden player is created lazily on first use.
   ///
   /// 创建抽帧器；隐藏播放器在首次使用时才惰性创建。
   ///
   /// - [settleDelay]: how long to wait after a seek before screenshotting /
   ///   seek 之后、截图之前的等待时长
-  MpvFrameExtractor({this.settleDelay = const Duration(milliseconds: 250)});
+  MovaFrameExtractor({this.settleDelay = const Duration(milliseconds: 250)});
 
   /// How long to wait after a seek before screenshotting.
   ///

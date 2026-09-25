@@ -18,7 +18,7 @@ import '../slots/slot.dart';
 /// doc/SPEC.md 的 feed 条目）：纵向拖动归 feed 的 `PageView` 所有，这里干脆
 /// 不注册会竞争的手势识别器，就是 mova 组件化架构规避冲突的方式，
 /// 无需任何特判。
-class DouyinGestureLayerComponent extends MovaComp {
+class MovaDouyinGestureLayerComponent extends MovaComp {
   /// Creates the douyin gesture-layer component.
   ///
   /// 创建抖音手势层组件。
@@ -29,7 +29,7 @@ class DouyinGestureLayerComponent extends MovaComp {
   /// - [likeNotifier]: shared like-state notifier, kept in sync with the
   ///   social rail's like button / 共享的点赞状态 notifier，与社交竖排的点赞
   ///   按钮保持同步
-  DouyinGestureLayerComponent({
+  MovaDouyinGestureLayerComponent({
     required this.controller,
     required this.index,
     required this.likeNotifier,

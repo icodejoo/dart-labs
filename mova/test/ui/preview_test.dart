@@ -31,13 +31,13 @@ void main() {
   tearDown(() => api.dispose());
 
   testWidgets('renders nothing while previewAt is null', (t) async {
-    await pumpComponent(t, api, PreviewComponent());
+    await pumpComponent(t, api, MovaPreviewComponent());
     expect(find.byType(Image), findsNothing);
     expect(find.textContaining(':'), findsNothing);
   });
 
   testWidgets('shows the formatted scrub timestamp once previewAt is set', (t) async {
-    await pumpComponent(t, api, PreviewComponent());
+    await pumpComponent(t, api, MovaPreviewComponent());
     api.pushUi(const MovaUiState(dragging: true, previewAt: Duration(seconds: 65)));
     await t.pump();
     await t.pump();
@@ -45,7 +45,7 @@ void main() {
   });
 
   testWidgets('requests the thumbnail for the scrub position', (t) async {
-    await pumpComponent(t, api, PreviewComponent());
+    await pumpComponent(t, api, MovaPreviewComponent());
     api.pushUi(const MovaUiState(dragging: true, previewAt: Duration(seconds: 42)));
     await t.pump();
     expect(api.preview.calls, contains('requestAt'));
@@ -53,7 +53,7 @@ void main() {
   });
 
   testWidgets('renders a pushed thumbnail as an image', (t) async {
-    await pumpComponent(t, api, PreviewComponent());
+    await pumpComponent(t, api, MovaPreviewComponent());
     api.pushUi(const MovaUiState(dragging: true, previewAt: Duration(seconds: 10)));
     await t.pump();
     expect(find.byType(Image), findsNothing);
@@ -64,7 +64,7 @@ void main() {
 
   testWidgets('a synchronous cache hit renders without waiting for the stream', (t) async {
     api.preview.peekResult = MovaThumb(at: const Duration(seconds: 10), bytes: _png);
-    await pumpComponent(t, api, PreviewComponent());
+    await pumpComponent(t, api, MovaPreviewComponent());
     api.pushUi(const MovaUiState(dragging: true, previewAt: Duration(seconds: 10)));
     await t.pump();
     await t.pump();
@@ -72,7 +72,7 @@ void main() {
   });
 
   testWidgets('a cropped sprite is clipped to the crop rectangle', (t) async {
-    await pumpComponent(t, api, PreviewComponent());
+    await pumpComponent(t, api, MovaPreviewComponent());
     api.pushUi(const MovaUiState(dragging: true, previewAt: Duration(seconds: 10)));
     await t.pump();
     api.preview.push(MovaThumb(
@@ -88,7 +88,7 @@ void main() {
   });
 
   testWidgets('clearing previewAt hides the bubble again', (t) async {
-    await pumpComponent(t, api, PreviewComponent());
+    await pumpComponent(t, api, MovaPreviewComponent());
     api.pushUi(const MovaUiState(dragging: true, previewAt: Duration(seconds: 10)));
     await t.pump();
     api.preview.push(MovaThumb(at: const Duration(seconds: 10), bytes: _png));
@@ -102,7 +102,7 @@ void main() {
   });
 
   testWidgets('the component is addressable at path "preview" in slot bottomAbove', (t) async {
-    final c = PreviewComponent();
+    final c = MovaPreviewComponent();
     expect(c.name, 'preview');
     expect(c.slot.name, 'bottomAbove');
     expect(c.children, isEmpty);

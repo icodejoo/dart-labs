@@ -207,7 +207,7 @@ class _PlayerPageState extends State<PlayerPage> {
   @override
   void initState() {
     super.initState();
-    _engine = createMovaEngine(options: _optionsFor(_index));
+    _engine = createMovaEngine(options: _optionsFor(_index), extractor: MovaFrameExtractor());
     _engine.open(_demos[_index].source);
   }
 
@@ -239,7 +239,7 @@ class _PlayerPageState extends State<PlayerPage> {
     final old = _engine;
     setState(() {
       _previewOn = on;
-      _engine = createMovaEngine(options: _optionsFor(_index));
+      _engine = createMovaEngine(options: _optionsFor(_index), extractor: MovaFrameExtractor());
     });
     await old.dispose();
     await _engine.open(_demos[_index].source);
@@ -261,7 +261,7 @@ class _PlayerPageState extends State<PlayerPage> {
     final old = _engine;
     setState(() {
       _index = i;
-      _engine = createMovaEngine(options: _optionsFor(i));
+      _engine = createMovaEngine(options: _optionsFor(i), extractor: MovaFrameExtractor());
     });
     await old.dispose();
     await _engine.open(_demos[i].source);
@@ -491,11 +491,11 @@ final _playlistItems = [
 ];
 
 /// A page demoing sequential playlist playback: a [MovaPlistCtrl] drives
-/// auto-advance between three episodes, a [NextUpComponent] fades in near each
+/// auto-advance between three episodes, a [MovaNextUpComponent] fades in near each
 /// item's end, and manual prev/next buttons exercise the same navigation.
 ///
 /// 演示顺序播放列表：[MovaPlistCtrl] 在三集间驱动自动续播，
-/// [NextUpComponent] 在每项临近结束时淡入，手动上一集/下一集按钮演示同一套导航。
+/// [MovaNextUpComponent] 在每项临近结束时淡入，手动上一集/下一集按钮演示同一套导航。
 class PlaylistDemoPage extends StatefulWidget {
   /// Creates the playlist demo page.
   ///
@@ -558,7 +558,7 @@ class _PlaylistDemoPageState extends State<PlaylistDemoPage> {
               //
               // 把"下一集"卡片补进 overlay 槽位；它直接从控制器读取运行时下标。
               skin: MovaDefSkin(
-                patches: [MovaPatch.add(MovaSlot.overlay, NextUpComponent(_controller))],
+                patches: [MovaPatch.add(MovaSlot.overlay, MovaNextUpComponent(_controller))],
               ),
             ),
           ),
@@ -711,7 +711,7 @@ class _SeamlessAdDemoPageState extends State<SeamlessAdDemoPage> {
             child: MovaPlayer(
               api: _engine,
               skin: MovaDefSkin(
-                patches: [MovaPatch.add(MovaSlot.overlay, AdOverlayComponent(_controller))],
+                patches: [MovaPatch.add(MovaSlot.overlay, MovaAdOverlayComponent(_controller))],
               ),
             ),
           ),
@@ -742,13 +742,13 @@ class _SeamlessAdDemoPageState extends State<SeamlessAdDemoPage> {
 }
 
 /// A page demoing pre/mid-roll ads plus runtime insertion: a [MovaAdCtrl]
-/// orchestrates the content↔ad source swaps, [AdOverlayComponent] renders the
+/// orchestrates the content↔ad source swaps, [MovaAdOverlayComponent] renders the
 /// badge/skip/countdown, a button inserts an ad at the current position via
 /// [MovaAdCtrl.playAdNow], and click-through is surfaced through
 /// [MovaAdConfig.onAdEvent] (no url_launcher — the host decides what to do).
 ///
 /// 演示前/中贴片广告与运行时插入：[MovaAdCtrl] 编排正片↔广告的源切换，
-/// [AdOverlayComponent] 渲染角标/跳过/倒计时，一个按钮经
+/// [MovaAdOverlayComponent] 渲染角标/跳过/倒计时，一个按钮经
 /// [MovaAdCtrl.playAdNow] 在当前位置插播广告，点击跳转经
 /// [MovaAdConfig.onAdEvent] 暴露（不引 url_launcher——由宿主决定如何处理）。
 class AdDemoPage extends StatefulWidget {
@@ -867,7 +867,7 @@ class _AdDemoPageState extends State<AdDemoPage> {
               //
               // 把广告叠层补进 overlay 槽位；它从控制器读取当前广告与跳过状态。
               skin: MovaDefSkin(
-                patches: [MovaPatch.add(MovaSlot.overlay, AdOverlayComponent(_controller))],
+                patches: [MovaPatch.add(MovaSlot.overlay, MovaAdOverlayComponent(_controller))],
               ),
             ),
           ),
@@ -1095,7 +1095,7 @@ class _AdOrchestrationDemoPageState extends State<AdOrchestrationDemoPage> {
             child: MovaPlayer(
               api: _engine,
               skin: MovaDefSkin(
-                patches: [MovaPatch.add(MovaSlot.overlay, AdOverlayComponent(_controller))],
+                patches: [MovaPatch.add(MovaSlot.overlay, MovaAdOverlayComponent(_controller))],
               ),
             ),
           ),

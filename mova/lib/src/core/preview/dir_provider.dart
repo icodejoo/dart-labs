@@ -30,13 +30,13 @@ abstract class MovaThumbDirProv {
 /// 恒定返回同一路径的 [MovaThumbDirProv]。
 ///
 /// 既支撑 `diskDir` 配置项，也让磁盘缓存测试无需依赖插件通道。
-class FixedThumbDirProvider implements MovaThumbDirProv {
+class MovaFixedThumbDirProvider implements MovaThumbDirProv {
   /// Creates a provider pinned to [path].
   ///
   /// 创建一个固定指向 [path] 的 provider。
   ///
   /// - [path]: absolute cache directory path / 缓存目录的绝对路径
-  const FixedThumbDirProvider(this.path);
+  const MovaFixedThumbDirProvider(this.path);
 
   /// The fixed cache directory path.
   ///

@@ -256,13 +256,13 @@ class _SttEngineSpikePageState extends State<SttEngineSpikePage> {
   /// Lets the user pick a real video file from disk (not bundled as a
   /// Flutter asset — read from its absolute filesystem path at runtime, to
   /// simulate a real deployment where the source video is arbitrary user
-  /// content), extracts its audio via [MpvAudioExtractor] (the previously
+  /// content), extracts its audio via [MovaAudioExtractor] (the previously
   /// "⚠️ unverified spike" second-hidden-player WAV extractor), then feeds
   /// the result into [ZipformerSttEngine], timing both stages.
   ///
   /// 让用户从磁盘选一个真实视频文件（不打包成 Flutter 资源——运行时按绝对
   /// 路径读取，模拟真实部署中源视频是任意用户内容的场景），用
-  /// [MpvAudioExtractor]（此前"⚠️ 未验证 spike"的第二隐藏播放器 WAV 抽取器）
+  /// [MovaAudioExtractor]（此前"⚠️ 未验证 spike"的第二隐藏播放器 WAV 抽取器）
   /// 抽取音频，再喂给 [ZipformerSttEngine]，两个阶段都计时。
   Future<void> _pickAndTranscribeVideo() async {
     final result = await FilePicker.pickFiles(
@@ -287,10 +287,10 @@ class _SttEngineSpikePageState extends State<SttEngineSpikePage> {
     // A `.wav` is treated as already-extracted audio and fed straight to the
     // engine — lets this flow be pointed at output from an external
     // extractor (e.g. `ffmpeg`) to isolate decode-speed measurement from
-    // `MpvAudioExtractor`'s own extraction step.
+    // `MovaAudioExtractor`'s own extraction step.
     //
     // `.wav`视为已经抽取好的音频，直接喂给引擎——这样这条流程也能指向外部
-    // 抽取器（如 `ffmpeg`）的产物，把解码速度测量和 `MpvAudioExtractor`
+    // 抽取器（如 `ffmpeg`）的产物，把解码速度测量和 `MovaAudioExtractor`
     // 自己的抽取步骤分开看。
     final isPreExtracted = path.toLowerCase().endsWith('.wav');
 
@@ -300,7 +300,7 @@ class _SttEngineSpikePageState extends State<SttEngineSpikePage> {
       _cues = const [];
       _videoStatus = isPreExtracted ? '已是 wav，跳过抽取，识别中…' : '抽取音频中…（$path）';
     });
-    final extractor = MpvAudioExtractor();
+    final extractor = MovaAudioExtractor();
     try {
       String wavPath;
       int extractMs;
@@ -313,7 +313,7 @@ class _SttEngineSpikePageState extends State<SttEngineSpikePage> {
         final extracted = await extractor.extractWav(path);
         extractSw.stop();
         if (extracted == null) {
-          throw StateError('MpvAudioExtractor.extractWav returned null — extraction failed');
+          throw StateError('MovaAudioExtractor.extractWav returned null — extraction failed');
         }
         wavPath = extracted;
         extractMs = extractSw.elapsedMilliseconds;
@@ -329,7 +329,7 @@ class _SttEngineSpikePageState extends State<SttEngineSpikePage> {
         debugPrint('=== STT SPIKE (real video): extracted ${audioSeconds.toStringAsFixed(1)}s '
             'of audio, extraction RTF=${extractRtf.toStringAsFixed(3)} '
             '(${extractRtf < 1 ? 'faster' : 'slower'} than real-time — resolves the '
-            '"does mpv decode-through throttle to 1x?" question MpvAudioExtractor\'s '
+            '"does mpv decode-through throttle to 1x?" question MovaAudioExtractor\'s '
             'doc comment flagged as unverified) ===');
       }
 

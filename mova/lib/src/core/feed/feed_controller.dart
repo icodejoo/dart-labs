@@ -57,14 +57,14 @@ class MovaFeedCtrl {
   ///   收益。默认取保守值 1（见 doc/SPEC.md 的设备分档结论——这项保持宿主可配，
   ///   而非 mova 自行猜测机型档位）
   /// - [prefetcher]: warm-up strategy; defaults to
-  ///   [NetworkWarmFeedPrefetcher] / 预热策略，默认
-  ///   [NetworkWarmFeedPrefetcher]
+  ///   [MovaNetworkWarmFeedPrefetcher] / 预热策略，默认
+  ///   [MovaNetworkWarmFeedPrefetcher]
   MovaFeedCtrl({
     required this.pool,
     required this.loader,
     this.prefetchDepth = 1,
     MovaFeedPrefch? prefetcher,
-  }) : prefetcher = prefetcher ?? const NetworkWarmFeedPrefetcher();
+  }) : prefetcher = prefetcher ?? const MovaNetworkWarmFeedPrefetcher();
 
   /// The engine pool this controller drives.
   ///

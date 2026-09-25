@@ -48,7 +48,7 @@ android / ios / windows。（web/macos/linux media_kit 都支持，未纳入本�
   均是操作系统自带能力，不算引入第三方依赖，也不需要打包模型文件。第一版曾建议默认
   依赖 whisper.cpp（FFI），已推翻。曾评估"MCP 兜底"方案，**已否决**：MCP 是请求/
   响应协议非实时流式，延迟不可控，且与下方 MCP 钩子本该扮演的"被动暴露上下文"角色
-  冲突；缺口不专门补，复用既有 `MovaVolumePort`/`CallbackVolumePort` 那套注入模式给
+  冲突；缺口不专门补，复用既有 `MovaVolumePort`/`MovaCallbackVolumePort` 那套注入模式给
   宿主一个通用 `MovaSttEngine` 口子即可（非 MCP 专用）。**macOS/Windows 暂缓**（macOS
   无原生插件需从零搭建，Windows SAPI/COM 是无先例的真实原生工作量），**先落地
   Android+iOS**，逐 Task 计划见 `doc/plans/`。

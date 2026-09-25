@@ -9,7 +9,7 @@ import '../support/pump.dart';
 void main() {
   testWidgets('buffering overlay shows only while buffering', (t) async {
     final api = FakeMovaApi();
-    await pumpComponent(t, api, BufferingComponent());
+    await pumpComponent(t, api, MovaBufferingComponent());
     expect(find.byType(CircularProgressIndicator), findsNothing);
     api.push(const MovaState(buffering: true));
     await t.pump();
@@ -21,7 +21,7 @@ void main() {
   testWidgets('lock mask swallows taps when locked', (t) async {
     final api = FakeMovaApi();
     api.push(const MovaState(locked: true));
-    await pumpComponent(t, api, LockMaskComponent());
+    await pumpComponent(t, api, MovaLockMaskComponent());
     await t.tapAt(const Offset(200, 200));
     await t.pump();
     expect(api.calls.where((c) => c == 'playOrPause'), isEmpty);
@@ -30,7 +30,7 @@ void main() {
 
   testWidgets('lock mask renders nothing when not locked', (t) async {
     final api = FakeMovaApi();
-    await pumpComponent(t, api, LockMaskComponent());
+    await pumpComponent(t, api, MovaLockMaskComponent());
     expect(find.byType(GestureDetector), findsNothing);
     await api.dispose();
   });
@@ -38,7 +38,7 @@ void main() {
   testWidgets('error overlay shows message and retry calls reload', (t) async {
     final api = FakeMovaApi();
     api.push(const MovaState(error: 'boom'));
-    await pumpComponent(t, api, ErrorComponent());
+    await pumpComponent(t, api, MovaErrorComponent());
     expect(find.text('boom'), findsOneWidget);
     await t.tap(find.byIcon(Icons.refresh_rounded));
     await t.pump();
@@ -48,7 +48,7 @@ void main() {
 
   testWidgets('error overlay is hidden when there is no error', (t) async {
     final api = FakeMovaApi();
-    await pumpComponent(t, api, ErrorComponent());
+    await pumpComponent(t, api, MovaErrorComponent());
     expect(find.byIcon(Icons.refresh_rounded), findsNothing);
     await api.dispose();
   });

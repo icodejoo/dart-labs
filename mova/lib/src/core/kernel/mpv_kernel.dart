@@ -16,7 +16,7 @@ import 'kernel.dart';
 ///
 /// 这是核心层中唯一允许依赖 `package:media_kit` 的文件；`lib/src/core/` 下
 /// 其余所有文件都必须与具体引擎无关。
-class MpvKernel implements MovaKernel {
+class MovaMpvKernel implements MovaKernel {
   /// Creates the media_kit-backed kernel.
   ///
   /// [player] lets callers inject an existing `Player` (e.g. for testing or
@@ -46,7 +46,7 @@ class MpvKernel implements MovaKernel {
   /// 模式下它们是 0，而不只是变小。
   ///
   /// 升级 media_kit 时须重验"默认 `--vid=no`"这一条。
-  MpvKernel({Player? player, this.audioOnly = false}) : _player = player ?? Player() {
+  MovaMpvKernel({Player? player, this.audioOnly = false}) : _player = player ?? Player() {
     if (!audioOnly) {
       _controller = VideoController(_player);
     }
@@ -62,9 +62,9 @@ class MpvKernel implements MovaKernel {
     });
   }
 
-  /// One-time global media_kit init; call before creating any [MpvKernel].
+  /// One-time global media_kit init; call before creating any [MovaMpvKernel].
   ///
-  /// 全局一次性 media_kit 初始化；创建任何 [MpvKernel] 前调用。
+  /// 全局一次性 media_kit 初始化；创建任何 [MovaMpvKernel] 前调用。
   static void ensureInitialized() => MediaKit.ensureInitialized();
 
   /// The wrapped media_kit player instance.

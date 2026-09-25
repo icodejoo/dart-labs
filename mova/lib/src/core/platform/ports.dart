@@ -39,14 +39,14 @@ abstract class MovaBrightPort {
 /// volume gesture routes the target percent here instead of touching the
 /// player's own volume — so the gesture drives the real system volume and the
 /// video stays at full player volume. A host that wants full control can pass
-/// a [CallbackVolumePort] and apply the percent however it likes.
+/// a [MovaCallbackVolumePort] and apply the percent however it likes.
 ///
 /// 读写设备系统媒体音量的端口，取值为 `[0, 100]` 的百分比。
 ///
 /// 这是"音量归谁管"的注入点。接上端口后（如 Android 上由 `createMovaEngine`
 /// 接上，或由宿主自带），音量手势会把目标百分比交给这里，而不去动播放器
 /// 自身音量——于是手势驱动的是真实系统音量，视频保持播放器满音量。宿主想
-/// 完全接管，可传 [CallbackVolumePort] 自行处置百分比。
+/// 完全接管，可传 [MovaCallbackVolumePort] 自行处置百分比。
 abstract class MovaVolumePort {
   /// Reads the current volume as a percentage in `[0, 100]`.
   ///
@@ -127,7 +127,7 @@ abstract class MovaOrientPort {
 /// brightness and silently ignores writes.
 ///
 /// 零依赖的 [MovaBrightPort] 兜底实现：始终报告最大亮度，写入操作静默忽略。
-class FallbackBrightnessPort implements MovaBrightPort {
+class MovaFallbackBrightnessPort implements MovaBrightPort {
   @override
   Future<double> get() => Future.value(1.0);
 
@@ -139,7 +139,7 @@ class FallbackBrightnessPort implements MovaBrightPort {
 /// silently ignores writes.
 ///
 /// 零依赖的 [MovaVolumePort] 兜底实现：始终报告满音量，写入操作静默忽略。
-class FallbackVolumePort implements MovaVolumePort {
+class MovaFallbackVolumePort implements MovaVolumePort {
   @override
   Future<double> get() => Future.value(100);
 
@@ -150,7 +150,7 @@ class FallbackVolumePort implements MovaVolumePort {
 /// A [MovaVolumePort] adapter that forwards writes to a plain callback, so a
 /// host can control volume without implementing the full interface.
 ///
-/// Pass `createMovaEngine(volume: CallbackVolumePort((percent) => ...))` to take
+/// Pass `createMovaEngine(volume: MovaCallbackVolumePort((percent) => ...))` to take
 /// over volume entirely: the video keeps full player volume while your
 /// callback applies [percent] (e.g. to the OS media volume). Supply [onGet] if
 /// you can report the current level back; otherwise the gesture baseline
@@ -159,7 +159,7 @@ class FallbackVolumePort implements MovaVolumePort {
 /// 把写入转发给一个普通回调的 [MovaVolumePort] 适配器，宿主无需实现整个接口即可
 /// 接管音量。
 ///
-/// 传 `createMovaEngine(volume: CallbackVolumePort((percent) => ...))` 即可完全
+/// 传 `createMovaEngine(volume: MovaCallbackVolumePort((percent) => ...))` 即可完全
 /// 接管：视频保持播放器满音量，你的回调负责应用 [percent]（例如写系统媒体
 /// 音量）。若能回报当前音量，传入 [onGet]；否则手势基线从 100 起算。
 ///
@@ -167,10 +167,10 @@ class FallbackVolumePort implements MovaVolumePort {
 /// ```dart
 /// final engine = createMovaEngine(
 ///   options: options,
-///   volume: CallbackVolumePort((percent) => MyAudio.setSystemVolume(percent)),
+///   volume: MovaCallbackVolumePort((percent) => MyAudio.setSystemVolume(percent)),
 /// );
 /// ```
-class CallbackVolumePort implements MovaVolumePort {
+class MovaCallbackVolumePort implements MovaVolumePort {
   /// Creates a callback-backed volume port.
   ///
   /// [onSet] receives the target percentage on every change; [onGet] optionally
@@ -179,7 +179,7 @@ class CallbackVolumePort implements MovaVolumePort {
   /// 创建以回调为后端的音量端口。
   ///
   /// [onSet] 在每次变化时收到目标百分比；[onGet] 可选地回报当前音量用作手势基线。
-  const CallbackVolumePort(this.onSet, {this.onGet});
+  const MovaCallbackVolumePort(this.onSet, {this.onGet});
 
   /// The sink applied on every volume change, in `[0, 100]`.
   ///
@@ -201,7 +201,7 @@ class CallbackVolumePort implements MovaVolumePort {
 /// A zero-dependency [MovaPipPort] no-op that reports PiP as unsupported.
 ///
 /// 零依赖的 [MovaPipPort] 空实现：始终报告不支持画中画。
-class NoopPipPort implements MovaPipPort {
+class MovaNoopPipPort implements MovaPipPort {
   @override
   Future<bool> isSupported() => Future.value(false);
 
@@ -212,7 +212,7 @@ class NoopPipPort implements MovaPipPort {
 /// A zero-dependency [MovaOrientPort] no-op that does nothing.
 ///
 /// 零依赖的 [MovaOrientPort] 空实现：不执行任何操作。
-class NoopOrientationPort implements MovaOrientPort {
+class MovaNoopOrientationPort implements MovaOrientPort {
   @override
   Future<void> apply({
     required bool fullscreen,

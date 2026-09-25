@@ -14,19 +14,19 @@ import 'common.dart';
 /// position, or nothing when none does.
 ///
 /// Hidden entirely when no engine is configured (`MovaApi.stt.languages` is
-/// empty) — mirrors [PipButtonComponent]'s "don't render a dead control"
+/// empty) — mirrors [MovaPipButtonComponent]'s "don't render a dead control"
 /// convention, just for an overlay instead of a button.
 ///
 /// STT 字幕叠加层：渲染覆盖当前播放位置的字幕；没有则不渲染任何内容。
 ///
 /// 未配置引擎时（`MovaApi.stt.languages` 为空）整体不渲染——对应
-/// [PipButtonComponent]"不渲染一个死掉的控件"的约定，只是这里换成了叠加层
+/// [MovaPipButtonComponent]"不渲染一个死掉的控件"的约定，只是这里换成了叠加层
 /// 而非按钮。
-class SubtitleOverlayComponent extends MovaComp {
+class MovaSubtitleOverlayComponent extends MovaComp {
   /// Creates the subtitle-overlay component.
   ///
   /// 创建字幕叠加层组件。
-  SubtitleOverlayComponent();
+  MovaSubtitleOverlayComponent();
 
   @override
   String get name => 'subtitleOverlay';
@@ -41,11 +41,11 @@ class SubtitleOverlayComponent extends MovaComp {
   }
 }
 
-/// Stateful body of [SubtitleOverlayComponent]: re-reads `MovaApi.stt.current`
+/// Stateful body of [MovaSubtitleOverlayComponent]: re-reads `MovaApi.stt.current`
 /// whenever a new cue arrives or playback position ticks, since a cue can
 /// stop covering the position (its `end` passed) without a new cue arriving.
 ///
-/// [SubtitleOverlayComponent] 的有状态主体：每当新字幕产出或播放位置推进时
+/// [MovaSubtitleOverlayComponent] 的有状态主体：每当新字幕产出或播放位置推进时
 /// 都重新读取 `MovaApi.stt.current`——因为字幕可能在没有新字幕产出的情况下
 /// 就不再覆盖当前位置（其 `end` 已经过去）。
 class _SubtitleOverlay extends StatefulWidget {
@@ -129,7 +129,7 @@ class _SubtitleOverlayState extends State<_SubtitleOverlay> {
 }
 
 /// Subtitle entry button; renders nothing when no STT engine is configured
-/// (`MovaApi.stt.languages` is empty), matching [PipButtonComponent]'s
+/// (`MovaApi.stt.languages` is empty), matching [MovaPipButtonComponent]'s
 /// unsupported-capability convention.
 ///
 /// Tap opens a picker listing every language the configured engine covers
@@ -139,17 +139,17 @@ class _SubtitleOverlayState extends State<_SubtitleOverlay> {
 /// supported per player in this version) plus a "turn off" row.
 ///
 /// 字幕入口按钮；未配置 STT 引擎时（`MovaApi.stt.languages` 为空）不渲染任何
-/// 内容，对应 [PipButtonComponent] 的"能力不支持"约定。
+/// 内容，对应 [MovaPipButtonComponent] 的"能力不支持"约定。
 ///
 /// 点击弹出选择器，列出已配置引擎覆盖的语言（像默认 Zipformer 这样的双语引擎
 /// 是一整条联合入口，不是每个语言一行——见
 /// `doc/notes/2026-08-04-stt-engine-decision.md`：本版本每个播放器只支持一个
 /// 引擎），外加一行"关闭字幕"。
-class SubtitleButtonComponent extends MovaComp {
+class MovaSubtitleButtonComponent extends MovaComp {
   /// Creates the subtitle-button leaf component.
   ///
   /// 创建字幕按钮叶子组件。
-  SubtitleButtonComponent();
+  MovaSubtitleButtonComponent();
 
   @override
   String get name => 'subtitleButton';
@@ -164,11 +164,11 @@ class SubtitleButtonComponent extends MovaComp {
   }
 }
 
-/// Stateful body of [SubtitleButtonComponent]: tracks whether this session
+/// Stateful body of [MovaSubtitleButtonComponent]: tracks whether this session
 /// turned subtitles on, purely as local UI state (`MovaApi.stt` exposes no
 /// "is running" flag to select on — see the port's doc comment).
 ///
-/// [SubtitleButtonComponent] 的有状态主体：跟踪本次会话是否已开启字幕，纯属
+/// [MovaSubtitleButtonComponent] 的有状态主体：跟踪本次会话是否已开启字幕，纯属
 /// 本地 UI 状态（`MovaApi.stt` 没有暴露"是否在运行"的字段可供 selector 使用——
 /// 见该端口的文档注释）。
 class _SubtitleButton extends StatefulWidget {
