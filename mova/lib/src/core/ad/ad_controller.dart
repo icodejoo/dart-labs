@@ -28,12 +28,30 @@ MovaAdBreak? dueMidRoll(
   Duration position,
   Set<MovaAdBreak> played,
 ) {
-  for (final b in breaks) {
-    if (b.kind == MovaAdBreakKind.mid &&
+  return _firstWhere(
+    breaks,
+    (b) =>
+        b.kind == MovaAdBreakKind.mid &&
         !played.contains(b) &&
-        b.offset <= position) {
-      return b;
-    }
+        b.offset <= position,
+  );
+}
+
+/// Returns the first element of [items] matching [predicate], or null.
+///
+/// Shared linear-scan helper behind [dueMidRoll] and [MovaAdCtrl]'s own
+/// pod/kind lookups ([MovaAdCtrl._nextPodMid]/[MovaAdCtrl._firstOfKind]) — the
+/// three were previously separate, identically-shaped for-loops differing
+/// only in their predicate.
+///
+/// 返回 [items] 中首个匹配 [predicate] 的元素；没有则为 null。
+///
+/// [dueMidRoll] 与 [MovaAdCtrl] 自身的 pod/kind 查找（[MovaAdCtrl._nextPodMid]/
+/// [MovaAdCtrl._firstOfKind]）共用的线性扫描 helper——三者此前是三个结构相同、
+/// 仅谓词不同的独立 for 循环。
+T? _firstWhere<T>(Iterable<T> items, bool Function(T) predicate) {
+  for (final item in items) {
+    if (predicate(item)) return item;
   }
   return null;
 }
@@ -123,14 +141,14 @@ class MovaAdCtrl {
   /// await ads.load(const MovaSource('https://host/movie.m3u8'));
   /// ```
   MovaAdCtrl(this._api, {MovaSwapCtl? swap})
-      : _cfg = _api.options.ads,
-        _breaks = _api.options.ads.breaks,
-        _onAdEvent = _api.options.ads.onAdEvent,
-        _enabled = _api.options.ads.enabled,
-        // The public parameter name (`swap`) must stay distinct from the
-        // private field it seeds (`_swap`).
-        // ignore: prefer_initializing_formals
-        _swap = swap {
+    : _cfg = _api.options.ads,
+      _breaks = _api.options.ads.breaks,
+      _onAdEvent = _api.options.ads.onAdEvent,
+      _enabled = _api.options.ads.enabled,
+      // The public parameter name (`swap`) must stay distinct from the
+      // private field it seeds (`_swap`).
+      // ignore: prefer_initializing_formals
+      _swap = swap {
     _eventSub = _api.events.listen(_onEvent);
     _progressSub = _api.progress.listen(_onProgress);
   }
@@ -148,8 +166,10 @@ class MovaAdCtrl {
   StreamSubscription<MovaEvent>? _eventSub;
   StreamSubscription<MovaProg>? _progressSub;
   final StreamController<void> _changes = StreamController<void>.broadcast();
-  final StreamController<void> _contentEnded = StreamController<void>.broadcast();
-  final StreamController<Object> _contentError = StreamController<Object>.broadcast();
+  final StreamController<void> _contentEnded =
+      StreamController<void>.broadcast();
+  final StreamController<Object> _contentError =
+      StreamController<Object>.broadcast();
 
   /// The resolved content source, memoised; null until it has been resolved.
   ///
@@ -503,9 +523,6 @@ class MovaAdCtrl {
     if (b != null) _fire(MovaAdEventType.clicked, b);
   }
 
-  /// Returns the first not-yet-played break of [kind], or null.
-  ///
-  /// 返回首个尚未播放的、类型为 [kind] 的广告位；没有则为 null。
   /// Returns the next unplayed mid-roll inserted at the same point as the one
   /// that just finished, or null when the pod is exhausted.
   ///
@@ -520,21 +537,20 @@ class MovaAdCtrl {
   /// 定义。更晚的中插被刻意排除：串到那些上去就不是 pod 了，而是把剩下的排期
   /// 一口气连播完。
   MovaAdBreak? _nextPodMid() {
-    for (final b in _breaks) {
-      if (b.kind == MovaAdBreakKind.mid &&
+    return _firstWhere(
+      _breaks,
+      (b) =>
+          b.kind == MovaAdBreakKind.mid &&
           !_played.contains(b) &&
-          b.offset <= _contentResumeAt) {
-        return b;
-      }
-    }
-    return null;
+          b.offset <= _contentResumeAt,
+    );
   }
 
+  /// Returns the first not-yet-played break of [kind], or null.
+  ///
+  /// 返回首个尚未播放的、类型为 [kind] 的广告位；没有则为 null。
   MovaAdBreak? _firstOfKind(MovaAdBreakKind kind) {
-    for (final b in _breaks) {
-      if (b.kind == kind && !_played.contains(b)) return b;
-    }
-    return null;
+    return _firstWhere(_breaks, (b) => b.kind == kind && !_played.contains(b));
   }
 
   /// Whether [b] should be warmed up and cut to only once it is ready.
@@ -691,7 +707,8 @@ class MovaAdCtrl {
     // 调用形式。`swapTo` 本身*就是*立即预热 + commit(waitForReady: true) + 回落
     // open()，语义严丝合缝，因此一行新逻辑都不用写。它会自行回落，下面的阶段
     // 簿记两种情况下都照常执行。
-    final oneShot = !alreadyOnScreen && _phase != _Phase.pending && _wantsWait(b);
+    final oneShot =
+        !alreadyOnScreen && _phase != _Phase.pending && _wantsWait(b);
     // Suppress content-side STT while the ad plays; restore it on resume only
     // if the host actually had it running (attach() does not reset it).
     //
@@ -791,6 +808,23 @@ class MovaAdCtrl {
     _loadTimer = null;
   }
 
+  /// Cancels all three timers (slot/load/delay) at once.
+  ///
+  /// Shared by the three call sites that always tear down every timer
+  /// together ([_playContent]/[_goIdleAfterContent]/[dispose]); a lone timer
+  /// may still be cancelled on its own elsewhere via its individual method.
+  ///
+  /// 一次性取消全部三个定时器（广告位/加载/倒计时）。
+  ///
+  /// 供总是同时清空全部定时器的三处调用共用（[_playContent]/
+  /// [_goIdleAfterContent]/[dispose]）；其他地方仍可经各自独立方法单独取消
+  /// 某一个定时器。
+  void _cancelAllTimers() {
+    _cancelSlotTimer();
+    _cancelLoadTimer();
+    _cancelDelayTimer();
+  }
+
   /// Applies [MovaAdConfig.failPolicy] to a break that would not play.
   ///
   /// Every failure route — a throwing `open()`, a player error during the ad,
@@ -805,7 +839,11 @@ class MovaAdCtrl {
   /// 这里，使宿主的策略看到的是一串一致的尝试记录。重试的广告位会重新获得完整的
   /// [MovaAdBreak.duration]：广告主买的是那么多*可见*秒数，而失败的那次一秒都没
   /// 给到。
-  Future<void> _onAdFailure(MovaAdBreak b, MovaAdFailKind kind, [Object? error]) async {
+  Future<void> _onAdFailure(
+    MovaAdBreak b,
+    MovaAdFailKind kind, [
+    Object? error,
+  ]) async {
     _cancelLoadTimer();
     _cancelSlotTimer();
     final attempt = (_attempts[b] ?? 0) + 1;
@@ -845,7 +883,9 @@ class MovaAdCtrl {
   void _markPodPlayed(MovaAdBreak b) {
     for (final other in _breaks) {
       if (other.kind != b.kind) continue;
-      if (b.kind == MovaAdBreakKind.mid && other.offset > _contentResumeAt) continue;
+      if (b.kind == MovaAdBreakKind.mid && other.offset > _contentResumeAt) {
+        continue;
+      }
       _played.add(other);
     }
   }
@@ -878,9 +918,7 @@ class MovaAdCtrl {
   /// 导致无缝切换几乎每次都落空。等待能让影子一追上就立刻提交成功，且受就绪
   /// 判据自身的超时约束——最坏情况也只是稍晚一点退化到同样的回落路径。
   Future<void> _playContent({Duration at = Duration.zero}) async {
-    _cancelSlotTimer();
-    _cancelLoadTimer();
-    _cancelDelayTimer();
+    _cancelAllTimers();
     _phase = _Phase.content;
     _current = null;
     _pending = null;
@@ -953,9 +991,7 @@ class MovaAdCtrl {
   ///
   /// 在正片（及其后贴片）播完后转入空闲，并触发 [contentEnded] 供播放列表组合使用。
   void _goIdleAfterContent() {
-    _cancelSlotTimer();
-    _cancelLoadTimer();
-    _cancelDelayTimer();
+    _cancelAllTimers();
     _phase = _Phase.idle;
     _current = null;
     _pending = null;
@@ -1033,7 +1069,9 @@ class MovaAdCtrl {
       //
       // 首帧已经落地，加载期限已达成。
       _cancelLoadTimer();
-      if (_cfg.durationFromFirstFrame && playing != null) _armSlotTimer(playing);
+      if (_cfg.durationFromFirstFrame && playing != null) {
+        _armSlotTimer(playing);
+      }
       // Ask the configured trigger whether it is time to start warming the
       // content up in the background; the trigger (not this controller)
       // decides based on how much of the ad is left and how long it is.
@@ -1043,10 +1081,12 @@ class MovaAdCtrl {
       final swap = _swap;
       if (swap != null && swap.swapEnabled) {
         final adDuration = _api.state.duration;
-        unawaited(_warmContentBehindAd(
-          swap,
-          MovaWarmCue(remaining: adDuration - _adPosition, total: adDuration),
-        ));
+        unawaited(
+          _warmContentBehindAd(
+            swap,
+            MovaWarmCue(remaining: adDuration - _adPosition, total: adDuration),
+          ),
+        );
       }
       return;
     }
@@ -1073,14 +1113,16 @@ class MovaAdCtrl {
         // （delay 窗口存在的意义就是拿来预热）、并停在第 0 帧（一条在影子里悄悄
         // 播掉了开头几秒的广告，交付出去就是缺头的）。`at` 恒为零——广告总是从
         // 自己的开头播起。
-        unawaited(_swap!.prepare(
-          waiting.source,
-          plan: _cfg.effectiveWarmPlan,
-          cue: MovaWarmCue(
-            remaining: delayRemaining,
-            total: waiting.delay > Duration.zero ? waiting.delay : null,
+        unawaited(
+          _swap!.prepare(
+            waiting.source,
+            plan: _cfg.effectiveWarmPlan,
+            cue: MovaWarmCue(
+              remaining: delayRemaining,
+              total: waiting.delay > Duration.zero ? waiting.delay : null,
+            ),
           ),
-        ));
+        );
       }
       return;
     }
@@ -1146,9 +1188,7 @@ class MovaAdCtrl {
   ///
   /// 释放订阅并关闭变更流；销毁时调用一次。
   Future<void> dispose() async {
-    _cancelSlotTimer();
-    _cancelLoadTimer();
-    _cancelDelayTimer();
+    _cancelAllTimers();
     await _eventSub?.cancel();
     await _progressSub?.cancel();
     await _swap?.abandon();
