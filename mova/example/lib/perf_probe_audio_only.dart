@@ -36,22 +36,26 @@ import 'package:mova/mova.dart';
 
 /// Which mode this process measures: `video` or `audio`.
 ///
-/// Read from the process environment rather than `--dart-define` so that
-/// changing it does not force a fresh release AOT rebuild between runs — the
-/// measurement is identical either way, but a run costs seconds instead of
-/// minutes.
+/// Read as a compile-time constant via `--dart-define`, not
+/// `Platform.environment`: `--dart-define` does not inject an OS environment
+/// variable into the Android process, so a runtime read of
+/// `Platform.environment` silently always falls back to the default and the
+/// mode switch never actually takes effect on device — this was a real,
+/// previously-shipped bug in this probe.
 ///
 /// 本进程测量哪种模式：`video` 或 `audio`。
 ///
-/// 从进程环境变量读取而非 `--dart-define`，这样改它不会在每轮之间触发一次完整的
-/// release AOT 重编——测量方法完全相同，但一轮的代价从几分钟降到几秒。
-final _mode = Platform.environment['MOVA_PERF_MODE'] ?? 'video';
+/// 通过 `--dart-define` 读成编译期常量，而不是 `Platform.environment`：
+/// `--dart-define` 不会把值注入 Android 进程的 OS 环境变量，运行时读
+/// `Platform.environment` 会默默地一直落回默认值，模式切换在真机上从未真正
+/// 生效过——这是本探针此前的一个真实缺陷。
+const _mode = String.fromEnvironment('MOVA_PERF_MODE', defaultValue: 'video');
 
 /// The media both modes play; override to compare against another player on
 /// identical content.
 ///
 /// 两种模式共用的素材；可覆盖，以便在完全相同的内容上与其他播放器对比。
-final _mediaUri = Platform.environment['MOVA_PERF_URI'] ?? _material.uri;
+const _mediaUri = String.fromEnvironment('MOVA_PERF_URI', defaultValue: '');
 
 /// How long to let playback stabilise before sampling.
 ///
@@ -82,7 +86,8 @@ double _rssMiB() => ProcessInfo.currentRss / 1024 / 1024;
 ///
 /// 以便于 grep 的格式打印一条带标签的样本。
 void _sample(String label) {
-  stdout.writeln('MOVA_PERF|$_mode|$label|${_rssMiB().toStringAsFixed(2)}');
+  // ignore: avoid_print
+  print('MOVA_PERF|$_mode|$label|${_rssMiB().toStringAsFixed(2)}');
 }
 
 void main() {
@@ -137,22 +142,28 @@ class _ProbeAppState extends State<_ProbeApp> {
       audioOnly: _mode == 'audio',
       options: MovaOpts(preview: MovaPrevConfig(enabled: _mode != 'audio')),
     );
-    stdout.writeln('MOVA_PERF|$_mode|renderHandle|${engine.renderHandle}');
+    // ignore: avoid_print
+    print('MOVA_PERF|$_mode|renderHandle|${engine.renderHandle}');
     setState(() {
       _engine = engine;
       _phase = 'playing';
     });
 
-    stdout.writeln('MOVA_PERF|$_mode|uri|$_mediaUri');
-    await engine.open(MovaSource(_mediaUri, title: _material.title));
+    final mediaUri = _mediaUri.isEmpty ? _material.uri : _mediaUri;
+    // ignore: avoid_print
+    print('MOVA_PERF|$_mode|uri|$mediaUri');
+    await engine.open(MovaSource(mediaUri, title: _material.title));
     await Future<void>.delayed(_settle);
 
     // Phase 1: steady-state playback, with the surface actually mounted.
     // 阶段 1：稳定播放中，且渲染面确实已挂载。
     _sample('playing');
-    stdout.writeln('MOVA_PERF|$_mode|size|${engine.state.width}x${engine.state.height}');
-    stdout.writeln('MOVA_PERF|$_mode|duration|${engine.state.duration.inMilliseconds}');
-    stdout.writeln('MOVA_PERF|$_mode|playing|${engine.state.playing}');
+    // ignore: avoid_print
+    print('MOVA_PERF|$_mode|size|${engine.state.width}x${engine.state.height}');
+    // ignore: avoid_print
+    print('MOVA_PERF|$_mode|duration|${engine.state.duration.inMilliseconds}');
+    // ignore: avoid_print
+    print('MOVA_PERF|$_mode|playing|${engine.state.playing}');
 
     setState(() {
       _engine = null;
@@ -165,7 +176,8 @@ class _ProbeAppState extends State<_ProbeApp> {
     // Phase 2: after release — this is the leak check.
     // 阶段 2：释放后——这一步是泄漏检查。
     _sample('disposed');
-    stdout.writeln('MOVA_PERF|$_mode|done');
+    // ignore: avoid_print
+    print('MOVA_PERF|$_mode|done');
     await stdout.flush();
     exit(0);
   }

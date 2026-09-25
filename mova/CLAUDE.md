@@ -391,9 +391,13 @@ dispose 后内存几乎未回落——不能排除泄漏，但也非直接证据
   `createMovaEngine()` 默认参数打开后 `renderHandle` 非 null（
   `VideoController` 实例）、`size=854x480`（非 0x0）、`playing=true`，
   与开启 audioOnly 前的正常视频行为一致。
-- **既有探针缺陷（`example/lib/perf_probe_audio_only.dart` 的 stdout/
-  Platform.environment 两处）本轮未修**，新验证改走独立新文件全程用
-  `print()`，绕开该缺陷而非修它——旧探针待修状态不变。
+- **`example/lib/perf_probe_audio_only.dart` 的两处已知探针缺陷已修复**
+  （2026-09-25）：`stdout.writeln` 改为 `print()`；`_mode`/`_mediaUri` 从
+  运行时读 `Platform.environment`（在 Android 上 `--dart-define` 不会注入
+  OS 环境变量，模式切换从未真正生效过）改为编译期常量
+  `String.fromEnvironment`，配合 `--dart-define` 才能真正在 Android 上
+  生效。用法不变（`--dart-define=MOVA_PERF_MODE=video/audio`）。
+  `flutter analyze` 0 issues。
 计划见 [doc/plans/2026-09-16-audio-only.md](doc/plans/2026-09-16-audio-only.md)。
 另：`MovaAudioSkin`（封面/歌词/波形专用皮肤，第二档，约 6–8 Task）**明确不做**，
 将来若确有需要再评估——当前用 `MovaPlayer.surface` 已够。
