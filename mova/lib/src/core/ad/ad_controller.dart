@@ -895,28 +895,19 @@ class MovaAdCtrl {
   /// `open()`/`seek()` path when swapping is disabled, was never warmed, or
   /// failed.
   ///
-  /// Uses `commit(waitForReady: true)` rather than a bare `commit()`: the ad
-  /// ending (`MovaDone`) and the shadow's readiness policy reporting `ready`
-  /// are two independent clocks, and by design the shadow is only asked to
-  /// warm up in the ad's last couple of seconds (see [MovaLeadWarm]) — so it
-  /// is common for the shadow to still be `warming`, not yet `ready`, at the
-  /// exact instant the ad's last frame plays. A bare `commit()` would treat
-  /// that near-miss as an outright failure and fall back to a full `open()`
-  /// rebuild, defeating the swap almost every time. Waiting lets the commit
-  /// succeed as soon as the shadow catches up, bounded by the readiness
-  /// policy's own timeout — worst case it degrades to the same fallback, just
-  /// a little later.
+  /// Uses `commit(waitForReady: true)` rather than a bare `commit()` — a bare
+  /// commit would treat the shadow's common "not quite ready yet" state as an
+  /// outright failure and defeat the swap almost every time. Full rationale:
+  /// doc/SPEC.md「广告编排增强」§为什么 `_playContent` 用
+  /// `commit(waitForReady: true)`.
   ///
   /// 把播放切换回正片，可选地从 [at] 续播。配置了 [_swap] 时先尝试无缝切换；
   /// 切换被禁用、从未预热过、或切换失败时回落到普通 `open()`/`seek()` 路径。
   ///
-  /// 用 `commit(waitForReady: true)` 而非裸 `commit()`：广告结束（`MovaDone`）
-  /// 和影子引擎的就绪判据报告 `ready` 是两个独立的时钟——按设计，影子只在广告
-  /// 最后一两秒才被要求预热（见 [MovaLeadWarm]），所以广告最后一帧播放的那个
-  /// 精确瞬间，影子往往还处于 `warming`、尚未 `ready`，是很常见的情况。裸
-  /// `commit()` 会把这种"差一点点"直接判为失败、回落到完整的 `open()` 重建，
-  /// 导致无缝切换几乎每次都落空。等待能让影子一追上就立刻提交成功，且受就绪
-  /// 判据自身的超时约束——最坏情况也只是稍晚一点退化到同样的回落路径。
+  /// 用 `commit(waitForReady: true)` 而非裸 `commit()`——裸 commit 会把影子
+  /// "常见地差一点点没准备好"误判为彻底失败，导致无缝切换几乎每次都落空。
+  /// 完整理由见 doc/SPEC.md「广告编排增强」§为什么 `_playContent` 用
+  /// `commit(waitForReady: true)`。
   Future<void> _playContent({Duration at = Duration.zero}) async {
     _cancelAllTimers();
     _phase = _Phase.content;

@@ -314,6 +314,15 @@ break.waitForReady ?? config.waitForAdReady.waitFor(break)
    风险敞口。
 3. 影子引擎的 `MovaErrorEvent` 从未被监听，加载失败会一直预热到超时。
 
+### 为什么 `_playContent` 用 `commit(waitForReady: true)` 而非裸 `commit()`
+
+广告结束（`MovaDone`）和影子引擎的就绪判据报告 `ready` 是两个独立的时钟——按设计，
+影子只在广告最后一两秒才被要求预热（见 `MovaLeadWarm`），所以广告最后一帧播放的那个
+精确瞬间，影子往往还处于 `warming`、尚未 `ready`，是很常见的情况。裸 `commit()` 会把
+这种"差一点点"直接判为失败、回落到完整的 `open()` 重建，导致无缝切换几乎每次都落空。
+等待能让影子一追上就立刻提交成功，且受就绪判据自身的超时约束——最坏情况也只是稍晚
+一点退化到同样的回落路径。
+
 ### 与代码的对应
 
 | 文件 | 职责 |

@@ -571,26 +571,17 @@ class MovaEngine implements MovaApi {
     final allowed = await _chain.beforeOpen(source);
     if (!allowed) return;
     _source = source;
-    // Forget everything the *previous* media reported. This is what makes the
-    // "park or seek now" decision in [seek] deterministic: an `open()` that is
-    // immediately followed by a `seek()` (the ad→content resume path, and every
-    // warm-up in `MovaSwapEngine`) must always park, because mpv has only been
-    // handed the load command and cannot service a seek yet — measured on
-    // device (STG AL00): such a seek is not merely dropped, it wedges the
-    // player (position never leaves 0 and even `dispose()` then hangs). Without
-    // this reset the decision rides on whether media_kit's own
-    // "duration → zero" reset happened to be delivered during `open()`'s
-    // remaining awaits — true in every run measured, but a race nonetheless,
-    // and the losing side is the wedge.
+    // Forget everything the *previous* media reported, so [seek]'s "park or
+    // send now" decision is deterministic: a seek issued right after open()
+    // must always park, or mpv wedges the player — real-device measured on
+    // STG AL00 (position never leaves 0, even dispose() hangs). Full
+    // real-device investigation notes: CLAUDE.md's seamless-swap verification
+    // section.
     //
-    // 把*上一条*素材报告过的一切忘掉。这正是让 [seek] 里"寄存还是立刻下发"的
-    // 判断变确定的关键：紧跟在 `open()` 之后的 `seek()`（广告→正片续播路径，
-    // 以及 `MovaSwapEngine` 的每一次预热）必须一律寄存——此刻 mpv 只是刚收到
-    // 加载命令，根本无法服务 seek。真机实测（STG AL00）：这种 seek 不只是被
-    // 丢弃，还会把播放器卡死（position 永远停在 0，连 `dispose()` 都挂住）。
-    // 不做这次重置，该判断就取决于 media_kit 自己那次"duration 归零"是否恰好
-    // 在 `open()` 剩余的 await 期间被派发——实测每一轮都是，但终究是竞态，而
-    // 输的那一侧是卡死。
+    // 把*上一条*素材报告过的一切忘掉，使 [seek] 里"寄存还是立刻下发"的判断
+    // 变确定：紧跟 open() 之后的 seek 必须一律寄存，否则 mpv 会把播放器卡死
+    // ——真机实测 STG AL00（position 永远停在 0，连 dispose() 都挂住）。完整
+    // 真机排查记录见 CLAUDE.md 的无缝切换真机验证一节。
     _forgetMediaProgress();
     _previewService.attach(source);
     _sttService.attach(source);
@@ -965,27 +956,20 @@ class MovaEngine implements MovaApi {
     _forgetMediaProgress();
     // Drop the stall tally: the buffering burst a variant reload causes is
     // the reload's own cost, not evidence the network can't sustain the
-    // current variant. Measured on device (STG AL00, mux x36xhzz): without
-    // this, a manual switch pushed the counter over the threshold ~0.5s
-    // later and ABR fired a second back-to-back `open()`, which discarded
-    // the parked resume seek and restarted playback from zero.
-    //
-    // Safe for the ABR's own path (downshiftQuality → here): the default
-    // [MovaBufferAbr] already zeroes its counter when it signals a
-    // downshift, so this only additionally clears the rising-edge memory —
-    // it cannot swallow a downshift that was about to happen. Stepping down
-    // several variants in a row still works: each step counts afresh from
-    // zero either way.
+    // current variant — without this a manual switch can trigger a
+    // back-to-back ABR `open()` that discards the just-parked resume seek.
+    // Safe for ABR's own path too (downshiftQuality → here): the default
+    // [MovaBufferAbr] already zeroes its counter on a downshift signal, so
+    // this only clears extra rising-edge memory, never swallows a downshift.
+    // Real-device measurement (STG AL00, mux x36xhzz): CLAUDE.md's
+    // seamless-swap verification section.
     //
     // 清掉卡顿计数：换档重载引起的那阵缓冲是重载自身的代价，不能当成"网络扛
-    // 不住当前档位"的证据。真机实测（STG AL00，mux x36xhzz）：不清的话，手动
-    // 换档后约 0.5s 计数就越过阈值，ABR 紧接着又发一次 `open()`，把寄存的续播
-    // seek 冲掉、播放从 0 重来。
-    //
-    // 对 ABR 自己那条路径（downshiftQuality → 本方法）也是安全的：默认的
-    // [MovaBufferAbr] 在发出降档信号时就已把计数归零，这里只是额外清掉上升沿
-    // 记忆，不会吞掉本该发生的降档；连续逐档下降依旧成立——每一档本来就是从
-    // 零重新计数。
+    // 不住当前档位"的证据——不清的话手动换档可能触发 ABR 背靠背再发一次
+    // `open()`，把刚寄存的续播 seek 冲掉。对 ABR 自己那条路径
+    // （downshiftQuality → 本方法）也安全：默认 [MovaBufferAbr] 在发出降档
+    // 信号时已把计数归零，这里只是额外清掉上升沿记忆，不会吞掉本该发生的降档。
+    // 真机实测数据（STG AL00，mux x36xhzz）见 CLAUDE.md 的无缝切换真机验证一节。
     _abrPolicy.reset();
     _state.emit(state.copyWith(duration: Duration.zero, currentQuality: q));
     await _kernel.open(playUri, play: wasPlaying);

@@ -28,23 +28,12 @@ import 'skin.dart';
 ///
 /// [assemble] renders three layers, back to front, each via an overridable
 /// protected method ([buildPlaybackLayer]/[buildOperableLayer]/
-/// [buildPersistentLayer]) so a subclass can re-lay-out just one layer:
-///
-/// 1. **播放层 / playback layer** — the raw [video] surface.
-/// 2. **操作层 / operable layer** — gesture detection plus the top/center/
-///    bottom and left/right chrome, all fading and becoming tap-through together as *one*
-///    [_BarVisibility] instance on [MovaUiState.controlsVisible] (idle
-///    auto-hide); hidden outright while locked or in picture-in-picture
-///    ([_LockedHidden]/[_PipHidden]), since neither state has any use for it.
-/// 3. **常驻层 / persistent layer** — the lock mask and lock/unlock toggle.
-///    Always mounted, transparent to hits by default; only the pieces that
-///    actually need to intercept touches (the opaque mask while locked) do
-///    so. Never gated by auto-hide/pip/lock, because it is what *controls*
-///    those states in the first place.
-///
-/// This structure is the built-in skin's own coherent whole — a from-scratch
-/// [MovaSkin] is free to lay its layers out completely differently; that
-/// customisation is the customiser's business, not this class's.
+/// [buildPersistentLayer]) so a subclass can re-lay-out just one layer without
+/// copying the whole thing — playback (raw video) / operable (gesture + bar
+/// chrome, gated by auto-hide/pip/lock/mini) / persistent (lock mask +
+/// toggle, always mounted and ungated, since it is what *controls* those
+/// states). Full design rationale and the "override just one layer" contract:
+/// doc/DESIGN-0.3.0-plugin-skin.md §7.2.
 ///
 /// 内置 [MovaSkin]：对点播与直播都复刻 0.1.0 的默认外观，并扩展了 0.1.0 从未有
 /// 过的缓冲/错误/锁定叠加层。
@@ -53,20 +42,11 @@ import 'skin.dart';
 /// [MovaState.type] 在内部渲染点播或直播布局，皮肤不再按状态整体替换子树。
 ///
 /// [assemble] 由后到前渲染三层，每层经一个可覆写的受保护方法
-/// （[buildPlaybackLayer]/[buildOperableLayer]/[buildPersistentLayer]），
-/// 使子类可只重排其中一层：
-///
-/// 1. **播放层**——原始 [video] 画面。
-/// 2. **操作层**——手势探测 + 顶/中/底栏 chrome，全部作为**同一个**
-///    [_BarVisibility] 实例随 [MovaUiState.controlsVisible]（闲置自动隐藏）一起
-///    渐隐并变为可穿透点击；锁定或画中画时整体隐藏（[_LockedHidden]/
-///    [_PipHidden]），因为这两种状态下它都毫无用处。
-/// 3. **常驻层**——锁定遮罩与锁定/解锁切换按钮。恒定挂载，默认对点击穿透；
-///    只有真正需要拦截点击的部分（锁定时的不透明遮罩）才会吸收事件。不受
-///    自动隐藏/画中画/锁定门控，因为它本身就是控制这些状态的入口。
-///
-/// 这套结构是内置皮肤自己的统一整体——完全自建的 [MovaSkin] 可以把层次布局得
-/// 完全不同；那是定制方自己的事，不是这个类要操心的。
+/// （[buildPlaybackLayer]/[buildOperableLayer]/[buildPersistentLayer]），使
+/// 子类无需整体照抄即可只重排其中一层——播放层（原始画面）/ 操作层（手势 +
+/// 栏 chrome，受自动隐藏/画中画/锁定/小窗门控）/ 常驻层（锁定遮罩 + 切换按钮，
+/// 恒挂载且不受门控，因为它本身就是控制这些状态的入口）。完整设计理由与"只
+/// 覆写一层"的契约见 doc/DESIGN-0.3.0-plugin-skin.md §7.2。
 class MovaDefSkin implements MovaSkin {
   /// Creates the default skin, optionally applying [patches] to its tree.
   ///

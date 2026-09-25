@@ -95,16 +95,10 @@ class _Binding {
 /// so each page owns its own decoder and render surface instead of every
 /// page sharing one.
 ///
-/// This replaces the original single-engine feed architecture. With one
-/// shared engine, switching pages had two unavoidable artifacts: a cold
-/// `open()` blanked the surface (black flash), and any in-place fast path
-/// left the *previous* item's last decoded frame on screen until the new
-/// one's frames arrived (stale frame). Both were bridged with a timed black
-/// mask, which is a guess, not a fix. With a pool, the page the viewer is
-/// swiping toward has already been opened on its own engine and parked on
-/// its own surface, so there is nothing to blank and nothing stale to show.
-/// The cost is memory: N engines instead of one, measured on-device before
-/// this was adopted (see doc/SPEC.md's feed entry).
+/// Why a pool rather than one shared, repeatedly-`open()`ed engine — and the
+/// two artifacts (black flash / stale frame) that decision used to cause —
+/// is recorded in doc/SPEC.md's "预设皮肤：bilibili 点播 / 抖音风 feed"
+/// section; do not revert to a single engine without reading that first.
 ///
 /// Never allocates more than [size] engines. Recycling unbinds an engine and
 /// returns it to the idle list rather than disposing it — re-creating a
@@ -117,13 +111,9 @@ class _Binding {
 /// 一个固定大小的播放引擎池，纵向 feed 在其中来回切换，使每一页拥有自己的
 /// 解码器与渲染画面，而非所有页共用一个。
 ///
-/// 它取代了最初的单引擎 feed 架构。共用一个引擎时，切页有两个躲不掉的瑕疵：
-/// 冷 `open()` 会清空画面（黑屏一闪），而任何原地快速路径都会把*上一条*
-/// 最后解码的那帧留在屏幕上，直到新一条的帧到达（残留旧帧）。两者当时都靠
-/// 一层定时黑遮罩桥接——那是猜测，不是修复。有了引擎池，观众正在滑向的那页
-/// 早已在自己的引擎上打开、停在自己的画面上，因此既没有需要清空的东西，也
-/// 没有会露出来的旧帧。代价是内存：N 个引擎而非一个，采纳前已在真机实测
-/// （见 doc/SPEC.md 的 feed 条目）。
+/// 为什么用池而非一个反复 `open()` 的共享引擎——以及那个决策曾导致的两个瑕疵
+/// （黑屏一闪 / 残留旧帧）——记录在 doc/SPEC.md「预设皮肤：bilibili 点播 /
+/// 抖音风 feed」一节；改回单引擎前务必先读那一节。
 ///
 /// 引擎数永不超过 [size]。回收只是解绑并把引擎放回空闲列表，而非释放它——
 /// 每次上滑都重建一次原生画面，等于把这套设计想省掉的开销又还回去。
@@ -155,8 +145,8 @@ class MovaFeedEnginePool {
     int size = 3,
     this.fit,
     this.onChanged,
-  })  : _factory = engineFactory,
-        size = size < 1 ? 1 : size;
+  }) : _factory = engineFactory,
+       size = size < 1 ? 1 : size;
 
   /// Creates each engine.
   ///
@@ -257,7 +247,11 @@ class MovaFeedEnginePool {
   /// when the binding was reused).
   ///
   /// 返回一个在 `open()` 完成后（或复用绑定时立即）完成的 Future。
-  Future<void> bind(int index, MovaSource source, {bool autoPlay = false}) async {
+  Future<void> bind(
+    int index,
+    MovaSource source, {
+    bool autoPlay = false,
+  }) async {
     if (_disposed) return;
 
     final existing = _bound[index];
@@ -361,7 +355,9 @@ class MovaFeedEnginePool {
     // 并发、尽力而为地拆除。彼此独立的原生资源，故并发释放；逐引擎的
     // catchError 保证某个失败不会把其它引擎晾在那（除此之外没有任何东西
     // 持有它们的引用可供释放）。
-    await Future.wait(engines.map((engine) => engine.dispose().catchError((Object _) {})));
+    await Future.wait(
+      engines.map((engine) => engine.dispose().catchError((Object _) {})),
+    );
   }
 
   /// Returns an engine free to bind to [index]: an idle one, a newly created
@@ -399,8 +395,10 @@ class MovaFeedEnginePool {
     // 多数是往前而非往回。
     var victim = _bound.keys.first;
     for (final candidate in _bound.keys) {
-      final better = (candidate - index).abs() > (victim - index).abs() ||
-          ((candidate - index).abs() == (victim - index).abs() && candidate < victim);
+      final better =
+          (candidate - index).abs() > (victim - index).abs() ||
+          ((candidate - index).abs() == (victim - index).abs() &&
+              candidate < victim);
       if (better) victim = candidate;
     }
     _release(victim);
