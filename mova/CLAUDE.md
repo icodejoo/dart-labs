@@ -284,9 +284,21 @@ Android jniLibs 已接线，iOS 侧尚未把 `dist/darwin/` 产物接进 podspec
    唯一失败的是 **Android x86，且是与本次 LFS/CI 修复完全无关的新发现**：
    "Build libmpv for x86" 那步没有真正报错退出，但压根没产出
    `prefix/x86/usr/local/lib/libmpv.so`，导致下一步 "Strip and verify" 报
-   `No such file or directory`——x86 架构的构建本身有问题，需要单独排查（未开始），
-   和 arm64-v8a/armeabi-v7a/x86_64 用的是同一套 flavor 脚本、只是架构参数不同，
-   具体哪一步吞掉了失败还没查。
+   `No such file or directory`。**已排查并修复（2026-09-17，同日，commit
+   `fe6a8c8`）**：根因是共享的 `deps` 缓存（`actions/cache`，key 只挂
+   `ANDROID_LIBMPV_BUILD_REF`、不分架构）保留了 mpv 各架构自己的
+   `_build-<suffix>` 目录，x86 的 `_build-x86` 很可能在该缓存 key 更早的历史
+   里被某次不同配置污染过，导致 meson 复用了 stale 的配置目录（日志里反复出现
+   "Run meson setup --reconfigure to force Meson to regenerate" + 多个子项目
+   "ninja: no work to do"）——`mpv.sh` 明明传了 `--default-library shared`、
+   meson 自身内省输出也确认收到了 `default_library: shared`，但 ninja 最终
+   链接出的是静态 `libmpv.a` 而非 `.so`。修法：在 `build.sh` 调用前先删掉
+   架构专属的 mpv `_build-<suffix>` 目录（arm64-v8a job 与
+   android-other-abi 矩阵 armeabi-v7a/x86/x86_64 均加了这一步），使 meson
+   每次都强制重新配置，不受共享缓存历史影响。**截至 2026-09-24（run
+   35948800700）全部 10 个平台/架构 job 已连续多轮保持全绿**，x86 产出真实
+   `libmpv.so`（6,190,732 字节），已随本轮同步进 jniLibs。此条已解决，
+   不再需要单独立项排查。
 
    **⚠️ 运维踩坑记录（2026-09-17）——`git lfs push --object-id origin` 在双 push-url
    remote 下不可靠**：本仓库 `origin` 同时配置了 codeup（fetch+push）与 GitHub
