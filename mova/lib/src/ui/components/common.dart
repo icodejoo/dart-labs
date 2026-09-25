@@ -65,7 +65,10 @@ class MovaIconButton extends StatelessWidget {
             if (caption != null)
               Text(
                 caption!,
-                style: TextStyle(color: Color(theme.textColor), fontSize: theme.captionFontSize),
+                style: TextStyle(
+                  color: Color(theme.textColor),
+                  fontSize: theme.captionFontSize,
+                ),
               ),
           ],
         ),
@@ -102,7 +105,12 @@ class MovaGradBar extends StatelessWidget {
   /// Creates a themed gradient bar.
   ///
   /// 创建一个带主题的渐变条。
-  const MovaGradBar({super.key, required this.top, required this.child, required this.theme});
+  const MovaGradBar({
+    super.key,
+    required this.top,
+    required this.child,
+    required this.theme,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -120,3 +128,81 @@ class MovaGradBar extends StatelessWidget {
   }
 }
 
+/// One selectable row in [showMovaOptionSheet]: a label, whether it is the
+/// currently-active choice (shows a checkmark), and what to do once picked.
+///
+/// [showMovaOptionSheet] 中的一个可选行：文案、是否为当前生效项（显示勾选），
+/// 以及选中后要执行的动作。
+class MovaSheetItem {
+  /// Creates a sheet row.
+  ///
+  /// 创建一个弹层行。
+  const MovaSheetItem({
+    required this.label,
+    required this.checked,
+    required this.onSelected,
+  });
+
+  /// Row label text.
+  ///
+  /// 行文案。
+  final String label;
+
+  /// Whether to show the checkmark on this row.
+  ///
+  /// 是否在该行显示勾选标记。
+  final bool checked;
+
+  /// Invoked after the sheet is dismissed.
+  ///
+  /// 弹层关闭后调用。
+  final VoidCallback onSelected;
+}
+
+/// Shows a themed bottom sheet listing [items] as checkable rows; tapping a
+/// row dismisses the sheet then invokes that row's [MovaSheetItem.onSelected].
+///
+/// Shared skeleton behind the quality picker and the subtitle-language
+/// picker — both reproduce 0.1.0's `showModalBottomSheet` menu shape
+/// (`SafeArea` + a `Column` of `ListTile`s, checkmark trailing, pop-then-act
+/// on tap).
+///
+/// 展示一个带主题的底部选择器，列出 [items] 为可勾选行；点击某行会先关闭弹层，
+/// 再调用该行的 [MovaSheetItem.onSelected]。
+///
+/// 是清晰度选择器与字幕语言选择器共用的骨架——两者都复刻 0.1.0 的
+/// `showModalBottomSheet` 菜单形态（`SafeArea` + `ListTile` 列表的 `Column`、
+/// 勾选尾标、点击后先关闭再执行动作）。
+Future<void> showMovaOptionSheet(
+  BuildContext context,
+  MovaTheme theme,
+  List<MovaSheetItem> items,
+) {
+  return showModalBottomSheet<void>(
+    context: context,
+    backgroundColor: Color(theme.sheetBackgroundColor),
+    builder: (ctx) {
+      return SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            for (final item in items)
+              ListTile(
+                title: Text(
+                  item.label,
+                  style: TextStyle(color: Color(theme.textColor)),
+                ),
+                trailing: item.checked
+                    ? Icon(Icons.check_rounded, color: Color(theme.iconColor))
+                    : null,
+                onTap: () {
+                  Navigator.of(ctx).pop();
+                  item.onSelected();
+                },
+              ),
+          ],
+        ),
+      );
+    },
+  );
+}

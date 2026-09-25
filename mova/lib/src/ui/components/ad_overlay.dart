@@ -79,7 +79,8 @@ class _AdOverlayView extends StatefulWidget {
 ///
 /// [_AdOverlayView] 的状态；持有最近观测到的广告位置，用于独立于控制器回调顺序地
 /// 推导跳过倒计时。
-class _AdOverlayViewState extends State<_AdOverlayView> with MovaPlugin<_AdOverlayView> {
+class _AdOverlayViewState extends State<_AdOverlayView>
+    with MovaPlugin<_AdOverlayView> {
   /// Ad elapsed time as of the last progress tick; reset to zero each time an
   /// ad phase begins.
   ///
@@ -140,7 +141,12 @@ class _AdOverlayViewState extends State<_AdOverlayView> with MovaPlugin<_AdOverl
           Positioned(
             bottom: 24,
             right: 16,
-            child: _Countdown(text: strings.adStartingIn(left), theme: theme),
+            child: _Pill(
+              text: strings.adStartingIn(left),
+              theme: theme,
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+              borderRadius: 999,
+            ),
           ),
         ],
       );
@@ -170,129 +176,71 @@ class _AdOverlayViewState extends State<_AdOverlayView> with MovaPlugin<_AdOverl
         Positioned(
           top: 16,
           left: 16,
-          child: _Badge(label: strings.adBadge, theme: theme),
+          child: _Pill(
+            text: strings.adBadge,
+            theme: theme,
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+            borderRadius: 4,
+            fontSize: theme.badgeFontSize,
+            fontWeight: FontWeight.w600,
+          ),
         ),
         if (after != null)
           Positioned(
             bottom: 24,
             right: 16,
             child: canSkip
-                ? _SkipButton(
-                    label: strings.skipAd,
+                ? _Pill(
+                    text: strings.skipAd,
                     theme: theme,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 14,
+                      vertical: 7,
+                    ),
+                    borderRadius: 999,
+                    bordered: true,
                     onTap: controller.skip,
+                    fontWeight: FontWeight.w600,
                   )
-                : _Countdown(text: '$secondsLeft', theme: theme),
+                : _Pill(
+                    text: '$secondsLeft',
+                    theme: theme,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 7,
+                    ),
+                    borderRadius: 999,
+                  ),
           ),
       ],
     );
   }
 }
 
-/// The small "ad" badge.
+/// Shared dark rounded-pill chrome for the ad badge, skip button, and
+/// countdown — same container/text styling, differing only in corner
+/// radius, border, tap handler and font weight.
 ///
-/// 小型"广告"角标。
-class _Badge extends StatelessWidget {
-  /// Creates the badge.
+/// 广告角标、跳过按钮、倒计时共用的深色圆角药丸外观——三者容器/文字样式一致，
+/// 只在圆角、描边、点击、字重上有差异。
+class _Pill extends StatelessWidget {
+  /// Creates the pill.
   ///
-  /// 创建角标。
-  const _Badge({required this.label, required this.theme});
-
-  /// Badge text.
-  ///
-  /// 角标文案。
-  final String label;
-
-  /// The theme supplying colors.
-  ///
-  /// 提供配色的主题。
-  final MovaTheme theme;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-      decoration: BoxDecoration(
-        color: const Color(0xB3000000),
-        borderRadius: BorderRadius.circular(4),
-      ),
-      child: Text(
-        label,
-        style: TextStyle(
-          color: Color(theme.textColor),
-          fontSize: theme.badgeFontSize,
-          fontWeight: FontWeight.w600,
-        ),
-      ),
-    );
-  }
-}
-
-/// The "skip ad" button, shown once the ad is skippable.
-///
-/// 广告可跳过后显示的"跳过广告"按钮。
-class _SkipButton extends StatelessWidget {
-  /// Creates the skip button.
-  ///
-  /// 创建跳过按钮。
-  const _SkipButton({
-    required this.label,
+  /// 创建药丸组件。
+  const _Pill({
+    required this.text,
     required this.theme,
-    required this.onTap,
+    required this.padding,
+    required this.borderRadius,
+    this.bordered = false,
+    this.onTap,
+    this.fontSize = 13,
+    this.fontWeight,
   });
 
-  /// Button text.
+  /// The text content to display.
   ///
-  /// 按钮文案。
-  final String label;
-
-  /// The theme supplying colors.
-  ///
-  /// 提供配色的主题。
-  final MovaTheme theme;
-
-  /// Tap handler.
-  ///
-  /// 点击回调。
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
-        decoration: BoxDecoration(
-          color: const Color(0xB3000000),
-          border: Border.all(color: Color(theme.textColor)),
-          borderRadius: BorderRadius.circular(999),
-        ),
-        child: Text(
-          label,
-          style: TextStyle(
-            color: Color(theme.textColor),
-            fontSize: 13,
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-/// A countdown pill: "skippable in N seconds" during an ad, or "the ad starts
-/// in N seconds" while the content plays on.
-///
-/// 倒计时小药丸：广告期间显示"N 秒后可跳过"，正片继续播期间显示"N 秒后播放广告"。
-class _Countdown extends StatelessWidget {
-  /// Creates the countdown pill.
-  ///
-  /// 创建倒计时药丸。
-  const _Countdown({required this.text, required this.theme});
-
-  /// The already-rendered copy to show.
-  ///
-  /// 要显示的、已渲染好的文案。
+  /// 展示的文本内容。
   final String text;
 
   /// The theme supplying colors.
@@ -300,21 +248,54 @@ class _Countdown extends StatelessWidget {
   /// 提供配色的主题。
   final MovaTheme theme;
 
+  /// Inner padding around [text].
+  ///
+  /// [text] 周围的内边距。
+  final EdgeInsets padding;
+
+  /// Corner radius of the pill.
+  ///
+  /// 药丸的圆角半径。
+  final double borderRadius;
+
+  /// Whether to draw a [MovaTheme.textColor] border (used by the skip button).
+  ///
+  /// 是否绘制 [MovaTheme.textColor] 描边（跳过按钮使用）。
+  final bool bordered;
+
+  /// Optional tap handler; when set the pill becomes tappable.
+  ///
+  /// 可选点击回调；设置后药丸变为可点击。
+  final VoidCallback? onTap;
+
+  /// Text font size, defaults to 13.
+  ///
+  /// 文字字号，默认 13。
+  final double fontSize;
+
+  /// Optional text font weight.
+  ///
+  /// 可选文字字重。
+  final FontWeight? fontWeight;
+
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+    final pill = Container(
+      padding: padding,
       decoration: BoxDecoration(
         color: const Color(0xB3000000),
-        borderRadius: BorderRadius.circular(999),
+        border: bordered ? Border.all(color: Color(theme.textColor)) : null,
+        borderRadius: BorderRadius.circular(borderRadius),
       ),
       child: Text(
         text,
         style: TextStyle(
           color: Color(theme.textColor),
-          fontSize: 13,
+          fontSize: fontSize,
+          fontWeight: fontWeight,
         ),
       ),
     );
+    return onTap == null ? pill : GestureDetector(onTap: onTap, child: pill);
   }
 }

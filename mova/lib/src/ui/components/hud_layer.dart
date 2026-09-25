@@ -27,11 +27,11 @@ class MovaHudLayerComponent extends MovaComp {
 
   @override
   List<MovaComp> get children => [
-        MovaVolumeHudComponent(),
-        MovaBrightnessHudComponent(),
-        MovaSeekHudComponent(),
-        MovaZoomHudComponent(),
-      ];
+    MovaVolumeHudComponent(),
+    MovaBrightnessHudComponent(),
+    MovaSeekHudComponent(),
+    MovaZoomHudComponent(),
+  ];
 
   @override
   Widget build(BuildContext context, MovaApi api, List<Widget> children) {
@@ -56,19 +56,18 @@ class MovaVolumeHudComponent extends MovaComp {
 
   @override
   Widget build(BuildContext context, MovaApi api, List<Widget> children) {
-    return MovaUiSelect<MovaHud>(
-      selector: (s) => s.hud,
-      builder: (context, hud) {
-        if (hud != MovaHud.volume) return const SizedBox.shrink();
-        return MovaSelect<double>(
-          selector: (s) => s.volume,
-          builder: (context, volume) => _HudBadge(
-            api: api,
-            icon: volume <= 0 ? Icons.volume_off_rounded : Icons.volume_up_rounded,
-            text: '${volume.round()}%',
-          ),
-        );
-      },
+    return _hudWhen(
+      MovaHud.volume,
+      (context) => MovaSelect<double>(
+        selector: (s) => s.volume,
+        builder: (context, volume) => _HudBadge(
+          api: api,
+          icon: volume <= 0
+              ? Icons.volume_off_rounded
+              : Icons.volume_up_rounded,
+          text: '${volume.round()}%',
+        ),
+      ),
     );
   }
 }
@@ -90,19 +89,16 @@ class MovaBrightnessHudComponent extends MovaComp {
 
   @override
   Widget build(BuildContext context, MovaApi api, List<Widget> children) {
-    return MovaUiSelect<MovaHud>(
-      selector: (s) => s.hud,
-      builder: (context, hud) {
-        if (hud != MovaHud.brightness) return const SizedBox.shrink();
-        return MovaSelect<double>(
-          selector: (s) => s.brightness,
-          builder: (context, brightness) => _HudBadge(
-            api: api,
-            icon: Icons.brightness_6_rounded,
-            text: '${(brightness * 100).round()}%',
-          ),
-        );
-      },
+    return _hudWhen(
+      MovaHud.brightness,
+      (context) => MovaSelect<double>(
+        selector: (s) => s.brightness,
+        builder: (context, brightness) => _HudBadge(
+          api: api,
+          icon: Icons.brightness_6_rounded,
+          text: '${(brightness * 100).round()}%',
+        ),
+      ),
     );
   }
 }
@@ -136,19 +132,18 @@ class MovaSeekHudComponent extends MovaComp {
 
   @override
   Widget build(BuildContext context, MovaApi api, List<Widget> children) {
-    return MovaUiSelect<MovaHud>(
-      selector: (s) => s.hud,
-      builder: (context, hud) {
-        if (hud != MovaHud.seek) return const SizedBox.shrink();
-        return MovaUiSelect<({String? hudText, Duration? previewAt})>(
-          selector: (s) => (hudText: s.hudText, previewAt: s.previewAt),
-          builder: (context, v) {
-            final text = v.hudText ?? (v.previewAt != null ? formatDuration(v.previewAt!) : null);
-            if (text == null) return const SizedBox.shrink();
-            return _HudBadge(api: api, text: text);
-          },
-        );
-      },
+    return _hudWhen(
+      MovaHud.seek,
+      (context) => MovaUiSelect<({String? hudText, Duration? previewAt})>(
+        selector: (s) => (hudText: s.hudText, previewAt: s.previewAt),
+        builder: (context, v) {
+          final text =
+              v.hudText ??
+              (v.previewAt != null ? formatDuration(v.previewAt!) : null);
+          if (text == null) return const SizedBox.shrink();
+          return _HudBadge(api: api, text: text);
+        },
+      ),
     );
   }
 }
@@ -170,20 +165,31 @@ class MovaZoomHudComponent extends MovaComp {
 
   @override
   Widget build(BuildContext context, MovaApi api, List<Widget> children) {
-    return MovaUiSelect<MovaHud>(
-      selector: (s) => s.hud,
-      builder: (context, hud) {
-        if (hud != MovaHud.zoom) return const SizedBox.shrink();
-        return MovaSelect<double>(
-          selector: (s) => s.zoom,
-          builder: (context, zoom) => _HudBadge(
-            api: api,
-            text: '${zoom.toStringAsFixed(1)}${api.options.strings.zoomSuffix}',
-          ),
-        );
-      },
+    return _hudWhen(
+      MovaHud.zoom,
+      (context) => MovaSelect<double>(
+        selector: (s) => s.zoom,
+        builder: (context, zoom) => _HudBadge(
+          api: api,
+          text: '${zoom.toStringAsFixed(1)}${api.options.strings.zoomSuffix}',
+        ),
+      ),
     );
   }
+}
+
+/// Shows [builder]'s output only while [MovaUiState.hud] equals [kind],
+/// otherwise renders nothing — the shared "single HUD at a time" gate all
+/// four HUD leaf components use.
+///
+/// 仅在 [MovaUiState.hud] 等于 [kind] 时展示 [builder] 的输出，否则不渲染任何
+/// 内容——4 个 HUD 叶子组件共用的"同时只显示一个 HUD"门控。
+Widget _hudWhen(MovaHud kind, Widget Function(BuildContext) builder) {
+  return MovaUiSelect<MovaHud>(
+    selector: (s) => s.hud,
+    builder: (context, hud) =>
+        hud != kind ? const SizedBox.shrink() : builder(context),
+  );
 }
 
 /// Small centered pill used to render every HUD, themed from [MovaApi.options].

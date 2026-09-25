@@ -1,4 +1,5 @@
-import 'package:flutter/foundation.dart' show TargetPlatform, defaultTargetPlatform;
+import 'package:flutter/foundation.dart'
+    show TargetPlatform, defaultTargetPlatform;
 import 'package:flutter/material.dart';
 
 import '../../core/api.dart';
@@ -41,14 +42,14 @@ class MovaTopBarComponent extends MovaComp {
 
   @override
   List<MovaComp> get children => [
-        MovaTitleComponent(),
-        MovaPipButtonComponent(),
-        MovaQualityButtonComponent(),
-        MovaSubtitleButtonComponent(),
-        MovaFitButtonComponent(),
-        MovaOrientationButtonComponent(),
-        MovaFullscreenButtonComponent(),
-      ];
+    MovaTitleComponent(),
+    MovaPipButtonComponent(),
+    MovaQualityButtonComponent(),
+    MovaSubtitleButtonComponent(),
+    MovaFitButtonComponent(),
+    MovaOrientationButtonComponent(),
+    MovaFullscreenButtonComponent(),
+  ];
 
   @override
   Widget build(BuildContext context, MovaApi api, List<Widget> children) {
@@ -102,7 +103,10 @@ class MovaTitleComponent extends MovaComp {
           title,
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
-          style: TextStyle(color: Color(theme.textColor), fontSize: theme.titleFontSize),
+          style: TextStyle(
+            color: Color(theme.textColor),
+            fontSize: theme.titleFontSize,
+          ),
         );
       },
     );
@@ -188,7 +192,8 @@ class MovaQualityButtonComponent extends MovaComp {
               icon: Icons.high_quality_rounded,
               theme: theme,
               caption: current?.label,
-              onPressed: () => _showQualityMenu(context, api, qualities, current, theme),
+              onPressed: () =>
+                  _showQualityMenu(context, api, qualities, current, theme),
             );
           },
         );
@@ -213,30 +218,14 @@ class MovaQualityButtonComponent extends MovaComp {
     MovaQual? current,
     MovaTheme theme,
   ) {
-    showModalBottomSheet<void>(
-      context: context,
-      backgroundColor: Color(theme.sheetBackgroundColor),
-      builder: (ctx) {
-        return SafeArea(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              for (final q in qualities)
-                ListTile(
-                  title: Text(q.label, style: TextStyle(color: Color(theme.textColor))),
-                  trailing: (current?.uri == q.uri && current?.isAuto == q.isAuto)
-                      ? Icon(Icons.check_rounded, color: Color(theme.iconColor))
-                      : null,
-                  onTap: () {
-                    Navigator.of(ctx).pop();
-                    api.switchQuality(q);
-                  },
-                ),
-            ],
-          ),
-        );
-      },
-    );
+    showMovaOptionSheet(context, theme, [
+      for (final q in qualities)
+        MovaSheetItem(
+          label: q.label,
+          checked: current?.uri == q.uri && current?.isAuto == q.isAuto,
+          onSelected: () => api.switchQuality(q),
+        ),
+    ]);
   }
 }
 
@@ -303,7 +292,8 @@ class MovaOrientationButtonComponent extends MovaComp {
 
   @override
   Widget build(BuildContext context, MovaApi api, List<Widget> children) {
-    final isMobile = defaultTargetPlatform == TargetPlatform.android ||
+    final isMobile =
+        defaultTargetPlatform == TargetPlatform.android ||
         defaultTargetPlatform == TargetPlatform.iOS;
     if (!isMobile) return const SizedBox.shrink();
     final theme = api.options.theme;
@@ -343,7 +333,9 @@ class MovaFullscreenButtonComponent extends MovaComp {
       selector: (s) => s.fullscreen,
       builder: (context, fullscreen) {
         return MovaIconButton(
-          icon: fullscreen ? Icons.fullscreen_exit_rounded : Icons.fullscreen_rounded,
+          icon: fullscreen
+              ? Icons.fullscreen_exit_rounded
+              : Icons.fullscreen_rounded,
           theme: theme,
           onPressed: () => api.setFullscreen(!fullscreen),
         );
@@ -351,4 +343,3 @@ class MovaFullscreenButtonComponent extends MovaComp {
     );
   }
 }
-

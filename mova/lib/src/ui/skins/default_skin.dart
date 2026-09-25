@@ -9,6 +9,7 @@ import '../components/overlays.dart';
 import '../components/preview.dart';
 import '../components/subtitle.dart';
 import '../components/top_bar.dart';
+import '../../core/state/state.dart';
 import '../scope/scope.dart';
 import '../scope/selector.dart';
 import '../slots/component.dart';
@@ -139,86 +140,91 @@ class MovaDefSkin implements MovaSkin {
   Widget buildOperableLayer(BuildContext context, MovaSlotBundle slots) {
     return Positioned.fill(
       child: RepaintBoundary(
-        child: _MiniHidden(
-          child: _PipHidden(
-          child: _LockedHidden(
-            child: Stack(
-              children: [
-                Positioned.fill(child: Stack(children: slots[MovaSlot.gesture])),
-                Positioned.fill(
-                  child: _BarVisibility(
-                    // A Stack of independently `Positioned` regions, not a
-                    // Column: the bottom bar grows taller when the preview
-                    // bubble appears above it (MovaSlot.bottomAbove), and a
-                    // Column would re-flow every sibling in response —
-                    // visibly nudging the center play/pause icon up and
-                    // down as the bubble shows/hides. Positioning top/
-                    // center/bottom independently means resizing one never
-                    // moves another.
-                    //
-                    // 用 Stack + 各自独立的 Positioned，而非 Column：预览气泡
-                    // 出现在底栏上方（MovaSlot.bottomAbove）时会撑高底栏，若用
-                    // Column，兄弟节点都会跟着重新排布——中间的播放/暂停图标
-                    // 就会随气泡出现/消失肉眼可见地上下跳动。顶/中/底各自
-                    // 独立定位，意味着其中一个变高变矮，绝不会带动另一个。
-                    child: Stack(
-                      children: [
-                        Positioned(
-                          top: 0,
-                          left: 0,
-                          right: 0,
-                          child: Column(children: slots[MovaSlot.top]),
-                        ),
-                        Positioned.fill(
-                          child: Stack(children: slots[MovaSlot.center]),
-                        ),
-                        Positioned(
-                          left: 0,
-                          right: 0,
-                          bottom: 0,
-                          child: Column(
-                            children: [
-                              ...slots[MovaSlot.bottomAbove],
-                              ...slots[MovaSlot.bottom],
-                            ],
+        child: _HideWhen(
+          selector: (s) => s.mini,
+          child: _HideWhen(
+            selector: (s) => s.pip,
+            child: _HideWhen(
+              selector: (s) => s.locked,
+              child: Stack(
+                children: [
+                  Positioned.fill(
+                    child: Stack(children: slots[MovaSlot.gesture]),
+                  ),
+                  Positioned.fill(
+                    child: _BarVisibility(
+                      // A Stack of independently `Positioned` regions, not a
+                      // Column: the bottom bar grows taller when the preview
+                      // bubble appears above it (MovaSlot.bottomAbove), and a
+                      // Column would re-flow every sibling in response —
+                      // visibly nudging the center play/pause icon up and
+                      // down as the bubble shows/hides. Positioning top/
+                      // center/bottom independently means resizing one never
+                      // moves another.
+                      //
+                      // 用 Stack + 各自独立的 Positioned，而非 Column：预览气泡
+                      // 出现在底栏上方（MovaSlot.bottomAbove）时会撑高底栏，若用
+                      // Column，兄弟节点都会跟着重新排布——中间的播放/暂停图标
+                      // 就会随气泡出现/消失肉眼可见地上下跳动。顶/中/底各自
+                      // 独立定位，意味着其中一个变高变矮，绝不会带动另一个。
+                      child: Stack(
+                        children: [
+                          Positioned(
+                            top: 0,
+                            left: 0,
+                            right: 0,
+                            child: Column(children: slots[MovaSlot.top]),
                           ),
-                        ),
-                        // Left/right vertical edge bands (MovaSlot.left/right):
-                        // full-height, centered content, for side chrome
-                        // (sidebars, episode lists). Empty by default — a
-                        // no-op unless a component is placed there.
-                        //
-                        // 左/右垂直边带（MovaSlot.left/right）：满高、内容居中，
-                        // 用于侧边 chrome（侧栏、剧集列表）。默认为空——除非
-                        // 有组件放进去，否则不产生任何效果。
-                        Positioned(
-                          top: 0,
-                          bottom: 0,
-                          left: 0,
-                          child: Column(
-                            mainAxisSize: MainAxisSize.min,
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: slots[MovaSlot.left],
+                          Positioned.fill(
+                            child: Stack(children: slots[MovaSlot.center]),
                           ),
-                        ),
-                        Positioned(
-                          top: 0,
-                          bottom: 0,
-                          right: 0,
-                          child: Column(
-                            mainAxisSize: MainAxisSize.min,
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: slots[MovaSlot.right],
+                          Positioned(
+                            left: 0,
+                            right: 0,
+                            bottom: 0,
+                            child: Column(
+                              children: [
+                                ...slots[MovaSlot.bottomAbove],
+                                ...slots[MovaSlot.bottom],
+                              ],
+                            ),
                           ),
-                        ),
-                      ],
+                          // Left/right vertical edge bands (MovaSlot.left/right):
+                          // full-height, centered content, for side chrome
+                          // (sidebars, episode lists). Empty by default — a
+                          // no-op unless a component is placed there.
+                          //
+                          // 左/右垂直边带（MovaSlot.left/right）：满高、内容居中，
+                          // 用于侧边 chrome（侧栏、剧集列表）。默认为空——除非
+                          // 有组件放进去，否则不产生任何效果。
+                          Positioned(
+                            top: 0,
+                            bottom: 0,
+                            left: 0,
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: slots[MovaSlot.left],
+                            ),
+                          ),
+                          Positioned(
+                            top: 0,
+                            bottom: 0,
+                            right: 0,
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: slots[MovaSlot.right],
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
-                ),
-                Positioned.fill(child: Stack(children: slots[MovaSlot.hud])),
-              ],
+                  Positioned.fill(child: Stack(children: slots[MovaSlot.hud])),
+                ],
+              ),
             ),
-          ),
           ),
         ),
       ),
@@ -308,21 +314,30 @@ class _BarVisibility extends StatelessWidget {
 /// 系统级画中画悬浮窗只有几十逻辑像素见方，也没有自己的手势操作面——宿主
 /// 系统会提供自己的播放/暂停/关闭按钮——因此 mova 的整套 chrome（手势层、
 /// 各栏、HUD）在其中毫无用处，反而会盖住系统自带的控制。
-/// Hides [child] outright while [MovaState.mini] is active.
 ///
-/// The picture has been handed to the in-app mini window, which carries its
-/// own minimal chrome (`MovaMiniSkin`); the page-side chrome would otherwise
-/// keep painting over a surface that is no longer there.
+/// Also used to hide [child] outright while [MovaState.mini]/[MovaState.locked]
+/// is active — the picture has been handed to the in-app mini window (own
+/// minimal chrome, `MovaMiniSkin`) or the screen is locked (leaving only
+/// [MovaLockMaskComponent]'s own unlock affordance, unaffected by this
+/// wrapper); in both cases the page-side chrome has no useful role and would
+/// otherwise keep painting over/inviting taps on a surface that no longer
+/// needs it.
 ///
-/// [MovaState.mini] 生效期间直接隐藏 [child]。
-///
-/// 画面已交给 App 内小窗，小窗自带极简 chrome（`MovaMiniSkin`）；否则页面侧的
-/// chrome 会继续绘制在一个已经不在那里的画面之上。
-class _MiniHidden extends StatelessWidget {
-  /// Creates the mini-visibility wrapper around [child].
+/// 也用于 [MovaState.mini]/[MovaState.locked] 生效期间直接隐藏 [child]——画面
+/// 已交给 App 内小窗（自带极简 chrome `MovaMiniSkin`）或屏幕已锁定（只留
+/// [MovaLockMaskComponent] 自带的解锁入口，不受本组件影响）；两种情况下页面侧
+/// chrome 都已毫无用处，否则会继续绘制在一个不再需要它的画面之上、或诱使误触。
+class _HideWhen extends StatelessWidget {
+  /// Creates the visibility wrapper: hides [child] whenever [selector]
+  /// returns true for the current [MovaState].
   ///
-  /// 创建包裹 [child] 的小窗显隐控制组件。
-  const _MiniHidden({required this.child});
+  /// 创建显隐控制组件：当 [selector] 对当前 [MovaState] 返回 true 时隐藏 [child]。
+  const _HideWhen({required this.selector, required this.child});
+
+  /// Returns whether [child] should be hidden for the given state.
+  ///
+  /// 返回给定状态下是否应隐藏 [child]。
+  final bool Function(MovaState) selector;
 
   /// The chrome whose visibility this widget controls.
   ///
@@ -332,63 +347,8 @@ class _MiniHidden extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MovaSelect<bool>(
-      selector: (s) => s.mini,
-      builder: (context, mini) => mini ? const SizedBox.shrink() : child,
-    );
-  }
-}
-
-class _PipHidden extends StatelessWidget {
-  /// Creates the pip-visibility wrapper around [child].
-  ///
-  /// 创建包裹 [child] 的画中画显隐控制组件。
-  const _PipHidden({required this.child});
-
-  /// The chrome whose visibility this widget controls.
-  ///
-  /// 该组件控制其显隐的 chrome 内容。
-  final Widget child;
-
-  @override
-  Widget build(BuildContext context) {
-    return MovaSelect<bool>(
-      selector: (s) => s.pip,
-      builder: (context, pip) => pip ? const SizedBox.shrink() : child,
-    );
-  }
-}
-
-/// Hides [child] outright while [MovaState.locked] is active.
-///
-/// Locking is meant to prevent accidental touches during e.g. in-pocket
-/// playback; leaving every button visible-but-inert (the pre-fix behaviour)
-/// still invites taps that silently do nothing. Hiding the whole chrome and
-/// leaving only [MovaLockMaskComponent]'s own unlock affordance (rendered in
-/// [MovaSlot.overlay], unaffected by this wrapper) matches what users expect
-/// from a "locked" screen.
-///
-/// [MovaState.locked] 生效期间直接隐藏 [child]。
-///
-/// 锁定的本意是防止兜里误触之类的意外点击；此前的行为是把所有按钮留着但让它们
-/// 失效，反而诱使用户点一个悄无声息没反应的东西。隐藏整套 chrome、只留
-/// [MovaLockMaskComponent] 自带的解锁入口（渲染在 [MovaSlot.overlay]，不受本组件
-/// 影响），更符合"锁定屏"该有的样子。
-class _LockedHidden extends StatelessWidget {
-  /// Creates the lock-visibility wrapper around [child].
-  ///
-  /// 创建包裹 [child] 的锁定显隐控制组件。
-  const _LockedHidden({required this.child});
-
-  /// The chrome whose visibility this widget controls.
-  ///
-  /// 该组件控制其显隐的 chrome 内容。
-  final Widget child;
-
-  @override
-  Widget build(BuildContext context) {
-    return MovaSelect<bool>(
-      selector: (s) => s.locked,
-      builder: (context, locked) => locked ? const SizedBox.shrink() : child,
+      selector: selector,
+      builder: (context, hide) => hide ? const SizedBox.shrink() : child,
     );
   }
 }

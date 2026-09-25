@@ -119,7 +119,10 @@ class _SubtitleOverlayState extends State<_SubtitleOverlay> {
             child: Text(
               cue.text,
               textAlign: TextAlign.center,
-              style: TextStyle(color: Color(theme.textColor), fontSize: theme.titleFontSize),
+              style: TextStyle(
+                color: Color(theme.textColor),
+                fontSize: theme.titleFontSize,
+              ),
             ),
           ),
         ),
@@ -214,38 +217,23 @@ class _SubtitleButtonState extends State<_SubtitleButton> {
   void _showMenu(MovaTheme theme) {
     final languages = widget.api.stt.languages;
     final strings = widget.api.options.strings;
-    showModalBottomSheet<void>(
-      context: context,
-      backgroundColor: Color(theme.sheetBackgroundColor),
-      builder: (ctx) {
-        return SafeArea(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              ListTile(
-                title: Text(languages.join('/'), style: TextStyle(color: Color(theme.textColor))),
-                trailing:
-                    _on ? Icon(Icons.check_rounded, color: Color(theme.iconColor)) : null,
-                onTap: () async {
-                  Navigator.of(ctx).pop();
-                  await widget.api.stt.start();
-                  if (mounted) setState(() => _on = true);
-                },
-              ),
-              ListTile(
-                title: Text(strings.subtitleOff, style: TextStyle(color: Color(theme.textColor))),
-                trailing:
-                    !_on ? Icon(Icons.check_rounded, color: Color(theme.iconColor)) : null,
-                onTap: () async {
-                  Navigator.of(ctx).pop();
-                  await widget.api.stt.stop();
-                  if (mounted) setState(() => _on = false);
-                },
-              ),
-            ],
-          ),
-        );
-      },
-    );
+    showMovaOptionSheet(context, theme, [
+      MovaSheetItem(
+        label: languages.join('/'),
+        checked: _on,
+        onSelected: () async {
+          await widget.api.stt.start();
+          if (mounted) setState(() => _on = true);
+        },
+      ),
+      MovaSheetItem(
+        label: strings.subtitleOff,
+        checked: !_on,
+        onSelected: () async {
+          await widget.api.stt.stop();
+          if (mounted) setState(() => _on = false);
+        },
+      ),
+    ]);
   }
 }
