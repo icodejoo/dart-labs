@@ -984,6 +984,30 @@ class MovaSwapEngine implements MovaApi, MovaSwapCtl {
 - A 组黑屏/跳变的视觉判断（需要逐帧录屏/人眼工具，本轮仍无可用工具，明确跳过而
   非编造）**仍未测**。
 
+**2026-09-24 再补充**（第三次采样，独立进程，新建
+`example/lib/main_swap_memory_verify.dart`，未提交）：
+- [x] **B 组三阶段内存采样——方法论问题已解决，但发现一个稳定复现、未定性的
+  现象**：不再与其他测试组共享进程，两轮独立进程重启，baseline 两轮相近
+  （132.90/135.59 MiB），无负增量，进程隔离有效。第一轮：baseline=135.59MiB
+  → 双引擎并存=148.36MiB(+12.78) → 切回正片=166.57MiB(+30.98)。第二轮：
+  baseline=132.90MiB → 双引擎并存=154.14MiB(+21.25) → 切回正片=
+  166.46MiB(+31.56)。**两轮一致地未回落到接近 baseline，反而比双引擎并存
+  阶段更高**（+31MiB 左右，不是偶发）；阶段②本身两轮波动较大（+12.78 vs
+  +21.25，样本量只有 2 次）。
+
+**2026-09-24 再补充（第三轮，定性排查）**：**已确认结论：不是内存泄漏**。
+新建 `example/lib/main_swap_leak_probe.dart`（未提交），重复 8 轮"插播广告→
+skip→原子切回正片"+ `dumpsys meminfo` 每 10s 分栏采样：baseline=128.98MiB
+→ round1=159.47(+30.49) → round2=180.37(+51.39) → round3~8 稳定在
+164.20~169.12MiB（逐轮增量 −0.25~+0.77MiB，噪声量级，不是线性累加）→
+静置 60s 持平 → dispose 后回落到 153.05MiB。Native Heap 第 2 轮起稳定在
+39.5–41.0MB；**EGL mtrack 全程恒定，8 轮=16 次引擎创建/销毁一次没长过**，
+排除最可疑的纹理泄漏路径。真泄漏特征是逐轮线性累加，实测是"第 1-2 轮一次性
+抬升约 35MiB 后进入平台"——首次双引擎并存把 native 分配器高水位一次性推高、
+之后复用不归还 OS，不是累积泄漏。代码层面确认 `MovaSwapEngine._commitNow()`
+所有分支都对旧引擎调用了 `dispose()`，释放链完整。硬切对照组因 USB 重新
+枚举中断未跑完，但不影响"是否泄漏"这个判定，平台化+EGL 恒定已单独成立。
+
 ---
 
 **决策与结论摘要：** 模块定名 **`MovaSwapEngine`**（笔记暂拟的 `MovaSeamlessSwap` 改掉——它是一个 `MovaApi` 实现，与 `MovaEngine` 同族更好读；"seamless"概念保留在 `MovaOpts.swap`/`MovaSwapConfig`）。关键取舍：**不改 `MovaEngine`/`MovaKernel` 的 `late final renderHandle`**，改为在 `MovaApi` 层做稳定代理，`engine.dart` 可执行代码零改动；代理必须自持流而非转发底层流，否则组件 `initState` 的订阅会在换引擎后死掉。为触发渲染面重建新增 `MovaState.renderEpoch`（普通引擎恒 0）。预热拆成两个可插拔纯逻辑：触发策略（`MovaLeadWarm`/`MovaEagerWarm`）与就绪判据（`MovaBufferWarm`，`MovaBufferAbr` 的镜像）。清晰度切换只做接口形状契约测试 + 注释标落点，不做深实现；feed 引擎池明确排除。**共拆 11 个 Task**，测试从 289 推进到 374，外加真机 checklist 五组。
