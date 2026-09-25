@@ -364,17 +364,36 @@ Task 1–4 已完成（`renderHandle` 契约放宽、`MpvKernel` 不建视频管
 121.73 MiB，真机播放期增量比约 2.7×（桌面此前约 2.05×，量级一致、真机差距更大）；
 `renderHandle`（audio 模式为 null）、`size`（audio 模式为 `0x0`）均已在真机确认。
 dispose 后内存几乎未回落——不能排除泄漏，但也非直接证据，需多轮连播才能下结论。
-**仍未测**：带视频轨源在 audioOnly 下是否真的只出声不出画（本轮只测了纯音频源）、
-`dumpsys meminfo` 分栏对账（MediaCodec/纹理，本轮用的是 `ProcessInfo.currentRss` 不是
-`dumpsys meminfo`）、电量/CPU 量级抽查、连播多轮内存爬升判据（本轮只做了单轮三阶段）、
-关闭态全 demo 回归。
-**顺带发现探针缺陷（未修复，仅记录）**：`example/lib/perf_probe_audio_only.dart` 用
-`stdout.writeln` 而非 `print()`，release 包在 Android 上不会出现在 logcat；且用
-`Platform.environment` 读取模式参数，但 `--dart-define` 不会注入 Android 进程的 OS
-环境变量，导致该探针的模式切换实际上从未真正生效过——待修。
-**已就绪的前置**：`example/lib/audio_only_demo.dart`（独立 demo 页，带真实事件打点）
-与 `example/lib/perf_probe_audio_only.dart`（RSS 探针，`--dart-define` 选模式，见上方
-缺陷记录）。
+**2026-09-25（同一台 STG AL00）追加验证，新建
+`example/lib/main_audio_only_round2_verify.dart`（三段式，未提交）**：
+- **带视频轨源在 audioOnly 下是否只出声不出画——确认通过**：用带视频轨的
+  素材（非纯音频源）在 `audioOnly: true` 下打开，`duration=60093ms`、
+  `playing=true`（播放真实发生），同时 `renderHandle=null`、`size=0x0`——
+  证实这次是"本身有画面的素材被真正压制成只出声"，不是此前"素材本来就没
+  画面"这个较弱的验证。
+- **`dumpsys meminfo` 分栏对账——已完成（单点，非 A/B 对比）**：audioOnly
+  默认模式播放中采样 `TOTAL PSS=115036KB(~112MiB)`、`TOTAL RSS=186764KB`；
+  `.so mmap RSS=28896KB`、`EGL mtrack=51040KB`、`Native Heap RSS=20220KB`、
+  Java Heap RSS=15576KB——EGL/Graphics 占比最大（Flutter engine 自身 GPU
+  表面开销，非视频解码特有）。**未做与视频模式的同批 dumpsys A/B**（需要
+  UI 交互切换，本轮未做自动化），模式间对比仍以此前 `ProcessInfo.currentRss`
+  数字（audio 117.18 vs video 156.73 MiB）为主要依据。
+- **电量/CPU 量级抽查——已完成（粗量级）**：`top` 快照 audioOnly 播放中
+  CPU 58.0%、RES 133M，量级与"仅解音频"负载预期相符；
+  `dumpsys batterystats --checkin` 确认统计口子可用，但样本时间太短未积累
+  出有意义的电量数字，未做长时段耗电对比。
+- **连播 6 轮内存爬升——确认无明显累积**：每轮独立开引擎→稳定 4s 采样→
+  dispose→2s 再采样，playing 序列(MiB)：124.20/124.73/125.72/128.87/
+  127.67/127.70（首末 +3.50），disposed 序列：123.14/125.93/125.56/
+  130.29/127.17/128.39（首末 +5.25）——增量个位数、无单调爬升趋势（第4轮后
+  略降），6 轮样本内未见明显泄漏迹象（更长时间尺度的缓慢爬升不能排除）。
+- **关闭态（`audioOnly:false`）回归——确认零改变**：同一带视频轨素材，
+  `createMovaEngine()` 默认参数打开后 `renderHandle` 非 null（
+  `VideoController` 实例）、`size=854x480`（非 0x0）、`playing=true`，
+  与开启 audioOnly 前的正常视频行为一致。
+- **既有探针缺陷（`example/lib/perf_probe_audio_only.dart` 的 stdout/
+  Platform.environment 两处）本轮未修**，新验证改走独立新文件全程用
+  `print()`，绕开该缺陷而非修它——旧探针待修状态不变。
 计划见 [doc/plans/2026-09-16-audio-only.md](doc/plans/2026-09-16-audio-only.md)。
 另：`MovaAudioSkin`（封面/歌词/波形专用皮肤，第二档，约 6–8 Task）**明确不做**，
 将来若确有需要再评估——当前用 `MovaPlayer.surface` 已够。
