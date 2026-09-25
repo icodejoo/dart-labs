@@ -7,6 +7,17 @@ playback.
 基于 [media_kit](https://pub.dev/packages/media_kit)（libmpv/ffmpeg 内核）的
 Flutter 视频播放库，自研手势与控制层，支持点播与直播。
 
+> ⚠️ **Not production-ready yet / 尚未生产就绪**：this is a first pub.dev release
+> (`0.1.0`) of a hobby/small-team-maintained plugin. Several features have only
+> been unit-tested and have **not** been verified on real devices yet (see
+> [Known limitations](#known-limitations--已知限制) below). Use at your own risk
+> in production apps — review the limitations and test thoroughly on your
+> target devices first.
+>
+> 这是一个个人/小团队维护插件的**首次** pub.dev 发布（`0.1.0`）。部分功能只过了单元
+> 测试、**尚未经过真机验证**（详见下方「已知限制」）。生产环境使用请自行评估风险，
+> 在你的目标设备上充分测试后再上线。
+
 ## Features / 功能
 
 - **Gestures / 手势**：左半竖滑=亮度、右半竖滑=音量、横滑=进度、双击=快进退、双指=缩放，带 HUD 反馈；侧别→动作可配。
