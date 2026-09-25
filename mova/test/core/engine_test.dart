@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:flutter/services.dart';
@@ -11,6 +12,7 @@ import 'package:mova/src/core/model/quality.dart';
 import 'package:mova/src/core/model/source.dart';
 import 'package:mova/src/core/options/options.dart';
 import 'package:mova/src/core/platform/ports.dart';
+import 'package:mova/src/core/preview/fetcher.dart';
 import 'package:mova/src/core/preview/net_probe.dart';
 import 'package:mova/src/core/state/ui_state.dart';
 import 'package:mova/src/core/stt/cue.dart';
@@ -50,36 +52,48 @@ void main() {
     expect(e.state.width, 1920);
   });
 
-  test('position is exposed on the throttled progress stream, not states', () async {
-    final states = <int>[];
-    final sub = e.states.listen((_) => states.add(1));
-    k.emitPosition(const Duration(seconds: 1));
-    k.emitPosition(const Duration(seconds: 2));
-    await Future<void>.delayed(Duration.zero);
-    expect(states.length, 1); // 只有初始快照，position 不进 states
-    await sub.cancel();
-  });
+  test(
+    'position is exposed on the throttled progress stream, not states',
+    () async {
+      final states = <int>[];
+      final sub = e.states.listen((_) => states.add(1));
+      k.emitPosition(const Duration(seconds: 1));
+      k.emitPosition(const Duration(seconds: 2));
+      await Future<void>.delayed(Duration.zero);
+      expect(states.length, 1); // 只有初始快照，position 不进 states
+      await sub.cancel();
+    },
+  );
 
   test('seek is ignored for live sources when seekMode is off', () async {
-    await e.open(const MovaSource('https://host/l.m3u8', type: MovaStreamType.live));
+    await e.open(
+      const MovaSource('https://host/l.m3u8', type: MovaStreamType.live),
+    );
     k.calls.clear();
     await e.seek(const Duration(seconds: 5));
     expect(k.calls, isEmpty);
   });
 
-  test('seek is allowed for live sources in dvr mode and clamped to the window', () async {
-    final e2 = MovaEngine(
-      kernel: k,
-      options: const MovaOpts(live: MovaLiveConfig(seekMode: MovaLiveSeekMode.dvr)),
-    );
-    await e2.open(const MovaSource('https://host/l.m3u8', type: MovaStreamType.live));
-    k.emitDuration(const Duration(seconds: 60));
-    await Future<void>.delayed(Duration.zero);
-    k.calls.clear();
-    await e2.seek(const Duration(seconds: 90));
-    expect(k.lastSeek, const Duration(seconds: 60));
-    await e2.dispose();
-  });
+  test(
+    'seek is allowed for live sources in dvr mode and clamped to the window',
+    () async {
+      final e2 = MovaEngine(
+        kernel: k,
+        options: const MovaOpts(
+          live: MovaLiveConfig(seekMode: MovaLiveSeekMode.dvr),
+        ),
+      );
+      await e2.open(
+        const MovaSource('https://host/l.m3u8', type: MovaStreamType.live),
+      );
+      k.emitDuration(const Duration(seconds: 60));
+      await Future<void>.delayed(Duration.zero);
+      k.calls.clear();
+      await e2.seek(const Duration(seconds: 90));
+      expect(k.lastSeek, const Duration(seconds: 60));
+      await e2.dispose();
+    },
+  );
 
   test('beforeSeek can cancel a seek', () async {
     final e2 = MovaEngine(kernel: k, interceptors: [_CancelSeek()]);
@@ -90,28 +104,38 @@ void main() {
     await e2.dispose();
   });
 
-  test('a VOD seek before duration is known is parked, then replayed on duration', () async {
-    await e.open(const MovaSource('https://host/a.mp4'));
-    k.calls.clear();
-    // Duration not reported yet — mpv drops such a seek, so it must be parked.
-    await e.seek(const Duration(seconds: 30));
-    expect(k.calls, isEmpty, reason: 'seek must not reach the kernel pre-duration');
-    // Duration arrives → the parked seek is replayed to the kernel.
-    k.emitDuration(const Duration(minutes: 5));
-    await Future<void>.delayed(Duration.zero);
-    expect(k.calls, contains('seek'));
-    expect(k.lastSeek, const Duration(seconds: 30));
-  });
+  test(
+    'a VOD seek before duration is known is parked, then replayed on duration',
+    () async {
+      await e.open(const MovaSource('https://host/a.mp4'));
+      k.calls.clear();
+      // Duration not reported yet — mpv drops such a seek, so it must be parked.
+      await e.seek(const Duration(seconds: 30));
+      expect(
+        k.calls,
+        isEmpty,
+        reason: 'seek must not reach the kernel pre-duration',
+      );
+      // Duration arrives → the parked seek is replayed to the kernel.
+      k.emitDuration(const Duration(minutes: 5));
+      await Future<void>.delayed(Duration.zero);
+      expect(k.calls, contains('seek'));
+      expect(k.lastSeek, const Duration(seconds: 30));
+    },
+  );
 
-  test('a parked VOD seek is clamped into the duration once it is known', () async {
-    await e.open(const MovaSource('https://host/a.mp4'));
-    k.calls.clear();
-    await e.seek(const Duration(seconds: 600)); // past the eventual end
-    expect(k.calls, isEmpty);
-    k.emitDuration(const Duration(seconds: 120));
-    await Future<void>.delayed(Duration.zero);
-    expect(k.lastSeek, const Duration(seconds: 120));
-  });
+  test(
+    'a parked VOD seek is clamped into the duration once it is known',
+    () async {
+      await e.open(const MovaSource('https://host/a.mp4'));
+      k.calls.clear();
+      await e.seek(const Duration(seconds: 600)); // past the eventual end
+      expect(k.calls, isEmpty);
+      k.emitDuration(const Duration(seconds: 120));
+      await Future<void>.delayed(Duration.zero);
+      expect(k.lastSeek, const Duration(seconds: 120));
+    },
+  );
 
   test('opening a new source forgets the previous media duration, so the next '
       'seek still parks', () async {
@@ -137,8 +161,16 @@ void main() {
 
   test('switchQuality parks the resume seek instead of issuing it right after '
       'the variant reload', () async {
-    const high = MovaQual(label: '1080p', uri: 'https://host/1080.m3u8', height: 1080);
-    const low = MovaQual(label: '480p', uri: 'https://host/480.m3u8', height: 480);
+    const high = MovaQual(
+      label: '1080p',
+      uri: 'https://host/1080.m3u8',
+      height: 1080,
+    );
+    const low = MovaQual(
+      label: '480p',
+      uri: 'https://host/480.m3u8',
+      height: 480,
+    );
     await e.open(const MovaSource('https://host/master.m3u8'));
     k.emitDuration(const Duration(minutes: 5));
     k.emitPosition(const Duration(seconds: 42));
@@ -153,22 +185,36 @@ void main() {
     // 与 open() 同一隐患：这么早下发的 seek 会被 mpv 丢弃、真机上还会把播放器
     // 卡死，因此必须寄存。
     expect(k.lastUri, low.uri);
-    expect(k.calls, isNot(contains('seek')),
-        reason: 'resume seek must park, not reach the kernel');
+    expect(
+      k.calls,
+      isNot(contains('seek')),
+      reason: 'resume seek must park, not reach the kernel',
+    );
     expect(e.state.duration, Duration.zero);
     // The new variant reports its duration → the resume position is replayed.
     //
     // 新档位报告时长 → 续播位置被补发。
     k.emitDuration(const Duration(minutes: 5));
     await Future<void>.delayed(Duration.zero);
-    expect(k.lastSeek, const Duration(seconds: 42),
-        reason: 'must resume where playback was, not restart from zero');
+    expect(
+      k.lastSeek,
+      const Duration(seconds: 42),
+      reason: 'must resume where playback was, not restart from zero',
+    );
   });
 
   test('switchQuality announces the new variant without waiting for the parked '
       'resume seek', () async {
-    const high = MovaQual(label: '1080p', uri: 'https://host/1080.m3u8', height: 1080);
-    const low = MovaQual(label: '480p', uri: 'https://host/480.m3u8', height: 480);
+    const high = MovaQual(
+      label: '1080p',
+      uri: 'https://host/1080.m3u8',
+      height: 1080,
+    );
+    const low = MovaQual(
+      label: '480p',
+      uri: 'https://host/480.m3u8',
+      height: 480,
+    );
     await e.open(const MovaSource('https://host/master.m3u8'));
     k.emitDuration(const Duration(minutes: 5));
     k.emitPosition(const Duration(seconds: 42));
@@ -192,9 +238,21 @@ void main() {
 
   test('switchQuality clears the ABR stall tally, so the reload\'s own '
       'buffering cannot immediately trigger a downshift', () async {
-    const high = MovaQual(label: '1080p', uri: 'https://host/1080.m3u8', height: 1080);
-    const mid = MovaQual(label: '720p', uri: 'https://host/720.m3u8', height: 720);
-    const low = MovaQual(label: '480p', uri: 'https://host/480.m3u8', height: 480);
+    const high = MovaQual(
+      label: '1080p',
+      uri: 'https://host/1080.m3u8',
+      height: 1080,
+    );
+    const mid = MovaQual(
+      label: '720p',
+      uri: 'https://host/720.m3u8',
+      height: 720,
+    );
+    const low = MovaQual(
+      label: '480p',
+      uri: 'https://host/480.m3u8',
+      height: 480,
+    );
     await e.open(const MovaSource('https://host/master.m3u8'));
     e.debugSetQualities(const [high, mid, low], current: high);
 
@@ -234,9 +292,19 @@ void main() {
   });
 
   test('switchQuality never seeks for a live source', () async {
-    const high = MovaQual(label: '1080p', uri: 'https://host/1080.m3u8', height: 1080);
-    const low = MovaQual(label: '480p', uri: 'https://host/480.m3u8', height: 480);
-    await e.open(const MovaSource('https://host/live.m3u8', type: MovaStreamType.live));
+    const high = MovaQual(
+      label: '1080p',
+      uri: 'https://host/1080.m3u8',
+      height: 1080,
+    );
+    const low = MovaQual(
+      label: '480p',
+      uri: 'https://host/480.m3u8',
+      height: 480,
+    );
+    await e.open(
+      const MovaSource('https://host/live.m3u8', type: MovaStreamType.live),
+    );
     k.emitPosition(const Duration(seconds: 42));
     await Future<void>.delayed(Duration.zero);
     e.debugSetQualities(const [high, low], current: high);
@@ -272,8 +340,11 @@ void main() {
     k.calls.clear();
     k.emitDuration(const Duration(minutes: 5));
     await Future<void>.delayed(Duration.zero);
-    expect(k.calls, isEmpty,
-        reason: 'a parked seek from the previous source must not fire');
+    expect(
+      k.calls,
+      isEmpty,
+      reason: 'a parked seek from the previous source must not fire',
+    );
   });
 
   test('beforePlay can veto playback', () async {
@@ -301,11 +372,14 @@ void main() {
     expect(e.uiState.controlsVisible, isFalse);
   });
 
-  test('showHud with text populates hudText (regression: double-tap seek toast was empty)', () {
-    e.showHud(MovaHud.seek, text: '00:20');
-    expect(e.uiState.hud, MovaHud.seek);
-    expect(e.uiState.hudText, '00:20');
-  });
+  test(
+    'showHud with text populates hudText (regression: double-tap seek toast was empty)',
+    () {
+      e.showHud(MovaHud.seek, text: '00:20');
+      expect(e.uiState.hud, MovaHud.seek);
+      expect(e.uiState.hudText, '00:20');
+    },
+  );
 
   test('showHud without text clears any previously set hudText', () {
     e.showHud(MovaHud.seek, text: '00:20');
@@ -313,17 +387,22 @@ void main() {
     expect(e.uiState.hudText, isNull);
   });
 
-  test('open() arms the auto-hide timer per showOnStart/autoHideDelay (regression)', () async {
-    final e2 = MovaEngine(
-      kernel: k,
-      options: const MovaOpts(controls: MovaCtrlsConfig(autoHideDelay: Duration(milliseconds: 10))),
-    );
-    await e2.open(const MovaSource('https://host/a.mp4'));
-    expect(e2.uiState.controlsVisible, isTrue);
-    await Future<void>.delayed(const Duration(milliseconds: 50));
-    expect(e2.uiState.controlsVisible, isFalse);
-    await e2.dispose();
-  });
+  test(
+    'open() arms the auto-hide timer per showOnStart/autoHideDelay (regression)',
+    () async {
+      final e2 = MovaEngine(
+        kernel: k,
+        options: const MovaOpts(
+          controls: MovaCtrlsConfig(autoHideDelay: Duration(milliseconds: 10)),
+        ),
+      );
+      await e2.open(const MovaSource('https://host/a.mp4'));
+      expect(e2.uiState.controlsVisible, isTrue);
+      await Future<void>.delayed(const Duration(milliseconds: 50));
+      expect(e2.uiState.controlsVisible, isFalse);
+      await e2.dispose();
+    },
+  );
 
   test('play() after completion restarts VOD from zero '
       '(regression: replay left the progress bar stuck at the end)', () async {
@@ -340,7 +419,9 @@ void main() {
   });
 
   test('play() after completion does not seek for a live source', () async {
-    await e.open(const MovaSource('https://host/l.m3u8', type: MovaStreamType.live));
+    await e.open(
+      const MovaSource('https://host/l.m3u8', type: MovaStreamType.live),
+    );
     k.calls.clear();
     k.emitCompleted(true);
     await Future<void>.delayed(Duration.zero);
@@ -377,8 +458,16 @@ void main() {
     // loadQualities() 从真实 HLS master playlist 解析出的结果，但省去 HTTP
     // 往返。
     const auto = MovaQual(label: '自动', uri: '', isAuto: true);
-    const high = MovaQual(label: '1080p', uri: 'https://host/1080.m3u8', height: 1080);
-    const low = MovaQual(label: '480p', uri: 'https://host/480.m3u8', height: 480);
+    const high = MovaQual(
+      label: '1080p',
+      uri: 'https://host/1080.m3u8',
+      height: 1080,
+    );
+    const low = MovaQual(
+      label: '480p',
+      uri: 'https://host/480.m3u8',
+      height: 480,
+    );
     e.debugSetQualities(const [auto, high, low], current: high);
 
     final events = <MovaEvent>[];
@@ -438,9 +527,21 @@ void main() {
     // 一致。要制造真正并发的竞争（两个重叠的异步内核往返），需要给
     // FakeKernel 的 open()/seek() 插入人为延迟，本测试骨架未做这件事。
     const auto = MovaQual(label: '自动', uri: '', isAuto: true);
-    const high = MovaQual(label: '1080p', uri: 'https://host/1080.m3u8', height: 1080);
-    const mid = MovaQual(label: '720p', uri: 'https://host/720.m3u8', height: 720);
-    const low = MovaQual(label: '480p', uri: 'https://host/480.m3u8', height: 480);
+    const high = MovaQual(
+      label: '1080p',
+      uri: 'https://host/1080.m3u8',
+      height: 1080,
+    );
+    const mid = MovaQual(
+      label: '720p',
+      uri: 'https://host/720.m3u8',
+      height: 720,
+    );
+    const low = MovaQual(
+      label: '480p',
+      uri: 'https://host/480.m3u8',
+      height: 480,
+    );
     e.debugSetQualities(const [auto, high, mid, low], current: high);
 
     final events = <MovaEvent>[];
@@ -504,48 +605,60 @@ void main() {
     await e2.dispose();
   });
 
-  test('size changes while NOT fullscreen do not re-apply orientation', () async {
-    final spy = _SpyOrientationPort();
-    final e2 = MovaEngine(kernel: k, orientation: spy);
+  test(
+    'size changes while NOT fullscreen do not re-apply orientation',
+    () async {
+      final spy = _SpyOrientationPort();
+      final e2 = MovaEngine(kernel: k, orientation: spy);
 
-    k.emitSize(1280, 720);
-    await Future<void>.delayed(Duration.zero);
-    expect(spy.calls, isEmpty);
+      k.emitSize(1280, 720);
+      await Future<void>.delayed(Duration.zero);
+      expect(spy.calls, isEmpty);
 
-    await e2.dispose();
-  });
+      await e2.dispose();
+    },
+  );
 
-  test('setOrientation forces the orientation, updates state, and emits an event', () async {
-    final spy = _SpyOrientationPort();
-    final e2 = MovaEngine(kernel: k, orientation: spy);
-    final events = <MovaEvent>[];
-    final sub = e2.events.listen(events.add);
+  test(
+    'setOrientation forces the orientation, updates state, and emits an event',
+    () async {
+      final spy = _SpyOrientationPort();
+      final e2 = MovaEngine(kernel: k, orientation: spy);
+      final events = <MovaEvent>[];
+      final sub = e2.events.listen(events.add);
 
-    await e2.setOrientation(MovaOrient.landscape);
-    expect(e2.state.orientation, MovaOrient.landscape);
-    expect(spy.orientations.last, MovaOrient.landscape);
-    await Future<void>.delayed(Duration.zero);
-    expect(events.whereType<MovaOrientChg>().single.orientation, MovaOrient.landscape);
+      await e2.setOrientation(MovaOrient.landscape);
+      expect(e2.state.orientation, MovaOrient.landscape);
+      expect(spy.orientations.last, MovaOrient.landscape);
+      await Future<void>.delayed(Duration.zero);
+      expect(
+        events.whereType<MovaOrientChg>().single.orientation,
+        MovaOrient.landscape,
+      );
 
-    await sub.cancel();
-    await e2.dispose();
-  });
+      await sub.cancel();
+      await e2.dispose();
+    },
+  );
 
-  test('forced orientation is carried into the fullscreen apply call', () async {
-    final spy = _SpyOrientationPort();
-    final e2 = MovaEngine(kernel: k, orientation: spy);
+  test(
+    'forced orientation is carried into the fullscreen apply call',
+    () async {
+      final spy = _SpyOrientationPort();
+      final e2 = MovaEngine(kernel: k, orientation: spy);
 
-    await e2.setOrientation(MovaOrient.portrait);
-    await e2.setFullscreen(true);
-    // Every apply since forcing portrait must carry that override, regardless
-    // of the (landscape) video size, so fullscreen never flips it back.
-    //
-    // 强制竖屏之后的每次 apply 都必须带上该覆盖，无论视频尺寸（横向）如何，
-    // 全屏都不会把它翻回去。
-    expect(spy.orientations.last, MovaOrient.portrait);
+      await e2.setOrientation(MovaOrient.portrait);
+      await e2.setFullscreen(true);
+      // Every apply since forcing portrait must carry that override, regardless
+      // of the (landscape) video size, so fullscreen never flips it back.
+      //
+      // 强制竖屏之后的每次 apply 都必须带上该覆盖，无论视频尺寸（横向）如何，
+      // 全屏都不会把它翻回去。
+      expect(spy.orientations.last, MovaOrient.portrait);
 
-    await e2.dispose();
-  });
+      await e2.dispose();
+    },
+  );
 
   test('preview is exposed on the api surface', () {
     expect(e.preview, isNotNull);
@@ -563,30 +676,33 @@ void main() {
     expect(e.preview.current, isNull);
   });
 
-  test('a disabled preview config emits MovaPrevBlock on the event stream', () async {
-    final e2 = MovaEngine(
-      kernel: FakeKernel(),
-      options: const MovaOpts(
-        preview: MovaPrevConfig(
-          enabled: false,
-          debounce: Duration.zero,
-          network: MovaPrevNet.always,
+  test(
+    'a disabled preview config emits MovaPrevBlock on the event stream',
+    () async {
+      final e2 = MovaEngine(
+        kernel: FakeKernel(),
+        options: const MovaOpts(
+          preview: MovaPrevConfig(
+            enabled: false,
+            debounce: Duration.zero,
+            network: MovaPrevNet.always,
+          ),
         ),
-      ),
-    );
-    final events = <MovaEvent>[];
-    final sub = e2.events.listen(events.add);
-    await e2.open(const MovaSource('https://host/a.mp4'));
-    e2.preview.requestAt(const Duration(seconds: 5));
-    await Future<void>.delayed(const Duration(milliseconds: 50));
-    expect(events.whereType<MovaPrevBlock>(), isNotEmpty);
-    expect(
-      events.whereType<MovaPrevBlock>().first.reason,
-      MovaPrevBlockReason.disabled,
-    );
-    await sub.cancel();
-    await e2.dispose();
-  });
+      );
+      final events = <MovaEvent>[];
+      final sub = e2.events.listen(events.add);
+      await e2.open(const MovaSource('https://host/a.mp4'));
+      e2.preview.requestAt(const Duration(seconds: 5));
+      await Future<void>.delayed(const Duration(milliseconds: 50));
+      expect(events.whereType<MovaPrevBlock>(), isNotEmpty);
+      expect(
+        events.whereType<MovaPrevBlock>().first.reason,
+        MovaPrevBlockReason.disabled,
+      );
+      await sub.cancel();
+      await e2.dispose();
+    },
+  );
 
   test('the configured onBlocked callback also fires', () async {
     final reasons = <MovaPrevBlockReason>[];
@@ -625,117 +741,163 @@ void main() {
     expect(e.stt.current, isNull);
   });
 
-  test('starting stt with no engine configured emits MovaSttBlock(noEngine)', () async {
-    final e2 = MovaEngine(kernel: FakeKernel(), options: const MovaOpts(stt: MovaSttConfig(enabled: true)));
-    final events = <MovaEvent>[];
-    final sub = e2.events.listen(events.add);
-    await e2.open(const MovaSource('https://host/a.mp4'));
-    await e2.stt.start();
-    await Future<void>.delayed(const Duration(milliseconds: 50));
-    expect(events.whereType<MovaSttBlock>().first.reason, MovaSttBlockReason.noEngine);
-    await sub.cancel();
-    await e2.dispose();
-  });
+  test(
+    'starting stt with no engine configured emits MovaSttBlock(noEngine)',
+    () async {
+      final e2 = MovaEngine(
+        kernel: FakeKernel(),
+        options: const MovaOpts(stt: MovaSttConfig(enabled: true)),
+      );
+      final events = <MovaEvent>[];
+      final sub = e2.events.listen(events.add);
+      await e2.open(const MovaSource('https://host/a.mp4'));
+      await e2.stt.start();
+      await Future<void>.delayed(const Duration(milliseconds: 50));
+      expect(
+        events.whereType<MovaSttBlock>().first.reason,
+        MovaSttBlockReason.noEngine,
+      );
+      await sub.cancel();
+      await e2.dispose();
+    },
+  );
 
-  test('starting stt before a source is open emits MovaSttBlock(noSource)', () async {
-    final e2 = MovaEngine(
-      kernel: FakeKernel(),
-      options: MovaOpts(stt: MovaSttConfig(enabled: true, engine: _FakeSttEngine())),
-    );
-    final events = <MovaEvent>[];
-    final sub = e2.events.listen(events.add);
-    await e2.stt.start();
-    await Future<void>.delayed(const Duration(milliseconds: 50));
-    expect(events.whereType<MovaSttBlock>().first.reason, MovaSttBlockReason.noSource);
-    await sub.cancel();
-    await e2.dispose();
-  });
+  test(
+    'starting stt before a source is open emits MovaSttBlock(noSource)',
+    () async {
+      final e2 = MovaEngine(
+        kernel: FakeKernel(),
+        options: MovaOpts(
+          stt: MovaSttConfig(enabled: true, engine: _FakeSttEngine()),
+        ),
+      );
+      final events = <MovaEvent>[];
+      final sub = e2.events.listen(events.add);
+      await e2.stt.start();
+      await Future<void>.delayed(const Duration(milliseconds: 50));
+      expect(
+        events.whereType<MovaSttBlock>().first.reason,
+        MovaSttBlockReason.noSource,
+      );
+      await sub.cancel();
+      await e2.dispose();
+    },
+  );
 
-  test('a disabled stt config emits MovaSttBlock(disabled) even with an engine configured',
-      () async {
-    final e2 = MovaEngine(
-      kernel: FakeKernel(),
-      options: MovaOpts(stt: MovaSttConfig(engine: _FakeSttEngine())),
-    );
-    final events = <MovaEvent>[];
-    final sub = e2.events.listen(events.add);
-    await e2.open(const MovaSource('https://host/a.mp4'));
-    await e2.stt.start();
-    await Future<void>.delayed(const Duration(milliseconds: 50));
-    expect(events.whereType<MovaSttBlock>().first.reason, MovaSttBlockReason.disabled);
-    await sub.cancel();
-    await e2.dispose();
-  });
+  test(
+    'a disabled stt config emits MovaSttBlock(disabled) even with an engine configured',
+    () async {
+      final e2 = MovaEngine(
+        kernel: FakeKernel(),
+        options: MovaOpts(stt: MovaSttConfig(engine: _FakeSttEngine())),
+      );
+      final events = <MovaEvent>[];
+      final sub = e2.events.listen(events.add);
+      await e2.open(const MovaSource('https://host/a.mp4'));
+      await e2.stt.start();
+      await Future<void>.delayed(const Duration(milliseconds: 50));
+      expect(
+        events.whereType<MovaSttBlock>().first.reason,
+        MovaSttBlockReason.disabled,
+      );
+      await sub.cancel();
+      await e2.dispose();
+    },
+  );
 
   test('the configured stt onBlocked callback also fires', () async {
     final reasons = <MovaSttBlockReason>[];
-    final e2 = MovaEngine(kernel: FakeKernel(), options: MovaOpts(stt: MovaSttConfig(onBlocked: reasons.add)));
+    final e2 = MovaEngine(
+      kernel: FakeKernel(),
+      options: MovaOpts(stt: MovaSttConfig(onBlocked: reasons.add)),
+    );
     await e2.open(const MovaSource('https://host/a.mp4'));
     await e2.stt.start();
     expect(reasons, [MovaSttBlockReason.disabled]);
     await e2.dispose();
   });
 
-  test('a configured engine reports languages and forwards cues once started', () async {
-    final engine = _FakeSttEngine();
-    final e2 = MovaEngine(
-      kernel: FakeKernel(),
-      options: MovaOpts(stt: MovaSttConfig(enabled: true, engine: engine)),
-    );
-    await e2.open(const MovaSource('https://host/a.mp4'));
-    expect(e2.stt.languages, ['zh', 'en']);
+  test(
+    'a configured engine reports languages and forwards cues once started',
+    () async {
+      final engine = _FakeSttEngine();
+      final e2 = MovaEngine(
+        kernel: FakeKernel(),
+        options: MovaOpts(stt: MovaSttConfig(enabled: true, engine: engine)),
+      );
+      await e2.open(const MovaSource('https://host/a.mp4'));
+      expect(e2.stt.languages, ['zh', 'en']);
 
-    final cues = <MovaSttCue>[];
-    final sub = e2.stt.cues.listen(cues.add);
-    await e2.stt.start();
-    expect(engine.started, isTrue);
-    engine.emit(const MovaSttCue(text: 'hi', start: Duration.zero, end: Duration(seconds: 1)));
-    await Future<void>.delayed(Duration.zero);
-    expect(cues, hasLength(1));
+      final cues = <MovaSttCue>[];
+      final sub = e2.stt.cues.listen(cues.add);
+      await e2.stt.start();
+      expect(engine.started, isTrue);
+      engine.emit(
+        const MovaSttCue(
+          text: 'hi',
+          start: Duration.zero,
+          end: Duration(seconds: 1),
+        ),
+      );
+      await Future<void>.delayed(Duration.zero);
+      expect(cues, hasLength(1));
 
-    await e2.stt.stop();
-    expect(engine.stopped, isTrue);
-    await sub.cancel();
-    await e2.dispose();
-  });
+      await e2.stt.stop();
+      expect(engine.stopped, isTrue);
+      await sub.cancel();
+      await e2.dispose();
+    },
+  );
 
-  test('current tracks the cue covering the latest reported playback position', () async {
-    final k2 = FakeKernel();
-    final engine = _FakeSttEngine();
-    final e2 = MovaEngine(
-      kernel: k2,
-      options: MovaOpts(stt: MovaSttConfig(enabled: true, engine: engine)),
-    );
-    await e2.open(const MovaSource('https://host/a.mp4'));
-    await e2.stt.start();
-    engine.emit(const MovaSttCue(text: 'hi', start: Duration.zero, end: Duration(seconds: 2)));
-    await Future<void>.delayed(Duration.zero);
+  test(
+    'current tracks the cue covering the latest reported playback position',
+    () async {
+      final k2 = FakeKernel();
+      final engine = _FakeSttEngine();
+      final e2 = MovaEngine(
+        kernel: k2,
+        options: MovaOpts(stt: MovaSttConfig(enabled: true, engine: engine)),
+      );
+      await e2.open(const MovaSource('https://host/a.mp4'));
+      await e2.stt.start();
+      engine.emit(
+        const MovaSttCue(
+          text: 'hi',
+          start: Duration.zero,
+          end: Duration(seconds: 2),
+        ),
+      );
+      await Future<void>.delayed(Duration.zero);
 
-    // `MovaApi.progress` is throttled (200ms); wait past that window for the
-    // position tick to reach the stt service.
-    //
-    // `MovaApi.progress` 有节流（200ms）；等过这个窗口，位置 tick 才会到达
-    // stt 服务。
-    k2.emitPosition(const Duration(milliseconds: 500));
-    await Future<void>.delayed(const Duration(milliseconds: 250));
-    expect(e2.stt.current?.text, 'hi');
+      // `MovaApi.progress` is throttled (200ms); wait past that window for the
+      // position tick to reach the stt service.
+      //
+      // `MovaApi.progress` 有节流（200ms）；等过这个窗口，位置 tick 才会到达
+      // stt 服务。
+      k2.emitPosition(const Duration(milliseconds: 500));
+      await Future<void>.delayed(const Duration(milliseconds: 250));
+      expect(e2.stt.current?.text, 'hi');
 
-    k2.emitPosition(const Duration(seconds: 5));
-    await Future<void>.delayed(const Duration(milliseconds: 250));
-    expect(e2.stt.current, isNull);
+      k2.emitPosition(const Duration(seconds: 5));
+      await Future<void>.delayed(const Duration(milliseconds: 250));
+      expect(e2.stt.current, isNull);
 
-    await e2.dispose();
-  });
+      await e2.dispose();
+    },
+  );
 
-  test('disposing the engine disposes the stt service and its engine', () async {
-    final engine = _FakeSttEngine();
-    final e2 = MovaEngine(
-      kernel: FakeKernel(),
-      options: MovaOpts(stt: MovaSttConfig(enabled: true, engine: engine)),
-    );
-    await e2.dispose();
-    expect(engine.disposed, isTrue);
-  });
+  test(
+    'disposing the engine disposes the stt service and its engine',
+    () async {
+      final engine = _FakeSttEngine();
+      final e2 = MovaEngine(
+        kernel: FakeKernel(),
+        options: MovaOpts(stt: MovaSttConfig(enabled: true, engine: engine)),
+      );
+      await e2.dispose();
+      expect(engine.disposed, isTrue);
+    },
+  );
 
   test('timeshiftBehind stays null for a VOD source', () async {
     await e.open(const MovaSource('https://host/a.mp4'));
@@ -749,9 +911,13 @@ void main() {
     final k2 = FakeKernel();
     final e2 = MovaEngine(
       kernel: k2,
-      options: const MovaOpts(live: MovaLiveConfig(seekMode: MovaLiveSeekMode.dvr)),
+      options: const MovaOpts(
+        live: MovaLiveConfig(seekMode: MovaLiveSeekMode.dvr),
+      ),
     );
-    await e2.open(const MovaSource('https://host/l.m3u8', type: MovaStreamType.live));
+    await e2.open(
+      const MovaSource('https://host/l.m3u8', type: MovaStreamType.live),
+    );
     k2.emitDuration(const Duration(seconds: 300));
     k2.emitPosition(const Duration(seconds: 100));
     await Future<void>.delayed(Duration.zero);
@@ -761,51 +927,68 @@ void main() {
     await e2.dispose();
   });
 
-  test('inside the edge threshold clears timeshiftBehind and announces the edge', () async {
-    final k2 = FakeKernel();
-    final e2 = MovaEngine(
-      kernel: k2,
-      options: const MovaOpts(live: MovaLiveConfig(seekMode: MovaLiveSeekMode.dvr)),
-    );
-    await e2.open(const MovaSource('https://host/l.m3u8', type: MovaStreamType.live));
-    k2.emitDuration(const Duration(seconds: 300));
-    k2.emitPosition(const Duration(seconds: 100));
-    await Future<void>.delayed(Duration.zero);
-    final events = <MovaEvent>[];
-    final sub = e2.events.listen(events.add);
-    k2.emitPosition(const Duration(seconds: 295));
-    await Future<void>.delayed(Duration.zero);
-    expect(e2.state.timeshiftBehind, isNull);
-    expect(events.whereType<MovaLiveEdgeReach>(), isNotEmpty);
-    await sub.cancel();
-    await e2.dispose();
-  });
+  test(
+    'inside the edge threshold clears timeshiftBehind and announces the edge',
+    () async {
+      final k2 = FakeKernel();
+      final e2 = MovaEngine(
+        kernel: k2,
+        options: const MovaOpts(
+          live: MovaLiveConfig(seekMode: MovaLiveSeekMode.dvr),
+        ),
+      );
+      await e2.open(
+        const MovaSource('https://host/l.m3u8', type: MovaStreamType.live),
+      );
+      k2.emitDuration(const Duration(seconds: 300));
+      k2.emitPosition(const Duration(seconds: 100));
+      await Future<void>.delayed(Duration.zero);
+      final events = <MovaEvent>[];
+      final sub = e2.events.listen(events.add);
+      k2.emitPosition(const Duration(seconds: 295));
+      await Future<void>.delayed(Duration.zero);
+      expect(e2.state.timeshiftBehind, isNull);
+      expect(events.whereType<MovaLiveEdgeReach>(), isNotEmpty);
+      await sub.cancel();
+      await e2.dispose();
+    },
+  );
 
-  test('MovaTimeShiftChg fires only when the whole-second lag changes', () async {
-    final k2 = FakeKernel();
-    final e2 = MovaEngine(
-      kernel: k2,
-      options: const MovaOpts(live: MovaLiveConfig(seekMode: MovaLiveSeekMode.dvr)),
-    );
-    await e2.open(const MovaSource('https://host/l.m3u8', type: MovaStreamType.live));
-    k2.emitDuration(const Duration(seconds: 300));
-    await Future<void>.delayed(Duration.zero);
-    final events = <MovaEvent>[];
-    final sub = e2.events.listen(events.add);
-    // All three ticks quantise to the same whole-second lag (199s): the raw
-    // lags are 199.8s / 199.4s / 199.1s, which truncate to 199 every time.
-    //
-    // 三次 tick 量化后落后量相同（均为 199 秒）：原始落后量分别是 199.8 /
-    // 199.4 / 199.1 秒，截断后都是 199。
-    k2.emitPosition(const Duration(milliseconds: 100200));
-    k2.emitPosition(const Duration(milliseconds: 100600));
-    k2.emitPosition(const Duration(milliseconds: 100900));
-    await Future<void>.delayed(Duration.zero);
-    expect(events.whereType<MovaTimeShiftChg>().length, 1,
-        reason: 'sub-second jitter must not spam the event stream');
-    await sub.cancel();
-    await e2.dispose();
-  });
+  test(
+    'MovaTimeShiftChg fires only when the whole-second lag changes',
+    () async {
+      final k2 = FakeKernel();
+      final e2 = MovaEngine(
+        kernel: k2,
+        options: const MovaOpts(
+          live: MovaLiveConfig(seekMode: MovaLiveSeekMode.dvr),
+        ),
+      );
+      await e2.open(
+        const MovaSource('https://host/l.m3u8', type: MovaStreamType.live),
+      );
+      k2.emitDuration(const Duration(seconds: 300));
+      await Future<void>.delayed(Duration.zero);
+      final events = <MovaEvent>[];
+      final sub = e2.events.listen(events.add);
+      // All three ticks quantise to the same whole-second lag (199s): the raw
+      // lags are 199.8s / 199.4s / 199.1s, which truncate to 199 every time.
+      //
+      // 三次 tick 量化后落后量相同（均为 199 秒）：原始落后量分别是 199.8 /
+      // 199.4 / 199.1 秒，截断后都是 199。
+      k2.emitPosition(const Duration(milliseconds: 100200));
+      k2.emitPosition(const Duration(milliseconds: 100600));
+      k2.emitPosition(const Duration(milliseconds: 100900));
+      await Future<void>.delayed(Duration.zero);
+      expect(
+        events.whereType<MovaTimeShiftChg>().length,
+        1,
+        reason: 'sub-second jitter must not spam the event stream',
+      );
+      await sub.cancel();
+      await e2.dispose();
+    },
+  );
 
   test('an injected windowResolver overrides the kernel duration', () async {
     final k2 = FakeKernel();
@@ -818,35 +1001,42 @@ void main() {
         ),
       ),
     );
-    await e2.open(const MovaSource('https://host/l.m3u8', type: MovaStreamType.live));
+    await e2.open(
+      const MovaSource('https://host/l.m3u8', type: MovaStreamType.live),
+    );
     k2.emitDuration(const Duration(seconds: 300));
     await Future<void>.delayed(Duration.zero);
     expect(e2.state.seekableWindow, const Duration(seconds: 120));
     await e2.dispose();
   });
 
-  test('timeshift seek reopens the stream at the url the builder returns', () async {
-    final k2 = FakeKernel();
-    final e2 = MovaEngine(
-      kernel: k2,
-      options: MovaOpts(
-        live: MovaLiveConfig(
-          seekMode: MovaLiveSeekMode.timeshift,
-          dvrWindow: const Duration(seconds: 600),
-          urlBuilder: (uri, behind, at) => '$uri?behind=${behind.inSeconds}',
+  test(
+    'timeshift seek reopens the stream at the url the builder returns',
+    () async {
+      final k2 = FakeKernel();
+      final e2 = MovaEngine(
+        kernel: k2,
+        options: MovaOpts(
+          live: MovaLiveConfig(
+            seekMode: MovaLiveSeekMode.timeshift,
+            dvrWindow: const Duration(seconds: 600),
+            urlBuilder: (uri, behind, at) => '$uri?behind=${behind.inSeconds}',
+          ),
         ),
-      ),
-    );
-    await e2.open(const MovaSource('https://host/l.m3u8', type: MovaStreamType.live));
-    await Future<void>.delayed(Duration.zero);
-    k2.calls.clear();
-    await e2.seek(const Duration(seconds: 100));
-    expect(k2.lastUri, 'https://host/l.m3u8?behind=500');
-    expect(k2.calls, contains('open'));
-    expect(k2.calls, isNot(contains('seek')));
-    expect(e2.state.timeshiftBehind, const Duration(seconds: 500));
-    await e2.dispose();
-  });
+      );
+      await e2.open(
+        const MovaSource('https://host/l.m3u8', type: MovaStreamType.live),
+      );
+      await Future<void>.delayed(Duration.zero);
+      k2.calls.clear();
+      await e2.seek(const Duration(seconds: 100));
+      expect(k2.lastUri, 'https://host/l.m3u8?behind=500');
+      expect(k2.calls, contains('open'));
+      expect(k2.calls, isNot(contains('seek')));
+      expect(e2.state.timeshiftBehind, const Duration(seconds: 500));
+      await e2.dispose();
+    },
+  );
 
   test('timeshift seek is a no-op when no urlBuilder is supplied', () async {
     final k2 = FakeKernel();
@@ -859,53 +1049,65 @@ void main() {
         ),
       ),
     );
-    await e2.open(const MovaSource('https://host/l.m3u8', type: MovaStreamType.live));
+    await e2.open(
+      const MovaSource('https://host/l.m3u8', type: MovaStreamType.live),
+    );
     k2.calls.clear();
     await e2.seek(const Duration(seconds: 100));
     expect(k2.calls, isEmpty);
     await e2.dispose();
   });
 
-  test('a timeshift seek landing inside the edge threshold reports the edge', () async {
-    final k2 = FakeKernel();
-    final e2 = MovaEngine(
-      kernel: k2,
-      options: MovaOpts(
-        live: MovaLiveConfig(
-          seekMode: MovaLiveSeekMode.timeshift,
-          dvrWindow: const Duration(seconds: 600),
-          urlBuilder: (uri, behind, at) => '$uri?behind=${behind.inSeconds}',
+  test(
+    'a timeshift seek landing inside the edge threshold reports the edge',
+    () async {
+      final k2 = FakeKernel();
+      final e2 = MovaEngine(
+        kernel: k2,
+        options: MovaOpts(
+          live: MovaLiveConfig(
+            seekMode: MovaLiveSeekMode.timeshift,
+            dvrWindow: const Duration(seconds: 600),
+            urlBuilder: (uri, behind, at) => '$uri?behind=${behind.inSeconds}',
+          ),
         ),
-      ),
-    );
-    await e2.open(const MovaSource('https://host/l.m3u8', type: MovaStreamType.live));
-    final events = <MovaEvent>[];
-    final sub = e2.events.listen(events.add);
-    await e2.seek(const Duration(seconds: 595));
-    await Future<void>.delayed(Duration.zero);
-    expect(e2.state.timeshiftBehind, isNull);
-    expect(events.whereType<MovaLiveEdgeReach>(), isNotEmpty);
-    await sub.cancel();
-    await e2.dispose();
-  });
+      );
+      await e2.open(
+        const MovaSource('https://host/l.m3u8', type: MovaStreamType.live),
+      );
+      final events = <MovaEvent>[];
+      final sub = e2.events.listen(events.add);
+      await e2.seek(const Duration(seconds: 595));
+      await Future<void>.delayed(Duration.zero);
+      expect(e2.state.timeshiftBehind, isNull);
+      expect(events.whereType<MovaLiveEdgeReach>(), isNotEmpty);
+      await sub.cancel();
+      await e2.dispose();
+    },
+  );
 
-  test('a live seek is clamped to the window even when duration is unknown', () async {
-    final k2 = FakeKernel();
-    final e2 = MovaEngine(
-      kernel: k2,
-      options: const MovaOpts(
-        live: MovaLiveConfig(
-          seekMode: MovaLiveSeekMode.dvr,
-          dvrWindow: Duration(seconds: 120),
+  test(
+    'a live seek is clamped to the window even when duration is unknown',
+    () async {
+      final k2 = FakeKernel();
+      final e2 = MovaEngine(
+        kernel: k2,
+        options: const MovaOpts(
+          live: MovaLiveConfig(
+            seekMode: MovaLiveSeekMode.dvr,
+            dvrWindow: Duration(seconds: 120),
+          ),
         ),
-      ),
-    );
-    await e2.open(const MovaSource('https://host/l.m3u8', type: MovaStreamType.live));
-    await Future<void>.delayed(Duration.zero);
-    await e2.seek(const Duration(seconds: 999));
-    expect(k2.lastSeek, const Duration(seconds: 120));
-    await e2.dispose();
-  });
+      );
+      await e2.open(
+        const MovaSource('https://host/l.m3u8', type: MovaStreamType.live),
+      );
+      await Future<void>.delayed(Duration.zero);
+      await e2.seek(const Duration(seconds: 999));
+      expect(k2.lastSeek, const Duration(seconds: 120));
+      await e2.dispose();
+    },
+  );
 
   test('beforeSeek still gates a timeshift seek', () async {
     final k2 = FakeKernel();
@@ -920,74 +1122,96 @@ void main() {
         ),
       ),
     );
-    await e2.open(const MovaSource('https://host/l.m3u8', type: MovaStreamType.live));
+    await e2.open(
+      const MovaSource('https://host/l.m3u8', type: MovaStreamType.live),
+    );
     k2.calls.clear();
     await e2.seek(const Duration(seconds: 100));
     expect(k2.calls, isEmpty);
     await e2.dispose();
   });
 
-  test('backToLiveEdge in dvr mode seeks to the window end without reopening', () async {
-    final k2 = FakeKernel();
-    final e2 = MovaEngine(
-      kernel: k2,
-      options: const MovaOpts(live: MovaLiveConfig(seekMode: MovaLiveSeekMode.dvr)),
-    );
-    await e2.open(const MovaSource('https://host/l.m3u8', type: MovaStreamType.live));
-    k2.emitDuration(const Duration(seconds: 300));
-    k2.emitPosition(const Duration(seconds: 100));
-    await Future<void>.delayed(Duration.zero);
-    k2.calls.clear();
-    await e2.backToLiveEdge();
-    expect(k2.calls, ['seek']);
-    expect(k2.lastSeek, const Duration(seconds: 300));
-    expect(e2.state.timeshiftBehind, isNull);
-    await e2.dispose();
-  });
-
-  test('backToLiveEdge in timeshift mode reopens the original live url', () async {
-    final k2 = FakeKernel();
-    final e2 = MovaEngine(
-      kernel: k2,
-      options: MovaOpts(
-        live: MovaLiveConfig(
-          seekMode: MovaLiveSeekMode.timeshift,
-          dvrWindow: const Duration(seconds: 600),
-          urlBuilder: (uri, behind, at) => '$uri?behind=${behind.inSeconds}',
+  test(
+    'backToLiveEdge in dvr mode seeks to the window end without reopening',
+    () async {
+      final k2 = FakeKernel();
+      final e2 = MovaEngine(
+        kernel: k2,
+        options: const MovaOpts(
+          live: MovaLiveConfig(seekMode: MovaLiveSeekMode.dvr),
         ),
-      ),
-    );
-    await e2.open(const MovaSource('https://host/l.m3u8', type: MovaStreamType.live));
-    await e2.seek(const Duration(seconds: 100));
-    expect(k2.lastUri, 'https://host/l.m3u8?behind=500');
-    k2.calls.clear();
-    await e2.backToLiveEdge();
-    expect(k2.calls, ['open']);
-    expect(k2.lastUri, 'https://host/l.m3u8',
-        reason: 'must reopen the original url, not the time-shifted one');
-    expect(e2.state.timeshiftBehind, isNull);
-    await e2.dispose();
-  });
+      );
+      await e2.open(
+        const MovaSource('https://host/l.m3u8', type: MovaStreamType.live),
+      );
+      k2.emitDuration(const Duration(seconds: 300));
+      k2.emitPosition(const Duration(seconds: 100));
+      await Future<void>.delayed(Duration.zero);
+      k2.calls.clear();
+      await e2.backToLiveEdge();
+      expect(k2.calls, ['seek']);
+      expect(k2.lastSeek, const Duration(seconds: 300));
+      expect(e2.state.timeshiftBehind, isNull);
+      await e2.dispose();
+    },
+  );
 
-  test('an explicit backToLive strategy overrides the mode-derived one', () async {
-    final k2 = FakeKernel();
-    final e2 = MovaEngine(
-      kernel: k2,
-      options: const MovaOpts(
-        live: MovaLiveConfig(
-          seekMode: MovaLiveSeekMode.dvr,
-          backToLive: MovaBackToLive.reopen,
+  test(
+    'backToLiveEdge in timeshift mode reopens the original live url',
+    () async {
+      final k2 = FakeKernel();
+      final e2 = MovaEngine(
+        kernel: k2,
+        options: MovaOpts(
+          live: MovaLiveConfig(
+            seekMode: MovaLiveSeekMode.timeshift,
+            dvrWindow: const Duration(seconds: 600),
+            urlBuilder: (uri, behind, at) => '$uri?behind=${behind.inSeconds}',
+          ),
         ),
-      ),
-    );
-    await e2.open(const MovaSource('https://host/l.m3u8', type: MovaStreamType.live));
-    k2.emitDuration(const Duration(seconds: 300));
-    await Future<void>.delayed(Duration.zero);
-    k2.calls.clear();
-    await e2.backToLiveEdge();
-    expect(k2.calls, ['open']);
-    await e2.dispose();
-  });
+      );
+      await e2.open(
+        const MovaSource('https://host/l.m3u8', type: MovaStreamType.live),
+      );
+      await e2.seek(const Duration(seconds: 100));
+      expect(k2.lastUri, 'https://host/l.m3u8?behind=500');
+      k2.calls.clear();
+      await e2.backToLiveEdge();
+      expect(k2.calls, ['open']);
+      expect(
+        k2.lastUri,
+        'https://host/l.m3u8',
+        reason: 'must reopen the original url, not the time-shifted one',
+      );
+      expect(e2.state.timeshiftBehind, isNull);
+      await e2.dispose();
+    },
+  );
+
+  test(
+    'an explicit backToLive strategy overrides the mode-derived one',
+    () async {
+      final k2 = FakeKernel();
+      final e2 = MovaEngine(
+        kernel: k2,
+        options: const MovaOpts(
+          live: MovaLiveConfig(
+            seekMode: MovaLiveSeekMode.dvr,
+            backToLive: MovaBackToLive.reopen,
+          ),
+        ),
+      );
+      await e2.open(
+        const MovaSource('https://host/l.m3u8', type: MovaStreamType.live),
+      );
+      k2.emitDuration(const Duration(seconds: 300));
+      await Future<void>.delayed(Duration.zero);
+      k2.calls.clear();
+      await e2.backToLiveEdge();
+      expect(k2.calls, ['open']);
+      await e2.dispose();
+    },
+  );
 
   test('backToLiveEdge is a no-op for a VOD source', () async {
     await e.open(const MovaSource('https://host/a.mp4'));
@@ -996,41 +1220,46 @@ void main() {
     expect(k.calls, isEmpty);
   });
 
-  test('autoBackToLiveOnStall jumps back only while time-shifted and only when on', () async {
-    final k2 = FakeKernel();
-    final e2 = MovaEngine(
-      kernel: k2,
-      options: const MovaOpts(
-        live: MovaLiveConfig(
-          seekMode: MovaLiveSeekMode.dvr,
-          autoBackToLiveOnStall: true,
+  test(
+    'autoBackToLiveOnStall jumps back only while time-shifted and only when on',
+    () async {
+      final k2 = FakeKernel();
+      final e2 = MovaEngine(
+        kernel: k2,
+        options: const MovaOpts(
+          live: MovaLiveConfig(
+            seekMode: MovaLiveSeekMode.dvr,
+            autoBackToLiveOnStall: true,
+          ),
         ),
-      ),
-    );
-    await e2.open(const MovaSource('https://host/l.m3u8', type: MovaStreamType.live));
-    k2.emitDuration(const Duration(seconds: 300));
-    await Future<void>.delayed(Duration.zero);
+      );
+      await e2.open(
+        const MovaSource('https://host/l.m3u8', type: MovaStreamType.live),
+      );
+      k2.emitDuration(const Duration(seconds: 300));
+      await Future<void>.delayed(Duration.zero);
 
-    // At the edge: a stall must not move the playhead.
-    // 在边缘：卡顿不应移动播放头。
-    k2.emitPosition(const Duration(seconds: 298));
-    await Future<void>.delayed(Duration.zero);
-    k2.calls.clear();
-    k2.emitBuffering(true);
-    await Future<void>.delayed(Duration.zero);
-    expect(k2.calls, isEmpty);
+      // At the edge: a stall must not move the playhead.
+      // 在边缘：卡顿不应移动播放头。
+      k2.emitPosition(const Duration(seconds: 298));
+      await Future<void>.delayed(Duration.zero);
+      k2.calls.clear();
+      k2.emitBuffering(true);
+      await Future<void>.delayed(Duration.zero);
+      expect(k2.calls, isEmpty);
 
-    // Time-shifted: a stall jumps back to the edge.
-    // 时移中：卡顿会跳回边缘。
-    k2.emitBuffering(false);
-    k2.emitPosition(const Duration(seconds: 50));
-    await Future<void>.delayed(Duration.zero);
-    k2.calls.clear();
-    k2.emitBuffering(true);
-    await Future<void>.delayed(Duration.zero);
-    expect(k2.calls, contains('seek'));
-    await e2.dispose();
-  });
+      // Time-shifted: a stall jumps back to the edge.
+      // 时移中：卡顿会跳回边缘。
+      k2.emitBuffering(false);
+      k2.emitPosition(const Duration(seconds: 50));
+      await Future<void>.delayed(Duration.zero);
+      k2.calls.clear();
+      k2.emitBuffering(true);
+      await Future<void>.delayed(Duration.zero);
+      expect(k2.calls, contains('seek'));
+      await e2.dispose();
+    },
+  );
 
   test('pipSupported starts false and flips once the port answers', () async {
     final k2 = FakeKernel();
@@ -1050,41 +1279,48 @@ void main() {
     await e2.dispose();
   });
 
-  test('seek optimistically reports the target and suppresses stale pre-seek echoes', () async {
-    await e.open(const MovaSource('https://host/a.mp4'));
-    k.emitDuration(const Duration(minutes: 10));
-    k.emitPosition(const Duration(seconds: 5));
-    await Future<void>.delayed(Duration.zero);
+  test(
+    'seek optimistically reports the target and suppresses stale pre-seek echoes',
+    () async {
+      await e.open(const MovaSource('https://host/a.mp4'));
+      k.emitDuration(const Duration(minutes: 10));
+      k.emitPosition(const Duration(seconds: 5));
+      await Future<void>.delayed(Duration.zero);
 
-    final seen = <Duration>[];
-    final sub = e.progress.listen((p) => seen.add(p.position));
-    await Future<void>.delayed(Duration.zero);
+      final seen = <Duration>[];
+      final sub = e.progress.listen((p) => seen.add(p.position));
+      await Future<void>.delayed(Duration.zero);
 
-    await e.seek(const Duration(seconds: 120));
-    await Future<void>.delayed(Duration.zero);
-    expect(seen, contains(const Duration(seconds: 120)),
-        reason: 'the target must be reported before the kernel round trip settles');
+      await e.seek(const Duration(seconds: 120));
+      await Future<void>.delayed(Duration.zero);
+      expect(
+        seen,
+        contains(const Duration(seconds: 120)),
+        reason:
+            'the target must be reported before the kernel round trip settles',
+      );
 
-    // A stale echo of the pre-seek position must not regress what is
-    // reported — this is exactly the "flashes back to the old spot" bug a
-    // tap-to-seek/swipe/double-tap step all shared before this fix.
-    //
-    // seek 前旧位置的陈旧回声不能让上报的位置倒退——这正是修复前
-    // 点击/横滑/双击 seek 都会"闪回旧位置"的那个 bug。
-    k.emitPosition(const Duration(seconds: 6));
-    await Future<void>.delayed(const Duration(milliseconds: 250));
-    expect(seen.last, const Duration(seconds: 120));
+      // A stale echo of the pre-seek position must not regress what is
+      // reported — this is exactly the "flashes back to the old spot" bug a
+      // tap-to-seek/swipe/double-tap step all shared before this fix.
+      //
+      // seek 前旧位置的陈旧回声不能让上报的位置倒退——这正是修复前
+      // 点击/横滑/双击 seek 都会"闪回旧位置"的那个 bug。
+      k.emitPosition(const Duration(seconds: 6));
+      await Future<void>.delayed(const Duration(milliseconds: 250));
+      expect(seen.last, const Duration(seconds: 120));
 
-    // Once the kernel actually lands near the target (within the settle
-    // tolerance), normal reporting resumes.
-    //
-    // 一旦内核真的落到目标附近（在结算容差内），恢复正常上报。
-    k.emitPosition(const Duration(milliseconds: 120200));
-    await Future<void>.delayed(const Duration(milliseconds: 250));
-    expect(seen.last, const Duration(milliseconds: 120200));
+      // Once the kernel actually lands near the target (within the settle
+      // tolerance), normal reporting resumes.
+      //
+      // 一旦内核真的落到目标附近（在结算容差内），恢复正常上报。
+      k.emitPosition(const Duration(milliseconds: 120200));
+      await Future<void>.delayed(const Duration(milliseconds: 250));
+      expect(seen.last, const Duration(milliseconds: 120200));
 
-    await sub.cancel();
-  });
+      await sub.cancel();
+    },
+  );
 
   test('setVolume routes to the kernel when no volume port is wired', () async {
     await e.setVolume(30);
@@ -1092,73 +1328,149 @@ void main() {
     expect(e.state.volume, 30);
   });
 
-  test('setVolume routes to the volume port, not the kernel, when wired', () async {
-    final port = _RecordingVolumePort(current: 100);
-    final k2 = FakeKernel();
-    final e2 = MovaEngine(kernel: k2, volume: port);
-    final events = <MovaEvent>[];
-    final sub = e2.events.listen(events.add);
-    await e2.setVolume(30);
-    await Future<void>.delayed(Duration.zero); // let the event dispatch
-    expect(port.lastSet, 30);
-    // The kernel's own volume was left untouched (system/host owns volume now).
-    // 内核自身音量未被触碰（音量现在归系统/宿主管）。
-    expect(k2.calls, isNot(contains('setVolume')));
-    expect(e2.state.volume, 30);
-    expect(events.whereType<MovaVolumeChg>().map((e) => e.value), contains(30));
-    await sub.cancel();
-    await e2.dispose();
-  });
+  test(
+    'setVolume routes to the volume port, not the kernel, when wired',
+    () async {
+      final port = _RecordingVolumePort(current: 100);
+      final k2 = FakeKernel();
+      final e2 = MovaEngine(kernel: k2, volume: port);
+      final events = <MovaEvent>[];
+      final sub = e2.events.listen(events.add);
+      await e2.setVolume(30);
+      await Future<void>.delayed(Duration.zero); // let the event dispatch
+      expect(port.lastSet, 30);
+      // The kernel's own volume was left untouched (system/host owns volume now).
+      // 内核自身音量未被触碰（音量现在归系统/宿主管）。
+      expect(k2.calls, isNot(contains('setVolume')));
+      expect(e2.state.volume, 30);
+      expect(
+        events.whereType<MovaVolumeChg>().map((e) => e.value),
+        contains(30),
+      );
+      await sub.cancel();
+      await e2.dispose();
+    },
+  );
 
-  test('a wired volume port seeds the gesture baseline into state.volume', () async {
-    final port = _RecordingVolumePort(current: 45);
-    final e2 = MovaEngine(kernel: FakeKernel(), volume: port);
-    // Seeding is async (like the pip probe); let it settle.
-    // 播种是异步的（同 pip 探测），等它落定。
-    await Future<void>.delayed(Duration.zero);
-    expect(e2.state.volume, 45);
-    await e2.dispose();
-  });
+  test(
+    'a wired volume port seeds the gesture baseline into state.volume',
+    () async {
+      final port = _RecordingVolumePort(current: 45);
+      final e2 = MovaEngine(kernel: FakeKernel(), volume: port);
+      // Seeding is async (like the pip probe); let it settle.
+      // 播种是异步的（同 pip 探测），等它落定。
+      await Future<void>.delayed(Duration.zero);
+      expect(e2.state.volume, 45);
+      await e2.dispose();
+    },
+  );
 
-  test('MovaCallbackVolumePort forwards set to its callback and reports get', () async {
-    double? seen;
-    final port = MovaCallbackVolumePort((p) => seen = p, onGet: () async => 70);
-    await port.set(55);
-    expect(seen, 55);
-    expect(await port.get(), 70);
-  });
+  test(
+    'MovaCallbackVolumePort forwards set to its callback and reports get',
+    () async {
+      double? seen;
+      final port = MovaCallbackVolumePort(
+        (p) => seen = p,
+        onGet: () async => 70,
+      );
+      await port.set(55);
+      expect(seen, 55);
+      expect(await port.get(), 70);
+    },
+  );
 
-  test('renderEpoch stays 0 on a plain MovaEngine through opens and seeks', () async {
-    await e.open(const MovaSource('https://host/a.mp4'));
-    await e.seek(const Duration(seconds: 1));
-    expect(e.state.renderEpoch, 0);
-  });
+  test(
+    'renderEpoch stays 0 on a plain MovaEngine through opens and seeks',
+    () async {
+      await e.open(const MovaSource('https://host/a.mp4'));
+      await e.seek(const Duration(seconds: 1));
+      expect(e.state.renderEpoch, 0);
+    },
+  );
 
-  test('audioOnly uses the injected kernel and still forwards every verb', () async {
-    // An injected kernel is used exactly as given: if audioOnly had made the
-    // engine build its own MovaMpvKernel instead, `Player()` would need a real
-    // libmpv and this test could not run at all.
-    //
-    // 注入的内核一律原样使用：若 audioOnly 让 engine 转而自建 MovaMpvKernel，
-    // `Player()` 会需要真实 libmpv，本测试根本跑不起来。
-    final kernel = FakeKernel.audioOnly();
-    final engine = MovaEngine(kernel: kernel, audioOnly: true);
-    addTearDown(engine.dispose);
+  test(
+    'loadQualities fetches via the injected fetcher and parses the result',
+    () async {
+      final fetcher = _FakeHttpFetch(_masterPlaylist);
+      final k2 = FakeKernel();
+      final engine = MovaEngine(kernel: k2, fetcher: fetcher);
+      addTearDown(engine.dispose);
 
-    expect(engine.renderHandle, isNull);
-    await engine.open(const MovaSource('https://host/a.m4a'));
-    await engine.play();
-    // A seek is parked until a duration is known — same as for video, an
-    // audio-only source is no exception.
-    //
-    // 时长未知前 seek 会被暂存——与视频一致，仅音频源也不例外。
-    kernel.emitDuration(const Duration(minutes: 3));
-    await Future<void>.delayed(Duration.zero);
-    await engine.seek(const Duration(seconds: 9));
-    expect(kernel.lastUri, 'https://host/a.m4a');
-    expect(kernel.lastSeek, const Duration(seconds: 9));
-    expect(kernel.calls, containsAllInOrder(<String>['open', 'play', 'seek']));
-  });
+      await engine.open(const MovaSource('https://host/media/master.m3u8'));
+      await engine.loadQualities();
+
+      expect(fetcher.requested, [Uri.parse('https://host/media/master.m3u8')]);
+      expect(engine.state.qualities.map((q) => q.label).toList(), [
+        '自动',
+        '1080p',
+        '720p',
+      ]);
+      expect(engine.state.currentQuality?.label, '自动');
+    },
+  );
+
+  test(
+    'loadQualities clears the quality list when the fetcher fails',
+    () async {
+      final fetcher = _FakeHttpFetch(null);
+      final k2 = FakeKernel();
+      final engine = MovaEngine(kernel: k2, fetcher: fetcher);
+      addTearDown(engine.dispose);
+
+      await engine.open(const MovaSource('https://host/media/master.m3u8'));
+      // Seed a stale quality list the way a previous successful call would,
+      // so the assertion actually distinguishes "cleared" from "untouched".
+      //
+      // 像上一次成功调用那样先种入一份陈旧的清晰度列表，使断言真正能区分
+      // "已清空"与"未触碰"。
+      engine.debugSetQualities(
+        const [
+          MovaQual(label: '1080p', uri: 'https://host/1080.m3u8', height: 1080),
+        ],
+        current: const MovaQual(
+          label: '1080p',
+          uri: 'https://host/1080.m3u8',
+          height: 1080,
+        ),
+      );
+      await engine.loadQualities();
+
+      expect(engine.state.qualities, isEmpty);
+      expect(engine.state.currentQuality, isNull);
+    },
+  );
+
+  test(
+    'audioOnly uses the injected kernel and still forwards every verb',
+    () async {
+      // An injected kernel is used exactly as given: if audioOnly had made the
+      // engine build its own MovaMpvKernel instead, `Player()` would need a real
+      // libmpv and this test could not run at all.
+      //
+      // 注入的内核一律原样使用：若 audioOnly 让 engine 转而自建 MovaMpvKernel，
+      // `Player()` 会需要真实 libmpv，本测试根本跑不起来。
+      final kernel = FakeKernel.audioOnly();
+      final engine = MovaEngine(kernel: kernel, audioOnly: true);
+      addTearDown(engine.dispose);
+
+      expect(engine.renderHandle, isNull);
+      await engine.open(const MovaSource('https://host/a.m4a'));
+      await engine.play();
+      // A seek is parked until a duration is known — same as for video, an
+      // audio-only source is no exception.
+      //
+      // 时长未知前 seek 会被暂存——与视频一致，仅音频源也不例外。
+      kernel.emitDuration(const Duration(minutes: 3));
+      await Future<void>.delayed(Duration.zero);
+      await engine.seek(const Duration(seconds: 9));
+      expect(kernel.lastUri, 'https://host/a.m4a');
+      expect(kernel.lastSeek, const Duration(seconds: 9));
+      expect(
+        kernel.calls,
+        containsAllInOrder(<String>['open', 'play', 'seek']),
+      );
+    },
+  );
 
   test('the audioOnly parameter changes nothing when left at its default', () {
     final kernel = FakeKernel();
@@ -1170,7 +1482,8 @@ void main() {
     expect(
       engine.debugExtractor,
       isNull,
-      reason: "the bare constructor has never wired an extractor by default / "
+      reason:
+          "the bare constructor has never wired an extractor by default / "
           '裸构造函数从来就不默认接抽帧器',
     );
   });
@@ -1187,30 +1500,38 @@ void main() {
       await e.setMini(false); // 让 tearDown 的 dispose() 不触发 mini 态 assert
     });
 
-    test('repeated setMini(true) is idempotent and emits no further event', () async {
-      await e.setMini(true);
-      final events = <MovaEvent>[];
-      final sub = e.events.listen(events.add);
-      await e.setMini(true);
-      await Future<void>.delayed(Duration.zero);
-      expect(events.whereType<MovaMiniChg>(), isEmpty);
-      await e.setMini(false); // 让 tearDown 的 dispose() 不触发 mini 态 assert
-      await sub.cancel();
-    });
+    test(
+      'repeated setMini(true) is idempotent and emits no further event',
+      () async {
+        await e.setMini(true);
+        final events = <MovaEvent>[];
+        final sub = e.events.listen(events.add);
+        await e.setMini(true);
+        await Future<void>.delayed(Duration.zero);
+        expect(events.whereType<MovaMiniChg>(), isEmpty);
+        await e.setMini(false); // 让 tearDown 的 dispose() 不触发 mini 态 assert
+        await sub.cancel();
+      },
+    );
 
-    test('entering mini while fullscreen leaves fullscreen first, then mini (event order)', () async {
-      await e.setFullscreen(true);
-      final events = <MovaEvent>[];
-      final sub = e.events.listen(events.add);
-      await e.setMini(true);
-      await Future<void>.delayed(Duration.zero);
-      expect(e.state.fullscreen, isFalse);
-      expect(e.state.mini, isTrue);
-      final relevant = events.where((ev) => ev is MovaFullScreenChg || ev is MovaMiniChg).toList();
-      expect(relevant, [isA<MovaFullScreenChg>(), isA<MovaMiniChg>()]);
-      await e.setMini(false);
-      await sub.cancel();
-    });
+    test(
+      'entering mini while fullscreen leaves fullscreen first, then mini (event order)',
+      () async {
+        await e.setFullscreen(true);
+        final events = <MovaEvent>[];
+        final sub = e.events.listen(events.add);
+        await e.setMini(true);
+        await Future<void>.delayed(Duration.zero);
+        expect(e.state.fullscreen, isFalse);
+        expect(e.state.mini, isTrue);
+        final relevant = events
+            .where((ev) => ev is MovaFullScreenChg || ev is MovaMiniChg)
+            .toList();
+        expect(relevant, [isA<MovaFullScreenChg>(), isA<MovaMiniChg>()]);
+        await e.setMini(false);
+        await sub.cancel();
+      },
+    );
 
     test('setMini(false) never re-sets fullscreen', () async {
       await e.setFullscreen(true);
@@ -1223,7 +1544,12 @@ void main() {
       final pip = _YesPip();
       final orientation = _SpyOrientationPort();
       final volume = _RecordingVolumePort(current: 50);
-      final engine = MovaEngine(kernel: FakeKernel(), pip: pip, orientation: orientation, volume: volume);
+      final engine = MovaEngine(
+        kernel: FakeKernel(),
+        pip: pip,
+        orientation: orientation,
+        volume: volume,
+      );
       await engine.setMini(true);
       expect(orientation.calls, isEmpty);
       expect(volume.lastSet, isNull);
@@ -1231,13 +1557,16 @@ void main() {
       await engine.dispose();
     });
 
-    test('dispose() while state.mini is true triggers a debug assert', () async {
-      final engine = MovaEngine(kernel: FakeKernel());
-      await engine.setMini(true);
-      expect(() => engine.dispose(), throwsA(isA<AssertionError>()));
-      await engine.setMini(false);
-      await engine.dispose();
-    });
+    test(
+      'dispose() while state.mini is true triggers a debug assert',
+      () async {
+        final engine = MovaEngine(kernel: FakeKernel());
+        await engine.setMini(true);
+        expect(() => engine.dispose(), throwsA(isA<AssertionError>()));
+        await engine.setMini(false);
+        await engine.dispose();
+      },
+    );
 
     test('dispose() after setMini(false) again disposes normally', () async {
       final engine = MovaEngine(kernel: FakeKernel());
@@ -1377,4 +1706,47 @@ class _FakeSttEngine implements MovaSttEngine {
   ///
   /// 把 [cue] 推送到 [cues]。
   void emit(MovaSttCue cue) => _cues.add(cue);
+}
+
+/// A canned HLS master playlist used to verify [MovaEngine.loadQualities]
+/// goes through the injected [MovaHttpFetch] rather than a real HTTP client.
+///
+/// 用于验证 [MovaEngine.loadQualities] 走注入的 [MovaHttpFetch] 而非真实 HTTP
+/// 客户端的固定 HLS master playlist。
+const _masterPlaylist = '''
+#EXTM3U
+#EXT-X-STREAM-INF:BANDWIDTH=2560000,RESOLUTION=1920x1080
+1080.m3u8
+#EXT-X-STREAM-INF:BANDWIDTH=1280000,RESOLUTION=1280x720
+720.m3u8
+''';
+
+/// Test double for [MovaHttpFetch]: returns [body] UTF-8 encoded (or null,
+/// simulating a fetch failure) and records every requested [Uri].
+///
+/// [MovaHttpFetch] 的测试替身：返回 UTF-8 编码的 [body]（或 null，模拟拉取
+/// 失败），并记录每次请求的 [Uri]。
+class _FakeHttpFetch implements MovaHttpFetch {
+  _FakeHttpFetch(this.body);
+
+  /// The response body to return, or null to simulate failure.
+  ///
+  /// 要返回的响应体；为 null 时模拟失败。
+  final String? body;
+
+  /// Every URL passed to [get], in call order.
+  ///
+  /// 每次调用 [get] 时传入的 URL，按调用顺序记录。
+  final requested = <Uri>[];
+
+  @override
+  Future<Uint8List?> get(Uri url) async {
+    requested.add(url);
+    final b = body;
+    if (b == null) return null;
+    return Uint8List.fromList(utf8.encode(b));
+  }
+
+  @override
+  Future<void> close() async {}
 }

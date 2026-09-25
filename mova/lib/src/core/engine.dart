@@ -1,6 +1,5 @@
 import 'dart:async';
 import 'dart:convert';
-import 'dart:io';
 
 import 'package:meta/meta.dart';
 
@@ -109,6 +108,14 @@ class MovaEngine implements MovaApi {
   /// 为拖动预览兜底抽取单帧；未接线时为 `null`（仅音频引擎即是其中一种情形）。
   final MovaFramePuller? _extractor;
 
+  /// HTTP fetcher shared by the preview pipeline (VTT/sprites) and
+  /// [loadQualities]'s HLS master-playlist fetch; defaults to
+  /// [MovaIoHttpFetcher] when the host injects none.
+  ///
+  /// 预览流水线（VTT/雪碧图）与 [loadQualities] 拉取 HLS 主播放列表共用的 HTTP
+  /// 客户端；宿主未注入时默认使用 [MovaIoHttpFetcher]。
+  final MovaHttpFetch _fetcher;
+
   /// The scrub-preview service assembled from [MovaOpts.preview].
   ///
   /// 依据 [MovaOpts.preview] 装配出来的拖动预览服务。
@@ -147,8 +154,10 @@ class MovaEngine implements MovaApi {
 
   final MovaBus<MovaState> _state = MovaBus<MovaState>(const MovaState());
   final MovaBus<MovaUiState> _ui = MovaBus<MovaUiState>(const MovaUiState());
-  final StreamController<MovaEvent> _events = StreamController<MovaEvent>.broadcast();
-  final StreamController<MovaProg> _progressRaw = StreamController<MovaProg>.broadcast();
+  final StreamController<MovaEvent> _events =
+      StreamController<MovaEvent>.broadcast();
+  final StreamController<MovaProg> _progressRaw =
+      StreamController<MovaProg>.broadcast();
   late final Stream<MovaProg> _progress;
 
   late final StreamSubscription<bool> _playingSub;
@@ -259,20 +268,26 @@ class MovaEngine implements MovaApi {
     MovaThumbDirProv? thumbDir,
     MovaFramePuller? extractor,
     MovaHttpFetch? fetcher,
-  })  : _kernel = kernel ?? MovaMpvKernel(audioOnly: audioOnly),
-        _extractor = extractor, // ignore: prefer_initializing_formals
-        _chain = MovaHookChain(interceptors),
-        _brightness = brightness ?? MovaFallbackBrightnessPort(),
-        _volume = volume, // ignore: prefer_initializing_formals
-        _pip = pip ?? MovaNoopPipPort(),
-        _orientation = orientation ?? MovaNoopOrientationPort() {
-    _abrPolicy = options.abr.policy ?? MovaBufferAbr(threshold: options.abr.stallThreshold);
+  }) : _kernel = kernel ?? MovaMpvKernel(audioOnly: audioOnly),
+       _extractor = extractor, // ignore: prefer_initializing_formals
+       _fetcher = fetcher ?? MovaIoHttpFetcher(),
+       _chain = MovaHookChain(interceptors),
+       _brightness = brightness ?? MovaFallbackBrightnessPort(),
+       _volume = volume, // ignore: prefer_initializing_formals
+       _pip = pip ?? MovaNoopPipPort(),
+       _orientation = orientation ?? MovaNoopOrientationPort() {
+    _abrPolicy =
+        options.abr.policy ??
+        MovaBufferAbr(threshold: options.abr.stallThreshold);
     // throttleStream's own controller is already broadcast (see its doc
     // comment for why that matters), so no further wrapping is needed here.
     //
     // throttleStream 内部的 controller 本身就是广播型（原因见其文档注释），
     // 这里不需要再包一层。
-    _progress = throttleStream(_progressRaw.stream, const Duration(milliseconds: 200));
+    _progress = throttleStream(
+      _progressRaw.stream,
+      const Duration(milliseconds: 200),
+    );
     _sttService = MovaSttSvc(config: options.stt, onBlocked: _onSttBlocked);
 
     _playingSub = _kernel.playing.listen((v) {
@@ -344,7 +359,7 @@ class MovaEngine implements MovaApi {
     _previewService = _buildPreview(
       thumbDir: thumbDir,
       extractor: _extractor,
-      fetcher: fetcher,
+      fetcher: _fetcher,
     );
     // Probe pip support once. The UI hides the pip button until this answers,
     // which is why a failed probe must resolve to false rather than throw.
@@ -352,10 +367,13 @@ class MovaEngine implements MovaApi {
     // 探测一次画中画支持情况。UI 在它返回前隐藏画中画按钮，因此探测失败必须
     // 归约为 false，而不能抛出。
     unawaited(
-      _pip.isSupported().then((ok) {
-        if (_events.isClosed) return;
-        _state.emit(state.copyWith(pipSupported: ok));
-      }).catchError((Object _) {}),
+      _pip
+          .isSupported()
+          .then((ok) {
+            if (_events.isClosed) return;
+            _state.emit(state.copyWith(pipSupported: ok));
+          })
+          .catchError((Object _) {}),
     );
     // Seed state.volume from the real system volume so the volume gesture's
     // baseline is accurate (and has headroom above the default 100). No-op
@@ -366,10 +384,13 @@ class MovaEngine implements MovaApi {
     final volumePort = _volume;
     if (volumePort != null) {
       unawaited(
-        volumePort.get().then((v) {
-          if (_events.isClosed) return;
-          _state.emit(state.copyWith(volume: v.clamp(0, 100)));
-        }).catchError((Object _) {}),
+        volumePort
+            .get()
+            .then((v) {
+              if (_events.isClosed) return;
+              _state.emit(state.copyWith(volume: v.clamp(0, 100)));
+            })
+            .catchError((Object _) {}),
       );
     }
   }
@@ -439,9 +460,13 @@ class MovaEngine implements MovaApi {
     MovaHttpFetch? fetcher,
   }) {
     final cfg = options.preview;
-    final dir = cfg.dirProvider ??
-        (cfg.diskDir != null ? MovaFixedThumbDirProvider(cfg.diskDir!) : thumbDir);
-    final cache = cfg.cache ??
+    final dir =
+        cfg.dirProvider ??
+        (cfg.diskDir != null
+            ? MovaFixedThumbDirProvider(cfg.diskDir!)
+            : thumbDir);
+    final cache =
+        cfg.cache ??
         (dir == null
             ? MovaMemoryThumbCache(maxEntries: cfg.memMaxEntries)
             : MovaTwoLevelCache(
@@ -479,21 +504,26 @@ class MovaEngine implements MovaApi {
     final chain = <MovaThumbSource>[];
     if (cfg.vttEnabled) {
       final fixed = cfg.vttUrl;
-      chain.add(MovaVttThumbSource(
-        fetcher: fetcher ?? MovaIoHttpFetcher(),
-        resolveUrl: cfg.vttUrlResolver ??
-            (fixed == null ? defaultVttUrl : (_) => Uri.tryParse(fixed)),
-      ));
+      chain.add(
+        MovaVttThumbSource(
+          fetcher: fetcher ?? MovaIoHttpFetcher(),
+          resolveUrl:
+              cfg.vttUrlResolver ??
+              (fixed == null ? defaultVttUrl : (_) => Uri.tryParse(fixed)),
+        ),
+      );
     }
     final ex = cfg.extractor ?? extractor;
     if (cfg.extractFallback &&
         ex != null &&
         cfg.extractPlatforms.contains(currentPlatformKind())) {
-      chain.add(MovaPullerThumbSource(
-        extractor: ex,
-        width: cfg.frameWidth,
-        hwdec: cfg.hwdec,
-      ));
+      chain.add(
+        MovaPullerThumbSource(
+          extractor: ex,
+          width: cfg.frameWidth,
+          hwdec: cfg.hwdec,
+        ),
+      );
     }
     return chain;
   }
@@ -565,15 +595,17 @@ class MovaEngine implements MovaApi {
     _previewService.attach(source);
     _sttService.attach(source);
     _abrPolicy.reset();
-    _state.emit(state.copyWith(
-      qualities: const [],
-      type: source.type,
-      sourceTitle: source.title,
-      duration: Duration.zero,
-      clearQuality: true,
-      clearError: true,
-      clearSourceTitle: source.title == null,
-    ));
+    _state.emit(
+      state.copyWith(
+        qualities: const [],
+        type: source.type,
+        sourceTitle: source.title,
+        duration: Duration.zero,
+        clearQuality: true,
+        clearError: true,
+        clearSourceTitle: source.title == null,
+      ),
+    );
     await _kernel.open(source.uri, play: autoPlay);
     _recomputeLiveSeekable();
     // `MovaCtrlsConfig.showOnStart` previously had no effect: nothing ever
@@ -640,7 +672,9 @@ class MovaEngine implements MovaApi {
         ? state.seekableWindow
         : state.duration;
     final clamped = limit > Duration.zero
-        ? Duration(milliseconds: t.inMilliseconds.clamp(0, limit.inMilliseconds))
+        ? Duration(
+            milliseconds: t.inMilliseconds.clamp(0, limit.inMilliseconds),
+          )
         : t;
     if (state.type == MovaStreamType.live &&
         options.live.seekMode == MovaLiveSeekMode.timeshift) {
@@ -683,7 +717,8 @@ class MovaEngine implements MovaApi {
   /// - [to]: already-clamped target position / 已 clamp 的目标位置
   /// - [notify]: whether to emit [MovaSeek]/[MovaSeeked] / 是否发 seek 事件
   Future<void> _seekOrPark(Duration to, {bool notify = false}) async {
-    final park = state.type == MovaStreamType.vod && state.duration <= Duration.zero;
+    final park =
+        state.type == MovaStreamType.vod && state.duration <= Duration.zero;
     if (park) {
       _parkedSeek = to;
     } else {
@@ -869,14 +904,21 @@ class MovaEngine implements MovaApi {
       return;
     }
     try {
-      final content = await _httpGetString(s.uri);
+      final bytes = await _fetcher.get(Uri.parse(s.uri));
+      if (bytes == null) {
+        _state.emit(state.copyWith(qualities: const [], clearQuality: true));
+        return;
+      }
+      final content = const Utf8Decoder().convert(bytes);
       final qs = parseHlsMasterPlaylist(content, base: Uri.parse(s.uri));
       final cur = qs.isNotEmpty ? qs.first : null;
-      _state.emit(state.copyWith(
-        qualities: qs,
-        currentQuality: cur,
-        clearQuality: cur == null,
-      ));
+      _state.emit(
+        state.copyWith(
+          qualities: qs,
+          currentQuality: cur,
+          clearQuality: cur == null,
+        ),
+      );
       _events.add(MovaQualListChg(qs));
       if (cur != null) _events.add(MovaQualChg(cur));
     } catch (_) {
@@ -1069,7 +1111,9 @@ class MovaEngine implements MovaApi {
   @override
   void showHud(MovaHud hud, {String? text}) {
     _hudTimer?.cancel();
-    _ui.emit(uiState.copyWith(hud: hud, hudText: text, clearHudText: text == null));
+    _ui.emit(
+      uiState.copyWith(hud: hud, hudText: text, clearHudText: text == null),
+    );
     _hudTimer = Timer(const Duration(milliseconds: 800), () {
       _ui.emit(uiState.copyWith(hud: MovaHud.none, clearHudText: true));
     });
@@ -1134,11 +1178,13 @@ class MovaEngine implements MovaApi {
   /// 在无需真实 HLS master playlist 的情况下构造 ABR 降档场景使用。
   @visibleForTesting
   void debugSetQualities(List<MovaQual> qs, {MovaQual? current}) {
-    _state.emit(state.copyWith(
-      qualities: qs,
-      currentQuality: current,
-      clearQuality: current == null,
-    ));
+    _state.emit(
+      state.copyWith(
+        qualities: qs,
+        currentQuality: current,
+        clearQuality: current == null,
+      ),
+    );
   }
 
   @override
@@ -1149,7 +1195,10 @@ class MovaEngine implements MovaApi {
     //
     // 小窗仍在渲染本引擎时 dispose，会让宿主继续绘制一个已死的纹理——几乎总是
     // 某个页面把刚交接出去的引擎顺手销毁了。仅 debug 生效，release 零成本。
-    assert(!state.mini, 'dispose() while MovaState.mini is true — see MovaMiniCtl docs');
+    assert(
+      !state.mini,
+      'dispose() while MovaState.mini is true — see MovaMiniCtl docs',
+    );
     await _playingSub.cancel();
     await _bufferingSub.cancel();
     await _completedSub.cancel();
@@ -1177,7 +1226,8 @@ class MovaEngine implements MovaApi {
   /// [resolveWindow]）重算 [MovaState.liveSeekable]/[MovaState.seekableWindow]。
   void _recomputeLiveSeekable() {
     final window = resolveWindow(state, options.live);
-    final seekable = state.type == MovaStreamType.live &&
+    final seekable =
+        state.type == MovaStreamType.live &&
         options.live.seekMode != MovaLiveSeekMode.off &&
         window > Duration.zero;
     _state.emit(state.copyWith(liveSeekable: seekable, seekableWindow: window));
@@ -1231,25 +1281,15 @@ class MovaEngine implements MovaApi {
     final from = state.currentQuality;
     if (from == null) return;
     _abrDownshiftInFlight = true;
-    unawaited(downshiftQuality().then((_) {
-      final to = state.currentQuality;
-      if (to != null && to != from) {
-        _events.add(MovaAbrDownShift(from, to));
-      }
-    }).whenComplete(() => _abrDownshiftInFlight = false));
-  }
-
-  /// GETs [url] as a UTF-8 string via a one-shot HTTP client.
-  ///
-  /// 用一次性 HTTP 客户端以 UTF-8 拉取 [url] 文本。
-  Future<String> _httpGetString(String url) async {
-    final client = HttpClient();
-    try {
-      final req = await client.getUrl(Uri.parse(url));
-      final resp = await req.close();
-      return await resp.transform(const Utf8Decoder()).join();
-    } finally {
-      client.close();
-    }
+    unawaited(
+      downshiftQuality()
+          .then((_) {
+            final to = state.currentQuality;
+            if (to != null && to != from) {
+              _events.add(MovaAbrDownShift(from, to));
+            }
+          })
+          .whenComplete(() => _abrDownshiftInFlight = false),
+    );
   }
 }
