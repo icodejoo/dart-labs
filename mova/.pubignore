@@ -15,3 +15,8 @@ example/build/
 example/.dart_tool/
 example/android/.gradle/
 example/android/app/.cxx/
+
+# 内部文档/计划/调研笔记，只服务于本仓库自身的开发过程，不是包的运行时代码，
+# 使用者不需要它们（对外说明见 README.md/CHANGELOG.md，两者仍会发布）。
+doc/
+CLAUDE.md
