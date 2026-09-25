@@ -43,7 +43,7 @@ android {
     }
 
     // media_kit_libs_android_video ships its own libmpv.so; ours (from
-    // tools/ffmpeg-slim, src/main/jniLibs/arm64-v8a/) must win the merge so
+    // libmpv/, src/main/jniLibs/arm64-v8a/) must win the merge so
     // the slimmed build actually ships instead of upstream's ~11.8MiB one.
     packaging {
         jniLibs {
@@ -52,12 +52,12 @@ android {
     }
 }
 
-// tools/ffmpeg-slim/dist/<abi>/libmpv.so is the CI-rebuilt artifact (LFS);
+// libmpv/<abi>/libmpv.so is the CI-rebuilt artifact (LFS);
 // src/main/jniLibs/<abi>/libmpv.so is what Gradle actually packages. These
 // used to drift silently (CI never wrote to jniLibs/) — sync on every build
 // so jniLibs/ can't go stale again.
 val syncMovaLibmpv by tasks.registering(Copy::class) {
-    val distDir = layout.projectDirectory.dir("../../../tools/ffmpeg-slim/dist")
+    val distDir = layout.projectDirectory.dir("../../../libmpv")
     listOf("arm64-v8a", "armeabi-v7a", "x86", "x86_64").forEach { abi ->
         from(distDir.dir(abi).file("libmpv.so")) {
             into(abi)

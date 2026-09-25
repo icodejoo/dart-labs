@@ -1,1 +1,1 @@
-mova/tools/ffmpeg-slim/dist/** filter=lfs diff=lfs merge=lfs -text
+mova/libmpv/** filter=lfs diff=lfs merge=lfs -text

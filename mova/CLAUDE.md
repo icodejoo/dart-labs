@@ -316,15 +316,15 @@ Android jniLibs 已接线，iOS 侧尚未把 `dist/darwin/` 产物接进 podspec
    `git lfs pull` 在本地已有 `.git/lfs/objects/` 缓存时会掩盖远端缺失对象的问题。
 7. **接线到 mova 实际构建——Android/Windows 已完成，iOS 未接线**：
    - **Android（2026-09-17）**：`example/android/app/build.gradle.kts` 新增
-     `syncMovaLibmpv` Gradle task（`Copy`，从 `tools/ffmpeg-slim/dist/<abi>/libmpv.so`
+     `syncMovaLibmpv` Gradle task（`Copy`，从 `libmpv/<abi>/libmpv.so`
      拷进 `src/main/jniLibs/<abi>/`，四个 ABI 目录名两边天然一致），挂在 `preBuild`
      之前，每次构建自动同步。已本地验证：同步后 `jniLibs/` 四个 `.so` 的 MD5 与
-     `dist/` 逐一比对完全一致。
+     `libmpv/` 逐一比对完全一致。
    - **Windows（2026-09-24 确认，随「真机播放验证」一起落地，此前记录未同步）**：
      `example/pubspec.yaml` 用 `dependency_overrides` 把 `media_kit_libs_windows_video`
      指到本地 fork 包 `packages/media_kit_libs_windows_video_slim`。该 fork 的
      `windows/CMakeLists.txt` 跳过官方 7z 下载，直接指向
-     `tools/ffmpeg-slim/dist/windows-x86_64/libmpv-2.dll`（mova-libmpv CI 产出的自研
+     `libmpv/windows-x86_64/libmpv-2.dll`（mova-libmpv CI 产出的自研
      瘦身版），并从 `windows-devlib/libmpv.dll.a`（用 `gendef`+`dlltool` 针对该 dll
      导出表手工生成，dll 换版本要重新生成）+ `mpv-headers/*.h`（pin 在
      build-mova-libmpv.yml windows job 用的 mpv commit）拼出 `media_kit_video` 链接期
@@ -568,8 +568,7 @@ dispose 后内存几乎未回落——不能排除泄漏，但也非直接证据
    （`mpv_lavc_set_java_vm`）、VP9 硬解符号。**构建配方（flavor 脚本、buildscripts
    补丁、CI）已迁到独立子工程 [../mova-libmpv/README.md](../mova-libmpv/README.md)
    （2026-08-13），完整技术清单与踩坑记录见该文件（"⭐ 2026-08-06 定稿结果"一节）；
-   构建产物仍落在本工程 [tools/ffmpeg-slim/](tools/ffmpeg-slim/)（dist/ 下按平台
-   分目录）**。mpv 构建选项完整盘点见
+   构建产物仍落在本工程 [libmpv/](libmpv/)（按平台分目录）**。mpv 构建选项完整盘点见
    [../mova-libmpv/doc/notes/2026-07-31-libmpv-slimming-options.md](../mova-libmpv/doc/notes/2026-07-31-libmpv-slimming-options.md)，
    ffmpeg 格式范围盘点见
    [../mova-libmpv/doc/notes/2026-07-31-ffmpeg-slimming-options.md](../mova-libmpv/doc/notes/2026-07-31-ffmpeg-slimming-options.md)

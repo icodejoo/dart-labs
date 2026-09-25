@@ -5,7 +5,7 @@ name: Build mova libmpv (all platforms)
 # time per platform), so "source changes" here means our build recipe: the
 # per-platform ffmpeg configure flavor + the buildscripts patch under
 # mova-libmpv/ (the build-recipe subproject; built artifacts land in
-# mova/tools/ffmpeg-slim/dist/ instead, see the commit steps below). See
+# mova/libmpv/ instead, see the commit steps below). See
 # mova-libmpv/README.md's "多平台进度"
 # table for what's real vs. still-being-verified — every job below now
 # attempts a real build (no more no-op stubs), but darwin/linux/windows are
@@ -49,7 +49,7 @@ permissions:
   contents: write
 
 env:
-  # Pinned per tools/ffmpeg-slim/README.md's "实测结果" section — bump
+  # Pinned per libmpv/README.md's "实测结果" section — bump
   # deliberately, not implicitly, so a size regression can always be traced
   # back to either our flavor/patch or an explicit version bump here.
   ANDROID_LIBMPV_BUILD_REF: 1ecf510
@@ -95,7 +95,7 @@ jobs:
         run: cp mova-libmpv/flavors-mova-slim.sh build-root/buildscripts/scripts/ffmpeg.sh
 
       # sdkmanager's official NDK download is extremely slow (~0.12MB/s per
-      # tools/ffmpeg-slim/README.md's "环境准备" section) — pull the zip
+      # libmpv/README.md's "环境准备" section) — pull the zip
       # directly from Google's CDN instead and place it where build.sh expects it.
       # Both caches are keyed on pinned versions (NDK_VERSION /
       # ANDROID_LIBMPV_BUILD_REF), not on file hashes — the download scripts
@@ -197,9 +197,9 @@ jobs:
           for i in 1 2 3 4 5; do
             git fetch origin main
             git reset --hard origin/main
-            mkdir -p mova/tools/ffmpeg-slim/dist/arm64-v8a
-            cp libmpv-arm64-v8a.so mova/tools/ffmpeg-slim/dist/arm64-v8a/libmpv.so
-            git add mova/tools/ffmpeg-slim/dist/arm64-v8a/libmpv.so
+            mkdir -p mova/libmpv/arm64-v8a
+            cp libmpv-arm64-v8a.so mova/libmpv/arm64-v8a/libmpv.so
+            git add mova/libmpv/arm64-v8a/libmpv.so
             if git diff --cached --quiet; then
               echo "No size/content change, skip commit"
               exit 0
@@ -221,7 +221,7 @@ jobs:
   # Each stub documents which upstream build repo the real job needs to drive
   # and what's platform-specific about it (see README's "多平台进度" table).
   # Flip `if: false` → real steps once that platform's flavor script/patch
-  # exists under tools/ffmpeg-slim/ and has been hand-verified once, the same
+  # exists under libmpv/ and has been hand-verified once, the same
   # way android-arm64 was.
 
   android-other-abi:
@@ -366,9 +366,9 @@ jobs:
           for i in 1 2 3 4 5; do
             git fetch origin main
             git reset --hard origin/main
-            mkdir -p mova/tools/ffmpeg-slim/dist/${{ matrix.abi }}
-            cp "$GITHUB_WORKSPACE/libmpv-${{ matrix.abi }}.so" mova/tools/ffmpeg-slim/dist/${{ matrix.abi }}/libmpv.so
-            git add mova/tools/ffmpeg-slim/dist/${{ matrix.abi }}/libmpv.so
+            mkdir -p mova/libmpv/${{ matrix.abi }}
+            cp "$GITHUB_WORKSPACE/libmpv-${{ matrix.abi }}.so" mova/libmpv/${{ matrix.abi }}/libmpv.so
+            git add mova/libmpv/${{ matrix.abi }}/libmpv.so
             if git diff --cached --quiet; then
               echo "No size/content change, skip commit"
               exit 0
@@ -400,7 +400,7 @@ jobs:
   # something this patch does); amd64 uses a 10.9 deployment target that
   # had not been exercised by this patch before this matrix.
   # All three archs went green on run 35312415642 — now commits its
-  # libmpv.dylib to mova/tools/ffmpeg-slim/dist/macos-<arch>/, same as `ios`.
+  # libmpv.dylib to mova/libmpv/macos-<arch>/, same as `ios`.
   darwin:
     name: "macOS ${{ matrix.arch }} (media-kit/libmpv-darwin-build, movaslim flavor)"
     runs-on: macos-15
@@ -533,10 +533,10 @@ jobs:
           for i in 1 2 3 4 5; do
             git fetch origin main
             git reset --hard origin/main
-            mkdir -p mova/tools/ffmpeg-slim/dist/macos-${{ matrix.arch }}
+            mkdir -p mova/libmpv/macos-${{ matrix.arch }}
             DYLIB=$(find "$GITHUB_WORKSPACE/darwin-out" -iname 'libmpv*.dylib' | head -1)
-            cp "$DYLIB" mova/tools/ffmpeg-slim/dist/macos-${{ matrix.arch }}/libmpv.dylib
-            git add mova/tools/ffmpeg-slim/dist/macos-${{ matrix.arch }}/libmpv.dylib
+            cp "$DYLIB" mova/libmpv/macos-${{ matrix.arch }}/libmpv.dylib
+            git add mova/libmpv/macos-${{ matrix.arch }}/libmpv.dylib
             if git diff --cached --quiet; then
               echo "No size/content change, skip commit"
               exit 0
@@ -580,7 +580,7 @@ jobs:
   # bundle size to shrink meaningfully but likely still exceed Android's
   # single-file ~6.5MiB for that architectural reason.
   # Went green on run 35312415642 — now commits its libmpv.dylib to
-  # mova/tools/ffmpeg-slim/dist/ios-arm64/, same as `darwin`.
+  # mova/libmpv/ios-arm64/, same as `darwin`.
   ios:
     name: "iOS arm64 (v3.1: media-kit/libmpv-darwin-build, movaslim flavor)"
     runs-on: macos-15
@@ -739,10 +739,10 @@ jobs:
           for i in 1 2 3 4 5; do
             git fetch origin main
             git reset --hard origin/main
-            mkdir -p mova/tools/ffmpeg-slim/dist/ios-arm64
+            mkdir -p mova/libmpv/ios-arm64
             DYLIB=$(find "$GITHUB_WORKSPACE/ios-out" -iname 'libmpv*.dylib' | head -1)
-            cp "$DYLIB" mova/tools/ffmpeg-slim/dist/ios-arm64/libmpv.dylib
-            git add mova/tools/ffmpeg-slim/dist/ios-arm64/libmpv.dylib
+            cp "$DYLIB" mova/libmpv/ios-arm64/libmpv.dylib
+            git add mova/libmpv/ios-arm64/libmpv.dylib
             if git diff --cached --quiet; then
               echo "No size/content change, skip commit"
               exit 0
@@ -798,7 +798,7 @@ jobs:
           # mpv's main branch needs a newer libavcodec than ffmpeg n6.0 ships
           # (meson: "found 60.3.100 but need >= 60.31.102") — pin to the same
           # mpv commit the Android build already verified pairs with ffmpeg
-          # 6.0.x (see tools/ffmpeg-slim/README.md's "实测结果" section),
+          # 6.0.x (see libmpv/README.md's "实测结果" section),
           # instead of guessing another ref.
           git clone https://github.com/mpv-player/mpv.git mpv-src
           git -C mpv-src checkout 78d43740f52db817d98bcf24fb30a76ab6fa13ff
@@ -939,9 +939,9 @@ jobs:
           for i in 1 2 3 4 5; do
             git fetch origin main
             git reset --hard origin/main
-            mkdir -p mova/tools/ffmpeg-slim/dist/linux-x86_64
-            cp "$GITHUB_WORKSPACE/libmpv-linux-x86_64.so" mova/tools/ffmpeg-slim/dist/linux-x86_64/libmpv.so
-            git add mova/tools/ffmpeg-slim/dist/linux-x86_64/libmpv.so
+            mkdir -p mova/libmpv/linux-x86_64
+            cp "$GITHUB_WORKSPACE/libmpv-linux-x86_64.so" mova/libmpv/linux-x86_64/libmpv.so
+            git add mova/libmpv/linux-x86_64/libmpv.so
             if git diff --cached --quiet; then
               echo "No size/content change, skip commit"
               exit 0
@@ -1313,9 +1313,9 @@ jobs:
           for i in 1 2 3 4 5; do
             git fetch origin main
             git reset --hard origin/main
-            mkdir -p mova/tools/ffmpeg-slim/dist/windows-x86_64
-            cp "$WS/libmpv-2-windows-x86_64.dll" mova/tools/ffmpeg-slim/dist/windows-x86_64/libmpv-2.dll
-            git add mova/tools/ffmpeg-slim/dist/windows-x86_64/libmpv-2.dll
+            mkdir -p mova/libmpv/windows-x86_64
+            cp "$WS/libmpv-2-windows-x86_64.dll" mova/libmpv/windows-x86_64/libmpv-2.dll
+            git add mova/libmpv/windows-x86_64/libmpv-2.dll
             if git diff --cached --quiet; then
               echo "No size/content change, skip commit"
               exit 0

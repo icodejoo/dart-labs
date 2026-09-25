@@ -77,10 +77,10 @@ endfunction()
 # example/windows project dir, which is never itself a symlink, so anchor
 # there instead: mova/example/windows -> up 2 -> mova/, matching the dist
 # path .github/workflows/build-mova-libmpv.yml's windows job writes to
-# (mova/tools/ffmpeg-slim/dist/windows-x86_64/libmpv-2.dll).
+# (mova/libmpv/windows-x86_64/libmpv-2.dll).
 get_filename_component(
   CUSTOM_LIBMPV_DIR
-  "${CMAKE_SOURCE_DIR}/../../tools/ffmpeg-slim/dist/windows-x86_64"
+  "${CMAKE_SOURCE_DIR}/../../libmpv/windows-x86_64"
   ABSOLUTE
 )
 

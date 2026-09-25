@@ -54,7 +54,7 @@
 - [x] **二期** ffmpeg 瘦身（LGPL）：Android arm64-v8a 定稿并接入（6.55MiB，AV1 硬解+
       软解双通道，2026-08-06 真机验证 H.264/HEVC/VP9/AV1 通过），详见
       [../mova-libmpv/README.md](../../mova-libmpv/README.md)（构建配方/CI，2026-08-13
-      迁出为独立子工程；构建产物仍在本工程 [tools/ffmpeg-slim/](../tools/ffmpeg-slim/)）。
+      迁出为独立子工程；构建产物仍在本工程 [libmpv/](../libmpv/)）。
       armeabi-v7a/
       x86/x86_64 及 iOS/macOS/Windows/Linux 仍是 TODO（同一份 README 的"多平台进度"
       表跟踪）；字幕渲染/截图/HLS-FLV直播/avfilter回归/后台中断/AV1高码率场景这 6 项

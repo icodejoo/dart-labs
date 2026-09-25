@@ -1,0 +1,17 @@
+# 以下目录是内部构建产物/调试数据，仅用于本仓库自身的瘦身版 libmpv 构建与真机排障，
+# 与 mova 包的正常使用无关（普通使用者走 pubspec.yaml 里声明的 media_kit_libs_video
+# 官方依赖，构建时自动拉取官方二进制，不依赖这里的内容）。排除后不影响包功能。
+libmpv/
+_crash_dumps/
+packages/
+
+# 构建缓存/中间产物。这些本应由 .gitignore 排除，但 mova 是 monorepo 子目录（不是
+# git 仓库根），`pub publish` 的 git-based 打包检测在这种布局下未生效，会把已 gitignore
+# 的内容也打进包里（曾实测把包体积从 52MB 顶到 97MB，元凶是 build/ 下的
+# *.cache.dill.track.dill 编译缓存），故在此显式兜底。
+build/
+.dart_tool/
+example/build/
+example/.dart_tool/
+example/android/.gradle/
+example/android/app/.cxx/
