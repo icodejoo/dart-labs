@@ -3,8 +3,8 @@ import 'package:flutter/services.dart';
 
 import 'mova_platform_interface.dart';
 
-/// An implementation of [MovaPlat] that uses method channels.
-class MethodChannelMova extends MovaPlat {
+/// An implementation of [MovaPlatform] that uses method channels.
+class MethodChannelMova extends MovaPlatform {
   /// The method channel used to interact with the native platform.
   @visibleForTesting
   final methodChannel = const MethodChannel('mova');

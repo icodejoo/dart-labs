@@ -212,7 +212,7 @@ class _RunnerPageState extends State<_RunnerPage> {
       swap: const MovaSwapConfig(enabled: true, trigger: MovaEagerWarm()),
     );
     final engine = MovaSwapEngine(engineFactory: () => createMovaEngine(options: opts));
-    final controller = MovaAdCtrl(engine, swap: engine);
+    final controller = MovaAdController(engine, swap: engine);
     try {
       await controller.load(_content());
       await _waitForRealPlayback(engine);
@@ -290,7 +290,7 @@ class _RunnerPageState extends State<_RunnerPage> {
       swap: const MovaSwapConfig(enabled: true, trigger: MovaEagerWarm()),
     );
     final engine = MovaSwapEngine(engineFactory: () => createMovaEngine(options: opts));
-    final controller = MovaAdCtrl(engine, swap: engine);
+    final controller = MovaAdController(engine, swap: engine);
     StreamSubscription<MovaProg>? sampleSub;
     try {
       await controller.load(_content());
@@ -435,7 +435,7 @@ class _RunnerPageState extends State<_RunnerPage> {
       swap: const MovaSwapConfig(enabled: true, trigger: MovaEagerWarm()),
     );
     final engine = MovaSwapEngine(engineFactory: () => createMovaEngine(options: opts));
-    final controller = MovaAdCtrl(engine, swap: engine);
+    final controller = MovaAdController(engine, swap: engine);
     var lastPos = Duration.zero;
     final posSub = engine.progress.listen((p) => lastPos = p.position);
     try {
@@ -505,7 +505,7 @@ class _RunnerPageState extends State<_RunnerPage> {
       swap: const MovaSwapConfig(enabled: false),
     );
     final engine = MovaSwapEngine(engineFactory: () => createMovaEngine(options: opts));
-    final controller = MovaAdCtrl(engine, swap: engine);
+    final controller = MovaAdController(engine, swap: engine);
     final epochs = <int>{};
     final sub = engine.states.listen((s) => epochs.add(s.renderEpoch));
     var lastPos = Duration.zero;

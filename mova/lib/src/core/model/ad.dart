@@ -59,7 +59,7 @@ class MovaAdBreak {
   /// up in. Only meaningful for [MovaAdBreakKind.mid] — a pre-roll has no
   /// content to play during the countdown and a post-roll has none left.
   /// Within an ad pod only the *first* break's delay is honoured; see
-  /// `MovaAdCtrl`.
+  /// `MovaAdController`.
   ///
   /// 该广告位到期后、广告真正接管画面之前，正片继续播放的时长——也就是
   /// "N 秒后播放广告"角标显示的那段窗口。
@@ -67,7 +67,7 @@ class MovaAdBreak {
   /// 刻意*不是*黑屏等待：整个倒计时期间正片照常播放，这既是更好的体验，也
   /// （在 [MovaAdConfig.waitForAdReady] 开启时）正好就是预热广告的那个窗口。
   /// 仅对 [MovaAdBreakKind.mid] 有意义——前贴片倒计时期间没有正片可播，后贴片
-  /// 则已经播完了。一个广告 pod 里只有*第一条*的 delay 生效，见 `MovaAdCtrl`。
+  /// 则已经播完了。一个广告 pod 里只有*第一条*的 delay 生效，见 `MovaAdController`。
   final Duration delay;
 
   /// How long this ad slot runs before the content resumes, regardless of the
@@ -103,7 +103,7 @@ class MovaAdBreak {
   /// to immediately than delay, or a post-roll carrying a high-value
   /// next-episode teaser that is worth waiting for.
   ///
-  /// Only has any effect when the host wired a `MovaSwapCtl` and
+  /// Only has any effect when the host wired a `MovaSwapController` and
   /// [MovaSwapConfig.enabled] is true; with no swap engine there is nothing to
   /// warm up in and the field is ignored.
   ///
@@ -114,7 +114,7 @@ class MovaAdBreak {
   /// 广告位区别对待时使用——比如一条来自已知较慢 CDN 的中插，你宁可立刻硬切
   /// 也不愿推迟；又比如一条承载高价值"下集预告"的后贴片，值得为它等一等。
   ///
-  /// 仅在宿主接了 `MovaSwapCtl` 且 [MovaSwapConfig.enabled] 为 true 时才有
+  /// 仅在宿主接了 `MovaSwapController` 且 [MovaSwapConfig.enabled] 为 true 时才有
   /// 效果；没有切换引擎就没有可预热之处，该字段被忽略。
   final bool? waitForReady;
 
@@ -163,7 +163,7 @@ class MovaAdBreak {
 
   /// Asserts this break's construction-time invariants; a no-op in release.
   ///
-  /// Called by `MovaAdCtrl` for every break it is handed, so a misconfigured
+  /// Called by `MovaAdController` for every break it is handed, so a misconfigured
   /// schedule fails loudly on the developer's machine and costs nothing in
   /// production. It is a method rather than an `assert` in the constructor
   /// initialiser list because [MovaAdBreak] is `const` and Dart's constant
@@ -180,7 +180,7 @@ class MovaAdBreak {
   ///
   /// 断言该广告位的构造期不变量；release 下为空操作。
   ///
-  /// `MovaAdCtrl` 对拿到的每一条广告位都会调用它，使配错的排期在开发者机器上
+  /// `MovaAdController` 对拿到的每一条广告位都会调用它，使配错的排期在开发者机器上
   /// 大声失败、在生产环境零成本。之所以做成方法而不是构造器初始化列表里的
   /// `assert`：[MovaAdBreak] 是 `const` 的，而 Dart 的常量求值器无法比较
   /// [Duration]——`>`、`==`、`inMicroseconds` 它都不支持——那样的 assert 会让

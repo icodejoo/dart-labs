@@ -1,7 +1,7 @@
 /// Resolves the on-disk directory pre-generated (batch) subtitle files are
 /// cached in.
 ///
-/// A distinct port from [MovaSttModelDirProv] even though both resolve to
+/// A distinct port from [MovaSttModelDirProvider] even though both resolve to
 /// a similar "app support sub-folder" answer by default — they cache
 /// different things with different lifetimes (a handful of small text files
 /// keyed by source, vs. a handful of large model files keyed by model id),
@@ -12,12 +12,12 @@
 ///
 /// 解析预生成（批量）字幕文件的磁盘缓存目录。
 ///
-/// 与 [MovaSttModelDirProv] 是两个独立的端口，即便两者默认都落在类似的
+/// 与 [MovaSttModelDirProvider] 是两个独立的端口，即便两者默认都落在类似的
 /// "应用支持目录子文件夹"——它们缓存的是不同的东西、生命周期也不同（少量
 /// 按来源做 key 的小文本文件，vs 少量按模型 id 做 key 的大模型文件），宿主
 /// 完全可能想把它们指到不同位置（例如只清字幕缓存、不用重新下载模型）。
 /// 具体实现放在 `lib/src/platform_impl/stt_subtitle_dir_impl.dart`。
-abstract class MovaSttSubDirProv {
+abstract class MovaSttSubtitleDirProvider {
   /// Returns the absolute path of the cache directory; the caller creates it
   /// if it does not exist yet.
   ///
@@ -29,15 +29,15 @@ abstract class MovaSttSubDirProv {
   Future<String> resolve();
 }
 
-/// A [MovaSttSubDirProv] that always returns one fixed path.
+/// A [MovaSttSubtitleDirProvider] that always returns one fixed path.
 ///
 /// Lets hosts pin the subtitle cache location and keeps tests free of plugin
 /// channels.
 ///
-/// 恒定返回同一路径的 [MovaSttSubDirProv]。
+/// 恒定返回同一路径的 [MovaSttSubtitleDirProvider]。
 ///
 /// 既支持宿主固定字幕缓存位置，也让测试无需依赖插件通道。
-class MovaFixedSttSubtitleDirProvider implements MovaSttSubDirProv {
+class MovaFixedSttSubtitleDirProvider implements MovaSttSubtitleDirProvider {
   /// Creates a provider pinned to [path].
   ///
   /// 创建一个固定指向 [path] 的 provider。

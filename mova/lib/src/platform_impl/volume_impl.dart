@@ -19,12 +19,12 @@ import '../core/platform/ports.dart';
 class MovaSystemVolumePort implements MovaVolumePort {
   @override
   Future<double> get() async {
-    final v = await MovaPlat.instance.getSystemVolume();
+    final v = await MovaPlatform.instance.getSystemVolume();
     return v ?? 100;
   }
 
   @override
   Future<void> set(double percent) async {
-    await MovaPlat.instance.setSystemVolume(percent.clamp(0, 100));
+    await MovaPlatform.instance.setSystemVolume(percent.clamp(0, 100));
   }
 }

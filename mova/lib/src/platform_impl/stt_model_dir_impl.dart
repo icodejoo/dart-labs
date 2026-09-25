@@ -4,7 +4,7 @@ import 'package:path_provider/path_provider.dart';
 
 import '../core/stt/model_dir_provider.dart';
 
-/// The default [MovaSttModelDirProv]: a named folder under the platform's
+/// The default [MovaSttModelDirProvider]: a named folder under the platform's
 /// persistent application-support directory, e.g.
 /// `<app support>/mova_stt_models`.
 ///
@@ -16,7 +16,7 @@ import '../core/stt/model_dir_provider.dart';
 /// Lives outside `lib/src/core/**` because `path_provider` is a Flutter
 /// plugin and the core layer must stay plugin-free.
 ///
-/// 默认的 [MovaSttModelDirProv]：应用持久化支持目录下的一个命名文件夹，
+/// 默认的 [MovaSttModelDirProvider]：应用持久化支持目录下的一个命名文件夹，
 /// 例如 `<app support>/mova_stt_models`。
 ///
 /// 与缩略图不同（重新生成代价很低，因此 `MovaTempThumbDirProvider` 用系统临时
@@ -25,7 +25,7 @@ import '../core/stt/model_dir_provider.dart';
 ///
 /// 放在 `lib/src/core/**` 之外，因为 `path_provider` 是 Flutter 插件，
 /// core 层必须与插件解耦。
-class MovaTempSttModelDirProvider implements MovaSttModelDirProv {
+class MovaTempSttModelDirProvider implements MovaSttModelDirProvider {
   /// Creates a provider rooted at the application-support directory.
   ///
   /// 创建一个以应用支持目录为根的 provider。

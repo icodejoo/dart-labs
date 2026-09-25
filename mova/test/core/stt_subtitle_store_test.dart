@@ -17,12 +17,12 @@ void main() {
   });
 
   test('load returns null when nothing is cached for this source', () async {
-    final store = MovaFileSttSubStore(dir: MovaFixedSttSubtitleDirProvider(tempDir.path));
+    final store = MovaFileSttSubtitleStore(dir: MovaFixedSttSubtitleDirProvider(tempDir.path));
     expect(await store.load('https://host/a.mp4'), isNull);
   });
 
   test('save then load round-trips the cue list', () async {
-    final store = MovaFileSttSubStore(dir: MovaFixedSttSubtitleDirProvider(tempDir.path));
+    final store = MovaFileSttSubtitleStore(dir: MovaFixedSttSubtitleDirProvider(tempDir.path));
     final cues = [
       const MovaSttCue(text: '大家好', start: Duration.zero, end: Duration(seconds: 2)),
       const MovaSttCue(text: '再见', start: Duration(seconds: 2), end: Duration(seconds: 4)),
@@ -33,7 +33,7 @@ void main() {
   });
 
   test('different sources are cached under different keys', () async {
-    final store = MovaFileSttSubStore(dir: MovaFixedSttSubtitleDirProvider(tempDir.path));
+    final store = MovaFileSttSubtitleStore(dir: MovaFixedSttSubtitleDirProvider(tempDir.path));
     final a = [const MovaSttCue(text: 'a', start: Duration.zero, end: Duration(seconds: 1))];
     final b = [const MovaSttCue(text: 'b', start: Duration.zero, end: Duration(seconds: 1))];
 
@@ -45,7 +45,7 @@ void main() {
   });
 
   test('save overwrites a previous entry for the same source', () async {
-    final store = MovaFileSttSubStore(dir: MovaFixedSttSubtitleDirProvider(tempDir.path));
+    final store = MovaFileSttSubtitleStore(dir: MovaFixedSttSubtitleDirProvider(tempDir.path));
     await store.save('https://host/a.mp4', [
       const MovaSttCue(text: 'old', start: Duration.zero, end: Duration(seconds: 1)),
     ]);
@@ -59,7 +59,7 @@ void main() {
   });
 
   test('remove deletes the cached entry', () async {
-    final store = MovaFileSttSubStore(dir: MovaFixedSttSubtitleDirProvider(tempDir.path));
+    final store = MovaFileSttSubtitleStore(dir: MovaFixedSttSubtitleDirProvider(tempDir.path));
     await store.save('https://host/a.mp4', [
       const MovaSttCue(text: 'x', start: Duration.zero, end: Duration(seconds: 1)),
     ]);
@@ -69,12 +69,12 @@ void main() {
   });
 
   test('remove on a never-cached source is a silent no-op', () async {
-    final store = MovaFileSttSubStore(dir: MovaFixedSttSubtitleDirProvider(tempDir.path));
+    final store = MovaFileSttSubtitleStore(dir: MovaFixedSttSubtitleDirProvider(tempDir.path));
     await store.remove('https://host/never.mp4');
   });
 
   test('load degrades to null on a cache file that fails to decode as text', () async {
-    final store = MovaFileSttSubStore(dir: MovaFixedSttSubtitleDirProvider(tempDir.path));
+    final store = MovaFileSttSubtitleStore(dir: MovaFixedSttSubtitleDirProvider(tempDir.path));
     await store.save('https://host/a.mp4', [
       const MovaSttCue(text: 'x', start: Duration.zero, end: Duration(seconds: 1)),
     ]);

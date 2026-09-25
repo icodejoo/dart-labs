@@ -15,7 +15,7 @@ import 'package:mova/src/ui/slots/tree.dart';
 Future<void> pumpComponent(
   WidgetTester tester,
   MovaApi api,
-  MovaComp component,
+  MovaComponent component,
 ) async {
   await tester.pumpWidget(MaterialApp(
     home: MovaScope(

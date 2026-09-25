@@ -3,7 +3,7 @@ import 'dart:io';
 /// The host platform, as far as the preview feature needs to distinguish it.
 ///
 /// 预览功能所需区分的宿主平台粒度。
-enum MovaPlatKind {
+enum MovaPlatformKind {
   /// Android.
   ///
   /// 安卓。
@@ -35,13 +35,13 @@ enum MovaPlatKind {
   other,
 }
 
-/// Detects the current [MovaPlatKind] from `dart:io`.
+/// Detects the current [MovaPlatformKind] from `dart:io`.
 ///
 /// Uses `dart:io` rather than `defaultTargetPlatform` so the core layer stays
 /// free of Flutter imports; mova is a libmpv-backed plugin and never
 /// targets web, so the `dart:io` restriction costs nothing.
 ///
-/// 通过 `dart:io` 判定当前的 [MovaPlatKind]。
+/// 通过 `dart:io` 判定当前的 [MovaPlatformKind]。
 ///
 /// 用 `dart:io` 而非 `defaultTargetPlatform`，是为了让 core 层不引入 Flutter；
 /// mova 是基于 libmpv 的插件、本就不支持 web，因此这个限制没有代价。
@@ -49,11 +49,11 @@ enum MovaPlatKind {
 /// Returns the detected platform kind.
 ///
 /// 返回检测到的平台类型。
-MovaPlatKind currentPlatformKind() {
-  if (Platform.isAndroid) return MovaPlatKind.android;
-  if (Platform.isIOS) return MovaPlatKind.ios;
-  if (Platform.isWindows) return MovaPlatKind.windows;
-  if (Platform.isMacOS) return MovaPlatKind.macos;
-  if (Platform.isLinux) return MovaPlatKind.linux;
-  return MovaPlatKind.other;
+MovaPlatformKind currentPlatformKind() {
+  if (Platform.isAndroid) return MovaPlatformKind.android;
+  if (Platform.isIOS) return MovaPlatformKind.ios;
+  if (Platform.isWindows) return MovaPlatformKind.windows;
+  if (Platform.isMacOS) return MovaPlatformKind.macos;
+  if (Platform.isLinux) return MovaPlatformKind.linux;
+  return MovaPlatformKind.other;
 }

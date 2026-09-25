@@ -43,7 +43,7 @@ enum MovaMiniMount {
 ///
 /// Example / 示例:
 /// ```dart
-/// final mini = MovaMiniCtl();
+/// final mini = MovaMiniController();
 ///
 /// // 方式 A：页内悬浮（mova 负责插 OverlayEntry）
 /// await mini.showInPage(context, api);
@@ -53,7 +53,7 @@ enum MovaMiniMount {
 /// await mini.show(api, skin: const MovaMiniSkin());
 /// Navigator.of(context).pop();   // 引擎不受影响，画面在小窗里继续
 /// ```
-class MovaMiniCtl extends ChangeNotifier {
+class MovaMiniController extends ChangeNotifier {
   MovaApi? _api;
   MovaSkin _skin = const MovaMiniSkin();
   MovaMiniRect? _rect;

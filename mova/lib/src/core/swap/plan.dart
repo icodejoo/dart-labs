@@ -1,7 +1,7 @@
 import 'trigger.dart';
 import 'warm.dart';
 
-/// Per-warm-up overrides for one [MovaSwapCtl.prepare] call.
+/// Per-warm-up overrides for one [MovaSwapController.prepare] call.
 ///
 /// The three knobs that legitimately differ *between two warm-ups on the same
 /// engine*, and therefore cannot live in [MovaSwapConfig]: the same
@@ -10,7 +10,7 @@ import 'warm.dart';
 /// zero). Every field is nullable/defaulted, so `prepare(src)` with no plan
 /// behaves exactly as it did in 0.4.0.
 ///
-/// 单次 [MovaSwapCtl.prepare] 调用的预热参数覆盖。
+/// 单次 [MovaSwapController.prepare] 调用的预热参数覆盖。
 ///
 /// 这三个旋钮会在*同一个引擎的两次预热之间*合理地取不同值，因此不能放进
 /// [MovaSwapConfig]：同一个 [MovaSwapEngine] 现在既要在广告背后预热正片

@@ -25,17 +25,17 @@ sealed class MovaPatch {
   /// 若 [path] 不含 `/`，则指向顶层条目，整个条目（含其子节点）都会被替换；
   /// 若含 `/`，则指向某个后代节点，只替换该节点，父节点自身及其其他子节点
   /// 保持不变。
-  const factory MovaPatch.replace(String path, MovaComp component) = MovaPatchReplac;
+  const factory MovaPatch.replace(String path, MovaComponent component) = MovaPatchReplace;
 
   /// Removes the component found at [path].
   ///
   /// A top-level [path] (no `/`) removes that whole tree entry; a nested
-  /// [path] removes just that child from its parent's [MovaComp.children].
+  /// [path] removes just that child from its parent's [MovaComponent.children].
   ///
   /// 移除 [path] 处找到的组件。
   ///
   /// 顶层路径（不含 `/`）会移除整个树条目；嵌套路径只会从其父节点的
-  /// [MovaComp.children] 中移除该子节点。
+  /// [MovaComponent.children] 中移除该子节点。
   const factory MovaPatch.remove(String path) = MovaPatchRemove;
 
   /// Inserts [component] as a new sibling immediately after the node at
@@ -43,21 +43,21 @@ sealed class MovaPatch {
   ///
   /// 在 [path] 处的节点之后插入 [component] 作为新的同级兄弟节点，嵌套层级
   /// 与该锚点相同。
-  const factory MovaPatch.insertAfter(String path, MovaComp component) = MovaPatchInsertAfter;
+  const factory MovaPatch.insertAfter(String path, MovaComponent component) = MovaPatchInsertAfter;
 
   /// Appends a brand-new top-level [component] to the tree, tagged with
   /// [slot] and sorted by [order] within that slot.
   ///
   /// 向树追加一个全新的顶层组件 [component]，标记为 [slot]，并在该槽位内
   /// 按 [order] 排序。
-  const factory MovaPatch.add(MovaSlot slot, MovaComp component, {int order}) = MovaPatchAdd;
+  const factory MovaPatch.add(MovaSlot slot, MovaComponent component, {int order}) = MovaPatchAdd;
 }
 
 /// See [MovaPatch.replace].
 ///
 /// 参见 [MovaPatch.replace]。
-final class MovaPatchReplac extends MovaPatch {
-  const MovaPatchReplac(this.path, this.component);
+final class MovaPatchReplace extends MovaPatch {
+  const MovaPatchReplace(this.path, this.component);
 
   /// Target path of the node to replace.
   ///
@@ -67,7 +67,7 @@ final class MovaPatchReplac extends MovaPatch {
   /// The replacement component.
   ///
   /// 用作替换的组件。
-  final MovaComp component;
+  final MovaComponent component;
 }
 
 /// See [MovaPatch.remove].
@@ -96,7 +96,7 @@ final class MovaPatchInsertAfter extends MovaPatch {
   /// The component to insert.
   ///
   /// 要插入的组件。
-  final MovaComp component;
+  final MovaComponent component;
 }
 
 /// See [MovaPatch.add].
@@ -113,7 +113,7 @@ final class MovaPatchAdd extends MovaPatch {
   /// The component to append.
   ///
   /// 要追加的组件。
-  final MovaComp component;
+  final MovaComponent component;
 
   /// Sort order within [slot].
   ///

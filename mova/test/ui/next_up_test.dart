@@ -13,21 +13,21 @@ import '../support/pump.dart';
 ///
 /// 下一集卡片测试用的两集播放列表。
 const _items = [
-  MovaPlistItem(source: MovaSource('https://host/e1.mp4'), title: 'E1'),
-  MovaPlistItem(source: MovaSource('https://host/e2.mp4'), title: 'E2'),
+  MovaPlaylistItem(source: MovaSource('https://host/e1.mp4'), title: 'E1'),
+  MovaPlaylistItem(source: MovaSource('https://host/e2.mp4'), title: 'E2'),
 ];
 
 void main() {
   /// Builds a fake API with the playlist enabled (or not) plus a controller.
   ///
   /// 构造一个启用（或不启用）播放列表的假 API 及其控制器。
-  (FakeMovaApi, MovaPlistCtrl) build({bool enabled = true}) {
+  (FakeMovaApi, MovaPlaylistController) build({bool enabled = true}) {
     final api = FakeMovaApi(
       options: MovaOpts(
-        playlist: MovaPlistConfig(enabled: enabled, items: _items),
+        playlist: MovaPlaylistConfig(enabled: enabled, items: _items),
       ),
     );
-    return (api, MovaPlistCtrl(api));
+    return (api, MovaPlaylistController(api));
   }
 
   /// Sets the fake's duration, pushes a progress tick at [position], and pumps

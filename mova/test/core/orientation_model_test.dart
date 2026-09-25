@@ -2,17 +2,17 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mova/src/core/model/orientation.dart';
 
 void main() {
-  group('MovaOrient.toggled', () {
+  group('MovaOrientation.toggled', () {
     test('landscape toggles to portrait', () {
-      expect(MovaOrient.landscape.toggled, MovaOrient.portrait);
+      expect(MovaOrientation.landscape.toggled, MovaOrientation.portrait);
     });
 
     test('portrait toggles to landscape', () {
-      expect(MovaOrient.portrait.toggled, MovaOrient.landscape);
+      expect(MovaOrientation.portrait.toggled, MovaOrientation.landscape);
     });
 
     test('auto toggles to landscape (treated as "not yet landscape")', () {
-      expect(MovaOrient.auto.toggled, MovaOrient.landscape);
+      expect(MovaOrientation.auto.toggled, MovaOrientation.landscape);
     });
   });
 }

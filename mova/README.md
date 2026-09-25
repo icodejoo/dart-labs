@@ -22,7 +22,7 @@ Flutter 视频播放库，自研手势与控制层，支持点播与直播。
   缩略图气泡（WebVTT 雪碧图 / libmpv 抽帧兜底，两级缓存，默认仅 WiFi）。
 - **Seamless engine swapping / 无缝引擎切换（可选）**：`MovaSwapEngine` 在一个稳定渲染面
   背后持有当前引擎与预热中的影子引擎，就绪后原子换指，消除"广告播完回正片"等场景的
-  黑屏/loading。默认关闭（`MovaOpts.swap.enabled`），`MovaAdCtrl` 传入同一个
+  黑屏/loading。默认关闭（`MovaOpts.swap.enabled`），`MovaAdController` 传入同一个
   `MovaSwapEngine` 作 `swap:` 参数即可接入；详见下方用法。
 
 ## Platform support / 平台支持
@@ -90,22 +90,22 @@ class _PageState extends State<Page> {
 
   @override
   Widget build(BuildContext context) {
-    return MovaPlayer(api: engine); // 默认皮肤 MovaDefSkin
+    return MovaPlayer(api: engine); // 默认皮肤 MovaDefaultSkin
   }
 }
 ```
 
 自定义手势侧别→动作/开关，通过 `MovaOpts` 传入 `MovaEngine`。侧别与动作解耦，可自由
-重映射（把亮度放右侧、或用 `MovaGestAction.none` 禁用某一侧）：
+重映射（把亮度放右侧、或用 `MovaGestureAction.none` 禁用某一侧）：
 
 ```dart
 final engine = createMovaEngine(
   options: const MovaOpts(
-    gesture: MovaGestConfig(
+    gesture: MovaGestureConfig(
       // 默认即主流约定：左亮度、右音量、横滑进度。下面演示换回旧的左音量/右亮度。
-      leftVertical: MovaGestAction.volume,      // 左侧竖滑=音量
-      rightVertical: MovaGestAction.brightness, // 右侧竖滑=亮度
-      horizontal: MovaGestAction.seek,          // 横滑=进度
+      leftVertical: MovaGestureAction.volume,      // 左侧竖滑=音量
+      rightVertical: MovaGestureAction.brightness, // 右侧竖滑=亮度
+      horizontal: MovaGestureAction.seek,          // 横滑=进度
       doubleTapSeek: true,
       doubleTapStep: Duration(seconds: 10),
       pinchZoom: true,
@@ -129,9 +129,9 @@ core/
   options/               MovaOpts    —— gesture/abr/controls/live/strings/theme 六节配置聚合
 ui/
   player.dart            MovaPlayer     —— 顶层组件：接 MovaApi + 渲染画面 + 由 MovaSkin 出树
-  slots/                 MovaComp / MovaSlot / MovaPatch —— 组件树模型与结构化补丁
+  slots/                 MovaComponent / MovaSlot / MovaPatch —— 组件树模型与结构化补丁
   scope/                 MovaScope / MovaSelect / MovaPlugin —— 能力面下发、按字段订阅、副作用能力 mixin
-  skins/                 MovaSkin / MovaDefSkin —— 静态组件树 + 可覆写的三层骨架
+  skins/                 MovaSkin / MovaDefaultSkin —— 静态组件树 + 可覆写的三层骨架
   components/                         —— 叶子/组合组件（top_bar/bottom_bar/gesture_layer/hud_layer/...）
 ```
 
@@ -144,8 +144,8 @@ ui/
 ```dart
 final engine = createMovaEngine(
   options: const MovaOpts(
-    preview: MovaPrevConfig(
-      network: MovaPrevNet.wifiOnly, // 默认；always / never 可选
+    preview: MovaPreviewConfig(
+      network: MovaPreviewNet.wifiOnly, // 默认；always / never 可选
       frameWidth: 160,                    // 缩略图宽度
       bucket: Duration(seconds: 10),      // 桶大小，同桶复用同一张图
       memMaxEntries: 40,                  // 内存 LRU 条目上限
@@ -161,7 +161,7 @@ final engine = createMovaEngine(
 ```dart
 MovaPlayer(
   api: engine,
-  skin: MovaDefSkin(patches: [MovaPatch.replace('preview', MyBubble())]),
+  skin: MovaDefaultSkin(patches: [MovaPatch.replace('preview', MyBubble())]),
 )
 ```
 
@@ -193,7 +193,7 @@ final engine = MovaEngine(
 
 ## 广告编排（delay / duration / 就绪等待 / 失败兜底）
 
-`MovaAdCtrl` 除了按排期播前/中/后贴片，还能表达广告业务的真实时序。**除广告位时长外，
+`MovaAdController` 除了按排期播前/中/后贴片，还能表达广告业务的真实时序。**除广告位时长外，
 所有新能力默认关闭或默认不改变行为。**
 
 ### 正片源延迟解析
@@ -247,7 +247,7 @@ MovaAdConfig(
 ```
 
 三层覆盖，越具体优先级越高：`MovaAdBreak.waitForReady` > 注入的 `MovaAdWaitPolicy` >
-按 kind 的默认值。**仅在宿主接了 `MovaSwapCtl` 且 `MovaSwapConfig.enabled` 为 `true` 时
+按 kind 的默认值。**仅在宿主接了 `MovaSwapController` 且 `MovaSwapConfig.enabled` 为 `true` 时
 才可能生效**——两者默认都是关的，所以不接切换引擎的宿主行为逐字节不变。
 
 等待与 `delay` 倒计时是两件独立的事：`delay == 0` + 等待正是中插的默认形态——用户看不到
@@ -283,16 +283,16 @@ MovaAdConfig(
 ```dart
 final api = MovaSwapEngine(engineFactory: createMovaEngine);
 // 或带上配置：createMovaEngine(options: MovaOpts(swap: MovaSwapConfig(enabled: true)))
-final ads = MovaAdCtrl(api, swap: api); // swap 传同一个实例
+final ads = MovaAdController(api, swap: api); // swap 传同一个实例
 runApp(MovaPlayer(api: api));
 ```
 
-`MovaAdCtrl` 接了 `swap:` 参数后，会在广告播放期间按 `MovaSwapConfig` 配置的触发策略
+`MovaAdController` 接了 `swap:` 参数后，会在广告播放期间按 `MovaSwapConfig` 配置的触发策略
 （默认 `MovaLeadWarm`：结束前 2 秒开始预热，短于 5 秒的广告不预热）后台预热正片，广告一
 结束就原子切换回正片，不再经过 `open()` 的黑屏/loading。清晰度切换目前仍走
 `switchQuality()` 的传统路径（`engine.dart` 顶部有落点注释，说明如何映射到
-`MovaSwapCtl.swapTo`）；`core/feed/engine_pool.dart` 的双画面并存需求不适用本模型，
-两者仅共享 `MovaEngineFact` 这条原语。详见
+`MovaSwapController.swapTo`）；`core/feed/engine_pool.dart` 的双画面并存需求不适用本模型，
+两者仅共享 `MovaEngineFactory` 这条原语。详见
 [doc/plans/2026-09-16-seamless-swap.md](doc/plans/2026-09-16-seamless-swap.md)。
 
 ## App 内小窗（`MovaMini`，可选）
@@ -314,7 +314,7 @@ libmpv 侧一个字节都不会重新解码——重挂的只是 Flutter 的 `Te
 （这正是"页内"该有的语义，不是缺陷）；`push` 新路由会盖住它，`pop` 回来又在。
 
 ```dart
-final mini = MovaMiniCtl();
+final mini = MovaMiniController();
 
 // 打开小窗：
 await mini.showInPage(context, api);
@@ -334,7 +334,7 @@ void dispose() {
 （controller 与路由生命周期解耦）；`MovaMiniHost` 是一个约 30 行的可选便利壳：
 
 ```dart
-final miniCtl = MovaMiniCtl(); // 建在 app 根，路由之外
+final miniCtl = MovaMiniController(); // 建在 app 根，路由之外
 
 MaterialApp(
   builder: (context, child) => MovaMiniHost(ctl: miniCtl, child: child!),
@@ -360,9 +360,9 @@ builder: (context, child) => Stack(children: [
 
 ### ⚠️ 谁 dispose engine
 
-mova 一贯的约定是"宿主持有 engine"——`MovaPlayer`/`MovaMiniCtl` 从不 dispose 传进来的
+mova 一贯的约定是"宿主持有 engine"——`MovaPlayer`/`MovaMiniController` 从不 dispose 传进来的
 `api`。**页面 `dispose()` 里顺手 `api.dispose()` 是最常见的错误用法**，会在交接瞬间把
-正在小窗里播的引擎干掉。`MovaMiniCtl.isShowing(api)` 让页面在 `dispose` 前自检；
+正在小窗里播的引擎干掉。`MovaMiniController.isShowing(api)` 让页面在 `dispose` 前自检；
 `MovaEngine.dispose()` 在 `state.mini == true` 时还会打一条 debug-only 的 `assert` 兜底
 （release 零成本）。
 
@@ -391,7 +391,7 @@ demo 见 [example/lib/mini_window_demo.dart](example/lib/mini_window_demo.dart)�
 ```dart
 final engine = createMovaEngine(
   audioOnly: true,
-  options: const MovaOpts(preview: MovaPrevConfig(enabled: false)), // 没有帧可预览
+  options: const MovaOpts(preview: MovaPreviewConfig(enabled: false)), // 没有帧可预览
 );
 runApp(MovaPlayer(api: engine, surface: CoverArt(url: coverUrl)));
 ```
@@ -463,23 +463,23 @@ Windows/macOS/Linux 上没有对应的"真全屏"概念（把 OS 窗口撑满屏
 
 ```dart
 engine.events.listen((e) {
-  if (e is MovaFullScreenChg) {
+  if (e is MovaFullScreenChange) {
     // 例如用 window_manager 包切换真实的 OS 窗口全屏。
     windowManager.setFullScreen(e.value);
   }
 });
 ```
 
-`MovaFullScreenChg` 事件在 `setFullscreen()` 每次调用时都会发出，与
-`MovaOrientPort` 无关——不需要实现整套 `MovaOrientPort` 接口（那是给移动端
+`MovaFullScreenChange` 事件在 `setFullscreen()` 每次调用时都会发出，与
+`MovaOrientationPort` 无关——不需要实现整套 `MovaOrientationPort` 接口（那是给移动端
 方向/沉浸式 UI 设计的），监听事件流即可。
 
 ## 自定义皮肤 / Custom skins
 
 三档定制，由浅入深：
 
-1. **补丁档**：`MovaDefSkin(patches: [...])`——增/删/替换/重写组件、在已有插槽间挪位置。
-2. **半覆写档**：`extends MovaDefSkin` 只覆写某一层的受保护方法
+1. **补丁档**：`MovaDefaultSkin(patches: [...])`——增/删/替换/重写组件、在已有插槽间挪位置。
+2. **半覆写档**：`extends MovaDefaultSkin` 只覆写某一层的受保护方法
    （`buildPlaybackLayer`/`buildOperableLayer`/`buildPersistentLayer`），重排版而复用其余各层。
 3. **全实现档**：`implements MovaSkin` 重写 `components()`/`assemble()`，布局与组件全自定义。
 
@@ -492,7 +492,7 @@ pip/锁定时整层隐藏）+**常驻层**（锁定遮罩与锁定/解锁按钮�
 
 ```dart
 // 去掉顶栏里的画中画按钮（等价于 0.1.0 里派生子类删掉一个按钮）。
-const noPipSkin = MovaDefSkin(
+const noPipSkin = MovaDefaultSkin(
   patches: [MovaPatch.remove('topBar/pipButton')],
 );
 
@@ -501,7 +501,7 @@ MovaPlayer(api: engine, skin: noPipSkin);
 
 ```dart
 // 在顶栏追加一个自定义组件。
-final withExtra = MovaDefSkin(
+final withExtra = MovaDefaultSkin(
   patches: [MovaPatch.add(MovaSlot.top, MyExtraButtonComponent(), order: 10)],
 );
 ```
@@ -511,7 +511,7 @@ final withExtra = MovaDefSkin(
 ```dart
 class MySkin implements MovaSkin {
   @override
-  List<MovaComp> components() => [/* 自定义组件树（静态） */];
+  List<MovaComponent> components() => [/* 自定义组件树（静态） */];
 
   @override
   Widget assemble(BuildContext context, MovaSlotBundle slots, Widget video) {

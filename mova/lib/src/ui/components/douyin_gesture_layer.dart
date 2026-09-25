@@ -18,7 +18,7 @@ import '../slots/slot.dart';
 /// doc/SPEC.md 的 feed 条目）：纵向拖动归 feed 的 `PageView` 所有，这里干脆
 /// 不注册会竞争的手势识别器，就是 mova 组件化架构规避冲突的方式，
 /// 无需任何特判。
-class MovaDouyinGestureLayerComponent extends MovaComp {
+class MovaDouyinGestureLayerComponent extends MovaComponent {
   /// Creates the douyin gesture-layer component.
   ///
   /// 创建抖音手势层组件。
@@ -38,7 +38,7 @@ class MovaDouyinGestureLayerComponent extends MovaComp {
   /// The feed controller owning local like state.
   ///
   /// 持有本地点赞状态的 feed 控制器。
-  final MovaFeedCtrl controller;
+  final MovaFeedController controller;
 
   /// This page's feed index.
   ///
@@ -63,11 +63,11 @@ class MovaDouyinGestureLayerComponent extends MovaComp {
 }
 
 /// Stateful gesture recognizer; owns only the transient heart-burst
-/// animation trigger, all persistent state lives in [MovaFeedCtrl]/
+/// animation trigger, all persistent state lives in [MovaFeedController]/
 /// [likeNotifier].
 ///
 /// 有状态手势识别器；只持有瞬时的心形动画触发计数，持久状态都在
-/// [MovaFeedCtrl]/[likeNotifier] 里。
+/// [MovaFeedController]/[likeNotifier] 里。
 class _DouyinGestureLayer extends StatefulWidget {
   /// Creates the internal douyin gesture widget.
   ///
@@ -87,7 +87,7 @@ class _DouyinGestureLayer extends StatefulWidget {
   /// The feed controller owning local like state.
   ///
   /// 持有本地点赞状态的 feed 控制器。
-  final MovaFeedCtrl controller;
+  final MovaFeedController controller;
 
   /// This page's feed index.
   ///

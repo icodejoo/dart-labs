@@ -1,7 +1,7 @@
 /// When scrub-preview thumbnails are allowed to use the network.
 ///
 /// 何时允许拖动预览缩略图走网络。
-enum MovaPrevNet {
+enum MovaPreviewNet {
   /// Only on connections considered unmetered; the default.
   ///
   /// 仅在被视为不计流量的连接上启用；默认值。
@@ -75,19 +75,19 @@ class MovaAlwaysAllowNetProbe implements MovaNetProbe {
 /// 把功能关掉。
 ///
 /// - [policy]: the configured network policy / 配置的网络策略
-/// - [probe]: the connectivity probe to consult under [MovaPrevNet.wifiOnly] /
-///   在 [MovaPrevNet.wifiOnly] 下要咨询的连通性探针
+/// - [probe]: the connectivity probe to consult under [MovaPreviewNet.wifiOnly] /
+///   在 [MovaPreviewNet.wifiOnly] 下要咨询的连通性探针
 ///
 /// Returns whether networked preview sources may run.
 ///
 /// 返回是否允许运行需要联网的预览来源。
-Future<bool> previewAllowedOn(MovaPrevNet policy, MovaNetProbe probe) async {
+Future<bool> previewAllowedOn(MovaPreviewNet policy, MovaNetProbe probe) async {
   switch (policy) {
-    case MovaPrevNet.never:
+    case MovaPreviewNet.never:
       return false;
-    case MovaPrevNet.always:
+    case MovaPreviewNet.always:
       return true;
-    case MovaPrevNet.wifiOnly:
+    case MovaPreviewNet.wifiOnly:
       try {
         return await probe.allowHeavy();
       } on Object {

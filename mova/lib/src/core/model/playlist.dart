@@ -5,7 +5,7 @@ import 'source.dart';
 ///
 /// 顺序播放列表中的一项——单集/单条——包裹可播放的 [source]，并附带供"下一集"
 /// 卡片展示的可选元数据。
-class MovaPlistItem {
+class MovaPlaylistItem {
   /// The playable source for this entry.
   ///
   /// 该项对应的可播放源。
@@ -37,12 +37,12 @@ class MovaPlistItem {
   ///
   /// Example / 示例:
   /// ```dart
-  /// const MovaPlistItem(
+  /// const MovaPlaylistItem(
   ///   source: MovaSource('https://host/ep3.m3u8'),
   ///   title: '第三集',
   /// );
   /// ```
-  const MovaPlistItem({
+  const MovaPlaylistItem({
     required this.source,
     this.title,
     this.subtitle,

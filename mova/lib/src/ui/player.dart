@@ -36,7 +36,7 @@ class MovaPlayer extends StatefulWidget {
   const MovaPlayer({
     super.key,
     required this.api,
-    this.skin = const MovaDefSkin(),
+    this.skin = const MovaDefaultSkin(),
     this.autoLoadQualities = true,
     this.surface,
   });

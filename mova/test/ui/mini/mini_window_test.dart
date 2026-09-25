@@ -16,7 +16,7 @@ import '../../support/fake_api.dart';
 /// `bounds`，而非依赖默认的测试画布尺寸。
 Future<void> pumpWindow(
   WidgetTester tester, {
-  required MovaMiniCtl ctl,
+  required MovaMiniController ctl,
   required FakeMovaApi api,
   MovaMiniConfig config = const MovaMiniConfig(enabled: true),
   Size size = const Size(400, 800),
@@ -36,11 +36,11 @@ Future<void> pumpWindow(
 }
 
 void main() {
-  late MovaMiniCtl ctl;
+  late MovaMiniController ctl;
   late FakeMovaApi api;
 
   setUp(() {
-    ctl = MovaMiniCtl();
+    ctl = MovaMiniController();
     api = FakeMovaApi(options: const MovaOpts());
   });
 

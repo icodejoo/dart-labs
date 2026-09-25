@@ -45,9 +45,9 @@ void main() {
   testWidgets('the side↔action mapping is configurable (swap left back to volume)', (tester) async {
     final api = FakeMovaApi(
       options: const MovaOpts(
-        gesture: MovaGestConfig(
-          leftVertical: MovaGestAction.volume,
-          rightVertical: MovaGestAction.brightness,
+        gesture: MovaGestureConfig(
+          leftVertical: MovaGestureAction.volume,
+          rightVertical: MovaGestureAction.brightness,
         ),
       ),
     );
@@ -100,7 +100,7 @@ void main() {
 
   testWidgets('allowWhenLive=false blocks seeking even when liveSeekable', (t) async {
     final api = FakeMovaApi(
-      options: const MovaOpts(gesture: MovaGestConfig(allowWhenLive: false)),
+      options: const MovaOpts(gesture: MovaGestureConfig(allowWhenLive: false)),
     );
     api.push(const MovaState(
       type: MovaStreamType.live,

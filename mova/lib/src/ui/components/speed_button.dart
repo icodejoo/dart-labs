@@ -22,7 +22,7 @@ const List<double> _kSpeedSteps = [0.5, 0.75, 1.0, 1.25, 1.5, 2.0];
 /// [_kSpeedSteps] 中的下一档，到头后回绕。
 ///
 /// 只是在既有 [MovaApi.setRate] 之上新增的 UI——无需任何新的 core 能力。
-class MovaSpeedButtonComponent extends MovaComp {
+class MovaSpeedButtonComponent extends MovaComponent {
   /// Creates the speed-button leaf component.
   ///
   /// 创建倍速按钮叶子组件。

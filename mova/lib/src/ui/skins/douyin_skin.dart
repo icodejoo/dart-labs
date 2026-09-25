@@ -10,7 +10,7 @@ import '../slots/tree.dart';
 import 'skin.dart';
 
 /// A fully custom (③-tier, see doc/DESIGN-0.3.0-plugin-skin.md §7.1) skin
-/// for one page of a [MovaFeedCtrl]-driven vertical feed: no top bar, no
+/// for one page of a [MovaFeedController]-driven vertical feed: no top bar, no
 /// seek bar, full-bleed video, a right-side social rail, and bottom
 /// author/music info — douyin-style.
 ///
@@ -19,7 +19,7 @@ import 'skin.dart';
 /// from [MovaApi] (which only knows about the single shared engine, not which
 /// feed index is currently showing).
 ///
-/// 面向 [MovaFeedCtrl] 驱动的纵向 feed 中**单页**的完全自定义皮肤（③档，
+/// 面向 [MovaFeedController] 驱动的纵向 feed 中**单页**的完全自定义皮肤（③档，
 /// 见 doc/DESIGN-0.3.0-plugin-skin.md §7.1）：无顶栏、无进度条、画面铺满全屏、
 /// 右侧社交竖排、底部作者/音乐信息——抖音风格。
 ///
@@ -55,7 +55,7 @@ class MovaDouyinSkin implements MovaSkin {
   /// The feed controller owning local like state.
   ///
   /// 持有本地点赞状态的 feed 控制器。
-  final MovaFeedCtrl controller;
+  final MovaFeedController controller;
 
   /// This page's feed index.
   ///
@@ -68,7 +68,7 @@ class MovaDouyinSkin implements MovaSkin {
   final ValueNotifier<({bool liked, int count})> likeNotifier;
 
   @override
-  List<MovaComp> components() => [
+  List<MovaComponent> components() => [
         MovaDouyinGestureLayerComponent(controller: controller, index: index, likeNotifier: likeNotifier),
         MovaSocialRailComponent(item: item, controller: controller, index: index, likeNotifier: likeNotifier),
         MovaFeedInfoComponent(item: item),

@@ -18,7 +18,7 @@ import '../model/source.dart';
 /// Returns a fresh engine, never a shared one.
 ///
 /// 返回一个全新的引擎，绝不能是共享实例。
-typedef MovaEngineFact = MovaApi Function();
+typedef MovaEngineFactory = MovaApi Function();
 
 /// A pool engine currently bound to one feed index, plus whether its media
 /// has finished opening.
@@ -141,7 +141,7 @@ class MovaFeedEnginePool {
   ///   flag changes, so the UI can rebuild / 任一 slot 的绑定或
   ///   [MovaFeedSlot.ready] 标志变化时触发，供 UI 重建
   MovaFeedEnginePool({
-    required MovaEngineFact engineFactory,
+    required MovaEngineFactory engineFactory,
     int size = 3,
     this.fit,
     this.onChanged,
@@ -151,7 +151,7 @@ class MovaFeedEnginePool {
   /// Creates each engine.
   ///
   /// 创建每个引擎。
-  final MovaEngineFact _factory;
+  final MovaEngineFactory _factory;
 
   /// How many engines may exist at once.
   ///

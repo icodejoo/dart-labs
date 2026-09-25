@@ -22,7 +22,7 @@ import 'common.dart';
 /// 未配置引擎时（`MovaApi.stt.languages` 为空）整体不渲染——对应
 /// [MovaPipButtonComponent]"不渲染一个死掉的控件"的约定，只是这里换成了叠加层
 /// 而非按钮。
-class MovaSubtitleOverlayComponent extends MovaComp {
+class MovaSubtitleOverlayComponent extends MovaComponent {
   /// Creates the subtitle-overlay component.
   ///
   /// 创建字幕叠加层组件。
@@ -148,7 +148,7 @@ class _SubtitleOverlayState extends State<_SubtitleOverlay> {
 /// 是一整条联合入口，不是每个语言一行——见
 /// `doc/notes/2026-08-04-stt-engine-decision.md`：本版本每个播放器只支持一个
 /// 引擎），外加一行"关闭字幕"。
-class MovaSubtitleButtonComponent extends MovaComp {
+class MovaSubtitleButtonComponent extends MovaComponent {
   /// Creates the subtitle-button leaf component.
   ///
   /// 创建字幕按钮叶子组件。

@@ -28,7 +28,7 @@ import 'subtitle.dart';
 /// 每个子按钮在各自 `build` 里独立判断是否显示（不适用时返回
 /// `SizedBox.shrink()`），而非由该父组件用 `if` 统一控制——这样 patch 掉某个
 /// 按钮不会影响其他按钮。
-class MovaTopBarComponent extends MovaComp {
+class MovaTopBarComponent extends MovaComponent {
   /// Creates the top-bar composite with its 6 fixed children.
   ///
   /// 创建带 6 个固定子组件的顶栏组合组件。
@@ -41,7 +41,7 @@ class MovaTopBarComponent extends MovaComp {
   MovaSlot get slot => MovaSlot.top;
 
   @override
-  List<MovaComp> get children => [
+  List<MovaComponent> get children => [
     MovaTitleComponent(),
     MovaPipButtonComponent(),
     MovaQualityButtonComponent(),
@@ -80,7 +80,7 @@ class MovaTopBarComponent extends MovaComp {
 /// 通过 [MovaSelect] 直接读取 [MovaState.sourceTitle]，因此标题本身变化时即
 /// 会重建——包括重新打开同一 [MovaState.type]（例如点播换点播）的另一个源，
 /// 此时 `type` 不会变化，若改为监听 `type` 则会漏掉这种情况。
-class MovaTitleComponent extends MovaComp {
+class MovaTitleComponent extends MovaComponent {
   /// Creates the title leaf component.
   ///
   /// 创建标题叶子组件。
@@ -124,7 +124,7 @@ class MovaTitleComponent extends MovaComp {
 /// 可见性跟随 [MovaState.pipSupported]——engine 在构造后不久用
 /// `MovaPipPort.isSupported()` 解析一次。因此桌面端该按钮根本不会出现，而不是
 /// 出现了点了没反应。
-class MovaPipButtonComponent extends MovaComp {
+class MovaPipButtonComponent extends MovaComponent {
   /// Creates the pip-button leaf component.
   ///
   /// 创建画中画按钮叶子组件。
@@ -158,15 +158,15 @@ class MovaPipButtonComponent extends MovaComp {
 ///
 /// Reproduces 0.1.0's `showModalBottomSheet` quality picker
 /// (`player.dart`'s `_showQualityMenu`): a bottom sheet listing every
-/// `MovaQual`, checkmarking the active one, and calling
+/// `MovaQuality`, checkmarking the active one, and calling
 /// [MovaApi.switchQuality] on tap.
 ///
 /// 清晰度选择按钮；当前源无可选清晰度档位时隐藏。
 ///
 /// 复刻 0.1.0 的 `showModalBottomSheet` 清晰度选择器（`player.dart` 的
-/// `_showQualityMenu`）：底部弹出列出全部 `MovaQual`，勾选当前档位，点击
+/// `_showQualityMenu`）：底部弹出列出全部 `MovaQuality`，勾选当前档位，点击
 /// 调用 [MovaApi.switchQuality]。
-class MovaQualityButtonComponent extends MovaComp {
+class MovaQualityButtonComponent extends MovaComponent {
   /// Creates the quality-button leaf component.
   ///
   /// 创建清晰度按钮叶子组件。
@@ -181,11 +181,11 @@ class MovaQualityButtonComponent extends MovaComp {
   @override
   Widget build(BuildContext context, MovaApi api, List<Widget> children) {
     final theme = api.options.theme;
-    return MovaSelect<List<MovaQual>>(
+    return MovaSelect<List<MovaQuality>>(
       selector: (s) => s.qualities,
       builder: (context, qualities) {
         if (qualities.isEmpty) return const SizedBox.shrink();
-        return MovaSelect<MovaQual?>(
+        return MovaSelect<MovaQuality?>(
           selector: (s) => s.currentQuality,
           builder: (context, current) {
             return MovaIconButton(
@@ -214,8 +214,8 @@ class MovaQualityButtonComponent extends MovaComp {
   void _showQualityMenu(
     BuildContext context,
     MovaApi api,
-    List<MovaQual> qualities,
-    MovaQual? current,
+    List<MovaQuality> qualities,
+    MovaQuality? current,
     MovaTheme theme,
   ) {
     showMovaOptionSheet(context, theme, [
@@ -234,7 +234,7 @@ class MovaQualityButtonComponent extends MovaComp {
 ///
 /// 观看模式循环切换按钮；标签取自 [MovaApi.options] 配置的 `MovaStrs`，点击
 /// 循环 `MovaFit.contain → cover → fill → contain`。
-class MovaFitButtonComponent extends MovaComp {
+class MovaFitButtonComponent extends MovaComponent {
   /// Creates the fit-button leaf component.
   ///
   /// 创建观看模式按钮叶子组件。
@@ -278,7 +278,7 @@ class MovaFitButtonComponent extends MovaComp {
 /// 非移动端（`defaultTargetPlatform` 不是 Android/iOS）不渲染任何内容——那里
 /// 强制设备方向本就无效，与画中画按钮在不支持处隐藏一致。监听
 /// [MovaState.orientation]，使切换目标跟随当前强制状态。
-class MovaOrientationButtonComponent extends MovaComp {
+class MovaOrientationButtonComponent extends MovaComponent {
   /// Creates the orientation-button leaf component.
   ///
   /// 创建方向按钮叶子组件。
@@ -297,7 +297,7 @@ class MovaOrientationButtonComponent extends MovaComp {
         defaultTargetPlatform == TargetPlatform.iOS;
     if (!isMobile) return const SizedBox.shrink();
     final theme = api.options.theme;
-    return MovaSelect<MovaOrient>(
+    return MovaSelect<MovaOrientation>(
       selector: (s) => s.orientation,
       builder: (context, orientation) {
         return MovaIconButton(
@@ -314,7 +314,7 @@ class MovaOrientationButtonComponent extends MovaComp {
 /// based on [MovaState.fullscreen].
 ///
 /// 全屏切换按钮；图标依据 [MovaState.fullscreen] 在进入/退出全屏两种图形间切换。
-class MovaFullscreenButtonComponent extends MovaComp {
+class MovaFullscreenButtonComponent extends MovaComponent {
   /// Creates the fullscreen-button leaf component.
   ///
   /// 创建全屏按钮叶子组件。

@@ -50,14 +50,14 @@ void main() {
 
   test('the never policy blocks without consulting the probe', () async {
     final p = _FixedProbe(true);
-    expect(await previewAllowedOn(MovaPrevNet.never, p), isFalse);
+    expect(await previewAllowedOn(MovaPreviewNet.never, p), isFalse);
     expect(p.calls, 0);
     await p.dispose();
   });
 
   test('the always policy permits without consulting the probe', () async {
     final p = _FixedProbe(false);
-    expect(await previewAllowedOn(MovaPrevNet.always, p), isTrue);
+    expect(await previewAllowedOn(MovaPreviewNet.always, p), isTrue);
     expect(p.calls, 0);
     await p.dispose();
   });
@@ -65,8 +65,8 @@ void main() {
   test('the wifiOnly policy defers to the probe', () async {
     final allow = _FixedProbe(true);
     final deny = _FixedProbe(false);
-    expect(await previewAllowedOn(MovaPrevNet.wifiOnly, allow), isTrue);
-    expect(await previewAllowedOn(MovaPrevNet.wifiOnly, deny), isFalse);
+    expect(await previewAllowedOn(MovaPreviewNet.wifiOnly, allow), isTrue);
+    expect(await previewAllowedOn(MovaPreviewNet.wifiOnly, deny), isFalse);
     expect(allow.calls, 1);
     expect(deny.calls, 1);
     await allow.dispose();
@@ -74,7 +74,7 @@ void main() {
   });
 
   test('a throwing probe degrades to allowed rather than breaking playback', () async {
-    expect(await previewAllowedOn(MovaPrevNet.wifiOnly, _ThrowingProbe()), isTrue);
+    expect(await previewAllowedOn(MovaPreviewNet.wifiOnly, _ThrowingProbe()), isTrue);
   });
 }
 

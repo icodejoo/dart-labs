@@ -3,7 +3,7 @@ import 'package:flutter/widgets.dart';
 import '../slots/component.dart';
 import '../slots/tree.dart';
 
-/// A pluggable player "skin": decides which [MovaComp]s exist and how the
+/// A pluggable player "skin": decides which [MovaComponent]s exist and how the
 /// resulting [MovaSlotBundle] plus the raw video surface are stacked into the
 /// final widget tree.
 ///
@@ -13,7 +13,7 @@ import '../slots/tree.dart';
 /// [MovaSlotBundle] be built once (via [buildSlots]) and reused by callers that
 /// only care about one side.
 ///
-/// 可插拔的播放器"皮肤"：决定存在哪些 [MovaComp]，以及构建出的
+/// 可插拔的播放器"皮肤"：决定存在哪些 [MovaComponent]，以及构建出的
 /// [MovaSlotBundle] 与原始视频画面如何叠装成最终 widget 树。
 ///
 /// 实现方需关心两个独立职责：[components]（数据——静态组件树）与
@@ -34,7 +34,7 @@ abstract class MovaSkin {
   /// 该树**不**随状态变化：组件通过 `MovaSelect` 响应式地自我显隐，因此皮肤
   /// 只构建树一次，而非每次状态变化都重算。只适用于部分源的组件（如直播角标）
   /// 在不适用时直接不渲染任何内容即可。
-  List<MovaComp> components();
+  List<MovaComponent> components();
 
   /// Composes the already-built [slots] and the raw [video] surface into the
   /// final widget tree for [context].

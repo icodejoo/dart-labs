@@ -6,7 +6,7 @@
 /// 可选择的视频清晰度档位。
 ///
 /// 对自适应源（HLS），"自动"把码率选择交给内核；具体档位则锁定到某一路。
-class MovaQual {
+class MovaQuality {
   /// Human label, e.g. "1080p" or "自动".
   ///
   /// 展示标签，如 "1080p" 或 "自动"。
@@ -40,7 +40,7 @@ class MovaQual {
   /// Creates a quality entry.
   ///
   /// 创建一个清晰度档位。
-  const MovaQual({
+  const MovaQuality({
     required this.label,
     required this.uri,
     this.bandwidth,
@@ -52,7 +52,7 @@ class MovaQual {
   /// The adaptive "auto" entry (engine picks the bitrate).
   ///
   /// 自适应"自动"档（内核自动选码率）。
-  factory MovaQual.auto() => const MovaQual(label: '自动', uri: '', isAuto: true);
+  factory MovaQuality.auto() => const MovaQuality(label: '自动', uri: '', isAuto: true);
 }
 
 /// Parses an HLS master playlist into a quality list (auto first, then
@@ -70,9 +70,9 @@ class MovaQual {
 /// ```dart
 /// final qs = parseHlsMasterPlaylist(text, base: Uri.parse(url));
 /// ```
-List<MovaQual> parseHlsMasterPlaylist(String content, {Uri? base}) {
+List<MovaQuality> parseHlsMasterPlaylist(String content, {Uri? base}) {
   final lines = content.split(RegExp(r'\r?\n'));
-  final variants = <MovaQual>[];
+  final variants = <MovaQuality>[];
   for (var i = 0; i < lines.length; i++) {
     final line = lines[i].trim();
     if (!line.startsWith('#EXT-X-STREAM-INF:')) continue;
@@ -98,7 +98,7 @@ List<MovaQual> parseHlsMasterPlaylist(String content, {Uri? base}) {
       }
     }
     final resolved = base != null ? base.resolve(uri).toString() : uri;
-    variants.add(MovaQual(
+    variants.add(MovaQuality(
       label: h != null ? '${h}p' : (bw != null ? '${(bw / 1000).round()}kbps' : '未知'),
       uri: resolved,
       bandwidth: bw,
@@ -108,7 +108,7 @@ List<MovaQual> parseHlsMasterPlaylist(String content, {Uri? base}) {
   }
   if (variants.isEmpty) return [];
   variants.sort((a, b) => (b.height ?? b.bandwidth ?? 0).compareTo(a.height ?? a.bandwidth ?? 0));
-  return [MovaQual.auto(), ...variants];
+  return [MovaQuality.auto(), ...variants];
 }
 
 /// Splits an HLS attribute list on commas not enclosed in double quotes.

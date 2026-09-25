@@ -13,7 +13,7 @@ import '../slots/slot.dart';
 /// reports a click-through (the host, not the library, opens any URL). Renders
 /// nothing when ads are disabled or no ad is currently playing.
 ///
-/// Host-wired: the host constructs a [MovaAdCtrl] and passes it in (e.g. via
+/// Host-wired: the host constructs a [MovaAdController] and passes it in (e.g. via
 /// a skin patch). Visibility follows the controller's phase; the skip countdown
 /// follows the throttled progress stream against [MovaAdBreak.skippableAfter].
 ///
@@ -21,9 +21,9 @@ import '../slots/slot.dart';
 /// 覆盖整个画面、上报点击跳转的点按（打开 URL 由宿主而非库负责）。广告关闭或当前
 /// 没有广告在播时不渲染任何内容。
 ///
-/// 由宿主接线：宿主构造一个 [MovaAdCtrl] 并传入（例如经皮肤补丁）。显隐跟随
+/// 由宿主接线：宿主构造一个 [MovaAdController] 并传入（例如经皮肤补丁）。显隐跟随
 /// 控制器阶段；跳过倒计时依节流进度流对比 [MovaAdBreak.skippableAfter]。
-class MovaAdOverlayComponent extends MovaComp {
+class MovaAdOverlayComponent extends MovaComponent {
   /// Creates the ad overlay bound to [controller].
   ///
   /// 创建绑定到 [controller] 的广告叠层。
@@ -34,7 +34,7 @@ class MovaAdOverlayComponent extends MovaComp {
   /// The ad controller this overlay reads and drives.
   ///
   /// 该叠层读取并驱动的广告控制器。
-  final MovaAdCtrl controller;
+  final MovaAdController controller;
 
   @override
   String get name => 'adOverlay';
@@ -68,7 +68,7 @@ class _AdOverlayView extends StatefulWidget {
   /// The ad controller providing phase, current break, and skip/click actions.
   ///
   /// 提供阶段、当前广告位与跳过/点击动作的广告控制器。
-  final MovaAdCtrl controller;
+  final MovaAdController controller;
 
   @override
   State<_AdOverlayView> createState() => _AdOverlayViewState();

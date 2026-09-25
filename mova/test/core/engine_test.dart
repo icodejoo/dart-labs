@@ -31,13 +31,13 @@ void main() {
 
   tearDown(() => e.dispose());
 
-  test('open emits MovaSourceChg then forwards to the kernel', () async {
+  test('open emits MovaSourceChange then forwards to the kernel', () async {
     final events = <MovaEvent>[];
     final sub = e.events.listen(events.add);
     await e.open(const MovaSource('https://host/a.mp4'));
     await Future<void>.delayed(Duration.zero);
     expect(k.lastUri, 'https://host/a.mp4');
-    expect(events.whereType<MovaSourceChg>(), isNotEmpty);
+    expect(events.whereType<MovaSourceChange>(), isNotEmpty);
     expect(e.state.type, MovaStreamType.vod);
     await sub.cancel();
   });
@@ -161,12 +161,12 @@ void main() {
 
   test('switchQuality parks the resume seek instead of issuing it right after '
       'the variant reload', () async {
-    const high = MovaQual(
+    const high = MovaQuality(
       label: '1080p',
       uri: 'https://host/1080.m3u8',
       height: 1080,
     );
-    const low = MovaQual(
+    const low = MovaQuality(
       label: '480p',
       uri: 'https://host/480.m3u8',
       height: 480,
@@ -205,12 +205,12 @@ void main() {
 
   test('switchQuality announces the new variant without waiting for the parked '
       'resume seek', () async {
-    const high = MovaQual(
+    const high = MovaQuality(
       label: '1080p',
       uri: 'https://host/1080.m3u8',
       height: 1080,
     );
-    const low = MovaQual(
+    const low = MovaQuality(
       label: '480p',
       uri: 'https://host/480.m3u8',
       height: 480,
@@ -226,29 +226,29 @@ void main() {
     await e.switchQuality(low);
     await Future<void>.delayed(Duration.zero);
     expect(e.state.currentQuality, low);
-    expect(events.whereType<MovaQualChg>().single.quality, low);
+    expect(events.whereType<MovaQualityChange>().single.quality, low);
     // A variant switch is not a source change, so none of open()'s
     // source-level side effects may fire.
     //
     // 换档不是换源，open() 那些源级副作用一个都不该发生。
-    expect(events.whereType<MovaSourceChg>(), isEmpty);
+    expect(events.whereType<MovaSourceChange>(), isEmpty);
     expect(e.state.qualities, const [high, low]);
     await sub.cancel();
   });
 
   test('switchQuality clears the ABR stall tally, so the reload\'s own '
       'buffering cannot immediately trigger a downshift', () async {
-    const high = MovaQual(
+    const high = MovaQuality(
       label: '1080p',
       uri: 'https://host/1080.m3u8',
       height: 1080,
     );
-    const mid = MovaQual(
+    const mid = MovaQuality(
       label: '720p',
       uri: 'https://host/720.m3u8',
       height: 720,
     );
-    const low = MovaQual(
+    const low = MovaQuality(
       label: '480p',
       uri: 'https://host/480.m3u8',
       height: 480,
@@ -292,12 +292,12 @@ void main() {
   });
 
   test('switchQuality never seeks for a live source', () async {
-    const high = MovaQual(
+    const high = MovaQuality(
       label: '1080p',
       uri: 'https://host/1080.m3u8',
       height: 1080,
     );
-    const low = MovaQual(
+    const low = MovaQuality(
       label: '480p',
       uri: 'https://host/480.m3u8',
       height: 480,
@@ -457,13 +457,13 @@ void main() {
     // 注入两档非自动清晰度（外加一档自动）并选中较高档为当前档——模拟
     // loadQualities() 从真实 HLS master playlist 解析出的结果，但省去 HTTP
     // 往返。
-    const auto = MovaQual(label: '自动', uri: '', isAuto: true);
-    const high = MovaQual(
+    const auto = MovaQuality(label: '自动', uri: '', isAuto: true);
+    const high = MovaQuality(
       label: '1080p',
       uri: 'https://host/1080.m3u8',
       height: 1080,
     );
-    const low = MovaQual(
+    const low = MovaQuality(
       label: '480p',
       uri: 'https://host/480.m3u8',
       height: 480,
@@ -526,18 +526,18 @@ void main() {
     // 完整的 stall 周期，仍能得到每轮恰好一次 MovaAbrDownShift，且最终清晰度
     // 一致。要制造真正并发的竞争（两个重叠的异步内核往返），需要给
     // FakeKernel 的 open()/seek() 插入人为延迟，本测试骨架未做这件事。
-    const auto = MovaQual(label: '自动', uri: '', isAuto: true);
-    const high = MovaQual(
+    const auto = MovaQuality(label: '自动', uri: '', isAuto: true);
+    const high = MovaQuality(
       label: '1080p',
       uri: 'https://host/1080.m3u8',
       height: 1080,
     );
-    const mid = MovaQual(
+    const mid = MovaQuality(
       label: '720p',
       uri: 'https://host/720.m3u8',
       height: 720,
     );
-    const low = MovaQual(
+    const low = MovaQuality(
       label: '480p',
       uri: 'https://host/480.m3u8',
       height: 480,
@@ -627,13 +627,13 @@ void main() {
       final events = <MovaEvent>[];
       final sub = e2.events.listen(events.add);
 
-      await e2.setOrientation(MovaOrient.landscape);
-      expect(e2.state.orientation, MovaOrient.landscape);
-      expect(spy.orientations.last, MovaOrient.landscape);
+      await e2.setOrientation(MovaOrientation.landscape);
+      expect(e2.state.orientation, MovaOrientation.landscape);
+      expect(spy.orientations.last, MovaOrientation.landscape);
       await Future<void>.delayed(Duration.zero);
       expect(
-        events.whereType<MovaOrientChg>().single.orientation,
-        MovaOrient.landscape,
+        events.whereType<MovaOrientationChange>().single.orientation,
+        MovaOrientation.landscape,
       );
 
       await sub.cancel();
@@ -647,14 +647,14 @@ void main() {
       final spy = _SpyOrientationPort();
       final e2 = MovaEngine(kernel: k, orientation: spy);
 
-      await e2.setOrientation(MovaOrient.portrait);
+      await e2.setOrientation(MovaOrientation.portrait);
       await e2.setFullscreen(true);
       // Every apply since forcing portrait must carry that override, regardless
       // of the (landscape) video size, so fullscreen never flips it back.
       //
       // 强制竖屏之后的每次 apply 都必须带上该覆盖，无论视频尺寸（横向）如何，
       // 全屏都不会把它翻回去。
-      expect(spy.orientations.last, MovaOrient.portrait);
+      expect(spy.orientations.last, MovaOrientation.portrait);
 
       await e2.dispose();
     },
@@ -677,15 +677,15 @@ void main() {
   });
 
   test(
-    'a disabled preview config emits MovaPrevBlock on the event stream',
+    'a disabled preview config emits MovaPreviewBlock on the event stream',
     () async {
       final e2 = MovaEngine(
         kernel: FakeKernel(),
         options: const MovaOpts(
-          preview: MovaPrevConfig(
+          preview: MovaPreviewConfig(
             enabled: false,
             debounce: Duration.zero,
-            network: MovaPrevNet.always,
+            network: MovaPreviewNet.always,
           ),
         ),
       );
@@ -694,10 +694,10 @@ void main() {
       await e2.open(const MovaSource('https://host/a.mp4'));
       e2.preview.requestAt(const Duration(seconds: 5));
       await Future<void>.delayed(const Duration(milliseconds: 50));
-      expect(events.whereType<MovaPrevBlock>(), isNotEmpty);
+      expect(events.whereType<MovaPreviewBlock>(), isNotEmpty);
       expect(
-        events.whereType<MovaPrevBlock>().first.reason,
-        MovaPrevBlockReason.disabled,
+        events.whereType<MovaPreviewBlock>().first.reason,
+        MovaPreviewBlockReason.disabled,
       );
       await sub.cancel();
       await e2.dispose();
@@ -705,14 +705,14 @@ void main() {
   );
 
   test('the configured onBlocked callback also fires', () async {
-    final reasons = <MovaPrevBlockReason>[];
+    final reasons = <MovaPreviewBlockReason>[];
     final e2 = MovaEngine(
       kernel: FakeKernel(),
       options: MovaOpts(
-        preview: MovaPrevConfig(
+        preview: MovaPreviewConfig(
           enabled: false,
           debounce: Duration.zero,
-          network: MovaPrevNet.always,
+          network: MovaPreviewNet.always,
           onBlocked: reasons.add,
         ),
       ),
@@ -720,7 +720,7 @@ void main() {
     await e2.open(const MovaSource('https://host/a.mp4'));
     e2.preview.requestAt(const Duration(seconds: 5));
     await Future<void>.delayed(const Duration(milliseconds: 50));
-    expect(reasons, [MovaPrevBlockReason.disabled]);
+    expect(reasons, [MovaPreviewBlockReason.disabled]);
     await e2.dispose();
   });
 
@@ -955,7 +955,7 @@ void main() {
   );
 
   test(
-    'MovaTimeShiftChg fires only when the whole-second lag changes',
+    'MovaTimeShiftChange fires only when the whole-second lag changes',
     () async {
       final k2 = FakeKernel();
       final e2 = MovaEngine(
@@ -981,7 +981,7 @@ void main() {
       k2.emitPosition(const Duration(milliseconds: 100900));
       await Future<void>.delayed(Duration.zero);
       expect(
-        events.whereType<MovaTimeShiftChg>().length,
+        events.whereType<MovaTimeShiftChange>().length,
         1,
         reason: 'sub-second jitter must not spam the event stream',
       );
@@ -1344,7 +1344,7 @@ void main() {
       expect(k2.calls, isNot(contains('setVolume')));
       expect(e2.state.volume, 30);
       expect(
-        events.whereType<MovaVolumeChg>().map((e) => e.value),
+        events.whereType<MovaVolumeChange>().map((e) => e.value),
         contains(30),
       );
       await sub.cancel();
@@ -1425,9 +1425,9 @@ void main() {
       // "已清空"与"未触碰"。
       engine.debugSetQualities(
         const [
-          MovaQual(label: '1080p', uri: 'https://host/1080.m3u8', height: 1080),
+          MovaQuality(label: '1080p', uri: 'https://host/1080.m3u8', height: 1080),
         ],
-        current: const MovaQual(
+        current: const MovaQuality(
           label: '1080p',
           uri: 'https://host/1080.m3u8',
           height: 1080,
@@ -1489,13 +1489,13 @@ void main() {
   });
 
   group('setMini', () {
-    test('flips MovaState.mini and emits exactly one MovaMiniChg', () async {
+    test('flips MovaState.mini and emits exactly one MovaMiniChange', () async {
       final events = <MovaEvent>[];
       final sub = e.events.listen(events.add);
       await e.setMini(true);
       await Future<void>.delayed(Duration.zero);
       expect(e.state.mini, isTrue);
-      expect(events.whereType<MovaMiniChg>().map((ev) => ev.mini), [true]);
+      expect(events.whereType<MovaMiniChange>().map((ev) => ev.mini), [true]);
       await sub.cancel();
       await e.setMini(false); // 让 tearDown 的 dispose() 不触发 mini 态 assert
     });
@@ -1508,7 +1508,7 @@ void main() {
         final sub = e.events.listen(events.add);
         await e.setMini(true);
         await Future<void>.delayed(Duration.zero);
-        expect(events.whereType<MovaMiniChg>(), isEmpty);
+        expect(events.whereType<MovaMiniChange>(), isEmpty);
         await e.setMini(false); // 让 tearDown 的 dispose() 不触发 mini 态 assert
         await sub.cancel();
       },
@@ -1525,9 +1525,9 @@ void main() {
         expect(e.state.fullscreen, isFalse);
         expect(e.state.mini, isTrue);
         final relevant = events
-            .where((ev) => ev is MovaFullScreenChg || ev is MovaMiniChg)
+            .where((ev) => ev is MovaFullScreenChange || ev is MovaMiniChange)
             .toList();
-        expect(relevant, [isA<MovaFullScreenChg>(), isA<MovaMiniChg>()]);
+        expect(relevant, [isA<MovaFullScreenChange>(), isA<MovaMiniChange>()]);
         await e.setMini(false);
         await sub.cancel();
       },
@@ -1577,12 +1577,12 @@ void main() {
   });
 }
 
-/// A spy [MovaOrientPort] that records every `apply(...)` call's
+/// A spy [MovaOrientationPort] that records every `apply(...)` call's
 /// width/height so tests can assert re-application behavior.
 ///
-/// 记录每次 `apply(...)` 调用的宽高的 [MovaOrientPort] 间谍实现，供测试
+/// 记录每次 `apply(...)` 调用的宽高的 [MovaOrientationPort] 间谍实现，供测试
 /// 断言重新应用行为。
-class _SpyOrientationPort implements MovaOrientPort {
+class _SpyOrientationPort implements MovaOrientationPort {
   /// Every (width, height) pair passed to [apply], in call order.
   ///
   /// 每次 [apply] 调用传入的 (width, height)，按调用顺序记录。
@@ -1591,7 +1591,7 @@ class _SpyOrientationPort implements MovaOrientPort {
   /// Every forced-orientation override passed to [apply], in call order.
   ///
   /// 每次 [apply] 调用传入的强制方向覆盖，按调用顺序记录。
-  final List<MovaOrient> orientations = [];
+  final List<MovaOrientation> orientations = [];
 
   @override
   Future<void> apply({
@@ -1599,7 +1599,7 @@ class _SpyOrientationPort implements MovaOrientPort {
     required bool immersive,
     required int width,
     required int height,
-    required MovaOrient orientation,
+    required MovaOrientation orientation,
   }) async {
     calls.add((width, height));
     orientations.add(orientation);

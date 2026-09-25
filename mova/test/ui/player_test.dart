@@ -22,7 +22,7 @@ Key? _surfaceKey(WidgetTester t) {
 void main() {
   testWidgets('MovaPlayer provides its api down the tree and renders the skin', (t) async {
     final api = FakeMovaApi();
-    await t.pumpWidget(MaterialApp(home: MovaPlayer(api: api, skin: const MovaDefSkin())));
+    await t.pumpWidget(MaterialApp(home: MovaPlayer(api: api, skin: const MovaDefaultSkin())));
     await t.pump();
     expect(find.byType(MovaScope), findsOneWidget);
     await api.dispose();
@@ -184,11 +184,11 @@ void main() {
       final atPage = (_surfaceKey(t) as ValueKey<Object?>).value;
 
       // Unmount from the page position, remount at a different tree
-      // position — mirroring what MovaMiniCtl.hide()/showInPage do: the page
+      // position — mirroring what MovaMiniController.hide()/showInPage do: the page
       // stops holding a MovaPlayer on this api, and it reappears elsewhere
       // (the mini window). renderHandle never changes identity in between.
       //
-      // 从页面位置卸载，在树的另一个位置重新挂载——对应 MovaMiniCtl.hide()/
+      // 从页面位置卸载，在树的另一个位置重新挂载——对应 MovaMiniController.hide()/
       // showInPage 的实际效果：页面不再持有该 api 的 MovaPlayer，它在别处
       // （小窗）重新出现。期间 renderHandle 身份自始至终不变。
       await t.pumpWidget(MaterialApp(

@@ -87,7 +87,7 @@ class _VerifyPageState extends State<_VerifyPage> {
       swap: const MovaSwapConfig(enabled: true, trigger: MovaEagerWarm()),
     );
     final engine = MovaSwapEngine(engineFactory: () => createMovaEngine(options: opts));
-    final ctrl = MovaAdCtrl(engine, swap: engine);
+    final ctrl = MovaAdController(engine, swap: engine);
     int lastEpoch = engine.state.renderEpoch;
     Duration? latestPos;
     Duration? contentPosAtAdStart;
@@ -162,7 +162,7 @@ class _VerifyPageState extends State<_VerifyPage> {
       swap: const MovaSwapConfig(enabled: true, trigger: MovaEagerWarm()),
     );
     final engine = MovaSwapEngine(engineFactory: () => createMovaEngine(options: opts));
-    final ctrl = MovaAdCtrl(engine, swap: engine);
+    final ctrl = MovaAdController(engine, swap: engine);
 
     await ctrl.load(_content());
     await _waitPlaying(engine);
@@ -211,7 +211,7 @@ class _VerifyPageState extends State<_VerifyPage> {
       ),
     );
     final engine = MovaSwapEngine(engineFactory: () => createMovaEngine(options: opts));
-    final ctrl = MovaAdCtrl(engine, swap: engine);
+    final ctrl = MovaAdController(engine, swap: engine);
     bool sawError = false;
     int lastEpoch = engine.state.renderEpoch;
     bool epochBumped = false;
@@ -270,7 +270,7 @@ class _VerifyPageState extends State<_VerifyPage> {
       ),
     );
     final engine = MovaSwapEngine(engineFactory: () => createMovaEngine(options: opts));
-    final ctrl = MovaAdCtrl(engine, swap: engine);
+    final ctrl = MovaAdController(engine, swap: engine);
     int lastEpoch = engine.state.renderEpoch;
     bool epochBumped = false;
     Duration? latestPos;

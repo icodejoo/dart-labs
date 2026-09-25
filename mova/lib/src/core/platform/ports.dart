@@ -94,7 +94,7 @@ abstract class MovaPipPort {
 /// system UI state.
 ///
 /// 应用与重置全屏/沉浸式方向与系统 UI 状态的端口。
-abstract class MovaOrientPort {
+abstract class MovaOrientationPort {
   /// Applies the orientation/immersive/system-UI state for the given mode.
   ///
   /// 按给定模式应用方向/沉浸式/系统 UI 状态。
@@ -103,17 +103,17 @@ abstract class MovaOrientPort {
   /// - [immersive]: whether immersive (edge-to-edge) UI is active /
   ///   是否处于沉浸式（沉浸边到边）UI
   /// - [width], [height]: video pixel dimensions used to pick orientation when
-  ///   [orientation] is [MovaOrient.auto] / 当 [orientation] 为
-  ///   [MovaOrient.auto] 时用于选择方向的视频像素宽高
-  /// - [orientation]: forced-orientation override; [MovaOrient.auto] keeps
+  ///   [orientation] is [MovaOrientation.auto] / 当 [orientation] 为
+  ///   [MovaOrientation.auto] 时用于选择方向的视频像素宽高
+  /// - [orientation]: forced-orientation override; [MovaOrientation.auto] keeps
   ///   the aspect-ratio/fullscreen-derived behavior / 强制方向覆盖；
-  ///   [MovaOrient.auto] 保持按宽高比/全屏推导的行为
+  ///   [MovaOrientation.auto] 保持按宽高比/全屏推导的行为
   Future<void> apply({
     required bool fullscreen,
     required bool immersive,
     required int width,
     required int height,
-    required MovaOrient orientation,
+    required MovaOrientation orientation,
   });
 
   /// Resets orientation/system UI back to the default (portrait, edge-to-edge
@@ -209,17 +209,17 @@ class MovaNoopPipPort implements MovaPipPort {
   Future<bool> enter({int? width, int? height}) => Future.value(false);
 }
 
-/// A zero-dependency [MovaOrientPort] no-op that does nothing.
+/// A zero-dependency [MovaOrientationPort] no-op that does nothing.
 ///
-/// 零依赖的 [MovaOrientPort] 空实现：不执行任何操作。
-class MovaNoopOrientationPort implements MovaOrientPort {
+/// 零依赖的 [MovaOrientationPort] 空实现：不执行任何操作。
+class MovaNoopOrientationPort implements MovaOrientationPort {
   @override
   Future<void> apply({
     required bool fullscreen,
     required bool immersive,
     required int width,
     required int height,
-    required MovaOrient orientation,
+    required MovaOrientation orientation,
   }) =>
       Future.value();
 

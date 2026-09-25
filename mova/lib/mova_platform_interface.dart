@@ -2,23 +2,23 @@ import 'package:plugin_platform_interface/plugin_platform_interface.dart';
 
 import 'mova_method_channel.dart';
 
-abstract class MovaPlat extends PlatformInterface {
-  /// Constructs a MovaPlat.
-  MovaPlat() : super(token: _token);
+abstract class MovaPlatform extends PlatformInterface {
+  /// Constructs a MovaPlatform.
+  MovaPlatform() : super(token: _token);
 
   static final Object _token = Object();
 
-  static MovaPlat _instance = MethodChannelMova();
+  static MovaPlatform _instance = MethodChannelMova();
 
-  /// The default instance of [MovaPlat] to use.
+  /// The default instance of [MovaPlatform] to use.
   ///
   /// Defaults to [MethodChannelMova].
-  static MovaPlat get instance => _instance;
+  static MovaPlatform get instance => _instance;
 
   /// Platform-specific implementations should set this with their own
-  /// platform-specific class that extends [MovaPlat] when
+  /// platform-specific class that extends [MovaPlatform] when
   /// they register themselves.
-  static set instance(MovaPlat instance) {
+  static set instance(MovaPlatform instance) {
     PlatformInterface.verifyToken(instance, _token);
     _instance = instance;
   }

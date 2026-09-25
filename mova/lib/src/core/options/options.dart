@@ -42,7 +42,7 @@ class MovaOpts {
   /// Scrub-preview (thumbnail) configuration.
   ///
   /// 拖动预览（缩略图）配置。
-  final MovaPrevConfig preview;
+  final MovaPreviewConfig preview;
 
   /// Live-playback configuration.
   ///
@@ -52,7 +52,7 @@ class MovaOpts {
   /// Gesture configuration.
   ///
   /// 手势配置。
-  final MovaGestConfig gesture;
+  final MovaGestureConfig gesture;
 
   /// Adaptive-bitrate configuration.
   ///
@@ -77,7 +77,7 @@ class MovaOpts {
   /// Sequential playlist + "next up" card configuration.
   ///
   /// 顺序播放列表 + "下一集"卡片配置。
-  final MovaPlistConfig playlist;
+  final MovaPlaylistConfig playlist;
 
   /// Pre/mid/post-roll ad configuration.
   ///
@@ -108,14 +108,14 @@ class MovaOpts {
   ///
   /// 创建配置集合；每一节均使用其自身默认值。
   const MovaOpts({
-    this.preview = const MovaPrevConfig(),
+    this.preview = const MovaPreviewConfig(),
     this.live = const MovaLiveConfig(),
-    this.gesture = const MovaGestConfig(),
+    this.gesture = const MovaGestureConfig(),
     this.abr = const MovaAbrConfig(),
     this.controls = const MovaCtrlsConfig(),
     this.danmaku = const MovaDanmakuConfig(),
     this.stt = const MovaSttConfig(),
-    this.playlist = const MovaPlistConfig(),
+    this.playlist = const MovaPlaylistConfig(),
     this.ads = const MovaAdConfig(),
     this.strings = const MovaStrs(),
     this.theme = const MovaTheme(),
@@ -144,14 +144,14 @@ class MovaOpts {
   ///
   /// Returns the new [MovaOpts] instance / 返回新的 [MovaOpts] 实例。
   MovaOpts copyWith({
-    MovaPrevConfig? preview,
+    MovaPreviewConfig? preview,
     MovaLiveConfig? live,
-    MovaGestConfig? gesture,
+    MovaGestureConfig? gesture,
     MovaAbrConfig? abr,
     MovaCtrlsConfig? controls,
     MovaDanmakuConfig? danmaku,
     MovaSttConfig? stt,
-    MovaPlistConfig? playlist,
+    MovaPlaylistConfig? playlist,
     MovaAdConfig? ads,
     MovaStrs? strings,
     MovaTheme? theme,

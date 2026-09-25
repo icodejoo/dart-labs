@@ -9,9 +9,9 @@ import 'source.dart';
 ///
 /// - [liked]: the new local liked flag / 切换后的本地点赞状态
 /// - [likeCount]: the new local like count / 切换后的本地点赞数
-typedef MovaFeedLikeChg = void Function(bool liked, int likeCount);
+typedef MovaFeedLikeChange = void Function(bool liked, int likeCount);
 
-/// One playable entry in a [MovaFeedCtrl]-driven vertical feed
+/// One playable entry in a [MovaFeedController]-driven vertical feed
 /// (bilibili/douyin-style "swipe for next video").
 ///
 /// Carries the playable [source] plus the social-chrome metadata
@@ -21,7 +21,7 @@ typedef MovaFeedLikeChg = void Function(bool liked, int likeCount);
 /// end-to-end (toggle + count + heart animation), everything else is a
 /// passive callback.
 ///
-/// [MovaFeedCtrl] 驱动的纵向 feed（bilibili/douyin 式"上滑下一个视频"）
+/// [MovaFeedController] 驱动的纵向 feed（bilibili/douyin 式"上滑下一个视频"）
 /// 中的一条条目。
 ///
 /// 除可播放的 [source] 外，还带 `MovaDouyinSkin` 渲染所需的社交 chrome 元数据
@@ -50,10 +50,10 @@ class MovaFeedItem {
   final String? musicName;
 
   /// Whether the current viewer has already liked this item; the seed value
-  /// for mova's local like state (see [MovaFeedCtrl.toggleLike]).
+  /// for mova's local like state (see [MovaFeedController.toggleLike]).
   ///
   /// 当前观众是否已点赞该条目；作为 mova 本地点赞状态的初值（见
-  /// [MovaFeedCtrl.toggleLike]）。
+  /// [MovaFeedController.toggleLike]）。
   final bool initialLiked;
 
   /// Seed value for the local like counter.
@@ -78,7 +78,7 @@ class MovaFeedItem {
   ///
   /// 本地点赞状态变化时触发（双击或点赞按钮）；mova 会先更新自身本地
   /// 状态，再调用该回调。
-  final MovaFeedLikeChg? onLikeChanged;
+  final MovaFeedLikeChange? onLikeChanged;
 
   /// Fired when the comment affordance is tapped; mova owns no comment UI.
   ///
@@ -136,9 +136,9 @@ class MovaFeedItem {
   });
 
   /// Returns a copy with the given fields replaced; used internally by
-  /// [MovaFeedCtrl] to persist a like toggle into its item cache.
+  /// [MovaFeedController] to persist a like toggle into its item cache.
   ///
-  /// 返回一份替换了指定字段的拷贝；供 [MovaFeedCtrl] 内部把点赞切换结果
+  /// 返回一份替换了指定字段的拷贝；供 [MovaFeedController] 内部把点赞切换结果
   /// 落回条目缓存。
   MovaFeedItem copyWith({bool? initialLiked, int? initialLikeCount}) {
     return MovaFeedItem(

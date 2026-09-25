@@ -38,13 +38,13 @@ const _demoSource = MovaSource(
 /// "第一步"完全对齐。
 // onTapContent 留空（默认无操作）：本 demo 刻意只允许显式点击关闭（✕）按钮
 // 收起小窗，避免真机验证时误触画面就把小窗“弄没了”。
-final _miniCtl = MovaMiniCtl();
+final _miniCtl = MovaMiniController();
 
-/// Append-only log of real events (`MovaMiniChg`/`MovaPipChg`/
-/// `MovaFullScreenChg`) so the demo works without logcat, per project
+/// Append-only log of real events (`MovaMiniChange`/`MovaPipChange`/
+/// `MovaFullScreenChange`) so the demo works without logcat, per project
 /// convention.
 ///
-/// 真实事件（`MovaMiniChg`/`MovaPipChg`/`MovaFullScreenChg`）的追加日志，
+/// 真实事件（`MovaMiniChange`/`MovaPipChange`/`MovaFullScreenChange`）的追加日志，
 /// 不依赖 logcat，对齐项目约定。
 final ValueNotifier<List<String>> _eventLog = ValueNotifier(const []);
 
@@ -69,11 +69,11 @@ void _wireEventLog(MovaEngine engine) {
   var lastPosition = Duration.zero;
   engine.progress.listen((p) => lastPosition = p.position);
   engine.events.listen((e) {
-    if (e is MovaMiniChg) {
-      _log('MovaMiniChg(${e.mini}) position=$lastPosition renderEpoch=${engine.state.renderEpoch}');
+    if (e is MovaMiniChange) {
+      _log('MovaMiniChange(${e.mini}) position=$lastPosition renderEpoch=${engine.state.renderEpoch}');
     }
-    if (e is MovaPipChg) _log('MovaPipChg(${e.value})');
-    if (e is MovaFullScreenChg) _log('MovaFullScreenChg(${e.value})');
+    if (e is MovaPipChange) _log('MovaPipChange(${e.value})');
+    if (e is MovaFullScreenChange) _log('MovaFullScreenChange(${e.value})');
   });
 }
 

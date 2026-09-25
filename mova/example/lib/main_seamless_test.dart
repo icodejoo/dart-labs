@@ -5,7 +5,7 @@ import 'package:mova/mova.dart';
 
 /// Standalone acceptance test for seamless ad→content swap: no manual
 /// clicking, no other demos mixed in. Plays content for 3s, auto-inserts an
-/// ad via [MovaAdCtrl.playAdNow], ends it with [MovaAdCtrl.skip] after
+/// ad via [MovaAdController.playAdNow], ends it with [MovaAdController.skip] after
 /// [_adHoldDuration] (see the revision note for why this is the reliable
 /// mechanism), then measures and prints the wall-clock gap between the skip
 /// and the content actually resuming — the thing that shows up on screen as
@@ -32,7 +32,7 @@ import 'package:mova/mova.dart';
 ///    MDN's CDN on that network, not a mova bug.
 ///
 /// Landed on: don't rely on the ad media's own timeline reaching any
-/// particular point at all. [MovaAdCtrl.skip] resumes content directly and
+/// particular point at all. [MovaAdController.skip] resumes content directly and
 /// synchronously (see its implementation) without depending on [MovaDone] or
 /// any duration/position query, so it can't get stuck on network or media
 /// quirks. The ad source is also switched to the same
@@ -40,8 +40,8 @@ import 'package:mova/mova.dart';
 /// one domain confirmed reachable on the test device's network.
 ///
 /// 无缝广告→正片切换的独立验收测试：不需要手动点击，不与其他 demo 混在一起。
-/// 自动播 3 秒正片→经 [MovaAdCtrl.playAdNow] 插播一段广告→[_adHoldDuration]
-/// 后用 [MovaAdCtrl.skip] 结束它（可靠机制的原因见下方修订历史），测量并打印
+/// 自动播 3 秒正片→经 [MovaAdController.playAdNow] 插播一段广告→[_adHoldDuration]
+/// 后用 [MovaAdController.skip] 结束它（可靠机制的原因见下方修订历史），测量并打印
 /// 跳过那一刻到正片真正续播之间的墙钟间隔——这段间隔就是屏幕上会看到的
 /// 黑屏/卡顿。
 ///
@@ -61,7 +61,7 @@ import 'package:mova/mova.dart';
 ///    MDN 这条 CDN 存在可达性问题，不是 mova 的 bug。
 ///
 /// 最终方案：完全不依赖广告媒体自身的时间轴走到任何特定点。
-/// [MovaAdCtrl.skip] 直接同步续播正片（见其实现），不依赖 `MovaDone`，也不
+/// [MovaAdController.skip] 直接同步续播正片（见其实现），不依赖 `MovaDone`，也不
 /// 查时长/位置，不会被网络或媒体的怪癖卡住。广告素材也换成跟正片同一个
 /// `user-images.githubusercontent.com` 域名下的 URL——这是测试设备网络上
 /// 唯一确认可达的域名。
@@ -86,16 +86,16 @@ MovaSource _buildContent() => MovaSource(
       title: '正片',
     );
 
-/// How long the ad is held before [MovaAdCtrl.skip] ends it; the warm-up
+/// How long the ad is held before [MovaAdController.skip] ends it; the warm-up
 /// window the content gets to actually buffer over the network.
 ///
-/// 广告被 [MovaAdCtrl.skip] 结束前持续的时长；正片借此在真实网络上实际缓冲的
+/// 广告被 [MovaAdController.skip] 结束前持续的时长；正片借此在真实网络上实际缓冲的
 /// 窗口。
 const _adHoldDuration = Duration(seconds: 3);
 
 /// [MovaAdBreak.skippableAfter]: zero, deliberately. A first attempt set
-/// this a second under [_adHoldDuration] on the theory that [MovaAdCtrl.
-/// adPosition] (which drives [MovaAdCtrl.canSkip]) might lag the wall clock
+/// this a second under [_adHoldDuration] on the theory that [MovaAdController.
+/// adPosition] (which drives [MovaAdController.canSkip]) might lag the wall clock
 /// by a tick or two — but on the real device, opening this file fresh as the
 /// ad had enough of its own network startup delay that `adPosition` was
 /// still under the 3s bar a full second later (`canSkip=false` at the hold
@@ -105,8 +105,8 @@ const _adHoldDuration = Duration(seconds: 3);
 /// starts.
 ///
 /// [MovaAdBreak.skippableAfter]：故意设为零。第一次尝试把它设成比
-/// [_adHoldDuration] 小 1 秒，理由是 [MovaAdCtrl.adPosition]（驱动
-/// [MovaAdCtrl.canSkip]）可能比墙钟慢一两个 tick——但真机上，把这份文件重新
+/// [_adHoldDuration] 小 1 秒，理由是 [MovaAdController.adPosition]（驱动
+/// [MovaAdController.canSkip]）可能比墙钟慢一两个 tick——但真机上，把这份文件重新
 /// 当广告打开本身就有一段网络起播延迟，一秒之后 `adPosition` 依然没追上 3 秒
 /// 门槛（持续 [Timer] 触发时 `canSkip=false`），[skip] 悄悄变成了空操作。
 /// 设为零彻底消除这场竞争：从第一个 tick 起 `adPosition >= Duration.zero`
@@ -117,14 +117,14 @@ const _skippableAfter = Duration.zero;
 /// reusing the content clip's own URL as the ad produced an inconclusive run
 /// (fell back to plain `open()` within 5s, cause not yet isolated — could be
 /// the shadow failing to open the same URL a second engine already has
-/// open, or could still be network variance). [MovaAdCtrl.skip] (not a
+/// open, or could still be network variance). [MovaAdController.skip] (not a
 /// forced seek or waiting for natural end) is what makes the ad source
 /// choice safe to swap independently of the earlier MDN reachability issue.
 ///
 /// 广告素材：按要求换回 MDN 的 flower.mp4 样片——把正片自己的 URL
 /// 复用为广告后，那次跑测没有定论（5 秒内回落到了普通 `open()`，原因还没
 /// 查清楚——可能是影子引擎打开一个另一个引擎已经打开着的同一个 URL 失败了，
-/// 也可能仍是网络波动）。用 [MovaAdCtrl.skip]（而非强制 seek 或等自然结束）
+/// 也可能仍是网络波动）。用 [MovaAdController.skip]（而非强制 seek 或等自然结束）
 /// 才是让广告素材可以独立于早先 MDN 可达性问题而自由更换的原因。
 final _ad = MovaAdBreak(
   kind: MovaAdBreakKind.mid,
@@ -149,7 +149,7 @@ class SeamlessBlackFrameTest extends StatefulWidget {
 
 class _SeamlessBlackFrameTestState extends State<SeamlessBlackFrameTest> {
   late final MovaSwapEngine _engine;
-  late final MovaAdCtrl _controller;
+  late final MovaAdController _controller;
   final List<String> _log = [];
   Timer? _skipTimer;
   Stopwatch? _adGapClock;
@@ -170,16 +170,16 @@ class _SeamlessBlackFrameTestState extends State<SeamlessBlackFrameTest> {
       swap: const MovaSwapConfig(enabled: true, trigger: MovaEagerWarm()),
     );
     _engine = MovaSwapEngine(engineFactory: () => createMovaEngine(options: opts));
-    _controller = MovaAdCtrl(_engine, swap: _engine);
+    _controller = MovaAdController(_engine, swap: _engine);
     _controller.changes.listen((_) => _onAdChange());
-    // MovaAdCtrl.changes fires the instant _playContent() *starts* (a
+    // MovaAdController.changes fires the instant _playContent() *starts* (a
     // bookkeeping flag flip), not when the swap actually lands — so it
     // measures "time to decide to resume", not "time until content is
     // really back". MovaState.renderEpoch only bumps once the atomic swap
     // has actually completed (see MovaSwapEngine._commitNow), which is the
     // real signal for this test.
     //
-    // MovaAdCtrl.changes 在 _playContent() *刚开始*那一刻就触发（一次记账用
+    // MovaAdController.changes 在 _playContent() *刚开始*那一刻就触发（一次记账用
     // 的标志翻转），而非切换真正落地时——所以它测的是"决定要续播的时刻"，
     // 不是"内容真的回来的时刻"。MovaState.renderEpoch 只在原子切换真正完成后
     // 才会自增（见 MovaSwapEngine._commitNow），这才是本测试要的真实信号。
@@ -263,7 +263,7 @@ class _SeamlessBlackFrameTestState extends State<SeamlessBlackFrameTest> {
     // 仅供参考——为何这个时机太早、不能当作真实间隔，见上方 states 订阅处的
     // 注释。
     if (!_controller.isShowingAd) {
-      _mark('MovaAdCtrl phase flipped to content (bookkeeping only, not the real gap)');
+      _mark('MovaAdController phase flipped to content (bookkeeping only, not the real gap)');
       Timer(const Duration(seconds: 5), () {
         if (_adGapClock != null) {
           _adGapClock = null;
@@ -301,7 +301,7 @@ class _SeamlessBlackFrameTestState extends State<SeamlessBlackFrameTest> {
           children: [
             AspectRatio(
               aspectRatio: 16 / 9,
-              child: MovaPlayer(api: _engine, skin: const MovaDefSkin()),
+              child: MovaPlayer(api: _engine, skin: const MovaDefaultSkin()),
             ),
             Expanded(
               child: Container(

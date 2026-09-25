@@ -145,14 +145,14 @@ class MovaMpvKernel implements MovaKernel {
   /// there is no video pipeline to capture from.
   ///
   /// Short-circuiting here rather than letting mpv fail keeps the scrub-preview
-  /// frame-extraction fallback (`MovaPrevSource`) on its documented
+  /// frame-extraction fallback (`MovaPreviewSource`) on its documented
   /// "extractor returned nothing → degrade gracefully" path instead of
   /// surfacing an mpv error to the host.
   ///
   /// 截取当前视频帧并编码为图片；没有视频管线可截时返回 `null`。
   ///
   /// 在此短路而不是让 mpv 自己失败，可以让拖动预览的抽帧兜底
-  /// （`MovaPrevSource`）走它既有的"抽帧器没给结果 → 平滑降级"路径，而不是把
+  /// （`MovaPreviewSource`）走它既有的"抽帧器没给结果 → 平滑降级"路径，而不是把
   /// 一个 mpv 错误抛给宿主。
   @override
   Future<Uint8List?> screenshot() async =>

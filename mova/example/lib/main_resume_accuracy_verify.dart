@@ -63,7 +63,7 @@ class _PageState extends State<_Page> {
       swap: const MovaSwapConfig(enabled: true, trigger: MovaEagerWarm()),
     );
     final engine = MovaSwapEngine(engineFactory: () => createMovaEngine(options: opts));
-    final ctrl = MovaAdCtrl(engine, swap: engine);
+    final ctrl = MovaAdController(engine, swap: engine);
 
     Duration? latestPos;
     int epoch = engine.state.renderEpoch;

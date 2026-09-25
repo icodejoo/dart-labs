@@ -38,7 +38,7 @@ Future<FakeMovaApi> pumpAudioPlayer(
   await t.pumpWidget(MaterialApp(
     home: MovaPlayer(
       api: api,
-      skin: bilibili ? MovaBilibiliSkin() : const MovaDefSkin(),
+      skin: bilibili ? MovaBilibiliSkin() : const MovaDefaultSkin(),
       surface: surface,
     ),
   ));

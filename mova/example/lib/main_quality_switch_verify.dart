@@ -69,9 +69,9 @@ class _PageState extends State<_Page> {
     Duration? latestPos;
     final progSub = engine.progress.listen((p) => latestPos = p.position);
     final evSub = engine.events.listen((e) {
-      if (e is MovaDurChg) _mark('MovaDurChg ${e.duration}');
-      if (e is MovaQualChg) _mark('MovaQualChg ${e.quality.label}');
-      if (e is MovaQualListChg) _mark('MovaQualListChg n=${e.qualities.length}');
+      if (e is MovaDurationChange) _mark('MovaDurationChange ${e.duration}');
+      if (e is MovaQualityChange) _mark('MovaQualityChange ${e.quality.label}');
+      if (e is MovaQualityListChange) _mark('MovaQualityListChange n=${e.qualities.length}');
       if (e is MovaErrorEvent) _mark('MovaErrorEvent ${e.error}');
       // MovaSeeked 是寄存的续播 seek 真正补发的唯一外部可见信号
       // （_applyParkedSeek 在下发后发这个事件）。

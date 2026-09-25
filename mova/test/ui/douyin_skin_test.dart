@@ -24,8 +24,8 @@ import '../support/fake_api.dart';
 /// Returns the ready-to-use controller.
 ///
 /// 返回可直接使用的控制器。
-Future<MovaFeedCtrl> _controllerWith(FakeMovaApi api, MovaFeedItem item) async {
-  final controller = MovaFeedCtrl(
+Future<MovaFeedController> _controllerWith(FakeMovaApi api, MovaFeedItem item) async {
+  final controller = MovaFeedController(
     pool: MovaFeedEnginePool(engineFactory: () => api, size: 1),
     loader: (i) async => item,
   );
@@ -131,7 +131,7 @@ void main() {
   test('components expose no top bar and no drag-based gesture component', () {
     final api = FakeMovaApi();
     final item = MovaFeedItem(source: const MovaSource('https://h/0.mp4'));
-    final controller = MovaFeedCtrl(
+    final controller = MovaFeedController(
       pool: MovaFeedEnginePool(engineFactory: () => api, size: 1),
       loader: (i) async => item,
     );

@@ -23,7 +23,7 @@ import '../slots/slot.dart';
 /// 与手势层的横滑）都已经通过 `MovaApi.setDragging` 发布该字段，因此本组件
 /// 无需感知它们中的任何一个。可用 `MovaPatch.replace('preview', MyBubble())`
 /// 整块替换。
-class MovaPreviewComponent extends MovaComp {
+class MovaPreviewComponent extends MovaComponent {
   /// Creates the preview-bubble component.
   ///
   /// 创建预览气泡组件。

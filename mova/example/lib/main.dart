@@ -165,7 +165,7 @@ final _demos = [
 /// picture-in-picture button patched out of the top bar.
 ///
 /// 第三个演示入口使用的皮肤：在默认皮肤基础上，从顶栏中移除画中画按钮。
-const _noPipSkin = MovaDefSkin(patches: [MovaPatch.remove('topBar/pipButton')]);
+const _noPipSkin = MovaDefaultSkin(patches: [MovaPatch.remove('topBar/pipButton')]);
 
 /// Index of the bilibili-skin demo entry in [_demos].
 ///
@@ -223,9 +223,9 @@ class _PlayerPageState extends State<PlayerPage> {
   ///
   /// - [i]: index into [_demos] / [_demos] 下标
   MovaOpts _optionsFor(int i) => _demos[i].options.copyWith(
-        preview: MovaPrevConfig(
+        preview: MovaPreviewConfig(
           enabled: _previewOn,
-          network: MovaPrevNet.always,
+          network: MovaPreviewNet.always,
         ),
       );
 
@@ -390,7 +390,7 @@ class _PlayerPageState extends State<PlayerPage> {
                 ? _noPipSkin
                 : _index == _bilibiliDemoIndex
                     ? MovaBilibiliSkin()
-                    : const MovaDefSkin(),
+                    : const MovaDefaultSkin(),
           ),
         ),
       ),
@@ -484,17 +484,17 @@ class _DouyinFeedDemoPageState extends State<DouyinFeedDemoPage> {
 /// 播放列表演示的项：三个公开短 mp4 当作三集连播，复用与 feed 演示相同的 URL。
 final _playlistItems = [
   for (var i = 0; i < _feedSources.length; i++)
-    MovaPlistItem(
+    MovaPlaylistItem(
       source: MovaSource(_feedSources[i], title: '第 ${i + 1} 集'),
       subtitle: '播放列表演示 · 共 ${_feedSources.length} 集',
     ),
 ];
 
-/// A page demoing sequential playlist playback: a [MovaPlistCtrl] drives
+/// A page demoing sequential playlist playback: a [MovaPlaylistController] drives
 /// auto-advance between three episodes, a [MovaNextUpComponent] fades in near each
 /// item's end, and manual prev/next buttons exercise the same navigation.
 ///
-/// 演示顺序播放列表：[MovaPlistCtrl] 在三集间驱动自动续播，
+/// 演示顺序播放列表：[MovaPlaylistController] 在三集间驱动自动续播，
 /// [MovaNextUpComponent] 在每项临近结束时淡入，手动上一集/下一集按钮演示同一套导航。
 class PlaylistDemoPage extends StatefulWidget {
   /// Creates the playlist demo page.
@@ -518,17 +518,17 @@ class _PlaylistDemoPageState extends State<PlaylistDemoPage> {
   /// Drives current-index tracking and prev/next/auto-advance navigation.
   ///
   /// 驱动当前下标跟踪与上一集/下一集/自动续播导航。
-  late MovaPlistCtrl _controller;
+  late MovaPlaylistController _controller;
 
   @override
   void initState() {
     super.initState();
     _engine = createMovaEngine(
       options: MovaOpts(
-        playlist: MovaPlistConfig(enabled: true, items: _playlistItems),
+        playlist: MovaPlaylistConfig(enabled: true, items: _playlistItems),
       ),
     );
-    _controller = MovaPlistCtrl(_engine);
+    _controller = MovaPlaylistController(_engine);
     // The controller never opens the first item on its own — the host kicks
     // playback off.
     //
@@ -557,7 +557,7 @@ class _PlaylistDemoPageState extends State<PlaylistDemoPage> {
               // controller directly for the running index.
               //
               // 把"下一集"卡片补进 overlay 槽位；它直接从控制器读取运行时下标。
-              skin: MovaDefSkin(
+              skin: MovaDefaultSkin(
                 patches: [MovaPatch.add(MovaSlot.overlay, MovaNextUpComponent(_controller))],
               ),
             ),
@@ -660,7 +660,7 @@ class _SeamlessAdDemoPageState extends State<SeamlessAdDemoPage> {
   /// Orchestrates the pre/mid/post-roll ads and drives [_engine]'s swap.
   ///
   /// 编排前/中/后贴片广告，并驱动 [_engine] 的切换。
-  late final MovaAdCtrl _controller;
+  late final MovaAdController _controller;
 
   /// The most recent ad lifecycle event, shown so the callback is visible.
   ///
@@ -680,7 +680,7 @@ class _SeamlessAdDemoPageState extends State<SeamlessAdDemoPage> {
       swap: const MovaSwapConfig(enabled: true, trigger: MovaEagerWarm()),
     );
     _engine = MovaSwapEngine(engineFactory: () => createMovaEngine(options: opts));
-    _controller = MovaAdCtrl(_engine, swap: _engine);
+    _controller = MovaAdController(_engine, swap: _engine);
     _controller.load(_adContent);
   }
 
@@ -710,7 +710,7 @@ class _SeamlessAdDemoPageState extends State<SeamlessAdDemoPage> {
             aspectRatio: 16 / 9,
             child: MovaPlayer(
               api: _engine,
-              skin: MovaDefSkin(
+              skin: MovaDefaultSkin(
                 patches: [MovaPatch.add(MovaSlot.overlay, MovaAdOverlayComponent(_controller))],
               ),
             ),
@@ -741,15 +741,15 @@ class _SeamlessAdDemoPageState extends State<SeamlessAdDemoPage> {
   }
 }
 
-/// A page demoing pre/mid-roll ads plus runtime insertion: a [MovaAdCtrl]
+/// A page demoing pre/mid-roll ads plus runtime insertion: a [MovaAdController]
 /// orchestrates the content↔ad source swaps, [MovaAdOverlayComponent] renders the
 /// badge/skip/countdown, a button inserts an ad at the current position via
-/// [MovaAdCtrl.playAdNow], and click-through is surfaced through
+/// [MovaAdController.playAdNow], and click-through is surfaced through
 /// [MovaAdConfig.onAdEvent] (no url_launcher — the host decides what to do).
 ///
-/// 演示前/中贴片广告与运行时插入：[MovaAdCtrl] 编排正片↔广告的源切换，
+/// 演示前/中贴片广告与运行时插入：[MovaAdController] 编排正片↔广告的源切换，
 /// [MovaAdOverlayComponent] 渲染角标/跳过/倒计时，一个按钮经
-/// [MovaAdCtrl.playAdNow] 在当前位置插播广告，点击跳转经
+/// [MovaAdController.playAdNow] 在当前位置插播广告，点击跳转经
 /// [MovaAdConfig.onAdEvent] 暴露（不引 url_launcher——由宿主决定如何处理）。
 class AdDemoPage extends StatefulWidget {
   /// Creates the ad demo page.
@@ -776,7 +776,7 @@ class _AdDemoPageState extends State<AdDemoPage> {
   /// Orchestrates the pre/mid/post-roll and runtime-inserted ads.
   ///
   /// 编排前/中/后贴片与运行时插入的广告。
-  late MovaAdCtrl _controller;
+  late MovaAdController _controller;
 
   /// The most recent ad lifecycle event, shown so the callback is visible.
   ///
@@ -810,11 +810,11 @@ class _AdDemoPageState extends State<AdDemoPage> {
     if (_seamless) {
       final swap = MovaSwapEngine(engineFactory: () => createMovaEngine(options: optsFor()));
       _engine = swap;
-      _controller = MovaAdCtrl(swap, swap: swap);
+      _controller = MovaAdController(swap, swap: swap);
     } else {
       final engine = createMovaEngine(options: optsFor());
       _engine = engine;
-      _controller = MovaAdCtrl(engine);
+      _controller = MovaAdController(engine);
     }
     _controller.load(_adContent);
   }
@@ -866,7 +866,7 @@ class _AdDemoPageState extends State<AdDemoPage> {
               // controller for the current ad and skip state.
               //
               // 把广告叠层补进 overlay 槽位；它从控制器读取当前广告与跳过状态。
-              skin: MovaDefSkin(
+              skin: MovaDefaultSkin(
                 patches: [MovaPatch.add(MovaSlot.overlay, MovaAdOverlayComponent(_controller))],
               ),
             ),
@@ -918,7 +918,7 @@ class _AdDemoPageState extends State<AdDemoPage> {
 /// A separate page from [AdDemoPage] on purpose: these four knobs interact, and
 /// the on-screen log below is what makes a device run evidential. The log is
 /// fed by **real** callbacks — [MovaAdConfig.onAdEvent] and the engine's own
-/// [MovaSwapChg] events — not by print statements, so a release build on a
+/// [MovaSwapChange] events — not by print statements, so a release build on a
 /// phone with no logcat access still shows what actually happened and when.
 ///
 /// 0.5.0 的广告编排演示：`delay` 倒计时、定长 `duration`、按类型的就绪等待、
@@ -926,7 +926,7 @@ class _AdDemoPageState extends State<AdDemoPage> {
 ///
 /// 刻意与 [AdDemoPage] 分开建页：这四个旋钮彼此有交互，而下方的屏上日志正是让
 /// 真机验证"有据可查"的关键。日志由**真实**回调打点——[MovaAdConfig.onAdEvent]
-/// 与引擎自身的 [MovaSwapChg] 事件——而非 print，因此在拿不到 logcat 的手机
+/// 与引擎自身的 [MovaSwapChange] 事件——而非 print，因此在拿不到 logcat 的手机
 /// release 包上也能看清到底发生了什么、何时发生。
 class AdOrchestrationDemoPage extends StatefulWidget {
   /// Creates the ad-orchestration demo page.
@@ -952,7 +952,7 @@ class _AdOrchestrationDemoPageState extends State<AdOrchestrationDemoPage> {
   /// Orchestrates the demo's ad schedule.
   ///
   /// 编排本演示的广告排期。
-  late MovaAdCtrl _controller;
+  late MovaAdController _controller;
 
   /// Subscription to the engine's own events, for the swap-phase log lines.
   ///
@@ -1050,9 +1050,9 @@ class _AdOrchestrationDemoPageState extends State<AdOrchestrationDemoPage> {
           swap: const MovaSwapConfig(enabled: true),
         );
     _engine = MovaSwapEngine(engineFactory: () => createMovaEngine(options: opts()));
-    _controller = MovaAdCtrl(_engine, swap: _engine);
+    _controller = MovaAdController(_engine, swap: _engine);
     _eventSub = _engine.events.listen((e) {
-      if (e is MovaSwapChg) _note('swap ${e.phase.name}');
+      if (e is MovaSwapChange) _note('swap ${e.phase.name}');
     });
     _controller.load(_adContent);
   }
@@ -1094,7 +1094,7 @@ class _AdOrchestrationDemoPageState extends State<AdOrchestrationDemoPage> {
             aspectRatio: 16 / 9,
             child: MovaPlayer(
               api: _engine,
-              skin: MovaDefSkin(
+              skin: MovaDefaultSkin(
                 patches: [MovaPatch.add(MovaSlot.overlay, MovaAdOverlayComponent(_controller))],
               ),
             ),

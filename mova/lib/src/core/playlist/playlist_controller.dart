@@ -21,15 +21,15 @@ import '../model/playlist.dart';
 /// 从不持有它，"下一集"卡片直接读该控制器而非经 [MovaApi]。其项/下标/自动续播取自
 /// [MovaOpts.playlist]；首次 [MovaApi.open]（或调用 [jumpTo]）仍由宿主执行。
 ///
-/// **Composing with ads:** both this controller and a `MovaAdCtrl` react to
+/// **Composing with ads:** both this controller and a `MovaAdController` react to
 /// [MovaDone]; do not enable both against one player at once. Set
-/// [MovaPlistConfig.autoPlayNext] to `false` and drive [next] from
-/// `MovaAdCtrl.contentEnded` instead so ads and content-advance don't race.
+/// [MovaPlaylistConfig.autoPlayNext] to `false` and drive [next] from
+/// `MovaAdController.contentEnded` instead so ads and content-advance don't race.
 ///
-/// **与广告组合：** 本控制器与 `MovaAdCtrl` 都响应 [MovaDone]；不要在同一
-/// 播放器上同时启用二者的自动行为。应把 [MovaPlistConfig.autoPlayNext] 设为
-/// `false`，改由 `MovaAdCtrl.contentEnded` 驱动 [next]，避免广告与换集争抢。
-class MovaPlistCtrl {
+/// **与广告组合：** 本控制器与 `MovaAdController` 都响应 [MovaDone]；不要在同一
+/// 播放器上同时启用二者的自动行为。应把 [MovaPlaylistConfig.autoPlayNext] 设为
+/// `false`，改由 `MovaAdController.contentEnded` 驱动 [next]，避免广告与换集争抢。
+class MovaPlaylistController {
   /// Creates a controller bound to [api], seeded from [MovaOpts.playlist].
   ///
   /// 创建绑定到 [api] 的控制器，初值取自 [MovaOpts.playlist]。
@@ -38,10 +38,10 @@ class MovaPlistCtrl {
   ///
   /// Example / 示例:
   /// ```dart
-  /// final playlist = MovaPlistCtrl(api);
+  /// final playlist = MovaPlaylistController(api);
   /// await playlist.jumpTo(0); // open the first item
   /// ```
-  MovaPlistCtrl(this._api)
+  MovaPlaylistController(this._api)
       : _items = _api.options.playlist.items,
         _autoPlayNext = _api.options.playlist.autoPlayNext {
     final start = _api.options.playlist.initialIndex;
@@ -50,7 +50,7 @@ class MovaPlistCtrl {
   }
 
   final MovaApi _api;
-  final List<MovaPlistItem> _items;
+  final List<MovaPlaylistItem> _items;
   final bool _autoPlayNext;
   late int _index;
   StreamSubscription<MovaEvent>? _sub;
@@ -59,7 +59,7 @@ class MovaPlistCtrl {
   /// The items this controller navigates.
   ///
   /// 该控制器导航的项列表。
-  List<MovaPlistItem> get items => _items;
+  List<MovaPlaylistItem> get items => _items;
 
   /// The index currently playing.
   ///
@@ -69,17 +69,17 @@ class MovaPlistCtrl {
   /// The item currently playing, or null when the list is empty.
   ///
   /// 当前正在播放的项；列表为空时为 null。
-  MovaPlistItem? get currentItem => _at(_index);
+  MovaPlaylistItem? get currentItem => _at(_index);
 
   /// The item that [next] would open, or null when at the end.
   ///
   /// [next] 将打开的项；已在末尾时为 null。
-  MovaPlistItem? get nextItem => _at(_index + 1);
+  MovaPlaylistItem? get nextItem => _at(_index + 1);
 
   /// The item that [previous] would open, or null when at the start.
   ///
   /// [previous] 将打开的项；已在开头时为 null。
-  MovaPlistItem? get previousItem => _at(_index - 1);
+  MovaPlaylistItem? get previousItem => _at(_index - 1);
 
   /// Whether a next item exists.
   ///
@@ -146,7 +146,7 @@ class MovaPlistCtrl {
   /// Returns the item at [i], or null when out of range.
   ///
   /// 返回下标 [i] 处的项；越界时为 null。
-  MovaPlistItem? _at(int i) =>
+  MovaPlaylistItem? _at(int i) =>
       (i >= 0 && i < _items.length) ? _items[i] : null;
 
   /// Releases the event subscription and closes the index stream; call once

@@ -10,15 +10,15 @@ import '../preview/vtt_source.dart';
 /// Why a scrub-preview request was refused before any work happened.
 ///
 /// 一次拖动预览请求在真正开工前被拒绝的原因。
-enum MovaPrevBlockReason {
+enum MovaPreviewBlockReason {
   /// The network policy refused this connection.
   ///
   /// 网络策略拒绝了当前连接。
   network,
 
-  /// Preview is switched off via [MovaPrevConfig.enabled].
+  /// Preview is switched off via [MovaPreviewConfig.enabled].
   ///
-  /// 预览已通过 [MovaPrevConfig.enabled] 关闭。
+  /// 预览已通过 [MovaPreviewConfig.enabled] 关闭。
   disabled,
 
   /// No media has been opened yet.
@@ -37,7 +37,7 @@ enum MovaPrevBlockReason {
 /// 预览请求被拒绝时的回调；默认行为是静默。
 ///
 /// - [reason]: why the request was refused / 被拒绝的原因
-typedef MovaPrevBlockCb = void Function(MovaPrevBlockReason reason);
+typedef MovaPreviewBlockCb = void Function(MovaPreviewBlockReason reason);
 
 /// Configuration for the scrub-preview (thumbnail) feature.
 ///
@@ -51,7 +51,7 @@ typedef MovaPrevBlockCb = void Function(MovaPrevBlockReason reason);
 /// mova 替宿主做的每一个决策，在这里都以"默认值 + 配置项"的形式出现；
 /// 若该决策本质是策略而非取值，还额外提供注入点（[probe]、[cache]、
 /// [extractor]、[sources]、[vttUrlResolver]、[cacheKeyBuilder]）。见 DESIGN §6.1。
-class MovaPrevConfig {
+class MovaPreviewConfig {
   /// Whether the preview feature runs at all.
   ///
   /// 是否启用预览功能。
@@ -60,7 +60,7 @@ class MovaPrevConfig {
   /// When networked thumbnail sources may run.
   ///
   /// 何时允许运行需要联网的缩略图来源。
-  final MovaPrevNet network;
+  final MovaPreviewNet network;
 
   /// Injected connectivity probe; null uses [MovaAlwaysAllowNetProbe] in core and
   /// the connectivity_plus probe when the host wires one in.
@@ -72,7 +72,7 @@ class MovaPrevConfig {
   /// Called when a request is refused; null means stay silent.
   ///
   /// 请求被拒绝时的回调；为 null 表示静默。
-  final MovaPrevBlockCb? onBlocked;
+  final MovaPreviewBlockCb? onBlocked;
 
   /// Ordered thumbnail source chain; null builds the default
   /// `[vtt, extract]` chain from [vttEnabled]/[extractFallback].
@@ -104,7 +104,7 @@ class MovaPrevConfig {
   /// Platforms frame extraction is allowed to run on.
   ///
   /// 允许运行抽帧的平台集合。
-  final Set<MovaPlatKind> extractPlatforms;
+  final Set<MovaPlatformKind> extractPlatforms;
 
   /// Injected frame extractor; null uses the media_kit-backed default wired in
   /// by the host layer.
@@ -155,12 +155,12 @@ class MovaPrevConfig {
   ///
   /// 注入的磁盘目录解析器；为 null 时优先用 [diskDir]，否则使用宿主接入的
   /// 临时目录 provider。
-  final MovaThumbDirProv? dirProvider;
+  final MovaThumbDirProvider? dirProvider;
 
   /// Strategy building cache keys; null uses [defaultCacheKey].
   ///
   /// 构建缓存 key 的策略；为 null 时使用 [defaultCacheKey]。
-  final MovaCacheKeyBldr? cacheKeyBuilder;
+  final MovaCacheKeyBuilder? cacheKeyBuilder;
 
   /// Whether the disk cache directory is wiped on dispose.
   ///
@@ -199,9 +199,9 @@ class MovaPrevConfig {
   /// - [cacheKeyBuilder]: cache-key strategy / 缓存 key 策略
   /// - [clearOnDispose]: wipe disk cache on dispose / 销毁时清盘
   /// - [debounce]: scrub settle delay / 拖动防抖时长
-  const MovaPrevConfig({
+  const MovaPreviewConfig({
     this.enabled = true,
-    this.network = MovaPrevNet.wifiOnly,
+    this.network = MovaPreviewNet.wifiOnly,
     this.probe,
     this.onBlocked,
     this.sources,
@@ -210,12 +210,12 @@ class MovaPrevConfig {
     this.vttUrlResolver,
     this.extractFallback = true,
     this.extractPlatforms = const {
-      MovaPlatKind.android,
-      MovaPlatKind.ios,
-      MovaPlatKind.windows,
-      MovaPlatKind.macos,
-      MovaPlatKind.linux,
-      MovaPlatKind.other,
+      MovaPlatformKind.android,
+      MovaPlatformKind.ios,
+      MovaPlatformKind.windows,
+      MovaPlatformKind.macos,
+      MovaPlatformKind.linux,
+      MovaPlatformKind.other,
     },
     this.extractor,
     this.frameWidth = 160,
@@ -240,20 +240,20 @@ class MovaPrevConfig {
   ///
   /// 每个参数对应同名字段。
   ///
-  /// Returns the new [MovaPrevConfig].
+  /// Returns the new [MovaPreviewConfig].
   ///
-  /// 返回新的 [MovaPrevConfig]。
-  MovaPrevConfig copyWith({
+  /// 返回新的 [MovaPreviewConfig]。
+  MovaPreviewConfig copyWith({
     bool? enabled,
-    MovaPrevNet? network,
+    MovaPreviewNet? network,
     MovaNetProbe? probe,
-    MovaPrevBlockCb? onBlocked,
+    MovaPreviewBlockCb? onBlocked,
     List<MovaThumbSource>? sources,
     bool? vttEnabled,
     String? vttUrl,
     MovaVttUrlSolver? vttUrlResolver,
     bool? extractFallback,
-    Set<MovaPlatKind>? extractPlatforms,
+    Set<MovaPlatformKind>? extractPlatforms,
     MovaFramePuller? extractor,
     int? frameWidth,
     Duration? bucket,
@@ -262,12 +262,12 @@ class MovaPrevConfig {
     int? diskMaxBytes,
     String? diskDir,
     MovaThumbCache? cache,
-    MovaThumbDirProv? dirProvider,
-    MovaCacheKeyBldr? cacheKeyBuilder,
+    MovaThumbDirProvider? dirProvider,
+    MovaCacheKeyBuilder? cacheKeyBuilder,
     bool? clearOnDispose,
     Duration? debounce,
   }) {
-    return MovaPrevConfig(
+    return MovaPreviewConfig(
       enabled: enabled ?? this.enabled,
       network: network ?? this.network,
       probe: probe ?? this.probe,
@@ -296,7 +296,7 @@ class MovaPrevConfig {
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
-      other is MovaPrevConfig &&
+      other is MovaPreviewConfig &&
           runtimeType == other.runtimeType &&
           enabled == other.enabled &&
           network == other.network &&
@@ -359,5 +359,5 @@ class MovaPrevConfig {
 /// Returns whether the sets hold the same elements.
 ///
 /// 返回两个集合元素是否相同。
-bool _setEq(Set<MovaPlatKind> a, Set<MovaPlatKind> b) =>
+bool _setEq(Set<MovaPlatformKind> a, Set<MovaPlatformKind> b) =>
     a.length == b.length && a.containsAll(b);

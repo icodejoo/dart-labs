@@ -10,12 +10,12 @@ import 'package:mova/src/ui/slots/tree.dart';
 
 import '../support/fake_api.dart';
 
-/// A ②-tier customisation: subclass [MovaDefSkin] and override just one
+/// A ②-tier customisation: subclass [MovaDefaultSkin] and override just one
 /// protected layer method, reusing the base's components/patches/other layers.
 ///
-/// ②档定制：继承 [MovaDefSkin] 只覆写一个受保护的层方法，复用基类的
+/// ②档定制：继承 [MovaDefaultSkin] 只覆写一个受保护的层方法，复用基类的
 /// 组件/补丁/其余各层。
-class _MarkedPlaybackSkin extends MovaDefSkin {
+class _MarkedPlaybackSkin extends MovaDefaultSkin {
   const _MarkedPlaybackSkin();
   @override
   Widget buildPlaybackLayer(BuildContext context, MovaSlotBundle slots, Widget video) {
@@ -28,7 +28,7 @@ class _MarkedPlaybackSkin extends MovaDefSkin {
 /// Minimal leaf carrying a [Key], used to locate where a slot renders.
 ///
 /// 携带 [Key] 的最小叶子组件，用于定位某槽位渲染到何处。
-class _Marker extends MovaComp {
+class _Marker extends MovaComponent {
   _Marker(this.name, this.slot);
   @override
   final String name;
@@ -41,7 +41,7 @@ class _Marker extends MovaComp {
 
 void main() {
   test('default skin emits one static tree', () {
-    const skin = MovaDefSkin();
+    const skin = MovaDefaultSkin();
     final names = skin.components().map((c) => c.name).toList();
     expect(names, containsAll(['gestureLayer', 'hudLayer', 'topBar', 'centerPlay', 'bottomBar']));
   });
@@ -50,7 +50,7 @@ void main() {
     // One static node serves both; the union is fixed-order so patch paths
     // never shift by stream type.
     // 一个静态节点同时服务两者；并集顺序固定，patch 路径不随流类型错位。
-    final bottom = const MovaDefSkin().components().firstWhere((c) => c.name == 'bottomBar');
+    final bottom = const MovaDefaultSkin().components().firstWhere((c) => c.name == 'bottomBar');
     expect(bottom.children.map((c) => c.name), [
       'positionLabel',
       'liveBadge',
@@ -62,14 +62,14 @@ void main() {
   });
 
   test('patches passed to the default skin are applied to its tree', () {
-    final skin = MovaDefSkin(patches: [MovaPatch.remove('topBar/pipButton')]);
+    final skin = MovaDefaultSkin(patches: [MovaPatch.remove('topBar/pipButton')]);
     final top = skin.components().firstWhere((c) => c.name == 'topBar');
     expect(top.children.map((c) => c.name), isNot(contains('pipButton')));
   });
 
   testWidgets('assemble stacks video at the bottom and overlays on top', (t) async {
     final api = FakeMovaApi();
-    const skin = MovaDefSkin();
+    const skin = MovaDefaultSkin();
     await t.pumpWidget(MaterialApp(
       home: MovaScope(
         api: api,
@@ -92,7 +92,7 @@ void main() {
   // tick、HUD 淡出）不会连带播放层/常驻层一起重新光栅化，反之亦然。
   testWidgets('assemble isolates each of the three layers with a RepaintBoundary', (t) async {
     final api = FakeMovaApi();
-    const skin = MovaDefSkin();
+    const skin = MovaDefaultSkin();
     await t.pumpWidget(MaterialApp(
       home: MovaScope(
         api: api,
@@ -117,14 +117,14 @@ void main() {
   });
 
   test('the default tree mounts the preview bubble in the bottomAbove slot', () {
-    final tree = const MovaDefSkin().components();
+    final tree = const MovaDefaultSkin().components();
     final preview = tree.firstWhere((c) => c.name == 'preview');
     expect(preview.slot, MovaSlot.bottomAbove);
   });
 
   testWidgets('assemble renders left/right slot content on the matching edge', (t) async {
     final api = FakeMovaApi();
-    final skin = MovaDefSkin(patches: [
+    final skin = MovaDefaultSkin(patches: [
       MovaPatch.add(MovaSlot.left, _Marker('leftMark', MovaSlot.left)),
       MovaPatch.add(MovaSlot.right, _Marker('rightMark', MovaSlot.right)),
     ]);
@@ -176,7 +176,7 @@ void main() {
     // 都必须仍在树上。
     final api = FakeMovaApi();
     expect(api.renderHandle, isNull);
-    const skin = MovaDefSkin();
+    const skin = MovaDefaultSkin();
     await t.pumpWidget(MaterialApp(
       home: MovaScope(
         api: api,

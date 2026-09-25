@@ -36,10 +36,10 @@ List<DeviceOrientation> preferredOrientationsFor(int width, int height) {
 
 /// Resolves the device orientations to request, honoring a forced
 /// [orientation] override and falling back to the aspect-ratio/fullscreen
-/// derivation when it is [MovaOrient.auto].
+/// derivation when it is [MovaOrientation.auto].
 ///
 /// 解析要请求的设备方向：优先服从强制 [orientation] 覆盖，当其为
-/// [MovaOrient.auto] 时回退到按宽高比/全屏的推导。
+/// [MovaOrientation.auto] 时回退到按宽高比/全屏的推导。
 ///
 /// - [orientation]: forced override / 强制方向覆盖
 /// - [fullscreen]: whether fullscreen is active (only matters for auto) /
@@ -51,34 +51,34 @@ List<DeviceOrientation> preferredOrientationsFor(int width, int height) {
 ///
 /// 返回解析出的方向列表。
 List<DeviceOrientation> resolveOrientations(
-  MovaOrient orientation, {
+  MovaOrientation orientation, {
   required bool fullscreen,
   required int width,
   required int height,
 }) {
   switch (orientation) {
-    case MovaOrient.landscape:
+    case MovaOrientation.landscape:
       return _landscape;
-    case MovaOrient.portrait:
+    case MovaOrientation.portrait:
       return _portrait;
-    case MovaOrient.auto:
+    case MovaOrientation.auto:
       return fullscreen ? preferredOrientationsFor(width, height) : DeviceOrientation.values;
   }
 }
 
-/// A [MovaOrientPort] implementation backed by [SystemChrome], driving
+/// A [MovaOrientationPort] implementation backed by [SystemChrome], driving
 /// preferred device orientations and immersive system UI mode.
 ///
-/// 基于 [SystemChrome] 实现的 [MovaOrientPort]，驱动首选设备方向与沉浸式
+/// 基于 [SystemChrome] 实现的 [MovaOrientationPort]，驱动首选设备方向与沉浸式
 /// 系统 UI 模式。
-class MovaSystemChromeOrientationPort implements MovaOrientPort {
+class MovaSystemChromeOrientationPort implements MovaOrientationPort {
   @override
   Future<void> apply({
     required bool fullscreen,
     required bool immersive,
     required int width,
     required int height,
-    required MovaOrient orientation,
+    required MovaOrientation orientation,
   }) async {
     await SystemChrome.setPreferredOrientations(
       resolveOrientations(orientation, fullscreen: fullscreen, width: width, height: height),

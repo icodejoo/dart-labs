@@ -38,7 +38,7 @@ typedef MovaFeedLoader = Future<MovaFeedItem?> Function(int index);
 /// 不是 Flutter widget——这是纯粹、可测试的 core 逻辑。UI 层
 /// （`MovaFeedPlayer`）持有 `PageView` 与池的生命周期，在翻页定格时调用
 /// [activate]，用 [slotFor]/[peek] 渲染每一页。
-class MovaFeedCtrl {
+class MovaFeedController {
   /// Creates a feed controller.
   ///
   /// 创建一个 feed 控制器。
@@ -59,11 +59,11 @@ class MovaFeedCtrl {
   /// - [prefetcher]: warm-up strategy; defaults to
   ///   [MovaNetworkWarmFeedPrefetcher] / 预热策略，默认
   ///   [MovaNetworkWarmFeedPrefetcher]
-  MovaFeedCtrl({
+  MovaFeedController({
     required this.pool,
     required this.loader,
     this.prefetchDepth = 1,
-    MovaFeedPrefch? prefetcher,
+    MovaFeedPrefetcher? prefetcher,
   }) : prefetcher = prefetcher ?? const MovaNetworkWarmFeedPrefetcher();
 
   /// The engine pool this controller drives.
@@ -84,7 +84,7 @@ class MovaFeedCtrl {
   /// Warm-up strategy applied to items within [prefetchDepth].
   ///
   /// 应用于 [prefetchDepth] 范围内条目的预热策略。
-  final MovaFeedPrefch prefetcher;
+  final MovaFeedPrefetcher prefetcher;
 
   /// Resolved items, keyed by index; also doubles as the local like-state
   /// store (see [toggleLike]).

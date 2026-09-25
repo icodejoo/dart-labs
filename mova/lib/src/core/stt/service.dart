@@ -13,14 +13,14 @@ import 'cue.dart';
 /// 生产环境的 [MovaSttApi]：转发已配置 [MovaSttConfig.engine] 产出的字幕，跟踪
 /// 哪一条覆盖当前播放位置，并在功能关闭、未配置引擎或尚未打开媒体源时拒绝
 /// [start] 并给出 [MovaSttBlockReason]。
-class MovaSttSvc implements MovaSttApi {
+class MovaSttService implements MovaSttApi {
   /// Creates an STT service.
   ///
   /// 创建一个 STT 服务。
   ///
   /// - [config]: the resolved STT configuration / 已解析的 STT 配置
   /// - [onBlocked]: refusal callback / 被拒回调
-  MovaSttSvc({required this.config, this.onBlocked}) {
+  MovaSttService({required this.config, this.onBlocked}) {
     final engine = config.engine;
     if (engine != null) {
       _cueSub = engine.cues.listen((cue) {

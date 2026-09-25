@@ -15,9 +15,9 @@ void main() {
   group('App 内小窗开放性对账 — 每条决策都需齐默认值 + 配置项 + 可注入策略', () {
     test('小窗挂在哪：不替宿主决定——show（方式 B）与 showInPage（方式 A）并存，宿主也可绕开两者自建容器', () {
       expect(MovaMiniMount.values, containsAll([MovaMiniMount.none, MovaMiniMount.page, MovaMiniMount.persistent]));
-      // 可执行证明：MovaMiniCtl 本身对"谁挂载它"零假设——rect/skin/api 三个
+      // 可执行证明：MovaMiniController 本身对"谁挂载它"零假设——rect/skin/api 三个
       // 真值源与挂载方式完全解耦，见 mini_ctl.dart 的字段设计。
-      final ctl = MovaMiniCtl();
+      final ctl = MovaMiniController();
       expect(ctl.mount, MovaMiniMount.none);
     });
 
@@ -40,8 +40,8 @@ void main() {
       expect(c2.effectivePlacement, same(injected));
     });
 
-    test('小窗里放什么 chrome：默认 MovaMiniSkin，MovaMiniCtl.show(skin:) 可换成任意 MovaSkin', () async {
-      final ctl = MovaMiniCtl();
+    test('小窗里放什么 chrome：默认 MovaMiniSkin，MovaMiniController.show(skin:) 可换成任意 MovaSkin', () async {
+      final ctl = MovaMiniController();
       expect(ctl.skin, isA<MovaMiniSkin>());
       final api = FakeMovaApi();
       final customSkin = _EmptySkin();
@@ -50,7 +50,7 @@ void main() {
     });
 
     test('关闭后引擎怎么办：默认不 dispose，宿主经 onClosed 回调决定', () async {
-      final ctl = MovaMiniCtl();
+      final ctl = MovaMiniController();
       final api = FakeMovaApi();
       MovaApi? closedWith;
       ctl.onClosed = (a) => closedWith = a;
@@ -78,14 +78,14 @@ class _FixedPlacement implements MovaMiniPlacement {
       current;
 }
 
-/// A minimal [MovaSkin] used only to prove [MovaMiniCtl.show] accepts any
+/// A minimal [MovaSkin] used only to prove [MovaMiniController.show] accepts any
 /// skin, not just [MovaMiniSkin].
 ///
-/// 一个最简 [MovaSkin]，仅用于证明 [MovaMiniCtl.show] 接受任意皮肤，而非
+/// 一个最简 [MovaSkin]，仅用于证明 [MovaMiniController.show] 接受任意皮肤，而非
 /// 只认 [MovaMiniSkin]。
 class _EmptySkin implements MovaSkin {
   @override
-  List<MovaComp> components() => const [];
+  List<MovaComponent> components() => const [];
 
   @override
   Widget assemble(BuildContext context, MovaSlotBundle slots, Widget video) => video;

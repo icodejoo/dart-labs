@@ -110,6 +110,6 @@ void main() {
   });
 
   test('currentPlatformKind reports one of the known kinds', () {
-    expect(MovaPlatKind.values, contains(currentPlatformKind()));
+    expect(MovaPlatformKind.values, contains(currentPlatformKind()));
   });
 }

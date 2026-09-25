@@ -9,16 +9,16 @@ import 'slot.dart';
 /// input and never throws — an unmatched path is silently a no-op.
 ///
 /// Paths are dotted by nesting: a top-level component's path is its
-/// [MovaComp.name]; a nested component's path is
+/// [MovaComponent.name]; a nested component's path is
 /// `<parent.name>/<child.name>`, recursing to arbitrary depth by joining
 /// each ancestor's name in order.
 ///
 /// 把 [patches] 应用到 [tree] 上并返回一棵新树；绝不修改输入，也绝不抛出
 /// 异常——未匹配到的路径静默地什么都不做。
 ///
-/// 路径按嵌套层级用 `/` 拼接：顶层组件的路径就是其 [MovaComp.name]；
+/// 路径按嵌套层级用 `/` 拼接：顶层组件的路径就是其 [MovaComponent.name]；
 /// 嵌套组件的路径是 `<parent.name>/<child.name>`，可递归拼接到任意深度。
-List<MovaComp> applyPatches(List<MovaComp> tree, List<MovaPatch> patches) {
+List<MovaComponent> applyPatches(List<MovaComponent> tree, List<MovaPatch> patches) {
   var result = tree;
   for (final patch in patches) {
     result = _applyOne(result, patch);
@@ -29,7 +29,7 @@ List<MovaComp> applyPatches(List<MovaComp> tree, List<MovaPatch> patches) {
 /// Applies a single [patch] to [tree] and returns the resulting tree.
 ///
 /// 把单个 [patch] 应用到 [tree] 上并返回结果树。
-List<MovaComp> _applyOne(List<MovaComp> tree, MovaPatch patch) {
+List<MovaComponent> _applyOne(List<MovaComponent> tree, MovaPatch patch) {
   switch (patch) {
     case MovaPatchAdd():
       return [
@@ -41,7 +41,7 @@ List<MovaComp> _applyOne(List<MovaComp> tree, MovaPatch patch) {
           orderOverride: patch.order,
         ),
       ];
-    case MovaPatchReplac():
+    case MovaPatchReplace():
       return _replaceAt(tree, patch.path, patch.component);
     case MovaPatchRemove():
       return _removeAt(tree, patch.path);
@@ -58,7 +58,7 @@ List<MovaComp> _applyOne(List<MovaComp> tree, MovaPatch patch) {
 /// 递归地把 [nodes] 中 [path] 处的节点替换为 [replacement]，返回新列表。
 /// 若 [path] 已无剩余的 `/` 分段，直接替换匹配到的节点；否则递归进入匹配
 /// 节点的 `children`，用剩余路径继续查找。
-List<MovaComp> _replaceAt(List<MovaComp> nodes, String path, MovaComp replacement) {
+List<MovaComponent> _replaceAt(List<MovaComponent> nodes, String path, MovaComponent replacement) {
   final segments = path.split('/');
   final head = segments.first;
   final rest = segments.skip(1).join('/');
@@ -76,7 +76,7 @@ List<MovaComp> _replaceAt(List<MovaComp> nodes, String path, MovaComp replacemen
 /// 递归地从 [nodes] 中移除 [path] 处的节点，返回新列表。顶层匹配（路径已
 /// 无剩余分段）会丢弃整个条目；更深层的匹配只会从其父节点的 children 中
 /// 丢弃该子节点。
-List<MovaComp> _removeAt(List<MovaComp> nodes, String path) {
+List<MovaComponent> _removeAt(List<MovaComponent> nodes, String path) {
   final segments = path.split('/');
   final head = segments.first;
   final rest = segments.skip(1).join('/');
@@ -96,7 +96,7 @@ List<MovaComp> _removeAt(List<MovaComp> nodes, String path) {
 ///
 /// 递归地在 [nodes] 中把 [addition] 插入到 [path] 处节点之后，插入位置与
 /// 该锚点同级，返回新列表。若找不到锚点，[nodes] 原样返回。
-List<MovaComp> _insertAfterAt(List<MovaComp> nodes, String path, MovaComp addition) {
+List<MovaComponent> _insertAfterAt(List<MovaComponent> nodes, String path, MovaComponent addition) {
   final segments = path.split('/');
   final head = segments.first;
   final rest = segments.skip(1).join('/');
@@ -129,13 +129,13 @@ List<MovaComp> _insertAfterAt(List<MovaComp> nodes, String path, MovaComp additi
 ///
 /// 注意：此包装不保留 [source] 的具体运行时类型——对被打过补丁的祖先节点做
 /// `is SomeConcreteType` 判断不会命中。
-class _CopyComponent extends MovaComp {
+class _CopyComponent extends MovaComponent {
   _CopyComponent(this._source, this.children, {this.slotOverride, this.orderOverride});
 
   /// The original component being wrapped.
   ///
   /// 被包装的原始组件。
-  final MovaComp _source;
+  final MovaComponent _source;
 
   /// Overridden slot, if provided; falls back to [_source]'s own slot.
   ///
@@ -148,7 +148,7 @@ class _CopyComponent extends MovaComp {
   final int? orderOverride;
 
   @override
-  final List<MovaComp> children;
+  final List<MovaComponent> children;
 
   @override
   String get name => _source.name;
@@ -194,19 +194,19 @@ class MovaSlotBundle {
 /// top-level widgets by [MovaSlot].
 ///
 /// Children are built depth-first before their parent — a composite's
-/// [MovaComp.build] always receives already-built [Widget]s, never raw
-/// [MovaComp]s. Within a slot, widgets are ordered primarily by
-/// [MovaComp.order] ascending, with ties broken by original list
+/// [MovaComponent.build] always receives already-built [Widget]s, never raw
+/// [MovaComponent]s. Within a slot, widgets are ordered primarily by
+/// [MovaComponent.order] ascending, with ties broken by original list
 /// position (stable sort).
 ///
 /// 把 [tree] 中的每个组件构建为 widget，并把结果中的顶层 widget 按 [MovaSlot]
 /// 分组。
 ///
-/// 子节点总是先于父节点以深度优先方式构建——组合组件的 [MovaComp.build]
-/// 收到的永远是已构建好的 [Widget]，绝不是原始的 [MovaComp]。同一槽位
-/// 内的 widget 主要按 [MovaComp.order] 升序排列，相同值按原始列表位置
+/// 子节点总是先于父节点以深度优先方式构建——组合组件的 [MovaComponent.build]
+/// 收到的永远是已构建好的 [Widget]，绝不是原始的 [MovaComponent]。同一槽位
+/// 内的 widget 主要按 [MovaComponent.order] 升序排列，相同值按原始列表位置
 /// 决出先后（稳定排序）。
-MovaSlotBundle buildSlots(BuildContext context, MovaApi api, List<MovaComp> tree) {
+MovaSlotBundle buildSlots(BuildContext context, MovaApi api, List<MovaComponent> tree) {
   final entries = <_BuiltEntry>[];
   for (var i = 0; i < tree.length; i++) {
     final component = tree[i];
@@ -228,12 +228,12 @@ MovaSlotBundle buildSlots(BuildContext context, MovaApi api, List<MovaComp> tree
   return MovaSlotBundle(bySlot);
 }
 
-/// Builds [component]'s [MovaComp.children] first (recursively), then
+/// Builds [component]'s [MovaComponent.children] first (recursively), then
 /// builds [component] itself with those already-built widgets.
 ///
-/// 先递归构建 [component] 的 [MovaComp.children]，再用这些已构建好的
+/// 先递归构建 [component] 的 [MovaComponent.children]，再用这些已构建好的
 /// widget 构建 [component] 本身。
-Widget _buildRecursive(BuildContext context, MovaApi api, MovaComp component) {
+Widget _buildRecursive(BuildContext context, MovaApi api, MovaComponent component) {
   final builtChildren = [
     for (final child in component.children) _buildRecursive(context, api, child),
   ];

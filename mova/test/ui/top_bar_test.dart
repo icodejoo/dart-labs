@@ -50,12 +50,12 @@ void main() {
       await t.tap(find.byIcon(Icons.screen_rotation_rounded));
       await t.pump();
       expect(api.calls, contains('setOrientation'));
-      expect(api.lastOrientation, MovaOrient.landscape);
+      expect(api.lastOrientation, MovaOrientation.landscape);
 
       // A second tap flips landscape → portrait.
       await t.tap(find.byIcon(Icons.screen_rotation_rounded));
       await t.pump();
-      expect(api.lastOrientation, MovaOrient.portrait);
+      expect(api.lastOrientation, MovaOrientation.portrait);
     } finally {
       debugDefaultTargetPlatformOverride = null;
       await api.dispose();

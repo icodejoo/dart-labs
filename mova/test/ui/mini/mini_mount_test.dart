@@ -15,7 +15,7 @@ const _enabledOpts = MovaOpts(mini: MovaMiniConfig(enabled: true));
 void main() {
   group('Mount B — MovaMiniHost (persistent)', () {
     testWidgets('ctl.api == null renders nothing extra; child renders normally', (tester) async {
-      final ctl = MovaMiniCtl();
+      final ctl = MovaMiniController();
       await tester.pumpWidget(MaterialApp(
         builder: (context, child) => MovaMiniHost(ctl: ctl, child: child!),
         home: const Text('home'),
@@ -25,7 +25,7 @@ void main() {
     });
 
     testWidgets('cfg.enabled == false renders nothing (closed-state hard constraint)', (tester) async {
-      final ctl = MovaMiniCtl();
+      final ctl = MovaMiniController();
       final api = FakeMovaApi(options: const MovaOpts());
       await tester.pumpWidget(MaterialApp(
         builder: (context, child) => MovaMiniHost(ctl: ctl, child: child!),
@@ -37,7 +37,7 @@ void main() {
     });
 
     testWidgets('show(api) renders exactly one MovaMiniWindow', (tester) async {
-      final ctl = MovaMiniCtl();
+      final ctl = MovaMiniController();
       final api = FakeMovaApi(options: _enabledOpts);
       await tester.pumpWidget(MaterialApp(
         builder: (context, child) => MovaMiniHost(ctl: ctl, child: child!),
@@ -49,7 +49,7 @@ void main() {
     });
 
     testWidgets('the window survives push/pop and paints above pushed routes', (tester) async {
-      final ctl = MovaMiniCtl();
+      final ctl = MovaMiniController();
       final api = FakeMovaApi(options: _enabledOpts);
       final navKey = GlobalKey<NavigatorState>();
       await tester.pumpWidget(MaterialApp(
@@ -72,7 +72,7 @@ void main() {
     });
 
     testWidgets('hide() removes the window; child unaffected', (tester) async {
-      final ctl = MovaMiniCtl();
+      final ctl = MovaMiniController();
       final api = FakeMovaApi(options: _enabledOpts);
       await tester.pumpWidget(MaterialApp(
         builder: (context, child) => MovaMiniHost(ctl: ctl, child: child!),
@@ -87,8 +87,8 @@ void main() {
     });
 
     testWidgets('replacing ctl migrates the listener; host disposal does not dispose ctl', (tester) async {
-      final ctl1 = MovaMiniCtl();
-      final ctl2 = MovaMiniCtl();
+      final ctl1 = MovaMiniController();
+      final ctl2 = MovaMiniController();
       final api = FakeMovaApi(options: _enabledOpts);
       final key = GlobalKey();
       await tester.pumpWidget(MaterialApp(
@@ -105,9 +105,9 @@ void main() {
     });
   });
 
-  group('Mount A — MovaMiniCtl.showInPage (in-page)', () {
+  group('Mount A — MovaMiniController.showInPage (in-page)', () {
     testWidgets('inserts exactly one MovaMiniWindow into the page Overlay', (tester) async {
-      final ctl = MovaMiniCtl();
+      final ctl = MovaMiniController();
       final api = FakeMovaApi(options: _enabledOpts);
       late BuildContext ctx;
       await tester.pumpWidget(MaterialApp(
@@ -122,7 +122,7 @@ void main() {
     });
 
     testWidgets('window position is unaffected by scrolling the hosting ListView', (tester) async {
-      final ctl = MovaMiniCtl();
+      final ctl = MovaMiniController();
       final api = FakeMovaApi(options: _enabledOpts);
       late BuildContext ctx;
       await tester.pumpWidget(MaterialApp(
@@ -144,7 +144,7 @@ void main() {
     });
 
     testWidgets('a pushed route covers the in-page window (expected, not a bug)', (tester) async {
-      final ctl = MovaMiniCtl();
+      final ctl = MovaMiniController();
       final api = FakeMovaApi(options: _enabledOpts);
       final navKey = GlobalKey<NavigatorState>();
       await tester.pumpWidget(MaterialApp(
@@ -184,7 +184,7 @@ void main() {
       // Overlay/Navigator 才有真正意义上的随页面销毁，见 showInPage 文档注释）。
       // 所以 pop 后 entry 完全可能仍然挂载；无论如何都必须成立的是：之后调用
       // hide() 永远安全。
-      final ctl = MovaMiniCtl();
+      final ctl = MovaMiniController();
       final api = FakeMovaApi(options: _enabledOpts);
       final navKey = GlobalKey<NavigatorState>();
       await tester.pumpWidget(MaterialApp(
@@ -216,7 +216,7 @@ void main() {
       //
       // 关掉 snapToEdge，避免松手重新吸边掩盖拖动本身是否真的移动了小窗。
       const noSnap = MovaOpts(mini: MovaMiniConfig(enabled: true, snapToEdge: false));
-      final ctl = MovaMiniCtl();
+      final ctl = MovaMiniController();
       final api = FakeMovaApi(options: noSnap);
       late BuildContext ctx;
       await tester.pumpWidget(MaterialApp(
@@ -236,7 +236,7 @@ void main() {
     });
 
     testWidgets('cfg.enabled == false: showInPage inserts no entry (closed-state hard constraint)', (tester) async {
-      final ctl = MovaMiniCtl();
+      final ctl = MovaMiniController();
       final api = FakeMovaApi(options: const MovaOpts());
       late BuildContext ctx;
       await tester.pumpWidget(MaterialApp(
@@ -255,7 +255,7 @@ void main() {
   group('Equivalence — the same MovaMiniWindow under either shell', () {
     testWidgets('first-frame rect is identical whether mounted via OverlayEntry or Positioned.fill', (tester) async {
       const config = MovaMiniConfig(enabled: true, margin: 10, width: 120);
-      final ctlA = MovaMiniCtl();
+      final ctlA = MovaMiniController();
       final apiA = FakeMovaApi(options: const MovaOpts(mini: config));
 
       late BuildContext ctxA;
@@ -271,7 +271,7 @@ void main() {
       await ctlA.hide();
       await tester.pumpWidget(const SizedBox()); // 强制卸载整棵旧树，含旧 Overlay/entry
 
-      final ctlB = MovaMiniCtl();
+      final ctlB = MovaMiniController();
       final apiB = FakeMovaApi(options: const MovaOpts(mini: config));
       await tester.pumpWidget(MaterialApp(
         builder: (context, child) => MovaMiniHost(ctl: ctlB, child: child!),
@@ -285,7 +285,7 @@ void main() {
     });
 
     testWidgets('tapping the picture invokes onTapContent under either shell when wired to hide()', (tester) async {
-      final ctlA = MovaMiniCtl();
+      final ctlA = MovaMiniController();
       ctlA.onTapContent = (_) => ctlA.hide();
       final apiA = FakeMovaApi(options: _enabledOpts);
       late BuildContext ctxA;
@@ -302,7 +302,7 @@ void main() {
       await tester.pump(const Duration(milliseconds: 500));
       expect(apiA.lastMini, isFalse);
 
-      final ctlB = MovaMiniCtl();
+      final ctlB = MovaMiniController();
       ctlB.onTapContent = (_) => ctlB.hide();
       final apiB = FakeMovaApi(options: _enabledOpts);
       await tester.pumpWidget(MaterialApp(
@@ -319,7 +319,7 @@ void main() {
 
     testWidgets('showInPage + MovaMiniHost together still render exactly one MovaMiniWindow and one render surface',
         (tester) async {
-      final ctl = MovaMiniCtl();
+      final ctl = MovaMiniController();
       final api = FakeMovaApi(options: _enabledOpts);
       late BuildContext ctx;
       await tester.pumpWidget(MaterialApp(
@@ -339,7 +339,7 @@ void main() {
       final api = FakeMovaApi(options: _enabledOpts);
       api.push(const MovaState(mini: true));
       await tester.pumpWidget(MaterialApp(
-        home: MovaPlayer(api: api, skin: const MovaDefSkin()),
+        home: MovaPlayer(api: api, skin: const MovaDefaultSkin()),
       ));
       // With mini active the page-side default skin's operable layer (which
       // would otherwise host the render surface's chrome) is hidden by

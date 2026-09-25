@@ -112,7 +112,7 @@ class _AudioOnlyDemoPageState extends State<_AudioOnlyDemoPage> {
         // No frames to preview in audio mode; leave it on for video so the
         // A/B comparison is against the normal video configuration.
         // 音频模式没有帧可预览；视频侧保持开启，使 A/B 对比的是常规视频配置。
-        preview: MovaPrevConfig(enabled: !_audioOnly),
+        preview: MovaPreviewConfig(enabled: !_audioOnly),
       ),
     );
     _engine = engine;

@@ -16,9 +16,9 @@ import 'package:mova/src/core/swap/warm.dart';
 void main() {
   test('MovaOpts gesture defaults follow the mainstream side↔action mapping', () {
     const o = MovaOpts();
-    expect(o.gesture.leftVertical, MovaGestAction.brightness);
-    expect(o.gesture.rightVertical, MovaGestAction.volume);
-    expect(o.gesture.horizontal, MovaGestAction.seek);
+    expect(o.gesture.leftVertical, MovaGestureAction.brightness);
+    expect(o.gesture.rightVertical, MovaGestureAction.volume);
+    expect(o.gesture.horizontal, MovaGestureAction.seek);
     expect(o.gesture.hSeekSpanPerScreen, const Duration(seconds: 90));
     expect(o.gesture.doubleTapStep, const Duration(seconds: 10));
     expect(o.abr.stallThreshold, 3);
@@ -47,17 +47,17 @@ void main() {
     expect(n.gesture, o.gesture);
   });
 
-  test('MovaPrevConfig defaults match DESIGN section 6.1', () {
-    const p = MovaPrevConfig();
+  test('MovaPreviewConfig defaults match DESIGN section 6.1', () {
+    const p = MovaPreviewConfig();
     expect(p.enabled, isTrue);
-    expect(p.network, MovaPrevNet.wifiOnly);
+    expect(p.network, MovaPreviewNet.wifiOnly);
     expect(p.onBlocked, isNull);
     expect(p.sources, isNull, reason: 'null means the built-in [vtt, extract] chain');
     expect(p.vttEnabled, isTrue);
     expect(p.vttUrl, isNull);
     expect(p.vttUrlResolver, isNull);
     expect(p.extractFallback, isTrue);
-    expect(p.extractPlatforms, MovaPlatKind.values.toSet());
+    expect(p.extractPlatforms, MovaPlatformKind.values.toSet());
     expect(p.frameWidth, 160);
     expect(p.bucket, const Duration(seconds: 10));
     expect(p.hwdec, isFalse);
@@ -72,42 +72,42 @@ void main() {
     expect(p.extractor, isNull);
   });
 
-  test('MovaOpts exposes a preview section that defaults to MovaPrevConfig', () {
+  test('MovaOpts exposes a preview section that defaults to MovaPreviewConfig', () {
     const o = MovaOpts();
-    expect(o.preview, const MovaPrevConfig());
+    expect(o.preview, const MovaPreviewConfig());
   });
 
   test('MovaOpts.copyWith replaces only the preview section', () {
     const o = MovaOpts();
-    final n = o.copyWith(preview: const MovaPrevConfig(frameWidth: 320));
+    final n = o.copyWith(preview: const MovaPreviewConfig(frameWidth: 320));
     expect(n.preview.frameWidth, 320);
     expect(n.gesture, o.gesture);
     expect(n.controls, o.controls);
     expect(n, isNot(o));
   });
 
-  test('MovaPrevConfig.copyWith replaces one knob and compares by value', () {
-    const p = MovaPrevConfig();
-    final n = p.copyWith(network: MovaPrevNet.never);
-    expect(n.network, MovaPrevNet.never);
+  test('MovaPreviewConfig.copyWith replaces one knob and compares by value', () {
+    const p = MovaPreviewConfig();
+    final n = p.copyWith(network: MovaPreviewNet.never);
+    expect(n.network, MovaPreviewNet.never);
     expect(n.frameWidth, p.frameWidth);
     expect(n, isNot(p));
     expect(p.copyWith(), p);
   });
 
-  test('every MovaPrevConfig injection point accepts a custom strategy', () {
-    final p = MovaPrevConfig(
+  test('every MovaPreviewConfig injection point accepts a custom strategy', () {
+    final p = MovaPreviewConfig(
       probe: MovaAlwaysAllowNetProbe(),
       cacheKeyBuilder: (s, b, w) => 'custom',
       vttUrlResolver: (s) => Uri.parse('https://cdn/t.vtt'),
       onBlocked: (_) {},
-      extractPlatforms: const {MovaPlatKind.windows},
+      extractPlatforms: const {MovaPlatformKind.windows},
     );
     expect(p.probe, isA<MovaNetProbe>());
     expect(p.cacheKeyBuilder!('a', 1, 2), 'custom');
     expect(p.vttUrlResolver!(const MovaSource('x')), Uri.parse('https://cdn/t.vtt'));
     expect(p.onBlocked, isNotNull);
-    expect(p.extractPlatforms, {MovaPlatKind.windows});
+    expect(p.extractPlatforms, {MovaPlatformKind.windows});
   });
 
   test('MovaLiveConfig defaults keep 0.1.0 behaviour and add the new knobs off', () {

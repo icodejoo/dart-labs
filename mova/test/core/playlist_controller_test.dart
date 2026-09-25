@@ -11,9 +11,9 @@ import '../support/fake_api.dart';
 ///
 /// 控制器测试通用的三集播放列表。
 const _items = [
-  MovaPlistItem(source: MovaSource('https://host/e1.mp4'), title: 'E1'),
-  MovaPlistItem(source: MovaSource('https://host/e2.mp4'), title: 'E2'),
-  MovaPlistItem(source: MovaSource('https://host/e3.mp4'), title: 'E3'),
+  MovaPlaylistItem(source: MovaSource('https://host/e1.mp4'), title: 'E1'),
+  MovaPlaylistItem(source: MovaSource('https://host/e2.mp4'), title: 'E2'),
+  MovaPlaylistItem(source: MovaSource('https://host/e3.mp4'), title: 'E3'),
 ];
 
 void main() {
@@ -21,14 +21,14 @@ void main() {
   /// [autoPlayNext].
   ///
   /// 用 [items]/[initialIndex]/[autoPlayNext] 初始化的假 API 构造控制器。
-  (FakeMovaApi, MovaPlistCtrl) build({
-    List<MovaPlistItem> items = _items,
+  (FakeMovaApi, MovaPlaylistController) build({
+    List<MovaPlaylistItem> items = _items,
     int initialIndex = 0,
     bool autoPlayNext = true,
   }) {
     final api = FakeMovaApi(
       options: MovaOpts(
-        playlist: MovaPlistConfig(
+        playlist: MovaPlaylistConfig(
           enabled: true,
           items: items,
           initialIndex: initialIndex,
@@ -36,7 +36,7 @@ void main() {
         ),
       ),
     );
-    return (api, MovaPlistCtrl(api));
+    return (api, MovaPlaylistController(api));
   }
 
   test('seeds index from config and clamps out-of-range initialIndex', () {

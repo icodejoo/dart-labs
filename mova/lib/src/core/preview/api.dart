@@ -10,7 +10,7 @@ import 'models.dart';
 ///
 /// UI 组件只会调用 [requestAt]/[peekAt] 并监听 [thumbs]；所有策略（防抖、
 /// 桶对齐、网络、缓存、来源顺序）都藏在该抽象之后的 core 层里。
-abstract class MovaPrevApi {
+abstract class MovaPreviewApi {
   /// Emits the thumbnail to display, or null when nothing should be shown.
   ///
   /// 推送应展示的缩略图；无内容可展示时推送 null。

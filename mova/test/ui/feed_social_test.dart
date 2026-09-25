@@ -18,7 +18,7 @@ void main() {
       initialLikeCount: 5,
       onLikeChanged: (liked, count) => likedSeen = liked,
     );
-    final controller = MovaFeedCtrl(
+    final controller = MovaFeedController(
       pool: MovaFeedEnginePool(engineFactory: () => api, size: 1),
       loader: (i) async => item,
     );

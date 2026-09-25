@@ -10,7 +10,7 @@
 /// 之所以做成端口，是因为默认答案需要 `path_provider`
 /// （`getTemporaryDirectory()`）——它是 Flutter 插件，`lib/src/core/**`
 /// 下不允许引入。具体实现放在 `lib/src/platform_impl/thumb_dir_impl.dart`。
-abstract class MovaThumbDirProv {
+abstract class MovaThumbDirProvider {
   /// Returns the absolute path of the cache directory; the caller creates it
   /// if it does not exist yet.
   ///
@@ -22,15 +22,15 @@ abstract class MovaThumbDirProv {
   Future<String> resolve();
 }
 
-/// A [MovaThumbDirProv] that always returns one fixed path.
+/// A [MovaThumbDirProvider] that always returns one fixed path.
 ///
 /// Backs the `diskDir` config knob and keeps disk-cache tests free of
 /// plugin channels.
 ///
-/// 恒定返回同一路径的 [MovaThumbDirProv]。
+/// 恒定返回同一路径的 [MovaThumbDirProvider]。
 ///
 /// 既支撑 `diskDir` 配置项，也让磁盘缓存测试无需依赖插件通道。
-class MovaFixedThumbDirProvider implements MovaThumbDirProv {
+class MovaFixedThumbDirProvider implements MovaThumbDirProvider {
   /// Creates a provider pinned to [path].
   ///
   /// 创建一个固定指向 [path] 的 provider。

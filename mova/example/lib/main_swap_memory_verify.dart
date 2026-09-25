@@ -65,7 +65,7 @@ class _MemoryVerifyPageState extends State<_MemoryVerifyPage> {
       swap: const MovaSwapConfig(enabled: true, trigger: MovaEagerWarm()),
     );
     final engine = MovaSwapEngine(engineFactory: () => createMovaEngine(options: opts));
-    final ctrl = MovaAdCtrl(engine, swap: engine);
+    final ctrl = MovaAdController(engine, swap: engine);
 
     _mark('=== 阶段① baseline：只播正片 ===');
     await ctrl.load(_content());

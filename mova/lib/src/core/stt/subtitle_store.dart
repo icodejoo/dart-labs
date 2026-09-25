@@ -21,7 +21,7 @@ import 'subtitle_dir_provider.dart';
 /// 一次性批量转写的**完成结果**（见
 /// `doc/notes/2026-08-04-stt-engine-decision.md` 的"批量预转写"一节），而不是
 /// 一个正在运行的识别器。
-abstract class MovaSttSubStore {
+abstract class MovaSttSubtitleStore {
   /// Returns the cached cues for [sourceKey], or null if nothing is cached.
   ///
   /// 返回 [sourceKey] 已缓存的字幕；未缓存则返回 null。
@@ -46,24 +46,24 @@ abstract class MovaSttSubStore {
   Future<void> remove(String sourceKey);
 }
 
-/// The production [MovaSttSubStore]: one `.srt` file per source, named by
+/// The production [MovaSttSubtitleStore]: one `.srt` file per source, named by
 /// [fnv1a64] of [sourceKey] (same key-shape convention as the scrub-preview
 /// cache's `defaultCacheKey`).
 ///
-/// 生产环境的 [MovaSttSubStore]：每个来源一个 `.srt` 文件，以 [sourceKey]
+/// 生产环境的 [MovaSttSubtitleStore]：每个来源一个 `.srt` 文件，以 [sourceKey]
 /// 的 [fnv1a64] 命名（与拖动预览缓存 `defaultCacheKey` 同一套 key 命名约定）。
-class MovaFileSttSubStore implements MovaSttSubStore {
+class MovaFileSttSubtitleStore implements MovaSttSubtitleStore {
   /// Creates a file-based subtitle store.
   ///
   /// 创建一个基于文件的字幕存储。
   ///
   /// - [dir]: resolves the cache directory / 解析缓存目录
-  MovaFileSttSubStore({required this.dir});
+  MovaFileSttSubtitleStore({required this.dir});
 
   /// Resolves the cache directory.
   ///
   /// 解析缓存目录。
-  final MovaSttSubDirProv dir;
+  final MovaSttSubtitleDirProvider dir;
 
   @override
   Future<List<MovaSttCue>?> load(String sourceKey) async {

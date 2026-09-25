@@ -28,7 +28,7 @@ import 'common.dart';
 /// - 点播：`positionLabel · seekBar(撑开) · durationLabel`（0.1.0 行序）。
 /// - 直播：`liveBadge · seekBar(可拖时撑开，否则占位) · timeshift · backToLive`
 ///   （DESIGN §5.4）。
-class MovaBottomBarComponent extends MovaComp {
+class MovaBottomBarComponent extends MovaComponent {
   /// Creates the adaptive bottom-bar composite.
   ///
   /// 创建自适应底栏组合组件。
@@ -41,7 +41,7 @@ class MovaBottomBarComponent extends MovaComp {
   MovaSlot get slot => MovaSlot.bottom;
 
   @override
-  List<MovaComp> get children => [
+  List<MovaComponent> get children => [
         MovaPositionLabelComponent(), // 0 VOD
         MovaLiveBadgeComponent(), // 1 live
         MovaSeekBarComponent(), // 2 shared
@@ -85,7 +85,7 @@ class MovaBottomBarComponent extends MovaComp {
 /// Elapsed-time label; follows [MovaApi.progress]'s `position` field.
 ///
 /// 已播放时间标签；跟随 [MovaApi.progress] 的 `position` 字段。
-class MovaPositionLabelComponent extends MovaComp {
+class MovaPositionLabelComponent extends MovaComponent {
   /// Creates the position-label leaf component.
   ///
   /// 创建已播放时间标签叶子组件。
@@ -115,7 +115,7 @@ class MovaPositionLabelComponent extends MovaComp {
 /// Total-duration label; reads [MovaState.duration].
 ///
 /// 总时长标签；读取 [MovaState.duration]。
-class MovaDurationLabelComponent extends MovaComp {
+class MovaDurationLabelComponent extends MovaComponent {
   /// Creates the duration-label leaf component.
   ///
   /// 创建总时长标签叶子组件。
@@ -160,7 +160,7 @@ class MovaDurationLabelComponent extends MovaComp {
 ///
 /// 对可拖动的直播流，量程取 DVR 窗口而非 `duration`，因此同一个组件同时服务
 /// 点播与可拖直播（DESIGN §5.4）。
-class MovaSeekBarComponent extends MovaComp {
+class MovaSeekBarComponent extends MovaComponent {
   /// Creates the seek-bar leaf component.
   ///
   /// 创建进度滑块叶子组件。
@@ -353,7 +353,7 @@ class _SeekBarState extends State<_SeekBar> {
 ///
 /// 配色与文案都取自配置（[MovaTheme.accentColor] / [MovaTheme.timeshiftBadgeColor]、
 /// [MovaStrs.live] / [MovaStrs.timeshift]）。
-class MovaLiveBadgeComponent extends MovaComp {
+class MovaLiveBadgeComponent extends MovaComponent {
   /// Creates the live-badge leaf component.
   ///
   /// 创建直播角标叶子组件。
@@ -401,7 +401,7 @@ class MovaLiveBadgeComponent extends MovaComp {
 ///
 /// 处于直播边缘时不渲染任何内容，因此在用户真正回看之前，底栏与普通直播流
 /// 在视觉上完全一致。
-class MovaTimeshiftLabelComponent extends MovaComp {
+class MovaTimeshiftLabelComponent extends MovaComponent {
   /// Creates the timeshift-label leaf component.
   ///
   /// 创建时移标签叶子组件。
@@ -447,7 +447,7 @@ class MovaTimeshiftLabelComponent extends MovaComp {
 /// **具体怎么回**完全交给 [MovaApi.backToLiveEdge]，由
 /// `MovaLiveConfig.effectiveBackToLive` 决定（DVR 跳到窗口末端，时移则重开原始
 /// 地址）。它取代了 0.1.0 里无条件调用 `reload()` 的 `backToEdge` 按钮。
-class MovaBackToLiveComponent extends MovaComp {
+class MovaBackToLiveComponent extends MovaComponent {
   /// Creates the back-to-live leaf component.
   ///
   /// 创建回到直播叶子组件。

@@ -10,7 +10,7 @@ import '../slots/slot.dart';
 ///
 /// 中央叠加层组合组件：目前仅含播放/暂停点按反馈按钮，对齐 0.1.0 的
 /// `_centerPlayPause()`。
-class MovaCenterPlayComponent extends MovaComp {
+class MovaCenterPlayComponent extends MovaComponent {
   /// Creates the center-play composite with its single child.
   ///
   /// 创建带唯一子组件的中央播放组合组件。
@@ -23,7 +23,7 @@ class MovaCenterPlayComponent extends MovaComp {
   MovaSlot get slot => MovaSlot.center;
 
   @override
-  List<MovaComp> get children => [MovaPlayPauseComponent()];
+  List<MovaComponent> get children => [MovaPlayPauseComponent()];
 
   @override
   Widget build(BuildContext context, MovaApi api, List<Widget> children) {
@@ -42,7 +42,7 @@ class MovaCenterPlayComponent extends MovaComp {
 /// 对齐 0.1.0 的 `_centerPlayPause()`：一个半径 36 的 `InkResponse` 圆形，内含
 /// 填充式播放/暂停图标（尺寸/颜色取自 [MovaTheme]），由 [MovaState.playing] 驱动，
 /// 点击调用 [MovaApi.playOrPause]。
-class MovaPlayPauseComponent extends MovaComp {
+class MovaPlayPauseComponent extends MovaComponent {
   /// Creates the play/pause leaf component.
   ///
   /// 创建播放/暂停叶子组件。

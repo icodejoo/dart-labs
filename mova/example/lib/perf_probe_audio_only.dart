@@ -140,7 +140,7 @@ class _ProbeAppState extends State<_ProbeApp> {
 
     final engine = createMovaEngine(
       audioOnly: _mode == 'audio',
-      options: MovaOpts(preview: MovaPrevConfig(enabled: _mode != 'audio')),
+      options: MovaOpts(preview: MovaPreviewConfig(enabled: _mode != 'audio')),
     );
     // ignore: avoid_print
     print('MOVA_PERF|$_mode|renderHandle|${engine.renderHandle}');

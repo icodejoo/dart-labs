@@ -38,7 +38,7 @@ enum MovaLiveSeekMode {
 /// - [wallClock]: "now" as seen by the client / 客户端视角的当前时刻
 ///
 /// Returns the URL to open / 返回要打开的地址。
-typedef MovaTimeShiftBldr = String Function(
+typedef MovaTimeShiftBuilder = String Function(
   String uri,
   Duration behind,
   DateTime wallClock,
@@ -109,7 +109,7 @@ class MovaLiveConfig {
   ///
   /// 构造时移播放地址；为 `null` 时 [MovaLiveSeekMode.timeshift] 不生效
   /// （拖动被忽略）。
-  final MovaTimeShiftBldr? urlBuilder;
+  final MovaTimeShiftBuilder? urlBuilder;
 
   /// How to return to the live edge; `null` derives it from [seekMode]
   /// (see [effectiveBackToLive]).
@@ -188,7 +188,7 @@ class MovaLiveConfig {
     MovaLiveSeekMode? seekMode,
     Duration? dvrWindow,
     Duration? edgeThreshold,
-    MovaTimeShiftBldr? urlBuilder,
+    MovaTimeShiftBuilder? urlBuilder,
     MovaBackToLive? backToLive,
     bool? autoBackToLiveOnStall,
     MovaLiveWindowSolver? windowResolver,

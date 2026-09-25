@@ -47,15 +47,15 @@ enum _DragMode {
 /// Component that recognizes gestures on the video surface (drag/pinch/tap)
 /// and drives the matching [MovaApi] intent — never touching playback state
 /// directly. Which action each direction performs is configurable via
-/// [MovaGestConfig] (side↔action mapping); defaults follow the mainstream
+/// [MovaGestureConfig] (side↔action mapping); defaults follow the mainstream
 /// convention (left = brightness, right = volume, horizontal = seek). Seek is
 /// gated by `liveSeekable`/`allowWhenLive` for live sources.
 ///
 /// 识别视频画面手势（拖动/捏合/点击）并驱动对应 [MovaApi] 意图的组件——绝不
-/// 直接操作播放状态。每个方向执行哪个动作由 [MovaGestConfig] 配置（侧别↔动作
+/// 直接操作播放状态。每个方向执行哪个动作由 [MovaGestureConfig] 配置（侧别↔动作
 /// 映射）；默认对齐主流约定（左亮度、右音量、横滑进度）。直播源的进度手势受
 /// `liveSeekable`/`allowWhenLive` 门控。
-class MovaGestureLayerComponent extends MovaComp {
+class MovaGestureLayerComponent extends MovaComponent {
   /// Creates a gesture-layer component.
   ///
   /// 创建手势层组件。
@@ -275,13 +275,13 @@ class _GestureLayerState extends State<_GestureLayer> with MovaPlugin<_GestureLa
         ? cfg.horizontal
         : (_startedLeft ? cfg.leftVertical : cfg.rightVertical);
     switch (action) {
-      case MovaGestAction.seek:
+      case MovaGestureAction.seek:
         return _seekAllowed ? _DragMode.seek : _DragMode.undecided;
-      case MovaGestAction.volume:
+      case MovaGestureAction.volume:
         return _DragMode.volume;
-      case MovaGestAction.brightness:
+      case MovaGestureAction.brightness:
         return _DragMode.brightness;
-      case MovaGestAction.none:
+      case MovaGestureAction.none:
         return _DragMode.undecided;
     }
   }

@@ -11,10 +11,10 @@ import '../../support/fake_api.dart';
 const _enabledOpts = MovaOpts(mini: MovaMiniConfig(enabled: true));
 
 void main() {
-  late MovaMiniCtl ctl;
+  late MovaMiniController ctl;
 
   setUp(() {
-    ctl = MovaMiniCtl();
+    ctl = MovaMiniController();
   });
 
   test('show(api) sets mount to persistent, notifies once, calls setMini(true), inserts no entry', () async {

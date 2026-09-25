@@ -46,7 +46,7 @@ Widget _railAction({
 ///
 /// 右侧社交动作竖排（头像/关注、点赞、评论、分享），bilibili/douyin 风格。
 /// 纯组合组件——每个子组件自行渲染，这里只负责把它们排成一列。
-class MovaSocialRailComponent extends MovaComp {
+class MovaSocialRailComponent extends MovaComponent {
   /// Creates the social rail, wiring its children to [item]/[controller]/
   /// [index]/[likeNotifier].
   ///
@@ -74,7 +74,7 @@ class MovaSocialRailComponent extends MovaComp {
   /// The feed controller owning local like state.
   ///
   /// 持有本地点赞状态的 feed 控制器。
-  final MovaFeedCtrl controller;
+  final MovaFeedController controller;
 
   /// This page's feed index.
   ///
@@ -93,7 +93,7 @@ class MovaSocialRailComponent extends MovaComp {
   MovaSlot get slot => MovaSlot.right;
 
   @override
-  List<MovaComp> get children => [
+  List<MovaComponent> get children => [
         MovaAvatarComponent(item: item),
         MovaLikeButtonComponent(controller: controller, index: index, likeNotifier: likeNotifier),
         MovaCommentButtonComponent(item: item),
@@ -120,7 +120,7 @@ class MovaSocialRailComponent extends MovaComp {
 /// 作者头像；点头像触发 [MovaFeedItem.onAvatarTap]，点下方小号关注角标触发
 /// [MovaFeedItem.onFollowTap]。mova 不持有关注状态（见 [MovaFeedItem] 文档
 /// 注释）——角标恒定渲染，其实际含义由宿主决定。
-class MovaAvatarComponent extends MovaComp {
+class MovaAvatarComponent extends MovaComponent {
   /// Creates the avatar leaf component.
   ///
   /// 创建头像叶子组件。
@@ -163,13 +163,13 @@ class MovaAvatarComponent extends MovaComp {
   }
 }
 
-/// Like button; toggles [MovaFeedCtrl]'s local like state end to end
+/// Like button; toggles [MovaFeedController]'s local like state end to end
 /// (icon + count + heart-fill) and stays in sync with double-tap-to-like on
 /// the gesture layer via the shared [likeNotifier].
 ///
-/// 点赞按钮；端到端切换 [MovaFeedCtrl] 的本地点赞状态（图标 + 计数 +
+/// 点赞按钮；端到端切换 [MovaFeedController] 的本地点赞状态（图标 + 计数 +
 /// 实心样式），并通过共享的 [likeNotifier] 与手势层的双击点赞保持同步。
-class MovaLikeButtonComponent extends MovaComp {
+class MovaLikeButtonComponent extends MovaComponent {
   /// Creates the like-button leaf component.
   ///
   /// 创建点赞按钮叶子组件。
@@ -178,7 +178,7 @@ class MovaLikeButtonComponent extends MovaComp {
   /// The feed controller owning local like state.
   ///
   /// 持有本地点赞状态的 feed 控制器。
-  final MovaFeedCtrl controller;
+  final MovaFeedController controller;
 
   /// This page's feed index.
   ///
@@ -220,7 +220,7 @@ class MovaLikeButtonComponent extends MovaComp {
 ///
 /// 评论入口；计数来自 [MovaFeedItem.commentCount] 仅供展示，点击触发
 /// [MovaFeedItem.onComment]——mova 不持有任何评论 UI。
-class MovaCommentButtonComponent extends MovaComp {
+class MovaCommentButtonComponent extends MovaComponent {
   /// Creates the comment-button leaf component.
   ///
   /// 创建评论按钮叶子组件。
@@ -256,7 +256,7 @@ class MovaCommentButtonComponent extends MovaComp {
 ///
 /// 分享入口；计数来自 [MovaFeedItem.shareCount] 仅供展示，点击触发
 /// [MovaFeedItem.onShare]——mova 不持有任何分享面板。
-class MovaShareButtonComponent extends MovaComp {
+class MovaShareButtonComponent extends MovaComponent {
   /// Creates the share-button leaf component.
   ///
   /// 创建分享按钮叶子组件。
@@ -290,7 +290,7 @@ class MovaShareButtonComponent extends MovaComp {
 /// Bottom info block: author name and music/sound name, douyin-style.
 ///
 /// 底部信息块：作者名与音乐/声音名，douyin 风格。
-class MovaFeedInfoComponent extends MovaComp {
+class MovaFeedInfoComponent extends MovaComponent {
   /// Creates the feed-info leaf component.
   ///
   /// 创建 feed 信息叶子组件。

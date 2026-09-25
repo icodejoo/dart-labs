@@ -4,7 +4,7 @@ import 'package:path_provider/path_provider.dart';
 
 import '../core/stt/subtitle_dir_provider.dart';
 
-/// The default [MovaSttSubDirProv]: a named folder under the
+/// The default [MovaSttSubtitleDirProvider]: a named folder under the
 /// platform's persistent application-support directory, e.g.
 /// `<app support>/mova_stt_subtitles`.
 ///
@@ -16,7 +16,7 @@ import '../core/stt/subtitle_dir_provider.dart';
 /// Lives outside `lib/src/core/**` because `path_provider` is a Flutter
 /// plugin and the core layer must stay plugin-free.
 ///
-/// 默认的 [MovaSttSubDirProv]：应用持久化支持目录下的一个命名文件夹，
+/// 默认的 [MovaSttSubtitleDirProvider]：应用持久化支持目录下的一个命名文件夹，
 /// 例如 `<app support>/mova_stt_subtitles`。
 ///
 /// 持久化，理由与 [MovaTempSttModelDirProvider] 相同：批量转写出的字幕文件正是
@@ -25,7 +25,7 @@ import '../core/stt/subtitle_dir_provider.dart';
 ///
 /// 放在 `lib/src/core/**` 之外，因为 `path_provider` 是 Flutter 插件，
 /// core 层必须与插件解耦。
-class MovaTempSttSubtitleDirProvider implements MovaSttSubDirProv {
+class MovaTempSttSubtitleDirProvider implements MovaSttSubtitleDirProvider {
   /// Creates a provider rooted at the application-support directory.
   ///
   /// 创建一个以应用支持目录为根的 provider。

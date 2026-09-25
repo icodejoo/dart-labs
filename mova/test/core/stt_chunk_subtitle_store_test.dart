@@ -17,12 +17,12 @@ void main() {
   });
 
   test('loadChunk returns null when that chunk has never been cached', () async {
-    final store = MovaFileSttChunkSubStore(dir: MovaFixedSttSubtitleDirProvider(tempDir.path));
+    final store = MovaFileSttChunkSubtitleStore(dir: MovaFixedSttSubtitleDirProvider(tempDir.path));
     expect(await store.loadChunk('https://host/a.mp4', 0), isNull);
   });
 
   test('saveChunk then loadChunk round-trips the cue list for that chunk', () async {
-    final store = MovaFileSttChunkSubStore(dir: MovaFixedSttSubtitleDirProvider(tempDir.path));
+    final store = MovaFileSttChunkSubtitleStore(dir: MovaFixedSttSubtitleDirProvider(tempDir.path));
     final cues = [
       const MovaSttCue(text: '大家好', start: Duration.zero, end: Duration(seconds: 2)),
     ];
@@ -31,7 +31,7 @@ void main() {
   });
 
   test('different chunk indices of the same source are cached independently', () async {
-    final store = MovaFileSttChunkSubStore(dir: MovaFixedSttSubtitleDirProvider(tempDir.path));
+    final store = MovaFileSttChunkSubtitleStore(dir: MovaFixedSttSubtitleDirProvider(tempDir.path));
     final chunk0 = [const MovaSttCue(text: 'a', start: Duration.zero, end: Duration(seconds: 1))];
     final chunk1 = [const MovaSttCue(text: 'b', start: Duration.zero, end: Duration(seconds: 1))];
 
@@ -43,7 +43,7 @@ void main() {
   });
 
   test('different sources never collide even with the same chunk index', () async {
-    final store = MovaFileSttChunkSubStore(dir: MovaFixedSttSubtitleDirProvider(tempDir.path));
+    final store = MovaFileSttChunkSubtitleStore(dir: MovaFixedSttSubtitleDirProvider(tempDir.path));
     final a = [const MovaSttCue(text: 'a', start: Duration.zero, end: Duration(seconds: 1))];
     final b = [const MovaSttCue(text: 'b', start: Duration.zero, end: Duration(seconds: 1))];
 
@@ -55,7 +55,7 @@ void main() {
   });
 
   test('removeAllChunks deletes every chunk of a source but leaves others intact', () async {
-    final store = MovaFileSttChunkSubStore(dir: MovaFixedSttSubtitleDirProvider(tempDir.path));
+    final store = MovaFileSttChunkSubtitleStore(dir: MovaFixedSttSubtitleDirProvider(tempDir.path));
     await store.saveChunk('https://host/a.mp4', 0, [
       const MovaSttCue(text: 'x', start: Duration.zero, end: Duration(seconds: 1)),
     ]);
@@ -74,12 +74,12 @@ void main() {
   });
 
   test('removeAllChunks on a never-cached source is a silent no-op', () async {
-    final store = MovaFileSttChunkSubStore(dir: MovaFixedSttSubtitleDirProvider(tempDir.path));
+    final store = MovaFileSttChunkSubtitleStore(dir: MovaFixedSttSubtitleDirProvider(tempDir.path));
     await store.removeAllChunks('https://host/never.mp4');
   });
 
   test('loadChunk degrades to null on a cache file that fails to decode as text', () async {
-    final store = MovaFileSttChunkSubStore(dir: MovaFixedSttSubtitleDirProvider(tempDir.path));
+    final store = MovaFileSttChunkSubtitleStore(dir: MovaFixedSttSubtitleDirProvider(tempDir.path));
     await store.saveChunk('https://host/a.mp4', 0, [
       const MovaSttCue(text: 'x', start: Duration.zero, end: Duration(seconds: 1)),
     ]);

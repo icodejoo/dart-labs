@@ -91,7 +91,7 @@ void main() {
       await api.setFit(MovaFit.cover);
       await api.setFullscreen(true);
       await api.setMini(true);
-      await api.switchQuality(MovaQual.auto());
+      await api.switchQuality(MovaQuality.auto());
       await api.reload();
       await api.backToLiveEdge();
       final calls = made.first.calls;

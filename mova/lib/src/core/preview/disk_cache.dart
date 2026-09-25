@@ -35,7 +35,7 @@ class MovaDiskThumbCache implements MovaThumbCache {
   /// Resolver for the cache directory.
   ///
   /// 缓存目录的解析器。
-  final MovaThumbDirProv dir;
+  final MovaThumbDirProvider dir;
 
   /// Total byte budget across all cached files.
   ///

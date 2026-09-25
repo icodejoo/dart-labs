@@ -8,17 +8,17 @@ import 'subtitle_dir_provider.dart';
 /// Caches per-chunk transcription results for the streaming-chunked STT
 /// pipeline (see `doc/plans/2026-08-06-stt-streaming-chunked-transcription.md`),
 /// keyed by `(sourceKey, chunkIndex)` — a distinct concept from
-/// [MovaSttSubStore], which caches one whole-source result from a
+/// [MovaSttSubtitleStore], which caches one whole-source result from a
 /// single-shot batch transcription. Re-opening the same source only
 /// re-queues the chunks that never finished; [SttChunkState.done] chunks
 /// load straight from here.
 ///
 /// 流式分片转写流水线（见
 /// `doc/plans/2026-08-06-stt-streaming-chunked-transcription.md`）的按分片
-/// 缓存，按 `(sourceKey, chunkIndex)` 做 key——与 [MovaSttSubStore]（缓存
+/// 缓存，按 `(sourceKey, chunkIndex)` 做 key——与 [MovaSttSubtitleStore]（缓存
 /// 一次性整段批量转写结果）是不同的概念。重新打开同一来源时，只有没转完的
 /// 分片需要重新入队；已 `done` 的分片直接从这里加载。
-abstract class MovaSttChunkSubStore {
+abstract class MovaSttChunkSubtitleStore {
   /// Returns the cached cues for chunk [chunkIndex] of [sourceKey], or null
   /// if that chunk hasn't been cached yet.
   ///
@@ -52,30 +52,30 @@ abstract class MovaSttChunkSubStore {
   Future<void> removeAllChunks(String sourceKey);
 }
 
-/// The production [MovaSttChunkSubStore]: one `.srt` file per
+/// The production [MovaSttChunkSubtitleStore]: one `.srt` file per
 /// `(sourceKey, chunkIndex)` pair, named by [fnv1a64] of a composite key —
-/// same key-shape convention as [MovaFileSttSubStore] and the
+/// same key-shape convention as [MovaFileSttSubtitleStore] and the
 /// scrub-preview cache's `defaultCacheKey`.
 ///
-/// 生产环境的 [MovaSttChunkSubStore]：每个 `(sourceKey, chunkIndex)` 组合
-/// 一个 `.srt` 文件，以复合 key 的 [fnv1a64] 命名——与 [MovaFileSttSubStore]
+/// 生产环境的 [MovaSttChunkSubtitleStore]：每个 `(sourceKey, chunkIndex)` 组合
+/// 一个 `.srt` 文件，以复合 key 的 [fnv1a64] 命名——与 [MovaFileSttSubtitleStore]
 /// 和拖动预览缓存的 `defaultCacheKey` 是同一套 key 命名约定。
-class MovaFileSttChunkSubStore implements MovaSttChunkSubStore {
+class MovaFileSttChunkSubtitleStore implements MovaSttChunkSubtitleStore {
   /// Creates a file-based per-chunk subtitle store.
   ///
   /// 创建一个基于文件的按分片字幕存储。
   ///
   /// - [dir]: resolves the cache directory (shared with
-  ///   [MovaFileSttSubStore]'s whole-source cache — chunk files are
+  ///   [MovaFileSttSubtitleStore]'s whole-source cache — chunk files are
   ///   distinguished by their composite key, so they don't collide) /
-  ///   解析缓存目录（与 [MovaFileSttSubStore] 的整段缓存共用同一目录——
+  ///   解析缓存目录（与 [MovaFileSttSubtitleStore] 的整段缓存共用同一目录——
   ///   分片文件靠复合 key 区分，不会冲突）
-  MovaFileSttChunkSubStore({required this.dir});
+  MovaFileSttChunkSubtitleStore({required this.dir});
 
   /// Resolves the cache directory.
   ///
   /// 解析缓存目录。
-  final MovaSttSubDirProv dir;
+  final MovaSttSubtitleDirProvider dir;
 
   @override
   Future<List<MovaSttCue>?> loadChunk(String sourceKey, int chunkIndex) async {
@@ -118,11 +118,11 @@ class MovaFileSttChunkSubStore implements MovaSttChunkSubStore {
   }
 
   // Chunk files share a `<sourceHash>.` name prefix (distinct from
-  // [MovaFileSttSubStore]'s bare `<sourceHash>.srt`) so [removeAllChunks]
+  // [MovaFileSttSubtitleStore]'s bare `<sourceHash>.srt`) so [removeAllChunks]
   // can find every chunk belonging to a source by prefix scan without a
   // separate index file.
   //
-  // 分片文件共用 `<sourceHash>.` 前缀（区别于 [MovaFileSttSubStore] 的
+  // 分片文件共用 `<sourceHash>.` 前缀（区别于 [MovaFileSttSubtitleStore] 的
   // 裸 `<sourceHash>.srt`），使 [removeAllChunks] 能靠前缀扫描找到某个来源
   // 的全部分片，不需要额外的索引文件。
   String _sourcePrefix(String sourceKey) => 'chunk-${fnv1a64(sourceKey).toRadixString(36)}';

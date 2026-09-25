@@ -28,7 +28,7 @@ import 'skins/douyin_skin.dart';
 /// Returns the placeholder widget to paint behind the page's chrome.
 ///
 /// 返回要绘制在该页 chrome 之下的占位组件。
-typedef MovaFeedHolderBldr = Widget Function(BuildContext context, MovaFeedItem item);
+typedef MovaFeedHolderBuilder = Widget Function(BuildContext context, MovaFeedItem item);
 
 /// A vertical, douyin-style "swipe for next video" feed backed by a pool of
 /// playback engines — one per warm page, rather than one shared by all.
@@ -105,7 +105,7 @@ class MovaFeedPlayer extends StatefulWidget {
   /// Creates each pooled engine.
   ///
   /// 创建池中每个引擎。
-  final MovaEngineFact engineFactory;
+  final MovaEngineFactory engineFactory;
 
   /// Resolves feed items by index.
   ///
@@ -122,10 +122,10 @@ class MovaFeedPlayer extends StatefulWidget {
   /// 往后多少条条目会被预热网络链路。
   final int prefetchDepth;
 
-  /// Network warm-up strategy; null uses [MovaFeedCtrl]'s own default.
+  /// Network warm-up strategy; null uses [MovaFeedController]'s own default.
   ///
-  /// 网络预热策略；为 null 时使用 [MovaFeedCtrl] 自身的默认值。
-  final MovaFeedPrefch? prefetcher;
+  /// 网络预热策略；为 null 时使用 [MovaFeedController] 自身的默认值。
+  final MovaFeedPrefetcher? prefetcher;
 
   /// Video fill mode, applied to each engine as the pool creates it.
   ///
@@ -135,18 +135,18 @@ class MovaFeedPlayer extends StatefulWidget {
   /// What a page shows before its engine is ready.
   ///
   /// 某页在其引擎就绪前显示什么。
-  final MovaFeedHolderBldr? placeholderBuilder;
+  final MovaFeedHolderBuilder? placeholderBuilder;
 
   @override
   State<MovaFeedPlayer> createState() => _MovaFeedPlayerState();
 }
 
 /// State for [MovaFeedPlayer]; owns the [MovaFeedEnginePool], the
-/// [MovaFeedCtrl], the [PageController], and the per-page like-state
+/// [MovaFeedController], the [PageController], and the per-page like-state
 /// notifiers that must outlive individual page rebuilds (see [MovaDouyinSkin]'s
 /// doc comment on why identity matters here).
 ///
-/// [MovaFeedPlayer] 的状态；持有 [MovaFeedEnginePool]、[MovaFeedCtrl]、
+/// [MovaFeedPlayer] 的状态；持有 [MovaFeedEnginePool]、[MovaFeedController]、
 /// [PageController]，以及必须在单页历次重建间存活的逐页点赞状态 notifier
 /// （为什么这里的身份很重要，见 [MovaDouyinSkin] 的文档注释）。
 class _MovaFeedPlayerState extends State<MovaFeedPlayer> {
@@ -158,7 +158,7 @@ class _MovaFeedPlayerState extends State<MovaFeedPlayer> {
   /// Drives the pool through the feed.
   ///
   /// 驱动引擎池在 feed 中前进的控制器。
-  late final MovaFeedCtrl _controller;
+  late final MovaFeedController _controller;
 
   /// Backs the vertical swipe-for-next-video paging.
   ///
@@ -174,14 +174,14 @@ class _MovaFeedPlayerState extends State<MovaFeedPlayer> {
   final Map<int, ValueNotifier<({bool liked, int count})>> _likeNotifiers =
       <int, ValueNotifier<({bool liked, int count})>>{};
 
-  /// Indices [_buildPage] has already asked [MovaFeedCtrl.ensure] for.
+  /// Indices [_buildPage] has already asked [MovaFeedController.ensure] for.
   ///
   /// Without this, a page whose loader resolves `null` (the feed ended) spins
   /// forever: `build` requests it, the request completes with nothing to
   /// cache, `setState` rebuilds, and `build` requests it again. Failed loads
   /// drop back out of the set so a later rebuild does retry them.
   ///
-  /// [_buildPage] 已经向 [MovaFeedCtrl.ensure] 请求过的索引。
+  /// [_buildPage] 已经向 [MovaFeedController.ensure] 请求过的索引。
   ///
   /// 没有这层记录，loader 解析出 `null`（feed 已到尽头）的页面会永远空转：
   /// `build` 发起请求，请求完成但没有任何东西可缓存，`setState` 触发重建，
@@ -198,7 +198,7 @@ class _MovaFeedPlayerState extends State<MovaFeedPlayer> {
       fit: widget.fit,
       onChanged: _onPoolChanged,
     );
-    _controller = MovaFeedCtrl(
+    _controller = MovaFeedController(
       pool: _pool,
       loader: widget.loader,
       prefetchDepth: widget.prefetchDepth,
@@ -218,10 +218,10 @@ class _MovaFeedPlayerState extends State<MovaFeedPlayer> {
   }
 
   /// Returns the stable like-state notifier for [index], creating it (seeded
-  /// from [MovaFeedCtrl.likeStateOf]) the first time it's needed.
+  /// from [MovaFeedController.likeStateOf]) the first time it's needed.
   ///
   /// 返回 [index] 对应的稳定点赞状态 notifier；首次需要时才创建（用
-  /// [MovaFeedCtrl.likeStateOf] 播种初值）。
+  /// [MovaFeedController.likeStateOf] 播种初值）。
   ///
   /// - [index]: the feed index the notifier belongs to / 该 notifier 所属的
   ///   feed 索引

@@ -11,18 +11,18 @@ import '../slots/slot.dart';
 /// offers a one-tap jump to the next one. Renders nothing when the playlist is
 /// disabled, there is no next item, or the host dismissed it for this item.
 ///
-/// Host-wired: the host constructs a [MovaPlistCtrl] and passes it in
+/// Host-wired: the host constructs a [MovaPlaylistController] and passes it in
 /// (e.g. via a skin patch), since the running index lives on the controller,
 /// not on [MovaApi]. Visibility is driven off the throttled progress stream vs.
-/// [MovaState.duration] and [MovaPlistConfig.nextUpLeadTime].
+/// [MovaState.duration] and [MovaPlaylistConfig.nextUpLeadTime].
 ///
 /// "下一集"卡片：当前项临近结束时淡入，提供一键跳到下一项。播放列表关闭、没有
 /// 下一项、或宿主已对本项关闭卡片时，不渲染任何内容。
 ///
-/// 由宿主接线：宿主构造一个 [MovaPlistCtrl] 传入（例如经皮肤补丁），因为
+/// 由宿主接线：宿主构造一个 [MovaPlaylistController] 传入（例如经皮肤补丁），因为
 /// 运行时下标在控制器上、不在 [MovaApi] 上。显隐由节流进度流对比
-/// [MovaState.duration] 与 [MovaPlistConfig.nextUpLeadTime] 决定。
-class MovaNextUpComponent extends MovaComp {
+/// [MovaState.duration] 与 [MovaPlaylistConfig.nextUpLeadTime] 决定。
+class MovaNextUpComponent extends MovaComponent {
   /// Creates the next-up card bound to [controller].
   ///
   /// 创建绑定到 [controller] 的下一集卡片。
@@ -34,7 +34,7 @@ class MovaNextUpComponent extends MovaComp {
   /// The playlist controller this card reads and drives.
   ///
   /// 该卡片读取并驱动的播放列表控制器。
-  final MovaPlistCtrl controller;
+  final MovaPlaylistController controller;
 
   @override
   String get name => 'nextUp';
@@ -68,7 +68,7 @@ class _NextUpView extends StatefulWidget {
   /// The playlist controller providing the next item and navigation.
   ///
   /// 提供下一项与导航的播放列表控制器。
-  final MovaPlistCtrl controller;
+  final MovaPlaylistController controller;
 
   @override
   State<_NextUpView> createState() => _NextUpViewState();

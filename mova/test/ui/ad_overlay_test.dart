@@ -17,7 +17,7 @@ void main() {
   /// events into the returned list.
   ///
   /// 用单个 [break_] 构造假 API + 广告控制器，把广告事件收集进返回的列表。
-  (FakeMovaApi, MovaAdCtrl, List<MovaAdEvent>) build(
+  (FakeMovaApi, MovaAdController, List<MovaAdEvent>) build(
     MovaAdBreak break_, {
     bool enabled = true,
   }) {
@@ -31,7 +31,7 @@ void main() {
         ),
       ),
     );
-    return (api, MovaAdCtrl(api), events);
+    return (api, MovaAdController(api), events);
   }
 
   testWidgets('renders nothing when ads are disabled', (t) async {
@@ -114,7 +114,7 @@ void main() {
   ///
   /// 构造假 API + 控制器，其唯一的中插带有 [delay]，并带上就绪等待路径所需的
   /// 切换能力面。
-  (FakeMovaApi, MovaAdCtrl, List<MovaAdEvent>) pendingBuild({
+  (FakeMovaApi, MovaAdController, List<MovaAdEvent>) pendingBuild({
     required Duration delay,
     MovaAdWaitPolicy? wait,
     FakeSwapCtl? swap,
@@ -136,7 +136,7 @@ void main() {
         ),
       ),
     );
-    return (api, MovaAdCtrl(api, swap: swap), events);
+    return (api, MovaAdController(api, swap: swap), events);
   }
 
 

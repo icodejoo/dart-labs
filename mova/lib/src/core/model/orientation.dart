@@ -8,7 +8,7 @@
 ///
 /// [auto] 保持 0.1.0 行为——全屏时按视频宽高比选横/竖屏，非全屏放开全部方向；
 /// [portrait]/[landscape] 则无视宽高比与全屏状态，强制该方向。
-enum MovaOrient {
+enum MovaOrientation {
   /// Follow aspect ratio when fullscreen; allow all otherwise.
   ///
   /// 全屏时跟随宽高比；否则放开全部方向。
@@ -34,6 +34,6 @@ enum MovaOrient {
   /// [portrait] 翻到 [landscape]。
   ///
   /// 于是按钮表现为一个纯粹的横↔竖切换，把初始的 [auto] 视作"尚未横屏"。
-  MovaOrient get toggled =>
-      this == MovaOrient.landscape ? MovaOrient.portrait : MovaOrient.landscape;
+  MovaOrientation get toggled =>
+      this == MovaOrientation.landscape ? MovaOrientation.portrait : MovaOrientation.landscape;
 }

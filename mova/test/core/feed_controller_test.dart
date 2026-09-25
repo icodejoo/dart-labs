@@ -5,10 +5,10 @@ import 'package:mova/mova.dart';
 
 import '../support/fake_api.dart';
 
-/// A [MovaFeedPrefch] test double recording every primed source.
+/// A [MovaFeedPrefetcher] test double recording every primed source.
 ///
-/// 记录每次被预热的源的 [MovaFeedPrefch] 测试替身。
-class _RecordingPrefetcher implements MovaFeedPrefch {
+/// 记录每次被预热的源的 [MovaFeedPrefetcher] 测试替身。
+class _RecordingPrefetcher implements MovaFeedPrefetcher {
   final List<String> primed = <String>[];
 
   @override
@@ -17,10 +17,10 @@ class _RecordingPrefetcher implements MovaFeedPrefch {
   }
 }
 
-/// Hands out [FakeMovaApi] instances as a [MovaEngineFact] would, keeping each
+/// Hands out [FakeMovaApi] instances as a [MovaEngineFactory] would, keeping each
 /// one so tests can assert which engine ended up on which feed page.
 ///
-/// 像 [MovaEngineFact] 一样发放 [FakeMovaApi] 实例，并保留每一个，供测试断言
+/// 像 [MovaEngineFactory] 一样发放 [FakeMovaApi] 实例，并保留每一个，供测试断言
 /// 哪个引擎落到了哪一页 feed 上。
 class _Fleet {
   /// Every engine handed out, in creation order.
@@ -43,7 +43,7 @@ class _Fleet {
 }
 
 void main() {
-  group('MovaFeedCtrl', () {
+  group('MovaFeedController', () {
     late _Fleet fleet;
 
     setUp(() => fleet = _Fleet());
@@ -60,14 +60,14 @@ void main() {
     /// Returns the controller and the pool backing it.
     ///
     /// 返回控制器及其背后的池。
-    (MovaFeedCtrl, MovaFeedEnginePool) build(
+    (MovaFeedController, MovaFeedEnginePool) build(
       MovaFeedLoader loader, {
       int size = 3,
       int prefetchDepth = 1,
-      MovaFeedPrefch? prefetcher,
+      MovaFeedPrefetcher? prefetcher,
     }) {
       final pool = MovaFeedEnginePool(engineFactory: fleet.make, size: size);
-      final controller = MovaFeedCtrl(
+      final controller = MovaFeedController(
         pool: pool,
         loader: loader,
         prefetchDepth: prefetchDepth,

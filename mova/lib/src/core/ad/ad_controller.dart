@@ -39,15 +39,15 @@ MovaAdBreak? dueMidRoll(
 
 /// Returns the first element of [items] matching [predicate], or null.
 ///
-/// Shared linear-scan helper behind [dueMidRoll] and [MovaAdCtrl]'s own
-/// pod/kind lookups ([MovaAdCtrl._nextPodMid]/[MovaAdCtrl._firstOfKind]) — the
+/// Shared linear-scan helper behind [dueMidRoll] and [MovaAdController]'s own
+/// pod/kind lookups ([MovaAdController._nextPodMid]/[MovaAdController._firstOfKind]) — the
 /// three were previously separate, identically-shaped for-loops differing
 /// only in their predicate.
 ///
 /// 返回 [items] 中首个匹配 [predicate] 的元素；没有则为 null。
 ///
-/// [dueMidRoll] 与 [MovaAdCtrl] 自身的 pod/kind 查找（[MovaAdCtrl._nextPodMid]/
-/// [MovaAdCtrl._firstOfKind]）共用的线性扫描 helper——三者此前是三个结构相同、
+/// [dueMidRoll] 与 [MovaAdController] 自身的 pod/kind 查找（[MovaAdController._nextPodMid]/
+/// [MovaAdController._firstOfKind]）共用的线性扫描 helper——三者此前是三个结构相同、
 /// 仅谓词不同的独立 for 循环。
 T? _firstWhere<T>(Iterable<T> items, bool Function(T) predicate) {
   for (final item in items) {
@@ -100,7 +100,7 @@ enum _Phase {
 /// Click-through is never navigated here — it is surfaced via
 /// [MovaAdConfig.onAdEvent].
 ///
-/// **Composing with a `MovaPlistCtrl`:** both react to [MovaDone], so
+/// **Composing with a `MovaPlaylistController`:** both react to [MovaDone], so
 /// naively wiring both to the same player makes them race on the next
 /// `open()`. To combine them, set the playlist's `autoPlayNext: false` and
 /// advance it from [contentEnded] (which fires only after the content *and* its
@@ -113,10 +113,10 @@ enum _Phase {
 /// （依赖 engine 的 seek 寄存，使续播位置在被续播源尚未报告时长前也能落地）。
 /// 点击跳转不会在此处执行——经 [MovaAdConfig.onAdEvent] 暴露给宿主。
 ///
-/// **与 `MovaPlistCtrl` 组合：** 二者都响应 [MovaDone]，裸挂到同一播放器
+/// **与 `MovaPlaylistController` 组合：** 二者都响应 [MovaDone]，裸挂到同一播放器
 /// 会争抢 `open()`。组合时应把播放列表的 `autoPlayNext` 设为 `false`，改由本控制器的
 /// [contentEnded]（只在正片**及其**后贴片都播完后才触发）来驱动换集。
-class MovaAdCtrl {
+class MovaAdController {
   /// Creates a controller bound to [api], seeded from [MovaOpts.ads].
   ///
   /// [swap] enables seamless ad→content swaps: it should be the same
@@ -137,10 +137,10 @@ class MovaAdCtrl {
   /// Example / 示例:
   /// ```dart
   /// final api = MovaSwapEngine(engineFactory: createMovaEngine);
-  /// final ads = MovaAdCtrl(api, swap: api);
+  /// final ads = MovaAdController(api, swap: api);
   /// await ads.load(const MovaSource('https://host/movie.m3u8'));
   /// ```
-  MovaAdCtrl(this._api, {MovaSwapCtl? swap})
+  MovaAdController(this._api, {MovaSwapController? swap})
     : _cfg = _api.options.ads,
       _breaks = _api.options.ads.breaks,
       _onAdEvent = _api.options.ads.onAdEvent,
@@ -154,7 +154,7 @@ class MovaAdCtrl {
   }
 
   final MovaApi _api;
-  final MovaSwapCtl? _swap;
+  final MovaSwapController? _swap;
 
   /// The ad configuration snapshot this controller runs on.
   ///
@@ -330,11 +330,11 @@ class MovaAdCtrl {
 
   /// Fires once the content has fully finished — after it completes and any
   /// post-rolls have played. The composition seam for advancing a
-  /// `MovaPlistCtrl` (with its own `autoPlayNext` off) without racing on
+  /// `MovaPlaylistController` (with its own `autoPlayNext` off) without racing on
   /// [MovaDone].
   ///
   /// 在正片彻底结束后触发一次——即正片播完且所有后贴片也播完之后。用作在不与
-  /// [MovaDone] 争抢的前提下推进 `MovaPlistCtrl`（其 `autoPlayNext` 关闭）
+  /// [MovaDone] 争抢的前提下推进 `MovaPlaylistController`（其 `autoPlayNext` 关闭）
   /// 的组合接缝。
   Stream<void> get contentEnded => _contentEnded.stream;
 
@@ -1155,7 +1155,7 @@ class MovaAdCtrl {
   /// *暂停*着的，影子若一路播下去，就会按广告剩余时长往前漂，用户于是无声无息
   /// 地丢掉那么多秒正片。真机实测（STG AL00）：续播目标 6006ms、实际落点
   /// 8842ms——2.8 秒的缺口，恰好等于预热开始后广告还剩的时长。
-  Future<void> _warmContentBehindAd(MovaSwapCtl swap, MovaWarmCue cue) async {
+  Future<void> _warmContentBehindAd(MovaSwapController swap, MovaWarmCue cue) async {
     final content = await _contentSource();
     if (content == null) return;
     if (_phase != _Phase.ad) return;

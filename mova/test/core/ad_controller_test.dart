@@ -52,7 +52,7 @@ void main() {
   /// Builds a fake API + controller with [breaks] and an event sink.
   ///
   /// 用 [breaks] 与一个事件收集器构造假 API + 控制器。
-  (FakeMovaApi, MovaAdCtrl, List<MovaAdEvent>) build(
+  (FakeMovaApi, MovaAdController, List<MovaAdEvent>) build(
     List<MovaAdBreak> breaks, {
     bool enabled = true,
   }) {
@@ -62,7 +62,7 @@ void main() {
         ads: MovaAdConfig(enabled: enabled, breaks: breaks, onAdEvent: events.add),
       ),
     );
-    return (api, MovaAdCtrl(api), events);
+    return (api, MovaAdController(api), events);
   }
 
   test('disabled: load opens the content directly, no ad', () async {
@@ -389,7 +389,7 @@ void main() {
     expect(api.calls, isEmpty);
   });
 
-  group('MovaAdCtrl with a MovaSwapCtl (seamless ad→content swap)', () {
+  group('MovaAdController with a MovaSwapController (seamless ad→content swap)', () {
     const pre = MovaAdBreak(
       kind: MovaAdBreakKind.pre,
       source: MovaSource('https://host/pre.mp4'),
@@ -430,7 +430,7 @@ void main() {
         options: MovaOpts(ads: MovaAdConfig(enabled: true, breaks: [pre], onAdEvent: events.add)),
       );
       final swap = FakeSwapCtl()..swapEnabled = false;
-      final c = MovaAdCtrl(api, swap: swap);
+      final c = MovaAdController(api, swap: swap);
       await c.load(_content);
       await settle();
       api.pushEvent(const MovaDone());
@@ -442,7 +442,7 @@ void main() {
     test('every progress tick during the ad calls prepare with a shrinking remaining and fixed total', () async {
       final api = FakeMovaApi(options: MovaOpts(ads: MovaAdConfig(enabled: true, breaks: [pre])));
       final swap = FakeSwapCtl();
-      final c = MovaAdCtrl(api, swap: swap);
+      final c = MovaAdController(api, swap: swap);
       await c.load(_content);
       await settle();
       api.push(api.state.copyWith(duration: const Duration(seconds: 10)));
@@ -461,7 +461,7 @@ void main() {
     test('prepare is called with the saved content-resume position (zero for a pre-roll)', () async {
       final api = FakeMovaApi(options: MovaOpts(ads: MovaAdConfig(enabled: true, breaks: [pre])));
       final swap = FakeSwapCtl();
-      final c = MovaAdCtrl(api, swap: swap);
+      final c = MovaAdController(api, swap: swap);
       await c.load(_content);
       await settle();
       api.pushProgress(const MovaProg(position: Duration(seconds: 1)));
@@ -472,7 +472,7 @@ void main() {
     test('prepare uses the mid-roll saved resume position, not zero', () async {
       final api = FakeMovaApi(options: MovaOpts(ads: MovaAdConfig(enabled: true, breaks: [mid])));
       final swap = FakeSwapCtl();
-      final c = MovaAdCtrl(api, swap: swap);
+      final c = MovaAdController(api, swap: swap);
       await c.load(_content);
       await settle();
       api.pushProgress(const MovaProg(position: Duration(seconds: 31)));
@@ -494,7 +494,7 @@ void main() {
       // 正片。续播目标 6006ms → 实际落点 8842ms。
       final api = FakeMovaApi(options: MovaOpts(ads: MovaAdConfig(enabled: true, breaks: [mid])));
       final swap = FakeSwapCtl();
-      final c = MovaAdCtrl(api, swap: swap);
+      final c = MovaAdController(api, swap: swap);
       await c.load(_content);
       await settle();
       api.pushProgress(const MovaProg(position: Duration(seconds: 31)));
@@ -507,7 +507,7 @@ void main() {
     test('commit() returning true: no open/seek happens on the api', () async {
       final api = FakeMovaApi(options: MovaOpts(ads: MovaAdConfig(enabled: true, breaks: [pre])));
       final swap = FakeSwapCtl()..commitResult = true;
-      final c = MovaAdCtrl(api, swap: swap);
+      final c = MovaAdController(api, swap: swap);
       await c.load(_content);
       await settle();
       api.calls.clear();
@@ -529,7 +529,7 @@ void main() {
       // 几乎从未真正生效。
       final api = FakeMovaApi(options: MovaOpts(ads: MovaAdConfig(enabled: true, breaks: [pre])));
       final swap = FakeSwapCtl()..commitResult = true;
-      final c = MovaAdCtrl(api, swap: swap);
+      final c = MovaAdController(api, swap: swap);
       await c.load(_content);
       await settle();
       api.pushEvent(const MovaDone());
@@ -540,7 +540,7 @@ void main() {
     test('commit() returning false: falls back to open (and seek for mid-roll)', () async {
       final api = FakeMovaApi(options: MovaOpts(ads: MovaAdConfig(enabled: true, breaks: [mid])));
       final swap = FakeSwapCtl()..commitResult = false;
-      final c = MovaAdCtrl(api, swap: swap);
+      final c = MovaAdController(api, swap: swap);
       await c.load(_content);
       await settle();
       api.pushProgress(const MovaProg(position: Duration(seconds: 31)));
@@ -554,7 +554,7 @@ void main() {
     test('STT restore still applies on the seamless path', () async {
       final api = FakeMovaApi(options: MovaOpts(ads: MovaAdConfig(enabled: true, breaks: [mid])));
       final swap = FakeSwapCtl()..commitResult = true;
-      final c = MovaAdCtrl(api, swap: swap);
+      final c = MovaAdController(api, swap: swap);
       await c.load(_content);
       await settle();
       await api.stt.start();
@@ -573,7 +573,7 @@ void main() {
       );
       final api = FakeMovaApi(options: MovaOpts(ads: MovaAdConfig(enabled: true, breaks: [pre, pre2])));
       final swap = FakeSwapCtl();
-      final c = MovaAdCtrl(api, swap: swap);
+      final c = MovaAdController(api, swap: swap);
       await c.load(_content);
       await settle();
       expect(swap.calls, contains('abandon'));
@@ -586,7 +586,7 @@ void main() {
     test('dispose calls abandon', () async {
       final api = FakeMovaApi(options: MovaOpts(ads: MovaAdConfig(enabled: true, breaks: [pre])));
       final swap = FakeSwapCtl();
-      final c = MovaAdCtrl(api, swap: swap);
+      final c = MovaAdController(api, swap: swap);
       await c.load(_content);
       await settle();
       await c.dispose();
@@ -594,7 +594,7 @@ void main() {
     });
   });
 
-  group('MovaAdCtrl.loadDeferred — lazy content source resolution', () {
+  group('MovaAdController.loadDeferred — lazy content source resolution', () {
     const pre = MovaAdBreak(
       kind: MovaAdBreakKind.pre,
       source: MovaSource('https://host/pre.mp4'),
@@ -609,14 +609,14 @@ void main() {
     /// Builds an api + controller over [breaks], plus a counting resolver.
     ///
     /// 基于 [breaks] 构造 api + 控制器，外加一个计数型解析器。
-    (FakeMovaApi, MovaAdCtrl, List<int>) deferredBuild(
+    (FakeMovaApi, MovaAdController, List<int>) deferredBuild(
       List<MovaAdBreak> breaks, {
-      MovaSwapCtl? swap,
+      MovaSwapController? swap,
     }) {
       final api = FakeMovaApi(
         options: MovaOpts(ads: MovaAdConfig(enabled: true, breaks: breaks)),
       );
-      return (api, MovaAdCtrl(api, swap: swap), <int>[]);
+      return (api, MovaAdController(api, swap: swap), <int>[]);
     }
 
     test('the resolver is NOT called while a pre-roll is playing', () async {
@@ -716,7 +716,7 @@ void main() {
       final api = FakeMovaApi(
         options: MovaOpts(ads: MovaAdConfig(enabled: true, breaks: [pre])),
       );
-      final c = MovaAdCtrl(api);
+      final c = MovaAdController(api);
       await c.load(_content);
       await settle();
       expect(api.source?.uri, 'https://host/pre.mp4');
@@ -732,7 +732,7 @@ void main() {
     /// counting the slot from `open()` instead of the first frame.
     ///
     /// 为 [breaks] 构造 api + 控制器与事件收集器，可选择从 `open()` 而非首帧起算。
-    (FakeMovaApi, MovaAdCtrl, List<MovaAdEvent>) slotBuild(
+    (FakeMovaApi, MovaAdController, List<MovaAdEvent>) slotBuild(
       List<MovaAdBreak> breaks, {
       bool fromFirstFrame = true,
     }) {
@@ -754,7 +754,7 @@ void main() {
           ),
         ),
       );
-      return (api, MovaAdCtrl(api), events);
+      return (api, MovaAdController(api), events);
     }
 
     /// Lets the controller's async chains settle inside a [fakeAsync] zone.
@@ -958,9 +958,9 @@ void main() {
     /// custom wait policy.
     ///
     /// 为 [breaks] 构造 api + 控制器，可选地带切换能力面与自定义等待策略。
-    (FakeMovaApi, MovaAdCtrl, List<MovaAdEvent>) pendBuild(
+    (FakeMovaApi, MovaAdController, List<MovaAdEvent>) pendBuild(
       List<MovaAdBreak> breaks, {
-      MovaSwapCtl? swap,
+      MovaSwapController? swap,
       MovaAdWaitPolicy? wait,
     }) {
       final events = <MovaAdEvent>[];
@@ -974,7 +974,7 @@ void main() {
           ),
         ),
       );
-      return (api, MovaAdCtrl(api, swap: swap), events);
+      return (api, MovaAdController(api, swap: swap), events);
     }
 
     /// Lets the controller's async chains settle inside a [fakeAsync] zone.
@@ -1292,9 +1292,9 @@ void main() {
     /// not-ready action.
     ///
     /// 构造 api + 控制器，可选地带切换能力面、等待策略与等不到时的动作。
-    (FakeMovaApi, MovaAdCtrl, List<MovaAdEvent>) waitBuild(
+    (FakeMovaApi, MovaAdController, List<MovaAdEvent>) waitBuild(
       List<MovaAdBreak> breaks, {
-      MovaSwapCtl? swap,
+      MovaSwapController? swap,
       MovaAdWaitPolicy? wait,
       MovaAdNotReady notReady = MovaAdNotReady.hardCut,
     }) {
@@ -1310,7 +1310,7 @@ void main() {
           ),
         ),
       );
-      return (api, MovaAdCtrl(api, swap: swap), events);
+      return (api, MovaAdController(api, swap: swap), events);
     }
 
     /// Lets the controller's async chains settle inside a [fakeAsync] zone.
@@ -1625,7 +1625,7 @@ void main() {
     /// Builds api + controller with an optional failure policy.
     ///
     /// 构造 api + 控制器，可选地带失败兜底策略。
-    (FakeMovaApi, MovaAdCtrl, List<MovaAdEvent>) failBuild(
+    (FakeMovaApi, MovaAdController, List<MovaAdEvent>) failBuild(
       List<MovaAdBreak> breaks, {
       MovaAdFailPolicy? policy,
       Duration loadTimeout = const Duration(seconds: 8),
@@ -1644,7 +1644,7 @@ void main() {
           ),
         ),
       );
-      return (api, MovaAdCtrl(api), events);
+      return (api, MovaAdController(api), events);
     }
 
     /// Counts how many times [uri] was opened, throwing attempts included.

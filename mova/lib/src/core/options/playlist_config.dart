@@ -4,15 +4,15 @@ import '../model/playlist.dart';
 /// "next up" card that appears near the end of an item.
 ///
 /// Data-only by design: the running index and navigation live on
-/// `MovaPlistCtrl` (host-constructed), keeping this bundle immutable and
+/// `MovaPlaylistController` (host-constructed), keeping this bundle immutable and
 /// comparable. Disabled and empty by default so enabling it is an explicit
 /// host decision.
 ///
 /// 顺序播放列表（剧集/曲目）与临近结束显示的"下一集"卡片的配置。
 ///
-/// 刻意只做数据：运行时下标与导航在 `MovaPlistCtrl`（宿主构造）上，
+/// 刻意只做数据：运行时下标与导航在 `MovaPlaylistController`（宿主构造）上，
 /// 使本配置保持不可变、可比较。默认关闭且列表为空，是否启用由宿主显式决定。
-class MovaPlistConfig {
+class MovaPlaylistConfig {
   /// Master switch; the playlist controller/card do nothing when `false`.
   ///
   /// 总开关；为 `false` 时播放列表控制器/卡片均不动作。
@@ -21,7 +21,7 @@ class MovaPlistConfig {
   /// The ordered list of items to play through.
   ///
   /// 要顺序播放的项列表。
-  final List<MovaPlistItem> items;
+  final List<MovaPlaylistItem> items;
 
   /// Index the controller starts on (clamped into range).
   ///
@@ -47,9 +47,9 @@ class MovaPlistConfig {
   /// - [initialIndex]: starting index / 起始下标
   /// - [autoPlayNext]: auto-advance at end / 结束自动续播
   /// - [nextUpLeadTime]: card lead time before end / 卡片提前量
-  const MovaPlistConfig({
+  const MovaPlaylistConfig({
     this.enabled = false,
-    this.items = const <MovaPlistItem>[],
+    this.items = const <MovaPlaylistItem>[],
     this.initialIndex = 0,
     this.autoPlayNext = true,
     this.nextUpLeadTime = const Duration(seconds: 10),
@@ -59,14 +59,14 @@ class MovaPlistConfig {
   /// current value.
   ///
   /// 返回一份替换了指定字段的拷贝；未指定的字段保持当前值。
-  MovaPlistConfig copyWith({
+  MovaPlaylistConfig copyWith({
     bool? enabled,
-    List<MovaPlistItem>? items,
+    List<MovaPlaylistItem>? items,
     int? initialIndex,
     bool? autoPlayNext,
     Duration? nextUpLeadTime,
   }) {
-    return MovaPlistConfig(
+    return MovaPlaylistConfig(
       enabled: enabled ?? this.enabled,
       items: items ?? this.items,
       initialIndex: initialIndex ?? this.initialIndex,
@@ -78,7 +78,7 @@ class MovaPlistConfig {
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
-      other is MovaPlistConfig &&
+      other is MovaPlaylistConfig &&
           runtimeType == other.runtimeType &&
           enabled == other.enabled &&
           identical(items, other.items) &&

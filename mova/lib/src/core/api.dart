@@ -88,7 +88,7 @@ abstract class MovaApi {
   /// thumbnail stream, and cache control.
   ///
   /// 拖动预览能力面：缩略图请求、已解析缩略图的流，以及缓存控制。
-  MovaPrevApi get preview;
+  MovaPreviewApi get preview;
 
   /// The speech-to-text subtitle capability surface: recognized cues and
   /// start/stop control.
@@ -227,23 +227,23 @@ abstract class MovaApi {
 
   /// Forces the screen orientation, independent of fullscreen.
   ///
-  /// [MovaOrient.auto] restores the aspect-ratio/fullscreen-derived
-  /// behavior; [MovaOrient.portrait]/[MovaOrient.landscape] pin that
+  /// [MovaOrientation.auto] restores the aspect-ratio/fullscreen-derived
+  /// behavior; [MovaOrientation.portrait]/[MovaOrientation.landscape] pin that
   /// orientation. Only mobile platforms honor this; desktop is a no-op.
   ///
   /// 强制屏幕方向，与全屏状态无关。
   ///
-  /// [MovaOrient.auto] 恢复按宽高比/全屏推导的行为；
-  /// [MovaOrient.portrait]/[MovaOrient.landscape] 固定该方向。仅移动端
+  /// [MovaOrientation.auto] 恢复按宽高比/全屏推导的行为；
+  /// [MovaOrientation.portrait]/[MovaOrientation.landscape] 固定该方向。仅移动端
   /// 生效，桌面端为空操作。
   ///
   /// - [o]: the target orientation override / 目标方向覆盖
   ///
   /// Example / 示例:
   /// ```dart
-  /// await api.setOrientation(MovaOrient.landscape);
+  /// await api.setOrientation(MovaOrientation.landscape);
   /// ```
-  Future<void> setOrientation(MovaOrient o);
+  Future<void> setOrientation(MovaOrientation o);
 
   /// Loads the available quality list for the current source, if any.
   ///
@@ -257,7 +257,7 @@ abstract class MovaApi {
   /// 切换到指定清晰度。
   ///
   /// [q] 为要切换到的清晰度。
-  Future<void> switchQuality(MovaQual q);
+  Future<void> switchQuality(MovaQuality q);
 
   /// Attempts to enter system picture-in-picture mode.
   ///

@@ -23,12 +23,12 @@ enum MovaSwapPhase {
 }
 
 /// The swap capability surface consumers drive, kept separate from [MovaApi]
-/// so callers like `MovaAdCtrl` depend on the swap verbs alone and can be
+/// so callers like `MovaAdController` depend on the swap verbs alone and can be
 /// tested against a tiny fake.
 ///
-/// 调用方驱动的切换能力面，与 [MovaApi] 分开，使 `MovaAdCtrl` 这类调用方
+/// 调用方驱动的切换能力面，与 [MovaApi] 分开，使 `MovaAdController` 这类调用方
 /// 只依赖切换动词，并能对着一个极小的假对象做测试。
-abstract class MovaSwapCtl {
+abstract class MovaSwapController {
   /// Whether seamless swapping is configured on.
   ///
   /// 是否已配置开启无缝切换。

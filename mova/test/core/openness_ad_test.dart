@@ -24,9 +24,9 @@ const _mid = MovaAdBreak(
 /// Builds a fake api + controller over [breaks] with [ads] as the ad section.
 ///
 /// 用 [ads] 作为广告配置节、基于 [breaks] 构造假 api + 控制器。
-(FakeMovaApi, MovaAdCtrl) build(MovaAdConfig ads, {FakeSwapCtl? swap}) {
+(FakeMovaApi, MovaAdController) build(MovaAdConfig ads, {FakeSwapCtl? swap}) {
   final api = FakeMovaApi(options: MovaOpts(ads: ads));
-  return (api, MovaAdCtrl(api, swap: swap));
+  return (api, MovaAdController(api, swap: swap));
 }
 
 /// Lets the controller's async chains settle inside a [fakeAsync] zone.
@@ -104,7 +104,7 @@ void main() {
       expect(const MovaAdConfig(failPolicy: MovaAdAbandonPod()).effectiveFailPolicy,
           isA<MovaAdAbandonPod>());
 
-      // And the injected policy is really the one MovaAdCtrl consults.
+      // And the injected policy is really the one MovaAdController consults.
       fakeAsync((async) {
         final policy = _RecordingFail();
         final (api, c) = build(MovaAdConfig(

@@ -3,7 +3,7 @@ import 'dart:async';
 import '../api.dart';
 import '../bus/bus.dart';
 import '../events/events.dart';
-import '../feed/engine_pool.dart' show MovaEngineFact;
+import '../feed/engine_pool.dart' show MovaEngineFactory;
 import '../model/fit.dart';
 import '../model/orientation.dart';
 import '../model/quality.dart';
@@ -40,7 +40,7 @@ import 'warm.dart';
 ///
 /// [MovaSwapConfig.enabled] 为 false 时它是纯直通代理：永不创建影子引擎，
 /// 每个方法都原样转发给工厂产出的那唯一一个引擎。
-class MovaSwapEngine implements MovaApi, MovaSwapCtl {
+class MovaSwapEngine implements MovaApi, MovaSwapController {
   /// Creates a swap engine over [engineFactory].
   ///
   /// 基于 [engineFactory] 创建一个切换引擎。
@@ -63,7 +63,7 @@ class MovaSwapEngine implements MovaApi, MovaSwapCtl {
   /// Creates each underlying engine.
   ///
   /// 创建每个底层引擎。
-  final MovaEngineFact _engineFactory;
+  final MovaEngineFactory _engineFactory;
 
   /// The engine currently driving the render surface.
   ///
@@ -214,7 +214,7 @@ class MovaSwapEngine implements MovaApi, MovaSwapCtl {
   bool get pipSupported => _active.pipSupported;
 
   @override
-  MovaPrevApi get preview => _active.preview;
+  MovaPreviewApi get preview => _active.preview;
 
   @override
   MovaSttApi get stt => _active.stt;
@@ -262,13 +262,13 @@ class MovaSwapEngine implements MovaApi, MovaSwapCtl {
   Future<void> setMini(bool v) => _active.setMini(v);
 
   @override
-  Future<void> setOrientation(MovaOrient o) => _active.setOrientation(o);
+  Future<void> setOrientation(MovaOrientation o) => _active.setOrientation(o);
 
   @override
   Future<void> loadQualities() => _active.loadQualities();
 
   @override
-  Future<void> switchQuality(MovaQual q) => _active.switchQuality(q);
+  Future<void> switchQuality(MovaQuality q) => _active.switchQuality(q);
 
   @override
   Future<bool> enterPip() => _active.enterPip();
@@ -561,6 +561,6 @@ class MovaSwapEngine implements MovaApi, MovaSwapCtl {
     _phase = phase;
     if (_disposed) return;
     _swapPhases.add(phase);
-    _events.add(MovaSwapChg(phase));
+    _events.add(MovaSwapChange(phase));
   }
 }

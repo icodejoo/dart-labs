@@ -23,11 +23,11 @@
 ### 手势与 UI
 
 * 手势层：横滑进度 / 双击快进退 / 双指缩放，带 HUD；左右侧竖滑默认分别对应
-  亮度 / 音量（对齐 bilibili 等主流），可经 `MovaGestConfig` 的侧别→动作映射
-  （`MovaGestAction`）任意重映射或用 `MovaGestAction.none` 禁用某侧。
-* 组件树 / 皮肤 / 补丁三层契约：`MovaComp` 组件树由 `MovaSkin`（默认实现
-  `MovaDefSkin`）依据 `MovaState` 出树，通过 `MovaPatch`（`replace`/`remove`/
-  `insertAfter`/`add`）做结构级定制，无需派生子类；`MovaDefSkin.assemble` 也可按
+  亮度 / 音量（对齐 bilibili 等主流），可经 `MovaGestureConfig` 的侧别→动作映射
+  （`MovaGestureAction`）任意重映射或用 `MovaGestureAction.none` 禁用某侧。
+* 组件树 / 皮肤 / 补丁三层契约：`MovaComponent` 组件树由 `MovaSkin`（默认实现
+  `MovaDefaultSkin`）依据 `MovaState` 出树，通过 `MovaPatch`（`replace`/`remove`/
+  `insertAfter`/`add`）做结构级定制，无需派生子类；`MovaDefaultSkin.assemble` 也可按
   `buildPlaybackLayer`/`buildOperableLayer`/`buildPersistentLayer` 三层半覆写。
 * `MovaPlugin` 能力 mixin：为有状态组件提供 `api`（稳定句柄）与 `bind()`
   （订阅并在 `dispose` 自动回收）。
@@ -43,7 +43,7 @@
 * 点播 / 直播两套控制条自适应合并为 `MovaBottomBarComponent`。
 * 直播时移：`MovaLiveSeekMode.dvr` / `.timeshift` 两种可拖模式，
   `MovaLiveConfig.urlBuilder`/`backToLive`/`autoBackToLiveOnStall`/`windowResolver`
-  可配置；`MovaState.timeshiftBehind` 配合 `MovaTimeShiftChg`/`MovaLiveEdgeReach`
+  可配置；`MovaState.timeshiftBehind` 配合 `MovaTimeShiftChange`/`MovaLiveEdgeReach`
   事件，`MovaApi.backToLiveEdge()` 按策略执行。
 * `MovaApi.pipSupported`/`MovaState.pipSupported`：PiP 按钮在不支持的平台自动隐藏。
 
@@ -54,8 +54,8 @@
   返回 `false`）。
 * App 内小窗 `MovaMini`：不依赖任何系统 PiP API，让画面从页面里"缩"成一个可拖拽
   的悬浮小窗，不重新解码、不黑屏。默认 **关闭**（`MovaMiniConfig.enabled` 为
-  `false` 时全链路零行为变化）。两种挂载方式并存：`MovaMiniCtl.showInPage`
-  （页内悬浮）与 `MovaMiniCtl.show` + `MovaMiniHost`（跨路由持久）。支持吸边/
+  `false` 时全链路零行为变化）。两种挂载方式并存：`MovaMiniController.showInPage`
+  （页内悬浮）与 `MovaMiniController.show` + `MovaMiniHost`（跨路由持久）。支持吸边/
   钳制/安全区避让、惯性拖拽甩出关闭。与系统 PiP 互斥（进入小窗会先退出系统 PiP，
   反之亦然）。
 
@@ -64,9 +64,9 @@
 * 拖动进度条或横滑手势时，在进度条上方显示目标时刻的缩略图气泡
   （`MovaPreviewComponent`）。
 * 缩略图来源按序：服务端 WebVTT 雪碧图（`<video-url>.vtt`，支持 `#xywh` 裁剪）→
-  libmpv 隐藏 `Player` 抽帧兜底，来源链可经 `MovaPrevConfig.sources` 整体替换。
+  libmpv 隐藏 `Player` 抽帧兜底，来源链可经 `MovaPreviewConfig.sources` 整体替换。
 * 内存 + 磁盘两级缓存；网络策略默认 `wifiOnly`（`connectivity_plus` 探针判定，
-  未知连接与桌面一律放行），被拦时静默不请求并发出 `MovaPrevBlock` 事件。
+  未知连接与桌面一律放行），被拦时静默不请求并发出 `MovaPreviewBlock` 事件。
 * `createMovaEngine()` 的 `extractor`/`probe` 默认值为 `null`（不默认引入
   `media_kit_video`/`connectivity_plus` 的静态可达依赖，便于 tree-shake）。要启用
   抽帧兜底与 `wifiOnly` 网络策略，需显式传入
@@ -76,7 +76,7 @@
 
 ### 广告编排
 
-* `MovaAdCtrl` 支持按真实业务时序播广告：正片源可延迟解析
+* `MovaAdController` 支持按真实业务时序播广告：正片源可延迟解析
   （`loadDeferred(MovaSourceResolver)`），广告位 `duration`/`delay` 与素材时间轴
   解耦（统一 `Timer` 驱动，不查询/依赖 `state.duration`，不做尾部 seek）。
 * 按广告位类型决定是否等待就绪（`MovaAdWaitPolicy`，内置 `MovaAdWaitByKind`

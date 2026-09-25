@@ -19,7 +19,7 @@ import '../skins/skin.dart';
 /// redesign intended.
 ///
 /// 小窗内展示的极简 chrome：中央播放/暂停、缓冲转圈、一个关闭（✕）按钮——
-/// 仅此而已。180px 宽的框里放不下进度条/清晰度选择/全屏按钮，`MovaDefSkin`
+/// 仅此而已。180px 宽的框里放不下进度条/清晰度选择/全屏按钮，`MovaDefaultSkin`
 /// 自带的栏自动隐藏在这里反而是负担。
 ///
 /// 原样复用 [MovaSkin] 的组件树契约——证明新皮肤确实近乎零成本，正是 0.3.0
@@ -27,10 +27,10 @@ import '../skins/skin.dart';
 class MovaMiniSkin implements MovaSkin {
   /// Called when the close (✕) button is tapped; `null` disables the button's
   /// effect (it still renders, but taps do nothing). `MovaMiniWindow` wires
-  /// this to `MovaMiniCtl.close` when the caller leaves it unset.
+  /// this to `MovaMiniController.close` when the caller leaves it unset.
   ///
   /// 关闭（✕）按钮被点击时调用；为 `null` 时按钮仍会渲染但点击无效果。
-  /// 调用方未设置时，`MovaMiniWindow` 会把它接到 `MovaMiniCtl.close`。
+  /// 调用方未设置时，`MovaMiniWindow` 会把它接到 `MovaMiniController.close`。
   final VoidCallback? onClose;
 
   /// Creates the mini-window chrome; [onClose] defaults to `null`.
@@ -39,7 +39,7 @@ class MovaMiniSkin implements MovaSkin {
   const MovaMiniSkin({this.onClose});
 
   @override
-  List<MovaComp> components() => [
+  List<MovaComponent> components() => [
         MovaCenterPlayComponent(),
         MovaBufferingComponent(),
         MovaMiniCloseComponent(onClose: onClose),
@@ -60,7 +60,7 @@ class MovaMiniSkin implements MovaSkin {
 /// The mini window's close (✕) button, top-right corner.
 ///
 /// 小窗的关闭（✕）按钮，位于右上角。
-class MovaMiniCloseComponent extends MovaComp {
+class MovaMiniCloseComponent extends MovaComponent {
   /// Creates the close-button leaf component.
   ///
   /// 创建关闭按钮叶子组件。

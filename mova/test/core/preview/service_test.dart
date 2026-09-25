@@ -89,20 +89,20 @@ class _SwitchProbe implements MovaNetProbe {
 
 void main() {
   const src = MovaSource('https://host/a.mp4');
-  const noDebounce = MovaPrevConfig(
+  const noDebounce = MovaPreviewConfig(
     debounce: Duration.zero,
-    network: MovaPrevNet.always,
+    network: MovaPreviewNet.always,
   );
 
   late MovaMemoryThumbCache cache;
   late _FakeSource source;
-  late MovaPrevSvc service;
+  late MovaPreviewService service;
 
   /// Builds a service over the shared fakes with [config].
   ///
   /// 用共享替身与 [config] 构造一个服务。
-  MovaPrevSvc build(MovaPrevConfig config, {MovaNetProbe? probe}) {
-    return MovaPrevSvc(
+  MovaPreviewService build(MovaPreviewConfig config, {MovaNetProbe? probe}) {
+    return MovaPreviewService(
       config: config,
       cache: cache,
       probe: probe ?? MovaAlwaysAllowNetProbe(),
@@ -156,9 +156,9 @@ void main() {
   });
 
   test('debounce collapses a burst of scrub ticks into one request', () async {
-    service = build(const MovaPrevConfig(
+    service = build(const MovaPreviewConfig(
       debounce: Duration(milliseconds: 40),
-      network: MovaPrevNet.always,
+      network: MovaPreviewNet.always,
     ));
     service.requestAt(const Duration(seconds: 10));
     service.requestAt(const Duration(seconds: 20));
@@ -195,9 +195,9 @@ void main() {
   });
 
   test('a blocked network refuses without touching any source', () async {
-    final reasons = <MovaPrevBlockReason>[];
+    final reasons = <MovaPreviewBlockReason>[];
     service = build(
-      MovaPrevConfig(
+      MovaPreviewConfig(
         debounce: Duration.zero,
         onBlocked: reasons.add,
       ),
@@ -207,29 +207,29 @@ void main() {
     await service.drain();
     expect(source.asked, isEmpty);
     expect(service.current, isNull);
-    expect(reasons, [MovaPrevBlockReason.network]);
+    expect(reasons, [MovaPreviewBlockReason.network]);
   });
 
   test('a disabled config refuses with the disabled reason', () async {
-    final reasons = <MovaPrevBlockReason>[];
-    service = build(MovaPrevConfig(
+    final reasons = <MovaPreviewBlockReason>[];
+    service = build(MovaPreviewConfig(
       enabled: false,
       debounce: Duration.zero,
-      network: MovaPrevNet.always,
+      network: MovaPreviewNet.always,
       onBlocked: reasons.add,
     ));
     service.requestAt(const Duration(seconds: 10));
     await service.drain();
     expect(source.asked, isEmpty);
-    expect(reasons, [MovaPrevBlockReason.disabled]);
+    expect(reasons, [MovaPreviewBlockReason.disabled]);
   });
 
   test('no attached source refuses with the noSource reason', () async {
-    final reasons = <MovaPrevBlockReason>[];
-    service = MovaPrevSvc(
-      config: const MovaPrevConfig(
+    final reasons = <MovaPreviewBlockReason>[];
+    service = MovaPreviewService(
+      config: const MovaPreviewConfig(
         debounce: Duration.zero,
-        network: MovaPrevNet.always,
+        network: MovaPreviewNet.always,
       ),
       cache: cache,
       probe: MovaAlwaysAllowNetProbe(),
@@ -239,15 +239,15 @@ void main() {
     service.requestAt(const Duration(seconds: 10));
     await service.drain();
     expect(source.asked, isEmpty);
-    expect(reasons, [MovaPrevBlockReason.noSource]);
+    expect(reasons, [MovaPreviewBlockReason.noSource]);
   });
 
   test('an empty source chain refuses with the platform reason', () async {
-    final reasons = <MovaPrevBlockReason>[];
-    service = MovaPrevSvc(
-      config: const MovaPrevConfig(
+    final reasons = <MovaPreviewBlockReason>[];
+    service = MovaPreviewService(
+      config: const MovaPreviewConfig(
         debounce: Duration.zero,
-        network: MovaPrevNet.always,
+        network: MovaPreviewNet.always,
       ),
       cache: cache,
       probe: MovaAlwaysAllowNetProbe(),
@@ -256,13 +256,13 @@ void main() {
     )..attach(src);
     service.requestAt(const Duration(seconds: 10));
     await service.drain();
-    expect(reasons, [MovaPrevBlockReason.platform]);
+    expect(reasons, [MovaPreviewBlockReason.platform]);
   });
 
   test('sources are tried in order and the first non-null answer wins', () async {
     final first = _FakeSource(name: 'first', answer: false);
     final second = _FakeSource(name: 'second');
-    service = MovaPrevSvc(
+    service = MovaPreviewService(
       config: noDebounce,
       cache: cache,
       probe: MovaAlwaysAllowNetProbe(),
@@ -286,9 +286,9 @@ void main() {
   });
 
   test('cancel drops the pending request and hides the current thumb', () async {
-    service = build(const MovaPrevConfig(
+    service = build(const MovaPreviewConfig(
       debounce: Duration(milliseconds: 40),
-      network: MovaPrevNet.always,
+      network: MovaPreviewNet.always,
     ));
     service.requestAt(const Duration(seconds: 10));
     service.cancel();
@@ -299,10 +299,10 @@ void main() {
   });
 
   test('a custom cacheKeyBuilder is used for every entry', () async {
-    service = MovaPrevSvc(
-      config: MovaPrevConfig(
+    service = MovaPreviewService(
+      config: MovaPreviewConfig(
         debounce: Duration.zero,
-        network: MovaPrevNet.always,
+        network: MovaPreviewNet.always,
         cacheKeyBuilder: (s, b, w) => 'custom_${b}_$w',
       ),
       cache: cache,

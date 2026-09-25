@@ -15,7 +15,7 @@ import '../model/source.dart';
 /// 做成端口而非直接调 `HttpClient`，好让测试无需碰网络即可校验调用，宿主
 /// 日后也能换成真正的字节级磁盘缓存。目前只提供 [MovaNetworkWarmFeedPrefetcher]
 /// 一种实现——范围说明见 [prime]。
-abstract class MovaFeedPrefch {
+abstract class MovaFeedPrefetcher {
   /// Best-effort warm-up for [source]; must never throw and must never block
   /// playback of the current item.
   ///
@@ -23,23 +23,23 @@ abstract class MovaFeedPrefch {
   Future<void> prime(MovaSource source);
 }
 
-/// The default [MovaFeedPrefch]: opens a ranged HTTP GET for the first
+/// The default [MovaFeedPrefetcher]: opens a ranged HTTP GET for the first
 /// [rangeBytes] of [MovaSource.uri] and discards the response.
 ///
 /// **Scope note**: this only warms DNS/TCP/TLS/CDN-edge state; it does not
 /// decode and does not write to disk. Warming the *decoder* path is
 /// `MovaFeedEnginePool`'s job — it opens upcoming items on their own engines
 /// ahead of time — so this prefetcher only covers the items further out than
-/// the pool reaches (see `MovaFeedCtrl.prefetchDepth`).
+/// the pool reaches (see `MovaFeedController.prefetchDepth`).
 ///
-/// 默认的 [MovaFeedPrefch]：对 [MovaSource.uri] 发起一次范围 HTTP GET，只取
+/// 默认的 [MovaFeedPrefetcher]：对 [MovaSource.uri] 发起一次范围 HTTP GET，只取
 /// 前 [rangeBytes] 字节并丢弃响应体。
 ///
 /// **范围说明**：只预热 DNS/TCP/TLS/CDN 边缘节点状态；不解码、不落盘。预热
 /// *解码*链路是 `MovaFeedEnginePool` 的职责——它会提前在各自的引擎上打开即将
 /// 播放的条目——因此本 prefetcher 只覆盖池够不到的更远条目（见
-/// `MovaFeedCtrl.prefetchDepth`）。
-class MovaNetworkWarmFeedPrefetcher implements MovaFeedPrefch {
+/// `MovaFeedController.prefetchDepth`）。
+class MovaNetworkWarmFeedPrefetcher implements MovaFeedPrefetcher {
   /// Creates a network-warming prefetcher.
   ///
   /// 创建一个网络预热 prefetcher。

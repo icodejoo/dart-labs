@@ -47,11 +47,11 @@ import 'skin.dart';
 /// 栏 chrome，受自动隐藏/画中画/锁定/小窗门控）/ 常驻层（锁定遮罩 + 切换按钮，
 /// 恒挂载且不受门控，因为它本身就是控制这些状态的入口）。完整设计理由与"只
 /// 覆写一层"的契约见 doc/DESIGN-0.3.0-plugin-skin.md §7.2。
-class MovaDefSkin implements MovaSkin {
+class MovaDefaultSkin implements MovaSkin {
   /// Creates the default skin, optionally applying [patches] to its tree.
   ///
   /// 创建默认皮肤，可选地对其组件树应用 [patches]。
-  const MovaDefSkin({this.patches = const []});
+  const MovaDefaultSkin({this.patches = const []});
 
   /// Structural patches applied to the base tree in [components], in order.
   ///
@@ -59,7 +59,7 @@ class MovaDefSkin implements MovaSkin {
   final List<MovaPatch> patches;
 
   @override
-  List<MovaComp> components() => applyPatches([
+  List<MovaComponent> components() => applyPatches([
     MovaGestureLayerComponent(),
     MovaHudLayerComponent(),
     MovaTopBarComponent(),
@@ -335,7 +335,7 @@ class _HideWhen extends StatelessWidget {
 
 /// The single lock/unlock toggle button, in both directions.
 ///
-/// Lives in the skin's persistent layer (see [MovaDefSkin.assemble]):
+/// Lives in the skin's persistent layer (see [MovaDefaultSkin.assemble]):
 /// always mounted, never gated by [_BarVisibility]'s idle auto-hide, by
 /// [_LockedHidden], or by [_PipHidden]. It has to stay reachable regardless of
 /// any of those states, because it is the one control that *changes* them —
@@ -344,7 +344,7 @@ class _HideWhen extends StatelessWidget {
 ///
 /// 唯一的锁定/解锁切换按钮，两个方向共用同一个组件。
 ///
-/// 位于皮肤的常驻层（见 [MovaDefSkin.assemble]）：恒定挂载，不受
+/// 位于皮肤的常驻层（见 [MovaDefaultSkin.assemble]）：恒定挂载，不受
 /// [_BarVisibility] 的闲置自动隐藏、[_LockedHidden]、[_PipHidden] 任何一个门控。
 /// 它必须在这些状态下都可达，因为它本身就是**改变**这些状态的那个控制——
 /// 若被自动隐藏隐去，压根没法锁定；若被锁定隐去，压根没法解锁。

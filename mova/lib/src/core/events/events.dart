@@ -29,7 +29,7 @@ class MovaReady extends MovaEvent {
 /// A new source was opened.
 ///
 /// 打开了新的媒体源。
-class MovaSourceChg extends MovaEvent {
+class MovaSourceChange extends MovaEvent {
   /// The source that was opened.
   ///
   /// 被打开的源。
@@ -38,7 +38,7 @@ class MovaSourceChg extends MovaEvent {
   /// Creates the event with [source].
   ///
   /// 用 [source] 创建事件。
-  const MovaSourceChg(this.source);
+  const MovaSourceChange(this.source);
 }
 
 /// Playback started or resumed.
@@ -104,7 +104,7 @@ class MovaSeeked extends MovaEvent {
 /// Buffering state toggled.
 ///
 /// 缓冲状态发生变化。
-class MovaBufferChg extends MovaEvent {
+class MovaBufferChange extends MovaEvent {
   /// Whether the player is currently buffering.
   ///
   /// 播放器当前是否处于缓冲中。
@@ -113,13 +113,13 @@ class MovaBufferChg extends MovaEvent {
   /// Creates the event with [buffering].
   ///
   /// 用 [buffering] 创建事件。
-  const MovaBufferChg(this.buffering);
+  const MovaBufferChange(this.buffering);
 }
 
 /// The media's total duration became known or changed.
 ///
 /// 媒体总时长已知或发生变化。
-class MovaDurChg extends MovaEvent {
+class MovaDurationChange extends MovaEvent {
   /// The new total duration.
   ///
   /// 新的总时长。
@@ -128,13 +128,13 @@ class MovaDurChg extends MovaEvent {
   /// Creates the event with [duration].
   ///
   /// 用 [duration] 创建事件。
-  const MovaDurChg(this.duration);
+  const MovaDurationChange(this.duration);
 }
 
 /// The decoded video frame size changed.
 ///
 /// 解码后的视频帧尺寸发生变化。
-class MovaSizeChg extends MovaEvent {
+class MovaSizeChange extends MovaEvent {
   /// Frame pixel width.
   ///
   /// 帧像素宽。
@@ -148,13 +148,13 @@ class MovaSizeChg extends MovaEvent {
   /// Creates the event with [width] and [height].
   ///
   /// 用 [width]、[height] 创建事件。
-  const MovaSizeChg(this.width, this.height);
+  const MovaSizeChange(this.width, this.height);
 }
 
 /// The volume level changed.
 ///
 /// 音量发生变化。
-class MovaVolumeChg extends MovaEvent {
+class MovaVolumeChange extends MovaEvent {
   /// New volume, typically in `0.0`–`1.0`.
   ///
   /// 新音量，通常在 `0.0`–`1.0` 之间。
@@ -163,13 +163,13 @@ class MovaVolumeChg extends MovaEvent {
   /// Creates the event with [value].
   ///
   /// 用 [value] 创建事件。
-  const MovaVolumeChg(this.value);
+  const MovaVolumeChange(this.value);
 }
 
 /// The brightness overlay level changed.
 ///
 /// 亮度遮罩层级发生变化。
-class MovaBrightChg extends MovaEvent {
+class MovaBrightChange extends MovaEvent {
   /// New brightness, typically in `0.0`–`1.0`.
   ///
   /// 新亮度，通常在 `0.0`–`1.0` 之间。
@@ -178,13 +178,13 @@ class MovaBrightChg extends MovaEvent {
   /// Creates the event with [value].
   ///
   /// 用 [value] 创建事件。
-  const MovaBrightChg(this.value);
+  const MovaBrightChange(this.value);
 }
 
 /// The playback rate changed.
 ///
 /// 播放速率发生变化。
-class MovaRateChg extends MovaEvent {
+class MovaRateChange extends MovaEvent {
   /// New playback rate, where `1.0` is normal speed.
   ///
   /// 新播放速率，`1.0` 为正常速度。
@@ -193,37 +193,37 @@ class MovaRateChg extends MovaEvent {
   /// Creates the event with [value].
   ///
   /// 用 [value] 创建事件。
-  const MovaRateChg(this.value);
+  const MovaRateChange(this.value);
 }
 
 /// The available quality list was (re)extracted.
 ///
 /// 可选清晰度列表被（重新）提取。
-class MovaQualListChg extends MovaEvent {
+class MovaQualityListChange extends MovaEvent {
   /// The extracted quality list.
   ///
   /// 提取出的清晰度列表。
-  final List<MovaQual> qualities;
+  final List<MovaQuality> qualities;
 
   /// Creates the event with [qualities].
   ///
   /// 用 [qualities] 创建事件。
-  const MovaQualListChg(this.qualities);
+  const MovaQualityListChange(this.qualities);
 }
 
 /// The active quality selection changed.
 ///
 /// 当前选中的清晰度发生变化。
-class MovaQualChg extends MovaEvent {
+class MovaQualityChange extends MovaEvent {
   /// The now-active quality.
   ///
   /// 当前生效的清晰度。
-  final MovaQual quality;
+  final MovaQuality quality;
 
   /// Creates the event with [quality].
   ///
   /// 用 [quality] 创建事件。
-  const MovaQualChg(this.quality);
+  const MovaQualityChange(this.quality);
 }
 
 /// ABR downgraded the quality due to buffering pressure.
@@ -233,12 +233,12 @@ class MovaAbrDownShift extends MovaEvent {
   /// The quality downgraded from.
   ///
   /// 降档前的清晰度。
-  final MovaQual from;
+  final MovaQuality from;
 
   /// The quality downgraded to.
   ///
   /// 降档后的清晰度。
-  final MovaQual to;
+  final MovaQuality to;
 
   /// Creates the event with [from] and [to].
   ///
@@ -249,7 +249,7 @@ class MovaAbrDownShift extends MovaEvent {
 /// The video surface fill mode changed.
 ///
 /// 画面填充模式发生变化。
-class MovaFitChg extends MovaEvent {
+class MovaFitChange extends MovaEvent {
   /// The new fill mode.
   ///
   /// 新的填充模式。
@@ -258,13 +258,13 @@ class MovaFitChg extends MovaEvent {
   /// Creates the event with [fit].
   ///
   /// 用 [fit] 创建事件。
-  const MovaFitChg(this.fit);
+  const MovaFitChange(this.fit);
 }
 
 /// The pinch-zoom scale changed.
 ///
 /// 双指缩放比例发生变化。
-class MovaZoomChg extends MovaEvent {
+class MovaZoomChange extends MovaEvent {
   /// New zoom scale, where `1.0` is unzoomed.
   ///
   /// 新的缩放比例，`1.0` 为未缩放。
@@ -273,13 +273,13 @@ class MovaZoomChg extends MovaEvent {
   /// Creates the event with [zoom].
   ///
   /// 用 [zoom] 创建事件。
-  const MovaZoomChg(this.zoom);
+  const MovaZoomChange(this.zoom);
 }
 
 /// The gesture-lock state changed.
 ///
 /// 手势锁定状态发生变化。
-class MovaLockChg extends MovaEvent {
+class MovaLockChange extends MovaEvent {
   /// Whether gestures are now locked.
   ///
   /// 手势当前是否已锁定。
@@ -288,13 +288,13 @@ class MovaLockChg extends MovaEvent {
   /// Creates the event with [value].
   ///
   /// 用 [value] 创建事件。
-  const MovaLockChg(this.value);
+  const MovaLockChange(this.value);
 }
 
 /// The fullscreen state changed.
 ///
 /// 全屏状态发生变化。
-class MovaFullScreenChg extends MovaEvent {
+class MovaFullScreenChange extends MovaEvent {
   /// Whether the player is now fullscreen.
   ///
   /// 播放器当前是否处于全屏。
@@ -303,28 +303,28 @@ class MovaFullScreenChg extends MovaEvent {
   /// Creates the event with [value].
   ///
   /// 用 [value] 创建事件。
-  const MovaFullScreenChg(this.value);
+  const MovaFullScreenChange(this.value);
 }
 
 /// The forced screen-orientation override changed.
 ///
 /// 强制屏幕方向覆盖发生变化。
-class MovaOrientChg extends MovaEvent {
+class MovaOrientationChange extends MovaEvent {
   /// The new forced-orientation override.
   ///
   /// 新的强制方向覆盖值。
-  final MovaOrient orientation;
+  final MovaOrientation orientation;
 
   /// Creates the event with [orientation].
   ///
   /// 用 [orientation] 创建事件。
-  const MovaOrientChg(this.orientation);
+  const MovaOrientationChange(this.orientation);
 }
 
 /// The picture-in-picture state changed.
 ///
 /// 画中画状态发生变化。
-class MovaPipChg extends MovaEvent {
+class MovaPipChange extends MovaEvent {
   /// Whether picture-in-picture is now active.
   ///
   /// 画中画当前是否处于激活状态。
@@ -333,13 +333,13 @@ class MovaPipChg extends MovaEvent {
   /// Creates the event with [value].
   ///
   /// 用 [value] 创建事件。
-  const MovaPipChg(this.value);
+  const MovaPipChange(this.value);
 }
 
 /// The in-app mini window state changed.
 ///
 /// App 内小窗状态发生变化。
-class MovaMiniChg extends MovaEvent {
+class MovaMiniChange extends MovaEvent {
   /// Whether the mini window is now active.
   ///
   /// 小窗当前是否处于激活状态。
@@ -348,13 +348,13 @@ class MovaMiniChg extends MovaEvent {
   /// Creates the event with [mini].
   ///
   /// 用 [mini] 创建事件。
-  const MovaMiniChg(this.mini);
+  const MovaMiniChange(this.mini);
 }
 
 /// The live timeshift offset changed.
 ///
 /// 直播时移偏移量发生变化。
-class MovaTimeShiftChg extends MovaEvent {
+class MovaTimeShiftChange extends MovaEvent {
   /// How far behind the live edge playback currently is.
   ///
   /// 当前播放位置落后直播边缘的时长。
@@ -363,7 +363,7 @@ class MovaTimeShiftChg extends MovaEvent {
   /// Creates the event with [behind].
   ///
   /// 用 [behind] 创建事件。
-  const MovaTimeShiftChg(this.behind);
+  const MovaTimeShiftChange(this.behind);
 }
 
 /// Playback caught back up to the live edge.
@@ -379,16 +379,16 @@ class MovaLiveEdgeReach extends MovaEvent {
 /// A scrub-preview request was refused before any work happened.
 ///
 /// 一次拖动预览请求在真正开工前被拒绝。
-class MovaPrevBlock extends MovaEvent {
+class MovaPreviewBlock extends MovaEvent {
   /// Why the request was refused.
   ///
   /// 被拒绝的原因。
-  final MovaPrevBlockReason reason;
+  final MovaPreviewBlockReason reason;
 
   /// Creates the event with [reason].
   ///
   /// 用 [reason] 创建事件。
-  const MovaPrevBlock(this.reason);
+  const MovaPreviewBlock(this.reason);
 }
 
 /// An STT `start()` request was refused before any recognition happened.
@@ -409,7 +409,7 @@ class MovaSttBlock extends MovaEvent {
 /// A seamless engine swap transitioned to a new phase.
 ///
 /// 无缝引擎切换迁移到了新的阶段。
-class MovaSwapChg extends MovaEvent {
+class MovaSwapChange extends MovaEvent {
   /// The phase now in effect.
   ///
   /// 当前生效的阶段。
@@ -418,7 +418,7 @@ class MovaSwapChg extends MovaEvent {
   /// Creates the event with [phase].
   ///
   /// 用 [phase] 创建事件。
-  const MovaSwapChg(this.phase);
+  const MovaSwapChange(this.phase);
 }
 
 /// A playback error occurred.

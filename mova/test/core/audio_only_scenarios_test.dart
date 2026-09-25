@@ -206,7 +206,7 @@ void main() {
       addTearDown(engine.dispose);
 
       await engine.open(const MovaSource('https://host/one.m4a'));
-      const q = MovaQual(label: '320k', uri: 'https://host/one-320.m4a');
+      const q = MovaQuality(label: '320k', uri: 'https://host/one-320.m4a');
       engine.debugSetQualities(const [q], current: q);
       kernel.emitError('boom');
       await tick();
@@ -351,9 +351,9 @@ void main() {
       final (:kernel, :engine) = buildAudioEngine();
       addTearDown(engine.dispose);
 
-      const auto = MovaQual(label: '自动', uri: '', isAuto: true);
-      const high = MovaQual(label: '320k', uri: 'https://host/320.m3u8', height: 1080);
-      const low = MovaQual(label: '128k', uri: 'https://host/128.m3u8', height: 480);
+      const auto = MovaQuality(label: '自动', uri: '', isAuto: true);
+      const high = MovaQuality(label: '320k', uri: 'https://host/320.m3u8', height: 1080);
+      const low = MovaQuality(label: '128k', uri: 'https://host/128.m3u8', height: 480);
       await engine.open(const MovaSource('https://host/stream.m3u8'));
       engine.debugSetQualities(const [auto, high, low], current: high);
 

@@ -87,7 +87,7 @@ class _LeakProbePageState extends State<_LeakProbePage> {
       swap: MovaSwapConfig(enabled: kMode == 'swap', trigger: const MovaEagerWarm()),
     );
     final engine = MovaSwapEngine(engineFactory: () => createMovaEngine(options: opts));
-    final ctrl = MovaAdCtrl(engine, swap: engine);
+    final ctrl = MovaAdController(engine, swap: engine);
 
     await ctrl.load(_content());
     await _waitPlaying(engine);
@@ -139,7 +139,7 @@ class _LeakProbePageState extends State<_LeakProbePage> {
   }
 
   /// 等待广告阶段变为 [wanted]；超时 30s 返回 false。
-  Future<bool> _waitAd(MovaAdCtrl ctrl, bool wanted) async {
+  Future<bool> _waitAd(MovaAdController ctrl, bool wanted) async {
     if (ctrl.isShowingAd == wanted) return true;
     final completer = Completer<bool>();
     late final StreamSubscription<void> sub;

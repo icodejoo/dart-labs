@@ -10,7 +10,7 @@
 /// 将侧别与动作解耦，宿主可自由重映射——例如把亮度放右侧，或用 [none] 禁用
 /// 某一侧。竖向动作（[volume]/[brightness]）由竖向拖动距离驱动；[seek] 由横向
 /// 距离驱动，故只在 [horizontal] 上有意义。
-enum MovaGestAction {
+enum MovaGestureAction {
   /// The direction is disabled.
   ///
   /// 该方向被禁用。
@@ -44,23 +44,23 @@ enum MovaGestAction {
 /// 各方向拖动经 [leftVertical]/[rightVertical]/[horizontal] 映射到动作，侧别与
 /// 动作的配对完全可配。默认对齐主流约定（bilibili 等）：左侧竖滑=亮度，
 /// 右侧竖滑=音量，横滑=进度。
-class MovaGestConfig {
-  /// Action for a horizontal drag. Defaults to [MovaGestAction.seek].
+class MovaGestureConfig {
+  /// Action for a horizontal drag. Defaults to [MovaGestureAction.seek].
   ///
-  /// 横向拖动的动作。默认 [MovaGestAction.seek]。
-  final MovaGestAction horizontal;
+  /// 横向拖动的动作。默认 [MovaGestureAction.seek]。
+  final MovaGestureAction horizontal;
 
   /// Action for a vertical drag starting on the left half. Defaults to
-  /// [MovaGestAction.brightness].
+  /// [MovaGestureAction.brightness].
   ///
-  /// 从左半屏开始的竖向拖动的动作。默认 [MovaGestAction.brightness]。
-  final MovaGestAction leftVertical;
+  /// 从左半屏开始的竖向拖动的动作。默认 [MovaGestureAction.brightness]。
+  final MovaGestureAction leftVertical;
 
   /// Action for a vertical drag starting on the right half. Defaults to
-  /// [MovaGestAction.volume].
+  /// [MovaGestureAction.volume].
   ///
-  /// 从右半屏开始的竖向拖动的动作。默认 [MovaGestAction.volume]。
-  final MovaGestAction rightVertical;
+  /// 从右半屏开始的竖向拖动的动作。默认 [MovaGestureAction.volume]。
+  final MovaGestureAction rightVertical;
 
   /// Double-tap left/right to seek backward/forward (VOD only).
   ///
@@ -106,16 +106,16 @@ class MovaGestConfig {
   /// Example / 示例:
   /// ```dart
   /// // Swap the sides back, and disable pinch-zoom.
-  /// const cfg = MovaGestConfig(
-  ///   leftVertical: MovaGestAction.volume,
-  ///   rightVertical: MovaGestAction.brightness,
+  /// const cfg = MovaGestureConfig(
+  ///   leftVertical: MovaGestureAction.volume,
+  ///   rightVertical: MovaGestureAction.brightness,
   ///   pinchZoom: false,
   /// );
   /// ```
-  const MovaGestConfig({
-    this.horizontal = MovaGestAction.seek,
-    this.leftVertical = MovaGestAction.brightness,
-    this.rightVertical = MovaGestAction.volume,
+  const MovaGestureConfig({
+    this.horizontal = MovaGestureAction.seek,
+    this.leftVertical = MovaGestureAction.brightness,
+    this.rightVertical = MovaGestureAction.volume,
     this.doubleTapSeek = true,
     this.doubleTapStep = const Duration(seconds: 10),
     this.pinchZoom = true,
@@ -128,7 +128,7 @@ class MovaGestConfig {
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
-      other is MovaGestConfig &&
+      other is MovaGestureConfig &&
           runtimeType == other.runtimeType &&
           horizontal == other.horizontal &&
           leftVertical == other.leftVertical &&

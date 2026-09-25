@@ -39,11 +39,11 @@ class MovaState {
   /// 播放器当前是否处于全屏模式。
   final bool fullscreen;
 
-  /// The forced screen-orientation override; [MovaOrient.auto] by default,
+  /// The forced screen-orientation override; [MovaOrientation.auto] by default,
   /// which keeps the aspect-ratio/fullscreen-derived behavior.
   ///
-  /// 强制屏幕方向覆盖；默认 [MovaOrient.auto]，即保持按宽高比/全屏推导的行为。
-  final MovaOrient orientation;
+  /// 强制屏幕方向覆盖；默认 [MovaOrientation.auto]，即保持按宽高比/全屏推导的行为。
+  final MovaOrientation orientation;
 
   /// Whether the player is currently in picture-in-picture mode.
   ///
@@ -119,12 +119,12 @@ class MovaState {
   /// non-adaptive sources).
   ///
   /// 当前源可选的清晰度档位列表（非自适应源时为空）。
-  final List<MovaQual> qualities;
+  final List<MovaQuality> qualities;
 
   /// The currently selected quality, if any.
   ///
   /// 当前选中的清晰度档位（若有）。
-  final MovaQual? currentQuality;
+  final MovaQuality? currentQuality;
 
   /// Stream type: VOD or live.
   ///
@@ -190,7 +190,7 @@ class MovaState {
     this.completed = false,
     this.locked = false,
     this.fullscreen = false,
-    this.orientation = MovaOrient.auto,
+    this.orientation = MovaOrientation.auto,
     this.pip = false,
     this.pipSupported = false,
     this.mini = false,
@@ -202,7 +202,7 @@ class MovaState {
     this.rate = 1.0,
     this.zoom = 1.0,
     this.fit = MovaFit.contain,
-    this.qualities = const <MovaQual>[],
+    this.qualities = const <MovaQuality>[],
     this.currentQuality,
     this.type = MovaStreamType.vod,
     this.liveSeekable = false,
@@ -231,7 +231,7 @@ class MovaState {
     bool? completed,
     bool? locked,
     bool? fullscreen,
-    MovaOrient? orientation,
+    MovaOrientation? orientation,
     bool? pip,
     bool? pipSupported,
     bool? mini,
@@ -243,8 +243,8 @@ class MovaState {
     double? rate,
     double? zoom,
     MovaFit? fit,
-    List<MovaQual>? qualities,
-    MovaQual? currentQuality,
+    List<MovaQuality>? qualities,
+    MovaQuality? currentQuality,
     MovaStreamType? type,
     bool? liveSeekable,
     Duration? seekableWindow,

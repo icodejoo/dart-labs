@@ -100,7 +100,7 @@ class MovaEngine implements MovaApi {
   /// Applies/resets fullscreen orientation and system UI.
   ///
   /// 应用/重置全屏方向与系统 UI。
-  final MovaOrientPort _orientation;
+  final MovaOrientationPort _orientation;
 
   /// Pulls single frames for the scrub-preview fallback; `null` when no
   /// frame-extraction fallback is wired (an audio-only engine, among others).
@@ -119,8 +119,8 @@ class MovaEngine implements MovaApi {
   /// The scrub-preview service assembled from [MovaOpts.preview].
   ///
   /// 依据 [MovaOpts.preview] 装配出来的拖动预览服务。
-  late final MovaPrevSvc _previewService;
-  late final MovaSttSvc _sttService;
+  late final MovaPreviewService _previewService;
+  late final MovaSttService _sttService;
 
   /// The ABR downshift policy in effect; defaults to a [MovaBufferAbr]
   /// seeded from [MovaAbrConfig.stallThreshold] when [MovaAbrConfig.policy] is
@@ -264,8 +264,8 @@ class MovaEngine implements MovaApi {
     MovaBrightPort? brightness,
     MovaVolumePort? volume,
     MovaPipPort? pip,
-    MovaOrientPort? orientation,
-    MovaThumbDirProv? thumbDir,
+    MovaOrientationPort? orientation,
+    MovaThumbDirProvider? thumbDir,
     MovaFramePuller? extractor,
     MovaHttpFetch? fetcher,
   }) : _kernel = kernel ?? MovaMpvKernel(audioOnly: audioOnly),
@@ -288,7 +288,7 @@ class MovaEngine implements MovaApi {
       _progressRaw.stream,
       const Duration(milliseconds: 200),
     );
-    _sttService = MovaSttSvc(config: options.stt, onBlocked: _onSttBlocked);
+    _sttService = MovaSttService(config: options.stt, onBlocked: _onSttBlocked);
 
     _playingSub = _kernel.playing.listen((v) {
       _lastPlaying = v;
@@ -297,7 +297,7 @@ class MovaEngine implements MovaApi {
     });
     _bufferingSub = _kernel.buffering.listen((v) {
       _state.emit(state.copyWith(buffering: v));
-      _events.add(MovaBufferChg(v));
+      _events.add(MovaBufferChange(v));
       _handleAbrBuffering(v);
       _maybeAutoBackToLive(v);
     });
@@ -334,13 +334,13 @@ class MovaEngine implements MovaApi {
     });
     _durationSub = _kernel.duration.listen((v) {
       _state.emit(state.copyWith(duration: v));
-      _events.add(MovaDurChg(v));
+      _events.add(MovaDurationChange(v));
       _recomputeLiveSeekable();
       unawaited(_applyParkedSeek(v));
     });
     _sizeSub = _kernel.size.listen((v) {
       _state.emit(state.copyWith(width: v.width, height: v.height));
-      _events.add(MovaSizeChg(v.width, v.height));
+      _events.add(MovaSizeChange(v.width, v.height));
       // Re-derive/apply fullscreen orientation if dimensions arrive (or
       // change) while already fullscreen — e.g. a network/HLS source whose
       // real size wasn't known yet when fullscreen was entered.
@@ -429,7 +429,7 @@ class MovaEngine implements MovaApi {
   MovaUiState get uiState => _ui.value;
 
   @override
-  MovaPrevApi get preview => _previewService;
+  MovaPreviewApi get preview => _previewService;
 
   @override
   MovaSttApi get stt => _sttService;
@@ -437,13 +437,13 @@ class MovaEngine implements MovaApi {
   /// Assembles the preview service from [MovaOpts.preview] plus the
   /// platform-side pieces the host injected.
   ///
-  /// Every injection point in [MovaPrevConfig] wins over the built-in
+  /// Every injection point in [MovaPreviewConfig] wins over the built-in
   /// default; a missing platform piece degrades that one capability instead of
   /// disabling preview outright.
   ///
   /// 依据 [MovaOpts.preview] 与宿主注入的平台侧零件装配预览服务。
   ///
-  /// [MovaPrevConfig] 里的每个注入点都优先于内置默认；缺失某个平台零件只会
+  /// [MovaPreviewConfig] 里的每个注入点都优先于内置默认；缺失某个平台零件只会
   /// 让该项能力降级，而不会整体关闭预览。
   ///
   /// - [thumbDir]: disk-cache directory resolver / 磁盘缓存目录解析器
@@ -454,8 +454,8 @@ class MovaEngine implements MovaApi {
   /// Returns the assembled service.
   ///
   /// 返回装配好的服务。
-  MovaPrevSvc _buildPreview({
-    MovaThumbDirProv? thumbDir,
+  MovaPreviewService _buildPreview({
+    MovaThumbDirProvider? thumbDir,
     MovaFramePuller? extractor,
     MovaHttpFetch? fetcher,
   }) {
@@ -473,7 +473,7 @@ class MovaEngine implements MovaApi {
                 memory: MovaMemoryThumbCache(maxEntries: cfg.memMaxEntries),
                 disk: MovaDiskThumbCache(dir: dir, maxBytes: cfg.diskMaxBytes),
               ));
-    return MovaPrevSvc(
+    return MovaPreviewService(
       config: cfg,
       cache: cache,
       probe: cfg.probe ?? MovaAlwaysAllowNetProbe(),
@@ -483,11 +483,11 @@ class MovaEngine implements MovaApi {
   }
 
   /// Builds the built-in `[vtt, extract]` source chain, honouring
-  /// [MovaPrevConfig.vttEnabled], [MovaPrevConfig.extractFallback] and
-  /// [MovaPrevConfig.extractPlatforms].
+  /// [MovaPreviewConfig.vttEnabled], [MovaPreviewConfig.extractFallback] and
+  /// [MovaPreviewConfig.extractPlatforms].
   ///
-  /// 构建内置的 `[vtt, extract]` 来源链，遵循 [MovaPrevConfig.vttEnabled]、
-  /// [MovaPrevConfig.extractFallback] 与 [MovaPrevConfig.extractPlatforms]。
+  /// 构建内置的 `[vtt, extract]` 来源链，遵循 [MovaPreviewConfig.vttEnabled]、
+  /// [MovaPreviewConfig.extractFallback] 与 [MovaPreviewConfig.extractPlatforms]。
   ///
   /// - [cfg]: the preview configuration / 预览配置
   /// - [extractor]: host-injected frame extractor / 宿主注入的抽帧器
@@ -497,7 +497,7 @@ class MovaEngine implements MovaApi {
   ///
   /// 返回有序的来源链，可能为空。
   List<MovaThumbSource> _defaultThumbSources(
-    MovaPrevConfig cfg,
+    MovaPreviewConfig cfg,
     MovaFramePuller? extractor,
     MovaHttpFetch? fetcher,
   ) {
@@ -534,8 +534,8 @@ class MovaEngine implements MovaApi {
   /// 把一次预览拒绝发布到 [events] 上，并转发给宿主回调。
   ///
   /// - [reason]: why the request was refused / 被拒原因
-  void _onPreviewBlocked(MovaPrevBlockReason reason) {
-    if (!_events.isClosed) _events.add(MovaPrevBlock(reason));
+  void _onPreviewBlocked(MovaPreviewBlockReason reason) {
+    if (!_events.isClosed) _events.add(MovaPreviewBlock(reason));
     final cb = options.preview.onBlocked;
     if (cb == null) return;
     try {
@@ -617,7 +617,7 @@ class MovaEngine implements MovaApi {
     } else {
       hideControls();
     }
-    _events.add(MovaSourceChg(source));
+    _events.add(MovaSourceChange(source));
     _events.add(const MovaReady());
   }
 
@@ -791,7 +791,7 @@ class MovaEngine implements MovaApi {
       _events.add(const MovaLiveEdgeReach());
     } else {
       _state.emit(state.copyWith(timeshiftBehind: behind));
-      _events.add(MovaTimeShiftChg(behind));
+      _events.add(MovaTimeShiftChange(behind));
     }
     _events.add(MovaSeeked(target));
   }
@@ -814,46 +814,46 @@ class MovaEngine implements MovaApi {
       await _kernel.setVolume(v);
     }
     _state.emit(state.copyWith(volume: v));
-    _events.add(MovaVolumeChg(v));
+    _events.add(MovaVolumeChange(v));
   }
 
   @override
   Future<void> setBrightness(double v) async {
     await _brightness.set(v);
     _state.emit(state.copyWith(brightness: v));
-    _events.add(MovaBrightChg(v));
+    _events.add(MovaBrightChange(v));
   }
 
   @override
   Future<void> setRate(double r) async {
     await _kernel.setRate(r);
     _state.emit(state.copyWith(rate: r));
-    _events.add(MovaRateChg(r));
+    _events.add(MovaRateChange(r));
   }
 
   @override
   Future<void> setFit(MovaFit f) async {
     _state.emit(state.copyWith(fit: f));
-    _events.add(MovaFitChg(f));
+    _events.add(MovaFitChange(f));
   }
 
   @override
   Future<void> setZoom(double z) async {
     _state.emit(state.copyWith(zoom: z));
-    _events.add(MovaZoomChg(z));
+    _events.add(MovaZoomChange(z));
   }
 
   @override
   Future<void> setLocked(bool v) async {
     _state.emit(state.copyWith(locked: v));
-    _events.add(MovaLockChg(v));
+    _events.add(MovaLockChange(v));
   }
 
   @override
   Future<void> setFullscreen(bool v) async {
     _state.emit(state.copyWith(fullscreen: v));
     await _applyOrientation();
-    _events.add(MovaFullScreenChg(v));
+    _events.add(MovaFullScreenChange(v));
   }
 
   @override
@@ -861,14 +861,14 @@ class MovaEngine implements MovaApi {
     if (state.mini == v) return; // 幂等，避免无谓事件
     if (v && state.fullscreen) await setFullscreen(false);
     _state.emit(state.copyWith(mini: v));
-    _events.add(MovaMiniChg(v));
+    _events.add(MovaMiniChange(v));
   }
 
   @override
-  Future<void> setOrientation(MovaOrient o) async {
+  Future<void> setOrientation(MovaOrientation o) async {
     _state.emit(state.copyWith(orientation: o));
     await _applyOrientation();
-    _events.add(MovaOrientChg(o));
+    _events.add(MovaOrientationChange(o));
   }
 
   /// Applies the current fullscreen + forced-orientation state to the platform
@@ -910,8 +910,8 @@ class MovaEngine implements MovaApi {
           clearQuality: cur == null,
         ),
       );
-      _events.add(MovaQualListChg(qs));
-      if (cur != null) _events.add(MovaQualChg(cur));
+      _events.add(MovaQualityListChange(qs));
+      if (cur != null) _events.add(MovaQualityChange(cur));
     } catch (_) {
       _state.emit(state.copyWith(qualities: const [], clearQuality: true));
     }
@@ -931,7 +931,7 @@ class MovaEngine implements MovaApi {
   /// 清晰度列表为空，转正后必须重新播种。见
   /// doc/plans/2026-09-16-seamless-swap.md Task 8。
   @override
-  Future<void> switchQuality(MovaQual q) async {
+  Future<void> switchQuality(MovaQuality q) async {
     final playUri = q.isAuto ? (_source?.uri ?? '') : q.uri;
     if (playUri.isEmpty) return;
     final pos = _lastPosition;
@@ -944,14 +944,14 @@ class MovaEngine implements MovaApi {
     // makes [_seekOrPark] below deterministically park the resume position
     // until the new variant reports its own duration. Deliberately narrow:
     // no hook notification, no qualities/sourceTitle clearing, no
-    // MovaSourceChg — this is the same title at another bitrate, not a new
+    // MovaSourceChange — this is the same title at another bitrate, not a new
     // source.
     //
     // 换档在内核侧同样是一次 `open()`，因此隐患完全相同：随后的续播 seek
     // 绝不能直接走 `_kernel.seek()`，否则 mpv 会卡死（见 [open]）。先忘掉旧
     // 素材的进度并把 `duration` 归零，使下面的 [_seekOrPark] 确定性地寄存续播
     // 位置，直到新档位报告自己的时长。刻意只做这么多：不通知 hook、不清空
-    // qualities/sourceTitle、不发 MovaSourceChg——这是同一部片的另一个码率，
+    // qualities/sourceTitle、不发 MovaSourceChange——这是同一部片的另一个码率，
     // 不是换了一部新片。
     _forgetMediaProgress();
     // Drop the stall tally: the buffering burst a variant reload causes is
@@ -979,7 +979,7 @@ class MovaEngine implements MovaApi {
     //
     // 加载命令一下发就宣布新档位：续播 seek 可能要寄存到时长到达才生效，把
     // 事件拖到那时才发会让 UI 上的档位标签滞后好几秒。
-    _events.add(MovaQualChg(q));
+    _events.add(MovaQualityChange(q));
     if (!live && pos > Duration.zero) await _seekOrPark(pos);
   }
 
@@ -1000,7 +1000,7 @@ class MovaEngine implements MovaApi {
   Future<bool> enterPip() async {
     final ok = await _pip.enter(width: state.width, height: state.height);
     _state.emit(state.copyWith(pip: ok));
-    _events.add(MovaPipChg(ok));
+    _events.add(MovaPipChange(ok));
     return ok;
   }
 
@@ -1031,7 +1031,7 @@ class MovaEngine implements MovaApi {
   /// Reopens the original live URL on the kernel, bypassing [open].
   ///
   /// [open] would clear the quality list and emit
-  /// [MovaSourceChg]/[MovaReady], telling the UI the source changed — but
+  /// [MovaSourceChange]/[MovaReady], telling the UI the source changed — but
   /// returning to the edge is a position change, not a source change. It also
   /// matters in [MovaLiveSeekMode.timeshift]: [_source] still holds the
   /// *original* live URL while the kernel currently has a time-shifted one
@@ -1039,7 +1039,7 @@ class MovaEngine implements MovaApi {
   ///
   /// 绕过 [open]，直接让内核重新打开原始直播地址。
   ///
-  /// 走 [open] 会清空清晰度列表并发出 [MovaSourceChg]/[MovaReady]，告诉 UI
+  /// 走 [open] 会清空清晰度列表并发出 [MovaSourceChange]/[MovaReady]，告诉 UI
   /// 源变了——但回到边缘只是位置变化，不是换源。这一点在
   /// [MovaLiveSeekMode.timeshift] 下尤其关键：[_source] 里存的仍是**原始**直播
   /// 地址，而内核当前打开的是带时间参数的时移地址，重开原始地址才能真正追上。
@@ -1152,7 +1152,7 @@ class MovaEngine implements MovaApi {
   /// 该 engine 构造时使用的方向端口；暴露原因同 [debugBrightnessPort]，
   /// 仅供测试使用。
   @visibleForTesting
-  MovaOrientPort get debugOrientationPort => _orientation;
+  MovaOrientationPort get debugOrientationPort => _orientation;
 
   /// Directly injects quality variants into [state] without any HTTP fetch
   /// or kernel interaction; only for use by tests that need to seed ABR
@@ -1161,7 +1161,7 @@ class MovaEngine implements MovaApi {
   /// 直接向 [state] 注入清晰度档位，不发起任何 HTTP 请求或内核调用；仅供测试
   /// 在无需真实 HLS master playlist 的情况下构造 ABR 降档场景使用。
   @visibleForTesting
-  void debugSetQualities(List<MovaQual> qs, {MovaQual? current}) {
+  void debugSetQualities(List<MovaQuality> qs, {MovaQuality? current}) {
     _state.emit(
       state.copyWith(
         qualities: qs,
@@ -1181,7 +1181,7 @@ class MovaEngine implements MovaApi {
     // 某个页面把刚交接出去的引擎顺手销毁了。仅 debug 生效，release 零成本。
     assert(
       !state.mini,
-      'dispose() while MovaState.mini is true — see MovaMiniCtl docs',
+      'dispose() while MovaState.mini is true — see MovaMiniController docs',
     );
     await _playingSub.cancel();
     await _bufferingSub.cancel();
@@ -1246,7 +1246,7 @@ class MovaEngine implements MovaApi {
       if (live) _events.add(const MovaLiveEdgeReach());
     } else {
       _state.emit(state.copyWith(timeshiftBehind: behind));
-      _events.add(MovaTimeShiftChg(behind));
+      _events.add(MovaTimeShiftChange(behind));
     }
   }
 

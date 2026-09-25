@@ -26,7 +26,7 @@ void main() {
   group('resolveOrientations', () {
     test('forced landscape wins over a portrait video', () {
       final o = resolveOrientations(
-        MovaOrient.landscape,
+        MovaOrientation.landscape,
         fullscreen: true,
         width: 1080,
         height: 1920,
@@ -37,7 +37,7 @@ void main() {
 
     test('forced portrait wins over a landscape video', () {
       final o = resolveOrientations(
-        MovaOrient.portrait,
+        MovaOrientation.portrait,
         fullscreen: true,
         width: 1920,
         height: 1080,
@@ -48,7 +48,7 @@ void main() {
 
     test('auto + fullscreen derives from aspect ratio', () {
       final o = resolveOrientations(
-        MovaOrient.auto,
+        MovaOrientation.auto,
         fullscreen: true,
         width: 1920,
         height: 1080,
@@ -58,7 +58,7 @@ void main() {
 
     test('auto + not fullscreen allows all orientations', () {
       final o = resolveOrientations(
-        MovaOrient.auto,
+        MovaOrientation.auto,
         fullscreen: false,
         width: 1920,
         height: 1080,

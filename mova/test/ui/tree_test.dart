@@ -11,7 +11,7 @@ import '../support/fake_api.dart';
 /// Minimal leaf used to assert tree shape.
 ///
 /// 用于断言组件树形状的最小叶子组件。
-class _Leaf extends MovaComp {
+class _Leaf extends MovaComponent {
   @override
   final String name;
   @override
@@ -26,23 +26,23 @@ class _Leaf extends MovaComp {
 /// Minimal composite that lays its children out in a row.
 ///
 /// 把子组件横向排布的最小组合组件。
-class _Group extends MovaComp {
+class _Group extends MovaComponent {
   @override
   final String name;
   @override
   final MovaSlot slot;
   @override
-  final List<MovaComp> children;
+  final List<MovaComponent> children;
   _Group(this.name, this.children, {this.slot = MovaSlot.top});
   @override
   Widget build(BuildContext c, MovaApi api, List<Widget> children) => Row(children: children);
 }
 
-List<String> _names(List<MovaComp> t) =>
+List<String> _names(List<MovaComponent> t) =>
     t.expand((c) => [c.name, ...c.children.map((k) => '${c.name}/${k.name}')]).toList();
 
 void main() {
-  List<MovaComp> tree() => [
+  List<MovaComponent> tree() => [
         _Group('topBar', [_Leaf('title'), _Leaf('pip'), _Leaf('lock')], slot: MovaSlot.top),
       ];
 
@@ -92,7 +92,7 @@ void main() {
 
   testWidgets('buildSlots groups widgets by slot and sorts by order', (t) async {
     final api = FakeMovaApi();
-    final treeIn = <MovaComp>[
+    final treeIn = <MovaComponent>[
       _Leaf('b', slot: MovaSlot.top, order: 2),
       _Leaf('a', slot: MovaSlot.top, order: 1),
       _Leaf('o', slot: MovaSlot.overlay),

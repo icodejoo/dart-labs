@@ -25,10 +25,10 @@
 **0.6.0 App 内小窗（`MovaMini`）已完成代码落地（真机验证未做）**：不依赖任何系统 PiP
 API，让画面从页面里"缩"成一个可拖拽的悬浮小窗——不重新解码、不黑屏。默认
 **关闭**（`MovaMiniConfig.enabled` 为 `false`）。两种挂载方式并存：方式 A 页内悬浮
-（`MovaMiniCtl.showInPage`，mova 实现 `OverlayEntry` 插入）、方式 B 跨路由持久
-（`MovaMiniCtl.show` + `MovaMiniHost` 便利壳）。核心逻辑收在挂载无关的 `MovaMiniWindow`
+（`MovaMiniController.showInPage`，mova 实现 `OverlayEntry` 插入）、方式 B 跨路由持久
+（`MovaMiniController.show` + `MovaMiniHost` 便利壳）。核心逻辑收在挂载无关的 `MovaMiniWindow`
 一处（自身是撑满外部约束的 `Stack`，两种外壳只是"放到哪里"的差异）。core 层仅加
-`MovaState.mini`/`MovaApi.setMini`/`MovaMiniChg`/`MovaMiniConfig`/
+`MovaState.mini`/`MovaApi.setMini`/`MovaMiniChange`/`MovaMiniConfig`/
 `core/mini/placement.dart` 五处，播放链路一行不动。测试 **803 项全绿**（基线 709，
 本批新增 94）、`flutter analyze` 0 issues（1 条既有 `feed_player.dart` 警告，与本次
 改动无关）。详见 [doc/plans/2026-09-23-app-inline-pip-overlay.md](doc/plans/2026-09-23-app-inline-pip-overlay.md)、
@@ -46,7 +46,7 @@ API，让画面从页面里"缩"成一个可拖拽的悬浮小窗——不重新
 > `feed_player.dart` 警告）。以下两节各自的测试数字是它们在合并前的历史快照，保留供
 > 追溯，别拿来加总。
 
-**0.5.0 广告编排增强已完成**：把 `MovaAdCtrl` 从"能按排期播广告"推进到"能按广告业务的
+**0.5.0 广告编排增强已完成**：把 `MovaAdController` 从"能按排期播广告"推进到"能按广告业务的
 真实时序播广告"——正片源延迟解析（`loadDeferred`/`contentError`）、广告位 `duration`/
 `delay` 与素材时间轴解耦（一律 `Timer` 驱动，绝不碰 `state.duration`/尾部 seek）、
 按广告位类型决定是否等待就绪（`MovaAdWaitByKind` 默认 pre 否 / **mid 是** / post 否，
@@ -74,7 +74,7 @@ API，让画面从页面里"缩"成一个可拖拽的悬浮小窗——不重新
 `enabled: false`，关闭时是纯直通代理，行为与 0.3.0 逐字节一致。预热拆成两层可插拔纯逻辑：
 触发策略 `MovaWarmTrigger`（`MovaLeadWarm`/`MovaEagerWarm`）与就绪判据 `MovaWarmPolicy`
 （`MovaBufferWarm`，`MovaBufferAbr` 的镜像）。新增 `MovaState.renderEpoch`（普通引擎恒
-0，仅切换后递增，触发渲染面重读 `renderHandle`）。`MovaAdCtrl` 接了可选 `swap` 参数即可
+0，仅切换后递增，触发渲染面重读 `renderHandle`）。`MovaAdController` 接了可选 `swap` 参数即可
 接入；清晰度切换（`switchQuality`）只做了接口形状契约测试 + 落点注释，未真正接入；
 feed 引擎池结构性不适用本模型，明确排除。详见
 [doc/plans/2026-09-16-seamless-swap.md](doc/plans/2026-09-16-seamless-swap.md)、
@@ -117,12 +117,12 @@ feed 引擎池结构性不适用本模型，明确排除。详见
 **0.3.0 UI 插件化已完成**（承 0.2.0 阶段 A–D）：把组件树/皮肤/补丁沉淀为
 **Plugin / Component / Skin** 三层契约——`MovaPlugin` 能力 mixin（`api` + `bind()`，
 `ui/scope/plugin.dart`）、组件树静态化（`MovaSkin.components()` 无参，VOD/直播底栏合并为
-自适应 `BottomBarComponent`，`live_bar.dart` 已删）、`MovaDefSkin.assemble` 拆为可覆写
+自适应 `BottomBarComponent`，`live_bar.dart` 已删）、`MovaDefaultSkin.assemble` 拆为可覆写
 三层（`buildPlaybackLayer`/`buildOperableLayer`/`buildPersistentLayer`）、`MovaSlot` 加
-`left`/`right`。**手势侧别→动作改配**：`MovaGestConfig` 用 `MovaGestAction` 映射，默认
+`left`/`right`。**手势侧别→动作改配**：`MovaGestureConfig` 用 `MovaGestureAction` 映射，默认
 翻转为左亮度/右音量（对齐主流）。设计见 [doc/DESIGN-0.3.0-plugin-skin.md](doc/DESIGN-0.3.0-plugin-skin.md)。
 后续增量：系统音量端口 `MovaVolumePort`、强制横竖屏 `MovaApi.setOrientation`
-（`MovaOrient{auto,portrait,landscape}` + 顶栏仅移动端的 `orientationButton`，
+（`MovaOrientation{auto,portrait,landscape}` + 顶栏仅移动端的 `orientationButton`，
 独立于全屏；`auto` 保持按宽高比定向）。
 289 项测试全绿，`flutter analyze` 0 issues。**横竖屏按钮真机仍未验证**（手势/音量/亮度
 线已在 Android 真机过；方向按钮与 PiP/直播/时移 UI 等仍未系统走真机，承自 0.2.0）。
@@ -133,19 +133,19 @@ feed 引擎池结构性不适用本模型，明确排除。详见
 
 **阶段 A（core/ui 分层重构）已完成**：功能与 0.1.0 保持一致（零可见变化），架构
 重写为 `MovaApi`/`MovaEngine`（取代 `MovaCtrl`，后者已 `@Deprecated`）+
-`MovaKernel` 内核抽象 + 组件树/皮肤/补丁（`MovaComp`/`MovaSkin`/`MovaDefSkin`/
+`MovaKernel` 内核抽象 + 组件树/皮肤/补丁（`MovaComponent`/`MovaSkin`/`MovaDefaultSkin`/
 `MovaPatch`）+ 文案与主题外置（`MovaStrs`/`MovaTheme`，经 `MovaOpts` 注入）+
 拦截点（`MovaHook`）。
 
 **阶段 B（拖动预览缩略图）已完成**：`MovaApi.preview`/`MovaOpts.preview`/
-`MovaPrevBlock` 三个新公开面，WebVTT 雪碧图 + libmpv 抽帧兜底的有序来源链，
+`MovaPreviewBlock` 三个新公开面，WebVTT 雪碧图 + libmpv 抽帧兜底的有序来源链，
 内存+磁盘两级缓存，`connectivity_plus` 网络策略，`PreviewComponent` 气泡
 （水平位置随拖动比例跟随）。
 
 **阶段 C（直播时移）已完成**：`MovaLiveConfig` 新增 `urlBuilder`/`backToLive`/
 `autoBackToLiveOnStall`/`windowResolver`；`lib/src/core/live/timeshift.dart`
 纯函数 `resolveWindow`/`behindOf`/`atLiveEdge`；`MovaState.timeshiftBehind` 真正
-写入并伴随 `MovaTimeShiftChg`/`MovaLiveEdgeReach` 事件；`backToLiveEdge()`
+写入并伴随 `MovaTimeShiftChange`/`MovaLiveEdgeReach` 事件；`backToLiveEdge()`
 从占位（`reload()`）变为按策略执行；新增 `MovaApi.pipSupported`/
 `MovaState.pipSupported`，PiP 按钮在不支持的平台自动隐藏；直播底栏加
 `seekBar`/`timeshift`/`backToLive`（原 `backToEdge` 已改名删除）。
@@ -162,7 +162,7 @@ feed 引擎池结构性不适用本模型，明确排除。详见
 故障偏移完全一致（`libmpv-2.dll+0x94d927`）。已排除：不是已用 clang 修复的
 `mpv_create()` 崩溃（位置、时机都不同，且已确认 CI 产物确实是 clang 编译）、不是网络
 流本身、不是小尺寸渲染面、不是 `createMovaEngine()`/`MovaPlayer` 封装本身、不是
-`showInPage()` 挂载动作本身、不是 `MovaMiniCtl.show()`+`Navigator.pop()` 的路由转场
+`showInPage()` 挂载动作本身、不是 `MovaMiniController.show()`+`Navigator.pop()` 的路由转场
 竞态——这几种场景自动化复现均不崩，**崩溃似乎只在真人鼠标/拖拽交互下触发**。故障地址
 落在静态链接的 ffmpeg/libav 内部（非 mpv 导出符号区间），dll 无调试符号，反汇编看不出
 函数名。**新发现**：Flutter 3.47 起 Windows 桌面端 Impeller 已非纯 opt-in（`--no-
@@ -180,7 +180,7 @@ cdb/gdb 拿真实调用栈）。已配置
 （`_engine.dispose()` 缺 `catchError`），不要和这个原生崩溃混为一谈。
 
 **0.6.0 App 内小窗——真机验证已完成（Task 12，Windows 桌面 + Android 真机）**：
-Task 1–11 已完成（core 五处改动、`MovaMiniCtl`/`MovaMiniWindow`/`MovaMiniHost`/
+Task 1–11 已完成（core 五处改动、`MovaMiniController`/`MovaMiniWindow`/`MovaMiniHost`/
 `MovaMiniSkin`、开放性对账、example demo、文档）。
 **2026-09-24（Windows 桌面，`--no-enable-impeller` 强制 Skia 后端）用户手工走完
 A–F 六组，均目测通过**：A 组不重新解码——位置连续、交接无跳变（**未记录具体
@@ -208,7 +208,7 @@ surface 丢失自动暂停），全屏播放切后台同样会暂停，非小窗
 assert 后若同一帧内又导航到别的入口，新引擎事件流回调会在 widget 树锁定期间
 同步刷新 `_eventLog`，炸出
 `setState()/markNeedsBuild() called when widget tree was locked`——与
-`MovaMiniCtl`/`MovaEngine` 核心逻辑无关，已修复为 `addPostFrameCallback` 推迟
+`MovaMiniController`/`MovaEngine` 核心逻辑无关，已修复为 `addPostFrameCallback` 推迟
 通知（`example/lib/mini_window_demo.dart`）。
 计划见 [doc/plans/2026-09-23-app-inline-pip-overlay.md](doc/plans/2026-09-23-app-inline-pip-overlay.md)
 （该文件被系统进程持续锁定写入失败，结论暂未同步进去，待解锁后补）。
@@ -416,7 +416,7 @@ dispose 后内存几乎未回落——不能排除泄漏，但也非直接证据
 
 0. **0.4.0 无缝引擎切换——真机验证部分完成（Task 11，每次启动请提醒用户此项仍有剩余项未完成）**：
    Task 1–10 已完成（配置面、`renderEpoch`、预热触发/就绪判据、`MovaSwapEngine` 骨架
-   与原子切换、`MovaAdCtrl` 接入、清晰度切换契约测试、开放性对账、barrel/example/文档）。
+   与原子切换、`MovaAdController` 接入、清晰度切换契约测试、开放性对账、barrel/example/文档）。
    **2026-09-23（STG AL00 arm64 Android 12）已用 `main_seamless_test.dart` 实测**：skip
    触发后 `renderEpoch` 从 1 跳到 2，确认切换机制真实生效；广告→正片切换间隔（skip 调用
    到 renderEpoch 落地，基于真实事件戳，非墙钟估算）= 806ms。
@@ -425,7 +425,7 @@ dispose 后内存几乎未回落——不能排除泄漏，但也非直接证据
    - **中插续播点误差——首次测量方向搞反了，已定位真实根因并修复**：初版探针
      报"提前 2210ms"，实际是探针自身的 bug（一次插播会有两次 `renderEpoch`
      跳变，探针的 Completer 在第一次——正片→广告——就完成了，读到的其实是广告
-     引擎的 position，非正片续播位置）。**真实根因**：`MovaAdCtrl.
+     引擎的 position，非正片续播位置）。**真实根因**：`MovaAdController.
      _warmContentBehindAd` 用的是默认 `MovaWarmPlan`（`pauseWhenReady: false`），
      广告背后预热正片的影子引擎以 `autoPlay: true` 按真实时间一路播，commit 时
      已经漂移了整个广告剩余时长——真机实测续播目标 6006ms、实际落点 **8842ms**
@@ -466,7 +466,7 @@ dispose 后内存几乎未回落——不能排除泄漏，但也非直接证据
      共用同一套"寄存还是直发"判据）与 `_forgetMediaProgress`（`open()`/
      `switchQuality` 共用的进度重置），`switchQuality` 换档后的续播 seek
      现在走同一套安全保证，刻意保留语义边界（不触发 `_chain.beforeOpen`、
-     不清 `qualities`/`sourceTitle`、不发 `MovaSourceChg`——换档不是换片）。
+     不清 `qualities`/`sourceTitle`、不发 `MovaSourceChange`——换档不是换片）。
      **真机验证（STG AL00，真实多码率 HLS
      `https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8`）**：修复前对照组
      裸 `_kernel.seek()` 在真机 HLS 场景下被 mpv 静默丢弃，换档后 position
@@ -477,7 +477,7 @@ dispose 后内存几乎未回落——不能排除泄漏，但也非直接证据
      `switchQuality`，把刚寄存的续播 seek 冲掉、position 又跌回 0——
      `switchQuality` 里补了 `_abrPolicy.reset()`（清卡顿计数，不影响连续
      逐档下降的正常行为，已用单测验证幂等/无害）。ABR 开启态真机复测两轮：
-     不再出现背靠背 `MovaQualChg`，续播误差 66–117ms。
+     不再出现背靠背 `MovaQualityChange`，续播误差 66–117ms。
      `test/core/engine_test.dart` 新增 4 项回归（811→**815** 全绿），
      `flutter analyze` 0 issues。真机探针
      `example/lib/main_quality_switch_verify.dart`（未提交）。
@@ -549,9 +549,9 @@ dispose 后内存几乎未回落——不能排除泄漏，但也非直接证据
    （Task 11 完成，仅桌面冒烟，未做交互验证）、README/CHANGELOG/SPEC 已更新（Task 12）、
    `pub publish --dry-run` 待最终校验（Task 13）、**Task 14 真机验证部分完成**
    （2026-09-23，STG AL00 arm64 Android 12）：HLS 联网切档——加载后事件序列出现两次独立
-   `MovaSizeChg`（伴随 `MovaBufferChg`/`MovaDurChg`/`MovaReady`），符合分辨率切换的真实
+   `MovaSizeChange`（伴随 `MovaBufferChange`/`MovaDurationChange`/`MovaReady`），符合分辨率切换的真实
    信号，确认真实发生；Android PiP——`engine.pipSupported = true`、`enterPip() = true`、
-   触发后收到 `MovaPipChg` 事件，`adb shell dumpsys activity` 确认
+   触发后收到 `MovaPipChange` 事件，`adb shell dumpsys activity` 确认
    `mIsInPictureInPictureMode=true`、`mWindowingMode=pinned`，**真机确认真实生效**。
    **仍未测**：手势手感（左亮度/右音量的实际触感，主观）、直播/时移 UI 交互、iOS 整体
    （本轮只有 Android 设备）。
@@ -630,8 +630,8 @@ dispose 后内存几乎未回落——不能排除泄漏，但也非直接证据
   `const` 调用点变成编译错误。这种情况改为公开一个 `assertValid()` 方法、由持有者在入口
   处调用（见 `MovaAdBreak.assertValid()`）。
 - 校验用 `flutter analyze`（不用 build），除非要真跑 app。长机械改动先批量改、最后一次性校验。
-- 手势侧别（0.3.0 起：左亮度/右音量，对齐 bilibili 等主流）经 `MovaGestConfig` 的
-  侧别→动作映射（`leftVertical`/`rightVertical`/`horizontal` 取 `MovaGestAction`）配置，
+- 手势侧别（0.3.0 起：左亮度/右音量，对齐 bilibili 等主流）经 `MovaGestureConfig` 的
+  侧别→动作映射（`leftVertical`/`rightVertical`/`horizontal` 取 `MovaGestureAction`）配置，
   非写死；默认值即上述主流约定。（0.2.0 及之前是"左音量/右亮度"，已翻转，别按旧注释改回。）
 - 新函数/模块配单测；纯逻辑（解析/ABR/映射/格式化）务必抽出来测，UI 用 WidgetTester。
 - **完成一个 Task/里程碑并提交后，立刻用当次实测的 `flutter test` 输出更新 `CLAUDE.md` 与相关 `doc/plans/*.md` 里的测试基线数字。** 这个数字过时会让下一次规划文档（尤其是 Opus 拆的计划）从错误的起点开始推导任务数与验收标准，多次发生过。

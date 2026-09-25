@@ -11,7 +11,7 @@ import 'models.dart';
 import 'net_probe.dart';
 import 'source.dart';
 
-/// The production [MovaPrevApi]: debounces scrub ticks, aligns them to
+/// The production [MovaPreviewApi]: debounces scrub ticks, aligns them to
 /// buckets, enforces the network policy, serves cache hits, and walks the
 /// configured source chain — one request in flight at a time.
 ///
@@ -19,12 +19,12 @@ import 'source.dart';
 /// discarded: the work is already paid for, and the user is very likely to
 /// scrub back over that bucket (DESIGN §7.1).
 ///
-/// 生产环境的 [MovaPrevApi]：对拖动 tick 做防抖、按桶对齐、执行网络策略、
+/// 生产环境的 [MovaPreviewApi]：对拖动 tick 做防抖、按桶对齐、执行网络策略、
 /// 优先吃缓存命中，再按配置的来源链依次尝试——同一时刻只有一个请求在飞。
 ///
 /// 被后来者取代的请求，其结果仍会写入缓存而非丢弃：这份开销已经付过了，而且
 /// 用户很可能会拖回那个桶（DESIGN §7.1）。
-class MovaPrevSvc implements MovaPrevApi {
+class MovaPreviewService implements MovaPreviewApi {
   /// Creates a preview service.
   ///
   /// 创建一个预览服务。
@@ -35,7 +35,7 @@ class MovaPrevSvc implements MovaPrevApi {
   ///   要咨询的连通性探针
   /// - [sources]: ordered source chain / 有序的来源链
   /// - [onBlocked]: refusal callback / 被拒回调
-  MovaPrevSvc({
+  MovaPreviewService({
     required this.config,
     required this.cache,
     required this.probe,
@@ -46,16 +46,16 @@ class MovaPrevSvc implements MovaPrevApi {
   /// The resolved preview configuration.
   ///
   /// 已解析的预览配置。
-  final MovaPrevConfig config;
+  final MovaPreviewConfig config;
 
   /// Thumbnail storage; usually a two-level memory + disk cache.
   ///
   /// 缩略图存储；通常是内存 + 磁盘的两级缓存。
   final MovaThumbCache cache;
 
-  /// Connectivity probe consulted under [MovaPrevNet.wifiOnly].
+  /// Connectivity probe consulted under [MovaPreviewNet.wifiOnly].
   ///
-  /// [MovaPrevNet.wifiOnly] 下要咨询的连通性探针。
+  /// [MovaPreviewNet.wifiOnly] 下要咨询的连通性探针。
   final MovaNetProbe probe;
 
   /// Ordered source chain; the first non-null answer wins.
@@ -66,7 +66,7 @@ class MovaPrevSvc implements MovaPrevApi {
   /// Called whenever a request is refused; null means stay silent.
   ///
   /// 请求被拒绝时的回调；为 null 表示静默。
-  final MovaPrevBlockCb? onBlocked;
+  final MovaPreviewBlockCb? onBlocked;
 
   /// Broadcast sink for [thumbs].
   ///
@@ -187,7 +187,7 @@ class MovaPrevSvc implements MovaPrevApi {
   /// 把 [reason] 报给 [onBlocked]，并吞掉宿主回调抛出的异常。
   ///
   /// - [reason]: why the request was refused / 被拒原因
-  void _block(MovaPrevBlockReason reason) {
+  void _block(MovaPreviewBlockReason reason) {
     final cb = onBlocked;
     if (cb == null) return;
     try {
@@ -247,20 +247,20 @@ class MovaPrevSvc implements MovaPrevApi {
   Future<void> _resolve(Duration bucket) async {
     if (_disposed) return;
     if (!config.enabled) {
-      _block(MovaPrevBlockReason.disabled);
+      _block(MovaPreviewBlockReason.disabled);
       return;
     }
     final src = _source;
     if (src == null) {
-      _block(MovaPrevBlockReason.noSource);
+      _block(MovaPreviewBlockReason.noSource);
       return;
     }
     if (sources.isEmpty) {
-      _block(MovaPrevBlockReason.platform);
+      _block(MovaPreviewBlockReason.platform);
       return;
     }
     if (!await previewAllowedOn(config.network, probe)) {
-      _block(MovaPrevBlockReason.network);
+      _block(MovaPreviewBlockReason.network);
       return;
     }
 
@@ -313,12 +313,12 @@ class MovaPrevSvc implements MovaPrevApi {
 
   /// Releases the service, its sources and its cache.
   ///
-  /// Wipes the cache first when [MovaPrevConfig.clearOnDispose] is set, so a
+  /// Wipes the cache first when [MovaPreviewConfig.clearOnDispose] is set, so a
   /// killed process does not leave a temp directory full of thumbnails.
   ///
   /// 释放服务、其来源与其缓存。
   ///
-  /// [MovaPrevConfig.clearOnDispose] 打开时先清空缓存，避免进程被杀后临时
+  /// [MovaPreviewConfig.clearOnDispose] 打开时先清空缓存，避免进程被杀后临时
   /// 目录里堆满缩略图。
   Future<void> dispose() async {
     if (_disposed) return;

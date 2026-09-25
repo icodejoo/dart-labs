@@ -43,7 +43,7 @@ MovaVolumePort? _defaultVolumePort() {
 
 /// Creates a [MovaEngine] wired to the real platform adapters
 /// ([MovaScreenBrightnessPort], [MovaChannelPipPort], [MovaSystemChromeOrientationPort],
-/// and — since phase B — [MovaThumbDirProv]/[MovaFramePuller] for scrub
+/// and — since phase B — [MovaThumbDirProvider]/[MovaFramePuller] for scrub
 /// preview) instead of [MovaEngine]'s own noop/fallback defaults.
 ///
 /// [MovaEngine]'s bare constructor intentionally defaults to zero-dependency
@@ -55,7 +55,7 @@ MovaVolumePort? _defaultVolumePort() {
 ///
 /// 创建一个接入真实平台适配器（[MovaScreenBrightnessPort]、[MovaChannelPipPort]、
 /// [MovaSystemChromeOrientationPort]，以及阶段 B 起新增的拖动预览端口
-/// [MovaThumbDirProv]/[MovaFramePuller]）的 [MovaEngine]，而非使用 [MovaEngine]
+/// [MovaThumbDirProvider]/[MovaFramePuller]）的 [MovaEngine]，而非使用 [MovaEngine]
 /// 自身的空/兜底默认实现。
 ///
 /// [MovaEngine] 的裸构造函数刻意默认使用零依赖的空端口，以便纯 Dart 单测（无法
@@ -71,12 +71,12 @@ MovaVolumePort? _defaultVolumePort() {
 ///   so no video pipeline of any kind is created. `renderHandle` is then
 ///   `null` and `MovaPlayer` renders its placeholder (or the `surface` you
 ///   pass it). Ignored when [kernel] is supplied. Hosts should also turn
-///   scrub preview off (`MovaPrevConfig(enabled: false)`) — there are no
+///   scrub preview off (`MovaPreviewConfig(enabled: false)`) — there are no
 ///   frames to preview /
 ///   构建仅音频引擎——默认内核跳过 `VideoController`，抽帧兜底也不接线，
 ///   因此不会创建任何形式的视频管线。此时 `renderHandle` 为 `null`，
 ///   `MovaPlayer` 渲染占位符（或你传入的 `surface`）。传入 [kernel] 时本参数
-///   被忽略。宿主还应关掉拖动预览（`MovaPrevConfig(enabled: false)`）——
+///   被忽略。宿主还应关掉拖动预览（`MovaPreviewConfig(enabled: false)`）——
 ///   没有帧可预览
 /// - [options]: engine configuration / engine 配置
 /// - [interceptors]: interceptor chain consulted before open/seek/play /
@@ -134,8 +134,8 @@ MovaEngine createMovaEngine({
   MovaBrightPort? brightness,
   MovaVolumePort? volume,
   MovaPipPort? pip,
-  MovaOrientPort? orientation,
-  MovaThumbDirProv? thumbDir,
+  MovaOrientationPort? orientation,
+  MovaThumbDirProvider? thumbDir,
   MovaFramePuller? extractor,
   MovaNetProbe? probe,
   MovaHttpFetch? fetcher,

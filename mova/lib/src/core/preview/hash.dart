@@ -70,4 +70,4 @@ String defaultCacheKey(String sourceKey, int bucketSec, int width) =>
 /// Returns the cache key.
 ///
 /// 返回缓存 key。
-typedef MovaCacheKeyBldr = String Function(String sourceKey, int bucketSec, int width);
+typedef MovaCacheKeyBuilder = String Function(String sourceKey, int bucketSec, int width);

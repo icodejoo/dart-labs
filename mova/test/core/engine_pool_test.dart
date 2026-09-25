@@ -3,11 +3,11 @@ import 'package:mova/mova.dart';
 
 import '../support/fake_api.dart';
 
-/// Hands out [FakeMovaApi] instances as a [MovaEngineFact] would and keeps
+/// Hands out [FakeMovaApi] instances as a [MovaEngineFactory] would and keeps
 /// every one it created, so tests can assert on how many engines a pool
 /// allocated and what happened to each.
 ///
-/// 像 [MovaEngineFact] 一样发放 [FakeMovaApi] 实例，并保留创建过的每一个，
+/// 像 [MovaEngineFactory] 一样发放 [FakeMovaApi] 实例，并保留创建过的每一个，
 /// 供测试断言池分配了多少引擎、每个引擎各自经历了什么。
 class _Fleet {
   /// Every engine handed out, in creation order.

@@ -136,13 +136,13 @@ class FakeMovaApi implements MovaApi {
   /// never called.
   ///
   /// 最近一次 [setOrientation] 调用的参数；若从未调用过则为 `null`。
-  MovaOrient? lastOrientation;
+  MovaOrientation? lastOrientation;
 
   /// The argument of the most recent [switchQuality] call, or `null` if
   /// never called.
   ///
   /// 最近一次 [switchQuality] 调用的参数；若从未调用过则为 `null`。
-  MovaQual? lastQuality;
+  MovaQuality? lastQuality;
 
   /// The `v` argument of the most recent [setDragging] call, or `null` if
   /// never called.
@@ -402,7 +402,7 @@ class FakeMovaApi implements MovaApi {
   void emitMini(bool mini) => push(state.copyWith(mini: mini));
 
   @override
-  Future<void> setOrientation(MovaOrient o) async {
+  Future<void> setOrientation(MovaOrientation o) async {
     calls.add('setOrientation');
     lastOrientation = o;
     push(state.copyWith(orientation: o));
@@ -414,7 +414,7 @@ class FakeMovaApi implements MovaApi {
   }
 
   @override
-  Future<void> switchQuality(MovaQual q) async {
+  Future<void> switchQuality(MovaQuality q) async {
     calls.add('switchQuality');
     lastQuality = q;
   }
@@ -472,11 +472,11 @@ class FakeMovaApi implements MovaApi {
   }
 }
 
-/// A test double for [MovaPrevApi] that records requests and lets tests push
+/// A test double for [MovaPreviewApi] that records requests and lets tests push
 /// thumbnails into the stream.
 ///
-/// [MovaPrevApi] 的测试替身：记录请求，并允许测试向流中推送缩略图。
-class FakePreviewApi implements MovaPrevApi {
+/// [MovaPreviewApi] 的测试替身：记录请求，并允许测试向流中推送缩略图。
+class FakePreviewApi implements MovaPreviewApi {
   /// Backing controller for [thumbs].
   ///
   /// [thumbs] 的底层控制器。
@@ -543,13 +543,13 @@ class FakePreviewApi implements MovaPrevApi {
   Future<void> dispose() => _thumbs.close();
 }
 
-/// A test double for [MovaSwapCtl] that records every call it receives, so
-/// callers like `MovaAdCtrl` can be tested against the swap verbs alone
+/// A test double for [MovaSwapController] that records every call it receives, so
+/// callers like `MovaAdController` can be tested against the swap verbs alone
 /// without a real [MovaSwapEngine].
 ///
-/// [MovaSwapCtl] 的测试替身：记录收到的每次调用，使 `MovaAdCtrl` 这类调用方
+/// [MovaSwapController] 的测试替身：记录收到的每次调用，使 `MovaAdController` 这类调用方
 /// 无需真实 [MovaSwapEngine] 也能对着切换动词做测试。
-class FakeSwapCtl implements MovaSwapCtl {
+class FakeSwapCtl implements MovaSwapController {
   /// Ordered method names invoked on this fake.
   ///
   /// 在该替身上被调用的方法名有序列表。
