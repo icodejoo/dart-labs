@@ -8,7 +8,6 @@ library;
 export 'src/core/ad/ad_controller.dart';
 export 'src/core/ad/fail.dart';
 export 'src/core/api.dart';
-export 'src/core/compat.dart';
 export 'src/core/engine.dart';
 export 'src/core/events/events.dart';
 export 'src/core/feed/engine_pool.dart';
