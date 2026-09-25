@@ -432,6 +432,48 @@ final engine = MovaEngine(interceptors: [AuthGate()]);
 纯 Flutter widget）两层。`MovaApi` 是 `ui/` 唯一允许依赖的抽象——不直接触达
 `MovaKernel` 或 media_kit。完整分层说明、各模块职责见 [doc/SPEC.md](doc/SPEC.md)「架构分层」一节。
 
+## 进阶：接入自研瘦身版 libmpv（可选，仅进阶用户）
+
+默认情况下（不做任何配置）安装 mova 会走官方 `media_kit_libs_video` 依赖，能正常播放，
+只是体积比自研瘦身版大一些。项目自己维护了一套体积更小的瘦身版 libmpv 构建
+（独立仓库 `mova-libmpv`，产物在本仓库 `libmpv/` 目录，按平台分子目录，未随包发布，
+需要自己从源码仓库获取）。这是**可选的进阶操作，普通用户完全不需要做**。
+
+**现状**：Android/Windows 已在本仓库 `example` app 里验证真机可用；iOS/macOS/Linux
+二进制已产出，但尚未经过下游项目验证接入。
+
+### Android
+
+参考 [example/android/app/build.gradle.kts](example/android/app/build.gradle.kts) 里的
+`syncMovaLibmpv` Gradle task：在你自己的 `android/app/build.gradle.kts` 里加一个类似的
+`Copy` task，把 mova 仓库里 `libmpv/<abi>/libmpv.so`（`arm64-v8a`/`armeabi-v7a`/`x86`/
+`x86_64`）拷进你项目的 `src/main/jniLibs/<abi>/`，挂在 `preBuild` 之前；再配合
+`packaging { jniLibs { pickFirsts += "**/libmpv.so" } }` 让它赢过官方包版本。
+
+二进制目前**唯一的获取渠道**是 clone `mova` 仓库源码、直接使用其中的
+`libmpv/<abi>/libmpv.so` 文件——尚未提供 GitHub Release 一类更方便的分发渠道。
+
+### Windows
+
+参考本仓库 [packages/media_kit_libs_windows_video_slim](packages/media_kit_libs_windows_video_slim)
+这个 fork 包的完整做法，其 `windows/CMakeLists.txt` 跳过官方 7z 下载，直接指向
+`libmpv/windows-x86_64/libmpv-2.dll`。可选做法：
+
+- 如果你的项目与 mova 源码在同一台机器上、能访问相对路径，直接在自己的
+  `pubspec.yaml` 里用 `dependency_overrides` 的 `path` 依赖指向这个 fork 包（参考
+  [example/pubspec.yaml](example/pubspec.yaml) 里的写法）；
+- 否则复制这个 fork 包到自己项目里，再改 `CMakeLists.txt` 里的二进制来源路径。
+
+### iOS / macOS / Linux
+
+二进制已产出，但暂无现成的下游接入方案，需要自己参照 Android/Windows 的思路
+（Podspec `prepare_command` / CMake 自定义步骤）自行接入，欢迎贡献。
+
+### 免责声明
+
+这是社区/进阶用法，mova 官方不对接入后的行为提供支持保证；瘦身版二进制版本与 mova
+包版本没有强绑定关系，升级前建议自己验证。
+
 ## Roadmap / 路线图
 
 见 [doc/ROADMAP.md](doc/ROADMAP.md)。
