@@ -196,6 +196,76 @@ final engine = MovaEngine(
 默认 `off`（禁止拖动）；`timeshift` 模式没有 `urlBuilder` 就不生效；
 `windowResolver` 用于服务端带外声明窗口的场景。
 
+## 弹幕（可选）
+
+`MovaDanmakuItem` 是纯数据值（文案/触发位置/可选颜色），配合
+`MovaDanmakuTrackComponent` 渲染滚动弹幕轨道，core 层从不渲染，只负责数据形状：
+
+```dart
+final items = [
+  MovaDanmakuItem(text: '前方高能', time: const Duration(seconds: 30)),
+  MovaDanmakuItem(text: '好家伙', time: const Duration(seconds: 45), color: 0xFFFF5555),
+];
+```
+
+具体接入方式（把弹幕流喂给 `MovaDanmakuTrackComponent`）随皮肤/组件树自定义而定，
+参见「自定义皮肤」一节。
+
+## 播放列表（可选）
+
+`MovaPlaylistController` 在 `MovaApi` 之上驱动顺序播放：跟踪当前下标、按
+`MovaApi.open` 在项间导航、可选自动连播。纯 Dart（无 Flutter 依赖），由宿主构造并
+注入，engine 从不持有它：
+
+```dart
+final playlist = MovaPlaylistController(engine);
+await playlist.jumpTo(0); // 打开第一条
+```
+
+初值（条目列表/初始下标/是否自动连播）取自 `MovaOpts.playlist`
+（`MovaPlaylistConfig`）。**与广告组合时注意**：`MovaPlaylistController` 与
+`MovaAdController` 都响应 `MovaDone`，不要在同一播放器上同时启用两者的自动行为——
+应把 `MovaPlaylistConfig.autoPlayNext` 设为 `false`，改由
+`MovaAdController.contentEnded` 驱动 `playlist.next()`。
+
+## 沉浸式 Feed 流播放（可选）
+
+`MovaFeedPlayer` 是 bilibili/抖音式"上滑下一个视频"的纵向 feed 组件，背后是
+`MovaFeedController` + `MovaFeedEnginePool`：每个热页各自独立的引擎，而不是所有页
+共用一个，一次上滑是在两个已经活着的画面之间交换（无黑屏一闪、无残留旧帧）。
+
+```dart
+MovaFeedPlayer(
+  engineFactory: createMovaEngine,             // MovaEngineFactory：池中每个引擎怎么造
+  loader: (index) async {                      // MovaFeedLoader：按下标解析条目，到底返回 null
+    if (index >= myFeedUrls.length) return null;
+    return MovaFeedItem(source: MovaSource(myFeedUrls[index]));
+  },
+)
+```
+
+`MovaFeedItem` 是单条 feed 条目的数据值（源 + 点赞/评论/分享等社交字段）；
+`MovaFeedPrefetcher`（默认 `MovaNetworkWarmFeedPrefetcher`）负责提前预热邻近条目的
+网络链路，预热深度经 `prefetchDepth` host 可配。社交交互 UI 组件见
+`ui/components/feed_social.dart`（点赞/评论/分享按钮、头像、信息栏，均可通过皮肤
+补丁体系增删）。详见 [doc/SPEC.md](doc/SPEC.md)「Feed」相关章节。
+
+## 语音转字幕 / STT（可选）
+
+`MovaApi.stt`（`MovaSttApi`）暴露识别出的字幕流：组件只监听 `cues`/`current`、调用
+`start()`/`stop()`，音频抽取与识别引擎调用都藏在 core 层背后。识别引擎本身通过
+`MovaSttEngine` 端口注入（默认 `MovaNoopSttEngine`，不接引擎则该能力静默不生效）：
+
+```dart
+engine.stt.cues.listen((cue) => print('${cue.start}: ${cue.text}'));
+await engine.stt.start();
+```
+
+内置 `MovaSubtitleOverlayComponent`/`MovaSubtitleButtonComponent` 渲染字幕轨与开关
+按钮；`formatSrt()` 可将识别出的 `MovaSttCue` 列表导出为标准 `.srt` 文件。模型/
+字幕文件的存放目录通过 `MovaSttModelDirProvider`/`MovaSttSubtitleDirProvider` 注入，
+默认走系统临时目录（`platform_impl/stt_model_dir_impl.dart` 等）。
+
 ## 广告编排（可选）
 
 `MovaAdController` 按排期播前/中/后贴片，并能表达广告业务的真实时序。**除广告位时长外，
@@ -350,6 +420,15 @@ final engine = createMovaEngine(
 
 不传回调时，Android 走内置系统音量、其它平台走播放器音量——都无需额外代码。
 
+### 亮度与方向端口
+
+左侧竖滑调亮度走 `MovaBrightPort`（`createMovaEngine()` 默认接
+`MovaScreenBrightnessPort()`）；强制横竖屏走 `MovaOrientationPort`（默认接
+`MovaSystemChromeOrientationPort()`）。两者与 `MovaVolumePort` 同构，都可以自行
+实现该抽象类并通过 `createMovaEngine(brightness: ..., orientation: ...)` 换掉。
+方向端口不需要的场景可传内置的 `MovaNoopOrientationPort()` 显式关闭；亮度端口目前
+没有对应的内置空实现，不需要该能力时自行实现一个空的 `MovaBrightPort` 即可。
+
 ### 桌面真全屏
 
 `MovaSystemChromeOrientationPort` 只处理移动端的方向锁定/沉浸式系统 UI；桌面平台
@@ -368,6 +447,49 @@ engine.events.listen((e) {
 
 `MovaFullScreenChange` 事件在 `setFullscreen()` 每次调用时都会发出，与
 `MovaOrientationPort` 无关——不需要实现整套 `MovaOrientationPort` 接口，监听事件流即可。
+
+## 状态、事件与自定义组件
+
+`MovaState`（累计快照，如 `playing`/`duration`/`quality`）与 `MovaProg`（高频进度
+字段：`position`/`buffer`）、`MovaUiState`（HUD/锁定等纯 UI 态）是三类只读状态；
+`MovaApi.events` 则是离散事件流（`MovaEvent` 密封类族，`MovaPlay`/`MovaSeeked`/
+`MovaQualityChange`/`MovaPipChange`/`MovaSwapChange`/`MovaErrorEvent` 等三十余种，
+完整列表见 `lib/src/core/events/events.dart`）。
+
+写自定义组件（`extends MovaComponent`）时，两种读取方式对应两种场景：
+
+```dart
+// 无状态重建：只读一个字段、随其变化自动 rebuild，不需要自己管订阅。
+MovaSelect<bool>(
+  selector: (state) => state.playing,
+  builder: (context, playing) => Icon(playing ? Icons.pause : Icons.play_arrow),
+)
+
+// 有状态副作用：需要在事件发生时做点什么（弹 Toast、打点），而不只是重建。
+class _MyState extends State<MyWidget> with MovaPlugin<MyWidget> {
+  @override
+  void initState() {
+    super.initState();
+    bind(api.events, (e) { if (e is MovaErrorEvent) showToast(e.error); }); // 自动在 dispose 时取消订阅
+  }
+}
+```
+
+`MovaPlugin` 只提供 `api`（稳定句柄）与 `bind`（生命周期安全订阅）两个与业务无关的
+能力，写在哪个组件里都不会有成员名冲突。
+
+## 内置皮肤集 / Built-in skins
+
+除 `MovaDefaultSkin` 外还内置了两套现成皮肤，直接传给 `MovaPlayer.skin` 即可切换：
+
+```dart
+MovaPlayer(api: engine, skin: MovaBilibiliSkin()); // 类 B 站风格（非 const：内置补丁经 static final 拼接）
+MovaPlayer(api: engine, skin: const MovaDouyinSkin());   // 类抖音风格，含双击点赞爱心特效手势层
+```
+
+`MovaBilibiliSkin` 是 `MovaDefaultSkin` 的补丁化变体；`MovaDouyinSkin` 独立实现
+`MovaSkin`，替换了手势层（`MovaDouyinGestureLayerComponent`，双击点赞 + 单击暂停）。
+两者都可以再叠加自己的 `patches` 做进一步定制。
 
 ## 自定义皮肤 / Custom skins
 
