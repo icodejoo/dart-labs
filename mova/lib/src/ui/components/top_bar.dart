@@ -34,8 +34,13 @@ class MovaTopBarComponent extends MovaComponent {
   /// 创建带 6 个固定子组件的顶栏组合组件。
   MovaTopBarComponent();
 
+  /// This component's path segment for `MovaPatch` addressing.
+  ///
+  /// 该组件在 `MovaPatch` 寻址体系里的路径片段。
+  static const String componentName = 'topBar';
+
   @override
-  String get name => 'topBar';
+  String get name => componentName;
 
   @override
   MovaSlot get slot => MovaSlot.top;
@@ -86,8 +91,13 @@ class MovaTitleComponent extends MovaComponent {
   /// 创建标题叶子组件。
   MovaTitleComponent();
 
+  /// This component's path segment for `MovaPatch` addressing.
+  ///
+  /// 该组件在 `MovaPatch` 寻址体系里的路径片段。
+  static const String componentName = 'title';
+
   @override
-  String get name => 'title';
+  String get name => componentName;
 
   @override
   MovaSlot get slot => MovaSlot.top;
@@ -130,8 +140,13 @@ class MovaPipButtonComponent extends MovaComponent {
   /// 创建画中画按钮叶子组件。
   MovaPipButtonComponent();
 
+  /// This component's path segment for `MovaPatch` addressing.
+  ///
+  /// 该组件在 `MovaPatch` 寻址体系里的路径片段。
+  static const String componentName = 'pipButton';
+
   @override
-  String get name => 'pipButton';
+  String get name => componentName;
 
   @override
   MovaSlot get slot => MovaSlot.top;
@@ -172,8 +187,13 @@ class MovaQualityButtonComponent extends MovaComponent {
   /// 创建清晰度按钮叶子组件。
   MovaQualityButtonComponent();
 
+  /// This component's path segment for `MovaPatch` addressing.
+  ///
+  /// 该组件在 `MovaPatch` 寻址体系里的路径片段。
+  static const String componentName = 'qualityButton';
+
   @override
-  String get name => 'qualityButton';
+  String get name => componentName;
 
   @override
   MovaSlot get slot => MovaSlot.top;
@@ -240,8 +260,13 @@ class MovaFitButtonComponent extends MovaComponent {
   /// 创建观看模式按钮叶子组件。
   MovaFitButtonComponent();
 
+  /// This component's path segment for `MovaPatch` addressing.
+  ///
+  /// 该组件在 `MovaPatch` 寻址体系里的路径片段。
+  static const String componentName = 'fitButton';
+
   @override
-  String get name => 'fitButton';
+  String get name => componentName;
 
   @override
   MovaSlot get slot => MovaSlot.top;
@@ -284,8 +309,13 @@ class MovaOrientationButtonComponent extends MovaComponent {
   /// 创建方向按钮叶子组件。
   MovaOrientationButtonComponent();
 
+  /// This component's path segment for `MovaPatch` addressing.
+  ///
+  /// 该组件在 `MovaPatch` 寻址体系里的路径片段。
+  static const String componentName = 'orientationButton';
+
   @override
-  String get name => 'orientationButton';
+  String get name => componentName;
 
   @override
   MovaSlot get slot => MovaSlot.top;
@@ -320,8 +350,13 @@ class MovaFullscreenButtonComponent extends MovaComponent {
   /// 创建全屏按钮叶子组件。
   MovaFullscreenButtonComponent();
 
+  /// This component's path segment for `MovaPatch` addressing.
+  ///
+  /// 该组件在 `MovaPatch` 寻址体系里的路径片段。
+  static const String componentName = 'fullscreenButton';
+
   @override
-  String get name => 'fullscreenButton';
+  String get name => componentName;
 
   @override
   MovaSlot get slot => MovaSlot.top;

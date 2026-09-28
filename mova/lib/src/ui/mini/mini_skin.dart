@@ -73,8 +73,13 @@ class MovaMiniCloseComponent extends MovaComponent {
   /// 点击回调；为 `null` 时按钮不产生效果。
   final VoidCallback? onClose;
 
+  /// This component's path segment for `MovaPatch` addressing.
+  ///
+  /// 该组件在 `MovaPatch` 寻址体系里的路径片段。
+  static const String componentName = 'miniClose';
+
   @override
-  String get name => 'miniClose';
+  String get name => componentName;
 
   @override
   MovaSlot get slot => MovaSlot.top;

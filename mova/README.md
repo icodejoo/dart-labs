@@ -164,7 +164,9 @@ final engine = createMovaEngine(
 ```dart
 MovaPlayer(
   api: engine,
-  skin: MovaDefaultSkin(patches: [MovaPatch.replace('preview', MyBubble())]),
+  skin: MovaDefaultSkin(
+    patches: [MovaPatch.replace(MovaPreviewComponent.componentName, MyBubble())],
+  ),
 )
 ```
 
@@ -385,8 +387,13 @@ pip/锁定时整层隐藏）+**常驻层**（锁定遮罩与锁定/解锁按钮�
 
 ```dart
 // 去掉顶栏里的画中画按钮。
+// 组件路径用 <ComponentClass>.componentName 拼，避免手写字符串拼错。
 const noPipSkin = MovaDefaultSkin(
-  patches: [MovaPatch.remove('topBar/pipButton')],
+  patches: [
+    MovaPatch.remove(
+      '${MovaTopBarComponent.componentName}/${MovaPipButtonComponent.componentName}',
+    ),
+  ],
 );
 
 MovaPlayer(api: engine, skin: noPipSkin);

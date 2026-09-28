@@ -1,5 +1,6 @@
 import '../components/danmaku.dart';
 import '../components/speed_button.dart';
+import '../components/top_bar.dart';
 import '../slots/patch.dart';
 import '../slots/slot.dart';
 import 'default_skin.dart';
@@ -49,6 +50,9 @@ class MovaBilibiliSkin extends MovaDefaultSkin {
   /// 把 [MovaDefaultSkin] 变成 bilibili 预设的两个补丁。
   static final List<MovaPatch> _bilibiliPatches = [
     MovaPatch.add(MovaSlot.overlay, MovaDanmakuTrackComponent()),
-    MovaPatch.insertAfter('topBar/qualityButton', MovaSpeedButtonComponent()),
+    MovaPatch.insertAfter(
+      '${MovaTopBarComponent.componentName}/${MovaQualityButtonComponent.componentName}',
+      MovaSpeedButtonComponent(),
+    ),
   ];
 }

@@ -6,6 +6,7 @@ import '../../core/api.dart';
 import '../../core/options/theme.dart';
 import '../../core/state/progress.dart';
 import '../../core/stt/cue.dart';
+import '../scope/video_rect_scope.dart';
 import '../slots/component.dart';
 import '../slots/slot.dart';
 import 'common.dart';
@@ -28,8 +29,13 @@ class MovaSubtitleOverlayComponent extends MovaComponent {
   /// 创建字幕叠加层组件。
   MovaSubtitleOverlayComponent();
 
+  /// This component's path segment for `MovaPatch` addressing.
+  ///
+  /// 该组件在 `MovaPatch` 寻址体系里的路径片段。
+  static const String componentName = 'subtitleOverlay';
+
   @override
-  String get name => 'subtitleOverlay';
+  String get name => componentName;
 
   @override
   MovaSlot get slot => MovaSlot.overlay;
@@ -100,32 +106,70 @@ class _SubtitleOverlayState extends State<_SubtitleOverlay> {
     setState(() => _cue = next);
   }
 
+  /// Gap kept between the subtitle bubble and the video content's actual
+  /// bottom edge (not the whole player box's edge — see [MovaVideoRectScope]).
+  ///
+  /// 字幕气泡与视频内容实际底边（而非整个播放器容器底边，见
+  /// [MovaVideoRectScope]）之间保留的间距。
+  static const double _bottomGap = 24;
+
   @override
   Widget build(BuildContext context) {
     final cue = _cue;
     if (cue == null) return const SizedBox.shrink();
     final theme = widget.api.options.theme;
     return IgnorePointer(
-      child: Align(
-        alignment: Alignment.bottomCenter,
-        child: Padding(
-          padding: const EdgeInsets.only(bottom: 72),
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-            decoration: BoxDecoration(
-              color: Color(theme.barGradientColor),
-              borderRadius: BorderRadius.circular(4),
+      // A LayoutBuilder rather than Positioned: this widget is a plain
+      // (non-Positioned) child of the overlay slot's Stack, so it already
+      // receives the full container's loose constraints — same box
+      // MovaVideoRectScope's rect was computed against.
+      //
+      // 用 LayoutBuilder 而非 Positioned：本组件是叠加层槽位 Stack 里的普通
+      // （非 Positioned）子节点，天然拿到整个容器的宽松约束——与
+      // MovaVideoRectScope 的矩形所依据的是同一个盒子。
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final container = constraints.biggest;
+          // Falls back to the whole container when no MovaVideoRectScope is
+          // in scope (e.g. this widget rendered outside MovaPlayer in a
+          // test), reproducing the pre-fix "align to whole box" behavior.
+          //
+          // 找不到 MovaVideoRectScope 时（例如本组件在测试里被脱离
+          // MovaPlayer 单独渲染）退化为整个容器，复刻修复前"对齐整个容器"的
+          // 行为。
+          final rect = MovaVideoRectScope.of(context, fallback: Offset.zero & container);
+          return Padding(
+            padding: EdgeInsets.only(
+              left: rect.left,
+              right: (container.width - rect.right).clamp(0, double.infinity),
+              bottom: (container.height - rect.bottom + _bottomGap).clamp(0, double.infinity),
             ),
-            child: Text(
-              cue.text,
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                color: Color(theme.textColor),
-                fontSize: theme.titleFontSize,
+            child: Align(
+              alignment: Alignment.bottomCenter,
+              child: Container(
+                // Stable key so tests/verification probes can locate the
+                // rendered bubble's RenderBox without matching on text.
+                //
+                // 固定 key，便于测试/验证探针在不匹配文本内容的情况下定位到
+                // 渲染出的气泡 RenderBox。
+                key: const ValueKey('movaSubtitleCueBubble'),
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                decoration: BoxDecoration(
+                  color: Color(theme.barGradientColor),
+                  borderRadius: BorderRadius.circular(4),
+                ),
+                child: Text(
+                  cue.text,
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: Color(theme.textColor),
+                    fontSize: theme.titleFontSize,
+                  ),
+                ),
               ),
             ),
-          ),
-        ),
+          );
+        },
       ),
     );
   }
@@ -154,8 +198,13 @@ class MovaSubtitleButtonComponent extends MovaComponent {
   /// 创建字幕按钮叶子组件。
   MovaSubtitleButtonComponent();
 
+  /// This component's path segment for `MovaPatch` addressing.
+  ///
+  /// 该组件在 `MovaPatch` 寻址体系里的路径片段。
+  static const String componentName = 'subtitleButton';
+
   @override
-  String get name => 'subtitleButton';
+  String get name => componentName;
 
   @override
   MovaSlot get slot => MovaSlot.top;

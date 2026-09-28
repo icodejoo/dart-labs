@@ -86,8 +86,13 @@ class MovaSocialRailComponent extends MovaComponent {
   /// 本页共享的点赞状态 notifier。
   final ValueNotifier<({bool liked, int count})> likeNotifier;
 
+  /// This component's path segment for `MovaPatch` addressing.
+  ///
+  /// 该组件在 `MovaPatch` 寻址体系里的路径片段。
+  static const String componentName = 'socialRail';
+
   @override
-  String get name => 'socialRail';
+  String get name => componentName;
 
   @override
   MovaSlot get slot => MovaSlot.right;
@@ -131,8 +136,13 @@ class MovaAvatarComponent extends MovaComponent {
   /// 当前页的元数据与回调。
   final MovaFeedItem item;
 
+  /// This component's path segment for `MovaPatch` addressing.
+  ///
+  /// 该组件在 `MovaPatch` 寻址体系里的路径片段。
+  static const String componentName = 'avatar';
+
   @override
-  String get name => 'avatar';
+  String get name => componentName;
 
   @override
   MovaSlot get slot => MovaSlot.right;
@@ -190,8 +200,13 @@ class MovaLikeButtonComponent extends MovaComponent {
   /// 本页共享的点赞状态 notifier。
   final ValueNotifier<({bool liked, int count})> likeNotifier;
 
+  /// This component's path segment for `MovaPatch` addressing.
+  ///
+  /// 该组件在 `MovaPatch` 寻址体系里的路径片段。
+  static const String componentName = 'likeButton';
+
   @override
-  String get name => 'likeButton';
+  String get name => componentName;
 
   @override
   MovaSlot get slot => MovaSlot.right;
@@ -231,8 +246,13 @@ class MovaCommentButtonComponent extends MovaComponent {
   /// 当前页的元数据与回调。
   final MovaFeedItem item;
 
+  /// This component's path segment for `MovaPatch` addressing.
+  ///
+  /// 该组件在 `MovaPatch` 寻址体系里的路径片段。
+  static const String componentName = 'commentButton';
+
   @override
-  String get name => 'commentButton';
+  String get name => componentName;
 
   @override
   MovaSlot get slot => MovaSlot.right;
@@ -267,8 +287,13 @@ class MovaShareButtonComponent extends MovaComponent {
   /// 当前页的元数据与回调。
   final MovaFeedItem item;
 
+  /// This component's path segment for `MovaPatch` addressing.
+  ///
+  /// 该组件在 `MovaPatch` 寻址体系里的路径片段。
+  static const String componentName = 'shareButton';
+
   @override
-  String get name => 'shareButton';
+  String get name => componentName;
 
   @override
   MovaSlot get slot => MovaSlot.right;
@@ -301,8 +326,13 @@ class MovaFeedInfoComponent extends MovaComponent {
   /// 当前页的元数据。
   final MovaFeedItem item;
 
+  /// This component's path segment for `MovaPatch` addressing.
+  ///
+  /// 该组件在 `MovaPatch` 寻址体系里的路径片段。
+  static const String componentName = 'feedInfo';
+
   @override
-  String get name => 'feedInfo';
+  String get name => componentName;
 
   @override
   MovaSlot get slot => MovaSlot.bottom;

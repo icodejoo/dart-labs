@@ -61,8 +61,13 @@ class MovaGestureLayerComponent extends MovaComponent {
   /// 创建手势层组件。
   MovaGestureLayerComponent();
 
+  /// This component's path segment for `MovaPatch` addressing.
+  ///
+  /// 该组件在 `MovaPatch` 寻址体系里的路径片段。
+  static const String componentName = 'gestureLayer';
+
   @override
-  String get name => 'gestureLayer';
+  String get name => componentName;
 
   @override
   MovaSlot get slot => MovaSlot.gesture;

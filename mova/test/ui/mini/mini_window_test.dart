@@ -195,9 +195,13 @@ void main() {
 
   testWidgets('MovaMiniWindow build root is LayoutBuilder, not Positioned', (tester) async {
     await pumpWindow(tester, ctl: ctl, api: api);
+    // findsWidgets (not findsOneWidget): MovaPlayer's internal render-rect
+    // LayoutBuilder (see lib/src/ui/player.dart, added for the video-content
+    // letterbox rect) is a second, unrelated LayoutBuilder descendant now —
+    // this assertion only cares that MovaMiniWindow's own root is one.
     expect(
       find.descendant(of: find.byType(MovaMiniWindow), matching: find.byType(LayoutBuilder)),
-      findsOneWidget,
+      findsWidgets,
     );
     expect(tester.widget(find.byType(MovaMiniWindow)), isNot(isA<Positioned>()),
         reason: 'MovaMiniWindow must never be a Positioned itself — mount-agnostic constraint');

@@ -6,9 +6,11 @@ import '../core/model/fit.dart';
 import 'fit_ext.dart';
 import 'scope/scope.dart';
 import 'scope/selector.dart';
+import 'scope/video_rect_scope.dart';
 import 'skins/default_skin.dart';
 import 'skins/skin.dart';
 import 'slots/tree.dart';
+import 'video_rect.dart';
 
 /// The top-level mova player widget: wires a real (or fake) [MovaApi] to
 /// the raw video render surface and a [MovaSkin]'s component tree.
@@ -138,7 +140,43 @@ class _MovaPlayerState extends State<MovaPlayer> {
           builder: (context) {
             final tree = widget.skin.components();
             final bundle = buildSlots(context, widget.api, tree);
-            return widget.skin.assemble(context, bundle, widget.surface ?? const _RenderSurface());
+            final assembled = widget.skin.assemble(
+              context,
+              bundle,
+              widget.surface ?? const _RenderSurface(),
+            );
+            // Publishes the video content's actual (letterboxed) display rect
+            // to descendants of the assembled tree, so overlay components
+            // (e.g. the STT subtitle) can align to the picture itself rather
+            // than to the whole player box. Wraps the *whole* assembled tree
+            // (playback + operable + persistent layers are Stack siblings —
+            // see MovaDefaultSkin.assemble) so every layer shares the same
+            // coordinate space as the video surface, which fills the same
+            // constraints.
+            //
+            // 向已装配树的后代发布视频内容的实际（letterbox 后）显示矩形，使
+            // 叠加层组件（如 STT 字幕）能对齐画面本身而非整个播放器容器。包裹
+            // 的是*整棵*已装配树（播放层/操作层/常驻层是同一 Stack 的兄弟节点，
+            // 见 MovaDefaultSkin.assemble），使每一层都与视频画面共享同一坐标
+            // 系——两者填充的是同一份约束。
+            return LayoutBuilder(
+              builder: (context, constraints) {
+                return MovaSelect<({MovaFit fit, int width, int height})>(
+                  selector: (s) => (fit: s.fit, width: s.width, height: s.height),
+                  builder: (context, value) {
+                    final videoSize = value.width > 0 && value.height > 0
+                        ? Size(value.width.toDouble(), value.height.toDouble())
+                        : null;
+                    final rect = computeVideoContentRect(
+                      container: constraints.biggest,
+                      videoSize: videoSize,
+                      fit: value.fit,
+                    );
+                    return MovaVideoRectScope(rect: rect, child: assembled);
+                  },
+                );
+              },
+            );
           },
         ),
       ),

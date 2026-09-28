@@ -34,8 +34,13 @@ class MovaBottomBarComponent extends MovaComponent {
   /// 创建自适应底栏组合组件。
   MovaBottomBarComponent();
 
+  /// This component's path segment for `MovaPatch` addressing.
+  ///
+  /// 该组件在 `MovaPatch` 寻址体系里的路径片段。
+  static const String componentName = 'bottomBar';
+
   @override
-  String get name => 'bottomBar';
+  String get name => componentName;
 
   @override
   MovaSlot get slot => MovaSlot.bottom;
@@ -91,8 +96,13 @@ class MovaPositionLabelComponent extends MovaComponent {
   /// 创建已播放时间标签叶子组件。
   MovaPositionLabelComponent();
 
+  /// This component's path segment for `MovaPatch` addressing.
+  ///
+  /// 该组件在 `MovaPatch` 寻址体系里的路径片段。
+  static const String componentName = 'positionLabel';
+
   @override
-  String get name => 'positionLabel';
+  String get name => componentName;
 
   @override
   MovaSlot get slot => MovaSlot.bottom;
@@ -121,8 +131,13 @@ class MovaDurationLabelComponent extends MovaComponent {
   /// 创建总时长标签叶子组件。
   MovaDurationLabelComponent();
 
+  /// This component's path segment for `MovaPatch` addressing.
+  ///
+  /// 该组件在 `MovaPatch` 寻址体系里的路径片段。
+  static const String componentName = 'durationLabel';
+
   @override
-  String get name => 'durationLabel';
+  String get name => componentName;
 
   @override
   MovaSlot get slot => MovaSlot.bottom;
@@ -166,8 +181,13 @@ class MovaSeekBarComponent extends MovaComponent {
   /// 创建进度滑块叶子组件。
   MovaSeekBarComponent();
 
+  /// This component's path segment for `MovaPatch` addressing.
+  ///
+  /// 该组件在 `MovaPatch` 寻址体系里的路径片段。
+  static const String componentName = 'seekBar';
+
   @override
-  String get name => 'seekBar';
+  String get name => componentName;
 
   @override
   MovaSlot get slot => MovaSlot.bottom;
@@ -359,8 +379,13 @@ class MovaLiveBadgeComponent extends MovaComponent {
   /// 创建直播角标叶子组件。
   MovaLiveBadgeComponent();
 
+  /// This component's path segment for `MovaPatch` addressing.
+  ///
+  /// 该组件在 `MovaPatch` 寻址体系里的路径片段。
+  static const String componentName = 'liveBadge';
+
   @override
-  String get name => 'liveBadge';
+  String get name => componentName;
 
   @override
   MovaSlot get slot => MovaSlot.bottom;
@@ -407,8 +432,13 @@ class MovaTimeshiftLabelComponent extends MovaComponent {
   /// 创建时移标签叶子组件。
   MovaTimeshiftLabelComponent();
 
+  /// This component's path segment for `MovaPatch` addressing.
+  ///
+  /// 该组件在 `MovaPatch` 寻址体系里的路径片段。
+  static const String componentName = 'timeshift';
+
   @override
-  String get name => 'timeshift';
+  String get name => componentName;
 
   @override
   MovaSlot get slot => MovaSlot.bottom;
@@ -453,8 +483,13 @@ class MovaBackToLiveComponent extends MovaComponent {
   /// 创建回到直播叶子组件。
   MovaBackToLiveComponent();
 
+  /// This component's path segment for `MovaPatch` addressing.
+  ///
+  /// 该组件在 `MovaPatch` 寻址体系里的路径片段。
+  static const String componentName = 'backToLive';
+
   @override
-  String get name => 'backToLive';
+  String get name => componentName;
 
   @override
   MovaSlot get slot => MovaSlot.bottom;

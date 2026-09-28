@@ -36,8 +36,13 @@ class MovaNextUpComponent extends MovaComponent {
   /// 该卡片读取并驱动的播放列表控制器。
   final MovaPlaylistController controller;
 
+  /// This component's path segment for `MovaPatch` addressing.
+  ///
+  /// 该组件在 `MovaPatch` 寻址体系里的路径片段。
+  static const String componentName = 'nextUp';
+
   @override
-  String get name => 'nextUp';
+  String get name => componentName;
 
   @override
   MovaSlot get slot => MovaSlot.overlay;

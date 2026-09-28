@@ -36,8 +36,13 @@ class MovaAdOverlayComponent extends MovaComponent {
   /// 该叠层读取并驱动的广告控制器。
   final MovaAdController controller;
 
+  /// This component's path segment for `MovaPatch` addressing.
+  ///
+  /// 该组件在 `MovaPatch` 寻址体系里的路径片段。
+  static const String componentName = 'adOverlay';
+
   @override
-  String get name => 'adOverlay';
+  String get name => componentName;
 
   @override
   MovaSlot get slot => MovaSlot.overlay;

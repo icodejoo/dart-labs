@@ -23,8 +23,13 @@ class MovaBufferingComponent extends MovaComponent {
   /// 创建缓冲叠加层叶子组件。
   MovaBufferingComponent();
 
+  /// This component's path segment for `MovaPatch` addressing.
+  ///
+  /// 该组件在 `MovaPatch` 寻址体系里的路径片段。
+  static const String componentName = 'buffering';
+
   @override
-  String get name => 'buffering';
+  String get name => componentName;
 
   @override
   MovaSlot get slot => MovaSlot.center;
@@ -61,8 +66,13 @@ class MovaErrorComponent extends MovaComponent {
   /// 创建错误叠加层叶子组件。
   MovaErrorComponent();
 
+  /// This component's path segment for `MovaPatch` addressing.
+  ///
+  /// 该组件在 `MovaPatch` 寻址体系里的路径片段。
+  static const String componentName = 'error';
+
   @override
-  String get name => 'error';
+  String get name => componentName;
 
   @override
   MovaSlot get slot => MovaSlot.center;
@@ -114,8 +124,13 @@ class MovaLockMaskComponent extends MovaComponent {
   /// 创建锁定遮罩叶子组件。
   MovaLockMaskComponent();
 
+  /// This component's path segment for `MovaPatch` addressing.
+  ///
+  /// 该组件在 `MovaPatch` 寻址体系里的路径片段。
+  static const String componentName = 'lockMask';
+
   @override
-  String get name => 'lockMask';
+  String get name => componentName;
 
   @override
   MovaSlot get slot => MovaSlot.overlay;

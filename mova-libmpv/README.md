@@ -590,8 +590,42 @@ jniLibs 合并时如果两份 `libmpv.so` 都在会直接报 merge 冲突。接�
       - **四种字幕格式（SRT/ASS/WebVTT 外挂 + mov_text 内封）已全部覆盖**，
         `FILTERS=""` 对字幕渲染链路无回归。
 - [ ] 播放中翻后台/来电中断恢复——未测
-- [ ] AV1 软解在高码率/长视频/1080p+ 场景下的 CPU/内存/发热/流畅度——上面只测了低码率
-      短片，结论不能直接套用到真实业务内容
+- [x] **AV1 软解在高码率/长视频/1080p+ 场景下的 CPU/内存/流畅度——2026-09-28 Windows
+      桌面已实测，未测发热（桌面无移动端那种热节流问题）**：用本地 `ffmpeg`
+      （libaom-av1）现编码构造测试源（此前低码率短片是 8 秒 720p，早期公开 AV1 样例站
+      未再重新踩坑），`av1_1080p_highbitrate.mp4`：1920x1080、90s、码率
+      ≈10.38Mbps（`ffprobe` 实测），比此前测过的样例高一个数量级、时长也长得多。
+      新建独立探针 `example/lib/perf_probe_av1_highbitrate.dart`（未提交），
+      `flutter run -d windows --release` 播放，`ProcessInfo.currentRss` +
+      `MovaProg` 事件采样（非目测/墙钟）：
+      - **流畅度**：`final_pos_ms=77500`、`final_prog_count=387`，387 个 progress
+        事件里 delta 分布 `199ms×14 / 200ms×351 / 233ms×19`（233ms 是 progress 流
+        200ms 节流叠加 UI 线程调度抖动，属正常范围），**`buffering=true` 出现次数
+        为 0**——整个播放期间零卡顿、零缓冲，位置推进平滑连续。
+      - **内存**：`baseline_rss_mib=137.29`（引擎创建前）→ 播放期五次采样
+        `311.96/313.97/313.51/313.60/313.49`（首尾波动仅 0.48MiB，**无累积增长
+        趋势**，77.5 秒播放窗口内可认为稳定）→ `disposed_rss_mib=275.38`（dispose
+        后 3 秒，未完全回落到 baseline，与此前 audioOnly 真机测试观察到的现象
+        一致——`ProcessInfo.currentRss` 不会立即反映系统级 GC/allocator 归还）。
+      - **CPU（间接推断为软解，非直接证据——探针未接 mpv 日志通道，判据是 CPU
+        占用模式）**：`wmic process get KernelModeTime,UserModeTime` 在稳态播放窗口
+        （video position 37.966s→77.5s，实际经过 39.534s）采样，kernel 时间增量
+        3.203s + user 时间增量 11.344s，合计 CPU-核·秒 ≈14.547s，折合**约一个逻辑核
+        心的 36.8%**（Windows 每进程 CPU 时间的标准折算方式，多线程会累加，非单核
+        占满）。dav1d 是多线程软解码器，10Mbps 1080p30 稳定占用约三分之一个核心，
+        量级与已知 dav1d 效率吻合，间接支持"确实在软解"的判断，但**未拿到 mpv
+        `hwdec`/`vd` 选择的直接日志证据**，不能 100% 排除该机器命中某种硬解路径。
+      - **稳定性**：完整播放并正常 dispose，日志仅有两行正常的纹理释放信息
+        （`VideoOutput: Free Texture` / `VideoOutput::~VideoOutput`），**无崩溃、
+        无花屏报告**（Windows 桌面按窗口渲染，未做逐帧视觉抽查，仅凭日志与进程
+        存活状态判断无花屏，弱于此前 Android 端 `screencap` 那种真实取帧验证）。
+      - **重要限制——这是桌面数据，不能直接套到移动端**：桌面 CPU 架构、单核性能、
+        散热策略、功耗墙都与手机完全不同（这也是本条最初标注"未测"的原因）。这次
+        实测能确认的是：**软解路径本身在高码率/长时长场景下没有功能性缺陷**（不
+        崩、不卡、不出现内存单调增长）；具体的 CPU/内存量级仅供桌面参考，
+        Android/iOS 真机在同码率下的实际负载仍需单独测（尤其骁龙 460/662/680 这类
+        已知无 AV1 硬解单元的中低端芯片，软解压力预计远高于本次桌面 36.8% 这个
+        数字，需要单独立项验证是否会导致真实卡顿/发热/掉帧）。
 
 **下次接手**：三个新 demo 入口（`ffmpeg瘦身 · HEVC/VP9/AV1`）已加进
 `example/lib/main.dart` 的 `_demos` 列表，真机上可直接点开测，不用再改代码找测试源

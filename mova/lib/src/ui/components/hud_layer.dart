@@ -19,8 +19,13 @@ class MovaHudLayerComponent extends MovaComponent {
   /// 创建带 4 个固定子组件的 HUD 层组合组件。
   MovaHudLayerComponent();
 
+  /// This component's path segment for `MovaPatch` addressing.
+  ///
+  /// 该组件在 `MovaPatch` 寻址体系里的路径片段。
+  static const String componentName = 'hudLayer';
+
   @override
-  String get name => 'hudLayer';
+  String get name => componentName;
 
   @override
   MovaSlot get slot => MovaSlot.hud;
@@ -48,8 +53,13 @@ class MovaVolumeHudComponent extends MovaComponent {
   /// 创建音量 HUD 叶子组件。
   MovaVolumeHudComponent();
 
+  /// This component's path segment for `MovaPatch` addressing.
+  ///
+  /// 该组件在 `MovaPatch` 寻址体系里的路径片段。
+  static const String componentName = 'volumeHud';
+
   @override
-  String get name => 'volumeHud';
+  String get name => componentName;
 
   @override
   MovaSlot get slot => MovaSlot.hud;
@@ -81,8 +91,13 @@ class MovaBrightnessHudComponent extends MovaComponent {
   /// 创建亮度 HUD 叶子组件。
   MovaBrightnessHudComponent();
 
+  /// This component's path segment for `MovaPatch` addressing.
+  ///
+  /// 该组件在 `MovaPatch` 寻址体系里的路径片段。
+  static const String componentName = 'brightnessHud';
+
   @override
-  String get name => 'brightnessHud';
+  String get name => componentName;
 
   @override
   MovaSlot get slot => MovaSlot.hud;
@@ -124,8 +139,13 @@ class MovaSeekHudComponent extends MovaComponent {
   /// 创建进度 HUD 叶子组件。
   MovaSeekHudComponent();
 
+  /// This component's path segment for `MovaPatch` addressing.
+  ///
+  /// 该组件在 `MovaPatch` 寻址体系里的路径片段。
+  static const String componentName = 'seekHud';
+
   @override
-  String get name => 'seekHud';
+  String get name => componentName;
 
   @override
   MovaSlot get slot => MovaSlot.hud;
@@ -157,8 +177,13 @@ class MovaZoomHudComponent extends MovaComponent {
   /// 创建缩放 HUD 叶子组件。
   MovaZoomHudComponent();
 
+  /// This component's path segment for `MovaPatch` addressing.
+  ///
+  /// 该组件在 `MovaPatch` 寻址体系里的路径片段。
+  static const String componentName = 'zoomHud';
+
   @override
-  String get name => 'zoomHud';
+  String get name => componentName;
 
   @override
   MovaSlot get slot => MovaSlot.hud;

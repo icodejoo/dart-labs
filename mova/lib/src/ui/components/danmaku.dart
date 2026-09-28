@@ -28,8 +28,13 @@ class MovaDanmakuTrackComponent extends MovaComponent {
   /// 创建弹幕轨道组件。
   MovaDanmakuTrackComponent();
 
+  /// This component's path segment for `MovaPatch` addressing.
+  ///
+  /// 该组件在 `MovaPatch` 寻址体系里的路径片段。
+  static const String componentName = 'danmakuTrack';
+
   @override
-  String get name => 'danmakuTrack';
+  String get name => componentName;
 
   @override
   MovaSlot get slot => MovaSlot.overlay;

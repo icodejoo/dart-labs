@@ -28,8 +28,13 @@ class MovaSpeedButtonComponent extends MovaComponent {
   /// 创建倍速按钮叶子组件。
   MovaSpeedButtonComponent();
 
+  /// This component's path segment for `MovaPatch` addressing.
+  ///
+  /// 该组件在 `MovaPatch` 寻址体系里的路径片段。
+  static const String componentName = 'speedButton';
+
   @override
-  String get name => 'speedButton';
+  String get name => componentName;
 
   @override
   MovaSlot get slot => MovaSlot.top;

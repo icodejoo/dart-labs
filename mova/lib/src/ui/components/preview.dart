@@ -29,8 +29,13 @@ class MovaPreviewComponent extends MovaComponent {
   /// 创建预览气泡组件。
   MovaPreviewComponent();
 
+  /// This component's path segment for `MovaPatch` addressing.
+  ///
+  /// 该组件在 `MovaPatch` 寻址体系里的路径片段。
+  static const String componentName = 'preview';
+
   @override
-  String get name => 'preview';
+  String get name => componentName;
 
   @override
   MovaSlot get slot => MovaSlot.bottomAbove;

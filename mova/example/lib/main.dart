@@ -165,7 +165,13 @@ final _demos = [
 /// picture-in-picture button patched out of the top bar.
 ///
 /// 第三个演示入口使用的皮肤：在默认皮肤基础上，从顶栏中移除画中画按钮。
-const _noPipSkin = MovaDefaultSkin(patches: [MovaPatch.remove('topBar/pipButton')]);
+const _noPipSkin = MovaDefaultSkin(
+  patches: [
+    MovaPatch.remove(
+      '${MovaTopBarComponent.componentName}/${MovaPipButtonComponent.componentName}',
+    ),
+  ],
+);
 
 /// Index of the bilibili-skin demo entry in [_demos].
 ///

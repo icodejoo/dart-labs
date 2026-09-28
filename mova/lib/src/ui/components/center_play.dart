@@ -16,8 +16,13 @@ class MovaCenterPlayComponent extends MovaComponent {
   /// 创建带唯一子组件的中央播放组合组件。
   MovaCenterPlayComponent();
 
+  /// This component's path segment for `MovaPatch` addressing.
+  ///
+  /// 该组件在 `MovaPatch` 寻址体系里的路径片段。
+  static const String componentName = 'centerPlay';
+
   @override
-  String get name => 'centerPlay';
+  String get name => componentName;
 
   @override
   MovaSlot get slot => MovaSlot.center;
@@ -48,8 +53,13 @@ class MovaPlayPauseComponent extends MovaComponent {
   /// 创建播放/暂停叶子组件。
   MovaPlayPauseComponent();
 
+  /// This component's path segment for `MovaPatch` addressing.
+  ///
+  /// 该组件在 `MovaPatch` 寻址体系里的路径片段。
+  static const String componentName = 'playPause';
+
   @override
-  String get name => 'playPause';
+  String get name => componentName;
 
   @override
   MovaSlot get slot => MovaSlot.center;
