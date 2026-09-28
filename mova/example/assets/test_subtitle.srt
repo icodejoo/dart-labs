@@ -1,0 +1,11 @@
+1
+00:00:00,500 --> 00:00:04,000
+avfilter regression check line 1 - MOVA SUBTITLE TEST
+
+2
+00:00:04,500 --> 00:00:08,000
+avfilter regression check line 2 - libass render OK
+
+3
+00:00:08,500 --> 00:00:12,000
+avfilter regression check line 3 - overlay/equalizer removed, subs still work

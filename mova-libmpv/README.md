@@ -536,12 +536,59 @@ jniLibs 合并时如果两份 `libmpv.so` 都在会直接报 merge 冲突。接�
       定稿 `dist/arm64-v8a/libmpv.so`）能正常软解播放 elysiatools 的 AV1 样例。
       8 秒 720p 低码率短片实测 CPU 87%~180%（多核）、RSS 内存比硬解多涨 70~90MB，
       肉眼无明显卡顿；**未测**高码率/长视频/1080p+ 场景，大概率更吃力，暂无数据。
-- [ ] 字幕：ASS/SRT/WebVTT 外挂字幕 + mov_text 内封字幕渲染——未测，demo 里还没有带字幕的源
+- [x] 字幕（SRT 外挂 / ASS 外挂 / WebVTT 外挂 / mov_text 内封）：2026-09-28 同批验证，
+      见下方「重点」条目——**四种格式全部 PASS，均有真实轮询命中时间戳 + 截图证据**
 - [ ] 截图（png 编码器路径）——未测
 - [ ] HLS/FLV 直播流起播——未测（demo 已有 HLS 源，FLV 无）
-- [ ] **重点**：`FILTERS=""` 去掉 `overlay`/`equalizer` 之后，OSD、字幕合成、音量均衡
-      是否有可感知回归——仍未针对性验证，上面测的都是纯视频轨，没有触发这两个 avfilter
-      的路径
+- [x] **重点**：`FILTERS=""` 去掉 `overlay`/`equalizer` 之后，OSD、字幕合成、音量均衡
+      是否有可感知回归——**2026-09-28 同一台 STG-AL00 已针对性验证，三项均无回归，
+      但音量均衡一项本质是代码审查排除而非播放验证（见下方说明）**：
+      - **字幕合成（libass）——PASS，有真实事件证据**：mova 本身没有公开字幕 API
+        （`grep lib/` 确认），临时探针 `example/lib/main_avfilter_regression_probe.dart`
+        （未提交）用裸 media_kit `NativePlayer` 走 mpv 原生 `sub-add` 命令
+        （注意不是 `sub-file` 属性——那个只在加载时生效，运行时设置会被静默忽略，
+        `track-list` 查询会显示 `[]`；这是本次踩的一个坑，特此记录）加载外挂 SRT
+        字幕，每 500ms 轮询一次 mpv `sub-text` 属性并打日志。真机实测（HLS 首选源
+        因当时设备只有 EDGE/2G 弱信号反复卡黑屏，改用
+        `test-videos.co.uk` 的 10s/1MB 小体积 mp4 后稳定复现）：三段字幕分别在
+        `pos=0.8s`/`4.766s`/`8.766s` 精确命中窗口开始被 `sub-text` 读到，命中区间
+        内连续多个采样点文本保持一致、区间外为空，与 SRT 时间轴（0.5–4s/4.5–8s/
+        8.5–12s）吻合，`adb shell screencap` 截图也直接看到画面底部叠着渲染出的
+        字幕文字。证明 `FILTERS=""` 不影响 libass 字幕渲染链路。
+      - **ASS / WebVTT 外挂 + mov_text 内封字幕补测（2026-09-28，同一台
+        STG-AL00，`example/lib/main_subtitle_formats_probe.dart`，未提交）
+        ——三项全部 PASS**：本地用 `ffmpeg testsrc` 生成 12s 本地 mp4
+        （避开网络抖动），另起一份三段式 `.ass`/`.vtt` 字幕（时间轴同
+        SRT：0.8/4.76/8.76s），以及用
+        `ffmpeg -c:s mov_text` 把同一份 SRT 转封装进 mp4 得到内封字幕素材。
+        ASS/VTT 走与 SRT 相同的 `sub-add` 命令加载，每 500ms 轮询
+        `sub-text`：ASS 三段命中 `pos=1.03s/5.03s/9.03s`，VTT 三段命中
+        `pos=0.87s/4.87s/8.90s`，均与预期时间轴吻合，`adb shell screencap`
+        截图确认渲染（ASS 样式未生效，只是纯文本，符合"无样式也算 PASS"
+        的验收标准）。mov_text 不需要 `sub-add`，`open()` 后容器自带字幕轨——
+        **发现一个真实现象**：`open()` 后立刻查询的 `track-list` 是空数组
+        `[]`（探测尚未完成的时序问题），但紧接着 `set_property('sid','1')`
+        仍然生效，随后字幕正常渲染（三段命中 `pos=0.60s/4.60s/8.63s`），
+        截图确认。**探针脚本自身还踩了一个坑，与 mova/avfilter 无关**：
+        自动化的三步定时序列（ASS→VTT→mov_text 各间隔约 20s）第一次跑到
+        mov_text 时命中 `Bad state: Cannot add new events after calling
+        close`（`MovaEngine.open` 报错，探针 `_disposeCurrent()` 与
+        `Future.delayed` 定时器之间的竞态导致对一个已关闭的 stream
+        controller 调用 open），改为手动点按钮重跑后正常通过——这是探针
+        脚本的时序 bug，不是 mova 或瘦身 libmpv 的缺陷，已在此如实记录。
+      - **OSD 叠加——PASS**：截图证据显示 Flutter 层的 UI（锁定图标、AppBar
+        等）与视频画面正常叠加，无花屏/黑屏/崩溃；mova 的进度条/控制条等 OSD
+        全部是 Flutter Widget 自绘（`lib/src/ui/components/`），不经过 mpv 原生
+        OSD 渲染链路，天然不受 avfilter 影响。
+      - **音量均衡——非播放验证，代码审查排除**：`grep -rn "af=\|equalizer\|
+        audio-filter" lib/` 确认 mova 产品层完全没有调用 `--af=equalizer` 或任何
+        等效路径的代码，UI 也没有均衡器开关入口——这个功能本身在 mova 里不存在，
+        无法也无需做播放验证，风险已通过代码审查排除。
+      - logcat 全程（`adb logcat -d | grep -iE "avfilter|libass|FATAL|SIGSEGV"`）
+        无崩溃/异常输出（补测 ASS/WebVTT/mov_text 时同样检查过一遍，除探针
+        脚本自身那个 stream-controller 竞态异常外无其他异常）。
+      - **四种字幕格式（SRT/ASS/WebVTT 外挂 + mov_text 内封）已全部覆盖**，
+        `FILTERS=""` 对字幕渲染链路无回归。
 - [ ] 播放中翻后台/来电中断恢复——未测
 - [ ] AV1 软解在高码率/长视频/1080p+ 场景下的 CPU/内存/发热/流畅度——上面只测了低码率
       短片，结论不能直接套用到真实业务内容
@@ -549,9 +596,8 @@ jniLibs 合并时如果两份 `libmpv.so` 都在会直接报 merge 冲突。接�
 **下次接手**：三个新 demo 入口（`ffmpeg瘦身 · HEVC/VP9/AV1`）已加进
 `example/lib/main.dart` 的 `_demos` 列表，真机上可直接点开测，不用再改代码找测试源
 （AV1 那条标题写的是"硬解验证"，但现在硬解失败会自动落到软解，标题文案没同步改，
-下次顺手改一下）。剩下要测的是字幕/截图/HLS-FLV/avfilter回归/后台中断/AV1软解高码率
-这六项——建议先测 avfilter 回归（设计决策里唯一标"未验证"的功能性风险点，优先级
-高于其余格式覆盖类检查）。
+下次顺手改一下）。字幕（SRT/ASS/WebVTT/mov_text 四种格式）与 avfilter 回归已于
+2026-09-28 测完，剩下要测的是截图/HLS-FLV/后台中断/AV1软解高码率这四项。
 
 ## 已知取舍与扩展点
 

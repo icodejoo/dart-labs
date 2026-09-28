@@ -1,0 +1,13 @@
+WEBVTT
+
+1
+00:00:00.800 --> 00:00:03.500
+VTT regression check line 1 - MOVA SUBTITLE TEST
+
+2
+00:00:04.760 --> 00:00:07.500
+VTT regression check line 2 - libass render OK
+
+3
+00:00:08.760 --> 00:00:11.500
+VTT regression check line 3 - overlay/equalizer removed, subs still work
