@@ -1265,7 +1265,10 @@ jobs:
           DEF_FILE=$(find . -maxdepth 1 -name '*.def' | head -1)
           test -n "$DEF_FILE" || { echo "::error::gendef failed to produce .def file"; exit 1; }
           dlltool -d "$DEF_FILE" -l "$WS/libmpv.dll.a" -D libmpv-2.dll
-          cp "$DEF_FILE" "$WS/libmpv-2.def"
+          if [ "$DEF_FILE" != "$WS/libmpv-2.def" ] && [ "$DEF_FILE" != "./libmpv-2.def" ]; then
+            cp "$DEF_FILE" "$WS/libmpv-2.def"
+          fi
+          test -f "$WS/libmpv-2.def" || { echo "::error::libmpv-2.def not found in WS"; exit 1; }
           test -f "$WS/libmpv.dll.a" || { echo "::error::dlltool failed to produce libmpv.dll.a"; exit 1; }
           echo "Successfully generated libmpv-2.def and libmpv.dll.a"
 
