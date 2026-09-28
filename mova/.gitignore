@@ -46,3 +46,9 @@ tools/ffmpeg-slim/dist/darwin/*
 tools/ffmpeg-slim/dist/windows-native/
 tools/ffmpeg-slim/dist/windows-native2/
 tools/ffmpeg-slim/dist/windows-explore/
+
+# One-off real-device verification fixtures (large binaries / screenshots) —
+# these must never enter git history or a `pub publish` archive; delete
+# locally once the verification they were made for is done.
+example/av1_probe_assets/
+example/assets/_probe_screens/
