@@ -453,6 +453,36 @@ void main() {
       expect(shadow.calls, contains('dispose'));
     });
 
+    test(
+        'two overlapping commit(waitForReady: true) calls both resolve once ready, and only one '
+        'promotes the shadow (regression: the second call used to overwrite _readyCompleter and '
+        'orphan the first forever; simply fixing that by itself would have let both calls run '
+        '_commitNow concurrently once unblocked)', () async {
+      await api.prepare(
+        const MovaSource('https://host/content.mp4'),
+        cue: const MovaWarmCue(remaining: Duration(seconds: 1), total: Duration(seconds: 10)),
+      );
+      await settle();
+      final shadow = made[1];
+      final first = api.commit(waitForReady: true);
+      final second = api.commit(waitForReady: true);
+      await warmToReady(shadow);
+      final results = await Future.wait([first, second]);
+      // Exactly one of the two calls actually promoted the shadow; the other
+      // found it already claimed and backed off.
+      //
+      // 两次调用里恰好有一次真正把影子转正；另一次发现它已被认领，随即退出。
+      expect(results.where((r) => r).length, 1,
+          reason: 'exactly one overlapping commit() should promote the shadow');
+      expect(api.active, same(shadow));
+      // Promoting an engine calls pause() on the outgoing one exactly once;
+      // a double _commitNow would call it twice.
+      //
+      // 转正一次只会对被换下的引擎调用一次 pause()；若发生了两次并发的
+      // _commitNow，会被调用两次。
+      expect(made.first.calls.where((c) => c == 'pause').length, 1);
+    });
+
     test('swapTo returns true and switches active when enabled and ready', () async {
       final commitFuture = api.swapTo(const MovaSource('https://host/variant.m3u8'), at: const Duration(seconds: 2));
       await settle();

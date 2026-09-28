@@ -186,6 +186,23 @@ class MovaSwapEngine implements MovaApi, MovaSwapController {
     _activeUiSub = null;
   }
 
+  /// Cancels the shadow-observing subscriptions set up in [_startWarm].
+  /// Shared by [dispose], [_commitNow] and [abandon] — every path that ends
+  /// a warm-up must tear these down the same way, or a stale subscription
+  /// keeps firing against a shadow that path is about to drop or dispose.
+  ///
+  /// 取消 [_startWarm] 里建立的影子观测订阅。供 [dispose]、[_commitNow]、
+  /// [abandon] 共用——每条结束预热的路径都必须以同样的方式拆掉它们，否则一个
+  /// 陈旧订阅会继续对着即将被丢弃或释放的影子触发。
+  Future<void> _detachShadow() async {
+    await _shadowStateSub?.cancel();
+    await _shadowProgressSub?.cancel();
+    await _shadowEventSub?.cancel();
+    _shadowStateSub = null;
+    _shadowProgressSub = null;
+    _shadowEventSub = null;
+  }
+
   @override
   Stream<MovaEvent> get events => _events.stream;
 
@@ -294,10 +311,18 @@ class MovaSwapEngine implements MovaApi, MovaSwapController {
   @override
   Future<void> dispose() async {
     _disposed = true;
+    // Same unblock as abandon(): a pending commit(waitForReady: true) must
+    // resolve rather than hang forever if the engine is disposed mid-swap.
+    //
+    // 与 abandon() 同样的唤醒：若在切换途中被 dispose，挂起的
+    // commit(waitForReady: true) 必须得到解析，而不是永远挂起。
+    final c = _readyCompleter;
+    if (c != null) {
+      _readyCompleter = null;
+      c.complete(false);
+    }
     await _detach();
-    await _shadowStateSub?.cancel();
-    await _shadowProgressSub?.cancel();
-    await _shadowEventSub?.cancel();
+    await _detachShadow();
     await _active.dispose();
     final shadow = _shadow;
     _shadow = null;
@@ -451,13 +476,37 @@ class MovaSwapEngine implements MovaApi, MovaSwapController {
 
     if (_phase != MovaSwapPhase.ready) {
       if (!waitForReady) return false;
-      final completer = Completer<bool>();
-      _readyCompleter = completer;
+      // Reuse an already-pending completer instead of overwriting it: two
+      // overlapping commit(waitForReady: true) calls (e.g. two ad_controller
+      // paths racing on the same swap engine) would otherwise each create
+      // their own Completer, and only the *last* one assigned to
+      // _readyCompleter ever gets completed by _evaluate/_onShadowError/
+      // abandon/dispose — orphaning every earlier caller's await forever.
+      //
+      // 复用已存在的挂起 completer，而非覆写它：两次重叠的
+      // commit(waitForReady: true) 调用（例如两条 ad_controller 路径在同一个
+      // swap engine 上产生竞争）否则会各自创建一个 Completer，而
+      // _evaluate/_onShadowError/abandon/dispose 只会解析*最后*赋给
+      // _readyCompleter 的那一个——把更早的调用者永远晾在那里等待。
+      final completer = _readyCompleter ??= Completer<bool>();
       final ok = await completer.future;
       if (!ok) return false;
     }
 
+    // Claim the shadow synchronously (no `await` between this check and the
+    // mutation): when two commit() calls were both waiting on the same
+    // _readyCompleter above, both resume once it completes, and without this
+    // claim both would independently pass the identity check and both call
+    // _commitNow — running two concurrent hand-offs on the same engine. The
+    // first to run this line wins; the second observes `_shadow` already
+    // cleared and backs off.
+    //
+    // 同步认领影子（本检查与赋值之间没有 `await`）：若上面两次 commit() 调用都在
+    // 等待同一个 _readyCompleter，它完成后两者都会被唤醒，没有这次认领，二者会
+    // 各自独立通过身份检查、各自调用 _commitNow——在同一个引擎上跑两次并发换
+    // 指。先执行到这一行的那次胜出；第二次会发现 `_shadow` 已被清空而退出。
     if (!identical(_shadow, shadow)) return false;
+    _shadow = null;
     return _commitNow(shadow);
   }
 
@@ -478,12 +527,7 @@ class MovaSwapEngine implements MovaApi, MovaSwapController {
     await shadow.play();
 
     await _detach();
-    await _shadowStateSub?.cancel();
-    await _shadowProgressSub?.cancel();
-    await _shadowEventSub?.cancel();
-    _shadowStateSub = null;
-    _shadowProgressSub = null;
-    _shadowEventSub = null;
+    await _detachShadow();
 
     _active = shadow;
     _shadow = null;
@@ -508,15 +552,17 @@ class MovaSwapEngine implements MovaApi, MovaSwapController {
     _shadow = null;
     _policy = null;
     _warmClock = null;
+    // _holdAtTarget may still be mid-flight (pause()/seek() on `shadow`) —
+    // wait for it before disposing the same engine out from under it, or the
+    // two race on a soon-to-be-disposed instance.
+    //
+    // _holdAtTarget 可能仍在飞行中（正对 `shadow` 调 pause()/seek()）——必须
+    // 等它结束再释放这个即将销毁的引擎，否则两者会在同一实例上产生竞态。
+    await _holding;
     _holding = null;
     _warmPlan = const MovaWarmPlan();
     _heldAtTarget = false;
-    await _shadowStateSub?.cancel();
-    await _shadowProgressSub?.cancel();
-    await _shadowEventSub?.cancel();
-    _shadowStateSub = null;
-    _shadowProgressSub = null;
-    _shadowEventSub = null;
+    await _detachShadow();
     await shadow.dispose();
     if (_phase != MovaSwapPhase.idle) _setPhase(MovaSwapPhase.idle);
     // Unblock any commit(waitForReady: true) still awaiting this shadow —
@@ -535,7 +581,15 @@ class MovaSwapEngine implements MovaApi, MovaSwapController {
   Future<bool> swapTo(MovaSource source, {Duration at = Duration.zero}) async {
     if (!swapEnabled) {
       await _active.open(source);
-      if (source.type != MovaStreamType.live) await _active.seek(at);
+      // Same guard as _startWarm: a seek issued right after open() before
+      // the first frame lands has been observed to wedge the player on
+      // device, and at==0 buys nothing anyway.
+      //
+      // 与 _startWarm 相同的守卫：首帧落地前、刚 open() 完就下发的 seek 在真机
+      // 上被观测到会把播放器卡死，而 at==0 时这一发也毫无收益。
+      if (source.type != MovaStreamType.live && at > Duration.zero) {
+        await _active.seek(at);
+      }
       return false;
     }
 
@@ -548,7 +602,9 @@ class MovaSwapEngine implements MovaApi, MovaSwapController {
     final ok = _shadow != null && await commit(waitForReady: true);
     if (!ok) {
       await _active.open(source);
-      if (source.type != MovaStreamType.live) await _active.seek(at);
+      if (source.type != MovaStreamType.live && at > Duration.zero) {
+        await _active.seek(at);
+      }
     }
     return ok;
   }

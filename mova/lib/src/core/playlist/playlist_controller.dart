@@ -56,6 +56,13 @@ class MovaPlaylistController {
   StreamSubscription<MovaEvent>? _sub;
   final StreamController<int> _indexChanges = StreamController<int>.broadcast();
 
+  /// Set once [dispose] has run; guards [jumpTo] against completing an
+  /// in-flight `open()` after the index stream has already been closed.
+  ///
+  /// [dispose] 跑过后置位；防止 [jumpTo] 在下标流已关闭后，仍为一次在途的
+  /// `open()` 收尾。
+  bool _disposed = false;
+
   /// The items this controller navigates.
   ///
   /// 该控制器导航的项列表。
@@ -130,6 +137,14 @@ class MovaPlaylistController {
   Future<void> jumpTo(int index) async {
     if (index < 0 || index >= _items.length) return;
     await _api.open(_items[index].source);
+    // dispose() may have closed `_indexChanges` while the open() above was in
+    // flight (e.g. an auto-advance racing the host tearing the controller
+    // down) — adding to a closed StreamController throws.
+    //
+    // dispose() 可能在上面的 open() 在途期间已经关闭了 `_indexChanges`
+    // （例如自动前进撞上宿主正在拆除本控制器）——向已关闭的 StreamController
+    // 添加事件会抛异常。
+    if (_disposed) return;
     _index = index;
     _indexChanges.add(index);
   }
@@ -154,6 +169,7 @@ class MovaPlaylistController {
   ///
   /// 释放事件订阅并关闭下标流；宿主销毁控制器时调用一次。
   Future<void> dispose() async {
+    _disposed = true;
     await _sub?.cancel();
     await _indexChanges.close();
   }

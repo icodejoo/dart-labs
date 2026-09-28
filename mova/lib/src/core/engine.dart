@@ -175,6 +175,16 @@ class MovaEngine implements MovaApi {
   /// 最近一次打开的源；[open] 从未被调用过时为 null。
   MovaSource? _source;
 
+  /// Bumped at the start of every [open] call; a call whose generation no
+  /// longer matches after an `await` has been superseded by a later [open]
+  /// and bails out instead of clobbering `_source`/firing stale events for a
+  /// source the kernel has already moved past.
+  ///
+  /// 每次 [open] 调用开始时自增；某次调用在 `await` 之后发现自己的世代号已
+  /// 落后，说明已被更晚的一次 [open] 取代，就此收手，不再覆写 `_source`
+  /// 或为一个内核早已翻篇的源发出陈旧事件。
+  int _openGen = 0;
+
   /// Latest known playback position, tracked synchronously from every
   /// kernel `position` callback (independent of the throttled [progress]
   /// stream) so [switchQuality]/[downshiftQuality]/[seekBy] can read it
@@ -214,6 +224,17 @@ class MovaEngine implements MovaApi {
   /// 某位置"能落地而非石沉大海的原因。若媒体始终不报告时长（畸形源），寄存的
   /// seek 不会执行——但这与内核原本的行为一致（无时长的源本就无法 seek）。
   Duration? _parkedSeek;
+
+  /// Whether the parked seek in [_parkedSeek] should emit [MovaSeeked] once
+  /// replayed — carries the `notify` flag [_seekOrPark] was called with
+  /// across the park, so [switchQuality]'s "must not emit seek events"
+  /// contract still holds even when its resume seek gets parked rather than
+  /// sent immediately.
+  ///
+  /// [_parkedSeek] 补发时是否应发出 [MovaSeeked]——把 [_seekOrPark] 调用时的
+  /// `notify` 标志带过寄存期，使 [switchQuality] 的"不得发出 seek 事件"契约
+  /// 在其续播 seek 被寄存而非立即下发时依然成立。
+  bool _parkedNotify = false;
 
   /// Latest known playing/paused flag, tracked synchronously from every
   /// kernel `playing` callback; see [_lastPosition] for why this is kept
@@ -568,8 +589,17 @@ class MovaEngine implements MovaApi {
 
   @override
   Future<void> open(MovaSource source, {bool autoPlay = true}) async {
+    // Claim this call's generation before the first await: if another open()
+    // call is made while this one is suspended below, that later call bumps
+    // _openGen again and this call notices it has been superseded the moment
+    // it wakes up.
+    //
+    // 在第一个 await 之前认领本次调用的世代号：若本次调用在下面挂起期间又有
+    // 另一次 open() 被调用，那次调用会再次推进 _openGen，本次调用一醒来就能
+    // 察觉自己已被取代。
+    final gen = ++_openGen;
     final allowed = await _chain.beforeOpen(source);
-    if (!allowed) return;
+    if (!allowed || gen != _openGen) return;
     _source = source;
     // Forget everything the *previous* media reported, so [seek]'s "park or
     // send now" decision is deterministic: a seek issued right after open()
@@ -598,6 +628,12 @@ class MovaEngine implements MovaApi {
       ),
     );
     await _kernel.open(source.uri, play: autoPlay);
+    // Same generation check as above: a later open() may have superseded
+    // this one while the native load was in flight.
+    //
+    // 与上面同样的世代号检查：原生加载在途期间，可能已有更晚的一次 open()
+    // 取代了本次调用。
+    if (gen != _openGen) return;
     _recomputeLiveSeekable();
     // `MovaCtrlsConfig.showOnStart` previously had no effect: nothing ever
     // called `showControls()` on load, so the auto-hide timer never armed and
@@ -617,6 +653,12 @@ class MovaEngine implements MovaApi {
     } else {
       hideControls();
     }
+    // dispose() may close `_events` while this coroutine was suspended on the
+    // awaits above — never add to a closed controller.
+    //
+    // 本协程挂起在上面这些 await 期间，dispose() 可能已经关闭了 `_events`——
+    // 绝不能向已关闭的 controller 添加事件。
+    if (_events.isClosed) return;
     _events.add(MovaSourceChange(source));
     _events.add(const MovaReady());
   }
@@ -712,6 +754,7 @@ class MovaEngine implements MovaApi {
         state.type == MovaStreamType.vod && state.duration <= Duration.zero;
     if (park) {
       _parkedSeek = to;
+      _parkedNotify = notify;
     } else {
       _pendingSeekTarget = to;
     }
@@ -734,6 +777,7 @@ class MovaEngine implements MovaApi {
   void _forgetMediaProgress() {
     _pendingSeekTarget = null;
     _parkedSeek = null;
+    _parkedNotify = false;
     _lastPosition = Duration.zero;
     _lastBuffer = Duration.zero;
   }
@@ -752,12 +796,19 @@ class MovaEngine implements MovaApi {
     final parked = _parkedSeek;
     if (parked == null || duration <= Duration.zero) return;
     _parkedSeek = null;
+    final notify = _parkedNotify;
+    _parkedNotify = false;
     final clamped = parked > duration ? duration : parked;
     _pendingSeekTarget = clamped;
     _lastPosition = clamped;
     _progressRaw.add(MovaProg(position: clamped, buffer: _lastBuffer));
     await _kernel.seek(clamped);
-    _events.add(MovaSeeked(clamped));
+    // Same disposal race as [open]: dispose() may have run while the await
+    // above was in flight.
+    //
+    // 与 [open] 同样的销毁竞态：上面的 await 期间 dispose() 可能已经跑过。
+    if (_events.isClosed) return;
+    if (notify) _events.add(MovaSeeked(clamped));
   }
 
   /// Performs a time-shift seek by reopening the stream at a host-built URL.
@@ -784,6 +835,15 @@ class MovaEngine implements MovaApi {
     final window = state.seekableWindow;
     final raw = window > target ? window - target : Duration.zero;
     final behind = Duration(seconds: raw.inSeconds);
+    // Unlike _seekOrPark, this path doesn't fall through it, so it must set
+    // _lastPosition itself — otherwise a seekBy() landing in the gap between
+    // this call and the reopened stream's first real position tick computes
+    // its delta from the stale pre-timeshift position instead of `target`.
+    //
+    // 与 _seekOrPark 不同，本路径不会经过它，因此必须自己设置
+    // _lastPosition——否则 seekBy() 若落在本次调用与重开的流首个真实位置回调
+    // 之间的空档，算出的增量会基于陈旧的时移前位置，而非 `target`。
+    _lastPosition = target;
     _events.add(MovaSeek(target));
     await _kernel.open(builder(src.uri, behind, DateTime.now()), play: true);
     if (behind <= options.live.edgeThreshold) {
@@ -998,6 +1058,13 @@ class MovaEngine implements MovaApi {
 
   @override
   Future<bool> enterPip() async {
+    // Mirrors setMini's fullscreen guard: system PiP and the in-app mini
+    // window must never be active at the same time, or their surfaces
+    // overlap.
+    //
+    // 与 setMini 的全屏守卫对称：系统 PiP 与 App 内小窗不能同时生效，否则两个
+    // 渲染面会叠在一起。
+    if (state.mini) await setMini(false);
     final ok = await _pip.enter(width: state.width, height: state.height);
     _state.emit(state.copyWith(pip: ok));
     _events.add(MovaPipChange(ok));
@@ -1046,6 +1113,15 @@ class MovaEngine implements MovaApi {
   Future<void> _reopenLiveSource() async {
     final s = _source;
     if (s == null) return;
+    // Same kernel-reload hazard as [open]/[switchQuality]: forget the old
+    // stream's parked/pending seek bookkeeping before reloading, or a stale
+    // [_parkedSeek]/[_pendingSeekTarget] from before this reopen can misfire
+    // against the freshly reopened stream.
+    //
+    // 与 [open]/[switchQuality] 同样的内核重载隐患：重开前必须忘掉旧流的
+    // 寄存/待结算 seek 簿记，否则重开前遗留的 [_parkedSeek]/
+    // [_pendingSeekTarget] 可能在刚重开的流上误触发。
+    _forgetMediaProgress();
     await _kernel.open(s.uri, play: true);
   }
 

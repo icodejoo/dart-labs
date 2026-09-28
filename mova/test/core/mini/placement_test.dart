@@ -45,6 +45,24 @@ void main() {
       expect(c.width, greaterThanOrEqualTo(0));
       expect(c.height, greaterThanOrEqualTo(0));
     });
+
+    test(
+        'insets/margin exceeding the raw bounds never produce a negative width/height '
+        '(regression: availableWidth/availableHeight themselves could go negative — '
+        'not just the window being larger than them — and that negative value flowed '
+        'straight into the returned rect)', () {
+      const r = MovaMiniRect(left: 50, top: 50, width: 100, height: 50);
+      // Insets alone (600 worth on a 400-wide bounds) already push
+      // maxRight below minLeft before the window's own size is even
+      // considered.
+      //
+      // 仅 insets 本身（在 400 宽的 bounds 上共 600）就已经把 maxRight 推到
+      // minLeft 之下，这发生在窗口自身尺寸被纳入考虑之前。
+      const degenerateInsets = MovaMiniInsets(left: 300, right: 300, top: 500, bottom: 500);
+      final c = clampToBounds(r, bounds: bounds, insets: degenerateInsets, margin: 0);
+      expect(c.width, greaterThanOrEqualTo(0));
+      expect(c.height, greaterThanOrEqualTo(0));
+    });
   });
 
   group('rectForCorner', () {

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/widgets.dart';
 
 import '../../core/api.dart';
@@ -212,8 +214,16 @@ class MovaMiniController extends ChangeNotifier {
     _api = null;
     _rect = null;
     _mount = MovaMiniMount.none;
-    notifyListeners();
+    // Settle MovaState.mini before notifying — a listener reacting to this
+    // controller (e.g. remounting a full-page MovaPlayer) must never observe
+    // a frame where the controller already says "not mini" but
+    // MovaState.mini still says otherwise.
+    //
+    // 先落定 MovaState.mini 再通知——响应本 controller 的监听者（例如重新挂载
+    // 整页 MovaPlayer）绝不能看到 controller 已经说"不是小窗"、而
+    // MovaState.mini 还没跟上的那一帧。
     await api.setMini(false);
+    notifyListeners();
   }
 
   /// Closes the mini window and pauses playback, then notifies [onClosed].
@@ -272,6 +282,23 @@ class MovaMiniController extends ChangeNotifier {
 
   @override
   void dispose() {
+    // ChangeNotifier.dispose() is sync, so this can't await — but it must
+    // still settle MovaState.mini back to false on the still-live api the
+    // way [hide]/[close] do, or the page-side player stays hidden forever
+    // (default_skin.dart) and a later engine.dispose() trips its
+    // `assert(!state.mini, ...)` guard with no obvious link back to this
+    // disposal.
+    //
+    // ChangeNotifier.dispose() 是同步的，不能 await——但仍必须像
+    // [hide]/[close] 一样把仍存活的 api 上的 MovaState.mini 落回 false，
+    // 否则页面播放器会永久隐藏（default_skin.dart），后续
+    // engine.dispose() 触发的 `assert(!state.mini, ...)` 也看不出与这次
+    // 释放的关联。
+    final api = _api;
+    if (api != null) unawaited(api.setMini(false));
+    _api = null;
+    _rect = null;
+    _mount = MovaMiniMount.none;
     _detachEntry();
     super.dispose();
   }

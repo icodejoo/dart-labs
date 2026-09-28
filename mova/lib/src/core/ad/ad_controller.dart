@@ -710,12 +710,21 @@ class MovaAdController {
     final oneShot =
         !alreadyOnScreen && _phase != _Phase.pending && _wantsWait(b);
     // Suppress content-side STT while the ad plays; restore it on resume only
-    // if the host actually had it running (attach() does not reset it).
+    // if the host actually had it running (attach() does not reset it). Only
+    // sample `stt.isRunning` on the *first* ad of a pod (_phase isn't already
+    // `ad`) — a chained ad-to-ad call (see [_resumeAfterAd]) would otherwise
+    // re-read it after the previous ad already stopped STT, permanently
+    // losing the "was running before the pod" flag.
     //
     // 广告播放期间抑制正片侧 STT；仅当宿主本就在运行时才在续播时恢复
-    // （attach() 不会重置它）。
-    _sttWasRunning = _api.stt.isRunning;
-    if (_sttWasRunning) unawaited(_api.stt.stop());
+    // （attach() 不会重置它）。只在 pod 的*第一条*广告上采样
+    // `stt.isRunning`（`_phase` 尚不是 `ad`）——被串联调用的广告到广告
+    // （见 [_resumeAfterAd]）若也重新采样，会读到上一条广告已经停掉 STT 之后的
+    // 状态，永久丢失"pod 开始前是否在跑"这个标记。
+    if (_phase != _Phase.ad) {
+      _sttWasRunning = _api.stt.isRunning;
+      if (_sttWasRunning) unawaited(_api.stt.stop());
+    }
     _phase = _Phase.ad;
     _current = b;
     _adPosition = Duration.zero;
@@ -729,6 +738,24 @@ class MovaAdController {
     // 丢弃为同一 pod 里上一条广告预热的影子——它的落点已经不对（或者压根
     // 预热的是正片，而这里正是 pod 连播中途），不再有用。
     if (oneShot) {
+      // Actually drop the leftover shadow the comment above promises:
+      // _onProgress warms the *content* behind every ad in _phase == ad, so a
+      // chained mid-roll landing here (_phase already ad, oneShot true) would
+      // otherwise find `_shadow` already occupied by that content warm-up.
+      // _startWarm no-ops whenever `_shadow != null` regardless of what it
+      // holds, so without this abandon() swapTo would warm nothing new and
+      // commit() would promote the stale content shadow instead of this ad —
+      // the pod's next ad silently never plays while _current/fired events
+      // still claim it did.
+      //
+      // 真正做到上面注释承诺的"丢弃残留影子"：_onProgress 会在 _phase == ad
+      // 期间为每条广告在背后预热*正片*，因此串联到此处的下一条中插
+      // （_phase 已是 ad、oneShot 为 true）若不先丢弃，会发现 `_shadow`
+      // 已经被那次正片预热占用。_startWarm 只要 `_shadow != null` 就无条件
+      // 空操作、不管里面装的是什么，没有这行 abandon()，swapTo 就预热不出新的
+      // 影子，commit() 会把陈旧的正片影子转正，而不是这条广告——pod 里的下一条
+      // 广告悄无声息地从未真正播放，而 _current/已触发的事件却坚称它播了。
+      unawaited(_swap?.abandon());
       await _swap!.swapTo(b.source);
     } else if (!alreadyOnScreen) {
       unawaited(_swap?.abandon());
@@ -999,48 +1026,58 @@ class MovaAdController {
     if (_resuming) return;
     _resuming = true;
     _cancelSlotTimer();
-    switch (finished.kind) {
-      case MovaAdBreakKind.pre:
-        // Ad pod: chain any further pre-rolls before the content starts.
-        //
-        // 广告 pod：正片开始前，依次连播其余前贴片。
-        final nextPre = _firstOfKind(MovaAdBreakKind.pre);
-        _resuming = false;
-        if (nextPre != null) {
-          await _playAd(nextPre);
-        } else {
-          await _playContent();
-        }
-      case MovaAdBreakKind.mid:
-        // Ad pod: chain straight into the next mid-roll inserted at the same
-        // point. Without this the second break of a pod only plays after the
-        // content has been resumed and ticked once — which flashes the content
-        // between two ads and, now that pending exists, would pop a second
-        // countdown. Only the *first* break of a pod ever goes through
-        // [_beginDelay]; chained ones go straight to [_playAd].
-        //
-        // 广告 pod：直接串到插在同一位置的下一条中插。没有这一步，pod 的第二条
-        // 要等正片被续播、再 tick 一次才播——这会在两条广告之间闪一下正片，而且
-        // 在有了待播阶段之后还会再弹一次倒计时。一个 pod 里只有*第一条*会经过
-        // [_beginDelay]，被串联的后续几条一律直接走 [_playAd]。
-        final nextMid = _nextPodMid();
-        _resuming = false;
-        if (nextMid != null) {
-          await _playAd(nextMid);
-        } else {
-          await _playContent(at: _contentResumeAt);
-        }
-      case MovaAdBreakKind.post:
-        // Ad pod: chain any further post-rolls before going idle.
-        //
-        // 广告 pod：转入空闲前，依次连播其余后贴片。
-        final nextPost = _firstOfKind(MovaAdBreakKind.post);
-        _resuming = false;
-        if (nextPost != null) {
-          await _playAd(nextPost);
-        } else {
-          _goIdleAfterContent();
-        }
+    // `_resuming` must stay true across every `await` below — clearing it
+    // before the dispatch below completes reopens the exact double-resume
+    // race this guard exists to close (the slot Timer and the player's own
+    // MovaDone event can both call in for the same finished ad within a
+    // couple of event-loop turns).
+    //
+    // `_resuming` 必须在下面每个 `await` 期间保持 true——在派发完成前提前清空，
+    // 会重新打开这道守卫本要封死的"双重续播"竞态（倒计时 Timer 与播放器自身的
+    // MovaDone 事件可能在同一条已结束广告上，在几个事件循环内先后都调进来）。
+    try {
+      switch (finished.kind) {
+        case MovaAdBreakKind.pre:
+          // Ad pod: chain any further pre-rolls before the content starts.
+          //
+          // 广告 pod：正片开始前，依次连播其余前贴片。
+          final nextPre = _firstOfKind(MovaAdBreakKind.pre);
+          if (nextPre != null) {
+            await _playAd(nextPre);
+          } else {
+            await _playContent();
+          }
+        case MovaAdBreakKind.mid:
+          // Ad pod: chain straight into the next mid-roll inserted at the same
+          // point. Without this the second break of a pod only plays after the
+          // content has been resumed and ticked once — which flashes the content
+          // between two ads and, now that pending exists, would pop a second
+          // countdown. Only the *first* break of a pod ever goes through
+          // [_beginDelay]; chained ones go straight to [_playAd].
+          //
+          // 广告 pod：直接串到插在同一位置的下一条中插。没有这一步，pod 的第二条
+          // 要等正片被续播、再 tick 一次才播——这会在两条广告之间闪一下正片，而且
+          // 在有了待播阶段之后还会再弹一次倒计时。一个 pod 里只有*第一条*会经过
+          // [_beginDelay]，被串联的后续几条一律直接走 [_playAd]。
+          final nextMid = _nextPodMid();
+          if (nextMid != null) {
+            await _playAd(nextMid);
+          } else {
+            await _playContent(at: _contentResumeAt);
+          }
+        case MovaAdBreakKind.post:
+          // Ad pod: chain any further post-rolls before going idle.
+          //
+          // 广告 pod：转入空闲前，依次连播其余后贴片。
+          final nextPost = _firstOfKind(MovaAdBreakKind.post);
+          if (nextPost != null) {
+            await _playAd(nextPost);
+          } else {
+            _goIdleAfterContent();
+          }
+      }
+    } finally {
+      _resuming = false;
     }
   }
 

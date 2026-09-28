@@ -150,8 +150,18 @@ MovaMiniRect clampToBounds(
   final minTop = bounds.top + insets.top + margin;
   final maxBottom = bounds.bottom - insets.bottom - margin;
 
-  final availableWidth = maxRight - minLeft;
-  final availableHeight = maxBottom - minTop;
+  // Floored at zero: insets/margin can exceed the raw bounds during a fast
+  // rotation or before the host's layout has settled, which would otherwise
+  // make `maxRight - minLeft` itself negative — and a negative `width`/
+  // `height` below trips Flutter's layout assertions instead of landing in
+  // the degenerate top-left fallback the comment further down promises.
+  //
+  // 下限钳到零：转屏过程中或宿主布局尚未稳定时，insets/margin 可能超过原始
+  // bounds，否则 `maxRight - minLeft` 本身就会算出负数——下面的负
+  // `width`/`height` 会触发 Flutter 的布局断言，而不是落进后面注释承诺的
+  // 那个退化左上对齐兜底。
+  final availableWidth = (maxRight - minLeft).clamp(0.0, double.infinity);
+  final availableHeight = (maxBottom - minTop).clamp(0.0, double.infinity);
 
   // Degenerate case: the window is wider/taller than the available area.
   // Fall back to top-left alignment instead of producing a negative width.

@@ -130,4 +130,23 @@ void main() {
     expect(c.currentIndex, 0);
     expect(api.calls, isEmpty);
   });
+
+  test(
+      'dispose racing an in-flight jumpTo never commits its index, and never throws '
+      '(regression: jumpTo used to unconditionally commit and add to indexChanges once '
+      'its open() resolved, even after dispose had already closed that stream)', () async {
+    final (_, c) = build();
+    // `await _api.open(...)` inside jumpTo always yields at least one
+    // microtask before resuming — even against the fake's already-completed
+    // Future — so this call is guaranteed still in flight, not finished,
+    // by the time dispose() runs on the next line.
+    //
+    // jumpTo 内部的 `await _api.open(...)` 总会在恢复前让出至少一个微任务
+    // ——即便针对假实现里已经完成的 Future 也一样——因此本次调用在下一行
+    // dispose() 运行时，保证仍处于在途状态，尚未完成。
+    final inFlight = c.jumpTo(1);
+    await c.dispose();
+    await inFlight; // must never surface "Bad state: Cannot add event after closing"
+    expect(c.currentIndex, 0, reason: 'a jumpTo that raced dispose must not commit its index');
+  });
 }

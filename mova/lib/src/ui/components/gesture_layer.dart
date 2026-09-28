@@ -302,16 +302,30 @@ class _GestureLayerState extends State<_GestureLayer> with MovaPlugin<_GestureLa
     }
   }
 
+  /// Maps the horizontal drag accumulated so far onto a target position,
+  /// scaled by [MovaGestureConfig.hSeekSpanPerScreen] over the full width of
+  /// the gesture surface. Shared by [_drive]'s live preview and
+  /// [_onScaleEnd]'s commit so the two can never disagree on where a drag
+  /// lands.
+  ///
+  /// 把目前累计的横向位移映射到目标位置，按
+  /// [MovaGestureConfig.hSeekSpanPerScreen] 相对手势面整宽换算。供 [_drive]
+  /// 的实时预览与 [_onScaleEnd] 的提交共用，使二者对拖动落点的判断绝不会
+  /// 不一致。
+  Duration _seekTargetFromCum() {
+    final seconds = _cum.dx /
+        _size.width *
+        _api.options.gesture.hSeekSpanPerScreen.inSeconds.toDouble();
+    return _lastPosition + Duration(seconds: seconds.round());
+  }
+
   /// Emits the intent value derived from accumulated movement.
   ///
   /// 根据累计位移驱动对应意图。
   void _drive() {
     switch (_mode) {
       case _DragMode.seek:
-        final seconds = _cum.dx /
-            _size.width *
-            _api.options.gesture.hSeekSpanPerScreen.inSeconds.toDouble();
-        final target = _lastPosition + Duration(seconds: seconds.round());
+        final target = _seekTargetFromCum();
         _api.setDragging(true, previewAt: target);
         _api.showHud(MovaHud.seek);
         break;
@@ -338,10 +352,7 @@ class _GestureLayerState extends State<_GestureLayer> with MovaPlugin<_GestureLa
   /// [MovaApi.setZoom] 调用即已生效。
   void _onScaleEnd(ScaleEndDetails d) {
     if (_mode == _DragMode.seek) {
-      final seconds = _cum.dx /
-          _size.width *
-          _api.options.gesture.hSeekSpanPerScreen.inSeconds.toDouble();
-      _api.seek(_lastPosition + Duration(seconds: seconds.round()));
+      _api.seek(_seekTargetFromCum());
       _api.setDragging(false);
     }
     _mode = _DragMode.undecided;

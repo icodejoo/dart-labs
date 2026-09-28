@@ -99,6 +99,15 @@ class MovaFeedController {
   /// 而非互相竞争。
   final Map<int, Future<MovaFeedItem?>> _pending = <int, Future<MovaFeedItem?>>{};
 
+  /// Set once [dispose] has run; guards [_runActivateLoop] and [ensure]'s
+  /// loader continuation against touching [pool] or repopulating the caches
+  /// [dispose] just cleared once an in-flight `await` resumes afterwards.
+  ///
+  /// [dispose] 跑过后置位；防止 [_runActivateLoop] 与 [ensure] 的加载续体在
+  /// 一次在途 `await` 于 dispose 之后恢复时，继续触碰 [pool] 或把刚被
+  /// [dispose] 清空的缓存重新填回去。
+  bool _disposed = false;
+
   /// The index most recently passed to [activate], or `null` before the
   /// first activation.
   ///
@@ -149,7 +158,7 @@ class MovaFeedController {
       // 已失败的 future 发回去，悄悄挡住这个索引此后的所有重试。
       try {
         final item = await loader(index);
-        if (item != null) _cache[index] = item;
+        if (item != null && !_disposed) _cache[index] = item;
         return item;
       } finally {
         _pending.remove(index);
@@ -225,9 +234,19 @@ class MovaFeedController {
   Future<void> _runActivateLoop() async {
     try {
       while (_pendingIndex != null) {
+        // dispose() may run while this loop is suspended on an `await`
+        // below (host tearing the feed down mid-swipe) — every remaining
+        // pool call in this iteration would otherwise land on a pool the
+        // host is concurrently disposing.
+        //
+        // dispose() 可能在本循环挂起于下面某个 `await` 期间跑过（宿主在
+        // 快速划动途中拆除 feed）——否则本轮剩余的每个池调用都会落在宿主正
+        // 并发释放的池上。
+        if (_disposed) return;
         final index = _pendingIndex!;
         _pendingIndex = null;
         final item = await ensure(index);
+        if (_disposed) return;
         // A newer index already arrived while `ensure` was resolving —
         // `index` is stale before it ever reaches the pool; skip straight
         // to the newer one instead of opening a page nobody will see.
@@ -247,6 +266,7 @@ class MovaFeedController {
         pool.retain(window);
         _activeIndex = index;
         await pool.bind(index, item.source, autoPlay: true);
+        if (_disposed) return;
         // Everything else in the pool must go quiet — a neighbour left
         // playing from a previous activation would keep its audio going
         // under the page the viewer is actually watching.
@@ -349,6 +369,7 @@ class MovaFeedController {
   ///
   /// 清空已缓存条目并丢弃所有进行中的加载；不会释放 [pool]——它由调用方持有。
   void dispose() {
+    _disposed = true;
     _cache.clear();
     _pending.clear();
   }

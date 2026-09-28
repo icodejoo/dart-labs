@@ -592,6 +592,38 @@ void main() {
       await c.dispose();
       expect(swap.calls, contains('abandon'));
     });
+
+    test(
+        'chaining into a second mid-roll of the same pod abandons a leftover '
+        'shadow before swapTo (regression: the oneShot path used to reuse '
+        'whatever shadow _warmContentBehindAd had warmed behind the first ad, '
+        'so swapTo could commit that stale content shadow instead of the '
+        "pod's next ad)", () async {
+      const mid2 = MovaAdBreak(
+        kind: MovaAdBreakKind.mid,
+        source: MovaSource('https://host/mid2.mp4'),
+        offset: Duration(seconds: 30),
+      );
+      final api = FakeMovaApi(options: MovaOpts(ads: MovaAdConfig(enabled: true, breaks: [mid, mid2])));
+      final swap = FakeSwapCtl()..commitResult = true;
+      final c = MovaAdController(api, swap: swap);
+      await c.load(_content);
+      await settle();
+      api.pushProgress(const MovaProg(position: Duration(seconds: 31)));
+      await settle();
+      // `mid` is now on screen (commitResult true put it there via the
+      // pending→ready path). Drop the bookkeeping from getting there and
+      // watch only the transition into the pod's second break.
+      swap.calls.clear();
+      api.pushEvent(const MovaDone()); // mid -> mid2, chained through _playAd's oneShot path
+      await settle();
+      final abandonIdx = swap.calls.indexOf('abandon');
+      final swapToIdx = swap.calls.indexOf('swapTo');
+      expect(abandonIdx, greaterThanOrEqualTo(0), reason: 'abandon() must run at all');
+      expect(swapToIdx, greaterThanOrEqualTo(0), reason: 'swapTo() must run at all');
+      expect(abandonIdx, lessThan(swapToIdx),
+          reason: 'abandon() must drop any leftover shadow before swapTo() warms/commits the next ad');
+    });
   });
 
   group('MovaAdController.loadDeferred — lazy content source resolution', () {
