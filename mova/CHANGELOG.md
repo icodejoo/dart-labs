@@ -1,3 +1,10 @@
+## 0.2.0
+
+* 瘦身版 libmpv 接入支持：提供轻量二进制替换方案（覆盖 Android / Windows / iOS / macOS），体积缩减约 50%。
+* Feed 沉浸式流播放器增强：包含短视频滑动、预加载与抖音风格皮肤定制。
+* 修复 `MovaFeedPlayer` 中 `ensure()` 异步回调类型推断警告。
+* 完善文档与接入范式。
+
 ## 0.1.0
 
 首次发布 / First release.
