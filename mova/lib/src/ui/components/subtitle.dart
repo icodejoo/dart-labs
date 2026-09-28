@@ -122,11 +122,18 @@ class _SubtitleOverlayState extends State<_SubtitleOverlay> {
       // A LayoutBuilder rather than Positioned: this widget is a plain
       // (non-Positioned) child of the overlay slot's Stack, so it already
       // receives the full container's loose constraints — same box
-      // MovaVideoRectScope's rect was computed against.
+      // MovaVideoRectScope's rect was computed against. Positioned cannot be
+      // used here directly: it requires its nearest ancestor RenderObject to
+      // be the Stack itself, and a LayoutBuilder in between breaks that
+      // ParentData chain (confirmed by a failed attempt at this simplification
+      // during review — see git history).
       //
       // 用 LayoutBuilder 而非 Positioned：本组件是叠加层槽位 Stack 里的普通
       // （非 Positioned）子节点，天然拿到整个容器的宽松约束——与
-      // MovaVideoRectScope 的矩形所依据的是同一个盒子。
+      // MovaVideoRectScope 的矩形所依据的是同一个盒子。这里不能直接用
+      // Positioned：它要求最近的祖先 RenderObject 就是 Stack 本身，中间隔一层
+      // LayoutBuilder 会打断这条 ParentData 链（review 阶段试过这个简化写法，
+      // 实测直接崩溃，见 git 历史）。
       child: LayoutBuilder(
         builder: (context, constraints) {
           final container = constraints.biggest;
