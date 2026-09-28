@@ -448,8 +448,8 @@ final engine = MovaEngine(interceptors: [AuthGate()]);
 默认情况下（不做任何配置）安装 mova 会走官方 `media_kit_libs_video` 依赖，能正常播放，
 只是体积比自研瘦身版大一些（Android 约 11.8MB → 6.05MB；Windows 约 14.66MB →
 13.41MB。二进制越裁越小，具体数字见各平台产物目录）。项目自己维护了一套体积更小的
-瘦身版 libmpv 构建（独立仓库 `mova-libmpv`，产物在本仓库 `libmpv/` 目录，按平台分
-子目录）。**这是可选的进阶操作，普通用户完全不需要做，装了 mova 也不会自动生效。**
+瘦身版 libmpv 构建（独立子工程 `mova-libmpv`，产物通过 CI 自动同步推送到本仓库
+`packages/` 各对应平台包内）。**这是可选的进阶操作，普通用户完全不需要做，装了 mova 也不会自动生效。**
 
 **能力面被裁过，接入前请知悉**：瘦身版去掉了 VP8/VP9 软解、收窄了音频
 decoder/demuxer 白名单、砍掉了部分协议（ftp/async/cache/subfile/httpproxy），且
@@ -493,7 +493,7 @@ URI 打开等，mova-libmpv 不构建这个，必须保留，否则会丢功能�
 
 ```bash
 unzip -p build/app/outputs/flutter-apk/app-release.apk lib/arm64-v8a/libmpv.so | sha256sum
-sha256sum <mova-repo>/mova/libmpv/arm64-v8a/libmpv.so
+sha256sum <mova-repo>/mova/packages/media_kit_libs_android_video_slim/android/src/main/jniLibs/arm64-v8a/libmpv.so
 # 两个 sha256 应完全一致
 ```
 
@@ -509,9 +509,8 @@ dependency_overrides:
 ```
 
 同样只需要这一行（本地 clone 用法同上，把 `git:` 换成 `path: ../dart-labs/mova/...`）；
-这个 fork 包的 `windows/CMakeLists.txt` 已经改成直接读取
-`libmpv/windows-x86_64/libmpv-2.dll`，跳过官方 7z 下载。参考本仓库
-[example/pubspec.yaml](example/pubspec.yaml) 的实际写法（长期用于真机验证）。
+这个 fork 包自带自研瘦身版 `windows/libmpv-2.dll` 以及对应的导入库与公共头文件，完全自包含，
+跳过官方 7z 下载。参考本仓库 [example/pubspec.yaml](example/pubspec.yaml) 的实际写法（长期用于真机验证）。
 
 ### iOS / macOS
 

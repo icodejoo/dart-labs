@@ -246,7 +246,9 @@ class _MovaFeedPlayerState extends State<MovaFeedPlayer> {
           (_) {
             if (mounted) setState(() {});
           },
-          onError: (Object _) => _requested.remove(index),
+          onError: (Object _) {
+            _requested.remove(index);
+          },
         );
       }
       return const ColoredBox(color: Color(0xFF000000));
