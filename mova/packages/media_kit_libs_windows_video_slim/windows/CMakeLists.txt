@@ -63,36 +63,29 @@ function(check_directory_exists_and_not_empty dir result_var)
 endfunction()
 
 # ------------------------------------------------------------------------------
-# [mova slim] Skip the upstream libmpv 7z download; point straight at
-# mova-libmpv's own CI-built, committed artifact.
+# [mova slim] Skip the upstream libmpv 7z download; use the committed artifact
+# bundled inside this package's windows/ directory (or fallback to mova/libmpv/
+# for backward compatibility).
 # ------------------------------------------------------------------------------
 
-# Deliberately NOT computed from CMAKE_CURRENT_SOURCE_DIR: Flutter reaches
-# this package via a symlink (windows/flutter/ephemeral/.plugin_symlinks/
-# media_kit_libs_windows_video/windows -> mova/packages/..._slim/windows),
-# and on Windows CMake's ABSOLUTE/REALPATH resolution does NOT dereference
-# it (verified: "../../.." from CMAKE_CURRENT_SOURCE_DIR walks up through
-# .plugin_symlinks/ephemeral instead of packages/mova, even after
-# get_filename_component(... REALPATH)). CMAKE_SOURCE_DIR is the top-level
-# example/windows project dir, which is never itself a symlink, so anchor
-# there instead: mova/example/windows -> up 2 -> mova/, matching the dist
-# path .github/workflows/build-mova-libmpv.yml's windows job writes to
-# (mova/libmpv/windows-x86_64/libmpv-2.dll).
-get_filename_component(
-  CUSTOM_LIBMPV_DIR
-  "${CMAKE_SOURCE_DIR}/../../libmpv/windows-x86_64"
-  ABSOLUTE
-)
-
-# Defensive: the committed filename is libmpv-2.dll (meson's mingw soversion
-# naming), but tolerate a plain libmpv.dll too rather than silently pointing
-# at nothing if that ever changes.
-if(EXISTS "${CUSTOM_LIBMPV_DIR}/libmpv-2.dll")
-  set(CUSTOM_LIBMPV_DLL "${CUSTOM_LIBMPV_DIR}/libmpv-2.dll")
-elseif(EXISTS "${CUSTOM_LIBMPV_DIR}/libmpv.dll")
-  set(CUSTOM_LIBMPV_DLL "${CUSTOM_LIBMPV_DIR}/libmpv.dll")
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/libmpv-2.dll")
+  set(CUSTOM_LIBMPV_DLL "${CMAKE_CURRENT_SOURCE_DIR}/libmpv-2.dll")
+elseif(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/libmpv.dll")
+  set(CUSTOM_LIBMPV_DLL "${CMAKE_CURRENT_SOURCE_DIR}/libmpv.dll")
 else()
-  message(FATAL_ERROR "mova slim libmpv not found under ${CUSTOM_LIBMPV_DIR} (expected libmpv-2.dll or libmpv.dll) — check mova-libmpv CI has committed dist/windows-x86_64/ and git-lfs pulled it locally.")
+  # Backward-compatible fallback to mova/libmpv/
+  get_filename_component(
+    CUSTOM_LIBMPV_DIR
+    "${CMAKE_SOURCE_DIR}/../../libmpv/windows-x86_64"
+    ABSOLUTE
+  )
+  if(EXISTS "${CUSTOM_LIBMPV_DIR}/libmpv-2.dll")
+    set(CUSTOM_LIBMPV_DLL "${CUSTOM_LIBMPV_DIR}/libmpv-2.dll")
+  elseif(EXISTS "${CUSTOM_LIBMPV_DIR}/libmpv.dll")
+    set(CUSTOM_LIBMPV_DLL "${CUSTOM_LIBMPV_DIR}/libmpv.dll")
+  else()
+    message(FATAL_ERROR "mova slim libmpv not found under ${CMAKE_CURRENT_SOURCE_DIR} or ${CUSTOM_LIBMPV_DIR} (expected libmpv-2.dll or libmpv.dll).")
+  endif()
 endif()
 
 message(STATUS "[mova slim] Using ${CUSTOM_LIBMPV_DLL}")

@@ -1,0 +1,28 @@
+name: media_kit_libs_macos_video
+description: >-
+  [mova slim fork, UNVERIFIED — no Mac available to build/sign/test this
+  package] macOS package providing video (& audio) native libraries for
+  package:media_kit, using mova's own slimmed libmpv.dylib wrapped as
+  Frameworks/Mpv.xcframework instead of upstream's prebuilt archive.
+version: 1.0.0
+publish_to: 'none'
+
+environment:
+  sdk: ">=2.17.0 <4.0.0"
+  flutter: ">=3.3.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  plugin_platform_interface: ^2.0.2
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^5.0.0
+
+flutter:
+  plugin:
+    platforms:
+      macos:
+        pluginClass: MediaKitLibsMacosVideoPlugin

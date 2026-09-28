@@ -14,6 +14,13 @@
 >    **设计意图看 DESIGN，签名与落点一律以代码和 [doc/SPEC.md](doc/SPEC.md) 末节为准。**
 > 3. **阶段 B/C/D 的逐 Task 实现计划已就绪**，见 [doc/plans/](doc/plans/)。计划已按上述
 >    两点对齐过，可直接按 Task 顺序执行。
+> 4. **pub.dev 上的已发布版本落后于本仓库 main 分支**：`pub.dev/packages/mova` 当前挂的
+>    是 `0.1.0`（2026-09-25 核实，依赖官方 `media_kit`/`media_kit_video`/
+>    `media_kit_libs_video`，非本仓库自建瘦身版 libmpv），本地 `pubspec.yaml` 的
+>    `version:` 字段也仍是 `0.1.0`——而下文"当前状态"一路记到 0.6.0，说明大量功能
+>    （小窗、广告编排、无缝切换、清晰度自适应等）**已合并进 main 但从未随新版本号
+>    重新发布**。引用方从 pub.dev 拿到的包不含这些能力，回答"能不能用某功能"前
+>    先确认对方拿到的是 pub.dev 版本还是本仓库 path/git 依赖。
 
 ## 是什么
 
@@ -153,18 +160,36 @@ feed 引擎池结构性不适用本模型，明确排除。详见
 
 ## 剩余任务
 
-**瘦身版 libmpv 独立包发布（方向 C）——已规划、未落地，每次启动请提醒用户此项仍有
-待实现的计划**：用户 2026-09-25 拍板不走"构建时自动下载"（方向 A2，已否决，规划见
+**瘦身版 libmpv 独立包发布（方向 C）——Android/Windows 已落地并验证，iOS/macOS 结构
+已落地但完全未验证（没有 Mac，不能算完成），每次启动请提醒用户此项仍有待实现的计划**：
+`packages/media_kit_libs_ios_video_slim`/`_macos_video_slim` 是在没有 Xcode 工具链
+（`otool`/`install_name_tool`/`xcodebuild`/`lipo`）的 Windows 机器上手工拼装的
+`Mpv.xcframework`（直接拷贝 `libmpv.dylib`，未做任何二进制层面改写），从未跑过
+`pod install`，`example/pubspec.yaml` 也**没有**加上这两个 override——**不要把这两个
+fork 包当成已验证可用，上线前必须在 Mac 上补跑 `pod install`+真机验证**，详见
+[doc/plans/2026-09-25-libmpv-pub-package.md](doc/plans/2026-09-25-libmpv-pub-package.md)
+「Darwin（iOS/macOS）同名替换设计」一节的"已知未验证项"清单。2026-09-28 落地方案改为
+"同名整包替换 + `dependency_overrides`"（拓扑 B），比原计划的"新建 `mova_libmpv_android`
+包 + pickFirst opt-in"更干净——Android 新建 `packages/media_kit_libs_android_video_slim`
+（同名 fork `media_kit_libs_android_video`，含 mova-libmpv 自建 `libmpv.so` +
+从官方 release jar 逐字节提取的 `libmediakitandroidhelper.so`），`example/pubspec.yaml`
+加 `dependency_overrides` 即可切换，官方包完全退出依赖图、无需 pickFirst；APK 内 `.so`
+sha256 与 `libmpv/<abi>/` 逐字节一致（arm64-v8a/armeabi-v7a/x86_64 已验证，x86 未测），
+关闭 override 可干净回退官方（体积精确等于官方 12,369,680 字节）。Windows 早已用同一
+思路落地（`media_kit_libs_windows_video_slim`）。iOS/macOS 机制上同样可行（读了
+`media_kit_video` 的 `media_kit_utils.rb` 确认同名替换不受"多 pod 共存"限制），
+但需要新增"裸 `libmpv.dylib` 包装成 `Mpv.xcframework`"这一步打包工作，**没有 Mac 无法
+验证**，与「iOS PiP」共用同一道门槛，设计草案见
+[doc/plans/2026-09-25-libmpv-pub-package.md](doc/plans/2026-09-25-libmpv-pub-package.md)
+决策 6。**原方向 C 计划书里"发布到 pub.dev 独立包 + LGPL 合规四件套"那条路线用户已
+不再采纳**（该路线出自 2026-09-25 的初版规划，见
+[doc/plans/2026-09-25-libmpv-pub-package.md](doc/plans/2026-09-25-libmpv-pub-package.md)
+文首，取代更早的"构建时自动下载"方向 A2，见
 [doc/plans/2026-09-25-libmpv-auto-download.md](doc/plans/2026-09-25-libmpv-auto-download.md)，
-仅供参考现状调研部分），改为把瘦身版二进制**直接发布成 pub.dev 包**，同时保留用户
-切换回官方 media_kit 或自建版本的能力。完整规划（含 Android Gradle 合并冲突的技术
-可行性结论、包结构拆分理由、默认值方向、LGPL 合规硬门槛、分期建议）见
-[doc/plans/2026-09-25-libmpv-pub-package.md](doc/plans/2026-09-25-libmpv-pub-package.md)，
-**逐 Task 计划已就绪，可直接按 Task 1–9 顺序执行**。核心结论摘要：只做 Android（新建
-`mova_libmpv_android` 包发布到 pub.dev）、Windows 不新建包只把现有 fork 包改成 git
-`dependency_overrides`、iOS/macOS/Linux 本期不做；默认仍走官方 media_kit（不反转默认
-值）；LGPL 三份许可证+NOTICE 是首次发布前的硬门槛，不可省略；如果只做一件事，做
-Task 7（Windows git override + README 改写），零发布风险。
+已否决，仅供参考现状调研部分），该计划文档里的 Task 1–9（pub.dev 发布流水线、LGPL
+合规四件套）视为废弃，仅决策 0/2/4（拓扑判断、默认值方向、三个切换开关的设计思路）
+仍有参考价值——**因为发布到 pub.dev 才会触发 LGPL 公开分发义务，同名替换走
+`dependency_overrides`（path/git）不经过 pub.dev，不受此约束**。
 
 **Windows 真机播放中途 libmpv 原生崩溃——已解决（用户 2026-09-24 拍板标记解决，
 规避手段：`--no-enable-impeller` 强制走 Skia 后端）**。注意这是**规避手段而非

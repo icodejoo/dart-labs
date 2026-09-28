@@ -1,0 +1,51 @@
+// [mova slim fork] Same package name as upstream media_kit_libs_android_video,
+// so a dependency_overrides path/git override makes this the *sole* provider
+// of com.alexmercerind.media_kit_libs_android_video — upstream never enters
+// the dependency graph, so there is nothing to pickFirst against.
+//
+// Unlike upstream, this build.gradle has no downloadDependencies task: the
+// two native libraries (libmpv.so — mova-libmpv's own slimmed build;
+// libmediakitandroidhelper.so — extracted verbatim from upstream's release
+// jar, since mova-libmpv doesn't build it) are committed directly under
+// android/src/main/jniLibs/<abi>/ and picked up by AGP automatically.
+
+group 'com.alexmercerind.media_kit_libs_android_video'
+version '1.0'
+
+buildscript {
+    repositories {
+        google()
+        mavenCentral()
+    }
+
+    dependencies {
+        classpath 'com.android.tools.build:gradle:8.13.0'
+    }
+}
+
+rootProject.allprojects {
+    repositories {
+        google()
+        mavenCentral()
+    }
+}
+
+apply plugin: 'com.android.library'
+
+android {
+    // Conditional for compatibility with AGP <4.2.
+    if (project.android.hasProperty("namespace")) {
+        namespace 'com.alexmercerind.media_kit_libs_android_video'
+    }
+
+    compileSdkVersion 36
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_1_8
+        targetCompatibility JavaVersion.VERSION_1_8
+    }
+
+    defaultConfig {
+        minSdkVersion 16
+    }
+}

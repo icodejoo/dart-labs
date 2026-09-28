@@ -227,16 +227,107 @@ Task 4 要把它当作一等功能实现和验收，而不是顺带。
   - **minor**：重建二进制、体积/构建选项变化但能力面不变；
   - **patch**：只改 Gradle 脚本/文档，二进制字节未变。
 
-### 决策 6：平台落地范围 —— **只做 Android；Windows 改进走"git override 同名 fork"，其余不做**
+### 决策 6：平台落地范围（**2026-09-28 修订**：Android 已落地并真机验证；iOS/macOS 结论纠偏）
 
-这是问题 2 的后半段（各平台机制是否一致）的结论。**答案是：完全不一致，不能照抄 Android。**
+> **⚠️ 2026-09-28 修订说明**：本节最初把 iOS/macOS 判为"结构性做不到"，
+> 但当时分析的对象是**"另起包名、与官方包共存"**（拓扑 A）——这个判断本身没错，
+> 但**不是我们实际要做的方案**。Android 落地时验证的是**同名整包替换**（拓扑 B，
+> `dependency_overrides` 让官方包完全退出依赖图），这条路径下根本不存在"两个 pod/两份
+> `.so` 冲突"的问题。读了 `media_kit_video` 的 `common/darwin/Podspec/media_kit_utils.rb`
+> 源码后确认：iOS/macOS 的同名替换**同样可行**，真正的门槛是"把 mova-libmpv 的单文件
+> `libmpv.dylib` 包装成官方约定的 `Mpv.xcframework` 结构"这一步**打包工作尚未做**，
+> 不是 CocoaPods 结构性不支持。详见下表 iOS/macOS 行与文末新增的「Darwin 同名替换设计
+> （草案，待 Mac 验证）」一节。
 
-| 平台 | 官方提供方式 | 我们另起包名后会怎样 | 本期结论 |
+这是问题 2 的后半段（各平台机制是否一致）的结论：**机制完全不一致，不能照抄同一份脚本**，
+但"同名整包替换 + `dependency_overrides`"这个**顶层策略**在 Android/Windows/iOS/macOS
+四个平台上都成立，只有 Linux 例外。
+
+| 平台 | 官方提供方式 | 同名整包替换（拓扑 B）是否可行 | 本期结论 |
 |---|---|---|---|
-| **Android** | 下载 jar → `implementation fileTree` → jar 内 `lib/<abi>/libmpv.so` 参与 native merge | 同名 `.so` 重复 → 合并冲突，靠 app 的 `pickFirsts` 解决（决策 0/3） | **做**（唯一必做） |
-| **Windows** | `media_kit_libs_windows_video` 在**配置期** `file(COPY)` 出 `${CMAKE_BINARY_DIR}/libmpv/{libmpv.dll.a,include/}`，并导出变量 `media_kit_libs_windows_video_bundled_libraries`；`media_kit_video` **按这两个确切名字/路径**取用 | 另起包名后：① 我们无法向那个**按名字读取**的变量供货（DLL 不会被 bundle）；② 两个包都在配置期写同一个 `${CMAKE_BINARY_DIR}/libmpv`，谁后写谁赢，而插件 CMake 的 `add_subdirectory` 顺序不由我们控制。**CMake 没有 pickFirst 这种东西。** → 另起包名在 Windows 上是结构性敌对的 | **不做 pub 包**。改为把现有 fork 的分发从"clone 仓库"升级成 **git `dependency_overrides`**（Task 7），这才是 Windows 的正解 |
-| **iOS / macOS** | podspec `system("make")` 下载 + `s.vendored_frameworks = 'Frameworks/*.xcframework'` | CocoaPods **没有 pickFirst**；两个 pod 各自 vendor 一份 mpv framework → 重复符号 / `Multiple commands produce` 的 embed 冲突。且我们的 darwin 产物是**单个静态链接的 `libmpv.dylib`**，官方是**多 dylib 的 xcframework 集**，形态不同，还要处理 embed + 签名。mova **从未在 iOS 上接过线** | **不做**（分期建议第 3 期） |
-| **Linux** | libmpv **来自系统**（`media_kit_video/linux` 走 pkg-config 找 mpv/epoxy）；`media_kit_libs_linux` 只管 mimalloc | 根本没有"包提供 libmpv"这个位置可占；要生效得动 RPATH/系统安装 | **不做**（模型不适用，README 如实说明） |
+| **Android** | 下载 jar → `implementation fileTree` → jar 内 `lib/<abi>/libmpv.so` 参与 native merge | ✅ 可行且**已落地**：`packages/media_kit_libs_android_video_slim`（同名 fork + `dependency_overrides`），官方包完全退出依赖图，无需 pickFirst | **已完成**（2026-09-28，真机构建 APK 内 `.so` sha256 逐字节核对通过，关闭 override 亦验证可干净回退官方，详见下方「Android 落地记录」） |
+| **Windows** | `media_kit_libs_windows_video` 在**配置期** `file(COPY)` 出 `${CMAKE_BINARY_DIR}/libmpv/{libmpv.dll.a,include/}`，并导出变量 `media_kit_libs_windows_video_bundled_libraries`；`media_kit_video` **按这两个确切名字/路径**取用 | ✅ 可行且**已落地**（早于本计划）：`packages/media_kit_libs_windows_video_slim` 同名替换，官方包不参与构建 | **已完成**，真机 `flutter run -d windows` 验证过 |
+| **iOS / macOS** | podspec `system("make")` 下载 + `s.vendored_frameworks = 'Frameworks/*.xcframework'`；`media_kit_video` 侧靠 `media_kit_utils.rb` 从 `pubspec.lock` 按**固定包名**（`media_kit_libs_ios_video`/`media_kit_libs_macos_video`）找 libs 包，`OTHER_LDFLAGS` 写死 `-framework Mpv` | ✅ **机制上可行**（同名替换后 `libs_count` 判定不受影响，不存在"多 pod 共存冲突"）。**结构已手工落地**：`packages/media_kit_libs_ios_video_slim` / `_macos_video_slim` 已提交 `Frameworks/Mpv.xcframework`（`Info.plist`/`Modules/module.modulemap`/`Headers/` + `libmpv.dylib`），podspec 用 `prepare_command` 跑官方 `create_framework_symlinks.sh`（原样复用，MIT） | **结构已落地，⚠️ 完全未验证**——本机是 Windows，没有 `otool`/`install_name_tool`/`xcodebuild`/`lipo`，手工拼装的 framework 从未跑过 `pod install`，dylib 的 `LC_ID_DYLIB` 是否符合 `@rpath/Mpv.framework/Mpv` 约定、`macos-universal/libmpv.dylib` 是否真是 arm64+x86_64 fat binary 均未核实。与「iOS PiP」共用同一道 Mac 真机门槛验证，详见下方「Darwin 同名替换设计」小节 |
+| **Linux** | libmpv **来自系统**（`media_kit_video/linux` 走 pkg-config 找 mpv/epoxy）；`media_kit_libs_linux` 只管 mimalloc | ❌ 不适用：没有"包提供 libmpv"这个位置可占，同名替换无从谈起 | **不做**（模型不适用，README 如实说明） |
+
+#### Android 落地记录（2026-09-28）
+
+- 新包 `mova/packages/media_kit_libs_android_video_slim/`：同名 fork
+  `media_kit_libs_android_video`（`publish_to: none`），不含下载逻辑，
+  `libmpv.so`（mova-libmpv 自建）与 `libmediakitandroidhelper.so`
+  （**从官方 release jar 逐字节提取**，mova-libmpv 不构建这个 JNI helper，
+  负责 `content://` URI 打开等，不能漏）一并提交进
+  `android/src/main/jniLibs/<abi>/`；Java 胶水代码原样照抄官方（MIT）。
+- `example/pubspec.yaml` 加 `dependency_overrides: media_kit_libs_android_video: path: ...`；
+  同步删掉了 `example/android/app/build.gradle.kts` 里原先的 `pickFirsts` +
+  `syncMovaLibmpv` app-local 拷贝任务（同名替换后不再需要）。
+- **验证**：arm64-v8a / armeabi-v7a / x86_64 三个 ABI，APK 内 `.so` sha256
+  与 `libmpv/<abi>/` **逐字节一致**；关闭 override 重建后 APK 内 `.so` 体积
+  精确等于官方原版 **12,369,680 字节**，确认可干净回退。x86 因 Flutter
+  不支持单独 `--target-platform android-x86` 构建，未做逐字节验证（留待
+  fat APK 或 CI 侧核对）。
+- **顺带清理一个真实 bug**：排查中发现 `example/android/app/src/main/jniLibs/`
+  下还留着旧机制（`syncMovaLibmpv`）已提交进 git 的过期 `.so` 副本——这份
+  "僵尸文件"是 app-local，会无条件赢过新机制、静默掩盖问题，已 `git rm` 清理。
+- 用户可选依赖此包，也可保持默认（官方包）不变，`dependency_overrides`
+  一行加/删即可切换，无需改动 mova 主包依赖。
+
+#### Darwin（iOS/macOS）同名替换设计（**2026-09-28 结构已落地，⚠️ 完全未验证**）
+
+结构与 Android/Windows 同一思路，已建好
+`packages/media_kit_libs_ios_video_slim/` 与 `packages/media_kit_libs_macos_video_slim/`：
+
+```
+media_kit_libs_ios_video_slim/
+  pubspec.yaml          # name: media_kit_libs_ios_video, publish_to: 'none'
+  ios/
+    media_kit_libs_ios_video.podspec   # 去掉 system("make") 下载逻辑；用 prepare_command
+                                        # 跑 create_framework_symlinks.sh 生成符号链接
+    create_framework_symlinks.sh       # 官方原样复用（MIT），未改动
+    Classes/MediaKitLibsIosVideoPlugin.swift   # 原样抄官方空实现（无额外 native helper，比 Android 简单）
+    Frameworks/
+      Mpv.xcframework/
+        Info.plist              # 顶层 xcframework 清单（AvailableLibraries: ios-arm64）
+        ios-arm64/Mpv.framework/
+          Mpv                   # = libmpv/ios-arm64/libmpv.dylib（直接拷贝，未做任何二进制层面改写）
+          Headers/*.h           # mpv 公开头文件（复用 windows fork 已有的 mpv-headers/）
+          Modules/module.modulemap
+          Info.plist            # 单 slice 的 framework bundle 清单
+```
+
+macOS 同构，唯一差异是单一 slice 目录名 `macos-arm64_x86_64`，源文件取自
+`libmpv/macos-universal/libmpv.dylib`（假定是已经 lipo 合并好的 arm64+x86_64
+fat binary——**这个假设本身未经 `lipo -info` 核实**，因为本机没有这个工具）。
+
+切换方式与 Android/Windows 完全一致：
+
+```yaml
+dependency_overrides:
+  media_kit_libs_ios_video:
+    git: {url: https://github.com/icodejoo/dart-labs.git, path: mova/packages/media_kit_libs_ios_video_slim, ref: main}
+  media_kit_libs_macos_video:
+    git: {url: https://github.com/icodejoo/dart-labs.git, path: mova/packages/media_kit_libs_macos_video_slim, ref: main}
+```
+
+**这批文件是在没有 Xcode 工具链的 Windows 机器上手工拼装的**，从未跑过
+`pod install`，也没有 `otool`/`install_name_tool`/`xcodebuild`/`lipo` 可用来核实。
+**已知未验证项（不要假设它们是对的）**：
+
+1. `Mpv` 二进制是 `libmpv.dylib` 的**直接拷贝**，没有用 `install_name_tool` 改写
+   `LC_ID_DYLIB`——framework 内部约定通常期望它是 `@rpath/Mpv.framework/Mpv`，
+   如果 dylib 原始的 install name 不对，`pod install`/链接期或运行期加载可能失败；
+2. `macos-universal/libmpv.dylib` 是否真的同时含 arm64 与 x86_64 两个架构切片
+   （对应 `Mpv.xcframework/Info.plist` 里声明的 `SupportedArchitectures`）未核实；
+3. `module.modulemap`/`Info.plist` 里的字段是照 Apple 文档惯例手写的，从未被
+   Xcode/CocoaPods 实际解析过，可能有拼写或结构错误；
+4. `example/pubspec.yaml` **没有**加上这两个 override（没有 Mac 也没法在这个仓库
+   里实际构建验证），所以这条链路目前连"能不能被 CocoaPods 解析"都不确定。
+
+**待办（需要 Mac 才能做）**：① 用 `otool -L`/`lipo -info` 核实上述假设，必要时用
+`install_name_tool -id` 改写、重新 `lipo` 出正确的 universal 切片；② 真机跑一遍
+`pod install`/`flutter build ios`/`flutter build macos` 走通；③ 关闭 override 验证
+能干净回退官方；④ 结论回写本节。**与「iOS PiP」共用同一道 Mac 真机门槛，建议合并
+立项**——在此之前，**不要把这两个 fork 包用于生产**。
 
 ### 决策 7：LGPL 合规 —— **必做的一个 Task，不是文档润色**
 

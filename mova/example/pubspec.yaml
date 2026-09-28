@@ -76,9 +76,17 @@ dev_dependencies:
 # mova-libmpv/README.md 与 doc/plans/2026-09-17-windows-libmpv-slim.md
 # 的「真机崩溃根因排查」一节。当前 override 保持启用，长期用这份自建
 # slim 版本做真机验证。
+# Android: replaces media_kit_libs_android_video wholesale with mova's own
+# slimmed libmpv.so (mova-libmpv CI artifact) + upstream's unmodified
+# libmediakitandroidhelper.so, extracted verbatim from its release jar
+# (mova-libmpv doesn't build that helper). Same package name as upstream, so
+# this is the sole provider in the dependency graph — no pickFirst needed.
+# See mova/packages/media_kit_libs_android_video_slim.
 dependency_overrides:
   media_kit_libs_windows_video:
     path: ../packages/media_kit_libs_windows_video_slim
+  media_kit_libs_android_video:
+    path: ../packages/media_kit_libs_android_video_slim
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec

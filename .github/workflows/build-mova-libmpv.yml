@@ -5,7 +5,7 @@ name: Build mova libmpv (all platforms)
 # time per platform), so "source changes" here means our build recipe: the
 # per-platform ffmpeg configure flavor + the buildscripts patch under
 # mova-libmpv/ (the build-recipe subproject; built artifacts land in
-# mova/libmpv/ instead, see the commit steps below). See
+# mova/packages/ instead, see the commit steps below). See
 # mova-libmpv/README.md's "多平台进度"
 # table for what's real vs. still-being-verified — every job below now
 # attempts a real build (no more no-op stubs), but darwin/linux/windows are
@@ -42,7 +42,7 @@ on:
       - '.github/workflows/build-mova-libmpv.yml'
   workflow_dispatch:
 
-# The android-arm64 job commits the rebuilt artifact back to dist/ (see its
+# The android-arm64 job commits the rebuilt artifact back to packages/ (see its
 # last step) — the default GITHUB_TOKEN is read-only unless granted write
 # here, so without this the build succeeds but the push-back 403s.
 permissions:
@@ -181,30 +181,22 @@ jobs:
           path: libmpv-arm64-v8a.so
           retention-days: 30
 
-      - name: Commit built artifact to dist/
+      - name: Commit built artifact to packages/
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          # This job runs concurrently with android-other-abi's 3 matrix legs
-          # (and now darwin/linux/windows too) — all push to the same branch,
-          # each touching a disjoint dist/<abi>/ path. Every retry starts from
-          # a fresh fetch+reset baseline and creates a brand-new commit on top
-          # of it, instead of rebasing an already-made local commit — the old
-          # "commit once, then rebase on conflict" approach could hit
-          # `cannot rebase: You have unstaged changes` if the working tree
-          # wasn't pristine when the rebase ran (see mova-libmpv/README.md's
-          # 2026-09-17 windows CI finding).
+          TARGET_DIR="mova/packages/media_kit_libs_android_video_slim/android/src/main/jniLibs/arm64-v8a"
           for i in 1 2 3 4 5; do
             git fetch origin main
             git reset --hard origin/main
-            mkdir -p mova/libmpv/arm64-v8a
-            cp libmpv-arm64-v8a.so mova/libmpv/arm64-v8a/libmpv.so
-            git add mova/libmpv/arm64-v8a/libmpv.so
+            mkdir -p "$TARGET_DIR"
+            cp libmpv-arm64-v8a.so "$TARGET_DIR/libmpv.so"
+            git add "$TARGET_DIR/libmpv.so"
             if git diff --cached --quiet; then
               echo "No size/content change, skip commit"
               exit 0
             fi
-            git commit -m "chore(mova): rebuild slimmed libmpv.so (android arm64-v8a) [skip ci]"
+            git commit -m "chore(packages): update slimmed libmpv.so (android arm64-v8a) [skip ci]"
             # actions/checkout doesn't install LFS hooks, so a plain `git
             # push` here would push the pointer commit while silently
             # leaving the actual binary missing from the LFS store (404 for
@@ -214,7 +206,7 @@ jobs:
             echo "push rejected (race with a sibling job), retrying from a fresh baseline ($i/5)..."
             sleep $((RANDOM % 8 + 2))
           done
-          echo "::error::failed to push dist/arm64-v8a/ after retries"
+          echo "::error::failed to push packages/media_kit_libs_android_video_slim/arm64-v8a after retries"
           exit 1
 
   # --- Everything below is a deliberate no-op scaffold, NOT a real build ---
@@ -354,32 +346,28 @@ jobs:
           path: libmpv-${{ matrix.abi }}.so
           retention-days: 30
 
-      - name: Commit built artifact to dist/
+      - name: Commit built artifact to packages/
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          # 3 matrix legs (armeabi-v7a/x86/x86_64) push to the same branch
-          # concurrently — each only touches its own dist/<abi>/ path. Every
-          # retry starts from a fresh fetch+reset baseline and creates a
-          # brand-new commit on top of it, instead of rebasing an
-          # already-made local commit (see arm64-v8a job above for why).
+          TARGET_DIR="mova/packages/media_kit_libs_android_video_slim/android/src/main/jniLibs/${{ matrix.abi }}"
           for i in 1 2 3 4 5; do
             git fetch origin main
             git reset --hard origin/main
-            mkdir -p mova/libmpv/${{ matrix.abi }}
-            cp "$GITHUB_WORKSPACE/libmpv-${{ matrix.abi }}.so" mova/libmpv/${{ matrix.abi }}/libmpv.so
-            git add mova/libmpv/${{ matrix.abi }}/libmpv.so
+            mkdir -p "$TARGET_DIR"
+            cp "$GITHUB_WORKSPACE/libmpv-${{ matrix.abi }}.so" "$TARGET_DIR/libmpv.so"
+            git add "$TARGET_DIR/libmpv.so"
             if git diff --cached --quiet; then
               echo "No size/content change, skip commit"
               exit 0
             fi
-            git commit -m "chore(mova): rebuild slimmed libmpv.so (android ${{ matrix.abi }}) [skip ci]"
+            git commit -m "chore(packages): update slimmed libmpv.so (android ${{ matrix.abi }}) [skip ci]"
             git lfs push origin main
             if git push; then exit 0; fi
             echo "push rejected (race with a sibling matrix leg), retrying from a fresh baseline ($i/5)..."
             sleep $((RANDOM % 8 + 2))
           done
-          echo "::error::failed to push dist/${{ matrix.abi }}/libmpv.so after retries"
+          echo "::error::failed to push packages/media_kit_libs_android_video_slim/${{ matrix.abi }} after retries"
           exit 1
 
   # macOS movaslim job (2026-09-18) — reuses the exact same upstream repo,
@@ -399,8 +387,8 @@ jobs:
   # lipo-merges two arch outputs internally (upstream's own TARGET, not
   # something this patch does); amd64 uses a 10.9 deployment target that
   # had not been exercised by this patch before this matrix.
-  # All three archs went green on run 35312415642 — now commits its
-  # libmpv.dylib to mova/libmpv/macos-<arch>/, same as `ios`.
+  # All three archs went green on run 35312415642 — commits its
+  # universal libmpv.dylib to mova/packages/media_kit_libs_macos_video_slim/ xcframework.
   darwin:
     name: "macOS ${{ matrix.arch }} (media-kit/libmpv-darwin-build, movaslim flavor)"
     runs-on: macos-15
@@ -519,39 +507,41 @@ jobs:
           path: darwin-out/*
           retention-days: 14
 
-      - name: Commit built artifact to dist/
+      - name: Commit built artifact to packages/
         working-directory: dart-labs
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          # This job runs concurrently with its own other matrix legs (and
-          # android/linux/windows too) — all push to the same branch, each
-          # touching a disjoint dist/<subdir>/ path. Every retry starts from
-          # a fresh fetch+reset baseline and creates a brand-new commit on
-          # top of it, instead of rebasing an already-made local commit (see
-          # android-arm64 job's identical step for why).
+          # media_kit_libs_macos_video_slim ships a universal (arm64 + x86_64) xcframework.
+          # Only the universal matrix leg updates the package; standalone arm64/amd64 legs
+          # are preserved as GitHub Actions artifacts for debugging.
+          if [ "${{ matrix.arch }}" != "universal" ]; then
+            echo "Non-universal arch (${{ matrix.arch }}), package ships universal xcframework only. Skipping commit."
+            exit 0
+          fi
+          PKG_FRAMEWORK="mova/packages/media_kit_libs_macos_video_slim/macos/Frameworks/Mpv.xcframework/macos-arm64_x86_64/Mpv.framework"
           for i in 1 2 3 4 5; do
             git fetch origin main
             git reset --hard origin/main
-            mkdir -p mova/libmpv/macos-${{ matrix.arch }}
+            mkdir -p "$PKG_FRAMEWORK/Headers"
             DYLIB=$(find "$GITHUB_WORKSPACE/darwin-out" -iname 'libmpv*.dylib' | head -1)
-            cp "$DYLIB" mova/libmpv/macos-${{ matrix.arch }}/libmpv.dylib
-            git add mova/libmpv/macos-${{ matrix.arch }}/libmpv.dylib
+            cp "$DYLIB" "$PKG_FRAMEWORK/Mpv"
+            chmod +x "$PKG_FRAMEWORK/Mpv"
+            # Sync headers if present in output archive
+            find "$GITHUB_WORKSPACE/darwin-out" -name '*.h' -exec cp {} "$PKG_FRAMEWORK/Headers/" \; 2>/dev/null || true
+            git add "$PKG_FRAMEWORK/Mpv"
+            git add "$PKG_FRAMEWORK/Headers"
             if git diff --cached --quiet; then
               echo "No size/content change, skip commit"
               exit 0
             fi
-            git commit -m "chore(mova): rebuild slimmed libmpv.dylib (macOS ${{ matrix.arch }}, movaslim) [skip ci]"
-            # actions/checkout doesn't install LFS hooks, so a plain `git
-            # push` here would push the pointer commit while silently
-            # leaving the actual binary missing from the LFS store — push
-            # LFS content explicitly (see android-arm64 job's identical step).
+            git commit -m "chore(packages): update slimmed Mpv.framework (macOS universal, movaslim) [skip ci]"
             git lfs push origin main
             if git push; then exit 0; fi
             echo "push rejected (race with a sibling job), retrying from a fresh baseline ($i/5)..."
             sleep $((RANDOM % 8 + 2))
           done
-          echo "::error::failed to push dist/macos-${{ matrix.arch }}/ after retries"
+          echo "::error::failed to push packages/media_kit_libs_macos_video_slim after retries"
           exit 1
 
   # iOS-only fast-iteration job (2026-09-17, v3) — replaces the previous
@@ -579,8 +569,8 @@ jobs:
   # pipeline — a real follow-up, not done in this pass. Expect the total
   # bundle size to shrink meaningfully but likely still exceed Android's
   # single-file ~6.5MiB for that architectural reason.
-  # Went green on run 35312415642 — now commits its libmpv.dylib to
-  # mova/libmpv/ios-arm64/, same as `darwin`.
+  # Went green on run 35312415642 — commits its libmpv.dylib to
+  # mova/packages/media_kit_libs_ios_video_slim/ xcframework.
   ios:
     name: "iOS arm64 (v3.1: media-kit/libmpv-darwin-build, movaslim flavor)"
     runs-on: macos-15
@@ -729,31 +719,33 @@ jobs:
           path: ios-out/*
           retention-days: 14
 
-      - name: Commit built artifact to dist/
+      - name: Commit built artifact to packages/
         working-directory: dart-labs
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          # Same retry/fetch/reset/lfs-push idiom as android-arm64's and
-          # darwin's identical steps — this job runs concurrently with them.
+          PKG_FRAMEWORK="mova/packages/media_kit_libs_ios_video_slim/ios/Frameworks/Mpv.xcframework/ios-arm64/Mpv.framework"
           for i in 1 2 3 4 5; do
             git fetch origin main
             git reset --hard origin/main
-            mkdir -p mova/libmpv/ios-arm64
+            mkdir -p "$PKG_FRAMEWORK/Headers"
             DYLIB=$(find "$GITHUB_WORKSPACE/ios-out" -iname 'libmpv*.dylib' | head -1)
-            cp "$DYLIB" mova/libmpv/ios-arm64/libmpv.dylib
-            git add mova/libmpv/ios-arm64/libmpv.dylib
+            cp "$DYLIB" "$PKG_FRAMEWORK/Mpv"
+            chmod +x "$PKG_FRAMEWORK/Mpv"
+            find "$GITHUB_WORKSPACE/ios-out" -name '*.h' -exec cp {} "$PKG_FRAMEWORK/Headers/" \; 2>/dev/null || true
+            git add "$PKG_FRAMEWORK/Mpv"
+            git add "$PKG_FRAMEWORK/Headers"
             if git diff --cached --quiet; then
               echo "No size/content change, skip commit"
               exit 0
             fi
-            git commit -m "chore(mova): rebuild slimmed libmpv.dylib (iOS arm64, movaslim) [skip ci]"
+            git commit -m "chore(packages): update slimmed Mpv.framework (iOS arm64, movaslim) [skip ci]"
             git lfs push origin main
             if git push; then exit 0; fi
             echo "push rejected (race with a sibling job), retrying from a fresh baseline ($i/5)..."
             sleep $((RANDOM % 8 + 2))
           done
-          echo "::error::failed to push dist/ios-arm64/ after retries"
+          echo "::error::failed to push packages/media_kit_libs_ios_video_slim after retries"
           exit 1
 
   # No upstream media-kit repo exists for Linux (unlike Android/darwin/win32)
@@ -929,31 +921,12 @@ jobs:
           path: libmpv-linux-x86_64.so
           retention-days: 30
 
-      - name: Commit built artifact to dist/
+      - name: Note on Linux libmpv distribution
         run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          # Every retry starts from a fresh fetch+reset baseline and creates
-          # a brand-new commit on top of it, instead of rebasing an
-          # already-made local commit (see arm64-v8a job for why).
-          for i in 1 2 3 4 5; do
-            git fetch origin main
-            git reset --hard origin/main
-            mkdir -p mova/libmpv/linux-x86_64
-            cp "$GITHUB_WORKSPACE/libmpv-linux-x86_64.so" mova/libmpv/linux-x86_64/libmpv.so
-            git add mova/libmpv/linux-x86_64/libmpv.so
-            if git diff --cached --quiet; then
-              echo "No size/content change, skip commit"
-              exit 0
-            fi
-            git commit -m "chore(mova): add linux x86_64 libmpv build, v1 native [skip ci]"
-            git lfs push origin main
-            if git push; then exit 0; fi
-            echo "push rejected, retrying from a fresh baseline ($i/5)..."
-            sleep $((RANDOM % 8 + 2))
-          done
-          echo "::error::failed to push dist/linux-x86_64/ after retries"
-          exit 1
+          # Linux uses system-provided libmpv (via pkg-config / apt install libmpv-dev)
+          # in package:media_kit, without a dedicated media_kit_libs_linux_video package.
+          # Built artifact is preserved as a GitHub Actions artifact above.
+          echo "Linux uses system libmpv; skipping commit to packages."
 
   # Same native-slim recipe as the linux job, on MSYS2 MINGW64. Do NOT drive
   # media-kit/libmpv-win32-video-build here — that project is a Linux→Windows
@@ -1285,14 +1258,28 @@ jobs:
 
           cp "$DLL" "$WS/libmpv-2-windows-x86_64.dll"
 
+      - name: Generate import library and def
+        run: |
+          DLL=$(find "$WS/prefix" -iname 'libmpv*.dll' | head -1)
+          gendef "$DLL"
+          DEF_FILE=$(find . -maxdepth 1 -name '*.def' | head -1)
+          test -n "$DEF_FILE" || { echo "::error::gendef failed to produce .def file"; exit 1; }
+          dlltool -d "$DEF_FILE" -l "$WS/libmpv.dll.a" -D libmpv-2.dll
+          cp "$DEF_FILE" "$WS/libmpv-2.def"
+          test -f "$WS/libmpv.dll.a" || { echo "::error::dlltool failed to produce libmpv.dll.a"; exit 1; }
+          echo "Successfully generated libmpv-2.def and libmpv.dll.a"
+
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: mova-libmpv-windows-x86_64
-          path: libmpv-2-windows-x86_64.dll
+          path: |
+            libmpv-2-windows-x86_64.dll
+            libmpv-2.def
+            libmpv.dll.a
           retention-days: 30
 
-      - name: Commit built artifact to dist/
+      - name: Commit built artifact to packages/
         # Override the job-wide `shell: msys2 {0}` default — this step only
         # needs git/git-lfs, not the MSYS2 toolchain, and MSYS2's PATH doesn't
         # include the Windows Git install where git-lfs.exe actually lives
@@ -1302,29 +1289,32 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          # 2026-09-17: this job hit `cannot rebase: You have unstaged
-          # changes` here because the old flow committed locally first and
-          # only then tried to rebase that commit on conflict — any stray
-          # dirty state in the tree (MSYS2 line-ending conversion, etc.) made
-          # the rebase itself fail. Every retry now starts from a fresh
-          # fetch+reset baseline and creates a brand-new commit on top of it
-          # instead, which sidesteps the dirty-tree case entirely regardless
-          # of what caused it.
+          PKG_DIR="mova/packages/media_kit_libs_windows_video_slim"
           for i in 1 2 3 4 5; do
             git fetch origin main
             git reset --hard origin/main
-            mkdir -p mova/libmpv/windows-x86_64
-            cp "$WS/libmpv-2-windows-x86_64.dll" mova/libmpv/windows-x86_64/libmpv-2.dll
-            git add mova/libmpv/windows-x86_64/libmpv-2.dll
+            mkdir -p "$PKG_DIR/windows"
+            mkdir -p "$PKG_DIR/windows-devlib"
+            mkdir -p "$PKG_DIR/mpv-headers"
+            cp "$WS/libmpv-2-windows-x86_64.dll" "$PKG_DIR/windows/libmpv-2.dll"
+            cp "$WS/libmpv-2.def" "$PKG_DIR/windows-devlib/libmpv-2.def"
+            cp "$WS/libmpv.dll.a" "$PKG_DIR/windows-devlib/libmpv.dll.a"
+            if [ -d "$WS/prefix/include/mpv" ]; then
+              cp "$WS/prefix/include/mpv"/*.h "$PKG_DIR/mpv-headers/"
+            fi
+            git add "$PKG_DIR/windows/libmpv-2.dll"
+            git add "$PKG_DIR/windows-devlib/libmpv-2.def"
+            git add "$PKG_DIR/windows-devlib/libmpv.dll.a"
+            git add "$PKG_DIR/mpv-headers"
             if git diff --cached --quiet; then
               echo "No size/content change, skip commit"
               exit 0
             fi
-            git commit -m "chore(mova): add windows x86_64 libmpv-2.dll build, v1 native MSYS2 slim [skip ci]"
+            git commit -m "chore(packages): update slimmed libmpv-2.dll and devlib (windows x86_64) [skip ci]"
             git lfs push origin main
             if git push; then exit 0; fi
             echo "push rejected, retrying from a fresh baseline ($i/5)..."
             sleep $((RANDOM % 8 + 2))
           done
-          echo "::error::failed to push dist/windows-x86_64/ after retries"
+          echo "::error::failed to push packages/media_kit_libs_windows_video_slim after retries"
           exit 1
