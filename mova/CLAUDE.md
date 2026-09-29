@@ -21,6 +21,12 @@
 >    无缝切换、清晰度自适应、仅音频模式等）**已合并进 main 但从未随新版本号重新
 >    发布**。引用方从 pub.dev 拿到的包不含这些能力，回答"能不能用某功能"前
 >    先确认对方拿到的是 pub.dev 版本还是本仓库 path/git 依赖。
+> 5. **mova 现在依赖 media_kit 的 git 提交而非 pub.dev 发布版，因此无法正常发布到
+>    pub.dev**：`pubspec.yaml` 把 `media_kit` 锁定在 master 分支某 commit
+>    （`c533e446755f51cf53c7e57aea873f2aa5355f81`），为的是拿到该提交新增的
+>    `observeEvent`/`unobserveEvent` 公开 API（埋点 QoE 层订阅原生 mpv 事件要用）；
+>    `flutter analyze` 会报 "Publishable packages can't have 'git' dependencies"，
+>    这是用户已拍板接受的已知代价，不是待修的问题。
 
 ## 是什么
 
@@ -29,10 +35,9 @@
 
 ## 当前状态（0.2.0）
 
-> **测试基线：815 项全绿**（最后一次明确记录的推进链路是 803→809→811→815，出自
-> 「无缝引擎切换」真机排查过程中的多轮修复+回归测试；这是本文档能查证到的最新数字，
-> 但距今已有后续改动，**建议以当次 `flutter test` 实跑结果为准重新核实**）、
-> `flutter analyze` 0 issues（仅剩一条既有 `feed_player.dart` 警告，与近期改动均无关）。
+> **测试基线：945 项全绿**（2026-09-29 本机实跑 `flutter test` 的真实结果，出自
+> "统一上报模块 + QoE 增强"落地；上一记录的 815 已过期）、`flutter analyze` 0
+> issues（仅剩一条既有 `feed_player.dart` 警告，与近期改动均无关）。
 
 以下按功能分组呈现已完成能力（原按 0.2.0–0.6.0 版本号分阶段记录，现已合并，
 版本号统一记为 0.2.0；具体日期/commit/测试数字均为客观事实，原样保留）。
@@ -231,6 +236,38 @@ core 层仅加 `MovaState.mini`/`MovaApi.setMini`/`MovaMiniChange`/`MovaMiniConf
   顺带修复一个 demo 自身次生 bug：`_MisuseDemoState` 触发 assert 后若同一帧内又导航
   到别的入口，新引擎事件流回调会在 widget 树锁定期间同步刷新，已改为
   `addPostFrameCallback` 推迟通知。
+
+### 统一上报模块 + QoE 增强
+
+把 `MovaReporter` 从"UI 动作流水"补成"播放质量数据源"——补齐业界必测四件套
+（TTFF 首帧耗时、卡顿次数与时长、播放失败 fatal/非 fatal 区分、会话开始与结束
+含结束原因四分 ended/stopped/failed/abandoned），并把 `MovaReportName` 从纯枚举
+改成 const 值类（内置 + `MovaReportName.custom` 自定义双轨，`==`/`hashCode` 按
+`value` 比较）。核心逻辑收在 `lib/src/core/report/`（`collector.dart`/`ttff.dart`/
+`stall.dart`/`session.dart`/`error_policy.dart`/`stats_probe.dart`/`session_id.dart`）+
+`lib/src/core/options/report_config.dart`（`MovaReportConfig`，默认 `qoe: false`，
+遵循项目"新功能默认关闭"约定）。信号优先取 libmpv 原生能力：`MovaMpvKernel` 新增
+`implements MovaStatsProbe`，经 `paused-for-cache`（真卡顿信号，与 media_kit 合并出的
+`buffering` 布尔不同）、`stream.log` 的 prefix 分类错误、`video-bitrate`/`cache-speed`/
+`frame-drop-count` 等属性取数；不可达的两条（`MPV_EVENT_PLAYBACK_RESTART` 精确 TTFF
+落地信号、`MPV_EVENT_END_FILE` 原生会话结束原因）2026-09-29 通过把 `media_kit` 依赖
+换成 git 提交 `c533e446755f51cf53c7e57aea873f2aa5355f81`（新增 `observeEvent` 公开
+API）打通，`MovaMpvKernel._observeNativeEvents` 对两路订阅各自 try/catch 包裹，失败
+静默退化到旧的 `core-idle`/`buffering` 边沿与时序推断路径，不影响其余上报功能。
+纯内存聚合，不引入任何 HTTP 客户端/第三方依赖，mova 依旧只标准化、不发送。
+随后一轮 `code-review --fix` 修了两个真实 bug（`MovaEngine.open()` 的会话边界时序、
+`MovaMpvKernel.dispose()` 等待原生观察者注册落地再销毁 mpv 句柄的竞态）。
+详见 [doc/plans/2026-09-29-telemetry-enhancement.md](doc/plans/2026-09-29-telemetry-enhancement.md)、
+[doc/notes/2026-09-29-player-telemetry-best-practices.md](doc/notes/2026-09-29-player-telemetry-best-practices.md)。
+
+测试基线随本功能从 859 推进到本文档顶部记录的 **945**（`flutter test` 全绿）。
+
+**真机验证仅完成一小部分，如实记录**：目前**仅在 Windows 桌面验证过
+`observeEvent` 能订阅到 `MPV_EVENT_PLAYBACK_RESTART`/`MPV_EVENT_END_FILE` 并驱动
+TTFF/会话结束落地**；**未做任何真机验证**——TTFF 真实性、卡顿计数准确性、四分
+终止态、错误 prefix 分类、`qoe: false` 关闭态零改变等计划里列出的验证项均未上
+Android/iOS 真机，Android/iOS/macOS 上 `observeEvent` 的运行时行为也未经验证（该
+API 只在这一个被锁定的 git 提交上有）。
 
 ## 剩余任务
 

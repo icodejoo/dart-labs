@@ -4,6 +4,25 @@
 * Feed 沉浸式流播放器增强：包含短视频滑动、预加载与抖音风格皮肤定制。
 * 修复 `MovaFeedPlayer` 中 `ensure()` 异步回调类型推断警告。
 * 完善文档与接入范式。
+* 埋点上报增强：`MovaReporter` 补齐 TTFF 首帧耗时、卡顿次数与时长、播放失败
+  fatal/非 fatal 区分、会话开始/结束（含四分结束原因）四大 QoE 指标；新增
+  `MovaReportConfig`（`MovaOpts.report`，默认 `qoe: false`，关闭态事件流与之前
+  逐字节相同）。信号优先取 libmpv 原生能力（`paused-for-cache`/`video-bitrate`/
+  `cache-speed`/丢帧计数/日志 prefix 错误分类），并顺带修了 `MovaEngine.open()`
+  的会话边界时序竞态与 `MovaMpvKernel.dispose()` 的原生资源竞态两个真实 bug。
+  * **破坏性变更**：
+    1. `MovaReportName` 从 `enum` 改为 const 值类——不再有
+       `MovaReportName.values.byName()`；`.index` 消失；在名称上 `switch` 的调用点
+       须改为对 `.value`（`String`）做 switch，Dart 不允许对重写了 `==` 的类型使用
+       常量模式。`==`/`hashCode` 按 `.value` 计算，`Map`/`Set` 键用法与
+       `MovaApi.report(name, ...)` 签名不变，普通比较调用点零改动。
+    2. `MovaErrorEvent` 的产出从 `translator.dart` 移到 `MovaQoeCollector`，
+       `qoe: true` 时 `params` 从 `{'error'}` 增补为 `{'error', 'fatal', 'code'}`
+       且非 fatal 错误降级为 `batched`（`qoe: false` 时旧行为不变）。
+  * **已知代价**：`pubspec.yaml` 的 `media_kit` 依赖从 pub.dev 发布版改为锁定
+    media_kit 的 git 提交（`c533e446755f51cf53c7e57aea873f2aa5355f81`，为拿到该提交
+    新增的 `observeEvent` 公开 API），mova 因此**暂时无法发布到 pub.dev**
+    （`flutter analyze` 会提示 "Publishable packages can't have 'git' dependencies"）。
 
 ## 0.1.0
 

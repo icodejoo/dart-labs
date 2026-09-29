@@ -507,6 +507,59 @@ Reporting\LocalDumps\mova_example.exe`（`DumpFolder` 指向
 [doc/plans/2026-09-16-audio-only.md](plans/2026-09-16-audio-only.md) Task 5。
 README 与可行性笔记 §1 里的开销数字目前仍是**推算量级，不是实测**。
 
+## 埋点与 QoE（`lib/src/core/report/`，2026-09-29，默认关闭）
+
+把 `MovaReporter` 从"UI 动作流水"补成"播放质量数据源"，详细论证与逐 Task 计划见
+[doc/plans/2026-09-29-telemetry-enhancement.md](plans/2026-09-29-telemetry-enhancement.md)、
+调研背景见
+[doc/notes/2026-09-29-player-telemetry-best-practices.md](notes/2026-09-29-player-telemetry-best-practices.md)。
+
+**libmpv 能力对照表（精简版；决定架构的是"经 media_kit 拿不拿得到"，不是
+"libmpv 有没有"）：**
+
+| 需求 | libmpv 信号 | 经 media_kit 可达性 | mova 取法 |
+|---|---|---|---|
+| 首帧就绪（精确） | `MPV_EVENT_PLAYBACK_RESTART` | 仅锁定的 media_kit git 提交（`observeEvent`）可达 | 首选，退化到下一行 |
+| 首帧就绪（兜底） | `core-idle` | media_kit 内建观察，透传为 `buffering` | 订阅失败时的静默退化路径 |
+| 卡顿真信号 | `paused-for-cache` | 需 mova 自己 `observeProperty` | `MovaStatsProbe.stalling` |
+| 卡顿累计次数/时长 | 无——libmpv 不提供任何累计计数器 | — | mova 自实现聚合（`MovaStallPolicy`） |
+| 会话结束原因 | `mpv_event_end_file.reason` | 仅锁定的 git 提交（`observeEvent`）可达；`EOF` 恒不可达（`--keep-open=yes`） | 佐证/兜底，非替代——权威信号仍是 `MovaDone` |
+| 错误分类 | 日志 prefix（`stream`/`file`/`ffmpeg`/`vd`/`ad`/`cplayer`） | `Player.stream.log` 可达，`stream.error` 把 prefix 丢了 | `MovaErrorPolicy`/`MovaPrefixError` 按 prefix 分类 |
+| 码率/吞吐/丢帧 | `video-bitrate`/`cache-speed`/`frame-drop-count`/`decoder-frame-drop-count` | 均不在 media_kit 内建观察表，可自行 `getProperty` | `MovaStatsProbe.sample()` |
+
+**两条必须记住的 media_kit 约束：**
+
+1. **只 observe、不 unobserve。** media_kit 内建观察表与 `observeProperty()` 共用
+   `property.hashCode` 作 reply id；`mpv_unobserve_property` 按 reply id 一次性注销
+   全部同名注册——一旦调用会让 media_kit 自己的 `buffering`/`position` 流静默死掉。
+2. **属性变更通知是合并（coalesced）的。** 一对边沿（如 `paused-for-cache` 的
+   false→true→false）在极端情况下可能被压成一次通知，任何基于"数边沿"的聚合
+   都必须容忍丢失中间值。
+
+**2026-09-29 架构决定**：`pubspec.yaml` 的 `media_kit` 依赖从 pub.dev 发布版改锁定
+到 media_kit master 某 git 提交（`c533e446755f51cf53c7e57aea873f2aa5355f81`），
+换来新增的公开 API `observeEvent`/`unobserveEvent`（可订阅任意 `mpv_event_id`，
+不需要 fork media_kit）。`MovaMpvKernel._observeNativeEvents` 用它订阅
+`MPV_EVENT_PLAYBACK_RESTART`（TTFF 精确落地信号）与 `MPV_EVENT_END_FILE`（会话
+结束原因佐证），两路订阅各自 try/catch 包裹，失败静默退化到 `core-idle`/`buffering`
+边沿与旧的时序推断，不影响其余上报功能。已知代价：mova 因此**暂时无法发布到
+pub.dev**（pub.dev 不允许已发布包依赖 git/path）。
+
+**主要类型**：`MovaReportConfig`（`MovaOpts.report`，默认 `qoe: false`）、
+`MovaQoeCollector`（持有会话状态，`qoe: false` 时纯直通、行为与之前逐字节一致）、
+`MovaTtffTracker`、`MovaStallPolicy`/`MovaEdgeStall`、`MovaSessionEnd`/
+`resolveSessionEnd`/`resolveSessionEndNative`、`MovaErrorPolicy`/`MovaPrefixError`、
+`MovaStatsProbe`（`MovaMpvKernel` 的可选能力接口，未实现的内核只会让 QoE 层降级）。
+`MovaReportName` 从 `enum` 改为 const 值类（`==`/`hashCode` 按 `value`），内置 +
+`MovaReportName.custom` 自定义双轨。
+
+**验证缺口**：仅在 Windows 桌面验证过 `observeEvent` 能订阅到
+`MPV_EVENT_PLAYBACK_RESTART`/`MPV_EVENT_END_FILE` 并驱动 TTFF/会话结束落地；
+**Android/iOS/macOS 上 `observeEvent` 的运行时行为完全未经验证**（该 API 只在
+这一个被锁定的 git 提交上有）。计划文档「真机验证」一节列出的全部验证项
+（TTFF 真实性、卡顿计数准确性、卡顿信号优劣对账、四分终止态、错误 prefix 分类、
+`qoe: false` 关闭态零改变）均**尚未在任何真机上执行**。
+
 ## PiP（原生）
 
 - Dart 侧经 `MovaPipPort`；Android `MovaPlugin.kt` 用
