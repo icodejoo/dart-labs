@@ -28,6 +28,9 @@ import 'preview/service.dart';
 import 'preview/source.dart';
 import 'preview/two_level_cache.dart';
 import 'preview/vtt_source.dart';
+import 'report/collector.dart';
+import 'report/report.dart';
+import 'report/stats_probe.dart';
 import 'state/progress.dart';
 import 'state/state.dart';
 import 'state/ui_state.dart';
@@ -115,6 +118,30 @@ class MovaEngine implements MovaApi {
   /// 预览流水线（VTT/雪碧图）与 [loadQualities] 拉取 HLS 主播放列表共用的 HTTP
   /// 客户端；宿主未注入时默认使用 [MovaIoHttpFetcher]。
   final MovaHttpFetch _fetcher;
+
+  /// Unified reporting sink; `null` means reporting is off — no translator is
+  /// created and [report] is a no-op, so the whole feature costs nothing when
+  /// unused (mirrors [MovaSwapConfig.enabled]'s pass-through-when-off design).
+  ///
+  /// 统一上报出口；为 `null` 表示上报关闭——不创建转换器，[report] 也是空操作，
+  /// 未使用时整个功能零开销（与 [MovaSwapConfig.enabled] 关闭时纯直通的设计
+  /// 一致）。
+  final MovaReporter? _reporter;
+
+  /// Owns this engine's QoE state and forwards standardized report events to
+  /// [_reporter]; `null` when [_reporter] is `null`.
+  ///
+  /// 持有本 engine 的 QoE 状态，把标准化后的上报事件转发给 [_reporter]；
+  /// [_reporter] 为 `null` 时本字段也是 `null`。
+  MovaQoeCollector? _qoe;
+
+  /// This engine's constructor-time `audioOnly` decision, forwarded to
+  /// [_qoe] as a per-session constant; see the [MovaEngine.new] doc comment
+  /// for why this isn't a [MovaState] field.
+  ///
+  /// 该 engine 构造期的 `audioOnly` 决策，作为每会话常量转发给 [_qoe]；为何
+  /// 不是 [MovaState] 字段见 [MovaEngine.new] 的文档注释。
+  final bool _audioOnly;
 
   /// The scrub-preview service assembled from [MovaOpts.preview].
   ///
@@ -289,14 +316,18 @@ class MovaEngine implements MovaApi {
     MovaThumbDirProvider? thumbDir,
     MovaFramePuller? extractor,
     MovaHttpFetch? fetcher,
-  }) : _kernel = kernel ?? MovaMpvKernel(audioOnly: audioOnly),
+    MovaReporter? reporter,
+  }) : _kernel = kernel ?? MovaMpvKernel(audioOnly: audioOnly, observeQoeSignals: reporter != null),
+       _audioOnly = audioOnly,
        _extractor = extractor, // ignore: prefer_initializing_formals
        _fetcher = fetcher ?? MovaIoHttpFetcher(),
        _chain = MovaHookChain(interceptors),
        _brightness = brightness ?? MovaFallbackBrightnessPort(),
        _volume = volume, // ignore: prefer_initializing_formals
        _pip = pip ?? MovaNoopPipPort(),
-       _orientation = orientation ?? MovaNoopOrientationPort() {
+       _orientation = orientation ?? MovaNoopOrientationPort(),
+       _reporter = reporter // ignore: prefer_initializing_formals
+       {
     _abrPolicy =
         options.abr.policy ??
         MovaBufferAbr(threshold: options.abr.stallThreshold);
@@ -347,6 +378,7 @@ class MovaEngine implements MovaApi {
       _lastPosition = v;
       _updateTimeshift(v);
       _sttService.updatePosition(v);
+      _qoe?.onPosition(v);
       _progressRaw.add(MovaProg(position: v, buffer: _lastBuffer));
     });
     _bufferSub = _kernel.buffer.listen((v) {
@@ -382,6 +414,16 @@ class MovaEngine implements MovaApi {
       extractor: _extractor,
       fetcher: _fetcher,
     );
+    final reporterPort = _reporter;
+    if (reporterPort != null) {
+      final probe = _kernel;
+      _qoe = MovaQoeCollector(
+        events: _events.stream,
+        reporter: reporterPort,
+        config: options.report,
+        probe: probe is MovaStatsProbe ? probe as MovaStatsProbe : null,
+      );
+    }
     // Probe pip support once. The UI hides the pip button until this answers,
     // which is why a failed probe must resolve to false rather than throw.
     //
@@ -600,6 +642,16 @@ class MovaEngine implements MovaApi {
     final gen = ++_openGen;
     final allowed = await _chain.beforeOpen(source);
     if (!allowed || gen != _openGen) return;
+    // 通过 beforeOpen 门禁、且未被更晚一次 open() 取代之后才标记 QoE 会话
+    // 边界——否则被拒绝/被取代的 open() 调用会污染上报，产生从未真正播放过
+    // 的幽灵 sessionStart/sessionEnd。
+    _qoe?.onTeardown();
+    _qoe?.onOpen(
+      source,
+      autoPlay: autoPlay,
+      audioOnly: _audioOnly,
+      swapEnabled: options.swap.enabled,
+    );
     _source = source;
     // Forget everything the *previous* media reported, so [seek]'s "park or
     // send now" decision is deterministic: a seek issued right after open()
@@ -1248,6 +1300,21 @@ class MovaEngine implements MovaApi {
   }
 
   @override
+  void report(MovaReportName name, {Map<String, dynamic>? params}) {
+    final reporterPort = _reporter;
+    if (reporterPort == null) return;
+    reporterPort.onReport(
+      MovaReportEvent(
+        kind: MovaReportKind.action,
+        name: name,
+        params: params ?? const {},
+        priority: MovaReportPriority.batched,
+        at: DateTime.now(),
+      ),
+    );
+  }
+
+  @override
   Future<void> dispose() async {
     // Disposing while the mini window still renders this engine leaves the
     // host painting a dead texture — almost always a page that disposed the
@@ -1269,6 +1336,8 @@ class MovaEngine implements MovaApi {
     await _errorSub.cancel();
     _hudTimer?.cancel();
     _autoHideTimer?.cancel();
+    _qoe?.onTeardown();
+    await _qoe?.cancel();
     await _state.close();
     await _ui.close();
     await _events.close();

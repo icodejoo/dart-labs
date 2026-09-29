@@ -10,6 +10,7 @@ import '../model/quality.dart';
 import '../model/source.dart';
 import '../options/options.dart';
 import '../preview/api.dart';
+import '../report/report.dart';
 import '../state/progress.dart';
 import '../state/state.dart';
 import '../state/ui_state.dart';
@@ -307,6 +308,9 @@ class MovaSwapEngine implements MovaApi, MovaSwapController {
 
   @override
   void setDragging(bool v, {Duration? previewAt}) => _active.setDragging(v, previewAt: previewAt);
+
+  @override
+  void report(MovaReportName name, {Map<String, dynamic>? params}) => _active.report(name, params: params);
 
   @override
   Future<void> dispose() async {

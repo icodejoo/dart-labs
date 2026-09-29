@@ -7,6 +7,7 @@ export 'live_config.dart';
 export 'mini_config.dart';
 export 'playlist_config.dart';
 export 'preview_config.dart';
+export 'report_config.dart';
 export 'stt_config.dart';
 export 'strings.dart';
 export 'swap_config.dart';
@@ -21,6 +22,7 @@ import 'live_config.dart';
 import 'mini_config.dart';
 import 'playlist_config.dart';
 import 'preview_config.dart';
+import 'report_config.dart';
 import 'stt_config.dart';
 import 'strings.dart';
 import 'swap_config.dart';
@@ -104,6 +106,11 @@ class MovaOpts {
   /// App 内小窗配置。
   final MovaMiniConfig mini;
 
+  /// Telemetry / QoE reporting configuration.
+  ///
+  /// 埋点 / QoE 上报配置。
+  final MovaReportConfig report;
+
   /// Creates an options bundle; every section defaults to its own defaults.
   ///
   /// 创建配置集合；每一节均使用其自身默认值。
@@ -121,6 +128,7 @@ class MovaOpts {
     this.theme = const MovaTheme(),
     this.swap = const MovaSwapConfig(),
     this.mini = const MovaMiniConfig(),
+    this.report = const MovaReportConfig(),
   });
 
   /// Returns a copy with the given sections replaced; omitted sections keep
@@ -141,6 +149,7 @@ class MovaOpts {
   /// - [theme]: replacement theme / 替换用的主题
   /// - [swap]: replacement swap config / 替换用的切换配置
   /// - [mini]: replacement mini-window config / 替换用的小窗配置
+  /// - [report]: replacement telemetry config / 替换用的埋点配置
   ///
   /// Returns the new [MovaOpts] instance / 返回新的 [MovaOpts] 实例。
   MovaOpts copyWith({
@@ -157,6 +166,7 @@ class MovaOpts {
     MovaTheme? theme,
     MovaSwapConfig? swap,
     MovaMiniConfig? mini,
+    MovaReportConfig? report,
   }) {
     return MovaOpts(
       preview: preview ?? this.preview,
@@ -172,6 +182,7 @@ class MovaOpts {
       theme: theme ?? this.theme,
       swap: swap ?? this.swap,
       mini: mini ?? this.mini,
+      report: report ?? this.report,
     );
   }
 
@@ -192,9 +203,10 @@ class MovaOpts {
           strings == other.strings &&
           theme == other.theme &&
           swap == other.swap &&
-          mini == other.mini;
+          mini == other.mini &&
+          report == other.report;
 
   @override
   int get hashCode => Object.hash(preview, live, gesture, abr, controls, danmaku,
-      stt, playlist, ads, strings, Object.hash(theme, swap, mini));
+      stt, playlist, ads, strings, Object.hash(theme, swap, mini, report));
 }

@@ -20,6 +20,7 @@ import '../core/preview/dir_provider.dart';
 import '../core/preview/extractor.dart';
 import '../core/preview/fetcher.dart';
 import '../core/preview/net_probe.dart';
+import '../core/report/report.dart';
 import 'brightness_impl.dart';
 import 'orientation_impl.dart';
 import 'pip_impl.dart';
@@ -122,6 +123,11 @@ MovaVolumePort? _defaultVolumePort() {
 ///   sprites; left null, [MovaEngine] falls back to its own `MovaIoHttpFetcher()` /
 ///   覆盖拉取 WebVTT 轨与雪碧图的 HTTP 客户端；留空则由 [MovaEngine] 自己兜底为
 ///   `MovaIoHttpFetcher()`
+/// - [reporter]: unified reporting sink for [MovaApi.report] and the
+///   whitelisted subset of [MovaApi.events]. `null` by default — reporting is
+///   then fully off at zero cost (no subscription is created) / 统一上报出口，
+///   承接 [MovaApi.report] 及白名单内的 [MovaApi.events]。默认 `null`——此时
+///   上报功能完全关闭、零开销（不会创建任何订阅）
 ///
 /// Returns a [MovaEngine] ready for use by app code.
 ///
@@ -139,6 +145,7 @@ MovaEngine createMovaEngine({
   MovaFramePuller? extractor,
   MovaNetProbe? probe,
   MovaHttpFetch? fetcher,
+  MovaReporter? reporter,
 }) {
   return MovaEngine(
     kernel: kernel,
@@ -152,5 +159,6 @@ MovaEngine createMovaEngine({
     thumbDir: thumbDir ?? const MovaTempThumbDirProvider(),
     extractor: extractor,
     fetcher: fetcher,
+    reporter: reporter,
   );
 }

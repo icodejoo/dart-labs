@@ -5,6 +5,7 @@ import 'model/quality.dart';
 import 'model/source.dart';
 import 'options/options.dart';
 import 'preview/api.dart';
+import 'report/report.dart';
 import 'state/progress.dart';
 import 'state/state.dart';
 import 'state/ui_state.dart';
@@ -322,6 +323,27 @@ abstract class MovaApi {
   /// [v] 为 `true` 表示拖动手势（进度/音量/亮度）正在进行。[previewAt] 为
   /// 拖动过程中要展示的预览位置，`null` 表示不展示。
   void setDragging(bool v, {Duration? previewAt});
+
+  /// Reports a user-action event: a pure-UI-semantic action that triggers no
+  /// core state change and so never appears on [events] on its own — e.g.
+  /// opening a settings panel. For events that already fire on [events]
+  /// (play/pause/error/…), mova reports those itself; call this only for
+  /// actions the skin/component layer alone knows about.
+  ///
+  /// [name] is the reported action's name. [params] is optional structured
+  /// data attached to the report.
+  ///
+  /// 上报一条用户操作事件：纯 UI 语义、未触发任何 core 状态变化、因而不会自行
+  /// 出现在 [events] 上的动作——例如打开设置面板。已在 [events] 上广播的事件
+  /// （播放/暂停/错误等）mova 会自行上报；本方法只用于皮肤/组件层才知道的动作。
+  ///
+  /// [name] 为上报的动作名称。[params] 为附加的可选结构化数据。
+  ///
+  /// Example / 示例:
+  /// ```dart
+  /// api.report(MovaReportName.qualityChange, params: {'via': 'settingsPanel'});
+  /// ```
+  void report(MovaReportName name, {Map<String, dynamic>? params});
 
   /// Releases all resources held by this instance; must be called exactly
   /// once when the player is torn down.
