@@ -10,6 +10,8 @@ import 'package:mova/src/core/model/source.dart';
 import 'package:mova/src/core/options/options.dart';
 import 'package:mova/src/core/preview/api.dart';
 import 'package:mova/src/core/preview/models.dart';
+import 'package:mova/src/core/report/report.dart';
+import 'package:mova/src/core/report/stats_probe.dart';
 import 'package:mova/src/core/state/progress.dart';
 import 'package:mova/src/core/state/state.dart';
 import 'package:mova/src/core/state/ui_state.dart';
@@ -18,6 +20,8 @@ import 'package:mova/src/core/stt/cue.dart';
 import 'package:mova/src/core/swap/ctl.dart';
 import 'package:mova/src/core/swap/plan.dart';
 import 'package:mova/src/core/swap/trigger.dart';
+
+import 'fake_kernel.dart' show StatsProbeStub;
 
 /// A test double for [MovaApi] that records every capability call it receives
 /// and lets tests push arbitrary state/events into its streams.
@@ -459,6 +463,24 @@ class FakeMovaApi implements MovaApi {
     lastPreviewAt = previewAt;
   }
 
+  /// The `name` argument of the most recent [report] call, or `null` if
+  /// never called.
+  ///
+  /// 最近一次 [report] 调用的 `name` 参数；若从未调用过则为 `null`。
+  MovaReportName? lastReportName;
+
+  /// The `params` argument of the most recent [report] call.
+  ///
+  /// 最近一次 [report] 调用的 `params` 参数。
+  Map<String, dynamic>? lastReportParams;
+
+  @override
+  void report(MovaReportName name, {Map<String, dynamic>? params}) {
+    calls.add('report');
+    lastReportName = name;
+    lastReportParams = params;
+  }
+
   @override
   Future<void> dispose() async {
     calls.add('dispose');
@@ -626,6 +648,58 @@ class FakeSwapCtl implements MovaSwapController {
   ///
   /// 关闭底层流。
   Future<void> dispose() => _phases.close();
+}
+
+/// A test double for [MovaStatsProbe] that lets tests push `stalling`/`logs`
+/// observations and control what [sample] returns, without a real mpv
+/// kernel. Also tracks whether [stalling]/[logs] were ever subscribed, so
+/// tests can assert a `reporter == null`/`qoe: false` engine never subscribes
+/// them (zero-overhead-when-off contract).
+///
+/// [MovaStatsProbe] 的测试替身：允许测试推送 `stalling`/`logs` 观测、控制
+/// [sample] 的返回值，无需真实 mpv 内核。同时记录 [stalling]/[logs] 是否曾被
+/// 订阅，供测试断言 `reporter == null`/`qoe: false` 的 engine 从不订阅它们
+/// （关闭时零开销契约）。
+class FakeStatsProbe with StatsProbeStub {
+  FakeStatsProbe() {
+    initStatsProbeStub();
+  }
+
+  /// How many times [sample] has been called.
+  ///
+  /// [sample] 被调用的次数。
+  int sampleCalls = 0;
+
+  @override
+  Future<MovaStatsSnapshot?> sample() async {
+    sampleCalls++;
+    return sampleResult;
+  }
+
+  /// Pushes a stalling observation.
+  ///
+  /// 推送一次卡顿观测。
+  void pushStalling(bool value) => stallingController.add(value);
+
+  /// Pushes a log line.
+  ///
+  /// 推送一条日志行。
+  void pushLog(MovaLogLine line) => logsController.add(line);
+
+  /// Pushes a native `MPV_EVENT_PLAYBACK_RESTART` observation.
+  ///
+  /// 推送一次原生 `MPV_EVENT_PLAYBACK_RESTART` 观测。
+  void pushRestart() => restartsController.add(null);
+
+  /// Pushes a native `MPV_EVENT_END_FILE` reason.
+  ///
+  /// 推送一次原生 `MPV_EVENT_END_FILE` 原因。
+  void pushEndFile(MovaEndFileReason reason) => endFilesController.add(reason);
+
+  /// Closes the backing streams.
+  ///
+  /// 关闭底层流。
+  Future<void> dispose() => disposeStatsProbeStub();
 }
 
 /// A test double for [MovaSttApi] that records start/stop calls and lets tests

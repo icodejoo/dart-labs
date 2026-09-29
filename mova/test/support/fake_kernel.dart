@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:typed_data';
 
 import 'package:mova/src/core/kernel/kernel.dart';
+import 'package:mova/src/core/report/stats_probe.dart';
 
 /// A test double for [MovaKernel] that records every call it receives and lets
 /// tests push arbitrary state into its streams.
@@ -220,4 +221,139 @@ class FakeKernel implements MovaKernel {
   ///
   /// 向 [error] 推送一个错误。
   void emitError(Object value) => _error.add(value);
+}
+
+/// Shared [MovaStatsProbe] test-double state — the four backing
+/// `StreamController`s, their "ever listened to" flags, and `sample()`'s
+/// settable result — factored out so [FakeStatsProbe] (standalone) and
+/// [FakeStatsKernel] (mixed into [FakeKernel]) don't each carry their own
+/// copy that has to stay in sync by hand.
+///
+/// [MovaStatsProbe] 测试替身的共享状态——四个底层 `StreamController`、各自的
+/// "是否曾被监听"标记、以及 `sample()` 的可设置返回值——抽出来共用，这样
+/// [FakeStatsProbe]（独立类）与 [FakeStatsKernel]（混入 [FakeKernel]）不用
+/// 各自维护一份、靠手工保持同步。
+mixin StatsProbeStub implements MovaStatsProbe {
+  /// Constructs the controllers' `onListen` hooks. Mixins can't have their
+  /// own constructor body, so this must be called once by each user (both
+  /// current users do it as their first constructor-body statement).
+  ///
+  /// 挂上各控制器的 `onListen` 钩子。mixin 不能有自己的构造函数体，所以每个
+  /// 使用方必须自行调用一次（当前两个使用方都在自己构造函数体的第一句调用）。
+  void initStatsProbeStub() {
+    stallingController.onListen = () => stallingSubscribed = true;
+    logsController.onListen = () => logsSubscribed = true;
+    restartsController.onListen = () => playbackRestartsSubscribed = true;
+    endFilesController.onListen = () => endFilesSubscribed = true;
+  }
+
+  /// Backing controller for [stalling]; push via `add`.
+  ///
+  /// [stalling] 的底层控制器；用 `add` 推送。
+  final StreamController<bool> stallingController = StreamController<bool>.broadcast();
+
+  /// Backing controller for [logs]; push via `add`.
+  ///
+  /// [logs] 的底层控制器；用 `add` 推送。
+  final StreamController<MovaLogLine> logsController = StreamController<MovaLogLine>.broadcast();
+
+  /// Backing controller for [playbackRestarts]; push via `add`.
+  ///
+  /// [playbackRestarts] 的底层控制器；用 `add` 推送。
+  final StreamController<void> restartsController = StreamController<void>.broadcast();
+
+  /// Backing controller for [endFiles]; push via `add`.
+  ///
+  /// [endFiles] 的底层控制器；用 `add` 推送。
+  final StreamController<MovaEndFileReason> endFilesController = StreamController<MovaEndFileReason>.broadcast();
+
+  /// Whether [stalling] has ever been listened to.
+  ///
+  /// [stalling] 是否曾被监听过。
+  bool stallingSubscribed = false;
+
+  /// Whether [logs] has ever been listened to.
+  ///
+  /// [logs] 是否曾被监听过。
+  bool logsSubscribed = false;
+
+  /// Whether [playbackRestarts] has ever been listened to.
+  ///
+  /// [playbackRestarts] 是否曾被监听过。
+  bool playbackRestartsSubscribed = false;
+
+  /// Whether [endFiles] has ever been listened to.
+  ///
+  /// [endFiles] 是否曾被监听过。
+  bool endFilesSubscribed = false;
+
+  /// The value [sample] resolves to; settable by tests, defaults to `null`.
+  ///
+  /// [sample] 的返回值；可由测试赋值，默认 `null`。
+  MovaStatsSnapshot? sampleResult;
+
+  @override
+  Stream<bool> get stalling => stallingController.stream;
+
+  @override
+  Stream<MovaLogLine> get logs => logsController.stream;
+
+  @override
+  Stream<void> get playbackRestarts => restartsController.stream;
+
+  @override
+  Stream<MovaEndFileReason> get endFiles => endFilesController.stream;
+
+  @override
+  Future<MovaStatsSnapshot?> sample() async => sampleResult;
+
+  /// Closes all four backing controllers; call from the user's own
+  /// `dispose()`/teardown.
+  ///
+  /// 关闭全部四个底层控制器；从使用方自己的 `dispose()`/收尾逻辑里调用。
+  Future<void> disposeStatsProbeStub() async {
+    await stallingController.close();
+    await logsController.close();
+    await restartsController.close();
+    await endFilesController.close();
+  }
+}
+
+/// A [FakeKernel] that also implements [MovaStatsProbe] — the shape
+/// `MovaMpvKernel` has in production — so QoE-layer engine tests can drive
+/// `stalling`/`logs`/`sample()` without a real mpv instance.
+///
+/// 同时实现 [MovaStatsProbe] 的 [FakeKernel]——与生产环境的 `MovaMpvKernel`
+/// 同构——使 QoE 层的 engine 测试无需真实 mpv 实例即可驱动
+/// `stalling`/`logs`/`sample()`。
+class FakeStatsKernel extends FakeKernel with StatsProbeStub {
+  FakeStatsKernel() {
+    initStatsProbeStub();
+  }
+
+  /// Pushes a stalling observation.
+  ///
+  /// 推送一次卡顿观测。
+  void emitStalling(bool value) => stallingController.add(value);
+
+  /// Pushes a log line.
+  ///
+  /// 推送一条日志行。
+  void emitLog(MovaLogLine line) => logsController.add(line);
+
+  /// Pushes a native `MPV_EVENT_PLAYBACK_RESTART` observation.
+  ///
+  /// 推送一次原生 `MPV_EVENT_PLAYBACK_RESTART` 观测。
+  void emitRestart() => restartsController.add(null);
+
+  /// Pushes a native `MPV_EVENT_END_FILE` reason.
+  ///
+  /// 推送一次原生 `MPV_EVENT_END_FILE` 原因。
+  void emitEndFile(MovaEndFileReason reason) => endFilesController.add(reason);
+
+  @override
+  Future<void> dispose() async {
+    await disposeStatsProbeStub();
+    await super.dispose();
+  }
 }
