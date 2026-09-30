@@ -2,6 +2,8 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:media_kit/media_kit.dart';
+import 'package:media_kit_video/media_kit_video.dart';
 import 'package:mova/mova.dart';
 import 'package:mova/src/core/kernel/mpv_kernel.dart';
 import 'package:mova/src/platform_impl/mpv_extractor_impl.dart';
@@ -29,6 +31,9 @@ const Duration kTimeout = Duration(seconds: 8);
 
 /// 测试视频地址。
 const String kUrl = 'http://127.0.0.1:8098/t30.mp4';
+
+/// E11 截图前的 settle 等待（毫秒），可用 --dart-define=SETTLE=... 覆盖。
+const int kSettleMs = int.fromEnvironment('SETTLE', defaultValue: 250);
 
 /// 输出一行。
 void _out(String m) => print(m);
@@ -119,8 +124,14 @@ class _HostState extends State<_Host> {
         bytes = 'ERR $e';
       }
       final extractMs = sw.elapsedMilliseconds;
+      var sum = 0;
+      if (bytes is List<int>) {
+        for (var k = 0; k < bytes.length; k += 7) {
+          sum = (sum * 31 + bytes[k]) & 0x7fffffff;
+        }
+      }
       final (relMs, relTo) = await _timed(x.dispose);
-      _out('E5 round=$i extractMs=$extractMs extractTimedOut=$extractTimedOut gotBytes=${bytes is List ? bytes.length : bytes} releaseMs=$relMs releaseHung=$relTo');
+      _out('E5 round=$i extractMs=$extractMs extractTimedOut=$extractTimedOut gotBytes=${bytes is List ? bytes.length : bytes} checksum=$sum releaseMs=$relMs releaseHung=$relTo');
     }
   }
 
@@ -184,6 +195,117 @@ class _HostState extends State<_Host> {
     _out('E8 disposeMs=$dms hung=$to');
   }
 
+  /// E9：无界面创建 VideoController，观察 videoControllerCompleter 何时完成、setProperty 是否返回。
+  Future<void> _e9() async {
+    final p = Player();
+    final native = p.platform as NativePlayer;
+    final sw = Stopwatch()..start();
+    final c = VideoController(p);
+    _out('E9 created');
+    for (var i = 0; i < 16; i++) {
+      await Future<void>.delayed(const Duration(milliseconds: 500));
+      _out('E9 t=${sw.elapsedMilliseconds}ms attached=${native.isVideoControllerAttached} '
+          'completerDone=${native.videoControllerCompleter.isCompleted} rect=${c.rect.value} id=${c.id.value}');
+      if (native.videoControllerCompleter.isCompleted) break;
+    }
+    var setOk = false;
+    await native.setProperty('ao', 'null').timeout(const Duration(seconds: 4), onTimeout: () => setOk = false).then((_) => setOk = true);
+    _out('E9 setPropertyReturned=$setOk');
+  }
+
+  /// E10：不创建 VideoController 的抽帧——手动 vid=auto + vo=null，open 暂停、seek、screenshot。
+  Future<void> _e10() async {
+    for (var i = 0; i < kN; i++) {
+      final sw = Stopwatch()..start();
+      final p = Player();
+      final native = p.platform as NativePlayer;
+      await native.setProperty('ao', 'null');
+      await native.setProperty('vo', 'null');
+      await native.setProperty('vid', 'auto');
+      await native.setProperty('hwdec', 'no');
+      await native.setProperty('hr-seek', 'yes');
+      await native.setProperty('cache', 'no');
+      final setupMs = sw.elapsedMilliseconds;
+      Object? bytes;
+      try {
+        await p.open(Media('$kUrl?t=${DateTime.now().microsecondsSinceEpoch}'), play: false).timeout(kTimeout);
+        await p.seek(Duration(seconds: 2 + i)).timeout(kTimeout);
+        await Future<void>.delayed(const Duration(milliseconds: 250));
+        bytes = await p.screenshot(format: 'image/jpeg').timeout(kTimeout);
+      } catch (e) {
+        bytes = 'ERR ${e.runtimeType}';
+      }
+      final totalMs = sw.elapsedMilliseconds;
+      final (dms, to) = await _timed(p.dispose);
+      _out('E10 round=$i setupMs=$setupMs totalMs=$totalMs bytes=${bytes is List ? bytes.length : bytes} disposeMs=$dms hung=$to');
+    }
+  }
+
+  /// E11：不建 VideoController，单个 Player 内连续 seek 到不同位置截图，比对画面是否真的变化（校验和）。
+  Future<void> _e11() async {
+    final p = Player();
+    final native = p.platform as NativePlayer;
+    await native.setProperty('ao', 'null');
+    await native.setProperty('vo', 'null');
+    await native.setProperty('vid', 'auto');
+    await native.setProperty('hwdec', 'no');
+    await native.setProperty('hr-seek', 'yes');
+    await native.setProperty('cache', 'no');
+    await p.open(Media('$kUrl?t=${DateTime.now().microsecondsSinceEpoch}'), play: false).timeout(kTimeout);
+    for (final sec in [1, 5, 9, 13, 17, 21, 1]) {
+      final sw = Stopwatch()..start();
+      await p.seek(Duration(seconds: sec)).timeout(kTimeout);
+      await Future<void>.delayed(const Duration(milliseconds: kSettleMs));
+      final bytes = await p.screenshot(format: 'image/jpeg').timeout(kTimeout);
+      var sum = 0;
+      if (bytes != null) {
+        for (var i = 0; i < bytes.length; i += 7) {
+          sum = (sum * 31 + bytes[i]) & 0x7fffffff;
+        }
+      }
+      _out('E11 at=${sec}s ms=${sw.elapsedMilliseconds} len=${bytes?.length} checksum=$sum pos=${p.state.position.inSeconds}s');
+    }
+    final (dms, to) = await _timed(p.dispose);
+    _out('E11 disposeMs=$dms hung=$to');
+  }
+
+  /// E12：轮询 seeking/time-pos 判定 seek 真正落地再截图（替代固定 settle），并在首次 seek 前等时长就绪。
+  Future<void> _e12() async {
+    final p = Player();
+    final native = p.platform as NativePlayer;
+    await native.setProperty('ao', 'null');
+    await native.setProperty('vo', 'null');
+    await native.setProperty('vid', 'auto');
+    await native.setProperty('hwdec', 'no');
+    await native.setProperty('hr-seek', 'yes');
+    await native.setProperty('cache', 'no');
+    await p.open(Media('$kUrl?t=${DateTime.now().microsecondsSinceEpoch}'), play: false).timeout(kTimeout);
+    await p.stream.duration.firstWhere((d) => d > Duration.zero).timeout(kTimeout);
+    for (final sec in [1, 5, 9, 13, 17, 21, 1]) {
+      final sw = Stopwatch()..start();
+      await p.seek(Duration(seconds: sec)).timeout(kTimeout);
+      var polls = 0;
+      for (; polls < 60; polls++) {
+        final seeking = await native.getProperty('seeking');
+        final pos = double.tryParse(await native.getProperty('time-pos')) ?? -1;
+        if (seeking == 'no' && (pos - sec).abs() < 0.3) break;
+        await Future<void>.delayed(const Duration(milliseconds: 30));
+      }
+      final landedMs = sw.elapsedMilliseconds;
+      await Future<void>.delayed(const Duration(milliseconds: 60));
+      final bytes = await p.screenshot(format: 'image/jpeg').timeout(kTimeout);
+      var sum = 0;
+      if (bytes != null) {
+        for (var i = 0; i < bytes.length; i += 7) {
+          sum = (sum * 31 + bytes[i]) & 0x7fffffff;
+        }
+      }
+      _out('E12 at=${sec}s landedMs=$landedMs polls=$polls totalMs=${sw.elapsedMilliseconds} len=${bytes?.length} checksum=$sum');
+    }
+    final (dms, to) = await _timed(p.dispose);
+    _out('E12 disposeMs=$dms hung=$to');
+  }
+
   Future<void> _run() async {
     _out('START $kExp');
     switch (kExp) {
@@ -203,6 +325,14 @@ class _HostState extends State<_Host> {
         await _e7();
       case 'E8':
         await _e8();
+      case 'E9':
+        await _e9();
+      case 'E10':
+        await _e10();
+      case 'E11':
+        await _e11();
+      case 'E12':
+        await _e12();
     }
     _out('ALL_DONE $kExp');
   }

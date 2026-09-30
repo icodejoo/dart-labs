@@ -2,7 +2,6 @@ import 'dart:async';
 import 'dart:typed_data';
 
 import 'package:media_kit/media_kit.dart';
-import 'package:media_kit_video/media_kit_video.dart';
 
 import '../core/preview/extractor.dart';
 
@@ -40,13 +39,14 @@ class MovaFrameExtractor implements MovaFramePuller {
   ///
   /// 创建抽帧器；隐藏播放器在首次使用时才惰性创建。
   ///
-  /// - [settleDelay]: how long to wait after a seek before screenshotting /
-  ///   seek 之后、截图之前的等待时长
-  MovaFrameExtractor({this.settleDelay = const Duration(milliseconds: 250)});
+  /// - [settleDelay]: extra wait after the seek has been observed to land (the
+  ///   landing itself is polled) and before screenshotting /
+  ///   在观察到 seek 落地（落地本身靠轮询判定）之后、截图之前的额外等待时长
+  MovaFrameExtractor({this.settleDelay = const Duration(milliseconds: 60)});
 
-  /// How long to wait after a seek before screenshotting.
+  /// Extra wait after the seek has landed, before screenshotting.
   ///
-  /// seek 之后、截图之前的等待时长。
+  /// seek 落地之后、截图之前的额外等待时长。
   final Duration settleDelay;
 
   /// The hidden player, or null when released.
@@ -57,9 +57,6 @@ class MovaFrameExtractor implements MovaFramePuller {
   /// The hidden player's video controller; kept alive alongside [_player].
   ///
   /// 隐藏播放器的视频控制器；与 [_player] 同生共死。
-  // ignore: unused_field
-  VideoController? _controller;
-
   /// The media currently open on the hidden player, or null when none.
   ///
   /// 隐藏播放器当前已打开的媒体；无则为 null。
@@ -90,10 +87,14 @@ class MovaFrameExtractor implements MovaFramePuller {
     final existing = _player;
     if (existing != null) return existing;
     final player = Player();
-    _controller = VideoController(player);
     final native = player.platform;
     if (native is NativePlayer) {
+      // 不创建 VideoController：无界面下它的初始化永远完成不了（真机实测），会让后续
+      // setProperty 一直等，extract 永不返回。改为手动开视频解码（vid=auto）并把 vo
+      // 设为 null——mpv 仍会解码，screenshot() 取得到帧。
       await native.setProperty('ao', 'null');
+      await native.setProperty('vo', 'null');
+      await native.setProperty('vid', 'auto');
       await native.setProperty('hwdec', hwdec ? 'auto' : 'no');
       await native.setProperty('hr-seek', 'yes');
       await native.setProperty('cache', 'no');
@@ -122,6 +123,26 @@ class MovaFrameExtractor implements MovaFramePuller {
   /// Returns the encoded frame, or null on any failure.
   ///
   /// 返回编码后的帧；任何失败都返回 null。
+  /// 以 [pollInterval] 轮询 [done]，直到为真或超过 [timeout]；异常视为"还没好"。
+  ///
+  /// 返回是否在超时前完成。
+  Future<bool> _waitFor(
+    Future<bool> Function() done, {
+    Duration pollInterval = const Duration(milliseconds: 30),
+    Duration timeout = const Duration(seconds: 5),
+  }) async {
+    final deadline = DateTime.now().add(timeout);
+    while (DateTime.now().isBefore(deadline)) {
+      try {
+        if (await done()) return true;
+      } on Object {
+        // 属性暂不可读（媒体未加载完）——继续等。
+      }
+      await Future<void>.delayed(pollInterval);
+    }
+    return false;
+  }
+
   Future<Uint8List?> _extractNow(
     String uri,
     Duration at, {
@@ -131,11 +152,27 @@ class MovaFrameExtractor implements MovaFramePuller {
     if (_disposed) return null;
     try {
       final player = await _ensurePlayer(width, hwdec);
+      final native = player.platform;
       if (_openUri != uri) {
         await player.open(Media(uri), play: false);
         _openUri = uri;
+        // 时长就绪前 seek 不会落地（首帧会停在第 0 帧），先等它。
+        if (native is NativePlayer) {
+          final ready = await _waitFor(() async => (double.tryParse(await native.getProperty('duration')) ?? 0) > 0);
+          if (!ready) return null;
+        }
       }
       await player.seek(at);
+      if (native is NativePlayer) {
+        // 轮询 seeking/time-pos 判定 seek 真正落地，而不是固定睡一会儿（250ms 会截到
+        // 相邻位置的旧帧，真机实测）。
+        final target = at.inMilliseconds / 1000.0;
+        await _waitFor(() async {
+          if (await native.getProperty('seeking') != 'no') return false;
+          final pos = double.tryParse(await native.getProperty('time-pos'));
+          return pos != null && (pos - target).abs() < 0.3;
+        });
+      }
       await Future<void>.delayed(settleDelay);
       return await player.screenshot(format: 'image/jpeg');
     } on Object {
@@ -161,7 +198,6 @@ class MovaFrameExtractor implements MovaFramePuller {
   Future<void> release() async {
     final player = _player;
     _player = null;
-    _controller = null;
     _openUri = null;
     if (player != null) {
       try {

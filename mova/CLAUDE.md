@@ -309,7 +309,12 @@ audioOnly 组 6/6 正常（dispose 0–15ms）；带 `VideoController` 但页面
 Android 真机复测（亮屏、解锁）：E6 `createMovaEngine()` 从不挂界面 dispose 15–27ms（原 8s 超时）；E7 先播后挂界面，
 挂载前 `size=0x0`、挂载后 `320x240`、dispose 55–70ms；E8 无缝切换 `renderEpoch 0→1`、切换后 `320x240` 在播、swap 941ms。
 README「已知限制」已注明：调用方自己创建/注入 `VideoController`（非默认懒创建）时，要自己保证它挂到 UI 再销毁。
-**未解**：预览抽帧器（`MovaFrameExtractor`）在无界面下自建 `VideoController`，实测 extract 5/5 超时，与旧真机验证记录矛盾，待单独查。
+**预览抽帧器同根因，已修（同日）**：`MovaFrameExtractor` 原先在无界面下自建 `VideoController`，Android 真机 extract 5/5 超时
+（`videoControllerCompleter` 8s 内始终未完成，其后 `setProperty` 一直等）。现改为**不创建 `VideoController`**：手动 `vid=auto`+`vo=null`，
+首次 seek 前轮询 `duration>0`，再轮询 `seeking=='no'` 且 `time-pos` 与目标差 <0.3s 判定 seek 落地（原固定 250ms 会截到相邻位置的旧帧，
+首次 seek 还会停在第 0 帧），`settleDelay` 默认降为 60ms（落地后的额外等待）。真机：Android 5/5 成功、360–480ms；Windows 5/5 成功、
+186–273ms，两平台 5 张图校验和逐一相同；画面随位置变化。`MovaFrameExtractor` 依赖真实 libmpv，无法单测，验证脚本是
+`example/lib/main_videocontroller_verify.dart` 的 E5/E11/E12。
 **注意**：Android 实验前必须确认手机亮屏且已解锁（`dumpsys window | grep isKeyguardShowing`），锁屏/熄屏时所有涉及渲染面的结果作废。
 
 ## 剩余任务
