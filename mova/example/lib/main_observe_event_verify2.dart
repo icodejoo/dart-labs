@@ -23,8 +23,9 @@ void main() {
 /// 运行模式。
 const String kMode = String.fromEnvironment('MODE', defaultValue: 'all');
 
-/// 测试媒体（app 私有目录，adb run-as 推入）。
-const String kMedia = '/data/user/0/com.icodejoo.mova.mova_example/files/t.mp4';
+/// 测试媒体：默认是 Android app 私有目录（adb run-as 推入），其它平台用 `--dart-define=MEDIA=<路径>` 覆盖。
+const String kMedia = String.fromEnvironment('MEDIA',
+    defaultValue: '/data/user/0/com.icodejoo.mova.mova_example/files/t.mp4');
 
 /// 泄漏循环轮数。
 const int kLeakRounds = 120;
@@ -38,8 +39,14 @@ int _destroyed = 0;
 /// 主线程最大帧间隔（心跳）。
 int _maxGap = 0;
 
-/// 输出一行（logcat 可见）。
-void _out(String m) => print(m);
+/// 结果日志文件路径（release 桌面端 print 不回传，靠它落盘）。
+final String kLog = Platform.environment['MOVA_LOG'] ?? '';
+
+/// 输出一行（logcat 可见；设了 `MOVA_LOG` 时同时落盘）。
+void _out(String m) {
+  print(m);
+  if (kLog.isNotEmpty) File(kLog).writeAsStringSync('$m\n', mode: FileMode.append, flush: true);
+}
 
 /// 包一层后端以统计 create/destroy。
 class _CountingBackend implements MovaMpvEventBackend {
@@ -153,11 +160,12 @@ Future<void> _v6() async {
   _out(ok ? 'V6 PASS' : 'V6 FAIL');
 }
 
-/// V7：dispose 期间主线程不被拖住——统计 dispose 窗口内的最大帧间隔。
-Future<void> _v7() async {
+/// V7：dispose 期间主线程不被拖住——统计 dispose 窗口内的最大帧间隔；
+/// [qoe] 为 false 是不建弱客户端的对照组（区分 media_kit 自身开销与本方案开销）。
+Future<int> _v7Once(bool qoe) async {
   var worst = 0;
   for (var i = 0; i < 10; i++) {
-    final k = _make(qoe: true);
+    final k = _make(qoe: qoe);
     await k.open(kMedia);
     await Future<void>.delayed(const Duration(milliseconds: 800));
     _maxGap = 0;
@@ -166,8 +174,15 @@ Future<void> _v7() async {
     await Future<void>.delayed(const Duration(seconds: 6));
     if (_maxGap > worst) worst = _maxGap;
   }
-  _out('V7 worstFrameGapMs=$worst');
-  _out(worst < 100 ? 'V7 PASS' : 'V7 FAIL(>=100ms)');
+  return worst;
+}
+
+/// V7：对比开/关订阅两组的最大帧间隔，判据为"开组不比对照组明显更差"且小于 100ms 或与对照持平。
+Future<void> _v7() async {
+  final ctrl = await _v7Once(false);
+  final on = await _v7Once(true);
+  _out('V7 worstFrameGapMs qoeOff(control)=$ctrl qoeOn=$on');
+  _out(on < 100 || on <= ctrl + 30 ? 'V7 PASS' : 'V7 FAIL');
 }
 
 /// V9：关闭态不创建任何客户端。

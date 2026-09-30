@@ -51,27 +51,18 @@ class MovaTtffTracker {
   /// 在 [at] 时刻武装测量；[autoPlay] 为假时不进入武装（`core-idle` 在不自动
   /// 播放时永远不会转 false，测出的数字没有意义）。
   void arm(DateTime at, {required bool autoPlay}) {
-    if (!autoPlay) {
-      _armed = false;
-      _landed = false;
-      _sawBuffering = false;
-      _lastProgress = null;
-      _armedAt = null;
-      return;
-    }
+    reset();
+    if (!autoPlay) return;
     _armed = true;
-    _landed = false;
-    _sawBuffering = false;
-    _lastProgress = null;
     _armedAt = at;
   }
 
   /// Feeds a `buffering` observation; returns the elapsed time since arming
-  /// exactly when this is the first frame landing (a falling edge while
-  /// armed and not yet landed), otherwise `null`.
+  /// exactly when this is the first frame landing (a `true`→`false` falling
+  /// edge while armed and not yet landed), otherwise `null`.
   ///
   /// 输入一次 `buffering` 观测；恰在此次是首帧落地时（武装中且尚未落地的
-  /// 下降沿）返回距武装以来的耗时，否则返回 `null`。
+  /// `true`→`false` 下降沿）返回距武装以来的耗时，否则返回 `null`。
   Duration? onBuffering(bool buffering, DateTime at) {
     if (!isArmed) return null;
     if (buffering) {
@@ -81,10 +72,7 @@ class MovaTtffTracker {
     // 只认 true→false 的下降沿：open 之后 buffering 流会立刻先发一个初始 false，
     // 不是首帧（真机实测：失败源/限速源也在 40–160ms 就"落地"）。
     if (!_sawBuffering) return null;
-    _landed = true;
-    final armedAt = _armedAt;
-    if (armedAt == null) return null;
-    return at.difference(armedAt);
+    return _land(at);
   }
 
   /// Feeds a native `MPV_EVENT_PLAYBACK_RESTART` observation (2026-09-29
@@ -97,28 +85,34 @@ class MovaTtffTracker {
   /// 落地语义与 [onBuffering] 的下降沿相同，但直接来自 libmpv 自己的事件，而非
   /// 从 `buffering` 标志推断。恰在此次落地首帧时返回距武装以来的耗时，否则
   /// 返回 `null`。
-  /// 位置连续两次递增且 > 0 才落地——原生 RESTART 不可达且源从不经过 buffering 时的兜底。
-  /// 单个样本不可信：open 之后内核会先回放上一条素材的残留位置（真机实测）。
+  Duration? onNativeRestart(DateTime at) => isArmed ? _land(at) : null;
+
+  /// Feeds a position sample — the fallback landing when neither the native
+  /// restart nor a `buffering` edge is available. Lands only on two consecutive
+  /// increasing samples > 0: a lone sample is untrustworthy, since the kernel
+  /// replays the previous media's stale position right after `open`.
   ///
-  /// [position] 是当前播放位置；[at] 是事件时间。返回 TTFF；未落地返回 null。
+  /// 输入一次位置样本——原生 RESTART 与 `buffering` 边沿都不可用时的兜底落地。
+  /// 需连续两个递增且 > 0 的样本才落地：单个样本不可信，open 之后内核会先回放
+  /// 上一条素材的残留位置（真机实测）。
+  ///
+  /// [position] 是当前播放位置；[at] 是事件时间。返回距武装的耗时；未落地返回 null。
   /// 示例：`tracker.onProgress(const Duration(milliseconds: 40), now)`
   Duration? onProgress(Duration position, DateTime at) {
     if (!isArmed) return null;
     final prev = _lastProgress;
     _lastProgress = position;
     if (prev == null || position <= Duration.zero || position <= prev) return null;
-    _landed = true;
-    final armedAt = _armedAt;
-    if (armedAt == null) return null;
-    return at.difference(armedAt);
+    return _land(at);
   }
 
-  Duration? onNativeRestart(DateTime at) {
-    if (!isArmed) return null;
+  /// Marks the first frame as landed and returns the elapsed time since arming.
+  ///
+  /// 标记首帧落地，返回距武装以来的耗时。
+  Duration? _land(DateTime at) {
     _landed = true;
     final armedAt = _armedAt;
-    if (armedAt == null) return null;
-    return at.difference(armedAt);
+    return armedAt == null ? null : at.difference(armedAt);
   }
 
   /// Resets to the unarmed state so a new [arm] can start fresh.

@@ -419,8 +419,8 @@ class MovaQoeCollector {
       case MovaPlay():
         _tally.tick(at);
         // 首帧落地前不计观看时长：失败/迟迟起不来的源 playing 意图为 true，但没在看。
-        _tally.setPlaying(_ttff.landed);
         _playing = true;
+        _syncPlaying();
       case MovaPause():
         _tally.tick(at);
         _tally.setPlaying(false);
@@ -487,9 +487,17 @@ class MovaQoeCollector {
     _emitFirstFrame(elapsed, at, signal: 'restart');
   }
 
+  /// Feeds the tally's playing flag: watch time only accrues once the first
+  /// frame has landed (a failing/never-starting source has a `playing` intent
+  /// but isn't being watched).
+  ///
+  /// 同步 tally 的播放态：首帧落地后才计观看时长（失败/起不来的源有 playing
+  /// 意图，但并没有在看）。
+  void _syncPlaying() => _tally.setPlaying(_playing && _ttff.landed);
+
   void _emitFirstFrame(Duration elapsed, DateTime at, {required String signal}) {
     _tally.tick(at);
-    _tally.setPlaying(_playing);
+    _syncPlaying();
     _emit(MovaReportEvent(
       kind: MovaReportKind.event,
       name: MovaReportName.firstFrame,

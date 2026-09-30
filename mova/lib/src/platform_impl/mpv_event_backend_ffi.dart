@@ -143,23 +143,24 @@ class FfiMpvEventBackend implements MovaMpvEventBackend {
   @override
   bool restrictEvents(Set<int> keep) {
     if (_client == nullptr) return false;
-    bool allSuccess = true;
     final plan = planEventRequests(keep);
+    var allSuccess = true;
     for (final id in plan.enable) {
-      try {
-        if (mpv.mpv_request_event(_client, id, 1) < 0) allSuccess = false;
-      } catch (_) {
-        allSuccess = false;
-      }
+      allSuccess &= _request(id, 1);
     }
     for (final id in plan.disable) {
-      try {
-        if (mpv.mpv_request_event(_client, id, 0) < 0) allSuccess = false;
-      } catch (_) {
-        allSuccess = false;
-      }
+      allSuccess &= _request(id, 0);
     }
     return allSuccess;
+  }
+
+  /// 对弱客户端开/关单个事件；失败（含抛出）返回 false。
+  bool _request(int id, int enable) {
+    try {
+      return mpv.mpv_request_event(_client, id, enable) >= 0;
+    } catch (_) {
+      return false;
+    }
   }
 
   @override

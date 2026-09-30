@@ -485,3 +485,12 @@ Windows 的"偶发卡住"很可能同因，待验证。验证脚本一律用 `au
 **顺带用同一批真机测出的 QoE bug**（已修，见 CLAUDE.md）：假 TTFF（buffering 初始 false）、
 `stallMs` 双倍累计、失败源观看时长。相关单测见 `test/core/report/ttff_test.dart`、
 `session_test.dart`。
+
+**Windows 桌面复测（2026-09-30，release，`main_observe_event_verify2.dart`，多次运行）**：V9 关闭态 0 客户端、
+创建/销毁 14/14 全部通过；V6 三引擎并存 4 次里 3 次直接通过、1 次 seek 后未在 2s 窗口内收到 RESTART
+（时序波动，Windows 上窗口偏紧）；V3 4 次里 3 次与无订阅对照完全一致，1 次 `buffering` 计数 5 对 3
+（该计数只取决于 open/seek 时序，不经过本方案代码，判为波动，未复现）；**V7 加了不建弱客户端的对照组**：
+对照 101ms、开订阅 53ms——Windows 上约 100ms 的帧间隔是 media_kit 自身/机器基线，不是本方案造成
+（此前未加对照时 103/141/137ms 被误判为超线）。**运行方式**：必须从 `C:\Program Files\mova_example`
+启动（exe 单独在 `build\...\Release` 会报缺 dll，新的 Dart 代码在安装目录的 `datapp.so`）；release 桌面端
+`print` 不回传，用 `MOVA_LOG` 落盘。
