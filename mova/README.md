@@ -419,12 +419,11 @@ final engine = createMovaEngine(
 `MovaReportName` 从 0.2.x 起是 const 值类而非枚举（内置项 + `MovaReportName.custom`
 自定义名双轨，`==`/`hashCode`/`Map`/`Set` 键用法不变），破坏面见 CHANGELOG。信号优先
 取 libmpv 原生能力（`paused-for-cache` 真卡顿信号、`video-bitrate`/`cache-speed`/
-丢帧计数、mpv 日志 prefix 错误分类），必要时（TTFF 精确落地、会话结束原因）经
-`media_kit` 的 `observeEvent` 新 API 订阅原生 mpv 事件——这也是本仓库依赖
-`media_kit` git 提交而非 pub.dev 版本的原因。详见
+丢帧计数、mpv 日志 prefix 错误分类），必要时（TTFF 精确落地、会话结束原因）经自建
+`dart:ffi` 弱客户端订阅原生 mpv 事件（`media_kit` 依赖保持 pub.dev 版本，无需 git 提交）。详见
 [doc/SPEC.md](doc/SPEC.md)「埋点与 QoE」一节、
 [doc/plans/2026-09-29-telemetry-enhancement.md](doc/plans/2026-09-29-telemetry-enhancement.md)。
-**仅 Windows 桌面验证过 `observeEvent` 能驱动 TTFF/会话结束落地，未做任何真机验证。**
+**Android 真机与 Windows 桌面已验证 TTFF、卡顿、四分终止态、`qoe: false` 关闭态；iOS/macOS 未验证（原生事件订阅失败时静默退化到 `buffering` 边沿与时序推断）。**
 
 ## 平台端口
 

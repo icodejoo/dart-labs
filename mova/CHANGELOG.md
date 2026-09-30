@@ -19,10 +19,27 @@
     2. `MovaErrorEvent` 的产出从 `translator.dart` 移到 `MovaQoeCollector`，
        `qoe: true` 时 `params` 从 `{'error'}` 增补为 `{'error', 'fatal', 'code'}`
        且非 fatal 错误降级为 `batched`（`qoe: false` 时旧行为不变）。
-  * **已知代价**：`pubspec.yaml` 的 `media_kit` 依赖从 pub.dev 发布版改为锁定
-    media_kit 的 git 提交（`c533e446755f51cf53c7e57aea873f2aa5355f81`，为拿到该提交
-    新增的 `observeEvent` 公开 API），mova 因此**暂时无法发布到 pub.dev**
-    （`flutter analyze` 会提示 "Publishable packages can't have 'git' dependencies"）。
+  * 原生 mpv 事件（`PLAYBACK_RESTART` 精确首帧、`END_FILE` 会话结束原因）由自建的
+    `dart:ffi` 弱客户端订阅（`mpv_create_weak_client`），`media_kit` 依赖保持 pub.dev
+    的 `^1.2.6`，**不再依赖 git 提交，可正常发布**。debug 模式下走 100ms 轮询，release
+    走原生回调。Android 与 Windows 已验证；iOS/macOS 未验证（订阅失败时静默退化）。
+  * QoE 修复（Android 真机跑通后发现）：首帧不再把 open 后 `buffering` 的初始 `false`
+    当成首帧（需要 `true→false` 下降沿，外加"连续两个递增位置样本"兜底）；
+    `sessionEnd.stallMs` 不再重复累计（此前是真实值的 2 倍）；首帧落地前不计
+    `watchedMs`。原生 RESTART 订阅在工作时（新增 `MovaStatsProbe.nativeRestartAvailable`），
+    首帧只认 RESTART，忽略更早但更粗的 buffering/位置兜底。
+* **`VideoController` 改为懒创建**：`MovaMpvKernel` 新增 `lazyVideo`（默认 `false`）；
+  `createMovaEngine()` 与默认 `MovaEngine` 内核使用 `lazyVideo: true`，在第一次读取
+  `renderHandle`（`MovaPlayer` 挂上树）时才创建 `VideoController`。创建了却从未挂到界面
+  的控制器会让 media_kit 的 `Player.dispose()` 一直等待（真机 Windows 3/6、Android 4/5 次
+  撞 8 秒超时），懒创建后"创建 engine 却不展示"的销毁只需十几毫秒。无缝切换的影子引擎
+  创建后会主动读一次 `renderHandle`，预热期间仍有画面管线。**若调用方自己创建并注入
+  `VideoController`，需自行保证它挂到 UI 后再销毁**（见 README「已知限制」）。
+* **预览抽帧器修复**：`MovaFrameExtractor` 不再创建 `VideoController`（无界面下它的初始化
+  永远完不成，Android 上 `extract` 曾 5/5 超时），改为 `vid=auto` + `vo=null` 解码；首次
+  seek 前等待时长就绪，并轮询 `seeking`/`time-pos` 判定 seek 落地再截图。
+  * **行为变化**：`settleDelay` 的含义从"seek 之后固定等待"变为"seek **落地之后**的额外
+    等待"，默认值从 250ms 降为 60ms；若你显式传入了自己的值，请按新含义重新评估。
 
 ## 0.1.0
 

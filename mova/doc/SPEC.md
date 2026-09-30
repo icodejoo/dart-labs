@@ -67,6 +67,9 @@ import Flutter widget 与直接依赖 `MovaApi` 的地方。
 - `MovaApi.renderHandle`：底层渲染句柄（生产环境是 media_kit 的
   `VideoController`），`MovaPlayer` 仅当其 `is VideoController` 时渲染真实
   `Video`，否则渲染占位符——这是 widget 测试无需真实播放内核的关键。
+  **默认内核对它做懒创建**（`MovaMpvKernel.lazyVideo`）：第一次读取 `renderHandle`（即
+  `MovaPlayer` 挂上树）时才创建 `VideoController`，因为创建了却从未挂到界面的控制器会让
+  `Player.dispose()` 一直等待；无缝切换的影子引擎例外，创建后立即读一次以提前建好画面管线。
 - `MovaState.sourceTitle` 是 `MovaState` 上的可空字段（不是 `MovaApi` 的独立
   getter）；`copyWith` 用 `clearSourceTitle` 标志区分"不改"与"清空"。
 - 直播下 `seek()` 受 `state.liveSeekable` 门控（`MovaLiveConfig.seekMode !=
@@ -489,8 +492,8 @@ Reporting\LocalDumps\mova_example.exe`（`DumpFolder` 指向
   与"既要视频又要音频"的目标用户直接冲突。包体积因此不随模式变。
 
 **`MovaFrameExtractor` 的处置**：`createMovaEngine()` 原本无条件注入它，而它在首次
-`extract()` 时会新开**第二个** `Player` 并为其建 `VideoController`——一整条额外的视频
-管线。`audioOnly: true` 时默认不再注入（`extractor ?? (audioOnly ? null : MovaFrameExtractor())`），
+`extract()` 时会新开**第二个** `Player`——一整条额外的解码管线（2026-09-30 起不再为它建
+`VideoController`，改为 `vid=auto`+`vo=null` 解码；首次 seek 前等 `duration>0`，再轮询 `seeking`/`time-pos` 判定 seek 落地才截图，见 `CLAUDE.md` 与 `doc/plans/2026-09-29-observe-event-ffi.md` §10.7）。`audioOnly: true` 时默认不再注入（`extractor ?? (audioOnly ? null : MovaFrameExtractor())`），
 宿主显式传入的 `extractor` 仍然胜出。`MovaMpvKernel.screenshot()` 在 `audioOnly` 下短路返回
 `null`，让拖动预览兜底走既有的"抽帧器没给结果 → 平滑降级"路径，而不是抛 mpv 错误。
 
@@ -519,11 +522,11 @@ README 与可行性笔记 §1 里的开销数字目前仍是**推算量级，不
 
 | 需求 | libmpv 信号 | 经 media_kit 可达性 | mova 取法 |
 |---|---|---|---|
-| 首帧就绪（精确） | `MPV_EVENT_PLAYBACK_RESTART` | 仅锁定的 media_kit git 提交（`observeEvent`）可达 | 首选，退化到下一行 |
+| 首帧就绪（精确） | `MPV_EVENT_PLAYBACK_RESTART` | 经自建 FFI 弱客户端订阅可达（`MovaMpvKernel.nativeRestartAvailable`） | 首选；其在工作时忽略下一行的兜底，不在工作时退化到下一行 |
 | 首帧就绪（兜底） | `core-idle` | media_kit 内建观察，透传为 `buffering` | 订阅失败时的静默退化路径 |
 | 卡顿真信号 | `paused-for-cache` | 需 mova 自己 `observeProperty` | `MovaStatsProbe.stalling` |
 | 卡顿累计次数/时长 | 无——libmpv 不提供任何累计计数器 | — | mova 自实现聚合（`MovaStallPolicy`） |
-| 会话结束原因 | `mpv_event_end_file.reason` | 仅锁定的 git 提交（`observeEvent`）可达；`EOF` 恒不可达（`--keep-open=yes`） | 佐证/兜底，非替代——权威信号仍是 `MovaDone` |
+| 会话结束原因 | `mpv_event_end_file.reason` | 经自建 FFI 弱客户端订阅可达；`EOF` 恒不可达（`--keep-open=yes`） | 佐证/兜底，非替代——权威信号仍是 `MovaDone` |
 | 错误分类 | 日志 prefix（`stream`/`file`/`ffmpeg`/`vd`/`ad`/`cplayer`） | `Player.stream.log` 可达，`stream.error` 把 prefix 丢了 | `MovaErrorPolicy`/`MovaPrefixError` 按 prefix 分类 |
 | 码率/吞吐/丢帧 | `video-bitrate`/`cache-speed`/`frame-drop-count`/`decoder-frame-drop-count` | 均不在 media_kit 内建观察表，可自行 `getProperty` | `MovaStatsProbe.sample()` |
 
@@ -536,14 +539,15 @@ README 与可行性笔记 §1 里的开销数字目前仍是**推算量级，不
    false→true→false）在极端情况下可能被压成一次通知，任何基于"数边沿"的聚合
    都必须容忍丢失中间值。
 
-**2026-09-29 架构决定**：`pubspec.yaml` 的 `media_kit` 依赖从 pub.dev 发布版改锁定
-到 media_kit master 某 git 提交（`c533e446755f51cf53c7e57aea873f2aa5355f81`），
-换来新增的公开 API `observeEvent`/`unobserveEvent`（可订阅任意 `mpv_event_id`，
-不需要 fork media_kit）。`MovaMpvKernel._observeNativeEvents` 用它订阅
-`MPV_EVENT_PLAYBACK_RESTART`（TTFF 精确落地信号）与 `MPV_EVENT_END_FILE`（会话
-结束原因佐证），两路订阅各自 try/catch 包裹，失败静默退化到 `core-idle`/`buffering`
-边沿与旧的时序推断，不影响其余上报功能。已知代价：mova 因此**暂时无法发布到
-pub.dev**（pub.dev 不允许已发布包依赖 git/path）。
+**2026-09-30 架构决定（取代 2026-09-29 的 git 提交方案）**：不 fork、不依赖 media_kit 的 git 提交，
+改用 `dart:ffi` 在 libmpv 上派生**弱客户端**（`mpv_create_weak_client`）自建 wakeup 与
+`mpv_wait_event` 排空，订阅 `MPV_EVENT_PLAYBACK_RESTART`（TTFF 精确落地信号）与
+`MPV_EVENT_END_FILE`（会话结束原因佐证）：端口 `core/kernel/mpv_event_backend.dart`、纯逻辑状态机
+`mpv_event_pump.dart`、FFI 后端 `platform_impl/mpv_event_backend_ffi.dart`，`MovaMpvKernel` 构造期接线，
+`createMovaEngine()` 注入。订阅失败静默退化到 `core-idle`/`buffering` 边沿与旧的时序推断，不影响其余
+上报；`media_kit` 回到 pub.dev 的 `^1.2.6`，**可以正常发布到 pub.dev**。debug 下走 100ms 轮询，release 走
+原生回调。`MovaStatsProbe.nativeRestartAvailable` 为 true 时，TTFF 只认 RESTART，忽略 buffering/位置兜底
+（兜底比真实 restart 早约 200ms）。详见 `doc/plans/2026-09-29-observe-event-ffi.md`。
 
 **主要类型**：`MovaReportConfig`（`MovaOpts.report`，默认 `qoe: false`）、
 `MovaQoeCollector`（持有会话状态，`qoe: false` 时纯直通、行为与之前逐字节一致）、
@@ -553,12 +557,12 @@ pub.dev**（pub.dev 不允许已发布包依赖 git/path）。
 `MovaReportName` 从 `enum` 改为 const 值类（`==`/`hashCode` 按 `value`），内置 +
 `MovaReportName.custom` 自定义双轨。
 
-**验证缺口**：仅在 Windows 桌面验证过 `observeEvent` 能订阅到
-`MPV_EVENT_PLAYBACK_RESTART`/`MPV_EVENT_END_FILE` 并驱动 TTFF/会话结束落地；
-**Android/iOS/macOS 上 `observeEvent` 的运行时行为完全未经验证**（该 API 只在
-这一个被锁定的 git 提交上有）。计划文档「真机验证」一节列出的全部验证项
-（TTFF 真实性、卡顿计数准确性、卡顿信号优劣对账、四分终止态、错误 prefix 分类、
-`qoe: false` 关闭态零改变）均**尚未在任何真机上执行**。
+**验证情况（2026-09-30，真机基于真实事件）**：Android（STG-AL00）与 Windows 桌面已验证 FFI 订阅
+（与 media_kit 流共存、多引擎并存、dispose 不拖主线程、创建/销毁数量相等、内存走势）与 QoE 链路
+（播完 `ended`、换源 `stopped`、失败 `failed`+`startupFail`、开播即弃 `abandoned`、限速流真实
+`rebuffer` 与 `stallMs`、`qoe: false` 零事件、带画面路径同样通过）。真机暴露并修复了 3 个真 bug
+（假 TTFF、`stallMs` 重复累计、失败源也计观看时长）。**仍未验证**：iOS/macOS（无 Mac，订阅失败即静默退化）、
+错误 prefix 分类的更多样例。
 
 ## PiP（原生）
 
