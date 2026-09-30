@@ -247,6 +247,13 @@ mixin StatsProbeStub implements MovaStatsProbe {
     endFilesController.onListen = () => endFilesSubscribed = true;
   }
 
+  /// Backing value for [nativeRestartAvailable]; flip in a test to simulate the
+  /// native RESTART subscription being live.
+  ///
+  /// [nativeRestartAvailable] 的底层值；测试里改它来模拟原生 RESTART 订阅已生效。
+  @override
+  bool nativeRestartAvailable = false;
+
   /// Backing controller for [stalling]; push via `add`.
   ///
   /// [stalling] 的底层控制器；用 `add` 推送。

@@ -111,5 +111,64 @@ void main() {
         await probe.dispose();
       },
     );
+
+    group('nativeRestartAvailable gating', () {
+      /// 建 collector 并开一次会话，返回收集到的上报与清理函数。
+      Future<({List<MovaReportEvent> got, StreamController<MovaEvent> events, MovaQoeCollector c, FakeStatsProbe probe})>
+          setup({required bool native}) async {
+        final events = StreamController<MovaEvent>.broadcast();
+        final got = <MovaReportEvent>[];
+        final probe = FakeStatsProbe()..nativeRestartAvailable = native;
+        final c = MovaQoeCollector(
+          events: events.stream,
+          reporter: MovaCallbackReporter(got.add),
+          config: const MovaReportConfig(qoe: true),
+          probe: probe,
+        );
+        c.onOpen(const MovaSource('https://host/a.mp4'), autoPlay: true);
+        return (got: got, events: events, c: c, probe: probe);
+      }
+
+      List<MovaReportEvent> firstFrames(List<MovaReportEvent> l) =>
+          l.where((e) => e.name == MovaReportName.firstFrame).toList();
+
+      test('native live: buffering edge and position samples do NOT land the first frame', () async {
+        final t = await setup(native: true);
+        t.events.add(const MovaBufferChange(true));
+        t.events.add(const MovaBufferChange(false));
+        t.c.onPosition(const Duration(milliseconds: 10));
+        t.c.onPosition(const Duration(milliseconds: 60));
+        await Future<void>.delayed(Duration.zero);
+        expect(firstFrames(t.got), isEmpty);
+        await t.c.cancel();
+        await t.events.close();
+        await t.probe.dispose();
+      });
+
+      test('native live: the RESTART event lands it, exactly once, with signal=restart', () async {
+        final t = await setup(native: true);
+        t.events.add(const MovaBufferChange(true));
+        t.events.add(const MovaBufferChange(false));
+        t.probe.pushRestart();
+        await Future<void>.delayed(Duration.zero);
+        final ff = firstFrames(t.got);
+        expect(ff, hasLength(1));
+        expect(ff.single.params['signal'], 'restart');
+        await t.c.cancel();
+        await t.events.close();
+        await t.probe.dispose();
+      });
+
+      test('native not live: fallbacks still land the first frame (unchanged behavior)', () async {
+        final t = await setup(native: false);
+        t.events.add(const MovaBufferChange(true));
+        t.events.add(const MovaBufferChange(false));
+        await Future<void>.delayed(Duration.zero);
+        expect(firstFrames(t.got).single.params['signal'], 'buffering');
+        await t.c.cancel();
+        await t.events.close();
+        await t.probe.dispose();
+      });
+    });
   });
 }

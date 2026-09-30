@@ -296,6 +296,7 @@ class MovaQoeCollector {
   void onPosition(Duration position) {
     if (!_sessionOpen || !_config.qoe) return;
     _tally.recordPosition(position);
+    if (_nativeRestartLive) return;
     final at = _now();
     final elapsed = _ttff.onProgress(position, at);
     if (elapsed != null) _emitFirstFrame(elapsed, at, signal: 'progress');
@@ -468,7 +469,7 @@ class MovaQoeCollector {
   /// `MPV_EVENT_PLAYBACK_RESTART` 信号尚未先行落地时生效（见 [_onRestart]）；
   /// [MovaTtffTracker.isArmed] 保证无论哪个信号先到都不会重复上报。
   void _onBufferingForTtff(bool buffering, DateTime at) {
-    if (!_config.qoe) return;
+    if (!_config.qoe || _nativeRestartLive) return;
     final elapsed = _ttff.onBuffering(buffering, at);
     if (elapsed == null) return;
     _emitFirstFrame(elapsed, at, signal: 'buffering');
@@ -493,6 +494,9 @@ class MovaQoeCollector {
   ///
   /// 同步 tally 的播放态：首帧落地后才计观看时长（失败/起不来的源有 playing
   /// 意图，但并没有在看）。
+  /// 原生 RESTART 订阅在工作时，TTFF 只认它（buffering/位置兜底更早但更粗）。
+  bool get _nativeRestartLive => _probe?.nativeRestartAvailable ?? false;
+
   void _syncPlaying() => _tally.setPlaying(_playing && _ttff.landed);
 
   void _emitFirstFrame(Duration elapsed, DateTime at, {required String signal}) {

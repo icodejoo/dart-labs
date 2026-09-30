@@ -55,6 +55,9 @@ class MovaMpvEventPump {
   /// 记录销毁过程的 Future。
   Future<void>? _disposeFuture;
 
+  /// 是否已成功注册并仍在排空事件（可信赖其 RESTART 信号）。
+  bool get isActive => _state == _PumpState.active && !_coreGone;
+
   /// 核心是否已消失 (收到 SHUTDOWN)。
   bool _coreGone = false;
 

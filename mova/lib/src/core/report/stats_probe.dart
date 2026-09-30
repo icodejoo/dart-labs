@@ -137,6 +137,18 @@ abstract class MovaStatsProbe {
   /// QoE 层退回 `buffering` 边沿的启发式判定。
   Stream<void> get playbackRestarts;
 
+  /// Whether the native `MPV_EVENT_PLAYBACK_RESTART` subscription is live right
+  /// now. While `true` the QoE layer trusts [playbackRestarts] alone for TTFF and
+  /// ignores the earlier-but-coarser `buffering`/position fallbacks (real-device
+  /// data: the `buffering` edge lands ~200ms before the actual restart). Defaults
+  /// to `false` so kernels without the subscription keep the fallback behavior.
+  ///
+  /// 原生 `MPV_EVENT_PLAYBACK_RESTART` 订阅此刻是否在工作。为 `true` 时 QoE 层
+  /// 只信 [playbackRestarts] 落地 TTFF，忽略更早但更粗的 `buffering`/位置兜底
+  /// （真机实测 `buffering` 下降沿比真实 restart 早约 200ms）。默认 `false`，
+  /// 没有该订阅的内核保持兜底行为。
+  bool get nativeRestartAvailable => false;
+
   /// Fires once per `MPV_EVENT_END_FILE`, carrying mpv's own termination
   /// reason. Lets the session-end state machine read the reason directly
   /// instead of inferring it from `stop()`/`dispose()`/source-change timing

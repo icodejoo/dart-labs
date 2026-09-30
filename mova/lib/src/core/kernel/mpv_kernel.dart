@@ -414,6 +414,9 @@ class MovaMpvKernel implements MovaKernel, MovaStatsProbe {
   Stream<void> get playbackRestarts => _restartController.stream;
 
   @override
+  bool get nativeRestartAvailable => _pump?.isActive ?? false;
+
+  @override
   Stream<MovaEndFileReason> get endFiles => _endFileController.stream;
 
   @override

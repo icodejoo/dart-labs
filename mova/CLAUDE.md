@@ -34,7 +34,7 @@
 
 ## 当前状态（0.2.0）
 
-> **测试基线：981 项全绿**（2026-09-30 本机实跑 `flutter test` 的真实结果）；
+> **测试基线：984 项全绿**（2026-09-30 本机实跑 `flutter test` 的真实结果）；
 > `flutter analyze lib test` 0 issues（`example/` 下 demo 有若干 `avoid_print` info，
 > 均为验证脚本）。
 
@@ -259,7 +259,7 @@ core 层仅加 `MovaState.mini`/`MovaApi.setMini`/`MovaMiniChange`/`MovaMiniConf
 详见 [doc/plans/2026-09-29-telemetry-enhancement.md](doc/plans/2026-09-29-telemetry-enhancement.md)、
 [doc/notes/2026-09-29-player-telemetry-best-practices.md](doc/notes/2026-09-29-player-telemetry-best-practices.md)。
 
-测试基线随本功能从 859 推进到 945，随后 FFI 订阅与 Android 真机复测修复推进到 **981**。
+测试基线随本功能从 859 推进到 945，随后 FFI 订阅、Android 真机复测修复与 TTFF 门控推进到 **984**。
 
 **Android 真机验证（2026-09-30，STG-AL00 arm64 Android 12，release，基于真实事件）**——
 用 `example/lib/main_qoe_verify.dart`（本机 HTTP 服务经 `adb reverse` 提供，快/限速 20KB/s
@@ -275,9 +275,7 @@ core 层仅加 `MovaState.mini`/`MovaApi.setMini`/`MovaMiniChange`/`MovaMiniConf
 修复后真机结果：正常播完 `ended`；换源/中途停止 `stopped`；开播即弃 `abandoned`+
 `startupFail`；不存在的资源 `failed`（`error` fatal、`code: stream`）；限速流 3 次真
 `rebuffer`（`signal: cache`，每次 4.8–5.3s，`stallMs` 15691≈三次之和 15145+尾部）；
-`qoe:false` 零 QoE 事件。**已知偏差**：首帧多数记在 `buffering` 边沿而非 `restart`——
-RESTART 实测比 buffering 下降沿晚约 200ms（809ms vs 612ms），按"先到先落地"记的是更早
-的那个，TTFF 略偏乐观；想更精确需"原生可用时忽略 buffering 兜底"，未做。
+`qoe:false` 零 QoE 事件。**首帧偏乐观已修（同日）**：此前首帧多记在 `buffering` 边沿，比原生 RESTART 早约 200ms（612ms vs 809ms）。现 `MovaStatsProbe.nativeRestartAvailable`（内核弱客户端订阅在工作时为 true，`MovaMpvKernel` 取 `_pump.isActive`）为 true 时，collector 只认 RESTART，忽略 `buffering`/位置兜底；为 false（订阅失败、iOS/macOS 未验证）则行为不变。真机复测首帧 `signal` 全部为 `restart`（视频 311–348ms、音频 143–226ms）。注意门控按**落地时刻**判断而非 open 时刻，因为 pump 是异步注册的。
 **带视频画面路径（非 audioOnly，真实 `MovaPlayer` 挂树，硬解 `mediacodec-copy`）已于同日补验**（`example/lib/main_qoe_video_verify.dart`）：播完 `ended`（首帧 219ms、`watchedMs` 5172）、换源 `stopped`×2、不存在资源 `failed`（`watchedMs=0`+`startupFail`）、open 后 30ms 销毁 `abandoned`，均符合预期。**仍未验**：iOS/macOS、错误 prefix 分类的更多样例。
 
 ### 自建原生事件订阅（FFI 弱客户端）——已落地，pubspec 已回退
