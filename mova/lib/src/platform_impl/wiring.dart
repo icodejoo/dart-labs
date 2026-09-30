@@ -152,6 +152,7 @@ MovaEngine createMovaEngine({
   return MovaEngine(
     kernel: kernel ?? MovaMpvKernel(
       audioOnly: audioOnly,
+      lazyVideo: true,
       observeQoeSignals: reporter != null,
       backendFactory: (native, addr) => createFfiMpvEventBackend(native, addr, pollInDebug: kDebugMode),
     ),

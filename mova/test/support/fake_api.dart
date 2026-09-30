@@ -197,7 +197,20 @@ class FakeMovaApi implements MovaApi {
   /// 供被测组件使用的假渲染句柄；默认 `null`，此时 `MovaPlayer` 渲染占位符
   /// 而非真实视频画面。
   @override
-  Object? renderHandle;
+  Object? get renderHandle {
+    renderHandleReads++;
+    return _renderHandle;
+  }
+
+  set renderHandle(Object? value) => _renderHandle = value;
+
+  Object? _renderHandle;
+
+  /// How many times [renderHandle] was read — lets tests assert that a lazily
+  /// created video pipeline was (or was not) touched.
+  ///
+  /// [renderHandle] 被读取的次数——测试据此断言懒创建的视频管线是否被触碰过。
+  int renderHandleReads = 0;
 
   /// The preview test double this fake exposes.
   ///

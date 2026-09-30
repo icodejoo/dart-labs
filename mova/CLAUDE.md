@@ -34,7 +34,7 @@
 
 ## 当前状态（0.2.0）
 
-> **测试基线：984 项全绿**（2026-09-30 本机实跑 `flutter test` 的真实结果）；
+> **测试基线：985 项全绿**（2026-09-30 本机实跑 `flutter test` 的真实结果）；
 > `flutter analyze lib test` 0 issues（`example/` 下 demo 有若干 `avoid_print` info，
 > 均为验证脚本）。
 
@@ -259,7 +259,7 @@ core 层仅加 `MovaState.mini`/`MovaApi.setMini`/`MovaMiniChange`/`MovaMiniConf
 详见 [doc/plans/2026-09-29-telemetry-enhancement.md](doc/plans/2026-09-29-telemetry-enhancement.md)、
 [doc/notes/2026-09-29-player-telemetry-best-practices.md](doc/notes/2026-09-29-player-telemetry-best-practices.md)。
 
-测试基线随本功能从 859 推进到 945，随后 FFI 订阅、Android 真机复测修复与 TTFF 门控推进到 **984**。
+测试基线随本功能从 859 推进到 945，随后 FFI 订阅、Android 真机复测修复、TTFF 门控与 VideoController 懒创建推进到 **985**。
 
 **Android 真机验证（2026-09-30，STG-AL00 arm64 Android 12，release，基于真实事件）**——
 用 `example/lib/main_qoe_verify.dart`（本机 HTTP 服务经 `adb reverse` 提供，快/限速 20KB/s
@@ -302,9 +302,15 @@ core 层仅加 `MovaState.mini`/`MovaApi.setMini`/`MovaMiniChange`/`MovaMiniConf
 都超时）。验证脚本一律用 `audioOnly` 内核。**Windows 上 `MovaMpvKernel.dispose()` 偶发卡住的
 旧待办已确认是同一根因**（2026-09-30，`example/lib/main_dispose_hang_verify.dart`，release，不开 QoE/不带 pump）：
 audioOnly 组 6/6 正常（dispose 0–15ms）；带 `VideoController` 但页面无视频控件的组 3/6 超时 8s，其余也要
-507ms–5.5s。**含义**：只创建 engine、不把 `MovaPlayer`/`Video` 挂上树就 dispose（如后台预热、纯逻辑测试），在
-带画面模式下可能卡住——不是 mova 引入，是 media_kit 行为；是否要在 `MovaMpvKernel.dispose()` 对此加防护（如对
-`_player.dispose()` 加超时）未定，待用户拍板。
+507ms–5.5s。**含义**：创建了 `VideoController` 却从未挂到界面就 dispose，会一直等渲染面——不是 mova 引入，是 media_kit 行为。
+**已修复（2026-09-30，懒创建）**：`MovaMpvKernel` 新增 `lazyVideo`（默认 false，行为不变）；`createMovaEngine()` 与
+`MovaEngine` 默认内核用 `lazyVideo: true`——`VideoController` 推迟到第一次读取 `renderHandle`（`MovaPlayer` 挂上树）
+时才创建；没创建时 `screenshot()` 返回 null。无缝切换的影子引擎创建后主动读一次 `renderHandle`，预热期间仍有画面管线。
+Android 真机复测（亮屏、解锁）：E6 `createMovaEngine()` 从不挂界面 dispose 15–27ms（原 8s 超时）；E7 先播后挂界面，
+挂载前 `size=0x0`、挂载后 `320x240`、dispose 55–70ms；E8 无缝切换 `renderEpoch 0→1`、切换后 `320x240` 在播、swap 941ms。
+README「已知限制」已注明：调用方自己创建/注入 `VideoController`（非默认懒创建）时，要自己保证它挂到 UI 再销毁。
+**未解**：预览抽帧器（`MovaFrameExtractor`）在无界面下自建 `VideoController`，实测 extract 5/5 超时，与旧真机验证记录矛盾，待单独查。
+**注意**：Android 实验前必须确认手机亮屏且已解锁（`dumpsys window | grep isKeyguardShowing`），锁屏/熄屏时所有涉及渲染面的结果作废。
 
 ## 剩余任务
 

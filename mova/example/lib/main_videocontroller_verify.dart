@@ -50,7 +50,7 @@ class _Host extends StatefulWidget {
 }
 
 class _HostState extends State<_Host> {
-  MovaEngine? _engine;
+  MovaApi? _engine;
 
   @override
   void initState() {
@@ -124,6 +124,66 @@ class _HostState extends State<_Host> {
     }
   }
 
+  /// E6：createMovaEngine() 默认（懒创建），从不挂界面，连续创建销毁 N 次。
+  Future<void> _e6() async {
+    for (var i = 0; i < kN; i++) {
+      final e = createMovaEngine();
+      await Future<void>.delayed(const Duration(milliseconds: 300));
+      unawaited(e.open(MovaSource('$kUrl?t=${DateTime.now().microsecondsSinceEpoch}')));
+      await Future<void>.delayed(const Duration(milliseconds: 800));
+      final (ms, to) = await _timed(e.dispose);
+      _out('E6 round=$i disposeMs=$ms hung=$to');
+    }
+  }
+
+  /// E7：先 open 播放、1s 后才挂上 MovaPlayer，确认画面尺寸事件正常、销毁正常。
+  Future<void> _e7() async {
+    for (var i = 0; i < 3; i++) {
+      final e = createMovaEngine();
+      var w = 0, h = 0;
+      final sub = e.events.listen((ev) {
+        if (ev is MovaSizeChange) {
+          w = ev.width;
+          h = ev.height;
+        }
+      });
+      unawaited(e.open(MovaSource('$kUrl?t=${DateTime.now().microsecondsSinceEpoch}')));
+      await Future<void>.delayed(const Duration(seconds: 1));
+      final sizeBefore = '${w}x$h';
+      setState(() => _engine = e); // 此刻才读取 renderHandle，创建 VideoController
+      await Future<void>.delayed(const Duration(seconds: 2));
+      final sizeAfter = '${w}x$h';
+      final playing = e.state.playing;
+      setState(() => _engine = null);
+      await Future<void>.delayed(const Duration(milliseconds: 300));
+      await sub.cancel();
+      final (ms, to) = await _timed(e.dispose);
+      _out('E7 round=$i sizeBeforeMount=$sizeBefore sizeAfterMount=$sizeAfter playing=$playing disposeMs=$ms hung=$to');
+    }
+  }
+
+  /// E8：无缝切换回归——影子引擎预热期间就要有画面管线，切换后新 active 能出画面。
+  Future<void> _e8() async {
+    final swap = MovaSwapEngine(
+      engineFactory: () => createMovaEngine(options: const MovaOpts(swap: MovaSwapConfig(enabled: true))),
+    );
+    setState(() => _engine = swap);
+    await Future<void>.delayed(const Duration(milliseconds: 500));
+    unawaited(swap.open(MovaSource('http://127.0.0.1:8098/t5.mp4?t=${DateTime.now().microsecondsSinceEpoch}')));
+    await Future<void>.delayed(const Duration(seconds: 2));
+    final epochBefore = swap.state.renderEpoch;
+    final t0 = DateTime.now();
+    final ok = await swap.swapTo(MovaSource('$kUrl?t=${DateTime.now().microsecondsSinceEpoch}c'), at: const Duration(seconds: 3));
+    final ms = DateTime.now().difference(t0).inMilliseconds;
+    await Future<void>.delayed(const Duration(seconds: 2));
+    _out('E8 swapOk=$ok swapMs=$ms epoch $epochBefore->${swap.state.renderEpoch} playing=${swap.state.playing} '
+        'size=${swap.state.width}x${swap.state.height}');
+    setState(() => _engine = null);
+    await Future<void>.delayed(const Duration(milliseconds: 300));
+    final (dms, to) = await _timed(swap.dispose);
+    _out('E8 disposeMs=$dms hung=$to');
+  }
+
   Future<void> _run() async {
     _out('START $kExp');
     switch (kExp) {
@@ -137,6 +197,12 @@ class _HostState extends State<_Host> {
         await _e4();
       case 'E5':
         await _e5();
+      case 'E6':
+        await _e6();
+      case 'E7':
+        await _e7();
+      case 'E8':
+        await _e8();
     }
     _out('ALL_DONE $kExp');
   }

@@ -317,7 +317,7 @@ class MovaEngine implements MovaApi {
     MovaFramePuller? extractor,
     MovaHttpFetch? fetcher,
     MovaReporter? reporter,
-  }) : _kernel = kernel ?? MovaMpvKernel(audioOnly: audioOnly, observeQoeSignals: reporter != null),
+  }) : _kernel = kernel ?? MovaMpvKernel(audioOnly: audioOnly, lazyVideo: true, observeQoeSignals: reporter != null),
        _audioOnly = audioOnly,
        _extractor = extractor, // ignore: prefer_initializing_formals
        _fetcher = fetcher ?? MovaIoHttpFetcher(),

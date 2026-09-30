@@ -77,10 +77,16 @@ class MovaMpvKernel implements MovaKernel, MovaStatsProbe {
   /// 也成立（此前它只在上一层的 [MovaQoeCollector] 里成立）。
   ///
   /// [backendFactory] 为原生事件提供获取后端的工厂。
-  MovaMpvKernel({Player? player, this.audioOnly = false, bool observeQoeSignals = true, MovaMpvEventBackendFactory? backendFactory})
+  MovaMpvKernel({
+    Player? player,
+    this.audioOnly = false,
+    this.lazyVideo = false,
+    bool observeQoeSignals = true,
+    MovaMpvEventBackendFactory? backendFactory,
+  })
     : _player = player ?? Player(),
       _backendFactory = backendFactory {
-    if (!audioOnly) {
+    if (!audioOnly && !lazyVideo) {
       _controller = VideoController(_player);
     }
     _widthSub = _player.stream.width.listen((w) {
@@ -250,6 +256,19 @@ class MovaMpvKernel implements MovaKernel, MovaStatsProbe {
   /// 该内核是否在不带视频管线的形态下构造。
   final bool audioOnly;
 
+  /// Whether the [VideoController] is created on first read of [renderHandle]
+  /// (i.e. when a video widget actually mounts) instead of at construction.
+  /// A controller that is created but never attached to a surface keeps
+  /// `Player.dispose()` waiting for it (real-device: 3/6 disposes hit an 8s
+  /// timeout on Windows, 4/5 on Android), so engines that may never be shown
+  /// should be lazy. Ignored when [audioOnly].
+  ///
+  /// 是否把 [VideoController] 推迟到第一次读取 [renderHandle]（即视频组件真正挂上
+  /// 时）才创建，而不是构造时创建。创建了却从未挂到渲染面的控制器会让
+  /// `Player.dispose()` 一直等它（真机：Windows 上 3/6 次 dispose 撞 8s 超时，
+  /// Android 上 4/5 次），所以可能从不展示的引擎应设为懒创建。[audioOnly] 时忽略。
+  final bool lazyVideo;
+
   /// The video controller used to attach this kernel to a video widget;
   /// `null` when [audioOnly].
   ///
@@ -346,7 +365,7 @@ class MovaMpvKernel implements MovaKernel, MovaStatsProbe {
   /// 一个 mpv 错误抛给宿主。
   @override
   Future<Uint8List?> screenshot() async =>
-      audioOnly ? null : _player.screenshot(format: 'image/jpeg');
+      audioOnly || _controller == null ? null : _player.screenshot(format: 'image/jpeg');
 
   @override
   Future<void> dispose() async {
@@ -395,7 +414,10 @@ class MovaMpvKernel implements MovaKernel, MovaStatsProbe {
   Stream<Object> get error => _player.stream.error;
 
   @override
-  Object? get renderHandle => _controller;
+  Object? get renderHandle {
+    if (audioOnly || _disposed) return _controller;
+    return _controller ??= VideoController(_player);
+  }
 
   // ---------------------------------------------------------------------
   // MovaStatsProbe — QoE layer's optional window into libmpv's own stats.

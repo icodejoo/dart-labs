@@ -41,7 +41,7 @@ void main() {
   });
 
   group('mpv_kernel.dart structural guards / 源级结构守卫', () {
-    test('VideoController is constructed exactly once, inside if (!audioOnly)', () {
+    test('VideoController is constructed in exactly two guarded places (eager ctor / lazy renderHandle)', () {
       final lines = _sourceLines('lib/src/core/kernel/mpv_kernel.dart');
       final hits = <int>[];
       for (var i = 0; i < lines.length; i++) {
@@ -49,20 +49,30 @@ void main() {
       }
       expect(
         hits.length,
-        1,
-        reason: 'this single line is what opens the entire video-side cost '
+        2,
+        reason: 'these two lines (eager constructor path, lazy renderHandle path) are what open the entire video-side cost '
             '(decoded frame buffers, GPU texture, Flutter Texture registration); '
             'see doc/notes/2026-09-16-audio-only-feasibility.md §2.1 / '
             '这一行就是打开全部视频侧开销（解码帧缓冲、GPU 纹理、Flutter 纹理注册）'
             '的那一句，见可行性笔记 §2.1',
       );
-      var prev = hits.single - 1;
-      while (prev >= 0 && lines[prev].trim().isEmpty) {
-        prev--;
+      String prevLine(int hit) {
+        var prev = hit - 1;
+        while (prev >= 0 && lines[prev].trim().isEmpty) {
+          prev--;
+        }
+        return lines[prev];
       }
+
       expect(
-        lines[prev],
-        matches(RegExp(r'if\s*\(!audioOnly\)')),
+        prevLine(hits.last),
+        contains('audioOnly || _disposed'),
+        reason: 'the lazy renderHandle path must return early in audio-only mode / '
+            '懒创建路径必须在仅音频模式下提前返回',
+      );
+      expect(
+        prevLine(hits.first),
+        matches(RegExp(r'if\s*\(!audioOnly( && !lazyVideo)?\)')),
         reason: 'VideoController must stay guarded by if (!audioOnly); dropping '
             'that guard silently restores the full video pipeline in audio-only '
             'mode / VideoController 必须始终被 if (!audioOnly) 包住，删掉这层守卫'
@@ -74,7 +84,7 @@ void main() {
       final src = File('lib/src/core/kernel/mpv_kernel.dart').readAsStringSync();
       expect(
         src,
-        contains('audioOnly ?'),
+        contains('audioOnly || _controller == null ? null'),
         reason: 'screenshot() must short-circuit in audio-only mode so the '
             'scrub-preview fallback degrades gracefully instead of surfacing an '
             'mpv error / screenshot() 必须在仅音频模式下短路，让拖动预览兜底平滑'

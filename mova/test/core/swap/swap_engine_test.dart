@@ -195,6 +195,18 @@ void main() {
       expect(shadow.lastSeek, const Duration(seconds: 7));
     });
 
+    test('warm-up touches the shadow renderHandle (lazy video pipeline) but not the active one', () async {
+      expect(made.first.renderHandleReads, 0, reason: 'the active engine is only read when a widget mounts');
+      await api.prepare(
+        const MovaSource('https://host/content.mp4'),
+        at: const Duration(seconds: 7),
+        cue: const MovaWarmCue(remaining: Duration(seconds: 1), total: Duration(seconds: 10)),
+      );
+      await settle();
+      expect(made[1].renderHandleReads, greaterThanOrEqualTo(1), reason: 'shadow must build its video pipeline before commit');
+      expect(made.first.renderHandleReads, 0);
+    });
+
     test('muteWhileWarm true mutes the shadow; false does not', () async {
       await api.prepare(
         const MovaSource('https://host/content.mp4'),

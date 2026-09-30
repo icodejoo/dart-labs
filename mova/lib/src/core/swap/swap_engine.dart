@@ -375,6 +375,9 @@ class MovaSwapEngine implements MovaApi, MovaSwapController {
     if (!trigger.shouldWarm(cue)) return;
 
     final shadow = _engineFactory();
+    // 影子引擎要在挂界面之前就解码出画面，读一次 renderHandle 让懒创建的视频管线
+    // 提前建好（否则预热期间 vid=no，切换时仍要黑屏等首帧）。
+    shadow.renderHandle;
     _shadow = shadow;
     _warmAt = at;
     _warmPlan = plan;
