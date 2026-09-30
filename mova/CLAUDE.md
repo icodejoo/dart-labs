@@ -300,7 +300,11 @@ core 层仅加 `MovaState.mini`/`MovaApi.setMini`/`MovaMiniChange`/`MovaMiniConf
 创建 `VideoController`，media_kit 自己就会卡死（纯 media_kit、无任何 mova 代码即可复现：第 3
 个 `VideoController` 起，之后所有 `Player`——含不挂控制器的——的 `observeProperty`/`dispose`
 都超时）。验证脚本一律用 `audioOnly` 内核。**Windows 上 `MovaMpvKernel.dispose()` 偶发卡住的
-旧待办很可能是同一根因**，尚未在 Windows 上照此验证。
+旧待办已确认是同一根因**（2026-09-30，`example/lib/main_dispose_hang_verify.dart`，release，不开 QoE/不带 pump）：
+audioOnly 组 6/6 正常（dispose 0–15ms）；带 `VideoController` 但页面无视频控件的组 3/6 超时 8s，其余也要
+507ms–5.5s。**含义**：只创建 engine、不把 `MovaPlayer`/`Video` 挂上树就 dispose（如后台预热、纯逻辑测试），在
+带画面模式下可能卡住——不是 mova 引入，是 media_kit 行为；是否要在 `MovaMpvKernel.dispose()` 对此加防护（如对
+`_player.dispose()` 加超时）未定，待用户拍板。
 
 ## 剩余任务
 

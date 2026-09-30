@@ -494,3 +494,10 @@ Windows 的"偶发卡住"很可能同因，待验证。验证脚本一律用 `au
 （此前未加对照时 103/141/137ms 被误判为超线）。**运行方式**：必须从 `C:\Program Files\mova_example`
 启动（exe 单独在 `build\...\Release` 会报缺 dll，新的 Dart 代码在安装目录的 `datapp.so`）；release 桌面端
 `print` 不回传，用 `MOVA_LOG` 落盘。
+
+### 10.8 Windows 上 dispose 卡住的结案（2026-09-30）
+
+`main_dispose_hang_verify.dart`（release，`MovaMpvKernel` 不开 QoE、不带 pump，各组 6 轮，单次超时 8s）：
+A 组 audioOnly 全部 0–15ms；B 组带 `VideoController` 但页面只有一个 `Text`：dispose 耗时
+5511 / 8001(超时) / 8001(超时) / 1415 / 507 / 8001(超时) ms，3/6 超时。结论：§10.5 的"偶发卡住"与
+Android（§10.7）同根因，是 media_kit 的 `VideoController` 在没有渲染面时初始化不完成，与 FFI 订阅无关。
