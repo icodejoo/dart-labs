@@ -16,6 +16,8 @@
 class MovaTtffTracker {
   bool _armed = false;
   bool _landed = false;
+  bool _sawBuffering = false;
+  Duration? _lastProgress;
   DateTime? _armedAt;
 
   /// Whether the first frame has already landed for the current arming.
@@ -52,11 +54,15 @@ class MovaTtffTracker {
     if (!autoPlay) {
       _armed = false;
       _landed = false;
+      _sawBuffering = false;
+      _lastProgress = null;
       _armedAt = null;
       return;
     }
     _armed = true;
     _landed = false;
+    _sawBuffering = false;
+    _lastProgress = null;
     _armedAt = at;
   }
 
@@ -68,7 +74,13 @@ class MovaTtffTracker {
   /// 下降沿）返回距武装以来的耗时，否则返回 `null`。
   Duration? onBuffering(bool buffering, DateTime at) {
     if (!isArmed) return null;
-    if (buffering) return null;
+    if (buffering) {
+      _sawBuffering = true;
+      return null;
+    }
+    // 只认 true→false 的下降沿：open 之后 buffering 流会立刻先发一个初始 false，
+    // 不是首帧（真机实测：失败源/限速源也在 40–160ms 就"落地"）。
+    if (!_sawBuffering) return null;
     _landed = true;
     final armedAt = _armedAt;
     if (armedAt == null) return null;
@@ -85,6 +97,22 @@ class MovaTtffTracker {
   /// 落地语义与 [onBuffering] 的下降沿相同，但直接来自 libmpv 自己的事件，而非
   /// 从 `buffering` 标志推断。恰在此次落地首帧时返回距武装以来的耗时，否则
   /// 返回 `null`。
+  /// 位置连续两次递增且 > 0 才落地——原生 RESTART 不可达且源从不经过 buffering 时的兜底。
+  /// 单个样本不可信：open 之后内核会先回放上一条素材的残留位置（真机实测）。
+  ///
+  /// [position] 是当前播放位置；[at] 是事件时间。返回 TTFF；未落地返回 null。
+  /// 示例：`tracker.onProgress(const Duration(milliseconds: 40), now)`
+  Duration? onProgress(Duration position, DateTime at) {
+    if (!isArmed) return null;
+    final prev = _lastProgress;
+    _lastProgress = position;
+    if (prev == null || position <= Duration.zero || position <= prev) return null;
+    _landed = true;
+    final armedAt = _armedAt;
+    if (armedAt == null) return null;
+    return at.difference(armedAt);
+  }
+
   Duration? onNativeRestart(DateTime at) {
     if (!isArmed) return null;
     _landed = true;
@@ -99,6 +127,8 @@ class MovaTtffTracker {
   void reset() {
     _armed = false;
     _landed = false;
+    _sawBuffering = false;
+    _lastProgress = null;
     _armedAt = null;
   }
 }

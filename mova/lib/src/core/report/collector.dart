@@ -296,6 +296,9 @@ class MovaQoeCollector {
   void onPosition(Duration position) {
     if (!_sessionOpen || !_config.qoe) return;
     _tally.recordPosition(position);
+    final at = _now();
+    final elapsed = _ttff.onProgress(position, at);
+    if (elapsed != null) _emitFirstFrame(elapsed, at, signal: 'progress');
   }
 
   void _onEvent(MovaEvent event) {
@@ -415,7 +418,8 @@ class MovaQoeCollector {
     switch (event) {
       case MovaPlay():
         _tally.tick(at);
-        _tally.setPlaying(true);
+        // 首帧落地前不计观看时长：失败/迟迟起不来的源 playing 意图为 true，但没在看。
+        _tally.setPlaying(_ttff.landed);
         _playing = true;
       case MovaPause():
         _tally.tick(at);
@@ -484,6 +488,8 @@ class MovaQoeCollector {
   }
 
   void _emitFirstFrame(Duration elapsed, DateTime at, {required String signal}) {
+    _tally.tick(at);
+    _tally.setPlaying(_playing);
     _emit(MovaReportEvent(
       kind: MovaReportKind.event,
       name: MovaReportName.firstFrame,
@@ -531,7 +537,7 @@ class MovaQoeCollector {
     final stall = policy?.onStall(stalled, at);
     if (stall == null) return;
     _stallIndex++;
-    _tally.addStall(stall.duration);
+    _tally.addStall();
     _emit(MovaReportEvent(
       kind: MovaReportKind.event,
       name: MovaReportName.rebuffer,

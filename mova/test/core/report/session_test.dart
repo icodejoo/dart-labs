@@ -126,6 +126,18 @@ void main() {
       expect(tally.stallMs, 1000);
     });
 
+    test('addStall only counts — a stall is timed once, by tick', () {
+      final tally = MovaSessionTally();
+      final t0 = DateTime(2026, 1, 1);
+      tally.tick(t0);
+      tally.setStalled(true);
+      tally.tick(t0.add(const Duration(seconds: 3)));
+      tally.setStalled(false);
+      tally.addStall();
+      expect(tally.stallMs, 3000, reason: 'must not be doubled');
+      expect(tally.stallCount, 1);
+    });
+
     test('rebufferRate is 0 when the denominator is 0 (never throws)', () {
       final tally = MovaSessionTally();
       expect(tally.rebufferRate, 0);
@@ -133,11 +145,15 @@ void main() {
 
     test('rebufferRate is stallMs / (watchedMs + stallMs)', () {
       final tally = MovaSessionTally();
-      tally.addStall(const Duration(milliseconds: 500));
       final t0 = DateTime(2026, 1, 1);
       tally.tick(t0);
-      tally.setPlaying(true);
+      tally.setStalled(true);
       tally.tick(t0.add(const Duration(milliseconds: 500)));
+      tally.setStalled(false);
+      tally.addStall();
+      tally.setPlaying(true);
+      tally.tick(t0.add(const Duration(milliseconds: 1000)));
+      expect(tally.stallCount, 1);
       expect(tally.rebufferRate, closeTo(0.5, 0.001));
     });
 

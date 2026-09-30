@@ -166,13 +166,14 @@ class MovaSessionTally {
     }
   }
 
-  /// Records one finished stall (from `MovaStallPolicy.onStall`).
+  /// Counts one finished stall (from `MovaStallPolicy.onStall`). Only bumps the
+  /// count: the stalled time itself is already accumulated by [tick] while
+  /// [setStalled] is on, so adding the duration again would double-count it.
   ///
-  /// 记录一条已结束的卡顿（来自 `MovaStallPolicy.onStall`）。
-  void addStall(Duration duration) {
-    _stallCount++;
-    _stallMs += duration.inMilliseconds;
-  }
+  /// 记一次已结束的卡顿（来自 `MovaStallPolicy.onStall`）。只加次数：卡顿时长
+  /// 已在 [setStalled] 开启期间由 [tick] 累计，再加一次 duration 会重复计时
+  /// （真机实测 stallMs 曾是真实值的 2 倍）。
+  void addStall() => _stallCount++;
 
   /// Records the latest known playback position.
   ///

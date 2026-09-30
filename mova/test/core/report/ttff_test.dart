@@ -28,8 +28,43 @@ void main() {
     test('ttffMs equals the injected time delta', () {
       final tracker = MovaTtffTracker();
       tracker.arm(t0, autoPlay: true);
+      tracker.onBuffering(true, t0.add(const Duration(milliseconds: 10)));
       final landed = tracker.onBuffering(false, t0.add(const Duration(milliseconds: 733)));
       expect(landed!.inMilliseconds, 733);
+    });
+
+    test('initial buffering=false (no preceding true) is not a landing', () {
+      final tracker = MovaTtffTracker();
+      tracker.arm(t0, autoPlay: true);
+      expect(tracker.onBuffering(false, t0.add(const Duration(milliseconds: 40))), isNull);
+      expect(tracker.landed, isFalse);
+    });
+
+    test('a fresh arm forgets a previously seen buffering=true', () {
+      final tracker = MovaTtffTracker();
+      tracker.arm(t0, autoPlay: true);
+      tracker.onBuffering(true, t0);
+      tracker.arm(t0, autoPlay: true);
+      expect(tracker.onBuffering(false, t0.add(const Duration(milliseconds: 40))), isNull);
+    });
+
+    test('onProgress needs two increasing samples > 0, then never lands again', () {
+      final tracker = MovaTtffTracker();
+      tracker.arm(t0, autoPlay: true);
+      expect(tracker.onProgress(Duration.zero, t0.add(const Duration(milliseconds: 20))), isNull);
+      expect(tracker.onProgress(Duration.zero, t0.add(const Duration(milliseconds: 40))), isNull);
+      expect(tracker.onProgress(const Duration(milliseconds: 30), t0.add(const Duration(milliseconds: 60))),
+          const Duration(milliseconds: 60));
+      expect(tracker.onProgress(const Duration(seconds: 1), t0.add(const Duration(seconds: 2))), isNull);
+    });
+
+    test('onProgress ignores a lone stale position left over from the previous media', () {
+      final tracker = MovaTtffTracker();
+      tracker.arm(t0, autoPlay: true);
+      expect(tracker.onProgress(const Duration(seconds: 8), t0.add(const Duration(milliseconds: 5))), isNull);
+      // 真实新源从 0 起步，比残留值小——不能落地。
+      expect(tracker.onProgress(const Duration(milliseconds: 100), t0.add(const Duration(milliseconds: 300))), isNull);
+      expect(tracker.landed, isFalse);
     });
 
     test('wasArmed is true after arming with autoPlay, even before landing', () {
@@ -69,6 +104,7 @@ void main() {
     test('reset() clears armed/landed state so a new arm starts fresh', () {
       final tracker = MovaTtffTracker();
       tracker.arm(t0, autoPlay: true);
+      tracker.onBuffering(true, t0.add(const Duration(milliseconds: 20)));
       tracker.onBuffering(false, t0.add(const Duration(milliseconds: 100)));
       expect(tracker.landed, isTrue);
       tracker.reset();
