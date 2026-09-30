@@ -278,7 +278,7 @@ core 层仅加 `MovaState.mini`/`MovaApi.setMini`/`MovaMiniChange`/`MovaMiniConf
 `qoe:false` 零 QoE 事件。**已知偏差**：首帧多数记在 `buffering` 边沿而非 `restart`——
 RESTART 实测比 buffering 下降沿晚约 200ms（809ms vs 612ms），按"先到先落地"记的是更早
 的那个，TTFF 略偏乐观；想更精确需"原生可用时忽略 buffering 兜底"，未做。
-**仍未验**：带视频（非 audioOnly）路径的 QoE、iOS/macOS、错误 prefix 分类的更多样例。
+**带视频画面路径（非 audioOnly，真实 `MovaPlayer` 挂树，硬解 `mediacodec-copy`）已于同日补验**（`example/lib/main_qoe_video_verify.dart`）：播完 `ended`（首帧 219ms、`watchedMs` 5172）、换源 `stopped`×2、不存在资源 `failed`（`watchedMs=0`+`startupFail`）、open 后 30ms 销毁 `abandoned`，均符合预期。**仍未验**：iOS/macOS、错误 prefix 分类的更多样例。
 
 ### 自建原生事件订阅（FFI 弱客户端）——已落地，pubspec 已回退
 
