@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:ffi';
 import 'dart:typed_data';
 
 import 'package:media_kit/generated/libmpv/bindings.dart' as generated;
@@ -8,6 +7,11 @@ import 'package:media_kit_video/media_kit_video.dart';
 
 import '../report/stats_probe.dart';
 import 'kernel.dart';
+import 'mpv_event_backend.dart';
+import 'mpv_event_pump.dart';
+
+/// 弱客户端后端工厂函数定义。
+typedef MovaMpvEventBackendFactory = MovaMpvEventBackend Function(NativePlayer native, int handleAddress);
 
 /// A [MovaKernel] implementation backed by media_kit's `Player`.
 ///
@@ -23,20 +27,33 @@ import 'kernel.dart';
 /// 其余所有文件都必须与具体引擎无关。它同时实现 [MovaStatsProbe]——QoE 层用来
 /// 拿 libmpv 自身统计量的可选能力——因为这个实现同样只能落在这里。
 class MovaMpvKernel implements MovaKernel, MovaStatsProbe {
-  /// Creates the media_kit-backed kernel.
+  /// Creates a media_kit-backed kernel.
   ///
-  /// [player] lets callers inject an existing `Player` (e.g. for testing or
-  /// custom configuration); when omitted a new `Player()` is created.
+  /// [player] lets the caller inject an existing `Player` (e.g. for testing
+  /// or custom configuration); a new `Player()` is created if omitted.
   ///
-  /// [audioOnly] skips creating the `VideoController` entirely. media_kit's
-  /// `Player` already starts with mpv's `--vid=no` and it is *only*
-  /// `VideoController.create()` that flips it back to `vid=auto`
-  /// (media_kit 1.2.6, `player/native/player/real.dart` `_create()` and
-  /// `video_controller/native_video_controller/real.dart`), so not attaching
-  /// one leaves libmpv decoding audio and nothing else: no decoded frame
-  /// buffers, no GPU texture, no Flutter `Texture` registration. Those three
-  /// are the whole of the video-side memory cost, and in audio-only mode they
-  /// are zero rather than merely smaller.
+  /// [audioOnly] signifies skipping `VideoController` creation entirely.
+  /// media_kit's `Player` defaults to mpv's `--vid=no` until the moment
+  /// `VideoController.create()` turns it back to `vid=auto` (media_kit 1.2.6,
+  /// see `player/native/player/real.dart`'s `_create()` and
+  /// `video_controller/native_video_controller/real.dart`), so bypassing it
+  /// truly leaves libmpv decoding only audio: no decode framebuffers, no GPU
+  /// textures, no Flutter `Texture` registration. These three are the entirety
+  /// of the video-side memory footprint, which becomes zero, not just smaller,
+  /// in audio-only mode.
+  ///
+  /// This "default `--vid=no`" premise must be re-verified upon upgrading
+  /// media_kit.
+  ///
+  /// [observeQoeSignals] controls whether to perform the extra native
+  /// `paused-for-cache` property observation and the native event subscription
+  /// ([playbackRestarts]/[endFiles]) — all three exist exclusively for the QoE
+  /// layer. Callers without a [MovaReporter] should pass `false` so the
+  /// constructor completely skips these FFI round-trips, ensuring the "zero cost
+  /// if no reporter" promise holds true down at this level (it previously only
+  /// applied one layer up in [MovaQoeCollector]).
+  ///
+  /// [backendFactory] provides a factory for the native event backend.
   ///
   /// 创建基于 media_kit 的内核。
   ///
@@ -53,21 +70,16 @@ class MovaMpvKernel implements MovaKernel, MovaStatsProbe {
   ///
   /// 升级 media_kit 时须重验"默认 `--vid=no`"这一条。
   ///
-  /// [observeQoeSignals] gates the extra native `paused-for-cache` property
-  /// observation and the two `observeEvent` registrations ([playbackRestarts]/
-  /// [endFiles]) — all three exist solely for the QoE layer. Callers that
-  /// never configure a [MovaReporter] pass `false` so construction skips these
-  /// FFI round-trips entirely, keeping the "no reporter → zero overhead"
-  /// guarantee true at this layer too (previously it only held one level up,
-  /// in [MovaQoeCollector]).
-  ///
   /// [observeQoeSignals] 控制要不要做额外的原生 `paused-for-cache` 属性观察和
-  /// 两个 `observeEvent` 注册（[playbackRestarts]/[endFiles]）——这三者全部
+  /// 原生事件订阅（[playbackRestarts]/[endFiles]）——这三者全部
   /// 只服务 QoE 层。没有配置 [MovaReporter] 的调用方应传 `false`，让构造期
   /// 完全跳过这几次 FFI 往返，使"没有 reporter 就零开销"这条承诺在这一层
   /// 也成立（此前它只在上一层的 [MovaQoeCollector] 里成立）。
-  MovaMpvKernel({Player? player, this.audioOnly = false, bool observeQoeSignals = true})
-    : _player = player ?? Player() {
+  ///
+  /// [backendFactory] 为原生事件提供获取后端的工厂。
+  MovaMpvKernel({Player? player, this.audioOnly = false, bool observeQoeSignals = true, MovaMpvEventBackendFactory? backendFactory})
+    : _player = player ?? Player(),
+      _backendFactory = backendFactory {
     if (!audioOnly) {
       _controller = VideoController(_player);
     }
@@ -106,9 +118,25 @@ class MovaMpvKernel implements MovaKernel, MovaStatsProbe {
             // 静默降级：这次会话就是没有原生卡顿信号，QoE 层退回旧的
             // `buffering` 判据，其余上报功能不受影响。
           })
-          .then((_) => _observeNativeEvents(native));
+          .then((_) {
+            if (backendFactory != null) {
+              return _observeNativeEvents(native);
+            }
+          });
     }
   }
+
+  /// 标识内核是否已销毁。
+  bool _disposed = false;
+
+  /// 用于事件抽水的泵实例。
+  MovaMpvEventPump? _pump;
+
+  /// 后端工厂函数，用于创建 MovaMpvEventBackend。
+  final MovaMpvEventBackendFactory? _backendFactory;
+
+  /// 全局单调递增计数器，为每个事件泵生成唯一名字。
+  static int _pumpNameCounter = 0;
 
   /// Tracks the constructor's async native-observer registration so
   /// [dispose] can wait for it to settle before tearing down [_player] —
@@ -137,36 +165,50 @@ class MovaMpvKernel implements MovaKernel, MovaStatsProbe {
   /// 订阅 QoE 层需要的两个原生 mpv 事件（2026-09-29 架构更新，见
   /// `doc/plans/2026-09-29-telemetry-enhancement.md`"新架构决策"）：
   /// `MPV_EVENT_PLAYBACK_RESTART` 提供精确的 TTFF 落地信号，
-  /// `MPV_EVENT_END_FILE` 提供原生的会话结束原因。`observeEvent` 是 media_kit
-  /// 新增的 API（只在锁定的 git 提交上有，任何已发布版本都没有），除了做过 spike
-  /// 的那一个平台（Windows）外，其余平台的运行时行为未经验证——每个订阅都单独包了
-  /// 一层，失败时静默降级为空流，不会让内核崩溃、也不影响其余上报功能。
+  /// `MPV_EVENT_END_FILE` 提供原生的会话结束原因。通过自建弱客户端及
+  /// [MovaMpvEventPump] 订阅，避免依赖被舍弃的 media_kit `observeEvent`。
   Future<void> _observeNativeEvents(NativePlayer native) async {
+    int addr;
     try {
-      await native.observeEvent(
-        generated.mpv_event_id.MPV_EVENT_PLAYBACK_RESTART,
-        (event) async {
-          if (_restartController.isClosed) return;
-          _restartController.add(null);
-        },
-      );
-    } on Object {
-      // 静默降级：这次会话就是没有原生 TTFF 落地信号，QoE 层退回
-      // `buffering` 边沿的启发式判定，其余上报功能不受影响。
+      addr = await native.handle;
+    } catch (_) {
+      return;
     }
+    
+    if (_disposed) return;
+    if (_backendFactory == null) return;
+
+    MovaMpvEventBackend backend;
     try {
-      await native.observeEvent(
-        generated.mpv_event_id.MPV_EVENT_END_FILE,
-        (event) async {
-          if (_endFileController.isClosed) return;
-          final data = event.ref.data;
-          if (data == nullptr) return;
-          final reason = _mapEndFileReason(data.cast<generated.mpv_event_end_file>().ref.reason);
-          if (reason != null) _endFileController.add(reason);
-        },
-      );
-    } on Object {
-      // 静默降级：会话结束原因退回旧的时序推断，其余上报功能不受影响。
+      backend = _backendFactory(native, addr);
+    } catch (_) {
+      return;
+    }
+
+    final pumpName = 'mova_qoe_${_pumpNameCounter++}';
+    final pump = MovaMpvEventPump(
+      backend,
+      name: pumpName,
+      onRestart: () {
+        if (!_restartController.isClosed) {
+          _restartController.add(null);
+        }
+      },
+      onEndFile: (reason) {
+        if (!_endFileController.isClosed) {
+          final mapped = _mapEndFileReason(reason);
+          if (mapped != null) {
+            _endFileController.add(mapped);
+          }
+        }
+      },
+    );
+
+    _pump = pump;
+    await pump.start(Future.value());
+    
+    if (_disposed) {
+      await pump.dispose();
     }
   }
 
@@ -308,6 +350,7 @@ class MovaMpvKernel implements MovaKernel, MovaStatsProbe {
 
   @override
   Future<void> dispose() async {
+    _disposed = true;
     await _widthSub?.cancel();
     await _heightSub?.cancel();
     await _sizeController.close();
@@ -316,7 +359,14 @@ class MovaMpvKernel implements MovaKernel, MovaStatsProbe {
     await _endFileController.close();
     // 必须等构造期发起的原生观察者注册落地，才能销毁 _player——见
     // _observeSetup 的文档注释。
-    await _observeSetup;
+    // 因为 observeProperty 自身也 await 同一个初始化 future，如果
+    // handle 挂起会拖死 dispose，因此加一个 5 秒的超时。
+    try {
+      await _observeSetup?.timeout(const Duration(seconds: 5));
+    } catch (_) {
+      // 超时或抛错吞掉继续销毁
+    }
+    await _pump?.dispose();
     await _player.dispose();
   }
 

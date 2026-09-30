@@ -87,14 +87,6 @@ dependency_overrides:
     path: ../packages/media_kit_libs_windows_video_slim
   media_kit_libs_android_video:
     path: ../packages/media_kit_libs_android_video_slim
-  # mova 自身已把 media_kit 锁到 media-kit master 某提交（埋点增强需要该提交新增的
-  # observeEvent/unobserveEvent），example 独立声明了 `media_kit: ^1.2.0`，必须同步
-  # override 否则版本求解会因"同一包一边 git 一边 hosted"冲突。见 mova/pubspec.yaml。
-  media_kit:
-    git:
-      url: https://github.com/media-kit/media-kit.git
-      ref: c533e446755f51cf53c7e57aea873f2aa5355f81
-      path: media_kit
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec

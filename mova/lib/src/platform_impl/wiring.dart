@@ -21,7 +21,9 @@ import '../core/preview/extractor.dart';
 import '../core/preview/fetcher.dart';
 import '../core/preview/net_probe.dart';
 import '../core/report/report.dart';
+import '../core/kernel/mpv_kernel.dart';
 import 'brightness_impl.dart';
+import 'mpv_event_backend_ffi.dart';
 import 'orientation_impl.dart';
 import 'pip_impl.dart';
 import 'thumb_dir_impl.dart';
@@ -64,8 +66,8 @@ MovaVolumePort? _defaultVolumePort() {
 /// 画中画、全屏方向、拖动预览缩略图这些功能才能真正生效。每个端口仍可分别
 /// 覆盖（例如在验证真实 engine 接线的 widget 测试中传入 fake）。
 ///
-/// - [kernel]: the playback kernel; defaults to a new `MovaMpvKernel` (see
-///   [MovaEngine.new]) / 播放内核，省略时默认新建 `MovaMpvKernel`（见
+/// - [kernel]: the playback kernel; defaults to a new `MovaMpvKernel` injected with FFI event backend
+///   (see [MovaEngine.new]) / 播放内核，省略时默认新建已注入 FFI 事件后端的 `MovaMpvKernel`（见
 ///   [MovaEngine.new]）
 /// - [audioOnly]: builds an audio-only engine — the default kernel skips its
 ///   `VideoController` and the frame-extraction fallback is left unwired,
@@ -148,7 +150,11 @@ MovaEngine createMovaEngine({
   MovaReporter? reporter,
 }) {
   return MovaEngine(
-    kernel: kernel,
+    kernel: kernel ?? MovaMpvKernel(
+      audioOnly: audioOnly,
+      observeQoeSignals: reporter != null,
+      backendFactory: (native, addr) => createFfiMpvEventBackend(native, addr, pollInDebug: kDebugMode),
+    ),
     audioOnly: audioOnly,
     options: probe == null ? options : options.copyWith(preview: options.preview.copyWith(probe: probe)),
     interceptors: interceptors,

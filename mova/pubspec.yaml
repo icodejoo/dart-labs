@@ -18,16 +18,7 @@ dependencies:
   flutter:
     sdk: flutter
   connectivity_plus: ^6.1.5
-  # 固定到 media-kit master 某提交而非 pub.dev 发布版：埋点增强需要该提交新增的
-  # `observeEvent`/`unobserveEvent` 公开 API（订阅原生 mpv 事件，见
-  # doc/plans/2026-09-29-telemetry-enhancement.md「新架构决策」）。这是用户拍板的
-  # 已知取舍：mova 因此暂时无法发布到 pub.dev（pub.dev 禁止已发布包依赖 git/path），
-  # 与 CLAUDE.md 记录的"mova 已不打算走 pub.dev 独立发布"现状一致。
-  media_kit:
-    git:
-      url: https://github.com/media-kit/media-kit.git
-      ref: c533e446755f51cf53c7e57aea873f2aa5355f81
-      path: media_kit
+  media_kit: ^1.2.6
   media_kit_libs_video: ^1.0.7
   media_kit_video: ^2.0.1
   meta: ^1.16.0
@@ -47,16 +38,6 @@ dev_dependencies:
   # 仅测试用，且经 flutter_test 本就已在 lock 文件里：使广告编排测试能确定性地
   # 推进 Timer 到期（delay / duration / loadTimeout），而不必真的睡上几秒。
   fake_async: ^1.3.1
-
-# media_kit_video 自身在 pubspec 里把 media_kit 声明为 hosted 依赖（即便版本号
-# 兼容），pub 仍会把"同一个包一边来自 git 一边来自 hosted"判成来源冲突——必须用
-# dependency_overrides 强制整张依赖图都走上面锁定的同一个 git 提交。
-dependency_overrides:
-  media_kit:
-    git:
-      url: https://github.com/media-kit/media-kit.git
-      ref: c533e446755f51cf53c7e57aea873f2aa5355f81
-      path: media_kit
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec
