@@ -21,12 +21,11 @@
 >    无缝切换、清晰度自适应、仅音频模式等）**已合并进 main 但从未随新版本号重新
 >    发布**。引用方从 pub.dev 拿到的包不含这些能力，回答"能不能用某功能"前
 >    先确认对方拿到的是 pub.dev 版本还是本仓库 path/git 依赖。
-> 5. **mova 现在依赖 media_kit 的 git 提交而非 pub.dev 发布版，因此无法正常发布到
->    pub.dev**：`pubspec.yaml` 把 `media_kit` 锁定在 master 分支某 commit
->    （`c533e446755f51cf53c7e57aea873f2aa5355f81`），为的是拿到该提交新增的
->    `observeEvent`/`unobserveEvent` 公开 API（埋点 QoE 层订阅原生 mpv 事件要用）；
->    `flutter analyze` 会报 "Publishable packages can't have 'git' dependencies"，
->    这是用户已拍板接受的已知代价，不是待修的问题。
+> 5. **mova 已回到 pub.dev 的 `media_kit: ^1.2.6`，不再依赖 git 提交**（2026-09-30）：
+>    原生 mpv 事件（`PLAYBACK_RESTART`/`END_FILE`）改由自建的 dart:ffi 弱客户端订阅
+>    （`core/kernel/mpv_event_pump.dart` + `platform_impl/mpv_event_backend_ffi.dart`），
+>    `flutter pub publish --dry-run` 不再提示 git 依赖。注意 `createMovaEngine()` 在 debug
+>    下走 100ms 轮询、release 才走原生回调（`wiring.dart` 的 `pollInDebug: kDebugMode`）。
 
 ## 是什么
 
@@ -35,9 +34,9 @@
 
 ## 当前状态（0.2.0）
 
-> **测试基线：945 项全绿**（2026-09-29 本机实跑 `flutter test` 的真实结果，出自
-> "统一上报模块 + QoE 增强"落地；上一记录的 815 已过期）、`flutter analyze` 0
-> issues（仅剩一条既有 `feed_player.dart` 警告，与近期改动均无关）。
+> **测试基线：981 项全绿**（2026-09-30 本机实跑 `flutter test` 的真实结果）；
+> `flutter analyze lib test` 0 issues（`example/` 下 demo 有若干 `avoid_print` info，
+> 均为验证脚本）。
 
 以下按功能分组呈现已完成能力（原按 0.2.0–0.6.0 版本号分阶段记录，现已合并，
 版本号统一记为 0.2.0；具体日期/commit/测试数字均为客观事实，原样保留）。
@@ -249,25 +248,61 @@ core 层仅加 `MovaState.mini`/`MovaApi.setMini`/`MovaMiniChange`/`MovaMiniConf
 遵循项目"新功能默认关闭"约定）。信号优先取 libmpv 原生能力：`MovaMpvKernel` 新增
 `implements MovaStatsProbe`，经 `paused-for-cache`（真卡顿信号，与 media_kit 合并出的
 `buffering` 布尔不同）、`stream.log` 的 prefix 分类错误、`video-bitrate`/`cache-speed`/
-`frame-drop-count` 等属性取数；不可达的两条（`MPV_EVENT_PLAYBACK_RESTART` 精确 TTFF
-落地信号、`MPV_EVENT_END_FILE` 原生会话结束原因）2026-09-29 通过把 `media_kit` 依赖
-换成 git 提交 `c533e446755f51cf53c7e57aea873f2aa5355f81`（新增 `observeEvent` 公开
-API）打通，`MovaMpvKernel._observeNativeEvents` 对两路订阅各自 try/catch 包裹，失败
-静默退化到旧的 `core-idle`/`buffering` 边沿与时序推断路径，不影响其余上报功能。
+`frame-drop-count` 等属性取数；原本不可达的两条（`MPV_EVENT_PLAYBACK_RESTART` 精确 TTFF
+落地信号、`MPV_EVENT_END_FILE` 原生会话结束原因）现由自建 FFI 弱客户端订阅（见下一
+小节；2026-09-29 曾临时用 media_kit git 提交的 `observeEvent`，2026-09-30 已回退），
+`MovaMpvKernel._observeNativeEvents` 失败时静默退化到旧的 `core-idle`/`buffering` 边沿
+与时序推断路径，不影响其余上报功能。
 纯内存聚合，不引入任何 HTTP 客户端/第三方依赖，mova 依旧只标准化、不发送。
 随后一轮 `code-review --fix` 修了两个真实 bug（`MovaEngine.open()` 的会话边界时序、
 `MovaMpvKernel.dispose()` 等待原生观察者注册落地再销毁 mpv 句柄的竞态）。
 详见 [doc/plans/2026-09-29-telemetry-enhancement.md](doc/plans/2026-09-29-telemetry-enhancement.md)、
 [doc/notes/2026-09-29-player-telemetry-best-practices.md](doc/notes/2026-09-29-player-telemetry-best-practices.md)。
 
-测试基线随本功能从 859 推进到本文档顶部记录的 **945**（`flutter test` 全绿）。
+测试基线随本功能从 859 推进到 945，随后 FFI 订阅与 Android 真机复测修复推进到 **981**。
 
-**真机验证仅完成一小部分，如实记录**：目前**仅在 Windows 桌面验证过
-`observeEvent` 能订阅到 `MPV_EVENT_PLAYBACK_RESTART`/`MPV_EVENT_END_FILE` 并驱动
-TTFF/会话结束落地**；**未做任何真机验证**——TTFF 真实性、卡顿计数准确性、四分
-终止态、错误 prefix 分类、`qoe: false` 关闭态零改变等计划里列出的验证项均未上
-Android/iOS 真机，Android/iOS/macOS 上 `observeEvent` 的运行时行为也未经验证（该
-API 只在这一个被锁定的 git 提交上有）。
+**Android 真机验证（2026-09-30，STG-AL00 arm64 Android 12，release，基于真实事件）**——
+用 `example/lib/main_qoe_verify.dart`（本机 HTTP 服务经 `adb reverse` 提供，快/限速 20KB/s
+两档）跑 `createMovaEngine` 真实链路，**暴露并修复 3 个真 bug**：
+1. **TTFF 是假的**：open 后 `buffering` 流先发初始 `false`，被当成首帧（失败源 75ms、限速源
+   65ms 就报首帧，开播即弃被记成 `stopped`）。`MovaTtffTracker.onBuffering` 现在只认
+   `true→false` 下降沿；新增 `onProgress` 兜底（需**连续两个递增且 >0** 的位置样本，因为
+   open 后内核会先回放上一条素材的残留位置）。
+2. **`stallMs` 重复累计**：`tick()` 已按时间累加，结束时 `addStall(duration)` 又加一遍，实测
+   为真实值 2 倍。`MovaSessionTally.addStall()` 改为只计次数。
+3. **失败/迟迟起不来的源也累计 `watchedMs`**（失败源实测 4001ms）：首帧落地前不计观看时长。
+
+修复后真机结果：正常播完 `ended`；换源/中途停止 `stopped`；开播即弃 `abandoned`+
+`startupFail`；不存在的资源 `failed`（`error` fatal、`code: stream`）；限速流 3 次真
+`rebuffer`（`signal: cache`，每次 4.8–5.3s，`stallMs` 15691≈三次之和 15145+尾部）；
+`qoe:false` 零 QoE 事件。**已知偏差**：首帧多数记在 `buffering` 边沿而非 `restart`——
+RESTART 实测比 buffering 下降沿晚约 200ms（809ms vs 612ms），按"先到先落地"记的是更早
+的那个，TTFF 略偏乐观；想更精确需"原生可用时忽略 buffering 兜底"，未做。
+**仍未验**：带视频（非 audioOnly）路径的 QoE、iOS/macOS、错误 prefix 分类的更多样例。
+
+### 自建原生事件订阅（FFI 弱客户端）——已落地，pubspec 已回退
+
+不 fork，用 `dart:ffi` 在 libmpv 上派生**弱客户端**（`mpv_create_weak_client`）自建 wakeup
++ `mpv_wait_event` 排空，订阅 `PLAYBACK_RESTART`/`END_FILE`：`core/kernel/mpv_event_backend.dart`
+（端口）、`mpv_event_pump.dart`（纯逻辑状态机）、`platform_impl/mpv_event_backend_ffi.dart`
+（FFI 后端，因 `purity_test` 只允许 `mpv_kernel.dart` import media_kit 而放在这里）、
+`MovaMpvKernel` 接线（构造期可选 `backendFactory`，`createMovaEngine()` 注入）。
+**2026-09-30 Task 5 完成**：主包 `media_kit: ^1.2.6`，去掉 git 与 `dependency_overrides`
+（example 同步）。计划与不变量清单（I1–I12）、复审结论、验证记录见
+[doc/plans/2026-09-29-observe-event-ffi.md](doc/plans/2026-09-29-observe-event-ffi.md)。
+
+**Android 真机验证（release，`main_observe_event_verify2.dart`）**：V3 与 media_kit 共存
+（position 37/38、playing 4/4、buffering 5/5）、V6 三引擎并存互不串扰、V7 dispose 期间最大
+帧间隔 32ms（<100ms）、V9 `qoe:false` 建客户端数 0、V5 120 轮创建/销毁 120/120、PSS
+首轮抬升后稳定约 50MB（开关两组差值在噪声内）；debug 包 RESTART：open 1 次、open+seek
+2 次，首个 RESTART 307–677ms。V10（对旧 git 版本对账）因依赖已回退而作废。
+**iOS/macOS 未验证**（无 Mac，退化路径兜底：客户端创建失败即静默走空流）。
+
+**此前"dispose 卡死"的真相（重要）**：是 demo 的问题，不是 FFI/pump。无 Flutter 画面时反复
+创建 `VideoController`，media_kit 自己就会卡死（纯 media_kit、无任何 mova 代码即可复现：第 3
+个 `VideoController` 起，之后所有 `Player`——含不挂控制器的——的 `observeProperty`/`dispose`
+都超时）。验证脚本一律用 `audioOnly` 内核。**Windows 上 `MovaMpvKernel.dispose()` 偶发卡住的
+旧待办很可能是同一根因**，尚未在 Windows 上照此验证。
 
 ## 剩余任务
 
