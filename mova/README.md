@@ -53,6 +53,7 @@ Flutter 视频播放库，自研手势与控制层，支持点播与直播。
 
 - iOS/桌面（Windows/macOS/Linux）暂不支持系统级画中画。
 - 桌面平台（Windows/macOS/Linux）没有"真全屏"（撑满 OS 窗口、去标题栏）能力，`setFullscreen()` 不会有可见效果，需宿主自己接 `window_manager` 一类的包（见下方「平台端口」一节）。
+- TLS 严格校验（`createMovaEngine(tlsVerify: true, tlsCaFile: ...)`，默认关闭，此时 Android libmpv 不校验证书）：**Android 上开启必须同时传 `tlsCaFile`（PEM 格式 CA 包，例如拼接 `/system/etc/security/cacerts/` 下的证书），否则所有 HTTPS 都会失败**（瘦身 libmpv 用 mbedtls、无系统信任库）；IP 直连不校验证书主机名，仅域名生效；iOS/macOS 未验证。
 - 仅音频模式（`audioOnly`）不提供后台常驻播放、锁屏/通知栏控制、耳机线控、音频焦点、gapless、歌单——这些需要 `just_audio` + `audio_service` 一类的专用方案。
 - **带画面内核的 `VideoController` 必须真正挂到界面上才能正常销毁**（这是 media_kit 的行为，不是 mova 引入的）：`VideoController` 创建后若一直没有挂到视频组件上，`Player.dispose()` 会一直等它，真机实测 Windows 上 3/6 次、Android 上 4/5 次 dispose 撞上 8 秒超时。默认实现（`createMovaEngine()` / `MovaEngine()`）已做成**懒创建**——第一次渲染（`MovaPlayer` 挂上树，读取 `renderHandle`）时才创建，所以"创建了 engine 却没展示就销毁"是安全的。**如果你自己创建并注入 `VideoController`（传入自己构造的 `MovaMpvKernel`/`Player`，或用 `lazyVideo: false` 的内核），要自己保证它最终挂到了 UI 上再销毁**；纯逻辑、后台预热、单测等不展示画面的场景请用 `audioOnly: true`，或保持默认懒创建、不要读取 `renderHandle`。无缝切换的影子引擎例外：预热阶段就需要解码画面，会提前创建控制器。
 - 部分可选能力（广告编排、无缝引擎切换、App 内小窗、仅音频模式）代码已落地但真机验证程度不一，详见各自小节链接的 [doc/SPEC.md](doc/SPEC.md) 章节。

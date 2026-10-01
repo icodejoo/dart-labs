@@ -34,7 +34,7 @@
 
 ## 当前状态（0.2.0）
 
-> **测试基线：1004 项全绿**（2026-10-01 本机实跑 `flutter test` 的真实结果）；
+> **测试基线：1008 项全绿**（2026-10-01 本机实跑 `flutter test` 的真实结果）；
 > `flutter analyze lib test` 0 issues（`example/` 下 demo 有若干 `avoid_print` info，
 > 均为验证脚本）。
 
@@ -259,7 +259,7 @@ core 层仅加 `MovaState.mini`/`MovaApi.setMini`/`MovaMiniChange`/`MovaMiniConf
 详见 [doc/plans/2026-09-29-telemetry-enhancement.md](doc/plans/2026-09-29-telemetry-enhancement.md)、
 [doc/notes/2026-09-29-player-telemetry-best-practices.md](doc/notes/2026-09-29-player-telemetry-best-practices.md)。
 
-测试基线随本功能从 859 推进到 945，随后 FFI 订阅、Android 真机复测修复、TTFF 门控与 VideoController 懒创建推进到 985，截断结束判定（`truncatedBelow`，EOF 完播率低于阈值记 `failed`+`truncated`，Android 真机中途断流已验）再推进到 **1004**。
+测试基线随本功能从 859 推进到 945，随后 FFI 订阅、Android 真机复测修复、TTFF 门控与 VideoController 懒创建推进到 985，截断结束判定（`truncatedBelow`，EOF 完播率低于阈值记 `failed`+`truncated`，Android 真机中途断流已验）再推进到 1004，TLS 严格校验开关（`tlsVerify`/`tlsCaFile`，默认关闭，Android 真机本机 HTTPS 矩阵 144 次全过）推进到 **1008**。
 
 **Android 真机验证（2026-09-30，STG-AL00 arm64 Android 12，release，基于真实事件）**——
 用 `example/lib/main_qoe_verify.dart`（本机 HTTP 服务经 `adb reverse` 提供，快/限速 20KB/s

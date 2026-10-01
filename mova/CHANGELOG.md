@@ -39,6 +39,11 @@
   不再记 `ended`，改为先发 fatal 的 `MovaErrorEvent`（`code: truncated`）、再记 `failed`；直播无 duration，
   仅在 `MovaDone` 前 5 秒内有 ffmpeg 错误日志时才判截断。修正首帧后断网/服务端中途断流被误记 `ended` 的问题
   （Android 真机中途断流复测通过）。
+* **TLS 严格校验开关**：`createMovaEngine()`/`MovaMpvKernel` 新增 `tlsVerify`（默认 `false`，行为不变）与
+  `tlsCaFile`。开启后证书过期/自签/域名不符的 HTTPS 流被拒绝（stream 错误，会话 `failed`），HLS 分片与
+  AES key 同样受校验。**Android 瘦身 libmpv 用 mbedtls、无系统信任库，开启时必须同时传 `tlsCaFile`（PEM），
+  否则所有 HTTPS 都会失败**；`tlsCaFile` 里放自签证书即可信任该证书。IP 直连（如 `127.0.0.1`）不比对证书主机名。
+  Android 真机本机 HTTPS 矩阵 144 次全部符合预期；iOS/macOS 未验证。
 * **预览抽帧器修复**：`MovaFrameExtractor` 不再创建 `VideoController`（无界面下它的初始化
   永远完不成，Android 上 `extract` 曾 5/5 超时），改为 `vid=auto` + `vo=null` 解码；首次
   seek 前等待时长就绪，并轮询 `seeking`/`time-pos` 判定 seek 落地再截图。

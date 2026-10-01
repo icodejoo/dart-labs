@@ -81,6 +81,14 @@ MovaVolumePort? _defaultVolumePort() {
 ///   `MovaPlayer` 渲染占位符（或你传入的 `surface`）。传入 [kernel] 时本参数
 ///   被忽略。宿主还应关掉拖动预览（`MovaPreviewConfig(enabled: false)`）——
 ///   没有帧可预览
+/// - [tlsVerify]: strict TLS certificate verification (mpv `tls-verify=yes`),
+///   default `false` = nothing sent, libmpv default (no verification on
+///   Android). Ignored when [kernel] is supplied / 严格 TLS 证书校验（mpv
+///   `tls-verify=yes`），默认 `false` 即不下发任何属性、沿用 libmpv 默认（Android
+///   不校验）。传入 [kernel] 时忽略
+/// - [tlsCaFile]: absolute path of a PEM CA bundle (`tls-ca-file`), used only
+///   with [tlsVerify]. Required on Android / PEM 格式 CA 证书包绝对路径
+///   （`tls-ca-file`），仅配合 [tlsVerify] 使用，Android 上必需
 /// - [options]: engine configuration / engine 配置
 /// - [interceptors]: interceptor chain consulted before open/seek/play /
 ///   在 open/seek/play 前咨询的拦截链
@@ -137,6 +145,8 @@ MovaVolumePort? _defaultVolumePort() {
 MovaEngine createMovaEngine({
   MovaKernel? kernel,
   bool audioOnly = false,
+  bool tlsVerify = false,
+  String? tlsCaFile,
   MovaOpts options = const MovaOpts(),
   List<MovaHook> interceptors = const [],
   MovaBrightPort? brightness,
@@ -153,6 +163,8 @@ MovaEngine createMovaEngine({
     kernel: kernel ?? MovaMpvKernel(
       audioOnly: audioOnly,
       lazyVideo: true,
+      tlsVerify: tlsVerify,
+      tlsCaFile: tlsCaFile,
       observeQoeSignals: reporter != null,
       backendFactory: (native, addr) => createFfiMpvEventBackend(native, addr, pollInDebug: kDebugMode),
     ),

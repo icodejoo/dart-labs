@@ -77,15 +77,32 @@ class MovaMpvKernel implements MovaKernel, MovaStatsProbe {
   /// 也成立（此前它只在上一层的 [MovaQoeCollector] 里成立）。
   ///
   /// [backendFactory] 为原生事件提供获取后端的工厂。
+  ///
+  /// [tlsVerify] turns on strict TLS certificate verification (mpv
+  /// `tls-verify=yes`): expired / self-signed / hostname-mismatched HTTPS
+  /// streams are rejected. Default `false` sends no TLS property at all
+  /// (libmpv's own default applies; on Android that means no verification).
+  /// [tlsCaFile] is an absolute path to a PEM CA bundle sent as `tls-ca-file`;
+  /// only used when [tlsVerify] is true. Android's mbedtls backend has no
+  /// system trust store, so verification there needs this file.
+  ///
+  /// [tlsVerify] 开启严格 TLS 证书校验（mpv `tls-verify=yes`）：过期/自签/域名不符
+  /// 的 HTTPS 流会被拒绝。默认 `false`，不下发任何 TLS 属性（沿用 libmpv 自身默认，
+  /// Android 上即不校验）。[tlsCaFile] 为 PEM 格式 CA 证书包的绝对路径，以
+  /// `tls-ca-file` 下发，仅在 [tlsVerify] 为 true 时生效。Android 的 mbedtls 后端
+  /// 没有系统信任库，要校验就需要这个文件。
   MovaMpvKernel({
     Player? player,
     this.audioOnly = false,
     this.lazyVideo = false,
     bool observeQoeSignals = true,
     MovaMpvEventBackendFactory? backendFactory,
+    this.tlsVerify = false,
+    this.tlsCaFile,
   })
     : _player = player ?? Player(),
       _backendFactory = backendFactory {
+    _applyTls();
     if (!audioOnly && !lazyVideo) {
       _controller = VideoController(_player);
     }
@@ -130,6 +147,39 @@ class MovaMpvKernel implements MovaKernel, MovaStatsProbe {
             }
           });
     }
+  }
+
+  /// Whether strict TLS verification was requested.
+  ///
+  /// 是否请求了严格 TLS 校验。
+  final bool tlsVerify;
+
+  /// CA bundle path sent as `tls-ca-file` when [tlsVerify] is on.
+  ///
+  /// [tlsVerify] 开启时以 `tls-ca-file` 下发的 CA 证书包路径。
+  final String? tlsCaFile;
+
+  /// Pending TLS property writes; [open] waits on it. `null` when off.
+  ///
+  /// 尚未落地的 TLS 属性写入，[open] 会等它；未开启时为 `null`。
+  Future<void>? _tlsSetup;
+
+  /// Sends `tls-verify` (and `tls-ca-file`) to mpv; no-op unless [tlsVerify].
+  /// Failures are swallowed so a property error never breaks playback.
+  ///
+  /// 把 `tls-verify`（及 `tls-ca-file`）下发给 mpv；未开启 [tlsVerify] 时什么都不做。
+  /// 失败被吞掉，属性错误不影响播放。
+  void _applyTls() {
+    if (!tlsVerify) return;
+    final native = _player.platform;
+    if (native is! NativePlayer) return;
+    final ca = tlsCaFile;
+    _tlsSetup = () async {
+      try {
+        if (ca != null) await native.setProperty('tls-ca-file', ca);
+        await native.setProperty('tls-verify', 'yes');
+      } catch (_) {}
+    }();
   }
 
   /// 标识内核是否已销毁。
@@ -333,7 +383,10 @@ class MovaMpvKernel implements MovaKernel, MovaStatsProbe {
   }
 
   @override
-  Future<void> open(String uri, {bool play = true}) => _player.open(Media(uri), play: play);
+  Future<void> open(String uri, {bool play = true}) async {
+    await _tlsSetup;
+    await _player.open(Media(uri), play: play);
+  }
 
   @override
   Future<void> play() => _player.play();
