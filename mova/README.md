@@ -404,7 +404,9 @@ runApp(MovaPlayer(api: engine, surface: CoverArt(url: coverUrl)));
 `startupFail`）、卡顿次数与时长（`rebuffer`）、播放失败 fatal/非 fatal 区分
 （`MovaErrorEvent` 补 `fatal`/`code`）、会话开始/结束（`sessionStart`/`sessionEnd`，
 `reason` 为 `ended`/`stopped`/`failed`/`abandoned` 四分之一）。默认 **关闭**，
-不开启时事件流与不传 `report` 逐字节相同。
+不开启时事件流与不传 `report` 逐字节相同。点播会话以 EOF 结束但完播率低于
+`MovaReportConfig.truncatedBelow`（默认 `0.9`，`<=0` 关闭）时，按截断处理：先发 fatal 的
+`MovaErrorEvent`（`code: truncated`），`sessionEnd.reason` 记 `failed`，而不是 `ended`。
 
 ```dart
 final engine = createMovaEngine(

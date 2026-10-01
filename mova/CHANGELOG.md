@@ -35,6 +35,10 @@
   撞 8 秒超时），懒创建后"创建 engine 却不展示"的销毁只需十几毫秒。无缝切换的影子引擎
   创建后会主动读一次 `renderHandle`，预热期间仍有画面管线。**若调用方自己创建并注入
   `VideoController`，需自行保证它挂到 UI 后再销毁**（见 README「已知限制」）。
+* **截断结束判定**：`qoe: true` 时，点播会话以 EOF 结束但完播率低于 `MovaReportConfig.truncatedBelow`（默认 `0.9`，`<=0` 关闭）
+  不再记 `ended`，改为先发 fatal 的 `MovaErrorEvent`（`code: truncated`）、再记 `failed`；直播无 duration，
+  仅在 `MovaDone` 前 5 秒内有 ffmpeg 错误日志时才判截断。修正首帧后断网/服务端中途断流被误记 `ended` 的问题
+  （Android 真机中途断流复测通过）。
 * **预览抽帧器修复**：`MovaFrameExtractor` 不再创建 `VideoController`（无界面下它的初始化
   永远完不成，Android 上 `extract` 曾 5/5 超时），改为 `vid=auto` + `vo=null` 解码；首次
   seek 前等待时长就绪，并轮询 `seeking`/`time-pos` 判定 seek 落地再截图。

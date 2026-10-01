@@ -300,6 +300,7 @@ completed"这条优先级——这是一处严格增强，不是替换，旧函�
 | `vd` / `ad` | `decode.video` / `decode.audio` | 单帧/单包解码失败 | ❌ |
 | `cplayer` | `player` | 核心层 | ✅ |
 | 其他 / 无 prefix | `unknown` | — | ❌ |
+| （合成）EOF 但完播率 < `truncatedBelow`（默认 0.9） | `truncated` | 服务端静默断流（FIN），ffmpeg 当正常 EOF，无 error 事件；会话记 `failed`；直播/无 duration 仅在 EOF 前 5s 内有 ffmpeg error 日志时才判 | ✅ |
 
 ```dart
 /// Decides whether a playback error is fatal and what stable code it carries.

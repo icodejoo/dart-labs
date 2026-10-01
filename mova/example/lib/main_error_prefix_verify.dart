@@ -159,17 +159,22 @@ Future<void> _run() async {
       await _once(e.key, i, e.value, waitFor: short);
     }
   }
-  if (kOnly.isNotEmpty) {
+  if (kOnly.isNotEmpty && kOnly != 'cutmid') {
     _out('ALL_DONE');
     return;
   }
   // 中途断流：服务器发一部分后正常关闭 / RST。
   for (final tag in ['cutmid', 'reset']) {
+    if (kOnly == 'cutmid' && tag != 'cutmid') continue;
     for (var i = 1; i <= kRepeats; i++) {
       await _once(tag, i, '$kHttp/$tag.m4a', waitFor: const Duration(seconds: 15));
     }
   }
   // 开播前断网。
+  if (kOnly == 'cutmid') {
+    _out('ALL_DONE');
+    return;
+  }
   for (var i = 1; i <= kRepeats; i++) {
     await _setNet(false);
     await _once('netoff_before_first_frame', i, kLiveHttps, waitFor: const Duration(seconds: 15));

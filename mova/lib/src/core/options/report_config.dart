@@ -50,6 +50,16 @@ class MovaReportConfig {
   /// 可注入的会话 ID 工厂；为 `null` 时选用 [newMovaSessionId]。
   final MovaSessionIdFactory? sessionId;
 
+  /// A VOD session that ends at EOF with a completion ratio below this is
+  /// recorded as `failed` with error code `truncated` instead of `ended`
+  /// (a silent server cut-off looks like a normal EOF to mpv). `<= 0` disables
+  /// it. Only effective when [qoe] is on.
+  ///
+  /// 点播会话以 EOF 结束但完播率低于此值时，记为 `failed` + 错误码 `truncated`，
+  /// 而非 `ended`（服务端静默断流在 mpv 看来就是正常 EOF）。`<= 0` 禁用。仅在
+  /// [qoe] 开启时生效。
+  final double truncatedBelow;
+
   /// Creates a telemetry config; every field defaults to off/default.
   ///
   /// 创建一份埋点配置；每个字段默认关闭/使用默认值。
@@ -60,6 +70,7 @@ class MovaReportConfig {
     this.stallPolicy,
     this.errorPolicy,
     this.sessionId,
+    this.truncatedBelow = 0.9,
   });
 
   /// A fresh stall policy instance; policies carry per-session state, so a
@@ -95,6 +106,7 @@ class MovaReportConfig {
     MovaStallPolicy? stallPolicy,
     MovaErrorPolicy? errorPolicy,
     MovaSessionIdFactory? sessionId,
+    double? truncatedBelow,
   }) {
     return MovaReportConfig(
       qoe: qoe ?? this.qoe,
@@ -103,6 +115,7 @@ class MovaReportConfig {
       stallPolicy: stallPolicy ?? this.stallPolicy,
       errorPolicy: errorPolicy ?? this.errorPolicy,
       sessionId: sessionId ?? this.sessionId,
+      truncatedBelow: truncatedBelow ?? this.truncatedBelow,
     );
   }
 
@@ -116,9 +129,10 @@ class MovaReportConfig {
           heartbeat == other.heartbeat &&
           stallPolicy == other.stallPolicy &&
           errorPolicy == other.errorPolicy &&
-          sessionId == other.sessionId;
+          sessionId == other.sessionId &&
+          truncatedBelow == other.truncatedBelow;
 
   @override
   int get hashCode =>
-      Object.hash(qoe, minStall, heartbeat, stallPolicy, errorPolicy, sessionId);
+      Object.hash(qoe, minStall, heartbeat, stallPolicy, errorPolicy, sessionId, truncatedBelow);
 }

@@ -9,6 +9,7 @@ import 'session.dart';
 import 'stall.dart';
 import 'stats_probe.dart';
 import 'translator.dart';
+import 'truncation.dart';
 import 'ttff.dart';
 
 /// How close in wall-clock time a `MovaErrorEvent` and a [MovaLogLine] must
@@ -104,6 +105,23 @@ class MovaQoeCollector {
   MovaLogLine? _pendingLog;
   DateTime? _pendingLogAt;
 
+  /// Furthest position seen after the first frame landed (excludes the
+  /// previous clip's residual positions that arrive right after `open()`).
+  ///
+  /// 首帧落地后见到的最远位置（排除 `open()` 后紧跟的上一素材残留位置）。
+  int _validMaxPositionMs = 0;
+
+  /// When the latest ffmpeg-prefixed error log arrived this session.
+  ///
+  /// 本会话最近一条 ffmpeg 前缀错误日志的到达时间。
+  DateTime? _lastFfmpegErrorAt;
+
+  /// Whether an ffmpeg error log landed within [movaTruncationLogWindow]
+  /// before `MovaDone`.
+  ///
+  /// `MovaDone` 之前 [movaTruncationLogWindow] 内是否出现过 ffmpeg 错误日志。
+  bool _ffmpegErrorBeforeDone = false;
+
   /// Marks the start of a new session; called from the first line of
   /// `MovaEngine.open`.
   ///
@@ -132,6 +150,9 @@ class MovaQoeCollector {
     _lastStalled = false;
     _playing = false;
     _lastEndFileReason = null;
+    _validMaxPositionMs = 0;
+    _lastFfmpegErrorAt = null;
+    _ffmpegErrorBeforeDone = false;
     _tally.setPlaying(false);
     _tally.setStalled(false);
     _stallPolicy = _config.newStallPolicy();
@@ -260,12 +281,39 @@ class MovaQoeCollector {
   void _emitSessionEnd(DateTime at) {
     // 2026-09-29 架构更新：优先用原生 `MPV_EVENT_END_FILE` 原因佐证（未到达时
     // 严格退化为旧的 resolveSessionEnd 行为，见 resolveSessionEndNative 文档）。
-    final reason = resolveSessionEndNative(
+    final baseReason = resolveSessionEndNative(
       nativeReason: _lastEndFileReason,
       fatalSeen: _fatalSeen,
       completed: _completed,
       firstFrame: _ttff.landed,
     );
+    var reason = baseReason;
+    if (baseReason == MovaSessionEnd.ended &&
+        resolveTruncated(
+          threshold: _config.truncatedBelow,
+          durationMs: _tally.durationMs,
+          validPositionMs: _validMaxPositionMs,
+          isLiveSource: _streamType == MovaStreamType.live,
+          ffmpegErrorBeforeEof: _ffmpegErrorBeforeDone,
+        )) {
+      // EOF 但没播够：服务端静默断流，改记 failed + truncated。
+      reason = MovaSessionEnd.failed;
+      final durationMs = _tally.durationMs;
+      _emit(MovaReportEvent(
+        kind: MovaReportKind.error,
+        name: MovaReportName.error,
+        params: {
+          'error': durationMs > 0
+              ? 'truncated: EOF at $_validMaxPositionMs/$durationMs ms'
+              : 'truncated: EOF after ffmpeg error',
+          'fatal': true,
+          'code': movaTruncatedCode,
+        },
+        priority: MovaReportPriority.immediate,
+        at: at,
+        sessionId: _sessionId,
+      ));
+    }
     final params = <String, dynamic>{
       'reason': reason.name,
       'watchedMs': _tally.watchedMs,
@@ -296,6 +344,9 @@ class MovaQoeCollector {
   void onPosition(Duration position) {
     if (!_sessionOpen || !_config.qoe) return;
     _tally.recordPosition(position);
+    if (_ttff.landed && position.inMilliseconds > _validMaxPositionMs) {
+      _validMaxPositionMs = position.inMilliseconds;
+    }
     if (_nativeRestartLive) return;
     final at = _now();
     final elapsed = _ttff.onProgress(position, at);
@@ -428,6 +479,8 @@ class MovaQoeCollector {
         _playing = false;
       case MovaDone():
         _completed = true;
+        final errAt = _lastFfmpegErrorAt;
+        _ffmpegErrorBeforeDone = errAt != null && at.difference(errAt) <= movaTruncationLogWindow;
       case MovaDurationChange(:final duration):
         _tally.setDuration(duration);
       case MovaQualityChange():
@@ -566,6 +619,7 @@ class MovaQoeCollector {
   }
 
   void _onLog(MovaLogLine line) {
+    if (line.prefix == 'ffmpeg') _lastFfmpegErrorAt = _now();
     _pendingLog = line;
     _pendingLogAt = _now();
   }
