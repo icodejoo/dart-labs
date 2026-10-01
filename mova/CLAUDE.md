@@ -375,10 +375,10 @@ sub-text 轮询证据、截图路径）见
 `--disable-runtime-cpudetect` 这类 arm64 专属优化仍未验证能否照搬到其余架构；② 历史 Windows
 spike 数据（ffmpeg 单独 6.26MB，省 79%）已被 Android 真机数据取代，仅供参考，见
 [../mova-libmpv/doc/plans/2026-07-31-ffmpeg-slim-build-windows.md](../mova-libmpv/doc/plans/2026-07-31-ffmpeg-slim-build-windows.md)。
-**字幕相关选项（libass/subrandr/uchardet）明确保留待定，不要关**——用户认为 mpv
-原生字幕渲染可能有用，等瘦身构建实测出体积数字后再权衡（与
-[doc/notes/2026-07-31-stt-subtitle-feasibility.md](doc/notes/2026-07-31-stt-subtitle-feasibility.md)
-的"Flutter 侧字幕组件 vs mpv 原生渲染"架构决策一并拍板）。**顺带待办**：自建时可直接
+**字幕栈（libass 全套）已定：保留，不砍**（2026-08-12 评估，详见
+[../mova-libmpv/README.md](../mova-libmpv/README.md)「字幕栈瘦身评估」：libass 无法只删特效留基础，
+harfbuzz/fribidi 是其硬依赖；且同一条 libass 管线还能承接翻译/STT 动态字幕）。字幕相关瘦身到此为止。
+**顺带待办**：自建时可直接
 导出一个轻量 FFI 抽帧函数（如 `vm_extract_thumbnail(uri, atMs, width) -> jpegBytes`，
 内部走 `libavformat`+`libswscale`），替换现有"开一个完整隐藏 `Player` 抽帧"的重量级
 方案（受限于 mpv `screenshot()` 不支持缩放，见
