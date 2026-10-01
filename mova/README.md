@@ -62,7 +62,7 @@ Flutter 视频播放库，自研手势与控制层，支持点播与直播。
 
 ```yaml
 dependencies:
-  mova: ^0.1.0
+  mova: ^0.3.0
 ```
 
 Android 要用画中画，需在 `AndroidManifest.xml` 的 Activity 上声明：

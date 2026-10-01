@@ -14,13 +14,11 @@
 >    **设计意图看 DESIGN，签名与落点一律以代码和 [doc/SPEC.md](doc/SPEC.md) 末节为准。**
 > 3. **各阶段的逐 Task 实现计划都在 [doc/plans/](doc/plans/)**，按功能分文件存放，按 Task
 >    顺序执行即可。
-> 4. **pub.dev 上的已发布版本落后于本仓库 main 分支**：`pub.dev/packages/mova` 当前挂的
->    是 `0.1.0`（2026-09-25 核实，依赖官方 `media_kit`/`media_kit_video`/
->    `media_kit_libs_video`，非本仓库自建瘦身版 libmpv），本地 `pubspec.yaml` 的
->    `version:` 字段也仍是 `0.1.0`——而下文"当前状态"记录的功能（小窗、广告编排、
->    无缝切换、清晰度自适应、仅音频模式等）**已合并进 main 但从未随新版本号重新
->    发布**。引用方从 pub.dev 拿到的包不含这些能力，回答"能不能用某功能"前
->    先确认对方拿到的是 pub.dev 版本还是本仓库 path/git 依赖。
+> 4. **pub.dev 版本对照**：已发布 `0.1.0`、`0.2.0`（`0.2.0` 只含瘦身 libmpv 说明、Feed 播放器增强、
+>    文档修复，见 CHANGELOG 的 `0.2.0` 节）。下文"当前状态"记录的功能（小窗、广告编排、无缝切换、清晰度
+>    自适应、仅音频模式、QoE、TLS 开关等）属于 `0.3.0`（本地 `pubspec.yaml`/`ios/mova.podspec`/README 均已对齐
+>    `0.3.0`），**发布后**才进入 pub.dev。回答"能不能用某功能"前先确认对方拿到的是 pub.dev 哪个版本还是本仓库
+>    path/git 依赖。注意：下文各节标题里的"0.2.0"是历史合并记法，版本号现以 pubspec 为准。
 > 5. **mova 已回到 pub.dev 的 `media_kit: ^1.2.6`，不再依赖 git 提交**（2026-09-30）：
 >    原生 mpv 事件（`PLAYBACK_RESTART`/`END_FILE`）改由自建的 dart:ffi 弱客户端订阅
 >    （`core/kernel/mpv_event_pump.dart` + `platform_impl/mpv_event_backend_ffi.dart`），

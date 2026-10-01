@@ -1,9 +1,5 @@
-## 0.2.0
+## 0.3.0
 
-* 瘦身版 libmpv 接入支持：提供轻量二进制替换方案（覆盖 Android / Windows / iOS / macOS），体积缩减约 50%。
-* Feed 沉浸式流播放器增强：包含短视频滑动、预加载与抖音风格皮肤定制。
-* 修复 `MovaFeedPlayer` 中 `ensure()` 异步回调类型推断警告。
-* 完善文档与接入范式。
 * 埋点上报增强：`MovaReporter` 补齐 TTFF 首帧耗时、卡顿次数与时长、播放失败
   fatal/非 fatal 区分、会话开始/结束（含四分结束原因）四大 QoE 指标；新增
   `MovaReportConfig`（`MovaOpts.report`，默认 `qoe: false`，关闭态事件流与之前
@@ -49,6 +45,13 @@
   seek 前等待时长就绪，并轮询 `seeking`/`time-pos` 判定 seek 落地再截图。
   * **行为变化**：`settleDelay` 的含义从"seek 之后固定等待"变为"seek **落地之后**的额外
     等待"，默认值从 250ms 降为 60ms；若你显式传入了自己的值，请按新含义重新评估。
+
+## 0.2.0
+
+* 瘦身版 libmpv 接入支持：提供轻量二进制替换方案（覆盖 Android / Windows / iOS / macOS），体积缩减约 50%。
+* Feed 沉浸式流播放器增强：包含短视频滑动、预加载与抖音风格皮肤定制。
+* 修复 `MovaFeedPlayer` 中 `ensure()` 异步回调类型推断警告。
+* 完善文档与接入范式。
 
 ## 0.1.0
 
