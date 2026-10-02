@@ -14,7 +14,7 @@
 ## whep.c 当前能力（T1.2）
 
 - URL：`whep+http://`、`whep+https://`、`whep://`（`whep://` 默认走 **https**，明文 http 必须显式写 `whep+http://`）。
-- offer：recvonly、opus + H264（三档 profile，各带 RTX）、`rtcp-fb nack` / `nack pli`、`setup:actpass`、`sha-256` 指纹、随机 ice-ufrag/pwd。payload type 只是提议，**以 answer 为准**。
+- offer：`o=` 行 sess-id 为 `AV_RB64(随机)&INT64_MAX` 的**十进制**（RFC 4566；十六进制会被 MediaMTX/pion 以 400 拒绝）；recvonly、opus + H264（三档 profile，各带 RTX）、`rtcp-fb nack` / `nack pli`、`setup:actpass`、`sha-256` 指纹、随机 ice-ufrag/pwd。payload type 只是提议，**以 answer 为准**。
 - 信令：`POST`（`Content-Type: application/sdp`，可选 `Authorization: Bearer`），读 201 的 `Location`（相对地址会被 http 层解析成绝对地址）、`Link: rel="ice-server"`；关闭时 `DELETE`。read_header 失败（例如 answer 无指纹）也会 `DELETE` 已建立的会话（`FF_INFMT_FLAG_INIT_CLEANUP`）。
 - answer 解析：自写最小子集（不复用 `rtsp.c` 的 `ff_sdp_parse`）。必填 ice-ufrag/pwd、格式合法的 sha-256 指纹、`a=setup`、一个 UDP 候选、至少一条 opus/H264。缺指纹、算法不是 sha-256、格式不对一律拒绝。
 - 建流：按 answer 的 m= 行顺序挑 codec，建 H264（取 profile/level）与 Opus（48k）两条 AVStream。
@@ -35,6 +35,7 @@
 - 信令阶段超时（服务端已建会话但响应没回来）时客户端拿不到 `Location`，无法 `DELETE`，只能等服务端自己回收。
 - mpv 侧目前只认 `whep:`（`patches/mpv-v041/0003`）；`whep+http(s)://` 要在 mpv 里使用，需要额外的 mpv 补丁，见 `../mpv-v041/README.md`。
 - T1.3 需要 mpv 的协议白名单放行 `udp`、`dtls`、`srtp`（`stream_lavf.c` 的 `get_safe_protocols()` 会按 ffmpeg 实际编进去的协议过滤，**未验证**）。
+- 真实服务端（MediaMTX）仅验证了信令；它的 answer 是 `setup:active`、无 RTX、无 `Link: ice-server`，T1.3 需据此实现（我方当 DTLS server）。ffprobe 因媒体是桩会报 `Could not find codec parameters for stream 1`（无 SPS/分辨率），属预期。
 - 只在 Linux + OpenSSL 上编译验证过；Windows（SChannel）、Android（mbedtls）未编。
 
 ## 验证
@@ -45,6 +46,14 @@ python3 tools/whep-flavor/mock_whep_signal.py --port 18090 --token tok123
 # 2) 用带 whep 的 ffprobe 打开（-v verbose 能看到 offer / answer / 流 / DELETE）
 ffprobe -v verbose -f whep -token tok123 -i whep+http://127.0.0.1:18090/x
 ```
+
+mock 会校验 offer 的 `o=` 行 sess-id/version 为 ≤2^63-1 的纯十进制（旧版 mock 漏检，已补）。
+
+真实服务端（MediaMTX v1.21.1，WSL `/root/w/whep-target`，见 `doc/notes/2026-10-02-whep-target-setup.md`）：
+```
+ffprobe -v verbose -f whep -i whep+http://127.0.0.1:8889/test/whep
+```
+2026-10-02 实测：201、相对 `Location` 被解析为绝对地址、answer 解析成功、建出 opus+h264 两条流、关闭时 DELETE 到达（再 DELETE 同一资源返回 404）；通过 mpv（libmpv smoke）打开 `whep+http://` 同样信令通过，随后因媒体桩 EOF 结束（`no audio or video data played`）。
 
 mock 的错误场景路径：`/nf`(404) `/unauth`(401) `/nofp` `/badfp` `/sha1` `/nocand` `/bad` `/empty` `/slow`，正常变体 `/remap`（payload type 换成 97/99/100）。详见 `tools/whep-flavor/mock_whep_signal.py` 文件头。
 

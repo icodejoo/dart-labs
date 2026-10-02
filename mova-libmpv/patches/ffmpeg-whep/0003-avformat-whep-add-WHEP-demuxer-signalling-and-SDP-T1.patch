@@ -5,16 +5,16 @@ Subject: [PATCH 3/3] avformat/whep: add WHEP demuxer (signalling and SDP,
  T1.2)
 
 ---
- libavformat/whep.c | 893 +++++++++++++++++++++++++++++++++++++++++++++
- 1 file changed, 893 insertions(+)
+ libavformat/whep.c | 895 +++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 895 insertions(+)
  create mode 100755 libavformat/whep.c
 
 diff --git a/libavformat/whep.c b/libavformat/whep.c
 new file mode 100755
-index 0000000..22ba5c1
+index 0000000..22046d0
 --- /dev/null
 +++ b/libavformat/whep.c
-@@ -0,0 +1,893 @@
+@@ -0,0 +1,895 @@
 +/*
 + * WHEP (WebRTC-HTTP egress protocol) demuxer - 信令与 SDP 部分
 + *
@@ -46,6 +46,7 @@ index 0000000..22ba5c1
 +#include "libavutil/avstring.h"
 +#include "libavutil/bprint.h"
 +#include "libavutil/channel_layout.h"
++#include "libavutil/intreadwrite.h"
 +#include "libavutil/mem.h"
 +#include "libavutil/opt.h"
 +#include "libavutil/random_seed.h"
@@ -236,7 +237,7 @@ index 0000000..22ba5c1
 +{
 +    WHEPContext *w = s->priv_data;
 +    uint8_t rnd[8 + 16 + 8];
-+    char sess_id[17];
++    uint64_t sess_id;
 +    AVBPrint bp;
 +    int ret;
 +    /* H264 profile-level-id：constrained baseline / main / high，PT 102..104，RTX 112..114 */
@@ -248,12 +249,13 @@ index 0000000..22ba5c1
 +    }
 +    ff_data_to_hex(w->ice_ufrag_local, rnd, 4, 1);          /* 8 hex */
 +    ff_data_to_hex(w->ice_pwd_local, rnd + 8, 16, 1);       /* 32 hex */
-+    ff_data_to_hex(sess_id, rnd + 24, 8, 1);                /* 16 hex */
++    /* RFC 4566 sess-id 必须是十进制数字；&INT64_MAX 以防对端按有符号解析 */
++    sess_id = AV_RB64(rnd + 24) & INT64_MAX;
 +
 +    av_bprint_init(&bp, 1, WHEP_MAX_SDP_SIZE);
 +    av_bprintf(&bp,
 +        "v=0\r\n"
-+        "o=FFmpeg %s 2 IN IP4 127.0.0.1\r\n"
++        "o=FFmpeg %"PRIu64" 2 IN IP4 127.0.0.1\r\n"
 +        "s=FFmpegWhepSession\r\n"
 +        "t=0 0\r\n"
 +        "a=group:BUNDLE 0 1\r\n"

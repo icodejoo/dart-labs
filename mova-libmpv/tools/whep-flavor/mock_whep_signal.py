@@ -62,6 +62,16 @@ def check_offer(body, headers):
     nb = body.replace("\r\n", "\n")  # 正则按 LF 匹配
     if not body.endswith("\r\n"):
         problems.append("offer 末尾没有 CRLF")
+    # RFC 4566 o=<user> <sess-id> <sess-version> IN IP4 <addr>：id/version 必须纯十进制，
+    # 且 <= 2^63-1（MediaMTX/pion 实测：十六进制 id 直接 400）
+    o_line = lines[1] if len(lines) > 1 else ""
+    om = re.match(r"^o=(\S+) (\S+) (\S+) IN IP4 (\S+)$", o_line)
+    if not om:
+        problems.append("o= 行格式不对: %r" % o_line)
+    else:
+        for nm, v in (("sess-id", om.group(2)), ("sess-version", om.group(3))):
+            if not re.fullmatch(r"[0-9]+", v) or int(v) > 2**63 - 1:
+                problems.append("o= %s 不是 <=2^63-1 的纯十进制数字: %r" % (nm, v))
     ms = [l for l in lines if l.startswith("m=")]
     if [l.split()[0] for l in ms] != ["m=audio", "m=video"]:
         problems.append("m= 段不是 audio,video: %r" % ms)
