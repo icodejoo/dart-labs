@@ -10,7 +10,23 @@
 
 ## 当前状态与下一步（交接，2026-10-02）
 
-**状态：规划与选型调研已完成，代码一行未动。** 分支 `feat/whep-receiver`（已推送 codeup 与 GitHub），下一步从 **T0.1（建回归基线）** 开始。
+**状态（2026-10-02 深夜更新）：WHEP 核心已落地并在三个后端上端到端验证，余下为平台整合验证与收尾。** 分支 `feat/whep-receiver`。补丁序列 `patches/ffmpeg-whep/0001–0010`（README 有总表），mpv 补丁 `patches/mpv-v041/0001–0004`，Android 构建链 `patches/android-v041/`，各平台构建脚本 `tools/whep-flavor/{build-linux,build-windows}.sh`、`patches/android-v041/e2e-arm64.sh`。
+
+已完成并有实测证据（笔记都在 `doc/notes/2026-10-02-*`）：
+- 阶段 0 的 T0.1–T0.4、T0.6，T-L1 骨架（法务复核未做）；T0.5/T0.7 以"本地整合构建"形式覆盖（Windows 已做，darwin/iOS 按 D2 本期不做）。
+- 阶段 1：T1.1–T1.5（骨架、信令/SDP、ICE+DTLS+SRTP、RTP 出帧、RTCP PLI/RR/NACK）。对真实 MediaMTX：Linux(OpenSSL/mbedtls)、Windows(SChannel，profile 须 0x0100)、Android 真机(mbedtls，经 UDP-over-TCP 中继)均出画；回环 5% 随机丢包下 NACK 使视频最终丢包降为 0。
+- 体积增量（WHEP 相对无 WHEP）：Linux +20.5KB→(+RTCP)约 +28KB；Android arm64 +34KB（6,319,792→6,353,936）；Windows +28KB（14,482,432→14,510,592）。
+- mova 侧：默认 Player 白名单放行 `dtls`、过滤无害 `Cannot seek` 错误（测试基线 1014）。
+
+**下次继续（按优先级）**：
+1. Android 手机接上同网段 Wi-Fi，用 `patches/android-v041/e2e-arm64.sh` 产物重跑 `mova/example/lib/main_whep_verify.dart`，验真实 UDP 与 0010 的 PLI/NACK（手机此前被拿走，未验）。
+2. 用会响应 PLI 的服务端（SRS 等）复测 PLI 起播收益（MediaMTX 不响应）；RTX 与 TWCC 未做。
+3. CI 真实 flavor 终验（workflow 已参数化 ffmpeg_ref/mpv_ref/commit_artifact，**不要合并到 main**，否则 push 会重建并回写 packages/ 产物）；默认线 `--disable-bsfs`（-340KB）需 Android 真机回归。
+4. Windows：vo/ao 真实渲染链路未测；`whep_tamper_proxy.py` 在 Windows 上第一个会话后会因 `WSAECONNRESET` 崩溃（测试工具缺陷）。
+5. 法务复核（MPL-2.0 移植与 LGPLv3 合并分发）；`packages/media_kit_libs_android_video_slim_v041/`（6.5MB 二进制）是否入库/LFS 待定。
+6. VP9 硬解在 v0.41 起播变慢（未定位，非 WHEP 路径）。
+
+以下为历史交接内容（保留作背景）：分支 `feat/whep-receiver`，T0.1 之前的状态。
 
 已定的关键决策（细节见 §0.1、§8.2、T0.2 修订）：
 - ffmpeg 升到 **n9.0.2**；mpv 用 **v0.41.0**（不再钉死旧 commit）+ 最小静态 libplacebo + **摘 `vo_gpu_next`** 补丁；兼容补丁 `pin-n9-compat.patch` 作废。
