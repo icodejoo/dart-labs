@@ -9,6 +9,7 @@
 | 0002 | `0002-avformat-http-expose-Link-response-headers.patch` | `http.c` 记录响应里的 `Link` 头，新增内部函数 `ff_http_get_link_headers()`；WHEP 靠它读 `rel="ice-server"`（n9.0.2 的 http 层不暴露任意响应头） |
 | 0003 | `0003-avformat-whep-add-WHEP-demuxer-signalling-and-SDP-T1.patch` | 新增 `libavformat/whep.c`：T1.2 的信令与 SDP（见下） |
 | 0004 | `0004-avformat-whep-ICE-DTLS-SRTP-key-export-T1.3-stage-A.patch` | T1.3 阶段 A：`whep.c` 加 ICE 连通性检查 + DTLS(server) 握手 + 指纹校验 + SRTP 密钥导出；`tls_openssl.c`/`tls.h` 加 `ff_dtls_get_peer_fingerprint()`、DTLS server 请求客户端证书、握手循环响应中断回调 |
+| 0005 | `0005-avformat-whep-SRTP-decrypt-and-RTP-depacketize-T1.3-stage-B.patch` | T1.3 阶段 B：只改 `whep.c`。握手后真正收媒体：UDP 分流（STUN/DTLS/RTP/RTCP）、SRTP 解密、RTP 重排、H.264/Opus 解包出 AVPacket，周期 consent 检查与存活检测，新增 `media_timeout` 选项 |
 
 编号说明：0003 依赖 0002 的 `ff_http_get_link_headers`，所以 http 补丁排在 whep.c 前面。
 
@@ -19,7 +20,7 @@
 - 信令：`POST`（`Content-Type: application/sdp`，可选 `Authorization: Bearer`），读 201 的 `Location`（相对地址会被 http 层解析成绝对地址）、`Link: rel="ice-server"`；关闭时 `DELETE`。read_header 失败（例如 answer 无指纹）也会 `DELETE` 已建立的会话（`FF_INFMT_FLAG_INIT_CLEANUP`）。
 - answer 解析：自写最小子集（不复用 `rtsp.c` 的 `ff_sdp_parse`）。必填 ice-ufrag/pwd、格式合法的 sha-256 指纹、`a=setup`、一个 UDP 候选、至少一条 opus/H264。缺指纹、算法不是 sha-256、格式不对一律拒绝。
 - 建流：按 answer 的 m= 行顺序挑 codec，建 H264（取 profile/level）与 Opus（48k）两条 AVStream。
-- **未实现**：SRTP 解密与 STUN 保活（T1.3 阶段 B）、RTP 解包（T1.4）、RTCP 反馈（T1.5）。`read_packet` 当前仍是桩，直接返回 `AVERROR_EOF`。
+- 媒体接收见下文「T1.3 阶段 B」；**未实现**：RTCP 反馈（RR/NACK/PLI，T1.5）、RTX、TWCC、Windows/Android 后端。
 
 ## 媒体通路（T1.3 阶段 A，0004）
 
@@ -32,9 +33,31 @@
 - **tls 层改动**（影响所有 DTLS-SRTP server 用户，包括 whip 作 passive 时）：DTLS server 现在会发 CertificateRequest（WebRTC 双向证书要求；用接受任意证书的校验回调，信任只来自指纹比对）；`dtls_handshake` 的轮询循环检查 `interrupt_callback` 且单次等待不超过 100ms，使 `handshake_timeout` 能打断握手。
 - **超时/错误**：整个 ICE + DTLS 受 `handshake_timeout` 约束；任何失败 `read_header` 返回负值，`read_close` 仍会 DELETE 已建立的会话。
 
-### 阶段 B 必须接着做（未做）
+## 媒体接收（T1.3 阶段 B，0005）
 
-握手结束后 `whep_media_read` 仍是桩，ICE 保活没人应答：MediaMTX（pion）的 ICE 检查请求在握手之后还会周期性到来（**推断**，阶段 A 的探测会话只存活几十毫秒，未观察到），阶段 B 的读循环必须继续应答 STUN（`whep_stun_verify` + `whep_ice_build_response` 已可复用），否则服务端 consent 可能超时断开。另外 SRTP 解密、重放窗口、RTP/RTCP 分流都在阶段 B。
+`read_packet` 阻塞在 UDP 上（每 20ms 一轮：查中断回调、做周期事务、再收包），一个数据报的处理流程：
+
+1. **分流**（RFC 7983/5761）：首字节 0..3 为 STUN，20..63 为 DTLS，128..191 为 RTP/RTCP；RTCP 以第二字节 192..223 判断（rtcp-mux）。STUN 复用阶段 A 的 `whep_stun_verify` / `whep_ice_build_response`（抽成 `whep_stun_input`，ICE 阶段与媒体阶段共用）。握手后收到的 DTLS 记录（含 alert）**直接忽略**，不据此断流（未经认证的 alert 不能让流被伪造中断），断线靠存活检测。
+2. **SRTP**：材料布局 `client_key|server_key|client_salt|server_salt`。我方是 DTLS server，对端（client）用 **client 写密钥**加密，所以接收解密用 `client_key + client_salt`（与 `whip.c` 被动端约定一致；server 密钥是我方发送用的，WHEP 不发 SRTP 故不用；以后发 RTCP 反馈时才用到）。每路媒体一个独立 `SRTPContext`——`ff_srtp_decrypt` 只有一份 seq/ROC 状态，音视频共用会互相污染。认证失败的包丢弃并计数（日志按 2 的幂次限频）；SRTP 层本身无重放窗口，重复/过旧包由下面的序号重排丢弃。套件只有 `SRTP_AES128_CM_HMAC_SHA1_80`。
+3. **RTP 重排**：每路 32 包的乱序缓存，缺口最多等 80ms，等不到就跳过并记丢包；序号跳变 ≥32 直接重新对齐。过旧/重复/非首个 SSRC 的包计入 `late/dup`。
+4. **解包**：自写，不用 ffmpeg 的 `rtpdec`（原因见下）。H.264：单 NAL、STAP-A、FU-A，转 Annex B，marker 位或时间戳变化结束一帧，输出整帧 AVPacket；**第一个 IDR 之前的帧丢弃**；不完整的帧（FU-A 缺片/缺口）丢弃。Opus：载荷即包，按 TOC 填 duration，extradata 在建流时写 OpusHead。
+5. **时间戳**：各流以首包为 0 展开 32 位回绕，再叠加"该流首包相对全局首包的到达时间差"以对齐音视频；还没有用 RTCP SR 校准（T1.5）。pts 单位为各流 clock（H.264 90k，Opus 48k）。
+6. **consent / 存活**：每 2.5s 向对端发一次 STUN 检查（同阶段 A 的请求格式）；任何经认证的对端数据（RTP、RTCP、STUN 请求/响应）都刷新存活时间，`media_timeout`（默认 5s）内没有就返回 `ETIMEDOUT`。服务端自己也每约 2s 发检查，我们都应答。
+7. **RTCP**：解密校验后只处理 BYE（该路标记结束，所有路都 BYE 则 `EOF`），SR 暂不使用。**不发 RR / NACK / PLI**。
+8. **中断**：阻塞等待，但每 20ms 检查 `interrupt_callback`，返回 `AVERROR_EXIT`。**刻意不返回 `EAGAIN`**：mpv 的 `demux_lavf` 把连续 10 次读包错误（包括 EAGAIN）当致命错误，实测 `EAGAIN` 方案会在直播源停流约 0.5s 后误杀播放；阻塞读 + 中断回调实测 mpv 销毁耗时 20–39ms。
+9. 关闭仍 `DELETE`；verbose 日志在关闭时打印每路计数（packets/auth_fail/late/lost/frames/dropped_frames/before_keyframe）与 STUN 计数。
+
+**为什么不用 `rtpdec`**（实测）：`rtpdec.c` 里有一张列出全部 payload handler 的静态表，只要链接 `rtpdec.o` 就会把 asf/rm/qt/mpegts 等 handler 全部拖进来，configure 的 `rtpdec_select` 还会强制启用 `asf_demuxer`/`rm_demuxer`。对照构建（同参数、`-Os` + `--gc-sections` 的 ffprobe，仅 `whep` 与 `whep,sdp` 之差，后者经 `sdp_demuxer_select="rtpdec"` 引入 rtpdec）：stripped 1,501,376 -> 1,845,696 字节，**+344,320（+23%）**，而自写解包只让 `whep.o` 的 text 从 14,939 增到 20,743（+5.8KB）。另外 `rtpdec` 的 SRTP 认证失败不可计数、重排队列需要缓冲区所有权约定，收益不抵代价。
+
+### 阶段 B 的已知限制 / 未做
+
+- **起播等 IDR**：没有 PLI，首帧要等下一个 IDR（测试源 GOP=50 帧即最多 2s）。ffprobe 约 1.9s，mpv 约 2–3s 出画面。T1.5 的 PLI（连接后立刻请求关键帧）可以消掉这段等待——这是 T1.5 的第一项。
+- **丢包后画面**：不完整的帧被丢弃，但后续 P 帧仍会送给解码器，会有花屏直到下一个 IDR（没有 NACK/PLI 就无法修复）。丢包时音频靠解码器 PLC。
+- **不发 RR**：实测 MediaMTX v1.21.1 在不发任何 RTCP 的情况下连续播 40s 不断流、帧率满 25fps（只验证了 40s，更长时间或其他服务端未验证）。
+- 只支持 `SRTP_AES128_CM_HMAC_SHA1_80`；只处理 H.264（packetization-mode 0/1 的单 NAL/STAP-A/FU-A，不支持 STAP-B/MTAP/FU-B）和 Opus；RTX 包（未协商的 PT）直接丢弃并计数。
+- DTLS 握手后的 alert 被忽略；对端异常消失靠 `media_timeout`。
+- 时间线对齐只用到达时间，A/V 同步精度约为两路首包到达的间隔（本机实测可忽略），不是 RTCP SR 级精度。
+- 对端若改变 SSRC（发布端重连），之后的包会被当作"非首个 SSRC"丢弃，需要重新连接。
 
 ## AVOption
 
@@ -46,13 +69,14 @@
 | `ca_file` | 无 | `tls_verify=1` 时用的 CA 文件 |
 | `user_agent` | 无 | 信令请求的 User-Agent（mpv 会自动注入） |
 | `handshake_timeout` | 10000000 | ICE + DTLS 握手总期限，**微秒**，`-1` 不限；与 `timeout`（只管 HTTP 信令）相互独立 |
+| `media_timeout` | 5000000 | 握手后连续多久没有任何经认证的对端数据（RTP/RTCP/STUN）就判定连接已死并返回 `ETIMEDOUT`，**微秒**，`-1` 不限 |
 
 ## 已知限制 / 注意
 
 - 信令阶段超时（服务端已建会话但响应没回来）时客户端拿不到 `Location`，无法 `DELETE`，只能等服务端自己回收。
 - mpv 侧目前只认 `whep:`（`patches/mpv-v041/0003`）；`whep+http(s)://` 要在 mpv 里使用，需要额外的 mpv 补丁，见 `../mpv-v041/README.md`。
 - mpv 的协议白名单：2026-10-02 用 whep flavor 的 libmpv（`tools/whep-flavor/build-linux.sh` 产物）loadfile `whep+http://127.0.0.1:8889/test/whep`，握手通过、`Opening done`，说明 `udp`/`dtls` 没被白名单挡；`srtp` 协议阶段 A 还没用到。
-- 真实服务端（MediaMTX）仅验证了信令；它的 answer 是 `setup:active`、无 RTX、无 `Link: ice-server`，T1.3 需据此实现（我方当 DTLS server）。ffprobe 因媒体是桩会报 `Could not find codec parameters for stream 1`（无 SPS/分辨率），属预期。
+- 真实服务端（MediaMTX）的 answer 是 `setup:active`、无 RTX、无 `Link: ice-server`，我方当 DTLS server。
 - 只在 Linux + OpenSSL 上编译验证过；Windows（SChannel）、Android（mbedtls）未编，且这两个后端还没有对端指纹接口，需各补一个 `ff_dtls_get_peer_fingerprint`，在此之前 whep 在这两个平台会因“取不到指纹”而拒绝连接（失败即关闭，设计如此）。
 - DTLS 握手内部的等待由 `handshake_timeout` 打断，最坏超出期限约 100ms。
 - 没有对“ICE 已通但服务端不发 DTLS”和“握手中途对端消失”做专门的故障注入（前者与无响应走同一超时分支，后者靠同一中断回调，均**未单独实测**）。
@@ -88,6 +112,22 @@ ffprobe -v verbose -handshake_timeout 3000000 -f whep -i whep+http://127.0.0.1:1
 
 mock 的错误场景路径：`/nf`(404) `/unauth`(401) `/nofp` `/badfp` `/sha1` `/nocand` `/bad` `/empty` `/slow`，正常变体 `/remap`（payload type 换成 97/99/100）。详见 `tools/whep-flavor/mock_whep_signal.py` 文件头。
 
+### T1.3 阶段 B 验证（2026-10-02，Linux + OpenSSL 3.5.5，MediaMTX v1.21.1，推流 H264 baseline 640x360@25 + opus）
+
+下列均为实测（未标"推断"）：
+
+- `ffprobe -f whep -i whep+http://127.0.0.1:8889/test/whep -show_streams`：h264 Constrained Baseline level 30 **640x360**，opus 48000 Hz 2ch；耗时约 1.9s（含等 IDR）；普通与 ASan 构建一致。
+- `ffmpeg -f whep -i ... -t 10 -f null -`：音频 505 包 / 482,880 采样（≈10.06s）、0 解码错误；视频 251 包 / 236 帧解码、0 解码错误（起播等 IDR，窗口内帧数 = 25fps × (10 - 等待)，等待 0.6–2s 不等，所以 10s 窗口里是 200–250 帧；40s 一次 1006 个视频包 ≈ 25.15fps、2005 个音频包）。auth_fail/late/lost 全 0。
+- `-f framecrc`：视频 `#dimensions 0: 640x360`、h264；音频 opus 48000 stereo，extradata 19 字节。截图（ffmpeg `-frames:v 1`）与 mpv 抽帧（`vo=image` 的第 100 帧）都是 testsrc2 彩条 + 计时器。
+- mpv（libmpv smoke，`vo=image` + `ao=null`）播放 12.8s：`time-pos` 每秒 +1.0（4.24→5.24→…→13.28），`estimated-frame-number` 106→332（25fps），vo/解码丢帧均为 0；12.8s 落盘 322 张 PNG；起播约 2–3.3s。mpv 提示的 `Could not set AVOption icy` 无害。
+- **服务端被 `kill -9`**：ffmpeg 在 5.0s 后报 `No data from peer for 5.0s` / `Connection timed out` 并退出；mpv 5s 后结束（`END`），均不挂死。
+- **发布端停流 4s**（`SIGSTOP` 推流进程）：连接不断，恢复后继续，25s 任务正常跑完。
+- **不发 RR**：MediaMTX 在 40s 会话里没有因缺 RTCP 断流（见上）。
+- **故障注入**（`whep_tamper_proxy.py` 的 `lossy` 模式：UDP 中继，对服务端到客户端的 RTP 注入 2% 丢包 / 2% 相邻交换 / 1% 重复 / 1% 翻转载荷字节，种子固定）：30s 会话中继共处理 3478 个 RTP，丢 75、坏 35、重复 29、交换 71；客户端 `auth_fail` 合计 35、`late/dup` 29（与注入的损坏数、重复数一一对应）、`lost` 109（≈ 丢 75 + 坏 35），交换的包被重排队列救回没有算丢；解码 0 错误，视频丢弃 35 个不完整帧（另有 82 帧因首个 IDR 被损坏而等下一个 IDR，属随机）。ASan（含 LeakSanitizer）跑同样场景 20s×3 次与干净场景 12s、ffprobe，**无任何报告**。
+- 体积：whep flavor stripped `libmpv.so` 6,816,136（阶段 A）-> **6,824,328（+8,192 字节）**；`whep.o` 的 text 14,939 -> 20,743（+5,804）。目标 ≤ +20KB，达成。
+
+`whep_tamper_proxy.py` 新增 `lossy` 模式：`python3 tools/whep-flavor/whep_tamper_proxy.py 18100`，客户端 URL `whep+http://127.0.0.1:18100/lossy/test/whep`；环境变量 `LOSS/SWAP/DUP/CORRUPT` 调比例（百分数），每 5s 打印中继计数。
+
 ## 升级 ffmpeg 版本时
 
-0001 的 `configure`/`allformats.c`/`Makefile` hunk 对上下文敏感；0002 依赖 `http.c` 的 `process_line` 与 `HTTPContext` 布局；0003 用到的内部 API：`ff_ssl_gen_key_cert`、`ff_http_get_new_location`、`ff_data_to_hex`、`FF_INFMT_FLAG_INIT_CLEANUP`，换版本要逐个确认。
+0001 的 `configure`/`allformats.c`/`Makefile` hunk 对上下文敏感；0002 依赖 `http.c` 的 `process_line` 与 `HTTPContext` 布局；0003 用到的内部 API：`ff_ssl_gen_key_cert`、`ff_http_get_new_location`、`ff_data_to_hex`、`FF_INFMT_FLAG_INIT_CLEANUP`，换版本要逐个确认；0005 另用到 `ff_srtp_set_crypto`/`ff_srtp_decrypt`/`ff_srtp_free`（`srtp.h`）、`ff_packet_list_put/get/free`（`packet_internal.h`）、`ff_alloc_extradata`。

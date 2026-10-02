@@ -6,18 +6,80 @@ mode：
   dead    把候选改成 127.0.0.1:9（端口不可达，ICE 应超时）
   silent  把候选改成 127.0.0.1:18199（静默 UDP，不回包，ICE 应超时）
   ok      原样转发
+  lossy   候选改成本代理的 UDP 中继（18201），对 服务端->客户端 的 RTP 媒体包注入故障：
+          丢包 LOSS%、相邻两包交换 SWAP%、重复 DUP%、翻转一个载荷字节 CORRUPT%（默认 2/2/1/1，
+          环境变量 LOSS/SWAP/DUP/CORRUPT 可改），固定随机种子便于复现；退出时打印计数
 """
-import http.server, re, socket, sys, urllib.request
+import http.server, os, random, re, socket, sys, threading, urllib.request
 
 UP = 'http://127.0.0.1:8889'
+MEDIA_UDP = ('127.0.0.1', 8189)   # MediaMTX 的 WebRTC UDP 端口
+RELAY_PORT = 18201
 # 静默 UDP：只绑定、不回包
 SILENT = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 SILENT.bind(('127.0.0.1', 18199))
 
 
+def relay_udp():
+    """UDP 中继：客户端<->MediaMTX，对服务端发来的 RTP 媒体包按比例注入故障"""
+    pct = {k: float(os.environ.get(k, d)) for k, d in (('LOSS', 2), ('SWAP', 2), ('DUP', 1), ('CORRUPT', 1))}
+    rnd = random.Random(12345)
+    cli = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    cli.bind(('127.0.0.1', RELAY_PORT))
+    srv = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    srv.bind(('127.0.0.1', 0))
+    client = [None]
+    st = dict(rtp=0, drop=0, swap=0, dup=0, corrupt=0)
+    held = [None]
+
+    def c2s():
+        while True:
+            d, a = cli.recvfrom(2048)
+            client[0] = a
+            srv.sendto(d, MEDIA_UDP)
+
+    def s2c():
+        while True:
+            d, _ = srv.recvfrom(2048)
+            if client[0] is None:
+                continue
+            is_rtp = len(d) > 12 and 128 <= d[0] <= 191 and not 192 <= d[1] <= 223
+            if is_rtp:
+                st['rtp'] += 1
+                r = rnd.random() * 100
+                if r < pct['LOSS']:
+                    st['drop'] += 1
+                    continue
+                if r < pct['LOSS'] + pct['CORRUPT']:
+                    b = bytearray(d)
+                    b[len(b) // 2] ^= 0x55
+                    d = bytes(b)
+                    st['corrupt'] += 1
+                elif r < pct['LOSS'] + pct['CORRUPT'] + pct['DUP']:
+                    cli.sendto(d, client[0])
+                    st['dup'] += 1
+                elif r < pct['LOSS'] + pct['CORRUPT'] + pct['DUP'] + pct['SWAP'] and held[0] is None:
+                    held[0] = d          # 扣下这个包，等下一个发出去后再补发
+                    st['swap'] += 1
+                    continue
+            cli.sendto(d, client[0])
+            if held[0] is not None and is_rtp:
+                cli.sendto(held[0], client[0])
+                held[0] = None
+
+    def stats():
+        import time
+        while True:
+            time.sleep(5)
+            print('relay', st, flush=True)
+
+    for f in (c2s, s2c, stats):
+        threading.Thread(target=f, daemon=True).start()
+
+
 class H(http.server.BaseHTTPRequestHandler):
     def _mode(self):
-        m = re.match(r'/(fp|dead|silent|ok)(/.*)$', self.path)
+        m = re.match(r'/(fp|dead|silent|ok|lossy)(/.*)$', self.path)
         return m.group(1), m.group(2)
 
     def do_POST(self):
@@ -32,8 +94,8 @@ class H(http.server.BaseHTTPRequestHandler):
                 fp = m.group(1)
                 return 'a=fingerprint:sha-256 ' + ('00' if not fp.startswith('00') else '11') + fp[2:]
             ans = re.sub(r'a=fingerprint:sha-256 (\S+)', flip, ans)
-        elif mode in ('dead', 'silent'):
-            port = '9' if mode == 'dead' else '18199'
+        elif mode in ('dead', 'silent', 'lossy'):
+            port = {'dead': '9', 'silent': '18199', 'lossy': str(RELAY_PORT)}[mode]
             ans = re.sub(r'(a=candidate:\S+ \d+ udp \d+ )\S+ \d+', r'\g<1>127.0.0.1 ' + port, ans)
         out = ans.encode()
         loc = r.headers.get('Location', '')
@@ -60,4 +122,5 @@ class H(http.server.BaseHTTPRequestHandler):
         pass
 
 
+relay_udp()
 http.server.ThreadingHTTPServer(('127.0.0.1', int(sys.argv[1]) if len(sys.argv) > 1 else 18100), H).serve_forever()
