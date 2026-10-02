@@ -418,7 +418,7 @@ ffmpeg libavformat 是纯 C 且不链接 libstdc++——**无法直接拷贝编�
 #### T1.6 mpv 集成与开放可调参数
 
 - **目标**：mpv 能用标准 scheme（`whep://`、`whep+http(s)://`，以 T0.3 定的为准）直接开流；把影响延迟与稳定性的参数**开放出来**并写清用法，**不替业务定默认策略**。
-- **涉及文件**：`patches/ffmpeg-whep/0006-*.patch`（`read_probe` 前缀）；`whep.c` 的 `AVOption`（如 nack 开关、重排序队列大小、ICE/握手超时，**具体项由 T1.3–T1.5 实现时确定**）；`mova-libmpv/doc/notes/` 参数说明笔记；（mpv 本体**不改**，除非 T0.3 证明必须）。
+- **涉及文件**：`patches/ffmpeg-whep/0006-*.patch`（`read_probe` 前缀）；`whep.c` 的 `AVOption`（如 nack 开关、重排序队列大小、ICE/握手超时，**具体项由 T1.3–T1.5 实现时确定**）；`mova-libmpv/doc/notes/` 参数说明笔记；（mpv 本体：**T0.3 已证明必须加一个约 17 行补丁**——`stream/stream_lavf.c` 的 `get_safe_protocols()` 注册 `whep` 并在 `open_f()` 对 `whep:` 照 `rtsp:` 特判，见 `doc/notes/2026-10-02-t03-whep-feasibility.md`；`whep.c` 还须声明 `tls_verify`/`timeout` 等 AVOption）。
 - **做什么**：scheme 只认标准写法（SRS 私有 `webrtc://` 等业务适配**不进 C 补丁**，由使用方转换）；把参数经 mpv 的 `--demuxer-lavf-o=` 传给 demuxer 的方式验证通；实测 `--profile=low-latency`、`--cache=no`、`--demuxer-readahead-secs`、`--audio-buffer`、`--untimed`（**这些选项名未逐一核对，以 mpv 对应版本 `--list-options` 为准**）对端到端延迟的影响，**只记录数据，供使用方选值**。
 - **验收**：给出"延迟-稳定性"数据表：同一推流源、`netem` 抖动 0/50/100ms 下的首帧时间、稳态端到端延迟（测量法见 T1.7）、卡顿次数（mpv `paused-for-cache` 真实计数）；产出"参数→效果"说明，列出每个开放参数的名字、取值范围、默认值。
 - **工作量**：2–3 人天。
