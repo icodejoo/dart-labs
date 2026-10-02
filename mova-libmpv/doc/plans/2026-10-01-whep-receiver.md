@@ -352,6 +352,13 @@ ffmpeg libavformat 是纯 C 且不链接 libstdc++——**无法直接拷贝编�
   - libjuice `stun.c`、libdatachannel `rtp.cpp` 头均为标准 MPL-2.0 头，无 Exhibit B；libdatachannel 0.18 起才是 MPL-2.0（此前 LGPLv2.1+），须钉具体 tag。
   - **体积优先的结论**：维持 Q1=(b)——不拷 libjuice（连带 8–10 个文件，且 ffmpeg 已有 HMAC/CRC，`whip.c` 自带 STUN），仅移植 NACK 逻辑；移植件按 Modifications 处理并登记 PROVENANCE（"独立重写不继承 MPL"仅有 FAQ Q11 字面推断，不依赖）。
   - **仍未核实**：§3.5/§5.3 完整原文；FAQ 静态链接/改写条目；LGPLv3 §4 对 Windows dll、Android APK 内 so"可替换"的具体要求。
+- **2026-10-02 LGPL 初筛（条文取自 SPDX 镜像 + WebFetch 摘要，非 gnu.org 原站，定稿前须对原文再核）**：
+  - LGPLv3 §4d：二选一——(0) 交付 Minimal Corresponding Source 并以可重新链接形式交付 Application 代码；(1) 用"合适的共享库机制"（须运行时使用用户系统上**已有**的库副本，且能配合接口兼容的修改版运行）。LGPLv2.1 §6a/§6b 同构。
+  - **私有随包分发的 libmpv + 静态链进去的 ffmpeg 不满足 §4d(1)**，保守按 §4d(0)/§6a 准备"可重新链接"材料（完整构建配方 + ffmpeg/mpv 源码 + 补丁），别指望共享库机制；"FFI 加载算不算共享库机制"条文未提及，agy 的"算"是推断，不采信。
+  - FFmpeg legal 页：不带 `--enable-gpl/--enable-nonfree`；源码与二进制精确对应、附 configure 说明、改动用 `git diff` 留存；官方建议动态链接（静态链接偏离建议路径，交法务）；about/EULA/下载页声明要求。
+  - mpv：`-Dgpl=false` **本身不构成 LGPLv2.1+ 授权**，只是排除 GPL-only 文件，LGPL 口径需逐文件核对（交法务）；mpv 说明预期用途就是配合 libmpv。
+  - Apache-2.0 §4（mbedtls）：附许可证副本、保留声明、NOTICE 随包提供；Apache-2.0 与 LGPLv3/v2.1 兼容性、mbedtls 双许可的选择**未读到原文**，agy 的"可能传染"推测不采信。
+  - Windows dll 替换、Android APK 重签名/sideload 的可行性：条文未提及，**未读到**，交法务。
 - **涉及文件**：
   - `mova-libmpv/third_party/LICENSES/MPL-2.0.txt`（MPL 全文）
   - `mova-libmpv/third_party/PROVENANCE.md`（每个拷贝/移植文件一行：目标路径、来源仓库、**tag + commit**、来源路径、许可、是否修改、修改摘要）
@@ -412,6 +419,12 @@ ffmpeg libavformat 是纯 C 且不链接 libstdc++——**无法直接拷贝编�
   3. RTX 包（`whip.c:handle_rtx_packet` 是发送侧；接收侧需把 RTX 还原到原序号再喂 `rtpdec`）；
   4. 节流：`MIN_FEEDBACK_INTERVAL`（`rtpdec.c`，值未核实）；
   5. 本地 SSRC 不再用 `s->ssrc+1`（WebRTC 要与 SDP 里声明的 SSRC 一致，`rtpdec.c:469` 的做法适用于 RTSP，**不适用于 WebRTC**，需改）。
+- **2026-10-02 设计复核（agy 草案 + 复核，详见本节；阈值均为自行设计的起点，须 T1.7 netem 校准）**：
+  - 多 FCI 打包可直接移植为约 15 行 C：升序取 PID，后续与 PID 差 1–16 的序号置 BLP 位 `1<<(d-1)`，超出另开 FCI，RTCP length = `2 + fci_count`；Python 复刻对 2 万组随机丢包（含回绕）打包再展开一致。
+  - 检测须自写：`find_missing_packets` 只扫 `s->seq+1` 之后 16 个序号（丢包 >17 个窗口外发现不了），且 `s->seq==0` 初始状态要特判；`MIN_FEEDBACK_INTERVAL`=200ms（`rtpdec.c:38`）会让 50ms 重传间隔失效，须改；缺口表要有"首次发现时间"字段。
+  - `enqueue_packet` **不会**滤重复包（同序号会入队，`diff==0` 还会被当正常包解析）：重传/RTX 回来的包须自己去重。
+  - 必须做 RTX（RFC 4588）还原 OSN；PLI 要限速（建议 ≥1s）；需要按时间放弃缺口的机制。
+  - 测试用例清单：丢 1 包、连续丢 17/18 包（18 包应得 `(2,0xFFFF)+(19,0)`）、回绕处丢包、乱序不触发 NACK、重复包丢弃、重传后缺口清除、丢包 >32 触发 PLI、重试 3 次触发 PLI、PLI 限速、RTX 还原。
 - **验收**：T1.7 测试台上 `tc netem loss 5%`（及 1%/10%）下：①`whep.c` 计数器"NACK 发出数 / 重传包到达数 / 最终仍丢包数"（真实计数，非推算）；②对比"关闭 NACK"同条件下的花屏/卡顿帧数；③PLI：人为丢 IDR 后 PLI 发出并在 N 秒内恢复，N 以实测为准。
 - **工作量**：4–6 人天。
 
@@ -542,7 +555,7 @@ mova-libmpv 只做 libmpv 编译与瘦身，下列事项属 mova 业务层，**�
 | **R1** | **n9.0.2 与固定的 mpv `78d43740f5` 大概率不兼容**：workflow 注释已写明该 mpv 对应 libavcodec 60.x（n6.0.x）；n7/n8/n9 移除了大量弃用 API（具体清单未核实）；mpv 升级会牵动 media_kit 1.2.6 的 FFI 绑定、mova 自建弱客户端、Android 三个 mpv/ffmpeg 补丁 | 可能把"升 ffmpeg"变成"升 ffmpeg + mpv + 补丁 rebase"，工作量与风险翻倍 | T0.2 先做、先证；`*-whep` flavor 先用新配对，默认 flavor 保持 n6.0.1 直到回归全绿（A10/Q3）；mpv 版本越过 media_kit 兼容范围时上报用户 |
 | R2 | 无 WHEP demuxer，且 `ff_rtp_demuxer` 是 NOFILE——mpv 如何取流未核实 | demuxer 路线可能走不通 | T0.3 验证；plan B：protocol 方案或让 mpv 走 `lavf` 的 `-f whep` 强制格式 |
 | R3 | **iOS/macOS 无 DTLS 后端** | 移动端覆盖一半缺失 | 本期单列待定；Android 先行；不要为此在 iOS 引入新 TLS 库（体积与许可冲击大） |
-| R4 | Android mbedtls `use_srtp` 完整性未核实；只协商 AES128_CM_SHA1_80（无 GCM） | 某些服务器强制 GCM 时无法握手 | T0.3/T3.1 验证；SRS/MediaMTX 默认接受 SHA1_80（需实测，**未核实**） |
+| R4 | Android mbedtls `use_srtp` 完整性未核实；只协商 AES128_CM_SHA1_80（无 GCM） | 某些服务器强制 GCM 时无法握手 | T0.3/T3.1 验证；**2026-10-02 读源码确认** SRS（只设 SHA1_80，`srs_app_rtc_dtls.cpp:159`）、mediasoup、Janus、pion/dtls 支持集均含 SHA1_80，故 profile 本身风险低；MediaMTX/LiveKit 由 Pion 推断、Cloudflare 闭源未查到——**未核实**，须实测；mbedtls 无 GCM 的事实不变。rtcp-fb（只带 nack/nack pli，无 transport-cc/REMB）是否被各服务端接受**未查到原文**，须实测。注：WHEP 仍是 draft-ietf-wish-whep（核到 -03），RFC 9725 是 WHIP |
 | R5 | ICE 仅单 host candidate，无 TURN/trickle/ICE restart；无 TWCC/REMB，部分服务器可能降码率 | NAT/防火墙环境失败；画质被服务器压低 | 范围内明确"只支持直连/公网可达服务器"；记录为已知限制；TWCC 后续另立 |
 | R6 | mingw-w64 头文件可能缺 `SECPKG_ATTR_DTLS_MTU`（`configure:7619` 的探测会失败） | Windows SChannel DTLS 不可用 | T0.3 先验；缺失则补宏定义补丁（值需来自 Windows SDK，**未核实**），或 Windows 退而用 openssl（体积/许可代价需评估，另议） |
 | R7 | `ff_srtp_decrypt` 无重放保护（源码 TODO）；`ff_rtp_send_rtcp_feedback` 用 `ssrc+1` 做本机 SSRC，且写明文 | 安全性/与 WebRTC 服务器不兼容 | T1.3/T1.5 自补；写入"安全限制"一节 |
