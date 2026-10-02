@@ -1,0 +1,576 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: mova <mova@example.invalid>
+Date: Fri, 2 Oct 2026 17:00:00 +0800
+Subject: [PATCH 4/4] avformat/whep: ICE + DTLS-SRTP handshake and key export (T1.3
+ stage A)
+
+---
+diff --git a/libavformat/tls.h b/libavformat/tls.h
+index f2f4f89..e800421 100644
+--- a/libavformat/tls.h
++++ b/libavformat/tls.h
+@@ -118,6 +118,12 @@ int ff_tls_set_external_socket(URLContext *h, URLContext *sock);
+ 
+ int ff_dtls_export_materials(URLContext *h, char *dtls_srtp_materials, size_t materials_sz);
+ 
++/**
++ * 取 DTLS 对端证书的 SHA-256 指纹（"AA:BB:.."），*fingerprint 由调用方 av_free。
++ * 目前只有 OpenSSL 后端实现，其余后端不提供（调用方须用 CONFIG_OPENSSL 守卫）。
++ */
++int ff_dtls_get_peer_fingerprint(URLContext *h, char **fingerprint);
++
+ int ff_ssl_read_key_cert(char *key_url, char *cert_url, char *key_buf, size_t key_sz, char *cert_buf, size_t cert_sz, char **fingerprint);
+ 
+ int ff_ssl_gen_key_cert(char *key_buf, size_t key_sz, char *cert_buf, size_t cert_sz, char **fingerprint);
+diff --git a/libavformat/tls_openssl.c b/libavformat/tls_openssl.c
+index 48b4a22..c47bb21 100644
+--- a/libavformat/tls_openssl.c
++++ b/libavformat/tls_openssl.c
+@@ -464,6 +464,28 @@ int ff_tls_set_external_socket(URLContext *h, URLContext *sock)
+     return 0;
+ }
+ 
++/**
++ * 取 DTLS 握手后对端证书的 SHA-256 指纹（"AA:BB:.." 大写），供 WebRTC 与 SDP 指纹比对。
++ * @return 0 成功（*fingerprint 由调用方 av_free），负值：无对端证书/失败
++ */
++int ff_dtls_get_peer_fingerprint(URLContext *h, char **fingerprint)
++{
++    TLSContext *c = h->priv_data;
++    X509 *cert;
++    int ret;
++
++#if OPENSSL_VERSION_NUMBER >= 0x30000000L
++    cert = SSL_get1_peer_certificate(c->ssl);
++#else
++    cert = SSL_get_peer_certificate(c->ssl);
++#endif
++    if (!cert)
++        return AVERROR(ENOENT);
++    ret = x509_fingerprint(cert, fingerprint);
++    X509_free(cert);
++    return ret;
++}
++
+ int ff_dtls_export_materials(URLContext *h, char *dtls_srtp_materials, size_t materials_sz)
+ {
+     int ret = 0;
+@@ -503,6 +525,14 @@ static int print_ssl_error(URLContext *h, int ret)
+     return averr;
+ }
+ 
++/**
++ * 接受任意对端证书的校验回调（只为让 OpenSSL 发 CertificateRequest，真正的校验是指纹比对）。
++ */
++static int dtls_accept_any_cert(int preverify_ok, X509_STORE_CTX *ctx)
++{
++    return 1;
++}
++
+ static int tls_close(URLContext *h)
+ {
+     TLSContext *c = h->priv_data;
+@@ -648,6 +678,10 @@ static int dtls_handshake(URLContext *h)
+             ret = AVERROR(ETIMEDOUT);
+             goto end;
+         }
++        if (ff_check_interrupt(&h->interrupt_callback)) {
++            ret = AVERROR_EXIT;
++            goto end;
++        }
+ 
+         ret = SSL_do_handshake(c->ssl);
+         if (ret == 1) {
+@@ -664,6 +698,9 @@ static int dtls_handshake(URLContext *h)
+         timeout_ms = 1000;
+         if (DTLSv1_get_timeout(c->ssl, &timeout))
+             timeout_ms = timeout.tv_sec * 1000 + timeout.tv_usec / 1000;
++        /* 分段等待，让调用方的中断回调/超时能及时生效 */
++        if (timeout_ms > 100)
++            timeout_ms = 100;
+ 
+         ret = poll(&pfd, 1, timeout_ms);
+         if (ret > 0 && (pfd.revents & POLLIN))
+@@ -814,6 +851,9 @@ static int tls_open(URLContext *h, const char *uri, int flags, AVDictionary **op
+ 
+     if (s->verify)
+         SSL_CTX_set_verify(c->ctx, SSL_VERIFY_PEER|SSL_VERIFY_FAIL_IF_NO_PEER_CERT, NULL);
++    else if (s->is_dtls && s->use_srtp && s->listen)
++        /* WebRTC 要求双向证书：DTLS server 必须请求对端证书；信任由调用方比对 SDP 指纹决定 */
++        SSL_CTX_set_verify(c->ctx, SSL_VERIFY_PEER, dtls_accept_any_cert);
+ 
+     if (s->is_dtls && s->use_srtp) {
+         /**
+diff --git a/libavformat/whep.c b/libavformat/whep.c
+index 22046d0..6ebf9b6 100755
+--- a/libavformat/whep.c
++++ b/libavformat/whep.c
+@@ -2,8 +2,8 @@
+  * WHEP (WebRTC-HTTP egress protocol) demuxer - 信令与 SDP 部分
+  *
+  * 以 whip.c 为底改写：WHIP 是推流（muxer），WHEP 是拉流（demuxer）。
+- * 本文件当前只做到 T1.2：HTTP 信令 + offer/answer + 建流；
+- * ICE/DTLS/SRTP 媒体通路是 T1.3，RTP 解包是 T1.4，RTCP 反馈是 T1.5。
++ * 本文件当前做到 T1.3 阶段 A：HTTP 信令 + offer/answer + 建流 + ICE/DTLS 握手与 SRTP 密钥导出；
++ * SRTP 解密与 RTP 解包是 T1.3 阶段 B / T1.4，RTCP 反馈是 T1.5。
+  *
+  * This file is part of FFmpeg.
+  *
+@@ -29,6 +29,8 @@
+ #include "libavutil/avstring.h"
+ #include "libavutil/bprint.h"
+ #include "libavutil/channel_layout.h"
++#include "libavutil/crc.h"
++#include "libavutil/hmac.h"
+ #include "libavutil/intreadwrite.h"
+ #include "libavutil/mem.h"
+ #include "libavutil/opt.h"
+@@ -38,6 +40,7 @@
+ #include "demux.h"
+ #include "http.h"
+ #include "internal.h"
++#include "network.h"
+ #include "tls.h"
+ #include "url.h"
+ 
+@@ -53,6 +56,26 @@
+ /* offer 里提议的 opus payload type（最终以 answer 为准） */
+ #define WHEP_OFFER_PT_OPUS    111
+ 
++/* STUN（RFC 5389/8445）常量：magic cookie、头长度、属性号 */
++#define STUN_COOKIE           0x2112A442
++#define STUN_HDR_SIZE         20
++#define STUN_ATTR_USERNAME    0x0006
++#define STUN_ATTR_INTEGRITY   0x0008
++#define STUN_ATTR_XOR_MAPPED  0x0020
++#define STUN_ATTR_PRIORITY    0x0024
++#define STUN_ATTR_USE_CANDIDATE 0x0025
++#define STUN_ATTR_FINGERPRINT 0x8028
++#define STUN_ATTR_CONTROLLING 0x802A
++/* host 候选优先级：126<<24 | 65535<<8 | 255 */
++#define STUN_HOST_PRIORITY    ((126u << 24) | (65535u << 8) | 255u)
++/* 连通性检查重发间隔（微秒） */
++#define WHEP_ICE_RTX_US       200000
++/* UDP 收发缓冲；DTLS 的 MTU（pion 要求偏小） */
++#define WHEP_UDP_BUF_SIZE     1500
++#define WHEP_DTLS_MTU         1200
++/* DTLS-SRTP 导出材料长度：2*(16 key + 14 salt) */
++#define WHEP_SRTP_MATERIALS_LEN 60
++
+ /* 会话状态，T1.3 起沿用到 ICE/DTLS 阶段 */
+ enum WHEPState {
+     WHEP_STATE_NONE,
+@@ -121,6 +144,7 @@ typedef struct WHEPContext {
+     int     tls_verify;       /* 是否校验 https 服务端证书 */
+     char   *ca_file;          /* 自定义 CA 文件 */
+     char   *user_agent;       /* HTTP User-Agent */
++    int64_t handshake_timeout; /* ICE + DTLS 握手总期限（微秒），<0 不限 */
+ 
+     /* ---- 会话状态 ---- */
+     enum WHEPState state;
+@@ -134,6 +158,11 @@ typedef struct WHEPContext {
+     char    cert_buf[MAX_CERTIFICATE_SIZE]; /* DTLS 证书（T1.3 使用） */
+     char    key_buf[MAX_CERTIFICATE_SIZE];  /* DTLS 私钥（T1.3 使用） */
+     char   *dtls_fingerprint; /* 本端证书 SHA-256 指纹，写进 offer */
++    URLContext *udp;          /* 单 socket UDP 传输（ICE/DTLS/SRTP 共用） */
++    URLContext *dtls_uc;      /* DTLS 会话（借用 udp，不拥有 socket） */
++    int64_t hs_deadline;      /* 握手期限的绝对时刻（相对时钟 us） */
++    uint64_t ice_tie_breaker; /* ICE-CONTROLLING 的 tie-breaker */
++    uint8_t srtp_materials[WHEP_SRTP_MATERIALS_LEN]; /* DTLS 导出的 SRTP 材料 client_key|server_key|client_salt|server_salt，禁止写日志 */
+     WhepSdp answer;
+     WhepIceServer ice_servers[WHEP_MAX_ICE_SERVER];
+     int     nb_ice_servers;
+@@ -744,36 +773,365 @@ static int whep_create_streams(AVFormatContext *s)
+ }
+ 
+ /* ------------------------------------------------------------------ */
+-/* 媒体通路接口（T1.3 起实现，当前是桩）                                  */
++/* 媒体通路：ICE 连通性检查 + DTLS(server) 握手 + SRTP 密钥导出（T1.3 阶段 A）   */
+ /* ------------------------------------------------------------------ */
+ 
+ /**
+- * 建立媒体通路：ICE 连通性检查 + DTLS 握手 + SRTP 密钥导出（T1.3 实现）。
+- * 当前只记日志，不连接。
+- * @return 0 成功
++ * 给已写好头部与属性的 STUN 报文（长度 n）追加 MESSAGE-INTEGRITY 与 FINGERPRINT。
++ * @param pwd HMAC-SHA1 的密钥（请求用对端 pwd，响应用本端 pwd）
++ * @return 封好后的总长度，负值失败
+  */
+-static int whep_media_open(AVFormatContext *s)
++static int whep_stun_seal(uint8_t *b, int n, const char *pwd)
++{
++    AVHMAC *h = av_hmac_alloc(AV_HMAC_SHA1);
++
++    if (!h)
++        return AVERROR(ENOMEM);
++    AV_WB16(b + n,     STUN_ATTR_INTEGRITY);
++    AV_WB16(b + n + 2, 20);
++    AV_WB16(b + 2, n + 24 - STUN_HDR_SIZE);   /* 长度含 MI、不含 FINGERPRINT */
++    av_hmac_init(h, (const uint8_t *)pwd, strlen(pwd));
++    av_hmac_update(h, b, n);
++    av_hmac_final(h, b + n + 4, 20);
++    av_hmac_free(h);
++    n += 24;
++    AV_WB16(b + n,     STUN_ATTR_FINGERPRINT);
++    AV_WB16(b + n + 2, 4);
++    AV_WB16(b + 2, n + 8 - STUN_HDR_SIZE);
++    AV_WB32(b + n + 4, (av_crc(av_crc_get_table(AV_CRC_32_IEEE_LE), 0xFFFFFFFF, b, n) ^ 0xFFFFFFFF) ^ 0x5354554E);
++    return n + 8;
++}
++
++/**
++ * 写 STUN 报文头（类型 + cookie + 事务 ID），返回头长度 20。
++ */
++static int whep_stun_header(uint8_t *b, int type, const uint8_t *tid)
++{
++    AV_WB16(b, type);
++    AV_WB16(b + 2, 0);
++    AV_WB32(b + 4, STUN_COOKIE);
++    memcpy(b + 8, tid, 12);
++    return STUN_HDR_SIZE;
++}
++
++/**
++ * 构造 ICE 连通性检查请求（controlling，带 USE-CANDIDATE 即激进提名）。
++ * USERNAME = 对端ufrag:本端ufrag，MESSAGE-INTEGRITY 用对端 pwd。
++ * @return 报文长度，负值失败
++ */
++static int whep_ice_build_request(WHEPContext *w, uint8_t *b, const uint8_t *tid)
++{
++    char user[300];
++    int ulen = snprintf(user, sizeof(user), "%s:%s", w->answer.ufrag, w->ice_ufrag_local);
++    int pad = (4 - ulen % 4) % 4, n;
++
++    if (ulen <= 0 || ulen >= (int)sizeof(user))
++        return AVERROR(EINVAL);
++    n = whep_stun_header(b, 0x0001, tid);
++    AV_WB16(b + n, STUN_ATTR_USERNAME);
++    AV_WB16(b + n + 2, ulen);
++    memcpy(b + n + 4, user, ulen);
++    memset(b + n + 4 + ulen, 0, pad);
++    n += 4 + ulen + pad;
++    AV_WB16(b + n, STUN_ATTR_PRIORITY);       AV_WB16(b + n + 2, 4);
++    AV_WB32(b + n + 4, STUN_HOST_PRIORITY);   n += 8;
++    AV_WB16(b + n, STUN_ATTR_CONTROLLING);    AV_WB16(b + n + 2, 8);
++    AV_WB64(b + n + 4, w->ice_tie_breaker);   n += 12;
++    AV_WB16(b + n, STUN_ATTR_USE_CANDIDATE);  AV_WB16(b + n + 2, 0);
++    n += 4;
++    return whep_stun_seal(b, n, w->answer.pwd);
++}
++
++/**
++ * 构造对服务端检查请求的成功响应：XOR-MAPPED-ADDRESS（对端地址，取自已 connect 的 socket）
++ * + MESSAGE-INTEGRITY(本端 pwd) + FINGERPRINT。
++ * @return 报文长度，负值失败
++ */
++static int whep_ice_build_response(WHEPContext *w, uint8_t *b, const uint8_t *tid)
++{
++    struct sockaddr_storage ss;
++    socklen_t sl = sizeof(ss);
++    uint8_t mask[16];
++    int n = whep_stun_header(b, 0x0101, tid), alen, i;
++
++    if (getpeername(ffurl_get_file_handle(w->udp), (struct sockaddr *)&ss, &sl) < 0)
++        return AVERROR(EIO);
++    AV_WB32(mask, STUN_COOKIE);
++    memcpy(mask + 4, tid, 12);
++    AV_WB16(b + n, STUN_ATTR_XOR_MAPPED);
++    b[n + 4] = 0;
++    if (ss.ss_family == AF_INET) {
++        const struct sockaddr_in *a = (const struct sockaddr_in *)&ss;
++        alen = 4;
++        b[n + 5] = 1;
++        AV_WB16(b + n + 6, ntohs(a->sin_port) ^ (STUN_COOKIE >> 16));
++        memcpy(b + n + 8, &a->sin_addr, 4);
++#if HAVE_STRUCT_SOCKADDR_IN6
++    } else if (ss.ss_family == AF_INET6) {
++        const struct sockaddr_in6 *a = (const struct sockaddr_in6 *)&ss;
++        alen = 16;
++        b[n + 5] = 2;
++        AV_WB16(b + n + 6, ntohs(a->sin6_port) ^ (STUN_COOKIE >> 16));
++        memcpy(b + n + 8, &a->sin6_addr, 16);
++#endif
++    } else {
++        return AVERROR(EAFNOSUPPORT);
++    }
++    for (i = 0; i < alen; i++)
++        b[n + 8 + i] ^= mask[i];
++    AV_WB16(b + n + 2, 4 + alen);
++    n += 8 + alen;
++    return whep_stun_seal(b, n, w->ice_pwd_local);
++}
++
++/**
++ * 校验收到的 STUN 报文：长度自洽、有 MESSAGE-INTEGRITY 且 HMAC(pwd) 匹配；
++ * user 非空时还要求 USERNAME 完全一致（用于服务端发来的检查请求）。
++ * @return 1 通过，0 不通过
++ */
++static int whep_stun_verify(const uint8_t *b, int size, const char *pwd, const char *user)
++{
++    int len = size >= STUN_HDR_SIZE ? AV_RB16(b + 2) : -1, o = STUN_HDR_SIZE;
++    int mi = -1, user_ok = !user;
++    uint8_t lenb[2], mac[20];
++    AVHMAC *h;
++
++    if (len < 0 || len + STUN_HDR_SIZE > size || (len & 3))
++        return 0;
++    while (o + 4 <= STUN_HDR_SIZE + len) {
++        int type = AV_RB16(b + o), alen = AV_RB16(b + o + 2);
++        if (o + 4 + alen > STUN_HDR_SIZE + len)
++            return 0;
++        if (type == STUN_ATTR_INTEGRITY && alen == 20) {
++            mi = o;
++            break;
++        }
++        if (user && type == STUN_ATTR_USERNAME)
++            user_ok = alen == (int)strlen(user) && !memcmp(b + o + 4, user, alen);
++        o += 4 + ((alen + 3) & ~3);
++    }
++    if (mi < 0 || !user_ok || !(h = av_hmac_alloc(AV_HMAC_SHA1)))
++        return 0;
++    AV_WB16(lenb, mi + 24 - STUN_HDR_SIZE);
++    av_hmac_init(h, (const uint8_t *)pwd, strlen(pwd));
++    av_hmac_update(h, b, 2);
++    av_hmac_update(h, lenb, 2);
++    av_hmac_update(h, b + 4, mi - 4);
++    av_hmac_final(h, mac, 20);
++    av_hmac_free(h);
++    return !memcmp(mac, b + mi + 4, 20);
++}
++
++/**
++ * 建立单 socket 的 UDP 传输：connect 到 answer 的首个 host 候选，并置非阻塞。
++ * @return 0 成功，负值失败
++ */
++static int whep_udp_connect(AVFormatContext *s)
+ {
+     WHEPContext *w = s->priv_data;
+-    av_log(s, AV_LOG_VERBOSE, "Media path not implemented yet (T1.3); candidate %s:%d\n",
+-           w->answer.cand_host, w->answer.cand_port);
++    AVDictionary *opts = NULL;
++    char url[256];
++    int ret;
++
++    ff_url_join(url, sizeof(url), "udp", NULL, w->answer.cand_host, w->answer.cand_port, NULL);
++    av_dict_set_int(&opts, "connect", 1, 0);
++    av_dict_set_int(&opts, "fifo_size", 0, 0);
++    av_dict_set_int(&opts, "pkt_size", WHEP_UDP_BUF_SIZE, 0);
++    ret = ffurl_open_whitelist(&w->udp, url, AVIO_FLAG_WRITE, &s->interrupt_callback,
++                               &opts, s->protocol_whitelist, s->protocol_blacklist, NULL);
++    av_dict_free(&opts);
++    if (ret < 0) {
++        av_log(s, AV_LOG_ERROR, "Cannot connect %s: %s\n", url, av_err2str(ret));
++        return ret;
++    }
++    ff_socket_nonblock(ffurl_get_file_handle(w->udp), 1);
++    w->udp->flags |= AVIO_FLAG_READ | AVIO_FLAG_NONBLOCK;
+     return 0;
+ }
+ 
+ /**
+- * 读取一个媒体包（T1.4 起接 RTP 解包）。当前桩直接返回 EOF。
+- * @return 0 成功，AVERROR_EOF/AVERROR(EAGAIN) 或其他负值
++ * 握手阶段的中断回调：外层中断或超过握手期限都算中断（DTLS 层据此提前返回）。
+  */
+-static int whep_media_read(AVFormatContext *s, AVPacket *pkt)
++static int whep_handshake_interrupt(void *opaque)
+ {
+-    return AVERROR_EOF;
++    AVFormatContext *s = opaque;
++    WHEPContext *w = s->priv_data;
++
++    return ff_check_interrupt(&s->interrupt_callback) || av_gettime_relative() > w->hs_deadline;
++}
++
++/**
++ * ICE 连通性检查：周期性发请求（对端 ufrag/pwd），应答服务端的检查请求，
++ * 直到对端开始 DTLS（ClientHello 留在 socket 里不消费，用 MSG_PEEK 探测）。
++ * 超时、中断、socket 持续出错都干净返回。
++ * @return 0 表示可以开始 DTLS，负值失败
++ */
++static int whep_ice_connect(AVFormatContext *s)
++{
++    WHEPContext *w = s->priv_data;
++    uint8_t tid[12], buf[WHEP_UDP_BUF_SIZE], out[WHEP_UDP_BUF_SIZE];
++    int fd = ffurl_get_file_handle(w->udp), ice_ok = 0, ret, n;
++    int64_t next_tx = 0, now;
++
++    if ((ret = av_random_bytes(tid, sizeof(tid))) < 0 ||
++        (ret = av_random_bytes((uint8_t *)&w->ice_tie_breaker, sizeof(w->ice_tie_breaker))) < 0)
++        return ret;
++    for (;;) {
++        struct pollfd p = { .fd = fd, .events = POLLIN };
++
++        now = av_gettime_relative();
++        if (whep_handshake_interrupt(s)) {
++            ret = ff_check_interrupt(&s->interrupt_callback) ? AVERROR_EXIT : AVERROR(ETIMEDOUT);
++            av_log(s, AV_LOG_ERROR, "ICE %s (connectivity check %s)\n",
++                   ret == AVERROR(ETIMEDOUT) ? "timed out" : "interrupted",
++                   ice_ok ? "succeeded, no DTLS from peer" : "got no valid response");
++            return ret;
++        }
++        if (!ice_ok && now >= next_tx) {
++            if ((n = whep_ice_build_request(w, out, tid)) < 0)
++                return n;
++            if (ffurl_write(w->udp, out, n) < 0)
++                av_log(s, AV_LOG_DEBUG, "STUN request send failed, will retry\n");
++            next_tx = now + WHEP_ICE_RTX_US;
++        }
++        if (poll(&p, 1, 20) <= 0)
++            continue;
++        n = recv(fd, buf, sizeof(buf), MSG_PEEK);
++        if (n < 0) {
++            /* 例如对端端口不可达产生的 ICMP 错误：取走错误状态，稍等重试直到超时 */
++            recv(fd, buf, sizeof(buf), 0);
++            av_usleep(20000);
++            continue;
++        }
++        if (ff_is_dtls_packet(buf, n)) {
++            av_log(s, AV_LOG_VERBOSE, "ICE: peer started DTLS (check %s), elapsed=%.1fms\n",
++                   ice_ok ? "succeeded" : "response not seen", (now - w->t_start) / 1000.0);
++            return 0;
++        }
++        recv(fd, buf, sizeof(buf), 0);       /* 非 DTLS：取走处理或丢弃 */
++        if (n < STUN_HDR_SIZE || (buf[0] & 0xC0) || AV_RB32(buf + 4) != STUN_COOKIE)
++            continue;
++        if (AV_RB16(buf) == 0x0001) {
++            char user[300];
++            snprintf(user, sizeof(user), "%s:%s", w->ice_ufrag_local, w->answer.ufrag);
++            if (whep_stun_verify(buf, n, w->ice_pwd_local, user) &&
++                (n = whep_ice_build_response(w, out, buf + 8)) > 0)
++                ffurl_write(w->udp, out, n);
++        } else if (AV_RB16(buf) == 0x0101 && !memcmp(buf + 8, tid, 12) &&
++                   whep_stun_verify(buf, n, w->answer.pwd, NULL)) {
++            if (!ice_ok)
++                av_log(s, AV_LOG_VERBOSE, "ICE connectivity check succeeded, elapsed=%.1fms\n",
++                       (now - w->t_start) / 1000.0);
++            ice_ok = 1;
++        }
++    }
++}
++
++/**
++ * DTLS 握手（我方是 server，answer 为 setup:active）：握手后必须取到对端证书，
++ * 其 SHA-256 指纹与 answer 声明的一致才放行；随后导出 SRTP 密钥材料。
++ * 只有 OpenSSL 后端提供对端指纹，其余后端一律拒绝（失败即关闭，不放行未验证的对端）。
++ * @return 0 成功，负值失败
++ */
++static int whep_dtls_handshake(AVFormatContext *s)
++{
++    WHEPContext *w = s->priv_data;
++    AVIOInterruptCB cb = { whep_handshake_interrupt, s };
++    AVDictionary *opts = NULL;
++    char url[256], *peer_fp = NULL;
++    int ret;
++
++    if (strcmp(w->answer.setup, "active")) {
++        av_log(s, AV_LOG_ERROR, "Unsupported answer setup:%s (only setup:active is implemented)\n",
++               w->answer.setup);
++        return AVERROR_PATCHWELCOME;
++    }
++    ff_url_join(url, sizeof(url), "dtls", NULL, w->answer.cand_host, w->answer.cand_port, NULL);
++    av_dict_set_int(&opts, "mtu", WHEP_DTLS_MTU, 0);
++    av_dict_set(&opts, "cert_pem", w->cert_buf, 0);
++    av_dict_set(&opts, "key_pem", w->key_buf, 0);
++    av_dict_set_int(&opts, "external_sock", 1, 0);
++    av_dict_set_int(&opts, "use_srtp", 1, 0);
++    av_dict_set_int(&opts, "listen", 1, 0);
++    av_dict_set_int(&opts, "verify", 0, 0);      /* 对端自签名，信任来自指纹比对 */
++    ret = ffurl_open_whitelist(&w->dtls_uc, url, AVIO_FLAG_READ_WRITE, &cb,
++                               &opts, s->protocol_whitelist, s->protocol_blacklist, NULL);
++    av_dict_free(&opts);
++    if (ret < 0) {
++        av_log(s, AV_LOG_ERROR, "Cannot open DTLS: %s\n", av_err2str(ret));
++        return ret;
++    }
++    ff_tls_set_external_socket(w->dtls_uc, w->udp);
++    if ((ret = ffurl_handshake(w->dtls_uc)) < 0) {
++        av_log(s, AV_LOG_ERROR, "DTLS handshake failed: %s\n", av_err2str(ret));
++        return ret;
++    }
++#if CONFIG_OPENSSL
++    ret = ff_dtls_get_peer_fingerprint(w->dtls_uc, &peer_fp);
++#else
++    ret = AVERROR(ENOSYS);
++#endif
++    if (ret < 0) {
++        av_log(s, AV_LOG_ERROR, "Cannot get DTLS peer certificate fingerprint: %s\n", av_err2str(ret));
++        return ret;
++    }
++    if (strcmp(peer_fp, w->answer.fp)) {
++        av_log(s, AV_LOG_ERROR, "DTLS peer certificate fingerprint does not match the answer; refusing\n");
++        av_log(s, AV_LOG_VERBOSE, "answer=%s peer=%s\n", w->answer.fp, peer_fp);
++        av_free(peer_fp);
++        return AVERROR(EACCES);
++    }
++    av_free(peer_fp);
++    if (ff_dtls_export_materials(w->dtls_uc, (char *)w->srtp_materials, sizeof(w->srtp_materials)) < 0) {
++        av_log(s, AV_LOG_ERROR, "Cannot export SRTP keying material\n");
++        return AVERROR(EIO);
++    }
++    w->hs_deadline = INT64_MAX;      /* 握手期限只约束握手，之后的读写不再受它中断 */
++    av_log(s, AV_LOG_VERBOSE,
++           "DTLS done, peer fingerprint verified; SRTP keying material exported: %zu bytes, profile SRTP_AES128_CM_HMAC_SHA1_80, elapsed=%.1fms\n",
++           sizeof(w->srtp_materials), (av_gettime_relative() - w->t_start) / 1000.0);
++    return 0;
+ }
+ 
+ /**
+- * 关闭媒体通路（T1.3 起释放 UDP/DTLS/SRTP 资源）。当前无事可做。
++ * 关闭媒体通路：先 DTLS（需要 udp 还在才能发 close_notify），再 UDP；清掉密钥材料。
+  */
+ static void whep_media_close(AVFormatContext *s)
+ {
++    WHEPContext *w = s->priv_data;
++
++    ffurl_closep(&w->dtls_uc);
++    ffurl_closep(&w->udp);
++    memset(w->srtp_materials, 0, sizeof(w->srtp_materials));
++}
++
++/**
++ * 建立媒体通路：UDP -> ICE 连通性检查 -> DTLS 握手 + 指纹校验 -> 导出 SRTP 密钥。
++ * 握手总期限由 handshake_timeout 控制。失败时资源留给 read_close 释放。
++ * @return 0 成功，负值失败
++ */
++static int whep_media_open(AVFormatContext *s)
++{
++    WHEPContext *w = s->priv_data;
++    int ret;
++
++    w->hs_deadline = w->handshake_timeout < 0 ? INT64_MAX
++                   : av_gettime_relative() + w->handshake_timeout;
++    if ((ret = whep_udp_connect(s)) < 0 ||
++        (ret = whep_ice_connect(s)) < 0 ||
++        (ret = whep_dtls_handshake(s)) < 0)
++        return ret;
++    w->state = WHEP_STATE_READY;
++    return 0;
++}
++
++/**
++ * 读取一个媒体包（T1.4 起接 RTP 解包）。当前桩直接返回 EOF。
++ * @return 0 成功，AVERROR_EOF/AVERROR(EAGAIN) 或其他负值
++ */
++static int whep_media_read(AVFormatContext *s, AVPacket *pkt)
++{
++    return AVERROR_EOF;
+ }
+ 
+ /* ------------------------------------------------------------------ */
+@@ -845,7 +1203,6 @@ static int whep_read_header(AVFormatContext *s)
+         w->state = WHEP_STATE_FAILED;
+         return ret;
+     }
+-    w->state = WHEP_STATE_NEGOTIATED;
+     s->ctx_flags |= AVFMTCTX_UNSEEKABLE;
+     av_log(s, AV_LOG_VERBOSE,
+            "Answer parsed: ufrag=%s pwd=%zuB fp=%s setup=%s ice_lite=%d cand=%s:%d streams=%d elapsed=%.1fms\n",
+@@ -871,6 +1228,7 @@ static const AVOption options[] = {
+     { "tls_verify", "Verify the https server certificate (0/1)",          OFFSET(tls_verify), AV_OPT_TYPE_BOOL,     { .i64 = 0 }, 0, 1, DEC },
+     { "ca_file",    "CA bundle used when tls_verify=1",                   OFFSET(ca_file),    AV_OPT_TYPE_STRING,   { .str = NULL }, 0, 0, DEC },
+     { "user_agent", "HTTP User-Agent of the signalling request",          OFFSET(user_agent), AV_OPT_TYPE_STRING,   { .str = NULL }, 0, 0, DEC },
++    { "handshake_timeout", "Timeout (microseconds) of the ICE + DTLS handshake, -1: no limit", OFFSET(handshake_timeout), AV_OPT_TYPE_INT64, { .i64 = 10000000 }, -1, INT_MAX, DEC },
+     { NULL },
+ };
+ 
