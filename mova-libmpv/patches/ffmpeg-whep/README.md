@@ -142,6 +142,26 @@ mock 的错误场景路径：`/nf`(404) `/unauth`(401) `/nofp` `/badfp` `/sha1` 
 
 `whep_tamper_proxy.py` 新增 `lossy` 模式：`python3 tools/whep-flavor/whep_tamper_proxy.py 18100`，客户端 URL `whep+http://127.0.0.1:18100/lossy/test/whep`；环境变量 `LOSS/SWAP/DUP/CORRUPT` 调比例（百分数），每 5s 打印中继计数。
 
+### whep+https 与丢包基线（2026-10-02，Linux + OpenSSL 3.5.5，MediaMTX v1.21.1 `webrtcEncryption: yes`，自签证书）
+
+完整命令、日志与表格见 `doc/notes/2026-10-02-whep-https-and-loss-baseline.md`。以下均为实测（标"推断"的除外）：
+
+- **https 信令**（`whep+https://127.0.0.1:18889/test/whep`，`ffmpeg -t 10 -f null -`）：`tls_verify=0` 成功，音频 505 包 / 482,880 采样、0 解码错误、auth_fail/late/lost 全 0；`tls_verify=1` 无 `ca_file` 干净失败（`certificate verify failed`，退出码 251）；`tls_verify=1` + `ca_file=自签证书` 成功；换成无关证书当 CA 同样干净失败。普通与 ASan 构建一致，ASan 无报告。
+- **https 同源/降级**：`whep_origin_regress.py --https --cert C --key K` 6 个场景（same / host / redir / downgrade / dg_other / redir_http）全 PASS（普通与 ASan）：evil 与明文监听器的 TCP 连接数均为 0，降级时 POST 之后不再建任何连接，token 未出现在任何明文字节里；http 模式三场景回归 3/3 PASS。
+- **无重传丢包基线（NACK/PLI 未实现）**，`whep_loss_baseline.py`，30s×每档 3 次（0% 对照 1 次），纯丢包，种子记录在 result.json：
+
+  | 丢包 | 客户端 `lost`（视频/音频） | 丢弃不完整帧 | 解码器 "decode errors" | `corrupt`/`concealing` 行 | 视频 pts 停顿累计 | 音频 20ms 洞数 / 累计 | 花屏累计（推断） | 花屏单次平均 / 最长（推断） |
+  |---|---|---|---|---|---|---|---|---|
+  | 0.5% | 10.7 / 7.7 | 7.7 | 0 | 3.0 / 3.0 | 0.28s | 7.3 / 0.15s | 9.3s | 1.28s / 4.0s |
+  | 2% | 41.7 / 30.0 | 22.7 | 0 | 18.0 / 18.7 | 0.83s | 29 / 0.59s | 21.5s | 1.85s / 5.5s |
+  | 5% | 104.3 / 75.0 | 57.7 | 0 | 35.7 / 39.0 | 2.29s | 70 / 1.44s | 27.8s | 4.04s / 12.0s |
+
+  - `lost` 与注入数逐次相等；混合故障（2% 丢 / 2% 交换 / 1% 重复 / 1% 翻转）下 `auth_fail` = 注入的翻转数（视频 27/19/22、音频 16/13/20 全等），`late/dup` = 注入的重复数（仅音频一次多 1），交换的包全被重排救回；`lost` = 丢 + 翻转（仅音频一次差 1，结束瞬间）。
+  - **发现**：ffmpeg 的 "decode errors" 全程为 0，损伤只在 `corrupt decoded frame` / `concealing` 日志行里；`dropped_frames` 低估损伤——缺口落在帧**开头**且后续为完整 NAL 时该帧不被标 `au_bad`，带缺失地进了解码器（有丢包帧 − `dropped_frames` ≈ `concealing` 行数：3.0/3.0、18.7/18.7、41.7/39.0）。T1.5 引入重传时应一并修这个口径。
+  - 音频不连续但每个洞只有 20ms（无 PLC、不补静音，最长连续缺 2 包）；IDR 约 10 个包，5% 丢包时 IDR 带损约 8/16，花屏要多拖一个 GOP（2s）。花屏窗口是按 trace 的帧大小识别 IDR 推算的，不是像素级实测。
+  - ASan（5% 与 mix 各 2 次×20s）无报告。
+  - 局限：回环上的随机独立丢包，无突发/延迟/抖动；每档 3 次波动大；仅 MediaMTX 一种服务端。
+
 ## 升级 ffmpeg 版本时
 
 0001 的 `configure`/`allformats.c`/`Makefile` hunk 对上下文敏感；0002 依赖 `http.c` 的 `process_line` 与 `HTTPContext` 布局；0003 用到的内部 API：`ff_ssl_gen_key_cert`、`ff_http_get_new_location`、`ff_data_to_hex`、`FF_INFMT_FLAG_INIT_CLEANUP`，换版本要逐个确认；0005 另用到 `ff_srtp_set_crypto`/`ff_srtp_decrypt`/`ff_srtp_free`（`srtp.h`）、`ff_packet_list_put/get/free`（`packet_internal.h`）、`ff_alloc_extradata`。
