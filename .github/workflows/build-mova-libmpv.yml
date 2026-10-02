@@ -842,6 +842,7 @@ jobs:
             --enable-parser=h264,hevc,vp9,av1,png,aac,aac_latm,ac3,flac,opus,vorbis,mpegaudio \
             --enable-demuxer=mov,matroska,webm_dash_manifest,mpegts,hls,flv,live_flv,data,mp3,flac,ogg,wav,aac,ac3,eac3,ass,srt,webvtt \
             --enable-protocol=file,fd,pipe,data,http,https,tcp,tls,crypto,rtmp,rtmps,rtmpt,rtmpts,ffrtmpcrypt,ffrtmphttp,udp,rtp \
+            --disable-bsfs --disable-swscale-alpha \
             --enable-bsf=null,extract_extradata,h264_mp4toannexb,hevc_mp4toannexb,aac_adtstoasc,vp9_superframe,vp9_superframe_split,av1_frame_split,av1_frame_merge,mov2textsub,dump_extradata,setts \
             --enable-network \
             --prefix="$GITHUB_WORKSPACE/prefix" 2>&1 | tee "$GITHUB_WORKSPACE/ffconf.log"
@@ -1106,6 +1107,7 @@ jobs:
             --enable-parser=h264,hevc,vp9,av1,png,aac,aac_latm,ac3,flac,opus,vorbis,mpegaudio \
             --enable-demuxer=mov,matroska,webm_dash_manifest,mpegts,hls,flv,live_flv,data,mp3,flac,ogg,wav,aac,ac3,eac3,ass,srt,webvtt \
             --enable-protocol=file,fd,pipe,data,http,https,tcp,tls,crypto,rtmp,rtmps,rtmpt,rtmpts,ffrtmpcrypt,ffrtmphttp,udp,rtp \
+            --disable-bsfs --disable-swscale-alpha \
             --enable-bsf=null,extract_extradata,h264_mp4toannexb,hevc_mp4toannexb,aac_adtstoasc,vp9_superframe,vp9_superframe_split,av1_frame_split,av1_frame_merge,mov2textsub,dump_extradata,setts \
             --enable-network \
             --prefix="$WS/prefix" 2>&1 | tee "$WS/ffconf.log"
