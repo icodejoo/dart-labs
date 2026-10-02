@@ -26,7 +26,7 @@ APPLY_WHEP_PATCHES="${APPLY_WHEP_PATCHES:-0}"
 APPLY_JAVAVM="${APPLY_JAVAVM:-1}"
 FF_TAG="n9.0.2"; MPV_TAG="v0.41.0"; PLC_TAG="v7.360.0"
 OUT="$WORK/out"; PREFIX="$WORK/prefix"; LOGS="$WORK/logs"
-export PATH=/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin
+export PATH="$HOME/.local/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin"
 mkdir -p "$WORK" "$OUT/linux-x86_64" "$LOGS" "$PREFIX"
 
 # 打印带时间的进度行
