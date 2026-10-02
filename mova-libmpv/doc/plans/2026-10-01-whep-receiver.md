@@ -91,7 +91,7 @@ Linux/Windows/Android 三平台，并通过 demuxer 的 AVOption 与 mpv 现有�
 | `RTPDemuxContext` 乱序队列 `queue_size`、`ff_rtp_check_and_send_back_rr` | `rtpdec.c:313`、`:538-553`、`:887-910` | 已核实 |
 | `ff_srtp_decrypt(SRTPContext*, uint8_t *buf, int *lenptr)` 按 `RTP_PT_IS_RTCP` 同时处理 RTP/RTCP，**注释 "TODO: Missing replay protection"** | `libavformat/srtp.h:48`、`srtp.c:127-141` | 已核实 |
 | `whip.c` 已建 `srtp_recv` 并用 `ff_srtp_decrypt` 解 SRTCP（但没有接收 RTP 路径） | `whip.c:1493`、`:1975` | 已核实 |
-| `dtls_protocol_deps_any="openssl schannel gnutls mbedtls"`；schannel 的 DTLS 探测依赖 `SECPKG_ATTR_DTLS_MTU` | `configure:4096-4097`、`:7521`；`tls_schannel.c:1100` | 已核实（**mingw-w64 头文件是否带该宏：未核实**，见 R6） |
+| `dtls_protocol_deps_any="openssl schannel gnutls mbedtls"`；schannel 的 DTLS 探测依赖 `SECPKG_ATTR_DTLS_MTU` | `configure:4115`、`:7619`；`tls_schannel.c:1096`（n9.0.2 实测；原 `4096-4097`/`7521`/`1100` 来自 master，`4096-4097` 在 n9.0.2 是 `rtmps_protocol_select`） | 已核实（**mingw-w64 头文件是否带该宏：未核实**，见 R6） |
 | `tls_mbedtls.c` 在 `MBEDTLS_SSL_DTLS_SRTP` 下导出 SRTP 密钥材料（`ff_dtls_export_materials`），只配 `MBEDTLS_TLS_SRTP_AES128_CM_HMAC_SHA1_80`；无该宏时报 "DTLS-SRTP is not supported in this mbedtls build" | `tls_mbedtls.c:281-323`、`:515-518`、`:656-664` | 已核实 |
 | libdatachannel mbedtls 后端同样只配 AES128_CM_HMAC_SHA1_80；openssl 后端先试 AEAD_GCM 再回退 | `src/impl/dtlstransport.cpp:380-382`、`:421`、`:818-833` | 已核实 |
 | libdatachannel **接收端没有 NACK 生成**：`RtcpReceivingSession` 只做 SR→RR、REMB、PLI、序号统计（`initSeq`/`updateSeq`）；`RtcpNackResponder` 是**发送端**（收到 NACK 后重发）；仅 `rtp.cpp:672-720` 有 NACK 包结构（`RtcpNack::preparePacket`/`addMissingPacket`，多 FCI 打包） | `src/rtcpreceivingsession.cpp`（251 行）、`src/rtcpnackresponder.cpp`（113 行）、`src/rtp.cpp:672-720`（v0.24.6） | 已核实（grep "nack"） |
@@ -302,6 +302,7 @@ ffmpeg libavformat 是纯 C 且不链接 libstdc++——**无法直接拷贝编�
 - **做什么**：
   1. 在 n9.0.2 上写一个最小 `whep` demuxer 桩（`AVFMT_NOFILE`，`read_probe` 认 `whep:` 前缀，`read_header` 里 `avformat_new_stream` 两条流、塞假 extradata），用 mpv 打开 `whep://x`，观察 mpv 是否调用到 `read_header`、是否被 lavf protocol whitelist 拦截、是否绕过 mpv stream 层。
   2. 试用 `ff_sdp_parse` 在无 `RTSPState` 的上下文里解析一段 WHEP answer SDP，看耦合点（需要哪些 `RTSPState`/`RTSPStream` 字段），评估"抽最小子集"的行数。
+  2b. （2026-10-02 源码核实）mpv v0.41.0 `stream_lavf.c:376-387` 对 `rtsp:`/`rtsps:` 前缀特判、直接指定 demuxer 为 lavf（注释称 ffmpeg 无 rtsp 的 protocol 条目），`demux_lavf.c:1023` 在 `AVFMT_NOFILE` 时不建自有 AVIO。故 demuxer 路线很可能需要对 `whep:` 照 rtsp 加同样特判——这是一个 **mpv 补丁**（与 T1.x 里"mpv 本体不改"的表述冲突，T0.3 须验证后修正；补丁体量极小，不影响体积）。`ff_srtp_decrypt` 实际在 `srtp.c:127`。
   3. 用 `ff_srtp_decrypt` 解一个 RTP 包（对 `whip.c` 同款密钥材料）确认签名与语义（RTP 路径，非 RTCP）。
   4. Windows（MSYS2 mingw）下 `check_cc dtls_protocol ... SECPKG_ATTR_DTLS_MTU` 能否通过；Android NDK 自建 mbedtls 开 `MBEDTLS_SSL_DTLS_SRTP` 后 `ff_dtls_export_materials` 能否链接。
 - **验收**：四项各有"通过/不通过 + 证据（日志片段/编译输出）"。任一项不通过，在"风险表"升级并给替代路径（如 NOFILE 不行→改 protocol+自定义 `rtp` 输入）。
@@ -536,7 +537,7 @@ mova-libmpv 只做 libmpv 编译与瘦身，下列事项属 mova 业务层，**�
 | R3 | **iOS/macOS 无 DTLS 后端** | 移动端覆盖一半缺失 | 本期单列待定；Android 先行；不要为此在 iOS 引入新 TLS 库（体积与许可冲击大） |
 | R4 | Android mbedtls `use_srtp` 完整性未核实；只协商 AES128_CM_SHA1_80（无 GCM） | 某些服务器强制 GCM 时无法握手 | T0.3/T3.1 验证；SRS/MediaMTX 默认接受 SHA1_80（需实测，**未核实**） |
 | R5 | ICE 仅单 host candidate，无 TURN/trickle/ICE restart；无 TWCC/REMB，部分服务器可能降码率 | NAT/防火墙环境失败；画质被服务器压低 | 范围内明确"只支持直连/公网可达服务器"；记录为已知限制；TWCC 后续另立 |
-| R6 | mingw-w64 头文件可能缺 `SECPKG_ATTR_DTLS_MTU`（`configure:7521` 的探测会失败） | Windows SChannel DTLS 不可用 | T0.3 先验；缺失则补宏定义补丁（值需来自 Windows SDK，**未核实**），或 Windows 退而用 openssl（体积/许可代价需评估，另议） |
+| R6 | mingw-w64 头文件可能缺 `SECPKG_ATTR_DTLS_MTU`（`configure:7619` 的探测会失败） | Windows SChannel DTLS 不可用 | T0.3 先验；缺失则补宏定义补丁（值需来自 Windows SDK，**未核实**），或 Windows 退而用 openssl（体积/许可代价需评估，另议） |
 | R7 | `ff_srtp_decrypt` 无重放保护（源码 TODO）；`ff_rtp_send_rtcp_feedback` 用 `ssrc+1` 做本机 SSRC，且写明文 | 安全性/与 WebRTC 服务器不兼容 | T1.3/T1.5 自补；写入"安全限制"一节 |
 | R8 | 许可：MPL 文件入库、LGPL 双口径、CI 的 `License: LGPL...` grep 与 MPL 并存 | 合规风险、CI 误判 | T-L1；法务复核；这不是法律意见 |
 | R9 | 补丁绑定 ffmpeg tag，升 tag 需手工 rebase；不指望上游 | 维护成本 | 补丁单文件为主（`whep.c` 新增文件，对既有文件仅改 Makefile/allformats/configure 几行） |
