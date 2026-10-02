@@ -412,8 +412,9 @@ slim.patch`，decoder/demuxer 裁剪 + securetransport 替 mbedtls）降到 10.7
 文件，最后把 ffmpeg/dav1d/freetype/fribidi/harfbuzz/libpng/libass 全部改成静态链接进
 单一 `libmpv.dylib`（跟 Android 同一种"单文件"形态才可比）+ 编译器级瘦身，CI 实测
 7,489,408 字节 ≈7.14MiB，仅比 Android 的 6.52MiB 高约 9.5%。**再叠加 audio/protocol
-白名单收窄**后，**当前记录：CI 实测 6,534,448 字节 ≈6.23MiB，反超 Android 的 6.52MiB
-约 4.4%**。静态化过程连环踩坑（5 层 pkg-config `Requires:` 传递依赖、libtool
+白名单收窄**后，6,534,448 字节 ≈6.23MiB 是更早一次记录；**当前 dist 实测 5,741,680
+字节 ≈5.48MiB（run 35312415642，2026-10-02 由 T0.1 基线脚本复测，见
+`mova-libmpv/tools/regress/baseline.md`），比 Android 的 6.52MiB 小约 16%**。静态化过程连环踩坑（5 层 pkg-config `Requires:` 传递依赖、libtool
 `ar`/`ranlib` 被替换成 `false`、meson `-Dc_args=` 会替换而非追加 cross-file 的
 `-arch`/`-isysroot` 导致 libpng 头文件检测失败）详见 `mova-libmpv/README.md`「多平台
 进度」表 iOS 那一行的完整记录。macOS/其余平台仍是 upstream 默认 flavor 未裁剪，是
