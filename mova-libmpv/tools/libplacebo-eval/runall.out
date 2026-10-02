@@ -1,0 +1,50 @@
+-rw-r--r-- 1 root root 5609330 Oct  1 18:55 /root/w/mpvt/eval/plc-v361-gl/lib/x86_64-linux-gnu/libplacebo.a
+pin unstripped=14715736 stripped=9053064
+missing(types ok to ignore): mpv_end_file_reason mpv_event mpv_event_end_file mpv_event_hook mpv_event_id mpv_event_log_message mpv_event_property mpv_format mpv_handle mpv_node mpv_node_list mpv_opengl_fbo mpv_opengl_init_params mpv_render_param 
+undef(unversioned): 
+exported: 54
+v041-B1 unstripped=17671408 stripped=9986608
+missing(types ok to ignore): mpv_end_file_reason mpv_event mpv_event_end_file mpv_event_hook mpv_event_id mpv_event_log_message mpv_event_property mpv_format mpv_handle mpv_node mpv_node_list mpv_opengl_fbo mpv_opengl_init_params mpv_render_param 
+undef(unversioned): 
+exported: 54
+v041-B2 unstripped=18335304 stripped=10101424
+missing(types ok to ignore): mpv_end_file_reason mpv_event mpv_event_end_file mpv_event_hook mpv_event_id mpv_event_log_message mpv_event_property mpv_format mpv_handle mpv_node mpv_node_list mpv_opengl_fbo mpv_opengl_init_params mpv_render_param 
+undef(unversioned): 
+exported: 54
+v041-B3 unstripped=15637112 stripped=9209384
+missing(types ok to ignore): mpv_end_file_reason mpv_event mpv_event_end_file mpv_event_hook mpv_event_id mpv_event_log_message mpv_event_property mpv_format mpv_handle mpv_node mpv_node_list mpv_opengl_fbo mpv_opengl_init_params mpv_render_param 
+undef(unversioned): 
+exported: 54
+head-C1 unstripped=18256560 stripped=10138256
+missing(types ok to ignore): mpv_end_file_reason mpv_event mpv_event_end_file mpv_event_hook mpv_event_id mpv_event_log_message mpv_event_property mpv_format mpv_handle mpv_node mpv_node_list mpv_opengl_fbo mpv_opengl_init_params mpv_render_param 
+undef(unversioned): 
+exported: 54
+head-C2 unstripped=18916432 stripped=10248976
+missing(types ok to ignore): mpv_end_file_reason mpv_event mpv_event_end_file mpv_event_hook mpv_event_id mpv_event_log_message mpv_event_property mpv_format mpv_handle mpv_node mpv_node_list mpv_opengl_fbo mpv_opengl_init_params mpv_render_param 
+undef(unversioned): 
+exported: 54
+head-C3 unstripped=16203104 stripped=9356936
+missing(types ok to ignore): mpv_end_file_reason mpv_event mpv_event_end_file mpv_event_hook mpv_event_id mpv_event_log_message mpv_event_property mpv_format mpv_handle mpv_node mpv_node_list mpv_opengl_fbo mpv_opengl_init_params mpv_render_param 
+undef(unversioned): 
+exported: 54
+pin-lto unstripped=14523216 stripped=9003880
+missing(types ok to ignore): mpv_end_file_reason mpv_event mpv_event_end_file mpv_event_hook mpv_event_id mpv_event_log_message mpv_event_property mpv_format mpv_handle mpv_node mpv_node_list mpv_opengl_fbo mpv_opengl_init_params mpv_render_param 
+undef(unversioned): 
+exported: 54
+v041-B1-lto unstripped=17390448 stripped=9921008
+missing(types ok to ignore): mpv_end_file_reason mpv_event mpv_event_end_file mpv_event_hook mpv_event_id mpv_event_log_message mpv_event_property mpv_format mpv_handle mpv_node mpv_node_list mpv_opengl_fbo mpv_opengl_init_params mpv_render_param 
+undef(unversioned): 
+exported: 54
+v041-B3-lto unstripped=15359800 stripped=9147912
+missing(types ok to ignore): mpv_end_file_reason mpv_event mpv_event_end_file mpv_event_hook mpv_event_id mpv_event_log_message mpv_event_property mpv_format mpv_handle mpv_node mpv_node_list mpv_opengl_fbo mpv_opengl_init_params mpv_render_param 
+undef(unversioned): 
+exported: 54
+head-C1-lto unstripped=17962520 stripped=10072688
+missing(types ok to ignore): mpv_end_file_reason mpv_event mpv_event_end_file mpv_event_hook mpv_event_id mpv_event_log_message mpv_event_property mpv_format mpv_handle mpv_node mpv_node_list mpv_opengl_fbo mpv_opengl_init_params mpv_render_param 
+undef(unversioned): 
+exported: 54
+head-C3-lto unstripped=15906504 stripped=9291400
+missing(types ok to ignore): mpv_end_file_reason mpv_event mpv_event_end_file mpv_event_hook mpv_event_id mpv_event_log_message mpv_event_property mpv_format mpv_handle mpv_node mpv_node_list mpv_opengl_fbo mpv_opengl_init_params mpv_render_param 
+undef(unversioned): 
+exported: 54
+ALLDONE

@@ -1,0 +1,33 @@
+diff --git a/include/mpv/client.h b/include/mpv/client.h
+index f72a0e0a46..f977d72f4c 100644
+--- a/include/mpv/client.h
++++ b/include/mpv/client.h
+@@ -1733,6 +1733,7 @@ MPV_EXPORT mpv_event *mpv_wait_event(mpv_handle *ctx, double timeout);
+  * Safe to be called from mpv render API threads.
+  */
+ MPV_EXPORT void mpv_wakeup(mpv_handle *ctx);
++MPV_EXPORT int mpv_lavc_set_java_vm(void *vm);
+ 
+ /**
+  * Set a custom function that should be called when there are new events. Use
+diff --git a/player/client.c b/player/client.c
+index 61c998dbb8..452b1d4c47 100644
+--- a/player/client.c
++++ b/player/client.c
+@@ -14,6 +14,7 @@
+  */
+ 
+ #include <assert.h>
++#include <libavcodec/jni.h>
+ #include <errno.h>
+ #include <fcntl.h>
+ #include <math.h>
+@@ -2247,3 +2248,8 @@ bool mp_streamcb_lookup(struct mpv_global *g, const char *protocol,
+     mp_mutex_unlock(&clients->lock);
+     return found;
+ }
++
++int mpv_lavc_set_java_vm(void *vm)
++{
++    return av_jni_set_java_vm(vm, NULL);
++}

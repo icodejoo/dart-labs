@@ -8,6 +8,30 @@
 > 编译与瘦身，不涉及业务**：URL 映射、低延迟配置落点、UI 降级等 mova 侧工作**不在本计划内**，另行立项。
 > 凡本文写"未核实"的，落地前先用阶段 0 的小验证核实，不要当事实用。
 
+## 当前状态与下一步（交接，2026-10-02）
+
+**状态：规划与选型调研已完成，代码一行未动。** 分支 `feat/whep-receiver`（已推送 codeup 与 GitHub），下一步从 **T0.1（建回归基线）** 开始。
+
+已定的关键决策（细节见 §0.1、§8.2、T0.2 修订）：
+- ffmpeg 升到 **n9.0.2**；mpv 用 **v0.41.0**（不再钉死旧 commit）+ 最小静态 libplacebo + **摘 `vo_gpu_next`** 补丁；兼容补丁 `pin-n9-compat.patch` 作废。
+- 体积是首要目标。实测摘 `vo_gpu_next` 后相对钉死基线只多约 15 万字节（Android 整链 LTO：6,615,960 → 6,768,032）。
+- **D3 的实际口径是 Q1=(b)**：用户授权专家决定，默认**不拷** libjuice，只把 NACK 多 FCI 打包按 libdatachannel 的逻辑移植成 C；`whip.c` 的 STUN/ICE 不够再拷 `stun.c`。MPL-2.0 许可义务见 §6 / Task L1。
+- mova-libmpv **只做编译与瘦身，不涉及业务**；URL 映射、低延迟参数落点、UI 降级都不在本计划，本计划只"开放参数"。
+- iOS/macOS 本期不做 WHEP（securetransport 无 DTLS，无 Mac）；默认 flavor 保持钉死 mpv + n6.0.1，WHEP flavor 单独用 n9 + v0.41.0。
+
+配套资料（都在本分支）：
+- 极致瘦身配置：[../notes/2026-10-02-extreme-slim-config.md](../notes/2026-10-02-extreme-slim-config.md)（Linux 同口径极致档 8,754,480 字节 vs 评估基线 9,209,384；Android/Windows/iOS/macOS **未跑**）。
+- 评估用补丁与脚本：[../../tools/libplacebo-eval/](../../tools/libplacebo-eval/README.md)（含 `b3-v041.patch`、`javavm-v041.patch`；freetype bz2 改动**未做成补丁**）。
+- 旧分支 ffmpeg 9 线存档（对比参考，非现行）：[../../reference/ffmpeg9-zhangfly/](../../reference/ffmpeg9-zhangfly/README.md)。
+- WSL 评估机产物在 `/root/w/mpvt/`（换机器就没了）；WSL 已调到 18 核（`~/.wslconfig`）。
+
+**落地前必须先核实的"未核实"项（按优先级）**：
+1. Android 上 v0.41.0 + libplacebo(GL) 的真机播放（只在 x86 编过链接过，没跑）；`mpv_lavc_set_java_vm` 补丁对 0.41 是手工移植的。
+2. n9.0.2 上 `whip.c`/`tls_*.c` 的行号与结构（文中行号多来自 master `0b01ed76`）；mingw 头是否带 `SECPKG_ATTR_DTLS_MTU`；Android mbedtls 开 DTLS-SRTP 宏的实际机制；`ff_srtp_decrypt` 签名。
+3. WHEP 注册成 demuxer 还是 protocol，mpv 如何探测 `AVFMT_NOFILE`（T0.3）。
+4. 瘦身配置里的高风险项（去 unwind 表、`-Dauto_features=disabled`、去 dav1d、mbedtls 裁剪、RELR）在 Android/Windows 上的实际收益与回归。
+5. MPL-2.0 与 LGPLv3 合并分发的合规复核（我读的是官方原文与 FAQ，**不是法律意见**）。
+
 ## 0. 目标与边界
 
 **目标**：libmpv 直接打开 WebRTC 直播流（WHEP 拉流），mova 的 Dart 内核（`MovaKernel`）不改，不引入
