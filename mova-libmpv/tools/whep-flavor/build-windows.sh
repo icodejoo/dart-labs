@@ -5,8 +5,11 @@
 #
 # 两种模式（MODE）：
 #   base  复刻 CI 现状：ffmpeg n6.0.1 + mpv 78d4374 + ksmedia 补丁，不含 WHEP、不含 libplacebo
-#   whep  ffmpeg n9.0.2 + patches/ffmpeg-whep/0001-0010 + mpv v0.41.0 + patches/mpv-v041（0001/0003/0004）
+#   whep  ffmpeg n9.0.2 + patches/ffmpeg-whep/0001-0010 + mpv v0.41.0 + patches/mpv-v041（0001/0003/0004/0005）
 #         + 最小静态 libplacebo；TLS 仍是系统 SChannel，另外编进 whep demuxer 与 dtls 协议
+#         + S 档瘦身（见 doc/notes/2026-10-02-windows-shrink-research.md）：win-iconv 取代 GNU libiconv、
+#           freetype/harfbuzz/libass 钉 tag 源码构建（libass 只用 DirectWrite、无 fontconfig）、
+#           mpv 去 mpv.rc 资源、ffmpeg 去 d3d12va/bzlib/lzma。仅 whep 模式；base 模式保持 CI 现状不动
 #
 # 环境变量（都可选）：
 #   MODE     base|whep，默认 base
@@ -14,7 +17,8 @@
 #   JOBS     并行度，默认 nproc
 #   TAG      产物目录名，默认等于 MODE；同一模式想并存多份变体时用
 #   WITH_WHEP  whep 模式下 0=只打补丁不启用 whep/dtls（体积对照用），默认 1
-# 用法：build-windows.sh [步骤...]   步骤：fetch dav1d ffmpeg plc mpv finish，默认全做
+#   SLIM     whep 模式下 1=启用 S 档瘦身（默认 1）；0=回到未瘦身的 pacman 依赖（体积对照用）
+# 用法：build-windows.sh [步骤...]   步骤：fetch dav1d winiconv freetype harfbuzz libass ffmpeg plc mpv finish，默认全做
 # 产物：$WORK/$TAG/out/libmpv-2.dll（已 strip）、libmpv-2.unstripped.dll、libmpv.map、size.txt
 set -euo pipefail
 
@@ -31,10 +35,20 @@ PREFIX="$B/prefix"; OUT="$B/out"; LOGS="$B/logs"
 FF_BASE_TAG="n6.0.1"; FF_WHEP_TAG="n9.0.2"
 MPV_BASE_REV="78d43740f52db817d98bcf24fb30a76ab6fa13ff"; MPV_WHEP_TAG="v0.41.0"
 DAV1D_TAG="1.2.1"; PLC_TAG="v7.360.0"
+# S 档瘦身依赖（钉死 tag，不跟 runner 当日的 pacman 滚动版本）
+WICONV_TAG="v0.0.10"; FT_TAG="VER-2-14-3"; HB_TAG="14.4.0"; ASS_TAG="0.17.5"
+# 只有 whep 模式吃 S 档瘦身；base 模式保持 CI 现状
+SLIM="${SLIM:-1}"; [ "$MODE" = whep ] || SLIM=0
 mkdir -p "$SRC" "$PREFIX" "$OUT" "$LOGS"
 # 保留 System32：windres 经 cmd.exe popen 预处理器，PATH 里没有 cmd 会失败
 export PATH=/mingw64/bin:/usr/bin:/bin:/c/Windows/System32:/c/Windows
 export PKG_CONFIG_PATH="$PREFIX/lib/pkgconfig:/mingw64/lib/pkgconfig"
+# meson 的 dependency('iconv') 只走 system 方式、不看 pkg-config；靠这两个变量让头文件/库先命中前缀里的 win-iconv
+# （否则 libass/mpv 会悄悄选中 /mingw64 的 GNU libiconv.a，体积不变，看起来像"没生效"）。
+# 只在 SLIM=1 时设置：base 模式没有前缀 iconv，设了反而可能让 CPATH 指向空目录（无害，但保持原行为）。
+if [ "$SLIM" = 1 ]; then
+  export CPATH="$(cygpath -m "$PREFIX")/include" LIBRARY_PATH="$(cygpath -m "$PREFIX")/lib"
+fi
 
 case "$MODE" in base|whep) ;; *) echo "MODE 只能是 base 或 whep" >&2; exit 2 ;; esac
 
@@ -72,6 +86,12 @@ step_fetch() {
     clone_tag mpv-v0.41.0 https://github.com/mpv-player/mpv.git "$MPV_WHEP_TAG"
     clone_tag libplacebo https://code.videolan.org/videolan/libplacebo.git "$PLC_TAG" --recurse-submodules --shallow-submodules
   fi
+  if [ "$SLIM" = 1 ]; then
+    clone_tag win-iconv https://github.com/win-iconv/win-iconv.git "$WICONV_TAG"
+    clone_tag freetype https://gitlab.freedesktop.org/freetype/freetype.git "$FT_TAG"
+    clone_tag harfbuzz https://github.com/harfbuzz/harfbuzz.git "$HB_TAG"
+    clone_tag libass https://github.com/libass/libass.git "$ASS_TAG"
+  fi
 }
 
 # 从缓存派生一份干净工作副本。参数：缓存目录名 目标目录
@@ -92,6 +112,58 @@ step_dav1d() {
   ninja -C "$B/dav1d/_build" install > "$LOGS/dav1d-build.log" 2>&1 || { tail -15 "$LOGS/dav1d-build.log"; die "dav1d build"; }
 }
 
+# ---------- 2b. S 档瘦身依赖（仅 SLIM=1）：win-iconv / freetype / harfbuzz / libass ----------
+# 为什么：pacman 预编译的 libiconv(1.1MB 码表)、fontconfig+expat+libintl、freetype 的 png/brotli/bz2、
+# harfbuzz 的 graphite2/uniscribe 合计约 2.8MB，且都不影响字幕渲染（调研里逐字/逐像素对照过）。
+SH_FL="-ffunction-sections -fdata-sections"
+SH_M="--default-library=static --buildtype=minsize -Db_ndebug=true -Ddebug=false"
+
+# win-iconv：单文件，用 Windows 代码页 API 实现 iconv，替换 GNU libiconv
+step_winiconv() {
+  [ "$SLIM" = 1 ] || { say "SLIM=0，跳过 win-iconv"; return 0; }
+  say "win-iconv $WICONV_TAG"
+  mkdir -p "$PREFIX/include" "$PREFIX/lib/pkgconfig"
+  clang -Oz -ffunction-sections -fdata-sections -c "$SRC/win-iconv/win_iconv.c" -o "$B/win_iconv.o" || die "win-iconv 编译"
+  rm -f "$PREFIX/lib/libiconv.a"; ar rcs "$PREFIX/lib/libiconv.a" "$B/win_iconv.o"
+  cp "$SRC/win-iconv/iconv.h" "$PREFIX/include/iconv.h"
+  # pkg-config 入口只给走 pkg-config 的消费者；meson 的 dependency('iconv') 靠 CPATH/LIBRARY_PATH（见文件顶部）
+  printf 'prefix=%s\nlibdir=${prefix}/lib\nincludedir=${prefix}/include\nName: iconv\nDescription: win-iconv\nVersion: 1.17\nLibs: -L${libdir} -liconv\nCflags: -I${includedir} -DWINICONV_CONST=\n' \
+    "$PREFIX" > "$PREFIX/lib/pkgconfig/iconv.pc"
+}
+
+# freetype：只留 zlib；去 png/brotli/bzip2/harfbuzz（后者破 freetype<->harfbuzz 循环依赖，harfbuzz 之后再接 freetype）
+step_freetype() {
+  [ "$SLIM" = 1 ] || { say "SLIM=0，跳过 freetype"; return 0; }
+  say "freetype $FT_TAG"; rm -rf "$B/freetype"; cp -a "$SRC/freetype" "$B/freetype"
+  (cd "$B/freetype" && CC=clang CXX=clang++ meson setup _build --prefix="$PREFIX" --libdir=lib $SH_M \
+    -Dzlib=enabled -Dbzip2=disabled -Dpng=disabled -Dbrotli=disabled -Dharfbuzz=disabled -Dc_args="$SH_FL") \
+    > "$LOGS/ft-conf.log" 2>&1 || { tail -15 "$LOGS/ft-conf.log"; die "freetype configure"; }
+  ninja -C "$B/freetype/_build" install > "$LOGS/ft-build.log" 2>&1 || { tail -15 "$LOGS/ft-build.log"; die "freetype build"; }
+}
+
+# harfbuzz：去 glib/graphite2/uniscribe/GDI/DirectWrite 等，只留 freetype 后端
+step_harfbuzz() {
+  [ "$SLIM" = 1 ] || { say "SLIM=0，跳过 harfbuzz"; return 0; }
+  say "harfbuzz $HB_TAG"; rm -rf "$B/harfbuzz"; cp -a "$SRC/harfbuzz" "$B/harfbuzz"
+  (cd "$B/harfbuzz" && CC=clang CXX=clang++ meson setup _build --prefix="$PREFIX" --libdir=lib $SH_M \
+    -Dglib=disabled -Dgobject=disabled -Dcairo=disabled -Dchafa=disabled -Dicu=disabled -Dgraphite2=disabled -Dfreetype=enabled \
+    -Dtests=disabled -Ddocs=disabled -Dutilities=disabled -Dbenchmark=disabled -Dintrospection=disabled \
+    -Dc_args="$SH_FL" -Dcpp_args="$SH_FL") \
+    > "$LOGS/hb-conf.log" 2>&1 || { tail -15 "$LOGS/hb-conf.log"; die "harfbuzz configure"; }
+  ninja -C "$B/harfbuzz/_build" install > "$LOGS/hb-build.log" 2>&1 || { tail -15 "$LOGS/hb-build.log"; die "harfbuzz build"; }
+}
+
+# libass：只用 DirectWrite 字体后端，去 fontconfig（连带 expat/libintl）；checkasm 关掉，否则换 iconv 后它链接失败
+step_libass() {
+  [ "$SLIM" = 1 ] || { say "SLIM=0，跳过 libass"; return 0; }
+  say "libass $ASS_TAG"; rm -rf "$B/libass"; cp -a "$SRC/libass" "$B/libass"
+  (cd "$B/libass" && CC=clang CXX=clang++ meson setup _build --prefix="$PREFIX" --libdir=lib $SH_M \
+    -Dfontconfig=disabled -Ddirectwrite=enabled -Dlibunibreak=enabled -Dtest=disabled -Dcompare=disabled -Dprofile=disabled -Dcheckasm=disabled \
+    -Dc_args="$SH_FL") \
+    > "$LOGS/ass-conf.log" 2>&1 || { tail -15 "$LOGS/ass-conf.log"; die "libass configure"; }
+  ninja -C "$B/libass/_build" install > "$LOGS/ass-build.log" 2>&1 || { tail -15 "$LOGS/ass-build.log"; die "libass build"; }
+}
+
 # ---------- 2. ffmpeg ----------
 # 按序给 ffmpeg 打 patches/ffmpeg-whep/*.patch（先 --check 再 apply）。
 # 0007/0009 只改 mbedtls 文件，Windows 用不到，但 0008 的 whep.c 守卫上下文可能依赖 0007，所以全部按序打，无害。
@@ -110,6 +182,12 @@ step_ffmpeg() {
   local demuxers="mov,matroska,webm_dash_manifest,mpegts,hls,flv,live_flv,data,mp3,flac,ogg,wav,aac,ac3,eac3,ass,srt,webvtt"
   local protos="file,fd,pipe,data,http,https,tcp,tls,crypto,rtmp,rtmps,rtmpt,rtmpts,ffrtmpcrypt,ffrtmphttp,udp,rtp"
   local extra=()
+  if [ "$SLIM" = 1 ]; then
+    # S 档：ffmpeg 里 d3d12va 被 n9 自动探测打开但 mpv 不用；bzlib/lzma 只服务极少见的 mkv 头压缩。
+    # -DWINICONV_CONST= 是 win-iconv 头文件的 const 约定；-I/-L 指向前缀里的 win-iconv
+    extra+=(--disable-d3d12va --disable-bzlib --disable-lzma
+            --extra-cflags="-I$PREFIX/include -DWINICONV_CONST=" --extra-ldflags="-L$PREFIX/lib")
+  fi
   if [ "$MODE" = base ]; then
     work_copy ffmpeg-n6.0.1 "$B/ffmpeg"
     extra+=(--disable-postproc)
@@ -181,11 +259,12 @@ patch_mpv_base() {
   done
 }
 
-# whep：按序打 patches/mpv-v041（Windows 跳过 0002 javavm 桩）
+# whep：按序打 patches/mpv-v041（Windows 跳过 0002 javavm 桩；0005 去 mpv.rc 是 Windows 专用，SLIM=0 时跳过）
 patch_mpv_whep() {
   local p
   for p in "$PATCHES"/mpv-v041/*.patch; do
     case "$p" in *java-vm*) say "跳过 $(basename "$p")（Android 专用）"; continue ;; esac
+    case "$p" in *drop-mpv-rc*) [ "$SLIM" = 1 ] || { say "跳过 $(basename "$p")（SLIM=0）"; continue; } ;; esac
     git -C "$B/mpv" apply --check "$p" || die "mpv 补丁不能 apply: $p"
     git -C "$B/mpv" apply "$p"
     say "已打补丁 $(basename "$p")"
@@ -199,12 +278,15 @@ step_mpv() {
   else work_copy mpv-v0.41.0 "$B/mpv"; patch_mpv_whep; fi
   local map; map="$(cygpath -m "$OUT")/libmpv.map"
   rm -rf "$B/mpv/build"
+  # SLIM：让 mpv 的头文件/库搜索先命中前缀（win-iconv、静态 freetype/harfbuzz/libass）
+  local pinc="" plib=""
+  if [ "$SLIM" = 1 ]; then pinc="-I$(cygpath -m "$PREFIX")/include"; plib="-L$(cygpath -m "$PREFIX")/lib "; fi
   (cd "$B/mpv" && CC=clang CXX=clang++ meson setup build --prefix="$PREFIX" --libdir=lib --default-library=shared \
     --prefer-static \
     -Dbuildtype=minsize -Ddebug=false -Db_ndebug=true \
-    -Dc_args="-ffunction-sections -fdata-sections" \
+    -Dc_args="-ffunction-sections -fdata-sections $pinc" \
     -Dcpp_args="-ffunction-sections -fdata-sections" \
-    -Dc_link_args="-Wl,-Bstatic -lstdc++ -lwinpthread -Wl,-Bdynamic -ldwrite -lole32 -lrpcrt4 -static-libgcc -Wl,--gc-sections -Wl,-Map=$map" \
+    -Dc_link_args="${plib}-Wl,-Bstatic -lstdc++ -lwinpthread -Wl,-Bdynamic -ldwrite -lole32 -lrpcrt4 -static-libgcc -Wl,--gc-sections -Wl,-Map=$map" \
     -Dcpp_link_args="-Wl,--gc-sections" \
     -Dgpl=false -Dlibmpv=true -Dcplayer=false -Dtests=false) \
     > "$LOGS/mpv-conf.log" 2>&1 || { tail -25 "$LOGS/mpv-conf.log"; die "mpv configure"; }
@@ -229,6 +311,26 @@ step_finish() {
   for bad in libstdc++ libgcc_s libwinpthread; do
     if grep -qi "$bad" "$OUT/imports.txt"; then die "产物导入了 $bad，不再自包含"; fi
   done
+  if [ "$SLIM" = 1 ]; then
+    # S 档判据：被替换/被去掉的依赖不得再出现在链接 map 里（map 是 strip 前的真实输入清单）。
+    # 前缀目录名固定为 prefix，$PREFIX/lib 下的才是我们自建的那份（win-iconv 的 libiconv.a 也在其中）。
+    local bad hit
+    # 只看"真被拉进链接的归档成员"（形如 libxxx.a(member.o)）；LOAD 行只是 ld 列出命令行上的归档，未必有成员被用。
+    # 不能写成 `grep | grep -q`：pipefail 下 grep -q 提前退出会让上游 SIGPIPE，判据永远不触发（实际踩过）。
+    for bad in libiconv.a libfontconfig libexpat libpng16 libbrotli libgraphite2 libintl libbz2; do
+      hit="$(grep -v '/prefix/lib/' "$OUT/libmpv.map" | grep -F "$bad(" | head -3 || true)"
+      if [ -n "$hit" ]; then
+        echo "$hit"
+        die "S 档判据失败：map 里仍链入 $bad 的成员（CPATH/LIBRARY_PATH 没生效或依赖漂移？）"
+      fi
+    done
+    for bad in libiconv.a libass.a libfreetype.a libharfbuzz.a; do
+      grep -qF "/prefix/lib/$bad(" "$OUT/libmpv.map" || die "S 档判据失败：map 里没有前缀里的 $bad"
+    done
+    # mpv.rc 去掉后不应再有 .rsrc 段
+    hit="$(objdump -h "$dll" | grep -F '.rsrc' || true)"
+    [ -z "$hit" ] || die "S 档判据失败：仍有 .rsrc 段（0005 补丁没生效？）"
+  fi
   # 符号检查（strip 前）
   local s fail=0
   for s in mpv_create mpv_initialize mpv_command mpv_set_option_string mpv_render_context_create mpv_terminate_destroy \
@@ -245,5 +347,5 @@ step_finish() {
 }
 
 # ---------- 主流程 ----------
-STEPS=("$@"); [ ${#STEPS[@]} -gt 0 ] || STEPS=(fetch dav1d ffmpeg plc mpv finish)
+STEPS=("$@"); [ ${#STEPS[@]} -gt 0 ] || STEPS=(fetch dav1d winiconv freetype harfbuzz libass ffmpeg plc mpv finish)
 for s in "${STEPS[@]}"; do "step_$s"; done

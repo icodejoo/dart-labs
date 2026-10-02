@@ -189,14 +189,26 @@ target_link_libraries(
 # media_kit_video CMakeLists reads this by name to bundle the libraries into
 # the app's output directory; renaming it would silently drop our DLL from
 # the packaged build.
+# [mova slim] Deliberately NOT bundled from ANGLE.7z (saves 10,775,128 bytes):
+#   - zlib.dll            (203,264)   nobody imports it; it is a Debug-CRT build anyway.
+#   - vk_swiftshader.dll  (4,808,008) Vulkan software ICD; unreachable, there is no
+#                                     vk_swiftshader_icd.json and media_kit never asks ANGLE for Vulkan.
+#   - vulkan-1.dll        (872,776)   only loaded if ANGLE picks the Vulkan backend (never here).
+#   - d3dcompiler_47.dll  (4,891,080) loaded by libGLESv2 at runtime by NAME (not in the import table);
+#                                     ANGLE searches the app directory first, then System32.
+# Evidence: doc/notes/2026-10-02-windows-angle-shrink.md (mova-libmpv), variant E - with all four
+# removed, inline / fullscreen / in-app mini window playback all rendered correctly (real screenshots),
+# and the module list showed d3dcompiler_47.dll loaded from C:\Windows\SYSTEM32.
+# PREREQUISITE: minimum supported OS is Windows 10 (product decision). Windows 10 ships
+# d3dcompiler_47.dll in System32 (measured on build 19045: 4,517,376 bytes, v10.0.19041.3636).
+# RISK: on Windows 7/8 or stripped-down OS images that lack it, ANGLE only fails when it first compiles
+# a shader, so the symptom is a late black screen rather than a startup error.
+# To restore it, add "${ANGLE_SRC}/d3dcompiler_47.dll" back to the list below.
+# libEGL.dll / libGLESv2.dll are statically imported by media_kit_video_plugin - they must stay.
 set(
   media_kit_libs_windows_video_bundled_libraries
   "${CUSTOM_LIBMPV_DLL}"
-  "${ANGLE_SRC}/d3dcompiler_47.dll"
   "${ANGLE_SRC}/libEGL.dll"
   "${ANGLE_SRC}/libGLESv2.dll"
-  "${ANGLE_SRC}/vk_swiftshader.dll"
-  "${ANGLE_SRC}/vulkan-1.dll"
-  "${ANGLE_SRC}/zlib.dll"
   PARENT_SCOPE
 )

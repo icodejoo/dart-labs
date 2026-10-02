@@ -265,6 +265,11 @@ jobs:
       - name: Checkout dart-labs
         uses: actions/checkout@v4
 
+      # 依赖清单说明（S 档瘦身，见 mova-libmpv/doc/notes/2026-10-02-windows-s-tier-landed.md）：
+      # libass/freetype/harfbuzz/win-iconv 由 build-windows.sh 钉 tag 源码构建（libass 仅 DirectWrite、无 fontconfig），
+      # 所以不再装它们的 pacman 版（装了反而让 meson 可能选中 GNU libiconv/fontconfig）；
+      # fribidi/libunibreak/zlib 仍用 pacman 的静态库（libass/freetype 的必需依赖，随 runner MSYS2 快照漂移）。
+      # 源码构建需联网 clone win-iconv(github)、freetype(gitlab.freedesktop.org)、harfbuzz、libass。
       - uses: msys2/setup-msys2@v2
         with:
           msystem: MINGW64
@@ -283,10 +288,8 @@ jobs:
             mingw-w64-x86_64-python-pip
             mingw-w64-x86_64-python-jinja
             mingw-w64-x86_64-python-mako
-            mingw-w64-x86_64-libass
-            mingw-w64-x86_64-freetype
-            mingw-w64-x86_64-harfbuzz
             mingw-w64-x86_64-fribidi
+            mingw-w64-x86_64-libunibreak
             mingw-w64-x86_64-zlib
 
       - name: Pin meson via pip
