@@ -83,3 +83,26 @@ n9.0.2（`--disable-bsfs --disable-iamf --disable-swscale-alpha`，无 `--disabl
 ## WHEP 变体（`WHEP=1 apply-v041.sh <root>`）
 
 额外套：`whep-android.patch`（mbedtls.sh 开 `MBEDTLS_SSL_DTLS_SRTP`）、ffmpeg 0001–0009、mpv 0003/0004，并给 ffmpeg flavor 加 `whep` demuxer 与 `dtls` 协议。不设 WHEP 则行为不变。实测数字见 [../../doc/notes/2026-10-02-android-whep-build-and-device.md](../../doc/notes/2026-10-02-android-whep-build-and-device.md)。
+
+## 端到端自动复现验证（2026-10-02，WSL `/root/w/t17`，WHEP=1，arm64）
+
+**入口**：`WHEP=1 e2e-arm64.sh <空目录>`（新增）——clone 上游 1ecf510 → `git apply libmpv-android-video-build.patch` → 拷默认 flavor → `apply-v041.sh`（WHEP=1）→ NDK r25c 软链 → `download-deps.sh`（失败自动重试 3 次）→ `patch.sh` → `build.sh --arch arm64 mpv` → strip。全程零手工介入，整条依赖链从头构建（NDK r25c、API21、cores=8）。本机仅有的环境适配是 `GIT_CONFIG_*` 的 `url.insteadOf`（dav1d/libxml2/freetype 指到 GitHub 镜像），写在 e2e 脚本里，不绕过证书校验。
+
+**脚本这轮修了什么**（此前这些是在已构建的树上手工做的）：
+1. `apply-v041.sh` 现在自己把 `v_ffmpeg` 改 9.0.2、旧 mpv 哈希改 `v0.41.0`（depinfo.sh + download-deps.sh，幂等，带 grep 自检），不再靠调用方 sed。
+2. libvpx/x264 的 clone 仅在 `ENCODERS_GPL` 设置时才执行：非 GPL 构建根本不用它们，而它们在 gitlab.freedesktop/videolan 上，本机 CA 过不去（此前是手工塞了假仓库 `/root/w/cilocal/base` 绕过）。
+3. 新增 `e2e-arm64.sh`（含 NDK 软链、下载重试）。首次跑时 libplacebo 递归子模块 glad 的 checkout 偶发中断，`download-deps.sh` 在 `deps/libplacebo` 留下半成品且脚本不幂等，故加了“失败则删 libplacebo 重试”；第二次一次通过。
+4. 注：`bash script` 方式调用不吃 shebang 的 `-e`，e2e 脚本内显式 `set -e`。
+
+**结果（实测）**：构建一次成功。未 strip 31,463,560 字节；`llvm-strip --strip-all` 后 **6,353,936** 字节，sha256 `7ef63c2acc3b1964cd4c43c6ce8794a54feb680fbdc5e4d99af861ab78826de0`。
+符号（llvm-nm）：`mpv_lavc_set_java_vm`/`mpv_create_weak_client`/`mpv_wait_event` 导出（-D）；`ff_whep_demuxer`、`ff_dtls_protocol`、`ff_{h264,hevc,vp9,av1}_mediacodec_decoder`、`ff_libdav1d_decoder` 均在（未 strip 的符号表）；无 `gpu-next` 字符串；mbedtls 配置里 `MBEDTLS_SSL_DTLS_SRTP` 已开；`tls_mbedtls.c` 里 profiles 为 static（0009 生效）。
+
+| 版本 | 字节 |
+|---|---:|
+| 无 WHEP | 6,319,792 |
+| WHEP 0001–0009（此前手工树） | 6,349,952 |
+| WHEP 0001–0010（本次，自动复现） | 6,353,936 |
+
+0010（RTCP PLI/RR/NACK）增量 **+3,984**（预期约 +8KB，实际更小）；相对无 WHEP 总增量 +34,144（+0.54%），略超此前 ≤+30KB 的目标线（30,720），超出部分即 0010 的 RTCP 代码。归因为**推断**（LTO 位码无法逐项量化）。
+
+**真机复验：跳过**。`adb devices` 为空（杀掉并重启 adb server 后仍无设备，7NQBB23606003715 未连接），无法确认亮屏解锁，未改 `packages/media_kit_libs_android_video_slim_v041` 的 libmpv.so，也未建 pubspec_overrides.yaml。0010 在 Android 上的 PLI/NACK 真机行为**仍未验**（Linux 回环已验，见 ffmpeg-whep 0010 说明）。产物留在 `/root/w/t17/o/libmpv.stripped.so`，设备在线后可直接按 doc/notes/2026-10-02-android-whep-build-and-device.md 的方法验证。

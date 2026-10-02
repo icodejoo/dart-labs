@@ -5,8 +5,10 @@
 #   1) git apply buildscripts-v041.patch（加 libplacebo、改 mpv.sh/freetype.sh）
 #   2) 用 flavors-mova-slim-n9.sh 覆盖 scripts/ffmpeg.sh（取代默认的 flavors-mova-slim.sh）
 #   3) 把 patches/mpv-v041/0001/0002 放进 buildscripts/patches/mpv/（取代上游的 javavm 补丁）
-# 不改 depinfo.sh 里的 v_ffmpeg/v_mpv；这两个由调用方（CI 的 Override 步骤或本地脚本）覆盖成
-# v_ffmpeg=9.0.2、mpv 指向 v0.41.0。
+#   4) 把 depinfo.sh 的 v_ffmpeg 改 9.0.2、旧 mpv 提交哈希（depinfo.sh/download-deps.sh）改 v0.41.0
+#      （幂等；CI 的 Override 步骤若再 sed 同样的值也不冲突）
+#   5) libvpx/x264 仅 ENCODERS_GPL 才用，非 GPL 构建不需要：把 download-deps.sh 里这两个 clone 改成
+#      仅在 ENCODERS_GPL 设置时才执行（避免本机 gitlab/videolan 证书问题，也少拉两个无用仓库）
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 MOVA="$(cd "$HERE/../.." && pwd)"
 ROOT="${1:?用法: apply-v041.sh <build-root>}"
@@ -18,11 +20,21 @@ rm -rf "$ROOT/buildscripts/patches/ffmpeg" "$ROOT/buildscripts/patches/mpv/mpv_l
 mkdir -p "$ROOT/buildscripts/patches/mpv"
 cp "$MOVA/patches/mpv-v041/0001-vo-drop-gpu-next.patch" "$MOVA/patches/mpv-v041/0002-client-lavc-set-java-vm.patch" "$ROOT/buildscripts/patches/mpv/"
 
+BS="$ROOT/buildscripts"
+sed -i -E 's/^v_ffmpeg=.*/v_ffmpeg=9.0.2/' "$BS/include/depinfo.sh"
+sed -i 's/78d43740f52db817d98bcf24fb30a76ab6fa13ff/v0.41.0/g' "$BS/include/depinfo.sh" "$BS/include/download-deps.sh"
+grep -q '^v_ffmpeg=9.0.2$' "$BS/include/depinfo.sh"
+grep -q 'git reset --hard v0.41.0' "$BS/include/download-deps.sh"
+for d in libvpx libx264; do
+	sed -i "s#^\[ ! -d $d \] && #[ -z \"\${ENCODERS_GPL+x}\" ] || [ -d $d ] || #" "$BS/include/download-deps.sh"
+done
+[ "$(grep -c 'ENCODERS_GPL+x}" ] || \[ -d lib' "$BS/include/download-deps.sh")" = 2 ]
+
 # WHEP=1：Android 带 WHEP 变体（ffmpeg whep demuxer + mbedtls DTLS-SRTP + mpv whep 特判）。默认不开。
 if [ "${WHEP:-0}" = 1 ]; then
 	# mbedtls 开 MBEDTLS_SSL_DTLS_SRTP
 	git -C "$ROOT" apply "$HERE/whep-android.patch"
-	# ffmpeg 0001-0008：patch.sh 会按文件名顺序打到 deps/ffmpeg
+	# ffmpeg 0001-0010（0*.patch 通配）：patch.sh 会按文件名顺序打到 deps/ffmpeg
 	mkdir -p "$ROOT/buildscripts/patches/ffmpeg"
 	cp "$MOVA"/patches/ffmpeg-whep/0*.patch "$ROOT/buildscripts/patches/ffmpeg/"
 	# mpv 0003/0004：stream_lavf 对 whep 特判
