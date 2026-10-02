@@ -63,3 +63,19 @@ n9.0.2（`--disable-bsfs --disable-iamf --disable-swscale-alpha`，无 `--disabl
 5. **flavor**：`flavors-mova-slim.sh` 对 n9 需要的差异（**未改文件**，由本地脚本核实）：加 `--disable-iamf`；`--disable-postproc` 在 n9 不再存在（n9.0.2 的 configure 里已无 postproc 字样，实测 grep；本地脚本未传，构建通过）；`--enable-lto` 保持。
 6. 缓存 key 已含 ffmpeg/mpv ref，无需再改。
 7. 其他：`commit_artifact=false` 才能做实验构建，别回写 `packages/`。
+
+## 上游构建链实跑（2026-10-02，arm64，T0.6 续）
+
+**文件**：`buildscripts-v041.patch`（121 行，5 个文件，对「上游 1ecf510 + `libmpv-android-video-build.patch`」）、`apply-v041.sh`（套补丁 + 换 ffmpeg flavor + 换 mpv 补丁 + 删 n6 专用 ffmpeg 补丁）、`../../flavors-mova-slim-n9.sh`（n9 flavor：相对默认版只去 `--disable-postproc`、加 `--disable-iamf`；`--disable-bsfs`/`--disable-swscale-alpha` 默认版本来就有）。
+补丁内容：`depinfo.sh` 加 `v_libplacebo=v7.360.0` 并让 `dep_mpv` 依赖 `libplacebo`；`download-deps.sh` 加 libplacebo 克隆（GitHub，递归子模块）；新 `scripts/libplacebo.sh`（最小静态，同 `tools/libplacebo-eval/and-plc.sh` 的开关）；`mpv.sh` 改 `-Dauto_features=disabled` + 显式开 `zlib/gl/plain-gl/egl-android/android-media-ndk/opensles/audiotrack`、去掉 `-Dlibplacebo=disabled/-Diconv/-Dvulkan`；`freetype.sh` 加 `-Dbzip2=disabled`（2-13-0 的 meson 有该选项且生效，**不需要** `patches/freetype-2.13.3` 那个源码补丁，已实测）。`depinfo.sh` 的 `v_ffmpeg`/`v_mpv` 不动，由 CI Override 步骤覆盖。
+
+**复现（本地 WSL）**：clone 上游 → `git apply libmpv-android-video-build.patch` → `apply-v041.sh <root>` → `sed` 把 `v_ffmpeg` 改 `9.0.2`、旧 mpv hash 改 `v0.41.0`（depinfo.sh + include/download-deps.sh）→ NDK r25c 软链到 `buildscripts/sdk/android-sdk-linux/ndk/25.2.9519653` → `download-deps.sh` → `patch.sh` → `build.sh --arch arm64 mpv`。
+本机额外处理：videolan/gnome/freedesktop 的 git 源在 WSL 有 CA 问题，用 `GIT_CONFIG_*` 的 `url.<github镜像>.insteadOf` 重定向（不改脚本、不绕过证书校验）；装了 autoconf/automake/libtool（libass、libxml2 需要）。libxml2 的 autogen 会打印 `cannot run C compiled programs`，**不致命**（`|| true` 级别的预配置步骤），后续真正的交叉 configure 正常。
+
+**结果（实测）**：`patch.sh` 通过，整条链（mbedtls 3.4.0、dav1d 1.2.0、libxml2、ffmpeg n9.0.2、freetype/fribidi/harfbuzz/libass、libplacebo v7.360.0、mpv v0.41.0）一次构建成功（arm64 API21，crossfile 自带 LTO）。
+- 未 strip 31,325,816 字节；`llvm-strip -s` 后 **6,319,792 字节**。
+- 导出符号（`llvm-nm -D`）共 55 个，含 `mpv_lavc_set_java_vm`、`mpv_create_weak_client`、`mpv_wait_event`；四个 `ff_{h264,hevc,vp9,av1}_mediacodec_decoder` 均在（局部符号，非导出，与本地脚本一致）；`ff_libdav1d_decoder` 在；无 `gpu-next` 字符串；无 `__gxx`/`BZ2_` 未定义。NEEDED：libandroid/libEGL/libm/libmediandk/libdl/libOpenSLES/libc。
+
+**与 §本地构建 LTO 行对比**：本地手工脚本 LTO 6,753,456；上游链 6,319,792，**小 433,664（-6.4%）**。
+归因（**推断，未逐项量化**）：上游链依赖版本更旧更小（libass 0.17.1/harfbuzz 7.2.0/fribidi 1.0.12/freetype 2-13-0/mbedtls 3.4.0，本地是 0.17.4/10.4.0/1.0.16/2.13.3/3.6.7）；链接参数不同（上游无 version script，改用 `-fvisibility=hidden` + `--exclude-libs,ALL`；API21 vs 本地 API24）；上游依赖全部 `-Os -flto` 并带 `--icf=safe`。本地脚本与上游链的 dav1d（1.2.0、`-Dbitdepths=8`）、ffmpeg 配方一致，所以 dav1d 不是差异来源。相对仓库现行 6,050,104（n6.0.1 默认 flavor）为 +269,688（+4.5%），与 android-size-measure.md §7 的"n9 比 n6 大约 +5%"同量级（(d) 行 +7.7% 未含老依赖的优势）。
+**未验证**：真机播放/MediaCodec 硬解/WHEP；其余三个 ABI；CI 里实跑（workflow 未改）；mpv 的 zlib 开关对体积的单独影响没量。

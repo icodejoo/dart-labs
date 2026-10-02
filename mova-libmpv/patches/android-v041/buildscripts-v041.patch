@@ -1,0 +1,121 @@
+diff --git a/buildscripts/include/depinfo.sh b/buildscripts/include/depinfo.sh
+index bd218ce..0d7a770 100755
+--- a/buildscripts/include/depinfo.sh
++++ b/buildscripts/include/depinfo.sh
+@@ -7,6 +7,7 @@ v_ndk=25.2.9519653
+ v_sdk_build_tools=33.0.2
+ 
+ v_libass=0.17.1
++v_libplacebo=v7.360.0
+ v_harfbuzz=7.2.0
+ v_fribidi=1.0.12
+ v_freetype=2-13-0
+@@ -35,10 +36,11 @@ dep_freetype2=()
+ dep_fribidi=()
+ dep_harfbuzz=()
+ dep_libass=(freetype fribidi harfbuzz)
++dep_libplacebo=()
+ dep_lua=()
+ dep_shaderc=()
+ if [ -n "${ENCODERS_GPL+x}" ]; then
+-	dep_mpv=(ffmpeg libass fftools_ffi)
++	dep_mpv=(ffmpeg libass libplacebo fftools_ffi)
+ else
+-	dep_mpv=(ffmpeg libass)
++	dep_mpv=(ffmpeg libass libplacebo)
+ fi
+diff --git a/buildscripts/include/download-deps.sh b/buildscripts/include/download-deps.sh
+index bec6b31..615452a 100755
+--- a/buildscripts/include/download-deps.sh
++++ b/buildscripts/include/download-deps.sh
+@@ -42,6 +42,9 @@ mkdir -p deps && cd deps
+ # libass
+ [ ! -d libass ] && git clone --depth 1 --branch $v_libass https://github.com/libass/libass.git libass
+ 
++# libplacebo (mpv >= 0.41 的必选依赖；子模块 glad/jinja/markupsafe 构建时要用)
++[ ! -d libplacebo ] && git clone --depth 1 --branch $v_libplacebo --recursive --shallow-submodules https://github.com/haasn/libplacebo.git libplacebo
++
+ # shaderc
+ mkdir -p shaderc
+ cat >shaderc/README <<'HEREDOC'
+diff --git a/buildscripts/scripts/freetype.sh b/buildscripts/scripts/freetype.sh
+index cde945f..15a81b6 100755
+--- a/buildscripts/scripts/freetype.sh
++++ b/buildscripts/scripts/freetype.sh
+@@ -16,7 +16,8 @@ fi
+ 
+ unset CC CXX # meson wants these unset
+ 
+-meson setup $build --cross-file "$prefix_dir"/crossfile.txt --native-file "$prefix_dir"/native.txt
++meson setup $build --cross-file "$prefix_dir"/crossfile.txt --native-file "$prefix_dir"/native.txt \
++	-Dbzip2=disabled
+ 
+ ninja -C $build -j$cores
+ DESTDIR="$prefix_dir" ninja -C $build install
+diff --git a/buildscripts/scripts/libplacebo.sh b/buildscripts/scripts/libplacebo.sh
+new file mode 100755
+index 0000000..1d0bab5
+--- /dev/null
++++ b/buildscripts/scripts/libplacebo.sh
+@@ -0,0 +1,27 @@
++#!/bin/bash -e
++
++. ../../include/depinfo.sh
++. ../../include/path.sh
++
++build=_build$ndk_suffix
++
++if [ "$1" == "build" ]; then
++	true
++elif [ "$1" == "clean" ]; then
++	rm -rf $build
++	exit 0
++else
++	exit 255
++fi
++
++unset CC CXX # meson wants these unset
++
++# 最小静态 libplacebo：只给 mpv 的 vo_gpu（OpenGL ES）用，砍掉 vulkan/着色器编译器/色彩管理等
++meson setup $build --cross-file "$prefix_dir"/crossfile.txt --native-file "$prefix_dir"/native.txt \
++	--default-library static \
++	-Dvulkan=disabled -Dd3d11=disabled -Dglslang=disabled -Dshaderc=disabled \
++	-Dlcms=disabled -Ddovi=disabled -Dlibdovi=disabled -Dxxhash=disabled -Dunwind=disabled \
++	-Ddemos=false -Dtests=false -Dbench=false -Dfuzz=false
++
++ninja -C $build -j$cores
++DESTDIR="$prefix_dir" ninja -C $build install
+diff --git a/buildscripts/scripts/mpv.sh b/buildscripts/scripts/mpv.sh
+index a709ac8..c1a4a5e 100755
+--- a/buildscripts/scripts/mpv.sh
++++ b/buildscripts/scripts/mpv.sh
+@@ -19,14 +19,23 @@ unset CC CXX # meson wants these unset
+ meson setup $build --cross-file "$prefix_dir"/crossfile.txt --native-file "$prefix_dir"/native.txt \
+ 	--prefer-static \
+ 	--default-library shared \
++	--buildtype=minsize -Db_ndebug=true \
++	-Dauto_features=disabled \
+ 	-Dgpl=false \
+ 	-Dlibmpv=true \
+- 	-Dlua=disabled \
+- 	-Dcplayer=false \
+-	-Diconv=disabled \
+-	-Dvulkan=disabled \
+-   	-Dlibplacebo=disabled \
+- 	-Dmanpage-build=disabled
++	-Dcplayer=false \
++	-Dtests=false \
++	-Dbuild-date=false \
++	-Dlua=disabled \
++	-Dmanpage-build=disabled \
++	-Dzlib=enabled \
++	-Dgl=enabled \
++	-Dplain-gl=enabled \
++	-Degl-android=enabled \
++	-Dandroid-media-ndk=enabled \
++	-Dopensles=enabled \
++	-Daudiotrack=enabled \
++	-Dc_link_args="-landroid -llog -lEGL -lc++_static -lc++abi -Wl,--gc-sections -Wl,--exclude-libs,ALL"
+ 
+ ninja -C $build -j$cores
+ DESTDIR="$prefix_dir" ninja -C $build install
