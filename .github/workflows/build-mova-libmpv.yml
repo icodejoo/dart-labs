@@ -156,9 +156,15 @@ jobs:
             sed -i "s/$OLD_MPV/$MPV_REF/g" include/depinfo.sh include/download-deps.sh
           fi
           grep -n "v_ffmpeg=\|v_mpv=" include/depinfo.sh
-          grep -n "$MPV_REF" include/download-deps.sh || true
-          # n9 upstream already contains these fixes; git apply would fail.
-          rm -f patches/ffmpeg/hls_mp4_seek.patch patches/ffmpeg/dash_base_url_escape.patch
+          if [ -n "$MPV_REF" ]; then
+            grep -n "$MPV_REF" include/download-deps.sh || true
+          fi
+          if [ -n "$FFMPEG_REF" ]; then
+            # n9 upstream already contains these two fixes (git apply would fail).
+            # They are the only files in patches/ffmpeg; patch.sh globs the dir
+            # without nullglob, so drop the whole dir rather than leave it empty.
+            rm -rf patches/ffmpeg
+          fi
 
       - name: Cache ffmpeg/mpv/dav1d/etc. source deps
         uses: actions/cache@v4
@@ -337,9 +343,15 @@ jobs:
             sed -i "s/$OLD_MPV/$MPV_REF/g" include/depinfo.sh include/download-deps.sh
           fi
           grep -n "v_ffmpeg=\|v_mpv=" include/depinfo.sh
-          grep -n "$MPV_REF" include/download-deps.sh || true
-          # n9 upstream already contains these fixes; git apply would fail.
-          rm -f patches/ffmpeg/hls_mp4_seek.patch patches/ffmpeg/dash_base_url_escape.patch
+          if [ -n "$MPV_REF" ]; then
+            grep -n "$MPV_REF" include/download-deps.sh || true
+          fi
+          if [ -n "$FFMPEG_REF" ]; then
+            # n9 upstream already contains these two fixes (git apply would fail).
+            # They are the only files in patches/ffmpeg; patch.sh globs the dir
+            # without nullglob, so drop the whole dir rather than leave it empty.
+            rm -rf patches/ffmpeg
+          fi
 
       - name: Cache ffmpeg/mpv/dav1d/etc. source deps
         uses: actions/cache@v4
@@ -871,7 +883,13 @@ jobs:
 
       - name: Build slimmed ffmpeg (native, static)
         working-directory: ffmpeg-src
+        env:
+          FFMPEG_REF: ${{ inputs.ffmpeg_ref }}
         run: |
+          # --disable-postproc was removed in ffmpeg n8 (configure rejects it as
+          # an unknown option), so only pass it for the default n6.0.1 build.
+          PP_OPT=--disable-postproc
+          [ -n "$FFMPEG_REF" ] && PP_OPT=
           # 2026-08-13 local WSL2 verification (mova-libmpv/README.md "Linux
           # 瘦身构建"): mbedtls -> openssl is size-neutral (+64 bytes noise —
           # these deps are dynamically linked .so's on Linux, unlike Android/
@@ -901,7 +919,7 @@ jobs:
           ./configure \
             --disable-gpl --disable-nonfree \
             --enable-static --disable-shared --pkg-config-flags=--static \
-            --disable-doc --disable-programs --disable-avdevice --disable-postproc \
+            --disable-doc --disable-programs --disable-avdevice $PP_OPT \
             --disable-muxers --disable-decoders --disable-encoders --disable-demuxers \
             --disable-parsers --disable-protocols --disable-devices --disable-filters \
             --enable-small --enable-optimizations --disable-symver \
