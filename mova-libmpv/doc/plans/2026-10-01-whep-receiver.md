@@ -345,6 +345,13 @@ ffmpeg libavformat 是纯 C 且不链接 libstdc++——**无法直接拷贝编�
 #### T-L1 许可与合规 Task（独立）
 
 - **目标**：把"拷了什么、从哪来、什么许可、怎么分发"落成可审计文件，并请有资质的人复核。**本节不是法律意见。**
+- **2026-10-02 原文核实（读的是 libjuice 仓库内的标准 MPL-2.0 文本与 FAQ 转写，非 mozilla.org 页面本身）**：
+  - §1.12 次级许可证 = GPL 2.0 / LGPL 2.1 / AGPL 3.0 "或这些许可证的任何更高版本"；原文**未逐字写 LGPL 3.0**，"LGPLv3 算 2.1 的后续版本"是推断，**需复核**。
+  - §3.3：是**额外**在次级许可证下分发（接收方自选 MPL 或次级许可证），不是整体改许可证；FAQ Q14 三条件：非 "Incompatible With Secondary Licenses"、是组合作品、额外在 (L)GPL 下分发。
+  - §3.1/3.2/3.4：告知源码受 MPL 约束与获取许可证方式；可执行形式须告知如何获取源码（费用不超分发成本）；不得去除许可声明。
+  - libjuice `stun.c`、libdatachannel `rtp.cpp` 头均为标准 MPL-2.0 头，无 Exhibit B；libdatachannel 0.18 起才是 MPL-2.0（此前 LGPLv2.1+），须钉具体 tag。
+  - **体积优先的结论**：维持 Q1=(b)——不拷 libjuice（连带 8–10 个文件，且 ffmpeg 已有 HMAC/CRC，`whip.c` 自带 STUN），仅移植 NACK 逻辑；移植件按 Modifications 处理并登记 PROVENANCE（"独立重写不继承 MPL"仅有 FAQ Q11 字面推断，不依赖）。
+  - **仍未核实**：§3.5/§5.3 完整原文；FAQ 静态链接/改写条目；LGPLv3 §4 对 Windows dll、Android APK 内 so"可替换"的具体要求。
 - **涉及文件**：
   - `mova-libmpv/third_party/LICENSES/MPL-2.0.txt`（MPL 全文）
   - `mova-libmpv/third_party/PROVENANCE.md`（每个拷贝/移植文件一行：目标路径、来源仓库、**tag + commit**、来源路径、许可、是否修改、修改摘要）
