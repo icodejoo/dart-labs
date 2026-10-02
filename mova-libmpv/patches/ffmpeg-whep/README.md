@@ -10,7 +10,11 @@
 | 0003 | `0003-avformat-whep-add-WHEP-demuxer-signalling-and-SDP-T1.patch` | 新增 `libavformat/whep.c`：T1.2 的信令与 SDP（见下） |
 | 0004 | `0004-avformat-whep-ICE-DTLS-SRTP-key-export-T1.3-stage-A.patch` | T1.3 阶段 A：`whep.c` 加 ICE 连通性检查 + DTLS(server) 握手 + 指纹校验 + SRTP 密钥导出；`tls_openssl.c`/`tls.h` 加 `ff_dtls_get_peer_fingerprint()`、DTLS server 请求客户端证书、握手循环响应中断回调 |
 | 0005 | `0005-avformat-whep-SRTP-decrypt-and-RTP-depacketize-T1.3-stage-B.patch` | T1.3 阶段 B：只改 `whep.c`。握手后真正收媒体：UDP 分流（STUN/DTLS/RTP/RTCP）、SRTP 解密、RTP 重排、H.264/Opus 解包出 AVPacket，周期 consent 检查与存活检测，新增 `media_timeout` 选项 |
+| 0007 | `0007-avformat-tls-mbedtls-dtls-srtp-peer-fingerprint.patch` | mbedTLS 后端（Android）：`ff_dtls_get_peer_fingerprint`、DTLS server 请求客户端证书、可中断握手、EAGAIN 修正；`whep.c` 指纹分支守卫改为 `CONFIG_OPENSSL \|\| CONFIG_MBEDTLS \|\| CONFIG_SCHANNEL`（只改这一行，避免与 0006 冲突） |
+| 0008 | `0008-avformat-tls-schannel-dtls-srtp-peer-fingerprint.patch` | SChannel 后端（Windows）：同上，外加 SRTP profile 协商缓冲、`ASC_REQ_MUTUAL_AUTH`；`tls.h` 注释更新 |
 | 0006 | `0006-avformat-whep-security-hardening.patch` | 安全加固，只改 `whep.c`：Location 同源校验、带 token 不跟随 3xx、指纹长度严格检查、STUN HMAC 常量时间比较、ICE 连续 socket 错误上限、关闭时清零 DTLS 私钥与 SRTP 材料（见下「信任模型与安全加固」） |
+
+0006 为另行产出的安全修复补丁，序号保留；0007/0008 只依赖 0001–0005。
 
 编号说明：0003 依赖 0002 的 `ff_http_get_link_headers`，所以 http 补丁排在 whep.c 前面。
 
@@ -141,3 +145,24 @@ mock 的错误场景路径：`/nf`(404) `/unauth`(401) `/nofp` `/badfp` `/sha1` 
 ## 升级 ffmpeg 版本时
 
 0001 的 `configure`/`allformats.c`/`Makefile` hunk 对上下文敏感；0002 依赖 `http.c` 的 `process_line` 与 `HTTPContext` 布局；0003 用到的内部 API：`ff_ssl_gen_key_cert`、`ff_http_get_new_location`、`ff_data_to_hex`、`FF_INFMT_FLAG_INIT_CLEANUP`，换版本要逐个确认；0005 另用到 `ff_srtp_set_crypto`/`ff_srtp_decrypt`/`ff_srtp_free`（`srtp.h`）、`ff_packet_list_put/get/free`（`packet_internal.h`）、`ff_alloc_extradata`。
+
+## mbedTLS / SChannel 后端（0007 / 0008）
+
+两个后端都补齐了 whep 需要的三件事：`ff_dtls_get_peer_fingerprint`（SHA-256 指纹，格式 `AA:BB:..` 大写）、DTLS server 向对端要证书且**不做链校验**（信任只来自 SDP 指纹比对）、握手可被 `interrupt_callback` 打断（非阻塞读 + 最长 100ms 的 poll）。
+
+### mbedTLS（Android，0007）——已端到端实测
+
+- **mbedtls 宏集**（3.6.7，在默认 `mbedtls_config.h` 上）：`MBEDTLS_X509_CRT_PARSE_C`、`MBEDTLS_SSL_KEEP_PEER_CERTIFICATE`（取对端证书做指纹）、`MBEDTLS_SSL_DTLS_SRTP`（**默认关闭，必须手开**，否则 SRTP 密钥导出不可用）、`MBEDTLS_TIMING_C`（DTLS 重传计时器）。
+- **configure**：mbedtls 3.x 是 Apache-2.0，ffmpeg 要求同时 `--enable-version3`；静态链接要 `--pkg-config-flags=--static`，否则只链 `-lmbedtls`、缺 x509/crypto。
+- **实测**（Linux x86_64，非 OpenSSL，对真实 MediaMTX）：`ffprobe` 取到 h264 640x360 + opus 48k；`ffmpeg -t 10 -f null -` 解码 250 帧、exit 0、日志无 error/corrupt。DTLS 握手 + 指纹校验 + 60 字节 SRTP 材料导出约 56ms。
+- **补丁里改掉的坑**：SRTP 密钥导出回调只认 TLS1.2 master secret 类型；`ffurl_read` 返回 EAGAIN 要映射成 `MBEDTLS_ERR_SSL_WANT_READ`（原先被当成缓冲区过小）。
+- **未验证**：丢包重传（没造丢包测过）；Android 真机未跑。
+
+### SChannel（Windows，0008）——仅编译验证
+
+- 用 `SECPKG_ATTR_REMOTE_CERT_CONTEXT` 取对端证书；server 侧加 `ASC_REQ_MUTUAL_AUTH` 触发 CertificateRequest，凭据本来就是 `SCH_CRED_NO_SYSTEM_MAPPER | SCH_CRED_MANUAL_CRED_VALIDATION`（不做系统映射与链校验）。
+- 通过 `SECBUFFER_SRTP_PROTECTION_PROFILES` 提交 `SRTP_AES128_CM_HMAC_SHA1_80`。
+- **已知限制**：
+  - **真实握手未验证**（只在 MSYS2 mingw64 下编译，没有 Windows 上的 WHEP 服务端对接实测）。
+  - **SRTP profile 值（0x0001）的字节序没有官方文档说明**，目前按主机序传，需真机抓包（use_srtp 扩展）确认。
+  - 握手循环里没有主动驱动服务端重传，丢包要靠对端重发。

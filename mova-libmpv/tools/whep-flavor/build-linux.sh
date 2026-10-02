@@ -69,7 +69,11 @@ build_ffmpeg() {
     patch_ffmpeg_whep
     [ -f "$WORK/ffmpeg/libavformat/whep.c" ] || die "打完补丁后 libavformat/whep.c 仍不存在"
   fi
-  [ "$WITH_WHEP" = 1 ] && demuxers="$demuxers,whep"
+  if [ "$WITH_WHEP" = 1 ]; then
+    demuxers="$demuxers,whep"
+    # whep 需要 dtls 协议（whep_demuxer_select 也会自动选上，这里显式列出以免被后续改动漏掉）
+    case ",$protos," in *,dtls,*) ;; *) protos="$protos,dtls" ;; esac
+  fi
   # 注意：--disable-bsfs 必须在 --enable-bsf 之前；n9 没有 --disable-postproc
   (cd "$WORK/ffmpeg" && ./configure \
     --prefix="$PREFIX" \

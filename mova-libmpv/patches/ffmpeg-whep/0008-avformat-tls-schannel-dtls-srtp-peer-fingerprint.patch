@@ -1,0 +1,137 @@
+From cf540d3f39e3d6208a5aa9e8fc1e960da02cec50 Mon Sep 17 00:00:00 2001
+From: jelon <jelon@tbu.net>
+Date: Fri, 2 Oct 2026 17:17:18 +0800
+Subject: [PATCH 8/8] avformat/tls_schannel: DTLS-SRTP peer fingerprint, mutual
+ auth, SRTP profile, interruptible handshake
+
+Add ff_dtls_get_peer_fingerprint() via SECPKG_ATTR_REMOTE_CERT_CONTEXT, request the client
+certificate on a DTLS-SRTP server (ASC_REQ_MUTUAL_AUTH; trust via SDP fingerprint), offer
+SRTP_AES128_CM_HMAC_SHA1_80 via SECBUFFER_SRTP_PROTECTION_PROFILES, non-blocking handshake
+read with poll honouring the interrupt callback. Update tls.h doc. Compile-tested only.
+
+Co-Authored-By: Claude Sonnet 5.5 <noreply@anthropic.com>
+---
+ libavformat/tls.h          |  3 +-
+ libavformat/tls_schannel.c | 56 ++++++++++++++++++++++++++++++++------
+ 2 files changed, 50 insertions(+), 9 deletions(-)
+
+diff --git a/libavformat/tls.h b/libavformat/tls.h
+index e800421..21a6f07 100644
+--- a/libavformat/tls.h
++++ b/libavformat/tls.h
+@@ -120,7 +120,8 @@ int ff_dtls_export_materials(URLContext *h, char *dtls_srtp_materials, size_t ma
+ 
+ /**
+  * 取 DTLS 对端证书的 SHA-256 指纹（"AA:BB:.."），*fingerprint 由调用方 av_free。
+- * 目前只有 OpenSSL 后端实现，其余后端不提供（调用方须用 CONFIG_OPENSSL 守卫）。
++ * OpenSSL、mbedTLS（需 MBEDTLS_SSL_KEEP_PEER_CERTIFICATE）、SChannel 后端实现；
++ * 其余后端不提供（调用方须用 CONFIG_OPENSSL || CONFIG_MBEDTLS || CONFIG_SCHANNEL 守卫）。
+  */
+ int ff_dtls_get_peer_fingerprint(URLContext *h, char **fingerprint);
+ 
+diff --git a/libavformat/tls_schannel.c b/libavformat/tls_schannel.c
+index 6708302..209e5c0 100644
+--- a/libavformat/tls_schannel.c
++++ b/libavformat/tls_schannel.c
+@@ -634,6 +634,29 @@ int ff_tls_set_external_socket(URLContext *h, URLContext *sock)
+     return 0;
+ }
+ 
++/**
++ * Get SHA-256 fingerprint ("AA:BB:..") of the DTLS peer certificate.
++ * 取 DTLS 对端证书的 SHA-256 指纹，*fingerprint 由调用方 av_free。
++ */
++int ff_dtls_get_peer_fingerprint(URLContext *h, char **fingerprint)
++{
++    TLSContext *c = h->priv_data;
++    PCCERT_CONTEXT peer = NULL;
++    SECURITY_STATUS sspi_ret;
++    int ret;
++
++    if (!c->have_context)
++        return AVERROR(EINVAL);
++
++    sspi_ret = QueryContextAttributes(&c->ctxt_handle, SECPKG_ATTR_REMOTE_CERT_CONTEXT, &peer);
++    if (sspi_ret != SEC_E_OK || !peer)
++        return AVERROR(ENOENT);
++
++    ret = der_to_fingerprint((const char *)peer->pbCertEncoded, peer->cbCertEncoded, fingerprint);
++    CertFreeCertificateContext(peer);
++    return ret;
++}
++
+ int ff_dtls_export_materials(URLContext *h, char *dtls_srtp_materials, size_t materials_sz)
+ {
+ #if HAVE_SECPKGCONTEXT_KEYINGMATERIALINFO
+@@ -823,8 +846,11 @@ static int tls_handshake_loop(URLContext *h, int initial)
+     SECURITY_STATUS sspi_ret;
+     SecBuffer outbuf[3] = { 0 };
+     SecBufferDesc outbuf_desc;
+-    SecBuffer inbuf[3];
++    SecBuffer inbuf[4];
+     SecBufferDesc inbuf_desc;
++    /* SRTP_AES128_CM_HMAC_SHA1_80 (RFC 5764); 字节序未经官方文档确认，需真机验证 */
++    SEC_SRTP_PROTECTION_PROFILES srtp_profiles = { 2, { 0x0001 } };
++    int inbuf_count;
+     struct sockaddr_storage recv_addr = { 0 };
+     socklen_t recv_addr_len = 0;
+     int i, ret = 0, read_data = initial;
+@@ -845,7 +871,8 @@ static int tls_handshake_loop(URLContext *h, int initial)
+         c->dec_buf_size = SCHANNEL_INITIAL_BUFFER_SIZE;
+     }
+ 
+-    uc->flags &= ~AVIO_FLAG_NONBLOCK;
++    /* 非阻塞读 + 分段 poll，让 interrupt 回调及时生效 */
++    uc->flags |= AVIO_FLAG_NONBLOCK;
+ 
+     while (1) {
+         if (c->enc_buf_size - c->enc_buf_offset < SCHANNEL_FREE_BUFFER_SIZE) {
+@@ -859,6 +886,15 @@ static int tls_handshake_loop(URLContext *h, int initial)
+ 
+         if (read_data) {
+             ret = ffurl_read(uc, c->enc_buf + c->enc_buf_offset, c->enc_buf_size - c->enc_buf_offset);
++            if (ret == AVERROR(EAGAIN)) {
++                struct pollfd pfd = { .fd = ffurl_get_file_handle(uc), .events = POLLIN };
++                if (ff_check_interrupt(&h->interrupt_callback)) {
++                    ret = AVERROR_EXIT;
++                    goto fail;
++                }
++                poll(&pfd, 1, 100);
++                continue;
++            }
+             if (ret < 0) {
+                 av_log(h, AV_LOG_ERROR, "Failed to read handshake response\n");
+                 goto fail;
+@@ -881,12 +917,13 @@ static int tls_handshake_loop(URLContext *h, int initial)
+         /* input buffers */
+         init_sec_buffer(&inbuf[0], SECBUFFER_TOKEN, av_malloc(c->enc_buf_offset), c->enc_buf_offset);
+         init_sec_buffer(&inbuf[1], SECBUFFER_EMPTY, NULL, 0);
+-        if (s->listen && s->is_dtls) {
+-            init_sec_buffer(&inbuf[2], SECBUFFER_EXTRA, &recv_addr, recv_addr_len);
+-            init_sec_buffer_desc(&inbuf_desc, inbuf, 3);
+-        } else {
+-            init_sec_buffer_desc(&inbuf_desc, inbuf, 2);
+-        }
++        inbuf_count = 2;
++        if (s->listen && s->is_dtls)
++            init_sec_buffer(&inbuf[inbuf_count++], SECBUFFER_EXTRA, &recv_addr, recv_addr_len);
++        if (s->listen && s->is_dtls && s->use_srtp)
++            init_sec_buffer(&inbuf[inbuf_count++], SECBUFFER_SRTP_PROTECTION_PROFILES,
++                            &srtp_profiles, sizeof(srtp_profiles));
++        init_sec_buffer_desc(&inbuf_desc, inbuf, inbuf_count);
+ 
+         if (inbuf[0].pvBuffer == NULL) {
+             av_log(h, AV_LOG_ERROR, "Failed to allocate input buffer\n");
+@@ -1069,6 +1106,9 @@ static int tls_server_handshake(URLContext *h)
+         c->request_flags |= ASC_REQ_DATAGRAM;
+     else
+         c->request_flags |= ASC_REQ_STREAM;
++    /* WebRTC 要求双向证书：让 SChannel 向客户端要证书，信任由调用方比对 SDP 指纹决定 */
++    if (s->is_dtls && s->use_srtp)
++        c->request_flags |= ASC_REQ_MUTUAL_AUTH;
+ 
+     c->have_context = 0;
+ 
+-- 
+2.53.0
+
