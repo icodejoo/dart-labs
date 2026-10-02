@@ -41,6 +41,24 @@ on:
       - '!mova-libmpv/doc/**'
       - '.github/workflows/build-mova-libmpv.yml'
   workflow_dispatch:
+    inputs:
+      # EXPERIMENT knobs. All empty/true by default = byte-for-byte the same
+      # build as before (Linux n6.0.1 + pinned mpv, Android 1ecf510 pins).
+      ffmpeg_ref:
+        description: 'ffmpeg version WITHOUT the "n" prefix, e.g. 9.0.2 (empty = current pin: Android 6.0 / Linux n6.0.1). Affects linux + android jobs only.'
+        required: false
+        default: ''
+        type: string
+      mpv_ref:
+        description: 'mpv commit hash (empty = current pinned 78d43740...). Affects linux + android jobs only.'
+        required: false
+        default: ''
+        type: string
+      commit_artifact:
+        description: 'Commit built binaries back to packages/ and push (false = experiment build, artifact upload only)'
+        required: false
+        default: true
+        type: boolean
 
 # The android-arm64 job commits the rebuilt artifact back to packages/ (see its
 # last step) — the default GITHUB_TOKEN is read-only unless granted write
@@ -122,11 +140,31 @@ jobs:
             mv /tmp/ndk-extract/android-ndk-r25c "build-root/buildscripts/sdk/android-sdk-linux/ndk/$NDK_VERSION"
           fi
 
+      - name: Override ffmpeg/mpv refs (experiment only, skipped when inputs are empty)
+        if: ${{ inputs.ffmpeg_ref || inputs.mpv_ref }}
+        working-directory: build-root/buildscripts
+        env:
+          FFMPEG_REF: ${{ inputs.ffmpeg_ref }}
+          MPV_REF: ${{ inputs.mpv_ref }}
+        run: |
+          OLD_MPV=78d43740f52db817d98bcf24fb30a76ab6fa13ff
+          if [ -n "$FFMPEG_REF" ]; then
+            sed -i -E "s/^v_ffmpeg=.*/v_ffmpeg=$FFMPEG_REF/" include/depinfo.sh
+          fi
+          if [ -n "$MPV_REF" ]; then
+            # the pinned mpv hash appears in both depinfo.sh and download-deps.sh
+            sed -i "s/$OLD_MPV/$MPV_REF/g" include/depinfo.sh include/download-deps.sh
+          fi
+          grep -n "v_ffmpeg=\|v_mpv=" include/depinfo.sh
+          grep -n "$MPV_REF" include/download-deps.sh || true
+          # n9 upstream already contains these fixes; git apply would fail.
+          rm -f patches/ffmpeg/hls_mp4_seek.patch patches/ffmpeg/dash_base_url_escape.patch
+
       - name: Cache ffmpeg/mpv/dav1d/etc. source deps
         uses: actions/cache@v4
         with:
           path: build-root/buildscripts/deps
-          key: android-deps-${{ env.ANDROID_LIBMPV_BUILD_REF }}
+          key: android-deps-${{ env.ANDROID_LIBMPV_BUILD_REF }}${{ inputs.ffmpeg_ref && format('-ff{0}', inputs.ffmpeg_ref) }}${{ inputs.mpv_ref && format('-mpv{0}', inputs.mpv_ref) }}
 
       - name: Download ffmpeg/mpv/dav1d/etc. sources
         working-directory: build-root/buildscripts
@@ -182,6 +220,9 @@ jobs:
           retention-days: 30
 
       - name: Commit built artifact to packages/
+        # Experiment builds (workflow_dispatch with commit_artifact=false) must
+        # never overwrite the shipped packages/ binaries.
+        if: ${{ github.event_name != 'workflow_dispatch' || inputs.commit_artifact }}
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
@@ -280,11 +321,31 @@ jobs:
             mv /tmp/ndk-extract/android-ndk-r25c "build-root/buildscripts/sdk/android-sdk-linux/ndk/$NDK_VERSION"
           fi
 
+      - name: Override ffmpeg/mpv refs (experiment only, skipped when inputs are empty)
+        if: ${{ inputs.ffmpeg_ref || inputs.mpv_ref }}
+        working-directory: build-root/buildscripts
+        env:
+          FFMPEG_REF: ${{ inputs.ffmpeg_ref }}
+          MPV_REF: ${{ inputs.mpv_ref }}
+        run: |
+          OLD_MPV=78d43740f52db817d98bcf24fb30a76ab6fa13ff
+          if [ -n "$FFMPEG_REF" ]; then
+            sed -i -E "s/^v_ffmpeg=.*/v_ffmpeg=$FFMPEG_REF/" include/depinfo.sh
+          fi
+          if [ -n "$MPV_REF" ]; then
+            # the pinned mpv hash appears in both depinfo.sh and download-deps.sh
+            sed -i "s/$OLD_MPV/$MPV_REF/g" include/depinfo.sh include/download-deps.sh
+          fi
+          grep -n "v_ffmpeg=\|v_mpv=" include/depinfo.sh
+          grep -n "$MPV_REF" include/download-deps.sh || true
+          # n9 upstream already contains these fixes; git apply would fail.
+          rm -f patches/ffmpeg/hls_mp4_seek.patch patches/ffmpeg/dash_base_url_escape.patch
+
       - name: Cache ffmpeg/mpv/dav1d/etc. source deps
         uses: actions/cache@v4
         with:
           path: build-root/buildscripts/deps
-          key: android-deps-${{ env.ANDROID_LIBMPV_BUILD_REF }}
+          key: android-deps-${{ env.ANDROID_LIBMPV_BUILD_REF }}${{ inputs.ffmpeg_ref && format('-ff{0}', inputs.ffmpeg_ref) }}${{ inputs.mpv_ref && format('-mpv{0}', inputs.mpv_ref) }}
 
       - name: Download ffmpeg/mpv/dav1d/etc. sources
         working-directory: build-root/buildscripts
@@ -347,6 +408,9 @@ jobs:
           retention-days: 30
 
       - name: Commit built artifact to packages/
+        # Experiment builds (workflow_dispatch with commit_artifact=false) must
+        # never overwrite the shipped packages/ binaries.
+        if: ${{ github.event_name != 'workflow_dispatch' || inputs.commit_artifact }}
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
@@ -508,6 +572,9 @@ jobs:
           retention-days: 14
 
       - name: Commit built artifact to packages/
+        # Experiment builds (workflow_dispatch with commit_artifact=false) must
+        # never overwrite the shipped packages/ binaries.
+        if: ${{ github.event_name != 'workflow_dispatch' || inputs.commit_artifact }}
         working-directory: dart-labs
         run: |
           git config user.name "github-actions[bot]"
@@ -720,6 +787,9 @@ jobs:
           retention-days: 14
 
       - name: Commit built artifact to packages/
+        # Experiment builds (workflow_dispatch with commit_artifact=false) must
+        # never overwrite the shipped packages/ binaries.
+        if: ${{ github.event_name != 'workflow_dispatch' || inputs.commit_artifact }}
         working-directory: dart-labs
         run: |
           git config user.name "github-actions[bot]"
@@ -777,6 +847,10 @@ jobs:
           echo "$HOME/.local/bin" >> "$GITHUB_PATH"
 
       - name: Download ffmpeg and mpv sources
+        env:
+          # Empty input = the pins below (n6.0.1 / 78d43740...), unchanged.
+          FFMPEG_TAG: ${{ inputs.ffmpeg_ref && format('n{0}', inputs.ffmpeg_ref) || 'n6.0.1' }}
+          MPV_COMMIT: ${{ inputs.mpv_ref || '78d43740f52db817d98bcf24fb30a76ab6fa13ff' }}
         run: |
           # n6.0.1, not n6.0: n6.0's inline asm in libavcodec/x86/mathops.h
           # feeds a non-immediate operand to shr/sar, which binutils >= 2.41
@@ -786,14 +860,14 @@ jobs:
           # the recipe was actually safe (2026-08-13 local WSL2 verification
           # on binutils 2.42 reproduced the failure) — a runner image bump
           # would have broken this silently. Locked to n6.0.1 pre-emptively.
-          git clone --depth 1 --branch n6.0.1 https://github.com/FFmpeg/FFmpeg.git ffmpeg-src
+          git clone --depth 1 --branch "$FFMPEG_TAG" https://github.com/FFmpeg/FFmpeg.git ffmpeg-src
           # mpv's main branch needs a newer libavcodec than ffmpeg n6.0 ships
           # (meson: "found 60.3.100 but need >= 60.31.102") — pin to the same
           # mpv commit the Android build already verified pairs with ffmpeg
           # 6.0.x (see libmpv/README.md's "实测结果" section),
           # instead of guessing another ref.
           git clone https://github.com/mpv-player/mpv.git mpv-src
-          git -C mpv-src checkout 78d43740f52db817d98bcf24fb30a76ab6fa13ff
+          git -C mpv-src checkout "$MPV_COMMIT"
 
       - name: Build slimmed ffmpeg (native, static)
         working-directory: ffmpeg-src
@@ -1285,6 +1359,9 @@ jobs:
           retention-days: 30
 
       - name: Commit built artifact to packages/
+        # Experiment builds (workflow_dispatch with commit_artifact=false) must
+        # never overwrite the shipped packages/ binaries.
+        if: ${{ github.event_name != 'workflow_dispatch' || inputs.commit_artifact }}
         # Override the job-wide `shell: msys2 {0}` default — this step only
         # needs git/git-lfs, not the MSYS2 toolchain, and MSYS2's PATH doesn't
         # include the Windows Git install where git-lfs.exe actually lives
