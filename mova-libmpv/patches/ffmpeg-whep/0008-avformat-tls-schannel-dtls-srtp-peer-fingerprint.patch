@@ -1,19 +1,22 @@
-From cf540d3f39e3d6208a5aa9e8fc1e960da02cec50 Mon Sep 17 00:00:00 2001
+From 0d9e5fc4397c1c1fd66d5c5aac30eaf030816dd0 Mon Sep 17 00:00:00 2001
 From: jelon <jelon@tbu.net>
-Date: Fri, 2 Oct 2026 17:17:18 +0800
+Date: Fri, 2 Oct 2026 18:24:40 +0800
 Subject: [PATCH 8/8] avformat/tls_schannel: DTLS-SRTP peer fingerprint, mutual
  auth, SRTP profile, interruptible handshake
 
-Add ff_dtls_get_peer_fingerprint() via SECPKG_ATTR_REMOTE_CERT_CONTEXT, request the client
-certificate on a DTLS-SRTP server (ASC_REQ_MUTUAL_AUTH; trust via SDP fingerprint), offer
-SRTP_AES128_CM_HMAC_SHA1_80 via SECBUFFER_SRTP_PROTECTION_PROFILES, non-blocking handshake
-read with poll honouring the interrupt callback. Update tls.h doc. Compile-tested only.
+Add ff_dtls_get_peer_fingerprint() via SECPKG_ATTR_REMOTE_CERT_CONTEXT, request the
+client certificate on a DTLS-SRTP server (ASC_REQ_MUTUAL_AUTH; trust via SDP fingerprint),
+offer SRTP_AES128_CM_HMAC_SHA1_80 via SECBUFFER_SRTP_PROTECTION_PROFILES (profile id is
+0x0100, network byte order; 0x0001 fails the handshake, verified on Win10 19045),
+non-blocking handshake read with poll honouring the interrupt callback, and bounded
+tls_shutdown_client (max 8 rounds, CONTINUE_NEEDED only continues on the client side).
+Update tls.h doc.
 
 Co-Authored-By: Claude Sonnet 5.5 <noreply@anthropic.com>
 ---
  libavformat/tls.h          |  3 +-
- libavformat/tls_schannel.c | 56 ++++++++++++++++++++++++++++++++------
- 2 files changed, 50 insertions(+), 9 deletions(-)
+ libavformat/tls_schannel.c | 61 +++++++++++++++++++++++++++++++-------
+ 2 files changed, 53 insertions(+), 11 deletions(-)
 
 diff --git a/libavformat/tls.h b/libavformat/tls.h
 index e800421..21a6f07 100644
@@ -30,7 +33,7 @@ index e800421..21a6f07 100644
  int ff_dtls_get_peer_fingerprint(URLContext *h, char **fingerprint);
  
 diff --git a/libavformat/tls_schannel.c b/libavformat/tls_schannel.c
-index 6708302..209e5c0 100644
+index 6708302..590bb7a 100644
 --- a/libavformat/tls_schannel.c
 +++ b/libavformat/tls_schannel.c
 @@ -634,6 +634,29 @@ int ff_tls_set_external_socket(URLContext *h, URLContext *sock)
@@ -63,20 +66,42 @@ index 6708302..209e5c0 100644
  int ff_dtls_export_materials(URLContext *h, char *dtls_srtp_materials, size_t materials_sz)
  {
  #if HAVE_SECPKGCONTEXT_KEYINGMATERIALINFO
-@@ -823,8 +846,11 @@ static int tls_handshake_loop(URLContext *h, int initial)
+@@ -755,6 +778,7 @@ static int tls_shutdown_client(URLContext *h)
+         init_sec_buffer(&outbuf, SECBUFFER_TOKEN, NULL, 0);
+         init_sec_buffer_desc(&outbuf_desc, &outbuf, 1);
+ 
++        int shut_tries = 0;
+         do {
+             if (s->listen)
+                 sspi_ret = AcceptSecurityContext(&c->cred_handle, &c->ctxt_handle, NULL, c->request_flags, 0,
+@@ -773,11 +797,11 @@ static int tls_shutdown_client(URLContext *h)
+                 }
+                 FreeContextBuffer(outbuf.pvBuffer);
+             }
+-        } while(
++        } while (++shut_tries < 8 && (
+ #ifdef SEC_I_MESSAGE_FRAGMENT
+                 sspi_ret == SEC_I_MESSAGE_FRAGMENT ||
+ #endif
+-                sspi_ret == SEC_I_CONTINUE_NEEDED);
++                (sspi_ret == SEC_I_CONTINUE_NEEDED && !s->listen)));
+ 
+         av_log(h, AV_LOG_DEBUG, "Close session result: 0x%lx\n", sspi_ret);
+ 
+@@ -823,8 +847,11 @@ static int tls_handshake_loop(URLContext *h, int initial)
      SECURITY_STATUS sspi_ret;
      SecBuffer outbuf[3] = { 0 };
      SecBufferDesc outbuf_desc;
 -    SecBuffer inbuf[3];
 +    SecBuffer inbuf[4];
      SecBufferDesc inbuf_desc;
-+    /* SRTP_AES128_CM_HMAC_SHA1_80 (RFC 5764); 字节序未经官方文档确认，需真机验证 */
-+    SEC_SRTP_PROTECTION_PROFILES srtp_profiles = { 2, { 0x0001 } };
++    /* SRTP_AES128_CM_HMAC_SHA1_80 (RFC 5764 值 0x0001)；SChannel 按网络字节序读取，小端机上要写成 0x0100（Win10 19045 实测，写 0x0001 时 ServerHello 不带 use_srtp） */
++    SEC_SRTP_PROTECTION_PROFILES srtp_profiles = { 2, { 0x0100 } };
 +    int inbuf_count;
      struct sockaddr_storage recv_addr = { 0 };
      socklen_t recv_addr_len = 0;
      int i, ret = 0, read_data = initial;
-@@ -845,7 +871,8 @@ static int tls_handshake_loop(URLContext *h, int initial)
+@@ -845,7 +872,8 @@ static int tls_handshake_loop(URLContext *h, int initial)
          c->dec_buf_size = SCHANNEL_INITIAL_BUFFER_SIZE;
      }
  
@@ -86,7 +111,7 @@ index 6708302..209e5c0 100644
  
      while (1) {
          if (c->enc_buf_size - c->enc_buf_offset < SCHANNEL_FREE_BUFFER_SIZE) {
-@@ -859,6 +886,15 @@ static int tls_handshake_loop(URLContext *h, int initial)
+@@ -859,6 +887,15 @@ static int tls_handshake_loop(URLContext *h, int initial)
  
          if (read_data) {
              ret = ffurl_read(uc, c->enc_buf + c->enc_buf_offset, c->enc_buf_size - c->enc_buf_offset);
@@ -102,7 +127,7 @@ index 6708302..209e5c0 100644
              if (ret < 0) {
                  av_log(h, AV_LOG_ERROR, "Failed to read handshake response\n");
                  goto fail;
-@@ -881,12 +917,13 @@ static int tls_handshake_loop(URLContext *h, int initial)
+@@ -881,12 +918,13 @@ static int tls_handshake_loop(URLContext *h, int initial)
          /* input buffers */
          init_sec_buffer(&inbuf[0], SECBUFFER_TOKEN, av_malloc(c->enc_buf_offset), c->enc_buf_offset);
          init_sec_buffer(&inbuf[1], SECBUFFER_EMPTY, NULL, 0);
@@ -122,7 +147,7 @@ index 6708302..209e5c0 100644
  
          if (inbuf[0].pvBuffer == NULL) {
              av_log(h, AV_LOG_ERROR, "Failed to allocate input buffer\n");
-@@ -1069,6 +1106,9 @@ static int tls_server_handshake(URLContext *h)
+@@ -1069,6 +1107,9 @@ static int tls_server_handshake(URLContext *h)
          c->request_flags |= ASC_REQ_DATAGRAM;
      else
          c->request_flags |= ASC_REQ_STREAM;
