@@ -17,4 +17,20 @@ cp "$MOVA/flavors-mova-slim-n9.sh" "$ROOT/buildscripts/scripts/ffmpeg.sh"
 rm -rf "$ROOT/buildscripts/patches/ffmpeg" "$ROOT/buildscripts/patches/mpv/mpv_lavc_set_java_vm.patch"
 mkdir -p "$ROOT/buildscripts/patches/mpv"
 cp "$MOVA/patches/mpv-v041/0001-vo-drop-gpu-next.patch" "$MOVA/patches/mpv-v041/0002-client-lavc-set-java-vm.patch" "$ROOT/buildscripts/patches/mpv/"
+
+# WHEP=1：Android 带 WHEP 变体（ffmpeg whep demuxer + mbedtls DTLS-SRTP + mpv whep 特判）。默认不开。
+if [ "${WHEP:-0}" = 1 ]; then
+	# mbedtls 开 MBEDTLS_SSL_DTLS_SRTP
+	git -C "$ROOT" apply "$HERE/whep-android.patch"
+	# ffmpeg 0001-0008：patch.sh 会按文件名顺序打到 deps/ffmpeg
+	mkdir -p "$ROOT/buildscripts/patches/ffmpeg"
+	cp "$MOVA"/patches/ffmpeg-whep/0*.patch "$ROOT/buildscripts/patches/ffmpeg/"
+	# mpv 0003/0004：stream_lavf 对 whep 特判
+	cp "$MOVA/patches/mpv-v041/0003-stream-lavf-whep-nofile-demuxer.patch" "$MOVA/patches/mpv-v041/0004-stream-lavf-whep-http-aliases.patch" "$ROOT/buildscripts/patches/mpv/"
+	# flavor：加 whep demuxer 与 dtls 协议（demuxer 的 select 本就隐含 dtls，这里显式写出）
+	sed -i 's|^DEMUXERS="\(.*\)"$|DEMUXERS="\1,whep"|; s|^PROTOCOLS="\(.*\)"$|PROTOCOLS="\1,dtls"|' "$ROOT/buildscripts/scripts/ffmpeg.sh"
+	grep -q '^DEMUXERS=.*,whep"' "$ROOT/buildscripts/scripts/ffmpeg.sh"
+	grep -q '^PROTOCOLS=.*,dtls"' "$ROOT/buildscripts/scripts/ffmpeg.sh"
+	echo "WHEP 变体已应用"
+fi
 echo "v041 补丁已应用到 $ROOT"

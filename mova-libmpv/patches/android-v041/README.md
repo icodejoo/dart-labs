@@ -79,3 +79,7 @@ n9.0.2（`--disable-bsfs --disable-iamf --disable-swscale-alpha`，无 `--disabl
 **与 §本地构建 LTO 行对比**：本地手工脚本 LTO 6,753,456；上游链 6,319,792，**小 433,664（-6.4%）**。
 归因（**推断，未逐项量化**）：上游链依赖版本更旧更小（libass 0.17.1/harfbuzz 7.2.0/fribidi 1.0.12/freetype 2-13-0/mbedtls 3.4.0，本地是 0.17.4/10.4.0/1.0.16/2.13.3/3.6.7）；链接参数不同（上游无 version script，改用 `-fvisibility=hidden` + `--exclude-libs,ALL`；API21 vs 本地 API24）；上游依赖全部 `-Os -flto` 并带 `--icf=safe`。本地脚本与上游链的 dav1d（1.2.0、`-Dbitdepths=8`）、ffmpeg 配方一致，所以 dav1d 不是差异来源。相对仓库现行 6,050,104（n6.0.1 默认 flavor）为 +269,688（+4.5%），与 android-size-measure.md §7 的"n9 比 n6 大约 +5%"同量级（(d) 行 +7.7% 未含老依赖的优势）。
 **未验证**：真机播放/MediaCodec 硬解/WHEP；其余三个 ABI；CI 里实跑（workflow 未改）；mpv 的 zlib 开关对体积的单独影响没量。
+
+## WHEP 变体（`WHEP=1 apply-v041.sh <root>`）
+
+额外套：`whep-android.patch`（mbedtls.sh 开 `MBEDTLS_SSL_DTLS_SRTP`）、ffmpeg 0001–0009、mpv 0003/0004，并给 ffmpeg flavor 加 `whep` demuxer 与 `dtls` 协议。不设 WHEP 则行为不变。实测数字见 [../../doc/notes/2026-10-02-android-whep-build-and-device.md](../../doc/notes/2026-10-02-android-whep-build-and-device.md)。

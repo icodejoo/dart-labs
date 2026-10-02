@@ -1,0 +1,21 @@
+From: mova
+Subject: [PATCH] avformat/tls_mbedtls: keep the DTLS-SRTP profile list alive
+
+mbedtls_ssl_conf_dtls_srtp_protection_profiles() stores the pointer, not a copy. The list was a
+stack array in tls_open(), so the handshake later read a dangling pointer. On Android arm64
+(mbedtls 3.4.0) the stale stack had been overwritten, the ServerHello carried no use_srtp
+extension and the peer answered insufficient_security (alert 71). Make the array static const.
+
+diff --git a/libavformat/tls_mbedtls.c b/libavformat/tls_mbedtls.c
+--- a/libavformat/tls_mbedtls.c
++++ b/libavformat/tls_mbedtls.c
+@@ -560,7 +560,8 @@
+     uint32_t verify_res_flags;
+     int ret;
+ #if defined(MBEDTLS_SSL_DTLS_SRTP)
+-    const mbedtls_ssl_srtp_profile profiles[] = {
++    /* mbedtls_ssl_conf_dtls_srtp_protection_profiles() keeps the pointer, so the list must outlive tls_open() */
++    static const mbedtls_ssl_srtp_profile profiles[] = {
+         MBEDTLS_TLS_SRTP_AES128_CM_HMAC_SHA1_80,
+         MBEDTLS_TLS_SRTP_UNSET
+     };
