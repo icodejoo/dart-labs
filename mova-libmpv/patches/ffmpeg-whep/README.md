@@ -10,8 +10,18 @@
 | 0003 | `0003-avformat-whep-add-WHEP-demuxer-signalling-and-SDP-T1.patch` | 新增 `libavformat/whep.c`：T1.2 的信令与 SDP（见下） |
 | 0004 | `0004-avformat-whep-ICE-DTLS-SRTP-key-export-T1.3-stage-A.patch` | T1.3 阶段 A：`whep.c` 加 ICE 连通性检查 + DTLS(server) 握手 + 指纹校验 + SRTP 密钥导出；`tls_openssl.c`/`tls.h` 加 `ff_dtls_get_peer_fingerprint()`、DTLS server 请求客户端证书、握手循环响应中断回调 |
 | 0005 | `0005-avformat-whep-SRTP-decrypt-and-RTP-depacketize-T1.3-stage-B.patch` | T1.3 阶段 B：只改 `whep.c`。握手后真正收媒体：UDP 分流（STUN/DTLS/RTP/RTCP）、SRTP 解密、RTP 重排、H.264/Opus 解包出 AVPacket，周期 consent 检查与存活检测，新增 `media_timeout` 选项 |
+| 0006 | `0006-avformat-whep-security-hardening.patch` | 安全加固，只改 `whep.c`：Location 同源校验、带 token 不跟随 3xx、指纹长度严格检查、STUN HMAC 常量时间比较、ICE 连续 socket 错误上限、关闭时清零 DTLS 私钥与 SRTP 材料（见下「信任模型与安全加固」） |
 
 编号说明：0003 依赖 0002 的 `ff_http_get_link_headers`，所以 http 补丁排在 whep.c 前面。
+
+## 信任模型与安全加固（0006）
+
+- **指纹的可信度取决于 answer 信道**：DTLS 对端身份只靠 answer 里的 `a=fingerprint` 比对。`whep+https` 且 `tls_verify=1` 时 answer 走经校验的 TLS，指纹可信；`tls_verify=0`（默认，mpv 也默认注入 0）时，能篡改信令的中间人可以连指纹一起换掉，DTLS 校验就只能防媒体面的第三方，防不了信令面的主动中间人。要抗主动中间人，请用 `whep+https` 并开 `tls_verify=1`（可配 `ca_file`）。
+- **Location 必须与信令 URL 同源**（scheme、host、port 全一致，端口缺省按 scheme 归一）：201 的 `Location` 不同源时丢弃并告警，**不对它发 `DELETE`**（该请求带 `Authorization: Bearer`，否则恶意/被劫持的服务端能借此把 token 发往别的 host，或把 https 降级成 http）。代价：这种会话不会被主动释放，只能等服务端回收。
+- **设了 `token` 就不跟随 3xx**（`max_redirects=0`）：ffmpeg 的 http 层跟随重定向时会把 `Authorization` 带给目标地址。信令端点若依赖重定向，请直接填最终地址。未设 `token` 时行为不变。
+- 指纹长度必须恰好是 SHA-256 的形式（此前超长串会被 `av_strlcpy` 截断后误通过）；STUN `MESSAGE-INTEGRITY` 常量时间比较；ICE 阶段连续 50 次 socket 错误（约 10s 的发送周期，例如对端 ICMP 不可达）返回 `ECONNREFUSED`，`handshake_timeout=-1` 时不再无限重试；`read_close` 用 volatile 写清零 DTLS 私钥与 SRTP 材料（本树没有 `av_explicit_bzero`）。tls 层内部另有一份私钥 PEM 副本，由 tls 层自己释放，这里管不到。
+- **0004 里 `tls_openssl.c` 改动的影响面**：DTLS + `use_srtp` + `listen` 的 server 路径现在无条件发 CertificateRequest 并接受任意证书（信任由调用方比对指纹）。同一路径的另一个使用者是 `whip.c` 作 DTLS server 时：握手多一条客户端证书请求，浏览器类对端照常回证书；whip 本身不比对指纹，所以安全性不增不减。为省体积没加开关（加条件要在 `TLSShared` 加字段和 AVOption）；如需只对 whep 生效，可加 `dtls_request_client_cert` 选项并由 `whep.c` 置 1。
+- 回归：`tools/whep-flavor/whep_origin_regress.py`（跨 host 的 Location / 307 跳转，evil 端必须收到 0 个请求）。
 
 ## whep.c 当前能力（T1.2）
 
