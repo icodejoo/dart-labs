@@ -1,0 +1,25 @@
+diff --git a/stream/stream_lavf.c b/stream/stream_lavf.c
+index 7668103f03..4a225d5bae 100644
+--- a/stream/stream_lavf.c
++++ b/stream/stream_lavf.c
+@@ -301,6 +301,9 @@ static char **get_safe_protocols(void)
+     for (int i = 0; ffmpeg_demuxers[i]; i++) {
+         if (strcmp("whep", ffmpeg_demuxers[i]) == 0) {
+             MP_TARRAY_APPEND(NULL, protocols, num, talloc_strdup(protocols, "whep"));
++            // explicit-transport aliases: whep+http:// (cleartext) / whep+https://
++            MP_TARRAY_APPEND(NULL, protocols, num, talloc_strdup(protocols, "whep+http"));
++            MP_TARRAY_APPEND(NULL, protocols, num, talloc_strdup(protocols, "whep+https"));
+             break;
+         }
+     }
+@@ -394,7 +397,9 @@ static int open_f(stream_t *stream)
+         return STREAM_OK;
+     }
+ 
+-    if (!strncmp(filename, "whep:", 5)) {
++    if (!strncmp(filename, "whep:", 5) || !strncmp(filename, "whep+http:", 10) ||
++        !strncmp(filename, "whep+https:", 11))
++    {
+         /* WHEP is an AVFMT_NOFILE demuxer in libavformat (no protocol entry),
+          * handled like rtsp: demux_lavf does the work without a stream layer. */
+         stream->demuxer = "lavf";

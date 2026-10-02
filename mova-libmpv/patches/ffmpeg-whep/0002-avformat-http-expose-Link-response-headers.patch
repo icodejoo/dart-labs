@@ -1,0 +1,79 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: mova <mova@example.invalid>
+Date: Fri, 2 Oct 2026 15:35:43 +0800
+Subject: [PATCH 2/3] avformat/http: expose Link response headers
+
+---
+ libavformat/http.c | 15 +++++++++++++++
+ libavformat/http.h |  6 ++++++
+ 2 files changed, 21 insertions(+)
+
+diff --git a/libavformat/http.c b/libavformat/http.c
+index 35f886f..1c82de1 100644
+--- a/libavformat/http.c
++++ b/libavformat/http.c
+@@ -140,6 +140,7 @@ typedef struct HTTPContext {
+     int short_seek_size;
+     int64_t expires;
+     char *new_location;
++    char *link_headers;         ///< newline-delimited Link header values of the last response
+     AVDictionary *redirect_cache;
+     uint64_t filesize_from_content_range;
+     int respect_retry_after;
+@@ -614,6 +615,12 @@ const char* ff_http_get_new_location(URLContext *h)
+     return s->new_location;
+ }
+ 
++const char *ff_http_get_link_headers(URLContext *h)
++{
++    HTTPContext *s = h->priv_data;
++    return s->link_headers;
++}
++
+ static int http_write_reply(URLContext* h, int status_code)
+ {
+     int ret, body = 0, reply_code, message_len;
+@@ -1275,6 +1282,12 @@ static int process_line(URLContext *h, char *line, int line_count, int *parsed_h
+         if (!av_strcasecmp(tag, "Location")) {
+             if ((ret = parse_location(s, p)) < 0)
+                 return ret;
++        } else if (!av_strcasecmp(tag, "Link")) {
++            /* keep every Link value (WHEP ice-server), newline separated */
++            size_t cur = s->link_headers ? strlen(s->link_headers) : 0;
++            if ((ret = av_reallocp(&s->link_headers, cur + strlen(p) + 2)) < 0)
++                return ret;
++            snprintf(s->link_headers + cur, strlen(p) + 2, "%s\n", p);
+         } else if (!av_strcasecmp(tag, "Content-Length") &&
+                    s->filesize == UINT64_MAX) {
+             s->filesize = strtoull(p, NULL, 10);
+@@ -1445,6 +1458,7 @@ static int http_read_header(URLContext *h)
+     int err = 0, http_err = 0;
+ 
+     av_freep(&s->new_location);
++    av_freep(&s->link_headers);
+     s->expires = 0;
+     s->chunksize = UINT64_MAX;
+     s->filesize_from_content_range = UINT64_MAX;
+@@ -2079,6 +2093,7 @@ static int http_close(URLContext *h)
+     av_dict_free(&s->cookie_dict);
+     av_dict_free(&s->redirect_cache);
+     av_freep(&s->new_location);
++    av_freep(&s->link_headers);
+     av_freep(&s->uri);
+ 
+     av_log(h, AV_LOG_DEBUG, "Statistics: %d connection%s, %d request%s, %d retr%s, %d reconnection%s, %d redirect%s\n",
+diff --git a/libavformat/http.h b/libavformat/http.h
+index d1b6918..ce2d251 100644
+--- a/libavformat/http.h
++++ b/libavformat/http.h
+@@ -64,4 +64,10 @@ int ff_http_averror(int status_code, int default_averror);
+ 
+ const char* ff_http_get_new_location(URLContext *h);
+ 
++/**
++ * Get the newline-delimited Link header values of the last HTTP response.
++ * @return NULL if the response carried no Link header
++ */
++const char *ff_http_get_link_headers(URLContext *h);
++
+ #endif /* AVFORMAT_HTTP_H */

@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # WHEP flavor 底座构建（Linux x86_64，在 WSL/Ubuntu 里跑）。
 # 组合：ffmpeg n9.0.2 + mpv v0.41.0（打 patches/mpv-v041/*）+ 最小静态 libplacebo（摘 vo_gpu_next）。
-# 不动默认 flavor；若 FF_SRC 里有 libavformat/whep.c 并设 WITH_WHEP=1，会把 whep demuxer 一并编进去。
+# 不动默认 flavor；设 WITH_WHEP=1 会先给 ffmpeg 打 patches/ffmpeg-whep/*.patch，再把 whep demuxer 一并编进去。
 #
 # 用法：build-linux.sh            （默认工作目录 $HOME/w/t04-build，可用 WORK 覆盖）
 # 环境变量（都可选）：
@@ -10,7 +10,8 @@
 #   FF_SRC     已有的 ffmpeg n9.0.2 源码目录（只读复制，省得再 clone）
 #   MPV_SRC    已有的 mpv v0.41.0 干净源码目录（会 git clone --shared 到工作区再打补丁）
 #   PLC_SRC    已有的 libplacebo v7.360.0（含子模块）源码目录
-#   WITH_WHEP  1=把 whep demuxer 编进 ffmpeg（需 libavformat/whep.c 已在 FF_SRC 中），默认 0
+#   WITH_WHEP  1=打 ffmpeg-whep 补丁并把 whep demuxer 编进 ffmpeg，默认 0
+#   APPLY_WHEP_PATCHES  1=只打 ffmpeg-whep 补丁但不启用 whep（用来验证"补丁不污染默认 configure"），默认 0
 #   APPLY_JAVAVM  1=打 javavm 补丁（Android 用，Linux 上只是桩），默认 1
 # 产物：$WORK/out/linux-x86_64/libmpv.so（已 strip）、$WORK/out/ffconf.log、$WORK/out/include/（头文件）
 set -euo pipefail
@@ -21,6 +22,7 @@ PATCHES="$(cd "$HERE/../../patches" && pwd)"
 WORK="${WORK:-$HOME/w/t04-build}"
 JOBS="${JOBS:-8}"
 WITH_WHEP="${WITH_WHEP:-0}"
+APPLY_WHEP_PATCHES="${APPLY_WHEP_PATCHES:-0}"
 APPLY_JAVAVM="${APPLY_JAVAVM:-1}"
 FF_TAG="n9.0.2"; MPV_TAG="v0.41.0"; PLC_TAG="v7.360.0"
 OUT="$WORK/out"; PREFIX="$WORK/prefix"; LOGS="$WORK/logs"
@@ -47,16 +49,27 @@ fetch_src() {
 }
 
 # ---------- 1. ffmpeg n9.0.2 ----------
+# 按序给 ffmpeg 打 patches/ffmpeg-whep/*.patch（先 --check 再 apply），失败即停
+patch_ffmpeg_whep() {
+  local p
+  for p in "$PATCHES"/ffmpeg-whep/*.patch; do
+    git -C "$WORK/ffmpeg" apply --check "$p" || die "ffmpeg 补丁不能 apply: $p"
+    git -C "$WORK/ffmpeg" apply "$p"
+    say "已打补丁 $(basename "$p")"
+  done
+}
+
 # 按 n9.0.2 瘦身调研的推荐参数 configure + 安装（只静态库）
 build_ffmpeg() {
   say "ffmpeg $FF_TAG"
   fetch_src "$WORK/ffmpeg" "${FF_SRC:-}" https://github.com/FFmpeg/FFmpeg.git "$FF_TAG" --depth 1 --branch "$FF_TAG"
   local demuxers="mov,matroska,webm_dash_manifest,mpegts,hls,flv,live_flv,data,mp3,flac,ogg,wav,aac,ac3,eac3,ass,srt,webvtt"
   local protos="file,fd,pipe,data,http,https,tcp,tls,crypto,rtmp,rtmps,rtmpt,rtmpts,ffrtmpcrypt,ffrtmphttp,udp,rtp"
-  if [ "$WITH_WHEP" = 1 ]; then
-    [ -f "$WORK/ffmpeg/libavformat/whep.c" ] || die "WITH_WHEP=1 但 libavformat/whep.c 不存在"
-    demuxers="$demuxers,whep"
+  if [ "$WITH_WHEP" = 1 ] || [ "$APPLY_WHEP_PATCHES" = 1 ]; then
+    patch_ffmpeg_whep
+    [ -f "$WORK/ffmpeg/libavformat/whep.c" ] || die "打完补丁后 libavformat/whep.c 仍不存在"
   fi
+  [ "$WITH_WHEP" = 1 ] && demuxers="$demuxers,whep"
   # 注意：--disable-bsfs 必须在 --enable-bsf 之前；n9 没有 --disable-postproc
   (cd "$WORK/ffmpeg" && ./configure \
     --prefix="$PREFIX" \

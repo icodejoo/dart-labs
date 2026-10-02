@@ -1,0 +1,910 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: mova <mova@example.invalid>
+Date: Fri, 2 Oct 2026 15:49:08 +0800
+Subject: [PATCH 3/3] avformat/whep: add WHEP demuxer (signalling and SDP,
+ T1.2)
+
+---
+ libavformat/whep.c | 893 +++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 893 insertions(+)
+ create mode 100755 libavformat/whep.c
+
+diff --git a/libavformat/whep.c b/libavformat/whep.c
+new file mode 100755
+index 0000000..22ba5c1
+--- /dev/null
++++ b/libavformat/whep.c
+@@ -0,0 +1,893 @@
++/*
++ * WHEP (WebRTC-HTTP egress protocol) demuxer - 信令与 SDP 部分
++ *
++ * 以 whip.c 为底改写：WHIP 是推流（muxer），WHEP 是拉流（demuxer）。
++ * 本文件当前只做到 T1.2：HTTP 信令 + offer/answer + 建流；
++ * ICE/DTLS/SRTP 媒体通路是 T1.3，RTP 解包是 T1.4，RTCP 反馈是 T1.5。
++ *
++ * This file is part of FFmpeg.
++ *
++ * FFmpeg is free software; you can redistribute it and/or
++ * modify it under the terms of the GNU Lesser General Public
++ * License as published by the Free Software Foundation; either
++ * version 2.1 of the License, or (at your option) any later version.
++ *
++ * FFmpeg is distributed in the hope that it will be useful,
++ * but WITHOUT ANY WARRANTY; without even the implied warranty of
++ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
++ * Lesser General Public License for more details.
++ *
++ * You should have received a copy of the GNU Lesser General Public
++ * License along with FFmpeg; if not, write to the Free Software
++ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
++ */
++
++#include <stdint.h>
++#include <stdio.h>
++#include <string.h>
++
++#include "libavutil/avstring.h"
++#include "libavutil/bprint.h"
++#include "libavutil/channel_layout.h"
++#include "libavutil/mem.h"
++#include "libavutil/opt.h"
++#include "libavutil/random_seed.h"
++#include "libavutil/time.h"
++#include "avformat.h"
++#include "demux.h"
++#include "http.h"
++#include "internal.h"
++#include "tls.h"
++#include "url.h"
++
++/* answer / offer 的最大字节数 */
++#define WHEP_MAX_SDP_SIZE     16384
++/* SDP 里最多解析的 m= 段数、每段最多记录的 payload type 数 */
++#define WHEP_MAX_MEDIA        4
++#define WHEP_MAX_CODEC        8
++/* Link: rel="ice-server" 最多保留的条数 */
++#define WHEP_MAX_ICE_SERVER   4
++/* "AA:BB:...:FF"，32 字节 SHA-256 的文本长度 */
++#define WHEP_FP_LEN           95
++/* offer 里提议的 opus payload type（最终以 answer 为准） */
++#define WHEP_OFFER_PT_OPUS    111
++
++/* 会话状态，T1.3 起沿用到 ICE/DTLS 阶段 */
++enum WHEPState {
++    WHEP_STATE_NONE,
++    WHEP_STATE_INIT,        /* 选项/证书就绪 */
++    WHEP_STATE_OFFER,       /* offer 已生成 */
++    WHEP_STATE_ANSWER,      /* answer 已收到（201 + SDP） */
++    WHEP_STATE_NEGOTIATED,  /* answer 解析通过，流已建好 */
++    WHEP_STATE_READY,       /* 媒体通路就绪（T1.3 之后才会到达） */
++    WHEP_STATE_FAILED,
++};
++
++/* answer 里的一个 payload type（codec）条目 */
++typedef struct WhepCodec {
++    int  pt;                /* payload type，取自 answer，不写死 */
++    char name[16];          /* rtpmap 编码名，如 opus / H264 / rtx */
++    int  clock;             /* 时钟频率 */
++    int  channels;          /* 声道数（音频） */
++    char fmtp[256];         /* a=fmtp 原文 */
++    int  nack;              /* a=rtcp-fb 带 nack */
++    int  pli;               /* a=rtcp-fb 带 nack pli */
++    int  apt;               /* rtx 的 apt（关联的主 payload type），无则 -1 */
++} WhepCodec;
++
++/* answer 里的一个 m= 段 */
++typedef struct WhepMedia {
++    enum AVMediaType type;  /* 音频/视频 */
++    int  port;              /* m= 端口，0 表示服务端拒绝该段 */
++    char mid[16];           /* a=mid */
++    int  nb_pts;            /* m= 行列出的 payload type 数 */
++    int  pts[WHEP_MAX_CODEC]; /* m= 行的 payload type 顺序 */
++    int  nb_codec;
++    WhepCodec codec[WHEP_MAX_CODEC];
++    int  star_nack, star_pli; /* a=rtcp-fb:* 的通配反馈 */
++    /* 协商结果 */
++    int  sel;               /* 选中的 codec 下标，-1 表示无可用 */
++    int  rtx_pt;            /* 选中 codec 的 RTX payload type，无则 -1 */
++    int  stream_index;      /* 对应的 AVStream 下标 */
++} WhepMedia;
++
++/* Link: rel="ice-server" 的一条 */
++typedef struct WhepIceServer {
++    char *url;              /* stun:/turn: 地址 */
++    char *username;         /* TURN 用户名，可空 */
++    char *credential;       /* TURN 凭据，可空，禁止写日志 */
++} WhepIceServer;
++
++/* 解析后的 answer SDP */
++typedef struct WhepSdp {
++    char ufrag[257], pwd[257];      /* ICE ufrag / pwd */
++    char fp_algo[16], fp[WHEP_FP_LEN + 1]; /* DTLS 证书指纹 */
++    char setup[16];                 /* a=setup */
++    int  ice_lite;                  /* a=ice-lite */
++    char cand_host[129];            /* 首个 UDP 候选地址 */
++    int  cand_port;
++    int  nb_media;
++    WhepMedia media[WHEP_MAX_MEDIA];
++} WhepSdp;
++
++/* demuxer 私有上下文 */
++typedef struct WHEPContext {
++    AVClass *av_class;
++
++    /* ---- AVOption ---- */
++    char   *token;            /* Bearer token */
++    int64_t timeout;          /* HTTP 信令超时（微秒，与 mpv/rtsp 的 timeout 约定一致），<0 不限 */
++    int     tls_verify;       /* 是否校验 https 服务端证书 */
++    char   *ca_file;          /* 自定义 CA 文件 */
++    char   *user_agent;       /* HTTP User-Agent */
++
++    /* ---- 会话状态 ---- */
++    enum WHEPState state;
++    int64_t t_start;          /* open 开始时刻（us，相对时钟） */
++    char   *http_url;         /* whep:// 映射后的 http(s) 信令地址 */
++    char   *resource_url;     /* 201 的 Location，用于 DELETE */
++    char   *sdp_offer;
++    char   *sdp_answer;
++    char    ice_ufrag_local[9];
++    char    ice_pwd_local[33];
++    char    cert_buf[MAX_CERTIFICATE_SIZE]; /* DTLS 证书（T1.3 使用） */
++    char    key_buf[MAX_CERTIFICATE_SIZE];  /* DTLS 私钥（T1.3 使用） */
++    char   *dtls_fingerprint; /* 本端证书 SHA-256 指纹，写进 offer */
++    WhepSdp answer;
++    WhepIceServer ice_servers[WHEP_MAX_ICE_SERVER];
++    int     nb_ice_servers;
++} WHEPContext;
++
++/* ------------------------------------------------------------------ */
++/* URL 与 HTTP 工具                                                    */
++/* ------------------------------------------------------------------ */
++
++/**
++ * 把 whep:// 与 whep+http(s):// 映射成真实的 http(s):// 信令地址。
++ * whep:// 默认走 https（安全默认值），明文 http 必须写 whep+http://。
++ * @return 0 成功，AVERROR(EINVAL) 格式不对
++ */
++static int whep_map_url(const char *url, char *out, size_t size)
++{
++    const char *rest, *scheme;
++
++    if (av_strstart(url, "whep+https://", &rest) || av_strstart(url, "whep://", &rest))
++        scheme = "https";
++    else if (av_strstart(url, "whep+http://", &rest))
++        scheme = "http";
++    else
++        return AVERROR(EINVAL);
++    if (!*rest || *rest == '/')
++        return AVERROR(EINVAL);   /* 缺 host */
++    if (snprintf(out, size, "%s://%s", scheme, rest) >= (int)size)
++        return AVERROR(EINVAL);
++    return 0;
++}
++
++/**
++ * 生成 HTTP 请求头：可选 Content-Type 与 Bearer token。token 含换行视为非法（防头注入）。
++ * @return 0 成功，负值失败
++ */
++static int whep_build_headers(AVFormatContext *s, char *buf, size_t size, int with_sdp)
++{
++    WHEPContext *w = s->priv_data;
++    int n = snprintf(buf, size, "Cache-Control: no-cache\r\n%s",
++                     with_sdp ? "Content-Type: application/sdp\r\nAccept: application/sdp\r\n" : "");
++
++    if (w->token) {
++        if (!*w->token || strpbrk(w->token, "\r\n")) {
++            av_log(s, AV_LOG_ERROR, "Invalid token (empty or contains CR/LF)\n");
++            return AVERROR(EINVAL);
++        }
++        n += snprintf(buf + n, size - n, "Authorization: Bearer %s\r\n", w->token);
++    }
++    if (n <= 0 || n >= (int)size) {
++        av_log(s, AV_LOG_ERROR, "HTTP headers too long\n");
++        return AVERROR(EINVAL);
++    }
++    return 0;
++}
++
++/**
++ * 填充 HTTP 打开选项：超时、TLS 校验、CA、UA（tls_verify 等会透传给 tcp/tls 层）。
++ */
++static void whep_http_opts(AVFormatContext *s, AVDictionary **opts)
++{
++    WHEPContext *w = s->priv_data;
++
++    av_dict_set_int(opts, "tls_verify", w->tls_verify, 0);
++    if (w->timeout >= 0) {
++        av_dict_set_int(opts, "timeout", w->timeout, 0);
++        av_dict_set_int(opts, "rw_timeout", w->timeout, 0);
++    }
++    if (w->ca_file)
++        av_dict_set(opts, "ca_file", w->ca_file, 0);
++    if (w->user_agent)
++        av_dict_set(opts, "user_agent", w->user_agent, 0);
++}
++
++/* ------------------------------------------------------------------ */
++/* offer 生成                                                          */
++/* ------------------------------------------------------------------ */
++
++/**
++ * 生成 recvonly offer：opus + H264（三档 profile，各配 RTX），均带 nack / nack pli，
++ * setup:actpass，SHA-256 指纹。payload type 只是"提议"，最终以 answer 为准。
++ * @return 0 成功，负值失败
++ */
++static int whep_generate_offer(AVFormatContext *s)
++{
++    WHEPContext *w = s->priv_data;
++    uint8_t rnd[8 + 16 + 8];
++    char sess_id[17];
++    AVBPrint bp;
++    int ret;
++    /* H264 profile-level-id：constrained baseline / main / high，PT 102..104，RTX 112..114 */
++    static const char *const h264_pli[3] = { "42e01f", "4d001f", "640c1f" };
++
++    if ((ret = av_random_bytes(rnd, sizeof(rnd))) < 0) {
++        av_log(s, AV_LOG_ERROR, "Cannot get random bytes\n");
++        return ret;
++    }
++    ff_data_to_hex(w->ice_ufrag_local, rnd, 4, 1);          /* 8 hex */
++    ff_data_to_hex(w->ice_pwd_local, rnd + 8, 16, 1);       /* 32 hex */
++    ff_data_to_hex(sess_id, rnd + 24, 8, 1);                /* 16 hex */
++
++    av_bprint_init(&bp, 1, WHEP_MAX_SDP_SIZE);
++    av_bprintf(&bp,
++        "v=0\r\n"
++        "o=FFmpeg %s 2 IN IP4 127.0.0.1\r\n"
++        "s=FFmpegWhepSession\r\n"
++        "t=0 0\r\n"
++        "a=group:BUNDLE 0 1\r\n"
++        "a=msid-semantic: WMS\r\n",
++        sess_id);
++
++    av_bprintf(&bp,
++        "m=audio 9 UDP/TLS/RTP/SAVPF %d\r\n"
++        "c=IN IP4 0.0.0.0\r\n"
++        "a=ice-ufrag:%s\r\n"
++        "a=ice-pwd:%s\r\n"
++        "a=fingerprint:sha-256 %s\r\n"
++        "a=setup:actpass\r\n"
++        "a=mid:0\r\n"
++        "a=recvonly\r\n"
++        "a=rtcp-mux\r\n"
++        "a=rtpmap:%d opus/48000/2\r\n"
++        "a=fmtp:%d minptime=10;useinbandfec=1\r\n",
++        WHEP_OFFER_PT_OPUS, w->ice_ufrag_local, w->ice_pwd_local, w->dtls_fingerprint,
++        WHEP_OFFER_PT_OPUS, WHEP_OFFER_PT_OPUS);
++
++    av_bprintf(&bp,
++        "m=video 9 UDP/TLS/RTP/SAVPF 102 103 104 112 113 114\r\n"
++        "c=IN IP4 0.0.0.0\r\n"
++        "a=ice-ufrag:%s\r\n"
++        "a=ice-pwd:%s\r\n"
++        "a=fingerprint:sha-256 %s\r\n"
++        "a=setup:actpass\r\n"
++        "a=mid:1\r\n"
++        "a=recvonly\r\n"
++        "a=rtcp-mux\r\n"
++        "a=rtcp-rsize\r\n",
++        w->ice_ufrag_local, w->ice_pwd_local, w->dtls_fingerprint);
++    for (int i = 0; i < 3; i++) {
++        av_bprintf(&bp,
++            "a=rtpmap:%d H264/90000\r\n"
++            "a=rtcp-fb:%d nack\r\n"
++            "a=rtcp-fb:%d nack pli\r\n"
++            "a=fmtp:%d level-asymmetry-allowed=1;packetization-mode=1;profile-level-id=%s\r\n"
++            "a=rtpmap:%d rtx/90000\r\n"
++            "a=fmtp:%d apt=%d\r\n",
++            102 + i, 102 + i, 102 + i, 102 + i, h264_pli[i],
++            112 + i, 112 + i, 102 + i);
++    }
++
++    if (!av_bprint_is_complete(&bp)) {
++        av_bprint_finalize(&bp, NULL);
++        av_log(s, AV_LOG_ERROR, "Offer exceeds %d bytes\n", WHEP_MAX_SDP_SIZE);
++        return AVERROR(EIO);
++    }
++    ret = av_bprint_finalize(&bp, &w->sdp_offer);
++    if (ret < 0)
++        return ret;
++    w->state = WHEP_STATE_OFFER;
++    av_log(s, AV_LOG_VERBOSE, "Generated offer (%zu bytes):\n%s", strlen(w->sdp_offer), w->sdp_offer);
++    return 0;
++}
++
++/* ------------------------------------------------------------------ */
++/* SDP answer 解析（自写最小子集，不复用 rtsp.c 的 ff_sdp_parse）        */
++/* ------------------------------------------------------------------ */
++
++/**
++ * 校验指纹文本是否为 "HH:HH:...:HH"（32 字节），并转成大写。
++ * @return 1 合法，0 非法
++ */
++static int whep_fp_normalize(char *fp)
++{
++    if (strlen(fp) != WHEP_FP_LEN)
++        return 0;
++    for (int i = 0; i < WHEP_FP_LEN; i++) {
++        if (i % 3 == 2) {
++            if (fp[i] != ':')
++                return 0;
++        } else if (!av_isxdigit(fp[i])) {
++            return 0;
++        } else {
++            fp[i] = av_toupper(fp[i]);
++        }
++    }
++    return 1;
++}
++
++/**
++ * 在 m 段里按 payload type 找 codec 条目，没有就新建。
++ * @return 条目指针，满了返回 NULL
++ */
++static WhepCodec *whep_codec_get(WhepMedia *m, int pt)
++{
++    for (int i = 0; i < m->nb_codec; i++)
++        if (m->codec[i].pt == pt)
++            return &m->codec[i];
++    if (m->nb_codec >= WHEP_MAX_CODEC)
++        return NULL;
++    m->codec[m->nb_codec] = (WhepCodec){ .pt = pt, .apt = -1 };
++    return &m->codec[m->nb_codec++];
++}
++
++/**
++ * 解析 "a=" 之后的属性（会话级与媒体级共用，m 为 NULL 表示会话级）。
++ * 重复的 ICE/指纹等参数取第一个（bundle 下各段相同）。
++ */
++static void whep_parse_attr(WhepSdp *o, WhepMedia *m, const char *a)
++{
++    const char *p;
++    int pt, clock, ch, port, comp, prio;
++    char word1[160], word2[160], proto[17], host[129], typ[16];
++
++    if (!strcmp(a, "ice-lite")) {
++        o->ice_lite = 1;
++    } else if (av_strstart(a, "ice-ufrag:", &p)) {
++        if (!o->ufrag[0]) av_strlcpy(o->ufrag, p, sizeof(o->ufrag));
++    } else if (av_strstart(a, "ice-pwd:", &p)) {
++        if (!o->pwd[0]) av_strlcpy(o->pwd, p, sizeof(o->pwd));
++    } else if (av_strstart(a, "fingerprint:", &p)) {
++        if (!o->fp[0] && sscanf(p, "%15s %159s", word1, word2) == 2) {
++            av_strlcpy(o->fp_algo, word1, sizeof(o->fp_algo));
++            av_strlcpy(o->fp, word2, sizeof(o->fp));
++        }
++    } else if (av_strstart(a, "setup:", &p)) {
++        if (!o->setup[0]) av_strlcpy(o->setup, p, sizeof(o->setup));
++    } else if (av_strstart(a, "candidate:", &p)) {
++        /* 只取首个 component=1 的 UDP 候选，与 whip.c 同策略 */
++        if (!o->cand_host[0] &&
++            sscanf(p, "%*s %d %16s %d %128s %d typ %15s", &comp, proto, &prio, host, &port, typ) == 6 &&
++            comp == 1 && !av_strcasecmp(proto, "udp") && port > 0 && port < 65536) {
++            av_strlcpy(o->cand_host, host, sizeof(o->cand_host));
++            o->cand_port = port;
++        }
++    } else if (m) {
++        if (av_strstart(a, "mid:", &p)) {
++            av_strlcpy(m->mid, p, sizeof(m->mid));
++        } else if (av_strstart(a, "rtpmap:", &p)) {
++            char name[16];
++            int n = sscanf(p, "%d %15[^/]/%d/%d", &pt, name, &clock, &ch);
++            WhepCodec *c = n >= 3 ? whep_codec_get(m, pt) : NULL;
++            if (c) {
++                av_strlcpy(c->name, name, sizeof(c->name));
++                c->clock    = clock;
++                c->channels = n == 4 ? ch : 1;
++            }
++        } else if (av_strstart(a, "fmtp:", &p)) {
++            int off = 0;
++            WhepCodec *c;
++            if (sscanf(p, "%d %n", &pt, &off) >= 1 && off > 0 && (c = whep_codec_get(m, pt))) {
++                const char *apt = av_stristr(p + off, "apt=");
++                av_strlcpy(c->fmtp, p + off, sizeof(c->fmtp));
++                if (apt)
++                    c->apt = atoi(apt + 4);
++            }
++        } else if (av_strstart(a, "rtcp-fb:", &p)) {
++            int nack = 0, pli = 0;
++            char rest[64];
++            WhepCodec *c = NULL;
++            if (*p == '*') {
++                p++;
++            } else {
++                int off = 0;
++                if (sscanf(p, "%d%n", &pt, &off) < 1 || !(c = whep_codec_get(m, pt)))
++                    return;
++                p += off;
++            }
++            if (sscanf(p, " %63[^\r\n]", rest) == 1) {
++                nack = !strcmp(rest, "nack");
++                pli  = !strcmp(rest, "nack pli");
++            }
++            if (c) {
++                c->nack |= nack | pli;
++                c->pli  |= pli;
++            } else {
++                m->star_nack |= nack | pli;
++                m->star_pli  |= pli;
++            }
++        }
++    }
++}
++
++/**
++ * 从 answer 的 m= 段里挑出可用 codec（音频 opus / 视频 H264），并找出关联的 RTX。
++ * payload type 取自 answer 的 m= 行顺序，而不是 offer 里提议的值。
++ */
++static void whep_select_codec(WhepMedia *m)
++{
++    const char *want = m->type == AVMEDIA_TYPE_AUDIO ? "opus" : "H264";
++
++    m->sel = -1;
++    m->rtx_pt = -1;
++    for (int k = 0; k < m->nb_pts && m->sel < 0; k++) {
++        for (int i = 0; i < m->nb_codec; i++) {
++            if (m->codec[i].pt == m->pts[k] && !av_strcasecmp(m->codec[i].name, want)) {
++                m->sel = i;
++                break;
++            }
++        }
++    }
++    if (m->sel < 0)
++        return;
++    for (int i = 0; i < m->nb_codec; i++)
++        if (!av_strcasecmp(m->codec[i].name, "rtx") && m->codec[i].apt == m->codec[m->sel].pt)
++            m->rtx_pt = m->codec[i].pt;
++    m->codec[m->sel].nack |= m->star_nack;
++    m->codec[m->sel].pli  |= m->star_pli;
++}
++
++/**
++ * 解析 answer SDP 到 WhepSdp。必填：ice-ufrag/pwd、SHA-256 指纹（格式合法）、setup、
++ * 一个 UDP 候选、至少一条可用的音/视频 codec。缺指纹一律拒绝（防止无认证的 SRTP 会话）。
++ * @return 0 成功，AVERROR_INVALIDDATA 失败
++ */
++static int whep_parse_answer(AVFormatContext *s, const char *sdp, WhepSdp *o)
++{
++    const char *p = sdp;
++    WhepMedia *m = NULL;
++    char line[1024];
++    int usable = 0;
++
++    memset(o, 0, sizeof(*o));
++    while (*p) {
++        size_t n = strcspn(p, "\r\n");
++        snprintf(line, sizeof(line), "%.*s", (int)FFMIN(n, sizeof(line) - 1), p);
++        p += n;
++        p += strspn(p, "\r\n");
++
++        if (av_strstart(line, "m=", NULL)) {
++            char type[8], proto_[32];
++            int port = 0, off = 0;
++            m = NULL;
++            if (o->nb_media >= WHEP_MAX_MEDIA)
++                continue;
++            if (sscanf(line + 2, "%7s %d %31s %n", type, &port, proto_, &off) < 3)
++                continue;
++            m = &o->media[o->nb_media++];
++            m->type = !strcmp(type, "audio") ? AVMEDIA_TYPE_AUDIO :
++                      !strcmp(type, "video") ? AVMEDIA_TYPE_VIDEO : AVMEDIA_TYPE_UNKNOWN;
++            m->port = port;
++            m->sel = -1;
++            m->rtx_pt = -1;
++            m->stream_index = -1;
++            for (const char *q = line + 2 + off; *q && m->nb_pts < WHEP_MAX_CODEC; ) {
++                char *end;
++                long v = strtol(q, &end, 10);
++                if (end == q)
++                    break;
++                m->pts[m->nb_pts++] = (int)v;
++                q = end + strspn(end, " ");
++            }
++        } else if (av_strstart(line, "a=", NULL)) {
++            whep_parse_attr(o, m, line + 2);
++        }
++    }
++
++    if (!o->ufrag[0] || !o->pwd[0]) {
++        av_log(s, AV_LOG_ERROR, "Answer has no ice-ufrag/ice-pwd\n");
++        return AVERROR_INVALIDDATA;
++    }
++    if (!o->fp[0]) {
++        av_log(s, AV_LOG_ERROR, "No DTLS fingerprint in answer; refusing unauthenticated session\n");
++        return AVERROR_INVALIDDATA;
++    }
++    if (av_strcasecmp(o->fp_algo, "sha-256") || !whep_fp_normalize(o->fp)) {
++        av_log(s, AV_LOG_ERROR, "Unsupported or malformed fingerprint (algo=%s)\n", o->fp_algo);
++        return AVERROR_INVALIDDATA;
++    }
++    if (strcmp(o->setup, "active") && strcmp(o->setup, "passive") && strcmp(o->setup, "actpass")) {
++        av_log(s, AV_LOG_ERROR, "Answer has no valid a=setup (got '%s')\n", o->setup);
++        return AVERROR_INVALIDDATA;
++    }
++    if (!o->cand_host[0]) {
++        av_log(s, AV_LOG_ERROR, "Answer has no usable UDP ICE candidate\n");
++        return AVERROR_INVALIDDATA;
++    }
++    for (int i = 0; i < o->nb_media; i++) {
++        WhepMedia *mm = &o->media[i];
++        if (mm->type == AVMEDIA_TYPE_UNKNOWN || mm->port == 0) {
++            mm->sel = -1;
++            continue;
++        }
++        whep_select_codec(mm);
++        if (mm->sel >= 0)
++            usable++;
++    }
++    if (!usable) {
++        av_log(s, AV_LOG_ERROR, "Answer has no usable opus/H264 media\n");
++        return AVERROR_INVALIDDATA;
++    }
++    return 0;
++}
++
++/**
++ * 解析 Link 头里的 rel="ice-server" 条目（含 username/credential），保存到上下文。
++ * 只做保存与日志（凭据不入日志）；TURN/STUN 的使用留给 T1.3。
++ */
++static void whep_parse_link(AVFormatContext *s, const char *hdr)
++{
++    WHEPContext *w = s->priv_data;
++    const char *p = hdr;
++
++    while (hdr && (p = strchr(p, '<')) && w->nb_ice_servers < WHEP_MAX_ICE_SERVER) {
++        const char *gt = strchr(p, '>');
++        const char *next, *par;
++        char *url, *region, *pos;
++        WhepIceServer *is;
++
++        if (!gt)
++            break;
++        next = strchr(gt, '<');
++        url = av_strndup(p + 1, gt - p - 1);
++        region = av_strndup(gt + 1, next ? next - gt - 1 : strlen(gt + 1));
++        p = next ? next : gt + strlen(gt);
++        if (!url || !region) {
++            av_free(url); av_free(region);
++            return;
++        }
++        if (!av_stristr(region, "ice-server") ||
++            !(av_strstart(url, "stun:", NULL) || av_strstart(url, "stuns:", NULL) ||
++              av_strstart(url, "turn:", NULL) || av_strstart(url, "turns:", NULL))) {
++            av_free(url); av_free(region);
++            continue;
++        }
++        is = &w->ice_servers[w->nb_ice_servers++];
++        is->url = url;
++        if ((par = av_stristr(region, "username=\"")) && (pos = strchr(par + 10, '"')))
++            is->username = av_strndup(par + 10, pos - par - 10);
++        if ((par = av_stristr(region, "credential=\"")) && (pos = strchr(par + 12, '"')))
++            is->credential = av_strndup(par + 12, pos - par - 12);
++        av_log(s, AV_LOG_VERBOSE, "ICE server from Link: %s%s\n", url, is->username ? " (with credentials)" : "");
++        av_free(region);
++    }
++}
++
++/* ------------------------------------------------------------------ */
++/* HTTP 信令：POST offer / DELETE 资源                                  */
++/* ------------------------------------------------------------------ */
++
++/**
++ * POST offer 到 WHEP 端点，读取 201 的 answer、Location 与 Link。
++ * 任何 HTTP 错误（401/404/5xx/超时）都映射成对应 AVERROR 并干净返回。
++ * @return 0 成功，负值失败
++ */
++static int whep_exchange_sdp(AVFormatContext *s)
++{
++    WHEPContext *w = s->priv_data;
++    URLContext *uc = NULL;
++    AVDictionary *opts = NULL;
++    AVBPrint bp;
++    char hdrs[1024], buf[2048];
++    char *hex = NULL;
++    const char *loc;
++    int ret;
++
++    av_bprint_init(&bp, 1, WHEP_MAX_SDP_SIZE);
++    if ((ret = whep_build_headers(s, hdrs, sizeof(hdrs), 1)) < 0)
++        goto end;
++    whep_http_opts(s, &opts);
++    av_dict_set(&opts, "headers", hdrs, 0);
++    av_dict_set_int(&opts, "chunked_post", 0, 0);
++    if (!(hex = av_mallocz(2 * strlen(w->sdp_offer) + 1))) {
++        ret = AVERROR(ENOMEM);
++        goto end;
++    }
++    ff_data_to_hex(hex, w->sdp_offer, strlen(w->sdp_offer), 0);
++    av_dict_set(&opts, "post_data", hex, 0);
++
++    ret = ffurl_open_whitelist(&uc, w->http_url, AVIO_FLAG_READ_WRITE, &s->interrupt_callback,
++                               &opts, s->protocol_whitelist, s->protocol_blacklist, NULL);
++    if (ret < 0) {
++        av_log(s, AV_LOG_ERROR, "WHEP POST to %s failed: %s\n", w->http_url, av_err2str(ret));
++        goto end;
++    }
++
++    if ((loc = ff_http_get_new_location(uc))) {
++        if (!av_strstart(loc, "http://", NULL) && !av_strstart(loc, "https://", NULL)) {
++            av_log(s, AV_LOG_ERROR, "Unsupported Location scheme: %s\n", loc);
++            ret = AVERROR_INVALIDDATA;
++            goto end;
++        }
++        if (!(w->resource_url = av_strdup(loc))) {
++            ret = AVERROR(ENOMEM);
++            goto end;
++        }
++        av_log(s, AV_LOG_VERBOSE, "Session resource: %s\n", w->resource_url);
++    } else {
++        av_log(s, AV_LOG_WARNING, "No Location header; session cannot be released with DELETE\n");
++    }
++    whep_parse_link(s, ff_http_get_link_headers(uc));
++
++    while ((ret = ffurl_read(uc, buf, sizeof(buf))) > 0) {
++        av_bprintf(&bp, "%.*s", ret, buf);
++        if (!av_bprint_is_complete(&bp)) {
++            av_log(s, AV_LOG_ERROR, "Answer exceeds %d bytes\n", WHEP_MAX_SDP_SIZE);
++            ret = AVERROR(EIO);
++            goto end;
++        }
++    }
++    if (ret < 0 && ret != AVERROR_EOF) {
++        av_log(s, AV_LOG_ERROR, "Reading WHEP answer failed: %s\n", av_err2str(ret));
++        goto end;
++    }
++    ret = 0;
++    if (!av_strstart(bp.str, "v=", NULL)) {
++        av_log(s, AV_LOG_ERROR, "Response is not an SDP answer\n");
++        ret = AVERROR_INVALIDDATA;
++        goto end;
++    }
++    if (!(w->sdp_answer = av_strdup(bp.str)))
++        ret = AVERROR(ENOMEM);
++    else
++        w->state = WHEP_STATE_ANSWER;
++    av_log(s, AV_LOG_VERBOSE, "Got answer (%zu bytes):\n%s", strlen(bp.str), bp.str);
++
++end:
++    ffurl_closep(&uc);
++    av_dict_free(&opts);
++    av_bprint_finalize(&bp, NULL);
++    av_free(hex);
++    return ret;
++}
++
++/**
++ * DELETE 释放服务端会话。失败只记日志，不影响关闭流程。
++ */
++static void whep_dispose_session(AVFormatContext *s)
++{
++    WHEPContext *w = s->priv_data;
++    URLContext *uc = NULL;
++    AVDictionary *opts = NULL;
++    char hdrs[1024], buf[256];
++    int ret;
++
++    if (!w->resource_url)
++        return;
++    if (whep_build_headers(s, hdrs, sizeof(hdrs), 0) < 0)
++        return;
++    whep_http_opts(s, &opts);
++    av_dict_set(&opts, "headers", hdrs, 0);
++    av_dict_set(&opts, "method", "DELETE", 0);
++    av_dict_set_int(&opts, "chunked_post", 0, 0);
++
++    ret = ffurl_open_whitelist(&uc, w->resource_url, AVIO_FLAG_READ_WRITE, &s->interrupt_callback,
++                               &opts, s->protocol_whitelist, s->protocol_blacklist, NULL);
++    if (ret < 0) {
++        av_log(s, AV_LOG_WARNING, "WHEP DELETE %s failed: %s\n", w->resource_url, av_err2str(ret));
++    } else {
++        while (ffurl_read(uc, buf, sizeof(buf)) > 0)
++            ;
++        av_log(s, AV_LOG_INFO, "Released WHEP session %s\n", w->resource_url);
++    }
++    ffurl_closep(&uc);
++    av_dict_free(&opts);
++}
++
++/* ------------------------------------------------------------------ */
++/* 建流                                                                */
++/* ------------------------------------------------------------------ */
++
++/**
++ * 按 answer 协商结果建 AVStream：H264（取 profile/level）与 Opus（48k 立体声）。
++ * 宽高、extradata 此时未知，由 T1.4 首个 IDR / SPS 补齐。
++ * @return 0 成功，负值失败
++ */
++static int whep_create_streams(AVFormatContext *s)
++{
++    WHEPContext *w = s->priv_data;
++    WhepSdp *o = &w->answer;
++
++    for (int i = 0; i < o->nb_media; i++) {
++        WhepMedia *m = &o->media[i];
++        const WhepCodec *c;
++        AVStream *st;
++        const char *pli;
++
++        if (m->sel < 0)
++            continue;
++        c = &m->codec[m->sel];
++        if (!(st = avformat_new_stream(s, NULL)))
++            return AVERROR(ENOMEM);
++        m->stream_index = st->index;
++        st->id = c->pt;
++        st->codecpar->codec_type = m->type;
++        if (m->type == AVMEDIA_TYPE_VIDEO) {
++            st->codecpar->codec_id = AV_CODEC_ID_H264;
++            if ((pli = av_stristr(c->fmtp, "profile-level-id=")) && strlen(pli) >= 23) {
++                char hex[7] = { 0 };
++                unsigned v;
++                memcpy(hex, pli + 17, 6);
++                if (sscanf(hex, "%x", &v) == 1) {
++                    st->codecpar->profile = (v >> 16) & 0xff;
++                    st->codecpar->level   = v & 0xff;
++                }
++            }
++            avpriv_set_pts_info(st, 64, 1, c->clock > 0 ? c->clock : 90000);
++        } else {
++            st->codecpar->codec_id    = AV_CODEC_ID_OPUS;
++            st->codecpar->sample_rate = c->clock > 0 ? c->clock : 48000;
++            av_channel_layout_default(&st->codecpar->ch_layout, c->channels > 0 ? c->channels : 2);
++            avpriv_set_pts_info(st, 64, 1, st->codecpar->sample_rate);
++        }
++        av_log(s, AV_LOG_VERBOSE, "Stream #%d: %s pt=%d %s/%d rtx_pt=%d nack=%d pli=%d mid=%s\n",
++               st->index, av_get_media_type_string(m->type), c->pt, c->name, c->clock,
++               m->rtx_pt, c->nack, c->pli, m->mid);
++    }
++    return s->nb_streams ? 0 : AVERROR_INVALIDDATA;
++}
++
++/* ------------------------------------------------------------------ */
++/* 媒体通路接口（T1.3 起实现，当前是桩）                                  */
++/* ------------------------------------------------------------------ */
++
++/**
++ * 建立媒体通路：ICE 连通性检查 + DTLS 握手 + SRTP 密钥导出（T1.3 实现）。
++ * 当前只记日志，不连接。
++ * @return 0 成功
++ */
++static int whep_media_open(AVFormatContext *s)
++{
++    WHEPContext *w = s->priv_data;
++    av_log(s, AV_LOG_VERBOSE, "Media path not implemented yet (T1.3); candidate %s:%d\n",
++           w->answer.cand_host, w->answer.cand_port);
++    return 0;
++}
++
++/**
++ * 读取一个媒体包（T1.4 起接 RTP 解包）。当前桩直接返回 EOF。
++ * @return 0 成功，AVERROR_EOF/AVERROR(EAGAIN) 或其他负值
++ */
++static int whep_media_read(AVFormatContext *s, AVPacket *pkt)
++{
++    return AVERROR_EOF;
++}
++
++/**
++ * 关闭媒体通路（T1.3 起释放 UDP/DTLS/SRTP 资源）。当前无事可做。
++ */
++static void whep_media_close(AVFormatContext *s)
++{
++}
++
++/* ------------------------------------------------------------------ */
++/* demuxer 入口                                                        */
++/* ------------------------------------------------------------------ */
++
++/**
++ * 探测：URL 以 whep: 或 whep+ 开头即命中。
++ */
++static int whep_probe(const AVProbeData *p)
++{
++    const char *fn = p->filename ? p->filename : "";
++    return av_strstart(fn, "whep:", NULL) || av_strstart(fn, "whep+", NULL) ? AVPROBE_SCORE_MAX : 0;
++}
++
++/**
++ * 释放会话：先 DELETE 服务端资源，再释放本地内存。read_header 失败时也会走到这里。
++ */
++static int whep_read_close(AVFormatContext *s)
++{
++    WHEPContext *w = s->priv_data;
++
++    whep_media_close(s);
++    whep_dispose_session(s);
++    for (int i = 0; i < w->nb_ice_servers; i++) {
++        av_freep(&w->ice_servers[i].url);
++        av_freep(&w->ice_servers[i].username);
++        av_freep(&w->ice_servers[i].credential);
++    }
++    w->nb_ice_servers = 0;
++    av_freep(&w->http_url);
++    av_freep(&w->resource_url);
++    av_freep(&w->sdp_offer);
++    av_freep(&w->sdp_answer);
++    av_freep(&w->dtls_fingerprint);
++    return 0;
++}
++
++/**
++ * 读头：映射 URL -> 生成证书与 offer -> POST -> 解析 answer -> 建流 -> 打开媒体通路。
++ * @return 0 成功，负值失败（read_close 仍会被调用以 DELETE 已建立的会话）
++ */
++static int whep_read_header(AVFormatContext *s)
++{
++    WHEPContext *w = s->priv_data;
++    char url[MAX_URL_SIZE];
++    int ret;
++
++    w->t_start = av_gettime_relative();
++    if ((ret = whep_map_url(s->url, url, sizeof(url))) < 0) {
++        av_log(s, AV_LOG_ERROR, "Bad WHEP url '%s' (use whep://, whep+http:// or whep+https://)\n", s->url);
++        return ret;
++    }
++    if (!(w->http_url = av_strdup(url)))
++        return AVERROR(ENOMEM);
++
++    if ((ret = ff_ssl_gen_key_cert(w->key_buf, sizeof(w->key_buf), w->cert_buf,
++                                   sizeof(w->cert_buf), &w->dtls_fingerprint)) < 0) {
++        av_log(s, AV_LOG_ERROR, "Failed to generate DTLS certificate\n");
++        return ret;
++    }
++    w->state = WHEP_STATE_INIT;
++
++    if ((ret = whep_generate_offer(s)) < 0 ||
++        (ret = whep_exchange_sdp(s)) < 0 ||
++        (ret = whep_parse_answer(s, w->sdp_answer, &w->answer)) < 0 ||
++        (ret = whep_create_streams(s)) < 0 ||
++        (ret = whep_media_open(s)) < 0) {
++        w->state = WHEP_STATE_FAILED;
++        return ret;
++    }
++    w->state = WHEP_STATE_NEGOTIATED;
++    s->ctx_flags |= AVFMTCTX_UNSEEKABLE;
++    av_log(s, AV_LOG_VERBOSE,
++           "Answer parsed: ufrag=%s pwd=%zuB fp=%s setup=%s ice_lite=%d cand=%s:%d streams=%d elapsed=%.1fms\n",
++           w->answer.ufrag, strlen(w->answer.pwd), w->answer.fp_algo, w->answer.setup,
++           w->answer.ice_lite, w->answer.cand_host, w->answer.cand_port, s->nb_streams,
++           (av_gettime_relative() - w->t_start) / 1000.0);
++    return 0;
++}
++
++/**
++ * 读一个包，转给媒体通路。
++ */
++static int whep_read_packet(AVFormatContext *s, AVPacket *pkt)
++{
++    return whep_media_read(s, pkt);
++}
++
++#define OFFSET(x) offsetof(WHEPContext, x)
++#define DEC AV_OPT_FLAG_DECODING_PARAM
++static const AVOption options[] = {
++    { "token",      "Bearer token for the WHEP endpoint",                 OFFSET(token),      AV_OPT_TYPE_STRING,   { .str = NULL }, 0, 0, DEC },
++    { "timeout",    "Timeout (microseconds) of HTTP signalling I/O, -1: no limit", OFFSET(timeout), AV_OPT_TYPE_INT64, { .i64 = 10000000 }, -1, INT_MAX, DEC },
++    { "tls_verify", "Verify the https server certificate (0/1)",          OFFSET(tls_verify), AV_OPT_TYPE_BOOL,     { .i64 = 0 }, 0, 1, DEC },
++    { "ca_file",    "CA bundle used when tls_verify=1",                   OFFSET(ca_file),    AV_OPT_TYPE_STRING,   { .str = NULL }, 0, 0, DEC },
++    { "user_agent", "HTTP User-Agent of the signalling request",          OFFSET(user_agent), AV_OPT_TYPE_STRING,   { .str = NULL }, 0, 0, DEC },
++    { NULL },
++};
++
++static const AVClass whep_demuxer_class = {
++    .class_name = "WHEP demuxer",
++    .item_name  = av_default_item_name,
++    .option     = options,
++    .version    = LIBAVUTIL_VERSION_INT,
++};
++
++const FFInputFormat ff_whep_demuxer = {
++    .p.name         = "whep",
++    .p.long_name    = NULL_IF_CONFIG_SMALL("WHEP (WebRTC-HTTP egress protocol) demuxer"),
++    .p.flags        = AVFMT_NOFILE,
++    .p.priv_class   = &whep_demuxer_class,
++    .flags_internal = FF_INFMT_FLAG_INIT_CLEANUP,
++    .priv_data_size = sizeof(WHEPContext),
++    .read_probe     = whep_probe,
++    .read_header    = whep_read_header,
++    .read_packet    = whep_read_packet,
++    .read_close     = whep_read_close,
++};
