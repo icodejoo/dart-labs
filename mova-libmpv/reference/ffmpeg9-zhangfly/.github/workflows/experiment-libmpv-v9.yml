@@ -1,0 +1,212 @@
+name: Experiment - libmpv ffmpeg n9.0 + mpv v0.41.0 + libplacebo
+
+# Records (and keeps reproducible) a manual investigation from 2026-08-07:
+# whether ffmpeg n9.0 can build libmpv, and what mpv version/dependency
+# chain that forces. Findings, in short:
+#   - ffmpeg n9.0 itself compiles fine with mova's existing slim decoder
+#     list (see ../../mova/tools/ffmpeg-slim/flavors-mova-slim.sh).
+#   - The Android/Windows production flavor pins an old pre-libplacebo mpv
+#     commit specifically to avoid libplacebo — that commit's ffmpeg-6.0-era
+#     API usage (FF_PROFILE_* macros, AVCodec.sample_fmts/ch_layouts) does
+#     NOT compile against ffmpeg n9.0 headers, and the breaks are real API
+#     restructures, not one-line patches.
+#   - Bumping mpv to a version that DOES compile against n9.0 (v0.41.0,
+#     latest release) pulls in libplacebo as a hard dependency (mpv >=0.36
+#     dropped the non-libplacebo GPU renderer entirely) — which itself needs
+#     glslang+spirv-cross (Windows d3d11 backend) or glslang+Vulkan (Android
+#     Vulkan backend) for shader compilation.
+#   - Net effect: libmpv roughly doubles in size vs the shipped pre-libplacebo
+#     build, on every platform tested — Android 5.87MiB -> 10.62MB,
+#     Windows's equivalent lands at 13.60MB. This isn't a windows-specific
+#     issue; it's the fixed cost of "new mpv" vs "old mpv", not something a
+#     configure flag can trim away.
+#   - Follow-up dig for more cuts on top of that 10.62MB Android baseline:
+#       * libavutil/tx.h's generic FFT/MDCT table ladder (1024..131072) is
+#         unconditional framework code, not decoder-scoped — none of our
+#         enabled decoders ever request above ~4096 (AAC maxes at 1024,
+#         Vorbis's spec ceiling is 4096). Patching libavutil/tx_template.c
+#         to drop the 16384+ rungs looked promising on paper but broke the
+#         aarch64 NEON fast path (libavutil/aarch64/tx_float_neon.S
+#         references those table symbols directly) — reverted, not worth
+#         the risk for the win.
+#       * Dropping the h264/hevc *software* decoders and going hw-only via
+#         h264_mediacodec/hevc_mediacodec (same standalone-FFCodec pattern
+#         flavors-mova-slim.sh already uses for vp9/av1) DID land cleanly:
+#         10.62MB -> 9.73MB (h264) -> 9.29MB (+hevc), zero source patches,
+#         just configure flags. Android-only — do not port the hevc cut to
+#         iOS, where pre-A9 devices have no HEVC VideoToolbox decode.
+#   - Separate follow-up dig on the Windows 13.60MB baseline (not yet
+#     ported to Android except where noted):
+#       * mbedtls -> --enable-schannel (Windows' native TLS backend, zero
+#         build cost, always-present system DLLs): 13.60MB -> 12.04MB.
+#         Android has no equivalent native-TLS ffmpeg backend, keeps mbedtls.
+#       * FreeType modules.cfg trimmed to drop font formats/rasterizers/
+#         compression mova's TTF/OTF-only rendering never reaches (Type1/
+#         CID/PFR/Type42/WinFonts/PCF/BDF, SVG/SDF raster, LZW/bzip2):
+#         12.04MB -> 11.91MB. Not yet re-validated on Android.
+#       * Dropped ffmpeg's own subtitle decoders/demuxers/--enable-libass
+#         (mova never decodes embedded/sidecar subtitle tracks through
+#         ffmpeg/mpv — captions are STT-generated Dart-side, see mova/doc/
+#         notes/2026-07-31-stt-subtitle-feasibility.md): 11.91MB -> 11.89MB.
+#         Tiny win (~22KB) because mpv's own core hard-requires libass
+#         regardless (see next point) — freetype/harfbuzz/fribidi/libass
+#         stay linked either way.
+#   - Investigated and prototyped (but NOT adopted — decision pending
+#     further discussion): whether mpv could drop libass entirely, since
+#     mova uses neither mpv's OSD (volume/seek popups, console — mova's own
+#     UI is a Flutter overlay on top of mpv's output texture, never touches
+#     this) nor mpv's ASS-subtitle decoding for its own captions. The patch
+#     (stub out sub/osd_libass.c, sub/sd_ass.c, sub/ass_mp.c) was written,
+#     compiled, linked, and real-device tested successfully — libass CAN be
+#     fully removed. Left out of this script because real-device testing
+#     also confirmed the opposite case works well: mpv's own sub-add command
+#     can load a real SRT/ASS file and auto-sync it to playback PTS across
+#     seeks (screenshot-verified at multiple seek points), which only works
+#     with libass present. Whether mova wants that capability is an open
+#     product question, not a build-flag decision — subtitle decode/demux
+#     and libass are both back in this script (see the D3D11/shaderc/
+#     subtitle entry below) pending that call.
+#   - D3D11 hwdec was broken (--enable-d3d11va/--enable-dxva2 silently
+#     swallowed by --disable-autodetect, separate from the per-codec
+#     --enable-hwaccel list) — fixed and real-device verified via mpv -v log
+#     showing "Using hardware decoding (d3d11va)" (zero-copy), not just a
+#     size measurement. CPU/memory benchmark on 720p h264: D3D11+hwdec
+#     3%CPU/153MB vs GL+dxinterop-copy 7.6%/264MB vs D3D11+software
+#     14%/201MB vs GL+software 12.8%/189MB — D3D11 kept on this basis.
+#     mpv's OWN d3d11 GPU context (separate from libplacebo's) additionally
+#     needs shaderc (glslang alone, which libplacebo uses, isn't enough) —
+#     shaderc vendors its own glslang+SPIRV-Tools copy, not deduped against
+#     the standalone build, a known remaining size cut not yet done.
+#   - HarfBuzz/libass audited for accidentally-enabled optional deps
+#     (graphite2/gobject/introspection/ICU for HarfBuzz, fontconfig for
+#     libass) — none were actually being pulled in by this cross-compile
+#     environment (byte-identical lib sizes before/after), pinned disabled
+#     explicitly anyway so a CI image change can't silently reintroduce them.
+#   - dav1d (external AV1 software decoder) dropped entirely — AV1 now goes
+#     through ffmpeg's native "av1" decoder + hwaccel only (mirrors the
+#     existing h264/hevc hw-only pattern below). libdav1d.a had no hwaccel
+#     hook at all, so AV1 hw decode wasn't actually reachable before this
+#     despite av1_d3d11va/dxva2 already being listed. Verified via a
+#     like-for-like relink: final unstripped libmpv-2.dll 40,507,664 ->
+#     37,657,104 bytes (~2.78MB). No AV1 test clip available to
+#     screenshot-verify the hw decode path itself, but the registration
+#     mechanism is identical to h264/hevc/vp9's, which WAS verified.
+#   - Android: all of the above (dav1d removal, HarfBuzz/libass hardening,
+#     FreeType trim, whole-chain LTO) ported and combined into one build,
+#     landing at 8.80MB unverified -> 9.01MB after three real, previously-
+#     undiscovered integration bugs were found and fixed (media_kit's
+#     mpv_lavc_set_java_vm patch, missing -lc++_static/-lc++abi, mpv's own
+#     gl/plain-gl/egl-android needed regardless of libplacebo's GPU
+#     backend — see build-android-libmpv-v9.sh's header for the full
+#     writeup) -> 9.30MB after switching libplacebo from Vulkan to OpenGL.
+#     Real-device tested (Huawei arm64-v8a): app launches, plays a demo
+#     video, no crash. CPU/memory benchmarked against the shipped v6
+#     flavor: gpu-next+Vulkan regresses hard (CPU +27%, TOTAL PSS +70MB,
+#     EGL/GL mtrack 12x — pays for two simultaneous GPU contexts, Vulkan
+#     render + the GLES context the MediaCodec hwdec bridge always needs);
+#     gpu-next+OpenGL collapses back to one context and matches v6's
+#     numbers almost exactly, no regression.
+#   - Net verdict on this experiment: v9+OpenGL now matches (not exceeds)
+#     v6's runtime resource profile after all this, at a real binary-size
+#     cost (Android 5.87MiB -> 9.30MB) and real engineering cost (three
+#     latent upstream bugs had to be found and fixed just to reach parity).
+#     A parallel ffmpeg n6.0->n9.0 changelog audit found only a small,
+#     concrete set of features actually relevant to mova's roadmap
+#     (Enhanced FLV/RTMP HEVC/VP9/AV1 multitrack signaling, GCC
+#     autovectorization, default TLS hardening) against a large majority of
+#     irrelevant changelog entries. The unverified upside — libplacebo's
+#     color management/HDR tone-mapping quality vs the old vo=gpu pipeline
+#     — has NOT been checked visually on a real device in this experiment,
+#     only via performance counters; that visual comparison is the one
+#     remaining lever that could change this verdict.
+#
+# STATUS: tentative / not adopted. This workflow exists to keep the
+# validated recipe (and the several build-system pitfalls it took to get a
+# working, non-silently-degraded binary) reproducible for whoever picks up
+# the "should mova move off the old mpv commit" decision next — it does not
+# feed into the production build (build-mova-libmpv.yml) and is not wired to
+# commit results anywhere.
+on:
+  workflow_dispatch:
+
+jobs:
+  windows-v9:
+    name: "Windows x86_64 (ffmpeg n9.0 + mpv v0.41.0 + libplacebo)"
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: msys2 {0}
+    steps:
+      - name: Checkout dart-labs
+        uses: actions/checkout@v4
+
+      - uses: msys2/setup-msys2@v2
+        with:
+          msystem: MINGW64
+          update: true
+          install: >-
+            base-devel
+            git
+            autoconf
+            automake
+            libtool
+            mingw-w64-x86_64-toolchain
+            mingw-w64-x86_64-ninja
+            mingw-w64-x86_64-nasm
+            mingw-w64-x86_64-pkgconf
+            mingw-w64-x86_64-python-pip
+            mingw-w64-x86_64-cmake
+            mingw-w64-x86_64-wine
+
+      - name: Pin meson via pip
+        run: pip3 install "meson==1.3.2"
+
+      - name: Run experiment build script
+        run: bash mova/tools/ffmpeg-slim/experiments/build-win-libmpv-v9.sh
+
+      - name: Upload libmpv-2.dll artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: libmpv-v9-windows-x86_64
+          path: /tmp/mova-win-libmpv/libmpv-2-stripped.dll
+          retention-days: 14
+
+  android-v9:
+    name: "Android arm64-v8a (ffmpeg n9.0 + mpv v0.41.0 + libplacebo)"
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Checkout dart-labs
+        uses: actions/checkout@v4
+
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ninja-build pkg-config nasm autoconf automake libtool \
+            cmake python3-pip python3-mako
+          pip3 install --user "meson==1.3.2"
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+
+      - name: Cache Android NDK
+        uses: actions/cache@v4
+        with:
+          path: /tmp/android-ndk-r25c
+          key: ndk-r25c-linux
+
+      - name: Download Android NDK (direct, skip sdkmanager)
+        run: |
+          if [ -d /tmp/android-ndk-r25c ]; then
+            echo "NDK restored from cache, skipping download"
+          else
+            curl -fsSL -o /tmp/android-ndk.zip https://dl.google.com/android/repository/android-ndk-r25c-linux.zip
+            unzip -q /tmp/android-ndk.zip -d /tmp
+          fi
+
+      - name: Run experiment build script
+        run: bash mova/tools/ffmpeg-slim/experiments/build-android-libmpv-v9.sh
+
+      - name: Upload libmpv.so artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: libmpv-v9-android-arm64-v8a
+          path: /tmp/mova-android-libmpv/libmpv-stripped.so
+          retention-days: 14

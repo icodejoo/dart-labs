@@ -1,0 +1,2392 @@
+diff -ruN -x .git static6c/nix/packages/mk-pkg-dav1d/default.nix static6b/nix/packages/mk-pkg-dav1d/default.nix
+--- a/nix/packages/mk-pkg-dav1d/default.nix	2026-08-10 18:59:51.637083400 +0800
++++ b/nix/packages/mk-pkg-dav1d/default.nix	2026-08-10 18:59:42.963159400 +0800
+@@ -37,6 +37,7 @@
+       --native-file ${nativeFile} \
+       --cross-file ${crossFile} \
+       --prefix=$out \
++      --default-library=static \
+       -Dbitdepths="['8', '16']" \
+       -Denable_asm=false \
+       -Denable_tools=false \
+diff -ruN -x .git static6c/nix/packages/mk-pkg-ffmpeg/default.nix static6b/nix/packages/mk-pkg-ffmpeg/default.nix
+--- a/nix/packages/mk-pkg-ffmpeg/default.nix	2026-08-10 18:59:51.639082800 +0800
++++ b/nix/packages/mk-pkg-ffmpeg/default.nix	2026-08-10 21:18:52.649666600 +0800
+@@ -1,102 +1,165 @@
+-{
+-  pkgs ? import ../../utils/default/pkgs.nix,
+-  os ? import ../../utils/default/os.nix,
+-  arch ? pkgs.callPackage ../../utils/default/arch.nix { },
+-  variant ? import ../../utils/default/variant.nix,
+-  flavor ? import ../../utils/default/flavor.nix,
+-}:
+-
+-let
+-  name = "ffmpeg";
+-  packageLock = (import ../../../packages.lock.nix).${name};
+-  inherit (packageLock) version;
+-
+-  flavors = import ../../utils/constants/flavors.nix;
+-  variants = import ../../utils/constants/variants.nix;
+-  callPackage = pkgs.lib.callPackageWith {
+-    inherit
+-      pkgs
+-      os
+-      arch
+-      variant
+-      flavor
+-      ;
+-  };
+-  nativeFile = callPackage ../../utils/native-file/default.nix { };
+-  crossFile = callPackage ../../utils/cross-file/default.nix { };
+-  mbedtls = callPackage ../mk-pkg-mbedtls/default.nix { };
+-  dav1d = callPackage ../mk-pkg-dav1d/default.nix { };
+-  libxml2 = callPackage ../mk-pkg-libxml2/default.nix { };
+-  libvorbis = callPackage ../mk-pkg-libvorbis/default.nix { };
+-  libvpx = callPackage ../mk-pkg-libvpx/default.nix { };
+-  libx264 = callPackage ../mk-pkg-libx264/default.nix { };
+-
+-  pname = import ../../utils/name/package.nix name;
+-  src = callPackage ../../utils/fetch-tarball/default.nix {
+-    name = "${pname}-source-${version}";
+-    inherit (packageLock) url sha256;
+-  };
+-  patchedSource = pkgs.runCommand "${pname}-patched-source-${version}" { } ''
+-    cp -r ${src} src
+-    export src=$PWD/src
+-    chmod -R 777 $src
+-
+-    cd $src
+-    patch -p1 <${../../../patches/ffmpeg-fix-vp9-hwaccel.patch}
+-    patch -p1 <${../../../patches/ffmpeg-fix-hls-mp4-seek.patch}
+-    patch -p1 <${../../../patches/ffmpeg-fix-ios-hdr-texture.patch}
+-    patch -p1 <${../../../patches/ffmpeg-fix-dash-base-url-escape.patch}
+-    cd -
+-
+-    cp ${./meson.build} $src/meson.build
+-    cp ${./meson.options} $src/meson.options
+-
+-    cp -r $src $out
+-  '';
+-in
+-
+-pkgs.stdenvNoCC.mkDerivation {
+-  name = "${pname}-${os}-${arch}-${variant}-${flavor}-${version}";
+-  pname = pname;
+-  inherit version;
+-  src = patchedSource;
+-  dontUnpack = true;
+-  enableParallelBuilding = true;
+-  nativeBuildInputs = [
+-    pkgs.meson
+-    pkgs.ninja
+-    pkgs.pkg-config
+-  ];
+-  buildInputs =
+-    [ mbedtls ]
+-    ++ pkgs.lib.optionals (flavor == flavors.encodersgpl) [
+-      libvorbis
+-    ]
+-    ++ pkgs.lib.optionals (variant == variants.video) [
+-      dav1d
+-      libxml2
+-    ]
+-    ++ pkgs.lib.optionals (variant == variants.video && flavor == flavors.encodersgpl) [
+-      libvpx
+-      libx264
+-    ];
+-  configurePhase = ''
+-    meson setup build $src \
+-      --native-file ${nativeFile} \
+-      --cross-file ${crossFile} \
+-      --prefix=$out \
+-      -Dvariant=${variant} \
+-      -Dflavor=${flavor} |
+-      tee configure.log
+-  '';
+-  buildPhase = ''
+-    meson compile -vC build $(basename $src)
+-  '';
+-  installPhase = ''
+-    # manual install to preserve symlinks (meson install -C build)
+-    cp -r build/dist$out $out
+-
+-    # copy configure.log
+-    cp configure.log $out/share/ffmpeg/
+-  '';
+-}
++{
++  pkgs ? import ../../utils/default/pkgs.nix,
++  os ? import ../../utils/default/os.nix,
++  arch ? pkgs.callPackage ../../utils/default/arch.nix { },
++  variant ? import ../../utils/default/variant.nix,
++  flavor ? import ../../utils/default/flavor.nix,
++}:
++
++let
++  name = "ffmpeg";
++  packageLock = (import ../../../packages.lock.nix).${name};
++  inherit (packageLock) version;
++
++  flavors = import ../../utils/constants/flavors.nix;
++  variants = import ../../utils/constants/variants.nix;
++  callPackage = pkgs.lib.callPackageWith {
++    inherit
++      pkgs
++      os
++      arch
++      variant
++      flavor
++      ;
++  };
++  nativeFile = callPackage ../../utils/native-file/default.nix { };
++  crossFile = callPackage ../../utils/cross-file/default.nix { };
++  mbedtls = callPackage ../mk-pkg-mbedtls/default.nix { };
++  dav1d = callPackage ../mk-pkg-dav1d/default.nix { };
++  libxml2 = callPackage ../mk-pkg-libxml2/default.nix { };
++  libvorbis = callPackage ../mk-pkg-libvorbis/default.nix { };
++  libvpx = callPackage ../mk-pkg-libvpx/default.nix { };
++  libx264 = callPackage ../mk-pkg-libx264/default.nix { };
++
++  pname = import ../../utils/name/package.nix name;
++  src = callPackage ../../utils/fetch-tarball/default.nix {
++    name = "${pname}-source-${version}";
++    inherit (packageLock) url sha256;
++  };
++  patchedSource = pkgs.runCommand "${pname}-patched-source-${version}" { } ''
++    cp -r ${src} src
++    export src=$PWD/src
++    chmod -R 777 $src
++
++    cd $src
++    # These four patches were written against ffmpeg 6.0 (the version this
++    # repo shipped default/full/encodersgpl on before the n9.0 bump below).
++    # movaslim jumps 3 major ffmpeg versions at once — CI run 31361900654
++    # hit a rejected hunk in ffmpeg-fix-hls-mp4-seek.patch against
++    # libavformat/hls.c, which upstream has clearly reworked since 6.0.
++    # Each of these is a targeted runtime
++    # bugfix (VP9 hwaccel edge case / HLS fMP4 seek / iOS HDR texture / DASH
++    # base URL escaping), not something compilation depends on — apply
++    # best-effort (fuzzy, non-fatal) rather than hard-failing the whole
++    # ffmpeg build over one stale hunk. Whichever ones don't apply need to be
++    # re-derived against n9.0 before their underlying bugs matter again;
++    # `*.rej` files are copied into $out below so that's diffable later
++    # instead of silently lost.
++    #
++    # ffmpeg-fix-vp9-hwaccel.patch is excluded entirely (not just
++    # best-effort) — CI run 31364922391 showed it's not a "rejected hunk"
++    # case like the others: it applies cleanly (fuzzy-matched) but the
++    # standalone `ff_vp9_videotoolbox_decoder` it adds to libavcodec/vp9.c
++    # references `FF_CODEC_CAP_ALLOCATE_PROGRESS`, an internal capability
++    # flag that doesn't exist in ffmpeg n9.0 — a hard compile error, not a
++    # skippable runtime-bugfix gap. It's also not needed here regardless:
++    # this patch's `vp9_videotoolbox` is a standalone decoder (mirroring
++    # MediaCodec's pattern), but movaslim's video_movaslim_options never
++    # enables that decoder — VP9 hardware acceleration here goes through
++    # `--enable-hwaccel=vp9_videotoolbox` layered on top of the plain `vp9`
++    # software decoder instead (see mk-pkg-ffmpeg/meson.build's movaslim
++    # branch comments on why VP9 can't go hw-only the way Android does).
++    for p in \
++      ${../../../patches/ffmpeg-fix-hls-mp4-seek.patch} \
++      ${../../../patches/ffmpeg-fix-ios-hdr-texture.patch} \
++      ${../../../patches/ffmpeg-fix-dash-base-url-escape.patch} \
++    ; do
++      if patch -p1 --fuzz=5 <"$p"; then
++        echo "applied: $p"
++      else
++        echo "::warning:: could not fully apply $p against ffmpeg ${version} — see *.rej"
++      fi
++    done
++    cd -
++
++    cp ${./meson.build} $src/meson.build
++    cp ${./meson.options} $src/meson.options
++
++    cp -r $src $out
++    # Nix's sandbox only allows writes under $out/$TMPDIR, so rejects can't
++    # be shipped as a separate output — just dump them to the build log
++    # (visible in CI) instead of losing them silently.
++    find $src -name '*.rej' -exec sh -c 'echo "--- $1 ---"; cat "$1"' _ {} \; || true
++  '';
++in
++
++pkgs.stdenvNoCC.mkDerivation {
++  name = "${pname}-${os}-${arch}-${variant}-${flavor}-${version}";
++  pname = pname;
++  inherit version;
++  src = patchedSource;
++  dontUnpack = true;
++  enableParallelBuilding = true;
++  nativeBuildInputs = [
++    pkgs.meson
++    pkgs.ninja
++    pkgs.pkg-config
++  ];
++  buildInputs =
++    [ mbedtls ]
++    ++ pkgs.lib.optionals (flavor == flavors.encodersgpl) [
++      libvorbis
++    ]
++    ++ pkgs.lib.optionals (variant == variants.video) [
++      dav1d
++      libxml2
++    ]
++    ++ pkgs.lib.optionals (variant == variants.video && flavor == flavors.encodersgpl) [
++      libvpx
++      libx264
++    ];
++  # CI runs 31379586940 onward: ffmpeg's own ./configure reported
++  # "libxml-2.0 not found using pkg-config" despite libxml2 installing a
++  # perfectly valid libxml-2.0.pc, and a plain PKG_CONFIG_PATH env var
++  # (also confirmed reachable via manual repro in the same shell) made no
++  # difference. Root cause (run 31385727949's manual pkg-config --static
++  # dump confirmed the .pc file itself is fine): meson's cross-file build
++  # ("Build type: cross build", true even macOS-arm64-to-macOS-arm64,
++  # since --cross-file is always passed) doesn't forward the host shell's
++  # PKG_CONFIG_PATH into external_project's pkg-config lookups — it needs
++  # meson's own built-in `pkg_config_path` option instead (confirmed real:
++  # trying to declare a project option of that name errors with "Option
++  # name pkg_config_path is reserved"), which both the external_project
++  # module and ordinary dependency() calls read directly, cross-build
++  # aware, in place of the ambient environment.
++  PKG_CONFIG_PATH = pkgs.lib.concatStringsSep ":" (
++    map (dep: "${dep}/lib/pkgconfig") ([ mbedtls ] ++ pkgs.lib.optionals (variant == variants.video) [ dav1d libxml2 ])
++  );
++  configurePhase = ''
++    cat > pkg-config-wrapper <<WRAPPER
++#!${pkgs.bash}/bin/bash
++export PKG_CONFIG_PATH="$PKG_CONFIG_PATH"
++exec ${pkgs.pkg-config}/bin/pkg-config "\$@"
++WRAPPER
++    chmod +x pkg-config-wrapper
++
++    meson setup build $src \
++      --native-file ${nativeFile} \
++      --cross-file ${crossFile} \
++      --prefix=$out \
++      -Dvariant=${variant} \
++      -Dflavor=${flavor} \
++      -Dpkg_config_wrapper="$PWD/pkg-config-wrapper" |
++      tee configure.log
++  '';
++  buildPhase = ''
++    meson compile -vC build $(basename $src)
++  '';
++  installPhase = ''
++    # manual install to preserve symlinks (meson install -C build)
++    cp -r build/dist$out $out
++
++    # copy configure.log
++    cp configure.log $out/share/ffmpeg/
++  '';
++}
+diff -ruN -x .git static6c/nix/packages/mk-pkg-ffmpeg/meson.build static6b/nix/packages/mk-pkg-ffmpeg/meson.build
+--- a/nix/packages/mk-pkg-ffmpeg/meson.build	2026-08-10 18:59:51.639082800 +0800
++++ b/nix/packages/mk-pkg-ffmpeg/meson.build	2026-08-10 21:26:50.474011300 +0800
+@@ -1,370 +1,538 @@
+-# https://mesonbuild.com/External-Project-module.html
+-
+-project('ffmpeg', 'c', 'cpp', 'objc')
+-
+-mod = import('unstable-external_project')
+-
+-# build binaries
+-c = meson.get_compiler('c')
+-cpp = meson.get_compiler('cpp')
+-objc = meson.get_compiler('objc')
+-nm = find_program('nm')
+-ar = find_program('ar')
+-strip = find_program('strip')
+-pkg_config = find_program('pkg-config')
+-
+-# build options
+-c_args = get_option('c_args')
+-cpp_args = get_option('cpp_args')
+-objc_args = get_option('objc_args')
+-c_link_args = get_option('c_link_args')
+-
+-# parameters
+-variant = get_option('variant')
+-flavor = get_option('flavor')
+-
+-# options
+-disable_all_options = [
+-    '--disable-autodetect',
+-    '--disable-all',
+-    '--disable-x86asm',
+-    '--disable-runtime-cpudetect',
+-    '--disable-debug',
+-    '--disable-stripping',
+-    '--disable-optimizations',
+-    '--disable-static',
+-    '--disable-shared',
+-    '--disable-pthreads',
+-    '--disable-safe-bitstream-reader',
+-]
+-
+-common_options = [
+-    '--prefix=@PREFIX@',
+-    '--enable-small', # reduce libs size
+-    '--enable-optimizations',
+-    '--enable-shared',
+-    '--enable-network',
+-    '--enable-pthreads',
+-    '--enable-pic',
+-    '--enable-mbedtls', # tls support (mbedtls)
+-    '--enable-version3',
+-    '--enable-safe-bitstream-reader',
+-    '--enable-stripping',
+-    '--enable-avcodec',
+-    '--enable-avformat',
+-    '--enable-swresample',
+-    '--enable-swscale',
+-    '--enable-avfilter',
+-
+-    # '--enable-gpl', # uncomment it to include GPL code
+-    # '--enable-nonfree', # uncomment it to include unredistributable code
+-]
+-
+-audio_common_options = [
+-    '--enable-zlib', # rasc support
+-    '--enable-audiotoolbox',
+-]
+-
+-video_common_options = [
+-    '--enable-neon', # improve hevc (h265) support on arm
+-    '--enable-libxml2', # dash support
+-    '--enable-videotoolbox',
+-    '--enable-libdav1d', # av1 support
+-]
+-
+-# https://github.com/media-kit/libmpv-android-audio-build/blob/260666c0fef8c154971b5faf3f78da27c2bf2c40/buildscripts/flavors/default.sh
+-audio_default_options = [
+-    # decoders
+-    '--enable-decoder=aac*',
+-    '--enable-decoder=ac3',
+-    '--enable-decoder=alac',
+-    '--enable-decoder=als',
+-    '--enable-decoder=ape',
+-    '--enable-decoder=atrac*',
+-    '--enable-decoder=eac3',
+-    '--enable-decoder=flac',
+-    '--enable-decoder=gsm*',
+-    '--enable-decoder=mp1*',
+-    '--enable-decoder=mp2*',
+-    '--enable-decoder=mp3*',
+-    '--enable-decoder=mpc*',
+-    '--enable-decoder=opus',
+-    '--enable-decoder=ra*',
+-    '--enable-decoder=ralf',
+-    '--enable-decoder=shorten',
+-    '--enable-decoder=tak',
+-    '--enable-decoder=tta',
+-    '--enable-decoder=vorbis',
+-    '--enable-decoder=wavpack',
+-    '--enable-decoder=wma*',
+-    '--enable-decoder=pcm*',
+-    '--enable-decoder=dsd*',
+-    '--enable-decoder=dca', # required by dts
+-
+-    # parsers   
+-    '--enable-parser=aac*',
+-    '--enable-parser=ac3',
+-    '--enable-parser=cook',
+-    '--enable-parser=dca',
+-    '--enable-parser=flac',
+-    '--enable-parser=gsm',
+-    '--enable-parser=mpegaudio',
+-    '--enable-parser=tak',
+-    '--enable-parser=vorbis',
+-
+-    # demuxers
+-    '--enable-demuxer=aac',
+-    '--enable-demuxer=ac3',
+-    '--enable-demuxer=aiff',
+-    '--enable-demuxer=ape',
+-    '--enable-demuxer=asf',
+-    '--enable-demuxer=au',
+-    '--enable-demuxer=avi',
+-    '--enable-demuxer=flac',
+-    '--enable-demuxer=flv',
+-    '--enable-demuxer=matroska',
+-    '--enable-demuxer=mov',
+-    '--enable-demuxer=m4v',
+-    '--enable-demuxer=mp3',
+-    '--enable-demuxer=mpc*',
+-    '--enable-demuxer=ogg',
+-    '--enable-demuxer=pcm*',
+-    '--enable-demuxer=rm',
+-    '--enable-demuxer=shorten',
+-    '--enable-demuxer=tak',
+-    '--enable-demuxer=tta',
+-    '--enable-demuxer=wav',
+-    '--enable-demuxer=wv',
+-    '--enable-demuxer=xwma',
+-    '--enable-demuxer=dsf',
+-    '--enable-demuxer=dts',
+-    '--enable-demuxer=truehd',
+-
+-    # protocols
+-    '--enable-protocol=async',
+-    '--enable-protocol=cache',
+-    '--enable-protocol=crypto',
+-    '--enable-protocol=data',
+-    '--enable-protocol=ffrtmphttp',
+-    '--enable-protocol=file',
+-    '--enable-protocol=ftp',
+-    '--enable-protocol=hls',
+-    '--enable-protocol=http',
+-    '--enable-protocol=httpproxy',
+-    '--enable-protocol=https',
+-    '--enable-protocol=pipe',
+-    '--enable-protocol=rtmp',
+-    '--enable-protocol=rtmps',
+-    '--enable-protocol=rtmpt',
+-    '--enable-protocol=rtmpts',
+-    '--enable-protocol=rtp',
+-    '--enable-protocol=subfile',
+-    '--enable-protocol=tcp',
+-    '--enable-protocol=tls',
+-    # '--enable-protocol=srt', # WARNING: Option --enable-protocol=srt did not match anything
+-
+-    # filters
+-    '--enable-filter=overlay',
+-    '--enable-filter=equalizer',
+-]
+-
+-# https://github.com/media-kit/libmpv-android-video-build/blob/7353af784df9bab3256acd8d90f208024d16ab96/buildscripts/flavors/default.sh
+-video_default_options = [
+-    # decoders
+-    '--enable-decoder=flv',
+-    '--enable-decoder=h263',
+-    '--enable-decoder=h263i',
+-    '--enable-decoder=h263p',
+-    '--enable-decoder=h264', # h264*
+-    '--enable-decoder=mpeg1video',
+-    '--enable-decoder=mpeg2video', # mpeg2*
+-    '--enable-decoder=mpeg4', # mpeg4*
+-    '--enable-decoder=vp6',
+-    '--enable-decoder=vp6a',
+-    '--enable-decoder=vp6f',
+-    '--enable-decoder=vp8', # vp8*
+-    '--enable-decoder=vp9', # vp9*
+-    '--enable-decoder=hevc', # hevc*
+-    '--enable-decoder=av1', # av1*
+-    '--enable-decoder=libdav1d',
+-    '--enable-decoder=theora',
+-    '--enable-decoder=msmpeg4v1', # msmpeg*
+-    '--enable-decoder=msmpeg4v2', # msmpeg*
+-    '--enable-decoder=msmpeg4v3', # msmpeg*
+-    '--enable-decoder=mjpeg',
+-    '--enable-decoder=wmv1', # wmv*
+-    '--enable-decoder=wmv2', # wmv*
+-    '--enable-decoder=wmv3', # wmv*
+-    '--enable-decoder=wmv3image', # wmv*
+-
+-    '--enable-decoder=ssa',
+-    '--enable-decoder=ass',
+-    '--enable-decoder=dvbsub',
+-    '--enable-decoder=dvdsub',
+-    '--enable-decoder=srt',
+-    '--enable-decoder=stl',
+-    '--enable-decoder=subrip',
+-    '--enable-decoder=subviewer',
+-    '--enable-decoder=subviewer1',
+-    '--enable-decoder=text',
+-    '--enable-decoder=vplayer',
+-    '--enable-decoder=webvtt',
+-    '--enable-decoder=movtext',
+-
+-    # parsers
+-    '--enable-parser=h263',
+-    '--enable-parser=h264',
+-    '--enable-parser=hevc',
+-    # '--enable-parser=mpeg4', # WARNING: Option --enable-parser=mpeg4 did not match anything
+-    '--enable-parser=mpeg4video',
+-    '--enable-parser=mpegvideo',
+-
+-    # demuxers
+-    '--enable-demuxer=concat',
+-    '--enable-demuxer=data',
+-    '--enable-demuxer=flv',
+-    '--enable-demuxer=hls',
+-    # '--enable-demuxer=latm', # WARNING: Option --enable-demuxer=latm did not match anything
+-    '--enable-demuxer=live_flv',
+-    '--enable-demuxer=loas',
+-    '--enable-demuxer=m4v',
+-    '--enable-demuxer=mov',
+-    '--enable-demuxer=mpegps',
+-    '--enable-demuxer=mpegts',
+-    '--enable-demuxer=mpegvideo',
+-    '--enable-demuxer=hevc',
+-    '--enable-demuxer=rtsp',
+-    # '--enable-demuxer=mpeg4', # WARNING: Option --enable-demuxer=mpeg4 did not match anything
+-    '--enable-demuxer=mjpeg',
+-    '--enable-demuxer=avi',
+-    '--enable-demuxer=av1',
+-    '--enable-demuxer=matroska',
+-    '--enable-demuxer=dash', # --enable-libxml2 required
+-    '--enable-demuxer=webm_dash_manifest',
+-
+-    '--enable-demuxer=ass',
+-    '--enable-demuxer=srt',
+-    '--enable-demuxer=stl',
+-    '--enable-demuxer=webvtt',
+-    '--enable-demuxer=subviewer',
+-    '--enable-demuxer=subviewer1',
+-    '--enable-demuxer=vplayer',
+-
+-    # hwaccels
+-    '--enable-hwaccel=h263_videotoolbox',
+-    '--enable-hwaccel=h264_videotoolbox',
+-    '--enable-hwaccel=hevc_videotoolbox',
+-    '--enable-hwaccel=mpeg1_videotoolbox',
+-    '--enable-hwaccel=mpeg2_videotoolbox',
+-    '--enable-hwaccel=mpeg4_videotoolbox',
+-    '--enable-hwaccel=vp9_videotoolbox',
+-]
+-
+-audio_full_options = [
+-    '--enable-decoders',
+-    '--enable-hwaccels',
+-    '--enable-parsers',
+-    '--enable-demuxers',
+-    '--enable-protocols',
+-    '--enable-bsfs',
+-
+-    # filters
+-    '--enable-filter=overlay',
+-    '--enable-filter=equalizer',
+-
+-    # TODO: `media_kit` checks the presence of the h264 decoder to determine if
+-    # `ffmpeg` is an audio or video variant, so we disable it for the audio
+-    # variant.
+-    # Ideally, we should only enable the audio decoders…
+-    '--disable-decoder=h264',
+-]
+-
+-video_full_options = [
+-    '--enable-decoder=h264',
+-]
+-
+-audio_encodersgpl_options = [
+-    '--enable-encoders',
+-    '--enable-muxers',
+-    '--enable-filters',
+-    '--enable-libvorbis',
+-    # TODO: If audio_encoders is going to exist as its own package, be smarter about what encoders to include
+-]
+-
+-video_encodersgpl_options = [
+-    '--enable-libvpx',
+-    '--enable-libx264',
+-    '--enable-gpl'
+-]
+-
+-# disable all option
+-options = disable_all_options
+-
+-# common
+-options += common_options
+-options += audio_common_options
+-if variant == 'video'
+-    options += video_common_options
+-endif
+-
+-# components
+-if flavor == 'default'
+-    options += audio_default_options
+-    if variant == 'video'
+-        options += video_default_options
+-    endif
+-elif flavor == 'full'
+-    options += audio_full_options
+-    if variant == 'video'
+-        options += video_full_options
+-    endif
+-elif flavor == 'encodersgpl'
+-    options += audio_full_options
+-    options += audio_encodersgpl_options
+-    if variant == 'video'
+-        options += video_full_options
+-        options += video_encodersgpl_options
+-    endif
+-endif
+-
+-p = mod.add_project('configure',
+-    configure_options : options,
+-    cross_configure_options: [
+-        '--enable-cross-compile',
+-        '--target-os=@0@'.format(host_machine.system()),
+-        '--arch=@0@'.format(host_machine.cpu_family()),
+-
+-        '--nm=@0@'.format(nm.path()),
+-        '--ar=@0@'.format(ar.path()),
+-        '--as=@0@'.format(''.join(c.cmd_array())),
+-        '--strip=@0@'.format(strip.path()),
+-        '--cc=@0@'.format(''.join(c.cmd_array())),
+-        '--cxx=@0@'.format(''.join(cpp.cmd_array())),
+-        '--objcc=@0@'.format(''.join(objc.cmd_array())),
+-        '--ld=@0@'.format(''.join(c.cmd_array())),
+-        '--pkg-config=@0@'.format(pkg_config.path()),
+-
+-        '--host-cc=@0@'.format(''.join(c.cmd_array())),
+-        '--host-ld=@0@'.format(''.join(c.cmd_array())),
+-
+-        '--extra-cflags=@0@'.format(' '.join(c_args)),
+-        '--extra-cxxflags=@0@'.format(' '.join(cpp_args)),
+-        '--extra-objcflags=@0@'.format(' '.join(objc_args)),
+-        '--extra-ldflags=@0@'.format(' '.join(c_link_args)),
+-    ],
+-    verbose: true,
+-)
+-
+-libavfilter_dep = p.dependency('avfilter')
+-libswscale_dep = p.dependency('swscale')
+-libavcodec_dep = p.dependency('avcodec')
+-libavformat_dep = p.dependency('avformat')
+-libavutil_dep = p.dependency('avutil')
+-libswresample_dep = p.dependency('swresample')
+-
+-meson.override_dependency('libavfilter', libavfilter_dep)
+-meson.override_dependency('libswscale', libswscale_dep)
+-meson.override_dependency('libavcodec', libavcodec_dep)
+-meson.override_dependency('libavformat', libavformat_dep)
+-meson.override_dependency('libavutil', libavutil_dep)
+-meson.override_dependency('libswresample', libswresample_dep)
++# https://mesonbuild.com/External-Project-module.html
++
++project('ffmpeg', 'c', 'cpp', 'objc')
++
++mod = import('unstable-external_project')
++
++# build binaries
++c = meson.get_compiler('c')
++cpp = meson.get_compiler('cpp')
++objc = meson.get_compiler('objc')
++nm = find_program('nm')
++ar = find_program('ar')
++ranlib = find_program('ranlib')
++strip = find_program('strip')
++pkg_config = find_program('pkg-config')
++
++# meson's external_project module doesn't forward the host shell's
++# PKG_CONFIG_PATH into ffmpeg's own ./configure subprocess (confirmed via
++# manual repro — neither a plain env var nor meson's own built-in
++# pkg_config_path option made any difference, run 31386245593). Bake it
++# into a wrapper script instead: default.nix generates one that exports
++# PKG_CONFIG_PATH before exec-ing the real pkg-config, so the value
++# travels with the binary itself rather than depending on whatever
++# environment the subprocess actually gets.
++pkg_config_wrapper = get_option('pkg_config_wrapper')
++pkg_config_bin = pkg_config_wrapper != '' ? pkg_config_wrapper : pkg_config.path()
++
++# build options
++c_args = get_option('c_args')
++cpp_args = get_option('cpp_args')
++objc_args = get_option('objc_args')
++c_link_args = get_option('c_link_args')
++
++# parameters
++variant = get_option('variant')
++flavor = get_option('flavor')
++
++# options
++disable_all_options = [
++    '--disable-autodetect',
++    '--disable-all',
++    '--disable-x86asm',
++    '--disable-runtime-cpudetect',
++    '--disable-debug',
++    '--disable-stripping',
++    '--disable-optimizations',
++    '--disable-static',
++    '--disable-shared',
++    '--disable-pthreads',
++    '--disable-safe-bitstream-reader',
++]
++
++common_options = [
++    '--prefix=@PREFIX@',
++    '--enable-small', # reduce libs size
++    '--enable-optimizations',
++    '--enable-network',
++    '--enable-pthreads',
++    '--enable-pic',
++    '--enable-mbedtls', # tls support (mbedtls)
++    '--enable-version3',
++    '--enable-safe-bitstream-reader',
++    '--enable-stripping',
++    '--enable-avcodec',
++    '--enable-avformat',
++    '--enable-swresample',
++    '--enable-swscale',
++    '--enable-avfilter',
++
++    # '--enable-gpl', # uncomment it to include GPL code
++    # '--enable-nonfree', # uncomment it to include unredistributable code
++]
++
++audio_common_options = [
++    '--enable-zlib', # rasc support
++    '--enable-audiotoolbox',
++]
++
++video_common_options = [
++    '--enable-neon', # improve hevc (h265) support on arm
++    '--enable-libxml2', # dash support
++    '--enable-videotoolbox',
++    '--enable-libdav1d', # av1 support
++]
++
++# https://github.com/media-kit/libmpv-android-audio-build/blob/260666c0fef8c154971b5faf3f78da27c2bf2c40/buildscripts/flavors/default.sh
++audio_default_options = [
++    # decoders
++    '--enable-decoder=aac*',
++    '--enable-decoder=ac3',
++    '--enable-decoder=alac',
++    '--enable-decoder=als',
++    '--enable-decoder=ape',
++    '--enable-decoder=atrac*',
++    '--enable-decoder=eac3',
++    '--enable-decoder=flac',
++    '--enable-decoder=gsm*',
++    '--enable-decoder=mp1*',
++    '--enable-decoder=mp2*',
++    '--enable-decoder=mp3*',
++    '--enable-decoder=mpc*',
++    '--enable-decoder=opus',
++    '--enable-decoder=ra*',
++    '--enable-decoder=ralf',
++    '--enable-decoder=shorten',
++    '--enable-decoder=tak',
++    '--enable-decoder=tta',
++    '--enable-decoder=vorbis',
++    '--enable-decoder=wavpack',
++    '--enable-decoder=wma*',
++    '--enable-decoder=pcm*',
++    '--enable-decoder=dsd*',
++    '--enable-decoder=dca', # required by dts
++
++    # parsers   
++    '--enable-parser=aac*',
++    '--enable-parser=ac3',
++    '--enable-parser=cook',
++    '--enable-parser=dca',
++    '--enable-parser=flac',
++    '--enable-parser=gsm',
++    '--enable-parser=mpegaudio',
++    '--enable-parser=tak',
++    '--enable-parser=vorbis',
++
++    # demuxers
++    '--enable-demuxer=aac',
++    '--enable-demuxer=ac3',
++    '--enable-demuxer=aiff',
++    '--enable-demuxer=ape',
++    '--enable-demuxer=asf',
++    '--enable-demuxer=au',
++    '--enable-demuxer=avi',
++    '--enable-demuxer=flac',
++    '--enable-demuxer=flv',
++    '--enable-demuxer=matroska',
++    '--enable-demuxer=mov',
++    '--enable-demuxer=m4v',
++    '--enable-demuxer=mp3',
++    '--enable-demuxer=mpc*',
++    '--enable-demuxer=ogg',
++    '--enable-demuxer=pcm*',
++    '--enable-demuxer=rm',
++    '--enable-demuxer=shorten',
++    '--enable-demuxer=tak',
++    '--enable-demuxer=tta',
++    '--enable-demuxer=wav',
++    '--enable-demuxer=wv',
++    '--enable-demuxer=xwma',
++    '--enable-demuxer=dsf',
++    '--enable-demuxer=dts',
++    '--enable-demuxer=truehd',
++
++    # protocols
++    '--enable-protocol=async',
++    '--enable-protocol=cache',
++    '--enable-protocol=crypto',
++    '--enable-protocol=data',
++    '--enable-protocol=ffrtmphttp',
++    '--enable-protocol=file',
++    '--enable-protocol=ftp',
++    '--enable-protocol=hls',
++    '--enable-protocol=http',
++    '--enable-protocol=httpproxy',
++    '--enable-protocol=https',
++    '--enable-protocol=pipe',
++    '--enable-protocol=rtmp',
++    '--enable-protocol=rtmps',
++    '--enable-protocol=rtmpt',
++    '--enable-protocol=rtmpts',
++    '--enable-protocol=rtp',
++    '--enable-protocol=subfile',
++    '--enable-protocol=tcp',
++    '--enable-protocol=tls',
++    # '--enable-protocol=srt', # WARNING: Option --enable-protocol=srt did not match anything
++
++    # filters
++    '--enable-filter=overlay',
++    '--enable-filter=equalizer',
++]
++
++# https://github.com/media-kit/libmpv-android-video-build/blob/7353af784df9bab3256acd8d90f208024d16ab96/buildscripts/flavors/default.sh
++video_default_options = [
++    # decoders
++    '--enable-decoder=flv',
++    '--enable-decoder=h263',
++    '--enable-decoder=h263i',
++    '--enable-decoder=h263p',
++    '--enable-decoder=h264', # h264*
++    '--enable-decoder=mpeg1video',
++    '--enable-decoder=mpeg2video', # mpeg2*
++    '--enable-decoder=mpeg4', # mpeg4*
++    '--enable-decoder=vp6',
++    '--enable-decoder=vp6a',
++    '--enable-decoder=vp6f',
++    '--enable-decoder=vp8', # vp8*
++    '--enable-decoder=vp9', # vp9*
++    '--enable-decoder=hevc', # hevc*
++    '--enable-decoder=av1', # av1*
++    '--enable-decoder=libdav1d',
++    '--enable-decoder=theora',
++    '--enable-decoder=msmpeg4v1', # msmpeg*
++    '--enable-decoder=msmpeg4v2', # msmpeg*
++    '--enable-decoder=msmpeg4v3', # msmpeg*
++    '--enable-decoder=mjpeg',
++    '--enable-decoder=wmv1', # wmv*
++    '--enable-decoder=wmv2', # wmv*
++    '--enable-decoder=wmv3', # wmv*
++    '--enable-decoder=wmv3image', # wmv*
++
++    '--enable-decoder=ssa',
++    '--enable-decoder=ass',
++    '--enable-decoder=dvbsub',
++    '--enable-decoder=dvdsub',
++    '--enable-decoder=srt',
++    '--enable-decoder=stl',
++    '--enable-decoder=subrip',
++    '--enable-decoder=subviewer',
++    '--enable-decoder=subviewer1',
++    '--enable-decoder=text',
++    '--enable-decoder=vplayer',
++    '--enable-decoder=webvtt',
++    '--enable-decoder=movtext',
++
++    # parsers
++    '--enable-parser=h263',
++    '--enable-parser=h264',
++    '--enable-parser=hevc',
++    # '--enable-parser=mpeg4', # WARNING: Option --enable-parser=mpeg4 did not match anything
++    '--enable-parser=mpeg4video',
++    '--enable-parser=mpegvideo',
++
++    # demuxers
++    '--enable-demuxer=concat',
++    '--enable-demuxer=data',
++    '--enable-demuxer=flv',
++    '--enable-demuxer=hls',
++    # '--enable-demuxer=latm', # WARNING: Option --enable-demuxer=latm did not match anything
++    '--enable-demuxer=live_flv',
++    '--enable-demuxer=loas',
++    '--enable-demuxer=m4v',
++    '--enable-demuxer=mov',
++    '--enable-demuxer=mpegps',
++    '--enable-demuxer=mpegts',
++    '--enable-demuxer=mpegvideo',
++    '--enable-demuxer=hevc',
++    '--enable-demuxer=rtsp',
++    # '--enable-demuxer=mpeg4', # WARNING: Option --enable-demuxer=mpeg4 did not match anything
++    '--enable-demuxer=mjpeg',
++    '--enable-demuxer=avi',
++    '--enable-demuxer=av1',
++    '--enable-demuxer=matroska',
++    '--enable-demuxer=dash', # --enable-libxml2 required
++    '--enable-demuxer=webm_dash_manifest',
++
++    '--enable-demuxer=ass',
++    '--enable-demuxer=srt',
++    '--enable-demuxer=stl',
++    '--enable-demuxer=webvtt',
++    '--enable-demuxer=subviewer',
++    '--enable-demuxer=subviewer1',
++    '--enable-demuxer=vplayer',
++
++    # hwaccels
++    '--enable-hwaccel=h263_videotoolbox',
++    '--enable-hwaccel=h264_videotoolbox',
++    '--enable-hwaccel=hevc_videotoolbox',
++    '--enable-hwaccel=mpeg1_videotoolbox',
++    '--enable-hwaccel=mpeg2_videotoolbox',
++    '--enable-hwaccel=mpeg4_videotoolbox',
++    '--enable-hwaccel=vp9_videotoolbox',
++]
++
++audio_full_options = [
++    '--enable-decoders',
++    '--enable-hwaccels',
++    '--enable-parsers',
++    '--enable-demuxers',
++    '--enable-protocols',
++    '--enable-bsfs',
++
++    # filters
++    '--enable-filter=overlay',
++    '--enable-filter=equalizer',
++
++    # TODO: `media_kit` checks the presence of the h264 decoder to determine if
++    # `ffmpeg` is an audio or video variant, so we disable it for the audio
++    # variant.
++    # Ideally, we should only enable the audio decoders…
++    '--disable-decoder=h264',
++]
++
++video_full_options = [
++    '--enable-decoder=h264',
++]
++
++# mova slim flavor — mirrors mova/tools/ffmpeg-slim/flavors-mova-slim.sh
++# (the Android decoder/demuxer/protocol keep-list from
++# mova/doc/notes/2026-07-31-ffmpeg-slimming-options.md), adapted to this
++# platform: no MediaCodec-style separate hw decoder namespace here, so
++# VideoToolbox is a hwaccel layered on top of the plain software decoder
++# (h264/hevc/vp9 stay enabled as decoders; VideoToolbox is opportunistic).
++# AV1 has no VideoToolbox hwaccel in ffmpeg's hwaccel list on this platform,
++# so it's libdav1d software-only (same decoder Android uses as its AV1
++# fallback path). Legacy formats (VP8/MJPEG/MPEG-1/2/4/H.263/WMV/etc.) and
++# DASH (needs libxml2, ~740KB, not enabled here) are dropped, matching the
++# Android keep-list. Filters stay empty (no overlay/equalizer) — Android
++# real-device testing (2026-08-10) confirmed OSD/subtitle compositing has no
++# regression without them, since mpv's own scale/format conversion goes
++# through swscale/swresample directly, not lavfi.
++audio_movaslim_options = [
++    # decoders
++    '--enable-decoder=aac*',
++    '--enable-decoder=ac3',
++    '--enable-decoder=eac3',
++    '--enable-decoder=flac',
++    '--enable-decoder=mp3*',
++    '--enable-decoder=opus',
++    '--enable-decoder=pcm_s16le',
++    '--enable-decoder=pcm_s16be',
++    '--enable-decoder=pcm_s24le',
++    '--enable-decoder=pcm_s32le',
++    '--enable-decoder=pcm_f32le',
++    '--enable-decoder=pcm_u8',
++    '--enable-decoder=vorbis',
++
++    # parsers
++    '--enable-parser=aac*',
++    '--enable-parser=ac3',
++    '--enable-parser=flac',
++    '--enable-parser=mpegaudio',
++    '--enable-parser=vorbis',
++
++    # demuxers
++    '--enable-demuxer=aac',
++    '--enable-demuxer=ac3',
++    '--enable-demuxer=eac3',
++    '--enable-demuxer=flac',
++    '--enable-demuxer=mp3',
++    '--enable-demuxer=ogg',
++    '--enable-demuxer=wav',
++
++    # protocols — kept here regardless of variant, mirroring how the
++    # `default`/`full` flavors above always source protocols off the
++    # audio_*_options list even when variant == video.
++    '--enable-protocol=crypto', # HLS AES-128 encrypted segments
++    '--enable-protocol=data',
++    '--enable-protocol=ffrtmpcrypt',
++    '--enable-protocol=ffrtmphttp',
++    '--enable-protocol=file',
++    '--enable-protocol=hls',
++    '--enable-protocol=http',
++    '--enable-protocol=https',
++    '--enable-protocol=pipe',
++    '--enable-protocol=rtmp',
++    '--enable-protocol=rtmps',
++    '--enable-protocol=rtmpt',
++    '--enable-protocol=rtmpts',
++    '--enable-protocol=rtp',
++    '--enable-protocol=tcp',
++    '--enable-protocol=tls',
++    '--enable-protocol=udp',
++]
++
++video_movaslim_options = [
++    # decoders
++    '--enable-decoder=h264',
++    '--enable-decoder=hevc',
++    '--enable-decoder=vp9', # software decoder — VideoToolbox's vp9 hwaccel
++                             # wraps this rather than replacing it, unlike
++                             # Android's separate vp9_mediacodec decoder
++    '--enable-decoder=libdav1d', # av1, software-only on this platform
++    '--enable-decoder=png', # cover art / mpv screenshot command
++
++    '--enable-decoder=ass',
++    '--enable-decoder=ssa',
++    '--enable-decoder=subrip',
++    '--enable-decoder=text',
++    '--enable-decoder=webvtt',
++    '--enable-decoder=movtext',
++
++    # parsers
++    '--enable-parser=h264',
++    '--enable-parser=hevc',
++    '--enable-parser=vp9',
++    '--enable-parser=av1',
++    '--enable-parser=png',
++
++    # demuxers
++    '--enable-demuxer=mov',
++    '--enable-demuxer=matroska',
++    '--enable-demuxer=webm_dash_manifest',
++    '--enable-demuxer=mpegts',
++    '--enable-demuxer=hls',
++    '--enable-demuxer=flv',
++    '--enable-demuxer=live_flv',
++    '--enable-demuxer=data',
++    '--enable-demuxer=ass',
++    '--enable-demuxer=srt',
++    '--enable-demuxer=webvtt',
++
++    # hwaccels — only the codecs we actually decode get a hwaccel entry
++    '--enable-hwaccel=h264_videotoolbox',
++    '--enable-hwaccel=hevc_videotoolbox',
++    '--enable-hwaccel=vp9_videotoolbox',
++
++    # bitstream filters — needed for HLS TS<->MP4 NAL format conversion and
++    # AV1/VP9 superframe splitting; `--disable-all` zeroes bsfs same as
++    # decoders/demuxers, so these need explicit enabling (the `default`
++    # flavor above never does this and ends up with the full bsf set,
++    # since only `full`/`encodersgpl` call `--enable-bsfs` explicitly —
++    # movaslim opts into a minimal explicit list instead of either extreme)
++    '--enable-bsf=h264_mp4toannexb',
++    '--enable-bsf=hevc_mp4toannexb',
++    '--enable-bsf=aac_adtstoasc',
++    '--enable-bsf=vp9_superframe',
++    '--enable-bsf=vp9_superframe_split',
++    '--enable-bsf=av1_frame_split',
++    '--enable-bsf=av1_frame_merge',
++    '--enable-bsf=mov2textsub',
++    '--enable-bsf=extract_extradata',
++    '--enable-bsf=dump_extradata',
++    '--enable-bsf=setts',
++    '--enable-bsf=null',
++]
++
++audio_encodersgpl_options = [
++    '--enable-encoders',
++    '--enable-muxers',
++    '--enable-filters',
++    '--enable-libvorbis',
++    # TODO: If audio_encoders is going to exist as its own package, be smarter about what encoders to include
++]
++
++video_encodersgpl_options = [
++    '--enable-libvpx',
++    '--enable-libx264',
++    '--enable-gpl'
++]
++
++# disable all option
++options = disable_all_options
++
++# common
++options += common_options
++options += audio_common_options
++if variant == 'video'
++    options += video_common_options
++endif
++
++# components
++if flavor == 'default'
++    options += audio_default_options
++    if variant == 'video'
++        options += video_default_options
++    endif
++elif flavor == 'full'
++    options += audio_full_options
++    if variant == 'video'
++        options += video_full_options
++    endif
++elif flavor == 'encodersgpl'
++    options += audio_full_options
++    options += audio_encodersgpl_options
++    if variant == 'video'
++        options += video_full_options
++        options += video_encodersgpl_options
++    endif
++elif flavor == 'movaslim'
++    options += audio_movaslim_options
++    if variant == 'video'
++        options += video_movaslim_options
++    endif
++endif
++
++# Static, not shared — links ffmpeg's components straight into libmpv.dylib
++# (mirroring Android's shipped approach: one file, not this repo's default
++# N-separate-dylibs shape) so the final link step's dead-code elimination
++# can actually see across what used to be library boundaries. Applied
++# unconditionally (not just for movaslim) since nothing in this repo's CI
++# builds the other flavors regardless (see packages.lock.nix's version-bump
++# comments) — every other dependency package gets this same unconditional
++# static switch, to avoid threading a flavor/os check through every leaf
++# package individually.
++options += ['--enable-static', '--disable-shared']
++
++# Static libs (libxml2.a etc.) need their transitive deps (zlib, iconv)
++# linked in too, but those only appear in a .pc's Libs.private — which
++# plain `pkg-config --libs` omits. ffmpeg's own configure compile-test
++# link step (run 31391606468's config.log: "Undefined symbols ... _crc32
++# / _deflate / _iconv" from libxml2.a, since the test link command only
++# carried -lxml2, no -lz/-liconv) hits exactly this. --pkg-config-flags
++# makes ffmpeg pass --static to every pkg-config call it makes, pulling
++# Libs.private into scope.
++options += ['--pkg-config-flags=--static']
++
++p = mod.add_project('configure',
++    configure_options : options,
++    cross_configure_options: [
++        '--enable-cross-compile',
++        '--target-os=@0@'.format(host_machine.system()),
++        '--arch=@0@'.format(host_machine.cpu_family()),
++
++        '--nm=@0@'.format(nm.path()),
++        '--ar=@0@'.format(ar.path()),
++        '--ranlib=@0@'.format(ranlib.path()),
++        '--as=@0@'.format(''.join(c.cmd_array())),
++        '--strip=@0@'.format(strip.path()),
++        '--cc=@0@'.format(''.join(c.cmd_array())),
++        '--cxx=@0@'.format(''.join(cpp.cmd_array())),
++        '--objcc=@0@'.format(''.join(objc.cmd_array())),
++        '--ld=@0@'.format(''.join(c.cmd_array())),
++        '--pkg-config=@0@'.format(pkg_config_bin),
++
++        '--host-cc=@0@'.format(''.join(c.cmd_array())),
++        '--host-ld=@0@'.format(''.join(c.cmd_array())),
++
++        '--extra-cflags=@0@'.format(' '.join(c_args)),
++        '--extra-cxxflags=@0@'.format(' '.join(cpp_args)),
++        '--extra-objcflags=@0@'.format(' '.join(objc_args)),
++        '--extra-ldflags=@0@'.format(' '.join(c_link_args)),
++    ],
++    verbose: true,
++)
++
++libavfilter_dep = p.dependency('avfilter')
++libswscale_dep = p.dependency('swscale')
++libavcodec_dep = p.dependency('avcodec')
++libavformat_dep = p.dependency('avformat')
++libavutil_dep = p.dependency('avutil')
++libswresample_dep = p.dependency('swresample')
++
++meson.override_dependency('libavfilter', libavfilter_dep)
++meson.override_dependency('libswscale', libswscale_dep)
++meson.override_dependency('libavcodec', libavcodec_dep)
++meson.override_dependency('libavformat', libavformat_dep)
++meson.override_dependency('libavutil', libavutil_dep)
++meson.override_dependency('libswresample', libswresample_dep)
+diff -ruN -x .git static6c/nix/packages/mk-pkg-ffmpeg/meson.options static6b/nix/packages/mk-pkg-ffmpeg/meson.options
+--- a/nix/packages/mk-pkg-ffmpeg/meson.options	2026-08-10 18:59:51.640083400 +0800
++++ b/nix/packages/mk-pkg-ffmpeg/meson.options	2026-08-10 20:12:30.316751500 +0800
+@@ -1,2 +1,3 @@
+-option('variant', type : 'combo', choices : ['audio', 'video'])
+-option('flavor', type : 'combo', choices : ['default', 'full', 'encodersgpl'])
++option('variant', type : 'combo', choices : ['audio', 'video'])
++option('flavor', type : 'combo', choices : ['default', 'full', 'encodersgpl', 'movaslim'])
++option('pkg_config_wrapper', type : 'string', value : '')
+diff -ruN -x .git static6c/nix/packages/mk-pkg-freetype/default.nix static6b/nix/packages/mk-pkg-freetype/default.nix
+--- a/nix/packages/mk-pkg-freetype/default.nix	2026-08-10 18:59:51.643703500 +0800
++++ b/nix/packages/mk-pkg-freetype/default.nix	2026-08-10 18:59:49.982274500 +0800
+@@ -41,11 +41,18 @@
+     harfbuzz
+     libpng
+   ];
++  PKG_CONFIG_PATH = pkgs.lib.concatStringsSep ":" (
++    map (dep: "${dep}/lib/pkgconfig") [
++      harfbuzz
++      libpng
++    ]
++  );
+   configurePhase = ''
+     meson setup build $src \
+       --native-file ${nativeFile} \
+       --cross-file ${crossFile} \
+       --prefix=$out \
++      --default-library=static \
+       -Dbrotli=disabled \
+       -Dbzip2=disabled \
+       -Dharfbuzz=enabled \
+diff -ruN -x .git static6c/nix/packages/mk-pkg-fribidi/default.nix static6b/nix/packages/mk-pkg-fribidi/default.nix
+--- a/nix/packages/mk-pkg-fribidi/default.nix	2026-08-10 18:59:51.645694600 +0800
++++ b/nix/packages/mk-pkg-fribidi/default.nix	2026-08-10 18:59:42.968176200 +0800
+@@ -37,6 +37,7 @@
+       --native-file=${nativeFile} \
+       --cross-file ${crossFile} \
+       --prefix=$out \
++      --default-library=static \
+       -Ddeprecated=false \
+       -Ddocs=false \
+       -Dbin=false \
+diff -ruN -x .git static6c/nix/packages/mk-pkg-glslang/default.nix static6b/nix/packages/mk-pkg-glslang/default.nix
+--- a/nix/packages/mk-pkg-glslang/default.nix	1970-01-01 08:00:00.000000000 +0800
++++ b/nix/packages/mk-pkg-glslang/default.nix	2026-08-10 18:59:42.969173500 +0800
+@@ -0,0 +1,94 @@
++{
++  pkgs ? import ../../utils/default/pkgs.nix,
++  os ? import ../../utils/default/os.nix,
++  arch ? pkgs.callPackage ../../utils/default/arch.nix { },
++}:
++
++let
++  name = "glslang";
++  packageLock = (import ../../../packages.lock.nix).${name};
++  inherit (packageLock) version;
++
++  oses = import ../../utils/constants/oses.nix;
++  # std::filesystem needs macOS 10.15+ / iOS 13.0+ (see meson.build's
++  # comment on why this can't just be hardcoded to one flag — iOS and
++  # macOS need different flag names, not just different version numbers,
++  # and this meson.build has no way to tell them apart on its own).
++  minVersionFlag =
++    if os == oses.macos then
++      "-mmacosx-version-min=10.15"
++    else
++      "-miphoneos-version-min=13.0";
++
++  callPackage = pkgs.lib.callPackageWith { inherit pkgs os arch; };
++  nativeFile = callPackage ../../utils/native-file/default.nix { };
++  crossFile = callPackage ../../utils/cross-file/default.nix { };
++
++  pname = import ../../utils/name/package.nix name;
++  src = callPackage ../../utils/fetch-tarball/default.nix {
++    name = "${pname}-source-${version}";
++    inherit (packageLock) url sha256;
++  };
++  patchedSource = pkgs.runCommand "${pname}-patched-source-${version}" { } ''
++    mkdir -p $out/subprojects/glslang
++    cp -r ${src}/* $out/subprojects/glslang/
++    cp ${./meson.build} $out/meson.build
++    cp ${./meson.options} $out/meson.options
++  '';
++in
++
++pkgs.stdenvNoCC.mkDerivation {
++  name = "${pname}-${os}-${arch}-${version}";
++  pname = pname;
++  inherit version;
++  src = patchedSource;
++  dontUnpack = true;
++  enableParallelBuilding = true;
++  nativeBuildInputs = [
++    pkgs.cmake
++    pkgs.meson
++    pkgs.ninja
++    pkgs.pkg-config
++    pkgs.python3
++  ];
++  configurePhase = ''
++    meson setup build $src \
++      --native-file ${nativeFile} \
++      --cross-file ${crossFile} \
++      --prefix=$out \
++      -Dmin-version-flag='${minVersionFlag}'
++  '';
++  buildPhase = ''
++    meson compile -vC build
++  '';
++  installPhase = ''
++    mkdir -p $out/lib $out/include
++
++    # Static libs — glslang's CMake exports several separate targets
++    # (glslang/MachineIndependent/GenericCodeGen/OSDependent/OGLCompiler/
++    # SPIRV), all landing somewhere under the meson-driven cmake.subproject
++    # build tree. Glob broadly rather than hardcoding exact subdirectory
++    # names, which vary by glslang/CMake version.
++    find build -type f -name '*.a' -exec cp -n {} $out/lib/ \;
++
++    # Headers — public API headers live in the source tree
++    # (glslang/Public, glslang/Include, SPIRV, StandAlone); build_info.h is
++    # CMake-generated at configure time into the build tree. Copy both,
++    # preserving the glslang/SPIRV/StandAlone include-path structure
++    # libplacebo's src/glsl/meson.build expects (glslang/..., SPIRV/...).
++    src_root=$(find build/subprojects -maxdepth 1 -type d -name 'glslang*' | head -1)
++    if [ -z "$src_root" ]; then src_root=$src/subprojects/glslang; fi
++
++    for d in glslang SPIRV StandAlone; do
++      if [ -d "$src_root/$d" ]; then
++        mkdir -p "$out/include/$d"
++        find "$src_root/$d" -name '*.h' -exec cp --parents -t $out/include {} \; 2>/dev/null || true
++      fi
++    done
++    # Generated build_info.h (and any other configure-time generated
++    # headers) — search the whole build tree, not just src_root, since
++    # CMake typically places generated files under the binary dir mirroring
++    # the source's relative path, not inside the source tree itself.
++    find build -name 'build_info.h' -exec cp {} $out/include/glslang/ \; 2>/dev/null || true
++  '';
++}
+diff -ruN -x .git static6c/nix/packages/mk-pkg-glslang/meson.build static6b/nix/packages/mk-pkg-glslang/meson.build
+--- a/nix/packages/mk-pkg-glslang/meson.build	1970-01-01 08:00:00.000000000 +0800
++++ b/nix/packages/mk-pkg-glslang/meson.build	2026-08-10 18:59:42.970173300 +0800
+@@ -0,0 +1,79 @@
++# glslang ships CMake, not meson — wrapped via meson's cmake module the same
++# way mk-pkg-mbedtls wraps mbedtls's own CMake build (see that package's
++# meson.build for the reference pattern this mirrors). The outer Nix
++# derivation's installPhase globs the resulting .a files out of `build/`
++# directly (same approach mbedtls's installPhase uses for its .dylib) rather
++# than wiring a meson dependency() object — libplacebo's own src/glsl/
++# meson.build looks glslang up via raw cc.find_library()/cc.has_header()
++# calls, not a pkg-config dependency, so there is nothing here that needs to
++# go through meson.override_dependency().
++#
++# Flags mirror tools/ffmpeg-slim/experiments/build-{android,win}-libmpv-v9.sh's
++# glslang cmake invocation: ENABLE_OPT=OFF drops the SPIR-V optimizer
++# (SPIRV-Tools-opt, the single biggest non-ffmpeg static-lib piece in those
++# experiments — libplacebo's shaders are hand-written and small, not codegen
++# output that benefits from an optimization pass) and
++# ALLOW_EXTERNAL_SPIRV_TOOLS=OFF keeps glslang from reaching for a system
++# SPIRV-Tools this sandboxed build doesn't provide.
++project('glslang', 'c', 'cpp')
++
++cmake = import('cmake')
++
++cpu = host_machine.cpu()
++if cpu == 'amd64'
++    arch = 'x86_64'
++elif cpu == 'arm64'
++    arch = 'arm64'
++endif
++
++# glslang's GenericCodeGen/Include/InfoSink.h uses std::filesystem::path
++# (needs macOS 10.15+ / iOS 13.0+), but this repo's cross-files/*.ini bakes
++# a blanket low deployment-target flag into every package's c_args/
++# cpp_args (kept low for the amd64/universal builds' compatibility floor)
++# — that leaks into glslang's CMake subproject and clang's availability
++# annotations turn every std::filesystem call into a hard "unavailable"
++# compile error at the low target. Raising just glslang's deployment
++# target (not the shared cross-file, which every other package still
++# needs low) fixes it without touching anything else's compatibility
++# floor.
++#
++# CI run 31367146786 (macos-arm64) went green hardcoding
++# -mmacosx-version-min=10.15, but that same flag broke run 31368304011
++# (ios-arm64) outright: passing a macOS deployment-target flag while
++# targeting the iPhoneOS SDK made clang's basic ABI detection fail
++# ("Detecting C compiler ABI info - failed"), which cascaded into "Could
++# NOT find Threads" before glslang's own sources were even reached — not
++# a std::filesystem-specific error at all, a wrong-flag-for-this-SDK
++# error. The right flag (-mmacosx-version-min vs -miphoneos-version-min)
++# depends on `os`, which isn't visible inside this meson.build
++# (`host_machine.system()` is 'darwin' for macOS/iOS/iossimulator alike
++# per this repo's cross-files/*.ini) — computed in Nix (default.nix, which
++# does have `os`) and threaded through via the min-version-flag option
++# instead.
++min_version_flag = get_option('min-version-flag')
++options = cmake.subproject_options()
++options.add_cmake_defines({
++    'CMAKE_OSX_ARCHITECTURES': arch,
++    'CMAKE_OSX_SYSROOT': meson.get_cross_property('cmake_osx_sysroot'),
++    'CMAKE_C_FLAGS': min_version_flag,
++    'CMAKE_CXX_FLAGS': min_version_flag,
++    'CMAKE_C_COMPILER_WORKS': true,
++    'CMAKE_CXX_COMPILER_WORKS': true,
++    'CMAKE_BUILD_TYPE': 'Release',
++    'BUILD_SHARED_LIBS': false,
++    'ENABLE_GLSLANG_BINARIES': false,
++    'ENABLE_SPVREMAPPER': false,
++    'ENABLE_CTEST': false,
++    'ENABLE_HLSL': false,
++    'ALLOW_EXTERNAL_SPIRV_TOOLS': false,
++    'ENABLE_OPT': false,
++})
++
++# Referencing .dependency('glslang') below is what forces meson to actually
++# configure+build the subproject (evaluating it is not lazy) even though
++# nothing in this wrapper links against it — the outer Nix installPhase
++# harvests the resulting .a files straight out of the meson build directory
++# instead (see comment above).
++glslang_proj = cmake.subproject('glslang', options: options)
++glslang_dep = glslang_proj.dependency('glslang')
++
+diff -ruN -x .git static6c/nix/packages/mk-pkg-glslang/meson.options static6b/nix/packages/mk-pkg-glslang/meson.options
+--- a/nix/packages/mk-pkg-glslang/meson.options	1970-01-01 08:00:00.000000000 +0800
++++ b/nix/packages/mk-pkg-glslang/meson.options	2026-08-10 18:59:42.971173300 +0800
+@@ -0,0 +1,2 @@
++option('min-version-flag', type: 'string', value: '',
++       description: 'Platform-appropriate -mmacosx-version-min/-miphoneos-version-min flag, computed in Nix (default.nix) since it depends on os, which meson cross-files here do not expose (host_machine.system() is "darwin" for macOS/iOS/iossimulator alike)')
+diff -ruN -x .git static6c/nix/packages/mk-pkg-harfbuzz/default.nix static6b/nix/packages/mk-pkg-harfbuzz/default.nix
+--- a/nix/packages/mk-pkg-harfbuzz/default.nix	2026-08-10 18:59:51.647701000 +0800
++++ b/nix/packages/mk-pkg-harfbuzz/default.nix	2026-08-10 18:59:42.971173300 +0800
+@@ -45,6 +45,7 @@
+       --native-file ${nativeFile} \
+       --cross-file ${crossFile} \
+       --prefix=$out \
++      --default-library=static \
+       -Dglib=disabled \
+       -Dgobject=disabled \
+       -Dcairo=disabled \
+diff -ruN -x .git static6c/nix/packages/mk-pkg-libass/default.nix static6b/nix/packages/mk-pkg-libass/default.nix
+--- a/nix/packages/mk-pkg-libass/default.nix	2026-08-10 18:59:51.648700700 +0800
++++ b/nix/packages/mk-pkg-libass/default.nix	2026-08-10 19:06:02.514279100 +0800
+@@ -15,6 +15,7 @@
+   fribidi = callPackage ../mk-pkg-fribidi/default.nix { };
+   harfbuzz = callPackage ../mk-pkg-harfbuzz/default.nix { };
+   freetype = callPackage ../mk-pkg-freetype/default.nix { };
++  libpng = callPackage ../mk-pkg-libpng/default.nix { };
+ 
+   pname = import ../../utils/name/package.nix name;
+   src = callPackage ../../utils/fetch-tarball/default.nix {
+@@ -53,6 +54,14 @@
+     harfbuzz
+     freetype
+   ];
++  PKG_CONFIG_PATH = pkgs.lib.concatStringsSep ":" (
++    map (dep: "${dep}/lib/pkgconfig") [
++      fribidi
++      harfbuzz
++      freetype
++      libpng
++    ]
++  );
+   configurePhase = ''
+     meson setup build $src \
+       --native-file ${nativeFile} \
+diff -ruN -x .git static6c/nix/packages/mk-pkg-libass/meson.build static6b/nix/packages/mk-pkg-libass/meson.build
+--- a/nix/packages/mk-pkg-libass/meson.build	2026-08-10 18:59:51.649700600 +0800
++++ b/nix/packages/mk-pkg-libass/meson.build	2026-08-10 18:59:42.972173800 +0800
+@@ -4,10 +4,20 @@
+ 
+ mod = import('unstable-external_project')
+ 
++# Same AR-detection gap as mk-pkg-libxml2/meson.build (see its comment for
++# the full "libtool substitutes `false` as the archiver" explanation) —
++# applied here proactively rather than waiting for the identical failure
++# to show up in a separate CI round, since libass is the only other
++# autotools/libtool-based package in this static-linking conversion.
++ar = find_program('ar')
++
+ p = mod.add_project('configure',
++    # static, not shared — see mk-pkg-ffmpeg/meson.build's comment on why
++    env : {'AR': ar.full_path()},
+     configure_options : [
+         '--prefix=@PREFIX@',
+-        '--disable-static',
++        '--enable-static',
++        '--disable-shared',
+         '--enable-fast-install',
+         '--disable-dependency-tracking',
+         '--disable-test',
+diff -ruN -x .git static6c/nix/packages/mk-pkg-libplacebo/default.nix static6b/nix/packages/mk-pkg-libplacebo/default.nix
+--- a/nix/packages/mk-pkg-libplacebo/default.nix	1970-01-01 08:00:00.000000000 +0800
++++ b/nix/packages/mk-pkg-libplacebo/default.nix	2026-08-11 12:30:00.000000000 +0800
+@@ -0,0 +1,165 @@
++{
++  pkgs ? import ../../utils/default/pkgs.nix,
++  os ? import ../../utils/default/os.nix,
++  arch ? pkgs.callPackage ../../utils/default/arch.nix { },
++}:
++
++let
++  name = "libplacebo";
++  lock = import ../../../packages.lock.nix;
++  packageLock = lock.${name};
++  inherit (packageLock) version;
++
++  callPackage = pkgs.lib.callPackageWith { inherit pkgs os arch; };
++  nativeFile = callPackage ../../utils/native-file/default.nix { };
++  crossFile = callPackage ../../utils/cross-file/default.nix { };
++  xctoolchainLipo = callPackage ../../utils/xctoolchain/lipo.nix { };
++  glslang = callPackage ../mk-pkg-glslang/default.nix { };
++  vulkanHeaders = callPackage ../../utils/fetch-tarball/default.nix {
++    name = "vulkan-headers-source-${lock.vulkanHeaders.version}";
++    inherit (lock.vulkanHeaders) url sha256;
++  };
++
++  pname = import ../../utils/name/package.nix name;
++  src = callPackage ../../utils/fetch-tarball/default.nix {
++    name = "${pname}-source-${version}";
++    inherit (packageLock) url sha256;
++  };
++
++  # GitHub's tag archive (unlike `git clone --recursive`, which is what
++  # tools/ffmpeg-slim/experiments/build-{android,win}-libmpv-v9.sh use) does
++  # not include submodule content — fetch each submodule libplacebo's core
++  # build actually needs (not demos/nuklear or Vulkan-Headers, both unused
++  # here: -Ddemos=false, -Dvulkan=disabled) at the exact commit pinned by
++  # v7.351.0's .gitmodules, and splice them into place.
++  jinja = callPackage ../../utils/fetch-tarball/default.nix {
++    name = "libplacebo-jinja-source-${lock.libplaceboJinja.version}";
++    inherit (lock.libplaceboJinja) url sha256;
++  };
++  markupsafe = callPackage ../../utils/fetch-tarball/default.nix {
++    name = "libplacebo-markupsafe-source-${lock.libplaceboMarkupsafe.version}";
++    inherit (lock.libplaceboMarkupsafe) url sha256;
++  };
++  fastFloat = callPackage ../../utils/fetch-tarball/default.nix {
++    name = "libplacebo-fast-float-source-${lock.libplaceboFastFloat.version}";
++    inherit (lock.libplaceboFastFloat) url sha256;
++  };
++  glad = callPackage ../../utils/fetch-tarball/default.nix {
++    name = "libplacebo-glad-source-${lock.libplaceboGlad.version}";
++    inherit (lock.libplaceboGlad) url sha256;
++  };
++
++  patchedSource = pkgs.runCommand "${pname}-patched-source-${version}" { } ''
++    cp -r ${src} $out
++    chmod -R u+w $out
++
++    rm -rf $out/3rdparty/jinja $out/3rdparty/markupsafe $out/3rdparty/fast_float $out/3rdparty/glad
++    cp -r ${jinja} $out/3rdparty/jinja
++    cp -r ${markupsafe} $out/3rdparty/markupsafe
++    cp -r ${fastFloat} $out/3rdparty/fast_float
++    cp -r ${glad} $out/3rdparty/glad
++    chmod -R u+w $out/3rdparty
++
++    # Same underlying gap tools/ffmpeg-slim/experiments/build-android-
++    # libmpv-v9.sh works around by hand: cc.has_header('glslang/build_info.h')
++    # is called with no -I args, so it can't see glslang's include dir even
++    # though it's on CPATH (has_header()'s implicit include search doesn't
++    # extend to CPATH the way an actual compile does). That script points it
++    # at a '-Dvulkan-sdk=...' meson option value — but v7.351.0 (the version
++    # pinned here) doesn't have a 'vulkan-sdk' option at all (CI run
++    # 31362842554: "ERROR: Unknown options: vulkan-sdk" — that option must
++    # have been added to libplacebo's meson_options.txt sometime after this
++    # tag; the Android/Windows scripts float on an unpinned `git clone`, so
++    # they never hit this gap). Bake the real path in directly instead of
++    # round-tripping through a meson option that doesn't exist here.
++    sed -i "s|cc.has_header('glslang/build_info.h')|cc.has_header('glslang/build_info.h', args: ['-I${glslang}/include'])|" \
++      $out/src/glsl/meson.build
++
++    # CPATH/LIBRARY_PATH (set as env vars on the outer derivation below) get
++    # this has_header() fix's job done for compiling, but CI run
++    # 31363239642 showed find_library() doesn't extend the same courtesy on
++    # macOS: "Library SPIRV found: NO" even with LIBRARY_PATH pointed right
++    # at it. This isn't the same CPATH/LIBRARY_PATH gap the Android/Windows
++    # scripts hit (those platforms' GNU-style linkers DO honor
++    # LIBRARY_PATH) — Apple's ld64/clang driver simply doesn't consult
++    # LIBRARY_PATH for `-l` search the way GNU toolchains do, full stop.
++    # meson's find_library() has a proper `dirs:` kwarg for exactly this
++    # (extra search directories, independent of the platform linker's own
++    # env-var conventions) — inject it on every cxx.find_library('NAME', ...)
++    # call in this file (glslang-default-resource-limits/SPIRV/glslang/
++    # MachineIndependent/OSDependent/GenericCodeGen/OGLCompiler etc.) rather
++    # than fighting the platform difference via environment variables.
++    sed -i -E "s|cxx\.find_library\('([a-zA-Z0-9_-]+)'|cxx.find_library('\1', dirs: ['${glslang}/lib']|g" \
++      $out/src/glsl/meson.build
++  '';
++in
++
++pkgs.stdenvNoCC.mkDerivation {
++  name = "${pname}-${os}-${arch}-${version}";
++  pname = pname;
++  inherit version;
++  src = patchedSource;
++  dontUnpack = true;
++  enableParallelBuilding = true;
++  nativeBuildInputs = [
++    pkgs.meson
++    pkgs.ninja
++    pkgs.pkg-config
++    pkgs.python3
++    # meson's find_library() shells out to the bare `lipo` command (see
++    # nix/utils/xctoolchain/lipo.nix's comment — it doesn't use
++    # find_program()) to check a candidate library's architecture; without
++    # this on PATH, CI run 31363805395 died with a raw Python
++    # FileNotFoundError as soon as find_library() actually located
++    # glslang's .a files (progress from the previous "not found" error, not
++    # a regression — mk-pkg-mpv/mk-out-libs already carry this same
++    # nativeBuildInput for the same reason).
++    xctoolchainLipo
++  ];
++  # meson's cc.find_library()/cc.has_header() (used by libplacebo's
++  # src/glsl/meson.build to locate glslang — it isn't a proper pkg-config
++  # dependency(), see mk-pkg-glslang's meson.build comment) does a compiler
++  # trial-link/header-search rather than a PKG_CONFIG_PATH lookup, so it
++  # only sees glslang's headers/libs via the compiler's own implicit search
++  # paths. clang (like gcc) honors CPATH/LIBRARY_PATH for this — same
++  # mechanism the shell experiments rely on (see their headers' comments on
++  # this exact gap).
++  # vulkanHeaders: libplacebo's public src/include/libplacebo/vulkan.h
++  # unconditionally #includes <vulkan/vulkan.h> for its type declarations —
++  # even src/vulkan/stubs.c (the no-op backend built when -Dvulkan=disabled)
++  # pulls it in transitively, so real Vulkan headers are needed at compile
++  # time regardless of whether the Vulkan backend itself is enabled (CI run
++  # 31364298402: "fatal error: 'vulkan/vulkan.h' file not found"). Unlike
++  # the has_header()/find_library() special-casing above, this is a plain
++  # `clang -c ...` compile, so CPATH is genuinely honored here (CPATH is a
++  # C-preprocessor/frontend convention clang follows directly — the
++  # LIBRARY_PATH gap below is specifically about Apple's ld64 linker `-l`
++  # search, an unrelated mechanism).
++  CPATH = "${glslang}/include:${vulkanHeaders}/include";
++  LIBRARY_PATH = "${glslang}/lib";
++  configurePhase = ''
++    meson setup build $src \
++      --native-file ${nativeFile} \
++      --cross-file ${crossFile} \
++      --prefix=$out \
++      --default-library=static \
++      -Dvulkan=disabled \
++      -Dopengl=enabled \
++      -Dd3d11=disabled \
++      -Dglslang=disabled \
++      -Dshaderc=disabled \
++      -Dlcms=disabled \
++      -Ddovi=disabled \
++      -Dlibdovi=disabled \
++      -Dxxhash=disabled \
++      -Dunwind=disabled \
++      -Ddemos=false \
++      -Dtests=false
++  '';
++  buildPhase = ''
++    meson compile -vC build
++  '';
++  installPhase = ''
++    meson install -C build
++  '';
++}
+diff -ruN -x .git static6c/nix/packages/mk-pkg-libpng/default.nix static6b/nix/packages/mk-pkg-libpng/default.nix
+--- a/nix/packages/mk-pkg-libpng/default.nix	2026-08-10 18:59:51.653694500 +0800
++++ b/nix/packages/mk-pkg-libpng/default.nix	2026-08-10 18:59:42.974173100 +0800
+@@ -39,6 +39,22 @@
+         unzip ${libpngPatch} -d libpng-patch
+         rsync -a libpng-patch/libpng-*/ $src/
+ 
++        # This pinned wrapdb patch (1.6.40-1) builds `pngtest` (a test
++        # executable linking against the libpng being built in the same
++        # tree) completely unconditionally — no meson_options.txt, no
++        # `get_option('tests')` gate at all (confirmed by fetching this
++        # exact pinned patch: `test('pngtest', ...)` is a bare top-level
++        # statement in meson.build). CI run 31371744961's first fix
++        # attempt (`-Dtests=false`) failed with "Unknown options: tests"
++        # because that option genuinely doesn't exist here — a *newer*
++        # wrapdb revision (mesonbuild/wrapdb's `master` branch content,
++        # not this pinned 1.6.40-1 release) does declare one, which is
++        # what that fix was mistakenly checked against. sed the two lines
++        # out directly instead: nothing in mova's own runtime linkage
++        # needs pngtest, only libpng16.dylib itself.
++        sed -i "/^png_test = executable('pngtest', 'pngtest.c'/d; /^test('pngtest', png_test/d" \
++          $src/meson.build
++
+         cp -r $src $out
+       '';
+ in
+@@ -59,7 +75,8 @@
+     meson setup build $src \
+       --native-file ${nativeFile} \
+       --cross-file ${crossFile} \
+-      --prefix=$out
++      --prefix=$out \
++      --default-library=static
+   '';
+   buildPhase = ''
+     meson compile -vC build
+diff -ruN -x .git static6c/nix/packages/mk-pkg-libxml2/default.nix static6b/nix/packages/mk-pkg-libxml2/default.nix
+--- a/nix/packages/mk-pkg-libxml2/default.nix	2026-08-10 18:59:51.664695100 +0800
++++ b/nix/packages/mk-pkg-libxml2/default.nix	2026-08-10 18:59:42.975173300 +0800
+@@ -27,6 +27,43 @@
+     patch -p1 <${../../../patches/ltmain-target-passthrough.patch}
+     cd -
+ 
++    # libxml2's own `bin_PROGRAMS = xmllint xmlcatalog` (Makefile.am/
++    # Makefile.in both bake this in unconditionally — no ./configure flag
++    # gates it, confirmed against the actual 2.11.5 release tarball) builds
++    # two CLI tools that link against the libxml2 being built in the same
++    # tree. CI run 31372370908 (movaslim size-optimization pass, every
++    # cross-file now carries -fvisibility=hidden): xmlcatalog failed with
++    # dozens of undefined xmlCatalog*/xmlFree/etc. symbols. Root cause is
++    # libxml2 itself, not our flag being wrong: its own
++    # include/libxml/xmlexports.h defines XMLPUBLIC as fully empty on non-
++    # Windows (`__declspec(dllexport/dllimport)` only applies under
++    # _WIN32) — it was never designed to build under a blanket
++    # -fvisibility=hidden without also carrying real
++    # __attribute__((visibility("default"))) markup, unlike glslang/
++    # libplacebo/mpv which already handle this correctly. Sed both files
++    # to drop xmllint/xmlcatalog from the default build — mova only needs
++    # the library (linked via libxml2_dep below), never these CLI tools.
++    sed -i \
++      -e 's/^bin_PROGRAMS = xmllint xmlcatalog$/bin_PROGRAMS =/' \
++      "$src/Makefile.am"
++    sed -i \
++      -e 's/^bin_PROGRAMS = xmllint\$(EXEEXT) xmlcatalog\$(EXEEXT)$/bin_PROGRAMS =/' \
++      "$src/Makefile.in"
++
++    # `noinst_LTLIBRARIES = testdso.la` (Makefile.am/Makefile.in, bare
++    # unconditional line same as bin_PROGRAMS above) builds a libtool
++    # `-module` (a dlopen-able plugin, part of libxml2's own xmlmodule
++    # self-test) — never installed, but still built by `make all`. `-module`
++    # inherently needs shared-library support from libtool; now that
++    # libxml2 itself is --enable-static --disable-shared (see meson.build),
++    # libtool has no shared toolchain path left to build it with. CI run
++    # 31378279271: "make[2]: *** [Makefile:959: testdso.la] Error 1". Not
++    # needed for mova's own linkage either way — sed it out same as the
++    # CLI tools.
++    sed -i \
++      -e 's/^noinst_LTLIBRARIES = testdso.la$/noinst_LTLIBRARIES =/' \
++      "$src/Makefile.am" "$src/Makefile.in"
++
+     cp ${./meson.build} $src/meson.build
+ 
+     cp -r $src $out
+diff -ruN -x .git static6c/nix/packages/mk-pkg-libxml2/meson.build static6b/nix/packages/mk-pkg-libxml2/meson.build
+--- a/nix/packages/mk-pkg-libxml2/meson.build	2026-08-10 18:59:51.666694400 +0800
++++ b/nix/packages/mk-pkg-libxml2/meson.build	2026-08-10 18:59:42.976173400 +0800
+@@ -4,15 +4,36 @@
+ 
+ mod = import('unstable-external_project')
+ 
++# libxml2's own ./configure/libtool init couldn't detect a usable `ar` in
++# this cross-compilation setup ("checking command to parse nm output ...
++# failed") — harmless for a shared build (ar isn't needed to link a
++# .dylib), but fatal now that we're static: libtool silently substitutes
++# the literal shell command `false` as its archiver when it can't
++# identify one, so `ar cr libxml2.a ...` becomes `false cr libxml2.a ...`
++# and the whole link step exits nonzero. CI run 31379014374: "make[2]:
++# *** [Makefile:956: libxml2.la] Error 1" — traced to that "false cr"
++# line right above it. Same underlying gap the other autotools packages
++# (libass, and ffmpeg/mpv's own ./configure calls) don't hit because they
++# pass --ar=/--cc=/etc. explicitly on the command line instead of relying
++# on libtool's own cross-compiler autodetection. Pass AR explicitly via
++# env: rather than reworking libxml2's whole configure_options list to
++# take an --ar-style flag it may not even support (plain libxml2 autoconf
++# doesn't have one — AR is the standard automake/libtool override for
++# this, honored regardless).
++ar = find_program('ar')
++
+ p = mod.add_project('configure',
++    # static, not shared — see mk-pkg-ffmpeg/meson.build's comment on why
++    # (links everything into a single libmpv.dylib, mirroring Android)
+     configure_options : [
+         '--prefix=@PREFIX@',
+-        '--disable-static',
+-        '--enable-shared',
++        '--enable-static',
++        '--disable-shared',
+         '--disable-dependency-tracking',
+         '--disable-silent-rules',
+         '--without-python'
+     ],
++    env : {'AR': ar.full_path()},
+     verbose: true,
+ )
+ 
+diff -ruN -x .git static6c/nix/packages/mk-pkg-mbedtls/default.nix static6b/nix/packages/mk-pkg-mbedtls/default.nix
+--- a/nix/packages/mk-pkg-mbedtls/default.nix	2026-08-10 18:59:51.669694200 +0800
++++ b/nix/packages/mk-pkg-mbedtls/default.nix	2026-08-10 18:59:42.976173400 +0800
+@@ -58,8 +58,9 @@
+     cp $src/subprojects/mbedtls/include/mbedtls/*.h $out/include/mbedtls/
+     cp $src/subprojects/mbedtls/include/psa/*.h $out/include/psa/
+ 
+-    # install libs
+-    find build -type f -name '*.dylib' -exec sh -c 'cp {} $out/lib/' \;
++    # install libs — static (.a), not shared (.dylib), since
++    # USE_STATIC_MBEDTLS_LIBRARY was flipped on in meson.build
++    find build -type f -name '*.a' -exec sh -c 'cp {} $out/lib/' \;
+ 
+     # install pkgconfig file
+     cp ${./mbedtls.pc.in} $out/lib/pkgconfig/mbedtls.pc
+diff -ruN -x .git static6c/nix/packages/mk-pkg-mbedtls/meson.build static6b/nix/packages/mk-pkg-mbedtls/meson.build
+--- a/nix/packages/mk-pkg-mbedtls/meson.build	2026-08-10 18:59:51.671696300 +0800
++++ b/nix/packages/mk-pkg-mbedtls/meson.build	2026-08-10 18:59:42.977173200 +0800
+@@ -11,15 +11,29 @@
+     arch = 'arm64'
+ endif
+ 
++# ENABLE_PROGRAMS (mbedtls's own CMake option, defaults ON): builds the
++# programs/ tree (key_app and dozens of other CLI example/test tools),
++# which link against the mbedtls library being built in the same tree.
++# CI run 31373063620 (movaslim size-optimization pass — every cross-file
++# now carries -fvisibility=hidden): programs/pkey/key_app.c failed the
++# same way libpng's pngtest and libxml2's xmlcatalog did before it —
++# undefined symbols the CLI tool needs that are no longer exported by
++# default. mova only needs libmbedtls/libmbedcrypto/libmbedx509 (via
++# mbedtls_dep below), never these example programs. ENABLE_TESTING=false
++# for the same reason on the test suite, which wasn't the one that failed
++# yet but is the same class of risk (also links against the in-tree lib).
+ options = cmake.subproject_options()
+ options.add_cmake_defines({
+     'CMAKE_OSX_ARCHITECTURES': arch,
+     'CMAKE_OSX_SYSROOT': meson.get_cross_property('cmake_osx_sysroot'),
+     'CMAKE_C_COMPILER_WORKS': true,
+     'CMAKE_CXX_COMPILER_WORKS': true,
+-    'USE_STATIC_MBEDTLS_LIBRARY': false,
+-    'USE_SHARED_MBEDTLS_LIBRARY': true,
++    # static, not shared — see mk-pkg-ffmpeg/meson.build's comment on why
++    'USE_STATIC_MBEDTLS_LIBRARY': true,
++    'USE_SHARED_MBEDTLS_LIBRARY': false,
+     'LINK_WITH_PTHREAD': true,
++    'ENABLE_PROGRAMS': false,
++    'ENABLE_TESTING': false,
+ })
+ 
+ mbedtls = cmake.subproject('mbedtls',
+diff -ruN -x .git static6c/nix/packages/mk-pkg-mpv/default.nix static6b/nix/packages/mk-pkg-mpv/default.nix
+--- a/nix/packages/mk-pkg-mpv/default.nix	2026-08-10 18:59:51.675694200 +0800
++++ b/nix/packages/mk-pkg-mpv/default.nix	2026-08-10 21:36:29.576199800 +0800
+@@ -3,6 +3,7 @@
+   os ? import ../../utils/default/os.nix,
+   arch ? pkgs.callPackage ../../utils/default/arch.nix { },
+   variant ? import ../../utils/default/variant.nix,
++  flavor ? import ../../utils/default/flavor.nix,
+ }:
+ 
+ let
+@@ -11,13 +12,21 @@
+   inherit (packageLock) version;
+ 
+   variants = import ../../utils/constants/variants.nix;
++  flavors = import ../../utils/constants/flavors.nix;
+   oses = import ../../utils/constants/oses.nix;
++  # mova movaslim-only: mpv v0.41.0's GPU rendering hard-requires libplacebo
++  # (see mk-pkg-libplacebo's comments) — the currently-pinned mpv build for
++  # every OTHER flavor (default/full/encodersgpl) stays on the
++  # `-Dlibplacebo=disabled` path below unchanged. This flag is what the
++  # rest of this file branches on.
++  useLibplacebo = flavor == flavors.movaslim && variant == variants.video;
+   callPackage = pkgs.lib.callPackageWith {
+     inherit
+       pkgs
+       os
+       arch
+       variant
++      flavor
+       ;
+   };
+   nativeFile = callPackage ../../utils/native-file/default.nix { };
+@@ -26,6 +35,11 @@
+   ffmpeg = callPackage ../mk-pkg-ffmpeg/default.nix { };
+   uchardet = callPackage ../mk-pkg-uchardet/default.nix { };
+   libass = callPackage ../mk-pkg-libass/default.nix { };
++  fribidi = callPackage ../mk-pkg-fribidi/default.nix { };
++  harfbuzz = callPackage ../mk-pkg-harfbuzz/default.nix { };
++  freetype = callPackage ../mk-pkg-freetype/default.nix { };
++  libpng = callPackage ../mk-pkg-libpng/default.nix { };
++  libplacebo = callPackage ../mk-pkg-libplacebo/default.nix { };
+ 
+   nativeBuildInputs = [
+     pkgs.meson
+@@ -47,10 +61,61 @@
+ 
+     cd $src
+     patch -p1 <${../../../patches/mpv-fix-missing-objc.patch}
+-    patch -p1 <${../../../patches/mpv-audiounit-shared-session.patch}
++    ${
++      if useLibplacebo then
++        ''
++          # Skipped for movaslim: this patch's hunk 4 targets mpv 0.36.0's
++          # AVAudioSession setup code in audio/out/ao_audiounit.m, which
++          # upstream itself rewrote by v0.41.0 (added an AO_INIT_EXCLUSIVE-
++          # based mix-with-others option) — the context no longer matches,
++          # so `patch` rejects that hunk. The feature this patch adds
++          # (reference-counted audio-session sharing across concurrent
++          # AudioUnit instances) is unrelated to movaslim/libplacebo and
++          # unused by mova today (single player instance) — skipping it
++          # entirely rather than hand-fixing the hunk against 0.41.0's new
++          # code shape, which is real but out of scope for this feasibility
++          # pass. Re-derive it for 0.41.0 before this becomes load-bearing.
++          echo "skipping mpv-audiounit-shared-session.patch for movaslim (see comment)"
++        ''
++      else
++        ''
++          patch -p1 <${../../../patches/mpv-audiounit-shared-session.patch}
++        ''
++    }
+     if [ "${variant}" == "${variants.audio}" ]; then
+       patch -p1 <${../../../patches/mpv-remove-libass.patch}
+     fi
++    ${pkgs.lib.optionalString useLibplacebo ''
++      # mpv v0.41.0 rewrote its macOS menu-bar/clipboard/dialog integration
++      # in Swift (osdep/mac/*.swift), and meson.build unconditionally adds
++      # player/clipboard/clipboard-mac.m + osdep/mac/app_bridge.m to the
++      # build whenever `cocoa` is enabled — both #include the
++      # meson/swiftc-generated osdep/mac/swift.h Objective-C bridging
++      # header. CI run 31366412122: "fatal error: 'osdep/mac/swift.h' file
++      # not found" — nothing in this repo has ever wired up a working
++      # Swift compile (nix/utils/xctoolchain/swiftc.nix exists but isn't
++      # used anywhere; getting meson's xcrun/swiftc detection + bridging
++      # header generation working in this sandboxed cross-build is real,
++      # unexplored scope, not a quick fix). `cocoa` itself must stay
++      # enabled regardless (MACOS_OPTIONS' own comment: "required in audio
++      # mode since v0.36.0"), so drop just these two Swift-dependent
++      # sources instead of the whole cocoa backend — accepted feature loss
++      # for this feasibility pass: mpv's macOS menu bar/clipboard/dialog
++      # integration won't work, core AVFoundation/CoreAudio/VideoToolbox
++      # paths mova actually uses are unaffected. The `error('cplayer
++      # enabled but no suitable swift version...')` guard a few hundred
++      # lines later doesn't need neutralizing — it's already gated on
++      # `get_option('cplayer')`, which COMMON_OPTIONS sets false.
++      # app_bridge.m is a full mid-list entry (safe to delete whole line);
++      # clipboard-mac.m is the last entry and closes the files(...) call, so
++      # its line is rewritten to keep the closing paren rather than deleted
++      # outright — a trailing comma before ')' is valid meson/Python-style
++      # syntax, so 'osdep/utils-mac.c', ending the list is fine.
++      sed -i \
++        -e "/'osdep\/mac\/app_bridge.m',/d" \
++        -e "s/'player\/clipboard\/clipboard-mac.m')/)/" \
++        "$src/meson.build"
++    ''}
+     cd -
+ 
+     cp -r $src $out
+@@ -75,8 +140,45 @@
+     ++ pkgs.lib.optionals (variant == "video") [
+       uchardet
+       libass
++    ]
++    ++ pkgs.lib.optionals useLibplacebo [
++      libplacebo
+     ];
++  # Same explicit-PKG_CONFIG_PATH fix as mk-pkg-ffmpeg/default.nix — this
++  # package is also stdenvNoCC, same underlying risk of buildInputs' pkg-
++  # config paths not auto-propagating. Applied proactively here rather
++  # than waiting for the identical failure at this build step.
++  PKG_CONFIG_PATH = pkgs.lib.concatStringsSep ":" (
++    map (dep: "${dep}/lib/pkgconfig") (
++      [ ffmpeg ]
++      ++ pkgs.lib.optionals (variant == "video") [
++        uchardet
++        libass
++        fribidi
++        harfbuzz
++        freetype
++        libpng
++      ]
++      ++ pkgs.lib.optionals useLibplacebo [ libplacebo ]
++    )
++  );
+   configurePhase = ''
++    # mpv v0.41.0 removed several options that existed at 0.36.0 (the
++    # version this file's option lists were originally written against) —
++    # CI run 31365562821: "ERROR: Unknown options: libplacebo,
++    # libplacebo-next, macos-10-11-features, macos-10-12-2-features,
++    # macos-10-14-features, rpi, rpi-mmal, sdl2, stdatomic, ta-leak-report,
++    # vaapi-x-egl, win32-internal-pthreads". Diffed the full option list
++    # against mpv v0.41.0's meson.options (105 valid names) to confirm this
++    # is the complete set — every one of those is dropped below rather than
++    # left disabled, since a disabled reference to a nonexistent option is
++    # just as fatal as an enabled one. `libplacebo`/`libplacebo-next`
++    # specifically aren't replaced with anything: 0.41.0 has no toggle for
++    # either anymore (this file's own useLibplacebo branch further down,
++    # from before this fix, mistakenly assumed both still existed as
++    # options) — gpu-next/libplacebo is mandatory now, not optional, which
++    # is exactly the version-bump motivation documented at the top of this
++    # file's useLibplacebo comment.
+     DISABLE_ALL_OPTIONS=(
+       `# booleans`
+       -Dgpl=false `# GPL (version 2 or later) build`
+@@ -84,7 +186,6 @@
+       -Dlibmpv=false `# libmpv library`
+       -Dbuild-date=false `# whether to include binary compile time`
+       -Dtests=false `# unit tests (development only)`
+-      -Dta-leak-report=false `# enable ta leak report by default (development only)`
+ 
+       `# misc features`
+       -Dcdda=disabled `# cdda support (libcdio)`
+@@ -100,14 +201,11 @@
+       -Dlua=disabled `# Lua`
+       -Dpthread-debug=disabled `# pthread runtime debugging wrappers`
+       -Drubberband=disabled `# librubberband support`
+-      -Dsdl2=disabled `# SDL2`
+       -Dsdl2-gamepad=disabled `# SDL2 gamepad input`
+-      -Dstdatomic=disabled `# C11 stdatomic.h`
+       -Duchardet=disabled `# uchardet support`
+       -Duwp=disabled `# Universal Windows Platform`
+       -Dvapoursynth=disabled `# VapourSynth filter bridge`
+       -Dvector=disabled `# GCC vector instructions`
+-      -Dwin32-internal-pthreads=disabled `#internal pthread wrapper for win32 (Vista+)`
+       -Dzimg=disabled `# libzimg support (high quality software scaler)`
+       -Dzlib=disabled `# zlib`
+ 
+@@ -146,8 +244,6 @@
+       -Dgl-win32=disabled `# OpenGL Win32 Backend`
+       -Dgl-x11=disabled `# OpenGL X11/GLX (deprecated/legacy)`
+       -Djpeg=disabled `# JPEG support`
+-      -Dlibplacebo=disabled `# libplacebo support`
+-      -Drpi=disabled `# Raspberry Pi support`
+       -Dsdl2-video=disabled `# SDL2 video output`
+       -Dshaderc=disabled `# libshaderc SPIR-V compiler`
+       -Dsixel=disabled `# Sixel`
+@@ -159,7 +255,6 @@
+       -Dvaapi-drm=disabled `# VAAPI (DRM/EGL support)`
+       -Dvaapi-wayland=disabled `# VAAPI (Wayland support)`
+       -Dvaapi-x11=disabled `# VAAPI (X11 support)`
+-      -Dvaapi-x-egl=disabled `# VAAPI EGL on X11`
+       -Dvulkan=disabled `# Vulkan context support`
+       -Dwayland=disabled `# Wayland`
+       -Dx11=disabled `# X11`
+@@ -173,13 +268,9 @@
+       -Dd3d9-hwaccel=disabled `# DXVA2 hwaccel`
+       -Dgl-dxinterop-d3d9=disabled `# OpenGL/DirectX Interop Backend DXVA2 interop`
+       -Dios-gl=disabled `# iOS OpenGL ES hardware decoding interop support`
+-      -Drpi-mmal=disabled `# Raspberry Pi MMAL hwaccel`
+       -Dvideotoolbox-gl=disabled `# Videotoolbox with OpenGL`
+ 
+       `# macOS features`
+-      -Dmacos-10-11-features=disabled `# macOS 10.11 SDK Features`
+-      -Dmacos-10-12-2-features=disabled `# macOS 10.12.2 SDK Features`
+-      -Dmacos-10-14-features=disabled `# macOS 10.14 SDK Features`
+       -Dmacos-cocoa-cb=disabled `# macOS libmpv backend`
+       -Dmacos-media-player=disabled `# macOS Media Player support`
+       -Dmacos-touchbar=disabled `# macOS Touch Bar support`
+@@ -230,6 +321,28 @@
+     IOS_OPTIONS=(
+       `# audio output features`
+       -Daudiounit=enabled `# AudioUnit output for iOS`
++      # `coreaudio` defaults to meson's 'auto' and is never explicitly
++      # touched elsewhere in this file — dependency('appleframeworks',
++      # modules: [...]) resolves `found=true` on iOS too (CoreAudio.
++      # framework technically ships there, just without the HAL device-
++      # management API surface these headers assume), so meson.build's
++      # `if features['audiounit'] or features['coreaudio'] or
++      # features['avfoundation']` unconditionally pulls in ao_coreaudio_
++      # chmap.c/ao_coreaudio_utils.c whenever audiounit alone is enabled.
++      # CI run 31368931873 (ios-arm64): "unknown type name 'AudioDeviceID'"
++      # — that type is macOS-HAL-only, guarded by `#if HAVE_COREAUDIO ||
++      # HAVE_AVFOUNDATION` in the header, which only evaluates true because
++      # coreaudio auto-enabled itself. Force it off explicitly for iOS.
++      -Dcoreaudio=disabled `# CoreAudio audio output (macOS-only HAL API, not iOS)`
++      # avfoundation is the other alternative in that same `or` condition —
++      # its framework genuinely exists and works on iOS (unlike coreaudio),
++      # so it very plausibly also auto-enables and re-triggers the same
++      # HAVE_AVFOUNDATION-guarded AudioDeviceID code path on its own even
++      # with coreaudio off. Disabled preemptively rather than risking
++      # another failed CI round-trip to discover the same class of bug
++      # from the other side of that `or` — audiounit alone is what mova
++      # actually needs for iOS audio output.
++      -Davfoundation=disabled `# AVFoundation audio output (redundant with audiounit here)`
+     )
+ 
+     IOS_VIDEO_OPTIONS=(
+@@ -237,6 +350,18 @@
+       -Dios-gl=enabled `# iOS OpenGL ES hardware decoding interop support`
+     )
+ 
++    # mova movaslim-only note (see this file's useLibplacebo comment above):
++    # there is no MOVASLIM_VIDEO_OPTIONS array here anymore — mpv v0.41.0
++    # dropped the `libplacebo`/`libplacebo-next` build options entirely
++    # (CI run 31365562821: "Unknown options: libplacebo, libplacebo-next,
++    # ..."), because gpu-next/libplacebo is mandatory now, not an optional
++    # toggle the way it still was at 0.36.0 (the version every other flavor
++    # in this repo is pinned to, where `-Dlibplacebo=disabled` was a real,
++    # valid, meaningful flag — see DISABLE_ALL_OPTIONS's removal of that
++    # exact line above). So for movaslim there is nothing left to opt into
++    # here beyond what useLibplacebo already does structurally: adding
++    # libplacebo to buildInputs so pkg-config's setup-hook makes it
++    # discoverable, same mechanism every other buildInput here relies on.
+     OPTIONS=("''${DISABLE_ALL_OPTIONS[@]}")
+ 
+     OPTIONS+=("''${COMMON_OPTIONS[@]}")
+diff -ruN -x .git static6c/nix/packages/mk-pkg-uchardet/default.nix static6b/nix/packages/mk-pkg-uchardet/default.nix
+--- a/nix/packages/mk-pkg-uchardet/default.nix	2026-08-10 18:59:51.677695200 +0800
++++ b/nix/packages/mk-pkg-uchardet/default.nix	2026-08-10 18:59:42.979183700 +0800
+@@ -58,9 +58,10 @@
+     # install headers
+     cp $src/subprojects/uchardet/src/uchardet.h $out/include/uchardet/
+ 
+-    # install libs
+-    cp build/subprojects/uchardet/liblibuchardet.dylib $out/lib/libuchardet.dylib
+-    install_name_tool -id @rpath/libuchardet.dylib $out/lib/libuchardet.dylib
++    # install libs — static (.a), not shared (.dylib), since BUILD_SHARED_LIBS
++    # was flipped off in meson.build (install_name_tool doesn't apply to
++    # static archives, dropped along with the .dylib copy)
++    cp build/subprojects/uchardet/liblibuchardet.a $out/lib/libuchardet.a
+ 
+     # install pkgconfig file
+     cp ${./uchardet.pc.in} $out/lib/pkgconfig/uchardet.pc
+diff -ruN -x .git static6c/nix/packages/mk-pkg-uchardet/meson.build static6b/nix/packages/mk-pkg-uchardet/meson.build
+--- a/nix/packages/mk-pkg-uchardet/meson.build	2026-08-10 18:59:51.678696100 +0800
++++ b/nix/packages/mk-pkg-uchardet/meson.build	2026-08-10 18:59:42.980183400 +0800
+@@ -19,7 +19,16 @@
+     'CMAKE_BUILD_TYPE': 'Release',
+     'CMAKE_C_COMPILER_WORKS': true,
+     'CMAKE_CXX_COMPILER_WORKS': true,
+-    'BUILD_STATIC': false,
++    # static, not shared — see mk-pkg-ffmpeg/meson.build's comment on why.
++    # Verified against the actual pinned v0.0.8 source: BUILD_STATIC is
++    # only even defined as a CMake option when BUILD_SHARED_LIBS=ON (its
++    # own option() call is wrapped in `if (BUILD_SHARED_LIBS)` — a separate
++    # concern from the main library's shared/static-ness, which the main
++    # `add_library(${UCHARDET_LIBRARY} ...)` call controls implicitly via
++    # CMake's own built-in BUILD_SHARED_LIBS variable, no STATIC/SHARED
++    # keyword given explicitly). BUILD_SHARED_LIBS=false is what actually
++    # matters here.
++    'BUILD_SHARED_LIBS': false,
+     'BUILD_BINARY': false,
+ })
+ 
+diff -ruN -x .git static6c/nix/utils/constants/flavors.nix static6b/nix/utils/constants/flavors.nix
+--- a/nix/utils/constants/flavors.nix	2026-08-10 18:59:51.684695900 +0800
++++ b/nix/utils/constants/flavors.nix	2026-08-10 18:59:42.980183400 +0800
+@@ -2,4 +2,8 @@
+   default = "default";
+   full = "full";
+   encodersgpl = "encodersgpl";
++  # mova slim flavor — mirrors the decoder/demuxer/protocol set already
++  # shipped for Android (mova/tools/ffmpeg-slim/flavors-mova-slim.sh),
++  # adapted to this platform's hwaccel (VideoToolbox instead of MediaCodec).
++  movaslim = "movaslim";
+ }
+diff -ruN -x .git static6c/nix/utils/default/flavors.nix static6b/nix/utils/default/flavors.nix
+--- a/nix/utils/default/flavors.nix	2026-08-10 18:59:51.692237500 +0800
++++ b/nix/utils/default/flavors.nix	2026-08-10 18:59:42.981183100 +0800
+@@ -5,4 +5,5 @@
+   flavors.default
+   flavors.full
+   flavors.encodersgpl
++  flavors.movaslim
+ ]
+diff -ruN -x .git static6c/packages.lock.nix static6b/packages.lock.nix
+--- a/packages.lock.nix	2026-08-10 18:59:51.714881900 +0800
++++ b/packages.lock.nix	2026-08-10 18:59:42.982183500 +0800
+@@ -5,9 +5,25 @@
+     sha256 = "a4003623cdc0109dec3aac8435520aa3fb12c4d69454fa227f2658cdb6dab5fa";
+   };
+   ffmpeg = {
+-    version = "6.0";
+-    url = "https://ffmpeg.org/releases/ffmpeg-6.0.tar.xz";
+-    sha256 = "57be87c22d9b49c112b6d24bc67d42508660e6b718b3db89c44e47e289137082";
++    # Bumped 6.0 -> n9.0 for the movaslim flavor only (see mk-pkg-ffmpeg/
++    # meson.build's movaslim branch) — this is a global version bump shared
++    # by every flavor in this lock file, since packages.lock.nix has no
++    # per-flavor versioning. default/full/encodersgpl are untested against
++    # n9.0 after this bump; nothing in this repo's CI currently builds those
++    # targets so this is not (yet) a regression anyone will hit, but it's a
++    # known gap — see mpv's version bump below for why this pairing exists.
++    version = "9.0";
++    url = "https://github.com/FFmpeg/FFmpeg/archive/refs/tags/n9.0.tar.gz";
++    sha256 = "d97647ace36a307f17ba2bca052d68937487bed8682e1eb9b6737076a9c442b7";
++  };
++  glslang = {
++    # libplacebo's GLSL->SPIR-V compiler dependency (needed regardless of
++    # which GPU backend libplacebo itself renders through — see
++    # mk-pkg-libplacebo's comments). Same tag mova's Android/Windows v9
++    # experiments use (tools/ffmpeg-slim/experiments/build-*-libmpv-v9.sh).
++    version = "14.3.0";
++    url = "https://github.com/KhronosGroup/glslang/archive/refs/tags/14.3.0.tar.gz";
++    sha256 = "be6339048e20280938d9cb399fcdd06e04f8654d43e170e8cce5a56c9a754284";
+   };
+   fftools-ffi = {
+     version = "9b0d4da0";
+@@ -64,6 +80,69 @@
+     url = "https://code.videolan.org/videolan/x264/-/archive/a8b68ebfaa68621b5ac8907610d3335971839d52/libx264-a8b68ebfaa68621b5ac8907610d3335971839d52.tar.gz";
+     sha256 = "164688b63f11a6e4f6d945057fc5c57d5eefb97973d0029fb0303744e10839ff";
+   };
++  libplacebo = {
++    # mpv v0.41.0's GPU rendering (video/out/vo_gpu_next.c) hard-requires
++    # this, unlike the currently-pinned mpv 0.36.0 which can still build
++    # with `-Dlibplacebo=disabled` (that option was a real optional
++    # `dependency('libplacebo', ..., required: get_option('libplacebo'))`
++    # at 0.36 — confirmed by this repo's own existing default/full/
++    # encodersgpl artifacts, all built on 0.36.0 with it disabled).
++    # OpenGL backend only (no vulkan/d3d11) — matches the Android v9
++    # experiment's real-device finding that Vulkan's second concurrent GPU
++    # context (alongside the VideoToolbox/MediaCodec hwdec bridge's GL
++    # context) costs real CPU/memory, whereas OpenGL collapses back to the
++    # single GL context already in use.
++    version = "7.351.0";
++    url = "https://github.com/haasn/libplacebo/archive/refs/tags/v7.351.0.tar.gz";
++    sha256 = "716954501d9b76e6906fddda66febc5886493d0673dd265ec1e6e52f4e5cd7c6";
++  };
++  # libplacebo's git submodules — GitHub's tag tarball (unlike `git clone
++  # --recursive`, which is what the Android/Windows v9 shell scripts use)
++  # does NOT include submodule content, so each one actually referenced by
++  # libplacebo's core build (not just its `demos/` — disabled via
++  # `-Ddemos=false` — or Vulkan/vulkan-headers — disabled via
++  # `-Dvulkan=disabled`) needs its own pinned fetch, spliced into place by
++  # mk-pkg-libplacebo's patchedSource step. Commits pinned to whatever
++  # v7.351.0's .gitmodules records (github.com/haasn/libplacebo/blob/
++  # v7.351.0/.gitmodules) — jinja/markupsafe are libplacebo's own Python
++  # shader-codegen templating tools (used at build time regardless of GPU
++  # backend), fast_float is a core string-parsing dependency, glad is the
++  # OpenGL function loader (needed since the opengl backend is enabled).
++  libplaceboJinja = {
++    version = "15206881";
++    url = "https://github.com/pallets/jinja/archive/15206881c006c79667fe5154fe80c01c65410679.tar.gz";
++    sha256 = "b88a20dcc2e34072fcf4159325bc6c34cd4b29a81a8b83d15d2f28ba561da296";
++  };
++  libplaceboMarkupsafe = {
++    version = "28ace20b";
++    url = "https://github.com/pallets/markupsafe/archive/28ace20b140d15c083e1cbc163ee6b7778ba098c.tar.gz";
++    sha256 = "bead4c1f90f02956a082c6f026237e1e106a00636f4b26c3f16921631eb8737f";
++  };
++  libplaceboFastFloat = {
++    version = "1bf70101";
++    url = "https://github.com/fastfloat/fast_float/archive/1bf70101536d37fa9954cc4f03fd0903d045a9f3.tar.gz";
++    sha256 = "95c7730f3db8bfb8568e26387bed5df5284158c408d2c6411ed8ad4f5a6dc9ae";
++  };
++  libplaceboGlad = {
++    version = "73db193f";
++    url = "https://github.com/Dav1dde/glad/archive/73db193f853e2ee079bf3ca8a64aa2eaf6459043.tar.gz";
++    sha256 = "33dbeae44d8315ece57e14eba4b1b4a02ac5406d1c4f49cd20048c91522a6b9a";
++  };
++  # libplacebo's public src/include/libplacebo/vulkan.h unconditionally
++  # #includes <vulkan/vulkan.h> for its type declarations — even
++  # src/vulkan/stubs.c (the no-op backend compiled in when -Dvulkan=disabled)
++  # pulls it in transitively, so real Vulkan headers are needed at compile
++  # time regardless of whether the Vulkan backend is actually enabled (CI
++  # run 31364298402: "fatal error: 'vulkan/vulkan.h' file not found"). Same
++  # tag tools/ffmpeg-slim/experiments/build-android-libmpv-v9.sh fetches for
++  # the same underlying reason (there: libavutil/hwcontext_vulkan.h and
++  # libplacebo's utils/libav.h needing it). Header-only — nothing to build,
++  # just extract and put the include dir on CPATH.
++  vulkanHeaders = {
++    version = "1.3.296";
++    url = "https://github.com/KhronosGroup/Vulkan-Headers/archive/refs/tags/v1.3.296.tar.gz";
++    sha256 = "e204e0b3c19f622d197df945737f5db913d6621830999b8578d34e80a7c90585";
++  };
+   libxml2 = {
+     version = "2.11.5";
+     url = "https://download.gnome.org/sources/libxml2/2.11/libxml2-2.11.5.tar.xz";
+@@ -75,9 +154,16 @@
+     sha256 = "a420fcf7103e54e775c383e3751729b8fb2dcd087f6165befd13f28315f754f5";
+   };
+   mpv = {
+-    version = "0.36.0";
+-    url = "https://github.com/mpv-player/mpv/archive/refs/tags/v0.36.0.tar.gz";
+-    sha256 = "29abc44f8ebee013bb2f9fe14d80b30db19b534c679056e4851ceadf5a5e8bf6";
++    # Bumped 0.36.0 -> v0.41.0 together with the ffmpeg bump above — pinned
++    # together deliberately, not independently: mova's Android v9 experiment
++    # (tools/ffmpeg-slim/experiments/build-android-libmpv-v9.sh) hit real
++    # compile failures trying to build this mpv version against ffmpeg
++    # 6.0-era headers (AVCodec.sample_fmts/ch_layouts were removed, replaced
++    # by avcodec_get_supported_config() — an API restructure, not a rename),
++    # so these two versions move as a pair.
++    version = "0.41.0";
++    url = "https://github.com/mpv-player/mpv/archive/refs/tags/v0.41.0.tar.gz";
++    sha256 = "ee21092a5ee427353392360929dc64645c54479aefdb5babc5cfbb5fad626209";
+   };
+   uchardet = {
+     version = "0.0.8";
+diff -ruN -x .git static6c/cross-files/ios-arm64.ini static6b/cross-files/ios-arm64.ini
+--- a/cross-files/ios-arm64.ini	2026-08-10 18:59:51.637083400 +0800
++++ b/cross-files/ios-arm64.ini	2026-08-11 12:00:00.000000000 +0800
+@@ -5,6 +5,24 @@
+ xcode         = '/Applications/Xcode.app'
+ xctoolchain   = xcode + '/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin'
+ xcplatform    = xcode + '/Contents/Developer/Platforms/' + platform_name + '.platform/Developer/SDKs/' + platform_name + '.sdk'
++# mova movaslim size-optimization retry (see tools/ffmpeg-slim/README.md's
++# "Darwin movaslim flavor" section) — -fvisibility=hidden was the single
++# biggest win on Android (-669KB, exported symbols 4692 -> 610); paired with
++# -ffunction-sections/-fdata-sections + linker dead-code stripping so the
++# final link step can actually drop the now-unreferenced sections. Previously
++# reverted because ffmpeg's own ./configure couldn't find libxml-2.0 via
++# pkg-config under this repo's cross-build — that's now fixed by mk-pkg-
++# ffmpeg's PKG_CONFIG_PATH wrapper (see this patch's mk-pkg-ffmpeg hunk), so
++# retrying here. `-Wl,-dead_strip` is ld64's equivalent of GNU ld's
++# `--gc-sections` (ld64 has no --gc-sections flag).
++# -flto added 2026-08-11: Android's full-pipeline LTO pass gave -521KB on
++# top of the -fvisibility/-ffunction-sections/-fdata-sections/gc-sections
++# stack (see README's "定稿结果" table). Apple's ld64 understands LTO
++# bitcode natively via clang/ar/ranlib without a separate gcc-ar/llvm-ar
++# plugin dance (unlike GNU binutils), so this doesn't need the ar-wrapper
++# workarounds Android's LTO required.
++size_args     = ['-fvisibility=hidden', '-ffunction-sections', '-fdata-sections', '-flto']
++size_link_args = ['-Wl,-dead_strip', '-flto']
+
+ [host_machine]
+ system     = 'darwin'
+@@ -26,14 +44,14 @@
+ pkg-config = 'pkg-config'
+
+ [built-in options]
+-c_args           = ['-arch', arch, '-isysroot', xcplatform, min_version]
+-cpp_args         = ['-arch', arch, '-isysroot', xcplatform, min_version, '-stdlib=libc++']
+-objc_args        = ['-arch', arch, '-isysroot', xcplatform, min_version]
+-objcpp_args      = ['-arch', arch, '-isysroot', xcplatform, min_version, '-stdlib=libc++']
+-c_link_args      = ['-arch', arch, '-isysroot', xcplatform, min_version]
+-cpp_link_args    = ['-arch', arch, '-isysroot', xcplatform, min_version]
+-objc_link_args   = ['-arch', arch, '-isysroot', xcplatform, min_version]
+-objcpp_link_args = ['-arch', arch, '-isysroot', xcplatform, min_version]
++c_args           = ['-arch', arch, '-isysroot', xcplatform, min_version] + size_args
++cpp_args         = ['-arch', arch, '-isysroot', xcplatform, min_version, '-stdlib=libc++'] + size_args
++objc_args        = ['-arch', arch, '-isysroot', xcplatform, min_version] + size_args
++objcpp_args      = ['-arch', arch, '-isysroot', xcplatform, min_version, '-stdlib=libc++'] + size_args
++c_link_args      = ['-arch', arch, '-isysroot', xcplatform, min_version] + size_link_args
++cpp_link_args    = ['-arch', arch, '-isysroot', xcplatform, min_version] + size_link_args
++objc_link_args   = ['-arch', arch, '-isysroot', xcplatform, min_version] + size_link_args
++objcpp_link_args = ['-arch', arch, '-isysroot', xcplatform, min_version] + size_link_args
+
+ [properties]
+ cmake_osx_sysroot = xcplatform
+diff -ruN -x .git static6c/nix/packages/mk-pkg-ffmpeg/meson.build static6b/nix/packages/mk-pkg-ffmpeg/meson.build
+--- a/nix/packages/mk-pkg-ffmpeg/meson.build	2026-08-11 03:15:00.000000000 +0800
++++ b/nix/packages/mk-pkg-ffmpeg/meson.build	2026-08-11 12:00:00.000000000 +0800
+@@ -494,6 +494,15 @@
+ # Libs.private into scope.
+ options += ['--pkg-config-flags=--static']
+
++# LTO — Android's flavor script passes --enable-lto straight to ffmpeg's
++# own ./configure (this repo wraps ffmpeg's autotools build via meson's
++# external_project module, not meson's native build, so meson's b_lto
++# built-in option never reaches it). The actual `-flto` compiler/linker
++# flag reaches ffmpeg through --extra-cflags/--extra-ldflags below, which
++# already source c_args/c_link_args — cross-files/ios-arm64.ini now
++# carries -flto there too, so this only needs ffmpeg's own opt-in switch.
++options += ['--enable-lto']
++
+ p = mod.add_project('configure',
+     configure_options : options,
+     cross_configure_options: [
+diff -ruN -x .git static6c/nix/packages/mk-pkg-ffmpeg/default.nix static6b/nix/packages/mk-pkg-ffmpeg/default.nix
+--- a/nix/packages/mk-pkg-ffmpeg/default.nix	2026-08-11 12:00:00.000000000 +0800
++++ b/nix/packages/mk-pkg-ffmpeg/default.nix	2026-08-11 13:00:00.000000000 +0800
+@@ -112,6 +112,13 @@
+     ]
+     ++ pkgs.lib.optionals (variant == variants.video) [
+       dav1d
++    ]
++    # libxml2 only exists to support ffmpeg's dash demuxer — movaslim
++    # never enables that demuxer (mova doesn't do DASH, only HLS/FLV/
++    # RTMP), so building it here would be pure dead weight (same
++    # enabled-but-never-called pattern as glslang before it was dropped;
++    # see meson.build's matching video_common_options guard).
++    ++ pkgs.lib.optionals (variant == variants.video && flavor != flavors.movaslim) [
+       libxml2
+     ]
+     ++ pkgs.lib.optionals (variant == variants.video && flavor == flavors.encodersgpl) [
+@@ -133,7 +140,11 @@
+   # module and ordinary dependency() calls read directly, cross-build
+   # aware, in place of the ambient environment.
+   PKG_CONFIG_PATH = pkgs.lib.concatStringsSep ":" (
+-    map (dep: "${dep}/lib/pkgconfig") ([ mbedtls ] ++ pkgs.lib.optionals (variant == variants.video) [ dav1d libxml2 ])
++    map (dep: "${dep}/lib/pkgconfig") (
++      [ mbedtls ]
++      ++ pkgs.lib.optionals (variant == variants.video) [ dav1d ]
++      ++ pkgs.lib.optionals (variant == variants.video && flavor != flavors.movaslim) [ libxml2 ]
++    )
+   );
+   configurePhase = ''
+     cat > pkg-config-wrapper <<WRAPPER
+diff -ruN -x .git static6c/nix/packages/mk-pkg-ffmpeg/meson.build static6b/nix/packages/mk-pkg-ffmpeg/meson.build
+--- a/nix/packages/mk-pkg-ffmpeg/meson.build	2026-08-11 12:00:00.000000000 +0800
++++ b/nix/packages/mk-pkg-ffmpeg/meson.build	2026-08-11 13:00:00.000000000 +0800
+@@ -78,11 +78,21 @@
+
+ video_common_options = [
+     '--enable-neon', # improve hevc (h265) support on arm
+-    '--enable-libxml2', # dash support
+     '--enable-videotoolbox',
+     '--enable-libdav1d', # av1 support
+ ]
+
++# DASH (--enable-libxml2's only consumer) isn't in movaslim's own demuxer
++# list — mova doesn't do DASH, only HLS/FLV/RTMP. Every other flavor here
++# still gets it via video_common_options for parity with upstream's
++# default/full/encodersgpl behavior; movaslim opts out since it's dead
++# weight it never actually uses (mirrors mk-pkg-ffmpeg/default.nix's
++# matching buildInputs guard, which drops the libxml2 Nix package
++# entirely for this flavor).
++if flavor != 'movaslim'
++    video_common_options += ['--enable-libxml2'] # dash support
++endif
++
+ # https://github.com/media-kit/libmpv-android-audio-build/blob/260666c0fef8c154971b5faf3f78da27c2bf2c40/buildscripts/flavors/default.sh
+ audio_default_options = [
+     # decoders

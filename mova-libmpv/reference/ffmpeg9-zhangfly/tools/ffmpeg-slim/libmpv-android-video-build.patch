@@ -1,0 +1,144 @@
+diff --git a/buildscripts/build.sh b/buildscripts/build.sh
+index 33282bd..6d2dac4 100755
+--- a/buildscripts/build.sh
++++ b/buildscripts/build.sh
+@@ -53,7 +53,7 @@ loadarch () {
+ 		export AS="nasm"
+ 	fi
+ 	export CXX=$cc_triple-clang++
+-	export LDFLAGS="-Wl,-O1,--icf=safe -Wl,-z,max-page-size=16384"
++	export LDFLAGS="-Wl,-O1,--icf=safe -Wl,--gc-sections -Wl,-z,max-page-size=16384"
+ 	export AR=llvm-ar
+ 	export RANLIB=llvm-ranlib
+ }
+@@ -77,9 +77,14 @@ setup_prefix () {
+ 	# also define: release build, static libs and no source downloads at runtime(!!!)
+ 	cat >"$prefix_dir/crossfile.txt" <<CROSSFILE
+ [built-in options]
+-buildtype = 'release'
++buildtype = 'minsize'
+ default_library = 'static'
+ wrap_mode = 'nodownload'
++b_lto = true
++c_args = ['-ffunction-sections', '-fdata-sections', '-fvisibility=hidden']
++cpp_args = ['-ffunction-sections', '-fdata-sections', '-fvisibility=hidden', '-fvisibility-inlines-hidden']
++c_link_args = ['-Wl,--gc-sections']
++cpp_link_args = ['-Wl,--gc-sections']
+ [binaries]
+ c = '$CC'
+ cpp = '$CXX'
+@@ -93,6 +98,11 @@ cpu_family = '$cpu_family'
+ cpu = '${CC%%-*}'
+ endian = 'little'
+ CROSSFILE
++
++	cat >"$prefix_dir/native.txt" <<NATIVEFILE
++[built-in options]
++b_lto = false
++NATIVEFILE
+ }
+ 
+ build () {
+diff --git a/buildscripts/scripts/dav1d.sh b/buildscripts/scripts/dav1d.sh
+index 87a7198..833627b 100755
+--- a/buildscripts/scripts/dav1d.sh
++++ b/buildscripts/scripts/dav1d.sh
+@@ -16,7 +16,7 @@ fi
+ 
+ unset CC CXX # meson wants these unset
+ 
+-meson setup $build --cross-file "$prefix_dir"/crossfile.txt \
++meson setup $build --cross-file "$prefix_dir"/crossfile.txt --native-file "$prefix_dir"/native.txt \
+ 	-Denable_tests=false -Db_lto=true -Dstack_alignment=16
+ 
+ ninja -C $build -j$cores
+diff --git a/buildscripts/scripts/freetype.sh b/buildscripts/scripts/freetype.sh
+index 752ba95..cde945f 100755
+--- a/buildscripts/scripts/freetype.sh
++++ b/buildscripts/scripts/freetype.sh
+@@ -16,7 +16,7 @@ fi
+ 
+ unset CC CXX # meson wants these unset
+ 
+-meson setup $build --cross-file "$prefix_dir"/crossfile.txt
++meson setup $build --cross-file "$prefix_dir"/crossfile.txt --native-file "$prefix_dir"/native.txt
+ 
+ ninja -C $build -j$cores
+ DESTDIR="$prefix_dir" ninja -C $build install
+diff --git a/buildscripts/scripts/fribidi.sh b/buildscripts/scripts/fribidi.sh
+index 19c1e80..a1898d5 100755
+--- a/buildscripts/scripts/fribidi.sh
++++ b/buildscripts/scripts/fribidi.sh
+@@ -16,7 +16,7 @@ fi
+ 
+ unset CC CXX # meson wants these unset
+ 
+-meson setup $build --cross-file "$prefix_dir"/crossfile.txt \
++meson setup $build --cross-file "$prefix_dir"/crossfile.txt --native-file "$prefix_dir"/native.txt -Db_lto=false \
+ 	-D{tests,docs}=false
+ 
+ ninja -C $build -j$cores
+diff --git a/buildscripts/scripts/harfbuzz.sh b/buildscripts/scripts/harfbuzz.sh
+index 101c900..d405ba9 100755
+--- a/buildscripts/scripts/harfbuzz.sh
++++ b/buildscripts/scripts/harfbuzz.sh
+@@ -16,7 +16,7 @@ fi
+ 
+ unset CC CXX # meson wants these unset
+ 
+-meson setup $build --cross-file "$prefix_dir"/crossfile.txt \
++meson setup $build --cross-file "$prefix_dir"/crossfile.txt --native-file "$prefix_dir"/native.txt \
+ 	-Dtests=disabled -Ddocs=disabled
+ 
+ ninja -C $build -j$cores
+diff --git a/buildscripts/scripts/libass.sh b/buildscripts/scripts/libass.sh
+index fd95d94..2bef624 100755
+--- a/buildscripts/scripts/libass.sh
++++ b/buildscripts/scripts/libass.sh
+@@ -18,7 +18,7 @@ mkdir -p _build$ndk_suffix
+ cd _build$ndk_suffix
+ 
+ ../configure \
+-	CFLAGS=-fPIC CXXFLAGS=-fPIC \
++	CFLAGS="-fPIC -Os -ffunction-sections -fdata-sections -fvisibility=hidden -flto -fomit-frame-pointer" CXXFLAGS="-fPIC -Os -ffunction-sections -fdata-sections -fvisibility=hidden -flto -fomit-frame-pointer" \
+ 	--host=$ndk_triple \
+ 	--with-pic \
+ 	--disable-asm \
+diff --git a/buildscripts/scripts/libxml2.sh b/buildscripts/scripts/libxml2.sh
+index 4418462..63ed521 100755
+--- a/buildscripts/scripts/libxml2.sh
++++ b/buildscripts/scripts/libxml2.sh
+@@ -18,7 +18,7 @@ mkdir -p _build$ndk_suffix
+ cd _build$ndk_suffix
+ 
+ ../configure \
+-    CFLAGS=-fPIC CXXFLAGS=-fPIC \
++    CFLAGS="-fPIC -Os -ffunction-sections -fdata-sections -fvisibility=hidden -flto -fomit-frame-pointer" CXXFLAGS="-fPIC -Os -ffunction-sections -fdata-sections -fvisibility=hidden -flto -fomit-frame-pointer" \
+ 	--host=$ndk_triple \
+     --disable-shared \
+     --enable-static \
+diff --git a/buildscripts/scripts/mbedtls.sh b/buildscripts/scripts/mbedtls.sh
+index 220a812..bea7e3d 100755
+--- a/buildscripts/scripts/mbedtls.sh
++++ b/buildscripts/scripts/mbedtls.sh
+@@ -14,5 +14,5 @@ fi
+ 
+ $0 clean # separate building not supported, always clean
+ 
+-make CFLAGS=-fPIC CXXFLAGS=-fPIC -j$cores no_test
+-make CFLAGS=-fPIC CXXFLAGS=-fPIC DESTDIR="$prefix_dir" install
++make CFLAGS="-fPIC -Os -ffunction-sections -fdata-sections -fvisibility=hidden -flto -fomit-frame-pointer" CXXFLAGS="-fPIC -Os -ffunction-sections -fdata-sections -fvisibility=hidden -flto -fomit-frame-pointer" -j$cores no_test
++make CFLAGS="-fPIC -Os -ffunction-sections -fdata-sections -fvisibility=hidden -flto -fomit-frame-pointer" CXXFLAGS="-fPIC -Os -ffunction-sections -fdata-sections -fvisibility=hidden -flto -fomit-frame-pointer" DESTDIR="$prefix_dir" install
+diff --git a/buildscripts/scripts/mpv.sh b/buildscripts/scripts/mpv.sh
+index 7e4ea4e..a709ac8 100755
+--- a/buildscripts/scripts/mpv.sh
++++ b/buildscripts/scripts/mpv.sh
+@@ -16,7 +16,7 @@ fi
+ 
+ unset CC CXX # meson wants these unset
+ 
+-meson setup $build --cross-file "$prefix_dir"/crossfile.txt \
++meson setup $build --cross-file "$prefix_dir"/crossfile.txt --native-file "$prefix_dir"/native.txt \
+ 	--prefer-static \
+ 	--default-library shared \
+ 	-Dgpl=false \
