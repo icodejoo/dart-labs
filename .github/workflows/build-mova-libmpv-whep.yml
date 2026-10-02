@@ -23,9 +23,16 @@ on:
       - '!mova-libmpv/patches/android-v041/**.md'
       - 'mova-libmpv/tools/whep-flavor/build-*.sh'
       - 'mova-libmpv/flavors-mova-slim-n9.sh'
+      - 'mova-libmpv/tools/whep-flavor/ci-platform'
       - '.github/workflows/build-mova-libmpv-whep.yml'
   workflow_dispatch:
     inputs:
+      platform:
+        description: 'Which platform to build: android | windows | linux | all | none. auto = read mova-libmpv/tools/whep-flavor/ci-platform.'
+        required: false
+        default: auto
+        type: choice
+        options: [auto, android, windows, linux, all, none]
       commit_artifact:
         description: 'Commit built binaries back to the triggering branch (false = artifact upload only). Never commits on main.'
         required: false
@@ -52,8 +59,50 @@ env:
   WIN_WHEP_DIR: mova/libmpv/windows-x86_64-whep
 
 jobs:
+  # 每次只验证一个平台：由 dispatch 输入 platform 或仓库文件 ci-platform 决定（android|windows|linux|all|none）。
+  # 流程：单平台逐个跑通 -> 把 ci-platform 改成 all 再整体构建一次。其余平台的 job 直接 skipped，不占 runner。
+  plan:
+    name: Select platform
+    runs-on: ubuntu-latest
+    outputs:
+      android: ${{ steps.sel.outputs.android }}
+      windows: ${{ steps.sel.outputs.windows }}
+      linux: ${{ steps.sel.outputs.linux }}
+      platform: ${{ steps.sel.outputs.platform }}
+    steps:
+      - name: Guard - never run on main
+        if: ${{ github.ref == 'refs/heads/main' }}
+        run: |
+          echo "::error::WHEP workflow must not run on main"
+          exit 1
+
+      - name: Checkout only the platform switch file
+        uses: actions/checkout@v4
+        with:
+          sparse-checkout: mova-libmpv/tools/whep-flavor/ci-platform
+          sparse-checkout-cone-mode: false
+
+      - name: Decide platforms
+        id: sel
+        env:
+          INPUT_PLATFORM: ${{ inputs.platform }}
+        run: |
+          P="${INPUT_PLATFORM:-}"
+          if [ -z "$P" ] || [ "$P" = auto ]; then P="$(tr -d ' \r\n' < mova-libmpv/tools/whep-flavor/ci-platform)"; fi
+          case "$P" in
+            android|windows|linux|all|none) ;;
+            *) echo "::error::invalid platform '$P' (want android|windows|linux|all|none)"; exit 1 ;;
+          esac
+          for x in android windows linux; do
+            if [ "$P" = "$x" ] || [ "$P" = all ]; then echo "$x=true" >> "$GITHUB_OUTPUT"; else echo "$x=false" >> "$GITHUB_OUTPUT"; fi
+          done
+          echo "platform=$P" >> "$GITHUB_OUTPUT"
+          echo "### This run builds: $P" >> "$GITHUB_STEP_SUMMARY"
+
   android-arm64-whep:
     name: Android arm64-v8a WHEP
+    needs: plan
+    if: ${{ needs.plan.outputs.android == 'true' }}
     runs-on: ubuntu-22.04
     # 全链从头构建（NDK + mbedtls/dav1d/libxml2/ffmpeg/freetype/libass/libplacebo/mpv）预计 40-90 分钟
     timeout-minutes: 150
@@ -197,6 +246,8 @@ jobs:
 
   windows-whep:
     name: Windows x86_64 WHEP
+    needs: plan
+    if: ${{ needs.plan.outputs.windows == 'true' }}
     runs-on: windows-latest
     # 本机 20 核约 12 分钟；runner 只有 4 核，预计 40-80 分钟（ffmpeg 占大头）
     timeout-minutes: 150
@@ -324,6 +375,8 @@ jobs:
   # 可选：Linux 冒烟，仅上传 artifact，不注入。
   linux-whep:
     name: Linux x86_64 WHEP (smoke, artifact only)
+    needs: plan
+    if: ${{ needs.plan.outputs.linux == 'true' }}
     runs-on: ubuntu-24.04
     timeout-minutes: 90
     steps:
