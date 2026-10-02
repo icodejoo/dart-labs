@@ -145,7 +145,7 @@ def one_run(a, rate, k, seed, extra_env=None):
                           stdout=open(os.path.join(d, "proxy.log"), "w"), stderr=subprocess.STDOUT)
     time.sleep(1.0)
     url = "whep+http://127.0.0.1:%d/lossy/test/whep" % a.http_port
-    cmd = [a.ffmpeg, "-hide_banner", "-nostats", "-v", "verbose", "-t", str(a.duration), "-f", "whep", "-i", url,
+    cmd = [a.ffmpeg, "-hide_banner", "-nostats", "-v", "verbose", "-t", str(a.duration), "-f", "whep"] + a.ffopts.split() + ["-i", url,
            "-map", "0:v", "-vf", "null" if a.no_showinfo else "showinfo", "-f", "null", "-",
            "-map", "0:a", "-f", "null", "-",
            "-map", "0:v", "-c", "copy", "-f", "framecrc", os.path.join(d, "v.crc"),
@@ -175,6 +175,16 @@ def one_run(a, rate, k, seed, extra_env=None):
                   r"\((\d+) samples\)", log)
     res["audio_decode"] = {"pkts_read": int(m.group(1)), "frames_decoded": int(m.group(2)),
                            "decode_errors": int(m.group(3)), "samples": int(m.group(4))} if m else None
+    # T1.5：RTCP 反馈计数与起播计时（旧构建没有这些行，则为 None）
+    for kind in ("video", "audio"):
+        m2 = re.search(r"RTCP %s: nack=(\d+) pli_on=(\d+) nack_seqs_sent=(\d+) nack_msgs=(\d+) nack_giveup=(\d+) "
+                      r"rtx_recovered=(\d+) rtx_late=(\d+) pli_sent=(\d+) rr_sent=(\d+)" % kind, log)
+        res[kind + "_rtcp"] = dict(zip(("nack", "pli_on", "nack_seqs", "nack_msgs", "giveup", "rtx_recovered",
+                                        "rtx_late", "pli_sent", "rr_sent"), map(int, m2.groups()))) if m2 else None
+    m2 = re.search(r"First RTP packet \((\w+)\) at ([\d.]+)ms", log)
+    res["first_pkt_ms"] = float(m2.group(2)) if m2 else None
+    m2 = re.search(r"First video key frame out at ([\d.]+)ms", log)
+    res["first_key_ms"] = float(m2.group(1)) if m2 else None
     res["corrupt_decoded_frame_lines"] = len(re.findall(r"corrupt decoded frame", log))
     res["concealing_lines"] = len(re.findall(r"concealing \d+ DC", log))
     res["other_error_lines"] = len([ln for ln in log.splitlines()
@@ -250,6 +260,30 @@ def summarize(out):
     for rate, rs in groups.items():
         print("| %s%% | " % rate + " | ".join(str(fn(rs)) for _, fn in cols2[1:]) + " |")
     print()
+    # T1.5：RTCP 反馈计数（客户端 verbose 日志里的真实计数器）与起播计时
+    def rt(r, k):
+        x = r.get("video_rtcp")
+        return x[k] if x else 0
+
+    cols3 = [
+        ("档位", None),
+        ("NACK 序号数(视频)", lambda rs: "%.1f" % avg(rs, lambda r: rt(r, "nack_seqs"))),
+        ("NACK 报文数", lambda rs: "%.1f" % avg(rs, lambda r: rt(r, "nack_msgs"))),
+        ("重传恢复", lambda rs: "%.1f" % avg(rs, lambda r: rt(r, "rtx_recovered"))),
+        ("重传迟到", lambda rs: "%.1f" % avg(rs, lambda r: rt(r, "rtx_late"))),
+        ("放弃缺口", lambda rs: "%.1f" % avg(rs, lambda r: rt(r, "giveup"))),
+        ("最终仍丢(视频)", lambda rs: "%.1f" % avg(rs, lambda r: r["video_client"]["lost"])),
+        ("PLI 发出", lambda rs: "%.1f" % avg(rs, lambda r: rt(r, "pli_sent"))),
+        ("RR 发出(视频)", lambda rs: "%.1f" % avg(rs, lambda r: rt(r, "rr_sent"))),
+        ("首包 ms", lambda rs: "%.0f" % avg(rs, lambda r: r.get("first_pkt_ms") or 0)),
+        ("首个关键帧 ms", lambda rs: "%.0f" % avg(rs, lambda r: r.get("first_key_ms") or 0)),
+        ("首包到关键帧 ms", lambda rs: "%.0f" % avg(rs, lambda r: (r.get("first_key_ms") or 0) - (r.get("first_pkt_ms") or 0))),
+    ]
+    print("| " + " | ".join(c for c, _ in cols3) + " |")
+    print("|" + "---|" * len(cols3))
+    for rate, rs in groups.items():
+        print("| %s%% | " % rate + " | ".join(str(fn(rs)) for _, fn in cols3[1:]) + " |")
+    print()
     print("seeds:", {str(k): [r["seed"] for r in v] for k, v in groups.items()})
 
 
@@ -279,6 +313,7 @@ def main():
     ap.add_argument("--duration", type=int, default=30)
     ap.add_argument("--rates", default="0,0.5,2,5")
     ap.add_argument("--runs", type=int, default=3)
+    ap.add_argument("--ffopts", default="", help="加在 -i 之前的额外输入选项，如 '-rtcp_nack 0'")
     ap.add_argument("--out", required=True)
     a = ap.parse_args()
     if a.reanalyze:

@@ -11,10 +11,12 @@
 | 0004 | `0004-avformat-whep-ICE-DTLS-SRTP-key-export-T1.3-stage-A.patch` | T1.3 阶段 A：`whep.c` 加 ICE 连通性检查 + DTLS(server) 握手 + 指纹校验 + SRTP 密钥导出；`tls_openssl.c`/`tls.h` 加 `ff_dtls_get_peer_fingerprint()`、DTLS server 请求客户端证书、握手循环响应中断回调 |
 | 0005 | `0005-avformat-whep-SRTP-decrypt-and-RTP-depacketize-T1.3-stage-B.patch` | T1.3 阶段 B：只改 `whep.c`。握手后真正收媒体：UDP 分流（STUN/DTLS/RTP/RTCP）、SRTP 解密、RTP 重排、H.264/Opus 解包出 AVPacket，周期 consent 检查与存活检测，新增 `media_timeout` 选项 |
 | 0007 | `0007-avformat-tls-mbedtls-dtls-srtp-peer-fingerprint.patch` | mbedTLS 后端（Android）：`ff_dtls_get_peer_fingerprint`、DTLS server 请求客户端证书、可中断握手、EAGAIN 修正；`whep.c` 指纹分支守卫改为 `CONFIG_OPENSSL \|\| CONFIG_MBEDTLS \|\| CONFIG_SCHANNEL`（只改这一行，避免与 0006 冲突） |
-| 0008 | `0008-avformat-tls-schannel-dtls-srtp-peer-fingerprint.patch` | SChannel 后端（Windows）：同上，外加 SRTP profile 协商缓冲、`ASC_REQ_MUTUAL_AUTH`；`tls.h` 注释更新 |
+| 0008 | `0008-avformat-tls-schannel-dtls-srtp-peer-fingerprint.patch` | SChannel 后端（Windows）：同上，外加 SRTP profile 协商缓冲（0x0100）、`ASC_REQ_MUTUAL_AUTH`、有界 shutdown；`tls.h` 注释更新 |
+| 0009 | `0009-avformat-tls-mbedtls-srtp-profile-list-static.patch` | mbedtls SRTP profile 数组改 static const（悬空指针修复，见下） |
 | 0006 | `0006-avformat-whep-security-hardening.patch` | 安全加固，只改 `whep.c`：Location 同源校验、带 token 不跟随 3xx、指纹长度严格检查、STUN HMAC 常量时间比较、ICE 连续 socket 错误上限、关闭时清零 DTLS 私钥与 SRTP 材料（见下「信任模型与安全加固」） |
+| 0010 | `0010-avformat-whep-RTCP-feedback-PLI-RR-NACK.patch` | T1.5：只改 `whep.c`。SRTCP 加密发 RTCP：周期 RR、NACK（缺口表 + 多 FCI 打包 + 重试/放弃）、PLI（起播 + 不可恢复丢包，限速 1/s）；新增 `rtcp_nack`/`rtcp_pli`/`rtcp_interval`；**仅无 RTX 路径**（见「RTCP 反馈」） |
 
-0006 为另行产出的安全修复补丁，序号保留；0007/0008 只依赖 0001–0005。
+补丁须按文件名顺序依次 apply（0001 到 0010，已在干净 n9.0.2 上逐个 `git apply --check` 并 apply 通过）。0006 为安全修复；0007/0008/0009 只改各 TLS 后端；0010 只改 `whep.c`。
 
 编号说明：0003 依赖 0002 的 `ff_http_get_link_headers`，所以 http 补丁排在 whep.c 前面。
 
@@ -34,7 +36,7 @@
 - 信令：`POST`（`Content-Type: application/sdp`，可选 `Authorization: Bearer`），读 201 的 `Location`（相对地址会被 http 层解析成绝对地址）、`Link: rel="ice-server"`；关闭时 `DELETE`。read_header 失败（例如 answer 无指纹）也会 `DELETE` 已建立的会话（`FF_INFMT_FLAG_INIT_CLEANUP`）。
 - answer 解析：自写最小子集（不复用 `rtsp.c` 的 `ff_sdp_parse`）。必填 ice-ufrag/pwd、格式合法的 sha-256 指纹、`a=setup`、一个 UDP 候选、至少一条 opus/H264。缺指纹、算法不是 sha-256、格式不对一律拒绝。
 - 建流：按 answer 的 m= 行顺序挑 codec，建 H264（取 profile/level）与 Opus（48k）两条 AVStream。
-- 媒体接收见下文「T1.3 阶段 B」；**未实现**：RTCP 反馈（RR/NACK/PLI，T1.5）、RTX、TWCC、Windows/Android 后端。
+- 媒体接收见下文「T1.3 阶段 B」；RTCP 反馈（RR/NACK/PLI）见下文「RTCP 反馈（T1.5，0009）」；**未实现**：RTX、TWCC。
 
 ## 媒体通路（T1.3 阶段 A，0004）
 
@@ -57,7 +59,7 @@
 4. **解包**：自写，不用 ffmpeg 的 `rtpdec`（原因见下）。H.264：单 NAL、STAP-A、FU-A，转 Annex B，marker 位或时间戳变化结束一帧，输出整帧 AVPacket；**第一个 IDR 之前的帧丢弃**；不完整的帧（FU-A 缺片/缺口）丢弃。Opus：载荷即包，按 TOC 填 duration，extradata 在建流时写 OpusHead。
 5. **时间戳**：各流以首包为 0 展开 32 位回绕，再叠加"该流首包相对全局首包的到达时间差"以对齐音视频；还没有用 RTCP SR 校准（T1.5）。pts 单位为各流 clock（H.264 90k，Opus 48k）。
 6. **consent / 存活**：每 2.5s 向对端发一次 STUN 检查（同阶段 A 的请求格式）；任何经认证的对端数据（RTP、RTCP、STUN 请求/响应）都刷新存活时间，`media_timeout`（默认 5s）内没有就返回 `ETIMEDOUT`。服务端自己也每约 2s 发检查，我们都应答。
-7. **RTCP**：解密校验后只处理 BYE（该路标记结束，所有路都 BYE 则 `EOF`），SR 暂不使用。**不发 RR / NACK / PLI**。
+7. **RTCP**：解密校验后处理 BYE（该路标记结束，所有路都 BYE 则 `EOF`）；0010 起还读 SR 的 NTP 中间 32 位（回填 RR 的 LSR/DLSR）。阶段 B 本身不发 RTCP，0010 补上。
 8. **中断**：阻塞等待，但每 20ms 检查 `interrupt_callback`，返回 `AVERROR_EXIT`。**刻意不返回 `EAGAIN`**：mpv 的 `demux_lavf` 把连续 10 次读包错误（包括 EAGAIN）当致命错误，实测 `EAGAIN` 方案会在直播源停流约 0.5s 后误杀播放；阻塞读 + 中断回调实测 mpv 销毁耗时 20–39ms。
 9. 关闭仍 `DELETE`；verbose 日志在关闭时打印每路计数（packets/auth_fail/late/lost/frames/dropped_frames/before_keyframe）与 STUN 计数。
 
@@ -65,7 +67,7 @@
 
 ### 阶段 B 的已知限制 / 未做
 
-- **起播等 IDR**：没有 PLI，首帧要等下一个 IDR（测试源 GOP=50 帧即最多 2s）。ffprobe 约 1.9s，mpv 约 2–3s 出画面。T1.5 的 PLI（连接后立刻请求关键帧）可以消掉这段等待——这是 T1.5 的第一项。
+- **起播等 IDR**（0009 起会发 PLI，但 MediaMTX 不响应，见下）：首帧要等下一个 IDR（测试源 GOP=50 帧即最多 2s）。ffprobe 约 1.9s，mpv 约 2–3s 出画面。T1.5 的 PLI（连接后立刻请求关键帧）可以消掉这段等待——这是 T1.5 的第一项。
 - **丢包后画面**：不完整的帧被丢弃，但后续 P 帧仍会送给解码器，会有花屏直到下一个 IDR（没有 NACK/PLI 就无法修复）。丢包时音频靠解码器 PLC。
 - **不发 RR**：实测 MediaMTX v1.21.1 在不发任何 RTCP 的情况下连续播 40s 不断流、帧率满 25fps（只验证了 40s，更长时间或其他服务端未验证）。
 - 只支持 `SRTP_AES128_CM_HMAC_SHA1_80`；只处理 H.264（packetization-mode 0/1 的单 NAL/STAP-A/FU-A，不支持 STAP-B/MTAP/FU-B）和 Opus；RTX 包（未协商的 PT）直接丢弃并计数。
@@ -83,6 +85,9 @@
 | `ca_file` | 无 | `tls_verify=1` 时用的 CA 文件 |
 | `user_agent` | 无 | 信令请求的 User-Agent（mpv 会自动注入） |
 | `handshake_timeout` | 10000000 | ICE + DTLS 握手总期限，**微秒**，`-1` 不限；与 `timeout`（只管 HTTP 信令）相互独立 |
+| `rtcp_nack` | 1 | answer 协商了 `nack` 且该路没有协商 RTX 时才发 NACK，`0` 关闭 |
+| `rtcp_pli` | 1 | answer 协商了 `nack pli` 的视频路才发 PLI，`0` 关闭 |
+| `rtcp_interval` | 1000000 | 周期 Receiver Report 的间隔，**微秒**，`0` 不发周期 RR（此时 NACK/PLI 仍会带一个空 RR 头作为复合包开头） |
 | `media_timeout` | 5000000 | 握手后连续多久没有任何经认证的对端数据（RTP/RTCP/STUN）就判定连接已死并返回 `ETIMEDOUT`，**微秒**，`-1` 不限 |
 
 ## 已知限制 / 注意
@@ -162,6 +167,41 @@ mock 的错误场景路径：`/nf`(404) `/unauth`(401) `/nofp` `/badfp` `/sha1` 
   - ASan（5% 与 mix 各 2 次×20s）无报告。
   - 局限：回环上的随机独立丢包，无突发/延迟/抖动；每档 3 次波动大；仅 MediaMTX 一种服务端。
 
+## RTCP 反馈（T1.5，0009）
+
+只改 `whep.c`，不引第三方库。全部 RTCP 经 `ff_srtp_encrypt` 做 SRTCP（带 E 位与 SRTCP 索引、HMAC-SHA1-80 标签）从媒体 UDP socket 发出。**发送用 DTLS-SRTP 材料里的 server 写密钥**（我方是 DTLS server；接收解密用的是 client 写密钥），发送上下文独立于各路接收上下文。
+
+- **本端 SSRC**：随机 32 位非零数，RTCP 里作 sender SSRC。recvonly 的 offer 不需要声明 `a=ssrc`（RFC 8829），所以 offer 没动；RTSP 那套 `ssrc+1` 的做法不适用，没有沿用。
+- **复合包结构**：RR（到点带 report block，否则空 RR 头）+ 每路 NACK + 每路 PLI。没有 SDES CNAME（pion/MediaMTX 实测接受；严格的 RFC 3550 对端可能挑剔，未验证）。
+- **RR**：每 `rtcp_interval`（默认 1s）一次；每个已见到 SSRC 的路一个 report block：fraction lost（本周期）、cumulative lost（24 位有符号，含重传补回）、extended highest seq（含回绕）、RFC 3550 A.8 的 jitter，LSR/DLSR 取自最近收到的 SR（没收到过则 0）。没收到过 SR 时 LSR/DLSR 为 0（SR 在本测试里是否到达未单独统计）。
+- **NACK（RFC 4585 §6.2.1）**：重排队列旁边加了 32 项缺口表（序号、重试次数、首次发现时间、上次 NACK 时间）。新高序号到达时把中间空出的序号登记为缺口；乱序/重传补上就划掉。首次发现 10ms 后发第一次 NACK，之后每 40ms 重发，最多 3 次，用尽则放弃并降级为 PLI。多个序号打包成多个 FCI（PID + BLP，升序，与 PID 差 1–16 并入同一 FCI，RTCP length = 2 + FCI 数）；打包函数对 2 万组随机丢包（含回绕）做过"打包再展开"一致性检查，18 个连续序号得 `(2,0xFFFF)+(19,0)`。NACK 的计时是自己的（与 libavformat rtpdec 的 `MIN_FEEDBACK_INTERVAL` 无关）。开 NACK 时重排缺口的最长等待由 80ms 增至 200ms（容纳 3 次重试），所以最坏情况下恢复期间会多 ≤200ms 的缓冲延迟。
+- **重传识别**：补上缺口的包（同序号、原 SSRC/PT）按"重传恢复"计数，不算 `late/dup`；缺口已被放弃后才到的重传单独计 `rtx_late`，也不算 `late/dup`。缺口表满（突发丢包超过 32）时不 NACK，等重排窗口放弃后走 PLI。
+- **PLI（§6.3.1）**：视频路在第一个媒体包收到后就发（需要知道对端 SSRC，所以不能更早），直到见到第一个关键帧为止每秒重试；之后任何**不可恢复**的视频丢包（NACK 重试用尽 / 重排窗口放弃 / 跳变）再发。全程限速 ≥1s。
+- **协商**：只有 answer 声明了 `nack` / `nack pli` 才发。**RTX 未实现**：answer 里该路协商了 RTX（`rtx_pt >= 0`）时我们不发 NACK（对端会用 RTX 包重传，而我们还不会还原 OSN；RTX 留 TODO，需要在 `whep_rx_datagram` 里按 `apt` 映射并还原原序号）。MediaMTX 的 answer 实测无 RTX，重传使用原 SSRC/PT/序号，正是本补丁处理的路径。
+- **音频**：MediaMTX 的 answer 里 Opus 没有 `nack`，音频路不发 NACK（音频丢包行为同基线）。
+- 新增 verbose 日志：`First RTP packet (...) at Xms since open`、`First video key frame out at Xms since open (pli_sent=N)`、每路 `RTCP video|audio: nack=… nack_seqs_sent=… nack_msgs=… nack_giveup=… rtx_recovered=… rtx_late=… pli_sent=… rr_sent=…`（`nack_seqs_sent` 按序号计，重发也各算一次）。
+
+### T1.5 验证（2026-10-02，Linux + OpenSSL 3.5.5，MediaMTX v1.21.1，回环）
+
+命令同上节基线（`whep_loss_baseline.py`，新增 `--ffopts` 传 `-rtcp_nack 0 -rtcp_pli 0` 等输入选项，汇总表多一张 RTCP 计数表）；30s × 每档 3 次（0% 为 1 次），种子与基线相同，客户端日志里的真实计数器，均值。丢包由 `whep_tamper_proxy.py lossy` 只对服务端→客户端的 RTP 注入（NACK 和重传包都经过它，重传包同样可能被丢）。
+
+| 丢包 | NACK 关：视频 `lost` / 丢弃不完整帧 / `concealing` 行 / 视频 pts 空洞 | NACK 开：同四项 | NACK 序号数（含重发）| 重传恢复 | 放弃 |
+|---|---|---|---|---|---|
+| 0.5% | 11.3 / 7.3 / 4.0 / 7.0（0.28s） | **0 / 0 / 0 / 0** | 10.0 | 10.0 | 0 |
+| 2% | 40.7 / 23.0 / 16.3 / 20.0（0.85s） | **0 / 0 / 0 / 0** | 42.0 | 42.0 | 0 |
+| 5% | 117.0 / 64.0 / 40.3 / 45.7（2.00s） | **0 / 0 / 0 / 0** | 111.3 | 108.0 | 0 |
+| mix（2% 丢 + 2% 交换 + 1% 重复 + 1% 翻转） | 54.7 / 31.0 / 22.7 / 28.7（1.19s） | **0 / 0 / 0 / 0** | 57.7 | 57.0 | 0 |
+
+- **③ `rtcp_nack=0 rtcp_pli=0` 与基线一致**：上表左列与 0.5% 节的无重传基线同量级（如 2%：基线 `lost` 41.7、丢弃 22.7、`concealing` 18.7；本次 40.7 / 23.0 / 16.3），`late/dup`、`auth_fail` 对应关系不变。
+- **late/dup 未被误计**：mix 档 NACK 开 `late/dup` 34.3，NACK 关 34.0（注入的重复包数），交换的包没有计入。5% 档 `rtx_late`=0（3 次重试内都赶上了）。
+- 音频不受影响（没协商 nack）：5% 档音频 `lost` 与基线同量级（75–83）。
+- 解码器侧 `corrupt decoded frame` / `concealing` 行 NACK 开全为 0，视频 pts 无空洞；**基线的"花屏窗口"推断模型按 trace 里的丢包算，不适用于有重传的 trace（会把已恢复的丢包也算进去），所以 NACK 开的汇总表里那几列忽略，以客户端计数与解码器日志为准**。
+- ④ **服务端收到 RR/NACK 的证据**：MediaMTX 会话 API（`/v3/webrtcsessions/list`）的 `inboundRTCPPackets` / `rtcpPacketsReceived` 在 5s 的直连会话里为 14（SRTCP 解密失败的包 pion 会丢弃，计数增长说明密钥/索引/标签正确；**该计数的具体构成未拆**）。NACK 被响应的**实测**证据：中继 trace 里视频序号"重复出现"的次数（即服务端重发，包含被中继再次丢弃的）与客户端发出的 NACK 序号数在 12 次丢包运行里**逐次相等**（如 5% 档 110/110、119/119、105/105；mix 档含中继自己注入的重复，仍 63/63、48/48、62/62）。
+- ⑤ ASan：主路径 0% 2 次（20s）+ 5% 2 次 + mix 2 次（各 20s），退出码 0，日志无 `Sanitizer` / `ERROR` / leak。
+- ① **PLI 起播（负面结果）**：实测起播仍要等下一个 IDR；**推断**原因是 MediaMTX 不把 PLI 转给 RTSP 推流源、也不自己生成 IDR（未读其源码确认）。同一构建 PLI 开/关各 14 次（随机错开推流相位）"首个 RTP 包 → 首个关键帧"均值 **724ms vs 638ms**（无改善，差异在相位噪声内）；仅开 PLI 不开 NACK 的 5% 档：PLI 发 31.7 次/30s（限速生效）、花屏累计 25.7s（推断）与基线 27.8s 无差别。**PLI 的包格式与 SRTCP 通路由 MediaMTX 接受，但它对 PLI 无动作，因此"缩短起播等 IDR"的收益没有被验证**，需换一个会响应 PLI 的服务端（如 SRS、浏览器 SFU）才能测。
+- 体积：whep flavor stripped `libmpv.so` 6,824,328（0008）-> **6,832,520（+8,192 字节）**，达到目标上限（≤ +8KB）；`whep.o` text 21,352 -> 25,056（+3,704），data +192。.so 的 +8,192 是页对齐的一档，真实代码增量约 3.9KB。
+- **未做 / 限制**：RTX（见上）；TWCC；SDES CNAME；RR 的 DLSR 依赖收到过 SR；只测回环 + 随机独立丢包（无突发、无 RTT），重试间隔 40ms / 等待 200ms 是自拟起点，真实网络要按 RTT 校准；Windows/Android 后端没有重测 RTCP（0007/0008 的 DTLS 路径相同，RTCP 走同一个 `ff_srtp_encrypt`）。
+
 ## 升级 ffmpeg 版本时
 
 0001 的 `configure`/`allformats.c`/`Makefile` hunk 对上下文敏感；0002 依赖 `http.c` 的 `process_line` 与 `HTTPContext` 布局；0003 用到的内部 API：`ff_ssl_gen_key_cert`、`ff_http_get_new_location`、`ff_data_to_hex`、`FF_INFMT_FLAG_INIT_CLEANUP`，换版本要逐个确认；0005 另用到 `ff_srtp_set_crypto`/`ff_srtp_decrypt`/`ff_srtp_free`（`srtp.h`）、`ff_packet_list_put/get/free`（`packet_internal.h`）、`ff_alloc_extradata`。
@@ -178,11 +218,17 @@ mock 的错误场景路径：`/nf`(404) `/unauth`(401) `/nofp` `/badfp` `/sha1` 
 - **补丁里改掉的坑**：SRTP 密钥导出回调只认 TLS1.2 master secret 类型；`ffurl_read` 返回 EAGAIN 要映射成 `MBEDTLS_ERR_SSL_WANT_READ`（原先被当成缓冲区过小）。
 - **未验证**：丢包重传（没造丢包测过）；Android 真机未跑。
 
-### SChannel（Windows，0008）——仅编译验证
+### SChannel（Windows，0008）——Win10 19045 真机握手已实测
 
 - 用 `SECPKG_ATTR_REMOTE_CERT_CONTEXT` 取对端证书；server 侧加 `ASC_REQ_MUTUAL_AUTH` 触发 CertificateRequest，凭据本来就是 `SCH_CRED_NO_SYSTEM_MAPPER | SCH_CRED_MANUAL_CRED_VALIDATION`（不做系统映射与链校验）。
-- 通过 `SECBUFFER_SRTP_PROTECTION_PROFILES` 提交 `SRTP_AES128_CM_HMAC_SHA1_80`。
-- **已知限制**：
-  - **真实握手未验证**（只在 MSYS2 mingw64 下编译，没有 Windows 上的 WHEP 服务端对接实测）。
-  - **SRTP profile 值（0x0001）的字节序没有官方文档说明**，目前按主机序传，需真机抓包（use_srtp 扩展）确认。
+- 通过 `SECBUFFER_SRTP_PROTECTION_PROFILES` 提交 `SRTP_AES128_CM_HMAC_SHA1_80`。**profile 常量必须写 `0x0100`**（SChannel 按网络字节序读，小端机上 `0x0001` 会让握手失败，实测），补丁注释里已写明。
+- **shutdown 修复**：`tls_shutdown_client` 在 server 侧不能死循环，改为最多 8 次，`CONTINUE_NEEDED` 只在 client 侧继续（gdb 栈证实）。
+- **实测**：Win10 19045 上作 DTLS server 对真实 MediaMTX（pion 作 client）握手完成，约 170–190ms。体积对照（静态链接产物）：SChannel 9,302,528 vs OpenSSL 14,862,336 字节。详见 `doc/notes/2026-10-02-windows-schannel-whep-verify.md`。
+- **局限**：
+  - 仅在 Win10 19045 上验证；其他 Windows 版本未测。
+  - 只提交了一个 profile，GCM 系列（如 `0x0700`）未测。
   - 握手循环里没有主动驱动服务端重传，丢包要靠对端重发。
+
+### 0009：mbedtls SRTP profile 列表改 static（Android 真机暴露）
+
+`tls_open()` 里 `profiles[]` 是栈数组，而 `mbedtls_ssl_conf_dtls_srtp_protection_profiles()` 只存指针不拷贝，握手在之后进行，读到悬空指针。Linux（mbedtls 3.6.7）碰巧没事；Android arm64（mbedtls 3.4.0）ServerHello 缺 `use_srtp` 扩展，MediaMTX 回 alert 71（insufficient_security）。改成 `static const` 后真机握手通过。
