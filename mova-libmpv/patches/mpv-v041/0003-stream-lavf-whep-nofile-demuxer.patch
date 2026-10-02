@@ -1,0 +1,35 @@
+diff --git a/stream/stream_lavf.c b/stream/stream_lavf.c
+index 7910b82082..7668103f03 100644
+--- a/stream/stream_lavf.c
++++ b/stream/stream_lavf.c
+@@ -297,6 +297,14 @@ static char **get_safe_protocols(void)
+         }
+     }
+ 
++    // whep is likewise a NOFILE demuxer, not a protocol.
++    for (int i = 0; ffmpeg_demuxers[i]; i++) {
++        if (strcmp("whep", ffmpeg_demuxers[i]) == 0) {
++            MP_TARRAY_APPEND(NULL, protocols, num, talloc_strdup(protocols, "whep"));
++            break;
++        }
++    }
++
+     MP_TARRAY_APPEND(NULL, protocols, num, NULL);
+ 
+     talloc_free(ffmpeg_demuxers);
+@@ -386,6 +394,15 @@ static int open_f(stream_t *stream)
+         return STREAM_OK;
+     }
+ 
++    if (!strncmp(filename, "whep:", 5)) {
++        /* WHEP is an AVFMT_NOFILE demuxer in libavformat (no protocol entry),
++         * handled like rtsp: demux_lavf does the work without a stream layer. */
++        stream->demuxer = "lavf";
++        stream->lavf_type = "whep";
++        talloc_free(temp);
++        return STREAM_OK;
++    }
++
+     // Replace "mms://" with "mmsh://", so that most mms:// URLs just work.
+     // Replace "dav://" or "webdav://" with "http://" and "davs://" or "webdavs://" with "https://"
+     bstr b_filename = bstr0(filename);
