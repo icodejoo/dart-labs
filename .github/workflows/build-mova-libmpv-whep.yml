@@ -107,7 +107,7 @@ jobs:
           WHEP: '1'
           JOBS: '4'
         run: |
-          mova-libmpv/patches/android-v041/e2e-arm64.sh "$RUNNER_TEMP/whep-android" "$HOME/ndk/android-ndk-r25c" 2>&1 | tee "$RUNNER_TEMP/e2e.log" | tail -n 400
+          bash mova-libmpv/patches/android-v041/e2e-arm64.sh "$RUNNER_TEMP/whep-android" "$HOME/ndk/android-ndk-r25c" 2>&1 | tee "$RUNNER_TEMP/e2e.log" | tail -n 400
           test "${PIPESTATUS[0]}" = 0
           grep -q E2E_DONE "$RUNNER_TEMP/e2e.log"
           test -f "$RUNNER_TEMP/whep-android/libmpv.stripped.so"
@@ -324,7 +324,7 @@ jobs:
   # 可选：Linux 冒烟，仅上传 artifact，不注入。
   linux-whep:
     name: Linux x86_64 WHEP (smoke, artifact only)
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     timeout-minutes: 90
     steps:
       - name: Guard - never run on main
