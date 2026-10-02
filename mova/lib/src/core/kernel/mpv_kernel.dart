@@ -7,6 +7,7 @@ import 'package:media_kit_video/media_kit_video.dart';
 
 import '../report/stats_probe.dart';
 import 'kernel.dart';
+import 'mpv_defaults.dart';
 import 'mpv_event_backend.dart';
 import 'mpv_event_pump.dart';
 
@@ -30,7 +31,9 @@ class MovaMpvKernel implements MovaKernel, MovaStatsProbe {
   /// Creates a media_kit-backed kernel.
   ///
   /// [player] lets the caller inject an existing `Player` (e.g. for testing
-  /// or custom configuration); a new `Player()` is created if omitted.
+  /// or custom configuration); a new `Player()` is created if omitted
+  /// (its protocol whitelist is media_kit's default plus `dtls`, see
+  /// [movaProtocolWhitelist]; an injected player is left untouched).
   ///
   /// [audioOnly] signifies skipping `VideoController` creation entirely.
   /// media_kit's `Player` defaults to mpv's `--vid=no` until the moment
@@ -58,7 +61,8 @@ class MovaMpvKernel implements MovaKernel, MovaStatsProbe {
   /// 创建基于 media_kit 的内核。
   ///
   /// [player] 允许调用者注入一个已存在的 `Player`（如用于测试或自定义配置）；
-  /// 省略时会创建一个新的 `Player()`。
+  /// 省略时会创建一个新的 `Player()`（协议白名单为 media_kit 默认项加 `dtls`，见
+  /// [movaProtocolWhitelist]；注入的 player 不受影响）。
   ///
   /// [audioOnly] 表示完全跳过 `VideoController` 的创建。media_kit 的 `Player`
   /// 一创建就是 mpv 的 `--vid=no`，**只有** `VideoController.create()` 会把它
@@ -100,7 +104,7 @@ class MovaMpvKernel implements MovaKernel, MovaStatsProbe {
     this.tlsVerify = false,
     this.tlsCaFile,
   })
-    : _player = player ?? Player(),
+    : _player = player ?? Player(configuration: PlayerConfiguration(protocolWhitelist: movaProtocolWhitelist())),
       _backendFactory = backendFactory {
     _applyTls();
     if (!audioOnly && !lazyVideo) {
@@ -464,7 +468,7 @@ class MovaMpvKernel implements MovaKernel, MovaStatsProbe {
   Stream<MovaSize> get size => _sizeController.stream;
 
   @override
-  Stream<Object> get error => _player.stream.error;
+  Stream<Object> get error => _player.stream.error.where((e) => !isBenignMpvError(e));
 
   @override
   Object? get renderHandle {

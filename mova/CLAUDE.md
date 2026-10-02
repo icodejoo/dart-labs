@@ -32,7 +32,7 @@
 
 ## 当前状态（0.2.0）
 
-> **测试基线：1008 项全绿**（2026-10-01 本机实跑 `flutter test` 的真实结果）；
+> **测试基线：1014 项全绿**（2026-10-02 本机实跑 `flutter test` 的真实结果）；
 > `flutter analyze lib test` 0 issues（`example/` 下 demo 有若干 `avoid_print` info，
 > 均为验证脚本）。
 
@@ -314,6 +314,12 @@ README「已知限制」已注明：调用方自己创建/注入 `VideoControlle
 186–273ms，两平台 5 张图校验和逐一相同；画面随位置变化。`MovaFrameExtractor` 依赖真实 libmpv，无法单测，验证脚本是
 `example/lib/main_videocontroller_verify.dart` 的 E5/E11/E12。
 **注意**：Android 实验前必须确认手机亮屏且已解锁（`dumpsys window | grep isKeyguardShowing`），锁屏/熄屏时所有涉及渲染面的结果作废。
+
+
+### WHEP 接入的两处 mova 侧缺口（2026-10-02，已修）
+
+- **默认 `Player()` 白名单缺 `dtls`**：media_kit 默认白名单不含 `dtls`，WHEP 的 DTLS 会被拦（`Protocol 'dtls' not on whitelist`）。`core/kernel/mpv_defaults.dart` 集中放默认集副本 `kMediaKitDefaultProtocols`（读自 media_kit 1.2.6 源码）+ `movaProtocolWhitelist()`（默认集 + `dtls`），`MovaMpvKernel` 自建 `Player` 时使用；调用方注入的 player 不动；预览/音频抽取器自建的 `Player()` 不碰 WHEP，未改。默认 libmpv 没编入 dtls，放行无副作用。
+- **`Cannot seek in this stream` ×3（MovaErrorEvent ×6）——根因不在 mova**：在内核层 override `seek()` 打印调用栈做探针，真机（STG-AL00）复现时 **0 次 `kernel.seek`**，即 mova 没有对该流下发过 seek；mpv 日志显示 `Stream is not seekable` 后，约在 `Using hardware decoding` / `MovaSizeChange 640x360` 同一时刻 mpv 自己打出这两行，推断是渲染面挂上（懒创建的 `VideoController`）后 mpv 内部重建视频链触发的刷新 seek（推断，未做 eager 对照）。media_kit 把 `cplayer` 前缀的 error 日志一律当 `stream.error` 上报，于是成了 `MovaErrorEvent`/`state.error`。修法选最小侵入：`MovaMpvKernel.error` 过滤这两行（`isBenignMpvError`），不新增 `MovaKernel` 能力。取舍：用户在不可 seek 流上主动 seek 时同样的提示也会被吞（引擎本就对 live 拦 seek）。真机复测：`createMovaEngine()` 默认白名单打开 WHEP，播放 15s、`MovaErrorEvent` 0 次、`state.error==null`、位置推进正常。验证页端口可用 `--dart-define=WHEP_UDP/WHEP_RELAY/WHEP_URL` 覆盖。测试 1008 → 1014（`test/core/kernel/mpv_defaults_test.dart`）。
 
 ## 剩余任务
 

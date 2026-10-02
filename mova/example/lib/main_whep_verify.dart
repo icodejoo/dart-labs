@@ -33,13 +33,13 @@ void main() {
 final ValueNotifier<MovaEngine?> _engineNotifier = ValueNotifier<MovaEngine?>(null);
 
 /// MediaMTX 的 UDP 端口（也是手机回环上中继监听的端口）。
-const int kUdpPort = 38189;
+const int kUdpPort = int.fromEnvironment('WHEP_UDP', defaultValue: 38189);
 
 /// 电脑 relay.py 的 TCP 端口（经 adb reverse）。
-const int kRelayTcpPort = 38190;
+const int kRelayTcpPort = int.fromEnvironment('WHEP_RELAY', defaultValue: 38190);
 
 /// 信令地址。
-const String kWhepUrl = 'whep+http://127.0.0.1:38889/test/whep';
+const String kWhepUrl = String.fromEnvironment('WHEP_URL', defaultValue: 'whep+http://127.0.0.1:38889/test/whep');
 
 /// 观察总时长（首帧之后）。
 const int kObserveSec = 40;
