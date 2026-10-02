@@ -69,3 +69,40 @@ Linux job 里 `git clone --depth 1 --branch n6.0.1` 也写死（约 789 行）�
 - CI：权威（真实 flavor、真实 NDK 缓存），但目前不能传参、改 workflow 才能跑、每次要拉源码并编全依赖（耗时本次未量，**不知道**），
   且有回写 `packages/` 的副作用。
 - 建议：先在本地补 dav1d 并拆增量来源、决定选项；再做 CI 参数化跑一次真实 flavor 做最终确认。
+
+## 7. 瘦身配方复测（n6 / n6 瘦身 / n9 瘦身 / n9+v0.41）
+
+日期：2026-10-02。WSL `/root/w/andm2/`（脚本 `build2.sh VAR LTO`，换机器即失），均为**本次实测重编**，arm64 API24、NDK r25c、llvm-strip -s，
+复用 `and-prefix(-lto)` 依赖前缀（无 dav1d，口径同 §2），make -j8。
+
+| 组合 | 非 LTO | 相对 (a) | 整链 LTO | 相对 (a) |
+|---|---:|---:|---:|---:|
+| (a) n6.0.1 现行（沿用 §1，`andm/n6-{0,1}.stripped.so` 复核字节一致） | 6,147,712 | 0 | 5,815,040 | 0 |
+| (b) n6.0.1 + `--disable-bsfs`（置于 `--enable-bsf=` 前，去掉 `--enable-bsfs`） | 5,888,912 | -258,800 (-4.2%) | 5,560,296 | -254,744 (-4.4%) |
+| (c) n9.0.2 + `--disable-bsfs --disable-iamf --disable-swscale-alpha`，去 `--enable-bsfs`/`--disable-postproc`，钉死 mpv + 兼容补丁 | 6,445,568 | +297,856 (+4.8%) | 6,108,976 | +293,936 (+5.1%) |
+| (d) (c) + mpv v0.41.0 + libplacebo + 摘 vo_gpu_next + javavm-v041 | 6,603,344 | +455,632 (+7.4%) | 6,261,144 | +446,104 (+7.7%) |
+
+派生差值（同口径）：
+
+| 对比 | 非 LTO | 整链 LTO |
+|---|---:|---:|
+| (c) - (b)：n9 瘦身 vs n6 同样瘦身 | +556,656 (+9.5%) | +548,680 (+9.9%) |
+| (d) - (c)：mpv 0.41 + plc 增量 | +157,776 | +152,168 |
+
+注意：(a) 的配方里本来就有 `--disable-swscale-alpha`，所以 (b) 相对 (a) 实际只多了 `--disable-bsfs`；n6 的 `--disable-postproc` 保留。
+
+### 结论
+
+- **n9 瘦身后 vs n6 现行（a）：不是 ≤，仍大 +294KB~+298KB（约 +5%）**。与 Linux x86 调研（§0 of ffmpeg9-slim-research，A 集 -8KB）不一致：
+  arm64 上 n6 现行的 bsf 全开代价（-259KB）比 Linux 上小，n9 的结构性增长反而更大。
+- **n9 瘦身后 vs n6 同样瘦身（b）：更不是，+549KB~+557KB（约 +9.5%）**。研究文档推测"arm64 真实差距小于 x86 的 +324KB"，**本次实测推翻**：arm64 上差距更大。
+- 走完整升级路径（d）相对现行 +446KB~+456KB（+7.4%~+7.7%）；比未瘦身的 n9 路径（§1 表：+953KB/+979KB）省约 500KB。
+- 体积第一的立场下：n9 不能靠 configure 开关追平 n6；n6 自己也该先上 `--disable-bsfs`（-255KB，零功能代价待验证 bsf 白名单够用）。
+
+### 口径与未做
+
+- (a)/(b) 用干净 clone 的钉死 mpv `78d43740f5`（无补丁）；(c) 用 `src-pin-and`（含 n9 兼容补丁 + javavm 补丁，与 §1 的 n9 行同源）。mpv 侧补丁差异未单独量化，
+  会混入 (c)-(b) 的差值，但补丁只 49 行增/29 行删，预计影响远小于 500KB（**推断**）。
+- **dav1d 没补成**：WSL 内源码目录 `dl/` 没有 dav1d，`git clone code.videolan.org` 报 SSL 证书签发者不受信（环境层面的 CA 问题），未绕过校验。
+  需要用户给出 dav1d 源码包或修好 WSL CA 才能继续；真实 flavor 含 dav1d（约 +671KB），不影响本表差值。
+- 没做 Enabled bsfs 之外的功能冒烟，没做真机。
