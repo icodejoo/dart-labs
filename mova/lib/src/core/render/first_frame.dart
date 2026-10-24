@@ -51,6 +51,7 @@ class MovaFirstFrameGate {
   bool _landed = false;
   bool _awaitingGrace = false;
   bool _autoPlay = true;
+  bool _resume = false;
   bool _sawBuffering = false;
   Duration? _prevPosition;
 
@@ -73,12 +74,19 @@ class MovaFirstFrameGate {
   bool get awaitingGrace => _awaitingGrace;
 
   /// Arms a fresh attempt; [autoPlay] false enables the size fallback.
+  /// [resume] true arms a standby-resume attempt instead: only a native
+  /// restart or a non-zero size lands it, immediately (no grace, regardless
+  /// of [autoPlay]); buffering and position are ignored because playback kept
+  /// moving during standby.
   ///
-  /// 武装一次新尝试；[autoPlay] 为 false 时启用尺寸兜底。
-  void arm({required bool autoPlay}) {
+  /// 武装一次新尝试；[autoPlay] 为 false 时启用尺寸兜底。[resume] 为 true 时改为武装一次
+  /// 待机恢复尝试：只有原生 RESTART 或非零尺寸能让它落地，且立即落地（不进宽限、不看
+  /// [autoPlay]）；缓冲与位置一律忽略，因为待机期间播放一直在走。
+  void arm({required bool autoPlay, bool resume = false}) {
     reset();
     _armed = true;
     _autoPlay = autoPlay;
+    _resume = resume;
   }
 
   /// Feeds a native restart; always authoritative.
@@ -90,7 +98,7 @@ class MovaFirstFrameGate {
   ///
   /// 输入一次缓冲标志；只在 true→false 下降沿落地。
   MovaFirstFrameSignal? onBuffering(bool buffering, {required bool nativeLive}) {
-    if (!_open) return null;
+    if (!_open || _resume) return null;
     if (buffering) {
       _sawBuffering = true;
       return null;
@@ -104,7 +112,7 @@ class MovaFirstFrameGate {
   ///
   /// 输入一次位置；在连续第二次递增且大于 0 时落地。
   MovaFirstFrameSignal? onProgress(Duration position, {required bool nativeLive}) {
-    if (!_open) return null;
+    if (!_open || _resume) return null;
     if (position <= Duration.zero) {
       _prevPosition = null;
       return null;
@@ -119,7 +127,9 @@ class MovaFirstFrameGate {
   ///
   /// 输入一次画面尺寸；只在暂停态打开且首个非零尺寸时落地。
   MovaFirstFrameSignal? onSize(int width, int height, {required bool nativeLive}) {
-    if (!_open || _autoPlay || width <= 0 || height <= 0) return null;
+    if (!_open || width <= 0 || height <= 0) return null;
+    if (_resume) return _land(MovaFirstFrameSignal.size);
+    if (_autoPlay) return null;
     return _fallback(MovaFirstFrameSignal.size, nativeLive);
   }
 
@@ -136,6 +146,7 @@ class MovaFirstFrameGate {
     _landed = false;
     _awaitingGrace = false;
     _autoPlay = true;
+    _resume = false;
     _sawBuffering = false;
     _prevPosition = null;
   }

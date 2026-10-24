@@ -332,19 +332,16 @@ class MovaEngine implements MovaApi, MovaStandbyController {
   /// The mode of the current hold; null unless [MovaStandbyPhase.holding].
   ///
   /// 当前待机的组合；仅在 [MovaStandbyPhase.holding] 时非空。
-  // ignore: unused_field -- read by the wake-up path in the next Task
   MovaStandbyMode? _standbyMode;
 
   /// When the current phase began (measures how long a fallback pause lasted).
   ///
   /// 当前阶段开始的时刻（用来计算 fallback 暂停持续了多久）。
-  // ignore: unused_field -- read by the wake-up path in the next Task
   DateTime? _standbySince;
 
   /// Why the engine is in [MovaStandbyPhase.fallback]; null in other phases.
   ///
   /// 引擎处于 [MovaStandbyPhase.fallback] 的原因；其他阶段为 null。
-  // ignore: unused_field -- read by the wake-up path in the next Task
   MovaStandbyReason? _fallbackCause;
 
   /// True from `setStandby(true)` until `setStandby(false)` or `pause()`: the
@@ -363,6 +360,26 @@ class MovaEngine implements MovaApi, MovaStandbyController {
   ///
   /// 串行化所有待机迁移，使其永不交错。
   Future<void> _standbyQueue = Future<void>.value();
+
+  /// Fires when waking waited [MovaStandbyConfig.resumeTimeout] for a fresh frame.
+  ///
+  /// 唤醒后等新画面等满 [MovaStandbyConfig.resumeTimeout] 时触发。
+  Timer? _resumeTimer;
+
+  /// When the wake-up call began (the start of [MovaStandbyResume.elapsed]).
+  ///
+  /// 唤醒调用开始的时刻（[MovaStandbyResume.elapsed] 的起点）。
+  DateTime? _resumeAt;
+
+  /// The hold mode being woken from; null when woken from a fallback pause.
+  ///
+  /// 正在从哪种待机组合唤醒；从 fallback 暂停唤醒时为 null。
+  MovaStandbyMode? _resumeFrom;
+
+  /// Whether the first-frame gate is currently armed in resume mode.
+  ///
+  /// 首帧闸门当前是否处于恢复武装。
+  bool _resumeGateArmed = false;
 
   /// The kernel's standby capability, or null when it has none.
   ///
@@ -786,6 +803,7 @@ class MovaEngine implements MovaApi, MovaStandbyController {
   void _onAttemptLanded(MovaFirstFrameSignal signal) {
     _graceTimer?.cancel();
     _graceTimer = null;
+    if (state.standby == MovaStandbyPhase.resuming) _finishResume(signal);
     // A landing that arrives for an attempt already declared failed (the retry
     // is pending) must not reset the failure counters.
     //
@@ -1324,21 +1342,136 @@ class MovaEngine implements MovaApi, MovaStandbyController {
   /// Drops a pending resume measurement (hidden again, or the host took over).
   ///
   /// 丢弃待完成的恢复测量（又被隐藏，或宿主接管）。
-  void _cancelResume() {}
+  void _cancelResume() {
+    _resumeTimer?.cancel();
+    _resumeTimer = null;
+    if (_resumeGateArmed) _frameGate.reset();
+    _resumeGateArmed = false;
+  }
 
-  /// Wakes from standby. Minimal until the resume timing lands: a hold is
-  /// undone and the phase goes back to off.
+  /// Wakes from standby: undoes a hold, or resumes/reconnects a fallback pause,
+  /// as [decideStandbyWake] decides.
   ///
-  /// 从待机唤醒。恢复计时落地前的最小实现：撤销待机，阶段回到 off。
+  /// 从待机唤醒：撤销待机，或续播/重连 fallback 暂停——由 [decideStandbyWake] 决定。
   Future<MovaStandbyPhase> _leaveStandby() async {
-    if (state.standby == MovaStandbyPhase.holding) {
-      _standbyTimer?.cancel();
-      _standbyTimer = null;
-      _standbyMode = null;
-      await _standbyKernel?.exitStandby();
-      _setStandbyPhase(MovaStandbyPhase.off, MovaStandbyReason.woke);
+    final phase = state.standby;
+    final since = _standbySince;
+    final wake = decideStandbyWake(
+      phase: phase,
+      intent: _playIntent,
+      type: state.type,
+      cause: _fallbackCause,
+      pausedFor: since == null ? Duration.zero : debugClock().difference(since),
+      config: options.standby,
+    );
+    switch (wake) {
+      case MovaStandbyWake.none:
+        return phase;
+      case MovaStandbyWake.restore:
+        _standbyTimer?.cancel();
+        _standbyTimer = null;
+        final from = _standbyMode;
+        _standbyMode = null;
+        _beginResume(from: from);
+        // Arm before writing properties: the size event can arrive while the
+        // `mute` write is still awaited.
+        //
+        // 先武装、再写属性：尺寸事件可能在 `mute` 写入的 await 期间就到达。
+        if (from == MovaStandbyMode.muted) _armResumeGate();
+        final restarted = await (_standbyKernel?.exitStandby() ?? Future<bool>.value(false));
+        if (_disposed) return MovaStandbyPhase.off;
+        _resumeWatch();
+        if (!restarted) _finishResume(null);
+        return state.standby;
+      case MovaStandbyWake.settle:
+        _setStandbyPhase(MovaStandbyPhase.off, MovaStandbyReason.woke);
+        return state.standby;
+      case MovaStandbyWake.resumePlay:
+        _setStandbyPhase(MovaStandbyPhase.off, MovaStandbyReason.woke);
+        await _kernel.play();
+        _resumeWatch();
+        return state.standby;
+      case MovaStandbyWake.reloadEdge:
+        _beginResume(from: null);
+        _armAttempt(autoPlay: true);
+        final reopened = await _backToLiveEdge();
+        if (_disposed) return MovaStandbyPhase.off;
+        if (!state.playing) await _kernel.play();
+        if (!reopened) _resumeWatch();
+        _state.emit(state.copyWith(clearTimeshift: true));
+        _events.add(const MovaLiveEdgeReach());
+        return state.standby;
+      case MovaStandbyWake.reopen:
+        _beginResume(from: null);
+        await _reopenLiveSource();
+        return state.standby;
     }
-    return state.standby;
+  }
+
+  /// Enters [MovaStandbyPhase.resuming] and starts the [MovaStandbyConfig.resumeTimeout]
+  /// clock.
+  ///
+  /// 进入 [MovaStandbyPhase.resuming] 并起 [MovaStandbyConfig.resumeTimeout] 计时。
+  ///
+  /// - [from]: the hold mode woken from, null for a fallback pause / 从哪种待机组合醒来，fallback 暂停为 null
+  void _beginResume({required MovaStandbyMode? from}) {
+    _resumeAt = debugClock();
+    _resumeFrom = from;
+    _resumeTimer?.cancel();
+    _resumeTimer = Timer(options.standby.resumeTimeout, () {
+      _resumeTimer = null;
+      if (_resumeGateArmed) _frameGate.reset();
+      _finishResume(MovaFirstFrameSignal.grace);
+    });
+    _setStandbyPhase(MovaStandbyPhase.resuming, MovaStandbyReason.woke, mode: from);
+  }
+
+  /// Arms the first-frame gate in resume mode (a fresh frame, nothing else).
+  ///
+  /// 以恢复模式武装首帧闸门（只认新画面，别的都不算）。
+  void _armResumeGate() {
+    _graceTimer?.cancel();
+    _graceTimer = null;
+    _frameGate.arm(autoPlay: true, resume: true);
+    _resumeGateArmed = true;
+  }
+
+  /// Ends a wake-up: reports how long it took and returns to off. No-op unless
+  /// resuming.
+  ///
+  /// 结束一次唤醒：报告耗时并回到 off。不在 resuming 时为空操作。
+  ///
+  /// - [signal]: what landed it; null when decoding never stopped / 由什么落地；解码从未停过为 null
+  void _finishResume(MovaFirstFrameSignal? signal) {
+    if (state.standby != MovaStandbyPhase.resuming) return;
+    _resumeTimer?.cancel();
+    _resumeTimer = null;
+    _resumeGateArmed = false;
+    final at = _resumeAt;
+    if (!_events.isClosed) {
+      _events.add(
+        MovaStandbyResume(
+          elapsed: at == null ? Duration.zero : debugClock().difference(at),
+          signal: signal,
+          from: _resumeFrom,
+        ),
+      );
+    }
+    _setStandbyPhase(MovaStandbyPhase.off, MovaStandbyReason.resumed);
+  }
+
+  /// Back to normal monitoring after standby: the stall watch, with no start
+  /// deadline, and a fresh ABR tally.
+  ///
+  /// 待机之后回到常规监视：卡顿看门狗、不再计起播期限，ABR 计数清零。
+  void _resumeWatch() {
+    _abrPolicy.reset();
+    final wd = _watchdog;
+    if (wd == null) return;
+    wd
+      ..armStart(playing: _playIntent)
+      ..onLanded()
+      ..onBuffering(state.buffering);
   }
 
   @override
@@ -1793,6 +1926,17 @@ class MovaEngine implements MovaApi, MovaStandbyController {
   @override
   Future<void> backToLiveEdge() async {
     if (state.type != MovaStreamType.live) return;
+    await _backToLiveEdge();
+    _state.emit(state.copyWith(clearTimeshift: true));
+    _events.add(const MovaLiveEdgeReach());
+  }
+
+  /// Moves to the live edge by the configured strategy. Returns whether it
+  /// went through [_reopenLiveSource] (a full kernel reload) rather than a seek.
+  ///
+  /// 按配置的策略回到直播边缘。返回是否走了 [_reopenLiveSource]（完整的内核重载）而不是 seek。
+  Future<bool> _backToLiveEdge() async {
+    var reopened = false;
     switch (options.live.effectiveBackToLive) {
       case MovaBackToLive.seekEnd:
         final window = state.seekableWindow;
@@ -1800,12 +1944,13 @@ class MovaEngine implements MovaApi, MovaStandbyController {
           await _kernel.seek(window);
         } else {
           await _reopenLiveSource();
+          reopened = true;
         }
       case MovaBackToLive.reopen:
         await _reopenLiveSource();
+        reopened = true;
     }
-    _state.emit(state.copyWith(clearTimeshift: true));
-    _events.add(const MovaLiveEdgeReach());
+    return reopened;
   }
 
   /// Reopens the original live URL on the kernel, bypassing [open].
@@ -2001,6 +2146,8 @@ class MovaEngine implements MovaApi, MovaStandbyController {
     _recoverTimer = null;
     _standbyTimer?.cancel();
     _standbyTimer = null;
+    _resumeTimer?.cancel();
+    _resumeTimer = null;
     _watchdog?.dispose();
     await _restartSub?.cancel();
     await _endFileSub?.cancel();

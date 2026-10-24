@@ -113,4 +113,30 @@ void main() {
     g.onBuffering(false, nativeLive: true);
     expect(g.awaitingGrace, isFalse);
   });
+
+  test('resume arming ignores buffering edges and moving positions', () {
+    final g = MovaFirstFrameGate()..arm(autoPlay: true, resume: true);
+    expect(g.onBuffering(true, nativeLive: false), isNull);
+    expect(g.onBuffering(false, nativeLive: false), isNull);
+    expect(g.onProgress(ms(40), nativeLive: false), isNull);
+    expect(g.onProgress(ms(80), nativeLive: false), isNull);
+    expect(g.onProgress(ms(120), nativeLive: false), isNull);
+    expect(g.landed, isFalse);
+  });
+
+  test('resume arming lands a non-zero size at once, with no grace wait', () {
+    final g = MovaFirstFrameGate()..arm(autoPlay: true, resume: true);
+    expect(g.onSize(0, 0, nativeLive: true), isNull);
+    expect(g.onSize(1280, 720, nativeLive: true), MovaFirstFrameSignal.size);
+    expect(g.landed, isTrue);
+    expect(g.awaitingGrace, isFalse);
+  });
+
+  test('resume arming lands on a native restart, and a later plain arm restores the default rules', () {
+    final g = MovaFirstFrameGate()..arm(autoPlay: true, resume: true);
+    expect(g.onRestart(), MovaFirstFrameSignal.restart);
+    g.arm(autoPlay: true);
+    expect(g.onBuffering(true, nativeLive: false), isNull);
+    expect(g.onBuffering(false, nativeLive: false), MovaFirstFrameSignal.buffering);
+  });
 }
