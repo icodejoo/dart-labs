@@ -6,6 +6,7 @@ import '../options/preview_config.dart';
 import '../options/stt_config.dart';
 import '../recovery/fail.dart';
 import '../render/first_frame.dart';
+import '../standby/standby.dart';
 import '../swap/ctl.dart';
 
 /// Base type of everything broadcast on [MovaApi.events].
@@ -547,4 +548,78 @@ class MovaFailover extends MovaEvent {
   ///
   /// 创建事件。
   const MovaFailover({required this.from, required this.to, required this.uri});
+}
+
+/// The standby phase changed.
+///
+/// 待机阶段发生变化。
+///
+/// Example / 示例:
+/// ```dart
+/// api.events.listen((e) {
+///   if (e is MovaStandbyChange && e.phase == MovaStandbyPhase.fallback) {
+///     log('standby fell back to pause: ${e.reason.name}');
+///   }
+/// });
+/// ```
+class MovaStandbyChange extends MovaEvent {
+  /// Creates the event.
+  ///
+  /// 创建事件。
+  const MovaStandbyChange({required this.phase, required this.reason, this.mode});
+
+  /// The new phase.
+  ///
+  /// 新阶段。
+  final MovaStandbyPhase phase;
+
+  /// Why it changed.
+  ///
+  /// 变化原因。
+  final MovaStandbyReason reason;
+
+  /// The hold mode: set when entering [MovaStandbyPhase.holding], and on the
+  /// `resuming` that follows it; null otherwise.
+  ///
+  /// 待机组合：进入 holding 时、以及紧随其后的 resuming 时有值；其余为 null。
+  final MovaStandbyMode? mode;
+}
+
+/// Standby ended and playback is presenting again: how long it took from the
+/// wake-up call to the first fresh frame.
+///
+/// 待机结束、重新出画面：从唤醒调用到第一帧新画面花了多久。
+///
+/// Example / 示例:
+/// ```dart
+/// api.events.listen((e) {
+///   if (e is MovaStandbyResume) {
+///     log('back in ${e.elapsed.inMilliseconds}ms via ${e.signal?.name ?? 'none'}');
+///   }
+/// });
+/// ```
+class MovaStandbyResume extends MovaEvent {
+  /// Creates the event.
+  ///
+  /// 创建事件。
+  const MovaStandbyResume({required this.elapsed, this.signal, this.from});
+
+  /// From `setStandby(false)` to the landing.
+  ///
+  /// 从 `setStandby(false)` 到落地的耗时。
+  final Duration elapsed;
+
+  /// What landed it: `restart`/`size` (precise), `buffering`/`progress`
+  /// (after a reconnect), `grace` (nothing within `resumeTimeout` — elapsed is
+  /// then the timeout, not a measurement), or null (decoding never stopped).
+  ///
+  /// 由什么落地：`restart`/`size`（精确）、`buffering`/`progress`（重连之后）、`grace`
+  /// （`resumeTimeout` 内什么都没等到——此时 elapsed 就是超时值，不是测量值），或 null
+  /// （解码从未停过）。
+  final MovaFirstFrameSignal? signal;
+
+  /// The hold mode woken from; null when woken from a [MovaStandbyPhase.fallback] pause.
+  ///
+  /// 从哪种待机组合醒来；从 fallback 暂停醒来时为 null。
+  final MovaStandbyMode? from;
 }

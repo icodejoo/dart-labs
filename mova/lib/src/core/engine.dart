@@ -9,6 +9,7 @@ import 'events/events.dart';
 import 'interceptor/interceptor.dart';
 import 'kernel/kernel.dart';
 import 'kernel/mpv_kernel.dart';
+import 'kernel/standby_kernel.dart';
 import 'live/timeshift.dart';
 import 'model/fit.dart';
 import 'model/orientation.dart';
@@ -34,6 +35,8 @@ import 'render/first_frame.dart';
 import 'report/collector.dart';
 import 'report/report.dart';
 import 'report/stats_probe.dart';
+import 'standby/plan.dart';
+import 'standby/standby.dart';
 import 'state/progress.dart';
 import 'state/state.dart';
 import 'state/ui_state.dart';
@@ -57,7 +60,7 @@ import 'stt/service.dart';
 /// 这是 `lib/src/core/**` 中唯一把该层其余部分粘合在一起的类；它本身不直接
 /// 引入 `package:flutter` 或 `package:media_kit`（这些依赖被隔离在
 /// [MovaKernel]/[MovaOpts]/各 Port 之后）。
-class MovaEngine implements MovaApi {
+class MovaEngine implements MovaApi, MovaStandbyController {
   /// The kernel this engine drives.
   ///
   /// 该 engine 驱动的内核。
@@ -316,6 +319,97 @@ class MovaEngine implements MovaApi {
   Duration? _recoveryPosition;
   bool get _playIntent => state.playbackIntent;
 
+  // ---- standby (see doc/plans/2026-10-23-standby-mode.md) ----
+  // ---- 待机（见 doc/plans/2026-10-23-standby-mode.md）----
+
+  /// Clock for standby timing; tests swap it because `DateTime.now()` does not
+  /// follow `fakeAsync`.
+  ///
+  /// 待机计时用的时钟；测试里替换它，因为 `DateTime.now()` 不跟随 `fakeAsync`。
+  @visibleForTesting
+  DateTime Function() debugClock = DateTime.now;
+
+  /// The mode of the current hold; null unless [MovaStandbyPhase.holding].
+  ///
+  /// 当前待机的组合；仅在 [MovaStandbyPhase.holding] 时非空。
+  // ignore: unused_field -- read by the wake-up path in the next Task
+  MovaStandbyMode? _standbyMode;
+
+  /// When the current phase began (measures how long a fallback pause lasted).
+  ///
+  /// 当前阶段开始的时刻（用来计算 fallback 暂停持续了多久）。
+  // ignore: unused_field -- read by the wake-up path in the next Task
+  DateTime? _standbySince;
+
+  /// Why the engine is in [MovaStandbyPhase.fallback]; null in other phases.
+  ///
+  /// 引擎处于 [MovaStandbyPhase.fallback] 的原因；其他阶段为 null。
+  // ignore: unused_field -- read by the wake-up path in the next Task
+  MovaStandbyReason? _fallbackCause;
+
+  /// True from `setStandby(true)` until `setStandby(false)` or `pause()`: the
+  /// host wants this picture hidden, so a later `play()` starts in standby.
+  ///
+  /// 从 `setStandby(true)` 起到 `setStandby(false)` 或 `pause()` 为止为 true：宿主希望
+  /// 这块画面保持隐藏，之后的 `play()` 因此直接以待机态开播。
+  bool _standbyRequested = false;
+
+  /// Fires when a hold reaches [MovaStandbyConfig.maxDuration].
+  ///
+  /// 待机达到 [MovaStandbyConfig.maxDuration] 时触发。
+  Timer? _standbyTimer;
+
+  /// Serializes every standby transition so they never interleave.
+  ///
+  /// 串行化所有待机迁移，使其永不交错。
+  Future<void> _standbyQueue = Future<void>.value();
+
+  /// The kernel's standby capability, or null when it has none.
+  ///
+  /// 内核的待机能力；内核不具备时为 null。
+  MovaStandbyKernel? get _standbyKernel {
+    final k = _kernel;
+    return k is MovaStandbyKernel ? k as MovaStandbyKernel : null;
+  }
+
+  /// Whether a recovery retry/failover is waiting to run.
+  ///
+  /// 是否有重试/切换正在等待执行。
+  bool get _recoveryPending => _recoverTimer != null;
+
+  /// Drops a waiting recovery retry (it would load with the play intent and
+  /// make a hidden card audible).
+  ///
+  /// 丢弃正在等待的恢复重试（它会按播放意图加载，让看不见的卡片出声）。
+  void _cancelRecovery() {
+    _recoverTimer?.cancel();
+    _recoverTimer = null;
+  }
+
+  /// Runs [step] after every earlier standby transition has settled.
+  ///
+  /// 在之前所有待机迁移落定后执行 [step]。
+  Future<T> _enqueueStandby<T>(Future<T> Function() step) {
+    final next = _standbyQueue.then((_) => step());
+    _standbyQueue = next.then<void>((_) {}, onError: (Object _) {});
+    return next;
+  }
+
+  /// Moves to [phase] and announces it.
+  ///
+  /// 切到 [phase] 并对外宣布。
+  void _setStandbyPhase(
+    MovaStandbyPhase phase,
+    MovaStandbyReason reason, {
+    MovaStandbyMode? mode,
+  }) {
+    if (_disposed || _events.isClosed) return;
+    _standbySince = debugClock();
+    _fallbackCause = phase == MovaStandbyPhase.fallback ? reason : null;
+    _state.emit(state.copyWith(standby: phase));
+    _events.add(MovaStandbyChange(phase: phase, reason: reason, mode: mode));
+  }
+
   /// Latest known playback position, tracked synchronously from every
   /// kernel `position` callback (independent of the throttled [progress]
   /// stream) so [switchQuality]/[downshiftQuality]/[seekBy] can read it
@@ -462,6 +556,8 @@ class MovaEngine implements MovaApi {
         onTimeout: (kind, waited) => _onPlayFail(kind, waited: waited),
       );
     }
+
+    options.standby.assertValid();
 
     _playingSub = _kernel.playing.listen((v) {
       _state.emit(state.copyWith(playing: v));
@@ -1130,11 +1226,143 @@ class MovaEngine implements MovaApi {
   }
 
   @override
+  Future<MovaStandbyPhase> setStandby(bool on) {
+    // Recorded synchronously so a play()/open() queued behind this call sees it.
+    //
+    // 同步记下，使排在本调用之后的 play()/open() 能看到。
+    _standbyRequested = on;
+    return _enqueueStandby(() => on ? _enterStandby(viaPlay: false) : _leaveStandby());
+  }
+
+  /// Tries to enter standby. [viaPlay] means it was triggered by `play()` (or a
+  /// reloaded source landing) while a request stands: decide as if the intent
+  /// were true, and never pause — the caller plays only when this returns
+  /// [MovaStandbyPhase.holding].
+  ///
+  /// 尝试进入待机。[viaPlay] 表示请求存在期间由 `play()`（或换源落地）触发：按意图为
+  /// true 判定，且从不暂停——只有返回 [MovaStandbyPhase.holding] 时调用方才播放。
+  Future<MovaStandbyPhase> _enterStandby({required bool viaPlay}) async {
+    if (_disposed || !_standbyRequested) return state.standby;
+    final k = _standbyKernel;
+    MovaStandbyMedia? media;
+    if (k != null) {
+      try {
+        media = await k.inspectStandby();
+      } on Object {
+        media = null;
+      }
+      if (_disposed || !_standbyRequested) return state.standby;
+    }
+    final current = state.standby;
+    final entry = decideStandbyEntry(
+      phase: viaPlay ? MovaStandbyPhase.off : current,
+      intent: viaPlay || _playIntent,
+      exempt: state.pip || state.mini,
+      type: state.type,
+      recovering: _recoveryPending,
+      kernelCapable: k != null,
+      media: media,
+      config: options.standby,
+    );
+    switch (entry.kind) {
+      case MovaStandbyEntryKind.skip:
+        return state.standby;
+      case MovaStandbyEntryKind.fallback:
+        _cancelRecovery();
+        _cancelResume();
+        if (viaPlay && current == MovaStandbyPhase.fallback) return current;
+        if (!viaPlay) await _kernel.pause();
+        _setStandbyPhase(MovaStandbyPhase.fallback, entry.reason);
+        return state.standby;
+      case MovaStandbyEntryKind.hold:
+        _cancelRecovery();
+        _cancelResume();
+        final ok = await k!.enterStandby(entry.mode!);
+        if (_disposed) return MovaStandbyPhase.off;
+        if (!ok) {
+          if (!viaPlay) await _kernel.pause();
+          _setStandbyPhase(MovaStandbyPhase.fallback, MovaStandbyReason.unsupported);
+          return state.standby;
+        }
+        _standbyMode = entry.mode;
+        _watchdog?.disarm();
+        _standbyTimer?.cancel();
+        _standbyTimer = Timer(options.standby.maxDuration, _expireStandby);
+        _setStandbyPhase(
+          MovaStandbyPhase.holding,
+          MovaStandbyReason.requested,
+          mode: entry.mode,
+        );
+        return state.standby;
+    }
+  }
+
+  /// `maxDuration` elapsed: stop first, then restore properties while paused.
+  ///
+  /// 到了 `maxDuration`：先停播，再在暂停态还原属性。
+  void _expireStandby() {
+    _standbyTimer = null;
+    unawaited(
+      _enqueueStandby(() => _degradeStandby(MovaStandbyReason.maxDuration)),
+    );
+  }
+
+  /// holding -> fallback([reason]): pause, then undo the kernel hold. No-op in
+  /// any other phase.
+  ///
+  /// holding -> fallback([reason])：先暂停，再撤销内核待机。其他阶段为空操作。
+  Future<void> _degradeStandby(MovaStandbyReason reason) async {
+    if (_disposed || state.standby != MovaStandbyPhase.holding) return;
+    _standbyTimer?.cancel();
+    _standbyTimer = null;
+    await _kernel.pause();
+    await _standbyKernel?.exitStandby();
+    _standbyMode = null;
+    _setStandbyPhase(MovaStandbyPhase.fallback, reason);
+  }
+
+  /// Drops a pending resume measurement (hidden again, or the host took over).
+  ///
+  /// 丢弃待完成的恢复测量（又被隐藏，或宿主接管）。
+  void _cancelResume() {}
+
+  /// Wakes from standby. Minimal until the resume timing lands: a hold is
+  /// undone and the phase goes back to off.
+  ///
+  /// 从待机唤醒。恢复计时落地前的最小实现：撤销待机，阶段回到 off。
+  Future<MovaStandbyPhase> _leaveStandby() async {
+    if (state.standby == MovaStandbyPhase.holding) {
+      _standbyTimer?.cancel();
+      _standbyTimer = null;
+      _standbyMode = null;
+      await _standbyKernel?.exitStandby();
+      _setStandbyPhase(MovaStandbyPhase.off, MovaStandbyReason.woke);
+    }
+    return state.standby;
+  }
+
+  @override
   Future<void> play() async {
     final allowed = await _chain.beforePlay();
     if (!allowed) return;
     _state.emit(state.copyWith(playbackIntent: true));
     _watchdog?.onPlaying(true);
+    // Standby: a held stream is already playing (muted, no picture), and while
+    // a request stands a play() starts in standby instead of making a hidden
+    // card audible. Untouched when standby was never requested.
+    //
+    // 待机：被待机的流本来就在播（静音无画）；请求存在期间 play() 以待机态开播，而不是让
+    // 看不见的卡片出声。从未请求待机时这里一行都不走。
+    final standbyPhase = state.standby;
+    if (standbyPhase == MovaStandbyPhase.holding) return;
+    if (_standbyRequested && standbyPhase != MovaStandbyPhase.resuming) {
+      final p = await _enqueueStandby(() => _enterStandby(viaPlay: true));
+      if (p == MovaStandbyPhase.holding) {
+        await _kernel.play();
+        return;
+      }
+      if (p == MovaStandbyPhase.fallback) return;
+    }
     // A VOD source that has already reached the end sits paused on its last
     // frame; calling the kernel's `play()` alone leaves it there (there is
     // nothing left downstream of the current position to play), so the
@@ -1771,6 +1999,8 @@ class MovaEngine implements MovaApi {
     _graceTimer = null;
     _recoverTimer?.cancel();
     _recoverTimer = null;
+    _standbyTimer?.cancel();
+    _standbyTimer = null;
     _watchdog?.dispose();
     await _restartSub?.cancel();
     await _endFileSub?.cancel();

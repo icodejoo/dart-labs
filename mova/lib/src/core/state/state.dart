@@ -2,6 +2,7 @@ import '../model/fit.dart';
 import '../model/orientation.dart';
 import '../model/quality.dart';
 import '../model/source.dart';
+import '../standby/standby.dart';
 
 /// Immutable snapshot of player state at a point in time.
 ///
@@ -202,6 +203,21 @@ class MovaState {
   /// 地址时才会变化。
   final int sourceIndex;
 
+  /// Where this player is in the standby lifecycle; [MovaStandbyPhase.off]
+  /// unless someone called `MovaStandbyController.setStandby`.
+  ///
+  /// 本播放器处于待机生命周期的哪一段；除非有人调用了
+  /// `MovaStandbyController.setStandby`，否则恒为 [MovaStandbyPhase.off]。
+  ///
+  /// Example / 示例:
+  /// ```dart
+  /// MovaSelect<bool>(
+  ///   selector: (s) => s.standby != MovaStandbyPhase.off,
+  ///   builder: (_, held) => Text(held ? 'standby' : 'live'),
+  /// )
+  /// ```
+  final MovaStandbyPhase standby;
+
   /// Creates a state snapshot; all fields default to the 0.1.0 baseline
   /// behaviour (stopped, full volume/brightness/rate/zoom, contain fit,
   /// VOD, not seekable-live).
@@ -238,6 +254,7 @@ class MovaState {
     this.renderEpoch = 0,
     this.rendered = false,
     this.sourceIndex = 0,
+    this.standby = MovaStandbyPhase.off,
   });
 
   /// Returns a copy with the given fields replaced.
@@ -282,6 +299,7 @@ class MovaState {
     int? renderEpoch,
     bool? rendered,
     int? sourceIndex,
+    MovaStandbyPhase? standby,
     bool clearQuality = false,
     bool clearTimeshift = false,
     bool clearError = false,
@@ -321,6 +339,7 @@ class MovaState {
       renderEpoch: renderEpoch ?? this.renderEpoch,
       rendered: rendered ?? this.rendered,
       sourceIndex: sourceIndex ?? this.sourceIndex,
+      standby: standby ?? this.standby,
     );
   }
 
@@ -356,7 +375,8 @@ class MovaState {
         other.sourceTitle == sourceTitle &&
         other.renderEpoch == renderEpoch &&
         other.rendered == rendered &&
-        other.sourceIndex == sourceIndex;
+        other.sourceIndex == sourceIndex &&
+        other.standby == standby;
   }
 
   @override
@@ -372,6 +392,7 @@ class MovaState {
       pip,
       pipSupported,
       rendered,
+      standby,
     ),
     Object.hash(duration, width, height, volume, brightness, rate, zoom),
     fit,

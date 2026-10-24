@@ -50,10 +50,15 @@ $ cd mova && flutter test -r compact
 |---|---|---|---|
 | 1 | +28 | 1205 | 纯逻辑；计划预计 1186，差值 +19 是 HE 评审修复回归（起点 1177 而非 1158） |
 | 2 | +9 | 1214 | MovaMpvKernel 实现 MovaStandbyKernel，只增不改 |
+| 3 | +14 | 1228 | state/事件/进入/退回/超时；对应计划预计 1209，差 +19 同上 |
 
 - **HE 计划没有按"每 Task 一个 commit"提交。** HE Task 1–15 与评审修复的改动交错在同一批文件里（`engine.dart`、`state.dart`、`options.dart` 等被多个 Task 反复改动），
   交互式 `git add -p` 在本环境不可用，按 hunk 硬拆既不现实也容易拆出编译不过的中间提交。因此合并为两个提交：先提交文档（调研笔记与两份计划），再提交全部 HE 实现（含评审修复）。
   本计划（执行约束第 2 条）要求的"HE 已提交"前提据此改为"HE 已合并提交"，起点以实跑为准：**1177 项全绿**（HE 的 +19 评审修复回归已含在内），不是文首的 1158。
+- **R1–R4 的实际命名（对接结果）：** R1 播放意图就是 `MovaState.playbackIntent`（引擎内 getter `_playIntent`，已存在，本计划直接读）；R2 的"有待执行恢复"在代码里就是 `_recoverTimer != null`，取消入口是丢弃该 Timer，本计划新增只读 getter `_recoveryPending` 与 `_cancelRecovery()` 包装它；R3 的守卫改造见 Task 7 的偏差。
+- **Task 3：时钟注入。** 计划里"暂停多久 / 唤醒耗时"用 `DateTime.now()` 测量，但 `DateTime.now()` 不跟随 `fakeAsync`，计划里的 `elapsed == 5s`、`pausedFor >= 3s` 断言在测试里无从成立。引擎新增 `@visibleForTesting DateTime Function() debugClock`（默认 `DateTime.now`），待机计时全部走它，测试里替换成 `() => t0.add(async.elapsed)`。不新增依赖，生产路径行为不变。
+- **Task 3：`play()` 的待机分支多处理一种情形。** 请求存在期间 `play()` 走 `_enterStandby(viaPlay: true)`，若判定为 `skip`（例如画面在 PiP/小窗里，`exempt`），计划草图会直接 `return` 而不播放，导致 PiP 里无法播放；实现改为 `skip` 时落回普通播放路径，只有 `holding`（播）和 `fallback`（保持暂停）才提前返回。
+- **Task 3：`_standbyMode`/`_standbySince`/`_fallbackCause` 三个字段在本 Task 仅被写入、未被读取**（读取点在 Task 4 的唤醒路径），为保持 analyze 0 issues 临时加了带说明的 `// ignore: unused_field`，Task 4 去掉。
 
 ---
 
