@@ -1957,6 +1957,7 @@ if (kernel == null && testKernel != null) {
 
 > **状态：待定。** STG AL00 当前不可用。本 Task 与 Task 1–15 完全解耦：不阻塞任何 Task 的合入，
 > 也不是任何 Task 验收的前置条件。真机回来后单独一轮执行，结果回写本节与 `feedback_real_device_verification`。
+> **2026-10-24 更新：** Windows 桌面可测的部分已跑完（见下「Windows 桌面实测（2026-10-24）」，含两个待决发现）；**Android 项（V9、V11 与各项的 Android 复测）仍待真机**，交接清单见 [2026-10-24-android-real-device-handoff.md](2026-10-24-android-real-device-handoff.md)。
 
 **前置检查：** 手机亮屏且已解锁（`dumpsys window | grep isKeyguardShowing` 为 false），锁屏/熄屏时一切涉及
 渲染面的结果作废（CLAUDE.md）。debug 与 release 各跑一遍（debug 是 100ms 轮询，精度不同）。
@@ -1980,6 +1981,92 @@ min/max/avg，URL 加 timestamp 防缓存。
 | V10 | Tab 与路由遮挡 | demo 内 `StatefulShellRoute.indexedStack` 两个分支来回切；push 全屏页（含 `fullscreenDialog`）到根 navigator | 切走即 `MovaPause`、切回即 `MovaPlay`；注册 `routeObserver` 后根 navigator push 也能暂停 |
 | V11 | 系统 PiP 不受守卫影响 | 播放中 `enterPip()` | 无 `MovaPause`（`inactive` 不暂停 + `pip` 豁免） |
 | V12 | 关闭态回归 | 全部默认参数跑一遍基础流程 | 事件序列与改造前相比只多 `MovaFirstFrame`；`preciseFirstFrame:false` 且无 reporter 时弱客户端创建数 0（FFI V9） |
+
+### Windows 桌面实测（2026-10-24）
+
+> 范围：只做"和平台无关"的验证点，Android 项一律**未完成**（见下文分类表）。验证页 `example/lib/main_host_ergonomics_verify.dart` 的脚本化模式
+> （`--dart-define=AUTORUN=true`，实现在 `example/lib/verify_auto/he_auto.dart`），源由 `example/tool/verify_sources/` 提供。
+> 所有耗时来自真实事件：`MovaFirstFrame.sinceOpen`、同一单调时钟上的事件到达；不用墙钟估算，不 seek 到临近 EOF，每次打开带新 `?t=`。
+
+**环境**
+
+| 项 | 值 |
+|---|---|
+| 系统 / 硬件 | Windows 10 Pro 10.0.19045；Intel Core i5-13500（14 核 / 20 线程）；Intel UHD Graphics 770（无独显）；硬解 `d3d11va-copy` |
+| Flutter | 3.47.0（stable，4cf2416426，2026-08-11）；Skia 后端（环境变量 `FLUTTER_ENGINE_SWITCH_1=enable-impeller=false`，等价于 `--no-enable-impeller`，沿用 CLAUDE.md 的 Windows 规避手段） |
+| 构建模式 | **release**（`flutter build windows --release` + 直接启动 exe）。理由：release 下 `pollInDebug=false`，原生 `PLAYBACK_RESTART`/`END_FILE` 走真实回调（debug 是 100ms 轮询，精度不同）；AOT 无 VM 服务干扰；release 桌面版 `print` 不回传，日志靠 `MOVA_LOG`/`LOG_FILE` 落盘。profile 能给同样的数字，但没有必要。debug 未测（其数字不可信，只能看行为）。 |
+| libmpv | mova 自研瘦身版 `libmpv-2.dll`（`media_kit_libs_windows_video_slim`） |
+| 源 | 本机 ffmpeg 8.0.1：`testsrc2` 640x360@25fps + `sine` 440Hz，libx264 ultrafast/zerolatency 600kbps，AAC 64kbps，`-re` 实时；**GOP 固定 50 帧（2s）**，`-sc_threshold 0`；每个连接起一个 ffmpeg（多客户端），`/live.flv`（FLV 直播）、`/hang`（接受连接不回数据）、`/stall.mp4`（点播素材 40s、300kbps、GOP 50，前 10% 后挂住直到页面放行）、`/vod.mp4`（同素材正常点播）；坏地址：拒连端口 `127.0.0.1:9`、404 |
+| 参数 | `recovery`：`startTimeout=4s`（V8 为 15s）、`stallTimeout=4s`、默认策略（重试 1 次、间隔 1s）；每场景 3 次（V4 为 20 次） |
+| 构建环境坑（非 mova 问题） | CMake 4.x 与插件 googletest 不兼容需 `CMAKE_POLICY_VERSION_MINIMUM=3.5`；`just_audio_windows` 用了被新 MSVC 废弃的 `<experimental/coroutine>`，需 `CL=-D_SILENCE_EXPERIMENTAL_COROUTINE_DEPRECATION_WARNINGS`；第一次 CMake 配置失败后缓存会把 install prefix 留在默认值，需删 `build/windows` 重来 |
+
+**逐项分类**（①Windows 可测且已测 ②只有 Android 能测 ③需要真实业务流或其他条件）
+
+| 编号 | 分类 | 说明 |
+|---|---|---|
+| V1 | ① | 已测 |
+| V2 | ① | 已测 |
+| V3 | ①+③ | 事件部分已测；"抓帧看封面/黑帧/残帧"属 ③（需要逐帧抓取与图像比对，本轮未做） |
+| V4 | ① | 已测 |
+| V5 | ①+③ | 本机"接受连接不发数据"已测；"实际离线桌台地址"属 ③（需要真实业务地址） |
+| V6 | ① | 已测（本机卡顿服务代替限速服务） |
+| V7 | ① | 已测 |
+| V8 | ① | 已测 |
+| V9 | ② | HOME 键进后台再回前台，只有 Android |
+| V10 | ①+③ | `TickerMode` 与"盖一层路由"已测（后者崩溃，见下）；`StatefulShellRoute.indexedStack` 与 `routeObservers` 属 ③（需要 go_router 的真实 demo / bingo） |
+| V11 | ② | Android PiP（Windows `pipSupported=false`） |
+| V12 | ①（部分） | 事件序列与无 recovery/standby 事件已测；"弱客户端创建数为 0"本页没有计数后端，未测 |
+
+**原始数据与判定**（毫秒；括号内为每次的值，`avg` 为平均）
+
+| 编号 | 结果 | 判定 |
+|---|---|---|
+| V1 | `precise=true`：`signal` 3/3 为 `restart`，`sinceOpen` = (3016, 2264, 2249)，avg 2509.7（首次含冷启动）；QoE `ttffMs` 与之差 = (0, 0, 0) ms。`precise=false`：`signal` 3/3 为 `buffering`，`sinceOpen` = (1743, 1742, 1790)，avg 1758.3 | **通过**（差 < 50ms；`false` 为 `buffering`）。量级与预期不同：`false` 比 `restart` 早约 **0.46–0.52s**（去掉冷启动那次），不是 CLAUDE.md 里的 ~0.2s——该源的 `buffering` 下降沿比 RESTART 更早 |
+| V2 | `autoPlay:false`：`signal` 3/3 为 `restart`，`sinceOpen` = (2286, 2271, 2286)，avg 2281.0 | **事实**：暂停态打开**会**收到 RESTART → Task 6 的 feed opt-in 在 Windows 上可放心推荐；Android 仍需确认 |
+| V3 | 换源后 `state.rendered=false` 距换源调用 = (17, 6, 16) ms，avg 13.0；新源 `MovaFirstFrame.sinceOpen` = (2116, 2103, 2090)，avg 2103.0，`signal=restart`；每次恰 1 个新 `MovaFirstFrame`，之后 `rendered=true` | **通过**（事件部分）；抓帧部分未测 |
+| V4 | 20 次：seek 之后 10/20/30/40/50ms 轮换再 `open(B)`；B 的 `sinceOpen` min 2047、max 2114、avg 2078.7；**< 100ms 的次数 0** | **通过**（D1 的"在途丢弃"站得住） |
+| V5 | 挂住的源：首次 `startTimeout` 失败距建引擎 = (4039, 4038, 4041)，与 `startTimeout=4000` 差 = (39, 38, 41) ms，avg 39.3；随后 1 次 retry，第 2 次失败即放弃，放弃时刻 = (9049, 9051, 9050)，avg 9050.0；`MovaErrorEvent(MovaGiveUpError)` 恰 1 次，`state.error` 已置；服务器日志：放弃之后**没有再建新连接**，旧连接约 1.1s 后关闭 | **通过**（< 300ms；重试次数符合策略；恰一次放弃；之后无流量） |
+| V6 | 卡顿判定：`buffering=true` → `PlayFailure(stallTimeout)` = (4002, 4000, 4002) ms（偏差 +2/0/+2ms）；失败前位置 2840ms；重试后进度样本 `+201ms:160 +1009ms:960 +1815ms:1800 +2622ms:2600`（每 ~0.8s 一采样，线性增长，**没有跳到 2840ms**）；`MovaRecovered` 1 次 | 卡顿判定**通过**；**续播位置不通过**（判据 < 500ms，实际重试后从头播放，见"发现 1"） |
+| V7 | 主坏备好：`MovaFailover(0→1)` 3/3，距建引擎 = (9052, 9046, 9050) ms，`sourceIndex=1`，`MovaFirstFrame` 在 (11889, 11818, 11807) ms；主备皆坏：`MovaGiveUpError.last.sourceIndex=1` 3/3，放弃时刻 = (10083, 10076, 10074) ms（`last.kind=startTimeout`） | **通过** |
+| V8 | 拒连端口：`MovaPlayFailure(nativeEndError)` = (5069, 5070, 5064) ms，avg 5067.7；404：(37, 41, 38) ms，avg 38.7；`open()` 均未抛出（`onOpenError` 0 次） | **通过**（`startTimeout=15s` 之前到达）。注意拒连要 ~5.07s 才冒出 END_FILE(error)，`startTimeout` 设得比这短就会被超时先判掉（V7 主备皆坏那条即是 `startTimeout`） |
+| V10 | `TickerMode` 关/开（`V10B`，3 次）：`MovaPause` 距动作 = (11, 12, 5) ms、avg 9.3，`MovaPlay` = (10, 11, 11) ms、avg 10.7，隐藏 < `liveResumeGrace` 故无 `LiveEdgeReach`。盖一层路由（`V10A`）：push 后 8ms 即收到 `MovaPause`；`guard` 关（`V10C`）push 后 5s 内无 `MovaPause`（符合预期）。**弹出（pop）覆盖路由时进程崩溃** | `TickerMode` **通过**；路由盖住 **不通过：原生崩溃**（见"发现 2"） |
+| V12 | 3 次事件序列完全一致：`MovaFitChange, MovaPause, MovaDurationChange, MovaBufferChange, MovaSizeChange, MovaPlay, MovaSourceChange, MovaReady, … MovaFirstFrame … MovaSeek, MovaSeeked, MovaPlay, MovaPause …`；无 `MovaPlayFailure/MovaRecovered/MovaFailover/MovaStandby*`，`state.standby=off` | **通过**（只多了 `MovaFirstFrame`）。附带事实：默认参数下对拒连地址 `open()` **不抛异常、3s 内也没有 `MovaErrorEvent`**（`badOpenThrew=false errorEvents=0`） |
+
+**发现（实测发现的 bug / 与预期不同，均未改库代码，由主会话决定）**
+
+1. **V6 VOD 卡顿恢复后从头播放，没有续播到失败前位置**（疑似 bug）。
+   复现：`example` 里 `ONLY=V6` 跑 `main_host_ergonomics_verify.dart`（源：`/stall.mp4`，`recovery` 开，`stallTimeout=4s`）。证据：失败时 `state.type=vod rendered=true duration=40023ms`、失败前
+   `MovaProg.position=2840ms`；`_recover` 之后进度从 0 线性增长（见上表样本），5s 内无跳变；服务器侧重试连接是 `Range` 起点 0 的整文件请求。
+   线索（未验证）：`_recover` 里 `_seekOrPark(resumeAt)` 在 `await _loadKernel()` 之后调用，若此时 `state.duration` 已 > 0 就走直发 `_kernel.seek()`，而 CLAUDE.md 记过"裸 seek 在文件未就绪时被 mpv 静默丢弃"。
+2. **V10 `盖一层路由` 在弹出路由时原生崩溃（Windows，100% 复现 6/6）**。
+   复现：`ONLY=V10A`（或 `V10C`，守卫关也崩）；`MovaView` 在根 navigator，push 一个不透明 `MaterialPageRoute` 后 pop。push 阶段正常（守卫开时 8ms 内 `MovaPause`），**pop 时进程以 `0xC0000005` 退出**；
+   Skia 与默认后端各试过，均崩；`TickerMode` 路径（`V10B`）不崩，说明触发点是"路由弹出让播放器重新露出"。
+   证据：Windows 事件日志 Id 1000，故障模块 `flutter_windows.dll`，偏移 `0x2c4427`（6 次一致）；WER 转储在 `C:\workspace\dart-labs\mova\_crash_dumps\`（已配置，每个 ~800MB），
+   `cdb` 取栈：崩溃在引擎线程的**图层树递归遍历**中对空指针解引用（`mov rax,[rcx]`，`rcx=0`），帧数很深；只有导出符号，无法定位函数名。形态上像 `TextureLayer` 引用了已被注销的外部纹理，**仅为推测**。
+   这与 CLAUDE.md "Windows 真机播放中途 libmpv 原生崩溃"那条（故障模块是 `libmpv-2.dll`）**不是同一处**（本次故障模块是 `flutter_windows.dll`，且无需任何鼠标交互）。
+3. 其余为"与预期不同"的事实，已写进上表：V1 `false` 比 `restart` 早 ~0.5s；V8 拒连 ~5.07s 才判错；V12 默认参数下拒连地址既不抛也不发错误事件。
+
+**日志摘录**（`[MOVA-HE]`，release，完整日志为本机 scratchpad 里的 `he_final.log`，不入库）
+
+```
+V5 PlayFailure kind=startTimeout attempt=1 action=retry at=4039ms waited=4000ms
+V5 PlayFailure kind=startTimeout attempt=2 action=giveUp at=9049ms waited=4000ms
+V6 stateAtFailure type=vod rendered=true duration=40023ms buffering=true
+V6 kind=stallTimeout bufferingTrueToFailure=4002ms (stallTimeout=4000ms, offset=2ms) posBefore=2840ms ... samplesAfterRetryFirstFrame=[+201ms:160 +1009ms:960 +1815ms:1800 +2622ms:2600]
+V8 refused kind=nativeEndError at=5069ms waited=0ms openErrors=0
+V8 404 kind=nativeEndError at=37ms waited=0ms openErrors=0
+V10A action: push covering route
+V10A route covered; pause=true
+V10A action: pop covering route            <- 此后无日志，进程以 0xC0000005 退出
+```
+
+**附：V9 的 Windows 类比（不是 Android 的 HOME 键，不算 V9 完成）。** 加了 opt-in 场景 `ONLY=V9`（页面打印 `V9 WAIT_HOME` / `V9 WAIT_FOREGROUND` 标记，由外部驱动动手；
+Android 用 adb，Windows 用 `example/tool/verify_sources/bg_driver.ps1` 最小化/还原窗口）。Windows 上跑通两次：最小化 → `LIFECYCLE hidden`（直接 `hidden`，不是 Android 记的 `inactive→hidden`），
+守卫 `MovaPause` 距标记 313ms / 320ms；还原 → `inactive`→`resumed`，随后 `MovaPlay` + `MovaLiveEdgeReach`，位置在 3s 内推进 3040ms，**无需手动点播放**。
+这只证明脚本与守卫的 `hidden` 路径可用，Android 的 `inactive→hidden` 序列与 libmpv 自暂停时序仍须真机确认。`V11` 在 Windows 上 `pipSupported=false`，场景记为 n/a。
+
+**未完成（需 Android 真机，本节不得视为完成）：** V9（HOME 进后台续播）、V11（PiP 不受守卫影响）、V1–V8 在 Android 上的复测（V2 尤其：Android 暂停态打开是否发 RESTART；V8：Android 上 `END_FILE(error)` 的真实时机）、
+V10 的 `routeObservers` 与 `StatefulShellRoute` 路径。交接清单见 [2026-10-24-android-real-device-handoff.md](2026-10-24-android-real-device-handoff.md)。
 
 ---
 

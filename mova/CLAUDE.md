@@ -35,7 +35,7 @@
 > **测试基线：1302 项全绿**（2026-10-24 本机实跑 `flutter test` 的真实结果；Q13 预热静音修复新增 +16；其中宿主易用性计划 Task 1–15 贡献 +150
 > （Task 1–8 +70、Task 9–15 +80），其评审修复新增 +19，见下文「宿主易用性增强」；低功耗待机计划 Task 1–9 贡献 +109，见「低功耗待机」）；
 > `flutter analyze lib test` 0 issues（`example/` 下 demo 有若干 `avoid_print` info，
-> 均为验证脚本）。
+> 均为验证脚本）。`example/test/auto_kit_test.dart`（验证页脚本化工具的纯逻辑，12 项）在 `example/` 下单独 `flutter test`，不计入上述基线。
 
 以下按功能分组呈现已完成能力（原按 0.2.0–0.6.0 版本号分阶段记录，现已合并，
 版本号统一记为 0.2.0；具体日期/commit/测试数字均为客观事实，原样保留）。
@@ -74,7 +74,7 @@ example 已加直播/时移两个 demo（仅桌面冒烟，未做交互验证）
 **仍未测**：手势手感（左亮度/右音量的实际触感，主观）、直播/时移 UI 交互、iOS 整体
 （历次只有 Android 设备）。
 
-### 宿主易用性增强（Task 1–15 已落地，Task 16 待定：等真机）
+### 宿主易用性增强（Task 1–15 已落地，Task 16：Windows 部分已测，Android 待真机）
 
 计划见 [doc/plans/2026-10-23-host-ergonomics.md](doc/plans/2026-10-23-host-ergonomics.md)（文末有实测数字与偏差清单）。已完成：
 - **首帧与封面**：首帧信号（`MovaState.rendered`/`MovaFirstFrame`/`MovaFirstFrameGate`，`open()` 同步归零宽高）、原生事件订阅与 QoE 解耦
@@ -93,13 +93,15 @@ example 已加直播/时移两个 demo（仅桌面冒烟，未做交互验证）
   保留配置更新前的隐藏周期，直播恢复/视图加载/档位请求均校验异步过期。逐条修法与 19 条回归见计划「评审修复（2026-10-23）」。
 - **测试替身**：`package:mova/testing.dart`（`MovaTestKernel`/`MovaTesting`，不在主 barrel；注入点 `src/testing/hooks.dart` 由
   `createMovaEngine()` 咨询，安装后平台端口全部空实现）。
-- 文档与验证页：README 五节、CHANGELOG、`doc/SPEC.md`「宿主易用性」、`example/lib/main_host_ergonomics_verify.dart`（仅 `flutter analyze`，未上机）。
-- **未做**：Task 16 真机验证（真机暂不可用）。以上全部只经 `flutter analyze`/`flutter test`/`flutter pub publish --dry-run`（0 warnings）验证，
-  **无真机数据**。需真机确认的点：暂停态打开时 mpv 是否发 `PLAYBACK_RESTART`（影响 1.5s 宽限）、`END_FILE(error)` 对坏地址的真实时机、
+- 文档与验证页：README 五节、CHANGELOG、`doc/SPEC.md`「宿主易用性」、`example/lib/main_host_ergonomics_verify.dart`（加 `--dart-define=AUTORUN=true` 为脚本化模式，实现在 `example/lib/verify_auto/he_auto.dart`；2026-10-24 已在 Windows release 上跑过）。
+- **Task 16 状态（2026-10-24）**：**Windows 桌面可测的部分已跑完**（release，3 次/场景，数字见计划 Task 16 下「Windows 桌面实测（2026-10-24）」）；**Android 项仍未测**（V9 前后台续播、V11 PiP、各项的 Android 复测），交接清单见
+  [doc/plans/2026-10-24-android-real-device-handoff.md](doc/plans/2026-10-24-android-real-device-handoff.md)。**Windows 实测暴露两个待决问题（未改库代码）**：① VOD 卡顿重试后**从头播放**，没有续播到失败前位置（V6，疑似 `_recover` 里 seek 过早）；
+  ② 盖一层不透明路由再弹出时 Windows 进程**原生崩溃**（V10，`flutter_windows.dll` `0xC0000005`，6/6 复现，与守卫无关，`TickerMode` 路径不崩）。
+  以下为原"需真机确认"清单，**带 ✔ 的是 Windows 已确认**（Android 仍须复测）：暂停态打开时 mpv 是否发 `PLAYBACK_RESTART`（影响 1.5s 宽限）✔Windows：发，3/3 `restart`、`END_FILE(error)` 对坏地址的真实时机 ✔Windows：404 约 40ms、拒连约 5.07s 才冒出 `nativeEndError`（`startTimeout` 设得更短会被超时先判掉）、
   Android 切后台的 `inactive→hidden` 序列与 libmpv 自暂停时序（守卫的意图快照）、`go_router` shell 分支下根 navigator 半透明路由的 `routeObservers` 路径、
   直播隐藏 ≥3s 后 `backToLiveEdge()` 的真实恢复效果。
 
-### 低功耗待机（standby，Task 1–9 已落地，Task 10 待定：等真机）
+### 低功耗待机（standby，Task 1–9 已落地，Task 10：Windows 部分已测，Android 待真机）
 
 计划见 [doc/plans/2026-10-23-standby-mode.md](doc/plans/2026-10-23-standby-mode.md)（文首「落地偏差」有实跑进度表与逐条偏差），调研见
 [doc/notes/2026-10-23-libmpv-low-power-standby.md](doc/notes/2026-10-23-libmpv-low-power-standby.md)。直播被隐藏时不出画面不出声，但保持流连接与进度，恢复时只需恢复视频解码。已完成：
@@ -110,9 +112,15 @@ example 已加直播/时移两个 demo（仅桌面冒烟，未做交互验证）
   引擎里所有待机迁移走一条串行队列。待机计时走 `@visibleForTesting debugClock`（`DateTime.now()` 不跟随 `fakeAsync`）。
 - **交互**：待机期间看门狗/ABR/自动回边缘静默、失败延到唤醒强制重开；`pause()` 结束待机；待机请求期间换源以暂停态加载；fallback 期间的内部重载读 `_loadPlays`（不开播）；`setMini`/`enterPip` 先唤醒；
   守卫进后台把待机降级为暂停；封面在待机/恢复期间瞬间盖上。
-- 文档与验证页：README「隐藏时待机」、CHANGELOG（`Unreleased`）、`doc/SPEC.md`「低功耗待机」、`example/lib/main_standby_verify.dart`（仅 `flutter analyze`，未上机）。
-- **未做**：Task 10 真机测量（S1–S17：恢复耗时、`maxDuration`/`resumeTimeout` 校准、HLS 能否放开、`mediacodec-copy` 下 `vid` 切回能否出画、进后台实际状态、`audio-params` 就绪时机、守卫端到端）。
-  **无真机数据**，需真机确认：`file-format` 的实际取值、`vid=auto` 后是否发 `PLAYBACK_RESTART`、待机期间 Android 画面是黑还是冻帧、`mute` 时音频会话的耗电。
+- 文档与验证页：README「隐藏时待机」、CHANGELOG（`Unreleased`）、`doc/SPEC.md`「低功耗待机」、`example/lib/main_standby_verify.dart`（加 `--dart-define=AUTORUN=true` 为脚本化模式，实现在 `example/lib/verify_auto/standby_auto.dart`，源服务器与 Windows 辅助脚本在 `example/tool/verify_sources/`；2026-10-24 已在 Windows release 上跑过）。
+- **Task 10 状态（2026-10-24）**：**Windows 桌面可测的部分已跑完**（release，3 次/场景，数字见计划 Task 10 下「Windows 桌面实测（2026-10-24）」）；**Android 项仍未测**（S7 `mediacodec-copy` 下 `vid` 切回、S8 进后台、S11 音频会话/耗电、
+  S14 的 Android 一次、S4 电量与 `maxDuration` 校准、`allowHls` 默认值、`resumeTimeout` 校准、S17 的 push 路由/`StatefulShellRoute`/声音泄漏），交接清单见
+  [doc/plans/2026-10-24-android-real-device-handoff.md](doc/plans/2026-10-24-android-real-device-handoff.md)。**Windows 实测暴露三个待决问题（未改库代码）**：
+  ① B 唤醒（`vid` 切回）在 Windows+FLV 上 18/18 走 `grace`——不发 `PLAYBACK_RESTART` 也没有尺寸变化，`MovaStandbyResume.elapsed` 恒为 `resumeTimeout`（5000ms）而不是测量值，`state.standby` 在 `resuming` 停 5s；
+  真正出画面（属性轮询）0.45–3.7s、最大值 ≤ 一个 GOP；② 待机 60s 后位置在唤醒后向前跳约 2.4–3.0s（待机期间与无待机对照均无漂移）；③ 对无声流强制 B 会 EOF + recovery 重载（比"position 停止"更重，印证 D4）。
+  以下为原"需真机确认"清单，**带 ✔ 的是 Windows 已确认**（Android 仍须复测）：`file-format` 的实际取值 ✔Windows：FLV 为 `flv`、HLS 为 `hls`、`vid=auto` 后是否发 `PLAYBACK_RESTART` ✔Windows+FLV：不发（18/18 `grace`；重开路径 S13 则是 `size` 落地）、
+  待机期间画面是黑还是冻帧 ✔Windows：冻结最后一帧（Android 仍待测）、`audio-params` 就绪时机 ✔Windows：本源上首帧后约 2.1s，之前请求待机一律 `fallback(mediaUnknown)`、守卫端到端 ✔Windows（部分）：`TickerMode` 切走/切回与隐藏期间换源通过，push 路由被 HE V10 的崩溃阻断；
+  B 相对正常播放省约 81% CPU 但网络不省（直播 FLV 暂停也满速拉流）；`mute` 时音频会话的耗电仍待 Android。
 - **旁支发现：已修复（代码层），待真机确认**：已确认 `MovaSwapEngine.muteWhileWarm` 原先经 `setVolume` 误写 Android 系统媒体音量（计划 Q13）。现通过 `MovaPlayerMute` 能力只操作 mpv `mute`，提交仅撤销预热静音；不支持的内核不静音，绝不回退写音量端口。预热与 standby 共用属性队列、分别持有静音，任意退出顺序均保留另一方并最终还原原值；恢复失败放弃切换并发出错误事件。新增 16 项回归，本机 `flutter test` 实跑 1302 全绿、`flutter analyze lib test` 0 issues；未做真机音频验证。
 
 ### UI 插件化

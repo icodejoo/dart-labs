@@ -1678,6 +1678,7 @@ String? fileFormat = 'flv';
 
 > **状态：待定。** STG AL00 当前不可用。本 Task 与 Task 1–9 完全解耦：不阻塞合入，也不是任何 Task 验收的前置条件。
 > 真机回来后单独一轮执行，结果回写本节、D13 默认值表与 `feedback_real_device_verification`。
+> **2026-10-24 更新：** Windows 桌面可测的部分已跑完（见下「Windows 桌面实测（2026-10-24）」，含三个待决发现，其中 B 唤醒恒走 `grace` 影响 `resumeTimeout` 校准）；**Android 项（S7、S8、S11、S14 的 Android 一次、电量与 `maxDuration` 校准、`allowHls` 默认值等）仍待真机**，交接清单见 [2026-10-24-android-real-device-handoff.md](2026-10-24-android-real-device-handoff.md)。
 
 **前置检查：** 手机亮屏且已解锁（`adb shell dumpsys window | grep isKeyguardShowing` 为 false），锁屏/熄屏时一切涉及渲染面的结果作废；
 release 与 debug 各跑一遍（debug 下原生事件走 100ms 轮询，RESTART 精度不同）。一律用 `example/lib/main_standby_verify.dart`，不混用其他 spike。
@@ -1711,6 +1712,105 @@ release 与 debug 各跑一遍（debug 下原生事件走 100ms 轮询，RESTART
 | S15 | 新 | 切回 `vid=auto` 是否发 RESTART（D7） | 开 `preciseFirstFrame`，统计 S1 里 `signal` 分布 | 记事实；若 RESTART 稳定先到，可把它作为首选信号写进文档 |
 | S16 | 新 | `audio-params` 就绪时机（D4） | open 后 0.5/1/2/3s 调 `setStandby(true)` | 记录 `fallback(mediaUnknown)` 的比例与 `audio-params` 就绪的典型耗时；文档给出"打开后多久才能待机"的经验值 |
 | S17 | 新 | 守卫端到端 | demo 内 `StatefulShellRoute.indexedStack` 两分支切换、push 半透明路由（带 `routeObservers`）、隐藏期间换源 | 切走即 `(holding, requested)`、切回即 `MovaStandbyResume`；隐藏期间换源后再次进入待机（Q9），全程无声音泄漏（人耳 + `dumpsys audio`） |
+
+### Windows 桌面实测（2026-10-24）
+
+> 范围：只做"和平台无关"的验证点，Android 项一律**未完成**。验证页 `example/lib/main_standby_verify.dart` 的脚本化模式
+> （`--dart-define=AUTORUN=true`，实现在 `example/lib/verify_auto/standby_auto.dart`）。耗时来自真实事件
+> （`MovaStandbyResume.elapsed`、`MovaFirstFrame.sinceOpen`、同一单调时钟上的事件到达、内核属性读取）；CPU 与流量页面内测不了，
+> 页面打 `PHASE <名> begin/end` 行，外部 `sample_cpu.ps1` 每秒记进程累计 CPU 秒，`phase_report.py` 对齐窗口并读源服务器按连接的字节日志。
+
+**环境**：与 [HE 计划 Task 16 的 Windows 实测](2026-10-23-host-ergonomics.md) 相同（Windows 10 Pro 10.0.19045，Intel i5-13500 14 核/20 线程，Intel UHD 770，Flutter 3.47.0，
+**release**，Skia 后端，瘦身版 `libmpv-2.dll`，硬解 `d3d11va-copy`）。源：本机 ffmpeg 8.0.1，640x360@25fps 的 `testsrc2`（有声版加 `sine`+AAC 64k），libx264 ultrafast/zerolatency 600kbps，`-re`；
+**FLV 的 GOP 由 URL 参数决定：25/50/100 帧（= 1s/2s/4s）**，每个连接一个 ffmpeg；**HLS 固定 GOP 50（2s）**、`-hls_time 2 -hls_list_size 6 -hls_flags delete_segments`，用 `python -m http.server` 提供。
+`MovaStandbyConfig`：`maxDuration=300s`（避免待机被 30s 默认值打断）、`resumeTimeout=5s`（默认）、`allowHls` 按场景；`recovery` 开。每场景 3 次。
+
+**逐项分类**（①Windows 可测且已测 ②只有 Android 能测 ③需要真实业务流或其他条件）
+
+| 编号 | 分类 | 说明 |
+|---|---|---|
+| S1 | ① | 已测（FLV，GOP 1/2/4s × 待机 10/30s，各 3 次共 18 次）；`elapsed` 因 `grace` 不可用，另用内核属性补测"真正出画面"，见下 |
+| S2 | ① | 已测（HLS，`allowHls` 开/关各 3 次，`file-format`）；"代理日志看回读"只有服务器日志（按秒），属弱证据 |
+| S3 | ① | 已测 |
+| S4 | ①（部分） | CPU 与流量已测（Windows 进程 CPU 秒、源服务器字节）；"电量"（`batterystats`）属 ②。模式对应：`normal` 正常播放、`B`、`C`、`D`=普通 `pause()`（流继续读） |
+| S5 | ① | 已测 |
+| S6 | ① | 已测 |
+| S7 | ② | `mediacodec-copy` 下 `vid` 切回，Android 专属。Windows 上 S1 的 18 次 `vid` 切回均真实出画面（见下），只能当旁证 |
+| S8 | ② | Android 进后台（HOME 5s/60s/5min） |
+| S9 | 不适用 | 计划不实现（§5） |
+| S10 | 不适用 | 计划不实现（§5） |
+| S11 | ② | `dumpsys audio` / `batterystats` 音频项，Android 专属 |
+| S12 | ③ | 计划不实现，仅"可选：Windows 记 GPU 占用"，本轮未做 |
+| S13 | ①（部分） | `backToLiveEdge` 重开路径已测；`switchQuality` 属 ③（需要多码率 HLS 真实源，本机只有单码率） |
+| S14 | ①（Windows 一次）+ ② | Windows 已测（截图）；Android 那一次属 ② |
+| S15 | ① | 来自 S1 的 `signal` 分布 |
+| S16 | ① | 已测（0.5/1/2/3s 各 3 次） |
+| S17 | ①（部分）+ ② + ③ | `TickerMode` 切走/切回与"隐藏期间换源"已测；push 半透明路由那一支被 HE 计划 V10 的 Windows 崩溃阻断（弹出路由即崩，未测）；`StatefulShellRoute.indexedStack` 属 ③（需要 go_router demo / bingo）；"全程无声音泄漏（人耳 + `dumpsys audio`）"属 ② |
+
+**原始数据与判定**（毫秒；括号内为每次的值，`avg` 为平均）
+
+**S1/S15（B 的唤醒）——最重要的发现**：18/18 次 `MovaStandbyResume.signal == grace`，`elapsed` = (5000–5003)，即**等满 `resumeTimeout` 才落地，`elapsed` 是超时值不是测量值**；
+`vid` 切回后既没有 `PLAYBACK_RESTART` 也没有尺寸变化（FLV 直播不可 seek，mpv 切视频轨不触发重定位；`width/height` 在 `vid=no` 期间不归零）。
+为了仍能量化"真正出画面"，页面在唤醒调用之后每 30ms 读一次 mpv 的 `video-out-params/w`（待机期间该属性为空，已每次自检；只要读到 > 0 就是解码器吐出了新帧），
+**这是属性轮询值（30ms 粒度），不是引擎的落地信号**：
+
+| GOP | 待机 | `MovaStandbyResume.elapsed`（signal） | 属性轮询的"解码出新帧"耗时 |
+|---|---|---|---|
+| 1s（25 帧） | 10s | (5000, 5003, 5001)，avg 5001.3（grace ×3） | (608, 576, 553)，avg 579.0 |
+| 1s | 30s | (5001, 5002, 5001)，avg 5001.3（grace ×3） | (449, 449, 462)，avg 453.3 |
+| 2s（50 帧） | 10s | (5001, 5000, 5001)，avg 5000.7（grace ×3） | (571, 575, 608)，avg 584.7 |
+| 2s | 30s | (5000, 5000, 5000)，avg 5000.0（grace ×3） | (1462, 1488, 1488)，avg 1479.3 |
+| 4s（100 帧） | 10s | (5002, 5001, 5001)，avg 5001.3（grace ×3） | (542, 608, 794)，avg 648.0 |
+| 4s | 30s | (5001, 5003, 5001)，avg 5001.7（grace ×3） | (3415, 3478, 3659)，avg 3517.3 |
+
+判定：**与预期不同**。预期"`signal` 以 `size` 为主、中位数随 GOP 变化"——实际 `signal` 在 Windows+FLV 上恒为 `grace`；属性轮询的耗时随"唤醒时刻落在 GOP 的哪个位置"变化（同一 GOP 下 10s/30s 的相位不同），
+每个 GOP 下的最大值都不超过一个 GOP（1s GOP 最大 608ms、2s GOP 最大 1488ms、4s GOP 最大 3659ms），与"恢复要等下一个关键帧"一致。
+**`resumeTimeout` 校准**：Windows 上无法按计划（"4s GOP 的 max + 1s"）校准，因为落地信号根本不来；若信号可靠，按属性轮询值 3.66s + 1s ≈ 4.7s，默认 5s 刚好够，**但这只是 Windows+FLV 的旁证，要看 Android**。
+**S15**：`vid` 切回后**不发 RESTART**（18/18），也没有 `size`；这正是上面 `grace` 的原因。S13 的重开路径里则是 `size` 落地（见下）。
+`vid`/`mute` 还原正确：唤醒后 `vid=1`（原值）、`mute=no` 18/18。
+这直接影响：`MovaStandbyResume.elapsed` 在这条路径上不可信；唤醒后 `state.standby` 会停在 `resuming` 5s（S17 里 5s 后仍是 `resuming`/刚变 `off`）；守卫"恢复耗时"类 UI 不能依赖它。**未改库代码，属于待决问题。**
+
+| 编号 | 结果 | 判定 |
+|---|---|---|
+| S2 | `file-format`：`inspectStandby().format` 与 `MovaStatsProbe.fileFormat` 均为 `hls`（3/3），音频 `present`，`hwdec=d3d11va-copy`。`allowHls=false`：3/3 `fallback(reason=hls)`，暂停后唤醒 `signal=restart`，`elapsed` = (436, 470, 513) ms，avg 473.0。`allowHls=true`：3/3 `holding(mode=muted)`，唤醒同样 `grace`（5001/5001/5000），属性轮询出帧 = (983, 898, 913) ms，avg 931.3。服务器日志（按秒分辨率）：待机窗口内分片请求连续推进，未见回读到窗口之外的旧分片；暂停对照组的请求节奏与之相同。 | 判定部分：HLS **可以**待机、`file-format` 取值 `hls`（在 `movaSegmentedFormats` 内）；"无回读"只有弱证据；恢复仍是 `grace`，**不足以支持把 `allowHls` 默认改 true，要看 Android** |
+| S3 | `audio=absent`；`mode=decodeOnly` 3/3；`MovaStandbyResume`：`signal=null`，`elapsed` = (0, 0, 0) ms；待机 30s 窗口进程 CPU = (11.5%, 12.7%, 12.2%)，avg 12.1%（占 1 个逻辑核；同机"有声正常播放"S4 为 12.7–13.8%） | **通过**（`signal==null`、`elapsed<50ms`；CPU 与正常播放同量级，印证"不省电"） |
+| S4 | 30s 窗口，进程 CPU% / 累计 CPU 秒 / 源端流量：**正常播放** (12.7, 13.0, 13.8)%，avg 13.2%，(3.88, 3.98, 4.23)s，≈82.4KB/s；**B** (2.1, 2.6, 2.8)%，avg 2.5%，(0.62, 0.78, 0.83)s，≈82.5KB/s；**C**（无声流 keepDecoding）(10.7, 11.7, 9.7)%，avg 10.7%，(3.17, 3.56, 2.97)s，≈73.2KB/s（该源无音轨，码率低）；**D=`pause()`** (0.9, 1.4, 1.1)%，avg 1.1%，(0.27, 0.41, 0.33)s，≈82.4KB/s | B 相对正常播放省约 **81%** CPU（13.2% → 2.5%）；C 几乎不省（−19%，受源不同影响）；**网络都不省**——B、C 满速，且**直播 FLV 暂停（D）也在满速拉流**（≈82KB/s，缓冲上限未触及）。电量与 `maxDuration` 校准属 ②（需 `batterystats`） |
+| S5 | 待机 60s（页面启动后第 N 次）：位置前进量 − 经过时间 = (2384, 2406, 2376, 2873, 2420, 2423, 2960) ms，avg 2548.9；**无待机对照（S5C）** = (−31, −24, −18) ms；位置轨迹（每 ~5s 一点，单位 ms）`+0s:0 … +55s:−4, +60s:−161, +65s:+2932`——待机期间一直贴着 0，**漂移出现在唤醒之后的那几秒** | **与预期不同**：判据 `\|Δposition − Δ待机时长\| < 1s` 实测约 **2.4–3.0s**，方向是**位置跳到了更前面**（不是落后）；对照组 ≈ 0，说明不是测量方法问题。成因未查（待机期间时钟正常，唤醒后位置向前跳约 3s）。**是否影响"贴边缘"需结合 Android** |
+| S6 | `inspectStandby().audio=absent` 3/3，`format=flv`；对无声流**强制** B（直接调内核 `enterStandby(muted)`，绕过引擎决策）：`position` 在 6000ms 处停住，`eof-reached=yes`、`core-idle=yes`，随后事件 `MovaDone → MovaPlayFailure(liveEnded) → 重载`，位置归 0 | 判定为 `absent` **通过**；强制 B 的结果与预期不同且更重：不是"position 停止推进"，而是 **mpv 直接 EOF、触发 recovery 重载**，印证 D4 必要性（无声流绝不能走 B） |
+| S13 | 3/3：B 中 `backToLiveEdge()`：重载前后 `vid/mute` 均为 `no/yes`、`state.standby` 仍为 `holding`；随后唤醒 `elapsed` = (1954, 1962, 1986) ms，avg 1967.3，`signal=size`（这条路径下 `size` 会落地，对比 S1 的 `grace`） | **通过**（`vid`/`mute`/阶段跨重载保留）；`switchQuality` 未测（③） |
+| S14 | 对有声直播用内核直接 `vid=no`（不经引擎，没有封面盖住），外部脚本 `CopyFromScreen` 截窗口：待机中间隔 2.5s 的两张截图**像素一致**，画面烧入的时间码都停在 `00:00:05.440`（帧 136），恢复后为 `00:00:16.000`（帧 400）；**不是黑屏**，是**冻结的最后一帧** | **Windows 结论：冻结最后一帧**（"记录黑 / 最后一帧"项）；因此引擎的"待机期间封面瞬间盖上"在 Windows 上确有意义（否则会露出冻结帧）；Android 那一次仍待测 |
+| S16 | 打开后 0.5s / 1.0s / 2.0s / 3.0s 请求待机，各 3 次：0.5s、1.0s 均 `fallback(reason=mediaUnknown)`（`audio=unknown`）3/3；2.0s（实际请求时刻 ≈2.3s）、3.0s 均 `holding(requested, muted)` 3/3（`audio=present`）。属性轮询 `audio` 变 `present` 距 open = (2125, 2068, 2088) ms，avg 2093.7（100ms 粒度；含本源 ~2s 的首帧耗时） | **事实**：本源上"打开后约 2.1s 才能待机"，之前一律 `fallback(mediaUnknown)`，与首帧同步到来；经验值：**首帧之后即可待机** |
+| S17 | 3/3：①隐藏（`TickerMode` 关）→ `(holding, requested, muted)`；②再显示 → `grace` 5000ms 后 `state.standby=off`（同 S1 的 `grace` 问题）；③再隐藏、**隐藏期间换源**：事件 `Standby(fallback,reloaded) → MovaPause → MovaFirstFrame → Standby(holding,requested) → MovaPlay`（新源以暂停态加载后又进入 `holding`，Q9 再次进入待机成立）；④显示：`Standby(resuming,woke)`；⑤再次隐藏 → `holding` | **通过**（`TickerMode` 与隐藏期间换源这两支）；push 路由 / `StatefulShellRoute` / 人耳未测 |
+
+**发现（均未改库代码，由主会话决定）**
+
+1. **B 唤醒在 Windows+FLV 上恒走 `grace`**（见上，18/18；影响 `elapsed` 可信度、`resumeTimeout` 校准、`state.standby` 在 `resuming` 停留 5s）。复现：`ONLY=S1`（或 `S16/S17` 都能看到）。
+2. **S5 唤醒后位置向前跳约 2.4–3.0s**（待机期间无漂移，对照组无漂移）。复现：`ONLY=S5,S5C`。
+3. **S6 对无声流强制 B 会 EOF + recovery 重载**（比计划预期更重）。复现：`ONLY=S6`。
+4. 与 HE 计划 V10 相同的**弹出路由崩溃**阻断了 S17 的"push 半透明路由"一支，见 [HE 计划的发现 2](2026-10-23-host-ergonomics.md)。
+5. 事实类：直播 FLV 暂停仍满速拉流；B 省 CPU ~81% 但不省网络；`vid=no` 的窗口是冻结最后一帧；HLS 可待机。
+
+**日志摘录**（`[STANDBY]`，release，完整日志为本机 scratchpad 里的 `sb_final.log`/`sb_s5trace.log`/`sb_s14b.log`，不入库）
+
+```
+S1 gop=25f(1.0s) hold=10s phase=holding mode=muted resume=5000ms signal=grace from=muted decodedProp=608ms vid=1 mute=no
+cycle sanity: video-out-params/w during hold = "" (must be empty/error/0 for decodedMs to mean anything)
+S2 allowHls=true phase=holding reason=requested mode=muted resume=5001ms signal=grace from=muted decodedProp=983ms
+S3 audio=absent phase=holding mode=decodeOnly resume=0ms signal=null from=decodeOnly vid=1 mute=no
+S5 (position-advance minus elapsed, ms) trace=[+0s:0, +5s:2, … +55s:-4, +60s:-161, +65s:2932]
+S6 forced-B trace(position/eof-reached/core-idle every 500ms)=[6000/eof=yes/idle=yes, 0/eof=/idle=yes, …] eventsDuringForcedB=[MovaBufferChange, MovaPause, MovaDone, MovaPlayFailure, …]
+S13 phase=holding vid/mute before=no/yes after backToLiveEdge=no/yes stillHolding=true wake=1954ms signal=size
+S17 hidden source change: state=holding playing=true events=[Standby(fallback,reloaded), MovaPause, MovaFirstFrame, Standby(holding,requested), MovaPlay]
+```
+
+**附：S7/S8/S8B 的 Windows 类比（不算这几项完成）。** 加了 opt-in 场景 `ONLY=S7`（`vid` 关/开 20 次）、`ONLY=S8`（守卫 standby + 进后台再回来）、`ONLY=S8B`（命令式 holding + 进后台再回来），
+后两者靠 `WAIT_HOME` / `WAIT_FOREGROUND` 标记由外部驱动（Android 用 adb，Windows 用 `bg_driver.ps1` 最小化/还原窗口）。Windows 结果：
+**S7**：`hwdec=d3d11va-copy`，20/20 次视频真的回来（`video-out-params/w` 读到新帧，0.28–1.84s），`signal` 落地（`size`/`restart`）0/20，同 S1 的 `grace`；
+**S8**（away 5s）：事件 `MovaPause → MovaLiveEdgeReach → MovaPlay`，`state.standby=off`，之后位置 3s 内推进 3040ms；**S8B**（away 5s）：回来后 `standby=holding`、`vid=no`、`mute=yes` 都保持（没人处理进后台），`time-pos` 继续走。
+Android 的 `mediacodec-copy` 与真实进后台（5s/60s/5min）仍须真机。
+
+**未完成（需 Android 真机，本节不得视为完成）：** S7、S8、S11、S14 的 Android 一次、S4 的电量与 `maxDuration` 校准、S2/S1 在 Android 上的 `allowHls`/`resumeTimeout` 校准、S17 的 push 路由 /
+`StatefulShellRoute` / 声音泄漏，以及 Q13 的真机音频确认。交接清单见 [2026-10-24-android-real-device-handoff.md](2026-10-24-android-real-device-handoff.md)。
 
 ---
 
