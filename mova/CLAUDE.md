@@ -387,8 +387,8 @@ iOS/macOS 机制上同样可行（读了 `media_kit_video` 的 `media_kit_utils.
 **因为发布到 pub.dev 才会触发 LGPL 公开分发义务，同名替换走 `dependency_overrides`
 （path/git）不经过 pub.dev，不受此约束**。
 
-**四架构 libmpv/ffmpeg 瘦身构建——已全部构建完成，avfilter 真机验证（SRT 字幕 + OSD）
-已完成，mov_text/ASS/WebVTT 与音量均衡仍待办**：
+**四架构 libmpv/ffmpeg 瘦身构建——已全部构建完成，去 avfilter 的真机验证已完成（字幕四种格式
+SRT/ASS/WebVTT/mov_text 与 OSD 均 PASS；音量均衡经代码审查排除，见下文①）**：
 自建 libmpv/ffmpeg 裁剪 demuxer/decoder，替换 `media_kit_libs_video`；构建卡 LGPL，
 避开 GPL-only 组件。**Android 四架构均已构建完成并核实为真实产出**（`libmpv/` 下
 arm64-v8a 6.05MB、armeabi-v7a 5.68MB、x86 6.19MB、x86_64 7.73MB，对应 commit
