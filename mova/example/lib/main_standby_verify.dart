@@ -7,6 +7,9 @@ import 'package:mova/mova.dart';
 import 'package:mova/src/core/kernel/mpv_kernel.dart';
 import 'package:mova/src/platform_impl/mpv_event_backend_ffi.dart';
 
+import 'verify_auto/auto_kit.dart';
+import 'verify_auto/standby_auto.dart';
+
 /// 低功耗待机（standby）的真机验证页（计划 doc/plans/2026-10-23-standby-mode.md 的 Task 10 用）。
 ///
 /// 一个页面只验这一件事：直播被隐藏时保持流连接、不出画面不出声，再显示时只恢复视频解码。
@@ -25,11 +28,17 @@ import 'package:mova/src/platform_impl/mpv_event_backend_ffi.dart';
 /// - 下方开关切换 `hiddenMode`（守卫自动处理）与 `MovaStandbyConfig` 各项，改动会让 `MovaView` 重建引擎；
 /// - 每秒一行 `position` 与 `cache-speed`（`MovaStatsProbe.sample().inputBps`），用来看待机期间网络是否持续。
 ///
-/// 本页只在 `flutter analyze` 层面验证过，没有上机；测量方法与判据见计划 Task 10。
+/// 本页的手动模式只在 `flutter analyze` 层面验证过，没有上机；测量方法与判据见计划 Task 10。
+///
+/// 脚本化模式（不传 AUTORUN 时本页行为不变）：加 `--dart-define=AUTORUN=true`，不再用上面三个源参数，改由 `BASE`（本地源
+/// 服务器，`/live.flv?gop=&audio=`）与 `HLS_URL` 派生源，按固定顺序自动跑 S16、S1–S3、S6、S13、S17、S5、S4（`ONLY=S14` 点名
+/// 才跑 S14 截图），每个场景 `RUNS`（默认 3）次，跑完打印汇总并退出（`AUTOEXIT=false` 则停住）。可选参数：`LOG_FILE`
+/// （日志同时追加写入的文件，未传则读环境变量 `MOVA_LOG`）、`ONLY=S1,S2`、`GOPS`、`HOLDS`、`S3_SECONDS`、`S4_SECONDS`、
+/// `S5_SECONDS`、`S16_DELAYS`。详见 `verify_auto/standby_auto.dart`。
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
   MovaEngine.ensureInitialized();
-  runApp(const MaterialApp(home: _StandbyPage()));
+  runApp(MaterialApp(home: kAutoRun ? const StandbyAutoPage() : const _StandbyPage()));
 }
 
 /// 有声 FLV 直播源（编译期传入）。
