@@ -41,8 +41,13 @@ class MovaBufferingComponent extends MovaComponent {
       selector: (s) => s.buffering,
       builder: (context, buffering) {
         if (!buffering) return const SizedBox.shrink();
+        final indicator = CircularProgressIndicator(
+          color: Color(theme.bufferingColor ?? theme.accentColor),
+          strokeWidth: theme.bufferingStrokeWidth,
+        );
+        final size = theme.bufferingSize;
         return Center(
-          child: CircularProgressIndicator(color: Color(theme.accentColor)),
+          child: size == null ? indicator : SizedBox.square(dimension: size, child: indicator),
         );
       },
     );

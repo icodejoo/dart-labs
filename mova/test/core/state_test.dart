@@ -33,6 +33,17 @@ void main() {
     expect(s.timeshiftBehind, isNull);
   });
 
+  test('MovaState.rendered defaults to false and participates in copyWith/==/hashCode', () {
+    const s = MovaState();
+    expect(s.rendered, isFalse);
+    final r = s.copyWith(rendered: true);
+    expect(r.rendered, isTrue);
+    expect(r.playing, s.playing);
+    expect(r, isNot(equals(s)));
+    expect(r.hashCode, isNot(s.hashCode));
+    expect(r.copyWith(rendered: false), equals(s));
+  });
+
   test('MovaProg and MovaUiState compare by value', () {
     expect(const MovaProg(), const MovaProg());
     expect(const MovaUiState(), const MovaUiState());

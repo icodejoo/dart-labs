@@ -7,6 +7,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mova/src/core/engine.dart';
 import 'package:mova/src/core/events/events.dart';
 import 'package:mova/src/core/interceptor/interceptor.dart';
+import 'package:mova/src/core/model/fit.dart';
 import 'package:mova/src/core/model/orientation.dart';
 import 'package:mova/src/core/model/quality.dart';
 import 'package:mova/src/core/model/source.dart';
@@ -40,6 +41,21 @@ void main() {
     expect(events.whereType<MovaSourceChange>(), isNotEmpty);
     expect(e.state.type, MovaStreamType.vod);
     await sub.cancel();
+  });
+
+  test('fit defaults to contain', () {
+    expect(e.state.fit, MovaFit.contain);
+  });
+
+  test('constructor fit seeds state.fit without emitting MovaFitChange', () async {
+    final seeded = MovaEngine(kernel: FakeKernel(), fit: MovaFit.cover);
+    final events = <MovaEvent>[];
+    final sub = seeded.events.listen(events.add);
+    await Future<void>.delayed(Duration.zero);
+    expect(seeded.state.fit, MovaFit.cover);
+    expect(events.whereType<MovaFitChange>(), isEmpty);
+    await sub.cancel();
+    await seeded.dispose();
   });
 
   test('kernel state is reduced into MovaState', () async {

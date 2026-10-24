@@ -56,6 +56,8 @@ Flutter 视频播放库，自研手势与控制层，支持点播与直播。
 - TLS 严格校验（`createMovaEngine(tlsVerify: true, tlsCaFile: ...)`，默认关闭，此时 Android libmpv 不校验证书）：**Android 上开启必须同时传 `tlsCaFile`（PEM 格式 CA 包，例如拼接 `/system/etc/security/cacerts/` 下的证书），否则所有 HTTPS 都会失败**（瘦身 libmpv 用 mbedtls、无系统信任库）；IP 直连不校验证书主机名，仅域名生效；iOS/macOS 未验证。
 - 仅音频模式（`audioOnly`）不提供后台常驻播放、锁屏/通知栏控制、耳机线控、音频焦点、gapless、歌单——这些需要 `just_audio` + `audio_service` 一类的专用方案。
 - **带画面内核的 `VideoController` 必须真正挂到界面上才能正常销毁**（这是 media_kit 的行为，不是 mova 引入的）：`VideoController` 创建后若一直没有挂到视频组件上，`Player.dispose()` 会一直等它，真机实测 Windows 上 3/6 次、Android 上 4/5 次 dispose 撞上 8 秒超时。默认实现（`createMovaEngine()` / `MovaEngine()`）已做成**懒创建**——第一次渲染（`MovaPlayer` 挂上树，读取 `renderHandle`）时才创建，所以"创建了 engine 却没展示就销毁"是安全的。**如果你自己创建并注入 `VideoController`（传入自己构造的 `MovaMpvKernel`/`Player`，或用 `lazyVideo: false` 的内核），要自己保证它最终挂到了 UI 上再销毁**；纯逻辑、后台预热、单测等不展示画面的场景请用 `audioOnly: true`，或保持默认懒创建、不要读取 `renderHandle`。无缝切换的影子引擎例外：预热阶段就需要解码画面，会提前创建控制器。
+- 自动暂停守卫（`MovaAutoPause`）的视口检测只沿祖先 `Scrollable` 计算，**不覆盖**任意 `ClipRect`/`Transform`/`Overlay` 造成的遮挡；外层 navigator 上的半透明路由要传 `routeObservers`（每个 navigator 一个观察者，不能共用）；懒加载列表如果在守卫来得及暂停之前就销毁了卡片，此后引擎归持有者管。
+- `MovaOpts.recovery`（起播/卡顿超时与重试）与 `MovaAdController`/`MovaSwapEngine` 同时开启时，交互不在保证范围内；它们三者的失败处理各管各的，没有统一的恢复编排。
 - 部分可选能力（广告编排、无缝引擎切换、App 内小窗、仅音频模式）代码已落地但真机验证程度不一，详见各自小节链接的 [doc/SPEC.md](doc/SPEC.md) 章节。
 
 ## Install / 安装
@@ -143,6 +145,99 @@ final engine = createMovaEngine(
   ),
 );
 ```
+
+## 声明式用法（MovaView）
+
+只想"挂一个卡片、给个地址就播"，不用自己管引擎生命周期：
+
+```dart
+MovaView(
+  source: url == null ? null : MovaSource(url, type: MovaStreamType.live),
+  fit: MovaFit.cover,
+  poster: Image.network(cover, fit: BoxFit.cover),
+  skin: const MovaMinimalSkin(),
+)
+```
+
+- 第一次拿到非空 `source` 才创建引擎；`source` 真正变了（`MovaSource.sameAs`：比较 uri、type、备选地址，**不比 title**）才重开，同源重建不会重开流。
+- `source` 变 `null`：引擎暂停，只剩封面（没封面就是黑底）。
+- `options` 变了会**销毁并重建**引擎（`MovaOpts` 是构造期配置），别频繁改。
+- 打开失败走 `onOpenError`，不传就交给 `FlutterError.reportError`，不会变成未捕获的异步异常。
+- 需要把引擎传来传去（跨路由小窗等）时，继续用命令式的 `createMovaEngine()` + `MovaPlayer`；**别把 `MovaView` 持有的引擎交给 `MovaMini`**，`MovaView` 卸载时会把它销毁。
+
+## 封面与出画面信号
+
+`MovaState.playing` 在**发起加载之前**就会变 true，不能用来判断"有没有出画面"。用 `MovaState.rendered`：当前源的首帧已上屏（无视频的源是首段音频已出声）。每次 `open()` 重置为 false；换档、回直播边缘、重试这类内部重载**不**重置，免得封面白闪一下。
+
+```dart
+api.events.listen((e) {
+  if (e is MovaFirstFrame) log('首帧 ${e.sinceOpen} 经 ${e.signal}');
+});
+```
+
+- 判据：原生 `PLAYBACK_RESTART` 最准；没订阅时退到 buffering 下降沿、连续递增位置、暂停态首个画面尺寸。原生订阅在工作却迟迟不来 RESTART，最多等 1.5s 宽限就落地。
+- **默认不开原生订阅**（每个引擎一个 mpv 弱客户端，debug 下还有 100ms 轮询）：`createMovaEngine(preciseFirstFrame: true)` 打开，首帧更准（真机上 buffering 兜底比真实 RESTART 早约 200ms，偏乐观）；`MovaView` 有 `poster` 时默认开。
+- `MovaPlayer(poster:)` / `MovaView(poster:)`：封面叠在传给皮肤的"画面层"里，缓冲转圈、错误层、控制条都画在它上面；`rendered` 且画面尺寸已知后淡出（`posterFade`），换源瞬间重新盖上；纯音频源封面常驻。`MovaFeedPlayer(posterUntilFirstFrame: true)` 同理，默认关闭。
+- 填充模式声明式：`MovaEngine(fit:)` / `createMovaEngine(fit:)` 给初值，`MovaPlayer(fit:)` / `MovaView(fit:)` 在挂载与**该参数变化**时应用一次；用户点 fit 按钮选的值不会被无关重建覆盖。
+- 想要没有手势、没有任何栏的纯画面：`MovaMinimalSkin(showBuffering:, showError:)`；转圈尺寸/线宽/颜色用 `MovaTheme.bufferingSize/bufferingStrokeWidth/bufferingColor`（默认 `null` 即旧外观）。
+
+## 超时与多地址（可选，默认关闭）
+
+默认情况下，一个连不上的地址会让缓冲转圈转很久，什么事件都没有。`MovaOpts.recovery` 打开后有了兜底：
+
+```dart
+createMovaEngine(
+  options: const MovaOpts(recovery: MovaRecoveryConfig(enabled: true)),
+);
+// 地址按你的优先级排好，mova 只保证按给定顺序尝试
+final src = MovaSource.pick([hd, sd, backup], type: MovaStreamType.live);
+```
+
+- 触发源：**起播超时**（默认 10s 没出首帧；`autoPlay: false` 的暂停态打开不计时，`play()` 后从头计）、**卡顿超时**（出首帧后连续缓冲 10s，`stallTimeout: null` 关闭；暂停即停表）、`open()` 抛异常、原生 `END_FILE(error)`（坏地址秒判，不等超时）、直播走到结尾（`liveEndIsFailure`，默认算失败）。
+- 默认策略 `MovaRetryThenFailover`：每个地址等 1s 重试 1 次，再切下一个备选，全部用完放弃；`MovaFailoverOnly` 不重试同一地址；也可以实现 `MovaRecoveryPolicy` 整体替换（策略抛异常按放弃处理）。
+- 事件：每次失败发 `MovaPlayFailure(fail, action)`（`fail.kind` 区分起播/卡顿/…，此时**不**写 `state.error`，还在重试）；失败后重新出画面发 `MovaRecovered`；切备选发 `MovaFailover(from, to, uri)`，`MovaState.sourceIndex` 同步；全部失败后写 `state.error = MovaGiveUpError`、发 `MovaErrorEvent`，并暂停内核（离线的直播源不会在后台一直重连）。错误层的"重试"走 `reload()`，从主地址开一个全新会话。
+- 重试/切换是内核重载，**不是新会话**：不过 `beforeOpen` 拦截器、不发 `MovaSourceChange`、不动 QoE 会话；`MovaSourceChange`/`MovaReady` 每次 `open()` 只发一次。点播源失败前出过画面的，重载后续播到失败位置。
+- **没开 `recovery` 时 `alternatives` 会被忽略**（失败检测是 recovery 提供的），`open()` 失败仍然照旧抛给调用方；开启后 `open()` 失败改为发 `MovaPlayFailure(openThrew)` 并重试，不再抛。
+- mova 不提供备选地址的排序/过滤钩子：排序依据（比如档位名）和协议能否播放（取决于你用的 libmpv 构建）都是宿主才知道的，排好序传进来即可。`MovaSource.pick` 只做清洗：去空白、去空串、去重、保序。
+
+## 自动暂停（可选）
+
+滚出视口、切到别的 Tab、被别的页面盖住、应用进后台时自动暂停，回来再续播：
+
+```dart
+MovaView(source: src, autoPause: const MovaAutoPauseConfig())
+// 或手动包：MovaAutoPause(api: engine, child: MovaPlayer(api: engine))
+```
+
+- 只用 Flutter SDK，不依赖可见性三方包：滚动视口（沿祖先 `Scrollable` 算可见比例，`minVisibleFraction` 可调）、`TickerMode`（`go_router` 的 `indexedStack` 给非活跃分支套了 `Offstage + TickerMode(enabled:false)`）、`ModalRoute.isCurrentOf`、`AppLifecycleListener`。
+- Dialog / BottomSheet 算"盖住"（对话框是半透明路由，盖在同一个 navigator 上时 `isCurrentOf` 为 false）。
+- **画中画 / App 内小窗（`state.pip || state.mini`）里不会暂停**。`inactive`（下拉通知栏、Android 系统画中画）不暂停，但会先记下"是否在播"——Android 切后台时 libmpv 会因渲染面被回收自己先暂停，不先记就会误判成"本来就没在播"，回前台也不续。
+- 直播恢复：暂停点可能已滑出 HLS 窗口、HTTP-FLV 连接也可能已断，所以隐藏 ≥ `liveResumeGrace`（默认 3s）后默认 `backToLiveEdge()` 再播，不足 3s 就普通 `play()`；`liveResume: MovaLiveResume.resume` 则一律普通续播。
+- **外层 navigator 上推的半透明路由**（典型：`go_router` 的 shell 分支里放卡片，根 navigator 弹对话框/透明页）`ModalRoute.isCurrentOf` 看不到，要传 `routeObservers`：**每个 navigator 一个** `RouteObserver<ModalRoute<dynamic>>`（Flutter 不允许一个 `NavigatorObserver` 挂到两个 navigator 上，会在 debug 下断言失败），把它们都传给守卫。不透明的外层路由（普通整页）转场结束后已经能经 `TickerMode` 察觉，不需要。
+- 不要给 `MovaFeedPlayer` 的页套守卫：feed 池的 `focus()` 已经在管"只有一页出声"，两套逻辑会打架。
+
+## widget 测试
+
+宿主的 widget 测试里，`createMovaEngine()` 默认会构造真实的 media_kit `Player`，报 `MediaKit.ensureInitialized must be called`。用测试入口换成可编程内核：
+
+```dart
+import 'package:mova/testing.dart';
+
+setUp(MovaTesting.useTestKernels);
+tearDown(MovaTesting.reset);
+
+testWidgets('封面在首帧后淡出', (t) async {
+  await t.pumpWidget(MaterialApp(home: MovaView(source: src, poster: cover)));
+  final k = MovaTesting.lastKernel!;
+  k.emitSize(1280, 720);
+  k.emitRestart();            // MovaState.rendered → true
+  await t.pump();
+});
+```
+
+- `MovaTestKernel` 记录调用并可推送任意内核信号（`emitPlaying/Buffering/Position/Size/Restart/EndFile/...`）；`nativeRestartAvailable` 默认 `false`，buffering/位置兜底会立即落地，不会留下挂起的宽限计时器。
+- 安装期间平台端口都是空实现、缩略图只用内存缓存，不会撞上 `path_provider`/`screen_brightness` 的平台通道；显式传入的 `kernel:`/端口仍然优先。
+- 测试入口**不在**主 barrel 里，只通过 `package:mova/testing.dart` 引入，不会出现在 app 代码的补全列表中。
 
 ## 拖动预览
 

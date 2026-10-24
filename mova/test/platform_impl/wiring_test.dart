@@ -5,6 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:path_provider_platform_interface/path_provider_platform_interface.dart';
 import 'package:plugin_platform_interface/plugin_platform_interface.dart';
 import 'package:mova/src/core/engine.dart';
+import 'package:mova/src/core/model/fit.dart';
 import 'package:mova/src/core/platform/ports.dart';
 import 'package:mova/src/core/preview/extractor.dart';
 import 'package:mova/src/core/preview/net_probe.dart';
@@ -207,6 +208,19 @@ void main() {
       expect(engine.debugPipPort, isA<MovaChannelPipPort>());
       expect(engine.debugOrientationPort, isA<MovaSystemChromeOrientationPort>());
     });
+  });
+
+  test('movaObserveFlags truth table: native follows reporter OR preciseFirstFrame, qoe follows reporter only', () {
+    expect(movaObserveFlags(hasReporter: false, preciseFirstFrame: false), (qoe: false, native: false));
+    expect(movaObserveFlags(hasReporter: false, preciseFirstFrame: true), (qoe: false, native: true));
+    expect(movaObserveFlags(hasReporter: true, preciseFirstFrame: false), (qoe: true, native: true));
+    expect(movaObserveFlags(hasReporter: true, preciseFirstFrame: true), (qoe: true, native: true));
+  });
+
+  test('createMovaEngine forwards fit to the engine', () {
+    final engine = createMovaEngine(kernel: FakeKernel(), fit: MovaFit.cover);
+    addTearDown(engine.dispose);
+    expect(engine.state.fit, MovaFit.cover);
   });
 
   test('MovaEngine() itself still defaults to the noop/fallback ports', () {

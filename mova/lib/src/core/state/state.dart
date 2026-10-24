@@ -19,6 +19,13 @@ class MovaState {
   /// 内核当前是否处于播放（非暂停）状态。
   final bool playing;
 
+  /// Latest accepted playback intent, independent of kernel observations.
+  /// Read this to guard delayed playback; `state.copyWith(playbackIntent: true)`
+  /// preserves other fields.
+  ///
+  /// 最近接受的播放意图，独立于内核观测；用于守卫延迟播放。
+  final bool playbackIntent;
+
   /// Whether the engine is buffering (stalled waiting for data).
   ///
   /// 内核是否正在缓冲（因数据不足而卡顿）。
@@ -178,6 +185,23 @@ class MovaState {
   /// fit/zoom，否则切换时永远不会重建。
   final int renderEpoch;
 
+  /// Whether the current source has started presenting media: its first video
+  /// frame is on screen, or — for a source/engine without video — its first
+  /// audio is playing. Reset to false by every `open()`; internal reloads
+  /// (quality switch, back-to-live reopen, recovery retries) leave it alone.
+  ///
+  /// 当前源是否已开始呈现媒体：视频源的首帧已上屏；无视频的源/引擎则是首段音频
+  /// 已在播放。每次 `open()` 都会重置为 false；内部重载（换档、回直播边缘重开、
+  /// 恢复重试）不动它。
+  final bool rendered;
+
+  /// Index (into `MovaSource.uris`) of the address currently playing; 0 is the
+  /// primary address. Only moves when recovery fails over to an alternative.
+  ///
+  /// 当前播放地址在 `MovaSource.uris` 中的下标；0 是主地址。只有 recovery 切到备选
+  /// 地址时才会变化。
+  final int sourceIndex;
+
   /// Creates a state snapshot; all fields default to the 0.1.0 baseline
   /// behaviour (stopped, full volume/brightness/rate/zoom, contain fit,
   /// VOD, not seekable-live).
@@ -186,6 +210,7 @@ class MovaState {
   /// 倍速/缩放、contain 填充、点播、直播不可拖动）。
   const MovaState({
     this.playing = false,
+    this.playbackIntent = false,
     this.buffering = false,
     this.completed = false,
     this.locked = false,
@@ -211,6 +236,8 @@ class MovaState {
     this.error,
     this.sourceTitle,
     this.renderEpoch = 0,
+    this.rendered = false,
+    this.sourceIndex = 0,
   });
 
   /// Returns a copy with the given fields replaced.
@@ -227,6 +254,7 @@ class MovaState {
   /// [sourceTitle]——否则可空字段传 `null` 无法与"保持原值"区分。
   MovaState copyWith({
     bool? playing,
+    bool? playbackIntent,
     bool? buffering,
     bool? completed,
     bool? locked,
@@ -252,6 +280,8 @@ class MovaState {
     Object? error,
     String? sourceTitle,
     int? renderEpoch,
+    bool? rendered,
+    int? sourceIndex,
     bool clearQuality = false,
     bool clearTimeshift = false,
     bool clearError = false,
@@ -259,6 +289,7 @@ class MovaState {
   }) {
     return MovaState(
       playing: playing ?? this.playing,
+      playbackIntent: playbackIntent ?? this.playbackIntent,
       buffering: buffering ?? this.buffering,
       completed: completed ?? this.completed,
       locked: locked ?? this.locked,
@@ -276,14 +307,20 @@ class MovaState {
       zoom: zoom ?? this.zoom,
       fit: fit ?? this.fit,
       qualities: qualities ?? this.qualities,
-      currentQuality: clearQuality ? null : (currentQuality ?? this.currentQuality),
+      currentQuality: clearQuality
+          ? null
+          : (currentQuality ?? this.currentQuality),
       type: type ?? this.type,
       liveSeekable: liveSeekable ?? this.liveSeekable,
       seekableWindow: seekableWindow ?? this.seekableWindow,
-      timeshiftBehind: clearTimeshift ? null : (timeshiftBehind ?? this.timeshiftBehind),
+      timeshiftBehind: clearTimeshift
+          ? null
+          : (timeshiftBehind ?? this.timeshiftBehind),
       error: clearError ? null : (error ?? this.error),
       sourceTitle: clearSourceTitle ? null : (sourceTitle ?? this.sourceTitle),
       renderEpoch: renderEpoch ?? this.renderEpoch,
+      rendered: rendered ?? this.rendered,
+      sourceIndex: sourceIndex ?? this.sourceIndex,
     );
   }
 
@@ -292,6 +329,7 @@ class MovaState {
     if (identical(this, other)) return true;
     return other is MovaState &&
         other.playing == playing &&
+        other.playbackIntent == playbackIntent &&
         other.buffering == buffering &&
         other.completed == completed &&
         other.locked == locked &&
@@ -316,25 +354,39 @@ class MovaState {
         other.timeshiftBehind == timeshiftBehind &&
         other.error == error &&
         other.sourceTitle == sourceTitle &&
-        other.renderEpoch == renderEpoch;
+        other.renderEpoch == renderEpoch &&
+        other.rendered == rendered &&
+        other.sourceIndex == sourceIndex;
   }
 
   @override
   int get hashCode => Object.hash(
-        Object.hash(playing, buffering, completed, locked, fullscreen, orientation, pip, pipSupported),
-        Object.hash(duration, width, height, volume, brightness, rate, zoom),
-        fit,
-        Object.hashAll(qualities),
-        currentQuality,
-        type,
-        liveSeekable,
-        seekableWindow,
-        timeshiftBehind,
-        error,
-        sourceTitle,
-        renderEpoch,
-        mini,
-      );
+    Object.hash(
+      playbackIntent,
+      playing,
+      buffering,
+      completed,
+      locked,
+      fullscreen,
+      orientation,
+      pip,
+      pipSupported,
+      rendered,
+    ),
+    Object.hash(duration, width, height, volume, brightness, rate, zoom),
+    fit,
+    Object.hashAll(qualities),
+    currentQuality,
+    type,
+    liveSeekable,
+    seekableWindow,
+    timeshiftBehind,
+    error,
+    sourceTitle,
+    renderEpoch,
+    mini,
+    sourceIndex,
+  );
 }
 
 /// Value-equality check for lists, without depending on

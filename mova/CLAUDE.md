@@ -14,11 +14,11 @@
 >    **设计意图看 DESIGN，签名与落点一律以代码和 [doc/SPEC.md](doc/SPEC.md) 末节为准。**
 > 3. **各阶段的逐 Task 实现计划都在 [doc/plans/](doc/plans/)**，按功能分文件存放，按 Task
 >    顺序执行即可。
-> 4. **pub.dev 版本对照**：已发布 `0.1.0`、`0.2.0`（`0.2.0` 只含瘦身 libmpv 说明、Feed 播放器增强、
->    文档修复，见 CHANGELOG 的 `0.2.0` 节）。下文"当前状态"记录的功能（小窗、广告编排、无缝切换、清晰度
->    自适应、仅音频模式、QoE、TLS 开关等）属于 `0.3.0`（本地 `pubspec.yaml`/`ios/mova.podspec`/README 均已对齐
->    `0.3.0`），**发布后**才进入 pub.dev。回答"能不能用某功能"前先确认对方拿到的是 pub.dev 哪个版本还是本仓库
->    path/git 依赖。注意：下文各节标题里的"0.2.0"是历史合并记法，版本号现以 pubspec 为准。
+> 4. **pub.dev 版本对照**：已发布 `0.1.0`、`0.2.0`、`0.3.0`（`0.3.0` 约 2026-10-01 发布，含小窗、广告编排、无缝切换、
+>    清晰度自适应、仅音频模式、QoE、TLS 开关等，见 CHANGELOG 的 `0.3.0` 节）。**宿主易用性增强（首帧/封面/`MovaView`/
+>    恢复与多地址/自动暂停/测试替身）及之后的 standby 属于 `Unreleased`**，发版前 pub.dev 上没有；发版时机由用户决定。
+>    回答"能不能用某功能"前先确认对方拿到的是 pub.dev 哪个版本还是本仓库 path/git 依赖。注意：下文各节标题里的"0.2.0"
+>    是历史合并记法，版本号现以 pubspec 为准。
 > 5. **mova 已回到 pub.dev 的 `media_kit: ^1.2.6`，不再依赖 git 提交**（2026-09-30）：
 >    原生 mpv 事件（`PLAYBACK_RESTART`/`END_FILE`）改由自建的 dart:ffi 弱客户端订阅
 >    （`core/kernel/mpv_event_pump.dart` + `platform_impl/mpv_event_backend_ffi.dart`），
@@ -32,7 +32,8 @@
 
 ## 当前状态（0.2.0）
 
-> **测试基线：1008 项全绿**（2026-10-01 本机实跑 `flutter test` 的真实结果）；
+> **测试基线：1177 项全绿**（2026-10-23 本机实跑 `flutter test` 的真实结果；其中宿主易用性计划 Task 1–15 贡献 +150
+> （Task 1–8 +70、Task 9–15 +80），本次评审修复新增 +19，见下文「宿主易用性增强」）；
 > `flutter analyze lib test` 0 issues（`example/` 下 demo 有若干 `avoid_print` info，
 > 均为验证脚本）。
 
@@ -72,6 +73,31 @@ example 已加直播/时移两个 demo（仅桌面冒烟，未做交互验证）
 `mIsInPictureInPictureMode=true`、`mWindowingMode=pinned`，**真机确认真实生效**。
 **仍未测**：手势手感（左亮度/右音量的实际触感，主观）、直播/时移 UI 交互、iOS 整体
 （历次只有 Android 设备）。
+
+### 宿主易用性增强（Task 1–15 已落地，Task 16 待定：等真机）
+
+计划见 [doc/plans/2026-10-23-host-ergonomics.md](doc/plans/2026-10-23-host-ergonomics.md)（文末有实测数字与偏差清单）。已完成：
+- **首帧与封面**：首帧信号（`MovaState.rendered`/`MovaFirstFrame`/`MovaFirstFrameGate`，`open()` 同步归零宽高）、原生事件订阅与 QoE 解耦
+  （`observeNativeEvents`/`createMovaEngine(preciseFirstFrame:)`，默认关）、`fit` 声明式、封面（`MovaPlayer(poster:)`、
+  `MovaFeedPlayer(posterUntilFirstFrame:)`）、`MovaMinimalSkin` + `MovaTheme` 缓冲三字段、`MovaView` + `MovaSource.sameAs`。
+- **超时与恢复**（`MovaOpts.recovery`，默认关）：`MovaRecoveryConfig`/`MovaPlayFail`/`MovaRecoveryPolicy`（默认 `MovaRetryThenFailover`）/
+  `MovaPlayWatchdog`（`core/recovery/`，不导出）；引擎侧 `_onPlayFail`/`_recover`/`_giveUp`/`_announceReady`，事件 `MovaPlayFailure`/
+  `MovaRecovered`。看门狗的起播期限从内核 `open()` 返回后才计；**关闭时 `open()` 失败仍照旧抛出、不建 Timer、不订阅 `endFiles`**
+  （`MovaAdController` 依赖它，由 `engine_recovery_test` 第 1 条与 `openness_host_test` 锚定）。重试/切换是内核重载不是新会话。
+- **多地址**：`MovaSource.alternatives/uris/pick`、`MovaState.sourceIndex`、`MovaFailover`；备选只在 recovery 开启时使用，排序留给宿主。
+- **自动暂停守卫**：`core/guard/auto_pause.dart`（纯 Dart gate）+ `ui/guard/auto_pause.dart`（`MovaAutoPause`，只用 Flutter SDK）、
+  `MovaView(autoPause:, routeObservers:)`。**`routeObservers` 是列表、每个 navigator 一个观察者**——`NavigatorObserver` 不能挂到
+  两个 navigator（debug 断言），这是对计划里单个 `routeObserver` 的必要偏差；不透明的外层路由已被 `TickerMode` 兜住。
+- **评审修复（2026-10-23）**：11 条均已修复（#9 为防御性加固）；`MovaState.playbackIntent` 独立于内核 `playing`，
+  内部重载与看门狗遵循最新意图；恢复绑定已接受会话与失败尝试，跨失败保留续播点；守卫订阅状态并重绑引擎、
+  保留配置更新前的隐藏周期，直播恢复/视图加载/档位请求均校验异步过期。逐条修法与 19 条回归见计划「评审修复（2026-10-23）」。
+- **测试替身**：`package:mova/testing.dart`（`MovaTestKernel`/`MovaTesting`，不在主 barrel；注入点 `src/testing/hooks.dart` 由
+  `createMovaEngine()` 咨询，安装后平台端口全部空实现）。
+- 文档与验证页：README 五节、CHANGELOG、`doc/SPEC.md`「宿主易用性」、`example/lib/main_host_ergonomics_verify.dart`（仅 `flutter analyze`，未上机）。
+- **未做**：Task 16 真机验证（真机暂不可用）。以上全部只经 `flutter analyze`/`flutter test`/`flutter pub publish --dry-run`（0 warnings）验证，
+  **无真机数据**。需真机确认的点：暂停态打开时 mpv 是否发 `PLAYBACK_RESTART`（影响 1.5s 宽限）、`END_FILE(error)` 对坏地址的真实时机、
+  Android 切后台的 `inactive→hidden` 序列与 libmpv 自暂停时序（守卫的意图快照）、`go_router` shell 分支下根 navigator 半透明路由的 `routeObservers` 路径、
+  直播隐藏 ≥3s 后 `backToLiveEdge()` 的真实恢复效果。
 
 ### UI 插件化
 
@@ -257,7 +283,7 @@ core 层仅加 `MovaState.mini`/`MovaApi.setMini`/`MovaMiniChange`/`MovaMiniConf
 详见 [doc/plans/2026-09-29-telemetry-enhancement.md](doc/plans/2026-09-29-telemetry-enhancement.md)、
 [doc/notes/2026-09-29-player-telemetry-best-practices.md](doc/notes/2026-09-29-player-telemetry-best-practices.md)。
 
-测试基线随本功能从 859 推进到 945，随后 FFI 订阅、Android 真机复测修复、TTFF 门控与 VideoController 懒创建推进到 985，截断结束判定（`truncatedBelow`，EOF 完播率低于阈值记 `failed`+`truncated`，Android 真机中途断流已验）再推进到 1004，TLS 严格校验开关（`tlsVerify`/`tlsCaFile`，默认关闭，Android 真机本机 HTTPS 矩阵 144 次全过）推进到 **1008**。
+测试基线随本功能从 859 推进到 945，随后 FFI 订阅、Android 真机复测修复、TTFF 门控与 VideoController 懒创建推进到 985，截断结束判定（`truncatedBelow`，EOF 完播率低于阈值记 `failed`+`truncated`，Android 真机中途断流已验）再推进到 1004，TLS 严格校验开关（`tlsVerify`/`tlsCaFile`，默认关闭，Android 真机本机 HTTPS 矩阵 144 次全过）推进到 **1008**，宿主易用性 Task 1–8 再推进到 **1078**，Task 9–15 再推进到 **1158**。
 
 **Android 真机验证（2026-09-30，STG-AL00 arm64 Android 12，release，基于真实事件）**——
 用 `example/lib/main_qoe_verify.dart`（本机 HTTP 服务经 `adb reverse` 提供，快/限速 20KB/s

@@ -71,6 +71,21 @@ class MovaTheme {
   /// 弹层（如清晰度选择器）背景的 ARGB 颜色。
   final int sheetBackgroundColor;
 
+  /// Buffering spinner diameter; `null` keeps the Material default.
+  ///
+  /// 缓冲转圈的直径；`null` 沿用 Material 默认值。
+  final double? bufferingSize;
+
+  /// Buffering spinner stroke width; `null` keeps the Material default.
+  ///
+  /// 缓冲转圈的线宽；`null` 沿用 Material 默认值。
+  final double? bufferingStrokeWidth;
+
+  /// Buffering spinner ARGB color; `null` falls back to [accentColor].
+  ///
+  /// 缓冲转圈的 ARGB 颜色；`null` 时回落到 [accentColor]。
+  final int? bufferingColor;
+
   /// Creates a theme; defaults to the product's white-on-dark, red-accent
   /// look.
   ///
@@ -88,6 +103,9 @@ class MovaTheme {
     this.centerIconSize = 64.0,
     this.progressHeight = 2.0,
     this.sheetBackgroundColor = 0xEE1A1A1A,
+    this.bufferingSize,
+    this.bufferingStrokeWidth,
+    this.bufferingColor,
   });
 
   @override
@@ -106,7 +124,10 @@ class MovaTheme {
           badgeFontSize == other.badgeFontSize &&
           centerIconSize == other.centerIconSize &&
           progressHeight == other.progressHeight &&
-          sheetBackgroundColor == other.sheetBackgroundColor;
+          sheetBackgroundColor == other.sheetBackgroundColor &&
+          bufferingSize == other.bufferingSize &&
+          bufferingStrokeWidth == other.bufferingStrokeWidth &&
+          bufferingColor == other.bufferingColor;
 
   @override
   int get hashCode => Object.hash(
@@ -122,5 +143,8 @@ class MovaTheme {
         centerIconSize,
         progressHeight,
         sheetBackgroundColor,
+        bufferingSize,
+        bufferingStrokeWidth,
+        bufferingColor,
       );
 }

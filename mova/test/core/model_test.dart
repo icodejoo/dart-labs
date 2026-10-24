@@ -218,4 +218,62 @@ void main() {
       expect(b.delay, Duration.zero);
     });
   });
+
+  /// Builds a non-const source so two calls give distinct instances.
+  ///
+  /// 构造一个非 const 的源，使两次调用得到不同实例。
+  MovaSource mk(String uri, {String? title}) => MovaSource(uri, title: title);
+
+  group('MovaSource.sameAs', () {
+    test('same uri and type with a different title is the same media', () {
+      expect(mk('https://a/x.flv', title: 'a').sameAs(mk('https://a/x.flv', title: 'b')), isTrue);
+    });
+
+    test('a different uri is different media', () {
+      expect(mk('https://a/x.flv').sameAs(mk('https://a/y.flv')), isFalse);
+    });
+
+    test('a different type is different media', () {
+      expect(
+        const MovaSource('https://a/x', type: MovaStreamType.live).sameAs(const MovaSource('https://a/x')),
+        isFalse,
+      );
+    });
+  });
+
+  group('MovaSource alternatives', () {
+    test('alternatives default to empty and uris keeps the given order', () {
+      expect(const MovaSource('https://a').alternatives, isEmpty);
+      expect(const MovaSource('https://a').uris, ['https://a']);
+      expect(const MovaSource('https://a', alternatives: ['https://b', 'https://c']).uris, ['https://a', 'https://b', 'https://c']);
+    });
+
+    test('pick trims, drops empty/null/duplicates and keeps order; the first becomes uri', () {
+      final s = MovaSource.pick(['', ' https://a ', null, 'https://b', 'https://a'], type: MovaStreamType.live, title: 't');
+      expect(s, isNotNull);
+      expect(s!.uri, 'https://a');
+      expect(s.alternatives, ['https://b']);
+      expect(s.type, MovaStreamType.live);
+      expect(s.title, 't');
+    });
+
+    test('pick returns null when nothing usable is left', () {
+      expect(MovaSource.pick(const []), isNull);
+      expect(MovaSource.pick(['', '  ', null]), isNull);
+    });
+
+    test('sameAs compares alternatives, order included', () {
+      const a = MovaSource('https://a', alternatives: ['https://b', 'https://c']);
+      expect(a.sameAs(const MovaSource('https://a', alternatives: ['https://b', 'https://c'], title: 'x')), isTrue);
+      expect(a.sameAs(const MovaSource('https://a', alternatives: ['https://c', 'https://b'])), isFalse);
+      expect(a.sameAs(const MovaSource('https://a', alternatives: ['https://b'])), isFalse);
+      expect(a.sameAs(const MovaSource('https://a')), isFalse);
+    });
+
+    test('the primary constructor stays const', () {
+      const a = MovaSource('https://a');
+      const b = MovaSource('https://a');
+      expect(identical(a, b), isTrue);
+    });
+  });
 }

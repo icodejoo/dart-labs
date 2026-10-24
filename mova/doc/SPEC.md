@@ -721,6 +721,39 @@ demo 列表第 6 项）与独立的 `DouyinFeedDemoPage`（AppBar 新图标按�
 真机**——手势双击识别、`PageView` 纵向滑动手感、弹幕滚动的真实观感，均承接
 本文档"真机验证结果"一节尚未覆盖的范围。
 
+## 宿主易用性（2026-10-23）
+
+计划：[doc/plans/2026-10-23-host-ergonomics.md](plans/2026-10-23-host-ergonomics.md)（D1–D10）。全部默认关闭/与旧行为一致。
+
+| 能力 | 公开面 | 落点 |
+|---|---|---|
+| 出画面信号（D1） | `MovaState.rendered`、`MovaFirstFrame(sinceOpen, signal)`、`MovaFirstFrameGate`/`MovaFirstFrameSignal` | `core/render/first_frame.dart`、`engine.dart`（`_armAttempt`/`_feedGate`/`_onAttemptLanded`） |
+| 原生订阅解耦（D2） | `MovaMpvKernel(observeNativeEvents:)`、`createMovaEngine(preciseFirstFrame:)`、`movaObserveFlags` | `kernel/mpv_kernel.dart`、`platform_impl/wiring.dart` |
+| fit 声明式（D3） | `MovaEngine(fit:)`、`createMovaEngine(fit:)`、`MovaPlayer(fit:)`/`MovaView(fit:)` | `engine.dart`、`ui/player.dart` |
+| 封面（D4） | `MovaPlayer(poster:, posterFade:)`、`MovaFeedPlayer(posterUntilFirstFrame:)` | `ui/poster.dart`、`ui/player.dart` |
+| 极简皮肤（D5） | `MovaMinimalSkin`、`MovaTheme.bufferingSize/StrokeWidth/Color` | `ui/skins/minimal_skin.dart`、`options/theme.dart` |
+| 声明式组件（D6） | `MovaView`、`MovaSource.sameAs` | `ui/view.dart`、`model/source.dart` |
+| 超时与恢复（D7） | `MovaOpts.recovery`（`MovaRecoveryConfig`）、`MovaPlayFail`/`MovaPlayFailKind`、`MovaRecoveryPolicy`/`MovaRetryThenFailover`/`MovaFailoverOnly`、`MovaRecoveryDecision`、`MovaGiveUpError`、事件 `MovaPlayFailure`/`MovaRecovered` | `options/recovery_config.dart`、`recovery/fail.dart`、`recovery/watchdog.dart`（不导出）、`engine.dart`（`_onPlayFail`/`_recover`/`_giveUp`/`_announceReady`） |
+| 多地址（D8） | `MovaSource.alternatives/uris/pick`、`MovaState.sourceIndex`、事件 `MovaFailover` | `model/source.dart`、`engine.dart`（`_activeUri`） |
+| 自动暂停（D9） | `MovaAutoPauseConfig`/`MovaAutoPauseGate`/`MovaHideReason`/`MovaLiveResume`/`MovaGuardAction`、`MovaAutoPause`、`MovaView(autoPause:, routeObservers:)` | `core/guard/auto_pause.dart`、`ui/guard/auto_pause.dart` |
+| 测试替身（D10） | `package:mova/testing.dart`：`MovaTestKernel`、`MovaTesting` | `lib/testing.dart`、`src/testing/*`、`wiring.dart` 的注入点 |
+
+**首帧判据（D1）**：原生 `PLAYBACK_RESTART`（权威）；原生不可用时 buffering 下降沿 / 连续两个递增且 >0 的位置 / 暂停态打开后首个非零尺寸；
+原生可用但兜底信号先到时等 1500ms 宽限。内核 `open()` 在途期间丢弃一切观测。
+
+**恢复（D7）触发源**：起播超时、卡顿超时、`open()` 抛异常（仅 recovery 开启时捕获）、原生 `END_FILE(error)`、直播 `completed`。
+看门狗的起播期限从内核 `open()` 返回后才开始计，且只在没有其他加载在途时武装；播放意图为假时不计时。
+
+**自动暂停（D9）信号**：祖先 `Scrollable` 的 `ScrollPosition`（滚动后 post-frame 测一次）、`TickerMode.getValuesNotifier`、
+`ModalRoute.isCurrentOf` + 各层 `RouteAware`、`AppLifecycleListener`。
+
+**与计划的偏差**（落地时发现的事实）：
+- `NavigatorObserver` 只能挂到**一个** Navigator（`observer.navigator == null` 断言），所以守卫参数是 `routeObservers`（列表，每个 navigator 一个），
+  不是计划里的单个 `routeObserver`。
+- 不透明的外层路由已经能经 `TickerMode` 兜住（overlay 会禁用被盖住子树的 ticker）；`routeObservers` 只对半透明路由有增益。
+- `TickerMode.getNotifier` 在当前 Flutter 已弃用，实现用 `getValuesNotifier`。
+- 进入 `hidden` 后 Flutter 停止出帧，`pumpWidget` 不会再构建；测试里要在前台卸载组件。
+
 ## 测试
 
 - `test/core/`：`api_test.dart`/`bus_test.dart`/`compat_test.dart`/

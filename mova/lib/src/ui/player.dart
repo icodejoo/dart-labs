@@ -4,6 +4,7 @@ import 'package:media_kit_video/media_kit_video.dart';
 import '../core/api.dart';
 import '../core/model/fit.dart';
 import 'fit_ext.dart';
+import 'poster.dart';
 import 'scope/scope.dart';
 import 'scope/selector.dart';
 import 'scope/video_rect_scope.dart';
@@ -41,6 +42,9 @@ class MovaPlayer extends StatefulWidget {
     this.skin = const MovaDefaultSkin(),
     this.autoLoadQualities = true,
     this.surface,
+    this.fit,
+    this.poster,
+    this.posterFade = const Duration(milliseconds: 300),
   });
 
   /// Playback facade driving this widget.
@@ -74,6 +78,42 @@ class MovaPlayer extends StatefulWidget {
   /// 抛开那层安全网自行重装组件树。
   final Widget? surface;
 
+  /// Declarative fit for [api]. `null` leaves the engine untouched. Otherwise it
+  /// is applied when this widget mounts and again only when this value changes
+  /// (or [api] changes) — a user's fit-button choice survives unrelated rebuilds
+  /// until the parent passes a *different* fit.
+  ///
+  /// [api] 的声明式填充模式。`null` 表示不碰引擎。否则在本组件挂载时应用一次，之后
+  /// 只有该值变化（或换了 [api]）才再应用——用户用 fit 按钮选的值在无关重建中保留，
+  /// 直到父组件传入一个**不同的** fit。
+  ///
+  /// Example / 示例:
+  /// ```dart
+  /// MovaPlayer(api: engine, fit: MovaFit.cover)
+  /// ```
+  final MovaFit? fit;
+
+  /// A widget painted over the video surface until the current source shows
+  /// its first frame, then faded out; re-covers instantly on every source
+  /// change. Sits *under* the skin's chrome (buffering spinner, error, bars).
+  /// Stays visible for sources/engines without a picture (audio-only).
+  /// `null` (the default) adds nothing to the tree.
+  ///
+  /// 盖在视频画面上的组件，当前源出首帧后淡出；每次换源立即重新盖上。位于皮肤
+  /// chrome（缓冲转圈、错误层、控制条）**之下**。没有画面的源/引擎（仅音频）时
+  /// 常驻。默认 `null`，不向树中添加任何节点。
+  ///
+  /// Example / 示例:
+  /// ```dart
+  /// MovaPlayer(api: engine, poster: Image.network(coverUrl, fit: BoxFit.cover))
+  /// ```
+  final Widget? poster;
+
+  /// How long the poster takes to fade out; re-covering is always instant.
+  ///
+  /// 封面淡出的时长；重新盖上始终是瞬间完成。
+  final Duration posterFade;
+
   @override
   State<MovaPlayer> createState() => _MovaPlayerState();
 }
@@ -95,6 +135,28 @@ class _MovaPlayerState extends State<MovaPlayer> {
     if (widget.autoLoadQualities) {
       widget.api.loadQualities();
     }
+    _applyFit(apiChanged: true);
+  }
+
+  @override
+  void didUpdateWidget(MovaPlayer oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    _applyFit(previous: oldWidget.fit, apiChanged: oldWidget.api != widget.api);
+  }
+
+  /// Applies [MovaPlayer.fit] to the api when it is new (first mount, a changed
+  /// value, or a different api); a no-op for `null`.
+  ///
+  /// 在 [MovaPlayer.fit] 属于"新值"（首次挂载、值变化、或换了 api）时应用到 api；
+  /// 为 `null` 时什么都不做。
+  ///
+  /// - [previous]: the fit of the previous widget configuration / 上一份配置的 fit
+  /// - [apiChanged]: whether the api instance is new to this state / api 实例是否是新的
+  void _applyFit({MovaFit? previous, bool apiChanged = false}) {
+    final f = widget.fit;
+    if (f == null) return;
+    if (!apiChanged && previous == f) return;
+    if (widget.api.state.fit != f) widget.api.setFit(f);
   }
 
   @override
@@ -140,11 +202,20 @@ class _MovaPlayerState extends State<MovaPlayer> {
           builder: (context) {
             final tree = widget.skin.components();
             final bundle = buildSlots(context, widget.api, tree);
-            final assembled = widget.skin.assemble(
-              context,
-              bundle,
-              widget.surface ?? const _RenderSurface(),
-            );
+            final surface = widget.surface ?? const _RenderSurface();
+            final poster = widget.poster;
+            // The poster lives inside the `video` handed to the skin, so every
+            // skin's chrome (spinner, error, bars) paints above it.
+            //
+            // 封面放在交给皮肤的 `video` 里面，因此所有皮肤的 chrome（转圈、错误层、
+            // 控制条）都画在它之上。
+            final video = poster == null
+                ? surface
+                : Stack(
+                    fit: StackFit.expand,
+                    children: [surface, MovaPosterLayer(poster: poster, fade: widget.posterFade)],
+                  );
+            final assembled = widget.skin.assemble(context, bundle, video);
             // Publishes the video content's actual (letterboxed) display rect
             // to descendants of the assembled tree, so overlay components
             // (e.g. the STT subtitle) can align to the picture itself rather

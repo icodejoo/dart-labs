@@ -76,6 +76,10 @@ class MovaMpvKernel implements MovaKernel, MovaStatsProbe {
   /// 完全跳过这几次 FFI 往返，使"没有 reporter 就零开销"这条承诺在这一层
   /// 也成立（此前它只在上一层的 [MovaQoeCollector] 里成立）。
   ///
+  /// [observeNativeEvents] 单独控制原生事件订阅（[playbackRestarts]/[endFiles]）：
+  /// 为 `null`（默认）时跟随 [observeQoeSignals]，既有调用点行为不变；显式传 `true`
+  /// 可在不开 QoE 的情况下只订阅原生事件（例如为了精确首帧信号）。
+  ///
   /// [backendFactory] 为原生事件提供获取后端的工厂。
   ///
   /// [tlsVerify] turns on strict TLS certificate verification (mpv
@@ -96,6 +100,7 @@ class MovaMpvKernel implements MovaKernel, MovaStatsProbe {
     this.audioOnly = false,
     this.lazyVideo = false,
     bool observeQoeSignals = true,
+    bool? observeNativeEvents,
     MovaMpvEventBackendFactory? backendFactory,
     this.tlsVerify = false,
     this.tlsCaFile,
@@ -116,7 +121,8 @@ class MovaMpvKernel implements MovaKernel, MovaStatsProbe {
       _heightSeen = true;
       _emitSize();
     });
-    if (!observeQoeSignals) return;
+    final wantNative = (observeNativeEvents ?? observeQoeSignals) && backendFactory != null;
+    if (!observeQoeSignals && !wantNative) return;
     // Observe mpv's own `paused-for-cache` — the *real* rebuffer signal,
     // distinct from the `buffering` stream's merge of `core-idle` +
     // `paused-for-cache` (see MovaStatsProbe.stalling doc). Only real
@@ -132,20 +138,20 @@ class MovaMpvKernel implements MovaKernel, MovaStatsProbe {
       // 保留这两个 Future——dispose() 必须等它们落地（无论成功与否）后才能
       // 销毁 _player，否则原生注册调用可能在 mpv 句柄已销毁之后才真正发生，
       // 构成原生层的 use-after-teardown 竞态（而非仅仅是 Dart 侧订阅泄漏）。
-      _observeSetup = native
-          .observeProperty('paused-for-cache', (value) async {
-            if (_stallingController.isClosed) return;
-            _stallingController.add(value == 'yes');
-          })
-          .catchError((_) {
-            // 静默降级：这次会话就是没有原生卡顿信号，QoE 层退回旧的
-            // `buffering` 判据，其余上报功能不受影响。
-          })
-          .then((_) {
-            if (backendFactory != null) {
-              return _observeNativeEvents(native);
-            }
-          });
+      var setup = Future<void>.value();
+      if (observeQoeSignals) {
+        setup = native
+            .observeProperty('paused-for-cache', (value) async {
+              if (_stallingController.isClosed) return;
+              _stallingController.add(value == 'yes');
+            })
+            .catchError((_) {
+              // 静默降级：这次会话就是没有原生卡顿信号，QoE 层退回旧的
+              // `buffering` 判据，其余上报功能不受影响。
+            });
+      }
+      if (wantNative) setup = setup.then((_) => _observeNativeEvents(native));
+      _observeSetup = setup;
     }
   }
 

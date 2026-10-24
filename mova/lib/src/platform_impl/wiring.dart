@@ -22,6 +22,8 @@ import '../core/preview/fetcher.dart';
 import '../core/preview/net_probe.dart';
 import '../core/report/report.dart';
 import '../core/kernel/mpv_kernel.dart';
+import '../core/model/fit.dart';
+import '../testing/hooks.dart';
 import 'brightness_impl.dart';
 import 'mpv_event_backend_ffi.dart';
 import 'orientation_impl.dart';
@@ -138,6 +140,19 @@ MovaVolumePort? _defaultVolumePort() {
 ///   then fully off at zero cost (no subscription is created) / 统一上报出口，
 ///   承接 [MovaApi.report] 及白名单内的 [MovaApi.events]。默认 `null`——此时
 ///   上报功能完全关闭、零开销（不会创建任何订阅）
+/// - [preciseFirstFrame]: subscribe to libmpv's native `PLAYBACK_RESTART` even
+///   without a reporter, so `MovaState.rendered`/`MovaFirstFrame` land on the
+///   real first frame (~200ms later and exact) instead of the buffering/position
+///   fallback. Costs one weak mpv client per engine (plus a 100ms poll in debug).
+///   Default `false`; ignored when [kernel] is supplied /
+///   即使没有 reporter 也订阅 libmpv 原生 `PLAYBACK_RESTART`，让
+///   `MovaState.rendered`/`MovaFirstFrame` 落在真正的首帧上（比 buffering/位置兜底
+///   准，约晚 200ms），代价是每引擎一个 mpv 弱客户端（debug 下另有 100ms 轮询）。
+///   默认 `false`；传入 [kernel] 时忽略
+/// - [fit]: the initial `MovaState.fit`; defaults to [MovaFit.contain]. This is
+///   a starting value, not a lock — `setFit()` and the fit button still change
+///   it at runtime / 初始的 `MovaState.fit`，默认 [MovaFit.contain]。只是初值不是
+///   锁定——运行时 `setFit()` 与 fit 按钮照常可改
 ///
 /// Returns a [MovaEngine] ready for use by app code.
 ///
@@ -158,14 +173,44 @@ MovaEngine createMovaEngine({
   MovaNetProbe? probe,
   MovaHttpFetch? fetcher,
   MovaReporter? reporter,
+  bool preciseFirstFrame = false,
+  MovaFit fit = MovaFit.contain,
 }) {
+  // Test seam (package:mova/testing.dart): with test kernels installed and no
+  // explicit kernel, build the engine on a scripted kernel, and leave every
+  // platform port at the engine's own no-op default so nothing touches a
+  // platform channel. Explicit ports still win.
+  //
+  // 测试接缝（package:mova/testing.dart）：装了测试内核且没显式传 kernel 时，用可编程
+  // 内核构建引擎，所有平台端口保持引擎自带的空实现，不触碰任何平台通道。显式传入的端口
+  // 仍然优先。
+  final testKernel = movaTestKernelFactory;
+  if (kernel == null && testKernel != null) {
+    return MovaEngine(
+      kernel: testKernel(),
+      audioOnly: audioOnly,
+      options: probe == null ? options : options.copyWith(preview: options.preview.copyWith(probe: probe)),
+      interceptors: interceptors,
+      brightness: brightness,
+      volume: volume,
+      pip: pip,
+      orientation: orientation,
+      thumbDir: thumbDir,
+      extractor: extractor,
+      fetcher: fetcher,
+      reporter: reporter,
+      fit: fit,
+    );
+  }
+  final flags = movaObserveFlags(hasReporter: reporter != null, preciseFirstFrame: preciseFirstFrame);
   return MovaEngine(
     kernel: kernel ?? MovaMpvKernel(
       audioOnly: audioOnly,
       lazyVideo: true,
       tlsVerify: tlsVerify,
       tlsCaFile: tlsCaFile,
-      observeQoeSignals: reporter != null,
+      observeQoeSignals: flags.qoe,
+      observeNativeEvents: flags.native,
       backendFactory: (native, addr) => createFfiMpvEventBackend(native, addr, pollInDebug: kDebugMode),
     ),
     audioOnly: audioOnly,
@@ -179,5 +224,19 @@ MovaEngine createMovaEngine({
     extractor: extractor,
     fetcher: fetcher,
     reporter: reporter,
+    fit: fit,
   );
 }
+
+/// Which native observations the default kernel should set up.
+///
+/// 默认内核应开启哪些原生观察。
+///
+/// - [hasReporter]: whether a reporter was supplied / 是否传入了 reporter
+/// - [preciseFirstFrame]: whether the precise first-frame signal was requested / 是否要求精确首帧信号
+///
+/// Returns `qoe` (the `paused-for-cache` observation) and `native` (the FFI
+/// event pump) / 返回 `qoe`（`paused-for-cache` 观察）与 `native`（FFI 事件泵）。
+@visibleForTesting
+({bool qoe, bool native}) movaObserveFlags({required bool hasReporter, required bool preciseFirstFrame}) =>
+    (qoe: hasReporter, native: hasReporter || preciseFirstFrame);

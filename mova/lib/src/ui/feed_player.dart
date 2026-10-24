@@ -91,6 +91,9 @@ class MovaFeedPlayer extends StatefulWidget {
   ///   是尺寸跳了一下
   /// - [placeholderBuilder]: what a page shows before its engine is ready;
   ///   defaults to plain black / 某页在其引擎就绪前显示什么，默认纯黑
+  /// - [posterUntilFirstFrame]: keep the placeholder as a poster over a ready
+  ///   page until its engine reports a first frame; defaults to `false` /
+  ///   页面就绪后仍把占位当封面盖着，直到其引擎报告首帧；默认 `false`
   const MovaFeedPlayer({
     super.key,
     required this.engineFactory,
@@ -100,6 +103,7 @@ class MovaFeedPlayer extends StatefulWidget {
     this.prefetcher,
     this.fit = MovaFit.cover,
     this.placeholderBuilder,
+    this.posterUntilFirstFrame = false,
   });
 
   /// Creates each pooled engine.
@@ -136,6 +140,16 @@ class MovaFeedPlayer extends StatefulWidget {
   ///
   /// 某页在其引擎就绪前显示什么。
   final MovaFeedHolderBuilder? placeholderBuilder;
+
+  /// When true, a ready page keeps showing [placeholderBuilder] as a poster
+  /// over the live surface until that engine reports its first frame
+  /// (`MovaState.rendered`). Default `false`: the placeholder disappears the
+  /// moment `open()` resolves, exactly as before.
+  ///
+  /// 为 true 时，已就绪的页面会把 [placeholderBuilder] 作为封面继续盖在真实画面上，
+  /// 直到该引擎报告首帧（`MovaState.rendered`）。默认 `false`：`open()` 一完成占位就
+  /// 消失，与之前完全相同。
+  final bool posterUntilFirstFrame;
 
   @override
   State<MovaFeedPlayer> createState() => _MovaFeedPlayerState();
@@ -263,7 +277,14 @@ class _MovaFeedPlayerState extends State<MovaFeedPlayer> {
 
     final slot = _controller.slotFor(index);
     if (slot != null && slot.ready) {
-      return MovaPlayer(api: slot.api, skin: skin, autoLoadQualities: false);
+      return MovaPlayer(
+        api: slot.api,
+        skin: skin,
+        autoLoadQualities: false,
+        poster: widget.posterUntilFirstFrame
+            ? (widget.placeholderBuilder?.call(context, item) ?? const ColoredBox(color: Color(0xFF000000)))
+            : null,
+      );
     }
 
     // No engine of its own yet, so the chrome needs *some* api to scope

@@ -4,6 +4,8 @@ import '../model/quality.dart';
 import '../model/source.dart';
 import '../options/preview_config.dart';
 import '../options/stt_config.dart';
+import '../recovery/fail.dart';
+import '../render/first_frame.dart';
 import '../swap/ctl.dart';
 
 /// Base type of everything broadcast on [MovaApi.events].
@@ -129,6 +131,40 @@ class MovaDurationChange extends MovaEvent {
   ///
   /// 用 [duration] 创建事件。
   const MovaDurationChange(this.duration);
+}
+
+/// The current source presented its first frame (or first audio).
+///
+/// Fires once per `open()`, every time — the repeatable counterpart of
+/// media_kit's one-shot `waitUntilFirstFrameRendered`.
+///
+/// 当前源呈现了首帧（或首段音频）。
+///
+/// 每次 `open()` 都会触发一次——是 media_kit 一次性
+/// `waitUntilFirstFrameRendered` 的可重复版本。
+///
+/// Example / 示例:
+/// ```dart
+/// api.events
+///     .where((e) => e is MovaFirstFrame)
+///     .cast<MovaFirstFrame>()
+///     .listen((e) => log('ttff ${e.sinceOpen} via ${e.signal}'));
+/// ```
+class MovaFirstFrame extends MovaEvent {
+  /// Elapsed time since the `open()` call that started this source.
+  ///
+  /// 距开始本源的那次 `open()` 调用的耗时。
+  final Duration sinceOpen;
+
+  /// Which observation landed it.
+  ///
+  /// 由哪种观测落地。
+  final MovaFirstFrameSignal signal;
+
+  /// Creates the event.
+  ///
+  /// 创建事件。
+  const MovaFirstFrame({required this.sinceOpen, required this.signal});
 }
 
 /// The decoded video frame size changed.
@@ -439,4 +475,76 @@ class MovaErrorEvent extends MovaEvent {
   ///
   /// 用 [error] 及可选的 [stack] 创建事件。
   const MovaErrorEvent(this.error, [this.stack]);
+}
+
+/// A playback attempt failed and recovery decided what to do. Only fires when
+/// `MovaRecoveryConfig.enabled`. Not an error by itself — `MovaState.error` is
+/// set only once recovery gives up.
+///
+/// 一次播放尝试失败，recovery 已决定如何处理。仅在 `MovaRecoveryConfig.enabled`
+/// 时触发。它本身不是错误——只有 recovery 放弃时才写 `MovaState.error`。
+///
+/// Example / 示例:
+/// ```dart
+/// api.events.listen((e) {
+///   if (e is MovaPlayFailure && e.fail.kind == MovaPlayFailKind.startTimeout) {
+///     showToast('连接超时，正在重试…');
+///   }
+/// });
+/// ```
+class MovaPlayFailure extends MovaEvent {
+  /// What failed and how often.
+  ///
+  /// 失败的是什么、第几次。
+  final MovaPlayFail fail;
+
+  /// What the engine does next.
+  ///
+  /// 引擎接下来要做什么。
+  final MovaRecoveryAction action;
+
+  /// Creates the event.
+  ///
+  /// 创建事件。
+  const MovaPlayFailure(this.fail, this.action);
+}
+
+/// Playback showed a frame again after [attempts] consecutive failures.
+///
+/// 连续失败 [attempts] 次之后重新出画面。
+class MovaRecovered extends MovaEvent {
+  /// How many consecutive failures preceded the recovery.
+  ///
+  /// 恢复之前连续失败了几次。
+  final int attempts;
+
+  /// Creates the event.
+  ///
+  /// 创建事件。
+  const MovaRecovered(this.attempts);
+}
+
+/// Playback moved to another address of the same source.
+///
+/// 播放切到了同一个源的另一个地址。
+class MovaFailover extends MovaEvent {
+  /// Index (into `MovaSource.uris`) left behind.
+  ///
+  /// 被放弃的地址下标。
+  final int from;
+
+  /// Index now playing.
+  ///
+  /// 当前播放的地址下标。
+  final int to;
+
+  /// The address now playing.
+  ///
+  /// 当前播放的地址。
+  final String uri;
+
+  /// Creates the event.
+  ///
+  /// 创建事件。
+  const MovaFailover({required this.from, required this.to, required this.uri});
 }
