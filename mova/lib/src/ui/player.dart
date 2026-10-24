@@ -9,6 +9,7 @@ import 'scope/scope.dart';
 import 'scope/selector.dart';
 import 'scope/video_rect_scope.dart';
 import 'skins/default_skin.dart';
+import 'snapshot_guard.dart';
 import 'skins/skin.dart';
 import 'slots/tree.dart';
 import 'video_rect.dart';
@@ -306,7 +307,12 @@ class _RenderSurface extends StatelessWidget {
                 )
               : ColoredBox(key: _RenderHandleKey(handle), color: const Color(0xFF000000));
           return ClipRect(
-            child: Transform.scale(scale: value.zoom, child: video),
+            // Windows: keep the texture out of page-transition snapshots, see MovaSnapshotGuard.
+            // Windows：别让纹理进页面转场快照，见 MovaSnapshotGuard。
+            child: Transform.scale(
+              scale: value.zoom,
+              child: MovaSnapshotGuard(enabled: movaSnapshotGuardNeeded(), child: video),
+            ),
           );
         },
       ),

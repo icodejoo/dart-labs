@@ -2049,11 +2049,56 @@ min/max/avg，URL 加 timestamp 防缓存。
    先失败后通过的实跑输出（2026-10-24）：修改引擎前新增的 8 条测试中，点播四条均 `Expected: Duration:<0:00:02.840000>` / `Actual: Duration:<0:00:00.000000>`，末行 `00:00 +4 -4: Some tests failed.`；修复与补充边界后 recovery 目录末行 `00:01 +67: All tests passed!`。全量基线先实跑 `00:40 +1302: All tests passed!`；最终 `flutter analyze lib test` 末行 `No issues found! (ran in 7.4s)`、`flutter test --reporter expanded` 末行 `00:43 +1316: All tests passed!`（新增 14）。这些是假内核证据，尚无本次 Windows/Android 原生复测结论。
 2. **V10 `盖一层路由` 在弹出路由时原生崩溃（Windows，100% 复现 6/6）**。
    复现：`ONLY=V10A`（或 `V10C`，守卫关也崩）；`MovaView` 在根 navigator，push 一个不透明 `MaterialPageRoute` 后 pop。push 阶段正常（守卫开时 8ms 内 `MovaPause`），**pop 时进程以 `0xC0000005` 退出**；
-   Skia 与默认后端各试过，均崩；`TickerMode` 路径（`V10B`）不崩，说明触发点是"路由弹出让播放器重新露出"。
+   **（更正：此处"Skia 与默认后端各试过，均崩"是假对照——release 构建忽略 `FLUTTER_ENGINE_SWITCHES`，两次其实都是 Impeller；见下方"V10 崩溃根因与修复"）** `TickerMode` 路径（`V10B`）不崩，说明触发点是"路由弹出让播放器重新露出"。
    证据：Windows 事件日志 Id 1000，故障模块 `flutter_windows.dll`，偏移 `0x2c4427`（6 次一致）；WER 转储在 `C:\workspace\dart-labs\mova\_crash_dumps\`（已配置，每个 ~800MB），
    `cdb` 取栈：崩溃在引擎线程的**图层树递归遍历**中对空指针解引用（`mov rax,[rcx]`，`rcx=0`），帧数很深；只有导出符号，无法定位函数名。形态上像 `TextureLayer` 引用了已被注销的外部纹理，**仅为推测**。
    这与 CLAUDE.md "Windows 真机播放中途 libmpv 原生崩溃"那条（故障模块是 `libmpv-2.dll`）**不是同一处**（本次故障模块是 `flutter_windows.dll`，且无需任何鼠标交互）。
 3. 其余为"与预期不同"的事实，已写进上表：V1 `false` 比 `restart` 早 ~0.5s；V8 拒连 ~5.07s 才判错；V12 默认参数下拒连地址既不抛也不发错误事件。
+
+**V10 崩溃根因与修复（2026-10-24，Windows 10 / Flutter 3.47.0 engine 5f77625673 / release）**
+
+结论：**不是 mova 的问题，是 Flutter 3.47.0/3.47.1 引擎在 Windows + Impeller 下的 bug**（flutter/flutter#190774：快照 GPU 外部纹理时 `LayerTree::Flatten` 没有 Impeller 上下文，
+`EmbedderExternalTextureGL::ResolveTextureSkia` 解引用空 `GrDirectContext`；修复 PR #191017，cherry-pick 进稳定版 **3.47.2**，官方 CHANGELOG 3.47.2 一节有 `flutter/190774`）。
+触发路径：`MaterialPageRoute` 在 Windows 的默认转场 `ZoomPageTransitionsBuilder` 用 `SnapshotWidget(mode: permissive)` 给页面拍快照；`TextureLayer.supportsRasterization()` 默认 `true`，
+所以视频纹理被一起交给引擎快照。只有 `PlatformViewLayer` 返回 `false`。
+
+对照实验（探针页 `example/lib/main_route_cover_probe.dart`，环境变量驱动，同一二进制；视频源同为本地直播 FLV，默认每轮 push 持有 600ms + pop 后 800ms，20 轮；"崩"= 进程 `0xC0000005`，故障模块均为 `flutter_windows.dll`+`0x2c4427`）：
+
+| 条件 | 结果 |
+|---|---|
+| release，纯 media_kit `Video`（无 mova），不透明路由，zoom 转场 | **崩**（第 2 轮 push） |
+| release，mova `MovaView` 不开守卫，不透明路由，zoom 转场 | **崩**（4/4，第 2 轮 push/pop） |
+| release，mova `MovaView` 开自动暂停守卫，不透明路由，zoom 转场 | **崩**（第 1 轮 pop） |
+| release，mova 引擎 + 裸 `Video`（不走 mova ui），不透明路由 | **崩** |
+| release，`maintainState:false` 的覆盖路由 | **崩** |
+| release，**半透明**路由（`PageRouteBuilder(opaque:false)`，无转场快照） | 不崩 20/20 |
+| release，`showDialog` | 不崩 20/20 |
+| release，同页 `Offstage` / `Opacity(0)` 切换（不走路由） | 不崩 20/20 |
+| release，不透明路由但**不打开媒体**（无帧更新） | 不崩 20/20 |
+| release，`ZoomPageTransitionsBuilder(allowSnapshotting: false)`：纯 media_kit / mova | 不崩 20/20、20/20 |
+| release，`FadeUpwardsPageTransitionsBuilder`：纯 media_kit / mova | 不崩 20/20、20/20 |
+| profile / debug，Impeller（默认，日志 `Using the Impeller rendering backend (OpenGLESSDF)`） | **崩**（第 1–2 轮） |
+| profile / debug，**真 Skia**（`FLUTTER_ENGINE_SWITCH_1=enable-impeller=false`，profile/debug 才认）：纯 media_kit / mova | 不崩 20/20、20/20（debug 同） |
+
+要点：① **release 下 `FLUTTER_ENGINE_SWITCHES` 环境变量被忽略**（实测如此；推测是 Windows 嵌入层只在非 release 读它，未核对引擎源码），所以前一轮 release 里的"Skia 也崩"其实是同一个 Impeller 后端；profile/debug 才能真切到 Skia，
+且 Skia 下不崩。② 崩溃落在**路由转场动画期间**（日志最后一行都是该轮的 push 或 pop，崩溃早于下一条日志）；需要纹理在持续出帧（不开媒体就不崩），第 1 轮常常能躲过，第 2 轮起必崩。
+③ cdb 转储（`C:\workspace\dart-labs\mova\_crash_dumps\`，纯 media_kit 那次，Full Memory）：崩溃线程栈是图层树 `Paint` 的深递归，叶子函数里 `mov rax,[rcx]; mov rax,[rax+0x38]`（CFG 间接调用前取虚表）`rcx=0`，
+即对空指针做虚函数调用；官方没有 `flutter_windows.dll` 的符号包（`storage.googleapis.com/flutter_infra_release/flutter/<engine>/windows-x64/*symbols*` 全 404），cdb 里显示的 `InternalFlutterWindows_WindowManager_UpdatePopupPosition+0x28cc1c`
+只是离得最近的导出符号，**不是真实函数名**。所以栈本身只能证明"图层树绘制里的空指针虚调用"，把它归到 #190774 是靠 ①复现条件（快照转场 + GPU 纹理 + Impeller，Skia 不崩）②同一引擎版本 ③升级到含修复的版本前无法验证——**我没有在 3.47.2+ 上实测**（没升级本机 SDK）。
+④ 上一个子代理的"TextureLayer 引用已注销纹理"推测不成立：Offstage/Opacity(0)/半透明路由同样让纹理离开绘制或持续存在，都不崩，崩的只有"快照"。
+
+mova 侧修复（只在 `lib/src/ui/`）：`snapshot_guard.dart` 的 `MovaSnapshotGuard`（`RenderMovaSnapshotGuard` 在 `paint` 里 `pushLayer` 一个 `supportsRasterization()==false` 的 `ContainerLayer`），
+`MovaPlayer` 的渲染面（`player.dart` `_RenderSurface`）在 **Windows 上**启用（`movaSnapshotGuardNeeded()`：`!kIsWeb && defaultTargetPlatform == windows`），其他平台关闭、原样透传。
+宽松快照发现图层不支持栅格化就退回正常绘制，转场只是少了快照这层优化，画面不变。core 层与公开 API 零改动。
+回归（`flutter test`，`test/ui/snapshot_guard_test.dart` 共 8 项）：基线（无守卫时宽松 `SnapshotWidget` 确实快照）、守卫开则不快照退回普通绘制、守卫关则照旧快照、开关切换 `alwaysNeedsCompositing`、
+`movaSnapshotGuardNeeded` 仅 Windows、Windows 下 `MovaPlayer` 渲染面带守卫、Windows 下 `SnapshotWidget(permissive)` 包住 `MovaPlayer` 不快照、其他平台照旧快照。
+
+修复后 release 复测（同一验证页 `main_host_ergonomics_verify.dart` AUTORUN，Impeller 默认）：**V10A 20/20 通过**（每次新建 `MovaView`，push→pop 各一次；`MovaPause` 距 push 3–18ms，avg 9.3，`MovaPlay` 距 pop 7–13ms，avg 9.8）；
+**V10（路由 + TickerMode）10/10 通过**；V10C（守卫关）10 次 push/pop 无崩溃（该场景判据要求有 pause，守卫关本来就没有，所以逐项 FAIL 是预期，之前文档已记）；
+探针 mova 单个播放器连续 push/pop：**20/20、20/20、守卫开 20/20、30/30（持有 300ms）全部不崩**；同一次构建里**纯 media_kit 对照仍然第 2 轮崩**，证明修复生效、对照有效。修复前同验证页 V10A 6/6 崩（本次又复现 1/1）。
+
+**宿主建议**：根治是升级 Flutter ≥ 3.47.2；mova 的守卫只覆盖 `MovaPlayer`，宿主自己用裸 media_kit `Video` 的页面不受保护，可对转场关快照
+（`ZoomPageTransitionsBuilder(allowSnapshotting: false)`，只影响 Windows 的转场优化）。守卫在 Flutter ≥ 3.47.2 上是多余但无害的（转场失去快照优化），待 mova 的最低 Flutter 版本升到 3.47.2 后可删。
 
 **日志摘录**（`[MOVA-HE]`，release，完整日志为本机 scratchpad 里的 `he_final.log`，不入库）
 

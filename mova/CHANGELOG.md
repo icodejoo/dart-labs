@@ -1,5 +1,7 @@
 ## Unreleased
 
+* **Fix：Windows 上 push 不透明路由时进程原生崩溃（HE V10）**：根因不在 mova，而是 Flutter 3.47.0/3.47.1 引擎的 bug——Windows + Impeller 下，`MaterialPageRoute` 默认的 `ZoomPageTransitionsBuilder` 会给页面拍快照（`SnapshotWidget`），快照里带外部 GPU 纹理（media_kit 的 DXGI 共享句柄纹理）时，引擎 `LayerTree::Flatten` 里解引用空上下文，进程在 `flutter_windows.dll` 以 `0xC0000005` 退出（flutter/flutter#190774，Flutter 3.47.2 已修）。纯 media_kit `Video` 不带 mova 同样复现。mova 侧规避：`MovaPlayer` 的渲染面在 Windows 上套一层 `MovaSnapshotGuard`（加一个 `supportsRasterization()==false` 的图层，宽松快照据此退回普通绘制），其他平台行为不变。release 实测：修复前 6/6 崩溃、探针 2 轮内必崩；修复后验证页 V10A 20/20、V10 10/10、探针 20/20/20/30 轮不崩。**根治办法是宿主升级到 Flutter ≥ 3.47.2**；也可在主题里对转场关快照（`ZoomPageTransitionsBuilder(allowSnapshotting: false)`）。新增 8 项回归（`test/ui/snapshot_guard_test.dart`）。详见计划文档 `doc/plans/2026-10-23-host-ergonomics.md` V10 小节。
+
 * **Fix：点播恢复重试丢失续播位置（HE V6）**：卡顿超时、`open()` 异常后的重试及原生 `END_FILE(error)` 恢复，改为等本次尝试首帧落地后再发送续播 seek，避免加载命令已返回但文件未就绪时 seek 被丢弃。同内容备选地址沿用续播点，跨失败继续保留；直播不 seek。代码回归已通过，待 Windows/Android 复测。
 
 * **Fix：无缝切换预热误改系统音量（standby 计划 Q13）**：`muteWhileWarm` 改走可选的播放器静音能力，mpv 仅保存、改写、还原自身 `mute`；预热和提交均不写系统音量端口。不支持能力的内核不静音；与 standby 静音叠加时按各自所有权精确还原。恢复静音失败走放弃切换策略并发出错误事件。代码回归已通过，待真机音频确认。
