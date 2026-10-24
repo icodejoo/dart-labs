@@ -54,6 +54,7 @@ $ cd mova && flutter test -r compact
 | 4 | +14 | 1242 | 唤醒与恢复计时（闸门 resume 武装） |
 | 5 | +15 | 1257 | 与宿主调用/recovery/ABR/自动回边缘的交互规则 |
 | 6 | +5 | 1262 | swap 引擎透传与提交时同步，与计划一致 |
+| 7 | +16 | 1278 | gate +10、widget +6，与计划一致 |
 
 - **HE 计划没有按"每 Task 一个 commit"提交。** HE Task 1–15 与评审修复的改动交错在同一批文件里（`engine.dart`、`state.dart`、`options.dart` 等被多个 Task 反复改动），
   交互式 `git add -p` 在本环境不可用，按 hunk 硬拆既不现实也容易拆出编译不过的中间提交。因此合并为两个提交：先提交文档（调研笔记与两份计划），再提交全部 HE 实现（含评审修复）。
@@ -65,6 +66,7 @@ $ cd mova && flutter test -r compact
 - **Task 3/4：测试夹具抽成共享文件。** 计划把 `_Rig` 写在各测试文件里，实际抽成 `test/support/standby_rig.dart`（`StandbyRig`/`YesPip`，时钟跟随 `fakeAsync`），Task 3 的测试随之改用它，Task 5–9 沿用。
 - **Task 4：** `MovaStandbyResume.elapsed` 与 fallback 的 `pausedFor` 均经 `debugClock` 测量（见 Task 3 偏差）；计划 Task 4 引擎断言第 11 条（宿主换源后唤醒只归位）在本 Task 里用"fallback 期间 `open(autoPlay: false)`"实现，`reloaded` 的 phase 切换要到 Task 5 才有，但断言（意图为 false → settle，不 play、不多 open）与阶段无关，在两个 Task 下都成立。
 - **Task 5：`open()` 里的待机等待是条件式的。** 计划草图写成无条件 `await _standbyBeforeOpen()`；实现改成仅当 `_standbyRequested` 为真时才 await，未涉及待机时 `open()` 不多一次微任务让出，保证"关闭态逐字节不变"。同时 `_armAttempt(autoPlay:)` 与 `_loadKernel(play:)` 在内部重载路径（`_recover`/`switchQuality`/`_seekTimeshift`/`_reopenLiveSource`）一并改读 `_loadPlays`（草图只提了 `play:`），使暂停加载的闸门启用尺寸兜底。
+- **Task 7：R3 的实际入口与世代。** 守卫里 R3 的"隐藏期间意图变 true 重新决策"落在 gate 的 `observe({playing, exempt})`（widget 在 `_bindState` 的订阅里调用），不叫 `redecide`；`reconfigure`/`update` 沿用原名。为让 `observe` 也能选 standby，给它加了两个带默认值的可选参数 `live`（默认 false）与 `standbyCapable`（默认 false），旧调用逐字不变。widget 的"可见性世代"是 `_resumeGen`（只在隐藏/重绑/回边缘时自增），而 `standby`/`wake` 的补偿校验用 `!_gate.hidden && identical(api, widget.api)` 判断（进待机返回后若已不再隐藏则补一次 `setStandby(false)`；引擎侧队列保证顺序，重复唤醒幂等），没有复用 `_resumeGen`，因为"变可见"并不推进它。
 
 ---
 

@@ -6,6 +6,7 @@ import 'package:flutter/widgets.dart';
 import '../../core/api.dart';
 import '../../core/guard/auto_pause.dart';
 import '../../core/model/source.dart';
+import '../../core/standby/standby.dart';
 import '../../core/state/state.dart';
 
 /// Pauses [api] while [child] is hidden — scrolled out of its viewport, in an
@@ -190,6 +191,7 @@ class _MovaAutoPauseState extends State<MovaAutoPause> {
           live: s.type == MovaStreamType.live,
           exempt: s.pip || s.mini,
           now: DateTime.now(),
+          standbyCapable: widget.api is MovaStandbyController,
         ),
       );
       _bindTicker();
@@ -203,6 +205,8 @@ class _MovaAutoPauseState extends State<MovaAutoPause> {
         _gate.observe(
           playing: s.playbackIntent || s.playing,
           exempt: s.pip || s.mini,
+          live: s.type == MovaStreamType.live,
+          standbyCapable: widget.api is MovaStandbyController,
         ),
       );
     }
@@ -241,6 +245,7 @@ class _MovaAutoPauseState extends State<MovaAutoPause> {
       live: s.type == MovaStreamType.live,
       exempt: s.pip || s.mini,
       now: DateTime.now(),
+      standbyCapable: api is MovaStandbyController,
     );
     final after = _gate.reasons;
     if (before.length != after.length || !before.containsAll(after)) {
@@ -274,6 +279,8 @@ class _MovaAutoPauseState extends State<MovaAutoPause> {
           _gate.observe(
             playing: s.playbackIntent || s.playing,
             exempt: s.pip || s.mini,
+            live: s.type == MovaStreamType.live,
+            standbyCapable: api is MovaStandbyController,
           ),
         );
       }
@@ -294,6 +301,42 @@ class _MovaAutoPauseState extends State<MovaAutoPause> {
         unawaited(api.play().catchError((Object _) {}));
       case MovaGuardAction.reloadEdge:
         unawaited(_reloadEdge(api));
+      case MovaGuardAction.standby:
+        unawaited(_standby(api, true));
+      case MovaGuardAction.wake:
+        unawaited(_standby(api, false));
+    }
+  }
+
+  /// Puts [api] into standby ([on]) or wakes it. An engine without the
+  /// capability degrades to `pause()`/`play()`.
+  ///
+  /// 让 [api] 进入待机（[on]）或唤醒。不具备该能力的引擎退化为 `pause()`/`play()`。
+  Future<void> _standby(MovaApi api, bool on) async {
+    try {
+      if (api is MovaStandbyController) {
+        await (api as MovaStandbyController).setStandby(on);
+        // It became visible again while the hold was being set up: the wake the
+        // gate issued queues behind this call inside the engine, and this makes
+        // sure nothing is left held if the engine answered late.
+        //
+        // 设置待机途中又变可见了：守卫发出的唤醒在引擎里排在本次调用之后；这里再补一次，
+        // 保证引擎答复得晚时也不会残留待机。
+        if (on &&
+            !_disposed &&
+            !_gate.hidden &&
+            identical(api, widget.api)) {
+          await (api as MovaStandbyController).setStandby(false);
+        }
+      } else if (on) {
+        await api.pause();
+      } else {
+        await api.play();
+      }
+    } on Object {
+      // A failing engine call must not surface from a visibility callback.
+      //
+      // 引擎调用失败不能从可见性回调里冒出来。
     }
   }
 
