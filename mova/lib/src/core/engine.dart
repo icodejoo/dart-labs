@@ -389,6 +389,14 @@ class MovaEngine implements MovaApi, MovaStandbyController {
     return k is MovaStandbyKernel ? k as MovaStandbyKernel : null;
   }
 
+  /// Whether an internal load should start playing: the play intent, except
+  /// while standby holds the engine paused (fallback), where loads stay paused
+  /// until the wake-up plays them.
+  ///
+  /// 内部加载完是否开播：即播放意图；但待机让引擎停在暂停态（fallback）期间一律不开播，
+  /// 留到唤醒时再播。
+  bool get _loadPlays => _playIntent && state.standby != MovaStandbyPhase.fallback;
+
   /// Whether a recovery retry/failover is waiting to run.
   ///
   /// 是否有重试/切换正在等待执行。
@@ -591,7 +599,11 @@ class MovaEngine implements MovaApi, MovaStandbyController {
     _completedSub = _kernel.completed.listen((v) {
       _state.emit(state.copyWith(completed: v));
       if (v) _events.add(const MovaDone());
-      if (v &&
+      if (v && state.standby == MovaStandbyPhase.holding) {
+        unawaited(
+          _enqueueStandby(() => _degradeStandby(MovaStandbyReason.ended)),
+        );
+      } else if (v &&
           state.type == MovaStreamType.live &&
           options.recovery.liveEndIsFailure) {
         _onPlayFail(MovaPlayFailKind.liveEnded);
@@ -753,7 +765,9 @@ class MovaEngine implements MovaApi, MovaStandbyController {
       await _kernel.pause();
       if (!current()) return false;
     }
-    if (_kernelOpening == 0) _watchdog?.armStart(playing: _playIntent);
+    if (_kernelOpening == 0 && state.standby != MovaStandbyPhase.holding) {
+      _watchdog?.armStart(playing: _playIntent);
+    }
     // A paused load's size signal may arrive before open returns. Re-feed
     // known dimensions defensively; real-device confirmation is Task 16.
     //
@@ -826,6 +840,7 @@ class MovaEngine implements MovaApi, MovaStandbyController {
         signal: signal,
       ),
     );
+    _maybeUpgradeReloaded();
   }
 
   /// Latest known buffered position, tracked alongside [_lastPosition] so a
@@ -1064,8 +1079,16 @@ class MovaEngine implements MovaApi, MovaStandbyController {
       ),
     );
     _openedAt = DateTime.now();
-    _armAttempt(autoPlay: autoPlay);
-    if (!await _loadKernel(source.uri, play: _playIntent)) return;
+    // Standby is requested: undo any hold and load this source paused (see
+    // [_standbyBeforeOpen]). Not awaited at all when standby is not involved.
+    //
+    // 请求了待机：先撤销待机，新源以暂停态加载（见 [_standbyBeforeOpen]）。未涉及待机时
+    // 完全不 await。
+    final held = _standbyRequested ? await _standbyBeforeOpen() : false;
+    if (held && (gen != _openGen || _disposed)) return;
+    final loadPlays = held ? false : _playIntent;
+    _armAttempt(autoPlay: loadPlays);
+    if (!await _loadKernel(source.uri, play: loadPlays)) return;
     if (session != _sessionGen || _disposed) return;
     _announceReady();
   }
@@ -1128,6 +1151,20 @@ class MovaEngine implements MovaApi, MovaStandbyController {
     final src = _source;
     if (wd == null || src == null || _disposed || _events.isClosed) return;
     if (_kernelOpening > 0) return;
+    // A hold fails quietly: no policy, no event, no reconnect in the background.
+    // The wake-up reopens the source instead.
+    //
+    // 待机中的失败悄悄处理：不咨询策略、不发事件、不在后台重连，唤醒时再重开。
+    if (state.standby == MovaStandbyPhase.holding) {
+      unawaited(
+        _enqueueStandby(() => _degradeStandby(MovaStandbyReason.failed)),
+      );
+      return;
+    }
+    if (state.standby == MovaStandbyPhase.fallback) {
+      _fallbackCause = MovaStandbyReason.failed;
+      return;
+    }
     // One attempt fails once: a timeout may be followed by a native error for
     // the very same attempt.
     //
@@ -1222,8 +1259,8 @@ class MovaEngine implements MovaApi, MovaStandbyController {
     _forgetMediaProgress();
     _abrPolicy.reset();
     _state.emit(state.copyWith(duration: Duration.zero));
-    _armAttempt(autoPlay: _playIntent);
-    if (!await _loadKernel(_activeUri, play: _playIntent)) return;
+    _armAttempt(autoPlay: _loadPlays);
+    if (!await _loadKernel(_activeUri, play: _loadPlays)) return;
     if (gen != _sessionGen || _disposed || _events.isClosed) return;
     _announceReady();
     if (resumeAt > Duration.zero) await _seekOrPark(resumeAt);
@@ -1347,6 +1384,71 @@ class MovaEngine implements MovaApi, MovaStandbyController {
     _resumeTimer = null;
     if (_resumeGateArmed) _frameGate.reset();
     _resumeGateArmed = false;
+  }
+
+  /// Leaves standby without waking: undoes the hold if there is one, phase to off.
+  ///
+  /// 不唤醒地离开待机：有内核待机就撤销，阶段归 off。
+  ///
+  /// - [reason]: why standby ended / 待机为何结束
+  Future<void> _dropStandby(MovaStandbyReason reason) async {
+    final phase = state.standby;
+    if (phase == MovaStandbyPhase.off) return;
+    _standbyTimer?.cancel();
+    _standbyTimer = null;
+    _cancelResume();
+    if (phase == MovaStandbyPhase.holding) await _standbyKernel?.exitStandby();
+    if (_disposed) return;
+    _standbyMode = null;
+    _setStandbyPhase(MovaStandbyPhase.off, reason);
+    _resumeWatch();
+  }
+
+  /// `pause()` while standby is requested or active: stop first, then restore
+  /// the properties, so nothing leaks sound.
+  ///
+  /// 待机请求存在或已在待机时的 `pause()`：先停，再还原属性，不漏声。
+  Future<void> _pauseOutOfStandby() async {
+    await _kernel.pause();
+    await _enqueueStandby(() => _dropStandby(MovaStandbyReason.paused));
+  }
+
+  /// A new source arrives while standby is requested: undo any hold (a silent
+  /// new source must not load with `vid=no`), then mark fallback so it loads
+  /// paused. Returns whether the load must stay paused.
+  ///
+  /// 待机请求存在时来了新源：先撤销内核待机（无声新源不能带着 `vid=no` 加载），再标为
+  /// fallback 使其以暂停态加载。返回本次加载是否必须保持暂停。
+  Future<bool> _standbyBeforeOpen() {
+    return _enqueueStandby(() async {
+      _standbyTimer?.cancel();
+      _standbyTimer = null;
+      _cancelResume();
+      if (state.standby == MovaStandbyPhase.holding) {
+        await _standbyKernel?.exitStandby();
+      }
+      _standbyMode = null;
+      _setStandbyPhase(MovaStandbyPhase.fallback, MovaStandbyReason.reloaded);
+      return true;
+    });
+  }
+
+  /// The reloaded source showed its first frame while still hidden: try once
+  /// to hold it instead of keeping it paused.
+  ///
+  /// 换来的新源在隐藏中出了首帧：尝试一次改为待机，而不是一直暂停。
+  void _maybeUpgradeReloaded() {
+    if (!_standbyRequested || !_playIntent) return;
+    if (state.standby != MovaStandbyPhase.fallback ||
+        _fallbackCause != MovaStandbyReason.reloaded) {
+      return;
+    }
+    unawaited(
+      _enqueueStandby(() async {
+        final p = await _enterStandby(viaPlay: true);
+        if (p == MovaStandbyPhase.holding) await _kernel.play();
+      }),
+    );
   }
 
   /// Wakes from standby: undoes a hold, or resumes/reconnects a fallback pause,
@@ -1516,7 +1618,14 @@ class MovaEngine implements MovaApi, MovaStandbyController {
   Future<void> pause() {
     _state.emit(state.copyWith(playbackIntent: false));
     _watchdog?.onPlaying(false);
-    return _kernel.pause();
+    // The plain path stays byte-identical when standby was never involved.
+    //
+    // 从未涉及待机时，走原路径，逐字不变。
+    if (!_standbyRequested && state.standby == MovaStandbyPhase.off) {
+      return _kernel.pause();
+    }
+    _standbyRequested = false;
+    return _pauseOutOfStandby();
   }
 
   @override
@@ -1678,10 +1787,10 @@ class MovaEngine implements MovaApi, MovaStandbyController {
     // 之间的空档，算出的增量会基于陈旧的时移前位置，而非 `target`。
     _lastPosition = target;
     _events.add(MovaSeek(target));
-    _armAttempt(autoPlay: _playIntent);
+    _armAttempt(autoPlay: _loadPlays);
     if (!await _loadKernel(
       builder(_activeUri, behind, DateTime.now()),
-      play: _playIntent,
+      play: _loadPlays,
     )) {
       return;
     }
@@ -1758,6 +1867,7 @@ class MovaEngine implements MovaApi, MovaStandbyController {
   @override
   Future<void> setMini(bool v) async {
     if (state.mini == v) return; // 幂等，避免无谓事件
+    if (v && state.standby != MovaStandbyPhase.off) await setStandby(false);
     if (v && state.fullscreen) await setFullscreen(false);
     _state.emit(state.copyWith(mini: v));
     _events.add(MovaMiniChange(v));
@@ -1877,8 +1987,8 @@ class MovaEngine implements MovaApi, MovaStandbyController {
     // 真机实测数据（STG AL00，mux x36xhzz）见 CLAUDE.md 的无缝切换真机验证一节。
     _abrPolicy.reset();
     _state.emit(state.copyWith(duration: Duration.zero, currentQuality: q));
-    _armAttempt(autoPlay: _playIntent);
-    if (!await _loadKernel(playUri, play: _playIntent)) return;
+    _armAttempt(autoPlay: _loadPlays);
+    if (!await _loadKernel(playUri, play: _loadPlays)) return;
     // Announce the new variant as soon as the load command is issued: the
     // resume seek may be parked until the duration arrives, and delaying the
     // event until then would leave the UI showing the old label for seconds.
@@ -1910,6 +2020,7 @@ class MovaEngine implements MovaApi, MovaStandbyController {
     //
     // 与 setMini 的全屏守卫对称：系统 PiP 与 App 内小窗不能同时生效，否则两个
     // 渲染面会叠在一起。
+    if (state.standby != MovaStandbyPhase.off) await setStandby(false);
     if (state.mini) await setMini(false);
     final ok = await _pip.enter(width: state.width, height: state.height);
     _state.emit(state.copyWith(pip: ok));
@@ -1980,8 +2091,8 @@ class MovaEngine implements MovaApi, MovaStandbyController {
     // 寄存/待结算 seek 簿记，否则重开前遗留的 [_parkedSeek]/
     // [_pendingSeekTarget] 可能在刚重开的流上误触发。
     _forgetMediaProgress();
-    _armAttempt(autoPlay: _playIntent);
-    await _loadKernel(_activeUri, play: _playIntent);
+    _armAttempt(autoPlay: _loadPlays);
+    await _loadKernel(_activeUri, play: _loadPlays);
   }
 
   /// Jumps back to the live edge on a stall, when configured to.
@@ -1999,6 +2110,7 @@ class MovaEngine implements MovaApi, MovaStandbyController {
   ///
   /// - [buffering]: the latest buffering flag / 最新的缓冲标志
   void _maybeAutoBackToLive(bool buffering) {
+    if (state.standby == MovaStandbyPhase.holding) return;
     if (!buffering) return;
     if (!options.live.autoBackToLiveOnStall) return;
     if (state.type != MovaStreamType.live) return;
@@ -2229,6 +2341,7 @@ class MovaEngine implements MovaApi, MovaStandbyController {
   /// [MovaAbrConfig.enabled] 为真时执行降档——仅当清晰度确实发生变化时（即非
   /// 自动模式/已是最低档的无操作降档）才发出 [MovaAbrDownShift]。
   void _handleAbrBuffering(bool buffering) {
+    if (state.standby == MovaStandbyPhase.holding) return;
     final shouldDownshift = _abrPolicy.onBuffering(buffering);
     if (!shouldDownshift || !options.abr.enabled) return;
     if (_abrDownshiftInFlight) return;
