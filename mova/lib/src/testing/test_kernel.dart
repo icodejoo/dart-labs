@@ -2,7 +2,9 @@ import 'dart:async';
 import 'dart:typed_data';
 
 import '../core/kernel/kernel.dart';
+import '../core/kernel/standby_kernel.dart';
 import '../core/report/stats_probe.dart';
+import '../core/standby/standby.dart';
 
 /// A scriptable [MovaKernel] (+ [MovaStatsProbe]) for widget tests: records
 /// calls and lets the test push any kernel signal, so a real `MovaEngine` can
@@ -17,7 +19,7 @@ import '../core/report/stats_probe.dart';
 /// k.emitSize(1280, 720);
 /// k.emitRestart(); // MovaState.rendered → true
 /// ```
-class MovaTestKernel implements MovaKernel, MovaStatsProbe {
+class MovaTestKernel implements MovaKernel, MovaStatsProbe, MovaStandbyKernel {
   /// Creates a test kernel.
   ///
   /// 创建一个测试内核。
@@ -55,6 +57,49 @@ class MovaTestKernel implements MovaKernel, MovaStatsProbe {
   ///
   /// 非空时，`open()` 会（在记录调用之后）抛出它。
   Object? openError;
+
+  /// Whether the scripted media has decodable audio: true/false, or null for
+  /// "not known yet" (the default — standby then falls back to a pause).
+  ///
+  /// 编排的媒体是否有可解码的音频：true/false；null 表示"尚不知道"（默认——此时待机会退回暂停）。
+  bool? hasAudio;
+
+  /// The demuxer reported to standby, e.g. `flv` (default) or `hls`.
+  ///
+  /// 报告给待机的 demuxer，例如 `flv`（默认）或 `hls`。
+  String? fileFormat = 'flv';
+
+  /// The standby mode currently held, or null.
+  ///
+  /// 当前持有的待机组合；没有则为 null。
+  MovaStandbyMode? _heldMode;
+
+  @override
+  Future<MovaStandbyMedia> inspectStandby() async {
+    calls.add('inspectStandby');
+    final audio = hasAudio;
+    return MovaStandbyMedia(
+      audio: audio == null
+          ? MovaAudioPresence.unknown
+          : (audio ? MovaAudioPresence.present : MovaAudioPresence.absent),
+      format: fileFormat,
+    );
+  }
+
+  @override
+  Future<bool> enterStandby(MovaStandbyMode mode) async {
+    calls.add('enterStandby:${mode.name}');
+    _heldMode = mode;
+    return true;
+  }
+
+  @override
+  Future<bool> exitStandby() async {
+    calls.add('exitStandby');
+    final was = _heldMode;
+    _heldMode = null;
+    return was == MovaStandbyMode.muted;
+  }
 
   @override
   Object? renderHandle;

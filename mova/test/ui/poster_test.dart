@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:mova/src/core/standby/standby.dart';
 import 'package:mova/src/core/state/state.dart';
 import 'package:mova/src/ui/player.dart';
 import 'package:mova/src/ui/poster.dart';
@@ -122,5 +123,35 @@ void main() {
         findsOneWidget);
     expect(find.byKey(const ValueKey('chrome')), findsOneWidget);
     await api.dispose();
+  });
+
+  testWidgets('standby: the poster covers at once while holding and while resuming, and fades only once off', (t) async {
+    final api = FakeMovaApi();
+    await _mount(t, api, _RecordingSkin());
+    const shown = MovaState(rendered: true, width: 1280, height: 720);
+    await _push(t, api, shown);
+    expect(_opacity(t).opacity, 0);
+    await _push(t, api, shown.copyWith(standby: MovaStandbyPhase.holding));
+    expect(_opacity(t).opacity, 1);
+    expect(_opacity(t).duration, Duration.zero);
+    await _push(t, api, shown.copyWith(standby: MovaStandbyPhase.resuming));
+    expect(_opacity(t).opacity, 1);
+    await _push(t, api, shown.copyWith(standby: MovaStandbyPhase.off));
+    expect(_opacity(t).opacity, 0);
+    expect(_opacity(t).duration, _fade);
+  });
+
+  testWidgets('standby: a fallback pause leaves the poster off, like a plain pause', (t) async {
+    final api = FakeMovaApi();
+    await _mount(t, api, _RecordingSkin());
+    await _push(t, api, const MovaState(rendered: true, width: 1280, height: 720, standby: MovaStandbyPhase.fallback));
+    expect(_opacity(t).opacity, 0);
+  });
+
+  testWidgets('standby: before a first frame the poster shows whatever the phase is', (t) async {
+    final api = FakeMovaApi();
+    await _mount(t, api, _RecordingSkin());
+    await _push(t, api, const MovaState(standby: MovaStandbyPhase.off));
+    expect(_opacity(t).opacity, 1);
   });
 }
