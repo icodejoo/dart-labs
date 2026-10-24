@@ -45,6 +45,20 @@
   * 验证页：`example/lib/main_host_ergonomics_verify.dart`（真机验证用，尚未上机）。
 * **评审修复（11 条）**：`MovaState.playbackIntent` 独立于内核 `playing`，内部重载与看门狗遵循最新播放意图；恢复绑定已接受会话与失败尝试，跨失败保留续播点；自动暂停守卫订阅状态并重绑引擎、保留配置更新前的隐藏周期；直播恢复、视图加载、档位请求均校验异步过期。逐条说明见 `doc/plans/2026-10-23-host-ergonomics.md`「评审修复」。
 
+* **低功耗待机（standby，对应 `doc/plans/2026-10-23-standby-mode.md` Task 1–9）**——默认关闭，不调用就一行代码都不会走到：
+  * **入口**：`MovaAutoPauseConfig(hiddenMode: MovaHiddenMode.standby)`（守卫自动处理，默认 `pause`）与命令式的 `MovaStandbyController.setStandby(bool)`
+    （`MovaEngine`/`MovaSwapEngine` 实现；`MovaApi`、`MovaKernel` 零新增成员，用 `is` 探测）。调参 `MovaOpts.standby`（`MovaStandbyConfig`：`maxDuration` 默认 30s、
+    `silentStreams`、`allowHls` 默认 false、`resumeTimeout` 默认 5s、`liveResumeGrace` 默认 3s）。
+  * **机制**：有音频的直播 → 关视频解码并静音（`mute`/`vid`，保存后原样还原，绝不碰 `volume`/`vo`/`wid`/`VideoController`）；无音频 → 继续解码只静音；
+    点播、进后台、媒体信息未知、HLS（默认）→ 普通暂停；到 `maxDuration` 自动退回暂停。**网络不省，省的是解码/渲染/电。**
+  * **状态与事件**：`MovaState.standby`（`MovaStandbyPhase`：`off`/`holding`/`fallback`/`resuming`）、`MovaStandbyChange(phase, reason, mode)`、
+    `MovaStandbyResume(elapsed, signal, from)`；`MovaStandbyMode`/`MovaStandbyReason`/`MovaSilentStandby` 随之公开。
+  * **恢复计时**：`MovaFirstFrameGate.arm(resume: true)` 只认原生 RESTART 与非零尺寸、立即落地；`rendered` 全程不动，不发 `MovaFirstFrame`。
+  * **与既有能力的交互**：待机期间看门狗不计时、ABR 与自动回边缘不触发、失败延到唤醒时强制重开；待机请求期间 `open()` 换源以暂停态加载，首帧落地后再尝试待机；
+    `setMini(true)`/`enterPip()` 先唤醒；`MovaSwapEngine` 透传并在提交时把待机施加到新引擎；封面在待机与恢复期间瞬间盖上；`MovaTestKernel` 支持待机（`hasAudio`/`fileFormat`）。
+  * **破坏性变更（编译期）**：`MovaEvent` 再新增 `MovaStandbyChange`、`MovaStandbyResume`，`MovaGuardAction` 新增 `standby`/`wake`，宿主里没有 `default` 分支的穷尽 `switch` 需要补分支。
+  * 验证页：`example/lib/main_standby_verify.dart`（真机验证用，尚未上机）。
+
 ## 0.3.0
 
 * 埋点上报增强：`MovaReporter` 补齐 TTFF 首帧耗时、卡顿次数与时长、播放失败

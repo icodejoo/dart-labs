@@ -754,6 +754,39 @@ demo 列表第 6 项）与独立的 `DouyinFeedDemoPage`（AppBar 新图标按�
 - `TickerMode.getNotifier` 在当前 Flutter 已弃用，实现用 `getValuesNotifier`。
 - 进入 `hidden` 后 Flutter 停止出帧，`pumpWidget` 不会再构建；测试里要在前台卸载组件。
 
+## 低功耗待机（2026-10-23，默认关闭）
+
+计划：[doc/plans/2026-10-23-standby-mode.md](plans/2026-10-23-standby-mode.md)（D1–D13）；调研：[doc/notes/2026-10-23-libmpv-low-power-standby.md](notes/2026-10-23-libmpv-low-power-standby.md)。
+全部经 `flutter analyze`/`flutter test` 验证，**无真机数据**（计划 Task 10 待定：等真机）。
+
+| 能力 | 公开面 | 落点 |
+|---|---|---|
+| 命令式入口（D1） | `MovaStandbyController.setStandby(bool)`（`MovaEngine`/`MovaSwapEngine` 实现） | `core/standby/standby.dart`、`engine.dart`、`swap/swap_engine.dart` |
+| 状态与事件（D6） | `MovaState.standby`、`MovaStandbyPhase`/`MovaStandbyMode`/`MovaStandbyReason`、`MovaStandbyChange`、`MovaStandbyResume` | `state/state.dart`、`events/events.dart` |
+| 调参（D13） | `MovaOpts.standby`（`MovaStandbyConfig`）、`MovaSilentStandby` | `options/standby_config.dart` |
+| 内核能力（D3/D5） | `MovaStandbyKernel`（`inspectStandby`/`enterStandby`/`exitStandby`）、`MovaStandbyMedia`、`MovaAudioPresence`、`movaAudioPresence()`（均不进主 barrel） | `kernel/standby_kernel.dart`、`kernel/mpv_kernel.dart`（只增不改） |
+| 决策（D4） | `decideStandbyEntry`/`decideStandbyWake`/`MovaStandbyEntry`/`MovaStandbyWake`（不导出） | `standby/plan.dart` |
+| 守卫（D10） | `MovaHiddenMode`、`MovaAutoPauseConfig.hiddenMode`、`MovaGuardAction.standby/wake` | `guard/auto_pause.dart`、`ui/guard/auto_pause.dart` |
+| 恢复计时（D7） | `MovaFirstFrameGate.arm(resume: true)` | `render/first_frame.dart`、`engine.dart` |
+
+**状态机（D6）**：`off` → `holding`（进入）/`fallback`（退回暂停）；`holding` → `fallback`（`maxDuration`/失败/结束）或 `resuming`（唤醒）；`resuming` → `off`（首帧落地或 `resumeTimeout`）；
+任意非 off 遇宿主 `pause()` → `off(paused)`；待机请求存在期间 `open()`/`reload()` → `fallback(reloaded)`，新源首帧落地后若意图仍为播放再尝试 `holding`。所有迁移经引擎内一条串行队列。
+
+**B/C 判定（D4）**：`audio-params.sampleRate > 0` 且有选中的真实音轨才算有音频（瘦身 libmpv 可能裁掉某些解码器，音轨存在但解码器打不开时做 `vid=no` 会让直播停读）；
+`unknown`（轨道未载入或音频解码器未出声）一律退回暂停。HLS/DASH（`file-format` 为 `hls`/`dash`，实际取值待真机核对）默认退回暂停。
+
+**属性操作（D5）**：只碰 `mute` 与 `vid`，先保存、再改写、退出时精确还原；先静音再拆视频，恢复时先恢复视频再恢复声音；原值为 `no` 的 `vid`（audioOnly/懒创建未挂界面）不动；
+每次属性读写 2s 超时，失败则回滚并让引擎退回暂停。绝不碰 `volume`（Android 上归系统音量端口）、`vo`/`wid`（归 media_kit 的 Android `widListener`，`wid=0` 时设回非 null 会原生崩溃）、`aid`（全关等于停读）、`VideoController`。
+
+**与既有逻辑的交互（D8/D9）**：`play()` 在 holding 时保持待机、fallback 时按意图重试待机；`seek`/`setVolume` 照常；`backToLiveEdge`/`switchQuality` 在 holding 时同源重载并保持待机、
+fallback 时以暂停态加载（`_loadPlays`）；holding 期间看门狗 `disarm`、ABR 与自动回边缘直接返回、失败/直播结束降级为 `fallback(failed/ended)` 并在唤醒时强制重开；唤醒后回到卡顿监视、不重计起播期限。
+
+**默认值（D13）**：`hiddenMode: pause`、`maxDuration: 30s`、`allowHls: false`、`silentStreams: keepDecoding`、`resumeTimeout: 5s`、`liveResumeGrace: 3s`、点播一律暂停、进后台一律暂停；均为真机数据出来前的保守值（校准项见计划 Task 10 的 S1–S17）。
+
+**明确不做**：`vo=null` 变体、桌面 `setSize(2,2)`、`skipframe`/`skiploopfilter`、`drop-buffers`、省流量、feed 池"邻近页保温"、QoE 识别待机、swap 预热影子降载、swap `muteWhileWarm` 走 `setVolume(0)` 的疑似整机静音（Q13，旁支，另立项）。
+
+**与计划的偏差**见计划文首「落地偏差」。
+
 ## 测试
 
 - `test/core/`：`api_test.dart`/`bus_test.dart`/`compat_test.dart`/

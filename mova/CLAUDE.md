@@ -32,8 +32,8 @@
 
 ## 当前状态（0.2.0）
 
-> **测试基线：1283 项全绿**（2026-10-23 本机实跑 `flutter test` 的真实结果；其中宿主易用性计划 Task 1–15 贡献 +150
-> （Task 1–8 +70、Task 9–15 +80），本次评审修复新增 +19，见下文「宿主易用性增强」）；
+> **测试基线：1286 项全绿**（2026-10-24 本机实跑 `flutter test` 的真实结果；其中宿主易用性计划 Task 1–15 贡献 +150
+> （Task 1–8 +70、Task 9–15 +80），其评审修复新增 +19，见下文「宿主易用性增强」；低功耗待机计划 Task 1–9 贡献 +109，见「低功耗待机」）；
 > `flutter analyze lib test` 0 issues（`example/` 下 demo 有若干 `avoid_print` info，
 > 均为验证脚本）。
 
@@ -98,6 +98,22 @@ example 已加直播/时移两个 demo（仅桌面冒烟，未做交互验证）
   **无真机数据**。需真机确认的点：暂停态打开时 mpv 是否发 `PLAYBACK_RESTART`（影响 1.5s 宽限）、`END_FILE(error)` 对坏地址的真实时机、
   Android 切后台的 `inactive→hidden` 序列与 libmpv 自暂停时序（守卫的意图快照）、`go_router` shell 分支下根 navigator 半透明路由的 `routeObservers` 路径、
   直播隐藏 ≥3s 后 `backToLiveEdge()` 的真实恢复效果。
+
+### 低功耗待机（standby，Task 1–9 已落地，Task 10 待定：等真机）
+
+计划见 [doc/plans/2026-10-23-standby-mode.md](doc/plans/2026-10-23-standby-mode.md)（文首「落地偏差」有实跑进度表与逐条偏差），调研见
+[doc/notes/2026-10-23-libmpv-low-power-standby.md](doc/notes/2026-10-23-libmpv-low-power-standby.md)。直播被隐藏时不出画面不出声，但保持流连接与进度，恢复时只需恢复视频解码。已完成：
+- **入口**：`MovaAutoPauseConfig(hiddenMode: MovaHiddenMode.standby)` 与命令式 `MovaStandbyController.setStandby(bool)`（`MovaEngine`/`MovaSwapEngine` 实现，`MovaApi`/`MovaKernel` 零新增成员，`is` 探测）；
+  调参 `MovaOpts.standby`（`MovaStandbyConfig`），**没有开关**，不调用就不会走到。
+- **内核**：`MovaStandbyKernel`（`core/kernel/standby_kernel.dart`，不进主 barrel）由 `MovaMpvKernel` 实现，**只增不改**：只碰 `mute`/`vid`，保存后原样还原。
+- **状态机**：`MovaState.standby`（`off`/`holding`/`fallback`/`resuming`）、事件 `MovaStandbyChange`/`MovaStandbyResume`；决策是纯函数（`core/standby/plan.dart`）；恢复计时复用首帧闸门的 `resume` 武装；
+  引擎里所有待机迁移走一条串行队列。待机计时走 `@visibleForTesting debugClock`（`DateTime.now()` 不跟随 `fakeAsync`）。
+- **交互**：待机期间看门狗/ABR/自动回边缘静默、失败延到唤醒强制重开；`pause()` 结束待机；待机请求期间换源以暂停态加载；fallback 期间的内部重载读 `_loadPlays`（不开播）；`setMini`/`enterPip` 先唤醒；
+  守卫进后台把待机降级为暂停；封面在待机/恢复期间瞬间盖上。
+- 文档与验证页：README「隐藏时待机」、CHANGELOG（`Unreleased`）、`doc/SPEC.md`「低功耗待机」、`example/lib/main_standby_verify.dart`（仅 `flutter analyze`，未上机）。
+- **未做**：Task 10 真机测量（S1–S17：恢复耗时、`maxDuration`/`resumeTimeout` 校准、HLS 能否放开、`mediacodec-copy` 下 `vid` 切回能否出画、进后台实际状态、`audio-params` 就绪时机、守卫端到端）。
+  **无真机数据**，需真机确认：`file-format` 的实际取值、`vid=auto` 后是否发 `PLAYBACK_RESTART`、待机期间 Android 画面是黑还是冻帧、`mute` 时音频会话的耗电。
+- **旁支发现（未处理，另立项）**：`MovaSwapEngine` 的 `muteWhileWarm` 走 `setVolume(0)`，而 Android 上 `setVolume` 默认改系统媒体音量，疑似预热期间把正在播放的那一路也静音（计划 Q13）。
 
 ### UI 插件化
 

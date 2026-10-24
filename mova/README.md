@@ -57,6 +57,7 @@ Flutter 视频播放库，自研手势与控制层，支持点播与直播。
 - 仅音频模式（`audioOnly`）不提供后台常驻播放、锁屏/通知栏控制、耳机线控、音频焦点、gapless、歌单——这些需要 `just_audio` + `audio_service` 一类的专用方案。
 - **带画面内核的 `VideoController` 必须真正挂到界面上才能正常销毁**（这是 media_kit 的行为，不是 mova 引入的）：`VideoController` 创建后若一直没有挂到视频组件上，`Player.dispose()` 会一直等它，真机实测 Windows 上 3/6 次、Android 上 4/5 次 dispose 撞上 8 秒超时。默认实现（`createMovaEngine()` / `MovaEngine()`）已做成**懒创建**——第一次渲染（`MovaPlayer` 挂上树，读取 `renderHandle`）时才创建，所以"创建了 engine 却没展示就销毁"是安全的。**如果你自己创建并注入 `VideoController`（传入自己构造的 `MovaMpvKernel`/`Player`，或用 `lazyVideo: false` 的内核），要自己保证它最终挂到了 UI 上再销毁**；纯逻辑、后台预热、单测等不展示画面的场景请用 `audioOnly: true`，或保持默认懒创建、不要读取 `renderHandle`。无缝切换的影子引擎例外：预热阶段就需要解码画面，会提前创建控制器。
 - 自动暂停守卫（`MovaAutoPause`）的视口检测只沿祖先 `Scrollable` 计算，**不覆盖**任意 `ClipRect`/`Transform`/`Overlay` 造成的遮挡；外层 navigator 上的半透明路由要传 `routeObservers`（每个 navigator 一个观察者，不能共用）；懒加载列表如果在守卫来得及暂停之前就销毁了卡片，此后引擎归持有者管。
+- 待机（standby）只经过 `flutter analyze`/`flutter test`/假内核验证，**无真机数据**：恢复耗时、`maxDuration`/`resumeTimeout` 的默认值、HLS 能否放开、`mediacodec-copy` 下 `vid` 切回能否出画、进后台后的实际状态都待测。无声流的"继续解码、只静音"变体不省电；更省电的 `vo=null` 做法会与 media_kit 的 Android 渲染面逻辑冲突，没有实现。iOS/macOS 未验证。
 - `MovaOpts.recovery`（起播/卡顿超时与重试）与 `MovaAdController`/`MovaSwapEngine` 同时开启时，交互不在保证范围内；它们三者的失败处理各管各的，没有统一的恢复编排。
 - 部分可选能力（广告编排、无缝引擎切换、App 内小窗、仅音频模式）代码已落地但真机验证程度不一，详见各自小节链接的 [doc/SPEC.md](doc/SPEC.md) 章节。
 
@@ -215,6 +216,37 @@ MovaView(source: src, autoPause: const MovaAutoPauseConfig())
 - 直播恢复：暂停点可能已滑出 HLS 窗口、HTTP-FLV 连接也可能已断，所以隐藏 ≥ `liveResumeGrace`（默认 3s）后默认 `backToLiveEdge()` 再播，不足 3s 就普通 `play()`；`liveResume: MovaLiveResume.resume` 则一律普通续播。
 - **外层 navigator 上推的半透明路由**（典型：`go_router` 的 shell 分支里放卡片，根 navigator 弹对话框/透明页）`ModalRoute.isCurrentOf` 看不到，要传 `routeObservers`：**每个 navigator 一个** `RouteObserver<ModalRoute<dynamic>>`（Flutter 不允许一个 `NavigatorObserver` 挂到两个 navigator 上，会在 debug 下断言失败），把它们都传给守卫。不透明的外层路由（普通整页）转场结束后已经能经 `TickerMode` 察觉，不需要。
 - 不要给 `MovaFeedPlayer` 的页套守卫：feed 池的 `focus()` 已经在管"只有一页出声"，两套逻辑会打架。
+
+## 隐藏时待机（standby，可选）
+
+直播卡片被隐藏（切 Tab、滚出屏、被路由盖住）时，除了暂停，还可以让它"待机"：不出画面、不出声，但**保持流连接和直播进度**。重新显示时只需恢复视频解码，不用再走"重新请求 → 首片 → 解码器 → 首帧"整条链路。
+
+```dart
+// 守卫自动处理（推荐，默认仍是 pause）
+MovaView(
+  source: live,
+  autoPause: const MovaAutoPauseConfig(hiddenMode: MovaHiddenMode.standby),
+)
+
+// 或命令式：引擎实现了 MovaStandbyController，MovaApi 本身没有新增成员
+final api = createMovaEngine();
+if (api is MovaStandbyController) {
+  await api.setStandby(true);   // 卡片滑走
+  await api.setStandby(false);  // 回到屏幕
+}
+```
+
+- **机制**：流里有音频 → 关视频解码并静音（音频链当时钟，demuxer 继续追边缘）；流里没有音频 → 继续解码、只静音；点播、进后台、媒体信息未知、HLS（默认）→ 退回普通暂停。待机最长 `MovaStandbyConfig.maxDuration`（默认 30s），到点自动退回暂停。
+- **网络一点不省**：待机期间照常满速下载，省的是解码/渲染/电。蜂窝网络下建议由宿主自己改回 `hiddenMode: MovaHiddenMode.pause`；**列表里有多张直播卡片时只给主卡片开待机**——每张待机卡片都在满速下载。
+- **默认只对 FLV 这类直播生效**：HLS/DASH 默认暂停（`MovaStandbyConfig.allowHls: false`），可切回 `vid` 后 demuxer 是否回读网络、是否在直播窗口滑走后出问题都还没真机测过。
+- **恢复要等关键帧**：典型等 0~1 个 GOP，不重连。`MovaStandbyResume.elapsed` 记录从唤醒调用到第一帧新画面的耗时，`signal` 说明由什么落地。
+- **进后台一律暂停**：守卫在应用进后台时会把待机降级为暂停（系统会限网限 CPU）。命令式使用者要自己在进后台时 `pause()`。
+- **只有 `setStandby(false)` 能唤醒**：待机期间程序性的 `play()`（广告、播放列表）不会让看不见的卡片出声。待机请求存在期间 `open()` 换源，新源以暂停态加载，首帧落地后若仍应播放再尝试一次进入待机。
+- 调参在 `MovaOpts.standby`（`MovaStandbyConfig`：`maxDuration`/`silentStreams`/`allowHls`/`resumeTimeout`/`liveResumeGrace`），只有调参没有开关——不调用 `setStandby` 就一行待机代码都不会走到。
+- 状态与事件：`MovaState.standby`（`off`/`holding`/`fallback`/`resuming`）、`MovaStandbyChange`、`MovaStandbyResume`。有封面（`poster`）时，待机与恢复期间封面会瞬间盖上、恢复落地后淡出。
+- 待机期间 QoE 照计观看时长与卡顿（本期没有让 collector 识别待机）。
+- 宿主 widget 测试里，`MovaTestKernel` 的 `hasAudio`（默认 `null` = 媒体信息未知，此时会退回暂停）与 `fileFormat` 可编排待机场景。
+- 验证页：`example/lib/main_standby_verify.dart`（只经过 `flutter analyze`，**未上机**）。
 
 ## widget 测试
 
