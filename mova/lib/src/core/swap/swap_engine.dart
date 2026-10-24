@@ -11,6 +11,7 @@ import '../model/source.dart';
 import '../options/options.dart';
 import '../preview/api.dart';
 import '../report/report.dart';
+import '../standby/standby.dart';
 import '../state/progress.dart';
 import '../state/state.dart';
 import '../state/ui_state.dart';
@@ -41,7 +42,7 @@ import 'warm.dart';
 ///
 /// [MovaSwapConfig.enabled] 为 false 时它是纯直通代理：永不创建影子引擎，
 /// 每个方法都原样转发给工厂产出的那唯一一个引擎。
-class MovaSwapEngine implements MovaApi, MovaSwapController {
+class MovaSwapEngine implements MovaApi, MovaSwapController, MovaStandbyController {
   /// Creates a swap engine over [engineFactory].
   ///
   /// 基于 [engineFactory] 创建一个切换引擎。
@@ -245,6 +246,30 @@ class MovaSwapEngine implements MovaApi, MovaSwapController {
 
   @override
   Future<void> pause() => _active.pause();
+
+  /// The host's latest standby wish, re-applied to whichever engine becomes
+  /// active.
+  ///
+  /// 宿主最近一次的待机意愿，会重新施加到成为生效引擎的那一个上。
+  bool _standbyWanted = false;
+
+  @override
+  Future<MovaStandbyPhase> setStandby(bool on) async {
+    _standbyWanted = on;
+    final a = _active;
+    if (a is MovaStandbyController) {
+      return (a as MovaStandbyController).setStandby(on);
+    }
+    // An engine without the capability can only pause and play.
+    //
+    // 不具备该能力的引擎只能暂停/播放。
+    if (on) {
+      await a.pause();
+    } else {
+      await a.play();
+    }
+    return MovaStandbyPhase.off;
+  }
 
   @override
   Future<void> playOrPause() => _active.playOrPause();
@@ -530,6 +555,14 @@ class MovaSwapEngine implements MovaApi, MovaSwapController {
 
     await old.pause();
     await _holding;
+    // The host wants this picture hidden: have the shadow start in standby, set
+    // before its volume is restored and before it plays, so it never gets loud.
+    //
+    // 宿主希望这块画面保持隐藏：让影子以待机态开播，且在恢复音量与 play() 之前设好，
+    // 保证它不会出声。
+    if (_standbyWanted && shadow is MovaStandbyController) {
+      await (shadow as MovaStandbyController).setStandby(true);
+    }
     await shadow.setVolume(old.state.volume);
     await shadow.play();
 
