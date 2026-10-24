@@ -176,8 +176,9 @@ void main() {
       a.elapse(const Duration(seconds: 1));
       k.emitDuration(const Duration(minutes: 5));
       a.flushMicrotasks();
-      expect(k.lastSeek, const Duration(seconds: 37));
+      expect(k.lastSeek, isNull);
       _land(k, a);
+      expect(k.lastSeek, const Duration(seconds: 37));
       e.dispose();
       a.flushMicrotasks();
     });

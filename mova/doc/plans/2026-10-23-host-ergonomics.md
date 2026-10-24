@@ -2038,6 +2038,15 @@ min/max/avg，URL 加 timestamp 防缓存。
    复现：`example` 里 `ONLY=V6` 跑 `main_host_ergonomics_verify.dart`（源：`/stall.mp4`，`recovery` 开，`stallTimeout=4s`）。证据：失败时 `state.type=vod rendered=true duration=40023ms`、失败前
    `MovaProg.position=2840ms`；`_recover` 之后进度从 0 线性增长（见上表样本），5s 内无跳变；服务器侧重试连接是 `Range` 起点 0 的整文件请求。
    线索（未验证）：`_recover` 里 `_seekOrPark(resumeAt)` 在 `await _loadKernel()` 之后调用，若此时 `state.duration` 已 > 0 就走直发 `_kernel.seek()`，而 CLAUDE.md 记过"裸 seek 在文件未就绪时被 mpv 静默丢弃"。
+   **已修复（2026-10-24，加载请求返回/时长到达不保证文件已就绪，原续播 seek 可被丢弃），待复测。** 当前有效尝试首帧落地后才发送续播 seek；真实 Windows V6 是否命中此窗口及修复后的 <500ms 落点仍须 release 复测，以上历史采样不改判。
+
+   代码核对：`_onPlayFail` 首次失败保存 `_recoveryPosition` → `_recover` 读取该值、清媒体进度/时长、武装尝试 → `_loadKernel` 等内核 `open()` 请求返回 → 原实现 `_seekOrPark`（已有时长时立即 seek，否则等 duration 回调补发）→ 首帧落地清恢复位置。`MovaKernel.open` 的契约只是请求已提交；`MovaMpvKernel.open` 使用 `Media(uri)`，没有传 `start`，续播依赖引擎 seek，并非漏传已有 start 参数。缺口是续播没有等待当前尝试就绪；时长先到会导致提前发送，而丢失后首帧路径不会补救。
+
+   修复：恢复目标仍跨失败保存；`_recoveryAwaitingFrame` 在 `_armAttempt` 时复位、恢复加载前设置，只有未判失败的当前尝试落地才发送 seek。首帧已就绪时不再依赖下一条 duration；已知时长仍钳位。按 D7 的“重试/切换 = 内核重载”语义，同内容点播备选续播；直播不发送 seek。未新增接口成员或依赖，未改 UI/example，未 build/连设备/adb/提交。
+
+   原 #7 及 Task 10 测试只检查 FakeKernel 的 `lastSeek`，并在重试后人工补发 duration；FakeKernel 会记录任何时机的 seek，不能区分命令被记录与实际生效。现加强两条旧测试，要求首帧前无 seek、落地后正确 seek；新增 `resume_readiness_test.dart` 14 条，假内核在就绪前丢弃 seek，并检查实际落点。覆盖点播/直播 × stallTimeout、openThrew、nativeEndError、failover 共 8 条，以及无新时长时 restart/buffering/progress/暂停尺寸落地 4 条、已失败尝试迟到首帧不清目标、新会话丢弃旧目标 2 条。
+
+   先失败后通过的实跑输出（2026-10-24）：修改引擎前新增的 8 条测试中，点播四条均 `Expected: Duration:<0:00:02.840000>` / `Actual: Duration:<0:00:00.000000>`，末行 `00:00 +4 -4: Some tests failed.`；修复与补充边界后 recovery 目录末行 `00:01 +67: All tests passed!`。全量基线先实跑 `00:40 +1302: All tests passed!`；最终 `flutter analyze lib test` 末行 `No issues found! (ran in 7.4s)`、`flutter test --reporter expanded` 末行 `00:43 +1316: All tests passed!`（新增 14）。这些是假内核证据，尚无本次 Windows/Android 原生复测结论。
 2. **V10 `盖一层路由` 在弹出路由时原生崩溃（Windows，100% 复现 6/6）**。
    复现：`ONLY=V10A`（或 `V10C`，守卫关也崩）；`MovaView` 在根 navigator，push 一个不透明 `MaterialPageRoute` 后 pop。push 阶段正常（守卫开时 8ms 内 `MovaPause`），**pop 时进程以 `0xC0000005` 退出**；
    Skia 与默认后端各试过，均崩；`TickerMode` 路径（`V10B`）不崩，说明触发点是"路由弹出让播放器重新露出"。

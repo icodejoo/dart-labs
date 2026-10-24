@@ -32,7 +32,7 @@
 
 ## 当前状态（0.2.0）
 
-> **测试基线：1302 项全绿**（2026-10-24 本机实跑 `flutter test` 的真实结果；Q13 预热静音修复新增 +16；其中宿主易用性计划 Task 1–15 贡献 +150
+> **测试基线：1316 项全绿**（2026-10-24 本机实跑 `flutter test` 的真实结果；HE V6 续播就绪修复新增 +14，1302 → 1316；Q13 预热静音修复新增 +16；其中宿主易用性计划 Task 1–15 贡献 +150
 > （Task 1–8 +70、Task 9–15 +80），其评审修复新增 +19，见下文「宿主易用性增强」；低功耗待机计划 Task 1–9 贡献 +109，见「低功耗待机」）；
 > `flutter analyze lib test` 0 issues（`example/` 下 demo 有若干 `avoid_print` info，
 > 均为验证脚本）。`example/test/auto_kit_test.dart`（验证页脚本化工具的纯逻辑，12 项）在 `example/` 下单独 `flutter test`，不计入上述基线。
@@ -95,7 +95,7 @@ example 已加直播/时移两个 demo（仅桌面冒烟，未做交互验证）
   `createMovaEngine()` 咨询，安装后平台端口全部空实现）。
 - 文档与验证页：README 五节、CHANGELOG、`doc/SPEC.md`「宿主易用性」、`example/lib/main_host_ergonomics_verify.dart`（加 `--dart-define=AUTORUN=true` 为脚本化模式，实现在 `example/lib/verify_auto/he_auto.dart`；2026-10-24 已在 Windows release 上跑过）。
 - **Task 16 状态（2026-10-24）**：**Windows 桌面可测的部分已跑完**（release，3 次/场景，数字见计划 Task 16 下「Windows 桌面实测（2026-10-24）」）；**Android 项仍未测**（V9 前后台续播、V11 PiP、各项的 Android 复测），交接清单见
-  [doc/plans/2026-10-24-android-real-device-handoff.md](doc/plans/2026-10-24-android-real-device-handoff.md)。**Windows 实测暴露两个待决问题（未改库代码）**：① VOD 卡顿重试后**从头播放**，没有续播到失败前位置（V6，疑似 `_recover` 里 seek 过早）；
+  [doc/plans/2026-10-24-android-real-device-handoff.md](doc/plans/2026-10-24-android-real-device-handoff.md)。**Windows 实测问题**：① VOD 卡顿重试后**从头播放**（V6）：2026-10-24 已修复代码，待 Windows/Android 复测；`open()` 返回仅代表提交加载，原路径在时长到达后就 seek，缺少就绪保证；现等当前有效尝试首帧落地再 seek，覆盖三类失败、同内容备选续播与直播不 seek；
   ② 盖一层不透明路由再弹出时 Windows 进程**原生崩溃**（V10，`flutter_windows.dll` `0xC0000005`，6/6 复现，与守卫无关，`TickerMode` 路径不崩）。
   以下为原"需真机确认"清单，**带 ✔ 的是 Windows 已确认**（Android 仍须复测）：暂停态打开时 mpv 是否发 `PLAYBACK_RESTART`（影响 1.5s 宽限）✔Windows：发，3/3 `restart`、`END_FILE(error)` 对坏地址的真实时机 ✔Windows：404 约 40ms、拒连约 5.07s 才冒出 `nativeEndError`（`startTimeout` 设得更短会被超时先判掉）、
   Android 切后台的 `inactive→hidden` 序列与 libmpv 自暂停时序（守卫的意图快照）、`go_router` shell 分支下根 navigator 半透明路由的 `routeObservers` 路径、

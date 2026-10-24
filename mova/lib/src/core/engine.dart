@@ -318,6 +318,11 @@ class MovaEngine implements MovaApi, MovaStandbyController, MovaPlayerMute {
   // 已接受会话与恢复位置不受被拒绝的打开请求影响。
   int _sessionGen = 0;
   Duration? _recoveryPosition;
+
+  /// Waits for this recovery attempt to present before sending its seek.
+  ///
+  /// 等本次恢复尝试呈现画面后再发送续播 seek。
+  bool _recoveryAwaitingFrame = false;
   bool get _playIntent => state.playbackIntent;
 
   // ---- standby (see doc/plans/2026-10-23-standby-mode.md) ----
@@ -792,6 +797,7 @@ class MovaEngine implements MovaApi, MovaStandbyController, MovaPlayerMute {
     _recoverTimer?.cancel();
     _recoverTimer = null;
     _attemptId++;
+    _recoveryAwaitingFrame = false;
     _graceTimer?.cancel();
     _graceTimer = null;
     _frameGate.arm(autoPlay: autoPlay);
@@ -824,6 +830,21 @@ class MovaEngine implements MovaApi, MovaStandbyController, MovaPlayerMute {
     //
     // 对已被判失败的尝试（重试正在等待）才姗姗来迟的落地，不能清零失败计数。
     if (_watchdog != null && _failedAttemptId != _attemptId) {
+      if (_recoveryAwaitingFrame) {
+        _recoveryAwaitingFrame = false;
+        final resumeAt = _recoveryPosition;
+        if (resumeAt != null && resumeAt > Duration.zero) {
+          final duration = state.duration;
+          unawaited(
+            _seekOrPark(
+              duration > Duration.zero && resumeAt > duration
+                  ? duration
+                  : resumeAt,
+              ready: true,
+            ),
+          );
+        }
+      }
       _recoveryPosition = null;
       _watchdog!.onLanded();
       if (_streak > 0) {
@@ -1230,10 +1251,10 @@ class MovaEngine implements MovaApi, MovaStandbyController, MovaPlayerMute {
 
   /// Reloads the kernel for a retry/failover. Not a new session: no
   /// interceptor, no [MovaSourceChange], QoE session untouched; a VOD source
-  /// that had shown a frame resumes where it failed via [_seekOrPark].
+  /// that had shown a frame resumes after the new attempt lands a frame.
   ///
   /// 为重试/切换重载内核。不是新会话：不过拦截器、不发 [MovaSourceChange]、不动 QoE
-  /// 会话；失败前出过画面的点播源经 [_seekOrPark] 续播到失败位置。
+  /// 会话；失败前出过画面的点播源等新尝试首帧落地后续播到失败位置。
   ///
   /// - [index]: address index to load / 要加载的地址下标
   /// - [cause]: the failure being recovered from / 正在恢复的那次失败
@@ -1261,10 +1282,13 @@ class MovaEngine implements MovaApi, MovaStandbyController, MovaPlayerMute {
     _abrPolicy.reset();
     _state.emit(state.copyWith(duration: Duration.zero));
     _armAttempt(autoPlay: _loadPlays);
+    // open() only issues the load; even a duration is not presentation readiness.
+    //
+    // open() 只提交加载；即使已有时长，也不代表已可呈现。
+    _recoveryAwaitingFrame = resumeAt > Duration.zero;
     if (!await _loadKernel(_activeUri, play: _loadPlays)) return;
     if (gen != _sessionGen || _disposed || _events.isClosed) return;
     _announceReady();
-    if (resumeAt > Duration.zero) await _seekOrPark(resumeAt);
   }
 
   /// Recovery is exhausted: surface [MovaGiveUpError] through state, the event
@@ -1692,9 +1716,16 @@ class MovaEngine implements MovaApi, MovaStandbyController, MovaPlayerMute {
   ///
   /// - [to]: already-clamped target position / 已 clamp 的目标位置
   /// - [notify]: whether to emit [MovaSeek]/[MovaSeeked] / 是否发 seek 事件
-  Future<void> _seekOrPark(Duration to, {bool notify = false}) async {
+  /// - [ready]: presentation already landed / 呈现已落地
+  Future<void> _seekOrPark(
+    Duration to, {
+    bool notify = false,
+    bool ready = false,
+  }) async {
     final park =
-        state.type == MovaStreamType.vod && state.duration <= Duration.zero;
+        !ready &&
+        state.type == MovaStreamType.vod &&
+        state.duration <= Duration.zero;
     if (park) {
       _parkedSeek = to;
       _parkedNotify = notify;

@@ -206,6 +206,8 @@ void main() {
         expect(k.openedUris, hasLength(2));
         k.emitDuration(const Duration(minutes: 10));
         async.flushMicrotasks();
+        expect(k.lastSeek, isNull);
+        r.land(async);
         expect(k.lastSeek, const Duration(seconds: 30));
       });
     },
