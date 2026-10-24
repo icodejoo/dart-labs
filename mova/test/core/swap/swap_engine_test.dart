@@ -207,13 +207,13 @@ void main() {
       expect(made.first.renderHandleReads, 0);
     });
 
-    test('muteWhileWarm true mutes the shadow; false does not', () async {
+    test('unsupported warm mute never falls back to volume writes', () async {
       await api.prepare(
         const MovaSource('https://host/content.mp4'),
         cue: const MovaWarmCue(remaining: Duration(seconds: 1), total: Duration(seconds: 10)),
       );
       await settle();
-      expect(made[1].lastVolume, 0);
+      expect(made[1].lastVolume, isNull);
 
       final api2 = build(o: const MovaOpts(swap: MovaSwapConfig(enabled: true, muteWhileWarm: false)));
       await api2.prepare(

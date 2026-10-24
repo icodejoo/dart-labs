@@ -10,6 +10,7 @@ import '../standby/standby.dart';
 import 'kernel.dart';
 import 'mpv_event_backend.dart';
 import 'mpv_event_pump.dart';
+import 'player_mute.dart';
 import 'standby_kernel.dart';
 
 /// 弱客户端后端工厂函数定义。
@@ -30,7 +31,7 @@ typedef MovaMpvEventBackendFactory = MovaMpvEventBackend Function(NativePlayer n
 /// 其余所有文件都必须与具体引擎无关。它同时实现 [MovaStatsProbe]——QoE 层用来
 /// 拿 libmpv 自身统计量的可选能力——因为这个实现同样只能落在这里。同时实现
 /// [MovaStandbyKernel]（在隐藏时关画面/关声音维持流）。
-class MovaMpvKernel implements MovaKernel, MovaStatsProbe, MovaStandbyKernel {
+class MovaMpvKernel implements MovaKernel, MovaStatsProbe, MovaStandbyKernel, MovaPlayerMute {
   /// Creates a media_kit-backed kernel.
   ///
   /// [player] lets the caller inject an existing `Player` (e.g. for testing
@@ -601,6 +602,47 @@ class MovaMpvKernel implements MovaKernel, MovaStatsProbe, MovaStandbyKernel {
   ///
   /// [enterStandby] 保存的原值；不在待机时为 null。
   Map<String, String>? _standbySaved;
+
+  /// Original mute before warm-up; standby's saved mute follows this ownership.
+  ///
+  /// 预热前的原始静音；待机保存的静音随此所有权调整。
+  String? _warmMuteSaved;
+
+  /// Applies player-local warm-up mute in the same queue as standby.
+  /// While both own mute, standby saves `yes`; releasing warm-up replaces that
+  /// saved value with the original, so either release order preserves the other.
+  ///
+  /// 在与待机相同的队列里应用播放器预热静音。
+  /// 两者都持有静音时，待机保存 yes；释放预热时将该保存值改回原值，保证任意退出顺序都保留另一方。
+  ///
+  /// [on] acquires/releases mute; returns success / [on] 获取或释放静音；返回是否成功。
+  /// Example / 示例：`await kernel.setWarmMute(true);`
+  @override
+  Future<bool> setWarmMute(bool on) => _standbySerial(() async {
+        final native = _player.platform;
+        if (_disposed || native is! NativePlayer) return false;
+        if (on == (_warmMuteSaved != null)) return true;
+        try {
+          if (on) {
+            final saved = _standbySaved?['mute'] ??
+                await native.getProperty('mute').timeout(_standbyOpTimeout);
+            await native.setProperty('mute', 'yes').timeout(_standbyOpTimeout);
+            _warmMuteSaved = saved;
+            if (_standbySaved != null) _standbySaved!['mute'] = 'yes';
+          } else {
+            final saved = _warmMuteSaved!;
+            if (_standbySaved != null) {
+              _standbySaved!['mute'] = saved;
+            } else {
+              await native.setProperty('mute', saved).timeout(_standbyOpTimeout);
+            }
+            _warmMuteSaved = null;
+          }
+          return true;
+        } on Object {
+          return false;
+        }
+      });
 
   /// Serializes enter/exit so property writes never interleave.
   ///

@@ -4,6 +4,7 @@ import '../api.dart';
 import '../bus/bus.dart';
 import '../events/events.dart';
 import '../feed/engine_pool.dart' show MovaEngineFactory;
+import '../kernel/player_mute.dart';
 import '../model/fit.dart';
 import '../model/orientation.dart';
 import '../model/quality.dart';
@@ -20,6 +21,21 @@ import 'ctl.dart';
 import 'plan.dart';
 import 'trigger.dart';
 import 'warm.dart';
+
+/// Chooses a safe fallback when player mute is unavailable or cannot restore.
+///
+/// 播放器静音不可用或无法还原时，选择安全降级。
+class _WarmMuteFailurePolicy {
+  /// Creates the default policy.
+  ///
+  /// 创建默认策略。
+  const _WarmMuteFailurePolicy();
+
+  /// Allows audible warming, but rejects a hand-off that would remain muted.
+  ///
+  /// 允许有声预热，但拒绝仍被预热静音的引擎接管。
+  bool giveUp({required bool releasing}) => releasing;
+}
 
 /// A [MovaApi] that owns a live engine plus, briefly, a warming shadow one,
 /// and presents a single stable surface in front of both.
@@ -340,6 +356,7 @@ class MovaSwapEngine implements MovaApi, MovaSwapController, MovaStandbyControll
   @override
   Future<void> dispose() async {
     _disposed = true;
+    _warmMuteOwner = null;
     // Same unblock as abandon(): a pending commit(waitForReady: true) must
     // resolve rather than hang forever if the engine is disposed mid-swap.
     //
@@ -417,7 +434,13 @@ class MovaSwapEngine implements MovaApi, MovaSwapController, MovaStandbyControll
     _policy = (plan.policy ?? _config.newReadyPolicy())..reset();
     _warmClock = Stopwatch()..start();
 
-    if (_config.muteWhileWarm) unawaited(shadow.setVolume(0));
+    // Unsupported kernels warm audibly rather than changing system volume.
+    //
+    // 不支持的内核允许预热出声，避免改动系统音量。
+    if (_config.muteWhileWarm && shadow is MovaPlayerMute) {
+      await _setWarmMute(shadow, true);
+      if (_disposed || !identical(_shadow, shadow)) return;
+    }
     await shadow.open(source, autoPlay: true);
     // Seeking to zero right after open() buys nothing and is pure risk: a seek
     // issued before the first frame lands has been observed to wedge the
@@ -552,18 +575,28 @@ class MovaSwapEngine implements MovaApi, MovaSwapController, MovaStandbyControll
   /// （慢速原生调用）不阻塞切换本身。
   Future<bool> _commitNow(MovaApi shadow) async {
     final old = _active;
-
+    final wasPlaying = old.state.playing;
     await old.pause();
     await _holding;
     // The host wants this picture hidden: have the shadow start in standby, set
-    // before its volume is restored and before it plays, so it never gets loud.
+    // before warm-up mute is released and before it plays, so it never gets loud.
     //
-    // 宿主希望这块画面保持隐藏：让影子以待机态开播，且在恢复音量与 play() 之前设好，
+    // 宿主希望这块画面保持隐藏：让影子以待机态开播，且在释放预热静音与 play() 之前设好，
     // 保证它不会出声。
     if (_standbyWanted && shadow is MovaStandbyController) {
       await (shadow as MovaStandbyController).setStandby(true);
     }
-    await shadow.setVolume(old.state.volume);
+    if (_config.muteWhileWarm && shadow is MovaPlayerMute) {
+      if (!await _setWarmMute(shadow, false)) {
+        // Reuse the shadow-error/give-up cleanup; the caller can open normally.
+        //
+        // 复用影子错误/放弃的清理路径；调用方可回落为普通打开。
+        _shadow = shadow;
+        await abandon();
+        if (wasPlaying) await old.play();
+        return false;
+      }
+    }
     await shadow.play();
 
     await _detach();
@@ -585,11 +618,42 @@ class MovaSwapEngine implements MovaApi, MovaSwapController, MovaStandbyControll
     return true;
   }
 
+  /// Applies local mute; policy allows unavailable acquisition, reports failed
+  /// restoration and gives up rather than activating a permanently muted player.
+  ///
+  /// 应用局部静音；策略允许获取不可用，恢复失败则上报并放弃，避免激活永久静音的播放器。
+  Future<bool> _setWarmMute(MovaApi shadow, bool on) async {
+    final ok = await (shadow as MovaPlayerMute).setWarmMute(on);
+    // An unsupported engine also answers false on release. Releasing a mute it
+    // never acquired must remain a no-op, so remember ownership per shadow.
+    //
+    // 不支持的引擎释放时也返回 false。未获取的静音释放必须保持空操作，故逐影子记录所有权。
+    if (on) {
+      if (ok && !_disposed && identical(_shadow, shadow)) _warmMuteOwner = shadow;
+      return !const _WarmMuteFailurePolicy().giveUp(releasing: false);
+    }
+    if (!identical(_warmMuteOwner, shadow)) return true;
+    if (ok) {
+      _warmMuteOwner = null;
+      return true;
+    }
+    if (!_disposed) {
+      _events.add(MovaErrorEvent(StateError('Could not restore player warm-up mute')));
+    }
+    return !const _WarmMuteFailurePolicy().giveUp(releasing: true);
+  }
+
+  /// The shadow that successfully acquired player-local mute.
+  ///
+  /// 成功获取播放器局部静音的影子。
+  MovaApi? _warmMuteOwner;
+
   @override
   Future<void> abandon() async {
     final shadow = _shadow;
     if (shadow == null) return;
     _shadow = null;
+    if (identical(_warmMuteOwner, shadow)) _warmMuteOwner = null;
     _policy = null;
     _warmClock = null;
     // _holdAtTarget may still be mid-flight (pause()/seek() on `shadow`) —

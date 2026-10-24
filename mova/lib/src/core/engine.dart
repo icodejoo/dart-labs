@@ -9,6 +9,7 @@ import 'events/events.dart';
 import 'interceptor/interceptor.dart';
 import 'kernel/kernel.dart';
 import 'kernel/mpv_kernel.dart';
+import 'kernel/player_mute.dart';
 import 'kernel/standby_kernel.dart';
 import 'live/timeshift.dart';
 import 'model/fit.dart';
@@ -60,7 +61,7 @@ import 'stt/service.dart';
 /// 这是 `lib/src/core/**` 中唯一把该层其余部分粘合在一起的类；它本身不直接
 /// 引入 `package:flutter` 或 `package:media_kit`（这些依赖被隔离在
 /// [MovaKernel]/[MovaOpts]/各 Port 之后）。
-class MovaEngine implements MovaApi, MovaStandbyController {
+class MovaEngine implements MovaApi, MovaStandbyController, MovaPlayerMute {
   /// The kernel this engine drives.
   ///
   /// 该 engine 驱动的内核。
@@ -1806,6 +1807,21 @@ class MovaEngine implements MovaApi, MovaStandbyController {
 
   @override
   Future<void> seekBy(Duration delta) => seek(_lastPosition + delta);
+
+  /// Forwards warm-up mute to capable kernels, bypassing the volume port.
+  /// Unsupported kernels continue without warm-up mute.
+  ///
+  /// 向支持的内核转发预热静音，绕过音量端口。不支持的内核不做预热静音。
+  ///
+  /// [on] acquires/releases mute; returns success / [on] 获取或释放静音；返回是否成功。
+  /// Example / 示例：`await engine.setWarmMute(true);`
+  @override
+  Future<bool> setWarmMute(bool on) {
+    final k = _kernel;
+    return k is MovaPlayerMute
+        ? (k as MovaPlayerMute).setWarmMute(on)
+        : Future<bool>.value(false);
+  }
 
   @override
   Future<void> setVolume(double v) async {

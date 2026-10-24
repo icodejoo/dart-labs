@@ -32,7 +32,7 @@
 
 ## 当前状态（0.2.0）
 
-> **测试基线：1286 项全绿**（2026-10-24 本机实跑 `flutter test` 的真实结果；其中宿主易用性计划 Task 1–15 贡献 +150
+> **测试基线：1302 项全绿**（2026-10-24 本机实跑 `flutter test` 的真实结果；Q13 预热静音修复新增 +16；其中宿主易用性计划 Task 1–15 贡献 +150
 > （Task 1–8 +70、Task 9–15 +80），其评审修复新增 +19，见下文「宿主易用性增强」；低功耗待机计划 Task 1–9 贡献 +109，见「低功耗待机」）；
 > `flutter analyze lib test` 0 issues（`example/` 下 demo 有若干 `avoid_print` info，
 > 均为验证脚本）。
@@ -113,7 +113,7 @@ example 已加直播/时移两个 demo（仅桌面冒烟，未做交互验证）
 - 文档与验证页：README「隐藏时待机」、CHANGELOG（`Unreleased`）、`doc/SPEC.md`「低功耗待机」、`example/lib/main_standby_verify.dart`（仅 `flutter analyze`，未上机）。
 - **未做**：Task 10 真机测量（S1–S17：恢复耗时、`maxDuration`/`resumeTimeout` 校准、HLS 能否放开、`mediacodec-copy` 下 `vid` 切回能否出画、进后台实际状态、`audio-params` 就绪时机、守卫端到端）。
   **无真机数据**，需真机确认：`file-format` 的实际取值、`vid=auto` 后是否发 `PLAYBACK_RESTART`、待机期间 Android 画面是黑还是冻帧、`mute` 时音频会话的耗电。
-- **旁支发现（未处理，另立项）**：`MovaSwapEngine` 的 `muteWhileWarm` 走 `setVolume(0)`，而 Android 上 `setVolume` 默认改系统媒体音量，疑似预热期间把正在播放的那一路也静音（计划 Q13）。
+- **旁支发现：已修复（代码层），待真机确认**：已确认 `MovaSwapEngine.muteWhileWarm` 原先经 `setVolume` 误写 Android 系统媒体音量（计划 Q13）。现通过 `MovaPlayerMute` 能力只操作 mpv `mute`，提交仅撤销预热静音；不支持的内核不静音，绝不回退写音量端口。预热与 standby 共用属性队列、分别持有静音，任意退出顺序均保留另一方并最终还原原值；恢复失败放弃切换并发出错误事件。新增 16 项回归，本机 `flutter test` 实跑 1302 全绿、`flutter analyze lib test` 0 issues；未做真机音频验证。
 
 ### UI 插件化
 

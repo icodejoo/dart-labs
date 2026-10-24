@@ -72,7 +72,7 @@ void main() {
     await sub.cancel();
   });
 
-  test('3. a hold requested before the commit puts the shadow into standby before volume and play', () async {
+  test('3. a hold requested before commit puts the shadow into standby before play without volume writes', () async {
     final made = <FakeMovaApi>[];
     final api = _build(made);
     await api.setStandby(true);
@@ -81,7 +81,8 @@ void main() {
     final ok = await api.commit();
     expect(ok, isTrue);
     final calls = shadow.calls;
-    expect(calls, containsAllInOrder(['setStandby:true', 'setVolume', 'play']));
+    expect(calls, containsAllInOrder(['setStandby:true', 'play']));
+    expect(calls, isNot(contains('setVolume')));
     expect(old.calls, contains('pause'));
   });
 
@@ -91,7 +92,8 @@ void main() {
     final shadow = await _warm(api, made);
     expect(await api.commit(), isTrue);
     expect(shadow.calls.any((c) => c.startsWith('setStandby')), isFalse);
-    expect(shadow.calls, containsAllInOrder(['setVolume', 'play']));
+    expect(shadow.calls, contains('play'));
+    expect(shadow.calls, isNot(contains('setVolume')));
   });
 
   test('5. an engine without the capability just pauses and plays, and answers off', () async {

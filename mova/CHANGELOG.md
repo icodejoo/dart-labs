@@ -1,5 +1,7 @@
 ## Unreleased
 
+* **Fix：无缝切换预热误改系统音量（standby 计划 Q13）**：`muteWhileWarm` 改走可选的播放器静音能力，mpv 仅保存、改写、还原自身 `mute`；预热和提交均不写系统音量端口。不支持能力的内核不静音；与 standby 静音叠加时按各自所有权精确还原。恢复静音失败走放弃切换策略并发出错误事件。代码回归已通过，待真机音频确认。
+
 * **宿主易用性增强（第一批，对应 `doc/plans/2026-10-23-host-ergonomics.md` Task 1–8）**——全部默认关闭或与旧行为一致：
   * **"已出画面"信号**：新增 `MovaState.rendered`（当前源已呈现首帧/首段音频，每次 `open()` 重置）与
     `MovaFirstFrame(sinceOpen, signal)` 事件（每次 `open()` 一次，可重复）；判据纯逻辑在 `MovaFirstFrameGate`/

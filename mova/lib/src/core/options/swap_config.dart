@@ -36,10 +36,10 @@ class MovaSwapConfig {
   /// 超过此时长仍未就绪则放弃预热，回落到普通 `open()`。
   final Duration readyTimeout;
 
-  /// Whether the shadow engine is muted while warming, so only one audio
-  /// decode path is live until the swap commits.
+  /// Whether a capable shadow kernel is muted locally while warming.
+  /// Unsupported kernels warm without mute; system volume is never changed.
   ///
-  /// 预热期间是否静音影子引擎，使切换落定前只有一路音频解码在跑。
+  /// 预热期间是否在支持的影子内核上静音。不支持的内核不静音；绝不改系统音量。
   final bool muteWhileWarm;
 
   /// Decides *when* warming starts; `null` uses [MovaLeadWarm] seeded from

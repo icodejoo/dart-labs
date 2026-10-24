@@ -70,7 +70,8 @@ $ cd mova && flutter test -r compact
 - **Task 5：`open()` 里的待机等待是条件式的。** 计划草图写成无条件 `await _standbyBeforeOpen()`；实现改成仅当 `_standbyRequested` 为真时才 await，未涉及待机时 `open()` 不多一次微任务让出，保证"关闭态逐字节不变"。同时 `_armAttempt(autoPlay:)` 与 `_loadKernel(play:)` 在内部重载路径（`_recover`/`switchQuality`/`_seekTimeshift`/`_reopenLiveSource`）一并改读 `_loadPlays`（草图只提了 `play:`），使暂停加载的闸门启用尺寸兜底。
 - **Task 7：R3 的实际入口与世代。** 守卫里 R3 的"隐藏期间意图变 true 重新决策"落在 gate 的 `observe({playing, exempt})`（widget 在 `_bindState` 的订阅里调用），不叫 `redecide`；`reconfigure`/`update` 沿用原名。为让 `observe` 也能选 standby，给它加了两个带默认值的可选参数 `live`（默认 false）与 `standbyCapable`（默认 false），旧调用逐字不变。widget 的"可见性世代"是 `_resumeGen`（只在隐藏/重绑/回边缘时自增），而 `standby`/`wake` 的补偿校验用 `!_gate.hidden && identical(api, widget.api)` 判断（进待机返回后若已不再隐藏则补一次 `setStandby(false)`；引擎侧队列保证顺序，重复唤醒幂等），没有复用 `_resumeGen`，因为"变可见"并不推进它。
 - **Task 9：** 开放性对账 ② 里没有断言内核 `dispose` 已记入 `calls`——`MovaEngine.dispose()` 在 fakeAsync 里要等预览服务等异步收尾，断言不稳；改为"整套基础流程（点播/直播各一遍）里内核 `calls` 没有任何 `inspectStandby`/`enterStandby`/`exitStandby`、事件流没有待机事件、`state.standby` 恒为 off"。验证页 `main_standby_verify.dart` 为了读 `MovaStatsProbe.sample()` 的 `inputBps`，自己构造 `MovaMpvKernel`（引用 `package:mova/src/...`，与既有 example 验证页同样的做法）再交给 `createMovaEngine(kernel:)`；`MovaApi` 没有暴露探针，这是唯一取得 `cache-speed` 的办法，不需要新增任何公开成员。
-- **全程未触发"必须新增 `MovaApi`/`MovaKernel` 成员"或"既有测试语义变化"：** 既有测试里唯一被改动的是 `openness_audio_test.dart` 的节清单追加 `standby`（计划允许的那一处）；`test/support/fake_kernel.dart`、`fake_api.dart` 只追加新类/mixin，既有类体未动。计划 §6 的 Q1–Q15 全部按括号里的推荐默认落地，Q13 未碰。
+- **Task 1–9 未触发"必须新增 `MovaApi`/`MovaKernel` 成员"或"既有测试语义变化"：** 当时既有测试里唯一被改动的是 `openness_audio_test.dart` 的节清单追加 `standby`（计划允许的那一处）；`test/support/fake_kernel.dart`、`fake_api.dart` 只追加新类/mixin，既有类体未动。计划 §6 的 Q1–Q15 按括号里的推荐默认落地，当时 Q13 未碰。
+- **Q13 后续修复（2026-10-24）：已修复（代码层），待真机确认。** 开工前实跑 **1286 全绿**；修复后实跑 **1302 全绿（+16）**，`flutter analyze lib test` **0 issues**。新增 `MovaPlayerMute` 能力，经引擎转发、swap `is` 探测；mpv 复用 standby 串行属性队列，仅改 `mute`。不支持能力时不静音，绝不回退系统端口；恢复失败走放弃切换策略、发出 `MovaErrorEvent` 并清理影子。新增测试：真实引擎的预热/提交端口零写入（开/关两组）、不支持能力降级、standby 跨提交、恢复失败（5 项）；原生播放器替身验证幂等、失败重试、并发排队，以及原值 yes/no × 进入顺序 × 退出顺序（11 项）。既有 swap 测试改为断言不再调用 `setVolume`。本次不提交、不 build、不连设备；Android 音频与系统音量仍待真机确认。
 
 ---
 
@@ -1784,7 +1785,7 @@ testWidgets('切走 Tab 时直播卡片进入待机', (t) async {
 - **feed 池"邻近页保温"**（调研 §5.2）：二期。
 - **QoE collector 识别待机**（Q8）：本期不改已真机验证的 collector。
 - **swap 预热中的影子在隐藏期间降载**：影子按既有逻辑预热（含视频管线），不在本期。
-- **swap `muteWhileWarm` 走 `setVolume(0)` 的问题**（Q13）：旁支发现，另立项。
+- **swap `muteWhileWarm` 走 `setVolume(0)` 的问题**（Q13）：后续已修复（代码层），待真机确认，见文首修复记录。
 - **`MovaApi`/`MovaKernel` 新增成员**：全部经能力接口。
 - **iOS/macOS**：未验证；`MovaStandbyKernel` 的属性操作平台无关，但 Darwin 上 `vid` 切回的硬解行为没人测过。
 
@@ -1807,9 +1808,9 @@ testWidgets('切走 Tab 时直播卡片进入待机', (t) async {
 10. **Q10 holding 期间收到 `play()` 怎么办？**（推荐：保持待机，唤醒只认 `setStandby(false)`——隐藏卡片里程序性的 `play()`（广告、swap 提交）不会出声；备选是把 `play()` 当唤醒。）
 11. **Q11 holding 期间播放失败怎么办？**（推荐：降级为暂停、延到唤醒时强制重开，不在看不见的时候反复重连；备选是照常走 recovery 策略。）
 12. **Q12 新增 2 个 sealed 事件子类 + `MovaGuardAction` 2 个新值**，对宿主无 `default` 的穷尽 switch 是编译期 breaking（推荐：接受，与 HE 计划 Q10 一致，CHANGELOG 注明。）
-13. **Q13（旁支发现，非本计划范围）** `MovaSwapEngine` 的 `muteWhileWarm` 用 `shadow.setVolume(0)` 静音、提交时 `setVolume(old.state.volume)` 恢复
+13. **Q13（旁支发现，后续已处理：已修复（代码层），待真机确认）** 原 `MovaSwapEngine` 的 `muteWhileWarm` 用 `shadow.setVolume(0)` 静音、提交时 `setVolume(old.state.volume)` 恢复
     （`swap_engine.dart:395, 533`）；而 Android 上 `createMovaEngine()` 默认接系统音量端口，`setVolume` 改的是整机媒体音量——疑似预热期间会把**正在播放的那一路**也静音。
-    真机从未测过音频（CLAUDE.md："音频跳变仍实测不了"）。（推荐：另立项核实；若属实，可复用本计划的内核 `mute` 能力修掉。）
+    真机从未测过音频（CLAUDE.md："音频跳变仍实测不了"）。2026-10-24 已从调用链确认推断成立；现经可选 `MovaPlayerMute` 仅操作播放器 `mute`，不支持能力就不静音。与 standby 分别持有静音、共用串行队列，任意退出顺序均正确还原；新增 16 项回归，最终 1302 全绿，尚未真机验证。
 14. **Q14 待机自己做的暂停（fallback/超时/失败降级）要不要把播放意图置 false？**（推荐：不置——意图只表示用户/宿主想不想播，唤醒按它决定出不出画面；
     代价是 fallback 期间所有"按意图加载"的内部路径要改读 `_loadPlays`（D9），否则会在隐藏中开播。备选是 fallback 时把意图置 false、另存一份、唤醒时还原：
     R1 的加载路径自然不开播、不用 `_loadPlays`，但意图对外不再等于用户意愿（fallback 期间读到 false），用户在 fallback 期间 `pause()` 还得额外清掉另存值，

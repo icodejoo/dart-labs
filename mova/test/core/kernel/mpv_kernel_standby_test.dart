@@ -72,6 +72,86 @@ List<String> _standbyCalls(List<String> log) =>
     log.where((c) => !c.contains('file-format')).toList();
 
 void main() {
+  group('warm mute and standby ownership', () {
+    test('queued warm mute and standby operations never interleave', () async {
+      final native = _FakeNative([]);
+      final k = _kernel(_FakePlayer(native));
+      addTearDown(k.dispose);
+      final warm = k.setWarmMute(true);
+      final standby = k.enterStandby(MovaStandbyMode.muted);
+      final release = k.setWarmMute(false);
+      expect(await warm, isTrue);
+      expect(await standby, isTrue);
+      expect(await release, isTrue);
+      expect(native.props['mute'], 'yes');
+      expect(native.props['vid'], 'no');
+      await k.exitStandby();
+      expect(native.props['mute'], 'no');
+      expect(native.props['vid'], 'auto');
+    });
+    test('warm mute alone is idempotent and restores the exact property', () async {
+      final log = <String>[];
+      final native = _FakeNative(log);
+      final k = _kernel(_FakePlayer(native));
+      addTearDown(k.dispose);
+      expect(await k.setWarmMute(true), isTrue);
+      expect(await k.setWarmMute(true), isTrue);
+      expect(native.props['mute'], 'yes');
+      expect(native.props['vid'], 'auto');
+      expect(await k.setWarmMute(false), isTrue);
+      expect(await k.setWarmMute(false), isTrue);
+      expect(log, ['get:mute', 'set:mute=yes', 'set:mute=no']);
+    });
+    test('failed warm mute writes preserve ownership for retry', () async {
+      final native = _FakeNative([])..throwOnSet.add('mute=yes');
+      final k = _kernel(_FakePlayer(native));
+      addTearDown(k.dispose);
+      expect(await k.setWarmMute(true), isFalse);
+      expect(native.props['mute'], 'no');
+      native.throwOnSet.clear();
+      expect(await k.setWarmMute(true), isTrue);
+      native.throwOnSet.add('mute=no');
+      expect(await k.setWarmMute(false), isFalse);
+      expect(native.props['mute'], 'yes');
+      native.throwOnSet.clear();
+      expect(await k.setWarmMute(false), isTrue);
+      expect(native.props['mute'], 'no');
+    });
+    for (final original in ['no', 'yes']) {
+      for (final warmFirst in [true, false]) {
+        for (final releaseWarmFirst in [true, false]) {
+          test('restores $original: warmFirst=$warmFirst releaseWarmFirst=$releaseWarmFirst', () async {
+            final native = _FakeNative([])..props['mute'] = original;
+            final k = _kernel(_FakePlayer(native));
+            addTearDown(k.dispose);
+            if (warmFirst) {
+              expect(await k.setWarmMute(true), isTrue);
+              expect(await k.enterStandby(MovaStandbyMode.muted), isTrue);
+            } else {
+              expect(await k.enterStandby(MovaStandbyMode.muted), isTrue);
+              expect(await k.setWarmMute(true), isTrue);
+            }
+            expect(native.props['mute'], 'yes');
+            expect(native.props['vid'], 'no');
+            if (releaseWarmFirst) {
+              expect(await k.setWarmMute(false), isTrue);
+              expect(native.props['mute'], 'yes');
+              expect(native.props['vid'], 'no');
+              await k.exitStandby();
+            } else {
+              await k.exitStandby();
+              expect(native.props['mute'], 'yes');
+              expect(native.props['vid'], 'auto');
+              expect(await k.setWarmMute(false), isTrue);
+            }
+            expect(native.props['mute'], original);
+            expect(native.props['vid'], 'auto');
+            expect(await k.setWarmMute(false), isTrue);
+          });
+        }
+      }
+    }
+  });
   group('MovaMpvKernel standby', () {
     test('inspectStandby maps tracks, audio params and file-format', () async {
       final log = <String>[];
