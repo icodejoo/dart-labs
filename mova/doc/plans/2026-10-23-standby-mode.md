@@ -49,6 +49,7 @@ $ cd mova && flutter test -r compact
 | Task | 新增 | 累计（实跑） | 备注 |
 |---|---|---|---|
 | 1 | +28 | 1205 | 纯逻辑；计划预计 1186，差值 +19 是 HE 评审修复回归（起点 1177 而非 1158） |
+| 2 | +9 | 1214 | MovaMpvKernel 实现 MovaStandbyKernel，只增不改 |
 
 - **HE 计划没有按"每 Task 一个 commit"提交。** HE Task 1–15 与评审修复的改动交错在同一批文件里（`engine.dart`、`state.dart`、`options.dart` 等被多个 Task 反复改动），
   交互式 `git add -p` 在本环境不可用，按 hunk 硬拆既不现实也容易拆出编译不过的中间提交。因此合并为两个提交：先提交文档（调研笔记与两份计划），再提交全部 HE 实现（含评审修复）。

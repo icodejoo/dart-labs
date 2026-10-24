@@ -6,9 +6,11 @@ import 'package:media_kit/media_kit.dart';
 import 'package:media_kit_video/media_kit_video.dart';
 
 import '../report/stats_probe.dart';
+import '../standby/standby.dart';
 import 'kernel.dart';
 import 'mpv_event_backend.dart';
 import 'mpv_event_pump.dart';
+import 'standby_kernel.dart';
 
 /// 弱客户端后端工厂函数定义。
 typedef MovaMpvEventBackendFactory = MovaMpvEventBackend Function(NativePlayer native, int handleAddress);
@@ -19,14 +21,16 @@ typedef MovaMpvEventBackendFactory = MovaMpvEventBackend Function(NativePlayer n
 /// `package:media_kit`; every other file under `lib/src/core/` must stay
 /// engine-agnostic. It also implements [MovaStatsProbe] — the QoE layer's
 /// optional capability for libmpv's own statistics — since that
-/// implementation can only live here too.
+/// implementation can only live here too. It also implements
+/// [MovaStandbyKernel] (hold a hidden stream with video/sound off).
 ///
 /// 基于 media_kit `Player` 实现的 [MovaKernel]。
 ///
 /// 这是核心层中唯一允许依赖 `package:media_kit` 的文件；`lib/src/core/` 下
 /// 其余所有文件都必须与具体引擎无关。它同时实现 [MovaStatsProbe]——QoE 层用来
-/// 拿 libmpv 自身统计量的可选能力——因为这个实现同样只能落在这里。
-class MovaMpvKernel implements MovaKernel, MovaStatsProbe {
+/// 拿 libmpv 自身统计量的可选能力——因为这个实现同样只能落在这里。同时实现
+/// [MovaStandbyKernel]（在隐藏时关画面/关声音维持流）。
+class MovaMpvKernel implements MovaKernel, MovaStatsProbe, MovaStandbyKernel {
   /// Creates a media_kit-backed kernel.
   ///
   /// [player] lets the caller inject an existing `Player` (e.g. for testing
@@ -575,5 +579,121 @@ class MovaMpvKernel implements MovaKernel, MovaStatsProbe {
     final raw = await _readNativeProperty(property);
     if (raw == null) return null;
     return raw == 'yes';
+  }
+
+  // ---------------------------------------------------------------------
+  // MovaStandbyKernel — hold the stream with video/sound off. Only `mute`
+  // and `vid` are touched, saved first and restored verbatim; never
+  // `volume` (a system-volume port may own it), `vo`/`wid` (media_kit's
+  // Android widListener owns them) or the VideoController.
+  //
+  // MovaStandbyKernel——关掉画面/声音维持流。只碰 `mute` 与 `vid`，先保存、再原样还原；
+  // 绝不碰 `volume`（可能归系统音量端口管）、`vo`/`wid`（归 media_kit 的 Android
+  // widListener 管）以及 VideoController。
+  // ---------------------------------------------------------------------
+
+  /// Upper bound for one standby property read/write.
+  ///
+  /// 单次待机属性读写的上限。
+  static const Duration _standbyOpTimeout = Duration(seconds: 2);
+
+  /// Values saved by [enterStandby]; null when not in standby.
+  ///
+  /// [enterStandby] 保存的原值；不在待机时为 null。
+  Map<String, String>? _standbySaved;
+
+  /// Serializes enter/exit so property writes never interleave.
+  ///
+  /// 串行化进入/退出，使属性写入永不交错。
+  Future<void> _standbyQueue = Future<void>.value();
+
+  /// Runs [step] after every earlier standby step has settled.
+  ///
+  /// 在之前所有待机步骤落定后执行 [step]。
+  Future<T> _standbySerial<T>(Future<T> Function() step) {
+    final next = _standbyQueue.then((_) => step());
+    _standbyQueue = next.then<void>((_) {}, onError: (Object _) {});
+    return next;
+  }
+
+  @override
+  Future<MovaStandbyMedia> inspectStandby() async {
+    final format = await _readNativeProperty('file-format');
+    try {
+      final s = _player.state;
+      final audio = movaAudioPresence(
+        audioIds: s.tracks.audio.map((t) => t.id),
+        videoIds: s.tracks.video.map((t) => t.id),
+        selectedAudio: s.track.audio.id,
+        sampleRate: s.audioParams.sampleRate,
+      );
+      return MovaStandbyMedia(audio: audio, format: format);
+    } on Object {
+      return MovaStandbyMedia(audio: MovaAudioPresence.unknown, format: format);
+    }
+  }
+
+  @override
+  Future<bool> enterStandby(MovaStandbyMode mode) => _standbySerial(() async {
+        if (_disposed) return false;
+        if (_standbySaved != null) return true; // 幂等
+        final native = _player.platform;
+        if (native is! NativePlayer) return false;
+        try {
+          final mute = await native.getProperty('mute').timeout(_standbyOpTimeout);
+          final vid = mode == MovaStandbyMode.muted
+              ? await native.getProperty('vid').timeout(_standbyOpTimeout)
+              : null;
+          final saved = <String, String>{'mute': mute};
+          if (vid != null) saved['vid'] = vid;
+          _standbySaved = saved;
+          await native.setProperty('mute', 'yes').timeout(_standbyOpTimeout);
+          if (vid != null && vid != 'no') {
+            await native.setProperty('vid', 'no').timeout(_standbyOpTimeout);
+          }
+          return true;
+        } on Object {
+          await _restoreStandby(native);
+          return false;
+        }
+      });
+
+  @override
+  Future<bool> exitStandby() => _standbySerial(() async {
+        final native = _player.platform;
+        if (_disposed || native is! NativePlayer) {
+          _standbySaved = null;
+          return false;
+        }
+        return _restoreStandby(native);
+      });
+
+  /// Writes back whatever [_standbySaved] holds, video first; best effort.
+  /// Returns whether `vid` went from `no` back to a real value.
+  ///
+  /// 把 [_standbySaved] 里的值写回，先视频后声音；尽力而为。返回 `vid` 是否从 `no` 恢复成了实际值。
+  Future<bool> _restoreStandby(NativePlayer native) async {
+    final saved = _standbySaved;
+    _standbySaved = null;
+    if (saved == null) return false;
+    var restarted = false;
+    final vid = saved['vid'];
+    if (vid != null && vid != 'no') {
+      try {
+        await native.setProperty('vid', vid).timeout(_standbyOpTimeout);
+        restarted = true;
+      } on Object {
+        // 尽力而为：写不回去就让后续的 mute 继续还原。
+      }
+    }
+    final mute = saved['mute'];
+    if (mute != null) {
+      try {
+        await native.setProperty('mute', mute).timeout(_standbyOpTimeout);
+      } on Object {
+        // 尽力而为。
+      }
+    }
+    return restarted;
   }
 }
