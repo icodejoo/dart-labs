@@ -51,6 +51,7 @@ export 'src/core/report/session.dart';
 export 'src/core/report/session_id.dart';
 export 'src/core/report/stall.dart';
 export 'src/core/report/stats_probe.dart';
+export 'src/core/standby/standby.dart';
 export 'src/core/state/progress.dart';
 export 'src/core/state/state.dart';
 export 'src/core/state/ui_state.dart';
