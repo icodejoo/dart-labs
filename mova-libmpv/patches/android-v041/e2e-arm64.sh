@@ -1,6 +1,7 @@
 #!/bin/bash -e
 # 从零端到端构建 Android arm64 libmpv（v0.41 + ffmpeg n9.0.2，可选 WHEP），顺序对齐 CI workflow 的 android-arm64 job。
 # 用法：WHEP=1 e2e-arm64.sh <新建的空工作目录> [NDK r25c 目录]
+#   ARCH=armv7l 构建 armeabi-v7a（默认 arm64）；armv7 请用薄包装 e2e-armv7.sh。
 #   WHEP=1 带 WHEP 变体（默认不带）；JOBS 控制并行（默认 8）。
 # 本机网络差异（仅本地需要，CI 不用）：videolan/gnome/freedesktop 的 git 源在 WSL 有 CA 问题，
 # 用 git 的 url.insteadOf 重定向到 GitHub 镜像，不改脚本、不绕过证书校验。
@@ -12,6 +13,13 @@ NDK_SRC="${2:-/root/w/mpvt/eval/ndk/android-ndk-r25c}"
 NDK_VERSION=25.2.9519653
 UPSTREAM_REF=1ecf510
 export WHEP="${WHEP:-0}"
+# 架构：build.sh 的 --arch 值 -> 产物目录名、构建目录后缀（对应上游 loadarch 里的 ndk_suffix）
+ARCH="${ARCH:-arm64}"
+case "$ARCH" in
+	arm64) ABI=arm64-v8a; SUFFIX=-arm64 ;;
+	armv7l) ABI=armeabi-v7a; SUFFIX= ;;
+	*) echo "不支持的 ARCH=$ARCH（仅 arm64 / armv7l）" >&2; exit 1 ;;
+esac
 
 [ -e "$WORK/ws" ] && { echo "工作目录 $WORK/ws 已存在，要求干净状态" >&2; exit 1; }
 mkdir -p "$WORK"
@@ -48,16 +56,16 @@ for i in 1 2 3; do
 	rm -rf deps/libplacebo
 done
 ./patch.sh
-rm -rf deps/mpv/_build-arm64
+rm -rf "deps/mpv/_build$SUFFIX"
 export cores="${JOBS:-8}"
-./build.sh --arch arm64 mpv
+./build.sh --arch "$ARCH" mpv
 
 # 5) strip + 符号检查
 TC=$(echo "$BS"/sdk/android-sdk-linux/ndk/$NDK_VERSION/toolchains/llvm/prebuilt/*)
-SO="$BS/prefix/arm64-v8a/usr/local/lib/libmpv.so"
-cp "$SO" "$WORK/libmpv.unstripped.so"
+SO="$BS/prefix/$ABI/usr/local/lib/libmpv.so"
+cp "$SO" "$WORK/libmpv.$ABI.unstripped.so"
 "$TC/bin/llvm-strip" --strip-all "$SO"
-cp "$SO" "$WORK/libmpv.stripped.so"
-stat -c '%s bytes  %n' "$WORK/libmpv.unstripped.so" "$WORK/libmpv.stripped.so"
-sha256sum "$WORK/libmpv.stripped.so"
+cp "$SO" "$WORK/libmpv.$ABI.stripped.so"
+stat -c '%s bytes  %n' "$WORK/libmpv.$ABI.unstripped.so" "$WORK/libmpv.$ABI.stripped.so"
+sha256sum "$WORK/libmpv.$ABI.stripped.so"
 echo "E2E_DONE"

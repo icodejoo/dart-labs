@@ -24,13 +24,13 @@ android {
         versionCode = flutter.versionCode
         versionName = flutter.versionName
 
-        // Local device testing only targets arm64 hardware; building the other
+        // Local device testing targets arm64 + armeabi-v7a (v041 包两个 ABI); building the other
         // ABIs (notably x86_64) pointlessly drags in native modules like the
         // jni package's CMake config, which is broken for x86_64 on this
         // Windows toolchain (CMAKE_RC_COMPILER not set). Real releases should
         // remove this filter and let Play/CI produce the full ABI set.
         ndk {
-            abiFilters += "arm64-v8a"
+            abiFilters += listOf("arm64-v8a", "armeabi-v7a")
         }
     }
 
