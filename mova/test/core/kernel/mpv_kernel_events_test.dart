@@ -51,6 +51,8 @@ class _FakeNative extends Fake implements NativePlayer {
 
 class _FakeStream extends Fake implements PlayerStream {
   @override
+  Stream<Tracks> get tracks => const Stream.empty();
+  @override
   Stream<int?> get width => const Stream.empty();
   
   @override

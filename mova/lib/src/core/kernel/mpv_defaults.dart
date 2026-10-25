@@ -60,3 +60,47 @@ const String _cannotSeek = 'Cannot seek in this stream';
 
 /// Prefix of mpv's follow-up hint line. / mpv 紧随其后的提示行前缀。
 const String _forceSeekable = "You can force it with '--force-seekable";
+
+/// mpv 属性名：解复用器后向缓冲上限（字节）。
+const String kDemuxerMaxBackBytes = 'demuxer-max-back-bytes';
+
+/// mpv 属性名：是否允许在解复用缓存里 seek。
+const String kDemuxerSeekableCache = 'demuxer-seekable-cache';
+
+/// mpv 属性名：当前文件的容器/协议格式（WHEP 流打开后为 `whep`，HLS 为 `hls`）。
+const String kFileFormat = 'file-format';
+
+/// 明确只用于实时的 `file-format` 取值，命中即限制后向缓冲。
+/// 只收有实测值的格式：目前只有 `whep`（rtsp/sdp/rtp 在瘦身版 libmpv 里没有对应
+/// demuxer，打不开，没有实测值，故不收；`mpegts` 点播也会命中，更不能收）。
+const Set<String> kRealtimeFileFormats = {'whep'};
+
+/// 播放列表式格式：HLS 直播的 `seekable` 也是 `no`，但能在 mpv 缓存内回拉，兜底判断不碰它。
+const Set<String> kPlaylistFileFormats = {'hls'};
+
+/// mpv 属性名：当前流是否可 seek（`yes`/`no`）。
+const String kSeekable = 'seekable';
+
+/// mpv 属性名：媒体时长（秒；未知时读不到）。
+const String kDuration = 'duration';
+
+/// `seekable` 为不可 seek 时的取值。
+const String kNotSeekable = 'no';
+
+/// 兜底探测的采样间隔：track-list 刷新后等一个间隔读第一次，再等一个间隔读第二次。
+const Duration kLiveProbeInterval = Duration(milliseconds: 1500);
+
+/// 两次采样之间时长至少增长 间隔 x 该比例（秒），才认为时长在随时间增长（实时流特征）。
+const double kLiveDurationGrowthRatio = 0.5;
+
+/// 实时源的后向缓冲上限：0 表示播过的包立即丢弃，避免实时流缓冲线性增长。
+const String kLiveMaxBackBytes = '0';
+
+/// 实时源关闭缓存内 seek（无后向缓冲时本就无意义）。
+const String kLiveSeekableCache = 'no';
+
+/// 读不到原值时的后向缓冲上限兜底：mpv 默认值 150 MiB（实际优先还原限制前读到的原值）。
+const String kVodMaxBackBytes = '157286400';
+
+/// 读不到原值时的缓存内 seek 兜底：mpv 默认 `auto`（实际优先还原限制前读到的原值）。
+const String kVodSeekableCache = 'auto';

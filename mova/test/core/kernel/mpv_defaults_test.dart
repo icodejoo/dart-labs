@@ -18,6 +18,8 @@ class _FakePlayer extends Fake implements Player {
 }
 
 class _FakeStream extends Fake implements PlayerStream {
+  @override
+  Stream<Tracks> get tracks => const Stream.empty();
   _FakeStream(this._errors);
   final Stream<String> _errors;
 
