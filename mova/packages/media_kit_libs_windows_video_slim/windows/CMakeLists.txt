@@ -57,25 +57,26 @@ endfunction()
 # for backward compatibility).
 # ------------------------------------------------------------------------------
 
-if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/libmpv-2.dll")
-  set(CUSTOM_LIBMPV_DLL "${CMAKE_CURRENT_SOURCE_DIR}/libmpv-2.dll")
-elseif(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/libmpv.dll")
-  set(CUSTOM_LIBMPV_DLL "${CMAKE_CURRENT_SOURCE_DIR}/libmpv.dll")
-else()
-  # Backward-compatible fallback to mova/libmpv/
-  get_filename_component(
-    CUSTOM_LIBMPV_DIR
-    "${CMAKE_SOURCE_DIR}/../../libmpv/windows-x86_64"
-    ABSOLUTE
-  )
-  if(EXISTS "${CUSTOM_LIBMPV_DIR}/libmpv-2.dll")
-    set(CUSTOM_LIBMPV_DLL "${CUSTOM_LIBMPV_DIR}/libmpv-2.dll")
-  elseif(EXISTS "${CUSTOM_LIBMPV_DIR}/libmpv.dll")
-    set(CUSTOM_LIBMPV_DLL "${CUSTOM_LIBMPV_DIR}/libmpv.dll")
-  else()
-    message(FATAL_ERROR "mova slim libmpv not found under ${CMAKE_CURRENT_SOURCE_DIR} or ${CUSTOM_LIBMPV_DIR} (expected libmpv-2.dll or libmpv.dll).")
-  endif()
+# 优先取 WHEP 新版（mova/libmpv/windows-x86_64-whep），次选旧配方目录；不再读包内 DLL。
+# 候选根目录：宿主 app 的 windows/ 相对（example 用法，插件目录是符号链接，不能按包路径推），
+# 以及本包相对（包路径为真实路径时）。
+set(MOVA_LIBMPV_ROOTS
+  "${CMAKE_SOURCE_DIR}/../../libmpv"
+  "${CMAKE_CURRENT_SOURCE_DIR}/../../../libmpv"
+)
+set(CUSTOM_LIBMPV_DIR "")
+foreach(_sub windows-x86_64-whep windows-x86_64)
+  foreach(_root ${MOVA_LIBMPV_ROOTS})
+    get_filename_component(_cand "${_root}/${_sub}" ABSOLUTE)
+    if(NOT CUSTOM_LIBMPV_DIR AND EXISTS "${_cand}/libmpv-2.dll" AND EXISTS "${_cand}/libmpv.dll.a")
+      set(CUSTOM_LIBMPV_DIR "${_cand}")
+    endif()
+  endforeach()
+endforeach()
+if(NOT CUSTOM_LIBMPV_DIR)
+  message(FATAL_ERROR "mova slim libmpv not found (need libmpv-2.dll + libmpv.dll.a in windows-x86_64-whep or windows-x86_64 under ${MOVA_LIBMPV_ROOTS}).")
 endif()
+set(CUSTOM_LIBMPV_DLL "${CUSTOM_LIBMPV_DIR}/libmpv-2.dll")
 
 message(STATUS "[mova slim] Using ${CUSTOM_LIBMPV_DLL}")
 
@@ -94,13 +95,13 @@ message(STATUS "[mova slim] Using ${CUSTOM_LIBMPV_DLL}")
 #   - mpv-headers/*.h — mpv's public libmpv/*.h at the exact commit pinned
 #     in build-mova-libmpv.yml's windows job (78d43740f52db817d98bcf24fb30a76ab6fa13ff),
 #     so the ABI these headers declare matches the shipped DLL.
-set(MOVA_LIBMPV_DEVLIB_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../windows-devlib")
 set(MOVA_LIBMPV_HEADERS_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../mpv-headers")
 set(LIBMPV_SRC "${CMAKE_BINARY_DIR}/libmpv")
 
 file(MAKE_DIRECTORY "${LIBMPV_SRC}/include")
 file(COPY "${CUSTOM_LIBMPV_DLL}" DESTINATION "${LIBMPV_SRC}")
-file(COPY "${MOVA_LIBMPV_DEVLIB_DIR}/libmpv.dll.a" DESTINATION "${LIBMPV_SRC}")
+# 导入库与 DLL 同目录取，保证导出表一致。
+file(COPY "${CUSTOM_LIBMPV_DIR}/libmpv.dll.a" DESTINATION "${LIBMPV_SRC}")
 file(COPY "${MOVA_LIBMPV_HEADERS_DIR}/" DESTINATION "${LIBMPV_SRC}/include")
 # media_kit_video links "${LIBMPV_SRC}/libmpv.dll.a" but bundles/copies the
 # runtime DLL by whatever name the bundled_libraries list below gives it —

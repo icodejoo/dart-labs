@@ -1387,24 +1387,19 @@ jobs:
           for i in 1 2 3 4 5; do
             git fetch origin main
             git reset --hard origin/main
-            mkdir -p "$PKG_DIR/windows"
-            mkdir -p "$PKG_DIR/windows-devlib"
-            mkdir -p "$PKG_DIR/mpv-headers"
-            cp "$WS/libmpv-2-windows-x86_64.dll" "$PKG_DIR/windows/libmpv-2.dll"
-            cp "$WS/libmpv-2.def" "$PKG_DIR/windows-devlib/libmpv-2.def"
-            cp "$WS/libmpv.dll.a" "$PKG_DIR/windows-devlib/libmpv.dll.a"
-            if [ -d "$WS/prefix/include/mpv" ]; then
-              cp "$WS/prefix/include/mpv"/*.h "$PKG_DIR/mpv-headers/"
-            fi
-            git add "$PKG_DIR/windows/libmpv-2.dll"
-            git add "$PKG_DIR/windows-devlib/libmpv-2.def"
-            git add "$PKG_DIR/windows-devlib/libmpv.dll.a"
-            git add "$PKG_DIR/mpv-headers"
+            # 旧配方产物改写到 mova/libmpv/windows-x86_64（仅作次选回退），不再覆盖 slim 包内的新产物；
+            # 头文件不再写入（包内 mpv-headers 以新版为准）。
+            OLD_DIR="mova/libmpv/windows-x86_64"
+            mkdir -p "$OLD_DIR"
+            cp "$WS/libmpv-2-windows-x86_64.dll" "$OLD_DIR/libmpv-2.dll"
+            cp "$WS/libmpv-2.def" "$OLD_DIR/libmpv-2.def"
+            cp "$WS/libmpv.dll.a" "$OLD_DIR/libmpv.dll.a"
+            git add "$OLD_DIR/libmpv-2.dll" "$OLD_DIR/libmpv-2.def" "$OLD_DIR/libmpv.dll.a"
             if git diff --cached --quiet; then
               echo "No size/content change, skip commit"
               exit 0
             fi
-            git commit -m "chore(packages): update slimmed libmpv-2.dll and devlib (windows x86_64) [skip ci]"
+            git commit -m "chore(libmpv): update legacy windows x86_64 libmpv-2.dll and devlib [skip ci]"
             git lfs push origin main
             if git push; then exit 0; fi
             echo "push rejected, retrying from a fresh baseline ($i/5)..."
