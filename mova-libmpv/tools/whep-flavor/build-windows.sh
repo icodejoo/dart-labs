@@ -340,8 +340,8 @@ step_finish() {
   [ "$fail" = 0 ] || die "符号检查失败"
   strip -s "$dll"
   cp "$dll" "$OUT/libmpv-2.dll"
-  # 导入库与 def（给 media_kit_video 链接期用，非必需产物）
-  (cd "$OUT" && gendef libmpv-2.dll >/dev/null 2>&1 && dlltool -d libmpv-2.def -l libmpv.dll.a -D libmpv-2.dll) || say "gendef/dlltool 失败（非致命）"
+  # 导入库与 def（给 media_kit_video 链接期用，非必需产物）；gendef 在 mingw-w64-x86_64-tools 包里（toolchain 组已不含）
+  (cd "$OUT" && gendef libmpv-2.dll >/dev/null && dlltool -d libmpv-2.def -l libmpv.dll.a -D libmpv-2.dll) || say "gendef/dlltool 失败（非致命）"
   stat -c%s "$OUT/libmpv-2.unstripped.dll" "$OUT/libmpv-2.dll" | tee "$OUT/size.txt"
   say "完成：$OUT/libmpv-2.dll  $(stat -c%s "$OUT/libmpv-2.dll") 字节"
 }
