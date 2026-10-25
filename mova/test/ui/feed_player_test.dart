@@ -3,6 +3,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mova/src/core/model/feed_item.dart';
 import 'package:mova/src/core/model/fit.dart';
 import 'package:mova/src/core/model/source.dart';
+import 'package:mova/src/core/state/state.dart';
+import 'package:mova/src/ui/poster.dart';
 import 'package:mova/src/ui/feed_player.dart';
 
 import '../support/fake_api.dart';
@@ -186,6 +188,59 @@ void main() {
     }
 
     expect(find.byKey(const Key('feedPlaceholder')), findsNothing);
+  });
+
+  testWidgets('posterUntilFirstFrame defaults to false: a ready page has no poster layer', (t) async {
+    final fleet = _Fleet();
+    await t.pumpWidget(MaterialApp(
+      home: MovaFeedPlayer(
+        engineFactory: fleet.make,
+        loader: (i) async => MovaFeedItem(source: MovaSource('https://h/$i.mp4')),
+        placeholderBuilder: (context, item) =>
+            const ColoredBox(key: Key('feedPlaceholder'), color: Color(0xFF123456)),
+      ),
+    ));
+    await t.pumpAndSettle();
+
+    expect(find.byType(MovaPosterLayer), findsNothing);
+    expect(find.byKey(const Key('feedPlaceholder')), findsNothing);
+  });
+
+  /// Mounts a settled feed with `posterUntilFirstFrame: true`.
+  ///
+  /// 挂载一个已稳定、`posterUntilFirstFrame: true` 的 feed。
+  Future<_Fleet> pumpPosterFeed(WidgetTester t) async {
+    final fleet = _Fleet();
+    await t.pumpWidget(MaterialApp(
+      home: MovaFeedPlayer(
+        engineFactory: fleet.make,
+        loader: (i) async => MovaFeedItem(source: MovaSource('https://h/$i.mp4')),
+        placeholderBuilder: (context, item) =>
+            const ColoredBox(key: Key('feedPlaceholder'), color: Color(0xFF123456)),
+        posterUntilFirstFrame: true,
+      ),
+    ));
+    await t.pumpAndSettle();
+    return fleet;
+  }
+
+  final posterOpacity = find.descendant(of: find.byType(MovaPosterLayer), matching: find.byType(AnimatedOpacity));
+
+  testWidgets('posterUntilFirstFrame keeps the placeholder as an opaque poster before the first frame', (t) async {
+    await pumpPosterFeed(t);
+    expect(find.byType(MovaPosterLayer), findsWidgets);
+    expect(find.byKey(const Key('feedPlaceholder')), findsWidgets);
+    expect(t.widget<AnimatedOpacity>(posterOpacity.first).opacity, 1);
+  });
+
+  testWidgets('posterUntilFirstFrame fades the poster out once the engine reports rendered', (t) async {
+    final fleet = await pumpPosterFeed(t);
+    for (final api in fleet.created) {
+      api.push(const MovaState(rendered: true, width: 1080, height: 1920));
+    }
+    await t.pump();
+    await t.pump();
+    expect(t.widget<AnimatedOpacity>(posterOpacity.first).opacity, 0);
   });
 
   testWidgets('an ended feed (loader returns null) shows a black placeholder '

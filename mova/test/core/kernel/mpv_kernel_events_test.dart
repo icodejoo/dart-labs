@@ -146,6 +146,78 @@ void main() {
       kernel.dispose();
     });
 
+    test('observeNativeEvents=true without QoE builds the pump but skips paused-for-cache', () async {
+      final callLog = <String>[];
+      var factoryCalled = false;
+      final kernel = MovaMpvKernel(
+        player: _FakePlayer(callLog),
+        audioOnly: true,
+        observeQoeSignals: false,
+        observeNativeEvents: true,
+        backendFactory: (native, addr) {
+          factoryCalled = true;
+          return FakeMpvEventBackend();
+        },
+      );
+      await pumpEventQueue();
+      expect(factoryCalled, isTrue);
+      expect(callLog, isNot(contains('native.observeProperty:paused-for-cache')));
+      await kernel.dispose();
+    });
+
+    test('observeNativeEvents=false with QoE observes paused-for-cache but never builds the pump', () async {
+      final callLog = <String>[];
+      var factoryCalled = false;
+      final kernel = MovaMpvKernel(
+        player: _FakePlayer(callLog),
+        audioOnly: true,
+        observeQoeSignals: true,
+        observeNativeEvents: false,
+        backendFactory: (native, addr) {
+          factoryCalled = true;
+          return FakeMpvEventBackend();
+        },
+      );
+      await pumpEventQueue();
+      expect(factoryCalled, isFalse);
+      expect(callLog, contains('native.observeProperty:paused-for-cache'));
+      await kernel.dispose();
+    });
+
+    test('omitting observeNativeEvents follows observeQoeSignals, paused-for-cache first', () async {
+      final callLog = <String>[];
+      final kernel = MovaMpvKernel(
+        player: _FakePlayer(callLog),
+        audioOnly: true,
+        observeQoeSignals: true,
+        backendFactory: (native, addr) => _SharedLogBackend(callLog, () {}, () {}),
+      );
+      await pumpEventQueue();
+      final observe = callLog.indexOf('native.observeProperty:paused-for-cache');
+      final create = callLog.indexOf('backend.createClient');
+      expect(observe, isNonNegative);
+      expect(create, greaterThan(observe));
+      await kernel.dispose();
+    });
+
+    test('observeNativeEvents=true on a non-NativePlayer platform neither builds the pump nor throws', () async {
+      final callLog = <String>[];
+      var factoryCalled = false;
+      final kernel = MovaMpvKernel(
+        player: _FakePlayer(callLog, hasNative: false),
+        audioOnly: true,
+        observeQoeSignals: false,
+        observeNativeEvents: true,
+        backendFactory: (native, addr) {
+          factoryCalled = true;
+          return FakeMpvEventBackend();
+        },
+      );
+      await pumpEventQueue();
+      expect(factoryCalled, isFalse);
+      await kernel.dispose();
+    });
+
     test('immediate dispose race loop', () async {
       int createSum = 0;
       int destroySum = 0;

@@ -9,6 +9,8 @@ import 'events/events.dart';
 import 'interceptor/interceptor.dart';
 import 'kernel/kernel.dart';
 import 'kernel/mpv_kernel.dart';
+import 'kernel/player_mute.dart';
+import 'kernel/standby_kernel.dart';
 import 'live/timeshift.dart';
 import 'model/fit.dart';
 import 'model/orientation.dart';
@@ -28,9 +30,14 @@ import 'preview/service.dart';
 import 'preview/source.dart';
 import 'preview/two_level_cache.dart';
 import 'preview/vtt_source.dart';
+import 'recovery/fail.dart';
+import 'recovery/watchdog.dart';
+import 'render/first_frame.dart';
 import 'report/collector.dart';
 import 'report/report.dart';
 import 'report/stats_probe.dart';
+import 'standby/plan.dart';
+import 'standby/standby.dart';
 import 'state/progress.dart';
 import 'state/state.dart';
 import 'state/ui_state.dart';
@@ -54,7 +61,7 @@ import 'stt/service.dart';
 /// 这是 `lib/src/core/**` 中唯一把该层其余部分粘合在一起的类；它本身不直接
 /// 引入 `package:flutter` 或 `package:media_kit`（这些依赖被隔离在
 /// [MovaKernel]/[MovaOpts]/各 Port 之后）。
-class MovaEngine implements MovaApi {
+class MovaEngine implements MovaApi, MovaStandbyController, MovaPlayerMute {
   /// The kernel this engine drives.
   ///
   /// 该 engine 驱动的内核。
@@ -179,7 +186,101 @@ class MovaEngine implements MovaApi {
   /// 内核发一次 `seek()`/`open()`。
   bool _autoBackToLiveInFlight = false;
 
-  final MovaBus<MovaState> _state = MovaBus<MovaState>(const MovaState());
+  /// Decides when the current playback attempt has really started presenting
+  /// media; feeds [MovaState.rendered] and [MovaFirstFrame].
+  ///
+  /// 判定当前播放尝试何时真正开始呈现媒体；驱动 [MovaState.rendered] 与
+  /// [MovaFirstFrame]。
+  final MovaFirstFrameGate _frameGate = MovaFirstFrameGate();
+
+  /// Subscription to the kernel's native restart signal, when it has one.
+  ///
+  /// 内核原生 RESTART 信号的订阅（内核提供时才有）。
+  StreamSubscription<void>? _restartSub;
+
+  /// Pending grace timer: a fallback landed while the native signal was live.
+  ///
+  /// 宽限计时器：原生信号在工作时兜底信号先到，等待 RESTART。
+  Timer? _graceTimer;
+
+  /// When the current source's `open()` call began, for [MovaFirstFrame.sinceOpen].
+  ///
+  /// 当前源的 `open()` 调用开始时刻，用于 [MovaFirstFrame.sinceOpen]。
+  DateTime? _openedAt;
+
+  /// In-flight kernel `open()` calls; gate observations are dropped while > 0.
+  ///
+  /// 在途的内核 `open()` 调用数；大于 0 时丢弃一切闸门观测。
+  int _kernelOpening = 0;
+
+  /// Set synchronously at the start of [dispose] so late callbacks never
+  /// re-arm timers on a dying engine.
+  ///
+  /// 在 [dispose] 开头同步置位，使迟到的回调不会在濒死引擎上重新起计时器。
+  bool _disposed = false;
+
+  /// How long a fallback may wait for a native restart before landing anyway.
+  ///
+  /// 兜底信号先到后，最多等原生 RESTART 多久再自行落地。
+  static const Duration _firstFrameGrace = Duration(milliseconds: 1500);
+
+  /// Start/stall watchdog; non-null only when [MovaRecoveryConfig.enabled], so
+  /// a disabled engine owns no recovery timer and subscribes to nothing extra.
+  ///
+  /// 起播/卡顿看门狗；仅在 [MovaRecoveryConfig.enabled] 时非空，因此关闭态的引擎
+  /// 不持有任何恢复计时器，也不多订阅任何流。
+  MovaPlayWatchdog? _watchdog;
+
+  /// Subscription to the kernel's native end-of-file reasons (recovery only).
+  ///
+  /// 内核原生文件结束原因的订阅（仅 recovery 开启时存在）。
+  StreamSubscription<MovaEndFileReason>? _endFileSub;
+
+  /// Pending retry/failover delay.
+  ///
+  /// 等待中的重试/切换延迟。
+  Timer? _recoverTimer;
+
+  /// Bumped for every armed attempt (open, retry, reload).
+  ///
+  /// 每武装一次尝试（打开、重试、重载）就自增。
+  int _attemptId = 0;
+
+  /// The attempt id already handled as a failure, so one attempt fails once.
+  ///
+  /// 已作为失败处理过的尝试编号，保证一次尝试只失败一次。
+  int _failedAttemptId = -1;
+
+  /// Consecutive failures across all addresses since the last first frame.
+  ///
+  /// 自上次出首帧以来跨所有地址的连续失败次数。
+  int _streak = 0;
+
+  /// Consecutive failures per address index since the last first frame.
+  ///
+  /// 自上次出首帧以来每个地址下标的连续失败次数。
+  final Map<int, int> _addrFailures = <int, int>{};
+
+  /// Whether this session already announced [MovaSourceChange]/[MovaReady].
+  ///
+  /// 本会话是否已发过 [MovaSourceChange]/[MovaReady]。
+  bool _readyAnnounced = false;
+
+  /// Index into the source's addresses currently playing.
+  ///
+  /// 当前正在播放的地址下标。
+  int _sourceIndex = 0;
+
+  /// The address currently playing, or empty before any [open].
+  ///
+  /// 当前正在播放的地址；尚未 [open] 时为空串。
+  String get _activeUri {
+    final src = _source;
+    if (src == null) return '';
+    return _sourceIndex < src.uris.length ? src.uris[_sourceIndex] : src.uri;
+  }
+
+  final MovaBus<MovaState> _state;
   final MovaBus<MovaUiState> _ui = MovaBus<MovaUiState>(const MovaUiState());
   final StreamController<MovaEvent> _events =
       StreamController<MovaEvent>.broadcast();
@@ -211,6 +312,134 @@ class MovaEngine implements MovaApi {
   /// 落后，说明已被更晚的一次 [open] 取代，就此收手，不再覆写 `_source`
   /// 或为一个内核早已翻篇的源发出陈旧事件。
   int _openGen = 0;
+
+  // Accepted session and recovery position survive rejected open requests.
+  //
+  // 已接受会话与恢复位置不受被拒绝的打开请求影响。
+  int _sessionGen = 0;
+  Duration? _recoveryPosition;
+
+  /// Waits for this recovery attempt to present before sending its seek.
+  ///
+  /// 等本次恢复尝试呈现画面后再发送续播 seek。
+  bool _recoveryAwaitingFrame = false;
+  bool get _playIntent => state.playbackIntent;
+
+  // ---- standby (see doc/plans/2026-10-23-standby-mode.md) ----
+  // ---- 待机（见 doc/plans/2026-10-23-standby-mode.md）----
+
+  /// Clock for standby timing; tests swap it because `DateTime.now()` does not
+  /// follow `fakeAsync`.
+  ///
+  /// 待机计时用的时钟；测试里替换它，因为 `DateTime.now()` 不跟随 `fakeAsync`。
+  @visibleForTesting
+  DateTime Function() debugClock = DateTime.now;
+
+  /// The mode of the current hold; null unless [MovaStandbyPhase.holding].
+  ///
+  /// 当前待机的组合；仅在 [MovaStandbyPhase.holding] 时非空。
+  MovaStandbyMode? _standbyMode;
+
+  /// When the current phase began (measures how long a fallback pause lasted).
+  ///
+  /// 当前阶段开始的时刻（用来计算 fallback 暂停持续了多久）。
+  DateTime? _standbySince;
+
+  /// Why the engine is in [MovaStandbyPhase.fallback]; null in other phases.
+  ///
+  /// 引擎处于 [MovaStandbyPhase.fallback] 的原因；其他阶段为 null。
+  MovaStandbyReason? _fallbackCause;
+
+  /// True from `setStandby(true)` until `setStandby(false)` or `pause()`: the
+  /// host wants this picture hidden, so a later `play()` starts in standby.
+  ///
+  /// 从 `setStandby(true)` 起到 `setStandby(false)` 或 `pause()` 为止为 true：宿主希望
+  /// 这块画面保持隐藏，之后的 `play()` 因此直接以待机态开播。
+  bool _standbyRequested = false;
+
+  /// Fires when a hold reaches [MovaStandbyConfig.maxDuration].
+  ///
+  /// 待机达到 [MovaStandbyConfig.maxDuration] 时触发。
+  Timer? _standbyTimer;
+
+  /// Serializes every standby transition so they never interleave.
+  ///
+  /// 串行化所有待机迁移，使其永不交错。
+  Future<void> _standbyQueue = Future<void>.value();
+
+  /// Fires when waking waited [MovaStandbyConfig.resumeTimeout] for a fresh frame.
+  ///
+  /// 唤醒后等新画面等满 [MovaStandbyConfig.resumeTimeout] 时触发。
+  Timer? _resumeTimer;
+
+  /// When the wake-up call began (the start of [MovaStandbyResume.elapsed]).
+  ///
+  /// 唤醒调用开始的时刻（[MovaStandbyResume.elapsed] 的起点）。
+  DateTime? _resumeAt;
+
+  /// The hold mode being woken from; null when woken from a fallback pause.
+  ///
+  /// 正在从哪种待机组合唤醒；从 fallback 暂停唤醒时为 null。
+  MovaStandbyMode? _resumeFrom;
+
+  /// Whether the first-frame gate is currently armed in resume mode.
+  ///
+  /// 首帧闸门当前是否处于恢复武装。
+  bool _resumeGateArmed = false;
+
+  /// The kernel's standby capability, or null when it has none.
+  ///
+  /// 内核的待机能力；内核不具备时为 null。
+  MovaStandbyKernel? get _standbyKernel {
+    final k = _kernel;
+    return k is MovaStandbyKernel ? k as MovaStandbyKernel : null;
+  }
+
+  /// Whether an internal load should start playing: the play intent, except
+  /// while standby holds the engine paused (fallback), where loads stay paused
+  /// until the wake-up plays them.
+  ///
+  /// 内部加载完是否开播：即播放意图；但待机让引擎停在暂停态（fallback）期间一律不开播，
+  /// 留到唤醒时再播。
+  bool get _loadPlays => _playIntent && state.standby != MovaStandbyPhase.fallback;
+
+  /// Whether a recovery retry/failover is waiting to run.
+  ///
+  /// 是否有重试/切换正在等待执行。
+  bool get _recoveryPending => _recoverTimer != null;
+
+  /// Drops a waiting recovery retry (it would load with the play intent and
+  /// make a hidden card audible).
+  ///
+  /// 丢弃正在等待的恢复重试（它会按播放意图加载，让看不见的卡片出声）。
+  void _cancelRecovery() {
+    _recoverTimer?.cancel();
+    _recoverTimer = null;
+  }
+
+  /// Runs [step] after every earlier standby transition has settled.
+  ///
+  /// 在之前所有待机迁移落定后执行 [step]。
+  Future<T> _enqueueStandby<T>(Future<T> Function() step) {
+    final next = _standbyQueue.then((_) => step());
+    _standbyQueue = next.then<void>((_) {}, onError: (Object _) {});
+    return next;
+  }
+
+  /// Moves to [phase] and announces it.
+  ///
+  /// 切到 [phase] 并对外宣布。
+  void _setStandbyPhase(
+    MovaStandbyPhase phase,
+    MovaStandbyReason reason, {
+    MovaStandbyMode? mode,
+  }) {
+    if (_disposed || _events.isClosed) return;
+    _standbySince = debugClock();
+    _fallbackCause = phase == MovaStandbyPhase.fallback ? reason : null;
+    _state.emit(state.copyWith(standby: phase));
+    _events.add(MovaStandbyChange(phase: phase, reason: reason, mode: mode));
+  }
 
   /// Latest known playback position, tracked synchronously from every
   /// kernel `position` callback (independent of the throttled [progress]
@@ -263,14 +492,6 @@ class MovaEngine implements MovaApi {
   /// 在其续播 seek 被寄存而非立即下发时依然成立。
   bool _parkedNotify = false;
 
-  /// Latest known playing/paused flag, tracked synchronously from every
-  /// kernel `playing` callback; see [_lastPosition] for why this is kept
-  /// outside the throttled/deduplicated public streams.
-  ///
-  /// 最近已知的播放/暂停标志，从内核每次 `playing` 回调同步更新；保持在
-  /// 公开节流/去重流之外的原因见 [_lastPosition]。
-  bool _lastPlaying = false;
-
   Timer? _hudTimer;
   Timer? _autoHideTimer;
 
@@ -304,6 +525,13 @@ class MovaEngine implements MovaApi {
   /// `MovaState.audioOnly`，也不为它新增 `MovaOpts` 配置节：这是构造期的资源
   /// 决策（内核的渲染句柄一次绑定、永不重绑），而运行期可观测的信号就是
   /// `renderHandle == null` 本身。
+  ///
+  /// [fit] is the initial `MovaState.fit`, [MovaFit.contain] by default. It is a
+  /// starting value, not a lock — `setFit()` and the fit button still change it
+  /// at runtime, and no [MovaFitChange] is emitted for it.
+  ///
+  /// [fit] 是初始的 `MovaState.fit`，默认 [MovaFit.contain]。只是初值不是锁定——
+  /// 运行时 `setFit()` 与 fit 按钮照常可改，也不会为它发 [MovaFitChange]。
   MovaEngine({
     MovaKernel? kernel,
     bool audioOnly = false,
@@ -317,7 +545,15 @@ class MovaEngine implements MovaApi {
     MovaFramePuller? extractor,
     MovaHttpFetch? fetcher,
     MovaReporter? reporter,
-  }) : _kernel = kernel ?? MovaMpvKernel(audioOnly: audioOnly, lazyVideo: true, observeQoeSignals: reporter != null),
+    MovaFit fit = MovaFit.contain,
+  }) : _state = MovaBus<MovaState>(MovaState(fit: fit)),
+       _kernel =
+           kernel ??
+           MovaMpvKernel(
+             audioOnly: audioOnly,
+             lazyVideo: true,
+             observeQoeSignals: reporter != null,
+           ),
        _audioOnly = audioOnly,
        _extractor = extractor, // ignore: prefer_initializing_formals
        _fetcher = fetcher ?? MovaIoHttpFetcher(),
@@ -326,8 +562,9 @@ class MovaEngine implements MovaApi {
        _volume = volume, // ignore: prefer_initializing_formals
        _pip = pip ?? MovaNoopPipPort(),
        _orientation = orientation ?? MovaNoopOrientationPort(),
-       _reporter = reporter // ignore: prefer_initializing_formals
-       {
+       _reporter =
+           reporter // ignore: prefer_initializing_formals
+           {
     _abrPolicy =
         options.abr.policy ??
         MovaBufferAbr(threshold: options.abr.stallThreshold);
@@ -341,9 +578,19 @@ class MovaEngine implements MovaApi {
       const Duration(milliseconds: 200),
     );
     _sttService = MovaSttService(config: options.stt, onBlocked: _onSttBlocked);
+    final rec = options.recovery;
+    if (rec.enabled) {
+      rec.assertValid();
+      _watchdog = MovaPlayWatchdog(
+        startTimeout: rec.startTimeout,
+        stallTimeout: rec.stallTimeout,
+        onTimeout: (kind, waited) => _onPlayFail(kind, waited: waited),
+      );
+    }
+
+    options.standby.assertValid();
 
     _playingSub = _kernel.playing.listen((v) {
-      _lastPlaying = v;
       _state.emit(state.copyWith(playing: v));
       _events.add(v ? const MovaPlay() : const MovaPause());
     });
@@ -352,10 +599,21 @@ class MovaEngine implements MovaApi {
       _events.add(MovaBufferChange(v));
       _handleAbrBuffering(v);
       _maybeAutoBackToLive(v);
+      _watchdog?.onBuffering(v);
+      _feedGate(() => _frameGate.onBuffering(v, nativeLive: _nativeLive));
     });
     _completedSub = _kernel.completed.listen((v) {
       _state.emit(state.copyWith(completed: v));
       if (v) _events.add(const MovaDone());
+      if (v && state.standby == MovaStandbyPhase.holding) {
+        unawaited(
+          _enqueueStandby(() => _degradeStandby(MovaStandbyReason.ended)),
+        );
+      } else if (v &&
+          state.type == MovaStreamType.live &&
+          options.recovery.liveEndIsFailure) {
+        _onPlayFail(MovaPlayFailKind.liveEnded);
+      }
     });
     _positionSub = _kernel.position.listen((v) {
       // While a seek is settling, the kernel keeps echoing stale
@@ -380,6 +638,7 @@ class MovaEngine implements MovaApi {
       _sttService.updatePosition(v);
       _qoe?.onPosition(v);
       _progressRaw.add(MovaProg(position: v, buffer: _lastBuffer));
+      _feedGate(() => _frameGate.onProgress(v, nativeLive: _nativeLive));
     });
     _bufferSub = _kernel.buffer.listen((v) {
       _lastBuffer = v;
@@ -403,12 +662,30 @@ class MovaEngine implements MovaApi {
       if (state.fullscreen) {
         unawaited(_applyOrientation());
       }
+      _feedGate(
+        () => _frameGate.onSize(v.width, v.height, nativeLive: _nativeLive),
+      );
     });
     _errorSub = _kernel.error.listen((e) {
       _state.emit(state.copyWith(error: e));
       _events.add(MovaErrorEvent(e));
       _chain.onError(e, StackTrace.current);
     });
+    final restartKernel = _kernel;
+    if (restartKernel is MovaStatsProbe) {
+      _restartSub = (restartKernel as MovaStatsProbe).playbackRestarts.listen((
+        _,
+      ) {
+        _feedGate(_frameGate.onRestart);
+      });
+      if (rec.enabled) {
+        _endFileSub = (restartKernel as MovaStatsProbe).endFiles.listen((r) {
+          if (r == MovaEndFileReason.error) {
+            _onPlayFail(MovaPlayFailKind.nativeEndError);
+          }
+        });
+      }
+    }
     _previewService = _buildPreview(
       thumbDir: thumbDir,
       extractor: _extractor,
@@ -456,6 +733,136 @@ class MovaEngine implements MovaApi {
             .catchError((Object _) {}),
       );
     }
+  }
+
+  /// Whether the kernel's native restart subscription is live right now.
+  ///
+  /// 内核的原生 RESTART 订阅此刻是否在工作。
+  bool get _nativeLive {
+    final k = _kernel;
+    return k is MovaStatsProbe && (k as MovaStatsProbe).nativeRestartAvailable;
+  }
+
+  /// Wraps every kernel open so the gate ignores stale signals meanwhile.
+  ///
+  /// 包住每一次内核 open，使闸门在途期间忽略陈旧信号。
+  Future<bool> _loadKernel(String uri, {required bool play}) async {
+    final session = _sessionGen;
+    final attempt = _attemptId;
+    bool current() =>
+        !_disposed && session == _sessionGen && attempt == _attemptId;
+    _kernelOpening++;
+    _watchdog?.disarm();
+    Object? failure;
+    try {
+      await _kernel.open(uri, play: play);
+    } catch (e) {
+      if (_watchdog == null) rethrow;
+      failure = e;
+    } finally {
+      _kernelOpening--;
+    }
+    if (!current()) return false;
+    if (failure != null) {
+      _onPlayFail(MovaPlayFailKind.openThrew, error: failure);
+      return false;
+    }
+    if (!_playIntent && play) {
+      await _kernel.pause();
+      if (!current()) return false;
+    }
+    if (_kernelOpening == 0 && state.standby != MovaStandbyPhase.holding) {
+      _watchdog?.armStart(playing: _playIntent);
+    }
+    // A paused load's size signal may arrive before open returns. Re-feed
+    // known dimensions defensively; real-device confirmation is Task 16.
+    //
+    // 暂停加载的尺寸信号可能早于 open 返回；防御性补喂已知尺寸，真机待 Task 16 验证。
+    if (!play) {
+      _feedGate(
+        () => _frameGate.onSize(
+          state.width,
+          state.height,
+          nativeLive: _nativeLive,
+        ),
+      );
+    }
+    return true;
+  }
+
+  /// Arms a fresh first-frame attempt without touching [MovaState.rendered].
+  ///
+  /// 武装一次新的首帧尝试，不动 [MovaState.rendered]。
+  void _armAttempt({required bool autoPlay}) {
+    _recoverTimer?.cancel();
+    _recoverTimer = null;
+    _attemptId++;
+    _recoveryAwaitingFrame = false;
+    _graceTimer?.cancel();
+    _graceTimer = null;
+    _frameGate.arm(autoPlay: autoPlay);
+  }
+
+  /// Feeds one observation to the gate, starting the grace timer if asked to.
+  ///
+  /// 向闸门喂一次观测；闸门要求时起宽限计时器。
+  void _feedGate(MovaFirstFrameSignal? Function() observe) {
+    if (_disposed || _kernelOpening > 0 || _events.isClosed) return;
+    final landed = observe();
+    if (landed != null) return _onAttemptLanded(landed);
+    if (_frameGate.awaitingGrace && _graceTimer == null) {
+      _graceTimer = Timer(_firstFrameGrace, () {
+        _graceTimer = null;
+        _feedGate(_frameGate.onGraceExpired);
+      });
+    }
+  }
+
+  /// Marks the source as rendered (once per `open()`) and announces it.
+  ///
+  /// 把当前源标记为已呈现（每次 `open()` 一次）并对外宣布。
+  void _onAttemptLanded(MovaFirstFrameSignal signal) {
+    _graceTimer?.cancel();
+    _graceTimer = null;
+    if (state.standby == MovaStandbyPhase.resuming) _finishResume(signal);
+    // A landing that arrives for an attempt already declared failed (the retry
+    // is pending) must not reset the failure counters.
+    //
+    // 对已被判失败的尝试（重试正在等待）才姗姗来迟的落地，不能清零失败计数。
+    if (_watchdog != null && _failedAttemptId != _attemptId) {
+      if (_recoveryAwaitingFrame) {
+        _recoveryAwaitingFrame = false;
+        final resumeAt = _recoveryPosition;
+        if (resumeAt != null && resumeAt > Duration.zero) {
+          final duration = state.duration;
+          unawaited(
+            _seekOrPark(
+              duration > Duration.zero && resumeAt > duration
+                  ? duration
+                  : resumeAt,
+              ready: true,
+            ),
+          );
+        }
+      }
+      _recoveryPosition = null;
+      _watchdog!.onLanded();
+      if (_streak > 0) {
+        _events.add(MovaRecovered(_streak));
+        _streak = 0;
+        _addrFailures.clear();
+      }
+    }
+    if (state.rendered) return;
+    _state.emit(state.copyWith(rendered: true));
+    final at = _openedAt;
+    _events.add(
+      MovaFirstFrame(
+        sinceOpen: at == null ? Duration.zero : DateTime.now().difference(at),
+        signal: signal,
+      ),
+    );
+    _maybeUpgradeReloaded();
   }
 
   /// Latest known buffered position, tracked alongside [_lastPosition] so a
@@ -642,6 +1049,16 @@ class MovaEngine implements MovaApi {
     final gen = ++_openGen;
     final allowed = await _chain.beforeOpen(source);
     if (!allowed || gen != _openGen) return;
+    _recoverTimer?.cancel();
+    _recoverTimer = null;
+    final session = ++_sessionGen;
+    _recoveryPosition = null;
+    _state.emit(state.copyWith(playbackIntent: autoPlay));
+    _addrFailures.clear();
+    _streak = 0;
+    _readyAnnounced = false;
+    _failedAttemptId = -1;
+    _sourceIndex = 0;
     // 通过 beforeOpen 门禁、且未被更晚一次 open() 取代之后才标记 QoE 会话
     // 边界——否则被拒绝/被取代的 open() 调用会污染上报，产生从未真正播放过
     // 的幽灵 sessionStart/sessionEnd。
@@ -677,15 +1094,36 @@ class MovaEngine implements MovaApi {
         clearQuality: true,
         clearError: true,
         clearSourceTitle: source.title == null,
+        rendered: false,
+        width: 0,
+        height: 0,
+        sourceIndex: 0,
       ),
     );
-    await _kernel.open(source.uri, play: autoPlay);
-    // Same generation check as above: a later open() may have superseded
-    // this one while the native load was in flight.
+    _openedAt = DateTime.now();
+    // Standby is requested: undo any hold and load this source paused (see
+    // [_standbyBeforeOpen]). Not awaited at all when standby is not involved.
     //
-    // 与上面同样的世代号检查：原生加载在途期间，可能已有更晚的一次 open()
-    // 取代了本次调用。
-    if (gen != _openGen) return;
+    // 请求了待机：先撤销待机，新源以暂停态加载（见 [_standbyBeforeOpen]）。未涉及待机时
+    // 完全不 await。
+    final held = _standbyRequested ? await _standbyBeforeOpen() : false;
+    if (held && (gen != _openGen || _disposed)) return;
+    final loadPlays = held ? false : _playIntent;
+    _armAttempt(autoPlay: loadPlays);
+    if (!await _loadKernel(source.uri, play: loadPlays)) return;
+    if (session != _sessionGen || _disposed) return;
+    _announceReady();
+  }
+
+  /// Finishes a session's first successful kernel load: recomputes live
+  /// seekability, settles the control bar, and announces [MovaSourceChange] +
+  /// [MovaReady] — once per `open()`, however many retries it took.
+  ///
+  /// 完成一次会话中第一次成功的内核加载：重算直播可拖动性、安顿控制条，并发出
+  /// [MovaSourceChange] + [MovaReady]——每次 `open()` 只发一次，不论中间重试了几次。
+  void _announceReady() {
+    if (_readyAnnounced) return;
+    _readyAnnounced = true;
     _recomputeLiveSeekable();
     // `MovaCtrlsConfig.showOnStart` previously had no effect: nothing ever
     // called `showControls()` on load, so the auto-hide timer never armed and
@@ -711,14 +1149,480 @@ class MovaEngine implements MovaApi {
     // 本协程挂起在上面这些 await 期间，dispose() 可能已经关闭了 `_events`——
     // 绝不能向已关闭的 controller 添加事件。
     if (_events.isClosed) return;
+    final source = _source;
+    if (source == null) return;
     _events.add(MovaSourceChange(source));
     _events.add(const MovaReady());
+  }
+
+  /// Handles one failed attempt: asks the policy, announces the decision, then
+  /// schedules the retry/failover or gives up. No-op unless recovery is on.
+  ///
+  /// 处理一次失败的尝试：询问策略、宣布决策，再安排重试/切换或放弃。recovery 未开启时
+  /// 为空操作。
+  ///
+  /// - [kind]: what failed / 失败的是什么
+  /// - [error]: the underlying error, if any / 底层错误（若有）
+  /// - [waited]: how long the attempt or stall lasted / 这次尝试或卡顿持续了多久
+  void _onPlayFail(
+    MovaPlayFailKind kind, {
+    Object? error,
+    Duration waited = Duration.zero,
+  }) {
+    final wd = _watchdog;
+    final src = _source;
+    if (wd == null || src == null || _disposed || _events.isClosed) return;
+    if (_kernelOpening > 0) return;
+    // A hold fails quietly: no policy, no event, no reconnect in the background.
+    // The wake-up reopens the source instead.
+    //
+    // 待机中的失败悄悄处理：不咨询策略、不发事件、不在后台重连，唤醒时再重开。
+    if (state.standby == MovaStandbyPhase.holding) {
+      unawaited(
+        _enqueueStandby(() => _degradeStandby(MovaStandbyReason.failed)),
+      );
+      return;
+    }
+    if (state.standby == MovaStandbyPhase.fallback) {
+      _fallbackCause = MovaStandbyReason.failed;
+      return;
+    }
+    // One attempt fails once: a timeout may be followed by a native error for
+    // the very same attempt.
+    //
+    // 一次尝试只失败一次：超时之后同一次尝试可能还会收到原生错误。
+    if (_failedAttemptId == _attemptId) return;
+    _recoveryPosition ??= state.type == MovaStreamType.vod && state.rendered
+        ? _lastPosition
+        : Duration.zero;
+    _failedAttemptId = _attemptId;
+    wd.disarm();
+    final idx = _sourceIndex;
+    final fail = MovaPlayFail(
+      kind: kind,
+      sourceIndex: idx,
+      uri: _activeUri,
+      sourceCount: src.uris.length,
+      attempt: _addrFailures[idx] = (_addrFailures[idx] ?? 0) + 1,
+      streak: ++_streak,
+      afterFirstFrame: state.rendered,
+      waited: waited,
+      error: error,
+    );
+    var d = _decide(fail);
+    if (d.action == MovaRecoveryAction.failover && !fail.hasNextSource) {
+      d = const MovaRecoveryDecision.giveUp();
+    }
+    _events.add(MovaPlayFailure(fail, d.action));
+    switch (d.action) {
+      case MovaRecoveryAction.retry:
+        _scheduleRecover(idx, d.delay, fail);
+      case MovaRecoveryAction.failover:
+        _scheduleRecover(idx + 1, d.delay, fail);
+      case MovaRecoveryAction.giveUp:
+        _giveUp(fail);
+    }
+  }
+
+  /// Asks the effective policy; a throwing host policy counts as give-up so it
+  /// can never break the engine.
+  ///
+  /// 询问生效的策略；宿主策略抛异常按放弃处理，绝不打断引擎。
+  MovaRecoveryDecision _decide(MovaPlayFail fail) {
+    try {
+      return options.recovery.effectivePolicy.onFailure(fail);
+    } on Object {
+      return const MovaRecoveryDecision.giveUp();
+    }
+  }
+
+  /// Schedules [_recover] after [delay], replacing any pending one.
+  ///
+  /// 延迟 [delay] 后执行 [_recover]，替换已有的待执行项。
+  void _scheduleRecover(int index, Duration delay, MovaPlayFail cause) {
+    final gen = _sessionGen;
+    final attempt = _attemptId;
+    _recoverTimer?.cancel();
+    _recoverTimer = Timer(delay, () {
+      _recoverTimer = null;
+      if (attempt == _attemptId) unawaited(_recover(index, cause, gen));
+    });
+  }
+
+  /// Reloads the kernel for a retry/failover. Not a new session: no
+  /// interceptor, no [MovaSourceChange], QoE session untouched; a VOD source
+  /// that had shown a frame resumes after the new attempt lands a frame.
+  ///
+  /// 为重试/切换重载内核。不是新会话：不过拦截器、不发 [MovaSourceChange]、不动 QoE
+  /// 会话；失败前出过画面的点播源等新尝试首帧落地后续播到失败位置。
+  ///
+  /// - [index]: address index to load / 要加载的地址下标
+  /// - [cause]: the failure being recovered from / 正在恢复的那次失败
+  /// - [gen]: the accepted session this recovery belongs to / 本次恢复所属的已接受会话世代
+  Future<void> _recover(int index, MovaPlayFail cause, int gen) async {
+    if (gen != _sessionGen || _disposed || _events.isClosed) return;
+    final resumeAt = _recoveryPosition ?? Duration.zero;
+    if (index != _sourceIndex) {
+      // Switching address: the quality list belonged to the old address's
+      // master playlist.
+      //
+      // 切换地址：清晰度列表属于旧地址的 master 播放列表。
+      final from = _sourceIndex;
+      _sourceIndex = index;
+      _state.emit(
+        state.copyWith(
+          sourceIndex: index,
+          qualities: const [],
+          clearQuality: true,
+        ),
+      );
+      _events.add(MovaFailover(from: from, to: index, uri: _activeUri));
+    }
+    _forgetMediaProgress();
+    _abrPolicy.reset();
+    _state.emit(state.copyWith(duration: Duration.zero));
+    _armAttempt(autoPlay: _loadPlays);
+    // open() only issues the load; even a duration is not presentation readiness.
+    //
+    // open() 只提交加载；即使已有时长，也不代表已可呈现。
+    _recoveryAwaitingFrame = resumeAt > Duration.zero;
+    if (!await _loadKernel(_activeUri, play: _loadPlays)) return;
+    if (gen != _sessionGen || _disposed || _events.isClosed) return;
+    _announceReady();
+  }
+
+  /// Recovery is exhausted: surface [MovaGiveUpError] through state, the event
+  /// stream and the interceptor chain, and pause the kernel so a dead live
+  /// source does not keep reconnecting in the background.
+  ///
+  /// recovery 已耗尽：经 state、事件流与拦截链暴露 [MovaGiveUpError]，并暂停内核，
+  /// 避免失效的直播源在后台一直重连。
+  void _giveUp(MovaPlayFail fail) {
+    final err = MovaGiveUpError(fail);
+    _state.emit(state.copyWith(error: err));
+    _events.add(MovaErrorEvent(err));
+    _chain.onError(err, StackTrace.current);
+    unawaited(_kernel.pause().catchError((Object _) {}));
+  }
+
+  @override
+  Future<MovaStandbyPhase> setStandby(bool on) {
+    // Recorded synchronously so a play()/open() queued behind this call sees it.
+    //
+    // 同步记下，使排在本调用之后的 play()/open() 能看到。
+    _standbyRequested = on;
+    return _enqueueStandby(() => on ? _enterStandby(viaPlay: false) : _leaveStandby());
+  }
+
+  /// Tries to enter standby. [viaPlay] means it was triggered by `play()` (or a
+  /// reloaded source landing) while a request stands: decide as if the intent
+  /// were true, and never pause — the caller plays only when this returns
+  /// [MovaStandbyPhase.holding].
+  ///
+  /// 尝试进入待机。[viaPlay] 表示请求存在期间由 `play()`（或换源落地）触发：按意图为
+  /// true 判定，且从不暂停——只有返回 [MovaStandbyPhase.holding] 时调用方才播放。
+  Future<MovaStandbyPhase> _enterStandby({required bool viaPlay}) async {
+    if (_disposed || !_standbyRequested) return state.standby;
+    final k = _standbyKernel;
+    MovaStandbyMedia? media;
+    if (k != null) {
+      try {
+        media = await k.inspectStandby();
+      } on Object {
+        media = null;
+      }
+      if (_disposed || !_standbyRequested) return state.standby;
+    }
+    final current = state.standby;
+    final entry = decideStandbyEntry(
+      phase: viaPlay ? MovaStandbyPhase.off : current,
+      intent: viaPlay || _playIntent,
+      exempt: state.pip || state.mini,
+      type: state.type,
+      recovering: _recoveryPending,
+      kernelCapable: k != null,
+      media: media,
+      config: options.standby,
+    );
+    switch (entry.kind) {
+      case MovaStandbyEntryKind.skip:
+        return state.standby;
+      case MovaStandbyEntryKind.fallback:
+        _cancelRecovery();
+        _cancelResume();
+        if (viaPlay && current == MovaStandbyPhase.fallback) return current;
+        if (!viaPlay) await _kernel.pause();
+        _setStandbyPhase(MovaStandbyPhase.fallback, entry.reason);
+        return state.standby;
+      case MovaStandbyEntryKind.hold:
+        _cancelRecovery();
+        _cancelResume();
+        final ok = await k!.enterStandby(entry.mode!);
+        if (_disposed) return MovaStandbyPhase.off;
+        if (!ok) {
+          if (!viaPlay) await _kernel.pause();
+          _setStandbyPhase(MovaStandbyPhase.fallback, MovaStandbyReason.unsupported);
+          return state.standby;
+        }
+        _standbyMode = entry.mode;
+        _watchdog?.disarm();
+        _standbyTimer?.cancel();
+        _standbyTimer = Timer(options.standby.maxDuration, _expireStandby);
+        _setStandbyPhase(
+          MovaStandbyPhase.holding,
+          MovaStandbyReason.requested,
+          mode: entry.mode,
+        );
+        return state.standby;
+    }
+  }
+
+  /// `maxDuration` elapsed: stop first, then restore properties while paused.
+  ///
+  /// 到了 `maxDuration`：先停播，再在暂停态还原属性。
+  void _expireStandby() {
+    _standbyTimer = null;
+    unawaited(
+      _enqueueStandby(() => _degradeStandby(MovaStandbyReason.maxDuration)),
+    );
+  }
+
+  /// holding -> fallback([reason]): pause, then undo the kernel hold. No-op in
+  /// any other phase.
+  ///
+  /// holding -> fallback([reason])：先暂停，再撤销内核待机。其他阶段为空操作。
+  Future<void> _degradeStandby(MovaStandbyReason reason) async {
+    if (_disposed || state.standby != MovaStandbyPhase.holding) return;
+    _standbyTimer?.cancel();
+    _standbyTimer = null;
+    await _kernel.pause();
+    await _standbyKernel?.exitStandby();
+    _standbyMode = null;
+    _setStandbyPhase(MovaStandbyPhase.fallback, reason);
+  }
+
+  /// Drops a pending resume measurement (hidden again, or the host took over).
+  ///
+  /// 丢弃待完成的恢复测量（又被隐藏，或宿主接管）。
+  void _cancelResume() {
+    _resumeTimer?.cancel();
+    _resumeTimer = null;
+    if (_resumeGateArmed) _frameGate.reset();
+    _resumeGateArmed = false;
+  }
+
+  /// Leaves standby without waking: undoes the hold if there is one, phase to off.
+  ///
+  /// 不唤醒地离开待机：有内核待机就撤销，阶段归 off。
+  ///
+  /// - [reason]: why standby ended / 待机为何结束
+  Future<void> _dropStandby(MovaStandbyReason reason) async {
+    final phase = state.standby;
+    if (phase == MovaStandbyPhase.off) return;
+    _standbyTimer?.cancel();
+    _standbyTimer = null;
+    _cancelResume();
+    if (phase == MovaStandbyPhase.holding) await _standbyKernel?.exitStandby();
+    if (_disposed) return;
+    _standbyMode = null;
+    _setStandbyPhase(MovaStandbyPhase.off, reason);
+    _resumeWatch();
+  }
+
+  /// `pause()` while standby is requested or active: stop first, then restore
+  /// the properties, so nothing leaks sound.
+  ///
+  /// 待机请求存在或已在待机时的 `pause()`：先停，再还原属性，不漏声。
+  Future<void> _pauseOutOfStandby() async {
+    await _kernel.pause();
+    await _enqueueStandby(() => _dropStandby(MovaStandbyReason.paused));
+  }
+
+  /// A new source arrives while standby is requested: undo any hold (a silent
+  /// new source must not load with `vid=no`), then mark fallback so it loads
+  /// paused. Returns whether the load must stay paused.
+  ///
+  /// 待机请求存在时来了新源：先撤销内核待机（无声新源不能带着 `vid=no` 加载），再标为
+  /// fallback 使其以暂停态加载。返回本次加载是否必须保持暂停。
+  Future<bool> _standbyBeforeOpen() {
+    return _enqueueStandby(() async {
+      _standbyTimer?.cancel();
+      _standbyTimer = null;
+      _cancelResume();
+      if (state.standby == MovaStandbyPhase.holding) {
+        await _standbyKernel?.exitStandby();
+      }
+      _standbyMode = null;
+      _setStandbyPhase(MovaStandbyPhase.fallback, MovaStandbyReason.reloaded);
+      return true;
+    });
+  }
+
+  /// The reloaded source showed its first frame while still hidden: try once
+  /// to hold it instead of keeping it paused.
+  ///
+  /// 换来的新源在隐藏中出了首帧：尝试一次改为待机，而不是一直暂停。
+  void _maybeUpgradeReloaded() {
+    if (!_standbyRequested || !_playIntent) return;
+    if (state.standby != MovaStandbyPhase.fallback ||
+        _fallbackCause != MovaStandbyReason.reloaded) {
+      return;
+    }
+    unawaited(
+      _enqueueStandby(() async {
+        final p = await _enterStandby(viaPlay: true);
+        if (p == MovaStandbyPhase.holding) await _kernel.play();
+      }),
+    );
+  }
+
+  /// Wakes from standby: undoes a hold, or resumes/reconnects a fallback pause,
+  /// as [decideStandbyWake] decides.
+  ///
+  /// 从待机唤醒：撤销待机，或续播/重连 fallback 暂停——由 [decideStandbyWake] 决定。
+  Future<MovaStandbyPhase> _leaveStandby() async {
+    final phase = state.standby;
+    final since = _standbySince;
+    final wake = decideStandbyWake(
+      phase: phase,
+      intent: _playIntent,
+      type: state.type,
+      cause: _fallbackCause,
+      pausedFor: since == null ? Duration.zero : debugClock().difference(since),
+      config: options.standby,
+    );
+    switch (wake) {
+      case MovaStandbyWake.none:
+        return phase;
+      case MovaStandbyWake.restore:
+        _standbyTimer?.cancel();
+        _standbyTimer = null;
+        final from = _standbyMode;
+        _standbyMode = null;
+        _beginResume(from: from);
+        // Arm before writing properties: the size event can arrive while the
+        // `mute` write is still awaited.
+        //
+        // 先武装、再写属性：尺寸事件可能在 `mute` 写入的 await 期间就到达。
+        if (from == MovaStandbyMode.muted) _armResumeGate();
+        final restarted = await (_standbyKernel?.exitStandby() ?? Future<bool>.value(false));
+        if (_disposed) return MovaStandbyPhase.off;
+        _resumeWatch();
+        if (!restarted) _finishResume(null);
+        return state.standby;
+      case MovaStandbyWake.settle:
+        _setStandbyPhase(MovaStandbyPhase.off, MovaStandbyReason.woke);
+        return state.standby;
+      case MovaStandbyWake.resumePlay:
+        _setStandbyPhase(MovaStandbyPhase.off, MovaStandbyReason.woke);
+        await _kernel.play();
+        _resumeWatch();
+        return state.standby;
+      case MovaStandbyWake.reloadEdge:
+        _beginResume(from: null);
+        _armAttempt(autoPlay: true);
+        final reopened = await _backToLiveEdge();
+        if (_disposed) return MovaStandbyPhase.off;
+        if (!state.playing) await _kernel.play();
+        if (!reopened) _resumeWatch();
+        _state.emit(state.copyWith(clearTimeshift: true));
+        _events.add(const MovaLiveEdgeReach());
+        return state.standby;
+      case MovaStandbyWake.reopen:
+        _beginResume(from: null);
+        await _reopenLiveSource();
+        return state.standby;
+    }
+  }
+
+  /// Enters [MovaStandbyPhase.resuming] and starts the [MovaStandbyConfig.resumeTimeout]
+  /// clock.
+  ///
+  /// 进入 [MovaStandbyPhase.resuming] 并起 [MovaStandbyConfig.resumeTimeout] 计时。
+  ///
+  /// - [from]: the hold mode woken from, null for a fallback pause / 从哪种待机组合醒来，fallback 暂停为 null
+  void _beginResume({required MovaStandbyMode? from}) {
+    _resumeAt = debugClock();
+    _resumeFrom = from;
+    _resumeTimer?.cancel();
+    _resumeTimer = Timer(options.standby.resumeTimeout, () {
+      _resumeTimer = null;
+      if (_resumeGateArmed) _frameGate.reset();
+      _finishResume(MovaFirstFrameSignal.grace);
+    });
+    _setStandbyPhase(MovaStandbyPhase.resuming, MovaStandbyReason.woke, mode: from);
+  }
+
+  /// Arms the first-frame gate in resume mode (a fresh frame, nothing else).
+  ///
+  /// 以恢复模式武装首帧闸门（只认新画面，别的都不算）。
+  void _armResumeGate() {
+    _graceTimer?.cancel();
+    _graceTimer = null;
+    _frameGate.arm(autoPlay: true, resume: true);
+    _resumeGateArmed = true;
+  }
+
+  /// Ends a wake-up: reports how long it took and returns to off. No-op unless
+  /// resuming.
+  ///
+  /// 结束一次唤醒：报告耗时并回到 off。不在 resuming 时为空操作。
+  ///
+  /// - [signal]: what landed it; null when decoding never stopped / 由什么落地；解码从未停过为 null
+  void _finishResume(MovaFirstFrameSignal? signal) {
+    if (state.standby != MovaStandbyPhase.resuming) return;
+    _resumeTimer?.cancel();
+    _resumeTimer = null;
+    _resumeGateArmed = false;
+    final at = _resumeAt;
+    if (!_events.isClosed) {
+      _events.add(
+        MovaStandbyResume(
+          elapsed: at == null ? Duration.zero : debugClock().difference(at),
+          signal: signal,
+          from: _resumeFrom,
+        ),
+      );
+    }
+    _setStandbyPhase(MovaStandbyPhase.off, MovaStandbyReason.resumed);
+  }
+
+  /// Back to normal monitoring after standby: the stall watch, with no start
+  /// deadline, and a fresh ABR tally.
+  ///
+  /// 待机之后回到常规监视：卡顿看门狗、不再计起播期限，ABR 计数清零。
+  void _resumeWatch() {
+    _abrPolicy.reset();
+    final wd = _watchdog;
+    if (wd == null) return;
+    wd
+      ..armStart(playing: _playIntent)
+      ..onLanded()
+      ..onBuffering(state.buffering);
   }
 
   @override
   Future<void> play() async {
     final allowed = await _chain.beforePlay();
     if (!allowed) return;
+    _state.emit(state.copyWith(playbackIntent: true));
+    _watchdog?.onPlaying(true);
+    // Standby: a held stream is already playing (muted, no picture), and while
+    // a request stands a play() starts in standby instead of making a hidden
+    // card audible. Untouched when standby was never requested.
+    //
+    // 待机：被待机的流本来就在播（静音无画）；请求存在期间 play() 以待机态开播，而不是让
+    // 看不见的卡片出声。从未请求待机时这里一行都不走。
+    final standbyPhase = state.standby;
+    if (standbyPhase == MovaStandbyPhase.holding) return;
+    if (_standbyRequested && standbyPhase != MovaStandbyPhase.resuming) {
+      final p = await _enqueueStandby(() => _enterStandby(viaPlay: true));
+      if (p == MovaStandbyPhase.holding) {
+        await _kernel.play();
+        return;
+      }
+      if (p == MovaStandbyPhase.fallback) return;
+    }
     // A VOD source that has already reached the end sits paused on its last
     // frame; calling the kernel's `play()` alone leaves it there (there is
     // nothing left downstream of the current position to play), so the
@@ -736,7 +1640,18 @@ class MovaEngine implements MovaApi {
   }
 
   @override
-  Future<void> pause() => _kernel.pause();
+  Future<void> pause() {
+    _state.emit(state.copyWith(playbackIntent: false));
+    _watchdog?.onPlaying(false);
+    // The plain path stays byte-identical when standby was never involved.
+    //
+    // 从未涉及待机时，走原路径，逐字不变。
+    if (!_standbyRequested && state.standby == MovaStandbyPhase.off) {
+      return _kernel.pause();
+    }
+    _standbyRequested = false;
+    return _pauseOutOfStandby();
+  }
 
   @override
   Future<void> playOrPause() => state.playing ? pause() : play();
@@ -801,9 +1716,16 @@ class MovaEngine implements MovaApi {
   ///
   /// - [to]: already-clamped target position / 已 clamp 的目标位置
   /// - [notify]: whether to emit [MovaSeek]/[MovaSeeked] / 是否发 seek 事件
-  Future<void> _seekOrPark(Duration to, {bool notify = false}) async {
+  /// - [ready]: presentation already landed / 呈现已落地
+  Future<void> _seekOrPark(
+    Duration to, {
+    bool notify = false,
+    bool ready = false,
+  }) async {
     final park =
-        state.type == MovaStreamType.vod && state.duration <= Duration.zero;
+        !ready &&
+        state.type == MovaStreamType.vod &&
+        state.duration <= Duration.zero;
     if (park) {
       _parkedSeek = to;
       _parkedNotify = notify;
@@ -897,7 +1819,13 @@ class MovaEngine implements MovaApi {
     // 之间的空档，算出的增量会基于陈旧的时移前位置，而非 `target`。
     _lastPosition = target;
     _events.add(MovaSeek(target));
-    await _kernel.open(builder(src.uri, behind, DateTime.now()), play: true);
+    _armAttempt(autoPlay: _loadPlays);
+    if (!await _loadKernel(
+      builder(_activeUri, behind, DateTime.now()),
+      play: _loadPlays,
+    )) {
+      return;
+    }
     if (behind <= options.live.edgeThreshold) {
       _state.emit(state.copyWith(clearTimeshift: true));
       _events.add(const MovaLiveEdgeReach());
@@ -910,6 +1838,21 @@ class MovaEngine implements MovaApi {
 
   @override
   Future<void> seekBy(Duration delta) => seek(_lastPosition + delta);
+
+  /// Forwards warm-up mute to capable kernels, bypassing the volume port.
+  /// Unsupported kernels continue without warm-up mute.
+  ///
+  /// 向支持的内核转发预热静音，绕过音量端口。不支持的内核不做预热静音。
+  ///
+  /// [on] acquires/releases mute; returns success / [on] 获取或释放静音；返回是否成功。
+  /// Example / 示例：`await engine.setWarmMute(true);`
+  @override
+  Future<bool> setWarmMute(bool on) {
+    final k = _kernel;
+    return k is MovaPlayerMute
+        ? (k as MovaPlayerMute).setWarmMute(on)
+        : Future<bool>.value(false);
+  }
 
   @override
   Future<void> setVolume(double v) async {
@@ -971,6 +1914,7 @@ class MovaEngine implements MovaApi {
   @override
   Future<void> setMini(bool v) async {
     if (state.mini == v) return; // 幂等，避免无谓事件
+    if (v && state.standby != MovaStandbyPhase.off) await setStandby(false);
     if (v && state.fullscreen) await setFullscreen(false);
     _state.emit(state.copyWith(mini: v));
     _events.add(MovaMiniChange(v));
@@ -1002,18 +1946,24 @@ class MovaEngine implements MovaApi {
   @override
   Future<void> loadQualities() async {
     final s = _source;
-    if (s == null || !s.uri.toLowerCase().contains('.m3u8')) {
+    final base = _activeUri;
+    final session = _sessionGen;
+    final index = _sourceIndex;
+    bool current() =>
+        !_disposed && session == _sessionGen && index == _sourceIndex;
+    if (s == null || !base.toLowerCase().contains('.m3u8')) {
       _state.emit(state.copyWith(qualities: const [], clearQuality: true));
       return;
     }
     try {
-      final bytes = await _fetcher.get(Uri.parse(s.uri));
+      final bytes = await _fetcher.get(Uri.parse(base));
+      if (!current()) return;
       if (bytes == null) {
         _state.emit(state.copyWith(qualities: const [], clearQuality: true));
         return;
       }
       final content = const Utf8Decoder().convert(bytes);
-      final qs = parseHlsMasterPlaylist(content, base: Uri.parse(s.uri));
+      final qs = parseHlsMasterPlaylist(content, base: Uri.parse(base));
       final cur = qs.isNotEmpty ? qs.first : null;
       _state.emit(
         state.copyWith(
@@ -1025,6 +1975,7 @@ class MovaEngine implements MovaApi {
       _events.add(MovaQualityListChange(qs));
       if (cur != null) _events.add(MovaQualityChange(cur));
     } catch (_) {
+      if (!current()) return;
       _state.emit(state.copyWith(qualities: const [], clearQuality: true));
     }
   }
@@ -1044,10 +1995,9 @@ class MovaEngine implements MovaApi {
   /// doc/plans/2026-09-16-seamless-swap.md Task 8。
   @override
   Future<void> switchQuality(MovaQuality q) async {
-    final playUri = q.isAuto ? (_source?.uri ?? '') : q.uri;
+    final playUri = q.isAuto ? _activeUri : q.uri;
     if (playUri.isEmpty) return;
     final pos = _lastPosition;
-    final wasPlaying = _lastPlaying;
     final live = state.type == MovaStreamType.live;
     // Reloading a variant is a kernel `open()` just like a source change, so
     // it carries the exact same hazard: the resume seek that follows must
@@ -1084,7 +2034,8 @@ class MovaEngine implements MovaApi {
     // 真机实测数据（STG AL00，mux x36xhzz）见 CLAUDE.md 的无缝切换真机验证一节。
     _abrPolicy.reset();
     _state.emit(state.copyWith(duration: Duration.zero, currentQuality: q));
-    await _kernel.open(playUri, play: wasPlaying);
+    _armAttempt(autoPlay: _loadPlays);
+    if (!await _loadKernel(playUri, play: _loadPlays)) return;
     // Announce the new variant as soon as the load command is issued: the
     // resume seek may be parked until the duration arrives, and delaying the
     // event until then would leave the UI showing the old label for seconds.
@@ -1116,6 +2067,7 @@ class MovaEngine implements MovaApi {
     //
     // 与 setMini 的全屏守卫对称：系统 PiP 与 App 内小窗不能同时生效，否则两个
     // 渲染面会叠在一起。
+    if (state.standby != MovaStandbyPhase.off) await setStandby(false);
     if (state.mini) await setMini(false);
     final ok = await _pip.enter(width: state.width, height: state.height);
     _state.emit(state.copyWith(pip: ok));
@@ -1126,12 +2078,23 @@ class MovaEngine implements MovaApi {
   @override
   Future<void> reload() async {
     final s = _source;
-    if (s != null) await open(s, autoPlay: true);
+    if (s != null) await open(s, autoPlay: _playIntent);
   }
 
   @override
   Future<void> backToLiveEdge() async {
     if (state.type != MovaStreamType.live) return;
+    await _backToLiveEdge();
+    _state.emit(state.copyWith(clearTimeshift: true));
+    _events.add(const MovaLiveEdgeReach());
+  }
+
+  /// Moves to the live edge by the configured strategy. Returns whether it
+  /// went through [_reopenLiveSource] (a full kernel reload) rather than a seek.
+  ///
+  /// 按配置的策略回到直播边缘。返回是否走了 [_reopenLiveSource]（完整的内核重载）而不是 seek。
+  Future<bool> _backToLiveEdge() async {
+    var reopened = false;
     switch (options.live.effectiveBackToLive) {
       case MovaBackToLive.seekEnd:
         final window = state.seekableWindow;
@@ -1139,12 +2102,13 @@ class MovaEngine implements MovaApi {
           await _kernel.seek(window);
         } else {
           await _reopenLiveSource();
+          reopened = true;
         }
       case MovaBackToLive.reopen:
         await _reopenLiveSource();
+        reopened = true;
     }
-    _state.emit(state.copyWith(clearTimeshift: true));
-    _events.add(const MovaLiveEdgeReach());
+    return reopened;
   }
 
   /// Reopens the original live URL on the kernel, bypassing [open].
@@ -1174,7 +2138,8 @@ class MovaEngine implements MovaApi {
     // 寄存/待结算 seek 簿记，否则重开前遗留的 [_parkedSeek]/
     // [_pendingSeekTarget] 可能在刚重开的流上误触发。
     _forgetMediaProgress();
-    await _kernel.open(s.uri, play: true);
+    _armAttempt(autoPlay: _loadPlays);
+    await _loadKernel(_activeUri, play: _loadPlays);
   }
 
   /// Jumps back to the live edge on a stall, when configured to.
@@ -1192,6 +2157,7 @@ class MovaEngine implements MovaApi {
   ///
   /// - [buffering]: the latest buffering flag / 最新的缓冲标志
   void _maybeAutoBackToLive(bool buffering) {
+    if (state.standby == MovaStandbyPhase.holding) return;
     if (!buffering) return;
     if (!options.live.autoBackToLiveOnStall) return;
     if (state.type != MovaStreamType.live) return;
@@ -1326,6 +2292,24 @@ class MovaEngine implements MovaApi {
       !state.mini,
       'dispose() while MovaState.mini is true — see MovaMiniController docs',
     );
+    // Synchronous prefix on purpose: hosts call `unawaited(dispose())` from
+    // State.dispose(), and a pending Timer after the tree is torn down fails
+    // widget tests.
+    //
+    // 刻意放在同步前缀里：宿主在 State.dispose() 里 `unawaited(dispose())`，
+    // 拆树后若还有挂起的 Timer，会让 widget 测试失败。
+    _disposed = true;
+    _graceTimer?.cancel();
+    _graceTimer = null;
+    _recoverTimer?.cancel();
+    _recoverTimer = null;
+    _standbyTimer?.cancel();
+    _standbyTimer = null;
+    _resumeTimer?.cancel();
+    _resumeTimer = null;
+    _watchdog?.dispose();
+    await _restartSub?.cancel();
+    await _endFileSub?.cancel();
     await _playingSub.cancel();
     await _bufferingSub.cancel();
     await _completedSub.cancel();
@@ -1404,6 +2388,7 @@ class MovaEngine implements MovaApi {
   /// [MovaAbrConfig.enabled] 为真时执行降档——仅当清晰度确实发生变化时（即非
   /// 自动模式/已是最低档的无操作降档）才发出 [MovaAbrDownShift]。
   void _handleAbrBuffering(bool buffering) {
+    if (state.standby == MovaStandbyPhase.holding) return;
     final shouldDownshift = _abrPolicy.onBuffering(buffering);
     if (!shouldDownshift || !options.abr.enabled) return;
     if (_abrDownshiftInFlight) return;

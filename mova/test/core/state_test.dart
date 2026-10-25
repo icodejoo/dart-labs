@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mova/src/core/model/fit.dart';
+import 'package:mova/src/core/standby/standby.dart';
 import 'package:mova/src/core/state/progress.dart';
 import 'package:mova/src/core/state/state.dart';
 import 'package:mova/src/core/state/ui_state.dart';
@@ -31,6 +32,17 @@ void main() {
     expect(s.fit, MovaFit.contain);
     expect(s.liveSeekable, isFalse);
     expect(s.timeshiftBehind, isNull);
+  });
+
+  test('MovaState.rendered defaults to false and participates in copyWith/==/hashCode', () {
+    const s = MovaState();
+    expect(s.rendered, isFalse);
+    final r = s.copyWith(rendered: true);
+    expect(r.rendered, isTrue);
+    expect(r.playing, s.playing);
+    expect(r, isNot(equals(s)));
+    expect(r.hashCode, isNot(s.hashCode));
+    expect(r.copyWith(rendered: false), equals(s));
   });
 
   test('MovaProg and MovaUiState compare by value', () {
@@ -98,5 +110,17 @@ void main() {
 
   test('MovaState() default equals a manually-constructed default (mini included)', () {
     expect(const MovaState(), const MovaState(mini: false));
+  });
+
+  test('MovaState.standby defaults to off and takes part in copyWith/==/hashCode', () {
+    const s = MovaState();
+    expect(s.standby, MovaStandbyPhase.off);
+    final held = s.copyWith(standby: MovaStandbyPhase.holding);
+    expect(held.standby, MovaStandbyPhase.holding);
+    expect(held.copyWith().standby, MovaStandbyPhase.holding);
+    expect(held, isNot(equals(s)));
+    expect(held.hashCode, isNot(equals(s.hashCode)));
+    expect(held, s.copyWith(standby: MovaStandbyPhase.holding));
+    expect(held.fit, s.fit);
   });
 }

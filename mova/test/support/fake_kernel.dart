@@ -2,6 +2,8 @@ import 'dart:async';
 import 'dart:typed_data';
 
 import 'package:mova/src/core/kernel/kernel.dart';
+import 'package:mova/src/core/kernel/standby_kernel.dart';
+import 'package:mova/src/core/standby/standby.dart';
 import 'package:mova/src/core/report/stats_probe.dart';
 
 /// A test double for [MovaKernel] that records every call it receives and lets
@@ -103,11 +105,33 @@ class FakeKernel implements MovaKernel {
   /// [screenshot] 返回的字节数据；可由测试赋值，默认为 `null`。
   Uint8List? fakeShot;
 
+  /// When non-null, [open] records its call and then waits for this completer,
+  /// simulating a kernel load that is still in flight.
+  ///
+  /// 非空时，[open] 先记录调用再等待该 completer，用来模拟内核加载仍在途。
+  Completer<void>? openGate;
+
+  /// When non-null, [open] records its call and then throws this object,
+  /// simulating a kernel that cannot load the address.
+  ///
+  /// 非空时，[open] 先记录调用再抛出该对象，用来模拟内核加载不了该地址。
+  Object? openError;
+
+  /// The URI of every [open] call, in order.
+  ///
+  /// 每次 [open] 调用的 URI，按调用顺序。
+  final List<String> openedUris = <String>[];
+
   @override
   Future<void> open(String uri, {bool play = true}) async {
     calls.add('open');
     lastUri = uri;
     lastPlay = play;
+    openedUris.add(uri);
+    final gate = openGate;
+    if (gate != null) await gate.future;
+    final err = openError;
+    if (err != null) throw err;
   }
 
   @override
@@ -364,3 +388,60 @@ class FakeStatsKernel extends FakeKernel with StatsProbeStub {
     await super.dispose();
   }
 }
+
+/// Scriptable [MovaStandbyKernel] behavior shared by the standby fakes;
+/// records `inspectStandby`/`enterStandby:<mode>`/`exitStandby` into [calls].
+///
+/// 待机假内核共享的可编程行为；把 `inspectStandby`/`enterStandby:<mode>`/`exitStandby` 记进 [calls]。
+mixin StandbyKernelStub on FakeKernel implements MovaStandbyKernel {
+  /// What [inspectStandby] reports; settable by tests.
+  ///
+  /// [inspectStandby] 报告的事实；可由测试赋值。
+  MovaStandbyMedia media = const MovaStandbyMedia(audio: MovaAudioPresence.present, format: 'flv');
+
+  /// What [enterStandby] returns; false simulates a failed property write.
+  ///
+  /// [enterStandby] 的返回值；false 模拟属性写入失败。
+  bool enterResult = true;
+
+  /// Whether [exitStandby] reports that video decoding restarted (muted holds only).
+  ///
+  /// [exitStandby] 是否报告视频解码重启了（仅 muted 待机）。
+  bool exitRestartsVideo = true;
+
+  /// The mode currently held, or null.
+  ///
+  /// 当前持有的待机组合；没有则为 null。
+  MovaStandbyMode? heldMode;
+
+  @override
+  Future<MovaStandbyMedia> inspectStandby() async {
+    calls.add('inspectStandby');
+    return media;
+  }
+
+  @override
+  Future<bool> enterStandby(MovaStandbyMode mode) async {
+    calls.add('enterStandby:${mode.name}');
+    if (enterResult) heldMode = mode;
+    return enterResult;
+  }
+
+  @override
+  Future<bool> exitStandby() async {
+    calls.add('exitStandby');
+    final was = heldMode;
+    heldMode = null;
+    return was == MovaStandbyMode.muted && exitRestartsVideo;
+  }
+}
+
+/// A [FakeKernel] that also has the standby capability.
+///
+/// 同时具备待机能力的 [FakeKernel]。
+class FakeStandbyKernel extends FakeKernel with StandbyKernelStub {}
+
+/// A [FakeStatsKernel] that also has the standby capability.
+///
+/// 同时具备待机能力的 [FakeStatsKernel]。
+class FakeStandbyStatsKernel extends FakeStatsKernel with StandbyKernelStub {}

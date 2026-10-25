@@ -88,6 +88,8 @@ void main() {
           'swap',
           'mini',
           'report',
+          'recovery',
+          'standby',
         ],
         reason: 'audioOnly is a construction-time resource decision — the '
             "kernel's render handle is bound once and never re-bound, so a "

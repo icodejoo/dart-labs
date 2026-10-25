@@ -14,11 +14,11 @@
 >    **设计意图看 DESIGN，签名与落点一律以代码和 [doc/SPEC.md](doc/SPEC.md) 末节为准。**
 > 3. **各阶段的逐 Task 实现计划都在 [doc/plans/](doc/plans/)**，按功能分文件存放，按 Task
 >    顺序执行即可。
-> 4. **pub.dev 版本对照**：已发布 `0.1.0`、`0.2.0`（`0.2.0` 只含瘦身 libmpv 说明、Feed 播放器增强、
->    文档修复，见 CHANGELOG 的 `0.2.0` 节）。下文"当前状态"记录的功能（小窗、广告编排、无缝切换、清晰度
->    自适应、仅音频模式、QoE、TLS 开关等）属于 `0.3.0`（本地 `pubspec.yaml`/`ios/mova.podspec`/README 均已对齐
->    `0.3.0`），**发布后**才进入 pub.dev。回答"能不能用某功能"前先确认对方拿到的是 pub.dev 哪个版本还是本仓库
->    path/git 依赖。注意：下文各节标题里的"0.2.0"是历史合并记法，版本号现以 pubspec 为准。
+> 4. **pub.dev 版本对照**：已发布 `0.1.0`、`0.2.0`、`0.3.0`（`0.3.0` 约 2026-10-01 发布，含小窗、广告编排、无缝切换、
+>    清晰度自适应、仅音频模式、QoE、TLS 开关等，见 CHANGELOG 的 `0.3.0` 节）。**宿主易用性增强（首帧/封面/`MovaView`/
+>    恢复与多地址/自动暂停/测试替身）及之后的 standby 属于 `Unreleased`**，发版前 pub.dev 上没有；发版时机由用户决定。
+>    回答"能不能用某功能"前先确认对方拿到的是 pub.dev 哪个版本还是本仓库 path/git 依赖。注意：下文各节标题里的"0.2.0"
+>    是历史合并记法，版本号现以 pubspec 为准。
 > 5. **mova 已回到 pub.dev 的 `media_kit: ^1.2.6`，不再依赖 git 提交**（2026-09-30）：
 >    原生 mpv 事件（`PLAYBACK_RESTART`/`END_FILE`）改由自建的 dart:ffi 弱客户端订阅
 >    （`core/kernel/mpv_event_pump.dart` + `platform_impl/mpv_event_backend_ffi.dart`），
@@ -32,9 +32,10 @@
 
 ## 当前状态（0.2.0）
 
-> **测试基线：1014 项全绿**（2026-10-02 本机实跑 `flutter test` 的真实结果）；
+> **测试基线：1364 项全绿**（2026-10-25 合并 WHEP 分支后本机实跑；合并前 main 为 1324， `flutter test` 的真实结果；HE V10 渲染面转场快照守卫新增 +8（`test/ui/snapshot_guard_test.dart`），1316 → 1324；HE V6 续播就绪修复新增 +14，1302 → 1316；Q13 预热静音修复新增 +16；其中宿主易用性计划 Task 1–15 贡献 +150
+> （Task 1–8 +70、Task 9–15 +80），其评审修复新增 +19，见下文「宿主易用性增强」；低功耗待机计划 Task 1–9 贡献 +109，见「低功耗待机」）；
 > `flutter analyze lib test` 0 issues（`example/` 下 demo 有若干 `avoid_print` info，
-> 均为验证脚本）。
+> 均为验证脚本）。`example/test/auto_kit_test.dart`（验证页脚本化工具的纯逻辑，12 项）在 `example/` 下单独 `flutter test`，不计入上述基线。
 
 以下按功能分组呈现已完成能力（原按 0.2.0–0.6.0 版本号分阶段记录，现已合并，
 版本号统一记为 0.2.0；具体日期/commit/测试数字均为客观事实，原样保留）。
@@ -72,6 +73,55 @@ example 已加直播/时移两个 demo（仅桌面冒烟，未做交互验证）
 `mIsInPictureInPictureMode=true`、`mWindowingMode=pinned`，**真机确认真实生效**。
 **仍未测**：手势手感（左亮度/右音量的实际触感，主观）、直播/时移 UI 交互、iOS 整体
 （历次只有 Android 设备）。
+
+### 宿主易用性增强（Task 1–15 已落地，Task 16：Windows 部分已测，Android 待真机）
+
+计划见 [doc/plans/2026-10-23-host-ergonomics.md](doc/plans/2026-10-23-host-ergonomics.md)（文末有实测数字与偏差清单）。已完成：
+- **首帧与封面**：首帧信号（`MovaState.rendered`/`MovaFirstFrame`/`MovaFirstFrameGate`，`open()` 同步归零宽高）、原生事件订阅与 QoE 解耦
+  （`observeNativeEvents`/`createMovaEngine(preciseFirstFrame:)`，默认关）、`fit` 声明式、封面（`MovaPlayer(poster:)`、
+  `MovaFeedPlayer(posterUntilFirstFrame:)`）、`MovaMinimalSkin` + `MovaTheme` 缓冲三字段、`MovaView` + `MovaSource.sameAs`。
+- **超时与恢复**（`MovaOpts.recovery`，默认关）：`MovaRecoveryConfig`/`MovaPlayFail`/`MovaRecoveryPolicy`（默认 `MovaRetryThenFailover`）/
+  `MovaPlayWatchdog`（`core/recovery/`，不导出）；引擎侧 `_onPlayFail`/`_recover`/`_giveUp`/`_announceReady`，事件 `MovaPlayFailure`/
+  `MovaRecovered`。看门狗的起播期限从内核 `open()` 返回后才计；**关闭时 `open()` 失败仍照旧抛出、不建 Timer、不订阅 `endFiles`**
+  （`MovaAdController` 依赖它，由 `engine_recovery_test` 第 1 条与 `openness_host_test` 锚定）。重试/切换是内核重载不是新会话。
+- **多地址**：`MovaSource.alternatives/uris/pick`、`MovaState.sourceIndex`、`MovaFailover`；备选只在 recovery 开启时使用，排序留给宿主。
+- **自动暂停守卫**：`core/guard/auto_pause.dart`（纯 Dart gate）+ `ui/guard/auto_pause.dart`（`MovaAutoPause`，只用 Flutter SDK）、
+  `MovaView(autoPause:, routeObservers:)`。**`routeObservers` 是列表、每个 navigator 一个观察者**——`NavigatorObserver` 不能挂到
+  两个 navigator（debug 断言），这是对计划里单个 `routeObserver` 的必要偏差；不透明的外层路由已被 `TickerMode` 兜住。
+- **评审修复（2026-10-23）**：11 条均已修复（#9 为防御性加固）；`MovaState.playbackIntent` 独立于内核 `playing`，
+  内部重载与看门狗遵循最新意图；恢复绑定已接受会话与失败尝试，跨失败保留续播点；守卫订阅状态并重绑引擎、
+  保留配置更新前的隐藏周期，直播恢复/视图加载/档位请求均校验异步过期。逐条修法与 19 条回归见计划「评审修复（2026-10-23）」。
+- **测试替身**：`package:mova/testing.dart`（`MovaTestKernel`/`MovaTesting`，不在主 barrel；注入点 `src/testing/hooks.dart` 由
+  `createMovaEngine()` 咨询，安装后平台端口全部空实现）。
+- 文档与验证页：README 五节、CHANGELOG、`doc/SPEC.md`「宿主易用性」、`example/lib/main_host_ergonomics_verify.dart`（加 `--dart-define=AUTORUN=true` 为脚本化模式，实现在 `example/lib/verify_auto/he_auto.dart`；2026-10-24 已在 Windows release 上跑过）。
+- **Task 16 状态（2026-10-24）**：**Windows 桌面可测的部分已跑完**（release，3 次/场景，数字见计划 Task 16 下「Windows 桌面实测（2026-10-24）」）；**Android 项仍未测**（V9 前后台续播、V11 PiP、各项的 Android 复测），交接清单见
+  [doc/plans/2026-10-24-android-real-device-handoff.md](doc/plans/2026-10-24-android-real-device-handoff.md)。**Windows 实测问题**：① VOD 卡顿重试后**从头播放**（V6）：2026-10-24 已修复代码，待 Windows/Android 复测；`open()` 返回仅代表提交加载，原路径在时长到达后就 seek，缺少就绪保证；现等当前有效尝试首帧落地再 seek，覆盖三类失败、同内容备选续播与直播不 seek；
+  ② 盖一层不透明路由再弹出时 Windows 进程**原生崩溃**（V10，`flutter_windows.dll` `0xC0000005`，6/6 复现，与守卫无关，`TickerMode` 路径不崩）——**已定位并规避（2026-10-24）**：Flutter 3.47.0/3.47.1 引擎 bug（#190774，转场快照 + GPU 外部纹理 + Impeller，3.47.2 已修），mova 在 Windows 上用 `MovaSnapshotGuard` 让渲染面退出转场快照，release 实测 V10A 20/20、V10 10/10、探针 20–30 轮不崩，见计划 V10 小节。
+  以下为原"需真机确认"清单，**带 ✔ 的是 Windows 已确认**（Android 仍须复测）：暂停态打开时 mpv 是否发 `PLAYBACK_RESTART`（影响 1.5s 宽限）✔Windows：发，3/3 `restart`、`END_FILE(error)` 对坏地址的真实时机 ✔Windows：404 约 40ms、拒连约 5.07s 才冒出 `nativeEndError`（`startTimeout` 设得更短会被超时先判掉）、
+  Android 切后台的 `inactive→hidden` 序列与 libmpv 自暂停时序（守卫的意图快照）、`go_router` shell 分支下根 navigator 半透明路由的 `routeObservers` 路径、
+  直播隐藏 ≥3s 后 `backToLiveEdge()` 的真实恢复效果。
+
+### 低功耗待机（standby，Task 1–9 已落地，Task 10：Windows 部分已测，Android 待真机）
+
+计划见 [doc/plans/2026-10-23-standby-mode.md](doc/plans/2026-10-23-standby-mode.md)（文首「落地偏差」有实跑进度表与逐条偏差），调研见
+[doc/notes/2026-10-23-libmpv-low-power-standby.md](doc/notes/2026-10-23-libmpv-low-power-standby.md)。直播被隐藏时不出画面不出声，但保持流连接与进度，恢复时只需恢复视频解码。已完成：
+- **入口**：`MovaAutoPauseConfig(hiddenMode: MovaHiddenMode.standby)` 与命令式 `MovaStandbyController.setStandby(bool)`（`MovaEngine`/`MovaSwapEngine` 实现，`MovaApi`/`MovaKernel` 零新增成员，`is` 探测）；
+  调参 `MovaOpts.standby`（`MovaStandbyConfig`），**没有开关**，不调用就不会走到。
+- **内核**：`MovaStandbyKernel`（`core/kernel/standby_kernel.dart`，不进主 barrel）由 `MovaMpvKernel` 实现，**只增不改**：只碰 `mute`/`vid`，保存后原样还原。
+- **状态机**：`MovaState.standby`（`off`/`holding`/`fallback`/`resuming`）、事件 `MovaStandbyChange`/`MovaStandbyResume`；决策是纯函数（`core/standby/plan.dart`）；恢复计时复用首帧闸门的 `resume` 武装；
+  引擎里所有待机迁移走一条串行队列。待机计时走 `@visibleForTesting debugClock`（`DateTime.now()` 不跟随 `fakeAsync`）。
+- **交互**：待机期间看门狗/ABR/自动回边缘静默、失败延到唤醒强制重开；`pause()` 结束待机；待机请求期间换源以暂停态加载；fallback 期间的内部重载读 `_loadPlays`（不开播）；`setMini`/`enterPip` 先唤醒；
+  守卫进后台把待机降级为暂停；封面在待机/恢复期间瞬间盖上。
+- 文档与验证页：README「隐藏时待机」、CHANGELOG（`Unreleased`）、`doc/SPEC.md`「低功耗待机」、`example/lib/main_standby_verify.dart`（加 `--dart-define=AUTORUN=true` 为脚本化模式，实现在 `example/lib/verify_auto/standby_auto.dart`，源服务器与 Windows 辅助脚本在 `example/tool/verify_sources/`；2026-10-24 已在 Windows release 上跑过）。
+- **Task 10 状态（2026-10-24）**：**Windows 桌面可测的部分已跑完**（release，3 次/场景，数字见计划 Task 10 下「Windows 桌面实测（2026-10-24）」）；**Android 项仍未测**（S7 `mediacodec-copy` 下 `vid` 切回、S8 进后台、S11 音频会话/耗电、
+  S14 的 Android 一次、S4 电量与 `maxDuration` 校准、`allowHls` 默认值、`resumeTimeout` 校准、S17 的 push 路由/`StatefulShellRoute`/声音泄漏），交接清单见
+  [doc/plans/2026-10-24-android-real-device-handoff.md](doc/plans/2026-10-24-android-real-device-handoff.md)。**Windows 实测暴露三个待决问题（未改库代码）**：
+  ① B 唤醒（`vid` 切回）在 Windows+FLV 上 18/18 走 `grace`——不发 `PLAYBACK_RESTART` 也没有尺寸变化，`MovaStandbyResume.elapsed` 恒为 `resumeTimeout`（5000ms）而不是测量值，`state.standby` 在 `resuming` 停 5s；
+  真正出画面（属性轮询）0.45–3.7s、最大值 ≤ 一个 GOP；② 待机 60s 后位置在唤醒后向前跳约 2.4–3.0s（待机期间与无待机对照均无漂移）；③ 对无声流强制 B 会 EOF + recovery 重载（比"position 停止"更重，印证 D4）。
+  以下为原"需真机确认"清单，**带 ✔ 的是 Windows 已确认**（Android 仍须复测）：`file-format` 的实际取值 ✔Windows：FLV 为 `flv`、HLS 为 `hls`、`vid=auto` 后是否发 `PLAYBACK_RESTART` ✔Windows+FLV：不发（18/18 `grace`；重开路径 S13 则是 `size` 落地）、
+  待机期间画面是黑还是冻帧 ✔Windows：冻结最后一帧（Android 仍待测）、`audio-params` 就绪时机 ✔Windows：本源上首帧后约 2.1s，之前请求待机一律 `fallback(mediaUnknown)`、守卫端到端 ✔Windows（部分）：`TickerMode` 切走/切回与隐藏期间换源通过，push 路由曾被 HE V10 的崩溃阻断（已规避，standby 的 push 路由场景可重测）；
+  B 相对正常播放省约 81% CPU 但网络不省（直播 FLV 暂停也满速拉流）；`mute` 时音频会话的耗电仍待 Android。
+- **旁支发现：已修复（代码层），待真机确认**：已确认 `MovaSwapEngine.muteWhileWarm` 原先经 `setVolume` 误写 Android 系统媒体音量（计划 Q13）。现通过 `MovaPlayerMute` 能力只操作 mpv `mute`，提交仅撤销预热静音；不支持的内核不静音，绝不回退写音量端口。预热与 standby 共用属性队列、分别持有静音，任意退出顺序均保留另一方并最终还原原值；恢复失败放弃切换并发出错误事件。新增 16 项回归，本机 `flutter test` 实跑 1302 全绿、`flutter analyze lib test` 0 issues；未做真机音频验证。
 
 ### UI 插件化
 
@@ -257,7 +307,7 @@ core 层仅加 `MovaState.mini`/`MovaApi.setMini`/`MovaMiniChange`/`MovaMiniConf
 详见 [doc/plans/2026-09-29-telemetry-enhancement.md](doc/plans/2026-09-29-telemetry-enhancement.md)、
 [doc/notes/2026-09-29-player-telemetry-best-practices.md](doc/notes/2026-09-29-player-telemetry-best-practices.md)。
 
-测试基线随本功能从 859 推进到 945，随后 FFI 订阅、Android 真机复测修复、TTFF 门控与 VideoController 懒创建推进到 985，截断结束判定（`truncatedBelow`，EOF 完播率低于阈值记 `failed`+`truncated`，Android 真机中途断流已验）再推进到 1004，TLS 严格校验开关（`tlsVerify`/`tlsCaFile`，默认关闭，Android 真机本机 HTTPS 矩阵 144 次全过）推进到 **1008**。
+测试基线随本功能从 859 推进到 945，随后 FFI 订阅、Android 真机复测修复、TTFF 门控与 VideoController 懒创建推进到 985，截断结束判定（`truncatedBelow`，EOF 完播率低于阈值记 `failed`+`truncated`，Android 真机中途断流已验）再推进到 1004，TLS 严格校验开关（`tlsVerify`/`tlsCaFile`，默认关闭，Android 真机本机 HTTPS 矩阵 144 次全过）推进到 **1008**，宿主易用性 Task 1–8 再推进到 **1078**，Task 9–15 再推进到 **1158**。
 
 **Android 真机验证（2026-09-30，STG-AL00 arm64 Android 12，release，基于真实事件）**——
 用 `example/lib/main_qoe_verify.dart`（本机 HTTP 服务经 `adb reverse` 提供，快/限速 20KB/s
@@ -351,8 +401,8 @@ iOS/macOS 机制上同样可行（读了 `media_kit_video` 的 `media_kit_utils.
 **因为发布到 pub.dev 才会触发 LGPL 公开分发义务，同名替换走 `dependency_overrides`
 （path/git）不经过 pub.dev，不受此约束**。
 
-**四架构 libmpv/ffmpeg 瘦身构建——已全部构建完成，avfilter 真机验证（SRT 字幕 + OSD）
-已完成，mov_text/ASS/WebVTT 与音量均衡仍待办**：
+**四架构 libmpv/ffmpeg 瘦身构建——已全部构建完成，去 avfilter 的真机验证已完成（字幕四种格式
+SRT/ASS/WebVTT/mov_text 与 OSD 均 PASS；音量均衡经代码审查排除，见下文①）**：
 自建 libmpv/ffmpeg 裁剪 demuxer/decoder，替换 `media_kit_libs_video`；构建卡 LGPL，
 避开 GPL-only 组件。**Android 四架构均已构建完成并核实为真实产出**（`libmpv/` 下
 arm64-v8a 6.05MB、armeabi-v7a 5.68MB、x86 6.19MB、x86_64 7.73MB，对应 commit
@@ -479,6 +529,12 @@ demo 后，同样的"播放中途+真人拖拽"场景连续 3 次以上未复现
 **注意区分**：`_MisuseDemo` 页面故意触发的 debug assert 会导致窗口无声消失但
 **没有**崩溃弹窗/事件日志/原生故障——那是另一个已在 demo 里修复的问题
 （`_engine.dispose()` 缺 `catchError`），不要和这个原生崩溃混为一谈。
+**2026-10-24 补：HE V10 的 `flutter_windows.dll` 崩溃是另一类问题，不是上面这条的复现**（故障模块不同、无需鼠标交互、纯 media_kit 也崩）。根因是 Flutter 3.47.0/3.47.1 的
+Windows + Impeller 引擎 bug（flutter/flutter#190774，3.47.2 修）：页面转场快照把 media_kit 的 GPU 外部纹理交给 `LayerTree::Flatten`，空指针虚调用。mova 已在 `MovaPlayer` 渲染面（Windows 限定）加
+`MovaSnapshotGuard` 规避（`lib/src/ui/snapshot_guard.dart`，`test/ui/snapshot_guard_test.dart`）。**与上面 libmpv 那条的关系**：两处都在 Windows 的 Impeller 外部纹理路径附近，且 `--no-enable-impeller` 对两者都有效，
+但崩溃模块/偏移/触发条件都不同，**未证实同源**，别合并。**纠错**：release 构建**忽略** `FLUTTER_ENGINE_SWITCHES` 环境变量（实测如此，推测嵌入层只在非 release 读取），所以"release 下用该变量切 Skia"是无效对照；
+要真正比较 Skia 与 Impeller 只能用 profile/debug（启动日志有 `Using the Impeller rendering backend (OpenGLESSDF)` 才算 Impeller）。WER 的 `LocalDumps` 配了 `DumpCount=5`，新崩溃会把旧转储自动轮换删掉
+（2026-10-24 的 5 个旧转储就是这样被后续复现挤掉的，现在目录里是 2026-10-24 17:4x 的新转储，偏移与旧的一致 `0x2c4427`）。
 
 **承自 fvideo（改名前）的遗留任务**——mova 就是 fvideo，遗留任务全部承接：
 

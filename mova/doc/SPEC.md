@@ -721,6 +721,72 @@ demo 列表第 6 项）与独立的 `DouyinFeedDemoPage`（AppBar 新图标按�
 真机**——手势双击识别、`PageView` 纵向滑动手感、弹幕滚动的真实观感，均承接
 本文档"真机验证结果"一节尚未覆盖的范围。
 
+## 宿主易用性（2026-10-23）
+
+计划：[doc/plans/2026-10-23-host-ergonomics.md](plans/2026-10-23-host-ergonomics.md)（D1–D10）。全部默认关闭/与旧行为一致。
+
+| 能力 | 公开面 | 落点 |
+|---|---|---|
+| 出画面信号（D1） | `MovaState.rendered`、`MovaFirstFrame(sinceOpen, signal)`、`MovaFirstFrameGate`/`MovaFirstFrameSignal` | `core/render/first_frame.dart`、`engine.dart`（`_armAttempt`/`_feedGate`/`_onAttemptLanded`） |
+| 原生订阅解耦（D2） | `MovaMpvKernel(observeNativeEvents:)`、`createMovaEngine(preciseFirstFrame:)`、`movaObserveFlags` | `kernel/mpv_kernel.dart`、`platform_impl/wiring.dart` |
+| fit 声明式（D3） | `MovaEngine(fit:)`、`createMovaEngine(fit:)`、`MovaPlayer(fit:)`/`MovaView(fit:)` | `engine.dart`、`ui/player.dart` |
+| 封面（D4） | `MovaPlayer(poster:, posterFade:)`、`MovaFeedPlayer(posterUntilFirstFrame:)` | `ui/poster.dart`、`ui/player.dart` |
+| 极简皮肤（D5） | `MovaMinimalSkin`、`MovaTheme.bufferingSize/StrokeWidth/Color` | `ui/skins/minimal_skin.dart`、`options/theme.dart` |
+| 声明式组件（D6） | `MovaView`、`MovaSource.sameAs` | `ui/view.dart`、`model/source.dart` |
+| 超时与恢复（D7） | `MovaOpts.recovery`（`MovaRecoveryConfig`）、`MovaPlayFail`/`MovaPlayFailKind`、`MovaRecoveryPolicy`/`MovaRetryThenFailover`/`MovaFailoverOnly`、`MovaRecoveryDecision`、`MovaGiveUpError`、事件 `MovaPlayFailure`/`MovaRecovered` | `options/recovery_config.dart`、`recovery/fail.dart`、`recovery/watchdog.dart`（不导出）、`engine.dart`（`_onPlayFail`/`_recover`/`_giveUp`/`_announceReady`） |
+| 多地址（D8） | `MovaSource.alternatives/uris/pick`、`MovaState.sourceIndex`、事件 `MovaFailover` | `model/source.dart`、`engine.dart`（`_activeUri`） |
+| 自动暂停（D9） | `MovaAutoPauseConfig`/`MovaAutoPauseGate`/`MovaHideReason`/`MovaLiveResume`/`MovaGuardAction`、`MovaAutoPause`、`MovaView(autoPause:, routeObservers:)` | `core/guard/auto_pause.dart`、`ui/guard/auto_pause.dart` |
+| 测试替身（D10） | `package:mova/testing.dart`：`MovaTestKernel`、`MovaTesting` | `lib/testing.dart`、`src/testing/*`、`wiring.dart` 的注入点 |
+
+**首帧判据（D1）**：原生 `PLAYBACK_RESTART`（权威）；原生不可用时 buffering 下降沿 / 连续两个递增且 >0 的位置 / 暂停态打开后首个非零尺寸；
+原生可用但兜底信号先到时等 1500ms 宽限。内核 `open()` 在途期间丢弃一切观测。
+
+**恢复（D7）触发源**：起播超时、卡顿超时、`open()` 抛异常（仅 recovery 开启时捕获）、原生 `END_FILE(error)`、直播 `completed`。
+看门狗的起播期限从内核 `open()` 返回后才开始计，且只在没有其他加载在途时武装；播放意图为假时不计时。
+
+**自动暂停（D9）信号**：祖先 `Scrollable` 的 `ScrollPosition`（滚动后 post-frame 测一次）、`TickerMode.getValuesNotifier`、
+`ModalRoute.isCurrentOf` + 各层 `RouteAware`、`AppLifecycleListener`。
+
+**与计划的偏差**（落地时发现的事实）：
+- `NavigatorObserver` 只能挂到**一个** Navigator（`observer.navigator == null` 断言），所以守卫参数是 `routeObservers`（列表，每个 navigator 一个），
+  不是计划里的单个 `routeObserver`。
+- 不透明的外层路由已经能经 `TickerMode` 兜住（overlay 会禁用被盖住子树的 ticker）；`routeObservers` 只对半透明路由有增益。
+- `TickerMode.getNotifier` 在当前 Flutter 已弃用，实现用 `getValuesNotifier`。
+- 进入 `hidden` 后 Flutter 停止出帧，`pumpWidget` 不会再构建；测试里要在前台卸载组件。
+
+## 低功耗待机（2026-10-23，默认关闭）
+
+计划：[doc/plans/2026-10-23-standby-mode.md](plans/2026-10-23-standby-mode.md)（D1–D13）；调研：[doc/notes/2026-10-23-libmpv-low-power-standby.md](notes/2026-10-23-libmpv-low-power-standby.md)。
+全部经 `flutter analyze`/`flutter test` 验证，**无真机数据**（计划 Task 10 待定：等真机）。
+
+| 能力 | 公开面 | 落点 |
+|---|---|---|
+| 命令式入口（D1） | `MovaStandbyController.setStandby(bool)`（`MovaEngine`/`MovaSwapEngine` 实现） | `core/standby/standby.dart`、`engine.dart`、`swap/swap_engine.dart` |
+| 状态与事件（D6） | `MovaState.standby`、`MovaStandbyPhase`/`MovaStandbyMode`/`MovaStandbyReason`、`MovaStandbyChange`、`MovaStandbyResume` | `state/state.dart`、`events/events.dart` |
+| 调参（D13） | `MovaOpts.standby`（`MovaStandbyConfig`）、`MovaSilentStandby` | `options/standby_config.dart` |
+| 内核能力（D3/D5） | `MovaStandbyKernel`（`inspectStandby`/`enterStandby`/`exitStandby`）、`MovaStandbyMedia`、`MovaAudioPresence`、`movaAudioPresence()`（均不进主 barrel） | `kernel/standby_kernel.dart`、`kernel/mpv_kernel.dart`（只增不改） |
+| 决策（D4） | `decideStandbyEntry`/`decideStandbyWake`/`MovaStandbyEntry`/`MovaStandbyWake`（不导出） | `standby/plan.dart` |
+| 守卫（D10） | `MovaHiddenMode`、`MovaAutoPauseConfig.hiddenMode`、`MovaGuardAction.standby/wake` | `guard/auto_pause.dart`、`ui/guard/auto_pause.dart` |
+| 恢复计时（D7） | `MovaFirstFrameGate.arm(resume: true)` | `render/first_frame.dart`、`engine.dart` |
+
+**状态机（D6）**：`off` → `holding`（进入）/`fallback`（退回暂停）；`holding` → `fallback`（`maxDuration`/失败/结束）或 `resuming`（唤醒）；`resuming` → `off`（首帧落地或 `resumeTimeout`）；
+任意非 off 遇宿主 `pause()` → `off(paused)`；待机请求存在期间 `open()`/`reload()` → `fallback(reloaded)`，新源首帧落地后若意图仍为播放再尝试 `holding`。所有迁移经引擎内一条串行队列。
+
+**B/C 判定（D4）**：`audio-params.sampleRate > 0` 且有选中的真实音轨才算有音频（瘦身 libmpv 可能裁掉某些解码器，音轨存在但解码器打不开时做 `vid=no` 会让直播停读）；
+`unknown`（轨道未载入或音频解码器未出声）一律退回暂停。HLS/DASH（`file-format` 为 `hls`/`dash`，实际取值待真机核对）默认退回暂停。
+
+**属性操作（D5）**：只碰 `mute` 与 `vid`，先保存、再改写、退出时精确还原；先静音再拆视频，恢复时先恢复视频再恢复声音；原值为 `no` 的 `vid`（audioOnly/懒创建未挂界面）不动；
+每次属性读写 2s 超时，失败则回滚并让引擎退回暂停。绝不碰 `volume`（Android 上归系统音量端口）、`vo`/`wid`（归 media_kit 的 Android `widListener`，`wid=0` 时设回非 null 会原生崩溃）、`aid`（全关等于停读）、`VideoController`。
+
+**与既有逻辑的交互（D8/D9）**：`play()` 在 holding 时保持待机、fallback 时按意图重试待机；`seek`/`setVolume` 照常；`backToLiveEdge`/`switchQuality` 在 holding 时同源重载并保持待机、
+fallback 时以暂停态加载（`_loadPlays`）；holding 期间看门狗 `disarm`、ABR 与自动回边缘直接返回、失败/直播结束降级为 `fallback(failed/ended)` 并在唤醒时强制重开；唤醒后回到卡顿监视、不重计起播期限。
+
+**默认值（D13）**：`hiddenMode: pause`、`maxDuration: 30s`、`allowHls: false`、`silentStreams: keepDecoding`、`resumeTimeout: 5s`、`liveResumeGrace: 3s`、点播一律暂停、进后台一律暂停；均为真机数据出来前的保守值（校准项见计划 Task 10 的 S1–S17）。
+
+**明确不做**：`vo=null` 变体、桌面 `setSize(2,2)`、`skipframe`/`skiploopfilter`、`drop-buffers`、省流量、feed 池"邻近页保温"、QoE 识别待机、swap 预热影子降载、swap `muteWhileWarm` 走 `setVolume(0)` 的疑似整机静音（Q13，旁支，另立项）。
+
+**与计划的偏差**见计划文首「落地偏差」。
+
 ## 测试
 
 - `test/core/`：`api_test.dart`/`bus_test.dart`/`compat_test.dart`/

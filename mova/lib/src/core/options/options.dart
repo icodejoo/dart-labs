@@ -7,7 +7,9 @@ export 'live_config.dart';
 export 'mini_config.dart';
 export 'playlist_config.dart';
 export 'preview_config.dart';
+export 'recovery_config.dart';
 export 'report_config.dart';
+export 'standby_config.dart';
 export 'stt_config.dart';
 export 'strings.dart';
 export 'swap_config.dart';
@@ -22,7 +24,9 @@ import 'live_config.dart';
 import 'mini_config.dart';
 import 'playlist_config.dart';
 import 'preview_config.dart';
+import 'recovery_config.dart';
 import 'report_config.dart';
+import 'standby_config.dart';
 import 'stt_config.dart';
 import 'strings.dart';
 import 'swap_config.dart';
@@ -111,6 +115,17 @@ class MovaOpts {
   /// 埋点 / QoE 上报配置。
   final MovaReportConfig report;
 
+  /// Start-up/stall timeouts and recovery; off by default.
+  ///
+  /// 起播/卡顿超时与恢复；默认关闭。
+  final MovaRecoveryConfig recovery;
+
+  /// Standby tuning (hidden-picture hold); only takes effect once something
+  /// calls `MovaStandbyController.setStandby`.
+  ///
+  /// 待机调参（画面被隐藏时的保持）；只有当有人调用 `MovaStandbyController.setStandby` 时才生效。
+  final MovaStandbyConfig standby;
+
   /// Creates an options bundle; every section defaults to its own defaults.
   ///
   /// 创建配置集合；每一节均使用其自身默认值。
@@ -129,6 +144,8 @@ class MovaOpts {
     this.swap = const MovaSwapConfig(),
     this.mini = const MovaMiniConfig(),
     this.report = const MovaReportConfig(),
+    this.recovery = const MovaRecoveryConfig(),
+    this.standby = const MovaStandbyConfig(),
   });
 
   /// Returns a copy with the given sections replaced; omitted sections keep
@@ -150,6 +167,8 @@ class MovaOpts {
   /// - [swap]: replacement swap config / 替换用的切换配置
   /// - [mini]: replacement mini-window config / 替换用的小窗配置
   /// - [report]: replacement telemetry config / 替换用的埋点配置
+  /// - [recovery]: replacement recovery config / 替换用的恢复配置
+  /// - [standby]: replacement standby config / 替换用的待机配置
   ///
   /// Returns the new [MovaOpts] instance / 返回新的 [MovaOpts] 实例。
   MovaOpts copyWith({
@@ -167,6 +186,8 @@ class MovaOpts {
     MovaSwapConfig? swap,
     MovaMiniConfig? mini,
     MovaReportConfig? report,
+    MovaRecoveryConfig? recovery,
+    MovaStandbyConfig? standby,
   }) {
     return MovaOpts(
       preview: preview ?? this.preview,
@@ -183,6 +204,8 @@ class MovaOpts {
       swap: swap ?? this.swap,
       mini: mini ?? this.mini,
       report: report ?? this.report,
+      recovery: recovery ?? this.recovery,
+      standby: standby ?? this.standby,
     );
   }
 
@@ -204,9 +227,11 @@ class MovaOpts {
           theme == other.theme &&
           swap == other.swap &&
           mini == other.mini &&
-          report == other.report;
+          report == other.report &&
+          recovery == other.recovery &&
+          standby == other.standby;
 
   @override
   int get hashCode => Object.hash(preview, live, gesture, abr, controls, danmaku,
-      stt, playlist, ads, strings, Object.hash(theme, swap, mini, report));
+      stt, playlist, ads, strings, Object.hash(theme, swap, mini, report, recovery, standby));
 }

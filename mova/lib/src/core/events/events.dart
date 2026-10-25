@@ -4,6 +4,9 @@ import '../model/quality.dart';
 import '../model/source.dart';
 import '../options/preview_config.dart';
 import '../options/stt_config.dart';
+import '../recovery/fail.dart';
+import '../render/first_frame.dart';
+import '../standby/standby.dart';
 import '../swap/ctl.dart';
 
 /// Base type of everything broadcast on [MovaApi.events].
@@ -129,6 +132,40 @@ class MovaDurationChange extends MovaEvent {
   ///
   /// 用 [duration] 创建事件。
   const MovaDurationChange(this.duration);
+}
+
+/// The current source presented its first frame (or first audio).
+///
+/// Fires once per `open()`, every time — the repeatable counterpart of
+/// media_kit's one-shot `waitUntilFirstFrameRendered`.
+///
+/// 当前源呈现了首帧（或首段音频）。
+///
+/// 每次 `open()` 都会触发一次——是 media_kit 一次性
+/// `waitUntilFirstFrameRendered` 的可重复版本。
+///
+/// Example / 示例:
+/// ```dart
+/// api.events
+///     .where((e) => e is MovaFirstFrame)
+///     .cast<MovaFirstFrame>()
+///     .listen((e) => log('ttff ${e.sinceOpen} via ${e.signal}'));
+/// ```
+class MovaFirstFrame extends MovaEvent {
+  /// Elapsed time since the `open()` call that started this source.
+  ///
+  /// 距开始本源的那次 `open()` 调用的耗时。
+  final Duration sinceOpen;
+
+  /// Which observation landed it.
+  ///
+  /// 由哪种观测落地。
+  final MovaFirstFrameSignal signal;
+
+  /// Creates the event.
+  ///
+  /// 创建事件。
+  const MovaFirstFrame({required this.sinceOpen, required this.signal});
 }
 
 /// The decoded video frame size changed.
@@ -439,4 +476,150 @@ class MovaErrorEvent extends MovaEvent {
   ///
   /// 用 [error] 及可选的 [stack] 创建事件。
   const MovaErrorEvent(this.error, [this.stack]);
+}
+
+/// A playback attempt failed and recovery decided what to do. Only fires when
+/// `MovaRecoveryConfig.enabled`. Not an error by itself — `MovaState.error` is
+/// set only once recovery gives up.
+///
+/// 一次播放尝试失败，recovery 已决定如何处理。仅在 `MovaRecoveryConfig.enabled`
+/// 时触发。它本身不是错误——只有 recovery 放弃时才写 `MovaState.error`。
+///
+/// Example / 示例:
+/// ```dart
+/// api.events.listen((e) {
+///   if (e is MovaPlayFailure && e.fail.kind == MovaPlayFailKind.startTimeout) {
+///     showToast('连接超时，正在重试…');
+///   }
+/// });
+/// ```
+class MovaPlayFailure extends MovaEvent {
+  /// What failed and how often.
+  ///
+  /// 失败的是什么、第几次。
+  final MovaPlayFail fail;
+
+  /// What the engine does next.
+  ///
+  /// 引擎接下来要做什么。
+  final MovaRecoveryAction action;
+
+  /// Creates the event.
+  ///
+  /// 创建事件。
+  const MovaPlayFailure(this.fail, this.action);
+}
+
+/// Playback showed a frame again after [attempts] consecutive failures.
+///
+/// 连续失败 [attempts] 次之后重新出画面。
+class MovaRecovered extends MovaEvent {
+  /// How many consecutive failures preceded the recovery.
+  ///
+  /// 恢复之前连续失败了几次。
+  final int attempts;
+
+  /// Creates the event.
+  ///
+  /// 创建事件。
+  const MovaRecovered(this.attempts);
+}
+
+/// Playback moved to another address of the same source.
+///
+/// 播放切到了同一个源的另一个地址。
+class MovaFailover extends MovaEvent {
+  /// Index (into `MovaSource.uris`) left behind.
+  ///
+  /// 被放弃的地址下标。
+  final int from;
+
+  /// Index now playing.
+  ///
+  /// 当前播放的地址下标。
+  final int to;
+
+  /// The address now playing.
+  ///
+  /// 当前播放的地址。
+  final String uri;
+
+  /// Creates the event.
+  ///
+  /// 创建事件。
+  const MovaFailover({required this.from, required this.to, required this.uri});
+}
+
+/// The standby phase changed.
+///
+/// 待机阶段发生变化。
+///
+/// Example / 示例:
+/// ```dart
+/// api.events.listen((e) {
+///   if (e is MovaStandbyChange && e.phase == MovaStandbyPhase.fallback) {
+///     log('standby fell back to pause: ${e.reason.name}');
+///   }
+/// });
+/// ```
+class MovaStandbyChange extends MovaEvent {
+  /// Creates the event.
+  ///
+  /// 创建事件。
+  const MovaStandbyChange({required this.phase, required this.reason, this.mode});
+
+  /// The new phase.
+  ///
+  /// 新阶段。
+  final MovaStandbyPhase phase;
+
+  /// Why it changed.
+  ///
+  /// 变化原因。
+  final MovaStandbyReason reason;
+
+  /// The hold mode: set when entering [MovaStandbyPhase.holding], and on the
+  /// `resuming` that follows it; null otherwise.
+  ///
+  /// 待机组合：进入 holding 时、以及紧随其后的 resuming 时有值；其余为 null。
+  final MovaStandbyMode? mode;
+}
+
+/// Standby ended and playback is presenting again: how long it took from the
+/// wake-up call to the first fresh frame.
+///
+/// 待机结束、重新出画面：从唤醒调用到第一帧新画面花了多久。
+///
+/// Example / 示例:
+/// ```dart
+/// api.events.listen((e) {
+///   if (e is MovaStandbyResume) {
+///     log('back in ${e.elapsed.inMilliseconds}ms via ${e.signal?.name ?? 'none'}');
+///   }
+/// });
+/// ```
+class MovaStandbyResume extends MovaEvent {
+  /// Creates the event.
+  ///
+  /// 创建事件。
+  const MovaStandbyResume({required this.elapsed, this.signal, this.from});
+
+  /// From `setStandby(false)` to the landing.
+  ///
+  /// 从 `setStandby(false)` 到落地的耗时。
+  final Duration elapsed;
+
+  /// What landed it: `restart`/`size` (precise), `buffering`/`progress`
+  /// (after a reconnect), `grace` (nothing within `resumeTimeout` — elapsed is
+  /// then the timeout, not a measurement), or null (decoding never stopped).
+  ///
+  /// 由什么落地：`restart`/`size`（精确）、`buffering`/`progress`（重连之后）、`grace`
+  /// （`resumeTimeout` 内什么都没等到——此时 elapsed 就是超时值，不是测量值），或 null
+  /// （解码从未停过）。
+  final MovaFirstFrameSignal? signal;
+
+  /// The hold mode woken from; null when woken from a [MovaStandbyPhase.fallback] pause.
+  ///
+  /// 从哪种待机组合醒来；从 fallback 暂停醒来时为 null。
+  final MovaStandbyMode? from;
 }

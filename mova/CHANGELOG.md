@@ -1,3 +1,70 @@
+## Unreleased
+
+* **Fix：Windows 上 push 不透明路由时进程原生崩溃（HE V10）**：根因不在 mova，而是 Flutter 3.47.0/3.47.1 引擎的 bug——Windows + Impeller 下，`MaterialPageRoute` 默认的 `ZoomPageTransitionsBuilder` 会给页面拍快照（`SnapshotWidget`），快照里带外部 GPU 纹理（media_kit 的 DXGI 共享句柄纹理）时，引擎 `LayerTree::Flatten` 里解引用空上下文，进程在 `flutter_windows.dll` 以 `0xC0000005` 退出（flutter/flutter#190774，Flutter 3.47.2 已修）。纯 media_kit `Video` 不带 mova 同样复现。mova 侧规避：`MovaPlayer` 的渲染面在 Windows 上套一层 `MovaSnapshotGuard`（加一个 `supportsRasterization()==false` 的图层，宽松快照据此退回普通绘制），其他平台行为不变。release 实测：修复前 6/6 崩溃、探针 2 轮内必崩；修复后验证页 V10A 20/20、V10 10/10、探针 20/20/20/30 轮不崩。**根治办法是宿主升级到 Flutter ≥ 3.47.2**；也可在主题里对转场关快照（`ZoomPageTransitionsBuilder(allowSnapshotting: false)`）。新增 8 项回归（`test/ui/snapshot_guard_test.dart`）。详见计划文档 `doc/plans/2026-10-23-host-ergonomics.md` V10 小节。
+
+* **Fix：点播恢复重试丢失续播位置（HE V6）**：卡顿超时、`open()` 异常后的重试及原生 `END_FILE(error)` 恢复，改为等本次尝试首帧落地后再发送续播 seek，避免加载命令已返回但文件未就绪时 seek 被丢弃。同内容备选地址沿用续播点，跨失败继续保留；直播不 seek。代码回归已通过，待 Windows/Android 复测。
+
+* **Fix：无缝切换预热误改系统音量（standby 计划 Q13）**：`muteWhileWarm` 改走可选的播放器静音能力，mpv 仅保存、改写、还原自身 `mute`；预热和提交均不写系统音量端口。不支持能力的内核不静音；与 standby 静音叠加时按各自所有权精确还原。恢复静音失败走放弃切换策略并发出错误事件。代码回归已通过，待真机音频确认。
+
+* **宿主易用性增强（第一批，对应 `doc/plans/2026-10-23-host-ergonomics.md` Task 1–8）**——全部默认关闭或与旧行为一致：
+  * **"已出画面"信号**：新增 `MovaState.rendered`（当前源已呈现首帧/首段音频，每次 `open()` 重置）与
+    `MovaFirstFrame(sinceOpen, signal)` 事件（每次 `open()` 一次，可重复）；判据纯逻辑在 `MovaFirstFrameGate`/
+    `MovaFirstFrameSignal`（原生 RESTART 为权威，兜底为 buffering 下降沿/连续递增位置/暂停态首个尺寸，原生在工作时
+    兜底信号先到则最多等 1.5s 宽限）。内部重载（换档、回直播边缘、时移）不重置 `rendered`。
+    **行为微调**：`open()` 现在会同步把 `state.width/height` 归零（此前要等内核异步发 null），换源后旧画面比例不再漏进新源。
+  * **原生事件订阅与 QoE 解耦**：`MovaMpvKernel(observeNativeEvents:)`（默认跟随 `observeQoeSignals`，既有调用点不变）；
+    `createMovaEngine(preciseFirstFrame:)`（默认 `false`；`true` 时即使没有 reporter 也订阅原生 RESTART，首帧更准，
+    代价是每引擎一个 mpv 弱客户端）。
+  * **填充模式可声明**：`MovaEngine`/`createMovaEngine` 新增 `fit` 初值参数；`MovaPlayer(fit:)` 挂载时应用一次，
+    之后仅在该值变化（或换了 `api`）时再应用，用户用 fit 按钮选的值不会被无关重建覆盖。
+  * **内置封面**：`MovaPlayer(poster:, posterFade:)`，封面放在交给皮肤的 `video` 里（缓冲转圈/错误层/控制条画在其上），
+    `rendered` 且画面尺寸已知后淡出，换源瞬间重新盖上；仅音频源常驻。`MovaFeedPlayer(posterUntilFirstFrame:)`
+    （默认 `false`）把 placeholder 当封面盖到首帧。
+  * **极简皮肤** `MovaMinimalSkin(showBuffering:, showError:)`：只有画面与可选转圈/错误层，无手势层与任何栏；
+    `MovaTheme` 新增可空的 `bufferingSize`/`bufferingStrokeWidth`/`bufferingColor`（默认 `null` = 与旧外观一致）。
+  * **声明式组件** `MovaView`：传 `source` 即可，自己创建/复用/重建（`options` 变化）/销毁引擎，源变 `null` 时暂停，
+    打开失败走 `onOpenError`（缺省交给 `FlutterError.reportError`）；有 `poster` 时默认开启原生首帧订阅。
+    新增 `MovaSource.sameAs()`（比较 uri 与 type，忽略 title）；`MovaSource` 刻意不重写 `==`。
+  * **破坏性变更（编译期）**：`MovaEvent` 是 `sealed`，新增子类 `MovaFirstFrame` 会让宿主里**没有 `default` 分支的
+    穷尽 `switch`** 编译报错，补一个分支或 `default` 即可；mova 自己的事件翻译已有 `default`，不受影响。
+* **宿主易用性增强（第二批，对应同一计划 Task 9–15）**——全部默认关闭：
+  * **起播/卡顿超时与恢复** `MovaOpts.recovery`（`MovaRecoveryConfig`，默认 `enabled: false`）：起播超时（默认 10s）、
+    卡顿超时（默认 10s，`null` 关闭）、`open()` 抛异常、原生 `END_FILE(error)`、直播走到结尾（`liveEndIsFailure`）。
+    决策由可注入的 `MovaRecoveryPolicy` 给出（默认 `MovaRetryThenFailover`：每地址 1s 后重试 1 次再切备选，用尽放弃；
+    另有 `MovaFailoverOnly`），产出 `MovaRecoveryDecision.retry/failover/giveUp`。新事件 `MovaPlayFailure(fail, action)`、
+    `MovaRecovered(attempts)`；放弃时写 `state.error = MovaGiveUpError` 并发 `MovaErrorEvent`，同时暂停内核。
+    重试/切换是内核重载而非新会话（不过拦截器、不发 `MovaSourceChange`、不动 QoE 会话）。**关闭时不创建任何 Timer、
+    不订阅任何新流，`open()` 失败仍照旧抛给调用方**（`MovaAdController` 依赖它区分 `openThrew`）。
+  * **多地址兜底**：`MovaSource(alternatives:)`、`MovaSource.uris`、`MovaSource.pick()`（清洗并去重保序）、
+    `MovaState.sourceIndex`、`MovaFailover(from, to, uri)` 事件。`sameAs()` 现在也比较备选地址（含顺序）。
+    **仅在 `recovery.enabled` 时才会用到备选**，关闭时被忽略。mova 不提供排序/过滤钩子，由宿主排好序。
+  * **自动暂停守卫** `MovaAutoPause` 与纯逻辑 `MovaAutoPauseGate`/`MovaAutoPauseConfig`（`MovaHideReason`/`MovaLiveResume`/
+    `MovaGuardAction`）；`MovaView(autoPause:, routeObservers:)`。覆盖滚出视口、非活跃 Tab（`TickerMode`）、被路由盖住、进后台；
+    `inactive` 不暂停但先快照播放意图；画中画/小窗里不暂停；直播隐藏 ≥ 3s 回边缘再播。只用 Flutter SDK，无新依赖。
+    **注意**：`routeObservers` 是**列表**，每个 navigator 一个观察者——`NavigatorObserver` 不能同时挂到两个 navigator 上。
+  * **宿主测试替身** `package:mova/testing.dart`：`MovaTestKernel`、`MovaTesting.useTestKernels()/reset()/lastKernel`；
+    安装后 `createMovaEngine()` 改用可编程内核、平台端口全部空实现，widget 测试不再需要 `MediaKit.ensureInitialized`。
+    不在主 barrel 里。
+  * **破坏性变更（编译期）**：`MovaEvent` 再新增三个子类 `MovaPlayFailure`、`MovaRecovered`、`MovaFailover`
+    （连同上一批的 `MovaFirstFrame` 共 4 个），宿主里没有 `default` 分支的穷尽 `switch` 需要补分支。
+    `MovaOpts` 新增 `recovery` 节（有默认值，既有调用点不受影响）。
+  * 验证页：`example/lib/main_host_ergonomics_verify.dart`（真机验证用，尚未上机）。
+* **评审修复（11 条）**：`MovaState.playbackIntent` 独立于内核 `playing`，内部重载与看门狗遵循最新播放意图；恢复绑定已接受会话与失败尝试，跨失败保留续播点；自动暂停守卫订阅状态并重绑引擎、保留配置更新前的隐藏周期；直播恢复、视图加载、档位请求均校验异步过期。逐条说明见 `doc/plans/2026-10-23-host-ergonomics.md`「评审修复」。
+
+* **低功耗待机（standby，对应 `doc/plans/2026-10-23-standby-mode.md` Task 1–9）**——默认关闭，不调用就一行代码都不会走到：
+  * **入口**：`MovaAutoPauseConfig(hiddenMode: MovaHiddenMode.standby)`（守卫自动处理，默认 `pause`）与命令式的 `MovaStandbyController.setStandby(bool)`
+    （`MovaEngine`/`MovaSwapEngine` 实现；`MovaApi`、`MovaKernel` 零新增成员，用 `is` 探测）。调参 `MovaOpts.standby`（`MovaStandbyConfig`：`maxDuration` 默认 30s、
+    `silentStreams`、`allowHls` 默认 false、`resumeTimeout` 默认 5s、`liveResumeGrace` 默认 3s）。
+  * **机制**：有音频的直播 → 关视频解码并静音（`mute`/`vid`，保存后原样还原，绝不碰 `volume`/`vo`/`wid`/`VideoController`）；无音频 → 继续解码只静音；
+    点播、进后台、媒体信息未知、HLS（默认）→ 普通暂停；到 `maxDuration` 自动退回暂停。**网络不省，省的是解码/渲染/电。**
+  * **状态与事件**：`MovaState.standby`（`MovaStandbyPhase`：`off`/`holding`/`fallback`/`resuming`）、`MovaStandbyChange(phase, reason, mode)`、
+    `MovaStandbyResume(elapsed, signal, from)`；`MovaStandbyMode`/`MovaStandbyReason`/`MovaSilentStandby` 随之公开。
+  * **恢复计时**：`MovaFirstFrameGate.arm(resume: true)` 只认原生 RESTART 与非零尺寸、立即落地；`rendered` 全程不动，不发 `MovaFirstFrame`。
+  * **与既有能力的交互**：待机期间看门狗不计时、ABR 与自动回边缘不触发、失败延到唤醒时强制重开；待机请求期间 `open()` 换源以暂停态加载，首帧落地后再尝试待机；
+    `setMini(true)`/`enterPip()` 先唤醒；`MovaSwapEngine` 透传并在提交时把待机施加到新引擎；封面在待机与恢复期间瞬间盖上；`MovaTestKernel` 支持待机（`hasAudio`/`fileFormat`）。
+  * **破坏性变更（编译期）**：`MovaEvent` 再新增 `MovaStandbyChange`、`MovaStandbyResume`，`MovaGuardAction` 新增 `standby`/`wake`，宿主里没有 `default` 分支的穷尽 `switch` 需要补分支。
+  * 验证页：`example/lib/main_standby_verify.dart`（真机验证用，尚未上机）。
+
 ## 0.3.0
 
 * 埋点上报增强：`MovaReporter` 补齐 TTFF 首帧耗时、卡顿次数与时长、播放失败

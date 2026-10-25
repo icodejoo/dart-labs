@@ -12,6 +12,7 @@ import 'package:mova/src/core/preview/api.dart';
 import 'package:mova/src/core/preview/models.dart';
 import 'package:mova/src/core/report/report.dart';
 import 'package:mova/src/core/report/stats_probe.dart';
+import 'package:mova/src/core/standby/standby.dart';
 import 'package:mova/src/core/state/progress.dart';
 import 'package:mova/src/core/state/state.dart';
 import 'package:mova/src/core/state/ui_state.dart';
@@ -791,4 +792,26 @@ class FakeSttApi implements MovaSttApi {
   ///
   /// 关闭底层流。
   Future<void> dispose() => _cues.close();
+}
+
+/// A [FakeMovaApi] that also answers `setStandby`, recording `setStandby:<on>`
+/// into [calls].
+///
+/// 兼具 `setStandby` 的 [FakeMovaApi]，把 `setStandby:<on>` 记进 [calls]。
+class FakeStandbyApi extends FakeMovaApi implements MovaStandbyController {
+  /// Creates the fake; [options] is forwarded to [FakeMovaApi].
+  ///
+  /// 创建假对象；[options] 转交给 [FakeMovaApi]。
+  FakeStandbyApi({super.options});
+
+  /// What `setStandby(true)` answers.
+  ///
+  /// `setStandby(true)` 的答复。
+  MovaStandbyPhase answerOn = MovaStandbyPhase.holding;
+
+  @override
+  Future<MovaStandbyPhase> setStandby(bool on) async {
+    calls.add('setStandby:$on');
+    return on ? answerOn : MovaStandbyPhase.off;
+  }
 }
