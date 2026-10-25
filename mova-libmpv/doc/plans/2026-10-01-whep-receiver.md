@@ -10,7 +10,7 @@
 
 ## 当前状态与下一步（交接，2026-10-02）
 
-**状态（2026-10-02 深夜更新）：WHEP 核心已落地并在三个后端上端到端验证，余下为平台整合验证与收尾。** 分支 `feat/whep-receiver`。补丁序列 `patches/ffmpeg-whep/0001–0010`（README 有总表），mpv 补丁 `patches/mpv-v041/0001–0004`，Android 构建链 `patches/android-v041/`，各平台构建脚本 `tools/whep-flavor/{build-linux,build-windows}.sh`、`patches/android-v041/e2e-arm64.sh`。
+**状态（2026-10-02 深夜更新）：WHEP 核心已落地并在三个后端上端到端验证，余下为平台整合验证与收尾。** 分支 `feat/whep-receiver`。补丁序列 `patches/ffmpeg-whep/0001–0012`（README 有总表），mpv 补丁 `patches/mpv-v041/0001–0007`（0002 仅 Android；0001–0004 为 2026-10-02 前，0005–0007 见下方 2026-10-25 小节），Android 构建链 `patches/android-v041/`，各平台构建脚本 `tools/whep-flavor/{build-linux,build-windows}.sh`、`patches/android-v041/e2e-arm64.sh`。
 
 已完成并有实测证据（笔记都在 `doc/notes/2026-10-02-*`）：
 - 阶段 0 的 T0.1–T0.4、T0.6，T-L1 骨架（法务复核未做）；T0.5/T0.7 以"本地整合构建"形式覆盖（Windows 已做，darwin/iOS 按 D2 本期不做）。
@@ -19,12 +19,20 @@
 - mova 侧：默认 Player 白名单放行 `dtls`、过滤无害 `Cannot seek` 错误（测试基线 1014）。
 
 **下次继续（按优先级）**：
-1. Android 手机接上同网段 Wi-Fi，用 `patches/android-v041/e2e-arm64.sh` 产物重跑 `mova/example/lib/main_whep_verify.dart`，验真实 UDP 与 0010 的 PLI/NACK（手机此前被拿走，未验）。
-2. 用会响应 PLI 的服务端（SRS 等）复测 PLI 起播收益（MediaMTX 不响应）；RTX 与 TWCC 未做。
-3. CI 真实 flavor 终验（workflow 已参数化 ffmpeg_ref/mpv_ref/commit_artifact，**不要合并到 main**，否则 push 会重建并回写 packages/ 产物）；默认线 `--disable-bsfs`（-340KB）需 Android 真机回归。
-4. Windows：vo/ao 真实渲染链路未测；`whep_tamper_proxy.py` 在 Windows 上第一个会话后会因 `WSAECONNRESET` 崩溃（测试工具缺陷）。
+1. **（2026-10-24 已实测，见 [../notes/2026-10-24-android-udp-pli-nack-verify.md](../notes/2026-10-24-android-udp-pli-nack-verify.md)）** Android 真机同网段 Wi-Fi 真实 UDP 出画（MediaMTX v1.21.1 Windows 版），0010 的 NACK 生效（丢包 5%/10% 下 `nack_seqs_sent` 376/640，`rtx_recovered` 242/394，最终视频 lost 11/14，非零）；PLI 只证明客户端会发（MediaMTX 不响应）。**新发现缺陷（已于同日修复，补丁 0011，根因/证据/回归见 [../notes/2026-10-24-whep-chunked-answer-fix.md](../notes/2026-10-24-whep-chunked-answer-fix.md)）**：answer 走 `Transfer-Encoding: chunked` 时 `Reading WHEP answer failed: I/O error`；根因是 n9.0.2 http.c 读完末块后关连接、下一次读因 `filesize=UINT64_MAX` 返回 EIO，修法 POST 加 `multiple_requests=1`。Android 真机 MediaMTX 默认多候选配置出画、NACK 不退化；Windows 版已于同日本机 MSYS2 重建（含 0011，chunked 在 SChannel 上实测有效，见 [../notes/2026-10-24-windows-whep-rebuild-render-verify.md](../notes/2026-10-24-windows-whep-rebuild-render-verify.md)）。
+2. PLI（2026-10-24 已复测，见 [../notes/2026-10-24-whep-https-srs-pli-verify.md](../notes/2026-10-24-whep-https-srs-pli-verify.md)）：MediaMTX 与 SRS 对 RTMP/RTSP 推流源都不产生 PLI 响应；只有 SRS + 会响应 PLI 的发布端（aiortc WHIP）才有收益，Android 真机首个关键帧 100–147ms（另一次 706ms），对照 2.5s。RTX 与 TWCC 未做。
+3. CI 真实 flavor 终验（workflow 已参数化 ffmpeg_ref/mpv_ref/commit_artifact，**不要合并到 main**，否则 push 会重建并回写 packages/ 产物）；**CI 当前注入的 Windows DLL 还不含 0011/0012/mpv 0007，须 CI 重编，只能 push 后才能验证，该分支不得合 main**；默认线 `--disable-bsfs`（-340KB）需 Android 真机回归，**未做**。
+4. Windows：vo/ao 真实渲染链路已在一台 RTX 4060 笔记本上测过出画与内存（见下方 2026-10-25 小节）；`whep_tamper_proxy.py` 在 Windows 上第一个会话后会因 `WSAECONNRESET` 崩溃（测试工具缺陷）。
 5. 法务复核（MPL-2.0 移植与 LGPLv3 合并分发）；`packages/media_kit_libs_android_video_slim_v041/`（6.5MB 二进制）是否入库/LFS 待定。
-6. VP9 硬解在 v0.41 起播变慢（未定位，非 WHEP 路径）。
+6. VP9 起播变慢（2026-10-24 再定位，见 [../notes/2026-10-24-lazyvideo-timing-fix.md](../notes/2026-10-24-lazyvideo-timing-fix.md)）：与 mova 的 lazyVideo 无关（lazy 与非 lazy 日志相同；`vo` 先 null 再 gpu 是 media_kit Android 控制器自身流程）；VP9 的 2–4s 间歇尖刺基线 so 也出现，来源未查清，mova 侧无抓手，未修。非 WHEP 路径。
+7. RTSP/SDP/RTP 当前 libmpv 打不开：瘦身版 ffmpeg 没有 `rtsp`/`sdp`/`rtp` demuxer，要支持须改 ffmpeg 构建加 demuxer，体积会增长，未做，待用户决定。
+
+**2026-10-25 补充（已定结论，笔记均在 `doc/notes/2026-10-24-*`、`2026-10-25-*`；除注明外只在一台 RTX 4060 笔记本、单个 NVIDIA 驱动上测过）**：
+- **新增补丁**：ffmpeg 0011（`whep_exchange_sdp` 的 POST 加 `multiple_requests=1`，修 chunked 应答 EIO）、0012（offer `a=setup:passive`，answer 的 setup 非 `active` 时在解析阶段报明确错误；默认配置 SRS 6.0 直接出画）。mpv 0006（opengl context 无 `swap_buffers` 时不建 fencesync，上游 `f74adc42` 同一行改动）是**无害的上游正确性修复，不是内存泄漏的修复**（实测打上后斜率 17.9 -> 19.8 MiB/min，无改善）；mpv 0007（`GL_RENDERER` 含 `ANGLE` 时不加载 `GL_EXT_disjoint_timer_query`，8 行）**才是 Windows 硬件渲染泄漏的修复**。
+- **更正已被推翻的旧结论**：此前"换新 ANGLE 能修泄漏 / 新 ANGLE 内存持平"是在**没出画**的情况下测的，无效（新 ANGLE 的 Chromium >=117 构建不出画，<=116 出画但同样泄漏约 10 MiB/min）。真实根因：libmpv 每帧 `glBeginQueryEXT` -> ANGLE `CreateQuery` -> NVIDIA 驱动堆扩展。按 media-kit PR #1436 修插件后新 ANGLE（Electron 43 / Carapacik v8078）能出画，但斜率照旧 11+ MiB/min，且 v8078 比现随包大 +1,545,072 B。结论：**不换 ANGLE、不 fork `media_kit_video`**。0007 后（旧 ANGLE v1.0.1、WHEP 720p30、去后向缓冲）948s 斜率 **0.26 MiB/min**（无补丁 10.07）；笔记自述局限：AMD/Intel 驱动、Android 对 0007 **未测**，v8078 + 0007 未重测，判断依赖 `GL_RENDERER` 字符串含 `ANGLE`。
+- **mova 侧**（不属本计划范围，仅记录结论）：①lazyVideo 黑屏已修：根因是 `vid=auto` 先于渲染上下文到达，文件恰在该窗口打开，mpv 初始化 VO 失败后永久丢掉视频轨；修法是 open 前等渲染面就绪并按需先 `no` 再 `auto` 重选。②实时流 demuxer 缓存限制（`demuxer-max-back-bytes=0`、`demuxer-seekable-cache=no`）改为按打开后的 `file-format` 判断：命中 `kRealtimeFileFormats`（目前只有 `whep`）直接限制；其余（不含 HLS）在两次采样 `seekable` 均为 `no` 且时长读不到或持续增长时兜底限制；HLS 不限制。③Android VP9 慢启动见上第 6 条。
+- **最大化私有内存跳变（约 +800 MiB，还原后回落）**：根因在 Flutter 引擎自带 ANGLE 的合成器（`CompositorOpenGL::CreateBackingStore`）为全屏渐变建多套 4x MSAA 后备缓冲，与视频、mova、0007 无关（纯 Flutter 无视频也复现）。mova 用 `NoVideoControls` 只涨约 170 MiB（加顶/底小渐变条约 250 MiB）。约定：视频上方避免全窗口尺寸的渐变/模糊类效果，新增前先用最大化测内存。**机制与是否引擎 bug 未确认**（阈值不稳定，无 AMD/Intel 对照）。
+- **体积**：Android arm64 `libmpv.so` 6,354,048 B（含 0012，WHEP flavor）；Windows `libmpv-2.dll` 10,875,904 B（含 0011/0012/0007 的本机重建，未入库、未覆盖仓库 DLL）。
 
 以下为历史交接内容（保留作背景）：分支 `feat/whep-receiver`，T0.1 之前的状态。
 

@@ -41,8 +41,29 @@ const int kRelayTcpPort = int.fromEnvironment('WHEP_RELAY', defaultValue: 38190)
 /// 信令地址。
 const String kWhepUrl = String.fromEnvironment('WHEP_URL', defaultValue: 'whep+http://127.0.0.1:38889/test/whep');
 
+/// 是否启用 UDP-over-TCP 中继；真实局域网 UDP 验证时传 `--dart-define=WHEP_RELAY_ON=false`。
+const bool kRelayOn = bool.fromEnvironment('WHEP_RELAY_ON', defaultValue: true);
+
 /// 观察总时长（首帧之后）。
 const int kObserveSec = 40;
+
+/// 运行时覆盖信令地址的文件（`adb push`），存在且非空时优先于编译期 `WHEP_URL`。
+const String kUrlOverrideFile = '/data/local/tmp/whep_url.txt';
+
+/// 取实际信令地址。
+String _resolveUrl() {
+  try {
+    final f = File(kUrlOverrideFile);
+    if (f.existsSync()) {
+      final t = f.readAsStringSync().trim();
+      if (t.isNotEmpty) return t;
+    }
+  } on Object catch (_) {}
+  return kWhepUrl;
+}
+
+/// 观察结束后的收尾等待秒数（留给 screencap）。
+const int kTailSec = int.fromEnvironment('WHEP_TAIL', defaultValue: 25);
 
 /// 输出一行。
 void _out(String m) => print('WHEP $m');
@@ -100,7 +121,7 @@ Future<String> _prop(Player p, String name) async {
 
 /// 主流程。
 Future<void> _run() async {
-  await _startRelay();
+  if (kRelayOn) await _startRelay();
   final player = Player(
     configuration: const PlayerConfiguration(
       logLevel: MPVLogLevel.v,
@@ -108,7 +129,17 @@ Future<void> _run() async {
       protocolWhitelist: ['udp', 'rtp', 'tcp', 'tls', 'data', 'file', 'http', 'https', 'crypto', 'dtls'],
     ),
   );
-  final keep = RegExp(r'whep|dtls|ice|stun|srtp|fingerprint|mbedtls|tls|error|fatal|fail|hwdec|mediacodec|demux|probe|Opening|Stream #|Video:|Audio:', caseSensitive: false);
+  final mpvLogPath = '${Directory.systemTemp.path}/mpv_whep.log';
+  try {
+    File(mpvLogPath).deleteSync();
+  } on Object catch (_) {}
+  try {
+    // 关闭 demuxer 时 mpv 事件流可能已断，改用 log-file 落盘再读回
+    await (player.platform as NativePlayer).setProperty('log-file', mpvLogPath);
+  } on Object catch (e) {
+    _out('log-file set failed $e');
+  }
+  final keep = RegExp(r'whep|RTCP|RTP|dtls|ice|stun|ffmpeg/demuxer|srtp|fingerprint|mbedtls|tls|error|fatal|fail|hwdec|mediacodec|demux|probe|Opening|Stream #|Video:|Audio:', caseSensitive: false);
   player.stream.log.listen((l) {
     final t = '${l.level}/${l.prefix}: ${l.text.trim()}';
     if (l.level == 'error' || l.level == 'fatal' || keep.hasMatch(t)) _out('MPVLOG $t');
@@ -139,9 +170,10 @@ Future<void> _run() async {
       _out('first position>0 ($lastPos ms) @$firstPosMs ms');
     }
   });
-  _out('open $kWhepUrl');
+  final url = _resolveUrl();
+  _out('open $url');
   try {
-    await engine.open(MovaSource(kWhepUrl));
+    await engine.open(MovaSource(url));
   } on Object catch (e) {
     _out('open threw $e');
   }
@@ -161,6 +193,17 @@ Future<void> _run() async {
   }
   final dt = sw.elapsedMilliseconds - t0;
   _out('SUMMARY observed=${dt}ms posDelta=${lastPos - p0}ms size=${"${engine.state.width}x${engine.state.height}"} relayUp=$_up relayDown=$_down');
-  await Future<void>.delayed(const Duration(seconds: 25)); // 留时间给 screencap
+  await Future<void>.delayed(const Duration(seconds: kTailSec)); // 留时间给 screencap
+  await player.stop(); // 关闭 demuxer 才会打印 RTP/RTCP 汇总
+  await Future<void>.delayed(const Duration(seconds: 3));
+  try {
+    for (final l in File(mpvLogPath).readAsLinesSync()) {
+      if (RegExp(r'RTCP |RTP (video|audio)|STUN:|First (RTP|video)|nack|pli', caseSensitive: false).hasMatch(l)) {
+        _out('FILELOG $l');
+      }
+    }
+  } on Object catch (e) {
+    _out('read log-file failed $e');
+  }
   _out('DONE');
 }
