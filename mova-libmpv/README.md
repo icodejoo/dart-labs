@@ -1,6 +1,6 @@
 # mova ffmpeg 瘦身构建配置（**✅ 二期任务完成（Android），目标扩展到 Flutter 全平台**）
 
-> **进行中（2026-10-02，分支 `feat/whep-receiver`）**：给 libmpv 加 **WebRTC 直播拉流（WHEP）**，
+> **已合入 main（原开发分支 `feat/whep-receiver`，起于 2026-10-02）**：给 libmpv 加 **WebRTC 直播拉流（WHEP）**，
 > 同时把 ffmpeg 升到 n9.0.2、mpv 升到 v0.41.0（最小静态 libplacebo + 摘 `vo_gpu_next`）。
 > 规划与交接见 [doc/plans/2026-10-01-whep-receiver.md](doc/plans/2026-10-01-whep-receiver.md)，
 > 极致瘦身配置见 [doc/notes/2026-10-02-extreme-slim-config.md](doc/notes/2026-10-02-extreme-slim-config.md)，

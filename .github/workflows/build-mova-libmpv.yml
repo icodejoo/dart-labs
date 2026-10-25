@@ -1,3 +1,4 @@
+# 旧配方（ffmpeg n6.0.1 + 固定 mpv），仅手动触发，正式构建见 build-mova-libmpv-whep.yml
 name: Build mova libmpv (all platforms)
 
 # Only rebuilds when our build recipe changes — the ffmpeg/mpv/dav1d *source*
@@ -33,13 +34,6 @@ name: Build mova libmpv (all platforms)
 #     cross-compile of a full GCC/LLVM toolchain + ~98 deps; it cannot run
 #     on windows-latest and isn't our slim flavor). Deps from pacman.
 on:
-  push:
-    branches: [main]
-    paths:
-      - 'mova-libmpv/**'
-      - '!mova-libmpv/**.md'
-      - '!mova-libmpv/doc/**'
-      - '.github/workflows/build-mova-libmpv.yml'
   workflow_dispatch:
     inputs:
       # EXPERIMENT knobs. All empty/true by default = byte-for-byte the same

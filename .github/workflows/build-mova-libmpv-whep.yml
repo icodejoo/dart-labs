@@ -1,21 +1,22 @@
-name: Build mova libmpv WHEP (feat/whep-receiver only)
+name: Build mova libmpv WHEP
 
 # WHEP 版 libmpv（ffmpeg n9.0.2 + whep demuxer + DTLS-SRTP，mpv v0.41.0）。
-# 与默认产物 workflow（build-mova-libmpv.yml）完全独立：不改默认 flavor、不碰默认路径。
+# 本 workflow 是 main 的正式 libmpv 构建；旧配方（build-mova-libmpv.yml，ffmpeg n6.0.1 + 固定 mpv）仅保留手动触发。
+# 两者互相独立：本 workflow 不改旧 flavor。
 # 二进制不在本地入库，由本 workflow 编译后注入（沿用 "fetch+reset 重试 / 先 git lfs push / 再 push" 模式）：
 #   - Android arm64 -> mova/packages/media_kit_libs_android_video_slim_v041/android/src/main/jniLibs/arm64-v8a/
 #       libmpv.so（CI 编译）+ libmediakitandroidhelper.so（从现有 slim 包拷贝，同一份 LFS 对象）
 #   - Windows x64   -> mova/libmpv/windows-x86_64-whep/{libmpv-2.dll,libmpv-2.def,libmpv.dll.a}
-#       （独立目录，不覆盖默认 mova/libmpv/windows-x86_64/；mova 选用方式见该 job 注释）
+#       （独立目录，不覆盖旧配方的 mova/libmpv/windows-x86_64/；mova 选用方式见该 job 注释）
 #   - Linux         -> 只上传 artifact，不注入
 # 以上路径均被 .gitattributes 的 LFS 规则覆盖（mova/packages/**/*.so、mova/libmpv/**）。
 #
 # 安全约束：
-#   1. 触发只允许 feat/whep-receiver 的 push 与手动 dispatch；注入 step 另有 ref != main 双保险。
+#   1. 触发只允许 main 的 push 与手动 dispatch；注入 step 要求 ref 必须是分支。
 #   2. paths 过滤不含 mova/packages、mova/libmpv，且提交信息带 [skip ci]，产物提交不会再次触发本 workflow。
 on:
   push:
-    branches: [feat/whep-receiver]
+    branches: [main]
     paths:
       - 'mova-libmpv/patches/ffmpeg-whep/**'
       - 'mova-libmpv/patches/mpv-v041/**'
@@ -34,7 +35,7 @@ on:
         type: choice
         options: [auto, android, windows, linux, all, none]
       commit_artifact:
-        description: 'Commit built binaries back to the triggering branch (false = artifact upload only). Never commits on main.'
+        description: 'Commit built binaries back to the triggering branch (false = artifact upload only). On push to main this commits to main (with [skip ci]).'
         required: false
         default: true
         type: boolean
@@ -70,12 +71,6 @@ jobs:
       linux: ${{ steps.sel.outputs.linux }}
       platform: ${{ steps.sel.outputs.platform }}
     steps:
-      - name: Guard - never run on main
-        if: ${{ github.ref == 'refs/heads/main' }}
-        run: |
-          echo "::error::WHEP workflow must not run on main"
-          exit 1
-
       - name: Checkout only the platform switch file
         uses: actions/checkout@v4
         with:
@@ -107,12 +102,6 @@ jobs:
     # 全链从头构建（NDK + mbedtls/dav1d/libxml2/ffmpeg/freetype/libass/libplacebo/mpv）预计 40-90 分钟
     timeout-minutes: 150
     steps:
-      - name: Guard - never run on main
-        if: ${{ github.ref == 'refs/heads/main' }}
-        run: |
-          echo "::error::WHEP workflow must not run on main"
-          exit 1
-
       - name: Checkout dart-labs (with LFS, for the helper .so)
         uses: actions/checkout@v4
         with:
@@ -215,8 +204,8 @@ jobs:
           retention-days: 30
 
       - name: Commit built artifact to packages/ (current branch only)
-        # 双保险：不在 main、必须是分支 ref；dispatch 且 commit_artifact=false 时跳过。
-        if: ${{ github.ref != 'refs/heads/main' && startsWith(github.ref, 'refs/heads/') && (github.event_name != 'workflow_dispatch' || inputs.commit_artifact) }}
+        # 必须是分支 ref；dispatch 且 commit_artifact=false 时跳过。
+        if: ${{ startsWith(github.ref, 'refs/heads/') && (github.event_name != 'workflow_dispatch' || inputs.commit_artifact) }}
         env:
           BRANCH: ${{ github.ref_name }}
         run: |
@@ -255,13 +244,6 @@ jobs:
       run:
         shell: msys2 {0}
     steps:
-      - name: Guard - never run on main
-        if: ${{ github.ref == 'refs/heads/main' }}
-        shell: bash
-        run: |
-          echo "::error::WHEP workflow must not run on main"
-          exit 1
-
       - name: Checkout dart-labs
         uses: actions/checkout@v4
 
@@ -346,7 +328,7 @@ jobs:
       # 与 job 级 `shell: msys2 {0}` 区分：此步只需 git/git-lfs，msys2 的 PATH 里没有 git-lfs.exe
       #（默认 workflow 2026-09-17 踩过：pre-push 报 git-lfs not found）。
       - name: Commit built artifact (current branch only)
-        if: ${{ github.ref != 'refs/heads/main' && startsWith(github.ref, 'refs/heads/') && (github.event_name != 'workflow_dispatch' || inputs.commit_artifact) }}
+        if: ${{ startsWith(github.ref, 'refs/heads/') && (github.event_name != 'workflow_dispatch' || inputs.commit_artifact) }}
         shell: bash
         env:
           BRANCH: ${{ github.ref_name }}
@@ -383,12 +365,6 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 90
     steps:
-      - name: Guard - never run on main
-        if: ${{ github.ref == 'refs/heads/main' }}
-        run: |
-          echo "::error::WHEP workflow must not run on main"
-          exit 1
-
       - name: Checkout dart-labs
         uses: actions/checkout@v4
 
