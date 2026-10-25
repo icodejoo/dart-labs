@@ -1,0 +1,57 @@
+From bf91f513f6195c85ed73679cba4c0fc4ea6ec9bf Mon Sep 17 00:00:00 2001
+From: jelon <jelon@tbu.net>
+Date: Sat, 24 Oct 2026 13:27:19 +0800
+Subject: [PATCH] avformat/whep: offer setup:passive so default SRS answers
+ active
+
+Servers defaulting to dtls_role passive (SRS) answer setup:passive to an actpass offer, which needs a DTLS client role we do not implement. Offer passive instead (RFC 5763: the answer must then be active) and reject any non-active answer up front with a clear error instead of timing out with no DTLS from peer.
+---
+ libavformat/whep.c | 11 ++++++-----
+ 1 file changed, 6 insertions(+), 5 deletions(-)
+
+diff --git a/libavformat/whep.c b/libavformat/whep.c
+index 69d297c..90cc91f 100644
+--- a/libavformat/whep.c
++++ b/libavformat/whep.c
+@@ -387,7 +387,7 @@ static void whep_http_opts(AVFormatContext *s, AVDictionary **opts)
+ 
+ /**
+  * 生成 recvonly offer：opus + H264（三档 profile，各配 RTX），均带 nack / nack pli，
+- * setup:actpass，SHA-256 指纹。payload type 只是"提议"，最终以 answer 为准。
++ * setup:passive（我方恒为 DTLS server，对端 answer 须为 active），SHA-256 指纹。payload type 只是"提议"，最终以 answer 为准。
+  * @return 0 成功，负值失败
+  */
+ static int whep_generate_offer(AVFormatContext *s)
+@@ -425,7 +425,7 @@ static int whep_generate_offer(AVFormatContext *s)
+         "a=ice-ufrag:%s\r\n"
+         "a=ice-pwd:%s\r\n"
+         "a=fingerprint:sha-256 %s\r\n"
+-        "a=setup:actpass\r\n"
++        "a=setup:passive\r\n"
+         "a=mid:0\r\n"
+         "a=recvonly\r\n"
+         "a=rtcp-mux\r\n"
+@@ -440,7 +440,7 @@ static int whep_generate_offer(AVFormatContext *s)
+         "a=ice-ufrag:%s\r\n"
+         "a=ice-pwd:%s\r\n"
+         "a=fingerprint:sha-256 %s\r\n"
+-        "a=setup:actpass\r\n"
++        "a=setup:passive\r\n"
+         "a=mid:1\r\n"
+         "a=recvonly\r\n"
+         "a=rtcp-mux\r\n"
+@@ -677,8 +677,9 @@ static int whep_parse_answer(AVFormatContext *s, const char *sdp, WhepSdp *o)
+         av_log(s, AV_LOG_ERROR, "Unsupported or malformed fingerprint (algo=%s)\n", o->fp_algo);
+         return AVERROR_INVALIDDATA;
+     }
+-    if (strcmp(o->setup, "active") && strcmp(o->setup, "passive") && strcmp(o->setup, "actpass")) {
+-        av_log(s, AV_LOG_ERROR, "Answer has no valid a=setup (got '%s')\n", o->setup);
++    if (strcmp(o->setup, "active")) {
++        av_log(s, AV_LOG_ERROR, "Answer a=setup:%s is invalid for our setup:passive offer "
++               "(RFC 5763 requires active; DTLS client role is not implemented)\n", o->setup);
+         return AVERROR_INVALIDDATA;
+     }
+     if (!o->cand_host[0]) {
+-- 
+2.43.0
+

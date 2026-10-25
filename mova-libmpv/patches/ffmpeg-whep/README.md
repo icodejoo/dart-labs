@@ -15,8 +15,10 @@
 | 0009 | `0009-avformat-tls-mbedtls-srtp-profile-list-static.patch` | mbedtls SRTP profile 数组改 static const（悬空指针修复，见下） |
 | 0006 | `0006-avformat-whep-security-hardening.patch` | 安全加固，只改 `whep.c`：Location 同源校验、带 token 不跟随 3xx、指纹长度严格检查、STUN HMAC 常量时间比较、ICE 连续 socket 错误上限、关闭时清零 DTLS 私钥与 SRTP 材料（见下「信任模型与安全加固」） |
 | 0010 | `0010-avformat-whep-RTCP-feedback-PLI-RR-NACK.patch` | T1.5：只改 `whep.c`。SRTCP 加密发 RTCP：周期 RR、NACK（缺口表 + 多 FCI 打包 + 重试/放弃）、PLI（起播 + 不可恢复丢包，限速 1/s）；新增 `rtcp_nack`/`rtcp_pli`/`rtcp_interval`；**仅无 RTX 路径**（见「RTCP 反馈」） |
+| 0011 | `0011-avformat-whep-fix-chunked-WHEP-answer-read-failing-w.patch` | 修复：信令 answer 用 `Transfer-Encoding: chunked` 回包时 `Reading WHEP answer failed: I/O error`（MediaMTX 多网卡 answer >2KB 即触发）。只改 `whep.c`，POST 时加 `multiple_requests=1`；根因与证据见 `doc/notes/2026-10-24-whep-chunked-answer-fix.md`，回归 `tools/whep-flavor/whep_chunked_regress.sh` |
+| 0012 | `0012-avformat-whep-offer-setup-passive-so-default-SRS-ans.patch` | 只改 `whep.c`：offer 的 `a=setup` 由 `actpass` 改 `passive`（两个 m 段），默认配置 SRS 因此回 `setup:active`；answer 的 setup 非 `active` 时在解析阶段给出清晰报错。MediaMTX 不退化，证据见 `doc/notes/2026-10-24-whep-dtls-passive-offer-and-vp9.md` |
 
-补丁须按文件名顺序依次 apply（0001 到 0010，已在干净 n9.0.2 上逐个 `git apply --check` 并 apply 通过）。0006 为安全修复；0007/0008/0009 只改各 TLS 后端；0010 只改 `whep.c`。
+补丁须按文件名顺序依次 apply（0001 到 0012，已在干净 n9.0.2 上逐个 `git apply --check` 并 apply 通过）。0006 为安全修复；0007/0008/0009 只改各 TLS 后端；0010、0011 只改 `whep.c`。
 
 编号说明：0003 依赖 0002 的 `ff_http_get_link_headers`，所以 http 补丁排在 whep.c 前面。
 
@@ -32,7 +34,7 @@
 ## whep.c 当前能力（T1.2）
 
 - URL：`whep+http://`、`whep+https://`、`whep://`（`whep://` 默认走 **https**，明文 http 必须显式写 `whep+http://`）。
-- offer：`o=` 行 sess-id 为 `AV_RB64(随机)&INT64_MAX` 的**十进制**（RFC 4566；十六进制会被 MediaMTX/pion 以 400 拒绝）；recvonly、opus + H264（三档 profile，各带 RTX）、`rtcp-fb nack` / `nack pli`、`setup:actpass`、`sha-256` 指纹、随机 ice-ufrag/pwd。payload type 只是提议，**以 answer 为准**。
+- offer：`o=` 行 sess-id 为 `AV_RB64(随机)&INT64_MAX` 的**十进制**（RFC 4566；十六进制会被 MediaMTX/pion 以 400 拒绝）；recvonly、opus + H264（三档 profile，各带 RTX）、`rtcp-fb nack` / `nack pli`、`setup:passive`（0012 起；此前是 actpass，默认 `dtls_role passive` 的 SRS 会回 passive 而我方没有 DTLS client 角色）、`sha-256` 指纹、随机 ice-ufrag/pwd。payload type 只是提议，**以 answer 为准**。
 - 信令：`POST`（`Content-Type: application/sdp`，可选 `Authorization: Bearer`），读 201 的 `Location`（相对地址会被 http 层解析成绝对地址）、`Link: rel="ice-server"`；关闭时 `DELETE`。read_header 失败（例如 answer 无指纹）也会 `DELETE` 已建立的会话（`FF_INFMT_FLAG_INIT_CLEANUP`）。
 - answer 解析：自写最小子集（不复用 `rtsp.c` 的 `ff_sdp_parse`）。必填 ice-ufrag/pwd、格式合法的 sha-256 指纹、`a=setup`、一个 UDP 候选、至少一条 opus/H264。缺指纹、算法不是 sha-256、格式不对一律拒绝。
 - 建流：按 answer 的 m= 行顺序挑 codec，建 H264（取 profile/level）与 Opus（48k）两条 AVStream。
@@ -44,7 +46,7 @@
 
 - **ICE**（自写最小 STUN，沿用 `whip.c` 的报文布局思路，HMAC/CRC 用 ffmpeg 自带，无第三方库）：我方 controlling、带 USE-CANDIDATE（激进提名）；请求每 200ms 重发（同一事务 ID），USERNAME=`对端ufrag:本端ufrag`，MESSAGE-INTEGRITY 用对端 pwd，带 FINGERPRINT。服务端发来的检查请求会校验 USERNAME 与 MESSAGE-INTEGRITY（本端 pwd）后再回成功响应（含 XOR-MAPPED-ADDRESS，来自已 connect socket 的对端地址）；收到的成功响应要校验事务 ID 与 HMAC（对端 pwd）。单 socket、单 host 候选，不做 trickle/TURN/多候选。
 - **探测 DTLS 不丢包**：ICE 循环用 `recv(MSG_PEEK)` 看到 ClientHello 就停，不消费它，再把 socket 交给 dtls 协议（whip 的做法会吞掉第一个 ClientHello，要等对端重传）。
-- **DTLS**：answer 为 `setup:active` 时我方是 DTLS server（`listen=1`、`external_sock=1`、`use_srtp=1`、`mtu=1200`）。`setup` 不是 `active` 目前返回 `AVERROR_PATCHWELCOME`。握手后**必须**取到对端证书，其 SHA-256 与 answer 的 `a=fingerprint` 不一致即 `AVERROR(EACCES)` 拒绝；非 OpenSSL 后端（还没有 `ff_dtls_get_peer_fingerprint`）一律拒绝，不放行未验证的对端。
+- **DTLS**：answer 为 `setup:active` 时我方是 DTLS server（`listen=1`、`external_sock=1`、`use_srtp=1`、`mtu=1200`）。answer 的 `setup` 不是 `active`（我方 offer 是 passive，RFC 5763 要求 answer 为 active）时，解析 answer 阶段立刻报 `Answer a=setup:%s is invalid for our setup:passive offer` 并返回 `AVERROR_INVALIDDATA`，不再等到 ICE 超时后才报 `no DTLS from peer`；DTLS client 角色未实现。握手后**必须**取到对端证书，其 SHA-256 与 answer 的 `a=fingerprint` 不一致即 `AVERROR(EACCES)` 拒绝；非 OpenSSL 后端（还没有 `ff_dtls_get_peer_fingerprint`）一律拒绝，不放行未验证的对端。
 - **SRTP 材料**：`ff_dtls_export_materials` 导出 60 字节（`client_key|server_key|client_salt|server_salt`，profile `SRTP_AES128_CM_HMAC_SHA1_80`）存进 `WHEPContext.srtp_materials`，关闭时清零；日志只打长度与 profile，不打密钥。
 - **tls 层改动**（影响所有 DTLS-SRTP server 用户，包括 whip 作 passive 时）：DTLS server 现在会发 CertificateRequest（WebRTC 双向证书要求；用接受任意证书的校验回调，信任只来自指纹比对）；`dtls_handshake` 的轮询循环检查 `interrupt_callback` 且单次等待不超过 100ms，使 `handshake_timeout` 能打断握手。
 - **超时/错误**：整个 ICE + DTLS 受 `handshake_timeout` 约束；任何失败 `read_header` 返回负值，`read_close` 仍会 DELETE 已建立的会话。

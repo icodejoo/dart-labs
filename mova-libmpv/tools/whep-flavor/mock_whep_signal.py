@@ -16,6 +16,9 @@
   /nocand   201 + Location，answer 没有候选
   /bad      201 + Location，body 不是 SDP
   /slow     睡 SLOW_SECS 秒再回（测超时）
+  /big      正常，但 answer 带大量候选（约 3KB），用 Transfer-Encoding: chunked 回包（复现 MediaMTX 多网卡）
+  /bigcl    同 /big，但用 Content-Length 回包（对照组）
+带 --tls-cert/--tls-key 时监听 HTTPS（自签证书即可），场景同上。
 带 --token 时，/x /remap 等正常路径要求 Authorization: Bearer <token>，否则 401。
 
 每个请求输出一行 JSON 到 stdout（并可写入 --log 文件）；启动后第一行是 "LISTEN <port>"。
@@ -24,6 +27,7 @@ import argparse
 import itertools
 import json
 import re
+import ssl
 import sys
 import threading
 import time
@@ -77,8 +81,8 @@ def check_offer(body, headers):
         problems.append("m= 段不是 audio,video: %r" % ms)
     if body.count("a=recvonly") != 2 or "a=sendonly" in body or "a=sendrecv" in body:
         problems.append("方向不是两段 recvonly")
-    if body.count("a=setup:actpass") != 2:
-        problems.append("setup 不是 actpass x2")
+    if body.count("a=setup:passive") != 2:
+        problems.append("setup 不是 passive x2")
     fps = [l for l in lines if l.startswith("a=fingerprint:")]
     if len(fps) != 2 or not all(FP_RE.match(l) for l in fps):
         problems.append("fingerprint 缺失或格式不对: %r" % fps)
@@ -126,22 +130,26 @@ def build_answer(mode, info):
         fp = "a=fingerprint:sha-1 %s\r\n" % ":".join(SERVER_FP.split(":")[:20])
     cand = "" if mode == "nocand" else \
         "a=candidate:1 1 udp 2130706431 127.0.0.1 38000 typ host\r\n"
-    return (
+    if mode in ("big", "bigcl"):  # 追加 20 条假候选（每条约 55 字节），audio+video 两段合计让 answer 超过 2KB
+        cand += "".join("a=candidate:%d 1 udp %d 10.99.%d.%d %d typ host\r\n"
+                        % (i + 2, 2130706000 - i, i, i, 39000 + i) for i in range(20))
+    sdp = (
         "v=0\r\no=- 1 1 IN IP4 127.0.0.1\r\ns=-\r\nt=0 0\r\n"
         "a=group:BUNDLE 0 1\r\na=ice-lite\r\n"
         "m=audio 9 UDP/TLS/RTP/SAVPF %d\r\nc=IN IP4 0.0.0.0\r\n"
         "a=ice-ufrag:srvu\r\na=ice-pwd:srvpwd0123456789abcdefghij\r\n%s"
-        "a=setup:passive\r\na=mid:0\r\na=sendonly\r\na=rtcp-mux\r\n"
+        "a=setup:active\r\na=mid:0\r\na=sendonly\r\na=rtcp-mux\r\n"
         "a=rtpmap:%d opus/48000/2\r\na=fmtp:%d minptime=10;useinbandfec=1\r\n%s"
         "m=video 9 UDP/TLS/RTP/SAVPF %d %d\r\nc=IN IP4 0.0.0.0\r\n"
         "a=ice-ufrag:srvu\r\na=ice-pwd:srvpwd0123456789abcdefghij\r\n%s"
-        "a=setup:passive\r\na=mid:1\r\na=sendonly\r\na=rtcp-mux\r\na=rtcp-rsize\r\n"
+        "a=setup:active\r\na=mid:1\r\na=sendonly\r\na=rtcp-mux\r\na=rtcp-rsize\r\n"
         "a=rtpmap:%d H264/90000\r\na=rtcp-fb:%d nack\r\na=rtcp-fb:%d nack pli\r\n"
         "a=fmtp:%d level-asymmetry-allowed=1;packetization-mode=1;profile-level-id=42e01f\r\n"
         "a=rtpmap:%d rtx/90000\r\na=fmtp:%d apt=%d\r\n"
     ) % (opus_pt, fp, opus_pt, opus_pt, cand,
          h264_pt, rtx_pt, fp,
          h264_pt, h264_pt, h264_pt, h264_pt, rtx_pt, rtx_pt, h264_pt)
+    return sdp.replace("a=setup:active", "a=setup:passive") if mode == "passive" else sdp
 
 
 class Handler(BaseHTTPRequestHandler):
@@ -159,6 +167,18 @@ class Handler(BaseHTTPRequestHandler):
         self.send_header("Connection", "close")
         self.end_headers()
         self.wfile.write(body)
+
+    def _send_chunked(self, code, body, headers):
+        """分块回包（每块 512 字节），模拟 Go net/http 在响应 >2KB 时的行为。"""
+        self.send_response(code)
+        for k, v in headers.items():
+            self.send_header(k, v)
+        self.send_header("Transfer-Encoding", "chunked")
+        self.end_headers()
+        for i in range(0, len(body), 512):
+            c = body[i:i + 512]
+            self.wfile.write(b"%x\r\n" % len(c) + c + b"\r\n")
+        self.wfile.write(b"0\r\n\r\n")
 
     def do_POST(self):
         n = int(self.headers.get("Content-Length", "0"))
@@ -196,6 +216,8 @@ class Handler(BaseHTTPRequestHandler):
         log(**rec, status=201, sid=sid, offer_ok=True, mode=mode,
             opus_pt=info["opus_pt"], h264_pts=info["h264_pts"], rtx=info["rtx"],
             offer_ufrag=info["offer_ufrag"], location=loc)
+        if mode == "big":
+            return self._send_chunked(201, answer.encode(), hdr)
         self._send(201, answer.encode(), hdr)
 
     def do_DELETE(self):
@@ -216,11 +238,17 @@ def main():
     ap.add_argument("--port", type=int, default=0, help="监听端口，0=自动")
     ap.add_argument("--token", help="要求的 Bearer token")
     ap.add_argument("--log", help="JSON 日志文件")
+    ap.add_argument("--tls-cert", help="PEM 证书，与 --tls-key 同时给出则监听 HTTPS")
+    ap.add_argument("--tls-key", help="PEM 私钥")
     a = ap.parse_args()
     Handler.token = a.token
     if a.log:
         LOG_FILE = open(a.log, "w", encoding="utf-8")
     srv = ThreadingHTTPServer(("127.0.0.1", a.port), Handler)
+    if a.tls_cert:
+        ctx = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
+        ctx.load_cert_chain(a.tls_cert, a.tls_key)
+        srv.socket = ctx.wrap_socket(srv.socket, server_side=True)
     print("LISTEN %d" % srv.server_address[1], flush=True)
     try:
         srv.serve_forever()
