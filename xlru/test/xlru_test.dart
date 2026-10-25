@@ -6,9 +6,9 @@ import 'package:xlru/xlru.dart';
 void main() {
   test('validates constructor and resize without changing state', () {
     for (final size in [0, -1]) {
-      expect(() => LruCache<int, int>(maxSize: size), throwsArgumentError);
+      expect(() => XlruCache<int, int>(maxSize: size), throwsArgumentError);
     }
-    final cache = LruCache<int, int>(maxSize: 2)..set(1, 1);
+    final cache = XlruCache<int, int>(maxSize: 2)..set(1, 1);
     expect(() => cache.resize(0), throwsArgumentError);
     expect(() => cache.resize(-1), throwsArgumentError);
     expect(cache.maxSize, 2);
@@ -16,7 +16,7 @@ void main() {
   });
 
   test('empty, missing keys, and nullable values', () {
-    final cache = LruCache<String?, int?>(maxSize: 2);
+    final cache = XlruCache<String?, int?>(maxSize: 2);
     expect(cache.isEmpty, isTrue);
     expect(cache.isNotEmpty, isFalse);
     expect(cache.get('x'), isNull);
@@ -33,7 +33,7 @@ void main() {
   });
 
   test('get promotes while peek, containsKey, and iteration do not', () {
-    final cache = LruCache<int, int>(maxSize: 3)
+    final cache = XlruCache<int, int>(maxSize: 3)
       ..set(1, 10)
       ..set(2, 20)
       ..set(3, 30);
@@ -49,10 +49,10 @@ void main() {
   });
 
   test('all four causes, old values, and identical replacement', () {
-    final events = <(String, Object, RemovalCause)>[];
+    final events = <(String, Object, XlruRemovalCause)>[];
     final a = Object();
     final b = Object();
-    final cache = LruCache<String, Object>(
+    final cache = XlruCache<String, Object>(
       maxSize: 2,
       onRemove: (k, v, c) => events.add((k, v, c)),
     )
@@ -68,15 +68,15 @@ void main() {
     cache.clear();
     cache.clear();
     expect(events, [
-      ('a', a, RemovalCause.replaced),
-      ('b', b, RemovalCause.evicted),
-      ('a', b, RemovalCause.removed),
-      ('c', a, RemovalCause.cleared),
+      ('a', a, XlruRemovalCause.replaced),
+      ('b', b, XlruRemovalCause.evicted),
+      ('a', b, XlruRemovalCause.removed),
+      ('c', a, XlruRemovalCause.cleared),
     ]);
   });
 
   test('pin counts survive replacement and do not promote', () {
-    final cache = LruCache<int, int>(maxSize: 2)
+    final cache = XlruCache<int, int>(maxSize: 2)
       ..set(1, 1)
       ..set(2, 2);
     expect(cache.pin(1), isTrue);
@@ -96,7 +96,7 @@ void main() {
 
   test('eviction skips consecutive pinned entries in the recency list', () {
     final removed = <int>[];
-    final cache = LruCache<int, int>(
+    final cache = XlruCache<int, int>(
       maxSize: 4,
       onRemove: (k, v, c) => removed.add(k),
     );
@@ -114,7 +114,7 @@ void main() {
 
   test('strict mode: all pinned overflow converges after unpin, set, resize',
       () {
-    final cache = LruCache<int, int>(maxSize: 3, allowSelfEviction: true);
+    final cache = XlruCache<int, int>(maxSize: 3, allowSelfEviction: true);
     for (var i = 1; i <= 3; i++) {
       cache.set(i, i);
       cache.pin(i);
@@ -139,7 +139,7 @@ void main() {
 
   test('remove and clear ignore pins; clear notifies oldest first', () {
     final events = <int>[];
-    final cache = LruCache<int, int>(
+    final cache = XlruCache<int, int>(
       maxSize: 3,
       onRemove: (k, v, c) => events.add(k),
     )
@@ -157,13 +157,13 @@ void main() {
 
   test('resize finishes every eviction before any notification', () {
     final events = <int>[];
-    late LruCache<int, int> cache;
-    cache = LruCache<int, int>(
+    late XlruCache<int, int> cache;
+    cache = XlruCache<int, int>(
         maxSize: 4,
         onRemove: (k, v, c) {
           expect(cache.keys, [4]);
           expect(cache.maxSize, 1);
-          expect(c, RemovalCause.evicted);
+          expect(c, XlruRemovalCause.evicted);
           events.add(k);
         });
     for (var i = 1; i <= 4; i++) {
@@ -175,7 +175,7 @@ void main() {
 
   test('putIfAbsent creates once and promotes hits', () {
     var calls = 0;
-    final cache = LruCache<int, int>(maxSize: 2)..set(1, 1);
+    final cache = XlruCache<int, int>(maxSize: 2)..set(1, 1);
     expect(cache.putIfAbsent(2, () => ++calls), 1);
     expect(cache.putIfAbsent(1, () => ++calls), 1);
     expect(calls, 1);
@@ -186,7 +186,7 @@ void main() {
   });
 
   test('strict mode: putIfAbsent reentrant creator and immediate eviction', () {
-    final cache = LruCache<int, int>(maxSize: 1, allowSelfEviction: true);
+    final cache = XlruCache<int, int>(maxSize: 1, allowSelfEviction: true);
     expect(
         cache.putIfAbsent(1, () {
           cache.set(1, 10);
@@ -208,8 +208,8 @@ void main() {
 
   test('eviction listener can get, insert, remove, and resize reentrantly', () {
     final events = <int>[];
-    late LruCache<int, int> cache;
-    cache = LruCache<int, int>(
+    late XlruCache<int, int> cache;
+    cache = XlruCache<int, int>(
         maxSize: 2,
         onRemove: (k, v, c) {
           events.add(k);
@@ -230,8 +230,8 @@ void main() {
 
   test('clear listener inserts remain while original batch is delivered', () {
     final events = <int>[];
-    late LruCache<int, int> cache;
-    cache = LruCache<int, int>(
+    late XlruCache<int, int> cache;
+    cache = XlruCache<int, int>(
         maxSize: 3,
         onRemove: (k, v, c) {
           events.add(k);
@@ -256,7 +256,7 @@ void main() {
       final events = <int>[];
       final first = StateError('first');
       final originalStack = StackTrace.fromString('original listener stack');
-      final cache = LruCache<int, int>(
+      final cache = XlruCache<int, int>(
           maxSize: 4,
           onRemove: (k, v, c) {
             events.add(k);
@@ -282,15 +282,15 @@ void main() {
   }
 
   test('strict mode: replacement errors keep pins; new entries self-evict', () {
-    final causes = <RemovalCause>[];
-    late LruCache<int, int> cache;
-    cache = LruCache<int, int>(
+    final causes = <XlruRemovalCause>[];
+    late XlruCache<int, int> cache;
+    cache = XlruCache<int, int>(
         maxSize: 2,
         allowSelfEviction: true,
         onRemove: (k, v, c) {
           causes.add(c);
           expect(cache.length, 2);
-          if (c == RemovalCause.replaced) throw StateError('replaced');
+          if (c == XlruRemovalCause.replaced) throw StateError('replaced');
         })
       ..set(1, 1)
       ..set(2, 2)
@@ -300,12 +300,12 @@ void main() {
     expect(() => cache.set(1, 10), throwsStateError);
     expect(cache.peek(1), 10);
     cache.set(3, 3);
-    expect(causes, [RemovalCause.replaced, RemovalCause.evicted]);
+    expect(causes, [XlruRemovalCause.replaced, XlruRemovalCause.evicted]);
   });
 
   test('custom equality, canonical keys, and ordered independent toMap', () {
     final keys = <String>[];
-    final cache = LruCache<String, int>(
+    final cache = XlruCache<String, int>(
       maxSize: 3,
       equals: (a, b) => a.toLowerCase() == b.toLowerCase(),
       hashCode: (key) => key.toLowerCase().hashCode,
@@ -340,7 +340,7 @@ void main() {
       'resize'
     ]) {
       test('$kind detects $mutation after iterator creation', () {
-        final cache = LruCache<int, int>(maxSize: 3)
+        final cache = XlruCache<int, int>(maxSize: 3)
           ..set(1, 1)
           ..set(2, 2)
           ..pin(1);
@@ -374,7 +374,7 @@ void main() {
   }
 
   test('iterator captures version before first move and after exhaustion', () {
-    final cache = LruCache<int, int>(maxSize: 2);
+    final cache = XlruCache<int, int>(maxSize: 2);
     final before = cache.keys.iterator;
     cache.set(1, 1);
     expect(before.moveNext, throwsConcurrentModificationError);
@@ -386,7 +386,7 @@ void main() {
   });
 
   test('non-mutating operations keep iterators valid; iterable stays live', () {
-    final cache = LruCache<int, int>(maxSize: 2)..set(1, 1);
+    final cache = XlruCache<int, int>(maxSize: 2)..set(1, 1);
     final keys = cache.keys;
     final iterator = keys.iterator;
     cache.get(1);
@@ -404,8 +404,8 @@ void main() {
   });
 
   test('default: the written entry survives when older entries are pinned', () {
-    final events = <(int, RemovalCause)>[];
-    final cache = LruCache<int, int>(
+    final events = <(int, XlruRemovalCause)>[];
+    final cache = XlruCache<int, int>(
         maxSize: 2, onRemove: (k, v, c) => events.add((k, c)))
       ..set(1, 1)
       ..set(2, 2)
@@ -420,19 +420,19 @@ void main() {
     expect(cache.keys, [4, 3, 2, 1]);
     cache.set(5, 5); // 4 lost its protection and is the oldest unpinned.
     expect(cache.keys, [5, 3, 2, 1]);
-    expect(events, [(4, RemovalCause.evicted)]);
+    expect(events, [(4, XlruRemovalCause.evicted)]);
     cache.unpin(1); // Converges: evicts 1, then 5.
     expect(cache.keys, [3, 2]);
     expect(events, [
-      (4, RemovalCause.evicted),
-      (1, RemovalCause.evicted),
-      (5, RemovalCause.evicted),
+      (4, XlruRemovalCause.evicted),
+      (1, XlruRemovalCause.evicted),
+      (5, XlruRemovalCause.evicted),
     ]);
   });
 
   test('without a listener, eviction, replacement, remove, clear still work',
       () {
-    final cache = LruCache<int, int>(maxSize: 2)
+    final cache = XlruCache<int, int>(maxSize: 2)
       ..set(1, 1)
       ..set(2, 2)
       ..set(1, 10)
@@ -451,14 +451,14 @@ void main() {
       final order = <int>[];
       final data = <int, int>{};
       final pins = <int, int>{};
-      final actualEvents = <(int, int, RemovalCause)>[];
-      final expectedEvents = <(int, int, RemovalCause)>[];
+      final actualEvents = <(int, int, XlruRemovalCause)>[];
+      final expectedEvents = <(int, int, XlruRemovalCause)>[];
       var maxSize = 5;
-      final cache = LruCache<int, int>(
+      final cache = XlruCache<int, int>(
           maxSize: maxSize,
           allowSelfEviction: strict,
           onRemove: (k, v, c) => actualEvents.add((k, v, c)));
-      void drop(int key, RemovalCause cause) {
+      void drop(int key, XlruRemovalCause cause) {
         expectedEvents.add((key, data.remove(key)!, cause));
         order.remove(key);
         pins.remove(key);
@@ -470,7 +470,7 @@ void main() {
           final eligible =
               order.reversed.where((k) => (pins[k] ?? 0) == 0 && k != keep);
           if (eligible.isEmpty) break;
-          drop(eligible.first, RemovalCause.evicted);
+          drop(eligible.first, XlruRemovalCause.evicted);
         }
       }
 
@@ -480,7 +480,7 @@ void main() {
           case 0:
             final value = step;
             if (data.containsKey(key)) {
-              expectedEvents.add((key, data[key]!, RemovalCause.replaced));
+              expectedEvents.add((key, data[key]!, XlruRemovalCause.replaced));
             }
             data[key] = value;
             order.remove(key);
@@ -505,7 +505,7 @@ void main() {
             expect(cache.unpin(key), success);
           case 4:
             expect(cache.remove(key), data[key]);
-            if (data.containsKey(key)) drop(key, RemovalCause.removed);
+            if (data.containsKey(key)) drop(key, XlruRemovalCause.removed);
           case 5:
             maxSize = random.nextInt(6) + 1;
             trim();
@@ -514,7 +514,7 @@ void main() {
             expect(cache.peek(key), data[key]);
           case 7:
             for (final key in order.reversed.toList()) {
-              drop(key, RemovalCause.cleared);
+              drop(key, XlruRemovalCause.cleared);
             }
             cache.clear();
         }
@@ -539,7 +539,7 @@ void main() {
       final order = <int>[]; // Newest first.
       final data = <int, int>{};
       var maxSize = 150;
-      final cache = LruCache<int, int>(
+      final cache = XlruCache<int, int>(
           maxSize: maxSize,
           equals: hash == null ? null : (a, b) => a == b,
           hashCode: hash);
@@ -592,4 +592,36 @@ void main() {
       expect(cache.values, order.map((k) => data[k]));
     });
   }
+  group('usePinned', () {
+    test('returns null and skips the action for a missing key', () {
+      final cache = XlruCache<int, int>(maxSize: 2);
+      var called = false;
+      expect(cache.usePinned(1, (v) => called = true), isNull);
+      expect(called, isFalse);
+    });
+
+    test('pins during the action and unpins after', () {
+      final removed = <int>[];
+      final cache =
+          XlruCache<int, int>(maxSize: 1, onRemove: (k, v, c) => removed.add(k))
+            ..set(1, 10);
+      final result = cache.usePinned(1, (v) {
+        expect(cache.isPinned(1), isTrue);
+        cache.set(2, 20); // Cannot evict 1 while pinned.
+        expect(cache.containsKey(1), isTrue);
+        return v + 1;
+      });
+      expect(result, 11);
+      expect(cache.isPinned(1), isFalse);
+      expect(cache.keys, [2]); // Unpin converged on capacity.
+      expect(removed, [1]);
+    });
+
+    test('unpins when the action throws', () {
+      final cache = XlruCache<int, int>(maxSize: 2)..set(1, 1);
+      expect(() => cache.usePinned(1, (v) => throw StateError('x')),
+          throwsStateError);
+      expect(cache.isPinned(1), isFalse);
+    });
+  });
 }

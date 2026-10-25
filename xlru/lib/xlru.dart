@@ -1,9 +1,9 @@
-/// A strict least-recently-used cache with pinning and removal notifications.
+/// A least-recently-used cache with pinning and removal notifications.
 ///
 /// ```dart
 /// import 'package:xlru/xlru.dart';
 ///
-/// final cache = LruCache<String, int>(maxSize: 2);
+/// final cache = XlruCache<String, int>(maxSize: 2);
 /// cache.set('one', 1);
 /// cache.pin('one');
 /// cache.set('two', 2);
@@ -14,18 +14,18 @@ library;
 import 'dart:collection';
 import 'dart:typed_data';
 
-/// The reason an entry was removed from a [LruCache].
-enum RemovalCause {
+/// The reason an entry was removed from a [XlruCache].
+enum XlruRemovalCause {
   /// Capacity enforcement removed an unpinned entry.
   evicted,
 
-  /// [LruCache.set] replaced a value with a non-identical value.
+  /// [XlruCache.set] replaced a value with a non-identical value.
   replaced,
 
-  /// [LruCache.remove] explicitly removed an entry.
+  /// [XlruCache.remove] explicitly removed an entry.
   removed,
 
-  /// [LruCache.clear] removed an entry.
+  /// [XlruCache.clear] removed an entry.
   cleared,
 }
 
@@ -34,10 +34,11 @@ enum RemovalCause {
 /// Notifications run synchronously after the operation has restored a consistent
 /// cache state. Reentrant cache calls are allowed. If a listener throws, remaining
 /// notifications in that batch still run, then the first error is rethrown with
-/// its original stack trace. A replacement notification does not imply that the
+/// its original stack trace from the calling cache method (`set`, `remove`,
+/// `clear`, `resize`, `unpin`, `putIfAbsent`); the mutations are not rolled back. A replacement notification does not imply that the
 /// key is absent: it describes the old value.
-typedef RemovalListener<K, V> = void Function(
-    K key, V value, RemovalCause cause);
+typedef XlruRemovalListener<K, V> = void Function(
+    K key, V value, XlruRemovalCause cause);
 
 /// Slot index meaning "no slot" in the recency and free lists.
 const int _none = -1;
@@ -63,18 +64,32 @@ const int _hashBits = 0x3fffffff;
 /// [putIfAbsent] is not eligible during that call (see [allowSelfEviction]).
 /// Use within a single isolate; no locking is performed.
 ///
+/// [maxSize] counts entries; it is neither a memory limit nor a hard cap while
+/// entries are pinned. There is no expiry, weighting, or async loading.
+///
 /// Iterators throw [ConcurrentModificationError] after a successful mutation,
 /// including pin changes, value replacement, resizing, or recency changes.
-/// Reading an already newest entry does not change recency.
+/// Reading an already newest entry does not change recency. Do not call [get]
+/// while iterating [keys]; use [peek] or copy first with `keys.toList()`. The
+/// iterables are not random access: `keys.length` and `keys.contains` are O(n),
+/// so prefer [length] and [containsKey].
+///
+/// A removal listener may dispose the removed value, so a value returned by
+/// [remove] (or by [putIfAbsent] with [allowSelfEviction]) may already be
+/// disposed. Pins guard against capacity eviction only, not [set] replacement,
+/// [remove], or [clear]. Share one resource between keys only if the listener
+/// coordinates its disposal.
+///
+/// A listener that throws does not undo the operation; see [XlruRemovalListener].
 ///
 /// ```dart
-/// final cache = LruCache<String, int>(maxSize: 2);
+/// final cache = XlruCache<String, int>(maxSize: 2);
 /// cache.set('a', 1);
 /// cache.set('b', 2);
 /// cache.get('a');
 /// assert(cache.keys.join(',') == 'a,b');
 /// ```
-class LruCache<K, V> {
+final class XlruCache<K, V> {
   /// Creates an empty cache with capacity [maxSize], which must be at least one.
   ///
   /// [onRemove] receives removal notifications after each operation completes.
@@ -82,9 +97,9 @@ class LruCache<K, V> {
   /// equal keys must have equal, stable hash codes. Defaults use `==` and the
   /// key's `hashCode`. [allowSelfEviction] is described at [allowSelfEviction].
   /// Throws [ArgumentError] for an invalid capacity.
-  LruCache({
+  XlruCache({
     required int maxSize,
-    RemovalListener<K, V>? onRemove,
+    XlruRemovalListener<K, V>? onRemove,
     bool Function(K, K)? equals,
     int Function(K)? hashCode,
     this.allowSelfEviction = false,
@@ -110,7 +125,7 @@ class LruCache<K, V> {
   /// entries, so a new entry can be evicted (and reported) immediately.
   ///
   /// ```dart
-  /// final cache = LruCache<String, int>(maxSize: 1)..set('a', 1)..pin('a');
+  /// final cache = XlruCache<String, int>(maxSize: 1)..set('a', 1)..pin('a');
   /// cache.set('b', 2);
   /// assert(cache.containsKey('b')); // Kept; length is 2 until 'a' unpins.
   /// ```
@@ -122,7 +137,7 @@ class LruCache<K, V> {
   // without rehashing or comparing its key. Evictions hand their slot to the
   // new entry, link updates need no type checks on any compiler, and hot
   // reads return the stored `V?` without casts.
-  final RemovalListener<K, V>? _onRemove;
+  final XlruRemovalListener<K, V>? _onRemove;
   final bool Function(K, K)? _equals;
   final int Function(K)? _hashCode;
   int _maxSize;
@@ -214,7 +229,7 @@ class LruCache<K, V> {
   /// Inserts [value] at [key], or replaces its value, and makes it newest.
   ///
   /// Existing keys retain their original key object and pin count. A
-  /// non-[identical] old value generates a [RemovalCause.replaced] notification
+  /// non-[identical] old value generates a [XlruRemovalCause.replaced] notification
   /// before capacity eviction notifications. Identical replacement still
   /// promotes the entry. The written entry is protected from this call's
   /// capacity enforcement unless [allowSelfEviction] is true. Notifications run
@@ -244,7 +259,7 @@ class LruCache<K, V> {
       final old = _values[slot];
       if (!identical(old, value)) {
         if (_onRemove != null) {
-          removed = [_Removal(_keys[slot], old, RemovalCause.replaced)];
+          removed = [_Removal(_keys[slot], old, XlruRemovalCause.replaced)];
         }
         _values[slot] = value;
         _version++;
@@ -261,7 +276,8 @@ class LruCache<K, V> {
   /// by the creator itself remain. If the creator inserts [key] reentrantly,
   /// [set] replaces that value. The created value stays cached when this call
   /// returns, unless [allowSelfEviction] is true and every older entry is
-  /// pinned, in which case it may already have been evicted.
+  /// pinned, in which case it may already have been evicted. A removal listener
+  /// that writes to the cache reentrantly can also evict it before this returns.
   V putIfAbsent(K key, V Function() ifAbsent) {
     final slot = _find(key, _hash(key));
     if (slot != _none) {
@@ -275,7 +291,7 @@ class LruCache<K, V> {
 
   /// Removes [key] regardless of pins and returns its value, or null if absent.
   ///
-  /// An existing entry generates [RemovalCause.removed], including null values.
+  /// An existing entry generates [XlruRemovalCause.removed], including null values.
   V? remove(K key) {
     final slot = _find(key, _hash(key));
     if (slot == _none) return null;
@@ -286,21 +302,22 @@ class LruCache<K, V> {
     _release(slot);
     _version++;
     if (_onRemove != null) {
-      _notify([_Removal(storedKey, value, RemovalCause.removed)]);
+      _notify([_Removal(storedKey, value, XlruRemovalCause.removed)]);
     }
     return value;
   }
 
   /// Removes all entries regardless of pins, notifying oldest to newest.
   ///
-  /// Each removed entry generates [RemovalCause.cleared]. The cache is empty
+  /// Each removed entry generates [XlruRemovalCause.cleared]. The cache is empty
   /// before notifications begin; entries inserted by listeners remain present.
   void clear() {
     List<_Removal>? removed;
     if (_onRemove != null) {
       removed = [];
       for (var slot = _oldest; slot != _none; slot = _newer[slot]) {
-        removed.add(_Removal(_keys[slot], _values[slot], RemovalCause.cleared));
+        removed.add(
+            _Removal(_keys[slot], _values[slot], XlruRemovalCause.cleared));
       }
     }
     if (_count != 0) _version++;
@@ -324,7 +341,8 @@ class LruCache<K, V> {
   ///
   /// Returns false if absent or not pinned. On success returns true and
   /// immediately enforces capacity; an entry whose count reaches zero may be
-  /// evicted before this method returns.
+  /// evicted before this method returns, so removal listeners can run here and
+  /// any exception they throw propagates from this call.
   bool unpin(K key) {
     final slot = _find(key, _hash(key));
     if (slot == _none || _pins[slot] == 0) return false;
@@ -332,6 +350,29 @@ class LruCache<K, V> {
     _version++;
     _notify(_trim(null, _none));
     return true;
+  }
+
+  /// Pins [key], runs [action] with its value, then unpins in a `finally`.
+  ///
+  /// Returns null without calling [action] if [key] is absent; otherwise returns
+  /// the result of [action]. The unpin runs even when [action] throws, so a pin
+  /// cannot leak. If [action] removes [key] and inserts it again, the unpin
+  /// applies to the new entry. Use [pin] and [unpin] directly when the entry
+  /// must stay pinned beyond a single synchronous call.
+  ///
+  /// ```dart
+  /// final length = cache.usePinned('a', (value) => value.length);
+  /// ```
+  R? usePinned<R>(K key, R Function(V value) action) {
+    final slot = _find(key, _hash(key));
+    if (slot == _none) return null;
+    final value = _values[slot] as V;
+    pin(key);
+    try {
+      return action(value);
+    } finally {
+      unpin(key);
+    }
   }
 
   /// Returns whether [key] exists with a positive pin count, without promotion.
@@ -536,7 +577,7 @@ class LruCache<K, V> {
   List<_Removal>? _unlink(int slot, List<_Removal>? removed) {
     if (_onRemove != null) {
       (removed ??= [])
-          .add(_Removal(_keys[slot], _values[slot], RemovalCause.evicted));
+          .add(_Removal(_keys[slot], _values[slot], XlruRemovalCause.evicted));
     }
     _unindex(slot);
     _detach(slot);
@@ -557,7 +598,7 @@ class LruCache<K, V> {
     return removed;
   }
 
-  /// Delivers [removed] to the listener; see [RemovalListener] for semantics.
+  /// Delivers [removed] to the listener; see [XlruRemovalListener] for semantics.
   void _notify(List<_Removal>? removed) {
     final listener = _onRemove;
     if (listener == null || removed == null) return;
@@ -582,12 +623,12 @@ class _Removal {
   _Removal(this.key, this.value, this.cause);
   final Object? key;
   final Object? value;
-  final RemovalCause cause;
+  final XlruRemovalCause cause;
 }
 
 class _CacheIterable<K, V, T> extends IterableBase<T> {
   _CacheIterable(this.cache, this.select);
-  final LruCache<K, V> cache;
+  final XlruCache<K, V> cache;
   final T Function(int slot) select;
 
   @override
@@ -598,7 +639,7 @@ class _CacheIterator<K, V, T> implements Iterator<T> {
   _CacheIterator(this.cache, this.select)
       : version = cache._version,
         next = cache._newest;
-  final LruCache<K, V> cache;
+  final XlruCache<K, V> cache;
   final T Function(int slot) select;
   final int version;
   int next;

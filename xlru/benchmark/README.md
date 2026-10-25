@@ -19,7 +19,10 @@ allowing repeated traces to remain in steady state. Hit assumptions are
 checked over two repetitions in setup. String creation and trace generation
 are excluded from timing; trace iteration, adapter dispatch, and a read checksum
 are included equally. These are throughput microbenchmarks, not allocation,
-latency-percentile, callback, or heavily pinned workload measurements.
+latency-percentile, callback, miss-heavy, or heavily pinned workload
+measurements. The `LinkedHashMap` baseline removes `keys.first`, which degrades
+with size, so its ratios are only a sanity check; quiver is the meaningful
+comparison.
 
 Each case is warmed for at least 200 ms, then timed in 5 runs of at least
 500 ms each (`BenchmarkBase.measureFor`); the median run is reported. An

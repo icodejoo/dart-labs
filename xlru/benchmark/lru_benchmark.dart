@@ -10,8 +10,8 @@ abstract class _Adapter<K> {
 }
 
 class _Xlru<K> implements _Adapter<K> {
-  _Xlru(int capacity) : cache = LruCache<K, int>(maxSize: capacity);
-  final LruCache<K, int> cache;
+  _Xlru(int capacity) : cache = XlruCache<K, int>(maxSize: capacity);
+  final XlruCache<K, int> cache;
   @override
   int? get(K key) => cache.get(key);
   @override

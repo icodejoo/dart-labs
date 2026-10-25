@@ -1,8 +1,7 @@
 name: xlru
-description: A zero-dependency, strict LRU cache with reason-aware removal callbacks, reference-counted pinning, and non-promoting lookups.
+description: A zero-dependency LRU cache with reason-aware removal callbacks, reference-counted pinning, and non-promoting lookups.
 version: 0.1.0
-homepage: https://github.com/icodejoo/dart-labs/tree/main/xlru
-repository: https://github.com/icodejoo/dart-labs
+repository: https://github.com/icodejoo/dart-labs/tree/main/xlru
 issue_tracker: https://github.com/icodejoo/dart-labs/issues
 
 topics:
@@ -14,8 +13,6 @@ topics:
 
 environment:
   sdk: ^3.5.0
-
-dependencies: {}
 
 dev_dependencies:
   benchmark_harness: ^2.2.2

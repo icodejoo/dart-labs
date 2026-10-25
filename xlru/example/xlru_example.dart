@@ -9,7 +9,7 @@ class SceneFeed {
 }
 
 void main() {
-  final feeds = LruCache<String, SceneFeed>(
+  final feeds = XlruCache<String, SceneFeed>(
     maxSize: 2,
     onRemove: (key, feed, cause) {
       print('$key: ${cause.name}');
