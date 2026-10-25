@@ -89,3 +89,71 @@
 - 起播/停止后的内存与换源后的内存观察时间短，只能说明没有明显增长，不能代替长跑。
 - 测试 app 的 `Video` 控件设了品红 `fill`，原版插件下品红底色是否生效取决于信箱区，色条判据不受影响。
 - 本节的"局限"里此前写的"5 轮/缩放/最大化没对 0007 重跑"，以本节为准已补跑。
+
+## CI 产物验证
+
+日期：2026-10-25。被测：仓库内 CI 注入的 `mova/libmpv/windows-x86_64-whep/libmpv-2.dll`（HEAD 7828bc83，10,876,416 B，MD5 53a88f41...）。只读使用：把它拷进 `D:\tmp\var_ci`（`var_sw` 的副本，DLL 替换为 CI 版），仓库文件未改。其余条件同前：旧 ANGLE v1.0.1 + 原版 media_kit_video 2.0.1 + 硬件渲染；MediaMTX + ffmpeg testsrc2 1280x720@30 1.5Mbps + opus；`demuxer-max-back-bytes=0;demuxer-seekable-cache=no`；15s 采样，t>=60s 最小二乘（`D:\tmp\heap\slope.py`）。脚本与原始数据在 `D:\tmp\ci\`（不入库）。
+
+### 1. sha256 与 LFS 指针
+
+`git cat-file -p HEAD:mova/libmpv/windows-x86_64-whep/libmpv-2.dll` 的 oid 为 `313f45d8f017f659b74866bfe990d5fe34b43e623c2445fc230b7a0413e3c38e`，size 10876416；工作区文件 sha256 完全一致，大小一致。
+
+### 2. WHEP 长跑斜率
+
+| 组合 | 时长 | 私有 MiB（t=60s -> 末） | 斜率 MiB/min |
+|---|---|---|---|
+| 无补丁 | 660s | 349.5 -> 445.5 | 10.07 |
+| 本地重编 0007 | 948s（n=56） | 337.7 -> 343.0 | 0.26 |
+| **CI 产物** | 991s（n=63） | 336.9 -> 344.2 | **0.42** |
+
+CI 版达到 <1 MiB/min 目标。线程 328 -> 330（稳定），句柄 1725 -> 1817：句柄在 t=796s 到 811s 之间一次性 +110（1721 -> 1831）后保持平台，之前约 800s 内在 1714~1727 间波动，不是线性增长；本地重编版同类长跑是 1728 -> 1721，没有这一跳。跳变原因未查（只有一次，未重现）。0.42 与 0.26 的差别在单次运行的波动范围内，没做重复运行，不下结论。
+
+### 3. 出画与精简回归
+
+- 长跑起播约 45s：`PrintWindow`（client 1898x1024）色条 红/绿/黄/蓝/青 = 17552/15539/17967/17532/17699，出画。
+- 起播/停止 5 轮（每轮起播 22s、停 4s）：每轮出画（第 2 轮绿 10026 偏低但远大于 0，其余 1.5 万～1.8 万），黑色 0.6%，无崩溃。起播后句柄/线程 1728/332、1735/333、1732/330、1732/330、1734/330；停止后 1540/292、1538/291、1535/288、1532/287、1534/287。停止后私有内存 320 -> 320 -> 322 -> 321 -> 324 MiB。
+- 缩放 20 次（800x600/1200x700/640x400/1000x800 轮换）+ 最大化/还原 5 次：每步都出画，`FAILS=0`，无崩溃。最大化私有内存 990～1163 MiB，还原后 3s 读数 352～601 MiB，缩放过程中回落到 357～389 MiB；句柄 1731 -> 1736、线程 333 -> 329。最大化时约 1 GiB 的现象与 0007 无关，同上文，仍未处理。
+
+### 4. 与本地重编版对比、strings 核对
+
+斜率 0.42 对 0.26，均 <1 MiB/min，不触发"明显更高"的条件。仍做了核对：两份 DLL 的 `strings -a` 里 `GL_EXT_disjoint_timer_query` 各 1 处、含 `ANGLE` 的字符串各 21 处，数量一致。两份 DLL 字节不同（MD5 b0828c63... 对 53a88f41...，大小差 512 B），是不同时间、不同环境构建的产物，差异未逐项分析。
+
+### 5. 未验证项
+
+- 只做了一次 991s 长跑，没有重复运行，0.42 与 0.26 的差距是否为噪声未确认。
+- 句柄 t≈800s 处 +110 的一次性跳变未复现、未定位。
+- `strings` 只能证明字符串在，不能证明补丁逻辑生效；生效的依据是斜率（0.42 对无补丁 10.07）。
+- 未做 mp4/换源/真全屏回归，也未测其他 ANGLE 构建、其他显卡驱动，范围同前文"局限"。
+
+## 其他 GPU 与句柄复测
+
+日期：2026-10-25。被测同上：仓库内 CI 注入的 `libmpv-2.dll`（sha256 前缀 313f45d8，只读使用，未改仓库文件），旧 ANGLE v1.0.1 + 原版 media_kit_video 2.0.1。脚本与数据在 `D:\tmp\ci2\`（`hsnap.ps1` 为 NtQuerySystemInformation 句柄类型采样器；`b.csv`、`bdump_*.txt`、`a.log`），不入库。
+
+### A. 其他 GPU 路径：本机没有可用的第二块 GPU
+
+- `Get-CimInstance Win32_VideoController` 只有 NVIDIA GeForce RTX 4060 Laptop GPU。
+- `Get-PnpDevice -Class Display` 另有一条 **AMD Radeon(TM) 610M**（`PCI\VEN_1002&DEV_164E`），但 `IsPresent=False`、`CM_PROB_PHANTOM`，是历史残留的幽灵设备（集显在 BIOS/MUX 里关着或当前不枚举），不可用。
+- dxdiag 只列一个显示设备（RTX 4060），`Hybrid Graphics GPU: Discrete`，`Microsoft Graphics Hybrid: Not Supported`。
+- DXGI 适配器（`HKLM\SOFTWARE\Microsoft\DirectX`）：NVIDIA（LUID 0x10B22）与 Microsoft Basic Render Driver（LUID 0x173D6，即 WARP）；GPU Adapter Memory 性能计数器同样只有这两个 LUID。
+- 结论：没有 Intel/AMD 集显可测。每应用 GPU 偏好（UserGpuPreferences）无处可指，**没有改注册表**；该键下现有项只有 Lenovo 两个 env_detect.exe 的 `GpuPreference=2` 和 `VRROptimizeEnable=0`，均为系统自带，未动。
+
+WARP 对照尝试：
+
+- 做法：复制 media_kit_video 2.0.1 到 `D:\tmp\mkv_warp`，把 `angle_surface_manager.cc` 里 D3D11 设备的 `D3D_DRIVER_TYPE_HARDWARE` 改成 `D3D_DRIVER_TYPE_WARP`，用 fvm flutter 3.47.1 重编测试 app（`D:\tmp\warp_app`），产物 `D:\tmp\var_warp`，换入 CI 版 libmpv-2.dll 与旧 ANGLE（sha256 与 `var_ci` 一致）。
+- 结果：起播日志为 `ANGLESurfaceManager: Failure: eglCreatePbufferFromClientBuffer` 后 `VideoOutput: Using S/W rendering.`。WARP 设备的共享纹理无法被 ANGLE 建成 pbuffer，media_kit 自动退回**软件渲染**，没有进入硬件渲染路径，所以没有走 mpv 的 GPU 计时器代码，这一轮对 0007 没有验证价值。GPU 引擎计数器佐证：进程的 3D 引擎占用全在 NVIDIA LUID（Flutter 自己的 ANGLE 仍在 4060 上），WARP LUID 为 0。
+- 已因此中止该进程（按 PID 杀），没有跑满 15 分钟，没有斜率数据。软件渲染路径的 CPU 评估见 2026-10-24-software-render-cpu-eval 笔记，与 0007 无关。
+- 要让整条链真走 WARP，需要 Flutter 引擎自己的 ANGLE 也跑在 WARP 上并改共享方式，改动超出本次范围，未做。且 WARP 本来就不等于 AMD/Intel 驱动。
+
+### B. 句柄跳变复测：未复现
+
+- 条件同"CI 产物验证"：独立进程，WHEP 720p30 1.5 Mbps，`demuxer-max-back-bytes=0;demuxer-seekable-cache=no`，起播后 15s 采样（`b.csv`，n=63 个 t>=60s 样本），共 993s，MediaMTX 与 ffmpeg 为本次自起（按 PID 管理，结束后已停）。
+- 私有内存 339.3 -> 344.7 MiB，斜率 **0.33 MiB/min**（上次 0.42，本地重编 0.26，无补丁 10.07），三次都在 0.26~0.42，可视为同一量级的波动。
+- 句柄：t=15s 1839，之后缓慢回落到 1801~1832，末 1808；线程 337 -> 328。**t≈800s 前后（783/798/813s）为 1805/1805/1808，没有 +110 跳变**，全程没有任何一次 >+15 的上升。
+- 类型分布（每 15s 一次）：Event 987 -> 967，Thread 335 左右，WaitCompletionPacket 122 -> 117，Section 73~74，Key 53，File 26，IRTimer 11~12，其余恒定；约 216 个句柄类型无法解析（DuplicateHandle 失败，数量恒定，不随时间变化）。没有哪一类随时间增长。
+- 因没有复现，无需句柄定位；每个采样点的句柄值+类型清单已存 `D:\tmp\ci2\bdump_*.txt` 备查。上次那次 +110 仍原因不明，只能说 2 次 CI DLL 长跑里 1 次出现、1 次未出现，是低概率偶发或与外部因素（如系统/驱动）有关，未证实也未排除。
+
+### 未验证项
+
+- 没有 Intel/AMD 集显可测；WARP 路径因 media_kit 退回软件渲染，未验证 0007 在其他驱动上的行为。
+- 句柄跳变只做了一次复测（未复现），不能断言根治或必现。
+- WARP 与 B 轮都没有重做缩放/最大化回归（B 轮在 4060 上已于前文做过）；B 轮长跑没有截图验证出画（前文 CI 产物验证已验证）。
