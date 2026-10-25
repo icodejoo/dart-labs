@@ -42,10 +42,14 @@ mova-libmpv 的绝大部分代码遵循 **LGPL version 2.1 或更高版本**，�
 - **MPL-2.0 完整条文**：`third_party/LICENSES/MPL-2.0.txt`
 - **详细登记表**：`third_party/PROVENANCE.md`（每个拷贝/移植文件的来源、版本、修改说明）
 
-## 6. 免责声明
+## 6. Windows 随包 ANGLE（BSD-3-Clause 及其第三方代码）
+
+Windows 切片包 `mova/packages/media_kit_libs_windows_video_slim` 在构建时随应用分发 `libEGL.dll`、`libGLESv2.dll`（ANGLE，当前为上游 alexmercerind `ANGLE.7z` v1.0.1，2022-08 构建）。ANGLE 本体为 **BSD-3-Clause**，`libGLESv2.dll` 还静态带有 Abseil（Apache-2.0）、zlib 等第三方代码。精简版声明与许可全文见该包根目录 `NOTICE.md`（非法律意见，完整性需人工核对）。
+
+## 7. 免责声明
 
 本软件包含的所有代码均按"现状"（"as is"）提供，不附带任何明确或隐含的保证。具体见 MPL-2.0 的第 6–7 条及 LGPL 的相应条款。
 
 ---
 
-**更新**：此文档最后更新于 2026-10-02。如对许可有疑问，请参考上述源文档或咨询法务。
+**更新**：此文档最后更新于 2026-10-24。如对许可有疑问，请参考上述源文档或咨询法务。

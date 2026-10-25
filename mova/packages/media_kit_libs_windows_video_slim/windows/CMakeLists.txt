@@ -1,7 +1,7 @@
 # This file is a part of media_kit (https://github.com/media-kit/media-kit).
 # Modified for mova: uses mova-libmpv's own slimmed libmpv-2.dll instead of
-# downloading the upstream media_kit prebuilt archive. ANGLE download logic
-# is unchanged (unrelated to libmpv).
+# downloading the upstream media_kit prebuilt archive. ANGLE is likewise
+# replaced by a newer build hosted as this repo's release asset (see below).
 
 cmake_minimum_required(VERSION 3.14)
 
@@ -15,50 +15,39 @@ project(${PROJECT_NAME} LANGUAGES CXX)
 add_compile_definitions(_DISABLE_CONSTEXPR_MUTEX_CONSTRUCTOR)
 
 # ------------------------------------------------------------------------------
-function(download_and_verify url md5 locationForArchive)
-  # Check if the archive exists.
+# 下载归档并校验 sha256；已存在且校验通过则跳过，校验失败直接报错，不回退旧文件。
+function(download_and_verify url sha256 locationForArchive)
+  # 已有归档但 sha256 不符：删除后重新下载。
   if(EXISTS "${locationForArchive}")
-    file(MD5 "${locationForArchive}" ARCHIVE_MD5)
+    file(SHA256 "${locationForArchive}" ARCHIVE_SHA256)
 
-    # If MD5 doesn't match, delete the archive to download again.
-    if(NOT md5 STREQUAL ARCHIVE_MD5)
+    if(NOT sha256 STREQUAL ARCHIVE_SHA256)
       file(REMOVE "${locationForArchive}")
-      message(STATUS "MD5 mismatch. File deleted.")
+      message(STATUS "SHA256 mismatch. File deleted.")
     endif()
   endif()
 
-  # Download the archive if it doesn't exist.
+  # 归档不存在则下载。
   if(NOT EXISTS "${locationForArchive}")
     message(STATUS "Downloading archive from ${url}...")
-    file(DOWNLOAD "${url}" "${locationForArchive}")
+    file(DOWNLOAD "${url}" "${locationForArchive}" STATUS DOWNLOAD_STATUS)
+    list(GET DOWNLOAD_STATUS 0 DOWNLOAD_CODE)
+
+    if(NOT DOWNLOAD_CODE EQUAL 0)
+      file(REMOVE "${locationForArchive}")
+      message(FATAL_ERROR "Download failed: ${url} (${DOWNLOAD_STATUS}).")
+    endif()
     message(STATUS "Downloaded archive to ${locationForArchive}.")
 
-    # Verify MD5 of the newly downloaded file.
-    file(MD5 "${locationForArchive}" ARCHIVE_MD5)
+    # 校验刚下载文件的 sha256。
+    file(SHA256 "${locationForArchive}" ARCHIVE_SHA256)
 
-    if(md5 STREQUAL ARCHIVE_MD5)
+    if(sha256 STREQUAL ARCHIVE_SHA256)
       message(STATUS "${locationForArchive} Verification successful.")
     else()
-      message(FATAL_ERROR "${locationForArchive} Integrity check failed, please try to re-build project again.")
+      file(REMOVE "${locationForArchive}")
+      message(FATAL_ERROR "${locationForArchive} Integrity check failed (expected ${sha256}, got ${ARCHIVE_SHA256}), please try to re-build project again.")
     endif()
-  endif()
-endfunction()
-
-function(check_directory_exists_and_not_empty dir result_var)
-  # Check if the directory exists
-  if(EXISTS "${dir}")
-    # Check if the directory is not empty
-    file(GLOB dir_contents "${dir}/*")
-
-    if(dir_contents)
-      set(${result_var} TRUE PARENT_SCOPE)
-    else()
-      set(${result_var} FALSE PARENT_SCOPE)
-      message(STATUS "Directory ${dir} exists but is empty!")
-    endif()
-  else()
-    set(${result_var} FALSE PARENT_SCOPE)
-    message(STATUS "Directory ${dir} does not exist!")
   endif()
 endfunction()
 
@@ -121,34 +110,75 @@ file(COPY "${MOVA_LIBMPV_HEADERS_DIR}/" DESTINATION "${LIBMPV_SRC}/include")
 message(STATUS "[mova slim] Populated ${LIBMPV_SRC} for media_kit_video's link step")
 
 # ------------------------------------------------------------------------------
-# ANGLE archive containing the pre-built shared libraries & headers.
-# Unrelated to libmpv — kept as the upstream download, unchanged.
+# [mova slim] ANGLE：运行时只随包 libEGL.dll、libGLESv2.dll（见文末 bundled_libraries）。
+# 下载改为 sha256 校验，解压目录带标记，并提供本地覆盖开关。
+# 当前仍指向上游 alexmercerind ANGLE.7z v1.0.1（2022-08）：它在 OpenGL ES 硬件渲染下
+# 每分钟泄漏约 9~10 MiB，但 Chromium 117 及以后的 ANGLE 构建在 media_kit_video 2.0.1 下
+# 不出画（Chromium 116 及以前能出画但同样泄漏），所以暂时不能换新版。
+# 实测数据与结论见 mova-libmpv/doc/notes/2026-10-24-angle-replacement-verify.md。
+# 将来换资产：改 ANGLE_URL 与 ANGLE_SHA256，资产需含 include/（EGL、GLES2、KHR）与
+# lib/（两个 .dll.lib），因为 media_kit_video 硬编码读取 ${CMAKE_BINARY_DIR}/ANGLE。
+# 本地自测开关：设置 CMake 变量或环境变量 MOVA_ANGLE_LOCAL_DIR 指向资产解压后的目录，
+# 则跳过下载与校验直接使用；默认关闭。
 # ------------------------------------------------------------------------------
 set(ANGLE "ANGLE.7z")
 
 set(ANGLE_URL "https://github.com/alexmercerind/flutter-windows-ANGLE-OpenGL-ES/releases/download/v1.0.1/ANGLE.7z")
-set(ANGLE_MD5 "e866f13e8d552348058afaafe869b1ed")
+set(ANGLE_SHA256 "cc5911bb15d596fd5a2b362613ad35b7093b427117269a7359054a65746a5f9a")
 
 set(ANGLE_ARCHIVE "${CMAKE_BINARY_DIR}/${ANGLE}")
 set(ANGLE_SRC "${CMAKE_BINARY_DIR}/ANGLE")
+set(ANGLE_STAMP "${ANGLE_SRC}/.mova-angle-stamp")
 
-download_and_verify(
-  ${ANGLE_URL}
-  ${ANGLE_MD5}
-  ${ANGLE_ARCHIVE}
-)
+if(NOT DEFINED MOVA_ANGLE_LOCAL_DIR AND DEFINED ENV{MOVA_ANGLE_LOCAL_DIR})
+  set(MOVA_ANGLE_LOCAL_DIR "$ENV{MOVA_ANGLE_LOCAL_DIR}")
+endif()
 
-check_directory_exists_and_not_empty(${ANGLE_SRC} ANGLE_SRC_VALID)
-
-if(NOT ANGLE_SRC_VALID)
-  message(STATUS "Extracting ${ANGLE}...")
-  make_directory("${ANGLE_SRC}")
-  add_custom_target("${PROJECT_NAME}_ANGLE_EXTRACT" ALL)
-  add_custom_command(
-    TARGET "${PROJECT_NAME}_ANGLE_EXTRACT"
-    COMMAND "${CMAKE_COMMAND}" -E tar xzf "\"${ANGLE_ARCHIVE}\""
-    WORKING_DIRECTORY "${ANGLE_SRC}"
+if(MOVA_ANGLE_LOCAL_DIR)
+  # 本地覆盖：不校验，仅供上传前自测。
+  foreach(_f libEGL.dll libGLESv2.dll lib/libEGL.dll.lib lib/libGLESv2.dll.lib include/EGL/egl.h)
+    if(NOT EXISTS "${MOVA_ANGLE_LOCAL_DIR}/${_f}")
+      message(FATAL_ERROR "MOVA_ANGLE_LOCAL_DIR=${MOVA_ANGLE_LOCAL_DIR} is missing ${_f}.")
+    endif()
+  endforeach()
+  message(WARNING "[mova slim] Using LOCAL ANGLE from ${MOVA_ANGLE_LOCAL_DIR} (no checksum verification).")
+  file(REMOVE_RECURSE "${ANGLE_SRC}")
+  file(MAKE_DIRECTORY "${ANGLE_SRC}")
+  file(COPY "${MOVA_ANGLE_LOCAL_DIR}/" DESTINATION "${ANGLE_SRC}")
+  file(WRITE "${ANGLE_STAMP}" "local")
+else()
+  download_and_verify(
+    ${ANGLE_URL}
+    ${ANGLE_SHA256}
+    ${ANGLE_ARCHIVE}
   )
+
+  # 解压目录里的标记与校验值不一致（含换版本、从本地覆盖切回）就清掉重解压，避免误用旧 DLL。
+  set(ANGLE_STAMP_OK FALSE)
+  if(EXISTS "${ANGLE_STAMP}")
+    file(READ "${ANGLE_STAMP}" ANGLE_STAMP_CONTENT)
+    if(ANGLE_STAMP_CONTENT STREQUAL ANGLE_SHA256)
+      set(ANGLE_STAMP_OK TRUE)
+    endif()
+  endif()
+
+  if(NOT ANGLE_STAMP_OK)
+    message(STATUS "Extracting ${ANGLE}...")
+    file(REMOVE_RECURSE "${ANGLE_SRC}")
+    file(MAKE_DIRECTORY "${ANGLE_SRC}")
+    execute_process(
+      COMMAND "${CMAKE_COMMAND}" -E tar xzf "${ANGLE_ARCHIVE}"
+      WORKING_DIRECTORY "${ANGLE_SRC}"
+      RESULT_VARIABLE ANGLE_EXTRACT_RESULT
+    )
+    if(NOT ANGLE_EXTRACT_RESULT EQUAL 0
+       OR NOT EXISTS "${ANGLE_SRC}/libEGL.dll"
+       OR NOT EXISTS "${ANGLE_SRC}/libGLESv2.dll")
+      file(REMOVE_RECURSE "${ANGLE_SRC}")
+      message(FATAL_ERROR "Failed to extract ANGLE from ${ANGLE_ARCHIVE}.")
+    endif()
+    file(WRITE "${ANGLE_STAMP}" "${ANGLE_SHA256}")
+  endif()
 endif()
 
 # ------------------------------------------------------------------------------
