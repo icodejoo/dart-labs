@@ -340,8 +340,12 @@ step_finish() {
   [ "$fail" = 0 ] || die "符号检查失败"
   strip -s "$dll"
   cp "$dll" "$OUT/libmpv-2.dll"
-  # 导入库与 def（给 media_kit_video 链接期用，非必需产物）；gendef 在 mingw-w64-x86_64-tools 包里（toolchain 组已不含）
-  (cd "$OUT" && gendef libmpv-2.dll >/dev/null && dlltool -d libmpv-2.def -l libmpv.dll.a -D libmpv-2.dll) || say "gendef/dlltool 失败（非致命）"
+  # 导入库与 def（给 media_kit_video 链接期用）：不依赖 gendef（toolchain 组已不含），直接用 objdump 读导出表
+  { echo "LIBRARY libmpv-2.dll"; echo "EXPORTS"
+    objdump -p "$OUT/libmpv-2.dll" | sed -nE 's/^[[:space:]]*\[[[:space:]]*[0-9]+\][[:space:]]+\+base\[[[:space:]]*[0-9]+\][[:space:]]+[0-9a-fA-F]+[[:space:]]+([^[:space:]]+)$/\1/p'
+  } > "$OUT/libmpv-2.def"
+  grep -qx 'mpv_render_context_create' "$OUT/libmpv-2.def" || die "导出表解析失败，libmpv-2.def 缺少 mpv_render_context_create"
+  (cd "$OUT" && dlltool -d libmpv-2.def -l libmpv.dll.a -D libmpv-2.dll) || die "dlltool 生成 libmpv.dll.a 失败"
   stat -c%s "$OUT/libmpv-2.unstripped.dll" "$OUT/libmpv-2.dll" | tee "$OUT/size.txt"
   say "完成：$OUT/libmpv-2.dll  $(stat -c%s "$OUT/libmpv-2.dll") 字节"
 }
