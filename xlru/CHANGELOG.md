@@ -7,6 +7,8 @@
 - Protect the entry written by `set`/`putIfAbsent` from that call's eviction;
   opt into pure LRU order with `allowSelfEviction: true`.
 - Add `usePinned`, a scoped pin that always unpins.
+- Reserve `XlruRemovalCause.lost` for storage-backed caches, so adding backends
+  later does not break exhaustive `switch`es.
 - Skip removal bookkeeping when no `onRemove` listener is set.
 - Store entries in slot arrays behind an open-addressing index: steady-state
   writes allocate nothing without a listener and hot paths carry no runtime type checks, keeping

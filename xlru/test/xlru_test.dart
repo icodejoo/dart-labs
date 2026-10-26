@@ -624,4 +624,15 @@ void main() {
       expect(cache.isPinned(1), isFalse);
     });
   });
+
+  test('removal causes are exhaustively switchable, including lost', () {
+    String name(XlruRemovalCause cause) => switch (cause) {
+          XlruRemovalCause.evicted => 'e',
+          XlruRemovalCause.replaced => 'p',
+          XlruRemovalCause.removed => 'r',
+          XlruRemovalCause.cleared => 'c',
+          XlruRemovalCause.lost => 'l',
+        };
+    expect(XlruRemovalCause.values.map(name).join(), 'eprcl');
+  });
 }

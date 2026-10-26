@@ -27,6 +27,12 @@ enum XlruRemovalCause {
 
   /// [XlruCache.clear] removed an entry.
   cleared,
+
+  /// A storage backend no longer had the value of a cached entry.
+  ///
+  /// Only caches with a storage backend produce this; the in-memory
+  /// [XlruCache] never does. Handle it in exhaustive switches.
+  lost,
 }
 
 /// Receives the removed [key], its previous [value], and the removal [cause].

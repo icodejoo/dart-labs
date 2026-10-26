@@ -164,6 +164,7 @@ typedef XlruRemovalListener<K, V> = void Function(
 | `replaced` | `set` stored a different (non-`identical`) value for an existing key; `value` is the old one. The key is still in the cache. Setting the identical value doesn't notify. |
 | `removed` | `remove` deleted an existing entry. |
 | `cleared` | `clear` deleted the entry (oldest first). |
+| `lost` | Reserved for caches with a storage backend whose value went missing. The in-memory `XlruCache` never reports it, but keep it in exhaustive `switch`es. |
 
 ## Removal callbacks
 

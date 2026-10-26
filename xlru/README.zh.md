@@ -162,6 +162,7 @@ typedef XlruRemovalListener<K, V> = void Function(
 | `replaced` | `set` 给已有 key 存了不同（非 `identical`）的值；`value` 是旧值，key 仍在缓存里。存同一个对象不通知。 |
 | `removed` | `remove` 删除了已有的项。 |
 | `cleared` | `clear` 删除了该项（从最旧开始）。 |
+| `lost` | 预留给带存储后端的缓存：后端里的值丢了。纯内存的 `XlruCache` 不会产生它，但穷尽 `switch` 里要处理。 |
 
 ## 移除回调
 
