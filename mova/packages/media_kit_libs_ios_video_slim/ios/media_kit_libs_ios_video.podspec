@@ -1,30 +1,18 @@
 #
-# [mova slim fork] Same package name as upstream media_kit_libs_ios_video, so
-# a dependency_overrides path/git override makes this the sole provider of
-# com.alexmercerind.media_kit_libs_ios_video — upstream never enters the pod
-# graph, so there is nothing to conflict with (media_kit_video's
-# media_kit_utils.rb only aborts when it finds *more than one* package named
-# media_kit_libs_ios_*, which can't happen once the override is in effect).
+# [mova slim fork] 与上游 media_kit_libs_ios_video 同名，靠 dependency_overrides 整体替换，
+# 上游包不进 pod 依赖图。Frameworks/Mpv.xcframework 是 mova-libmpv 的 n9 WHEP 版（ffmpeg n9.0.2 +
+# whep demuxer + DTLS-SRTP，mpv v0.41.0），由 CI 编译后直接随包提交（LFS），不在 pod install 时下载。
 #
-# Unlike upstream (which downloads a prebuilt xcframework archive via `make`
-# + curl at `pod install` time), Frameworks/Mpv.xcframework here is committed
-# directly — built from mova-libmpv's own slimmed libmpv.dylib. The
-# Frameworks/.symlinks/mpv/<slice> symlinks upstream's Makefile also creates
-# are instead created by `prepare_command` below (runs at `pod install` time
-# on the real Mac build machine), reusing upstream's own
-# create_framework_symlinks.sh verbatim (MIT).
+# media_kit_video 的 podspec 从 Frameworks/.symlinks/mpv/<平台> 找 Mpv.framework，这些符号链接
+# 原先靠 prepare_command 生成；但 CocoaPods 对 :path 形式的 pod（Flutter 插件都是）不执行
+# prepare_command，所以改在 podspec 求值时建（上游官方包也是在这里 system("make")）。
 #
-# ⚠️ UNVERIFIED: assembled without Xcode/macOS tooling (no `otool`,
-# `install_name_tool`, `xcodebuild`, or a Mac to test on). Structurally
-# mirrors upstream's xcframework/podspec conventions, but has never been
-# through `pod install` / a real build. See doc/plans/2026-09-25-libmpv-pub-package.md
-# "Darwin（iOS/macOS）同名替换设计" for what's still unverified.
+# 许可证：ffmpeg 开了 --enable-version3（静态 mbedtls），整体为 LGPLv3。
 #
 Pod::Spec.new do |s|
-  s.prepare_command = <<-CMD
-    mkdir -p Frameworks/.symlinks/mpv
-    sh create_framework_symlinks.sh Frameworks/Mpv.xcframework Frameworks/.symlinks/mpv
-  CMD
+  # 求值时重建符号链接（先删后建，幂等）
+  fw_dir = File.join(File.dirname(__FILE__), 'Frameworks')
+  system("rm -rf '#{fw_dir}/.symlinks/mpv' && mkdir -p '#{fw_dir}/.symlinks/mpv' && "          "sh '#{File.dirname(__FILE__)}/create_framework_symlinks.sh' '#{fw_dir}/Mpv.xcframework' '#{fw_dir}/.symlinks/mpv'")
 
   s.name             = 'media_kit_libs_ios_video'
   s.version          = '1.0.4'
@@ -34,10 +22,7 @@ Pod::Spec.new do |s|
   mova-libmpv's own slimmed libmpv instead of upstream's prebuilt archive.
                        DESC
   s.homepage         = 'https://github.com/icodejoo/dart-labs'
-  # No LICENSE file shipped in this internal fork (matches the existing
-  # windows/android slim packages in this monorepo); Classes/ glue is MIT
-  # like upstream, Frameworks/Mpv.xcframework is LGPL-2.1 (mpv/FFmpeg).
-  s.license          = { :type => 'MIT', :text => 'See package:media_kit (MIT) for the Classes/ glue; Frameworks/Mpv.xcframework is LGPL-2.1 (mpv/FFmpeg via mova-libmpv).' }
+  s.license          = { :type => 'LGPL-3.0', :text => 'Classes/ glue: MIT (package:media_kit). Frameworks/Mpv.xcframework: LGPLv3 (mpv + FFmpeg built with --enable-version3, static mbedTLS) via mova-libmpv.' }
   s.author           = { 'Hitesh Kumar Saini' => 'saini123hitesh@gmail.com' }
 
   s.source           = { :path => '.' }
@@ -46,7 +31,7 @@ Pod::Spec.new do |s|
 
   s.vendored_frameworks = 'Frameworks/*.xcframework'
 
-  s.platform = :ios, '9.0'
+  s.platform = :ios, '13.0'
   s.pod_target_xcconfig = {
     'DEFINES_MODULE' => 'YES',
     # Flutter.framework does not contain a i386 slice.

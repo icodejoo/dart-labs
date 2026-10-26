@@ -1,10 +1,10 @@
 name: media_kit_libs_macos_video
 description: >-
-  [mova slim fork, UNVERIFIED — no Mac available to build/sign/test this
-  package] macOS package providing video (& audio) native libraries for
-  package:media_kit, using mova's own slimmed libmpv.dylib wrapped as
-  Frameworks/Mpv.xcframework instead of upstream's prebuilt archive.
-version: 1.0.0
+  [mova slim fork] macOS package providing video (& audio) native libraries for
+  package:media_kit. Frameworks/Mpv.xcframework is mova-libmpv's own single-dylib
+  build (ffmpeg n9.0.2 + WHEP/DTLS-SRTP, mpv v0.41.0, static mbedTLS; LGPLv3),
+  built and injected by CI instead of downloading upstream's prebuilt archive.
+version: 1.1.0
 publish_to: 'none'
 
 environment:

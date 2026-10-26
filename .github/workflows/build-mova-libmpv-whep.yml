@@ -566,7 +566,7 @@ jobs:
 
       - name: Mach-O check (deps whitelist / platform / exports / version strings)
         run: |
-          bash dart-labs/mova-libmpv/tools/apple/apple-macho-check.sh \
+          STRICT_EXPORTS=1 bash dart-labs/mova-libmpv/tools/apple/apple-macho-check.sh \
             "out/${{ matrix.target }}/libmpv.dylib" "${{ matrix.plat }}" "${{ matrix.archs }}" 2>&1 | tee macho.log
           test "${PIPESTATUS[0]}" = 0
           {
@@ -575,3 +575,197 @@ jobs:
             tail -n 5 macho.log
             echo '```'
           } >> "$GITHUB_STEP_SUMMARY"
+
+  # 把四个切片装配成 Mpv.xcframework（iOS 真机+模拟器、macOS universal），做端到端冒烟与 Flutter 链接检查，
+  # 通过后直接替换 slim 包里的 xcframework（注入沿用 "fetch+reset 重试 / 先 git lfs push / 再 push"）。
+  apple-package:
+    name: Apple xcframework package + verify
+    needs: [plan, apple-whep]
+    if: ${{ needs.plan.outputs.apple_full == 'true' }}
+    runs-on: macos-15
+    timeout-minutes: 120
+    env:
+      FLUTTER_VERSION: '3.47.0'
+    steps:
+      - name: Checkout dart-labs
+        uses: actions/checkout@v4
+
+      - name: Download slices
+        uses: actions/download-artifact@v4
+        with:
+          path: art
+          pattern: mova-libmpv-*-whep
+          merge-multiple: false
+
+      - name: Collect slices
+        run: |
+          set -e
+          find art -maxdepth 3 | sort | head -40
+          mkdir -p slices
+          for t in macos-arm64 macos-amd64 ios-arm64 iossimulator-arm64; do
+            src=$(find art -path "*/$t/libmpv.dylib" | head -1)
+            test -n "$src" || { echo "::error::缺少切片 $t"; exit 1; }
+            mkdir -p "slices/$t"; cp "$src" "slices/$t/libmpv.dylib"
+          done
+          ls -l slices/*/
+
+      - name: Assemble xcframeworks
+        run: bash mova-libmpv/tools/apple/apple-xcframework.sh slices pkg
+
+      - name: Pack (tar keeps framework symlinks)
+        run: |
+          tar -czf mova-libmpv-apple-xcframeworks.tar.gz -C pkg ios/Mpv.xcframework macos/Mpv.xcframework
+          ls -l mova-libmpv-apple-xcframeworks.tar.gz
+
+      - name: Upload xcframeworks
+        uses: actions/upload-artifact@v4
+        with:
+          name: mova-libmpv-apple-whep-xcframeworks
+          path: mova-libmpv-apple-xcframeworks.tar.gz
+          retention-days: 30
+
+      - name: Mach-O check on packaged frameworks
+        run: |
+          set -e
+          export STRICT_EXPORTS=1
+          C=mova-libmpv/tools/apple/apple-macho-check.sh
+          bash $C pkg/ios/Mpv.xcframework/ios-arm64/Mpv.framework/Mpv ios "arm64" "@rpath/Mpv.framework/Mpv"
+          bash $C pkg/ios/Mpv.xcframework/ios-arm64-simulator/Mpv.framework/Mpv iossimulator "arm64" "@rpath/Mpv.framework/Mpv"
+          bash $C pkg/macos/Mpv.xcframework/macos-arm64_x86_64/Mpv.framework/Versions/A/Mpv macos "arm64 x86_64" "@rpath/Mpv.framework/Mpv"
+          codesign -vvv pkg/macos/Mpv.xcframework/macos-arm64_x86_64/Mpv.framework
+          codesign -vvv pkg/ios/Mpv.xcframework/ios-arm64/Mpv.framework
+          codesign -vvv pkg/ios/Mpv.xcframework/ios-arm64-simulator/Mpv.framework
+
+      - name: WHEP end-to-end smoke (macOS arm64 native + iOS simulator)
+        env:
+          SIM_FRAMEWORK_DIR: ${{ github.workspace }}/pkg/ios/Mpv.xcframework/ios-arm64-simulator
+          SIM_OPTIONAL: '1'
+          WORK: ${{ runner.temp }}/e2e-arm64
+        run: |
+          FW="$GITHUB_WORKSPACE/pkg/macos/Mpv.xcframework/macos-arm64_x86_64"
+          bash mova-libmpv/tools/apple/whep-e2e.sh "$FW/Mpv.framework/Versions/A/Mpv" arm64 "$FW" 2>&1 | tee e2e-arm64.log
+          test "${PIPESTATUS[0]}" = 0
+
+      - name: WHEP smoke (macOS x86_64 via Rosetta)
+        continue-on-error: true
+        env:
+          SKIP_HTTPS: '1'
+          WORK: ${{ runner.temp }}/e2e-x86_64
+        run: |
+          if ! arch -x86_64 /usr/bin/true 2>/dev/null; then
+            sudo softwareupdate --install-rosetta --agree-to-license || true
+          fi
+          arch -x86_64 /usr/bin/true || { echo "::warning::runner 上没有 Rosetta，跳过 x86_64 运行验证（仅做了静态 Mach-O 检查）"; exit 0; }
+          FW="$GITHUB_WORKSPACE/pkg/macos/Mpv.xcframework/macos-arm64_x86_64"
+          bash mova-libmpv/tools/apple/whep-e2e.sh "$FW/Mpv.framework/Versions/A/Mpv" x86_64 "$FW" 2>&1 | tee e2e-x86_64.log
+          test "${PIPESTATUS[0]}" = 0
+
+      - name: Upload e2e logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: mova-libmpv-apple-e2e-logs
+          path: |
+            e2e-*.log
+            ${{ runner.temp }}/e2e-arm64/*.log
+            ${{ runner.temp }}/e2e-x86_64/*.log
+          if-no-files-found: ignore
+          retention-days: 14
+
+      # ---- Flutter 链接检查：把新 xcframework 放进 slim 包，用 mova/example 编 macOS 与 iOS ----
+      - name: Install into slim packages (workspace only)
+        run: |
+          set -e
+          rm -rf "$IOS_PKG_FRAMEWORKS/Mpv.xcframework" "$MACOS_PKG_FRAMEWORKS/Mpv.xcframework"
+          mkdir -p "$IOS_PKG_FRAMEWORKS" "$MACOS_PKG_FRAMEWORKS"
+          cp -a pkg/ios/Mpv.xcframework "$IOS_PKG_FRAMEWORKS/"
+          cp -a pkg/macos/Mpv.xcframework "$MACOS_PKG_FRAMEWORKS/"
+          ls -la "$IOS_PKG_FRAMEWORKS" "$MACOS_PKG_FRAMEWORKS"
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+
+      - name: flutter pub get (example with slim overrides)
+        working-directory: mova/example
+        run: |
+          printf 'dependency_overrides:\n  media_kit_libs_ios_video:\n    path: ../packages/media_kit_libs_ios_video_slim\n  media_kit_libs_macos_video:\n    path: ../packages/media_kit_libs_macos_video_slim\n' > pubspec_overrides.yaml
+          cat pubspec_overrides.yaml
+          flutter --version
+          flutter pub get
+
+      - name: flutter build ios --simulator --no-codesign
+        working-directory: mova/example
+        run: |
+          flutter build ios --no-codesign --simulator 2>&1 | tee ../../build-ios-sim.log | tail -n 120
+          test "${PIPESTATUS[0]}" = 0
+
+      - name: flutter build ios --no-codesign (device)
+        working-directory: mova/example
+        run: |
+          flutter build ios --no-codesign 2>&1 | tee ../../build-ios.log | tail -n 120
+          test "${PIPESTATUS[0]}" = 0
+
+      - name: flutter build macos
+        working-directory: mova/example
+        run: |
+          # example 目录没有 macos 工程，CI 里临时生成（不入库）
+          flutter create --platforms=macos --project-name mova_example . >/dev/null
+          flutter build macos 2>&1 | tee ../../build-macos.log | tail -n 120
+          test "${PIPESTATUS[0]}" = 0
+
+      - name: Verify linked apps embed our Mpv.framework
+        working-directory: mova/example
+        run: |
+          set -e
+          APP=$(find build/macos -name '*.app' -maxdepth 6 | head -1)
+          echo "macOS app: $APP"
+          ls "$APP/Contents/Frameworks" | head -30
+          test -f "$APP/Contents/Frameworks/Mpv.framework/Versions/A/Mpv"
+          otool -L "$APP/Contents/Frameworks/Mpv.framework/Versions/A/Mpv" | head
+          IOSAPP=$(find build/ios -name 'Runner.app' -maxdepth 5 | head -1)
+          echo "iOS app: $IOSAPP"
+          test -f "$IOSAPP/Frameworks/Mpv.framework/Mpv"
+
+      - name: Upload flutter build logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: mova-libmpv-apple-flutter-build-logs
+          path: build-*.log
+          if-no-files-found: ignore
+          retention-days: 14
+
+      - name: Commit xcframeworks into slim packages (current branch only)
+        if: ${{ startsWith(github.ref, 'refs/heads/') && (github.event_name != 'workflow_dispatch' || inputs.commit_artifact) }}
+        env:
+          BRANCH: ${{ github.ref_name }}
+        run: |
+          set -e
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          rm -rf "$RUNNER_TEMP/stage" && mkdir -p "$RUNNER_TEMP/stage"
+          cp -a pkg/ios/Mpv.xcframework "$RUNNER_TEMP/stage/ios.xcframework"
+          cp -a pkg/macos/Mpv.xcframework "$RUNNER_TEMP/stage/macos.xcframework"
+          for i in 1 2 3 4 5; do
+            git fetch origin "$BRANCH"
+            git reset --hard "origin/$BRANCH"
+            rm -rf "$IOS_PKG_FRAMEWORKS/Mpv.xcframework" "$MACOS_PKG_FRAMEWORKS/Mpv.xcframework"
+            mkdir -p "$IOS_PKG_FRAMEWORKS" "$MACOS_PKG_FRAMEWORKS"
+            cp -a "$RUNNER_TEMP/stage/ios.xcframework" "$IOS_PKG_FRAMEWORKS/Mpv.xcframework"
+            cp -a "$RUNNER_TEMP/stage/macos.xcframework" "$MACOS_PKG_FRAMEWORKS/Mpv.xcframework"
+            git add -A -f "$IOS_PKG_FRAMEWORKS" "$MACOS_PKG_FRAMEWORKS"
+            if git diff --cached --quiet; then
+              echo "No content change, skip commit"
+              exit 0
+            fi
+            git commit -m "chore(packages): inject WHEP Mpv.xcframework (iOS device+simulator, macOS universal) [skip ci]"
+            git lfs push origin HEAD
+            if git push origin "HEAD:refs/heads/$BRANCH"; then exit 0; fi
+            echo "push rejected, retrying from a fresh baseline ($i/5)..."
+            sleep $((RANDOM % 8 + 2))
+          done
+          echo "::error::failed to push Apple xcframeworks after retries"
+          exit 1

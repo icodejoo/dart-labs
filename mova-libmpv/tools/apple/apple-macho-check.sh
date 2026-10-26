@@ -17,7 +17,7 @@ ok()  { echo "OK  $*"; }
 case "$PLAT" in
   macos) VT_PLAT=MACOS; MIN_OK='10.15|11.0|12.0|13.0|14.0' ;;
   ios) VT_PLAT=IOS; MIN_OK='13.0' ;;
-  iossimulator) VT_PLAT=IOSSIMULATOR; MIN_OK='13.0' ;;
+  iossimulator) VT_PLAT=IOSSIMULATOR; MIN_OK='13.0|14.0' ;;   # arm64 模拟器的硬件下限是 14.0，链接器会自动抬高
   *) echo "bad platform $PLAT"; exit 2 ;;
 esac
 
@@ -62,7 +62,7 @@ for sym in mpv_create mpv_initialize mpv_command mpv_command_async mpv_set_optio
            mpv_render_context_create mpv_render_context_render mpv_wait_event mpv_terminate_destroy mpv_create_weak_client; do
   nm -gU "$LIB" 2>/dev/null | grep -q " T _${sym}\$" && ok "export $sym" || bad "缺少导出符号 $sym"
 done
-OTHER="$(nm -gU "$LIB" 2>/dev/null | awk '$2 ~ /^[TDSBt]$/ {print $3}' | grep -v '^_mpv_' | grep -v '^__mh_dylib_header$' | sort -u)"
+OTHER="$(nm -gU "$LIB" 2>/dev/null | awk '$2 ~ /^[TDSBt]$/ {print $3}' | grep -v '^_mpv_' | grep -v '^__mh_dylib_header$' | sort -u || true)"
 NOTHER="$(echo -n "$OTHER" | grep -c . || true)"
 echo "非 mpv_ 导出符号: $NOTHER"
 if [ "$NOTHER" -gt 0 ]; then
@@ -73,13 +73,12 @@ fi
 # 5. 版本串与功能字串
 if [ "${VERSION_CHECK:-1}" = 1 ]; then
   STR="$(strings -a "$LIB")"
-  echo "$STR" | grep -q 'n9\.0\.2' && ok "ffmpeg 版本串含 n9.0.2" || bad "未找到 ffmpeg n9.0.2 版本串"
-  echo "$STR" | grep -Eq '(^|[^0-9])v?0\.41\.0' && ok "mpv 版本串含 0.41.0" || bad "未找到 mpv 0.41.0 版本串"
-  echo "$STR" | grep -q 'whep' && ok "含 whep 字串" || bad "未找到 whep 字串（WHEP demuxer 未编入）"
-  echo "$STR" | grep -qi 'dtls' && ok "含 dtls 字串" || bad "未找到 dtls 字串"
-  echo "$STR" | grep -q 'mbedtls\|mbed TLS' && ok "含 mbedtls 字串" || bad "未找到 mbedtls 字串"
-  echo "$STR" | grep -q 'gpu-next' && bad "仍含 gpu-next（vo_gpu_next 补丁未生效）" || ok "无 gpu-next"
-  echo "$STR" | grep -q 'securetransport\|SecureTransport' && echo "::warning::仍含 securetransport 字串" || true
+  grep -q 'n9\.0\.2' <<<"$STR" && ok "ffmpeg 版本串含 n9.0.2" || bad "未找到 ffmpeg n9.0.2 版本串"
+  grep -Eq '(^|[^0-9])v?0\.41\.0' <<<"$STR" && ok "mpv 版本串含 0.41.0" || bad "未找到 mpv 0.41.0 版本串"
+  grep -q 'whep' <<<"$STR" && ok "含 whep 字串" || bad "未找到 whep 字串（WHEP demuxer 未编入）"
+  grep -qi 'dtls' <<<"$STR" && ok "含 dtls 字串" || bad "未找到 dtls 字串"
+  grep -Eq 'mbedtls|mbed TLS' <<<"$STR" && ok "含 mbedtls 字串" || bad "未找到 mbedtls 字串"
+  grep -q 'gpu-next' <<<"$STR" && bad "仍含 gpu-next（vo_gpu_next 补丁未生效）" || ok "无 gpu-next"
 fi
 ls -l "$LIB"
 exit $fail

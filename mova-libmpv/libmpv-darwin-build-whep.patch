@@ -328,10 +328,10 @@ index 0000000..65c31dd
 @@ -0,0 +1 @@
 +option('linking', type : 'combo', choices : ['shared', 'static'], value : 'shared')
 diff --git a/nix/packages/mk-pkg-mpv/default.nix b/nix/packages/mk-pkg-mpv/default.nix
-index 2714ec6..2801767 100644
+index 2714ec6..6d101c7 100644
 --- a/nix/packages/mk-pkg-mpv/default.nix
 +++ b/nix/packages/mk-pkg-mpv/default.nix
-@@ -85,6 +85,23 @@ let
+@@ -85,6 +85,37 @@ let
    fribidi = callPackage ../mk-pkg-fribidi/default.nix { };
    freetype = callPackage ../mk-pkg-freetype/default.nix { };
    libpng = callPackage ../mk-pkg-libpng/default.nix { };
@@ -352,10 +352,24 @@ index 2714ec6..2801767 100644
 +      echo "Libs: -lz"
 +    } > $out/lib/pkgconfig/zlib.pc
 +  '';
++
++  # WHEP 线：libmpv.dylib 的导出表只留 mpv_*。
++  # 静态折进来的 dav1d / ffmpeg 汇编（ff_*_neon）/ libass 等会以默认可见性进导出表（实测 1914 个非 mpv_ 符号），
++  # 导出符号是链接器的根，LTO 与 dead_strip 都剪不掉它们。只对 mpv 这一次链接追加导出表，
++  # 所以单独生成一份 cross-file（其它包的 cross-file 不动，避免影响它们 configure 期间的可执行文件链接探测）。
++  mpvExports = pkgs.writeText "mova-mpv-exports.txt" "_mpv_*
++";
++  crossFileMpv = pkgs.runCommand "mk-cross-file-mpv-${os}-${arch}.ini" { } ''
++    cp ${crossFile} cross-file.ini
++    chmod u+w cross-file.ini
++    sed -i -E "/^(c|cpp|objc|objcpp)_link_args[[:space:]]*=/ s/\]\$/, '-Wl,-exported_symbols_list,${mpvExports}']/" cross-file.ini
++    grep -q exported_symbols_list cross-file.ini
++    cp cross-file.ini $out
++  '';
  
    nativeBuildInputs = [
      pkgs.meson
-@@ -106,7 +123,30 @@ let
+@@ -106,7 +137,30 @@ let
  
      cd $src
      patch -p1 <${../../../patches/mpv-fix-missing-objc.patch}
@@ -387,7 +401,7 @@ index 2714ec6..2801767 100644
      if [ "${variant}" == "${variants.audio}" ]; then
        patch -p1 <${../../../patches/mpv-remove-libass.patch}
      fi
-@@ -143,29 +183,62 @@ pkgs.stdenvNoCC.mkDerivation {
+@@ -143,29 +197,68 @@ pkgs.stdenvNoCC.mkDerivation {
        freetype
        libpng
      ]
@@ -462,7 +476,13 @@ index 2714ec6..2801767 100644
 +      )
 +    fi
 +
-+    meson setup build $src       --native-file ${nativeFile}       --cross-file ${crossFile}       --prefix=$out       ${pkgs.lib.concatStringsSep " " preferStaticDeps}       ${optimizeArgs}       "''${OPTIONS[@]}" |
++    meson setup build $src \
++      --native-file ${nativeFile} \
++      --cross-file ${crossFileMpv} \
++      --prefix=$out \
++      ${pkgs.lib.concatStringsSep " " preferStaticDeps} \
++      ${optimizeArgs} \
++      "''${OPTIONS[@]}" |
 +      tee configure.log
 +        ''
 +      else
@@ -470,7 +490,7 @@ index 2714ec6..2801767 100644
      DISABLE_ALL_OPTIONS=(
        `# booleans`
        -Dgpl=false `# GPL (version 2 or later) build`
-@@ -353,6 +426,8 @@ pkgs.stdenvNoCC.mkDerivation {
+@@ -353,6 +446,8 @@ pkgs.stdenvNoCC.mkDerivation {
        ${optimizeArgs} \
        "''${OPTIONS[@]}" |
        tee configure.log
