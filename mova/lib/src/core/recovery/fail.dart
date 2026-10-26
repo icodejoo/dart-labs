@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 /// What went wrong with a playback attempt.
 ///
 /// 一次播放尝试出了什么问题。
@@ -86,6 +88,12 @@ class MovaPlayFail {
   /// 底层错误对象（若有）。
   final Object? error;
 
+  /// Whether the failing source is a live stream (`MovaSource.type` is live).
+  /// Lets a policy treat a restartable live source differently from VOD.
+  ///
+  /// 失败的源是否为直播（`MovaSource.type` 为 live）。让策略能区分可重启的直播源与点播。
+  final bool isLive;
+
   /// Whether an untried address remains after this one.
   ///
   /// 当前地址之后是否还有备选。
@@ -112,6 +120,7 @@ class MovaPlayFail {
     this.afterFirstFrame = false,
     this.waited = Duration.zero,
     this.error,
+    this.isLive = false,
   });
 }
 
@@ -224,6 +233,120 @@ class MovaRetryThenFailover implements MovaRecoveryPolicy {
       : fail.hasNextSource
           ? const MovaRecoveryDecision.failover()
           : const MovaRecoveryDecision.giveUp();
+}
+
+/// Keeps reconnecting a live source: retries with exponential backoff
+/// (capped at [maxDelay]) instead of giving up, so a publisher that restarts
+/// or drops for a while is picked up again automatically. With alternatives,
+/// every address but the last is retried [retriesPerAddress] times before
+/// failing over; the last one keeps retrying (until [maxAttempts], if set).
+///
+/// 持续重连直播源：以指数退避（封顶 [maxDelay]）重试而不是放弃，推流端重启或掉线一阵子
+/// 之后能自动接上。有备选地址时，除最后一个外每个地址先重试 [retriesPerAddress] 次再切换；
+/// 最后一个地址持续重试（设了 [maxAttempts] 则到上限为止）。
+///
+/// Example / 示例:
+/// ```dart
+/// const MovaRecoveryConfig(
+///   enabled: true,
+///   policy: MovaLiveReconnect(maxDelay: Duration(seconds: 10)),
+/// );
+/// ```
+class MovaLiveReconnect implements MovaRecoveryPolicy {
+  /// Wait before the first retry; later retries multiply it by [factor].
+  ///
+  /// 第一次重试前的等待；之后每次再乘以 [factor]。
+  final Duration initialDelay;
+
+  /// Upper bound of the wait between two attempts.
+  ///
+  /// 两次尝试之间等待的上限。
+  final Duration maxDelay;
+
+  /// Backoff growth per failed attempt (values below 1 count as 1).
+  ///
+  /// 每失败一次退避的增长倍数（小于 1 按 1 处理）。
+  final double factor;
+
+  /// How many times a non-last address is retried before failing over.
+  ///
+  /// 非最后一个地址在切换前重试几次。
+  final int retriesPerAddress;
+
+  /// Give up once the last address has failed this many times in a row;
+  /// `null` (default) never gives up.
+  ///
+  /// 最后一个地址连续失败这么多次后放弃；`null`（默认）表示永不放弃。
+  final int? maxAttempts;
+
+  /// Creates the policy.
+  ///
+  /// 创建策略。
+  ///
+  /// - [initialDelay]: first backoff / 首次退避
+  /// - [maxDelay]: backoff cap / 退避上限
+  /// - [factor]: growth multiplier / 增长倍数
+  /// - [retriesPerAddress]: retries before failover / 切换前重试次数
+  /// - [maxAttempts]: attempt budget of the last address, `null` = unlimited / 最后地址的尝试预算，`null` 为不限
+  const MovaLiveReconnect({
+    this.initialDelay = const Duration(seconds: 1),
+    this.maxDelay = const Duration(seconds: 30),
+    this.factor = 2,
+    this.retriesPerAddress = 1,
+    this.maxAttempts,
+  });
+
+  @override
+  MovaRecoveryDecision onFailure(MovaPlayFail fail) {
+    if (fail.hasNextSource) {
+      return fail.attempt <= retriesPerAddress
+          ? MovaRecoveryDecision.retry(delay: _backoff(fail.attempt))
+          : const MovaRecoveryDecision.failover();
+    }
+    final cap = maxAttempts;
+    if (cap != null && fail.attempt > cap) return const MovaRecoveryDecision.giveUp();
+    return MovaRecoveryDecision.retry(delay: _backoff(fail.attempt));
+  }
+
+  /// Backoff for the [attempt]-th consecutive failure, capped at [maxDelay].
+  ///
+  /// 第 [attempt] 次连续失败对应的退避，封顶 [maxDelay]。
+  Duration _backoff(int attempt) {
+    final grown = initialDelay.inMilliseconds * math.pow(math.max(factor, 1), attempt - 1);
+    final capped = math.min(grown, maxDelay.inMilliseconds.toDouble());
+    return Duration(milliseconds: capped.round());
+  }
+}
+
+/// The policy in effect when `MovaRecoveryConfig.policy` is `null`: VOD sources
+/// follow [vod] (the long-standing [MovaRetryThenFailover]), live sources
+/// follow [live] ([MovaLiveReconnect]), which keeps reconnecting.
+///
+/// `MovaRecoveryConfig.policy` 为 `null` 时生效的策略：点播走 [vod]（一直以来的
+/// [MovaRetryThenFailover]），直播走 [live]（[MovaLiveReconnect]，持续重连）。
+///
+/// Example / 示例:
+/// ```dart
+/// const MovaDefaultRecovery(live: MovaLiveReconnect(maxDelay: Duration(seconds: 5)));
+/// ```
+class MovaDefaultRecovery implements MovaRecoveryPolicy {
+  /// Rule for VOD sources.
+  ///
+  /// 点播源的规则。
+  final MovaRecoveryPolicy vod;
+
+  /// Rule for live sources.
+  ///
+  /// 直播源的规则。
+  final MovaRecoveryPolicy live;
+
+  /// Creates the policy.
+  ///
+  /// 创建策略。
+  const MovaDefaultRecovery({this.vod = const MovaRetryThenFailover(), this.live = const MovaLiveReconnect()});
+
+  @override
+  MovaRecoveryDecision onFailure(MovaPlayFail fail) => (fail.isLive ? live : vod).onFailure(fail);
 }
 
 /// Never retries the same address: next alternative if any, else give up.

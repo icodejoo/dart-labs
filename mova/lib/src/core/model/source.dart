@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 /// Stream type of a media source: on-demand (VOD) vs live.
 ///
 /// 媒体源的流类型：点播（VOD）与直播（Live）。
@@ -40,6 +42,34 @@ class MovaSource {
   /// 忽略）。顺序由宿主排好——mova 只保证按给定顺序尝试。
   final List<String> alternatives;
 
+  /// Extra libmpv options applied for this source only: option/property name to
+  /// value, e.g. `{'cache': 'no'}`. Set right before the source loads and
+  /// restored to their previous values when the next source loads, so nothing
+  /// leaks into the next source. An option mpv rejects is skipped silently.
+  ///
+  /// 仅对本源生效的 libmpv 选项：选项/属性名 → 值，例如 `{'cache': 'no'}`。在本源加载前
+  /// 下发，下一个源加载时还原成原值，因此不会泄漏到下一个源。mpv 不接受的选项会被静默跳过。
+  final Map<String, String> mpvOptions;
+
+  /// FFmpeg demuxer (libavformat) options for this source, sent through mpv's
+  /// `demuxer-lavf-o` (e.g. `{'media_timeout': '3000000'}`). Merged after any
+  /// `demuxer-lavf-o` you put in [mpvOptions].
+  ///
+  /// 本源的 FFmpeg demuxer（libavformat）选项，经 mpv 的 `demuxer-lavf-o` 下发（例如
+  /// `{'media_timeout': '3000000'}`）。会拼接在 [mpvOptions] 自带的 `demuxer-lavf-o` 之后。
+  final Map<String, String> demuxerOptions;
+
+  /// WHEP shortcut: how long the WHEP demuxer waits without media before
+  /// treating the stream as dead (its `media_timeout`, converted to
+  /// microseconds). Applied only to `whep…` addresses; an explicit
+  /// `media_timeout` in [demuxerOptions] wins. A short value makes a dropped
+  /// publisher fail fast so recovery can reconnect sooner.
+  ///
+  /// WHEP 便捷项：WHEP demuxer 多久收不到媒体就判定流已死（即其 `media_timeout`，自动换算成
+  /// 微秒）。仅对 `whep…` 地址生效；[demuxerOptions] 里显式写了 `media_timeout` 时以它为准。
+  /// 取较短的值能让推流端掉线后快速失败，恢复机制才能更早重连。
+  final Duration? whepMediaTimeout;
+
   /// Creates a media source.
   ///
   /// 创建一个媒体源。
@@ -48,17 +78,71 @@ class MovaSource {
   /// - [type]: stream type, defaults to VOD / 流类型，默认点播
   /// - [title]: optional title / 可选标题
   /// - [alternatives]: fallback addresses, see [alternatives] / 备选地址，见 [alternatives]
+  /// - [mpvOptions]: per-source libmpv options, see [mpvOptions] / 按源 libmpv 选项，见 [mpvOptions]
+  /// - [demuxerOptions]: per-source `demuxer-lavf-o` entries, see [demuxerOptions] / 按源 demuxer 选项，见 [demuxerOptions]
+  /// - [whepMediaTimeout]: WHEP `media_timeout` shortcut, see [whepMediaTimeout] / WHEP `media_timeout` 便捷项，见 [whepMediaTimeout]
   ///
   /// Example / 示例:
   /// ```dart
   /// final src = MovaSource('https://host/live.m3u8', type: MovaStreamType.live);
+  /// final whep = MovaSource(
+  ///   'whep+http://host:8889/x/whep',
+  ///   type: MovaStreamType.live,
+  ///   whepMediaTimeout: Duration(seconds: 3),
+  /// );
   /// ```
-  const MovaSource(this.uri, {this.type = MovaStreamType.vod, this.title, this.alternatives = const []});
+  const MovaSource(
+    this.uri, {
+    this.type = MovaStreamType.vod,
+    this.title,
+    this.alternatives = const [],
+    this.mpvOptions = const {},
+    this.demuxerOptions = const {},
+    this.whepMediaTimeout,
+  });
 
   /// [uri] followed by [alternatives].
   ///
   /// [uri] 后接 [alternatives]。
   List<String> get uris => [uri, ...alternatives];
+
+  /// The mpv options to apply while loading [address] (one of [uris]): [mpvOptions]
+  /// plus a `demuxer-lavf-o` built from [demuxerOptions] and, for a `whep…`
+  /// address, [whepMediaTimeout]. Returns a fresh map; empty when there is
+  /// nothing to apply.
+  ///
+  /// 加载 [address]（[uris] 之一）时要应用的 mpv 选项：[mpvOptions]，加上由 [demuxerOptions]
+  /// 以及（`whep…` 地址的）[whepMediaTimeout] 合成的 `demuxer-lavf-o`。返回新 Map；没有要应用的
+  /// 内容时为空。
+  ///
+  /// - [address]: the address about to load / 即将加载的地址
+  ///
+  /// Example / 示例:
+  /// ```dart
+  /// const MovaSource('whep+http://h/x', whepMediaTimeout: Duration(seconds: 3))
+  ///     .mpvOptionsFor('whep+http://h/x'); // {'demuxer-lavf-o': 'media_timeout=3000000'}
+  /// ```
+  Map<String, String> mpvOptionsFor(String address) {
+    final out = Map<String, String>.of(mpvOptions);
+    final lavf = Map<String, String>.of(demuxerOptions);
+    final whepTimeout = whepMediaTimeout;
+    if (whepTimeout != null && address.toLowerCase().startsWith('whep')) {
+      lavf.putIfAbsent('media_timeout', () => whepTimeout.inMicroseconds.toString());
+    }
+    if (lavf.isNotEmpty) {
+      final built = lavf.entries.map((e) => '${e.key}=${_lavfValue(e.value)}').join(',');
+      final own = out[_kDemuxerLavfOption];
+      out[_kDemuxerLavfOption] = own == null || own.isEmpty ? built : '$own,$built';
+    }
+    return out;
+  }
+
+  /// Quotes [value] for mpv's key-value list syntax (`%len%value` when it holds
+  /// a separator, quote, `%` or whitespace).
+  ///
+  /// 按 mpv 键值列表语法给 [value] 加引（含分隔符、引号、`%` 或空白时用 `%长度%值`）。
+  static String _lavfValue(String value) =>
+      _needsQuoting.hasMatch(value) ? '%${utf8.encode(value).length}%$value' : value;
 
   /// Builds a source from candidate addresses: trims, drops empty/null and
   /// duplicates keeping order; the first becomes [uri], the rest
@@ -72,6 +156,9 @@ class MovaSource {
   /// - [candidates]: raw addresses, best first / 原始地址，最优在前
   /// - [type]: stream type / 流类型
   /// - [title]: optional title / 可选标题
+  /// - [mpvOptions]: per-source libmpv options / 按源 libmpv 选项
+  /// - [demuxerOptions]: per-source `demuxer-lavf-o` entries / 按源 demuxer 选项
+  /// - [whepMediaTimeout]: WHEP `media_timeout` shortcut / WHEP `media_timeout` 便捷项
   ///
   /// Example / 示例:
   /// ```dart
@@ -82,6 +169,9 @@ class MovaSource {
     Iterable<String?> candidates, {
     MovaStreamType type = MovaStreamType.vod,
     String? title,
+    Map<String, String> mpvOptions = const {},
+    Map<String, String> demuxerOptions = const {},
+    Duration? whepMediaTimeout,
   }) {
     final seen = <String>{};
     final clean = <String>[];
@@ -91,15 +181,23 @@ class MovaSource {
       clean.add(t);
     }
     if (clean.isEmpty) return null;
-    return MovaSource(clean.first, type: type, title: title, alternatives: clean.sublist(1));
+    return MovaSource(
+      clean.first,
+      type: type,
+      title: title,
+      alternatives: clean.sublist(1),
+      mpvOptions: mpvOptions,
+      demuxerOptions: demuxerOptions,
+      whepMediaTimeout: whepMediaTimeout,
+    );
   }
 
-  /// Whether [other] would play the same media: same uri, type and
-  /// alternatives (in order). The title is ignored — a renamed source is not
+  /// Whether [other] would play the same media: same uri, type, alternatives
+  /// (in order) and per-source options. The title is ignored — a renamed source is not
   /// worth reopening. Deliberately not `==`: this value is `const` and may be
   /// used by identity as a map key.
   ///
-  /// [other] 是否会播放同一份媒体：uri、type 与备选地址（含顺序）都相同。标题不参与
+  /// [other] 是否会播放同一份媒体：uri、type、备选地址（含顺序）与按源选项都相同。标题不参与
   /// 比较——只改了名字不值得重开流。刻意不重写 `==`：该值是 `const`，可能被宿主按身份当
   /// Map key 用。
   ///
@@ -109,12 +207,29 @@ class MovaSource {
   /// ```
   bool sameAs(MovaSource other) {
     if (uri != other.uri || type != other.type) return false;
+    if (whepMediaTimeout != other.whepMediaTimeout) return false;
+    if (!_sameMap(mpvOptions, other.mpvOptions) || !_sameMap(demuxerOptions, other.demuxerOptions)) return false;
     if (alternatives.length != other.alternatives.length) return false;
     for (var i = 0; i < alternatives.length; i++) {
       if (alternatives[i] != other.alternatives[i]) return false;
     }
     return true;
   }
+}
+
+/// mpv 属性名：FFmpeg demuxer 选项。
+const String _kDemuxerLavfOption = 'demuxer-lavf-o';
+
+/// 需要给 demuxer 选项值加引的字符：分隔符、等号、百分号、引号、反斜杠、空白。
+final RegExp _needsQuoting = RegExp(r'''[,=%"'\\\s]''');
+
+/// 两个字符串 Map 是否内容相同。
+bool _sameMap(Map<String, String> a, Map<String, String> b) {
+  if (a.length != b.length) return false;
+  for (final e in a.entries) {
+    if (b[e.key] != e.value) return false;
+  }
+  return true;
 }
 
 /// Resolves the content source on demand, called only when the player is
