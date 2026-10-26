@@ -1,5 +1,42 @@
 # Changelog
 
+## Unreleased
+
+<!-- 本批仅整理 Simplify 1–6，保留公开参数及已有修复。 -->
+### Fixed
+- Counter painter: hide leading zeroes only in the integer part (keep the
+  units digit, fraction digits and decimal point, e.g. `0.05`); share
+  right-anchored grouping boundaries between painter and widget paths.
+- Counter painter: rebuild on any config change (separators, numerals,
+  padding, alignment, builder) and always repaint a replaced painter; draw
+  digits with the full text style, system text scale and the original
+  colour alpha; cache column layout and release Dial tick labels.
+- `AnimatedCounterController.jumpTo` cancels the running roll and bounce;
+  `pause`/`stop` also cover `startDelay`, batched starts and bounce.
+- `speedMultiplier` scales stagger once; `repeat(reverse: true)` loops back
+  and forth until stopped; `reverse()` swaps fast-mode endpoints too.
+- Reduce-motion now applies to the `AnimatedCounter` roll and card updates.
+- Replace always-true render assertions with captured-exception checks and
+  guarantee shared fixture cleanup even when an assertion fails.
+- Align `AnimatedCounterStyle` equality with the runtime-type contract used
+  by the other styles.
+
+### Changed
+- Share number clamping, compact formatting, rounding and digit extraction
+  across both animated counter renderers; share painter column spacing with
+  full-width measurement.
+- Reuse constant default abbreviations and sort custom thresholds once per
+  configuration change, including in-place map changes on widget or controller
+  updates.
+- Update examples to omit inert odometer and bounce arguments.
+
+### Deprecated
+- Mark inert `OdometerCounter` parameters (`plugin`, `controller`, `slideCurve`,
+  `onUpdate`, `onReady`, `onCancel`) and style fields (`letterWidth`,
+  `verticalOffset`, `fadeEnabled`) deprecated without removing them.
+- Mark `bounceElasticity` deprecated on both animated counters and the odometer;
+  use `bounceOvershoot` instead. All existing parameters and defaults remain.
+
 ## 0.2.2
 
 Docs only — no code changes.
