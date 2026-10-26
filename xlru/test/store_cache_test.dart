@@ -234,6 +234,25 @@ void main() {
       expect(store.data, {'c': 3});
     });
 
+    test('a listener that re-stores a later key of the batch keeps its value',
+        () {
+      late XlruCache<String, int> cache;
+      cache = XlruCache<String, int>(
+        maxSize: 3,
+        store: store,
+        onRemove: (k, v, c) {
+          if (k == 'a' && c == XlruRemovalCause.evicted) cache.set('b', 99);
+        },
+      )
+        ..set('a', 1)
+        ..set('b', 2)
+        ..set('c', 3);
+      cache.resize(1);
+      expect(cache.keys, ['b']);
+      expect(store.data, {'b': 99});
+      expect(cache.get('b'), 99);
+    });
+
     test('a throwing listener does not stop store deletes', () {
       final cache = XlruCache<String, int>(
         maxSize: 1,

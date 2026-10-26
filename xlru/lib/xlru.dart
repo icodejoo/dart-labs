@@ -735,11 +735,16 @@ final class XlruCache<K, V> {
     final store = _store;
     Object? firstError;
     StackTrace? firstStack;
-    for (final item in removed) {
-      final cause = item.cause;
-      if (store != null &&
-          (cause == XlruRemovalCause.evicted ||
-              cause == XlruRemovalCause.removed)) {
+    if (store != null) {
+      // Delete the whole batch before any listener runs: a reentrant listener
+      // may store a key that appears later in the batch, and a delete that
+      // came after would erase the new value.
+      for (final item in removed) {
+        final cause = item.cause;
+        if (cause != XlruRemovalCause.evicted &&
+            cause != XlruRemovalCause.removed) {
+          continue;
+        }
         // The index already dropped the key; a failing delete only leaves
         // stale data in the store.
         try {
@@ -749,16 +754,21 @@ final class XlruCache<K, V> {
           firstStack ??= stack;
         }
       }
-      if (listener == null) continue;
-      // A lost value is null, which a non-nullable `V` cannot receive.
-      if (cause == XlruRemovalCause.lost && item.value == null && null is! V) {
-        continue;
-      }
-      try {
-        listener(item.key as K, item.value as V, cause);
-      } catch (error, stack) {
-        firstError ??= error;
-        firstStack ??= stack;
+    }
+    if (listener != null) {
+      for (final item in removed) {
+        // A lost value is null, which a non-nullable `V` cannot receive.
+        if (item.cause == XlruRemovalCause.lost &&
+            item.value == null &&
+            null is! V) {
+          continue;
+        }
+        try {
+          listener(item.key as K, item.value as V, item.cause);
+        } catch (error, stack) {
+          firstError ??= error;
+          firstStack ??= stack;
+        }
       }
     }
     if (firstError != null) {

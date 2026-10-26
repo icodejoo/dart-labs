@@ -461,4 +461,70 @@ void main() {
       expect(cache.keys, ['b', 'a']);
     });
   });
+
+  group('review regressions', () {
+    test('a set right after putIfAbsent wins over the load', () async {
+      final cache = make();
+      final gate = Completer<int>();
+      final load = cache.putIfAbsent('a', () => gate.future);
+      final set = cache.set('a', 1); // Before the load's first lookup is done.
+      await set;
+      gate.complete(2);
+      expect(await load, 2);
+      expect(await cache.get('a'), 1);
+    });
+
+    test('a throwing replace listener still writes the new value', () async {
+      final cache = XlruAsyncCache<String, int>(
+        maxSize: 2,
+        store: store,
+        onRemove: (k, load, c) {
+          if (c == XlruRemovalCause.replaced) throw StateError('listener');
+        },
+      );
+      await cache.set('a', 1);
+      await expectLater(cache.set('a', 2), throwsStateError);
+      expect(store.data, {'a': 2});
+      expect(cache.containsKey('a'), isTrue);
+    });
+
+    test('clear runs the cleanup of an eviction that started before it',
+        () async {
+      final cache = make(maxSize: 1);
+      await cache.set('b', 2);
+      store.resetStarted('write a');
+      store.hold.add('write a');
+      final setA = cache.set('a', 1);
+      await store.waitStarted('write a');
+      final clear = cache.clear();
+      await Future<void>.delayed(const Duration(milliseconds: 20));
+      store.release('write a');
+      await Future.wait([setA, clear]);
+      // b is evicted with its value intact, before clear wipes the store.
+      expect(events, ['b=2:evicted', 'a=1:cleared']);
+      expect(cache.length, 0);
+      expect(store.data, isEmpty);
+    });
+
+    test('operations started during clear run after it, in call order',
+        () async {
+      final cache = make();
+      store.hold.add('clear');
+      final clear = cache.clear();
+      await store.waitStarted('clear');
+      final first = cache.set('a', 1);
+      final second = cache.set('a', 2);
+      store.release('clear');
+      await Future.wait([clear, first, second]);
+      expect(await cache.get('a'), 2);
+      expect(store.data, {'a': 2});
+    });
+
+    test('two clears in a row both complete', () async {
+      final cache = make();
+      await cache.set('a', 1);
+      await Future.wait([cache.clear(), cache.clear()]);
+      expect(cache.length, 0);
+    });
+  });
 }

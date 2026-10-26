@@ -98,8 +98,9 @@ final class XlruAsyncCache<K, V> {
   /// Loads started by [putIfAbsent] that have not finished.
   final HashMap<K, _Load<V>> _loads;
 
-  /// New tasks wait for this future; [clear] holds it while it runs.
-  Future<void> _barrier = Future<void>.value();
+  /// Set while [clear] runs: new operations wait for it, while the removal
+  /// cleanups of operations that started earlier keep running.
+  Future<void>? _clearing;
 
   /// Collects the removal tasks created by the index operation in progress.
   List<Future<void>>? _batch;
@@ -184,14 +185,12 @@ final class XlruAsyncCache<K, V> {
   /// ```dart
   /// final user = await cache.putIfAbsent('42', () => api.fetchUser(42));
   /// ```
-  Future<V> putIfAbsent(K key, Future<V> Function() loader) async {
-    final cached = await get(key);
-    if (cached != null) return cached;
+  Future<V> putIfAbsent(K key, Future<V> Function() loader) {
     final running = _loads[key];
     if (running != null) return running.future;
     final load = _Load<V>();
     _loads[key] = load;
-    return load.future = _runLoad(key, loader, load);
+    return load.future = _load(key, loader, load);
   }
 
   /// Removes [key] regardless of pins and returns its value, or null if absent.
@@ -225,16 +224,18 @@ final class XlruAsyncCache<K, V> {
     for (final load in _loads.values) {
       load.stale = true;
     }
-    final previous = _barrier;
+    while (_clearing != null) {
+      await _clearing;
+    }
     final gate = Completer<void>();
-    _barrier = gate.future;
-    final pending = _tails.values.toList();
+    _clearing = gate.future;
     Object? firstError;
     StackTrace? firstStack;
     try {
-      await previous;
-      for (final tail in pending) {
-        await tail;
+      // Removal cleanups spawned by pending operations join `_tails` while
+      // they run, so loop until nothing is left.
+      while (_tails.isNotEmpty) {
+        await Future.wait(_tails.values.toList());
       }
       final listener = onRemove;
       if (listener != null) {
@@ -252,6 +253,7 @@ final class XlruAsyncCache<K, V> {
         _index.clear();
       }
     } finally {
+      _clearing = null;
       gate.complete();
     }
     if (firstError != null) Error.throwWithStackTrace(firstError, firstStack!);
@@ -301,20 +303,32 @@ final class XlruAsyncCache<K, V> {
 
   /// Writes [value] to [key] in the key's queue; the body of [set].
   Future<void> _put(K key, V value) => _exec<void>(key, (batch) async {
-        if (onRemove != null && _index.containsKey(key)) {
-          await onRemove!(
-              key, () => _store.read(key), XlruRemovalCause.replaced);
+        final listener = onRemove;
+        Object? listenerError;
+        StackTrace? listenerStack;
+        if (listener != null && _index.containsKey(key)) {
+          try {
+            await listener(
+                key, () => _store.read(key), XlruRemovalCause.replaced);
+          } catch (error, stack) {
+            listenerError = error;
+            listenerStack = stack;
+          }
         }
-        if (!await _try(
+        if (await _try(
             XlruStoreOperation.write, key, () => _store.write(key, value))) {
-          return;
+          _collect(batch, () => _index.set(key, true));
         }
-        _collect(batch, () => _index.set(key, true));
+        if (listenerError != null) {
+          Error.throwWithStackTrace(listenerError, listenerStack!);
+        }
       });
 
   /// Runs a [putIfAbsent] load and caches its result unless it went stale.
-  Future<V> _runLoad(K key, Future<V> Function() loader, _Load<V> load) async {
+  Future<V> _load(K key, Future<V> Function() loader, _Load<V> load) async {
     try {
+      final cached = await get(key);
+      if (cached != null) return cached;
       final value = await loader();
       if (!load.stale) await _put(key, value);
       return value;
@@ -386,7 +400,7 @@ final class XlruAsyncCache<K, V> {
   /// Handles the index evicting [key]: finish its removal in the key's queue.
   void _onIndexRemoved(K key, bool _, XlruRemovalCause cause) {
     if (cause != XlruRemovalCause.evicted) return;
-    final task = _enqueue<void>(key, () async {
+    final task = _enqueue<void>(key, cleanup: true, () async {
       // A write that was already running when the key was evicted puts it back
       // in the index and has reported the old value as replaced, so the stale
       // eviction must not delete the new data or report it again.
@@ -451,12 +465,19 @@ final class XlruAsyncCache<K, V> {
     if (error != null) Error.throwWithStackTrace(error, stack!);
   }
 
-  /// Queues [task] behind earlier tasks of [key] and behind [_barrier].
-  Future<T> _enqueue<T>(K key, Future<T> Function() task) {
+  /// Queues [task] behind earlier tasks of [key].
+  ///
+  /// While [clear] runs, other new tasks are held back until it finishes, but a
+  /// [cleanup] (the removal of an entry an earlier operation evicted) is queued
+  /// at once so [clear] can wait for it.
+  Future<T> _enqueue<T>(K key, Future<T> Function() task,
+      {bool cleanup = false}) {
+    final gate = _clearing;
+    if (gate != null && !cleanup) {
+      return gate.then((_) => _enqueue<T>(key, task));
+    }
     final previous = _tails[key];
-    final barrier = _barrier;
     Future<T> run() async {
-      await barrier;
       if (previous != null) await previous;
       return task();
     }
