@@ -83,7 +83,7 @@ in your app.
 
 ```yaml
 dependencies:
-  layerman: ^0.2.0
+  layerman: ^0.2.1
 ```
 
 ```dart
@@ -893,7 +893,7 @@ dialog、modal、bottom-sheet、toast、banner:它掌管「**何时 / 展示哪�
 
 ```yaml
 dependencies:
-  layerman: ^0.2.0
+  layerman: ^0.2.1
 ```
 
 ```dart

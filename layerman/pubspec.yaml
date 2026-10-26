@@ -1,6 +1,6 @@
 name: layerman
 description: "Headless overlay queue orchestrator: serial one-at-a-time queueing with priority, replace, overlap, conditions, cooldown and two-phase close; renders through any UI backend (showDialog / GetX / bot_toast / your own)."
-version: 0.2.0
+version: 0.2.1
 homepage: https://github.com/icodejoo/dart-labs/tree/main/layerman
 repository: https://github.com/icodejoo/dart-labs
 issue_tracker: https://github.com/icodejoo/dart-labs/issues

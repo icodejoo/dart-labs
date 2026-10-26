@@ -1,5 +1,22 @@
 # Changelog
 
+## 0.6.3
+
+Full code review fixes; no breaking Dart API changes.
+
+- **Fix (C engine):** `add`/`add_keyed` return a status and roll the whole item
+  back on OOM, so host lists and the native index can no longer drift apart.
+- **Fix:** approximate queries over 64 codepoints are rejected explicitly instead
+  of silently matching nothing; `maxDistance` is validated to 0..10 and bad
+  values throw `ArgumentError`/`RangeError` instead of reporting OOM.
+- **Fix:** custom key kinds stay `int` (no uint16 truncation); literal atoms no
+  longer go through escape handling; size/overflow checks hardened.
+- **Fix (Dart/web):** all web search modes go through WASM; `dispose`/`refresh`/
+  `removeWhere` are guarded against re-entrant callbacks and keep the index
+  consistent when a callback throws; concurrent `ffuzzyInit` calls share one
+  init and nothing is resurrected after `dispose`.
+- Docs: public API contracts documented; README/comments corrected.
+
 ## 0.6.2
 
 Five-way parallel code review + two targeted expert passes across the whole

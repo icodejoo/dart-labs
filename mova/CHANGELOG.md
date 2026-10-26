@@ -1,4 +1,4 @@
-## Unreleased
+## 0.3.1
 
 * **Breaking（公开签名）：`MovaApi.open()` 由 `Future<void>` 改为 `Future<bool>`**，`true` 表示该源已被接受为当前源；`beforeOpen` 钩子拒绝、被更晚的 `open()` 取代、引擎已销毁时为 `false`。加载失败不算 `false`（照旧经事件/恢复上报，未处理的仍抛出）。只 `await`/`unawaited` 调用的代码无需改动；自己实现 `MovaApi` 的类（含测试替身）须把 `open` 的返回类型改成 `Future<bool>`。`MovaPlaylistController.jumpTo` 据此在 `open` 被拒绝时不再前进下标，列表与实际在播源不再错位。
 * **Fix：宿主异步钩子、预览队列与手势改配的三处边界**。① `play()`/`seek()` 在宿主异步 `beforePlay`/`beforeSeek` 返回后复查：期间用户 `pause()` 或换源，晚到的 play/seek 不再覆盖（此前会把暂停改回播放，或对新源执行旧跳转）。② 预览服务队列单次解析抛错不再让后续请求全被跳过，`dispose` 各步骤相互隔离（宿主注入的缓存/探针抛错不再拖垮销毁）。③ 手势动作改配后按选中该模式的那根轴取位移：`horizontal: volume/brightness` 向右为增，`leftVertical/rightVertical: seek` 向上为快进（此前读错轴，位移约为 0）；默认配置行为不变。

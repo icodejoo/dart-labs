@@ -46,7 +46,7 @@ android {
 
 // libmpv.so no longer needs pickFirsts / a local jniLibs sync: the
 // dependency_overrides on media_kit_libs_android_video (see
-// example/pubspec.yaml -> packages/media_kit_libs_android_video_slim)
+// example/pubspec.yaml -> packages/media_kit_libs_android_video_slim_v041)
 // replaces upstream's package wholesale, so it's the sole provider of
 // libmpv.so / libmediakitandroidhelper.so in the dependency graph — there's
 // nothing left to merge-conflict with. If that override is ever removed,

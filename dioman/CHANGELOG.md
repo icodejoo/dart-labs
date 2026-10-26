@@ -1,3 +1,8 @@
+## 0.7.1
+
+- Style: wrap single-statement `if`s in braces to clear analyzer lints; no behavior change.
+- Test: extend the powerset baseline sweep to all 16 plugins.
+
 ## 0.7.0
 
 Three new plugins, all additive (no breaking changes) — each self-contained, each with a

@@ -1,4 +1,6 @@
 # 旧配方（ffmpeg n6.0.1 + 固定 mpv），仅手动触发，正式构建见 build-mova-libmpv-whep.yml
+# 注意：n6 产物目录（mova/libmpv/<abi>、旧 android slim 包）已从仓库移除，本 workflow 仅留作 Apple 平台移植参考，
+# 不要再回写产物（commit_artifact 默认已改为 false）；Apple 的 n9 构建落地后整体删除。
 name: Build mova libmpv (all platforms)
 
 # Only rebuilds when our build recipe changes — the ffmpeg/mpv/dav1d *source*
@@ -51,7 +53,7 @@ on:
       commit_artifact:
         description: 'Commit built binaries back to packages/ and push (false = experiment build, artifact upload only)'
         required: false
-        default: true
+        default: false
         type: boolean
 
 # The android-arm64 job commits the rebuilt artifact back to packages/ (see its

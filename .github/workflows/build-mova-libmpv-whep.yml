@@ -1,15 +1,24 @@
 name: Build mova libmpv WHEP
 
 # WHEP 版 libmpv（ffmpeg n9.0.2 + whep demuxer + DTLS-SRTP，mpv v0.41.0）。
-# 本 workflow 是 main 的正式 libmpv 构建；旧配方（build-mova-libmpv.yml，ffmpeg n6.0.1 + 固定 mpv）仅保留手动触发。
-# 两者互相独立：本 workflow 不改旧 flavor。
+# 本 workflow 是 main 的正式 libmpv 构建（全平台以 n9 为主，n6 产物已从仓库移除）。
+# 旧配方 build-mova-libmpv.yml（ffmpeg n6.0.1）仅作 Apple 平台移植参考，待 n9 的 Apple 构建落地后删除。
 # 二进制不在本地入库，由本 workflow 编译后注入（沿用 "fetch+reset 重试 / 先 git lfs push / 再 push" 模式）：
-#   - Android arm64 -> mova/packages/media_kit_libs_android_video_slim_v041/android/src/main/jniLibs/arm64-v8a/
-#       libmpv.so（CI 编译）+ libmediakitandroidhelper.so（从现有 slim 包拷贝，同一份 LFS 对象）
+#   - Android 四 ABI（arm64-v8a / armeabi-v7a / x86_64 / x86，矩阵构建）
+#       -> mova/packages/media_kit_libs_android_video_slim_v041/android/src/main/jniLibs/<abi>/
+#       libmpv.so（CI 编译）；libmediakitandroidhelper.so 是上游原样提取、已随包入库（同目录，不由 CI 改动）
 #   - Windows x64   -> mova/libmpv/windows-x86_64-whep/{libmpv-2.dll,libmpv-2.def,libmpv.dll.a}
-#       （独立目录，不覆盖旧配方的 mova/libmpv/windows-x86_64/；mova 选用方式见该 job 注释）
+#       （目录名保持 -whep 不变，Windows 插件的 CMakeLists 直接引用）
 #   - Linux         -> 只上传 artifact，不注入
 # 以上路径均被 .gitattributes 的 LFS 规则覆盖（mova/packages/**/*.so、mova/libmpv/**）。
+#
+# 待办（本 workflow 尚未覆盖，均无法在无 Apple 机器时验证，故未硬写构建步骤）：
+#   - iOS arm64 / macOS arm64+x86_64：需把 WHEP 接进 libmpv-darwin-build 的 Nix 流程。
+#     缺口 1（TLS）：movaslim 用 securetransport，ffmpeg 的 securetransport 后端没有 DTLS，
+#       patches/ffmpeg-whep 只有 mbedtls(0007/0009) 与 schannel(0008)，Apple 无对应补丁。
+#       建议回退 mbedtls（+ MBEDTLS_SSL_DTLS_SRTP），直接复用 0007/0009。
+#     缺口 2（版本）：上游 darwin 的 ffmpeg/mpv 版本未必是 n9.0.2/v0.41.0，需对齐后才能打 0001-0012。
+#     缺口 3（签名/公证）：macOS 产物分发需 codesign + notarize，CI 无证书；iOS 需 xcframework 重签。
 #
 # 安全约束：
 #   1. 触发只允许 main 的 push 与手动 dispatch；注入 step 要求 ref 必须是分支。
@@ -29,11 +38,17 @@ on:
   workflow_dispatch:
     inputs:
       platform:
-        description: 'Which platform to build: android | windows | linux | all | none. auto = read mova-libmpv/tools/whep-flavor/ci-platform.'
+        description: 'Which platform to build: android (all 4 ABIs) | windows | linux | all | none. auto = read mova-libmpv/tools/whep-flavor/ci-platform.'
         required: false
         default: auto
         type: choice
         options: [auto, android, windows, linux, all, none]
+      android_abi:
+        description: 'Android 只构建指定 ABI（all | arm64-v8a | armeabi-v7a | x86_64 | x86），仅 dispatch 生效。'
+        required: false
+        default: all
+        type: choice
+        options: [all, arm64-v8a, armeabi-v7a, x86_64, x86]
       commit_artifact:
         description: 'Commit built binaries back to the triggering branch (false = artifact upload only). On push to main this commits to main (with [skip ci]).'
         required: false
@@ -52,10 +67,8 @@ concurrency:
 env:
   NDK_VERSION: 25.2.9519653
   NDK_ZIP_NAME: android-ndk-r25c-linux.zip
-  # 注入目标（Android）
-  ANDROID_PKG_JNI: mova/packages/media_kit_libs_android_video_slim_v041/android/src/main/jniLibs/arm64-v8a
-  # 现有 slim 包里的 helper（LFS 文件，二进制不复制进新包的骨架，由 CI 在注入时从这里取）
-  ANDROID_HELPER_SRC: mova/packages/media_kit_libs_android_video_slim/android/src/main/jniLibs/arm64-v8a/libmediakitandroidhelper.so
+  # 注入目标（Android）：其下按 ABI 分目录（arm64-v8a / armeabi-v7a / x86_64 / x86）
+  ANDROID_PKG_JNI_ROOT: mova/packages/media_kit_libs_android_video_slim_v041/android/src/main/jniLibs
   # 注入目标（Windows）
   WIN_WHEP_DIR: mova/libmpv/windows-x86_64-whep
 
@@ -70,6 +83,7 @@ jobs:
       windows: ${{ steps.sel.outputs.windows }}
       linux: ${{ steps.sel.outputs.linux }}
       platform: ${{ steps.sel.outputs.platform }}
+      android_matrix: ${{ steps.sel.outputs.android_matrix }}
     steps:
       - name: Checkout only the platform switch file
         uses: actions/checkout@v4
@@ -81,6 +95,7 @@ jobs:
         id: sel
         env:
           INPUT_PLATFORM: ${{ inputs.platform }}
+          INPUT_ABI: ${{ inputs.android_abi }}
         run: |
           P="${INPUT_PLATFORM:-}"
           if [ -z "$P" ] || [ "$P" = auto ]; then P="$(tr -d ' \r\n' < mova-libmpv/tools/whep-flavor/ci-platform)"; fi
@@ -92,13 +107,24 @@ jobs:
             if [ "$P" = "$x" ] || [ "$P" = all ]; then echo "$x=true" >> "$GITHUB_OUTPUT"; else echo "$x=false" >> "$GITHUB_OUTPUT"; fi
           done
           echo "platform=$P" >> "$GITHUB_OUTPUT"
+          # Android 矩阵：按 android_abi 过滤（空/all 为全部）
+          ALL='[{"arch":"arm64","abi":"arm64-v8a","optional":false},{"arch":"armv7l","abi":"armeabi-v7a","optional":false},{"arch":"x86_64","abi":"x86_64","optional":false},{"arch":"x86","abi":"x86","optional":true}]'
+          A="${INPUT_ABI:-all}"
+          if [ "$A" = all ]; then M="$ALL"; else M="$(echo "$ALL" | jq -c --arg a "$A" '[.[] | select(.abi == $a)]')"; fi
+          echo "android_matrix=$M" >> "$GITHUB_OUTPUT"
           echo "### This run builds: $P" >> "$GITHUB_STEP_SUMMARY"
 
-  android-arm64-whep:
-    name: Android arm64-v8a WHEP
+  android-whep:
+    name: Android ${{ matrix.abi }} WHEP
     needs: plan
     if: ${{ needs.plan.outputs.android == 'true' }}
     runs-on: ubuntu-22.04
+    # x86（32 位模拟器）为可选项：失败不拖垮整个 run，其余 ABI 照常注入。
+    continue-on-error: ${{ matrix.optional }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include: ${{ fromJSON(needs.plan.outputs.android_matrix) }}
     # 全链从头构建（NDK + mbedtls/dav1d/libxml2/ffmpeg/freetype/libass/libplacebo/mpv）预计 40-90 分钟
     timeout-minutes: 150
     steps:
@@ -140,23 +166,24 @@ jobs:
 
       # e2e-arm64.sh 要求工作目录不存在 ws/；全部在 RUNNER_TEMP 下做，不污染仓库工作区。
       # 脚本内部已含 download-deps 重试、url.insteadOf 镜像（GitHub 上也无害）。
-      - name: Build WHEP libmpv (e2e-arm64.sh)
+      - name: Build WHEP libmpv (e2e-arm64.sh, ARCH=${{ matrix.arch }})
         env:
           WHEP: '1'
           JOBS: '4'
+          ARCH: ${{ matrix.arch }}
         run: |
           bash mova-libmpv/patches/android-v041/e2e-arm64.sh "$RUNNER_TEMP/whep-android" "$HOME/ndk/android-ndk-r25c" 2>&1 | tee "$RUNNER_TEMP/e2e.log" | tail -n 400
           test "${PIPESTATUS[0]}" = 0
           grep -q E2E_DONE "$RUNNER_TEMP/e2e.log"
-          test -f "$RUNNER_TEMP/whep-android/libmpv.stripped.so"
+          test -f "$RUNNER_TEMP/whep-android/libmpv.${{ matrix.abi }}.stripped.so"
 
       - name: Verify symbols and report size
         run: |
           set -e
           NDK_TC=$(echo "$HOME"/ndk/android-ndk-r25c/toolchains/llvm/prebuilt/*)
           NM="$NDK_TC/bin/llvm-nm"
-          STRIPPED="$RUNNER_TEMP/whep-android/libmpv.stripped.so"
-          UNSTRIPPED="$RUNNER_TEMP/whep-android/libmpv.unstripped.so"
+          STRIPPED="$RUNNER_TEMP/whep-android/libmpv.${{ matrix.abi }}.stripped.so"
+          UNSTRIPPED="$RUNNER_TEMP/whep-android/libmpv.${{ matrix.abi }}.unstripped.so"
           fail=0
           # 导出符号（strip 后仍在动态符号表里）
           for s in mpv_lavc_set_java_vm mpv_create_weak_client mpv_wait_event; do
@@ -179,28 +206,27 @@ jobs:
           SHA=$(sha256sum "$STRIPPED" | cut -d' ' -f1)
           echo "libmpv.stripped.so: $BYTES bytes ($(numfmt --to=iec-i --suffix=B "$BYTES")), sha256=$SHA"
           {
-            echo "### WHEP libmpv.so (android arm64-v8a)"
+            echo "### WHEP libmpv.so (android ${{ matrix.abi }})"
             echo "- size: $BYTES bytes ($(numfmt --to=iec-i --suffix=B "$BYTES"))"
             echo "- sha256: \`$SHA\`"
           } >> "$GITHUB_STEP_SUMMARY"
-          cp "$STRIPPED" "$GITHUB_WORKSPACE/libmpv-arm64-v8a-whep.so"
-          # helper 先拷到工作区外，注入时 reset --hard 不会丢
-          cp "$ANDROID_HELPER_SRC" "$RUNNER_TEMP/libmediakitandroidhelper.so"
-          head -c 4 "$RUNNER_TEMP/libmediakitandroidhelper.so" | grep -q ELF || { echo "::error::helper .so is an LFS pointer, not a real ELF"; exit 1; }
+          cp "$STRIPPED" "$GITHUB_WORKSPACE/libmpv-${{ matrix.abi }}-whep.so"
+          # helper 已随 v041 包入库（LFS），这里只确认 checkout 拿到的是真 ELF，注入时不再拷贝
+          head -c 4 "$ANDROID_PKG_JNI_ROOT/${{ matrix.abi }}/libmediakitandroidhelper.so" | grep -q ELF || { echo "::error::helper .so is missing or an LFS pointer, not a real ELF"; exit 1; }
 
       - name: Upload build log on failure
         if: ${{ failure() }}
         uses: actions/upload-artifact@v4
         with:
-          name: mova-libmpv-android-whep-e2e-log
+          name: mova-libmpv-android-${{ matrix.abi }}-whep-e2e-log
           path: ${{ runner.temp }}/e2e.log
           retention-days: 7
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: mova-libmpv-android-arm64-v8a-whep
-          path: libmpv-arm64-v8a-whep.so
+          name: mova-libmpv-android-${{ matrix.abi }}-whep
+          path: libmpv-${{ matrix.abi }}-whep.so
           retention-days: 30
 
       - name: Commit built artifact to packages/ (current branch only)
@@ -208,29 +234,31 @@ jobs:
         if: ${{ startsWith(github.ref, 'refs/heads/') && (github.event_name != 'workflow_dispatch' || inputs.commit_artifact) }}
         env:
           BRANCH: ${{ github.ref_name }}
+          ABI: ${{ matrix.abi }}
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
+          ANDROID_PKG_JNI="$ANDROID_PKG_JNI_ROOT/$ABI"
           # -f：本地 .gitignore 忽略了该包的 *.so，CI 注入必须强制加入
           for i in 1 2 3 4 5; do
             git fetch origin "$BRANCH"
             git reset --hard "origin/$BRANCH"
             mkdir -p "$ANDROID_PKG_JNI"
-            cp "$GITHUB_WORKSPACE/libmpv-arm64-v8a-whep.so" "$ANDROID_PKG_JNI/libmpv.so"
-            cp "$RUNNER_TEMP/libmediakitandroidhelper.so" "$ANDROID_PKG_JNI/libmediakitandroidhelper.so"
-            git add -f "$ANDROID_PKG_JNI/libmpv.so" "$ANDROID_PKG_JNI/libmediakitandroidhelper.so"
+            cp "$GITHUB_WORKSPACE/libmpv-$ABI-whep.so" "$ANDROID_PKG_JNI/libmpv.so"
+            # helper 已在包内（reset --hard 后仍在），不再拷贝，只注入 libmpv.so
+            git add -f "$ANDROID_PKG_JNI/libmpv.so"
             if git diff --cached --quiet; then
               echo "No content change, skip commit"
               exit 0
             fi
-            git commit -m "chore(packages): inject WHEP libmpv.so (android arm64-v8a) [skip ci]"
+            git commit -m "chore(packages): inject WHEP libmpv.so (android $ABI) [skip ci]"
             # checkout 不装 LFS 钩子时普通 push 只推指针，先显式推 LFS 对象
             git lfs push origin HEAD
             if git push origin "HEAD:refs/heads/$BRANCH"; then exit 0; fi
             echo "push rejected (race with sibling job), retrying from a fresh baseline ($i/5)..."
             sleep $((RANDOM % 8 + 2))
           done
-          echo "::error::failed to push WHEP android artifact after retries"
+          echo "::error::failed to push WHEP android $ABI artifact after retries"
           exit 1
 
   windows-whep:
@@ -295,7 +323,7 @@ jobs:
       - name: Stage artifact and regress symbol check
         run: |
           OUT="$WS/_whep-win/whep/out"
-          # check-symbols-windows.sh 约定 $LIBMPV_DIR/windows-x86_64/libmpv-2.dll
+          # check-symbols-windows.sh 约定 $LIBMPV_DIR/windows-x86_64/libmpv-2.dll（仅 CI 临时目录，非仓库路径）
           mkdir -p "$WS/_regress/windows-x86_64" "$WS/_stage"
           cp "$OUT/libmpv-2.dll" "$WS/_regress/windows-x86_64/libmpv-2.dll"
           cp "$OUT/libmpv-2.dll" "$OUT/libmpv-2.def" "$OUT/libmpv.dll.a" "$WS/_stage/"
@@ -335,9 +363,7 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          # WHEP 版放独立目录，不覆盖默认 mova/libmpv/windows-x86_64/。
-          # mova 选用方式：example 的 dependency_overrides 指向以此目录为 dll 来源的 windows fork 包
-          #（把 media_kit_libs_windows_video_slim 的 windows/CMakeLists.txt 里 dll/devlib 路径改指这里），默认包不动。
+          # 产物目录 mova/libmpv/windows-x86_64-whep/（名字不改），由 media_kit_libs_windows_video_slim 的 CMakeLists 引用。
           for i in 1 2 3 4 5; do
             git fetch origin "$BRANCH"
             git reset --hard "origin/$BRANCH"
