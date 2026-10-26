@@ -114,21 +114,36 @@ print(pick)")
   fi
 fi
 
-# ---- 5. 失败路径：指纹被篡改必须被拒绝；候选不可达必须在握手超时内干净返回 ----
+# ---- 5. 失败路径：指纹被篡改必须因指纹校验被拒绝；候选不可达必须在握手超时内干净返回 ----
 python3 "$WHEP_TOOLS/whep_tamper_proxy.py" 18100 > proxy.log 2>&1 & PIDS+=($!)
-sleep 1
-echo "=== 指纹被篡改（fp 模式）==="
-run_smoke play whep+http://127.0.0.1:18100/fp/test/whep 10 > whep-fp.log 2>&1; RC=$?
-grep -E 'RESULT|EVENT end-file|fingerprint|EACCES|Permission' whep-fp.log | head
-[ $RC -ne 0 ] && grep -q 'advanced=-1\|advanced=0' whep-fp.log && pass "指纹被篡改 -> 拒绝，没有出画面" || flunk "指纹被篡改仍然起播了 (rc=$RC)"
+sleep 2
+echo "--- proxy.log (启动后) ---"; cat proxy.log
+echo "=== 对照：经代理原样转发（ok 模式）必须能播 ==="
+SMOKE_LOG_ALL=1 run_smoke play whep+http://127.0.0.1:18100/ok/test/whep 10 > whep-proxy-ok.log 2>&1; RC=$?
+grep -aE 'RESULT|EVENT|whep:|WHEP' whep-proxy-ok.log | head -12
+if [ $RC -eq 0 ]; then pass "经代理（ok）起播"; else flunk "经代理（ok）起播失败 (rc=$RC)"; tail -40 whep-proxy-ok.log; echo "--- proxy.log ---"; cat proxy.log; fi
+
+echo "=== 指纹被篡改（fp 模式）：必须因指纹校验被拒绝 ==="
+SMOKE_LOG_ALL=1 run_smoke play whep+http://127.0.0.1:18100/fp/test/whep 12 > whep-fp.log 2>&1; RC=$?
+grep -aEi 'RESULT|EVENT|ingerprint|EACCES|Permission denied' whep-fp.log | head -12
+if [ $RC -ne 0 ] && grep -aqiE 'fingerprint|EACCES|Permission denied' whep-fp.log; then
+  pass "指纹被篡改 -> 因指纹校验被拒绝"
+else
+  flunk "指纹被篡改没有被指纹校验拒绝 (rc=$RC)"; tail -40 whep-fp.log; echo "--- proxy.log ---"; cat proxy.log
+fi
+
 echo "=== 候选不可达（dead 模式，handshake_timeout=3s）==="
 T0=$(date +%s)
 SMOKE_LOG_ALL=1 SMOKE_OPTS="demuxer-lavf-o=handshake_timeout=3000000" run_smoke play whep+http://127.0.0.1:18100/dead/test/whep 20 > whep-dead.log 2>&1; RC=$?
 T1=$(date +%s); DT=$((T1-T0))
-grep -aE 'RESULT|EVENT|whep|WHEP|ICE|timeout|Connection' whep-dead.log | head -30
-[ $RC -ne 0 ] && [ $DT -lt 18 ] && pass "候选不可达 -> ${DT}s 内干净返回" || { flunk "候选不可达场景异常 (rc=$RC, ${DT}s)"; tail -60 whep-dead.log; }
+grep -aEi 'RESULT|EVENT|whep:|timeout|Connection' whep-dead.log | head -12
+if [ $RC -ne 0 ] && [ $DT -lt 18 ]; then
+  pass "候选不可达 -> ${DT}s 内干净返回"
+else
+  flunk "候选不可达场景异常 (rc=$RC, ${DT}s)"; tail -40 whep-dead.log; echo "--- proxy.log ---"; cat proxy.log
+fi
 
-# ---- 6. https（mbedtls）：tls-verify=no 能播；=yes 配 ca 文件能播；换无关 CA 必须失败 ----
+# ---- 6. https（mbedtls）：tls-verify=no 能播；=yes 配 ca 文件能播；换无关 CA 必须因证书校验失败 ----
 if [ "${SKIP_HTTPS:-0}" != 1 ]; then
   echo "=== https / mbedtls ==="
   ffmpeg -nostdin -loglevel error -f lavfi -i testsrc2=size=320x180:rate=25 -t 20 -c:v libx264 -pix_fmt yuv420p -g 25 -movflags +faststart media.mp4
@@ -148,19 +163,36 @@ CNF
     openssl req -x509 -newkey rsa:2048 -nodes -keyout $n.key -out $n.pem -days 2 -config san.cnf 2>&1 | tail -2
   done
   cat > httpsd.py <<'PY'
-import http.server, ssl, sys
-ctx = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER); ctx.load_cert_chain('good.pem', 'good.key')
+import http.server, ssl
+ctx = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
+ctx.load_cert_chain('good.pem', 'good.key')
 srv = http.server.ThreadingHTTPServer(('127.0.0.1', 8443), http.server.SimpleHTTPRequestHandler)
-srv.socket = ctx.wrap_socket(srv.socket, server_side=True); srv.serve_forever()
+srv.socket = ctx.wrap_socket(srv.socket, server_side=True)
+srv.serve_forever()
 PY
   python3 httpsd.py > httpsd.log 2>&1 & PIDS+=($!)
   sleep 2
-  SMOKE_OPTS="tls-verify=no" run_smoke play https://127.0.0.1:8443/media.mp4 6 > https-noverify.log 2>&1 \
-    && pass "https tls-verify=no 能播" || { flunk "https tls-verify=no"; tail -20 https-noverify.log; }
-  SMOKE_OPTS="tls-verify=yes;tls-ca-file=$W/good.pem" run_smoke play https://127.0.0.1:8443/media.mp4 6 > https-ca.log 2>&1 \
-    && pass "https tls-verify=yes + tls-ca-file 能播" || { flunk "https tls-verify=yes + ca"; tail -20 https-ca.log; }
-  SMOKE_OPTS="tls-verify=yes;tls-ca-file=$W/evil.pem" run_smoke play https://127.0.0.1:8443/media.mp4 6 > https-badca.log 2>&1 \
-    && flunk "换无关 CA 仍然起播（校验没生效）" || pass "https 换无关 CA -> 拒绝"
+  ls -l media.mp4 good.pem good.key
+  echo "curl 直连自检: $(curl -sk -m 5 -o /dev/null -w '%{http_code} %{size_download}B' https://127.0.0.1:8443/media.mp4)"
+  echo "--- httpsd.log ---"; cat httpsd.log
+
+  SMOKE_LOG_ALL=1 SMOKE_OPTS="tls-verify=no" run_smoke play https://127.0.0.1:8443/media.mp4 8 > https-noverify.log 2>&1; RC=$?
+  grep -aEi 'RESULT|EVENT|tls|ssl|certificate' https-noverify.log | head -12
+  if [ $RC -eq 0 ]; then pass "https tls-verify=no 能播"; else flunk "https tls-verify=no (rc=$RC)"; tail -50 https-noverify.log; echo "--- httpsd.log ---"; cat httpsd.log; fi
+
+  SMOKE_LOG_ALL=1 SMOKE_OPTS="tls-verify=yes;tls-ca-file=$W/good.pem" run_smoke play https://127.0.0.1:8443/media.mp4 8 > https-ca.log 2>&1; RC=$?
+  grep -aEi 'RESULT|EVENT|tls|ssl|certificate' https-ca.log | head -12
+  if [ $RC -eq 0 ]; then pass "https tls-verify=yes + tls-ca-file 能播"; else flunk "https tls-verify=yes + ca (rc=$RC)"; tail -50 https-ca.log; fi
+
+  SMOKE_LOG_ALL=1 SMOKE_OPTS="tls-verify=yes;tls-ca-file=$W/evil.pem" run_smoke play https://127.0.0.1:8443/media.mp4 8 > https-badca.log 2>&1; RC=$?
+  grep -aEi 'RESULT|EVENT|tls|ssl|certificate|verif' https-badca.log | head -12
+  if [ $RC -eq 0 ]; then
+    flunk "换无关 CA 仍然起播（校验没生效）"
+  elif grep -aqiE 'certificate|verif|x509' https-badca.log; then
+    pass "https 换无关 CA -> 因证书校验被拒绝"
+  else
+    flunk "换无关 CA 失败，但日志里没有证书校验相关信息"; tail -50 https-badca.log
+  fi
 fi
 
 echo; echo "================ 汇总 ================"
