@@ -16,15 +16,20 @@ import 'ffuzzy_corpus.dart';
 export 'ffuzzy_types.dart';
 export 'ffuzzy_corpus.dart' hide FuzzyCorpusProtected;
 
+// 网页缓冲分配失败的信息。
 const _allocationOom = 'ffuzzy: WASM allocation failed (OOM)';
+// 新增条目失败的信息。
 const _addOom =
     'ffuzzy: add failed (OOM or incompatible engine; rebuild engine)';
+// 过滤结果分配失败的信息。
 const _filterOom = 'ffz filter returned null (OOM)';
+// 语料库分配失败的信息。
 const _corpusOom = 'ffz_ffi_new_cfg2 returned null (OOM)';
 
 // ── Enum → C value ────────────────────────────────────────────────────────────
 
 extension on FuzzyScoring {
+  // 转换为引擎使用的枚举编号。
   int get _c => switch (this) {
         FuzzyScoring.fast => 0,
         FuzzyScoring.off => 1,
@@ -33,6 +38,7 @@ extension on FuzzyScoring {
 }
 
 extension on FuzzyCase {
+  // 转换为引擎使用的枚举编号。
   int get _c => switch (this) {
         FuzzyCase.respect => 0,
         FuzzyCase.ignore => 1,
@@ -41,73 +47,101 @@ extension on FuzzyCase {
 }
 
 extension on FuzzyNorm {
+  // 转换为引擎使用的枚举编号。
   int get _c => switch (this) { FuzzyNorm.never => 0, FuzzyNorm.smart => 1 };
 }
 
 // ── WASM module (Emscripten instance) ─────────────────────────────────────────
 
+// 声明网页引擎桥接接口。
 extension type _Mod._(JSObject _) implements JSObject {
   // Linear memory — re-read before each access (shifts on memory growth)
+  // 读取当前线性内存的字节视图。
   @JS('HEAPU8')
   external JSUint8Array get heapu8;
+  // 读取当前线性内存的整数视图。
   @JS('HEAP32')
   external JSInt32Array get heap32;
 
+  // 分配引擎内存，返回地址或零。
   @JS('_malloc')
   external int malloc(int n);
+  // 释放引擎内存。
   @JS('_free')
   external void free(int ptr);
 
+  // 按路径和评分选项创建语料库。
   @JS('_ffz_ffi_new_cfg2')
   external int newCfg2(int mp, int pp, int sc);
+  // 新增条目，返回一表示提交成功。
   @JS('_ffz_ffi_add')
   external int add(int cp, int sp, int len);
+  // 新增带显式附加键的条目，返回一表示提交成功。
   @JS('_ffz_ffi_add_keyed')
   external int addKeyed(int cp, int sp, int len, int tp, int lp, int kp, int n);
+  // 清空引擎语料库。
   @JS('_ffz_ffi_clear')
   external void corpusClear(int cp);
+  // 释放引擎语料库。
   @JS('_ffz_ffi_free')
   external void corpusFree(int cp);
 
+  // 按模式过滤并返回完整结果句柄。
   @JS('_ffz_ffi_filter_ex2')
   external int filterEx2(int cp, int qp, int qlen, int mode, int cm, int nm,
       int par, int thr, int lim, int sc);
+  // 按模式过滤并省略高亮。
   @JS('_ffz_ffi_filter_raws')
   external int filterRaws(int cp, int qp, int qlen, int mode, int cm, int nm,
       int par, int thr, int lim, int sc);
+  // 执行近似子串过滤。
   @JS('_ffz_ffi_filter_edit')
   external int filterEdit(
       int cp, int qp, int qlen, int maxDist, int cm, int nm, int lim);
+  // 执行合并过滤。
   @JS('_ffz_ffi_filter_merge')
   external int filterMerge(int cp, int qp, int qlen, int cm, int nm,
       int maxDist, int sc, int par, int thr, int lim);
+  // 执行回退过滤。
   @JS('_ffz_ffi_filter_fallback')
   external int filterFallback(int cp, int qp, int qlen, int cm, int nm,
       int maxDist, int sc, int par, int thr, int lim);
+  // 执行双路过滤。
   @JS('_ffz_ffi_filter_dual')
   external int filterDual(int cp, int qp, int qlen, int cm, int nm, int maxDist,
       int sc, int par, int thr, int lim);
+  // 读取双路句柄中的子序列结果。
   @JS('_ffz_ffi_dual_seq')
   external int dualSeq(int d);
+  // 读取双路句柄中的近似结果。
   @JS('_ffz_ffi_dual_edit')
   external int dualEdit(int d);
+  // 释放双路结果句柄。
   @JS('_ffz_ffi_dual_free')
   external void dualFree(int d);
 
+  // 读取命中数量。
   @JS('_ffz_ffi_results_len')
   external int rLen(int r);
+  // 读取命中的原始条目下标。
   @JS('_ffz_ffi_results_item')
   external int rItem(int r, int i);
+  // 读取命中分数。
   @JS('_ffz_ffi_results_score')
   external int rScore(int r, int i);
+  // 读取命中的键类型。
   @JS('_ffz_ffi_results_kind')
   external int rKind(int r, int i);
+  // 读取命中的键下标。
   @JS('_ffz_ffi_results_key')
   external int rKey(int r, int i);
+  // 读取高亮码点数。
   @JS('_ffz_ffi_results_nindices')
   external int rNIdx(int r, int i);
+  // 读取指定高亮码点下标。
   @JS('_ffz_ffi_results_index')
   external int rIdx(int r, int i, int j);
+  // 释放结果句柄。
   @JS('_ffz_ffi_results_free')
   external void rFree(int r);
 }
@@ -125,20 +159,14 @@ bool _ready = false;
 // with failure (_ready stays false). Either way, deferred corpora can unblock.
 final _readyCompleter = Completer<void>();
 
+// 共享正在进行的网页初始化。
 Future<void>? _initializing;
 
-/// Initialize the ffuzzy WASM engine. Await once at app startup before
-/// constructing any [FuzzyCorpus]. On native this is a no-op.
+/// 初始化网页引擎；[webAssetsUrl] 为本地模块地址，[webUrl] 为远程模块地址，前者优先。
+/// 返回初始化完成通知，并发调用共享初始化；成功后重复调用立即完成。
+/// 两地址均省略时抛 ArgumentError；加载失败或超时抛 FuzzyException，可重试。
 ///
-/// On web, exactly one of [webAssetsUrl] or [webUrl] must be provided:
-/// - [webAssetsUrl] — local Flutter asset path (declared in pubspec `assets:`),
-///   e.g. `'/assets/ffz.mjs'`. Takes priority when both are given.
-/// - [webUrl] — remote URL (CDN or self-hosted),
-///   e.g. `'https://cdn.jsdelivr.net/npm/@codejoo/ffuzzy@0.7.0/dist/ffz.mjs'`.
-///
-/// If both are provided, [webAssetsUrl] is used and [webUrl] is ignored.
-/// Throws [ArgumentError] on web if neither is provided.
-// 初始化平台引擎，并共享并发调用的加载过程。
+/// 示例：`await ffuzzyInit(webUrl: "/ffz.mjs");`。
 Future<void> ffuzzyInit({String? webAssetsUrl, String? webUrl}) {
   if (_ready) return Future.value();
   return _initializing ??= _initialize(webAssetsUrl, webUrl).whenComplete(() {
@@ -208,6 +236,7 @@ _Mod get _M {
 
 // 分配并写入字节，内存增长后重新读取视图。
 int _wAlloc(Uint8List bytes) {
+  // 读取已加载模块，缺失时抛平台异常。
   final M = _M;
   final len = bytes.isEmpty ? 1 : bytes.length;
   final ptr = M.malloc(len);
@@ -228,7 +257,17 @@ void _wFree(int ptr) => _M.free(ptr);
 
 // ── FuzzyCorpus (web) ─────────────────────────────────────────────────────────
 
+/// 可反复搜索的语料库；用完后调用 dispose 释放资源。
+/// 引擎未就绪时同步搜索返回空结果，异步搜索等待初始化完成。
+/// 类型参数 T 为原始条目类型。
+///
+/// 示例：`final c = FuzzyCorpus.strings(["你好"]); c.dispose();`。
 final class FuzzyCorpus<T> extends FuzzyCorpusProtected<T> {
+  /// 创建语料库；[items] 为初始条目，[stringOf] 提取搜索文本，[options] 为默认选项。
+  /// [matchPaths] 启用路径匹配，[preferPrefix] 优先前缀。
+  /// 返回新实例；文本提取异常向上传递，资源不足抛 FuzzyException。
+  ///
+  /// 示例：`final c = FuzzyCorpus(["你好"], stringOf: (s) => s); c.dispose();`。
   FuzzyCorpus(
     Iterable<T> items, {
     required String Function(T) stringOf,
@@ -262,7 +301,11 @@ final class FuzzyCorpus<T> extends FuzzyCorpusProtected<T> {
 
   // ── Static constructors ───────────────────────────────────────────────────
 
-  // 为字符串条目构建语料库。
+  /// 创建字符串语料库；[items] 为条目，[options] 为搜索选项。
+  /// [matchPaths] 启用路径匹配，[preferPrefix] 优先前缀。
+  /// 返回新语料库；资源不足抛 FuzzyException。
+  ///
+  /// 示例：`final c = FuzzyCorpus.strings(["你好"]); c.dispose();`。
   static FuzzyCorpus<String> strings(Iterable<String> items,
           {FuzzyOptions options = const FuzzyOptions(),
           bool matchPaths = false,
@@ -274,7 +317,11 @@ final class FuzzyCorpus<T> extends FuzzyCorpusProtected<T> {
           matchPaths: matchPaths,
           preferPrefix: preferPrefix);
 
-  // 使用指定字段作为条目文本。
+  /// 以 [items] 中的 [field] 字段建立语料库，缺失字段视为空文本。
+  /// [options] 为搜索选项，[matchPaths] 启用路径匹配，[preferPrefix] 优先前缀。
+  /// 返回新语料库；资源不足抛 FuzzyException。
+  ///
+  /// 示例：`final c = FuzzyCorpus.byKey([{"name": "你好"}], "name"); c.dispose();`。
   static FuzzyCorpus<Map<String, dynamic>> byKey(
           Iterable<Map<String, dynamic>> items, String field,
           {FuzzyOptions options = const FuzzyOptions(),
@@ -287,7 +334,11 @@ final class FuzzyCorpus<T> extends FuzzyCorpusProtected<T> {
           matchPaths: matchPaths,
           preferPrefix: preferPrefix);
 
-  // 根据多个字段建立原始键和附加键。
+  /// 以 [items] 中 [fields] 的首字段为原始文本，其余为附加键；缺失字段视为空文本。
+  /// [fields] 为空时抛 ArgumentError；[options] 为选项，[matchPaths] 启用路径匹配，[preferPrefix] 优先前缀。
+  /// 返回新语料库；资源不足抛 FuzzyException。
+  ///
+  /// 示例：`final c = FuzzyCorpus.byKeys([{"name": "你好"}], ["name"]); c.dispose();`。
   static FuzzyCorpus<Map<String, dynamic>> byKeys(
       Iterable<Map<String, dynamic>> items, List<String> fields,
       {FuzzyOptions options = const FuzzyOptions(),
@@ -316,7 +367,11 @@ final class FuzzyCorpus<T> extends FuzzyCorpusProtected<T> {
     return c;
   }
 
-  // 建立空语料库后异步批量写入条目。
+  /// 异步创建语料库；[items] 为条目，[stringOf] 提取文本，[options] 为选项。
+  /// [matchPaths] 启用路径匹配，[preferPrefix] 优先前缀。
+  /// 返回完成构建的新语料库；提取文本的异常向上传递，资源不足抛 FuzzyException。
+  ///
+  /// 示例：`final c = await FuzzyCorpus.asyncBuild(["你好"], stringOf: (s) => s); c.dispose();`。
   static Future<FuzzyCorpus<T>> asyncBuild<T>(Iterable<T> items,
       {required String Function(T) stringOf,
       FuzzyOptions options = const FuzzyOptions(),
@@ -722,7 +777,11 @@ final class FuzzyCorpus<T> extends FuzzyCorpusProtected<T> {
 
   // ── Async build ───────────────────────────────────────────────────────────
 
-  // 异步新增条目，写入失败时恢复或清理原生索引。
+  /// 异步追加 [items]，返回完成通知；文本提取异常向上传递。
+  /// 销毁后、构建中或搜索未完成时调用抛 StateError；资源不足抛 FuzzyException。
+  /// 失败时保留已提交的前缀。
+  ///
+  /// 示例：`await corpus.asyncAddAll(["你好"]);`。
   Future<void> asyncAddAll(Iterable<T> items) async {
     checkMutate_();
     building_ = true;
@@ -746,7 +805,10 @@ final class FuzzyCorpus<T> extends FuzzyCorpusProtected<T> {
 
   // ── Lifecycle ─────────────────────────────────────────────────────────────
 
-  // 标记销毁，等待在途操作结束后释放索引。
+  /// 释放语料库；无参数，无返回值，可重复调用。
+  /// 调用后禁止搜索和修改；未结束的操作完成后释放资源。
+  ///
+  /// 示例：`corpus.dispose();`。
   void dispose() {
     if (disposed_) return;
     disposed_ = true;
@@ -760,7 +822,10 @@ final class FuzzyCorpus<T> extends FuzzyCorpusProtected<T> {
     }
   }
 
-  // 等待在途操作完成并释放平台资源。
+  /// 销毁语料库并等待在途操作完成；无参数，返回资源释放完成通知。
+  /// 可重复调用；调用后禁止搜索和修改。
+  ///
+  /// 示例：`await corpus.asyncDispose();`。
   Future<void> asyncDispose() async {
     disposed_ = true;
     if (inFlight_ > 0 || building_) {

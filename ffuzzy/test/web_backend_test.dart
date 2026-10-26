@@ -6,20 +6,29 @@ import 'dart:js_interop';
 import 'package:ffuzzy/ffuzzy.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+// 当前源码测试引擎的地址。
 const _engineUrl = String.fromEnvironment('FFUZZY_TEST_ENGINE_URL');
+// 测试查询。
 const _query = 'hello';
+// 原始键文本。
 const _primary = '原始';
+// 附加键文本。
 const _alias = '别名';
+// 预期高亮下标。
 const _indices = [0, 1, 2, 3, 4];
 
+// 读取当前网页测试引擎。
 @JS('_ffzModule')
 external _TestEngine get _engine;
 
+// 提供网页测试的分配故障注入接口。
 extension type _TestEngine._(JSObject _) implements JSObject {
+  // 设置后续分配的成功预算。
   @JS('_ffz_ffi_dbg_fail_after')
   external void failAfter(int count);
 }
 
+// 验证搜索、生命周期和失败恢复的回归契约。
 void main() {
   test('并发初始化共享一次加载且等待中的销毁不复活', () async {
     final c = FuzzyCorpus.strings([_query]);

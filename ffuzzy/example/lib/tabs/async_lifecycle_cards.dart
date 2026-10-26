@@ -26,6 +26,7 @@ class _AsyncBuildCardState extends State<AsyncBuildCard> {
     super.dispose();
   }
 
+  // 异步构建演示语料，页面卸载后立即释放结果。
   Future<void> _build() async {
     setState(() => _building = true);
     final sw = Stopwatch()..start();

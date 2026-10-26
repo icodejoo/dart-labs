@@ -108,7 +108,7 @@ static void arena_free(ffz_arena *a) {
 typedef struct {
     void *data;     // uint8_t[] if `ascii`, else uint32_t[]
     uint32_t len;   // code units (haystacks are bounded to 2^32-1)
-    int kind;
+    int kind;      // 保留宿主提供的完整键类型整数。
     uint8_t ascii;
 } corpus_key;
 
@@ -906,6 +906,7 @@ static bool thr_merge_start(scan_merge_job *j, ffz_thr *out) {
 }
 #endif
 
+// 合并子序列与近似命中，拒绝非法查询。
 bool ffz_corpus_filter_merge(ffz_corpus *c,
                               const char *query, size_t query_len,
                               ffz_case_matching cm, ffz_normalization nm,
@@ -1001,6 +1002,7 @@ bool ffz_corpus_filter_merge(ffz_corpus *c,
 
 // --- fallback filter -------------------------------------------------------
 
+// 优先子序列，零命中时回退近似搜索。
 bool ffz_corpus_filter_fallback(ffz_corpus *c,
                                  const char *query, size_t query_len,
                                  ffz_case_matching cm, ffz_normalization nm,
@@ -1225,6 +1227,7 @@ void ffz_dual_results_free(ffz_dual_results *d) {
     ffz_results_free(&d->edit);
 }
 
+// 分别填充子序列和近似结果，拒绝非法查询。
 bool ffz_corpus_filter_dual(ffz_corpus *c,
                               const char *query, size_t query_len,
                               ffz_case_matching cm, ffz_normalization nm,

@@ -81,6 +81,7 @@ class FuzzyOptions {
           limit == other.limit &&
           highlight == other.highlight);
 
+  /// 返回所有搜索选项的哈希值；无参数。示例：`const FuzzyOptions().hashCode`。
   @override
   int get hashCode => Object.hash(scoring, caseMatching, normalization,
       parallel, threads, limit, highlight);
@@ -142,17 +143,9 @@ class FuzzyDualResult<T> {
   const FuzzyDualResult({required this.fuzzy, required this.approx});
 }
 
-/// Returns a sensible edit-distance threshold based on query length, mirroring
-/// Elasticsearch's AUTO policy:
-/// - length ≤ 2 → 0 (exact — too short to tolerate errors)
-/// - length 3-5 → 1
-/// - length 6+  → 2
+/// 按 [query] 的码点数返回默认距离：零至二个返回零，三至五个返回一，其余返回二。
 ///
-/// Use this when you want adaptive tolerance without picking a fixed [maxDistance]:
-/// ```dart
-/// corpus.approx(q, maxDistance: autoMaxDistance(q));
-/// ```
-// 按查询码点数自动选择允许的编辑距离。
+/// 示例：`autoMaxDistance("你好世界")` 返回一。
 int autoMaxDistance(String query) {
   final n = query.runes.length;
   if (n <= 2) return 0;
@@ -198,6 +191,7 @@ class FuzzyHit<T> {
   String toString() =>
       'FuzzyHit(index: $index, score: $score, kind: $matchedKind($matchedKindCode), raw: $raw)';
 
+  /// 比较 [other] 的条目和命中元数据，返回是否相同。示例：`hit == otherHit`。
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||

@@ -24,6 +24,7 @@
 #define FFZ_API __attribute__((visibility("default")))
 #endif
 
+// 宿主接口允许的最大编辑距离。
 enum { FFZ_MAX_EDIT_DISTANCE = 10 };
 
 // --- optional native crash handler ----------------------------------------
@@ -42,8 +43,19 @@ FFZ_API int ffz_ffi_install_crash_handler(const char *breadcrumb_path) {
 #endif
 
 #ifdef FFZ_TRACK_ALLOC
-// 仅测试构建导出分配故障注入和存活块计数。
+/**
+ * 设置测试分配故障预算。
+ * @param n 允许的成功分配次数，负数关闭故障注入。
+ * @return 空值，仅分配计数构建可用。
+ * @example ffz_ffi_dbg_fail_after(-1);
+ */
 FFZ_API void ffz_ffi_dbg_fail_after(int n) { ffz_dbg_fail_after(n); }
+/**
+ * 读取测试分配计数。
+ *
+ * @return 当前存活块数，仅分配计数构建可用。
+ * @example size_t live = ffz_ffi_dbg_live_blocks();
+ */
 FFZ_API size_t ffz_ffi_dbg_live_blocks(void) { return ffz_alloc_live_blocks(); }
 #endif
 
@@ -67,11 +79,29 @@ FFZ_API ffz_corpus *ffz_ffi_new_cfg2(int paths, int prefer_prefix, int scoring) 
     cfg.scoring_mode  = (ffz_scoring_mode)scoring;
     return ffz_corpus_new(cfg);
 }
-// 新增成功返回一，失败返回零；宿主必须检查后再提交列表。
+/**
+ * 新增条目及注册的转写键。
+ * @param c 语料库，空指针时失败。
+ * @param s 条目 UTF-8 字节。
+ * @param n 条目字节数。
+ * @return 成功返回一，失败返回零且不提交条目。
+ * @example int ok = ffz_ffi_add(c, "abc", 3);
+ */
 FFZ_API int ffz_ffi_add(ffz_corpus *c, const char *s, size_t n) {
     return c && ffz_corpus_add(c, s, n);
 }
-// 文本、长度、类型平行数组转换为附加键；原始键自动加入，失败不提交条目。
+/**
+ * 新增条目和显式附加键，绕过转写回调。
+ * @param c 语料库，空指针时失败。
+ * @param s 条目 UTF-8 字节。
+ * @param n 条目字节数。
+ * @param texts 附加键文本数组。
+ * @param lens 附加键字节数数组。
+ * @param kinds 附加键类型数组。
+ * @param nkeys 附加键数，零时三个数组可为空。
+ * @return 成功返回一，失败返回零且不提交条目。
+ * @example int ok = ffz_ffi_add_keyed(c, "abc", 3, NULL, NULL, NULL, 0);
+ */
 FFZ_API int ffz_ffi_add_keyed(ffz_corpus *c, const char *s, size_t n,
                                const char *const *texts, const size_t *lens,
                                const int *kinds, size_t nkeys) {
@@ -193,16 +223,19 @@ FFZ_API void ffz_ffi_results_free(ffz_results *r) {
     free(r);
 }
 
-// Approximate substring (edit-distance, typo-tolerant) search. max_distance:
-// typically 1 or 2. Results sorted by distance ascending. Each hit's indices
-// are the matched window's codepoint range (a contiguous run, not discrete
-// positions — see ffz_corpus_filter_edit).
-// cm: 0=respect 1=ignore 2=smart. nm: 0=never 1=smart.
-//
-// 近似子串（编辑距离、容错拼写）搜索。max_distance 通常为 1 或 2。
-// 结果按距离升序排序。每个命中项的 indices 是匹配窗口的码点范围
-// （一段连续区间，而非离散位置——参见 ffz_corpus_filter_edit）。
-// cm：0=区分大小写 1=忽略大小写 2=智能。nm：0=从不归一化 1=智能归一化。
+/**
+ * 返回近似子串命中及窗口高亮。
+ * @param c 有效语料库指针。
+ * @param q 非空查询指针，允许空字节串。
+ * @param qn 查询字节数；最多六十四码点。
+ * @param cm 大小写规则。
+ * @param nm 归一化规则。
+ * @param max_distance 零至十的编辑距离。
+ * @param limit 结果上限，零表示不限。
+ * @return 参数非法或结果容器分配失败返回空指针；否则返回需释放的结果句柄。
+ * @example ffz_results *r = ffz_ffi_filter_edit(c, "abc", 3, 1, FFZ_CASE_SMART, FFZ_NORM_SMART, 10);
+ *          ffz_ffi_results_free(r);
+ */
 FFZ_API ffz_results *ffz_ffi_filter_edit(ffz_corpus *c,
                                           const char *q, size_t qn,
                                           int max_distance,
@@ -221,13 +254,19 @@ FFZ_API ffz_results *ffz_ffi_filter_edit(ffz_corpus *c,
     return r;
 }
 
-// Like ffz_ffi_filter_edit but skips per-survivor window recovery (Pass 2).
-// Results have empty indices; score/kind/key/item are still valid. Faster
-// when the caller only needs matched items, not highlight ranges.
-//
-// 与 ffz_ffi_filter_edit 类似，但跳过每个存活项的窗口恢复（Pass 2）。
-// 结果的 indices 为空；score/kind/key/item 仍然有效。当调用方只需要
-// 匹配到的条目、不需要高亮范围时，这样更快。
+/**
+ * 返回不含高亮的近似子串命中。
+ * @param c 有效语料库指针。
+ * @param q 非空查询指针，允许空字节串。
+ * @param qn 查询字节数；最多六十四码点。
+ * @param cm 大小写规则。
+ * @param nm 归一化规则。
+ * @param max_distance 零至十的编辑距离。
+ * @param limit 结果上限，零表示不限。
+ * @return 参数非法或结果容器分配失败返回空指针；否则返回需释放的结果句柄。
+ * @example ffz_results *r = ffz_ffi_filter_edit_raws(c, "abc", 3, 1, FFZ_CASE_SMART, FFZ_NORM_SMART, 10);
+ *          ffz_ffi_results_free(r);
+ */
 FFZ_API ffz_results *ffz_ffi_filter_edit_raws(ffz_corpus *c,
                                                const char *q, size_t qn,
                                                int max_distance,
@@ -246,6 +285,22 @@ FFZ_API ffz_results *ffz_ffi_filter_edit_raws(ffz_corpus *c,
     return r;
 }
 
+/**
+ * 返回子序列在前、仅近似命中在后的合并结果。
+ * @param c 有效语料库指针。
+ * @param q 非空查询指针，允许空字节串。
+ * @param qn 查询字节数；最多六十四码点。
+ * @param cm 大小写规则。
+ * @param nm 归一化规则。
+ * @param max_distance 零至十的编辑距离。
+ * @param scoring 子序列评分方式。
+ * @param parallel 是否并行。
+ * @param threads 线程数，零表示自动。
+ * @param limit 结果上限，零表示不限。
+ * @return 参数非法或结果容器分配失败返回空指针；否则返回需释放的结果句柄。
+ * @example ffz_results *r = ffz_ffi_filter_merge(c, "abc", 3, FFZ_CASE_SMART, FFZ_NORM_SMART, 1, FFZ_SCORE_FAST, 0, 0, 10);
+ *          ffz_ffi_results_free(r);
+ */
 FFZ_API ffz_results *ffz_ffi_filter_merge(ffz_corpus *c,
                                            const char *q, size_t qn,
                                            int cm, int nm,
@@ -270,6 +325,22 @@ FFZ_API ffz_results *ffz_ffi_filter_merge(ffz_corpus *c,
 // --- fallback filter -------------------------------------------------------
 //
 // --- 回退过滤器 ---
+/**
+ * 优先返回子序列结果，无命中时回退到近似搜索。
+ * @param c 有效语料库指针。
+ * @param q 非空查询指针，允许空字节串。
+ * @param qn 查询字节数；最多六十四码点。
+ * @param cm 大小写规则。
+ * @param nm 归一化规则。
+ * @param max_distance 零至十的编辑距离。
+ * @param scoring 子序列评分方式。
+ * @param parallel 是否并行。
+ * @param threads 线程数，零表示自动。
+ * @param limit 结果上限，零表示不限。
+ * @return 参数非法或结果容器分配失败返回空指针；否则返回需释放的结果句柄。
+ * @example ffz_results *r = ffz_ffi_filter_fallback(c, "abc", 3, FFZ_CASE_SMART, FFZ_NORM_SMART, 1, FFZ_SCORE_FAST, 0, 0, 10);
+ *          ffz_ffi_results_free(r);
+ */
 FFZ_API ffz_results *ffz_ffi_filter_fallback(ffz_corpus *c,
                                               const char *q, size_t qn,
                                               int cm, int nm,
@@ -296,6 +367,22 @@ FFZ_API ffz_results *ffz_ffi_filter_fallback(ffz_corpus *c,
 // --- dual filter -----------------------------------------------------------
 //
 // --- 双结果过滤器 ---
+/**
+ * 返回子序列和近似搜索的独立结果组。
+ * @param c 有效语料库指针。
+ * @param q 非空查询指针，允许空字节串。
+ * @param qn 查询字节数；最多六十四码点。
+ * @param cm 大小写规则。
+ * @param nm 归一化规则。
+ * @param max_distance 零至十的编辑距离。
+ * @param scoring 子序列评分方式。
+ * @param parallel 是否并行。
+ * @param threads 线程数，零表示自动。
+ * @param limit 结果上限，零表示不限。
+ * @return 参数非法或结果容器分配失败返回空指针；否则返回需释放的结果句柄。
+ * @example ffz_dual_results *d = ffz_ffi_filter_dual(c, "abc", 3, FFZ_CASE_SMART, FFZ_NORM_SMART, 1, FFZ_SCORE_FAST, 0, 0, 10);
+ *          ffz_ffi_dual_free(d);
+ */
 FFZ_API ffz_dual_results *ffz_ffi_filter_dual(ffz_corpus *c,
                                                const char *q, size_t qn,
                                                int cm, int nm,

@@ -58,10 +58,26 @@ void ffz_corpus_free(ffz_corpus *c);
 void ffz_corpus_set_transliterator(ffz_corpus *c, ffz_transliterator fn,
                                     void *ctx, size_t max_keys_per_item);
 
-// 新增条目及转写键；成功返回真，失败返回假且条目数量和已有键不变。
+/**
+ * 新增条目，并使用已注册的转写回调生成附加键。
+ * @param c 有效语料库。
+ * @param item 条目 UTF-8 字节；len 非零时必须可读。
+ * @param len 条目字节数。
+ * @return 成功返回真；分配或容量检查失败返回假，条目数及已有键不变。
+ * @example bool ok = ffz_corpus_add(c, "abc", 3);
+ */
 bool ffz_corpus_add(ffz_corpus *c, const char *item, size_t len);
 
-// 新增原始键及显式附加键；成功返回真，失败返回假且不提交半条目。
+/**
+ * 新增原始键和显式附加键，绕过转写回调。
+ * @param c 有效语料库。
+ * @param item 条目 UTF-8 字节；len 非零时必须可读。
+ * @param len 条目字节数。
+ * @param keys 附加键数组，文本会被复制；nkeys 为零时允许为空。
+ * @param nkeys 附加键数量，不含自动加入的原始键。
+ * @return 成功返回真；分配或容量检查失败返回假，条目数及已有键不变。
+ * @example bool ok = ffz_corpus_add_keyed(c, "abc", 3, NULL, 0);
+ */
 bool ffz_corpus_add_keyed(ffz_corpus *c, const char *item, size_t len,
                           const ffz_key *keys, size_t nkeys);
 
@@ -135,21 +151,22 @@ void ffz_corpus_filter_raws(ffz_corpus *c, const char *query, size_t query_len,
 // Return the corpus-level scoring mode (stored in its ffz_config).
 ffz_scoring_mode ffz_corpus_scoring(const ffz_corpus *c);
 
-// Approximate SUBSTRING (edit-distance) filter. Returns items containing a
-// window whose edit distance to query is <= max_distance — the window may
-// start/end anywhere in the item, it is NOT anchored to the whole string.
-// Results are sorted by distance ascending (score = -distance). Each hit's
-// indices are populated with every codepoint position in the matched window
-// (a contiguous range, unlike the subsequence filters' discrete positions).
-// max_distance=1 handles single-char typos; 2 handles most realistic errors.
-//
-// 近似子串（编辑距离）过滤器。返回包含某个窗口的条目，该窗口与 query 的
-// 编辑距离 <= max_distance——窗口可以从条目中任意位置开始/结束，并不
-// 锚定到整个字符串。结果按距离升序排序（score = -distance）。每个命中项
-// 的 indices 会填充匹配窗口内的每一个码点位置（是一段连续区间，
-// 不同于子序列过滤器给出的离散位置）。max_distance=1 可处理单字符
-// 拼写错误；2 可处理大多数常见错误。
-// 查询超过六十四个码点时返回假；成功完成返回真。
+/**
+ * 近似子串搜索，按距离升序返回，分数为距离的相反数，高亮为命中窗口码点。
+ * @param c 有效语料库。
+ * @param query 非空的查询 UTF-8 字节指针，允许零字节查询。
+ * @param query_len 查询字节数，最多六十四码点；空查询匹配全部条目。
+ * @param cm 大小写规则。
+ * @param nm 归一化规则。
+ * @param max_distance 最大编辑距离，须为非负数。
+ * @param par 并行选项。
+ * @param limit 结果数量上限，零表示不限。
+ * @param out 结果容器，首次调用前须清零，调用后由调用方释放。
+ * @return 语料库或查询为空指针、距离为负或查询超长时返回假并清空结果；其余返回真，不保证内存分配均成功。
+ * @example ffz_results r = {0};
+ *          bool ok = ffz_corpus_filter_edit(c, "abc", 3, FFZ_CASE_SMART, FFZ_NORM_SMART, 1, ffz_parallel_off(), 10, &r);
+ *          ffz_results_free(&r);
+ */
 bool ffz_corpus_filter_edit(ffz_corpus *c,
                             const char *query, size_t query_len,
                             ffz_case_matching cm, ffz_normalization nm,
@@ -157,12 +174,22 @@ bool ffz_corpus_filter_edit(ffz_corpus *c,
                             ffz_parallel par, size_t limit,
                             ffz_results *out);
 
-// Like ffz_corpus_filter_edit but skips Pass 2 (no matched-window recovery).
-// All hit.indices will be empty. Use when only item identity/distance is needed.
-//
-// 与 ffz_corpus_filter_edit 类似，但跳过 Pass 2（不做匹配窗口恢复）。
-// 所有 hit.indices 都为空。仅需要条目身份/距离时使用。
-// 查询超过六十四个码点时返回假；成功完成返回真。
+/**
+ * 近似子串搜索，按距离升序返回，不填充高亮。
+ * @param c 有效语料库。
+ * @param query 非空的查询 UTF-8 字节指针，允许零字节查询。
+ * @param query_len 查询字节数，最多六十四码点；空查询匹配全部条目。
+ * @param cm 大小写规则。
+ * @param nm 归一化规则。
+ * @param max_distance 最大编辑距离，须为非负数。
+ * @param par 并行选项。
+ * @param limit 结果数量上限，零表示不限。
+ * @param out 结果容器，首次调用前须清零，调用后由调用方释放。
+ * @return 语料库或查询为空指针、距离为负或查询超长时返回假并清空结果；其余返回真，不保证内存分配均成功。
+ * @example ffz_results r = {0};
+ *          bool ok = ffz_corpus_filter_edit_raws(c, "abc", 3, FFZ_CASE_SMART, FFZ_NORM_SMART, 1, ffz_parallel_off(), 10, &r);
+ *          ffz_results_free(&r);
+ */
 bool ffz_corpus_filter_edit_raws(ffz_corpus *c,
                                  const char *query, size_t query_len,
                                  ffz_case_matching cm, ffz_normalization nm,
@@ -170,12 +197,23 @@ bool ffz_corpus_filter_edit_raws(ffz_corpus *c,
                                  ffz_parallel par, size_t limit,
                                  ffz_results *out);
 
-// Single-pass merge: one corpus scan for both algorithms.
-// Seq hits (score ≥ 0) precede edit-only hits (score = -(distance+1) ≤ -1).
-//
-// 单趟合并：一次语料库扫描同时跑两种算法。
-// 子序列命中（score ≥ 0）排在仅编辑距离命中（score = -(distance+1) ≤ -1）之前。
-// 查询超过六十四个码点时返回假；成功完成返回真。
+/**
+ * 合并搜索；子序列命中在前，仅近似命中在后，后者分数为负的距离加一。
+ * @param c 有效语料库。
+ * @param query 非空的查询 UTF-8 字节指针，允许零字节查询。
+ * @param query_len 查询字节数，最多六十四码点；空查询匹配全部条目。
+ * @param cm 大小写规则。
+ * @param nm 归一化规则。
+ * @param max_distance 最大编辑距离，须为非负数。
+ * @param scoring 子序列评分方式。
+ * @param par 并行选项。
+ * @param limit 结果数量上限，零表示不限。
+ * @param out 结果容器，首次调用前须清零，调用后由调用方释放。
+ * @return 语料库或查询为空指针、距离为负或查询超长时返回假并清空结果；其余返回真，不保证内存分配均成功。
+ * @example ffz_results r = {0};
+ *          bool ok = ffz_corpus_filter_merge(c, "abc", 3, FFZ_CASE_SMART, FFZ_NORM_SMART, 1, FFZ_SCORE_FAST, ffz_parallel_off(), 10, &r);
+ *          ffz_results_free(&r);
+ */
 bool ffz_corpus_filter_merge(ffz_corpus *c,
                               const char *query, size_t query_len,
                               ffz_case_matching cm, ffz_normalization nm,
@@ -183,12 +221,23 @@ bool ffz_corpus_filter_merge(ffz_corpus *c,
                               ffz_parallel par, size_t limit,
                               ffz_results *out);
 
-// Single-call fallback: runs subsequence; falls back to edit-distance only if
-// subsequence returns zero results. One FFI call, no intermediate Dart objects.
-//
-// 单次调用的回退过滤器：先跑子序列匹配；仅当子序列返回零结果时才回退到
-// 编辑距离匹配。只需一次 FFI 调用，不产生中间 Dart 对象。
-// 查询超过六十四个码点时返回假；成功完成返回真。
+/**
+ * 优先子序列搜索，无命中时返回近似子串搜索结果。
+ * @param c 有效语料库。
+ * @param query 非空的查询 UTF-8 字节指针，允许零字节查询。
+ * @param query_len 查询字节数，最多六十四码点；空查询匹配全部条目。
+ * @param cm 大小写规则。
+ * @param nm 归一化规则。
+ * @param max_distance 最大编辑距离，须为非负数。
+ * @param scoring 子序列评分方式。
+ * @param par 并行选项。
+ * @param limit 结果数量上限，零表示不限。
+ * @param out 结果容器，首次调用前须清零，调用后由调用方释放。
+ * @return 语料库或查询为空指针、距离为负或查询超长时返回假并清空结果；其余返回真，不保证内存分配均成功。
+ * @example ffz_results r = {0};
+ *          bool ok = ffz_corpus_filter_fallback(c, "abc", 3, FFZ_CASE_SMART, FFZ_NORM_SMART, 1, FFZ_SCORE_FAST, ffz_parallel_off(), 10, &r);
+ *          ffz_results_free(&r);
+ */
 bool ffz_corpus_filter_fallback(ffz_corpus *c,
                                  const char *query, size_t query_len,
                                  ffz_case_matching cm, ffz_normalization nm,
@@ -210,14 +259,23 @@ typedef struct {
 
 void ffz_dual_results_free(ffz_dual_results *d);
 
-// Single-pass dual: scans corpus once, applies both algorithms per item.
-// Writes seq hits and edit hits into separate result sets inside *d.
-// d must be zero-initialised by the caller before the first call.
-//
-// 单趟双算法扫描：只扫描一次语料库，对每一项都应用两种算法。
-// 将子序列命中和编辑距离命中分别写入 *d 内的两个独立结果集。
-// 调用方必须在第一次调用前将 d 清零初始化。
-// 查询超过六十四个码点时返回假；成功完成返回真。
+/**
+ * 分别返回子序列和近似子串命中，允许两组重叠。
+ * @param c 有效语料库。
+ * @param query 非空的查询 UTF-8 字节指针，允许零字节查询。
+ * @param query_len 查询字节数，最多六十四码点；空查询匹配全部条目。
+ * @param cm 大小写规则。
+ * @param nm 归一化规则。
+ * @param max_distance 最大编辑距离，须为非负数。
+ * @param scoring 子序列评分方式。
+ * @param par 并行选项。
+ * @param limit 结果数量上限，零表示不限，分别作用于两组结果。
+ * @param d 结果容器，首次调用前须清零，调用后由调用方释放。
+ * @return 语料库或查询为空指针、距离为负或查询超长时返回假并清空结果；其余返回真，不保证内存分配均成功。
+ * @example ffz_dual_results d = {0};
+ *          bool ok = ffz_corpus_filter_dual(c, "abc", 3, FFZ_CASE_SMART, FFZ_NORM_SMART, 1, FFZ_SCORE_FAST, ffz_parallel_off(), 10, &d);
+ *          ffz_dual_results_free(&d);
+ */
 bool ffz_corpus_filter_dual(ffz_corpus *c,
                               const char *query, size_t query_len,
                               ffz_case_matching cm, ffz_normalization nm,

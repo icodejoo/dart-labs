@@ -4,13 +4,20 @@ import 'dart:ffi';
 import 'package:ffuzzy/ffuzzy.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+// 回归测试条目。
 const _items = ['alpha', 'beta', 'gamma'];
+// 回调失败信息。
 const _failure = '回调失败';
+// 测试查询。
 const _query = 'hello';
+// 原始键文本。
 const _primary = '原始';
+// 附加键文本。
 const _alias = '别名';
 
+// 验证搜索、生命周期和失败恢复的回归契约。
 void main() {
+  // 返回当前平台的测试动态库路径。
   String libPath() {
     final root = Directory.current.path;
     if (Platform.isWindows) return '$root/ffz.dll';

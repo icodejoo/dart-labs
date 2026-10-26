@@ -19,14 +19,22 @@
 #include <stddef.h>
 #include <stdint.h>
 
-// 单字编辑距离最多支持六十四个查询码点；底层距离函数超限返回负二。
+/**
+ * 近似查询最多六十四码点，底层距离函数超限返回负二。
+ */
 enum { FFZ_EDIT_MAX_QUERY = 64, FFZ_EDIT_QUERY_TOO_LONG = -2 };
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-// 检查原始查询码点数，供近似和组合搜索入口拒绝超限查询。
+/**
+ * 检查查询是否在近似搜索长度上限内。
+ * @param query 查询 UTF-8 字节；len 非零时必须可读。
+ * @param len 查询字节数；空查询合法。
+ * @return 不超过六十四码点时返回真，否则返回假。
+ * @example bool ok = ffz_edit_query_valid("abc", 3);
+ */
 bool ffz_edit_query_valid(const char *query, size_t len);
 
 // ---------------------------------------------------------------------------

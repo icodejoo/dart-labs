@@ -15,6 +15,7 @@ import { join, dirname } from 'node:path';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '../..');
 const api  = JSON.parse(readFileSync(join(root, 'test/shared/api_surface.json'), 'utf8'));
+// 读取指定目录的声明文件，默认检查发布目录。
 const dts  = readFileSync(join(root, 'wasm', process.argv[2] ?? 'dist', 'ffuzzy.d.mts'), 'utf8');
 
 // ── Extract JS exports ────────────────────────────────────────────────────────

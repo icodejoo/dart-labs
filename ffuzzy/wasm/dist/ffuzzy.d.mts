@@ -78,6 +78,12 @@ type SearchStrategy = 'fuzzy' | 'approx' | 'fallback' | 'merge';
  * - length 3-5 → 1
  * - length 6+  → 2
  */
+/**
+ * 按查询码点数选择默认编辑距离。
+ * @param query 查询文本。
+ * @returns 零至二码点返回零，三至五码点返回一，其余返回二。
+ * @example autoMaxDistance("你好世界"); // 返回一
+ */
 declare function autoMaxDistance(query: string): number;
 interface FuzzyDualResult<T = unknown> {
   fuzzy: FuzzyHit<T>[];
@@ -90,15 +96,9 @@ interface FuzzyCorpusInit<T> {
   preferPrefix?: boolean;
 }
 /**
- * A resident corpus of `T` items. Build once, search many times.
- * Release WASM memory with `dispose()` or the `using` statement.
- *
- * @example
- * ```ts
- * const corpus = FuzzyCorpus.strings(['src/main.rs', 'README.md']);
- * corpus.fuzzy('src').forEach(h => console.log(h.raw, h.score));
- * corpus.dispose();
- * ```
+ * 可反复搜索的常驻语料库，用完后调用 dispose 释放资源。
+ * @typeParam T 原始条目类型，默认字符串。
+ * @example const c = FuzzyCorpus.strings(["你好"]); c.fuzzy("你"); c.dispose();
  */
 declare class FuzzyCorpus<T = string> {
   private _M;
@@ -114,6 +114,14 @@ declare class FuzzyCorpus<T = string> {
   private _scratch;
   private _scratch4;
   private _scratchCap;
+  /**
+   * 创建可反复搜索的语料库。
+   * @param items 初始条目，可省略。
+   * @param init 文本提取函数及默认选项，可省略。
+   * @returns 新语料库；引擎未就绪时同步搜索返回空结果。
+   * @throws {Error} 语料库已销毁、资源不足或文本回调失败。
+   * @example const c = new FuzzyCorpus(["你好"]); c.dispose();
+   */
   constructor(items?: Iterable<T>, init?: FuzzyCorpusInit<T>);
   /** Resolves when the engine finishes loading (success or failure). Useful for
    *  re-triggering a search after a corpus created before `ffuzzyInitialize`:
@@ -121,52 +129,230 @@ declare class FuzzyCorpus<T = string> {
    *  corpus.ready.then(() => { if (corpus.isReady) renderResults(corpus.fuzzy(q)); });
    *  ``` */
   get ready(): Promise<void>;
-  /** `true` once the engine has loaded and this corpus is backed by WASM. */
+  /**
+   * 读取当前语料库是否可搜索。
+   *
+   * @returns 引擎已就绪且语料库未销毁时为真。
+   * @example corpus.isReady;
+   */
   get isReady(): boolean;
   static strings(items?: Iterable<string>, opts?: Omit<FuzzyCorpusInit<string>, 'stringOf'>): FuzzyCorpus<string>;
   static byKey<T extends Record<string, unknown>>(maps?: Iterable<T>, field?: FieldPath<T> | (string & {}), opts?: Omit<FuzzyCorpusInit<T>, 'stringOf'>): FuzzyCorpus<T>;
+  /**
+   * 按首字段及其余字段建立原始键和附加键。
+   * @param maps 初始条目，可省略。
+   * @param fields 字段路径；不能为空。
+   * @param opts 默认选项，可省略。
+   * @returns 新语料库；字段缺失视为空文本。
+   * @throws {Error} 语料库已销毁、资源不足或文本回调失败。
+   * @throws {Error} fields 为空。
+   * @example const c = FuzzyCorpus.byKeys([{name: "你好"}], ["name"]); c.dispose();
+   */
   static byKeys<T extends Record<string, unknown>>(maps?: Iterable<T>, fields?: (FieldPath<T> | (string & {}))[], opts?: Omit<FuzzyCorpusInit<T>, 'stringOf'>): FuzzyCorpus<T>;
   get length(): number;
+  /**
+   * 新增条目，失败保留已有条目。
+   * @param item 待加入条目。
+   * @returns 空值。
+   * @throws {Error} 语料库已销毁、资源不足或文本回调失败。
+   * @example corpus.add("你好");
+   */
   add(item: T): void;
+  /**
+   * 依次新增条目，失败保留已加入的前缀。
+   * @param items 待加入条目。
+   * @returns 空值。
+   * @throws {Error} 语料库已销毁、资源不足或文本回调失败。
+   * @example corpus.addAll(["你好"]);
+   */
   addAll(items: Iterable<T>): void;
+  /**
+   * 新增条目和附加键，原始键自动保留。
+   * @param item 待加入条目。
+   * @param keys 附加键，允许为空。
+   * @returns 空值。
+   * @throws {Error} 语料库已销毁、资源不足或文本回调失败。
+   * @example corpus.addKey("你好", [new FuzzyKey("nihao")]);
+   */
   addKey(item: T, keys: FuzzyKey[]): void;
+  /**
+   * 替换条目并清除其附加键。
+   * @param index 从零开始的索引。
+   * @param item 新条目。
+   * @returns 空值。
+   * @throws {Error} 语料库已销毁、资源不足或文本回调失败。
+   * @throws {RangeError} 索引不是有效整数或越界。
+   * @example corpus.update(0, "你好");
+   */
   update(index: number, item: T): void;
+  /**
+   * 删除指定条目。
+   * @param index 从零开始的索引。
+   * @returns 空值。
+   * @throws {Error} 语料库已销毁、资源不足或文本回调失败。
+   * @throws {RangeError} 索引不是有效整数或越界。
+   * @example corpus.removeAt(0);
+   */
   removeAt(index: number): void;
+  /**
+   * 删除满足条件的条目；回调失败时不提交本次筛选。
+   * @param test 删除条件，回调异常向上传递。
+   * @returns 删除数量。
+   * @throws {Error} 语料库已销毁、资源不足或文本回调失败。
+   * @example corpus.removeWhere(s => s === "");
+   */
   removeWhere(test: (item: T) => boolean): number;
+  /**
+   * 刷新现有条目；提供来源时替换条目并清除附加键。
+   * @param source 新来源，省略时保留现有条目及键。
+   * @returns 空值。
+   * @throws {Error} 语料库已销毁、资源不足或文本回调失败。
+   * @example corpus.refresh(["你好"]);
+   */
   refresh(source?: Iterable<T>): void;
   clear(): void;
-  /** fzf-style subsequence search. Shorthand for `search(query, { strategy: 'fuzzy' })`. */
+  /**
+   * 子序列搜索。
+   * @param query 查询文本。
+   * @param opts 搜索选项，省略的字段沿用语料库选项；limit 非正数表示不限。
+   * @returns 命中列表，highlight 为真时包含码点下标。引擎未就绪时返回空结果。
+   * @throws {RangeError} 显式距离不是零至十的整数，或近似、回退、合并、双路查询超过六十四码点。
+   * @throws {Error} 语料库已销毁或资源不足。
+   * @example corpus.fuzzy("你好");
+   */
   fuzzy(query: string, opts?: Partial<FuzzyOptions>): FuzzyHit<T>[];
   /** Contiguous-substring match. */
+  /**
+   * 子串搜索。
+   * @param query 查询文本。
+   * @param opts 搜索选项，省略的字段沿用语料库选项；limit 非正数表示不限。
+   * @returns 命中列表，highlight 为真时包含码点下标。引擎未就绪时返回空结果。
+   * @throws {Error} 语料库已销毁或资源不足。
+   * @example corpus.substring("你好");
+   */
   substring(query: string, opts?: Partial<FuzzyOptions>): FuzzyHit<T>[];
   /** Prefix match — item starts with query. */
+  /**
+   * 前缀搜索。
+   * @param query 查询文本。
+   * @param opts 搜索选项，省略的字段沿用语料库选项；limit 非正数表示不限。
+   * @returns 命中列表，highlight 为真时包含码点下标。引擎未就绪时返回空结果。
+   * @throws {Error} 语料库已销毁或资源不足。
+   * @example corpus.prefix("你好");
+   */
   prefix(query: string, opts?: Partial<FuzzyOptions>): FuzzyHit<T>[];
   /** Postfix match — item ends with query. */
+  /**
+   * 后缀搜索。
+   * @param query 查询文本。
+   * @param opts 搜索选项，省略的字段沿用语料库选项；limit 非正数表示不限。
+   * @returns 命中列表，highlight 为真时包含码点下标。引擎未就绪时返回空结果。
+   * @throws {Error} 语料库已销毁或资源不足。
+   * @example corpus.postfix("你好");
+   */
   postfix(query: string, opts?: Partial<FuzzyOptions>): FuzzyHit<T>[];
   /** Alias for {@link postfix}. */
+  /**
+   * 后缀搜索。
+   * @param query 查询文本。
+   * @param opts 搜索选项，省略的字段沿用语料库选项；limit 非正数表示不限。
+   * @returns 命中列表，highlight 为真时包含码点下标。引擎未就绪时返回空结果。
+   * @throws {Error} 语料库已销毁或资源不足。
+   * @example corpus.suffix("你好");
+   */
   suffix(query: string, opts?: Partial<FuzzyOptions>): FuzzyHit<T>[];
   /** Exact whole-string match. */
+  /**
+   * 完整文本搜索。
+   * @param query 查询文本。
+   * @param opts 搜索选项，省略的字段沿用语料库选项；limit 非正数表示不限。
+   * @returns 命中列表，highlight 为真时包含码点下标。引擎未就绪时返回空结果。
+   * @throws {Error} 语料库已销毁或资源不足。
+   * @example corpus.exact("你好");
+   */
   exact(query: string, opts?: Partial<FuzzyOptions>): FuzzyHit<T>[];
-  /** Fuzzy search — raw `T[]` only, no wrapper. Faster: skips highlight-index computation. */
+  /**
+   * 子序列搜索。
+   * @param query 查询文本。
+   * @param opts 搜索选项，省略的字段沿用语料库选项；limit 非正数表示不限。
+   * @returns 原始条目列表。引擎未就绪时返回空结果。
+   * @throws {Error} 语料库已销毁或资源不足。
+   * @example corpus.fuzzyRaws("你好");
+   */
   fuzzyRaws(query: string, opts?: Partial<FuzzyOptions>): T[];
   /** Substring search — raw `T[]` only. */
+  /**
+   * 子串搜索。
+   * @param query 查询文本。
+   * @param opts 搜索选项，省略的字段沿用语料库选项；limit 非正数表示不限。
+   * @returns 原始条目列表。引擎未就绪时返回空结果。
+   * @throws {Error} 语料库已销毁或资源不足。
+   * @example corpus.substringRaws("你好");
+   */
   substringRaws(query: string, opts?: Partial<FuzzyOptions>): T[];
   /** Prefix search — raw `T[]` only. */
+  /**
+   * 前缀搜索。
+   * @param query 查询文本。
+   * @param opts 搜索选项，省略的字段沿用语料库选项；limit 非正数表示不限。
+   * @returns 原始条目列表。引擎未就绪时返回空结果。
+   * @throws {Error} 语料库已销毁或资源不足。
+   * @example corpus.prefixRaws("你好");
+   */
   prefixRaws(query: string, opts?: Partial<FuzzyOptions>): T[];
   /** Postfix search — raw `T[]` only. */
+  /**
+   * 后缀搜索。
+   * @param query 查询文本。
+   * @param opts 搜索选项，省略的字段沿用语料库选项；limit 非正数表示不限。
+   * @returns 原始条目列表。引擎未就绪时返回空结果。
+   * @throws {Error} 语料库已销毁或资源不足。
+   * @example corpus.postfixRaws("你好");
+   */
   postfixRaws(query: string, opts?: Partial<FuzzyOptions>): T[];
   /** Alias for {@link postfixRaws}. */
+  /**
+   * 后缀搜索。
+   * @param query 查询文本。
+   * @param opts 搜索选项，省略的字段沿用语料库选项；limit 非正数表示不限。
+   * @returns 原始条目列表。引擎未就绪时返回空结果。
+   * @throws {Error} 语料库已销毁或资源不足。
+   * @example corpus.suffixRaws("你好");
+   */
   suffixRaws(query: string, opts?: Partial<FuzzyOptions>): T[];
   /** Exact search — raw `T[]` only. */
+  /**
+   * 完整文本搜索。
+   * @param query 查询文本。
+   * @param opts 搜索选项，省略的字段沿用语料库选项；limit 非正数表示不限。
+   * @returns 原始条目列表。引擎未就绪时返回空结果。
+   * @throws {Error} 语料库已销毁或资源不足。
+   * @example corpus.exactRaws("你好");
+   */
   exactRaws(query: string, opts?: Partial<FuzzyOptions>): T[];
-  /** Raw-object shorthand for `search()`. Returns `T[]` instead of `FuzzyHit<T>[]`. */
+  /**
+   * 统一搜索。
+   * @param query 查询文本。
+   * @param opts 搜索选项，省略的字段沿用语料库选项；limit 非正数表示不限。 strategy 选择子序列、近似、无子序列命中时回退或合并；maxDistance 默认自动选择。
+   * @returns 原始条目列表。引擎未就绪时返回空结果。
+   * @throws {RangeError} 显式距离不是零至十的整数，或近似、回退、合并、双路查询超过六十四码点。
+   * @throws {Error} 语料库已销毁或资源不足。
+   * @example corpus.searchRaws("你好");
+   */
   searchRaws(query: string, opts?: Partial<FuzzyOptions> & {
     strategy?: SearchStrategy;
     maxDistance?: number;
   }): T[];
-  /** Edit-distance (typo-tolerant) search. Shorthand for `search(q, { strategy: 'approx' })`.
-   *  `maxDistance` defaults to {@link autoMaxDistance}(query) when omitted. */
-  /** 编辑距离须为零到十的整数；近似查询最多六十四个码点，超限抛出范围异常。 */
+  /**
+   * 近似子串搜索。
+   * @param query 查询文本。
+   * @param maxDistance 最大编辑距离，省略时按查询码点数自动选择。
+   * @param opts 搜索选项，省略的字段沿用语料库选项；limit 非正数表示不限。
+   * @returns 命中列表，highlight 为真时包含码点下标。引擎未就绪时返回空结果。
+   * @throws {RangeError} 显式距离不是零至十的整数，或近似、回退、合并、双路查询超过六十四码点。
+   * @throws {Error} 语料库已销毁或资源不足。
+   * @example corpus.approx("你好");
+   */
   approx(query: string, maxDistance?: number, opts?: Partial<FuzzyOptions>): FuzzyHit<T>[];
   /** Unified search entry point.
    *
@@ -175,22 +361,51 @@ declare class FuzzyCorpus<T = string> {
    * - `'fallback'` — subsequence first; falls back to approx when empty
    * - `'merge'`    — both algorithms; subsequence hits first, then approx-only hits
    */
-  /** 编辑距离须为零到十的整数；近似查询最多六十四个码点，超限抛出范围异常。 */
+  /**
+   * 统一搜索。
+   * @param query 查询文本。
+   * @param opts 搜索选项，省略的字段沿用语料库选项；limit 非正数表示不限。 strategy 选择子序列、近似、无子序列命中时回退或合并；maxDistance 默认自动选择。
+   * @returns 命中列表，highlight 为真时包含码点下标。引擎未就绪时返回空结果。
+   * @throws {RangeError} 显式距离不是零至十的整数，或近似、回退、合并、双路查询超过六十四码点。
+   * @throws {Error} 语料库已销毁或资源不足。
+   * @example corpus.search("你好");
+   */
   search(query: string, opts?: Partial<FuzzyOptions> & {
     strategy?: SearchStrategy;
     maxDistance?: number;
   }): FuzzyHit<T>[];
-  /** Raw-object shorthand for `approx()`. Returns `T[]` instead of `FuzzyHit<T>[]`. */
+  /**
+   * 近似子串搜索。
+   * @param query 查询文本。
+   * @param maxDistance 最大编辑距离，省略时按查询码点数自动选择。
+   * @param opts 搜索选项，省略的字段沿用语料库选项；limit 非正数表示不限。
+   * @returns 原始条目列表。引擎未就绪时返回空结果。
+   * @throws {RangeError} 显式距离不是零至十的整数，或近似、回退、合并、双路查询超过六十四码点。
+   * @throws {Error} 语料库已销毁或资源不足。
+   * @example corpus.approxRaws("你好");
+   */
   approxRaws(query: string, maxDistance?: number, opts?: Partial<FuzzyOptions>): T[];
-  /** Runs both algorithms independently and returns their results in separate buckets.
-   *  `maxDistance` defaults to {@link autoMaxDistance}(query) when omitted. */
-  /** 编辑距离须为零到十的整数；近似查询最多六十四个码点，超限抛出范围异常。 */
+  /**
+   * 双路搜索。
+   * @param query 查询文本。
+   * @param opts 搜索选项，省略的字段沿用语料库选项；limit 非正数表示不限。 maxDistance 默认按查询码点数自动选择。
+   * @returns 独立的子序列和近似命中列表。引擎未就绪时返回空结果。
+   * @throws {RangeError} 显式距离不是零至十的整数，或近似、回退、合并、双路查询超过六十四码点。
+   * @throws {Error} 语料库已销毁或资源不足。
+   * @example corpus.dual("你好");
+   */
   dual(query: string, opts?: Partial<FuzzyOptions> & {
     maxDistance?: number;
   }): FuzzyDualResult<T>;
   private _readHits;
   private _readFlat;
   private _approxRaw;
+  /**
+   * 销毁语料库，可重复调用。
+   *
+   * @returns 空值；销毁后搜索和修改抛出 Error。
+   * @example corpus.dispose();
+   */
   dispose(): void;
   [Symbol.dispose](): void;
   /** Returns true if ready to search; false if still deferred (WASM not loaded). */

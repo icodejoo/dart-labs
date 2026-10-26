@@ -2,12 +2,19 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { FuzzyCorpus, FuzzyKey, ffuzzyInitialize, autoMaxDistance } from '../.test-dist/ffuzzy.mjs';
 
+// 回归测试条目。
 const ITEMS = ['alpha', 'beta', 'gamma'];
+// 测试查询。
 const QUERY = 'hello';
+// 原始键文本。
 const PRIMARY = '原始';
+// 附加键文本。
 const ALIAS = '别名';
+// 预期高亮下标。
 const INDICES = Array.from(QUERY, (_, i) => i);
+// 启用高亮的测试选项。
 const HIGHLIGHT = { highlight: true };
+// 回调失败异常。
 const FAILURE = new Error('回调失败');
 
 // 初始化完成后不得复活已销毁的延迟语料库。

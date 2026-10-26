@@ -1,6 +1,7 @@
 import { defineConfig } from 'tsdown';
 import { resolve } from 'node:path';
 
+// 测试专用引擎路径，正式构建使用发布引擎。
 const testEngine = process.env.FFUZZY_TEST_ENGINE ??
   (process.env.npm_lifecycle_event === 'test' ? resolve('.test-engine/ffz.mjs') : undefined);
 

@@ -16,20 +16,24 @@ import 'ffuzzy_corpus.dart';
 export 'ffuzzy_types.dart';
 export 'ffuzzy_corpus.dart' hide FuzzyCorpusProtected;
 
-/// No-op on native. Call from shared code that also targets web.
-/// No-op on native — both parameters are ignored.
-/// Provided so cross-platform code compiles without `kIsWeb` guards.
-// 初始化平台引擎，并共享并发调用的加载过程。
+/// 原生平台的初始化兼容入口；[webUrl] 和 [webAssetsUrl] 均被忽略。
+/// 返回立即完成的通知，可供跨平台启动代码统一调用。
+///
+/// 示例：`await ffuzzyInit();`。
 Future<void> ffuzzyInit({String? webUrl, String? webAssetsUrl}) async {}
 
+// 新增条目失败的信息。
 const _addOom =
     'ffuzzy: add failed (OOM or incompatible engine; rebuild engine)';
+// 过滤结果分配失败的信息。
 const _filterOom = 'ffz filter returned null (OOM)';
+// 双路结果分配失败的信息。
 const _dualOom = 'ffz_ffi_filter_dual returned null (OOM)';
 
 // ── Enum → C value ────────────────────────────────────────────────────────────
 
 extension on FuzzyScoring {
+  // 转换为引擎使用的枚举编号。
   int get _c => switch (this) {
         FuzzyScoring.fast => 0,
         FuzzyScoring.off => 1,
@@ -38,6 +42,7 @@ extension on FuzzyScoring {
 }
 
 extension on FuzzyCase {
+  // 转换为引擎使用的枚举编号。
   int get _c => switch (this) {
         FuzzyCase.respect => 0,
         FuzzyCase.ignore => 1,
@@ -46,6 +51,7 @@ extension on FuzzyCase {
 }
 
 extension on FuzzyNorm {
+  // 转换为引擎使用的枚举编号。
   int get _c => switch (this) { FuzzyNorm.never => 0, FuzzyNorm.smart => 1 };
 }
 
@@ -74,6 +80,7 @@ typedef _Rs = Int32 Function(Pointer<Void>, Size);
 typedef _Nfe = Pointer<Void> Function(
     Pointer<Void>, Pointer<Uint8>, Size, Int32, Int32, Int32, Size);
 
+// 绑定并缓存原生动态库符号。
 class _Lib {
   // 绑定整数新增状态及搜索接口，避免宿主记录未提交的条目。
   _Lib(this.lib)
@@ -160,16 +167,23 @@ class _Lib {
   }
 
   final DynamicLibrary lib;
+  // 新增条目的原生函数，返回一表示提交成功。
   final int Function(Pointer<Void>, Pointer<Uint8>, int) add;
   final void Function(Pointer<Void>) clear;
   final int Function(Pointer<Void>) rLen;
+  // 读取条目下标和命中键下标的原生函数。
   final int Function(Pointer<Void>, int) rItem, rKey;
+  // 读取分数和键类型的原生函数。
   final int Function(Pointer<Void>, int) rScore, rKind;
+  // 读取高亮数量的原生函数。
   final int Function(Pointer<Void>, int) rNIdx;
+  // 读取高亮下标的原生函数。
   final int Function(Pointer<Void>, int, int) rIdx;
   final void Function(Pointer<Void>) rFree, free;
   final int Function(Pointer<Utf8>)? crash;
+  // 创建带评分配置的语料库的原生函数。
   final Pointer<Void> Function(int, int, int) newCfg2;
+  // 新增带附加键条目的原生函数。
   final int Function(Pointer<Void>, Pointer<Uint8>, int,
       Pointer<Pointer<Uint8>>, Pointer<Size>, Pointer<Int32>, int) addKeyed;
   final Pointer<Void> Function(
@@ -213,6 +227,7 @@ class _Lib {
 
 // ── Memory helpers ────────────────────────────────────────────────────────────
 
+// 分配并复制查询字节，空串保留零长度。
 Pointer<Uint8> _alloc(Uint8List bytes) {
   final p = malloc<Uint8>(bytes.isEmpty ? 1 : bytes.length);
   if (bytes.isNotEmpty) {
@@ -225,8 +240,17 @@ Pointer<Uint8> _alloc(Uint8List bytes) {
 
 // ── FuzzyCorpus (native) ──────────────────────────────────────────────────────
 
+/// 可反复搜索的语料库；用完后调用 dispose 释放资源。
+/// 类型参数 T 为原始条目类型。
+///
+/// 示例：`final c = FuzzyCorpus.strings(["你好"]); c.dispose();`。
 final class FuzzyCorpus<T> extends FuzzyCorpusProtected<T>
     implements Finalizable {
+  /// 创建语料库；[items] 为初始条目，[stringOf] 提取搜索文本，[options] 为默认选项。
+  /// [matchPaths] 启用路径匹配，[preferPrefix] 优先前缀，[libraryPath] 为动态库路径。
+  /// 返回新实例；文本提取异常向上传递，资源不足抛 FuzzyException。
+  ///
+  /// 示例：`final c = FuzzyCorpus(["你好"], stringOf: (s) => s); c.dispose();`。
   FuzzyCorpus(
     Iterable<T> items, {
     required String Function(T) stringOf,
@@ -249,7 +273,11 @@ final class FuzzyCorpus<T> extends FuzzyCorpusProtected<T>
 
   // ── Static constructors ───────────────────────────────────────────────────
 
-  // 为字符串条目构建语料库。
+  /// 创建字符串语料库；[items] 为条目，[options] 为搜索选项。
+  /// [matchPaths] 启用路径匹配，[preferPrefix] 优先前缀，[libraryPath] 为可选动态库路径。
+  /// 返回新语料库；资源不足抛 FuzzyException。
+  ///
+  /// 示例：`final c = FuzzyCorpus.strings(["你好"]); c.dispose();`。
   static FuzzyCorpus<String> strings(Iterable<String> items,
           {FuzzyOptions options = const FuzzyOptions(),
           bool matchPaths = false,
@@ -262,7 +290,11 @@ final class FuzzyCorpus<T> extends FuzzyCorpusProtected<T>
           preferPrefix: preferPrefix,
           libraryPath: libraryPath);
 
-  // 使用指定字段作为条目文本。
+  /// 以 [items] 中的 [field] 字段建立语料库，缺失字段视为空文本。
+  /// [options] 为搜索选项，[matchPaths] 启用路径匹配，[preferPrefix] 优先前缀，[libraryPath] 为动态库路径。
+  /// 返回新语料库；资源不足抛 FuzzyException。
+  ///
+  /// 示例：`final c = FuzzyCorpus.byKey([{"name": "你好"}], "name"); c.dispose();`。
   static FuzzyCorpus<Map<String, dynamic>> byKey(
           Iterable<Map<String, dynamic>> items, String field,
           {FuzzyOptions options = const FuzzyOptions(),
@@ -276,7 +308,11 @@ final class FuzzyCorpus<T> extends FuzzyCorpusProtected<T>
           preferPrefix: preferPrefix,
           libraryPath: libraryPath);
 
-  // 根据多个字段建立原始键和附加键。
+  /// 以 [items] 中 [fields] 的首字段为原始文本，其余为附加键；缺失字段视为空文本。
+  /// [fields] 为空时抛 ArgumentError；[options] 为选项，[matchPaths] 启用路径匹配，[preferPrefix] 优先前缀，[libraryPath] 为动态库路径。
+  /// 返回新语料库；资源不足抛 FuzzyException。
+  ///
+  /// 示例：`final c = FuzzyCorpus.byKeys([{"name": "你好"}], ["name"]); c.dispose();`。
   static FuzzyCorpus<Map<String, dynamic>> byKeys(
       Iterable<Map<String, dynamic>> items, List<String> fields,
       {FuzzyOptions options = const FuzzyOptions(),
@@ -306,7 +342,11 @@ final class FuzzyCorpus<T> extends FuzzyCorpusProtected<T>
     return c;
   }
 
-  // 建立空语料库后异步批量写入条目。
+  /// 异步创建语料库；[items] 为条目，[stringOf] 提取文本，[options] 为选项。
+  /// [matchPaths] 启用路径匹配，[preferPrefix] 优先前缀，[libraryPath] 为动态库路径。
+  /// 返回完成构建的新语料库；提取文本的异常向上传递，资源不足抛 FuzzyException。
+  ///
+  /// 示例：`final c = await FuzzyCorpus.asyncBuild(["你好"], stringOf: (s) => s); c.dispose();`。
   static Future<FuzzyCorpus<T>> asyncBuild<T>(Iterable<T> items,
       {required String Function(T) stringOf,
       FuzzyOptions options = const FuzzyOptions(),
@@ -328,6 +368,7 @@ final class FuzzyCorpus<T> extends FuzzyCorpusProtected<T>
   final _Lib _l;
   final String? _libPath;
   late Pointer<Void> _ptr;
+  // 已写入文本字节数的估计。
   int _estBytes = 0;
 
   // 根据估计的原生内存用量更新终结器。
@@ -870,7 +911,11 @@ final class FuzzyCorpus<T> extends FuzzyCorpusProtected<T>
 
   // ── Async build ───────────────────────────────────────────────────────────
 
-  // 异步新增条目，写入失败时恢复或清理原生索引。
+  /// 异步追加 [items]，返回完成通知；文本提取异常向上传递。
+  /// 销毁后、构建中或搜索未完成时调用抛 StateError；资源不足抛 FuzzyException。
+  /// 写入失败会恢复旧索引；恢复也失败时销毁语料库并抛 StateError。
+  ///
+  /// 示例：`await corpus.asyncAddAll(["你好"]);`。
   Future<void> asyncAddAll(Iterable<T> items) async {
     checkMutate_();
     final list = List<T>.of(items);
@@ -928,7 +973,10 @@ final class FuzzyCorpus<T> extends FuzzyCorpusProtected<T>
 
   // ── Lifecycle ─────────────────────────────────────────────────────────────
 
-  // 标记销毁，等待在途操作结束后释放索引。
+  /// 释放语料库；无参数，无返回值，可重复调用。
+  /// 调用后禁止搜索和修改；未结束的操作完成后释放资源。
+  ///
+  /// 示例：`corpus.dispose();`。
   void dispose() {
     if (disposed_) return;
     disposed_ = true;
@@ -943,7 +991,10 @@ final class FuzzyCorpus<T> extends FuzzyCorpusProtected<T>
     }
   }
 
-  // 等待在途操作完成并释放平台资源。
+  /// 销毁语料库并等待在途操作完成；无参数，返回资源释放完成通知。
+  /// 可重复调用；调用后禁止搜索和修改。
+  ///
+  /// 示例：`await corpus.asyncDispose();`。
   Future<void> asyncDispose() async {
     disposed_ = true;
     if (inFlight_ > 0 || building_) {
@@ -958,10 +1009,17 @@ final class FuzzyCorpus<T> extends FuzzyCorpusProtected<T>
 
 // ── FuzzyCrash ────────────────────────────────────────────────────────────────
 
+/// 原生崩溃报告接口，无需创建实例。
+///
+/// 示例：`FuzzyCrash.install();`。
 class FuzzyCrash {
   FuzzyCrash._();
   static String? _path;
 
+  /// 安装崩溃报告处理器；[breadcrumbPath] 为可选报告路径，[libraryPath] 为可选动态库路径。
+  /// 返回是否安装成功，平台不支持时返回假；库加载失败抛 FuzzyException。
+  ///
+  /// 示例：`FuzzyCrash.install(breadcrumbPath: "crash.log");`。
   static bool install({String? breadcrumbPath, String? libraryPath}) {
     final f = _Lib.resolve(libraryPath).crash;
     if (f == null) return false;
@@ -974,6 +1032,10 @@ class FuzzyCrash {
     }
   }
 
+  /// 读取并消费上次崩溃报告；[breadcrumbPath] 省略时使用安装时的路径。
+  /// 返回报告文本；未配置路径、文件不存在或内容为空时返回空值，读取失败抛 FileSystemException。
+  ///
+  /// 示例：`final report = FuzzyCrash.lastReport(breadcrumbPath: "crash.log");`。
   static String? lastReport({String? breadcrumbPath}) {
     final p = breadcrumbPath ?? _path;
     if (p == null) return null;

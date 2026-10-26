@@ -10,23 +10,32 @@ import 'package:flutter/foundation.dart' show debugPrint;
 
 import 'ffuzzy_types.dart';
 
+// 销毁后访问的错误信息。
 const _disposedMessage = 'FuzzyCorpus used after dispose()';
 
 // ── Mode codes ────────────────────────────────────────────────────────────────
 
+/// 子序列搜索模式编号。
 const int mFuzzy = 0;
+/// 子串搜索模式编号。
 const int mSubstring = 1;
+/// 前缀搜索模式编号。
 const int mPrefix = 2;
+/// 后缀搜索模式编号。
 const int mPostfix = 3;
+/// 完整匹配模式编号。
 const int mExact = 4;
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
-// 编码为真实长度的字节串，空串保持零长度以匹配全部条目。
+/// 将 [s] 编码为 UTF-8 字节，返回真实长度的字节串。
+///
+/// 示例：`toUtf8("你好")` 返回六个字节。
 Uint8List toUtf8(String s) => Uint8List.fromList(utf8.encode(s));
 
 bool _hasUpper(String s) => s != s.toLowerCase();
 
+// 根据大小写规则转换查询文本。
 String _foldQuery(String q, FuzzyCase cm) {
   final up = _hasUpper(q);
   return switch (cm) {
@@ -36,6 +45,7 @@ String _foldQuery(String q, FuzzyCase cm) {
   };
 }
 
+// 根据大小写规则及查询特征转换候选文本。
 String _foldText(String t, FuzzyCase cm, bool qUp) => switch (cm) {
       FuzzyCase.respect => t,
       FuzzyCase.ignore => t.toLowerCase(),
@@ -44,10 +54,12 @@ String _foldText(String t, FuzzyCase cm, bool qUp) => switch (cm) {
 
 // ── Pure-Dart fallback for non-fuzzy modes ────────────────────────────────────
 
+// 允许的最大编辑距离。
 const _maxEditDistance = 10;
+// 近似查询允许的最大码点数。
 const _maxEditQuery = 64;
 
-// 统一校验编辑距离范围及单字算法的查询长度。
+// 返回显式或自动距离；距离不在零至十时抛 RangeError，近似查询超六十四码点时抛 ArgumentError。
 int _editDistance(String q, int? distance, {bool approximate = true}) {
   final dist = distance ?? autoMaxDistance(q);
   if (dist < 0 || dist > _maxEditDistance) {
@@ -60,7 +72,10 @@ int _editDistance(String q, int? distance, {bool approximate = true}) {
   return dist;
 }
 
-// 保留公开的纯 Dart 字面量搜索兼容入口。
+/// 按字面模式搜索 [items]；[stringOf] 提取文本，[mode] 为子串、前后缀或完整匹配编号。
+/// [query] 为查询，[o] 控制大小写和数量；返回按原顺序排列、无高亮的命中，未知模式返回空列表。
+///
+/// 示例：`dartSearch(["你好"], (s) => s, mPrefix, "你", const FuzzyOptions())`。
 List<FuzzyHit<T>> dartSearch<T>(List<T> items, String Function(T) stringOf,
     int mode, String query, FuzzyOptions o) {
   final up = _hasUpper(query);
@@ -84,19 +99,17 @@ List<FuzzyHit<T>> dartSearch<T>(List<T> items, String Function(T) stringOf,
   return out;
 }
 
-// 返回公开纯 Dart 搜索的原始条目。
+/// 按 [mode] 和 [query] 搜索 [items]，通过 [stringOf] 提取文本，[o] 控制大小写和数量。
+/// 返回命中的原始条目；未知模式返回空列表。
+///
+/// 示例：`dartSearchRaws(["你好"], (s) => s, mExact, "你好", const FuzzyOptions())`。
 List<T> dartSearchRaws<T>(List<T> items, String Function(T) stringOf, int mode,
         String query, FuzzyOptions o) =>
     [for (final h in dartSearch(items, stringOf, mode, query, o)) h.raw];
 
 // ── Abstract base (hidden from public API) ────────────────────────────────────
 
-/// Shared corpus implementation. Platform files (`ffuzzy_ffi.dart`,
-/// `ffuzzy_web.dart`) extend this and implement the `c*_` bridge methods.
-///
-/// Fields with a trailing `_` are implementation-internal — not public API —
-/// but must be non-private so platform subclasses in separate libraries can
-/// access them via inheritance.
+// 管理共享语料状态，由平台子类提供引擎桥接。
 abstract base class FuzzyCorpusProtected<T> {
   FuzzyCorpusProtected({
     required this.options,
@@ -125,6 +138,7 @@ abstract base class FuzzyCorpusProtected<T> {
   // ignore: non_constant_identifier_names
   Completer<void>? idle_;
   // ignore: non_constant_identifier_names
+  // 网页引擎就绪前仅缓存宿主条目。
   bool cDeferred_ =
       false; // true when constructed before C backend is ready (web only)
 
@@ -132,16 +146,20 @@ abstract base class FuzzyCorpusProtected<T> {
 
   // 新增原始键，失败时抛错并阻止宿主提交条目。
   void cAdd_(Uint8List bytes);
+  // 写入原始文本和附加键，失败抛错。
   void cAddKeyed_(Uint8List primary, List<FuzzyKey> keys);
+  // 清空平台索引。
   void cClear_();
   // 释放平台语料库。
   void cFree_();
 
   // 执行指定模式的同步搜索。
   List<FuzzyHit<T>> search_(int mode, String q, FuzzyOptions o);
+  // 读取指定模式的原始条目。
   List<T> searchRaws_(int mode, String q, FuzzyOptions o);
   // 执行异步搜索并跟踪在途调用。
   Future<List<FuzzyHit<T>>> searchAsync_(int mode, String q, FuzzyOptions o);
+  // 异步读取指定模式的原始条目。
   Future<List<T>> searchRawsAsync_(int mode, String q, FuzzyOptions o);
   // 执行编辑距离搜索并按需读取高亮。
   List<FuzzyHit<T>> searchEdit_(String q, int maxDist, FuzzyOptions o);
@@ -149,6 +167,7 @@ abstract base class FuzzyCorpusProtected<T> {
   // C-side bridges — always implemented by platform subclass.
   // 执行子序列与近似结果合并搜索。
   List<FuzzyHit<T>> searchMerge_(String q, int maxDist, FuzzyOptions o);
+  // 无子序列命中时执行近似搜索。
   List<FuzzyHit<T>> searchFallback_(String q, int maxDist, FuzzyOptions o);
   // 分别读取子序列与近似搜索结果。
   FuzzyDualResult<T> searchDualC_(String q, int maxDist, FuzzyOptions o);
@@ -186,6 +205,7 @@ abstract base class FuzzyCorpusProtected<T> {
     if (building_) throw StateError('FuzzyCorpus used while build in progress');
   }
 
+  // 检查修改权限，拒绝在途搜索期间修改。
   void checkMutate_() {
     check_();
     if (inFlight_ > 0) {
@@ -194,6 +214,7 @@ abstract base class FuzzyCorpusProtected<T> {
     }
   }
 
+  // 空闲时通知等待资源释放的调用方。
   void signalIfIdle_() {
     if (inFlight_ == 0 && !building_ && idle_ != null) {
       idle_!.complete();
@@ -201,6 +222,7 @@ abstract base class FuzzyCorpusProtected<T> {
     }
   }
 
+  // 合并本次覆盖项与语料库默认选项。
   FuzzyOptions eff_(FuzzyCase? cm, FuzzyNorm? nm, bool? par, int? th, int? lim,
           bool? hl, FuzzyScoring? sc) =>
       options.copyWith(
@@ -239,12 +261,20 @@ abstract base class FuzzyCorpusProtected<T> {
 
   // ── Public mutation API ───────────────────────────────────────────────────
 
+  /// 返回当前条目数；销毁后或构建中访问抛 StateError。
+  /// 无参数。
+  ///
+  /// 示例：`corpus.length`。
   int get length {
     check_();
     return items_.length;
   }
 
-  // 写入平台成功后追加宿主条目。
+  /// 新增 [item]，返回空值；写入失败保留已有条目。
+  /// [item] 为待加入条目。
+  /// 销毁后、构建中或搜索未完成时修改抛 StateError。
+  ///
+  /// 示例：`corpus.add("你好")`。
   void add(T item) {
     checkMutate_();
     nAdd_(item, null);
@@ -252,7 +282,11 @@ abstract base class FuzzyCorpusProtected<T> {
     keys_.add(null);
   }
 
-  // 逐条新增并保留已成功提交的前缀。
+  /// 依次新增条目，返回空值；失败时保留已成功加入的前缀。
+  /// [items] 为待加入条目。
+  /// 销毁后、构建中或搜索未完成时修改抛 StateError。
+  ///
+  /// 示例：`corpus.addAll(["你好"])`。
   void addAll(Iterable<T> items) {
     checkMutate_();
     for (final item in items) {
@@ -262,7 +296,11 @@ abstract base class FuzzyCorpusProtected<T> {
     }
   }
 
-  // 复制附加键并在平台写入成功后提交宿主记录。
+  /// 新增带附加搜索键的条目，返回空值。
+  /// [item] 为条目，[keys] 为附加键；原始键自动保留。
+  /// 销毁后、构建中或搜索未完成时修改抛 StateError。
+  ///
+  /// 示例：`corpus.addKey("你好", [FuzzyKey("nihao")])`。
   void addKey(T item, List<FuzzyKey> keys) {
     checkMutate_();
     final ks = keys.isEmpty ? null : List<FuzzyKey>.of(keys);
@@ -271,7 +309,11 @@ abstract base class FuzzyCorpusProtected<T> {
     keys_.add(ks);
   }
 
-  // 替换条目后重建索引。
+  /// 替换条目并清除其附加键，返回空值；索引越界抛 RangeError。
+  /// [index] 为从零开始的索引，[item] 为新条目；调试模式下替换附加键条目会触发断言。
+  /// 销毁后、构建中或搜索未完成时修改抛 StateError。
+  ///
+  /// 示例：`corpus.update(0, "你好")`。
   void update(int index, T item) {
     checkMutate_();
     final hadKeys = keys_[index] != null;
@@ -289,7 +331,11 @@ abstract base class FuzzyCorpusProtected<T> {
     }
   }
 
-  // 删除指定条目后重建索引。
+  /// 删除条目，返回空值；索引越界抛 RangeError。
+  /// [index] 为从零开始的索引。
+  /// 销毁后、构建中或搜索未完成时修改抛 StateError。
+  ///
+  /// 示例：`corpus.removeAt(0)`。
   void removeAt(int index) {
     checkMutate_();
     items_.removeAt(index);
@@ -297,7 +343,11 @@ abstract base class FuzzyCorpusProtected<T> {
     rebuild_();
   }
 
-  // 先完成筛选再删除，避免回调失败留下半次修改。
+  /// 删除满足条件的条目并返回删除数量；回调失败时不提交本次筛选。
+  /// [test] 为删除条件，回调异常向上传递。
+  /// 销毁后、构建中或搜索未完成时修改抛 StateError。
+  ///
+  /// 示例：`corpus.removeWhere((s) => s.isEmpty)`。
   int removeWhere(bool Function(T item) test) {
     checkMutate_();
     final indices = <int>[];
@@ -313,7 +363,11 @@ abstract base class FuzzyCorpusProtected<T> {
     return indices.length;
   }
 
-  // 先收集新条目再替换宿主数据并重建索引。
+  /// 更新语料并清除新来源的附加键，返回空值；省略来源时保留现有键。
+  /// [source] 为新条目，可省略以刷新当前条目。
+  /// 销毁后、构建中或搜索未完成时修改抛 StateError。
+  ///
+  /// 示例：`corpus.refresh(["你好"])`。
   void refresh([Iterable<T>? source]) {
     checkMutate_();
     if (source != null) {
@@ -329,6 +383,11 @@ abstract base class FuzzyCorpusProtected<T> {
     rebuild_();
   }
 
+  /// 清空语料库，返回空值。
+  /// 无参数。
+  /// 销毁后、构建中或搜索未完成时修改抛 StateError。
+  ///
+  /// 示例：`corpus.clear()`。
   void clear() {
     checkMutate_();
     items_.clear();
@@ -338,7 +397,11 @@ abstract base class FuzzyCorpusProtected<T> {
 
   // ── Public search API (all 24 methods, shared) ────────────────────────────
 
-  /// fzf-style subsequence search. Shorthand for `search(q, strategy: SearchStrategy.fuzzy)`.
+  /// 子序列搜索；[q] 为查询，返回命中列表。
+  /// [caseMatching] 为大小写规则；[normalization] 为归一化规则；[parallel] 为并行开关；[threads] 为线程数，零表示自动；[limit] 为结果上限，非正数表示不限；[highlight] 为是否返回高亮码点下标；[scoring] 为评分方式，省略时沿用语料库选项。
+  /// 销毁后、构建中或结果分配失败时抛 StateError；引擎或查询缓冲分配失败时抛 FuzzyException。
+  ///
+  /// 示例：`corpus.fuzzy("你好")`。
   List<FuzzyHit<T>> fuzzy(String q,
           {FuzzyCase? caseMatching,
           FuzzyNorm? normalization,
@@ -357,6 +420,11 @@ abstract base class FuzzyCorpusProtected<T> {
           highlight: highlight,
           scoring: scoring);
 
+  /// 子串搜索；[q] 为查询，返回命中列表。
+  /// [caseMatching] 为大小写规则；[normalization] 为归一化规则；[parallel] 为并行开关；[threads] 为线程数，零表示自动；[limit] 为结果上限，非正数表示不限；[highlight] 为是否返回高亮码点下标；[scoring] 为评分方式，省略时沿用语料库选项。
+  /// 销毁后、构建中或结果分配失败时抛 StateError；引擎或查询缓冲分配失败时抛 FuzzyException。
+  ///
+  /// 示例：`corpus.substring("你好")`。
   List<FuzzyHit<T>> substring(String q,
           {FuzzyCase? caseMatching,
           FuzzyNorm? normalization,
@@ -371,6 +439,11 @@ abstract base class FuzzyCorpusProtected<T> {
           eff_(caseMatching, normalization, parallel, threads, limit, highlight,
               scoring));
 
+  /// 前缀搜索；[q] 为查询，返回命中列表。
+  /// [caseMatching] 为大小写规则；[normalization] 为归一化规则；[parallel] 为并行开关；[threads] 为线程数，零表示自动；[limit] 为结果上限，非正数表示不限；[highlight] 为是否返回高亮码点下标；[scoring] 为评分方式，省略时沿用语料库选项。
+  /// 销毁后、构建中或结果分配失败时抛 StateError；引擎或查询缓冲分配失败时抛 FuzzyException。
+  ///
+  /// 示例：`corpus.prefix("你好")`。
   List<FuzzyHit<T>> prefix(String q,
           {FuzzyCase? caseMatching,
           FuzzyNorm? normalization,
@@ -385,6 +458,11 @@ abstract base class FuzzyCorpusProtected<T> {
           eff_(caseMatching, normalization, parallel, threads, limit, highlight,
               scoring));
 
+  /// 后缀搜索；[q] 为查询，返回命中列表。
+  /// [caseMatching] 为大小写规则；[normalization] 为归一化规则；[parallel] 为并行开关；[threads] 为线程数，零表示自动；[limit] 为结果上限，非正数表示不限；[highlight] 为是否返回高亮码点下标；[scoring] 为评分方式，省略时沿用语料库选项。
+  /// 销毁后、构建中或结果分配失败时抛 StateError；引擎或查询缓冲分配失败时抛 FuzzyException。
+  ///
+  /// 示例：`corpus.postfix("你好")`。
   List<FuzzyHit<T>> postfix(String q,
           {FuzzyCase? caseMatching,
           FuzzyNorm? normalization,
@@ -399,6 +477,11 @@ abstract base class FuzzyCorpusProtected<T> {
           eff_(caseMatching, normalization, parallel, threads, limit, highlight,
               scoring));
 
+  /// 后缀搜索；[q] 为查询，返回命中列表。
+  /// [caseMatching] 为大小写规则；[normalization] 为归一化规则；[parallel] 为并行开关；[threads] 为线程数，零表示自动；[limit] 为结果上限，非正数表示不限；[highlight] 为是否返回高亮码点下标；[scoring] 为评分方式，省略时沿用语料库选项。
+  /// 销毁后、构建中或结果分配失败时抛 StateError；引擎或查询缓冲分配失败时抛 FuzzyException。
+  ///
+  /// 示例：`corpus.suffix("你好")`。
   List<FuzzyHit<T>> suffix(String q,
           {FuzzyCase? caseMatching,
           FuzzyNorm? normalization,
@@ -416,6 +499,11 @@ abstract base class FuzzyCorpusProtected<T> {
           highlight: highlight,
           scoring: scoring);
 
+  /// 完整文本搜索；[q] 为查询，返回命中列表。
+  /// [caseMatching] 为大小写规则；[normalization] 为归一化规则；[parallel] 为并行开关；[threads] 为线程数，零表示自动；[limit] 为结果上限，非正数表示不限；[highlight] 为是否返回高亮码点下标；[scoring] 为评分方式，省略时沿用语料库选项。
+  /// 销毁后、构建中或结果分配失败时抛 StateError；引擎或查询缓冲分配失败时抛 FuzzyException。
+  ///
+  /// 示例：`corpus.exact("你好")`。
   List<FuzzyHit<T>> exact(String q,
           {FuzzyCase? caseMatching,
           FuzzyNorm? normalization,
@@ -430,6 +518,11 @@ abstract base class FuzzyCorpusProtected<T> {
           eff_(caseMatching, normalization, parallel, threads, limit, highlight,
               scoring));
 
+  /// 子序列搜索；[q] 为查询，返回原始条目列表。
+  /// [caseMatching] 为大小写规则；[normalization] 为归一化规则；[parallel] 为并行开关；[threads] 为线程数，零表示自动；[limit] 为结果上限，非正数表示不限；[scoring] 为评分方式，省略时沿用语料库选项。
+  /// 销毁后、构建中或结果分配失败时抛 StateError；引擎或查询缓冲分配失败时抛 FuzzyException。
+  ///
+  /// 示例：`corpus.fuzzyRaws("你好")`。
   List<T> fuzzyRaws(String q,
           {FuzzyCase? caseMatching,
           FuzzyNorm? normalization,
@@ -443,6 +536,11 @@ abstract base class FuzzyCorpusProtected<T> {
           eff_(caseMatching, normalization, parallel, threads, limit, false,
               scoring));
 
+  /// 子串搜索；[q] 为查询，返回原始条目列表。
+  /// [caseMatching] 为大小写规则；[normalization] 为归一化规则；[parallel] 为并行开关；[threads] 为线程数，零表示自动；[limit] 为结果上限，非正数表示不限；[scoring] 为评分方式，省略时沿用语料库选项。
+  /// 销毁后、构建中或结果分配失败时抛 StateError；引擎或查询缓冲分配失败时抛 FuzzyException。
+  ///
+  /// 示例：`corpus.substringRaws("你好")`。
   List<T> substringRaws(String q,
           {FuzzyCase? caseMatching,
           FuzzyNorm? normalization,
@@ -456,6 +554,11 @@ abstract base class FuzzyCorpusProtected<T> {
           eff_(caseMatching, normalization, parallel, threads, limit, false,
               scoring));
 
+  /// 前缀搜索；[q] 为查询，返回原始条目列表。
+  /// [caseMatching] 为大小写规则；[normalization] 为归一化规则；[parallel] 为并行开关；[threads] 为线程数，零表示自动；[limit] 为结果上限，非正数表示不限；[scoring] 为评分方式，省略时沿用语料库选项。
+  /// 销毁后、构建中或结果分配失败时抛 StateError；引擎或查询缓冲分配失败时抛 FuzzyException。
+  ///
+  /// 示例：`corpus.prefixRaws("你好")`。
   List<T> prefixRaws(String q,
           {FuzzyCase? caseMatching,
           FuzzyNorm? normalization,
@@ -469,6 +572,11 @@ abstract base class FuzzyCorpusProtected<T> {
           eff_(caseMatching, normalization, parallel, threads, limit, false,
               scoring));
 
+  /// 后缀搜索；[q] 为查询，返回原始条目列表。
+  /// [caseMatching] 为大小写规则；[normalization] 为归一化规则；[parallel] 为并行开关；[threads] 为线程数，零表示自动；[limit] 为结果上限，非正数表示不限；[scoring] 为评分方式，省略时沿用语料库选项。
+  /// 销毁后、构建中或结果分配失败时抛 StateError；引擎或查询缓冲分配失败时抛 FuzzyException。
+  ///
+  /// 示例：`corpus.postfixRaws("你好")`。
   List<T> postfixRaws(String q,
           {FuzzyCase? caseMatching,
           FuzzyNorm? normalization,
@@ -482,6 +590,11 @@ abstract base class FuzzyCorpusProtected<T> {
           eff_(caseMatching, normalization, parallel, threads, limit, false,
               scoring));
 
+  /// 后缀搜索；[q] 为查询，返回原始条目列表。
+  /// [caseMatching] 为大小写规则；[normalization] 为归一化规则；[parallel] 为并行开关；[threads] 为线程数，零表示自动；[limit] 为结果上限，非正数表示不限；[scoring] 为评分方式，省略时沿用语料库选项。
+  /// 销毁后、构建中或结果分配失败时抛 StateError；引擎或查询缓冲分配失败时抛 FuzzyException。
+  ///
+  /// 示例：`corpus.suffixRaws("你好")`。
   List<T> suffixRaws(String q,
           {FuzzyCase? caseMatching,
           FuzzyNorm? normalization,
@@ -497,6 +610,11 @@ abstract base class FuzzyCorpusProtected<T> {
           limit: limit,
           scoring: scoring);
 
+  /// 完整文本搜索；[q] 为查询，返回原始条目列表。
+  /// [caseMatching] 为大小写规则；[normalization] 为归一化规则；[parallel] 为并行开关；[threads] 为线程数，零表示自动；[limit] 为结果上限，非正数表示不限；[scoring] 为评分方式，省略时沿用语料库选项。
+  /// 销毁后、构建中或结果分配失败时抛 StateError；引擎或查询缓冲分配失败时抛 FuzzyException。
+  ///
+  /// 示例：`corpus.exactRaws("你好")`。
   List<T> exactRaws(String q,
           {FuzzyCase? caseMatching,
           FuzzyNorm? normalization,
@@ -510,32 +628,13 @@ abstract base class FuzzyCorpusProtected<T> {
           eff_(caseMatching, normalization, parallel, threads, limit, false,
               scoring));
 
-  /// Approximate SUBSTRING search: finds items containing a window whose
-  /// edit distance to [q] is within [maxDistance] — the window may start/end
-  /// anywhere in the item's text, it is NOT anchored to the whole string (so
-  /// a short typo'd [q] can match inside a much longer item). Shorthand for
-  /// `search(q, strategy: SearchStrategy.approx)`.
+  /// 近似子串搜索；[q] 为查询，返回命中列表。
+  /// [maxDistance] 省略时按查询码点数自动选择；不在零至十时抛 RangeError。
+  /// 近似、回退、合并和双路查询超过六十四码点时抛 ArgumentError。
+  /// [caseMatching] 为大小写规则；[normalization] 为归一化规则；[limit] 为结果上限，非正数表示不限；[highlight] 为是否返回高亮码点下标，省略时沿用语料库选项。
+  /// 销毁后、构建中或结果分配失败时抛 StateError；引擎或查询缓冲分配失败时抛 FuzzyException。
   ///
-  /// 近似子串搜索：查找包含某个窗口的条目，该窗口与 [q] 的编辑距离不超过
-  /// [maxDistance] —— 该窗口可以从条目文本中的任意位置开始/结束，并不锚定到
-  /// 整个字符串（因此一个较短的、带有拼写错误的 [q] 也能匹配到一个长得多的
-  /// 条目内部）。是 `search(q, strategy: SearchStrategy.approx)` 的简写。
-  ///
-  /// [maxDistance] defaults to [autoMaxDistance] when omitted (auto-scaled by
-  /// query length — note this scales with the QUERY's length, not the
-  /// window's, so it stays meaningful regardless of how long the item is).
-  ///
-  /// 省略 [maxDistance] 时默认使用 [autoMaxDistance]（根据查询长度自动缩放
-  /// ——注意这里是按“查询”的长度缩放，而不是窗口的长度，因此无论条目本身
-  /// 有多长，该值都始终有意义）。
-  ///
-  /// When [highlight] is true, [FuzzyHit.indices] is populated with every
-  /// codepoint position in the matched window (a contiguous range) rather
-  /// than the discrete positions [fuzzy] reports.
-  ///
-  /// 当 [highlight] 为 true 时，[FuzzyHit.indices] 会被填充为匹配窗口内的
-  /// 每一个码点位置（一个连续区间），而不是 [fuzzy] 所报告的离散位置。
-  /// 编辑距离须在零到十之间；涉及近似匹配的查询最多六十四个码点，超限抛参数异常。
+  /// 示例：`corpus.approx("你好")`。
   List<FuzzyHit<T>> approx(String q,
           {int? maxDistance,
           FuzzyCase? caseMatching,
@@ -548,20 +647,14 @@ abstract base class FuzzyCorpusProtected<T> {
           eff_(
               caseMatching, normalization, null, null, limit, highlight, null));
 
-  /// Unified search entry point. Defaults to fzf-style subsequence (`strategy: SearchStrategy.fuzzy`).
+  /// 统一搜索；[q] 为查询，返回命中列表。
+  /// [strategy] 选择子序列、近似、无子序列命中时回退或合并，默认子序列。
+  /// [maxDistance] 省略时按查询码点数自动选择；不在零至十时抛 RangeError。
+  /// 近似、回退、合并和双路查询超过六十四码点时抛 ArgumentError。
+  /// [caseMatching] 为大小写规则；[normalization] 为归一化规则；[parallel] 为并行开关；[threads] 为线程数，零表示自动；[limit] 为结果上限，非正数表示不限；[highlight] 为是否返回高亮码点下标；[scoring] 为评分方式，省略时沿用语料库选项。
+  /// 销毁后、构建中或结果分配失败时抛 StateError；引擎或查询缓冲分配失败时抛 FuzzyException。
   ///
-  /// 统一的搜索入口。默认使用 fzf 风格的子序列匹配（`strategy: SearchStrategy.fuzzy`）。
-  ///
-  /// - [SearchStrategy.fuzzy]    — subsequence match (same as [fuzzy])
-  /// - [SearchStrategy.approx]   — edit-distance; [maxDistance] auto-scaled when omitted
-  /// - [SearchStrategy.fallback] — subsequence first; falls back to edit-distance if empty
-  /// - [SearchStrategy.merge]    — both algorithms; subsequence hits first, then approx-only hits
-  ///
-  /// - [SearchStrategy.fuzzy]    —— 子序列匹配（等同于 [fuzzy]）
-  /// - [SearchStrategy.approx]   —— 编辑距离匹配；省略 [maxDistance] 时自动缩放
-  /// - [SearchStrategy.fallback] —— 优先子序列匹配；结果为空时回退到编辑距离匹配
-  /// - [SearchStrategy.merge]    —— 同时使用两种算法；子序列命中在前，仅编辑距离命中的结果在后
-  /// 编辑距离须在零到十之间；涉及近似匹配的查询最多六十四个码点，超限抛参数异常。
+  /// 示例：`corpus.search("你好")`。
   List<FuzzyHit<T>> search(
     String q, {
     SearchStrategy strategy = SearchStrategy.fuzzy,
@@ -586,14 +679,13 @@ abstract base class FuzzyCorpusProtected<T> {
     };
   }
 
-  /// Runs both algorithms independently and returns their results in separate buckets.
+  /// 双路搜索；[q] 为查询，返回两组独立命中。
+  /// [maxDistance] 省略时按查询码点数自动选择；不在零至十时抛 RangeError。
+  /// 近似、回退、合并和双路查询超过六十四码点时抛 ArgumentError。
+  /// [caseMatching] 为大小写规则；[normalization] 为归一化规则；[parallel] 为并行开关；[threads] 为线程数，零表示自动；[limit] 为结果上限，非正数表示不限；[highlight] 为是否返回高亮码点下标；[scoring] 为评分方式，省略时沿用语料库选项。
+  /// 销毁后、构建中或结果分配失败时抛 StateError；引擎或查询缓冲分配失败时抛 FuzzyException。
   ///
-  /// 独立运行两种算法，并将各自的结果分别放入不同的结果桶中返回。
-  ///
-  /// [maxDistance] defaults to [autoMaxDistance] when omitted.
-  ///
-  /// 省略 [maxDistance] 时默认使用 [autoMaxDistance]。
-  /// 编辑距离须在零到十之间；涉及近似匹配的查询最多六十四个码点，超限抛参数异常。
+  /// 示例：`corpus.dual("你好")`。
   FuzzyDualResult<T> dual(
     String q, {
     int? maxDistance,
@@ -630,6 +722,11 @@ abstract base class FuzzyCorpusProtected<T> {
     return searchMerge_(q, maxDist, o);
   }
 
+  /// 子序列搜索；[q] 为查询，返回异步完成的命中列表。
+  /// [caseMatching] 为大小写规则；[normalization] 为归一化规则；[parallel] 为并行开关；[threads] 为线程数，零表示自动；[limit] 为结果上限，非正数表示不限；[highlight] 为是否返回高亮码点下标；[scoring] 为评分方式，省略时沿用语料库选项。
+  /// 销毁后、构建中或结果分配失败时抛 StateError；引擎或查询缓冲分配失败时抛 FuzzyException。
+  ///
+  /// 示例：`await corpus.asyncFuzzy("你好")`。
   Future<List<FuzzyHit<T>>> asyncFuzzy(String q,
           {FuzzyCase? caseMatching,
           FuzzyNorm? normalization,
@@ -644,6 +741,11 @@ abstract base class FuzzyCorpusProtected<T> {
           eff_(caseMatching, normalization, parallel, threads, limit, highlight,
               scoring));
 
+  /// 子串搜索；[q] 为查询，返回异步完成的命中列表。
+  /// [caseMatching] 为大小写规则；[normalization] 为归一化规则；[parallel] 为并行开关；[threads] 为线程数，零表示自动；[limit] 为结果上限，非正数表示不限；[highlight] 为是否返回高亮码点下标；[scoring] 为评分方式，省略时沿用语料库选项。
+  /// 销毁后、构建中或结果分配失败时抛 StateError；引擎或查询缓冲分配失败时抛 FuzzyException。
+  ///
+  /// 示例：`await corpus.asyncSubstring("你好")`。
   Future<List<FuzzyHit<T>>> asyncSubstring(String q,
           {FuzzyCase? caseMatching,
           FuzzyNorm? normalization,
@@ -658,6 +760,11 @@ abstract base class FuzzyCorpusProtected<T> {
           eff_(caseMatching, normalization, parallel, threads, limit, highlight,
               scoring));
 
+  /// 前缀搜索；[q] 为查询，返回异步完成的命中列表。
+  /// [caseMatching] 为大小写规则；[normalization] 为归一化规则；[parallel] 为并行开关；[threads] 为线程数，零表示自动；[limit] 为结果上限，非正数表示不限；[highlight] 为是否返回高亮码点下标；[scoring] 为评分方式，省略时沿用语料库选项。
+  /// 销毁后、构建中或结果分配失败时抛 StateError；引擎或查询缓冲分配失败时抛 FuzzyException。
+  ///
+  /// 示例：`await corpus.asyncPrefix("你好")`。
   Future<List<FuzzyHit<T>>> asyncPrefix(String q,
           {FuzzyCase? caseMatching,
           FuzzyNorm? normalization,
@@ -672,6 +779,11 @@ abstract base class FuzzyCorpusProtected<T> {
           eff_(caseMatching, normalization, parallel, threads, limit, highlight,
               scoring));
 
+  /// 后缀搜索；[q] 为查询，返回异步完成的命中列表。
+  /// [caseMatching] 为大小写规则；[normalization] 为归一化规则；[parallel] 为并行开关；[threads] 为线程数，零表示自动；[limit] 为结果上限，非正数表示不限；[highlight] 为是否返回高亮码点下标；[scoring] 为评分方式，省略时沿用语料库选项。
+  /// 销毁后、构建中或结果分配失败时抛 StateError；引擎或查询缓冲分配失败时抛 FuzzyException。
+  ///
+  /// 示例：`await corpus.asyncPostfix("你好")`。
   Future<List<FuzzyHit<T>>> asyncPostfix(String q,
           {FuzzyCase? caseMatching,
           FuzzyNorm? normalization,
@@ -686,6 +798,11 @@ abstract base class FuzzyCorpusProtected<T> {
           eff_(caseMatching, normalization, parallel, threads, limit, highlight,
               scoring));
 
+  /// 后缀搜索；[q] 为查询，返回异步完成的命中列表。
+  /// [caseMatching] 为大小写规则；[normalization] 为归一化规则；[parallel] 为并行开关；[threads] 为线程数，零表示自动；[limit] 为结果上限，非正数表示不限；[highlight] 为是否返回高亮码点下标；[scoring] 为评分方式，省略时沿用语料库选项。
+  /// 销毁后、构建中或结果分配失败时抛 StateError；引擎或查询缓冲分配失败时抛 FuzzyException。
+  ///
+  /// 示例：`await corpus.asyncSuffix("你好")`。
   Future<List<FuzzyHit<T>>> asyncSuffix(String q,
           {FuzzyCase? caseMatching,
           FuzzyNorm? normalization,
@@ -703,6 +820,11 @@ abstract base class FuzzyCorpusProtected<T> {
           highlight: highlight,
           scoring: scoring);
 
+  /// 完整文本搜索；[q] 为查询，返回异步完成的命中列表。
+  /// [caseMatching] 为大小写规则；[normalization] 为归一化规则；[parallel] 为并行开关；[threads] 为线程数，零表示自动；[limit] 为结果上限，非正数表示不限；[highlight] 为是否返回高亮码点下标；[scoring] 为评分方式，省略时沿用语料库选项。
+  /// 销毁后、构建中或结果分配失败时抛 StateError；引擎或查询缓冲分配失败时抛 FuzzyException。
+  ///
+  /// 示例：`await corpus.asyncExact("你好")`。
   Future<List<FuzzyHit<T>>> asyncExact(String q,
           {FuzzyCase? caseMatching,
           FuzzyNorm? normalization,
@@ -717,6 +839,11 @@ abstract base class FuzzyCorpusProtected<T> {
           eff_(caseMatching, normalization, parallel, threads, limit, highlight,
               scoring));
 
+  /// 子序列搜索；[q] 为查询，返回异步完成的原始条目列表。
+  /// [caseMatching] 为大小写规则；[normalization] 为归一化规则；[parallel] 为并行开关；[threads] 为线程数，零表示自动；[limit] 为结果上限，非正数表示不限；[scoring] 为评分方式，省略时沿用语料库选项。
+  /// 销毁后、构建中或结果分配失败时抛 StateError；引擎或查询缓冲分配失败时抛 FuzzyException。
+  ///
+  /// 示例：`await corpus.asyncFuzzyRaws("你好")`。
   Future<List<T>> asyncFuzzyRaws(String q,
           {FuzzyCase? caseMatching,
           FuzzyNorm? normalization,
@@ -730,6 +857,11 @@ abstract base class FuzzyCorpusProtected<T> {
           eff_(caseMatching, normalization, parallel, threads, limit, false,
               scoring));
 
+  /// 子串搜索；[q] 为查询，返回异步完成的原始条目列表。
+  /// [caseMatching] 为大小写规则；[normalization] 为归一化规则；[parallel] 为并行开关；[threads] 为线程数，零表示自动；[limit] 为结果上限，非正数表示不限；[scoring] 为评分方式，省略时沿用语料库选项。
+  /// 销毁后、构建中或结果分配失败时抛 StateError；引擎或查询缓冲分配失败时抛 FuzzyException。
+  ///
+  /// 示例：`await corpus.asyncSubstringRaws("你好")`。
   Future<List<T>> asyncSubstringRaws(String q,
           {FuzzyCase? caseMatching,
           FuzzyNorm? normalization,
@@ -743,6 +875,11 @@ abstract base class FuzzyCorpusProtected<T> {
           eff_(caseMatching, normalization, parallel, threads, limit, false,
               scoring));
 
+  /// 前缀搜索；[q] 为查询，返回异步完成的原始条目列表。
+  /// [caseMatching] 为大小写规则；[normalization] 为归一化规则；[parallel] 为并行开关；[threads] 为线程数，零表示自动；[limit] 为结果上限，非正数表示不限；[scoring] 为评分方式，省略时沿用语料库选项。
+  /// 销毁后、构建中或结果分配失败时抛 StateError；引擎或查询缓冲分配失败时抛 FuzzyException。
+  ///
+  /// 示例：`await corpus.asyncPrefixRaws("你好")`。
   Future<List<T>> asyncPrefixRaws(String q,
           {FuzzyCase? caseMatching,
           FuzzyNorm? normalization,
@@ -756,6 +893,11 @@ abstract base class FuzzyCorpusProtected<T> {
           eff_(caseMatching, normalization, parallel, threads, limit, false,
               scoring));
 
+  /// 后缀搜索；[q] 为查询，返回异步完成的原始条目列表。
+  /// [caseMatching] 为大小写规则；[normalization] 为归一化规则；[parallel] 为并行开关；[threads] 为线程数，零表示自动；[limit] 为结果上限，非正数表示不限；[scoring] 为评分方式，省略时沿用语料库选项。
+  /// 销毁后、构建中或结果分配失败时抛 StateError；引擎或查询缓冲分配失败时抛 FuzzyException。
+  ///
+  /// 示例：`await corpus.asyncPostfixRaws("你好")`。
   Future<List<T>> asyncPostfixRaws(String q,
           {FuzzyCase? caseMatching,
           FuzzyNorm? normalization,
@@ -769,6 +911,11 @@ abstract base class FuzzyCorpusProtected<T> {
           eff_(caseMatching, normalization, parallel, threads, limit, false,
               scoring));
 
+  /// 后缀搜索；[q] 为查询，返回异步完成的原始条目列表。
+  /// [caseMatching] 为大小写规则；[normalization] 为归一化规则；[parallel] 为并行开关；[threads] 为线程数，零表示自动；[limit] 为结果上限，非正数表示不限；[scoring] 为评分方式，省略时沿用语料库选项。
+  /// 销毁后、构建中或结果分配失败时抛 StateError；引擎或查询缓冲分配失败时抛 FuzzyException。
+  ///
+  /// 示例：`await corpus.asyncSuffixRaws("你好")`。
   Future<List<T>> asyncSuffixRaws(String q,
           {FuzzyCase? caseMatching,
           FuzzyNorm? normalization,
@@ -784,6 +931,11 @@ abstract base class FuzzyCorpusProtected<T> {
           limit: limit,
           scoring: scoring);
 
+  /// 完整文本搜索；[q] 为查询，返回异步完成的原始条目列表。
+  /// [caseMatching] 为大小写规则；[normalization] 为归一化规则；[parallel] 为并行开关；[threads] 为线程数，零表示自动；[limit] 为结果上限，非正数表示不限；[scoring] 为评分方式，省略时沿用语料库选项。
+  /// 销毁后、构建中或结果分配失败时抛 StateError；引擎或查询缓冲分配失败时抛 FuzzyException。
+  ///
+  /// 示例：`await corpus.asyncExactRaws("你好")`。
   Future<List<T>> asyncExactRaws(String q,
           {FuzzyCase? caseMatching,
           FuzzyNorm? normalization,
@@ -799,6 +951,14 @@ abstract base class FuzzyCorpusProtected<T> {
 
   // ── search / approx / dual variants ──────────────────────────────────────
 
+  /// 统一搜索；[q] 为查询，返回原始条目列表。
+  /// [strategy] 选择子序列、近似、无子序列命中时回退或合并，默认子序列。
+  /// [maxDistance] 省略时按查询码点数自动选择；不在零至十时抛 RangeError。
+  /// 近似、回退、合并和双路查询超过六十四码点时抛 ArgumentError。
+  /// [caseMatching] 为大小写规则；[normalization] 为归一化规则；[parallel] 为并行开关；[threads] 为线程数，零表示自动；[limit] 为结果上限，非正数表示不限；[scoring] 为评分方式，省略时沿用语料库选项。
+  /// 销毁后、构建中或结果分配失败时抛 StateError；引擎或查询缓冲分配失败时抛 FuzzyException。
+  ///
+  /// 示例：`corpus.searchRaws("你好")`。
   List<T> searchRaws(
     String q, {
     SearchStrategy strategy = SearchStrategy.fuzzy,
@@ -823,13 +983,14 @@ abstract base class FuzzyCorpusProtected<T> {
           h.raw
       ];
 
-  // Dispatches to the per-strategy *Async_ bridge method (searchAsync_ /
-  // searchEditAsync_ / searchFallbackAsync_ / searchMergeAsync_), each of
-  // which genuinely offloads to a worker isolate on native and awaits engine
-  // readiness on web — unlike simply calling the synchronous `search()`
-  // inside an async function, which still blocks the calling isolate/thread
-  // for the whole native call.
-  /// 编辑距离须在零到十之间；涉及近似匹配的查询最多六十四个码点，超限抛参数异常。
+  /// 统一搜索；[q] 为查询，返回异步完成的命中列表。
+  /// [strategy] 选择子序列、近似、无子序列命中时回退或合并，默认子序列。
+  /// [maxDistance] 省略时按查询码点数自动选择；不在零至十时抛 RangeError。
+  /// 近似、回退、合并和双路查询超过六十四码点时抛 ArgumentError。
+  /// [caseMatching] 为大小写规则；[normalization] 为归一化规则；[parallel] 为并行开关；[threads] 为线程数，零表示自动；[limit] 为结果上限，非正数表示不限；[highlight] 为是否返回高亮码点下标；[scoring] 为评分方式，省略时沿用语料库选项。
+  /// 销毁后、构建中或结果分配失败时抛 StateError；引擎或查询缓冲分配失败时抛 FuzzyException。
+  ///
+  /// 示例：`await corpus.asyncSearch("你好")`。
   Future<List<FuzzyHit<T>>> asyncSearch(
     String q, {
     SearchStrategy strategy = SearchStrategy.fuzzy,
@@ -856,6 +1017,14 @@ abstract base class FuzzyCorpusProtected<T> {
     };
   }
 
+  /// 统一搜索；[q] 为查询，返回异步完成的原始条目列表。
+  /// [strategy] 选择子序列、近似、无子序列命中时回退或合并，默认子序列。
+  /// [maxDistance] 省略时按查询码点数自动选择；不在零至十时抛 RangeError。
+  /// 近似、回退、合并和双路查询超过六十四码点时抛 ArgumentError。
+  /// [caseMatching] 为大小写规则；[normalization] 为归一化规则；[parallel] 为并行开关；[threads] 为线程数，零表示自动；[limit] 为结果上限，非正数表示不限；[scoring] 为评分方式，省略时沿用语料库选项。
+  /// 销毁后、构建中或结果分配失败时抛 StateError；引擎或查询缓冲分配失败时抛 FuzzyException。
+  ///
+  /// 示例：`await corpus.asyncSearchRaws("你好")`。
   Future<List<T>> asyncSearchRaws(
     String q, {
     SearchStrategy strategy = SearchStrategy.fuzzy,
@@ -880,6 +1049,13 @@ abstract base class FuzzyCorpusProtected<T> {
     return [for (final h in hits) h.raw];
   }
 
+  /// 近似子串搜索；[q] 为查询，返回原始条目列表。
+  /// [maxDistance] 省略时按查询码点数自动选择；不在零至十时抛 RangeError。
+  /// 近似、回退、合并和双路查询超过六十四码点时抛 ArgumentError。
+  /// [caseMatching] 为大小写规则；[normalization] 为归一化规则；[limit] 为结果上限，非正数表示不限，省略时沿用语料库选项。
+  /// 销毁后、构建中或结果分配失败时抛 StateError；引擎或查询缓冲分配失败时抛 FuzzyException。
+  ///
+  /// 示例：`corpus.approxRaws("你好")`。
   List<T> approxRaws(String q,
           {int? maxDistance,
           FuzzyCase? caseMatching,
@@ -894,7 +1070,13 @@ abstract base class FuzzyCorpusProtected<T> {
           h.raw
       ];
 
-  /// 编辑距离须在零到十之间；涉及近似匹配的查询最多六十四个码点，超限抛参数异常。
+  /// 近似子串搜索；[q] 为查询，返回异步完成的命中列表。
+  /// [maxDistance] 省略时按查询码点数自动选择；不在零至十时抛 RangeError。
+  /// 近似、回退、合并和双路查询超过六十四码点时抛 ArgumentError。
+  /// [caseMatching] 为大小写规则；[normalization] 为归一化规则；[limit] 为结果上限，非正数表示不限；[highlight] 为是否返回高亮码点下标，省略时沿用语料库选项。
+  /// 销毁后、构建中或结果分配失败时抛 StateError；引擎或查询缓冲分配失败时抛 FuzzyException。
+  ///
+  /// 示例：`await corpus.asyncApprox("你好")`。
   Future<List<FuzzyHit<T>>> asyncApprox(
     String q, {
     int? maxDistance,
@@ -910,6 +1092,13 @@ abstract base class FuzzyCorpusProtected<T> {
     return searchEditAsync_(q, dist, o);
   }
 
+  /// 近似子串搜索；[q] 为查询，返回异步完成的原始条目列表。
+  /// [maxDistance] 省略时按查询码点数自动选择；不在零至十时抛 RangeError。
+  /// 近似、回退、合并和双路查询超过六十四码点时抛 ArgumentError。
+  /// [caseMatching] 为大小写规则；[normalization] 为归一化规则；[limit] 为结果上限，非正数表示不限，省略时沿用语料库选项。
+  /// 销毁后、构建中或结果分配失败时抛 StateError；引擎或查询缓冲分配失败时抛 FuzzyException。
+  ///
+  /// 示例：`await corpus.asyncApproxRaws("你好")`。
   Future<List<T>> asyncApproxRaws(
     String q, {
     int? maxDistance,
@@ -926,7 +1115,13 @@ abstract base class FuzzyCorpusProtected<T> {
     return [for (final h in hits) h.raw];
   }
 
-  /// 编辑距离须在零到十之间；涉及近似匹配的查询最多六十四个码点，超限抛参数异常。
+  /// 双路搜索；[q] 为查询，返回异步完成的两组独立命中。
+  /// [maxDistance] 省略时按查询码点数自动选择；不在零至十时抛 RangeError。
+  /// 近似、回退、合并和双路查询超过六十四码点时抛 ArgumentError。
+  /// [caseMatching] 为大小写规则；[normalization] 为归一化规则；[parallel] 为并行开关；[threads] 为线程数，零表示自动；[limit] 为结果上限，非正数表示不限；[highlight] 为是否返回高亮码点下标；[scoring] 为评分方式，省略时沿用语料库选项。
+  /// 销毁后、构建中或结果分配失败时抛 StateError；引擎或查询缓冲分配失败时抛 FuzzyException。
+  ///
+  /// 示例：`await corpus.asyncDual("你好")`。
   Future<FuzzyDualResult<T>> asyncDual(
     String q, {
     int? maxDistance,
