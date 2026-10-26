@@ -123,10 +123,10 @@ jobs:
           for x in android windows linux; do
             if [ "$P" = "$x" ] || [ "$P" = all ]; then echo "$x=true" >> "$GITHUB_OUTPUT"; else echo "$x=false" >> "$GITHUB_OUTPUT"; fi
           done
-          # Apple 矩阵：macos = arm64+x86_64；ios = 真机 arm64 + 模拟器 arm64；apple/all = 全部。
+          # Apple 矩阵：macos = arm64+x86_64；ios = 真机 arm64 + 模拟器 arm64/x86_64（flutter build ios --simulator 默认 ARCHS="arm64 x86_64"，模拟器切片缺 x86_64 会链接失败）；apple/all = 全部。
           # apple_full 为 true 时才跑 apple-package（xcframework 需要 macOS 与 iOS 的全部切片）。
           MAC='{"target":"macos-arm64","os":"macos","arch":"arm64","plat":"macos","archs":"arm64"},{"target":"macos-amd64","os":"macos","arch":"amd64","plat":"macos","archs":"x86_64"}'
-          IOS='{"target":"ios-arm64","os":"ios","arch":"arm64","plat":"ios","archs":"arm64"},{"target":"iossimulator-arm64","os":"iossimulator","arch":"arm64","plat":"iossimulator","archs":"arm64"}'
+          IOS='{"target":"ios-arm64","os":"ios","arch":"arm64","plat":"ios","archs":"arm64"},{"target":"iossimulator-arm64","os":"iossimulator","arch":"arm64","plat":"iossimulator","archs":"arm64"},{"target":"iossimulator-amd64","os":"iossimulator","arch":"amd64","plat":"iossimulator","archs":"x86_64"}'
           case "$P" in
             apple|all) AM="[$MAC,$IOS]"; echo "apple=true" >> "$GITHUB_OUTPUT"; echo "apple_full=true" >> "$GITHUB_OUTPUT" ;;
             macos) AM="[$MAC]"; echo "apple=true" >> "$GITHUB_OUTPUT"; echo "apple_full=false" >> "$GITHUB_OUTPUT" ;;
@@ -619,7 +619,7 @@ jobs:
           set -e
           find art -maxdepth 3 | sort | head -40
           mkdir -p slices
-          for t in macos-arm64 macos-amd64 ios-arm64 iossimulator-arm64; do
+          for t in macos-arm64 macos-amd64 ios-arm64 iossimulator-arm64 iossimulator-amd64; do
             src=$(find art -path "*/$t/libmpv.dylib" | head -1)
             test -n "$src" || { echo "::error::缺少切片 $t"; exit 1; }
             mkdir -p "slices/$t"; cp "$src" "slices/$t/libmpv.dylib"
@@ -647,16 +647,16 @@ jobs:
           export STRICT_EXPORTS=1
           C=mova-libmpv/tools/apple/apple-macho-check.sh
           bash $C pkg/ios/Mpv.xcframework/ios-arm64/Mpv.framework/Mpv ios "arm64" "@rpath/Mpv.framework/Mpv"
-          bash $C pkg/ios/Mpv.xcframework/ios-arm64-simulator/Mpv.framework/Mpv iossimulator "arm64" "@rpath/Mpv.framework/Mpv"
+          bash $C pkg/ios/Mpv.xcframework/ios-arm64_x86_64-simulator/Mpv.framework/Mpv iossimulator "arm64 x86_64" "@rpath/Mpv.framework/Mpv"
           bash $C pkg/macos/Mpv.xcframework/macos-arm64_x86_64/Mpv.framework/Versions/A/Mpv macos "arm64 x86_64" "@rpath/Mpv.framework/Mpv"
           codesign -vvv pkg/macos/Mpv.xcframework/macos-arm64_x86_64/Mpv.framework
           codesign -vvv pkg/ios/Mpv.xcframework/ios-arm64/Mpv.framework
-          codesign -vvv pkg/ios/Mpv.xcframework/ios-arm64-simulator/Mpv.framework
+          codesign -vvv pkg/ios/Mpv.xcframework/ios-arm64_x86_64-simulator/Mpv.framework
 
       - name: WHEP end-to-end smoke (macOS arm64 native + iOS simulator)
         timeout-minutes: 30
         env:
-          SIM_FRAMEWORK_DIR: ${{ github.workspace }}/pkg/ios/Mpv.xcframework/ios-arm64-simulator
+          SIM_FRAMEWORK_DIR: ${{ github.workspace }}/pkg/ios/Mpv.xcframework/ios-arm64_x86_64-simulator
           SIM_OPTIONAL: '1'
           WORK: ${{ runner.temp }}/e2e-arm64
         run: |

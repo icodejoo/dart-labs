@@ -2,7 +2,7 @@
 # 把各切片的 libmpv.dylib 装配成两份 Mpv.xcframework（iOS：真机+模拟器；macOS：arm64+x86_64 合成 universal）。
 # 用法：apple-xcframework.sh <切片目录> <输出目录>
 #   切片目录下需有 <target>/libmpv.dylib（已 strip），target 为：
-#   macos-arm64 macos-amd64 ios-arm64 iossimulator-arm64
+#   macos-arm64 macos-amd64 ios-arm64 iossimulator-arm64 iossimulator-amd64
 #   输出：<输出目录>/ios/Mpv.xcframework、<输出目录>/macos/Mpv.xcframework
 # 要点：
 #   - install name 统一改成 @rpath/Mpv.framework/Mpv（Nix 出来的是 @rpath/libmpv.dylib，链进 App 后 dyld 找不到）
@@ -64,7 +64,11 @@ make_ios_framework() {
   cp "$HERE"/Headers/*.h "$fw/Headers/"
   cp "$HERE/module.modulemap" "$fw/Modules/module.modulemap"
   cp "$HERE/PrivacyInfo.xcprivacy" "$fw/PrivacyInfo.xcprivacy"
-  write_plist "$fw/Info.plist" "$3" MinimumOSVersion "$(minos_of "$fw/Mpv" arm64)"
+  # 多架构时取各切片 minos 的最小值（arm64 模拟器 14.0、x86_64 模拟器 13.0 -> 13.0）
+  local m=""
+  for a in $(lipo -archs "$fw/Mpv"); do m="$m $(minos_of "$fw/Mpv" "$a")"; done
+  write_plist "$fw/Info.plist" "$3" MinimumOSVersion "$(echo $m | tr ' ' '
+' | sort -V | head -1)"
   codesign -f -s - "$fw"
 }
 
@@ -92,7 +96,10 @@ W="$OUT/work"
 
 # ---- iOS ----
 make_ios_framework "$ART/ios-arm64/libmpv.dylib" "$W/ios-device" iPhoneOS
-make_ios_framework "$ART/iossimulator-arm64/libmpv.dylib" "$W/ios-sim" iPhoneSimulator
+# 模拟器切片：arm64 + x86_64 合成 fat（flutter build ios --simulator 默认两个架构都链）
+mkdir -p "$W/ios-sim-fat"
+lipo -create "$ART/iossimulator-arm64/libmpv.dylib" "$ART/iossimulator-amd64/libmpv.dylib" -output "$W/ios-sim-fat/libmpv.dylib"
+make_ios_framework "$W/ios-sim-fat/libmpv.dylib" "$W/ios-sim" iPhoneSimulator
 xcodebuild -create-xcframework \
   -framework "$W/ios-device/Mpv.framework" \
   -framework "$W/ios-sim/Mpv.framework" \
