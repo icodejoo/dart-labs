@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:typed_data';
 
@@ -39,9 +40,16 @@ class _FakeFetcher implements MovaHttpFetch {
   void serveBytes(String url, List<int> bytes) =>
       responses[url] = Uint8List.fromList(bytes);
 
+  /// URLs whose response is held back until the completer is completed.
+  ///
+  /// 响应被扣住、直到对应 completer 完成才返回的 URL。
+  final Map<String, Completer<void>> gates = <String, Completer<void>>{};
+
   @override
   Future<Uint8List?> get(Uri url) async {
     requested.add(url.toString());
+    final gate = gates[url.toString()];
+    if (gate != null) await gate.future;
     return responses[url.toString()];
   }
 
@@ -177,5 +185,42 @@ void main() {
 
   test('the source reports a stable name for diagnostics', () {
     expect(MovaVttThumbSource(fetcher: _FakeFetcher()).name, 'vtt');
+  });
+
+  test('reset while the vtt is in flight discards the stale index', () async {
+    final f = _FakeFetcher()
+      ..serveText('https://host/media/a.mp4.vtt', _vtt)
+      ..serveBytes('https://host/media/sprite-0.jpg', [1]);
+    final gate = f.gates['https://host/media/a.mp4.vtt'] = Completer<void>();
+    final s = MovaVttThumbSource(fetcher: f);
+    final pending = s.thumbAt(src, Duration.zero);
+    await Future<void>.delayed(Duration.zero);
+    await s.reset();
+    gate.complete();
+    expect(await pending, isNull, reason: 'a result from before reset must be dropped');
+    f.gates.clear();
+    expect(await s.thumbAt(src, Duration.zero), isNotNull);
+    expect(f.requested.where((u) => u.endsWith('.vtt')).length, 2);
+    await s.dispose();
+  });
+
+  test('reset while a sprite is in flight does not write it back', () async {
+    final f = _FakeFetcher()
+      ..serveText('https://host/media/a.mp4.vtt', _vtt)
+      ..serveBytes('https://host/media/sprite-0.jpg', [1]);
+    final s = MovaVttThumbSource(fetcher: f);
+    await s.thumbAt(src, Duration.zero);
+    await s.reset();
+    final gate = f.gates['https://host/media/sprite-0.jpg'] = Completer<void>();
+    final pending = s.thumbAt(src, Duration.zero);
+    await Future<void>.delayed(Duration.zero);
+    await Future<void>.delayed(Duration.zero);
+    await s.reset();
+    gate.complete();
+    expect(await pending, isNull);
+    f.gates.clear();
+    await s.thumbAt(src, Duration.zero);
+    expect(f.requested.where((u) => u.endsWith('sprite-0.jpg')).length, 3);
+    await s.dispose();
   });
 }

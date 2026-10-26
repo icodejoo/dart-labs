@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 
 import '../../core/api.dart';
 import '../../core/preview/models.dart';
+import '../../core/state/state.dart';
 import '../../core/state/ui_state.dart';
 import '../format.dart';
 import '../slots/component.dart';
@@ -93,6 +94,16 @@ class _PreviewBubbleState extends State<_PreviewBubble> {
   /// 为 [_thumb] 供数的订阅；在 dispose 时取消。
   StreamSubscription<MovaThumb?>? _thumbSub;
 
+  /// Subscription watching [MovaState.renderEpoch]; cancelled on dispose.
+  ///
+  /// 监听 [MovaState.renderEpoch] 的订阅；在 dispose 时取消。
+  StreamSubscription<MovaState>? _epochSub;
+
+  /// The last seen render epoch; a change means the preview instance was swapped.
+  ///
+  /// 最近一次见到的渲染纪元；变化意味着预览实例已被换掉。
+  int _epoch = 0;
+
   @override
   void initState() {
     super.initState();
@@ -108,9 +119,12 @@ class _PreviewBubbleState extends State<_PreviewBubble> {
       widget.api.preview.requestAt(at);
     }
     _uiSub = widget.api.uiStates.listen((s) => _apply(s.previewAt));
-    _thumbSub = widget.api.preview.thumbs.listen((t) {
-      if (!mounted) return;
-      setState(() => _thumb = t);
+    _subscribeThumbs();
+    _epoch = widget.api.state.renderEpoch;
+    _epochSub = widget.api.states.listen((s) {
+      if (s.renderEpoch == _epoch) return;
+      _epoch = s.renderEpoch;
+      _resubscribe();
     });
   }
 
@@ -118,7 +132,33 @@ class _PreviewBubbleState extends State<_PreviewBubble> {
   void dispose() {
     _uiSub?.cancel();
     _thumbSub?.cancel();
+    _epochSub?.cancel();
     super.dispose();
+  }
+
+  /// Subscribes to the thumbnail stream of the *current* preview instance.
+  ///
+  /// 订阅*当前*预览实例的缩略图流。
+  void _subscribeThumbs() {
+    _thumbSub = widget.api.preview.thumbs.listen((t) {
+      if (!mounted) return;
+      setState(() => _thumb = t);
+    });
+  }
+
+  /// Re-binds to the swapped-in preview: drops the old subscription, re-seeds
+  /// from the new instance and re-requests the in-progress scrub position.
+  ///
+  /// 重新绑定到切换后的预览：取消旧订阅，从新实例重新播种，并为进行中的拖动
+  /// 位置重新发请求。
+  void _resubscribe() {
+    _thumbSub?.cancel();
+    _subscribeThumbs();
+    final at = _at;
+    if (at == null || !mounted) return;
+    final hit = widget.api.preview.peekAt(at);
+    widget.api.preview.requestAt(at);
+    setState(() => _thumb = hit ?? _thumb);
   }
 
   /// Reacts to a new scrub position: hides on null, otherwise takes the

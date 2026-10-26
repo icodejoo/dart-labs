@@ -98,6 +98,12 @@ class MovaPreviewService implements MovaPreviewApi {
   /// [_wanted] 当前已解析出的缩略图（若有）。
   MovaThumb? _current;
 
+  /// Bumped by every [attach]; in-flight work compares it to detect that the
+  /// media changed underneath it.
+  ///
+  /// 每次 [attach] 都递增；在途任务据此判断媒体是否已在其脚下被换掉。
+  int _epoch = 0;
+
   /// Whether [dispose] has run; further calls are no-ops.
   ///
   /// [dispose] 是否已执行；执行过后所有调用都变为空操作。
@@ -117,6 +123,7 @@ class MovaPreviewService implements MovaPreviewApi {
   /// - [source]: the newly opened media, or null when the player has none /
   ///   新打开的媒体；播放器无媒体时为 null
   void attach(MovaSource? source) {
+    _epoch++;
     _source = source;
     _debounce?.cancel();
     _debounce = null;
@@ -148,12 +155,14 @@ class MovaPreviewService implements MovaPreviewApi {
   /// 用配置的策略为 [bucket] 生成缓存 key。
   ///
   /// - [bucket]: the bucket-aligned position / 桶对齐位置
+  /// - [media]: the media to key for, defaults to the attached one / 要生成 key
+  ///   的媒体，默认取当前附着的
   ///
   /// Returns the cache key, or null when no media is attached.
   ///
   /// 返回缓存 key；未附着媒体时返回 null。
-  String? _keyFor(Duration bucket) {
-    final src = _source;
+  String? _keyFor(Duration bucket, [MovaSource? media]) {
+    final src = media ?? _source;
     if (src == null) return null;
     final builder = config.cacheKeyBuilder ?? defaultCacheKey;
     return builder(src.uri, bucket.inSeconds, config.frameWidth);
@@ -259,15 +268,23 @@ class MovaPreviewService implements MovaPreviewApi {
       _block(MovaPreviewBlockReason.platform);
       return;
     }
-    if (!await previewAllowedOn(config.network, probe)) {
+    // Capture media, key and epoch before any await: a later attach() must
+    // neither re-key this request nor let its result surface for the new media.
+    //
+    // 在任何 await 之前就捕获媒体、key 与 epoch：之后的 attach() 既不能给本请求
+    // 换 key，也不能让它的结果出现在新媒体上。
+    final epoch = _epoch;
+    final key = _keyFor(bucket, src);
+    if (key == null) return;
+    final allowed = await previewAllowedOn(config.network, probe);
+    if (epoch != _epoch) return;
+    if (!allowed) {
       _block(MovaPreviewBlockReason.network);
       return;
     }
 
-    final key = _keyFor(bucket);
-    if (key == null) return;
-
     final cached = await cache.read(key);
+    if (epoch != _epoch) return;
     if (cached != null) {
       if (_wanted == bucket) _publish(MovaThumb(at: bucket, bytes: cached));
       return;
@@ -280,12 +297,23 @@ class MovaPreviewService implements MovaPreviewApi {
       } on Object {
         thumb = null;
       }
+      if (epoch != _epoch) return;
       if (thumb == null) continue;
       // Cache first, publish second: a superseded bucket still earns its place
       // in the cache, it just never becomes the visible thumbnail.
       //
       // 先缓存再发布：被取代的桶依然值得留在缓存里，只是不会成为可见的缩略图。
-      await cache.write(key, thumb.bytes);
+      //
+      // A cropped thumb carries a whole sprite sheet as its bytes; caching it
+      // would later resurface as an uncropped thumb, so it is never cached (the
+      // VTT source memoises sheets itself).
+      //
+      // 带 crop 的缩略图其 bytes 是整张雪碧图；缓存后会以无 crop 形态复现，所以
+      // 一律不缓存（VTT 来源自己会记忆雪碧图）。
+      if (thumb.crop == null) {
+        await cache.write(key, thumb.bytes);
+        if (epoch != _epoch) return;
+      }
       if (_wanted == bucket) _publish(thumb);
       return;
     }

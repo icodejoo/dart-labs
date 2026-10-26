@@ -23,7 +23,14 @@ class _FakeSource implements MovaThumbSource {
   /// - [answer]: whether this source produces a thumbnail / 该来源是否产出缩略图
   /// - [delay]: artificial latency per request / 每次请求的人造延迟
   // ignore: unused_element_parameter
-  _FakeSource({this.name = 'fake', this.answer = true, this.delay = Duration.zero});
+  _FakeSource({
+    this.name = 'fake',
+    this.answer = true,
+    // ignore: unused_element_parameter
+    this.delay = Duration.zero,
+    // ignore: unused_element_parameter
+    this.crop,
+  });
 
   @override
   final String name;
@@ -38,10 +45,20 @@ class _FakeSource implements MovaThumbSource {
   /// 每次请求施加的人造延迟。
   Duration delay;
 
+  /// Sprite crop attached to every produced thumbnail; null means none.
+  ///
+  /// 附加到每张产出缩略图上的雪碧图裁剪；null 表示不带。
+  MovaThumbCrop? crop;
+
   /// Buckets this source was asked for, in order.
   ///
   /// 按顺序记录该来源被请求过的桶。
   final List<Duration> asked = <Duration>[];
+
+  /// Media each request was made for, in order.
+  ///
+  /// 按顺序记录每次请求所针对的媒体。
+  final List<MovaSource> askedSources = <MovaSource>[];
 
   /// Ordered lifecycle method names invoked on this fake.
   ///
@@ -51,9 +68,14 @@ class _FakeSource implements MovaThumbSource {
   @override
   Future<MovaThumb?> thumbAt(MovaSource source, Duration bucket) async {
     asked.add(bucket);
+    askedSources.add(source);
     if (delay > Duration.zero) await Future<void>.delayed(delay);
     if (!answer) return null;
-    return MovaThumb(at: bucket, bytes: Uint8List.fromList([bucket.inSeconds & 0xFF]));
+    return MovaThumb(
+      at: bucket,
+      bytes: Uint8List.fromList([bucket.inSeconds & 0xFF]),
+      crop: crop,
+    );
   }
 
   @override
@@ -87,8 +109,38 @@ class _SwitchProbe implements MovaNetProbe {
   Future<void> dispose() async {}
 }
 
+/// A [MovaNetProbe] that answers `true` only after [delay], widening the
+/// window between `_resolve`'s entry and its first key computation.
+///
+/// 延迟 [delay] 后才回答 `true` 的 [MovaNetProbe]，用来拉宽 `_resolve` 入口到
+/// 首次算 key 之间的窗口。
+class _SlowProbe implements MovaNetProbe {
+  /// Creates a probe that stalls for [delay].
+  ///
+  /// 创建一个会停顿 [delay] 的探针。
+  _SlowProbe(this.delay);
+
+  /// How long [allowHeavy] stalls.
+  ///
+  /// [allowHeavy] 停顿的时长。
+  final Duration delay;
+
+  @override
+  Future<bool> allowHeavy() async {
+    await Future<void>.delayed(delay);
+    return true;
+  }
+
+  @override
+  Stream<bool> get changes => const Stream<bool>.empty();
+
+  @override
+  Future<void> dispose() async {}
+}
+
 void main() {
   const src = MovaSource('https://host/a.mp4');
+  const srcB = MovaSource('https://host/b.mp4');
   const noDebounce = MovaPreviewConfig(
     debounce: Duration.zero,
     network: MovaPreviewNet.always,
@@ -334,5 +386,42 @@ void main() {
     // A second dispose from tearDown must be a no-op.
     //
     // tearDown 里的第二次 dispose 必须是空操作。
+  });
+
+  test('a cropped sprite thumb is not cached as raw bytes (peekAt must not leak the sheet)', () async {
+    source.crop = const MovaThumbCrop(x: 160, y: 0, w: 160, h: 90);
+    service = build(noDebounce);
+    service.requestAt(const Duration(seconds: 10));
+    await service.drain();
+    expect(service.current!.crop, isNotNull);
+    expect(cache.peek(service.debugKeyFor(const Duration(seconds: 10))!), isNull);
+    expect(service.peekAt(const Duration(seconds: 10)), isNull);
+  });
+
+  test('attach during the network probe drops the old media request', () async {
+    service = build(
+      const MovaPreviewConfig(debounce: Duration.zero, network: MovaPreviewNet.wifiOnly),
+      probe: _SlowProbe(const Duration(milliseconds: 40)),
+    );
+    service.requestAt(const Duration(seconds: 10));
+    await Future<void>.delayed(const Duration(milliseconds: 10));
+    service.attach(srcB);
+    service.requestAt(const Duration(seconds: 10));
+    await service.drain();
+    expect(source.askedSources, [srcB]);
+    expect(service.current!.at, const Duration(seconds: 10));
+  });
+
+  test('attach during the source request keeps the old media result out of the cache', () async {
+    source.delay = const Duration(milliseconds: 40);
+    service = build(noDebounce);
+    final keyA = service.debugKeyFor(const Duration(seconds: 10))!;
+    service.requestAt(const Duration(seconds: 10));
+    await Future<void>.delayed(const Duration(milliseconds: 10));
+    service.attach(srcB);
+    await service.drain();
+    expect(cache.peek(keyA), isNull);
+    expect(cache.peek(service.debugKeyFor(const Duration(seconds: 10))!), isNull);
+    expect(service.current, isNull);
   });
 }

@@ -93,6 +93,12 @@ class MovaVttThumbSource implements MovaThumbSource {
   /// 按"最久未使用在前"顺序记忆的雪碧图。
   final LinkedHashMap<String, Uint8List> _sprites = LinkedHashMap<String, Uint8List>();
 
+  /// Bumped by every [reset]; in-flight fetches compare it to detect that the
+  /// media changed, and then drop their result instead of writing it back.
+  ///
+  /// 每次 [reset] 都递增；在途拉取据此判断媒体已换，丢弃结果而不是写回。
+  int _epoch = 0;
+
   @override
   String get name => 'vtt';
 
@@ -110,12 +116,14 @@ class MovaVttThumbSource implements MovaThumbSource {
     final cached = _index;
     if (cached != null) return cached;
 
+    final epoch = _epoch;
     final url = resolveUrl(source);
     if (url == null) {
       _unavailable = true;
       return null;
     }
     final bytes = await fetcher.get(url);
+    if (epoch != _epoch) return null;
     if (bytes == null) {
       _unavailable = true;
       return null;
@@ -152,8 +160,9 @@ class MovaVttThumbSource implements MovaThumbSource {
       _sprites[key] = hit;
       return hit;
     }
+    final epoch = _epoch;
     final bytes = await fetcher.get(url);
-    if (bytes == null) return null;
+    if (bytes == null || epoch != _epoch) return null;
     if (maxSprites > 0) {
       _sprites[key] = bytes;
       while (_sprites.length > maxSprites) {
@@ -165,17 +174,19 @@ class MovaVttThumbSource implements MovaThumbSource {
 
   @override
   Future<MovaThumb?> thumbAt(MovaSource source, Duration bucket) async {
+    final epoch = _epoch;
     final index = await _ensureIndex(source);
-    if (index == null) return null;
+    if (index == null || epoch != _epoch) return null;
     final cue = index.cueAt(bucket);
     if (cue == null) return null;
     final bytes = await _sprite(cue.image);
-    if (bytes == null) return null;
+    if (bytes == null || epoch != _epoch) return null;
     return MovaThumb(at: bucket, bytes: bytes, crop: cue.crop);
   }
 
   @override
   Future<void> reset() async {
+    _epoch++;
     _index = null;
     _unavailable = false;
     _sprites.clear();
