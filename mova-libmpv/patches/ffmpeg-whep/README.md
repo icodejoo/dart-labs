@@ -17,8 +17,10 @@
 | 0010 | `0010-avformat-whep-RTCP-feedback-PLI-RR-NACK.patch` | T1.5：只改 `whep.c`。SRTCP 加密发 RTCP：周期 RR、NACK（缺口表 + 多 FCI 打包 + 重试/放弃）、PLI（起播 + 不可恢复丢包，限速 1/s）；新增 `rtcp_nack`/`rtcp_pli`/`rtcp_interval`；**仅无 RTX 路径**（见「RTCP 反馈」） |
 | 0011 | `0011-avformat-whep-fix-chunked-WHEP-answer-read-failing-w.patch` | 修复：信令 answer 用 `Transfer-Encoding: chunked` 回包时 `Reading WHEP answer failed: I/O error`（MediaMTX 多网卡 answer >2KB 即触发）。只改 `whep.c`，POST 时加 `multiple_requests=1`；根因与证据见 `doc/notes/2026-10-24-whep-chunked-answer-fix.md`，回归 `tools/whep-flavor/whep_chunked_regress.sh` |
 | 0012 | `0012-avformat-whep-offer-setup-passive-so-default-SRS-ans.patch` | 只改 `whep.c`：offer 的 `a=setup` 由 `actpass` 改 `passive`（两个 m 段），默认配置 SRS 因此回 `setup:active`；answer 的 setup 非 `active` 时在解析阶段给出清晰报错。MediaMTX 不退化，证据见 `doc/notes/2026-10-24-whep-dtls-passive-offer-and-vp9.md` |
+| 0013 | `0013-avformat-whep-wait-for-a-decodable-key-frame-in-read.patch` | 只改 `whep.c`：`read_header` 里阻塞等到首个带 SPS/PPS 的 IDR（自带或缓存后补在 IDR 前），按 SPS 回填视频流宽高再返回；等待受新选项 `first_frame_timeout`（默认 10s）约束，超时 `open` 失败（`ETIMEDOUT`）交给上层重试；等待期间不按 `media_timeout` 判死。根因与证据见下「open 阶段拿不到视频尺寸（0013）」 |
+| 0014 | `0014-avformat-whep-conceal-lost-Opus-packets-so-the-audio.patch` | 只改 `whep.c`：音频丢包用占位包补齐 pts 缺口（首个缺口重复上一包，其余用只有 TOC 的空帧，≤1s），并在 verbose 下每 5s 打印各路 RTP 统计。根因与证据见下「直播周期性卡顿（0014）」 |
 
-补丁须按文件名顺序依次 apply（0001 到 0012，已在干净 n9.0.2 上逐个 `git apply --check` 并 apply 通过）。0006 为安全修复；0007/0008/0009 只改各 TLS 后端；0010、0011 只改 `whep.c`。
+补丁须按文件名顺序依次 apply（0001 到 0014，已在干净 n9.0.2 上逐个 `git apply --check` 并 apply 通过）。0006 为安全修复；0007/0008/0009 只改各 TLS 后端；0010、0011、0012、0013、0014 只改 `whep.c`。
 
 编号说明：0003 依赖 0002 的 `ff_http_get_link_headers`，所以 http 补丁排在 whep.c 前面。
 
@@ -74,6 +76,7 @@
 - **不发 RR**：实测 MediaMTX v1.21.1 在不发任何 RTCP 的情况下连续播 40s 不断流、帧率满 25fps（只验证了 40s，更长时间或其他服务端未验证）。
 - 只支持 `SRTP_AES128_CM_HMAC_SHA1_80`；只处理 H.264（packetization-mode 0/1 的单 NAL/STAP-A/FU-A，不支持 STAP-B/MTAP/FU-B）和 Opus；RTX 包（未协商的 PT）直接丢弃并计数。
 - DTLS 握手后的 alert 被忽略；对端异常消失靠 `media_timeout`。
+- 0014 起音频丢包会被占位包补齐（见下），但只是"不让时钟跑偏"：首个缺口重复上一包、更长的缺口是静音，没有真正的 PLC。
 - 时间线对齐只用到达时间，A/V 同步精度约为两路首包到达的间隔（本机实测可忽略），不是 RTCP SR 级精度。
 - 对端若改变 SSRC（发布端重连），之后的包会被当作"非首个 SSRC"丢弃，需要重新连接。
 
@@ -90,6 +93,7 @@
 | `rtcp_nack` | 1 | answer 协商了 `nack` 且该路没有协商 RTX 时才发 NACK，`0` 关闭 |
 | `rtcp_pli` | 1 | answer 协商了 `nack pli` 的视频路才发 PLI，`0` 关闭 |
 | `rtcp_interval` | 1000000 | 周期 Receiver Report 的间隔，**微秒**，`0` 不发周期 RR（此时 NACK/PLI 仍会带一个空 RR 头作为复合包开头） |
+| `first_frame_timeout` | 10000000 | `open`（read_header）等首个可解码视频关键帧（带 SPS/PPS 的 IDR）的期限，**微秒**，`-1` 不限；超时返回 `ETIMEDOUT`，`open` 失败。没有视频流时不等。0013 起 |
 | `media_timeout` | 5000000 | 握手后连续多久没有任何经认证的对端数据（RTP/RTCP/STUN）就判定连接已死并返回 `ETIMEDOUT`，**微秒**，`-1` 不限 |
 
 ## 已知限制 / 注意
@@ -234,3 +238,24 @@ mock 的错误场景路径：`/nf`(404) `/unauth`(401) `/nofp` `/badfp` `/sha1` 
 ### 0009：mbedtls SRTP profile 列表改 static（Android 真机暴露）
 
 `tls_open()` 里 `profiles[]` 是栈数组，而 `mbedtls_ssl_conf_dtls_srtp_protection_profiles()` 只存指针不拷贝，握手在之后进行，读到悬空指针。Linux（mbedtls 3.6.7）碰巧没事；Android arm64（mbedtls 3.4.0）ServerHello 缺 `use_srtp` 扩展，MediaMTX 回 alert 71（insufficient_security）。改成 `static const` 后真机握手通过。
+
+## open 阶段拿不到视频尺寸（0013）
+
+- **现象**（Android 真机，STG-AL00，mpv + whep 补丁 0012）：推流 GOP 大于 lavf 的 `analyzeduration`（mpv 下实际约 5s）时，`open` "成功"但视频流是 `h264, none: unspecified size`；`h264_mediacodec` 没有尺寸打不开，mpv 的解码器回退在约 50s 内空转 8 万多次（`Could not open codec` / `Attempting next decoding method`），CPU 约 110%。
+- **根因**：`read_header` 一建好流就返回，此时还没有任何视频帧，`codecpar` 宽高为 0；`avformat_find_stream_info` 探测 `analyzeduration` 就收手，首个 IDR 更晚到（MediaMTX 的视频要等首个 IDR 才开始发，GOP 越长空窗越久）时参数永远补不上。旧版手机实测：GOP=250 帧 + `media_timeout=2s`，find_stream_info 约 6s 后返回 `Could not find codec parameters for stream 1 (Video: h264, none): unspecified size`，open 仍成功。
+- **修复**：`read_header` 里等到首个带 SPS/PPS 的 IDR 再返回，并用 SPS 回填宽高（自带最小 SPS 解析，覆盖 high profile 的 chroma/scaling list、POC、裁剪）；IDR 没带参数集时用之前缓存的 SPS/PPS 补在它前面；没有 SPS/PPS 的 IDR 不当起播点。超过 `first_frame_timeout`（默认 10s）`open` 返回 `ETIMEDOUT`，让上层重试。
+- **为什么选"等待 + 超时失败"**：只"失败"会让 GOP 3–5s 的正常流也 open 不上；只"等待"没有上限会卡死 UI；两者合起来既能容忍长 GOP，又保证 open 成功时一定带着尺寸。
+- 验证（2026-10-26，WSL Linux + OpenSSL，MediaMTX v1.21.1，GOP=250 帧即 10s 的推流）：`first_frame_timeout=3000000` 在 3.2s 报 `No decodable video key frame within 3.0s` 并以 `Connection timed out` 失败；`15000000` 在 6.7s 成功，`width=640 height=360`；GOP=50 的常规流 1.3s 成功。
+
+## 直播周期性卡顿（0014）
+
+- **现象**：直播约每 20s 缓冲一次（10 分钟 30 次，平均 1.4s），缓冲前 mpv 播放时钟比墙钟快约 5%，伴随 `Audio device underrun detected`；裸 media_kit 同样；点播精确 1.0。
+- **定位证据**（同一路 MediaMTX 流，手机经 WiFi）：
+  - 只开视频（`aid=no`）：`time-pos` 每 2s 前进 2.00（速率 1.00），缓存稳定在 1.2s，不卡；
+  - 开音频（`ao=opensles`、`ao=null`、`vid=no` 三种）：`time-pos`/`audio-pts` 每墙钟秒前进约 1.05，缓存每 2s 掉约 0.1s，约 20s 抽干后 `Enter buffering`；`cache-pause-wait` 默认 1s，所以每次缓冲约 1.4s；`ao=null` 也一样，排除音频设备时钟；
+  - Windows 本机回环（无丢包）同一份代码：10 分钟 `time-pos` 速率 1.002，0 次缓冲，所以不是时间戳换算（Opus 48k/H.264 90k、32 位回绕、音视频起点对齐都没问题）；
+  - 经 `whep_tamper_proxy.py` 只对音频 PT 注入 5% 丢包后，Windows 本机立刻复现：速率 1.05、缓存抽干、周期性缓冲。
+- **根因**：MediaMTX 的 Opus 不协商 nack/RTX，音频丢包无法重传；mpv 的音频 pts 取自解码帧的 pts，丢包在 RTP 时间线上留下空洞，pts 比实际喂给声卡的采样多走一截，整条播放时钟（视频跟音频走）按丢包率加速，缓存被抽干，反复 underrun。视频有 NACK 所以不受影响。不是抖动缓冲缺失（缓存抽干速率等于丢包率），也不是时间戳换算错误。
+- **修复**：`whep_rx_deliver` 发现音频新包 pts 比"上一包 pts + 时长"靠后，就补占位包（最多 1s，更长按发送端停顿处理）：第一个缺口重复上一包（单帧时），其余用 1 字节 TOC 的空帧（RFC 6716 的 DTX/丢帧表示；ffmpeg 原生 opus 解码器实测所有 config 下都输出静音且无报错）。没有真正的 PLC，音质上是"重复一帧 + 静音"。`verbose` 下新增每 5s 一行 `RTP audio|video stats: packets/lost/late/plc/jitter`，关闭时的汇总行多一个 `plc=`。
+- 验证（WSL，经 `LOSS_PT=<音频 PT>` 只丢音频包 5% 的代理，20s）：`lost=64 plc=64`，ffprobe 解码出的音频帧 pts 步长 999/999 都是 960、1000 帧各 960 采样、解码零报错。
+

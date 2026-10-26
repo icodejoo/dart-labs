@@ -1,0 +1,176 @@
+From 8bc70c0b0d5d389e52c97356c34fd1756d8386a0 Mon Sep 17 00:00:00 2001
+From: jelon <jelon@tbu.net>
+Date: Mon, 26 Oct 2026 23:12:15 +0800
+Subject: [PATCH] avformat/whep: conceal lost Opus packets so the audio
+ timeline stays in step with the samples
+
+Opus has no NACK/RTX with MediaMTX, so a lost audio packet left a hole in the RTP timeline. mpv takes its clock from the audio pts, which then advanced faster than the samples actually played: with ~5% loss the playback clock ran 5% fast, the demuxer cache drained and mpv rebuffered about every 20s ('Audio device underrun detected').
+
+When the next audio packet is later than the previous pts + duration, fill the hole (up to 1s, longer gaps are treated as the sender pausing) with placeholders: the previous single-frame packet once, then TOC-only frames (RFC 6716 DTX/lost frame, decoded as silence without errors). Also log per-stream RTP stats every 5s at verbose level.
+---
+ libavformat/whep.c | 87 +++++++++++++++++++++++++++++++++++++++++++---
+ 1 file changed, 82 insertions(+), 5 deletions(-)
+
+diff --git a/libavformat/whep.c b/libavformat/whep.c
+index 1fc6345..3c28135 100644
+--- a/libavformat/whep.c
++++ b/libavformat/whep.c
+@@ -107,6 +107,11 @@
+ #define WHEP_UDP_RCVBUF       (1 << 20)
+ /* 缓存的 SPS / PPS 最大字节数（不含起始码），超出则不缓存 */
+ #define WHEP_PS_MAX           512
++/* Opus 丢包补偿：保留的上一包最大字节数；单次缺口超过该时长（微秒）视为发送端停顿，不补 */
++#define WHEP_OPUS_KEEP        1280
++#define WHEP_PLC_MAX_US       1000000
++/* verbose 周期统计的间隔（微秒） */
++#define WHEP_STAT_US          5000000
+ 
+ /* 会话状态，T1.3 起沿用到 ICE/DTLS 阶段 */
+ enum WHEPState {
+@@ -211,6 +216,14 @@ typedef struct WhepRx {
+     /* 起播参数：最近见到的 SPS / PPS（Annex B，不含起始码），起播前缓存 */
+     uint8_t     sps[WHEP_PS_MAX], pps[WHEP_PS_MAX];
+     int         sps_len, pps_len;
++    /* Opus 丢包补偿：缺口用占位包填上，保证 pts 与实际采样数同步推进 */
++    int         a_have;             /* 已交付过音频包 */
++    int64_t     a_next;             /* 期望的下一包 pts（clock 单位） */
++    int         a_fu;               /* 上一包的单帧时长（clock 单位），0 表示未知 */
++    uint8_t     a_toc;              /* 上一包的 TOC（清掉帧数编码位） */
++    uint8_t     a_last[WHEP_OPUS_KEEP];
++    int         a_last_len;         /* 上一包若为单帧则保留原文，用来补首个缺口，否则 0 */
++    uint64_t    n_plc;              /* 补偿的包数 */
+     /* RTCP 反馈（T1.5） */
+     int         nack_on, pli_on;    /* 该路协商了 nack / nack pli 且选项开启 */
+     int         hi_valid;
+@@ -247,6 +260,7 @@ typedef struct WHEPContext {
+     int64_t media_timeout;    /* 握手后对端无任何经认证数据的容忍时长（微秒），<0 不限 */
+     int64_t first_frame_timeout; /* open 时等首个可解码视频关键帧的期限（微秒），<0 不限 */
+     int     opening;          /* read_header 正在等首个关键帧：此时不按 media_timeout 判死 */
++    int64_t next_stat;        /* 下次输出 verbose 周期统计的时刻 */
+     int     rtcp_nack;        /* 协商了 nack 时是否发 NACK（0/1） */
+     int     rtcp_pli;         /* 协商了 nack pli 时是否发 PLI（0/1） */
+     int64_t rtcp_interval;    /* Receiver Report 周期（微秒），0 关闭 RR */
+@@ -1376,9 +1390,9 @@ static void whep_rx_free(AVFormatContext *s)
+         if (rx->active)
+             av_log(s, AV_LOG_VERBOSE,
+                    "RTP %s pt=%d: packets=%"PRIu64" auth_fail=%"PRIu64" late/dup=%"PRIu64" lost=%"PRIu64
+-                   " frames=%"PRIu64" dropped_frames=%"PRIu64" before_keyframe=%"PRIu64"\n",
++                   " frames=%"PRIu64" dropped_frames=%"PRIu64" before_keyframe=%"PRIu64" plc=%"PRIu64"\n",
+                    rx->is_video ? "video" : "audio", rx->pt, rx->n_pkts, rx->n_auth_fail,
+-                   rx->n_late, rx->n_lost, rx->n_out, rx->n_drop_au, rx->n_nokey);
++                   rx->n_late, rx->n_lost, rx->n_out, rx->n_drop_au, rx->n_nokey, rx->n_plc);
+         if (rx->active)
+             av_log(s, AV_LOG_VERBOSE,
+                    "RTCP %s: nack=%d pli_on=%d nack_seqs_sent=%"PRIu64" nack_msgs=%"PRIu64" nack_giveup=%"PRIu64
+@@ -1426,13 +1440,23 @@ static void whep_rx_emit(AVFormatContext *s, WhepRx *rx, const uint8_t *data, in
+     av_packet_free(&pkt);
+ }
+ 
++/**
++ * 由 Opus TOC 的 config 得到单帧采样数（48kHz）。
++ */
++static int whep_opus_frame_size(unsigned toc)
++{
++    unsigned cfg = toc >> 3;
++
++    return cfg < 12 ? FFMAX(480, 960 * (cfg & 3)) : cfg < 16 ? 480u << (cfg & 1) : 120u << (cfg & 3);
++}
++
+ /**
+  * 解析 Opus TOC 得到该包的采样数（48kHz），非法返回 0。
+  */
+ static int whep_opus_duration(const uint8_t *p, int size)
+ {
+-    unsigned toc = p[0], cfg = toc >> 3, cnt = toc & 3, frames = 1;
+-    unsigned fs  = cfg < 12 ? FFMAX(480, 960 * (cfg & 3)) : cfg < 16 ? 480u << (cfg & 1) : 120u << (cfg & 3);
++    unsigned toc = p[0], cnt = toc & 3, frames = 1;
++    unsigned fs  = whep_opus_frame_size(toc);
+ 
+     if (cnt == 3) {
+         if (size < 2)
+@@ -1760,6 +1784,31 @@ static void whep_h264_input(AVFormatContext *s, WhepRx *rx, const uint8_t *p, in
+         whep_h264_au_end(s, rx);
+ }
+ 
++/**
++ * Opus 丢包补偿：新包 pts 比期望值（上一包 pts + 时长）靠后，说明中间的包丢了（没有 NACK/RTX
++ * 可救，MediaMTX 的 Opus 不协商 nack）。如果放任不管，音频 pts 比实际播放的采样数多走一截，
++ * mpv 以音频为时钟，整个播放时钟会按丢包率加速，缓存被抽干后反复 underrun/缓冲。
++ * 这里用占位包把缺口补齐，让 pts 与采样数同步：第一个缺口重复上一包（单帧时），其余用只有 TOC 的
++ * 空帧（RFC 6716 的 DTX/丢帧表示，解码器输出静音，不报错）。超过 WHEP_PLC_MAX_US 的缺口按发送端
++ * 停顿处理，不补。
++ */
++static void whep_opus_conceal(AVFormatContext *s, WhepRx *rx, int64_t pts)
++{
++    int64_t gap = pts - rx->a_next;
++
++    if (!rx->a_have || rx->a_fu <= 0 || gap < rx->a_fu || gap > av_rescale(WHEP_PLC_MAX_US, rx->clock, 1000000))
++        return;
++    for (int64_t t = rx->a_next; t + rx->a_fu <= pts; t += rx->a_fu) {
++        if (t == rx->a_next && rx->a_last_len) {
++            whep_rx_emit(s, rx, rx->a_last, rx->a_last_len, t, 0, rx->a_fu);
++        } else {
++            uint8_t toc = rx->a_toc;
++            whep_rx_emit(s, rx, &toc, 1, t, 0, rx->a_fu);
++        }
++        rx->n_plc++;
++    }
++}
++
+ /**
+  * 交付一个按序的、已解密的 RTP 包：剥头、换算时间戳、按编码分发解包。
+  * @param now 该包的到达时刻（相对时钟 us），用来把各路流对齐到同一条时间线
+@@ -1792,7 +1841,23 @@ static void whep_rx_deliver(AVFormatContext *s, WhepRx *rx, const uint8_t *p, in
+         whep_h264_input(s, rx, p + hdr, end - hdr, ts, rx->unwrapped + rx->offset, p[1] >> 7);
+     } else {
+         int dur = whep_opus_duration(p + hdr, end - hdr);
+-        whep_rx_emit(s, rx, p + hdr, end - hdr, rx->unwrapped + rx->offset, 0, dur);
++        int64_t pts = rx->unwrapped + rx->offset;
++
++        if (dur > 0)
++            whep_opus_conceal(s, rx, pts);
++        whep_rx_emit(s, rx, p + hdr, end - hdr, pts, 0, dur);
++        if (dur > 0) {
++            int fu = whep_opus_frame_size(p[hdr]);
++            rx->a_have     = 1;
++            rx->a_next     = pts + dur;
++            rx->a_fu       = fu;
++            rx->a_toc      = p[hdr] & 0xfc;          /* 清掉帧数编码位，变成 code 0（单帧） */
++            rx->a_last_len = 0;
++            if (dur == fu && end - hdr <= WHEP_OPUS_KEEP) {
++                memcpy(rx->a_last, p + hdr, end - hdr);
++                rx->a_last_len = end - hdr;
++            }
++        }
+     }
+ }
+ 
+@@ -2334,6 +2399,17 @@ static int whep_rx_housekeeping(AVFormatContext *s, int64_t now)
+                (now - w->last_alive) / 1e6);
+         return AVERROR(ETIMEDOUT);
+     }
++    if (now >= w->next_stat) {
++        w->next_stat = now + WHEP_STAT_US;
++        for (int i = 0; i < WHEP_MAX_MEDIA; i++) {
++            const WhepRx *rx = &w->rx[i];
++            if (rx->active)
++                av_log(s, AV_LOG_VERBOSE, "RTP %s stats: packets=%"PRIu64" lost=%"PRIu64" late/dup=%"PRIu64
++                       " plc=%"PRIu64" nack_rtx=%"PRIu64" jitter=%.1fms\n",
++                       rx->is_video ? "video" : "audio", rx->n_pkts, rx->n_lost, rx->n_late, rx->n_plc,
++                       rx->n_rtx_recv, rx->jitter / 16.0 * 1000.0 / rx->clock);
++        }
++    }
+     return 0;
+ }
+ 
+@@ -2372,6 +2448,7 @@ static int whep_media_open(AVFormatContext *s)
+     w->last_alive   = now;
+     w->next_consent = now + WHEP_CONSENT_US;
+     w->next_rr      = now + w->rtcp_interval;
++    w->next_stat    = now + WHEP_STAT_US;
+     w->state = WHEP_STATE_READY;
+     return 0;
+ }
+-- 
+2.43.0
+
