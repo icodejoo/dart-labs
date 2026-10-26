@@ -12,6 +12,7 @@ import 'mpv_defaults.dart';
 import 'mpv_event_backend.dart';
 import 'mpv_event_pump.dart';
 import 'player_mute.dart';
+import 'source_options_kernel.dart';
 import 'standby_kernel.dart';
 
 /// 弱客户端后端工厂函数定义。
@@ -56,7 +57,8 @@ const String _kVidAuto = 'auto';
 /// 其余所有文件都必须与具体引擎无关。它同时实现 [MovaStatsProbe]——QoE 层用来
 /// 拿 libmpv 自身统计量的可选能力——因为这个实现同样只能落在这里。同时实现
 /// [MovaStandbyKernel]（在隐藏时关画面/关声音维持流）。
-class MovaMpvKernel implements MovaKernel, MovaStatsProbe, MovaStandbyKernel, MovaPlayerMute {
+class MovaMpvKernel
+    implements MovaKernel, MovaStatsProbe, MovaStandbyKernel, MovaPlayerMute, MovaSourceOptionsKernel {
   /// Creates a media_kit-backed kernel.
   ///
   /// [player] lets the caller inject an existing `Player` (e.g. for testing
@@ -595,8 +597,47 @@ class MovaMpvKernel implements MovaKernel, MovaStatsProbe, MovaStandbyKernel, Mo
     _sizeController.add(MovaSize(width: _lastWidth, height: _lastHeight));
   }
 
+  /// 暂存、待下一次 [open] 应用的按源选项；[open] 一开头就取走并清空。
+  Map<String, String> _stagedOptions = const {};
+
+  /// 已下发的按源选项在下发前的原值（属性名 → 原值）；非空即有待还原项，下次 [open] 先还原。
+  final Map<String, String> _appliedOptions = {};
+
+  @override
+  void stageSourceOptions(Map<String, String> options) => _stagedOptions = Map.of(options);
+
+  /// 把上一个源下发过的属性写回原值；写入失败被吞掉。
+  Future<void> _restoreSourceOptions() async {
+    if (_appliedOptions.isEmpty) return;
+    final native = _player.platform;
+    final saved = Map.of(_appliedOptions);
+    _appliedOptions.clear();
+    if (native is! NativePlayer) return;
+    for (final e in saved.entries) {
+      try {
+        await native.setProperty(e.key, e.value);
+      } catch (_) {}
+    }
+  }
+
+  /// 记下原值后逐项下发 [options]；某项写入失败只跳过该项，不影响播放。
+  Future<void> _applySourceOptions(Map<String, String> options) async {
+    final native = _player.platform;
+    if (options.isEmpty || native is! NativePlayer) return;
+    for (final e in options.entries) {
+      final original = await _readNativeProperty(e.key) ?? '';
+      try {
+        await native.setProperty(e.key, e.value);
+        _appliedOptions[e.key] = original;
+      } catch (_) {}
+    }
+  }
+
   @override
   Future<void> open(String uri, {bool play = true}) async {
+    // 同步取走暂存项：它只属于紧随其后的这一次 open，不被后来的 open 误用。
+    final options = _stagedOptions;
+    _stagedOptions = const {};
     await _tlsSetup;
     final seq = ++_openSeq;
     _formatProbePending = false;
@@ -605,6 +646,11 @@ class MovaMpvKernel implements MovaKernel, MovaStatsProbe, MovaStandbyKernel, Mo
     // A newer open() (or dispose) superseded this one while it was waiting.
     //
     // 等待期间已被更新的 open()（或 dispose）取代。
+    if (seq != _openSeq || _disposed) return;
+    // 先还原上一个源的按源选项，再下发本源的：选项不跨源泄漏。
+    await _restoreSourceOptions();
+    if (seq != _openSeq || _disposed) return;
+    await _applySourceOptions(options);
     if (seq != _openSeq || _disposed) return;
     if (_player.platform is NativePlayer) {
       _watchLoaded();

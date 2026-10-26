@@ -196,10 +196,20 @@ final src = MovaSource.pick([hd, sd, backup], type: MovaStreamType.live);
 ```
 
 - 触发源：**起播超时**（默认 10s 没出首帧；`autoPlay: false` 的暂停态打开不计时，`play()` 后从头计）、**卡顿超时**（出首帧后连续缓冲 10s，`stallTimeout: null` 关闭；暂停即停表）、`open()` 抛异常、原生 `END_FILE(error)`（坏地址秒判，不等超时）、直播走到结尾（`liveEndIsFailure`，默认算失败）。
-- 默认策略 `MovaRetryThenFailover`：每个地址等 1s 重试 1 次，再切下一个备选，全部用完放弃；`MovaFailoverOnly` 不重试同一地址；也可以实现 `MovaRecoveryPolicy` 整体替换（策略抛异常按放弃处理）。
-- 事件：每次失败发 `MovaPlayFailure(fail, action)`（`fail.kind` 区分起播/卡顿/…，此时**不**写 `state.error`，还在重试）；失败后重新出画面发 `MovaRecovered`；切备选发 `MovaFailover(from, to, uri)`，`MovaState.sourceIndex` 同步；全部失败后写 `state.error = MovaGiveUpError`、发 `MovaErrorEvent`，并暂停内核（离线的直播源不会在后台一直重连）。错误层的"重试"走 `reload()`，从主地址开一个全新会话。
+- 默认策略 `MovaDefaultRecovery`：**点播**走 `MovaRetryThenFailover`（每个地址等 1s 重试 1 次，再切下一个备选，全部用完放弃，行为与以往一致）；**直播**走 `MovaLiveReconnect`（指数退避 1s、2s、4s…封顶 30s 持续重连，推流端重启/掉线后自动接上；有备选时前面的地址各重试 1 次再切，最后一个地址一直重连，`maxAttempts` 可设上限）。不想让直播一直重连：`MovaRecoveryConfig(liveReconnect: false)`，直播回到和点播一样的"重试 1 次就放弃"。`MovaFailoverOnly` 不重试同一地址；也可以实现 `MovaRecoveryPolicy` 整体替换（策略抛异常按放弃处理；`MovaPlayFail.isLive` 可用来区分直播）。
+- 确定性失败（404、拒连、`open()` 抛异常、加载在途时到达的 `END_FILE(error)`）一经发现就按策略的退避进入下一次尝试，不必等满 `startTimeout`。
+- 事件：每次失败发 `MovaPlayFailure(fail, action)`（`fail.kind` 区分起播/卡顿/…，此时**不**写 `state.error`，还在重试）；失败后重新出画面发 `MovaRecovered`，同时清掉失败期间遗留的 `state.error`；切备选发 `MovaFailover(from, to, uri)`，`MovaState.sourceIndex` 同步；全部失败后写 `state.error = MovaGiveUpError`、发 `MovaErrorEvent`，把残留的 `state.buffering` 置回 false，并暂停内核（离线的直播源不会在后台一直重连）。错误层的"重试"走 `reload()`，从主地址开一个全新会话。
 - 重试/切换是内核重载，**不是新会话**：不过 `beforeOpen` 拦截器、不发 `MovaSourceChange`、不动 QoE 会话；`MovaSourceChange`/`MovaReady` 每次 `open()` 只发一次。点播源失败前出过画面的，重载后续播到失败位置。
 - **没开 `recovery` 时 `alternatives` 会被忽略**（失败检测是 recovery 提供的），`open()` 失败仍然照旧抛给调用方；开启后 `open()` 失败改为发 `MovaPlayFailure(openThrew)` 并重试，不再抛。
+- **按源传 libmpv / ffmpeg 选项**：`MovaSource(mpvOptions:, demuxerOptions:, whepMediaTimeout:)`。`mpvOptions` 是 mpv 选项名到值（如 `{'cache': 'no'}`），`demuxerOptions` 合成进 `demuxer-lavf-o`；都在该源加载前下发、下一个源加载时还原，不会泄漏到别的源，mpv 不接受的选项静默跳过。WHEP 直播源可以直接写 `whepMediaTimeout: Duration(seconds: 3)`（换算成微秒的 `media_timeout`，只对 `whep…` 地址生效，显式的 `demuxerOptions['media_timeout']` 优先），推流端掉线后更快判失败、更快重连：
+  ```dart
+  const MovaSource(
+    'whep+http://host:8889/x/whep',
+    type: MovaStreamType.live,
+    whepMediaTimeout: Duration(seconds: 3),
+  );
+  ```
+- 直播的时长一直在涨，`MovaDurationChange`（及 `state.duration`）对直播源按 `MovaLiveConfig.durationStep`（默认 2s）节流：变化不足一个步长不上报；`Duration.zero` 恢复每次都报。点播不受影响。
 - mova 不提供备选地址的排序/过滤钩子：排序依据（比如档位名）和协议能否播放（取决于你用的 libmpv 构建）都是宿主才知道的，排好序传进来即可。`MovaSource.pick` 只做清洗：去空白、去空串、去重、保序。
 
 ## 自动暂停（可选）

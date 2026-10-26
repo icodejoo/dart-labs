@@ -45,7 +45,7 @@ void main() {
     });
 
     test('an injected MovaRecoveryPolicy replaces the default and is really consulted', () {
-      expect(const MovaRecoveryConfig().effectivePolicy, isA<MovaRetryThenFailover>());
+      expect(const MovaRecoveryConfig().effectivePolicy, isA<MovaDefaultRecovery>());
       fakeAsync((async) {
         final policy = _RecordingPolicy();
         final engine = MovaEngine(

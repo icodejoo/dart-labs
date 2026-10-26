@@ -10,6 +10,7 @@ import 'interceptor/interceptor.dart';
 import 'kernel/kernel.dart';
 import 'kernel/mpv_kernel.dart';
 import 'kernel/player_mute.dart';
+import 'kernel/source_options_kernel.dart';
 import 'kernel/standby_kernel.dart';
 import 'live/timeshift.dart';
 import 'model/fit.dart';
@@ -251,6 +252,14 @@ class MovaEngine implements MovaApi, MovaStandbyController, MovaPlayerMute, Mova
   ///
   /// 每武装一次尝试（打开、重试、重载）就自增。
   int _attemptId = 0;
+
+  /// A failure reported while the kernel was still opening (e.g. a native
+  /// `END_FILE(error)` for a 404). Replayed once the open returns, so a
+  /// deterministic failure does not have to wait for the start timeout.
+  ///
+  /// 内核仍在 open 期间上报的失败（例如 404 对应的原生 `END_FILE(error)`）。open 返回后
+  /// 重放一次，使确定性失败不必干等起播超时。
+  ({MovaPlayFailKind kind, Object? error})? _deferredFail;
 
   /// The attempt id already handled as a failure, so one attempt fails once.
   ///
@@ -658,6 +667,8 @@ class MovaEngine implements MovaApi, MovaStandbyController, MovaPlayerMute, Mova
       _progressRaw.add(MovaProg(position: _lastPosition, buffer: v));
     });
     _durationSub = _kernel.duration.listen((v) {
+      if (_isDurationJitter(v)) return;
+      _reportedDuration = v;
       _state.emit(state.copyWith(duration: v));
       _emitEvent(MovaDurationChange(v));
       _recomputeLiveSeekable();
@@ -762,6 +773,26 @@ class MovaEngine implements MovaApi, MovaStandbyController, MovaPlayerMute, Mova
     }
   }
 
+  /// The duration last accepted into [state]; the baseline live throttling
+  /// compares against. Zero right after an open/reload.
+  ///
+  /// 最近一次计入 [state] 的时长；直播节流以它为基线。open/重载后归零。
+  Duration _reportedDuration = Duration.zero;
+
+  /// Whether [v] is a live duration tick too small to report: a live source
+  /// whose duration grows continuously would otherwise emit a state and a
+  /// [MovaDurationChange] for every tick. VOD, a zero/reset value and the first
+  /// value after a reset always pass.
+  ///
+  /// [v] 是否为小到不值得上报的直播时长跳动：直播源时长持续增长，不节流会每跳一次就发一个
+  /// state 和一个 [MovaDurationChange]。点播、零值/重置值，以及重置后的第一个值一律放行。
+  bool _isDurationJitter(Duration v) {
+    if (state.type != MovaStreamType.live) return false;
+    final step = options.live.durationStep;
+    if (step <= Duration.zero || v <= Duration.zero || _reportedDuration <= Duration.zero) return false;
+    return (v - _reportedDuration).abs() < step;
+  }
+
   /// Whether the kernel's native restart subscription is live right now.
   ///
   /// 内核的原生 RESTART 订阅此刻是否在工作。
@@ -782,6 +813,10 @@ class MovaEngine implements MovaApi, MovaStandbyController, MovaPlayerMute, Mova
     _watchdog?.disarm();
     Object? failure;
     try {
+      final kernel = _kernel;
+      if (kernel is MovaSourceOptionsKernel) {
+        (kernel as MovaSourceOptionsKernel).stageSourceOptions(_source?.mpvOptionsFor(uri) ?? const {});
+      }
       await _kernel.open(uri, play: play);
     } catch (e) {
       if (_watchdog == null) rethrow;
@@ -791,8 +826,15 @@ class MovaEngine implements MovaApi, MovaStandbyController, MovaPlayerMute, Mova
     }
     if (!current()) return false;
     if (failure != null) {
+      _deferredFail = null;
       _onPlayFail(MovaPlayFailKind.openThrew, error: failure);
       return false;
+    }
+    final deferred = _deferredFail;
+    _deferredFail = null;
+    if (deferred != null && _kernelOpening == 0) {
+      _onPlayFail(deferred.kind, error: deferred.error);
+      if (_failedAttemptId == _attemptId) return false;
     }
     if (!_playIntent && play) {
       await _kernel.pause();
@@ -824,6 +866,7 @@ class MovaEngine implements MovaApi, MovaStandbyController, MovaPlayerMute, Mova
     _recoverTimer?.cancel();
     _recoverTimer = null;
     _attemptId++;
+    _deferredFail = null;
     _recoveryAwaitingFrame = false;
     _graceTimer?.cancel();
     _graceTimer = null;
@@ -875,6 +918,11 @@ class MovaEngine implements MovaApi, MovaStandbyController, MovaPlayerMute, Mova
       _recoveryPosition = null;
       _watchdog!.onLanded();
       if (_streak > 0) {
+        // The picture is back: the error left over from the failed attempts
+        // (kernel error lines) no longer describes the playback.
+        //
+        // 画面已恢复：失败期间遗留的错误（内核错误日志）不再描述当前播放。
+        _state.emit(state.copyWith(clearError: true));
         _emitEvent(MovaRecovered(_streak));
         _streak = 0;
         _addrFailures.clear();
@@ -1142,6 +1190,7 @@ class MovaEngine implements MovaApi, MovaStandbyController, MovaPlayerMute, Mova
       ),
     );
     _openedAt = DateTime.now();
+    _reportedDuration = Duration.zero;
     // Standby is requested: undo any hold and load this source paused (see
     // [_standbyBeforeOpen]). Not awaited at all when standby is not involved.
     //
@@ -1221,7 +1270,10 @@ class MovaEngine implements MovaApi, MovaStandbyController, MovaPlayerMute, Mova
     final wd = _watchdog;
     final src = _source;
     if (wd == null || src == null || _disposed || _events.isClosed) return;
-    if (_kernelOpening > 0) return;
+    if (_kernelOpening > 0) {
+      _deferredFail ??= (kind: kind, error: error);
+      return;
+    }
     // A hold fails quietly: no policy, no event, no reconnect in the background.
     // The wake-up reopens the source instead.
     //
@@ -1257,6 +1309,7 @@ class MovaEngine implements MovaApi, MovaStandbyController, MovaPlayerMute, Mova
       afterFirstFrame: state.rendered,
       waited: waited,
       error: error,
+      isLive: src.type == MovaStreamType.live,
     );
     var d = _decide(fail);
     if (d.action == MovaRecoveryAction.failover && !fail.hasNextSource) {
@@ -1329,6 +1382,7 @@ class MovaEngine implements MovaApi, MovaStandbyController, MovaPlayerMute, Mova
     }
     _forgetMediaProgress();
     _abrPolicy.reset();
+    _reportedDuration = Duration.zero;
     _state.emit(state.copyWith(duration: Duration.zero));
     _armAttempt(autoPlay: _loadPlays);
     // open() only issues the load; even a duration is not presentation readiness.
@@ -1348,7 +1402,13 @@ class MovaEngine implements MovaApi, MovaStandbyController, MovaPlayerMute, Mova
   /// 避免失效的直播源在后台一直重连。
   void _giveUp(MovaPlayFail fail) {
     final err = MovaGiveUpError(fail);
-    _state.emit(state.copyWith(error: err));
+    // Nothing is loading any more: a buffering flag left over from the dead
+    // attempt would keep the spinner up forever.
+    //
+    // 不会再有任何加载：残留的缓冲标志会让转圈一直挂着。
+    final wasBuffering = state.buffering;
+    _state.emit(state.copyWith(error: err, buffering: false));
+    if (wasBuffering) _emitEvent(const MovaBufferChange(false));
     _emitEvent(MovaErrorEvent(err));
     _chain.onError(err, StackTrace.current);
     unawaited(_kernel.pause().catchError((Object _) {}));
@@ -2093,6 +2153,7 @@ class MovaEngine implements MovaApi, MovaStandbyController, MovaPlayerMute, Mova
     // 信号时已把计数归零，这里只是额外清掉上升沿记忆，不会吞掉本该发生的降档。
     // 真机实测数据（STG AL00，mux x36xhzz）见 CLAUDE.md 的无缝切换真机验证一节。
     _abrPolicy.reset();
+    _reportedDuration = Duration.zero;
     _state.emit(state.copyWith(duration: Duration.zero, currentQuality: q));
     _armAttempt(autoPlay: _loadPlays);
     if (!await _loadKernel(playUri, play: _loadPlays)) return;

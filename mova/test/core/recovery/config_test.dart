@@ -12,8 +12,9 @@ void main() {
     expect(c.policy, isNull);
   });
 
-  test('effectivePolicy defaults to MovaRetryThenFailover and prefers an injected one', () {
-    expect(const MovaRecoveryConfig().effectivePolicy, isA<MovaRetryThenFailover>());
+  test('effectivePolicy defaults to MovaDefaultRecovery (live reconnect off -> MovaRetryThenFailover) and prefers an injected one', () {
+    expect(const MovaRecoveryConfig().effectivePolicy, isA<MovaDefaultRecovery>());
+    expect(const MovaRecoveryConfig(liveReconnect: false).effectivePolicy, isA<MovaRetryThenFailover>());
     const failoverOnly = MovaFailoverOnly();
     expect(const MovaRecoveryConfig(policy: failoverOnly).effectivePolicy, same(failoverOnly));
   });
