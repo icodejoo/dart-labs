@@ -1,12 +1,12 @@
 // This is a generated file; do not edit or check into version control.
-FLUTTER_ROOT=C:\sdk\flutter
-FLUTTER_APPLICATION_PATH=C:\workspace\let188\ffuzzy\example
-FLUTTER_FRAMEWORK_SWIFT_PACKAGE_PATH=C:\workspace\let188\ffuzzy\example\ios\Flutter\ephemeral\Packages\.packages\FlutterFramework
+FLUTTER_ROOT=D:\sdk\fvm\versions\3.47.1
+FLUTTER_APPLICATION_PATH=D:\workspaces\dart-labs\ffuzzy\example
+FLUTTER_FRAMEWORK_SWIFT_PACKAGE_PATH=D:\workspaces\dart-labs\ffuzzy\example\ios\Flutter\ephemeral\Packages\.packages\FlutterFramework
 COCOAPODS_PARALLEL_CODE_SIGN=true
 FLUTTER_TARGET=lib\main.dart
 FLUTTER_BUILD_DIR=build
 FLUTTER_BUILD_NAME=1.0.0
-FLUTTER_BUILD_NUMBER=1
+FLUTTER_BUILD_NUMBER=1.0.0
 EXCLUDED_ARCHS[sdk=iphonesimulator*]=i386
 EXCLUDED_ARCHS[sdk=iphoneos*]=armv7
 DART_OBFUSCATION=false
