@@ -31,11 +31,15 @@ import 'digit_column.dart';
 import 'grouping.dart';
 import 'number_format.dart';
 import 'types.dart';
+import 'counter_format.dart';
+import 'counter_timeline.dart';
 import '../style_support.dart';
 import '../reduce_motion.dart';
 
 export 'counter_controller.dart';
 export 'types.dart';
+export 'counter_format.dart';
+export 'counter_timeline.dart';
 
 part '_base_counter.dart';
 part 'custom_digit_counter.dart';
@@ -68,7 +72,14 @@ class AnimatedCounter extends _BaseAnimatedCounter {
   /// Optional factory for a custom [CounterPainter] subclass.
   final CounterPainterBuilder? painterBuilder;
 
+  /// 创建计数器；[format] 的非空字段覆盖同名平铺参数，空字段回退。
+  /// [timeline] 的非空字段同样覆盖同名平铺动画参数，空字段回退。
+  ///
+  /// 示例：`AnimatedCounter(value: 12, format: CounterFormat(fractionDigits: 2))`。
+  /// 动画示例：`AnimatedCounter(value: 12, timeline: CounterTimeline(fast: true))`。
   const AnimatedCounter({
+    super.format,
+    super.timeline,
     super.key,
     super.style,
     super.value,
@@ -166,7 +177,7 @@ class _AnimatedCounterState extends _BaseCounterState<AnimatedCounter> {
   void _onFrameUpdate() {
     _activePainter?.update(_currentDigitValues, !_isAnimatingDecrease,
         bounceOffsets: _bounceOffsets,
-        fast: widget.fast, fastFrom: _fastFromDigits, fastTo: _fastToDigits,
+        fast: widget._timeFast, fastFrom: _fastFromDigits, fastTo: _fastToDigits,
         targets: _targetDigitValues);
     _repaintTrigger.value++;
     if (widget.triggerHaptics) _maybeHaptic();
@@ -176,7 +187,7 @@ class _AnimatedCounterState extends _BaseCounterState<AnimatedCounter> {
   void _onAnimationComplete() {
     _activePainter?.update(_currentDigitValues, !_isAnimatingDecrease,
         bounceOffsets: _bounceOffsets,
-        fast: widget.fast, fastFrom: _fastFromDigits, fastTo: _fastToDigits,
+        fast: widget._timeFast, fastFrom: _fastFromDigits, fastTo: _fastToDigits,
         targets: _targetDigitValues);
     _repaintTrigger.value++;
   }
@@ -201,6 +212,9 @@ class _AnimatedCounterState extends _BaseCounterState<AnimatedCounter> {
   // 上次构建当前 Painter 所用的工厂，用于识别 painterBuilder 的替换。
   CounterPainterBuilder? _lastPainterBuilder;
 
+  /// 当前画笔对应的有效时间轴；等值新配置复用画笔。
+  CounterTimeline? _lastTimeline;
+
   /// 把系统字号缩放折算进 [style] 的字号，使 Paragraph 与测量尺寸一致。
   TextStyle _scaleStyle(TextStyle style, TextScaler scaler) {
     if (scaler == TextScaler.noScaling) return style;
@@ -212,18 +226,19 @@ class _AnimatedCounterState extends _BaseCounterState<AnimatedCounter> {
       TextStyle paintStyle, TextStyle? paintSepStyle, int effFD) {
     final p = _activePainter;
     return p == null ||
+        _lastTimeline != widget._resolvedTimeline ||
         !identical(_lastPainterBuilder, widget.painterBuilder) ||
         p.style != paintStyle ||
         p.transition != widget.transition ||
         p.flipDirection != widget.flipDirection ||
         p.digitSize != _prototypeSize ||
         p.fractionDigits != effFD ||
-        !listEquals(p.groupingPattern, widget.groupingPattern) ||
-        p.hideLeadingZeroes != widget.hideLeadingZeroes ||
-        p.numeralSystem != widget.numeralSystem ||
-        !identical(p.numeralMapper, widget.numeralMapper) ||
-        p.thousandSeparator != widget.thousandSeparator ||
-        p.decimalSeparator != widget.decimalSeparator ||
+        !listEquals(p.groupingPattern, widget._fmtGroupingPattern) ||
+        p.hideLeadingZeroes != widget._fmtHideLeadingZeroes ||
+        p.numeralSystem != widget._fmtNumeralSystem ||
+        !identical(p.numeralMapper, widget._fmtNumeralMapper) ||
+        p.thousandSeparator != widget._fmtThousandSeparator ||
+        p.decimalSeparator != widget._fmtDecimalSeparator ||
         p.separatorStyle != paintSepStyle ||
         p.padding != widget.padding ||
         p.numberAlignment != widget.numberAlignment;
@@ -271,6 +286,7 @@ class _AnimatedCounterState extends _BaseCounterState<AnimatedCounter> {
     if (_painterConfigChanged(paintStyle, paintSepStyle, effFD)) {
       _activePainter?.disposeCache();
       _lastPainterBuilder = widget.painterBuilder;
+      _lastTimeline = widget._resolvedTimeline;
       _activePainter = widget.painterBuilder != null
           ? widget.painterBuilder!(
               repaint: _repaintTrigger,
@@ -281,12 +297,12 @@ class _AnimatedCounterState extends _BaseCounterState<AnimatedCounter> {
               flipDirection: widget.flipDirection,
               increasing: !_isAnimatingDecrease,
               fractionDigits: effFD,
-              groupingPattern: widget.groupingPattern,
-              hideLeadingZeroes: widget.hideLeadingZeroes,
-              numeralSystem: widget.numeralSystem,
-              numeralMapper: widget.numeralMapper,
-              thousandSeparator: widget.thousandSeparator,
-              decimalSeparator: widget.decimalSeparator,
+              groupingPattern: widget._fmtGroupingPattern,
+              hideLeadingZeroes: widget._fmtHideLeadingZeroes,
+              numeralSystem: widget._fmtNumeralSystem,
+              numeralMapper: widget._fmtNumeralMapper,
+              thousandSeparator: widget._fmtThousandSeparator,
+              decimalSeparator: widget._fmtDecimalSeparator,
               separatorStyle: paintSepStyle,
               padding: widget.padding,
               numberAlignment: widget.numberAlignment,
@@ -300,16 +316,16 @@ class _AnimatedCounterState extends _BaseCounterState<AnimatedCounter> {
               flipDirection: widget.flipDirection,
               increasing: !_isAnimatingDecrease,
               fractionDigits: effFD,
-              groupingPattern: widget.groupingPattern,
-              hideLeadingZeroes: widget.hideLeadingZeroes,
-              numeralSystem: widget.numeralSystem,
-              numeralMapper: widget.numeralMapper,
-              thousandSeparator: widget.thousandSeparator,
-              decimalSeparator: widget.decimalSeparator,
+              groupingPattern: widget._fmtGroupingPattern,
+              hideLeadingZeroes: widget._fmtHideLeadingZeroes,
+              numeralSystem: widget._fmtNumeralSystem,
+              numeralMapper: widget._fmtNumeralMapper,
+              thousandSeparator: widget._fmtThousandSeparator,
+              decimalSeparator: widget._fmtDecimalSeparator,
               separatorStyle: paintSepStyle,
               padding: widget.padding,
               numberAlignment: widget.numberAlignment,
-              fast: widget.fast,
+              fast: widget._timeFast,
               fastFrom: _fastFromDigits,
               fastTo: _fastToDigits,
               targets: _targetDigitValues,
@@ -319,7 +335,7 @@ class _AnimatedCounterState extends _BaseCounterState<AnimatedCounter> {
       // immediately — before the first onUpdate fires.
       _activePainter!.update(_currentDigitValues, !_isAnimatingDecrease,
           bounceOffsets: _bounceOffsets,
-          fast: widget.fast, fastFrom: _fastFromDigits, fastTo: _fastToDigits,
+          fast: widget._timeFast, fastFrom: _fastFromDigits, fastTo: _fastToDigits,
           targets: _targetDigitValues);
     }
 
@@ -341,7 +357,7 @@ class _AnimatedCounterState extends _BaseCounterState<AnimatedCounter> {
         widget.prefix        != null || widget.prefixWidget   != null ||
         widget.suffix        != null || widget.suffixWidget   != null ||
         widget.infix         != null || widget.infixWidget    != null ||
-        widget.showPositiveSign      || compactSuffix         != null;
+        widget._fmtShowPositiveSign      || compactSuffix         != null;
 
     Widget content;
     if (!needsRow) {
@@ -376,7 +392,7 @@ class _AnimatedCounterState extends _BaseCounterState<AnimatedCounter> {
             ),
 
             // Positive sign (animated width)
-            if (widget.showPositiveSign)
+            if (widget._fmtShowPositiveSign)
               ClipRect(
                 child: TweenAnimationBuilder<double>(
                   duration: _effectivePositiveSignDuration,

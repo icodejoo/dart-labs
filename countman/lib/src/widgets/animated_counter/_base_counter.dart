@@ -9,6 +9,12 @@ abstract class _BaseAnimatedCounter extends StatefulWidget {
   /// 聚合视觉样式。逐字段覆盖弃用的松散视觉参数（见下方解析 getter）。
   final AnimatedCounterStyle? style;
 
+  /// 聚合格式；非空字段优先于平铺参数。
+  final CounterFormat? format;
+
+  /// 聚合动画时间轴；非空字段优先于平铺参数，空字段回退。
+  final CounterTimeline? timeline;
+
   final num? value;
   final AnimatedCounterController? controller;
   final Duration duration;
@@ -117,9 +123,109 @@ abstract class _BaseAnimatedCounter extends StatefulWidget {
   /// 绘制在整个计数器外围的容器装饰（仅样式）。
   Decoration? get decoration => style?.decoration;
 
+  /// 已解析的小数位数。
+  int get _fmtFractionDigits => format?.fractionDigits ?? fractionDigits;
+  /// 已解析的最少整数位数。
+  int get _fmtWholeDigits => format?.wholeDigits ?? wholeDigits;
+  /// 已解析的是否隐藏整数前导零。
+  bool get _fmtHideLeadingZeroes => format?.hideLeadingZeroes ?? hideLeadingZeroes;
+  /// 已解析的整数分组分隔符。
+  String? get _fmtThousandSeparator => format?.thousandSeparator ?? thousandSeparator;
+  /// 已解析的从右向左的分组位数
+  List<int> get _fmtGroupingPattern => format?.groupingPattern ?? groupingPattern;
+  /// 已解析的小数分隔符。
+  String get _fmtDecimalSeparator => format?.decimalSeparator ?? decimalSeparator;
+  /// 已解析的是否使用紧凑缩写。
+  bool get _fmtCompactNotation => format?.compactNotation ?? compactNotation;
+  /// 已解析的紧凑缩写的小数位数。
+  int? get _fmtCompactFractionDigits => format?.compactFractionDigits ?? compactFractionDigits;
+  /// 已解析的阈值到缩写的映射
+  Map<num, String>? get _fmtCompactAbbreviations => format?.compactAbbreviations ?? compactAbbreviations;
+  /// 已解析的是否显示正号。
+  bool get _fmtShowPositiveSign => format?.showPositiveSign ?? showPositiveSign;
+  /// 已解析的数字字形体系。
+  NumeralSystem get _fmtNumeralSystem => format?.numeralSystem ?? numeralSystem;
+  /// 已解析的将 digit（0–9）映射为字形的函数。
+  String Function(int digit)? get _fmtNumeralMapper => format?.numeralMapper ?? numeralMapper;
+
+  /// 用解析后的字段比较有效格式，忽略配置对象的实例身份。
+  CounterFormat get _resolvedFormat => CounterFormat(
+    fractionDigits: _fmtFractionDigits,
+    wholeDigits: _fmtWholeDigits,
+    hideLeadingZeroes: _fmtHideLeadingZeroes,
+    thousandSeparator: _fmtThousandSeparator,
+    groupingPattern: _fmtGroupingPattern,
+    decimalSeparator: _fmtDecimalSeparator,
+    compactNotation: _fmtCompactNotation,
+    compactFractionDigits: _fmtCompactFractionDigits,
+    compactAbbreviations: _fmtCompactAbbreviations,
+    showPositiveSign: _fmtShowPositiveSign,
+    numeralSystem: _fmtNumeralSystem,
+    numeralMapper: _fmtNumeralMapper,
+  );
+
+  /// 已解析的正向滚动时长。
+  Duration get _timeDuration => timeline?.duration ?? duration;
+
+  /// 已解析的滚动曲线。
+  Curve get _timeCurve => timeline?.curve ?? curve;
+
+  /// 已解析的递减时的滚动时长。
+  Duration? get _timeReverseDuration => timeline?.reverseDuration ?? reverseDuration;
+
+  /// 已解析的递减时的滚动曲线。
+  Curve? get _timeReverseCurve => timeline?.reverseCurve ?? reverseCurve;
+
+  /// 已解析的开始滚动前的延迟；同样受倍速影响。
+  Duration? get _timeStartDelay => timeline?.startDelay ?? startDelay;
+
+  /// 已解析的播放倍速，必须大于零。
+  double get _timeSpeedMultiplier => timeline?.speedMultiplier ?? speedMultiplier;
+
+  /// 已解析的相邻数位的启动间隔。
+  Duration? get _timeStaggerDelay => timeline?.staggerDelay ?? staggerDelay;
+
+  /// 已解析的数位错峰的启动方向。
+  StaggerDirection get _timeStaggerDirection => timeline?.staggerDirection ?? staggerDirection;
+
+  /// 已解析的线性曲线自动转为缓动的数值跨度阈值。
+  double get _timeAutoEaseThreshold => timeline?.autoEaseThreshold ?? autoEaseThreshold;
+
+  /// 已解析的按从左到右的 digitIndex 返回逐位曲线；返回空时使用整体曲线。
+  Curve? Function(int digitIndex)? get _timeCurveForDigit => timeline?.curveForDigit ?? curveForDigit;
+
+  /// 已解析的根据起点 from、终点 to 与曲线进度 t 计算数位值。
+  double Function(double from, double to, double t)? get _timeInterpolation => timeline?.interpolation ?? interpolation;
+
+  /// 已解析的落位回弹幅度，必须非负；零表示关闭回弹。
+  double get _timeBounceOvershoot => timeline?.bounceOvershoot ?? bounceOvershoot;
+
+  /// 已解析的是否让每个数位仅滚动一步。
+  bool get _timeFast => timeline?.fast ?? fast;
+
+  /// 按有效字段值比较时间轴，忽略对象实例身份及被覆盖的平铺参数。
+  CounterTimeline get _resolvedTimeline => CounterTimeline(
+    duration: _timeDuration,
+    curve: _timeCurve,
+    reverseDuration: _timeReverseDuration,
+    reverseCurve: _timeReverseCurve,
+    startDelay: _timeStartDelay,
+    speedMultiplier: _timeSpeedMultiplier,
+    staggerDelay: _timeStaggerDelay,
+    staggerDirection: _timeStaggerDirection,
+    autoEaseThreshold: _timeAutoEaseThreshold,
+    curveForDigit: _timeCurveForDigit,
+    interpolation: _timeInterpolation,
+    bounceOvershoot: _timeBounceOvershoot,
+    fast: _timeFast,
+  );
+
+  /// 创建共享计数器；format、timeline 的非空字段优先于同名平铺参数。
   const _BaseAnimatedCounter({
     super.key,
     this.style,
+    this.format,
+    this.timeline,
     this.value,
     this.controller,
     this.duration = const Duration(milliseconds: 300),
@@ -254,10 +360,10 @@ abstract class _BaseCounterState<W extends _BaseAnimatedCounter> extends State<W
   List<double> _oldDigitValues     = [];
   List<double> _targetDigitValues  = [];
   List<double> _currentDigitValues = [];
-  // Fast mode (widget.fast): per-column old/new digit (0–9), computed once per
+  // Fast mode (widget._timeFast): per-column old/new digit (0–9), computed once per
   // transition. In fast mode _currentDigitValues[i] carries the 0–1 progress.
   //
-  // 快速模式（widget.fast）：每列旧/新位（0–9），每次过渡算一次。此模式下
+  // 快速模式（widget._timeFast）：每列旧/新位（0–9），每次过渡算一次。此模式下
   // _currentDigitValues[i] 携带 0–1 进度。
   List<int> _fastFromDigits = [];
   List<int> _fastToDigits   = [];
@@ -300,24 +406,24 @@ abstract class _BaseCounterState<W extends _BaseAnimatedCounter> extends State<W
   Duration get _effectiveDuration {
     final base = (widget.controller != null && widget.controller!.overrideDuration != null)
         ? widget.controller!.overrideDuration!
-        : ((_isAnimatingDecrease && widget.reverseDuration != null)
-            ? widget.reverseDuration!
-            : widget.duration);
+        : ((_isAnimatingDecrease && widget._timeReverseDuration != null)
+            ? widget._timeReverseDuration!
+            : widget._timeDuration);
     // 系统减少动画时直接落位；错峰按原始时间累加后统一缩放一次。
     if (reduceMotion) return Duration.zero;
     Duration d = base;
-    final stagger = widget.staggerDelay;
+    final stagger = widget._timeStaggerDelay;
     if (stagger != null && stagger > Duration.zero) {
       d += stagger * (_maxDigits - 1);
     }
-    return widget.speedMultiplier == 1.0
+    return widget._timeSpeedMultiplier == 1.0
         ? d
-        : Duration(microseconds: (d.inMicroseconds / widget.speedMultiplier).round());
+        : Duration(microseconds: (d.inMicroseconds / widget._timeSpeedMultiplier).round());
   }
 
   Curve get _effectiveCurve {
-    if (_isAnimatingDecrease && widget.reverseCurve != null) return widget.reverseCurve!;
-    return widget.curve;
+    if (_isAnimatingDecrease && widget._timeReverseCurve != null) return widget._timeReverseCurve!;
+    return widget._timeCurve;
   }
 
   AxisDirection get _effectiveFlipDirection {
@@ -331,21 +437,21 @@ abstract class _BaseCounterState<W extends _BaseAnimatedCounter> extends State<W
   }
 
   Duration? get _effectiveStaggerDelay {
-    if (widget.staggerDelay == null) return null;
-    return widget.speedMultiplier == 1.0
-        ? widget.staggerDelay
-        : Duration(microseconds: (widget.staggerDelay!.inMicroseconds / widget.speedMultiplier).round());
+    if (widget._timeStaggerDelay == null) return null;
+    return widget._timeSpeedMultiplier == 1.0
+        ? widget._timeStaggerDelay
+        : Duration(microseconds: (widget._timeStaggerDelay!.inMicroseconds / widget._timeSpeedMultiplier).round());
   }
 
-  Duration get _effectiveNegativeSignDuration => widget.speedMultiplier == 1.0
+  Duration get _effectiveNegativeSignDuration => widget._timeSpeedMultiplier == 1.0
       ? widget.negativeSignDuration
-      : Duration(microseconds: (widget.negativeSignDuration.inMicroseconds / widget.speedMultiplier).round());
+      : Duration(microseconds: (widget.negativeSignDuration.inMicroseconds / widget._timeSpeedMultiplier).round());
 
   Duration get _effectivePositiveSignDuration {
     final base = widget.positiveSignDuration ?? widget.negativeSignDuration;
-    return widget.speedMultiplier == 1.0
+    return widget._timeSpeedMultiplier == 1.0
         ? base
-        : Duration(microseconds: (base.inMicroseconds / widget.speedMultiplier).round());
+        : Duration(microseconds: (base.inMicroseconds / widget._timeSpeedMultiplier).round());
   }
 
   // ── lifecycle ─────────────────────────────────────────────────────────────
@@ -380,7 +486,35 @@ abstract class _BaseCounterState<W extends _BaseAnimatedCounter> extends State<W
     }
     final oldVal = oldWidget.controller != null ? oldWidget.controller!.value : oldWidget.value;
     final newVal = widget.controller != null ? widget.controller!.value : widget.value;
-    if (oldVal != newVal) _triggerTransitionWithDelay(oldVal ?? 0, newVal ?? 0);
+    final formatChanged = oldWidget._resolvedFormat != widget._resolvedFormat;
+    final timelineChanged = oldWidget._resolvedTimeline != widget._resolvedTimeline;
+    if (formatChanged || oldWidget._timeFast != widget._timeFast) {
+      // 格式或 fast 改变时重新拆位，避免延迟期间沿用旧端点或进度表示。
+      _refreshFormatDigits();
+    } else if (timelineChanged) {
+      // 新时间轴可能带启动延迟，先取消旧调度以免继续按旧进度更新。
+      _cancelActive(dropPending: true);
+    }
+    if (oldVal != newVal || formatChanged || timelineChanged) {
+      _triggerTransitionWithDelay(oldVal ?? 0, newVal ?? 0);
+    }
+  }
+
+  /// 立即按新格式重建当前值数位，保证启动延迟期间两条路径也可安全绘制。
+  void _refreshFormatDigits() {
+    _cancelActive(dropPending: true);
+    final digits = _getDigitsList(_currentValue);
+    _maxDigits = digits.length;
+    _oldDigitValues = List<double>.from(digits);
+    _targetDigitValues = List<double>.from(digits);
+    _currentDigitValues = List<double>.from(digits);
+    _realTargetDigitValues = List<double>.from(digits);
+    _fastFromDigits = [for (final digit in digits) digit.toInt().abs() % 10];
+    _fastToDigits = List<int>.from(_fastFromDigits);
+    if (widget._timeFast) {
+      _currentDigitValues = List<double>.filled(_maxDigits, 1.0);
+    }
+    _usingAdjustedTarget = false;
   }
 
   void _handleControllerUpdate() {
@@ -457,9 +591,9 @@ abstract class _BaseCounterState<W extends _BaseAnimatedCounter> extends State<W
   void _triggerTransitionWithDelay(num oldValue, num newValue) {
     _startDelayTimer?.cancel();
     _pendingStart = null;
-    if (widget.startDelay != null && widget.startDelay! > Duration.zero) {
+    if (widget._timeStartDelay != null && widget._timeStartDelay! > Duration.zero) {
       final delay = Duration(microseconds:
-          (widget.startDelay!.inMicroseconds / widget.speedMultiplier).round());
+          (widget._timeStartDelay!.inMicroseconds / widget._timeSpeedMultiplier).round());
       void start() {
         _pendingStart = null;
         if (mounted) _startAnimationTransition(oldValue, newValue);
@@ -519,7 +653,7 @@ abstract class _BaseCounterState<W extends _BaseAnimatedCounter> extends State<W
     // all-nines 的 ε 修正只在 fast 模式有意义（普通模式下方会把 _usingAdjustedTarget
     // 置 false，并靠防幻影精确落位）。常见的非 fast 路径直接跳过 pow/round/扫描。
     _usingAdjustedTarget = false;
-    if (widget.fast) {
+    if (widget._timeFast) {
       final scaledNew = (newValue.abs() * math.pow(10, effFD)).round();
       _usingAdjustedTarget = newValue > 0 && scaledNew > 0 && isAllNinesTarget(scaledNew);
       if (_usingAdjustedTarget) {
@@ -655,7 +789,7 @@ abstract class _BaseCounterState<W extends _BaseAnimatedCounter> extends State<W
     //
     // 回弹与滚动并发（在此启动，而非 onComplete），使每列在自己滚动结束的瞬间就回弹，
     // 而非等整个错峰滚动完成。仅在全新开始（fromT == 0）时启动。
-    if (fromT == 0.0 && widget.bounceOvershoot > 0.0) _startBounceWave();
+    if (fromT == 0.0 && widget._timeBounceOvershoot > 0.0) _startBounceWave();
   }
 
   void _onAnimStatusChange(AnimationStatus status) {
@@ -680,9 +814,9 @@ abstract class _BaseCounterState<W extends _BaseAnimatedCounter> extends State<W
   /// tanh 把轻推限制在一个数位高度内；[_bounceOffsets]（每列 0 → maxFrac → 0）由
   /// painter / DigitColumn 当作数位高度的比例消费。
   void _startBounceWave() {
-    if (!mounted || widget.bounceOvershoot <= 0.0) return;
+    if (!mounted || widget._timeBounceOvershoot <= 0.0) return;
 
-    final double ex2     = math.exp(2.0 * widget.bounceOvershoot);
+    final double ex2     = math.exp(2.0 * widget._timeBounceOvershoot);
     final double maxFrac = (ex2 - 1) / (ex2 + 1);
 
     const double bounceUs = 350000.0;
@@ -695,10 +829,10 @@ abstract class _BaseCounterState<W extends _BaseAnimatedCounter> extends State<W
     // delayUs(i) + baseDurationUs 结束滚动，其回弹随后在 [bounceUs] 内播放。
     Duration baseDuration = (widget.controller != null && widget.controller!.overrideDuration != null)
         ? widget.controller!.overrideDuration!
-        : ((_isAnimatingDecrease && widget.reverseDuration != null)
-            ? widget.reverseDuration! : widget.duration);
+        : ((_isAnimatingDecrease && widget._timeReverseDuration != null)
+            ? widget._timeReverseDuration! : widget._timeDuration);
     if (baseDuration == Duration.zero) baseDuration = const Duration(microseconds: 1);
-    final double baseDurationUs = baseDuration.inMicroseconds.toDouble() / widget.speedMultiplier;
+    final double baseDurationUs = baseDuration.inMicroseconds.toDouble() / widget._timeSpeedMultiplier;
 
     final Duration? stagger = _effectiveStaggerDelay;
     // _effectiveStaggerDelay 已按倍速缩放，此处不再重复缩放。
@@ -753,7 +887,7 @@ abstract class _BaseCounterState<W extends _BaseAnimatedCounter> extends State<W
   ///
   /// 给定 [staggerUs] 步长时，第 [i] 列的错峰延迟（自启动的 µs）。由滚动
   /// （[_updateCurrentDigitValues]）与回弹波（[_startBounceWave]）共用，使两者相位对齐。
-  double _staggerDelayUs(int i, double staggerUs) => switch (widget.staggerDirection) {
+  double _staggerDelayUs(int i, double staggerUs) => switch (widget._timeStaggerDirection) {
         StaggerDirection.leftToRight => staggerUs * i,
         StaggerDirection.rightToLeft => staggerUs * (_maxDigits - 1 - i),
       };
@@ -767,18 +901,18 @@ abstract class _BaseCounterState<W extends _BaseAnimatedCounter> extends State<W
 
     Duration baseDuration = (widget.controller != null && widget.controller!.overrideDuration != null)
         ? widget.controller!.overrideDuration!
-        : ((_isAnimatingDecrease && widget.reverseDuration != null)
-            ? widget.reverseDuration! : widget.duration);
+        : ((_isAnimatingDecrease && widget._timeReverseDuration != null)
+            ? widget._timeReverseDuration! : widget._timeDuration);
     if (baseDuration == Duration.zero) baseDuration = const Duration(microseconds: 1);
 
-    final double baseDurationUs  = baseDuration.inMicroseconds.toDouble() / widget.speedMultiplier;
+    final double baseDurationUs  = baseDuration.inMicroseconds.toDouble() / widget._timeSpeedMultiplier;
     final double totalDurationUs = _effectiveDuration.inMicroseconds.toDouble();
 
     // autoEase off the total numeric span, not the per-digit wrapped delta
     // (which is now ≤ 10 and would never cross the threshold).
     //
     // autoEase 依据数值总跨度，而非逐位环绕增量（后者现已 ≤ 10，永远够不到阈值）。
-    final bool autoEase = curve == Curves.linear && _valueRange > widget.autoEaseThreshold;
+    final bool autoEase = curve == Curves.linear && _valueRange > widget._timeAutoEaseThreshold;
     final Curve effectiveComputeCurve = autoEase ? Curves.easeInOut : curve;
 
     // Reuse the buffer across frames; reallocate only when the digit count
@@ -805,7 +939,7 @@ abstract class _BaseCounterState<W extends _BaseAnimatedCounter> extends State<W
         final double delayUs = _staggerDelayUs(i, staggerUs);
         tDigit = ((elapsedUs - delayUs) / baseDurationUs).clamp(0.0, 1.0);
       }
-      final Curve  digitCurve = widget.curveForDigit?.call(i) ?? effectiveComputeCurve;
+      final Curve  digitCurve = widget._timeCurveForDigit?.call(i) ?? effectiveComputeCurve;
       final double progress   = digitCurve.transform(tDigit);
 
       // Fast mode: the column just carries its 0–1 progress; the from→new-digit
@@ -813,15 +947,15 @@ abstract class _BaseCounterState<W extends _BaseAnimatedCounter> extends State<W
       //
       // 快速模式：列只携带 0–1 进度；from→新位 的单步由 painter / DigitColumn 渲染
       // （此处不做级联）。
-      if (widget.fast) {
+      if (widget._timeFast) {
         _currentDigitValues[i] = progress;
         continue;
       }
 
       final double from       = _oldDigitValues[i];
       final double to         = _targetDigitValues[i];
-      double value = widget.interpolation != null
-          ? widget.interpolation!(from, to, progress)
+      double value = widget._timeInterpolation != null
+          ? widget._timeInterpolation!(from, to, progress)
           : from + (to - from) * progress;
 
       // Bounce is applied separately as a per-column positional nudge in
@@ -835,19 +969,19 @@ abstract class _BaseCounterState<W extends _BaseAnimatedCounter> extends State<W
   // 初始化、动画端点和渲染使用相同的格式解析结果。
   CounterDisplayNumber _displayNumber(num value) {
     // 控制器更新也可能伴随字典原地修改；仅配置变化时重新排序。
-    _numberFormat.updateAbbreviations(widget.compactAbbreviations);
+    _numberFormat.updateAbbreviations(widget._fmtCompactAbbreviations);
     return _numberFormat.resolve(
       value,
       minValue: widget.minValue,
       maxValue: widget.maxValue,
-      fractionDigits: widget.fractionDigits,
-      compactNotation: widget.compactNotation,
-      compactFractionDigits: widget.compactFractionDigits,
+      fractionDigits: widget._fmtFractionDigits,
+      compactNotation: widget._fmtCompactNotation,
+      compactFractionDigits: widget._fmtCompactFractionDigits,
     );
   }
 
   List<double> _getDigitsList(num targetValue) =>
-      _displayNumber(targetValue).digits(widget.wholeDigits);
+      _displayNumber(targetValue).digits(widget._fmtWholeDigits);
 
   @override
   void dispose() {
@@ -891,9 +1025,9 @@ abstract class _BaseCounterState<W extends _BaseAnimatedCounter> extends State<W
   /// @returns The display string for [digit].
   ///
   ///   [digit] 对应的显示字符串。
-  String _glyphForDigit(int digit) => widget.numeralMapper != null
-      ? widget.numeralMapper!(digit)
-      : (numeralSystemDigits[widget.numeralSystem]?[digit] ?? '$digit');
+  String _glyphForDigit(int digit) => widget._fmtNumeralMapper != null
+      ? widget._fmtNumeralMapper!(digit)
+      : (numeralSystemDigits[widget._fmtNumeralSystem]?[digit] ?? '$digit');
 
   void _updatePrototypeSize(TextStyle style, TextScaler textScaler) {
     // Resolve the glyphs first (cheap, no layout) so a change of
@@ -936,9 +1070,9 @@ abstract class _BaseCounterState<W extends _BaseAnimatedCounter> extends State<W
 
   // 动画位数与格式解析使用同一规则。
   int _effectiveFractionDigits() => counterFractionDigits(
-    compactNotation: widget.compactNotation,
-    fractionDigits: widget.fractionDigits,
-    compactFractionDigits: widget.compactFractionDigits,
+    compactNotation: widget._fmtCompactNotation,
+    fractionDigits: widget._fmtFractionDigits,
+    compactFractionDigits: widget._fmtCompactFractionDigits,
   );
 
   Widget _wrapColorTint(Widget child, Color baseColor) {
@@ -963,9 +1097,9 @@ abstract class _BaseCounterState<W extends _BaseAnimatedCounter> extends State<W
   }
 
   String _buildSemanticText(int intValue) {
-    final absValue = intValue.abs() / math.pow(10, widget.fractionDigits);
-    final sign = intValue < 0 ? '-' : (widget.showPositiveSign && intValue > 0 ? '+' : '');
-    return '$sign${absValue.toStringAsFixed(widget.fractionDigits)}';
+    final absValue = intValue.abs() / math.pow(10, widget._fmtFractionDigits);
+    final sign = intValue < 0 ? '-' : (widget._fmtShowPositiveSign && intValue > 0 ? '+' : '');
+    return '$sign${absValue.toStringAsFixed(widget._fmtFractionDigits)}';
   }
 
   Widget _buildAffix(String text, TextStyle? style, TextOverflow? overflow) {

@@ -1,0 +1,4 @@
+# 基准默认跳过；显式运行时加 --tags benchmark --run-skipped。
+tags:
+  benchmark:
+    skip: '性能基准：使用 --tags benchmark --run-skipped 显式运行'

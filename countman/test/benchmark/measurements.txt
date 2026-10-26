@@ -1,0 +1,137 @@
+===== baseline_warm.log =====
+00:00 +0: loading E:/workspaces/dart-labs/countman/test/animated_counter_test.dart
+00:00 +0: E:/workspaces/dart-labs/countman/test/benchmark/paint_benchmark_test.dart: Dial 与 Counter 真实画布基准
+Dial inner 60: median=50.707 mean=50.318 us/frame samples=55.179,66.836,57.711,73.824,80.606,35.014,31.698,50.707,39.787,31.667,30.464
+Dial full 60: median=83.579 mean=97.110 us/frame samples=112.900,146.074,138.060,159.769,118.298,62.850,57.902,73.577,83.579,57.258,57.939
+Dial labels 60: median=249.485 mean=349.159 us/frame samples=536.877,470.761,521.360,660.083,399.117,231.616,189.024,249.485,205.897,190.101,186.427
+Reference inner 60: median=45.528 mean=45.116 us/frame samples=47.877,45.528,47.633,45.909,44.163,39.352,41.202,40.992,51.146,50.697,41.777
+Counter 6: median=16.359 mean=16.975 us/frame samples=20.486,13.430,17.590,26.298,17.117,12.566,16.053,17.771,13.667,16.359,15.390
+Counter 12: median=27.584 mean=28.186 us/frame samples=32.185,23.266,22.311,33.965,33.158,29.967,30.103,24.137,27.584,25.984,27.381
+Counter 24: median=48.117 mean=48.632 us/frame samples=47.081,43.961,42.409,58.765,48.117,42.290,43.594,50.540,49.065,54.258,54.868
+00:09 +1: E:/workspaces/dart-labs/countman/test/benchmark/paint_benchmark_test.dart: 中心文字分层的实际重绘基准
+Center dynamic=false boundary=false: median=72.443 mean=76.565 us/frame samples=83.884,85.245,98.943,63.151,72.443,63.436,67.770,93.934,90.385,60.396,62.628
+center paint calls=13001
+Center dynamic=false boundary=true: median=68.792 mean=70.438 us/frame samples=76.723,72.504,72.151,67.333,60.788,62.464,66.223,75.491,68.510,68.792,83.840
+center paint calls=1
+Center dynamic=true boundary=false: median=75.360 mean=90.330 us/frame samples=133.755,129.272,131.980,79.584,72.125,75.360,68.175,84.099,74.912,74.768,69.599
+center paint calls=13001
+Center dynamic=true boundary=true: median=86.875 mean=91.476 us/frame samples=100.780,116.853,122.769,99.440,86.875,75.527,76.215,92.370,75.987,75.298,84.127
+center paint calls=13001
+00:14 +2: All tests passed!
+===== after_1.log =====
+00:00 +0: loading E:/workspaces/dart-labs/countman/test/animated_counter_test.dart
+00:00 +0: E:/workspaces/dart-labs/countman/test/benchmark/inner_geometry_benchmark_test.dart: 分钟段合并的覆盖区间与颜色一致
+00:00 +1: E:/workspaces/dart-labs/countman/test/benchmark/inner_geometry_benchmark_test.dart: 冻结参考逐笔匹配生产内圈
+00:00 +2: E:/workspaces/dart-labs/countman/test/benchmark/paint_benchmark_test.dart: Dial 与 Counter 真实画布基准
+00:00 +2: E:/workspaces/dart-labs/countman/test/benchmark/inner_geometry_benchmark_test.dart: 圆头分钟段合并会改变像素 glow=false
+merge pixel differences: glow=false alpha=1.0 pixels=819/40000
+merge pixel differences: glow=false alpha=0.5019607843137255 pixels=2265/40000
+00:00 +3: E:/workspaces/dart-labs/countman/test/benchmark/paint_benchmark_test.dart: Dial 与 Counter 真实画布基准
+00:00 +3: E:/workspaces/dart-labs/countman/test/benchmark/inner_geometry_benchmark_test.dart: 圆头分钟段合并会改变像素 glow=true
+merge pixel differences: glow=true alpha=1.0 pixels=5578/40000
+merge pixel differences: glow=true alpha=0.5019607843137255 pixels=5247/40000
+00:00 +4: E:/workspaces/dart-labs/countman/test/benchmark/paint_benchmark_test.dart: Dial 与 Counter 真实画布基准
+Dial inner 60: median=32.045 mean=38.624 us/frame samples=44.836,57.502,62.719,40.669,41.927,30.194,29.636,29.950,32.045,27.960,27.422
+Dial full 60: median=64.717 mean=71.021 us/frame samples=75.798,98.629,109.151,67.721,84.432,64.717,54.392,53.839,59.846,52.008,60.702
+Dial labels 60: median=186.169 mean=218.176 us/frame samples=275.133,291.509,285.196,237.695,267.084,186.169,173.518,174.954,166.953,162.239,179.489
+Dial inner 60: observed Paint=63, drawArc=62, paragraphs=0
+Dial full 60: observed Paint=66, drawArc=68, paragraphs=0
+Dial labels 60: observed Paint=66, drawArc=68, paragraphs=12
+Reference inner 60: median=29.266 mean=29.476 us/frame samples=29.314,30.813,29.959,29.217,30.172,28.806,28.961,29.266,29.409,29.260,29.056
+Merged candidate inner 60: median=4.780 mean=5.113 us/frame samples=5.993,5.127,4.693,4.674,6.232,4.780,4.586,4.582,4.645,6.126,4.803
+Reference inner 60: observed Paint=63, drawArc=62, paragraphs=0
+Merged candidate inner 60: observed Paint=5, drawArc=4, paragraphs=0
+Counter 6: median=10.348 mean=10.743 us/frame samples=10.071,9.859,8.818,8.476,11.097,10.348,17.268,10.988,10.754,10.677,9.822
+Counter 12: median=17.246 mean=17.418 us/frame samples=15.489,16.869,18.140,17.585,17.078,15.772,21.193,18.257,16.310,17.246,17.655
+Counter 24: median=29.124 mean=29.446 us/frame samples=29.124,30.413,28.433,27.471,26.752,29.225,32.821,31.743,31.554,28.311,28.057
+Counter 6: observed Paint=0, drawArc=0, paragraphs=14
+Counter 12: observed Paint=0, drawArc=0, paragraphs=28
+Counter 24: observed Paint=0, drawArc=0, paragraphs=56
+00:06 +5: E:/workspaces/dart-labs/countman/test/benchmark/paint_benchmark_test.dart: 中心文字分层的实际重绘基准
+Center dynamic=false boundary=false: median=54.304 mean=54.675 us/frame samples=58.292,55.045,54.959,54.490,54.230,53.262,54.304,53.982,56.250,53.000,53.616
+center paint calls=13001
+Center dynamic=false boundary=true: median=53.261 mean=53.641 us/frame samples=55.326,54.549,52.624,53.261,52.983,54.409,52.541,52.899,53.536,55.011,52.912
+center paint calls=1
+Center dynamic=true boundary=false: median=55.373 mean=55.527 us/frame samples=56.098,59.517,57.413,55.373,54.302,55.752,54.615,53.962,54.251,53.899,55.616
+center paint calls=13001
+Center dynamic=true boundary=true: median=59.276 mean=59.663 us/frame samples=59.276,57.664,57.761,59.749,60.450,68.057,60.426,57.373,59.282,58.434,57.823
+center paint calls=13001
+00:09 +6: All tests passed!
+===== after_2.log =====
+00:00 +0: loading E:/workspaces/dart-labs/countman/test/animated_counter_test.dart
+00:00 +0: E:/workspaces/dart-labs/countman/test/benchmark/inner_geometry_benchmark_test.dart: 分钟段合并的覆盖区间与颜色一致
+00:00 +1: E:/workspaces/dart-labs/countman/test/benchmark/inner_geometry_benchmark_test.dart: 冻结参考逐笔匹配生产内圈
+00:00 +2: E:/workspaces/dart-labs/countman/test/benchmark/paint_benchmark_test.dart: Dial 与 Counter 真实画布基准
+00:00 +2: E:/workspaces/dart-labs/countman/test/benchmark/inner_geometry_benchmark_test.dart: 圆头分钟段合并会改变像素 glow=false
+merge pixel differences: glow=false alpha=1.0 pixels=819/40000
+merge pixel differences: glow=false alpha=0.5019607843137255 pixels=2265/40000
+00:00 +3: E:/workspaces/dart-labs/countman/test/benchmark/paint_benchmark_test.dart: Dial 与 Counter 真实画布基准
+00:00 +3: E:/workspaces/dart-labs/countman/test/benchmark/inner_geometry_benchmark_test.dart: 圆头分钟段合并会改变像素 glow=true
+merge pixel differences: glow=true alpha=1.0 pixels=5578/40000
+merge pixel differences: glow=true alpha=0.5019607843137255 pixels=5247/40000
+00:00 +4: E:/workspaces/dart-labs/countman/test/benchmark/paint_benchmark_test.dart: Dial 与 Counter 真实画布基准
+Dial inner 60: median=40.418 mean=37.701 us/frame samples=37.802,40.418,48.167,43.337,42.671,42.608,42.789,30.126,29.576,28.673,28.540
+Dial full 60: median=80.197 mean=74.586 us/frame samples=74.084,85.500,83.507,85.421,103.796,86.612,80.197,60.309,55.016,51.908,54.100
+Dial labels 60: median=278.938 mean=256.977 us/frame samples=278.938,298.201,306.953,328.902,339.224,326.988,229.673,206.433,169.882,172.537,169.017
+Dial inner 60: observed Paint=63, drawArc=62, paragraphs=0
+Dial full 60: observed Paint=66, drawArc=68, paragraphs=0
+Dial labels 60: observed Paint=66, drawArc=68, paragraphs=12
+Reference inner 60: median=44.865 mean=48.267 us/frame samples=69.831,71.254,71.585,47.018,51.651,44.865,35.317,34.807,33.868,35.782,34.962
+Merged candidate inner 60: median=6.675 mean=7.797 us/frame samples=9.726,9.802,6.675,13.352,9.745,6.631,5.993,5.461,7.188,5.601,5.595
+Reference inner 60: observed Paint=63, drawArc=62, paragraphs=0
+Merged candidate inner 60: observed Paint=5, drawArc=4, paragraphs=0
+Counter 6: median=11.489 mean=11.743 us/frame samples=14.183,12.883,12.404,13.078,10.366,10.763,12.532,11.489,11.105,10.756,9.616
+Counter 12: median=19.367 mean=20.041 us/frame samples=26.172,19.854,19.367,20.280,20.599,23.623,18.709,18.323,18.117,17.169,18.238
+Counter 24: median=36.079 mean=36.996 us/frame samples=43.403,39.721,36.079,32.540,33.282,36.822,49.706,37.127,34.724,32.040,31.516
+Counter 6: observed Paint=0, drawArc=0, paragraphs=14
+Counter 12: observed Paint=0, drawArc=0, paragraphs=28
+Counter 24: observed Paint=0, drawArc=0, paragraphs=56
+00:07 +5: E:/workspaces/dart-labs/countman/test/benchmark/paint_benchmark_test.dart: 中心文字分层的实际重绘基准
+Center dynamic=false boundary=false: median=61.720 mean=62.849 us/frame samples=67.919,62.649,61.720,56.605,60.429,59.093,56.649,71.420,73.541,62.076,59.237
+center paint calls=13001
+Center dynamic=false boundary=true: median=60.584 mean=61.953 us/frame samples=63.760,62.998,56.925,60.584,60.347,59.782,60.192,61.149,78.522,62.064,55.160
+center paint calls=1
+Center dynamic=true boundary=false: median=60.838 mean=60.896 us/frame samples=65.569,62.281,59.277,59.368,59.752,61.646,60.838,58.582,56.848,64.193,61.503
+center paint calls=13001
+Center dynamic=true boundary=true: median=63.810 mean=66.281 us/frame samples=78.324,73.827,62.194,63.339,63.810,66.820,64.154,63.443,62.448,63.577,67.157
+center paint calls=13001
+00:10 +6: All tests passed!
+===== after_3.log =====
+00:00 +0: loading E:/workspaces/dart-labs/countman/test/animated_counter_test.dart
+00:00 +0: E:/workspaces/dart-labs/countman/test/benchmark/inner_geometry_benchmark_test.dart: 分钟段合并的覆盖区间与颜色一致
+00:00 +1: E:/workspaces/dart-labs/countman/test/benchmark/inner_geometry_benchmark_test.dart: 冻结参考逐笔匹配生产内圈
+00:00 +2: E:/workspaces/dart-labs/countman/test/benchmark/paint_benchmark_test.dart: Dial 与 Counter 真实画布基准
+00:00 +2: E:/workspaces/dart-labs/countman/test/benchmark/inner_geometry_benchmark_test.dart: 圆头分钟段合并会改变像素 glow=false
+merge pixel differences: glow=false alpha=1.0 pixels=819/40000
+merge pixel differences: glow=false alpha=0.5019607843137255 pixels=2265/40000
+00:00 +3: E:/workspaces/dart-labs/countman/test/benchmark/paint_benchmark_test.dart: Dial 与 Counter 真实画布基准
+00:00 +3: E:/workspaces/dart-labs/countman/test/benchmark/inner_geometry_benchmark_test.dart: 圆头分钟段合并会改变像素 glow=true
+merge pixel differences: glow=true alpha=1.0 pixels=5578/40000
+merge pixel differences: glow=true alpha=0.5019607843137255 pixels=5247/40000
+00:00 +4: E:/workspaces/dart-labs/countman/test/benchmark/paint_benchmark_test.dart: Dial 与 Counter 真实画布基准
+Dial inner 60: median=32.102 mean=39.344 us/frame samples=48.601,45.240,44.512,55.985,55.517,31.164,30.708,27.604,29.517,32.102,31.837
+Dial full 60: median=69.815 mean=75.686 us/frame samples=90.384,104.294,88.771,82.806,104.349,60.973,56.671,56.068,69.815,59.549,58.867
+Dial labels 60: median=213.272 mean=244.585 us/frame samples=327.665,326.802,308.688,315.465,238.916,186.203,194.900,190.834,189.985,197.702,213.272
+Dial inner 60: observed Paint=63, drawArc=62, paragraphs=0
+Dial full 60: observed Paint=66, drawArc=68, paragraphs=0
+Dial labels 60: observed Paint=66, drawArc=68, paragraphs=12
+Reference inner 60: median=32.202 mean=33.631 us/frame samples=30.872,32.302,31.494,31.432,32.202,30.800,30.827,42.008,33.532,37.873,36.599
+Merged candidate inner 60: median=5.090 mean=5.912 us/frame samples=6.528,5.090,4.833,4.908,7.653,4.968,4.951,5.043,8.882,5.506,6.675
+Reference inner 60: observed Paint=63, drawArc=62, paragraphs=0
+Merged candidate inner 60: observed Paint=5, drawArc=4, paragraphs=0
+Counter 6: median=11.265 mean=12.044 us/frame samples=12.348,20.416,14.547,11.265,9.936,9.859,11.361,11.165,11.380,11.139,9.071
+Counter 12: median=20.516 mean=21.107 us/frame samples=26.454,24.461,20.746,21.761,20.989,19.937,18.166,20.321,19.920,18.910,20.516
+Counter 24: median=36.309 mean=38.035 us/frame samples=42.048,36.198,40.399,36.309,34.315,36.888,34.692,48.554,36.530,36.219,36.235
+Counter 6: observed Paint=0, drawArc=0, paragraphs=14
+Counter 12: observed Paint=0, drawArc=0, paragraphs=28
+Counter 24: observed Paint=0, drawArc=0, paragraphs=56
+00:07 +5: E:/workspaces/dart-labs/countman/test/benchmark/paint_benchmark_test.dart: 中心文字分层的实际重绘基准
+Center dynamic=false boundary=false: median=61.229 mean=63.593 us/frame samples=63.572,93.073,65.096,61.229,59.098,59.466,56.090,55.114,59.075,62.060,65.650
+center paint calls=13001
+Center dynamic=false boundary=true: median=60.243 mean=60.682 us/frame samples=60.243,72.430,61.590,58.731,60.604,62.513,54.576,53.800,58.181,58.661,66.170
+center paint calls=1
+Center dynamic=true boundary=false: median=60.566 mean=60.307 us/frame samples=60.566,58.066,62.947,64.917,67.428,65.209,61.858,55.444,54.674,55.743,56.526
+center paint calls=13001
+Center dynamic=true boundary=true: median=61.108 mean=64.632 us/frame samples=60.365,57.945,70.689,72.528,77.376,67.153,63.780,60.718,59.050,60.243,61.108
+center paint calls=13001
+00:10 +6: All tests passed!
