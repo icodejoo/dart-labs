@@ -83,7 +83,10 @@ void main() {
         Object? thrown;
         r.engine
             .open(const MovaSource('https://h/a.m3u8'))
-            .catchError((Object e) => thrown = e);
+            .catchError((Object e) {
+              thrown = e;
+              return false;
+            });
         async.flushMicrotasks();
         expect(thrown, isA<StateError>());
         async.elapse(const Duration(minutes: 5));

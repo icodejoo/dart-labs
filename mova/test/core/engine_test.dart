@@ -397,6 +397,22 @@ void main() {
     await e2.dispose();
   });
 
+  test('open() reports whether the source was accepted', () async {
+    expect(await e.open(const MovaSource('https://host/a.mp4')), isTrue);
+    final denied = MovaEngine(kernel: FakeKernel(), interceptors: [_DenyOpen()]);
+    expect(await denied.open(const MovaSource('https://host/b.mp4')), isFalse);
+    await denied.dispose();
+    // A later open() supersedes an earlier one that is still in a hook.
+    final hook = _GatedHook();
+    final e2 = MovaEngine(kernel: FakeKernel(), interceptors: [hook]);
+    final first = e2.open(const MovaSource('https://host/c.mp4'));
+    final second = e2.open(const MovaSource('https://host/d.mp4'));
+    hook.gate.complete();
+    expect(await first, isFalse);
+    expect(await second, isTrue);
+    await e2.dispose();
+  });
+
   test('beforePlay can veto playback', () async {
     final e2 = MovaEngine(kernel: k, interceptors: [_DenyPlay()]);
     k.calls.clear();
@@ -1706,6 +1722,11 @@ class _GatedHook extends MovaHook {
     await gate.future;
     return t;
   }
+}
+
+class _DenyOpen extends MovaHook {
+  @override
+  Future<bool> beforeOpen(MovaSource source) async => false;
 }
 
 class _CancelSeek extends MovaHook {

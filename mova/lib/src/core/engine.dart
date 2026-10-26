@@ -1074,7 +1074,7 @@ class MovaEngine implements MovaApi, MovaStandbyController, MovaPlayerMute, Mova
   }
 
   @override
-  Future<void> open(MovaSource source, {bool autoPlay = true}) async {
+  Future<bool> open(MovaSource source, {bool autoPlay = true}) async {
     // Claim this call's generation before the first await: if another open()
     // call is made while this one is suspended below, that later call bumps
     // _openGen again and this call notices it has been superseded the moment
@@ -1089,7 +1089,7 @@ class MovaEngine implements MovaApi, MovaStandbyController, MovaPlayerMute, Mova
     // services or load a disposed kernel.
     //
     // 挂起在 beforeOpen 期间 dispose() 可能已执行：不得再挂接服务或加载已销毁的内核。
-    if (!allowed || gen != _openGen || _disposed) return;
+    if (!allowed || gen != _openGen || _disposed) return false;
     _recoverTimer?.cancel();
     _recoverTimer = null;
     final session = ++_sessionGen;
@@ -1148,12 +1148,20 @@ class MovaEngine implements MovaApi, MovaStandbyController, MovaPlayerMute, Mova
     // 请求了待机：先撤销待机，新源以暂停态加载（见 [_standbyBeforeOpen]）。未涉及待机时
     // 完全不 await。
     final held = _standbyRequested ? await _standbyBeforeOpen() : false;
-    if (held && (gen != _openGen || _disposed)) return;
+    if (held && (gen != _openGen || _disposed)) return false;
     final loadPlays = held ? false : _playIntent;
     _armAttempt(autoPlay: loadPlays);
-    if (!await _loadKernel(source.uri, play: loadPlays)) return;
-    if (session != _sessionGen || _disposed) return;
+    // A false load result is either a handled failure (recovery owns it; the
+    // source is still current) or a supersede/dispose (it is not).
+    //
+    // 加载结果为 false 要么是已处理的失败（交给恢复机制，源仍是当前源），要么是被
+    // 取代/销毁（源已不是当前源）。
+    if (!await _loadKernel(source.uri, play: loadPlays)) {
+      return session == _sessionGen && !_disposed;
+    }
+    if (session != _sessionGen || _disposed) return false;
     _announceReady();
+    return true;
   }
 
   /// Finishes a session's first successful kernel load: recomputes live

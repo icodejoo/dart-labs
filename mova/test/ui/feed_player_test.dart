@@ -22,9 +22,9 @@ class _SlowOpenApi extends FakeMovaApi {
   Duration openDelay = Duration.zero;
 
   @override
-  Future<void> open(MovaSource source, {bool autoPlay = true}) async {
+  Future<bool> open(MovaSource source, {bool autoPlay = true}) async {
     await Future<void>.delayed(openDelay);
-    await super.open(source, autoPlay: autoPlay);
+    return super.open(source, autoPlay: autoPlay);
   }
 }
 

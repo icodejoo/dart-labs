@@ -89,6 +89,21 @@ void main() {
     expect(api.calls, isEmpty);
   });
 
+  test('jumpTo keeps the index when open() is rejected (beforeOpen hook)', () async {
+    final (api, c) = build();
+    final seen = <int>[];
+    final sub = c.indexChanges.listen(seen.add);
+    api.acceptOpens = false;
+    await c.jumpTo(2);
+    await Future<void>.delayed(Duration.zero);
+    expect(c.currentIndex, 0, reason: 'the previous item is still the one playing');
+    expect(seen, isEmpty);
+    api.acceptOpens = true;
+    await c.jumpTo(2);
+    expect(c.currentIndex, 2);
+    await sub.cancel();
+  });
+
   test('indexChanges emits on navigation', () async {
     final (_, c) = build();
     final seen = <int>[];
@@ -185,10 +200,10 @@ class _GatedApi extends FakeMovaApi {
   final List<Completer<void>> gates = <Completer<void>>[];
 
   @override
-  Future<void> open(MovaSource source, {bool autoPlay = true}) async {
+  Future<bool> open(MovaSource source, {bool autoPlay = true}) async {
     final gate = Completer<void>();
     gates.add(gate);
     await gate.future;
-    await super.open(source, autoPlay: autoPlay);
+    return super.open(source, autoPlay: autoPlay);
   }
 }

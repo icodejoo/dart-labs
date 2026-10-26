@@ -318,10 +318,17 @@ class FakeMovaApi implements MovaApi {
   /// ——供 feed 测试区分"打开即播放"与"仅预加载并停住"的页面。
   bool? lastAutoPlay;
 
+  /// Whether `open` reports the source as accepted; false mimics a `beforeOpen`
+  /// rejection (nothing is loaded).
+  ///
+  /// `open` 是否报告源已被接受；false 模拟 `beforeOpen` 拒绝（什么都不加载）。
+  bool acceptOpens = true;
+
   @override
-  Future<void> open(MovaSource source, {bool autoPlay = true}) async {
+  Future<bool> open(MovaSource source, {bool autoPlay = true}) async {
     calls.add('open');
     openCalls++;
+    if (!acceptOpens) return false;
     openedUris.add(source.uri);
     final boom = openThrows;
     if (boom != null && (openThrowsFor == null || openThrowsFor == source.uri)) {
@@ -335,6 +342,7 @@ class FakeMovaApi implements MovaApi {
       sourceTitle: source.title,
       clearSourceTitle: source.title == null,
     ));
+    return true;
   }
 
   @override

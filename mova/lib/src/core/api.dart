@@ -106,7 +106,21 @@ abstract class MovaApi {
   ///
   /// [source] 为要加载的媒体来源。[autoPlay] 控制打开后是否立即播放；
   /// 默认 `true`。
-  Future<void> open(MovaSource source, {bool autoPlay = true});
+  ///
+  /// Returns whether [source] was accepted as the current source: `false` when
+  /// a `beforeOpen` hook rejected it, a later `open()` superseded it, or the
+  /// engine was disposed. A load failure is not `false` — it is reported
+  /// through events/recovery, and an unhandled one still throws.
+  ///
+  /// 返回 [source] 是否被接受为当前源：`beforeOpen` 钩子拒绝、被更晚的 `open()`
+  /// 取代、或引擎已销毁时为 `false`。加载失败不算 `false`——它经事件/恢复机制上报，
+  /// 未被处理时仍会抛出。
+  ///
+  /// Example / 示例:
+  /// ```dart
+  /// if (await api.open(source)) { /* source is now current */ }
+  /// ```
+  Future<bool> open(MovaSource source, {bool autoPlay = true});
 
   /// Resumes/starts playback.
   ///

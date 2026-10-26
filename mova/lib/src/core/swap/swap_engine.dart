@@ -275,7 +275,7 @@ class MovaSwapEngine implements MovaApi, MovaSwapController, MovaStandbyControll
   MovaSttApi get stt => _active.stt;
 
   @override
-  Future<void> open(MovaSource source, {bool autoPlay = true}) => _active.open(source, autoPlay: autoPlay);
+  Future<bool> open(MovaSource source, {bool autoPlay = true}) => _active.open(source, autoPlay: autoPlay);
 
   @override
   Future<void> play() => _active.play();

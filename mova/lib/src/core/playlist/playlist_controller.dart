@@ -144,14 +144,14 @@ class MovaPlaylistController {
   Future<void> jumpTo(int index) async {
     if (index < 0 || index >= _items.length) return;
     final gen = ++_jumpGen;
-    await _api.open(_items[index].source);
+    final accepted = await _api.open(_items[index].source);
     // A later jumpTo superseded this one: its open() is what actually plays.
-    // Note: MovaApi.open returns void, so a beforeOpen rejection is
-    // indistinguishable here and is not handled.
+    // A rejected open() (beforeOpen hook, superseded, disposed) leaves the
+    // previous item playing, so the index must not move.
     //
-    // 更晚的 jumpTo 已取代本次：真正在播的是它的 open()。注意 MovaApi.open
-    // 返回 void，beforeOpen 拒绝在此无法区分，故不处理。
-    if (gen != _jumpGen) return;
+    // 更晚的 jumpTo 已取代本次：真正在播的是它的 open()。open() 被拒绝（beforeOpen
+    // 钩子、被取代、已销毁）时上一项仍在播，下标不能前进。
+    if (!accepted || gen != _jumpGen) return;
     // dispose() may have closed `_indexChanges` while the open() above was in
     // flight (e.g. an auto-advance racing the host tearing the controller
     // down) — adding to a closed StreamController throws.

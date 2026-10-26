@@ -139,9 +139,10 @@ class _GatedOpenApi extends FakeMovaApi {
   final Completer<void> gate = Completer<void>();
 
   @override
-  Future<void> open(MovaSource source, {bool autoPlay = true}) async {
-    await super.open(source, autoPlay: autoPlay);
+  Future<bool> open(MovaSource source, {bool autoPlay = true}) async {
+    final ok = await super.open(source, autoPlay: autoPlay);
     await gate.future;
+    return ok;
   }
 }
 
