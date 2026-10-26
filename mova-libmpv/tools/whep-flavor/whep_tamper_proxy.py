@@ -125,11 +125,18 @@ class H(http.server.BaseHTTPRequestHandler):
 
     def do_POST(self):
         mode, path = self._mode()
+        dbg = os.environ.get('PROXY_DEBUG')
+        if dbg:
+            print('POST', self.path, dict(self.headers), flush=True)
         body = self.rfile.read(int(self.headers.get('Content-Length', 0)))
+        if dbg:
+            print('POST body bytes', len(body), flush=True)
         req = urllib.request.Request(UP + path, data=body, method='POST',
                                      headers={'Content-Type': 'application/sdp'})
         r = urllib.request.urlopen(req)
         ans = r.read().decode()
+        if dbg:
+            print('upstream answered', r.status, len(ans), flush=True)
         if mode == 'fp':
             def flip(m):
                 fp = m.group(1)

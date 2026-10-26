@@ -76,6 +76,8 @@ if [ "${VERSION_CHECK:-1}" = 1 ]; then
   grep -q 'n9\.0\.2' <<<"$STR" && ok "ffmpeg 版本串含 n9.0.2" || bad "未找到 ffmpeg n9.0.2 版本串"
   grep -Eq '(^|[^0-9])v?0\.41\.0' <<<"$STR" && ok "mpv 版本串含 0.41.0" || bad "未找到 mpv 0.41.0 版本串"
   grep -q 'whep' <<<"$STR" && ok "含 whep 字串" || bad "未找到 whep 字串（WHEP demuxer 未编入）"
+  grep -q 'first_frame_timeout' <<<"$STR" && ok "含 first_frame_timeout 选项（ffmpeg-whep 0013）" || bad "未找到 first_frame_timeout（0013 未编入）"
+  grep -q ' plc=' <<<"$STR" && ok "含 plc= 统计字串（ffmpeg-whep 0014）" || bad "未找到 plc= 统计字串（0014 未编入）"
   grep -qi 'dtls' <<<"$STR" && ok "含 dtls 字串" || bad "未找到 dtls 字串"
   grep -Eq 'mbedtls|mbed TLS' <<<"$STR" && ok "含 mbedtls 字串" || bad "未找到 mbedtls 字串"
   grep -q 'gpu-next' <<<"$STR" && bad "仍含 gpu-next（vo_gpu_next 补丁未生效）" || ok "无 gpu-next"

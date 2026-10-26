@@ -115,7 +115,7 @@ print(pick)")
 fi
 
 # ---- 5. 失败路径：指纹被篡改必须因指纹校验被拒绝；候选不可达必须在握手超时内干净返回 ----
-python3 "$WHEP_TOOLS/whep_tamper_proxy.py" 18100 > proxy.log 2>&1 & PIDS+=($!)
+PROXY_DEBUG=1 python3 "$WHEP_TOOLS/whep_tamper_proxy.py" 18100 > proxy.log 2>&1 & PIDS+=($!)
 sleep 2
 echo "--- proxy.log (启动后) ---"; cat proxy.log
 echo "=== 对照：经代理原样转发（ok 模式）必须能播 ==="
@@ -166,9 +166,14 @@ CNF
 import http.server, ssl
 ctx = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
 ctx.load_cert_chain('good.pem', 'good.key')
-srv = http.server.ThreadingHTTPServer(('127.0.0.1', 8443), http.server.SimpleHTTPRequestHandler)
-srv.socket = ctx.wrap_socket(srv.socket, server_side=True)
-srv.serve_forever()
+
+class S(http.server.ThreadingHTTPServer):
+    # 握手放到每个连接自己的线程里做：在 accept 线程里握手，一个卡住的客户端会堵死后面所有连接
+    def get_request(self):
+        sock, addr = self.socket.accept()
+        return ctx.wrap_socket(sock, server_side=True, do_handshake_on_connect=False), addr
+
+S(('127.0.0.1', 8443), http.server.SimpleHTTPRequestHandler).serve_forever()
 PY
   python3 httpsd.py > httpsd.log 2>&1 & PIDS+=($!)
   sleep 2
