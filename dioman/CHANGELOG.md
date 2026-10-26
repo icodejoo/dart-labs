@@ -1,4 +1,4 @@
-## Unreleased
+## 0.7.2
 
 - Feature: add optional `DiomanKey(namespace: () => currentAccountId)` to isolate cache and in-flight share keys by account, including explicit/custom keys. Non-empty namespaces are encoded as separate fields; unset/null/empty namespaces preserve existing keys. Callback failures reject with `DioException`.
 - Fix request keys to include origin and merged URL queries, with separate query/body encoding.

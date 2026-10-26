@@ -1,4 +1,4 @@
-## Unreleased
+## 0.3.2
 
 * **Fix：恢复层真机复测的两处问题**。
   * **默认配置下 404 等确定性失败仍等满 `startTimeout` 才重试**：原生 `END_FILE` 订阅只在有 reporter 或 `preciseFirstFrame: true` 时才打开，`recovery.enabled` 不会打开它，README 写的"坏地址秒判"对不上。现在 `createMovaEngine` 在 `recovery.enabled` 时自动订阅 `END_FILE`；`MovaMpvKernel` 新增 `observeRestarts`（默认 `true`），恢复机制只开 END_FILE、不转发 `PLAYBACK_RESTART`，首帧判据与未开 recovery 时一致（不转发 RESTART 时 `nativeRestartAvailable` 为 `false`，首帧闸门不会白等宽限）。`movaObserveFlags` 新增 `recovery` 参数与 `restart` 字段。

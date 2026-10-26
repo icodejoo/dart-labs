@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.2.4
 
 ### Added
 - Add `CounterTimeline` for immutable animation configuration on
