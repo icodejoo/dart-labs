@@ -718,8 +718,9 @@ jobs:
       - name: flutter build ios --simulator --no-codesign
         working-directory: mova/example
         run: |
-          flutter build ios --no-codesign --simulator -v 2>&1 > ../../build-ios-sim.log; RC=$?
-          grep -aE 'ARCHS|EXCLUDED_ARCHS|ignoring file|built for|Undefined symbol|Mpv\.framework|clang.*-arch' ../../build-ios-sim.log | sort | uniq -c | sort -rn | head -40
+          flutter build ios --no-codesign --simulator -v > ../../build-ios-sim.log 2>&1; RC=$?
+          grep -aE 'ignoring file|built for|ld: |Undefined symbols|referenced from|-arch |ARCHS=|EXCLUDED_ARCHS=' ../../build-ios-sim.log | cut -c1-300 | sort | uniq -c | sort -rn | head -40
+          ls -la ../packages/media_kit_libs_ios_video_slim/ios/Frameworks/.symlinks/mpv/ || true
           tail -n 30 ../../build-ios-sim.log
           test "$RC" = 0
 
