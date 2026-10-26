@@ -3,6 +3,7 @@ description: >-
   [mova slim fork] Android package providing video (& audio) native
   libraries for package:media_kit, using mova's own slimmed libmpv.so
   instead of upstream's prebuilt libmpv-android-video-build release.
+  已被 v041（media_kit_libs_android_video_slim_v041）取代，仅作回退保留。
 version: 1.0.0
 publish_to: 'none'
 

@@ -8,6 +8,7 @@ import 'package:media_kit_video/media_kit_video.dart';
 import '../report/stats_probe.dart';
 import '../standby/standby.dart';
 import 'kernel.dart';
+import 'mpv_defaults.dart';
 import 'mpv_event_backend.dart';
 import 'mpv_event_pump.dart';
 import 'player_mute.dart';
@@ -15,6 +16,30 @@ import 'standby_kernel.dart';
 
 /// 弱客户端后端工厂函数定义。
 typedef MovaMpvEventBackendFactory = MovaMpvEventBackend Function(NativePlayer native, int handleAddress);
+
+/// 视频控制器工厂：为给定播放器创建 [VideoController]（测试可替换）。
+typedef MovaVideoControllerFactory = VideoController Function(Player player);
+
+/// 视频控制器就绪探针：完成即表示渲染面（render context/纹理）已可用（测试可替换）。
+typedef MovaVideoReadyProbe = Future<void> Function(VideoController controller);
+
+/// "让出一帧"钩子：完成即表示当前帧已结束（由平台层用 Flutter 调度器实现，core 不依赖 flutter）。
+typedef MovaMountYield = Future<void> Function();
+
+/// 等待渲染面就绪的最长时间，超时后不再阻塞 `open()`。
+const Duration kVideoReadyTimeout = Duration(seconds: 3);
+
+/// lazy 模式下 `open()` 等待"同帧挂载的视频组件"出现的最长时间（帧停摆时的兜底）。
+const Duration kMountGrace = Duration(milliseconds: 250);
+
+/// mpv 的视频轨选择属性名。
+const String _kVid = 'vid';
+
+/// 视频轨被关闭时 `vid` 的取值。
+const String _kVidOff = 'no';
+
+/// 让 mpv 自动选视频轨的取值。
+const String _kVidAuto = 'auto';
 
 /// A [MovaKernel] implementation backed by media_kit's `Player`.
 ///
@@ -35,7 +60,9 @@ class MovaMpvKernel implements MovaKernel, MovaStatsProbe, MovaStandbyKernel, Mo
   /// Creates a media_kit-backed kernel.
   ///
   /// [player] lets the caller inject an existing `Player` (e.g. for testing
-  /// or custom configuration); a new `Player()` is created if omitted.
+  /// or custom configuration); a new `Player()` is created if omitted
+  /// (its protocol whitelist is media_kit's default plus `dtls`, see
+  /// [movaProtocolWhitelist]; an injected player is left untouched).
   ///
   /// [audioOnly] signifies skipping `VideoController` creation entirely.
   /// media_kit's `Player` defaults to mpv's `--vid=no` until the moment
@@ -63,7 +90,8 @@ class MovaMpvKernel implements MovaKernel, MovaStatsProbe, MovaStandbyKernel, Mo
   /// 创建基于 media_kit 的内核。
   ///
   /// [player] 允许调用者注入一个已存在的 `Player`（如用于测试或自定义配置）；
-  /// 省略时会创建一个新的 `Player()`。
+  /// 省略时会创建一个新的 `Player()`（协议白名单为 media_kit 默认项加 `dtls`，见
+  /// [movaProtocolWhitelist]；注入的 player 不受影响）。
   ///
   /// [audioOnly] 表示完全跳过 `VideoController` 的创建。media_kit 的 `Player`
   /// 一创建就是 mpv 的 `--vid=no`，**只有** `VideoController.create()` 会把它
@@ -87,6 +115,12 @@ class MovaMpvKernel implements MovaKernel, MovaStatsProbe, MovaStandbyKernel, Mo
   ///
   /// [backendFactory] 为原生事件提供获取后端的工厂。
   ///
+  /// [videoControllerFactory] / [videoReady] 仅供测试注入：分别替换 `VideoController`
+  /// 的创建与"渲染面就绪"的探测，省略时用 media_kit 真实实现。
+  /// [realtimeFormats] / [liveProbeInterval] 仅供测试注入：分别替换实时格式集合与兜底探测的采样间隔。
+  /// [mountYield] 仅 [lazyVideo] 生效：`open()` 在控制器尚未创建时先调用它让出一帧，
+  /// 使同帧挂载的视频组件能先建好渲染面；省略则不让出（平台层传 `movaFrameYield`）。
+  ///
   /// [tlsVerify] turns on strict TLS certificate verification (mpv
   /// `tls-verify=yes`): expired / self-signed / hostname-mismatched HTTPS
   /// streams are rejected. Default `false` sends no TLS property at all
@@ -109,12 +143,19 @@ class MovaMpvKernel implements MovaKernel, MovaStatsProbe, MovaStandbyKernel, Mo
     MovaMpvEventBackendFactory? backendFactory,
     this.tlsVerify = false,
     this.tlsCaFile,
+    MovaVideoControllerFactory? videoControllerFactory,
+    MovaVideoReadyProbe? videoReady,
+    this.mountYield,
+    this.realtimeFormats = kRealtimeFileFormats,
+    this.liveProbeInterval = kLiveProbeInterval,
   })
-    : _player = player ?? Player(),
-      _backendFactory = backendFactory {
+    : _player = player ?? Player(configuration: PlayerConfiguration(protocolWhitelist: movaProtocolWhitelist())),
+      _backendFactory = backendFactory,
+      _videoControllerFactory = videoControllerFactory ?? VideoController.new,
+      _videoReadyProbe = videoReady ?? ((c) => c.platform.future) {
     _applyTls();
     if (!audioOnly && !lazyVideo) {
-      _controller = VideoController(_player);
+      _attachController();
     }
     _widthSub = _player.stream.width.listen((w) {
       _lastWidth = w ?? 0;
@@ -160,6 +201,12 @@ class MovaMpvKernel implements MovaKernel, MovaStatsProbe, MovaStandbyKernel, Mo
     }
   }
 
+  /// 命中即限制后向缓冲的 `file-format` 集合，默认 [kRealtimeFileFormats]（仅供测试注入）。
+  final Set<String> realtimeFormats;
+
+  /// 兜底探测（不可 seek 且时长随时间增长）的采样间隔，默认 [kLiveProbeInterval]（仅供测试注入）。
+  final Duration liveProbeInterval;
+
   /// Whether strict TLS verification was requested.
   ///
   /// 是否请求了严格 TLS 校验。
@@ -174,6 +221,94 @@ class MovaMpvKernel implements MovaKernel, MovaStatsProbe, MovaStandbyKernel, Mo
   ///
   /// 尚未落地的 TLS 属性写入，[open] 会等它；未开启时为 `null`。
   Future<void>? _tlsSetup;
+
+  /// 限制前读到的缓冲原值（后向字节数/可 seek 缓存）；非空即已下发"实时源缓冲限制"，切源时还原。
+  ({String back, String seekable})? _savedCache;
+
+  /// 每次 [open] 自增，用于丢弃已被新 open 取代的格式判断。
+  int _openSeq = 0;
+
+  /// 本次 open 是否还在等"文件加载完成后判断格式"。
+  bool _formatProbePending = false;
+
+  /// 监听 track-list 变化的订阅；首次 [open] 时才建立。
+  StreamSubscription<Tracks>? _tracksSub;
+
+  /// 首次 [open] 时挂上 track-list 监听：文件加载完成后 mpv 才给出真实轨道，
+  /// 以此作为"可以读 `file-format`"的信号。
+  void _watchLoaded() {
+    _tracksSub ??= _player.stream.tracks.listen(_onTracks);
+  }
+
+  /// track-list 刷新：出现真实轨道且本次 open 尚未判断时读 `file-format`。
+  /// 命中 [realtimeFormats] 直接限制；否则走兜底 [_probeUnseekableLive]。
+  /// 空轨道（切源重置）直接忽略。
+  Future<void> _onTracks(Tracks t) async {
+    if (!_formatProbePending || !_hasRealTrack(t)) return;
+    _formatProbePending = false;
+    final seq = _openSeq;
+    final format = await _readNativeProperty(kFileFormat) ?? '';
+    if (seq != _openSeq) return;
+    final live = realtimeFormats.contains(format) ||
+        (!kPlaylistFileFormats.contains(format) && await _probeUnseekableLive(seq));
+    if (!live || seq != _openSeq || _disposed) return;
+    await _limitLiveCache();
+    // 限制落地期间若已换源，立即还原，避免残留。
+    if (seq != _openSeq) await _restoreLiveCache();
+  }
+
+  /// 兜底判断：间隔 [liveProbeInterval] 采样两次，两次都 `seekable=no`，且时长两次都读不到、
+  /// 或第二次比第一次至少多 间隔 x [kLiveDurationGrowthRatio] 秒，才认为是实时流。
+  /// 可 seek 的点播、时长恒定的源、中途换源/销毁，一律返回 false（宁可漏限制，不误限制）。
+  Future<bool> _probeUnseekableLive(int seq) async {
+    Future<(String, double?)?> sample() async {
+      await Future<void>.delayed(liveProbeInterval);
+      if (seq != _openSeq || _disposed) return null;
+      // 两次读取互不依赖，并行发起。
+      final r = await Future.wait([_readNativeProperty(kSeekable), _readNativeProperty(kDuration)]);
+      return (r[0] ?? '', double.tryParse(r[1] ?? ''));
+    }
+
+    final a = await sample();
+    if (a == null || a.$1 != kNotSeekable) return false;
+    final b = await sample();
+    if (b == null || b.$1 != kNotSeekable) return false;
+    final (da, db) = (a.$2, b.$2);
+    if (da == null || db == null) return da == db;
+    return db - da >= liveProbeInterval.inMilliseconds / 1000 * kLiveDurationGrowthRatio;
+  }
+
+  /// [t] 里是否有 auto/no 之外的真实轨道。
+  static bool _hasRealTrack(Tracks t) {
+    bool real(String id) => id != _kVidAuto && id != _kVidOff;
+    return t.video.any((e) => real(e.id)) || t.audio.any((e) => real(e.id));
+  }
+
+  /// 记下原值后收紧后向缓冲；失败被吞掉，不影响播放。
+  Future<void> _limitLiveCache() async {
+    final native = _player.platform;
+    if (native is! NativePlayer) return;
+    try {
+      final back = await _readNativeProperty(kDemuxerMaxBackBytes) ?? kVodMaxBackBytes;
+      final seekable = await _readNativeProperty(kDemuxerSeekableCache) ?? kVodSeekableCache;
+      await native.setProperty(kDemuxerMaxBackBytes, kLiveMaxBackBytes);
+      await native.setProperty(kDemuxerSeekableCache, kLiveSeekableCache);
+      _savedCache = (back: back, seekable: seekable);
+    } catch (_) {}
+  }
+
+  /// 若当前处于限制状态，写回限制前的原值（读不到时已是兜底常量）；失败被吞掉。
+  Future<void> _restoreLiveCache() async {
+    final saved = _savedCache;
+    if (saved == null) return;
+    final native = _player.platform;
+    if (native is! NativePlayer) return;
+    _savedCache = null;
+    try {
+      await native.setProperty(kDemuxerMaxBackBytes, saved.back);
+      await native.setProperty(kDemuxerSeekableCache, saved.seekable);
+    } catch (_) {}
+  }
 
   /// Sends `tls-verify` (and `tls-ca-file`) to mpv; no-op unless [tlsVerify].
   /// Failures are swallowed so a property error never breaks playback.
@@ -336,6 +471,73 @@ class MovaMpvKernel implements MovaKernel, MovaStatsProbe, MovaStandbyKernel, Mo
   /// 用于把该内核挂接到视频组件上的控制器；[audioOnly] 时为 `null`。
   VideoController? _controller;
 
+  /// 视频控制器工厂。
+  final MovaVideoControllerFactory _videoControllerFactory;
+
+  /// 渲染面就绪探针。
+  final MovaVideoReadyProbe _videoReadyProbe;
+
+  /// lazy 模式下 `open()` 让出一帧的钩子；`null` 表示不让出。
+  final MovaMountYield? mountYield;
+
+  /// 当前控制器的"渲染面就绪并已补选视频轨"收尾 Future；无控制器时为 `null`。
+  Future<void>? _videoPrepared;
+
+  /// Creates the [VideoController] and starts its readiness follow-up.
+  ///
+  /// media_kit's controller flips `vid=auto` *before* its render context
+  /// exists; a file that opens in that window fails VO init ("No render
+  /// context set") and mpv drops the video track for good (`vid=no`, audio
+  /// only). Once the surface is ready this re-selects the track.
+  ///
+  /// 创建 [VideoController] 并启动就绪后的补选逻辑。
+  ///
+  /// media_kit 的控制器在渲染上下文建好**之前**就把 `vid` 设成 `auto`；文件恰在
+  /// 这个窗口打开会因 "No render context set" 初始化 VO 失败，mpv 随即永久丢掉视频轨
+  /// （`vid=no`，只出声不出画）。渲染面就绪后在此补选一次视频轨。
+  VideoController _attachController() {
+    final c = _videoControllerFactory(_player);
+    _controller = c;
+    _videoPrepared = _prepareVideo(c);
+    return c;
+  }
+
+  /// Lets one frame pass so a video widget mounting in the same frame can
+  /// create the controller before the file opens (it is ready-awaited right
+  /// after). Never creates a controller itself, so never-shown engines keep
+  /// the lazy benefit; a stalled frame loop only costs [kMountGrace].
+  ///
+  /// 让出一帧，使同帧挂载的视频组件能先创建控制器（随后会等它就绪）再开文件。
+  /// 自己绝不创建控制器，所以从不展示的引擎仍保持懒创建收益；帧停摆时最多等 [kMountGrace]。
+  Future<void> _yieldForMount() async {
+    final y = mountYield;
+    if (y == null) return;
+    try {
+      await y().timeout(kMountGrace);
+    } on Object {
+      // 钩子失败或帧停摆：不等了
+    }
+  }
+
+  /// Waits for the surface, then restores `vid=auto` if mpv turned it off.
+  ///
+  /// 等渲染面就绪，若 mpv 已把 `vid` 关掉则恢复为 `auto`。失败静默（仅退化为旧行为）。
+  Future<void> _prepareVideo(VideoController c) async {
+    try {
+      await _videoReadyProbe(c);
+      if (_disposed) return;
+      final native = _player.platform;
+      if (native is! NativePlayer) return;
+      if (await native.getProperty(_kVid) == _kVidOff) {
+        // 运行期读到 no 时选项值其实仍是 auto，直接再设 auto 是空操作；先写 no 制造变化再写 auto。
+        await native.setProperty(_kVid, _kVidOff);
+        await native.setProperty(_kVid, _kVidAuto);
+      }
+    } on Object {
+      // 就绪失败或属性读写失败：不影响播放，保持旧行为
+    }
+  }
+
   StreamSubscription<int?>? _widthSub;
   StreamSubscription<int?>? _heightSub;
 
@@ -396,7 +598,26 @@ class MovaMpvKernel implements MovaKernel, MovaStatsProbe, MovaStandbyKernel, Mo
   @override
   Future<void> open(String uri, {bool play = true}) async {
     await _tlsSetup;
-    await _player.open(Media(uri), play: play);
+    final seq = ++_openSeq;
+    _formatProbePending = false;
+    // 每次切源先还原；是否为 WHEP 要等文件打开后按真实格式判断。
+    await _restoreLiveCache();
+    if (_player.platform is NativePlayer) {
+      _watchLoaded();
+      _formatProbePending = true;
+    }
+    if (lazyVideo && !audioOnly && _controller == null) await _yieldForMount();
+    // 控制器已存在时，先等渲染面就绪再开文件，避开"vid=auto 先于 render context"的窗口。
+    final prepared = _videoPrepared;
+    if (prepared != null) {
+      await prepared.timeout(kVideoReadyTimeout, onTimeout: () {});
+    }
+    try {
+      await _player.open(Media(uri), play: play);
+    } catch (_) {
+      if (seq == _openSeq) _formatProbePending = false;
+      rethrow;
+    }
   }
 
   @override
@@ -436,6 +657,7 @@ class MovaMpvKernel implements MovaKernel, MovaStatsProbe, MovaStandbyKernel, Mo
     _disposed = true;
     await _widthSub?.cancel();
     await _heightSub?.cancel();
+    await _tracksSub?.cancel();
     await _sizeController.close();
     await _stallingController.close();
     await _restartController.close();
@@ -475,12 +697,12 @@ class MovaMpvKernel implements MovaKernel, MovaStatsProbe, MovaStandbyKernel, Mo
   Stream<MovaSize> get size => _sizeController.stream;
 
   @override
-  Stream<Object> get error => _player.stream.error;
+  Stream<Object> get error => _player.stream.error.where((e) => !isBenignMpvError(e));
 
   @override
   Object? get renderHandle {
     if (audioOnly || _disposed) return _controller;
-    return _controller ??= VideoController(_player);
+    return _controller ?? _attachController();
   }
 
   // ---------------------------------------------------------------------
@@ -526,7 +748,7 @@ class MovaMpvKernel implements MovaKernel, MovaStatsProbe, MovaStandbyKernel, Mo
       _tryIntProperty('cache-speed'),
       audioOnly ? Future.value(null) : _tryStringProperty('hwdec-current'),
       _tryBoolProperty('demuxer-via-network'),
-      _tryStringProperty('file-format'),
+      _tryStringProperty(kFileFormat),
     ]);
     return MovaStatsSnapshot(
       videoBps: results[0] as int?,

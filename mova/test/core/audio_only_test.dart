@@ -41,11 +41,11 @@ void main() {
   });
 
   group('mpv_kernel.dart structural guards / 源级结构守卫', () {
-    test('VideoController is constructed in exactly two guarded places (eager ctor / lazy renderHandle)', () {
+    test('VideoController is attached in exactly two guarded places (eager ctor / lazy renderHandle)', () {
       final lines = _sourceLines('lib/src/core/kernel/mpv_kernel.dart');
       final hits = <int>[];
       for (var i = 0; i < lines.length; i++) {
-        if (lines[i].contains('VideoController(')) hits.add(i);
+        if (lines[i].contains('_attachController()') && !lines[i].contains('VideoController _attachController')) hits.add(i);
       }
       expect(
         hits.length,

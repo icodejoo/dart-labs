@@ -1,0 +1,18 @@
+diff --git a/meson.build b/meson.build
+index fb10be5..00a2405 100644
+--- a/meson.build
++++ b/meson.build
+@@ -1771,8 +1771,11 @@ if win32
+     resources = ['etc/mpv-icon.ico',
+                  'osdep/mpv.exe.manifest']
+ 
+-    sources += windows.compile_resources('osdep/mpv.rc', args: res_flags, depend_files: resources,
+-                                         depends: version_h, include_directories: res_includes)
++    # [mova] libmpv 不需要 exe 图标/manifest，只在构建 cplayer 时才编 mpv.rc（省约 274KB 的 .rsrc）
++    if get_option('cplayer')
++        sources += windows.compile_resources('osdep/mpv.rc', args: res_flags, depend_files: resources,
++                                             depends: version_h, include_directories: res_includes)
++    endif
+ endif
+ 
+ 

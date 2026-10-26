@@ -116,7 +116,6 @@ cpudetect_flag="--enable-runtime-cpudetect"
 	--disable-swscale-alpha \
 	\
 	--enable-jni \
-	--enable-bsfs \
 	--enable-mediacodec \
 	--enable-hwaccels \
 	\
@@ -150,6 +149,7 @@ cpudetect_flag="--enable-runtime-cpudetect"
 	--enable-parser="$PARSERS" \
 	--enable-demuxer="$DEMUXERS" \
 	--enable-protocol="$PROTOCOLS" \
+	--disable-bsfs \
 	--enable-bsf="$BSFS" \
 	\
 	--enable-network \

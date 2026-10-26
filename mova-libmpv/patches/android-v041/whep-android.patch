@@ -1,0 +1,12 @@
+diff --git a/buildscripts/scripts/mbedtls.sh b/buildscripts/scripts/mbedtls.sh
+--- a/buildscripts/scripts/mbedtls.sh
++++ b/buildscripts/scripts/mbedtls.sh
+@@ -14,5 +14,8 @@ fi
+ 
+ $0 clean # separate building not supported, always clean
+ 
++# WHEP: mbedtls 3.4.0 默认关闭 DTLS-SRTP（use_srtp 扩展与 SRTP 密钥导出），WHEP 的 DTLS 握手需要
++sed -i 's|^//#define MBEDTLS_SSL_DTLS_SRTP|#define MBEDTLS_SSL_DTLS_SRTP|' include/mbedtls/mbedtls_config.h
++
+ make CFLAGS="-fPIC -Os -ffunction-sections -fdata-sections -fvisibility=hidden -flto" CXXFLAGS="-fPIC -Os -ffunction-sections -fdata-sections -fvisibility=hidden -flto" -j$cores no_test
+ make CFLAGS="-fPIC -Os -ffunction-sections -fdata-sections -fvisibility=hidden -flto" CXXFLAGS="-fPIC -Os -ffunction-sections -fdata-sections -fvisibility=hidden -flto" DESTDIR="$prefix_dir" install

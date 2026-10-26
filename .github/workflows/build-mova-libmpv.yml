@@ -1,3 +1,4 @@
+# 旧配方（ffmpeg n6.0.1 + 固定 mpv），仅手动触发，正式构建见 build-mova-libmpv-whep.yml
 name: Build mova libmpv (all platforms)
 
 # Only rebuilds when our build recipe changes — the ffmpeg/mpv/dav1d *source*
@@ -33,14 +34,25 @@ name: Build mova libmpv (all platforms)
 #     cross-compile of a full GCC/LLVM toolchain + ~98 deps; it cannot run
 #     on windows-latest and isn't our slim flavor). Deps from pacman.
 on:
-  push:
-    branches: [main]
-    paths:
-      - 'mova-libmpv/**'
-      - '!mova-libmpv/**.md'
-      - '!mova-libmpv/doc/**'
-      - '.github/workflows/build-mova-libmpv.yml'
   workflow_dispatch:
+    inputs:
+      # EXPERIMENT knobs. All empty/true by default = byte-for-byte the same
+      # build as before (Linux n6.0.1 + pinned mpv, Android 1ecf510 pins).
+      ffmpeg_ref:
+        description: 'ffmpeg version WITHOUT the "n" prefix, e.g. 9.0.2 (empty = current pin: Android 6.0 / Linux n6.0.1). Affects linux + android jobs only.'
+        required: false
+        default: ''
+        type: string
+      mpv_ref:
+        description: 'mpv commit hash (empty = current pinned 78d43740...). Affects linux + android jobs only.'
+        required: false
+        default: ''
+        type: string
+      commit_artifact:
+        description: 'Commit built binaries back to packages/ and push (false = experiment build, artifact upload only)'
+        required: false
+        default: true
+        type: boolean
 
 # The android-arm64 job commits the rebuilt artifact back to packages/ (see its
 # last step) — the default GITHUB_TOKEN is read-only unless granted write
@@ -122,11 +134,37 @@ jobs:
             mv /tmp/ndk-extract/android-ndk-r25c "build-root/buildscripts/sdk/android-sdk-linux/ndk/$NDK_VERSION"
           fi
 
+      - name: Override ffmpeg/mpv refs (experiment only, skipped when inputs are empty)
+        if: ${{ inputs.ffmpeg_ref || inputs.mpv_ref }}
+        working-directory: build-root/buildscripts
+        env:
+          FFMPEG_REF: ${{ inputs.ffmpeg_ref }}
+          MPV_REF: ${{ inputs.mpv_ref }}
+        run: |
+          OLD_MPV=78d43740f52db817d98bcf24fb30a76ab6fa13ff
+          if [ -n "$FFMPEG_REF" ]; then
+            sed -i -E "s/^v_ffmpeg=.*/v_ffmpeg=$FFMPEG_REF/" include/depinfo.sh
+          fi
+          if [ -n "$MPV_REF" ]; then
+            # the pinned mpv hash appears in both depinfo.sh and download-deps.sh
+            sed -i "s/$OLD_MPV/$MPV_REF/g" include/depinfo.sh include/download-deps.sh
+          fi
+          grep -n "v_ffmpeg=\|v_mpv=" include/depinfo.sh
+          if [ -n "$MPV_REF" ]; then
+            grep -n "$MPV_REF" include/download-deps.sh || true
+          fi
+          if [ -n "$FFMPEG_REF" ]; then
+            # n9 upstream already contains these two fixes (git apply would fail).
+            # They are the only files in patches/ffmpeg; patch.sh globs the dir
+            # without nullglob, so drop the whole dir rather than leave it empty.
+            rm -rf patches/ffmpeg
+          fi
+
       - name: Cache ffmpeg/mpv/dav1d/etc. source deps
         uses: actions/cache@v4
         with:
           path: build-root/buildscripts/deps
-          key: android-deps-${{ env.ANDROID_LIBMPV_BUILD_REF }}
+          key: android-deps-${{ env.ANDROID_LIBMPV_BUILD_REF }}${{ inputs.ffmpeg_ref && format('-ff{0}', inputs.ffmpeg_ref) }}${{ inputs.mpv_ref && format('-mpv{0}', inputs.mpv_ref) }}
 
       - name: Download ffmpeg/mpv/dav1d/etc. sources
         working-directory: build-root/buildscripts
@@ -182,6 +220,9 @@ jobs:
           retention-days: 30
 
       - name: Commit built artifact to packages/
+        # Experiment builds (workflow_dispatch with commit_artifact=false) must
+        # never overwrite the shipped packages/ binaries.
+        if: ${{ github.event_name != 'workflow_dispatch' || inputs.commit_artifact }}
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
@@ -280,11 +321,37 @@ jobs:
             mv /tmp/ndk-extract/android-ndk-r25c "build-root/buildscripts/sdk/android-sdk-linux/ndk/$NDK_VERSION"
           fi
 
+      - name: Override ffmpeg/mpv refs (experiment only, skipped when inputs are empty)
+        if: ${{ inputs.ffmpeg_ref || inputs.mpv_ref }}
+        working-directory: build-root/buildscripts
+        env:
+          FFMPEG_REF: ${{ inputs.ffmpeg_ref }}
+          MPV_REF: ${{ inputs.mpv_ref }}
+        run: |
+          OLD_MPV=78d43740f52db817d98bcf24fb30a76ab6fa13ff
+          if [ -n "$FFMPEG_REF" ]; then
+            sed -i -E "s/^v_ffmpeg=.*/v_ffmpeg=$FFMPEG_REF/" include/depinfo.sh
+          fi
+          if [ -n "$MPV_REF" ]; then
+            # the pinned mpv hash appears in both depinfo.sh and download-deps.sh
+            sed -i "s/$OLD_MPV/$MPV_REF/g" include/depinfo.sh include/download-deps.sh
+          fi
+          grep -n "v_ffmpeg=\|v_mpv=" include/depinfo.sh
+          if [ -n "$MPV_REF" ]; then
+            grep -n "$MPV_REF" include/download-deps.sh || true
+          fi
+          if [ -n "$FFMPEG_REF" ]; then
+            # n9 upstream already contains these two fixes (git apply would fail).
+            # They are the only files in patches/ffmpeg; patch.sh globs the dir
+            # without nullglob, so drop the whole dir rather than leave it empty.
+            rm -rf patches/ffmpeg
+          fi
+
       - name: Cache ffmpeg/mpv/dav1d/etc. source deps
         uses: actions/cache@v4
         with:
           path: build-root/buildscripts/deps
-          key: android-deps-${{ env.ANDROID_LIBMPV_BUILD_REF }}
+          key: android-deps-${{ env.ANDROID_LIBMPV_BUILD_REF }}${{ inputs.ffmpeg_ref && format('-ff{0}', inputs.ffmpeg_ref) }}${{ inputs.mpv_ref && format('-mpv{0}', inputs.mpv_ref) }}
 
       - name: Download ffmpeg/mpv/dav1d/etc. sources
         working-directory: build-root/buildscripts
@@ -347,6 +414,9 @@ jobs:
           retention-days: 30
 
       - name: Commit built artifact to packages/
+        # Experiment builds (workflow_dispatch with commit_artifact=false) must
+        # never overwrite the shipped packages/ binaries.
+        if: ${{ github.event_name != 'workflow_dispatch' || inputs.commit_artifact }}
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
@@ -508,6 +578,9 @@ jobs:
           retention-days: 14
 
       - name: Commit built artifact to packages/
+        # Experiment builds (workflow_dispatch with commit_artifact=false) must
+        # never overwrite the shipped packages/ binaries.
+        if: ${{ github.event_name != 'workflow_dispatch' || inputs.commit_artifact }}
         working-directory: dart-labs
         run: |
           git config user.name "github-actions[bot]"
@@ -720,6 +793,9 @@ jobs:
           retention-days: 14
 
       - name: Commit built artifact to packages/
+        # Experiment builds (workflow_dispatch with commit_artifact=false) must
+        # never overwrite the shipped packages/ binaries.
+        if: ${{ github.event_name != 'workflow_dispatch' || inputs.commit_artifact }}
         working-directory: dart-labs
         run: |
           git config user.name "github-actions[bot]"
@@ -777,6 +853,10 @@ jobs:
           echo "$HOME/.local/bin" >> "$GITHUB_PATH"
 
       - name: Download ffmpeg and mpv sources
+        env:
+          # Empty input = the pins below (n6.0.1 / 78d43740...), unchanged.
+          FFMPEG_TAG: ${{ inputs.ffmpeg_ref && format('n{0}', inputs.ffmpeg_ref) || 'n6.0.1' }}
+          MPV_COMMIT: ${{ inputs.mpv_ref || '78d43740f52db817d98bcf24fb30a76ab6fa13ff' }}
         run: |
           # n6.0.1, not n6.0: n6.0's inline asm in libavcodec/x86/mathops.h
           # feeds a non-immediate operand to shr/sar, which binutils >= 2.41
@@ -786,18 +866,24 @@ jobs:
           # the recipe was actually safe (2026-08-13 local WSL2 verification
           # on binutils 2.42 reproduced the failure) — a runner image bump
           # would have broken this silently. Locked to n6.0.1 pre-emptively.
-          git clone --depth 1 --branch n6.0.1 https://github.com/FFmpeg/FFmpeg.git ffmpeg-src
+          git clone --depth 1 --branch "$FFMPEG_TAG" https://github.com/FFmpeg/FFmpeg.git ffmpeg-src
           # mpv's main branch needs a newer libavcodec than ffmpeg n6.0 ships
           # (meson: "found 60.3.100 but need >= 60.31.102") — pin to the same
           # mpv commit the Android build already verified pairs with ffmpeg
           # 6.0.x (see libmpv/README.md's "实测结果" section),
           # instead of guessing another ref.
           git clone https://github.com/mpv-player/mpv.git mpv-src
-          git -C mpv-src checkout 78d43740f52db817d98bcf24fb30a76ab6fa13ff
+          git -C mpv-src checkout "$MPV_COMMIT"
 
       - name: Build slimmed ffmpeg (native, static)
         working-directory: ffmpeg-src
+        env:
+          FFMPEG_REF: ${{ inputs.ffmpeg_ref }}
         run: |
+          # --disable-postproc was removed in ffmpeg n8 (configure rejects it as
+          # an unknown option), so only pass it for the default n6.0.1 build.
+          PP_OPT=--disable-postproc
+          [ -n "$FFMPEG_REF" ] && PP_OPT=
           # 2026-08-13 local WSL2 verification (mova-libmpv/README.md "Linux
           # 瘦身构建"): mbedtls -> openssl is size-neutral (+64 bytes noise —
           # these deps are dynamically linked .so's on Linux, unlike Android/
@@ -827,7 +913,7 @@ jobs:
           ./configure \
             --disable-gpl --disable-nonfree \
             --enable-static --disable-shared --pkg-config-flags=--static \
-            --disable-doc --disable-programs --disable-avdevice --disable-postproc \
+            --disable-doc --disable-programs --disable-avdevice $PP_OPT \
             --disable-muxers --disable-decoders --disable-encoders --disable-demuxers \
             --disable-parsers --disable-protocols --disable-devices --disable-filters \
             --enable-small --enable-optimizations --disable-symver \
@@ -842,6 +928,7 @@ jobs:
             --enable-parser=h264,hevc,vp9,av1,png,aac,aac_latm,ac3,flac,opus,vorbis,mpegaudio \
             --enable-demuxer=mov,matroska,webm_dash_manifest,mpegts,hls,flv,live_flv,data,mp3,flac,ogg,wav,aac,ac3,eac3,ass,srt,webvtt \
             --enable-protocol=file,fd,pipe,data,http,https,tcp,tls,crypto,rtmp,rtmps,rtmpt,rtmpts,ffrtmpcrypt,ffrtmphttp,udp,rtp \
+            --disable-bsfs --disable-swscale-alpha \
             --enable-bsf=null,extract_extradata,h264_mp4toannexb,hevc_mp4toannexb,aac_adtstoasc,vp9_superframe,vp9_superframe_split,av1_frame_split,av1_frame_merge,mov2textsub,dump_extradata,setts \
             --enable-network \
             --prefix="$GITHUB_WORKSPACE/prefix" 2>&1 | tee "$GITHUB_WORKSPACE/ffconf.log"
@@ -1106,6 +1193,7 @@ jobs:
             --enable-parser=h264,hevc,vp9,av1,png,aac,aac_latm,ac3,flac,opus,vorbis,mpegaudio \
             --enable-demuxer=mov,matroska,webm_dash_manifest,mpegts,hls,flv,live_flv,data,mp3,flac,ogg,wav,aac,ac3,eac3,ass,srt,webvtt \
             --enable-protocol=file,fd,pipe,data,http,https,tcp,tls,crypto,rtmp,rtmps,rtmpt,rtmpts,ffrtmpcrypt,ffrtmphttp,udp,rtp \
+            --disable-bsfs --disable-swscale-alpha \
             --enable-bsf=null,extract_extradata,h264_mp4toannexb,hevc_mp4toannexb,aac_adtstoasc,vp9_superframe,vp9_superframe_split,av1_frame_split,av1_frame_merge,mov2textsub,dump_extradata,setts \
             --enable-network \
             --prefix="$WS/prefix" 2>&1 | tee "$WS/ffconf.log"
@@ -1283,6 +1371,9 @@ jobs:
           retention-days: 30
 
       - name: Commit built artifact to packages/
+        # Experiment builds (workflow_dispatch with commit_artifact=false) must
+        # never overwrite the shipped packages/ binaries.
+        if: ${{ github.event_name != 'workflow_dispatch' || inputs.commit_artifact }}
         # Override the job-wide `shell: msys2 {0}` default — this step only
         # needs git/git-lfs, not the MSYS2 toolchain, and MSYS2's PATH doesn't
         # include the Windows Git install where git-lfs.exe actually lives
@@ -1296,24 +1387,19 @@ jobs:
           for i in 1 2 3 4 5; do
             git fetch origin main
             git reset --hard origin/main
-            mkdir -p "$PKG_DIR/windows"
-            mkdir -p "$PKG_DIR/windows-devlib"
-            mkdir -p "$PKG_DIR/mpv-headers"
-            cp "$WS/libmpv-2-windows-x86_64.dll" "$PKG_DIR/windows/libmpv-2.dll"
-            cp "$WS/libmpv-2.def" "$PKG_DIR/windows-devlib/libmpv-2.def"
-            cp "$WS/libmpv.dll.a" "$PKG_DIR/windows-devlib/libmpv.dll.a"
-            if [ -d "$WS/prefix/include/mpv" ]; then
-              cp "$WS/prefix/include/mpv"/*.h "$PKG_DIR/mpv-headers/"
-            fi
-            git add "$PKG_DIR/windows/libmpv-2.dll"
-            git add "$PKG_DIR/windows-devlib/libmpv-2.def"
-            git add "$PKG_DIR/windows-devlib/libmpv.dll.a"
-            git add "$PKG_DIR/mpv-headers"
+            # 旧配方产物改写到 mova/libmpv/windows-x86_64（仅作次选回退），不再覆盖 slim 包内的新产物；
+            # 头文件不再写入（包内 mpv-headers 以新版为准）。
+            OLD_DIR="mova/libmpv/windows-x86_64"
+            mkdir -p "$OLD_DIR"
+            cp "$WS/libmpv-2-windows-x86_64.dll" "$OLD_DIR/libmpv-2.dll"
+            cp "$WS/libmpv-2.def" "$OLD_DIR/libmpv-2.def"
+            cp "$WS/libmpv.dll.a" "$OLD_DIR/libmpv.dll.a"
+            git add "$OLD_DIR/libmpv-2.dll" "$OLD_DIR/libmpv-2.def" "$OLD_DIR/libmpv.dll.a"
             if git diff --cached --quiet; then
               echo "No size/content change, skip commit"
               exit 0
             fi
-            git commit -m "chore(packages): update slimmed libmpv-2.dll and devlib (windows x86_64) [skip ci]"
+            git commit -m "chore(libmpv): update legacy windows x86_64 libmpv-2.dll and devlib [skip ci]"
             git lfs push origin main
             if git push; then exit 0; fi
             echo "push rejected, retrying from a fresh baseline ($i/5)..."

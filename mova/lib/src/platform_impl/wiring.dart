@@ -25,6 +25,7 @@ import '../core/kernel/mpv_kernel.dart';
 import '../core/model/fit.dart';
 import '../testing/hooks.dart';
 import 'brightness_impl.dart';
+import 'frame_yield.dart';
 import 'mpv_event_backend_ffi.dart';
 import 'orientation_impl.dart';
 import 'pip_impl.dart';
@@ -207,6 +208,7 @@ MovaEngine createMovaEngine({
     kernel: kernel ?? MovaMpvKernel(
       audioOnly: audioOnly,
       lazyVideo: true,
+      mountYield: movaFrameYield,
       tlsVerify: tlsVerify,
       tlsCaFile: tlsCaFile,
       observeQoeSignals: flags.qoe,

@@ -1,0 +1,342 @@
+diff --git a/audio/decode/ad_spdif.c b/audio/decode/ad_spdif.c
+index 393af8a2a3..5e60faec5e 100644
+--- a/audio/decode/ad_spdif.c
++++ b/audio/decode/ad_spdif.c
+@@ -17,6 +17,7 @@
+  * License along with mpv.  If not, see <http://www.gnu.org/licenses/>.
+  */
+ 
++#include "common/av_compat.h"
+ #include <string.h>
+ #include <assert.h>
+ 
+@@ -53,7 +54,7 @@ struct spdifContext {
+     struct mp_decoder public;
+ };
+ 
+-static int write_packet(void *p, uint8_t *buf, int buf_size)
++static int write_packet(void *p, const uint8_t *buf, int buf_size)
+ {
+     struct spdifContext *ctx = p;
+ 
+@@ -90,7 +91,7 @@ static void determine_codec_params(struct mp_filter *da, AVPacket *pkt,
+                                    int *out_profile, int *out_rate)
+ {
+     struct spdifContext *spdif_ctx = da->priv;
+-    int profile = FF_PROFILE_UNKNOWN;
++    int profile = AV_PROFILE_UNKNOWN;
+     AVCodecContext *ctx = NULL;
+     AVFrame *frame = NULL;
+ 
+@@ -115,7 +116,7 @@ static void determine_codec_params(struct mp_filter *da, AVPacket *pkt,
+         av_parser_close(parser);
+     }
+ 
+-    if (profile != FF_PROFILE_UNKNOWN || spdif_ctx->codec_id != AV_CODEC_ID_DTS)
++    if (profile != AV_PROFILE_UNKNOWN || spdif_ctx->codec_id != AV_CODEC_ID_DTS)
+         return;
+ 
+     const AVCodec *codec = avcodec_find_decoder(spdif_ctx->codec_id);
+@@ -145,7 +146,7 @@ done:
+     av_frame_free(&frame);
+     avcodec_free_context(&ctx);
+ 
+-    if (profile == FF_PROFILE_UNKNOWN)
++    if (profile == AV_PROFILE_UNKNOWN)
+         MP_WARN(da, "Failed to parse codec profile.\n");
+ }
+ 
+@@ -155,7 +156,7 @@ static int init_filter(struct mp_filter *da)
+ 
+     AVPacket *pkt = spdif_ctx->avpkt;
+ 
+-    int profile = FF_PROFILE_UNKNOWN;
++    int profile = AV_PROFILE_UNKNOWN;
+     int c_rate = 0;
+     determine_codec_params(da, pkt, &profile, &c_rate);
+     MP_VERBOSE(da, "In: profile=%d samplerate=%d\n", profile, c_rate);
+@@ -208,15 +209,15 @@ static int init_filter(struct mp_filter *da)
+         num_channels                    = 2;
+         break;
+     case AV_CODEC_ID_DTS: {
+-        bool is_hd = profile == FF_PROFILE_DTS_HD_HRA ||
+-                     profile == FF_PROFILE_DTS_HD_MA  ||
+-                     profile == FF_PROFILE_UNKNOWN;
++        bool is_hd = profile == AV_PROFILE_DTS_HD_HRA ||
++                     profile == AV_PROFILE_DTS_HD_MA  ||
++                     profile == AV_PROFILE_UNKNOWN;
+ 
+         // Apparently, DTS-HD over SPDIF is specified to be 7.1 (8 channels)
+         // for DTS-HD MA, and stereo (2 channels) for DTS-HD HRA. The bit
+         // streaming rate as well as the signaled channel count are defined
+         // based on this value.
+-        int dts_hd_spdif_channel_count = profile == FF_PROFILE_DTS_HD_HRA ?
++        int dts_hd_spdif_channel_count = profile == AV_PROFILE_DTS_HD_HRA ?
+                                          2 : 8;
+         if (spdif_ctx->use_dts_hd && is_hd) {
+             av_dict_set_int(&format_opts, "dtshd_rate",
+diff --git a/audio/filter/af_lavcac3enc.c b/audio/filter/af_lavcac3enc.c
+index b4a1d59fe7..bf69ea5600 100644
+--- a/audio/filter/af_lavcac3enc.c
++++ b/audio/filter/af_lavcac3enc.c
+@@ -19,6 +19,7 @@
+  * License along with mpv.  If not, see <http://www.gnu.org/licenses/>.
+  */
+ 
++#include "common/av_compat.h"
+ #include <stdio.h>
+ #include <stdlib.h>
+ #include <string.h>
+@@ -103,7 +104,6 @@ static bool reinit(struct mp_filter *f)
+     if (!bit_rate && chmap.num < AC3_MAX_CHANNELS + 1)
+         bit_rate = default_bit_rate[chmap.num];
+ 
+-    avcodec_close(s->lavc_actx);
+ 
+     // Put sample parameters
+     s->lavc_actx->sample_fmt = af_to_avformat(format);
+@@ -291,7 +291,7 @@ static void add_chmaps_to_autoconv(struct mp_filter *f,
+             mp_autoconvert_add_chmap(conv, &chmap);
+     }
+ #else
+-    const AVChannelLayout *lch = codec->ch_layouts;
++    const AVChannelLayout *lch = ((const AVChannelLayout *)mp_codec_cfg(codec, AV_CODEC_CONFIG_CHANNEL_LAYOUT));
+     for (int n = 0; lch && lch[n].nb_channels; n++) {
+         struct mp_chmap chmap = {0};
+ 
+@@ -349,11 +349,11 @@ static struct mp_filter *af_lavcac3enc_create(struct mp_filter *parent,
+     // For this one, we require the decoder to export lists of all supported
+     // parameters. (Not all decoders do that, but the ones we're interested
+     // in do.)
+-    if (!s->lavc_acodec->sample_fmts ||
++    if (!((const enum AVSampleFormat *)mp_codec_cfg(s->lavc_acodec, AV_CODEC_CONFIG_SAMPLE_FORMAT)) ||
+ #if !HAVE_AV_CHANNEL_LAYOUT
+         !s->lavc_acodec->channel_layouts
+ #else
+-        !s->lavc_acodec->ch_layouts
++        !((const AVChannelLayout *)mp_codec_cfg(s->lavc_acodec, AV_CODEC_CONFIG_CHANNEL_LAYOUT))
+ #endif
+         )
+     {
+@@ -380,7 +380,7 @@ static struct mp_filter *af_lavcac3enc_create(struct mp_filter *parent,
+     if (!conv)
+         abort();
+ 
+-    const enum AVSampleFormat *lf = s->lavc_acodec->sample_fmts;
++    const enum AVSampleFormat *lf = ((const enum AVSampleFormat *)mp_codec_cfg(s->lavc_acodec, AV_CODEC_CONFIG_SAMPLE_FORMAT));
+     for (int i = 0; lf && lf[i] != AV_SAMPLE_FMT_NONE; i++) {
+         int mpfmt = af_from_avformat(lf[i]);
+         if (mpfmt)
+diff --git a/audio/out/ao_lavc.c b/audio/out/ao_lavc.c
+index 0f176cb54e..f1c321e01f 100644
+--- a/audio/out/ao_lavc.c
++++ b/audio/out/ao_lavc.c
+@@ -20,6 +20,7 @@
+  * License along with mpv.  If not, see <http://www.gnu.org/licenses/>.
+  */
+ 
++#include "common/av_compat.h"
+ #include <stdio.h>
+ #include <stdlib.h>
+ #include <assert.h>
+@@ -64,7 +65,7 @@ static bool write_frame(struct ao *ao, struct mp_frame frame);
+ 
+ static bool supports_format(const AVCodec *codec, int format)
+ {
+-    for (const enum AVSampleFormat *sampleformat = codec->sample_fmts;
++    for (const enum AVSampleFormat *sampleformat = ((const enum AVSampleFormat *)mp_codec_cfg(codec, AV_CODEC_CONFIG_SAMPLE_FORMAT));
+          sampleformat && *sampleformat != AV_SAMPLE_FMT_NONE;
+          sampleformat++)
+     {
+@@ -111,7 +112,7 @@ static int init(struct ao *ao)
+     const AVCodec *codec = encoder->codec;
+ 
+     int samplerate = af_select_best_samplerate(ao->samplerate,
+-                                               codec->supported_samplerates);
++                                               ((const int *)mp_codec_cfg(codec, AV_CODEC_CONFIG_SAMPLE_RATE)));
+     if (samplerate > 0)
+         ao->samplerate = samplerate;
+ 
+diff --git a/common/av_compat.h b/common/av_compat.h
+new file mode 100644
+index 0000000000..b7d5e7d31d
+--- /dev/null
++++ b/common/av_compat.h
+@@ -0,0 +1,8 @@
++#pragma once
++#include <libavcodec/avcodec.h>
++#include <libavformat/avformat.h>
++/* ffmpeg>=7.1 removed AVCodec.{sample_fmts,pix_fmts,...}; shim via avcodec_get_supported_config */
++static inline const void *mp_codec_cfg(const AVCodec *c, enum AVCodecConfig t)
++{ const void *o = NULL; avcodec_get_supported_config(NULL, c, t, 0, &o, NULL); return o; }
++static inline uint8_t *mp_st_sd(AVStream *st, enum AVPacketSideDataType t)
++{ const AVPacketSideData *s = av_packet_side_data_get(st->codecpar->coded_side_data, st->codecpar->nb_coded_side_data, t); return s ? s->data : NULL; }
+diff --git a/common/encode_lavc.c b/common/encode_lavc.c
+index 47e9883e0c..667a6a83cf 100644
+--- a/common/encode_lavc.c
++++ b/common/encode_lavc.c
+@@ -20,6 +20,7 @@
+  * License along with mpv.  If not, see <http://www.gnu.org/licenses/>.
+  */
+ 
++#include "common/av_compat.h"
+ #include <libavutil/avutil.h>
+ #include <libavutil/timestamp.h>
+ 
+@@ -906,7 +907,6 @@ bool encoder_init_codec_and_muxer(struct encoder_context *p,
+     return true;
+ 
+ fail:
+-    avcodec_close(p->encoder);
+     return false;
+ }
+ 
+diff --git a/demux/demux_lavf.c b/demux/demux_lavf.c
+index 347763bed8..ad5c594cdd 100644
+--- a/demux/demux_lavf.c
++++ b/demux/demux_lavf.c
+@@ -17,6 +17,7 @@
+  * License along with mpv.  If not, see <http://www.gnu.org/licenses/>.
+  */
+ 
++#include "common/av_compat.h"
+ #include <pthread.h>
+ #include <stdlib.h>
+ #include <limits.h>
+@@ -605,10 +606,10 @@ static void select_tracks(struct demuxer *demuxer, int start)
+ static void export_replaygain(demuxer_t *demuxer, struct sh_stream *sh,
+                               AVStream *st)
+ {
+-    for (int i = 0; i < st->nb_side_data; i++) {
++    for (int i = 0; i < st->codecpar->nb_coded_side_data; i++) {
+         AVReplayGain *av_rgain;
+         struct replaygain_data *rgain;
+-        AVPacketSideData *src_sd = &st->side_data[i];
++        AVPacketSideData *src_sd = &st->codecpar->coded_side_data[i];
+ 
+         if (src_sd->type != AV_PKT_DATA_REPLAYGAIN)
+             continue;
+@@ -751,18 +752,17 @@ static void handle_new_stream(demuxer_t *demuxer, int i)
+         sh->codec->par_w = st->sample_aspect_ratio.num;
+         sh->codec->par_h = st->sample_aspect_ratio.den;
+ 
+-        uint8_t *sd = av_stream_get_side_data(st, AV_PKT_DATA_DISPLAYMATRIX, NULL);
++        uint8_t *sd = mp_st_sd(st, AV_PKT_DATA_DISPLAYMATRIX);
+         if (sd) {
+             double r = av_display_rotation_get((uint32_t *)sd);
+             if (!isnan(r))
+                 sh->codec->rotate = (((int)(-r) % 360) + 360) % 360;
+         }
+ 
+-        if ((sd = av_stream_get_side_data(st, AV_PKT_DATA_DOVI_CONF, NULL))) {
++        if ((sd = mp_st_sd(st, AV_PKT_DATA_DOVI_CONF))) {
+             const AVDOVIDecoderConfigurationRecord *cfg = (void *) sd;
+             MP_VERBOSE(demuxer, "Found Dolby Vision config record: profile "
+                        "%d level %d\n", cfg->dv_profile, cfg->dv_level);
+-            av_format_inject_global_side_data(avfc);
+         }
+ 
+         // This also applies to vfw-muxed mkv, but we can't detect these easily.
+diff --git a/demux/demux_mkv.c b/demux/demux_mkv.c
+index 6a47719420..f39df75fbb 100644
+--- a/demux/demux_mkv.c
++++ b/demux/demux_mkv.c
+@@ -20,6 +20,7 @@
+  * License along with mpv.  If not, see <http://www.gnu.org/licenses/>.
+  */
+ 
++#include "common/av_compat.h"
+ #include <float.h>
+ #include <stdlib.h>
+ #include <stdio.h>
+@@ -1938,16 +1939,16 @@ static int demux_mkv_open_sub(demuxer_t *demuxer, mkv_track_t *track)
+             // [0x30..0x37] are component tags utilized for
+             // non-mobile captioning service ("profile A").
+             if (component_tag >= 0x30 && component_tag <= 0x37)
+-                lav->profile = FF_PROFILE_ARIB_PROFILE_A;
++                lav->profile = AV_PROFILE_ARIB_PROFILE_A;
+             break;
+         case 0x0012:
+             // component tag 0x87 signifies a mobile/partial reception
+             // (1seg) captioning service ("profile C").
+             if (component_tag == 0x87)
+-                lav->profile = FF_PROFILE_ARIB_PROFILE_C;
++                lav->profile = AV_PROFILE_ARIB_PROFILE_C;
+             break;
+         }
+-        if (lav->profile == FF_PROFILE_UNKNOWN)
++        if (lav->profile == AV_PROFILE_UNKNOWN)
+             MP_WARN(demuxer, "ARIB caption profile %02x / %04x not supported.\n",
+                     component_tag, data_component_id);
+     }
+diff --git a/filters/f_lavfi.c b/filters/f_lavfi.c
+index fe7d3e4527..f873a0ec4c 100644
+--- a/filters/f_lavfi.c
++++ b/filters/f_lavfi.c
+@@ -15,6 +15,7 @@
+  * License along with mpv.  If not, see <http://www.gnu.org/licenses/>.
+  */
+ 
++#include "common/av_compat.h"
+ #include <stdio.h>
+ #include <stdlib.h>
+ #include <string.h>
+@@ -1029,7 +1030,6 @@ static const char *get_avopt_type_name(enum AVOptionType type)
+     case AV_OPT_TYPE_VIDEO_RATE:        return "fps";
+     case AV_OPT_TYPE_DURATION:          return "duration";
+     case AV_OPT_TYPE_COLOR:             return "color";
+-    case AV_OPT_TYPE_CHANNEL_LAYOUT:    return "channellayout";
+     case AV_OPT_TYPE_BOOL:              return "bool";
+     case AV_OPT_TYPE_CONST: // fallthrough
+     default:
+diff --git a/video/image_writer.c b/video/image_writer.c
+index 75ac01ec37..b4d61ffe20 100644
+--- a/video/image_writer.c
++++ b/video/image_writer.c
+@@ -15,6 +15,7 @@
+  * License along with mpv.  If not, see <http://www.gnu.org/licenses/>.
+  */
+ 
++#include "common/av_compat.h"
+ #include <stdio.h>
+ #include <stdlib.h>
+ #include <string.h>
+@@ -521,7 +522,7 @@ free_data:
+ 
+ static int get_encoder_format(const AVCodec *codec, int srcfmt, bool highdepth)
+ {
+-    const enum AVPixelFormat *pix_fmts = codec->pix_fmts;
++    const enum AVPixelFormat *pix_fmts = ((const enum AVPixelFormat *)mp_codec_cfg(codec, AV_CODEC_CONFIG_PIX_FORMAT));
+     int current = 0;
+     for (int n = 0; pix_fmts && pix_fmts[n] != AV_PIX_FMT_NONE; n++) {
+         int fmt = pixfmt2imgfmt(pix_fmts[n]);
+diff --git a/video/out/vo_lavc.c b/video/out/vo_lavc.c
+index c3c8056c49..050703257f 100644
+--- a/video/out/vo_lavc.c
++++ b/video/out/vo_lavc.c
+@@ -20,6 +20,7 @@
+  * License along with mpv.  If not, see <http://www.gnu.org/licenses/>.
+  */
+ 
++#include "common/av_compat.h"
+ #include <stdio.h>
+ #include <stdlib.h>
+ 
+@@ -127,7 +128,7 @@ static int reconfig2(struct vo *vo, struct mp_image *img)
+     tb.num = 24000;
+     tb.den = 1;
+ 
+-    const AVRational *rates = encoder->codec->supported_framerates;
++    const AVRational *rates = ((const AVRational *)mp_codec_cfg(encoder->codec, AV_CODEC_CONFIG_FRAME_RATE));
+     if (rates && rates[0].den)
+         tb = rates[av_find_nearest_q_idx(tb, rates)];
+ 
+@@ -159,7 +160,7 @@ static int query_format(struct vo *vo, int format)
+     struct priv *vc = vo->priv;
+ 
+     enum AVPixelFormat pix_fmt = imgfmt2pixfmt(format);
+-    const enum AVPixelFormat *p = vc->enc->encoder->codec->pix_fmts;
++    const enum AVPixelFormat *p = ((const enum AVPixelFormat *)mp_codec_cfg(vc->enc->encoder->codec, AV_CODEC_CONFIG_PIX_FORMAT));
+ 
+     if (!p)
+         return 1;

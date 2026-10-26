@@ -1,0 +1,579 @@
+From 8c212dba61dde465f9a2df80d5203b63b81ea036 Mon Sep 17 00:00:00 2001
+From: jelon <jelon@tbu.net>
+Date: Fri, 2 Oct 2026 18:53:17 +0800
+Subject: [PATCH 10/10] avformat/whep: RTCP feedback (PLI, RR, NACK) over SRTCP,
+ T1.5
+
+Send RTCP from the media UDP socket, encrypted as SRTCP with the DTLS server write key
+(the existing rx contexts use the client key): a periodic Receiver Report (report block
+with fraction/cumulative lost, extended highest sequence, RFC 3550 A.8 jitter, LSR/DLSR
+from the last SR), NACK (RFC 4585 6.2.1, PID+BLP multi-FCI packing) and PLI (6.3.1).
+Local SSRC is random (a recvonly offer needs no declaration).
+
+NACK: a 32-entry gap table (seq, tries, first seen, last NACK) fed by the reorder
+queue; first NACK after 10ms, retry every 40ms, 3 tries, then give up and fall back to
+PLI; late retransmits for given-up gaps are counted separately, not as late/dup. With
+nack on the reorder wait grows from 80ms to 200ms. Only the no-RTX path is implemented:
+a media section whose answer negotiated RTX does not send NACK (TODO). PLI is rate
+limited to 1/s, sent at the first video packet until a key frame is seen and after any
+unrecoverable video loss. All feedback is sent only when the answer declared nack /
+nack pli. New options: rtcp_nack, rtcp_pli, rtcp_interval. Verbose counters and first
+packet / first key frame timings added.
+---
+ libavformat/whep.c | 400 ++++++++++++++++++++++++++++++++++++++++++++-
+ 1 file changed, 396 insertions(+), 4 deletions(-)
+ mode change 100755 => 100644 libavformat/whep.c
+
+diff --git a/libavformat/whep.c b/libavformat/whep.c
+old mode 100755
+new mode 100644
+index 46f9b4d..54b1591
+--- a/libavformat/whep.c
++++ b/libavformat/whep.c
+@@ -86,6 +86,17 @@
+ /* 每路乱序缓存的最大包数；缺口最多等待的时间（微秒） */
+ #define WHEP_REORDER_MAX      32
+ #define WHEP_REORDER_WAIT_US  80000
++/* RTCP 反馈（T1.5）：NACK 缺口表容量、首次 NACK 前的乱序容忍、重发间隔、最大重试次数、
++ * 开 NACK 时缺口的最长等待、已放弃缺口的保留期、PLI 最小间隔（均为自拟起点，须按网络校准） */
++#define WHEP_GAP_MAX          32
++#define WHEP_NACK_DELAY_US    10000
++#define WHEP_NACK_RETRY_US    40000
++#define WHEP_NACK_TRIES       3
++#define WHEP_NACK_WAIT_US     200000
++#define WHEP_GAP_KEEP_US      1000000
++#define WHEP_PLI_MIN_US       1000000
++/* 复合 RTCP 明文缓冲上限：RR(8+WHEP_MAX_MEDIA*24)+每路(NACK 12+4*32 + PLI 12)，最坏 8+4*24+4*152=712 字节 */
++#define WHEP_RTCP_BUF         768
+ /* 单个视频访问单元的大小上限，防异常流撑爆内存 */
+ #define WHEP_MAX_AU           (8 << 20)
+ /* read_packet 阻塞等待时每轮的 poll 时长（毫秒）：每轮都检查中断、做周期事务 */
+@@ -161,6 +172,15 @@ typedef struct WhepHeld {
+     int64_t  t;             /* 到达时刻（us） */
+ } WhepHeld;
+ 
++/* NACK 缺口表的一项：一个尚未收到的序号 */
++typedef struct WhepGap {
++    uint16_t seq;
++    uint8_t  tries;         /* 已发 NACK 次数 */
++    uint8_t  given_up;      /* 1：已放弃重传（保留一段时间只为识别迟到的重传包） */
++    int64_t  t_first;       /* 首次发现缺口的时刻（us） */
++    int64_t  t_last;        /* 上次发 NACK（或放弃）的时刻（us） */
++} WhepGap;
++
+ /* 一路媒体（一个 SSRC）的接收状态 */
+ typedef struct WhepRx {
+     int         active;         /* 该路已协商并可接收 */
+@@ -186,8 +206,26 @@ typedef struct WhepRx {
+     int         au_open, au_key, au_bad, fu_open, seen_key;
+     uint32_t    au_ts;
+     int64_t     au_pts;
++    /* RTCP 反馈（T1.5） */
++    int         nack_on, pli_on;    /* 该路协商了 nack / nack pli 且选项开启 */
++    int         hi_valid;
++    uint16_t    hi;                 /* 已见到的最高序号（缺口检测用） */
++    WhepGap     gap[WHEP_GAP_MAX];
++    int         nb_gap;
++    int         pli_pending;
++    int64_t     last_pli;           /* 上次发 PLI 的时刻，0 表示从未发 */
++    int         got_seq;            /* 统计用序号状态是否已初始化 */
++    uint16_t    max_seq;
++    uint32_t    cycles, base_seq;   /* 序号回绕次数（<<16）、首个序号 */
++    uint32_t    prior_exp, prior_rec; /* 上一份 RR 时的期望/实收包数，用来算 fraction lost */
++    int         have_transit;
++    int64_t     transit;
++    uint32_t    jitter;             /* RFC 3550 A.8，单位 clock 的 1/16 */
++    uint32_t    lsr;                /* 最近 SR 的 NTP 中间 32 位，无则 0 */
++    int64_t     t_sr;               /* 该 SR 的到达时刻（us） */
+     /* 计数 */
+     uint64_t    n_pkts, n_auth_fail, n_late, n_lost, n_out, n_drop_au, n_nokey;
++    uint64_t    n_nack_seq, n_nack_msg, n_nack_giveup, n_rtx_recv, n_rtx_late, n_pli, n_rr;
+ } WhepRx;
+ 
+ /* demuxer 私有上下文 */
+@@ -202,6 +240,9 @@ typedef struct WHEPContext {
+     char   *user_agent;       /* HTTP User-Agent */
+     int64_t handshake_timeout; /* ICE + DTLS 握手总期限（微秒），<0 不限 */
+     int64_t media_timeout;    /* 握手后对端无任何经认证数据的容忍时长（微秒），<0 不限 */
++    int     rtcp_nack;        /* 协商了 nack 时是否发 NACK（0/1） */
++    int     rtcp_pli;         /* 协商了 nack pli 时是否发 PLI（0/1） */
++    int64_t rtcp_interval;    /* Receiver Report 周期（微秒），0 关闭 RR */
+ 
+     /* ---- 会话状态 ---- */
+     enum WHEPState state;
+@@ -230,6 +271,11 @@ typedef struct WHEPContext {
+     int     have_t0;
+     int64_t t0_rx;                   /* 全局首个媒体包的到达时刻，对齐各流时间线用 */
+     uint64_t n_rtcp_fail, n_unknown_pt, n_stun_req, n_stun_resp;
++    SRTPContext tx;                  /* 发送 RTCP 用的 SRTP 上下文（server 写密钥） */
++    int     tx_ready;
++    uint32_t local_ssrc;             /* 本端 RTCP 发送者 SSRC，随机生成 */
++    int64_t next_rr;                 /* 下次发 RR 的时刻 */
++    int64_t t_first_pkt;             /* 首个媒体包到达时刻（verbose 起播计时用） */
+     WhepSdp answer;
+     WhepIceServer ice_servers[WHEP_MAX_ICE_SERVER];
+     int     nb_ice_servers;
+@@ -1275,11 +1321,30 @@ static int whep_rx_init(AVFormatContext *s)
+         rx->pt           = m->codec[m->sel].pt;
+         rx->clock        = m->codec[m->sel].clock > 0 ? m->codec[m->sel].clock : (rx->is_video ? 90000 : 48000);
+         rx->stream_index = m->stream_index;
++        /* 只在 answer 声明了反馈能力时才发；协商了 RTX 时重传走 RTX 包，我们尚不会还原，故不发 NACK（TODO） */
++        rx->nack_on = w->rtcp_nack && m->codec[m->sel].nack && m->rtx_pt < 0;
++        rx->pli_on  = w->rtcp_pli && m->codec[m->sel].pli && rx->is_video;
+         if ((ret = ff_srtp_set_crypto(&rx->srtp, "SRTP_AES128_CM_HMAC_SHA1_80", b64)) < 0) {
+             av_log(s, AV_LOG_ERROR, "Cannot set up SRTP receive context\n");
+             goto end;
+         }
+     }
++    /* 发 RTCP 用 server 写密钥（materials 里 client_key|server_key|client_salt|server_salt） */
++    memcpy(key, w->srtp_materials + WHEP_SRTP_KEY_LEN, WHEP_SRTP_KEY_LEN);
++    memcpy(key + WHEP_SRTP_KEY_LEN, w->srtp_materials + 2 * WHEP_SRTP_KEY_LEN + WHEP_SRTP_SALT_LEN, WHEP_SRTP_SALT_LEN);
++    if (!av_base64_encode(b64, sizeof(b64), key, sizeof(key))) {
++        ret = AVERROR(EIO);
++        goto end;
++    }
++    if ((ret = ff_srtp_set_crypto(&w->tx, "SRTP_AES128_CM_HMAC_SHA1_80", b64)) < 0) {
++        av_log(s, AV_LOG_ERROR, "Cannot set up SRTCP send context\n");
++        goto end;
++    }
++    w->tx_ready = 1;
++    do {                                             /* 本端 SSRC：随机且非 0；recvonly 的 offer 不必声明 */
++        if ((ret = av_random_bytes((uint8_t *)&w->local_ssrc, 4)) < 0)
++            goto end;
++    } while (!w->local_ssrc);
+ end:
+     memset(key, 0, sizeof(key));
+     memset(b64, 0, sizeof(b64));
+@@ -1302,6 +1367,12 @@ static void whep_rx_free(AVFormatContext *s)
+                    " frames=%"PRIu64" dropped_frames=%"PRIu64" before_keyframe=%"PRIu64"\n",
+                    rx->is_video ? "video" : "audio", rx->pt, rx->n_pkts, rx->n_auth_fail,
+                    rx->n_late, rx->n_lost, rx->n_out, rx->n_drop_au, rx->n_nokey);
++        if (rx->active)
++            av_log(s, AV_LOG_VERBOSE,
++                   "RTCP %s: nack=%d pli_on=%d nack_seqs_sent=%"PRIu64" nack_msgs=%"PRIu64" nack_giveup=%"PRIu64
++                   " rtx_recovered=%"PRIu64" rtx_late=%"PRIu64" pli_sent=%"PRIu64" rr_sent=%"PRIu64"\n",
++                   rx->is_video ? "video" : "audio", rx->nack_on, rx->pli_on, rx->n_nack_seq, rx->n_nack_msg,
++                   rx->n_nack_giveup, rx->n_rtx_recv, rx->n_rtx_late, rx->n_pli, rx->n_rr);
+         for (int k = 0; k < rx->nb_held; k++)
+             av_freep(&rx->held[k].buf);
+         av_freep(&rx->au);
+@@ -1311,6 +1382,8 @@ static void whep_rx_free(AVFormatContext *s)
+            "STUN: server checks answered=%"PRIu64" consent responses=%"PRIu64"; RTCP auth_fail=%"PRIu64" unknown_pt=%"PRIu64"\n",
+            w->n_stun_req, w->n_stun_resp, w->n_rtcp_fail, w->n_unknown_pt);
+     ff_packet_list_free(&w->out);
++    ff_srtp_free(&w->tx);
++    w->tx_ready = 0;
+     memset(w->rx, 0, sizeof(w->rx));
+ }
+ 
+@@ -1403,6 +1476,11 @@ static void whep_h264_au_end(AVFormatContext *s, WhepRx *rx)
+     } else if (!rx->seen_key && !rx->au_key) {
+         rx->n_nokey++;
+     } else {
++        if (!rx->seen_key) {
++            WHEPContext *w = s->priv_data;
++            av_log(s, AV_LOG_VERBOSE, "First video key frame out at %.1fms since open (pli_sent=%"PRIu64")\n",
++                   (av_gettime_relative() - w->t_start) / 1000.0, rx->n_pli);
++        }
+         rx->seen_key = 1;
+         whep_rx_emit(s, rx, rx->au, rx->au_size, rx->au_pts, rx->au_key, 0);
+     }
+@@ -1524,18 +1602,312 @@ static void whep_rx_drain(AVFormatContext *s, WhepRx *rx)
+     }
+ }
+ 
++/* ------------------------------------------------------------------ */
++/* RTCP 反馈（T1.5）：缺口表、NACK / PLI / RR                           */
++/* ------------------------------------------------------------------ */
++
++/**
++ * 不可恢复的丢包发生：视频路请求关键帧（PLI，限速在发送处）。
++ */
++static void whep_loss_note(WhepRx *rx)
++{
++    if (rx->pli_on)
++        rx->pli_pending = 1;
++}
++
++/**
++ * 在缺口表里找序号。
++ * @return 下标，没有则 -1
++ */
++static int whep_gap_find(const WhepRx *rx, uint16_t seq)
++{
++    for (int i = 0; i < rx->nb_gap; i++)
++        if (rx->gap[i].seq == seq)
++            return i;
++    return -1;
++}
++
++/**
++ * 删掉缺口表的一项（与末项交换）。
++ */
++static void whep_gap_del(WhepRx *rx, int i)
++{
++    rx->gap[i] = rx->gap[--rx->nb_gap];
++}
++
++/**
++ * 登记一个缺失序号；表满时先挤掉最老的已放弃项，仍满则放弃 NACK 改走 PLI。
++ */
++static void whep_gap_add(WhepRx *rx, uint16_t seq, int64_t now)
++{
++    if (rx->nb_gap >= WHEP_GAP_MAX) {
++        int old = -1;
++        for (int i = 0; i < rx->nb_gap; i++)
++            if (rx->gap[i].given_up && (old < 0 || rx->gap[i].t_last < rx->gap[old].t_last))
++                old = i;
++        if (old < 0) {
++            whep_loss_note(rx);
++            return;
++        }
++        whep_gap_del(rx, old);
++    }
++    rx->gap[rx->nb_gap++] = (WhepGap){ .seq = seq, .t_first = now };
++}
++
++/**
++ * 一个落在接收窗口内（未过期）的包到达：新高序号则把中间空出的序号登记为缺口，
++ * 乱序/重传补上的序号则从缺口表里划掉；已被 NACK 过的算作"重传恢复"。
++ */
++static void whep_nack_track(WhepRx *rx, uint16_t seq, int64_t now)
++{
++    int d, i;
++
++    if (!rx->hi_valid) {
++        rx->hi_valid = 1;
++        rx->hi       = seq;
++        return;
++    }
++    d = (int16_t)(seq - rx->hi);
++    if (d > 0) {
++        if (d - 1 > WHEP_GAP_MAX) {                  /* 突发丢包超过表容量：不 NACK，等重排窗口放弃后走 PLI */
++            rx->nb_gap = 0;
++            whep_loss_note(rx);
++        } else {
++            for (i = 1; i < d; i++)
++                whep_gap_add(rx, rx->hi + i, now);
++        }
++        rx->hi = seq;
++    } else if ((i = whep_gap_find(rx, seq)) >= 0) {
++        if (rx->gap[i].tries)
++            rx->n_rtx_recv++;
++        whep_gap_del(rx, i);
++    }
++}
++
++/**
++ * 序号落在已过期位置（d<0）时调用：若是此前放弃的缺口，说明是迟到的重传，单独计数，不算 late/dup。
++ * @return 1 已按迟到重传处理，0 不是
++ */
++static int whep_gap_late(WhepRx *rx, uint16_t seq)
++{
++    int i = whep_gap_find(rx, seq);
++
++    if (i < 0 || !rx->gap[i].given_up)
++        return 0;
++    rx->n_rtx_late++;
++    whep_gap_del(rx, i);
++    return 1;
++}
++
++/**
++ * 把升序（模 2^16）的丢失序号打包成 RFC 4585 §6.2.1 的 FCI：PID + BLP，
++ * 与 PID 相差 1..16 的序号并入同一个 FCI，超出另开。
++ * @param seq 丢失序号，已升序，n <= WHEP_GAP_MAX
++ * @param out 输出缓冲，至少 4*n 字节
++ * @return 生成的 FCI 个数
++ */
++static int whep_nack_pack(const uint16_t *seq, int n, uint8_t *out)
++{
++    int fci = 0;
++
++    for (int i = 0; i < n;) {
++        uint16_t pid = seq[i], blp = 0;
++        int j = i + 1;
++
++        for (; j < n && (uint16_t)(seq[j] - pid) >= 1 && (uint16_t)(seq[j] - pid) <= 16; j++)
++            blp |= 1 << ((uint16_t)(seq[j] - pid) - 1);
++        AV_WB16(out + 4 * fci, pid);
++        AV_WB16(out + 4 * fci + 2, blp);
++        fci++;
++        i = j;
++    }
++    return fci;
++}
++
++/**
++ * 按 RFC 3550 §6.4.1 写一个 report block（24 字节）。LSR/DLSR 来自最近一个 SR，没收到过则为 0。
++ * @return 写入后的指针
++ */
++static uint8_t *whep_rr_block(WhepRx *rx, uint8_t *p, int64_t now)
++{
++    uint32_t ext_max  = rx->cycles + rx->max_seq;
++    uint32_t expected = ext_max - rx->base_seq + 1;
++    uint32_t recv     = (uint32_t)rx->n_pkts;
++    int32_t  cum      = (int32_t)(expected - recv);
++    uint32_t exp_int  = expected - rx->prior_exp;
++    int32_t  lost_int = (int32_t)(exp_int - (recv - rx->prior_rec));
++    unsigned frac     = exp_int && lost_int > 0 ? FFMIN(((uint32_t)lost_int << 8) / exp_int, 255) : 0;
++
++    rx->prior_exp = expected;
++    rx->prior_rec = recv;
++    cum = av_clip(cum, -0x800000, 0x7fffff);
++    AV_WB32(p, rx->ssrc);
++    p[4] = frac;
++    AV_WB24(p + 5, cum & 0xffffff);
++    AV_WB32(p + 8, ext_max);
++    AV_WB32(p + 12, rx->jitter >> 4);
++    AV_WB32(p + 16, rx->lsr);
++    AV_WB32(p + 20, rx->lsr ? (uint32_t)av_rescale(now - rx->t_sr, 65536, 1000000) : 0);
++    return p + 24;
++}
++
++/**
++ * 把一个明文复合 RTCP 经 SRTCP 加密（带 E 位与 SRTCP 索引）后从媒体 UDP 发出。发送失败不处理，
++ * 对端失联由存活检测兜底。
++ */
++static void whep_rtcp_send(AVFormatContext *s, const uint8_t *plain, int len)
++{
++    WHEPContext *w = s->priv_data;
++    uint8_t out[WHEP_RTCP_BUF + 16];
++    int n;
++
++    if (!w->tx_ready)
++        return;
++    if ((n = ff_srtp_encrypt(&w->tx, plain, len, out, sizeof(out))) > 0)
++        ffurl_write(w->udp, out, n);
++}
++
++/**
++ * 周期事务之一：按需组一个复合 RTCP 发出。结构 = RR（到点带 report block，否则空 RR）
++ * + 每路的 NACK（缺口表里到期的序号）+ 每路的 PLI（限速 WHEP_PLI_MIN_US）。
++ * 缺口表的重试/放弃/过期清理也在这里推进。
++ */
++static void whep_rtcp_feedback(AVFormatContext *s, int64_t now)
++{
++    WHEPContext *w = s->priv_data;
++    uint8_t buf[WHEP_RTCP_BUF], *p = buf + 8;
++    int rr_due = w->rtcp_interval > 0 && now >= w->next_rr, nb_rr = 0, fb = 0;
++    uint8_t *fbp = buf + 8;
++
++    /* 先写 report block（RR 必须排在复合包最前），反馈包随后追加 */
++    for (int i = 0; i < WHEP_MAX_MEDIA && rr_due; i++)
++        if (w->rx[i].active && w->rx[i].got_seq && w->rx[i].have_ssrc) {
++            p = whep_rr_block(&w->rx[i], p, now);
++            w->rx[i].n_rr++;
++            nb_rr++;
++        }
++    fbp = p;
++    for (int i = 0; i < WHEP_MAX_MEDIA; i++) {
++        WhepRx *rx = &w->rx[i];
++        uint16_t miss[WHEP_GAP_MAX];
++        int n = 0;
++
++        if (!rx->active || !rx->have_ssrc)
++            continue;
++        for (int k = 0; k < rx->nb_gap && rx->nack_on;) {
++            WhepGap *g = &rx->gap[k];
++
++            if (g->given_up) {
++                if (now - g->t_last > WHEP_GAP_KEEP_US) {
++                    whep_gap_del(rx, k);
++                    continue;
++                }
++            } else if (g->tries ? now - g->t_last >= WHEP_NACK_RETRY_US
++                                : now - g->t_first >= WHEP_NACK_DELAY_US) {
++                if (g->tries >= WHEP_NACK_TRIES) {   /* 重试用尽：放弃，视频降级 PLI */
++                    g->given_up = 1;
++                    g->t_last   = now;
++                    rx->n_nack_giveup++;
++                    whep_loss_note(rx);
++                } else {
++                    miss[n++] = g->seq;
++                    g->tries++;
++                    g->t_last = now;
++                }
++            }
++            k++;
++        }
++        if (n) {
++            int fci;
++            for (int a = 1; a < n; a++) {            /* 插入排序，按模 2^16 升序 */
++                uint16_t v = miss[a];
++                int b = a - 1;
++                for (; b >= 0 && (int16_t)(miss[b] - v) > 0; b--)
++                    miss[b + 1] = miss[b];
++                miss[b + 1] = v;
++            }
++            fci = whep_nack_pack(miss, n, fbp + 12);
++            AV_WB16(fbp, 0x8100 | 205);              /* V=2 FMT=1 PT=205 */
++            AV_WB16(fbp + 2, 2 + fci);
++            AV_WB32(fbp + 4, w->local_ssrc);
++            AV_WB32(fbp + 8, rx->ssrc);
++            fbp += 12 + 4 * fci;
++            rx->n_nack_seq += n;
++            rx->n_nack_msg++;
++            fb = 1;
++        }
++        if (rx->pli_on && !rx->seen_key)             /* 起播：尽快要关键帧，之后按 1 次/秒重试 */
++            rx->pli_pending = 1;
++        if (rx->pli_pending && (!rx->last_pli || now - rx->last_pli >= WHEP_PLI_MIN_US)) {
++            AV_WB16(fbp, 0x8100 | 206);              /* V=2 FMT=1 PT=206 */
++            AV_WB16(fbp + 2, 2);
++            AV_WB32(fbp + 4, w->local_ssrc);
++            AV_WB32(fbp + 8, rx->ssrc);
++            fbp += 12;
++            rx->pli_pending = 0;
++            rx->last_pli    = now;
++            rx->n_pli++;
++            fb = 1;
++        }
++    }
++    if (!nb_rr && !fb)
++        return;
++    buf[0] = 0x80 | nb_rr;                           /* RR 头：V=2 RC=nb_rr */
++    buf[1] = 201;
++    AV_WB16(buf + 2, 1 + 6 * nb_rr);
++    AV_WB32(buf + 4, w->local_ssrc);
++    if (rr_due)
++        w->next_rr = now + w->rtcp_interval;
++    whep_rtcp_send(s, buf, fbp - buf);
++}
++
++/**
++ * 更新 RTP 接收统计（RR 用）：扩展最高序号、RFC 3550 A.8 的到达间隔抖动。按到达顺序、重排之前调用。
++ */
++static void whep_rx_stats(WhepRx *rx, const uint8_t *p, int64_t now)
++{
++    uint16_t seq = AV_RB16(p + 2);
++    uint32_t tr  = (uint32_t)av_rescale(now, rx->clock, 1000000) - AV_RB32(p + 4);
++
++    if (!rx->got_seq) {
++        rx->got_seq  = 1;
++        rx->base_seq = rx->max_seq = seq;
++    } else if ((uint16_t)(seq - rx->max_seq) < 0x8000) {
++        if (seq < rx->max_seq)
++            rx->cycles += 1 << 16;
++        rx->max_seq = seq;
++    }
++    if (rx->have_transit) {
++        int32_t d = (int32_t)(tr - (uint32_t)rx->transit);
++        rx->jitter += FFABS(d) - (int32_t)(rx->jitter >> 4);
++    }
++    rx->have_transit = 1;
++    rx->transit      = tr;
++}
++
+ /**
+  * 放弃等待缺失的包：跳到缓存里最小序号处，记丢包，正在拼装的访问单元视为不完整（FU-A 续片
+- * 缺起始片的情况在解包处另行标记）。
++ * 缺起始片的情况在解包处另行标记）。被跳过的缺口转入"已放弃"，视频路发 PLI。
+  */
+ static void whep_rx_flush_gap(AVFormatContext *s, WhepRx *rx)
+ {
+     int best = 0;
++    uint16_t skip, old = rx->next_seq;
+ 
+     for (int i = 1; i < rx->nb_held; i++)
+         if ((int16_t)(rx->held[i].seq - rx->held[best].seq) < 0)
+             best = i;
+-    rx->n_lost += (uint16_t)(rx->held[best].seq - rx->next_seq);
++    skip = (uint16_t)(rx->held[best].seq - rx->next_seq);
++    rx->n_lost += skip;
++    if (skip) {
++        int64_t now = av_gettime_relative();
++        for (int i = 0; i < rx->nb_gap; i++)
++            if ((uint16_t)(rx->gap[i].seq - old) < skip && !rx->gap[i].given_up) {
++                rx->gap[i].given_up = 1;
++                rx->gap[i].t_last   = now;
++            }
++        whep_loss_note(rx);
++    }
+     rx->next_seq = rx->held[best].seq;
+     rx->au_bad  |= rx->au_open;
+     rx->fu_open = 0;
+@@ -1557,9 +1929,12 @@ static void whep_rx_push(AVFormatContext *s, WhepRx *rx, const uint8_t *p, int l
+     }
+     d = (int16_t)(seq - rx->next_seq);
+     if (d < 0) {
+-        rx->n_late++;
++        if (!whep_gap_late(rx, seq))
++            rx->n_late++;
+         return;
+     }
++    if (rx->nack_on)
++        whep_nack_track(rx, seq, now);
+     if (d >= WHEP_REORDER_MAX) {                     /* 跳变太大：不等了，先清空缓存再重新对齐 */
+         while (rx->nb_held)
+             whep_rx_flush_gap(s, rx);
+@@ -1573,6 +1948,7 @@ static void whep_rx_push(AVFormatContext *s, WhepRx *rx, const uint8_t *p, int l
+             rx->next_seq = seq;
+             rx->au_bad  |= rx->au_open;
+             rx->fu_open = 0;
++            whep_loss_note(rx);
+             d = 0;
+         }
+     }
+@@ -1611,6 +1987,14 @@ static void whep_rtcp_input(AVFormatContext *s, const uint8_t *b, int len)
+         int l = 4 * (AV_RB16(b + off + 2) + 1);
+         if (off + l > len)
+             break;
++        if (b[off + 1] == 200 && l >= 20) {          /* SR：记 LSR/到达时刻，RR 里回填 */
++            uint32_t ssrc = AV_RB32(b + off + 4);
++            for (int i = 0; i < WHEP_MAX_MEDIA; i++)
++                if (w->rx[i].active && w->rx[i].have_ssrc && w->rx[i].ssrc == ssrc) {
++                    w->rx[i].lsr  = AV_RB32(b + off + 10);   /* NTP 时间戳的中间 32 位 */
++                    w->rx[i].t_sr = av_gettime_relative();
++                }
++        }
+         if (b[off + 1] == 203) {                     /* BYE */
+             for (int k = 0, sc = b[off] & 0x1f; k < sc && 4 + 4 * k + 4 <= l; k++) {
+                 uint32_t ssrc = AV_RB32(b + off + 4 + 4 * k);
+@@ -1691,8 +2075,11 @@ static void whep_rx_datagram(AVFormatContext *s, int n, int64_t now)
+     if (!w->have_t0) {
+         w->have_t0 = 1;
+         w->t0_rx   = now;
++        av_log(s, AV_LOG_VERBOSE, "First RTP packet (%s) at %.1fms since open\n",
++               rx->is_video ? "video" : "audio", (now - w->t_start) / 1000.0);
+     }
+     rx->n_pkts++;
++    whep_rx_stats(rx, b, now);
+     whep_rx_push(s, rx, b, len, now);
+ }
+ 
+@@ -1717,11 +2104,12 @@ static int whep_rx_housekeeping(AVFormatContext *s, int64_t now)
+         byes += rx->bye;
+         for (int k = 0; k < rx->nb_held; k++)
+             oldest = FFMIN(oldest, rx->held[k].t);
+-        if (rx->nb_held && now - oldest > WHEP_REORDER_WAIT_US)
++        if (rx->nb_held && now - oldest > (rx->nack_on ? WHEP_NACK_WAIT_US : WHEP_REORDER_WAIT_US))
+             whep_rx_flush_gap(s, rx);
+     }
+     if (active && byes == active)
+         return AVERROR_EOF;
++    whep_rtcp_feedback(s, now);
+     if (now >= w->next_consent) {
+         w->next_consent = now + WHEP_CONSENT_US;
+         if (av_random_bytes(w->consent_tid, sizeof(w->consent_tid)) >= 0 &&
+@@ -1770,6 +2158,7 @@ static int whep_media_open(AVFormatContext *s)
+     now = av_gettime_relative();
+     w->last_alive   = now;
+     w->next_consent = now + WHEP_CONSENT_US;
++    w->next_rr      = now + w->rtcp_interval;
+     w->state = WHEP_STATE_READY;
+     return 0;
+ }
+@@ -1913,6 +2302,9 @@ static const AVOption options[] = {
+     { "user_agent", "HTTP User-Agent of the signalling request",          OFFSET(user_agent), AV_OPT_TYPE_STRING,   { .str = NULL }, 0, 0, DEC },
+     { "handshake_timeout", "Timeout (microseconds) of the ICE + DTLS handshake, -1: no limit", OFFSET(handshake_timeout), AV_OPT_TYPE_INT64, { .i64 = 10000000 }, -1, INT_MAX, DEC },
+     { "media_timeout", "Timeout (microseconds) without any authenticated data from the peer before giving up, -1: no limit", OFFSET(media_timeout), AV_OPT_TYPE_INT64, { .i64 = 5000000 }, -1, INT_MAX, DEC },
++    { "rtcp_nack",  "Send RTCP NACK for lost packets when the answer negotiated nack (0/1)", OFFSET(rtcp_nack), AV_OPT_TYPE_BOOL, { .i64 = 1 }, 0, 1, DEC },
++    { "rtcp_pli",   "Send RTCP PLI to request a key frame when the answer negotiated nack pli (0/1)", OFFSET(rtcp_pli), AV_OPT_TYPE_BOOL, { .i64 = 1 }, 0, 1, DEC },
++    { "rtcp_interval", "Interval (microseconds) of RTCP Receiver Reports, 0: do not send", OFFSET(rtcp_interval), AV_OPT_TYPE_INT64, { .i64 = 1000000 }, 0, INT_MAX, DEC },
+     { NULL },
+ };
+ 
+-- 
+2.53.0
+

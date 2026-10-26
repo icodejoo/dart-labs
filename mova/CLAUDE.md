@@ -32,7 +32,7 @@
 
 ## 当前状态（0.2.0）
 
-> **测试基线：1324 项全绿**（2026-10-24 本机实跑 `flutter test` 的真实结果；HE V10 渲染面转场快照守卫新增 +8（`test/ui/snapshot_guard_test.dart`），1316 → 1324；HE V6 续播就绪修复新增 +14，1302 → 1316；Q13 预热静音修复新增 +16；其中宿主易用性计划 Task 1–15 贡献 +150
+> **测试基线：1364 项全绿**（2026-10-25 合并 WHEP 分支后本机实跑；合并前 main 为 1324， `flutter test` 的真实结果；HE V10 渲染面转场快照守卫新增 +8（`test/ui/snapshot_guard_test.dart`），1316 → 1324；HE V6 续播就绪修复新增 +14，1302 → 1316；Q13 预热静音修复新增 +16；其中宿主易用性计划 Task 1–15 贡献 +150
 > （Task 1–8 +70、Task 9–15 +80），其评审修复新增 +19，见下文「宿主易用性增强」；低功耗待机计划 Task 1–9 贡献 +109，见「低功耗待机」）；
 > `flutter analyze lib test` 0 issues（`example/` 下 demo 有若干 `avoid_print` info，
 > 均为验证脚本）。`example/test/auto_kit_test.dart`（验证页脚本化工具的纯逻辑，12 项）在 `example/` 下单独 `flutter test`，不计入上述基线。
@@ -365,6 +365,12 @@ README「已知限制」已注明：调用方自己创建/注入 `VideoControlle
 `example/lib/main_videocontroller_verify.dart` 的 E5/E11/E12。
 **注意**：Android 实验前必须确认手机亮屏且已解锁（`dumpsys window | grep isKeyguardShowing`），锁屏/熄屏时所有涉及渲染面的结果作废。
 
+
+### WHEP 接入的两处 mova 侧缺口（2026-10-02，已修）
+
+- **默认 `Player()` 白名单缺 `dtls`**：media_kit 默认白名单不含 `dtls`，WHEP 的 DTLS 会被拦（`Protocol 'dtls' not on whitelist`）。`core/kernel/mpv_defaults.dart` 集中放默认集副本 `kMediaKitDefaultProtocols`（读自 media_kit 1.2.6 源码）+ `movaProtocolWhitelist()`（默认集 + `dtls`），`MovaMpvKernel` 自建 `Player` 时使用；调用方注入的 player 不动；预览/音频抽取器自建的 `Player()` 不碰 WHEP，未改。默认 libmpv 没编入 dtls，放行无副作用。
+- **`Cannot seek in this stream` ×3（MovaErrorEvent ×6）——根因不在 mova**：在内核层 override `seek()` 打印调用栈做探针，真机（STG-AL00）复现时 **0 次 `kernel.seek`**，即 mova 没有对该流下发过 seek；mpv 日志显示 `Stream is not seekable` 后，约在 `Using hardware decoding` / `MovaSizeChange 640x360` 同一时刻 mpv 自己打出这两行，推断是渲染面挂上（懒创建的 `VideoController`）后 mpv 内部重建视频链触发的刷新 seek（推断，未做 eager 对照）。media_kit 把 `cplayer` 前缀的 error 日志一律当 `stream.error` 上报，于是成了 `MovaErrorEvent`/`state.error`。修法选最小侵入：`MovaMpvKernel.error` 过滤这两行（`isBenignMpvError`），不新增 `MovaKernel` 能力。取舍：用户在不可 seek 流上主动 seek 时同样的提示也会被吞（引擎本就对 live 拦 seek）。真机复测：`createMovaEngine()` 默认白名单打开 WHEP，播放 15s、`MovaErrorEvent` 0 次、`state.error==null`、位置推进正常。验证页端口可用 `--dart-define=WHEP_UDP/WHEP_RELAY/WHEP_URL` 覆盖。测试 1008 → 1014（`test/core/kernel/mpv_defaults_test.dart`）。
+
 ## 剩余任务
 
 **瘦身版 libmpv 独立包发布——Android/Windows 已落地并验证，iOS/macOS 结构已落地但完全
@@ -462,8 +468,9 @@ slim.patch`，decoder/demuxer 裁剪 + securetransport 替 mbedtls）降到 10.7
 文件，最后把 ffmpeg/dav1d/freetype/fribidi/harfbuzz/libpng/libass 全部改成静态链接进
 单一 `libmpv.dylib`（跟 Android 同一种"单文件"形态才可比）+ 编译器级瘦身，CI 实测
 7,489,408 字节 ≈7.14MiB，仅比 Android 的 6.52MiB 高约 9.5%。**再叠加 audio/protocol
-白名单收窄**后，**当前记录：CI 实测 6,534,448 字节 ≈6.23MiB，反超 Android 的 6.52MiB
-约 4.4%**。静态化过程连环踩坑（5 层 pkg-config `Requires:` 传递依赖、libtool
+白名单收窄**后，6,534,448 字节 ≈6.23MiB 是更早一次记录；**当前 dist 实测 5,741,680
+字节 ≈5.48MiB（run 35312415642，2026-10-02 由 T0.1 基线脚本复测，见
+`mova-libmpv/tools/regress/baseline.md`），比 Android 的 6.52MiB 小约 16%**。静态化过程连环踩坑（5 层 pkg-config `Requires:` 传递依赖、libtool
 `ar`/`ranlib` 被替换成 `false`、meson `-Dc_args=` 会替换而非追加 cross-file 的
 `-arch`/`-isysroot` 导致 libpng 头文件检测失败）详见 `mova-libmpv/README.md`「多平台
 进度」表 iOS 那一行的完整记录。macOS/其余平台仍是 upstream 默认 flavor 未裁剪，是

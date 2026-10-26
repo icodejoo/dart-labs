@@ -362,7 +362,7 @@ packages:
   media_kit_libs_android_video:
     dependency: "direct overridden"
     description:
-      path: "../packages/media_kit_libs_android_video_slim"
+      path: "../packages/media_kit_libs_android_video_slim_v041"
       relative: true
     source: path
     version: "1.0.0"

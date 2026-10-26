@@ -1,0 +1,820 @@
+name: Build mova libmpv (all platforms)
+
+# Only rebuilds when our build recipe changes — the ffmpeg/mpv/dav1d *source*
+# itself isn't vendored in this repo (pulled fresh from upstream at build
+# time per platform), so "source changes" here means our build recipe: the
+# per-platform ffmpeg configure flavor + the buildscripts patch under
+# tools/ffmpeg-slim/. See mova/tools/ffmpeg-slim/README.md's "多平台进度"
+# table for what's real vs. still-being-verified — every job below now
+# attempts a real build (no more no-op stubs), but darwin/linux/windows are
+# first-attempt "v1"s that haven't been through a green CI run yet the way
+# android-arm64/android-other-abi have (those needed a meson-version pin and
+# an --enable-libdav1d fix before going green — expect the same kind of
+# iteration here). Each platform's build toolchain is genuinely different —
+# not a copy-paste of the Android shell-script pattern:
+#   - android-arm64 / android-other-abi: media-kit/libmpv-android-video-build,
+#     NDK cross-compile, shell flavor script (flavors-mova-slim.sh).
+#   - darwin (iOS+macOS, one job — there's no separate ios/macos repo):
+#     media-kit/libmpv-darwin-build, Nix + pinned Xcode, builds every
+#     ios/iossimulator/macos target in one `make` invocation. v1 ships the
+#     repo's own default flavor as-is (not our custom decoder/demuxer list).
+#   - linux: no upstream media-kit repo exists at all — native build on the
+#     runner itself (no cross-compile), deps from apt instead of source.
+#   - windows: same native-slim pattern as linux, on MSYS2/MINGW64 — NOT
+#     media-kit/libmpv-win32-video-build (that repo is a Linux→Windows
+#     cross-compile of a full GCC/LLVM toolchain + ~98 deps; it cannot run
+#     on windows-latest and isn't our slim flavor). Deps from pacman.
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'mova/tools/ffmpeg-slim/**'
+      - '.github/workflows/build-mova-libmpv.yml'
+  workflow_dispatch:
+
+# The android-arm64 job commits the rebuilt artifact back to dist/ (see its
+# last step) — the default GITHUB_TOKEN is read-only unless granted write
+# here, so without this the build succeeds but the push-back 403s.
+permissions:
+  contents: write
+
+env:
+  # Pinned per tools/ffmpeg-slim/README.md's "实测结果" section — bump
+  # deliberately, not implicitly, so a size regression can always be traced
+  # back to either our flavor/patch or an explicit version bump here.
+  ANDROID_LIBMPV_BUILD_REF: 1ecf510
+  NDK_VERSION: 25.2.9519653
+  NDK_ZIP_NAME: android-ndk-r25c-linux.zip
+
+jobs:
+  android-arm64:
+    name: Android arm64-v8a (implemented)
+    runs-on: ubuntu-22.04
+    # Already green — temporarily disabled while iterating on linux/windows fixes.
+    if: false
+    steps:
+      - name: Checkout dart-labs
+        uses: actions/checkout@v4
+
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ninja-build pkg-config nasm autoconf automake libtool python3-pip
+          # ubuntu-22.04's apt meson is too old for mpv's build script (errors on
+          # "unrecognized arguments: --prefer-static") — pin via pip to the version
+          # verified working in the local WSL2 dry-run (Ubuntu 24.04's apt default).
+          pip3 install --user "meson==1.3.2"
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+
+      - name: Clone libmpv-android-video-build
+        run: |
+          git clone https://github.com/media-kit/libmpv-android-video-build build-root
+          cd build-root
+          git checkout "$ANDROID_LIBMPV_BUILD_REF"
+
+      - name: Apply mova slim-build patch
+        working-directory: build-root
+        run: git apply ../mova/tools/ffmpeg-slim/libmpv-android-video-build.patch
+
+      - name: Copy mova ffmpeg flavor into place
+        run: cp mova/tools/ffmpeg-slim/flavors-mova-slim.sh build-root/buildscripts/scripts/ffmpeg.sh
+
+      # sdkmanager's official NDK download is extremely slow (~0.12MB/s per
+      # tools/ffmpeg-slim/README.md's "环境准备" section) — pull the zip
+      # directly from Google's CDN instead and place it where build.sh expects it.
+      # Both caches are keyed on pinned versions (NDK_VERSION /
+      # ANDROID_LIBMPV_BUILD_REF), not on file hashes — the download scripts
+      # themselves already skip re-fetching anything that's on disk (see
+      # download-deps.sh's `[ ! -d dav1d ] && git clone ...` pattern), so a
+      # cache hit here just needs to restore that disk state instead of
+      # re-fetching ~500MB of NDK + several source trees on every single run
+      # (arm64/armeabi-v7a/x86/x86_64 all fetch identically, so the same key
+      # is shared across all 4 jobs — whichever runs first populates it).
+      - name: Cache Android NDK
+        uses: actions/cache@v4
+        with:
+          path: build-root/buildscripts/sdk/android-sdk-linux/ndk/${{ env.NDK_VERSION }}
+          key: android-ndk-${{ env.NDK_VERSION }}
+
+      - name: Download Android NDK (direct, skip sdkmanager)
+        run: |
+          if [ -d "build-root/buildscripts/sdk/android-sdk-linux/ndk/$NDK_VERSION" ]; then
+            echo "NDK restored from cache, skipping download"
+          else
+            mkdir -p "build-root/buildscripts/sdk/android-sdk-linux/ndk"
+            curl -fsSL -o "$NDK_ZIP_NAME" "https://dl.google.com/android/repository/$NDK_ZIP_NAME"
+            unzip -q "$NDK_ZIP_NAME" -d /tmp/ndk-extract
+            mv /tmp/ndk-extract/android-ndk-r25c "build-root/buildscripts/sdk/android-sdk-linux/ndk/$NDK_VERSION"
+          fi
+
+      - name: Cache ffmpeg/mpv/dav1d/etc. source deps
+        uses: actions/cache@v4
+        with:
+          path: build-root/buildscripts/deps
+          key: android-deps-${{ env.ANDROID_LIBMPV_BUILD_REF }}
+
+      - name: Download ffmpeg/mpv/dav1d/etc. sources
+        working-directory: build-root/buildscripts
+        run: ./include/download-deps.sh
+
+      - name: Apply upstream source patches
+        working-directory: build-root/buildscripts
+        run: ./patch.sh
+
+      - name: Build libmpv for arm64-v8a
+        working-directory: build-root/buildscripts
+        run: ./build.sh --arch arm64 mpv
+
+      - name: Strip and verify
+        working-directory: build-root/buildscripts
+        run: |
+          NDK_TOOLCHAIN=$(echo sdk/android-sdk-linux/ndk/$NDK_VERSION/toolchains/llvm/prebuilt/*)
+          LIBMPV=prefix/arm64-v8a/usr/local/lib/libmpv.so
+          "$NDK_TOOLCHAIN/bin/llvm-strip" --strip-all "$LIBMPV"
+
+          echo "### libmpv.so size (arm64-v8a)" >> "$GITHUB_STEP_SUMMARY"
+          SIZE_BYTES=$(stat -c%s "$LIBMPV")
+          echo "$SIZE_BYTES bytes ($(numfmt --to=iec-i --suffix=B "$SIZE_BYTES"))" >> "$GITHUB_STEP_SUMMARY"
+
+          # Critical-path symbol check — silent MediaCodec fallback-to-software
+          # is otherwise invisible (see README's mpv_lavc_set_java_vm note).
+          "$NDK_TOOLCHAIN/bin/llvm-nm" -D --defined-only "$LIBMPV" | grep -q mpv_lavc_set_java_vm \
+            || { echo "::error::mpv_lavc_set_java_vm missing — MediaCodec JavaVM binding broken"; exit 1; }
+          "$NDK_TOOLCHAIN/bin/llvm-nm" -D --defined-only "$LIBMPV" | grep -q dav1d_open \
+            || { echo "::error::dav1d_open missing — AV1 software fallback silently dropped (see README's --enable-libdav1d pitfall)"; exit 1; }
+          for sym in h264_mediacodec_decoder hevc_mediacodec_decoder vp9_mediacodec_decoder av1_mediacodec_decoder; do
+            "$NDK_TOOLCHAIN/bin/llvm-nm" -D --defined-only "$LIBMPV" | grep -q "$sym" \
+              || echo "::warning::$sym not found in dynamic symbols (expected for a static hwdec wrapper — check unstripped build if this is unexpected)"
+          done
+
+          cp "$LIBMPV" "$GITHUB_WORKSPACE/libmpv-arm64-v8a.so"
+
+      - name: Upload libmpv.so artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: mova-libmpv-android-arm64-v8a
+          path: libmpv-arm64-v8a.so
+          retention-days: 30
+
+      - name: Commit built artifact to dist/
+        run: |
+          mkdir -p mova/tools/ffmpeg-slim/dist/arm64-v8a
+          cp libmpv-arm64-v8a.so mova/tools/ffmpeg-slim/dist/arm64-v8a/libmpv.so
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add mova/tools/ffmpeg-slim/dist/arm64-v8a/libmpv.so
+          if git diff --cached --quiet; then
+            echo "No size/content change, skip commit"
+            exit 0
+          fi
+          git commit -m "chore(mova): rebuild slimmed libmpv.so (android arm64-v8a) [skip ci]"
+          # This job runs concurrently with android-other-abi's 3 matrix legs
+          # (and now darwin/linux/windows too) — all push to the same branch,
+          # each touching a disjoint dist/<abi>/ path, so retry on rejection.
+          for i in 1 2 3 4 5; do
+            if git push; then exit 0; fi
+            echo "push rejected (race with a sibling job), rebasing and retrying ($i/5)..."
+            git fetch origin main
+            git rebase origin/main
+            sleep $((RANDOM % 8 + 2))
+          done
+          echo "::error::failed to push dist/arm64-v8a/ after retries"
+          exit 1
+
+  # --- Everything below is a deliberate no-op scaffold, NOT a real build ---
+  # Each stub documents which upstream build repo the real job needs to drive
+  # and what's platform-specific about it (see README's "多平台进度" table).
+  # Flip `if: false` → real steps once that platform's flavor script/patch
+  # exists under tools/ffmpeg-slim/ and has been hand-verified once, the same
+  # way android-arm64 was.
+
+  android-other-abi:
+    name: "Android ${{ matrix.abi }} (implemented)"
+    runs-on: ubuntu-22.04
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: armv7l
+            abi: armeabi-v7a
+          - arch: x86
+            abi: x86
+          - arch: x86_64
+            abi: x86_64
+    # Already green — temporarily disabled while iterating on linux/windows fixes.
+    if: false
+    steps:
+      - name: Checkout dart-labs
+        uses: actions/checkout@v4
+
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ninja-build pkg-config nasm autoconf automake libtool python3-pip
+          pip3 install --user "meson==1.3.2"
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+
+      - name: Clone libmpv-android-video-build
+        run: |
+          git clone https://github.com/media-kit/libmpv-android-video-build build-root
+          cd build-root
+          git checkout "$ANDROID_LIBMPV_BUILD_REF"
+
+      - name: Apply mova slim-build patch
+        working-directory: build-root
+        run: git apply ../mova/tools/ffmpeg-slim/libmpv-android-video-build.patch
+
+      - name: Copy mova ffmpeg flavor into place
+        run: cp mova/tools/ffmpeg-slim/flavors-mova-slim.sh build-root/buildscripts/scripts/ffmpeg.sh
+
+      # Both caches are keyed on pinned versions (NDK_VERSION /
+      # ANDROID_LIBMPV_BUILD_REF), not on file hashes — the download scripts
+      # themselves already skip re-fetching anything that's on disk (see
+      # download-deps.sh's `[ ! -d dav1d ] && git clone ...` pattern), so a
+      # cache hit here just needs to restore that disk state instead of
+      # re-fetching ~500MB of NDK + several source trees on every single run
+      # (arm64/armeabi-v7a/x86/x86_64 all fetch identically, so the same key
+      # is shared across all 4 jobs — whichever runs first populates it).
+      - name: Cache Android NDK
+        uses: actions/cache@v4
+        with:
+          path: build-root/buildscripts/sdk/android-sdk-linux/ndk/${{ env.NDK_VERSION }}
+          key: android-ndk-${{ env.NDK_VERSION }}
+
+      - name: Download Android NDK (direct, skip sdkmanager)
+        run: |
+          if [ -d "build-root/buildscripts/sdk/android-sdk-linux/ndk/$NDK_VERSION" ]; then
+            echo "NDK restored from cache, skipping download"
+          else
+            mkdir -p "build-root/buildscripts/sdk/android-sdk-linux/ndk"
+            curl -fsSL -o "$NDK_ZIP_NAME" "https://dl.google.com/android/repository/$NDK_ZIP_NAME"
+            unzip -q "$NDK_ZIP_NAME" -d /tmp/ndk-extract
+            mv /tmp/ndk-extract/android-ndk-r25c "build-root/buildscripts/sdk/android-sdk-linux/ndk/$NDK_VERSION"
+          fi
+
+      - name: Cache ffmpeg/mpv/dav1d/etc. source deps
+        uses: actions/cache@v4
+        with:
+          path: build-root/buildscripts/deps
+          key: android-deps-${{ env.ANDROID_LIBMPV_BUILD_REF }}
+
+      - name: Download ffmpeg/mpv/dav1d/etc. sources
+        working-directory: build-root/buildscripts
+        run: ./include/download-deps.sh
+
+      - name: Apply upstream source patches
+        working-directory: build-root/buildscripts
+        run: ./patch.sh
+
+      - name: Build libmpv for ${{ matrix.abi }}
+        working-directory: build-root/buildscripts
+        run: ./build.sh --arch ${{ matrix.arch }} mpv
+
+      - name: Strip and verify
+        working-directory: build-root/buildscripts
+        run: |
+          NDK_TOOLCHAIN=$(echo sdk/android-sdk-linux/ndk/$NDK_VERSION/toolchains/llvm/prebuilt/*)
+          LIBMPV=prefix/${{ matrix.abi }}/usr/local/lib/libmpv.so
+          "$NDK_TOOLCHAIN/bin/llvm-strip" --strip-all "$LIBMPV"
+
+          echo "### libmpv.so size (${{ matrix.abi }})" >> "$GITHUB_STEP_SUMMARY"
+          SIZE_BYTES=$(stat -c%s "$LIBMPV")
+          echo "$SIZE_BYTES bytes ($(numfmt --to=iec-i --suffix=B "$SIZE_BYTES"))" >> "$GITHUB_STEP_SUMMARY"
+
+          "$NDK_TOOLCHAIN/bin/llvm-nm" -D --defined-only "$LIBMPV" | grep -q mpv_lavc_set_java_vm \
+            || { echo "::error::mpv_lavc_set_java_vm missing — MediaCodec JavaVM binding broken"; exit 1; }
+          "$NDK_TOOLCHAIN/bin/llvm-nm" -D --defined-only "$LIBMPV" | grep -q dav1d_open \
+            || { echo "::error::dav1d_open missing — AV1 software fallback silently dropped (see README's --enable-libdav1d pitfall)"; exit 1; }
+
+          cp "$LIBMPV" "$GITHUB_WORKSPACE/libmpv-${{ matrix.abi }}.so"
+
+      - name: Upload libmpv.so artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: mova-libmpv-android-${{ matrix.abi }}
+          path: libmpv-${{ matrix.abi }}.so
+          retention-days: 30
+
+      - name: Commit built artifact to dist/
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          mkdir -p mova/tools/ffmpeg-slim/dist/${{ matrix.abi }}
+          cp "$GITHUB_WORKSPACE/libmpv-${{ matrix.abi }}.so" mova/tools/ffmpeg-slim/dist/${{ matrix.abi }}/libmpv.so
+          git add mova/tools/ffmpeg-slim/dist/${{ matrix.abi }}/libmpv.so
+          if git diff --cached --quiet; then
+            echo "No size/content change, skip commit"
+            exit 0
+          fi
+          git commit -m "chore(mova): rebuild slimmed libmpv.so (android ${{ matrix.abi }}) [skip ci]"
+          # 3 matrix legs (armeabi-v7a/x86/x86_64) push to the same branch
+          # concurrently — each only touches its own dist/<abi>/ path, so a
+          # rebase on conflict is always trivial, never a real content clash.
+          for i in 1 2 3 4 5; do
+            if git push; then exit 0; fi
+            echo "push rejected (race with a sibling matrix leg), rebasing and retrying ($i/5)..."
+            git fetch origin main
+            git rebase origin/main
+            sleep $((RANDOM % 8 + 2))
+          done
+          echo "::error::failed to push dist/${{ matrix.abi }}/libmpv.so after retries"
+          exit 1
+
+  # iOS + macOS share one upstream repo (media-kit/libmpv-darwin-build) built
+  # via Nix + a pinned Xcode — there is no separate ios/macos repo despite
+  # what earlier comments here assumed. The flake's per-target attrs are
+  # named "mk-out-libs-<os>-<arch>-<variant>-<flavor>" (see
+  # create-cross-package.nix); `nix build .#<attr>` builds just that one
+  # combination instead of every ios/iossimulator/macos arch×variant×flavor
+  # combination the default (TARGET-less) package would.
+  #
+  # v3: carries our own "movaslim" ffmpeg flavor (patch below) — NOT the
+  # ffmpeg-6.0-based v2 anymore, superseded to follow the ffmpeg n9.0 + mpv
+  # v0.41.0 + libplacebo "v9" line already validated (compiled + real-device
+  # tested) for Android/Windows in tools/ffmpeg-slim/experiments/build-
+  # {android,win}-libmpv-v9.sh. Decoder/demuxer/protocol keep-list still
+  # mirrors Android's, adapted to VideoToolbox hwaccel instead of
+  # MediaCodec; GPU backend is libplacebo's OpenGL path (not Vulkan/D3D11),
+  # reusing the Android v9 experiment's real-device finding that a second
+  # concurrent GPU context costs real CPU/memory vs collapsing onto the
+  # single GL context the hwdec bridge already uses. See the patch file's
+  # comments and tools/ffmpeg-slim/README.md's "Darwin movaslim flavor"
+  # section for the full per-codec/per-dependency reasoning — this pairing
+  # needed two brand-new Nix packages (mk-pkg-glslang, mk-pkg-libplacebo)
+  # that have never been exercised in this repo, so expect this to take
+  # several CI iterations to go green, same as the real-device debugging
+  # the Android/Windows v9 experiments needed.
+  #
+  # This first CI attempt intentionally builds only ONE target (macos-arm64,
+  # the fastest combination: native to the macos-15 runner's arch, no iOS
+  # SDK cross-compile, no lipo universal-binary merge) to verify the
+  # movaslim flavor actually configures/compiles/links before spending CI
+  # time on the full ios/iossimulator/macos matrix. Once this goes green,
+  # broaden TARGET (or drop it) to cover the other combinations and add
+  # real-device/simulator playback verification, mirroring how Android went
+  # from a single arm64-v8a build to a validated multi-ABI one.
+  darwin:
+    name: "Darwin: iOS arm64 ONLY (movaslim flavor, post-build strip)"
+    runs-on: macos-15
+    steps:
+      - name: Platform info
+        run: sw_vers; uname -m
+
+      - name: Checkout dart-labs
+        uses: actions/checkout@v4
+        with:
+          path: dart-labs
+
+      - name: Checkout libmpv-darwin-build
+        uses: actions/checkout@v4
+        with:
+          repository: media-kit/libmpv-darwin-build
+          path: build-root
+          # No pinned ref yet (first attempt at this platform) — unlike the
+          # Android build's ANDROID_LIBMPV_BUILD_REF, we don't have a
+          # known-good commit to pin to. Pin this once a build here succeeds.
+
+      - name: Apply mova movaslim flavor patch
+        working-directory: build-root
+        run: |
+          git apply "$GITHUB_WORKSPACE/dart-labs/mova/tools/ffmpeg-slim/libmpv-darwin-build.patch"
+          # Nix flakes only evaluate git-tracked files (purity: the flake's
+          # source is the git index, not the raw working tree) — new files
+          # the patch adds (mk-pkg-glslang/, mk-pkg-libplacebo/) exist on
+          # disk but are invisible to `nix build` until staged. No commit
+          # needed, `git add` alone is enough to make them visible.
+          git add -A
+
+      - uses: DeterminateSystems/nix-installer-action@v22
+        with:
+          extra-conf: |
+            sandbox = true
+            sandbox-fallback = false
+
+      - uses: DeterminateSystems/magic-nix-cache-action@v13
+        with:
+          use-flakehub: false
+
+      - name: Resolve Xcode path
+        id: xcode
+        run: |
+          # The repo's own CI pins Xcode_16.1.0.app; fall back to whatever
+          # Xcode the runner has if that exact version isn't preinstalled.
+          if [ -d /Applications/Xcode_16.1.0.app ]; then
+            echo "path=$(realpath /Applications/Xcode_16.1.0.app)" >> "$GITHUB_OUTPUT"
+          else
+            echo "::warning::Xcode_16.1.0.app not found, falling back to xcode-select's default — may not match what the flake expects"
+            echo "path=$(xcode-select -p | sed 's|/Contents/Developer||')" >> "$GITHUB_OUTPUT"
+          fi
+
+      # macos-arm64 AND ios-arm64 both went green (see tools/ffmpeg-slim/
+      # README.md's "Darwin movaslim flavor" section for the full fix
+      # list). Post-build `strip -x` alone (no compile-time size flags) got
+      # ios-arm64 from ~19.8MB unstripped down to 12.37MB (run 31453253677)
+      # — still far above Android's optimized-and-stripped 6.5MB total,
+      # because that run's cross-files/*.ini carried none of Android's
+      # -fvisibility=hidden/-ffunction-sections/-fdata-sections/-Wl,-dead_strip
+      # levers. Those were tried once before (runs 31373514009/31374345612)
+      # and reverted after a reproducible "libxml-2.0 not found using
+      # pkg-config" failure in ffmpeg's own configure (root cause then not
+      # pinned down — meson's external_project module not forwarding
+      # PKG_CONFIG_PATH into cross-build pkg-config lookups). That root
+      # cause is now fixed via mk-pkg-ffmpeg's PKG_CONFIG_PATH wrapper (see
+      # libmpv-darwin-build.patch), so the flags were retried on
+      # cross-files/ios-arm64.ini only (see that file's diff hunk in the
+      # patch) — run 31454544613 confirms it: builds clean, no libxml
+      # failure, and the stripped dylib drops from 12,374,408 B to
+      # 10,967,592 B (−1.41MB / −11.4%). Still short of Android's 6.5MB
+      # (iOS carries mpv 0.41's mandatory libplacebo+glslang, which Android
+      # doesn't need), but a real, verified step down — not reverted.
+      - name: Build (ios-arm64 only, movaslim flavor)
+        working-directory: build-root
+        run: nix develop -c make XCODE_PATH="${{ steps.xcode.outputs.path }}" VERSION=mova-ci TARGET=mk-out-libs-ios-arm64-video-movaslim
+
+      - name: Verify and collect
+        working-directory: build-root
+        run: |
+          ls -la result/
+          test -n "$(ls result/*.dylib 2>/dev/null)" || { echo "::error::no .dylib found in result/ — single-target build (mk-out-libs) outputs raw dylibs, not an archive"; exit 1; }
+          mkdir -p "$GITHUB_WORKSPACE/darwin-out"
+          cp result/*.dylib "$GITHUB_WORKSPACE/darwin-out/"
+          # result/*.dylib are Nix store paths — read-only, and `cp`
+          # preserves that permission bit onto the copies. Run 31375592021
+          # actually failed to strip anything at all ("Permission denied"
+          # on every single file), but the job still reported success
+          # because the strip loop treats a failure as a non-fatal
+          # warning — chmod first so strip can actually write in place.
+          chmod u+w "$GITHUB_WORKSPACE"/darwin-out/*.dylib
+          echo "### darwin build artifacts (ios-arm64, movaslim, unstripped)" >> "$GITHUB_STEP_SUMMARY"
+          ls -la "$GITHUB_WORKSPACE/darwin-out" >> "$GITHUB_STEP_SUMMARY"
+          du -h "$GITHUB_WORKSPACE"/darwin-out/*.dylib >> "$GITHUB_STEP_SUMMARY"
+          echo "### total (unstripped)" >> "$GITHUB_STEP_SUMMARY"
+          du -ch "$GITHUB_WORKSPACE"/darwin-out/*.dylib | tail -1 >> "$GITHUB_STEP_SUMMARY"
+
+          # Post-build strip — zero compile/link risk, only rewrites
+          # already-linked dylibs on disk. `-x` (local symbols only, keep
+          # the global/exported symbol table dylibs need to actually be
+          # linkable) is the safe default for shared libraries; `-S`
+          # (debug symbols only) is a lighter alternative if `-x` turns out
+          # to remove something a dependent library needs at runtime.
+          echo "### stripping (strip -x)" >> "$GITHUB_STEP_SUMMARY"
+          for f in "$GITHUB_WORKSPACE"/darwin-out/*.dylib; do
+            strip -x "$f" || echo "::warning:: strip -x failed on $f"
+          done
+          echo "### darwin build artifacts (ios-arm64, movaslim, stripped)" >> "$GITHUB_STEP_SUMMARY"
+          du -h "$GITHUB_WORKSPACE"/darwin-out/*.dylib >> "$GITHUB_STEP_SUMMARY"
+          echo "### total (stripped)" >> "$GITHUB_STEP_SUMMARY"
+          du -ch "$GITHUB_WORKSPACE"/darwin-out/*.dylib | tail -1 >> "$GITHUB_STEP_SUMMARY"
+
+          # Where's the remaining ~10.17MiB actually going? No static
+          # per-object breakdown exists (ffmpeg/mpv link straight into one
+          # dylib, no separate .a artifacts survive to this step), so
+          # approximate it via exported-symbol prefix — each dependency's
+          # public API uses a distinct, greppable prefix (pl_*=libplacebo,
+          # glslang::/spv*=glslang, av_*/sws_*/swr_*=ffmpeg, mpv_*=mpv,
+          # ass_*=libass, FT_*=freetype, hb_*=harfbuzz). Symbol *count* is
+          # a rough proxy for code size, not a real substitute for a
+          # per-object link map — good enough to tell "worth digging into
+          # libplacebo/glslang further" from "not worth it" without a whole
+          # separate experiment cycle.
+          echo "### exported symbol counts by owning library (rough proxy, stripped binary)" | tee -a "$GITHUB_STEP_SUMMARY"
+          for f in "$GITHUB_WORKSPACE"/darwin-out/*.dylib; do
+            echo "#### $f" | tee -a "$GITHUB_STEP_SUMMARY"
+            nm -gU "$f" > /tmp/syms.txt || echo "::warning:: nm failed on $f"
+            total=$(wc -l < /tmp/syms.txt)
+            echo "- total exported symbols: $total" | tee -a "$GITHUB_STEP_SUMMARY"
+            for pair in "libplacebo:_pl_" "glslang:_glslang\|_spv" "ffmpeg:_av_\|_sws_\|_swr_" "mpv:_mpv_" "libass:_ass_" "freetype:_FT_" "harfbuzz:_hb_" "dav1d:_dav1d_"; do
+              lib="${pair%%:*}"; pat="${pair#*:}"
+              n=$(grep -cE "$pat" /tmp/syms.txt || true)
+              echo "  - $lib: $n" | tee -a "$GITHUB_STEP_SUMMARY"
+            done
+          done
+          echo "### Mach-O segment sizes (size -m, stripped)" | tee -a "$GITHUB_STEP_SUMMARY"
+          for f in "$GITHUB_WORKSPACE"/darwin-out/*.dylib; do
+            size -m "$f" | tee -a "$GITHUB_STEP_SUMMARY"
+          done
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: mova-libmpv-darwin-ios-arm64-movaslim-optimized
+          path: darwin-out/*
+          retention-days: 30
+
+      # Feasibility-only pass: no commit-to-dist/ step yet. This is a single
+      # macos-arm64 dylib set, not the full ios+macos product — wire up the
+      # dist/ commit (like android-arm64's) once the ios targets are added
+      # and real-device/simulator playback is verified, not before.
+
+  # No upstream media-kit repo exists for Linux (unlike Android/darwin/win32)
+  # — this builds ffmpeg+mpv from source natively on the runner itself, no
+  # cross-compile toolchain needed. Dependencies (libass/freetype/harfbuzz/
+  # fribidi/dav1d/mbedtls) come from apt instead of being built from source
+  # like the Android buildscripts do, since a native Ubuntu build can just
+  # link the system dev packages — there's no NDK-style sysroot to flatten.
+  linux:
+    name: "Linux x86_64 (implemented, v1: native build)"
+    runs-on: ubuntu-22.04
+    # Already green (run 31092096967) — disabled while iterating on windows.
+    if: false
+    steps:
+      - name: Checkout dart-labs
+        uses: actions/checkout@v4
+
+      - name: Install build + runtime dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ninja-build pkg-config nasm autoconf automake libtool python3-pip \
+            libass-dev libfreetype6-dev libharfbuzz-dev libfribidi-dev libdav1d-dev \
+            libmbedtls-dev libvpx-dev zlib1g-dev libva-dev libvdpau-dev
+          pip3 install --user "meson==1.3.2"
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+
+      - name: Download ffmpeg and mpv sources
+        run: |
+          git clone --depth 1 --branch n6.0 https://github.com/FFmpeg/FFmpeg.git ffmpeg-src
+          # mpv's main branch needs a newer libavcodec than ffmpeg n6.0 ships
+          # (meson: "found 60.3.100 but need >= 60.31.102") — pin to the same
+          # mpv commit the Android build already verified pairs with ffmpeg
+          # 6.0 (see tools/ffmpeg-slim/README.md's "实测结果" section), instead
+          # of guessing another ref.
+          git clone https://github.com/mpv-player/mpv.git mpv-src
+          git -C mpv-src checkout 78d43740f52db817d98bcf24fb30a76ab6fa13ff
+
+      - name: Build slimmed ffmpeg (native, static)
+        working-directory: ffmpeg-src
+        run: |
+          ./configure \
+            --disable-gpl --disable-nonfree --enable-version3 \
+            --enable-static --disable-shared --pkg-config-flags=--static \
+            --disable-doc --disable-programs --disable-avdevice --disable-postproc \
+            --disable-muxers --disable-decoders --disable-encoders --disable-demuxers \
+            --disable-parsers --disable-protocols --disable-devices --disable-filters \
+            --enable-small --enable-optimizations \
+            --enable-mbedtls --enable-zlib --enable-libdav1d \
+            --enable-vaapi --enable-vdpau \
+            --enable-avutil --enable-avcodec --enable-avfilter --enable-avformat \
+            --enable-swscale --enable-swresample \
+            --enable-decoder=h264,hevc,vp9,libdav1d,png,aac,aac_latm,mp3,mp3float,opus,ac3,eac3,flac,vorbis,pcm_s16le,pcm_s16be,pcm_s24le,pcm_s32le,pcm_f32le,pcm_u8,ass,ssa,subrip,text,webvtt,movtext \
+            --enable-encoder=png \
+            --enable-parser=h264,hevc,vp9,av1,png,aac,aac_latm,ac3,flac,opus,vorbis,mpegaudio \
+            --enable-demuxer=mov,matroska,webm_dash_manifest,mpegts,hls,flv,live_flv,data,mp3,flac,ogg,wav,aac,ac3,eac3,ass,srt,webvtt \
+            --enable-protocol=file,fd,pipe,data,http,https,tcp,tls,crypto,rtmp,rtmps,rtmpt,rtmpts,ffrtmpcrypt,ffrtmphttp,udp,rtp \
+            --enable-bsf=null,extract_extradata,h264_mp4toannexb,hevc_mp4toannexb,aac_adtstoasc,vp9_superframe,vp9_superframe_split,av1_frame_split,av1_frame_merge,mov2textsub,dump_extradata,setts \
+            --enable-network \
+            --prefix="$GITHUB_WORKSPACE/prefix"
+          make -j"$(nproc)"
+          make install
+
+      - name: Build mpv (native, against system libass/freetype and our ffmpeg)
+        working-directory: mpv-src
+        run: |
+          export PKG_CONFIG_PATH="$GITHUB_WORKSPACE/prefix/lib/pkgconfig"
+          # Force plain "lib" (not Ubuntu's multiarch "lib/x86_64-linux-gnu")
+          # so Strip and verify can find prefix/lib/libmpv.so without guessing.
+          # -Dgpl=false is not optional: mpv defaults to GPL, and this whole
+          # slim build exists to stay LGPL (same flag the android flavor sets).
+          # The dist/linux-x86_64/ artifact from run 31092096967 predates this
+          # flag and must be rebuilt before it can ship.
+          meson setup build --prefix="$GITHUB_WORKSPACE/prefix" --libdir=lib --default-library=shared \
+            -Dgpl=false -Dlibmpv=true -Dcplayer=false -Dtests=false
+          ninja -C build
+          ninja -C build install
+
+      - name: Strip and verify
+        run: |
+          # Resolve via the unversioned symlink (not a libmpv.so* glob — that
+          # expands to multiple paths and breaks strip's single-arg expectation).
+          # --libdir=lib above lands it here; without that meson uses Ubuntu's
+          # multiarch lib/x86_64-linux-gnu and this path 404s (run 31090200118).
+          test -e "$GITHUB_WORKSPACE/prefix/lib/libmpv.so" \
+            || { echo "::error::libmpv.so not at prefix/lib/ — check meson --libdir"; find "$GITHUB_WORKSPACE/prefix" -name 'libmpv.so*' -print; exit 1; }
+          LIBMPV=$(readlink -f "$GITHUB_WORKSPACE/prefix/lib/libmpv.so")
+          strip --strip-all "$LIBMPV"
+
+          echo "### libmpv.so size (linux x86_64)" >> "$GITHUB_STEP_SUMMARY"
+          SIZE_BYTES=$(stat -c%s "$LIBMPV")
+          echo "$SIZE_BYTES bytes ($(numfmt --to=iec-i --suffix=B "$SIZE_BYTES"))" >> "$GITHUB_STEP_SUMMARY"
+
+          # Android statically embeds dav1d (defined-only nm check). This Linux
+          # v1 links system libdav1d.so, so dav1d_open is undefined + DT_NEEDED
+          # rather than defined — accept either shape.
+          nm -D --defined-only "$LIBMPV" | grep -q dav1d_open \
+            || ldd "$LIBMPV" | grep -q libdav1d \
+            || { echo "::error::dav1d not linked (no defined dav1d_open, no libdav1d NEEDED) — AV1 decode silently dropped"; exit 1; }
+
+          cp "$LIBMPV" "$GITHUB_WORKSPACE/libmpv-linux-x86_64.so"
+
+      - name: Upload libmpv.so artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: mova-libmpv-linux-x86_64
+          path: libmpv-linux-x86_64.so
+          retention-days: 30
+
+      - name: Commit built artifact to dist/
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          mkdir -p mova/tools/ffmpeg-slim/dist/linux-x86_64
+          cp "$GITHUB_WORKSPACE/libmpv-linux-x86_64.so" mova/tools/ffmpeg-slim/dist/linux-x86_64/libmpv.so
+          git add mova/tools/ffmpeg-slim/dist/linux-x86_64/libmpv.so
+          if git diff --cached --quiet; then
+            echo "No size/content change, skip commit"
+            exit 0
+          fi
+          git commit -m "chore(mova): add linux x86_64 libmpv build, v1 native [skip ci]"
+          for i in 1 2 3 4 5; do
+            if git push; then exit 0; fi
+            echo "push rejected, rebasing and retrying ($i/5)..."
+            git fetch origin main
+            git rebase origin/main
+            sleep $((RANDOM % 8 + 2))
+          done
+          echo "::error::failed to push dist/linux-x86_64/ after retries"
+          exit 1
+
+  # Same native-slim recipe as the linux job, on MSYS2 MINGW64. Do NOT drive
+  # media-kit/libmpv-win32-video-build here — that project is a Linux→Windows
+  # cross-compile that builds its own GCC/LLVM toolchain + ~98 deps from
+  # source (LD_PRELOAD/mimalloc, Docker, rustup); it cannot run usefully on
+  # windows-latest and ships the upstream full flavor, not our slim list.
+  # Deps (libass/freetype/harfbuzz/fribidi/dav1d/mbedtls) come from pacman.
+  # Hardaccel: d3d11va/dxva2 instead of linux's vaapi/vdpau.
+  windows:
+    name: "Windows x86_64 (implemented, v1: native MSYS2 slim)"
+    runs-on: windows-latest
+    # Temporarily disabled while we isolate the darwin movaslim feasibility
+    # run via workflow_dispatch (dispatch runs every job without `if: false`
+    # in one go, no per-job trigger exists) — re-enable once darwin's result
+    # is in, this is not a decision to deprioritize windows.
+    if: false
+    defaults:
+      run:
+        shell: msys2 {0}
+    steps:
+      - name: Checkout dart-labs
+        uses: actions/checkout@v4
+
+      - uses: msys2/setup-msys2@v2
+        with:
+          msystem: MINGW64
+          update: true
+          install: >-
+            base-devel
+            git
+            autoconf
+            automake
+            libtool
+            mingw-w64-x86_64-toolchain
+            mingw-w64-x86_64-ninja
+            mingw-w64-x86_64-nasm
+            mingw-w64-x86_64-pkgconf
+            mingw-w64-x86_64-python-pip
+            mingw-w64-x86_64-libass
+            mingw-w64-x86_64-freetype
+            mingw-w64-x86_64-harfbuzz
+            mingw-w64-x86_64-fribidi
+            mingw-w64-x86_64-dav1d
+            mingw-w64-x86_64-mbedtls
+            mingw-w64-x86_64-zlib
+
+      - name: Pin meson via pip
+        run: |
+          # Same pin as android/linux — keep meson versions aligned across jobs.
+          pip3 install "meson==1.3.2"
+
+      - name: Resolve MSYS-style workspace path
+        run: |
+          # $GITHUB_WORKSPACE is a Windows path (D:\a\dart-labs\dart-labs). Its
+          # drive-letter colon collides with the ':' separator in
+          # PKG_CONFIG_PATH, which is why meson couldn't see our libavcodec.pc
+          # (run 31093497599) — every path below uses this POSIX form instead.
+          echo "WS=$(cygpath -u "$GITHUB_WORKSPACE")" >> "$GITHUB_ENV"
+
+      - name: Download ffmpeg and mpv sources
+        run: |
+          # n6.0.1, not n6.0 like the android/linux jobs: ffmpeg 6.0's inline
+          # asm in libavcodec/x86/mathops.h feeds a non-immediate operand to
+          # shr/sar, which binutils >= 2.41 (what MSYS2 ships) rejects with
+          # "operand type mismatch for `shr'" on aacdec/aacsbr/aacps
+          # (run 31092943243). Upstream's fix is backported into 6.0.1, and
+          # 6.0.x stays libavcodec 60.3.x so the mpv pairing below still holds.
+          git clone --depth 1 --branch n6.0.1 https://github.com/FFmpeg/FFmpeg.git ffmpeg-src
+          # Same mpv↔ffmpeg 6.0 pairing the linux/android jobs already verified.
+          git clone https://github.com/mpv-player/mpv.git mpv-src
+          git -C mpv-src checkout 78d43740f52db817d98bcf24fb30a76ab6fa13ff
+
+      - name: Patch mpv for current mingw-w64 headers
+        run: |
+          # ksmedia.h needs mmreg.h's WAVE_FORMAT_* macros but only includes
+          # ks.h, and current mingw-w64 no longer pulls mmreg.h in transitively
+          # (run 31094204221). Order matters: mmreg.h must come *before*
+          # ksguid.h, because ksguid.h switches DEFINE_GUIDSTRUCT from emitting
+          # extern declarations to emitting real GUID objects — put mmreg.h
+          # after it and its GUIDs collide with ksmedia.h's (run 31095299330).
+          # This is the include order upstream mpv uses under __MINGW32__; the
+          # pinned commit predates that fix.
+          FILES=$(grep -rl '#include <ksmedia.h>' mpv-src/audio mpv-src/osdep || true)
+          test -n "$FILES" || { echo "::error::no ksmedia.h include found — mpv layout changed, revisit this patch"; exit 1; }
+          for f in $FILES; do
+            grep -q '^#include <ksguid.h>' "$f" || { echo "::error::$f includes ksmedia.h without ksguid.h — revisit this patch"; exit 1; }
+            sed -i 's|^#include <ksguid.h>|#include <mmreg.h>\n#include <ksguid.h>\n#include <mmsystem.h>|' "$f"
+            echo "patched $f"
+          done
+
+      - name: Build slimmed ffmpeg (native, static)
+        working-directory: ffmpeg-src
+        run: |
+          # MSYS2/MINGW64 gcc is already the target toolchain — no --cross-prefix.
+          # Windows hardaccel is d3d11va/dxva2 (not vaapi/vdpau).
+          ./configure \
+            --target-os=mingw32 \
+            --arch=x86_64 \
+            --disable-gpl --disable-nonfree --enable-version3 \
+            --enable-static --disable-shared --pkg-config-flags=--static \
+            --disable-doc --disable-programs --disable-avdevice --disable-postproc \
+            --disable-muxers --disable-decoders --disable-encoders --disable-demuxers \
+            --disable-parsers --disable-protocols --disable-devices --disable-filters \
+            --enable-small --enable-optimizations \
+            --enable-mbedtls --enable-zlib --enable-libdav1d \
+            --enable-d3d11va --enable-dxva2 \
+            --enable-avutil --enable-avcodec --enable-avfilter --enable-avformat \
+            --enable-swscale --enable-swresample \
+            --enable-decoder=h264,hevc,vp9,libdav1d,png,aac,aac_latm,mp3,mp3float,opus,ac3,eac3,flac,vorbis,pcm_s16le,pcm_s16be,pcm_s24le,pcm_s32le,pcm_f32le,pcm_u8,ass,ssa,subrip,text,webvtt,movtext \
+            --enable-encoder=png \
+            --enable-parser=h264,hevc,vp9,av1,png,aac,aac_latm,ac3,flac,opus,vorbis,mpegaudio \
+            --enable-demuxer=mov,matroska,webm_dash_manifest,mpegts,hls,flv,live_flv,data,mp3,flac,ogg,wav,aac,ac3,eac3,ass,srt,webvtt \
+            --enable-protocol=file,fd,pipe,data,http,https,tcp,tls,crypto,rtmp,rtmps,rtmpt,rtmpts,ffrtmpcrypt,ffrtmphttp,udp,rtp \
+            --enable-bsf=null,extract_extradata,h264_mp4toannexb,hevc_mp4toannexb,aac_adtstoasc,vp9_superframe,vp9_superframe_split,av1_frame_split,av1_frame_merge,mov2textsub,dump_extradata,setts \
+            --enable-network \
+            --prefix="$WS/prefix"
+          make -j"$(nproc)"
+          make install
+
+      - name: Build mpv (native, against pacman libass/freetype and our ffmpeg)
+        working-directory: mpv-src
+        run: |
+          export PKG_CONFIG_PATH="$WS/prefix/lib/pkgconfig:/mingw64/lib/pkgconfig"
+          # -Dgpl=false is not optional: mpv defaults to GPL, and this whole
+          # slim build exists to stay LGPL (same flag the android flavor sets).
+          # --prefer-static: our ffmpeg is static-only, and a mingw DLL cannot
+          # carry undefined symbols, so its Libs.private deps (mbedtls/dav1d/
+          # zlib) have to come in at link time. It also keeps the shipped DLL
+          # self-contained instead of trailing a dozen MSYS2 runtime DLLs.
+          # -lstdc++/-ldwrite: static libharfbuzz.a is C++ and uses DirectWrite,
+          # but libmpv is a C target so the C driver links neither (the
+          # operator new/delete undefined refs in run 31096129335).
+          meson setup build --prefix="$WS/prefix" --libdir=lib --default-library=shared \
+            --prefer-static \
+            -Dc_link_args="-lstdc++ -ldwrite -lole32 -lrpcrt4" \
+            -Dgpl=false -Dlibmpv=true -Dcplayer=false -Dtests=false
+          ninja -C build
+          ninja -C build install
+
+      - name: Strip and verify
+        run: |
+          # Meson on mingw names the shared lib libmpv-2.dll (soversion baked in).
+          DLL=$(find "$WS/prefix" -iname 'libmpv*.dll' | head -1)
+          test -n "$DLL" || { echo "::error::libmpv*.dll not found under prefix/"; find "$WS/prefix" -type f -print; exit 1; }
+          strip -s "$DLL"
+
+          echo "### libmpv.dll size (windows x86_64)" >> "$GITHUB_STEP_SUMMARY"
+          SIZE_BYTES=$(stat -c%s "$DLL")
+          echo "$SIZE_BYTES bytes ($(numfmt --to=iec-i --suffix=B "$SIZE_BYTES" 2>/dev/null || echo "$SIZE_BYTES B"))" >> "$GITHUB_STEP_SUMMARY"
+
+          # Pacman dav1d is shared — expect either a defined symbol or a DLL import.
+          nm --defined-only "$DLL" 2>/dev/null | grep -q dav1d_open \
+            || objdump -p "$DLL" | grep -qi dav1d \
+            || { echo "::error::dav1d not linked (no defined dav1d_open, no dav1d DLL import) — AV1 decode silently dropped"; exit 1; }
+
+          cp "$DLL" "$WS/libmpv-2-windows-x86_64.dll"
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: mova-libmpv-windows-x86_64
+          path: libmpv-2-windows-x86_64.dll
+          retention-days: 30
+
+      - name: Commit built artifact to dist/
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          mkdir -p mova/tools/ffmpeg-slim/dist/windows-x86_64
+          cp "$WS/libmpv-2-windows-x86_64.dll" mova/tools/ffmpeg-slim/dist/windows-x86_64/libmpv-2.dll
+          git add mova/tools/ffmpeg-slim/dist/windows-x86_64/libmpv-2.dll
+          if git diff --cached --quiet; then
+            echo "No size/content change, skip commit"
+            exit 0
+          fi
+          git commit -m "chore(mova): add windows x86_64 libmpv-2.dll build, v1 native MSYS2 slim [skip ci]"
+          for i in 1 2 3 4 5; do
+            if git push; then exit 0; fi
+            echo "push rejected, rebasing and retrying ($i/5)..."
+            git fetch origin main
+            git rebase origin/main
+            sleep $((RANDOM % 8 + 2))
+          done
+          echo "::error::failed to push dist/windows-x86_64/ after retries"
+          exit 1

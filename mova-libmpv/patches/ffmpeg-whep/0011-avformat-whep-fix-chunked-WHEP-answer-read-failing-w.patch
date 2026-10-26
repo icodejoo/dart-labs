@@ -1,0 +1,36 @@
+From 3ed82beedad2683cf4707c4496f775f93943ba75 Mon Sep 17 00:00:00 2001
+From: jelon <jelon@tbu.net>
+Date: Sat, 24 Oct 2026 11:58:36 +0800
+Subject: [PATCH] avformat/whep: fix chunked WHEP answer read failing with EIO
+
+Servers that reply to the SDP POST with Transfer-Encoding: chunked (MediaMTX on a
+multi-NIC host, answer > ~2KB, Go net/http) made whep_exchange_sdp fail with
+"Reading WHEP answer failed: I/O error". In http_buf_read(), the terminating
+zero-size chunk without multiple_requests closes s->hd and returns 0; the next
+read then hits "if (!s->hd) return s->off < s->filesize ? EIO : EOF" and
+filesize is UINT64_MAX for chunked bodies, so EIO is returned. Set
+multiple_requests=1 so the zero chunk sets chunkend and the next read is EOF.
+
+Co-Authored-By: Claude Sonnet 5.5 <noreply@anthropic.com>
+---
+ libavformat/whep.c | 4 ++++
+ 1 file changed, 4 insertions(+)
+
+diff --git a/libavformat/whep.c b/libavformat/whep.c
+index 54b1591..69d297c 100644
+--- a/libavformat/whep.c
++++ b/libavformat/whep.c
+@@ -770,6 +770,10 @@ static int whep_exchange_sdp(AVFormatContext *s)
+     whep_http_opts(s, &opts);
+     av_dict_set(&opts, "headers", hdrs, 0);
+     av_dict_set_int(&opts, "chunked_post", 0, 0);
++    /* 应答 Transfer-Encoding: chunked 时（Go net/http 在响应超过约 2KB 时就这样回），
++     * http 协议读到末块 0 会关掉连接并返回 0，下一次读返回 EIO（filesize=UINT64_MAX，
++     * hd 已空）。multiple_requests=1 让它走 chunkend 分支，随后干净地返回 EOF。 */
++    av_dict_set_int(&opts, "multiple_requests", 1, 0);
+     if (!(hex = av_mallocz(2 * strlen(w->sdp_offer) + 1))) {
+         ret = AVERROR(ENOMEM);
+         goto end;
+-- 
+2.43.0
+

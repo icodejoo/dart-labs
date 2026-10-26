@@ -1,0 +1,157 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: mova <mova@example.invalid>
+Date: Fri, 2 Oct 2026 20:00:00 +0800
+Subject: [PATCH 6/6] avformat/whep: security hardening
+
+- Location must be same-origin with the signalling URL, otherwise it is
+  dropped (no DELETE, so the Bearer token cannot leak); with a token set,
+  3xx redirects are not followed.
+- Reject fingerprints whose length is not exactly the SHA-256 form.
+- Constant-time STUN MESSAGE-INTEGRITY comparison.
+- Cap consecutive socket errors during ICE.
+- Wipe DTLS private key and SRTP key material on close.
+---
+ libavformat/whep.c | 58 ++++++++++++++++++++++++++++++++++++++++++----
+ 1 file changed, 53 insertions(+), 5 deletions(-)
+
+diff --git a/libavformat/whep.c b/libavformat/whep.c
+index 365dd5f..de30fc2 100755
+--- a/libavformat/whep.c
++++ b/libavformat/whep.c
+@@ -73,6 +73,7 @@
+ #define STUN_HOST_PRIORITY    ((126u << 24) | (65535u << 8) | 255u)
+ /* 连通性检查重发间隔（微秒） */
+ #define WHEP_ICE_RTX_US       200000
++#define WHEP_ICE_MAX_ERRORS 50  /* ICE 阶段连续 socket 错误上限（约 10 秒的发送周期） */
+ /* UDP 收发缓冲；DTLS 的 MTU（pion 要求偏小） */
+ #define WHEP_UDP_BUF_SIZE     1500
+ #define WHEP_DTLS_MTU         1200
+@@ -284,6 +285,36 @@ static int whep_build_headers(AVFormatContext *s, char *buf, size_t size, int wi
+     return 0;
+ }
+ 
++/**
++ * 判断两个 http(s) URL 是否同源（scheme、host 不区分大小写，端口缺省按 scheme 归一）。
++ * 用于限制 Location：DELETE 会带 Bearer token，不能发往信令之外的地址。
++ * @return 1 同源，0 不同源
++ */
++static int whep_same_origin(const char *a, const char *b)
++{
++    char pa[16], pb[16], ha[256], hb[256];
++    int ta = -1, tb = -1;
++
++    av_url_split(pa, sizeof(pa), NULL, 0, ha, sizeof(ha), &ta, NULL, 0, a);
++    av_url_split(pb, sizeof(pb), NULL, 0, hb, sizeof(hb), &tb, NULL, 0, b);
++    if (av_strcasecmp(pa, pb) || av_strcasecmp(ha, hb))
++        return 0;
++    if (ta < 0) ta = !av_strcasecmp(pa, "https") ? 443 : 80;
++    if (tb < 0) tb = !av_strcasecmp(pb, "https") ? 443 : 80;
++    return ta == tb;
++}
++
++/**
++ * 清零敏感内存（volatile 写，避免被编译器当作死存储优化掉）。
++ */
++static void whep_wipe(void *p, size_t n)
++{
++    volatile uint8_t *v = p;
++
++    while (n--)
++        *v++ = 0;
++}
++
+ /**
+  * 填充 HTTP 打开选项：超时、TLS 校验、CA、UA（tls_verify 等会透传给 tcp/tls 层）。
+  */
+@@ -300,6 +331,8 @@ static void whep_http_opts(AVFormatContext *s, AVDictionary **opts)
+         av_dict_set(opts, "ca_file", w->ca_file, 0);
+     if (w->user_agent)
+         av_dict_set(opts, "user_agent", w->user_agent, 0);
++    if (w->token)   /* 带 token 时不跟随 3xx，避免 Authorization 被带到其他地址 */
++        av_dict_set_int(opts, "max_redirects", 0, 0);
+ }
+ 
+ /* ------------------------------------------------------------------ */
+@@ -449,7 +482,8 @@ static void whep_parse_attr(WhepSdp *o, WhepMedia *m, const char *a)
+     } else if (av_strstart(a, "ice-pwd:", &p)) {
+         if (!o->pwd[0]) av_strlcpy(o->pwd, p, sizeof(o->pwd));
+     } else if (av_strstart(a, "fingerprint:", &p)) {
+-        if (!o->fp[0] && sscanf(p, "%15s %159s", word1, word2) == 2) {
++        if (!o->fp[0] && sscanf(p, "%15s %159s", word1, word2) == 2 &&
++            strlen(word2) == WHEP_FP_LEN) {
+             av_strlcpy(o->fp_algo, word1, sizeof(o->fp_algo));
+             av_strlcpy(o->fp, word2, sizeof(o->fp));
+         }
+@@ -710,11 +744,15 @@ static int whep_exchange_sdp(AVFormatContext *s)
+             ret = AVERROR_INVALIDDATA;
+             goto end;
+         }
+-        if (!(w->resource_url = av_strdup(loc))) {
++        if (!whep_same_origin(w->http_url, loc)) {
++            /* 不同源：丢弃，不发 DELETE（否则 token 会泄露给第三方） */
++            av_log(s, AV_LOG_WARNING, "Ignoring Location %s: not same-origin as the signalling URL; session will not be released\n", loc);
++        } else if (!(w->resource_url = av_strdup(loc))) {
+             ret = AVERROR(ENOMEM);
+             goto end;
++        } else {
++            av_log(s, AV_LOG_VERBOSE, "Session resource: %s\n", w->resource_url);
+         }
+-        av_log(s, AV_LOG_VERBOSE, "Session resource: %s\n", w->resource_url);
+     } else {
+         av_log(s, AV_LOG_WARNING, "No Location header; session cannot be released with DELETE\n");
+     }
+@@ -969,7 +1007,7 @@ static int whep_ice_build_response(WHEPContext *w, uint8_t *b, const uint8_t *ti
+ static int whep_stun_verify(const uint8_t *b, int size, const char *pwd, const char *user)
+ {
+     int len = size >= STUN_HDR_SIZE ? AV_RB16(b + 2) : -1, o = STUN_HDR_SIZE;
+-    int mi = -1, user_ok = !user;
++    int mi = -1, user_ok = !user, diff = 0;
+     uint8_t lenb[2], mac[20];
+     AVHMAC *h;
+ 
+@@ -996,7 +1034,9 @@ static int whep_stun_verify(const uint8_t *b, int size, const char *pwd, const c
+     av_hmac_update(h, b + 4, mi - 4);
+     av_hmac_final(h, mac, 20);
+     av_hmac_free(h);
+-    return !memcmp(mac, b + mi + 4, 20);
++    for (int i = 0; i < 20; i++)   /* 常量时间比较 */
++        diff |= mac[i] ^ b[mi + 4 + i];
++    return !diff;
+ }
+ 
+ /**
+@@ -1081,6 +1121,7 @@ static int whep_ice_connect(AVFormatContext *s)
+     uint8_t tid[12], buf[WHEP_UDP_BUF_SIZE], out[WHEP_UDP_BUF_SIZE];
+     int fd = ffurl_get_file_handle(w->udp), ice_ok = 0, ret, n;
+     int64_t next_tx = 0, now;
++    int err_cnt = 0;   /* 连续 socket 错误计数 */
+ 
+     if ((ret = av_random_bytes(tid, sizeof(tid))) < 0 ||
+         (ret = av_random_bytes((uint8_t *)&w->ice_tie_breaker, sizeof(w->ice_tie_breaker))) < 0)
+@@ -1109,9 +1150,14 @@ static int whep_ice_connect(AVFormatContext *s)
+         if (n < 0) {
+             /* 例如对端端口不可达产生的 ICMP 错误：取走错误状态，稍等重试直到超时 */
+             recv(fd, buf, sizeof(buf), 0);
++            if (++err_cnt >= WHEP_ICE_MAX_ERRORS) {
++                av_log(s, AV_LOG_ERROR, "ICE: too many consecutive socket errors, peer unreachable\n");
++                return AVERROR(ECONNREFUSED);
++            }
+             av_usleep(20000);
+             continue;
+         }
++        err_cnt = 0;
+         if (ff_is_dtls_packet(buf, n)) {
+             av_log(s, AV_LOG_VERBOSE, "ICE: peer started DTLS (check %s), elapsed=%.1fms\n",
+                    ice_ok ? "succeeded" : "response not seen", (now - w->t_start) / 1000.0);
+@@ -1791,6 +1837,8 @@ static int whep_read_close(AVFormatContext *s)
+ 
+     whep_media_close(s);
+     whep_dispose_session(s);
++    whep_wipe(w->key_buf, sizeof(w->key_buf));
++    whep_wipe(w->srtp_materials, sizeof(w->srtp_materials));
+     for (int i = 0; i < w->nb_ice_servers; i++) {
+         av_freep(&w->ice_servers[i].url);
+         av_freep(&w->ice_servers[i].username);
+-- 
+2.53.0
+

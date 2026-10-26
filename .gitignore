@@ -3,3 +3,8 @@
 
 # Session scratch artifacts
 .tmp_screenshots/
+
+# WHEP 版 Android 包：二进制由 CI 注入（git add -f），本地手放的 .so 不要误提交
+mova/packages/media_kit_libs_android_video_slim_v041/**/*.so
+# 本地构建 Windows WHEP 产物的工作目录
+mova-libmpv/_whep-win/

@@ -1,0 +1,25 @@
+diff --git a/video/out/opengl/common.c b/video/out/opengl/common.c
+--- a/video/out/opengl/common.c
++++ b/video/out/opengl/common.c
+@@ -579,6 +579,10 @@ void mpgl_load_functions2(GL *gl, void *(*get_fn)(void *ctx, const char *n),
+ 
+     mp_dbg(log, "Combined OpenGL extensions string:\n%s\n", gl->extensions);
+ 
++    // ANGLE 的计时器 query 每帧在驱动里泄漏内存，这里不启用
++    const char *gl_renderer = gl->GetString(GL_RENDERER);
++    bool is_angle = gl_renderer && strstr(gl_renderer, "ANGLE");
++
+     for (int n = 0; n < MP_ARRAY_SIZE(gl_functions); n++) {
+         const struct gl_functions *section = &gl_functions[n];
+         int version = gl->es ? gl->es : gl->version;
+@@ -594,6 +598,10 @@ void mpgl_load_functions2(GL *gl, void *(*get_fn)(void *ctx, const char *n),
+             gl->es >= section->ver_es_exclude)
+             continue;
+ 
++        if (is_angle && section->extension &&
++            strcmp(section->extension, "GL_EXT_disjoint_timer_query") == 0)
++            continue;
++
+         bool exists = false, must_exist = false;
+         if (ver_core)
+             must_exist = version >= ver_core;

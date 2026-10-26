@@ -81,12 +81,15 @@ dev_dependencies:
 # libmediakitandroidhelper.so, extracted verbatim from its release jar
 # (mova-libmpv doesn't build that helper). Same package name as upstream, so
 # this is the sole provider in the dependency graph — no pickFirst needed.
-# See mova/packages/media_kit_libs_android_video_slim.
+# 2026-10-25 起以新为主：指向 v041（ffmpeg n9.0.2 + mpv v0.41.0 + WHEP，
+# arm64-v8a + armeabi-v7a）；旧 n6 的 media_kit_libs_android_video_slim 仅作
+# 回退保留，要回退把下面 path 改回去即可。
+# See mova/packages/media_kit_libs_android_video_slim_v041.
 dependency_overrides:
   media_kit_libs_windows_video:
     path: ../packages/media_kit_libs_windows_video_slim
   media_kit_libs_android_video:
-    path: ../packages/media_kit_libs_android_video_slim
+    path: ../packages/media_kit_libs_android_video_slim_v041
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec

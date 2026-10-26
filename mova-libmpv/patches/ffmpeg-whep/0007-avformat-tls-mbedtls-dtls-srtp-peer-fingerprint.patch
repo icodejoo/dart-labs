@@ -1,0 +1,189 @@
+From 5b83ec33a9cb0d8c53aa789dfe8fc0f70b0c0ef9 Mon Sep 17 00:00:00 2001
+From: jelon <jelon@tbu.net>
+Date: Fri, 2 Oct 2026 17:01:56 +0800
+Subject: [PATCH 7/8] avformat/tls_mbedtls: DTLS-SRTP peer fingerprint, server
+ cert request, EAGAIN fix
+
+Add ff_dtls_get_peer_fingerprint() for mbedtls (needs MBEDTLS_SSL_KEEP_PEER_CERTIFICATE),
+make a DTLS server request the peer certificate (WebRTC mutual auth, trust via SDP
+fingerprint), poll-based non-blocking handshake honouring the interrupt callback,
+map EAGAIN to WANT_READ, only derive SRTP keys from the TLS1.2 master secret export.
+whep: enable the fingerprint branch for mbedtls and schannel too.
+
+Co-Authored-By: Claude Sonnet 5.5 <noreply@anthropic.com>
+---
+ libavformat/tls_mbedtls.c | 80 ++++++++++++++++++++++++++++++++-------
+ libavformat/whep.c        |  2 +-
+ 2 files changed, 67 insertions(+), 15 deletions(-)
+
+diff --git a/libavformat/tls_mbedtls.c b/libavformat/tls_mbedtls.c
+index 444148b..838c4a6 100644
+--- a/libavformat/tls_mbedtls.c
++++ b/libavformat/tls_mbedtls.c
+@@ -44,25 +44,15 @@
+ #include "libavutil/avstring.h"
+ #include "libavutil/random_seed.h"
+ 
+-static int mbedtls_x509_fingerprint(char *cert_buf, size_t cert_sz, char **fingerprint)
++/** 对 DER 证书算 SHA-256，输出 "AA:BB:.." 大写冒号格式。 */
++static int mbedtls_der_fingerprint(const unsigned char *der, size_t der_len, char **fingerprint)
+ {
+     unsigned char md[32];
+     size_t n = sizeof(md);
+     AVBPrint buf;
+-    int ret;
+-    mbedtls_x509_crt crt;
+ 
+-    mbedtls_x509_crt_init(&crt);
+-
+-    if ((ret = mbedtls_x509_crt_parse(&crt, cert_buf, cert_sz)) != 0) {
+-        mbedtls_x509_crt_free(&crt);
++    if (mbedtls_sha256(der, der_len, md, 0) != 0)
+         return AVERROR(EINVAL);
+-    }
+-
+-    if ((ret = mbedtls_sha256(crt.raw.p, crt.raw.len, md, 0)) != 0) {
+-        mbedtls_x509_crt_free(&crt);
+-        return AVERROR(EINVAL);
+-    }
+ 
+     av_bprint_init(&buf, n*3, n*3);
+ 
+@@ -73,6 +63,23 @@ static int mbedtls_x509_fingerprint(char *cert_buf, size_t cert_sz, char **finge
+     return av_bprint_finalize(&buf, fingerprint);
+ }
+ 
++static int mbedtls_x509_fingerprint(char *cert_buf, size_t cert_sz, char **fingerprint)
++{
++    int ret;
++    mbedtls_x509_crt crt;
++
++    mbedtls_x509_crt_init(&crt);
++
++    if (mbedtls_x509_crt_parse(&crt, cert_buf, cert_sz) != 0) {
++        mbedtls_x509_crt_free(&crt);
++        return AVERROR(EINVAL);
++    }
++
++    ret = mbedtls_der_fingerprint(crt.raw.p, crt.raw.len, fingerprint);
++    mbedtls_x509_crt_free(&crt);
++    return ret;
++}
++
+ int ff_ssl_read_key_cert(char *key_url, char *cert_url, char *key_buf, size_t key_sz, char *cert_buf, size_t cert_sz, char **fingerprint)
+ {
+     int ret = 0;
+@@ -278,6 +285,21 @@ int ff_tls_set_external_socket(URLContext *h, URLContext *sock)
+     return 0;
+ }
+ 
++/**
++ * 取 DTLS 握手后对端证书的 SHA-256 指纹（"AA:BB:.." 大写）。
++ * 需要 MBEDTLS_SSL_KEEP_PEER_CERTIFICATE；对端未发证书返回 AVERROR(ENOENT)。
++ * *fingerprint 由调用方 av_free。
++ */
++int ff_dtls_get_peer_fingerprint(URLContext *h, char **fingerprint)
++{
++    TLSContext *tls_ctx = h->priv_data;
++    const mbedtls_x509_crt *crt = mbedtls_ssl_get_peer_cert(&tls_ctx->ssl_context);
++
++    if (!crt)
++        return AVERROR(ENOENT);
++    return mbedtls_der_fingerprint(crt->raw.p, crt->raw.len, fingerprint);
++}
++
+ #if defined(MBEDTLS_SSL_DTLS_SRTP)
+ static void dtls_srtp_key_derivation(void *p_expkey,
+                                      mbedtls_ssl_key_export_type secret_type,
+@@ -289,6 +311,8 @@ static void dtls_srtp_key_derivation(void *p_expkey,
+ {
+     dtls_srtp_keys *keys = (dtls_srtp_keys *) p_expkey;
+ 
++    if (secret_type != MBEDTLS_SSL_KEY_EXPORT_TLS12_MASTER_SECRET)
++        return;
+     if (secret_len != sizeof(keys->master_secret))
+         return;
+ 
+@@ -403,6 +427,9 @@ static int mbedtls_recv(void *ctx, unsigned char *buf, size_t len)
+             return MBEDTLS_ERR_SSL_WANT_READ;
+         return ret;
+     }
++    /* 非阻塞下的 EAGAIN 不是缓冲区问题，先于 max_packet_size 判断 */
++    if (ret == AVERROR(EAGAIN))
++        return MBEDTLS_ERR_SSL_WANT_READ;
+     if (h->max_packet_size && len > h->max_packet_size)
+         return MBEDTLS_ERR_SSL_BUFFER_TOO_SMALL;
+ 
+@@ -470,6 +497,13 @@ static void handle_handshake_error(URLContext *h, int ret)
+     }
+ }
+ 
++/** 接受任意对端证书（清掉校验标志），真正的校验是指纹比对。 */
++static int dtls_accept_any_cert(void *data, mbedtls_x509_crt *crt, int depth, uint32_t *flags)
++{
++    *flags = 0;
++    return 0;
++}
++
+ static int tls_handshake(URLContext *h)
+ {
+     TLSContext *tls_ctx = h->priv_data;
+@@ -478,9 +512,16 @@ static int tls_handshake(URLContext *h)
+     uint32_t verify_res_flags;
+     int ret;
+ 
+-    uc->flags &= ~AVIO_FLAG_NONBLOCK;
++    /* DTLS 用非阻塞 + poll 分段等待，让中断回调和重传计时器能及时生效 */
++    if (shr->is_dtls)
++        uc->flags |= AVIO_FLAG_NONBLOCK;
++    else
++        uc->flags &= ~AVIO_FLAG_NONBLOCK;
+ 
+     while (1) {
++        if (ff_check_interrupt(&h->interrupt_callback))
++            return AVERROR_EXIT;
++
+         ret = mbedtls_ssl_handshake(&tls_ctx->ssl_context);
+ 
+         if (!ret)
+@@ -489,6 +530,12 @@ static int tls_handshake(URLContext *h)
+             handle_handshake_error(h, ret);
+             return ret;
+         }
++        if (shr->is_dtls) {
++            struct pollfd pfd = { .fd = ffurl_get_file_handle(uc),
++                                  .events = ret == MBEDTLS_ERR_SSL_WANT_WRITE ? POLLOUT : POLLIN };
++            if (pfd.fd >= 0)
++                poll(&pfd, 1, 100);
++        }
+     }
+ 
+     if (shr->verify) {
+@@ -643,6 +690,11 @@ static int tls_open(URLContext *h, const char *uri, int flags, AVDictionary **op
+     // not VERIFY_REQUIRED because we manually check after handshake
+     mbedtls_ssl_conf_authmode(&tls_ctx->ssl_config,
+                               shr->verify ? MBEDTLS_SSL_VERIFY_OPTIONAL : MBEDTLS_SSL_VERIFY_NONE);
++    if (!shr->verify && shr->is_dtls && shr->use_srtp && shr->listen) {
++        /* WebRTC 要求双向证书：DTLS server 必须请求对端证书；信任由调用方比对 SDP 指纹决定 */
++        mbedtls_ssl_conf_authmode(&tls_ctx->ssl_config, MBEDTLS_SSL_VERIFY_OPTIONAL);
++        mbedtls_ssl_conf_verify(&tls_ctx->ssl_config, dtls_accept_any_cert, NULL);
++    }
+     mbedtls_ssl_conf_rng(&tls_ctx->ssl_config, mbedtls_ctr_drbg_random, &tls_ctx->ctr_drbg_context);
+     mbedtls_ssl_conf_ca_chain(&tls_ctx->ssl_config, &tls_ctx->ca_cert, NULL);
+ 
+diff --git a/libavformat/whep.c b/libavformat/whep.c
+index 365dd5f..fde1467 100755
+--- a/libavformat/whep.c
++++ b/libavformat/whep.c
+@@ -1166,7 +1166,7 @@ static int whep_dtls_handshake(AVFormatContext *s)
+         av_log(s, AV_LOG_ERROR, "DTLS handshake failed: %s\n", av_err2str(ret));
+         return ret;
+     }
+-#if CONFIG_OPENSSL
++#if CONFIG_OPENSSL || CONFIG_MBEDTLS || CONFIG_SCHANNEL
+     ret = ff_dtls_get_peer_fingerprint(w->dtls_uc, &peer_fp);
+ #else
+     ret = AVERROR(ENOSYS);
+-- 
+2.53.0
+
