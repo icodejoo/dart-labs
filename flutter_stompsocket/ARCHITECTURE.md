@@ -1,353 +1,131 @@
 # Flutter Stompsocket 架构文档
 
-## 项目概述
+本包封装 `stomp_dart_client`，入口为 `lib/flutter_stompsocket.dart`。
+本文按当前代码、README 和测试校准；旧稿中的 `brokerURL`、`connect()`、
+指数退避、重试次数上限和 `lib/src/` 拆分目录均非现有 API，不据此新增功能。
 
-**flutter_stompsocket** 是一个生产级别的 Flutter STOMP-over-WebSocket 客户端库，基于 stomp_dart_client 封装。提供共享解析回调队列、自动重新订阅、离线发送缓冲、自动/手动确认等功能。
+## 已定约束
 
-## 核心架构
-
-```
-应用代码
-    ↓
-[Stompsocket 核心]
-    ├─ 连接管理器
-    ├─ 协议处理器
-    ├─ 状态管理器
-    └─ 事件系统
-    ↓
-[WebSocket 连接]
-    ├─ 建立 WS 连接
-    ├─ STOMP 握手
-    └─ 心跳管理
-    ↓
-[消息处理]
-    ├─ 共享解析队列
-    ├─ Ref-counted 订阅
-    ├─ 消息确认 (ACK/NACK)
-    └─ 消息过滤
-    ↓
-[离线支持]
-    ├─ 离线缓冲队列
-    └─ 重连时重发
-    ↓
-[重连管理]
-    ├─ 自动重连
-    ├─ 指数退避
-    ├─ 重新订阅
-    └─ 前台恢复
-    ↓
-应用回调处理
-```
-
-## 主要特性
-
-### 1. **STOMP 协议支持**
-```dart
-final stomp = Stompsocket(
-  brokerURL: 'ws://localhost:15674/ws',
-  login: 'guest',
-  passcode: 'guest',
-  heartbeatOut: 10000,
-  heartbeatIn: 10000
-);
-
-await stomp.connect();
-```
-
-### 2. **连接管理**
-```dart
-// 监听连接状态
-stomp.onConnect?.listen((_) {
-  print('Connected');
-});
-
-stomp.onDisconnect?.listen((_) {
-  print('Disconnected');
-});
-
-// 手动连接/断开
-await stomp.connect();
-await stomp.disconnect();
-```
-
-### 3. **订阅管理**
-```dart
-// 简单订阅
-final subscription = await stomp.subscribe(
-  '/topic/chat',
-  onMessage: (message) {
-    print('Message: ${message.body}');
-  }
-);
-
-// 取消订阅
-await subscription.unsubscribe();
-```
-
-### 4. **发送消息**
-```dart
-// 发送消息到队列
-await stomp.send(
-  '/queue/notifications',
-  body: 'Hello',
-  headers: {'custom-header': 'value'}
-);
-
-// 连接断开时自动缓冲，重连后自动发送
-```
-
-### 5. **消息确认**
-```dart
-// 自动确认
-final subscription = await stomp.subscribe(
-  '/queue/tasks',
-  ack: 'auto',
-  onMessage: (message) {
-    // 消息自动 ACK
-  }
-);
-
-// 手动确认
-final subscription = await stomp.subscribe(
-  '/queue/important',
-  ack: 'client',
-  onMessage: (message) {
-    try {
-      // 处理消息
-      message.ack();
-    } catch (e) {
-      message.nack();
-    }
-  }
-);
-```
-
-### 6. **自动重连**
-```dart
-final stomp = Stompsocket(
-  brokerURL: 'ws://localhost:15674/ws',
-  reconnectDelay: Duration(seconds: 1),
-  maxReconnectAttempts: 10
-);
-
-// 连接断开时自动重连
-// 重新订阅所有之前的主题
-// 重发离线期间的待发送消息
-```
-
-### 7. **离线支持**
-```dart
-// 连接离线时消息自动缓冲
-await stomp.send('/queue/email', body: 'Offline message');
-
-// 重连后自动发送缓冲消息
-// 支持配置最大缓冲大小
-```
+- 保持单文件核心和现有命名风格，公开方法保持同步。
+- 传输、握手、心跳及固定间隔自动重连交给 `stomp_dart_client`。
+  `reconnectDelay > Duration.zero` 无限重试，零值关闭自动重连。
+- 本封装负责连接成功后恢复本地订阅，再补发离线消息，最后通知 `onConnected`。
+- 同一订阅只解析一次，回调共享同一份结果；取消句柄按注册对象身份引用计数。
+- 不传 id 时，按 `(destination, ack, onParseError, ordered)` 生成确定性归并键。
+  自动键使用 `\x1f`，不能使用 STOMP 帧终止符 NUL。
+  显式 id 直接用作键，首次注册确定目的地和选项；调用方不要复用自动键作为显式 id。
+- 默认按单个订阅的到达顺序分发；可用 `ordered:false` 选择解析完成即分发。
+- `dispose` 是可逆停止，允许再次 `activate`，因此状态通知器不能在停止时销毁。
 
 ## 文件结构
 
-```
-lib/
-├── src/
-│   ├── stompsocket.dart        # Stompsocket 核心类
-│   ├── connection/
-│   │   ├─ connection_manager.dart
-│   │   ├─ websocket_handler.dart
-│   │   └─ heartbeat_manager.dart
-│   ├── subscription/
-│   │   ├─ subscription.dart    # 订阅对象
-│   │   ├─ subscription_manager.dart
-│   │   └─ ref_counter.dart     # Ref-counted 计数
-│   ├── message/
-│   │   ├─ message.dart         # STOMP 消息
-│   │   └─ message_queue.dart   # 消息队列
-│   ├── offline/
-│   │   └─ offline_buffer.dart  # 离线缓冲
-│   ├── protocol/
-│   │   ├─ frame_parser.dart    # 帧解析器
-│   │   ├─ frame_builder.dart   # 帧构建器
-│   │   └─ protocol.dart        # STOMP 协议常量
-│   ├── state/
-│   │   ├─ connection_state.dart# 连接状态
-│   │   └─ event_emitter.dart   # 事件发射
-│   ├── types.dart              # 类型定义
-│   └─ constants.dart           # 常量
-└── stompsocket.dart            # 主入口
+```text
+lib/flutter_stompsocket.dart       核心、类型、句柄、解析和确认
+test/flutter_stompsocket_test.dart 原有行为集成测试
+test/review_regression_test.dart   边界与竞态回归测试
+test/stomp_test_broker.dart        本地 WebSocket/STOMP 测试服务
+example/                          Flutter 示例
+README.md / README.zh-CN.md        双语 API 契约
 ```
 
-## 核心流程
-
-### 初始化和连接
+## 生命周期与状态
 
 ```dart
-final stomp = Stompsocket(
-  brokerURL: 'ws://localhost:15674/ws',
-  login: 'guest',
-  passcode: 'guest',
-  heartbeatOut: 10000,
-  heartbeatIn: 10000,
-  onConnect: () => print('Connected'),
-  onDisconnect: () => print('Disconnected'),
-  onError: (error) => print('Error: $error')
+final ws = Stompsocket(
+  url: 'ws://localhost:15674/ws',
+  connectHeaders: {'login': 'guest', 'passcode': 'guest'},
+  beforeConnect: () async => {'Authorization': 'Bearer token'},
+  onConnected: (_) { /* 重拉业务快照 */ },
 );
-
-await stomp.connect();
+ws.activate();
 ```
 
-### 连接流程
+`state` 为同步快照，`stateListenable` 为 Flutter 原生 `ValueListenable`，
+`onStateChanged` 便于命令式桥接。同值不重复通知。监听者可同步停止实例，
+停止后不得继续启动传输或报告过期的连接成功事件。重复启动活动连接为无操作。
 
-```
-用户调用 stomp.connect()
-    ↓
-[连接初始化]
-    ├─ 建立 WebSocket 连接
-    ├─ 连接 ws://broker/ws
-    └─ 状态变为 CONNECTING
-    ↓
-[STOMP CONNECT 帧]
-    ├─ 构建 CONNECT 帧
-    ├─ 包含 login, passcode, accept-version
-    └─ 发送到 Broker
-    ↓
-[等待 CONNECTED 响应]
-    ├─ Broker 响应 CONNECTED 帧
-    ├─ 解析协议版本、服务器信息
-    └─ 状态变为 CONNECTED
-    ↓
-[恢复之前的订阅]
-    ├─ 遍历订阅列表
-    ├─ 为每个订阅发送 SUBSCRIBE 帧
-    └─ 重新激活订阅
-    ↓
-[发送离线消息]
-    ├─ 检查离线缓冲
-    ├─ 为每条缓冲消息发送 SEND 帧
-    └─ 清空缓冲区
-    ↓
-[触发回调]
-    ├─ 调用 onConnect 回调
-    └─ 通知应用连接完成
-    ↓
-连接就绪，可以发送/接收消息
-```
+状态流：首次启动 `idle → connecting → connected`；传输关闭后，启用重连时
+进入 `reconnecting`，否则进入 `disconnected`。停止进入 `disconnected`，
+再次启动进入 `connecting`。关闭自动重连时，首次连接失败也进入 `disconnected`。
 
-### 订阅流程
+`beforeConnect` 每次连接前异步刷新 CONNECT 头；返回非 null 替换全部头，
+返回 null 或抛异常则保留已有头，异常记日志。它不是取消连接的钩子。
+停止期间未完成的准备结果不得覆盖新尝试的头；再次启动先等待旧准备退出底层流程，
+避免旧流程在底层重新 active 后建立第二条连接。
 
-```
-用户调用 stomp.subscribe('/topic/chat')
-    ↓
-[创建订阅对象]
-    ├─ 生成唯一订阅 ID
-    ├─ 创建 Subscription 对象
-    └─ 保存回调函数
-    ↓
-[检查 Ref-Count]
-    ├─ 检查是否已订阅该主题
-    ├─ 已订阅 → ref-count++，不发送 SUBSCRIBE 帧
-    └─ 未订阅 → 发送 SUBSCRIBE 帧
-    ↓
-[发送 SUBSCRIBE 帧]
-    ├─ 构建 SUBSCRIBE 帧
-    ├─ 指定 id 和 destination
-    └─ 发送到 Broker
-    ↓
-[接收消息]
-    ├─ Broker 发送 MESSAGE 帧
-    ├─ 解析帧内容
-    └─ 调用订阅者回调
-    ↓
-[消息确认]
-    ├─ 如果 ack='auto' → 自动 ACK
-    ├─ 如果 ack='client' → 等待手动 ACK/NACK
-    └─ 发送 ACK/NACK 帧到 Broker
-```
+`resumeOnForeground` 默认 true，通过 `AppLifecycleListener` 在回前台时调用
+`forceReconnect()`。只有期望连接且当前未连接时生效，跳过重连等待；需要已初始化
+WidgetsBinding，纯 Dart 场景应设为 false。
 
-### 去重和共享解析
+`dispose(keepSubscriptions:false)` 默认清空订阅和回调；true 保留登记供重启恢复。
+两者均保留出站缓冲。实例中会话代次使停止、断线前的解析结果和旧 ACK 句柄失效。
+重新连接会重置订阅解析链，避免新会话被旧大包阻塞。
+
+## 订阅与解析
 
 ```dart
-// 场景：多个组件订阅同一主题
-
-final sub1 = await stomp.subscribe('/topic/news', 
-  onMessage: (msg) => widget1.update(msg)
-);
-
-final sub2 = await stomp.subscribe('/topic/news',
-  onMessage: (msg) => widget2.update(msg)
-);
-
-final sub3 = await stomp.subscribe('/topic/news',
-  onMessage: (msg) => widget3.update(msg)
-);
-
-// Ref-Count 管理：
-// 1. sub1: ref-count = 1, 发送 SUBSCRIBE 帧
-// 2. sub2: ref-count = 2, 不发送 SUBSCRIBE 帧（已订阅）
-// 3. sub3: ref-count = 3, 不发送 SUBSCRIBE 帧（已订阅）
-
-// Broker 发来消息时，一次解析，三个回调都触发
-// Parser 共享，减少重复工作
+final subscription = ws.subscribe('/topic/chat', (value, ack) {
+  // value 可以是任意 JSON 值，也可以是非 JSON 的原始文本。
+});
+subscription.unsubscribe(); // 仅移除本次注册；最后一个取消才发 UNSUBSCRIBE
+ws.unsubscribe(destination: '/topic/chat'); // 按目的地批量取消
+ws.clear(); // 取消全部
 ```
 
-### 重连流程
+相同自动归并键或显式 id 的回调共用一条 wire 订阅。重复取消安全，旧句柄不能
+取消同 id 重建后的新订阅。离线取消只修改本地登记，不向失效连接发帧。
 
-```
-WebSocket 连接断开
-    ↓
-[检测断开]
-    ├─ WebSocket onClose 事件
-    ├─ 状态变为 DISCONNECTED
-    └─ 清理资源
-    ↓
-[计算重连延迟]
-    ├─ delay = min(initialDelay * 2^attempt, maxDelay)
-    ├─ 例：1s, 2s, 4s, 8s, ... (指数退避)
-    └─ 启动定时器
-    ↓
-[前台恢复检测]
-    ├─ 如果应用在前台恢复
-    ├─ 立即触发重连（不等待延迟）
-    └─ WidgetsBindingObserver.didChangeAppLifecycleState
-    ↓
-[尝试重连]
-    ├─ 重复连接流程
-    ├─ 恢复订阅和离线消息
-    └─ 失败后继续重试
-    ↓
-[重连成功]
-    ├─ 重置延迟计数器
-    ├─ 触发 onConnect 回调
-    └─ 用户无感知
-```
+文本 JSON 解码成功就交付实际值（含 null、数组、标量）；解码异常则交付原始文本。
+显式 `application/octet-stream` 走注入的 `binaryDecoder`，其余二进制 body
+先严格探测 UTF-8：成功按文本处理，失败走二进制解码器。缺少解码器或解码异常才是
+解析失败。真正没有 body 的消息不调用订阅回调。
 
-### 离线消息缓冲
+小包同步解析，大包使用 `compute`。文本阈值为 32K UTF-16 代码单元，二进制阈值为
+32KB。原生平台每次 compute 新建 isolate，只适合偶发大包；Web 在当前事件循环运行。
+大包二进制解码器需为可发送到 isolate 的顶层或静态函数。
+
+`ordered:true` 将解析追加到每个订阅的 Future 链，异常不应破坏后续链。
+`ordered:false` 允许小包先于大包交付。停止或会话变化后均丢弃旧解析结果，
+不再触发业务回调、解析失败监控或 ACK/NACK。
+
+## ACK/NACK
+
+| 模式 | 订阅头 | 应答责任 |
+|---|---|---|
+| auto | 不带 ack（服务端默认 auto） | 本封装不发送 ACK/NACK |
+| smart | client-individual | 同步回调全成功 ACK，任一抛异常 NACK |
+| manual | client-individual | 回调通过 AckControl 应答，可在回调外调用 |
+
+smart/manual 解析失败按 `ParseFailureAck` 自动应答，默认 NACK；
+真正无 body 时自动 ACK。合法 JSON null 必须交给回调，manual 不擅自确认。
+`onParseFailure` 用于监控，监控异常不改变确认策略。
+
+确认 id 优先取 MESSAGE 的 `ack`，回退 `message-id`（沿用底层兼容策略）。
+句柄绑定会话代次，只在当前连接有效且幂等。共享 manual 回调拿到同一个句柄，
+首次 ack/nack 生效。非 manual 回调得到 no-op 句柄。
+
+`JsonCallback` 是同步 void 回调，smart 不等待异步业务；异步任务须选择 manual，
+完成后再确认。NACK 的重投和死信上限由 broker 决定。
+
+## 离线发送
 
 ```dart
-// 场景：连接断开时发送消息
-
-// 连接在线
-await stomp.send('/queue/notification', body: 'Online message');
-
-// 连接断开（网络问题）
-// 消息自动进入缓冲队列
-await stomp.send('/queue/notification', body: 'Offline message 1');
-await stomp.send('/queue/notification', body: 'Offline message 2');
-
-// 消息在缓冲中，等待重连
-
-// 重连成功后
-// 缓冲消息自动发送
-// 应用无需干预
-
-// 可配置最大缓冲大小，防止内存溢出
+ws.send('/queue/notification', body: {'text': 'Hello'});
 ```
 
-## 与其他项目的关系
+字符串原样发送，Map/List 等对象 JSON 编码并补默认 `application/json`（允许头覆盖），
+Uint8List 发送二进制，null 不带 body。离线时按 `queueWhileDisconnected` 缓冲，
+容量默认 100，超限丢最旧；容量 ≤0 不缓冲。连接后按序补发，发送异常时将未发送部分
+退回缓冲并遵守容量上限，下次连接再尝试。缓冲不提供服务端送达保证。
 
-- **@codejoo/stomp** (TypeScript 版本): 类似的功能设计
-- **其他 Dart-Labs 子包**: 可作为实时通信基础
+## 配置复制与观测
 
-## 参考
+`copyWith` 继承未提供的构造参数，返回未连接的新实例，不复制订阅、缓冲或状态。
+null 表示继承，因此不能用 null 清空可空配置。
+`debug` 控制库日志，`onLog` 可接管输出；`onDebugMessage` 独立透传底层流水。
+业务应在 `onConnected` 重拉快照，补齐断线期间未收到的消息。
 
-- [README.md](./README.md)
-- [源代码](./lib)
-- stomp_dart_client: https://pub.dev/packages/stomp_dart_client
+## 验证
+
+运行 `flutter analyze` 和 `flutter test`。测试服务只覆盖本封装用到的 STOMP 子集，
+不替代真实 broker 的心跳、重投、鉴权及 SockJS 兼容验证。

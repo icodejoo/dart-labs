@@ -38,7 +38,7 @@ A **production-ready** wrapper over [`stomp_dart_client`](https://pub.dev/packag
 
 ```yaml
 dependencies:
-  flutter_stompsocket: ^0.1.0
+  flutter_stompsocket: ^0.1.1
 ```
 
 ## Quick start
@@ -93,16 +93,16 @@ ws.dispose();      // reversible stop
 
 | Option | Type | Default | Description |
 |---|---|---|---|
-| `binaryDecoder` | `Dictional? Function(Uint8List)?` | `null` | Decoder for binary frames; return a Map, throw on failure. Large payloads run via `compute` on a background isolate, so it **must be a top-level/static function**. If omitted, binary messages are treated as parse failures. |
+| `binaryDecoder` | `ParsedMessage Function(Uint8List)?` | `null` | Decoder for binary frames; return any value (including null), throw on failure. Large payloads run via `compute` on a background isolate, so it **must be a top-level/static function**. If omitted, binary messages are treated as parse failures. |
 
-> Text messages use `jsonDecode`; payloads > 32KB are parsed on a background isolate.
+> Text messages use `jsonDecode` and deliver any JSON value (including null); invalid JSON is delivered as the original text. Explicit `application/octet-stream` uses `binaryDecoder`; otherwise binary bodies are probed with strict UTF-8 before falling back to that decoder. Large payloads use `compute` (text threshold: 32K UTF-16 code units; binary: 32KB). On Flutter Web, `compute` runs on the current event loop.
 
 #### Send buffer
 
 | Option | Type | Default | Description |
 |---|---|---|---|
 | `queueWhileDisconnected` | `bool` | `true` | Buffer outgoing messages while disconnected and flush on connect. |
-| `maxQueuedMessages` | `int` | `100` | Outbox cap; oldest dropped when exceeded. |
+| `maxQueuedMessages` | `int` | `100` | Outbox cap; oldest dropped when exceeded; values ≤ 0 disable buffering. |
 
 #### Logging
 
@@ -115,6 +115,7 @@ ws.dispose();      // reversible stop
 
 | Option | Type | Description |
 |---|---|---|
+| `onParseFailure` | `void Function(StompFrame, String)?` | Binary parse failure monitoring; exceptions do not interrupt ACK/NACK policy. |
 | `onConnected` | `void Function(StompFrame)?` | Fired after each (re)connect, **after subscriptions are replayed** (good place to re-fetch a snapshot). |
 | `onDisconnected` | `void Function(StompFrame)?` | Fired after STOMP DISCONNECT. |
 | `onStateChanged` | `void Function(StompConnectionState)?` | Fired on every state change. |
@@ -149,7 +150,7 @@ StompSubscription subscribe(
 
 | Option | Description |
 |---|---|
-| `id` | Same id → callback joins that subscription's queue, callbacks share one parsed payload, no duplicate SUBSCRIBE; omit → an auto-id independent subscription. |
+| `id` | Same id → callback joins that subscription's queue, callbacks share one parsed payload, no duplicate SUBSCRIBE; omit → merge by `(destination, ack, onParseError, ordered)`. For an explicit id, the first registration fixes these options and destination. |
 | `ordered` | `true` (default) dispatches strictly in arrival order (even when a large message is parsed asynchronously); `false` dispatches as soon as parsed — higher throughput, possible reordering. Only applied on the first subscribe of that id. |
 | `ack` | See [Acknowledgement](#acknowledgement-acknack). |
 | `onParseError` | On parse failure: `nack` (default, redeliver) or `ack` (drop). |
@@ -191,9 +192,9 @@ ValueListenableBuilder<StompConnectionState>(
 |---|---|---|
 | `auto` (default) | `ack:auto` | Server auto-acks; the wrapper sends **no** ACK/NACK. |
 | `smart` | `ack:client-individual` | **Auto** ACK (all callbacks succeed) / NACK (any throws). Parse failure follows `onParseError`. |
-| `manual` | `ack:client-individual` | **No auto ack**; the callback's 2nd arg is an `AckControl` for manual ack/nack. |
+| `manual` | `ack:client-individual` | **No auto ack for delivered payloads**; the callback's 2nd arg is an `AckControl` for manual ack/nack. |
 
-Callback signature: `typedef JsonCallback = void Function(Dictional json, AckControl ack);` (the 2nd arg is a no-op outside `manual`; write `(json, _) {}`).
+Callback signature: `typedef JsonCallback = void Function(ParsedMessage json, AckControl ack);` (the 2nd arg is a no-op outside `manual`; write `(json, _) {}`).
 
 **Manual ack (callable outside the callback)** — store the `AckControl` and ack later:
 
@@ -210,6 +211,10 @@ void onTaskDone(String taskId) {
 }
 ```
 
+Callbacks are synchronous (`void`): smart mode does not await async work. Use manual mode for async completion. A genuinely absent body is skipped and confirmed in smart/manual mode; JSON null is delivered. Shared manual callbacks receive the same idempotent control; the first ack/nack wins.
+
+`dispose` retains buffered outgoing messages for a later `activate`; use a fresh instance for an independent session. Pending parsing from a stopped/disconnected session is discarded. `copyWith` uses null to inherit, so nullable options cannot be cleared with null.
+
 `AckControl` is bound to a "session generation": **stale after reconnect (no-op)**, idempotent.
 
 ### Types & enums
@@ -219,8 +224,9 @@ void onTaskDone(String taskId) {
 - `enum ParseFailureAck { nack, ack }`
 - `abstract interface class AckControl { void ack(); void nack(); }`
 - `class StompSubscription { String id; void unsubscribe(); }`
+- `typedef ParsedMessage = dynamic;`
 - `typedef Dictional<T> = Map<String, T>;` (default `T = dynamic`)
-- `typedef JsonCallback = void Function(Dictional json, AckControl ack);`
+- `typedef JsonCallback = void Function(ParsedMessage json, AckControl ack);`
 
 ## Behavior notes
 

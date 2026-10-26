@@ -271,8 +271,9 @@ void main() {
     await pump(() => !client.connected);
 
     client.activate();
-    // 无需重新 subscribe，连上后自动重放
-    await pump(() => broker.subscriptionCount == 1,
+    // 无需重新 subscribe，连上后自动重放；须等新连接建立并重放 SUBSCRIBE，
+    // 否则消息会发给仍在关闭中的旧连接（旧会话消息按设计被丢弃）
+    await pump(() => client.connected && broker.framesOf('SUBSCRIBE').length == 2,
         timeout: const Duration(seconds: 5));
 
     broker.sendMessage('/topic/a', '{"v":42}');

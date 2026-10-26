@@ -33,10 +33,9 @@ enum AckMode {
 
   /// SUBSCRIBE 帧的 `ack` 头值；auto 返回 null（不带该头，即 STOMP 默认 auto）。
   String? get header => switch (this) {
-        AckMode.auto => null,
-        AckMode.smart => 'client-individual',
-        AckMode.manual => 'client-individual',
-      };
+    AckMode.auto => null,
+    AckMode.smart || AckMode.manual => 'client-individual',
+  };
 }
 
 /// 手动确认句柄，随每条消息传入回调（见 [AckMode.manual]）。
@@ -44,38 +43,57 @@ enum AckMode {
 /// 可存起来在**回调外部、任意时刻**调用（如按业务 id 存入 Map，异步完成后再 ack）。
 /// 仅在同一条连接内有效：重连后旧句柄自动失效（no-op）；重复调用幂等。
 abstract interface class AckControl {
+  /// 确认消息处理成功。
   void ack();
+
+  /// 拒绝本条消息。
   void nack();
 }
 
 /// 非 manual 模式下传给回调的空实现（本封装已负责应答或无需应答）。
 class _NoopAck implements AckControl {
+  /// 创建可复用的空确认句柄。
   const _NoopAck();
+
+  /// 非 manual 模式下忽略确认。
   @override
   void ack() {}
+
+  /// 非 manual 模式下忽略拒绝。
   @override
   void nack() {}
 }
 
 /// manual 模式下绑定单条消息的确认句柄。
 class _MessageAck implements AckControl {
+  /// 绑定消息标识及其所属会话。
   _MessageAck(this._owner, this._ackId, this._generation);
 
+  /// 持有连接的客户端。
   final Stompsocket _owner;
+
+  /// 服务端分配的确认标识。
   final String? _ackId;
+
+  /// 接收消息时的会话代次。
   final int _generation;
+
+  /// 是否已经发起过确认。
   bool _used = false;
 
+  /// 至多确认一次。
   @override
   void ack() => _send(ackIt: true);
 
+  /// 至多拒绝一次。
   @override
   void nack() => _send(ackIt: false);
 
+  /// 仅向仍有效的会话发送确认。
   void _send({required bool ackIt}) {
     if (_used || _ackId == null) return;
     // 会话已变（重连）或已断开：ack id 失效，安全 no-op
-    if (_generation != _owner._generation || !_owner.client.connected) return;
+    if (!_owner._isCurrentSession(_generation)) return;
     _used = true;
     if (ackIt) {
       _owner.client.ack(id: _ackId);
@@ -102,16 +120,16 @@ enum StompConnectionState {
   /// 未启动（[Stompsocket.dispose] 后是 disconnected，不回到 idle）
   idle,
 
-  /// 正在建立首次连接
+  /// 正在启动或强制重建连接
   connecting,
 
   /// 已连接
   connected,
 
-  /// 已断开，正在退避等待重连
+  /// 已断开，正在按固定间隔等待重连
   reconnecting,
 
-  /// 已停止（主动 dispose，或重连达上限放弃）
+  /// 已停止（主动 dispose，或关闭自动重连后断开）
   disconnected,
 }
 
@@ -123,13 +141,13 @@ enum StompConnectionState {
 /// 或收到非合法 JSON 时的原始文本，或二进制解码结果。
 typedef _ParseResult = (dynamic data, String? error);
 
-/// 负载大小阈值（字节）。
+/// 解析阈值：二进制按字节，文本按 UTF-16 代码单元估算。
 ///
 /// 小于等于该值时在主线程同步解析（开销极小，避免 isolate 调度成本）；
 /// 大于该值时通过 [compute] 放到后台 isolate 解析，防止卡住 UI。
 /// 32KB 是经验值，可按实际负载分布调整。
 ///
-/// 注意：[compute] 每次调用会新建 isolate（启动 + 双向数据拷贝）。
+/// 注意：原生平台 [compute] 每次新建 isolate；Web 仍在当前事件循环运行。
 /// 若出现持续高频大包，应改为常驻 isolate + SendPort 的 worker 模式，
 /// 此处阈值方案只适合"偶发大包"。
 const _isolateThreshold = 32 * 1024;
@@ -138,9 +156,23 @@ const _isolateThreshold = 32 * 1024;
 /// 用 `\x1f`（单元分隔符）：这个键会被当作 STOMP 的 `id` 头发上线，**绝不能用 `\x00`**——
 /// NUL 是 STOMP 的帧终止符，放进 header 会把整帧从中间截断（服务端报 "malformed frame:
 /// missing header/body separator"）。`\x1f` 是非 NUL/CR/LF 的控制字符，几乎不可能出现在
-/// destination 或用户显式 id 里，不会碰撞。
+/// destination 或用户显式 id 里；显式 id 应避免复用自动键。
 const _autoDestSep = '\x1f';
+
+/// 自动订阅键的保留前缀。
 const _autoDestPrefix = 'auto#dest$_autoDestSep';
+
+/// 收发 JSON 消息使用的媒体类型。
+const _jsonContentType = 'application/json';
+
+/// 显式二进制消息使用的媒体类型。
+const _binaryContentType = 'application/octet-stream';
+
+/// STOMP 消息媒体类型头名称。
+const _contentTypeHeader = 'content-type';
+
+/// STOMP 订阅确认模式及消息确认标识的头名称。
+const _ackHeader = 'ack';
 
 /// 用于未提供 onUnhandled* 回调时占位（StompConfig 要求非空）。
 void _noopFrame(StompFrame _) {}
@@ -159,11 +191,13 @@ _ParseResult _decodeStringBody(String body) {
 
 /// [Stompsocket.subscribe] 的返回句柄，同时提供订阅 id 与就地取消能力。
 class StompSubscription {
+  /// 创建单次注册的取消句柄。
   StompSubscription._(this.id, this._unsubscribe);
 
   /// 订阅 id，可用于 [Stompsocket.unsubscribe]。
   final String id;
 
+  /// 精确取消本次回调的闭包。
   final void Function() _unsubscribe;
 
   /// 取消本次注册的回调（引用计数）：当该 id 的最后一个回调被取消时，
@@ -174,15 +208,25 @@ class StompSubscription {
 /// 单次回调注册。用独立对象持有以便按身份精确移除
 /// （同一个闭包可能被注册多次）。
 class _CallbackReg {
+  /// 保存一次回调注册。
   _CallbackReg(this.cb);
+
+  /// 业务消息回调。
   final JsonCallback cb;
 }
 
 /// 一条待发送的出站消息（未连接时暂存于发送缓冲）。
 class _Outbound {
+  /// 保存出站消息及其头信息。
   _Outbound(this.destination, this.body, this.headers);
+
+  /// 发送目的地。
   final String destination;
+
+  /// 原始消息体。
   final Object? body;
+
+  /// 附加发送头。
   final Map<String, String>? headers;
 }
 
@@ -191,6 +235,7 @@ class _Outbound {
 /// 同一个订阅（相同 id）收到消息时只解析一次，
 /// 再把同一份解析结果分发给队列里的所有回调。
 class _Subscription {
+  /// 创建独立的 wire 订阅登记。
   _Subscription({
     required this.id,
     required this.destination,
@@ -208,7 +253,7 @@ class _Subscription {
   /// 是否按到达顺序分发（见 [Stompsocket.subscribe] 的 ordered 参数）
   final bool ordered;
 
-  /// ACK 模式；非 auto 时收到消息会自动 ACK/NACK
+  /// 确认模式；smart 自动确认，manual 由业务确认。
   final AckMode ack;
 
   /// 解析失败时自动确认动作
@@ -225,7 +270,9 @@ class _Subscription {
   Future<void> tail = Future<void>.value();
 }
 
+/// 管理 STOMP 连接、共享订阅及离线发送缓冲。
 class Stompsocket {
+  /// 创建尚未启动的客户端。
   Stompsocket({
     required String url,
     // ---- 透传给 stomp_dart 的原生参数（默认值沿用库） ----
@@ -257,18 +304,18 @@ class Stompsocket {
     this.onConnected,
     this.onDisconnected,
     this.onStateChanged,
-  })  : _userBeforeConnect = beforeConnect,
-        _url = url,
-        _heartbeatIncoming = heartbeatIncoming,
-        _heartbeatOutgoing = heartbeatOutgoing,
-        _pingInterval = pingInterval,
-        _connectionTimeout = connectionTimeout,
-        _webSocketConnectHeaders = webSocketConnectHeaders,
-        _useSockJS = useSockJS,
-        _onUnhandledFrame = onUnhandledFrame,
-        _onUnhandledMessage = onUnhandledMessage,
-        _onUnhandledReceipt = onUnhandledReceipt,
-        _connectHeadersInit = connectHeaders {
+  }) : _userBeforeConnect = beforeConnect,
+       _url = url,
+       _heartbeatIncoming = heartbeatIncoming,
+       _heartbeatOutgoing = heartbeatOutgoing,
+       _pingInterval = pingInterval,
+       _connectionTimeout = connectionTimeout,
+       _webSocketConnectHeaders = webSocketConnectHeaders,
+       _useSockJS = useSockJS,
+       _onUnhandledFrame = onUnhandledFrame,
+       _onUnhandledMessage = onUnhandledMessage,
+       _onUnhandledReceipt = onUnhandledReceipt,
+       _connectHeadersInit = connectHeaders {
     if (connectHeaders != null) _connectHeaders.addAll(connectHeaders);
     client = StompClient(
       config: StompConfig(
@@ -297,6 +344,7 @@ class Stompsocket {
     );
   }
 
+  /// 底层客户端；通常通过本封装管理生命周期。
   late final StompClient client;
 
   /// 连接成功（含每次重连成功）后触发，重放订阅之后调用
@@ -316,10 +364,10 @@ class Stompsocket {
   /// 服务端 STOMP ERROR 帧回调（鉴权失败、目的地非法等）。本类内部已记日志，此处额外透出。
   final void Function(StompFrame frame)? onStompError;
 
-  /// WebSocket 层错误回调（本类同时用它触发重连）。
+  /// WebSocket 层错误回调；传输重连由底层负责。
   final void Function(dynamic error)? onWebSocketError;
 
-  /// WebSocket 关闭回调（本类同时用它触发重连）。
+  /// WebSocket 关闭回调；本封装据此更新连接状态。
   final void Function()? onWebSocketDone;
 
   /// 帧级流水回调，原样透传 stomp_dart 的 onDebugMessage（与 [debug]/[onLog] 独立）。
@@ -328,7 +376,7 @@ class Stompsocket {
   /// 未连接时是否缓冲出站消息，连上后补发
   final bool queueWhileDisconnected;
 
-  /// 出站缓冲上限，超出丢弃最旧
+  /// 出站缓冲上限，超出丢弃最旧；非正值不缓冲。
   final int maxQueuedMessages;
 
   /// App 回到前台（[AppLifecycleState.resumed]）时若未连接则立即重连（默认 true）。
@@ -354,21 +402,44 @@ class Stompsocket {
 
   /// 日志输出方式。[debug] 为 true 时：提供了本回调则日志走它（使用方决定如何打印/
   /// 过滤/上报），否则回退到 `dart:developer` 的 log。[debug] 为 false 时不输出任何日志。
-  final void Function(String message, {Object? error, StackTrace? stackTrace})? onLog;
+  final void Function(String message, {Object? error, StackTrace? stackTrace})?
+  onLog;
 
+  /// 用户提供的连接前准备钩子。
   final Future<Map<String, String>?> Function()? _userBeforeConnect;
 
   // 仅用于 [copyWith] 复现构造参数（这些参数在构造时被消费、未单独留存为公开字段）。
+  /// 连接地址，供复制配置使用。
   final String _url;
+
+  /// 入向心跳配置。
   final Duration _heartbeatIncoming;
+
+  /// 出向心跳配置。
   final Duration _heartbeatOutgoing;
+
+  /// WebSocket ping 间隔。
   final Duration? _pingInterval;
+
+  /// 建连超时配置。
   final Duration _connectionTimeout;
+
+  /// WebSocket 握手头配置。
   final Map<String, dynamic>? _webSocketConnectHeaders;
+
+  /// 是否启用 SockJS。
   final bool _useSockJS;
+
+  /// 未识别帧回调配置。
   final StompFrameCallback? _onUnhandledFrame;
+
+  /// 未匹配消息回调配置。
   final StompFrameCallback? _onUnhandledMessage;
+
+  /// 未匹配回执回调配置。
   final StompFrameCallback? _onUnhandledReceipt;
+
+  /// 构造时的 CONNECT 头配置。
   final Map<String, String>? _connectHeadersInit;
 
   /// CONNECT 头（可变引用）。[_beforeConnect] 会在每次连接前刷新它。
@@ -381,14 +452,24 @@ class Stompsocket {
   final List<_Outbound> _outbox = [];
 
   /// 连接状态（Flutter 原生响应式：自带当前值 + 变更通知，可喂 ValueListenableBuilder）
-  final ValueNotifier<StompConnectionState> _stateNotifier =
-      ValueNotifier(StompConnectionState.idle);
+  final ValueNotifier<StompConnectionState> _stateNotifier = ValueNotifier(
+    StompConnectionState.idle,
+  );
 
-  bool _wantConnection = false; // activate..dispose 之间为 true
+  /// 用户是否期望保持连接。
+  bool _wantConnection = false;
+
+  /// 前台恢复监听器，停止时释放。
   AppLifecycleListener? _lifecycle;
 
   /// 会话代次：每次连接成功自增；manual 模式的 [AckControl] 据此在重连后失效。
   int _generation = 0;
+
+  /// 生命周期版本，用于废弃停止前尚未完成的连接准备。
+  int _attempt = 0;
+
+  /// 正在执行的连接准备；重启必须等待旧准备退出底层连接流程。
+  Future<void>? _pendingBeforeConnect;
 
   // ---------------------------------------------------------------------------
   // 状态观测
@@ -403,12 +484,14 @@ class Stompsocket {
   ///   （或直接用 [onStateChanged] 回调，更省事）
   ValueListenable<StompConnectionState> get stateListenable => _stateNotifier;
 
+  /// 底层是否已完成 STOMP 握手。
   bool get connected => client.connected;
 
+  /// 更新状态，并避免同步监听者重入后报告过期状态。
   void _setState(StompConnectionState s) {
     if (_stateNotifier.value == s) return;
     _stateNotifier.value = s; // 仅在变化时通知监听者
-    onStateChanged?.call(s);
+    if (state == s) onStateChanged?.call(s);
   }
 
   // ---------------------------------------------------------------------------
@@ -417,23 +500,43 @@ class Stompsocket {
 
   /// 启动（或在 [dispose] 之后重新启动）连接。
   void activate() {
+    if (_wantConnection &&
+        client.isActive &&
+        state != StompConnectionState.disconnected) {
+      return;
+    }
     _wantConnection = true;
+    final attempt = ++_attempt;
     if (resumeOnForeground) {
       _lifecycle ??= AppLifecycleListener(onResume: forceReconnect);
     }
     _setState(StompConnectionState.connecting);
-    client.activate();
+    if (_wantConnection && attempt == _attempt) _activateClient(attempt);
+  }
+
+  /// 等旧 beforeConnect 完成并让底层观察到 inactive，再启动新尝试。
+  void _activateClient(int attempt) {
+    final pending = _pendingBeforeConnect;
+    if (pending == null) {
+      client.activate();
+      return;
+    }
+    pending.then((_) => Future<void>.delayed(Duration.zero)).then((_) {
+      if (_wantConnection && attempt == _attempt) client.activate();
+    });
   }
 
   /// 立即重连（跳过 reconnectDelay 等待），仅在"期望连接但当前未连接"时生效。
   /// 供 [resumeOnForeground] 回前台自动调用，也可在网络恢复（如 connectivity_plus）时手动调用。
   ///
-  /// 注：stomp_dart 的 `deactivate()` 是同步的（当场取消重连定时器、销毁 handler），
-  /// 紧跟 `activate()` 没有竞态——与 stompjs（异步 deactivate、必须 await）不同。
+  /// 底层 deactivate 同步撤销活动状态，但旧 beforeConnect 和断开回执可延迟完成；
+  /// 本封装等待连接准备退出，并过滤旧连接关闭通知。
   void forceReconnect() {
     if (!_wantConnection || client.connected) return;
+    final attempt = ++_attempt;
     client.deactivate();
-    client.activate();
+    _setState(StompConnectionState.connecting);
+    if (_wantConnection && attempt == _attempt) _activateClient(attempt);
   }
 
   /// 断开连接（可逆的停止）：dispose 之后仍可再次 [activate] 复用本实例。
@@ -445,6 +548,8 @@ class Stompsocket {
   ///   若回调捕获了将被销毁的对象，请勿用此选项。
   void dispose({bool keepSubscriptions = false}) {
     _wantConnection = false;
+    _attempt++;
+    _generation++;
     _lifecycle?.dispose();
     _lifecycle = null;
     if (!keepSubscriptions) clear();
@@ -478,7 +583,8 @@ class Stompsocket {
     int? maxQueuedMessages,
     bool? resumeOnForeground,
     bool? debug,
-    void Function(String message, {Object? error, StackTrace? stackTrace})? onLog,
+    void Function(String message, {Object? error, StackTrace? stackTrace})?
+    onLog,
     void Function(StompFrame frame)? onConnected,
     void Function(StompFrame frame)? onDisconnected,
     void Function(StompConnectionState state)? onStateChanged,
@@ -490,7 +596,8 @@ class Stompsocket {
       pingInterval: pingInterval ?? _pingInterval,
       connectionTimeout: connectionTimeout ?? _connectionTimeout,
       reconnectDelay: reconnectDelay ?? this.reconnectDelay,
-      webSocketConnectHeaders: webSocketConnectHeaders ?? _webSocketConnectHeaders,
+      webSocketConnectHeaders:
+          webSocketConnectHeaders ?? _webSocketConnectHeaders,
       useSockJS: useSockJS ?? _useSockJS,
       onUnhandledFrame: onUnhandledFrame ?? _onUnhandledFrame,
       onUnhandledMessage: onUnhandledMessage ?? _onUnhandledMessage,
@@ -503,7 +610,8 @@ class Stompsocket {
       beforeConnect: beforeConnect ?? _userBeforeConnect,
       binaryDecoder: binaryDecoder ?? this.binaryDecoder,
       onParseFailure: onParseFailure ?? this.onParseFailure,
-      queueWhileDisconnected: queueWhileDisconnected ?? this.queueWhileDisconnected,
+      queueWhileDisconnected:
+          queueWhileDisconnected ?? this.queueWhileDisconnected,
       maxQueuedMessages: maxQueuedMessages ?? this.maxQueuedMessages,
       resumeOnForeground: resumeOnForeground ?? this.resumeOnForeground,
       debug: debug ?? this.debug,
@@ -530,7 +638,7 @@ class Stompsocket {
       _sendNow(out);
       return;
     }
-    if (!queueWhileDisconnected) {
+    if (!queueWhileDisconnected || maxQueuedMessages <= 0) {
       _log('未连接，丢弃发往 $destination 的消息');
       return;
     }
@@ -541,24 +649,28 @@ class Stompsocket {
     _outbox.add(out);
   }
 
+  /// 按消息体类型发送，并为 JSON 补默认媒体类型。
   void _sendNow(_Outbound out) {
     final body = out.body;
     if (body is Uint8List) {
-      client.send(destination: out.destination, headers: out.headers, binaryBody: body);
-    } else if (body is String) {
-      client.send(destination: out.destination, headers: out.headers, body: body);
-    } else if (body == null) {
-      client.send(destination: out.destination, headers: out.headers);
-    } else {
-      // Map / List / 其它 → json，并补默认 content-type
       client.send(
         destination: out.destination,
-        headers: {'content-type': 'application/json', ...?out.headers},
-        body: jsonEncode(body),
+        headers: out.headers,
+        binaryBody: body,
       );
+      return;
     }
+    final encodeJson = body != null && body is! String;
+    client.send(
+      destination: out.destination,
+      headers: encodeJson
+          ? {_contentTypeHeader: _jsonContentType, ...?out.headers}
+          : out.headers,
+      body: encodeJson ? jsonEncode(body) : body as String?,
+    );
   }
 
+  /// 按序补发，失败时保留未发送部分并遵守缓冲上限。
   void _flushOutbox() {
     if (_outbox.isEmpty) return;
     final pending = List<_Outbound>.of(_outbox);
@@ -570,7 +682,10 @@ class Stompsocket {
         // 补发中途又断线等 send 抛异常：把没发出去的（含当前这条）回退到缓冲头部，
         // 等下次连接成功再补发，不让剩余消息随循环中断一起丢掉。
         _outbox.insertAll(0, pending.sublist(i));
-        _log('补发离线消息失败，剩余 ${pending.length - i} 条已回退到缓冲', e, st);
+        if (_outbox.length > maxQueuedMessages) {
+          _outbox.removeRange(0, _outbox.length - maxQueuedMessages);
+        }
+        _log('补发离线消息失败，缓冲保留 ${_outbox.length} 条', e, st);
         return;
       }
     }
@@ -586,11 +701,11 @@ class Stompsocket {
   ///   归并。相同四元组的多次 subscribe 共享**一条** wire 订阅（只发一次 SUBSCRIBE，消息只
   ///   解析一次再分发给所有回调），通过 returned handle 的 `unsubscribe()` 引用计数释放，
   ///   最后一个取消才撤销订阅。`ack`/`ordered` 不同 → 归并键不同 → 独立订阅。
-  /// - **传入 [id]**：精确控制归并键，与”不传 id”的自动键完全独立（自动键含 `\x1f`，
-  ///   用户 id 不可能含此字符）。用于同一 destination 下需要多份独立订阅的场景。
+  /// - **传入 [id]**：精确控制归并键（请勿复用自动生成键）。首次注册确定目的地及选项。
+  ///   用于同一 destination 下需要多份独立订阅的场景。
   /// - [ordered] 为 true（默认）时严格按消息到达顺序分发（即使大包走了异步解析也不会
   ///   乱序）；为 false 时解析完即分发，吞吐更高但可能乱序。
-  /// - [ack] 非 [AckMode.auto] 时，每条消息处理完会自动 ACK（回调全部成功）
+  /// - [ack] 为 [AckMode.smart] 时，每条消息处理完会自动 ACK（回调全部成功）
   ///   或 NACK（任一回调抛异常）。
   /// - [onParseError] 控制”二进制消息解析失败”时自动 NACK（默认）还是 ACK（丢弃）；
   ///   仅在 [ack] 非 auto 时生效。
@@ -608,12 +723,16 @@ class Stompsocket {
   }) {
     // 不传 id → 四元组确定性键（含 \x1f 分隔符，与用户显式 id 命名空间隔离）；
     // 传了 id → 直接用，可在同 destination 下保持多份独立订阅。
-    final subId = id ?? '$_autoDestPrefix$destination$_autoDestSep${ack.name}$_autoDestSep${onParseError.name}$_autoDestSep$ordered';
+    final subId =
+        id ??
+        '$_autoDestPrefix$destination$_autoDestSep${ack.name}$_autoDestSep${onParseError.name}$_autoDestSep$ordered';
 
     var sub = _subscriptions[subId];
     if (sub != null && sub.destination != destination) {
       // 只有显式传 id 时才可能触发（自动键已含 destination，不会错位）
-      _log('subscribe: id “$subId” 已绑定 ${sub.destination}，传入的新 destination “$destination” 被忽略（回调追加到原订阅）');
+      _log(
+        'subscribe: id “$subId” 已绑定 ${sub.destination}，传入的新 destination “$destination” 被忽略（回调追加到原订阅）',
+      );
     }
     if (sub == null) {
       sub = _Subscription(
@@ -660,7 +779,9 @@ class Stompsocket {
       return _remove(_subscriptions[id]) ? 1 : 0;
     }
     if (destination != null) {
-      final matched = _subscriptions.values.where((s) => s.destination == destination).toList(growable: false);
+      final matched = _subscriptions.values
+          .where((s) => s.destination == destination)
+          .toList(growable: false);
       var count = 0;
       for (final s in matched) {
         if (_remove(s)) count++;
@@ -686,7 +807,7 @@ class Stompsocket {
   void _openOnWire(_Subscription sub) {
     final headers = {'id': sub.id};
     final ackHeader = sub.ack.header;
-    if (ackHeader != null) headers['ack'] = ackHeader; // auto 模式不带 ack 头
+    if (ackHeader != null) headers[_ackHeader] = ackHeader; // auto 模式不带 ack 头
     sub.unsubscribeFn = client.subscribe(
       destination: sub.destination,
       callback: _onIncoming(sub),
@@ -705,50 +826,84 @@ class Stompsocket {
     return true;
   }
 
+  /// 新会话恢复订阅和缓冲，再通知连接成功。
   void _onConnect(StompFrame frame) {
+    if (!_wantConnection) return;
     _generation++; // 新会话：旧的 manual AckControl 句柄据此失效
+    final gen = _generation;
     // 重连是全新会话，服务端订阅已失效；首连时本地订阅也还没上线。
     // 两种情况都用同一套逻辑：重放本地所有订阅。
-    for (final sub in _subscriptions.values) {
+    for (final sub in List<_Subscription>.of(_subscriptions.values)) {
+      if (!_isCurrentSession(gen)) return;
+      if (!identical(_subscriptions[sub.id], sub)) continue;
+      sub.tail = Future<void>.value();
       _openOnWire(sub);
     }
     _flushOutbox(); // 补发未连接期间缓冲的出站消息
+    if (!_isCurrentSession(gen)) return;
     _setState(StompConnectionState.connected);
-    onConnected?.call(frame);
+    if (_wantConnection && client.connected) onConnected?.call(frame);
   }
 
+  /// 透出正常断开的回执。
   void _onDisconnect(StompFrame frame) {
     _log('已断开连接');
     onDisconnected?.call(frame);
   }
 
+  /// 记录并透出服务端错误。
   void _onStompError(StompFrame frame) {
     _log('STOMP 错误: ${frame.body}', frame.headers['message']);
     onStompError?.call(frame);
   }
 
+  /// 透出传输错误；禁用重连且未建立连接时进入停止状态。
   void _onWebSocketError(dynamic error) {
     _log('WebSocket 错误', error);
+    if (_wantConnection &&
+        !client.connected &&
+        reconnectDelay <= Duration.zero) {
+      _setState(StompConnectionState.disconnected);
+    }
     onWebSocketError?.call(error);
   }
 
+  /// 失效旧会话消息并更新重连状态。
   void _onWebSocketDone() {
+    final attempt = _attempt;
     onWebSocketDone?.call();
     // 连接断开：库会按 reconnectDelay 自动重连（>0 时）。dispose 时 _wantConnection
     // 已置 false，由 dispose 负责置 disconnected，这里不覆盖。
-    if (!_wantConnection) return;
-    _setState(reconnectDelay > Duration.zero
-        ? StompConnectionState.reconnecting
-        : StompConnectionState.disconnected);
+    // 底层在回调返回后才清理 connected；微任务中再读取，兼容旧连接的延迟关闭通知。
+    scheduleMicrotask(() {
+      if (!_wantConnection || attempt != _attempt || client.connected) return;
+      _generation++;
+      _setState(
+        reconnectDelay > Duration.zero
+            ? StompConnectionState.reconnecting
+            : StompConnectionState.disconnected,
+      );
+    });
   }
 
   /// 每次连接前调用：跑用户 beforeConnect（可刷新 token）并更新 CONNECT 头。
   /// 内部吞异常，避免打断连接流程（失败会连不上 → 由库的自动重连兜底）。
-  Future<void> _beforeConnect() async {
+  Future<void> _beforeConnect() {
+    final pending = _refreshConnectHeaders(_attempt);
+    _pendingBeforeConnect = pending;
+    return pending.whenComplete(() {
+      if (identical(_pendingBeforeConnect, pending)) {
+        _pendingBeforeConnect = null;
+      }
+    });
+  }
+
+  /// 刷新当前尝试的 CONNECT 头，忽略过期准备结果。
+  Future<void> _refreshConnectHeaders(int attempt) async {
     if (_userBeforeConnect == null) return;
     try {
       final headers = await _userBeforeConnect();
-      if (headers != null) {
+      if (_wantConnection && attempt == _attempt && headers != null) {
         _connectHeaders
           ..clear()
           ..addAll(headers);
@@ -758,17 +913,29 @@ class Stompsocket {
     }
   }
 
+  /// 建立消息入口，按需串行解析并绑定到达时的会话。
   StompFrameCallback _onIncoming(_Subscription sub) {
+    // 绑定 wire 订阅所属会话，防止旧连接在延迟 DISCONNECT 回执期间继续投递。
+    final gen = _generation;
     return (StompFrame frame) {
-      // 捕获消息到达时的会话代次：大包异步解析期间若断线重连，解析完成后不能对
-      // 旧会话的 ack id 发 ACK/NACK（重连后 client.connected 又为 true，会误发）。
-      final gen = _generation;
+      // 异步解析及延迟关闭期间均只接受当前订阅所属会话的消息。
+      if (!_isCurrentSubscription(sub, gen)) return;
       if (sub.ordered) {
         // 串到该订阅的串行链尾，保证分发顺序 == 到达顺序。
         // 闭包内 catch 所有异常，避免链因一次失败而永久中断。
         sub.tail = sub.tail.then((_) async {
+          if (!_isCurrentSubscription(sub, gen)) return;
           try {
-            _dispatch(sub, frame, await _parse(frame.binaryBody, frame.body, frame.headers['content-type']), gen);
+            _dispatch(
+              sub,
+              frame,
+              await _parse(
+                frame.binaryBody,
+                frame.body,
+                frame.headers[_contentTypeHeader],
+              ),
+              gen,
+            );
           } catch (e, st) {
             _log('有序分发失败 (id=${sub.id})', e, st);
           }
@@ -777,9 +944,16 @@ class Stompsocket {
       }
 
       // 无序：解析完即分发
-      final parsed = _parse(frame.binaryBody, frame.body, frame.headers['content-type']);
+      final parsed = _parse(
+        frame.binaryBody,
+        frame.body,
+        frame.headers[_contentTypeHeader],
+      );
       if (parsed is Future<_ParseResult>) {
-        parsed.then((r) => _dispatch(sub, frame, r, gen)).catchError((Object e, StackTrace st) {
+        parsed.then((r) => _dispatch(sub, frame, r, gen)).catchError((
+          Object e,
+          StackTrace st,
+        ) {
           _log('分发失败 (id=${sub.id})', e, st);
         });
       } else {
@@ -798,25 +972,35 @@ class Stompsocket {
   ///   失败（压缩/真二进制数据几乎必然在极短字节内违反 UTF-8 结构规则、快速失败）才走
   ///   [binaryDecoder]。这是字节结构层面的确定性校验，不能反过来用"JSON 解析抛没抛异常"
   ///   猜测——二进制数据凑巧解出可解析文本会把损坏数据当合法结果静默交给业务。
-  FutureOr<_ParseResult> _parse(Uint8List? binary, String? body, String? contentType) {
+  FutureOr<_ParseResult> _parse(
+    Uint8List? binary,
+    String? body,
+    String? contentType,
+  ) {
     if (binary != null) {
-      if (contentType != 'application/octet-stream') {
+      if (contentType != _binaryContentType) {
         final String text;
         try {
           text = utf8.decode(binary); // 严格模式（allowMalformed 默认 false）
         } on FormatException {
           return _parseBinary(binary);
         }
-        return text.length <= _isolateThreshold ? _decodeStringBody(text) : compute(_decodeStringBody, text);
+        return _parseText(text);
       }
       return _parseBinary(binary);
     }
     if (body != null) {
       // 用字符长度估算体量即可，无需精确字节数
-      return body.length <= _isolateThreshold ? _decodeStringBody(body) : compute(_decodeStringBody, body);
+      return _parseText(body);
     }
     return (null, null);
   }
+
+  /// 小文本同步解析，大文本放到后台 isolate。
+  FutureOr<_ParseResult> _parseText(String body) =>
+      body.length <= _isolateThreshold
+      ? _decodeStringBody(body)
+      : compute(_decodeStringBody, body);
 
   /// 二进制路径：走注入的 [binaryDecoder]，未配置/抛异常都记为解析失败。
   FutureOr<_ParseResult> _parseBinary(Uint8List binary) {
@@ -839,41 +1023,49 @@ class Stompsocket {
 
   /// 把同一份解析后的数据分发给该订阅队列中的所有回调，并按 [AckMode] 处理确认。
   /// [gen] 是消息到达时的会话代次，用于避免异步解析后对旧会话误发 ACK/NACK。
-  void _dispatch(_Subscription sub, StompFrame frame, _ParseResult result, int gen) {
+  void _dispatch(
+    _Subscription sub,
+    StompFrame frame,
+    _ParseResult result,
+    int gen,
+  ) {
+    if (!_isCurrentSubscription(sub, gen)) return;
     final (json, error) = result;
     if (error != null) {
       _log(error);
-      onParseFailure?.call(frame, error);
+      try {
+        onParseFailure?.call(frame, error);
+      } catch (e, st) {
+        _log('解析失败回调异常', e, st);
+      }
     }
 
     // 异步解析期间订阅可能已被取消，或被同 id 重新订阅（换了新对象）：直接返回。
-    if (!identical(_subscriptions[sub.id], sub)) return;
+    if (!_isCurrentSubscription(sub, gen)) return;
+    final hasBody = frame.body != null || frame.binaryBody != null;
+    // 解析失败和真正无体共用确认路径；JSON null 仍属于可交付的消息体。
+    if (error != null || !hasBody) {
+      if (sub.ack != AckMode.auto) {
+        _sendAck(
+          frame,
+          handled: error == null || sub.onParseError == ParseFailureAck.ack,
+          gen: gen,
+        );
+      }
+      return;
+    }
 
     switch (sub.ack) {
       case AckMode.auto:
-        // 服务端自动确认：不发 ACK/NACK，仅分发成功解析的消息
-        if (json != null) _runCallbacks(sub, json, const _NoopAck());
+        _runCallbacks(sub, json, const _NoopAck());
       case AckMode.smart:
-        // 本封装按处理结果自动应答
-        final bool handled;
-        if (error != null) {
-          handled = sub.onParseError == ParseFailureAck.ack;
-        } else if (json == null) {
-          handled = true; // 空体，视为已处理
-        } else {
-          handled = _runCallbacks(sub, json, const _NoopAck());
-        }
-        _sendAck(frame, handled: handled, gen: gen);
+        _sendAck(
+          frame,
+          handled: _runCallbacks(sub, json, const _NoopAck()),
+          gen: gen,
+        );
       case AckMode.manual:
-        if (error != null) {
-          // 未解析成功，回调拿不到 json，按策略自动应答
-          _sendAck(frame, handled: sub.onParseError == ParseFailureAck.ack, gen: gen);
-        } else if (json == null) {
-          _sendAck(frame, handled: true, gen: gen);
-        } else {
-          // 交给回调手动 ack/nack；本封装不自动应答
-          _runCallbacks(sub, json, _MessageAck(this, _ackIdOf(frame), gen));
-        }
+        _runCallbacks(sub, json, _MessageAck(this, _ackIdOf(frame), gen));
     }
   }
 
@@ -881,7 +1073,9 @@ class Stompsocket {
   /// 复制一份队列，避免回调内部增删订阅时并发修改。
   bool _runCallbacks(_Subscription sub, ParsedMessage json, AckControl ack) {
     var ok = true;
+    final gen = _generation;
     for (final reg in List<_CallbackReg>.of(sub.callbacks)) {
+      if (!_isCurrentSession(gen)) break;
       try {
         reg.cb(json, ack);
       } catch (e, st) {
@@ -896,7 +1090,7 @@ class Stompsocket {
   void _sendAck(StompFrame frame, {required bool handled, required int gen}) {
     // 断线、或已重连到新会话（大包异步解析期间断线重连）时 ACK/NACK 无意义：
     // ack id 属于旧会话，发出去服务端认不得。
-    if (!client.connected || gen != _generation) return;
+    if (!_isCurrentSession(gen)) return;
     final id = _ackIdOf(frame);
     if (id == null) {
       _log('无法自动${handled ? "ACK" : "NACK"}：消息缺少 ack/message-id 头');
@@ -910,22 +1104,37 @@ class Stompsocket {
   }
 
   /// ack id：STOMP 1.2 用 MESSAGE 帧的 `ack` 头，回退 `message-id`。
-  String? _ackIdOf(StompFrame frame) => frame.headers['ack'] ?? frame.headers['message-id'];
+  String? _ackIdOf(StompFrame frame) =>
+      frame.headers[_ackHeader] ?? frame.headers['message-id'];
+
+  /// 判断消息是否仍属于当前有效连接。
+  bool _isCurrentSession(int gen) =>
+      _wantConnection && client.connected && gen == _generation;
+
+  /// 订阅登记和消息会话均须仍然有效。
+  bool _isCurrentSubscription(_Subscription sub, int gen) =>
+      _isCurrentSession(gen) && identical(_subscriptions[sub.id], sub);
 
   /// stomp_dart 的帧级流水日志（`>>>`/`<<<` 帧、PING/PONG 等）。
   /// 原样透传给 [onDebugMessage]，并在 [debug] 开启时经 [_log] 输出。
   void _onDebugMessage(String message) {
     onDebugMessage?.call(message);
-    if (debug) _log(message);
+    _log(message);
   }
 
+  /// 按日志开关写入自定义输出或开发者控制台。
   void _log(String message, [Object? error, StackTrace? stackTrace]) {
     if (!debug) return; // 主开关：关闭时不产生任何日志
     final sink = onLog;
     if (sink != null) {
       sink(message, error: error, stackTrace: stackTrace); // 由使用方决定如何打印
     } else {
-      developer.log(message, name: 'stomp', error: error, stackTrace: stackTrace);
+      developer.log(
+        message,
+        name: 'stomp',
+        error: error,
+        stackTrace: stackTrace,
+      );
     }
   }
 }

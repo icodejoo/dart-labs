@@ -12,6 +12,9 @@ class StompTestBroker {
   /// 客户端发来的所有帧（按到达顺序），供断言。
   final List<ReceivedFrame> received = [];
 
+  /// 是否立即确认 DISCONNECT；关闭后可模拟旧连接回执延迟。
+  bool acknowledgeDisconnect = true;
+
   int get port => _server!.port;
 
   /// 当前所有活动连接上的订阅总数（subId → destination）
@@ -131,7 +134,9 @@ class StompTestBroker {
         conn.subs.remove(frame.headers['id']);
       case 'DISCONNECT':
         final r = frame.headers['receipt'];
-        if (r != null) conn.send('RECEIPT', {'receipt-id': r});
+        if (r != null && acknowledgeDisconnect) {
+          conn.send('RECEIPT', {'receipt-id': r});
+        }
       // ACK / NACK / SEND：已记入 received，供断言
     }
   }

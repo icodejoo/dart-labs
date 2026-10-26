@@ -38,7 +38,7 @@
 
 ```yaml
 dependencies:
-  flutter_stompsocket: ^0.1.0
+  flutter_stompsocket: ^0.1.1
 ```
 
 ## 快速上手
@@ -87,22 +87,22 @@ ws.dispose();      // 可逆停止
 | 参数 | 类型 | 默认 | 说明 |
 |---|---|---|---|
 | `reconnectDelay` | `Duration` | `5s` | 固定间隔自动重连；`>0` 无限重试，`Duration.zero` 关闭自动重连。 |
-| `resumeOnForeground` | `bool` | `false` | 为 true 时，App 回前台（`AppLifecycleState.resumed`）若未连接则立即重连（需已初始化 `WidgetsBinding`）。 |
+| `resumeOnForeground` | `bool` | `true` | 为 true 时，App 回前台（`AppLifecycleState.resumed`）若未连接则立即重连（需已初始化 `WidgetsBinding`）。 |
 
 #### 消息解析
 
 | 参数 | 类型 | 默认 | 说明 |
 |---|---|---|---|
-| `binaryDecoder` | `Dictional? Function(Uint8List)?` | `null` | 二进制帧解码器；返回 Map，失败请抛异常。大包经 `compute` 到后台 isolate，故**必须是顶层/静态函数**。未提供时二进制消息按解析失败处理。 |
+| `binaryDecoder` | `ParsedMessage Function(Uint8List)?` | `null` | 二进制帧解码器；可返回任意值（含 null），失败请抛异常。大包经 `compute` 到后台 isolate，故**必须是顶层/静态函数**。未提供时二进制消息按解析失败处理。 |
 
-> 文本消息默认 `jsonDecode`；负载 > 32KB 自动走后台 isolate 解析。
+> 文本消息默认 `jsonDecode`，可返回任意 JSON 值（含 null）；非合法 JSON 原样传回文本。显式 `application/octet-stream` 走二进制解码器，其余二进制 body 先严格探测 UTF-8，失败才走解码器。大包使用 `compute`（文本阈值为 32K UTF-16 代码单元，二进制为 32KB）；Flutter Web 上仍在当前事件循环执行。
 
 #### 发送缓冲
 
 | 参数 | 类型 | 默认 | 说明 |
 |---|---|---|---|
 | `queueWhileDisconnected` | `bool` | `true` | 未连接时是否缓冲出站消息，连上后按序补发。 |
-| `maxQueuedMessages` | `int` | `100` | 出站缓冲上限，超出丢最旧。 |
+| `maxQueuedMessages` | `int` | `100` | 出站缓冲上限，超出丢最旧；≤0 不缓冲。 |
 
 #### 日志
 
@@ -115,6 +115,7 @@ ws.dispose();      // 可逆停止
 
 | 参数 | 类型 | 说明 |
 |---|---|---|
+| `onParseFailure` | `void Function(StompFrame, String)?` | 二进制解析失败监控；回调抛异常不影响 ACK/NACK 策略。 |
 | `onConnected` | `void Function(StompFrame)?` | 每次（重）连成功、**重放订阅之后**触发（重拉快照的好时机）。 |
 | `onDisconnected` | `void Function(StompFrame)?` | STOMP DISCONNECT 后触发。 |
 | `onStateChanged` | `void Function(StompConnectionState)?` | 连接状态每次变化触发。 |
@@ -149,7 +150,7 @@ StompSubscription subscribe(
 
 | 参数 | 说明 |
 |---|---|
-| `id` | 传相同 id → 回调加入同一订阅队列，多回调共用一份解析数据、不重复 SUBSCRIBE；不传 → 自动生成独立订阅。 |
+| `id` | 传相同 id → 回调加入同一订阅队列，多回调共用一份解析数据、不重复 SUBSCRIBE；不传 → 按 `(destination, ack, onParseError, ordered)` 归并。显式 id 的目的地和选项由首次注册确定。 |
 | `ordered` | `true`（默认）严格按到达顺序分发（即使大包异步解析也不乱序）；`false` 解析完即分发，吞吐更高但可能乱序。仅首次订阅该 id 时生效。 |
 | `ack` | 见[确认](#确认acknack)。 |
 | `onParseError` | 解析失败时 `nack`（默认，重投）或 `ack`（丢弃）。 |
@@ -191,9 +192,9 @@ ValueListenableBuilder<StompConnectionState>(
 |---|---|---|
 | `auto`（默认） | `ack:auto` | 服务端自动确认，本封装**不发**任何 ACK/NACK。 |
 | `smart` | `ack:client-individual` | 按处理结果**自动** ACK（回调全成功）/ NACK（任一抛异常）。解析失败按 `onParseError`。 |
-| `manual` | `ack:client-individual` | **不自动应答**，回调第二参给 `AckControl` 手动 ack/nack。 |
+| `manual` | `ack:client-individual` | **成功投递的消息不自动应答**，回调第二参给 `AckControl` 手动 ack/nack。 |
 
-回调签名：`typedef JsonCallback = void Function(Dictional json, AckControl ack);`（第二参在非 manual 下为 no-op，可写 `(json, _) {}`）。
+回调签名：`typedef JsonCallback = void Function(ParsedMessage json, AckControl ack);`（第二参在非 manual 下为 no-op，可写 `(json, _) {}`）。
 
 **手动确认（可在回调外调用）**：`AckControl` 可存起来，异步完成后再 ack：
 
@@ -210,6 +211,10 @@ void onTaskDone(String taskId) {
 }
 ```
 
+订阅回调是同步 `void`，smart 不等待异步任务；异步处理请用 manual。真正没有 body 的消息跳过回调，smart/manual 自动确认；JSON null 会正常投递。共享订阅的 manual 回调共用同一幂等句柄，以首次 ack/nack 为准。
+
+`dispose` 保留离线发送缓冲供再次 `activate` 补发；独立会话请新建实例。停止或断开前尚未完成的解析结果会被丢弃。`copyWith` 的 null 表示继承，不能用 null 清空可空配置。
+
 `AckControl` 绑定“会话代次”，**重连后旧句柄自动失效（no-op）**，重复调用幂等。
 
 ### 枚举与类型
@@ -219,8 +224,9 @@ void onTaskDone(String taskId) {
 - `enum ParseFailureAck { nack, ack }`
 - `abstract interface class AckControl { void ack(); void nack(); }`
 - `class StompSubscription { String id; void unsubscribe(); }`
+- `typedef ParsedMessage = dynamic;`
 - `typedef Dictional<T> = Map<String, T>;`（默认 `T = dynamic`）
-- `typedef JsonCallback = void Function(Dictional json, AckControl ack);`
+- `typedef JsonCallback = void Function(ParsedMessage json, AckControl ack);`
 
 ## 行为与语义说明
 
