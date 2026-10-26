@@ -1,6 +1,11 @@
 import 'dart:convert';
 import 'package:dio/dio.dart';
 import 'dioman_plugin.dart';
+import 'cache_plugin.dart';
+import 'filter_plugin.dart';
+import 'repath_plugin.dart';
+import 'share_plugin.dart';
+import 'plugin_order.dart';
 
 /// The key in [RequestOptions.extra] where the computed key is stored.
 /// Other plugins (cache, share) read from this slot. Fixed — not meant to be
@@ -16,6 +21,7 @@ const kKey = 'dioman:key';
 ///
 /// [DiomanKey]的单请求覆盖，从`extra['dioman:qid']`读取。
 class DiomanKeyOptions {
+  /// 创建单请求覆盖配置。
   const DiomanKeyOptions({
     this.enabled,
     this.key,
@@ -40,10 +46,10 @@ class DiomanKeyOptions {
   /// 仅本次请求覆盖插件默认的`fastMode`。
   final bool? fastMode;
 
-  /// Merged (union, not replaced) with the plugin's default `ignoreKeys`
+  /// Merged (union, not replaced) with the plugin's default `ignores`
   /// for this request only. Applies to both query params and body map keys.
   ///
-  /// 仅本次请求，跟插件默认的`ignoreKeys`做合并（union，不是替换）。同时
+  /// 仅本次请求，跟插件默认的`ignores`做合并（union，不是替换）。同时
   /// 作用于query参数和body字段。
   final List<String>? ignores;
 
@@ -55,20 +61,20 @@ class DiomanKeyOptions {
 }
 
 /// Generates a unique key for each request and stores it in
-/// `options.extra[kRequestKey]`. Cache and share plugins depend on this key.
+/// `options.extra[kKey]`. Cache and share plugins depend on this key.
 ///
-/// 为每个请求生成唯一key，存入`options.extra[kRequestKey]`。cache和share插件
+/// 为每个请求生成唯一key，存入`options.extra[kKey]`。cache和share插件
 /// 依赖这个key。
 ///
 /// Two modes:
-/// - **fast** (`fastMode: true`): `METHOD:url` — cheapest, good for most cases.
-/// - **deep** (default): `METHOD:url:params:data` — serialises query params and
+/// - **fast** (`fastMode: true`): `METHOD:origin/path` — cheapest, good for most cases.
+/// - **deep** (default): `[METHOD:origin/path, query, body]` — serialises query params and
 ///   request body into the key. Use when the same URL is called with different
 ///   payloads and you want them cached/deduped independently.
 ///
 /// 两种模式：
-/// - **fast**（`fastMode: true`）：`METHOD:url`——最省事，多数场景够用。
-/// - **deep**（默认）：`METHOD:url:params:data`——把query参数和body都序列化进key。
+/// - **fast**（`fastMode: true`）：`METHOD:origin/path`——最省事，多数场景够用。
+/// - **deep**（默认）：`[METHOD:origin/path, query, body]`——把query参数和body都序列化进key。
 ///   同一URL不同payload、想分别缓存/去重时用这个。
 ///
 /// Per-request key override: `options.extra['dioman:qid'] =
@@ -87,16 +93,23 @@ class DiomanKeyOptions {
 /// dio.get('/list', options: Options(extra: {'dioman:qid': const DiomanKeyOptions(enabled: false)})); // skip
 /// ```
 class DiomanKey extends DiomanPlugin {
+  /// Creates a key plugin; [namespace] optionally isolates accounts on every key.
+  ///
+  /// 创建请求键插件。[fastMode]选择快速模式，[ignores]排除字段，
+  /// [enabled]控制启用，[builder]替换基础键；[namespace]每次生成键调用一次，
+  /// 非空返回值独立编码进键，null/空串保留旧键。返回插件实例。
+  /// 示例：`DiomanKey(namespace: () => currentAccountId)`。
   const DiomanKey({
     this.fastMode = false,
     this.ignores = const [],
     this.enabled = true,
     this.builder,
+    this.namespace,
   });
 
-  /// If true, use only `METHOD:url` as the key (fastest).
+  /// If true, use only `METHOD:origin/path` as the key (fastest).
   ///
-  /// 为true时只用`METHOD:url`当key（最快）。
+  /// 为true时只用`METHOD:origin/path`当key（最快）。
   final bool fastMode;
 
   /// Names excluded from the key — applies to both query params and body
@@ -118,14 +131,38 @@ class DiomanKey extends DiomanPlugin {
   /// [DiomanKeyOptions.builder]按请求覆盖。
   final String Function(RequestOptions)? builder;
 
+  /// Optional account scope, evaluated once per enabled request, including
+  /// explicit keys and custom builders. Takes no arguments; returns a separate
+  /// JSON-encoded field when non-empty. Null/empty preserves the exact old key.
+  /// Exceptions reject the request as a [DioException]. Never return raw tokens.
+  ///
+  /// 可选账号作用域，无参数；每次启用的请求生成键时调用一次，包括指定key和
+  /// 自定义builder。非空返回值作为独立JSON字段编码，null/空串保留原键。
+  /// 抛错转为[DioException]拒绝请求。请返回非敏感账号标识，不要返回明文token。
+  /// 不提供单请求覆盖，以便同一Dio统一使用当前账号作用域。
+  ///
+  /// ```dart
+  /// final key = DiomanKey(namespace: () => currentAccountId);
+  /// ```
+  final String? Function()? namespace;
+
   /// Public plugin name / extra key for this plugin, accessible without an instance.
   ///
   /// 插件名 / extra键，无需实例即可访问。
   static const pluginName = 'dioman:qid';
 
+  /// 插件的公开协议名称。
   @override
   String get name => pluginName;
 
+  /// 顺序声明：key在repath/filter之后（键基于改写后的路径与参数），在cache/share之前（它们读取该键）。
+  @override
+  DiomanPluginOrder get ordering => const DiomanPluginOrder(
+        after: {DiomanRepath.pluginName, DiomanFilter.pluginName},
+        before: {DiomanCache.pluginName, DiomanShare.pluginName},
+      );
+
+  /// 处理请求并完成当前请求出口。
   @override
   void onRequest(RequestOptions options, RequestInterceptorHandler handler) {
     // Honour per-request override.
@@ -135,25 +172,34 @@ class DiomanKey extends DiomanPlugin {
     final $enabled = o?.enabled ?? enabled;
     if (!$enabled) return handler.next(options);
 
-    if (o?.key != null && o!.key!.isNotEmpty) {
-      options.extra[kKey] = o.key;
-      return handler.next(options);
+    try {
+      final $namespace = namespace?.call();
+      final $builder = o?.builder ?? builder;
+      if (o?.key != null && o!.key!.isNotEmpty) {
+        options.extra[kKey] = _scopedKey(o.key!, $namespace);
+      } else if ($builder != null) {
+        options.extra[kKey] = _scopedKey($builder(options), $namespace);
+      } else {
+        final $fastMode = o?.fastMode ?? fastMode;
+        final $ignores = _merge(ignores, o?.ignores);
+        options.extra[kKey] = $fastMode
+            ? _scopedKey(_fastKey(options), $namespace)
+            : _deepKey(options, $ignores, $namespace);
+      }
+    } catch (error, stackTrace) {
+      return handler.reject(
+        error is DioException
+            ? error
+            : DioException(
+                requestOptions: options, error: error, stackTrace: stackTrace),
+      );
     }
-
-    final $builder = o?.builder ?? builder;
-    if ($builder != null) {
-      options.extra[kKey] = $builder(options);
-      return handler.next(options);
-    }
-
-    final $fastMode = o?.fastMode ?? fastMode;
-    final $ignores = _merge(ignores, o?.ignores);
-
-    options.extra[kKey] =
-        $fastMode ? _fastKey(options) : _deepKey(options, $ignores);
-
     handler.next(options);
   }
+
+  /// 为快速键或自定义键增加独立作用域字段，空作用域保持原键。
+  static String _scopedKey(String key, String? scope) =>
+      scope == null || scope.isEmpty ? key : jsonEncode([key, scope]);
 
   /// Merges [override] into [base] (union), or returns [base] unchanged when
   /// [override] is `null`.
@@ -162,42 +208,40 @@ class DiomanKey extends DiomanPlugin {
   static List<String> _merge(List<String> base, List<String>? override) =>
       override == null ? base : {...base, ...override}.toList();
 
+  /// 使用方法、来源和路径生成快速键。
   String _fastKey(RequestOptions o) =>
-      '${o.method.toUpperCase()}:${o.uri.path}';
+      '${o.method.toUpperCase()}:${o.uri.hasAuthority ? o.uri.origin : ''}${o.uri.path}';
 
-  String _deepKey(RequestOptions o, List<String> ignoreKeys) {
-    final buf = StringBuffer(_fastKey(o));
-
-    // Query params.
-    final params = Map<String, dynamic>.from(o.queryParameters)
-      ..removeWhere((k, _) => ignoreKeys.contains(k));
-    if (params.isNotEmpty) buf.write(':${_encode(params)}');
-
-    // Body.
+  /// 分字段编码规范化查询及请求体，保留非结构化对象的身份。
+  String _deepKey(RequestOptions o, List<String> ignoreKeys, String? scope) {
+    final uri = o.uri;
+    final params = <String, dynamic>{
+      for (final e in uri.queryParametersAll.entries)
+        if (!ignoreKeys.contains(e.key))
+          e.key: e.value.length == 1 ? e.value.single : e.value,
+    };
     final data = o.data;
+    Object? body;
     if (data is Map) {
-      // Keys may not be String (e.g. `Map<int, dynamic>` bodies) — stringify
-      // before comparing/collecting instead of `Map<String, dynamic>.from`,
-      // which throws a CastError on the first non-String key.
       final filtered = <String, dynamic>{
         for (final e in data.entries)
           if (!ignoreKeys.contains('${e.key}')) '${e.key}': e.value,
       };
-      if (filtered.isNotEmpty) buf.write(':${_encode(filtered)}');
+      if (filtered.isNotEmpty) body = {'map': _encode(filtered)};
     } else if (data is String && data.isNotEmpty) {
-      buf.write(':$data');
+      body = {'string': data};
     } else if (data != null) {
-      // Non-serialisable body (FormData / bytes / stream, etc.): there's no
-      // stable content representation, so fold in object identity. Two
-      // distinct bodies then get distinct keys (never falsely deduped or
-      // cached as one), while the SAME object reused across a retry keeps a
-      // stable key.
-      buf.write(':#${identityHashCode(data)}');
+      body = {'identity': identityHashCode(data)};
     }
-
-    return buf.toString();
+    return jsonEncode([
+      _fastKey(o),
+      _encode(params),
+      body,
+      if (scope != null && scope.isNotEmpty) scope,
+    ]);
   }
 
+  /// 对字段排序后编码，无法序列化时保留字符串表示。
   static String _encode(Object v) {
     try {
       // Sort keys for deterministic output.

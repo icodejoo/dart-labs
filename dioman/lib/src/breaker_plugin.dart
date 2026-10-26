@@ -1,5 +1,7 @@
 import 'package:dio/dio.dart';
 import 'dioman_plugin.dart';
+import 'retry_plugin.dart';
+import 'plugin_order.dart';
 
 /// The three states of a circuit breaker bucket.
 ///
@@ -145,6 +147,9 @@ class DiomanBreakerOptions {
 ///
 /// 每个桶的可变状态。每个不同的桶键对应一个实例。
 class _Bucket {
+  /// 当前恢复窗口的身份，状态迁移时更新。
+  Object generation = Object();
+
   /// Current circuit state. Starts [DiomanBreakerState.closed].
   ///
   /// 当前熔断状态，初始为[DiomanBreakerState.closed]。
@@ -169,6 +174,21 @@ class _Bucket {
   /// 熔断器最近一次进入[DiomanBreakerState.open]的时间——驱动冷却判断。
   /// closed时为`null`。
   DateTime? openedAt;
+
+  /// 已放行但尚未出结果的请求数（含 closed 与探测）；大于 0 时桶不可回收。
+  int inFlight = 0;
+
+  /// 最近一次被访问（请求进入或结果记录）的时间，用于空闲回收。
+  DateTime lastUsed;
+
+  /// 创建桶，[lastUsed]初始为创建时间。
+  _Bucket(this.lastUsed);
+
+  /// 可安全丢弃：closed、连续失败为 0、无在途请求，丢弃后等价于新桶。
+  bool get isDisposable =>
+      state == DiomanBreakerState.closed &&
+      consecutiveFailures == 0 &&
+      inFlight == 0;
 }
 
 /// Circuit breaker: trips per `METHOD:path` bucket after consecutive failures,
@@ -280,6 +300,27 @@ class DiomanBreaker extends DiomanPlugin {
   /// @param enabled `false` disables the whole plugin. Defaults to `true`.
   ///
   ///   `false`时整体禁用插件。默认`true`。
+  ///
+  /// @param idleTtl A bucket that is closed, has no recorded failures, has no
+  ///   in-flight request and has been untouched for longer than this is
+  ///   discarded lazily (when a new bucket is created). Discarding is
+  ///   behaviour-neutral: the key simply restarts from closed. Defaults to
+  ///   1 hour.
+  ///
+  ///   closed、无失败计数、无在途请求且闲置超过该时长的桶，会在创建新桶时被惰性
+  ///   丢弃；丢弃不改变行为（同键重新从closed开始）。默认1小时。
+  ///
+  /// @param maxBuckets Soft cap on the bucket count. When creating a new bucket
+  ///   would reach it, the least-recently-used disposable buckets are evicted;
+  ///   open/halfOpen/in-flight/failing buckets are never evicted, so the count
+  ///   may temporarily exceed the cap. Defaults to 1000.
+  ///
+  ///   桶数量的软上限。新建桶将达到上限时，淘汰最久未用的可丢弃桶；
+  ///   open/halfOpen/在途/有失败计数的桶永不淘汰，因此数量可能暂时超出。默认1000。
+  ///
+  /// @param clock Time source, for tests. Defaults to [DateTime.now].
+  ///
+  ///   时间源，供测试注入。默认[DateTime.now]。
   DiomanBreaker({
     this.failureThreshold = 10,
     this.resetDuration = const Duration(seconds: 30),
@@ -288,7 +329,31 @@ class DiomanBreaker extends DiomanPlugin {
     this.keyBuilder,
     this.onStateChange,
     this.enabled = true,
-  });
+    this.idleTtl = defaultIdleTtl,
+    this.maxBuckets = defaultMaxBuckets,
+    DateTime Function()? clock,
+  }) : _clock = clock ?? DateTime.now;
+
+  /// 默认空闲回收时长。
+  static const defaultIdleTtl = Duration(hours: 1);
+
+  /// 默认桶数量软上限。
+  static const defaultMaxBuckets = 1000;
+
+  /// 可丢弃桶的空闲回收时长，见构造参数`idleTtl`。
+  final Duration idleTtl;
+
+  /// 桶数量软上限，见构造参数`maxBuckets`。
+  final int maxBuckets;
+
+  /// 时间源。
+  final DateTime Function() _clock;
+
+  /// 当前时间。
+  DateTime _now() => _clock();
+
+  /// 当前持有的桶数量，只读，供检查/测试用。
+  int get bucketCount => _buckets.length;
 
   /// Consecutive failures that trip a closed bucket. Overridable per request
   /// via [DiomanBreakerOptions.failureThreshold].
@@ -332,7 +397,8 @@ class DiomanBreaker extends DiomanPlugin {
   ///
   /// 每次桶状态迁移时触发，参数`(桶键, from, to)`。纯观察性——可接到监控/日志。
   /// 不支持单请求覆盖。
-  final void Function(String key, DiomanBreakerState from, DiomanBreakerState to)?
+  final void Function(
+          String key, DiomanBreakerState from, DiomanBreakerState to)?
       onStateChange;
 
   /// `false` disables the plugin entirely — every request passes through
@@ -362,31 +428,45 @@ class DiomanBreaker extends DiomanPlugin {
   // onRequest的情况下触发本插件onResponse——那种不能记录）。
   static const _kAdmitted = '$pluginName:key';
 
+  /// 插件的公开协议名称。
   @override
   String get name => pluginName;
 
+  /// 顺序声明：breaker在retry之后：只统计每个请求的最终结果。
+  @override
+  DiomanPluginOrder get ordering => const DiomanPluginOrder(
+        after: {DiomanRetry.pluginName},
+      );
+
   // ── Per-request override resolution ─────────────────────────────────────────
 
+  /// 读取具有正确类型的单请求覆盖。
   DiomanBreakerOptions? _overrideObject(RequestOptions config) {
     final v = config.extra[name];
     return v is DiomanBreakerOptions ? v : null;
   }
 
+  /// 判断本请求是否启用熔断。
   bool _enabledFor(RequestOptions config) =>
       _overrideObject(config)?.enabled ?? enabled;
 
+  /// 读取本请求的失败阈值。
   int _resolveThreshold(RequestOptions config) =>
       _overrideObject(config)?.failureThreshold ?? failureThreshold;
 
+  /// 读取本请求的冷却时间。
   Duration _resolveReset(RequestOptions config) =>
       _overrideObject(config)?.resetDuration ?? resetDuration;
 
+  /// 读取本请求的探测上限。
   int _resolveHalfOpenMax(RequestOptions config) =>
       _overrideObject(config)?.halfOpenMaxCalls ?? halfOpenMaxCalls;
 
+  /// 读取本请求的失败判定。
   DiomanShouldTrip? _resolveShouldTrip(RequestOptions config) =>
       _overrideObject(config)?.shouldTrip ?? shouldTrip;
 
+  /// 计算本请求的熔断桶键。
   String _keyFor(RequestOptions config) {
     final builder = _overrideObject(config)?.keyBuilder ?? keyBuilder;
     if (builder != null) return builder(config);
@@ -422,13 +502,16 @@ class DiomanBreaker extends DiomanPlugin {
 
   // ── State transitions ─────────────────────────────────────────────────────
 
+  /// 状态迁移时更新窗口身份并通知观察者。
   void _transition(String key, _Bucket b, DiomanBreakerState to) {
     final from = b.state;
     if (from == to) return;
+    b.generation = Object();
     b.state = to;
     onStateChange?.call(key, from, to);
   }
 
+  /// 成功探测关闭当前窗口，普通成功重置失败计数。
   void _recordSuccess(String key, RequestOptions config) {
     final b = _buckets[key];
     if (b == null) return;
@@ -445,6 +528,7 @@ class DiomanBreaker extends DiomanPlugin {
     // ignored — the open state stands until its own cooldown probe.
   }
 
+  /// 记录失败并按阈值切换熔断状态。
   void _recordFailure(String key, RequestOptions config) {
     final b = _buckets[key];
     if (b == null) return;
@@ -452,13 +536,13 @@ class DiomanBreaker extends DiomanPlugin {
       // A probe failed → straight back to open, cooldown restarts.
       b.consecutiveFailures = 0;
       b.halfOpenInFlight = 0;
-      b.openedAt = DateTime.now();
+      b.openedAt = _now();
       _transition(key, b, DiomanBreakerState.open);
     } else if (b.state == DiomanBreakerState.closed) {
       b.consecutiveFailures++;
       if (b.consecutiveFailures >= _resolveThreshold(config)) {
         b.halfOpenInFlight = 0;
-        b.openedAt = DateTime.now();
+        b.openedAt = _now();
         _transition(key, b, DiomanBreakerState.open);
       }
     }
@@ -499,7 +583,7 @@ class DiomanBreaker extends DiomanPlugin {
         if (openedAt == null) return true;
         // Cooled down → the next request would be admitted as a probe, so it
         // is not "blocking" any more.
-        return DateTime.now().difference(openedAt) < _resolveReset(config);
+        return _now().difference(openedAt) < _resolveReset(config);
       case DiomanBreakerState.halfOpen:
         return b.halfOpenInFlight >= _resolveHalfOpenMax(config);
     }
@@ -523,18 +607,40 @@ class DiomanBreaker extends DiomanPlugin {
 
   // ── Interceptor hooks ───────────────────────────────────────────────────────
 
+  /// 惰性回收：先丢弃闲置超过[idleTtl]的可丢弃桶；若新建一个桶会达到
+  /// [maxBuckets]，再按最久未用顺序淘汰可丢弃桶。open/halfOpen/在途/有失败计数
+  /// 的桶一律保留。
+  void _collectGarbage(DateTime now) {
+    _buckets.removeWhere(
+        (_, b) => b.isDisposable && now.difference(b.lastUsed) > idleTtl);
+    final excess = _buckets.length - maxBuckets + 1;
+    if (excess <= 0) return;
+    final victims = _buckets.entries.where((e) => e.value.isDisposable).toList()
+      ..sort((a, b) => a.value.lastUsed.compareTo(b.value.lastUsed));
+    for (final e in victims.take(excess)) {
+      _buckets.remove(e.key);
+    }
+  }
+
+  /// 处理请求并完成当前请求出口。
   @override
   void onRequest(RequestOptions options, RequestInterceptorHandler handler) {
     if (!_enabledFor(options)) return handler.next(options);
 
     final key = _keyFor(options);
-    final b = _buckets.putIfAbsent(key, _Bucket.new);
+    final now = _now();
+    var b = _buckets[key];
+    if (b == null) {
+      _collectGarbage(now);
+      b = _buckets[key] = _Bucket(now);
+    }
+    b.lastUsed = now;
 
     // Cooldown elapsed → move open → halfOpen and let this request probe.
     if (b.state == DiomanBreakerState.open) {
       final openedAt = b.openedAt;
       if (openedAt != null &&
-          DateTime.now().difference(openedAt) >= _resolveReset(options)) {
+          now.difference(openedAt) >= _resolveReset(options)) {
         b.halfOpenInFlight = 0;
         _transition(key, b, DiomanBreakerState.halfOpen);
       }
@@ -554,7 +660,13 @@ class DiomanBreaker extends DiomanPlugin {
 
     // Admitted (closed, or an under-budget halfOpen probe) — mark it so our
     // onResponse/onError record its outcome.
-    options.extra[_kAdmitted] = key;
+    b.inFlight++;
+    options.extra[_kAdmitted] = (
+      key: key,
+      bucket: b,
+      generation: b.generation,
+      probe: b.state == DiomanBreakerState.halfOpen
+    );
     handler.next(options);
   }
 
@@ -579,18 +691,46 @@ class DiomanBreaker extends DiomanPlugin {
         requestOptions: options,
         // Default DioExceptionType.unknown + no response ⇒ DiomanRetry's
         // default shouldRetry won't retry this fast-fail rejection.
-        error: DiomanBreakerOpenException(bucketKey: key, retryableAt: retryableAt),
+        error: DiomanBreakerOpenException(
+            bucketKey: key, retryableAt: retryableAt),
         message: '[breaker] circuit open for $key',
       ),
       true,
     );
   }
 
+  /// 消费当前窗口的凭据，归还探测槽位；旧窗口结果不改变新窗口。
+  String? _takeAdmission(RequestOptions config) {
+    final ticket = config.extra.remove(_kAdmitted);
+    if (ticket is! ({
+      String key,
+      _Bucket bucket,
+      Object generation,
+      bool probe
+    })) {
+      return null;
+    }
+    // 无论窗口是否过期，在途计数都要归还（桶对象由凭据持有，不会被回收）。
+    final held = ticket.bucket;
+    if (held.inFlight > 0) held.inFlight--;
+    held.lastUsed = _now();
+    final b = _buckets[ticket.key];
+    if (!identical(b, ticket.bucket) ||
+        !identical(b?.generation, ticket.generation)) {
+      return null;
+    }
+    if (ticket.probe && b!.halfOpenInFlight > 0) {
+      b.halfOpenInFlight--;
+    }
+    return ticket.key;
+  }
+
+  /// 处理响应并完成当前响应出口。
   @override
   void onResponse(
       Response<dynamic> response, ResponseInterceptorHandler handler) {
     final config = response.requestOptions;
-    final key = config.extra[_kAdmitted] as String?;
+    final key = _takeAdmission(config);
     // No key ⇒ our onRequest never admitted this request (cache/mock hit, or
     // disabled) ⇒ nothing to record.
     if (key != null) {
@@ -603,6 +743,7 @@ class DiomanBreaker extends DiomanPlugin {
     handler.next(response);
   }
 
+  /// 处理失败并完成当前错误出口。
   @override
   void onError(DioException err, ErrorInterceptorHandler handler) {
     // Our own fast-fail rejection is not a dependency failure — never count it.
@@ -616,9 +757,12 @@ class DiomanBreaker extends DiomanPlugin {
     // 用户主动取消不反映依赖的健康状况——它既不算成功也不算失败。记录它（无论
     // 记成哪种）都会污染连续失败计数：记成成功会把一个正走向熔断的计数清零，
     // 于是一串取消就能掩盖真正在失败的依赖。直接跳过。
-    if (err.type == DioExceptionType.cancel) return handler.next(err);
+    if (err.type == DioExceptionType.cancel) {
+      _takeAdmission(err.requestOptions);
+      return handler.next(err);
+    }
     final config = err.requestOptions;
-    final key = config.extra[_kAdmitted] as String?;
+    final key = _takeAdmission(config);
     if (key != null) {
       if (_isFailure(config, err.response, err)) {
         _recordFailure(key, config);
@@ -634,6 +778,7 @@ class DiomanBreaker extends DiomanPlugin {
   /// 把所有桶重置为[DiomanBreakerState.closed]并清空全部状态。
   void reset() => _buckets.clear();
 
+  /// 释放本插件持有的状态和资源。
   @override
   void dispose() => _buckets.clear();
 }

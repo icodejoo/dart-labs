@@ -1,11 +1,13 @@
-﻿import 'package:dio/dio.dart';
+import 'package:dio/dio.dart';
 import 'dioman_plugin.dart';
 
 /// Per-request override for [DiomanFilter], read from `extra['dioman:filter']`.
 ///
 /// [DiomanFilter]的单请求覆盖，从`extra['dioman:filter']`读取。
 class DiomanFilterOptions {
-  const DiomanFilterOptions({this.enabled, this.ignoreKeys, this.ignoreValues, this.predicate});
+  /// 创建单请求覆盖配置。
+  const DiomanFilterOptions(
+      {this.enabled, this.ignoreKeys, this.ignoreValues, this.predicate});
 
   /// `false` skips filtering for this request. `null` (default) inherits
   /// [DiomanFilter.enabled].
@@ -54,6 +56,7 @@ class DiomanFilterOptions {
 /// ));
 /// ```
 class DiomanFilter extends DiomanPlugin {
+  /// 创建插件实例。
   const DiomanFilter({
     this.predicate,
     this.ignoreKeys = const [],
@@ -88,15 +91,18 @@ class DiomanFilter extends DiomanPlugin {
   /// 插件名 / extra键，无需实例即可访问。
   static const pluginName = 'dioman:filter';
 
+  /// 插件的公开协议名称。
   @override
   String get name => pluginName;
 
+  /// 默认剔除 null 或空白字符串。
   static bool _defaultPredicate(String key, dynamic value) {
     if (value == null) return true;
     if (value is String && value.trim().isEmpty) return true;
     return false;
   }
 
+  /// 处理请求并完成当前请求出口。
   @override
   void onRequest(RequestOptions options, RequestInterceptorHandler handler) {
     final override = options.extra[name];
@@ -109,22 +115,32 @@ class DiomanFilter extends DiomanPlugin {
     //
     // 合并（union），不替换——单请求的ignoreKeys/ignoreValues是叠加在插件
     // 默认值之上，而不是遮蔽它们。
-    final $ignoreKeys = o?.ignoreKeys == null ? ignoreKeys : {...ignoreKeys, ...o!.ignoreKeys!}.toList();
-    final $ignoreValues = o?.ignoreValues == null ? ignoreValues : {...ignoreValues, ...o!.ignoreValues!}.toList();
+    final $ignoreKeys =
+        o?.ignoreKeys == null ? ignoreKeys : {...ignoreKeys, ...o!.ignoreKeys!};
+    final $ignoreValues = o?.ignoreValues == null
+        ? ignoreValues
+        : {...ignoreValues, ...o!.ignoreValues!};
     final $predicate = o?.predicate ?? predicate ?? _defaultPredicate;
 
     // Filter queryParameters.
     options.queryParameters.removeWhere(
-      (k, v) => !$ignoreKeys.contains(k) && !$ignoreValues.contains(v) && $predicate(k, v),
+      (k, v) =>
+          !$ignoreKeys.contains(k) &&
+          !$ignoreValues.contains(v) &&
+          $predicate(k, v),
     );
 
     // Filter data map.
     final data = options.data;
     if (data is Map) {
-      data.removeWhere(
+      final filtered = Map.of(data);
+      filtered.removeWhere(
         (k, v) =>
-            !$ignoreKeys.contains('$k') && !$ignoreValues.contains(v) && $predicate('$k', v),
+            !$ignoreKeys.contains('$k') &&
+            !$ignoreValues.contains(v) &&
+            $predicate('$k', v),
       );
+      options.data = filtered;
     }
 
     handler.next(options);

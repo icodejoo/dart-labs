@@ -1,5 +1,12 @@
 ﻿import 'package:dio/dio.dart';
 import 'dioman_plugin.dart';
+import 'request_claims.dart';
+import 'auth_plugin.dart';
+import 'cache_plugin.dart';
+import 'mock_plugin.dart';
+import 'retry_plugin.dart';
+import 'share_plugin.dart';
+import 'plugin_order.dart';
 
 /// Construction-time options for [DiomanCancel]. Cancel has no per-request
 /// behavior (it's driven by [cancelAll]), so this only controls whether the
@@ -60,6 +67,17 @@ class DiomanCancel extends DiomanPlugin {
   @override
   String get name => pluginName;
 
+  /// 顺序声明：cancel在cache/share/mock之后（命中时不遗留括号），在auth/retry之前（401或重试前清理已完成）。
+  @override
+  DiomanPluginOrder get ordering => const DiomanPluginOrder(
+        after: {
+          DiomanCache.pluginName,
+          DiomanShare.pluginName,
+          DiomanMock.pluginName,
+        },
+        before: {DiomanAuth.pluginName, DiomanRetry.pluginName},
+      );
+
   @override
   void onRequest(RequestOptions options, RequestInterceptorHandler handler) {
     if (!config.enabled) return handler.next(options);
@@ -73,11 +91,10 @@ class DiomanCancel extends DiomanPlugin {
       // earlier pass's response/error, so without this it would stay
       // untracked — and uncancellable via cancelAll — from here on. Only
       // re-register tokens this plugin itself injected (never a
-      // caller-supplied one) and that aren't already spent. None of
-      // DiomanRetry/DiomanAuth/DiomanShare's own internal re-issues hit this
-      // branch — they all go through a throwaway, interceptor-less Dio that
-      // never reaches this onRequest at all (see [track]/[untrack] for how
-      // they stay trackable instead).
+      // caller-supplied one) and that aren't already spent. DiomanRetry/
+      // DiomanAuth/DiomanShare's internal re-issues never reach this branch
+      // (they use an interceptor-less client); they stay trackable because
+      // they hold the request via its claims, which defers [_release].
       //
       // 应对同一个RequestOptions对象第二次进到这个onRequest，且身上还带着
       // 本插件上一轮注入的token（比如调用方手动把同一个RequestOptions再次
@@ -85,9 +102,8 @@ class DiomanCancel extends DiomanPlugin {
       // 注销了，若不这样重新注册，从此它就会一直处于未被追踪、无法被
       // cancelAll中断的状态。只重新注册本插件自己注入过的token（绝不是
       // 调用方自带的），且必须还没被用掉。DiomanRetry/DiomanAuth/DiomanShare
-      // 自己内部的重新发起都不会走到这个分支——它们都是通过一个一次性、
-      // 不带拦截器的裸Dio发出，根本不会到达这个onRequest（它们靠
-      // [track]/[untrack]保持可追踪，见那两个方法）。
+      // 自己内部的重新发起不会走到这个分支（它们用的是不带拦截器的客户端）；
+      // 它们靠认领登记簿持有请求，从而推迟[_release]，保持可追踪。
       if (options.extra[_kToken] == existing && !existing.isCancelled) {
         _tokens.add(existing);
       }
@@ -123,22 +139,41 @@ class DiomanCancel extends DiomanPlugin {
     handler.next(err);
   }
 
+  /// 结束对本请求 token 的追踪。下游（auth/retry）还认领着这次逻辑请求时
+  /// （退避、刷新等待、重放期间）先不注销，等它们交出最终结果、登记簿清空后
+  /// 再注销，这样整个逻辑请求期间 [cancelAll] 都能看到它。
   void _release(RequestOptions options) {
     final token = options.extra[_kToken] as CancelToken?;
-    if (token != null) _tokens.remove(token);
+    if (token == null) return;
+    final claims = claimsOf(options);
+    if (claims != null && claims.hasOwners) {
+      claims.whenDrained(() => _untrackAfter(claims.loser, token));
+    } else {
+      _untrackAfter(claims?.loser, token);
+    }
   }
 
-  /// Re-registers [token] so it's included in a later [cancelAll] — for a
-  /// plugin (e.g. [DiomanAuth]'s replay) that reuses a token this plugin
-  /// originally injected but bypasses this plugin's own onRequest via an
-  /// interceptor-less re-dispatch, so it never gets the automatic
-  /// re-registration [onRequest] does for a re-entrant [DiomanRetry] pass.
-  /// No-op if [enabled] is false.
+  /// 注销 [token]；若该请求在 share 仲裁中落败、仍在等胜出结果 [wait]，则持续
+  /// 追踪到结果交付，这样 [cancelAll] 仍能取消这个等待中的调用者。
+  void _untrackAfter(Future<Response<dynamic>>? wait, CancelToken token) {
+    if (wait == null) {
+      _tokens.remove(token);
+    } else {
+      wait.then<void>((_) => _tokens.remove(token),
+          onError: (Object _) => _tokens.remove(token));
+    }
+  }
+
+  /// Manually registers [token] so it's included in a later [cancelAll] — for
+  /// a custom plugin that re-dispatches a request through an interceptor-less
+  /// client. [DiomanAuth]/[DiomanRetry]/[DiomanShare] no longer need it: they
+  /// hold the request so this plugin keeps tracking it for the whole logical
+  /// request. No-op if the plugin is disabled.
   ///
-  /// 重新登记[token]，让后续的[cancelAll]能追踪到它——用于像[DiomanAuth]
-  /// 重放这样的场景：复用本插件曾经注入过的token，但通过一个不带拦截器的
-  /// 重新分发绕开了本插件自己的onRequest，因而拿不到[onRequest]对
-  /// [DiomanRetry]重入场景做的那次自动重新登记。[enabled]为false时是no-op。
+  /// 手动登记[token]，让后续的[cancelAll]能追踪到它——供自定义插件通过不带
+  /// 拦截器的客户端重新分发请求时使用。[DiomanAuth]/[DiomanRetry]/
+  /// [DiomanShare]已不再需要它：它们会持有请求，本插件因此在整个逻辑请求期间
+  /// 持续追踪。插件被禁用时是no-op。
   void track(CancelToken token) {
     if (config.enabled) _tokens.add(token);
   }

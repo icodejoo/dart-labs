@@ -1,4 +1,4 @@
-﻿import 'package:dio/dio.dart';
+import 'package:dio/dio.dart';
 import 'dioman_plugin.dart';
 
 /// A function that decides whether a mock response should fall back to the
@@ -25,7 +25,9 @@ bool defaultFallback({Response<dynamic>? response, DioException? error}) {
 ///
 /// [DiomanMock]的单请求覆盖，从`extra['dioman:mock']`读取。
 class DiomanMockOptions {
-  const DiomanMockOptions({this.enabled, this.mockUrl, this.routes, this.fallbackWhen});
+  /// 创建单请求覆盖配置。
+  const DiomanMockOptions(
+      {this.enabled, this.mockUrl, this.routes, this.fallbackWhen});
 
   /// `false` skips mocking for this request. `null` (default) inherits
   /// [DiomanMock.enabled].
@@ -80,6 +82,7 @@ class DiomanMockOptions {
 /// ));
 /// ```
 class DiomanMock extends DiomanPlugin {
+  /// 创建插件实例。
   DiomanMock({
     this.enabled = false,
     this.mockUrl,
@@ -121,6 +124,8 @@ class DiomanMock extends DiomanPlugin {
   // baseUrl，一个共享实例就能处理所有mockUrl——避免每次转发都新建HttpClient。
   // 在[dispose]中关闭。
   Dio? _redirectDio;
+
+  /// 处理当前插件的内部状态。
   Dio get _redirect => _redirectDio ??= Dio();
 
   // Decodes an inline handler's raw ResponseBody the same way dio's own
@@ -138,6 +143,7 @@ class DiomanMock extends DiomanPlugin {
   /// 插件名 / extra键，无需实例即可访问。
   static const pluginName = 'dioman:mock';
 
+  /// 插件的公开协议名称。
   @override
   String get name => pluginName;
 
@@ -160,73 +166,92 @@ class DiomanMock extends DiomanPlugin {
 
   // ── Interceptor ───────────────────────────────────────────────────────────
 
+  /// 处理请求并完成当前请求出口。
   @override
-  void onRequest(RequestOptions options, RequestInterceptorHandler handler) async {
-    final override = options.extra[name];
-    final o = override is DiomanMockOptions ? override : null;
-    final $enabled = o?.enabled ?? enabled;
-    if (!$enabled) return handler.next(options);
-
-    // 1. Try inline handler first.
-    // Uses the resolved path (matching DiomanKey's key scheme) so route
-    // registration is consistent regardless of absolute vs relative URLs.
-    final routeKey = '${options.method.toUpperCase()}:${options.uri.path}';
-    final inlineHandler = o?.routes?[routeKey] ?? _routes[routeKey];
-    if (inlineHandler != null) {
-      try {
-        final body = await inlineHandler(options);
-        final headers = Headers.fromMap(body.headers);
-        body.headers = headers.map;
-        final data = await _transformer.transformResponse(options, body);
-        // callFollowingResponseInterceptor: true — a mock hit must still run
-        // onResponse of normalize/cache/share (installed earlier in the
-        // chain) so the shared-request completer settles and the envelope
-        // is unwrapped the same way a real response would be.
-        return handler.resolve(
-          Response<dynamic>(
-            requestOptions: options,
-            data: data,
-            headers: headers,
-            statusCode: body.statusCode,
-            statusMessage: 'Mock',
-          ),
-          true,
-        );
-      } on DioException catch (e) {
-        return handler.reject(e);
-      }
-    }
-
-    // 2. Redirect to mock server if configured.
-    final $mockUrl = o?.mockUrl ?? mockUrl;
-    if ($mockUrl == null) return handler.next(options); // no mock URL → passthrough
-
-    final $fallbackWhen = o?.fallbackWhen ?? fallbackWhen;
-
-    // queryParameters: {} — _rewriteUrl already folds the original query
-    // string into the rewritten path; leaving the map populated would make
-    // dio append it a second time when it builds the request URI.
-    final mockOptions = options.copyWith(
-      path: _rewriteUrl(options.uri, $mockUrl),
-      queryParameters: {},
-    );
-
+  void onRequest(
+      RequestOptions options, RequestInterceptorHandler handler) async {
     try {
-      final resp = await _redirect.fetch<dynamic>(mockOptions);
-      if ($fallbackWhen(response: resp)) {
-        return handler.next(options); // fallback to real API
+      final override = options.extra[name];
+      final o = override is DiomanMockOptions ? override : null;
+      final $enabled = o?.enabled ?? enabled;
+      if (!$enabled) return handler.next(options);
+
+      // 1. Try inline handler first.
+      // Uses the resolved path (matching DiomanKey's key scheme) so route
+      // registration is consistent regardless of absolute vs relative URLs.
+      final routeKey = '${options.method.toUpperCase()}:${options.uri.path}';
+      final inlineHandler = o?.routes?[routeKey] ?? _routes[routeKey];
+      if (inlineHandler != null) {
+        try {
+          final body = await inlineHandler(options);
+          final headers = Headers.fromMap(body.headers);
+          body.headers = headers.map;
+          final data = await _transformer.transformResponse(options, body);
+          // callFollowingResponseInterceptor: true — a mock hit must still run
+          // onResponse of normalize/cache/share (installed earlier in the
+          // chain) so the shared-request completer settles and the envelope
+          // is unwrapped the same way a real response would be.
+          return handler.resolve(
+            Response<dynamic>(
+              requestOptions: options,
+              data: data,
+              headers: headers,
+              statusCode: body.statusCode,
+              statusMessage: 'Mock',
+            ),
+            true,
+          );
+        } on DioException catch (e) {
+          return handler.reject(e, true);
+        }
       }
-      handler.resolve(resp, true);
-    } on DioException catch (e) {
-      if ($fallbackWhen(error: e)) {
-        return handler.next(options); // mock server unreachable → real API
+
+      // 2. Redirect to mock server if configured.
+      final $mockUrl = o?.mockUrl ?? mockUrl;
+      if ($mockUrl == null) {
+        return handler.next(options);
       }
-      handler.reject(e);
+
+      final $fallbackWhen = o?.fallbackWhen ?? fallbackWhen;
+
+      // queryParameters: {} — _rewriteUrl already folds the original query
+      // string into the rewritten path; leaving the map populated would make
+      // dio append it a second time when it builds the request URI.
+      final mockOptions = options.copyWith(
+        path: _rewriteUrl(options.uri, $mockUrl),
+        queryParameters: {},
+      );
+
+      try {
+        final resp = await _redirect.fetch<dynamic>(mockOptions);
+        if ($fallbackWhen(response: resp)) {
+          return handler.next(options); // fallback to real API
+        }
+        handler.resolve(resp, true);
+      } on DioException catch (e) {
+        if ($fallbackWhen(error: e)) {
+          return handler.next(options); // mock server unreachable → real API
+        }
+        handler.reject(e, true);
+      }
+    } catch (error, stackTrace) {
+      if (!handler.isCompleted) {
+        handler.reject(
+            error is DioException
+                ? error
+                : DioException(
+                    requestOptions: options,
+                    error: error,
+                    stackTrace: stackTrace,
+                  ),
+            true);
+      }
     }
   }
 
   // ── Helpers ───────────────────────────────────────────────────────────────
 
+  /// 保留查询串并替换请求来源。
   static String _rewriteUrl(Uri original, String base) {
     final stripped = base.replaceAll(RegExp(r'/+$'), '');
     final path = '/${original.path.replaceAll(RegExp(r'^/+'), '')}';
@@ -234,6 +259,7 @@ class DiomanMock extends DiomanPlugin {
     return '$stripped$path$query';
   }
 
+  /// 释放本插件持有的状态和资源。
   @override
   void dispose() {
     _redirectDio?.close(force: true);

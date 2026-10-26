@@ -5,7 +5,8 @@ import 'package:dio/dio.dart';
 import 'breaker_plugin.dart';
 import 'cancel_plugin.dart';
 import 'dioman_plugin.dart';
-import 'key_plugin.dart';
+import 'replay_support.dart';
+import 'request_claims.dart';
 import 'share_plugin.dart';
 
 /// The `jitter` field's function form: takes the raw computed delay, returns
@@ -177,23 +178,44 @@ final _random = Random();
 /// [methods]最先检查，是[shouldRetry]无法覆盖的硬性否决（默认幂等动词，
 /// 不含post/patch）。
 ///
-/// The re-dispatch is issued through a throwaway, interceptor-less `Dio()` —
-/// same pattern as [DiomanAuth]'s post-failure replay and [DiomanShare]'s own
-/// `policy=retry` re-issues. It never re-enters this chain, so it never
-/// re-triggers cache writes, share dedup, mock, cancel/loading brackets, auth
-/// injection, or logging for the retry attempt itself. Two consequences to
-/// know:
+/// The re-dispatch is issued through an interceptor-less `Dio` that borrows
+/// the host client's `httpClientAdapter`/`transformer` (bound by
+/// [Dioman.install] via [dio]; a bare `Dio()` otherwise) — same pattern as
+/// [DiomanAuth]'s post-failure replay and [DiomanShare]'s own `policy=retry`
+/// re-issues. It never re-enters this chain, so it never re-triggers cache
+/// writes, share dedup, mock, cancel/loading brackets, auth injection, or
+/// logging for the retry attempt itself. Consequences to know:
 /// - [shouldRetry] always sees the RAW response body — [DiomanNormalize]
 ///   (if used at all) belongs LAST in the chain, after this plugin (see its
 ///   own class doc), so it never runs before [shouldRetry] does.
-/// - A response this plugin resolves directly — either a successfully
-///   retried one, or a business failure it retried into success — does NOT
-///   reach [DiomanCache] or [DiomanNormalize] even when they're installed
-///   AFTER this plugin: resolving from inside `onResponse`/`onError` skips
-///   every remaining response stage, same as it always has for any
-///   interceptor. A plain response this plugin decides NOT to touch
-///   (`shouldRetry` says no) is unaffected — it flows on to whatever's next
-///   completely normally.
+/// - A recovered result is handed to the interceptors installed AFTER this
+///   plugin (breaker, log, normalize, ...) exactly like a first-time success,
+///   so it is normalized the same way. Interceptors installed BEFORE it
+///   (cache, ...) are not re-run for it.
+/// - A request body that cannot be re-sent (a `Stream`, or a consumed
+///   multipart file stream) is never retried; a `FormData` is cloned per
+///   attempt.
+/// - For [DiomanShare] / [DiomanCancel], this plugin registers itself on the
+///   request in onRequest and hands off only when the request's true final
+///   outcome is known, so shared callers never see a pre-retry result and
+///   `cancelAll()` covers the whole logical request, including back-off waits.
+///
+/// 重新发起走一个不带拦截器、借用宿主客户端`httpClientAdapter`/`transformer`的
+/// `Dio`（由[Dioman.install]通过[dio]绑定；未绑定则是裸`Dio()`）——跟[DiomanAuth]
+/// 的失败后重放、[DiomanShare]自己的`policy=retry`重新发起是同一套做法。它永远
+/// 不会重新进入本拦截器链，所以重试本身不会重新触发缓存写入、share去重、mock、
+/// cancel/loading括号、鉴权注入或日志。需要知道的几点：
+/// - [shouldRetry]看到的永远是**原始**响应体——[DiomanNormalize]（如果用的话）
+///   应当装在链条**最后**、本插件之后（见它自己的类文档），所以它不会先于
+///   [shouldRetry]运行。
+/// - 恢复成功的结果会交给装在本插件**之后**的拦截器（breaker、log、normalize…）
+///   处理，语义跟首次成功一致，所以同样会被规范化；装在它**之前**的拦截器
+///   （cache等）不会为它重新运行。
+/// - 无法重发的请求体（`Stream`，或文件流已消费的multipart）永远不重试；
+///   `FormData`每次尝试前克隆。
+/// - 对[DiomanShare]/[DiomanCancel]，本插件在onRequest里把自己登记到请求上，
+///   只在请求的真正最终结果确定后才交接，因此共享调用方不会看到重试前的结果，
+///   `cancelAll()`覆盖整个逻辑请求，包括退避等待期间。
 ///
 /// While waiting out a `delay`, the wait races [RequestOptions.cancelToken]'s
 /// `whenCancel` — cancelling mid-wait stops it immediately instead of idling
@@ -239,72 +261,38 @@ class DiomanRetry extends DiomanPlugin {
     this.onRetry,
   });
 
-  // Throwaway Dio reused for re-issues — no interceptors, so retries never
-  // re-enter this chain (see the class doc for why). Lazily created and
-  // reused across attempts instead of a fresh `Dio()` each time, so the
-  // underlying HttpClient / connection pool isn't reallocated per attempt.
-  // Closed in [dispose].
-  //
-  // 复用一个无拦截器的裸Dio做重新发起，避免重新进入本拦截器链（原因见类文档）。
-  // 惰性创建并复用（而非每次重试新建一个`Dio()`），避免每次重试都重新分配
-  // HttpClient/连接池。在[dispose]中关闭。
-  Dio? _retryDio;
-  Dio get _retry => _retryDio ??= Dio();
+  // 重试用的传输层：绑定宿主 Dio 后借用其 adapter/transformer，未绑定时退回
+  // 无拦截器的裸 Dio，重试不会重新进入本拦截器链（原因见类文档）。在 [dispose]
+  // 中释放。
+  final _replay = ReplayClient();
 
-  /// The [DiomanShare] instance installed on the same [Dio], if any. Set
-  /// this whenever [DiomanShare] and [DiomanRetry] are combined —
-  /// [DiomanShare] sits BEFORE [DiomanRetry] in the canonical chain, so its
-  /// own onResponse/onError would otherwise settle the shared entry with
-  /// the FIRST attempt's outcome, before this plugin ever gets a chance to
-  /// retry — meaning any concurrent caller dedup'd via [DiomanShare] would
-  /// be stuck with a pre-retry failure even if the retry goes on to
-  /// succeed. Setting [share] registers this plugin as the one responsible
-  /// for settling the entry instead (see
-  /// [DiomanShare.registerDownstreamSettler] / [DiomanShare.settle]) —
-  /// [DiomanShare] then defers, and this plugin explicitly settles at every
-  /// point it hands off a TRUE final outcome.
+  /// Binds the host [Dio] this plugin is installed on, so retries reuse its
+  /// adapter/transformer and a recovered result reaches the interceptors after
+  /// this plugin. [Dioman.install] / [DiomanHandle] bind it automatically; set
+  /// it by hand only when wiring the chain yourself. `null` unbinds.
   ///
-  /// [Dioman.install] wires this automatically when both a `share:` and a
-  /// `retry:` plugin are passed to it — set it by hand only when wiring the
-  /// chain yourself instead of going through `install`.
-  ///
-  /// 同一个[Dio]上安装的[DiomanShare]实例（如果有）。[DiomanShare]和
-  /// [DiomanRetry]搭配使用时务必设置——[DiomanShare]在canonical链条上排在
-  /// [DiomanRetry]前面，它自己的onResponse/onError原本会用第一次尝试的结果
-  /// 结算共享entry，本插件还没来得及重试——意味着任何通过[DiomanShare]去重
-  /// 的并发调用方，即便重试最终成功了，也只能拿到重试前的失败结果。设置
-  /// [share]会把结算责任登记给本插件（见[DiomanShare.registerDownstreamSettler]/
-  /// [DiomanShare.settle]）——[DiomanShare]随之推迟结算，本插件在每一个交出
-  /// **真正**最终结果的地方显式结算。
-  ///
-  /// [Dioman.install]同时收到`share:`和`retry:`时会自动完成这层接线——只有
-  /// 自己手动拼接拦截器链（不走`install`）时才需要手动设置。
-  DiomanShare? _share;
+  /// 绑定本插件所在的宿主[Dio]，让重试复用它的adapter/transformer，并让恢复成功
+  /// 的结果进入排在本插件之后的拦截器。[Dioman.install]/[DiomanHandle]会自动
+  /// 绑定，只有自己手动拼链时才需要设置。传`null`解绑。
+  set dio(Dio? value) => _replay.bind(value);
 
-  set share(DiomanShare? value) {
-    _share = value;
-    value?.registerDownstreamSettler();
-  }
+  /// No longer needed: this plugin now registers its settlement
+  /// responsibility on each request itself. Kept as a no-op for compatibility.
+  ///
+  /// 已不再需要：本插件现在自己在每个请求上登记结算责任。仅作兼容保留，无效果。
+  @Deprecated('Settlement responsibility is registered per request now; '
+      'this setter has no effect.')
+  set share(DiomanShare? value) {}
 
-  /// The [DiomanCancel] instance installed on the same [Dio], if any. Set
-  /// this whenever [DiomanCancel] and [DiomanRetry] are combined — the retry
-  /// re-issue goes through a throwaway Dio with no interceptors, so it never
-  /// re-enters [DiomanCancel]'s onRequest (which is what would otherwise
-  /// re-register the token). Without this reference, `cancelAll()` can't
-  /// abort a request currently being retried.
+  /// No longer needed: [DiomanCancel] now keeps tracking a request for as long
+  /// as this plugin still holds it (back-off, replay). Kept as a no-op for
+  /// compatibility.
   ///
-  /// [Dioman.install] wires this automatically when both a `cancel:` and a
-  /// `retry:` plugin are passed to it.
-  ///
-  /// 同一个[Dio]上安装的[DiomanCancel]实例（如果有）。[DiomanCancel]和
-  /// [DiomanRetry]搭配使用时务必设置——重试的重新发起走的是不带拦截器的裸
-  /// Dio，永远不会重新进入[DiomanCancel]的onRequest（那本该是重新登记token
-  /// 的地方）。没有这个引用，`cancelAll()`中断不了正在重试中的请求。
-  ///
-  /// [Dioman.install]同时收到`cancel:`和`retry:`时会自动完成这层接线。
-  DiomanCancel? _cancel;
-
-  set cancel(DiomanCancel? value) => _cancel = value;
+  /// 已不再需要：只要本插件还持有请求（退避、重放期间），[DiomanCancel]就会
+  /// 持续追踪它。仅作兼容保留，无效果。
+  @Deprecated('Cancel tracking now covers the whole logical request; '
+      'this setter has no effect.')
+  set cancel(DiomanCancel? value) {}
 
   /// The [DiomanBreaker] instance installed on the same [Dio], if any. Set
   /// this whenever [DiomanBreaker] and [DiomanRetry] are combined — before
@@ -440,6 +428,10 @@ class DiomanRetry extends DiomanPlugin {
   /// 插件名 / extra键，无需实例即可访问。
   static const pluginName = 'dioman:retry';
 
+  /// extra 键：本请求的某个用户回调（shouldRetry/delay 等）在响应阶段抛过异常，
+  /// 错误阶段据此不再重复调用回调。
+  static const _kCallbackFailed = '$pluginName:callbackFailed';
+
   @override
   String get name => pluginName;
 
@@ -509,6 +501,8 @@ class DiomanRetry extends DiomanPlugin {
     Response<dynamic>? response,
   ) {
     if (_isDisabled(config)) return false;
+    // 取消是调用方的明确意图，永不重试。
+    if (err?.type == DioExceptionType.cancel) return false;
     final method = config.method.toUpperCase();
     if (!_resolveMethods(config).map((m) => m.toUpperCase()).contains(method)) {
       return false;
@@ -612,137 +606,177 @@ class DiomanRetry extends DiomanPlugin {
     return _applyJitter(raw, _resolveJitter(config), _resolveDelayMax(config));
   }
 
-  /// Cancel-aware wait: races the delay against
-  /// [RequestOptions.cancelToken]'s `whenCancel` so a cancel mid-wait stops
-  /// it immediately instead of idling until the timer fires.
-  ///
-  /// 可取消的等待：跟[RequestOptions.cancelToken]的`whenCancel`赛跑，中途
-  /// 取消会立刻停止等待，不会空等到定时器触发。
-  Future<void> _delay(Duration wait, CancelToken? token) async {
-    if (wait <= Duration.zero) return;
-    if (token?.isCancelled == true) return;
-    if (token == null) {
-      await Future<void>.delayed(wait);
-      return;
-    }
-    await Future.any<void>([
-      Future<void>.delayed(wait),
-      token.whenCancel.then((_) {}),
-    ]);
+  // ── Claim (onRequest) ─────────────────────────────────────────────────────
+
+  /// 这次请求有机会被本插件重试时（未禁用、方法在白名单、最大次数>0），把结算
+  /// 责任登记到请求上：下游的 share 因此等到最终结果才结算，cancel 因此在整个
+  /// 逻辑请求（含退避等待）期间持续追踪 token。每条出口都会注销，见
+  /// [_handleResponse]/[_handleError]。
+  @override
+  void onRequest(RequestOptions options, RequestInterceptorHandler handler) {
+    if (_mayRetry(options)) claimRequest(options, this);
+    handler.next(options);
   }
+
+  /// 请求是否已进入结算登记簿（share 参与）而本插件没有认领。说明 onRequest 被
+  /// 上游短路（如 mock），share 已按"无认领"当场结算，此时再恢复会让 leader 与
+  /// follower 结果不一致。没有登记簿（无 share）时保持原行为，仍可恢复。
+  bool _unclaimedUnderShare(RequestOptions config) {
+    final claims = claimsOf(config);
+    return claims != null && !claims.has(this);
+  }
+
+  /// 该请求按配置是否可能被本插件重试。
+  bool _mayRetry(RequestOptions config) =>
+      !_isDisabled(config) &&
+      _resolveMax(config) > 0 &&
+      _resolveMethods(config)
+          .any((m) => m.toUpperCase() == config.method.toUpperCase());
 
   // ── Business-level failure (onResponse) ───────────────────────────────────
 
   @override
-  void onResponse(Response<dynamic> response, ResponseInterceptorHandler handler) async {
-    final config = response.requestOptions;
-    if (!_shouldRetry(config, null, response)) {
-      _settleShare(config, response: response);
-      return handler.next(response);
-    }
+  void onResponse(
+      Response<dynamic> response, ResponseInterceptorHandler handler) {
+    unawaited(_handleResponse(response, handler));
+  }
 
-    // Business failure: retry up to $max times. Unlike the old same-dio
-    // design (where each re-dispatch recursed back through this same
-    // onResponse via the full chain), the re-issue is a bare Dio with no
-    // interceptors — so the whole retry loop has to live in THIS one
-    // invocation, explicitly re-checking $shouldRetry after every attempt.
-    final $max = _resolveMax(config);
-    var current = response;
-    for (var attempt = 1; attempt <= $max; attempt++) {
-      if (config.cancelToken?.isCancelled == true) break;
-      // Breaker tripped (by this or other requests) → stop piling retries on a
-      // downed server; propagate the last outcome instead.
-      if (_breaker?.isOpen(config) == true) break;
-      final wait = _resolveWait(config, attempt, $max, current, null);
-      await _delay(wait, config.cancelToken);
-      if (config.cancelToken?.isCancelled == true) break;
-      onRetry?.call(attempt);
-      try {
-        current = await _reissue(config);
-      } catch (_) {
-        // The re-issue failed outright (network/HTTP level) rather than
-        // landing another business failure — give up, propagate the
-        // original business failure rather than a transport error the
-        // caller never asked about.
-        break;
+  /// 响应阶段的业务级失败恢复。任何回调抛出的异常都转成 [DioException]，
+  /// handler 恰好完成一次。
+  Future<void> _handleResponse(
+    Response<dynamic> response,
+    ResponseInterceptorHandler handler,
+  ) async {
+    final config = response.requestOptions;
+    try {
+      if (isJoined(config) ||
+          _unclaimedUnderShare(config) ||
+          !_shouldRetry(config, null, response)) {
+        return ReplayClient.handOffResponse(config, this, response, handler);
       }
-      if (!_shouldRetry(config, null, current)) {
-        _settleShare(config, response: current);
-        return handler.resolve(current);
+
+      // Business failure: retry up to $max times. The re-issue is an
+      // interceptor-less client, so the whole retry loop lives in THIS one
+      // invocation, explicitly re-checking $shouldRetry after every attempt.
+      final $max = _resolveMax(config);
+      final token = config.cancelToken;
+      var current = response;
+      for (var attempt = 1; attempt <= $max; attempt++) {
+        // Breaker tripped (by this or other requests) → stop piling retries on a
+        // downed server; propagate the last outcome instead.
+        if (_breaker?.isOpen(config) == true) break;
+        final wait = _resolveWait(config, attempt, $max, current, null);
+        await cancellableDelay(wait, token);
+        if (token?.isCancelled == true) return _failCanceled(config, handler);
+        if (!prepareForReplay(config)) break; // body 无法重放
+        onRetry?.call(attempt);
+        try {
+          current = await _reissue(config);
+        } catch (_) {
+          // The re-issue failed outright (network/HTTP level) rather than
+          // landing another business failure — give up, propagate the
+          // original business failure rather than a transport error the
+          // caller never asked about.
+          break;
+        }
+        if (!_shouldRetry(config, null, current)) break;
+      }
+      // 恢复成功与否都用 next 往后走：后续的 normalize、breaker 等照常处理，
+      // 与首次成功语义一致。
+      ReplayClient.handOffResponse(config, this, current, handler);
+    } catch (e, s) {
+      // 回调（shouldRetry/delay/onRetry/jitter）抛异常：标记后走错误阶段，
+      // 本插件的 onError 看到标记不再重复调用回调。
+      final err = DioException(requestOptions: config, error: e, stackTrace: s);
+      config.extra[_kCallbackFailed] = true;
+      if (!handler.isCompleted) {
+        ReplayClient.handOffResponseError(config, this, err, handler);
       }
     }
-    _settleShare(config, response: current);
-    handler.next(current);
+  }
+
+  /// 响应阶段发现请求已被取消：以取消异常结束，而不是返回重试前的业务失败。
+  void _failCanceled(
+      RequestOptions config, ResponseInterceptorHandler handler) {
+    final err = config.cancelToken!.cancelError ??
+        DioException.requestCancelled(
+            requestOptions: config, reason: 'cancelled');
+    releaseClaim(config, this, error: err);
+    handler.reject(err, true);
   }
 
   // ── HTTP / network failure (onError) ──────────────────────────────────────
 
   @override
-  void onError(DioException err, ErrorInterceptorHandler handler) async {
-    final config = err.requestOptions;
-    if (!_shouldRetry(config, err, err.response)) {
-      _settleShare(config, error: err);
-      return handler.next(err);
-    }
+  void onError(DioException err, ErrorInterceptorHandler handler) {
+    unawaited(_handleError(err, handler));
+  }
 
-    // Retry up to $max times, same reasoning as onResponse above: the whole
-    // loop lives in this one invocation, explicitly re-checking $shouldRetry
-    // against every subsequent failure (a re-issue can fail with a
-    // DIFFERENT, non-retryable error — that stops the loop early, matching
-    // what a fresh onError call would have decided under the old design).
-    final $max = _resolveMax(config);
-    var lastError = err;
-    for (var attempt = 1; attempt <= $max; attempt++) {
-      if (config.cancelToken?.isCancelled == true) break;
-      // Breaker tripped (by this or other requests) → stop piling retries on a
-      // downed server; propagate the last error instead.
-      if (_breaker?.isOpen(config) == true) break;
-      final wait = _resolveWait(config, attempt, $max, lastError.response, lastError);
-      await _delay(wait, config.cancelToken);
-      if (config.cancelToken?.isCancelled == true) break;
-      onRetry?.call(attempt);
-      try {
-        final retried = await _reissue(config);
-        _settleShare(config, response: retried);
-        return handler.resolve(retried);
-      } catch (e) {
-        lastError =
-            e is DioException ? e : DioException(requestOptions: config, error: e);
-        if (!_shouldRetry(config, lastError, lastError.response)) break;
+  /// 错误阶段的重试。任何回调抛出的异常都转成 [DioException]，handler 恰好
+  /// 完成一次。
+  Future<void> _handleError(
+    DioException err,
+    ErrorInterceptorHandler handler,
+  ) async {
+    final config = err.requestOptions;
+    try {
+      if (isJoined(config) ||
+          _unclaimedUnderShare(config) ||
+          config.extra.remove(_kCallbackFailed) == true ||
+          !_shouldRetry(config, err, err.response)) {
+        return _replay.handOffError(this, config, err, handler);
+      }
+
+      // Retry up to $max times, same reasoning as the response path: the whole
+      // loop lives in this one invocation, explicitly re-checking $shouldRetry
+      // against every subsequent failure (a re-issue can fail with a
+      // DIFFERENT, non-retryable error — that stops the loop early).
+      final $max = _resolveMax(config);
+      final token = config.cancelToken;
+      var lastError = err;
+      for (var attempt = 1; attempt <= $max; attempt++) {
+        // Breaker tripped (by this or other requests) → stop piling retries on a
+        // downed server; propagate the last error instead.
+        if (_breaker?.isOpen(config) == true) break;
+        final wait =
+            _resolveWait(config, attempt, $max, lastError.response, lastError);
+        await cancellableDelay(wait, token);
+        if (token?.isCancelled == true) {
+          lastError = token!.cancelError ?? lastError;
+          break;
+        }
+        if (!prepareForReplay(config)) break; // body 无法重放
+        onRetry?.call(attempt);
+        Response<dynamic> retried;
+        try {
+          retried = await _reissue(config);
+        } catch (e) {
+          lastError = e is DioException
+              ? e
+              : DioException(requestOptions: config, error: e);
+          if (!_shouldRetry(config, lastError, lastError.response)) break;
+          continue;
+        }
+        return await _replay.finishRecovered(this, config, retried, handler);
+      }
+      _replay.handOffError(this, config, lastError, handler);
+    } catch (e, s) {
+      final failure =
+          DioException(requestOptions: config, error: e, stackTrace: s);
+      if (!handler.isCompleted) {
+        _replay.handOffError(this, config, failure, handler);
       }
     }
-    _settleShare(config, error: lastError);
-    handler.next(lastError);
   }
 
-  /// Issues the retry via [_retry], tracking [config]'s cancel token with
-  /// [_cancel] for the duration so `cancelAll()` can see (and abort) it —
-  /// see [_cancel]'s doc for why that tracking doesn't happen on its own.
-  Future<Response<dynamic>> _reissue(RequestOptions config) async {
-    final token = config.cancelToken;
-    if (token != null) _cancel?.track(token);
-    try {
-      return await _retry.fetch<dynamic>(config);
-    } finally {
-      if (token != null) _cancel?.untrack(token);
-    }
-  }
-
-  void _settleShare(
-    RequestOptions config, {
-    Response<dynamic>? response,
-    DioException? error,
-  }) {
-    final share = _share;
-    if (share == null) return;
-    final key = config.extra[kKey] as String?;
-    if (key == null) return;
-    share.settle(key, response: response, error: error);
-  }
+  /// Issues the retry through the replay client (host transport when bound).
+  ///
+  /// 通过重放客户端发起重试（已绑定宿主时用宿主的传输层）。
+  Future<Response<dynamic>> _reissue(RequestOptions config) =>
+      _replay.fetch(config);
 
   @override
   void dispose() {
-    _retryDio?.close(force: true);
-    _retryDio = null;
+    _replay.dispose();
   }
 }

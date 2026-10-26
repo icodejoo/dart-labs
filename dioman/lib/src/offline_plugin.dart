@@ -1,6 +1,11 @@
 import 'dart:async';
+import 'dart:collection';
 import 'package:dio/dio.dart';
 import 'dioman_plugin.dart';
+import 'cancel_plugin.dart';
+import 'loading_plugin.dart';
+import 'share_plugin.dart';
+import 'plugin_order.dart';
 
 /// Why a queued request was rejected instead of eventually replayed.
 ///
@@ -102,7 +107,19 @@ class DiomanOfflineOptions {
 /// 每个条目在最先触发的出口（flush/挤出/超时/dispose）恰好调用一次
 /// `handler.next`或`handler.reject`。
 class _Queued {
+  /// 保存请求或缓存条目的状态。
   _Queued(this.handler, this.options);
+
+  /// 出队通知，让取消等待及时释放请求引用。
+  Completer<void>? cancellation;
+
+  /// 关闭定时器及取消等待。
+  void release() {
+    timer?.cancel();
+    final signal = cancellation;
+    if (signal != null && !signal.isCompleted) signal.complete();
+    cancellation = null;
+  }
 
   /// The captured request handler — completed exactly once at some exit.
   ///
@@ -261,7 +278,7 @@ class DiomanOffline extends DiomanPlugin {
   /// FIFO queue of parked requests.
   ///
   /// 挂起请求的FIFO队列。
-  final _queue = <_Queued>[];
+  final _queue = ListQueue<_Queued>();
 
   /// Subscription to the connectivity stream; cancelled in [dispose].
   ///
@@ -274,8 +291,19 @@ class DiomanOffline extends DiomanPlugin {
   /// 插件名 / extra键，无需实例即可访问。
   static const pluginName = 'dioman:offline';
 
+  /// 插件的公开协议名称。
   @override
   String get name => pluginName;
+
+  /// 顺序声明：offline在share/cancel/loading之前：排队中的请求不能已建立share条目或打开cancel/loading括号。
+  @override
+  DiomanPluginOrder get ordering => const DiomanPluginOrder(
+        before: {
+          DiomanShare.pluginName,
+          DiomanCancel.pluginName,
+          DiomanLoading.pluginName,
+        },
+      );
 
   /// Number of requests currently parked in the queue. Read-only, for
   /// inspection/testing.
@@ -285,11 +313,13 @@ class DiomanOffline extends DiomanPlugin {
 
   // ── Per-request override resolution ─────────────────────────────────────────
 
+  /// 读取具有正确类型的单请求覆盖。
   DiomanOfflineOptions? _overrideObject(RequestOptions config) {
     final v = config.extra[name];
     return v is DiomanOfflineOptions ? v : null;
   }
 
+  /// 构造离线队列拒绝异常。
   DioException _reject(DiomanOfflineReason reason, RequestOptions options) =>
       DioException(
         requestOptions: options,
@@ -299,6 +329,7 @@ class DiomanOffline extends DiomanPlugin {
         message: '[offline] ${reason.name}',
       );
 
+  /// 处理请求并完成当前请求出口。
   @override
   void onRequest(RequestOptions options, RequestInterceptorHandler handler) {
     final o = _overrideObject(options);
@@ -318,9 +349,10 @@ class DiomanOffline extends DiomanPlugin {
     final $maxSize = o?.maxQueueSize ?? maxQueueSize;
     if ($maxSize > 0) {
       while (_queue.length >= $maxSize) {
-        final oldest = _queue.removeAt(0);
-        oldest.timer?.cancel();
-        oldest.handler.reject(_reject(DiomanOfflineReason.queueFull, oldest.options));
+        final oldest = _queue.removeFirst();
+        oldest.release();
+        oldest.handler
+            .reject(_reject(DiomanOfflineReason.queueFull, oldest.options));
       }
     }
 
@@ -331,11 +363,24 @@ class DiomanOffline extends DiomanPlugin {
         // Remove-then-reject, guarded by the remove: if flush/eviction already
         // took this entry, `remove` returns false and we do nothing.
         if (_queue.remove(entry)) {
+          entry.release();
           entry.handler.reject(_reject(DiomanOfflineReason.timeout, options));
         }
       });
     }
     _queue.add(entry);
+    final token = options.cancelToken;
+    if (token != null) {
+      // 仅捕获轻量通知器；出队时解除其对 entry/body/handler 的引用。
+      final cancellation = Completer<void>();
+      entry.cancellation = cancellation;
+      Future.any<Object?>([token.whenCancel, cancellation.future]).then((_) {
+        if (token.isCancelled && _queue.remove(entry)) {
+          entry.release();
+          entry.handler.reject(token.cancelError!, true);
+        }
+      });
+    }
     // Deliberately NOT calling handler.next — the request is now parked.
   }
 
@@ -353,11 +398,17 @@ class DiomanOffline extends DiomanPlugin {
     final drained = List<_Queued>.of(_queue);
     _queue.clear();
     for (final entry in drained) {
-      entry.timer?.cancel();
-      entry.handler.next(entry.options);
+      entry.release();
+      final token = entry.options.cancelToken;
+      if (token != null && token.isCancelled) {
+        entry.handler.reject(token.cancelError!, true);
+      } else {
+        entry.handler.next(entry.options);
+      }
     }
   }
 
+  /// 释放本插件持有的状态和资源。
   @override
   void dispose() {
     _sub?.cancel();
@@ -365,8 +416,9 @@ class DiomanOffline extends DiomanPlugin {
     final drained = List<_Queued>.of(_queue);
     _queue.clear();
     for (final entry in drained) {
-      entry.timer?.cancel();
-      entry.handler.reject(_reject(DiomanOfflineReason.disposed, entry.options));
+      entry.release();
+      entry.handler
+          .reject(_reject(DiomanOfflineReason.disposed, entry.options));
     }
   }
 }

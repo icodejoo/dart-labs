@@ -2,12 +2,20 @@
 import 'dart:async';
 import 'package:dio/dio.dart';
 import 'dioman_plugin.dart';
+import 'auth_plugin.dart';
+import 'cache_plugin.dart';
+import 'mock_plugin.dart';
+import 'retry_plugin.dart';
+import 'share_plugin.dart';
+import 'plugin_order.dart';
 
 /// Per-request override for [DiomanLoading], read from `extra['dioman:loading']`.
 ///
 /// [DiomanLoading]的单请求覆盖，从`extra['dioman:loading']`读取。
 class DiomanLoadingOptions {
-  const DiomanLoadingOptions({this.enabled, this.onChanged, this.delay, this.delayClose});
+  /// 创建单请求覆盖配置。
+  const DiomanLoadingOptions(
+      {this.enabled, this.onChanged, this.delay, this.delayClose});
 
   /// `false` opts this request out of the loading counter entirely — it
   /// never increments/decrements [DiomanLoading.activeCount] and never
@@ -19,22 +27,10 @@ class DiomanLoadingOptions {
   /// 沿用插件自身的[DiomanLoading.enabled]。
   final bool? enabled;
 
-  /// Overrides the plugin's default `onChanged` for this request only.
-  /// `onChanged` is a pure callback — just "notify with this bool" — it has
-  /// no counting logic of its own. The shared 0↔1 edge-triggered counter
-  /// still runs exactly the same for this request; only *which* callback it
-  /// invokes at that edge changes. If this happens to be the request that
-  /// starts/ends the whole in-flight batch, this callback fires instead of
-  /// the plugin's own `onChanged` — e.g. disable a button for the request
-  /// that starts the batch, alongside a global spinner driven by the
-  /// default for every other request.
+  /// Selects the callback when this request opens a display cycle. The same
+  /// callback receives `false` when that cycle ends, including disposal.
   ///
-  /// 仅本次请求覆盖插件默认的`onChanged`。`onChanged`是纯回调——只负责
-  /// "用这个bool通知一下"，自己不带任何计数逻辑。共享的0↔1边缘触发计数器
-  /// 对这次请求照常运行，完全一样；变的只是边缘触发时*调用哪一个*回调。
-  /// 如果这次请求恰好是让整批在途请求从0变1（或从1变0）的那一个，触发的
-  /// 就是这个回调而不是插件默认的`onChanged`——比如在默认回调给其它请求
-  /// 驱动全局spinner的同时，给触发批次边缘的这次请求单独禁用一个按钮。
+  /// 本请求开启显示周期时选择该回调；周期结束（含释放插件）时由同一回调关闭。
   final void Function(bool loading)? onChanged;
 
   /// Overrides the plugin's default [DiomanLoading.delay] for this request
@@ -92,6 +88,7 @@ class DiomanLoadingOptions {
 /// dio.interceptors.add(loading);
 /// ```
 class DiomanLoading extends DiomanPlugin {
+  /// 创建插件实例。
   DiomanLoading({
     required void Function(bool loading) onChanged,
     this.enabled = true,
@@ -103,8 +100,11 @@ class DiomanLoading extends DiomanPlugin {
   ///
   /// 插件名 / extra键，无需实例即可访问。
   static const pluginName = 'dioman:loading';
+
+  /// 本请求是否计入显示计数。
   static const _kBracketed = '$pluginName:bracketed';
-  static const _kOnChanged = '$pluginName:onChanged';
+
+  /// 本请求的延迟关闭配置。
   static const _kDelayClose = '$pluginName:delayClose';
 
   /// `false` disables the plugin entirely — every request passes through
@@ -160,14 +160,22 @@ class DiomanLoading extends DiomanPlugin {
   /// 等待区分开）。
   bool _shown = false;
 
+  /// 本显示周期负责成对通知的回调。
+  void Function(bool)? _cycleCallback;
+
+  /// 延迟显示定时器。
   Timer? _showTimer;
+
+  /// 延迟隐藏定时器。
   Timer? _hideTimer;
 
+  /// 取消待显示任务。
   void _clearShowTimer() {
     _showTimer?.cancel();
     _showTimer = null;
   }
 
+  /// 取消待隐藏任务。
   void _clearHideTimer() {
     _hideTimer?.cancel();
     _hideTimer = null;
@@ -178,24 +186,30 @@ class DiomanLoading extends DiomanPlugin {
   /// 当前在途请求数。
   int get activeCount => _count;
 
+  /// 插件的公开协议名称。
   @override
   String get name => pluginName;
 
+  /// 顺序声明：loading在cache/share/mock之后（命中时不遗留括号），在auth/retry之前（401或重试前清理已完成）。
+  @override
+  DiomanPluginOrder get ordering => const DiomanPluginOrder(
+        after: {
+          DiomanCache.pluginName,
+          DiomanShare.pluginName,
+          DiomanMock.pluginName,
+        },
+        before: {DiomanAuth.pluginName, DiomanRetry.pluginName},
+      );
+
+  /// 处理请求并完成当前请求出口。
   @override
   void onRequest(RequestOptions options, RequestInterceptorHandler handler) {
     final override = options.extra[name];
     final o = override is DiomanLoadingOptions ? override : null;
     if (!(o?.enabled ?? enabled)) return handler.next(options);
 
-    // Resolve once: this request's own onChanged if it has one, else the
-    // plugin's default. Stashed so the matching onResponse/onError uses the
-    // SAME callback for this request's decrement, whatever else is
-    // concurrently in-flight by then. Same reasoning for delayClose.
-    // 只解析一次：这次请求自己的onChanged（若有），否则用插件默认的。
-    // 暂存起来，保证对应的onResponse/onError在做这次请求的减计数时用的是
-    // 同一个回调，不受届时其它并发请求状态影响。delayClose同理。
+    // 关闭延迟取本请求配置；显示回调在周期开始时固定。
     final $onChanged = o?.onChanged ?? _onChanged;
-    options.extra[_kOnChanged] = $onChanged;
     options.extra[_kDelayClose] = o?.delayClose ?? delayClose;
 
     options.extra[_kBracketed] = true;
@@ -203,6 +217,7 @@ class DiomanLoading extends DiomanPlugin {
       // 被 delayClose 打断的隐藏窗口——保持之前的显示状态，不用重新走一遍 delay。
       _clearHideTimer();
       if (!_shown && _showTimer == null) {
+        _cycleCallback = $onChanged;
         final $delay = o?.delay ?? delay;
         if ($delay > Duration.zero) {
           _showTimer = Timer($delay, () {
@@ -219,12 +234,15 @@ class DiomanLoading extends DiomanPlugin {
     handler.next(options);
   }
 
+  /// 处理响应并完成当前响应出口。
   @override
-  void onResponse(Response<dynamic> response, ResponseInterceptorHandler handler) {
+  void onResponse(
+      Response<dynamic> response, ResponseInterceptorHandler handler) {
     _decrement(response.requestOptions);
     handler.next(response);
   }
 
+  /// 处理失败并完成当前错误出口。
   @override
   void onError(DioException err, ErrorInterceptorHandler handler) {
     _decrement(err.requestOptions);
@@ -245,8 +263,7 @@ class DiomanLoading extends DiomanPlugin {
   // 在途请求的名额）。
   void _decrement(RequestOptions options) {
     if (options.extra.remove(_kBracketed) != true) return;
-    final $onChanged =
-        options.extra.remove(_kOnChanged) as void Function(bool)? ?? _onChanged;
+    final $onChanged = _cycleCallback ?? _onChanged;
     final $delayClose =
         options.extra.remove(_kDelayClose) as Duration? ?? delayClose;
     if (_count <= 0) return;
@@ -254,6 +271,7 @@ class DiomanLoading extends DiomanPlugin {
     if (_showTimer != null) {
       // 还没到显示的点请求就已经全部结束了，直接取消，从不显示。
       _clearShowTimer();
+      _cycleCallback = null;
       return;
     }
     if (!_shown) return;
@@ -261,20 +279,25 @@ class DiomanLoading extends DiomanPlugin {
       _hideTimer = Timer($delayClose, () {
         _hideTimer = null;
         _shown = false;
+        _cycleCallback = null;
         $onChanged(false);
       });
     } else {
       _shown = false;
+      _cycleCallback = null;
       $onChanged(false);
     }
   }
 
+  /// 释放本插件持有的状态和资源。
   @override
   void dispose() {
     _clearShowTimer();
     _clearHideTimer();
     _count = 0;
+    final callback = _cycleCallback;
+    _cycleCallback = null;
+    if (_shown) callback?.call(false);
     _shown = false;
-    _onChanged(false);
   }
 }

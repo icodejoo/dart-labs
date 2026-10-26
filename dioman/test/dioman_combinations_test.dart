@@ -595,10 +595,10 @@ void main() {
     // this TestServer, so we can deterministically wait for it to actually
     // be in flight instead of guessing with a fixed delay.
     test(
-        'without wiring DiomanAuth to the DiomanCancel instance, cancelAll '
-        "still cannot abort a request DiomanAuth is currently replaying — "
-        'the replay uses a throwaway Dio with no interceptors, so it never '
-        're-registers with DiomanCancel on its own', () async {
+        'without any manual wiring, cancelAll still aborts a request '
+        'DiomanAuth is currently replaying — DiomanAuth holds the request, '
+        'so DiomanCancel keeps tracking its token for the whole logical '
+        'request', () async {
       final tm = FakeTokenManager('t0');
       var attempts = 0;
       final replayStarted = Completer<void>();
@@ -617,8 +617,7 @@ void main() {
           tokenManager: tm,
           onRefresh: (_, __) async => tm.set('t1'),
           onAccessExpired: (_, __) async {},
-          // NOTE: no `cancel` setter — this is the unfixed, opt-out-by-omission
-          // case.
+          // NOTE: no `cancel` setter needed any more.
         ),
       );
 
@@ -628,9 +627,8 @@ void main() {
       await replayStarted.future; // the replay is now genuinely in flight
 
       final cancelled = cancelAll(dio, 'test');
-      expect(cancelled, 0,
-          reason: 'the in-flight replay holds no token DiomanCancel knows '
-              "about, since it was never told about that cancel instance");
+      expect(cancelled, 1,
+          reason: 'the token stays tracked while auth holds the request');
     });
 
     test(

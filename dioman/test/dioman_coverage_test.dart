@@ -393,17 +393,17 @@ void main() {
       dio.interceptors.add(const DiomanKey());
       dio.interceptors.add(cache);
 
-      await dio.get<void>('/a');
+      final first = await dio.get<void>('/a');
       await dio.get<void>('/b');
       expect(calls, 2);
 
-      cache.remove('GET:/a');
+      await cache.remove(first.requestOptions.extra[kKey] as String);
       await dio.get<void>('/a');
       expect(calls, 3, reason: 'remove() evicted /a → real network hit');
       await dio.get<void>('/b');
       expect(calls, 3, reason: '/b is untouched, still a cache hit');
 
-      cache.clear();
+      await cache.clear();
       await dio.get<void>('/a');
       await dio.get<void>('/b');
       expect(calls, 5, reason: 'clear() wiped everything');
@@ -1192,7 +1192,9 @@ void main() {
       final leader = dio.get<void>('/data');
       leader.ignore(); // never settles through the normal path in this test
       await started.future;
-      share.settle('GET:/data',
+      final keyOptions = RequestOptions(path: '/data', baseUrl: server.baseUrl);
+      const DiomanKey().onRequest(keyOptions, RequestInterceptorHandler());
+      share.settle(keyOptions.extra[kKey] as String,
           error: DioException(
               requestOptions: RequestOptions(path: '/data'),
               message: 'forced'));

@@ -3,7 +3,8 @@ import 'dart:async';
 import 'package:dio/dio.dart';
 import 'cancel_plugin.dart';
 import 'dioman_plugin.dart';
-import 'key_plugin.dart';
+import 'replay_support.dart';
+import 'request_claims.dart';
 import 'share_plugin.dart';
 
 // ── TokenManager ─────────────────────────────────────────────────────────────
@@ -358,67 +359,45 @@ class DiomanAuth extends DiomanPlugin {
   /// `false`时插件整体失效——所有请求原样通过，不受保护。
   final bool enabled;
 
-  /// The [DiomanCancel] instance installed on the same [Dio], if any. Set
-  /// this whenever [DiomanCancel] and [DiomanAuth] are combined —
-  /// [_replay] is a bare, interceptor-less Dio, so a replay never re-enters
-  /// [DiomanCancel]'s onRequest (which is what re-registers a token across a
-  /// [DiomanRetry] re-dispatch). Without this reference, `cancelAll()` can't
-  /// see — let alone abort — a request currently being replayed.
+  /// No longer needed: [DiomanCancel] now keeps tracking a request for as long
+  /// as this plugin still holds it (refresh wait, replay). Kept as a no-op for
+  /// compatibility.
   ///
-  /// [Dioman.install] wires this automatically when both a `cancel:` and an
-  /// `auth:` plugin are passed to it.
-  ///
-  /// 同一个[Dio]上安装的[DiomanCancel]实例（如果有）。[DiomanCancel]和
-  /// [DiomanAuth]搭配使用时务必设置——[_replay]是个不带拦截器的裸Dio，重放
-  /// 永远不会重新进入[DiomanCancel]的onRequest（那正是[DiomanRetry]重新分发时
-  /// 用来重新登记token的地方）。没有这个引用，`cancelAll()`根本看不到、
-  /// 更谈不上中断一个正在重放中的请求。
-  ///
-  /// [Dioman.install]同时收到`cancel:`和`auth:`时会自动完成这层接线。
-  DiomanCancel? _cancel;
+  /// 已不再需要：只要本插件还持有请求（刷新等待、重放期间），[DiomanCancel]
+  /// 就会持续追踪它。仅作兼容保留，无效果。
+  @Deprecated('Cancel tracking now covers the whole logical request; '
+      'this setter has no effect.')
+  set cancel(DiomanCancel? value) {}
 
-  set cancel(DiomanCancel? value) => _cancel = value;
-
-  /// The [DiomanShare] instance installed on the same [Dio], if any. Set
-  /// this whenever [DiomanShare] and [DiomanAuth] are combined — [DiomanShare]
-  /// sits BEFORE [DiomanAuth] in the canonical chain, so its own
-  /// onResponse/onError would otherwise settle the shared entry with the
-  /// pre-refresh failure, before this plugin ever gets a chance to
-  /// refresh+replay. Setting [share] registers this plugin as (one of)
-  /// the settler(s) instead — see [DiomanShare.registerDownstreamSettler] /
-  /// [DiomanShare.settle].
+  /// No longer needed: this plugin now registers its settlement
+  /// responsibility on each protected request itself, so [DiomanShare] waits
+  /// for the true final outcome. Kept as a no-op for compatibility.
   ///
-  /// [Dioman.install] wires this automatically when both a `share:` and an
-  /// `auth:` plugin are passed to it.
-  ///
-  /// 同一个[Dio]上安装的[DiomanShare]实例（如果有）。[DiomanShare]和
-  /// [DiomanAuth]搭配使用时务必设置——[DiomanShare]在canonical链条上排在
-  /// [DiomanAuth]前面，它自己的onResponse/onError原本会用刷新前的失败结算
-  /// 共享entry，本插件还没来得及刷新+重放。设置[share]会把本插件登记为
-  /// （其中一个）结算者——见[DiomanShare.registerDownstreamSettler]/
-  /// [DiomanShare.settle]。
-  ///
-  /// [Dioman.install]同时收到`share:`和`auth:`时会自动完成这层接线。
-  DiomanShare? _share;
-
-  set share(DiomanShare? value) {
-    _share = value;
-    value?.registerDownstreamSettler();
-  }
+  /// 已不再需要：本插件现在自己在每个受保护请求上登记结算责任，[DiomanShare]
+  /// 因此会等到真正的最终结果。仅作兼容保留，无效果。
+  @Deprecated('Settlement responsibility is registered per request now; '
+      'this setter has no effect.')
+  set share(DiomanShare? value) {}
 
   Future<bool>? _refreshing; // shared window; bool = success
   // 共享刷新窗口；bool表示是否成功
 
-  // Bare Dio reused for post-failure replays — no interceptors, so replays
-  // never re-enter this chain. Lazily created and reused (rather than a fresh
-  // `Dio()` per replay) so the underlying HttpClient / connection pool is not
-  // reallocated on every 401. Closed in [dispose].
-  //
-  // 复用一个无拦截器的裸Dio做失败后重放，避免重新进入本拦截器链。惰性创建并复用
-  // （而非每次重放新建一个`Dio()`），避免每次401都重新分配HttpClient/连接池。
-  // 在[dispose]中关闭。
-  Dio? _replayDio;
-  Dio get _replay => _replayDio ??= Dio();
+  // 重放用的传输层：绑定宿主 Dio 后借用其 adapter/transformer（自定义代理、证书、
+  // 序列化行为保持一致），未绑定时退回无拦截器的裸 Dio，重放不会重新进入本链路。
+  // 在 [dispose] 中释放。
+  final _replay = ReplayClient();
+
+  /// Binds the host [Dio] this plugin is installed on, so replays reuse its
+  /// adapter/transformer and a recovered result reaches the interceptors after
+  /// this plugin (normalize, breaker, ...). [Dioman.install] / [DiomanHandle]
+  /// bind it automatically; set it by hand only when wiring the chain
+  /// yourself. `null` unbinds.
+  ///
+  /// 绑定本插件所在的宿主[Dio]，让重放复用它的adapter/transformer，并让恢复成功
+  /// 的结果进入排在本插件之后的拦截器（normalize、breaker等）。
+  /// [Dioman.install]/[DiomanHandle]会自动绑定，只有自己手动拼链时才需要设置。
+  /// 传`null`解绑。
+  set dio(Dio? value) => _replay.bind(value);
 
   static String _defaultBearer(String t) => 'Bearer $t';
 
@@ -441,7 +420,39 @@ class DiomanAuth extends DiomanPlugin {
   // ── Request ───────────────────────────────────────────────────────────────
 
   @override
-  void onRequest(
+  void onRequest(RequestOptions options, RequestInterceptorHandler handler) {
+    unawaited(_guardRequest(options, handler));
+  }
+
+  /// 请求阶段入口的兜底：回调（isProtected/expiresAt/now/buildHeader 等）抛出的
+  /// 异常转成 [DioException]，注销认领后走错误链，保证 handler 恰好完成一次，
+  /// 不让请求悬挂（部分 dio 版本不观察 async 拦截器返回的 Future）。
+  Future<void> _guardRequest(
+    RequestOptions options,
+    RequestInterceptorHandler handler,
+  ) async {
+    try {
+      // 刷新等待与取消竞争：取消时立刻拒绝并注销认领，共享的刷新本身继续。
+      final cancelled = await raceCancel<DioException?>(
+        _handleRequest(options, handler).then<DioException?>((_) => null),
+        options.cancelToken,
+        (e) => e,
+      );
+      if (cancelled != null && !handler.isCompleted) {
+        options.extra[_kDenied] = true;
+        handler.reject(cancelled, true);
+      }
+    } catch (e, s) {
+      if (handler.isCompleted) return;
+      final err = DioException(requestOptions: options, error: e, stackTrace: s);
+      // 标记已拒绝：随后本插件的 onError 看到它就注销认领（含 share 结算）。
+      options.extra[_kDenied] = true;
+      handler.reject(err, true);
+    }
+  }
+
+  /// 请求阶段的实际逻辑：受保护判定、认领、等刷新、主动刷新、注入 token。
+  Future<void> _handleRequest(
       RequestOptions options, RequestInterceptorHandler handler) async {
     if (!enabled) return handler.next(options);
 
@@ -453,6 +464,10 @@ class DiomanAuth extends DiomanPlugin {
     if (!prot) return handler.next(options);
 
     options.extra[_kProtected] = true;
+    // 认领这次请求的结算责任：刷新/重放可能改写最终结果，下游的 share 因此等到
+    // 真正的最终结果才结算，cancel 因此在整个逻辑请求期间持续追踪 token。
+    // 每条出口（onResponse/onError）都会注销。
+    claimRequest(options, this);
 
     // If refresh is in progress wait for it before proceeding.
     if (_refreshing != null) {
@@ -564,103 +579,86 @@ class DiomanAuth extends DiomanPlugin {
 
   @override
   void onResponse(
-      Response<dynamic> response, ResponseInterceptorHandler handler) async {
+      Response<dynamic> response, ResponseInterceptorHandler handler) {
     final opts = response.requestOptions;
     final bag = opts.extra;
     if (bag[_kProtected] != true) return handler.next(response);
-    if (bag[_kDenied] == true) {
-      _clearFlags(bag);
-      _settleShare(opts, response: response);
-      return handler.next(response);
-    }
 
-    // Treat business-level failures the same as HTTP 401/403 here:
-    // the normalize-response plugin will already have converted them to errors,
-    // so reaching this point with a successful HTTP code means the response is ok.
+    // 业务级失败（HTTP 200 但业务码非成功）不在这里处理：normalize 装在链条最后，
+    // 此时还没运行；业务失败由 retry 恢复，normalize 稍后才把它转成错误。
+    // 这里只交出自己的结算责任——后面如果还有 retry 认领着，最终结果由它交出。
     _clearFlags(bag);
-    // Always settle on a genuinely successful response — unlike the error
-    // path, a plain success flows through every `.then()` stage in order
-    // (no skip-on-resolve), so DiomanRetry's own onResponse (if also
-    // registered) gets exactly the same response right after this and
-    // would settle redundantly-but-harmlessly (settle() is idempotent).
-    _settleShare(opts, response: response);
-    handler.next(response);
+    ReplayClient.handOffResponse(opts, this, response, handler);
   }
 
   // ── Response (error path) ─────────────────────────────────────────────────
 
   @override
-  void onError(DioException err, ErrorInterceptorHandler handler) async {
+  void onError(DioException err, ErrorInterceptorHandler handler) {
+    unawaited(_handleError(err, handler));
+  }
+
+  /// 错误阶段：401/403 路由、刷新、重放。无论哪条出口都注销本请求上的认领，
+  /// handler 恰好完成一次。
+  Future<void> _handleError(
+    DioException err,
+    ErrorInterceptorHandler handler,
+  ) async {
     final opts = err.requestOptions;
     final bag = opts.extra;
-    if (bag[_kProtected] != true) return handler.next(err);
-    if (bag[_kDenied] == true) {
+    try {
+      if (bag[_kProtected] != true) return handler.next(err);
+      final response = err.response;
+      if (bag[_kDenied] == true || response == null || isJoined(opts)) {
+        _clearFlags(bag);
+        return _replay.handOffError(this, opts, err, handler);
+      }
+
+      final override = opts.extra[name];
+      final o = override is DiomanAuthOptions ? override : null;
+
+      // 刷新/重放等待与取消竞争：取消时立刻交出 handler、注销认领（共享的刷新
+      // 本身继续跑）。
+      final resolved = await raceCancel<Object?>(
+        _handleFailure(response, opts, o),
+        opts.cancelToken,
+        _Cancelled.new,
+      );
+      if (resolved is _Cancelled) {
+        _clearFlags(bag);
+        return _replay.handOffError(this, opts, resolved.error, handler);
+      }
+      if (resolved is Response<dynamic>) {
+        // 重放成功：交给排在本插件之后的拦截器处理（normalize、breaker、
+        // retry 的业务判定等），与首次成功语义一致，再终结链路。成功路径沿用旧行为，
+        // 不清标志位（同一个 RequestOptions 再次分发时靠它命中"已重放过"保护）。
+        return await _replay.finishRecovered(this, opts, resolved, handler);
+      }
+      // 重放自己的异常（如 500/断网）优先于旧的 401 往后传。
+      final failure = resolved is DioException ? resolved : err;
+      _replay.handOffError(this, opts, failure, handler);
+    } catch (e, s) {
       _clearFlags(bag);
-      _settleIfLastWord(opts, error: err);
-      return handler.next(err);
+      final failure = DioException(requestOptions: opts, error: e, stackTrace: s);
+      if (!handler.isCompleted) _replay.handOffError(this, opts, failure, handler);
     }
-
-    final response = err.response;
-    if (response == null) {
-      _clearFlags(bag);
-      _settleIfLastWord(opts, error: err);
-      return handler.next(err);
-    }
-
-    final override = opts.extra[name];
-    final o = override is DiomanAuthOptions ? override : null;
-
-    final resolved = await _handleFailure(response, opts, err, o);
-    if (resolved is Response) {
-      // A DioException resolved into a Response bypasses every later
-      // interceptor's onError (including DiomanRetry's, even if it's also
-      // registered) — dio never re-runs a `.then()` response stage once the
-      // flow already went through `.catchError()`. So THIS plugin must
-      // settle here unconditionally; nothing downstream ever will.
-      _settleShare(opts, response: resolved);
-      handler.resolve(resolved);
-    } else {
-      _settleIfLastWord(opts, error: err);
-      handler.next(err);
-    }
-  }
-
-  /// Settles the shared [DiomanShare] entry for [opts] with [error] — but
-  /// only if this plugin is the ONLY registered settler. If
-  /// [DiomanRetry] is ALSO registered (via its own `share` setter), it
-  /// always runs after this plugin in the canonical chain and always
-  /// settles unconditionally, so deferring to it here avoids delivering a
-  /// pre-retry outcome to a caller dedup'd via [DiomanShare].
-  void _settleIfLastWord(RequestOptions opts, {required DioException error}) {
-    if (_share?.hasMultipleDownstreamSettlers ?? false) return;
-    _settleShare(opts, error: error);
-  }
-
-  void _settleShare(
-    RequestOptions opts, {
-    Response<dynamic>? response,
-    DioException? error,
-  }) {
-    final share = _share;
-    if (share == null) return;
-    final key = opts.extra[kKey] as String?;
-    if (key == null) return;
-    share.settle(key, response: response, error: error);
   }
 
   // ── Failure routing ───────────────────────────────────────────────────────
 
+  /// 返回值：[Response] 表示重放成功；[DioException] 表示重放本身的失败，应
+  /// 取代旧的 401 往后传；null 表示原样传播旧错误。
   Future<Object?> _handleFailure(
     Response<dynamic> response,
     RequestOptions opts,
-    DioException original,
     DiomanAuthOptions? o,
   ) async {
     final bag = opts.extra;
 
     if (bag[_kRefreshed] == true) {
-      // Already replayed once — give up.
-      await _expire(response, o);
+      // Already replayed once — give up. 用 token generation 校验，别让旧请求
+      // 清掉别人刚刷新出来的新会话。
+      await _expire(response, o, staleToken: bag[_kTokenUsed] as String?);
       _clearFlags(bag);
       return null;
     }
@@ -677,20 +675,29 @@ class DiomanAuth extends DiomanPlugin {
     switch (action) {
       case DiomanAuthFailureAction.refresh:
         final ok = await _startRefresh(response);
-        if (ok) {
-          bag[_kRefreshed] = true;
-          // Re-inject with the freshly refreshed token — the throwaway Dio
-          // has no interceptors, so nothing else will update the header.
-          final fresh = _tokenManager.accessToken;
-          if (fresh != null && fresh.isNotEmpty) {
-            await _injectToken(opts, fresh, o);
-          }
-          final replayed = await _fetchReplay(opts);
-          if (replayed != null) return replayed;
+        if (!ok) {
+          await _expire(response, o);
+          _clearFlags(bag);
+          return null;
         }
-        await _expire(response, o);
+        // 等刷新期间请求已被取消：不再重放（调用方早已拿到取消结果）。
+        if (opts.cancelToken?.isCancelled == true) return null;
+        bag[_kRefreshed] = true;
+        // Re-inject with the freshly refreshed token — the replay client has
+        // no interceptors, so nothing else will update the header.
+        final fresh = _tokenManager.accessToken;
+        if (fresh != null && fresh.isNotEmpty) {
+          await _injectToken(opts, fresh, o);
+        }
+        final replayed = await _replayOnce(opts);
+        if (replayed.response != null) return replayed.response;
+        // 重放失败：只有明确的认证失败（401）才说明会话真的失效；500、断网等
+        // 暂时性故障不能清掉刚刷新出来的有效 token。
+        if (replayed.error?.response?.statusCode == 401) {
+          await _expire(response, o, staleToken: bag[_kTokenUsed] as String?);
+        }
         _clearFlags(bag);
-        return null;
+        return replayed.error;
 
       case DiomanAuthFailureAction.replay:
         bag[_kRefreshed] = true;
@@ -700,10 +707,10 @@ class DiomanAuth extends DiomanPlugin {
         if (current != null && current.isNotEmpty) {
           await _injectToken(opts, current, o);
         }
-        final replayed = await _fetchReplay(opts);
-        if (replayed != null) return replayed;
+        final replayed = await _replayOnce(opts);
+        if (replayed.response != null) return replayed.response;
         _clearFlags(bag);
-        return null;
+        return replayed.error;
 
       case DiomanAuthFailureAction.deny:
         final $onDenied = o?.onAccessDenied ?? _onDenied;
@@ -723,20 +730,20 @@ class DiomanAuth extends DiomanPlugin {
     }
   }
 
-  /// Issues the replay via [_replay], tracking [opts]'s cancel token with
-  /// [_cancel] for the duration so `cancelAll()` can see (and abort) it —
-  /// see [_cancel]'s doc for why that tracking doesn't happen on its own.
-  /// Returns `null` on any failure (mirrors the original bare
-  /// `try { ... } catch (_) {}` this replaces).
-  Future<Response<dynamic>?> _fetchReplay(RequestOptions opts) async {
-    final token = opts.cancelToken;
-    if (token != null) _cancel?.track(token);
+  /// 通过重放客户端重放 [opts]，从不抛异常：成功给 response，失败给 error；
+  /// 请求体无法重放（Stream 等）时两者都为 null，调用方应原样传播旧错误。
+  Future<({Response<dynamic>? response, DioException? error})> _replayOnce(
+      RequestOptions opts) async {
+    if (!prepareForReplay(opts)) return (response: null, error: null);
     try {
-      return await _replay.fetch<dynamic>(opts);
-    } catch (_) {
-      return null;
-    } finally {
-      if (token != null) _cancel?.untrack(token);
+      return (response: await _replay.fetch(opts), error: null);
+    } on DioException catch (e) {
+      return (response: null, error: e);
+    } catch (e, s) {
+      return (
+        response: null,
+        error: DioException(requestOptions: opts, error: e, stackTrace: s),
+      );
     }
   }
 
@@ -753,7 +760,20 @@ class DiomanAuth extends DiomanPlugin {
     })();
   }
 
-  Future<void> _expire(Response<dynamic> resp, DiomanAuthOptions? o) async {
+  /// 会话过期：清空 token 并调用过期回调。传入 [staleToken]（失败请求实际用的
+  /// token）时先校验 generation——store 里已是别人刷新出的新 token，就不清，
+  /// 避免旧请求的失败清掉新会话。
+  Future<void> _expire(
+    Response<dynamic> resp,
+    DiomanAuthOptions? o, {
+    String? staleToken,
+  }) async {
+    if (staleToken != null) {
+      final current = _tokenManager.accessToken;
+      if (current != null && current.isNotEmpty && current != staleToken) {
+        return;
+      }
+    }
     _tokenManager.clear();
     final $onExpired = o?.onAccessExpired ?? _onExpired;
     await _safe(() => $onExpired(_tokenManager, resp));
@@ -819,7 +839,14 @@ class DiomanAuth extends DiomanPlugin {
   @override
   void dispose() {
     _refreshing = null;
-    _replayDio?.close(force: true);
-    _replayDio = null;
+    _replay.dispose();
   }
+}
+
+/// 刷新/重放等待期间请求被取消的标记（内部用）。
+class _Cancelled {
+  _Cancelled(this.error);
+
+  /// 取消异常。
+  final DioException error;
 }
