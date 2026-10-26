@@ -9,7 +9,7 @@ import { join, dirname } from 'node:path';
 
 import {
   ffuzzyInitialize, FuzzyCorpus, FuzzyKey,
-} from '../dist/ffuzzy.mjs';
+} from '../.test-dist/ffuzzy.mjs';
 
 const __dir  = dirname(fileURLToPath(import.meta.url));
 const spec   = JSON.parse(

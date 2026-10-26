@@ -19,9 +19,15 @@
 #include <stddef.h>
 #include <stdint.h>
 
+// 单字编辑距离最多支持六十四个查询码点；底层距离函数超限返回负二。
+enum { FFZ_EDIT_MAX_QUERY = 64, FFZ_EDIT_QUERY_TOO_LONG = -2 };
+
 #ifdef __cplusplus
 extern "C" {
 #endif
+
+// 检查原始查询码点数，供近似和组合搜索入口拒绝超限查询。
+bool ffz_edit_query_valid(const char *query, size_t len);
 
 // ---------------------------------------------------------------------------
 // Character classes (order matters: used in `class > Delimiter` comparisons).

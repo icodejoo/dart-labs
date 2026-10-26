@@ -8,6 +8,7 @@
 
 #include "ffz.h"
 #include "ffz_corpus.h"
+#include "ffz_alloc.h"
 #ifdef FFZ_HAVE_CRASH_HANDLER
 #include "ffz_crash.h"
 #endif
@@ -23,6 +24,8 @@
 #define FFZ_API __attribute__((visibility("default")))
 #endif
 
+enum { FFZ_MAX_EDIT_DISTANCE = 10 };
+
 // --- optional native crash handler ----------------------------------------
 // Native faults can't be caught as Dart exceptions; this installs a last-gasp
 // handler that prints/persists a backtrace before the process dies. Pass a
@@ -36,6 +39,12 @@
 FFZ_API int ffz_ffi_install_crash_handler(const char *breadcrumb_path) {
     return ffz_install_crash_handler(breadcrumb_path);
 }
+#endif
+
+#ifdef FFZ_TRACK_ALLOC
+// 仅测试构建导出分配故障注入和存活块计数。
+FFZ_API void ffz_ffi_dbg_fail_after(int n) { ffz_dbg_fail_after(n); }
+FFZ_API size_t ffz_ffi_dbg_live_blocks(void) { return ffz_alloc_live_blocks(); }
 #endif
 
 // --- corpus lifecycle -----------------------------------------------------
@@ -58,29 +67,27 @@ FFZ_API ffz_corpus *ffz_ffi_new_cfg2(int paths, int prefer_prefix, int scoring) 
     cfg.scoring_mode  = (ffz_scoring_mode)scoring;
     return ffz_corpus_new(cfg);
 }
-FFZ_API void ffz_ffi_add(ffz_corpus *c, const char *s, size_t n) {
-    if (!c) return;
-    ffz_corpus_add(c, s, n);
+// 新增成功返回一，失败返回零；宿主必须检查后再提交列表。
+FFZ_API int ffz_ffi_add(ffz_corpus *c, const char *s, size_t n) {
+    return c && ffz_corpus_add(c, s, n);
 }
-// Add an item with explicit alternate keys (host-computed pinyin/romaji/etc).
-// Keys are passed as parallel arrays so the Dart side never mirrors a struct:
-// texts[i]/lens[i]/kinds[i] for i in [0,nkeys). The ORIGINAL key is implicit.
-FFZ_API void ffz_ffi_add_keyed(ffz_corpus *c, const char *s, size_t n,
+// 文本、长度、类型平行数组转换为附加键；原始键自动加入，失败不提交条目。
+FFZ_API int ffz_ffi_add_keyed(ffz_corpus *c, const char *s, size_t n,
                                const char *const *texts, const size_t *lens,
                                const int *kinds, size_t nkeys) {
-    if (!c) return;
-    if (nkeys == 0) { ffz_corpus_add(c, s, n); return; }
-    if (!texts || !lens || !kinds) { ffz_corpus_add(c, s, n); return; }
-    if (nkeys > SIZE_MAX / sizeof(ffz_key)) { ffz_corpus_add(c, s, n); return; }
+    if (!c) return 0;
+    if (nkeys == 0) return ffz_corpus_add_keyed(c, s, n, NULL, 0);
+    if (!texts || !lens || !kinds || nkeys > SIZE_MAX / sizeof(ffz_key)) return 0;
     ffz_key *keys = (ffz_key *)malloc(nkeys * sizeof(ffz_key));
-    if (!keys) { ffz_corpus_add(c, s, n); return; }  // OOM: keep ORIGINAL only
+    if (!keys) return 0;
     for (size_t i = 0; i < nkeys; i++) {
         keys[i].text = texts[i];
         keys[i].len = lens[i];
         keys[i].kind = kinds[i];
     }
-    ffz_corpus_add_keyed(c, s, n, keys, nkeys);
+    int ok = ffz_corpus_add_keyed(c, s, n, keys, nkeys);
     free(keys);
+    return ok;
 }
 FFZ_API size_t ffz_ffi_len(ffz_corpus *c) { if (!c) return 0; return ffz_corpus_len(c); }
 FFZ_API void ffz_ffi_clear(ffz_corpus *c) { if (!c) return; ffz_corpus_clear(c); }
@@ -203,7 +210,8 @@ FFZ_API ffz_results *ffz_ffi_filter_edit(ffz_corpus *c,
                                           size_t limit) {
     if (!c || !q) return NULL;
     if ((unsigned)cm > FFZ_CASE_SMART || (unsigned)nm > FFZ_NORM_SMART) return NULL;
-    if (max_distance < 0 || max_distance > 10) return NULL;
+    if (max_distance < 0 || max_distance > FFZ_MAX_EDIT_DISTANCE ||
+        !ffz_edit_query_valid(q, qn)) return NULL;
     ffz_results *r = (ffz_results *)calloc(1, sizeof(ffz_results));
     if (!r) return NULL;
     r->owned = true;  // heap-allocated: ffz_ffi_results_free() may free() it
@@ -227,7 +235,8 @@ FFZ_API ffz_results *ffz_ffi_filter_edit_raws(ffz_corpus *c,
                                                size_t limit) {
     if (!c || !q) return NULL;
     if ((unsigned)cm > FFZ_CASE_SMART || (unsigned)nm > FFZ_NORM_SMART) return NULL;
-    if (max_distance < 0 || max_distance > 10) return NULL;
+    if (max_distance < 0 || max_distance > FFZ_MAX_EDIT_DISTANCE ||
+        !ffz_edit_query_valid(q, qn)) return NULL;
     ffz_results *r = (ffz_results *)calloc(1, sizeof(ffz_results));
     if (!r) return NULL;
     r->owned = true;  // heap-allocated: ffz_ffi_results_free() may free() it
@@ -247,7 +256,8 @@ FFZ_API ffz_results *ffz_ffi_filter_merge(ffz_corpus *c,
     if ((unsigned)cm      > FFZ_CASE_SMART  ||
         (unsigned)nm      > FFZ_NORM_SMART  ||
         (unsigned)scoring > FFZ_SCORE_NUCLEO ||
-        max_distance < 0 || max_distance > 10) return NULL;
+        max_distance < 0 || max_distance > FFZ_MAX_EDIT_DISTANCE ||
+        !ffz_edit_query_valid(q, qn)) return NULL;
     ffz_results *r = (ffz_results *)calloc(1, sizeof(ffz_results));
     if (!r) return NULL;
     r->owned = true;  // heap-allocated: ffz_ffi_results_free() may free() it
@@ -270,7 +280,8 @@ FFZ_API ffz_results *ffz_ffi_filter_fallback(ffz_corpus *c,
     if ((unsigned)cm      > FFZ_CASE_SMART   ||
         (unsigned)nm      > FFZ_NORM_SMART   ||
         (unsigned)scoring > FFZ_SCORE_NUCLEO ||
-        max_distance < 0 || max_distance > 10) return NULL;
+        max_distance < 0 || max_distance > FFZ_MAX_EDIT_DISTANCE ||
+        !ffz_edit_query_valid(q, qn)) return NULL;
     ffz_results *r = (ffz_results *)calloc(1, sizeof(ffz_results));
     if (!r) return NULL;
     r->owned = true;  // heap-allocated: ffz_ffi_results_free() may free() it
@@ -295,7 +306,8 @@ FFZ_API ffz_dual_results *ffz_ffi_filter_dual(ffz_corpus *c,
     if ((unsigned)cm      > FFZ_CASE_SMART   ||
         (unsigned)nm      > FFZ_NORM_SMART   ||
         (unsigned)scoring > FFZ_SCORE_NUCLEO ||
-        max_distance < 0 || max_distance > 10) return NULL;
+        max_distance < 0 || max_distance > FFZ_MAX_EDIT_DISTANCE ||
+        !ffz_edit_query_valid(q, qn)) return NULL;
     ffz_dual_results *d = (ffz_dual_results *)calloc(1, sizeof(ffz_dual_results));
     if (!d) return NULL;
     ffz_parallel par = {parallel != 0, threads};

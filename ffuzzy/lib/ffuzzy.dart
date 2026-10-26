@@ -5,9 +5,8 @@
 /// dart:ffi. All five search modes, multi-threading, async isolate filtering,
 /// hit highlighting, and Unicode (CJK + pinyin).
 ///
-/// **Web**: [fuzzy] / [fuzzyRaws] are WASM-backed; [prefix], [postfix], [exact]
-/// and [substring] fall back to pure-Dart string matching. Call
-/// `await ffuzzyInit(webUrl: ...)` once at startup before constructing any [FuzzyCorpus].
+/// Web 各搜索模式均使用 WASM，支持别名键、归一化和高亮。
+/// 启动时调用 `await ffuzzyInit(webUrl: ...)` 初始化引擎。
 ///
 /// ```dart
 /// // Web-safe app entry point:
@@ -28,5 +27,4 @@
 /// ```
 library;
 
-export 'src/ffuzzy_ffi.dart'
-    if (dart.library.js_interop) 'src/ffuzzy_web.dart';
+export 'src/ffuzzy_ffi.dart' if (dart.library.js_interop) 'src/ffuzzy_web.dart';

@@ -58,13 +58,11 @@ void ffz_corpus_free(ffz_corpus *c);
 void ffz_corpus_set_transliterator(ffz_corpus *c, ffz_transliterator fn,
                                     void *ctx, size_t max_keys_per_item);
 
-// Append items (UTF-8). The hook (if set) is invoked per item to build keys.
-void ffz_corpus_add(ffz_corpus *c, const char *item, size_t len);
+// 新增条目及转写键；成功返回真，失败返回假且条目数量和已有键不变。
+bool ffz_corpus_add(ffz_corpus *c, const char *item, size_t len);
 
-// Append an item with explicit alternate keys (UTF-8), bypassing the hook —
-// the host computes pinyin/romaji/initials itself and passes them here. The
-// ORIGINAL key is added automatically; `keys`/`nkeys` are the extras (copied).
-void ffz_corpus_add_keyed(ffz_corpus *c, const char *item, size_t len,
+// 新增原始键及显式附加键；成功返回真，失败返回假且不提交半条目。
+bool ffz_corpus_add_keyed(ffz_corpus *c, const char *item, size_t len,
                           const ffz_key *keys, size_t nkeys);
 
 size_t ffz_corpus_len(const ffz_corpus *c);
@@ -151,7 +149,8 @@ ffz_scoring_mode ffz_corpus_scoring(const ffz_corpus *c);
 // 的 indices 会填充匹配窗口内的每一个码点位置（是一段连续区间，
 // 不同于子序列过滤器给出的离散位置）。max_distance=1 可处理单字符
 // 拼写错误；2 可处理大多数常见错误。
-void ffz_corpus_filter_edit(ffz_corpus *c,
+// 查询超过六十四个码点时返回假；成功完成返回真。
+bool ffz_corpus_filter_edit(ffz_corpus *c,
                             const char *query, size_t query_len,
                             ffz_case_matching cm, ffz_normalization nm,
                             int max_distance,
@@ -163,7 +162,8 @@ void ffz_corpus_filter_edit(ffz_corpus *c,
 //
 // 与 ffz_corpus_filter_edit 类似，但跳过 Pass 2（不做匹配窗口恢复）。
 // 所有 hit.indices 都为空。仅需要条目身份/距离时使用。
-void ffz_corpus_filter_edit_raws(ffz_corpus *c,
+// 查询超过六十四个码点时返回假；成功完成返回真。
+bool ffz_corpus_filter_edit_raws(ffz_corpus *c,
                                  const char *query, size_t query_len,
                                  ffz_case_matching cm, ffz_normalization nm,
                                  int max_distance,
@@ -175,7 +175,8 @@ void ffz_corpus_filter_edit_raws(ffz_corpus *c,
 //
 // 单趟合并：一次语料库扫描同时跑两种算法。
 // 子序列命中（score ≥ 0）排在仅编辑距离命中（score = -(distance+1) ≤ -1）之前。
-void ffz_corpus_filter_merge(ffz_corpus *c,
+// 查询超过六十四个码点时返回假；成功完成返回真。
+bool ffz_corpus_filter_merge(ffz_corpus *c,
                               const char *query, size_t query_len,
                               ffz_case_matching cm, ffz_normalization nm,
                               int max_distance, ffz_scoring_mode scoring,
@@ -187,7 +188,8 @@ void ffz_corpus_filter_merge(ffz_corpus *c,
 //
 // 单次调用的回退过滤器：先跑子序列匹配；仅当子序列返回零结果时才回退到
 // 编辑距离匹配。只需一次 FFI 调用，不产生中间 Dart 对象。
-void ffz_corpus_filter_fallback(ffz_corpus *c,
+// 查询超过六十四个码点时返回假；成功完成返回真。
+bool ffz_corpus_filter_fallback(ffz_corpus *c,
                                  const char *query, size_t query_len,
                                  ffz_case_matching cm, ffz_normalization nm,
                                  int max_distance, ffz_scoring_mode scoring,
@@ -215,7 +217,8 @@ void ffz_dual_results_free(ffz_dual_results *d);
 // 单趟双算法扫描：只扫描一次语料库，对每一项都应用两种算法。
 // 将子序列命中和编辑距离命中分别写入 *d 内的两个独立结果集。
 // 调用方必须在第一次调用前将 d 清零初始化。
-void ffz_corpus_filter_dual(ffz_corpus *c,
+// 查询超过六十四个码点时返回假；成功完成返回真。
+bool ffz_corpus_filter_dual(ffz_corpus *c,
                               const char *query, size_t query_len,
                               ffz_case_matching cm, ffz_normalization nm,
                               int max_distance, ffz_scoring_mode scoring,

@@ -25,9 +25,10 @@ struct ffz_pattern {
 
 // --- a tiny growable codepoint vector ------------------------------------
 typedef struct { uint32_t *d; size_t len, cap; } cpvec;
+// 追加查询码点并防止容量溢出。
 static void cpvec_push(cpvec *v, uint32_t c) {
     if (v->len == v->cap) {
-        if (v->cap > SIZE_MAX >> 1) return;  // doubling would overflow; drop
+        if (v->cap > SIZE_MAX / (2 * sizeof(uint32_t))) return;  // 容量或字节数溢出时丢弃
         size_t ncap = v->cap ? v->cap * 2 : 16;
         uint32_t *d = (uint32_t *)realloc(v->d, ncap * sizeof(uint32_t));
         if (!d) return;  // OOM: drop (needle truncated, never crashes)
@@ -161,6 +162,7 @@ typedef struct {
     bool literal;  // true => ffz_pattern_new (no syntax parsing)
 } build_ctx;
 
+// 将解析后的词项加入模式，限制词项数量。
 static void emit_atom(void *ud, const char *word, size_t wlen) {
     build_ctx *ctx = (build_ctx *)ud;
     ffz_pattern *p = ctx->p;
@@ -174,7 +176,7 @@ static void emit_atom(void *ud, const char *word, size_t wlen) {
     }
     ffz_atom *a = &p->atoms[p->n];
     if (ctx->literal)
-        atom_build(a, word, wlen, ctx->cm, ctx->nm, ctx->forced_kind, true, false);
+        atom_build(a, word, wlen, ctx->cm, ctx->nm, ctx->forced_kind, false, false);
     else
         atom_parse(a, word, wlen, ctx->cm, ctx->nm);
     if (a->needle_len == 0) { free(a->nb); free(a->nu); return; }  // drop empty

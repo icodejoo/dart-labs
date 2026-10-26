@@ -241,6 +241,14 @@ npm run build:engine    # emcc 编译 src/*.c → src/ffz.mjs，然后自动 npm
 npm run build:all       # 引擎 + build 一步到位
 ```
 
+测试说明：
+
+- `npm test` 默认先用本机 Emscripten 从当前 C 源码构建 `.test-engine/ffz.mjs`，不会改动发布产物；已设置 `FFUZZY_TEST_ENGINE` 时直接使用该引擎。
+- 用 `FFUZZY_ENGINE_OUT` 可让 `build-engine.sh` 输出到独立路径；Flutter Chrome 测试通过 `--dart-define=FFUZZY_TEST_ENGINE_URL=<可访问的引擎 URL>` 加载同一引擎。
+- 新增接口（`add` / `add_keyed`）现在返回成功状态，包装层与引擎必须一起重建，不能新旧混用。
+
+行为说明：编辑距离参数必须是 0–10 的整数；近似、回退、合并及双路搜索的查询最多 64 个 Unicode 码点，超限抛出参数异常，普通子序列搜索不受此限制。
+
 ## 相关
 
 - [pub.dev 上的 ffuzzy](https://pub.dev/packages/ffuzzy) —— Flutter / Dart 包

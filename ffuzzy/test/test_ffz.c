@@ -7,6 +7,7 @@
 
 #include "ffz.h"
 #include "ffz_corpus.h"
+#include "../src/ffz_internal.h"
 
 static int g_fail = 0, g_total = 0;
 
@@ -1170,6 +1171,61 @@ static void test_edit_window_fixes(void) {
     ffz_corpus_free(c);
 }
 
+static void test_review_regressions(void) {
+    const char literal[] = "a\\ b";
+    const char query[] = "custom";
+    const int kinds[] = {100000, -7};
+    ffz_matcher *m = ffz_matcher_new(ffz_config_default());
+    CHECK(score(m, literal, literal, NULL, FFZ_EXACT) >= 0, "字面量保留反斜杠");
+    ffz_matcher_free(m);
+    for (size_t i = 0; i < sizeof(kinds) / sizeof(kinds[0]); i++) {
+        ffz_corpus *c = ffz_corpus_new(ffz_config_default());
+        ffz_key key = {query, sizeof(query) - 1, kinds[i]};
+        ffz_corpus_add_keyed(c, "display", 7, &key, 1);
+        ffz_results r = {0};
+        ffz_corpus_filter(c, query, sizeof(query) - 1, FFZ_CASE_SMART,
+                          FFZ_NORM_SMART, FFZ_EXACT, ffz_parallel_off(),
+                          0, FFZ_SCORE_FAST, &r);
+        CHECK(r.len == 1 && r.hits[0].matched_kind == kinds[i], "自定义键类型不截断");
+        ffz_results_free(&r);
+        ffz_corpus_free(c);
+    }
+    ffz_indices ix = {0};
+    ix.len = ix.cap = SIZE_MAX / (2 * sizeof(uint32_t)) + 1;
+    ffz_indices_push(&ix, 0);
+    CHECK(ix.data == NULL && ix.len == ix.cap, "容量溢出时不分配或写入");
+}
+
+// 边界长度正常匹配，超限返回明确错误且旧结果清空。
+static void test_edit_query_limit(void) {
+    char query[FFZ_EDIT_MAX_QUERY + 2];
+    memset(query, 'a', sizeof(query));
+    ffz_config cfg = ffz_config_default();
+    ffz_str q = {(const uint8_t *)query, NULL, FFZ_EDIT_MAX_QUERY};
+    size_t start = 9, end = 9;
+    CHECK(ffz_edit_distance_substring(q, q, 0, &cfg) == 0, "64 codepoints accepted");
+    q.len++;
+    CHECK(ffz_edit_distance(q, q, 0, &cfg) == FFZ_EDIT_QUERY_TOO_LONG, "whole query limit error");
+    CHECK(ffz_edit_distance_substring(q, q, 0, &cfg) == FFZ_EDIT_QUERY_TOO_LONG, "substring query limit error");
+    CHECK(ffz_edit_window(q, q, 0, &cfg, &start, &end) == FFZ_EDIT_QUERY_TOO_LONG &&
+          start == 0 && end == 0, "window query limit error");
+    ffz_corpus *c = ffz_corpus_new(cfg);
+    CHECK(ffz_corpus_add(c, query, q.len), "long item accepted");
+    ffz_results r = {0};
+    CHECK(!ffz_corpus_filter_edit(c, query, q.len, FFZ_CASE_SMART, FFZ_NORM_SMART,
+                                 0, ffz_parallel_off(), 0, &r), "corpus rejects long query");
+    CHECK(!ffz_corpus_filter_merge(c, query, q.len, FFZ_CASE_SMART, FFZ_NORM_SMART,
+                                  0, FFZ_SCORE_FAST, ffz_parallel_off(), 0, &r), "merge rejects long query");
+    CHECK(!ffz_corpus_filter_fallback(c, query, q.len, FFZ_CASE_SMART, FFZ_NORM_SMART,
+                                     0, FFZ_SCORE_FAST, ffz_parallel_off(), 0, &r), "fallback rejects long query");
+    ffz_dual_results d = {0};
+    CHECK(!ffz_corpus_filter_dual(c, query, q.len, FFZ_CASE_SMART, FFZ_NORM_SMART,
+                                 0, FFZ_SCORE_FAST, ffz_parallel_off(), 0, &d), "dual rejects long query");
+    ffz_dual_results_free(&d);
+    ffz_results_free(&r);
+    ffz_corpus_free(c);
+}
+
 int main(void) {
     ffz_matcher *m = ffz_matcher_new(ffz_config_default());
     test_basic(m);
@@ -1212,6 +1268,8 @@ int main(void) {
     test_invalid_utf8(m);
     ffz_matcher_free(m);
     test_edit_window_fixes();
+    test_review_regressions();
+    test_edit_query_limit();
 
     printf("\n%d/%d checks passed\n", g_total - g_fail, g_total);
     return g_fail ? 1 : 0;

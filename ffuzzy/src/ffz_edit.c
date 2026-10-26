@@ -35,16 +35,26 @@
 // ASCII 码点 [0,127] 使用稠密数组；非 ASCII 码点（至多 64 个不同取值，
 // 受 qlen ≤ 64 限制）使用并行数组做线性查找。
 
+// 无分配地检查查询长度，避免超限被误当作未匹配。
+bool ffz_edit_query_valid(const char *query, size_t len) {
+    size_t i = 0, count = 0;
+    while (i < len) {
+        ffz_decode_cp((const uint8_t *)query, len, &i);
+        if (++count > FFZ_EDIT_MAX_QUERY) return false;
+    }
+    return true;
+}
+
 typedef uint64_t Word;
 
 typedef struct {
     Word ascii[128];               // ASCII fast path
     //
     // ASCII 快速路径。
-    uint32_t nc_cp[64];            // non-ASCII codepoints
+    uint32_t nc_cp[FFZ_EDIT_MAX_QUERY];            // non-ASCII codepoints
     //
     // 非 ASCII 码点。
-    Word     nc_bits[64];          // corresponding Peq words
+    Word     nc_bits[FFZ_EDIT_MAX_QUERY];          // corresponding Peq words
     //
     // 对应的 Peq 字（位向量）。
     int      nc_len;               // number of distinct non-ASCII entries
@@ -73,7 +83,7 @@ static void peq_build(ffz_peq *peq, ffz_str q, const ffz_config *cfg) {
             }
             if (found >= 0) {
                 peq->nc_bits[found] |= bit;
-            } else if (peq->nc_len < 64) {
+            } else if (peq->nc_len < FFZ_EDIT_MAX_QUERY) {
                 int j = peq->nc_len++;
                 peq->nc_cp[j]   = cp;
                 peq->nc_bits[j] = bit;
@@ -189,7 +199,7 @@ int ffz_edit_distance(ffz_str query, ffz_str hay,
     // 之前完成，这样过大的 query.len 就不会因回绕成小值而绕过此检查
     // （参见 ffz_edit_distance_substring / ffz_edit_window，它们已经是
     // 按这种方式比较 query.len 的）。
-    if (query.len > 64) return max_dist + 1;
+    if (query.len > FFZ_EDIT_MAX_QUERY) return FFZ_EDIT_QUERY_TOO_LONG;
 
     int qlen = (int)query.len;
     int hlen = (int)hay.len;
@@ -261,7 +271,7 @@ int ffz_edit_distance(ffz_str query, ffz_str hay,
     //
     // 为缩减后的范围构建一个新的查询视图。
     // 复用一个局部码点缓冲区，从而无需堆分配。
-    uint32_t qbuf[64];
+    uint32_t qbuf[FFZ_EDIT_MAX_QUERY];
     for (int i = 0; i < new_qlen; i++)
         qbuf[i] = ffz_at(query, (size_t)(q0 + i));
 
@@ -341,7 +351,7 @@ int ffz_edit_distance_substring(ffz_str query, ffz_str hay, int max_dist,
     // 空查询串在任意位置都能"免费"匹配（距离 0），但仍须遵守文档规定的
     // [0..max_dist] / -1 契约：max_dist 为负数就意味着"没有窗口满足条件"。
     if (query.len == 0) return max_dist >= 0 ? 0 : -1;
-    if (query.len > 64) return -1;
+    if (query.len > FFZ_EDIT_MAX_QUERY) return FFZ_EDIT_QUERY_TOO_LONG;
     int qlen = (int)query.len;
     if (hay.len == 0) return qlen <= max_dist ? qlen : -1;
 
@@ -390,7 +400,7 @@ int ffz_edit_window(ffz_str query, ffz_str hay, int max_dist,
     // 与上面 ffz_edit_distance_substring 相同的空查询串契约：只有当
     // max_dist 确实能容纳它时，返回 0 才是正确的。
     if (query.len == 0) return max_dist >= 0 ? 0 : -1;
-    if (query.len > 64) return -1;
+    if (query.len > FFZ_EDIT_MAX_QUERY) return FFZ_EDIT_QUERY_TOO_LONG;
     int qlen = (int)query.len;
 
     if (hay.len == 0) return qlen <= max_dist ? qlen : -1;
@@ -407,7 +417,7 @@ int ffz_edit_window(ffz_str query, ffz_str hay, int max_dist,
     //
     // 反向扫描：将 query 和 hay[0..end) 都反转，然后用同样的方法找出匹配
     // 从 `end` 向前能延伸多远。
-    uint32_t qrev[64];
+    uint32_t qrev[FFZ_EDIT_MAX_QUERY];
     for (int i = 0; i < qlen; i++) qrev[i] = ffz_at(query, (size_t)(qlen - 1 - i));
     ffz_str qrev_str;
     qrev_str.b = NULL;

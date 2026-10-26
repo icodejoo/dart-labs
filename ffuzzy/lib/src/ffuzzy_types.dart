@@ -82,8 +82,8 @@ class FuzzyOptions {
           highlight == other.highlight);
 
   @override
-  int get hashCode => Object.hash(
-      scoring, caseMatching, normalization, parallel, threads, limit, highlight);
+  int get hashCode => Object.hash(scoring, caseMatching, normalization,
+      parallel, threads, limit, highlight);
 
   FuzzyOptions copyWith({
     FuzzyScoring? scoring,
@@ -152,8 +152,9 @@ class FuzzyDualResult<T> {
 /// ```dart
 /// corpus.approx(q, maxDistance: autoMaxDistance(q));
 /// ```
+// 按查询码点数自动选择允许的编辑距离。
 int autoMaxDistance(String query) {
-  final n = query.length;
+  final n = query.runes.length;
   if (n <= 2) return 0;
   if (n <= 5) return 1;
   return 2;
@@ -176,8 +177,8 @@ class FuzzyHit<T> {
   final T raw;
   final int index;
 
-  /// Non-negative integer; higher is a better match. Comparable only within
-  /// results of the same query. Always 0 when [FuzzyScoring.off] is in effect.
+  /// 同一查询内分数越高越优；近似命中可能为负数。
+  /// 子序列搜索关闭评分时为零。
   final int score;
   final FuzzyKeyKind matchedKind;
 
@@ -208,7 +209,8 @@ class FuzzyHit<T> {
           matchedKey == other.matchedKey &&
           raw == other.raw &&
           indices.length == other.indices.length &&
-          Iterable.generate(indices.length, (i) => indices[i] == other.indices[i])
+          Iterable.generate(
+                  indices.length, (i) => indices[i] == other.indices[i])
               .every((v) => v));
 
   @override

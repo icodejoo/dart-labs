@@ -85,3 +85,8 @@ example/android/local.properties
 # npm pack output
 *.tgz
 
+
+# npm 测试产物
+/wasm/.test-dist/
+
+/wasm/.test-engine/

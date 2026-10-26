@@ -56,9 +56,10 @@ ffz_config ffz_config_match_paths(void) {
 }
 
 // --- indices --------------------------------------------------------------
+// 追加高亮索引并防止容量溢出。
 void ffz_indices_push(ffz_indices *ix, uint32_t v) {
     if (ix->len == ix->cap) {
-        if (ix->cap > SIZE_MAX >> 1) return;  // doubling would overflow; drop
+        if (ix->cap > SIZE_MAX / (2 * sizeof(uint32_t))) return;  // 容量或字节数溢出时丢弃
         size_t ncap = ix->cap ? ix->cap * 2 : 32;
         uint32_t *d = (uint32_t *)realloc(ix->data, ncap * sizeof(uint32_t));
         if (!d) return;  // OOM: drop rather than deref NULL
@@ -91,9 +92,10 @@ void ffz_indices_sort_dedup(ffz_indices *ix) {
 }
 
 // --- UTF-8 decode (codepoint level; invalid bytes -> U+FFFD) ---------------
+// 追加解码码点，扩容失败时保留缓冲区。
 static void buf_push(ffz_str_buf *buf, uint32_t cp) {
     if (buf->len == buf->cap) {
-        if (buf->cap > SIZE_MAX >> 1) return;  // doubling would overflow; drop
+        if (buf->cap > SIZE_MAX / (2 * sizeof(uint32_t))) return;  // 容量或字节数溢出时丢弃
         size_t ncap = buf->cap ? buf->cap * 2 : 32;
         uint32_t *d = (uint32_t *)realloc(buf->cp, ncap * sizeof(uint32_t));
         if (!d) return;  // OOM: drop the codepoint rather than deref NULL

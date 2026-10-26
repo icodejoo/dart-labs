@@ -246,6 +246,14 @@ npm run build:engine    # emcc compiles src/*.c → src/ffz.mjs, then npm run bu
 npm run build:all       # engine + build in one step
 ```
 
+Testing notes:
+
+- `npm test` first builds `.test-engine/ffz.mjs` from the current C sources with your local Emscripten and leaves the published artifacts untouched; if `FFUZZY_TEST_ENGINE` is set, that engine is used as-is.
+- Set `FFUZZY_ENGINE_OUT` to make `build-engine.sh` write to a separate path; Flutter Chrome tests load the same engine via `--dart-define=FFUZZY_TEST_ENGINE_URL=<reachable engine URL>`.
+- `add` / `add_keyed` now return a success status, so the wrapper and the engine must be rebuilt together — never mix a new wrapper with an old engine.
+
+Behavior: the edit distance must be an integer in 0–10; approximate, fallback, merge and dual searches accept queries of at most 64 Unicode codepoints and throw an argument error beyond that. Plain subsequence search has no such limit.
+
 ## Related
 
 - [ffuzzy on pub.dev](https://pub.dev/packages/ffuzzy) — Flutter / Dart package

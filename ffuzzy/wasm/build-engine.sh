@@ -23,7 +23,7 @@ fi
 command -v emcc >/dev/null 2>&1 || { echo "error: emcc not found; source emsdk_env.sh" >&2; exit 1; }
 echo "Using $(emcc --version | head -1)"
 
-# All FFI symbols except the crash handler (not available in WASM).
+# 导出正式 FFI 符号，排除崩溃处理器和仅测试构建可用的故障注入接口。
 # Scoped to `FFZ_API` definition lines so comments (e.g. "ffz_ffi_results_*")
 # can't leak a truncated, nonexistent symbol into the export list. Joins a
 # FFZ_API line to what follows until a "(" is seen, so a declaration split
@@ -37,7 +37,7 @@ mapfile -t SYMS < <(awk '
   /^FFZ_API/ { buf=$0; while (buf !~ /\(/) { getline nl; buf = buf " " nl } print buf; next }
 ' "$ROOT/ffi/ffz_ffi.c" \
                     | grep -oE 'ffz_ffi_[a-z_0-9]+' \
-                    | grep -v 'install_crash_handler' | sort -u)
+                    | grep -vE 'install_crash_handler|_dbg_' | sort -u)
 EXPORTS="_malloc,_free"
 for s in "${SYMS[@]}"; do EXPORTS+=",_$s"; done
 RUNTIME="ccall,cwrap,UTF8ToString,stringToUTF8,lengthBytesUTF8,getValue,setValue,HEAPU8,HEAP32,HEAPU32"
@@ -57,7 +57,8 @@ for prop in $(grep -oE '\bM\.HEAP[A-Z0-9_]+' "$WASM/src/ffuzzy-corpus.ts" 2>/dev
   esac
 done
 
-OUT="$WASM/src/ffz.mjs"
+# 新增接口返回整数状态，宿主与引擎须一起重建；测试可指定独立输出路径。
+OUT="${FFUZZY_ENGINE_OUT:-$WASM/src/ffz.mjs}"
 
 echo "--- compiling → $OUT ($OPT) ---"
 emcc $OPT \
@@ -82,7 +83,9 @@ emcc $OPT \
 # 只在上面的新 $OUT 已编译成功后，才清理非 .ts 的过期残留（旧构建变体等）——
 # 绝不能在新产物就绪前删掉已跟踪的旧产物，否则一次失败的构建会让仓库里
 # 彻底没有 ffz.mjs，直到下次构建成功为止。
+if [ "$OUT" = "$WASM/src/ffz.mjs" ]; then
 find "$WASM/src" -type f ! -name '*.ts' ! -name "$(basename "$OUT")" -delete
+fi
 
 ls -lh "$OUT"
 echo "done. Run: npm run build"

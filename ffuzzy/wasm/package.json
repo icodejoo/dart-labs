@@ -21,7 +21,8 @@
     "build:engine": "bash build-engine.sh",
     "build:all": "bash build-engine.sh && npm run build",
     "check": "node scripts/check_api_parity.mjs",
-    "test": "npm run build && node scripts/check_api_parity.mjs && node --test",
+    "pretest": "node scripts/build_test_engine.mjs",
+    "test": "tsc --noEmit && tsdown --out-dir .test-dist && node scripts/check_api_parity.mjs .test-dist && node --test test/*.test.mjs",
     "prepublishOnly": "npm run build && node scripts/check_api_parity.mjs"
   },
   "keywords": [

@@ -35,7 +35,7 @@ class _AsyncBuildCardState extends State<AsyncBuildCard> {
     );
     sw.stop();
     _corpus?.dispose();
-    if (!mounted) return;
+    if (!mounted) { c.dispose(); return; }
     setState(() {
       _corpus = c;
       _building = false;

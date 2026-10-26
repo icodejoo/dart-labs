@@ -101,7 +101,6 @@ interface FuzzyCorpusInit<T> {
  * ```
  */
 declare class FuzzyCorpus<T = string> {
-  [x: number]: () => void;
   private _M;
   private _stringOf;
   private _opts;
@@ -160,8 +159,6 @@ declare class FuzzyCorpus<T = string> {
   suffixRaws(query: string, opts?: Partial<FuzzyOptions>): T[];
   /** Exact search — raw `T[]` only. */
   exactRaws(query: string, opts?: Partial<FuzzyOptions>): T[];
-  /** Edit-distance (typo-tolerant) search. Shorthand for `search(q, { strategy: 'approx' })`.
-   *  Requires WASM built with FFZ_EDIT_DISTANCE. Returns [] if not available. */
   /** Raw-object shorthand for `search()`. Returns `T[]` instead of `FuzzyHit<T>[]`. */
   searchRaws(query: string, opts?: Partial<FuzzyOptions> & {
     strategy?: SearchStrategy;
@@ -169,6 +166,7 @@ declare class FuzzyCorpus<T = string> {
   }): T[];
   /** Edit-distance (typo-tolerant) search. Shorthand for `search(q, { strategy: 'approx' })`.
    *  `maxDistance` defaults to {@link autoMaxDistance}(query) when omitted. */
+  /** 编辑距离须为零到十的整数；近似查询最多六十四个码点，超限抛出范围异常。 */
   approx(query: string, maxDistance?: number, opts?: Partial<FuzzyOptions>): FuzzyHit<T>[];
   /** Unified search entry point.
    *
@@ -177,6 +175,7 @@ declare class FuzzyCorpus<T = string> {
    * - `'fallback'` — subsequence first; falls back to approx when empty
    * - `'merge'`    — both algorithms; subsequence hits first, then approx-only hits
    */
+  /** 编辑距离须为零到十的整数；近似查询最多六十四个码点，超限抛出范围异常。 */
   search(query: string, opts?: Partial<FuzzyOptions> & {
     strategy?: SearchStrategy;
     maxDistance?: number;
@@ -185,12 +184,15 @@ declare class FuzzyCorpus<T = string> {
   approxRaws(query: string, maxDistance?: number, opts?: Partial<FuzzyOptions>): T[];
   /** Runs both algorithms independently and returns their results in separate buckets.
    *  `maxDistance` defaults to {@link autoMaxDistance}(query) when omitted. */
+  /** 编辑距离须为零到十的整数；近似查询最多六十四个码点，超限抛出范围异常。 */
   dual(query: string, opts?: Partial<FuzzyOptions> & {
     maxDistance?: number;
   }): FuzzyDualResult<T>;
+  private _readHits;
   private _readFlat;
   private _approxRaw;
   dispose(): void;
+  [Symbol.dispose](): void;
   /** Returns true if ready to search; false if still deferred (WASM not loaded). */
   private _ensureReady;
   private _allocScratch;
@@ -200,8 +202,6 @@ declare class FuzzyCorpus<T = string> {
   private _filter;
   private _search;
   private _searchRaws;
-  /** Non-WASM search for prefix/postfix/exact/substring modes using native JS string ops. */
-  private _nativeSearch;
   private _alive;
   private _bounds;
 }

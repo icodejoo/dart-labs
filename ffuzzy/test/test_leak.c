@@ -212,7 +212,51 @@ static void oom_cycle_nucleo(int budget) {
     ffz_dbg_fail_after(-1);
 }
 
+// 遍历各分配点，验证失败不提交半条目且回收后计数归零。
+static void test_atomic_add(void) {
+    const char *primary = "原始";
+    static char large[70001];
+    memset(large, 'x', sizeof(large) - 1);
+    ffz_key keys[] = {{large, sizeof(large) - 1, FFZ_KEY_CUSTOM},
+                      {"别名", strlen("别名"), FFZ_KEY_PINYIN}};
+    size_t base = ffz_alloc_live_blocks();
+    for (int seeded = 0; seeded <= 1; seeded++) {
+        for (int budget = 0; budget < 12; budget++) {
+            ffz_corpus *c = ffz_corpus_new(ffz_config_default());
+            if (seeded) {
+                for (int i = 0; i < 16; i++)
+                    CHECK(ffz_corpus_add(c, "old", 3), "seed committed");
+            }
+            size_t before = ffz_corpus_len(c);
+            ffz_dbg_fail_after(budget);
+            bool ok = ffz_corpus_add_keyed(c, primary, strlen(primary), keys, 2);
+            ffz_dbg_fail_after(-1);
+            CHECK(ffz_corpus_len(c) == before + (ok ? 1 : 0), "atomic keyed length");
+            CHECK(ffz_corpus_add(c, "after", 5), "add after failure succeeds");
+            ffz_results r = {0};
+            ffz_corpus_filter(c, "after", 5, FFZ_CASE_SMART, FFZ_NORM_SMART,
+                              FFZ_EXACT, ffz_parallel_off(), 0, FFZ_SCORE_FAST, &r);
+            CHECK(r.len == 1 && r.hits[0].item_index == before + (ok ? 1 : 0),
+                  "indices remain aligned after OOM");
+            ffz_results_free(&r);
+            ffz_corpus_free(c);
+            CHECK(ffz_alloc_live_blocks() == base, "atomic add rollback frees all blocks");
+        }
+    }
+    for (int budget = 0; budget < 5; budget++) {
+        ffz_corpus *c = ffz_corpus_new(ffz_config_default());
+        ffz_corpus_set_transliterator(c, pinyin_hook, NULL, 2);
+        ffz_dbg_fail_after(budget);
+        bool ok = ffz_corpus_add(c, primary, strlen(primary));
+        ffz_dbg_fail_after(-1);
+        CHECK(ffz_corpus_len(c) == (ok ? 1 : 0), "hook add reports failure");
+        ffz_corpus_free(c);
+        CHECK(ffz_alloc_live_blocks() == base, "hook add frees all blocks");
+    }
+}
+
 int main(void) {
+    test_atomic_add();
     size_t base = ffz_alloc_live_blocks();
     CHECK(base == 0, "baseline live blocks == 0");
 

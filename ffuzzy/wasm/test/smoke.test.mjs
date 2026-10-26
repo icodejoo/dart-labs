@@ -7,7 +7,7 @@ import { test } from 'node:test';
 import {
   ffuzzyInitialize, ffuzzyReady, FuzzyCorpus, FuzzyKey, FuzzyKeyKind,
   FuzzyScoring, fuzzyCodepointToUtf16, highlightHtml,
-} from '../dist/ffuzzy.mjs';
+} from '../.test-dist/ffuzzy.mjs';
 
 test('full: init idempotent + ffuzzyReady', async () => {
   assert.equal(ffuzzyReady(), false);

@@ -5,7 +5,7 @@
 import assert from 'node:assert/strict';
 import { test, before } from 'node:test';
 
-import * as Mod from '../dist/ffuzzy.mjs';
+import * as Mod from '../.test-dist/ffuzzy.mjs';
 const {
   ffuzzyInitialize, ffuzzyReady, FuzzyCorpus, FuzzyKey, FuzzyOptions,
   FuzzyCase, FuzzyNorm, FuzzyMode, FuzzyScoring, FuzzyKeyKind,

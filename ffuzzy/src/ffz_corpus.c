@@ -67,17 +67,19 @@ typedef struct { ffz_arena_block *head; } ffz_arena;
 static inline unsigned char *blk_data(ffz_arena_block *b) {
     return (unsigned char *)b + sizeof(ffz_arena_block);
 }
-// Returns NULL on OOM; callers drop the key (file-wide drop-on-OOM policy).
+// 分配失败返回空指针，由新增路径回滚整条。
+// 按八字节对齐分配键存储，大键使用独立块。
 static void *arena_alloc(ffz_arena *a, size_t n) {
     if (n > SIZE_MAX - 7u) return NULL;  // would overflow the align round-up
     n = (n + 7u) & ~(size_t)7u;  // 8-byte align (fits uint32_t codepoints)
     ffz_arena_block *b = a->head;
-    if (b && b->used + n <= b->cap) {  // fits the current head block
+    if (b && n <= b->cap - b->used) {  // fits the current head block
         void *p = blk_data(b) + b->used;
         b->used += n;
         return p;
     }
     size_t cap = n > FFZ_ARENA_BLOCK ? n : FFZ_ARENA_BLOCK;
+    if (cap > SIZE_MAX - sizeof(ffz_arena_block)) return NULL;
     ffz_arena_block *nb = (ffz_arena_block *)malloc(sizeof(*nb) + cap);
     if (!nb) return NULL;
     nb->cap = cap;
@@ -102,12 +104,11 @@ static void arena_free(ffz_arena *a) {
     a->head = NULL;
 }
 
-// Compact key: one data pointer (bytes XOR codepoints) + small fields = 16 B
-// (was 32 B with two pointers, one always NULL).
+// 单指针区分字节和码点以压缩存储，kind 保留宿主整数。
 typedef struct {
     void *data;     // uint8_t[] if `ascii`, else uint32_t[]
     uint32_t len;   // code units (haystacks are bounded to 2^32-1)
-    uint16_t kind;
+    int kind;
     uint8_t ascii;
 } corpus_key;
 
@@ -182,77 +183,94 @@ void ffz_corpus_set_transliterator(ffz_corpus *c, ffz_transliterator fn,
 
 size_t ffz_corpus_len(const ffz_corpus *c) { return c->n; }
 
-// Decode UTF-8 and store an owned copy of the key in the arena (bytes if ASCII,
-// else codepoints). On arena OOM the key degrades to empty (data NULL, len 0).
-// Uses the corpus-wide `c->scratch`, so this is add-path (single-threaded) only
-// — filtering never calls it. Do not invoke from worker threads.
-static void dup_key(ffz_corpus *c, const char *s, size_t n, int kind,
+// 解码并复制键；失败返回假。复用语料库暂存，仅允许新增线程调用。
+static bool dup_key(ffz_corpus *c, const char *s, size_t n, int kind,
                     corpus_key *out) {
     ffz_str v = ffz_str_from_utf8(s, n, &c->scratch);
-    out->kind = (uint16_t)kind;
-    out->len = (uint32_t)v.len;
-    if (v.b) {
-        out->ascii = 1;
-        uint8_t *p = (uint8_t *)arena_alloc(&c->arena, v.len ? v.len : 1);
-        if (p && v.len) memcpy(p, v.b, v.len);
-        out->data = p;
-        if (!p) out->len = 0;
-    } else {
-        out->ascii = 0;
-        uint32_t *p = (uint32_t *)arena_alloc(&c->arena,
-                                              (v.len ? v.len : 1) * sizeof(uint32_t));
-        if (p && v.len) memcpy(p, v.u, v.len * sizeof(uint32_t));
-        out->data = p;
-        if (!p) out->len = 0;
+    if (!v.b) {
+        size_t i = 0, count = 0;
+        while (i < n) { ffz_decode_cp((const uint8_t *)s, n, &i); count++; }
+        if (v.len != count) return false;
     }
+    if (v.len > UINT32_MAX) return false;
+    out->kind = kind;
+    out->len = (uint32_t)v.len;
+    out->ascii = v.b != NULL;
+    size_t units = v.len ? v.len : 1;
+    size_t width = v.b ? 1 : sizeof(uint32_t);
+    if (units > SIZE_MAX / width) return false;
+    out->data = arena_alloc(&c->arena, units * width);
+    if (!out->data) return false;
+    if (v.len) memcpy(out->data, v.b ? (const void *)v.b : (const void *)v.u,
+                      v.len * width);
+    return true;
 }
 
-// Build one item = [ORIGINAL, extra_keys...] and append it. Shared by the
-// hook-driven add and the explicit add_keyed. Degrades gracefully on OOM.
-static void emit_item(ffz_corpus *c, const char *item, size_t len,
+// 整条构建后才提交；失败时回收本次新增的内存并恢复索引。
+static bool emit_item(ffz_corpus *c, const char *item, size_t len,
                       const ffz_key *ek, size_t extra) {
+    if (extra > UINT32_MAX || extra > SIZE_MAX / sizeof(corpus_key) ||
+        (extra && !ek)) return false;
     if (c->n == c->cap) {
-        if (c->cap > SIZE_MAX >> 1) return;  // doubling would overflow; drop
+        if (c->cap > SIZE_MAX / (2 * sizeof(corpus_item))) return false;
         size_t ncap = c->cap ? c->cap * 2 : 16;
         corpus_item *ni = (corpus_item *)realloc(c->items, ncap * sizeof(corpus_item));
-        if (!ni) return;  // OOM: drop this add rather than deref NULL
+        if (!ni) return false;
         c->items = ni;
         c->cap = ncap;
     }
-    corpus_item *it = &c->items[c->n];
-    dup_key(c, item, len, FFZ_KEY_ORIGINAL, &it->key0);
-    it->extra = NULL;
-    it->n_extra = 0;
-    if (extra > 0) {
-        corpus_key *xk = (corpus_key *)malloc(extra * sizeof(corpus_key));
-        if (xk) {  // OOM: keep just the ORIGINAL key rather than deref NULL
-            for (size_t k = 0; k < extra; k++)
-                dup_key(c, ek[k].text, ek[k].len, ek[k].kind, &xk[k]);
-            it->extra = xk;
-            it->n_extra = (uint32_t)extra;
-        }
+    ffz_arena_block *head = c->arena.head;
+    ffz_arena_block *next = head ? head->next : NULL;
+    size_t used = head ? head->used : 0;
+    corpus_item it = {0};
+    if (extra) {
+        it.extra = (corpus_key *)malloc(extra * sizeof(corpus_key));
+        if (!it.extra) return false;
     }
-    c->n++;
+    bool ok = dup_key(c, item, len, FFZ_KEY_ORIGINAL, &it.key0);
+    for (size_t k = 0; ok && k < extra; k++)
+        ok = dup_key(c, ek[k].text, ek[k].len, ek[k].kind, &it.extra[k]);
+    if (!ok) {
+        free(it.extra);
+        while (c->arena.head != head) {
+            ffz_arena_block *b = c->arena.head;
+            c->arena.head = b->next;
+            free(b);
+        }
+        if (head) {  // 超大键的独立块插在头块之后，需一并释放
+            while (head->next != next) {
+                ffz_arena_block *b = head->next;
+                head->next = b->next;
+                free(b);
+            }
+            head->used = used;
+        }
+        return false;
+    }
+    it.n_extra = (uint32_t)extra;
+    c->items[c->n++] = it;
+    return true;
 }
 
-void ffz_corpus_add(ffz_corpus *c, const char *item, size_t len) {
-    // Gather alternate keys from the hook (if any), then build [ORIGINAL, ...].
+// 收集转写键并原子新增；失败时不留下条目或缺失的键。
+bool ffz_corpus_add(ffz_corpus *c, const char *item, size_t len) {
     size_t extra = 0;
     ffz_key *tmp = NULL;
     if (c->hook && c->max_keys > 0) {
         tmp = (ffz_key *)calloc(c->max_keys, sizeof(ffz_key));
-        if (tmp) {
-            extra = c->hook(item, len, c->hook_ctx, tmp, c->max_keys);
-            if (extra > c->max_keys) extra = c->max_keys;
-        }
+        if (!tmp) return false;
+        extra = c->hook(item, len, c->hook_ctx, tmp, c->max_keys);
+        if (extra > c->max_keys) extra = c->max_keys;
     }
-    emit_item(c, item, len, tmp, extra);
+    bool ok = emit_item(c, item, len, tmp, extra);
     free(tmp);
+    return ok;
 }
 
-void ffz_corpus_add_keyed(ffz_corpus *c, const char *item, size_t len,
+// 原子新增带显式附加键的条目。
+bool ffz_corpus_add_keyed(ffz_corpus *c, const char *item, size_t len,
                           const ffz_key *keys, size_t nkeys) {
-    emit_item(c, item, len, keys, nkeys);
+    return emit_item(c, item, len, keys, nkeys);
 }
 
 // --- filtering ------------------------------------------------------------
@@ -300,9 +318,10 @@ static void scored_topk(const scored *sc, size_t ns, size_t k, scored *out) {
     qsort(out, hn, sizeof(scored), cmp_scored);
 }
 
+// 追加命中，扩容溢出或分配失败时保持已有结果。
 static void results_push(ffz_results *r, ffz_hit hit) {
     if (r->len == r->cap) {
-        if (r->cap > SIZE_MAX >> 1) { ffz_indices_free(&hit.indices); return; }
+        if (r->cap > SIZE_MAX / (2 * sizeof(ffz_hit))) { ffz_indices_free(&hit.indices); return; }
         size_t ncap = r->cap ? r->cap * 2 : 32;
         ffz_hit *h = (ffz_hit *)realloc(r->hits, ncap * sizeof(ffz_hit));
         if (!h) { ffz_indices_free(&hit.indices); return; }  // OOM: drop hit
@@ -659,6 +678,20 @@ static bool thr_edit_start(scan_edit_job *j, ffz_thr *out) {
 }
 #endif
 
+// 查询无大写时忽略大小写，无重音字符时启用智能归一化。
+static ffz_config edit_config(ffz_config cfg, ffz_str query,
+                              ffz_case_matching cm, ffz_normalization nm) {
+    bool has_upper = false, has_diacritic = false;
+    for (size_t i = 0; i < query.len; i++) {
+        uint32_t cp = ffz_at(query, i);
+        has_upper |= ffz_cp_is_upper(cp);
+        has_diacritic |= ffz_cp_has_normalize(cp);
+    }
+    cfg.ignore_case = cm == FFZ_CASE_IGNORE || (cm == FFZ_CASE_SMART && !has_upper);
+    cfg.normalize = nm == FFZ_NORM_SMART && !has_diacritic;
+    return cfg;
+}
+
 // Shared implementation for ffz_corpus_filter_edit / ffz_corpus_filter_edit_raws.
 // skip_idx=true omits Pass 2 (matched-window recovery) — results have empty
 // indices, matching the ffz_corpus_filter / ffz_corpus_filter_raws pattern.
@@ -666,7 +699,7 @@ static bool thr_edit_start(scan_edit_job *j, ffz_thr *out) {
 // ffz_corpus_filter_edit / ffz_corpus_filter_edit_raws 的共用实现。
 // skip_idx=true 时省略 Pass 2（匹配窗口恢复）——结果的 indices 为空，
 // 与 ffz_corpus_filter / ffz_corpus_filter_raws 的模式一致。
-static void _corpus_filter_edit_impl(ffz_corpus *c,
+static bool _corpus_filter_edit_impl(ffz_corpus *c,
                             const char *query, size_t query_len,
                             ffz_case_matching cm, ffz_normalization nm,
                             int max_distance,
@@ -676,7 +709,8 @@ static void _corpus_filter_edit_impl(ffz_corpus *c,
     out->hits = NULL;
     out->len = out->cap = 0;
 
-    if (!c || !query || max_distance < 0) return;
+    if (!c || !query || max_distance < 0 ||
+        !ffz_edit_query_valid(query, query_len)) return false;
 
     // Decode query once.
     //
@@ -684,42 +718,13 @@ static void _corpus_filter_edit_impl(ffz_corpus *c,
     ffz_str_buf qbuf = {NULL, 0, 0};
     ffz_str qstr = ffz_str_from_utf8(query, query_len, &qbuf);
 
-    // Resolve config flags.
-    //
-    // 解析配置标志位。
-    ffz_config cfg = c->cfg;
-
-    // Smart case: if query has no uppercase, ignore case.
-    //
-    // 智能大小写：若查询串没有大写字母，则忽略大小写。
-    if (cm == FFZ_CASE_IGNORE) {
-        cfg.ignore_case = true;
-    } else if (cm == FFZ_CASE_RESPECT) {
-        cfg.ignore_case = false;
-    } else {  // FFZ_CASE_SMART
-        bool has_upper = false;
-        for (size_t i = 0; i < qstr.len && !has_upper; i++)
-            has_upper = ffz_cp_is_upper(ffz_at(qstr, i));
-        cfg.ignore_case = !has_upper;
-    }
-
-    // Smart norm: if query has no diacritics, fold.
-    //
-    // 智能归一化：若查询串没有变音符号，则做折叠归一化。
-    if (nm == FFZ_NORM_NEVER) {
-        cfg.normalize = false;
-    } else {  // FFZ_NORM_SMART
-        bool has_diacritic = false;
-        for (size_t i = 0; i < qstr.len && !has_diacritic; i++)
-            has_diacritic = ffz_cp_has_normalize(ffz_at(qstr, i));
-        cfg.normalize = !has_diacritic;
-    }
+    ffz_config cfg = edit_config(c->cfg, qstr, cm, nm);
 
     // Allocate pass-1 result buffer.
     //
     // 分配第一轮（Pass 1）结果缓冲区。
     scored *sc = (scored *)malloc((c->n ? c->n : 1) * sizeof(scored));
-    if (!sc) { ffz_str_buf_free(&qbuf); return; }
+    if (!sc) { ffz_str_buf_free(&qbuf); return false; }
 
     size_t ns = 0;
     unsigned nthreads = resolve_threads(par, c->n);
@@ -770,15 +775,16 @@ static void _corpus_filter_edit_impl(ffz_corpus *c,
     finalise_results(c, NULL, NULL, qstr, &cfg, max_distance, true,
                       sc, ns, limit, skip_idx, out);
     ffz_str_buf_free(&qbuf);
+    return true;
 }
 
-void ffz_corpus_filter_edit(ffz_corpus *c,
+bool ffz_corpus_filter_edit(ffz_corpus *c,
                             const char *query, size_t query_len,
                             ffz_case_matching cm, ffz_normalization nm,
                             int max_distance,
                             ffz_parallel par, size_t limit,
                             ffz_results *out) {
-    _corpus_filter_edit_impl(c, query, query_len, cm, nm, max_distance,
+    return _corpus_filter_edit_impl(c, query, query_len, cm, nm, max_distance,
                              par, limit, false, out);
 }
 
@@ -787,13 +793,13 @@ void ffz_corpus_filter_edit(ffz_corpus *c,
 //
 // 与 ffz_corpus_filter_edit 类似，但跳过 Pass 2（不做匹配窗口恢复）。
 // 所有 hit.indices 都为空。仅需要条目身份/距离时使用。
-void ffz_corpus_filter_edit_raws(ffz_corpus *c,
+bool ffz_corpus_filter_edit_raws(ffz_corpus *c,
                                  const char *query, size_t query_len,
                                  ffz_case_matching cm, ffz_normalization nm,
                                  int max_distance,
                                  ffz_parallel par, size_t limit,
                                  ffz_results *out) {
-    _corpus_filter_edit_impl(c, query, query_len, cm, nm, max_distance,
+    return _corpus_filter_edit_impl(c, query, query_len, cm, nm, max_distance,
                              par, limit, true, out);
 }
 
@@ -900,7 +906,7 @@ static bool thr_merge_start(scan_merge_job *j, ffz_thr *out) {
 }
 #endif
 
-void ffz_corpus_filter_merge(ffz_corpus *c,
+bool ffz_corpus_filter_merge(ffz_corpus *c,
                               const char *query, size_t query_len,
                               ffz_case_matching cm, ffz_normalization nm,
                               int max_distance, ffz_scoring_mode scoring,
@@ -908,36 +914,22 @@ void ffz_corpus_filter_merge(ffz_corpus *c,
                               ffz_results *out) {
     ffz_results_free(out);
     out->hits = NULL; out->len = out->cap = 0;
-    if (!c || !query || max_distance < 0) return;
+    if (!c || !query || max_distance < 0 ||
+        !ffz_edit_query_valid(query, query_len)) return false;
     if ((unsigned)scoring > FFZ_SCORE_NUCLEO) scoring = FFZ_SCORE_FAST;
 
     ffz_pattern *pat = ffz_pattern_parse(query, query_len, cm, nm);
-    if (!pat) return;
+    if (!pat) return false;
 
     // Build edit-distance config (same smart-case/norm logic as filter_edit)
     //
     // 构建编辑距离配置（与 filter_edit 相同的智能大小写/归一化逻辑）。
     ffz_str_buf qbuf = {NULL, 0, 0};
     ffz_str qstr = ffz_str_from_utf8(query, query_len, &qbuf);
-    ffz_config edit_cfg = c->cfg;
-    if (cm == FFZ_CASE_IGNORE) { edit_cfg.ignore_case = true; }
-    else if (cm == FFZ_CASE_RESPECT) { edit_cfg.ignore_case = false; }
-    else {
-        bool has_upper = false;
-        for (size_t i = 0; i < qstr.len && !has_upper; i++)
-            has_upper = ffz_cp_is_upper(ffz_at(qstr, i));
-        edit_cfg.ignore_case = !has_upper;
-    }
-    if (nm == FFZ_NORM_NEVER) { edit_cfg.normalize = false; }
-    else {
-        bool has_dia = false;
-        for (size_t i = 0; i < qstr.len && !has_dia; i++)
-            has_dia = ffz_cp_has_normalize(ffz_at(qstr, i));
-        edit_cfg.normalize = !has_dia;
-    }
+    ffz_config edit_cfg = edit_config(c->cfg, qstr, cm, nm);
 
     scored *sc = (scored *)malloc((c->n ? c->n : 1) * sizeof(scored));
-    if (!sc) { ffz_pattern_free(pat); ffz_str_buf_free(&qbuf); return; }
+    if (!sc) { ffz_pattern_free(pat); ffz_str_buf_free(&qbuf); return false; }
 
     size_t ns = 0;
     unsigned nthreads = resolve_threads(par, c->n);
@@ -1004,11 +996,12 @@ void ffz_corpus_filter_merge(ffz_corpus *c,
     ffz_matcher_free(fm2);
     ffz_pattern_free(pat);
     ffz_str_buf_free(&qbuf);
+    return true;
 }
 
 // --- fallback filter -------------------------------------------------------
 
-void ffz_corpus_filter_fallback(ffz_corpus *c,
+bool ffz_corpus_filter_fallback(ffz_corpus *c,
                                  const char *query, size_t query_len,
                                  ffz_case_matching cm, ffz_normalization nm,
                                  int max_distance, ffz_scoring_mode scoring,
@@ -1016,17 +1009,19 @@ void ffz_corpus_filter_fallback(ffz_corpus *c,
                                  ffz_results *out) {
     ffz_results_free(out);
     out->hits = NULL; out->len = out->cap = 0;
+    if (!c || !query || max_distance < 0 ||
+        !ffz_edit_query_valid(query, query_len)) return false;
     if ((unsigned)scoring > FFZ_SCORE_NUCLEO) scoring = FFZ_SCORE_FAST;
     // Pass 1: subsequence
     //
     // 第一轮（Pass 1）：子序列匹配。
     _corpus_filter_impl(c, query, query_len, cm, nm, FFZ_FUZZY,
                         par, limit, scoring, false, out);
-    if (out->len > 0) return;
+    if (out->len > 0) return true;
     // Pass 2: edit distance (only if seq found nothing)
     //
     // 第二轮（Pass 2）：编辑距离匹配（仅当子序列毫无结果时才执行）。
-    ffz_corpus_filter_edit(c, query, query_len, cm, nm, max_distance,
+    return ffz_corpus_filter_edit(c, query, query_len, cm, nm, max_distance,
                             par, limit, out);
 }
 
@@ -1230,7 +1225,7 @@ void ffz_dual_results_free(ffz_dual_results *d) {
     ffz_results_free(&d->edit);
 }
 
-void ffz_corpus_filter_dual(ffz_corpus *c,
+bool ffz_corpus_filter_dual(ffz_corpus *c,
                               const char *query, size_t query_len,
                               ffz_case_matching cm, ffz_normalization nm,
                               int max_distance, ffz_scoring_mode scoring,
@@ -1239,30 +1234,16 @@ void ffz_corpus_filter_dual(ffz_corpus *c,
     ffz_results_free(&d->seq); ffz_results_free(&d->edit);
     d->seq.hits = d->edit.hits = NULL;
     d->seq.len = d->seq.cap = d->edit.len = d->edit.cap = 0;
-    if (!c || !query || max_distance < 0) return;
+    if (!c || !query || max_distance < 0 ||
+        !ffz_edit_query_valid(query, query_len)) return false;
     if ((unsigned)scoring > FFZ_SCORE_NUCLEO) scoring = FFZ_SCORE_FAST;
 
     ffz_pattern *pat = ffz_pattern_parse(query, query_len, cm, nm);
-    if (!pat) return;
+    if (!pat) return false;
 
     ffz_str_buf qbuf = {NULL, 0, 0};
     ffz_str qstr = ffz_str_from_utf8(query, query_len, &qbuf);
-    ffz_config edit_cfg = c->cfg;
-    if (cm == FFZ_CASE_IGNORE) { edit_cfg.ignore_case = true; }
-    else if (cm == FFZ_CASE_RESPECT) { edit_cfg.ignore_case = false; }
-    else {
-        bool has_upper = false;
-        for (size_t i = 0; i < qstr.len && !has_upper; i++)
-            has_upper = ffz_cp_is_upper(ffz_at(qstr, i));
-        edit_cfg.ignore_case = !has_upper;
-    }
-    if (nm == FFZ_NORM_NEVER) { edit_cfg.normalize = false; }
-    else {
-        bool has_dia = false;
-        for (size_t i = 0; i < qstr.len && !has_dia; i++)
-            has_dia = ffz_cp_has_normalize(ffz_at(qstr, i));
-        edit_cfg.normalize = !has_dia;
-    }
+    ffz_config edit_cfg = edit_config(c->cfg, qstr, cm, nm);
 
     size_t n = c->n ? c->n : 1;
     scored *seq_sc  = (scored *)malloc(n * sizeof(scored));
@@ -1270,7 +1251,7 @@ void ffz_corpus_filter_dual(ffz_corpus *c,
     if (!seq_sc || !edit_sc) {
         free(seq_sc); free(edit_sc);
         ffz_pattern_free(pat); ffz_str_buf_free(&qbuf);
-        return;
+        return false;
     }
 
     size_t seq_ns = 0, edit_ns = 0;
@@ -1353,4 +1334,5 @@ void ffz_corpus_filter_dual(ffz_corpus *c,
     ffz_matcher_free(fm2);
     ffz_pattern_free(pat);
     ffz_str_buf_free(&qbuf);
+    return true;
 }

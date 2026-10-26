@@ -273,6 +273,7 @@ int32_t ffz_fuzzy_rolling(ffz_matcher *m, ffz_str hay, ffz_str needle,
 //
 // Myers 位并行编辑距离算法（全串匹配，两端都锚定）。
 // 返回 [0..max_dist] 范围内的距离，或 -1。
+// 查询超过六十四个码点返回 FFZ_EDIT_QUERY_TOO_LONG，其余未匹配返回负一。
 int ffz_edit_distance(ffz_str query, ffz_str hay, int max_dist,
                       const ffz_config *cfg);
 
@@ -285,6 +286,7 @@ int ffz_edit_distance(ffz_str query, ffz_str hay, int max_dist,
 // 与下方 ffz_edit_window 是同一种搜索，只是少了恢复匹配起点的反向扫描；
 // 用它对语料库中每一项打分，仅对存活下来的 top-K 结果（Pass 2，用于高亮）
 // 才调用 ffz_edit_window。
+// 查询超过六十四个码点返回 FFZ_EDIT_QUERY_TOO_LONG。
 int ffz_edit_distance_substring(ffz_str query, ffz_str hay, int max_dist,
                                 const ffz_config *cfg);
 
@@ -297,6 +299,7 @@ int ffz_edit_distance_substring(ffz_str query, ffz_str hay, int max_dist,
 // 该窗口可以从 hay 中任意位置开始和结束。写出该窗口的码点范围
 // [*out_start, *out_end)。返回 [0..max_dist] 范围内的窗口距离，
 // 若没有窗口满足条件则返回 -1。
+// 查询超限返回 FFZ_EDIT_QUERY_TOO_LONG，输出窗口清零。
 int ffz_edit_window(ffz_str query, ffz_str hay, int max_dist,
                     const ffz_config *cfg, size_t *out_start, size_t *out_end);
 
