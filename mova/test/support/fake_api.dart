@@ -652,9 +652,15 @@ class FakeSwapCtl implements MovaSwapController {
     calls.add('abandon');
   }
 
+  /// When set, [swapTo] waits on it before answering, to hold a swap in flight.
+  ///
+  /// 设置后 [swapTo] 会先等它再返回，用来把一次切换卡在半途。
+  Completer<void>? swapToGate;
+
   @override
   Future<bool> swapTo(MovaSource source, {Duration at = Duration.zero}) async {
     calls.add('swapTo');
+    await swapToGate?.future;
     return commitResult;
   }
 

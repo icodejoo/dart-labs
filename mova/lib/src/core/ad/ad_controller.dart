@@ -258,6 +258,13 @@ class MovaAdController {
   /// 一起的独立时钟；没有这道守卫，正片会被 open 两次。
   bool _resuming = false;
 
+  /// True while a one-shot `swapTo` for the next ad is in flight, so the
+  /// content warm-up behind the ad must not start (it would evict that shadow).
+  ///
+  /// 下一条广告的一次性 `swapTo` 在途时为 true，此时不得启动广告背后的正片预热
+  /// （否则会挤掉那个影子）。
+  bool _landingAd = false;
+
   /// The break counting down / warming up in [_Phase.pending].
   ///
   /// [_Phase.pending] 阶段正在倒计时 / 预热中的广告位。
@@ -815,7 +822,18 @@ class MovaAdController {
       // 影子，commit() 会把陈旧的正片影子转正，而不是这条广告——pod 里的下一条
       // 广告悄无声息地从未真正播放，而 _current/已触发的事件却坚称它播了。
       unawaited(_swap?.abandon());
-      await _swap!.swapTo(b.source);
+      // While swapTo() waits for the ad's shadow, the old engine keeps ticking
+      // and _onProgress would warm the content behind the ad — evicting the very
+      // shadow swapTo is waiting on and silently degrading it to a plain open().
+      //
+      // swapTo() 等待广告影子期间旧引擎仍在 tick，_onProgress 会去预热广告背后的
+      // 正片——把 swapTo 正在等的影子挤掉，悄悄退化成普通 open()。
+      _landingAd = true;
+      try {
+        await _swap!.swapTo(b.source);
+      } finally {
+        _landingAd = false;
+      }
     } else if (!alreadyOnScreen) {
       unawaited(_swap?.abandon());
       try {
@@ -1328,7 +1346,7 @@ class MovaAdController {
     final gen = _gen;
     final content = await _contentSource();
     if (content == null || gen != _gen || _disposed) return;
-    if (_phase != _Phase.ad) return;
+    if (_phase != _Phase.ad || _landingAd) return;
     await swap.prepare(
       content,
       at: _contentResumeAt,

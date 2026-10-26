@@ -145,6 +145,29 @@ class _GatedOpenApi extends FakeMovaApi {
   }
 }
 
+/// Fake whose `dispose()` blocks until [gate] completes, to keep an
+/// `abandon()` in flight while a new warm-up starts.
+///
+/// 让 `dispose()` 阻塞到 [gate] 完成的假引擎，用来让 `abandon()` 悬在半途、
+/// 同时启动新的预热。
+class _GatedDisposeApi extends FakeMovaApi {
+  /// Creates the fake with [options].
+  ///
+  /// 以 [options] 创建。
+  _GatedDisposeApi({super.options});
+
+  /// Completer that releases the pending `dispose()`.
+  ///
+  /// 放行挂起的 `dispose()` 的 completer。
+  final Completer<void> gate = Completer<void>();
+
+  @override
+  Future<void> dispose() async {
+    await gate.future;
+    await super.dispose();
+  }
+}
+
 void main() {
   const opts = MovaOpts(
     swap: MovaSwapConfig(enabled: true, muteWhileWarm: false, readyTimeout: Duration(seconds: 2)),
@@ -218,6 +241,28 @@ void main() {
     expect(await f, isTrue);
     expect(api.active, same(made[2]));
     expect(made[2].openedUris, [c.uri]);
+  });
+
+  test('swapTo right after an un-awaited abandon keeps the new warm-up alive', () async {
+    final api = build((i) => i == 1 ? _GatedDisposeApi(options: opts) : FakeMovaApi(options: opts));
+    await api.prepare(b, cue: cue);
+    expect(api.swapPhase, MovaSwapPhase.warming);
+    // Same shape as AdController._playAd's oneShot branch.
+    unawaited(api.abandon());
+    final f = api.swapTo(c);
+    for (var i = 0; i < 4; i++) {
+      await Future<void>.delayed(Duration.zero);
+    }
+    expect(made, hasLength(3));
+    // The stale abandon finishes only now; it must not clobber the new warm-up.
+    (made[1] as _GatedDisposeApi).gate.complete();
+    for (var i = 0; i < 4; i++) {
+      await Future<void>.delayed(Duration.zero);
+    }
+    expect(api.swapPhase, MovaSwapPhase.warming);
+    pushReady(made[2]);
+    expect(await f, isTrue);
+    expect(api.active, same(made[2]));
   });
 
   test('#6 dispose during _commitNow: shadow disposed, old disposed once, not promoted', () async {

@@ -485,7 +485,9 @@ Future<void> _v12(int run, {bool slowPause = false}) async {
   final e2 = after.isEmpty ? 0 : after.first;
   final rel = s2 == null ? '[]' : epochTimes.map((t) => t - s2).toList().toString();
   // 槽位时长：AD2 自身首帧事件 -> AD2 completed（durationFromFirstFrame 下应约等于配置的 6s）。
-  final fromEpoch = ad2Frame != null && c2 != null ? c2 - ad2Frame! : -1;
+  // 真换指时新引擎早已出画，不再发 MovaFirstFrame；此时以 epoch 落定作为起点。
+  final slotStart = ad2Frame ?? (e2 != 0 ? e2 : null);
+  final fromEpoch = slotStart != null && c2 != null ? c2 - slotStart : -1;
   final fromStart = s2 != null && c2 != null ? c2 - s2 : -1;
   final swapGap = s2 != null && e2 != 0 ? e2 - s2 : -1;
   _log(id, 'run$run epochs=${epochTimes.length} epochRelToAD2Started=$rel AD2 started->epochChange=${swapGap}ms started->completed=${fromStart}ms adFirstFrame->completed=${fromEpoch}ms oldTicksInWindow=$ticksInWindow failed=$failed($failKinds)');

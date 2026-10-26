@@ -781,18 +781,24 @@ class MovaSwapEngine implements MovaApi, MovaSwapController, MovaStandbyControll
     if (identical(_warmMuteOwner, shadow)) _warmMuteOwner = null;
     _policy = null;
     _warmClock = null;
-    // _holdAtTarget may still be mid-flight (pause()/seek() on `shadow`) —
-    // wait for it before disposing the same engine out from under it, or the
-    // two race on a soon-to-be-disposed instance.
+    // Reset all shared warm-up state *synchronously*, before the first await:
+    // callers routinely `unawaited(abandon())` and immediately start a new
+    // warm-up, and anything this method touched after an await would clobber
+    // that new warm-up (plan, phase, ready completer, subscriptions).
     //
-    // _holdAtTarget 可能仍在飞行中（正对 `shadow` 调 pause()/seek()）——必须
-    // 等它结束再释放这个即将销毁的引擎，否则两者会在同一实例上产生竞态。
-    await _holding;
+    // 所有共享的预热状态在第一个 await *之前同步*复位：调用方常写
+    // `unawaited(abandon())` 后立刻开新预热，await 之后再碰这些字段会冲掉新
+    // 预热（计划、阶段、就绪 completer、订阅）。
+    final holding = _holding;
     _holding = null;
+    final stateSub = _shadowStateSub;
+    final progressSub = _shadowProgressSub;
+    final eventSub = _shadowEventSub;
+    _shadowStateSub = null;
+    _shadowProgressSub = null;
+    _shadowEventSub = null;
     _warmPlan = const MovaWarmPlan();
     _heldAtTarget = false;
-    await _detachShadow();
-    await shadow.dispose();
     if (_phase != MovaSwapPhase.idle) _setPhase(MovaSwapPhase.idle);
     // Unblock any commit(waitForReady: true) still awaiting this shadow —
     // it must resolve to false rather than hang forever.
@@ -804,6 +810,17 @@ class MovaSwapEngine implements MovaApi, MovaSwapController, MovaStandbyControll
       _readyCompleter = null;
       c.complete(false);
     }
+    // _holdAtTarget may still be mid-flight (pause()/seek() on `shadow`) —
+    // wait for it before disposing the same engine out from under it, or the
+    // two race on a soon-to-be-disposed instance.
+    //
+    // _holdAtTarget 可能仍在飞行中（正对 `shadow` 调 pause()/seek()）——必须
+    // 等它结束再释放这个即将销毁的引擎，否则两者会在同一实例上产生竞态。
+    await holding;
+    await stateSub?.cancel();
+    await progressSub?.cancel();
+    await eventSub?.cancel();
+    await shadow.dispose();
   }
 
   @override

@@ -1,5 +1,6 @@
 ## Unreleased
 
+* **Fix：广告 pod 里第二条广告的 `swapTo` 被悄悄降级成普通 `open()`**。两处竞态：① `MovaSwapEngine.abandon()` 在第一个 `await` 之后才复位 `_warmPlan`/订阅、把阶段置回 `idle`、唤醒就绪 completer，`unawaited(abandon())` 后紧跟 `swapTo` 时会冲掉新预热，现改为共享状态在 `await` 之前同步复位；② `MovaAdController` 在 `swapTo` 等待期间，旧引擎的进度 tick 会触发"广告背后预热正片"，把 `swapTo` 正在等的广告影子挤掉，现 `swapTo` 在途时不预热正片。Android 真机（STG-AL00）V12/V12b：第二条广告走真换指（`renderEpoch` 递增），槽位时长 5970–5999ms（配置 6000ms）。
 * **Fix：系统 PiP 被用户展开/关闭后 `state.pip` 不复位**。新增可选端口能力 `MovaPipObservable.changes`（引擎用 `is` 探测，既有 `MovaPipPort` 实现无需改动），Android 插件监听 Activity 配置变化并推送 `pipChanged`（退出时 PiP 标志晚于配置变化翻转，故延迟复查并去重）；引擎据此更新 `state.pip` 并发 `MovaPipChange`。Android 真机（STG-AL00）`am start` 展开路径已验证 `true→false`；点 X 关闭路径未能注入点击，未测。
 * **Fix：全量评审（Codex + 人工终审）修复一批异步过期/资源所有权问题**，新增约 45 项回归，Android 真机（STG-AL00）逐项对照修复前基线复测：
   * **无缝切换**：预热超时改由独立计时器兜底，不再依赖进度事件（`readyTimeout` 此前在影子完全无进度时不生效）；影子 `open`/`seek` 失败会清理并回退为普通打开，且不再往主事件流发 `MovaErrorEvent`（否则会把健康的在播广告误判失败）；已有影子时 `swapTo` 换了源会先丢弃再预热，不再提交旧影子；提交中途 `dispose` 会销毁影子；提交时把 rate/fit/zoom/音量/锁定/全屏/小窗/方向迁给继任者，旧引擎经 `MovaHandoffRetirable` 标记退役，退役引擎 `dispose` 不再复位全局方向。

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:fake_async/fake_async.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mova/src/core/ad/ad_controller.dart';
@@ -623,6 +625,39 @@ void main() {
       expect(swapToIdx, greaterThanOrEqualTo(0), reason: 'swapTo() must run at all');
       expect(abandonIdx, lessThan(swapToIdx),
           reason: 'abandon() must drop any leftover shadow before swapTo() warms/commits the next ad');
+    });
+  });
+
+  group('pod swapTo does not evict its own shadow', () {
+    test('no content warm-up while the next ad swapTo is in flight', () async {
+      const mid = MovaAdBreak(
+        kind: MovaAdBreakKind.mid,
+        source: MovaSource('https://host/mid.mp4'),
+        offset: Duration(seconds: 30),
+      );
+      const mid2 = MovaAdBreak(
+        kind: MovaAdBreakKind.mid,
+        source: MovaSource('https://host/mid2.mp4'),
+        offset: Duration(seconds: 30),
+      );
+      final api = FakeMovaApi(options: MovaOpts(ads: MovaAdConfig(enabled: true, breaks: [mid, mid2])));
+      final swap = FakeSwapCtl()..commitResult = true;
+      final c = MovaAdController(api, swap: swap);
+      await c.load(_content);
+      await settle();
+      api.pushProgress(const MovaProg(position: Duration(seconds: 31)));
+      await settle();
+      swap.calls.clear();
+      swap.swapToGate = Completer<void>();
+      api.pushEvent(const MovaDone()); // mid -> mid2 via swapTo, held open
+      await settle();
+      expect(swap.calls, contains('swapTo'));
+      // The old engine ticks while swapTo waits.
+      api.pushProgress(const MovaProg(position: Duration(seconds: 1)));
+      await settle();
+      expect(swap.calls, isNot(contains('prepare')));
+      swap.swapToGate!.complete();
+      await settle();
     });
   });
 
