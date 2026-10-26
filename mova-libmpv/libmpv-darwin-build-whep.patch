@@ -328,7 +328,7 @@ index 0000000..65c31dd
 @@ -0,0 +1 @@
 +option('linking', type : 'combo', choices : ['shared', 'static'], value : 'shared')
 diff --git a/nix/packages/mk-pkg-mpv/default.nix b/nix/packages/mk-pkg-mpv/default.nix
-index 2714ec6..6d101c7 100644
+index 2714ec6..06a9c4e 100644
 --- a/nix/packages/mk-pkg-mpv/default.nix
 +++ b/nix/packages/mk-pkg-mpv/default.nix
 @@ -85,6 +85,37 @@ let
@@ -362,7 +362,7 @@ index 2714ec6..6d101c7 100644
 +  crossFileMpv = pkgs.runCommand "mk-cross-file-mpv-${os}-${arch}.ini" { } ''
 +    cp ${crossFile} cross-file.ini
 +    chmod u+w cross-file.ini
-+    sed -i -E "/^(c|cpp|objc|objcpp)_link_args[[:space:]]*=/ s/\]\$/, '-Wl,-exported_symbols_list,${mpvExports}']/" cross-file.ini
++    sed -i -E "/^(c|cpp|objc|objcpp)_link_args[[:space:]]*=/ s|\]\$|, '-Wl,-exported_symbols_list,${mpvExports}']|" cross-file.ini
 +    grep -q exported_symbols_list cross-file.ini
 +    cp cross-file.ini $out
 +  '';
