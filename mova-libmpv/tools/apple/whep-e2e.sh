@@ -69,7 +69,7 @@ ffmpeg -nostdin -loglevel warning -re \
   -c:v libx264 -profile:v baseline -pix_fmt yuv420p -g 50 -preset ultrafast -tune zerolatency \
   -c:a libopus -b:a 64k -ac 2 -f rtsp -rtsp_transport tcp rtsp://127.0.0.1:8554/test > pub.log 2>&1 & PIDS+=($!)
 sleep 4
-kill -0 "${PIDS[-1]}" 2>/dev/null || { echo "::error::推流进程退出"; cat pub.log; exit 1; }
+kill -0 "${PIDS[${#PIDS[@]}-1]}" 2>/dev/null || { echo "::error::推流进程退出"; cat pub.log; exit 1; }
 
 # ---- 4. WHEP 正常拉流 ----
 echo "=== WHEP 正常拉流 15s ==="

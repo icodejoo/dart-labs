@@ -6,6 +6,7 @@
  * 用这个文件补齐，行为等同"没有 macOS 菜单栏/媒体键/剪贴板集成"，对 libmpv 渲染 API 无影响。
  */
 #include "config.h"
+#include "mpv/client.h"
 #include "osdep/mac/app_bridge.h"
 #include "player/clipboard/clipboard.h"
 
@@ -13,9 +14,15 @@
 void cocoa_init_media_keys(void) {}
 void cocoa_uninit_media_keys(void) {}
 
-/* 给 Swift 层传 input / client 句柄：没有 Swift 层，忽略 */
+/* 给 Swift 层传 input 句柄：没有 Swift 层，忽略 */
 void cocoa_set_input_context(struct input_ctx *input_context) { (void)input_context; }
-void cocoa_set_mpv_handle(struct mpv_handle *ctx) { (void)ctx; }
+
+/*
+ * mp_initialize 为 Swift 层专门建了一个名为 "mac" 的 client 并交给它，由它持有到退出。
+ * 没有 Swift 层时必须在这里立刻释放，否则 mpv_terminate_destroy 会一直等这个 client 退出而挂死
+ * （冒烟实测：core 线程停在 cond_wait，主线程停在 pthread_join）。
+ */
+void cocoa_set_mpv_handle(struct mpv_handle *ctx) { mpv_destroy(ctx); }
 
 /* 剪贴板后端：init 直接报不可用，clipboard.c 会跳过它 */
 static int stub_init(struct clipboard_ctx *cl, struct clipboard_init_params *params)
