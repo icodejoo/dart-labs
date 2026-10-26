@@ -77,7 +77,7 @@ run_smoke play whep+http://127.0.0.1:8889/test/whep 15 > whep-ok.log 2>&1; RC=$?
 grep -E 'RESULT|EVENT|PROP|DTLS|ICE|fingerprint' whep-ok.log | head -40
 [ $RC -eq 0 ] && pass "WHEP 起播且 time-pos 推进" || { flunk "WHEP 正常拉流 (rc=$RC)"; tail -40 whep-ok.log; }
 grep -q 'PROP width = 640' whep-ok.log && grep -q 'PROP height = 360' whep-ok.log && pass "视频 640x360" || flunk "没有拿到 640x360 视频参数"
-grep -q 'PROP video-codec = .*H.264\|PROP video-codec = .*h264' whep-ok.log && pass "视频编码 H.264" || flunk "视频编码不是 H.264"
+grep -q 'PROP video-format = h264' whep-ok.log && pass "视频编码 H.264" || flunk "视频编码不是 H.264"
 grep -q 'PROP audio-codec-name = opus' whep-ok.log && pass "音频编码 opus" || flunk "音频编码不是 opus"
 FR=$(grep -E '^t=' whep-ok.log | tail -1 | sed -E 's/.*frames=([0-9-]+).*/\1/')
 [ "${FR:-0}" -gt 100 ] 2>/dev/null && pass "出帧数 $FR (>100)" || flunk "出帧数过少: ${FR:-?}"
@@ -87,13 +87,22 @@ FR=$(grep -E '^t=' whep-ok.log | tail -1 | sed -E 's/.*frames=([0-9-]+).*/\1/')
 if [ -n "${SIM_FRAMEWORK_DIR:-}" ]; then
   echo "=== iOS 模拟器冒烟 ==="
   sim_fail() { if [ "${SIM_OPTIONAL:-0}" = 1 ]; then echo "::warning::模拟器: $*"; else flunk "模拟器: $*"; fi; }
-  RUNTIME=$(xcrun simctl list runtimes available -j | python3 -c "import json,sys; r=[x for x in json.load(sys.stdin)['runtimes'] if x['platform']=='iOS' and x.get('isAvailable',True)]; print(r[-1]['identifier'] if r else '')")
-  DEVTYPE=$(xcrun simctl list devicetypes -j | python3 -c "import json,sys; r=[x for x in json.load(sys.stdin)['devicetypes'] if 'iPhone' in x['name']]; print(r[-1]['identifier'] if r else '')")
-  echo "runtime=$RUNTIME devtype=$DEVTYPE"
-  if [ -z "$RUNTIME" ] || [ -z "$DEVTYPE" ]; then sim_fail "没有可用的 iOS 运行时/设备类型"; else
-    UDID=$(xcrun simctl create mova-smoke "$DEVTYPE" "$RUNTIME")
-    if xcrun simctl boot "$UDID" && xcrun simctl bootstatus "$UDID" -b >/dev/null 2>&1; then
-      xcrun --sdk iphonesimulator clang -arch arm64 -target arm64-apple-ios13.0-simulator -I inc "$HERE/apple-smoke.c"         -F "$SIM_FRAMEWORK_DIR" -framework Mpv -Wl,-rpath,"$SIM_FRAMEWORK_DIR" -o smoke-sim && codesign -f -s - smoke-sim
+  # 用 runner 上已有的设备（自己 create 容易撞 "Incompatible device"：设备类型和运行时版本不配）
+  UDID=$(xcrun simctl list devices available -j | python3 -c "
+import json, sys
+d = json.load(sys.stdin)['devices']
+rts = sorted(k for k in d if 'iOS' in k)
+pick = ''
+for rt in reversed(rts):
+    cands = [x for x in d[rt] if x['name'].startswith('iPhone') and x.get('isAvailable', True)]
+    pro = [x for x in cands if 'Pro' in x['name'] and 'Max' not in x['name']]
+    if cands:
+        pick = (pro or cands)[0]['udid']; break
+print(pick)")
+  echo "simulator udid=$UDID"
+  if [ -z "$UDID" ]; then sim_fail "没有可用的 iPhone 模拟器设备"; else
+    if xcrun simctl boot "$UDID" 2>&1 | tail -2; xcrun simctl bootstatus "$UDID" -b >/dev/null 2>&1; then
+      xcrun --sdk iphonesimulator clang -arch arm64 -target arm64-apple-ios14.0-simulator -I inc "$HERE/apple-smoke.c" -F "$SIM_FRAMEWORK_DIR" -framework Mpv -Wl,-rpath,"$SIM_FRAMEWORK_DIR" -o smoke-sim && codesign -f -s - smoke-sim
       if [ $? -ne 0 ]; then sim_fail "编译模拟器冒烟程序失败"; else
         xcrun simctl spawn "$UDID" "$PWD/smoke-sim" init > sim-init.log 2>&1 && pass "模拟器 init 循环" || { sim_fail "init 循环"; tail -20 sim-init.log; }
         grep -E 'PROP' sim-init.log
@@ -101,7 +110,7 @@ if [ -n "${SIM_FRAMEWORK_DIR:-}" ]; then
         grep -E 'RESULT|EVENT|PROP' sim-whep.log | head -20
       fi
     else sim_fail "模拟器起不来"; fi
-    xcrun simctl shutdown "$UDID" 2>/dev/null; xcrun simctl delete "$UDID" 2>/dev/null
+    xcrun simctl shutdown "$UDID" 2>/dev/null
   fi
 fi
 
@@ -112,17 +121,31 @@ echo "=== 指纹被篡改（fp 模式）==="
 run_smoke play whep+http://127.0.0.1:18100/fp/test/whep 10 > whep-fp.log 2>&1; RC=$?
 grep -E 'RESULT|EVENT end-file|fingerprint|EACCES|Permission' whep-fp.log | head
 [ $RC -ne 0 ] && grep -q 'advanced=-1\|advanced=0' whep-fp.log && pass "指纹被篡改 -> 拒绝，没有出画面" || flunk "指纹被篡改仍然起播了 (rc=$RC)"
-echo "=== 候选不可达（dead 模式，握手超时 10s）==="
-T0=$(date +%s); run_smoke play whep+http://127.0.0.1:18100/dead/test/whep 20 > whep-dead.log 2>&1; RC=$?; T1=$(date +%s)
-grep -E 'RESULT|EVENT end-file' whep-dead.log | head -5
-[ $RC -ne 0 ] && [ $((T1-T0)) -lt 19 ] && pass "候选不可达 -> $((T1-T0))s 内干净返回" || flunk "候选不可达场景异常 (rc=$RC, ${T1}-${T0}s)"
+echo "=== 候选不可达（dead 模式，handshake_timeout=3s）==="
+T0=$(date +%s)
+SMOKE_LOG_ALL=1 SMOKE_OPTS="demuxer-lavf-o=handshake_timeout=3000000" run_smoke play whep+http://127.0.0.1:18100/dead/test/whep 20 > whep-dead.log 2>&1; RC=$?
+T1=$(date +%s); DT=$((T1-T0))
+grep -aE 'RESULT|EVENT|whep|WHEP|ICE|timeout|Connection' whep-dead.log | head -30
+[ $RC -ne 0 ] && [ $DT -lt 18 ] && pass "候选不可达 -> ${DT}s 内干净返回" || { flunk "候选不可达场景异常 (rc=$RC, ${DT}s)"; tail -60 whep-dead.log; }
 
 # ---- 6. https（mbedtls）：tls-verify=no 能播；=yes 配 ca 文件能播；换无关 CA 必须失败 ----
 if [ "${SKIP_HTTPS:-0}" != 1 ]; then
   echo "=== https / mbedtls ==="
   ffmpeg -nostdin -loglevel error -f lavfi -i testsrc2=size=320x180:rate=25 -t 20 -c:v libx264 -pix_fmt yuv420p -g 25 -movflags +faststart media.mp4
+  # macOS 自带的 openssl 是 LibreSSL，不一定支持 -addext，用配置文件更稳
+  cat > san.cnf <<'CNF'
+[req]
+distinguished_name=dn
+x509_extensions=v3
+prompt=no
+[dn]
+CN=127.0.0.1
+[v3]
+subjectAltName=IP:127.0.0.1
+basicConstraints=CA:TRUE
+CNF
   for n in good evil; do
-    openssl req -x509 -newkey rsa:2048 -nodes -keyout $n.key -out $n.pem -days 2 -subj "/CN=127.0.0.1" -addext "subjectAltName=IP:127.0.0.1" >/dev/null 2>&1
+    openssl req -x509 -newkey rsa:2048 -nodes -keyout $n.key -out $n.pem -days 2 -config san.cnf 2>&1 | tail -2
   done
   cat > httpsd.py <<'PY'
 import http.server, ssl, sys

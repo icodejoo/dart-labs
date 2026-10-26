@@ -95,6 +95,7 @@ static int play(const char *url, int secs) {
     const char *cmd[] = {"loadfile", url, NULL};
     r = mpv_command(h, cmd);
     printf("loadfile -> %d\n", r);
+    int log_all = getenv("SMOKE_LOG_ALL") != NULL;   // 失败场景排查用：打印全部 v 级日志
     long long t0 = now_ms(), last = 0;
     double first_pos = -1, pos = -1;
     int ended = 0, end_err = 0, dumped = 0;
@@ -103,7 +104,7 @@ static int play(const char *url, int secs) {
         while (e->event_id != MPV_EVENT_NONE) {
             if (e->event_id == MPV_EVENT_LOG_MESSAGE) {
                 mpv_event_log_message *m = e->data;
-                if (interesting(m->text) || m->log_level <= MPV_LOG_LEVEL_ERROR)
+                if (log_all || interesting(m->text) || m->log_level <= MPV_LOG_LEVEL_ERROR)
                     printf("LOG[%s/%s] %s", m->prefix, m->level, m->text);
             } else if (e->event_id == MPV_EVENT_START_FILE) printf("EVENT start-file\n");
             else if (e->event_id == MPV_EVENT_FILE_LOADED) printf("EVENT file-loaded\n");
@@ -123,7 +124,7 @@ static int play(const char *url, int secs) {
             printf("t=%4lldms time-pos=%.3f frames=%lld drop(dec)=%lld\n", now, pos, geti(h, "estimated-frame-number"), geti(h, "decoder-frame-drop-count"));
             if (!dumped && pos > 3) {   // 起播稳定后一次性取证
                 dumped = 1;
-                const char *props[] = {"video-codec", "audio-codec-name", "width", "height", "audio-params/samplerate", "hwdec-current", NULL};
+                const char *props[] = {"video-format", "audio-codec-name", "width", "height", "audio-params/samplerate", "hwdec-current", NULL};
                 for (int i = 0; props[i]; i++) show_prop(h, props[i]);
             }
         }
