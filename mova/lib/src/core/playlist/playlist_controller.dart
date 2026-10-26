@@ -63,6 +63,13 @@ class MovaPlaylistController {
   /// `open()` 收尾。
   bool _disposed = false;
 
+  /// Monotonic counter of [jumpTo] calls; a jump that is no longer the latest
+  /// when its `open()` returns is superseded and must not commit its index.
+  ///
+  /// [jumpTo] 的单调调用计数；`open()` 返回时若已不是最新一次，说明被取代，
+  /// 不得提交其下标。
+  int _jumpGen = 0;
+
   /// The items this controller navigates.
   ///
   /// 该控制器导航的项列表。
@@ -136,7 +143,15 @@ class MovaPlaylistController {
   /// - [index]: the target item index / 目标项下标
   Future<void> jumpTo(int index) async {
     if (index < 0 || index >= _items.length) return;
+    final gen = ++_jumpGen;
     await _api.open(_items[index].source);
+    // A later jumpTo superseded this one: its open() is what actually plays.
+    // Note: MovaApi.open returns void, so a beforeOpen rejection is
+    // indistinguishable here and is not handled.
+    //
+    // 更晚的 jumpTo 已取代本次：真正在播的是它的 open()。注意 MovaApi.open
+    // 返回 void，beforeOpen 拒绝在此无法区分，故不处理。
+    if (gen != _jumpGen) return;
     // dispose() may have closed `_indexChanges` while the open() above was in
     // flight (e.g. an auto-advance racing the host tearing the controller
     // down) — adding to a closed StreamController throws.

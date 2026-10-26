@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mova/src/core/events/events.dart';
 import 'package:mova/src/core/model/playlist.dart';
@@ -149,4 +151,44 @@ void main() {
     await inFlight; // must never surface "Bad state: Cannot add event after closing"
     expect(c.currentIndex, 0, reason: 'a jumpTo that raced dispose must not commit its index');
   });
+
+  test('interleaved jumpTo: the stale earlier jump finishing last never overwrites the index (#21)', () async {
+    final api = _GatedApi(
+      options: const MovaOpts(playlist: MovaPlaylistConfig(enabled: true, items: _items)),
+    );
+    final c = MovaPlaylistController(api);
+    final seen = <int>[];
+    c.indexChanges.listen(seen.add);
+    final j1 = c.jumpTo(1);
+    final j2 = c.jumpTo(2);
+    await Future<void>.delayed(Duration.zero);
+    // 后发的 jumpTo(2) 先完成，先发的 jumpTo(1) 后完成。
+    api.gates[1].complete();
+    await j2;
+    api.gates[0].complete();
+    await j1;
+    await Future<void>.delayed(Duration.zero);
+    expect(c.currentIndex, 2);
+    expect(seen, [2]);
+  });
+}
+
+/// A fake whose `open` stays pending until the matching gate completes.
+///
+/// 假 API：`open` 挂起，直到对应 gate 完成。
+class _GatedApi extends FakeMovaApi {
+  _GatedApi({super.options});
+
+  /// One gate per `open` call, in call order.
+  ///
+  /// 每次 `open` 调用对应一个 gate，按调用顺序排列。
+  final List<Completer<void>> gates = <Completer<void>>[];
+
+  @override
+  Future<void> open(MovaSource source, {bool autoPlay = true}) async {
+    final gate = Completer<void>();
+    gates.add(gate);
+    await gate.future;
+    await super.open(source, autoPlay: autoPlay);
+  }
 }

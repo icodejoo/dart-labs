@@ -186,11 +186,47 @@ class MovaAdController {
   ///
   /// 在途的解析，在其结算前由所有调用方共享。
   Future<MovaSource?>? _resolving;
+
+  /// Load-session counter; bumped by [load]/[loadDeferred]/[dispose] so async
+  /// work started by an older session can tell it is stale after an `await`.
+  ///
+  /// 加载会话计数；[load]/[loadDeferred]/[dispose] 时递增，使旧会话遗留的异步
+  /// 任务在 `await` 之后能认出自己已过期。
+  int _gen = 0;
+
+  /// Whether [dispose] has run; late async results must then be dropped.
+  ///
+  /// [dispose] 是否已执行；之后到达的异步结果必须丢弃。
+  bool _disposed = false;
   _Phase _phase = _Phase.idle;
   MovaAdBreak? _current;
   final Set<MovaAdBreak> _played = <MovaAdBreak>{};
   Duration _contentResumeAt = Duration.zero;
   Duration _adPosition = Duration.zero;
+
+  /// Whether the current ad has produced a real first frame (see
+  /// [_onAdFirstFrame]); only then is the load deadline cancelled and the
+  /// slot clock started.
+  ///
+  /// 当前广告是否已产出真正的首帧（见 [_onAdFirstFrame]）；到那时才取消加载期限、
+  /// 启动广告位时钟。
+  bool _adFramed = false;
+
+  /// Last ad-side position seen, for the rising-position fallback.
+  ///
+  /// 广告侧最近一次位置，供"位置递增"回退判据使用。
+  Duration _adLastPos = Duration.zero;
+
+  /// Consecutive rising non-zero position ticks seen for the current ad.
+  ///
+  /// 当前广告上连续出现的"非零且递增"位置 tick 数。
+  int _adRises = 0;
+
+  /// The user's playback rate while content was on screen; restored after an
+  /// ad on the swap path, where the shadow engine would otherwise reset it.
+  ///
+  /// 正片在屏时的用户倍速；走无缝切换路径时影子引擎会把它重置，广告后据此恢复。
+  double _contentRate = 1.0;
 
   /// The most recent content position seen on the progress stream; the resume
   /// point for a runtime-inserted ad ([playAdNow]).
@@ -351,6 +387,8 @@ class MovaAdController {
   ///
   /// - [content]: the main content source / 正片源
   Future<void> load(MovaSource content) async {
+    _gen++;
+    _resolving = null;
     _content = content;
     _resolve = null;
     await _beginLoad();
@@ -388,6 +426,12 @@ class MovaAdController {
   /// });
   /// ```
   Future<void> loadDeferred(MovaSourceResolver resolve) async {
+    _gen++;
+    // Drop any in-flight resolution of an older session so this one calls its
+    // own resolver instead of sharing the stale result.
+    //
+    // 丢弃旧会话的在途解析，让本次调用自己的解析器，而不是共享过期结果。
+    _resolving = null;
     _content = null;
     _resolve = resolve;
     await _beginLoad();
@@ -440,23 +484,28 @@ class MovaAdController {
     //
     // 共享同一次在途解析：预热路径每个进度 tick 都会调用本方法，而宿主的解析器
     // 仍必须恰好只被调用一次。
-    return _resolving ??= _doResolve(resolve);
+    return _resolving ??= _doResolve(resolve, _gen);
   }
 
   /// Runs [resolve] once, memoising the result and clearing the in-flight slot.
   ///
   /// 执行一次 [resolve]，记忆化结果并清空在途槽位。
-  Future<MovaSource?> _doResolve(MovaSourceResolver resolve) async {
+  Future<MovaSource?> _doResolve(MovaSourceResolver resolve, int gen) async {
     try {
       final resolved = await resolve();
+      // A stale session's result is dropped: it must not write [_content].
+      //
+      // 过期会话的结果直接丢弃，不得写入 [_content]。
+      if (gen != _gen || _disposed) return null;
       _content = resolved;
       return resolved;
     } catch (e) {
+      if (gen != _gen || _disposed) return null;
       _resolve = null;
       if (!_contentError.isClosed) _contentError.add(e);
       return null;
     } finally {
-      _resolving = null;
+      if (gen == _gen) _resolving = null;
     }
   }
 
@@ -491,6 +540,13 @@ class MovaAdController {
     // 的广告是宿主的产品决策，不是播放器的。
     if (_phase != _Phase.content) return;
     _contentResumeAt = _lastContentPosition;
+    // Snapshot the user's rate now: it is otherwise only refreshed by content
+    // progress ticks, so a change made since the last tick would be lost.
+    // Skipped while returning from an ad, when the engine may still be the 1x ad.
+    //
+    // 此刻同步快照用户倍速：它平时只由正片进度 tick 刷新，上一个 tick 之后的改动
+    // 会丢。从广告返回的过渡期内活动引擎可能仍是 1x 的广告，因此跳过。
+    if (!_resuming) _contentRate = _api.state.rate;
     if (ad.delay > Duration.zero || _wantsWait(ad)) {
       _beginDelay(ad);
       return;
@@ -728,6 +784,9 @@ class MovaAdController {
     _phase = _Phase.ad;
     _current = b;
     _adPosition = Duration.zero;
+    _adFramed = false;
+    _adLastPos = Duration.zero;
+    _adRises = 0;
     _played.add(b);
     _changes.add(null);
     _fire(MovaAdEventType.started, b);
@@ -771,7 +830,36 @@ class MovaAdController {
     //
     // 画面上还什么都没有：给广告一个有界的窗口去产出首帧，该窗口由首帧自己的
     // 进度 tick 取消。
-    _armLoadTimer(b);
+    // Ticks seen before open() settled are leftovers of the previous media.
+    //
+    // open() 落定之前收到的 tick 是上一段媒体的残留。
+    //
+    // Same for first-frame signals: while open()/swapTo() was awaiting, the old
+    // engine could still tick (phase is already `ad`) and flip [_adFramed], which
+    // would make the ad's real first frame a no-op and orphan the load timer.
+    // Drop that verdict (and any slot clock it started), then re-read the
+    // settled state: already rendered → first frame now, else arm the deadline.
+    //
+    // 首帧信号同理：open()/swapTo() 等待期间旧引擎仍可能 tick（此时阶段已是 `ad`）
+    // 并把 [_adFramed] 置位，导致广告真正的首帧被忽略、加载计时器无人取消。丢弃该判定
+    // （及由它起的广告位时钟），再读落定后的状态：已渲染则立即判首帧，否则起期限。
+    _adRises = 0;
+    _adLastPos = Duration.zero;
+    _adFramed = false;
+    _cancelSlotTimer();
+    if (_api.state.rendered) {
+      _onAdFirstFrame();
+    } else {
+      _armLoadTimer(b);
+    }
+    // An ad must not play sped up; on the swap path the user's rate was
+    // carried onto the ad's engine, so put it back to 1x.
+    //
+    // 广告不应变速；走无缝路径时用户倍速被带到了广告引擎上，这里复位到 1x。
+    final swap = _swap;
+    if (swap != null && swap.swapEnabled && _api.state.rate != 1.0) {
+      unawaited(_api.setRate(1.0));
+    }
     // With durationFromFirstFrame off the slot is counted from open(); with it
     // on, the first progress tick arms the timer instead.
     //
@@ -941,8 +1029,9 @@ class MovaAdController {
     _current = null;
     _pending = null;
     _changes.add(null);
+    final gen = _gen;
     final c = await _contentSource();
-    if (c == null) return;
+    if (c == null || gen != _gen || _disposed) return;
     final swap = _swap;
     if (swap != null && await swap.commit(waitForReady: true)) {
       // Already seamlessly switched to the content by the warmed shadow;
@@ -950,8 +1039,16 @@ class MovaAdController {
       //
       // 已由预热好的影子无缝切到正片；无需再 open/seek。
     } else {
+      if (gen != _gen || _disposed) return;
       await _api.open(c);
       if (at > Duration.zero) await _api.seek(at);
+    }
+    // On the swap path the shadow engine starts from default settings (or the
+    // ad's 1x); give content back the rate the user had before the ad.
+    //
+    // 走无缝路径时影子引擎从默认设置（或广告的 1x）起步；把广告前用户的倍速还给正片。
+    if (swap != null && swap.swapEnabled && _contentRate != 1.0 && _api.state.rate != _contentRate) {
+      unawaited(_api.setRate(_contentRate));
     }
     // Restore STT only if it was running before the ad interrupted content.
     //
@@ -976,6 +1073,10 @@ class MovaAdController {
       if (_phase == _Phase.ad && playing != null) {
         unawaited(_onAdFailure(playing, MovaAdFailKind.playerError, e.error));
       }
+      return;
+    }
+    if (e is MovaFirstFrame) {
+      _onAdFirstFrame();
       return;
     }
     if (e is! MovaDone) return;
@@ -1081,6 +1182,23 @@ class MovaAdController {
     }
   }
 
+  /// Marks the current ad's first frame as landed: the load deadline has been
+  /// met, and with [MovaAdConfig.durationFromFirstFrame] the slot clock starts
+  /// now. Idempotent per ad.
+  ///
+  /// 标记当前广告首帧已落地：加载期限达成；开启
+  /// [MovaAdConfig.durationFromFirstFrame] 时广告位时钟从此刻起算。每条广告只生效
+  /// 一次。
+  void _onAdFirstFrame() {
+    if (_adFramed || _phase != _Phase.ad) return;
+    _adFramed = true;
+    _cancelLoadTimer();
+    final playing = _current;
+    if (_cfg.durationFromFirstFrame && playing != null) {
+      _armSlotTimer(playing);
+    }
+  }
+
   /// Tracks ad elapsed time, and while playing content triggers a due mid-roll,
   /// saving the content position to resume at afterwards.
   ///
@@ -1092,13 +1210,20 @@ class MovaAdController {
       // *visible* seconds, so a slow load must not eat into it.
       //
       // 这条广告的首个已渲染帧：广告主买的是*可见*秒数，加载慢不应该吃掉这段时长。
-      final playing = _current;
-      // The first frame has landed, so the load deadline has been met.
-      //
-      // 首帧已经落地，加载期限已达成。
-      _cancelLoadTimer();
-      if (_cfg.durationFromFirstFrame && playing != null) {
-        _armSlotTimer(playing);
+      if (!_adFramed) {
+        // `rendered` is the precise signal (always maintained by MovaEngine);
+        // without it fall back to two consecutive rising non-zero positions —
+        // a single tick may be residue of the previous media.
+        //
+        // `rendered` 是精确信号（MovaEngine 一直维护）；没有它时回退为"位置>0
+        // 且连续两次递增"——单个 tick 可能是上一段媒体的残留。
+        if (p.position > Duration.zero && p.position > _adLastPos) {
+          _adRises++;
+        } else if (p.position != _adLastPos) {
+          _adRises = 0;
+        }
+        _adLastPos = p.position;
+        if (_api.state.rendered || _adRises >= 2) _onAdFirstFrame();
       }
       // Ask the configured trigger whether it is time to start warming the
       // content up in the background; the trigger (not this controller)
@@ -1129,6 +1254,7 @@ class MovaAdController {
       // 同一时刻只排队一条待播广告。
       _lastContentPosition = p.position;
       _contentResumeAt = p.position;
+      _contentRate = _api.state.rate;
       final waiting = _pending;
       if (waiting != null && _wantsWait(waiting)) {
         // Warm the ad up behind the still-playing content. The plan is the
@@ -1156,6 +1282,12 @@ class MovaAdController {
     }
     if (_phase == _Phase.content) {
       _lastContentPosition = p.position;
+      // While returning from an ad (`_resuming`) the active engine may still be
+      // the 1x ad, so its rate must not overwrite the content rate saved earlier.
+      //
+      // 从广告返回的过渡期（`_resuming`）内，活动引擎可能仍是 1x 的广告，其倍速
+      // 不能覆盖此前保存的正片倍速。
+      if (!_resuming) _contentRate = _api.state.rate;
       if (_enabled) {
         final due = dueMidRoll(_breaks, p.position, _played);
         if (due != null) {
@@ -1193,8 +1325,9 @@ class MovaAdController {
   /// 地丢掉那么多秒正片。真机实测（STG AL00）：续播目标 6006ms、实际落点
   /// 8842ms——2.8 秒的缺口，恰好等于预热开始后广告还剩的时长。
   Future<void> _warmContentBehindAd(MovaSwapController swap, MovaWarmCue cue) async {
+    final gen = _gen;
     final content = await _contentSource();
-    if (content == null) return;
+    if (content == null || gen != _gen || _disposed) return;
     if (_phase != _Phase.ad) return;
     await swap.prepare(
       content,
@@ -1216,6 +1349,9 @@ class MovaAdController {
   ///
   /// 释放订阅并关闭变更流；销毁时调用一次。
   Future<void> dispose() async {
+    _disposed = true;
+    _gen++;
+    _resolving = null;
     _cancelAllTimers();
     await _eventSub?.cancel();
     await _progressSub?.cancel();

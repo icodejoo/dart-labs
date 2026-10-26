@@ -59,6 +59,7 @@ void main() {
     expect(find.text('跳过广告'), findsNothing);
 
     api.pushProgress(const MovaProg(position: Duration(seconds: 6)));
+    api.pushProgress(const MovaProg(position: Duration(seconds: 7)));
     await t.pump();
     await t.pump();
     expect(find.text('跳过广告'), findsOneWidget);
@@ -100,6 +101,7 @@ void main() {
     //
     // 广告已产出首帧——这同时也是解除"始终没有首帧"判定期限的那一下。
     api.pushProgress(const MovaProg(position: Duration(seconds: 1)));
+    api.pushProgress(const MovaProg(position: Duration(seconds: 2)));
     await t.pump();
     await t.tapAt(const Offset(400, 300));
     await t.pump();
@@ -149,6 +151,7 @@ void main() {
   Future<void> finishPending(WidgetTester t, FakeMovaApi api) async {
     await t.pump(const Duration(seconds: 6));
     api.pushProgress(const MovaProg(position: Duration(seconds: 1)));
+    api.pushProgress(const MovaProg(position: Duration(seconds: 2)));
     await t.pump();
     await api.dispose();
   }
@@ -232,6 +235,7 @@ void main() {
     expect(find.text(movaDefaultAdStartingIn(5)), findsNothing);
     expect(find.text('广告'), findsOneWidget);
     api.pushProgress(const MovaProg(position: Duration(seconds: 1)));
+    api.pushProgress(const MovaProg(position: Duration(seconds: 2)));
     await t.pump();
     await api.dispose();
   });

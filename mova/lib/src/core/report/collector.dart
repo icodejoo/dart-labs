@@ -75,7 +75,11 @@ class MovaQoeCollector {
   String? _sessionId;
   MovaStallPolicy? _stallPolicy;
   final MovaTtffTracker _ttff = MovaTtffTracker();
-  final MovaSessionTally _tally = MovaSessionTally();
+  /// Per-session tally; replaced with a fresh instance on every `onOpen` so
+  /// one session never inherits another's watch/stall/position data.
+  ///
+  /// 单会话聚合器；每次 `onOpen` 换成全新实例，会话间不继承观看/卡顿/位置数据。
+  MovaSessionTally _tally = MovaSessionTally();
   MovaErrorPolicy get _errorPolicy => _config.effectiveErrorPolicy;
 
   MovaStreamType _streamType = MovaStreamType.vod;
@@ -153,8 +157,12 @@ class MovaQoeCollector {
     _validMaxPositionMs = 0;
     _lastFfmpegErrorAt = null;
     _ffmpegErrorBeforeDone = false;
-    _tally.setPlaying(false);
-    _tally.setStalled(false);
+    // The previous session's `sessionEnd` was already emitted by onTeardown
+    // (the engine calls it before onOpen), so a fresh tally loses nothing.
+    //
+    // 上一会话的 `sessionEnd` 已由 onTeardown 发出（引擎先调它再调 onOpen），
+    // 换新实例不会丢数据；同时清掉 `_lastTick`，避免会话间隔被算成观看时间。
+    _tally = MovaSessionTally();
     _stallPolicy = _config.newStallPolicy();
     _ttff.reset();
     _ttff.arm(at, autoPlay: autoPlay);

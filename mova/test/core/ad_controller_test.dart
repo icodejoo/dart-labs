@@ -815,6 +815,7 @@ void main() {
         flush(async);
         expect(c.isShowingAd, isTrue);
         api.pushProgress(const MovaProg(position: Duration(seconds: 1)));
+        api.pushProgress(const MovaProg(position: Duration(seconds: 2)));
         async.elapse(const Duration(minutes: 5));
         expect(c.isShowingAd, isTrue, reason: 'with no duration the ad still ends on MovaDone only');
         api.pushEvent(const MovaDone());
@@ -831,6 +832,7 @@ void main() {
         api.pushProgress(const MovaProg(position: Duration(seconds: 31)));
         flush(async);
         api.pushProgress(const MovaProg(position: Duration(seconds: 1)));
+        api.pushProgress(const MovaProg(position: Duration(seconds: 2)));
         flush(async);
         expect(c.isShowingAd, isTrue);
         async.elapse(const Duration(seconds: 15));
@@ -848,6 +850,7 @@ void main() {
         api.pushProgress(const MovaProg(position: Duration(seconds: 31)));
         flush(async);
         api.pushProgress(const MovaProg(position: Duration(seconds: 1)));
+        api.pushProgress(const MovaProg(position: Duration(seconds: 2)));
         async.elapse(const Duration(seconds: 16));
         flush(async);
         expect(events.map((e) => e.type), contains(MovaAdEventType.completed));
@@ -863,6 +866,7 @@ void main() {
         api.pushProgress(const MovaProg(position: Duration(seconds: 31)));
         flush(async);
         api.pushProgress(const MovaProg(position: Duration(seconds: 1)));
+        api.pushProgress(const MovaProg(position: Duration(seconds: 2)));
         async.elapse(const Duration(seconds: 16));
         flush(async);
         expect(api.lastSeek, const Duration(seconds: 31));
@@ -877,6 +881,7 @@ void main() {
         api.pushProgress(const MovaProg(position: Duration(seconds: 31)));
         flush(async);
         api.pushProgress(const MovaProg(position: Duration(seconds: 1)));
+        api.pushProgress(const MovaProg(position: Duration(seconds: 2)));
         flush(async);
         api.calls.clear();
         api.pushEvent(const MovaDone());
@@ -927,6 +932,7 @@ void main() {
         flush(async);
         expect(c.isShowingAd, isTrue, reason: 'the slot has not started counting yet');
         api.pushProgress(const MovaProg(position: Duration(seconds: 1)));
+        api.pushProgress(const MovaProg(position: Duration(seconds: 2)));
         flush(async);
         async.elapse(const Duration(seconds: 15));
         flush(async);
@@ -967,6 +973,7 @@ void main() {
         expect(api.source?.uri, 'https://host/pre1.mp4');
 
         api.pushProgress(const MovaProg(position: Duration(seconds: 1)));
+        api.pushProgress(const MovaProg(position: Duration(seconds: 2)));
         flush(async);
         async.elapse(const Duration(seconds: 4));
         expect(api.source?.uri, 'https://host/pre1.mp4', reason: 'only 4s of pre1 elapsed');
@@ -975,6 +982,7 @@ void main() {
         expect(api.source?.uri, 'https://host/pre2.mp4');
 
         api.pushProgress(const MovaProg(position: Duration(seconds: 1)));
+        api.pushProgress(const MovaProg(position: Duration(seconds: 2)));
         flush(async);
         async.elapse(const Duration(seconds: 4));
         expect(api.source?.uri, 'https://host/pre2.mp4', reason: 'pre2 gets its own full 5s');
@@ -1871,6 +1879,7 @@ void main() {
         c.load(_content);
         flush(async);
         api.pushProgress(const MovaProg(position: Duration(milliseconds: 200)));
+        api.pushProgress(const MovaProg(position: Duration(milliseconds: 400)));
         flush(async);
         async.elapse(const Duration(seconds: 30));
         flush(async);
@@ -1931,6 +1940,7 @@ void main() {
         flush(async);
         expect(c.isShowingAd, isTrue, reason: 'no first frame yet, so the slot has not started');
         api.pushProgress(const MovaProg(position: Duration(milliseconds: 100)));
+        api.pushProgress(const MovaProg(position: Duration(milliseconds: 200)));
         flush(async);
         async.elapse(const Duration(seconds: 9));
         expect(c.isShowingAd, isTrue, reason: 'the retried ad gets its full 10s');

@@ -165,4 +165,45 @@ void main() {
       await events.close();
     });
   });
+
+  group('MovaQoeCollector — session isolation (#14)', () {
+    test('open(B) after A played 60s: B sessionEnd does not inherit A tally or idle gap', () async {
+      var clock = DateTime.utc(2026, 1, 1);
+      final events = StreamController<MovaEvent>.broadcast();
+      final received = <MovaReportEvent>[];
+      final collector = MovaQoeCollector(
+        events: events.stream,
+        reporter: MovaCallbackReporter(received.add),
+        config: const MovaReportConfig(qoe: true),
+        now: () => clock,
+      );
+      // 会话 A：连续两个递增位置落地首帧，再看 60s。
+      collector.onOpen(const MovaSource('https://host/a.mp4'), autoPlay: true);
+      events.add(const MovaPlay());
+      await Future<void>.delayed(Duration.zero);
+      clock = clock.add(const Duration(milliseconds: 100));
+      collector.onPosition(const Duration(milliseconds: 100));
+      clock = clock.add(const Duration(milliseconds: 100));
+      collector.onPosition(const Duration(milliseconds: 200));
+      clock = clock.add(const Duration(seconds: 60));
+      collector.onPosition(const Duration(seconds: 60));
+      // 引擎顺序：先 onTeardown(A)，再 onOpen(B)。
+      collector.onTeardown();
+      // A 与 B 之间空档 30s，不应算观看时间。
+      clock = clock.add(const Duration(seconds: 30));
+      collector.onOpen(const MovaSource('https://host/b.mp4'), autoPlay: true);
+      clock = clock.add(const Duration(seconds: 1));
+      collector.onTeardown();
+      await collector.cancel();
+      await events.close();
+
+      final ends = received.where((e) => e.name == MovaReportName.sessionEnd).toList();
+      expect(ends.length, 2);
+      expect(ends[0].params['watchedMs'], greaterThan(50000), reason: 'A keeps its own data');
+      expect(ends[1].params['watchedMs'], 0);
+      expect(ends[1].params['stallCount'], 0);
+      expect(ends[1].params['stallMs'], 0);
+      expect(ends[1].params.containsKey('completionPercent'), isFalse);
+    });
+  });
 }
