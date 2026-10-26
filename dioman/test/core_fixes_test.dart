@@ -1108,4 +1108,39 @@ void main() {
       expect(cancelAll(dio), 0);
     });
   });
+
+  group('取消类错误不等待胜出结果（取消悬挂）', () {
+    for (final policy in [DiomanSharePolicy.end, DiomanSharePolicy.race]) {
+      for (final withAuth in [false, true]) {
+        test('policy=${policy.name}${withAuth ? ' + auth' : ''}：只取消落败者 A、'
+            'B 永不完成，A 以 cancel 结束并释放登记', () async {
+          final never = Completer<ResponseBody>();
+          final adapter = _FakeAdapter((o, n) => never.future);
+          final dio = _dio(adapter);
+          final loading = DiomanLoading(onChanged: (_) {});
+          Dioman.install(dio,
+              key: const DiomanKey(),
+              share: DiomanShare(policy: policy),
+              cancel: DiomanCancel(),
+              loading: loading,
+              auth: withAuth ? _auth(_Tm('t0')) : null);
+
+          final token = CancelToken();
+          final a = dio
+              .get<dynamic>('/x', cancelToken: token)
+              .then<Object>((_) => 'ok', onError: (Object e) => e);
+          final b = dio.get<dynamic>('/x'); // 永不完成
+          unawaited(b.then<void>((_) {}, onError: (Object _) {}));
+          await _settle();
+          token.cancel('bye');
+
+          final ra = await a.timeout(timeout);
+          expect(ra, isA<DioException>());
+          expect((ra as DioException).type, DioExceptionType.cancel);
+          expect(loading.activeCount, 1, reason: '只剩 B 在途');
+          expect(cancelAll(dio), 1, reason: 'A 的登记已注销，只剩 B');
+        });
+      }
+    }
+  });
 }

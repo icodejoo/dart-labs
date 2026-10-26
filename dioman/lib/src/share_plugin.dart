@@ -401,6 +401,12 @@ class DiomanShare extends DiomanPlugin {
     final entry = opts.extra[_kEntry] as _Entry?;
     if (entry == null) return handler.next(err);
 
+    // 落败者被取消：不等胜出结果，直接以取消错误退出（Dio 对 cancel 类错误
+    // 不再套取消竞争，等待会让调用者取消后一直不返回）。
+    if (err.type == DioExceptionType.cancel && _leaveOnCancel(entry, opts)) {
+      return handler.next(err);
+    }
+
     switch (_policyOf(opts)) {
       case DiomanSharePolicy.retry:
         // 内部重试是异步的，自己负责 handler 恰好完成一次。
@@ -538,6 +544,25 @@ class DiomanShare extends DiomanPlugin {
       entry.completeError(error);
     }
     return null;
+  }
+
+  /// 被取消的 [opts] 若在仲裁中已落败（end 被取代、race 已有胜者或仍有其它在途
+  /// 请求），就脱离 [entry]（race 补扣在途计数）并返回 true；否则返回 false，
+  /// 仍按普通失败结算。
+  bool _leaveOnCancel(_Entry entry, RequestOptions opts) {
+    switch (_policyOf(opts)) {
+      case DiomanSharePolicy.end:
+        if (opts.extra[_kSeq] == entry.seq) return false;
+      case DiomanSharePolicy.race:
+        if (!entry.isSettled) {
+          if (entry.inFlight <= 1) return false;
+          entry.inFlight--;
+        }
+      default:
+        return false;
+    }
+    _markJoined(opts);
+    return true;
   }
 
   /// 预检 [opts] 是否已出局：end 被取代、race 已有胜者时返回胜出结果的 Future。

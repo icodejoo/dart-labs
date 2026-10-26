@@ -170,7 +170,7 @@ class ReplayClient {
 
   /// 错误阶段交出 [self] 的最终失败：注销认领后 `handler.next(err)`。若该请求在
   /// share 仲裁中落败（race 还有在途请求、end 已被取代），改为等胜出结果，成功则
-  /// 走 [finishRecovered]，失败则把胜出方的错误往后传。
+  /// 走 [finishRecovered]，失败则把胜出方的错误往后传；取消类错误例外，直接交出。
   void handOffError(
     Interceptor self,
     RequestOptions opts,
@@ -179,6 +179,11 @@ class ReplayClient {
   ) {
     final wait = releaseClaimArbitrated(opts, self, error: err);
     if (wait == null) return handler.next(err);
+    if (err.type == DioExceptionType.cancel) {
+      // 取消类错误不等胜出结果，直接交出；丢弃的等待不能留未处理异常。
+      wait.ignore();
+      return handler.next(err);
+    }
     wait.then<void>(
       (winner) => finishRecovered(self, opts, winner, handler),
       onError: (Object e, StackTrace s) => handler.next(_asDio(e, opts, s)),
