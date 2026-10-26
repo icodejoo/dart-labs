@@ -1,12 +1,31 @@
 # mova ffmpeg 瘦身构建配置（**✅ 二期任务完成（Android），目标扩展到 Flutter 全平台**）
 
-> **已合入 main（原开发分支 `feat/whep-receiver`，起于 2026-10-02）**：给 libmpv 加 **WebRTC 直播拉流（WHEP）**，
-> 同时把 ffmpeg 升到 n9.0.2、mpv 升到 v0.41.0（最小静态 libplacebo + 摘 `vo_gpu_next`）。
-> 规划与交接见 [doc/plans/2026-10-01-whep-receiver.md](doc/plans/2026-10-01-whep-receiver.md)，
-> 极致瘦身配置见 [doc/notes/2026-10-02-extreme-slim-config.md](doc/notes/2026-10-02-extreme-slim-config.md)，
-> 评估补丁与脚本见 [tools/libplacebo-eval/](tools/libplacebo-eval/README.md)，
-> 旧分支 ffmpeg 9 线存档见 [reference/ffmpeg9-zhangfly/](reference/ffmpeg9-zhangfly/README.md)。
-> **代码一行未动，下一步是 T0.1；下文 README 仍是 n6 线（ffmpeg 6.0 + 钉死 mpv）的现状记录，没有被本轮改动覆盖。**
+> **现状（2026-10-26）：全平台统一在 n9 线 —— ffmpeg n9.0.2 + `patches/ffmpeg-whep`（WHEP demuxer + DTLS-SRTP）+ mpv v0.41.0 + 最小静态 libplacebo。**
+> n6 线（ffmpeg 6.0 / mpv 0.36）已废弃：旧 CI `build-mova-libmpv.yml`、iOS 手写脚本 `flavors-mova-slim-ios.sh` 已删除，
+> 仓库里不再有 n6 二进制。**下文凡写 ffmpeg 6.0 / mpv 0.36 / securetransport 的段落都是历史记录，不代表现状。**
+>
+> | 平台 | 构建 | 产物位置 |
+> |---|---|---|
+> | Android 4 ABI | `build-mova-libmpv-whep.yml` 的 `android-whep`（上游 libmpv-android-video-build + `patches/android-v041`） | `mova/packages/media_kit_libs_android_video_slim_v041/.../jniLibs/<abi>/libmpv.so` |
+> | Windows x64 | `windows-whep`（MSYS2，`tools/whep-flavor/build-windows.sh`） | `mova/libmpv/windows-x86_64-whep/` |
+> | Linux | `linux-whep`（只出 artifact） | 不入库 |
+> | **iOS 真机 / iOS 模拟器 / macOS arm64+x86_64** | `apple-whep` 矩阵 + `apple-package`（Nix，上游 `media-kit/libmpv-darwin-build` 钉 SHA `aadae8c`，叠 `libmpv-darwin-build-mova-slim.patch` 与 `libmpv-darwin-build-whep.patch`） | `mova/packages/media_kit_libs_{ios,macos}_video_slim/{ios,macos}/Frameworks/Mpv.xcframework/`（直接替换，LFS） |
+>
+> **Apple n9 要点**（设计与取舍见 [doc/plans/2026-10-26-apple-whep-build-design.md](doc/plans/2026-10-26-apple-whep-build-design.md)）：
+> - **TLS/DTLS 用静态 mbedtls 3.4.1（开 `MBEDTLS_SSL_DTLS_SRTP`）**：ffmpeg 的 `dtls` 协议没有 securetransport 后端，所以 https 也一起换成 mbedtls，ffmpeg 为 `--enable-version3`，产物是 **LGPLv3**（与 Android 一致）。代价：`tls-verify=yes` 必须配 `tls-ca-file`（mbedtls 读不了钥匙串）。Android 用 mbedtls 3.4.0，Apple 沿用上游 darwin 锁定的 3.4.1，同一条 3.4 线。
+> - 单文件 `libmpv.dylib`（ffmpeg/mpv/dav1d/libass/freetype/harfbuzz/fribidi/libpng/mbedtls/libplacebo 全部静态折进去），导出表只留 `mpv_*`（链接时 `-exported_symbols_list`），依赖只有系统库（`/System/Library`、`/usr/lib`）。
+> - 打包成 `Mpv.xcframework`：install name 统一 `@rpath/Mpv.framework/Mpv`；macOS 为标准 `Versions/A` 布局的 universal（arm64 + x86_64）；附 `PrivacyInfo.xcprivacy`；全部 ad-hoc 签名，正式签名/公证由宿主 App 嵌入时完成。**包内没有 `prepare_command`**：CocoaPods 对 `:path` pod 不执行它，`.symlinks/mpv` 改在 podspec 求值时建。
+> - 最低版本：iOS 13.0 / macOS 10.15。arm64 的 macOS 切片、arm64 iOS 模拟器切片由硬件决定只能到 11.0 / 14.0，链接器自动抬高，Info.plist 的 `MinimumOSVersion`/`LSMinimumSystemVersion` 取自二进制。
+> - mpv 0.41 的 macOS cocoa 层是 Swift，本构建不编 Swift（否则 libmpv 会依赖 `libswift*.dylib`），用 `patches/apple-n9/mpv-macos-no-swift-stubs.c` 补齐 4 个 `cocoa_*` 符号和剪贴板后端；`cocoa_set_mpv_handle` 必须立刻 `mpv_destroy`，否则 `mpv_terminate_destroy` 会因为"mac" client 没人释放而挂死（冒烟实测）。
+> - 上游 `ffmpeg-fix-ios-hdr-texture.patch` 按 n9.0.2 重新移植为 `patches/apple-n9/0001`；`hls-mp4-seek` / `dash-base-url-escape` n9.0.2 已自带；`vp9-hwaccel` 引用 n9 已删除的 `FF_CODEC_CAP_ALLOCATE_PROGRESS`，丢弃（movaslim 不用 `vp9_videotoolbox` 解码器）。`mpv-audiounit-shared-session.patch` 在 0.41 打不上，跳过。
+> - macOS 的 zlib：不再塞 nixpkgs 的 zlib（旧产物 arm64 切片因此依赖包外的 `@rpath/libz.dylib`），改成只写 `-lz` 的 `zlib.pc`，链到 SDK 的 `/usr/lib/libz.1.dylib`。
+> - CI 验证：`tools/apple/apple-macho-check.sh`（依赖白名单/平台/最低版本/导出表/版本串与 WHEP 字串）；`tools/apple/whep-e2e.sh`（macOS 上 MediaMTX + ffmpeg 推流做 WHEP 端到端、失败路径、https 三种校验、iOS 模拟器冒烟）；`flutter build ios --simulator --no-codesign`、`flutter build ios --no-codesign`、`flutter build macos` 编 `mova/example` 检查 pod install 与链接。
+> - **CI 做不了的**：iOS 真机起播、VideoToolbox 硬解（`hwdec-current` 在无 GPU 的 runner 上是 no）、前后台切换、本地网络权限弹窗、macOS Developer ID 签名与公证、App Store 出口合规问卷。
+
+规划与交接见 [doc/plans/2026-10-01-whep-receiver.md](doc/plans/2026-10-01-whep-receiver.md)，
+极致瘦身配置见 [doc/notes/2026-10-02-extreme-slim-config.md](doc/notes/2026-10-02-extreme-slim-config.md)，
+评估补丁与脚本见 [tools/libplacebo-eval/](tools/libplacebo-eval/README.md)，
+旧分支 ffmpeg 9 线存档见 [reference/ffmpeg9-zhangfly/](reference/ffmpeg9-zhangfly/README.md)。
 
 「现代主流点播+直播格式 + 体积优先」的 ffmpeg 瘦身构建配置。对应遗留任务 #4（二期
 ffmpeg 瘦身，见 mova 根 [CLAUDE.md](../mova/CLAUDE.md)，已在 [ROADMAP.md](../mova/doc/ROADMAP.md)

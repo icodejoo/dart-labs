@@ -6,14 +6,14 @@
 ## 当前版本：只有 n9
 
 全部平台以 n9 为主：ffmpeg n9.0.2 + mpv v0.41.0 + WHEP/WebRTC。旧 n6 产物
-（Android 四 ABI、Linux、Windows 旧目录）已于 2026-10-26 移除，不再保留回退。
+（Android 四 ABI、Linux、Windows 旧目录、iOS/macOS 裸 dylib）已于 2026-10-26 移除，不再保留回退。
 
 | 平台 | 位置 | 说明 |
 |---|---|---|
 | Android | `../packages/media_kit_libs_android_video_slim_v041/android/src/main/jniLibs/<abi>/` | 不在本目录；`libmpv.so` 由 `build-mova-libmpv-whep.yml` 注入，`libmediakitandroidhelper.so` 为上游原样提取 |
 | Windows x64 | `windows-x86_64-whep/{libmpv-2.dll,libmpv-2.def,libmpv.dll.a}` | n9；目录名保持 `-whep`，`media_kit_libs_windows_video_slim` 的 CMakeLists 直接引用 |
 | Linux x64 | 无入库产物 | 由 n9 CI 出 artifact |
-| iOS / macOS | `ios-arm64/`、`macos-*/` | 仍是 n6 旧产物，待 Apple 的 n9 构建落地后替换 |
+| iOS / macOS | 不在本目录 | n9；`Mpv.xcframework` 直接由 CI 回写到 `../packages/media_kit_libs_{ios,macos}_video_slim/{ios,macos}/Frameworks/`（与 Android 把 `.so` 放进包里同一个组织方式）。本目录下原来的 `ios-arm64/`、`macos-*/` n6 裸 dylib 已删除 |
 
 ## 约定
 
