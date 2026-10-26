@@ -133,6 +133,17 @@ class MovaLiveConfig {
   /// 的时长。
   final MovaLiveWindowSolver? windowResolver;
 
+  /// Smallest change of a live source's growing duration that is reported
+  /// (state + [MovaDurationChange]); smaller changes are dropped, so a
+  /// stream whose duration ticks up continuously does not flood the event
+  /// stream. `Duration.zero` reports every change. Only live sources are
+  /// throttled; VOD durations are always reported.
+  ///
+  /// 直播源不断增长的时长至少变化多少才上报（state + [MovaDurationChange]）；更小的变化被
+  /// 丢弃，避免时长持续跳动的流刷爆事件流。`Duration.zero` 表示每次变化都上报。只节流直播，
+  /// 点播时长始终上报。
+  final Duration durationStep;
+
   /// Creates a live config; seeking off and a 10-second edge threshold by
   /// default.
   ///
@@ -145,6 +156,7 @@ class MovaLiveConfig {
     this.backToLive,
     this.autoBackToLiveOnStall = false,
     this.windowResolver,
+    this.durationStep = const Duration(seconds: 2),
   });
 
   /// The back-to-live strategy actually in effect.
@@ -182,6 +194,7 @@ class MovaLiveConfig {
   /// - [backToLive]: replacement back-to-live strategy / 替换用的回直播策略
   /// - [autoBackToLiveOnStall]: replacement stall behaviour / 替换用的卡顿行为
   /// - [windowResolver]: replacement window resolver / 替换用的窗口解析器
+  /// - [durationStep]: replacement duration report step / 替换用的时长上报步长
   ///
   /// Returns the new [MovaLiveConfig] / 返回新的 [MovaLiveConfig]。
   MovaLiveConfig copyWith({
@@ -192,6 +205,7 @@ class MovaLiveConfig {
     MovaBackToLive? backToLive,
     bool? autoBackToLiveOnStall,
     MovaLiveWindowSolver? windowResolver,
+    Duration? durationStep,
   }) {
     return MovaLiveConfig(
       seekMode: seekMode ?? this.seekMode,
@@ -202,6 +216,7 @@ class MovaLiveConfig {
       autoBackToLiveOnStall:
           autoBackToLiveOnStall ?? this.autoBackToLiveOnStall,
       windowResolver: windowResolver ?? this.windowResolver,
+      durationStep: durationStep ?? this.durationStep,
     );
   }
 
@@ -216,7 +231,8 @@ class MovaLiveConfig {
           urlBuilder == other.urlBuilder &&
           backToLive == other.backToLive &&
           autoBackToLiveOnStall == other.autoBackToLiveOnStall &&
-          windowResolver == other.windowResolver;
+          windowResolver == other.windowResolver &&
+          durationStep == other.durationStep;
 
   @override
   int get hashCode => Object.hash(
@@ -227,5 +243,6 @@ class MovaLiveConfig {
         backToLive,
         autoBackToLiveOnStall,
         windowResolver,
+        durationStep,
       );
 }

@@ -124,6 +124,23 @@ void main() {
     await t.pump();
   });
 
+  test('7b. the test kernel records the per-source mpv options the engine stages', () async {
+    final engine = createMovaEngine();
+    addTearDown(engine.dispose);
+    await engine.open(
+      const MovaSource(
+        'whep+http://h:8889/x/whep',
+        type: MovaStreamType.live,
+        whepMediaTimeout: Duration(seconds: 3),
+      ),
+    );
+    await engine.open(const MovaSource('https://h/b.m3u8'));
+    expect(MovaTesting.lastKernel!.stagedSourceOptions, [
+      {'demuxer-lavf-o': 'media_timeout=3000000'},
+      <String, String>{},
+    ]);
+  });
+
   test('7. the main barrel exports nothing from the testing entry', () {
     final barrel = File('lib/mova.dart').readAsStringSync();
     expect(barrel, isNot(contains('testing')));

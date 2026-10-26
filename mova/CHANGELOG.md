@@ -1,3 +1,18 @@
+## Unreleased
+
+* **Fix：恢复层真机复测的两处问题**。
+  * **默认配置下 404 等确定性失败仍等满 `startTimeout` 才重试**：原生 `END_FILE` 订阅只在有 reporter 或 `preciseFirstFrame: true` 时才打开，`recovery.enabled` 不会打开它，README 写的"坏地址秒判"对不上。现在 `createMovaEngine` 在 `recovery.enabled` 时自动订阅 `END_FILE`；`MovaMpvKernel` 新增 `observeRestarts`（默认 `true`），恢复机制只开 END_FILE、不转发 `PLAYBACK_RESTART`，首帧判据与未开 recovery 时一致（不转发 RESTART 时 `nativeRestartAvailable` 为 `false`，首帧闸门不会白等宽限）。`movaObserveFlags` 新增 `recovery` 参数与 `restart` 字段。
+  * **`whepMediaTimeout`/`demuxerOptions` 整体覆盖 `demuxer-lavf-o`，还原又失败**：此前整串 set，media_kit 默认的 `seg_max_retry`/`allowed_extensions`/`protocol_whitelist` 等被冲掉；还原时把读出的串原样写回，而 `protocol_whitelist` 的值带逗号没法再解析，mpv 报 `Expected '=' and a value.`，错误进 `state.error` 并发 `MovaErrorEvent`，之后的点播源还带着 `media_timeout`。现改为 `change-list add` 只并入本源的键，还原时 `remove` 这些键、被同名键顶掉的原值用 `append` 补回，不再读回整串；写入失败或语法不合法的项整项跳过。`MovaMpvKernel` 对 `demuxer-lavf-o`/`stream-lavf-o` 这类键值列表走此路径，其余 `mpvOptions` 仍是整值写入、还原为读到的原值。
+
+* **Fix：恢复层（`MovaOpts.recovery`）六处问题**（来自 Android 真机拉 WebRTC/WHEP 直播、推流端掉线再恢复的场景）：
+  * **恢复成功后 `state.error` 不清**：`MovaRecovered` 发出时同步清掉失败期间遗留的内核错误（此前只有 `open()` 会清，画面正常了仍带着旧的 "Failed to recognize file format"）。
+  * **放弃后 `state.buffering` 一直为 true**：`giveUp` 时把 `buffering` 置回 false，并补发一次 `MovaBufferChange(false)`（本来就不在缓冲则不多发），转圈不再永远挂着。
+  * **重试失败要等满 `startTimeout` 才发下一次**：根因是加载在途（`_kernelOpening`）时到达的 `END_FILE(error)`（如 404）被直接丢弃，只能靠 10s 起播超时兜底。现在先记下，`open()` 返回后立刻按策略处理；被更新的 `open()` 取代的会话则丢弃。
+  * **直播默认只重试 1 次**：新增 `MovaLiveReconnect`（指数退避，默认 1s 起、×2、封顶 30s，永不放弃，`maxAttempts` 可设上限；多地址时前面的地址各重试 `retriesPerAddress` 次再切，最后一个持续重连）与 `MovaDefaultRecovery`（点播 `MovaRetryThenFailover`、直播 `MovaLiveReconnect`），`MovaRecoveryConfig.policy` 为 `null` 时生效；新增开关 `MovaRecoveryConfig.liveReconnect`（默认 `true`，设 `false` 直播回到旧的重试 1 次）；`MovaPlayFail` 新增 `isLive`。**行为变化**：直播源在 recovery 开启且没传自定义 `policy` 时不再在第二次失败后放弃；点播默认行为不变。`MovaRecoveryConfig.effectivePolicy` 的默认类型由 `MovaRetryThenFailover` 变为 `MovaDefaultRecovery`。
+  * **公开 API 无法传源级 libmpv/ffmpeg 选项**：`MovaSource` 新增 `mpvOptions`（任意 mpv 选项）、`demuxerOptions`（合成 `demuxer-lavf-o`）、`whepMediaTimeout`（WHEP `media_timeout`，自动换算微秒、只对 `whep…` 地址生效）与 `mpvOptionsFor(address)`；`MovaSource.pick`/`sameAs` 同步支持。内核侧新增可选能力 `MovaSourceOptionsKernel`（`MovaMpvKernel` 与 `MovaTestKernel` 实现）：引擎在每次内核 `open` 前暂存该地址的选项，内核在 open 前下发，下一次 open 先还原原值，不泄漏到下一个源。`MovaTestKernel.stagedSourceOptions` 供宿主测试断言。
+  * **直播 `MovaDurationChange` 过于频繁**：新增 `MovaLiveConfig.durationStep`（默认 2s），直播源时长变化不足一个步长不上报（state 与事件都跳过；首个非零值、回落到 0、重新 open/重载后的第一个值一律放行），`Duration.zero` 关闭节流；点播不变。
+  * 新增 48 项回归（`recovery_fixes_test`/`live_reconnect_test`/`duration_throttle_test`/`source_options_test`/`engine_source_options_test`/`mpv_kernel_source_options_test` 等），全量 1472 项通过。
+
 ## 0.3.1
 
 * **Breaking（公开签名）：`MovaApi.open()` 由 `Future<void>` 改为 `Future<bool>`**，`true` 表示该源已被接受为当前源；`beforeOpen` 钩子拒绝、被更晚的 `open()` 取代、引擎已销毁时为 `false`。加载失败不算 `false`（照旧经事件/恢复上报，未处理的仍抛出）。只 `await`/`unawaited` 调用的代码无需改动；自己实现 `MovaApi` 的类（含测试替身）须把 `open` 的返回类型改成 `Future<bool>`。`MovaPlaylistController.jumpTo` 据此在 `open` 被拒绝时不再前进下标，列表与实际在播源不再错位。

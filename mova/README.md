@@ -178,7 +178,7 @@ api.events.listen((e) {
 ```
 
 - 判据：原生 `PLAYBACK_RESTART` 最准；没订阅时退到 buffering 下降沿、连续递增位置、暂停态首个画面尺寸。原生订阅在工作却迟迟不来 RESTART，最多等 1.5s 宽限就落地。
-- **默认不开原生订阅**（每个引擎一个 mpv 弱客户端，debug 下还有 100ms 轮询）：`createMovaEngine(preciseFirstFrame: true)` 打开，首帧更准（真机上 buffering 兜底比真实 RESTART 早约 200ms，偏乐观）；`MovaView` 有 `poster` 时默认开。
+- **默认不开原生订阅**（每个引擎一个 mpv 弱客户端，debug 下还有 100ms 轮询；开了 `recovery` 会为"坏地址秒判"订阅 `END_FILE`，但不转发 `PLAYBACK_RESTART`，首帧判据不变）：`createMovaEngine(preciseFirstFrame: true)` 打开，首帧更准（真机上 buffering 兜底比真实 RESTART 早约 200ms，偏乐观）；`MovaView` 有 `poster` 时默认开。
 - `MovaPlayer(poster:)` / `MovaView(poster:)`：封面叠在传给皮肤的"画面层"里，缓冲转圈、错误层、控制条都画在它上面；`rendered` 且画面尺寸已知后淡出（`posterFade`），换源瞬间重新盖上；纯音频源封面常驻。`MovaFeedPlayer(posterUntilFirstFrame: true)` 同理，默认关闭。
 - 填充模式声明式：`MovaEngine(fit:)` / `createMovaEngine(fit:)` 给初值，`MovaPlayer(fit:)` / `MovaView(fit:)` 在挂载与**该参数变化**时应用一次；用户点 fit 按钮选的值不会被无关重建覆盖。
 - 想要没有手势、没有任何栏的纯画面：`MovaMinimalSkin(showBuffering:, showError:)`；转圈尺寸/线宽/颜色用 `MovaTheme.bufferingSize/bufferingStrokeWidth/bufferingColor`（默认 `null` 即旧外观）。
@@ -195,11 +195,21 @@ createMovaEngine(
 final src = MovaSource.pick([hd, sd, backup], type: MovaStreamType.live);
 ```
 
-- 触发源：**起播超时**（默认 10s 没出首帧；`autoPlay: false` 的暂停态打开不计时，`play()` 后从头计）、**卡顿超时**（出首帧后连续缓冲 10s，`stallTimeout: null` 关闭；暂停即停表）、`open()` 抛异常、原生 `END_FILE(error)`（坏地址秒判，不等超时）、直播走到结尾（`liveEndIsFailure`，默认算失败）。
-- 默认策略 `MovaRetryThenFailover`：每个地址等 1s 重试 1 次，再切下一个备选，全部用完放弃；`MovaFailoverOnly` 不重试同一地址；也可以实现 `MovaRecoveryPolicy` 整体替换（策略抛异常按放弃处理）。
-- 事件：每次失败发 `MovaPlayFailure(fail, action)`（`fail.kind` 区分起播/卡顿/…，此时**不**写 `state.error`，还在重试）；失败后重新出画面发 `MovaRecovered`；切备选发 `MovaFailover(from, to, uri)`，`MovaState.sourceIndex` 同步；全部失败后写 `state.error = MovaGiveUpError`、发 `MovaErrorEvent`，并暂停内核（离线的直播源不会在后台一直重连）。错误层的"重试"走 `reload()`，从主地址开一个全新会话。
+- 触发源：**起播超时**（默认 10s 没出首帧；`autoPlay: false` 的暂停态打开不计时，`play()` 后从头计）、**卡顿超时**（出首帧后连续缓冲 10s，`stallTimeout: null` 关闭；暂停即停表）、`open()` 抛异常、原生 `END_FILE(error)`（坏地址秒判，不等超时；开启 `recovery` 就会自动订阅，不必再加 `preciseFirstFrame`）、直播走到结尾（`liveEndIsFailure`，默认算失败）。
+- 默认策略 `MovaDefaultRecovery`：**点播**走 `MovaRetryThenFailover`（每个地址等 1s 重试 1 次，再切下一个备选，全部用完放弃，行为与以往一致）；**直播**走 `MovaLiveReconnect`（指数退避 1s、2s、4s…封顶 30s 持续重连，推流端重启/掉线后自动接上；有备选时前面的地址各重试 1 次再切，最后一个地址一直重连，`maxAttempts` 可设上限）。不想让直播一直重连：`MovaRecoveryConfig(liveReconnect: false)`，直播回到和点播一样的"重试 1 次就放弃"。`MovaFailoverOnly` 不重试同一地址；也可以实现 `MovaRecoveryPolicy` 整体替换（策略抛异常按放弃处理；`MovaPlayFail.isLive` 可用来区分直播）。
+- 确定性失败（404、拒连、`open()` 抛异常、加载在途时到达的 `END_FILE(error)`）一经发现就按策略的退避进入下一次尝试，不必等满 `startTimeout`。
+- 事件：每次失败发 `MovaPlayFailure(fail, action)`（`fail.kind` 区分起播/卡顿/…，此时**不**写 `state.error`，还在重试）；失败后重新出画面发 `MovaRecovered`，同时清掉失败期间遗留的 `state.error`；切备选发 `MovaFailover(from, to, uri)`，`MovaState.sourceIndex` 同步；全部失败后写 `state.error = MovaGiveUpError`、发 `MovaErrorEvent`，把残留的 `state.buffering` 置回 false，并暂停内核（离线的直播源不会在后台一直重连）。错误层的"重试"走 `reload()`，从主地址开一个全新会话。
 - 重试/切换是内核重载，**不是新会话**：不过 `beforeOpen` 拦截器、不发 `MovaSourceChange`、不动 QoE 会话；`MovaSourceChange`/`MovaReady` 每次 `open()` 只发一次。点播源失败前出过画面的，重载后续播到失败位置。
 - **没开 `recovery` 时 `alternatives` 会被忽略**（失败检测是 recovery 提供的），`open()` 失败仍然照旧抛给调用方；开启后 `open()` 失败改为发 `MovaPlayFailure(openThrew)` 并重试，不再抛。
+- **按源传 libmpv / ffmpeg 选项**：`MovaSource(mpvOptions:, demuxerOptions:, whepMediaTimeout:)`。`mpvOptions` 是 mpv 选项名到值（如 `{'cache': 'no'}`），`demuxerOptions` 合成进 `demuxer-lavf-o`；都在该源加载前下发、下一个源加载时还原，不会泄漏到别的源，mpv 不接受的选项静默跳过。`demuxer-lavf-o` 是按键并入现有列表（mpv 的 `change-list add`），还原时只删本源加的键、被顶掉的同名键补回原值，media_kit 默认的 `protocol_whitelist`、`allowed_extensions` 等始终保留。WHEP 直播源可以直接写 `whepMediaTimeout: Duration(seconds: 3)`（换算成微秒的 `media_timeout`，只对 `whep…` 地址生效，显式的 `demuxerOptions['media_timeout']` 优先），推流端掉线后更快判失败、更快重连：
+  ```dart
+  const MovaSource(
+    'whep+http://host:8889/x/whep',
+    type: MovaStreamType.live,
+    whepMediaTimeout: Duration(seconds: 3),
+  );
+  ```
+- 直播的时长一直在涨，`MovaDurationChange`（及 `state.duration`）对直播源按 `MovaLiveConfig.durationStep`（默认 2s）节流：变化不足一个步长不上报；`Duration.zero` 恢复每次都报。点播不受影响。
 - mova 不提供备选地址的排序/过滤钩子：排序依据（比如档位名）和协议能否播放（取决于你用的 libmpv 构建）都是宿主才知道的，排好序传进来即可。`MovaSource.pick` 只做清洗：去空白、去空串、去重、保序。
 
 ## 自动暂停（可选）
@@ -804,7 +814,7 @@ dependency_overrides:
 
 ### iOS / macOS
 
-**⚠️ 结构已落地，但完全未经验证（没有 Mac，无法构建/签名/真机测试）**：
+**CI 已验证到编译、链接与 WHEP 端到端冒烟；iOS 真机起播未验证（见本节末）**：
 
 ```yaml
 dependency_overrides:
@@ -820,19 +830,25 @@ dependency_overrides:
       ref: main
 ```
 
-`packages/media_kit_libs_ios_video_slim` 与 `_macos_video_slim` 两个 fork 包已经
-提交了 `Frameworks/Mpv.xcframework`（用 mova-libmpv 的 `libmpv.dylib` 手工拼出
-`Mpv.framework` 的目录结构——`Info.plist`/`Modules/module.modulemap`/`Headers/`），
-podspec 用 `prepare_command` 在 `pod install` 时跑官方同款
-`create_framework_symlinks.sh`（MIT，未改动）生成符号链接，不再走官方那套
-下载 xcframework 归档的 `make` 流程。
+`packages/media_kit_libs_ios_video_slim` 与 `_macos_video_slim` 两个 fork 包里的
+`Frameworks/Mpv.xcframework` 由 CI（`build-mova-libmpv-whep.yml` 的 `apple-whep` +
+`apple-package`）直接编译并回写（LFS），是 n9 线的 WHEP 版 libmpv：ffmpeg n9.0.2 + WHEP/DTLS-SRTP
++ mpv v0.41.0，单文件静态，只依赖系统库。iOS 为真机 arm64 + 模拟器 arm64/x86_64，macOS 为
+arm64 + x86_64 的 universal；`install name` 为 `@rpath/Mpv.framework/Mpv`，最低版本 iOS 13 / macOS 10.15。
+podspec 里**没有 `prepare_command`**（CocoaPods 对 `:path` pod 不执行它），`Frameworks/.symlinks/mpv`
+由 podspec 求值时生成（已 `.gitignore`）。
 
-**这些文件是在没有 Xcode 工具链（`otool`/`install_name_tool`/`xcodebuild`/`lipo`）
-的 Windows 机器上手工拼装的**，从未跑过 `pod install`，也从未真机验证过——dylib
-的 `LC_ID_DYLIB`/依赖路径是否符合 framework 内部约定（`@rpath/Mpv.framework/Mpv`）
-完全未经确认，`macos-universal/libmpv.dylib` 是否真的是 arm64+x86_64 fat binary
-也未用 `lipo` 核实过。**接入前请先在 Mac 上完整走一遍 `pod install` +
-`flutter build ios`/`flutter build macos` + 真机播放，不要直接用于生产。**
+**TLS 行为变化**：Apple 版 libmpv 的 TLS/DTLS 全部走静态 mbedtls（securetransport 做不了 DTLS-SRTP），
+所以与 Android 一样：`tlsVerify` 为 true 时必须同时给 `tlsCaFile`（读不了系统钥匙串）；
+mbedtls 3.4 不匹配证书 SAN 里的 IP 地址，IP 字面量主机名的 https 在校验开启时必然失败，请用域名。
+ffmpeg 因此为 `--enable-version3`，整体 **LGPLv3**。
+
+**宿主 App 需要自己做的**：`NSLocalNetworkUsageDescription`（WHEP 连局域网地址时 iOS 14+ 会弹本地网络权限）；
+macOS 沙盒需要 `com.apple.security.network.client`；macOS 的 Developer ID 签名/公证、iOS 签名由宿主 App
+嵌入 framework 时完成（包内只做了 ad-hoc 签名）；App Store 出口合规问卷从"只用系统加密"变成"自带 mbedtls"，请自行确认。
+
+**仍未验证（CI 做不了）**：iOS 真机起播与 VideoToolbox 硬解（runner 上 `hwdec-current` 是 no）、前后台切换、
+真机的本地网络权限弹窗。
 详见 [doc/plans/2026-09-25-libmpv-pub-package.md](doc/plans/2026-09-25-libmpv-pub-package.md)
 「Darwin（iOS/macOS）同名替换设计」一节；欢迎有 Mac 环境的贡献者验证并回填结论。
 

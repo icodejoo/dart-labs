@@ -1,0 +1,6 @@
+framework module Mpv {
+  umbrella header "client.h"
+
+  export *
+  module * { export * }
+}

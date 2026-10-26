@@ -1,0 +1,2 @@
+# podspec 求值时生成的符号链接，不入库
+ios/Frameworks/.symlinks/

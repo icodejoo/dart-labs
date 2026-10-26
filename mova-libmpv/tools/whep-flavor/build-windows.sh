@@ -5,7 +5,7 @@
 #
 # 两种模式（MODE）：
 #   base  复刻 CI 现状：ffmpeg n6.0.1 + mpv 78d4374 + ksmedia 补丁，不含 WHEP、不含 libplacebo
-#   whep  ffmpeg n9.0.2 + patches/ffmpeg-whep/0001-0012 + mpv v0.41.0 + patches/mpv-v041（0001/0003/0004/0005/0006/0007）
+#   whep  ffmpeg n9.0.2 + patches/ffmpeg-whep/0001-0014 + mpv v0.41.0 + patches/mpv-v041（0001/0003/0004/0005/0006/0007）
 #         + 最小静态 libplacebo；TLS 仍是系统 SChannel，另外编进 whep demuxer 与 dtls 协议
 #         + S 档瘦身（见 doc/notes/2026-10-02-windows-shrink-research.md）：win-iconv 取代 GNU libiconv、
 #           freetype/harfbuzz/libass 钉 tag 源码构建（libass 只用 DirectWrite、无 fontconfig）、

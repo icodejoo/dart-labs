@@ -211,10 +211,25 @@ void main() {
   });
 
   test('movaObserveFlags truth table: native follows reporter OR preciseFirstFrame, qoe follows reporter only', () {
-    expect(movaObserveFlags(hasReporter: false, preciseFirstFrame: false), (qoe: false, native: false));
-    expect(movaObserveFlags(hasReporter: false, preciseFirstFrame: true), (qoe: false, native: true));
-    expect(movaObserveFlags(hasReporter: true, preciseFirstFrame: false), (qoe: true, native: true));
-    expect(movaObserveFlags(hasReporter: true, preciseFirstFrame: true), (qoe: true, native: true));
+    expect(movaObserveFlags(hasReporter: false, preciseFirstFrame: false), (qoe: false, native: false, restart: false));
+    expect(movaObserveFlags(hasReporter: false, preciseFirstFrame: true), (qoe: false, native: true, restart: true));
+    expect(movaObserveFlags(hasReporter: true, preciseFirstFrame: false), (qoe: true, native: true, restart: true));
+    expect(movaObserveFlags(hasReporter: true, preciseFirstFrame: true), (qoe: true, native: true, restart: true));
+  });
+
+  test('movaObserveFlags: recovery alone opens the native pump for END_FILE only (restart/qoe stay off)', () {
+    expect(
+      movaObserveFlags(hasReporter: false, preciseFirstFrame: false, recovery: true),
+      (qoe: false, native: true, restart: false),
+    );
+    expect(
+      movaObserveFlags(hasReporter: false, preciseFirstFrame: true, recovery: true),
+      (qoe: false, native: true, restart: true),
+    );
+    expect(
+      movaObserveFlags(hasReporter: true, preciseFirstFrame: false, recovery: true),
+      (qoe: true, native: true, restart: true),
+    );
   });
 
   test('createMovaEngine forwards fit to the engine', () {

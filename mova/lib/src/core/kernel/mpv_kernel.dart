@@ -11,7 +11,9 @@ import 'kernel.dart';
 import 'mpv_defaults.dart';
 import 'mpv_event_backend.dart';
 import 'mpv_event_pump.dart';
+import 'mpv_keyvalue.dart';
 import 'player_mute.dart';
+import 'source_options_kernel.dart';
 import 'standby_kernel.dart';
 
 /// 弱客户端后端工厂函数定义。
@@ -56,7 +58,8 @@ const String _kVidAuto = 'auto';
 /// 其余所有文件都必须与具体引擎无关。它同时实现 [MovaStatsProbe]——QoE 层用来
 /// 拿 libmpv 自身统计量的可选能力——因为这个实现同样只能落在这里。同时实现
 /// [MovaStandbyKernel]（在隐藏时关画面/关声音维持流）。
-class MovaMpvKernel implements MovaKernel, MovaStatsProbe, MovaStandbyKernel, MovaPlayerMute {
+class MovaMpvKernel
+    implements MovaKernel, MovaStatsProbe, MovaStandbyKernel, MovaPlayerMute, MovaSourceOptionsKernel {
   /// Creates a media_kit-backed kernel.
   ///
   /// [player] lets the caller inject an existing `Player` (e.g. for testing
@@ -113,6 +116,10 @@ class MovaMpvKernel implements MovaKernel, MovaStatsProbe, MovaStandbyKernel, Mo
   /// 为 `null`（默认）时跟随 [observeQoeSignals]，既有调用点行为不变；显式传 `true`
   /// 可在不开 QoE 的情况下只订阅原生事件（例如为了精确首帧信号）。
   ///
+  /// [observeRestarts] 只在原生事件订阅开启时有意义：为 `false` 时丢弃 `PLAYBACK_RESTART`，
+  /// [playbackRestarts] 不再发事件，只保留 [endFiles]（例如仅为恢复机制的"坏地址秒判"订阅
+  /// END_FILE，而不改变首帧判定）。默认 `true`。
+  ///
   /// [backendFactory] 为原生事件提供获取后端的工厂。
   ///
   /// [videoControllerFactory] / [videoReady] 仅供测试注入：分别替换 `VideoController`
@@ -124,14 +131,14 @@ class MovaMpvKernel implements MovaKernel, MovaStatsProbe, MovaStandbyKernel, Mo
   /// [tlsVerify] turns on strict TLS certificate verification (mpv
   /// `tls-verify=yes`): expired / self-signed / hostname-mismatched HTTPS
   /// streams are rejected. Default `false` sends no TLS property at all
-  /// (libmpv's own default applies; on Android that means no verification).
+  /// (libmpv's own default applies; with mbedtls that means no verification).
   /// [tlsCaFile] is an absolute path to a PEM CA bundle sent as `tls-ca-file`;
   /// only used when [tlsVerify] is true. Android's mbedtls backend has no
   /// system trust store, so verification there needs this file.
   ///
   /// [tlsVerify] 开启严格 TLS 证书校验（mpv `tls-verify=yes`）：过期/自签/域名不符
   /// 的 HTTPS 流会被拒绝。默认 `false`，不下发任何 TLS 属性（沿用 libmpv 自身默认，
-  /// Android 上即不校验）。[tlsCaFile] 为 PEM 格式 CA 证书包的绝对路径，以
+  /// mbedtls 后端上即不校验）。[tlsCaFile] 为 PEM 格式 CA 证书包的绝对路径，以
   /// `tls-ca-file` 下发，仅在 [tlsVerify] 为 true 时生效。Android 的 mbedtls 后端
   /// 没有系统信任库，要校验就需要这个文件。
   MovaMpvKernel({
@@ -140,6 +147,7 @@ class MovaMpvKernel implements MovaKernel, MovaStatsProbe, MovaStandbyKernel, Mo
     this.lazyVideo = false,
     bool observeQoeSignals = true,
     bool? observeNativeEvents,
+    bool observeRestarts = true,
     MovaMpvEventBackendFactory? backendFactory,
     this.tlsVerify = false,
     this.tlsCaFile,
@@ -150,6 +158,7 @@ class MovaMpvKernel implements MovaKernel, MovaStatsProbe, MovaStandbyKernel, Mo
     this.liveProbeInterval = kLiveProbeInterval,
   })
     : _player = player ?? Player(configuration: PlayerConfiguration(protocolWhitelist: movaProtocolWhitelist())),
+      _observeRestarts = observeRestarts, // ignore: prefer_initializing_formals
       _backendFactory = backendFactory,
       _videoControllerFactory = videoControllerFactory ?? VideoController.new,
       _videoReadyProbe = videoReady ?? ((c) => c.platform.future) {
@@ -337,6 +346,9 @@ class MovaMpvKernel implements MovaKernel, MovaStatsProbe, MovaStandbyKernel, Mo
   /// 后端工厂函数，用于创建 MovaMpvEventBackend。
   final MovaMpvEventBackendFactory? _backendFactory;
 
+  /// 是否转发原生 `PLAYBACK_RESTART`；为 false 时只转发 END_FILE。
+  final bool _observeRestarts;
+
   /// 全局单调递增计数器，为每个事件泵生成唯一名字。
   static int _pumpNameCounter = 0;
 
@@ -392,7 +404,7 @@ class MovaMpvKernel implements MovaKernel, MovaStatsProbe, MovaStandbyKernel, Mo
       backend,
       name: pumpName,
       onRestart: () {
-        if (!_restartController.isClosed) {
+        if (_observeRestarts && !_restartController.isClosed) {
           _restartController.add(null);
         }
       },
@@ -595,8 +607,79 @@ class MovaMpvKernel implements MovaKernel, MovaStatsProbe, MovaStandbyKernel, Mo
     _sizeController.add(MovaSize(width: _lastWidth, height: _lastHeight));
   }
 
+  /// 暂存、待下一次 [open] 应用的按源选项；[open] 一开头就取走并清空。
+  Map<String, String> _stagedOptions = const {};
+
+  /// 已下发的按源选项在下发前的原值（属性名 → 原值）；非空即有待还原项，下次 [open] 先还原。
+  final Map<String, String> _appliedOptions = {};
+
+  /// 已下发的键值列表选项：选项名 → 本源加入的键及其原值（`null` 表示原来没有该键）。
+  /// 还原时只删这些键、把有原值的补回去，不碰列表里别的项。
+  final Map<String, Map<String, String?>> _appliedLists = {};
+
+  @override
+  void stageSourceOptions(Map<String, String> options) => _stagedOptions = Map.of(options);
+
+  /// 把上一个源下发过的属性写回原值；写入失败被吞掉。
+  Future<void> _restoreSourceOptions() async {
+    if (_appliedOptions.isEmpty && _appliedLists.isEmpty) return;
+    final native = _player.platform;
+    final saved = Map.of(_appliedOptions);
+    final savedLists = Map.of(_appliedLists);
+    _appliedOptions.clear();
+    _appliedLists.clear();
+    if (native is! NativePlayer) return;
+    for (final e in saved.entries) {
+      try {
+        await native.setProperty(e.key, e.value);
+      } catch (_) {}
+    }
+    for (final list in savedLists.entries) {
+      for (final key in list.value.entries) {
+        try {
+          await native.command(['change-list', list.key, 'remove', key.key]);
+          final original = key.value;
+          if (original != null) await native.command(['change-list', list.key, 'append', '${key.key}=$original']);
+        } catch (_) {}
+      }
+    }
+  }
+
+  /// 把键值列表选项 [name] 的 [value] 并入现有列表（`change-list add`，不覆盖别的项），
+  /// 并记下这些键的原值供还原；值不合法或写入失败就整项跳过。
+  Future<void> _applyListOption(NativePlayer native, String name, String value) async {
+    final entries = parseMpvKeyValueList(value);
+    if (entries == null || entries.isEmpty) return;
+    final printed = await _readNativeProperty(name) ?? '';
+    final originals = <String, String?>{for (final e in entries) e.key: lookupMpvKeyValue(printed, e.key)};
+    try {
+      await native.command(['change-list', name, 'add', value]);
+      _appliedLists.putIfAbsent(name, () => {}).addAll(originals);
+    } catch (_) {}
+  }
+
+  /// 记下原值后逐项下发 [options]；某项写入失败只跳过该项，不影响播放。
+  Future<void> _applySourceOptions(Map<String, String> options) async {
+    final native = _player.platform;
+    if (options.isEmpty || native is! NativePlayer) return;
+    for (final e in options.entries) {
+      if (kMpvKeyValueListOptions.contains(e.key)) {
+        await _applyListOption(native, e.key, e.value);
+        continue;
+      }
+      final original = await _readNativeProperty(e.key) ?? '';
+      try {
+        await native.setProperty(e.key, e.value);
+        _appliedOptions[e.key] = original;
+      } catch (_) {}
+    }
+  }
+
   @override
   Future<void> open(String uri, {bool play = true}) async {
+    // 同步取走暂存项：它只属于紧随其后的这一次 open，不被后来的 open 误用。
+    final options = _stagedOptions;
+    _stagedOptions = const {};
     await _tlsSetup;
     final seq = ++_openSeq;
     _formatProbePending = false;
@@ -605,6 +688,11 @@ class MovaMpvKernel implements MovaKernel, MovaStatsProbe, MovaStandbyKernel, Mo
     // A newer open() (or dispose) superseded this one while it was waiting.
     //
     // 等待期间已被更新的 open()（或 dispose）取代。
+    if (seq != _openSeq || _disposed) return;
+    // 先还原上一个源的按源选项，再下发本源的：选项不跨源泄漏。
+    await _restoreSourceOptions();
+    if (seq != _openSeq || _disposed) return;
+    await _applySourceOptions(options);
     if (seq != _openSeq || _disposed) return;
     if (_player.platform is NativePlayer) {
       _watchLoaded();
@@ -728,7 +816,8 @@ class MovaMpvKernel implements MovaKernel, MovaStatsProbe, MovaStandbyKernel, Mo
   Stream<void> get playbackRestarts => _restartController.stream;
 
   @override
-  bool get nativeRestartAvailable => _pump?.isActive ?? false;
+  // 不转发 RESTART 时不能声称有信号，否则首帧闸门会白等宽限。
+  bool get nativeRestartAvailable => _observeRestarts && (_pump?.isActive ?? false);
 
   @override
   Stream<MovaEndFileReason> get endFiles => _endFileController.stream;

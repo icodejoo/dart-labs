@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:typed_data';
 
 import '../core/kernel/kernel.dart';
+import '../core/kernel/source_options_kernel.dart';
 import '../core/kernel/standby_kernel.dart';
 import '../core/report/stats_probe.dart';
 import '../core/standby/standby.dart';
@@ -19,7 +20,7 @@ import '../core/standby/standby.dart';
 /// k.emitSize(1280, 720);
 /// k.emitRestart(); // MovaState.rendered → true
 /// ```
-class MovaTestKernel implements MovaKernel, MovaStatsProbe, MovaStandbyKernel {
+class MovaTestKernel implements MovaKernel, MovaStatsProbe, MovaStandbyKernel, MovaSourceOptionsKernel {
   /// Creates a test kernel.
   ///
   /// 创建一个测试内核。
@@ -52,6 +53,17 @@ class MovaTestKernel implements MovaKernel, MovaStatsProbe, MovaStandbyKernel {
   ///
   /// 最近一次 `seek()` 的目标。
   Duration? lastSeek;
+
+  /// The mpv options the engine staged for each `open()`, in order (an empty map
+  /// when the source had none). Lets host tests assert `MovaSource.mpvOptions`
+  /// / `whepMediaTimeout` reach the kernel.
+  ///
+  /// 引擎为每次 `open()` 暂存的 mpv 选项，按顺序（源没有选项时为空 Map）。供宿主测试断言
+  /// `MovaSource.mpvOptions` / `whepMediaTimeout` 确实到达了内核。
+  final List<Map<String, String>> stagedSourceOptions = <Map<String, String>>[];
+
+  @override
+  void stageSourceOptions(Map<String, String> options) => stagedSourceOptions.add(Map.of(options));
 
   /// When non-null, `open()` throws it (after recording the call).
   ///
