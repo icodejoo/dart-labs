@@ -118,6 +118,12 @@ class _GestureLayerState extends State<_GestureLayer> with MovaPlugin<_GestureLa
   /// 自拖动开始累计的焦点位移。
   Offset _cum = Offset.zero;
 
+  /// Whether the locked drag runs along the horizontal axis; decided together
+  /// with the mode so the displacement is read from the axis that chose it.
+  ///
+  /// 本次锁定的拖动是否沿横轴；与模式同时判定，使位移取自选中该模式的那根轴。
+  bool _horizontalDrag = true;
+
   /// Volume (0–100) or brightness (0–1) snapshotted when the mode locked.
   ///
   /// 模式锁定时拍下的起始音量（0–100）或亮度（0–1）。
@@ -276,7 +282,8 @@ class _GestureLayerState extends State<_GestureLayer> with MovaPlugin<_GestureLa
   /// [_DragMode.undecided]（不回退到其他模式）。
   _DragMode _decideMode() {
     final cfg = _api.options.gesture;
-    final action = _cum.dx.abs() > _cum.dy.abs()
+    _horizontalDrag = _cum.dx.abs() > _cum.dy.abs();
+    final action = _horizontalDrag
         ? cfg.horizontal
         : (_startedLeft ? cfg.leftVertical : cfg.rightVertical);
     switch (action) {
@@ -302,9 +309,15 @@ class _GestureLayerState extends State<_GestureLayer> with MovaPlugin<_GestureLa
     }
   }
 
-  /// Maps the horizontal drag accumulated so far onto a target position,
-  /// scaled by [MovaGestureConfig.hSeekSpanPerScreen] over the full width of
-  /// the gesture surface. Shared by [_drive]'s live preview and
+  /// Signed progress of the locked drag as a fraction of the surface along its
+  /// own axis: rightwards or upwards is positive.
+  ///
+  /// 锁定拖动沿自身轴相对手势面的带符号进度比例：向右或向上为正。
+  double _axisFrac() => _horizontalDrag ? _cum.dx / _size.width : -_cum.dy / _size.height;
+
+  /// Maps the drag accumulated so far onto a target position, scaled by
+  /// [MovaGestureConfig.hSeekSpanPerScreen] over the full extent of the
+  /// gesture surface along the drag's axis. Shared by [_drive]'s live preview and
   /// [_onScaleEnd]'s commit so the two can never disagree on where a drag
   /// lands.
   ///
@@ -313,9 +326,7 @@ class _GestureLayerState extends State<_GestureLayer> with MovaPlugin<_GestureLa
   /// 的实时预览与 [_onScaleEnd] 的提交共用，使二者对拖动落点的判断绝不会
   /// 不一致。
   Duration _seekTargetFromCum() {
-    final seconds = _cum.dx /
-        _size.width *
-        _api.options.gesture.hSeekSpanPerScreen.inSeconds.toDouble();
+    final seconds = _axisFrac() * _api.options.gesture.hSeekSpanPerScreen.inSeconds.toDouble();
     return _lastPosition + Duration(seconds: seconds.round());
   }
 
@@ -330,12 +341,12 @@ class _GestureLayerState extends State<_GestureLayer> with MovaPlugin<_GestureLa
         _api.showHud(MovaHud.seek);
         break;
       case _DragMode.volume:
-        final frac = -_cum.dy / _size.height; // up = louder
+        final frac = _axisFrac(); // up/right = louder
         _api.setVolume((_startValue + frac * 100).clamp(0, 100));
         _api.showHud(MovaHud.volume);
         break;
       case _DragMode.brightness:
-        final frac = -_cum.dy / _size.height; // up = brighter
+        final frac = _axisFrac(); // up/right = brighter
         _api.setBrightness((_startValue + frac).clamp(0.0, 1.0));
         _api.showHud(MovaHud.brightness);
         break;

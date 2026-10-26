@@ -244,7 +244,12 @@ class MovaPreviewService implements MovaPreviewApi {
   ///
   /// - [bucket]: the bucket-aligned position / 桶对齐位置
   void _enqueue(Duration bucket) {
-    _queue = _queue.then((_) => _resolve(bucket));
+    // One failing resolution (e.g. a host-injected cache/probe throwing) must
+    // not leave the queue in a failed state that skips every later request.
+    //
+    // 单次解析失败（如宿主注入的缓存/探针抛错）不能让队列停在失败态、跳过之后
+    // 所有请求。
+    _queue = _queue.then((_) => _resolve(bucket)).catchError((Object _) {});
   }
 
   /// Resolves [bucket] through cache then the source chain, publishing it only
@@ -355,12 +360,21 @@ class MovaPreviewService implements MovaPreviewApi {
     _debounce = null;
     _wanted = null;
     await _queue;
-    for (final s in sources) {
-      await s.dispose();
+    // Each step is isolated: one failing teardown must not skip the rest.
+    //
+    // 每一步相互隔离：某一步销毁失败不能跳过其余步骤。
+    Future<void> step(Future<void> Function() f) async {
+      try {
+        await f();
+      } catch (_) {}
     }
-    if (config.clearOnDispose) await cache.clear();
-    await cache.dispose();
-    await probe.dispose();
-    await _thumbs.close();
+
+    for (final s in sources) {
+      await step(s.dispose);
+    }
+    if (config.clearOnDispose) await step(cache.clear);
+    await step(cache.dispose);
+    await step(probe.dispose);
+    await step(_thumbs.close);
   }
 }

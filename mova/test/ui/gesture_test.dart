@@ -72,6 +72,31 @@ void main() {
     await api.dispose();
   });
 
+  testWidgets('a horizontal drag mapped to volume reads the horizontal axis', (tester) async {
+    final api = FakeMovaApi(
+      options: const MovaOpts(gesture: MovaGestureConfig(horizontal: MovaGestureAction.volume)),
+    );
+    api.push(const MovaState(volume: 50, brightness: 0.5));
+    await pumpComponent(tester, api, MovaGestureLayerComponent());
+    await tester.dragFrom(const Offset(400, 300), const Offset(240, 0));
+    await tester.pumpAndSettle();
+    // +240px of 800px ⇒ about +30 on top of 50 (minus touch slop).
+    expect(api.lastVolume, greaterThan(65));
+    await api.dispose();
+  });
+
+  testWidgets('a vertical drag mapped to seek reads the vertical axis (up = forward)', (tester) async {
+    final api = FakeMovaApi(
+      options: const MovaOpts(gesture: MovaGestureConfig(leftVertical: MovaGestureAction.seek)),
+    );
+    await pumpComponent(tester, api, MovaGestureLayerComponent());
+    await tester.dragFrom(const Offset(200, 400), const Offset(0, -150));
+    await tester.pumpAndSettle();
+    expect(api.calls, contains('seek'));
+    expect(api.lastSeek!.inSeconds, greaterThan(10));
+    await api.dispose();
+  });
+
   testWidgets('horizontal drag is ignored for live streams', (tester) async {
     final api = FakeMovaApi();
     api.push(const MovaState(type: MovaStreamType.live, liveSeekable: false));

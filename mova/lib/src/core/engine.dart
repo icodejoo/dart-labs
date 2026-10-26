@@ -319,6 +319,13 @@ class MovaEngine implements MovaApi, MovaStandbyController, MovaPlayerMute, Mova
   /// 或为一个内核早已翻篇的源发出陈旧事件。
   int _openGen = 0;
 
+  /// Bumped by every [pause]; lets an in-flight [play] notice that the user
+  /// paused while its async `beforePlay` hook was pending.
+  ///
+  /// 每次 [pause] 递增；使在途的 [play] 能发现异步 `beforePlay` 钩子挂起期间用户
+  /// 已经暂停。
+  int _pauseSeq = 0;
+
   // Accepted session and recovery position survive rejected open requests.
   //
   // 已接受会话与恢复位置不受被拒绝的打开请求影响。
@@ -1637,8 +1644,14 @@ class MovaEngine implements MovaApi, MovaStandbyController, MovaPlayerMute, Mova
 
   @override
   Future<void> play() async {
+    // An async host hook can outlive a pause() or a source change; re-check
+    // after it returns so a late play never overrides either.
+    //
+    // 异步宿主钩子可能跨过一次 pause() 或换源；返回后复查，晚到的 play 不得覆盖二者。
+    final gen = _openGen;
+    final pauses = _pauseSeq;
     final allowed = await _chain.beforePlay();
-    if (!allowed) return;
+    if (!allowed || _disposed || gen != _openGen || pauses != _pauseSeq) return;
     _state.emit(state.copyWith(playbackIntent: true));
     _watchdog?.onPlaying(true);
     // Standby: a held stream is already playing (muted, no picture), and while
@@ -1675,6 +1688,7 @@ class MovaEngine implements MovaApi, MovaStandbyController, MovaPlayerMute, Mova
 
   @override
   Future<void> pause() {
+    _pauseSeq++;
     _state.emit(state.copyWith(playbackIntent: false));
     _watchdog?.onPlaying(false);
     // The plain path stays byte-identical when standby was never involved.
@@ -1694,8 +1708,12 @@ class MovaEngine implements MovaApi, MovaStandbyController, MovaPlayerMute, Mova
   Future<void> seek(Duration to) async {
     final gate = state.type == MovaStreamType.vod || state.liveSeekable;
     if (!gate) return;
+    final gen = _openGen;
     final t = await _chain.beforeSeek(to);
-    if (t == null) return;
+    // A source change while an async hook was pending makes the jump stale.
+    //
+    // 异步钩子挂起期间换了源，这次跳转就过期了。
+    if (t == null || _disposed || gen != _openGen) return;
     // For a seekable live stream the meaningful upper bound is the DVR
     // window, not `duration` — with an explicit dvrWindow/windowResolver the
     // kernel may report no duration at all.

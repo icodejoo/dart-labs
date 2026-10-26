@@ -363,6 +363,40 @@ void main() {
     );
   });
 
+  test('a pause() during an async beforePlay is not overridden by the late play', () async {
+    final hook = _GatedHook();
+    final e2 = MovaEngine(kernel: k, interceptors: [hook]);
+    await e2.open(const MovaSource('https://host/a.mp4'));
+    k.calls.clear();
+    final f = e2.play();
+    await e2.pause();
+    hook.gate.complete();
+    await f;
+    expect(e2.state.playbackIntent, isFalse);
+    expect(k.calls, isNot(contains('play')));
+    await e2.dispose();
+  });
+
+  test('a source change during an async beforeSeek drops the stale seek', () async {
+    final hook = _GatedHook();
+    final e2 = MovaEngine(kernel: k, interceptors: [hook]);
+    await e2.open(const MovaSource('https://host/a.mp4'));
+    k.emitDuration(const Duration(minutes: 2));
+    await Future<void>.delayed(Duration.zero);
+    final f = e2.seek(const Duration(seconds: 30));
+    unawaited(e2.open(const MovaSource('https://host/b.mp4')));
+    await Future<void>.delayed(Duration.zero);
+    k.calls.clear();
+    k.lastSeek = null;
+    hook.gate.complete();
+    await f;
+    // Were the stale seek parked on the new source, duration arriving would replay it.
+    k.emitDuration(const Duration(minutes: 3));
+    await Future<void>.delayed(Duration.zero);
+    expect(k.lastSeek, isNull);
+    await e2.dispose();
+  });
+
   test('beforePlay can veto playback', () async {
     final e2 = MovaEngine(kernel: k, interceptors: [_DenyPlay()]);
     k.calls.clear();
@@ -1649,6 +1683,29 @@ class _SpyOrientationPort implements MovaOrientationPort {
 
   @override
   Future<void> reset() async {}
+}
+
+/// A hook whose `beforePlay`/`beforeSeek` answer only once [gate] completes,
+/// standing in for a host hook that is genuinely asynchronous.
+///
+/// `beforePlay`/`beforeSeek` 要等 [gate] 完成才答复的钩子，模拟真正异步的宿主钩子。
+class _GatedHook extends MovaHook {
+  /// Completer that releases the pending hook calls.
+  ///
+  /// 放行挂起的钩子调用的 completer。
+  final Completer<void> gate = Completer<void>();
+
+  @override
+  Future<bool> beforePlay() async {
+    await gate.future;
+    return true;
+  }
+
+  @override
+  Future<Duration?> beforeSeek(Duration t) async {
+    await gate.future;
+    return t;
+  }
 }
 
 class _CancelSeek extends MovaHook {

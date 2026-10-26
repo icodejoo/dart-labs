@@ -138,6 +138,28 @@ class _SlowProbe implements MovaNetProbe {
   Future<void> dispose() async {}
 }
 
+/// A [MovaNetProbe] that throws on the first [allowHeavy] and from `dispose`.
+///
+/// 第一次 [allowHeavy] 与 `dispose` 都会抛错的 [MovaNetProbe]。
+class _ThrowingProbe implements MovaNetProbe {
+  /// How many times [allowHeavy] was called.
+  ///
+  /// [allowHeavy] 的调用次数。
+  int calls = 0;
+
+  @override
+  Future<bool> allowHeavy() async {
+    if (calls++ == 0) throw StateError('probe boom');
+    return true;
+  }
+
+  @override
+  Stream<bool> get changes => const Stream<bool>.empty();
+
+  @override
+  Future<void> dispose() async => throw StateError('probe dispose boom');
+}
+
 void main() {
   const src = MovaSource('https://host/a.mp4');
   const srcB = MovaSource('https://host/b.mp4');
@@ -169,6 +191,18 @@ void main() {
   });
 
   tearDown(() => service.dispose());
+
+  test('one failing resolve neither blocks later requests nor breaks dispose', () async {
+    final probe = _ThrowingProbe();
+    service = build(noDebounce, probe: probe);
+    service.requestAt(const Duration(seconds: 10));
+    await service.drain();
+    service.requestAt(const Duration(seconds: 20));
+    await service.drain();
+    expect(service.current!.at, const Duration(seconds: 20));
+    await service.dispose();
+    expect(source.calls, contains('dispose'));
+  });
 
   test('requestAt aligns the position down to the configured bucket', () async {
     service = build(noDebounce);
