@@ -34,7 +34,14 @@ class AnimatedCounterBuilder extends _BaseAnimatedCounter {
   /// Wraps each [DigitColumn] after it is built, indexed left-to-right.
   final Widget Function(BuildContext context, int index, Widget child)? digitWrapperBuilder;
 
+  /// 创建计数器；[format] 的非空字段覆盖同名平铺参数，空字段回退。
+  /// [timeline] 的非空字段同样覆盖同名平铺动画参数，空字段回退。
+  ///
+  /// 示例：`AnimatedCounterBuilder(value: 12, format: CounterFormat(fractionDigits: 2))`。
+  /// 动画示例：`AnimatedCounterBuilder(value: 12, timeline: CounterTimeline(fast: true))`。
   const AnimatedCounterBuilder({
+    super.format,
+    super.timeline,
     super.key,
     super.value,
     super.controller,
@@ -168,7 +175,7 @@ class _AnimatedCounterBuilderState extends _BaseCounterState<AnimatedCounterBuil
         // leading-zero visibility must read the endpoint digits instead.
         //
         // 快速模式下 _currentDigitValues 携带进度（非磁量），故隐藏前导零需改读端点位。
-        bool digitNonZero(int j) => widget.fast
+        bool digitNonZero(int j) => widget._timeFast
             ? ((j < _fastFromDigits.length && _fastFromDigits[j] != 0) ||
                 (j < _fastToDigits.length && _fastToDigits[j] != 0))
             : _currentDigitValues[j].round() != 0;
@@ -199,10 +206,10 @@ class _AnimatedCounterBuilderState extends _BaseCounterState<AnimatedCounterBuil
           //     cum ≥ 1 后全显。静止时隐藏前导零（如 1000 → 7 → "7"）。
           final bool vis;
           final double reveal;
-          if (!widget.hideLeadingZeroes) {
+          if (!widget._fmtHideLeadingZeroes) {
             vis = true;
             reveal = 1.0;
-          } else if (widget.fast) {
+          } else if (widget._timeFast) {
             vis = nzI || isLast || anySigBefore;
             reveal = 1.0;
           } else {
@@ -223,10 +230,10 @@ class _AnimatedCounterBuilderState extends _BaseCounterState<AnimatedCounterBuil
             digitBuilder: widget.digitBuilder,
             digitTransitionBuilder: widget.digitTransitionBuilder,
             triggerHaptics: widget.triggerHaptics,
-            numeralSystem: widget.numeralSystem,
-            numeralMapper: widget.numeralMapper,
+            numeralSystem: widget._fmtNumeralSystem,
+            numeralMapper: widget._fmtNumeralMapper,
             transition: widget.transition,
-            fast: widget.fast,
+            fast: widget._timeFast,
             fastFromDigit: i < _fastFromDigits.length ? _fastFromDigits[i] : 0,
             fastToDigit: i < _fastToDigits.length ? _fastToDigits[i] : 0,
             increasing: !_isAnimatingDecrease,
@@ -242,18 +249,18 @@ class _AnimatedCounterBuilderState extends _BaseCounterState<AnimatedCounterBuil
         }
 
         // ── thousand separators ───────────────────────────────────────────
-        if (widget.thousandSeparator != null) {
+        if (widget._fmtThousandSeparator != null) {
           int firstVisible = 0;
-          if (widget.hideLeadingZeroes) {
+          if (widget._fmtHideLeadingZeroes) {
             firstVisible = _currentDigitValues.indexWhere((d) => d.round() != 0);
             if (firstVisible == -1) firstVisible = _currentDigitValues.length - 1;
           }
           // 从右插入，保持左侧索引稳定；边界算法与 Painter 共用。
           for (int i = integerDigitCount - 1; i > firstVisible; i--) {
-            if (isGroupingBoundary(integerDigitCount - i, widget.groupingPattern)) {
+            if (isGroupingBoundary(integerDigitCount - i, widget._fmtGroupingPattern)) {
               integerWidgets.insert(i,
                   widget.thousandSeparatorWidget ??
-                      Text(widget.thousandSeparator!, style: widget.separatorStyle));
+                      Text(widget._fmtThousandSeparator!, style: widget.separatorStyle));
             }
           }
         }
@@ -287,7 +294,7 @@ class _AnimatedCounterBuilderState extends _BaseCounterState<AnimatedCounterBuil
               ),
 
               // Positive sign (animated width)
-              if (widget.showPositiveSign)
+              if (widget._fmtShowPositiveSign)
                 ClipRect(
                   child: TweenAnimationBuilder(
                     duration: _effectivePositiveSignDuration,
@@ -313,7 +320,7 @@ class _AnimatedCounterBuilderState extends _BaseCounterState<AnimatedCounterBuil
               // Decimal separator + fraction digits
               if (effFD != 0) ...[
                 widget.decimalSeparatorWidget ??
-                    Text(widget.decimalSeparator, style: widget.separatorStyle),
+                    Text(widget._fmtDecimalSeparator, style: widget.separatorStyle),
                 for (int i = _currentDigitValues.length - effFD;
                     i < _currentDigitValues.length; i++)
                   () {
@@ -330,10 +337,10 @@ class _AnimatedCounterBuilderState extends _BaseCounterState<AnimatedCounterBuil
                       digitBuilder: widget.digitBuilder,
                       digitTransitionBuilder: widget.digitTransitionBuilder,
                       triggerHaptics: widget.triggerHaptics,
-                      numeralSystem: widget.numeralSystem,
-                      numeralMapper: widget.numeralMapper,
+                      numeralSystem: widget._fmtNumeralSystem,
+                      numeralMapper: widget._fmtNumeralMapper,
                       transition: widget.transition,
-                      fast: widget.fast,
+                      fast: widget._timeFast,
                       fastFromDigit: i < _fastFromDigits.length ? _fastFromDigits[i] : 0,
                       fastToDigit: i < _fastToDigits.length ? _fastToDigits[i] : 0,
                       increasing: !_isAnimatingDecrease,
