@@ -7,6 +7,12 @@ library;
 
 export 'src/dioman_plugin.dart';
 export 'src/dioman.dart';
+export 'src/extra_keys.dart';
+export 'src/plugin_order.dart'
+    show
+        DiomanPluginOrder,
+        DiomanPluginOrderException,
+        DiomanPluginOrderIssue;
 export 'src/envs_plugin.dart';
 export 'src/timeout_plugin.dart';
 export 'src/repath_plugin.dart';

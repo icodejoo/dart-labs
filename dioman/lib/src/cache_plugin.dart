@@ -3,6 +3,8 @@ import 'dart:async';
 import 'package:dio/dio.dart';
 import 'key_plugin.dart';
 import 'dioman_plugin.dart';
+import 'offline_plugin.dart';
+import 'plugin_order.dart';
 
 /// Clone strategy for cache hits.
 ///
@@ -311,6 +313,12 @@ class DiomanCache extends DiomanPlugin {
   /// 插件的公开协议名称。
   @override
   String get name => pluginName;
+
+  /// 顺序声明：cache在offline之前：离线读命中缓存就不会被排队。
+  @override
+  DiomanPluginOrder get ordering => const DiomanPluginOrder(
+        before: {DiomanOffline.pluginName},
+      );
 
   /// 处理请求并完成当前请求出口。
   @override
