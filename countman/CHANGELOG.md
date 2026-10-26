@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.2.3
 
 <!-- 本批仅整理 Simplify 1–6，保留公开参数及已有修复。 -->
 ### Fixed
