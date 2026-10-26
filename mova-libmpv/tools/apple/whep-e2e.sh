@@ -116,7 +116,9 @@ fi
 
 # ---- 5. 失败路径：指纹被篡改必须因指纹校验被拒绝；候选不可达必须在握手超时内干净返回 ----
 PROXY_DEBUG=1 python3 "$WHEP_TOOLS/whep_tamper_proxy.py" 18100 > proxy.log 2>&1 & PIDS+=($!)
-sleep 2
+# 等端口真正可连：Python 的 HTTPServer 在 server_bind 里做 getfqdn 反查，runner 上可能卡几十秒
+wait_port() { for i in $(seq 1 90); do nc -z 127.0.0.1 "$1" 2>/dev/null && return 0; sleep 1; done; echo "::warning::端口 $1 等了 90s 仍不可连"; return 1; }
+wait_port 18100
 echo "--- proxy.log (启动后) ---"; cat proxy.log
 echo "=== 对照：经代理原样转发（ok 模式）必须能播 ==="
 SMOKE_LOG_ALL=1 run_smoke play whep+http://127.0.0.1:18100/ok/test/whep 10 > whep-proxy-ok.log 2>&1; RC=$?
@@ -176,7 +178,7 @@ class S(http.server.ThreadingHTTPServer):
 S(('127.0.0.1', 8443), http.server.SimpleHTTPRequestHandler).serve_forever()
 PY
   python3 httpsd.py > httpsd.log 2>&1 & PIDS+=($!)
-  sleep 2
+  wait_port 8443
   ls -l media.mp4 good.pem good.key
   echo "curl 直连自检: $(curl -sk -m 5 -o /dev/null -w '%{http_code} %{size_download}B' https://127.0.0.1:8443/media.mp4)"
   echo "--- httpsd.log ---"; cat httpsd.log
