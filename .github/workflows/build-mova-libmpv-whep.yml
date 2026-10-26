@@ -654,6 +654,7 @@ jobs:
           codesign -vvv pkg/ios/Mpv.xcframework/ios-arm64-simulator/Mpv.framework
 
       - name: WHEP end-to-end smoke (macOS arm64 native + iOS simulator)
+        timeout-minutes: 30
         env:
           SIM_FRAMEWORK_DIR: ${{ github.workspace }}/pkg/ios/Mpv.xcframework/ios-arm64-simulator
           SIM_OPTIONAL: '1'
@@ -665,6 +666,7 @@ jobs:
 
       - name: WHEP smoke (macOS x86_64 via Rosetta)
         continue-on-error: true
+        timeout-minutes: 15
         env:
           SKIP_HTTPS: '1'
           WORK: ${{ runner.temp }}/e2e-x86_64

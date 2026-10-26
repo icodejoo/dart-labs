@@ -23,7 +23,17 @@ trap cleanup EXIT
 # ---- 1. 编译冒烟程序，链接到被测二进制 ----
 mkdir -p inc/mpv && cp "$HERE"/Headers/*.h inc/mpv/
 clang -arch "$ARCH" -mmacosx-version-min=10.15 -I inc "$HERE/apple-smoke.c" "$BIN" -Wl,-rpath,"$RPATH_DIR" -o smoke || { echo "::error::编译冒烟程序失败"; exit 1; }
-run_smoke() { arch -"$ARCH" ./smoke "$@"; }   # arch -x86_64 在 Apple Silicon 上走 Rosetta
+# 带超时的冒烟运行：超时（默认 120s）就用 sample 抓一份线程栈再杀掉，避免 CI 无声挂死
+run_smoke() {
+  local limit="${SMOKE_TIMEOUT:-120}"
+  arch -"$ARCH" ./smoke "$@" &
+  local pid=$!
+  ( sleep "$limit"; echo "::error::冒烟超过 ${limit}s 仍未退出，抓栈后强杀: ./smoke $*"; sample "$pid" 3 -file "$W/hang-$pid.txt" >/dev/null 2>&1; head -120 "$W/hang-$pid.txt" 2>/dev/null; kill -9 "$pid" 2>/dev/null ) &
+  local guard=$!
+  wait "$pid"; local rc=$?
+  kill "$guard" 2>/dev/null; wait "$guard" 2>/dev/null
+  return $rc
+}   # arch -x86_64 在 Apple Silicon 上走 Rosetta
 
 # ---- 2. init 循环 + 版本取证 ----
 if run_smoke init > init.log 2>&1; then pass "init 循环 5 次"; else flunk "init 循环"; fi
