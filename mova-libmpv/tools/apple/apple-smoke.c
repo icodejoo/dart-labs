@@ -48,8 +48,7 @@ static void apply_env_opts(mpv_handle *h) {
         if (!eq) continue;
         *eq = 0;
         int r = mpv_set_option_string(h, tok, eq + 1);
-        printf("OPT %s=%s -> %d
-", tok, eq + 1, r);
+        printf("OPT %s=%s -> %d\n", tok, eq + 1, r);
     }
     free(dup);
 }

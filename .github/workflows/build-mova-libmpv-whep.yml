@@ -53,6 +53,11 @@ on:
         default: all
         type: choice
         options: [all, arm64-v8a, armeabi-v7a, x86_64, x86]
+      apple_reuse_run:
+        description: '调试用：填一个已完成 run 的 id，Apple 切片直接取该 run 的 artifact，跳过 apple-whep 构建，只跑 apple-package。'
+        required: false
+        default: ''
+        type: string
       commit_artifact:
         description: 'Commit built binaries back to the triggering branch (false = artifact upload only). On push to main this commits to main (with [skip ci]).'
         required: false
@@ -459,7 +464,7 @@ jobs:
   apple-whep:
     name: Apple ${{ matrix.target }} WHEP
     needs: plan
-    if: ${{ needs.plan.outputs.apple == 'true' }}
+    if: ${{ needs.plan.outputs.apple == 'true' && inputs.apple_reuse_run == '' }}
     runs-on: macos-15
     timeout-minutes: 240
     strategy:
@@ -581,7 +586,8 @@ jobs:
   apple-package:
     name: Apple xcframework package + verify
     needs: [plan, apple-whep]
-    if: ${{ needs.plan.outputs.apple_full == 'true' }}
+    # apple-whep 被 apple_reuse_run 跳过时也要跑（此时切片取自指定 run）
+    if: ${{ !cancelled() && needs.plan.outputs.apple_full == 'true' && (needs.apple-whep.result == 'success' || needs.apple-whep.result == 'skipped') }}
     runs-on: macos-15
     timeout-minutes: 120
     env:
@@ -591,11 +597,22 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Download slices
+        if: ${{ inputs.apple_reuse_run == '' }}
         uses: actions/download-artifact@v4
         with:
           path: art
           pattern: mova-libmpv-*-whep
           merge-multiple: false
+
+      - name: Download slices (reuse run ${{ inputs.apple_reuse_run }})
+        if: ${{ inputs.apple_reuse_run != '' }}
+        uses: actions/download-artifact@v4
+        with:
+          path: art
+          pattern: mova-libmpv-*-whep
+          merge-multiple: false
+          run-id: ${{ inputs.apple_reuse_run }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Collect slices
         run: |
