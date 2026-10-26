@@ -260,6 +260,12 @@ class MovaFeedEnginePool {
       return;
     }
 
+    // Rebinding an occupied index: recycle its engine first, otherwise
+    // `_bound[index] = ...` below would overwrite (leak) it.
+    //
+    // 重绑已占用的索引：先回收旧引擎，否则下面的 `_bound[index] = ...` 会把它覆盖（泄漏）。
+    if (existing != null) _release(index);
+
     final api = _acquire(index);
     final binding = _Binding(api: api, uri: source.uri);
     _bound[index] = binding;

@@ -192,9 +192,9 @@ class MovaSizeChange extends MovaEvent {
 ///
 /// 音量发生变化。
 class MovaVolumeChange extends MovaEvent {
-  /// New volume, typically in `0.0`–`1.0`.
+  /// New volume as a percentage, 0.0–100.0 (same scale as `MovaState.volume`).
   ///
-  /// 新音量，通常在 `0.0`–`1.0` 之间。
+  /// 新音量（百分比），范围 0.0–100.0，与 `MovaState.volume` 同一刻度。
   final double value;
 
   /// Creates the event with [value].

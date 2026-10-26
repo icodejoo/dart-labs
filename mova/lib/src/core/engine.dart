@@ -41,6 +41,7 @@ import 'standby/standby.dart';
 import 'state/progress.dart';
 import 'state/state.dart';
 import 'state/ui_state.dart';
+import 'swap/retirable.dart';
 import 'stt/api.dart';
 import 'stt/service.dart';
 
@@ -61,7 +62,7 @@ import 'stt/service.dart';
 /// 这是 `lib/src/core/**` 中唯一把该层其余部分粘合在一起的类；它本身不直接
 /// 引入 `package:flutter` 或 `package:media_kit`（这些依赖被隔离在
 /// [MovaKernel]/[MovaOpts]/各 Port 之后）。
-class MovaEngine implements MovaApi, MovaStandbyController, MovaPlayerMute {
+class MovaEngine implements MovaApi, MovaStandbyController, MovaPlayerMute, MovaHandoffRetirable {
   /// The kernel this engine drives.
   ///
   /// 该 engine 驱动的内核。
@@ -438,7 +439,7 @@ class MovaEngine implements MovaApi, MovaStandbyController, MovaPlayerMute {
     _standbySince = debugClock();
     _fallbackCause = phase == MovaStandbyPhase.fallback ? reason : null;
     _state.emit(state.copyWith(standby: phase));
-    _events.add(MovaStandbyChange(phase: phase, reason: reason, mode: mode));
+    _emitEvent(MovaStandbyChange(phase: phase, reason: reason, mode: mode));
   }
 
   /// Latest known playback position, tracked synchronously from every
@@ -592,11 +593,11 @@ class MovaEngine implements MovaApi, MovaStandbyController, MovaPlayerMute {
 
     _playingSub = _kernel.playing.listen((v) {
       _state.emit(state.copyWith(playing: v));
-      _events.add(v ? const MovaPlay() : const MovaPause());
+      _emitEvent(v ? const MovaPlay() : const MovaPause());
     });
     _bufferingSub = _kernel.buffering.listen((v) {
       _state.emit(state.copyWith(buffering: v));
-      _events.add(MovaBufferChange(v));
+      _emitEvent(MovaBufferChange(v));
       _handleAbrBuffering(v);
       _maybeAutoBackToLive(v);
       _watchdog?.onBuffering(v);
@@ -604,7 +605,7 @@ class MovaEngine implements MovaApi, MovaStandbyController, MovaPlayerMute {
     });
     _completedSub = _kernel.completed.listen((v) {
       _state.emit(state.copyWith(completed: v));
-      if (v) _events.add(const MovaDone());
+      if (v) _emitEvent(const MovaDone());
       if (v && state.standby == MovaStandbyPhase.holding) {
         unawaited(
           _enqueueStandby(() => _degradeStandby(MovaStandbyReason.ended)),
@@ -646,13 +647,13 @@ class MovaEngine implements MovaApi, MovaStandbyController, MovaPlayerMute {
     });
     _durationSub = _kernel.duration.listen((v) {
       _state.emit(state.copyWith(duration: v));
-      _events.add(MovaDurationChange(v));
+      _emitEvent(MovaDurationChange(v));
       _recomputeLiveSeekable();
       unawaited(_applyParkedSeek(v));
     });
     _sizeSub = _kernel.size.listen((v) {
       _state.emit(state.copyWith(width: v.width, height: v.height));
-      _events.add(MovaSizeChange(v.width, v.height));
+      _emitEvent(MovaSizeChange(v.width, v.height));
       // Re-derive/apply fullscreen orientation if dimensions arrive (or
       // change) while already fullscreen — e.g. a network/HLS source whose
       // real size wasn't known yet when fullscreen was entered.
@@ -668,7 +669,7 @@ class MovaEngine implements MovaApi, MovaStandbyController, MovaPlayerMute {
     });
     _errorSub = _kernel.error.listen((e) {
       _state.emit(state.copyWith(error: e));
-      _events.add(MovaErrorEvent(e));
+      _emitEvent(MovaErrorEvent(e));
       _chain.onError(e, StackTrace.current);
     });
     final restartKernel = _kernel;
@@ -848,7 +849,7 @@ class MovaEngine implements MovaApi, MovaStandbyController, MovaPlayerMute {
       _recoveryPosition = null;
       _watchdog!.onLanded();
       if (_streak > 0) {
-        _events.add(MovaRecovered(_streak));
+        _emitEvent(MovaRecovered(_streak));
         _streak = 0;
         _addrFailures.clear();
       }
@@ -856,7 +857,7 @@ class MovaEngine implements MovaApi, MovaStandbyController, MovaPlayerMute {
     if (state.rendered) return;
     _state.emit(state.copyWith(rendered: true));
     final at = _openedAt;
-    _events.add(
+    _emitEvent(
       MovaFirstFrame(
         sinceOpen: at == null ? Duration.zero : DateTime.now().difference(at),
         signal: signal,
@@ -1005,7 +1006,7 @@ class MovaEngine implements MovaApi, MovaStandbyController, MovaPlayerMute {
   ///
   /// - [reason]: why the request was refused / 被拒原因
   void _onPreviewBlocked(MovaPreviewBlockReason reason) {
-    if (!_events.isClosed) _events.add(MovaPreviewBlock(reason));
+    _emitEvent(MovaPreviewBlock(reason));
     final cb = options.preview.onBlocked;
     if (cb == null) return;
     try {
@@ -1024,7 +1025,7 @@ class MovaEngine implements MovaApi, MovaStandbyController, MovaPlayerMute {
   ///
   /// - [reason]: why the request was refused / 被拒原因
   void _onSttBlocked(MovaSttBlockReason reason) {
-    if (!_events.isClosed) _events.add(MovaSttBlock(reason));
+    _emitEvent(MovaSttBlock(reason));
     final cb = options.stt.onBlocked;
     if (cb == null) return;
     try {
@@ -1034,6 +1035,16 @@ class MovaEngine implements MovaApi, MovaStandbyController, MovaPlayerMute {
       //
       // 宿主回调绝不能打断 engine。
     }
+  }
+
+  /// Adds [e] to the event stream unless the engine is disposed or the
+  /// stream is already closed (async continuations may resume after dispose).
+  ///
+  /// 向事件流发出 [e]；引擎已销毁或事件流已关闭时静默丢弃（异步续体可能在
+  /// dispose 之后才恢复）。
+  void _emitEvent(MovaEvent e) {
+    if (_disposed || _events.isClosed) return;
+    _events.add(e);
   }
 
   @override
@@ -1048,7 +1059,11 @@ class MovaEngine implements MovaApi, MovaStandbyController, MovaPlayerMute {
     // 察觉自己已被取代。
     final gen = ++_openGen;
     final allowed = await _chain.beforeOpen(source);
-    if (!allowed || gen != _openGen) return;
+    // dispose() may have run while suspended in beforeOpen: do not attach
+    // services or load a disposed kernel.
+    //
+    // 挂起在 beforeOpen 期间 dispose() 可能已执行：不得再挂接服务或加载已销毁的内核。
+    if (!allowed || gen != _openGen || _disposed) return;
     _recoverTimer?.cancel();
     _recoverTimer = null;
     final session = ++_sessionGen;
@@ -1151,8 +1166,8 @@ class MovaEngine implements MovaApi, MovaStandbyController, MovaPlayerMute {
     if (_events.isClosed) return;
     final source = _source;
     if (source == null) return;
-    _events.add(MovaSourceChange(source));
-    _events.add(const MovaReady());
+    _emitEvent(MovaSourceChange(source));
+    _emitEvent(const MovaReady());
   }
 
   /// Handles one failed attempt: asks the policy, announces the decision, then
@@ -1213,7 +1228,7 @@ class MovaEngine implements MovaApi, MovaStandbyController, MovaPlayerMute {
     if (d.action == MovaRecoveryAction.failover && !fail.hasNextSource) {
       d = const MovaRecoveryDecision.giveUp();
     }
-    _events.add(MovaPlayFailure(fail, d.action));
+    _emitEvent(MovaPlayFailure(fail, d.action));
     switch (d.action) {
       case MovaRecoveryAction.retry:
         _scheduleRecover(idx, d.delay, fail);
@@ -1276,7 +1291,7 @@ class MovaEngine implements MovaApi, MovaStandbyController, MovaPlayerMute {
           clearQuality: true,
         ),
       );
-      _events.add(MovaFailover(from: from, to: index, uri: _activeUri));
+      _emitEvent(MovaFailover(from: from, to: index, uri: _activeUri));
     }
     _forgetMediaProgress();
     _abrPolicy.reset();
@@ -1300,7 +1315,7 @@ class MovaEngine implements MovaApi, MovaStandbyController, MovaPlayerMute {
   void _giveUp(MovaPlayFail fail) {
     final err = MovaGiveUpError(fail);
     _state.emit(state.copyWith(error: err));
-    _events.add(MovaErrorEvent(err));
+    _emitEvent(MovaErrorEvent(err));
     _chain.onError(err, StackTrace.current);
     unawaited(_kernel.pause().catchError((Object _) {}));
   }
@@ -1526,7 +1541,7 @@ class MovaEngine implements MovaApi, MovaStandbyController, MovaPlayerMute {
         if (!state.playing) await _kernel.play();
         if (!reopened) _resumeWatch();
         _state.emit(state.copyWith(clearTimeshift: true));
-        _events.add(const MovaLiveEdgeReach());
+        _emitEvent(const MovaLiveEdgeReach());
         return state.standby;
       case MovaStandbyWake.reopen:
         _beginResume(from: null);
@@ -1576,7 +1591,7 @@ class MovaEngine implements MovaApi, MovaStandbyController, MovaPlayerMute {
     _resumeGateArmed = false;
     final at = _resumeAt;
     if (!_events.isClosed) {
-      _events.add(
+      _emitEvent(
         MovaStandbyResume(
           elapsed: at == null ? Duration.zero : debugClock().difference(at),
           signal: signal,
@@ -1734,10 +1749,10 @@ class MovaEngine implements MovaApi, MovaStandbyController, MovaPlayerMute {
     }
     _lastPosition = to;
     _progressRaw.add(MovaProg(position: to, buffer: _lastBuffer));
-    if (notify) _events.add(MovaSeek(to));
+    if (notify) _emitEvent(MovaSeek(to));
     if (park) return;
     await _kernel.seek(to);
-    if (notify) _events.add(MovaSeeked(to));
+    if (notify) _emitEvent(MovaSeeked(to));
   }
 
   /// Forgets everything the *previous* media reported, so the park-or-seek
@@ -1782,7 +1797,7 @@ class MovaEngine implements MovaApi, MovaStandbyController, MovaPlayerMute {
     //
     // 与 [open] 同样的销毁竞态：上面的 await 期间 dispose() 可能已经跑过。
     if (_events.isClosed) return;
-    if (notify) _events.add(MovaSeeked(clamped));
+    if (notify) _emitEvent(MovaSeeked(clamped));
   }
 
   /// Performs a time-shift seek by reopening the stream at a host-built URL.
@@ -1818,7 +1833,7 @@ class MovaEngine implements MovaApi, MovaStandbyController, MovaPlayerMute {
     // _lastPosition——否则 seekBy() 若落在本次调用与重开的流首个真实位置回调
     // 之间的空档，算出的增量会基于陈旧的时移前位置，而非 `target`。
     _lastPosition = target;
-    _events.add(MovaSeek(target));
+    _emitEvent(MovaSeek(target));
     _armAttempt(autoPlay: _loadPlays);
     if (!await _loadKernel(
       builder(_activeUri, behind, DateTime.now()),
@@ -1828,12 +1843,12 @@ class MovaEngine implements MovaApi, MovaStandbyController, MovaPlayerMute {
     }
     if (behind <= options.live.edgeThreshold) {
       _state.emit(state.copyWith(clearTimeshift: true));
-      _events.add(const MovaLiveEdgeReach());
+      _emitEvent(const MovaLiveEdgeReach());
     } else {
       _state.emit(state.copyWith(timeshiftBehind: behind));
-      _events.add(MovaTimeShiftChange(behind));
+      _emitEvent(MovaTimeShiftChange(behind));
     }
-    _events.add(MovaSeeked(target));
+    _emitEvent(MovaSeeked(target));
   }
 
   @override
@@ -1869,46 +1884,46 @@ class MovaEngine implements MovaApi, MovaStandbyController, MovaPlayerMute {
       await _kernel.setVolume(v);
     }
     _state.emit(state.copyWith(volume: v));
-    _events.add(MovaVolumeChange(v));
+    _emitEvent(MovaVolumeChange(v));
   }
 
   @override
   Future<void> setBrightness(double v) async {
     await _brightness.set(v);
     _state.emit(state.copyWith(brightness: v));
-    _events.add(MovaBrightChange(v));
+    _emitEvent(MovaBrightChange(v));
   }
 
   @override
   Future<void> setRate(double r) async {
     await _kernel.setRate(r);
     _state.emit(state.copyWith(rate: r));
-    _events.add(MovaRateChange(r));
+    _emitEvent(MovaRateChange(r));
   }
 
   @override
   Future<void> setFit(MovaFit f) async {
     _state.emit(state.copyWith(fit: f));
-    _events.add(MovaFitChange(f));
+    _emitEvent(MovaFitChange(f));
   }
 
   @override
   Future<void> setZoom(double z) async {
     _state.emit(state.copyWith(zoom: z));
-    _events.add(MovaZoomChange(z));
+    _emitEvent(MovaZoomChange(z));
   }
 
   @override
   Future<void> setLocked(bool v) async {
     _state.emit(state.copyWith(locked: v));
-    _events.add(MovaLockChange(v));
+    _emitEvent(MovaLockChange(v));
   }
 
   @override
   Future<void> setFullscreen(bool v) async {
     _state.emit(state.copyWith(fullscreen: v));
     await _applyOrientation();
-    _events.add(MovaFullScreenChange(v));
+    _emitEvent(MovaFullScreenChange(v));
   }
 
   @override
@@ -1917,14 +1932,14 @@ class MovaEngine implements MovaApi, MovaStandbyController, MovaPlayerMute {
     if (v && state.standby != MovaStandbyPhase.off) await setStandby(false);
     if (v && state.fullscreen) await setFullscreen(false);
     _state.emit(state.copyWith(mini: v));
-    _events.add(MovaMiniChange(v));
+    _emitEvent(MovaMiniChange(v));
   }
 
   @override
   Future<void> setOrientation(MovaOrientation o) async {
     _state.emit(state.copyWith(orientation: o));
     await _applyOrientation();
-    _events.add(MovaOrientationChange(o));
+    _emitEvent(MovaOrientationChange(o));
   }
 
   /// Applies the current fullscreen + forced-orientation state to the platform
@@ -1972,8 +1987,8 @@ class MovaEngine implements MovaApi, MovaStandbyController, MovaPlayerMute {
           clearQuality: cur == null,
         ),
       );
-      _events.add(MovaQualityListChange(qs));
-      if (cur != null) _events.add(MovaQualityChange(cur));
+      _emitEvent(MovaQualityListChange(qs));
+      if (cur != null) _emitEvent(MovaQualityChange(cur));
     } catch (_) {
       if (!current()) return;
       _state.emit(state.copyWith(qualities: const [], clearQuality: true));
@@ -2042,7 +2057,7 @@ class MovaEngine implements MovaApi, MovaStandbyController, MovaPlayerMute {
     //
     // 加载命令一下发就宣布新档位：续播 seek 可能要寄存到时长到达才生效，把
     // 事件拖到那时才发会让 UI 上的档位标签滞后好几秒。
-    _events.add(MovaQualityChange(q));
+    _emitEvent(MovaQualityChange(q));
     if (!live && pos > Duration.zero) await _seekOrPark(pos);
   }
 
@@ -2071,7 +2086,7 @@ class MovaEngine implements MovaApi, MovaStandbyController, MovaPlayerMute {
     if (state.mini) await setMini(false);
     final ok = await _pip.enter(width: state.width, height: state.height);
     _state.emit(state.copyWith(pip: ok));
-    _events.add(MovaPipChange(ok));
+    _emitEvent(MovaPipChange(ok));
     return ok;
   }
 
@@ -2086,7 +2101,7 @@ class MovaEngine implements MovaApi, MovaStandbyController, MovaPlayerMute {
     if (state.type != MovaStreamType.live) return;
     await _backToLiveEdge();
     _state.emit(state.copyWith(clearTimeshift: true));
-    _events.add(const MovaLiveEdgeReach());
+    _emitEvent(const MovaLiveEdgeReach());
   }
 
   /// Moves to the live edge by the configured strategy. Returns whether it
@@ -2280,6 +2295,14 @@ class MovaEngine implements MovaApi, MovaStandbyController, MovaPlayerMute {
     );
   }
 
+  /// Whether a hand-off retired this engine (its view state lives on elsewhere).
+  ///
+  /// 本引擎是否已被换指退役（其视图状态已在别处延续）。
+  bool _retired = false;
+
+  @override
+  void markRetired() => _retired = true;
+
   @override
   Future<void> dispose() async {
     // Disposing while the mini window still renders this engine leaves the
@@ -2298,6 +2321,18 @@ class MovaEngine implements MovaApi, MovaStandbyController, MovaPlayerMute {
     //
     // 刻意放在同步前缀里：宿主在 State.dispose() 里 `unawaited(dispose())`，
     // 拆树后若还有挂起的 Timer，会让 widget 测试失败。
+    // Fullscreen / forced orientation would otherwise leave the device
+    // orientation and immersive mode stuck after the engine is gone.
+    //
+    // 否则全屏/强制方向下销毁引擎，会让设备方向与沉浸模式残留。
+    // A retired engine skips it: its successor already owns the orientation.
+    //
+    // 已退役引擎跳过：方向已由接班引擎接管。
+    if (!_disposed &&
+        !_retired &&
+        (state.fullscreen || state.orientation != MovaOrientation.auto)) {
+      unawaited(_orientation.reset().catchError((Object _) {}));
+    }
     _disposed = true;
     _graceTimer?.cancel();
     _graceTimer = null;
@@ -2372,10 +2407,10 @@ class MovaEngine implements MovaApi, MovaStandbyController, MovaPlayerMute {
     if (behind == state.timeshiftBehind) return;
     if (behind == null) {
       _state.emit(state.copyWith(clearTimeshift: true));
-      if (live) _events.add(const MovaLiveEdgeReach());
+      if (live) _emitEvent(const MovaLiveEdgeReach());
     } else {
       _state.emit(state.copyWith(timeshiftBehind: behind));
-      _events.add(MovaTimeShiftChange(behind));
+      _emitEvent(MovaTimeShiftChange(behind));
     }
   }
 
@@ -2400,7 +2435,7 @@ class MovaEngine implements MovaApi, MovaStandbyController, MovaPlayerMute {
           .then((_) {
             final to = state.currentQuality;
             if (to != null && to != from) {
-              _events.add(MovaAbrDownShift(from, to));
+              _emitEvent(MovaAbrDownShift(from, to));
             }
           })
           .whenComplete(() => _abrDownshiftInFlight = false),

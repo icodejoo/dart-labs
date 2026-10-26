@@ -127,6 +127,18 @@ void main() {
       expect(t.log, ['create', 'ready', 'open']);
     });
 
+    test('open(A) 在等渲染面期间被 open(B) 取代：A 醒来后不再 _player.open', () async {
+      final t = build(vid: 'auto');
+      t.kernel.renderHandle;
+      final a = t.kernel.open('http://x/a.mp4');
+      await settle();
+      final b = t.kernel.open('http://x/b.mp4');
+      await settle();
+      t.ready.complete();
+      await Future.wait([a, b]);
+      expect(t.log.where((e) => e == 'open').length, 1, reason: '只有最新一次 open 真正下发');
+    });
+
     test('lazy 且控制器尚未创建：open 不等待、不创建控制器（保留懒创建初衷）', () async {
       final t = build();
       await t.kernel.open('http://x/a.mp4');

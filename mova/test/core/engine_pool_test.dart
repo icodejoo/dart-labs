@@ -212,6 +212,22 @@ void main() {
       expect(pool.slotFor(2), isNull);
     });
 
+    test('rebinding the same index to a new source recycles the old engine '
+        '(no leak, engineCount does not overcount)', () async {
+      final fleet = _Fleet();
+      final pool = MovaFeedEnginePool(engineFactory: fleet.make, size: 3);
+
+      await pool.bind(0, const MovaSource('https://h/a.mp4'));
+      await pool.bind(0, const MovaSource('https://h/b.mp4'));
+
+      expect(fleet.created.length, 1, reason: 'the old engine returns to idle and is reused');
+      expect(pool.engineCount, 1);
+      expect(pool.boundIndices, [0]);
+      expect(fleet.created.first.openedUris, ['https://h/a.mp4', 'https://h/b.mp4']);
+      await pool.dispose();
+      expect(fleet.created.every((a) => a.calls.contains('dispose')), isTrue);
+    });
+
     test('size is clamped to at least 1 so a bogus 0 cannot deadlock binding', () async {
       final fleet = _Fleet();
       final pool = MovaFeedEnginePool(engineFactory: fleet.make, size: 0);

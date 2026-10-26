@@ -602,15 +602,21 @@ class MovaMpvKernel implements MovaKernel, MovaStatsProbe, MovaStandbyKernel, Mo
     _formatProbePending = false;
     // 每次切源先还原；是否为 WHEP 要等文件打开后按真实格式判断。
     await _restoreLiveCache();
+    // A newer open() (or dispose) superseded this one while it was waiting.
+    //
+    // 等待期间已被更新的 open()（或 dispose）取代。
+    if (seq != _openSeq || _disposed) return;
     if (_player.platform is NativePlayer) {
       _watchLoaded();
       _formatProbePending = true;
     }
     if (lazyVideo && !audioOnly && _controller == null) await _yieldForMount();
+    if (seq != _openSeq || _disposed) return;
     // 控制器已存在时，先等渲染面就绪再开文件，避开"vid=auto 先于 render context"的窗口。
     final prepared = _videoPrepared;
     if (prepared != null) {
       await prepared.timeout(kVideoReadyTimeout, onTimeout: () {});
+      if (seq != _openSeq || _disposed) return;
     }
     try {
       await _player.open(Media(uri), play: play);
