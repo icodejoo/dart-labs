@@ -718,8 +718,10 @@ jobs:
       - name: flutter build ios --simulator --no-codesign
         working-directory: mova/example
         run: |
-          flutter build ios --no-codesign --simulator 2>&1 | tee ../../build-ios-sim.log | tail -n 120
-          test "${PIPESTATUS[0]}" = 0
+          flutter build ios --no-codesign --simulator -v 2>&1 > ../../build-ios-sim.log; RC=$?
+          grep -aE 'ARCHS|EXCLUDED_ARCHS|ignoring file|built for|Undefined symbol|Mpv\.framework|clang.*-arch' ../../build-ios-sim.log | sort | uniq -c | sort -rn | head -40
+          tail -n 30 ../../build-ios-sim.log
+          test "$RC" = 0
 
       - name: flutter build ios --no-codesign (device)
         working-directory: mova/example
