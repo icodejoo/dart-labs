@@ -123,7 +123,7 @@ class MovaGestureConfig {
     this.hSeekSpanPerScreen = const Duration(seconds: 90),
     this.vSensitivity = 1.0,
     this.allowWhenLive = true,
-  });
+  }) : assert(maxZoom >= 1.0, 'maxZoom must be at least 1');
 
   @override
   bool operator ==(Object other) =>

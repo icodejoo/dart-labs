@@ -69,7 +69,7 @@ class MovaDanmakuConfig {
     this.fontSize = 14.0,
     this.opacity = 0.9,
     this.crossDuration = const Duration(seconds: 8),
-  });
+  }) : assert(trackCount > 0, 'trackCount must be positive');
 
   /// Returns a copy with the given fields replaced; omitted fields keep
   /// their current value.

@@ -1,5 +1,6 @@
 ## Unreleased
 
+* **Fix：三处小问题**。`MovaDanmakuConfig` 加 `assert(trackCount > 0)`（原先为 0 时弹幕取模除零）；`MovaGestureConfig` 加 `assert(maxZoom >= 1)`（原先小于 1 会在捏合中途让 `clamp` 抛 `ArgumentError`）；`MovaSttService.start()` 在引擎 `start` 失败时回滚 `isRunning`，失败后可直接重试，不必先 `stop()`。另补全 `MovaPatch*` 与 `MovaPlatform` 的公开成员注释。
 * **Refactor：无缝切换的倍速改由预热计划声明**。`MovaWarmPlan` 新增 `rate`（null 继承旧引擎，行为不变），`MovaSwapController.swapTo` 新增可选 `rate`；广告方向（内置 `effectiveWarmPlan` 与 pod 的 `swapTo`）声明 1x，回正片方向声明广告前的倍速，换指时直接写到继任者上，不再有"换指后到复位生效之间广告短暂跑用户倍速"的窗口。广告控制器里原有的 `setRate` 复位保留为兜底，只服务回落成普通 `open()`、或宿主自定义 `adWarmPlan` 没带 `rate` 的路径。Android 真机 V12/V13a(2x)/V13b(1.5x) 通过。
 * **Fix：广告 pod 里第二条广告的 `swapTo` 被悄悄降级成普通 `open()`**。两处竞态：① `MovaSwapEngine.abandon()` 在第一个 `await` 之后才复位 `_warmPlan`/订阅、把阶段置回 `idle`、唤醒就绪 completer，`unawaited(abandon())` 后紧跟 `swapTo` 时会冲掉新预热，现改为共享状态在 `await` 之前同步复位；② `MovaAdController` 在 `swapTo` 等待期间，旧引擎的进度 tick 会触发"广告背后预热正片"，把 `swapTo` 正在等的广告影子挤掉，现 `swapTo` 在途时不预热正片。Android 真机（STG-AL00）V12/V12b：第二条广告走真换指（`renderEpoch` 递增），槽位时长 5970–5999ms（配置 6000ms）。
 * **Fix：系统 PiP 被用户展开/关闭后 `state.pip` 不复位**。新增可选端口能力 `MovaPipObservable.changes`（引擎用 `is` 探测，既有 `MovaPipPort` 实现无需改动），Android 插件监听 Activity 配置变化并推送 `pipChanged`（退出时 PiP 标志晚于配置变化翻转，故延迟复查并去重）；引擎据此更新 `state.pip` 并发 `MovaPipChange`。Android 真机（STG-AL00）`am start` 展开路径已验证 `true→false`；点 X 关闭路径未能注入点击，未测。

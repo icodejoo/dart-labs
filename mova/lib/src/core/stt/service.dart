@@ -95,7 +95,15 @@ class MovaSttService implements MovaSttApi {
     if (_source == null) return _blocked(MovaSttBlockReason.noSource);
     if (_started) return;
     _started = true;
-    await engine.start(_position);
+    try {
+      await engine.start(_position);
+    } catch (_) {
+      // Roll back so a failed start can be retried without a stop() first.
+      //
+      // 回滚，使失败的 start 可直接重试，不必先 stop()。
+      _started = false;
+      rethrow;
+    }
   }
 
   @override

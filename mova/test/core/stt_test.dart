@@ -1,7 +1,25 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:mova/src/core/model/source.dart';
 import 'package:mova/src/core/options/options.dart';
 import 'package:mova/src/core/stt/cue.dart';
 import 'package:mova/src/core/stt/port.dart';
+import 'package:mova/src/core/stt/service.dart';
+
+/// An engine whose first `start` throws, later ones succeed.
+///
+/// 第一次 `start` 抛错、之后成功的引擎。
+class _FlakyEngine extends MovaNoopSttEngine {
+  /// Number of `start` calls so far.
+  ///
+  /// 目前为止 `start` 的调用次数。
+  int starts = 0;
+
+  @override
+  Future<void> start(Duration position) async {
+    starts++;
+    if (starts == 1) throw StateError('boom');
+  }
+}
 
 void main() {
   group('MovaSttCue', () {
@@ -30,6 +48,19 @@ void main() {
       await engine.start(Duration.zero);
       await engine.stop();
       await engine.dispose();
+    });
+  });
+
+  group('MovaSttService', () {
+    test('a failed engine start is rolled back so start() can be retried', () async {
+      final engine = _FlakyEngine();
+      final svc = MovaSttService(config: MovaSttConfig(enabled: true, engine: engine))
+        ..attach(const MovaSource('https://host/a.mp4'));
+      await expectLater(svc.start(), throwsStateError);
+      expect(svc.isRunning, isFalse);
+      await svc.start();
+      expect(engine.starts, 2);
+      expect(svc.isRunning, isTrue);
     });
   });
 

@@ -14,6 +14,18 @@ import 'package:mova/src/core/swap/trigger.dart';
 import 'package:mova/src/core/swap/warm.dart';
 
 void main() {
+  group('constructor invariants', () {
+    test('MovaDanmakuConfig rejects a non-positive trackCount', () {
+      expect(() => MovaDanmakuConfig(trackCount: 0), throwsAssertionError);
+      expect(() => MovaDanmakuConfig(trackCount: -1), throwsAssertionError);
+    });
+
+    test('MovaGestureConfig rejects maxZoom below 1', () {
+      expect(() => MovaGestureConfig(maxZoom: 0.5), throwsAssertionError);
+      expect(() => MovaGestureConfig(maxZoom: 1.0), returnsNormally);
+    });
+  });
+
   test('MovaOpts gesture defaults follow the mainstream side↔action mapping', () {
     const o = MovaOpts();
     expect(o.gesture.leftVertical, MovaGestureAction.brightness);

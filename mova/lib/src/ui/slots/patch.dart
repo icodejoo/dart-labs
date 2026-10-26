@@ -11,6 +11,9 @@ import 'slot.dart';
 /// 补丁只是数据而非动作——只有 [applyPatches] 会解释它们，从而让树的变更
 /// 保持为一个纯函数、便于测试。
 sealed class MovaPatch {
+  /// Base constructor for the concrete patch kinds; use the factories above.
+  ///
+  /// 各具体补丁类型的基础构造器；调用方请使用上面的工厂构造。
   const MovaPatch();
 
   /// Replaces the component found at [path] with [component].
@@ -57,6 +60,12 @@ sealed class MovaPatch {
 ///
 /// 参见 [MovaPatch.replace]。
 final class MovaPatchReplace extends MovaPatch {
+  /// Creates a replace patch.
+  ///
+  /// 创建一个替换补丁。
+  ///
+  /// - [path]: node to replace / 待替换节点路径
+  /// - [component]: the replacement / 用作替换的组件
   const MovaPatchReplace(this.path, this.component);
 
   /// Target path of the node to replace.
@@ -74,6 +83,11 @@ final class MovaPatchReplace extends MovaPatch {
 ///
 /// 参见 [MovaPatch.remove]。
 final class MovaPatchRemove extends MovaPatch {
+  /// Creates a remove patch.
+  ///
+  /// 创建一个移除补丁。
+  ///
+  /// - [path]: node to remove / 待移除节点路径
   const MovaPatchRemove(this.path);
 
   /// Target path of the node to remove.
@@ -86,6 +100,12 @@ final class MovaPatchRemove extends MovaPatch {
 ///
 /// 参见 [MovaPatch.insertAfter]。
 final class MovaPatchInsertAfter extends MovaPatch {
+  /// Creates an insert-after patch.
+  ///
+  /// 创建一个"在其后插入"补丁。
+  ///
+  /// - [path]: anchor node path / 锚点节点路径
+  /// - [component]: the component to insert / 要插入的组件
   const MovaPatchInsertAfter(this.path, this.component);
 
   /// Path of the anchor node the new component is inserted after.
@@ -103,6 +123,13 @@ final class MovaPatchInsertAfter extends MovaPatch {
 ///
 /// 参见 [MovaPatch.add]。
 final class MovaPatchAdd extends MovaPatch {
+  /// Creates an add patch.
+  ///
+  /// 创建一个追加补丁。
+  ///
+  /// - [slot]: slot to tag the component with / 组件所属槽位
+  /// - [component]: the component to append / 要追加的组件
+  /// - [order]: sort order within [slot] / 槽位内排序值
   const MovaPatchAdd(this.slot, this.component, {this.order = 0});
 
   /// Slot the new top-level component is tagged with.
