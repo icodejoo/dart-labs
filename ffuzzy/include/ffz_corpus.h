@@ -162,7 +162,7 @@ ffz_scoring_mode ffz_corpus_scoring(const ffz_corpus *c);
  * @param par 并行选项。
  * @param limit 结果数量上限，零表示不限。
  * @param out 结果容器，首次调用前须清零，调用后由调用方释放。
- * @return 语料库或查询为空指针、距离为负或查询超长时返回假并清空结果；其余返回真，不保证内存分配均成功。
+ * @return 语料库或查询为空指针、距离为负、查询超长或内部分配失败时返回假并清空结果；否则返回真。
  * @example ffz_results r = {0};
  *          bool ok = ffz_corpus_filter_edit(c, "abc", 3, FFZ_CASE_SMART, FFZ_NORM_SMART, 1, ffz_parallel_off(), 10, &r);
  *          ffz_results_free(&r);
@@ -185,7 +185,7 @@ bool ffz_corpus_filter_edit(ffz_corpus *c,
  * @param par 并行选项。
  * @param limit 结果数量上限，零表示不限。
  * @param out 结果容器，首次调用前须清零，调用后由调用方释放。
- * @return 语料库或查询为空指针、距离为负或查询超长时返回假并清空结果；其余返回真，不保证内存分配均成功。
+ * @return 语料库或查询为空指针、距离为负、查询超长或内部分配失败时返回假并清空结果；否则返回真。
  * @example ffz_results r = {0};
  *          bool ok = ffz_corpus_filter_edit_raws(c, "abc", 3, FFZ_CASE_SMART, FFZ_NORM_SMART, 1, ffz_parallel_off(), 10, &r);
  *          ffz_results_free(&r);
@@ -209,7 +209,7 @@ bool ffz_corpus_filter_edit_raws(ffz_corpus *c,
  * @param par 并行选项。
  * @param limit 结果数量上限，零表示不限。
  * @param out 结果容器，首次调用前须清零，调用后由调用方释放。
- * @return 语料库或查询为空指针、距离为负或查询超长时返回假并清空结果；其余返回真，不保证内存分配均成功。
+ * @return 语料库或查询为空指针、距离为负、查询超长或内部分配失败时返回假并清空结果；否则返回真。
  * @example ffz_results r = {0};
  *          bool ok = ffz_corpus_filter_merge(c, "abc", 3, FFZ_CASE_SMART, FFZ_NORM_SMART, 1, FFZ_SCORE_FAST, ffz_parallel_off(), 10, &r);
  *          ffz_results_free(&r);
@@ -233,7 +233,7 @@ bool ffz_corpus_filter_merge(ffz_corpus *c,
  * @param par 并行选项。
  * @param limit 结果数量上限，零表示不限。
  * @param out 结果容器，首次调用前须清零，调用后由调用方释放。
- * @return 语料库或查询为空指针、距离为负或查询超长时返回假并清空结果；其余返回真，不保证内存分配均成功。
+ * @return 语料库或查询为空指针、距离为负、查询超长或内部分配失败时返回假并清空结果；否则返回真。
  * @example ffz_results r = {0};
  *          bool ok = ffz_corpus_filter_fallback(c, "abc", 3, FFZ_CASE_SMART, FFZ_NORM_SMART, 1, FFZ_SCORE_FAST, ffz_parallel_off(), 10, &r);
  *          ffz_results_free(&r);
@@ -271,7 +271,7 @@ void ffz_dual_results_free(ffz_dual_results *d);
  * @param par 并行选项。
  * @param limit 结果数量上限，零表示不限，分别作用于两组结果。
  * @param d 结果容器，首次调用前须清零，调用后由调用方释放。
- * @return 语料库或查询为空指针、距离为负或查询超长时返回假并清空结果；其余返回真，不保证内存分配均成功。
+ * @return 语料库或查询为空指针、距离为负、查询超长或内部分配失败时返回假并清空结果；否则返回真。
  * @example ffz_dual_results d = {0};
  *          bool ok = ffz_corpus_filter_dual(c, "abc", 3, FFZ_CASE_SMART, FFZ_NORM_SMART, 1, FFZ_SCORE_FAST, ffz_parallel_off(), 10, &d);
  *          ffz_dual_results_free(&d);

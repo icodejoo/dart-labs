@@ -150,14 +150,6 @@ export type FieldPath<T extends Record<string, unknown>> = {
 export type SearchStrategy = 'fuzzy' | 'approx' | 'fallback' | 'merge';
 
 /**
- * Returns a sensible edit-distance threshold based on query length (mirrors
- * Elasticsearch's AUTO policy). Used as the default when `maxDistance` is omitted.
- * - length ≤ 2 → 0 (exact)
- * - length 3-5 → 1
- * - length 6+  → 2
- */
-// 按查询码点数选择默认编辑距离。
-/**
  * 按查询码点数选择默认编辑距离。
  * @param query 查询文本。
  * @returns 零至二码点返回零，三至五码点返回一，其余返回二。
@@ -254,7 +246,7 @@ export class FuzzyCorpus<T = string> {
    * @param items 初始条目，可省略。
    * @param init 文本提取函数及默认选项，可省略。
    * @returns 新语料库；引擎未就绪时同步搜索返回空结果。
-   * @throws {Error} 语料库已销毁、资源不足或文本回调失败。
+   * @throws {Error} 资源不足或文本回调失败。
    * @example const c = new FuzzyCorpus(["你好"]); c.dispose();
    */
   constructor(items?: Iterable<T>, init?: FuzzyCorpusInit<T>) {
@@ -319,14 +311,13 @@ export class FuzzyCorpus<T = string> {
     return new FuzzyCorpus(maps ?? [], { ...opts, stringOf: (m) => getField(m as Record<string, unknown>, f) });
   }
 
-  // 根据多个字段建立原始键和附加键。
   /**
    * 按首字段及其余字段建立原始键和附加键。
    * @param maps 初始条目，可省略。
    * @param fields 字段路径；不能为空。
    * @param opts 默认选项，可省略。
    * @returns 新语料库；字段缺失视为空文本。
-   * @throws {Error} 语料库已销毁、资源不足或文本回调失败。
+   * @throws {Error} 资源不足或文本回调失败。
    * @throws {Error} fields 为空。
    * @example const c = FuzzyCorpus.byKeys([{name: "你好"}], ["name"]); c.dispose();
    */
@@ -354,7 +345,6 @@ export class FuzzyCorpus<T = string> {
 
   get length(): number { this._alive(); return this._items.length; }
 
-  // 写入平台成功后追加宿主条目。
   /**
    * 新增条目，失败保留已有条目。
    * @param item 待加入条目。
@@ -372,7 +362,6 @@ export class FuzzyCorpus<T = string> {
    */
   addAll(items: Iterable<T>): void { for (const item of items) this.add(item); }
 
-  // 复制附加键并在平台写入成功后提交宿主记录。
   /**
    * 新增条目和附加键，原始键自动保留。
    * @param item 待加入条目。
@@ -387,9 +376,8 @@ export class FuzzyCorpus<T = string> {
     this._nativeAdd(item, ks); this._items.push(item); this._keys.push(ks);
   }
 
-  // 替换条目后重建索引。
   /**
-   * 替换条目并清除其附加键。
+   * 替换条目并清除其附加键；重建失败时条目截断为已写入的前缀。
    * @param index 从零开始的索引。
    * @param item 新条目。
    * @returns 空值。
@@ -402,9 +390,8 @@ export class FuzzyCorpus<T = string> {
     this._items[index] = item; this._keys[index] = null; this._rebuild();
   }
 
-  // 删除指定条目后重建索引。
   /**
-   * 删除指定条目。
+   * 删除指定条目；重建失败时条目截断为已写入的前缀。
    * @param index 从零开始的索引。
    * @returns 空值。
    * @throws {Error} 语料库已销毁、资源不足或文本回调失败。
@@ -416,7 +403,6 @@ export class FuzzyCorpus<T = string> {
     this._items.splice(index, 1); this._keys.splice(index, 1); this._rebuild();
   }
 
-  // 先完成筛选再删除，避免回调失败留下半次修改。
   /**
    * 删除满足条件的条目；回调失败时不提交本次筛选。
    * @param test 删除条件，回调异常向上传递。
@@ -436,9 +422,8 @@ export class FuzzyCorpus<T = string> {
     return indices.length;
   }
 
-  // 先收集新条目再替换宿主数据并重建索引。
   /**
-   * 刷新现有条目；提供来源时替换条目并清除附加键。
+   * 刷新现有条目；提供来源时替换条目并清除附加键；重建失败时条目截断为已写入的前缀。
    * @param source 新来源，省略时保留现有条目及键。
    * @returns 空值。
    * @throws {Error} 语料库已销毁、资源不足或文本回调失败。
@@ -463,13 +448,10 @@ export class FuzzyCorpus<T = string> {
    * @param query 查询文本。
    * @param opts 搜索选项，省略的字段沿用语料库选项；limit 非正数表示不限。
    * @returns 命中列表，highlight 为真时包含码点下标。引擎未就绪时返回空结果。
-   * @throws {RangeError} 显式距离不是零至十的整数，或近似、回退、合并、双路查询超过六十四码点。
    * @throws {Error} 语料库已销毁或资源不足。
    * @example corpus.fuzzy("你好");
    */
   fuzzy(query: string, opts?: Partial<FuzzyOptions>): FuzzyHit<T>[] { return this.search(query, { ...opts, strategy: 'fuzzy' }); }
-  /** Contiguous-substring match. */
-  // 按字面子串搜索全部键。
   /**
    * 子串搜索。
    * @param query 查询文本。
@@ -479,8 +461,6 @@ export class FuzzyCorpus<T = string> {
    * @example corpus.substring("你好");
    */
   substring(query: string, opts?: Partial<FuzzyOptions>): FuzzyHit<T>[] { return this._search(1, query, opts ?? {}); }
-  /** Prefix match — item starts with query. */
-  // 按字面前缀搜索全部键。
   /**
    * 前缀搜索。
    * @param query 查询文本。
@@ -490,8 +470,6 @@ export class FuzzyCorpus<T = string> {
    * @example corpus.prefix("你好");
    */
   prefix(query: string, opts?: Partial<FuzzyOptions>): FuzzyHit<T>[] { return this._search(2, query, opts ?? {}); }
-  /** Postfix match — item ends with query. */
-  // 按字面后缀搜索全部键。
   /**
    * 后缀搜索。
    * @param query 查询文本。
@@ -501,8 +479,6 @@ export class FuzzyCorpus<T = string> {
    * @example corpus.postfix("你好");
    */
   postfix(query: string, opts?: Partial<FuzzyOptions>): FuzzyHit<T>[] { return this._search(3, query, opts ?? {}); }
-  /** Alias for {@link postfix}. */
-  // 后缀搜索的兼容别名。
   /**
    * 后缀搜索。
    * @param query 查询文本。
@@ -512,8 +488,6 @@ export class FuzzyCorpus<T = string> {
    * @example corpus.suffix("你好");
    */
   suffix(query: string, opts?: Partial<FuzzyOptions>): FuzzyHit<T>[] { return this.postfix(query, opts); }
-  /** Exact whole-string match. */
-  // 按完整字面文本搜索全部键。
   /**
    * 完整文本搜索。
    * @param query 查询文本。
@@ -533,8 +507,6 @@ export class FuzzyCorpus<T = string> {
    * @example corpus.fuzzyRaws("你好");
    */
   fuzzyRaws(query: string, opts?: Partial<FuzzyOptions>): T[] { return this._searchRaws(0, query, opts ?? {}); }
-  /** Substring search — raw `T[]` only. */
-  // 返回子串搜索的原始条目。
   /**
    * 子串搜索。
    * @param query 查询文本。
@@ -544,8 +516,6 @@ export class FuzzyCorpus<T = string> {
    * @example corpus.substringRaws("你好");
    */
   substringRaws(query: string, opts?: Partial<FuzzyOptions>): T[] { return this._searchRaws(1, query, opts ?? {}); }
-  /** Prefix search — raw `T[]` only. */
-  // 返回前缀搜索的原始条目。
   /**
    * 前缀搜索。
    * @param query 查询文本。
@@ -555,8 +525,6 @@ export class FuzzyCorpus<T = string> {
    * @example corpus.prefixRaws("你好");
    */
   prefixRaws(query: string, opts?: Partial<FuzzyOptions>): T[] { return this._searchRaws(2, query, opts ?? {}); }
-  /** Postfix search — raw `T[]` only. */
-  // 返回后缀搜索的原始条目。
   /**
    * 后缀搜索。
    * @param query 查询文本。
@@ -566,8 +534,6 @@ export class FuzzyCorpus<T = string> {
    * @example corpus.postfixRaws("你好");
    */
   postfixRaws(query: string, opts?: Partial<FuzzyOptions>): T[] { return this._searchRaws(3, query, opts ?? {}); }
-  /** Alias for {@link postfixRaws}. */
-  // 返回后缀搜索的原始条目。
   /**
    * 后缀搜索。
    * @param query 查询文本。
@@ -577,8 +543,6 @@ export class FuzzyCorpus<T = string> {
    * @example corpus.suffixRaws("你好");
    */
   suffixRaws(query: string, opts?: Partial<FuzzyOptions>): T[] { return this.postfixRaws(query, opts); }
-  /** Exact search — raw `T[]` only. */
-  // 返回完整字面搜索的原始条目。
   /**
    * 完整文本搜索。
    * @param query 查询文本。
@@ -592,7 +556,10 @@ export class FuzzyCorpus<T = string> {
   /**
    * 统一搜索。
    * @param query 查询文本。
-   * @param opts 搜索选项，省略的字段沿用语料库选项；limit 非正数表示不限。 strategy 选择子序列、近似、无子序列命中时回退或合并；maxDistance 默认自动选择。
+   * @param opts 搜索选项，省略的字段沿用语料库选项；limit 非正数表示不限。
+   *   opts.strategy 选择算法，默认 `'fuzzy'`：`'fuzzy'` 为子序列匹配；`'approx'` 为编辑距离近似匹配；
+   *   `'fallback'` 先做子序列匹配，无命中时再退到近似匹配；`'merge'` 同时运行两种算法，子序列命中排在前。
+   *   opts.maxDistance 为最大编辑距离，须为 0–10 的整数，省略时按查询码点数自动选择。
    * @returns 原始条目列表。引擎未就绪时返回空结果。
    * @throws {RangeError} 显式距离不是零至十的整数，或近似、回退、合并、双路查询超过六十四码点。
    * @throws {Error} 语料库已销毁或资源不足。
@@ -618,17 +585,13 @@ export class FuzzyCorpus<T = string> {
     return this._approxRaw(query, dist, new FuzzyOptions({ ...this._opts, ...opts }));
   }
 
-  /** Unified search entry point.
-   *
-   * - `'fuzzy'`    — fzf subsequence (default, same as calling `fuzzy()`)
-   * - `'approx'`   — edit-distance; `maxDistance` auto-scaled when omitted
-   * - `'fallback'` — subsequence first; falls back to approx when empty
-   * - `'merge'`    — both algorithms; subsequence hits first, then approx-only hits
-   */
   /**
    * 统一搜索。
    * @param query 查询文本。
-   * @param opts 搜索选项，省略的字段沿用语料库选项；limit 非正数表示不限。 strategy 选择子序列、近似、无子序列命中时回退或合并；maxDistance 默认自动选择。
+   * @param opts 搜索选项，省略的字段沿用语料库选项；limit 非正数表示不限。
+   *   opts.strategy 选择算法，默认 `'fuzzy'`：`'fuzzy'` 为子序列匹配；`'approx'` 为编辑距离近似匹配；
+   *   `'fallback'` 先做子序列匹配，无命中时再退到近似匹配；`'merge'` 同时运行两种算法，子序列命中排在前。
+   *   opts.maxDistance 为最大编辑距离，须为 0–10 的整数，省略时按查询码点数自动选择。
    * @returns 命中列表，highlight 为真时包含码点下标。引擎未就绪时返回空结果。
    * @throws {RangeError} 显式距离不是零至十的整数，或近似、回退、合并、双路查询超过六十四码点。
    * @throws {Error} 语料库已销毁或资源不足。
@@ -743,7 +706,6 @@ export class FuzzyCorpus<T = string> {
 
   // ── lifecycle ────────────────────────────────────────────────────────────────
 
-  // 标记销毁并释放原生语料库和临时缓冲。
   /**
    * 销毁语料库，可重复调用。
    *

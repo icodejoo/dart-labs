@@ -17,7 +17,7 @@ export 'ffuzzy_types.dart';
 export 'ffuzzy_corpus.dart' hide FuzzyCorpusProtected;
 
 /// 原生平台的初始化兼容入口；[webUrl] 和 [webAssetsUrl] 均被忽略。
-/// 返回立即完成的通知，可供跨平台启动代码统一调用。
+/// 返回立即完成的 Future，可供跨平台启动代码统一调用。
 ///
 /// 示例：`await ffuzzyInit();`。
 Future<void> ffuzzyInit({String? webUrl, String? webAssetsUrl}) async {}
@@ -911,7 +911,7 @@ final class FuzzyCorpus<T> extends FuzzyCorpusProtected<T>
 
   // ── Async build ───────────────────────────────────────────────────────────
 
-  /// 异步追加 [items]，返回完成通知；文本提取异常向上传递。
+  /// 异步追加 [items]，返回完成的 Future；文本提取异常向上传递。
   /// 销毁后、构建中或搜索未完成时调用抛 StateError；资源不足抛 FuzzyException。
   /// 写入失败会恢复旧索引；恢复也失败时销毁语料库并抛 StateError。
   ///
@@ -974,7 +974,7 @@ final class FuzzyCorpus<T> extends FuzzyCorpusProtected<T>
   // ── Lifecycle ─────────────────────────────────────────────────────────────
 
   /// 释放语料库；无参数，无返回值，可重复调用。
-  /// 调用后禁止搜索和修改；未结束的操作完成后释放资源。
+  /// 调用后再搜索或修改抛 StateError；未结束的操作完成后释放资源。
   ///
   /// 示例：`corpus.dispose();`。
   void dispose() {
@@ -991,8 +991,8 @@ final class FuzzyCorpus<T> extends FuzzyCorpusProtected<T>
     }
   }
 
-  /// 销毁语料库并等待在途操作完成；无参数，返回资源释放完成通知。
-  /// 可重复调用；调用后禁止搜索和修改。
+  /// 销毁语料库并等待在途操作完成；无参数，返回资源释放完成的 Future。
+  /// 可重复调用；调用后再搜索或修改抛 StateError。
   ///
   /// 示例：`await corpus.asyncDispose();`。
   Future<void> asyncDispose() async {

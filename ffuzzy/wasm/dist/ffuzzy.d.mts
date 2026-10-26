@@ -72,13 +72,6 @@ interface FuzzyHit<T = unknown> {
 type FieldPath<T extends Record<string, unknown>> = { [K in keyof T & string]: T[K] extends Record<string, unknown> ? K | `${K}.${keyof T[K] & string}` : K; }[keyof T & string];
 type SearchStrategy = 'fuzzy' | 'approx' | 'fallback' | 'merge';
 /**
- * Returns a sensible edit-distance threshold based on query length (mirrors
- * Elasticsearch's AUTO policy). Used as the default when `maxDistance` is omitted.
- * - length ≤ 2 → 0 (exact)
- * - length 3-5 → 1
- * - length 6+  → 2
- */
-/**
  * 按查询码点数选择默认编辑距离。
  * @param query 查询文本。
  * @returns 零至二码点返回零，三至五码点返回一，其余返回二。
@@ -119,7 +112,7 @@ declare class FuzzyCorpus<T = string> {
    * @param items 初始条目，可省略。
    * @param init 文本提取函数及默认选项，可省略。
    * @returns 新语料库；引擎未就绪时同步搜索返回空结果。
-   * @throws {Error} 语料库已销毁、资源不足或文本回调失败。
+   * @throws {Error} 资源不足或文本回调失败。
    * @example const c = new FuzzyCorpus(["你好"]); c.dispose();
    */
   constructor(items?: Iterable<T>, init?: FuzzyCorpusInit<T>);
@@ -144,7 +137,7 @@ declare class FuzzyCorpus<T = string> {
    * @param fields 字段路径；不能为空。
    * @param opts 默认选项，可省略。
    * @returns 新语料库；字段缺失视为空文本。
-   * @throws {Error} 语料库已销毁、资源不足或文本回调失败。
+   * @throws {Error} 资源不足或文本回调失败。
    * @throws {Error} fields 为空。
    * @example const c = FuzzyCorpus.byKeys([{name: "你好"}], ["name"]); c.dispose();
    */
@@ -176,7 +169,7 @@ declare class FuzzyCorpus<T = string> {
    */
   addKey(item: T, keys: FuzzyKey[]): void;
   /**
-   * 替换条目并清除其附加键。
+   * 替换条目并清除其附加键；重建失败时条目截断为已写入的前缀。
    * @param index 从零开始的索引。
    * @param item 新条目。
    * @returns 空值。
@@ -186,7 +179,7 @@ declare class FuzzyCorpus<T = string> {
    */
   update(index: number, item: T): void;
   /**
-   * 删除指定条目。
+   * 删除指定条目；重建失败时条目截断为已写入的前缀。
    * @param index 从零开始的索引。
    * @returns 空值。
    * @throws {Error} 语料库已销毁、资源不足或文本回调失败。
@@ -203,7 +196,7 @@ declare class FuzzyCorpus<T = string> {
    */
   removeWhere(test: (item: T) => boolean): number;
   /**
-   * 刷新现有条目；提供来源时替换条目并清除附加键。
+   * 刷新现有条目；提供来源时替换条目并清除附加键；重建失败时条目截断为已写入的前缀。
    * @param source 新来源，省略时保留现有条目及键。
    * @returns 空值。
    * @throws {Error} 语料库已销毁、资源不足或文本回调失败。
@@ -216,12 +209,10 @@ declare class FuzzyCorpus<T = string> {
    * @param query 查询文本。
    * @param opts 搜索选项，省略的字段沿用语料库选项；limit 非正数表示不限。
    * @returns 命中列表，highlight 为真时包含码点下标。引擎未就绪时返回空结果。
-   * @throws {RangeError} 显式距离不是零至十的整数，或近似、回退、合并、双路查询超过六十四码点。
    * @throws {Error} 语料库已销毁或资源不足。
    * @example corpus.fuzzy("你好");
    */
   fuzzy(query: string, opts?: Partial<FuzzyOptions>): FuzzyHit<T>[];
-  /** Contiguous-substring match. */
   /**
    * 子串搜索。
    * @param query 查询文本。
@@ -231,7 +222,6 @@ declare class FuzzyCorpus<T = string> {
    * @example corpus.substring("你好");
    */
   substring(query: string, opts?: Partial<FuzzyOptions>): FuzzyHit<T>[];
-  /** Prefix match — item starts with query. */
   /**
    * 前缀搜索。
    * @param query 查询文本。
@@ -241,7 +231,6 @@ declare class FuzzyCorpus<T = string> {
    * @example corpus.prefix("你好");
    */
   prefix(query: string, opts?: Partial<FuzzyOptions>): FuzzyHit<T>[];
-  /** Postfix match — item ends with query. */
   /**
    * 后缀搜索。
    * @param query 查询文本。
@@ -251,7 +240,6 @@ declare class FuzzyCorpus<T = string> {
    * @example corpus.postfix("你好");
    */
   postfix(query: string, opts?: Partial<FuzzyOptions>): FuzzyHit<T>[];
-  /** Alias for {@link postfix}. */
   /**
    * 后缀搜索。
    * @param query 查询文本。
@@ -261,7 +249,6 @@ declare class FuzzyCorpus<T = string> {
    * @example corpus.suffix("你好");
    */
   suffix(query: string, opts?: Partial<FuzzyOptions>): FuzzyHit<T>[];
-  /** Exact whole-string match. */
   /**
    * 完整文本搜索。
    * @param query 查询文本。
@@ -280,7 +267,6 @@ declare class FuzzyCorpus<T = string> {
    * @example corpus.fuzzyRaws("你好");
    */
   fuzzyRaws(query: string, opts?: Partial<FuzzyOptions>): T[];
-  /** Substring search — raw `T[]` only. */
   /**
    * 子串搜索。
    * @param query 查询文本。
@@ -290,7 +276,6 @@ declare class FuzzyCorpus<T = string> {
    * @example corpus.substringRaws("你好");
    */
   substringRaws(query: string, opts?: Partial<FuzzyOptions>): T[];
-  /** Prefix search — raw `T[]` only. */
   /**
    * 前缀搜索。
    * @param query 查询文本。
@@ -300,7 +285,6 @@ declare class FuzzyCorpus<T = string> {
    * @example corpus.prefixRaws("你好");
    */
   prefixRaws(query: string, opts?: Partial<FuzzyOptions>): T[];
-  /** Postfix search — raw `T[]` only. */
   /**
    * 后缀搜索。
    * @param query 查询文本。
@@ -310,7 +294,6 @@ declare class FuzzyCorpus<T = string> {
    * @example corpus.postfixRaws("你好");
    */
   postfixRaws(query: string, opts?: Partial<FuzzyOptions>): T[];
-  /** Alias for {@link postfixRaws}. */
   /**
    * 后缀搜索。
    * @param query 查询文本。
@@ -320,7 +303,6 @@ declare class FuzzyCorpus<T = string> {
    * @example corpus.suffixRaws("你好");
    */
   suffixRaws(query: string, opts?: Partial<FuzzyOptions>): T[];
-  /** Exact search — raw `T[]` only. */
   /**
    * 完整文本搜索。
    * @param query 查询文本。
@@ -333,7 +315,10 @@ declare class FuzzyCorpus<T = string> {
   /**
    * 统一搜索。
    * @param query 查询文本。
-   * @param opts 搜索选项，省略的字段沿用语料库选项；limit 非正数表示不限。 strategy 选择子序列、近似、无子序列命中时回退或合并；maxDistance 默认自动选择。
+   * @param opts 搜索选项，省略的字段沿用语料库选项；limit 非正数表示不限。
+   *   opts.strategy 选择算法，默认 `'fuzzy'`：`'fuzzy'` 为子序列匹配；`'approx'` 为编辑距离近似匹配；
+   *   `'fallback'` 先做子序列匹配，无命中时再退到近似匹配；`'merge'` 同时运行两种算法，子序列命中排在前。
+   *   opts.maxDistance 为最大编辑距离，须为 0–10 的整数，省略时按查询码点数自动选择。
    * @returns 原始条目列表。引擎未就绪时返回空结果。
    * @throws {RangeError} 显式距离不是零至十的整数，或近似、回退、合并、双路查询超过六十四码点。
    * @throws {Error} 语料库已销毁或资源不足。
@@ -354,17 +339,13 @@ declare class FuzzyCorpus<T = string> {
    * @example corpus.approx("你好");
    */
   approx(query: string, maxDistance?: number, opts?: Partial<FuzzyOptions>): FuzzyHit<T>[];
-  /** Unified search entry point.
-   *
-   * - `'fuzzy'`    — fzf subsequence (default, same as calling `fuzzy()`)
-   * - `'approx'`   — edit-distance; `maxDistance` auto-scaled when omitted
-   * - `'fallback'` — subsequence first; falls back to approx when empty
-   * - `'merge'`    — both algorithms; subsequence hits first, then approx-only hits
-   */
   /**
    * 统一搜索。
    * @param query 查询文本。
-   * @param opts 搜索选项，省略的字段沿用语料库选项；limit 非正数表示不限。 strategy 选择子序列、近似、无子序列命中时回退或合并；maxDistance 默认自动选择。
+   * @param opts 搜索选项，省略的字段沿用语料库选项；limit 非正数表示不限。
+   *   opts.strategy 选择算法，默认 `'fuzzy'`：`'fuzzy'` 为子序列匹配；`'approx'` 为编辑距离近似匹配；
+   *   `'fallback'` 先做子序列匹配，无命中时再退到近似匹配；`'merge'` 同时运行两种算法，子序列命中排在前。
+   *   opts.maxDistance 为最大编辑距离，须为 0–10 的整数，省略时按查询码点数自动选择。
    * @returns 命中列表，highlight 为真时包含码点下标。引擎未就绪时返回空结果。
    * @throws {RangeError} 显式距离不是零至十的整数，或近似、回退、合并、双路查询超过六十四码点。
    * @throws {Error} 语料库已销毁或资源不足。

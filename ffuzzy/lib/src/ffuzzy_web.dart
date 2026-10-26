@@ -163,8 +163,8 @@ final _readyCompleter = Completer<void>();
 Future<void>? _initializing;
 
 /// 初始化网页引擎；[webAssetsUrl] 为本地模块地址，[webUrl] 为远程模块地址，前者优先。
-/// 返回初始化完成通知，并发调用共享初始化；成功后重复调用立即完成。
-/// 两地址均省略时抛 ArgumentError；加载失败或超时抛 FuzzyException，可重试。
+/// 返回初始化完成的 Future，并发调用共享初始化；成功后重复调用立即完成。
+/// 两地址均省略时抛 ArgumentError；加载失败或超时抛 FuzzyException。
 ///
 /// 示例：`await ffuzzyInit(webUrl: "/ffz.mjs");`。
 Future<void> ffuzzyInit({String? webAssetsUrl, String? webUrl}) {
@@ -777,7 +777,7 @@ final class FuzzyCorpus<T> extends FuzzyCorpusProtected<T> {
 
   // ── Async build ───────────────────────────────────────────────────────────
 
-  /// 异步追加 [items]，返回完成通知；文本提取异常向上传递。
+  /// 异步追加 [items]，返回完成的 Future；文本提取异常向上传递。
   /// 销毁后、构建中或搜索未完成时调用抛 StateError；资源不足抛 FuzzyException。
   /// 失败时保留已提交的前缀。
   ///
@@ -806,7 +806,7 @@ final class FuzzyCorpus<T> extends FuzzyCorpusProtected<T> {
   // ── Lifecycle ─────────────────────────────────────────────────────────────
 
   /// 释放语料库；无参数，无返回值，可重复调用。
-  /// 调用后禁止搜索和修改；未结束的操作完成后释放资源。
+  /// 调用后再搜索或修改抛 StateError；未结束的操作完成后释放资源。
   ///
   /// 示例：`corpus.dispose();`。
   void dispose() {
@@ -822,8 +822,8 @@ final class FuzzyCorpus<T> extends FuzzyCorpusProtected<T> {
     }
   }
 
-  /// 销毁语料库并等待在途操作完成；无参数，返回资源释放完成通知。
-  /// 可重复调用；调用后禁止搜索和修改。
+  /// 销毁语料库并等待在途操作完成；无参数，返回资源释放完成的 Future。
+  /// 可重复调用；调用后再搜索或修改抛 StateError。
   ///
   /// 示例：`await corpus.asyncDispose();`。
   Future<void> asyncDispose() async {

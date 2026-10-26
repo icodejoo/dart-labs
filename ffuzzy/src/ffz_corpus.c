@@ -678,7 +678,7 @@ static bool thr_edit_start(scan_edit_job *j, ffz_thr *out) {
 }
 #endif
 
-// 查询无大写时忽略大小写，无重音字符时启用智能归一化。
+// 按 cm、nm 解析近似搜索配置：智能大小写在查询无大写时忽略大小写，智能归一化在查询无重音字符时折叠。
 static ffz_config edit_config(ffz_config cfg, ffz_str query,
                               ffz_case_matching cm, ffz_normalization nm) {
     bool has_upper = false, has_diacritic = false;

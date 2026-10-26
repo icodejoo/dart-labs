@@ -46,7 +46,7 @@ FFZ_API int ffz_ffi_install_crash_handler(const char *breadcrumb_path) {
 /**
  * 设置测试分配故障预算。
  * @param n 允许的成功分配次数，负数关闭故障注入。
- * @return 空值，仅分配计数构建可用。
+ * @return 无返回值；仅 FFZ_TRACK_ALLOC 构建可用。
  * @example ffz_ffi_dbg_fail_after(-1);
  */
 FFZ_API void ffz_ffi_dbg_fail_after(int n) { ffz_dbg_fail_after(n); }
