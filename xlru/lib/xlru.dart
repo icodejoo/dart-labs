@@ -14,6 +14,11 @@ library;
 import 'dart:collection';
 import 'dart:typed_data';
 
+import 'src/store.dart';
+
+export 'src/async_cache.dart';
+export 'src/store.dart';
+
 /// The reason an entry was removed from a [XlruCache].
 enum XlruRemovalCause {
   /// Capacity enforcement removed an unpinned entry.
@@ -103,14 +108,25 @@ final class XlruCache<K, V> {
   /// equal keys must have equal, stable hash codes. Defaults use `==` and the
   /// key's `hashCode`. [allowSelfEviction] is described at [allowSelfEviction].
   /// Throws [ArgumentError] for an invalid capacity.
+  ///
+  /// With a [store], values live in the store instead of in memory; the cache
+  /// keeps only keys, order, and pins. Without one, nothing changes for the
+  /// in-memory path. See [XlruStore] for the store contract. A store cannot
+  /// hold null values: a missing value is reported as [XlruRemovalCause.lost]
+  /// and, if `V` is not nullable, that notification is not delivered because
+  /// there is no value to pass. A store that throws makes the cache method
+  /// throw; a failed write leaves the cache unchanged.
   XlruCache({
     required int maxSize,
     XlruRemovalListener<K, V>? onRemove,
     bool Function(K, K)? equals,
     int Function(K)? hashCode,
     this.allowSelfEviction = false,
+    XlruStore<K, V>? store,
   })  : _maxSize = _validateSize(maxSize),
         _onRemove = onRemove,
+        _store = store,
+        _track = onRemove != null || store != null,
         _equals = equals,
         _hashCode = hashCode,
         _keys = List<Object?>.filled(_initialCount(maxSize), null),
@@ -144,6 +160,10 @@ final class XlruCache<K, V> {
   // new entry, link updates need no type checks on any compiler, and hot
   // reads return the stored `V?` without casts.
   final XlruRemovalListener<K, V>? _onRemove;
+  final XlruStore<K, V>? _store;
+
+  /// Whether removals must be recorded: a listener or a store needs them.
+  final bool _track;
   final bool Function(K, K)? _equals;
   final int Function(K)? _hashCode;
   int _maxSize;
@@ -220,13 +240,14 @@ final class XlruCache<K, V> {
     final slot = _find(key, _hash(key));
     if (slot == _none) return null;
     _promote(slot);
-    return _values[slot];
+    return _store == null ? _values[slot] : _lookup(slot);
   }
 
   /// Returns the value for [key], or null if absent, without changing recency.
   V? peek(K key) {
     final slot = _find(key, _hash(key));
-    return slot == _none ? null : _values[slot];
+    if (slot == _none) return null;
+    return _store == null ? _values[slot] : _lookup(slot);
   }
 
   /// Returns whether [key] exists, without changing recency.
@@ -241,6 +262,8 @@ final class XlruCache<K, V> {
   /// capacity enforcement unless [allowSelfEviction] is true. Notifications run
   /// after all structural changes.
   void set(K key, V value) {
+    final store = _store;
+    if (store != null) return _setStored(key, value, store);
     List<_Removal>? removed;
     final hash = _hash(key);
     var slot = _find(key, hash);
@@ -275,6 +298,47 @@ final class XlruCache<K, V> {
     _notify(_trim(removed, allowSelfEviction ? _none : slot));
   }
 
+  /// [set] for a cache with a [store]; kept apart so the in-memory path stays
+  /// free of store checks.
+  ///
+  /// The value is written first, so a failing store leaves the cache untouched.
+  void _setStored(K key, V value, XlruStore<K, V> store) {
+    List<_Removal>? removed;
+    final hash = _hash(key);
+    var slot = _find(key, hash);
+    if (slot == _none) {
+      store.write(key, value);
+      if (_count >= _maxSize) {
+        slot = _victim(_none);
+        if (slot != _none) {
+          try {
+            removed = _unlinkStored(slot, removed);
+          } catch (_) {
+            store.delete(key);
+            rethrow;
+          }
+        }
+      }
+      if (slot == _none) slot = _takeSlot();
+      _keys[slot] = key;
+      _pins[slot] = 0;
+      _hashes[slot] = hash;
+      _insert(slot, hash);
+      _count++;
+      _attach(slot);
+      _version++;
+    } else {
+      final old = _onRemove == null ? null : store.read(key);
+      store.write(key, value);
+      if (old != null && !identical(old, value)) {
+        removed = [_Removal(_keys[slot], old, XlruRemovalCause.replaced)];
+      }
+      _version++;
+      _promote(slot);
+    }
+    _notify(_trim(removed, allowSelfEviction ? _none : slot));
+  }
+
   /// Returns and promotes the existing value at [key], otherwise creates it.
   ///
   /// Calls [ifAbsent] once on a miss and inserts its returned value with [set].
@@ -288,7 +352,9 @@ final class XlruCache<K, V> {
     final slot = _find(key, _hash(key));
     if (slot != _none) {
       _promote(slot);
-      return _values[slot] as V;
+      if (_store == null) return _values[slot] as V;
+      final existing = _lookup(slot);
+      if (existing != null) return existing;
     }
     final value = ifAbsent();
     set(key, value);
@@ -301,15 +367,17 @@ final class XlruCache<K, V> {
   V? remove(K key) {
     final slot = _find(key, _hash(key));
     if (slot == _none) return null;
-    _unindex(slot);
+    final store = _store;
+    final value = store == null ? _values[slot] : store.read(_keys[slot] as K);
+    final cause = store != null && value == null
+        ? XlruRemovalCause.lost
+        : XlruRemovalCause.removed;
     final storedKey = _keys[slot];
-    final value = _values[slot];
+    _unindex(slot);
     _detach(slot);
     _release(slot);
     _version++;
-    if (_onRemove != null) {
-      _notify([_Removal(storedKey, value, XlruRemovalCause.removed)]);
-    }
+    if (_track) _notify([_Removal(storedKey, value, cause)]);
     return value;
   }
 
@@ -323,9 +391,10 @@ final class XlruCache<K, V> {
       removed = [];
       for (var slot = _oldest; slot != _none; slot = _newer[slot]) {
         removed.add(
-            _Removal(_keys[slot], _values[slot], XlruRemovalCause.cleared));
+            _Removal(_keys[slot], _valueOf(slot), XlruRemovalCause.cleared));
       }
     }
+    _store?.clear();
     if (_count != 0) _version++;
     _allocate(_initialCount(_maxSize));
     _notify(removed);
@@ -372,7 +441,14 @@ final class XlruCache<K, V> {
   R? usePinned<R>(K key, R Function(V value) action) {
     final slot = _find(key, _hash(key));
     if (slot == _none) return null;
-    final value = _values[slot] as V;
+    final V value;
+    if (_store == null) {
+      value = _values[slot] as V;
+    } else {
+      final stored = _lookup(slot);
+      if (stored == null) return null;
+      value = stored;
+    }
     pin(key);
     try {
       return action(value);
@@ -393,13 +469,13 @@ final class XlruCache<K, V> {
   Iterable<K> get keys => _CacheIterable(this, (slot) => _keys[slot] as K);
 
   /// Live values in the same order as [keys], without promotion.
-  Iterable<V> get values => _CacheIterable(this, (slot) => _values[slot] as V);
+  Iterable<V> get values => _CacheIterable(this, _stored);
 
   /// Live entries in the same order as [keys], without promotion.
   ///
   /// Returned [MapEntry] objects are immutable snapshots of individual entries.
-  Iterable<MapEntry<K, V>> get entries => _CacheIterable(
-      this, (slot) => MapEntry(_keys[slot] as K, _values[slot] as V));
+  Iterable<MapEntry<K, V>> get entries =>
+      _CacheIterable(this, (slot) => MapEntry(_keys[slot] as K, _stored(slot)));
 
   /// Returns an independent ordered copy, newest to oldest, without promotion.
   ///
@@ -411,6 +487,39 @@ final class XlruCache<K, V> {
       result[entry.key] = entry.value;
     }
     return result;
+  }
+
+  /// The value of [slot], read from the store when there is one; null with a
+  /// store means the data is missing.
+  V? _valueOf(int slot) =>
+      _store == null ? _values[slot] : _store.read(_keys[slot] as K);
+
+  /// Like [_valueOf], but a missing store value removes the entry as lost.
+  V? _lookup(int slot) {
+    final value = _store!.read(_keys[slot] as K);
+    if (value == null) _lose(slot);
+    return value;
+  }
+
+  /// The value of [slot] for iteration; throws if the store lost it.
+  V _stored(int slot) {
+    final store = _store;
+    if (store == null) return _values[slot] as V;
+    final value = store.read(_keys[slot] as K);
+    if (value == null) {
+      throw StateError('The store has no value for a cached key.');
+    }
+    return value;
+  }
+
+  /// Removes [slot] because the store no longer has its value.
+  void _lose(int slot) {
+    final key = _keys[slot];
+    _unindex(slot);
+    _detach(slot);
+    _release(slot);
+    _version++;
+    if (_track) _notify([_Removal(key, null, XlruRemovalCause.lost)]);
   }
 
   /// Replaces all slot storage with [slots] empty slots.
@@ -573,7 +682,8 @@ final class XlruCache<K, V> {
 
   /// Evicts [slot] and frees it; see [_unlink].
   List<_Removal>? _evict(int slot, List<_Removal>? removed) {
-    removed = _unlink(slot, removed);
+    removed =
+        _store == null ? _unlink(slot, removed) : _unlinkStored(slot, removed);
     _release(slot);
     return removed;
   }
@@ -585,6 +695,20 @@ final class XlruCache<K, V> {
       (removed ??= [])
           .add(_Removal(_keys[slot], _values[slot], XlruRemovalCause.evicted));
     }
+    _unindex(slot);
+    _detach(slot);
+    _version++;
+    return removed;
+  }
+
+  /// [_unlink] for a cache with a store: the value comes from the store, and a
+  /// missing value is recorded as lost. Reads before changing anything.
+  List<_Removal>? _unlinkStored(int slot, List<_Removal>? removed) {
+    final value = _onRemove == null ? null : _valueOf(slot);
+    final cause = _onRemove != null && value == null
+        ? XlruRemovalCause.lost
+        : XlruRemovalCause.evicted;
+    (removed ??= []).add(_Removal(_keys[slot], value, cause));
     _unindex(slot);
     _detach(slot);
     _version++;
@@ -606,13 +730,32 @@ final class XlruCache<K, V> {
 
   /// Delivers [removed] to the listener; see [XlruRemovalListener] for semantics.
   void _notify(List<_Removal>? removed) {
+    if (removed == null) return;
     final listener = _onRemove;
-    if (listener == null || removed == null) return;
+    final store = _store;
     Object? firstError;
     StackTrace? firstStack;
     for (final item in removed) {
+      final cause = item.cause;
+      if (store != null &&
+          (cause == XlruRemovalCause.evicted ||
+              cause == XlruRemovalCause.removed)) {
+        // The index already dropped the key; a failing delete only leaves
+        // stale data in the store.
+        try {
+          store.delete(item.key as K);
+        } catch (error, stack) {
+          firstError ??= error;
+          firstStack ??= stack;
+        }
+      }
+      if (listener == null) continue;
+      // A lost value is null, which a non-nullable `V` cannot receive.
+      if (cause == XlruRemovalCause.lost && item.value == null && null is! V) {
+        continue;
+      }
       try {
-        listener(item.key as K, item.value as V, item.cause);
+        listener(item.key as K, item.value as V, cause);
       } catch (error, stack) {
         firstError ??= error;
         firstStack ??= stack;
