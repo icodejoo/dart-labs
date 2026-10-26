@@ -149,16 +149,17 @@ fi
 if [ "${SKIP_HTTPS:-0}" != 1 ]; then
   echo "=== https / mbedtls ==="
   ffmpeg -nostdin -loglevel error -f lavfi -i testsrc2=size=320x180:rate=25 -t 20 -c:v libx264 -pix_fmt yuv420p -g 25 -movflags +faststart media.mp4
-  # macOS 自带的 openssl 是 LibreSSL，不一定支持 -addext，用配置文件更稳
+  # macOS 自带的 openssl 是 LibreSSL，不一定支持 -addext，用配置文件更稳。
+  # 证书用 DNS 名（localhost）而不是 IP：mbedtls 3.4 不匹配 SAN 里的 iPAddress，IP 字面量主机名在 tls-verify=yes 下必败（实测 flags=4，Android 同）
   cat > san.cnf <<'CNF'
 [req]
 distinguished_name=dn
 x509_extensions=v3
 prompt=no
 [dn]
-CN=127.0.0.1
+CN=localhost
 [v3]
-subjectAltName=IP:127.0.0.1
+subjectAltName=DNS:localhost
 basicConstraints=CA:TRUE
 CNF
   for n in good evil; do
@@ -180,18 +181,18 @@ PY
   python3 httpsd.py > httpsd.log 2>&1 & PIDS+=($!)
   wait_port 8443
   ls -l media.mp4 good.pem good.key
-  echo "curl 直连自检: $(curl -sk -m 5 -o /dev/null -w '%{http_code} %{size_download}B' https://127.0.0.1:8443/media.mp4)"
+  echo "curl 直连自检: $(curl -sk -m 5 -o /dev/null -w '%{http_code} %{size_download}B' https://localhost:8443/media.mp4)"
   echo "--- httpsd.log ---"; cat httpsd.log
 
-  SMOKE_LOG_ALL=1 SMOKE_OPTS="tls-verify=no" run_smoke play https://127.0.0.1:8443/media.mp4 8 > https-noverify.log 2>&1; RC=$?
+  SMOKE_LOG_ALL=1 SMOKE_OPTS="tls-verify=no" run_smoke play https://localhost:8443/media.mp4 8 > https-noverify.log 2>&1; RC=$?
   grep -aEi 'RESULT|EVENT|tls|ssl|certificate' https-noverify.log | head -12
   if [ $RC -eq 0 ]; then pass "https tls-verify=no 能播"; else flunk "https tls-verify=no (rc=$RC)"; tail -50 https-noverify.log; echo "--- httpsd.log ---"; cat httpsd.log; fi
 
-  SMOKE_LOG_ALL=1 SMOKE_OPTS="tls-verify=yes;tls-ca-file=$W/good.pem" run_smoke play https://127.0.0.1:8443/media.mp4 8 > https-ca.log 2>&1; RC=$?
+  SMOKE_LOG_ALL=1 SMOKE_OPTS="tls-verify=yes;tls-ca-file=$W/good.pem" run_smoke play https://localhost:8443/media.mp4 8 > https-ca.log 2>&1; RC=$?
   grep -aEi 'RESULT|EVENT|tls|ssl|certificate' https-ca.log | head -12
   if [ $RC -eq 0 ]; then pass "https tls-verify=yes + tls-ca-file 能播"; else flunk "https tls-verify=yes + ca (rc=$RC)"; tail -50 https-ca.log; fi
 
-  SMOKE_LOG_ALL=1 SMOKE_OPTS="tls-verify=yes;tls-ca-file=$W/evil.pem" run_smoke play https://127.0.0.1:8443/media.mp4 8 > https-badca.log 2>&1; RC=$?
+  SMOKE_LOG_ALL=1 SMOKE_OPTS="tls-verify=yes;tls-ca-file=$W/evil.pem" run_smoke play https://localhost:8443/media.mp4 8 > https-badca.log 2>&1; RC=$?
   grep -aEi 'RESULT|EVENT|tls|ssl|certificate|verif' https-badca.log | head -12
   if [ $RC -eq 0 ]; then
     flunk "换无关 CA 仍然起播（校验没生效）"
