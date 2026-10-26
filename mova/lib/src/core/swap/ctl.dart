@@ -117,7 +117,8 @@ abstract class MovaSwapController {
   ///
   /// - [source]: the media to switch to / 要切换到的媒体
   /// - [at]: the position to land on / 要落到的位置
+  /// - [rate]: successor's starting rate, null inherits / 继任者起始倍速，null 继承
   ///
   /// Returns whether the switch was seamless / 返回本次切换是否为无缝切换。
-  Future<bool> swapTo(MovaSource source, {Duration at = Duration.zero});
+  Future<bool> swapTo(MovaSource source, {Duration at = Duration.zero, double? rate});
 }

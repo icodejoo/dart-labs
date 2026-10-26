@@ -657,9 +657,15 @@ class FakeSwapCtl implements MovaSwapController {
   /// 设置后 [swapTo] 会先等它再返回，用来把一次切换卡在半途。
   Completer<void>? swapToGate;
 
+  /// The `rate` argument of the most recent [swapTo] call.
+  ///
+  /// 最近一次 [swapTo] 调用的 `rate` 参数。
+  double? lastSwapToRate;
+
   @override
-  Future<bool> swapTo(MovaSource source, {Duration at = Duration.zero}) async {
+  Future<bool> swapTo(MovaSource source, {Duration at = Duration.zero, double? rate}) async {
     calls.add('swapTo');
+    lastSwapToRate = rate;
     await swapToGate?.future;
     return commitResult;
   }

@@ -50,6 +50,19 @@ class MovaWarmPlan {
   /// 正片（真机实测 2.8 秒的缺口）。
   final bool pauseWhenReady;
 
+  /// Playback rate the successor engine starts with at commit; null inherits
+  /// the outgoing engine's rate like every other view setting.
+  ///
+  /// The swap layer cannot tell the swap direction, so an ad-aware caller states
+  /// the rate it wants (an ad plays at 1x; content returns at the rate it had
+  /// before the ad) instead of resetting it after the hand-off.
+  ///
+  /// 提交时继任者引擎的起始倍速；null 表示像其他视图设置一样继承旧引擎的倍速。
+  ///
+  /// swap 层分辨不出换指方向，所以广告感知的调用方直接声明想要的倍速（广告 1x；
+  /// 正片按广告前的倍速回来），而不是换指后再去复位。
+  final double? rate;
+
   /// Creates a warm-up plan; all-defaults reproduces 0.4.0 behaviour.
   ///
   /// 创建一份预热计划；全默认即 0.4.0 行为。
@@ -57,11 +70,12 @@ class MovaWarmPlan {
   /// - [trigger]: per-call trigger override / 单次触发策略覆盖
   /// - [policy]: per-call readiness override / 单次就绪判据覆盖
   /// - [pauseWhenReady]: hold at the target frame once ready / 就绪后停在目标帧
+  /// - [rate]: successor's starting rate, null inherits / 继任者起始倍速，null 继承
   ///
   /// Example / 示例:
   /// ```dart
   /// await swap.prepare(ad.source, plan: const MovaWarmPlan(
   ///   trigger: MovaEagerWarm(), pauseWhenReady: true));
   /// ```
-  const MovaWarmPlan({this.trigger, this.policy, this.pauseWhenReady = false});
+  const MovaWarmPlan({this.trigger, this.policy, this.pauseWhenReady = false, this.rate});
 }

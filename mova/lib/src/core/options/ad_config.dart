@@ -260,6 +260,7 @@ class MovaAdConfig {
         trigger: const MovaEagerWarm(),
         policy: MovaBufferWarm(timeout: adReadyTimeout),
         pauseWhenReady: true,
+        rate: 1.0,
       );
 
   /// The failure policy actually in effect.

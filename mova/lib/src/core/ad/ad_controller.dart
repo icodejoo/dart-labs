@@ -830,7 +830,7 @@ class MovaAdController {
       // 正片——把 swapTo 正在等的影子挤掉，悄悄退化成普通 open()。
       _landingAd = true;
       try {
-        await _swap!.swapTo(b.source);
+        await _swap!.swapTo(b.source, rate: 1.0);
       } finally {
         _landingAd = false;
       }
@@ -870,10 +870,14 @@ class MovaAdController {
     } else {
       _armLoadTimer(b);
     }
-    // An ad must not play sped up; on the swap path the user's rate was
-    // carried onto the ad's engine, so put it back to 1x.
+    // An ad must not play sped up. Swap landings already start the ad at 1x
+    // (MovaWarmPlan.rate); this is the safety net for the paths that bypass it
+    // — swapTo() falling back to a plain open() on the user's engine, or a host
+    // adWarmPlan without a rate.
     //
-    // 广告不应变速；走无缝路径时用户倍速被带到了广告引擎上，这里复位到 1x。
+    // 广告不应变速。走无缝落地时广告已按 1x 起步（MovaWarmPlan.rate）；这里是
+    // 绕过它的路径的兜底——swapTo() 回落成在用户引擎上的普通 open()，或宿主自定义
+    // 的 adWarmPlan 没带 rate。
     final swap = _swap;
     if (swap != null && swap.swapEnabled && _api.state.rate != 1.0) {
       unawaited(_api.setRate(1.0));
@@ -1061,10 +1065,12 @@ class MovaAdController {
       await _api.open(c);
       if (at > Duration.zero) await _api.seek(at);
     }
-    // On the swap path the shadow engine starts from default settings (or the
-    // ad's 1x); give content back the rate the user had before the ad.
+    // The content warm-up already carries the rate the user had before the ad
+    // (MovaWarmPlan.rate); this is the safety net for hand-offs that bypass it,
+    // e.g. a content shadow that was not warmed, or a plain open() fallback.
     //
-    // 走无缝路径时影子引擎从默认设置（或广告的 1x）起步；把广告前用户的倍速还给正片。
+    // 正片预热已携带广告前用户的倍速（MovaWarmPlan.rate）；这里是绕过它的换指
+    // 的兜底，例如没来得及预热的正片影子，或回落的普通 open()。
     if (swap != null && swap.swapEnabled && _contentRate != 1.0 && _api.state.rate != _contentRate) {
       unawaited(_api.setRate(_contentRate));
     }
@@ -1351,7 +1357,7 @@ class MovaAdController {
       content,
       at: _contentResumeAt,
       cue: cue,
-      plan: const MovaWarmPlan(pauseWhenReady: true),
+      plan: MovaWarmPlan(pauseWhenReady: true, rate: _contentRate),
     );
   }
 

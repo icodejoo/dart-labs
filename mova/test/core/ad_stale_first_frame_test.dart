@@ -70,7 +70,7 @@ class _GatedSwapCtl extends FakeSwapCtl {
   void Function()? onSettled;
 
   @override
-  Future<bool> swapTo(MovaSource source, {Duration at = Duration.zero}) async {
+  Future<bool> swapTo(MovaSource source, {Duration at = Duration.zero, double? rate}) async {
     calls.add('swapTo');
     await gate.future;
     onSettled?.call();

@@ -265,6 +265,19 @@ void main() {
     expect(api.active, same(made[2]));
   });
 
+  test('MovaWarmPlan.rate overrides the inherited rate on the successor', () async {
+    final api = build((_) => FakeMovaApi(options: opts));
+    made[0].push(made[0].state.copyWith(rate: 2.0));
+    final f = api.swapTo(a, rate: 1.5);
+    for (var i = 0; i < 4; i++) {
+      await Future<void>.delayed(Duration.zero);
+    }
+    pushReady(made[1]);
+    expect(await f, isTrue);
+    // Without the override the 2x of the outgoing engine would be inherited.
+    expect(made[1].lastRate, 1.5);
+  });
+
   test('#6 dispose during _commitNow: shadow disposed, old disposed once, not promoted', () async {
     final api = build((i) => i == 0 ? _GatedPauseApi(options: opts) : FakeMovaApi(options: opts));
     await api.prepare(a, cue: cue);

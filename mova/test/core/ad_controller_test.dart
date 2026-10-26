@@ -661,6 +661,19 @@ void main() {
     });
   });
 
+  group('ad rate is declared in the swap plan', () {
+    test('a one-shot swapTo for the ad asks for 1x', () async {
+      const pre = MovaAdBreak(kind: MovaAdBreakKind.pre, source: MovaSource('https://host/pre.mp4'));
+      final api = FakeMovaApi(options: MovaOpts(ads: MovaAdConfig(enabled: true, breaks: [pre], waitForAdReady: const MovaAdWaitByKind(pre: true))));
+      final swap = FakeSwapCtl()..commitResult = true;
+      final c = MovaAdController(api, swap: swap);
+      await c.load(_content);
+      await settle();
+      expect(swap.calls, contains('swapTo'));
+      expect(swap.lastSwapToRate, 1.0);
+    });
+  });
+
   group('MovaAdController.loadDeferred — lazy content source resolution', () {
     const pre = MovaAdBreak(
       kind: MovaAdBreakKind.pre,

@@ -639,6 +639,7 @@ class MovaSwapEngine implements MovaApi, MovaSwapController, MovaStandbyControll
   Future<bool> _commitNow(MovaApi shadow) async {
     final old = _active;
     final wasPlaying = old.state.playing;
+    final startRate = _warmPlan.rate;
     // The engine may be disposed at any await below; the shadow was already
     // claimed out of [_shadow], so dispose() cannot reach it — release it here.
     //
@@ -662,7 +663,7 @@ class MovaSwapEngine implements MovaApi, MovaSwapController, MovaStandbyControll
       await (shadow as MovaStandbyController).setStandby(true);
       if (_disposed) return bail();
     }
-    await _inheritViewSettings(old.state, shadow);
+    await _inheritViewSettings(old.state, shadow, rate: startRate);
     if (_disposed) return bail();
     if (_config.muteWhileWarm && shadow is MovaPlayerMute) {
       final released = await _setWarmMute(shadow, false);
@@ -710,9 +711,9 @@ class MovaSwapEngine implements MovaApi, MovaSwapController, MovaStandbyControll
   /// volume/locked/orientation/fullscreen/mini back to defaults. Only values that differ
   /// from the shadow's are written; a failing setter is skipped, not fatal.
   ///
-  /// The swap layer cannot tell the swap direction (the warm plan carries no
-  /// such field), so rate is inherited too; an ad-aware caller that must not
-  /// speed up an ad (see `MovaAdController`) resets it after the hand-off.
+  /// Rate is inherited unless the warm plan states one ([MovaWarmPlan.rate]):
+  /// the swap layer cannot tell the swap direction, so an ad-aware caller (see
+  /// `MovaAdController`) declares the rate it wants instead.
   ///
   /// 在影子开播前，把用户的视图设置从 [from]（旧引擎状态）迁到 [shadow]，使换指
   /// 不会让倍速/适配/缩放/音量/锁定/方向/全屏/小窗回到默认。只写与影子不同的值；
@@ -720,7 +721,7 @@ class MovaSwapEngine implements MovaApi, MovaSwapController, MovaStandbyControll
   ///
   /// 换指方向在这一层分辨不出（预热计划里没有这个字段），所以倍速也一并继承；
   /// 不允许广告变速的调用方（见 `MovaAdController`）在换指后自行复位。
-  Future<void> _inheritViewSettings(MovaState from, MovaApi shadow) async {
+  Future<void> _inheritViewSettings(MovaState from, MovaApi shadow, {double? rate}) async {
     final to = shadow.state;
     Future<void> apply(bool differs, Future<void> Function() call) async {
       if (!differs) return;
@@ -731,7 +732,8 @@ class MovaSwapEngine implements MovaApi, MovaSwapController, MovaStandbyControll
       }
     }
 
-    await apply(from.rate != to.rate, () => shadow.setRate(from.rate));
+    final wantRate = rate ?? from.rate;
+    await apply(wantRate != to.rate, () => shadow.setRate(wantRate));
     await apply(from.fit != to.fit, () => shadow.setFit(from.fit));
     await apply(from.zoom != to.zoom, () => shadow.setZoom(from.zoom));
     await apply(from.volume != to.volume, () => shadow.setVolume(from.volume));
@@ -824,7 +826,7 @@ class MovaSwapEngine implements MovaApi, MovaSwapController, MovaStandbyControll
   }
 
   @override
-  Future<bool> swapTo(MovaSource source, {Duration at = Duration.zero}) async {
+  Future<bool> swapTo(MovaSource source, {Duration at = Duration.zero, double? rate}) async {
     if (!swapEnabled) {
       await _active.open(source);
       // Same guard as _startWarm: a seek issued right after open() before
@@ -843,7 +845,7 @@ class MovaSwapEngine implements MovaApi, MovaSwapController, MovaStandbyControll
       source,
       at: at,
       cue: const MovaWarmCue(),
-      plan: const MovaWarmPlan(trigger: MovaEagerWarm()),
+      plan: MovaWarmPlan(trigger: const MovaEagerWarm(), rate: rate),
     );
     final ok = _shadow != null && await commit(waitForReady: true);
     if (!ok) {
