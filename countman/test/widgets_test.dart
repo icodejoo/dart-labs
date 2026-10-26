@@ -1,3 +1,4 @@
+// 同步当前 SDK 的静态检查规范，保持原有行为。
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:countman/countman.dart';
@@ -7,10 +8,10 @@ void main() {
 // ── helpers ───────────────────────────────────────────────────────────────────
 
 /// Wraps a widget in a minimal Material app so Text / Icon can render.
-Widget _wrap(Widget child) => MaterialApp(home: Scaffold(body: child));
+Widget wrap(Widget child) => MaterialApp(home: Scaffold(body: child));
 
 /// Pumps frame 1 (anchor, dt=0) then frame 2 (advance time).
-Future<void> _pumpTwo(WidgetTester t, [Duration advance = const Duration(milliseconds: 200)]) async {
+Future<void> pumpTwo(WidgetTester t, [Duration advance = const Duration(milliseconds: 200)]) async {
   await t.pump();
   await t.pump(advance);
 }
@@ -21,7 +22,7 @@ group('CounterBuilder', () {
   tearDown(Countman.destroy);
 
   testWidgets('renders from value on first frame', (t) async {
-    await t.pumpWidget(_wrap(
+    await t.pumpWidget(wrap(
       CounterBuilder(
         from: 50,
         to: 100,
@@ -35,7 +36,7 @@ group('CounterBuilder', () {
   });
 
   testWidgets('defaults from to 0 when not provided', (t) async {
-    await t.pumpWidget(_wrap(
+    await t.pumpWidget(wrap(
       CounterBuilder(to: 100, builder: (_, v, __) => Text(v.toInt().toString())),
     ));
     await t.pump();
@@ -45,7 +46,7 @@ group('CounterBuilder', () {
   });
 
   testWidgets('animates toward to', (t) async {
-    await t.pumpWidget(_wrap(
+    await t.pumpWidget(wrap(
       CounterBuilder(
         to: 100,
         duration: const Duration(milliseconds: 200),
@@ -69,7 +70,7 @@ group('CounterBuilder', () {
 
   testWidgets('calls onComplete when animation reaches to', (t) async {
     double? doneValue;
-    await t.pumpWidget(_wrap(
+    await t.pumpWidget(wrap(
       CounterBuilder(
         to: 42,
         duration: const Duration(milliseconds: 100),
@@ -78,7 +79,7 @@ group('CounterBuilder', () {
       ),
     ));
 
-    await _pumpTwo(t);
+    await pumpTwo(t);
     Countman.destroy();
 
     expect(doneValue, 42.0);
@@ -88,7 +89,7 @@ group('CounterBuilder', () {
     final linear = <double>[];
     final bounce = <double>[];
 
-    await t.pumpWidget(_wrap(Row(children: [
+    await t.pumpWidget(wrap(Row(children: [
       CounterBuilder(
         to: 100,
         duration: const Duration(milliseconds: 200),
@@ -115,7 +116,7 @@ group('CounterBuilder', () {
     double currentTo = 100;
     late StateSetter set;
 
-    await t.pumpWidget(_wrap(StatefulBuilder(builder: (_, s) {
+    await t.pumpWidget(wrap(StatefulBuilder(builder: (_, s) {
       set = s;
       return CounterBuilder(
         to: currentTo,
@@ -142,7 +143,7 @@ group('CounterBuilder', () {
     double currentTo = 100;
     late StateSetter set;
 
-    await t.pumpWidget(_wrap(StatefulBuilder(builder: (_, s) {
+    await t.pumpWidget(wrap(StatefulBuilder(builder: (_, s) {
       set = s;
       return CounterBuilder(
         to: currentTo,
@@ -151,7 +152,7 @@ group('CounterBuilder', () {
       );
     })));
 
-    await _pumpTwo(t); // let first animation complete
+    await pumpTwo(t); // let first animation complete
     expect(find.text('100'), findsOneWidget);
 
     // Retarget after completion — task was removed from queue.
@@ -167,7 +168,7 @@ group('CounterBuilder', () {
 
   testWidgets('disposes task when widget is removed', (t) async {
     final values = <double>[];
-    await t.pumpWidget(_wrap(
+    await t.pumpWidget(wrap(
       CounterBuilder(
         to: 100,
         duration: const Duration(milliseconds: 400),
@@ -180,7 +181,7 @@ group('CounterBuilder', () {
     await t.pump(const Duration(milliseconds: 100));
 
     // Remove the widget
-    await t.pumpWidget(_wrap(const SizedBox()));
+    await t.pumpWidget(wrap(const SizedBox()));
     final countAfterRemove = values.length;
 
     await t.pump(const Duration(milliseconds: 400));
@@ -196,7 +197,7 @@ group('TextCounter', () {
   tearDown(Countman.destroy);
 
   testWidgets('default formatter shows toInt', (t) async {
-    await t.pumpWidget(_wrap(TextCounter(to: 99)));
+    await t.pumpWidget(wrap(TextCounter(to: 99)));
     await t.pump();
     Countman.destroy();
 
@@ -204,7 +205,7 @@ group('TextCounter', () {
   });
 
   testWidgets('custom formatter applied', (t) async {
-    await t.pumpWidget(_wrap(
+    await t.pumpWidget(wrap(
       TextCounter(
         to: 100,
         formatter: (v) => '${v.toInt()}px',
@@ -217,17 +218,17 @@ group('TextCounter', () {
   });
 
   testWidgets('reaches to value', (t) async {
-    await t.pumpWidget(_wrap(
+    await t.pumpWidget(wrap(
       TextCounter(to: 50, duration: const Duration(milliseconds: 100)),
     ));
-    await _pumpTwo(t);
+    await pumpTwo(t);
     Countman.destroy();
 
     expect(find.text('50'), findsOneWidget);
   });
 
   testWidgets('no Row when no prefix/suffix', (t) async {
-    await t.pumpWidget(_wrap(TextCounter(to: 10)));
+    await t.pumpWidget(wrap(TextCounter(to: 10)));
     await t.pump();
     Countman.destroy();
 
@@ -235,7 +236,7 @@ group('TextCounter', () {
   });
 
   testWidgets('prefix String shown', (t) async {
-    await t.pumpWidget(_wrap(TextCounter(to: 10, prefix: '¥')));
+    await t.pumpWidget(wrap(TextCounter(to: 10, prefix: '¥')));
     await t.pump();
     Countman.destroy();
 
@@ -244,7 +245,7 @@ group('TextCounter', () {
   });
 
   testWidgets('suffix String shown', (t) async {
-    await t.pumpWidget(_wrap(TextCounter(to: 10, suffix: ' pts')));
+    await t.pumpWidget(wrap(TextCounter(to: 10, suffix: ' pts')));
     await t.pump();
     Countman.destroy();
 
@@ -253,7 +254,7 @@ group('TextCounter', () {
   });
 
   testWidgets('both prefix and suffix shown', (t) async {
-    await t.pumpWidget(_wrap(TextCounter(to: 10, prefix: '¥', suffix: ' 元')));
+    await t.pumpWidget(wrap(TextCounter(to: 10, prefix: '¥', suffix: ' 元')));
     await t.pump();
     Countman.destroy();
 
@@ -262,7 +263,7 @@ group('TextCounter', () {
   });
 
   testWidgets('prefixWidget shown instead of prefix String', (t) async {
-    await t.pumpWidget(_wrap(
+    await t.pumpWidget(wrap(
       TextCounter(
         to: 10,
         prefixWidget: const Icon(Icons.star, key: Key('icon')),
@@ -277,7 +278,7 @@ group('TextCounter', () {
   });
 
   testWidgets('suffixWidget shown instead of suffix String', (t) async {
-    await t.pumpWidget(_wrap(
+    await t.pumpWidget(wrap(
       TextCounter(
         to: 10,
         suffixWidget: const Icon(Icons.check, key: Key('icon')),
@@ -292,7 +293,7 @@ group('TextCounter', () {
   });
 
   testWidgets('prefixWidget triggers Row even without prefix String', (t) async {
-    await t.pumpWidget(_wrap(
+    await t.pumpWidget(wrap(
       TextCounter(to: 10, prefixWidget: const Icon(Icons.star)),
     ));
     await t.pump();
@@ -302,7 +303,7 @@ group('TextCounter', () {
   });
 
   testWidgets('suffixWidget triggers Row even without suffix String', (t) async {
-    await t.pumpWidget(_wrap(
+    await t.pumpWidget(wrap(
       TextCounter(to: 10, suffixWidget: const Icon(Icons.check)),
     ));
     await t.pump();
@@ -313,21 +314,21 @@ group('TextCounter', () {
 
   testWidgets('onComplete called when animation completes', (t) async {
     double? done;
-    await t.pumpWidget(_wrap(
+    await t.pumpWidget(wrap(
       TextCounter(
         to: 77,
         duration: const Duration(milliseconds: 100),
         onComplete: (v) => done = v,
       ),
     ));
-    await _pumpTwo(t);
+    await pumpTwo(t);
     Countman.destroy();
 
     expect(done, 77.0);
   });
 
   testWidgets('from value respected', (t) async {
-    await t.pumpWidget(_wrap(TextCounter(from: 50, to: 100)));
+    await t.pumpWidget(wrap(TextCounter(from: 50, to: 100)));
     await t.pump();
     Countman.destroy();
 

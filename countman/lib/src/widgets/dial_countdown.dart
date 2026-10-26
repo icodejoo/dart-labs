@@ -668,6 +668,11 @@ class _DialPainter extends CustomPainter {
     final finalMin = _finalMin();
     final step = (2 * math.pi) / count; // radians per tick
 
+    // 每次绘制复用一支刻度画笔，避免逐刻度分配。
+    final tickPaint = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeCap = StrokeCap.round
+      ..isAntiAlias = true;
     for (int i = 0; i < count; i++) {
       final on = i < lit;
       final isMajor = cfg.majorEvery > 0 && (i % cfg.majorEvery == 0);
@@ -702,16 +707,13 @@ class _DialPainter extends CustomPainter {
 
       // Draw as a stroked line with rounded caps (matches the rx-rounded rect
       // of ring.ts without requiring canvas matrix saves).
-      final tickPaint = Paint()
-        ..style = PaintingStyle.stroke
+      tickPaint
         ..strokeWidth = tickW
-        ..strokeCap = StrokeCap.round
         ..color = tickColor
-        ..isAntiAlias = true;
-      if (on && glow) {
-        tickPaint.maskFilter =
-            const MaskFilter.blur(BlurStyle.outer, 1.5);
-      }
+        // 暗刻度显式清除上一笔的发光效果。
+        ..maskFilter = on && glow
+            ? const MaskFilter.blur(BlurStyle.outer, 1.5)
+            : null;
       canvas.drawLine(Offset(tipX, tipY), Offset(rootX, rootY), tickPaint);
 
       // Optional labels on major ticks.
@@ -741,13 +743,17 @@ class _DialPainter extends CustomPainter {
     final tp = TextPainter(
       text: TextSpan(text: '$i', style: style),
       textDirection: TextDirection.ltr,
-    )..layout();
-
-    // Position just inside the tick root, centred on the radius direction.
-    final labelR = tickR - tickLen - 3.0 * sc;
-    final lx = centre.dx + labelR * math.cos(angle) - tp.width / 2;
-    final ly = centre.dy + labelR * math.sin(angle) - tp.height / 2;
-    tp.paint(canvas, Offset(lx, ly));
+    );
+    // 临时文字资源绘制后立即释放，异常时也保证回收。
+    try {
+      tp.layout();
+      final labelR = tickR - tickLen - 3.0 * sc;
+      final lx = centre.dx + labelR * math.cos(angle) - tp.width / 2;
+      final ly = centre.dy + labelR * math.sin(angle) - tp.height / 2;
+      tp.paint(canvas, Offset(lx, ly));
+    } finally {
+      tp.dispose();
+    }
   }
 
   // ──────────────────────────────────────────────────────────────────────────

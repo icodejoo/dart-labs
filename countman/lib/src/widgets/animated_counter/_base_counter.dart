@@ -79,6 +79,8 @@ abstract class _BaseAnimatedCounter extends StatefulWidget {
   final Color? Function(num value)? colorResolver;
   final double Function(double from, double to, double t)? interpolation;
   final double bounceOvershoot;
+  // 回弹现由 bounceOvershoot 驱动；保留字段以兼容旧代码。
+  @Deprecated('No effect; use bounceOvershoot instead')
   final double bounceElasticity;
 
   /// Fast mode: every digit column does a SINGLE step from its old digit to
@@ -188,6 +190,7 @@ abstract class _BaseAnimatedCounter extends StatefulWidget {
     this.colorResolver,
     this.interpolation,
     this.bounceOvershoot = 0.0,
+    @Deprecated('No effect; use bounceOvershoot instead')
     this.bounceElasticity = 4.0,
     this.fast = false,
   })  : _textStyle = textStyle,
@@ -215,6 +218,9 @@ abstract class _BaseAnimatedCounter extends StatefulWidget {
 // ── shared state base ─────────────────────────────────────────────────────────
 
 abstract class _BaseCounterState<W extends _BaseAnimatedCounter> extends State<W> {
+  // 格式配置随组件更新；一次排序供拆位与构建共同使用。
+  final _numberFormat = CounterNumberFormat();
+
   // ── ticker ────────────────────────────────────────────────────────────────
   CounterHandle? _handle;
   CounterHandle? _bounceHandle; // separate post-animation bounce
@@ -230,6 +236,10 @@ abstract class _BaseCounterState<W extends _BaseAnimatedCounter> extends State<W
   double _currentT = 0.0;
   double _pausedT  = 0.0;
   bool _repeating  = false;
+  // repeat 时每轮结束后是否交换端点往返播放。
+  bool _repeatReverse = false;
+  // 尚未真正开始的启动动作（startDelay 或批量队列中）；pause 时保留，resume 时执行。
+  VoidCallback? _pendingStart;
 
   bool _usingAdjustedTarget    = false;
   List<double> _realTargetDigitValues = [];
@@ -293,8 +303,10 @@ abstract class _BaseCounterState<W extends _BaseAnimatedCounter> extends State<W
         : ((_isAnimatingDecrease && widget.reverseDuration != null)
             ? widget.reverseDuration!
             : widget.duration);
+    // 系统减少动画时直接落位；错峰按原始时间累加后统一缩放一次。
+    if (reduceMotion) return Duration.zero;
     Duration d = base;
-    final stagger = _effectiveStaggerDelay;
+    final stagger = widget.staggerDelay;
     if (stagger != null && stagger > Duration.zero) {
       d += stagger * (_maxDigits - 1);
     }
@@ -386,23 +398,40 @@ abstract class _BaseCounterState<W extends _BaseAnimatedCounter> extends State<W
     if (c == null) return;
     c.$pauseCallback = () {
       _pausedT = _currentT;
-      _handle?.cancel();
+      _cancelActive();
       widget.onPause?.call();
     };
-    c.$resumeCallback  = () { _launchHandle(fromT: _pausedT); widget.onResume?.call(); };
-    c.$stopCallback    = () { _handle?.cancel(); };
-    c.$restartCallback = () { _launchHandle(fromT: 0); widget.onAnimationStart?.call(); };
+    c.$resumeCallback  = () {
+      final pending = _pendingStart;
+      _pendingStart = null;
+      if (pending != null) {
+        pending();
+      } else {
+        _launchHandle(fromT: _pausedT);
+      }
+      widget.onResume?.call();
+    };
+    c.$stopCallback    = () {
+      _cancelActive(dropPending: true);
+      _repeating = false;
+    };
+    c.$restartCallback = () {
+      _cancelActive(dropPending: true);
+      _repeating = false;
+      _launchHandle(fromT: 0);
+      widget.onAnimationStart?.call();
+    };
     c.$repeatCallback  = ({bool reverse = false}) {
       _repeating = true;
+      _repeatReverse = reverse;
       _launchHandle(fromT: 0);
       widget.onRepeat?.call();
     };
     c.$reverseCallback = () {
-      final tmp = List<double>.from(_oldDigitValues);
-      _oldDigitValues      = List<double>.from(_targetDigitValues);
-      _targetDigitValues   = tmp;
-      _isAnimatingDecrease = !_isAnimatingDecrease;
+      _swapEndpoints();
       _launchHandle(fromT: 1.0 - _currentT);
+      _updateCurrentDigitValues();
+      _onFrameUpdate();
       widget.onReverse?.call();
     };
     c.$statusGetter = () {
@@ -427,18 +456,53 @@ abstract class _BaseCounterState<W extends _BaseAnimatedCounter> extends State<W
 
   void _triggerTransitionWithDelay(num oldValue, num newValue) {
     _startDelayTimer?.cancel();
+    _pendingStart = null;
     if (widget.startDelay != null && widget.startDelay! > Duration.zero) {
       final delay = Duration(microseconds:
           (widget.startDelay!.inMicroseconds / widget.speedMultiplier).round());
-      _startDelayTimer = Timer(delay, () {
+      void start() {
+        _pendingStart = null;
         if (mounted) _startAnimationTransition(oldValue, newValue);
-      });
+      }
+      _pendingStart = start;
+      _startDelayTimer = Timer(delay, start);
     } else {
       _startAnimationTransition(oldValue, newValue);
     }
   }
 
+  /// 取消本组件所有进行中或待启动的调度（延迟定时器、批量队列、主动画、回弹）。
+  /// [dropPending] 为 true 时同时丢弃待启动动作，否则保留给 resume。
+  void _cancelActive({bool dropPending = false}) {
+    _startDelayTimer?.cancel();
+    _startDelayTimer = null;
+    StartScheduler.instance.cancel(this);
+    _handle?.cancel();
+    _bounceHandle?.cancel();
+    _bounceHandle = null;
+    if (_bounceOffsets.isNotEmpty) {
+      _bounceOffsets = const <double>[];
+      if (mounted) _onFrameUpdate();
+    }
+    if (dropPending) _pendingStart = null;
+  }
+
+  /// 交换动画起止端点（普通与 fast 两套数位一并交换）并翻转方向。
+  void _swapEndpoints() {
+    final tmp = List<double>.from(_oldDigitValues);
+    _oldDigitValues    = List<double>.from(_targetDigitValues);
+    _targetDigitValues = tmp;
+    final fastTmp = _fastFromDigits;
+    _fastFromDigits = _fastToDigits;
+    _fastToDigits   = fastTmp;
+    _usingAdjustedTarget = false;
+    _isAnimatingDecrease = !_isAnimatingDecrease;
+  }
+
   void _startAnimationTransition(num oldValue, num newValue) {
+    // 新转换先取消旧主动画、回弹与排队启动，避免旧任务覆盖新端点。
+    _cancelActive(dropPending: true);
+    _repeating = false;
     if (!oldValue.isFinite) oldValue = 0;
     if (!newValue.isFinite) newValue = 0;
     _isAnimatingDecrease = newValue < oldValue;
@@ -535,10 +599,12 @@ abstract class _BaseCounterState<W extends _BaseAnimatedCounter> extends State<W
       _onFrameUpdate();
       _onAnimStatusChange(AnimationStatus.completed);
     } else {
-      StartScheduler.instance.enqueue(
-        () { if (mounted) _launchHandle(fromT: 0); },
-        tag: this,
-      );
+      void launch() {
+        _pendingStart = null;
+        if (mounted) _launchHandle(fromT: 0);
+      }
+      _pendingStart = launch;
+      StartScheduler.instance.enqueue(launch, tag: this);
     }
   }
 
@@ -576,7 +642,10 @@ abstract class _BaseCounterState<W extends _BaseAnimatedCounter> extends State<W
         _onAnimationComplete();
         _usingAdjustedTarget = false;
         _onAnimStatusChange(AnimationStatus.completed);
-        if (_repeating) { _repeating = false; _launchHandle(fromT: 0); }
+        if (_repeating) {
+          if (_repeatReverse) _swapEndpoints();
+          _launchHandle(fromT: 0);
+        }
       },
     ));
 
@@ -632,8 +701,9 @@ abstract class _BaseCounterState<W extends _BaseAnimatedCounter> extends State<W
     final double baseDurationUs = baseDuration.inMicroseconds.toDouble() / widget.speedMultiplier;
 
     final Duration? stagger = _effectiveStaggerDelay;
+    // _effectiveStaggerDelay 已按倍速缩放，此处不再重复缩放。
     final double staggerUs =
-        (stagger == null) ? 0.0 : stagger.inMicroseconds.toDouble() / widget.speedMultiplier;
+        (stagger == null) ? 0.0 : stagger.inMicroseconds.toDouble();
 
     double rollEndUs(int i) => _staggerDelayUs(i, staggerUs) + baseDurationUs;
 
@@ -724,13 +794,14 @@ abstract class _BaseCounterState<W extends _BaseAnimatedCounter> extends State<W
     //
     // stagger 步长与 elapsed 提到逐位循环外（原来每位每帧都算）。
     final double staggerUs = (stagger != null && stagger > Duration.zero)
-        ? stagger.inMicroseconds.toDouble() / widget.speedMultiplier
+        ? stagger.inMicroseconds.toDouble() // 已按倍速缩放
         : 0.0;
     final double elapsedUs = t * totalDurationUs;
 
     for (int i = 0; i < _maxDigits; i++) {
       double tDigit = t;
-      if (staggerUs > 0.0) {
+      // t 到终点（含减少动画直接落位）时各位一律到位，不再按错峰延迟折算。
+      if (staggerUs > 0.0 && t < 1.0) {
         final double delayUs = _staggerDelayUs(i, staggerUs);
         tDigit = ((elapsedUs - delayUs) / baseDurationUs).clamp(0.0, 1.0);
       }
@@ -761,42 +832,29 @@ abstract class _BaseCounterState<W extends _BaseAnimatedCounter> extends State<W
     }
   }
 
-  List<double> _getDigitsList(num targetValue) {
-    if (targetValue is double && !targetValue.isFinite) targetValue = 0;
-    final num clamped = targetValue.clamp(
-      widget.minValue ?? double.negativeInfinity,
-      widget.maxValue ?? double.infinity,
+  // 初始化、动画端点和渲染使用相同的格式解析结果。
+  CounterDisplayNumber _displayNumber(num value) {
+    // 控制器更新也可能伴随字典原地修改；仅配置变化时重新排序。
+    _numberFormat.updateAbbreviations(widget.compactAbbreviations);
+    return _numberFormat.resolve(
+      value,
+      minValue: widget.minValue,
+      maxValue: widget.maxValue,
+      fractionDigits: widget.fractionDigits,
+      compactNotation: widget.compactNotation,
+      compactFractionDigits: widget.compactFractionDigits,
     );
-    num displayValue = clamped;
-
-    final Map<num, String> abbreviations = widget.compactAbbreviations ?? {
-      1e3: 'K', 1e6: 'M', 1e9: 'B', 1e12: 'T',
-    };
-    if (widget.compactNotation) {
-      final absVal = clamped.abs();
-      final sorted = abbreviations.keys.toList()..sort((a, b) => b.compareTo(a));
-      for (final threshold in sorted) {
-        if (absVal >= threshold) { displayValue = clamped / threshold; break; }
-      }
-    }
-
-    final int effFD = widget.compactNotation
-        ? (widget.compactFractionDigits ?? (widget.fractionDigits == 0 ? 1 : widget.fractionDigits))
-        : widget.fractionDigits;
-
-    final int val = (displayValue * math.pow(10, effFD)).round();
-    List<double> digits = val == 0 ? [0.0] : [];
-    int v = val.abs();
-    while (v > 0) { digits.add(v.toDouble()); v = v ~/ 10; }
-    while (digits.length < widget.wholeDigits + effFD) { digits.add(0.0); }
-    return digits.reversed.toList(growable: false);
   }
+
+  List<double> _getDigitsList(num targetValue) =>
+      _displayNumber(targetValue).digits(widget.wholeDigits);
 
   @override
   void dispose() {
     widget.controller?.removeListener(_handleControllerUpdate);
     _unbindController(widget.controller);
     _startDelayTimer?.cancel();
+    _pendingStart = null;
     StartScheduler.instance.cancel(this);
     _bounceHandle?.cancel();
     _handle?.cancel();
@@ -846,10 +904,13 @@ abstract class _BaseCounterState<W extends _BaseAnimatedCounter> extends State<W
     // 即便文本样式不变也能让缓存尺寸失效。
     final glyphs = [for (var d = 0; d <= 9; d++) _glyphForDigit(d)];
     final glyphSig = glyphs.join(' ');
+    // 缓存命中时直接返回，显式括号满足静态检查。
     if (_prototypeSize != null &&
         style == _lastStyle &&
         textScaler == _lastTextScaler &&
-        glyphSig == _lastGlyphSig) return;
+        glyphSig == _lastGlyphSig) {
+      return;
+    }
     _lastStyle = style; _lastTextScaler = textScaler; _lastGlyphSig = glyphSig;
     // Measure every digit 0–9 as it will actually render (numeralMapper /
     // numeralSystem may yield glyphs wider or taller than Latin '0', e.g.
@@ -873,9 +934,12 @@ abstract class _BaseCounterState<W extends _BaseAnimatedCounter> extends State<W
     _prototypeSize = Size(w, h);
   }
 
-  int _effectiveFractionDigits() => widget.compactNotation
-      ? (widget.compactFractionDigits ?? (widget.fractionDigits == 0 ? 1 : widget.fractionDigits))
-      : widget.fractionDigits;
+  // 动画位数与格式解析使用同一规则。
+  int _effectiveFractionDigits() => counterFractionDigits(
+    compactNotation: widget.compactNotation,
+    fractionDigits: widget.fractionDigits,
+    compactFractionDigits: widget.compactFractionDigits,
+  );
 
   Widget _wrapColorTint(Widget child, Color baseColor) {
     if (_directionColor == null) return child;

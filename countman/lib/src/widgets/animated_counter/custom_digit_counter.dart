@@ -105,6 +105,8 @@ class AnimatedCounterBuilder extends _BaseAnimatedCounter {
     super.colorResolver,
     super.interpolation,
     super.bounceOvershoot,
+    // 仅保留旧参数的源码兼容性。
+    @Deprecated('No effect; use bounceOvershoot instead')
     super.bounceElasticity,
     super.fast,
     super.style,
@@ -144,22 +146,11 @@ class _AnimatedCounterBuilderState extends _BaseCounterState<AnimatedCounterBuil
     final textScaler = MediaQuery.textScalerOf(context);
     _updatePrototypeSize(style, textScaler);
 
-    final effFD = _effectiveFractionDigits();
-    final num safeCurrent = _currentValue.isFinite ? _currentValue : 0;
-    final num clamped = safeCurrent.clamp(
-      widget.minValue ?? double.negativeInfinity,
-      widget.maxValue ?? double.infinity,
-    );
-    num displayValue = clamped;
-    String? compactSuffix;
-    if (widget.compactNotation) {
-      final abbreviations = widget.compactAbbreviations ?? {1e3: 'K', 1e6: 'M', 1e9: 'B', 1e12: 'T'};
-      final sorted = abbreviations.keys.toList()..sort((a, b) => b.compareTo(a));
-      for (final t in sorted) {
-        if (clamped.abs() >= t) { displayValue = clamped / t; compactSuffix = abbreviations[t]; break; }
-      }
-    }
-    final int   val   = (displayValue * math.pow(10, effFD)).round();
+    // 与动画端点共用格式计算，避免符号、缩写和小数位分叉。
+    final display = _displayNumber(_currentValue);
+    final effFD = display.fractionDigits;
+    final val = display.scaledValue;
+    final compactSuffix = display.suffix;
     // Digit tint: explicit style color -> ambient DefaultTextStyle color -> black.
     // (Aligns with AnimatedCounter; was a hardcoded red that read like a bug.)
     //
@@ -257,20 +248,13 @@ class _AnimatedCounterBuilderState extends _BaseCounterState<AnimatedCounterBuil
             firstVisible = _currentDigitValues.indexWhere((d) => d.round() != 0);
             if (firstVisible == -1) firstVisible = _currentDigitValues.length - 1;
           }
-          int counter = 0, patternIdx = 0;
-          int nextSepAt = widget.groupingPattern[0];
-          for (int i = integerWidgets.length; i > firstVisible; i--) {
-            if (counter > 0 && counter == nextSepAt) {
+          // 从右插入，保持左侧索引稳定；边界算法与 Painter 共用。
+          for (int i = integerDigitCount - 1; i > firstVisible; i--) {
+            if (isGroupingBoundary(integerDigitCount - i, widget.groupingPattern)) {
               integerWidgets.insert(i,
                   widget.thousandSeparatorWidget ??
                       Text(widget.thousandSeparator!, style: widget.separatorStyle));
-              patternIdx++;
-              final nextGroup = patternIdx < widget.groupingPattern.length
-                  ? widget.groupingPattern[patternIdx]
-                  : widget.groupingPattern.last;
-              nextSepAt += nextGroup;
             }
-            counter++;
           }
         }
 

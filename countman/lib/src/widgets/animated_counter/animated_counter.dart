@@ -17,6 +17,7 @@
 import 'dart:async';
 import 'dart:math' as math;
 
+import 'package:flutter/foundation.dart' show listEquals;
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 
@@ -27,8 +28,11 @@ import 'package:countman/src/core/start_scheduler.dart';
 import '../painter/counter_painter.dart';
 import 'counter_controller.dart';
 import 'digit_column.dart';
+import 'grouping.dart';
+import 'number_format.dart';
 import 'types.dart';
 import '../style_support.dart';
+import '../reduce_motion.dart';
 
 export 'counter_controller.dart';
 export 'types.dart';
@@ -137,6 +141,8 @@ class AnimatedCounter extends _BaseAnimatedCounter {
     super.colorResolver,
     super.interpolation,
     super.bounceOvershoot,
+    // 仅保留旧参数的源码兼容性。
+    @Deprecated('No effect; use bounceOvershoot instead')
     super.bounceElasticity,
     super.fast,
     this.painterBuilder,
@@ -190,6 +196,39 @@ class _AnimatedCounterState extends _BaseCounterState<AnimatedCounter> {
     super.dispose();
   }
 
+  // ── painter 配置 ──────────────────────────────────────────────────────────
+
+  // 上次构建当前 Painter 所用的工厂，用于识别 painterBuilder 的替换。
+  CounterPainterBuilder? _lastPainterBuilder;
+
+  /// 把系统字号缩放折算进 [style] 的字号，使 Paragraph 与测量尺寸一致。
+  TextStyle _scaleStyle(TextStyle style, TextScaler scaler) {
+    if (scaler == TextScaler.noScaling) return style;
+    return style.copyWith(fontSize: scaler.scale(style.fontSize ?? 14.0));
+  }
+
+  /// 当前 Painter 的任一不可变配置与组件不一致时返回 true，需要重建。
+  bool _painterConfigChanged(
+      TextStyle paintStyle, TextStyle? paintSepStyle, int effFD) {
+    final p = _activePainter;
+    return p == null ||
+        !identical(_lastPainterBuilder, widget.painterBuilder) ||
+        p.style != paintStyle ||
+        p.transition != widget.transition ||
+        p.flipDirection != widget.flipDirection ||
+        p.digitSize != _prototypeSize ||
+        p.fractionDigits != effFD ||
+        !listEquals(p.groupingPattern, widget.groupingPattern) ||
+        p.hideLeadingZeroes != widget.hideLeadingZeroes ||
+        p.numeralSystem != widget.numeralSystem ||
+        !identical(p.numeralMapper, widget.numeralMapper) ||
+        p.thousandSeparator != widget.thousandSeparator ||
+        p.decimalSeparator != widget.decimalSeparator ||
+        p.separatorStyle != paintSepStyle ||
+        p.padding != widget.padding ||
+        p.numberAlignment != widget.numberAlignment;
+  }
+
   // ── build ─────────────────────────────────────────────────────────────────
 
   @override
@@ -198,22 +237,11 @@ class _AnimatedCounterState extends _BaseCounterState<AnimatedCounter> {
     final textScaler = MediaQuery.textScalerOf(context);
     _updatePrototypeSize(style, textScaler);
 
-    final effFD = _effectiveFractionDigits();
-    final num safeCurrent = _currentValue.isFinite ? _currentValue : 0;
-    final num clamped     = safeCurrent.clamp(
-      widget.minValue ?? double.negativeInfinity,
-      widget.maxValue ?? double.infinity,
-    );
-    num displayValue  = clamped;
-    String? compactSuffix;
-    if (widget.compactNotation) {
-      final abbr   = widget.compactAbbreviations ?? {1e3: 'K', 1e6: 'M', 1e9: 'B', 1e12: 'T'};
-      final sorted = abbr.keys.toList()..sort((a, b) => b.compareTo(a));
-      for (final t in sorted) {
-        if (clamped.abs() >= t) { displayValue = clamped / t; compactSuffix = abbr[t]; break; }
-      }
-    }
-    final int   val   = (displayValue * math.pow(10, effFD)).round();
+    // 与动画端点共用格式计算，避免符号、缩写和小数位分叉。
+    final display = _displayNumber(_currentValue);
+    final effFD = display.fractionDigits;
+    final val = display.scaledValue;
+    final compactSuffix = display.suffix;
     // Digit tint: explicit style color → ambient DefaultTextStyle color → black.
     // (Was a hardcoded red, which read like a bug when no color was set.)
     //
@@ -235,16 +263,19 @@ class _AnimatedCounterState extends _BaseCounterState<AnimatedCounter> {
     // exitDirection() 已按 _increasing 翻转滚动方向；若再喂入预翻转的方向会互相抵消，
     // 使递减朝错误方向（向上）滚动。用原始方向还能免去每次反向时重建 painter——
     // 方向变化只经由 update(_increasing) 流转。
-    if (_activePainter == null ||
-        _activePainter!.style         != style ||
-        _activePainter!.transition != widget.transition ||
-        _activePainter!.flipDirection  != widget.flipDirection) {
+    // 绘制使用已应用系统字号缩放的样式，与原型单元格测量一致。
+    final paintStyle = _scaleStyle(style, textScaler);
+    final paintSepStyle = widget.separatorStyle == null
+        ? null
+        : _scaleStyle(widget.separatorStyle!, textScaler);
+    if (_painterConfigChanged(paintStyle, paintSepStyle, effFD)) {
       _activePainter?.disposeCache();
+      _lastPainterBuilder = widget.painterBuilder;
       _activePainter = widget.painterBuilder != null
           ? widget.painterBuilder!(
               repaint: _repaintTrigger,
               digitValues: _currentDigitValues,
-              style: style,
+              style: paintStyle,
               digitSize: _prototypeSize!,
               transition: widget.transition,
               flipDirection: widget.flipDirection,
@@ -256,14 +287,14 @@ class _AnimatedCounterState extends _BaseCounterState<AnimatedCounter> {
               numeralMapper: widget.numeralMapper,
               thousandSeparator: widget.thousandSeparator,
               decimalSeparator: widget.decimalSeparator,
-              separatorStyle: widget.separatorStyle,
+              separatorStyle: paintSepStyle,
               padding: widget.padding,
               numberAlignment: widget.numberAlignment,
             )
           : CounterPainter(
               repaint: _repaintTrigger,
               digitValues: _currentDigitValues,
-              style: style,
+              style: paintStyle,
               digitSize: _prototypeSize!,
               transition: widget.transition,
               flipDirection: widget.flipDirection,
@@ -275,7 +306,7 @@ class _AnimatedCounterState extends _BaseCounterState<AnimatedCounter> {
               numeralMapper: widget.numeralMapper,
               thousandSeparator: widget.thousandSeparator,
               decimalSeparator: widget.decimalSeparator,
-              separatorStyle: widget.separatorStyle,
+              separatorStyle: paintSepStyle,
               padding: widget.padding,
               numberAlignment: widget.numberAlignment,
               fast: widget.fast,

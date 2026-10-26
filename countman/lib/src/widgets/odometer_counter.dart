@@ -39,8 +39,11 @@ class OdometerCounterStyle with BoxStyleFields, StyleProps {
   /// 创建 [OdometerCounter] 样式。所有字段可选。
   const OdometerCounterStyle({
     this.numberTextStyle,
+    @Deprecated('No effect; use AnimatedCounter directly')
     this.letterWidth,
+    @Deprecated('No effect; use AnimatedCounter directly')
     this.verticalOffset,
+    @Deprecated('No effect; use AnimatedCounter directly')
     this.fadeEnabled,
     this.digitAlignment,
     this.crossAxisAlignment,
@@ -54,12 +57,18 @@ class OdometerCounterStyle with BoxStyleFields, StyleProps {
   final TextStyle? numberTextStyle;
 
   /// Fixed width per digit slot.
+  // 已失效，仅保留源码兼容性。
+  @Deprecated('No effect; use AnimatedCounter directly')
   final double? letterWidth;
 
   /// Vertical slide distance in logical pixels.
+  // 已失效，仅保留源码兼容性。
+  @Deprecated('No effect; use AnimatedCounter directly')
   final double? verticalOffset;
 
   /// Cross-fade incoming/outgoing digits.
+  // 已失效，仅保留源码兼容性。
+  @Deprecated('No effect; use AnimatedCounter directly')
   final bool? fadeEnabled;
 
   /// Alignment of each digit within its slot.
@@ -169,21 +178,28 @@ class OdometerCounter extends StatelessWidget {
     this.duration = const Duration(milliseconds: 1000),
     this.curve = Curves.easeOut,
     this.allowNegative = false,
+    @Deprecated('No effect; use AnimatedCounter directly')
     this.plugin,
+    @Deprecated('No effect; use AnimatedCounter directly')
     this.controller,
     this.style,
+    @Deprecated('No effect; use AnimatedCounter directly')
     this.slideCurve,
     this.groupSeparator,
     this.prefix,
     this.suffix,
     this.prefixWidget,
     this.suffixWidget,
+    @Deprecated('No effect; use AnimatedCounter directly')
     this.onUpdate,
     this.onComplete,
+    @Deprecated('No effect; use AnimatedCounter directly')
     this.onReady,
     this.onStart,
+    @Deprecated('No effect; use AnimatedCounter directly')
     this.onCancel,
     this.bounceOvershoot = 0.0,
+    @Deprecated('No effect; use bounceOvershoot instead')
     this.bounceElasticity = 4.0,
   })  : assert(bounceOvershoot >= 0.0),
         assert(bounceElasticity >= 1.0);
@@ -216,11 +232,15 @@ class OdometerCounter extends StatelessWidget {
   /// Inert (source compatibility only).
   ///
   /// 失效（仅源码兼容）。
+  // 已失效，仅保留源码兼容性。
+  @Deprecated('No effect; use AnimatedCounter directly')
   final Counter? plugin;
 
   /// Inert (source compatibility only).
   ///
   /// 失效（仅源码兼容）。
+  // 已失效，仅保留源码兼容性。
+  @Deprecated('No effect; use AnimatedCounter directly')
   final CounterValueController? controller;
 
   /// Visual style. Merged over the enclosing [CounterProvider]'s odometer
@@ -232,6 +252,8 @@ class OdometerCounter extends StatelessWidget {
   /// Inert (source compatibility only).
   ///
   /// 失效（仅源码兼容）。
+  // 已失效，仅保留源码兼容性。
+  @Deprecated('No effect; use AnimatedCounter directly')
   final Curve? slideCurve;
 
   /// Text drawn between every 3 digits (e.g. `','`).
@@ -262,6 +284,8 @@ class OdometerCounter extends StatelessWidget {
   /// Inert (source compatibility only).
   ///
   /// 失效（仅源码兼容）。
+  // 已失效，仅保留源码兼容性。
+  @Deprecated('No effect; use AnimatedCounter directly')
   final void Function(double value)? onUpdate;
 
   /// Called once the animation reaches [to].
@@ -272,6 +296,8 @@ class OdometerCounter extends StatelessWidget {
   /// Inert (source compatibility only).
   ///
   /// 失效（仅源码兼容）。
+  // 已失效，仅保留源码兼容性。
+  @Deprecated('No effect; use AnimatedCounter directly')
   final VoidCallback? onReady;
 
   /// Called when the animation starts.
@@ -282,6 +308,8 @@ class OdometerCounter extends StatelessWidget {
   /// Inert (source compatibility only).
   ///
   /// 失效（仅源码兼容）。
+  // 已失效，仅保留源码兼容性。
+  @Deprecated('No effect; use AnimatedCounter directly')
   final VoidCallback? onCancel;
 
   /// Per-digit settle overshoot (`0.0` disables). See [AnimatedCounter].
@@ -289,9 +317,11 @@ class OdometerCounter extends StatelessWidget {
   /// 逐位落定过冲（`0.0` 关闭）。见 [AnimatedCounter]。
   final double bounceOvershoot;
 
-  /// Overshoot peak timing (≥ 1). See [AnimatedCounter].
+  /// Retained for source compatibility; bounce is controlled by [bounceOvershoot].
   ///
-  /// 过冲峰值时机（≥ 1）。见 [AnimatedCounter]。
+  /// 仅保留源码兼容性；回弹由 [bounceOvershoot] 控制。
+  // 已失效，仅保留源码兼容性。
+  @Deprecated('No effect; use bounceOvershoot instead')
   final double bounceElasticity;
 
   @override

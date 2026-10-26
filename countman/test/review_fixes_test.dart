@@ -1,4 +1,4 @@
-import 'package:flutter/widgets.dart';
+// 同步当前 SDK 的静态检查规范，保持原有行为。
 import 'package:flutter_test/flutter_test.dart';
 import 'package:countman/countman.dart';
 

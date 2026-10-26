@@ -13,7 +13,8 @@ part of 'animated_counter.dart';
 /// 聚合为一个可复用、可合并的对象。所有字段可空；未设置的字段回退到 widget 的弃用
 /// 松散参数，再到框架默认值。
 @immutable
-class AnimatedCounterStyle {
+// 与其他组件样式共用字段列表及运行时类型相等性约束。
+class AnimatedCounterStyle with StyleProps {
   /// Creates an [AnimatedCounter] style. All fields optional.
   ///
   /// 创建 [AnimatedCounter] 样式。所有字段可选。
@@ -138,26 +139,9 @@ class AnimatedCounterStyle {
           decoration: decoration ?? other.decoration,
         );
 
+  // 字段顺序同时用于相等性与哈希，新增字段只需维护一处。
   @override
-  bool operator ==(Object other) =>
-      other is AnimatedCounterStyle &&
-      other.textStyle == textStyle &&
-      other.prefixStyle == prefixStyle &&
-      other.infixStyle == infixStyle &&
-      other.suffixStyle == suffixStyle &&
-      other.separatorStyle == separatorStyle &&
-      other.numberAlignment == numberAlignment &&
-      other.mainAxisAlignment == mainAxisAlignment &&
-      other.crossAxisAlignment == crossAxisAlignment &&
-      other.padding == padding &&
-      other.useTabularFigures == useTabularFigures &&
-      other.increasingColor == increasingColor &&
-      other.decreasingColor == decreasingColor &&
-      other.colorFadeDuration == colorFadeDuration &&
-      other.decoration == decoration;
-
-  @override
-  int get hashCode => Object.hashAll([
+  List<Object?> get props => [
         textStyle,
         prefixStyle,
         infixStyle,
@@ -172,5 +156,5 @@ class AnimatedCounterStyle {
         decreasingColor,
         colorFadeDuration,
         decoration,
-      ]);
+      ];
 }

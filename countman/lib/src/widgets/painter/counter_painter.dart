@@ -19,6 +19,7 @@ import 'dart:ui' as ui;
 import 'package:flutter/widgets.dart';
 
 import '../animated_counter/types.dart';
+import '../animated_counter/digit_layout.dart';
 import 'perspective.dart';
 
 /// Factory signature for [AnimatedCounter.painterBuilder]. Receives the exact
@@ -187,25 +188,30 @@ class CounterPainter extends CustomPainter {
       final str = numeralMapper != null
           ? numeralMapper!(digit)
           : (numeralSystemDigits[numeralSystem]?[digit] ?? '$digit');
-      final c = color.withValues(alpha: bucket / (_alphaBuckets - 1));
+      final c = digitColorFor(bucket / (_alphaBuckets - 1));
+      // 与测量共用完整文字样式（字距、字体特性、回退字体等）。
       final pb = ui.ParagraphBuilder(
-        ui.ParagraphStyle(
-          textAlign: TextAlign.center,
-          fontSize: style.fontSize,
-          fontWeight: style.fontWeight,
-          fontStyle: style.fontStyle,
-          fontFamily: style.fontFamily,
-        ),
+        style.getParagraphStyle(textAlign: TextAlign.center),
       )
-        ..pushStyle(ui.TextStyle(
-            color: c,
-            fontSize: style.fontSize,
-            fontWeight: style.fontWeight,
-            fontFamily: style.fontFamily))
+        ..pushStyle(style.copyWith(color: c).getTextStyle())
         ..addText(str);
       return pb.build()
         ..layout(ui.ParagraphConstraints(width: digitSize.width + padding.horizontal));
     });
+  }
+
+  /// 数字在不透明度 [alpha]（0–1）下的绘制颜色，叠乘原颜色自带的 alpha。
+  @visibleForTesting
+  Color digitColorFor(double alpha) =>
+      color.withValues(alpha: color.a * alpha.clamp(0.0, 1.0));
+
+  /// 以完整文字样式构建并排版一段分隔符段落，宽度为 [width]。
+  ui.Paragraph _buildSeparatorParagraph(String text, double width) {
+    final st = separatorStyle ?? style;
+    final pb = ui.ParagraphBuilder(st.getParagraphStyle())
+      ..pushStyle(st.copyWith(color: st.color ?? color).getTextStyle())
+      ..addText(text);
+    return pb.build()..layout(ui.ParagraphConstraints(width: width));
   }
 
   // ── layout ─────────────────────────────────────────────────────────────────
@@ -245,28 +251,40 @@ class CounterPainter extends CustomPainter {
         // 处于淡入窗口（0 < cum < 1）的位仍会纳入；paint() 会渐变其不透明度，实现淡入而非突现。
         firstVisible = _digitValues.indexWhere((v) => v > _revealEps);
       }
-      if (firstVisible == -1) firstVisible = n - 1;
+      // 只在整数区间隐藏前导零，至少保留个位，小数位与小数点不参与隐藏。
+      final unitsIdx = math.max(0, n - fractionDigits - 1);
+      if (firstVisible == -1 || firstVisible > unitsIdx) firstVisible = unitsIdx;
     }
 
+    // 布局只取决于首个可见列与列数；二者不变时复用上次结果，省去逐帧建表。
+    final cached = _columnsCache;
+    if (cached != null && _columnsFirstVisible == firstVisible && _columnsCount == n) {
+      return cached;
+    }
     final cols = <DigitColumnLayout>[];
     for (int i = 0; i < n; i++) {
-      final intPos    = i - fractionDigits;
-      final fromRight = n - fractionDigits - 1 - intPos;
       if (hideLeadingZeroes && i < firstVisible) continue;
-
-      // Reserve space for decimal separator before the first fraction digit.
-      if (fractionDigits > 0 && i == n - fractionDigits) x += dsw;
-
-      final bool addSep = thousandSeparator != null &&
-          intPos >= 0 &&
-          cols.isNotEmpty &&
-          (fromRight + 1) % groupSizeAt(fromRight + 1) == 0;
-      if (addSep) x += sw;
-      cols.add(DigitColumnLayout(index: i, x: x, hasSeparator: addSep));
+      // 实际列与完整预留宽度共用分隔符间距计算。
+      final spacing = digitSpacingBefore(
+        index: i, firstVisible: firstVisible, digitCount: n,
+        fractionDigits: fractionDigits, groupingPattern: groupingPattern,
+        hasGrouping: thousandSeparator != null,
+        separatorWidth: sw, decimalSeparatorWidth: dsw,
+      );
+      x += spacing.width;
+      cols.add(DigitColumnLayout(index: i, x: x, hasSeparator: spacing.hasSeparator));
       x += dw;
     }
+    _columnsCache = cols;
+    _columnsFirstVisible = firstVisible;
+    _columnsCount = n;
     return cols;
   }
+
+  // 列布局缓存：配置均为 final，仅首个可见列与列数会变。
+  List<DigitColumnLayout>? _columnsCache;
+  int _columnsFirstVisible = -1;
+  int _columnsCount = -1;
 
   /// Width for ALL [n] digit columns regardless of leading-zero visibility.
   /// Call this in the host widget's build() to get a stable SizedBox size
@@ -278,13 +296,13 @@ class CounterPainter extends CustomPainter {
     final dsw = decimalSeparatorWidth();
     double x  = 0;
     for (int i = 0; i < n; i++) {
-      final intPos    = i - fractionDigits;
-      final fromRight = n - fractionDigits - 1 - intPos;
-      if (fractionDigits > 0 && i == n - fractionDigits) x += dsw;
-      if (thousandSeparator != null && intPos >= 0 && i > 0 &&
-          (fromRight + 1) % groupSizeAt(fromRight + 1) == 0) {
-        x += sw;
-      }
+      // 预留所有位时首列固定为零，仍沿用同一套间距规则。
+      x += digitSpacingBefore(
+        index: i, firstVisible: 0, digitCount: n,
+        fractionDigits: fractionDigits, groupingPattern: groupingPattern,
+        hasGrouping: thousandSeparator != null,
+        separatorWidth: sw, decimalSeparatorWidth: dsw,
+      ).width;
       x += dw;
     }
     return x;
@@ -303,13 +321,7 @@ class CounterPainter extends CustomPainter {
   double separatorWidth() => _separatorWidthCache ??= _measureSeparator();
   double _measureSeparator() {
     if (thousandSeparator == null) return 0;
-    final st = separatorStyle ?? style;
-    final pb = ui.ParagraphBuilder(
-      ui.ParagraphStyle(fontSize: st.fontSize, fontFamily: st.fontFamily),
-    )
-      ..pushStyle(ui.TextStyle(color: st.color ?? color, fontSize: st.fontSize, fontFamily: st.fontFamily))
-      ..addText(thousandSeparator!);
-    final p = pb.build()..layout(const ui.ParagraphConstraints(width: 200));
+    final p = _buildSeparatorParagraph(thousandSeparator!, 200);
     final w = p.maxIntrinsicWidth;
     p.dispose();
     return w;
@@ -321,13 +333,7 @@ class CounterPainter extends CustomPainter {
     return _decimalSepWidthCache ??= _measureDecimalSep();
   }
   double _measureDecimalSep() {
-    final st = separatorStyle ?? style;
-    final pb = ui.ParagraphBuilder(
-      ui.ParagraphStyle(fontSize: st.fontSize, fontFamily: st.fontFamily),
-    )
-      ..pushStyle(ui.TextStyle(color: st.color ?? color, fontSize: st.fontSize, fontFamily: st.fontFamily))
-      ..addText(decimalSeparator);
-    final p = pb.build()..layout(const ui.ParagraphConstraints(width: 200));
+    final p = _buildSeparatorParagraph(decimalSeparator, 200);
     final w = p.maxIntrinsicWidth;
     p.dispose();
     return w;
@@ -601,34 +607,16 @@ class CounterPainter extends CustomPainter {
   // ── separator drawing ──────────────────────────────────────────────────────
 
   ui.Paragraph? _separatorParagraphCache;
-  ui.Paragraph _separatorParagraph() {
-    return _separatorParagraphCache ??= () {
-      final st = separatorStyle ?? style;
-      final pb = ui.ParagraphBuilder(
-        ui.ParagraphStyle(fontSize: st.fontSize, fontFamily: st.fontFamily),
-      )
-        ..pushStyle(ui.TextStyle(color: st.color ?? color, fontSize: st.fontSize, fontFamily: st.fontFamily))
-        ..addText(thousandSeparator!);
-      return pb.build()..layout(ui.ParagraphConstraints(width: separatorWidth() + 4));
-    }();
-  }
+  ui.Paragraph _separatorParagraph() => _separatorParagraphCache ??=
+      _buildSeparatorParagraph(thousandSeparator!, separatorWidth() + 4);
 
   void drawSeparator(Canvas c, double x, double h) {
     c.drawParagraph(_separatorParagraph(), Offset(x, topY(h)));
   }
 
   ui.Paragraph? _decimalSepParagraphCache;
-  ui.Paragraph _decimalSeparatorParagraph() {
-    return _decimalSepParagraphCache ??= () {
-      final st = separatorStyle ?? style;
-      final pb = ui.ParagraphBuilder(
-        ui.ParagraphStyle(fontSize: st.fontSize, fontFamily: st.fontFamily),
-      )
-        ..pushStyle(ui.TextStyle(color: st.color ?? color, fontSize: st.fontSize, fontFamily: st.fontFamily))
-        ..addText(decimalSeparator);
-      return pb.build()..layout(ui.ParagraphConstraints(width: decimalSeparatorWidth() + 4));
-    }();
-  }
+  ui.Paragraph _decimalSeparatorParagraph() => _decimalSepParagraphCache ??=
+      _buildSeparatorParagraph(decimalSeparator, decimalSeparatorWidth() + 4);
 
   void drawDecimalSeparator(Canvas c, double x, double h) {
     if (fractionDigits == 0) return;
@@ -645,8 +633,9 @@ class CounterPainter extends CustomPainter {
     _decimalSepParagraphCache = null;
   }
 
+  /// 逐帧重绘由 repaint 驱动；只要框架拿到的是新实例（配置已变），就必须重绘。
   @override
-  bool shouldRepaint(CounterPainter old) => false;
+  bool shouldRepaint(CounterPainter old) => !identical(old, this);
 }
 
 class DigitColumnLayout {
