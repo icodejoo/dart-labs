@@ -1143,4 +1143,197 @@ void main() {
       }
     }
   });
+
+  group('share end/race 窄组合（已知限制 #1 #2 #3）', () {
+    test('key → share → mock → retry：mock 短路的 500 不被 retry 恢复，leader 与 follower 一致',
+        () async {
+      final gate = Completer<void>();
+      final mock = DiomanMock(enabled: true)
+        ..add('GET:/m', (o) async {
+          await gate.future;
+          return _json({'e': 1}, 500);
+        });
+      final adapter = _FakeAdapter((o, n) async => _json({'v': n}, 200));
+      final dio = _dio(adapter);
+      Dioman.install(dio,
+          key: const DiomanKey(),
+          share: DiomanShare(),
+          mock: mock,
+          retry: _retry());
+
+      Future<Object> call() => dio
+          .get<dynamic>('/m')
+          .then<Object>((r) => r, onError: (Object e) => e);
+      final a = call();
+      final b = call();
+      await _settle();
+      gate.complete(); // follower 已加入，mock 才返回 500
+      final rs = await Future.wait([a, b]).timeout(timeout);
+
+      // mock 短路的 500 以响应形式交付；两者必须都是原结果，而不是一个被重试成 200。
+      for (final r in rs) {
+        expect(r, isA<Response<dynamic>>(), reason: 'leader 与 follower 必须一致');
+        expect((r as Response).statusCode, 500);
+        expect(r.data, {'e': 1});
+      }
+      expect(adapter.calls, 0, reason: 'mock 短路的结果不应被 retry 当作可恢复失败重放');
+    });
+
+    for (final policy in [DiomanSharePolicy.end, DiomanSharePolicy.race]) {
+      test('policy=${policy.name}：A 的 shouldRetry 抛异常、B 随后成功，A 仍取 B 的结果',
+          () async {
+        final gates = <Completer<void>>[];
+        final adapter = _FakeAdapter((o, n) async {
+          final g = Completer<void>();
+          gates.add(g);
+          await g.future;
+          return n == 1 ? _json({'e': n}, 500) : _json({'v': n}, 200);
+        });
+        final dio = _dio(adapter);
+        final loading = DiomanLoading(onChanged: (_) {});
+        Dioman.install(dio,
+            key: const DiomanKey(),
+            share: DiomanShare(policy: policy),
+            cancel: DiomanCancel(),
+            loading: loading,
+            retry: _retry(shouldRetry: (err, r) {
+              if (err?.response?.statusCode == 500) throw StateError('boom');
+              return null;
+            }));
+
+        Future<Object> call() => dio
+            .get<dynamic>('/x')
+            .then<Object>((r) => r, onError: (Object e) => e);
+        final a = call();
+        final b = call();
+        await _settle();
+        // end 以后发的 B 为准；race 谁先成功谁赢。让 A（第 1 次）先失败。
+        gates[0].complete();
+        await _settle();
+        gates[1].complete();
+        final rs = await Future.wait([a, b]).timeout(timeout);
+
+        for (final r in rs) {
+          expect(r, isA<Response<dynamic>>(), reason: '不应把 A 的回调异常直接交给调用者');
+          expect((r as Response).data, {'v': 2});
+        }
+        expect(loading.activeCount, 0);
+        expect(cancelAll(dio), 0);
+      });
+    }
+
+    test('race：A 的 onRetry 抛异常、B 随后失败，A 收到 B 的失败而不是回调异常，且无未处理异步错误',
+        () async {
+      final gates = <Completer<void>>[];
+      final adapter = _FakeAdapter((o, n) async {
+        if (n <= 2) {
+          final g = Completer<void>();
+          gates.add(g);
+          await g.future;
+        }
+        return _json({'e': n}, 500);
+      });
+      final dio = _dio(adapter);
+      var thrown = false;
+      Dioman.install(dio,
+          key: const DiomanKey(),
+          share: DiomanShare(policy: DiomanSharePolicy.race),
+          cancel: DiomanCancel(),
+          retry: _retry(onRetry: (_) {
+            if (!thrown) {
+              thrown = true;
+              throw StateError('boom'); // 只有 A 的那次重试抛
+            }
+          }));
+
+      Future<Object> call() => dio
+          .get<dynamic>('/x')
+          .then<Object>((r) => r, onError: (Object e) => e);
+      final a = call();
+      final b = call();
+      await _settle();
+      gates[0].complete(); // A 失败，进入重试，onRetry 抛异常
+      await _settle();
+      gates[1].complete(); // B 失败（最后一个在途）
+      final rs = await Future.wait([a, b]).timeout(timeout);
+
+      for (final r in rs) {
+        expect(r, isA<DioException>());
+        expect((r as DioException).error, isNot(isA<StateError>()),
+            reason: 'A 应拿到胜出方 B 的失败');
+        expect(r.response?.statusCode, 500);
+      }
+      expect(cancelAll(dio), 0);
+    });
+
+    test('race + auth：A 的 auth 回调抛异常、B 随后成功，A 仍取 B 的结果', () async {
+      final gates = <Completer<void>>[];
+      final adapter = _FakeAdapter((o, n) async {
+        final g = Completer<void>();
+        gates.add(g);
+        await g.future;
+        return n == 1 ? _json({}, 401) : _json({'v': n}, 200);
+      });
+      final dio = _dio(adapter);
+      Dioman.install(dio,
+          key: const DiomanKey(),
+          share: DiomanShare(policy: DiomanSharePolicy.race),
+          cancel: DiomanCancel(),
+          auth: _auth(_Tm('t0'), onRefresh: (_, __) => throw StateError('boom')));
+
+      Future<Object> call() => dio
+          .get<dynamic>('/x')
+          .then<Object>((r) => r, onError: (Object e) => e);
+      final a = call();
+      final b = call();
+      await _settle();
+      gates[0].complete();
+      await _settle();
+      gates[1].complete();
+      final rs = await Future.wait([a, b]).timeout(timeout);
+
+      for (final r in rs) {
+        expect(r, isA<Response<dynamic>>());
+        expect((r as Response).data, {'v': 2});
+      }
+      expect(cancelAll(dio), 0);
+    });
+
+    test('race：A 重试耗尽后等 B，B 永不完成；cancelAll 仍能取消等待中的 A', () async {
+      final gates = <Completer<void>>[];
+      final adapter = _FakeAdapter((o, n) async {
+        if (n == 1) {
+          final g = Completer<void>();
+          gates.add(g);
+          await g.future;
+        } else if (n == 2) {
+          await Completer<void>().future; // B 永不完成
+        }
+        return _json({'e': n}, 500);
+      });
+      final dio = _dio(adapter);
+      final loading = DiomanLoading(onChanged: (_) {});
+      Dioman.install(dio,
+          key: const DiomanKey(),
+          share: DiomanShare(policy: DiomanSharePolicy.race),
+          cancel: DiomanCancel(),
+          loading: loading,
+          retry: _retry());
+
+      final a = dio
+          .get<dynamic>('/x')
+          .then<Object>((r) => r, onError: (Object e) => e);
+      final b = dio.get<dynamic>('/x');
+      unawaited(b.then<void>((_) {}, onError: (Object _) {}));
+      await _settle();
+      gates[0].complete(); // A 失败，重试（第 3 次调用）也失败 -> 等 B
+      await _settle(100);
+
+      expect(cancelAll(dio, 'bye'), 2, reason: '等待中的 A 与在途的 B 都应可取消');
+      final ra = await a.timeout(timeout);
+      expect(ra, isA<DioException>());
+      expect((ra as DioException).type, DioExceptionType.cancel);
+      expect(cancelAll(dio), 0);
+    });
+  });
 }

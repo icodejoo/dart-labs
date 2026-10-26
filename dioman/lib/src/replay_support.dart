@@ -161,7 +161,29 @@ class ReplayClient {
   ) {
     final wait = releaseClaimArbitrated(opts, owner, response: response);
     if (wait == null) return handler.next(response);
-    wait.then<void>(
+    _awaitWinner(wait, opts).then<void>(
+      handler.next,
+      onError: (Object e, StackTrace s) =>
+          handler.reject(_asDio(e, opts, s), true),
+    );
+  }
+
+  /// 响应阶段交出 [owner] 的最终失败（如回调抛异常）：注销认领后 `reject(err, true)`。
+  /// 若该请求在 share 仲裁中落败，改为等胜出结果（成功则 `next`，失败则
+  /// `reject(e, true)`）；取消类错误例外，直接交出。
+  static void handOffResponseError(
+    RequestOptions opts,
+    Object owner,
+    DioException err,
+    ResponseInterceptorHandler handler,
+  ) {
+    final wait = releaseClaimArbitrated(opts, owner, error: err);
+    if (wait == null) return handler.reject(err, true);
+    if (err.type == DioExceptionType.cancel) {
+      wait.ignore();
+      return handler.reject(err, true);
+    }
+    _awaitWinner(wait, opts).then<void>(
       handler.next,
       onError: (Object e, StackTrace s) =>
           handler.reject(_asDio(e, opts, s), true),
@@ -184,7 +206,7 @@ class ReplayClient {
       wait.ignore();
       return handler.next(err);
     }
-    wait.then<void>(
+    _awaitWinner(wait, opts).then<void>(
       (winner) => finishRecovered(self, opts, winner, handler),
       onError: (Object e, StackTrace s) => handler.next(_asDio(e, opts, s)),
     );
@@ -196,6 +218,29 @@ class ReplayClient {
     _fallback?.close(force: true);
     _fallback = null;
   }
+}
+
+/// 等落败者的胜出结果 [wait]，但 [opts] 的 token 取消时立刻以取消错误结束；
+/// [wait] 继续在后台跑，之后的结果或异常被丢弃（不留未处理异步错误）。
+Future<Response<dynamic>> _awaitWinner(
+  Future<Response<dynamic>> wait,
+  RequestOptions opts,
+) {
+  final token = opts.cancelToken;
+  if (token == null) return wait;
+  final done = Completer<Response<dynamic>>();
+  wait.then<void>(
+    (v) {
+      if (!done.isCompleted) done.complete(v);
+    },
+    onError: (Object e, StackTrace s) {
+      if (!done.isCompleted) done.completeError(e, s);
+    },
+  );
+  token.whenCancel.then<void>((e) {
+    if (!done.isCompleted) done.completeError(e);
+  });
+  return done.future;
 }
 
 /// 取 InterceptorState 的类型名（enum 的 name 是扩展，dynamic 调用不可用）。
