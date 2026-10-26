@@ -1,5 +1,12 @@
 ## Unreleased
 
+* **Fix：全量评审（Codex + 人工终审）修复一批异步过期/资源所有权问题**，新增约 45 项回归，Android 真机（STG-AL00）逐项对照修复前基线复测：
+  * **无缝切换**：预热超时改由独立计时器兜底，不再依赖进度事件（`readyTimeout` 此前在影子完全无进度时不生效）；影子 `open`/`seek` 失败会清理并回退为普通打开，且不再往主事件流发 `MovaErrorEvent`（否则会把健康的在播广告误判失败）；已有影子时 `swapTo` 换了源会先丢弃再预热，不再提交旧影子；提交中途 `dispose` 会销毁影子；提交时把 rate/fit/zoom/音量/锁定/全屏/小窗/方向迁给继任者，旧引擎经 `MovaHandoffRetirable` 标记退役，退役引擎 `dispose` 不再复位全局方向。
+  * **引擎**：`beforeOpen` 之后校验 `dispose`；`dispose` 后不再向已关闭的事件流 `add`；全屏/强制方向下 `dispose` 会复位设备方向与沉浸模式；`MovaMpvKernel.open()` 在异步恢复后复查序号，旧请求不再覆盖新源；`MovaVolumeChange.value` 注释订正为 0–100。
+  * **广告**：加会话号与销毁标志，延迟解析的旧结果不再重开旧正片；广告加载超时与槽位计时改以真正的首帧（`rendered`/`MovaFirstFrame`，回退为连续两次递增的非零位置）为准，不再被零位置/残留进度提前取消；swap 路径下广告期间复位 1x、返回后恢复用户倍速。
+  * **其余**：Feed 池同索引换源先释放旧引擎；QoE 会话累计器每次 `open()` 清零；播放列表 `jumpTo` 交错时丢弃过期结果；预览缩略图带 crop 时不入缓存（否则命中后显示整张雪碧图）、换源后丢弃旧请求结果、swap 提交后气泡随 `renderEpoch` 重订阅。
+  * 已知未修见 `CLAUDE.md`「全量评审遗留」（PiP 退出状态不复位等）。
+
 * **Fix：Windows 上 push 不透明路由时进程原生崩溃（HE V10）**：根因不在 mova，而是 Flutter 3.47.0/3.47.1 引擎的 bug——Windows + Impeller 下，`MaterialPageRoute` 默认的 `ZoomPageTransitionsBuilder` 会给页面拍快照（`SnapshotWidget`），快照里带外部 GPU 纹理（media_kit 的 DXGI 共享句柄纹理）时，引擎 `LayerTree::Flatten` 里解引用空上下文，进程在 `flutter_windows.dll` 以 `0xC0000005` 退出（flutter/flutter#190774，Flutter 3.47.2 已修）。纯 media_kit `Video` 不带 mova 同样复现。mova 侧规避：`MovaPlayer` 的渲染面在 Windows 上套一层 `MovaSnapshotGuard`（加一个 `supportsRasterization()==false` 的图层，宽松快照据此退回普通绘制），其他平台行为不变。release 实测：修复前 6/6 崩溃、探针 2 轮内必崩；修复后验证页 V10A 20/20、V10 10/10、探针 20/20/20/30 轮不崩。**根治办法是宿主升级到 Flutter ≥ 3.47.2**；也可在主题里对转场关快照（`ZoomPageTransitionsBuilder(allowSnapshotting: false)`）。新增 8 项回归（`test/ui/snapshot_guard_test.dart`）。详见计划文档 `doc/plans/2026-10-23-host-ergonomics.md` V10 小节。
 
 * **Fix：点播恢复重试丢失续播位置（HE V6）**：卡顿超时、`open()` 异常后的重试及原生 `END_FILE(error)` 恢复，改为等本次尝试首帧落地后再发送续播 seek，避免加载命令已返回但文件未就绪时 seek 被丢弃。同内容备选地址沿用续播点，跨失败继续保留；直播不 seek。代码回归已通过，待 Windows/Android 复测。

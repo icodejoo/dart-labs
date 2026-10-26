@@ -32,7 +32,7 @@
 
 ## 当前状态（0.2.0）
 
-> **测试基线：1364 项全绿**（2026-10-25 合并 WHEP 分支后本机实跑；合并前 main 为 1324， `flutter test` 的真实结果；HE V10 渲染面转场快照守卫新增 +8（`test/ui/snapshot_guard_test.dart`），1316 → 1324；HE V6 续播就绪修复新增 +14，1302 → 1316；Q13 预热静音修复新增 +16；其中宿主易用性计划 Task 1–15 贡献 +150
+> **测试基线：1409 项全绿**（2026-10-26 全量评审修复后本机实跑，较 1364 +45；2026-10-25 合并 WHEP 分支后为 1364；合并前 main 为 1324， `flutter test` 的真实结果；HE V10 渲染面转场快照守卫新增 +8（`test/ui/snapshot_guard_test.dart`），1316 → 1324；HE V6 续播就绪修复新增 +14，1302 → 1316；Q13 预热静音修复新增 +16；其中宿主易用性计划 Task 1–15 贡献 +150
 > （Task 1–8 +70、Task 9–15 +80），其评审修复新增 +19，见下文「宿主易用性增强」；低功耗待机计划 Task 1–9 贡献 +109，见「低功耗待机」）；
 > `flutter analyze lib test` 0 issues（`example/` 下 demo 有若干 `avoid_print` info，
 > 均为验证脚本）。`example/test/auto_kit_test.dart`（验证页脚本化工具的纯逻辑，12 项）在 `example/` 下单独 `flutter test`，不计入上述基线。
@@ -372,6 +372,11 @@ README「已知限制」已注明：调用方自己创建/注入 `VideoControlle
 - **`Cannot seek in this stream` ×3（MovaErrorEvent ×6）——根因不在 mova**：在内核层 override `seek()` 打印调用栈做探针，真机（STG-AL00）复现时 **0 次 `kernel.seek`**，即 mova 没有对该流下发过 seek；mpv 日志显示 `Stream is not seekable` 后，约在 `Using hardware decoding` / `MovaSizeChange 640x360` 同一时刻 mpv 自己打出这两行，推断是渲染面挂上（懒创建的 `VideoController`）后 mpv 内部重建视频链触发的刷新 seek（推断，未做 eager 对照）。media_kit 把 `cplayer` 前缀的 error 日志一律当 `stream.error` 上报，于是成了 `MovaErrorEvent`/`state.error`。修法选最小侵入：`MovaMpvKernel.error` 过滤这两行（`isBenignMpvError`），不新增 `MovaKernel` 能力。取舍：用户在不可 seek 流上主动 seek 时同样的提示也会被吞（引擎本就对 live 拦 seek）。真机复测：`createMovaEngine()` 默认白名单打开 WHEP，播放 15s、`MovaErrorEvent` 0 次、`state.error==null`、位置推进正常。验证页端口可用 `--dart-define=WHEP_UDP/WHEP_RELAY/WHEP_URL` 覆盖。测试 1008 → 1014（`test/core/kernel/mpv_defaults_test.dart`）。
 
 ## 剩余任务
+
+**全量评审遗留（2026-10-26，修复见 CHANGELOG `Unreleased`）**：① **PiP 退出后 `state.pip` 不复位**——真机已复现（拉回前台 26 个采样恒为 true，`PIP` 守卫豁免因此一直生效）；原生 `MovaPlugin.kt` 只有 `enterPictureInPictureMode`，没有退出通知；要修需给 `MovaPipPort` 加模式变化流并改 Kotlin 端，未做；
+② `MovaWarmPlan` 没有方向字段，swap 提交对两个方向一律继承 rate，广告侧靠 `ad_controller` 复位 1x 兜底（content→ad 换指后有几个微任务的短暂窗口），根治需给 plan 加方向；
+③ 真机 V12 观察到 pod 里第二条广告的 `swapTo` 回落成了主引擎普通 `open`（`_playAd` 里 `unawaited(abandon()); await swapTo()` 的写法 HEAD 就有，未确认与本轮 swap 改动有无关系）；
+④ 评审里未处理的 P3：#10 `play/seek` 钩子异步返回后校验、#13 模型下载校验（`sha256` 全库未使用，实现需加 `crypto` 依赖，须先征得同意）、#19 预览队列吞异常、#22 STT 启动失败回滚、#24 手势轴向、#25 `trackCount`/`maxZoom` 构造期 assert、#29 `patch.dart`/`mova_platform_interface.dart` 缺注释。
 
 **瘦身版 libmpv 独立包发布——Android/Windows 已落地并验证，iOS/macOS 结构已落地但完全
 未验证（没有 Mac，不能算完成），每次启动请提醒用户此项仍有待实现的计划**：
