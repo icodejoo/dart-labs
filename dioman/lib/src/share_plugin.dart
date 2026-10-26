@@ -2,6 +2,8 @@
 import 'package:dio/dio.dart';
 import 'key_plugin.dart';
 import 'dioman_plugin.dart';
+import 'replay_support.dart';
+import 'request_claims.dart';
 
 /// How concurrent requests sharing the same key are handled.
 ///
@@ -39,7 +41,7 @@ enum DiomanSharePolicy {
 }
 
 class _Entry {
-  _Entry() : completer = Completer<Response<dynamic>>() {
+  _Entry(this.key, this._detach) : completer = Completer<Response<dynamic>>() {
     // A lone leader (no followers ever attached) or an already-settled
     // completer under end/race can complete with an error that nobody
     // listens to — that raises an unhandled zone error. `ignore()` only
@@ -47,6 +49,16 @@ class _Entry {
     // elsewhere (via .then) still receive the value/error independently.
     completer.future.ignore();
   }
+
+  /// 请求key，结算时据此从活跃表摘除。
+  ///
+  /// Request key, used to detach this entry from the active table on settle.
+  final String key;
+
+  /// 结算后把自己从活跃表摘除的回调。
+  ///
+  /// Callback that detaches this entry from the active table once settled.
+  final void Function(_Entry entry) _detach;
 
   /// Settles with the shared result for every caller keyed to this entry.
   ///
@@ -62,6 +74,23 @@ class _Entry {
   ///
   /// [DiomanSharePolicy.race]用的在途请求计数器。
   int inFlight = 0;
+
+  /// 是否已结算。
+  bool get isSettled => completer.isCompleted;
+
+  /// 以成功响应结算。存一份脱离 leader 后续改动的快照，已结算则忽略。
+  void complete(Response<dynamic> response) {
+    _detach(this);
+    if (isSettled) return;
+    completer.complete(copyResponse(response, response.requestOptions));
+  }
+
+  /// 以失败结算，已结算则忽略。
+  void completeError(DioException error) {
+    _detach(this);
+    if (isSettled) return;
+    completer.completeError(error);
+  }
 }
 
 /// Per-request override for [DiomanShare], read from `extra['dioman:share']`.
@@ -156,67 +185,63 @@ class DiomanShare extends DiomanPlugin {
   /// 当前活跃的共享entry，按请求key索引。
   final _active = <String, _Entry>{};
 
-  // Number of downstream plugins (DiomanRetry / DiomanAuth, via their own
-  // `share:` constructor param) that will call [settle] themselves once
-  // THEY reach this request's true final outcome. > 0 means this plugin's
-  // own onResponse/onError must NOT settle the entry on the first
-  // response/error — it would otherwise deliver a pre-retry/pre-refresh
-  // result to every waiter, before the downstream plugin ever gets a
-  // chance to improve on it (this plugin sits BEFORE DiomanRetry/DiomanAuth
-  // in the canonical chain, so its onResponse/onError always runs first).
-  int _pendingSettlers = 0;
+  // policy=retry 内部重试用的传输层：绑定宿主 Dio 后借用其 adapter/transformer，
+  // 未绑定时退回无拦截器的裸 Dio，重试不会重新进入本链路。在 [dispose] 中释放。
+  final _replay = ReplayClient();
 
-  /// Registers a downstream plugin that will call [settle] itself instead
-  /// of letting this plugin settle automatically. Called by DiomanRetry's /
-  /// DiomanAuth's own constructor when given this instance via their
-  /// `share:` param — not meant to be called directly.
+  /// Binds the host [Dio] this plugin is installed on, so `policy: retry`
+  /// re-issues reuse its adapter/transformer and hand a recovered result to
+  /// the interceptors after this plugin. [Dioman.install] / [DiomanHandle] bind
+  /// it automatically; set it by hand only when wiring the chain yourself.
+  /// `null` unbinds.
   ///
-  /// 登记一个会自行调用[settle]的下游插件，而不是让本插件自动结算。由
-  /// DiomanRetry/DiomanAuth自己的构造函数在收到本实例（通过它们的`share:`
-  /// 参数）时调用——不供直接调用。
-  void registerDownstreamSettler() => _pendingSettlers++;
+  /// 绑定本插件所在的宿主[Dio]，让`policy: retry`的内部重试复用它的
+  /// adapter/transformer，并把恢复成功的结果交给排在本插件之后的拦截器。
+  /// [Dioman.install]/[DiomanHandle]会自动绑定，只有自己手动拼链时才需要设置。
+  /// 传`null`解绑。
+  set dio(Dio? value) => _replay.bind(value);
 
-  /// Whether more than one downstream plugin is registered. DiomanAuth uses
-  /// this to decide whether it must settle on hand-off itself (`false` —
-  /// nothing else is registered) or can defer to a later-registered plugin
-  /// (`true` — namely DiomanRetry, which always runs after DiomanAuth in the
-  /// canonical chain and always settles unconditionally).
+  // 旧接线接口的兼容计数：结算责任现在按请求登记（见 RequestClaims），这个
+  // 计数不再影响任何结算行为。
+  int _legacySettlers = 0;
+
+  /// No longer needed: settlement responsibility is now registered per
+  /// request by [DiomanAuth]/[DiomanRetry] themselves. Kept as a compatibility
+  /// no-op counter that no longer influences settlement.
   ///
-  /// 是否登记了多个下游插件。DiomanAuth用这个来判断交接时是否要自己结算
-  /// （`false`——没有其它登记者）还是可以交给后登记的插件（`true`——也就是
-  /// canonical链条上总是排在DiomanAuth之后、且总会无条件结算的DiomanRetry）。
-  bool get hasMultipleDownstreamSettlers => _pendingSettlers > 1;
+  /// 已不再需要：结算责任现在由[DiomanAuth]/[DiomanRetry]按请求自行登记。
+  /// 仅作兼容保留，计数不再影响任何结算行为。
+  @Deprecated('Settlement responsibility is registered per request now; '
+      'this call has no effect.')
+  void registerDownstreamSettler() => _legacySettlers++;
+
+  /// Compatibility counterpart of [registerDownstreamSettler]; no longer
+  /// influences settlement.
+  ///
+  /// [registerDownstreamSettler]的兼容配套，不再影响任何结算行为。
+  @Deprecated('Settlement responsibility is registered per request now; '
+      'this getter has no effect on behavior.')
+  bool get hasMultipleDownstreamSettlers => _legacySettlers > 1;
 
   /// Explicitly settles the shared entry for [key] with [response] (success)
-  /// or [error] (failure). Called by a downstream plugin (DiomanRetry,
-  /// DiomanAuth) once it reaches the request's TRUE final outcome, after
-  /// this plugin deferred its own automatic settlement — see
-  /// [registerDownstreamSettler]. A no-op if the entry was already settled
-  /// by someone else, or if there's no active entry for [key].
+  /// or [error] (failure), regardless of policy or outstanding downstream
+  /// claims, and detaches it so a later caller for [key] starts fresh. A no-op
+  /// if there's no active entry for [key] or it was already settled.
   ///
-  /// 用[response]（成功）或[error]（失败）显式结算[key]对应的共享entry。
-  /// 由下游插件（DiomanRetry、DiomanAuth）在自己拿到请求的**真正**最终结果后
-  /// 调用，前提是本插件已经推迟了自动结算——见[registerDownstreamSettler]。
-  /// 若entry已被别人结算过，或[key]没有活跃entry，则是no-op。
+  /// 用[response]（成功）或[error]（失败）显式结算[key]对应的共享entry，不管
+  /// 策略和下游是否还有未交出的认领，并把它摘除，之后同key的调用方重新开始。
+  /// 没有活跃entry或已结算时是no-op。
   void settle(String key, {Response<dynamic>? response, DioException? error}) {
     final entry = _active[key];
     if (entry == null) return;
-    _settle(key, entry);
-    if (entry.completer.isCompleted) return;
     if (response != null) {
-      entry.completer.complete(response);
+      entry.complete(response);
     } else if (error != null) {
-      entry.completer.completeError(error);
+      entry.completeError(error);
+    } else {
+      _detach(entry);
     }
   }
-
-  // Bare Dio reused for policy=retry re-issues — no interceptors, so retries
-  // never re-enter this chain. Lazily created and reused across retries (and
-  // across the retry loop's iterations) instead of a fresh `Dio()` each time,
-  // so the HttpClient / connection pool isn't reallocated per attempt. Closed
-  // in [dispose].
-  Dio? _retryDio;
-  Dio get _retry => _retryDio ??= Dio();
 
   /// Public plugin name / extra key for this plugin, accessible without an instance.
   ///
@@ -242,6 +267,8 @@ class DiomanShare extends DiomanPlugin {
     final key = options.extra[kKey] as String?;
     if (key == null) return handler.next(options); // no key → pass through
 
+    // 同一个 RequestOptions 重新分发时，清掉上一轮的 follower 标记。
+    options.extra.remove(kJoinedKey);
     options.extra[_kPolicy] = $resolved.policy;
 
     switch ($resolved.policy) {
@@ -260,6 +287,22 @@ class DiomanShare extends DiomanPlugin {
     }
   }
 
+  /// 新建并登记一个共享entry。
+  _Entry _newEntry(String key) {
+    final entry = _Entry(key, _detach);
+    _active[key] = entry;
+    return entry;
+  }
+
+  /// 让 [options] 成为 [entry] 的参与者：挂上entry，并建立结算认领登记簿——
+  /// 下游（auth/retry）认领后，最终结果由登记簿清空时统一结算。
+  void _adopt(RequestOptions options, _Entry entry) {
+    options.extra[_kEntry] = entry;
+    options.extra[kClaimsKey] = RequestClaims()
+      ..onFinal = ((response, error) => _offer(entry, options, response, error))
+      ..checkLoser = (() => _loserOf(entry, options));
+  }
+
   // start / retry: first caller proceeds, rest wait
   void _handleStart(
     RequestOptions options,
@@ -274,9 +317,8 @@ class DiomanShare extends DiomanPlugin {
   ) {
     final existing = _active[key];
     if (existing == null) {
-      final entry = _Entry();
-      _active[key] = entry;
-      options.extra[_kEntry] = entry;
+      final entry = _newEntry(key);
+      _adopt(options, entry);
       if ($resolved.policy == DiomanSharePolicy.retry) {
         options.extra[_kRetriesLeft] = $resolved.retries;
         options.extra[_kInterval] = $resolved.interval;
@@ -288,9 +330,10 @@ class DiomanShare extends DiomanPlugin {
       // after share (mock, cancel, loading, auth, retry, log, normalize),
       // same as the leader's own response does, so e.g. DiomanNormalize
       // still unwraps the envelope for the follower too.
+      _markJoined(options);
       existing.completer.future.then(
-        (r) => handler.resolve(r, true),
-        onError: (Object e) => handler.reject(e as DioException, true),
+        (r) => handler.resolve(copyResponse(r, options), true),
+        onError: (Object e) => handler.reject(copyError(e, options), true),
       );
     }
   }
@@ -303,11 +346,10 @@ class DiomanShare extends DiomanPlugin {
     RequestInterceptorHandler handler,
     String key,
   ) {
-    final entry = _active[key] ?? _Entry();
-    _active[key] = entry;
+    final entry = _active[key] ?? _newEntry(key);
     entry.seq++;
     options.extra[_kSeq] = entry.seq;
-    options.extra[_kEntry] = entry;
+    _adopt(options, entry);
     handler.next(options); // everyone proceeds; settlement gated by seq match
   }
 
@@ -318,11 +360,10 @@ class DiomanShare extends DiomanPlugin {
     RequestInterceptorHandler handler,
     String key,
   ) {
-    final entry = _active[key] ?? _Entry();
-    _active[key] = entry;
+    final entry = _active[key] ?? _newEntry(key);
     entry.inFlight++;
     options.extra[_kSeq] = entry.inFlight; // unique id per in-flight request
-    options.extra[_kEntry] = entry;
+    _adopt(options, entry);
     handler.next(options);
   }
 
@@ -338,135 +379,231 @@ class DiomanShare extends DiomanPlugin {
     final entry = opts.extra[_kEntry] as _Entry?;
     if (entry == null) return handler.next(response);
 
-    final key = opts.extra[kKey] as String?;
-    final p =
-        opts.extra[_kPolicy] as DiomanSharePolicy? ?? DiomanSharePolicy.start;
-
-    switch (p) {
+    switch (_policyOf(opts)) {
       case DiomanSharePolicy.end:
-        final mySeq = opts.extra[_kSeq] as int?;
-        if (mySeq == entry.seq) {
-          if (_pendingSettlers == 0) {
-            _settle(key, entry);
-            if (!entry.completer.isCompleted) entry.completer.complete(response);
-          }
-          return handler.next(response);
-        }
         // Superseded by a newer request — deliver the eventual winner's
         // result instead of this stale one.
-        return _awaitEntry(entry, handler);
-
+        if (opts.extra[_kSeq] != entry.seq) {
+          return _joinFromResponse(entry, opts, handler);
+        }
       case DiomanSharePolicy.race:
-        if (!entry.completer.isCompleted) {
-          if (_pendingSettlers == 0) {
-            _settle(key, entry);
-            entry.completer.complete(response);
-          }
-          return handler.next(response);
-        }
         // Another in-flight attempt already won the race.
-        return _awaitEntry(entry, handler);
-
+        if (entry.isSettled) return _joinFromResponse(entry, opts, handler);
       default: // start, retry
-        if (_pendingSettlers == 0) {
-          _settle(key, entry);
-          if (!entry.completer.isCompleted) entry.completer.complete(response);
-        }
-        handler.next(response);
     }
+    _finishOrDefer(entry, opts, response: response);
+    handler.next(response);
   }
 
   @override
-  void onError(DioException err, ErrorInterceptorHandler handler) async {
+  void onError(DioException err, ErrorInterceptorHandler handler) {
     final opts = err.requestOptions;
     final entry = opts.extra[_kEntry] as _Entry?;
     if (entry == null) return handler.next(err);
 
-    final key = opts.extra[kKey] as String?;
-    final p =
-        opts.extra[_kPolicy] as DiomanSharePolicy? ?? DiomanSharePolicy.start;
-
-    switch (p) {
+    switch (_policyOf(opts)) {
       case DiomanSharePolicy.retry:
-        var left = opts.extra[_kRetriesLeft] as int? ?? 0;
-        final $interval = opts.extra[_kInterval] as Duration? ?? interval;
-        Response<dynamic>? success;
-        Object lastError = err;
-        while (left > 0) {
-          left--;
-          opts.extra[_kRetriesLeft] = left;
-          if ($interval > Duration.zero) await Future<void>.delayed($interval);
-          try {
-            success = await _retry.fetch<dynamic>(opts);
-            break;
-          } catch (e) {
-            lastError = e;
-          }
-        }
-        _settle(key, entry);
-        if (success != null) {
-          if (!entry.completer.isCompleted) entry.completer.complete(success);
-          return handler.resolve(success);
-        }
-        final finalErr = lastError is DioException
-            ? lastError
-            : DioException(requestOptions: opts, error: lastError);
-        if (!entry.completer.isCompleted) {
-          entry.completer.completeError(finalErr);
-        }
-        return handler.next(finalErr);
+        // 内部重试是异步的，自己负责 handler 恰好完成一次。
+        unawaited(_retryPolicyError(err, opts, entry, handler));
+        return;
 
       case DiomanSharePolicy.end:
-        final mySeq = opts.extra[_kSeq] as int?;
-        if (mySeq == entry.seq) {
-          if (_pendingSettlers == 0) {
-            _settle(key, entry);
-            if (!entry.completer.isCompleted) entry.completer.completeError(err);
-          }
-          return handler.next(err);
+        if (opts.extra[_kSeq] != entry.seq) {
+          return _joinFromError(entry, opts, handler);
         }
-        return _awaitEntry(entry, handler);
 
       case DiomanSharePolicy.race:
-        entry.inFlight--;
-        if (!entry.completer.isCompleted && entry.inFlight <= 0) {
-          if (_pendingSettlers == 0) {
-            _settle(key, entry);
-            entry.completer.completeError(err);
-          }
-          return handler.next(err);
+        if (entry.isSettled) return _joinFromError(entry, opts, handler);
+        // 没有下游认领时当场判断是不是最后一个失败的在途请求；有认领则等最终
+        // 结果确定后由 [_offer] 计数。
+        if (!_hasClaims(opts) && entry.inFlight > 1) {
+          entry.inFlight--;
+          return _joinFromError(entry, opts, handler);
         }
-        return _awaitEntry(entry, handler);
 
       default: // start
-        if (_pendingSettlers == 0) {
-          _settle(key, entry);
-          if (!entry.completer.isCompleted) entry.completer.completeError(err);
+    }
+    _finishOrDefer(entry, opts, error: err);
+    handler.next(err);
+  }
+
+  /// policy=retry 的内部重试：调用方看不到重试过程。成功后把结果交给排在本
+  /// 插件之后的拦截器（见 [ReplayClient.runDownstream]），再终结链路。
+  Future<void> _retryPolicyError(
+    DioException err,
+    RequestOptions opts,
+    _Entry entry,
+    ErrorInterceptorHandler handler,
+  ) async {
+    try {
+      var left = opts.extra[_kRetriesLeft] as int? ?? 0;
+      final $interval = opts.extra[_kInterval] as Duration? ?? interval;
+      final token = opts.cancelToken;
+      Response<dynamic>? success;
+      Object lastError = err;
+      // 取消类错误不重试；循环里每一轮都检查取消，等待也可被取消打断。
+      while (left > 0 && err.type != DioExceptionType.cancel) {
+        if (token?.isCancelled == true) {
+          lastError = token!.cancelError ?? lastError;
+          break;
         }
-        handler.next(err);
+        left--;
+        opts.extra[_kRetriesLeft] = left;
+        await cancellableDelay($interval, token);
+        if (token?.isCancelled == true) {
+          lastError = token!.cancelError ?? lastError;
+          break;
+        }
+        if (!prepareForReplay(opts)) break; // body 无法重放
+        try {
+          success = await _replay.fetch(opts);
+          break;
+        } catch (e) {
+          lastError = e;
+        }
+      }
+
+      if (success != null) {
+        // 恢复成功：结算用下游处理之前的快照，再让下游处理并终结链路。
+        return await _replay.finishRecovered(this, opts, success, handler);
+      }
+      final finalErr = lastError is DioException
+          ? lastError
+          : DioException(requestOptions: opts, error: lastError);
+      _finishOrDefer(entry, opts, error: finalErr);
+      handler.next(finalErr);
+    } catch (e, s) {
+      // 兜底：保证 handler 完成，不让请求悬挂。
+      if (!handler.isCompleted) {
+        handler.next(DioException(requestOptions: opts, error: e, stackTrace: s));
+      }
     }
   }
 
   // ── Helpers ───────────────────────────────────────────────────────────────
 
-  /// Removes [entry] from `_active[key]` — but only if it's still the entry
-  /// registered there (a new burst may already have installed a fresh one).
-  ///
-  /// 把[entry]从`_active[key]`移除——但仅当它还是当前登记的那个entry时才移除
+  /// 把 [entry] 从活跃表摘除——仅当它还是当前登记的那个entry时才摘除
   /// （新一轮请求可能已经装上了一个新entry）。
-  void _settle(String? key, _Entry entry) {
-    if (key != null && identical(_active[key], entry)) _active.remove(key);
+  void _detach(_Entry entry) {
+    if (identical(_active[entry.key], entry)) _active.remove(entry.key);
   }
 
-  /// Delivers whatever [entry]'s completer eventually settles with to this
-  /// caller, instead of this caller's own (superseded/losing) result.
+  /// 本请求的策略，缺省按 start。
+  DiomanSharePolicy _policyOf(RequestOptions opts) =>
+      opts.extra[_kPolicy] as DiomanSharePolicy? ?? DiomanSharePolicy.start;
+
+  /// 本请求上是否还有下游认领者没交出结果。
+  bool _hasClaims(RequestOptions opts) => claimsOf(opts)?.hasOwners ?? false;
+
+  /// 本请求在 share 这一层拿到了结果：没有下游认领者就当场结算；有则推迟，
+  /// 由认领者交出最终结果时经登记簿结算。[force] 为 true 时无视认领者直接结算
+  /// （本插件自己终结链路时用）。
+  void _finishOrDefer(
+    _Entry entry,
+    RequestOptions opts, {
+    Response<dynamic>? response,
+    DioException? error,
+    bool force = false,
+  }) {
+    final claims = claimsOf(opts);
+    if (claims == null) {
+      _offer(entry, opts, response, error);
+    } else if (force || !claims.hasOwners) {
+      claims.finish(response: response, error: error);
+    }
+  }
+
+  /// 请求的最终结果确定后，按策略决定是否用它结算 [entry]：
+  /// end 只认最新序号；race 已有胜者或失败尚有在途请求时不结算；其余直接结算。
+  /// 返回非 null 表示该请求落败，值是等待胜出结果的 Future（已绑定 [opts]）。
+  Future<Response<dynamic>>? _offer(
+    _Entry entry,
+    RequestOptions opts,
+    Response<dynamic>? response,
+    DioException? error,
+  ) {
+    switch (_policyOf(opts)) {
+      case DiomanSharePolicy.end:
+        if (opts.extra[_kSeq] != entry.seq) return _yieldToWinner(entry, opts);
+      case DiomanSharePolicy.race:
+        if (entry.isSettled) return _yieldToWinner(entry, opts);
+        if (error != null && --entry.inFlight > 0) {
+          return _yieldToWinner(entry, opts);
+        }
+      default:
+    }
+    if (response != null) {
+      entry.complete(response);
+    } else if (error != null) {
+      entry.completeError(error);
+    }
+    return null;
+  }
+
+  /// 预检 [opts] 是否已出局：end 被取代、race 已有胜者时返回胜出结果的 Future。
+  Future<Response<dynamic>>? _loserOf(_Entry entry, RequestOptions opts) {
+    switch (_policyOf(opts)) {
+      case DiomanSharePolicy.end:
+        if (opts.extra[_kSeq] != entry.seq) return _yieldToWinner(entry, opts);
+      case DiomanSharePolicy.race:
+        if (entry.isSettled) return _yieldToWinner(entry, opts);
+      default:
+    }
+    return null;
+  }
+
+  /// 让落败的 [own] 改为等待 [entry] 的最终共享结果，得到绑定 [own] 的独立副本
+  /// （失败则以绑定 [own] 的异常完成）。
+  Future<Response<dynamic>> _yieldToWinner(_Entry entry, RequestOptions own) {
+    _markJoined(own);
+    return entry.completer.future.then(
+      (r) => copyResponse(r, own),
+      onError: (Object e) => throw copyError(e, own),
+    );
+  }
+
+  /// 标记 [own] 为 follower / 落败者：结果由 leader 结算，下游不得再自行恢复，
+  /// 也不再被当作 entry 的参与者。
+  void _markJoined(RequestOptions own) {
+    own.extra[kJoinedKey] = true;
+    own.extra.remove(_kEntry);
+    // 落败者不再向entry提交结果（其认领登记簿照常注销，只是不再结算）。
+    claimsOf(own)
+      ?..onFinal = null
+      ..checkLoser = null;
+  }
+
+  /// 响应阶段：把 [entry] 最终的共享结果转交给 [handler]，每个调用方拿到
+  /// 绑定自己 RequestOptions 的独立 Response / 异常。
   ///
-  /// 把[entry]的completer最终结算出的结果交给这个调用方，而不是它自己
-  /// （被取代/落败）的结果。
-  void _awaitEntry(_Entry entry, dynamic handler) {
+  /// 成功 next 继续跑后面的响应阶段（normalize 等照常处理这份独立副本）；
+  /// 失败 reject(callFollowing) 继续跑错误阶段。
+  void _joinFromResponse(
+    _Entry entry,
+    RequestOptions own,
+    ResponseInterceptorHandler handler,
+  ) {
+    _markJoined(own);
     entry.completer.future.then(
-      (r) => handler.resolve(r),
-      onError: (Object e) => handler.reject(e as DioException, true),
+      (r) => handler.next(copyResponse(r, own)),
+      onError: (Object e) => handler.reject(copyError(e, own), true),
+    );
+  }
+
+  /// 错误阶段：同 [_joinFromResponse]，但错误阶段的 handler 签名不同——
+  /// 成功经 [ReplayClient.finishRecovered] 收尾（下游照常清理再终结），失败用
+  /// next 交给后续错误阶段。
+  void _joinFromError(
+    _Entry entry,
+    RequestOptions own,
+    ErrorInterceptorHandler handler,
+  ) {
+    _markJoined(own);
+    entry.completer.future.then(
+      // 走与首次成功一致的收尾：下游的 onResponse 照常清理（loading、cancel、
+      // auth 认领等），再终结。
+      (r) => _replay.finishRecovered(this, own, copyResponse(r, own), handler),
+      onError: (Object e) => handler.next(copyError(e, own)),
     );
   }
 
@@ -489,8 +626,8 @@ class DiomanShare extends DiomanPlugin {
     // Complete any waiters before dropping the entries — a bare `_active.clear()`
     // would leave followers attached to `entry.completer.future` hanging
     // forever, since nothing else ever settles those completers.
-    for (final entry in _active.values) {
-      if (!entry.completer.isCompleted) {
+    for (final entry in _active.values.toList()) {
+      if (!entry.isSettled) {
         entry.completer.completeError(
           DioException(
             requestOptions: RequestOptions(path: ''),
@@ -501,7 +638,6 @@ class DiomanShare extends DiomanPlugin {
       }
     }
     _active.clear();
-    _retryDio?.close(force: true);
-    _retryDio = null;
+    _replay.dispose();
   }
 }

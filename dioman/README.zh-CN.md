@@ -30,7 +30,7 @@
 | `DiomanTimeout` | 按注入的网络质量档位，per-request 设置 connect/receive/send 超时。 |
 | `DiomanRepath` | 用 query/body 里的值替换路径变量 `{id}` / `:id` / `[id]`。 |
 | `DiomanFilter` | 发送前剔除 query 与 body 里的 `null`/空字段。 |
-| `DiomanKey` | 计算稳定的单请求 key（`extra[kRequestKey]`），供缓存与去重使用。 |
+| `DiomanKey` | 计算稳定的单请求 key（`extra[kKey]`），供缓存与去重使用。 |
 | `DiomanCache` | 带 TTL 的响应缓存，支持 `none`/`shallow`/`deep` 克隆策略。 |
 | `DiomanOffline` | 断网时请求入队，联网恢复后重放。 |
 | `DiomanShare` | 同 key 并发请求去重（`start`/`end`/`race`/`retry`）。 |
@@ -57,7 +57,7 @@ import 'package:dioman/dioman.dart';
 ## 快速上手
 
 把要用的插件传给`Dioman.install`——它会自动按**canonical 顺序**（见[推荐顺序](#推荐顺序)）排位置，
-同时传了`share:`/`cancel:`的话，也会自动帮`DiomanRetry`/`DiomanAuth`接好线。
+同时会把宿主`Dio`绑定给会重放请求的`DiomanShare`/`DiomanAuth`/`DiomanRetry`。
 
 ```dart
 final dio = Dio(BaseOptions(baseUrl: 'https://api.example.com'));
@@ -102,7 +102,7 @@ final res = await dio.get('/users/{id}', queryParameters: {'id': 42});
 await dio.get('/x', options: Options(extra: {
   'dioman:auth':      const DiomanAuthOptions(enabled: false),                       // 本次跳过鉴权
   'dioman:qid':       const DiomanKeyOptions(key: 'my-custom-key'),                  // 覆盖计算出的 key（或 `enabled: false` 跳过生成）
-  'dioman:cache':     const DiomanCacheOptions(expires: 5000, clone: CacheClone.shallow),
+  'dioman:cache':     const DiomanCacheOptions(expires: 5000, clone: DiomanClonePolicy.shallow),
   'dioman:offline':   const DiomanOfflineOptions(enabled: false),                      // 断网时本次不入队
   'dioman:share':     const DiomanShareOptions(policy: SharePolicy.race),            // 或 `enabled: false` 关闭
   'dioman:mock':      const DiomanMockOptions(mockUrl: 'http://localhost:9999'),      // 或 `enabled: false` 跳过
@@ -119,7 +119,7 @@ await dio.get('/x', options: Options(extra: {
 
 `DiomanCancel` 与 `DiomanEnvs` 没有单请求级 `extra` 开关——两者改用构造函数级的 `enabled` 开关，控制整个插件是否生效。其余每个插件的构造函数**同样**都带这个 `enabled`（永久关闭整个插件），叠加在各自 `DiomanXxxOptions` 里的单请求级 `enabled` 之上。
 
-每个 `DiomanXxxOptions` 的字段都跟构造函数参数 1:1 对应，且默认值全是 `null`——`null` 代表"继承构造函数当时设的值"。所以 `const DiomanCacheOptions(expires: 5000)` 不会碰 `enabled`/`clone`，也**不会**偷偷把用 `enabled: false` 构造的插件重新打开。`List`/`Map` 字段（`DiomanFilterOptions.ignoreKeys`、`DiomanKeyOptions.ignoreKeys`、`DiomanMockOptions.routes`）是跟插件自身默认值做**合并**（union），不是整体替换。
+每个 `DiomanXxxOptions` 的字段都跟构造函数参数 1:1 对应，且默认值全是 `null`——`null` 代表"继承构造函数当时设的值"。所以 `const DiomanCacheOptions(expires: 5000)` 不会碰 `enabled`/`clone`，也**不会**偷偷把用 `enabled: false` 构造的插件重新打开。`List`/`Map` 字段（`DiomanFilterOptions.ignoreKeys`、`DiomanKeyOptions.ignores`、`DiomanMockOptions.routes`）是跟插件自身默认值做**合并**（union），不是整体替换。
 
 ## 推荐顺序
 
@@ -148,7 +148,7 @@ envs → timeout → repath → filter → key → cache → offline → share �
 
 若不走 `Dioman.install`（它已经帮你排好了），手动往 `dio.interceptors` 加插件时要遵守：
 
-- `key` 在 `cache` 与 `share` 之前——它们读 `extra[kRequestKey]`。
+- `key` 在 `cache` 与 `share` 之前——它们读 `extra[kKey]`。
 - `cache` 在 `offline` 之前——断网读命中缓存会在入队前短路（读优先用 stale 缓存）。
 - `offline` 在 `share`/`cancel`/`loading` 之前——挂起（入队）的请求绝不能建过 share entry 或开过 cancel/loading 括号，否则等待期间会泄漏。
 - `cache`/`share`/`mock` 在 `cancel` 与 `loading` 之前——避免命中直接短路时，loading 或 cancel 的括号开了却等不到关闭。
@@ -162,7 +162,7 @@ envs → timeout → repath → filter → key → cache → offline → share �
 
 需要装一个 `install` 不认识的插件（自定义插件，或想相对 canonical 链条调整顺序）？`handle.insertBefore(anchor, p)`/`handle.insertAfter(anchor, p)` 把 `p` 插到已装好的 `anchor` 插件前/后；`handle.prepend(p)`/`handle.append(p)` 把它插到整条链的最前/最后。这四个方法都会同时把 `p` 接管到 `dio.interceptors` 和 handle 自身上，之后 `plugin<T>()`/`remove<T>()`/`dispose()` 都能看到它。`anchor` 若不是这个 handle 装的插件，`insertBefore`/`insertAfter` 会抛 `ArgumentError`。
 
-`install` 还会在你把同一个 `share:`/`cancel:`/`breaker:` 实例也传给 `retry:`/`auth:` 时，自动帮你接好 `DiomanRetry.share`/`.cancel`、`DiomanAuth.share`/`.cancel` 以及 `DiomanRetry.breaker`（见 [DiomanRetry](#diomanretry)/[DiomanShare](#diomanshare)/[DiomanBreaker](#diomanbreaker)）。只有自己手动往 `dio.interceptors` 加插件（不走 `install`）时，才需要手动设置那些 setter。
+`install` 还会把宿主 `Dio` 绑定（`.dio`）给 `DiomanShare`/`DiomanAuth`/`DiomanRetry`——重放因此复用宿主的 `httpClientAdapter`/`transformer`，恢复成功的结果也会进入排在它们之后的拦截器（normalize、breaker……）——并在同时传了 `breaker:` 和 `retry:` 时接好 `DiomanRetry.breaker`（见 [DiomanRetry](#diomanretry)/[DiomanShare](#diomanshare)/[DiomanBreaker](#diomanbreaker)）。`DiomanShare`/`DiomanCancel` 的结算交接**不再需要接线**：`DiomanAuth`/`DiomanRetry` 自己在每个请求上登记（旧的 `.share`/`.cancel` setter 已弃用，调用无效果）。只有自己手动往 `dio.interceptors` 加插件（不走 `install`）时，才需要手动设置 `.dio`/`.breaker`；`handle.insertBefore/insertAfter/prepend/append/remove` 会替你绑定和解绑。
 
 ```dart
 final handle = Dioman.install(
@@ -214,13 +214,17 @@ final timeout = DiomanTimeout(
 
 `DiomanRepath({bool removeKey = true, bool enabled = true, RegExp? pattern})`——`pattern` 默认匹配路径里的 `{id}`、`:id`、`[id]`；命中后用 `queryParameters`（再 `data`）里的值替换。默认替换后从源 map 删除该键，避免又被当参数发出去。
 
+路径替换先快照取值、完成替换后再移除字段，每个值按路径段编码；修改 Map body 前先复制。
+
 ### DiomanFilter
 
 `DiomanFilter({bool Function(String, dynamic)? predicate, List<String> ignoreKeys = const [], List<dynamic> ignoreValues = const [], bool enabled = true})`——从 `queryParameters` 与 `Map` body 中剔除"空"字段（`predicate` 默认 `null` 与空白字符串）。用 `ignoreKeys`/`ignoreValues` 保留特定键/值。
 
 ### DiomanKey
 
-`DiomanKey({bool fastMode = false, List<String> ignoreKeys = const [], bool enabled = true, String Function(RequestOptions)? builder})`——写入 `extra[kRequestKey]`（固定的跨插件协议 key，值为 `'dioman:key'`）。`fastMode` → `METHOD:path`；默认（`fastMode: false`，deep）还会拼入排序后的 query 与 body——`ignoreKeys` 同时从两者中排除指定名字。可用 `extra['dioman:qid'] = const DiomanKeyOptions(key: '...')` 单请求覆盖（或 `enabled: false` 跳过）。
+`DiomanKey({bool fastMode = false, List<String> ignores = const [], bool enabled = true, String Function(RequestOptions)? builder})`——写入 `extra[kKey]`（固定的跨插件协议 key，值为 `'dioman:key'`）。`fastMode` → `METHOD:origin/path`；默认（`fastMode: false`，deep）还会拼入排序后的 query 与 body——`ignores` 同时从两者中排除指定名字。可用 `extra['dioman:qid'] = const DiomanKeyOptions(key: '...')` 单请求覆盖（或 `enabled: false` 跳过）。
+
+deep key 合并 URL 内 query 与 `queryParameters` 后规范化，包含 origin，并分字段编码 query/body；非结构化 body 保留对象身份。
 
 ### DiomanNormalize——可选、跟业务相关，装在最后
 
@@ -230,7 +234,7 @@ final timeout = DiomanTimeout(
 
 ### DiomanCache
 
-`DiomanCache({required DiomanCachePersist persist, DiomanCachePolicy cachePolicy = DiomanCachePolicy.none, int expires = 60000, CacheClone clone = CacheClone.shallow, int maxEntries = 500, bool enabled = true, bool Function(RequestOptions)? shouldCache, DateTime Function() now = DateTime.now})`——**毫秒**级 TTL 缓存，以 `extra[kRequestKey]` 为键（需 `DiomanKey`）。默认只缓存 `GET`。超过 `maxEntries`（`0` 关闭上限）按 LRU 淘汰（只作用于内存层）。`CacheClone` 控制命中数据的可变安全性：`shallow`（默认，命中方改顶层字段不会污染缓存）、`deep`（嵌套修改也安全）、`none`（只读零拷贝）。`now` 可注入时钟做确定性 TTL 测试。管理接口：`remove(key)`、`clear()`（两者都不管 `cachePolicy` 是什么，永远同时操作内存层和 `persist`）。没有 `removeWhere`/`size`——`DiomanCachePersist` 没有枚举 key 的能力，纯 `persist` 策略下的条目永远无法被批量操作正确覆盖到；需要批量清理就自己在业务层维护 key 列表，逐个调 `remove`。
+`DiomanCache({required DiomanCachePersist persist, DiomanCachePolicy cachePolicy = DiomanCachePolicy.none, int expires = 60000, DiomanClonePolicy clone = DiomanClonePolicy.shallow, int maxEntries = 500, bool enabled = true, bool Function(RequestOptions)? shouldCache, DateTime Function() now = DateTime.now})`——**毫秒**级 TTL 缓存，以 `extra[kKey]` 为键（需 `DiomanKey`）。默认只缓存 `GET`。超过 `maxEntries`（`0` 关闭上限）按 LRU 淘汰（只作用于内存层）。`DiomanClonePolicy` 控制命中数据的可变安全性：`shallow`（默认，命中方改顶层字段不会污染缓存）、`deep`（嵌套修改也安全）、`none`（只读零拷贝）。`now` 可注入时钟做确定性 TTL 测试。管理接口：`await remove(key)`、`await clear()`（两者都不管 `cachePolicy` 是什么，永远同时操作内存层和 `persist`）。没有 `removeWhere`/`size`——`DiomanCachePersist` 没有枚举 key 的能力，纯 `persist` 策略下的条目永远无法被批量操作正确覆盖到；需要批量清理就自己在业务层维护 key 列表，逐个调 `remove`。
 
 `persist` **必传**——没有内置的空实现，必须自己实现 `DiomanCachePersist`（`read`/`write`/`remove`/`erase`，接口形状参照 `get_storage` 包的容器 API——`read` 可以同步也可以异步（`FutureOr`），`write`/`remove`/`erase` 永远异步），接入文件、sqlite、Hive、`get_storage` 或其他任意存储，哪怕你只打算用 `DiomanCachePolicy.memo`。
 
@@ -239,6 +243,8 @@ final timeout = DiomanTimeout(
 - `memo`——只用内存层 `_store`，和以前行为一样。不持久——重启或 `dispose()` 后丢失，永不读写 `persist`。
 - `persist`——只用 `persist`；该请求永不读写内存层。
 - `both`——两者同步：写入时 `_store` 和 `persist` 都写；内存未命中时回退读 `persist` 并回填 `_store`，下次同一个 key 就能重新从内存命中。
+
+持久化变更按调用顺序执行并等待完成；读写失败通过 `DioException` 返回请求，管理 Future 返回删除和清空错误。清空会使旧读取和旧响应失效。deep 策略在入库和命中时均复制数据。`DiomanCacheOptions.maxEntries` 已弃用，请在 `DiomanCache` 上配置容量。
 
 ### DiomanOffline
 
@@ -256,6 +262,8 @@ final offline = DiomanOffline(
 );
 dio.interceptors.add(offline); // 在 DiomanCache 之后、DiomanShare 之前
 ```
+
+排队请求取消时立即出队并取消定时器；flush 在恢复请求前再次检查取消状态。
 
 ### DiomanShare
 
@@ -279,7 +287,7 @@ dio.interceptors.add(offline); // 在 DiomanCache 之后、DiomanShare 之前
 
 ### DiomanLoading
 
-`DiomanLoading({required void Function(bool) onChanged, bool enabled = true})`——第一个请求开始时 `onChanged(true)`，最后一个结束时 `onChanged(false)`。`activeCount` 暴露当前在途数。
+`DiomanLoading({required void Function(bool) onChanged, bool enabled = true})`——第一个请求开始时 `onChanged(true)`，最后一个结束时 `onChanged(false)`。`activeCount` 暴露当前在途数。同一显示周期由开启时选择的回调关闭，包括延迟隐藏和释放插件。
 
 ### DiomanAuth
 
@@ -291,7 +299,7 @@ dio.interceptors.add(offline); // 在 DiomanCache 之后、DiomanShare 之前
 
 `DiomanRetry({int max = 0, List<String>? methods, DiomanShouldRetry? shouldRetry, List<int>? statusCodes, DiomanRetryDelay? delay, Object? jitter, Duration? delayMax, bool enabled = true, bool respectRetryAfter = true, List<int>? afterStatusCodes, Duration? retryAfterMax, void Function(int attempt)? onRetry})`——`methods`（默认`[GET,PUT,HEAD,DELETE,OPTIONS,TRACE]`）最先检查，是`shouldRetry`说了也不算的硬性否决。`delay`默认固定`3000ms`；`jitter`（`true`或`Duration Function(Duration)`）和`delayMax`叠加在其上。`shouldRetry`不设默认值——返回明确的`true`/`false`直接采用，返回`null`退回`statusCodes`（默认`[408,429,500,502,503,504]`），只有完全没有HTTP状态码时（纯网络失败）才进一步退回超时/连接错误判定。`onError`路径以`shouldRetry(err, err.response)`调用（网络级重试），`onResponse`路径以`shouldRetry(null, response)`调用（业务级重试——把body判定为失败的2xx也视为失败，判断的是原始响应体）。响应带`Retry-After`头（数字秒或RFC 1123格式HTTP-date）且状态码在`afterStatusCodes`内（默认`[413,429,503]`）、`respectRetryAfter`为true（默认）时，优先听它而不算`delay`，由`retryAfterMax`封顶。
 
-`share`/`cancel`/`breaker` 是可设置的属性（不是构造参数）——设成链上其它位置装的同一个实例，能让 `DiomanShare` 去重、`cancelAll()` 正确感知到正在重试中的请求，也能在配套的 `DiomanBreaker` 触发的那一刻停止重试；只要同时给 `Dioman.install` 传了 `share:`/`cancel:`/`breaker:` 和 `retry:`，会自动帮你设好。`onRetry` 是个轻量的 `(attempt) {}` 钩子，给你自己接日志用。
+`breaker` 是可设置的属性（不是构造参数）——设成同一条链上的 `DiomanBreaker`，它触发的那一刻就停止重试；`Dioman.install` 会自动设好。`DiomanShare` 去重和 `cancelAll()` 都不需要接线：插件在每个请求上自己登记，退避等待期间也持续被追踪。重试走一个复用宿主 `Dio` 的 `httpClientAdapter`/`transformer` 的客户端；恢复成功的结果会流过装在它之后的拦截器（normalize、breaker、log），语义与首次成功一致。`FormData` 请求体每次尝试前克隆；`Stream` 请求体无法重发，永不重试。回调（`shouldRetry`/`delay`/`onRetry`）抛异常会转成 `DioException`。`onRetry` 是个轻量的 `(attempt) {}` 钩子，给你自己接日志用。
 
 ### DiomanBreaker
 

@@ -1,10 +1,11 @@
-﻿import 'package:dio/dio.dart';
+import 'package:dio/dio.dart';
 import 'dioman_plugin.dart';
 
 /// Per-request override for [DiomanRepath], read from `extra['dioman:repath']`.
 ///
 /// [DiomanRepath]的单请求覆盖，从`extra['dioman:repath']`读取。
 class DiomanRepathOptions {
+  /// 创建单请求覆盖配置。
   const DiomanRepathOptions({this.enabled, this.removeKey, this.pattern});
 
   /// `false` skips path substitution for this request. `null` (default)
@@ -59,12 +60,12 @@ class DiomanRepathOptions {
 /// // → GET /user/42/posts/7?page=1
 /// ```
 class DiomanRepath extends DiomanPlugin {
+  /// 创建插件实例。
   DiomanRepath({
     this.removeKey = true,
     this.enabled = true,
     RegExp? pattern,
-  }) : pattern = pattern ??
-            RegExp(r'\{([^}]+)\}|\[([^\]]+)]|:([^/?#\s]+)');
+  }) : pattern = pattern ?? RegExp(r'\{([^}]+)\}|\[([^\]]+)]|:([^/?#\s]+)');
 
   /// When true, removes the substituted key from the source map.
   /// Overridable per request via [DiomanRepathOptions.removeKey].
@@ -90,9 +91,11 @@ class DiomanRepath extends DiomanPlugin {
   /// 插件名 / extra键，无需实例即可访问。
   static const pluginName = 'dioman:repath';
 
+  /// 插件的公开协议名称。
   @override
   String get name => pluginName;
 
+  /// 处理请求并完成当前请求出口。
   @override
   void onRequest(RequestOptions options, RequestInterceptorHandler handler) {
     final override = options.extra[name];
@@ -104,27 +107,36 @@ class DiomanRepath extends DiomanPlugin {
     final $removeKey = o?.removeKey ?? removeKey;
     final $pattern = o?.pattern ?? pattern;
 
+    final query = Map<String, dynamic>.of(options.queryParameters);
+    final data = options.data;
+    final body = data is Map ? Map.of(data) : null;
+    final queryKeys = <String>{};
+    final bodyKeys = <String>{};
     options.path = options.path.replaceAllMapped($pattern, (m) {
       final key = m.group(1) ?? m.group(2) ?? m.group(3);
       if (key == null) return m.group(0)!;
-
-      // 1. Try queryParameters.
-      if (options.queryParameters.containsKey(key)) {
-        final v = options.queryParameters[key];
-        if ($removeKey) options.queryParameters.remove(key);
-        return '$v';
+      if (query.containsKey(key)) {
+        queryKeys.add(key);
+        return Uri.encodeComponent('${query[key]}');
       }
-
-      // 2. Fall back to data map.
-      final data = options.data;
-      if (data is Map && data.containsKey(key)) {
-        final v = data[key];
-        if ($removeKey) data.remove(key);
-        return '$v';
+      if (body != null && body.containsKey(key)) {
+        bodyKeys.add(key);
+        return Uri.encodeComponent('${body[key]}');
       }
-
-      return m.group(0)!; // no match — leave placeholder as-is
+      return m.group(0)!;
     });
+    if ($removeKey) {
+      for (final key in queryKeys) {
+        query.remove(key);
+      }
+      options.queryParameters = query;
+      if (body != null && bodyKeys.isNotEmpty) {
+        for (final key in bodyKeys) {
+          body.remove(key);
+        }
+        options.data = body;
+      }
+    }
 
     handler.next(options);
   }

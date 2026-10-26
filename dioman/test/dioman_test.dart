@@ -760,18 +760,15 @@ void main() {
   });
 
   group('DiomanShare + DiomanRetry', () {
-    // DiomanRetry's re-issue goes through a throwaway, interceptor-less Dio
-    // (see retry_plugin.dart) — it never re-enters DiomanShare.onRequest at
-    // all. Without wiring the `share` setter into DiomanRetry, the two plugins simply
-    // don't coordinate: DiomanShare's dedup window covers only the FIRST
-    // attempt (settled — and the entry removed — as soon as it fails), and
-    // the retry that follows is completely invisible to it.
+    // DiomanRetry's re-issue goes through an interceptor-less Dio (see
+    // retry_plugin.dart) — it never re-enters DiomanShare.onRequest. Instead
+    // DiomanRetry registers its settlement responsibility on each request in
+    // onRequest, so DiomanShare keeps the entry open until the retry's true
+    // final outcome is known — no manual wiring needed.
     test(
-        'without wiring the `share` setter into DiomanRetry, a solo caller still gets '
-        'the correct retried result, but a NEW caller arriving while the '
-        "retry is in flight does NOT dedupe against it — it starts its own "
-        'independent request, because the retry is invisible to '
-        'DiomanShare', () async {
+        'a NEW caller arriving while the retry is in flight dedupes against '
+        'it — the shared entry stays open until the retry settles, without '
+        'any manual wiring', () async {
       final retryInFlight = Completer<void>();
       var attempts = 0;
       final server = await TestServer.start((req) async {
@@ -780,10 +777,6 @@ void main() {
           await respondJson(req, {'fail': true}, 500);
           return;
         }
-        // Only A's retry (n=2) needs to signal this — C's own request (n=3)
-        // also lands in this branch, and completing an already-completed
-        // Completer throws (crashing this handler, which TestServer then
-        // reports as a spurious 500 — a real trap, not a hypothetical one).
         if (!retryInFlight.isCompleted) retryInFlight.complete();
         await Future<void>.delayed(const Duration(milliseconds: 50));
         await respondJson(req, {'from': 'retry'}, 200);
@@ -797,29 +790,18 @@ void main() {
       dio.interceptors.add(DiomanRetry(max: 1, delay: (_, __, ___, ____) => Duration.zero));
 
       final a = dio.get<Map<String, dynamic>>('/data');
-      await retryInFlight.future; // A's retry is mid-flight, on a throwaway
-      // Dio DiomanShare never sees — its own entry for this key was already
-      // removed when the first attempt's 500 settled it, well before the
-      // retry started.
+      await retryInFlight.future; // A's retry is mid-flight
 
       final c = await dio
           .get<Map<String, dynamic>>('/data')
           .timeout(const Duration(seconds: 3));
-      expect(c.data, {'from': 'retry'},
-          reason: 'C still gets the right eventual data, but only because '
-              "it triggered its OWN successful request — attempts proves "
-              "it wasn't deduped");
-      expect(attempts, 3,
-          reason: "C's own independent call is the 3rd — see the "
-              '"pairwise: share + retry" group in dioman_combinations_test.dart '
-              'for what wiring the `share` setter into DiomanRetry changes here (C '
-              'would dedupe instead, no 3rd call)');
+      expect(c.data, {'from': 'retry'});
+      expect(attempts, 2,
+          reason: "C joined A's still-open entry — no third request");
 
       final aResult = await a.timeout(const Duration(seconds: 3));
       expect(aResult.data, {'from': 'retry'},
-          reason: "A still gets its own correct retried result regardless "
-              "— DiomanRetry's success/failure never depended on "
-              'DiomanShare in the first place');
+          reason: 'A gets its own correct retried result');
     });
 
     // The concurrent-follower-ends-up-with-a-final-ERROR case (as opposed
@@ -1004,8 +986,8 @@ void main() {
       expect(handle.dispose, returnsNormally);
       expect(dio.interceptors.whereType<DiomanPlugin>(), isEmpty,
           reason: 'dispose must eject every installed plugin');
-      expect(loadingStates, [true, false, false],
-          reason: 'DiomanLoading.dispose fires onChanged(false)');
+      expect(loadingStates, [true, false],
+          reason: '已关闭周期在 dispose 时不重复通知');
     });
 
     test(
@@ -1031,8 +1013,8 @@ void main() {
 
       final removed = handle.remove<DiomanLoading>();
       expect(removed, isNotNull);
-      expect(loadingStates, [false],
-          reason: 'remove() must call the plugin\'s own dispose()');
+      expect(loadingStates, isEmpty,
+          reason: '没有开启显示周期时不发出关闭通知');
       expect(handle.plugin<DiomanLoading>(), isNull);
       expect(dio.interceptors.contains(removed), isFalse,
           reason: 'remove() must eject the plugin from dio.interceptors');
@@ -1714,21 +1696,11 @@ void main() {
       expect(defaultStates, [true],
           reason: 'still just the one true from the initial 0→1 edge');
 
-      // Second request finishes (1→0, the final edge) — the callback
-      // invoked at an edge is resolved from whichever request's OWN
-      // RequestOptions is currently decrementing, which is this one. So its
-      // own onChanged fires `false` here — NOT the plugin default, even
-      // though this request's own onChanged never got to fire `true`
-      // (asymmetric pairing is the documented trade-off of resolving the
-      // callback per-request instead of per-counter).
+      // 最后请求结束后由开启本显示周期的回调成对关闭。
       completers['/second']!.complete();
       await f2;
-      expect(ownStates, [false],
-          reason: "the second request's own onChanged fires for the final "
-              'edge, since IT is the one whose onResponse is decrementing');
-      expect(defaultStates, [true],
-          reason: 'the default never sees the closing `false` — that edge '
-              "belongs to the second request's own callback instead");
+      expect(ownStates, isEmpty);
+      expect(defaultStates, [true, false]);
     });
   });
 

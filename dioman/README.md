@@ -30,7 +30,7 @@ Every plugin extends `DiomanPlugin` (a named `Interceptor` with a `dispose()` ho
 | `DiomanTimeout` | Set connect/receive/send timeouts per request from an injected network-quality tier. |
 | `DiomanRepath` | Substitute path variables `{id}` / `:id` / `[id]` from query params or body. |
 | `DiomanFilter` | Strip `null`/empty fields from query params and body before sending. |
-| `DiomanKey` | Compute a stable per-request key (`extra[kRequestKey]`) for cache & dedup. |
+| `DiomanKey` | Compute a stable per-request key (`extra[kKey]`) for cache & dedup. |
 | `DiomanCache` | TTL response cache with `none`/`shallow`/`deep` clone strategies. |
 | `DiomanOffline` | Queue requests while offline; replay them when connectivity returns. |
 | `DiomanShare` | Deduplicate concurrent same-key requests (`start`/`end`/`race`/`retry`). |
@@ -57,8 +57,8 @@ import 'package:dioman/dioman.dart';
 ## Quick start
 
 Pass the plugins you want to `Dioman.install` — it slots each one into the **canonical
-order** (see [Recommended order](#recommended-order)) for you, and auto-wires
-`DiomanRetry`/`DiomanAuth` to a `share:`/`cancel:` you also pass.
+order** (see [Recommended order](#recommended-order)) for you, and binds the host `Dio` to the
+plugins that replay requests (`DiomanShare`/`DiomanAuth`/`DiomanRetry`).
 
 ```dart
 final dio = Dio(BaseOptions(baseUrl: 'https://api.example.com'));
@@ -106,7 +106,7 @@ class.
 await dio.get('/x', options: Options(extra: {
   'dioman:auth':      const DiomanAuthOptions(enabled: false),                       // skip auth for this call
   'dioman:qid':       const DiomanKeyOptions(key: 'my-custom-key'),                  // override the computed key (or `enabled: false` to skip)
-  'dioman:cache':     const DiomanCacheOptions(expires: 5000, clone: CacheClone.shallow),
+  'dioman:cache':     const DiomanCacheOptions(expires: 5000, clone: DiomanClonePolicy.shallow),
   'dioman:offline':   const DiomanOfflineOptions(enabled: false),                      // don't queue this call when offline
   'dioman:share':     const DiomanShareOptions(policy: SharePolicy.race),            // or `enabled: false` to opt out
   'dioman:mock':      const DiomanMockOptions(mockUrl: 'http://localhost:9999'),     // or `enabled: false` to skip
@@ -130,7 +130,7 @@ Every `DiomanXxxOptions` field mirrors a constructor parameter 1:1, and every fi
 by default — `null` means "inherit whatever the constructor set". So `const
 DiomanCacheOptions(expires: 5000)` leaves `enabled` and `clone` exactly as constructed; it does
 **not** silently re-enable a plugin built with `enabled: false`. `List`/`Map` fields
-(`DiomanFilterOptions.ignoreKeys`, `DiomanKeyOptions.ignoreKeys`, `DiomanMockOptions.routes`)
+(`DiomanFilterOptions.ignoreKeys`, `DiomanKeyOptions.ignores`, `DiomanMockOptions.routes`)
 **merge** with the plugin's own defaults instead of replacing them.
 
 ## Recommended order
@@ -161,7 +161,7 @@ envs → timeout → repath → filter → key → cache → offline → share �
 Constraints if you're wiring plugins onto `dio.interceptors` by hand instead of through
 `Dioman.install` (which already gets this right for you):
 
-- `key` before `cache` & `share` — they read `extra[kRequestKey]`.
+- `key` before `cache` & `share` — they read `extra[kKey]`.
 - `cache` before `offline` — an offline read that hits the cache short-circuits before it can be
   queued (stale-cache-over-queue for reads).
 - `offline` before `share`/`cancel`/`loading` — a parked (queued) request must not have created a
@@ -189,11 +189,14 @@ front/back of the chain. All four manage `p` on both `dio.interceptors` and the 
 it's visible to `plugin<T>()`/`remove<T>()`/`dispose()` afterwards. `insertBefore`/`insertAfter`
 throw `ArgumentError` if `anchor` isn't installed on this handle.
 
-`install` also wires `DiomanRetry.share`/`.cancel`, `DiomanAuth.share`/`.cancel`, and
-`DiomanRetry.breaker` for you when you pass the same `share:`/`cancel:`/`breaker:` instance
-alongside `retry:`/`auth:` (see [DiomanRetry](#diomanretry)/[DiomanShare](#diomanshare)/
-[DiomanBreaker](#diomanbreaker)). Hand-wiring those setters is only needed if you add plugins to
-`dio.interceptors` yourself instead of going through `install`.
+`install` also binds the host `Dio` (`.dio`) to `DiomanShare`/`DiomanAuth`/`DiomanRetry` — so
+replays reuse the host's `httpClientAdapter`/`transformer` and a recovered result reaches the
+interceptors after them (normalize, breaker, ...) — and wires `DiomanRetry.breaker` when you pass
+`breaker:` alongside `retry:`. `DiomanShare`/`DiomanCancel` settlement hand-off needs **no wiring**:
+`DiomanAuth`/`DiomanRetry` register on each request themselves (the old `.share`/`.cancel` setters
+are deprecated no-ops). Hand-set `.dio`/`.breaker` only if you add plugins to `dio.interceptors`
+yourself instead of going through `install`; `handle.insertBefore/insertAfter/prepend/append/remove`
+bind and unbind for you.
 
 ```dart
 final handle = Dioman.install(
@@ -245,13 +248,17 @@ final timeout = DiomanTimeout(
 
 `DiomanRepath({bool removeKey = true, bool enabled = true, RegExp? pattern})` — `pattern` defaults to matching `{id}` / `:id` / `[id]` in the path; replaces matches with values from `queryParameters` (then `data`). By default the consumed key is removed so it isn't also sent as a param.
 
+Path substitutions snapshot values before removing fields, encode each value as a path segment, and copy Map bodies before modification.
+
 ### DiomanFilter
 
 `DiomanFilter({bool Function(String, dynamic)? predicate, List<String> ignoreKeys = const [], List<dynamic> ignoreValues = const [], bool enabled = true})` — drops "empty" fields (`predicate` default: `null` and blank strings) from `queryParameters` and a `Map` body. Keep specific keys/values via `ignoreKeys`/`ignoreValues`.
 
 ### DiomanKey
 
-`DiomanKey({bool fastMode = false, List<String> ignoreKeys = const [], bool enabled = true, String Function(RequestOptions)? builder})` — writes `extra[kRequestKey]` (fixed, cross-plugin protocol key — `'dioman:key'`). `fastMode` → `METHOD:path`; default (`fastMode: false`, deep) also folds sorted query params and body — `ignoreKeys` excludes names from both. Override per request with `extra['dioman:qid'] = const DiomanKeyOptions(key: '...')` (or `enabled: false` to skip).
+`DiomanKey({bool fastMode = false, List<String> ignores = const [], bool enabled = true, String Function(RequestOptions)? builder})` — writes `extra[kKey]` (fixed, cross-plugin protocol key — `'dioman:key'`). `fastMode` → `METHOD:origin/path`; default (`fastMode: false`, deep) also folds sorted query params and body — `ignores` excludes names from both. Override per request with `extra['dioman:qid'] = const DiomanKeyOptions(key: '...')` (or `enabled: false` to skip).
+
+Deep keys normalize the merged URL query and `queryParameters`, include the origin, and encode query/body separately. Opaque bodies retain object identity.
 
 ### DiomanNormalize — optional, business-specific, install LAST
 
@@ -261,7 +268,7 @@ Not a transport concern — a convenience for **one specific** envelope conventi
 
 ### DiomanCache
 
-`DiomanCache({required DiomanCachePersist persist, DiomanCachePolicy cachePolicy = DiomanCachePolicy.none, int expires = 60000, CacheClone clone = CacheClone.shallow, int maxEntries = 500, bool enabled = true, bool Function(RequestOptions)? shouldCache, DateTime Function() now = DateTime.now})` — TTL cache in **milliseconds**, keyed by `extra[kRequestKey]` (needs `DiomanKey`). Defaults to caching `GET` only. Bounded by `maxEntries` (`0` disables the cap), LRU-evicted (memory layer only). `CacheClone` controls mutation safety of a hit: `shallow` (default, a hit reader can't corrupt the store by reassigning top-level fields), `deep` (safe for nested mutation), `none` (zero-copy read-only). `now` injects a clock for deterministic TTL tests. Management: `remove(key)`, `clear()` (both always touch the memory store and `persist`, regardless of `cachePolicy`). There's no `removeWhere`/`size` — `DiomanCachePersist` has no key-enumeration capability, so a bulk/pattern-based operation could never be correct against a `persist`-only entry; keep your own key list in the caller if you need bulk eviction.
+`DiomanCache({required DiomanCachePersist persist, DiomanCachePolicy cachePolicy = DiomanCachePolicy.none, int expires = 60000, DiomanClonePolicy clone = DiomanClonePolicy.shallow, int maxEntries = 500, bool enabled = true, bool Function(RequestOptions)? shouldCache, DateTime Function() now = DateTime.now})` — TTL cache in **milliseconds**, keyed by `extra[kKey]` (needs `DiomanKey`). Defaults to caching `GET` only. Bounded by `maxEntries` (`0` disables the cap), LRU-evicted (memory layer only). `DiomanClonePolicy` controls mutation safety of a hit: `shallow` (default, a hit reader can't corrupt the store by reassigning top-level fields), `deep` (safe for nested mutation), `none` (zero-copy read-only). `now` injects a clock for deterministic TTL tests. Management: `await remove(key)`, `await clear()` (both always touch the memory store and `persist`, regardless of `cachePolicy`). There's no `removeWhere`/`size` — `DiomanCachePersist` has no key-enumeration capability, so a bulk/pattern-based operation could never be correct against a `persist`-only entry; keep your own key list in the caller if you need bulk eviction.
 
 `persist` is **required** — there is no built-in no-op implementation, so you must implement `DiomanCachePersist` yourself (`read`/`write`/`remove`/`erase`, shaped after the `get_storage` package's container API — `read` may be sync or async (`FutureOr`), `write`/`remove`/`erase` are always async), backed by a file, sqlite, Hive, `get_storage`, or anything else, even if you only ever use `DiomanCachePolicy.memo`.
 
@@ -270,6 +277,8 @@ Not a transport concern — a convenience for **one specific** envelope conventi
 - `memo` — in-memory `_store` only, same as the old behavior. Not durable — wiped on restart or `dispose()`. `persist` is never touched.
 - `persist` — `persist` only; the in-memory store is never read or written for that request.
 - `both` — synced: a write goes to `_store` **and** `persist`; a memory miss falls back to `persist.read` and backfills `_store` so the next hit is served from memory again.
+
+Persistence mutations run in order and are awaited. Read/write failures reject the request as a `DioException`; management Futures report remove/erase failures. Clearing invalidates pending reads and responses. Deep cloning isolates data on insertion as well as on hits. `DiomanCacheOptions.maxEntries` is deprecated; set the capacity on `DiomanCache`.
 
 ### DiomanOffline
 
@@ -288,6 +297,8 @@ final offline = DiomanOffline(
 dio.interceptors.add(offline); // after DiomanCache, before DiomanShare
 ```
 
+Queued cancellation immediately removes the request and cancels its timer; flush checks cancellation again before resuming.
+
 ### DiomanShare
 
 `DiomanShare({SharePolicy policy = SharePolicy.start, int retries = 3, Duration interval = Duration.zero, bool enabled = true})` — collapses concurrent requests with the same key.
@@ -300,6 +311,11 @@ dio.interceptors.add(offline); // after DiomanCache, before DiomanShare
 | `retry` | Shared promise with internal retry; callers never see the retries. |
 | `none` | Opt out. |
 
+Every caller gets its **own** `Response`/`DioException` bound to its own `RequestOptions` (the `data`
+reference is shared, not deep-copied). Settlement is deferred while `DiomanAuth`/`DiomanRetry` still
+hold the request, so waiters see the true final outcome (after refresh/retry), never a pre-recovery
+result.
+
 ### DiomanMock
 
 `DiomanMock({bool enabled = false, String? mockUrl, MockFallbackDecider? fallbackWhen, Map<String, MockHandler>? routes})` — `fallbackWhen` defaults to `defaultFallback` (404 or network error, excluding user cancel); `routes` defaults to empty. Matches `METHOD:path` against inline handlers, else redirects to `mockUrl`; on a 404/network error it **falls back to the real API**. Register handlers with `add('GET:/pet', ...)`, `remove`, `reset`.
@@ -310,7 +326,7 @@ dio.interceptors.add(offline); // after DiomanCache, before DiomanShare
 
 ### DiomanLoading
 
-`DiomanLoading({required void Function(bool) onChanged, bool enabled = true})` — calls `onChanged(true)` when the first request starts and `onChanged(false)` when the last finishes. `activeCount` exposes the current in-flight count.
+`DiomanLoading({required void Function(bool) onChanged, bool enabled = true})` — calls `onChanged(true)` when the first request starts and `onChanged(false)` when the last finishes. `activeCount` exposes the current in-flight count. Each display cycle closes with the same callback that opened it, including delayed hiding and disposal.
 
 ### DiomanAuth
 
@@ -322,7 +338,7 @@ dio.interceptors.add(offline); // after DiomanCache, before DiomanShare
 
 `DiomanRetry({int max = 0, List<String>? methods, DiomanShouldRetry? shouldRetry, List<int>? statusCodes, DiomanRetryDelay? delay, Object? jitter, Duration? delayMax, bool enabled = true, bool respectRetryAfter = true, List<int>? afterStatusCodes, Duration? retryAfterMax, void Function(int attempt)? onRetry})` — `methods` (default `[GET,PUT,HEAD,DELETE,OPTIONS,TRACE]`) is checked first and is a hard veto `shouldRetry` can't override. `delay` defaults to a flat `3000ms`; `jitter` (`true` or a `Duration Function(Duration)`) and `delayMax` layer on top. `shouldRetry` has no built-in default — an exact `true`/`false` wins, `null` falls through to `statusCodes` (default `[408,429,500,502,503,504]`), and only with no HTTP status at all (a pure network failure) further falls back to a timeout/connection-error check. Called as `shouldRetry(err, err.response)` on the `onError` path (network-level retry) and as `shouldRetry(null, response)` on the `onResponse` path (business-level retry — a 2xx whose body it flags as a failure, checked against the raw response body). A response's `Retry-After` header (seconds or an RFC 1123 HTTP-date) wins over `delay` when its status is in `afterStatusCodes` (default `[413,429,503]`) and `respectRetryAfter` is true (default), capped by `retryAfterMax`.
 
-`share`/`cancel`/`breaker` are settable properties (not constructor params) — set them to the same instances installed elsewhere on the chain so `DiomanShare` dedup and `cancelAll()` stay correctly aware of an in-flight retry, and so retrying stops the instant a paired `DiomanBreaker` trips; `Dioman.install` does this for you automatically. `onRetry` is a lightweight `(attempt) {}` hook for your own logging.
+`breaker` is a settable property (not a constructor param) — set it to the `DiomanBreaker` installed on the same chain so retrying stops the instant it trips; `Dioman.install` does this for you. `DiomanShare` dedup and `cancelAll()` need no wiring: the plugin registers on each request and keeps it tracked through back-off waits. Retries go through a client that reuses the host `Dio`'s `httpClientAdapter`/`transformer`; a recovered result flows through the interceptors installed after it (normalize, breaker, log) exactly like a first-time success. `FormData` bodies are cloned per attempt; a `Stream` body can't be re-sent, so it's never retried. A throwing callback (`shouldRetry`/`delay`/`onRetry`) becomes a `DioException`. `onRetry` is a lightweight `(attempt) {}` hook for your own logging.
 
 ### DiomanBreaker
 

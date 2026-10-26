@@ -2,7 +2,7 @@
 
 ## 项目概述
 
-**dioman** 是一个 Dart HTTP 客户端库，提供组合式、自包含的 Dio 拦截器插件系统。包括认证、缓存、重试、去重、Mock、规范化等插件，并提供正确的安装顺序指导，使开发者可以灵活组合使用。
+**dioman** 是一个纯 Dart、仅依赖 dio 的拦截器插件库，提供组合式、自包含的 Dio 拦截器插件系统。包括认证、缓存、重试、去重、Mock、规范化等插件，并提供正确的安装顺序指导，使开发者可以灵活组合使用。
 
 ## 核心架构
 
@@ -56,16 +56,20 @@ dio.interceptors.add(
 
 ### 2. **缓存插件 (Cache)**
 ```dart
-dio.interceptors.add(
-  CacheInterceptor(
-    cacheDuration: Duration(hours: 1),
-    cacheableStatusCodes: [200, 304]
-  )
-);
+dio.interceptors
+  ..add(const DiomanKey())
+  ..add(DiomanCache(
+    persist: appCachePersist, // 实现 DiomanCachePersist
+    cachePolicy: DiomanCachePolicy.both,
+    expires: 60000,
+    clone: DiomanClonePolicy.deep,
+  ));
 ```
-- 自动缓存 GET 请求
-- 可配置过期时间
-- 支持自定义缓存键
+- `DiomanKey` 写入 `extra[kKey]`；默认键包含方法、origin、路径和规范化后的 query/body。
+- URL query 与 queryParameters 合并；query/body 分字段编码，非结构化 body 使用对象身份。
+- 内存插入与持久化回填统一执行 LRU 容量淘汰；deep 策略在入库边界隔离首次响应。
+- 持久化变更串行等待，读写错误经 DioException 返回；`await cache.clear()` 和 `await cache.remove(key)` 可等待落盘完成。
+- 清理代次阻止旧读取及旧响应回填；单请求 maxEntries 已弃用，容量在插件构造时设置。
 
 ### 3. **重试插件 (Retry)**
 ```dart
@@ -93,58 +97,45 @@ dio.interceptors.add(
 
 ### 5. **Mock 插件**
 ```dart
-dio.interceptors.add(
-  MockInterceptor(
-    mockData: {
-      '/api/users': {'data': [...]},
-      '/api/posts': {'data': [...]}
-    }
-  )
-);
+final mock = DiomanMock(enabled: true);
+mock.add('GET:/api/users', (options) async => ResponseBody.fromString(
+  '[]', 200,
+  headers: {Headers.contentTypeHeader: ['application/json']},
+));
+dio.interceptors.add(mock);
 ```
-- 拦截特定请求
-- 返回 Mock 数据
-- 开发测试友好
+- 按 METHOD:path 匹配内联处理器，或转发至 mockUrl。
+- 处理器和解码阶段的普通异常转换为 DioException，保证请求完成。
 
 ### 6. **规范化插件 (Normalize)**
 ```dart
-dio.interceptors.add(
-  NormalizeInterceptor(
-    normalizeResponse: (response) {
-      // 标准化响应格式
-      return response.data['result'];
-    }
-  )
-);
+dio.interceptors.add(const DiomanNormalize());
 ```
-- 统一响应格式
-- 提取有用数据
-- 简化使用
+- 按配置提取响应数据，统一业务错误。
+- `DiomanRepath` 默认按路径段编码占位值；重复占位符使用同一快照。
+- `DiomanFilter` 和 `DiomanRepath` 修改 Map body 前复制，支持不可变 Map。
+- `DiomanOffline` 使用 FIFO Queue；取消立即出队并释放定时器，flush 再检查取消。
+- `DiomanBreaker` 通过窗口凭据归还取消的半开槽位，并隔离旧窗口探测结果。
+- `DiomanLoading` 按显示周期固定回调，开启和关闭成对通知。
 
 ## 文件结构
 
 ```
 lib/
-├── src/
-│   ├── dioman.dart             # Dioman 主类
-│   ├── interceptors/
-│   │   ├─ auth_interceptor.dart
-│   │   ├─ cache_interceptor.dart
-│   │   ├─ retry_interceptor.dart
-│   │   ├─ dedup_interceptor.dart
-│   │   ├─ mock_interceptor.dart
-│   │   └─ normalize_interceptor.dart
-│   ├── cache/
-│   │   ├─ cache_manager.dart   # 缓存管理
-│   │   └─ cache_strategies.dart# 缓存策略
-│   ├── retry/
-│   │   ├─ retry_policy.dart    # 重试策略
-│   │   └─ backoff.dart         # 退避算法
-│   ├── dedup/
-│   │   └─ dedup_manager.dart   # 去重管理
-│   ├── types.dart              # 类型定义
-│   └─ constants.dart           # 常量
-└── dioman.dart                 # 主入口
+├── dioman.dart                 # 公共导出
+└── src/
+    ├── dioman.dart             # 插件管理及安装
+    ├── dioman_plugin.dart      # 插件基类
+    ├── key_plugin.dart         # 请求键
+    ├── cache_plugin.dart       # 缓存及持久化接口
+    ├── offline_plugin.dart     # 离线排队
+    ├── mock_plugin.dart        # Mock
+    ├── breaker_plugin.dart     # 熔断
+    ├── loading_plugin.dart     # 显示周期计数
+    ├── repath_plugin.dart      # 路径替换
+    ├── filter_plugin.dart      # 参数过滤
+    ├── normalize_plugin.dart   # 响应规范化
+    └── ...                    # 其余独立插件
 ```
 
 ## 核心流程
@@ -163,7 +154,7 @@ final dio = Dio(BaseOptions(
 dio.interceptors.add(AuthInterceptor(...));
 
 // 2. Cache (缓存检查)
-dio.interceptors.add(CacheInterceptor(...));
+dio.interceptors.add(DiomanCache(...));
 
 // 3. Dedup (去重检查)
 dio.interceptors.add(DedupInterceptor(...));
@@ -175,7 +166,7 @@ dio.interceptors.add(MockInterceptor(...));
 dio.interceptors.add(RetryInterceptor(...));
 
 // 6. Normalize (响应处理)
-dio.interceptors.add(NormalizeInterceptor(...));
+dio.interceptors.add(DiomanNormalize(...));
 ```
 
 ### 请求流程
@@ -299,6 +290,41 @@ final future3 = dio.get('/api/users');  // 第三个请求
 - Retry 靠后：包装整个请求链
 - Normalize 最后：最后处理响应格式
 ```
+
+## 结算与恢复协作（share / auth / retry / cancel）
+
+这四个插件按"一次逻辑请求"协作，责任跟着请求走，不依赖插件级计数或手动接线：
+
+- **认领登记簿**（`lib/src/request_claims.dart`，内部文件）：`DiomanAuth`（受保护请求）和
+  `DiomanRetry`（可能重试的请求）在 `onRequest` 里把自己登记到 `extra['dioman:claims']`，
+  交出最终结果时注销；全部注销才算"结果最终确定"。`DiomanShare` 据此推迟结算——没有认领者当场
+  结算，有则等登记簿清空；`DiomanCancel` 据此在整个逻辑请求（退避、刷新等待、重放）期间持续追踪
+  token。公开请求、mock 短路的请求不会被认领，share 当场结算，不会悬挂。
+- **独立结果**：共享结算时存一份快照（`data` 引用不深拷贝）；follower / 落败者各拿一份绑定自己
+  `RequestOptions` 的 `Response`/`DioException`，并被标记为 joined，不会再自行重试/刷新重放。
+- **重放传输层**（`lib/src/replay_support.dart`）：`share`/`auth`/`retry` 通过 `dio` 属性
+  （`Dioman.install`/`DiomanHandle` 自动绑定与解绑）借用宿主的 `httpClientAdapter`/`transformer`；
+  未绑定时退回无拦截器的裸 `Dio`。`FormData` 每次重放前克隆，`Stream` 请求体不自动重放。
+- **恢复结果的后续处理**：错误阶段恢复成功（auth 重放、retry 重试、share `policy: retry`）后，
+  结果会依次交给宿主链上排在恢复者之后的拦截器的 `onResponse`（normalize、breaker、log……），再
+  终结链路，与首次成功语义一致；响应阶段的业务失败恢复直接 `handler.next`。
+
+- **下游 reject 的两种语义**：恢复结果交给下游拦截器时，保留 dio 的 InterceptorState 类型。
+  `handler.reject(e)`（reject）终止链路，后续错误拦截器不再执行；`handler.reject(e, true)`
+  （rejectCallFollowing）或拦截器抛异常，则把错误交给后续错误拦截器。两种都会释放认领。
+- **共享结算用下游处理前的快照**：恢复成功后先注销恢复者的认领，没有其它认领者就立刻以
+  "下游处理之前"的结果结算 share，再让下游（normalize 等）处理并终结。各调用者（leader、
+  follower）因此各自只处理一次，不会把已解包的结果再解一层。
+- **end / race 的最终仲裁**：请求交出最终结果（成功或失败）时，若 share 判定它已落败
+  （race 已有胜者或仍有在途请求、end 已被更新的请求取代），auth/retry 不直接把自己的结果
+  交给调用者，而是等 entry 的胜出结果并经下游处理后交付；错误阶段的落败者也走同一收尾，
+  loading、cancel 登记和认领都会正常释放。
+- **取消优先于等待**：auth 的刷新等待（请求入口与 401 重放两处）与请求的 `CancelToken`
+  竞争，取消时立刻完成 handler、注销认领，共享的刷新本身继续运行。请求入口的任何回调异常
+  （`isProtected`/`expiresAt`/`now`/`buildHeader`）都转成 `DioException` 走错误链。
+- **已知限制**：恢复结果是直接调用下游拦截器的 `onResponse`，若下游装有
+  `QueuedInterceptor`，会绕过它自己的串行队列；复用同一个 `CancelToken` 发起大量请求时，
+  每次退避/刷新等待都会挂一个取消监听，直到 token 被取消或回收才释放。
 
 ## 与其他项目的关系
 

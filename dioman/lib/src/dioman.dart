@@ -93,19 +93,16 @@ abstract final class Dioman {
     ];
     dio.interceptors.addAll(plugins);
 
-    // Wire the settle-deferral hand-off (see DiomanShare.registerDownstreamSettler)
-    // and the cancel-tracking hand-off automatically — the caller no longer
-    // needs to pass `share:`/`cancel:` into DiomanRetry/DiomanAuth by hand.
+    // Bind the host Dio to the plugins that replay/re-issue requests, so they
+    // reuse its transport and hand recovered results to the interceptors after
+    // them. Share/cancel settlement hand-off needs no wiring any more: auth /
+    // retry register on each request themselves.
     //
-    // 自动完成结算推迟（见DiomanShare.registerDownstreamSettler）和取消追踪
-    // 的接线——调用方不用再手动把`share:`/`cancel:`传进DiomanRetry/DiomanAuth。
-    if (share != null) {
-      retry?.share = share;
-      auth?.share = share;
-    }
-    if (cancel != null) {
-      retry?.cancel = cancel;
-      auth?.cancel = cancel;
+    // 把宿主 Dio 绑定给会重放/重新发起请求的插件，让它们复用宿主传输层，并把
+    // 恢复成功的结果交给排在它们之后的拦截器。share/cancel 的结算交接不再需要接线：
+    // auth/retry 自己在每个请求上登记。
+    for (final p in plugins) {
+      _bindHost(p, dio);
     }
     // Let DiomanRetry consult the breaker before each re-issue, so an
     // in-progress retry loop stops the instant the breaker trips.
@@ -117,6 +114,17 @@ abstract final class Dioman {
     }
 
     return DiomanHandle._(dio, plugins);
+  }
+}
+
+/// 把宿主 [dio] 绑定给会重放请求的插件（share/auth/retry）；其它插件忽略。
+void _bindHost(DiomanPlugin p, Dio? dio) {
+  if (p is DiomanShare) {
+    p.dio = dio;
+  } else if (p is DiomanAuth) {
+    p.dio = dio;
+  } else if (p is DiomanRetry) {
+    p.dio = dio;
   }
 }
 
@@ -148,6 +156,7 @@ class DiomanHandle {
     if (p == null) return null;
     _dio.interceptors.remove(p);
     _plugins.remove(p);
+    _bindHost(p, null);
     p.dispose();
     return p;
   }
@@ -161,6 +170,7 @@ class DiomanHandle {
     _checkAnchor(anchor);
     _plugins.insert(_plugins.indexOf(anchor), p);
     _dio.interceptors.insert(_dio.interceptors.indexOf(anchor), p);
+    _bindHost(p, _dio);
   }
 
   /// Inserts [p] immediately after [anchor] — the counterpart to
@@ -170,6 +180,7 @@ class DiomanHandle {
     _checkAnchor(anchor);
     _plugins.insert(_plugins.indexOf(anchor) + 1, p);
     _dio.interceptors.insert(_dio.interceptors.indexOf(anchor) + 1, p);
+    _bindHost(p, _dio);
   }
 
   /// Inserts [p] at the very front of the chain — before every plugin and
@@ -178,6 +189,7 @@ class DiomanHandle {
   void prepend(DiomanPlugin p) {
     _plugins.insert(0, p);
     _dio.interceptors.insert(0, p);
+    _bindHost(p, _dio);
   }
 
   /// Inserts [p] at the very end of the chain. [p] becomes managed by this
@@ -185,6 +197,7 @@ class DiomanHandle {
   void append(DiomanPlugin p) {
     _plugins.add(p);
     _dio.interceptors.add(p);
+    _bindHost(p, _dio);
   }
 
   void _checkAnchor(DiomanPlugin anchor) {
@@ -200,6 +213,7 @@ class DiomanHandle {
   void dispose() {
     _dio.interceptors.removeWhere((i) => _plugins.contains(i));
     for (final p in _plugins) {
+      _bindHost(p, null);
       p.dispose();
     }
   }

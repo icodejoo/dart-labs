@@ -224,22 +224,20 @@ class DiomanTimeout extends DiomanPlugin {
   bool _enabledFor(RequestOptions config) =>
       _overrideObject(config)?.enabled ?? enabled;
 
-  /// Effective tier→timeouts map: the plugin's map, with any per-request
-  /// entries merged in by tier (a per-request tier replaces that tier only).
+  /// Looks up the effective timeouts for [tier]: a per-request tier entry
+  /// replaces the plugin's entry for that tier only. Two direct map lookups —
+  /// no merged map is built per request.
   ///
-  /// 生效的「档位→超时」映射：插件的映射，叠加按档合并进来的单请求条目
-  /// （单请求的某档只替换该档）。
-  Map<NetworkQuality, DiomanTimeouts> _resolveTimeouts(RequestOptions config) {
-    final override = _overrideObject(config)?.timeouts;
-    if (override == null) return timeouts;
-    return {...timeouts, ...override};
-  }
+  /// 查找[tier]生效的超时：单请求的某档只替换插件里该档的条目。直接做两级
+  /// 查表，不再为每个请求合并出一个新Map。
+  DiomanTimeouts? _lookup(RequestOptions config, NetworkQuality tier) =>
+      _overrideObject(config)?.timeouts?[tier] ?? timeouts[tier];
 
   @override
   void onRequest(RequestOptions options, RequestInterceptorHandler handler) {
     if (!_enabledFor(options)) return handler.next(options);
 
-    final t = _resolveTimeouts(options)[_probe()];
+    final t = _lookup(options, _probe());
     if (t == null) return handler.next(options); // tier not configured → no-op
 
     // Only non-null fields are written — a null leaves the request's existing

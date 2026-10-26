@@ -204,9 +204,10 @@ bool _isRawEnvelope(dynamic data) =>
     (data['data'] as Map)['v'] == 1;
 
 /// The shape a successful response's `.data` must have for [mask] — raw
-/// envelope, or unwrapped if DiomanNormalize is in the combination. Used
-/// for the baseline and cache-hit assertions, since both flow through
-/// normalize (if installed) exactly like a plain response does.
+/// envelope, or unwrapped if DiomanNormalize is in the combination. Used for
+/// the baseline, cache-hit, and recovered (retry / auth replay) assertions:
+/// a recovered success flows through normalize (if installed) exactly like a
+/// first-time success does.
 bool _matchesSuccessShape(int mask, dynamic data) =>
     _hasNormalize(mask) ? _isUnwrapped(data) : _isRawEnvelope(data);
 
@@ -327,7 +328,7 @@ void main() {
             final r = await dio
                 .get<dynamic>('/retry')
                 .timeout(const Duration(seconds: 2));
-            if (r.statusCode != 200 || !_isRawEnvelope(r.data)) {
+            if (r.statusCode != 200 || !_matchesSuccessShape(mask, r.data)) {
               failures[name] = 'retry: unexpected result '
                   'status=${r.statusCode} data=${r.data}';
               continue;
@@ -376,7 +377,7 @@ void main() {
             final a = await dio
                 .get<dynamic>('/auth')
                 .timeout(const Duration(seconds: 2));
-            if (a.statusCode != 200 || !_isRawEnvelope(a.data)) {
+            if (a.statusCode != 200 || !_matchesSuccessShape(mask, a.data)) {
               failures[name] = 'auth: unexpected result '
                   'status=${a.statusCode} data=${a.data}';
               continue;
