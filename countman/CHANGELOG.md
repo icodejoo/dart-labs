@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.2.3
+## Unreleased
 
 ### Added
 - Add `CounterTimeline` for immutable animation configuration on
@@ -11,7 +11,8 @@
   `AnimatedCounter` and `AnimatedCounterBuilder`; non-null object fields
   override loose parameters, while null fields fall back to them.
 
-<!-- 本批仅整理 Simplify 1–6，保留公开参数及已有修复。 -->
+## 0.2.3
+
 ### Fixed
 - Counter painter: hide leading zeroes only in the integer part (keep the
   units digit, fraction digits and decimal point, e.g. `0.05`); share
