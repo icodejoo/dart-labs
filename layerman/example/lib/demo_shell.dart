@@ -15,37 +15,24 @@ import 'widgets/om_state_bar.dart';
 // ── Destination manifest ─────────────────────────────────────────────────────
 
 class _Dest {
-  const _Dest(this.label, this.icon);
+  const _Dest(this.label, this.icon, this.page);
   final String label;
   final IconData icon;
+  final Widget page;
 }
 
 const _destinations = [
-  _Dest('Queue Basics', Icons.queue_outlined),
-  _Dest('Replace & Affix', Icons.swap_horiz),
-  _Dest('Overlap', Icons.layers_outlined),
-  _Dest('Timing', Icons.timer_outlined),
-  _Dest('Conditions', Icons.filter_alt_outlined),
-  _Dest('Cooldown', Icons.hourglass_empty),
-  _Dest('Lifecycle', Icons.recycling_outlined),
-  _Dest('Pause & Resume', Icons.pause_circle_outline),
-  _Dest('External Presenters', Icons.open_in_new_outlined),
-  _Dest('Mixed UI Libraries', Icons.auto_awesome_outlined),
-  _Dest('Setup & Restart', Icons.settings_outlined),
-];
-
-const _pages = [
-  QueuePage(),
-  ReplaceAffixPage(),
-  OverlapPage(),
-  TimingPage(),
-  ConditionsPage(),
-  CooldownPage(),
-  LifecyclePage(),
-  PausePage(),
-  ExternalPage(),
-  MixedPage(),
-  SetupPage(),
+  _Dest('Queue Basics', Icons.queue_outlined, QueuePage()),
+  _Dest('Replace & Affix', Icons.swap_horiz, ReplaceAffixPage()),
+  _Dest('Overlap', Icons.layers_outlined, OverlapPage()),
+  _Dest('Timing', Icons.timer_outlined, TimingPage()),
+  _Dest('Conditions', Icons.filter_alt_outlined, ConditionsPage()),
+  _Dest('Cooldown', Icons.hourglass_empty, CooldownPage()),
+  _Dest('Lifecycle', Icons.recycling_outlined, LifecyclePage()),
+  _Dest('Pause & Resume', Icons.pause_circle_outline, PausePage()),
+  _Dest('External Presenters', Icons.open_in_new_outlined, ExternalPage()),
+  _Dest('Mixed UI Libraries', Icons.auto_awesome_outlined, MixedPage()),
+  _Dest('Setup & Restart', Icons.settings_outlined, SetupPage()),
 ];
 
 // ── Shell ────────────────────────────────────────────────────────────────────
@@ -111,7 +98,9 @@ class _DemoShellState extends State<DemoShell> {
     final content = Column(
       children: [
         Expanded(
-          child: IndexedStack(index: _selected, children: _pages),
+          child: IndexedStack(
+              index: _selected,
+              children: [for (final d in _destinations) d.page]),
         ),
         const Divider(height: 1),
         const OmStateBar(),

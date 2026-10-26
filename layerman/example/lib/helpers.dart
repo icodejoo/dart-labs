@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:bot_toast/bot_toast.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:layerman/layerman.dart';
@@ -385,6 +386,48 @@ PresentedOverlay<T> presentRouteDialog<T>(
   );
 }
 
+// ── GetX snackbar / bot_toast presenters ───────────────────────────────────
+
+/// Presents a GetX snackbar; [SnackbarController.close] is the dismiss path
+/// (never `Get.back()`, which would pop the top route).
+PresentedOverlay<void> presentGetxSnackbar(
+  String title,
+  String message, {
+  Duration duration = const Duration(seconds: 2),
+}) {
+  final c = Get.snackbar(
+    title,
+    message,
+    duration: duration,
+    animationDuration: const Duration(milliseconds: 300),
+  );
+  return PresentedOverlay<void>(
+    dismissed: c.future,
+    dismiss: ([_]) => c.close(),
+  );
+}
+
+/// Presents a bot_toast text toast. `onlyOne: false` bypasses bot_toast's own
+/// queue; `onClose` drives `dismissed`, the [CancelFunc] drives `dismiss`.
+PresentedOverlay<void> presentBotToastText(
+  String text, {
+  Duration duration = const Duration(seconds: 2),
+}) {
+  final done = Completer<void>();
+  final cancel = BotToast.showText(
+    text: text,
+    duration: duration,
+    onlyOne: false,
+    onClose: () {
+      if (!done.isCompleted) done.complete();
+    },
+  );
+  return PresentedOverlay<void>(
+    dismissed: done.future,
+    dismiss: ([_]) async => cancel(),
+  );
+}
+
 // ── shadcn/ui presenters ────────────────────────────────────────────────────
 
 /// Wraps [showShadDialog] in a [PresentedOverlay].
@@ -431,29 +474,32 @@ PresentedOverlay<void> presentShadToast(
 }) {
   final sonner = shadSonnerKey.currentState!;
   final completer = Completer<void>();
+  Timer? lifetime;
 
-  // A small buffer after `duration` covers the exit animation so the next
-  // overlay activates only once the toast has visually cleared the screen.
-  final autoCompleteDelay = duration + const Duration(milliseconds: 400);
-
+  // We own the toast's lifetime instead of trusting ShadSonner's own timer:
+  // sonner restarts its countdown on hover (so a fixed delay would advance the
+  // queue while the toast is still visible) and offers no "gone" callback.
+  // `hide()` returns a Future that completes once the exit animation is done,
+  // which is exactly when the next overlay may activate.
   final toastId = sonner.show(
     ShadToast.raw(
       variant: variant,
       title: title,
       description: description,
-      duration: duration,
+      duration: const Duration(days: 1), // effectively "until we hide it"
     ),
   );
 
-  Future.delayed(autoCompleteDelay, () {
+  Future<void> finish() async {
+    lifetime?.cancel();
+    await sonner.hide(toastId);
     if (!completer.isCompleted) completer.complete();
-  });
+  }
+
+  lifetime = Timer(duration, finish);
 
   return PresentedOverlay<void>(
     dismissed: completer.future,
-    dismiss: ([_]) async {
-      await sonner.hide(toastId);
-      if (!completer.isCompleted) completer.complete();
-    },
+    dismiss: ([_]) => finish(),
   );
 }

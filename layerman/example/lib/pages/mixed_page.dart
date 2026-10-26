@@ -1,5 +1,3 @@
-import 'dart:async';
-import 'package:bot_toast/bot_toast.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:layerman/layerman.dart';
@@ -422,38 +420,13 @@ class MixedPage extends StatelessWidget {
                 om.open<void>(
                   id: 'snk-${DateTime.now().millisecondsSinceEpoch}',
                   slot: 'snack',
-                  present: (ctx) {
-                    final c = Get.snackbar(
-                      'GetX Snackbar',
-                      'Scheduled by layerman — slot "snack"',
-                      duration: const Duration(seconds: 2),
-                      animationDuration: const Duration(milliseconds: 300),
-                    );
-                    return PresentedOverlay<void>(
-                      dismissed: c.future,
-                      dismiss: ([_]) => c.close(),
-                    );
-                  },
+                  present: (ctx) => presentGetxSnackbar('GetX Snackbar', 'Scheduled by layerman — slot "snack"', duration: const Duration(seconds: 2)),
                 );
               }),
               demoButton('btn-botoast-mixed', 'bot_toast text', () {
                 om.open<void>(
                   id: 'bt-${DateTime.now().millisecondsSinceEpoch}',
-                  present: (ctx) {
-                    final done = Completer<void>();
-                    final cancel = BotToast.showText(
-                      text: 'bot_toast — sequenced by layerman',
-                      duration: const Duration(seconds: 2),
-                      onlyOne: false,
-                      onClose: () {
-                        if (!done.isCompleted) done.complete();
-                      },
-                    );
-                    return PresentedOverlay<void>(
-                      dismissed: done.future,
-                      dismiss: ([_]) async => cancel(),
-                    );
-                  },
+                  present: (ctx) => presentBotToastText('bot_toast — sequenced by layerman', duration: const Duration(seconds: 2)),
                 );
               }),
             ],
@@ -521,38 +494,13 @@ class MixedPage extends StatelessWidget {
                 // 4. bot_toast (auto-dismiss 2s)
                 om.open<void>(
                   id: 'gf-bot',
-                  present: (ctx) {
-                    final done = Completer<void>();
-                    final cancel = BotToast.showText(
-                      text: '4/4 — bot_toast ✓ all 4 systems done',
-                      duration: const Duration(seconds: 2),
-                      onlyOne: false,
-                      onClose: () {
-                        if (!done.isCompleted) done.complete();
-                      },
-                    );
-                    return PresentedOverlay<void>(
-                      dismissed: done.future,
-                      dismiss: ([_]) async => cancel(),
-                    );
-                  },
+                  present: (ctx) => presentBotToastText('4/4 — bot_toast ✓ all 4 systems done', duration: const Duration(seconds: 2)),
                 );
                 // GetX snackbar on 'snack' slot — runs in PARALLEL
                 om.open<void>(
                   id: 'gf-snack',
                   slot: 'snack',
-                  present: (ctx) {
-                    final c = Get.snackbar(
-                      'GetX Snackbar',
-                      'Runs on "snack" slot — parallel with the main queue',
-                      duration: const Duration(seconds: 8),
-                      animationDuration: const Duration(milliseconds: 300),
-                    );
-                    return PresentedOverlay<void>(
-                      dismissed: c.future,
-                      dismiss: ([_]) => c.close(),
-                    );
-                  },
+                  present: (ctx) => presentGetxSnackbar('GetX Snackbar', 'Runs on "snack" slot — parallel with the main queue', duration: const Duration(seconds: 8)),
                 );
               }),
             ],

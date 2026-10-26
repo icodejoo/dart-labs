@@ -1,7 +1,6 @@
 import 'dart:async';
 import 'package:bot_toast/bot_toast.dart';
 import 'package:flutter/material.dart';
-import 'package:get/get.dart';
 import 'package:layerman/layerman.dart';
 import '../helpers.dart';
 import '../manager.dart';
@@ -79,34 +78,14 @@ class ExternalPage extends StatelessWidget {
                 om.open<void>(
                     id: 'snack-${DateTime.now().millisecondsSinceEpoch}',
                     slot: 'snack',
-                    present: (ctx) {
-                      final c = Get.snackbar(
-                        'Saved',
-                        'Sequenced by layerman — slot: "snack"',
-                        duration: const Duration(seconds: 2),
-                        animationDuration: const Duration(milliseconds: 300),
-                      );
-                      return PresentedOverlay<void>(
-                        dismissed: c.future,
-                        dismiss: ([_]) => c.close(),
-                      );
-                    });
+                    present: (ctx) => presentGetxSnackbar('Saved', 'Sequenced by layerman — slot: "snack"', duration: const Duration(seconds: 2)));
               }),
               demoButton('btn-snack-3', 'queue 3 snackbars', () {
                 for (var i = 1; i <= 3; i++) {
                   om.open<void>(
                       id: 'snk$i',
                       slot: 'snack',
-                      present: (ctx) {
-                        final c = Get.snackbar(
-                          'Message $i',
-                          'Snackbar $i of 3',
-                          duration: const Duration(seconds: 2),
-                          animationDuration: const Duration(milliseconds: 300),
-                        );
-                        return PresentedOverlay<void>(
-                            dismissed: c.future, dismiss: ([_]) => c.close());
-                      });
+                      present: (ctx) => presentGetxSnackbar('Message $i', 'Snackbar $i of 3', duration: const Duration(seconds: 2)));
                 }
               }),
             ],
@@ -121,21 +100,7 @@ class ExternalPage extends StatelessWidget {
               demoButton('btn-toast', 'bot_toast text', () {
                 om.open<void>(
                     id: 'toast-${DateTime.now().millisecondsSinceEpoch}',
-                    present: (ctx) {
-                      final done = Completer<void>();
-                      final cancel = BotToast.showText(
-                        text: 'bot_toast — sequenced by layerman',
-                        duration: const Duration(seconds: 2),
-                        onlyOne: false,
-                        onClose: () {
-                          if (!done.isCompleted) done.complete();
-                        },
-                      );
-                      return PresentedOverlay<void>(
-                        dismissed: done.future,
-                        dismiss: ([_]) async => cancel(),
-                      );
-                    });
+                    present: (ctx) => presentBotToastText('bot_toast — sequenced by layerman', duration: const Duration(seconds: 2)));
               }),
             ],
             subtitle:
@@ -162,19 +127,7 @@ class ExternalPage extends StatelessWidget {
                         ));
                 om.open<void>(
                     id: 'tst',
-                    present: (ctx) {
-                      final done = Completer<void>();
-                      final cancel = BotToast.showText(
-                        text: '3/3 bot_toast — layerman wins',
-                        duration: const Duration(seconds: 2),
-                        onlyOne: false,
-                        onClose: () {
-                          if (!done.isCompleted) done.complete();
-                        },
-                      );
-                      return PresentedOverlay<void>(
-                          dismissed: done.future, dismiss: ([_]) async => cancel());
-                    });
+                    present: (ctx) => presentBotToastText('3/3 bot_toast — layerman wins', duration: const Duration(seconds: 2)));
               }),
             ],
             subtitle:

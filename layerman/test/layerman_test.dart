@@ -258,14 +258,13 @@ void main() {
       final a = _FakeBackend<String>();
       final q = _FakeBackend<String>();
       manager.open(id: 'a', present: a.present);
-      final qFuture = manager.open<String>(id: 'q', present: q.present);
+      manager.open<String>(id: 'q', present: q.present);
       await tester.pump();
       expect(manager.queuedIds, contains('q'));
 
       manager.close('q', 'x'); // never shown -> no-op
       await tester.pump();
       expect(manager.queuedIds, contains('q')); // still queued
-      expect(qFuture, isA<Future<String?>>()); // not settled
 
       manager.close('a');
       await tester.pump();
