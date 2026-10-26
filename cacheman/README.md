@@ -78,7 +78,7 @@ await cache.ensureInitialized();
 
 ### `CachemanOptions`
 
-`serialize`/`deserialize`, `codeable`/`codec`, `sliding`,
+`serialize`/`deserialize`, `codeable`/`codec`/`keyCodec`, `sliding`,
 `namespace`, `raw`, `force`, `readonly`, `enckey`, `onError` — see each field's doc comment in
 `lib/src/engine.dart` for exact semantics.
 
@@ -147,8 +147,8 @@ flutter run example/lib/main.dart
 - **No built-in codec.** The TS version ships obfuscation codecs; this package only exposes the
   `Codec` interface.
 - **`force`'s retry only covers synchronous write failures** (e.g. a custom `serialize` throwing) —
-  `get_storage`'s actual disk-flush failures are asynchronous and reported via `onError` separately,
-  not retried (see `Cacheman`'s `_gs` doc comment in `lib/src/cacheman.dart`).
+  `get_storage`'s actual disk-flush failures are asynchronous and never retried; with 2.1.1 its write Future
+  can't carry them, so `onError` is only guaranteed for synchronous failures (see `Cacheman`'s `_gs` doc comment in `lib/src/cacheman.dart`).
 - No `crossTab` equivalent (a browser-tab concept with no Flutter analogue).
 
 ## License

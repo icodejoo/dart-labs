@@ -126,7 +126,7 @@ flutter run example/lib/main.dart
 - **`create()` 之后全同步**——`get_storage` 初始化完就是同步的，所以不像 TS 版那样需要 `ls`/`ss`（同步）之外再搞一个 `db`（异步 IndexedDB）层。
 - **一层，不是三层**：只有持久层——没有内存 `ss` 层，也不需要 IndexedDB 的等价物。
 - **不内置 codec。** TS 版自带混淆 codec；这个包只暴露 `Codec` 接口。
-- **`force` 的重试只覆盖同步写入失败**（比如自定义 `serialize` 抛错）——`get_storage` 真正的落盘失败是异步的，走单独的 `onError` 上报，不会重试（见 `lib/src/cacheman.dart` 中 `Cacheman` 的 `_gs` 文档注释）。
+- **`force` 的重试只覆盖同步写入失败**（比如自定义 `serialize` 抛错）——`get_storage` 真正的落盘失败是异步的、从不重试；而 2.1.1 的 write Future 带不出这类错误，所以 `onError` 只保证同步失败会触发（见 `lib/src/cacheman.dart` 中 `Cacheman` 的 `_gs` 文档注释）。
 - 没有 `crossTab` 的等价物（浏览器标签页概念，Flutter 没有对应场景）。
 
 ## License

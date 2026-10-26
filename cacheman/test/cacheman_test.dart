@@ -375,9 +375,10 @@ void main() {
     // `GetStorage.write` call practically never throws synchronously (see
     // `Cacheman`'s `_gs` doc — its actual flush failures are asynchronous and
     // are never retried, by design). So instead this verifies the one thing
-    // that *is* observable against a real backend: `onError` fires when the
-    // background disk flush genuinely fails, and it is not itself retried.
-    test('a background flush failure is reported via onError, not retried', () async {
+    // that *is* observable against a real backend: a flush failure never
+    // throws out of write(). (get_storage 2.1.1's write Future can't carry
+    // flush errors, so `onError` is NOT guaranteed to fire for them.)
+    test('a background flush failure never throws out of write()', () async {
       Object? reported;
       final e = await newCache(onError: (key, err) => reported = err);
       // Force a real async flush failure by erasing the temp dir out from
@@ -434,6 +435,146 @@ void main() {
       expect(out.isCaseSensitive, re.isCaseSensitive);
       expect(out.isDotAll, re.isDotAll);
       expect(out.hasMatch('A\nB'), isTrue); // caseSensitive:false + dotAll:true both exercised
+    });
+  });
+
+  group('review fixes', () {
+    test('namespaces containing ":" do not collide or erase each other', () async {
+      final container = nextContainer();
+      final a = await newCache(container: container, namespace: 'a');
+      final ab = await newCache(container: container, namespace: 'a:b');
+      a.write('b:x', 1);
+      ab.write('x', 2);
+      expect(a.read<int>('b:x'), 1);
+      expect(ab.read<int>('x'), 2);
+      a.erase();
+      expect(ab.read<int>('x'), 2);
+      expect(ab.keys(), ['x']);
+    });
+
+    test('serialize throwing is caught by write (reported via onError), read keeps working', () async {
+      Object? reported;
+      final cache = Cacheman(
+        container: nextContainer(),
+        path: tempDir.path,
+        options: CachemanOptions(
+          serialize: (_) => throw StateError('boom'),
+          onError: (k, e) => reported = e,
+        ),
+      );
+      await cache.ensureInitialized();
+      expect(() => cache.write('a', 1), returnsNormally);
+      expect(reported, isA<StateError>());
+      expect(cache.read<int>('a'), isNull);
+    });
+
+    test('namespace with "%" is escaped and isolated from the literal-prefixed one', () async {
+      final container = nextContainer();
+      final p = await newCache(container: container, namespace: '50%');
+      final q = await newCache(container: container, namespace: '50%25');
+      p.write('k', 1);
+      q.write('k', 2);
+      expect(p.read<int>('k'), 1);
+      expect(q.read<int>('k'), 2);
+      expect(p.keys(), ['k']);
+    });
+
+    test('serialize failing once then succeeding is retried by force', () async {
+      var calls = 0;
+      final cache = Cacheman(
+        container: nextContainer(),
+        path: tempDir.path,
+        options: CachemanOptions(serialize: (e) {
+          if (calls++ == 0) throw StateError('once');
+          return defaultSerialize(e);
+        }),
+      );
+      await cache.ensureInitialized();
+      cache.write('a', 1);
+      expect(cache.read<int>('a'), 1);
+    });
+
+    test('purge() leaves raw values alone even if they look like an expired entity', () async {
+      final e = await newCache(raw: true);
+      const lookalike = '{"value":"x","createdAt":1,"expireAt":2}';
+      e.write('k', lookalike);
+      e.purge();
+      expect(e.read<String>('k'), lookalike);
+    });
+
+    test('readonly treats a stored null as present and does not slide-renew', () async {
+      final e = await newCache(readonly: true);
+      e.write<dynamic>('k', null);
+      e.write('k', 'second');
+      expect(e.read<dynamic>('k'), isNull);
+    });
+
+    test('readonly write attempt does not extend the old value lifetime (sliding)', () async {
+      final e = await newCache(readonly: true, sliding: true);
+      e.write('k', 'v', ttl: 1000);
+      final before = (jsonDecode(e.container.read<String>(e.storageKey('k'))!) as Map)['expireAt'];
+      await Future<void>.delayed(const Duration(milliseconds: 150));
+      e.write('k', 'other', ttl: 1000);
+      final after = (jsonDecode(e.container.read<String>(e.storageKey('k'))!) as Map)['expireAt'];
+      expect(after, before);
+    });
+
+    test('keyCodec encodes keys independently of the value codec', () async {
+      final cache = Cacheman(
+        container: nextContainer(),
+        path: tempDir.path,
+        options: CachemanOptions(enckey: true, keyCodec: FakeCodec()),
+      );
+      await cache.ensureInitialized();
+      cache.write('token', 'abc');
+      expect(cache.container.getKeys<Iterable<dynamic>>().map((k) => k.toString()), isNot(contains('token')));
+      expect(cache.read<String>('token'), 'abc');
+      expect(cache.keys(), ['token']);
+    });
+
+    test('length/key/keys agree under a namespace', () async {
+      final e = await newCache(namespace: 'n');
+      e.writeAll(['a', 'b'], [1, 2]);
+      expect(e.length, 2);
+      expect(e.key(1), 'b');
+      expect(e.key(2), isNull);
+      expect(e.keys(), ['a', 'b']);
+    });
+  });
+
+  group('Jsonx edge cases', () {
+    test('a plain Map shaped like a tag round-trips unchanged', () {
+      final value = {'#t': 'Duration', 'value': 1000};
+      expect(Jsonx.decode<dynamic>(Jsonx.encode(value)), value);
+      expect(Jsonx.decode<dynamic>(Jsonx.encode({'x': value})), {'x': value});
+    });
+
+    test('falls back to toJson() for custom objects', () {
+      expect(Jsonx.decode<dynamic>(Jsonx.encode([_Pt(1, 2)])), [
+        {'x': 1, 'y': 2},
+      ]);
+    });
+
+    test('legacy tag-shaped Map with an invalid Map payload is kept as is', () {
+      final legacy = {'#t': 'Map', 'value': 1};
+      expect(Jsonx.decode<dynamic>(jsonEncode(legacy)), legacy);
+    });
+
+    test('escapes nested, Set and toJson() results too', () {
+      final tag = {'#t': 'Duration', 'value': 1000};
+      final value = {
+        'list': [tag],
+        'set': {tag},
+        'obj': _Wrap(tag),
+      };
+      final out = Jsonx.decode<Map<String, dynamic>>(Jsonx.encode(value));
+      expect(out['list'], [tag]);
+      expect(out['set'], {tag});
+      expect(out['obj'], {'inner': tag});
+    });
+
+    test('unsupported objects still throw', () {
+      expect(() => Jsonx.encode(Object()), throwsA(isA<JsonUnsupportedObjectError>()));
     });
   });
 
@@ -515,4 +656,19 @@ void main() {
       });
     });
   });
+}
+
+/// 带 `toJson()` 的测试用对象。
+class _Pt {
+  _Pt(this.x, this.y);
+  final int x;
+  final int y;
+  Map<String, dynamic> toJson() => {'x': x, 'y': y};
+}
+
+/// toJson() 结果里带标签形 Map 的测试用对象。
+class _Wrap {
+  _Wrap(this.inner);
+  final Map<String, dynamic> inner;
+  Map<String, dynamic> toJson() => {'inner': inner};
 }

@@ -2,6 +2,7 @@ import 'package:flutter/widgets.dart' show WidgetsFlutterBinding;
 import 'package:get_storage/get_storage.dart';
 
 import 'entity.dart';
+import 'interface.dart';
 import 'options.dart';
 
 /// Unified, type-safe wrapper over `get_storage` (persistent): TTL & absolute
@@ -67,9 +68,9 @@ class Cacheman {
   })  : _gs = GetStorage(container, path),
         _opts = options,
         _ns = _initialNs(options.namespace) {
-    if (_opts.enckey && _opts.codec == null) {
+    if (_opts.enckey && _keyCodec == null) {
       // ignore: avoid_print
-      print('[cacheman] `enckey` requires a `codec`; none provided — keys remain in plaintext.');
+      print('[cacheman] `enckey` requires a `keyCodec` or `codec`; none provided — keys remain in plaintext.');
     }
     if (_opts.codeable && _opts.codec == null) {
       // ignore: avoid_print
@@ -77,7 +78,11 @@ class Cacheman {
     }
   }
 
-  static String _initialNs(String? namespace) => namespace != null && namespace.isNotEmpty ? '$namespace:' : '';
+  /// 命名空间前缀：转义 `%`/`:` 后再接 `:`，保证 `ns:key` 的拼接无歧义。
+  static String _initialNs(String? namespace) => namespace != null && namespace.isNotEmpty ? '${_escapeNs(namespace)}:' : '';
+
+  /// 转义命名空间里的 `%` 和 `:`，让前缀里的 `:` 只可能是分隔符。
+  static String _escapeNs(String ns) => ns.replaceAll('%', '%25').replaceAll(':', '%3A');
 
   /// Awaits this instance's `GetStorage` disk load. Must be called once and
   /// awaited before any read/write — this is the only `Future` boundary in
@@ -91,7 +96,9 @@ class Cacheman {
   /// container name — a cache hit just returns the old instance, constructor
   /// args and all). The constructor above builds `GetStorage(container,
   /// path)` itself instead, so `path` sticks; this method just awaits that
-  /// instance's own `initStorage`.
+  /// instance's own `initStorage`. **Caveat**: that factory caches per
+  /// container name, so for the same container the first-seen `path` wins —
+  /// a later instance with a different `path` silently shares the first one.
   ///
   /// 等待本实例的 `GetStorage` 磁盘态加载完。必须在任何读写之前调用并 await
   /// 一次——这是整个 API 里唯一的 `Future` 边界（见类文档）。
@@ -102,6 +109,8 @@ class Cacheman {
   /// container 名读缓存，命中就直接返回旧实例，构造参数被无视）。上面的
   /// 构造函数改成自己直接用带 `path` 的 `GetStorage(container, path)` 建实例，
   /// 所以 `path` 能生效；这个方法只是 await 那个实例自己的 `initStorage`。
+  /// **注意**：factory 按 container 名缓存，同名 container 以最先创建的
+  /// `path` 为准——之后换 `path` 的实例会悄悄共用第一个。
   Future<void> ensureInitialized() async {
     WidgetsFlutterBinding.ensureInitialized();
     await _gs.initStorage;
@@ -113,7 +122,13 @@ class Cacheman {
   /// in-memory map (the disk flush happens in the background, debounced) —
   /// so every method below that touches [_gs] is synchronous too, and the
   /// flush Future is fire-and-forget with an attached error handler
-  /// ([_reportError] via `.catchError`).
+  /// ([_reportFlushError] via `.catchError`).
+  ///
+  /// **Known limitation (get_storage 2.1.1)**: the Future returned by
+  /// `write`/`remove`/`erase` completes as soon as the flush is *scheduled*
+  /// (`Microtask.exec` returns void and drops the queued flush Future), so a
+  /// real disk-flush failure never reaches that handler — [CachemanOptions.onError]
+  /// is therefore only guaranteed for synchronous failures.
   ///
   /// **Real difference from the sibling `@codejoo/storage` TS project**: TS's
   /// `force` option retries synchronously (persist throws → purge expired →
@@ -121,24 +136,27 @@ class Cacheman {
   /// quota. get_storage's flush failure surfaces *asynchronously*, decoupled
   /// from any single call (it writes the whole current map, not one key) —
   /// there's no reliable synchronous failure signal to retry against.
-  /// [CachemanOptions.onError] is still called on an eventual flush failure,
-  /// but there is no purge-and-retry step for it (that only applies to
-  /// [_persist]'s own synchronous try/catch, see its doc).
+  /// There is no purge-and-retry step for flush failures (that only applies
+  /// to [_persist]'s own synchronous try/catch, see its doc).
   ///
   /// 本实例落盘的 get_storage container。
   ///
   /// get_storage 的 `read`/`write`/`remove` 对它自己的内存态是同步的（落盘是
   /// 后台防抖做的）——所以下面每个碰 [_gs] 的方法也都是同步的，flush 的
-  /// Future 是即发即弃、挂了错误处理的（经 `.catchError` 调 [_reportError]）。
+  /// Future 是即发即弃、挂了错误处理的（经 `.catchError` 调 [_reportFlushError]）。
+  ///
+  /// **已知限制（get_storage 2.1.1）**：`write`/`remove`/`erase` 返回的 Future
+  /// 在 flush 被*调度*时就完成了（`Microtask.exec` 返回 void，丢掉了排队 flush
+  /// 的 Future），真正的落盘失败传不到这个 handler——所以
+  /// [CachemanOptions.onError] 只保证同步失败会触发。
   ///
   /// **跟姊妹 TS 项目 `@codejoo/storage` 的真实差异**：TS 的 `force` 选项是
   /// 同步重试的（persist 抛错 → 清过期 → 重试一次），因为
   /// `localStorage.setItem` 在配额超限时是**同步**失败的。get_storage 的
   /// 落盘失败是**异步**冒出来的，且跟某一次具体调用脱钩（它落盘的是当前整个
   /// map，不是单个 key）——没有可靠的同步失败信号可供重试。
-  /// [CachemanOptions.onError] 仍会在落盘最终失败时触发，但这里没有
-  /// "清过期后重试"这一步（那一步只针对 [_persist] 自己的同步 try/catch，
-  /// 见其文档）。
+  /// 落盘失败没有"清过期后重试"这一步（那一步只针对 [_persist] 自己的
+  /// 同步 try/catch，见其文档）。
   final GetStorage _gs;
 
   /// The underlying `get_storage` container this instance persists to.
@@ -156,7 +174,10 @@ class Cacheman {
   String _ns;
 
   bool get _codeable => _opts.codeable && _opts.codec != null;
-  bool get _enckey => _opts.enckey && _opts.codec != null;
+  /// 键编码用的 codec：优先 `keyCodec`，缺省回退 `codec`。
+  Codec? get _keyCodec => _opts.keyCodec ?? _opts.codec;
+
+  bool get _enckey => _opts.enckey && _keyCodec != null;
 
   final Map<String, String> _ekCache = <String, String>{};
 
@@ -197,12 +218,12 @@ class Cacheman {
     final cached = _ekCache[nk];
     if (cached != null) return cached;
     if (_ekCache.length >= 1024) _ekCache.clear(); // 防动态键名场景无限增长
-    final encoded = _opts.codec!.encode(nk);
+    final encoded = _keyCodec!.encode(nk);
     _ekCache[nk] = encoded;
     return encoded;
   }
 
-  String _decKey(String storageKey) => _enckey ? (_opts.codec!.decode(storageKey) ?? storageKey) : storageKey;
+  String _decKey(String storageKey) => _enckey ? (_keyCodec!.decode(storageKey) ?? storageKey) : storageKey;
 
   /// Whether this storage key is owned by this instance (namespace matches;
   /// with `enckey`, it must decode successfully).
@@ -210,7 +231,7 @@ class Cacheman {
   /// 该存储键是否归本实例管辖（命名空间匹配；`enckey` 时须能解开）。
   bool _owns(String storageKey) {
     if (_enckey) {
-      final decoded = _opts.codec!.decode(storageKey);
+      final decoded = _keyCodec!.decode(storageKey);
       return decoded != null && decoded.startsWith(_ns);
     }
     return storageKey.startsWith(_ns);
@@ -240,7 +261,7 @@ class Cacheman {
   // ── delete / collect / purge ─────────────────────────────────────────────
 
   void _del(String storageKey) {
-    _gs.remove(storageKey).catchError((Object e, StackTrace s) => _reportFlushError(storageKey, e, s));
+    _gs.remove(storageKey).catchError((Object e, StackTrace _) => _reportFlushError(storageKey, e));
     _untrackOwned(storageKey);
   }
 
@@ -283,11 +304,15 @@ class Cacheman {
   /// 直接遍历 get_storage 的 key 迭代器，不预先物化成完整 `List`——这只在
   /// 建缓存时跑一次（用来播种 [_ownedKeysCache]），中间的 `.toSet()` 已经是
   /// 唯一的一次分配。
-  List<String> _ownKeys() => (_ownedKeysCache ??= _gs.getKeys<Iterable<dynamic>>().map((k) => k.toString()).where(_owns).toSet()).toList(growable: false);
+  Set<String> _ownSet() => _ownedKeysCache ??= _gs.getKeys<Iterable<dynamic>>().map((k) => k.toString()).where(_owns).toSet();
+
+  /// 自有键的快照列表；遍历中要删键时用它，避免边遍历边改 Set。
+  List<String> _ownKeys() => _ownSet().toList(growable: false);
 
   bool _isExpired(CacheEntity? e, int now) => e != null && e.expireAt != null && e.createdAt != null && now >= e.expireAt!;
 
   void _purgeExpired() {
+    if (_opts.raw) return; // raw 不带信封，没有过期语义
     final now = DateTime.now().millisecondsSinceEpoch;
     for (final k in _ownKeys()) {
       final raw = _gsGet(k);
@@ -313,7 +338,7 @@ class Cacheman {
 
   // ── persist ──────────────────────────────────────────────────────────────
 
-  /// Writes [str] under [storageKey].
+  /// Writes the string produced by [build] under [storageKey].
   ///
   /// get_storage's `write` is synchronous against its in-memory map; the
   /// actual disk flush happens in the background (debounced) and is
@@ -321,23 +346,23 @@ class Cacheman {
   /// via [_reportFlushError], decoupled from this specific call (see [_gs]'s
   /// class-level doc for why that rules out a synchronous retry there).
   ///
-  /// The try/catch below only ever catches a *synchronous* failure — e.g. a
-  /// custom [CachemanOptions.serialize] throwing before `_gs.write` is even
-  /// reached — and is the only thing [CachemanOptions.force] retries against.
+  /// [build] produces the string inside the try/catch, so a throwing
+  /// [CachemanOptions.serialize]/codec is caught too. The try/catch only ever
+  /// catches a *synchronous* failure and is the only thing
+  /// [CachemanOptions.force] retries against.
   ///
-  /// 把 [str] 写到 [storageKey] 下。
+  /// 把 [build] 生成的字符串写到 [storageKey] 下。
   ///
   /// get_storage 的 `write` 对它自己的内存态是同步的；真正落盘是后台防抖做的，
   /// 这里即发即弃——落盘失败会晚一点、异步地通过 [_reportFlushError] 冒出来，
   /// 跟这一次具体调用脱钩（为什么这排除了同步重试，见 [_gs] 的类级文档）。
   ///
-  /// 下面的 try/catch 只捕获**同步**失败——比如自定义 [CachemanOptions.serialize]
-  /// 在 `_gs.write` 还没跑到之前就抛了错——这也是 [CachemanOptions.force]
-  /// 唯一会重试的对象。
-  bool _persist(String storageKey, String str) {
+  /// [build] 在 try/catch 里生成字符串，所以自定义 [CachemanOptions.serialize]/
+  /// codec 抛错也会被接住。try/catch 只捕获**同步**失败，这也是
+  /// [CachemanOptions.force] 唯一会重试的对象。
+  bool _persist(String storageKey, String Function() build) {
     try {
-      _gs.write(storageKey, str).catchError((Object e, StackTrace s) => _reportFlushError(storageKey, e, s));
-      _trackOwned(storageKey);
+      _writeNow(storageKey, build());
       return true;
     } catch (e) {
       if (!_opts.force) {
@@ -346,8 +371,7 @@ class Cacheman {
       }
       _purgeExpired();
       try {
-        _gs.write(storageKey, str).catchError((Object e2, StackTrace s) => _reportFlushError(storageKey, e2, s));
-        _trackOwned(storageKey);
+        _writeNow(storageKey, build());
         return true;
       } catch (e2) {
         _reportError(storageKey, e2);
@@ -356,34 +380,35 @@ class Cacheman {
     }
   }
 
-  /// Reports a *synchronous* write failure ([_persist]'s own try/catch, after
-  /// [CachemanOptions.force]'s retry — if enabled — also failed).
-  ///
-  /// 上报一次**同步**写入失败（[_persist] 自己的 try/catch，若启用了
-  /// [CachemanOptions.force] 重试也失败之后）。
-  void _reportError(String key, Object error) {
-    final cb = _opts.onError;
-    if (cb != null) {
-      cb(key, error);
-    } else {
-      // ignore: avoid_print
-      print('[cacheman] write failed for "$key", giving up: $error');
-    }
+  /// 同步写内存态并挂上后台落盘的错误处理。
+  void _writeNow(String storageKey, String str) {
+    _gs.write(storageKey, str).catchError((Object e, StackTrace _) => _reportFlushError(storageKey, e));
+    _trackOwned(storageKey);
   }
 
-  /// Reports an *asynchronous* background disk-flush failure (`_gs.write`/
-  /// `_gs.remove`/`_gs.erase`'s Future rejecting). Never retried — see [_gs]'s
-  /// class-level doc for why.
+  /// Reports a *synchronous* write failure ([_persist]'s own try/catch — a
+  /// throwing `serialize`/codec — after [CachemanOptions.force]'s retry, if
+  /// enabled, also failed).
   ///
-  /// 上报一次**异步**的后台落盘失败（`_gs.write`/`_gs.remove`/`_gs.erase`
-  /// 返回的 Future 被 reject）。从不重试——原因见 [_gs] 的类级文档。
-  void _reportFlushError(String key, Object error, StackTrace stack) {
+  /// 上报一次**同步**写入失败（[_persist] 自己的 try/catch，比如 `serialize`/
+  /// codec 抛错；若启用了 [CachemanOptions.force] 重试也失败之后）。
+  void _reportError(String key, Object error) => _emitError(key, error, 'write failed for "$key", giving up');
+
+  /// Reports a background disk-flush failure. Note: with get_storage 2.1.1 the
+  /// Future returned by `write`/`remove`/`erase` never carries flush errors, so
+  /// this is best-effort and may never fire — see [_gs].
+  ///
+  /// 上报后台落盘失败。注意：get_storage 2.1.1 里 `write`/`remove`/`erase`
+  /// 返回的 Future 带不出 flush 错误，这里是尽力而为，可能永远不触发——见 [_gs]。
+  void _reportFlushError(String key, Object error) => _emitError(key, error, 'background flush failed for "$key"');
+
+  void _emitError(String key, Object error, String message) {
     final cb = _opts.onError;
     if (cb != null) {
       cb(key, error);
     } else {
       // ignore: avoid_print
-      print('[cacheman] background flush failed for "$key": $error');
+      print('[cacheman] $message: $error');
     }
   }
 
@@ -398,7 +423,7 @@ class Cacheman {
     }
     if (_opts.sliding && entity.ttl != null && entity.expireAt != null && entity.expireAt! - now <= entity.ttl! * 0.9) {
       final renewed = entity.renewed(now + entity.ttl!);
-      _persist(storageKey, _dump(renewed));
+      _persist(storageKey, () => _dump(renewed));
       return entity.value;
     }
     return entity.value;
@@ -447,20 +472,21 @@ class Cacheman {
       print('[cacheman] ttl must be a positive number of ms, got $finalTtl; ignoring ttl for "$key"');
       finalTtl = null;
     }
-    int? entityExpireAt;
-    if (finalTtl != null) entityExpireAt = now + finalTtl;
+    int? entityExpireAt = finalTtl == null ? null : now + finalTtl;
     if (expireAt != null) {
       final abs = expireAt is DateTime
           ? expireAt.millisecondsSinceEpoch
           : expireAt is int
               ? expireAt
               : null;
-      if (abs == null || (abs <= now && !(_opts.sliding && finalTtl != null))) {
+      final inPast = abs != null && abs <= now;
+      // 绝对时间已过：只有 sliding + ttl 能从现在重新起算，否则放弃写入
+      if (abs == null || (inPast && !(_opts.sliding && finalTtl != null))) {
         // ignore: avoid_print
         print('[cacheman] expireAt is invalid or in the past; skipped writing "$key"');
         return null;
       }
-      entityExpireAt = abs <= now ? now + finalTtl! : abs;
+      entityExpireAt = inPast ? now + finalTtl! : abs;
     }
     return CacheEntity(value: value, createdAt: now, expireAt: entityExpireAt, ttl: finalTtl);
   }
@@ -470,27 +496,30 @@ class Cacheman {
   /// 写入一个键，可选 per-call 的 [ttl]/[expireAt]。
   void write<T>(String key, T value, {int? ttl, Object? expireAt}) {
     final storageKey = _fullKey(key);
+    if (_opts.readonly && _alive(storageKey)) return;
 
-    void write() {
-      if (_opts.raw) {
-        if (value is! String) {
-          // ignore: avoid_print
-          print('[cacheman] raw mode requires a String value for "$key", got ${value.runtimeType}; skipped');
-          return;
-        }
-        _persist(storageKey, value);
+    if (_opts.raw) {
+      if (value is! String) {
+        // ignore: avoid_print
+        print('[cacheman] raw mode requires a String value for "$key", got ${value.runtimeType}; skipped');
         return;
       }
-      final entity = _mkEntity(value, ttl, expireAt, key);
-      if (entity == null) return;
-      _persist(storageKey, _dump(entity));
-    }
-
-    if (_opts.readonly) {
-      if (read<dynamic>(key) == null) write();
+      final String text = value;
+      _persist(storageKey, () => text);
       return;
     }
-    write();
+    final entity = _mkEntity(value, ttl, expireAt, key);
+    if (entity == null) return;
+    _persist(storageKey, () => _dump(entity));
+  }
+
+  /// 键下是否有一条未过期、可识别的有效数据；不续期、不删除、不取业务值。
+  bool _alive(String storageKey) {
+    final raw = _gsGet(storageKey);
+    if (raw == null) return false;
+    if (_opts.raw) return true;
+    final entity = _load(raw);
+    return entity != null && !_isExpired(entity, DateTime.now().millisecondsSinceEpoch);
   }
 
   /// Batch write: [values] pairs positionally with [keys]; [ttl]/[expireAt]
@@ -532,14 +561,11 @@ class Cacheman {
   /// 带 `namespace` 或 `enckey` 时：只删本实例管辖的键。否则整个后端清空。
   void erase() {
     if (_ns.isEmpty && !_enckey) {
-      _gs.erase().catchError((Object e, StackTrace s) => _reportFlushError('*', e, s));
+      _gs.erase().catchError((Object e, StackTrace _) => _reportFlushError('*', e));
       _ownedKeysCache = <String>{};
       return;
     }
-    for (final k in _ownKeys()) {
-      _gs.remove(k).catchError((Object e, StackTrace s) => _reportFlushError(k, e, s));
-      _untrackOwned(k);
-    }
+    _ownKeys().forEach(_del);
   }
 
   /// The `index`-th logical key (decrypted, namespace-stripped).
@@ -559,8 +585,8 @@ class Cacheman {
   /// 所以这里仍是 O(index)（避不开遍历），但省掉了那次浪费的整表分配。
   String? key(int index) {
     if (_ns.isNotEmpty || _enckey) {
-      final ks = _ownKeys();
-      return index < 0 || index >= ks.length ? null : _logical(ks[index]);
+      final ks = _ownSet();
+      return index < 0 || index >= ks.length ? null : _logical(ks.elementAt(index));
     }
     if (index < 0) return null;
     var i = 0;
@@ -574,7 +600,7 @@ class Cacheman {
   /// All logical keys owned by this instance (decrypted, namespace-stripped).
   ///
   /// 本实例管辖的全部逻辑键（已解密、去命名空间前缀）。
-  List<String> keys() => _ownKeys().map(_logical).toList(growable: false);
+  List<String> keys() => _ownSet().map(_logical).toList(growable: false);
 
   /// Proactively deletes expired entries (owned, written by this library).
   /// Expiry is otherwise lazy.
@@ -595,5 +621,5 @@ class Cacheman {
   /// 没有 namespace/`enckey` 时，直接数 get_storage key 迭代器的元素个数，
   /// 不走 `keys().length`——理由同 [key]：数个数用不着把每个 key 都
   /// `toString()`/物化一遍。
-  int get length => _ns.isNotEmpty || _enckey ? _ownKeys().length : _gs.getKeys<Iterable<dynamic>>().length;
+  int get length => _ns.isNotEmpty || _enckey ? _ownSet().length : _gs.getKeys<Iterable<dynamic>>().length;
 }

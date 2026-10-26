@@ -1,11 +1,12 @@
 import 'entity.dart';
 import 'interface.dart';
 
-/// Per-call `write` options. Only these apply per call — everything else
-/// (codec, sliding, raw, ...) is instance-level, see [CachemanOptions].
+/// Per-call `write` options. No method accepts it — pass `ttl`/`expireAt` as
+/// named arguments to `write`/`writeAll` instead.
 ///
-/// 单次 `write` 调用的选项。只有这些是 per-call 的——其余（codec/sliding/raw
-/// 等）都是实例级配置，见 [CachemanOptions]。
+/// 单次 `write` 的选项载体。没有任何方法接受它——请直接把 `ttl`/`expireAt`
+/// 当命名参数传给 `write`/`writeAll`。
+@Deprecated('No method accepts it; pass ttl/expireAt to write()/writeAll() directly. Removed in the next breaking release.')
 class CacheOptions {
   const CacheOptions({this.ttl, this.expireAt});
 
@@ -35,6 +36,7 @@ class CachemanOptions {
     CacheEntity Function(String)? deserialize,
     this.codeable = false,
     this.codec,
+    this.keyCodec,
     this.sliding = false,
     this.namespace,
     this.raw = false,
@@ -68,6 +70,14 @@ class CachemanOptions {
   /// 本包不内置任何实现。
   final Codec? codec;
 
+  /// Codec used only for key obfuscation ([enckey]). Must be **deterministic**
+  /// (same input → same output), unlike a value codec that may add a random
+  /// nonce. Falls back to [codec] when `null`.
+  ///
+  /// 只用于键混淆（[enckey]）的 codec，必须是**确定性**的（同输入同输出），
+  /// 不像值加密可能带随机 nonce。为 `null` 时回退到 [codec]。
+  final Codec? keyCodec;
+
   /// Sliding expiry: renew by the original `ttl` on each read hit (good for
   /// sessions/auth). The write-back is skipped while more than 90% of the
   /// ttl remains, so hot reads don't amplify writes.
@@ -93,17 +103,15 @@ class CachemanOptions {
   final bool raw;
 
   /// On a write exception, purge expired entries and retry the write once;
-  /// otherwise log and give up. Only meaningfully triggers for a *synchronous*
-  /// failure (e.g. a custom [serialize] throwing) — the persistent (`ls`)
-  /// tier's actual disk-flush failures surface asynchronously (via
-  /// `GetStorage.write`'s Future) and are reported via [onError] separately,
-  /// not retried here (see [Cacheman]'s `_persist`/`_gs.write` section doc).
+  /// otherwise log and give up. Only triggers for a *synchronous* failure
+  /// (e.g. a custom [serialize]/codec throwing). Real disk-flush failures are
+  /// asynchronous, never retried, and with get_storage 2.1.1 don't reach
+  /// [onError] at all (its write Future can't carry them).
   ///
   /// 写入抛异常时，清理过期条目后重试一次；否则记录日志并放弃。只对**同步**
-  /// 失败（比如自定义 [serialize] 抛错）有实际触发场景——持久层（`ls`）真正
-  /// 的落盘失败是异步冒出来的（`GetStorage.write` 返回的 Future），走单独的
-  /// [onError] 上报，不会走这里的重试（见 [Cacheman] 的 `_persist`/`_gs.write`
-  /// 部分文档）。
+  /// 失败（比如自定义 [serialize]/codec 抛错）触发。真正的落盘失败是异步的、
+  /// 从不重试，而且 get_storage 2.1.1 下根本到不了 [onError]（它的 write
+  /// Future 带不出错误）。
   final bool force;
 
   /// Write-once: only write when the key is empty (absent/expired);
@@ -112,16 +120,16 @@ class CachemanOptions {
   /// 只写一次：仅当键为空（不存在/已过期）时才写入，否则丢弃本次写入。
   final bool readonly;
 
-  /// Also obfuscate the key: when enabled with a [codec], the storage key is
-  /// deterministically run through the codec. Requires a [codec], else it
-  /// warns and degrades to plaintext keys.
+  /// Also obfuscate the key: when enabled with a [keyCodec] (or [codec]), the
+  /// storage key is deterministically run through it. Requires one of them,
+  /// else it warns and degrades to plaintext keys.
   ///
-  /// 也对键做混淆：设置且提供了 [codec] 时，存储键会经 codec 做确定性变换。
-  /// 需要 [codec]，否则警告并降级为明文键。
+  /// 也对键做混淆：提供了 [keyCodec]（或 [codec]）时，存储键会经它做确定性
+  /// 变换。二者至少要有一个，否则警告并降级为明文键。
   final bool enckey;
 
-  /// Write-failure callback.
+  /// Write-failure callback. Guaranteed for synchronous failures only.
   ///
-  /// 写入失败回调。
+  /// 写入失败回调。只保证同步失败会触发。
   final CachemanOnError? onError;
 }

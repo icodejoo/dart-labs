@@ -65,7 +65,7 @@ bilingual (EN + 中文) doc comment; match that convention for anything new.
 - **`lib/src/interface.dart`** — `Codec` (`encode`/`decode` string transform, no
   implementation shipped), `CachemanOnError` typedef. (The former `Store`/`MemoCache`
   backend contracts were removed — `Cacheman` now talks directly to `GetStorage`, see below.)
-- **`lib/src/options.dart`** — `CacheOptions` (per-`write` call: `ttl`/`expireAt`),
+- **`lib/src/options.dart`** — `CacheOptions` (deprecated, unused — pass `ttl`/`expireAt` to `write` directly),
   `CachemanOptions` (instance-level configuration for `Cacheman`).
 - **`lib/src/entity.dart`** — `CacheEntity` (the write envelope: `value`/`expireAt`/
   `createdAt`/`ttl`), `defaultSerialize`/`defaultDeserialize` (plain `jsonEncode`/

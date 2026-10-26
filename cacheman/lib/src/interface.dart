@@ -23,11 +23,13 @@ abstract class Codec {
   String? decode(String value);
 }
 
-/// Write-failure callback (disk full, permission error, `force`-retry still
-/// failing). When provided it replaces the default `print`-based log, so the
+/// Write-failure callback (a throwing `serialize`/codec, `force`-retry still
+/// failing). Guaranteed for synchronous failures only: with get_storage 2.1.1
+/// real disk-flush errors (disk full, permission) never reach it. When provided it replaces the default `print`-based log, so the
 /// caller can observe failures (`set` returns `void`, so a failure is
 /// otherwise invisible).
 ///
-/// 写入失败回调（磁盘满、权限错误、`force` 重试仍失败）。提供时取代默认的
+/// 写入失败回调（`serialize`/codec 抛错、`force` 重试仍失败）。只保证同步
+/// 失败会触发：get_storage 2.1.1 下真正的落盘错误（磁盘满、权限）到不了这里。提供时取代默认的
 /// `print` 日志，让调用方能感知失败（`set` 返回 `void`，失败本不可见）。
 typedef CachemanOnError = void Function(String key, Object error);

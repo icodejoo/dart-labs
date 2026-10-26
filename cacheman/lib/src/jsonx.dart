@@ -8,6 +8,7 @@ const _kSet = 'Set';
 const _kBigInt = 'BigInt';
 const _kUri = 'Uri';
 const _kRegExp = 'RegExp';
+const _kMap = 'Map'; // 转义“恰好长得像标签”的普通 Map
 
 /// Strict tagged-shape check (exact `{flag, value}` two-key shape, not just
 /// "has a `flag` key") — lowers the odds of colliding with real user data
@@ -21,6 +22,18 @@ const _kRegExp = 'RegExp';
 /// 字段（形状不符原样返回）。对齐姊妹 TS 项目 `@codejoo/storage` 的 `JSONX`
 /// 修过的一个坑。
 bool _isTagged(dynamic v) => v is Map && v.length == 2 && v.containsKey(_flag) && v.containsKey('value');
+
+/// 编码前递归转义：形如标签的普通 Map 改存成 `{#t: Map, value: [[k, v], ...]}`，
+/// 避免解码时被误还原；reviver 自底向上，所以必须换掉形状而不是加标记。
+dynamic _escape(dynamic v) {
+  if (v is Map) {
+    if (_isTagged(v)) return {_flag: _kMap, 'value': [for (final e in v.entries) [e.key, _escape(e.value)]]};
+    return {for (final e in v.entries) e.key: _escape(e.value)};
+  }
+  if (v is List) return [for (final e in v) _escape(e)];
+  if (v is Set) return {for (final e in v) _escape(e)};
+  return v;
+}
 
 dynamic _toEncodable(dynamic value) {
   if (value is DateTime) return {_flag: _kDateTime, 'value': value.toIso8601String()};
@@ -40,7 +53,12 @@ dynamic _toEncodable(dynamic value) {
       },
     };
   }
-  throw JsonUnsupportedObjectError(value);
+  try {
+    // 与 jsonEncode 默认行为一致：回退到对象自带的 toJson()
+    return _escape((value as dynamic).toJson());
+  } on NoSuchMethodError {
+    throw JsonUnsupportedObjectError(value);
+  }
 }
 
 dynamic _reviver(dynamic key, dynamic value) {
@@ -58,6 +76,10 @@ dynamic _reviver(dynamic key, dynamic value) {
       return BigInt.parse(raw as String);
     case _kUri:
       return Uri.parse(raw as String);
+    case _kMap:
+      // 结构不合法说明是旧版留下的普通 Map，原样保留
+      if (raw is! List || !raw.every((p) => p is List && p.length == 2 && p[0] is String)) return value;
+      return {for (final p in raw) (p as List)[0] as String: p[1]};
     case _kRegExp:
       final m = raw as Map;
       return RegExp(
@@ -117,6 +139,13 @@ dynamic _reviver(dynamic key, dynamic value) {
 /// 类型——只留得下一个 `.name` 字符串）和 key 不是 `String` 的 `Map`
 /// （`jsonEncode` 在走到本文件的 `toEncodable` 钩子之前就直接拒绝了）。
 ///
+/// Plain `Map`s that happen to look like a type tag (`{'#t': ..., 'value': ...}`)
+/// are escaped on encode and round-trip unchanged. Objects with a `toJson()`
+/// fall back to it, like plain `jsonEncode`.
+///
+/// 恰好形如类型标签的普通 `Map`（`{'#t': ..., 'value': ...}`）编码时会被转义，
+/// 往返不变。带 `toJson()` 的对象回退到它，与原生 `jsonEncode` 一致。
+///
 /// Circular references are not supported (inherits `jsonEncode`'s own
 /// behavior — throws).
 ///
@@ -124,7 +153,7 @@ dynamic _reviver(dynamic key, dynamic value) {
 class Jsonx {
   const Jsonx._();
 
-  static String encode<T>(T value) => jsonEncode(value, toEncodable: _toEncodable);
+  static String encode<T>(T value) => jsonEncode(_escape(value), toEncodable: _toEncodable);
 
   static T decode<T>(String text) => jsonDecode(text, reviver: _reviver) as T;
 }

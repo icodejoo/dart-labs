@@ -1,3 +1,31 @@
+## 0.6.0
+
+**Breaking:**
+
+- Namespace prefix is now unambiguous: `%` and `:` inside a namespace are escaped (`%25`/`%3A`),
+  so `namespace: 'a'` + key `b:x` no longer collides with `namespace: 'a:b'` + key `x`, and
+  `a.erase()` no longer wipes `a:b`'s data. Namespaces without `%`/`:` keep the same storage
+  keys; for the rest, persisted entries under the old prefix are no longer visible (migrate or
+  let them expire). `Cacheman.namespace` returns the escaped prefix.
+
+**Fixes:**
+
+- `write()` / sliding renewal: a throwing `serialize`/codec is now inside `_persist`'s
+  try/catch, so it goes through `force` + `onError` instead of escaping.
+- `purge()` skips `raw` mode (no envelope, no expiry); `readonly` checks real presence
+  (a stored `null` counts, no sliding renewal side effect).
+- `Jsonx`: falls back to `toJson()` for custom objects; a plain `Map` shaped like a type tag is
+  escaped and round-trips unchanged.
+- Docs: get_storage 2.1.1's write Future cannot carry flush errors, so `onError` is only
+  guaranteed for synchronous failures; same-container instances share the first-seen `path`.
+
+**Added / deprecated:**
+
+- `CachemanOptions.keyCodec` — a deterministic codec for `enckey`, independent of the value
+  `codec` (falls back to `codec`).
+- `CacheOptions` is `@Deprecated` (no method ever accepted it); removed in the next breaking release.
+- Internal: `length`/`key`/`keys` read the owned-key set directly; erase reuses `_del`.
+
 ## 0.5.0
 
 **Breaking:**
