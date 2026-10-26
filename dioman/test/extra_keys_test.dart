@@ -210,7 +210,8 @@ void main() {
   });
 
   test('ARCHITECTURE.md 中的键表与 DiomanExtraKeys.toMarkdown() 同步', () {
-    final doc = File('ARCHITECTURE.md').readAsStringSync();
+    // Windows 下 autocrlf 会把文档检出成 CRLF，统一成 LF 再比对。
+    final doc = File('ARCHITECTURE.md').readAsStringSync().replaceAll('\r\n', '\n');
     const start = '<!-- dioman:extra-keys:start -->';
     const end = '<!-- dioman:extra-keys:end -->';
     final s = doc.indexOf(start);
