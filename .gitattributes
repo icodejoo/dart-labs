@@ -1,4 +1,6 @@
 mova/libmpv/** filter=lfs diff=lfs merge=lfs -text
+# README 是普通文本，不进 LFS
+mova/libmpv/README.md !filter !diff !merge text
 mova/packages/**/*.so filter=lfs diff=lfs merge=lfs -text
 mova/packages/**/*.dll filter=lfs diff=lfs merge=lfs -text
 mova/packages/**/*.dylib filter=lfs diff=lfs merge=lfs -text
