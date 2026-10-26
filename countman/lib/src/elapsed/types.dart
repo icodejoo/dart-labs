@@ -4,6 +4,8 @@ import '../core/clock.dart';
 import '../core/plugin_base.dart';
 import '../core/time_parts.dart';
 
+export '../core/clock.dart' show elapsedClock;
+
 /// Options for an elapsed-time task added via [Elapsed.add] or [elapsed].
 ///
 /// Unlike [CountdownOptions] there's no fixed target — the task counts up
@@ -43,9 +45,7 @@ class ElapsedOptions {
 
 /// Internal task state.
 ///
-/// Same wall-clock re-anchoring trick as [CountdownTask], just inverted:
-/// counting down anchors a deadline ahead of now and subtracts; counting up
-/// anchors a start point behind now and subtracts the other way.
+/// 秒表以单调时间锚定起点，暂停和恢复时不受墙钟变化影响。
 class ElapsedTask extends ClockTask {
   ElapsedTask({
     required int id,
@@ -57,11 +57,11 @@ class ElapsedTask extends ClockTask {
     super.onReady,
     super.onStart,
     super.onCancel,
-  })  : startTime = countdownClock(),
+  })  : startTime = elapsedClock(),
         super(id, onUpdate: onUpdate, threshold: threshold, onThreshold: onThreshold);
 
-  /// Wall-clock start point. Elapsed = countdownClock() − startTime.
-  DateTime startTime;
+  /// 单调时间起点；累计时间为当前单调时间减去起点。
+  Duration startTime;
 
   /// Snapshot of elapsed when paused; null means running.
   Duration? pausedElapsed;
@@ -69,5 +69,5 @@ class ElapsedTask extends ClockTask {
   @override
   bool get isPaused => pausedElapsed != null;
 
-  Duration get elapsed => isPaused ? pausedElapsed! : countdownClock().difference(startTime);
+  Duration get elapsed => isPaused ? pausedElapsed! : elapsedClock() - startTime;
 }

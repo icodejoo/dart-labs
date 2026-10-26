@@ -40,7 +40,12 @@ abstract class CountmanTask {
   /// 重新锚定任务：使下一活动帧渲染当前状态，且不推进时间（dt）、不再次触发
   /// [onStart]。用于 retarget / resume / reset。这是插件调用的唯一具名操作，
   /// 取代直接改写 [started]——[startFired] 保证 [onStart] 跨每次重新锚定仍每任务一次。
-  void reanchor() => started = false;
+  // 回调内改锚点或暂停后，旧版本帧不能继续提交完成状态。
+  int revision = 0;
+  void reanchor() {
+    revision++;
+    started = false;
+  }
 
   /// Whether the task is frozen. Non-pausable tasks (counter) stay `false`.
   bool get isPaused => false;
@@ -71,7 +76,8 @@ abstract class CountmanTask {
 /// a pending buffer while [_ticking] and drain it after the loop. Value-only
 /// mutations (retarget, pause/resume/reset) never touch map keys and are
 /// always safe.
-abstract class TaskQueuePlugin<T extends CountmanTask> implements CountmanPlugin {
+abstract class TaskQueuePlugin<T extends CountmanTask>
+    implements CountmanPlugin {
   TaskQueuePlugin(this.name);
 
   @override
@@ -89,6 +95,16 @@ abstract class TaskQueuePlugin<T extends CountmanTask> implements CountmanPlugin
   /// 组件的自建插件（`plugin: Countdown(name: 'x', interval: 100)`）无需手动
   /// `Countman.use(...)` 即可工作。
   bool _attached = false;
+
+  // 实例销毁后终身不可复用，调用方需创建新插件。
+  bool _disposed = false;
+
+  void _ensureUsable() {
+    if (_disposed) {
+      throw StateError(
+          'countman: plugin "$name" is disposed; create a new instance.');
+    }
+  }
 
   /// Live task map. Never mutate its key set directly from within a tick —
   /// use [enqueue]/[removeTask] so changes are deferred safely.
@@ -109,6 +125,10 @@ abstract class TaskQueuePlugin<T extends CountmanTask> implements CountmanPlugin
   final List<T> _live = <T>[];
   bool _liveDirty = true;
 
+  // 测试观测缓存持有量，验证排空后及时释放闭包。
+  @visibleForTesting
+  int get debugSnapshotTaskCount => _live.length;
+
   /// Number of live tasks in this group, including ones queued mid-tick.
   /// Drops to 0 once every task completes and is auto-removed — handy for
   /// observing the group going idle (the ticker then auto-stops).
@@ -126,8 +146,31 @@ abstract class TaskQueuePlugin<T extends CountmanTask> implements CountmanPlugin
   /// active → idle). Surfaced to providers as `onAllComplete`.
   VoidCallback? onQueueDrained;
 
+  final _groupListeners = <Object, (VoidCallback?, VoidCallback?)>{};
+
+  /// Subscribe independently of legacy callback fields; invoke to unsubscribe.
+  /// 独立分组订阅，解除时只移除本次绑定，兼容原有单槽回调。
+  VoidCallback addGroupListener(
+      {VoidCallback? onReady, VoidCallback? onDrained}) {
+    _ensureUsable();
+    final key = Object();
+    _groupListeners[key] = (onReady, onDrained);
+    return () => _groupListeners.remove(key);
+  }
+
+  void _notifyGroup(bool ready) {
+    final listeners = Map.of(_groupListeners);
+    (ready ? onFirstEnqueued : onQueueDrained)?.call();
+    for (final entry in listeners.entries) {
+      if (_disposed) break;
+      if (!_groupListeners.containsKey(entry.key)) continue;
+      (ready ? entry.value.$1 : entry.value.$2)?.call();
+    }
+  }
+
   @override
   void onAttach(CountmanContext c) {
+    _ensureUsable();
     ctx = c;
     _attached = true;
   }
@@ -140,6 +183,7 @@ abstract class TaskQueuePlugin<T extends CountmanTask> implements CountmanPlugin
   /// tick callback — the insert is deferred until the loop finishes.
   @protected
   void enqueue(T task) {
+    _ensureUsable();
     // Lazily self-register on first use so a user-created plugin handed to a
     // widget attaches without a manual Countman.use(). Idempotent by name; a
     // name clash with an already-registered DIFFERENT instance leaves us
@@ -166,9 +210,10 @@ abstract class TaskQueuePlugin<T extends CountmanTask> implements CountmanPlugin
       tasks[task.id] = task;
       _liveDirty = true;
     }
-    if (wasIdle) onFirstEnqueued?.call(); // group went idle → active
-    task.onReady?.call(); // registration succeeded (synchronous at add)
-    ctx.requestFrame();
+    if (wasIdle) _notifyGroup(true);
+    // 分组回调可同步取消或销毁，后续通知只面向仍存活任务。
+    if (!task.done && !_disposed) task.onReady?.call();
+    if (!task.done && !_disposed) ctx.requestFrame();
   }
 
   /// Remove the task with [id]. Safe to call from within a tick callback —
@@ -179,33 +224,47 @@ abstract class TaskQueuePlugin<T extends CountmanTask> implements CountmanPlugin
     T? task = tasks[id];
     if (task == null) {
       for (final p in _pendingAdd) {
-        if (p.id == id) { task = p; break; }
+        if (p.id == id) {
+          task = p;
+          break;
+        }
       }
     }
-    if (task != null && !task.done) {
-      task.onCancel?.call();
-      // Mark done so a second removeTask in the same tick (e.g. cancel() called
-      // twice) doesn't fire onCancel again; the loop also evicts done tasks.
-      //
-      // 标记 done，使同一 tick 内二次 removeTask（如 cancel() 被调两次）不再触发
-      // onCancel；循环也会驱逐 done 任务。
-      task.done = true;
-    }
+    if (task == null || task.done) return;
+    // 终态先于回调提交，自身重入取消保持幂等。
+    task.done = true;
     if (_ticking) {
       _pendingRemove.add(id);
     } else {
       final hadTasks = tasks.isNotEmpty;
       tasks.remove(id);
+      _pendingAdd.removeWhere((t) => t.id == id);
+      // 结构变化后立即释放旧快照，空闲组不依赖下一帧清理。
+      _live.clear();
       _liveDirty = true;
-      if (hadTasks && tasks.isEmpty && _pendingAdd.isEmpty) {
-        onQueueDrained?.call(); // group went active → idle
+      // 记录本次移除是否排空，兄弟任务的嵌套取消自行派发事件。
+      final drained = hadTasks && tasks.isEmpty && _pendingAdd.isEmpty;
+      task.onCancel?.call();
+      if (drained && tasks.isEmpty && _pendingAdd.isEmpty && !_disposed) {
+        _notifyGroup(false);
       }
+      return;
     }
+    // 先标记终态、登记移除，再允许用户重入取消。
+    task.onCancel?.call();
   }
 
   /// Look up a task by id (null if absent).
   @protected
-  T? taskOf(int id) => tasks[id];
+  T? taskOf(int id) {
+    final live = tasks[id];
+    if (live != null) return live;
+    // 刚返回的待入队 handle 同样支持暂停、重定目标和取消。
+    for (final task in _pendingAdd) {
+      if (task.id == id) return task;
+    }
+    return null;
+  }
 
   // ── overridable hooks ─────────────────────────────────────────────
 
@@ -233,6 +292,8 @@ abstract class TaskQueuePlugin<T extends CountmanTask> implements CountmanPlugin
 
   @override
   bool tick(Duration elapsed, Duration dt) {
+    // 已销毁插件不再接受帧驱动。
+    if (_disposed) return false;
     if (tasks.isEmpty) return false;
 
     final dtMs = dt.inMicroseconds / 1000.0;
@@ -242,7 +303,9 @@ abstract class TaskQueuePlugin<T extends CountmanTask> implements CountmanPlugin
     //
     // 仅当任务集自上帧变化时才重建活动快照。
     if (_liveDirty) {
-      _live..clear()..addAll(tasks.values);
+      _live
+        ..clear()
+        ..addAll(tasks.values);
       _liveDirty = false;
     }
 
@@ -250,24 +313,38 @@ abstract class TaskQueuePlugin<T extends CountmanTask> implements CountmanPlugin
     _ticking = true;
     try {
       for (var li = 0; li < _live.length; li++) {
+        if (_disposed) break;
         final task = _live[li];
         if (task.done || task.isPaused) continue;
 
         if (!task.started) {
           task.started = true;
+          final revision = task.revision;
           renderInitial(task);
+          // 初值回调可取消、暂停或重定目标；不继续发送旧版本的 start。
+          if (task.done ||
+              task.isPaused ||
+              revision != task.revision ||
+              _disposed) {
+            // 暂停中的初值不算已启动，恢复后仍需派发首次 start。
+            if (!task.done && task.isPaused) task.started = false;
+            if (task.done) _pendingRemove.add(task.id);
+            if (!task.done && !task.isPaused && !_disposed) busy = true;
+            continue;
+          }
           if (!task.startFired) {
             task.startFired = true;
             task.onStart?.call(); // once per task, even across re-anchors
           }
-          busy = true;
+          if (task.done) _pendingRemove.add(task.id);
+          if (!task.done && !task.isPaused && !_disposed) busy = true;
           continue;
         }
 
         final stillBusy = step(task, dtMs, shouldProcess);
         if (task.done) {
           _pendingRemove.add(task.id);
-        } else if (stillBusy) {
+        } else if (stillBusy && !task.isPaused && !_disposed) {
           busy = true;
         }
       }
@@ -282,27 +359,44 @@ abstract class TaskQueuePlugin<T extends CountmanTask> implements CountmanPlugin
       }
       if (_pendingAdd.isNotEmpty) {
         for (final t in _pendingAdd) {
-          tasks[t.id] = t;
+          // 同帧新增后取消的任务不得重新插回活动表。
+          if (!t.done && !_disposed) tasks[t.id] = t;
         }
         _pendingAdd.clear();
         _liveDirty = true;
-        busy = true; // freshly added tasks need a frame to render
+        if (tasks.isNotEmpty && !_disposed) busy = true;
       }
       // Reached only when the group was non-empty this frame (empty groups
       // early-return above), so an empty map here means it just drained.
-      if (tasks.isEmpty) onQueueDrained?.call();
+      // 丢弃含旧任务闭包的快照，下次活动帧再按需重建。
+      if (_liveDirty || tasks.isEmpty || _disposed) _live.clear();
+      if (tasks.isEmpty && !_disposed) _notifyGroup(false);
     }
     return busy;
   }
 
   @override
   void dispose() {
-    for (final task in tasks.values) {
-      if (!task.done) task.onCancel?.call(); // teardown cancels live tasks
+    // 先封闭实例，避免销毁回调重新加入任务；重复销毁保持幂等。
+    if (_disposed) return;
+    _disposed = true;
+    // 先摘除并终结全部任务，再通知；回调取消其他任务不会改变遍历集合。
+    final cancelled =
+        [...tasks.values, ..._pendingAdd].where((t) => !t.done).toList();
+    for (final task in cancelled) {
+      task.done = true;
     }
     tasks.clear();
+    _live.clear();
+    _liveDirty = true;
     _pendingAdd.clear();
     _pendingRemove.clear();
+    _groupListeners.clear();
+    onFirstEnqueued = null;
+    onQueueDrained = null;
+    for (final task in cancelled) {
+      task.onCancel?.call();
+    }
     onDispose();
   }
 }
@@ -328,6 +422,15 @@ abstract class ClockTask extends CountmanTask {
   Duration? threshold;
   void Function()? onThreshold;
   bool thresholdFired = false;
+
+  /// Update the threshold without resetting the clock anchor.
+  /// 阈值独立同步，不重置计时；阈值改变后允许新阈值触发一次。
+  void updateThreshold(Duration? value) {
+    if (threshold == value) return;
+    threshold = value;
+    thresholdFired = false;
+    revision++;
+  }
 
   /// Fired when the task is paused / resumed via its handle.
   VoidCallback? onPause;
@@ -387,6 +490,7 @@ abstract class ClockPlugin<T extends ClockTask> extends TaskQueuePlugin<T> {
   bool step(T task, double dtMs, bool shouldProcess) {
     if (!shouldProcess) return true; // active, waiting for the interval
 
+    final revision = task.revision;
     if (!task.thresholdFired &&
         task.threshold != null &&
         thresholdCrossed(task)) {
@@ -394,7 +498,16 @@ abstract class ClockPlugin<T extends ClockTask> extends TaskQueuePlugin<T> {
       task.onThreshold?.call();
     }
 
+    // 阈值回调可能取消、暂停或重置，旧帧不再更新或完成。
+    if (task.done || task.isPaused || revision != task.revision) {
+      return !task.done;
+    }
+
     if (isComplete(task)) {
+      emit(task);
+      if (task.done || task.isPaused || revision != task.revision) {
+        return !task.done;
+      }
       task.done = true;
       onComplete(task);
       return false;
@@ -465,6 +578,14 @@ class LazyDefault<T extends CountmanPlugin> {
   static void resetAll() {
     for (final d in _all) {
       d.reset();
+    }
+  }
+
+  /// Forget only the default that owns this instance.
+  /// 局部注销默认实例后，下次访问重建，其他默认组保持原样。
+  static void resetInstance(CountmanPlugin plugin) {
+    for (final d in _all) {
+      if (identical(d._instance, plugin)) d.reset();
     }
   }
 

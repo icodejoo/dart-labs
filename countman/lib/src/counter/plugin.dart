@@ -71,14 +71,21 @@ class Counter extends TaskQueuePlugin<CounterTask> {
     // 暂停任务由基类 tick 循环（经 `isPaused`）跳过，不会到达此处，故无需显式暂停判断。
     task.accumMs += dtMs;
     final durationMs = task.duration.inMilliseconds.toDouble();
-    final t = durationMs > 0 ? (task.accumMs / durationMs).clamp(0.0, 1.0) : 1.0;
+    final t =
+        durationMs > 0 ? (task.accumMs / durationMs).clamp(0.0, 1.0) : 1.0;
 
     final complete = t >= 1.0;
     final raw = complete
         ? task.to
         : task.from + (task.to - task.from) * task.curve.transform(t);
     task.value = _clamp(task, raw);
+    final revision = task.revision;
     task.onUpdate?.call(task.value);
+
+    // 用户回调改变状态后，旧目标的完成判定立即失效。
+    if (task.done || task.isPaused || revision != task.revision) {
+      return !task.done;
+    }
 
     if (complete) {
       task.done = true;
@@ -122,7 +129,8 @@ class Counter extends TaskQueuePlugin<CounterTask> {
   @internal
   CounterTask? taskById(int id) => taskOf(id);
 
-  void _retarget(int id, {required double to, Duration? duration, Curve? curve}) {
+  void _retarget(int id,
+      {required double to, Duration? duration, Curve? curve}) {
     final task = taskOf(id);
     if (task == null || task.done) return;
     task.from = task.value;
@@ -143,6 +151,8 @@ class Counter extends TaskQueuePlugin<CounterTask> {
     final task = taskOf(id);
     if (task == null || task.done || task.paused == paused) return;
     task.paused = paused;
+    // 同帧暂停再恢复也必须使旧计算失效。
+    task.revision++;
     if (!paused) ctx.requestFrame();
   }
 }

@@ -320,7 +320,9 @@ class _CountdownCardState extends State<CardCountdown>
   void initState() {
     super.initState();
     _transitionType = widget.style?.transitionType ?? _defaultTransitionType;
-    _ctrl = AnimationController(vsync: this, duration: motionDuration(widget.duration ?? _defaultDuration))
+    _ctrl = AnimationController(
+        vsync: this,
+        duration: motionDuration(widget.duration ?? _defaultDuration))
       ..addStatusListener((status) {
         // calendar is two legs (forward then auto-reverse) over the same
         // duration; slide/flip are a single forward pass — they commit at
@@ -331,7 +333,9 @@ class _CountdownCardState extends State<CardCountdown>
           _ctrl.reverse();
           return;
         }
-        final isEnd = isCalendar ? status == AnimationStatus.dismissed : status == AnimationStatus.completed;
+        final isEnd = isCalendar
+            ? status == AnimationStatus.dismissed
+            : status == AnimationStatus.completed;
         if (isEnd) {
           if (_model.target != null) _model.committed = _model.target!;
           _model.target = null;
@@ -344,15 +348,17 @@ class _CountdownCardState extends State<CardCountdown>
     _start();
   }
 
-  void _start() {
+  void _start({Duration? remaining, bool paused = false}) {
     _handle?.cancel();
     _handle = (widget.plugin ?? defaultCountdown).add(CountdownOptions(
-      duration: remainingUntil(widget.to),
+      // 插件迁移保留已有剩余时间，避免相对时长重新计满。
+      duration: remaining ?? remainingUntil(widget.to),
       onUpdate: _onTick,
-      onComplete: widget.onComplete,
+      onComplete: () => widget.onComplete?.call(),
       threshold: widget.threshold,
-      onThreshold: widget.onThreshold,
+      onThreshold: () => widget.onThreshold?.call(),
     ));
+    if (paused) _handle!.pause();
     widget.controller?.attach(_handle!);
   }
 
@@ -360,7 +366,9 @@ class _CountdownCardState extends State<CardCountdown>
     final units = showHours
         ? [r.inHours, r.inMinutes % 60, r.inSeconds % 60]
         : [r.inMinutes % 60, r.inSeconds % 60];
-    return [for (final u in units) ...[u ~/ 10, u % 10]];
+    return [
+      for (final u in units) ...[u ~/ 10, u % 10]
+    ];
   }
 
   void _onTick(TimeParts parts) {
@@ -381,7 +389,8 @@ class _CountdownCardState extends State<CardCountdown>
     }
 
     final next = _digitsFor(remaining, _showHours);
-    final changed = List.generate(next.length, (i) => next[i] != _model.committed[i]);
+    final changed =
+        List.generate(next.length, (i) => next[i] != _model.committed[i]);
     if (!changed.contains(true)) return;
 
     if (_ctrl.isAnimating && _model.target != null) {
@@ -397,14 +406,28 @@ class _CountdownCardState extends State<CardCountdown>
   void didUpdateWidget(CardCountdown old) {
     super.didUpdateWidget(old);
     if (widget.to != old.to) {
-      widget.controller?.detach();
+      // 旧控制器解绑，新控制器由 _start 绑定。
+      old.controller?.detach();
       _ctrl.stop();
       _ctrl.value = 0;
       final r = remainingUntil(widget.to);
       _showHours = widget.showHours ?? r.inHours >= 1;
       _model = CardModel(_digitsFor(r, _showHours));
       _start();
-    } else if (widget.showHours != old.showHours) {
+    } else {
+      if (widget.controller != old.controller) {
+        old.controller?.detach();
+        if (_handle != null) widget.controller?.attach(_handle!);
+      }
+      if (widget.plugin != old.plugin && _handle != null && !_handle!.isDone) {
+        final remaining = _handle!.remaining;
+        final paused = _handle!.isPaused;
+        _start(remaining: remaining, paused: paused);
+      }
+      // 单独修改阈值时沿用当前任务，不重置倒计时。
+      _handle?.updateThreshold(widget.threshold);
+    }
+    if (widget.to == old.to && widget.showHours != old.showHours) {
       // showHours flipped without a new deadline — relayout the unit count now
       // instead of waiting for the next tick to notice (avoids a stale frame).
       //
@@ -440,10 +463,13 @@ class _CountdownCardState extends State<CardCountdown>
     required bool splitDigits,
   }) {
     final unitsCount = _showHours ? 3 : 2;
-    final labelOffset = _showHours ? 0 : 1; // labels are always [hours, minutes, seconds]
+    final labelOffset =
+        _showHours ? 0 : 1; // labels are always [hours, minutes, seconds]
     final sepPainter = sepCache.putIfAbsent(
         (widget.separator, separatorStyle),
-        () => TextPainter(text: TextSpan(text: widget.separator, style: separatorStyle), textDirection: TextDirection.ltr)
+        () => TextPainter(
+            text: TextSpan(text: widget.separator, style: separatorStyle),
+            textDirection: TextDirection.ltr)
           ..layout());
 
     var x = 0.0;
@@ -479,10 +505,12 @@ class _CountdownCardState extends State<CardCountdown>
 
     final hasLabels = widget.labels != null;
     final labelHeight = hasLabels
-        ? labelCache
-            .putIfAbsent(('X', labelStyle),
-                () => TextPainter(text: TextSpan(text: 'X', style: labelStyle), textDirection: TextDirection.ltr)..layout())
-            .height
+        ? labelCache.putIfAbsent(
+            ('X', labelStyle),
+            () => TextPainter(
+                text: TextSpan(text: 'X', style: labelStyle),
+                textDirection: TextDirection.ltr)
+              ..layout()).height
         : 0.0;
     final extraHeight = hasLabels ? 4 + labelHeight : 0.0;
 
@@ -504,23 +532,32 @@ class _CountdownCardState extends State<CardCountdown>
     //
     // 每个字段的解析顺序：widget.style > 所在 CountdownProvider 的 cardCountdownStyle
     // > 祖先 CardCountdownProvider > 硬编码默认值。
-    final ccStyle = CountmanScope.maybeOf<Countdown>(context)?.cardCountdownStyle;
+    final ccStyle =
+        CountmanScope.maybeOf<Countdown>(context)?.cardCountdownStyle;
     final st = widget.style?.merge(ccStyle) ?? ccStyle;
     final cardWidth = st?.cardWidth ?? provider?.cardWidth ?? _defaultCardWidth;
-    final cardHeight = st?.cardHeight ?? provider?.cardHeight ?? _defaultCardHeight;
+    final cardHeight =
+        st?.cardHeight ?? provider?.cardHeight ?? _defaultCardHeight;
     final digitGap = st?.digitGap ?? provider?.digitGap ?? _defaultDigitGap;
     final unitGap = st?.unitGap ?? provider?.unitGap ?? _defaultUnitGap;
     final cardColor = st?.cardColor ?? provider?.cardColor ?? _defaultCardColor;
-    final duration = widget.duration ?? provider?.duration ?? _defaultDuration;
+    final duration =
+        motionDuration(widget.duration ?? provider?.duration ?? _defaultDuration);
     if (_ctrl.duration != duration) _ctrl.duration = duration;
     final effCurve = widget.curve ?? provider?.curve ?? Curves.linear;
     final splitDigits = st?.splitDigits ?? false;
 
-    _transitionType = st?.transitionType ?? provider?.transitionType ?? _defaultTransitionType;
-    final scaleEffect = st?.scaleEffect ?? provider?.scaleEffect ?? _defaultTranslateEffect;
-    final scaleFactor = st?.scaleFactor ?? provider?.scaleFactor ?? _defaultScaleFactor;
-    final opacityEffect = st?.opacityEffect ?? provider?.opacityEffect ?? _defaultTranslateEffect;
-    final perspective = st?.perspective ?? provider?.perspective ?? _defaultPerspective;
+    _transitionType = st?.transitionType ??
+        provider?.transitionType ??
+        _defaultTransitionType;
+    final scaleEffect =
+        st?.scaleEffect ?? provider?.scaleEffect ?? _defaultTranslateEffect;
+    final scaleFactor =
+        st?.scaleFactor ?? provider?.scaleFactor ?? _defaultScaleFactor;
+    final opacityEffect =
+        st?.opacityEffect ?? provider?.opacityEffect ?? _defaultTranslateEffect;
+    final perspective =
+        st?.perspective ?? provider?.perspective ?? _defaultPerspective;
 
     final resolvedTextStyle = st?.textStyle;
     final resolvedLabelStyle = st?.labelStyle;
@@ -528,21 +565,36 @@ class _CountdownCardState extends State<CardCountdown>
 
     final textStyle = resolvedTextStyle ??
         provider?.textStyle ??
-        TextStyle(fontSize: cardHeight * 0.48, fontWeight: FontWeight.bold, color: const Color(0xFFFFFFFF));
+        TextStyle(
+            fontSize: cardHeight * 0.48,
+            fontWeight: FontWeight.bold,
+            color: const Color(0xFFFFFFFF));
     final labelStyle = resolvedLabelStyle ??
         provider?.labelStyle ??
         const TextStyle(
-            fontSize: 11, color: Color(0xFF9E9E9E), fontWeight: FontWeight.w500, letterSpacing: 0.5);
+            fontSize: 11,
+            color: Color(0xFF9E9E9E),
+            fontWeight: FontWeight.w500,
+            letterSpacing: 0.5);
     final separatorStyle = resolvedSeparatorStyle ??
         provider?.separatorStyle ??
-        TextStyle(fontSize: cardHeight * 0.38, fontWeight: FontWeight.bold, color: const Color(0xFF757575));
+        TextStyle(
+            fontSize: cardHeight * 0.38,
+            fontWeight: FontWeight.bold,
+            color: const Color(0xFF757575));
 
     // A style is only shared via the provider's cache when this card is
     // actually inheriting it (left unset) — an explicit override always
     // uses this card's own local cache, so it never pollutes the shared one.
-    final digitCache = (resolvedTextStyle == null && provider != null) ? provider.cache : _localCache;
-    final sepCache = (resolvedSeparatorStyle == null && provider != null) ? provider.cache : _localCache;
-    final labelCache = (resolvedLabelStyle == null && provider != null) ? provider.cache : _localCache;
+    final digitCache = (resolvedTextStyle == null && provider != null)
+        ? provider.cache
+        : _localCache;
+    final sepCache = (resolvedSeparatorStyle == null && provider != null)
+        ? provider.cache
+        : _localCache;
+    final labelCache = (resolvedLabelStyle == null && provider != null)
+        ? provider.cache
+        : _localCache;
 
     final geom = _measure(
       cardWidth: cardWidth,
@@ -588,7 +640,8 @@ class _CountdownCardState extends State<CardCountdown>
       value: CountdownFormat.hms(TimeParts.of(_lastRemaining)),
       child: inner,
     );
-    final decorated = applyBoxStyle(semantic, padding: st?.padding, decoration: st?.decoration);
+    final decorated = applyBoxStyle(semantic,
+        padding: st?.padding, decoration: st?.decoration);
     return widget.repaintBoundary
         ? RepaintBoundary(child: decorated)
         : decorated;

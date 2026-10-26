@@ -1,4 +1,3 @@
-import 'package:countman/src/core/clock.dart';
 import 'package:countman/src/core/plugin_base.dart';
 import 'package:countman/src/core/ticker.dart';
 import 'package:flutter/foundation.dart';
@@ -17,6 +16,8 @@ class ElapsedHandle {
     final task = _plugin.task(_id);
     if (task == null || task.isPaused) return;
     task.pausedElapsed = task.elapsed;
+    // 回调内暂停后不再继续当前帧的旧计算。
+    task.revision++;
     task.onPause?.call();
   }
 
@@ -24,7 +25,8 @@ class ElapsedHandle {
   void resume() {
     final task = _plugin.task(_id);
     if (task == null || !task.isPaused) return;
-    task.startTime = countdownClock().subtract(task.pausedElapsed!);
+    // 恢复时排除暂停期间经过的单调时间。
+    task.startTime = elapsedClock() - task.pausedElapsed!;
     task.pausedElapsed = null;
     task.reanchor(); // next interval renders without consuming time
     task.onResume?.call();
@@ -35,7 +37,8 @@ class ElapsedHandle {
   void reset() {
     final task = _plugin.task(_id);
     if (task == null) return;
-    task.startTime = countdownClock();
+    // 重置只读取单调时间，不读取系统日期。
+    task.startTime = elapsedClock();
     task.pausedElapsed = null;
     task.reanchor();
     task.thresholdFired = false;
@@ -45,8 +48,13 @@ class ElapsedHandle {
   /// Remove the task immediately.
   void cancel() => _plugin.removeTask(_id);
 
+  /// Update only the threshold, preserving elapsed time.
+  /// 仅同步阈值，保留累计时间和暂停状态。
+  void updateThreshold(Duration? threshold) =>
+      _plugin.task(_id)?.updateThreshold(threshold);
+
   Duration get elapsed => _plugin.task(_id)?.elapsed ?? Duration.zero;
-  bool get isPaused   => _plugin.task(_id)?.isPaused ?? false;
+  bool get isPaused => _plugin.task(_id)?.isPaused ?? false;
 }
 
 /// Elapsed-time engine — drives open-ended "stopwatch" timers on the shared
@@ -69,8 +77,8 @@ class ElapsedHandle {
 /// TextElapsed(plugin: calls)
 /// ```
 class Elapsed extends ClockPlugin<ElapsedTask> {
-  Elapsed({String? name, int interval = 1000})
-      : super(name ?? 'elapsed', interval: interval);
+  // 直接转发父类间隔参数，保留上一批计时修复。
+  Elapsed({String? name, super.interval}) : super(name ?? 'elapsed');
 
   // ── ClockPlugin domain hooks ──────────────────────────────────────
 
@@ -87,7 +95,8 @@ class Elapsed extends ClockPlugin<ElapsedTask> {
   bool thresholdCrossed(ElapsedTask task) => task.elapsed >= task.threshold!;
 
   @override
-  void onComplete(ElapsedTask task) {} // unreachable: isComplete is always false
+  void onComplete(
+      ElapsedTask task) {} // unreachable: isComplete is always false
 
   // ── internal accessors for handles (same library) ─────────────────
 
@@ -130,18 +139,19 @@ class ElapsedController {
   void attach(ElapsedHandle h) => _handle = h;
   void detach() => _handle = null;
 
-  void pause()  => _handle?.pause();
+  void pause() => _handle?.pause();
   void resume() => _handle?.resume();
-  void reset()  => _handle?.reset();
+  void reset() => _handle?.reset();
   void cancel() => _handle?.cancel();
 
   Duration get elapsed => _handle?.elapsed ?? Duration.zero;
-  bool get isPaused    => _handle?.isPaused ?? false;
+  bool get isPaused => _handle?.isPaused ?? false;
 }
 
 // ── default instance + top-level function ─────────────────────────
 
-final _defaultElapsed = LazyDefault<Elapsed>(() => Elapsed()); // interval = 1000ms
+final _defaultElapsed =
+    LazyDefault<Elapsed>(() => Elapsed()); // interval = 1000ms
 
 /// The default [Elapsed] instance (interval = 1 s) used by [TextElapsed]
 /// when no [plugin] is provided. Auto-registered with [Countman] on first access.

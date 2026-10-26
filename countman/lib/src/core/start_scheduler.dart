@@ -58,7 +58,7 @@ class StartScheduler {
       fn();
       return;
     }
-    _queue.add(_Item(fn, bs, tag));
+    _queue.add(_Item(fn, bs, tag, group));
     _scheduleIfNeeded();
   }
 
@@ -69,6 +69,13 @@ class StartScheduler {
   /// - release the closure's reference to the State so it can be GC'd.
   void cancel(Object owner) {
     _queue.removeWhere((item) => identical(item.tag, owner));
+  }
+
+  /// Release a group's configuration and pending starts.
+  /// 插件注销时同时释放分组配置与待启动闭包。
+  void removeGroup(Object group) {
+    groupBatchSize.remove(group);
+    _queue.removeWhere((item) => identical(item.group, group));
   }
 
   void _scheduleIfNeeded() {
@@ -110,8 +117,9 @@ class StartScheduler {
 }
 
 class _Item {
-  const _Item(this.fn, this.batchSize, this.tag);
+  const _Item(this.fn, this.batchSize, this.tag, this.group);
   final void Function() fn;
   final int batchSize;
   final Object? tag;
+  final Object? group;
 }

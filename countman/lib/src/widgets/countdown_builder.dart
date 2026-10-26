@@ -74,7 +74,8 @@ class CountdownBuilder extends StatefulWidget {
   /// (pre-decomposed remaining; `parts.total`/`parts.progress` give the
   /// denominator for progress rings/bars). Update rate is determined by
   /// [Countdown.interval] on the [plugin] (default: once per second).
-  final Widget Function(BuildContext context, TimeParts parts, Widget? child) builder;
+  final Widget Function(BuildContext context, TimeParts parts, Widget? child)
+      builder;
 
   /// Value-independent subtree passed through to [builder] unchanged each tick,
   /// so the per-tick rebuild can skip it (standard `AnimatedBuilder` child).
@@ -147,7 +148,8 @@ class _CountdownBuilderState extends State<CountdownBuilder> {
     final r = _initialRemaining;
     _parts = TimeParts.of(r, r); // initial value before the first tick
     _rev.value++;
-    final plugin = widget.plugin ?? (widget.precise ? defaultCountdownMs : defaultCountdown);
+    final plugin = widget.plugin ??
+        (widget.precise ? defaultCountdownMs : defaultCountdown);
     _handle = plugin.add(CountdownOptions(
       duration: r,
       onUpdate: (p) {
@@ -155,14 +157,15 @@ class _CountdownBuilderState extends State<CountdownBuilder> {
         _rev.value++;
         widget.onTick?.call(p);
       },
-      onComplete: widget.onComplete,
+      onComplete: () => widget.onComplete?.call(),
+      // 事件转发到当前配置，替换回调不重置已有时间。
       threshold: widget.threshold,
-      onThreshold: widget.onThreshold,
-      onReady: widget.onReady,
-      onStart: widget.onStart,
-      onCancel: widget.onCancel,
-      onPause: widget.onPause,
-      onResume: widget.onResume,
+      onThreshold: () => widget.onThreshold?.call(),
+      onReady: () => widget.onReady?.call(),
+      onStart: () => widget.onStart?.call(),
+      onCancel: () => widget.onCancel?.call(),
+      onPause: () => widget.onPause?.call(),
+      onResume: () => widget.onResume?.call(),
     ));
     widget.controller?.attach(_handle!);
   }
@@ -170,6 +173,8 @@ class _CountdownBuilderState extends State<CountdownBuilder> {
   @override
   void didUpdateWidget(CountdownBuilder old) {
     super.didUpdateWidget(old);
+    // 动态阈值单独更新，避免为配置变化重建任务。
+    _handle?.updateThreshold(widget.threshold);
     if (widget.duration != old.duration ||
         widget.to != old.to ||
         widget.plugin != old.plugin ||

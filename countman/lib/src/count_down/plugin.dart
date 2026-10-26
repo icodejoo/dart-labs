@@ -16,6 +16,8 @@ class CountdownHandle {
     final task = _plugin.task(_id);
     if (task == null || task.done || task.isPaused) return;
     task.pausedRemaining = task.remaining;
+    // 暂停会使当前帧计算失效，即使回调中马上恢复。
+    task.revision++;
     task.onPause?.call();
   }
 
@@ -46,9 +48,14 @@ class CountdownHandle {
   /// Remove the task immediately.
   void cancel() => _plugin.removeTask(_id);
 
+  /// Update only the threshold, preserving remaining time.
+  /// 仅同步阈值，保留剩余时间和暂停状态。
+  void updateThreshold(Duration? threshold) =>
+      _plugin.task(_id)?.updateThreshold(threshold);
+
   Duration get remaining => _plugin.task(_id)?.remaining ?? Duration.zero;
-  bool get isPaused      => _plugin.task(_id)?.isPaused ?? false;
-  bool get isDone        => _plugin.task(_id)?.done ?? true;
+  bool get isPaused => _plugin.task(_id)?.isPaused ?? false;
+  bool get isDone => _plugin.task(_id)?.done ?? true;
 }
 
 /// Countdown engine — drives [Duration]-based timers on the shared ticker.
@@ -79,8 +86,8 @@ class CountdownHandle {
 /// CountdownWidget(duration: ..., plugin: precise, builder: ...)
 /// ```
 class Countdown extends ClockPlugin<CountdownTask> {
-  Countdown({String? name, int interval = 1000})
-      : super(name ?? 'countdown', interval: interval);
+  // 直接转发父类间隔参数，保留默认值与调用方式。
+  Countdown({String? name, super.interval}) : super(name ?? 'countdown');
 
   // ── ClockPlugin domain hooks ──────────────────────────────────────
 
@@ -94,12 +101,12 @@ class Countdown extends ClockPlugin<CountdownTask> {
   bool isComplete(CountdownTask task) => task.remaining <= Duration.zero;
 
   @override
-  bool thresholdCrossed(CountdownTask task) => task.remaining <= task.threshold!;
+  bool thresholdCrossed(CountdownTask task) =>
+      task.remaining <= task.threshold!;
 
   @override
   void onComplete(CountdownTask task) {
-    task.parts.set(Duration.zero, task.total);
-    task.onUpdate?.call(task.parts);
+    // 最终更新及状态复核统一由基类完成。
     task.onComplete?.call();
   }
 
@@ -148,27 +155,27 @@ class CountdownController {
   void attach(CountdownHandle h) => _handle = h;
   void detach() => _handle = null;
 
-  void pause()                     => _handle?.pause();
-  void resume()                    => _handle?.resume();
+  void pause() => _handle?.pause();
+  void resume() => _handle?.resume();
   void reset({Duration? duration}) => _handle?.reset(duration: duration);
-  void cancel()                    => _handle?.cancel();
+  void cancel() => _handle?.cancel();
 
   Duration get remaining => _handle?.remaining ?? Duration.zero;
-  bool get isPaused      => _handle?.isPaused ?? false;
-  bool get isDone        => _handle?.isDone ?? true;
+  bool get isPaused => _handle?.isPaused ?? false;
+  bool get isDone => _handle?.isDone ?? true;
 }
 
 // ── default instance + top-level function ─────────────────────────
 
-final _defaultCountdown = LazyDefault<Countdown>(() => Countdown()); // interval = 1000ms
+final _defaultCountdown =
+    LazyDefault<Countdown>(() => Countdown()); // interval = 1000ms
 
 /// The default [Countdown] instance (interval = 1 s) used by [CountdownWidget]
 /// when no [plugin] is provided. Auto-registered with [Countman] on first access.
 Countdown get defaultCountdown => _defaultCountdown.instance;
 
 /// Add a countdown using the default shared [Countdown] instance.
-CountdownHandle countdown(CountdownOptions opts) =>
-    defaultCountdown.add(opts);
+CountdownHandle countdown(CountdownOptions opts) => defaultCountdown.add(opts);
 
 final _defaultCountdownMs =
     LazyDefault<Countdown>(() => Countdown(name: 'countdown-ms', interval: 0));

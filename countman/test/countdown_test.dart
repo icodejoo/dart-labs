@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:countman/countman.dart';
-import 'package:countman/src/count_down/types.dart' show countdownClock;
 
 // All tests use a fake clock injected via [countdownClock].
 // No Future.delayed — time advances by mutating [_now] and calling tick()
@@ -9,22 +8,16 @@ import 'package:countman/src/count_down/types.dart' show countdownClock;
 
 Widget _wrap(Widget child) => MaterialApp(home: Scaffold(body: child));
 
-/// Advance the fake clock and return the matching dt.
-Duration Function(Duration) _makeAdvance(DateTime Function() getNow, void Function(DateTime) setNow) {
-  return (Duration d) {
-    setNow(getNow().add(d));
-    return d;
-  };
-}
+// 时间推进统一使用下方 advance，移除未调用的重复辅助函数。
 
 void main() {
-  late DateTime _now;
+  late DateTime now;
   late void Function(Duration) advance; // advances _now and returns dt
 
   setUp(() {
-    _now = DateTime(2024, 1, 1, 12, 0, 0);
-    countdownClock = () => _now;
-    advance = (d) => _now = _now.add(d);
+    now = DateTime(2024, 1, 1, 12, 0, 0);
+    countdownClock = () => now;
+    advance = (d) => now = now.add(d);
   });
 
   tearDown(() {

@@ -1,6 +1,7 @@
 import 'package:flutter/widgets.dart';
 
 import 'package:countman/src/core/ticker.dart';
+import 'package:countman/src/core/plugin_base.dart';
 import 'package:countman/src/counter/plugin.dart';
 import 'package:countman/src/count_down/plugin.dart';
 import 'package:countman/src/count_down/types.dart' show DurationFormatter;
@@ -137,7 +138,14 @@ class CountmanScope<P> extends InheritedWidget {
 /// Base state that owns (or borrows) a plugin and wires the group-level
 /// [onGroupReady] / [onAllComplete] callbacks onto it. Concrete providers
 /// implement [createPlugin] and [buildScope].
-abstract class _ProviderStateBase<W extends StatefulWidget, P> extends State<W> {
+abstract class _ProviderStateBase<W extends StatefulWidget,
+    P extends TaskQueuePlugin<CountmanTask>> extends State<W> {
+  // 自建组使用独立名称，保留外部插件按名注册的兼容行为。
+  static int _nextGroupId = 0;
+  String groupName(String family) =>
+      'countman-provider-$family-${_nextGroupId++}';
+  P? _bound;
+  VoidCallback? _unsubscribe;
   // Lazily created when this provider must own a plugin (group callbacks set
   // but no external plugin supplied). Cached for the provider's lifetime.
   P? _owned;
@@ -159,7 +167,7 @@ abstract class _ProviderStateBase<W extends StatefulWidget, P> extends State<W> 
   P createPlugin();
 
   /// Attaches/clears the group callbacks on [plugin].
-  void wire(P? plugin, {required bool clear});
+  VoidCallback? wire(P? plugin);
 
   /// The effective plugin: the external one, else the owned one (may be null).
   P? get effectivePlugin => widgetPlugin ?? _owned;
@@ -167,15 +175,36 @@ abstract class _ProviderStateBase<W extends StatefulWidget, P> extends State<W> 
   @override
   void initState() {
     super.initState();
-    if (widgetPlugin == null && wantsGroupCallbacks) {
-      _owned = createPlugin();
+    _syncPlugin();
+  }
+
+  // 重建时切换订阅；只有自建组由本 Provider 注销，借用组保持可用。
+  void _syncPlugin() {
+    if (widgetPlugin != null && _owned != null) {
+      _unsubscribe?.call();
+      _unsubscribe = null;
+      _bound = null;
+      Countman.unuse(_owned!);
+      _owned = null;
     }
-    wire(effectivePlugin, clear: false);
+    if (widgetPlugin == null && wantsGroupCallbacks) _owned ??= createPlugin();
+    if (!identical(_bound, effectivePlugin)) {
+      _unsubscribe?.call();
+      _bound = effectivePlugin;
+      _unsubscribe = wire(_bound);
+    }
+  }
+
+  @override
+  void didUpdateWidget(covariant W oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    _syncPlugin();
   }
 
   @override
   void dispose() {
-    wire(effectivePlugin, clear: true);
+    _unsubscribe?.call();
+    if (_owned != null) Countman.unuse(_owned!);
     super.dispose();
   }
 }
@@ -252,7 +281,8 @@ class CounterProvider extends StatefulWidget {
   State<CounterProvider> createState() => _CounterProviderState();
 }
 
-class _CounterProviderState extends _ProviderStateBase<CounterProvider, Counter> {
+class _CounterProviderState
+    extends _ProviderStateBase<CounterProvider, Counter> {
   @override
   Counter? get widgetPlugin => widget.plugin;
 
@@ -262,17 +292,17 @@ class _CounterProviderState extends _ProviderStateBase<CounterProvider, Counter>
 
   @override
   Counter createPlugin() {
-    final p = Counter();
+    final p = Counter(name: groupName('counter'));
     Countman.use(p);
     return p;
   }
 
   @override
-  void wire(Counter? plugin, {required bool clear}) {
-    if (plugin == null) return;
-    plugin.onFirstEnqueued = clear ? null : widget.onGroupReady;
-    plugin.onQueueDrained = clear ? null : widget.onAllComplete;
-  }
+  // 闭包读取当前 widget，回调替换无需覆盖其他订阅者。
+  VoidCallback? wire(Counter? plugin) => plugin?.addGroupListener(
+        onReady: () => widget.onGroupReady?.call(),
+        onDrained: () => widget.onAllComplete?.call(),
+      );
 
   @override
   Widget build(BuildContext context) => CountmanScope<Counter>(
@@ -362,7 +392,8 @@ class CountdownProvider extends StatefulWidget {
   State<CountdownProvider> createState() => _CountdownProviderState();
 }
 
-class _CountdownProviderState extends _ProviderStateBase<CountdownProvider, Countdown> {
+class _CountdownProviderState
+    extends _ProviderStateBase<CountdownProvider, Countdown> {
   @override
   Countdown? get widgetPlugin => widget.plugin;
 
@@ -372,17 +403,17 @@ class _CountdownProviderState extends _ProviderStateBase<CountdownProvider, Coun
 
   @override
   Countdown createPlugin() {
-    final p = Countdown();
+    final p = Countdown(name: groupName('countdown'));
     Countman.use(p);
     return p;
   }
 
   @override
-  void wire(Countdown? plugin, {required bool clear}) {
-    if (plugin == null) return;
-    plugin.onFirstEnqueued = clear ? null : widget.onGroupReady;
-    plugin.onQueueDrained = clear ? null : widget.onAllComplete;
-  }
+  // 闭包读取当前 widget，回调替换无需覆盖其他订阅者。
+  VoidCallback? wire(Countdown? plugin) => plugin?.addGroupListener(
+        onReady: () => widget.onGroupReady?.call(),
+        onDrained: () => widget.onAllComplete?.call(),
+      );
 
   @override
   Widget build(BuildContext context) => CountmanScope<Countdown>(
@@ -448,7 +479,8 @@ class ElapsedProvider extends StatefulWidget {
   State<ElapsedProvider> createState() => _ElapsedProviderState();
 }
 
-class _ElapsedProviderState extends _ProviderStateBase<ElapsedProvider, Elapsed> {
+class _ElapsedProviderState
+    extends _ProviderStateBase<ElapsedProvider, Elapsed> {
   @override
   Elapsed? get widgetPlugin => widget.plugin;
 
@@ -458,17 +490,17 @@ class _ElapsedProviderState extends _ProviderStateBase<ElapsedProvider, Elapsed>
 
   @override
   Elapsed createPlugin() {
-    final p = Elapsed();
+    final p = Elapsed(name: groupName('elapsed'));
     Countman.use(p);
     return p;
   }
 
   @override
-  void wire(Elapsed? plugin, {required bool clear}) {
-    if (plugin == null) return;
-    plugin.onFirstEnqueued = clear ? null : widget.onGroupReady;
-    plugin.onQueueDrained = clear ? null : widget.onAllComplete;
-  }
+  // 闭包读取当前 widget，回调替换无需覆盖其他订阅者。
+  VoidCallback? wire(Elapsed? plugin) => plugin?.addGroupListener(
+        onReady: () => widget.onGroupReady?.call(),
+        onDrained: () => widget.onAllComplete?.call(),
+      );
 
   @override
   Widget build(BuildContext context) => CountmanScope<Elapsed>(

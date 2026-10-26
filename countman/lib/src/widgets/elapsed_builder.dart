@@ -44,7 +44,8 @@ class ElapsedBuilder extends StatefulWidget {
   ///
   /// 每 tick 调用，携带经过时间 [TimeParts] 和透传的 [child]。更新频率由 [plugin]
   /// 上的 [Elapsed.interval] 决定。
-  final Widget Function(BuildContext context, TimeParts parts, Widget? child) builder;
+  final Widget Function(BuildContext context, TimeParts parts, Widget? child)
+      builder;
 
   /// Value-independent subtree passed through to [builder] unchanged each tick,
   /// so the per-tick rebuild can skip it (standard `AnimatedBuilder` child).
@@ -134,13 +135,14 @@ class _ElapsedBuilderState extends State<ElapsedBuilder> {
         _rev.value++;
         widget.onTick?.call(p);
       },
+      // 事件转发到当前配置，替换回调不重置已有时间。
       threshold: widget.threshold,
-      onThreshold: widget.onThreshold,
-      onReady: widget.onReady,
-      onStart: widget.onStart,
-      onCancel: widget.onCancel,
-      onPause: widget.onPause,
-      onResume: widget.onResume,
+      onThreshold: () => widget.onThreshold?.call(),
+      onReady: () => widget.onReady?.call(),
+      onStart: () => widget.onStart?.call(),
+      onCancel: () => widget.onCancel?.call(),
+      onPause: () => widget.onPause?.call(),
+      onResume: () => widget.onResume?.call(),
     ));
     widget.controller?.attach(_handle!);
   }
@@ -148,6 +150,8 @@ class _ElapsedBuilderState extends State<ElapsedBuilder> {
   @override
   void didUpdateWidget(ElapsedBuilder old) {
     super.didUpdateWidget(old);
+    // 动态阈值单独更新，避免为配置变化重建任务。
+    _handle?.updateThreshold(widget.threshold);
     if (widget.plugin != old.plugin ||
         widget.precise != old.precise ||
         widget.controller != old.controller) {

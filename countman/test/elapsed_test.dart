@@ -2,24 +2,24 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:countman/countman.dart';
 
-// Same fake-clock approach as countdown_test.dart — countdownClock is shared
-// by Countdown and Elapsed (both are wall-clock engines), so no separate
-// injectable clock was needed for this feature.
+// 秒表测试独立注入单调时间，墙钟由倒计时测试覆盖。
 
 Widget _wrap(Widget child) => MaterialApp(home: Scaffold(body: child));
 
 void main() {
-  late DateTime now;
+  late Duration now;
+  late Duration Function() originalClock;
   late void Function(Duration) advance;
 
   setUp(() {
-    now = DateTime(2024, 1, 1, 12, 0, 0);
-    countdownClock = () => now;
-    advance = (d) => now = now.add(d);
+    now = Duration.zero;
+    originalClock = elapsedClock;
+    elapsedClock = () => now;
+    advance = (d) => now += d;
   });
 
   tearDown(() {
-    countdownClock = DateTime.now;
+    elapsedClock = originalClock;
   });
 
   // ── Elapsed.tick() direct unit tests ──────────────────────────────────────
