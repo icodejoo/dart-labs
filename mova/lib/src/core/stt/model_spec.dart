@@ -24,18 +24,18 @@ class MovaSttModelFile {
   /// 下载该文件的 URL。
   final Uri url;
 
-  /// Expected SHA-256 hex digest, if known; when set, a cached file with a
-  /// mismatching digest is re-downloaded rather than trusted.
+  /// Expected SHA-256 hex digest, informational only: mova does not verify it.
+  /// The legitimacy of a model's source is the host's responsibility; the
+  /// loader only downloads and reports failures.
   ///
-  /// 已知的 SHA-256 十六进制摘要；设置时，已缓存文件摘要不匹配会被重新下载，
-  /// 而不是被直接信任。
+  /// 预期的 SHA-256 十六进制摘要，仅作信息记录：mova 不校验它。模型来源是否合法
+  /// 由宿主自行保证，加载器只负责下载并报告失败。
   final String? sha256;
 
-  /// Expected size in bytes, if known; used only as a cheap pre-check before
-  /// hashing (or in place of hashing when [sha256] is not set).
+  /// Expected size in bytes, if known; a cached file whose size matches is
+  /// reused instead of downloaded again.
   ///
-  /// 已知的预期字节数；仅作为哈希校验前的廉价预检（或在未设置 [sha256] 时
-  /// 代替哈希校验）。
+  /// 已知的预期字节数；已缓存文件大小与之相符时直接复用，不再重新下载。
   final int? sizeBytes;
 }
 
