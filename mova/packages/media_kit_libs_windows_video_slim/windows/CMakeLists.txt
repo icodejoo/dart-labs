@@ -89,12 +89,10 @@ message(STATUS "[mova slim] Using ${CUSTOM_LIBMPV_DLL}")
 # media_kit_libs_windows_video downloads a 7z that already contains all
 # three (dll + .dll.a + headers) into that exact path. We don't have an
 # equivalent archive, so assemble the same directory shape ourselves from:
-#   - windows-devlib/libmpv.dll.a — generated once via `gendef` + `dlltool`
-#     against libmpv/windows-x86_64-whep/libmpv-2.dll's export table (regenerate
-#     if that DLL is rebuilt with a different symbol set).
-#   - mpv-headers/*.h — mpv's public libmpv/*.h at the exact commit pinned
-#     in build-mova-libmpv.yml's windows job (78d43740f52db817d98bcf24fb30a76ab6fa13ff),
-#     so the ABI these headers declare matches the shipped DLL.
+#   - libmpv/windows-x86_64-whep/libmpv.dll.a — import lib shipped next to the
+#     DLL by the WHEP build, so its export table always matches.
+#   - mpv-headers/*.h — mpv v0.41.0's public libmpv/*.h (client API 2.5), the
+#     same version the shipped DLL is built from (keep in sync on mpv bumps).
 set(MOVA_LIBMPV_HEADERS_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../mpv-headers")
 set(LIBMPV_SRC "${CMAKE_BINARY_DIR}/libmpv")
 
