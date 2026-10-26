@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:dio/dio.dart';
 import 'package:dioman/src/breaker_plugin.dart';
@@ -9,6 +10,7 @@ import 'package:dioman/src/loading_plugin.dart';
 import 'package:dioman/src/mock_plugin.dart';
 import 'package:dioman/src/offline_plugin.dart';
 import 'package:dioman/src/repath_plugin.dart';
+import 'package:dioman/src/share_plugin.dart';
 import 'package:test/test.dart';
 
 /// 测试请求路径。
@@ -55,6 +57,29 @@ const _dataField = 'data';
 
 /// 持久化过期字段。
 const _expiryField = 'expiresAt';
+
+/// 账号 A 的非敏感缓存作用域。
+const _accountA = 'account-a';
+
+/// 账号 B 的非敏感缓存作用域。
+const _accountB = 'account-b';
+
+/// 异步隔离用例的最大等待时间。
+const _namespaceTimeout = Duration(seconds: 2);
+
+/// 旧深度键中的空查询编码。
+const _emptyQueryKey = '{}';
+
+/// 生成指定插件和单请求配置对应的键。
+String _namespacedKey(DiomanKey plugin, {DiomanKeyOptions? override}) {
+  final options = RequestOptions(
+      path: _path,
+      extra: {if (override != null) DiomanKey.pluginName: override});
+  final handler = _RequestHandler();
+  plugin.onRequest(options, handler);
+  expect(handler.calls, 1);
+  return options.extra[kKey] as String;
+}
 
 /// 等待异步入口完成。
 Future<void> _pump() => Future<void>.delayed(Duration.zero);
@@ -203,6 +228,155 @@ String _requestKey(RequestOptions options) {
 
 /// 定向回归用例。
 void main() {
+  group('key namespace', () {
+    test('isolates every key source and evaluates namespace once per key', () {
+      for (final fastMode in [false, true]) {
+        for (final override in [
+          null,
+          const DiomanKeyOptions(key: _key),
+          DiomanKeyOptions(builder: (_) => _key),
+        ]) {
+          var account = _accountA;
+          var calls = 0;
+          final plugin = DiomanKey(
+              fastMode: fastMode,
+              namespace: () {
+                calls++;
+                return account;
+              });
+          final first = _namespacedKey(plugin, override: override);
+          expect(_namespacedKey(plugin, override: override), first);
+          account = _accountB;
+          expect(_namespacedKey(plugin, override: override), isNot(first));
+          expect(calls, 3);
+        }
+      }
+      final first = _namespacedKey(DiomanKey(namespace: () => _accountA));
+      expect(jsonDecode(first), [_route, _emptyQueryKey, null, _accountA]);
+      expect(_namespacedKey(DiomanKey(namespace: () => '["$_accountA",null]')),
+          isNot(first));
+    });
+
+    test('absent null and empty namespaces preserve exact legacy keys', () {
+      for (final fastMode in [false, true]) {
+        final legacy =
+            fastMode ? _route : jsonEncode([_route, _emptyQueryKey, null]);
+        expect(_namespacedKey(DiomanKey(fastMode: fastMode)), legacy);
+        for (final namespace in [null, '']) {
+          final plugin =
+              DiomanKey(fastMode: fastMode, namespace: () => namespace);
+          expect(_namespacedKey(plugin), legacy);
+          expect(
+              _namespacedKey(plugin,
+                  override: const DiomanKeyOptions(key: _key)),
+              _key);
+          expect(
+              _namespacedKey(plugin,
+                  override: DiomanKeyOptions(builder: (_) => _key)),
+              _key);
+        }
+      }
+    });
+
+    test('same account hits cache and account switches retain isolated entries',
+        () async {
+      for (final policy in [
+        DiomanCachePolicy.memo,
+        DiomanCachePolicy.persist,
+        DiomanCachePolicy.both,
+      ]) {
+        var account = _accountA;
+        var networkCalls = 0;
+        final dio = Dio();
+        addTearDown(dio.close);
+        dio.interceptors.addAll([
+          DiomanKey(namespace: () => account),
+          DiomanCache(persist: _Persist(), cachePolicy: policy),
+          InterceptorsWrapper(onRequest: (options, handler) {
+            networkCalls++;
+            handler.resolve(
+                Response(
+                    requestOptions: options, statusCode: 200, data: account),
+                true);
+          }),
+        ]);
+        expect((await dio.get<String>(_path)).data, _accountA);
+        expect((await dio.get<String>(_path)).data, _accountA);
+        expect(networkCalls, 1);
+        account = _accountB;
+        expect((await dio.get<String>(_path)).data, _accountB);
+        expect((await dio.get<String>(_path)).data, _accountB);
+        expect(networkCalls, 2);
+        account = _accountA;
+        expect((await dio.get<String>(_path)).data, _accountA);
+        expect(networkCalls, 2);
+      }
+    });
+
+    test('account switch does not join another accounts in-flight share',
+        () async {
+      var account = _accountA;
+      final enteredA = Completer<void>();
+      final enteredB = Completer<void>();
+      final gateA = Completer<void>();
+      final gateB = Completer<void>();
+      final dio = Dio();
+      addTearDown(() {
+        if (!gateA.isCompleted) gateA.complete();
+        if (!gateB.isCompleted) gateB.complete();
+        dio.close();
+      });
+      dio.interceptors.addAll([
+        DiomanKey(namespace: () => account),
+        DiomanShare(),
+        InterceptorsWrapper(onRequest: (options, handler) async {
+          final owner = account;
+          (owner == _accountA ? enteredA : enteredB).complete();
+          await (owner == _accountA ? gateA : gateB).future;
+          handler.resolve(
+              Response(requestOptions: options, statusCode: 200, data: owner),
+              true);
+        }),
+      ]);
+      final first = dio.get<String>(_path);
+      await enteredA.future.timeout(_namespaceTimeout);
+      account = _accountB;
+      final second = dio.get<String>(_path);
+      await enteredB.future.timeout(_namespaceTimeout);
+      gateB.complete();
+      expect((await second.timeout(_namespaceTimeout)).data, _accountB);
+      gateA.complete();
+      expect((await first.timeout(_namespaceTimeout)).data, _accountA);
+    });
+
+    test('namespace failures reject once and reach Dio without hanging',
+        () async {
+      final cause = StateError(_accountA);
+      final plugin = DiomanKey(namespace: () => throw cause);
+      final handler = _RequestHandler();
+      plugin.onRequest(_options(), handler);
+      expect(handler.calls, 1);
+      expect(handler.error?.error, same(cause));
+      expect(handler.error?.stackTrace, isNotNull);
+      final dio = Dio()..interceptors.add(plugin);
+      addTearDown(dio.close);
+      await expectLater(
+          dio.get<dynamic>(_path).timeout(_namespaceTimeout),
+          throwsA(isA<DioException>()
+              .having((error) => error.error, 'cause', same(cause))));
+    });
+
+    test('disabled requests do not evaluate namespace', () {
+      final plugin = DiomanKey(namespace: () => throw StateError(_accountA));
+      final options = _options()
+        ..extra[DiomanKey.pluginName] = const DiomanKeyOptions(enabled: false);
+      final handler = _RequestHandler();
+      plugin.onRequest(options, handler);
+      expect(handler.calls, 1);
+      expect(handler.error, isNull);
+    });
+  });
+
   test('persistence errors reach Dio caller and release loading bracket',
       () async {
     final persist = _Persist();

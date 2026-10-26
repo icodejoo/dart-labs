@@ -1,5 +1,6 @@
 ## Unreleased
 
+- Feature: add optional `DiomanKey(namespace: () => currentAccountId)` to isolate cache and in-flight share keys by account, including explicit/custom keys. Non-empty namespaces are encoded as separate fields; unset/null/empty namespaces preserve existing keys. Callback failures reject with `DioException`.
 - Fix request keys to include origin and merged URL queries, with separate query/body encoding.
 - Fix cache/mock exception exits, await and serialize cache persistence, invalidate stale reads/responses, enforce capacity on hydration, and isolate inserted data with the clone policy.
 - Remove canceled offline entries and release canceled breaker probes using recovery-window credentials.
@@ -16,6 +17,7 @@
 - Fix `DiomanAuth`: exceptions thrown by `isProtected`/`expiresAt`/`now`/`buildHeader` in the request stage become a `DioException` (handler completes exactly once, claim released) instead of hanging on dio versions that do not observe async interceptor futures; waiting on a refresh (request entry or 401 replay) races the request's `CancelToken`, so a cancelled request completes and releases its claim without waiting for the shared refresh, which keeps running.
 - Fix `DiomanCache`: clearing an expired entry after a slow persistent read is now compare-and-delete (matching the entry's `expiresAt`), so it can no longer delete a fresher entry written for the same key in the meantime.
 - Known limitations: a recovered result handed to a downstream `QueuedInterceptor` calls its `onResponse` directly and so bypasses that interceptor's own serialization queue; reusing one `CancelToken` across many requests accumulates a cancel listener per back-off/refresh wait (released when the token is garbage collected or cancelled). Narrow `share` `end`/`race` corner cases remain: (1) a mock short-circuit failure combined with `retry` can leave the leader recovered while joined followers keep the original failure; (2) a `shouldRetry`/`delay`/`onRetry`/auth callback that throws bypasses the final loser arbitration; (3) `cancelAll()` cannot reach a caller that is only waiting for the winner's result.
+- Feature: `DiomanBreaker` now reclaims idle buckets lazily (on new-bucket creation, no timer). New optional `idleTtl` (default 1 hour) and `maxBuckets` (soft cap, default 1000) apply only to closed buckets with zero failure count and no in-flight request; open/halfOpen/in-flight/failing buckets are never reclaimed, so recovery-window credentials are unaffected. Also adds `bucketCount` and an injectable `clock` for tests.
 
 ## 0.7.0
 

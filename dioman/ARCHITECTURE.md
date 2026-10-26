@@ -67,6 +67,8 @@ dio.interceptors
 ```
 - `DiomanKey` 写入 `extra[kKey]`；默认键包含方法、origin、路径和规范化后的 query/body。
 - URL query 与 queryParameters 合并；query/body 分字段编码，非结构化 body 使用对象身份。
+- 可选 `DiomanKey(namespace: () => currentAccountId)` 每次启用的请求生成键时取一次账号作用域；非空结果以独立 JSON 字段加入 deep/fast/自定义键，防止跨账号命中缓存或加入旧在途 share 请求。使用非敏感账号标识，不要返回明文 token。
+- namespace 未配置、返回 null/空串时保留原键；回调异常转 DioException 并完成一次请求出口。账号作用域由插件统一提供，不增加 DiomanKeyOptions 单请求覆盖；旧缓存及在途请求仍持有原键，不自动清空或取消。
 - 内存插入与持久化回填统一执行 LRU 容量淘汰；deep 策略在入库边界隔离首次响应。
 - 持久化变更串行等待，读写错误经 DioException 返回；`await cache.clear()` 和 `await cache.remove(key)` 可等待落盘完成。
 - 清理代次阻止旧读取及旧响应回填；单请求 maxEntries 已弃用，容量在插件构造时设置。

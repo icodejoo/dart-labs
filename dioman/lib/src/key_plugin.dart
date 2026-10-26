@@ -88,12 +88,18 @@ class DiomanKeyOptions {
 /// dio.get('/list', options: Options(extra: {'dioman:qid': const DiomanKeyOptions(enabled: false)})); // skip
 /// ```
 class DiomanKey extends DiomanPlugin {
-  /// 创建插件实例。
+  /// Creates a key plugin; [namespace] optionally isolates accounts on every key.
+  ///
+  /// 创建请求键插件。[fastMode]选择快速模式，[ignores]排除字段，
+  /// [enabled]控制启用，[builder]替换基础键；[namespace]每次生成键调用一次，
+  /// 非空返回值独立编码进键，null/空串保留旧键。返回插件实例。
+  /// 示例：`DiomanKey(namespace: () => currentAccountId)`。
   const DiomanKey({
     this.fastMode = false,
     this.ignores = const [],
     this.enabled = true,
     this.builder,
+    this.namespace,
   });
 
   /// If true, use only `METHOD:origin/path` as the key (fastest).
@@ -120,6 +126,21 @@ class DiomanKey extends DiomanPlugin {
   /// [DiomanKeyOptions.builder]按请求覆盖。
   final String Function(RequestOptions)? builder;
 
+  /// Optional account scope, evaluated once per enabled request, including
+  /// explicit keys and custom builders. Takes no arguments; returns a separate
+  /// JSON-encoded field when non-empty. Null/empty preserves the exact old key.
+  /// Exceptions reject the request as a [DioException]. Never return raw tokens.
+  ///
+  /// 可选账号作用域，无参数；每次启用的请求生成键时调用一次，包括指定key和
+  /// 自定义builder。非空返回值作为独立JSON字段编码，null/空串保留原键。
+  /// 抛错转为[DioException]拒绝请求。请返回非敏感账号标识，不要返回明文token。
+  /// 不提供单请求覆盖，以便同一Dio统一使用当前账号作用域。
+  ///
+  /// ```dart
+  /// final key = DiomanKey(namespace: () => currentAccountId);
+  /// ```
+  final String? Function()? namespace;
+
   /// Public plugin name / extra key for this plugin, accessible without an instance.
   ///
   /// 插件名 / extra键，无需实例即可访问。
@@ -139,25 +160,34 @@ class DiomanKey extends DiomanPlugin {
     final $enabled = o?.enabled ?? enabled;
     if (!$enabled) return handler.next(options);
 
-    if (o?.key != null && o!.key!.isNotEmpty) {
-      options.extra[kKey] = o.key;
-      return handler.next(options);
+    try {
+      final $namespace = namespace?.call();
+      final $builder = o?.builder ?? builder;
+      if (o?.key != null && o!.key!.isNotEmpty) {
+        options.extra[kKey] = _scopedKey(o.key!, $namespace);
+      } else if ($builder != null) {
+        options.extra[kKey] = _scopedKey($builder(options), $namespace);
+      } else {
+        final $fastMode = o?.fastMode ?? fastMode;
+        final $ignores = _merge(ignores, o?.ignores);
+        options.extra[kKey] = $fastMode
+            ? _scopedKey(_fastKey(options), $namespace)
+            : _deepKey(options, $ignores, $namespace);
+      }
+    } catch (error, stackTrace) {
+      return handler.reject(
+        error is DioException
+            ? error
+            : DioException(
+                requestOptions: options, error: error, stackTrace: stackTrace),
+      );
     }
-
-    final $builder = o?.builder ?? builder;
-    if ($builder != null) {
-      options.extra[kKey] = $builder(options);
-      return handler.next(options);
-    }
-
-    final $fastMode = o?.fastMode ?? fastMode;
-    final $ignores = _merge(ignores, o?.ignores);
-
-    options.extra[kKey] =
-        $fastMode ? _fastKey(options) : _deepKey(options, $ignores);
-
     handler.next(options);
   }
+
+  /// 为快速键或自定义键增加独立作用域字段，空作用域保持原键。
+  static String _scopedKey(String key, String? scope) =>
+      scope == null || scope.isEmpty ? key : jsonEncode([key, scope]);
 
   /// Merges [override] into [base] (union), or returns [base] unchanged when
   /// [override] is `null`.
@@ -171,7 +201,7 @@ class DiomanKey extends DiomanPlugin {
       '${o.method.toUpperCase()}:${o.uri.hasAuthority ? o.uri.origin : ''}${o.uri.path}';
 
   /// 分字段编码规范化查询及请求体，保留非结构化对象的身份。
-  String _deepKey(RequestOptions o, List<String> ignoreKeys) {
+  String _deepKey(RequestOptions o, List<String> ignoreKeys, String? scope) {
     final uri = o.uri;
     final params = <String, dynamic>{
       for (final e in uri.queryParametersAll.entries)
@@ -191,7 +221,12 @@ class DiomanKey extends DiomanPlugin {
     } else if (data != null) {
       body = {'identity': identityHashCode(data)};
     }
-    return jsonEncode([_fastKey(o), _encode(params), body]);
+    return jsonEncode([
+      _fastKey(o),
+      _encode(params),
+      body,
+      if (scope != null && scope.isNotEmpty) scope,
+    ]);
   }
 
   /// 对字段排序后编码，无法序列化时保留字符串表示。

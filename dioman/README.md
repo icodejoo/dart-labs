@@ -256,9 +256,21 @@ Path substitutions snapshot values before removing fields, encode each value as 
 
 ### DiomanKey
 
-`DiomanKey({bool fastMode = false, List<String> ignores = const [], bool enabled = true, String Function(RequestOptions)? builder})` — writes `extra[kKey]` (fixed, cross-plugin protocol key — `'dioman:key'`). `fastMode` → `METHOD:origin/path`; default (`fastMode: false`, deep) also folds sorted query params and body — `ignores` excludes names from both. Override per request with `extra['dioman:qid'] = const DiomanKeyOptions(key: '...')` (or `enabled: false` to skip).
+`DiomanKey({bool fastMode = false, List<String> ignores = const [], bool enabled = true, String Function(RequestOptions)? builder, String? Function()? namespace})` — writes `extra[kKey]` (fixed, cross-plugin protocol key — `'dioman:key'`). `fastMode` → `METHOD:origin/path`; default (`fastMode: false`, deep) also folds sorted query params and body — `ignores` excludes names from both. Override per request with `extra['dioman:qid'] = const DiomanKeyOptions(key: '...')` (or `enabled: false` to skip).
 
 Deep keys normalize the merged URL query and `queryParameters`, include the origin, and encode query/body separately. Opaque bodies retain object identity.
+
+For account isolation on a shared Dio, pass `namespace`. It is called once whenever an enabled request generates a key. A non-empty result becomes a separate JSON-encoded field alongside the existing key fields, including in fast mode and with explicit keys/custom builders. Unset, `null`, or empty results preserve the exact existing keys. Callback exceptions reject with a `DioException`.
+
+```dart
+// Use non-sensitive account IDs (or an opaque session ID), never raw tokens.
+String? currentAccountId = 'account-a';
+dio.interceptors.add(DiomanKey(namespace: () => currentAccountId));
+// Install cache/share after key. Switching accounts changes subsequent keys.
+currentAccountId = 'account-b';
+```
+
+`DiomanKeyOptions` has no namespace override: the plugin callback keeps the account scope consistent for this Dio, and still scopes per-request `key`/`builder` overrides. Switching accounts leaves old cache entries and in-flight requests under their original keys; it does not clear or cancel them. If guests must also be isolated, return a non-empty guest scope.
 
 ### DiomanNormalize — optional, business-specific, install LAST
 

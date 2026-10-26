@@ -222,9 +222,21 @@ final timeout = DiomanTimeout(
 
 ### DiomanKey
 
-`DiomanKey({bool fastMode = false, List<String> ignores = const [], bool enabled = true, String Function(RequestOptions)? builder})`——写入 `extra[kKey]`（固定的跨插件协议 key，值为 `'dioman:key'`）。`fastMode` → `METHOD:origin/path`；默认（`fastMode: false`，deep）还会拼入排序后的 query 与 body——`ignores` 同时从两者中排除指定名字。可用 `extra['dioman:qid'] = const DiomanKeyOptions(key: '...')` 单请求覆盖（或 `enabled: false` 跳过）。
+`DiomanKey({bool fastMode = false, List<String> ignores = const [], bool enabled = true, String Function(RequestOptions)? builder, String? Function()? namespace})`——写入 `extra[kKey]`（固定的跨插件协议 key，值为 `'dioman:key'`）。`fastMode` → `METHOD:origin/path`；默认（`fastMode: false`，deep）还会拼入排序后的 query 与 body——`ignores` 同时从两者中排除指定名字。可用 `extra['dioman:qid'] = const DiomanKeyOptions(key: '...')` 单请求覆盖（或 `enabled: false` 跳过）。
 
 deep key 合并 URL 内 query 与 `queryParameters` 后规范化，包含 origin，并分字段编码 query/body；非结构化 body 保留对象身份。
+
+同一个 Dio 复用到不同账号时，可通过 `namespace` 隔离缓存与去重。每个启用的请求生成键时调用一次；非空返回值作为独立 JSON 字段与原键字段一起编码，快速模式、指定 key 和自定义 builder 也适用。未设置、返回 `null` 或空串时，键与旧版本完全一致；回调抛异常时以 `DioException` 拒绝请求。
+
+```dart
+// 使用非敏感账号标识或不透明会话标识，不要返回明文 token。
+String? currentAccountId = 'account-a';
+dio.interceptors.add(DiomanKey(namespace: () => currentAccountId));
+// cache/share 装在 key 后面；切换账号后，后续请求自然生成不同的键。
+currentAccountId = 'account-b';
+```
+
+`DiomanKeyOptions` 不新增 namespace 覆盖：通过插件回调统一提供该 Dio 的账号作用域，单请求的 `key`/`builder` 覆盖仍受作用域隔离。切换账号后，旧缓存与在途请求保留原键，不会自动清空或取消。若匿名请求也需隔离，请返回非空的访客作用域。
 
 ### DiomanNormalize——可选、跟业务相关，装在最后
 
