@@ -1,4 +1,4 @@
-## Unreleased
+## 0.1.1
 
 - Add pluggable storage: `XlruStore` (sync) and `XlruAsyncStore` (async)
   interfaces, the in-memory `XlruMemoryStore`, and `XlruStoreAsAsync.asAsync()`
