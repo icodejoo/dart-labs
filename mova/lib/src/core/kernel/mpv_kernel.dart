@@ -126,14 +126,14 @@ class MovaMpvKernel
   /// [tlsVerify] turns on strict TLS certificate verification (mpv
   /// `tls-verify=yes`): expired / self-signed / hostname-mismatched HTTPS
   /// streams are rejected. Default `false` sends no TLS property at all
-  /// (libmpv's own default applies; on Android that means no verification).
+  /// (libmpv's own default applies; with mbedtls that means no verification).
   /// [tlsCaFile] is an absolute path to a PEM CA bundle sent as `tls-ca-file`;
   /// only used when [tlsVerify] is true. Android's mbedtls backend has no
   /// system trust store, so verification there needs this file.
   ///
   /// [tlsVerify] 开启严格 TLS 证书校验（mpv `tls-verify=yes`）：过期/自签/域名不符
   /// 的 HTTPS 流会被拒绝。默认 `false`，不下发任何 TLS 属性（沿用 libmpv 自身默认，
-  /// Android 上即不校验）。[tlsCaFile] 为 PEM 格式 CA 证书包的绝对路径，以
+  /// mbedtls 后端上即不校验）。[tlsCaFile] 为 PEM 格式 CA 证书包的绝对路径，以
   /// `tls-ca-file` 下发，仅在 [tlsVerify] 为 true 时生效。Android 的 mbedtls 后端
   /// 没有系统信任库，要校验就需要这个文件。
   MovaMpvKernel({

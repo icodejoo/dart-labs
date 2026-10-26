@@ -1,6 +1,6 @@
 # iOS / macOS WHEP 版 libmpv 构建方案（架构设计）
 
-> 日期：2026-10-26　｜　状态：**设计稿，一行构建代码未改**　｜　范围：iOS arm64、macOS arm64 / x86_64 / universal
+> 日期：2026-10-26　｜　状态：**已落地**（方案 A：静态 mbedtls + Nix overlay；CI 全绿，见 README 顶部"Apple n9 要点"。下文是落地前的设计稿，Q1-Q11 已按"n6 废弃、一切以 n9 为准"定案：Q1=a Q2=a Q3=a Q4=b（模拟器 arm64+x86_64）Q5=c（直接替换 slim 包）Q6=a Q7=a Q8=b Q9=要 PrivacyInfo Q10=b Q11=c）　｜　范围：iOS arm64、iOS 模拟器、macOS arm64 / x86_64 / universal
 >
 > 目标：让 Apple 平台产出和 Windows / Android **同一条线**的 WHEP 版 libmpv：ffmpeg n9.0.2 + `patches/ffmpeg-whep` 0001–0012（whep demuxer + DTLS-SRTP）+ mpv v0.41.0 + `patches/mpv-v041`。
 >

@@ -814,7 +814,7 @@ dependency_overrides:
 
 ### iOS / macOS
 
-**⚠️ 结构已落地，但完全未经验证（没有 Mac，无法构建/签名/真机测试）**：
+**CI 已验证到编译、链接与 WHEP 端到端冒烟；iOS 真机起播未验证（见本节末）**：
 
 ```yaml
 dependency_overrides:
@@ -830,19 +830,25 @@ dependency_overrides:
       ref: main
 ```
 
-`packages/media_kit_libs_ios_video_slim` 与 `_macos_video_slim` 两个 fork 包已经
-提交了 `Frameworks/Mpv.xcframework`（用 mova-libmpv 的 `libmpv.dylib` 手工拼出
-`Mpv.framework` 的目录结构——`Info.plist`/`Modules/module.modulemap`/`Headers/`），
-podspec 用 `prepare_command` 在 `pod install` 时跑官方同款
-`create_framework_symlinks.sh`（MIT，未改动）生成符号链接，不再走官方那套
-下载 xcframework 归档的 `make` 流程。
+`packages/media_kit_libs_ios_video_slim` 与 `_macos_video_slim` 两个 fork 包里的
+`Frameworks/Mpv.xcframework` 由 CI（`build-mova-libmpv-whep.yml` 的 `apple-whep` +
+`apple-package`）直接编译并回写（LFS），是 n9 线的 WHEP 版 libmpv：ffmpeg n9.0.2 + WHEP/DTLS-SRTP
++ mpv v0.41.0，单文件静态，只依赖系统库。iOS 为真机 arm64 + 模拟器 arm64/x86_64，macOS 为
+arm64 + x86_64 的 universal；`install name` 为 `@rpath/Mpv.framework/Mpv`，最低版本 iOS 13 / macOS 10.15。
+podspec 里**没有 `prepare_command`**（CocoaPods 对 `:path` pod 不执行它），`Frameworks/.symlinks/mpv`
+由 podspec 求值时生成（已 `.gitignore`）。
 
-**这些文件是在没有 Xcode 工具链（`otool`/`install_name_tool`/`xcodebuild`/`lipo`）
-的 Windows 机器上手工拼装的**，从未跑过 `pod install`，也从未真机验证过——dylib
-的 `LC_ID_DYLIB`/依赖路径是否符合 framework 内部约定（`@rpath/Mpv.framework/Mpv`）
-完全未经确认，`macos-universal/libmpv.dylib` 是否真的是 arm64+x86_64 fat binary
-也未用 `lipo` 核实过。**接入前请先在 Mac 上完整走一遍 `pod install` +
-`flutter build ios`/`flutter build macos` + 真机播放，不要直接用于生产。**
+**TLS 行为变化**：Apple 版 libmpv 的 TLS/DTLS 全部走静态 mbedtls（securetransport 做不了 DTLS-SRTP），
+所以与 Android 一样：`tlsVerify` 为 true 时必须同时给 `tlsCaFile`（读不了系统钥匙串）；
+mbedtls 3.4 不匹配证书 SAN 里的 IP 地址，IP 字面量主机名的 https 在校验开启时必然失败，请用域名。
+ffmpeg 因此为 `--enable-version3`，整体 **LGPLv3**。
+
+**宿主 App 需要自己做的**：`NSLocalNetworkUsageDescription`（WHEP 连局域网地址时 iOS 14+ 会弹本地网络权限）；
+macOS 沙盒需要 `com.apple.security.network.client`；macOS 的 Developer ID 签名/公证、iOS 签名由宿主 App
+嵌入 framework 时完成（包内只做了 ad-hoc 签名）；App Store 出口合规问卷从"只用系统加密"变成"自带 mbedtls"，请自行确认。
+
+**仍未验证（CI 做不了）**：iOS 真机起播与 VideoToolbox 硬解（runner 上 `hwdec-current` 是 no）、前后台切换、
+真机的本地网络权限弹窗。
 详见 [doc/plans/2026-09-25-libmpv-pub-package.md](doc/plans/2026-09-25-libmpv-pub-package.md)
 「Darwin（iOS/macOS）同名替换设计」一节；欢迎有 Mac 环境的贡献者验证并回填结论。
 

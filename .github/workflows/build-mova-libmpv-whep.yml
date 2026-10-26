@@ -2,7 +2,7 @@ name: Build mova libmpv WHEP
 
 # WHEP 版 libmpv（ffmpeg n9.0.2 + whep demuxer + DTLS-SRTP，mpv v0.41.0）。
 # 本 workflow 是 main 的正式 libmpv 构建（全平台以 n9 为主，n6 产物已从仓库移除）。
-# 旧配方 build-mova-libmpv.yml（ffmpeg n6.0.1）仅作 Apple 平台移植参考，待 n9 的 Apple 构建落地后删除。
+# 旧 n6 配方 build-mova-libmpv.yml 已删除（全平台以 n9 为准）。
 # 二进制不在本地入库，由本 workflow 编译后注入（沿用 "fetch+reset 重试 / 先 git lfs push / 再 push" 模式）：
 #   - Android 四 ABI（arm64-v8a / armeabi-v7a / x86_64 / x86，矩阵构建）
 #       -> mova/packages/media_kit_libs_android_video_slim_v041/android/src/main/jniLibs/<abi>/
@@ -786,7 +786,8 @@ jobs:
             mkdir -p "$IOS_PKG_FRAMEWORKS" "$MACOS_PKG_FRAMEWORKS"
             cp -a "$RUNNER_TEMP/stage/ios.xcframework" "$IOS_PKG_FRAMEWORKS/Mpv.xcframework"
             cp -a "$RUNNER_TEMP/stage/macos.xcframework" "$MACOS_PKG_FRAMEWORKS/Mpv.xcframework"
-            git add -A -f "$IOS_PKG_FRAMEWORKS" "$MACOS_PKG_FRAMEWORKS"
+            # 只加 xcframework：同目录下 podspec/pod install 生成的 .symlinks 不能进库
+            git add -A -f "$IOS_PKG_FRAMEWORKS/Mpv.xcframework" "$MACOS_PKG_FRAMEWORKS/Mpv.xcframework"
             if git diff --cached --quiet; then
               echo "No content change, skip commit"
               exit 0
