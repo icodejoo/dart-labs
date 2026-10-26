@@ -1111,7 +1111,6 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 async
 collection
 stream_channel
-typed_data
 
 Copyright 2015, the Dart project authors. 
 
