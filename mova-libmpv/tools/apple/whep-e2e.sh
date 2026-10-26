@@ -17,7 +17,7 @@ FAILS=()
 pass() { echo "PASS  $*"; }
 flunk() { echo "::error::FAIL  $*"; FAILS+=("$*"); }
 PIDS=()
-cleanup() { for p in "${PIDS[@]:-}"; do [ -n "$p" ] && kill "$p" 2>/dev/null; done; wait 2>/dev/null; }
+cleanup() { for p in "${PIDS[@]:-}"; do [ -n "$p" ] && kill "$p" 2>/dev/null; done; pkill -f "rtsp://127.0.0.1:8554/test" 2>/dev/null; wait 2>/dev/null; }
 trap cleanup EXIT
 
 # ---- 1. 编译冒烟程序，链接到被测二进制 ----
@@ -64,14 +64,28 @@ nc -z 127.0.0.1 8889 || { echo "::error::MediaMTX 没起来"; cat mtx.log; exit 
 
 command -v ffmpeg >/dev/null || { echo "brew install ffmpeg ..."; HOMEBREW_NO_AUTO_UPDATE=1 HOMEBREW_NO_INSTALL_CLEANUP=1 HOMEBREW_NO_ENV_HINTS=1 brew install ffmpeg >/dev/null 2>&1; }
 command -v ffmpeg >/dev/null || { echo "::error::没有 ffmpeg，无法推流"; exit 1; }
-ffmpeg -nostdin -loglevel warning -re \
-  -f lavfi -i testsrc2=size=640x360:rate=25 -f lavfi -i sine=frequency=440:sample_rate=48000 \
-  -c:v libx264 -profile:v baseline -pix_fmt yuv420p -g 50 -preset ultrafast -tune zerolatency \
-  -c:a libopus -b:a 64k -ac 2 -f rtsp -rtsp_transport tcp rtsp://127.0.0.1:8554/test > pub.log 2>&1 & PIDS+=($!)
-sleep 4
-kill -0 "${PIDS[${#PIDS[@]}-1]}" 2>/dev/null || { echo "::error::推流进程退出"; cat pub.log; exit 1; }
+# 推流放进重启循环：偶发掉线（MediaMTX 返回 404）不应该让后面的用例连锁失败
+(
+  while true; do
+    echo "[publisher] start $(date +%T)"
+    ffmpeg -nostdin -loglevel warning -re       -f lavfi -i testsrc2=size=640x360:rate=25 -f lavfi -i sine=frequency=440:sample_rate=48000       -c:v libx264 -profile:v baseline -pix_fmt yuv420p -g 50 -preset ultrafast -tune zerolatency       -c:a libopus -b:a 64k -ac 2 -f rtsp -rtsp_transport tcp rtsp://127.0.0.1:8554/test
+    echo "[publisher] exited rc=$? $(date +%T)"
+    sleep 1
+  done
+) > pub.log 2>&1 &
+PIDS+=($!)
+# 等流真正可读（RTSP 能探测到）再往下测
+ensure_stream() {
+  for i in $(seq 1 40); do
+    ffprobe -v error -rtsp_transport tcp -i rtsp://127.0.0.1:8554/test -show_entries stream=codec_name -of csv=p=0 >/dev/null 2>&1 && return 0
+    sleep 1
+  done
+  echo "::warning::推流 40s 内未就绪"; tail -20 pub.log; return 1
+}
+ensure_stream || { echo "::error::推流没起来"; exit 1; }
 
 # ---- 4. WHEP 正常拉流 ----
+ensure_stream
 echo "=== WHEP 正常拉流 15s ==="
 run_smoke play whep+http://127.0.0.1:8889/test/whep 15 > whep-ok.log 2>&1; RC=$?
 grep -E 'RESULT|EVENT|PROP|DTLS|ICE|fingerprint' whep-ok.log | head -40
@@ -85,6 +99,7 @@ FR=$(grep -E '^t=' whep-ok.log | tail -1 | sed -E 's/.*frames=([0-9-]+).*/\1/')
 # ---- 4b. iOS 模拟器：init + WHEP 拉流（模拟器与宿主共用网络，直接连宿主上的 MediaMTX） ----
 # 需要 SIM_FRAMEWORK_DIR=<模拟器切片里 Mpv.framework 的上一级目录>；SIM_OPTIONAL=1 时失败只告警（模拟器环境偶发起不来）
 if [ -n "${SIM_FRAMEWORK_DIR:-}" ]; then
+  ensure_stream
   echo "=== iOS 模拟器冒烟 ==="
   sim_fail() { if [ "${SIM_OPTIONAL:-0}" = 1 ]; then echo "::warning::模拟器: $*"; else flunk "模拟器: $*"; fi; }
   # 用 runner 上已有的设备（自己 create 容易撞 "Incompatible device"：设备类型和运行时版本不配）
@@ -120,11 +135,13 @@ PROXY_DEBUG=1 python3 "$WHEP_TOOLS/whep_tamper_proxy.py" 18100 > proxy.log 2>&1 
 wait_port() { for i in $(seq 1 90); do nc -z 127.0.0.1 "$1" 2>/dev/null && return 0; sleep 1; done; echo "::warning::端口 $1 等了 90s 仍不可连"; return 1; }
 wait_port 18100
 echo "--- proxy.log (启动后) ---"; cat proxy.log
+ensure_stream
 echo "=== 对照：经代理原样转发（ok 模式）必须能播 ==="
 SMOKE_LOG_ALL=1 run_smoke play whep+http://127.0.0.1:18100/ok/test/whep 10 > whep-proxy-ok.log 2>&1; RC=$?
 grep -aE 'RESULT|EVENT|whep:|WHEP' whep-proxy-ok.log | head -12
 if [ $RC -eq 0 ]; then pass "经代理（ok）起播"; else flunk "经代理（ok）起播失败 (rc=$RC)"; tail -40 whep-proxy-ok.log; echo "--- proxy.log ---"; cat proxy.log; fi
 
+ensure_stream
 echo "=== 指纹被篡改（fp 模式）：必须因指纹校验被拒绝 ==="
 SMOKE_LOG_ALL=1 run_smoke play whep+http://127.0.0.1:18100/fp/test/whep 12 > whep-fp.log 2>&1; RC=$?
 grep -aEi 'RESULT|EVENT|ingerprint|EACCES|Permission denied' whep-fp.log | head -12
@@ -135,6 +152,7 @@ else
 fi
 
 echo "=== 候选不可达（dead 模式，handshake_timeout=3s）==="
+ensure_stream
 T0=$(date +%s)
 SMOKE_LOG_ALL=1 SMOKE_OPTS="demuxer-lavf-o=handshake_timeout=3000000" run_smoke play whep+http://127.0.0.1:18100/dead/test/whep 20 > whep-dead.log 2>&1; RC=$?
 T1=$(date +%s); DT=$((T1-T0))
@@ -203,6 +221,7 @@ PY
   fi
 fi
 
+echo "--- pub.log ---"; cat pub.log
 echo; echo "================ 汇总 ================"
 if [ ${#FAILS[@]} -eq 0 ]; then echo "全部通过"; exit 0; fi
 printf 'FAIL: %s\n' "${FAILS[@]}"; exit 1

@@ -693,6 +693,7 @@ jobs:
 
       # ---- Flutter 链接检查：把新 xcframework 放进 slim 包，用 mova/example 编 macOS 与 iOS ----
       - name: Install into slim packages (workspace only)
+        if: ${{ !cancelled() }}
         run: |
           set -e
           rm -rf "$IOS_PKG_FRAMEWORKS/Mpv.xcframework" "$MACOS_PKG_FRAMEWORKS/Mpv.xcframework"
@@ -702,12 +703,14 @@ jobs:
           ls -la "$IOS_PKG_FRAMEWORKS" "$MACOS_PKG_FRAMEWORKS"
 
       - uses: subosito/flutter-action@v2
+        if: ${{ !cancelled() }}
         with:
           flutter-version: ${{ env.FLUTTER_VERSION }}
           channel: stable
           cache: true
 
       - name: flutter pub get (example with slim overrides)
+        if: ${{ !cancelled() }}
         working-directory: mova/example
         run: |
           printf 'dependency_overrides:\n  media_kit_libs_ios_video:\n    path: ../packages/media_kit_libs_ios_video_slim\n  media_kit_libs_macos_video:\n    path: ../packages/media_kit_libs_macos_video_slim\n' > pubspec_overrides.yaml
@@ -716,6 +719,7 @@ jobs:
           flutter pub get
 
       - name: flutter build ios --simulator --no-codesign
+        if: ${{ !cancelled() }}
         working-directory: mova/example
         run: |
           flutter build ios --no-codesign --simulator -v > ../../build-ios-sim.log 2>&1; RC=$?
@@ -725,12 +729,14 @@ jobs:
           test "$RC" = 0
 
       - name: flutter build ios --no-codesign (device)
+        if: ${{ !cancelled() }}
         working-directory: mova/example
         run: |
           flutter build ios --no-codesign 2>&1 | tee ../../build-ios.log | tail -n 120
           test "${PIPESTATUS[0]}" = 0
 
       - name: flutter build macos
+        if: ${{ !cancelled() }}
         working-directory: mova/example
         run: |
           # example 目录没有 macos 工程，CI 里临时生成（不入库）
@@ -739,6 +745,7 @@ jobs:
           test "${PIPESTATUS[0]}" = 0
 
       - name: Verify linked apps embed our Mpv.framework
+        if: ${{ !cancelled() }}
         working-directory: mova/example
         run: |
           set -e
