@@ -57,7 +57,7 @@ endfunction()
 # for backward compatibility).
 # ------------------------------------------------------------------------------
 
-# 优先取 WHEP 新版（mova/libmpv/windows-x86_64-whep），次选旧配方目录；不再读包内 DLL。
+# 只读 n9 WHEP 版（mova/libmpv/windows-x86_64-whep）；不再读包内 DLL，n6 旧目录已移除。
 # 候选根目录：宿主 app 的 windows/ 相对（example 用法，插件目录是符号链接，不能按包路径推），
 # 以及本包相对（包路径为真实路径时）。
 set(MOVA_LIBMPV_ROOTS
@@ -65,7 +65,7 @@ set(MOVA_LIBMPV_ROOTS
   "${CMAKE_CURRENT_SOURCE_DIR}/../../../libmpv"
 )
 set(CUSTOM_LIBMPV_DIR "")
-foreach(_sub windows-x86_64-whep windows-x86_64)
+foreach(_sub windows-x86_64-whep)
   foreach(_root ${MOVA_LIBMPV_ROOTS})
     get_filename_component(_cand "${_root}/${_sub}" ABSOLUTE)
     if(NOT CUSTOM_LIBMPV_DIR AND EXISTS "${_cand}/libmpv-2.dll" AND EXISTS "${_cand}/libmpv.dll.a")
@@ -74,7 +74,7 @@ foreach(_sub windows-x86_64-whep windows-x86_64)
   endforeach()
 endforeach()
 if(NOT CUSTOM_LIBMPV_DIR)
-  message(FATAL_ERROR "mova slim libmpv not found (need libmpv-2.dll + libmpv.dll.a in windows-x86_64-whep or windows-x86_64 under ${MOVA_LIBMPV_ROOTS}).")
+  message(FATAL_ERROR "mova slim libmpv not found (need libmpv-2.dll + libmpv.dll.a in windows-x86_64-whep under ${MOVA_LIBMPV_ROOTS}).")
 endif()
 set(CUSTOM_LIBMPV_DLL "${CUSTOM_LIBMPV_DIR}/libmpv-2.dll")
 
@@ -90,7 +90,7 @@ message(STATUS "[mova slim] Using ${CUSTOM_LIBMPV_DLL}")
 # three (dll + .dll.a + headers) into that exact path. We don't have an
 # equivalent archive, so assemble the same directory shape ourselves from:
 #   - windows-devlib/libmpv.dll.a — generated once via `gendef` + `dlltool`
-#     against dist/windows-x86_64/libmpv-2.dll's export table (regenerate
+#     against libmpv/windows-x86_64-whep/libmpv-2.dll's export table (regenerate
 #     if that DLL is rebuilt with a different symbol set).
 #   - mpv-headers/*.h — mpv's public libmpv/*.h at the exact commit pinned
 #     in build-mova-libmpv.yml's windows job (78d43740f52db817d98bcf24fb30a76ab6fa13ff),

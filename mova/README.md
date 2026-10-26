@@ -763,7 +763,7 @@ dependency_overrides:
   media_kit_libs_android_video:
     git:
       url: https://github.com/icodejoo/dart-labs.git
-      path: mova/packages/media_kit_libs_android_video_slim
+      path: mova/packages/media_kit_libs_android_video_slim_v041
       ref: main
 ```
 
@@ -771,7 +771,7 @@ dependency_overrides:
 把上面 `git:` 那三行换成一行相对路径即可（假设两个仓库是兄弟目录）：
 
 ```yaml
-    path: ../dart-labs/mova/packages/media_kit_libs_android_video_slim
+    path: ../dart-labs/mova/packages/media_kit_libs_android_video_slim_v041
 ```
 
 不需要改任何 Gradle 文件、不需要 `pickFirsts`——加这一行依赖覆盖就是全部操作。
@@ -783,7 +783,7 @@ URI 打开等，mova-libmpv 不构建这个，必须保留，否则会丢功能�
 
 ```bash
 unzip -p build/app/outputs/flutter-apk/app-release.apk lib/arm64-v8a/libmpv.so | sha256sum
-sha256sum <mova-repo>/mova/packages/media_kit_libs_android_video_slim/android/src/main/jniLibs/arm64-v8a/libmpv.so
+sha256sum <mova-repo>/mova/packages/media_kit_libs_android_video_slim_v041/android/src/main/jniLibs/arm64-v8a/libmpv.so
 # 两个 sha256 应完全一致
 ```
 
