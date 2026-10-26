@@ -199,6 +199,11 @@ class MovaEngine implements MovaApi, MovaStandbyController, MovaPlayerMute, Mova
   /// 内核原生 RESTART 信号的订阅（内核提供时才有）。
   StreamSubscription<void>? _restartSub;
 
+  /// Subscription to [MovaPipObservable.changes], when the pip port has one.
+  ///
+  /// 对 [MovaPipObservable.changes] 的订阅（端口支持时才有）。
+  StreamSubscription<bool>? _pipSub;
+
   /// Pending grace timer: a fallback landed while the native signal was live.
   ///
   /// 宽限计时器：原生信号在工作时兜底信号先到，等待 RESTART。
@@ -716,6 +721,20 @@ class MovaEngine implements MovaApi, MovaStandbyController, MovaPlayerMute, Mova
           })
           .catchError((Object _) {}),
     );
+    // Follow PiP changes made outside enterPip() (user closes/expands the
+    // window); otherwise state.pip stays true and the skin/auto-pause guard
+    // keep treating the player as in PiP.
+    //
+    // 跟随 enterPip() 之外的画中画变化（用户关闭/展开小窗）；否则 state.pip
+    // 一直为 true，皮肤与自动暂停守卫会持续认为仍在画中画。
+    final Object pipPort = _pip;
+    if (pipPort is MovaPipObservable) {
+      _pipSub = pipPort.changes.listen((v) {
+        if (_disposed || v == state.pip) return;
+        _state.emit(state.copyWith(pip: v));
+        _emitEvent(MovaPipChange(v));
+      }, onError: (Object _) {});
+    }
     // Seed state.volume from the real system volume so the volume gesture's
     // baseline is accurate (and has headroom above the default 100). No-op
     // when no volume port is wired (player-volume path keeps the 100 default).
@@ -2345,6 +2364,7 @@ class MovaEngine implements MovaApi, MovaStandbyController, MovaPlayerMute, Mova
     _watchdog?.dispose();
     await _restartSub?.cancel();
     await _endFileSub?.cancel();
+    await _pipSub?.cancel();
     await _playingSub.cancel();
     await _bufferingSub.cancel();
     await _completedSub.cancel();

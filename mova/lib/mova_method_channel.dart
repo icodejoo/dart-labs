@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 
@@ -16,6 +18,24 @@ class MethodChannelMova extends MovaPlatform {
     );
     return version;
   }
+
+  /// Broadcasts native `pipChanged` pushes; the channel handler is installed
+  /// lazily on first listen so merely constructing the plugin touches nothing.
+  ///
+  /// 广播原生推来的 `pipChanged`；通道处理器在首次监听时才安装，构造插件本身
+  /// 不碰通道。
+  late final StreamController<bool> _pipChanges = StreamController<bool>.broadcast(
+    onListen: () {
+      methodChannel.setMethodCallHandler((call) async {
+        if (call.method == 'pipChanged' && call.arguments is bool) {
+          _pipChanges.add(call.arguments as bool);
+        }
+      });
+    },
+  );
+
+  @override
+  Stream<bool> get pipChanges => _pipChanges.stream;
 
   @override
   Future<bool> isPipSupported() async {

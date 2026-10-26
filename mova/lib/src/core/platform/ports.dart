@@ -90,6 +90,19 @@ abstract class MovaPipPort {
   Future<bool> enter({int? width, int? height});
 }
 
+/// Optional capability of a [MovaPipPort]: reports PiP mode changes that
+/// happen outside [MovaPipPort.enter] (the user closes or expands the PiP
+/// window). The engine probes it with `is`, so existing ports stay valid.
+///
+/// [MovaPipPort] 的可选能力：上报 [MovaPipPort.enter] 之外发生的画中画变化
+/// （用户关闭或展开小窗）。引擎用 `is` 探测，既有端口无需改动。
+abstract interface class MovaPipObservable {
+  /// Emits `true` when the host enters PiP and `false` when it leaves.
+  ///
+  /// 进入画中画时发出 `true`，退出时发出 `false`。
+  Stream<bool> get changes;
+}
+
 /// A port for applying and resetting fullscreen/immersive orientation and
 /// system UI state.
 ///

@@ -2,10 +2,14 @@ package com.icodejoo.mova
 
 import android.app.Activity
 import android.app.PictureInPictureParams
+import android.content.ComponentCallbacks
 import android.content.Context
 import android.content.pm.PackageManager
+import android.content.res.Configuration
 import android.media.AudioManager
 import android.os.Build
+import android.os.Handler
+import android.os.Looper
 import android.util.Rational
 import io.flutter.embedding.engine.plugins.FlutterPlugin
 import io.flutter.embedding.engine.plugins.activity.ActivityAware
@@ -15,6 +19,9 @@ import io.flutter.plugin.common.MethodChannel
 import io.flutter.plugin.common.MethodChannel.MethodCallHandler
 import io.flutter.plugin.common.MethodChannel.Result
 
+/** Delays (ms) for re-reading the PiP mode after a configuration change. */
+private val PIP_RECHECK_MS = longArrayOf(50, 150, 400, 1000)
+
 /** MovaPlugin: platform version + system picture-in-picture. */
 class MovaPlugin :
     FlutterPlugin,
@@ -22,6 +29,28 @@ class MovaPlugin :
     ActivityAware {
     private lateinit var channel: MethodChannel
     private var activity: Activity? = null
+
+    private val mainHandler = Handler(Looper.getMainLooper())
+
+    /** Last PiP state pushed to Dart, so only real changes are sent. */
+    private var lastPip = false
+
+    /**
+     * Entering/leaving PiP resizes the window, which delivers a configuration
+     * change to the activity even when the host handles it via configChanges.
+     * We re-read the real PiP mode there and push it to Dart.
+     */
+    private val pipWatcher =
+        object : ComponentCallbacks {
+            override fun onConfigurationChanged(newConfig: Configuration) {
+                pushPipState()
+                // On exit the configuration change arrives before the PiP flag
+                // flips, so re-check a few times; pushPipState de-duplicates.
+                for (delay in PIP_RECHECK_MS) mainHandler.postDelayed({ pushPipState() }, delay)
+            }
+
+            override fun onLowMemory() {}
+        }
 
     override fun onAttachedToEngine(flutterPluginBinding: FlutterPlugin.FlutterPluginBinding) {
         channel = MethodChannel(flutterPluginBinding.binaryMessenger, "mova")
@@ -71,6 +100,16 @@ class MovaPlugin :
         return ctx.getSystemService(Context.AUDIO_SERVICE) as? AudioManager
     }
 
+    /** Reads the activity's real PiP mode and pushes it to Dart when it changed. */
+    private fun pushPipState() {
+        val a = activity ?: return
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.N) return
+        val now = a.isInPictureInPictureMode
+        if (now == lastPip) return
+        lastPip = now
+        channel.invokeMethod("pipChanged", now)
+    }
+
     /** True when the OS + device support PiP (API 26+ with the PiP feature). */
     private fun isPipSupported(): Boolean {
         val a = activity ?: return false
@@ -103,18 +142,32 @@ class MovaPlugin :
     }
 
     override fun onAttachedToActivity(binding: ActivityPluginBinding) {
-        activity = binding.activity
+        attach(binding.activity)
     }
 
     override fun onReattachedToActivityForConfigChanges(binding: ActivityPluginBinding) {
-        activity = binding.activity
+        attach(binding.activity)
     }
 
     override fun onDetachedFromActivityForConfigChanges() {
-        activity = null
+        detach()
     }
 
     override fun onDetachedFromActivity() {
+        detach()
+    }
+
+    /** Binds to [a] and starts watching its PiP mode. */
+    private fun attach(a: Activity) {
+        detach()
+        activity = a
+        a.registerComponentCallbacks(pipWatcher)
+    }
+
+    /** Stops watching and drops the activity reference. */
+    private fun detach() {
+        mainHandler.removeCallbacksAndMessages(null)
+        activity?.unregisterComponentCallbacks(pipWatcher)
         activity = null
     }
 }

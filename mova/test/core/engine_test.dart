@@ -1287,6 +1287,32 @@ void main() {
     await e2.dispose();
   });
 
+  test('state.pip follows PiP changes pushed by the port', () async {
+    final pip = _ObservablePip();
+    final e2 = MovaEngine(kernel: FakeKernel(), pip: pip);
+    final events = <MovaEvent>[];
+    final sub = e2.events.listen(events.add);
+    await Future<void>.delayed(Duration.zero);
+
+    expect(await e2.enterPip(), isTrue);
+    expect(e2.state.pip, isTrue);
+
+    // The user closes the PiP window from the system UI.
+    pip.push(false);
+    await Future<void>.delayed(Duration.zero);
+    expect(e2.state.pip, isFalse);
+    expect(events.whereType<MovaPipChange>().map((c) => c.value), [true, false]);
+
+    // A repeated value is not a change.
+    pip.push(false);
+    await Future<void>.delayed(Duration.zero);
+    expect(events.whereType<MovaPipChange>(), hasLength(2));
+
+    await sub.cancel();
+    await e2.dispose();
+    expect(pip.hasListener, isFalse);
+  });
+
   test('pipSupported stays false when the port throws', () async {
     final k2 = FakeKernel();
     final e2 = MovaEngine(kernel: k2, pip: _ThrowingPip());
@@ -1644,6 +1670,26 @@ class _YesPip implements MovaPipPort {
 
   @override
   Future<bool> enter({int? width, int? height}) async => true;
+}
+
+/// A pip port that also reports PiP changes pushed from outside.
+///
+/// 同时上报外部推送的画中画变化的 pip 端口。
+class _ObservablePip extends _YesPip implements MovaPipObservable {
+  final _ctl = StreamController<bool>.broadcast();
+
+  /// Pushes a PiP state change as the platform would.
+  ///
+  /// 像平台一样推送一次画中画状态变化。
+  void push(bool v) => _ctl.add(v);
+
+  /// Whether the engine is still subscribed.
+  ///
+  /// 引擎是否仍在订阅。
+  bool get hasListener => _ctl.hasListener;
+
+  @override
+  Stream<bool> get changes => _ctl.stream;
 }
 
 /// A pip port whose capability probe fails, standing in for a platform whose

@@ -38,6 +38,13 @@ abstract class MovaPlatform extends PlatformInterface {
   /// 请求系统画中画，可选传入 [width]/[height] 作为宽高比提示。返回是否成功进入。
   Future<bool> enterPip({int? width, int? height}) => Future.value(false);
 
+  /// PiP mode changes pushed by the platform (`true` = entered, `false` =
+  /// left). Empty on platforms without a native PiP listener.
+  ///
+  /// 平台主动推送的画中画状态变化（`true` 进入、`false` 退出）。无原生监听的
+  /// 平台为空流。
+  Stream<bool> get pipChanges => const Stream<bool>.empty();
+
   /// Reads the system media volume as a percentage in `[0, 100]`, or `null`
   /// when the platform has no implementation.
   ///
