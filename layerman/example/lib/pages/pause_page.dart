@@ -43,7 +43,9 @@ class PausePage extends StatelessWidget {
             'pause(id) / resume(id) — freeze one overlay\'s duration',
             [
               demoButton('btn-dur-for-pause', 'open id:"timer" with duration: 10s', () {
-                openCard('timer',
+                // openEntry (non-modal): the pause/resume buttons below are on
+                // this SAME page and a modal card would block them.
+                openEntry('timer',
                     text: 'TIMER 10s',
                     duration: const Duration(seconds: 10),
                     hint: 'Countdown can be paused/resumed');

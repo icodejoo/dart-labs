@@ -101,9 +101,10 @@ class ReplaceAffixPage extends StatelessWidget {
                 om.open(
                   id: 'afix-upd',
                   affix: true,
-                  present: (ctx) => presentCard(
-                    ctx,
-                    (c, close) => ValueListenableBuilder<int>(
+                  // presentEntry (non-modal): btn-affix-update-n lives on this
+                  // SAME page and a modal card would block it.
+                  present: (ctx) => presentEntry(
+                    (close) => ValueListenableBuilder<int>(
                       valueListenable: _affixN,
                       builder: (context, n, _) =>
                           buildCard('FIX n=$n', close, hint: 'affix but update() still works'),

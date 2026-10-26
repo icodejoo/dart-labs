@@ -147,15 +147,17 @@ Example app + real-device integration: `example/`.
    timer at the top of every `_schedule`; also cancel it in `pauseAll`/`dispose`.
 4. **`_CooldownStore._flush` must call `storage.write` DIRECTLY** — wrapping in
    `Future(...)` leaves a pending Timer that explodes flutter_test's fake async.
-5. **`beforeClose` gates only `close()`** — `remove`/`clear`/auto-dismiss bypass it.
+5. **`beforeClose` gates only `close()`** — `remove`/`clear`/auto-dismiss/`duration` expiry
+   (`_autoClose`) bypass it.
 6. **Every entry is presented through `present:`** — there is no manager-level wiring step
    (no `attach`/`detach`, no `OverlayState`) to forget. `exitDuration` means post-dismissed
    grace (route futures complete when the exit animation STARTS, not when it finishes);
    `externalDone` must be set before best-effort dismiss so a late `dismissed` signal can't
    re-drive removal.
-7. **`resolve` is committed once resolving** (slot held); `null` skip does not count
+7. **`resolve` is committed once resolving** (slot held; also for `overlap`; a result that
+   arrives while paused is parked in `hasHeldData` and opened by `_applyRelease`); `null` skip does not count
    cooldown; `_onResolved` guards `_byId[id] == e && phase == resolving`.
-8. **`update(id, patch)`** shallow-merges Map-into-Map (else replaces) via `setData`, then
+8. **`update(id, patch)`** shallow-merges Map-into-Map (else replaces) via the entry's `data` field, then
    calls `notifyListeners()` — that's it. The manager owns no widgets, so it cannot
    `markNeedsBuild` anything itself; a `present:` backend that wants to reflect the new
    `data` must rebuild off that notification (or read `ctx.data` next time it builds).

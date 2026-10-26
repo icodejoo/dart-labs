@@ -51,6 +51,22 @@ storage), `resolve`, `beforeClose`, `duration`, `delay`, `gap`, `pauseAll` /
 `resumeAll` / `pause` / `resume`, `update`, `clearWhere`, `LayermanNavigatorObserver`,
 `currentRoute`, `pauseOnRoutes`.
 
+
+**Fixed** (full code review)
+
+* A throwing `present` / `dismiss` no longer wedges the queue: the error is
+  reported via `FlutterError.reportError`, the entry is dropped (result `null`,
+  no cooldown counted) and the queue advances.
+* `duration` expiry bypasses `beforeClose` (it gates only an explicit `close()`).
+* `resolve` now also runs for `overlap: true` entries; a `resolve` that finishes
+  while paused is held until `resumeAll` (resolver is not re-run).
+* Reopening the same id from a listener while the old entry is closing no longer
+  unregisters the new entry; moving an id to another slot (or to `overlap`)
+  re-schedules the slot it vacated.
+* `clearWhere` removes everything before advancing, so a matching queued entry is
+  never briefly shown; `clear()` also resets a pending transition gap / delay.
+* Day/hour/minute cooldown wake-ups use calendar boundaries (DST-safe).
+
 ## 0.1.1
 
 Docs only — no code changes.

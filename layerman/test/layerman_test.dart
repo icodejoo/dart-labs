@@ -1743,4 +1743,230 @@ void main() {
       manager.dispose();
     });
   });
+
+  group('review fixes — regression', () {
+    testWidgets('duration auto-close bypasses beforeClose', (tester) async {
+      await tester.pumpWidget(const SizedBox());
+      final manager = Layerman();
+
+      final a = _FakeBackend<String>();
+      manager.open(
+        id: 'a',
+        present: a.present,
+        duration: const Duration(milliseconds: 200),
+        beforeClose: () => false,
+      );
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 250));
+      await tester.pump();
+
+      expect(a.dismissCalled, isTrue);
+      expect(manager.isShowing('a'), isFalse);
+
+      manager.dispose();
+    });
+
+    testWidgets('a throwing present drops the entry and advances the queue',
+        (tester) async {
+      await tester.pumpWidget(const SizedBox());
+      final manager = Layerman();
+
+      final b = _FakeBackend<String>();
+      final result = manager.open<String>(
+        id: 'bad',
+        present: (_) => throw StateError('boom'),
+        cooldown: const OverlayCooldown(session: 1),
+      );
+      manager.open(id: 'b', present: b.present);
+      await tester.pump();
+
+      final error = tester.takeException();
+      expect(error, isA<StateError>());
+      expect(await result, isNull);
+      expect(b.presented, isTrue);
+      expect(manager.activeIds, <String>['b']);
+
+      manager.dispose();
+    });
+
+    testWidgets('a throwing dismiss does not wedge a close', (tester) async {
+      await tester.pumpWidget(const SizedBox());
+      final manager = Layerman();
+
+      manager.open<String>(
+        id: 'a',
+        present: (_) => PresentedOverlay<String>(
+          dismissed: Completer<String?>().future,
+          dismiss: ([String? r]) => throw StateError('no close'),
+        ),
+      );
+      final b = _FakeBackend<String>();
+      manager.open(id: 'b', present: b.present);
+      await tester.pump();
+
+      manager.close('a');
+      await tester.pump();
+
+      expect(tester.takeException(), isA<StateError>());
+      expect(manager.isShowing('a'), isFalse);
+      expect(b.presented, isTrue);
+
+      manager.dispose();
+    });
+
+    testWidgets('reopening the same id from a closing listener keeps it tracked',
+        (tester) async {
+      await tester.pumpWidget(const SizedBox());
+      final manager = Layerman();
+
+      final a1 = _FakeBackend<String>();
+      final a2 = _FakeBackend<String>();
+      manager.open(id: 'a', present: a1.present);
+      await tester.pump();
+
+      var reopened = false;
+      void onChange() {
+        if (reopened) return;
+        reopened = true;
+        manager.open(id: 'a', present: a2.present);
+      }
+
+      // Reopen exactly while 'a' is in its closing phase.
+      manager.addListener(onChange);
+      manager.close('a');
+      await tester.pump();
+      manager.removeListener(onChange);
+
+      expect(a2.presented, isTrue);
+      expect(manager.isShowing('a'), isTrue);
+      expect(manager.activeIds, <String>['a']);
+
+      manager.dispose();
+    });
+
+    testWidgets('resolve finishing while paused waits for resumeAll',
+        (tester) async {
+      await tester.pumpWidget(const SizedBox());
+      final manager = Layerman();
+
+      final gate = Completer<String?>();
+      var resolveCalls = 0;
+      final a = _FakeBackend<String>();
+      manager.open<String>(
+        id: 'a',
+        present: a.present,
+        resolve: () {
+          resolveCalls++;
+          return gate.future;
+        },
+      );
+      await tester.pump();
+      manager.pauseAll();
+      gate.complete('data');
+      await tester.pump();
+      expect(a.presented, isFalse);
+
+      manager.resumeAll();
+      await tester.pump();
+      expect(a.presented, isTrue);
+      expect(resolveCalls, 1);
+
+      manager.dispose();
+    });
+
+    testWidgets('overlap honours resolve (null skips, data is injected)',
+        (tester) async {
+      await tester.pumpWidget(const SizedBox());
+      final manager = Layerman();
+
+      final skipped = _FakeBackend<String>();
+      final shown = _FakeBackend<String>();
+      Object? seen;
+      manager.open<String>(
+        id: 'skip',
+        overlap: true,
+        present: skipped.present,
+        resolve: () async => null,
+      );
+      manager.open<String>(
+        id: 'show',
+        overlap: true,
+        present: (ctx) {
+          seen = ctx.data;
+          return shown.present(ctx);
+        },
+        resolve: () async => 'payload',
+      );
+      await tester.pump();
+
+      expect(skipped.presented, isFalse);
+      expect(shown.presented, isTrue);
+      expect(seen, 'payload');
+      expect(manager.activeIds, <String>['show']);
+
+      manager.dispose();
+    });
+
+    testWidgets('same id moving to another slot unblocks the old slot',
+        (tester) async {
+      await tester.pumpWidget(const SizedBox());
+      final manager = Layerman();
+
+      final a1 = _FakeBackend<String>();
+      final a2 = _FakeBackend<String>();
+      final b = _FakeBackend<String>();
+      manager.open(id: 'a', slot: 'x', present: a1.present);
+      manager.open(id: 'b', slot: 'x', present: b.present);
+      await tester.pump();
+      expect(b.presented, isFalse);
+
+      manager.open(id: 'a', slot: 'y', present: a2.present);
+      await tester.pump();
+
+      expect(a2.presented, isTrue);
+      expect(b.presented, isTrue);
+
+      manager.dispose();
+    });
+
+    testWidgets('clearWhere never activates a matching queued entry',
+        (tester) async {
+      await tester.pumpWidget(const SizedBox());
+      final manager = Layerman();
+
+      final a = _FakeBackend<String>();
+      final b = _FakeBackend<String>();
+      final c = _FakeBackend<String>();
+      manager.open(id: 'a', data: 'x', present: a.present);
+      manager.open(id: 'b', data: 'x', present: b.present);
+      manager.open(id: 'c', data: 'keep', present: c.present);
+      await tester.pump();
+
+      manager.clearWhere((r) => r.data == 'x');
+      await tester.pump();
+
+      expect(b.presented, isFalse);
+      expect(c.presented, isTrue);
+
+      manager.dispose();
+    });
+
+    testWidgets('clear resets a pending transition gap', (tester) async {
+      await tester.pumpWidget(const SizedBox());
+      final manager = Layerman(gap: const Duration(seconds: 5));
+
+      final a = _FakeBackend<String>();
+      final b = _FakeBackend<String>();
+      manager.open(id: 'a', present: a.present);
+      await tester.pump();
+      manager.remove('a'); // starts the 5s gap
+      manager.clear();
+      manager.open(id: 'b', present: b.present);
+      await tester.pump();
+
+      expect(b.presented, isTrue);
+
+      manager.dispose();
+    });
+  });
 }

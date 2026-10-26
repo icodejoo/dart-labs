@@ -145,7 +145,6 @@ class _Entry {
     required this.slot,
     required this.priority,
     required this.seq,
-    required this.overlap,
     required this.replace,
     required this.affix,
     required this.delay,
@@ -160,15 +159,13 @@ class _Entry {
     required this.resolveData,
     required this.presentBackend,
     required this.settle,
-    required this.getData,
-    required this.setData,
+    required this.data,
   });
 
   final String id;
   final String slot;
   final int priority;
-  int seq;
-  final bool overlap;
+  final int seq;
   final bool replace;
   final bool affix;
   final Duration? delay;
@@ -198,16 +195,18 @@ class _Entry {
   /// Complete the result future exactly once (typed cast lives in the closure).
   final void Function(Object? result) settle;
 
-  /// Live payload accessors (backing the mutable data seen by `resolve`,
-  /// [Layerman.update] and the [PresentContext]).
-  final Object? Function() getData;
-  final void Function(Object? data) setData;
+  /// Live payload (set by `resolve`, patched by [Layerman.update], read by
+  /// the [PresentContext]).
+  Object? data;
 
   _EntryPhase phase = _EntryPhase.pending;
   bool skipGap = false;
   bool delayConsumed = false;
   bool settled = false;
   bool paused = false;
+
+  /// Resolved payload parked while the manager is paused.
+  bool hasHeldData = false;
 
   Timer? durationTimer;
   DateTime? durationDeadline;
@@ -222,12 +221,6 @@ class _Entry {
   bool get isShown =>
       phase == _EntryPhase.open || phase == _EntryPhase.closing;
 
-  String get phaseName => switch (phase) {
-        _EntryPhase.pending => 'pending',
-        _EntryPhase.resolving => 'resolving',
-        _EntryPhase.open => 'open',
-        _EntryPhase.closing => 'closing',
-      };
 }
 
 /// Per-slot serial state.
@@ -359,8 +352,7 @@ class _CooldownStore {
       final c =
           rec != null && rec.dayBucket == _dayBucketOf(now) ? rec.dayCount : 0;
       if (c >= cd.day!) {
-        final next = DateTime(now.year, now.month, now.day)
-            .add(const Duration(days: 1));
+        final next = DateTime(now.year, now.month, now.day + 1);
         bump(next.difference(now));
       }
     }
@@ -369,8 +361,7 @@ class _CooldownStore {
           ? rec.hourCount
           : 0;
       if (c >= cd.hour!) {
-        final next = DateTime(now.year, now.month, now.day, now.hour)
-            .add(const Duration(hours: 1));
+        final next = DateTime(now.year, now.month, now.day, now.hour + 1);
         bump(next.difference(now));
       }
     }
@@ -379,8 +370,8 @@ class _CooldownStore {
           ? rec.minuteCount
           : 0;
       if (c >= cd.minute!) {
-        final next = DateTime(now.year, now.month, now.day, now.hour, now.minute)
-            .add(const Duration(minutes: 1));
+        final next =
+            DateTime(now.year, now.month, now.day, now.hour, now.minute + 1);
         bump(next.difference(now));
       }
     }
@@ -618,7 +609,13 @@ class Layerman extends ChangeNotifier {
         _openOverlap(e);
       } else {
         _byId.remove(e.id);
-        _finalize(e);
+        _settle(e, null);
+      }
+    }
+    for (final e in _byId.values.toList()) {
+      if (e.phase == _EntryPhase.resolving && e.hasHeldData) {
+        e.hasHeldData = false;
+        _open(e);
       }
     }
     for (final e in _byId.values) {
@@ -655,11 +652,11 @@ class Layerman extends ChangeNotifier {
   void update(String id, Object? patch) {
     final e = _byId[id];
     if (e == null) return;
-    final current = e.getData();
+    final current = e.data;
     if (current is Map && patch is Map) {
-      e.setData(<Object?, Object?>{...current, ...patch});
+      e.data = <Object?, Object?>{...current, ...patch};
     } else {
-      e.setData(patch);
+      e.data = patch;
     }
     notifyListeners();
   }
@@ -724,18 +721,12 @@ class Layerman extends ChangeNotifier {
     );
     final resolvedId = id ?? 'overlay:${++_seqCounter}';
     final completer = Completer<T?>();
-    // Mutable payload backing `data`, the [PresentContext], `resolve`'s output
-    // and [update]; lives here (not in a handle) so the whole thing stays
-    // widget-free.
-    var mutableData = data;
-
     late final _Entry entry;
     entry = _Entry(
       id: resolvedId,
       slot: slot,
       priority: priority,
       seq: ++_seqCounter,
-      overlap: overlap,
       replace: replace,
       affix: affix,
       delay: delay,
@@ -751,11 +742,10 @@ class Layerman extends ChangeNotifier {
       settle: (Object? r) {
         if (!completer.isCompleted) completer.complete(r as T?);
       },
-      getData: () => mutableData,
-      setData: (v) => mutableData = v,
+      data: data,
       presentBackend: () {
         final presented = present(
-          PresentContext._(resolvedId, slot, mutableData),
+          PresentContext._(resolvedId, slot, entry.data),
         );
         final dismiss = presented.dismiss;
         entry.externalDismiss =
@@ -769,30 +759,40 @@ class Layerman extends ChangeNotifier {
 
     // Handle id reuse.
     final existing = _byId[resolvedId];
+    String? freedSlot; // serial slot the replaced entry vacated
     if (existing != null) {
       if (existing.isActive) {
-        _discardActive(existing); // replaced in place; old result -> null
+        // Replaced in place; old result -> null.
+        if (_discardActive(existing)) freedSlot = existing.slot;
         entry.skipGap = true;
       } else {
         _removeFromQueue(existing);
         _pendingOverlaps.remove(existing);
         _byId.remove(existing.id);
-        _finalize(existing);
+        _settle(existing, null);
       }
     }
     _byId[resolvedId] = entry;
+
+    // The replaced entry's old slot must not stall if the new one lives elsewhere.
+    void rescheduleFreed() {
+      if (freedSlot != null && (overlap || freedSlot != slot)) {
+        _schedule(freedSlot);
+      }
+    }
 
     if (overlap) {
       // Conditions/cooldown are a one-shot fire-gate for overlaps (TS rule:
       // "now or never") — but a paused manager holds them for resumeAll.
       if (!_eligible(entry)) {
         _byId.remove(entry.id);
-        _finalize(entry);
+        _settle(entry, null);
       } else if (_paused) {
         _pendingOverlaps.add(entry);
       } else {
         _openOverlap(entry);
       }
+      rescheduleFreed();
       notifyListeners();
       return completer.future;
     }
@@ -825,6 +825,7 @@ class Layerman extends ChangeNotifier {
     }
     s.queue.add(entry);
     _schedule(slot);
+    rescheduleFreed();
     notifyListeners();
     return completer.future;
   }
@@ -853,6 +854,11 @@ class Layerman extends ChangeNotifier {
   void clear() {
     for (final s in _slots.values) {
       _cancelCooldownTimer(s);
+      s.gapTimer?.cancel();
+      s.gapTimer = null;
+      s.gapPending = false;
+      s.delayTimer?.cancel();
+      s.delayTimer = null;
     }
     final all = _byId.values.toList();
     for (final e in all) {
@@ -869,15 +875,19 @@ class Layerman extends ChangeNotifier {
         if (test(OverlayRecord._(
           e.id,
           e.slot,
-          e.getData(),
+          e.data,
           e.isActive,
-          e.phaseName,
+          e.phase.name,
         )))
           e,
     ];
+    // Remove everything first and advance afterwards, so a matching queued
+    // entry is never briefly activated just to be removed next.
+    final freed = <String>{};
     for (final e in selected) {
-      _remove(e);
+      if (_remove(e, advance: false)) freed.add(e.slot);
     }
+    freed.forEach(_advanceSlot);
   }
 
   // ── internals ──────────────────────────────────────────────────────────
@@ -1002,6 +1012,11 @@ class Layerman extends ChangeNotifier {
     final s = _slotFor(e.slot);
     _removeFromQueue(e);
     s.active = e;
+    _begin(e);
+  }
+
+  /// Resolve (if the entry has a `resolve`) and then open [e].
+  void _begin(_Entry e) {
     final resolver = e.resolveData;
     if (resolver != null) {
       // Backend-driven payload: the slot is committed while resolving (not
@@ -1021,30 +1036,58 @@ class Layerman extends ChangeNotifier {
     if (!_isCurrent(e) || e.phase != _EntryPhase.resolving) return;
     if (data == null) {
       // Backend said "don't show": skip without counting cooldown.
-      final s = _slots[e.slot];
-      if (s != null && s.active == e) s.active = null;
+      final wasSerial = _detachFromActive(e);
       _byId.remove(e.id);
-      _finalize(e);
+      _settle(e, null);
       notifyListeners();
-      _schedule(e.slot);
+      if (wasSerial) _schedule(e.slot);
       return;
     }
-    e.setData(data);
+    e.data = data;
+    if (_paused) {
+      // No new activation while frozen: park the payload; [_applyRelease]
+      // opens it without re-running the resolver.
+      e.hasHeldData = true;
+      return;
+    }
     _open(e);
   }
 
   void _open(_Entry e) {
     e.phase = _EntryPhase.open;
+    try {
+      e.presentBackend();
+    } catch (error, stack) {
+      // A throwing backend must not wedge the slot: report, drop the entry
+      // (result null, no cooldown counted) and let the queue move on.
+      _reportBackendError(error, stack, 'while presenting an overlay');
+      _remove(e);
+      return;
+    }
     final cd = e.cooldown;
     if (cd != null) _cooldowns.record(e.id, cd, _now());
-    e.presentBackend();
     _startDuration(e);
     notifyListeners();
   }
 
   void _openOverlap(_Entry e) {
     _overlaps.add(e);
-    _open(e);
+    _begin(e);
+  }
+
+  void _reportBackendError(Object error, StackTrace stack, String what) {
+    FlutterError.reportError(FlutterErrorDetails(
+      exception: error,
+      stack: stack,
+      library: 'layerman',
+      context: ErrorDescription(what),
+    ));
+  }
+
+  /// Duration expiry: an automatic teardown, so it bypasses `beforeClose`
+  /// (which gates only an explicit [close]).
+  void _autoClose(_Entry e) {
+    if (_isCurrent(e) && _closable(e)) _doClose(e, null);
   }
 
   void _startDuration(_Entry e) {
@@ -1061,7 +1104,7 @@ class Layerman extends ChangeNotifier {
     }
     e.durationRemaining = null;
     e.durationDeadline = _now().add(d);
-    e.durationTimer = Timer(d, () => _close(e, null));
+    e.durationTimer = Timer(d, () => _autoClose(e));
   }
 
   void _freezeDuration(_Entry e) {
@@ -1082,7 +1125,7 @@ class Layerman extends ChangeNotifier {
     if (remaining == null || e.phase != _EntryPhase.open) return;
     e.durationRemaining = null;
     e.durationDeadline = _now().add(remaining);
-    e.durationTimer = Timer(remaining, () => _close(e, null));
+    e.durationTimer = Timer(remaining, () => _autoClose(e));
   }
 
   /// Whether [e] is still the live, tracked entry for its id — false once it's
@@ -1130,14 +1173,15 @@ class Layerman extends ChangeNotifier {
     _settle(e, result);
     e.phase = _EntryPhase.closing;
     notifyListeners();
-    final dismiss = e.externalDismiss;
-    if (dismiss == null || e.externalDone) {
+    if (!_isCurrent(e)) return; // a listener removed/replaced it meanwhile
+    if (e.externalDismiss == null || e.externalDone) {
       // Backend already closed, or cannot be closed by us: just detach.
       _remove(e);
-    } else {
-      // Graceful backend close; its dismissed signal drives removal
-      // (plus the optional exitDuration grace) in _onExternalDismissed.
-      dismiss(result);
+    } else if (!_callDismiss(e, result)) {
+      // Graceful backend close is driven by its dismissed signal
+      // (+ optional exitDuration) in _onExternalDismissed; if the backend
+      // failed to even start closing, don't wait forever.
+      _remove(e);
     }
   }
 
@@ -1163,49 +1207,58 @@ class Layerman extends ChangeNotifier {
 
   /// Remove an active/queued entry from the world. When [advance] is true and
   /// it occupied a serial slot, the queue is advanced (after [gap]).
-  void _remove(_Entry e, {bool advance = true}) {
+  /// Returns whether [e] occupied its slot's serial `active` position.
+  bool _remove(_Entry e, {bool advance = true}) {
     e.durationTimer?.cancel();
     e.removeTimer?.cancel();
     e.durationTimer = null;
     e.removeTimer = null;
 
-    _byId.remove(e.id);
+    // Only unregister the id if it still maps to [e] — a listener may have
+    // reopened the same id while [e] was closing.
+    if (_isCurrent(e)) _byId.remove(e.id);
     _dismissBackendBestEffort(e);
 
     final wasSerialActive = _detachFromActive(e);
     _removeFromQueue(e);
 
-    _finalize(e);
+    _settle(e, null);
 
-    if (advance && wasSerialActive) {
-      final s = _slotFor(e.slot);
-      if (gap > Duration.zero) {
-        s.gapPending = true;
-        s.gapTimer?.cancel();
-        s.gapTimer = Timer(gap, () {
-          s.gapPending = false;
-          s.gapTimer = null;
-          _schedule(e.slot);
-          notifyListeners();
-        });
-      } else {
-        _schedule(e.slot);
-      }
-    }
+    if (advance && wasSerialActive) _advanceSlot(e.slot);
     notifyListeners();
+    return wasSerialActive;
+  }
+
+  /// A serial slot just freed up: schedule the next entry (after [gap]).
+  void _advanceSlot(String slot) {
+    final s = _slotFor(slot);
+    if (gap > Duration.zero) {
+      s.gapPending = true;
+      s.gapTimer?.cancel();
+      s.gapTimer = Timer(gap, () {
+        s.gapPending = false;
+        s.gapTimer = null;
+        _schedule(slot);
+        notifyListeners();
+      });
+    } else {
+      _schedule(slot);
+    }
   }
 
   // Deliberately NOT `_remove(e, advance: false)`: that also calls
   // `notifyListeners()`, which would fire mid-`open()` with transient state
   // (this entry gone, the new one not yet enqueued) — the caller's own
   // trailing `notifyListeners()` is the only one that should fire here.
-  void _discardActive(_Entry e) {
+  /// Returns whether [e] occupied its slot's serial `active` position.
+  bool _discardActive(_Entry e) {
     e.durationTimer?.cancel();
     e.removeTimer?.cancel();
-    _byId.remove(e.id);
+    if (_isCurrent(e)) _byId.remove(e.id);
     _dismissBackendBestEffort(e);
-    _detachFromActive(e);
-    _finalize(e);
+    final wasSerialActive = _detachFromActive(e);
+    _settle(e, null);
+    return wasSerialActive;
   }
 
   /// When an entry leaves the queue while its backend may still be showing
@@ -1213,11 +1266,22 @@ class Layerman extends ChangeNotifier {
   void _dismissBackendBestEffort(_Entry e) {
     if (e.externalDone) return;
     e.externalDone = true; // its dismissed signal must not re-drive removal
-    e.externalDismiss?.call(null);
+    if (e.externalDismiss != null) _callDismiss(e, null);
   }
 
-  void _finalize(_Entry e) {
-    _settle(e, null);
+  /// Ask the backend to close [e]; a sync throw or async failure is reported,
+  /// never propagated. Returns false only on a synchronous failure.
+  bool _callDismiss(_Entry e, Object? result) {
+    try {
+      e.externalDismiss!(result).catchError((Object error, StackTrace stack) {
+        _reportBackendError(error, stack, 'while dismissing an overlay');
+      });
+      return true;
+    } catch (error, stack) {
+      _reportBackendError(error, stack, 'while dismissing an overlay');
+      e.externalDone = true; // don't ask a broken backend a second time
+      return false;
+    }
   }
 
   void _settle(_Entry e, Object? result) {

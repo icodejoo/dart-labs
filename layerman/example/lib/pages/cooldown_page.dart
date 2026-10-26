@@ -29,7 +29,7 @@ class CooldownPage extends StatelessWidget {
                     hint: 'Tap again — blocked until app restarts');
               }),
               demoButton('btn-cds3', 'session: 3', () {
-                openCard('cd-s3-${DateTime.now().millisecondsSinceEpoch}',
+                openCard('cd-s3',
                     text: 'SESSION 3',
                     cooldown: const OverlayCooldown(session: 3),
                     hint: 'Up to 3 shows per session');
@@ -82,7 +82,7 @@ class CooldownPage extends StatelessWidget {
                     hint: 'Max 1 show per calendar day');
               }),
               demoButton('btn-cdd3', 'day: 3', () {
-                openCard('cd-d3-${DateTime.now().millisecondsSinceEpoch}',
+                openCard('cd-d3',
                     text: 'DAY 3',
                     cooldown: const OverlayCooldown(day: 3),
                     hint: 'Max 3 shows per calendar day');
@@ -94,7 +94,7 @@ class CooldownPage extends StatelessWidget {
             'hour — max shows per clock hour',
             [
               demoButton('btn-cdh', 'hour: 2', () {
-                openCard('cd-h-${DateTime.now().millisecondsSinceEpoch}',
+                openCard('cd-h',
                     text: 'HOUR 2',
                     cooldown: const OverlayCooldown(hour: 2),
                     hint: 'Max 2 shows per clock hour');
@@ -118,7 +118,7 @@ class CooldownPage extends StatelessWidget {
             'Combine caps — most restrictive wins',
             [
               demoButton('btn-cdcombine', 'session:2 + minGap:3s', () {
-                openCard('cd-combo-${DateTime.now().millisecondsSinceEpoch}',
+                openCard('cd-combo',
                     text: 'COMBO',
                     cooldown: const OverlayCooldown(
                         session: 2, minGap: Duration(seconds: 3)),

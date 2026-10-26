@@ -80,7 +80,7 @@ PresentedOverlay<T> presentCard<T>(
   // Captured once the dialog actually builds, so `dismiss` can remove THIS
   // route directly — see the comment on [_removeRouteDismiss] for why that
   // beats popping by name.
-  Route<T>? route;
+  final captured = _RouteCapture<T>();
   final future = showDialog<T>(
     context: Get.overlayContext!,
     useRootNavigator: true,
@@ -88,7 +88,7 @@ PresentedOverlay<T> presentCard<T>(
     barrierDismissible: barrierDismissible,
     routeSettings: RouteSettings(name: name),
     builder: (dialogCtx) {
-      route ??= ModalRoute.of(dialogCtx) as Route<T>?;
+      captured.capture(dialogCtx);
       return contentBuilder(
         dialogCtx,
         ([Object? r]) {
@@ -100,7 +100,7 @@ PresentedOverlay<T> presentCard<T>(
   );
   return PresentedOverlay<T>(
     dismissed: future,
-    dismiss: ([T? r]) async => _removeRouteDismiss(() => route),
+    dismiss: ([T? r]) async => captured.dismiss(),
   );
 }
 
@@ -121,6 +121,36 @@ void _removeRouteDismiss(Route<Object?>? Function() route) {
   final rt = route();
   final nav = rt?.navigator;
   if (rt != null && nav != null) nav.removeRoute(rt);
+}
+
+/// Captures the [ModalRoute] of a dialog once its builder runs, and removes
+/// exactly that route on [dismiss].
+///
+/// A dismiss that arrives before the first build (e.g. `replace` preempting a
+/// card in the same frame it opened) is remembered and applied right after the
+/// route is captured, instead of silently doing nothing and leaving a ghost.
+class _RouteCapture<T> {
+  Route<T>? route;
+  bool _dismissEarly = false;
+
+  /// Call from the dialog's builder with its own [BuildContext].
+  void capture(BuildContext context) {
+    route ??= ModalRoute.of(context) as Route<T>?;
+    if (_dismissEarly) {
+      _dismissEarly = false;
+      WidgetsBinding.instance
+          .addPostFrameCallback((_) => _removeRouteDismiss(() => route));
+    }
+  }
+
+  /// Removes the captured route, or defers until it is captured.
+  void dismiss() {
+    if (route == null) {
+      _dismissEarly = true;
+    } else {
+      _removeRouteDismiss(() => route);
+    }
+  }
 }
 
 /// Convenience wrapper around `om.open(present: (ctx) => presentCard(...))`
@@ -333,12 +363,12 @@ PresentedOverlay<T> presentRouteDialog<T>(
   bool useGetx = false,
 }) {
   final name = 'om://${ctx.id}';
-  Route<T>? route;
+  final captured = _RouteCapture<T>();
   // A Builder around the caller's static `dialog` widget is enough to grab
   // its ModalRoute once built, for both the showDialog and Get.dialog paths
   // — see [_removeRouteDismiss] for why a captured Route beats popping by name.
   final wrapped = Builder(builder: (dialogCtx) {
-    route ??= ModalRoute.of(dialogCtx) as Route<T>?;
+    captured.capture(dialogCtx);
     return dialog;
   });
   final Future<T?> future = useGetx
@@ -351,7 +381,7 @@ PresentedOverlay<T> presentRouteDialog<T>(
         );
   return PresentedOverlay<T>(
     dismissed: future,
-    dismiss: ([T? r]) async => _removeRouteDismiss(() => route),
+    dismiss: ([T? r]) async => captured.dismiss(),
   );
 }
 
@@ -365,7 +395,7 @@ PresentedOverlay<T> presentShadDialog<T>(
   Widget dialog,
 ) {
   final name = 'om://${ctx.id}';
-  Route<T>? route;
+  final captured = _RouteCapture<T>();
   final future = showShadDialog<T>(
     context: Get.overlayContext!,
     routeSettings: RouteSettings(name: name),
@@ -373,7 +403,7 @@ PresentedOverlay<T> presentShadDialog<T>(
     // even inside a GetX route (which does not automatically inherit from
     // the builder chain's ShadTheme).
     builder: (dialogCtx) {
-      route ??= ModalRoute.of(dialogCtx) as Route<T>?;
+      captured.capture(dialogCtx);
       return ShadTheme(
         data: ShadThemeData(colorScheme: const ShadSlateColorScheme.light()),
         child: dialog,
@@ -382,7 +412,7 @@ PresentedOverlay<T> presentShadDialog<T>(
   );
   return PresentedOverlay<T>(
     dismissed: future,
-    dismiss: ([T? r]) async => _removeRouteDismiss(() => route),
+    dismiss: ([T? r]) async => captured.dismiss(),
   );
 }
 

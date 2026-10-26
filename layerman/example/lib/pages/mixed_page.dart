@@ -230,14 +230,16 @@ class MixedPage extends StatelessWidget {
                 om.open(
                   id: 'shad-sheet',
                   present: (ctx) {
-                    // Store the navigator before the async push so dismiss
-                    // can pop precisely (same navigator that pushed the sheet).
-                    final nav = Navigator.of(Get.overlayContext!);
+                    // Capture the sheet's own route so dismiss removes exactly
+                    // it (a plain `pop()` would close whatever is on top).
+                    Route<void>? sheetRoute;
                     final future = showShadSheet<void>(
                       context: Get.overlayContext!,
                       side: ShadSheetSide.bottom,
                       isDismissible: true,
-                      builder: (sheetCtx) => ShadTheme(
+                      builder: (sheetCtx) {
+                        sheetRoute ??= ModalRoute.of(sheetCtx) as Route<void>?;
+                        return ShadTheme(
                         data: ShadThemeData(
                             colorScheme: const ShadSlateColorScheme.light()),
                         child: ShadSheet(
@@ -255,13 +257,15 @@ class MixedPage extends StatelessWidget {
                             ),
                           ],
                         ),
-                      ),
+                      );
+                      },
                     );
                     return PresentedOverlay<void>(
                       dismissed: future,
-                      // nav was captured before push — same navigator, correct pop target
                       dismiss: ([_]) async {
-                        if (nav.canPop()) nav.pop();
+                        final rt = sheetRoute;
+                        final nav = rt?.navigator;
+                        if (rt != null && nav != null) nav.removeRoute(rt);
                       },
                     );
                   },

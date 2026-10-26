@@ -418,8 +418,15 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('n = 0'), findsOneWidget);
 
+    // The card text comes from a page-local notifier, so also prove the
+    // manager itself handled om.update(): it must notify its listeners.
+    var notified = 0;
+    void onChange() => notified++;
+    app.om.addListener(onChange);
     await tester.tap(find.byKey(const Key('btn-update')));
     await tester.pumpAndSettle();
+    app.om.removeListener(onChange);
+    expect(notified, greaterThan(0));
     expect(find.text('n = 1'), findsOneWidget);
 
     await tester.tap(find.byKey(const Key('btn-update')));
