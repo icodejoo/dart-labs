@@ -19,6 +19,7 @@ import '../state/ui_state.dart';
 import '../stt/api.dart';
 import 'ctl.dart';
 import 'plan.dart';
+import 'retirable.dart';
 import 'trigger.dart';
 import 'warm.dart';
 
@@ -129,6 +130,25 @@ class MovaSwapEngine implements MovaApi, MovaSwapController, MovaStandbyControll
   bool _shadowBuffering = false;
   Completer<bool>? _readyCompleter;
   bool _disposed = false;
+
+  /// Independent give-up deadline for the warm-up in flight, so it fires even
+  /// when the shadow never emits a progress event.
+  ///
+  /// 当前预热的独立放弃期限计时器：即使影子引擎一直没有 progress 事件也会触发。
+  Timer? _readyTimer;
+
+  /// The source the current shadow was created for.
+  ///
+  /// 当前影子引擎对应的源。
+  MovaSource? _warmSource;
+
+  /// Cancels [_readyTimer] if it is armed.
+  ///
+  /// 若 [_readyTimer] 已武装则取消它。
+  void _cancelReadyTimer() {
+    _readyTimer?.cancel();
+    _readyTimer = null;
+  }
 
   /// The plan driving the warm-up currently in flight.
   ///
@@ -357,6 +377,7 @@ class MovaSwapEngine implements MovaApi, MovaSwapController, MovaStandbyControll
   Future<void> dispose() async {
     _disposed = true;
     _warmMuteOwner = null;
+    _cancelReadyTimer();
     // Same unblock as abandon(): a pending commit(waitForReady: true) must
     // resolve rather than hang forever if the engine is disposed mid-swap.
     //
@@ -412,15 +433,24 @@ class MovaSwapEngine implements MovaApi, MovaSwapController, MovaStandbyControll
     required MovaWarmPlan plan,
   }) async {
     if (!swapEnabled) return;
-    if (_shadow != null) return;
     final trigger = plan.trigger ?? _config.effectiveTrigger;
     if (!trigger.shouldWarm(cue)) return;
+    if (_shadow != null) {
+      // A shadow for the same source is already warming; a different source
+      // means the old shadow is stale and must go before the new one starts.
+      //
+      // 同一源的影子已在预热则沿用；源不同说明旧影子已过期，须先放弃再新建。
+      if (_warmSource?.sameAs(source) ?? false) return;
+      await abandon();
+      if (_disposed || _shadow != null) return;
+    }
 
     final shadow = _engineFactory();
     // 影子引擎要在挂界面之前就解码出画面，读一次 renderHandle 让懒创建的视频管线
     // 提前建好（否则预热期间 vid=no，切换时仍要黑屏等首帧）。
     shadow.renderHandle;
     _shadow = shadow;
+    _warmSource = source;
     _warmAt = at;
     _warmPlan = plan;
     _heldAtTarget = false;
@@ -433,6 +463,17 @@ class MovaSwapEngine implements MovaApi, MovaSwapController, MovaStandbyControll
     // 预热会继承第一次的连续 tick 计数，一次侥幸的 tick 就能把切换提交出去。
     _policy = (plan.policy ?? _config.newReadyPolicy())..reset();
     _warmClock = Stopwatch()..start();
+    _cancelReadyTimer();
+    final policy = _policy;
+    final timeout = policy is MovaBufferWarm ? policy.timeout : _config.readyTimeout;
+    _readyTimer = Timer(timeout, () {
+      if (_disposed || !identical(_shadow, shadow)) return;
+      _readyTimer = null;
+      final c = _readyCompleter;
+      _readyCompleter = null;
+      unawaited(abandon());
+      c?.complete(false);
+    });
 
     // Unsupported kernels warm audibly rather than changing system volume.
     //
@@ -441,7 +482,14 @@ class MovaSwapEngine implements MovaApi, MovaSwapController, MovaStandbyControll
       await _setWarmMute(shadow, true);
       if (_disposed || !identical(_shadow, shadow)) return;
     }
-    await shadow.open(source, autoPlay: true);
+    try {
+      await shadow.open(source, autoPlay: true);
+      // The ready timer may have abandoned (and disposed) this shadow while
+      // open() was pending; the owner already cleaned up, so just bail out.
+      //
+      // open() 挂起期间就绪计时器可能已放弃（并销毁）该影子；善后已由处理方完成，
+      // 直接退出。
+      if (_disposed || !identical(_shadow, shadow)) return;
     // Seeking to zero right after open() buys nothing and is pure risk: a seek
     // issued before the first frame lands has been observed to wedge the
     // player on device. The pre-roll→content and content→ad directions both
@@ -450,7 +498,19 @@ class MovaSwapEngine implements MovaApi, MovaSwapController, MovaStandbyControll
     // 刚 open() 完就 seek(0) 毫无收益、纯属风险敞口：首帧落地前下发的 seek 在
     // 真机上被观测到会把播放器卡死。前贴片→正片与正片→广告两个方向都在 0 处
     // 预热，因此这道守卫覆盖的正是常见情形。
-    if (!_warmLive && at > Duration.zero) await shadow.seek(at);
+      if (!_warmLive && at > Duration.zero) await shadow.seek(at);
+    } catch (_) {
+      // Recoverable and handled internally: clean the shadow up and let the
+      // caller fall back to a normal open. No MovaErrorEvent on the main stream
+      // — a background warm-up failure must not be mistaken for a failure of
+      // the healthy engine that is on screen (e.g. an ad being played).
+      //
+      // 可恢复且内部处理：清理影子，由调用方回落为普通打开。不往主事件流发
+      // MovaErrorEvent——后台预热失败不能被误判成在屏健康引擎（如在播广告）的失败。
+      if (_disposed || !identical(_shadow, shadow)) return;
+      await abandon();
+      return;
+    }
 
     if (_disposed || !identical(_shadow, shadow)) return;
 
@@ -510,6 +570,7 @@ class MovaSwapEngine implements MovaApi, MovaSwapController, MovaStandbyControll
           _heldAtTarget = true;
           _holding = _holdAtTarget(shadow);
         }
+        _cancelReadyTimer();
         if (_phase != MovaSwapPhase.ready) _setPhase(MovaSwapPhase.ready);
         final c = _readyCompleter;
         if (c != null) {
@@ -562,6 +623,8 @@ class MovaSwapEngine implements MovaApi, MovaSwapController, MovaStandbyControll
     // 指。先执行到这一行的那次胜出；第二次会发现 `_shadow` 已被清空而退出。
     if (!identical(_shadow, shadow)) return false;
     _shadow = null;
+    _warmSource = null;
+    _cancelReadyTimer();
     return _commitNow(shadow);
   }
 
@@ -576,8 +639,20 @@ class MovaSwapEngine implements MovaApi, MovaSwapController, MovaStandbyControll
   Future<bool> _commitNow(MovaApi shadow) async {
     final old = _active;
     final wasPlaying = old.state.playing;
+    // The engine may be disposed at any await below; the shadow was already
+    // claimed out of [_shadow], so dispose() cannot reach it — release it here.
+    //
+    // 下面任一 await 期间引擎都可能被 dispose；影子已从 [_shadow] 认领走，
+    // dispose() 够不着它，需在此自行释放。
+    Future<bool> bail() async {
+      await shadow.dispose();
+      return false;
+    }
+
     await old.pause();
+    if (_disposed) return bail();
     await _holding;
+    if (_disposed) return bail();
     // The host wants this picture hidden: have the shadow start in standby, set
     // before warm-up mute is released and before it plays, so it never gets loud.
     //
@@ -585,9 +660,14 @@ class MovaSwapEngine implements MovaApi, MovaSwapController, MovaStandbyControll
     // 保证它不会出声。
     if (_standbyWanted && shadow is MovaStandbyController) {
       await (shadow as MovaStandbyController).setStandby(true);
+      if (_disposed) return bail();
     }
+    await _inheritViewSettings(old.state, shadow);
+    if (_disposed) return bail();
     if (_config.muteWhileWarm && shadow is MovaPlayerMute) {
-      if (!await _setWarmMute(shadow, false)) {
+      final released = await _setWarmMute(shadow, false);
+      if (_disposed) return bail();
+      if (!released) {
         // Reuse the shadow-error/give-up cleanup; the caller can open normally.
         //
         // 复用影子错误/放弃的清理路径；调用方可回落为普通打开。
@@ -598,9 +678,11 @@ class MovaSwapEngine implements MovaApi, MovaSwapController, MovaStandbyControll
       }
     }
     await shadow.play();
+    if (_disposed) return bail();
 
     await _detach();
     await _detachShadow();
+    if (_disposed) return bail();
 
     _active = shadow;
     _shadow = null;
@@ -614,8 +696,49 @@ class MovaSwapEngine implements MovaApi, MovaSwapController, MovaStandbyControll
     _heldAtTarget = false;
     _setPhase(MovaSwapPhase.idle);
 
+    // The shadow now owns fullscreen/orientation (migrated above); keep the old
+    // engine's dispose from resetting the shared platform orientation.
+    //
+    // 影子已接管全屏/方向（上面已迁移）；别让旧引擎 dispose 复位共享的平台方向。
+    if (old is MovaHandoffRetirable) (old as MovaHandoffRetirable).markRetired();
     unawaited(old.dispose());
     return true;
+  }
+
+  /// Carries the user's view settings from [from] (the outgoing engine's state)
+  /// onto [shadow] before it plays, so a hand-off never snaps rate/fit/zoom/
+  /// volume/locked/orientation/fullscreen/mini back to defaults. Only values that differ
+  /// from the shadow's are written; a failing setter is skipped, not fatal.
+  ///
+  /// The swap layer cannot tell the swap direction (the warm plan carries no
+  /// such field), so rate is inherited too; an ad-aware caller that must not
+  /// speed up an ad (see `MovaAdController`) resets it after the hand-off.
+  ///
+  /// 在影子开播前，把用户的视图设置从 [from]（旧引擎状态）迁到 [shadow]，使换指
+  /// 不会让倍速/适配/缩放/音量/锁定/方向/全屏/小窗回到默认。只写与影子不同的值；
+  /// 某个 setter 失败则跳过，不致命。
+  ///
+  /// 换指方向在这一层分辨不出（预热计划里没有这个字段），所以倍速也一并继承；
+  /// 不允许广告变速的调用方（见 `MovaAdController`）在换指后自行复位。
+  Future<void> _inheritViewSettings(MovaState from, MovaApi shadow) async {
+    final to = shadow.state;
+    Future<void> apply(bool differs, Future<void> Function() call) async {
+      if (!differs) return;
+      try {
+        await call();
+      } catch (_) {
+        // 迁移失败不阻断换指。
+      }
+    }
+
+    await apply(from.rate != to.rate, () => shadow.setRate(from.rate));
+    await apply(from.fit != to.fit, () => shadow.setFit(from.fit));
+    await apply(from.zoom != to.zoom, () => shadow.setZoom(from.zoom));
+    await apply(from.volume != to.volume, () => shadow.setVolume(from.volume));
+    await apply(from.locked != to.locked, () => shadow.setLocked(from.locked));
+    await apply(from.orientation != to.orientation, () => shadow.setOrientation(from.orientation));
+    await apply(from.fullscreen != to.fullscreen, () => shadow.setFullscreen(from.fullscreen));
+    await apply(from.mini != to.mini, () => shadow.setMini(from.mini));
   }
 
   /// Applies local mute; policy allows unavailable acquisition, reports failed
@@ -653,6 +776,8 @@ class MovaSwapEngine implements MovaApi, MovaSwapController, MovaStandbyControll
     final shadow = _shadow;
     if (shadow == null) return;
     _shadow = null;
+    _warmSource = null;
+    _cancelReadyTimer();
     if (identical(_warmMuteOwner, shadow)) _warmMuteOwner = null;
     _policy = null;
     _warmClock = null;

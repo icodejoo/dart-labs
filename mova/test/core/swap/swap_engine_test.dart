@@ -437,7 +437,9 @@ void main() {
       );
       await settle();
       final shadow = made[1];
-      shadow.pushProgress(const MovaProg(position: Duration.zero, buffer: Duration.zero));
+      // The deadline timer now abandons the shadow on its own; no signal needed.
+      //
+      // 期限计时器现在会自行放弃影子，无需再推信号。
       await settle();
       expect(shadow.calls, contains('dispose'));
       expect(a.swapPhase, MovaSwapPhase.idle);
@@ -458,7 +460,6 @@ void main() {
       final shadow = made[1];
       final commitFuture = a.commit(waitForReady: true);
       await Future<void>.delayed(const Duration(milliseconds: 5));
-      shadow.pushProgress(const MovaProg(position: Duration.zero, buffer: Duration.zero));
       final ok = await commitFuture;
       await settle();
       expect(ok, isFalse);
@@ -608,8 +609,6 @@ void main() {
       });
       final future = a.swapTo(const MovaSource('https://host/720p.m3u8'), at: const Duration(seconds: 5));
       await settle();
-      final shadow = made2[1];
-      shadow.pushProgress(const MovaProg(position: Duration.zero, buffer: Duration.zero));
       final ok = await future;
       expect(ok, isFalse);
       expect(made2.first.calls, contains('open'));
