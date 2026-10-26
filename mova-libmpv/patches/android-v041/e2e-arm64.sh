@@ -1,7 +1,7 @@
 #!/bin/bash -e
 # 从零端到端构建 Android arm64 libmpv（v0.41 + ffmpeg n9.0.2，可选 WHEP），顺序对齐 CI workflow 的 android-arm64 job。
 # 用法：WHEP=1 e2e-arm64.sh <新建的空工作目录> [NDK r25c 目录]
-#   ARCH=armv7l 构建 armeabi-v7a（默认 arm64）；armv7 请用薄包装 e2e-armv7.sh。
+#   ARCH=armv7l|x86|x86_64 构建对应 ABI（默认 arm64）；armv7 也可用薄包装 e2e-armv7.sh。
 #   WHEP=1 带 WHEP 变体（默认不带）；JOBS 控制并行（默认 8）。
 # 本机网络差异（仅本地需要，CI 不用）：videolan/gnome/freedesktop 的 git 源在 WSL 有 CA 问题，
 # 用 git 的 url.insteadOf 重定向到 GitHub 镜像，不改脚本、不绕过证书校验。
@@ -18,7 +18,9 @@ ARCH="${ARCH:-arm64}"
 case "$ARCH" in
 	arm64) ABI=arm64-v8a; SUFFIX=-arm64 ;;
 	armv7l) ABI=armeabi-v7a; SUFFIX= ;;
-	*) echo "不支持的 ARCH=$ARCH（仅 arm64 / armv7l）" >&2; exit 1 ;;
+	x86) ABI=x86; SUFFIX=-x86 ;;
+	x86_64) ABI=x86_64; SUFFIX=-x64 ;;
+	*) echo "不支持的 ARCH=$ARCH（仅 arm64 / armv7l / x86 / x86_64）" >&2; exit 1 ;;
 esac
 
 [ -e "$WORK/ws" ] && { echo "工作目录 $WORK/ws 已存在，要求干净状态" >&2; exit 1; }
