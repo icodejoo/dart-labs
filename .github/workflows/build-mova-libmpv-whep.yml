@@ -85,6 +85,7 @@ jobs:
       windows: ${{ steps.sel.outputs.windows }}
       linux: ${{ steps.sel.outputs.linux }}
       platform: ${{ steps.sel.outputs.platform }}
+      android_matrix: ${{ steps.sel.outputs.android_matrix }}
     steps:
       - name: Checkout only the platform switch file
         uses: actions/checkout@v4
@@ -96,6 +97,7 @@ jobs:
         id: sel
         env:
           INPUT_PLATFORM: ${{ inputs.platform }}
+          INPUT_ABI: ${{ inputs.android_abi }}
         run: |
           P="${INPUT_PLATFORM:-}"
           if [ -z "$P" ] || [ "$P" = auto ]; then P="$(tr -d ' \r\n' < mova-libmpv/tools/whep-flavor/ci-platform)"; fi
@@ -107,23 +109,24 @@ jobs:
             if [ "$P" = "$x" ] || [ "$P" = all ]; then echo "$x=true" >> "$GITHUB_OUTPUT"; else echo "$x=false" >> "$GITHUB_OUTPUT"; fi
           done
           echo "platform=$P" >> "$GITHUB_OUTPUT"
+          # Android 矩阵：按 android_abi 过滤（空/all 为全部）
+          ALL='[{"arch":"arm64","abi":"arm64-v8a","optional":false},{"arch":"armv7l","abi":"armeabi-v7a","optional":false},{"arch":"x86_64","abi":"x86_64","optional":false},{"arch":"x86","abi":"x86","optional":true}]'
+          A="${INPUT_ABI:-all}"
+          if [ "$A" = all ]; then M="$ALL"; else M="$(echo "$ALL" | jq -c --arg a "$A" '[.[] | select(.abi == $a)]')"; fi
+          echo "android_matrix=$M" >> "$GITHUB_OUTPUT"
           echo "### This run builds: $P" >> "$GITHUB_STEP_SUMMARY"
 
   android-whep:
     name: Android ${{ matrix.abi }} WHEP
     needs: plan
-    if: ${{ needs.plan.outputs.android == 'true' && (inputs.android_abi == '' || inputs.android_abi == 'all' || inputs.android_abi == matrix.abi) }}
+    if: ${{ needs.plan.outputs.android == 'true' }}
     runs-on: ubuntu-22.04
     # x86（32 位模拟器）为可选项：失败不拖垮整个 run，其余 ABI 照常注入。
     continue-on-error: ${{ matrix.optional }}
     strategy:
       fail-fast: false
       matrix:
-        include:
-          - { arch: arm64, abi: arm64-v8a, optional: false }
-          - { arch: armv7l, abi: armeabi-v7a, optional: false }
-          - { arch: x86_64, abi: x86_64, optional: false }
-          - { arch: x86, abi: x86, optional: true }
+        include: ${{ fromJSON(needs.plan.outputs.android_matrix) }}
     # 全链从头构建（NDK + mbedtls/dav1d/libxml2/ffmpeg/freetype/libass/libplacebo/mpv）预计 40-90 分钟
     timeout-minutes: 150
     steps:
