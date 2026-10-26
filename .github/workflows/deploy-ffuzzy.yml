@@ -9,6 +9,7 @@ on:
       - 'ffuzzy/example/web/**'
       - 'ffuzzy/example/pubspec.yaml'
       - 'ffuzzy/pubspec.yaml'
+      - 'ffuzzy/wasm/src/ffz.mjs'
       - '.github/workflows/deploy-ffuzzy.yml'
   workflow_dispatch:
 
@@ -35,6 +36,9 @@ jobs:
       - name: Example dependencies
         working-directory: ffuzzy/example
         run: flutter pub get
+      # 演示页加载的引擎必须与 Dart 包配套，构建前始终用最新引擎覆盖，避免副本过期。
+      - name: Sync WASM engine into example
+        run: cp ffuzzy/wasm/src/ffz.mjs ffuzzy/example/web/ffuzzy.mjs
       - name: Build web
         working-directory: ffuzzy/example
         run: flutter build web --release --base-href /dart-labs/ffuzzy/
