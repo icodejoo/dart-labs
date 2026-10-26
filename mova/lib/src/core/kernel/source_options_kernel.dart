@@ -13,6 +13,9 @@ abstract class MovaSourceOptionsKernel {
   /// 都会先还原上一次改动过的属性——因此选项不会泄漏到别的源。引擎在每次 `open()` 前调用
   /// （源没有选项时传空 Map）。
   ///
+  /// `demuxer-lavf-o` 这类键值列表选项只并入本源的键（不整体覆盖），还原时只删这些键、
+  /// 补回被同名键顶掉的原值；列表里别的项（如 media_kit 默认的 `protocol_whitelist`）始终保留。
+  ///
   /// - [options]: mpv option/property name to value / mpv 选项/属性名 → 值
   void stageSourceOptions(Map<String, String> options);
 }

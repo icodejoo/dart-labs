@@ -82,7 +82,7 @@ example 已加直播/时移两个 demo（仅桌面冒烟，未做交互验证）
   `MovaFeedPlayer(posterUntilFirstFrame:)`）、`MovaMinimalSkin` + `MovaTheme` 缓冲三字段、`MovaView` + `MovaSource.sameAs`。
 - **超时与恢复**（`MovaOpts.recovery`，默认关）：`MovaRecoveryConfig`/`MovaPlayFail`/`MovaRecoveryPolicy`（默认 `MovaRetryThenFailover`）/
   `MovaPlayWatchdog`（`core/recovery/`，不导出）；引擎侧 `_onPlayFail`/`_recover`/`_giveUp`/`_announceReady`，事件 `MovaPlayFailure`/
-  `MovaRecovered`。看门狗的起播期限从内核 `open()` 返回后才计；**关闭时 `open()` 失败仍照旧抛出、不建 Timer、不订阅 `endFiles`**
+  `MovaRecovered`。看门狗的起播期限从内核 `open()` 返回后才计；**关闭时 `open()` 失败仍照旧抛出、不建 Timer、不订阅 `endFiles`**；开启时 `createMovaEngine` 经 `movaObserveFlags(recovery:)` 打开原生事件泵但 `observeRestarts: false`（只要 `END_FILE` 做坏地址秒判，不转发 `PLAYBACK_RESTART`，首帧判据不变）
   （`MovaAdController` 依赖它，由 `engine_recovery_test` 第 1 条与 `openness_host_test` 锚定）。重试/切换是内核重载不是新会话。
 - **多地址**：`MovaSource.alternatives/uris/pick`、`MovaState.sourceIndex`、`MovaFailover`；备选只在 recovery 开启时使用，排序留给宿主。
 - **自动暂停守卫**：`core/guard/auto_pause.dart`（纯 Dart gate）+ `ui/guard/auto_pause.dart`（`MovaAutoPause`，只用 Flutter SDK）、

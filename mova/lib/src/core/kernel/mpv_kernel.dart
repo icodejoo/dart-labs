@@ -11,6 +11,7 @@ import 'kernel.dart';
 import 'mpv_defaults.dart';
 import 'mpv_event_backend.dart';
 import 'mpv_event_pump.dart';
+import 'mpv_keyvalue.dart';
 import 'player_mute.dart';
 import 'source_options_kernel.dart';
 import 'standby_kernel.dart';
@@ -115,6 +116,10 @@ class MovaMpvKernel
   /// 为 `null`（默认）时跟随 [observeQoeSignals]，既有调用点行为不变；显式传 `true`
   /// 可在不开 QoE 的情况下只订阅原生事件（例如为了精确首帧信号）。
   ///
+  /// [observeRestarts] 只在原生事件订阅开启时有意义：为 `false` 时丢弃 `PLAYBACK_RESTART`，
+  /// [playbackRestarts] 不再发事件，只保留 [endFiles]（例如仅为恢复机制的"坏地址秒判"订阅
+  /// END_FILE，而不改变首帧判定）。默认 `true`。
+  ///
   /// [backendFactory] 为原生事件提供获取后端的工厂。
   ///
   /// [videoControllerFactory] / [videoReady] 仅供测试注入：分别替换 `VideoController`
@@ -142,6 +147,7 @@ class MovaMpvKernel
     this.lazyVideo = false,
     bool observeQoeSignals = true,
     bool? observeNativeEvents,
+    bool observeRestarts = true,
     MovaMpvEventBackendFactory? backendFactory,
     this.tlsVerify = false,
     this.tlsCaFile,
@@ -152,6 +158,7 @@ class MovaMpvKernel
     this.liveProbeInterval = kLiveProbeInterval,
   })
     : _player = player ?? Player(configuration: PlayerConfiguration(protocolWhitelist: movaProtocolWhitelist())),
+      _observeRestarts = observeRestarts, // ignore: prefer_initializing_formals
       _backendFactory = backendFactory,
       _videoControllerFactory = videoControllerFactory ?? VideoController.new,
       _videoReadyProbe = videoReady ?? ((c) => c.platform.future) {
@@ -339,6 +346,9 @@ class MovaMpvKernel
   /// 后端工厂函数，用于创建 MovaMpvEventBackend。
   final MovaMpvEventBackendFactory? _backendFactory;
 
+  /// 是否转发原生 `PLAYBACK_RESTART`；为 false 时只转发 END_FILE。
+  final bool _observeRestarts;
+
   /// 全局单调递增计数器，为每个事件泵生成唯一名字。
   static int _pumpNameCounter = 0;
 
@@ -394,7 +404,7 @@ class MovaMpvKernel
       backend,
       name: pumpName,
       onRestart: () {
-        if (!_restartController.isClosed) {
+        if (_observeRestarts && !_restartController.isClosed) {
           _restartController.add(null);
         }
       },
@@ -603,21 +613,49 @@ class MovaMpvKernel
   /// 已下发的按源选项在下发前的原值（属性名 → 原值）；非空即有待还原项，下次 [open] 先还原。
   final Map<String, String> _appliedOptions = {};
 
+  /// 已下发的键值列表选项：选项名 → 本源加入的键及其原值（`null` 表示原来没有该键）。
+  /// 还原时只删这些键、把有原值的补回去，不碰列表里别的项。
+  final Map<String, Map<String, String?>> _appliedLists = {};
+
   @override
   void stageSourceOptions(Map<String, String> options) => _stagedOptions = Map.of(options);
 
   /// 把上一个源下发过的属性写回原值；写入失败被吞掉。
   Future<void> _restoreSourceOptions() async {
-    if (_appliedOptions.isEmpty) return;
+    if (_appliedOptions.isEmpty && _appliedLists.isEmpty) return;
     final native = _player.platform;
     final saved = Map.of(_appliedOptions);
+    final savedLists = Map.of(_appliedLists);
     _appliedOptions.clear();
+    _appliedLists.clear();
     if (native is! NativePlayer) return;
     for (final e in saved.entries) {
       try {
         await native.setProperty(e.key, e.value);
       } catch (_) {}
     }
+    for (final list in savedLists.entries) {
+      for (final key in list.value.entries) {
+        try {
+          await native.command(['change-list', list.key, 'remove', key.key]);
+          final original = key.value;
+          if (original != null) await native.command(['change-list', list.key, 'append', '${key.key}=$original']);
+        } catch (_) {}
+      }
+    }
+  }
+
+  /// 把键值列表选项 [name] 的 [value] 并入现有列表（`change-list add`，不覆盖别的项），
+  /// 并记下这些键的原值供还原；值不合法或写入失败就整项跳过。
+  Future<void> _applyListOption(NativePlayer native, String name, String value) async {
+    final entries = parseMpvKeyValueList(value);
+    if (entries == null || entries.isEmpty) return;
+    final printed = await _readNativeProperty(name) ?? '';
+    final originals = <String, String?>{for (final e in entries) e.key: lookupMpvKeyValue(printed, e.key)};
+    try {
+      await native.command(['change-list', name, 'add', value]);
+      _appliedLists.putIfAbsent(name, () => {}).addAll(originals);
+    } catch (_) {}
   }
 
   /// 记下原值后逐项下发 [options]；某项写入失败只跳过该项，不影响播放。
@@ -625,6 +663,10 @@ class MovaMpvKernel
     final native = _player.platform;
     if (options.isEmpty || native is! NativePlayer) return;
     for (final e in options.entries) {
+      if (kMpvKeyValueListOptions.contains(e.key)) {
+        await _applyListOption(native, e.key, e.value);
+        continue;
+      }
       final original = await _readNativeProperty(e.key) ?? '';
       try {
         await native.setProperty(e.key, e.value);
@@ -774,7 +816,8 @@ class MovaMpvKernel
   Stream<void> get playbackRestarts => _restartController.stream;
 
   @override
-  bool get nativeRestartAvailable => _pump?.isActive ?? false;
+  // 不转发 RESTART 时不能声称有信号，否则首帧闸门会白等宽限。
+  bool get nativeRestartAvailable => _observeRestarts && (_pump?.isActive ?? false);
 
   @override
   Stream<MovaEndFileReason> get endFiles => _endFileController.stream;

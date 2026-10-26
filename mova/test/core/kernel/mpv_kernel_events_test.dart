@@ -165,6 +165,46 @@ void main() {
       await kernel.dispose();
     });
 
+    test('observeRestarts=false: END_FILE still forwarded, PLAYBACK_RESTART dropped', () async {
+      final backend = FakeMpvEventBackend();
+      final kernel = MovaMpvKernel(
+        player: _FakePlayer(<String>[]),
+        audioOnly: true,
+        observeQoeSignals: false,
+        observeNativeEvents: true,
+        observeRestarts: false,
+        backendFactory: (native, addr) => backend,
+      );
+      await pumpEventQueue();
+      final restarts = <void>[];
+      final ends = <MovaEndFileReason>[];
+      kernel.playbackRestarts.listen(restarts.add);
+      kernel.endFiles.listen(ends.add);
+      backend.events.addAll([
+        MovaRawEvent(generated.mpv_event_id.MPV_EVENT_PLAYBACK_RESTART),
+        MovaRawEvent(generated.mpv_event_id.MPV_EVENT_END_FILE, endFileReason: generated.mpv_end_file_reason.MPV_END_FILE_REASON_ERROR),
+      ]);
+      backend.wake();
+      await pumpEventQueue();
+      expect(restarts, isEmpty);
+      expect(ends, [MovaEndFileReason.error]);
+      expect(kernel.nativeRestartAvailable, isFalse, reason: '不转发 RESTART，首帧闸门不能等它');
+      await kernel.dispose();
+    });
+
+    test('默认转发 RESTART：泵活跃时 nativeRestartAvailable 为 true', () async {
+      final kernel = MovaMpvKernel(
+        player: _FakePlayer(<String>[]),
+        audioOnly: true,
+        observeQoeSignals: false,
+        observeNativeEvents: true,
+        backendFactory: (native, addr) => FakeMpvEventBackend(),
+      );
+      await pumpEventQueue();
+      expect(kernel.nativeRestartAvailable, isTrue);
+      await kernel.dispose();
+    });
+
     test('observeNativeEvents=false with QoE observes paused-for-cache but never builds the pump', () async {
       final callLog = <String>[];
       var factoryCalled = false;

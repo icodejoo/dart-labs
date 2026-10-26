@@ -203,7 +203,11 @@ MovaEngine createMovaEngine({
       fit: fit,
     );
   }
-  final flags = movaObserveFlags(hasReporter: reporter != null, preciseFirstFrame: preciseFirstFrame);
+  final flags = movaObserveFlags(
+    hasReporter: reporter != null,
+    preciseFirstFrame: preciseFirstFrame,
+    recovery: options.recovery.enabled,
+  );
   return MovaEngine(
     kernel: kernel ?? MovaMpvKernel(
       audioOnly: audioOnly,
@@ -213,6 +217,7 @@ MovaEngine createMovaEngine({
       tlsCaFile: tlsCaFile,
       observeQoeSignals: flags.qoe,
       observeNativeEvents: flags.native,
+      observeRestarts: flags.restart,
       backendFactory: (native, addr) => createFfiMpvEventBackend(native, addr, pollInDebug: kDebugMode),
     ),
     audioOnly: audioOnly,
@@ -236,9 +241,21 @@ MovaEngine createMovaEngine({
 ///
 /// - [hasReporter]: whether a reporter was supplied / 是否传入了 reporter
 /// - [preciseFirstFrame]: whether the precise first-frame signal was requested / 是否要求精确首帧信号
+/// - [recovery]: whether recovery is on; it needs END_FILE so a bad address fails
+///   at once instead of waiting out the start timeout / 恢复机制是否开启；它需要 END_FILE，
+///   坏地址才能秒判而不是等满启动超时
 ///
-/// Returns `qoe` (the `paused-for-cache` observation) and `native` (the FFI
-/// event pump) / 返回 `qoe`（`paused-for-cache` 观察）与 `native`（FFI 事件泵）。
+/// Returns `qoe` (the `paused-for-cache` observation), `native` (the FFI event
+/// pump) and `restart` (forward `PLAYBACK_RESTART`; recovery alone leaves it
+/// off so first-frame logic is unchanged) / 返回 `qoe`（`paused-for-cache` 观察）、
+/// `native`（FFI 事件泵）与 `restart`（转发 `PLAYBACK_RESTART`；仅开恢复时不转发，
+/// 首帧判定保持原样）。
 @visibleForTesting
-({bool qoe, bool native}) movaObserveFlags({required bool hasReporter, required bool preciseFirstFrame}) =>
-    (qoe: hasReporter, native: hasReporter || preciseFirstFrame);
+({bool qoe, bool native, bool restart}) movaObserveFlags({
+  required bool hasReporter,
+  required bool preciseFirstFrame,
+  bool recovery = false,
+}) {
+  final restart = hasReporter || preciseFirstFrame;
+  return (qoe: hasReporter, native: restart || recovery, restart: restart);
+}

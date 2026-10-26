@@ -46,9 +46,11 @@ class MovaSource {
   /// value, e.g. `{'cache': 'no'}`. Set right before the source loads and
   /// restored to their previous values when the next source loads, so nothing
   /// leaks into the next source. An option mpv rejects is skipped silently.
+  /// `demuxer-lavf-o` is merged into the existing list (key by key), not replaced.
   ///
   /// 仅对本源生效的 libmpv 选项：选项/属性名 → 值，例如 `{'cache': 'no'}`。在本源加载前
   /// 下发，下一个源加载时还原成原值，因此不会泄漏到下一个源。mpv 不接受的选项会被静默跳过。
+  /// `demuxer-lavf-o` 按键并入现有列表而不是整体替换。
   final Map<String, String> mpvOptions;
 
   /// FFmpeg demuxer (libavformat) options for this source, sent through mpv's
