@@ -13,6 +13,7 @@ mode：
   MEDIA_HOST（上游 UDP 主机，默认 127.0.0.1）、BIND（本代理监听地址，默认 127.0.0.1；真机走局域网时设 0.0.0.0）、
   LAN_IP（lossy/silent/dead 模式写进 answer 的候选地址，默认 127.0.0.1；真机时填 PC 局域网 IP）、
   MEDIA_PORT（上游 UDP，默认 8189）、RELAY_PORT（中继 UDP，默认 18201）、SILENT_PORT（默认 18199）、
+  LOSS_PT（只对该 payload type 的 RTP 注入故障，默认全部；如只丢音频包）、
   SEED（随机种子，默认 12345）、TRACE（写每个 RTP 一行 CSV 的路径：序号,相对秒,seq,rtp时间戳,pt,marker,动作,长度）；
   收到 SIGTERM/SIGINT 时打印 "relay FINAL {...}" 后退出。
 """
@@ -73,6 +74,8 @@ def relay_udp():
             if client[0] is None:
                 continue
             is_rtp = len(d) > 12 and 128 <= d[0] <= 191 and not 192 <= d[1] <= 223
+            if is_rtp and os.environ.get('LOSS_PT') and (d[1] & 0x7f) != int(os.environ['LOSS_PT']):
+                is_rtp = False   # 只对指定 payload type 注入故障（如只丢音频包）
             if is_rtp:
                 st['rtp'] += 1
                 r = rnd.random() * 100

@@ -1,0 +1,372 @@
+From a596862c9f6c45c5d395563204f8f2c0498cabe7 Mon Sep 17 00:00:00 2001
+From: jelon <jelon@tbu.net>
+Date: Mon, 26 Oct 2026 23:12:15 +0800
+Subject: [PATCH] avformat/whep: wait for a decodable key frame in read_header
+ and fill the video size from SPS
+
+The demuxer used to open successfully before any video key frame had arrived. When the first IDR came later than lavf's analyzeduration (5s default, e.g. GOP >= 5s) the video stream was left as 'h264, none: unspecified size', and decoders that need the size at open time (Android mediacodec) failed in a tight fallback loop.
+
+read_header now blocks until the first IDR that comes with SPS/PPS (own, or cached from an earlier access unit and prepended), fills codecpar width/height from the SPS and only then returns. The wait is bounded by the new first_frame_timeout option (default 10s, -1 for no limit); on timeout open fails with ETIMEDOUT so the caller can retry. media_timeout is not applied during the wait, because servers such as MediaMTX hold back every RTP packet until the first IDR.
+---
+ libavformat/whep.c | 285 +++++++++++++++++++++++++++++++++++++++++++--
+ 1 file changed, 274 insertions(+), 11 deletions(-)
+
+diff --git a/libavformat/whep.c b/libavformat/whep.c
+index 90cc91f..1fc6345 100644
+--- a/libavformat/whep.c
++++ b/libavformat/whep.c
+@@ -105,6 +105,8 @@
+ #define WHEP_CONSENT_US       2500000
+ /* UDP 接收缓冲，容纳视频突发 */
+ #define WHEP_UDP_RCVBUF       (1 << 20)
++/* 缓存的 SPS / PPS 最大字节数（不含起始码），超出则不缓存 */
++#define WHEP_PS_MAX           512
+ 
+ /* 会话状态，T1.3 起沿用到 ICE/DTLS 阶段 */
+ enum WHEPState {
+@@ -206,6 +208,9 @@ typedef struct WhepRx {
+     int         au_open, au_key, au_bad, fu_open, seen_key;
+     uint32_t    au_ts;
+     int64_t     au_pts;
++    /* 起播参数：最近见到的 SPS / PPS（Annex B，不含起始码），起播前缓存 */
++    uint8_t     sps[WHEP_PS_MAX], pps[WHEP_PS_MAX];
++    int         sps_len, pps_len;
+     /* RTCP 反馈（T1.5） */
+     int         nack_on, pli_on;    /* 该路协商了 nack / nack pli 且选项开启 */
+     int         hi_valid;
+@@ -240,6 +245,8 @@ typedef struct WHEPContext {
+     char   *user_agent;       /* HTTP User-Agent */
+     int64_t handshake_timeout; /* ICE + DTLS 握手总期限（微秒），<0 不限 */
+     int64_t media_timeout;    /* 握手后对端无任何经认证数据的容忍时长（微秒），<0 不限 */
++    int64_t first_frame_timeout; /* open 时等首个可解码视频关键帧的期限（微秒），<0 不限 */
++    int     opening;          /* read_header 正在等首个关键帧：此时不按 media_timeout 判死 */
+     int     rtcp_nack;        /* 协商了 nack 时是否发 NACK（0/1） */
+     int     rtcp_pli;         /* 协商了 nack pli 时是否发 PLI（0/1） */
+     int64_t rtcp_interval;    /* Receiver Report 周期（微秒），0 关闭 RR */
+@@ -1467,26 +1474,227 @@ static void whep_h264_add(WhepRx *rx, const uint8_t *d, int n, int start_code)
+     rx->au_size += n;
+ }
+ 
++/* SPS 解析用的最小位读取器：输入是已去掉防竞争字节的 RBSP */
++typedef struct WhepBits {
++    const uint8_t *b;
++    int nbits, pos;
++} WhepBits;
++
++/**
++ * 读 n（1..32）位；读到末尾后补 0，调用方靠 pos > nbits 判断越界。
++ */
++static unsigned whep_bits_u(WhepBits *g, int n)
++{
++    unsigned v = 0;
++
++    while (n-- > 0) {
++        v = (v << 1) | (g->pos < g->nbits ? (g->b[g->pos >> 3] >> (7 - (g->pos & 7))) & 1 : 0);
++        g->pos++;
++    }
++    return v;
++}
++
+ /**
+- * 结束当前访问单元：不完整（丢包）的丢弃；第一个 IDR 之前的丢弃（解码器无法起播）；其余输出。
++ * 读无符号指数哥伦布码；前导 0 过多或读穿末尾按越界处理。
++ */
++static unsigned whep_bits_ue(WhepBits *g)
++{
++    int zeros = 0;
++
++    while (g->pos < g->nbits && !whep_bits_u(g, 1))
++        if (++zeros > 31) {
++            g->pos = g->nbits + 1;
++            return 0;
++        }
++    if (g->pos > g->nbits)
++        return 0;
++    return ((1u << zeros) - 1) + whep_bits_u(g, zeros);
++}
++
++/**
++ * 跳过一个 scaling_list：size 项，每项一个有符号指数哥伦布增量（next 归 0 后不再有后续语法）。
++ */
++static void whep_bits_skip_scaling(WhepBits *g, int size)
++{
++    int last = 8, next = 8;
++
++    for (int j = 0; j < size; j++) {
++        if (next) {
++            unsigned ue = whep_bits_ue(g);
++            int delta = (ue & 1) ? (int)((ue + 1) >> 1) : -(int)(ue >> 1);
++            next = (last + delta + 256) & 255;
++        }
++        last = next ? next : last;
++    }
++}
++
++/**
++ * 从 SPS NAL（含 1 字节 NAL 头，不含起始码）解析图像宽高（已扣裁剪）。
++ * 只解析到裁剪参数为止；不支持或损坏返回 AVERROR_INVALIDDATA。
++ */
++static int whep_h264_sps_size(const uint8_t *nal, int len, int *width, int *height)
++{
++    uint8_t rbsp[WHEP_PS_MAX];
++    WhepBits g = { rbsp, 0, 0 };
++    int n = 0, zeros = 0, profile, chroma = 1, fmo, cl = 0, cr = 0, ct = 0, cb = 0;
++    unsigned mbw, mbh;
++
++    if (len < 5 || len > WHEP_PS_MAX)
++        return AVERROR_INVALIDDATA;
++    for (int i = 1; i < len; i++) {                  /* 去掉 00 00 03 里的防竞争字节 */
++        if (zeros >= 2 && nal[i] == 3) {
++            zeros = 0;
++            continue;
++        }
++        zeros = nal[i] ? 0 : zeros + 1;
++        rbsp[n++] = nal[i];
++    }
++    g.nbits = n * 8;
++    profile = whep_bits_u(&g, 8);
++    whep_bits_u(&g, 16);                             /* constraint 标志 + level_idc */
++    whep_bits_ue(&g);                                /* sps_id */
++    if (profile == 100 || profile == 110 || profile == 122 || profile == 244 || profile == 44 ||
++        profile == 83  || profile == 86  || profile == 118 || profile == 128 || profile == 138 ||
++        profile == 139 || profile == 134 || profile == 135) {
++        chroma = whep_bits_ue(&g);
++        if (chroma == 3)
++            whep_bits_u(&g, 1);
++        whep_bits_ue(&g);                            /* bit_depth_luma_minus8 */
++        whep_bits_ue(&g);                            /* bit_depth_chroma_minus8 */
++        whep_bits_u(&g, 1);                          /* qpprime_y_zero_transform_bypass */
++        if (whep_bits_u(&g, 1))                      /* seq_scaling_matrix_present */
++            for (int i = 0; i < (chroma != 3 ? 8 : 12); i++)
++                if (whep_bits_u(&g, 1))
++                    whep_bits_skip_scaling(&g, i < 6 ? 16 : 64);
++    }
++    whep_bits_ue(&g);                                /* log2_max_frame_num_minus4 */
++    switch (whep_bits_ue(&g)) {                      /* pic_order_cnt_type */
++    case 0:
++        whep_bits_ue(&g);
++        break;
++    case 1: {
++        unsigned cycle;
++        whep_bits_u(&g, 1);
++        whep_bits_ue(&g);
++        whep_bits_ue(&g);
++        cycle = whep_bits_ue(&g);
++        if (cycle > 255)
++            return AVERROR_INVALIDDATA;
++        for (unsigned i = 0; i < cycle; i++)
++            whep_bits_ue(&g);
++        break;
++    }
++    default:
++        break;
++    }
++    whep_bits_ue(&g);                                /* max_num_ref_frames */
++    whep_bits_u(&g, 1);                              /* gaps_in_frame_num_allowed */
++    mbw = whep_bits_ue(&g) + 1;
++    mbh = whep_bits_ue(&g) + 1;
++    fmo = whep_bits_u(&g, 1);                        /* frame_mbs_only_flag */
++    if (!fmo)
++        whep_bits_u(&g, 1);                          /* mb_adaptive_frame_field */
++    whep_bits_u(&g, 1);                              /* direct_8x8_inference */
++    if (whep_bits_u(&g, 1)) {                        /* frame_cropping_flag */
++        cl = whep_bits_ue(&g);
++        cr = whep_bits_ue(&g);
++        ct = whep_bits_ue(&g);
++        cb = whep_bits_ue(&g);
++    }
++    if (g.pos > g.nbits || mbw > 1024 || mbh > 1024 || chroma > 3)
++        return AVERROR_INVALIDDATA;
++    {
++        int ux = (chroma == 1 || chroma == 2) ? 2 : 1;
++        int uy = (chroma == 1 ? 2 : 1) * (2 - fmo);
++        *width  = mbw * 16 - ux * (cl + cr);
++        *height = (2 - fmo) * mbh * 16 - uy * (ct + cb);
++    }
++    return *width > 0 && *height > 0 ? 0 : AVERROR_INVALIDDATA;
++}
++
++/**
++ * 扫描当前访问单元里的 SPS / PPS（Annex B，4 字节起始码），记进 rx 的缓存。
++ * @return 本访问单元自带 SPS 与 PPS 返回 1，否则 0
++ */
++static int whep_h264_scan_ps(WhepRx *rx)
++{
++    int has_sps = 0, has_pps = 0;
++
++    for (int i = 0; i + 5 <= rx->au_size;) {
++        int j, type, len;
++
++        if (AV_RB32(rx->au + i) != 1) {
++            i++;
++            continue;
++        }
++        for (j = i + 5; j + 4 <= rx->au_size && AV_RB32(rx->au + j) != 1; j++)
++            ;
++        if (j + 4 > rx->au_size)
++            j = rx->au_size;
++        type = rx->au[i + 4] & 0x1f;
++        len  = j - (i + 4);
++        if (type == 7 && len <= WHEP_PS_MAX) {
++            memcpy(rx->sps, rx->au + i + 4, len);
++            rx->sps_len = len;
++            has_sps = 1;
++        } else if (type == 8 && len <= WHEP_PS_MAX) {
++            memcpy(rx->pps, rx->au + i + 4, len);
++            rx->pps_len = len;
++            has_pps = 1;
++        }
++        i = j;
++    }
++    return has_sps && has_pps;
++}
++
++/**
++ * 结束当前访问单元：不完整（丢包）的丢弃；起播前必须是带 SPS/PPS 的 IDR（本单元自带，
++ * 或之前缓存过），否则丢弃；起播时按 SPS 回填视频流宽高；起播后的全部输出。
+  */
+ static void whep_h264_au_end(AVFormatContext *s, WhepRx *rx)
+ {
++    WHEPContext *w = s->priv_data;
++
+     if (!rx->au_open)
+         return;
+     rx->au_open = 0;
+     rx->fu_open = 0;
+     if (rx->au_bad || !rx->au_size) {
+         rx->n_drop_au++;
+-    } else if (!rx->seen_key && !rx->au_key) {
+-        rx->n_nokey++;
+-    } else {
+-        if (!rx->seen_key) {
+-            WHEPContext *w = s->priv_data;
+-            av_log(s, AV_LOG_VERBOSE, "First video key frame out at %.1fms since open (pli_sent=%"PRIu64")\n",
+-                   (av_gettime_relative() - w->t_start) / 1000.0, rx->n_pli);
++    } else if (!rx->seen_key) {
++        int own = whep_h264_scan_ps(rx);
++
++        if (!rx->au_key || !rx->sps_len || !rx->pps_len) {
++            rx->n_nokey++;
++        } else {
++            AVCodecParameters *par = s->streams[rx->stream_index]->codecpar;
++            uint8_t *buf = NULL;
++            int width = 0, height = 0, ps_len = 8 + rx->sps_len + rx->pps_len;
++
++            if (whep_h264_sps_size(rx->sps, rx->sps_len, &width, &height) >= 0) {
++                par->width  = width;
++                par->height = height;
++            } else {
++                av_log(s, AV_LOG_WARNING, "Cannot parse SPS, video size stays unknown\n");
++            }
++            if (!own && (buf = av_malloc(ps_len + rx->au_size))) {   /* IDR 没带参数集：补上缓存的 */
++                AV_WB32(buf, 1);
++                memcpy(buf + 4, rx->sps, rx->sps_len);
++                AV_WB32(buf + 4 + rx->sps_len, 1);
++                memcpy(buf + 8 + rx->sps_len, rx->pps, rx->pps_len);
++                memcpy(buf + ps_len, rx->au, rx->au_size);
++            }
++            av_log(s, AV_LOG_VERBOSE, "First video key frame out at %.1fms since open (pli_sent=%"PRIu64") size=%dx%d%s\n",
++                   (av_gettime_relative() - w->t_start) / 1000.0, rx->n_pli, par->width, par->height,
++                   own ? "" : " (SPS/PPS from cache)");
++            rx->seen_key = 1;
++            if (buf)
++                whep_rx_emit(s, rx, buf, ps_len + rx->au_size, rx->au_pts, 1, 0);
++            else
++                whep_rx_emit(s, rx, rx->au, rx->au_size, rx->au_pts, 1, 0);
++            av_free(buf);
+         }
+-        rx->seen_key = 1;
++    } else {
+         whep_rx_emit(s, rx, rx->au, rx->au_size, rx->au_pts, rx->au_key, 0);
+     }
+     rx->au_size = 0;
+@@ -2121,7 +2329,7 @@ static int whep_rx_housekeeping(AVFormatContext *s, int64_t now)
+             (n = whep_ice_build_request(w, out, w->consent_tid)) > 0)
+             ffurl_write(w->udp, out, n);             /* 失败（如 ICMP 不可达）由存活检测兜底 */
+     }
+-    if (w->media_timeout >= 0 && now - w->last_alive > w->media_timeout) {
++    if (!w->opening && w->media_timeout >= 0 && now - w->last_alive > w->media_timeout) {
+         av_log(s, AV_LOG_ERROR, "No data from peer for %.1fs, connection considered dead\n",
+                (now - w->last_alive) / 1e6);
+         return AVERROR(ETIMEDOUT);
+@@ -2209,6 +2417,59 @@ static int whep_media_read(AVFormatContext *s, AVPacket *pkt)
+     }
+ }
+ 
++/**
++ * 在 read_header 里等到首个可解码的视频关键帧（带 SPS/PPS 的 IDR），并据 SPS 回填视频流宽高。
++ * 没有视频流时直接返回。等待期间不按 media_timeout 判死：不少服务端（如 MediaMTX）在首个 IDR
++ * 之前一个 RTP 包都不发，空窗最长可达一个 GOP，此时只受 first_frame_timeout 约束。
++ * 起播参数缺失就放行的话，解码器（尤其 Android mediacodec）拿不到尺寸会反复回退空转，
++ * 所以宁可在这里让 open 失败，交给上层重试。
++ * @return 0 成功，AVERROR(ETIMEDOUT) 超时，AVERROR_EXIT 被中断，其他负值对端异常
++ */
++static int whep_wait_first_key(AVFormatContext *s)
++{
++    WHEPContext *w = s->priv_data;
++    int fd = ffurl_get_file_handle(w->udp);
++    int64_t deadline = w->first_frame_timeout < 0 ? INT64_MAX : av_gettime_relative() + w->first_frame_timeout;
++    const WhepRx *v = NULL;
++    int ret = 0;
++
++    for (int i = 0; i < WHEP_MAX_MEDIA; i++)
++        if (w->rx[i].active && w->rx[i].is_video)
++            v = &w->rx[i];
++    if (!v)
++        return 0;
++    w->opening = 1;
++    while (!v->seen_key) {
++        int64_t now = av_gettime_relative();
++        struct pollfd p = { .fd = fd, .events = POLLIN };
++        int n;
++
++        if (ff_check_interrupt(&s->interrupt_callback)) {
++            ret = AVERROR_EXIT;
++            break;
++        }
++        if (now > deadline) {
++            av_log(s, AV_LOG_ERROR, "No decodable video key frame within %.1fs (SPS/PPS + IDR), giving up\n",
++                   w->first_frame_timeout / 1e6);
++            ret = AVERROR(ETIMEDOUT);
++            break;
++        }
++        if ((ret = whep_rx_housekeeping(s, now)) < 0)
++            break;
++        n = recv(fd, w->rxbuf, sizeof(w->rxbuf), 0);
++        if (n > 0) {
++            whep_rx_datagram(s, n, now);
++            continue;
++        }
++        if (n < 0 && ff_neterrno() != AVERROR(EAGAIN) && ff_neterrno() != AVERROR(EINTR))
++            av_usleep(5000);
++        poll(&p, 1, WHEP_POLL_MS);
++    }
++    w->opening = 0;
++    w->last_alive = av_gettime_relative();
++    return ret;
++}
++
+ /* ------------------------------------------------------------------ */
+ /* demuxer 入口                                                        */
+ /* ------------------------------------------------------------------ */
+@@ -2276,7 +2537,8 @@ static int whep_read_header(AVFormatContext *s)
+         (ret = whep_exchange_sdp(s)) < 0 ||
+         (ret = whep_parse_answer(s, w->sdp_answer, &w->answer)) < 0 ||
+         (ret = whep_create_streams(s)) < 0 ||
+-        (ret = whep_media_open(s)) < 0) {
++        (ret = whep_media_open(s)) < 0 ||
++        (ret = whep_wait_first_key(s)) < 0) {
+         w->state = WHEP_STATE_FAILED;
+         return ret;
+     }
+@@ -2307,6 +2569,7 @@ static const AVOption options[] = {
+     { "user_agent", "HTTP User-Agent of the signalling request",          OFFSET(user_agent), AV_OPT_TYPE_STRING,   { .str = NULL }, 0, 0, DEC },
+     { "handshake_timeout", "Timeout (microseconds) of the ICE + DTLS handshake, -1: no limit", OFFSET(handshake_timeout), AV_OPT_TYPE_INT64, { .i64 = 10000000 }, -1, INT_MAX, DEC },
+     { "media_timeout", "Timeout (microseconds) without any authenticated data from the peer before giving up, -1: no limit", OFFSET(media_timeout), AV_OPT_TYPE_INT64, { .i64 = 5000000 }, -1, INT_MAX, DEC },
++    { "first_frame_timeout", "Timeout (microseconds) of open waiting for the first decodable video key frame, -1: no limit", OFFSET(first_frame_timeout), AV_OPT_TYPE_INT64, { .i64 = 10000000 }, -1, INT_MAX, DEC },
+     { "rtcp_nack",  "Send RTCP NACK for lost packets when the answer negotiated nack (0/1)", OFFSET(rtcp_nack), AV_OPT_TYPE_BOOL, { .i64 = 1 }, 0, 1, DEC },
+     { "rtcp_pli",   "Send RTCP PLI to request a key frame when the answer negotiated nack pli (0/1)", OFFSET(rtcp_pli), AV_OPT_TYPE_BOOL, { .i64 = 1 }, 0, 1, DEC },
+     { "rtcp_interval", "Interval (microseconds) of RTCP Receiver Reports, 0: do not send", OFFSET(rtcp_interval), AV_OPT_TYPE_INT64, { .i64 = 1000000 }, 0, INT_MAX, DEC },
+-- 
+2.43.0
+
