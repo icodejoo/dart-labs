@@ -36,6 +36,9 @@ class RequestClaims {
   /// 是否已有认领者尚未交出结果。
   bool get hasOwners => _owners.isNotEmpty;
 
+  /// [owner] 是否仍持有认领（没认领的插件不负责结算，也不应恢复结果）。
+  bool has(Object owner) => _owners.contains(owner);
+
   /// 是否已经结束（结果已确定，回调已触发）。
   bool get isFinished => _finished;
 

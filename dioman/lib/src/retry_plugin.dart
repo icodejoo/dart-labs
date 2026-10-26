@@ -618,6 +618,14 @@ class DiomanRetry extends DiomanPlugin {
     handler.next(options);
   }
 
+  /// 请求是否已进入结算登记簿（share 参与）而本插件没有认领。说明 onRequest 被
+  /// 上游短路（如 mock），share 已按"无认领"当场结算，此时再恢复会让 leader 与
+  /// follower 结果不一致。没有登记簿（无 share）时保持原行为，仍可恢复。
+  bool _unclaimedUnderShare(RequestOptions config) {
+    final claims = claimsOf(config);
+    return claims != null && !claims.has(this);
+  }
+
   /// 该请求按配置是否可能被本插件重试。
   bool _mayRetry(RequestOptions config) =>
       !_isDisabled(config) &&
@@ -641,7 +649,9 @@ class DiomanRetry extends DiomanPlugin {
   ) async {
     final config = response.requestOptions;
     try {
-      if (isJoined(config) || !_shouldRetry(config, null, response)) {
+      if (isJoined(config) ||
+          _unclaimedUnderShare(config) ||
+          !_shouldRetry(config, null, response)) {
         return ReplayClient.handOffResponse(config, this, response, handler);
       }
 
@@ -679,8 +689,9 @@ class DiomanRetry extends DiomanPlugin {
       // 本插件的 onError 看到标记不再重复调用回调。
       final err = DioException(requestOptions: config, error: e, stackTrace: s);
       config.extra[_kCallbackFailed] = true;
-      releaseClaim(config, this, error: err);
-      if (!handler.isCompleted) handler.reject(err, true);
+      if (!handler.isCompleted) {
+        ReplayClient.handOffResponseError(config, this, err, handler);
+      }
     }
   }
 
@@ -710,6 +721,7 @@ class DiomanRetry extends DiomanPlugin {
     final config = err.requestOptions;
     try {
       if (isJoined(config) ||
+          _unclaimedUnderShare(config) ||
           config.extra.remove(_kCallbackFailed) == true ||
           !_shouldRetry(config, err, err.response)) {
         return _replay.handOffError(this, config, err, handler);
@@ -751,8 +763,9 @@ class DiomanRetry extends DiomanPlugin {
     } catch (e, s) {
       final failure =
           DioException(requestOptions: config, error: e, stackTrace: s);
-      releaseClaim(config, this, error: failure);
-      if (!handler.isCompleted) handler.next(failure);
+      if (!handler.isCompleted) {
+        _replay.handOffError(this, config, failure, handler);
+      }
     }
   }
 

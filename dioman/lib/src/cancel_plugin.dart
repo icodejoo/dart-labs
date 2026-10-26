@@ -130,9 +130,20 @@ class DiomanCancel extends DiomanPlugin {
     if (token == null) return;
     final claims = claimsOf(options);
     if (claims != null && claims.hasOwners) {
-      claims.whenDrained(() => _tokens.remove(token));
+      claims.whenDrained(() => _untrackAfter(claims.loser, token));
     } else {
+      _untrackAfter(claims?.loser, token);
+    }
+  }
+
+  /// 注销 [token]；若该请求在 share 仲裁中落败、仍在等胜出结果 [wait]，则持续
+  /// 追踪到结果交付，这样 [cancelAll] 仍能取消这个等待中的调用者。
+  void _untrackAfter(Future<Response<dynamic>>? wait, CancelToken token) {
+    if (wait == null) {
       _tokens.remove(token);
+    } else {
+      wait.then<void>((_) => _tokens.remove(token),
+          onError: (Object _) => _tokens.remove(token));
     }
   }
 

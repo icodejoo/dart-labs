@@ -640,8 +640,7 @@ class DiomanAuth extends DiomanPlugin {
     } catch (e, s) {
       _clearFlags(bag);
       final failure = DioException(requestOptions: opts, error: e, stackTrace: s);
-      releaseClaim(opts, this, error: failure);
-      if (!handler.isCompleted) handler.next(failure);
+      if (!handler.isCompleted) _replay.handOffError(this, opts, failure, handler);
     }
   }
 
