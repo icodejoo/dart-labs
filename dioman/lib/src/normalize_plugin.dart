@@ -1,5 +1,21 @@
 ﻿import 'package:dio/dio.dart';
 import 'dioman_plugin.dart';
+import 'auth_plugin.dart';
+import 'breaker_plugin.dart';
+import 'cache_plugin.dart';
+import 'cancel_plugin.dart';
+import 'envs_plugin.dart';
+import 'filter_plugin.dart';
+import 'key_plugin.dart';
+import 'loading_plugin.dart';
+import 'log_plugin.dart';
+import 'mock_plugin.dart';
+import 'offline_plugin.dart';
+import 'repath_plugin.dart';
+import 'retry_plugin.dart';
+import 'share_plugin.dart';
+import 'timeout_plugin.dart';
+import 'plugin_order.dart';
 
 /// Per-request override for [DiomanNormalize], read from `extra['dioman:normalize']`.
 ///
@@ -183,6 +199,28 @@ class DiomanNormalize extends DiomanPlugin {
 
   @override
   String get name => pluginName;
+
+  /// 顺序声明：normalize排在所有内置插件之后：其余插件看到的都是线上原始响应。
+  @override
+  DiomanPluginOrder get ordering => const DiomanPluginOrder(
+        after: {
+          DiomanEnvs.pluginName,
+          DiomanTimeout.pluginName,
+          DiomanRepath.pluginName,
+          DiomanFilter.pluginName,
+          DiomanKey.pluginName,
+          DiomanCache.pluginName,
+          DiomanOffline.pluginName,
+          DiomanShare.pluginName,
+          DiomanMock.pluginName,
+          DiomanCancel.pluginName,
+          DiomanLoading.pluginName,
+          DiomanAuth.pluginName,
+          DiomanRetry.pluginName,
+          DiomanBreaker.pluginName,
+          DiomanLog.pluginName,
+        },
+      );
 
   bool _isSuccess(dynamic code, bool Function(dynamic)? $isSuccess) =>
       $isSuccess != null ? $isSuccess(code) : code == 0;

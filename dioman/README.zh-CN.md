@@ -181,6 +181,54 @@ handle.remove<DiomanAuth>();
 handle.dispose();
 ```
 
+### 声明式顺序
+
+每个插件可以覆写 `ordering` 声明顺序约束，`Dioman` 对插件集合做稳定拓扑排序并校验。
+`Dioman.install` 仍按规范顺序安装：内置插件只声明上表里的硬约束，所以结果与之前完全一致。
+
+```dart
+class TimingPlugin extends DiomanPlugin {
+  @override
+  String get name => 'timing';
+
+  @override
+  DiomanPluginOrder get ordering => DiomanPluginOrder(
+        after: {DiomanKey.pluginName},    // 必须在 key 之后
+        before: {DiomanCache.pluginName}, // 必须在 cache 之前
+        requires: {DiomanKey.pluginName}, // key 也必须安装
+      );
+}
+
+// 把自定义插件混进 install，或只靠约束安装任意一组：
+final handle = Dioman.install(dio, key: const DiomanKey(), plugins: [TimingPlugin()]);
+final handle2 = Dioman.installPlugins(dio2, [TimingPlugin(), const DiomanKey()]);
+final ordered = Dioman.sort(plugins); // 纯函数：返回新列表
+```
+
+- `before`/`after` 指向未安装的插件会被忽略（可选依赖）；`requires` 必须存在。
+- 无约束的插件保持你给的顺序，被需要的前驱只会提前到刚好满足约束的位置。
+- 重复名、环、缺失的 `requires`、以及给定顺序违反约束，都会抛 `DiomanPluginOrderException`
+  （带 `issue` 和涉及的插件名）。`install`/`installPlugins` 在改动 `dio` 之前抛出；
+  `insertBefore/insertAfter/prepend/append` 先校验，失败时 handle 原样不动；
+  `remove` 拒绝移除被其它插件 `requires` 的插件。
+- 自己手动管理 `dio.interceptors` 的写法照旧可用，那里不做任何校验。
+
+### `extra` 键注册表
+
+`DiomanExtraKeys` 登记所有 `RequestOptions.extra` 键的所属插件、类别（`config` 公开配置 /
+`protocol` 跨插件协议 / `state` 内部状态）和值类型。
+
+```dart
+DiomanExtraKeys.lookup('dioman:cache:key');                 // 所属插件、类别、值类型
+DiomanExtraKeys.findSharedState(dio.interceptors);          // 重复实例共享状态键的诊断
+handle.diagnoseSharedStateKeys();                           // 同上，针对 handle 的 Dio
+DiomanExtraKeys.assertNoSharedState(dio.interceptors);      // 仅 debug 生效的断言
+DiomanExtraKeys.register(myKey);                            // 自定义插件登记自己的键
+```
+
+现有键名和运行时行为都不变。完整键表在 `ARCHITECTURE.md`（由 `DiomanExtraKeys.toMarkdown()`
+生成，有测试保证同步）。
+
 ## 插件详解
 
 每个插件都提供 `String get name`（用于查找/去重）与 `dispose()`。每个插件的名字也作为类上的 `static const pluginName` 公开（例如 `DiomanCache.pluginName`），无需实例化即可拿到该插件的 `extra` 键。多数支持从 `options.extra` 读单请求级开关（见[单请求级覆盖](#单请求级覆盖)）。

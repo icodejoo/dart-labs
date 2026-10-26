@@ -2,6 +2,10 @@ import 'dart:async';
 import 'dart:collection';
 import 'package:dio/dio.dart';
 import 'dioman_plugin.dart';
+import 'cancel_plugin.dart';
+import 'loading_plugin.dart';
+import 'share_plugin.dart';
+import 'plugin_order.dart';
 
 /// Why a queued request was rejected instead of eventually replayed.
 ///
@@ -290,6 +294,16 @@ class DiomanOffline extends DiomanPlugin {
   /// 插件的公开协议名称。
   @override
   String get name => pluginName;
+
+  /// 顺序声明：offline在share/cancel/loading之前：排队中的请求不能已建立share条目或打开cancel/loading括号。
+  @override
+  DiomanPluginOrder get ordering => const DiomanPluginOrder(
+        before: {
+          DiomanShare.pluginName,
+          DiomanCancel.pluginName,
+          DiomanLoading.pluginName,
+        },
+      );
 
   /// Number of requests currently parked in the queue. Read-only, for
   /// inspection/testing.

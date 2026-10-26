@@ -7,11 +7,13 @@ import 'cache_plugin.dart';
 import 'cancel_plugin.dart';
 import 'dioman_plugin.dart';
 import 'envs_plugin.dart';
+import 'extra_keys.dart';
 import 'loading_plugin.dart';
 import 'log_plugin.dart';
 import 'mock_plugin.dart';
 import 'normalize_plugin.dart';
 import 'offline_plugin.dart';
+import 'plugin_order.dart';
 import 'filter_plugin.dart';
 import 'repath_plugin.dart';
 import 'timeout_plugin.dart';
@@ -42,6 +44,10 @@ import 'share_plugin.dart';
 abstract final class Dioman {
   /// Adds the given plugins to [dio] in the canonical order and returns a
   /// [DiomanHandle] for later lookup / teardown. Omitted plugins are skipped.
+  ///
+  /// [plugins] 可额外混入自定义插件：它们排在内置插件之后参与稳定拓扑排序，
+  /// 靠各自的 [DiomanPlugin.ordering] 声明想要的位置（无声明则留在末尾）；
+  /// 重复名/环/缺失依赖抛 [DiomanPluginOrderException]。
   static DiomanHandle install(
     Dio dio, {
     DiomanEnvs? envs,
@@ -60,6 +66,7 @@ abstract final class Dioman {
     DiomanBreaker? breaker,
     DiomanLog? log,
     DiomanNormalize? normalize,
+    List<DiomanPlugin> plugins = const [],
   }) {
     // envs → timeout → repath → filter → key → cache → offline → share → mock →
     // cancel → loading → auth → retry → breaker → log → normalize
@@ -87,11 +94,28 @@ abstract final class Dioman {
       log,
       normalize,
     ];
-    final plugins = <DiomanPlugin>[
+    return installPlugins(dio, [
       for (final p in ordered)
         if (p != null) p,
-    ];
-    dio.interceptors.addAll(plugins);
+      ...plugins,
+    ]);
+  }
+
+  /// 对 [plugins] 做稳定拓扑排序（见 [sort]）后装进 [dio]，返回 [DiomanHandle]。
+  ///
+  /// 与 [install] 共用同一条装配路径（绑定宿主 Dio、接线 retry 与 breaker），
+  /// 区别是顺序由插件各自的 [DiomanPlugin.ordering] 声明决定，且可混入自定义
+  /// 插件。重复名、环、缺失依赖会在修改 [dio] 之前抛 [DiomanPluginOrderException]。
+  ///
+  /// 参数：[dio] 宿主；[plugins] 要安装的插件（无约束者保持给定顺序）。
+  /// 返回：管理这些插件的 [DiomanHandle]。
+  ///
+  /// ```dart
+  /// final handle = Dioman.installPlugins(dio, [myPlugin, const DiomanKey()]);
+  /// ```
+  static DiomanHandle installPlugins(Dio dio, Iterable<DiomanPlugin> plugins) {
+    final sorted = sort(plugins);
+    dio.interceptors.addAll(sorted);
 
     // Bind the host Dio to the plugins that replay/re-issue requests, so they
     // reuse its transport and hand recovered results to the interceptors after
@@ -101,7 +125,7 @@ abstract final class Dioman {
     // 把宿主 Dio 绑定给会重放/重新发起请求的插件，让它们复用宿主传输层，并把
     // 恢复成功的结果交给排在它们之后的拦截器。share/cancel 的结算交接不再需要接线：
     // auth/retry 自己在每个请求上登记。
-    for (final p in plugins) {
+    for (final p in sorted) {
       _bindHost(p, dio);
     }
     // Let DiomanRetry consult the breaker before each re-issue, so an
@@ -109,12 +133,41 @@ abstract final class Dioman {
     //
     // 让DiomanRetry在每次重发前查询熔断器，正在进行的重试循环会在熔断器触发的
     // 那一刻立即停止。
+    DiomanRetry? retry;
+    DiomanBreaker? breaker;
+    for (final p in sorted) {
+      if (p is DiomanRetry) retry = p;
+      if (p is DiomanBreaker) breaker = p;
+    }
     if (breaker != null) {
       retry?.breaker = breaker;
     }
 
-    return DiomanHandle._(dio, plugins);
+    return DiomanHandle._(dio, sorted);
   }
+
+  /// 对 [plugins] 做稳定拓扑排序并返回新列表，不修改入参。
+  ///
+  /// 依据每个插件的 [DiomanPlugin.ordering]：无约束的插件保持给定顺序，被
+  /// 需要的前驱会提前到刚好满足约束的位置；指向未安装插件的 before/after 被忽略。重复名、
+  /// 缺失依赖、环会抛 [DiomanPluginOrderException]。
+  ///
+  /// 参数：[plugins] 待排序的插件。返回：满足全部约束的新顺序。
+  ///
+  /// ```dart
+  /// final ordered = Dioman.sort([log, cache, key]); // key, cache, log
+  /// ```
+  static List<DiomanPlugin> sort(Iterable<DiomanPlugin> plugins) =>
+      sortPlugins(plugins);
+
+  /// 校验按链顺序给出的 [ordered]：无重复名、依赖齐全、无环，且满足每条
+  /// before/after 约束。失败抛 [DiomanPluginOrderException]，通过则无返回。
+  ///
+  /// ```dart
+  /// Dioman.validate(handle.plugins);
+  /// ```
+  static void validate(List<DiomanPlugin> ordered) =>
+      validatePluginOrder(ordered);
 }
 
 /// 把宿主 [dio] 绑定给会重放请求的插件（share/auth/retry）；其它插件忽略。
@@ -154,6 +207,7 @@ class DiomanHandle {
   T? remove<T extends DiomanPlugin>() {
     final p = plugin<T>();
     if (p == null) return null;
+    checkRemovable(_plugins, p);
     _dio.interceptors.remove(p);
     _plugins.remove(p);
     _bindHost(p, null);
@@ -166,8 +220,12 @@ class DiomanHandle {
   /// indices. [p] becomes managed by this handle (visible to
   /// [plugins]/[plugin]/[remove]/[dispose]). Throws [ArgumentError] if
   /// [anchor] isn't installed on this handle.
+  ///
+  /// 插入前会校验重复名、必需依赖与 before/after 约束，违反时抛
+  /// [DiomanPluginOrderException]，handle 与 dio 保持原状。
   void insertBefore(DiomanPlugin anchor, DiomanPlugin p) {
     _checkAnchor(anchor);
+    _checkInsert(_plugins.indexOf(anchor), p);
     _plugins.insert(_plugins.indexOf(anchor), p);
     _dio.interceptors.insert(_dio.interceptors.indexOf(anchor), p);
     _bindHost(p, _dio);
@@ -175,9 +233,10 @@ class DiomanHandle {
 
   /// Inserts [p] immediately after [anchor] — the counterpart to
   /// [insertBefore]. Throws [ArgumentError] if [anchor] isn't installed on
-  /// this handle.
+  /// this handle. 校验规则同 [insertBefore]。
   void insertAfter(DiomanPlugin anchor, DiomanPlugin p) {
     _checkAnchor(anchor);
+    _checkInsert(_plugins.indexOf(anchor) + 1, p);
     _plugins.insert(_plugins.indexOf(anchor) + 1, p);
     _dio.interceptors.insert(_dio.interceptors.indexOf(anchor) + 1, p);
     _bindHost(p, _dio);
@@ -185,20 +244,39 @@ class DiomanHandle {
 
   /// Inserts [p] at the very front of the chain — before every plugin and
   /// any other interceptor already on [_dio]. [p] becomes managed by this
-  /// handle.
+  /// handle. 校验规则同 [insertBefore]。
   void prepend(DiomanPlugin p) {
+    _checkInsert(0, p);
     _plugins.insert(0, p);
     _dio.interceptors.insert(0, p);
     _bindHost(p, _dio);
   }
 
   /// Inserts [p] at the very end of the chain. [p] becomes managed by this
-  /// handle.
+  /// handle. 校验规则同 [insertBefore]。
   void append(DiomanPlugin p) {
+    _checkInsert(_plugins.length, p);
     _plugins.add(p);
     _dio.interceptors.add(p);
     _bindHost(p, _dio);
   }
+
+  /// 校验把 [p] 插到 [index] 后的链是否合法（不修改状态）。
+  void _checkInsert(int index, DiomanPlugin p) {
+    validatePluginOrder([..._plugins]..insert(index, p));
+  }
+
+  /// 诊断：检查宿主 `dio.interceptors` 上是否有同名插件实例共享状态键。
+  ///
+  /// 比 handle 自身的重复名校验更广：能发现绕过 handle、直接往
+  /// `dio.interceptors` 里重复添加的实例。返回冲突列表，无冲突为空；详见
+  /// [DiomanExtraKeys.findSharedState]。
+  ///
+  /// ```dart
+  /// assert(handle.diagnoseSharedStateKeys().isEmpty);
+  /// ```
+  List<DiomanSharedStateKey> diagnoseSharedStateKeys() =>
+      DiomanExtraKeys.findSharedState(_dio.interceptors);
 
   void _checkAnchor(DiomanPlugin anchor) {
     if (!_plugins.contains(anchor)) {

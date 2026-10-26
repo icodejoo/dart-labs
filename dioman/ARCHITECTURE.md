@@ -293,6 +293,101 @@ final future3 = dio.get('/api/users');  // 第三个请求
 - Normalize 最后：最后处理响应格式
 ```
 
+## 插件顺序声明
+
+安装顺序原本靠 `Dioman.install` 的固定顺序加 README 文档手工保证。现在每个插件可以**声明**自己的
+顺序约束，由 `Dioman` 做稳定拓扑排序并校验；固定顺序的 `install` 入口及其结果不变。
+
+### 设计结论
+
+- **元数据放哪**：`DiomanPlugin.ordering`（默认 `DiomanPluginOrder.none` 的非抽象 getter），含
+  `before` / `after` / `requires` 三个名字集合。非抽象默认值，现有自定义插件无需改动。
+- **约束语义**：`before`/`after` 只在对方也被安装时生效，指向未安装插件的名字被忽略（即"可选依赖"）；
+  `requires` 只要求对方存在，不隐含顺序。一对插件的约束在任意一侧声明一次即可。
+- **内置插件只声明 README 里的硬约束**（key 在 cache/share 之前、repath/filter 在 key 之前、cache 在
+  offline 之前、offline 在 share/cancel/loading 之前、cache/share/mock 在 cancel/loading 之前、
+  cancel/loading 在 auth/retry 之前、breaker 在 retry 之后、normalize 在其余内置插件之后）。声明分散在
+  key/cache/offline/cancel/loading/breaker/normalize 里，`share`/`auth`/`retry` 不需要任何改动。
+  软性的"规范位置"仍由 `Dioman.install` 的输入顺序表达。
+- **排序**：深度优先、按输入顺序处理，放置一个插件前先放好它尚未放置的前驱。无约束的插件保持输入
+  顺序，被需要的前驱提前到刚好满足约束的位置，结果确定。`install` 的输入就是规范顺序，且内置约束与之
+  一致，所以结果恒等于旧顺序（`test/plugin_order_test.dart` 对 2^16 个子集断言）。
+- **校验**（`DiomanPluginOrderException`，带 `issue` 和涉及的插件名）：重复名、缺失必需依赖、环
+  （列出环上的名字）、`misordered`（给定顺序违反约束）。`install`/`installPlugins` 在修改 `dio` 之前
+  抛出；`insertBefore/insertAfter/prepend/append` 在修改前校验，失败时 handle 与 dio 保持原状；
+  `remove` 会拒绝移除被其它插件 `requires` 的插件。
+- **新增入口**：`Dioman.sort`、`Dioman.validate`、`Dioman.installPlugins`，`Dioman.install` 增加可选
+  `plugins:` 以混入自定义插件。直接操作 `dio.interceptors` 的手写顺序完全不受影响。
+
+### 被放弃的方案
+
+- **只靠一张中心化顺序表**：集中但看不到自定义插件的约束，且 `plugin.ordering` 无法自描述。放弃。
+- **给每个内置插件一个全序下标**（rank）：自定义插件无法表达"在 key 之后、cache 之前"，每加一个插件
+  都要重排。放弃。
+- **每个内置插件都声明"在全部前驱之后"**：约束量 O(n^2)，且把"建议顺序"误当成"硬约束"。放弃。
+- **Kahn（取最小下标）**：被需要的前驱要等到别的无约束插件都放完才出现，自定义插件会被挤到意外位置；
+  改用深度优先、前驱提前。
+- **让 `cache`/`share` `requires` `key`**：README 里"无 key 则 no-op"是合法用法，强制依赖会让
+  `install(cache: ...)` 抛错，改变现有行为。放弃。
+
+## extra 键注册表
+
+`RequestOptions.extra` 里的键分三类，集中登记在 `DiomanExtraKeys`（`lib/src/extra_keys.dart`）：
+
+- **公开配置键**：`extra[插件名] = DiomanXxxOptions`，调用方可写。
+- **跨插件协议键**：`dioman:key`、`dioman:claims`、`dioman:share:joined`，插件之间的约定，调用方不应写。
+- **内部状态键**：`<插件名>:<字段>`，插件自己记账，调用方不应读写。
+
+同名的插件实例读写同一批状态键，会互相覆盖。`DiomanExtraKeys.findSharedState(dio.interceptors)`、
+`DiomanHandle.diagnoseSharedStateKeys()` 返回冲突列表，`DiomanExtraKeys.assertNoSharedState` 在
+debug 下直接断言。自定义插件可用 `DiomanExtraKeys.register` 登记自己的键（重复登记抛 `StateError`）。
+
+**取舍**：不改任何现有键名与读写代码（私有常量留在各插件里，运行时行为零改动），注册表是一份 const
+清单；"源码里的键常量与注册表一致"由 `test/extra_keys_test.dart` 扫描 `lib/src` 守护，新增键忘记登记
+会失败；下表由 `DiomanExtraKeys.toMarkdown()` 生成，测试保证它与注册表同步。没有做"插件改读注册表
+常量"的大重构（收益小、动到 share/auth/retry 内部）。目前没有键被改名，因此暂不提供旧键别名。
+
+<!-- dioman:extra-keys:start -->
+| 键 | 所属插件 | 类别 | 值类型 | 说明 |
+|---|---|---|---|---|
+| `dioman:auth` | `dioman:auth` | 公开配置 | `DiomanAuthOptions` | 单请求认证覆盖 |
+| `dioman:breaker` | `dioman:breaker` | 公开配置 | `DiomanBreakerOptions` | 单请求熔断覆盖 |
+| `dioman:cache` | `dioman:cache` | 公开配置 | `DiomanCacheOptions` | 单请求缓存覆盖 |
+| `dioman:filter` | `dioman:filter` | 公开配置 | `DiomanFilterOptions` | 单请求参数过滤覆盖 |
+| `dioman:qid` | `dioman:qid` | 公开配置 | `DiomanKeyOptions` | 单请求键生成覆盖 |
+| `dioman:loading` | `dioman:loading` | 公开配置 | `DiomanLoadingOptions` | 单请求加载态覆盖 |
+| `dioman:log` | `dioman:log` | 公开配置 | `DiomanLogOptions` | 单请求日志覆盖 |
+| `dioman:mock` | `dioman:mock` | 公开配置 | `DiomanMockOptions` | 单请求 Mock 覆盖 |
+| `dioman:normalize` | `dioman:normalize` | 公开配置 | `DiomanNormalizeOptions` | 单请求规范化覆盖 |
+| `dioman:offline` | `dioman:offline` | 公开配置 | `DiomanOfflineOptions` | 单请求离线排队覆盖 |
+| `dioman:repath` | `dioman:repath` | 公开配置 | `DiomanRepathOptions` | 单请求路径替换覆盖 |
+| `dioman:retry` | `dioman:retry` | 公开配置 | `DiomanRetryOptions` | 单请求重试覆盖 |
+| `dioman:share` | `dioman:share` | 公开配置 | `DiomanShareOptions` | 单请求去重覆盖 |
+| `dioman:timeout` | `dioman:timeout` | 公开配置 | `DiomanTimeoutOptions` | 单请求超时覆盖 |
+| `dioman:key` | `dioman:qid` | 跨插件协议 | `String` | key 写入的请求键，cache/share 读取 |
+| `dioman:claims` | `dioman:share` | 跨插件协议 | `RequestClaims` | 认领登记簿：auth/retry 认领，share/cancel 据此推迟结算 |
+| `dioman:share:joined` | `dioman:share` | 跨插件协议 | `bool` | 标记跟随者/落败者，auth/retry 见到后不再自行恢复 |
+| `dioman:auth:decision` | `dioman:auth` | 内部状态 | `bool` | 本次请求是否受保护的缓存判定 |
+| `dioman:auth:protected` | `dioman:auth` | 内部状态 | `bool` | 请求已按受保护处理 |
+| `dioman:auth:refreshed` | `dioman:auth` | 内部状态 | `bool` | 本次请求已刷新过令牌，防止重复刷新 |
+| `dioman:auth:denied` | `dioman:auth` | 内部状态 | `bool` | 请求被认证拒绝（走错误链） |
+| `dioman:auth:tokenUsed` | `dioman:auth` | 内部状态 | `String?` | 注入请求的原始令牌 |
+| `dioman:breaker:key` | `dioman:breaker` | 内部状态 | `Record` | 熔断放行凭据（桶、窗口、探测标记） |
+| `dioman:cache:key` | `dioman:cache` | 内部状态 | `String` | 本次请求的缓存键 |
+| `dioman:cache:ttl` | `dioman:cache` | 内部状态 | `int` | 本次请求解析出的 TTL（毫秒） |
+| `dioman:cache:generation` | `dioman:cache` | 内部状态 | `int` | 请求发起时的清理代次 |
+| `dioman:cache:policy` | `dioman:cache` | 内部状态 | `DiomanCachePolicy` | 本次请求的缓存策略 |
+| `dioman:cancel:token` | `dioman:cancel` | 内部状态 | `CancelToken` | cancel 注入的令牌 |
+| `dioman:loading:bracketed` | `dioman:loading` | 内部状态 | `bool` | 请求已打开加载括号 |
+| `dioman:loading:delayClose` | `dioman:loading` | 内部状态 | `Duration` | 本次请求的延迟关闭时长 |
+| `dioman:retry:callbackFailed` | `dioman:retry` | 内部状态 | `bool` | 重试回调抛过异常 |
+| `dioman:share:entry` | `dioman:share` | 内部状态 | `Object` | 请求所属的在途条目 |
+| `dioman:share:seq` | `dioman:share` | 内部状态 | `int` | 请求在条目中的序号 |
+| `dioman:share:policy` | `dioman:share` | 内部状态 | `DiomanSharePolicy` | 本次请求的去重策略 |
+| `dioman:share:retriesLeft` | `dioman:share` | 内部状态 | `int` | retry 策略剩余次数 |
+| `dioman:share:interval` | `dioman:share` | 内部状态 | `Duration` | retry 策略重试间隔 |
+<!-- dioman:extra-keys:end -->
+
 ## 结算与恢复协作（share / auth / retry / cancel）
 
 这四个插件按"一次逻辑请求"协作，责任跟着请求走，不依赖插件级计数或手动接线：

@@ -215,6 +215,55 @@ handle.remove<DiomanAuth>();
 handle.dispose();
 ```
 
+### Declarative ordering
+
+Every plugin can declare ordering constraints by overriding `ordering`; `Dioman` sorts the set
+(stable topological sort) and validates it. `Dioman.install` keeps its canonical order — the
+built-ins only declare the hard constraints from the table above, so its result is unchanged.
+
+```dart
+class TimingPlugin extends DiomanPlugin {
+  @override
+  String get name => 'timing';
+
+  @override
+  DiomanPluginOrder get ordering => DiomanPluginOrder(
+        after: {DiomanKey.pluginName},    // must come after key
+        before: {DiomanCache.pluginName}, // must come before cache
+        requires: {DiomanKey.pluginName}, // key must be installed too
+      );
+}
+
+// Mix custom plugins into install, or install any set by constraints alone:
+final handle = Dioman.install(dio, key: const DiomanKey(), plugins: [TimingPlugin()]);
+final handle2 = Dioman.installPlugins(dio2, [TimingPlugin(), const DiomanKey()]);
+final ordered = Dioman.sort(plugins); // pure: returns a new list
+```
+
+- `before`/`after` naming an uninstalled plugin are ignored (optional dependency); `requires` must exist.
+- Unconstrained plugins keep the order you give; a needed predecessor is pulled forward just enough.
+- Duplicate names, cycles, missing `requires` and (for a given order) violated constraints throw
+  `DiomanPluginOrderException` (`issue` + the plugin names involved). `install`/`installPlugins` throw
+  before touching `dio`; `insertBefore/insertAfter/prepend/append` validate first and leave the handle
+  untouched on failure; `remove` refuses to drop a plugin another plugin `requires`.
+- Hand-managing `dio.interceptors` still works exactly as before; nothing is validated there.
+
+### `extra` key registry
+
+`DiomanExtraKeys` lists every `RequestOptions.extra` key with its owner plugin, kind
+(`config` public option / `protocol` cross-plugin / `state` internal) and value type.
+
+```dart
+DiomanExtraKeys.lookup('dioman:cache:key');                 // owner, kind, valueType
+DiomanExtraKeys.findSharedState(dio.interceptors);          // duplicate instances sharing state keys
+handle.diagnoseSharedStateKeys();                           // same, for the handle's Dio
+DiomanExtraKeys.assertNoSharedState(dio.interceptors);      // debug-only assert
+DiomanExtraKeys.register(myKey);                            // custom plugins register theirs
+```
+
+Existing key names and runtime behavior are unchanged. The full table is in `ARCHITECTURE.md`
+(generated from `DiomanExtraKeys.toMarkdown()`, kept in sync by a test).
+
 ## Plugins
 
 Every plugin exposes a `String get name` (for lookup/dedup) and a `dispose()` hook. Each plugin's name is also available as a `static const pluginName` on the class itself (e.g. `DiomanCache.pluginName`), so callers can reference a plugin's `extra` key without constructing an instance. Most read a per-request flag from `options.extra` (see [Per-request overrides](#per-request-overrides)).

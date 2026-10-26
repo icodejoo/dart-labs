@@ -2,6 +2,12 @@
 import 'dart:async';
 import 'package:dio/dio.dart';
 import 'dioman_plugin.dart';
+import 'auth_plugin.dart';
+import 'cache_plugin.dart';
+import 'mock_plugin.dart';
+import 'retry_plugin.dart';
+import 'share_plugin.dart';
+import 'plugin_order.dart';
 
 /// Per-request override for [DiomanLoading], read from `extra['dioman:loading']`.
 ///
@@ -183,6 +189,17 @@ class DiomanLoading extends DiomanPlugin {
   /// 插件的公开协议名称。
   @override
   String get name => pluginName;
+
+  /// 顺序声明：loading在cache/share/mock之后（命中时不遗留括号），在auth/retry之前（401或重试前清理已完成）。
+  @override
+  DiomanPluginOrder get ordering => const DiomanPluginOrder(
+        after: {
+          DiomanCache.pluginName,
+          DiomanShare.pluginName,
+          DiomanMock.pluginName,
+        },
+        before: {DiomanAuth.pluginName, DiomanRetry.pluginName},
+      );
 
   /// 处理请求并完成当前请求出口。
   @override

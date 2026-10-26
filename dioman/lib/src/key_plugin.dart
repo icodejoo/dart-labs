@@ -1,6 +1,11 @@
 import 'dart:convert';
 import 'package:dio/dio.dart';
 import 'dioman_plugin.dart';
+import 'cache_plugin.dart';
+import 'filter_plugin.dart';
+import 'repath_plugin.dart';
+import 'share_plugin.dart';
+import 'plugin_order.dart';
 
 /// The key in [RequestOptions.extra] where the computed key is stored.
 /// Other plugins (cache, share) read from this slot. Fixed — not meant to be
@@ -149,6 +154,13 @@ class DiomanKey extends DiomanPlugin {
   /// 插件的公开协议名称。
   @override
   String get name => pluginName;
+
+  /// 顺序声明：key在repath/filter之后（键基于改写后的路径与参数），在cache/share之前（它们读取该键）。
+  @override
+  DiomanPluginOrder get ordering => const DiomanPluginOrder(
+        after: {DiomanRepath.pluginName, DiomanFilter.pluginName},
+        before: {DiomanCache.pluginName, DiomanShare.pluginName},
+      );
 
   /// 处理请求并完成当前请求出口。
   @override

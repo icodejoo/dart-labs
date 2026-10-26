@@ -1,5 +1,7 @@
 import 'package:dio/dio.dart';
 import 'dioman_plugin.dart';
+import 'retry_plugin.dart';
+import 'plugin_order.dart';
 
 /// The three states of a circuit breaker bucket.
 ///
@@ -429,6 +431,12 @@ class DiomanBreaker extends DiomanPlugin {
   /// 插件的公开协议名称。
   @override
   String get name => pluginName;
+
+  /// 顺序声明：breaker在retry之后：只统计每个请求的最终结果。
+  @override
+  DiomanPluginOrder get ordering => const DiomanPluginOrder(
+        after: {DiomanRetry.pluginName},
+      );
 
   // ── Per-request override resolution ─────────────────────────────────────────
 
