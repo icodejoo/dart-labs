@@ -1,0 +1,567 @@
+diff --git a/nix/packages/mk-pkg-ffmpeg/default.nix b/nix/packages/mk-pkg-ffmpeg/default.nix
+index 37a4a71..8e5a3cd 100644
+--- a/nix/packages/mk-pkg-ffmpeg/default.nix
++++ b/nix/packages/mk-pkg-ffmpeg/default.nix
+@@ -42,10 +42,32 @@ let
+     chmod -R 777 $src
+ 
+     cd $src
+-    patch -p1 <${../../../patches/ffmpeg-fix-vp9-hwaccel.patch}
+-    patch -p1 <${../../../patches/ffmpeg-fix-hls-mp4-seek.patch}
+-    patch -p1 <${../../../patches/ffmpeg-fix-ios-hdr-texture.patch}
+-    patch -p1 <${../../../patches/ffmpeg-fix-dash-base-url-escape.patch}
++    ${
++      if flavor == flavors.movaslim then
++        ''
++          # WHEP 线（ffmpeg n9.0.2）：上游为 n6.0 写的四个补丁里，
++          #  - vp9-hwaccel：引用 n9 已删除的 FF_CODEC_CAP_ALLOCATE_PROGRESS，编不过，且 movaslim 不用 vp9_videotoolbox 解码器，丢弃；
++          #  - hls-mp4-seek / dash-base-url-escape：n9.0.2 已自带同样的修复（实测打不上就是因为已含），丢弃；
++          #  - ios-hdr-texture：n9 上下文有偏移，按 n9.0.2 重新移植为 apple-n9/0001（严格打，不用 --fuzz）。
++          # 之后按编号依次打 mova 自己的 WHEP 补丁 0001-0012（whep demuxer + DTLS-SRTP，含 mbedtls 的 0007/0009）。
++          # 0008 只改 tls_schannel.c，Apple 不编译该文件，照常打全，与 Windows 一致。
++          patch -p1 --fuzz=0 <${../../../patches/mova/apple-n9/0001-ffmpeg-ios-hdr-texture-n9.patch}
++          for p in ${../../../patches/mova/ffmpeg-whep}/0*.patch; do
++            echo "apply: $p"
++            patch -p1 --fuzz=0 <"$p"
++          done
++          # 源码来自 GitHub tag 压缩包（无 .git），version.sh 会回落到 RELEASE 文件（"9.0.2"）；
++          # 改成 git describe 会给出的 "n9.0.2"，与 Android/Windows（git 检出）的版本串一致
++          echo "n${version}" > RELEASE
++        ''
++      else
++        ''
++          patch -p1 <${../../../patches/ffmpeg-fix-vp9-hwaccel.patch}
++          patch -p1 <${../../../patches/ffmpeg-fix-hls-mp4-seek.patch}
++          patch -p1 <${../../../patches/ffmpeg-fix-ios-hdr-texture.patch}
++          patch -p1 <${../../../patches/ffmpeg-fix-dash-base-url-escape.patch}
++        ''
++    }
+     cd -
+ 
+     cp ${./meson.build} $src/meson.build
+@@ -68,9 +90,9 @@ pkgs.stdenvNoCC.mkDerivation {
+     pkgs.pkg-config
+   ];
+   buildInputs =
+-    # movaslim uses --enable-securetransport instead (see meson.build) — no
+-    # mbedtls dependency to build or ship.
+-    pkgs.lib.optionals (flavor != flavors.movaslim) [ mbedtls ]
++    # WHEP 线：movaslim 也走 mbedtls（DTLS-SRTP 只有 mbedtls/openssl/gnutls/schannel 后端，
++    # securetransport 做不了），但是静态库，折进 libmpv.dylib，不单独出 dylib。
++    [ mbedtls ]
+     ++ pkgs.lib.optionals (flavor == flavors.encodersgpl) [
+       libvorbis
+     ]
+diff --git a/nix/packages/mk-pkg-ffmpeg/meson.build b/nix/packages/mk-pkg-ffmpeg/meson.build
+index 1ee85c2..39ed83e 100644
+--- a/nix/packages/mk-pkg-ffmpeg/meson.build
++++ b/nix/packages/mk-pkg-ffmpeg/meson.build
+@@ -94,9 +94,14 @@ tls_default_options = [
+     '--enable-version3',
+ ]
+ 
++# WHEP 线：movaslim 回到 mbedtls（静态，折进 libmpv.dylib）。
++# 原因：ffmpeg 的 dtls 协议只有 mbedtls/openssl/gnutls/schannel 四个后端（configure:
++# dtls_protocol_deps_any），securetransport 只能做 TLS；且 securetransport 与 mbedtls 互斥
++# （securetransport_conflict），换 DTLS 后端 https 也要一起换。mbedtls 必须 --enable-version3，
++# 产物许可证为 LGPLv3（与 Android 现状一致）。
+ tls_movaslim_options = [
+-    '--enable-securetransport', # Apple's own TLS (Security.framework) — no
+-                                 # extra dylib to ship, no version3 bump
++    '--enable-mbedtls',
++    '--enable-version3',
+ ]
+ 
+ audio_common_options = [
+@@ -169,6 +174,8 @@ video_movaslim_options = [
+     '--enable-demuxer=ass',
+     '--enable-demuxer=srt',
+     '--enable-demuxer=webvtt',
++    # WHEP（ffmpeg-whep 0001 默认关闭，必须显式打开；select 隐含 dtls/http/srtp）
++    '--enable-demuxer=whep',
+ 
+     # bitstream filters (default/full flavors above enable none individually
+     # — "full" only turns them on in bulk via --enable-bsfs; movaslim opts
+@@ -265,7 +272,7 @@ protocol_movaslim_options = [
+     '--enable-protocol=tcp',
+     '--enable-protocol=tls',
+     '--enable-protocol=crypto',
+-    '--enable-protocol=hls',
++    # n9 已没有 hls 这个 protocol（只剩 hls demuxer），传了 configure 会报 Unknown option
+     '--enable-protocol=rtmp',
+     '--enable-protocol=rtmps',
+     '--enable-protocol=rtmpt',
+@@ -273,6 +280,8 @@ protocol_movaslim_options = [
+     '--enable-protocol=ffrtmphttp',
+     '--enable-protocol=udp',
+     '--enable-protocol=rtp',
++    # WHEP 的 DTLS-SRTP 握手（tls_mbedtls.c 里的 ff_dtls_protocol）
++    '--enable-protocol=dtls',
+ ]
+ 
+ # https://github.com/media-kit/libmpv-android-audio-build/blob/260666c0fef8c154971b5faf3f78da27c2bf2c40/buildscripts/flavors/default.sh
+diff --git a/nix/packages/mk-pkg-libplacebo/default.nix b/nix/packages/mk-pkg-libplacebo/default.nix
+new file mode 100644
+index 0000000..9cb9b1c
+--- /dev/null
++++ b/nix/packages/mk-pkg-libplacebo/default.nix
+@@ -0,0 +1,102 @@
++{
++  pkgs ? import ../../utils/default/pkgs.nix,
++  os ? import ../../utils/default/os.nix,
++  arch ? pkgs.callPackage ../../utils/default/arch.nix { },
++  # 取 flavor 只为让 cross-file 带上 movaslim 的 slim 旗标（-fvisibility=hidden / LTO / dead_strip）
++  flavor ? import ../../utils/default/flavor.nix,
++}:
++
++# mpv 0.41 的硬依赖。与 Android/Windows 同为 v7.360.0 的最小静态构建：
++# 只给 mpv 的 vo_gpu 用（gpu-next 已被 mpv-v041/0001 摘掉），关掉 vulkan/d3d11/着色器编译器/色彩管理等。
++let
++  name = "libplacebo";
++  lock = import ../../../packages.lock.nix;
++  packageLock = lock.${name};
++  inherit (packageLock) version;
++
++  callPackage = pkgs.lib.callPackageWith { inherit pkgs os arch flavor; };
++  nativeFile = callPackage ../../utils/native-file/default.nix { };
++  crossFile = callPackage ../../utils/cross-file/default.nix { };
++  xctoolchainLipo = callPackage ../../utils/xctoolchain/lipo.nix { };
++
++  pname = import ../../utils/name/package.nix name;
++  src = callPackage ../../utils/fetch-tarball/default.nix {
++    name = "${pname}-source-${version}";
++    inherit (packageLock) url sha256;
++  };
++
++  # GitHub 的 tag 压缩包不含 git 子模块，按 v7.360.0 的 .gitmodules 逐个钉 commit 拼进 3rdparty/
++  fetchSub = key: callPackage ../../utils/fetch-tarball/default.nix {
++    name = "libplacebo-${key}-source-${lock.${key}.version}";
++    inherit (lock.${key}) url sha256;
++  };
++  jinja = fetchSub "libplaceboJinja";
++  markupsafe = fetchSub "libplaceboMarkupsafe";
++  fastFloat = fetchSub "libplaceboFastFloat";
++  glad = fetchSub "libplaceboGlad";
++  vulkanHeaders = fetchSub "libplaceboVulkanHeaders";
++
++  patchedSource = pkgs.runCommand "${pname}-patched-source-${version}" { } ''
++    cp -r ${src} $out
++    chmod -R u+w $out
++
++    for pair in jinja:${jinja} markupsafe:${markupsafe} fast_float:${fastFloat} glad:${glad} Vulkan-Headers:${vulkanHeaders}; do
++      dir=''${pair%%:*}
++      from=''${pair#*:}
++      rm -rf $out/3rdparty/$dir
++      cp -r $from $out/3rdparty/$dir
++      chmod -R u+w $out/3rdparty/$dir
++    done
++
++    # 静态库默认仍带 -DPL_EXPORT，会让 ~120 个 pl_* 符号以默认可见性进 libmpv.dylib 的导出表，
++    # 也让 dead_strip 保不住它们；静态构建改用 -DPL_STATIC（与 Windows 构建同一处 sed）。
++    sed -i "s|c_args: \['-DPL_EXPORT'\],|c_args: get_option('default_library') == 'static' ? ['-DPL_STATIC'] : ['-DPL_EXPORT'],|" \
++      $out/src/meson.build
++    grep -q "PL_STATIC'\] : \['-DPL_EXPORT" $out/src/meson.build
++  '';
++in
++
++pkgs.stdenvNoCC.mkDerivation {
++  name = "${pname}-${os}-${arch}-${version}";
++  pname = pname;
++  inherit version;
++  src = patchedSource;
++  dontUnpack = true;
++  enableParallelBuilding = true;
++  nativeBuildInputs = [
++    pkgs.meson
++    pkgs.ninja
++    pkgs.pkg-config
++    pkgs.python3
++    # meson 的 find_library 会直接调 PATH 里的 lipo（见 xctoolchain/lipo.nix）
++    xctoolchainLipo
++  ];
++  configurePhase = ''
++    meson setup build $src \
++      --native-file ${nativeFile} \
++      --cross-file ${crossFile} \
++      --prefix=$out \
++      --default-library=static \
++      -Dbuildtype=minsize -Ddebug=false -Db_ndebug=true \
++      -Dvulkan=disabled \
++      -Dopengl=disabled \
++      -Dd3d11=disabled \
++      -Dglslang=disabled \
++      -Dshaderc=disabled \
++      -Dlcms=disabled \
++      -Ddovi=disabled \
++      -Dlibdovi=disabled \
++      -Dxxhash=disabled \
++      -Dunwind=disabled \
++      -Ddemos=false \
++      -Dtests=false \
++      -Dbench=false \
++      -Dfuzz=false
++  '';
++  buildPhase = ''
++    meson compile -vC build
++  '';
++  installPhase = ''
++    meson install -C build
++  '';
++}
+diff --git a/nix/packages/mk-pkg-libplacebo/targets.nix b/nix/packages/mk-pkg-libplacebo/targets.nix
+new file mode 100644
+index 0000000..501961b
+--- /dev/null
++++ b/nix/packages/mk-pkg-libplacebo/targets.nix
+@@ -0,0 +1 @@
++import ../../utils/targets/pkgs.nix
+diff --git a/nix/packages/mk-pkg-mbedtls/default.nix b/nix/packages/mk-pkg-mbedtls/default.nix
+index e31e9cd..e9353a2 100644
+--- a/nix/packages/mk-pkg-mbedtls/default.nix
++++ b/nix/packages/mk-pkg-mbedtls/default.nix
+@@ -2,6 +2,9 @@
+   pkgs ? import ../../utils/default/pkgs.nix,
+   os ? import ../../utils/default/os.nix,
+   arch ? pkgs.callPackage ../../utils/default/arch.nix { },
++  # WHEP 线新增：movaslim 下按 cross-file 的 slim 旗标（-fvisibility=hidden 等）编译，
++  # 并出静态库；其余 flavor 沿用上游行为（共享库）
++  flavor ? import ../../utils/default/flavor.nix,
+ }:
+ 
+ let
+@@ -9,7 +12,10 @@ let
+   packageLock = (import ../../../packages.lock.nix).${name};
+   inherit (packageLock) version;
+ 
+-  callPackage = pkgs.lib.callPackageWith { inherit pkgs os arch; };
++  flavors = import ../../utils/constants/flavors.nix;
++  # movaslim：静态库，折进 libmpv.dylib，不再单独出 dylib
++  isSlim = flavor == flavors.movaslim;
++  callPackage = pkgs.lib.callPackageWith { inherit pkgs os arch flavor; };
+   nativeFile = callPackage ../../utils/native-file/default.nix { };
+   crossFile = callPackage ../../utils/cross-file/default.nix { };
+ 
+@@ -22,6 +28,16 @@ let
+     mkdir -p $out/subprojects/mbedtls
+     cp -r ${src}/* $out/subprojects/mbedtls/
+     cp ${./meson.build} $out/meson.build
++    cp ${./meson.options} $out/meson.options
++    ${pkgs.lib.optionalString isSlim ''
++      # mbedtls 3.4 默认关闭 DTLS-SRTP（use_srtp 扩展与 SRTP 密钥导出），WHEP 的 DTLS 握手必需。
++      # 与 Android（whep-android.patch）同一处改动；grep 自检防止 sed 悄悄没生效。
++      chmod -R u+w $out/subprojects/mbedtls/include
++      sed -i 's|^//#define MBEDTLS_SSL_DTLS_SRTP|#define MBEDTLS_SSL_DTLS_SRTP|' \
++        $out/subprojects/mbedtls/include/mbedtls/mbedtls_config.h
++      grep -q '^#define MBEDTLS_SSL_DTLS_SRTP' \
++        $out/subprojects/mbedtls/include/mbedtls/mbedtls_config.h
++    ''}
+   '';
+ in
+ 
+@@ -43,7 +59,8 @@ pkgs.stdenvNoCC.mkDerivation {
+     meson setup build $src \
+       --native-file ${nativeFile} \
+       --cross-file ${crossFile} \
+-      --prefix=$out
++      --prefix=$out \
++      -Dlinking=${if isSlim then "static" else "shared"}
+   '';
+   buildPhase = ''
+     meson compile -vC build
+@@ -59,7 +76,11 @@ pkgs.stdenvNoCC.mkDerivation {
+     cp $src/subprojects/mbedtls/include/psa/*.h $out/include/psa/
+ 
+     # install libs
+-    find build -type f -name '*.dylib' -exec sh -c 'cp {} $out/lib/' \;
++    find build -type f -name '${if isSlim then "*.a" else "*.dylib"}' -exec sh -c 'cp {} $out/lib/' \;
++    ${pkgs.lib.optionalString isSlim ''
++      # 自检：三个静态库必须都在
++      for l in libmbedtls libmbedx509 libmbedcrypto; do test -f $out/lib/$l.a; done
++    ''}
+ 
+     # install pkgconfig file
+     cp ${./mbedtls.pc.in} $out/lib/pkgconfig/mbedtls.pc
+diff --git a/nix/packages/mk-pkg-mbedtls/mbedtls.pc.in b/nix/packages/mk-pkg-mbedtls/mbedtls.pc.in
+index 863a6a2..c254b62 100644
+--- a/nix/packages/mk-pkg-mbedtls/mbedtls.pc.in
++++ b/nix/packages/mk-pkg-mbedtls/mbedtls.pc.in
+@@ -6,5 +6,5 @@ libdir=${prefix}/lib
+ Name: mbedtls
+ Description: cryptographic library
+ Version: ${VERSION}
+-Libs: -L${libdir} -lmbedtls -lmbedcrypto -lmbedx509
++Libs: -L${libdir} -lmbedtls -lmbedx509 -lmbedcrypto
+ Cflags: -I${includedir}
+diff --git a/nix/packages/mk-pkg-mbedtls/meson.build b/nix/packages/mk-pkg-mbedtls/meson.build
+index aab0098..ef54a94 100644
+--- a/nix/packages/mk-pkg-mbedtls/meson.build
++++ b/nix/packages/mk-pkg-mbedtls/meson.build
+@@ -11,15 +11,21 @@ elif cpu == 'arm64'
+     arch = 'arm64'
+ endif
+ 
++# linking=static（movaslim）：只出静态库，由 ffmpeg 链进 libmpv.dylib。
++# 静态时关掉 programs/tests：-fvisibility=hidden 下 key_app 之类的示例程序会链接失败（v9 线实测）。
++static = get_option('linking') == 'static'
++
+ options = cmake.subproject_options()
+ options.add_cmake_defines({
+     'CMAKE_OSX_ARCHITECTURES': arch,
+     'CMAKE_OSX_SYSROOT': meson.get_cross_property('cmake_osx_sysroot'),
+     'CMAKE_C_COMPILER_WORKS': true,
+     'CMAKE_CXX_COMPILER_WORKS': true,
+-    'USE_STATIC_MBEDTLS_LIBRARY': false,
+-    'USE_SHARED_MBEDTLS_LIBRARY': true,
++    'USE_STATIC_MBEDTLS_LIBRARY': static,
++    'USE_SHARED_MBEDTLS_LIBRARY': not static,
+     'LINK_WITH_PTHREAD': true,
++    'ENABLE_PROGRAMS': not static,
++    'ENABLE_TESTING': not static,
+ })
+ 
+ mbedtls = cmake.subproject('mbedtls',
+diff --git a/nix/packages/mk-pkg-mbedtls/meson.options b/nix/packages/mk-pkg-mbedtls/meson.options
+new file mode 100644
+index 0000000..65c31dd
+--- /dev/null
++++ b/nix/packages/mk-pkg-mbedtls/meson.options
+@@ -0,0 +1 @@
++option('linking', type : 'combo', choices : ['shared', 'static'], value : 'shared')
+diff --git a/nix/packages/mk-pkg-mpv/default.nix b/nix/packages/mk-pkg-mpv/default.nix
+index 2714ec6..2801767 100644
+--- a/nix/packages/mk-pkg-mpv/default.nix
++++ b/nix/packages/mk-pkg-mpv/default.nix
+@@ -85,6 +85,23 @@ let
+   fribidi = callPackage ../mk-pkg-fribidi/default.nix { };
+   freetype = callPackage ../mk-pkg-freetype/default.nix { };
+   libpng = callPackage ../mk-pkg-libpng/default.nix { };
++  # WHEP 线（mpv 0.41）：libplacebo 是硬依赖；ffmpeg 的 .pc 里 Requires.private 了 mbedtls / dav1d，
++  # --prefer-static 解析时要能找到它们（和上面 libass 的 .pc 传递依赖同一类问题）
++  libplacebo = callPackage ../mk-pkg-libplacebo/default.nix { };
++  mbedtls = callPackage ../mk-pkg-mbedtls/default.nix { };
++  dav1d = callPackage ../mk-pkg-dav1d/default.nix { };
++  # macOS：meson 对 zlib 的 system 探测在本构建里不可靠（见下面 buildInputs 的旧注释），
++  # 旧做法是塞 nixpkgs 的 zlib，结果 arm64 切片链到了 @rpath/libz.dylib（包外不存在，启动即崩）。
++  # 改成一个只写 `-lz` 的 zlib.pc：链接时走 SDK 的 libz.tbd，运行时是系统的 /usr/lib/libz.1.dylib。
++  zlibSdkPc = pkgs.runCommand "mk-zlib-sdk-pc" { } ''
++    mkdir -p $out/lib/pkgconfig
++    {
++      echo "Name: zlib"
++      echo "Description: zlib from the Apple SDK"
++      echo "Version: 1.2.12"
++      echo "Libs: -lz"
++    } > $out/lib/pkgconfig/zlib.pc
++  '';
+ 
+   nativeBuildInputs = [
+     pkgs.meson
+@@ -106,7 +123,30 @@ let
+ 
+     cd $src
+     patch -p1 <${../../../patches/mpv-fix-missing-objc.patch}
+-    patch -p1 <${../../../patches/mpv-audiounit-shared-session.patch}
++    ${
++      if flavor == flavors.movaslim then
++        ''
++          # WHEP 线（mpv 0.41）：
++          #  - audiounit-shared-session：针对 0.36 的 ao_audiounit.m，0.41 已重写，打不上，跳过（mova 只有单播放器实例，用不到）；
++          #  - mova 的 mpv-v041 补丁取 0001（摘 gpu-next）/0003/0004（whep 特判）/0006/0007，
++          #    与 Windows 的挑选规则一致，跳过 0002（Android javavm）和 0005（Windows rc）。
++          for n in 0001 0003 0004 0006 0007; do
++            p=$(echo ${../../../patches/mova/mpv-v041}/$n-*.patch)
++            echo "apply: $p"
++            patch -p1 --fuzz=0 <"$p"
++          done
++          # 0.41 的 macOS cocoa 层是 Swift（osdep/mac/*.swift），本构建不编 Swift（swiftc 在 Nix 沙盒里没打通，
++          # 且会让 libmpv 依赖 libswift*.dylib，破坏"只依赖系统库"）。cocoa 本身要留着（gl-cocoa / videotoolbox-gl 靠它），
++          # 所以把依赖 swift.h 的 clipboard-mac.m 换成桩，同时补上原本由 Swift 提供的 4 个 cocoa_* 符号。
++          cp ${../../../patches/mova/apple-n9/mpv-macos-no-swift-stubs.c} osdep/mac/mova_no_swift_stubs.c
++          sed -i "s|'player/clipboard/clipboard-mac.m')|'osdep/mac/mova_no_swift_stubs.c')|" meson.build
++          grep -q "mova_no_swift_stubs.c" meson.build
++        ''
++      else
++        ''
++          patch -p1 <${../../../patches/mpv-audiounit-shared-session.patch}
++        ''
++    }
+     if [ "${variant}" == "${variants.audio}" ]; then
+       patch -p1 <${../../../patches/mpv-remove-libass.patch}
+     fi
+@@ -143,29 +183,62 @@ pkgs.stdenvNoCC.mkDerivation {
+       freetype
+       libpng
+     ]
+-    # movaslim/macOS only: mpv's `-Dzlib=enabled` (COMMON_VIDEO_OPTIONS
+-    # below, unconditional for every video build) resolves via meson's
+-    # built-in ZlibSystemDependency, which on Apple platforms is supposed to
+-    # short-circuit to "found" whenever host_machine is darwin and the C
+-    # compiler is recognized as AppleClang (mesonbuild/dependencies/dev.py
+-    # ZlibSystemDependency.__init__) — no header/library probing needed.
+-    # `mk-out-archive-libs-macos-arm64-video-movaslim` (run 35294281245,
+-    # 2026-09-18) hit "Run-time dependency zlib found: NO (tried pkgconfig
+-    # and system)" instead, meaning that shortcut didn't trigger for this
+-    # cross-file's clang and meson fell through to the manual find_library
+-    # + has_header probe, which then also failed (root cause on the exact
+-    # meson/clang combination not confirmed — the equivalent iOS movaslim
+-    # build has never hit this). Sidestep the flaky "system" method
+-    # entirely by giving meson a real zlib.pc via nixpkgs' own zlib instead:
+-    # nixpkgs' `pkgs` here is the native build-machine package set
+-    # (aarch64-darwin on the macos-15 GHA runner), which happens to already
+-    # match the macos-arm64 target's arch/OS exactly (unlike the iOS
+-    # target, which cross-compiles to a different sysroot — do NOT add this
+-    # for iOS, a macOS-native zlib.dylib would be the wrong platform there).
++    # movaslim/macOS：给 meson 一个指向 SDK libz 的 zlib.pc（原因见 let 里的 zlibSdkPc）
+     ++ pkgs.lib.optionals (variant == "video" && flavor == flavors.movaslim && os == oses.macos) [
+-      pkgs.zlib
++      zlibSdkPc
++    ]
++    # WHEP 线：libplacebo（mpv 0.41 硬依赖）+ ffmpeg .pc 的 Requires.private（mbedtls / dav1d）
++    ++ pkgs.lib.optionals (variant == "video" && flavor == flavors.movaslim) [
++      libplacebo
++      mbedtls
++      dav1d
+     ];
+   configurePhase = ''
++    ${
++      if flavor == flavors.movaslim then
++        ''
++    # WHEP 线（mpv 0.41）：0.41 删掉了一批 0.36 的选项（libplacebo / rpi / sdl2 / stdatomic /
++    # macos-10-*-features / vaapi-x-egl / win32-internal-pthreads / ta-leak-report），
++    # 逐项 -Dxxx=disabled 的写法会因"未知选项"直接失败。改成 auto_features=disabled 后只显式打开需要的，
++    # 与 Android / Windows 的 mpv.sh 同一思路。
++    OPTIONS=(
++      -Dauto_features=disabled
++      -Dgpl=false `# 不要 GPL 部分`
++      -Dcplayer=false `# 只要 libmpv`
++      -Dlibmpv=true
++      -Dtests=false
++      -Dbuild-date=false
++      -Dlua=disabled
++      -Dmanpage-build=disabled
++      -Diconv=disabled `# --prefer-static 下 meson 的 iconv system 探测会失败（见上面 iconvOption 的注释）`
++      -Duchardet=disabled
++      -Dzlib=enabled
++      -Dgl=enabled
++      -Dplain-gl=enabled `# libmpv 渲染 API 的 OpenGL 路径`
++    )
++    if [ "${os}" == "${oses.macos}" ]; then
++      OPTIONS+=(
++        -Dcocoa=enabled `# gl-cocoa / videotoolbox-gl 的前提；Swift 部分见 patchedSource 里的桩`
++        -Dgl-cocoa=enabled
++        -Dcoreaudio=enabled
++        -Dvideotoolbox-gl=enabled `# VideoToolbox 零拷贝上传到 GL`
++        -Dswift-build=disabled
++      )
++    else
++      # ios 与 iossimulator 同样处理（上游只认 ios，模拟器会漏掉 audiounit / ios-gl）
++      OPTIONS+=(
++        -Daudiounit=enabled
++        -Dios-gl=enabled `# VideoToolbox + OpenGLES 互操作`
++        -Dcoreaudio=disabled `# macOS HAL 专用，iOS 上会因 AudioDeviceID 缺失编不过`
++        -Davfoundation=disabled `# 同上，iOS 只需要 audiounit`
++      )
++    fi
++
++    meson setup build $src       --native-file ${nativeFile}       --cross-file ${crossFile}       --prefix=$out       ${pkgs.lib.concatStringsSep " " preferStaticDeps}       ${optimizeArgs}       "''${OPTIONS[@]}" |
++      tee configure.log
++        ''
++      else
++        ''
+     DISABLE_ALL_OPTIONS=(
+       `# booleans`
+       -Dgpl=false `# GPL (version 2 or later) build`
+@@ -353,6 +426,8 @@ pkgs.stdenvNoCC.mkDerivation {
+       ${optimizeArgs} \
+       "''${OPTIONS[@]}" |
+       tee configure.log
++        ''
++    }
+   '';
+   buildPhase = ''
+     meson compile -vC build
+diff --git a/nix/utils/cross-file/default.nix b/nix/utils/cross-file/default.nix
+index dee50a4..279ace0 100644
+--- a/nix/utils/cross-file/default.nix
++++ b/nix/utils/cross-file/default.nix
+@@ -54,6 +54,10 @@ let
+   slimArgs = pkgs.lib.optionalString (flavor == flavors.movaslim) ''
+     sed -i -E "/^(c|cpp|objc|objcpp)_args[[:space:]]*=/ s/\]\$/, '-fvisibility=hidden', '-ffunction-sections', '-fdata-sections', '-flto=full']/" cross-file.ini
+     sed -i -E "/^(c|cpp|objc|objcpp)_link_args[[:space:]]*=/ s/\]\$/, '-Wl,-dead_strip', '-flto=full']/" cross-file.ini
++    # WHEP 线：最低系统版本统一为 iOS 13.0 / macOS 10.15（上游写死 iOS 9 / macOS 10.9，模拟器 12.0），
++    # 与 podspec、framework Info.plist 一致。arm64 的 macOS 切片最低只能到 11.0，链接器会自动抬高。
++    sed -i -E "s/-mmacosx-version-min=[0-9.]+/-mmacosx-version-min=10.15/; s/-miphoneos-version-min=[0-9.]+/-miphoneos-version-min=13.0/" cross-file.ini
++    grep -q "version-min=1[03]" cross-file.ini
+   '';
+ in
+ 
+diff --git a/packages.lock.nix b/packages.lock.nix
+index aed6a72..ad60fbf 100644
+--- a/packages.lock.nix
++++ b/packages.lock.nix
+@@ -5,9 +5,10 @@
+     sha256 = "a4003623cdc0109dec3aac8435520aa3fb12c4d69454fa227f2658cdb6dab5fa";
+   };
+   ffmpeg = {
+-    version = "6.0";
+-    url = "https://ffmpeg.org/releases/ffmpeg-6.0.tar.xz";
+-    sha256 = "57be87c22d9b49c112b6d24bc67d42508660e6b718b3db89c44e47e289137082";
++    # mova WHEP 线：对齐 Android/Windows 的 n9.0.2（packages.lock 是全局的，旧 flavor 不再保证可构建）
++    version = "9.0.2";
++    url = "https://github.com/FFmpeg/FFmpeg/archive/refs/tags/n9.0.2.tar.gz";
++    sha256 = "6e374ed621e48faa40639307dff48ba6fe574a509977956d2cce9669b7cc27e9";
+   };
+   fftools-ffi = {
+     version = "9b0d4da0";
+@@ -39,6 +40,38 @@
+     url = "https://github.com/xiph/ogg/releases/download/v1.3.5/libogg-1.3.5.tar.gz";
+     sha256 = "0eb4b4b9420a0f51db142ba3f9c64b333f826532dc0f48c6410ae51f4799b664";
+   };
++  # mpv 0.41 硬依赖 libplacebo；与 Android/Windows 同为 v7.360.0（最小静态：仅 OpenGL 后端）。
++  libplacebo = {
++    version = "7.360.0";
++    url = "https://github.com/haasn/libplacebo/archive/refs/tags/v7.360.0.tar.gz";
++    sha256 = "c4c70d430083915a157cb790660749649f58fee1e946c0a6e554fd1cba5a2e8f";
++  };
++  # libplacebo 的 git 子模块（GitHub tag 压缩包不含子模块，按 v7.360.0 的 .gitmodules 逐个钉 commit）
++  libplaceboJinja = {
++    version = "15206881";
++    url = "https://github.com/pallets/jinja/archive/15206881c006c79667fe5154fe80c01c65410679.tar.gz";
++    sha256 = "b88a20dcc2e34072fcf4159325bc6c34cd4b29a81a8b83d15d2f28ba561da296";
++  };
++  libplaceboMarkupsafe = {
++    version = "297fc8e3";
++    url = "https://github.com/pallets/markupsafe/archive/297fc8e356e6836a62087949245d09a28e9f1b13.tar.gz";
++    sha256 = "da7c010c9c81a66ac73036558c1fcb6212b50482f43211cd1254035b94f82414";
++  };
++  libplaceboFastFloat = {
++    version = "97b54ca9";
++    url = "https://github.com/fastfloat/fast_float/archive/97b54ca9e75f5303507699d27c6b4f4efe4641a1.tar.gz";
++    sha256 = "2b132274539286e41f37857cac22aa8441d21bd86d55de825a3342b149f66801";
++  };
++  libplaceboGlad = {
++    version = "73db193f";
++    url = "https://github.com/Dav1dde/glad/archive/73db193f853e2ee079bf3ca8a64aa2eaf6459043.tar.gz";
++    sha256 = "33dbeae44d8315ece57e14eba4b1b4a02ac5406d1c4f49cd20048c91522a6b9a";
++  };
++  libplaceboVulkanHeaders = {
++    version = "450bd223";
++    url = "https://github.com/KhronosGroup/Vulkan-Headers/archive/450bd2232225d6c7728a4108055ac2e37cef6475.tar.gz";
++    sha256 = "26df9841c30806a994e2fdf42f7c87bcb1ced9db9a06033469123939fb3fa075";
++  };
+   libpng = {
+     version = "1.6.40";
+     url = "https://github.com/pnggroup/libpng/archive/v1.6.40.tar.gz";
+@@ -75,9 +108,10 @@
+     sha256 = "a420fcf7103e54e775c383e3751729b8fb2dcd087f6165befd13f28315f754f5";
+   };
+   mpv = {
+-    version = "0.36.0";
+-    url = "https://github.com/mpv-player/mpv/archive/refs/tags/v0.36.0.tar.gz";
+-    sha256 = "29abc44f8ebee013bb2f9fe14d80b30db19b534c679056e4851ceadf5a5e8bf6";
++    # 与 ffmpeg n9.0.2 成对升级（mpv 0.36 编不过 n9 的头文件）
++    version = "0.41.0";
++    url = "https://github.com/mpv-player/mpv/archive/refs/tags/v0.41.0.tar.gz";
++    sha256 = "ee21092a5ee427353392360929dc64645c54479aefdb5babc5cfbb5fad626209";
+   };
+   uchardet = {
+     version = "0.0.8";

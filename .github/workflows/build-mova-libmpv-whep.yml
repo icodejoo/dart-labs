@@ -12,13 +12,13 @@ name: Build mova libmpv WHEP
 #   - Linux         -> 只上传 artifact，不注入
 # 以上路径均被 .gitattributes 的 LFS 规则覆盖（mova/packages/**/*.so、mova/libmpv/**）。
 #
-# 待办（本 workflow 尚未覆盖，均无法在无 Apple 机器时验证，故未硬写构建步骤）：
-#   - iOS arm64 / macOS arm64+x86_64：需把 WHEP 接进 libmpv-darwin-build 的 Nix 流程。
-#     缺口 1（TLS）：movaslim 用 securetransport，ffmpeg 的 securetransport 后端没有 DTLS，
-#       patches/ffmpeg-whep 只有 mbedtls(0007/0009) 与 schannel(0008)，Apple 无对应补丁。
-#       建议回退 mbedtls（+ MBEDTLS_SSL_DTLS_SRTP），直接复用 0007/0009。
-#     缺口 2（版本）：上游 darwin 的 ffmpeg/mpv 版本未必是 n9.0.2/v0.41.0，需对齐后才能打 0001-0012。
-#     缺口 3（签名/公证）：macOS 产物分发需 codesign + notarize，CI 无证书；iOS 需 xcframework 重签。
+#   - iOS arm64 / iOS 模拟器 arm64 / macOS arm64+x86_64（apple-whep 矩阵 + apple-package）
+#       Nix 流程：上游 media-kit/libmpv-darwin-build（钉 SHA）+ libmpv-darwin-build-mova-slim.patch
+#       + libmpv-darwin-build-whep.patch（对齐 ffmpeg n9.0.2 / mpv v0.41.0 / libplacebo，TLS 换成静态 mbedtls + DTLS-SRTP）。
+#       打包成 Mpv.xcframework 后直接替换：
+#       mova/packages/media_kit_libs_{ios,macos}_video_slim/{ios,macos}/Frameworks/Mpv.xcframework/
+#       设计与取舍见 mova-libmpv/doc/plans/2026-10-26-apple-whep-build-design.md。
+#     需要证书/真机的部分 CI 做不了：macOS Developer ID 签名与公证、iOS 真机起播，见 README。
 #
 # 安全约束：
 #   1. 触发只允许 main 的 push 与手动 dispatch；注入 step 要求 ref 必须是分支。
@@ -33,16 +33,20 @@ on:
       - '!mova-libmpv/patches/android-v041/**.md'
       - 'mova-libmpv/tools/whep-flavor/build-*.sh'
       - 'mova-libmpv/flavors-mova-slim-n9.sh'
+      - 'mova-libmpv/libmpv-darwin-build-mova-slim.patch'
+      - 'mova-libmpv/libmpv-darwin-build-whep.patch'
+      - 'mova-libmpv/patches/apple-n9/**'
+      - 'mova-libmpv/tools/apple/**'
       - 'mova-libmpv/tools/whep-flavor/ci-platform'
       - '.github/workflows/build-mova-libmpv-whep.yml'
   workflow_dispatch:
     inputs:
       platform:
-        description: 'Which platform to build: android (all 4 ABIs) | windows | linux | all | none. auto = read mova-libmpv/tools/whep-flavor/ci-platform.'
+        description: 'Which platform to build: android (all 4 ABIs) | windows | linux | apple (macOS+iOS) | macos | ios | all | none. auto = read mova-libmpv/tools/whep-flavor/ci-platform.'
         required: false
         default: auto
         type: choice
-        options: [auto, android, windows, linux, all, none]
+        options: [auto, android, windows, linux, apple, macos, ios, all, none]
       android_abi:
         description: 'Android 只构建指定 ABI（all | arm64-v8a | armeabi-v7a | x86_64 | x86），仅 dispatch 生效。'
         required: false
@@ -71,6 +75,11 @@ env:
   ANDROID_PKG_JNI_ROOT: mova/packages/media_kit_libs_android_video_slim_v041/android/src/main/jniLibs
   # 注入目标（Windows）
   WIN_WHEP_DIR: mova/libmpv/windows-x86_64-whep
+  # Apple：上游构建仓库钉死到最近一次绿 run 实际用到的 commit（2026-09-14，原先没钉 ref，上游一动就可能无故变红）
+  DARWIN_BUILD_REF: aadae8ce295dd15a222839c361c4c984ce9befb2
+  # 注入目标（Apple）：直接替换 slim 包里的 xcframework
+  IOS_PKG_FRAMEWORKS: mova/packages/media_kit_libs_ios_video_slim/ios/Frameworks
+  MACOS_PKG_FRAMEWORKS: mova/packages/media_kit_libs_macos_video_slim/macos/Frameworks
 
 jobs:
   # 每次只验证一个平台：由 dispatch 输入 platform 或仓库文件 ci-platform 决定（android|windows|linux|all|none）。
@@ -82,6 +91,9 @@ jobs:
       android: ${{ steps.sel.outputs.android }}
       windows: ${{ steps.sel.outputs.windows }}
       linux: ${{ steps.sel.outputs.linux }}
+      apple: ${{ steps.sel.outputs.apple }}
+      apple_full: ${{ steps.sel.outputs.apple_full }}
+      apple_matrix: ${{ steps.sel.outputs.apple_matrix }}
       platform: ${{ steps.sel.outputs.platform }}
       android_matrix: ${{ steps.sel.outputs.android_matrix }}
     steps:
@@ -100,12 +112,23 @@ jobs:
           P="${INPUT_PLATFORM:-}"
           if [ -z "$P" ] || [ "$P" = auto ]; then P="$(tr -d ' \r\n' < mova-libmpv/tools/whep-flavor/ci-platform)"; fi
           case "$P" in
-            android|windows|linux|all|none) ;;
-            *) echo "::error::invalid platform '$P' (want android|windows|linux|all|none)"; exit 1 ;;
+            android|windows|linux|apple|macos|ios|all|none) ;;
+            *) echo "::error::invalid platform '$P' (want android|windows|linux|apple|macos|ios|all|none)"; exit 1 ;;
           esac
           for x in android windows linux; do
             if [ "$P" = "$x" ] || [ "$P" = all ]; then echo "$x=true" >> "$GITHUB_OUTPUT"; else echo "$x=false" >> "$GITHUB_OUTPUT"; fi
           done
+          # Apple 矩阵：macos = arm64+x86_64；ios = 真机 arm64 + 模拟器 arm64；apple/all = 全部。
+          # apple_full 为 true 时才跑 apple-package（xcframework 需要 macOS 与 iOS 的全部切片）。
+          MAC='{"target":"macos-arm64","os":"macos","arch":"arm64","plat":"macos","archs":"arm64"},{"target":"macos-amd64","os":"macos","arch":"amd64","plat":"macos","archs":"x86_64"}'
+          IOS='{"target":"ios-arm64","os":"ios","arch":"arm64","plat":"ios","archs":"arm64"},{"target":"iossimulator-arm64","os":"iossimulator","arch":"arm64","plat":"iossimulator","archs":"arm64"}'
+          case "$P" in
+            apple|all) AM="[$MAC,$IOS]"; echo "apple=true" >> "$GITHUB_OUTPUT"; echo "apple_full=true" >> "$GITHUB_OUTPUT" ;;
+            macos) AM="[$MAC]"; echo "apple=true" >> "$GITHUB_OUTPUT"; echo "apple_full=false" >> "$GITHUB_OUTPUT" ;;
+            ios) AM="[$IOS]"; echo "apple=true" >> "$GITHUB_OUTPUT"; echo "apple_full=false" >> "$GITHUB_OUTPUT" ;;
+            *) AM='[]'; echo "apple=false" >> "$GITHUB_OUTPUT"; echo "apple_full=false" >> "$GITHUB_OUTPUT" ;;
+          esac
+          echo "apple_matrix=$AM" >> "$GITHUB_OUTPUT"
           echo "platform=$P" >> "$GITHUB_OUTPUT"
           # Android 矩阵：按 android_abi 过滤（空/all 为全部）
           ALL='[{"arch":"arm64","abi":"arm64-v8a","optional":false},{"arch":"armv7l","abi":"armeabi-v7a","optional":false},{"arch":"x86_64","abi":"x86_64","optional":false},{"arch":"x86","abi":"x86","optional":true}]'
@@ -429,3 +452,126 @@ jobs:
             libmpv-linux-x86_64-whep.so
             ffconf-linux-whep.log
           retention-days: 14
+
+  # Apple（iOS 真机 / iOS 模拟器 / macOS arm64 / macOS x86_64）：Nix + 上游 libmpv-darwin-build 叠两份补丁。
+  # 每个切片一条腿，产物是单文件 libmpv.dylib（ffmpeg/mpv/dav1d/libass/mbedtls/libplacebo 全静态折进去），
+  # 之后由 apple-package 合成 universal 并装配成 Mpv.xcframework。
+  apple-whep:
+    name: Apple ${{ matrix.target }} WHEP
+    needs: plan
+    if: ${{ needs.plan.outputs.apple == 'true' }}
+    runs-on: macos-15
+    timeout-minutes: 240
+    strategy:
+      fail-fast: false
+      matrix:
+        include: ${{ fromJSON(needs.plan.outputs.apple_matrix) }}
+    steps:
+      - name: Platform info
+        run: sw_vers; uname -m; xcodebuild -version; ls /Applications | grep -i xcode || true
+
+      - name: Checkout dart-labs
+        uses: actions/checkout@v4
+        with:
+          path: dart-labs
+
+      - name: Checkout libmpv-darwin-build (pinned)
+        uses: actions/checkout@v4
+        with:
+          repository: media-kit/libmpv-darwin-build
+          path: build-root
+          ref: ${{ env.DARWIN_BUILD_REF }}
+
+      # Nix 的 git+file:// flake 源只看被 git 跟踪的文件：新增文件必须 git add（只要进 index，不用提交），
+      # 否则报 "Path ... is not tracked by Git"。patches/mova 下放 mova 自己的补丁，由 default.nix 引用。
+      - name: Apply mova patches
+        working-directory: build-root
+        run: |
+          set -e
+          git apply ../dart-labs/mova-libmpv/libmpv-darwin-build-mova-slim.patch
+          git apply ../dart-labs/mova-libmpv/libmpv-darwin-build-whep.patch
+          mkdir -p patches/mova
+          cp -r ../dart-labs/mova-libmpv/patches/ffmpeg-whep ../dart-labs/mova-libmpv/patches/mpv-v041 ../dart-labs/mova-libmpv/patches/apple-n9 patches/mova/
+          rm -f patches/mova/*/README.md
+          git add -A
+          git status --short | head -50
+
+      - uses: DeterminateSystems/nix-installer-action@v22
+        with:
+          extra-conf: |
+            sandbox = true
+            sandbox-fallback = false
+
+      - uses: DeterminateSystems/magic-nix-cache-action@v13
+        with:
+          use-flakehub: false
+
+      - name: Resolve Xcode path
+        id: xcode
+        run: |
+          if [ -d /Applications/Xcode_16.1.0.app ]; then
+            echo "path=$(realpath /Applications/Xcode_16.1.0.app)" >> "$GITHUB_OUTPUT"
+          else
+            echo "::warning::Xcode_16.1.0.app not found, falling back to xcode-select's default ($(xcode-select -p))"
+            echo "path=$(xcode-select -p | sed 's|/Contents/Developer||')" >> "$GITHUB_OUTPUT"
+          fi
+
+      # TARGET 命名：<package>-<format>-<os>-<arch>-<variant>-<flavor>
+      - name: Build (${{ matrix.target }}, movaslim flavor, n9 + whep)
+        working-directory: build-root
+        run: nix develop -c make TARGET=mk-out-archive-libs-${{ matrix.os }}-${{ matrix.arch }}-video-movaslim XCODE_PATH="${{ steps.xcode.outputs.path }}" VERSION=mova-ci
+
+      - name: Extract
+        working-directory: build-root
+        run: |
+          set -e
+          ARCHIVE=$(find -L result -name '*.tar.gz' | head -1)
+          test -n "$ARCHIVE" || { echo "::error::no .tar.gz archive in result/"; exit 1; }
+          mkdir -p "$GITHUB_WORKSPACE/out/raw"
+          tar -xzf "$ARCHIVE" -C "$GITHUB_WORKSPACE/out/raw"
+          find "$GITHUB_WORKSPACE/out/raw" -type f | sort
+          DYLIB=$(find "$GITHUB_WORKSPACE/out/raw" -name 'libmpv.dylib' | head -1)
+          test -n "$DYLIB" || { echo "::error::libmpv.dylib not found"; exit 1; }
+          mkdir -p "$GITHUB_WORKSPACE/out/${{ matrix.target }}"
+          cp "$DYLIB" "$GITHUB_WORKSPACE/out/${{ matrix.target }}/libmpv.unstripped.dylib"
+          cp "$DYLIB" "$GITHUB_WORKSPACE/out/${{ matrix.target }}/libmpv.dylib"
+          chmod u+w "$GITHUB_WORKSPACE/out/${{ matrix.target }}"/*.dylib
+          # 配置日志：核对 ffmpeg 的 TLS/WHEP 配置、mpv 的特性开关
+          # strip：-S 去调试符号、-x 去局部符号；导出表（mpv_*）不受影响
+          strip -S -x "$GITHUB_WORKSPACE/out/${{ matrix.target }}/libmpv.dylib"
+          ls -l "$GITHUB_WORKSPACE/out/${{ matrix.target }}"
+
+      - name: Collect configure logs
+        if: always()
+        run: |
+          mkdir -p out/logs
+          for d in /nix/store/*-ffmpeg-*; do
+            [ -f "$d/share/ffmpeg/configure.log" ] && cp "$d/share/ffmpeg/configure.log" "out/logs/ffmpeg-configure-$(basename $d).log" || true
+          done
+          for d in /nix/store/*-mpv-*; do
+            [ -f "$d/share/mpv/configure.log" ] && cp "$d/share/mpv/configure.log" "out/logs/mpv-configure-$(basename $d).log" || true
+          done
+          ls -la out/logs || true
+
+      - name: Upload artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: mova-libmpv-${{ matrix.target }}-whep
+          path: |
+            out/${{ matrix.target }}/
+            out/logs/
+          if-no-files-found: warn
+          retention-days: 30
+
+      - name: Mach-O check (deps whitelist / platform / exports / version strings)
+        run: |
+          bash dart-labs/mova-libmpv/tools/apple/apple-macho-check.sh \
+            "out/${{ matrix.target }}/libmpv.dylib" "${{ matrix.plat }}" "${{ matrix.archs }}" 2>&1 | tee macho.log
+          test "${PIPESTATUS[0]}" = 0
+          {
+            echo "### ${{ matrix.target }} libmpv.dylib"
+            echo '```'
+            tail -n 5 macho.log
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
