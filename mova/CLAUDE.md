@@ -373,7 +373,7 @@ README「已知限制」已注明：调用方自己创建/注入 `VideoControlle
 
 ## 剩余任务
 
-**全量评审遗留（2026-10-26，修复见 CHANGELOG `Unreleased`）**：① **PiP 退出后 `state.pip` 不复位**——真机已复现（拉回前台 26 个采样恒为 true，`PIP` 守卫豁免因此一直生效）；原生 `MovaPlugin.kt` 只有 `enterPictureInPictureMode`，没有退出通知；要修需给 `MovaPipPort` 加模式变化流并改 Kotlin 端，未做；
+**全量评审遗留（2026-10-26，修复见 CHANGELOG `Unreleased`；逐项交接见 [doc/plans/2026-10-26-review-leftovers-handoff.md](doc/plans/2026-10-26-review-leftovers-handoff.md)）**：① **PiP 退出后 `state.pip` 不复位**——真机已复现（拉回前台 26 个采样恒为 true，`PIP` 守卫豁免因此一直生效）；原生 `MovaPlugin.kt` 只有 `enterPictureInPictureMode`，没有退出通知；要修需给 `MovaPipPort` 加模式变化流并改 Kotlin 端，未做；
 ② `MovaWarmPlan` 没有方向字段，swap 提交对两个方向一律继承 rate，广告侧靠 `ad_controller` 复位 1x 兜底（content→ad 换指后有几个微任务的短暂窗口），根治需给 plan 加方向；
 ③ 真机 V12 观察到 pod 里第二条广告的 `swapTo` 回落成了主引擎普通 `open`（`_playAd` 里 `unawaited(abandon()); await swapTo()` 的写法 HEAD 就有，未确认与本轮 swap 改动有无关系）；
 ④ 评审里未处理的 P3：#10 `play/seek` 钩子异步返回后校验、#13 模型下载校验（`sha256` 全库未使用，实现需加 `crypto` 依赖，须先征得同意）、#19 预览队列吞异常、#22 STT 启动失败回滚、#24 手势轴向、#25 `trackCount`/`maxZoom` 构造期 assert、#29 `patch.dart`/`mova_platform_interface.dart` 缺注释。
