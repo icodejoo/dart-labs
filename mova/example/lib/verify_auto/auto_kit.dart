@@ -22,6 +22,12 @@ const int _kRunsDefine = int.fromEnvironment('RUNS', defaultValue: 0);
 /// 每个场景默认重复次数。
 const int kDefaultRuns = 3;
 
+/// Optional device-coverage launcher overrides; absent for existing callers.
+///
+/// 覆盖验证入口的可选运行参数；原有入口不设置，行为保持不变。
+int? coverageRunsOverride;
+String? coverageOnlyOverride;
+
 /// `--dart-define=LOG_FILE=<path>`: file every log line is appended to.
 ///
 /// `--dart-define=LOG_FILE=<路径>`：每行日志追加写入的文件。
@@ -59,6 +65,7 @@ String resolveLogPath({String define = kLogFileDefine, Map<String, String>? env}
 ///
 /// Returns a positive count / 返回正整数。
 int autoRuns({int define = _kRunsDefine, Map<String, String>? env}) {
+  if (coverageRunsOverride != null) return coverageRunsOverride!;
   if (define > 0) return define;
   final v = int.tryParse((env ?? Platform.environment)['MOVA_RUNS'] ?? '');
   return v != null && v > 0 ? v : kDefaultRuns;
@@ -73,7 +80,7 @@ int autoRuns({int define = _kRunsDefine, Map<String, String>? env}) {
 ///
 /// Returns the comma separated ids (may be empty) / 返回逗号分隔的编号（可为空）。
 String autoOnlyRaw({String define = kOnlyDefine, Map<String, String>? env}) =>
-    define.isNotEmpty ? define : ((env ?? Platform.environment)['MOVA_ONLY'] ?? '');
+    coverageOnlyOverride ?? (define.isNotEmpty ? define : ((env ?? Platform.environment)['MOVA_ONLY'] ?? ''));
 
 /// Parses the `ONLY` define into a set of upper-cased ids; empty means "all".
 ///

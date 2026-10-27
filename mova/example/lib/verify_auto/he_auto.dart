@@ -205,6 +205,10 @@ class _HeAutoPageState extends State<HeAutoPage> with WidgetsBindingObserver {
   MovaOpts _recovery({int? stallS}) => MovaOpts(
     recovery: MovaRecoveryConfig(
       enabled: true,
+      // These legacy cases assert a finite retry budget. The new default
+      // live reconnect policy is covered separately by coverage_new.dart.
+      // 这些旧场景断言有限重试；新增直播默认持续重连另由 coverage_new 验证。
+      policy: const MovaRetryThenFailover(),
       startTimeout: const Duration(seconds: kStartTimeoutS),
       stallTimeout: stallS == null ? null : Duration(seconds: stallS),
     ),
@@ -410,7 +414,12 @@ class _HeAutoPageState extends State<HeAutoPage> with WidgetsBindingObserver {
     _log('V6 stateAtFailure type=${stAtFail.type.name} rendered=${stAtFail.rendered} duration=${stAtFail.duration.inMilliseconds}ms buffering=${stAtFail.buffering}');
     await _release(src.uri);
     final before = _pg!.all<MovaProg>().where((p) => p.at <= pf.at).lastOrNull;
-    final afterFf = await _firstFrame(from: _ev!.log.indexOf(pf) + 1, timeout: const Duration(seconds: 20));
+    // A retry is a kernel reload, not a new session, so no second MovaFirstFrame fires; the landing
+    // of the retried attempt is announced by MovaRecovered, which is the anchor for the resume window.
+    // (The old anchor `log.indexOf(pf)` was always -1 — wait() returns a fresh Stamped — and matched the
+    // very first frame of the session, so the samples it judged predated the stall.)
+    // 重试是内核重载而非新会话，不会再发 MovaFirstFrame；重试落地由 MovaRecovered 宣布，以它为续播窗口锚点。
+    final afterFf = await _ev!.wait<MovaRecovered>(from: m, timeout: const Duration(seconds: 20));
     await Future<void>.delayed(const Duration(milliseconds: 5500));
     // The retry reloads from 0 and then seeks to the failed position, so the first samples after its
     // first frame are near 0. Resume is judged on whether a sample near the failed position shows up

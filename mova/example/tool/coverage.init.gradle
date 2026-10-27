@@ -1,0 +1,24 @@
+// Keep the existing device example and its data while testing this checkout.
+// 使用独立安装身份，保留真机原有示例应用和数据。
+gradle.beforeProject { project ->
+    project.pluginManager.withPlugin('com.android.application') {
+        project.dependencies.add('releaseImplementation', project.project(':integration_test'))
+        project.afterEvaluate {
+            if (project.configurations.findByName('profileImplementation') != null) {
+                project.dependencies.add('profileImplementation', project.project(':integration_test'))
+            }
+        }
+        project.androidComponents.finalizeDsl { android ->
+            android.defaultConfig.applicationId = 'com.icodejoo.mova.mova_example.coverage'
+            android.defaultConfig.ndk.abiFilters.clear()
+            android.defaultConfig.ndk.abiFilters.add('arm64-v8a')
+        }
+    }
+    if (project.name == 'media_kit_libs_android_video') {
+        project.pluginManager.withPlugin('com.android.library') {
+            project.android.sourceSets.main.jniLibs.setSrcDirs([
+                project.rootProject.file('../tool/coverage_native')
+            ])
+        }
+    }
+}

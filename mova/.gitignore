@@ -52,3 +52,12 @@ tools/ffmpeg-slim/dist/windows-explore/
 # locally once the verification they were made for is done.
 example/av1_probe_assets/
 example/assets/_probe_screens/
+
+# Android coverage run (2026-10-27): evidence, fixtures, native libs and TLS keys
+# generated locally by example/tool/coverage_*.py — never commit.
+example/tool/coverage_evidence/
+example/tool/coverage_native/
+example/tool/coverage_media/
+example/tool/coverage_sources/
+example/tool/coverage_tls/
+example/tool/__pycache__/
