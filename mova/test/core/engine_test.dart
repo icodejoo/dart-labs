@@ -1440,6 +1440,50 @@ void main() {
     await sub.cancel();
   });
 
+  test('setZoom clamps values below 1.0 (and NaN) to 1.0, no upper bound', () async {
+    await e.setZoom(0);
+    expect(e.state.zoom, 1.0);
+    await e.setZoom(-1);
+    expect(e.state.zoom, 1.0);
+    await e.setZoom(double.nan);
+    expect(e.state.zoom, 1.0);
+    await e.setZoom(2.5);
+    expect(e.state.zoom, 2.5);
+  });
+
+  test('dispose is idempotent: a second call neither throws nor re-disposes the kernel', () async {
+    final e2 = MovaEngine(kernel: FakeKernel());
+    await e2.dispose();
+    await e2.dispose();
+  });
+
+  test('setBrightness clamps out-of-range values to 0–1 in port, state and event', () async {
+    final port = _RecordingBrightPort();
+    final e2 = MovaEngine(kernel: FakeKernel(), brightness: port);
+    final events = <MovaEvent>[];
+    final sub = e2.events.listen(events.add);
+    await e2.setBrightness(2);
+    await e2.setBrightness(-1);
+    await Future<void>.delayed(Duration.zero);
+    expect(port.sets, [1.0, 0.0]);
+    expect(e2.state.brightness, 0.0);
+    expect(events.whereType<MovaBrightChange>().map((x) => x.value), [1.0, 0.0]);
+    await sub.cancel();
+    await e2.dispose();
+  });
+
+  test('setVolume clamps out-of-range values to 0–100 in state and event', () async {
+    final events = <MovaEvent>[];
+    final sub = e.events.listen(events.add);
+    await e.setVolume(110);
+    expect(e.state.volume, 100);
+    await e.setVolume(-10);
+    expect(e.state.volume, 0);
+    await Future<void>.delayed(Duration.zero);
+    expect(events.whereType<MovaVolumeChange>().map((x) => x.value), [100, 0]);
+    await sub.cancel();
+  });
+
   test('setBrightness clamps out-of-range values to 0–1 in port, state and event', () async {
     final port = _RecordingBrightPort();
     final e2 = MovaEngine(kernel: FakeKernel(), brightness: port);

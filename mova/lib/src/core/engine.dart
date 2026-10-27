@@ -2071,8 +2071,10 @@ class MovaEngine implements MovaApi, MovaKeepAlive, MovaPlayerMute, MovaHandoffR
 
   @override
   Future<void> setZoom(double z) async {
-    _state.emit(state.copyWith(zoom: z));
-    _emitEvent(MovaZoomChange(z));
+    // 下限与手势层一致（1.0 = 不缩放），避免 0/负值/NaN 让画面塌缩；上限不在此处限制。
+    final v = z.isNaN || z < 1.0 ? 1.0 : z;
+    _state.emit(state.copyWith(zoom: v));
+    _emitEvent(MovaZoomChange(v));
   }
 
   @override
@@ -2481,6 +2483,11 @@ class MovaEngine implements MovaApi, MovaKeepAlive, MovaPlayerMute, MovaHandoffR
       !state.mini,
       'dispose() while MovaState.mini is true — see MovaMini docs',
     );
+    // Idempotent: a second dispose() is a no-op instead of re-disposing the
+    // already-destroyed kernel (which throws).
+    //
+    // 幂等：重复 dispose() 直接返回，不再去销毁已销毁的内核（那样会抛异常）。
+    if (_disposed) return;
     // Synchronous prefix on purpose: hosts call `unawaited(dispose())` from
     // State.dispose(), and a pending Timer after the tree is torn down fails
     // widget tests.

@@ -375,6 +375,8 @@ class MovaCutoverEngine implements MovaApi, MovaCutover, MovaKeepAlive {
 
   @override
   Future<void> dispose() async {
+    // 幂等：重复 dispose 直接返回。
+    if (_disposed) return;
     _disposed = true;
     _warmMuteOwner = null;
     _cancelReadyTimer();

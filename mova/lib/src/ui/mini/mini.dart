@@ -62,6 +62,12 @@ class MovaMini extends ChangeNotifier {
   MovaMiniMount _mount = MovaMiniMount.none;
   OverlayEntry? _entry;
 
+  /// Watches the borrowed api so an outside `setMini(false)` (e.g. entering
+  /// system PiP) also takes the window down.
+  ///
+  /// 监听被借用的 api：外部把 `mini` 置回 false（例如进入系统 PiP）时，小窗也要同步收起。
+  StreamSubscription<dynamic>? _watch;
+
   /// The api currently rendered in the mini window; `null` when hidden.
   ///
   /// 当前渲染在小窗里的 api；隐藏时为 `null`。
@@ -191,8 +197,15 @@ class MovaMini extends ChangeNotifier {
       _api = api;
       _skin = skin;
       _rect = null;
+      _unwatch();
       if (prev != null) await prev.setMini(false);
       await api.setMini(true);
+      // 等 mini 置起后再订阅，避免把初始的 mini=false 当成外部退出。
+      if (identical(_api, api)) {
+        _watch = api.states.listen((s) {
+          if (!s.mini && identical(_api, api)) _onExternalExit();
+        });
+      }
     } else {
       _skin = skin;
     }
@@ -210,6 +223,7 @@ class MovaMini extends ChangeNotifier {
   Future<void> hide() async {
     final api = _api;
     if (api == null) return;
+    _unwatch();
     _detachEntry();
     _api = null;
     _rect = null;
@@ -236,6 +250,7 @@ class MovaMini extends ChangeNotifier {
   Future<void> close() async {
     final api = _api;
     if (api == null) return;
+    _unwatch();
     _detachEntry();
     _api = null;
     _rect = null;
@@ -259,6 +274,27 @@ class MovaMini extends ChangeNotifier {
   /// 更新小窗矩形（拖动时由 `MovaMiniWindow` 调用）。
   void setRect(MovaMiniRect r) {
     _rect = r;
+    notifyListeners();
+  }
+
+  /// Cancels the [_watch] subscription.
+  ///
+  /// 取消对 api 状态的监听。
+  void _unwatch() {
+    unawaited(_watch?.cancel());
+    _watch = null;
+  }
+
+  /// The api left mini mode on its own (e.g. `enterPip`): drop the window
+  /// without touching the api again.
+  ///
+  /// api 自己退出了小窗态（如 `enterPip`）：撤掉小窗，不再回写 api。
+  void _onExternalExit() {
+    _unwatch();
+    _detachEntry();
+    _api = null;
+    _rect = null;
+    _mount = MovaMiniMount.none;
     notifyListeners();
   }
 
@@ -295,6 +331,7 @@ class MovaMini extends ChangeNotifier {
     // engine.dispose() 触发的 `assert(!state.mini, ...)` 也看不出与这次
     // 释放的关联。
     final api = _api;
+    _unwatch();
     if (api != null) unawaited(api.setMini(false));
     _api = null;
     _rect = null;

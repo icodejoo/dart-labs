@@ -36,6 +36,24 @@ void main() {
       expect(find.byType(MovaMiniWindow), findsNothing);
     });
 
+    testWidgets('api leaving mini on its own (enterPip) takes the window down', (tester) async {
+      final ctl = MovaMini();
+      final api = FakeMovaApi(options: _enabledOpts);
+      await tester.pumpWidget(MaterialApp(
+        builder: (context, child) => MovaMiniHost(ctl: ctl, child: child!),
+        home: const Text('home'),
+      ));
+      await ctl.show(api);
+      await tester.pump();
+      expect(find.byType(MovaMiniWindow), findsOneWidget);
+
+      await api.setMini(false);
+      await tester.pump();
+      expect(ctl.api, isNull);
+      expect(ctl.mount, MovaMiniMount.none);
+      expect(find.byType(MovaMiniWindow), findsNothing);
+    });
+
     testWidgets('show(api) renders exactly one MovaMiniWindow', (tester) async {
       final ctl = MovaMini();
       final api = FakeMovaApi(options: _enabledOpts);

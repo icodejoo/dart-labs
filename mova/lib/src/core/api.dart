@@ -194,11 +194,14 @@ abstract class MovaApi {
 
   /// Sets the pinch-zoom scale factor.
   ///
-  /// [z] is the zoom factor to apply.
+  /// [z] is the zoom factor to apply; values below 1.0 (and NaN) are clamped
+  /// to 1.0 (no zoom). The upper bound is not enforced here — `maxZoom` only
+  /// limits pinch gestures.
   ///
   /// 设置双指缩放的缩放系数。
   ///
-  /// [z] 为要应用的缩放系数。
+  /// [z] 为要应用的缩放系数；小于 1.0 或 NaN 时按 1.0（不缩放）处理。上限不在此
+  /// 限制——`maxZoom` 只约束捏合手势。
   Future<void> setZoom(double z);
 
   /// Locks or unlocks gesture/control interaction.
