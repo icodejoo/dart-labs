@@ -16,18 +16,18 @@
 
 | 编号 | 成员 | 测试点 |
 |---|---|---|
-| A1 | `events`/`states`/`progress`/`uiStates` | 四条流均为 broadcast，多订阅者互不影响；dispose 后流关闭；progress 随播放单调推进 |
-| A2 | `state` | 各字段与对应事件一致（position/duration/buffering/playing/size/volume/rate/fit/zoom/locked/fullscreen/pip/mini/rendered/sourceIndex/playbackIntent/standby/renderEpoch） |
+| A1 | `events`/`states`/`progress`/`uiStates` | 多订阅者互不影响（以“都收到”为准，不以 `isBroadcast` 标志判定；现行 `states`/`uiStates` 标志为 false 但多订阅可用）；dispose 后流关闭；progress 随播放单调推进 |
+| A2 | `state` | 各字段与对应事件**载荷**一致（事件异步交付，与“接收这一刻”的最新 state 比较会有差异，不判 FAIL；position/duration/buffering/playing/size/volume/rate/fit/zoom/locked/fullscreen/pip/mini/rendered/sourceIndex/playbackIntent/standby/renderEpoch） |
 | A3 | `renderHandle` | 普通引擎非空；`audioOnly` 为 null；懒创建：首次读取才建 VideoController |
 | A4 | `pipSupported` | Android 为 true，与 `state.pipSupported` 一致 |
-| A5 | `open(source, autoPlay)` | autoPlay true/false；返回值；同步归零宽高/duration；连续两次 open（换源）无残留 position；坏地址行为（recovery 关：抛出；开：走恢复）；`MovaSource.sameAs` |
+| A5 | `open(source, autoPlay)` | autoPlay true/false；返回 `Future<bool>`（true=接受，见 N8）；open 后宽高/duration 在 `beforeOpen` 之后、内核加载前**异步**归零（不要求同步立即可读）；连续两次 open（换源）无残留 position；坏地址行为（recovery 关：`open` 返回 true 不抛，错误经 event/state 上报；开：走恢复）；`MovaSource.sameAs` |
 | A6 | `play`/`pause`/`playOrPause` | 状态与 `MovaPlay`/`MovaPause` 事件；`playbackIntent` 独立于内核 playing；重复调用幂等 |
 | A7 | `seek`/`seekBy` | 点播精确度（落点误差）；越界钳制（负数/超时长）；直播被拦；seek 后 `MovaSeek`/`MovaSeeked`；加载中 seek 被寄存后兑现 |
 | A8 | `setVolume` | 0/中间/1 边界与钳制；`MovaVolumeChange`；经 `MovaVolumePort` 真写系统媒体音量（`adb shell dumpsys audio` 对账） |
 | A9 | `setBrightness` | 边界钳制；`MovaBrightChange`；真实窗口亮度变化 |
 | A10 | `setRate` | 0.5/1/1.5/2 与非法值；`MovaRateChange`；换源后倍速保持/复位策略；广告复位 1x |
 | A11 | `setFit` | 全部 `MovaFit` 取值；`MovaFitChange`；画面真实变化（截图对比） |
-| A12 | `setZoom` | 边界（含 maxZoom）；`MovaZoomChange`；缩放后手势平移 |
+| A12 | `setZoom` | 边界：低于 1.0 或 NaN 钳到 1.0，上限 API 不限制（`maxZoom` 只约束捏合手势）；`MovaZoomChange`；缩放后手势平移 |
 | A13 | `setLocked` | 锁定后手势与控件被屏蔽；`MovaLockChange` |
 | A14 | `setFullscreen` | 进/出全屏；`MovaFullScreenChange`；系统栏隐藏/恢复；按宽高比转屏 |
 | A15 | `setMini` | 进/出小窗；`MovaMiniChange`；与 PiP 互斥；不重新解码（position 连续、`renderEpoch` 不变） |
@@ -38,7 +38,7 @@
 | A20 | `backToLiveEdge` | 直播回边缘；`MovaLiveEdgeReach`；点播调用无副作用 |
 | A21 | `showControls`/`hideControls`/`showHud`/`setDragging` | `uiStates` 反映变化；sticky；HUD 类型与文本；拖动预览位置 |
 | A22 | `report(name, params)` | 内置名与 `MovaReportName.custom`；参数透传；`==`/`hashCode` 按 value |
-| A23 | `dispose` | 播放中/加载中/换源中 dispose 不卡死、不抛；二次 dispose 安全；dispose 后调用的行为；120 轮创建销毁无泄漏（PSS 平台） |
+| A23 | `dispose` | 播放中/加载中/换源中 dispose 不卡死、不抛；二次 dispose 幂等（不抛）；dispose 后调用的行为；120 轮创建销毁无泄漏（PSS 平台） |
 | A24 | `MovaSwapEngine`（`swapTo`/`prepare`/`commit`/`abandon`） | 关闭态纯直通；开启态预热→提交 `renderEpoch` 递增；短窗口降级；断网预热超时兜底；影子引擎 dispose |
 | A25 | `MovaStandbyController.setStandby` | on/off；状态机 `off/holding/fallback/resuming`；`pause()` 结束待机；`MovaStandbyChange`/`MovaStandbyResume` |
 | A26 | `MovaMiniController` | `show`/`showInPage`/`hide`/`close`/`isShowing`/`setRect`；`onClosed`/`onTapContent`；方式 A/B 互斥 |
@@ -56,12 +56,12 @@
 |---|---|---|
 | C1 | `preview`/`MovaPreviewConfig` | 开关、来源顺序、缓存上限 |
 | C2 | `live`/`MovaLiveConfig` | `urlBuilder`/`backToLive`/`autoBackToLiveOnStall`/`windowResolver`；时移窗口 `resolveWindow`/`behindOf`/`atLiveEdge` 真机直播流 |
-| C3 | `gesture`/`MovaGestureConfig` | 左亮度/右音量默认；侧别映射改配；水平拖动 seek；双击；长按倍速；`douyin` 手势层 |
+| C3 | `gesture`/`MovaGestureConfig` | 左亮度/右音量默认；侧别映射改配；水平拖动 seek；双击（现行为左右 ±10s seek）；长按（现行无倍速，记录现状）；`douyin` 手势层 |
 | C4 | `abr`/`MovaAbrConfig` | 限速下降档（`MovaAbrDownShift`）；`MovaBufferAbr` 触发与 reset |
 | C5 | `controls`/`MovaCtrlsConfig` | 各控件显隐与自动隐藏时长 |
-| C6 | `danmaku`/`MovaDanmakuConfig` | 弹幕发送/滚动/密度/开关 |
+| C6 | `danmaku`/`MovaDanmakuConfig` | 弹幕滚动/密度/开关（仅展示宿主固定 items，设计上无发送 API/输入框） |
 | C7 | `stt`/`MovaSttConfig` | 见 A31 |
-| C8 | `playlist`/`MovaPlaylistConfig` | 自动连播、NextUp 倒计时 |
+| C8 | `playlist`/`MovaPlaylistConfig` | 自动连播、NextUp 卡片（取消/立即播放；无数字倒计时） |
 | C9 | `ads`/`MovaAdConfig` | 默认关；排期；`waitsFor` 三层覆盖 |
 | C10 | `strings`/`MovaStrs`、`theme`/`MovaTheme` | 文案与主题替换生效；缓冲三字段 |
 | C11 | `swap`/`MovaSwapConfig` | 默认关闭与开启 |
@@ -76,7 +76,7 @@
 
 `MovaReady` `MovaSourceChange` `MovaPlay` `MovaPause` `MovaDone` `MovaSeek` `MovaSeeked` `MovaBufferChange` `MovaDurationChange` `MovaFirstFrame` `MovaSizeChange` `MovaVolumeChange` `MovaBrightChange` `MovaRateChange` `MovaQualityListChange` `MovaQualityChange` `MovaAbrDownShift` `MovaFitChange` `MovaZoomChange` `MovaLockChange` `MovaFullScreenChange` `MovaOrientationChange` `MovaPipChange` `MovaMiniChange` `MovaTimeShiftChange` `MovaLiveEdgeReach` `MovaPreviewBlock` `MovaSttBlock` `MovaSwapChange` `MovaErrorEvent` `MovaPlayFailure` `MovaRecovered` `MovaFailover` `MovaStandbyChange` `MovaStandbyResume`。
 
-每个事件要给出：触发动作、实际收到的载荷、是否重复发射、与 `state` 是否一致。**E1** 一次完整点播的事件序列顺序（open→Ready→SizeChange→FirstFrame→Play→…→Done）；**E2** 关闭态（各默认关闭功能）事件数为 0。
+每个事件要给出：触发动作、实际收到的载荷、是否重复发射、与 `state` 是否一致。**E1** 一次完整点播的事件序列顺序（open→Play 意图→Ready→SizeChange→FirstFrame→…→Done；Play 是意图事件，不当作首帧证据）；**E2** 关闭态（各默认关闭功能）事件数为 0。
 
 ## U. UI 组件与皮肤（真机手势/视觉，必要时 `adb shell input` + 截图）
 
@@ -84,11 +84,11 @@
 |---|---|---|
 | U1 | `MovaPlayer`/`MovaView`/`MovaFeedPlayer` | 挂载/卸载；`poster`/`posterUntilFirstFrame`；`surface`；`MovaView.autoPause` + `routeObservers`；Impeller 下渲染面 |
 | U2 | 皮肤 | `MovaDefaultSkin`/`MovaBilibiliSkin`/`MovaDouyinSkin`/`MovaMinimalSkin`/`MovaMiniSkin`；`MovaPatch` 覆写；组件树 `components()` |
-| U3 | 顶栏 `TopBar` | 返回/标题/方向按钮（仅移动端）/PiP 按钮（不支持时隐藏） |
+| U3 | 顶栏 `TopBar` | 标题/方向按钮（仅移动端）/PiP 按钮（不支持时隐藏）；不含返回按钮，返回走系统 BACK |
 | U4 | 底栏 `BottomBar` | VOD 与直播自适应（seekBar/timeshift/backToLive）；进度条拖动与预览气泡 `PreviewComponent` |
-| U5 | `CenterPlay`、`SpeedButton`、`HudLayer` | 点击、倍速菜单、亮度/音量/进度 HUD |
-| U6 | `GestureLayer`/`DouyinGestureLayer` | 单击/双击/长按/垂直左右半屏/水平拖动；锁定态屏蔽；手感记为主观项 |
-| U7 | `Danmaku`、`Subtitle`、`NextUp`、`AdOverlay`、`FeedSocial` | 渲染、点击、倒计时、跳过广告 |
+| U5 | `CenterPlay`、`SpeedButton`、`HudLayer` | 点击、SpeedButton 点击循环倍速（非菜单）、亮度/音量/进度 HUD |
+| U6 | `GestureLayer`/`DouyinGestureLayer` | 单击/双击（seek）/长按（现无倍速）/垂直左右半屏/水平拖动；锁定态屏蔽；手感记为主观项 |
+| U7 | `Danmaku`、`Subtitle`、`NextUp`、`AdOverlay`、`FeedSocial` | 渲染、点击、NextUp 取消/立即播放（无数字倒计时）、广告倒计时与跳过 |
 | U8 | `MovaMiniWindow` | 拖动跟手、吸边、甩动不误关、转屏钳回 |
 | U9 | `MovaAutoPause` | 切后台/回前台/路由覆盖/`TickerMode` 隐藏；libmpv 切后台自暂停的时序 |
 
@@ -138,7 +138,7 @@
 | N9 | `MovaPipObservable.changes` | PiP 被展开/关闭后 `state.pip` 复位并发 `MovaPipChange`（展开路径与点 X 关闭路径各测，点 X 需想办法注入） |
 | N10 | `MovaWarmPlan.rate`、`swapTo(rate:)`、`MovaHandoffRetirable` | 广告方向 1x、回正片恢复广告前倍速（2x/1.5x）；换指后无短暂跑用户倍速窗口；退役引擎 dispose 不复位全局方向；pod 第二条广告真换指 |
 | N11 | `MovaPlayerMute` 能力 | 预热/待机静音只改 mpv `mute`，不写系统音量（`dumpsys audio` 对账）；两方叠加任意退出顺序还原 |
-| N12 | `MovaState.rendered`、`MovaFirstFrame(sinceOpen, signal)`、`MovaFirstFrameGate` | 每次 open 重置并重发；信号为 `restart`；内部重载不重置；open 同步归零宽高 |
+| N12 | `MovaState.rendered`、`MovaFirstFrame(sinceOpen, signal)`、`MovaFirstFrameGate` | 每次 open 重置并重发；信号为 `restart`；内部重载不重置；open 后宽高异步归零 |
 | N13 | `createMovaEngine(preciseFirstFrame:)`、`MovaMpvKernel(observeNativeEvents:/observeRestarts:/lazyVideo:)` | 开关对应的弱客户端数；懒创建 VideoController |
 | N14 | `fit` 初值参数、`MovaPlayer(fit:)` | 挂载应用一次，用户按钮改的值不被重建覆盖 |
 | N15 | `MovaPlayer(poster:, posterFade:)`、`MovaFeedPlayer(posterUntilFirstFrame:)` | 封面首帧后淡出、换源重盖、仅音频常驻 |
@@ -150,3 +150,21 @@
 | N21 | `MovaSnapshotGuard`（仅 Windows）、`testing.dart` 的 `stagedSourceOptions` | Android 上确认为空操作无副作用 |
 | N22 | 0.3.1 小修 | 异步 `beforePlay/beforeSeek` 返回后复查（期间 pause/换源不被覆盖）；手势改配轴向（`horizontal: volume`、`leftVertical: seek`）；`trackCount>0`/`maxZoom>=1` assert；STT `start()` 失败回滚可重试；预览带 crop 不入缓存、换源丢弃旧结果 |
 | N23 | 统一上报 QoE 新增：`MovaStatsProbe.nativeRestartAvailable`、`truncatedBelow`、`MovaReportName.custom` | 见 F7 |
+
+## 修订记录（2026-10-27 复跑后）
+
+- 上列 A1/A2/A5/A12/A23/C3/C6/C8/U3/U5/U6/U7/E1/N12 的预期已按**现行产品行为**修订（原预期与设计不一致，长期记 FAIL 会掩盖真回归）。其中 A12/A23 已在库里修复；其余是契约/能力假设差异，若要改产品行为请另开决策，不在矩阵里挂 FAIL。
+- 旧名对照：`MovaSwap*`→`MovaCutover*`、`MovaStandby*`→`MovaKeepAlive*`、`*Controller`→无后缀（`MovaAds`/`MovaFeed`/`MovaPlaylist`/`MovaMini`）；本文其余处沿用旧名，执行时按此映射。
+
+## 增补：v2 与覆盖缺口
+
+[v2 矩阵](2026-10-27-device-coverage-matrix-v2.md) 增加 **L 日志规范、S 皮肤专项（5 皮肤 × S1–S16）、P 公开类型台账（285 个）、G 覆盖缺口**。缺口编号（执行时与上面的 A–N 同等对待，各给 PASS/FAIL/BLOCKED）：
+
+| 编号 | 主题 | 优先级 |
+|---|---|---|
+| G1.1/G1.2 | 多 ABI（armeabi-v7a/x86/x86_64）、混淆与 R8 | P0 |
+| G2.1/G2.2/G2.3 | 音频焦点、播放中网络切换、息屏/锁屏 | P0 |
+| G3.1/G3.2 | 本地源（file/content/asset）、容器与编码格式（裁剪面） | P0 |
+| G4.1 | 随机序列/压力测试 | P0 |
+| G1.3–G1.5、G2.4–G2.9、G3.3–G3.6、G4.2–G4.5 | 见 v2 的 G 节 | P1/P2 |
+| G5 | 矩阵自身：预期修订、BLOCKED 解锁、一键回归入口 | 先做 |
