@@ -28,7 +28,7 @@ final Uint8List _png = Uint8List.fromList(<int>[
 /// `MovaCutoverEngine` does on a committed cutover.
 ///
 /// 可替换 [preview] 实例的 [FakeMovaApi]，模拟 `MovaCutoverEngine` 提交切换后的行为。
-class _CutoverpingApi extends FakeMovaApi {
+class _CutoverApi extends FakeMovaApi {
   /// The live preview double; replaced by [cutoverPreview].
   ///
   /// 当前生效的预览替身；由 [cutoverPreview] 替换。
@@ -134,13 +134,13 @@ void main() {
   });
 
   testWidgets('re-subscribes to the new preview after a renderEpoch change', (t) async {
-    final swapping = _CutoverpingApi();
-    addTearDown(swapping.dispose);
-    await pumpComponent(t, swapping, MovaPreviewComponent());
-    swapping.pushUi(const MovaUiState(dragging: true, previewAt: Duration(seconds: 10)));
+    final cutoverApi = _CutoverApi();
+    addTearDown(cutoverApi.dispose);
+    await pumpComponent(t, cutoverApi, MovaPreviewComponent());
+    cutoverApi.pushUi(const MovaUiState(dragging: true, previewAt: Duration(seconds: 10)));
     await t.pump();
     await t.pump();
-    final fresh = await swapping.cutoverPreview();
+    final fresh = await cutoverApi.cutoverPreview();
     await t.pump();
     await t.pump();
     fresh.push(MovaThumb(at: const Duration(seconds: 10), bytes: _png));

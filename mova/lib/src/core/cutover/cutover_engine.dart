@@ -593,14 +593,14 @@ class MovaCutoverEngine implements MovaApi, MovaCutover, MovaKeepAlive {
     if (_phase != MovaCutoverPhase.ready) {
       if (!waitForReady) return false;
       // Reuse an already-pending completer instead of overwriting it: two
-      // overlapping commit(waitForReady: true) calls (e.g. two ad_controller
+      // overlapping commit(waitForReady: true) calls (e.g. two MovaAds
       // paths racing on the same cutover engine) would otherwise each create
       // their own Completer, and only the *last* one assigned to
       // _readyCompleter ever gets completed by _evaluate/_onShadowError/
       // abandon/dispose — orphaning every earlier caller's await forever.
       //
       // 复用已存在的挂起 completer，而非覆写它：两次重叠的
-      // commit(waitForReady: true) 调用（例如两条 ad_controller 路径在同一个
+      // commit(waitForReady: true) 调用（例如两条 MovaAds 路径在同一个
       // cutover engine 上产生竞争）否则会各自创建一个 Completer，而
       // _evaluate/_onShadowError/abandon/dispose 只会解析*最后*赋给
       // _readyCompleter 的那一个——把更早的调用者永远晾在那里等待。

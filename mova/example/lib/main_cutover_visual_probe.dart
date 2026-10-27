@@ -22,7 +22,7 @@ import 'package:mova/mova.dart';
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
   MovaEngine.ensureInitialized();
-  runApp(const MaterialApp(home: SwapVisualProbe()));
+  runApp(const MaterialApp(home: CutoverVisualProbe()));
 }
 
 /// Content source, cache-busted like main_seamless_test.dart.
@@ -52,17 +52,17 @@ final _ad = MovaAdBreak(
 /// full-screen for visual recording.
 ///
 /// 驱动同样的 3 秒正片 -> 广告 -> skip 时间线，但让播放器保持全屏以便录屏。
-class SwapVisualProbe extends StatefulWidget {
+class CutoverVisualProbe extends StatefulWidget {
   /// Creates the probe page.
   ///
   /// 创建探针页面。
-  const SwapVisualProbe({super.key});
+  const CutoverVisualProbe({super.key});
 
   @override
-  State<SwapVisualProbe> createState() => _CutoverVisualProbeState();
+  State<CutoverVisualProbe> createState() => _CutoverVisualProbeState();
 }
 
-class _CutoverVisualProbeState extends State<SwapVisualProbe> {
+class _CutoverVisualProbeState extends State<CutoverVisualProbe> {
   late final MovaCutoverEngine _engine;
   late final MovaAds _controller;
   String _status = 'starting';

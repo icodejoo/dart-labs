@@ -65,7 +65,7 @@ class _Q13PageState extends State<_Q13Page> {
   final Map<String, int> _pass = <String, int>{};
   final Map<String, int> _fail = <String, int>{};
 
-  MovaCutoverEngine? _swap;
+  MovaCutoverEngine? _cutover;
   MovaAds? _ads;
 
   /// Kept for the whole scenario: the existing seamless-cutover test also listens to the engine's streams
@@ -119,7 +119,7 @@ class _Q13PageState extends State<_Q13Page> {
         return createMovaEngine(kernel: MovaMpvKernel(player: player, lazyVideo: true, observeQoeSignals: false), options: opts);
       },
     );
-    _swap = cutover;
+    _cutover = cutover;
     _progSub = cutover.progress.listen((_) {});
     _ads = MovaAds(cutover, cutover: cutover);
     if (mounted) setState(() {});
@@ -127,9 +127,9 @@ class _Q13PageState extends State<_Q13Page> {
 
   Future<void> _disposeRig() async {
     final ads = _ads;
-    final cutover = _swap;
+    final cutover = _cutover;
     _ads = null;
-    _swap = null;
+    _cutover = null;
     await _progSub?.cancel();
     _progSub = null;
     if (mounted) setState(() {});
@@ -141,7 +141,7 @@ class _Q13PageState extends State<_Q13Page> {
 
   /// Waits until the engine really plays (position moving, not buffering).
   Future<bool> _waitPlaying() async {
-    final cutover = _swap!;
+    final cutover = _cutover!;
     final done = Completer<bool>();
     late final StreamSubscription<MovaProg> sub;
     sub = cutover.progress.listen((p) {
@@ -155,7 +155,7 @@ class _Q13PageState extends State<_Q13Page> {
   Future<bool> _waitEpoch(int from) async {
     final deadline = DateTime.now().add(const Duration(seconds: 10));
     while (DateTime.now().isBefore(deadline)) {
-      if (_swap!.state.renderEpoch != from) return true;
+      if (_cutover!.state.renderEpoch != from) return true;
       await Future<void>.delayed(const Duration(milliseconds: 50));
     }
     return false;
@@ -190,7 +190,7 @@ class _Q13PageState extends State<_Q13Page> {
       mutes.add(mute);
       parts.add('k$i(mute=$mute vid=${await _prop(_players[i], 'vid')} pause=${await _prop(_players[i], 'pause')})');
     }
-    _log('PROPS $name renderEpoch=${_swap!.state.renderEpoch} keepAlive=${_swap!.state.keepAlivePhase.name} ${parts.join(' ')}');
+    _log('PROPS $name renderEpoch=${_cutover!.state.renderEpoch} keepAlive=${_cutover!.state.keepAlivePhase.name} ${parts.join(' ')}');
     return mutes;
   }
 
@@ -221,10 +221,10 @@ class _Q13PageState extends State<_Q13Page> {
       return false;
     }
     await Future<void>.delayed(const Duration(seconds: 3));
-    final e0 = _swap!.state.renderEpoch;
+    final e0 = _cutover!.state.renderEpoch;
     final tPlay = _clock.elapsedMilliseconds;
     await ads.playAdNow(_adBreak());
-    _log('$tag playAdNow returned after ${_clock.elapsedMilliseconds - tPlay}ms epoch=${_swap!.state.renderEpoch} showingAd=${ads.isShowingAd} players=${_players.length}');
+    _log('$tag playAdNow returned after ${_clock.elapsedMilliseconds - tPlay}ms epoch=${_cutover!.state.renderEpoch} showingAd=${ads.isShowingAd} players=${_players.length}');
     if (!await _waitEpoch(e0)) {
       _log('$tag the ad never became the active engine');
       return false;
@@ -245,7 +245,7 @@ class _Q13PageState extends State<_Q13Page> {
     if (!await _enterAd('A')) return _verdict('Q13A', false, 'could not reach the warming state');
     final warming = await _snapshot('A-ad-playing-shadow-warming');
     final alive = await _alive();
-    final epoch = _swap!.state.renderEpoch;
+    final epoch = _cutover!.state.renderEpoch;
     _log('A skipping the ad now');
     ads.skip();
     final swapped = await _waitEpoch(epoch);
@@ -266,7 +266,7 @@ class _Q13PageState extends State<_Q13Page> {
     final tag = wakeBeforeCommit ? 'C' : 'B';
     await _newRig();
     final ads = _ads!;
-    final cutover = _swap!;
+    final cutover = _cutover!;
     if (!await _enterAd(tag)) return _verdict(id, false, 'could not reach the warming state');
     final phase = await cutover.setKeepAlive(true);
     await Future<void>.delayed(const Duration(milliseconds: 800));
@@ -339,7 +339,7 @@ class _Q13PageState extends State<_Q13Page> {
 
   @override
   Widget build(BuildContext context) {
-    final cutover = _swap;
+    final cutover = _cutover;
     return Scaffold(
       appBar: AppBar(title: const Text('Q13 mute verify')),
       body: Column(

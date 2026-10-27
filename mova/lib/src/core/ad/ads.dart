@@ -146,15 +146,15 @@ class MovaAds {
       _onAdEvent = _api.options.ads.onAdEvent,
       _enabled = _api.options.ads.enabled,
       // The public parameter name (`cutover`) must stay distinct from the
-      // private field it seeds (`_swap`).
+      // private field it seeds (`_cutover`).
       // ignore: prefer_initializing_formals
-      _swap = cutover {
+      _cutover = cutover {
     _eventSub = _api.events.listen(_onEvent);
     _progressSub = _api.progress.listen(_onProgress);
   }
 
   final MovaApi _api;
-  final MovaCutover? _swap;
+  final MovaCutover? _cutover;
 
   /// The ad configuration snapshot this controller runs on.
   ///
@@ -632,7 +632,7 @@ class MovaAds {
   /// [MovaAdConfig.waitsFor] 里——本控制器绝不自行对 [MovaAdBreakKind] 分支，
   /// 否则宿主的覆盖就绕不过去了。
   bool _wantsWait(MovaAdBreak b) {
-    final cutover = _swap;
+    final cutover = _cutover;
     return cutover != null && cutover.cutoverEnabled && _cfg.waitsFor(b);
   }
 
@@ -709,8 +709,8 @@ class MovaAds {
     // 提交之前先确保真的有一次预热存在。有倒计时时，进度 tick 一路都在预热，这里
     // 是空操作；没有倒计时时（中插的默认形态），这里*就是*那次预热，随后整段等待
     // 都发生在下面的 commit 里。
-    await _swap!.prepare(b.source, plan: _cfg.effectiveWarmPlan);
-    if (await _swap.commit(waitForReady: true)) {
+    await _cutover!.prepare(b.source, plan: _cfg.effectiveWarmPlan);
+    if (await _cutover.commit(waitForReady: true)) {
       _pending = null;
       await _playAd(b, alreadyOnScreen: true);
       return;
@@ -739,7 +739,7 @@ class MovaAds {
     _cancelDelayTimer();
     _pending = null;
     _phase = _Phase.content;
-    unawaited(_swap?.abandon());
+    unawaited(_cutover?.abandon());
     _changes.add(null);
   }
 
@@ -821,7 +821,7 @@ class MovaAds {
       // 空操作、不管里面装的是什么，没有这行 abandon()，cutoverTo 就预热不出新的
       // 影子，commit() 会把陈旧的正片影子转正，而不是这条广告——pod 里的下一条
       // 广告悄无声息地从未真正播放，而 _current/已触发的事件却坚称它播了。
-      unawaited(_swap?.abandon());
+      unawaited(_cutover?.abandon());
       // While cutoverTo() waits for the ad's shadow, the old engine keeps ticking
       // and _onProgress would warm the content behind the ad — evicting the very
       // shadow cutoverTo is waiting on and silently degrading it to a plain open().
@@ -830,12 +830,12 @@ class MovaAds {
       // 正片——把 cutoverTo 正在等的影子挤掉，悄悄退化成普通 open()。
       _landingAd = true;
       try {
-        await _swap!.cutoverTo(b.source, rate: 1.0);
+        await _cutover!.cutoverTo(b.source, rate: 1.0);
       } finally {
         _landingAd = false;
       }
     } else if (!alreadyOnScreen) {
-      unawaited(_swap?.abandon());
+      unawaited(_cutover?.abandon());
       try {
         await _api.open(b.source);
       } catch (e) {
@@ -878,7 +878,7 @@ class MovaAds {
     // 广告不应变速。走无缝落地时广告已按 1x 起步（MovaWarmPlan.rate）；这里是
     // 绕过它的路径的兜底——cutoverTo() 回落成在用户引擎上的普通 open()，或宿主自定义
     // 的 adWarmPlan 没带 rate。
-    final cutover = _swap;
+    final cutover = _cutover;
     if (cutover != null && cutover.cutoverEnabled && _api.state.rate != 1.0) {
       unawaited(_api.setRate(1.0));
     }
@@ -1028,7 +1028,7 @@ class MovaAds {
   }
 
   /// Switches playback to the content, optionally resuming at [at]. Tries a
-  /// seamless cutover first when [_swap] is configured; falls back to the plain
+  /// seamless cutover first when [_cutover] is configured; falls back to the plain
   /// `open()`/`seek()` path when swapping is disabled, was never warmed, or
   /// failed.
   ///
@@ -1038,7 +1038,7 @@ class MovaAds {
   /// doc/SPEC.md「广告编排增强」§为什么 `_playContent` 用
   /// `commit(waitForReady: true)`.
   ///
-  /// 把播放切换回正片，可选地从 [at] 续播。配置了 [_swap] 时先尝试无缝切换；
+  /// 把播放切换回正片，可选地从 [at] 续播。配置了 [_cutover] 时先尝试无缝切换；
   /// 切换被禁用、从未预热过、或切换失败时回落到普通 `open()`/`seek()` 路径。
   ///
   /// 用 `commit(waitForReady: true)` 而非裸 `commit()`——裸 commit 会把影子
@@ -1054,7 +1054,7 @@ class MovaAds {
     final gen = _gen;
     final c = await _contentSource();
     if (c == null || gen != _gen || _disposed) return;
-    final cutover = _swap;
+    final cutover = _cutover;
     if (cutover != null && await cutover.commit(waitForReady: true)) {
       // Already seamlessly switched to the content by the warmed shadow;
       // no open/seek needed.
@@ -1118,7 +1118,7 @@ class MovaAds {
       if (_phase == _Phase.pending) {
         _cancelDelayTimer();
         _pending = null;
-        unawaited(_swap?.abandon());
+        unawaited(_cutover?.abandon());
       }
       final post = _enabled ? _firstOfKind(MovaAdBreakKind.post) : null;
       if (post != null) {
@@ -1255,7 +1255,7 @@ class MovaAds {
       //
       // 询问已配置的触发策略此刻是否该开始在后台预热正片；由触发策略（而非
       // 本控制器）根据广告剩余时长与广告总时长决定。
-      final cutover = _swap;
+      final cutover = _cutover;
       if (cutover != null && cutover.cutoverEnabled) {
         final adDuration = _api.state.duration;
         unawaited(
@@ -1292,7 +1292,7 @@ class MovaAds {
         // 播掉了开头几秒的广告，交付出去就是缺头的）。`at` 恒为零——广告总是从
         // 自己的开头播起。
         unawaited(
-          _swap!.prepare(
+          _cutover!.prepare(
             waiting.source,
             plan: _cfg.effectiveWarmPlan,
             cue: MovaWarmCue(
@@ -1379,7 +1379,7 @@ class MovaAds {
     _cancelAllTimers();
     await _eventSub?.cancel();
     await _progressSub?.cancel();
-    await _swap?.abandon();
+    await _cutover?.abandon();
     await _changes.close();
     await _contentEnded.close();
     await _contentError.close();
