@@ -22,7 +22,7 @@ void main() {
 final clock = Stopwatch()..start();
 final screen = ValueNotifier<MovaApi?>(null);
 final skin = ValueNotifier<MovaSkin>(const MovaDefaultSkin());
-final mini = MovaMiniController()
+final mini = MovaMini()
   ..onClosed = ((a)=>mark('MINI_CLOSED',snapshot(a)))
   ..onTapContent = ((a)=>mark('MINI_TAPPED',snapshot(a)));
 final rebuild = ValueNotifier<int>(0);
@@ -91,7 +91,7 @@ void observe(MovaApi api) {
       MovaQualityListChange() => {'qualities': e.qualities.map((q) => '${q.label}:${q.uri}').toList()},
       MovaQualityChange() => {'quality': e.quality.label},
       MovaAbrDownShift() => {'from': e.from.label, 'to': e.to.label},
-      MovaSwapChange() => {'phase': e.phase.name},
+      MovaCutoverChange() => {'phase': e.phase.name},
       MovaPreviewBlock() => {'reason': e.reason.name},
       MovaSttBlock() => {'reason': e.reason.name},
       MovaErrorEvent() => {'error': '${e.error}'},
@@ -99,8 +99,8 @@ void observe(MovaApi api) {
       MovaRecovered() => {'attempts': e.attempts},
       MovaFailover() => {'from': e.from, 'to': e.to, 'uri': e.uri},
       MovaTimeShiftChange() => {'behind': e.behind.inMilliseconds},
-      MovaStandbyChange() => {'phase': e.phase.name, 'reason': e.reason.name, 'mode': '${e.mode}'},
-      MovaStandbyResume() => {'elapsed': e.elapsed.inMilliseconds, 'signal': '${e.signal}'},
+      MovaKeepAliveChange() => {'phase': e.phase.name, 'reason': e.reason.name, 'mode': '${e.mode}'},
+      MovaKeepAliveResume() => {'elapsed': e.elapsed.inMilliseconds, 'signal': '${e.signal}'},
       _ => <String, Object?>{},
     };
     mark('EVENT', {'engine':identityHashCode(api),'event': e.runtimeType.toString(), 'payload': payload, 'state': snapshot(api)});
@@ -114,7 +114,7 @@ Map<String, Object?> snapshot(MovaApi a) => {
   'rate': a.state.rate, 'fit': a.state.fit.name, 'zoom': a.state.zoom, 'locked': a.state.locked,
   'fullscreen': a.state.fullscreen, 'orientation': a.state.orientation.name, 'pip': a.state.pip,
   'mini': a.state.mini, 'rendered': a.state.rendered, 'epoch': a.state.renderEpoch,
-  'sourceIndex': a.state.sourceIndex, 'standby': a.state.standby.name,
+  'sourceIndex': a.state.sourceIndex, 'keepAlive': a.state.keepAlivePhase.name,
   'type':a.state.type.name,'title':a.state.sourceTitle,
   'pipSupported':a.state.pipSupported,'controls':a.uiState.controlsVisible,'hud':a.uiState.hud.name,
   'previewCurrent':a.preview.current?.at.inMilliseconds,
@@ -168,7 +168,7 @@ class _CoverageHomeState extends State<CoverageHome> {
     mark('BEGIN', {'group': group, 'args': args});
     try {
       switch (group) {
-        case 'basic': await basic(args['swap'] == 'true');
+        case 'basic': await basic(args['cutover'] == 'true');
         case 'video': await video(args);
         case 'dispose': await disposeStress();
         case 'testing': await testing();
@@ -186,15 +186,15 @@ class _CoverageHomeState extends State<CoverageHome> {
     mark('END', {'group': group, 'status': status});
   }
 
-  Future<void> basic(bool swap) async {
+  Future<void> basic(bool cutover) async {
     events.clear();
     final reports = <MovaReportEvent>[];
     MovaEngine factory() => createMovaEngine(audioOnly: true,
       reporter: MovaCallbackReporter(reports.add), options: const MovaOpts(report: MovaReportConfig(qoe: false)));
-    final MovaApi a = swap ? MovaSwapEngine(engineFactory: factory) : factory();
+    final MovaApi a = cutover ? MovaCutoverEngine(engineFactory: factory) : factory();
     observe(a);
     final streams = <Stream<dynamic>>[a.events, a.states, a.progress, a.uiStates];
-    mark('STREAM_FLAGS',{'broadcast':streams.map((s)=>s.isBroadcast).toList(),'types':streams.map((s)=>s.runtimeType.toString()).toList(),'swap':swap});
+    mark('STREAM_FLAGS',{'broadcast':streams.map((s)=>s.isBroadcast).toList(),'types':streams.map((s)=>s.runtimeType.toString()).toList(),'cutover':cutover});
     final counts = List.filled(8, 0);
     final closed = List.filled(8, false);
     final subscriptions = <StreamSubscription<dynamic>>[];
@@ -204,7 +204,7 @@ class _CoverageHomeState extends State<CoverageHome> {
         subscriptions.add(streams[i].listen((_) => counts[n]++, onDone: () => closed[n] = true));
       }
     }
-    check('A1.broadcast', streams.every((s) => s.isBroadcast), 'all streams broadcast swap=$swap');
+    check('A1.broadcast', streams.every((s) => s.isBroadcast), 'all streams broadcast cutover=$cutover');
     check('A3.audio', a.renderHandle == null, 'handle=${a.renderHandle}');
     final accepted = await a.open(source(), autoPlay: false);
     await until(() => a.state.duration > Duration.zero);
@@ -264,7 +264,7 @@ class _CoverageHomeState extends State<CoverageHome> {
     await a.reload(); await until(() => a.state.duration > Duration.zero);
     mark('RELOAD', snapshot(a));
     await a.backToLiveEdge();
-    check('E2.disabled', events.where((e) => e is MovaSwapChange || e is MovaStandbyChange || e is MovaPlayFailure || e is MovaRecovered || e is MovaFailover).isEmpty, 'count=0');
+    check('E2.disabled', events.where((e) => e is MovaCutoverChange || e is MovaKeepAliveChange || e is MovaPlayFailure || e is MovaRecovered || e is MovaFailover).isEmpty, 'count=0');
     check('C13.off', !reports.any((r) => [MovaReportName.firstFrame, MovaReportName.sessionStart, MovaReportName.sessionEnd, MovaReportName.rebuffer].contains(r.name)), 'QoE reports=${reports.length}');
     await a.dispose().timeout(const Duration(seconds: 15)); await settle();
     check('A1.closed', closed.every((b) => b), 'counts=$counts closed=$closed');
@@ -272,7 +272,7 @@ class _CoverageHomeState extends State<CoverageHome> {
     catch(e){check('A23.doubleDispose',false,'$e');}
     check('A23.postOpen', !await a.open(source()), 'disposed open=false');
     for (final s in subscriptions) { await s.cancel(); }
-    mark('BASIC_DONE', {'swap': swap, 'events': events.length});
+    mark('BASIC_DONE', {'cutover': cutover, 'events': events.length});
   }
 
   Future<void> video(Map<String, String> args) async {
@@ -289,7 +289,7 @@ class _CoverageHomeState extends State<CoverageHome> {
         theme:custom?const MovaTheme(bufferingSize:60,bufferingStrokeWidth:8,bufferingColor:0xFFFF0000):const MovaTheme(),
         strings:custom?const MovaStrs(fitContain:'COVERAGE FIT',quality:'COVERAGE QUALITY'):const MovaStrs(),
         danmaku:MovaDanmakuConfig(enabled:custom,items:List.generate(8,(i)=>MovaDanmakuItem(text:'COVERAGE BULLET $i',time:Duration(seconds:i+2))))));
-      a=args['swap']=='true'?MovaSwapEngine(engineFactory:factory):factory();
+      a=args['cutover']=='true'?MovaCutoverEngine(engineFactory:factory):factory();
       observe(a); screen.value = a;
       await settle(500); await a.open(args['url']==null?source():MovaSource(args['url']!,type:args['live']=='true'?MovaStreamType.live:MovaStreamType.vod));
       await until(() => a.state.rendered && (args['audio']=='true'||a.state.width > 0));
@@ -311,7 +311,7 @@ class _CoverageHomeState extends State<CoverageHome> {
       case 'seek': await a.seek(Duration(milliseconds:int.parse(args['value']!)));
       case 'rate': await a.setRate(double.parse(args['value']!));
       case 'backEdge': await a.backToLiveEdge();
-      case 'standby': await (a as MovaStandbyController).setStandby(args['value']=='true');
+      case 'keepAlive': await (a as MovaKeepAlive).setKeepAlive(args['value']=='true');
       case 'controls': a.showControls(sticky:args['value']=='sticky');
       case 'rebuild': rebuild.value++;
       case 'declarativeFit': declaredFit=MovaFit.values.byName(args['value']!); rebuild.value++;
@@ -371,7 +371,7 @@ class _CoverageHomeState extends State<CoverageHome> {
       MovaPlaylistItem(source: source('ad.mp4')), MovaPlaylistItem(source: source()),
     ])));
     observe(a);
-    final p = MovaPlaylistController(a);
+    final p = MovaPlaylist(a);
     await p.jumpTo(0); await p.previous();
     check('A28.start', p.currentIndex == 0 && p.hasNext, 'index=${p.currentIndex}');
     await p.next(); await p.next();

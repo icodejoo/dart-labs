@@ -6,7 +6,7 @@ from pathlib import Path
 from coverage_record import update, journal
 
 here=Path(__file__).resolve().parent
-jobs=[('qoe-failed',{'case':'qoe','mode':'failed'}),('qoe-stall-release',{'case':'stallRelease'}),('hls-playing',{'case':'hls'}),('hls-playing-swap',{'case':'hls','swap':'true'}),('hls-paused',{'case':'hls','paused':'true'}),('tls-probe',{'case':'tlsProbe'})]
+jobs=[('qoe-failed',{'case':'qoe','mode':'failed'}),('qoe-stall-release',{'case':'stallRelease'}),('hls-playing',{'case':'hls'}),('hls-playing-cutover',{'case':'hls','cutover':'true'}),('hls-paused',{'case':'hls','paused':'true'}),('tls-probe',{'case':'tlsProbe'})]
 for suffix,args in jobs:
     name='batch17-'+suffix
     cmd=[sys.executable,str(here/'coverage_device.py'),'new','--name',name,'--timeout','180']

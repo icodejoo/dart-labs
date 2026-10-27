@@ -2,11 +2,11 @@ import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/widgets.dart';
 import 'main_host_ergonomics_verify.dart' as he;
-import 'main_standby_verify.dart' as standby;
+import 'main_keep_alive_verify.dart' as keep_alive;
 import 'main_q13_mute_verify.dart' as q13;
 import 'main_qoe_verify.dart' as qoe;
 import 'main_qoe_video_verify.dart' as qoeVideo;
-import 'main_seamless_swap_verify.dart' as swap;
+import 'main_seamless_cutover_verify.dart' as cutover;
 import 'main_ad_orchestration_verify.dart' as ads;
 import 'main_quality_switch_verify.dart' as quality;
 import 'main_subtitle_formats_probe.dart' as subtitle;
@@ -28,11 +28,11 @@ Future<void> main() async {
   coverageRunsOverride = config['runs'] as int? ?? 5;
   switch (config['page']) {
     case 'he': he.main();
-    case 'standby': standby.main();
+    case 'keepAlive': keep_alive.main();
     case 'q13': q13.main();
     case 'qoe': qoe.main();
     case 'qoeVideo': qoeVideo.main();
-    case 'swap': swap.main();
+    case 'cutover': cutover.main();
     case 'ads': ads.main();
     case 'quality': quality.main();
     case 'subtitle': subtitle.main();

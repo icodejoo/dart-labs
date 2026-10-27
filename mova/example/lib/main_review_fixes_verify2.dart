@@ -10,7 +10,7 @@ import 'package:mova/src/core/kernel/mpv_kernel.dart';
 /// 本轮评审后续修复（V10-V14）的 Android 真机验证页。
 ///
 /// 选组：启动时从 http://127.0.0.1:18082/group 取（adb reverse 到 PC 上的小服务），或编译期
-/// `--dart-define=GROUP=v10`。组名：v10（全屏 swap，销毁继任者）、v10x（全屏 swap，退出全屏）、
+/// `--dart-define=GROUP=v10`。组名：v10（全屏 cutover，销毁继任者）、v10x（全屏 cutover，退出全屏）、
 /// v10c（对照：普通 dispose 会复位方向）、v11、v12、v13a、v13b、v14。
 ///
 /// 日志行 `RFV2|毫秒时间戳|标签|内容`，用 `adb logcat -s flutter` 抓取；`SAMPLE` 行由 PC 侧
@@ -95,15 +95,15 @@ Future<void> _sample(String tag, {int hold = 2200}) async {
   _log('WIN', '$tag ${_win()}');
 }
 
-/// 验证用选项：swap 开启、readyTimeout 8s、立即预热。
-MovaOpts _swapOpts({MovaAdConfig? ads}) => MovaOpts(
-  swap: const MovaSwapConfig(enabled: true, readyTimeout: Duration(seconds: 8), trigger: MovaEagerWarm()),
+/// 验证用选项：cutover 开启、readyTimeout 8s、立即预热。
+MovaOpts _cutoverOpts({MovaAdConfig? ads}) => MovaOpts(
+  cutover: const MovaCutoverConfig(enabled: true, readyTimeout: Duration(seconds: 8), trigger: MovaEagerWarm()),
   ads: ads ?? const MovaAdConfig(),
 );
 
-/// 创建并挂到界面的 swap 代理（引擎带真实 VideoController）。
-MovaSwapEngine _mkProxy(MovaOpts o, {MovaApi Function()? factory}) {
-  final p = MovaSwapEngine(engineFactory: factory ?? () => createMovaEngine(options: o));
+/// 创建并挂到界面的 cutover 代理（引擎带真实 VideoController）。
+MovaCutoverEngine _mkProxy(MovaOpts o, {MovaApi Function()? factory}) {
+  final p = MovaCutoverEngine(engineFactory: factory ?? () => createMovaEngine(options: o));
   _api.value = p;
   return p;
 }
@@ -132,7 +132,7 @@ class _ThrowKernel extends MovaMpvKernel {
   }
 }
 
-/// 每次 pause() 额外延迟的毫秒数；V12b 用它拉长 swap 提交前旧引擎仍在 tick 的窗口。
+/// 每次 pause() 额外延迟的毫秒数；V12b 用它拉长 cutover 提交前旧引擎仍在 tick 的窗口。
 int _pauseDelayMs = 0;
 
 /// 按 [_pauseDelayMs] 延迟 pause 的内核（带视频，其余走真实 mpv）。
@@ -274,14 +274,14 @@ class _HomeState extends State<_Home> {
 }
 
 // ---------------------------------------------------------------------------
-// V10 全屏 swap 方向（MovaHandoffRetirable）
+// V10 全屏 cutover 方向（MovaHandoffRetirable）
 // ---------------------------------------------------------------------------
 
-/// V10：全屏播放中 swapTo 另一条源。swap 提交后继任者应继承全屏、平台方向仍横屏、系统栏仍隐藏；
+/// V10：全屏播放中 cutoverTo 另一条源。cutover 提交后继任者应继承全屏、平台方向仍横屏、系统栏仍隐藏；
 /// 之后 [exitFullscreen] 为 true 走 setFullscreen(false)，否则直接销毁继任者，方向应回到自动/竖屏。
 Future<void> _v10(int run, {required bool exitFullscreen}) async {
   final id = exitFullscreen ? 'V10x' : 'V10';
-  final proxy = _mkProxy(_swapOpts());
+  final proxy = _mkProxy(_cutoverOpts());
   var pos = Duration.zero;
   final sub = proxy.progress.listen((p) => pos = p.position);
   await proxy.open(_s('vod.mp4', 'A'));
@@ -293,13 +293,13 @@ Future<void> _v10(int run, {required bool exitFullscreen}) async {
   final fsBefore = _landscape() && _immersive();
   await _sample('${id}_run${run}_before_swap');
   final t0 = _now();
-  final ok = await proxy.swapTo(_s('ad.mp4', 'B'));
+  final ok = await proxy.cutoverTo(_s('ad.mp4', 'B'));
   final t1 = _now();
   await _wait(1200);
   st = proxy.state;
   final landAfter = _landscape();
   final immAfter = _immersive();
-  _log(id, 'run$run swapTo=$ok in ${t1 - t0}ms; successor fs=${st.fullscreen} ori=${st.orientation.name} title=${st.sourceTitle} epoch=${st.renderEpoch} landscape=$landAfter immersive=$immAfter');
+  _log(id, 'run$run cutoverTo=$ok in ${t1 - t0}ms; successor fs=${st.fullscreen} ori=${st.orientation.name} title=${st.sourceTitle} epoch=${st.renderEpoch} landscape=$landAfter immersive=$immAfter');
   final succFs = st.fullscreen;
   await _sample('${id}_run${run}_after_swap');
   var portraitBack = false;
@@ -322,7 +322,7 @@ Future<void> _v10(int run, {required bool exitFullscreen}) async {
   }
   await sub.cancel();
   _result(id, run, fsBefore && ok && succFs && landAfter && immAfter && portraitBack && barsBack,
-      'preFsLandscapeImmersive=$fsBefore swapTo=$ok successorFs=$succFs landscapeAfterSwap=$landAfter immersiveAfterSwap=$immAfter restoredPortrait=$portraitBack barsRestored=$barsBack');
+      'preFsLandscapeImmersive=$fsBefore cutoverTo=$ok successorFs=$succFs landscapeAfterCutover=$landAfter immersiveAfterCutover=$immAfter restoredPortrait=$portraitBack barsRestored=$barsBack');
 }
 
 /// V10c 对照：两台普通引擎，E1 全屏、E2 继承全屏后，**不打退役标记**地销毁 E1，
@@ -357,14 +357,14 @@ Future<void> _v10c() async {
 }
 
 // ---------------------------------------------------------------------------
-// V11 非全屏强制横屏 swap
+// V11 非全屏强制横屏 cutover
 // ---------------------------------------------------------------------------
 
-/// V11：非全屏 + setOrientation(landscape) 后 swapTo；继任者 orientation 应为 landscape；
+/// V11：非全屏 + setOrientation(landscape) 后 cutoverTo；继任者 orientation 应为 landscape；
 /// 销毁继任者后方向被复位（回竖屏）。
 Future<void> _v11(int run) async {
   const id = 'V11';
-  final proxy = _mkProxy(_swapOpts());
+  final proxy = _mkProxy(_cutoverOpts());
   var pos = Duration.zero;
   final sub = proxy.progress.listen((p) => pos = p.position);
   await proxy.open(_s('vod.mp4', 'A'));
@@ -374,11 +374,11 @@ Future<void> _v11(int run) async {
   _log(id, 'run$run before: fs=${proxy.state.fullscreen} ori=${proxy.state.orientation.name} landscape=${_landscape()} win=${_win()}');
   final landBefore = _landscape();
   await _sample('${id}_run${run}_before_swap');
-  final ok = await proxy.swapTo(_s('ad.mp4', 'B'));
+  final ok = await proxy.cutoverTo(_s('ad.mp4', 'B'));
   await _wait(1200);
   final st = proxy.state;
   final landAfter = _landscape();
-  _log(id, 'run$run swapTo=$ok successor ori=${st.orientation.name} fs=${st.fullscreen} title=${st.sourceTitle} landscape=$landAfter');
+  _log(id, 'run$run cutoverTo=$ok successor ori=${st.orientation.name} fs=${st.fullscreen} title=${st.sourceTitle} landscape=$landAfter');
   await _sample('${id}_run${run}_after_swap');
   final succOri = st.orientation;
   await _teardown(proxy);
@@ -388,16 +388,16 @@ Future<void> _v11(int run) async {
   await _sample('${id}_run${run}_after_dispose');
   await sub.cancel();
   _result(id, run, landBefore && ok && succOri == MovaOrientation.landscape && landAfter && portraitBack,
-      'preLandscape=$landBefore swapTo=$ok successorOrientation=${succOri.name} landscapeAfterSwap=$landAfter restoredPortrait=$portraitBack');
+      'preLandscape=$landBefore cutoverTo=$ok successorOrientation=${succOri.name} landscapeAfterCutover=$landAfter restoredPortrait=$portraitBack');
 }
 
 // ---------------------------------------------------------------------------
 // V12 广告首帧不误超时
 // ---------------------------------------------------------------------------
 
-/// V12：两条中插广告串成 pod（同 offset），第二条经 `swapTo` 走 swap（`_playAd` 的 oneShot 路径）。
+/// V12：两条中插广告串成 pod（同 offset），第二条经 `cutoverTo` 走 cutover（`_playAd` 的 oneShot 路径）。
 /// loadTimeout 3s、durationFromFirstFrame、第二条广告位 6s。[slowPause] 为 true 时内核 pause 延迟 1.5s，
-/// 拉长 swapTo 落定前旧引擎仍在 tick 的窗口。期望：不触发 failed；AD2 的 completed 距其 swap 提交
+/// 拉长 cutoverTo 落定前旧引擎仍在 tick 的窗口。期望：不触发 failed；AD2 的 completed 距其 cutover 提交
 /// （第二次 renderEpoch 递增）约 6s；并统计 AD2 started 之后、其 epoch 落定之前到达的旧引擎 tick 数。
 Future<void> _v12(int run, {bool slowPause = false}) async {
   final id = slowPause ? 'V12b' : 'V12';
@@ -418,7 +418,7 @@ Future<void> _v12(int run, {bool slowPause = false}) async {
     duration: const Duration(seconds: 6),
     skippableAfter: const Duration(seconds: 2),
   );
-  final opts = _swapOpts(
+  final opts = _cutoverOpts(
     ads: MovaAdConfig(
       enabled: true,
       breaks: [brk1, brk2],
@@ -438,7 +438,7 @@ Future<void> _v12(int run, {bool slowPause = false}) async {
   final proxy = slowPause
       ? _mkProxy(opts, factory: () => MovaEngine(kernel: _SlowPauseKernel(), options: opts))
       : _mkProxy(opts);
-  final ctrl = MovaAdController(proxy, swap: proxy);
+  final ctrl = MovaAds(proxy, cutover: proxy);
   final epochTimes = <int>[];
   var ticksInWindow = 0;
   var lastEpoch = proxy.state.renderEpoch;
@@ -449,7 +449,7 @@ Future<void> _v12(int run, {bool slowPause = false}) async {
       epochTimes.add(_now());
     }
   });
-  final phSub = proxy.swapPhases.listen((ph) => _log(id, 'run$run swapPhase=${ph.name}'));
+  final phSub = proxy.cutoverPhases.listen((ph) => _log(id, 'run$run cutoverPhase=${ph.name}'));
   int? ad2Frame;
   final errSub = proxy.events.listen((e) {
     if (e is MovaErrorEvent) _log(id, 'run$run proxy MovaErrorEvent ${e.error}');
@@ -461,7 +461,7 @@ Future<void> _v12(int run, {bool slowPause = false}) async {
   var lastSt = '';
   final stPoll = Timer.periodic(const Duration(milliseconds: 100), (_) {
     final st = proxy.state;
-    final cur = 'title=${st.sourceTitle} epoch=${st.renderEpoch} rendered=${st.rendered} playing=${st.playing} buffering=${st.buffering} phase=${proxy.swapPhase.name}';
+    final cur = 'title=${st.sourceTitle} epoch=${st.renderEpoch} rendered=${st.rendered} playing=${st.playing} buffering=${st.buffering} phase=${proxy.cutoverPhase.name}';
     if (cur != lastSt) {
       lastSt = cur;
       _log(id, 'run$run st $cur');
@@ -480,7 +480,7 @@ Future<void> _v12(int run, {bool slowPause = false}) async {
   await psub.cancel();
   final s2 = at['started:AD2'];
   final c2 = at['completed:AD2'];
-  // AD2 的 swap 落定 = 其 started 之后的第一次 epoch 变化；全部 epoch 相对 AD2 started 的偏移也记录下来。
+  // AD2 的 cutover 落定 = 其 started 之后的第一次 epoch 变化；全部 epoch 相对 AD2 started 的偏移也记录下来。
   final after = s2 == null ? <int>[] : epochTimes.where((t) => t >= s2).toList();
   final e2 = after.isEmpty ? 0 : after.first;
   final rel = s2 == null ? '[]' : epochTimes.map((t) => t - s2).toList().toString();
@@ -489,10 +489,10 @@ Future<void> _v12(int run, {bool slowPause = false}) async {
   final slotStart = ad2Frame ?? (e2 != 0 ? e2 : null);
   final fromEpoch = slotStart != null && c2 != null ? c2 - slotStart : -1;
   final fromStart = s2 != null && c2 != null ? c2 - s2 : -1;
-  final swapGap = s2 != null && e2 != 0 ? e2 - s2 : -1;
-  _log(id, 'run$run epochs=${epochTimes.length} epochRelToAD2Started=$rel AD2 started->epochChange=${swapGap}ms started->completed=${fromStart}ms adFirstFrame->completed=${fromEpoch}ms oldTicksInWindow=$ticksInWindow failed=$failed($failKinds)');
+  final cutoverGap = s2 != null && e2 != 0 ? e2 - s2 : -1;
+  _log(id, 'run$run epochs=${epochTimes.length} epochRelToAD2Started=$rel AD2 started->epochChange=${cutoverGap}ms started->completed=${fromStart}ms adFirstFrame->completed=${fromEpoch}ms oldTicksInWindow=$ticksInWindow failed=$failed($failKinds)');
   _result(id, run, failed == 0 && c2 != null && fromEpoch >= 5600 && fromEpoch <= 6700,
-      'failed=$failed AD2completed=${c2 != null} adFirstFrame->completed=${fromEpoch}ms (cfg 6000) started->completed=${fromStart}ms started->epochChange=${swapGap}ms oldTicksBeforeEpoch=$ticksInWindow');
+      'failed=$failed AD2completed=${c2 != null} adFirstFrame->completed=${fromEpoch}ms (cfg 6000) started->completed=${fromStart}ms started->epochChange=${cutoverGap}ms oldTicksBeforeEpoch=$ticksInWindow');
   _pauseDelayMs = 0;
   await ctrl.dispose();
   await _teardown(proxy);
@@ -515,7 +515,7 @@ Future<void> _v13(int run, {required bool now}) async {
     duration: Duration(seconds: now ? 4 : 5),
     skippableAfter: const Duration(seconds: 2),
   );
-  final opts = _swapOpts(
+  final opts = _cutoverOpts(
     ads: MovaAdConfig(
       enabled: true,
       breaks: now ? const [] : [brk],
@@ -526,7 +526,7 @@ Future<void> _v13(int run, {required bool now}) async {
     ),
   );
   final proxy = _mkProxy(opts);
-  final ctrl = MovaAdController(proxy, swap: proxy);
+  final ctrl = MovaAds(proxy, cutover: proxy);
   var last = '';
   var pos13 = Duration.zero;
   final p13 = proxy.progress.listen((p) => pos13 = p.position);
@@ -579,7 +579,7 @@ Future<void> _v14(int run) async {
     duration: const Duration(seconds: 8),
     skippableAfter: const Duration(seconds: 2),
   );
-  final opts = _swapOpts(
+  final opts = _cutoverOpts(
     ads: MovaAdConfig(
       enabled: true,
       breaks: [brk],
@@ -602,7 +602,7 @@ Future<void> _v14(int run) async {
   var pos = Duration.zero;
   final psub = proxy.progress.listen((p) => pos = p.position);
   _throwBudget = 1;
-  final ctrl = MovaAdController(proxy, swap: proxy);
+  final ctrl = MovaAds(proxy, cutover: proxy);
   await ctrl.load(MovaSource(_u('vod.mp4?throwme=1'), title: 'C'));
   await _until(() => at[MovaAdEventType.completed] != null || failed > 0 || skipped > 0, const Duration(seconds: 30));
   final adDone = _now();

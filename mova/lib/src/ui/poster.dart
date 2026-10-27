@@ -1,6 +1,6 @@
 import 'package:flutter/widgets.dart';
 
-import '../core/standby/standby.dart';
+import '../core/keep_alive/keep_alive.dart';
 import 'scope/selector.dart';
 
 /// The poster layer [MovaPlayer] paints over the video surface: fully opaque
@@ -35,8 +35,8 @@ class MovaPosterLayer extends StatelessWidget {
     return MovaSelect<bool>(
       selector: (s) =>
           !(s.rendered && s.width > 0 && s.height > 0) ||
-          s.standby == MovaStandbyPhase.holding ||
-          s.standby == MovaStandbyPhase.resuming,
+          s.keepAlivePhase == MovaKeepAlivePhase.holding ||
+          s.keepAlivePhase == MovaKeepAlivePhase.resuming,
       builder: (context, shown) => IgnorePointer(
         child: AnimatedOpacity(
           opacity: shown ? 1 : 0,

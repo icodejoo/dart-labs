@@ -154,10 +154,10 @@ void main() {
   });
 
   testWidgets('switching from an audio-only handle to a video one rebuilds the surface', (t) async {
-    // The reverse path MovaSwapEngine makes possible: one tree, audio engine
+    // The reverse path MovaCutoverEngine makes possible: one tree, audio engine
     // swapped out for a video engine.
     //
-    // MovaSwapEngine 打开的反向路径：同一棵树上，音频引擎换成视频引擎。
+    // MovaCutoverEngine 打开的反向路径：同一棵树上，音频引擎换成视频引擎。
     final api = FakeMovaApi();
     await t.pumpWidget(MaterialApp(home: MovaPlayer(api: api)));
     await t.pump();
@@ -184,11 +184,11 @@ void main() {
       final atPage = (_surfaceKey(t) as ValueKey<Object?>).value;
 
       // Unmount from the page position, remount at a different tree
-      // position — mirroring what MovaMiniController.hide()/showInPage do: the page
+      // position — mirroring what MovaMini.hide()/showInPage do: the page
       // stops holding a MovaPlayer on this api, and it reappears elsewhere
       // (the mini window). renderHandle never changes identity in between.
       //
-      // 从页面位置卸载，在树的另一个位置重新挂载——对应 MovaMiniController.hide()/
+      // 从页面位置卸载，在树的另一个位置重新挂载——对应 MovaMini.hide()/
       // showInPage 的实际效果：页面不再持有该 api 的 MovaPlayer，它在别处
       // （小窗）重新出现。期间 renderHandle 身份自始至终不变。
       await t.pumpWidget(MaterialApp(
@@ -219,7 +219,7 @@ void main() {
   });
 
   testWidgets(
-    'a swap-driven renderEpoch bump still rebuilds the render surface while MovaState.mini is true '
+    'a cutover-driven renderEpoch bump still rebuilds the render surface while MovaState.mini is true '
     '(the mini window\'s _RenderSurface shares the same MovaSelect logic as the page — must not regress)',
     (t) async {
       final api = FakeMovaApi();
@@ -227,12 +227,12 @@ void main() {
       await t.pumpWidget(MaterialApp(home: MovaPlayer(api: api)));
       await t.pump();
 
-      api.renderHandle = 'post-swap-handle';
+      api.renderHandle = 'post-cutover-handle';
       api.bumpRenderEpoch();
       await t.pump();
       await t.pump();
 
-      expect((_surfaceKey(t) as ValueKey<Object?>).value, 'post-swap-handle');
+      expect((_surfaceKey(t) as ValueKey<Object?>).value, 'post-cutover-handle');
       await api.dispose();
     },
   );

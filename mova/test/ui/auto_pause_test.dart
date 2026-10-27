@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mova/src/core/guard/auto_pause.dart';
 import 'package:mova/src/core/model/source.dart';
-import 'package:mova/src/core/standby/standby.dart';
+import 'package:mova/src/core/keep_alive/keep_alive.dart';
 import 'package:mova/src/core/state/state.dart';
 import 'package:mova/src/ui/guard/auto_pause.dart';
 import 'package:mova/src/ui/view.dart';
@@ -60,23 +60,23 @@ Widget _list(FakeMovaApi api, ScrollController c, {MovaAutoPauseConfig config = 
       ),
     );
 
-/// A [FakeStandbyApi] whose first `setStandby(true)` hangs until [gate] completes.
+/// A [FakeKeepAliveApi] whose first `setKeepAlive(true)` hangs until [gate] completes.
 ///
-/// 第一次 `setStandby(true)` 会挂起直到 [gate] 完成的 [FakeStandbyApi]。
-class _SlowStandbyApi extends FakeStandbyApi {
-  _SlowStandbyApi(this.gate);
+/// 第一次 `setKeepAlive(true)` 会挂起直到 [gate] 完成的 [FakeKeepAliveApi]。
+class _SlowKeepAliveApi extends FakeKeepAliveApi {
+  _SlowKeepAliveApi(this.gate);
 
   final Completer<void> gate;
   bool _held = false;
 
   @override
-  Future<MovaStandbyPhase> setStandby(bool on) async {
-    calls.add('setStandby:$on');
+  Future<MovaKeepAlivePhase> setKeepAlive(bool on) async {
+    calls.add('setKeepAlive:$on');
     if (on && !_held) {
       _held = true;
       await gate.future;
     }
-    return on ? answerOn : MovaStandbyPhase.off;
+    return on ? answerOn : MovaKeepAlivePhase.off;
   }
 }
 
@@ -280,28 +280,28 @@ void main() {
     expect(find.byType(MovaAutoPause), findsNothing);
   });
 
-  // ---- standby (hiddenMode) ----
+  // ---- keepAlive (hiddenMode) ----
 
-  const standbyCfg = MovaAutoPauseConfig(hiddenMode: MovaHiddenMode.standby);
+  const keepAliveCfg = MovaAutoPauseConfig(hiddenMode: MovaHiddenMode.keepAlive);
   const livePlaying = MovaState(playing: true, playbackIntent: true, type: MovaStreamType.live);
 
-  testWidgets('13. standby mode asks a capable engine to hold, then wake; it never pauses or plays', (t) async {
-    final api = FakeStandbyApi()..push(livePlaying);
-    Widget app(bool on) => MaterialApp(home: TickerMode(enabled: on, child: _card(api, config: standbyCfg)));
+  testWidgets('13. keepAlive mode asks a capable engine to hold, then wake; it never pauses or plays', (t) async {
+    final api = FakeKeepAliveApi()..push(livePlaying);
+    Widget app(bool on) => MaterialApp(home: TickerMode(enabled: on, child: _card(api, config: keepAliveCfg)));
     await t.pumpWidget(app(true));
     await t.pumpWidget(app(false));
     await t.pump();
-    expect(_n(api, 'setStandby:true'), 1);
+    expect(_n(api, 'setKeepAlive:true'), 1);
     await t.pumpWidget(app(true));
     await t.pump();
-    expect(_n(api, 'setStandby:false'), 1);
+    expect(_n(api, 'setKeepAlive:false'), 1);
     expect(_n(api, 'pause'), 0);
     expect(_n(api, 'play'), 0);
   });
 
   testWidgets('14. an engine without the capability degrades to pause and play', (t) async {
     final api = FakeMovaApi()..push(livePlaying);
-    Widget app(bool on) => MaterialApp(home: TickerMode(enabled: on, child: _card(api, config: standbyCfg)));
+    Widget app(bool on) => MaterialApp(home: TickerMode(enabled: on, child: _card(api, config: keepAliveCfg)));
     await t.pumpWidget(app(true));
     await t.pumpWidget(app(false));
     await t.pump();
@@ -312,12 +312,12 @@ void main() {
   });
 
   testWidgets('15. backgrounding while held pauses (resumed -> inactive -> hidden)', (t) async {
-    final api = FakeStandbyApi()..push(livePlaying);
-    Widget app(bool on) => MaterialApp(home: TickerMode(enabled: on, child: _card(api, config: standbyCfg)));
+    final api = FakeKeepAliveApi()..push(livePlaying);
+    Widget app(bool on) => MaterialApp(home: TickerMode(enabled: on, child: _card(api, config: keepAliveCfg)));
     await t.pumpWidget(app(true));
     await t.pumpWidget(app(false));
     await t.pump();
-    expect(_n(api, 'setStandby:true'), 1);
+    expect(_n(api, 'setKeepAlive:true'), 1);
     _life(t, _toBackground);
     await t.pump();
     expect(_n(api, 'pause'), 1);
@@ -325,34 +325,34 @@ void main() {
     await t.pump();
   });
 
-  testWidgets('16. a play intent arriving while hidden holds it in standby mode and pauses it in pause mode', (t) async {
+  testWidgets('16. a play intent arriving while hidden holds it in keepAlive mode and pauses it in pause mode', (t) async {
     const idle = MovaState(type: MovaStreamType.live);
-    final held = FakeStandbyApi()..push(idle);
+    final held = FakeKeepAliveApi()..push(idle);
     Widget app(FakeMovaApi api, MovaAutoPauseConfig cfg, bool on) =>
         MaterialApp(home: TickerMode(enabled: on, child: _card(api, config: cfg)));
-    await t.pumpWidget(app(held, standbyCfg, true));
-    await t.pumpWidget(app(held, standbyCfg, false));
+    await t.pumpWidget(app(held, keepAliveCfg, true));
+    await t.pumpWidget(app(held, keepAliveCfg, false));
     await t.pump();
     expect(held.calls, isEmpty);
     held.push(livePlaying);
     await t.pump();
-    expect(_n(held, 'setStandby:true'), 1);
+    expect(_n(held, 'setKeepAlive:true'), 1);
 
     await t.pumpWidget(const SizedBox());
-    final paused = FakeStandbyApi()..push(idle);
+    final paused = FakeKeepAliveApi()..push(idle);
     await t.pumpWidget(app(paused, const MovaAutoPauseConfig(), true));
     await t.pumpWidget(app(paused, const MovaAutoPauseConfig(), false));
     await t.pump();
     paused.push(livePlaying);
     await t.pump();
     expect(_n(paused, 'pause'), 1);
-    expect(_n(paused, 'setStandby:true'), 0);
+    expect(_n(paused, 'setKeepAlive:true'), 0);
   });
 
-  testWidgets('17. becoming visible while setStandby(true) is still pending ends with a wake and no second hold', (t) async {
+  testWidgets('17. becoming visible while setKeepAlive(true) is still pending ends with a wake and no second hold', (t) async {
     final gate = Completer<void>();
-    final api = _SlowStandbyApi(gate)..push(livePlaying);
-    Widget app(bool on) => MaterialApp(home: TickerMode(enabled: on, child: _card(api, config: standbyCfg)));
+    final api = _SlowKeepAliveApi(gate)..push(livePlaying);
+    Widget app(bool on) => MaterialApp(home: TickerMode(enabled: on, child: _card(api, config: keepAliveCfg)));
     await t.pumpWidget(app(true));
     await t.pumpWidget(app(false));
     await t.pump();
@@ -361,21 +361,21 @@ void main() {
     gate.complete();
     await t.pump();
     await t.pump();
-    expect(api.calls.last, 'setStandby:false');
-    expect(_n(api, 'setStandby:true'), 1);
+    expect(api.calls.last, 'setKeepAlive:false');
+    expect(_n(api, 'setKeepAlive:true'), 1);
   });
 
-  testWidgets('18. MovaView with a standby autoPause hands the hold to its engine', (t) async {
-    final made = <FakeStandbyApi>[];
+  testWidgets('18. MovaView with a keepAlive autoPause hands the hold to its engine', (t) async {
+    final made = <FakeKeepAliveApi>[];
     await t.pumpWidget(
       MaterialApp(
         home: TickerMode(
           enabled: false,
           child: MovaView(
             source: const MovaSource('https://a/live.flv', type: MovaStreamType.live),
-            autoPause: standbyCfg,
+            autoPause: keepAliveCfg,
             engineFactory: (o) {
-              final api = FakeStandbyApi(options: o)..push(livePlaying);
+              final api = FakeKeepAliveApi(options: o)..push(livePlaying);
               made.add(api);
               return api;
             },
@@ -385,6 +385,6 @@ void main() {
     );
     await t.pump();
     expect(made, hasLength(1));
-    expect(_n(made.single, 'setStandby:true'), 1);
+    expect(_n(made.single, 'setKeepAlive:true'), 1);
   });
 }

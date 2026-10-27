@@ -1,6 +1,6 @@
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:mova/src/core/ad/ad_controller.dart';
+import 'package:mova/src/core/ad/ads.dart';
 import 'package:mova/src/core/model/ad.dart';
 import 'package:mova/src/core/model/source.dart';
 import 'package:mova/src/core/options/options.dart';
@@ -17,7 +17,7 @@ void main() {
   /// events into the returned list.
   ///
   /// 用单个 [break_] 构造假 API + 广告控制器，把广告事件收集进返回的列表。
-  (FakeMovaApi, MovaAdController, List<MovaAdEvent>) build(
+  (FakeMovaApi, MovaAds, List<MovaAdEvent>) build(
     MovaAdBreak break_, {
     bool enabled = true,
   }) {
@@ -31,7 +31,7 @@ void main() {
         ),
       ),
     );
-    return (api, MovaAdController(api), events);
+    return (api, MovaAds(api), events);
   }
 
   testWidgets('renders nothing when ads are disabled', (t) async {
@@ -112,14 +112,14 @@ void main() {
   });
 
   /// Builds a fake API + controller whose single mid-roll carries [delay],
-  /// with the swap ctl needed for the readiness-wait paths.
+  /// with the cutover ctl needed for the readiness-wait paths.
   ///
   /// 构造假 API + 控制器，其唯一的中插带有 [delay]，并带上就绪等待路径所需的
   /// 切换能力面。
-  (FakeMovaApi, MovaAdController, List<MovaAdEvent>) pendingBuild({
+  (FakeMovaApi, MovaAds, List<MovaAdEvent>) pendingBuild({
     required Duration delay,
     MovaAdWaitPolicy? wait,
-    FakeSwapCtl? swap,
+    FakeCutoverCtl? cutover,
   }) {
     final mid = MovaAdBreak(
       kind: MovaAdBreakKind.mid,
@@ -138,7 +138,7 @@ void main() {
         ),
       ),
     );
-    return (api, MovaAdController(api, swap: swap), events);
+    return (api, MovaAds(api, cutover: cutover), events);
   }
 
 
@@ -244,8 +244,8 @@ void main() {
     // Waiting silently for readiness must stay imperceptible.
     //
     // 静默等待就绪必须保持用户无感。
-    final swap = FakeSwapCtl();
-    final (api, c, pendEvents) = pendingBuild(delay: Duration.zero, swap: swap);
+    final cutover = FakeCutoverCtl();
+    final (api, c, pendEvents) = pendingBuild(delay: Duration.zero, cutover: cutover);
     await c.load(_content);
     await pumpComponent(t, api, MovaAdOverlayComponent(c));
     expect(c.delayRemaining, isNull);

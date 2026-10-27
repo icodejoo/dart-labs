@@ -6,7 +6,7 @@ import 'package:flutter/widgets.dart';
 import '../../core/api.dart';
 import '../../core/guard/auto_pause.dart';
 import '../../core/model/source.dart';
-import '../../core/standby/standby.dart';
+import '../../core/keep_alive/keep_alive.dart';
 import '../../core/state/state.dart';
 
 /// Pauses [api] while [child] is hidden — scrolled out of its viewport, in an
@@ -191,7 +191,7 @@ class _MovaAutoPauseState extends State<MovaAutoPause> {
           live: s.type == MovaStreamType.live,
           exempt: s.pip || s.mini,
           now: DateTime.now(),
-          standbyCapable: widget.api is MovaStandbyController,
+          keepAliveCapable: widget.api is MovaKeepAlive,
         ),
       );
       _bindTicker();
@@ -206,7 +206,7 @@ class _MovaAutoPauseState extends State<MovaAutoPause> {
           playing: s.playbackIntent || s.playing,
           exempt: s.pip || s.mini,
           live: s.type == MovaStreamType.live,
-          standbyCapable: widget.api is MovaStandbyController,
+          keepAliveCapable: widget.api is MovaKeepAlive,
         ),
       );
     }
@@ -245,7 +245,7 @@ class _MovaAutoPauseState extends State<MovaAutoPause> {
       live: s.type == MovaStreamType.live,
       exempt: s.pip || s.mini,
       now: DateTime.now(),
-      standbyCapable: api is MovaStandbyController,
+      keepAliveCapable: api is MovaKeepAlive,
     );
     final after = _gate.reasons;
     if (before.length != after.length || !before.containsAll(after)) {
@@ -280,7 +280,7 @@ class _MovaAutoPauseState extends State<MovaAutoPause> {
             playing: s.playbackIntent || s.playing,
             exempt: s.pip || s.mini,
             live: s.type == MovaStreamType.live,
-            standbyCapable: api is MovaStandbyController,
+            keepAliveCapable: api is MovaKeepAlive,
           ),
         );
       }
@@ -301,21 +301,21 @@ class _MovaAutoPauseState extends State<MovaAutoPause> {
         unawaited(api.play().catchError((Object _) {}));
       case MovaGuardAction.reloadEdge:
         unawaited(_reloadEdge(api));
-      case MovaGuardAction.standby:
-        unawaited(_standby(api, true));
+      case MovaGuardAction.keepAlive:
+        unawaited(_keepAlive(api, true));
       case MovaGuardAction.wake:
-        unawaited(_standby(api, false));
+        unawaited(_keepAlive(api, false));
     }
   }
 
-  /// Puts [api] into standby ([on]) or wakes it. An engine without the
+  /// Puts [api] into keepAlive ([on]) or wakes it. An engine without the
   /// capability degrades to `pause()`/`play()`.
   ///
   /// 让 [api] 进入待机（[on]）或唤醒。不具备该能力的引擎退化为 `pause()`/`play()`。
-  Future<void> _standby(MovaApi api, bool on) async {
+  Future<void> _keepAlive(MovaApi api, bool on) async {
     try {
-      if (api is MovaStandbyController) {
-        await (api as MovaStandbyController).setStandby(on);
+      if (api is MovaKeepAlive) {
+        await (api as MovaKeepAlive).setKeepAlive(on);
         // It became visible again while the hold was being set up: the wake the
         // gate issued queues behind this call inside the engine, and this makes
         // sure nothing is left held if the engine answered late.
@@ -326,7 +326,7 @@ class _MovaAutoPauseState extends State<MovaAutoPause> {
             !_disposed &&
             !_gate.hidden &&
             identical(api, widget.api)) {
-          await (api as MovaStandbyController).setStandby(false);
+          await (api as MovaKeepAlive).setKeepAlive(false);
         }
       } else if (on) {
         await api.pause();

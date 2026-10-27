@@ -6,7 +6,7 @@ import '../model/source.dart';
 /// swipes to it.
 ///
 /// A port rather than a direct `HttpClient` call so tests can verify calls
-/// without touching the network and hosts can swap in a real byte-level disk
+/// without touching the network and hosts can cutover in a real byte-level disk
 /// cache later. [MovaNetworkWarmFeedPrefetcher] is the only implementation
 /// shipped today — see the scope note on [prime].
 ///
@@ -30,7 +30,7 @@ abstract class MovaFeedPrefetcher {
 /// decode and does not write to disk. Warming the *decoder* path is
 /// `MovaFeedEnginePool`'s job — it opens upcoming items on their own engines
 /// ahead of time — so this prefetcher only covers the items further out than
-/// the pool reaches (see `MovaFeedController.prefetchDepth`).
+/// the pool reaches (see `MovaFeed.prefetchDepth`).
 ///
 /// 默认的 [MovaFeedPrefetcher]：对 [MovaSource.uri] 发起一次范围 HTTP GET，只取
 /// 前 [rangeBytes] 字节并丢弃响应体。
@@ -38,7 +38,7 @@ abstract class MovaFeedPrefetcher {
 /// **范围说明**：只预热 DNS/TCP/TLS/CDN 边缘节点状态；不解码、不落盘。预热
 /// *解码*链路是 `MovaFeedEnginePool` 的职责——它会提前在各自的引擎上打开即将
 /// 播放的条目——因此本 prefetcher 只覆盖池够不到的更远条目（见
-/// `MovaFeedController.prefetchDepth`）。
+/// `MovaFeed.prefetchDepth`）。
 class MovaNetworkWarmFeedPrefetcher implements MovaFeedPrefetcher {
   /// Creates a network-warming prefetcher.
   ///

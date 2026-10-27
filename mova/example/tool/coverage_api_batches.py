@@ -17,10 +17,10 @@ def new(name,case,**args):
     jobs.append((name,'new',{'case':case,**args}))
 
 
-jobs += [('batch15-basic','basic',{}),('batch15-basic-swap','basic',{'swap':'true'}),('batch15-testing','testing',{})]
+jobs += [('batch15-basic','basic',{}),('batch15-basic-cutover','basic',{'cutover':'true'}),('batch15-testing','testing',{})]
 new('batch15-options','options')
 new('batch15-hooks','hooks')
-new('batch15-hooks-swap','hooks',swap='true')
+new('batch15-hooks-cutover','hooks',cutover='true')
 for mode in ['liveDefault','liveLegacy','liveAlternatives']:
     new('batch15-recovery-'+mode,'recovery',mode=mode)
 for run in range(3):
@@ -31,7 +31,7 @@ new('batch15-stt','stt')
 for run in range(3):
     for step in ['0','2000']:
         new(f'batch15-live-step{step}-{run}','live',step=step)
-for case in ['lazy','lifecycle','feed','swap','ads','adResume']:
+for case in ['lazy','lifecycle','feed','cutover','ads','adResume']:
     new('batch15-'+case,case)
 jobs.append(('batch15-dispose120','dispose',{}))
 for mode in ['vtt','extract','fallback','blocked']:

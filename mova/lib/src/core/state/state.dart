@@ -2,7 +2,7 @@ import '../model/fit.dart';
 import '../model/orientation.dart';
 import '../model/quality.dart';
 import '../model/source.dart';
-import '../standby/standby.dart';
+import '../keep_alive/keep_alive.dart';
 
 /// Immutable snapshot of player state at a point in time.
 ///
@@ -176,12 +176,12 @@ class MovaState {
 
   /// Monotonic counter bumped whenever the render handle behind this state
   /// changes identity. Always 0 for a plain [MovaEngine]; only
-  /// [MovaSwapEngine] advances it, and only to force the render surface to
+  /// [MovaCutoverEngine] advances it, and only to force the render surface to
   /// re-read [MovaApi.renderHandle] — the surface selector watches fit/zoom
-  /// and would otherwise never rebuild on a swap.
+  /// and would otherwise never rebuild on a cutover.
   ///
   /// 单调递增计数器，在该状态背后的渲染句柄身份变化时加一。对普通
-  /// [MovaEngine] 恒为 0；只有 [MovaSwapEngine] 会推进它，其唯一用途是强制
+  /// [MovaEngine] 恒为 0；只有 [MovaCutoverEngine] 会推进它，其唯一用途是强制
   /// 渲染面重新读取 [MovaApi.renderHandle]——渲染面的 selector 观察的是
   /// fit/zoom，否则切换时永远不会重建。
   final int renderEpoch;
@@ -203,20 +203,26 @@ class MovaState {
   /// 地址时才会变化。
   final int sourceIndex;
 
-  /// Where this player is in the standby lifecycle; [MovaStandbyPhase.off]
-  /// unless someone called `MovaStandbyController.setStandby`.
+  /// Where this player is in the keepAlive lifecycle; [MovaKeepAlivePhase.off]
+  /// unless someone called `MovaKeepAlive.setKeepAlive`.
   ///
   /// 本播放器处于待机生命周期的哪一段；除非有人调用了
-  /// `MovaStandbyController.setStandby`，否则恒为 [MovaStandbyPhase.off]。
+  /// `MovaKeepAlive.setKeepAlive`，否则恒为 [MovaKeepAlivePhase.off]。
   ///
   /// Example / 示例:
   /// ```dart
   /// MovaSelect<bool>(
-  ///   selector: (s) => s.standby != MovaStandbyPhase.off,
-  ///   builder: (_, held) => Text(held ? 'standby' : 'live'),
+  ///   selector: (s) => s.keepAlivePhase != MovaKeepAlivePhase.off,
+  ///   builder: (_, held) => Text(held ? 'keepAlive' : 'live'),
   /// )
   /// ```
-  final MovaStandbyPhase standby;
+  final MovaKeepAlivePhase keepAlivePhase;
+
+  /// Old name of [keepAlivePhase].
+  ///
+  /// [keepAlivePhase] 的旧名。
+  @Deprecated('Use keepAlivePhase')
+  MovaKeepAlivePhase get standby => keepAlivePhase;
 
   /// Creates a state snapshot; all fields default to the 0.1.0 baseline
   /// behaviour (stopped, full volume/brightness/rate/zoom, contain fit,
@@ -254,7 +260,7 @@ class MovaState {
     this.renderEpoch = 0,
     this.rendered = false,
     this.sourceIndex = 0,
-    this.standby = MovaStandbyPhase.off,
+    this.keepAlivePhase = MovaKeepAlivePhase.off,
   });
 
   /// Returns a copy with the given fields replaced.
@@ -299,7 +305,7 @@ class MovaState {
     int? renderEpoch,
     bool? rendered,
     int? sourceIndex,
-    MovaStandbyPhase? standby,
+    MovaKeepAlivePhase? keepAlivePhase,
     bool clearQuality = false,
     bool clearTimeshift = false,
     bool clearError = false,
@@ -339,7 +345,7 @@ class MovaState {
       renderEpoch: renderEpoch ?? this.renderEpoch,
       rendered: rendered ?? this.rendered,
       sourceIndex: sourceIndex ?? this.sourceIndex,
-      standby: standby ?? this.standby,
+      keepAlivePhase: keepAlivePhase ?? this.keepAlivePhase,
     );
   }
 
@@ -376,7 +382,7 @@ class MovaState {
         other.renderEpoch == renderEpoch &&
         other.rendered == rendered &&
         other.sourceIndex == sourceIndex &&
-        other.standby == standby;
+        other.keepAlivePhase == keepAlivePhase;
   }
 
   @override
@@ -392,7 +398,7 @@ class MovaState {
       pip,
       pipSupported,
       rendered,
-      standby,
+      keepAlivePhase,
     ),
     Object.hash(duration, width, height, volume, brightness, rate, zoom),
     fit,

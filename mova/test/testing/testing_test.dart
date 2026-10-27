@@ -147,46 +147,46 @@ void main() {
     expect(barrel, isNot(contains('MovaTestKernel')));
   });
 
-  /// A live `MovaView` whose guard holds in standby when hidden.
+  /// A live `MovaView` whose guard holds in keepAlive when hidden.
   ///
   /// 隐藏时由守卫待机的直播 `MovaView`。
-  Widget standbyView(bool on) => MaterialApp(
+  Widget keepAliveView(bool on) => MaterialApp(
         home: TickerMode(
           enabled: on,
           child: MovaView(
             source: const MovaSource('https://h/live.flv', type: MovaStreamType.live),
-            autoPause: const MovaAutoPauseConfig(hiddenMode: MovaHiddenMode.standby),
+            autoPause: const MovaAutoPauseConfig(hiddenMode: MovaHiddenMode.keepAlive),
             options: _noAutoHide,
           ),
         ),
       );
 
-  testWidgets('8. with scripted audio, a hidden live MovaView holds in standby', (t) async {
-    await t.pumpWidget(standbyView(true));
+  testWidgets('8. with scripted audio, a hidden live MovaView holds in keepAlive', (t) async {
+    await t.pumpWidget(keepAliveView(true));
     await t.pump();
     final k = MovaTesting.lastKernel!..hasAudio = true;
     k.emitPlaying(true);
     await t.pump();
-    await t.pumpWidget(standbyView(false));
+    await t.pumpWidget(keepAliveView(false));
     await t.pump();
     await t.pump();
-    expect(k.calls, contains('enterStandby:muted'));
+    expect(k.calls, contains('enterKeepAlive:muted'));
     await t.pumpWidget(const SizedBox());
     await t.pump();
   });
 
   testWidgets('9. without scripted audio the media is unknown, so a hidden live MovaView pauses', (t) async {
-    await t.pumpWidget(standbyView(true));
+    await t.pumpWidget(keepAliveView(true));
     await t.pump();
     final k = MovaTesting.lastKernel!;
     expect(k.hasAudio, isNull);
     k.emitPlaying(true);
     await t.pump();
-    await t.pumpWidget(standbyView(false));
+    await t.pumpWidget(keepAliveView(false));
     await t.pump();
     await t.pump();
     expect(k.calls, contains('pause'));
-    expect(k.calls, isNot(contains('enterStandby:muted')));
+    expect(k.calls, isNot(contains('enterKeepAlive:muted')));
     await t.pumpWidget(const SizedBox());
     await t.pump();
   });

@@ -31,9 +31,9 @@ Flutter 视频播放库，自研手势与控制层，支持点播与直播。
   或时移（拖动即换源），带"回到直播"按钮与时移角标。
 - **Scrub preview / 拖动预览缩略图**：拖动进度条或横滑手势时，进度条上方浮出目标时刻的
   缩略图气泡（WebVTT 雪碧图 / libmpv 抽帧兜底，两级缓存，默认仅 WiFi）。
-- **Ad orchestration / 广告编排（可选）**：`MovaAdController` 按排期播前/中/后贴片，
+- **Ad orchestration / 广告编排（可选）**：`MovaAds` 按排期播前/中/后贴片，
   支持延迟解析正片源、广告位时长与素材时长解耦、就绪等待、失败兜底。
-- **Seamless engine swapping / 无缝引擎切换（可选）**：`MovaSwapEngine` 在一个稳定渲染面
+- **Seamless engine swapping / 无缝引擎切换（可选）**：`MovaCutoverEngine` 在一个稳定渲染面
   背后持有当前引擎与预热中的影子引擎，就绪后原子换指，消除"广告播完回正片"等场景的
   黑屏/loading。默认关闭。
 - **In-app mini window / App 内小窗（可选）**：不依赖系统 PiP，把画面缩成可拖拽悬浮小窗，
@@ -58,8 +58,8 @@ Flutter 视频播放库，自研手势与控制层，支持点播与直播。
 - **带画面内核的 `VideoController` 必须真正挂到界面上才能正常销毁**（这是 media_kit 的行为，不是 mova 引入的）：`VideoController` 创建后若一直没有挂到视频组件上，`Player.dispose()` 会一直等它，真机实测 Windows 上 3/6 次、Android 上 4/5 次 dispose 撞上 8 秒超时。默认实现（`createMovaEngine()` / `MovaEngine()`）已做成**懒创建**——第一次渲染（`MovaPlayer` 挂上树，读取 `renderHandle`）时才创建，所以"创建了 engine 却没展示就销毁"是安全的。**如果你自己创建并注入 `VideoController`（传入自己构造的 `MovaMpvKernel`/`Player`，或用 `lazyVideo: false` 的内核），要自己保证它最终挂到了 UI 上再销毁**；纯逻辑、后台预热、单测等不展示画面的场景请用 `audioOnly: true`，或保持默认懒创建、不要读取 `renderHandle`。无缝切换的影子引擎例外：预热阶段就需要解码画面，会提前创建控制器。
 - **Windows 上 Flutter 3.47.0/3.47.1（Impeller）：push/pop 不透明路由会让进程原生崩溃**——引擎 bug（flutter/flutter#190774，3.47.2 已修），与 mova 无关，纯 media_kit 也崩。mova 已在 Windows 上让播放器渲染面退出页面转场快照来规避；仍建议宿主升级到 Flutter ≥ 3.47.2。自己直接用 media_kit `Video` 的页面不受这层规避保护，需自行升级或对转场关快照（`ZoomPageTransitionsBuilder(allowSnapshotting: false)`）。
 - 自动暂停守卫（`MovaAutoPause`）的视口检测只沿祖先 `Scrollable` 计算，**不覆盖**任意 `ClipRect`/`Transform`/`Overlay` 造成的遮挡；外层 navigator 上的半透明路由要传 `routeObservers`（每个 navigator 一个观察者，不能共用）；懒加载列表如果在守卫来得及暂停之前就销毁了卡片，此后引擎归持有者管。
-- 待机（standby）只经过 `flutter analyze`/`flutter test`/假内核验证，**无真机数据**：恢复耗时、`maxDuration`/`resumeTimeout` 的默认值、HLS 能否放开、`mediacodec-copy` 下 `vid` 切回能否出画、进后台后的实际状态都待测。无声流的"继续解码、只静音"变体不省电；更省电的 `vo=null` 做法会与 media_kit 的 Android 渲染面逻辑冲突，没有实现。iOS/macOS 未验证。
-- `MovaOpts.recovery`（起播/卡顿超时与重试）与 `MovaAdController`/`MovaSwapEngine` 同时开启时，交互不在保证范围内；它们三者的失败处理各管各的，没有统一的恢复编排。
+- 待机（keepAlive）只经过 `flutter analyze`/`flutter test`/假内核验证，**无真机数据**：恢复耗时、`maxDuration`/`resumeTimeout` 的默认值、HLS 能否放开、`mediacodec-copy` 下 `vid` 切回能否出画、进后台后的实际状态都待测。无声流的"继续解码、只静音"变体不省电；更省电的 `vo=null` 做法会与 media_kit 的 Android 渲染面逻辑冲突，没有实现。iOS/macOS 未验证。
+- `MovaOpts.recovery`（起播/卡顿超时与重试）与 `MovaAds`/`MovaCutoverEngine` 同时开启时，交互不在保证范围内；它们三者的失败处理各管各的，没有统一的恢复编排。
 - 部分可选能力（广告编排、无缝引擎切换、App 内小窗、仅音频模式）代码已落地但真机验证程度不一，详见各自小节链接的 [doc/SPEC.md](doc/SPEC.md) 章节。
 
 ## Install / 安装
@@ -243,7 +243,7 @@ MovaView(source: src, autoPause: const MovaAutoPauseConfig())
 - **外层 navigator 上推的半透明路由**（典型：`go_router` 的 shell 分支里放卡片，根 navigator 弹对话框/透明页）`ModalRoute.isCurrentOf` 看不到，要传 `routeObservers`：**每个 navigator 一个** `RouteObserver<ModalRoute<dynamic>>`（Flutter 不允许一个 `NavigatorObserver` 挂到两个 navigator 上，会在 debug 下断言失败），把它们都传给守卫。不透明的外层路由（普通整页）转场结束后已经能经 `TickerMode` 察觉，不需要。
 - 不要给 `MovaFeedPlayer` 的页套守卫：feed 池的 `focus()` 已经在管"只有一页出声"，两套逻辑会打架。
 
-## 隐藏时待机（standby，可选）
+## 隐藏时待机（keepAlive，可选）
 
 直播卡片被隐藏（切 Tab、滚出屏、被路由盖住）时，除了暂停，还可以让它"待机"：不出画面、不出声，但**保持流连接和直播进度**。重新显示时只需恢复视频解码，不用再走"重新请求 → 首片 → 解码器 → 首帧"整条链路。
 
@@ -251,28 +251,28 @@ MovaView(source: src, autoPause: const MovaAutoPauseConfig())
 // 守卫自动处理（推荐，默认仍是 pause）
 MovaView(
   source: live,
-  autoPause: const MovaAutoPauseConfig(hiddenMode: MovaHiddenMode.standby),
+  autoPause: const MovaAutoPauseConfig(hiddenMode: MovaHiddenMode.keepAlive),
 )
 
-// 或命令式：引擎实现了 MovaStandbyController，MovaApi 本身没有新增成员
+// 或命令式：引擎实现了 MovaKeepAlive，MovaApi 本身没有新增成员
 final api = createMovaEngine();
-if (api is MovaStandbyController) {
-  await api.setStandby(true);   // 卡片滑走
-  await api.setStandby(false);  // 回到屏幕
+if (api is MovaKeepAlive) {
+  await api.setKeepAlive(true);   // 卡片滑走
+  await api.setKeepAlive(false);  // 回到屏幕
 }
 ```
 
-- **机制**：流里有音频 → 关视频解码并静音（音频链当时钟，demuxer 继续追边缘）；流里没有音频 → 继续解码、只静音；点播、进后台、媒体信息未知、HLS（默认）→ 退回普通暂停。待机最长 `MovaStandbyConfig.maxDuration`（默认 30s），到点自动退回暂停。
+- **机制**：流里有音频 → 关视频解码并静音（音频链当时钟，demuxer 继续追边缘）；流里没有音频 → 继续解码、只静音；点播、进后台、媒体信息未知、HLS（默认）→ 退回普通暂停。待机最长 `MovaKeepAliveConfig.maxDuration`（默认 30s），到点自动退回暂停。
 - **网络一点不省**：待机期间照常满速下载，省的是解码/渲染/电。蜂窝网络下建议由宿主自己改回 `hiddenMode: MovaHiddenMode.pause`；**列表里有多张直播卡片时只给主卡片开待机**——每张待机卡片都在满速下载。
-- **默认只对 FLV 这类直播生效**：HLS/DASH 默认暂停（`MovaStandbyConfig.allowHls: false`），可切回 `vid` 后 demuxer 是否回读网络、是否在直播窗口滑走后出问题都还没真机测过。
-- **恢复要等关键帧**：典型等 0~1 个 GOP，不重连。`MovaStandbyResume.elapsed` 记录从唤醒调用到第一帧新画面的耗时，`signal` 说明由什么落地。
+- **默认只对 FLV 这类直播生效**：HLS/DASH 默认暂停（`MovaKeepAliveConfig.allowHls: false`），可切回 `vid` 后 demuxer 是否回读网络、是否在直播窗口滑走后出问题都还没真机测过。
+- **恢复要等关键帧**：典型等 0~1 个 GOP，不重连。`MovaKeepAliveResume.elapsed` 记录从唤醒调用到第一帧新画面的耗时，`signal` 说明由什么落地。
 - **进后台一律暂停**：守卫在应用进后台时会把待机降级为暂停（系统会限网限 CPU）。命令式使用者要自己在进后台时 `pause()`。
-- **只有 `setStandby(false)` 能唤醒**：待机期间程序性的 `play()`（广告、播放列表）不会让看不见的卡片出声。待机请求存在期间 `open()` 换源，新源以暂停态加载，首帧落地后若仍应播放再尝试一次进入待机。
-- 调参在 `MovaOpts.standby`（`MovaStandbyConfig`：`maxDuration`/`silentStreams`/`allowHls`/`resumeTimeout`/`liveResumeGrace`），只有调参没有开关——不调用 `setStandby` 就一行待机代码都不会走到。
-- 状态与事件：`MovaState.standby`（`off`/`holding`/`fallback`/`resuming`）、`MovaStandbyChange`、`MovaStandbyResume`。有封面（`poster`）时，待机与恢复期间封面会瞬间盖上、恢复落地后淡出。
+- **只有 `setKeepAlive(false)` 能唤醒**：待机期间程序性的 `play()`（广告、播放列表）不会让看不见的卡片出声。待机请求存在期间 `open()` 换源，新源以暂停态加载，首帧落地后若仍应播放再尝试一次进入待机。
+- 调参在 `MovaOpts.keepAlive`（`MovaKeepAliveConfig`：`maxDuration`/`silentStreams`/`allowHls`/`resumeTimeout`/`liveResumeGrace`），只有调参没有开关——不调用 `setKeepAlive` 就一行待机代码都不会走到。
+- 状态与事件：`MovaState.keepAlivePhase`（`off`/`holding`/`fallback`/`resuming`）、`MovaKeepAliveChange`、`MovaKeepAliveResume`。有封面（`poster`）时，待机与恢复期间封面会瞬间盖上、恢复落地后淡出。
 - 待机期间 QoE 照计观看时长与卡顿（本期没有让 collector 识别待机）。
 - 宿主 widget 测试里，`MovaTestKernel` 的 `hasAudio`（默认 `null` = 媒体信息未知，此时会退回暂停）与 `fileFormat` 可编排待机场景。
-- 验证页：`example/lib/main_standby_verify.dart`（只经过 `flutter analyze`，**未上机**）。
+- 验证页：`example/lib/main_keep_alive_verify.dart`（只经过 `flutter analyze`，**未上机**）。
 
 ## widget 测试
 
@@ -368,25 +368,25 @@ final items = [
 
 ## 播放列表（可选）
 
-`MovaPlaylistController` 在 `MovaApi` 之上驱动顺序播放：跟踪当前下标、按
+`MovaPlaylist` 在 `MovaApi` 之上驱动顺序播放：跟踪当前下标、按
 `MovaApi.open` 在项间导航、可选自动连播。纯 Dart（无 Flutter 依赖），由宿主构造并
 注入，engine 从不持有它：
 
 ```dart
-final playlist = MovaPlaylistController(engine);
+final playlist = MovaPlaylist(engine);
 await playlist.jumpTo(0); // 打开第一条
 ```
 
 初值（条目列表/初始下标/是否自动连播）取自 `MovaOpts.playlist`
-（`MovaPlaylistConfig`）。**与广告组合时注意**：`MovaPlaylistController` 与
-`MovaAdController` 都响应 `MovaDone`，不要在同一播放器上同时启用两者的自动行为——
+（`MovaPlaylistConfig`）。**与广告组合时注意**：`MovaPlaylist` 与
+`MovaAds` 都响应 `MovaDone`，不要在同一播放器上同时启用两者的自动行为——
 应把 `MovaPlaylistConfig.autoPlayNext` 设为 `false`，改由
-`MovaAdController.contentEnded` 驱动 `playlist.next()`。
+`MovaAds.contentEnded` 驱动 `playlist.next()`。
 
 ## 沉浸式 Feed 流播放（可选）
 
 `MovaFeedPlayer` 是 bilibili/抖音式"上滑下一个视频"的纵向 feed 组件，背后是
-`MovaFeedController` + `MovaFeedEnginePool`：每个热页各自独立的引擎，而不是所有页
+`MovaFeed` + `MovaFeedEnginePool`：每个热页各自独立的引擎，而不是所有页
 共用一个，一次上滑是在两个已经活着的画面之间交换（无黑屏一闪、无残留旧帧）。
 
 ```dart
@@ -423,7 +423,7 @@ await engine.stt.start();
 
 ## 广告编排（可选）
 
-`MovaAdController` 按排期播前/中/后贴片，并能表达广告业务的真实时序。**除广告位时长外，
+`MovaAds` 按排期播前/中/后贴片，并能表达广告业务的真实时序。**除广告位时长外，
 所有新能力默认关闭或默认不改变行为。**
 
 ```dart
@@ -461,7 +461,7 @@ MovaAdConfig(
 要点：
 
 - `duration` 必须长于 `skippableAfter`，否则 `assertValid()` 会在 debug 下失败。
-- 就绪等待仅在宿主接了 `MovaSwapController` 且 `MovaSwapConfig.enabled` 为 `true` 时才可能生效——两者默认都是关的。
+- 就绪等待仅在宿主接了 `MovaCutover` 且 `MovaCutoverConfig.enabled` 为 `true` 时才可能生效——两者默认都是关的。
 - 失败兜底策略 `MovaAdFailPolicy` 返回 `retry` / `skipBreak` / `abandonPod`，内置 `MovaAdAbandonPod`（首次失败即放弃整个 pod）。
 
 详细行为规则、状态机与真机验证进展见 [doc/SPEC.md](doc/SPEC.md)「广告编排增强」一节、
@@ -469,19 +469,19 @@ MovaAdConfig(
 
 ## 无缝引擎切换（可选）
 
-`MovaSwapEngine` 本身就是一个 `MovaApi`：在一个稳定的渲染面背后持有当前生效引擎，以及
+`MovaCutoverEngine` 本身就是一个 `MovaApi`：在一个稳定的渲染面背后持有当前生效引擎，以及
 一个可选的、正在预热的影子引擎；影子就绪后原子换指，UI 完全无感（不重挂、不黑屏）。
-默认 **关闭**（`MovaSwapConfig.enabled` 为 `false`），关闭时是纯直通代理，行为与直接用
+默认 **关闭**（`MovaCutoverConfig.enabled` 为 `false`），关闭时是纯直通代理，行为与直接用
 `MovaEngine` 完全一致。
 
 ```dart
-final api = MovaSwapEngine(engineFactory: createMovaEngine);
-// 或带上配置：createMovaEngine(options: MovaOpts(swap: MovaSwapConfig(enabled: true)))
-final ads = MovaAdController(api, swap: api); // swap 传同一个实例
+final api = MovaCutoverEngine(engineFactory: createMovaEngine);
+// 或带上配置：createMovaEngine(options: MovaOpts(cutover: MovaCutoverConfig(enabled: true)))
+final ads = MovaAds(api, cutover: api); // cutover 传同一个实例
 runApp(MovaPlayer(api: api));
 ```
 
-`MovaAdController` 接了 `swap:` 参数后，会在广告播放期间按 `MovaSwapConfig` 配置的触发策略
+`MovaAds` 接了 `cutover:` 参数后，会在广告播放期间按 `MovaCutoverConfig` 配置的触发策略
 （默认 `MovaLeadWarm`：结束前 2 秒开始预热，短于 5 秒的广告不预热）后台预热正片，广告一
 结束就原子切换回正片。详见 [doc/SPEC.md](doc/SPEC.md)「无缝引擎切换」一节、
 [doc/plans/2026-09-16-seamless-swap.md](doc/plans/2026-09-16-seamless-swap.md)。
@@ -497,7 +497,7 @@ runApp(MovaPlayer(api: api));
 
 ```dart
 // 方式 A · 页内悬浮：当前页面内浮着，页面 pop 时小窗随之消失。
-final mini = MovaMiniController();
+final mini = MovaMini();
 await mini.showInPage(context, api);
 
 // 页面 dispose() 里必须调一次 hide() 或 close()：
@@ -510,7 +510,7 @@ void dispose() {
 
 ```dart
 // 方式 B · 跨路由持久：push/pop 任意多层，小窗一直在最上。
-final miniCtl = MovaMiniController(); // 建在 app 根，路由之外
+final miniCtl = MovaMini(); // 建在 app 根，路由之外
 
 MaterialApp(
   builder: (context, child) => MovaMiniHost(ctl: miniCtl, child: child!),
@@ -522,9 +522,9 @@ await miniCtl.show(api);
 Navigator.of(context).pop();   // 引擎不受影响，画面在小窗里继续
 ```
 
-**谁 dispose engine**：mova 的约定是"宿主持有 engine"——`MovaPlayer`/`MovaMiniController`
+**谁 dispose engine**：mova 的约定是"宿主持有 engine"——`MovaPlayer`/`MovaMini`
 从不 dispose 传进来的 `api`。页面 `dispose()` 里顺手 `api.dispose()` 会在交接瞬间把正在
-小窗里播的引擎干掉；用 `MovaMiniController.isShowing(api)` 在 `dispose` 前自检。
+小窗里播的引擎干掉；用 `MovaMini.isShowing(api)` 在 `dispose` 前自检。
 
 demo 见 [example/lib/mini_window_demo.dart](example/lib/mini_window_demo.dart)（
 `flutter run -t lib/mini_window_demo.dart`）。详见 [doc/SPEC.md](doc/SPEC.md)「App 内小窗（MovaMini）」一节。
@@ -639,7 +639,7 @@ engine.events.listen((e) {
 `MovaState`（累计快照，如 `playing`/`duration`/`quality`）与 `MovaProg`（高频进度
 字段：`position`/`buffer`）、`MovaUiState`（HUD/锁定等纯 UI 态）是三类只读状态；
 `MovaApi.events` 则是离散事件流（`MovaEvent` 密封类族，`MovaPlay`/`MovaSeeked`/
-`MovaQualityChange`/`MovaPipChange`/`MovaSwapChange`/`MovaErrorEvent` 等三十余种，
+`MovaQualityChange`/`MovaPipChange`/`MovaCutoverChange`/`MovaErrorEvent` 等三十余种，
 完整列表见 `lib/src/core/events/events.dart`）。
 
 写自定义组件（`extends MovaComponent`）时，两种读取方式对应两种场景：

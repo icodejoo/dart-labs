@@ -1,6 +1,6 @@
 import 'package:flutter/widgets.dart';
 
-import 'mini_ctl.dart';
+import 'mini.dart';
 import 'mini_window.dart';
 
 /// A convenience wrapper that composites the mini window above the whole app.
@@ -11,7 +11,7 @@ import 'mini_window.dart';
 /// `MaterialApp.builder`, where [child] is the [Navigator] itself, so the
 /// window is composited above every pushed route.
 ///
-/// Renders nothing while [MovaMiniController.api] is `null`, while the api's
+/// Renders nothing while [MovaMini.api] is `null`, while the api's
 /// `MovaOpts.mini.enabled` is `false`, or while the window is mounted the
 /// other way ([MovaMiniMount.page]) — the same api must never have two
 /// rendering surfaces.
@@ -22,7 +22,7 @@ import 'mini_window.dart';
 /// 完全可以不用它——README 里给了等价的手写代码。用在 `MaterialApp.builder`
 /// 里，[child] 就是 [Navigator] 本身，因此小窗合成在所有已压入路由之上。
 ///
-/// [MovaMiniController.api] 为 `null`、api 的 `MovaOpts.mini.enabled` 为 `false`、或小窗
+/// [MovaMini.api] 为 `null`、api 的 `MovaOpts.mini.enabled` 为 `false`、或小窗
 /// 正以另一种方式挂载（[MovaMiniMount.page]）时，它什么都不渲染——同一个 api
 /// 绝不允许有两个渲染面。
 ///
@@ -42,7 +42,7 @@ class MovaMiniHost extends StatefulWidget {
   /// The route-independent mini-window state.
   ///
   /// 独立于路由的小窗状态。
-  final MovaMiniController ctl;
+  final MovaMini ctl;
 
   /// The app content (normally the [Navigator]).
   ///

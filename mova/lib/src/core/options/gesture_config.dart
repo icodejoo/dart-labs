@@ -105,7 +105,7 @@ class MovaGestureConfig {
   ///
   /// Example / 示例:
   /// ```dart
-  /// // Swap the sides back, and disable pinch-zoom.
+  /// // Cutover the sides back, and disable pinch-zoom.
   /// const cfg = MovaGestureConfig(
   ///   leftVertical: MovaGestureAction.volume,
   ///   rightVertical: MovaGestureAction.brightness,

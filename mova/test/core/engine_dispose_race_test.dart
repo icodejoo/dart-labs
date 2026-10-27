@@ -6,7 +6,7 @@ import 'package:mova/src/core/interceptor/interceptor.dart';
 import 'package:mova/src/core/model/orientation.dart';
 import 'package:mova/src/core/model/source.dart';
 import 'package:mova/src/core/platform/ports.dart';
-import 'package:mova/src/core/swap/retirable.dart';
+import 'package:mova/src/core/cutover/retirable.dart';
 
 import '../support/fake_kernel.dart';
 

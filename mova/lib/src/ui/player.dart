@@ -293,7 +293,7 @@ class _RenderSurface extends StatelessWidget {
         builder: (context, value) {
           final handle = api.renderHandle;
           // Keyed by the handle's identity so tests can observe whether a
-          // swap's new handle was actually picked up on rebuild (see
+          // cutover's new handle was actually picked up on rebuild (see
           // MovaState.renderEpoch).
           //
           // 按句柄身份做 key，使测试能观察到重建时是否真的读取了切换后的新

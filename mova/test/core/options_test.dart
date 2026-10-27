@@ -9,9 +9,9 @@ import 'package:mova/src/core/options/options.dart';
 import 'package:mova/src/core/preview/net_probe.dart';
 import 'package:mova/src/core/preview/platform_kind.dart';
 import 'package:mova/src/core/state/state.dart';
-import 'package:mova/src/core/swap/plan.dart';
-import 'package:mova/src/core/swap/trigger.dart';
-import 'package:mova/src/core/swap/warm.dart';
+import 'package:mova/src/core/cutover/plan.dart';
+import 'package:mova/src/core/cutover/trigger.dart';
+import 'package:mova/src/core/cutover/warm.dart';
 
 void main() {
   group('constructor invariants', () {
@@ -200,8 +200,8 @@ void main() {
     expect(n, isNot(o));
   });
 
-  test('MovaSwapConfig defaults are off with the documented tuning values', () {
-    const c = MovaSwapConfig();
+  test('MovaCutoverConfig defaults are off with the documented tuning values', () {
+    const c = MovaCutoverConfig();
     expect(c.enabled, isFalse);
     expect(c.leadTime, const Duration(seconds: 2));
     expect(c.minWarmDuration, const Duration(seconds: 5));
@@ -211,42 +211,42 @@ void main() {
     expect(c.readyPolicy, isNull);
   });
 
-  test('MovaSwapConfig.effectiveTrigger falls back to a seeded MovaLeadWarm, or returns the injected one', () {
-    const c = MovaSwapConfig(leadTime: Duration(seconds: 3), minWarmDuration: Duration(seconds: 6));
+  test('MovaCutoverConfig.effectiveTrigger falls back to a seeded MovaLeadWarm, or returns the injected one', () {
+    const c = MovaCutoverConfig(leadTime: Duration(seconds: 3), minWarmDuration: Duration(seconds: 6));
     final t = c.effectiveTrigger;
     expect(t, isA<MovaLeadWarm>());
     expect((t as MovaLeadWarm).lead, const Duration(seconds: 3));
     expect(t.minDuration, const Duration(seconds: 6));
 
     const injected = MovaEagerWarm();
-    const c2 = MovaSwapConfig(trigger: injected);
+    const c2 = MovaCutoverConfig(trigger: injected);
     expect(c2.effectiveTrigger, same(injected));
   });
 
-  test('MovaSwapConfig.newReadyPolicy returns a fresh instance each call, or the injected one', () {
-    const c = MovaSwapConfig();
+  test('MovaCutoverConfig.newReadyPolicy returns a fresh instance each call, or the injected one', () {
+    const c = MovaCutoverConfig();
     final a = c.newReadyPolicy();
     final b = c.newReadyPolicy();
     expect(identical(a, b), isFalse);
 
     final injected = MovaBufferWarm();
-    final c2 = MovaSwapConfig(readyPolicy: injected);
+    final c2 = MovaCutoverConfig(readyPolicy: injected);
     expect(c2.newReadyPolicy(), same(injected));
   });
 
-  test('MovaSwapConfig.copyWith replaces one field only', () {
-    const c = MovaSwapConfig();
+  test('MovaCutoverConfig.copyWith replaces one field only', () {
+    const c = MovaCutoverConfig();
     final n = c.copyWith(enabled: true);
     expect(n.enabled, isTrue);
     expect(n.leadTime, c.leadTime);
     expect(n.muteWhileWarm, c.muteWhileWarm);
   });
 
-  test('MovaOpts exposes a swap section that defaults to MovaSwapConfig and is independently replaceable', () {
+  test('MovaOpts exposes a cutover section that defaults to MovaCutoverConfig and is independently replaceable', () {
     const o = MovaOpts();
-    expect(o.swap, const MovaSwapConfig());
-    final n = o.copyWith(swap: const MovaSwapConfig(enabled: true));
-    expect(n.swap.enabled, isTrue);
+    expect(o.cutover, const MovaCutoverConfig());
+    final n = o.copyWith(cutover: const MovaCutoverConfig(enabled: true));
+    expect(n.cutover.enabled, isTrue);
     expect(n.gesture, o.gesture);
   });
 
@@ -341,7 +341,7 @@ void main() {
       const o = MovaOpts();
       final n = o.copyWith(ads: const MovaAdConfig(loadTimeout: Duration(seconds: 1)));
       expect(n.ads.loadTimeout, const Duration(seconds: 1));
-      expect(n.swap, o.swap);
+      expect(n.cutover, o.cutover);
       expect(n.gesture, o.gesture);
     });
   });

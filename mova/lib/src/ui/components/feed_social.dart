@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../core/api.dart';
-import '../../core/feed/feed_controller.dart';
+import '../../core/feed/feed.dart';
 import '../../core/model/feed_item.dart';
 import '../../core/options/theme.dart';
 import '../slots/component.dart';
@@ -74,7 +74,7 @@ class MovaSocialRailComponent extends MovaComponent {
   /// The feed controller owning local like state.
   ///
   /// 持有本地点赞状态的 feed 控制器。
-  final MovaFeedController controller;
+  final MovaFeed controller;
 
   /// This page's feed index.
   ///
@@ -173,11 +173,11 @@ class MovaAvatarComponent extends MovaComponent {
   }
 }
 
-/// Like button; toggles [MovaFeedController]'s local like state end to end
+/// Like button; toggles [MovaFeed]'s local like state end to end
 /// (icon + count + heart-fill) and stays in sync with double-tap-to-like on
 /// the gesture layer via the shared [likeNotifier].
 ///
-/// 点赞按钮；端到端切换 [MovaFeedController] 的本地点赞状态（图标 + 计数 +
+/// 点赞按钮；端到端切换 [MovaFeed] 的本地点赞状态（图标 + 计数 +
 /// 实心样式），并通过共享的 [likeNotifier] 与手势层的双击点赞保持同步。
 class MovaLikeButtonComponent extends MovaComponent {
   /// Creates the like-button leaf component.
@@ -188,7 +188,7 @@ class MovaLikeButtonComponent extends MovaComponent {
   /// The feed controller owning local like state.
   ///
   /// 持有本地点赞状态的 feed 控制器。
-  final MovaFeedController controller;
+  final MovaFeed controller;
 
   /// This page's feed index.
   ///

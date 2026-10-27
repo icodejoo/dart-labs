@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:mova/mova.dart';
 import 'main_coverage_api.dart' as api;
 import 'verify_auto/he_auto.dart' as he;
-import 'verify_auto/standby_auto.dart' as standby;
+import 'verify_auto/keep_alive_auto.dart' as keep_alive;
 import 'verify_auto/auto_kit.dart' as kit;
 import 'main_q13_mute_verify.dart' as mute;
 import 'main_quality_switch_verify.dart' as quality;
@@ -34,7 +34,7 @@ Future<void> main() async {
   MovaEngine.ensureInitialized();
   switch (parts.first) {
     case 'he': runApp(const MaterialApp(home: he.HeAutoPage()));
-    case 'standby': runApp(const MaterialApp(home: standby.StandbyAutoPage()));
+    case 'keepAlive': runApp(const MaterialApp(home: keep_alive.KeepAliveAutoPage()));
     case 'mute': mute.main();
     case 'quality': quality.main();
     case 'pump': pump.main();

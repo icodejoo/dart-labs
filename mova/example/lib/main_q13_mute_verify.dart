@@ -9,10 +9,10 @@ import 'package:mova/src/core/kernel/mpv_kernel.dart';
 
 import 'verify_auto/auto_kit.dart';
 
-/// Q13 acceptance page (plan doc/plans/2026-10-23-standby-mode.md, Q13): while a swap shadow engine is
+/// Q13 acceptance page (plan doc/plans/2026-10-23-standby-mode.md, Q13): while a cutover shadow engine is
 /// warming, ONLY that shadow is muted (through mpv `mute`), the playing engine keeps its sound, the
-/// system media volume is never written, and committing the swap un-mutes just the warm hold. Also
-/// checks the overlap with standby (both hold the mute, either may leave first).
+/// system media volume is never written, and committing the cutover un-mutes just the warm hold. Also
+/// checks the overlap with keepAlive (both hold the mute, either may leave first).
 ///
 /// Self-running: no manual clicking. Content is a local live FLV (440 Hz tone), the ad a local VOD
 /// (880 Hz tone), so by ear "ad = high tone, content = low tone". Every step prints a
@@ -22,8 +22,8 @@ import 'verify_auto/auto_kit.dart';
 /// one and k0 is gone). The properties are read straight from the media_kit players, so this part is
 /// platform independent; the system volume and what you hear are what only a device can tell.
 ///
-/// Q13 验收页（计划 Q13）：swap 影子引擎预热期间，**只有影子**经 mpv `mute` 静音，正在播的引擎声音不变，系统媒体音量
-/// 从不被写，提交后只撤销预热静音；并检查与 standby 的叠加（两方都持有静音，谁先退出都不漏声）。
+/// Q13 验收页（计划 Q13）：cutover 影子引擎预热期间，**只有影子**经 mpv `mute` 静音，正在播的引擎声音不变，系统媒体音量
+/// 从不被写，提交后只撤销预热静音；并检查与 keepAlive 的叠加（两方都持有静音，谁先退出都不漏声）。
 ///
 /// 自动跑，不用手点。正片是本地直播 FLV（440Hz 音调），广告是本地点播（880Hz），所以耳朵听"高音 = 广告、低音 = 正片"。
 /// 每一步打印 `[Q13] MARK <名>`（外部脚本可在这里采样 `adb shell dumpsys audio`），随后打印 `[Q13] PROPS <名> ...`，
@@ -65,10 +65,10 @@ class _Q13PageState extends State<_Q13Page> {
   final Map<String, int> _pass = <String, int>{};
   final Map<String, int> _fail = <String, int>{};
 
-  MovaSwapEngine? _swap;
-  MovaAdController? _ads;
+  MovaCutoverEngine? _swap;
+  MovaAds? _ads;
 
-  /// Kept for the whole scenario: the existing seamless-swap test also listens to the engine's streams
+  /// Kept for the whole scenario: the existing seamless-cutover test also listens to the engine's streams
   /// throughout, and the ad flow was only seen to start with a listener attached.
   StreamSubscription<MovaProg>? _progSub;
 
@@ -104,30 +104,30 @@ class _Q13PageState extends State<_Q13Page> {
     return uri.replace(queryParameters: {...uri.queryParameters, 't': '${DateTime.now().microsecondsSinceEpoch}'}).toString();
   }
 
-  /// A fresh swap engine + ad controller; every underlying engine is built on a kernel whose player we keep.
+  /// A fresh cutover engine + ad controller; every underlying engine is built on a kernel whose player we keep.
   Future<void> _newRig() async {
     await _disposeRig();
     _players.clear();
     final opts = const MovaOpts(
       ads: MovaAdConfig(enabled: true),
-      swap: MovaSwapConfig(enabled: true, trigger: MovaEagerWarm()),
+      cutover: MovaCutoverConfig(enabled: true, trigger: MovaEagerWarm()),
     );
-    final swap = MovaSwapEngine(
+    final cutover = MovaCutoverEngine(
       engineFactory: () {
         final player = Player();
         _players.add(player);
         return createMovaEngine(kernel: MovaMpvKernel(player: player, lazyVideo: true, observeQoeSignals: false), options: opts);
       },
     );
-    _swap = swap;
-    _progSub = swap.progress.listen((_) {});
-    _ads = MovaAdController(swap, swap: swap);
+    _swap = cutover;
+    _progSub = cutover.progress.listen((_) {});
+    _ads = MovaAds(cutover, cutover: cutover);
     if (mounted) setState(() {});
   }
 
   Future<void> _disposeRig() async {
     final ads = _ads;
-    final swap = _swap;
+    final cutover = _swap;
     _ads = null;
     _swap = null;
     await _progSub?.cancel();
@@ -135,17 +135,17 @@ class _Q13PageState extends State<_Q13Page> {
     if (mounted) setState(() {});
     await Future<void>.delayed(const Duration(milliseconds: 300));
     ads?.dispose();
-    await swap?.dispose();
+    await cutover?.dispose();
     await Future<void>.delayed(const Duration(milliseconds: 700));
   }
 
   /// Waits until the engine really plays (position moving, not buffering).
   Future<bool> _waitPlaying() async {
-    final swap = _swap!;
+    final cutover = _swap!;
     final done = Completer<bool>();
     late final StreamSubscription<MovaProg> sub;
-    sub = swap.progress.listen((p) {
-      if (p.position > Duration.zero && !swap.state.buffering && !done.isCompleted) done.complete(true);
+    sub = cutover.progress.listen((p) {
+      if (p.position > Duration.zero && !cutover.state.buffering && !done.isCompleted) done.complete(true);
     });
     final ok = await done.future.timeout(const Duration(seconds: 25), onTimeout: () => false);
     await sub.cancel();
@@ -190,7 +190,7 @@ class _Q13PageState extends State<_Q13Page> {
       mutes.add(mute);
       parts.add('k$i(mute=$mute vid=${await _prop(_players[i], 'vid')} pause=${await _prop(_players[i], 'pause')})');
     }
-    _log('PROPS $name renderEpoch=${_swap!.state.renderEpoch} standby=${_swap!.state.standby.name} ${parts.join(' ')}');
+    _log('PROPS $name renderEpoch=${_swap!.state.renderEpoch} keepAlive=${_swap!.state.keepAlivePhase.name} ${parts.join(' ')}');
     return mutes;
   }
 
@@ -238,7 +238,7 @@ class _Q13PageState extends State<_Q13Page> {
     return true;
   }
 
-  /// Content live, ad inserted, shadow warms, ad skipped, swap commits.
+  /// Content live, ad inserted, shadow warms, ad skipped, cutover commits.
   Future<void> _scenarioPlain() async {
     await _newRig();
     final ads = _ads!;
@@ -260,29 +260,29 @@ class _Q13PageState extends State<_Q13Page> {
     _verdict('Q13A', ok, 'warming: active(k${alive.first}).mute=${warming[alive.first]} shadow(k${alive.last}).mute=${warming[alive.last]} swapped=$swapped committed(live k$newest).mute=${committed[newest]}');
   }
 
-  /// Like [_scenarioPlain] but standby is requested while warming; [wakeBeforeCommit] picks which side leaves first.
-  Future<void> _scenarioStandby({required bool wakeBeforeCommit}) async {
+  /// Like [_scenarioPlain] but keepAlive is requested while warming; [wakeBeforeCommit] picks which side leaves first.
+  Future<void> _scenarioKeepAlive({required bool wakeBeforeCommit}) async {
     final id = wakeBeforeCommit ? 'Q13C' : 'Q13B';
     final tag = wakeBeforeCommit ? 'C' : 'B';
     await _newRig();
     final ads = _ads!;
-    final swap = _swap!;
+    final cutover = _swap!;
     if (!await _enterAd(tag)) return _verdict(id, false, 'could not reach the warming state');
-    final phase = await swap.setStandby(true);
+    final phase = await cutover.setKeepAlive(true);
     await Future<void>.delayed(const Duration(milliseconds: 800));
-    final warmed = await _snapshot('$tag-standby-requested-while-warming (active phase=${phase.name})');
+    final warmed = await _snapshot('$tag-keepAlive-requested-while-warming (active phase=${phase.name})');
     final alive = await _alive();
     final shadow = alive.last;
     var ok = alive.length >= 2 && warmed[shadow] == 'yes';
     var extra = '';
     if (wakeBeforeCommit) {
-      await swap.setStandby(false);
+      await cutover.setKeepAlive(false);
       await Future<void>.delayed(const Duration(milliseconds: 800));
       final mid = await _snapshot('$tag-woke-before-commit');
       ok = ok && mid[shadow] == 'yes';
       extra = ' shadow.mute after wake=${mid[shadow]}';
     }
-    final epoch = swap.state.renderEpoch;
+    final epoch = cutover.state.renderEpoch;
     _log('$tag skipping the ad now');
     ads.skip();
     final swapped = await _waitEpoch(epoch);
@@ -294,9 +294,9 @@ class _Q13PageState extends State<_Q13Page> {
       ok = ok && committed[newest] == 'no';
     } else {
       final vid = await _prop(_players[newest], 'vid');
-      ok = ok && committed[newest] == 'yes' && vid == 'no' && swap.state.standby == MovaStandbyPhase.holding;
-      extra = ' live.vid=$vid standby=${swap.state.standby.name}';
-      await swap.setStandby(false);
+      ok = ok && committed[newest] == 'yes' && vid == 'no' && cutover.state.keepAlivePhase == MovaKeepAlivePhase.holding;
+      extra = ' live.vid=$vid keepAlive=${cutover.state.keepAlivePhase.name}';
+      await cutover.setKeepAlive(false);
       await Future<void>.delayed(const Duration(seconds: 7));
       final w = await _snapshot('$tag-woken-after-commit');
       ok = ok && w[newest] == 'no';
@@ -310,8 +310,8 @@ class _Q13PageState extends State<_Q13Page> {
     final runs = autoRuns();
     final scenarios = <(String, String, Future<void> Function())>[
       ('Q13A', 'plain warm and commit', _scenarioPlain),
-      ('Q13B', 'standby requested while warming, commit while holding, then wake', () => _scenarioStandby(wakeBeforeCommit: false)),
-      ('Q13C', 'standby requested while warming, wake before commit', () => _scenarioStandby(wakeBeforeCommit: true)),
+      ('Q13B', 'keepAlive requested while warming, commit while holding, then wake', () => _scenarioKeepAlive(wakeBeforeCommit: false)),
+      ('Q13C', 'keepAlive requested while warming, wake before commit', () => _scenarioKeepAlive(wakeBeforeCommit: true)),
     ];
     _log('AUTORUN start runs=$runs base=$kBase only=${only.isEmpty ? 'all' : only.join(',')} os=${Platform.operatingSystem} ${Platform.operatingSystemVersion}');
     for (final (id, title, run) in scenarios) {
@@ -339,12 +339,12 @@ class _Q13PageState extends State<_Q13Page> {
 
   @override
   Widget build(BuildContext context) {
-    final swap = _swap;
+    final cutover = _swap;
     return Scaffold(
       appBar: AppBar(title: const Text('Q13 mute verify')),
       body: Column(
         children: [
-          if (swap != null) AspectRatio(aspectRatio: 16 / 9, child: MovaPlayer(api: swap, skin: const MovaMinimalSkin())),
+          if (cutover != null) AspectRatio(aspectRatio: 16 / 9, child: MovaPlayer(api: cutover, skin: const MovaMinimalSkin())),
           Expanded(child: ListView(children: [for (final l in _lines.take(60)) Text(l, style: const TextStyle(fontSize: 11))])),
         ],
       ),

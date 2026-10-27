@@ -14,4 +14,4 @@ put('C12 U8','PASS','batch22-mini-drag：真实触屏从(800,2200)拖到(400,120
 put('U1 U2','PASS','batch16 View复用/options/route/ticker/surface及卸载；batch22 Feed滚动真实视频/like回调；Default/Bilibili/Minimal/Mini与Douyin(Feed)均有PNG、components输出，patch显示PATCH VISIBLE。batch20启动日志Impeller Vulkan/OpenGLES；封面完整分支另列N15。')
 put('N22','BLOCKED','已实测：hooks两实现异步失效保护；batch22 remap横滑volume50→74.12037且position5000不变，左竖滑seek5000→24000；STT失败回滚后可重试，crop零写入。缺assert开启的设备构建（本轮限定release/profile，assert关闭），不能把1503单测当真机assert通过；换源旧预览结果仍缺可控延迟服务证据。')
 put('C2','BLOCKED','已在真实FLV/HLS测试durationStep、DVR窗口12s、seek退后/LiveEdgeReach/回边缘（batch15-live*、batch19-live*）；未提供可按behind URL取历史的服务，现有18081仅滑动live HLS、FLV忽略历史时间参数，不能证明urlBuilder时移语义；自定义windowResolver/autoBackToLiveOnStall完整联动仍缺此服务。')
-update('批次20–23：边界、广告失败策略、真实网络探针、HLS原生结论',c,['- 每条引用的JSON含真实事件及state；HLS失败的原生path也记录，排除仅UI标签切换。','- 后续只补最终视觉与HLS swap/暂停态，当前已测数据先落盘。'])
+update('批次20–23：边界、广告失败策略、真实网络探针、HLS原生结论',c,['- 每条引用的JSON含真实事件及state；HLS失败的原生path也记录，排除仅UI标签切换。','- 后续只补最终视觉与HLS cutover/暂停态，当前已测数据先落盘。'])

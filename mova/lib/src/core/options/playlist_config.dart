@@ -4,13 +4,13 @@ import '../model/playlist.dart';
 /// "next up" card that appears near the end of an item.
 ///
 /// Data-only by design: the running index and navigation live on
-/// `MovaPlaylistController` (host-constructed), keeping this bundle immutable and
+/// `MovaPlaylist` (host-constructed), keeping this bundle immutable and
 /// comparable. Disabled and empty by default so enabling it is an explicit
 /// host decision.
 ///
 /// 顺序播放列表（剧集/曲目）与临近结束显示的"下一集"卡片的配置。
 ///
-/// 刻意只做数据：运行时下标与导航在 `MovaPlaylistController`（宿主构造）上，
+/// 刻意只做数据：运行时下标与导航在 `MovaPlaylist`（宿主构造）上，
 /// 使本配置保持不可变、可比较。默认关闭且列表为空，是否启用由宿主显式决定。
 class MovaPlaylistConfig {
   /// Master switch; the playlist controller/card do nothing when `false`.

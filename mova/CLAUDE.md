@@ -16,7 +16,7 @@
 >    顺序执行即可。
 > 4. **pub.dev 版本对照**：已发布 `0.1.0`、`0.2.0`、`0.3.0`（`0.3.0` 约 2026-10-01 发布，含小窗、广告编排、无缝切换、
 >    清晰度自适应、仅音频模式、QoE、TLS 开关等，见 CHANGELOG 的 `0.3.0` 节）。**宿主易用性增强（首帧/封面/`MovaView`/
->    恢复与多地址/自动暂停/测试替身）及之后的 standby 属于 `Unreleased`**，发版前 pub.dev 上没有；发版时机由用户决定。
+>    恢复与多地址/自动暂停/测试替身）及之后的 keepAlive 属于 `Unreleased`**，发版前 pub.dev 上没有；发版时机由用户决定。
 >    回答"能不能用某功能"前先确认对方拿到的是 pub.dev 哪个版本还是本仓库 path/git 依赖。注意：下文各节标题里的"0.2.0"
 >    是历史合并记法，版本号现以 pubspec 为准。
 > 5. **mova 已回到 pub.dev 的 `media_kit: ^1.2.6`，不再依赖 git 提交**（2026-09-30）：
@@ -32,7 +32,9 @@
 
 ## 当前状态（0.2.0）
 
-> **测试基线：1508 项全绿**（2026-10-27 真机覆盖测试终审后修 F3 换档续播竞态、A8/A9 音量亮度钳制，本机实跑，较 1503 +5 〔1503 为覆盖测试起点，比下文 1472 多出的 31 项来自此前提交〕；Android 覆盖测试与终审结论见 [doc/plans/2026-10-27-device-coverage-results.md](doc/plans/2026-10-27-device-coverage-results.md) 文末「终审」；HE V6 在 Android 真机 5/5 通过，此前"V6 从头播"是验证脚本锚点缺陷；`open()` 的归零发生在 `beforeOpen` 之后、内核加载前，不是严格同步；前一基线 1472：2026-10-26 恢复层六项修复〔恢复后清错误/放弃清缓冲/确定性失败快速重试/直播持续重连/按源 mpv 选项/直播时长节流〕后本机实跑，较 1424 +48；1424 为：2026-10-26 评审遗留项（PiP/swap/倍速/`open` 返回值等）修复后本机实跑，较上一轮 1409 +15；上一轮为全量评审修复后，较 1364 +45；2026-10-25 合并 WHEP 分支后为 1364；合并前 main 为 1324， `flutter test` 的真实结果；HE V10 渲染面转场快照守卫新增 +8（`test/ui/snapshot_guard_test.dart`），1316 → 1324；HE V6 续播就绪修复新增 +14，1302 → 1316；Q13 预热静音修复新增 +16；其中宿主易用性计划 Task 1–15 贡献 +150
+> **命名（2026-10-27 起）**：已去掉 `*Controller` 后缀（`MovaAds`/`MovaFeed`/`MovaPlaylist`/`MovaMini`），`Standby*`→`KeepAlive*`（`MovaState.keepAlivePhase`、`MovaHiddenMode.keepAlive`、`setKeepAlive`），`Swap*`→`Cutover*`（`MovaCutoverEngine`、`cutoverTo`）。下文各节里的类名/成员名已按新名机械替换，`doc/plans/` 里的历史计划保持旧名原文；旧名以 `@Deprecated` typedef 保留一个版本，见 `lib/src/deprecated_names.dart` 与 CHANGELOG。
+>
+> **测试基线：1510 项全绿**（2026-10-27 真机覆盖测试终审后修 F3 换档续播竞态、A8/A9 音量亮度钳制，本机实跑，较 1503 +5 〔1503 为覆盖测试起点，比下文 1472 多出的 31 项来自此前提交〕；Android 覆盖测试与终审结论见 [doc/plans/2026-10-27-device-coverage-results.md](doc/plans/2026-10-27-device-coverage-results.md) 文末「终审」；HE V6 在 Android 真机 5/5 通过，此前"V6 从头播"是验证脚本锚点缺陷；`open()` 的归零发生在 `beforeOpen` 之后、内核加载前，不是严格同步；前一基线 1472：2026-10-26 恢复层六项修复〔恢复后清错误/放弃清缓冲/确定性失败快速重试/直播持续重连/按源 mpv 选项/直播时长节流〕后本机实跑，较 1424 +48；1424 为：2026-10-26 评审遗留项（PiP/cutover/倍速/`open` 返回值等）修复后本机实跑，较上一轮 1409 +15；上一轮为全量评审修复后，较 1364 +45；2026-10-25 合并 WHEP 分支后为 1364；合并前 main 为 1324， `flutter test` 的真实结果；HE V10 渲染面转场快照守卫新增 +8（`test/ui/snapshot_guard_test.dart`），1316 → 1324；HE V6 续播就绪修复新增 +14，1302 → 1316；Q13 预热静音修复新增 +16；其中宿主易用性计划 Task 1–15 贡献 +150
 > （Task 1–8 +70、Task 9–15 +80），其评审修复新增 +19，见下文「宿主易用性增强」；低功耗待机计划 Task 1–9 贡献 +109，见「低功耗待机」）；
 > `flutter analyze lib test` 0 issues（`example/` 下 demo 有若干 `avoid_print` info，
 > 均为验证脚本）。`example/test/auto_kit_test.dart`（验证页脚本化工具的纯逻辑，12 项）在 `example/` 下单独 `flutter test`，不计入上述基线。
@@ -83,7 +85,7 @@ example 已加直播/时移两个 demo（仅桌面冒烟，未做交互验证）
 - **超时与恢复**（`MovaOpts.recovery`，默认关）：`MovaRecoveryConfig`/`MovaPlayFail`/`MovaRecoveryPolicy`（默认 `MovaRetryThenFailover`）/
   `MovaPlayWatchdog`（`core/recovery/`，不导出）；引擎侧 `_onPlayFail`/`_recover`/`_giveUp`/`_announceReady`，事件 `MovaPlayFailure`/
   `MovaRecovered`。看门狗的起播期限从内核 `open()` 返回后才计；**关闭时 `open()` 失败仍照旧抛出、不建 Timer、不订阅 `endFiles`**；开启时 `createMovaEngine` 经 `movaObserveFlags(recovery:)` 打开原生事件泵但 `observeRestarts: false`（只要 `END_FILE` 做坏地址秒判，不转发 `PLAYBACK_RESTART`，首帧判据不变）
-  （`MovaAdController` 依赖它，由 `engine_recovery_test` 第 1 条与 `openness_host_test` 锚定）。重试/切换是内核重载不是新会话。
+  （`MovaAds` 依赖它，由 `engine_recovery_test` 第 1 条与 `openness_host_test` 锚定）。重试/切换是内核重载不是新会话。
 - **多地址**：`MovaSource.alternatives/uris/pick`、`MovaState.sourceIndex`、`MovaFailover`；备选只在 recovery 开启时使用，排序留给宿主。
 - **自动暂停守卫**：`core/guard/auto_pause.dart`（纯 Dart gate）+ `ui/guard/auto_pause.dart`（`MovaAutoPause`，只用 Flutter SDK）、
   `MovaView(autoPause:, routeObservers:)`。**`routeObservers` 是列表、每个 navigator 一个观察者**——`NavigatorObserver` 不能挂到
@@ -101,27 +103,27 @@ example 已加直播/时移两个 demo（仅桌面冒烟，未做交互验证）
   Android 切后台的 `inactive→hidden` 序列与 libmpv 自暂停时序（守卫的意图快照）、`go_router` shell 分支下根 navigator 半透明路由的 `routeObservers` 路径、
   直播隐藏 ≥3s 后 `backToLiveEdge()` 的真实恢复效果。
 
-### 低功耗待机（standby，Task 1–9 已落地，Task 10：Windows 部分已测，Android 待真机）
+### 低功耗待机（keepAlive，Task 1–9 已落地，Task 10：Windows 部分已测，Android 待真机）
 
 计划见 [doc/plans/2026-10-23-standby-mode.md](doc/plans/2026-10-23-standby-mode.md)（文首「落地偏差」有实跑进度表与逐条偏差），调研见
 [doc/notes/2026-10-23-libmpv-low-power-standby.md](doc/notes/2026-10-23-libmpv-low-power-standby.md)。直播被隐藏时不出画面不出声，但保持流连接与进度，恢复时只需恢复视频解码。已完成：
-- **入口**：`MovaAutoPauseConfig(hiddenMode: MovaHiddenMode.standby)` 与命令式 `MovaStandbyController.setStandby(bool)`（`MovaEngine`/`MovaSwapEngine` 实现，`MovaApi`/`MovaKernel` 零新增成员，`is` 探测）；
-  调参 `MovaOpts.standby`（`MovaStandbyConfig`），**没有开关**，不调用就不会走到。
-- **内核**：`MovaStandbyKernel`（`core/kernel/standby_kernel.dart`，不进主 barrel）由 `MovaMpvKernel` 实现，**只增不改**：只碰 `mute`/`vid`，保存后原样还原。
-- **状态机**：`MovaState.standby`（`off`/`holding`/`fallback`/`resuming`）、事件 `MovaStandbyChange`/`MovaStandbyResume`；决策是纯函数（`core/standby/plan.dart`）；恢复计时复用首帧闸门的 `resume` 武装；
+- **入口**：`MovaAutoPauseConfig(hiddenMode: MovaHiddenMode.keepAlive)` 与命令式 `MovaKeepAlive.setKeepAlive(bool)`（`MovaEngine`/`MovaCutoverEngine` 实现，`MovaApi`/`MovaKernel` 零新增成员，`is` 探测）；
+  调参 `MovaOpts.keepAlive`（`MovaKeepAliveConfig`），**没有开关**，不调用就不会走到。
+- **内核**：`MovaKeepAliveKernel`（`core/kernel/keep_alive_kernel.dart`，不进主 barrel）由 `MovaMpvKernel` 实现，**只增不改**：只碰 `mute`/`vid`，保存后原样还原。
+- **状态机**：`MovaState.keepAlivePhase`（`off`/`holding`/`fallback`/`resuming`）、事件 `MovaKeepAliveChange`/`MovaKeepAliveResume`；决策是纯函数（`core/keep_alive/plan.dart`）；恢复计时复用首帧闸门的 `resume` 武装；
   引擎里所有待机迁移走一条串行队列。待机计时走 `@visibleForTesting debugClock`（`DateTime.now()` 不跟随 `fakeAsync`）。
 - **交互**：待机期间看门狗/ABR/自动回边缘静默、失败延到唤醒强制重开；`pause()` 结束待机；待机请求期间换源以暂停态加载；fallback 期间的内部重载读 `_loadPlays`（不开播）；`setMini`/`enterPip` 先唤醒；
   守卫进后台把待机降级为暂停；封面在待机/恢复期间瞬间盖上。
-- 文档与验证页：README「隐藏时待机」、CHANGELOG（`Unreleased`）、`doc/SPEC.md`「低功耗待机」、`example/lib/main_standby_verify.dart`（加 `--dart-define=AUTORUN=true` 为脚本化模式，实现在 `example/lib/verify_auto/standby_auto.dart`，源服务器与 Windows 辅助脚本在 `example/tool/verify_sources/`；2026-10-24 已在 Windows release 上跑过）。
+- 文档与验证页：README「隐藏时待机」、CHANGELOG（`Unreleased`）、`doc/SPEC.md`「低功耗待机」、`example/lib/main_keep_alive_verify.dart`（加 `--dart-define=AUTORUN=true` 为脚本化模式，实现在 `example/lib/verify_auto/keep_alive_auto.dart`，源服务器与 Windows 辅助脚本在 `example/tool/verify_sources/`；2026-10-24 已在 Windows release 上跑过）。
 - **Task 10 状态（2026-10-24）**：**Windows 桌面可测的部分已跑完**（release，3 次/场景，数字见计划 Task 10 下「Windows 桌面实测（2026-10-24）」）；**Android 项仍未测**（S7 `mediacodec-copy` 下 `vid` 切回、S8 进后台、S11 音频会话/耗电、
   S14 的 Android 一次、S4 电量与 `maxDuration` 校准、`allowHls` 默认值、`resumeTimeout` 校准、S17 的 push 路由/`StatefulShellRoute`/声音泄漏），交接清单见
   [doc/plans/2026-10-24-android-real-device-handoff.md](doc/plans/2026-10-24-android-real-device-handoff.md)。**Windows 实测暴露三个待决问题（未改库代码）**：
-  ① B 唤醒（`vid` 切回）在 Windows+FLV 上 18/18 走 `grace`——不发 `PLAYBACK_RESTART` 也没有尺寸变化，`MovaStandbyResume.elapsed` 恒为 `resumeTimeout`（5000ms）而不是测量值，`state.standby` 在 `resuming` 停 5s；
+  ① B 唤醒（`vid` 切回）在 Windows+FLV 上 18/18 走 `grace`——不发 `PLAYBACK_RESTART` 也没有尺寸变化，`MovaKeepAliveResume.elapsed` 恒为 `resumeTimeout`（5000ms）而不是测量值，`state.keepAlivePhase` 在 `resuming` 停 5s；
   真正出画面（属性轮询）0.45–3.7s、最大值 ≤ 一个 GOP；② 待机 60s 后位置在唤醒后向前跳约 2.4–3.0s（待机期间与无待机对照均无漂移）；③ 对无声流强制 B 会 EOF + recovery 重载（比"position 停止"更重，印证 D4）。
   以下为原"需真机确认"清单，**带 ✔ 的是 Windows 已确认**（Android 仍须复测）：`file-format` 的实际取值 ✔Windows：FLV 为 `flv`、HLS 为 `hls`、`vid=auto` 后是否发 `PLAYBACK_RESTART` ✔Windows+FLV：不发（18/18 `grace`；重开路径 S13 则是 `size` 落地）、
-  待机期间画面是黑还是冻帧 ✔Windows：冻结最后一帧（Android 仍待测）、`audio-params` 就绪时机 ✔Windows：本源上首帧后约 2.1s，之前请求待机一律 `fallback(mediaUnknown)`、守卫端到端 ✔Windows（部分）：`TickerMode` 切走/切回与隐藏期间换源通过，push 路由曾被 HE V10 的崩溃阻断（已规避，standby 的 push 路由场景可重测）；
+  待机期间画面是黑还是冻帧 ✔Windows：冻结最后一帧（Android 仍待测）、`audio-params` 就绪时机 ✔Windows：本源上首帧后约 2.1s，之前请求待机一律 `fallback(mediaUnknown)`、守卫端到端 ✔Windows（部分）：`TickerMode` 切走/切回与隐藏期间换源通过，push 路由曾被 HE V10 的崩溃阻断（已规避，keepAlive 的 push 路由场景可重测）；
   B 相对正常播放省约 81% CPU 但网络不省（直播 FLV 暂停也满速拉流）；`mute` 时音频会话的耗电仍待 Android。
-- **旁支发现：已修复（代码层），待真机确认**：已确认 `MovaSwapEngine.muteWhileWarm` 原先经 `setVolume` 误写 Android 系统媒体音量（计划 Q13）。现通过 `MovaPlayerMute` 能力只操作 mpv `mute`，提交仅撤销预热静音；不支持的内核不静音，绝不回退写音量端口。预热与 standby 共用属性队列、分别持有静音，任意退出顺序均保留另一方并最终还原原值；恢复失败放弃切换并发出错误事件。新增 16 项回归，本机 `flutter test` 实跑 1302 全绿、`flutter analyze lib test` 0 issues；未做真机音频验证。
+- **旁支发现：已修复（代码层），待真机确认**：已确认 `MovaCutoverEngine.muteWhileWarm` 原先经 `setVolume` 误写 Android 系统媒体音量（计划 Q13）。现通过 `MovaPlayerMute` 能力只操作 mpv `mute`，提交仅撤销预热静音；不支持的内核不静音，绝不回退写音量端口。预热与 keepAlive 共用属性队列、分别持有静音，任意退出顺序均保留另一方并最终还原原值；恢复失败放弃切换并发出错误事件。新增 16 项回归，本机 `flutter test` 实跑 1302 全绿、`flutter analyze lib test` 0 issues；未做真机音频验证。
 
 ### UI 插件化
 
@@ -139,21 +141,21 @@ Android 真机过；方向按钮与 PiP/直播/时移 UI 等仍未系统走真�
 
 ### 无缝引擎切换（默认关闭）
 
-新增 `MovaSwapEngine`（`lib/src/core/swap/`）——一个本身实现 `MovaApi` 的代理，持有生效
+新增 `MovaCutoverEngine`（`lib/src/core/cutover/`）——一个本身实现 `MovaApi` 的代理，持有生效
 引擎 + 短暂预热中的影子引擎，就绪后原子换指，把"广告播完回正片"从黑屏/loading 变成
-逐帧无缝。`MovaOpts.swap`（`MovaSwapConfig`）默认 `enabled: false`，关闭时是纯直通代理，
+逐帧无缝。`MovaOpts.cutover`（`MovaCutoverConfig`）默认 `enabled: false`，关闭时是纯直通代理，
 行为与关闭前逐字节一致。预热拆成两层可插拔纯逻辑：触发策略 `MovaWarmTrigger`
 （`MovaLeadWarm`/`MovaEagerWarm`）与就绪判据 `MovaWarmPolicy`（`MovaBufferWarm`，
 `MovaBufferAbr` 的镜像）。新增 `MovaState.renderEpoch`（普通引擎恒 0，仅切换后递增，
-触发渲染面重读 `renderHandle`）。`MovaAdController` 接了可选 `swap` 参数即可接入；
+触发渲染面重读 `renderHandle`）。`MovaAds` 接了可选 `cutover` 参数即可接入；
 清晰度切换（`switchQuality`）后续已真正接入（见下）；feed 引擎池结构性不适用本模型，
 明确排除。计划见 [doc/plans/2026-09-16-seamless-swap.md](doc/plans/2026-09-16-seamless-swap.md)。
 
 **真机验证（Task 11，STG AL00 arm64 Android 12）**：
 - 2026-09-23：用 `main_seamless_test.dart` 实测 skip 触发后 `renderEpoch` 1→2 确认切换
   机制真实生效；广告→正片切换间隔（skip 调用到 renderEpoch 落地，基于真实事件戳）= 806ms。
-- 2026-09-24（`example/lib/main_seamless_swap_verify.dart`，未提交）：**中插续播点误差
-  ——首次测量方向搞反了，已定位真实根因并修复**：`MovaAdController._warmContentBehindAd`
+- 2026-09-24（`example/lib/main_seamless_cutover_verify.dart`，未提交）：**中插续播点误差
+  ——首次测量方向搞反了，已定位真实根因并修复**：`MovaAds._warmContentBehindAd`
   用默认 `MovaWarmPlan`（`pauseWhenReady: false`），影子引擎以 `autoPlay: true` 按真实
   时间一路播，commit 时已漂移整个广告剩余时长——真机实测续播目标 6006ms、实际落点
   8842ms（偏差 +2836ms 偏晚）。同一机制在 content→ad 方向也在漏：`_holdAtTarget`
@@ -178,11 +180,11 @@ Android 真机过；方向按钮与 PiP/直播/时移 UI 等仍未系统走真�
 - 断网预热超时兜底——PASS：广告播放中真实断网，等过 `readyTimeout=5s` 后 `skip()`，
   未卡死，走非无缝路径正常完成续播。
 - 内存/解码 session 三阶段采样——方法论问题已解决（独立进程测量），**结论：不是内存
-  泄漏**：`example/lib/main_swap_leak_probe.dart` 8 轮插播/skip/切回，逐轮增量
+  泄漏**：`example/lib/main_cutover_leak_probe.dart` 8 轮插播/skip/切回，逐轮增量
   −0.25~+0.77MiB（噪声量级，非线性累加）；`dumpsys meminfo` 显示 Native Heap 首轮峰值
   53.0MB、第 2 轮起稳定 39.5–41.0MB；EGL mtrack 全程恒定，纹理泄漏路径可排除。真实现象
   是"第 1-2 轮一次性抬升约 35MiB 后进入平台"（native 分配器高水位一次性推高，非累积
-  泄漏），代码层面 `MovaSwapEngine._commitNow()` 所有分支均正确 dispose 旧引擎。
+  泄漏），代码层面 `MovaCutoverEngine._commitNow()` 所有分支均正确 dispose 旧引擎。
 - 广告黑屏是否真的消除、画面是否跳变——已实测确认（2026-09-25）：`adb shell screencap`
   连续抓帧 + logcat 事件时间戳对齐（约 250–330ms 一帧），**未观察到黑屏帧**、**未见
   撕裂/跳变**（受限于采样间隔，不能做逐 ms 级穷尽证明，但已是当前工具条件下能拿到的
@@ -221,20 +223,20 @@ renderHandle` 由 `Object` 放宽为 `Object?`。不新增任何公开类、barr
 
 ### 广告编排增强（默认关闭/默认不改变行为）
 
-把 `MovaAdController` 从"能按排期播广告"推进到"能按广告业务的真实时序播广告"——
+把 `MovaAds` 从"能按排期播广告"推进到"能按广告业务的真实时序播广告"——
 正片源延迟解析（`loadDeferred`/`contentError`）、广告位 `duration`/`delay` 与素材
 时间轴解耦（一律 `Timer` 驱动，绝不碰 `state.duration`/尾部 seek）、按广告位类型决定
 是否等待就绪（`MovaAdWaitByKind` 默认 pre 否 / **mid 是** / post 否，三层覆盖收在
 `MovaAdConfig.waitsFor()` 一处）、加载失败兜底（`MovaAdFailPolicy`）、以及
-`MovaWarmPlan`（给 `prepare` 加可选具名参数，让同一个 `MovaSwapEngine` 服务两个预热
+`MovaWarmPlan`（给 `prepare` 加可选具名参数，让同一个 `MovaCutoverEngine` 服务两个预热
 方向）。不新建任何预热机制，三个既有抽象零类型改动直接复用。控制器新增第四态
 `_Phase.pending`。顺带修掉三处潜伏缺陷（注入判据从不 `reset()`、`at==0` 仍下发无谓
 `seek(0)`、影子 `MovaErrorEvent` 无人监听）与"中插 pod 根本没串联、会闪回正片"。
-等待要生效还需宿主接了 `swap` 且 `MovaSwapConfig.enabled` 为 true，两者默认都是关的。
+等待要生效还需宿主接了 `cutover` 且 `MovaCutoverConfig.enabled` 为 true，两者默认都是关的。
 计划见 [doc/plans/2026-09-16-ad-swap-enhancements.md](doc/plans/2026-09-16-ad-swap-enhancements.md)。
 
 **真机验证（Task 12，STG AL00 arm64 Android 12）**：
-- 2026-09-23：前贴片默认不等待路径正常播完、swap ready→ad completed→swap idle 事件
+- 2026-09-23：前贴片默认不等待路径正常播完、cutover ready→ad completed→cutover idle 事件
   全部触发；失败降级——中插换坏地址后 15.94s 触发加载、16.05s 即失败，确认真机上坏
   URL 走 openThrew（`open()` 直接失败），非 playerError，正片自动无缝续播、未见卡死；
   同一广告位失败事件只触发一次、未见重复弹出。
@@ -243,7 +245,7 @@ renderHandle` 由 `Object` 放宽为 `Object?`。不新增任何公开类、barr
   max=1993ms, avg=1599ms；澄清：这段等待期间**不是黑屏**，正片持续正常播放、广告在
   影子引擎里静默预热。E 组——`duration=5000ms` 场景下 `started`→`completed` 实测间隔
   5013ms（误差仅 13ms），PASS。F 组——关闭态（`MovaAdConfig.enabled=false`+
-  `MovaSwapConfig.enabled=false`）8 秒观察窗内 `adEventsFired=0`、`renderEpoch` 恒为
+  `MovaCutoverConfig.enabled=false`）8 秒观察窗内 `adEventsFired=0`、`renderEpoch` 恒为
   0，PASS。C 组（倒计时期间正片流畅度）已查清并 PASS：`pending`→`started` 实测
   3050ms（与理论值 3000ms 吻合），期间 position 平滑推进、`buffering` 全程 `false`；
   此前一轮 `SUSPECT STALL` 是测试判据缺陷（把广告 `started` 时刻的合法 position 重置
@@ -253,8 +255,8 @@ renderHandle` 由 `Object` 放宽为 `Object?`。不新增任何公开类、barr
 
 不依赖任何系统 PiP API，让画面从页面里"缩"成一个可拖拽的悬浮小窗——不重新解码、不
 黑屏。默认关闭（`MovaMiniConfig.enabled` 为 `false`）。两种挂载方式并存：方式 A 页内
-悬浮（`MovaMiniController.showInPage`，mova 实现 `OverlayEntry` 插入）、方式 B 跨路由
-持久（`MovaMiniController.show` + `MovaMiniHost` 便利壳）。核心逻辑收在挂载无关的
+悬浮（`MovaMini.showInPage`，mova 实现 `OverlayEntry` 插入）、方式 B 跨路由
+持久（`MovaMini.show` + `MovaMiniHost` 便利壳）。核心逻辑收在挂载无关的
 `MovaMiniWindow` 一处（自身是撑满外部约束的 `Stack`，两种外壳只是"放到哪里"的差异）。
 core 层仅加 `MovaState.mini`/`MovaApi.setMini`/`MovaMiniChange`/`MovaMiniConfig`/
 `core/mini/placement.dart` 五处，播放链路一行不动。计划见
@@ -355,7 +357,7 @@ audioOnly 组 6/6 正常（dispose 0–15ms）；带 `VideoController` 但页面
 `MovaEngine` 默认内核用 `lazyVideo: true`——`VideoController` 推迟到第一次读取 `renderHandle`（`MovaPlayer` 挂上树）
 时才创建；没创建时 `screenshot()` 返回 null。无缝切换的影子引擎创建后主动读一次 `renderHandle`，预热期间仍有画面管线。
 Android 真机复测（亮屏、解锁）：E6 `createMovaEngine()` 从不挂界面 dispose 15–27ms（原 8s 超时）；E7 先播后挂界面，
-挂载前 `size=0x0`、挂载后 `320x240`、dispose 55–70ms；E8 无缝切换 `renderEpoch 0→1`、切换后 `320x240` 在播、swap 941ms。
+挂载前 `size=0x0`、挂载后 `320x240`、dispose 55–70ms；E8 无缝切换 `renderEpoch 0→1`、切换后 `320x240` 在播、cutover 941ms。
 README「已知限制」已注明：调用方自己创建/注入 `VideoController`（非默认懒创建）时，要自己保证它挂到 UI 再销毁。
 **预览抽帧器同根因，已修（同日）**：`MovaFrameExtractor` 原先在无界面下自建 `VideoController`，Android 真机 extract 5/5 超时
 （`videoControllerCompleter` 8s 内始终未完成，其后 `setProperty` 一直等）。现改为**不创建 `VideoController`**：手动 `vid=auto`+`vo=null`，
@@ -374,8 +376,8 @@ README「已知限制」已注明：调用方自己创建/注入 `VideoControlle
 ## 剩余任务
 
 **全量评审遗留（2026-10-26，修复见 CHANGELOG `Unreleased`；逐项交接见 [doc/plans/2026-10-26-review-leftovers-handoff.md](doc/plans/2026-10-26-review-leftovers-handoff.md)）**：① **PiP 退出后 `state.pip` 不复位**——真机已复现（拉回前台 26 个采样恒为 true，`PIP` 守卫豁免因此一直生效）；原生 `MovaPlugin.kt` 只有 `enterPictureInPictureMode`，没有退出通知；要修需给 `MovaPipPort` 加模式变化流并改 Kotlin 端，未做；
-② `MovaWarmPlan` 没有方向字段，swap 提交对两个方向一律继承 rate，广告侧靠 `ad_controller` 复位 1x 兜底（content→ad 换指后有几个微任务的短暂窗口），根治需给 plan 加方向；
-③ 真机 V12 观察到 pod 里第二条广告的 `swapTo` 回落成了主引擎普通 `open`（`_playAd` 里 `unawaited(abandon()); await swapTo()` 的写法 HEAD 就有，未确认与本轮 swap 改动有无关系）；
+② `MovaWarmPlan` 没有方向字段，cutover 提交对两个方向一律继承 rate，广告侧靠 `ad_controller` 复位 1x 兜底（content→ad 换指后有几个微任务的短暂窗口），根治需给 plan 加方向；
+③ 真机 V12 观察到 pod 里第二条广告的 `cutoverTo` 回落成了主引擎普通 `open`（`_playAd` 里 `unawaited(abandon()); await cutoverTo()` 的写法 HEAD 就有，未确认与本轮 cutover 改动有无关系）；
 ④ 评审里未处理的 P3：#10 `play/seek` 钩子异步返回后校验、#13 模型下载校验（`sha256` 全库未使用，实现需加 `crypto` 依赖，须先征得同意）、#19 预览队列吞异常、#22 STT 启动失败回滚、#24 手势轴向、#25 `trackCount`/`maxZoom` 构造期 assert、#29 `patch.dart`/`mova_platform_interface.dart` 缺注释。
 
 **瘦身版 libmpv 独立包发布——Android/Windows 已落地并验证，iOS/macOS 结构已落地但完全
@@ -519,7 +521,7 @@ remote 下不可靠**：本仓库 `origin` 同时配置了 codeup（fetch+push�
 故障偏移完全一致（`libmpv-2.dll+0x94d927`）。已排除：不是已用 clang 修复的
 `mpv_create()` 崩溃（位置、时机都不同，且已确认 CI 产物确实是 clang 编译）、不是网络
 流本身、不是小尺寸渲染面、不是 `createMovaEngine()`/`MovaPlayer` 封装本身、不是
-`showInPage()` 挂载动作本身、不是 `MovaMiniController.show()`+`Navigator.pop()` 的路由转场
+`showInPage()` 挂载动作本身、不是 `MovaMini.show()`+`Navigator.pop()` 的路由转场
 竞态——这几种场景自动化复现均不崩，**崩溃似乎只在真人鼠标/拖拽交互下触发**。故障地址
 落在静态链接的 ffmpeg/libav 内部（非 mpv 导出符号区间），dll 无调试符号，反汇编看不出
 函数名。**新发现**：Flutter 3.47 起 Windows 桌面端 Impeller 已非纯 opt-in（`--no-

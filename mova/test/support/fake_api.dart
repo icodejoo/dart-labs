@@ -12,15 +12,15 @@ import 'package:mova/src/core/preview/api.dart';
 import 'package:mova/src/core/preview/models.dart';
 import 'package:mova/src/core/report/report.dart';
 import 'package:mova/src/core/report/stats_probe.dart';
-import 'package:mova/src/core/standby/standby.dart';
+import 'package:mova/src/core/keep_alive/keep_alive.dart';
 import 'package:mova/src/core/state/progress.dart';
 import 'package:mova/src/core/state/state.dart';
 import 'package:mova/src/core/state/ui_state.dart';
 import 'package:mova/src/core/stt/api.dart';
 import 'package:mova/src/core/stt/cue.dart';
-import 'package:mova/src/core/swap/ctl.dart';
-import 'package:mova/src/core/swap/plan.dart';
-import 'package:mova/src/core/swap/trigger.dart';
+import 'package:mova/src/core/cutover/ctl.dart';
+import 'package:mova/src/core/cutover/plan.dart';
+import 'package:mova/src/core/cutover/trigger.dart';
 
 import 'fake_kernel.dart' show StatsProbeStub;
 
@@ -287,9 +287,9 @@ class FakeMovaApi implements MovaApi {
   void push(MovaState next) => _state.emit(next);
 
   /// Convenience for tests: bumps [MovaState.renderEpoch] by one, simulating
-  /// what [MovaSwapEngine] does on a committed swap.
+  /// what [MovaCutoverEngine] does on a committed cutover.
   ///
-  /// 测试便捷方法：把 [MovaState.renderEpoch] 加一，模拟 [MovaSwapEngine]
+  /// 测试便捷方法：把 [MovaState.renderEpoch] 加一，模拟 [MovaCutoverEngine]
   /// 提交切换后的行为。
   void bumpRenderEpoch() => push(state.copyWith(renderEpoch: state.renderEpoch + 1));
 
@@ -587,13 +587,13 @@ class FakePreviewApi implements MovaPreviewApi {
   Future<void> dispose() => _thumbs.close();
 }
 
-/// A test double for [MovaSwapController] that records every call it receives, so
-/// callers like `MovaAdController` can be tested against the swap verbs alone
-/// without a real [MovaSwapEngine].
+/// A test double for [MovaCutover] that records every call it receives, so
+/// callers like `MovaAds` can be tested against the cutover verbs alone
+/// without a real [MovaCutoverEngine].
 ///
-/// [MovaSwapController] 的测试替身：记录收到的每次调用，使 `MovaAdController` 这类调用方
-/// 无需真实 [MovaSwapEngine] 也能对着切换动词做测试。
-class FakeSwapCtl implements MovaSwapController {
+/// [MovaCutover] 的测试替身：记录收到的每次调用，使 `MovaAds` 这类调用方
+/// 无需真实 [MovaCutoverEngine] 也能对着切换动词做测试。
+class FakeCutoverCtl implements MovaCutover {
   /// Ordered method names invoked on this fake.
   ///
   /// 在该替身上被调用的方法名有序列表。
@@ -625,15 +625,15 @@ class FakeSwapCtl implements MovaSwapController {
   bool? lastWaitForReady;
 
   @override
-  bool swapEnabled = true;
+  bool cutoverEnabled = true;
 
   @override
-  MovaSwapPhase swapPhase = MovaSwapPhase.idle;
+  MovaCutoverPhase cutoverPhase = MovaCutoverPhase.idle;
 
-  final StreamController<MovaSwapPhase> _phases = StreamController<MovaSwapPhase>.broadcast();
+  final StreamController<MovaCutoverPhase> _phases = StreamController<MovaCutoverPhase>.broadcast();
 
   @override
-  Stream<MovaSwapPhase> get swapPhases => _phases.stream;
+  Stream<MovaCutoverPhase> get cutoverPhases => _phases.stream;
 
   @override
   Future<void> prepare(
@@ -660,21 +660,21 @@ class FakeSwapCtl implements MovaSwapController {
     calls.add('abandon');
   }
 
-  /// When set, [swapTo] waits on it before answering, to hold a swap in flight.
+  /// When set, [cutoverTo] waits on it before answering, to hold a cutover in flight.
   ///
-  /// 设置后 [swapTo] 会先等它再返回，用来把一次切换卡在半途。
-  Completer<void>? swapToGate;
+  /// 设置后 [cutoverTo] 会先等它再返回，用来把一次切换卡在半途。
+  Completer<void>? cutoverToGate;
 
-  /// The `rate` argument of the most recent [swapTo] call.
+  /// The `rate` argument of the most recent [cutoverTo] call.
   ///
-  /// 最近一次 [swapTo] 调用的 `rate` 参数。
-  double? lastSwapToRate;
+  /// 最近一次 [cutoverTo] 调用的 `rate` 参数。
+  double? lastCutoverToRate;
 
   @override
-  Future<bool> swapTo(MovaSource source, {Duration at = Duration.zero, double? rate}) async {
-    calls.add('swapTo');
-    lastSwapToRate = rate;
-    await swapToGate?.future;
+  Future<bool> cutoverTo(MovaSource source, {Duration at = Duration.zero, double? rate}) async {
+    calls.add('cutoverTo');
+    lastCutoverToRate = rate;
+    await cutoverToGate?.future;
     return commitResult;
   }
 
@@ -814,24 +814,24 @@ class FakeSttApi implements MovaSttApi {
   Future<void> dispose() => _cues.close();
 }
 
-/// A [FakeMovaApi] that also answers `setStandby`, recording `setStandby:<on>`
+/// A [FakeMovaApi] that also answers `setKeepAlive`, recording `setKeepAlive:<on>`
 /// into [calls].
 ///
-/// 兼具 `setStandby` 的 [FakeMovaApi]，把 `setStandby:<on>` 记进 [calls]。
-class FakeStandbyApi extends FakeMovaApi implements MovaStandbyController {
+/// 兼具 `setKeepAlive` 的 [FakeMovaApi]，把 `setKeepAlive:<on>` 记进 [calls]。
+class FakeKeepAliveApi extends FakeMovaApi implements MovaKeepAlive {
   /// Creates the fake; [options] is forwarded to [FakeMovaApi].
   ///
   /// 创建假对象；[options] 转交给 [FakeMovaApi]。
-  FakeStandbyApi({super.options});
+  FakeKeepAliveApi({super.options});
 
-  /// What `setStandby(true)` answers.
+  /// What `setKeepAlive(true)` answers.
   ///
-  /// `setStandby(true)` 的答复。
-  MovaStandbyPhase answerOn = MovaStandbyPhase.holding;
+  /// `setKeepAlive(true)` 的答复。
+  MovaKeepAlivePhase answerOn = MovaKeepAlivePhase.holding;
 
   @override
-  Future<MovaStandbyPhase> setStandby(bool on) async {
-    calls.add('setStandby:$on');
-    return on ? answerOn : MovaStandbyPhase.off;
+  Future<MovaKeepAlivePhase> setKeepAlive(bool on) async {
+    calls.add('setKeepAlive:$on');
+    return on ? answerOn : MovaKeepAlivePhase.off;
   }
 }

@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:mova/src/core/kernel/standby_kernel.dart';
+import 'package:mova/src/core/kernel/keep_alive_kernel.dart';
 
 void main() {
   group('movaAudioPresence', () {

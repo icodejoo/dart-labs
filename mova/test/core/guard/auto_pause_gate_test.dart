@@ -113,9 +113,9 @@ void main() {
     expect(_set(g, off, false, playing: false), MovaGuardAction.none);
   });
 
-  // ---- standby (hiddenMode) ----
+  // ---- keepAlive (hiddenMode) ----
 
-  const standbyCfg = MovaAutoPauseConfig(hiddenMode: MovaHiddenMode.standby);
+  const keepAliveCfg = MovaAutoPauseConfig(hiddenMode: MovaHiddenMode.keepAlive);
 
   /// Like [_set] but lets a case say whether the engine can hold a stream.
   ///
@@ -130,22 +130,22 @@ void main() {
     bool capable = true,
     Duration at = Duration.zero,
   }) =>
-      g.update(r, active, playing: playing, live: live, exempt: exempt, now: _t0.add(at), standbyCapable: capable);
+      g.update(r, active, playing: playing, live: live, exempt: exempt, now: _t0.add(at), keepAliveCapable: capable);
 
-  test('13. standby mode + live + capable engine: hiding holds, showing wakes', () {
-    final g = MovaAutoPauseGate(standbyCfg);
-    expect(sb(g, off, true), MovaGuardAction.standby);
+  test('13. keepAlive mode + live + capable engine: hiding holds, showing wakes', () {
+    final g = MovaAutoPauseGate(keepAliveCfg);
+    expect(sb(g, off, true), MovaGuardAction.keepAlive);
     expect(sb(g, off, false, playing: false), MovaGuardAction.wake);
   });
 
-  test('14. standby mode with VOD still pauses and resumes', () {
-    final g = MovaAutoPauseGate(standbyCfg);
+  test('14. keepAlive mode with VOD still pauses and resumes', () {
+    final g = MovaAutoPauseGate(keepAliveCfg);
     expect(sb(g, off, true, live: false), MovaGuardAction.pause);
     expect(sb(g, off, false, live: false, playing: false), MovaGuardAction.resume);
   });
 
-  test('15. standby mode with an engine that cannot hold pauses, and a long live pause reloads the edge', () {
-    final g = MovaAutoPauseGate(standbyCfg);
+  test('15. keepAlive mode with an engine that cannot hold pauses, and a long live pause reloads the edge', () {
+    final g = MovaAutoPauseGate(keepAliveCfg);
     expect(sb(g, off, true, capable: false), MovaGuardAction.pause);
     expect(
       sb(g, off, false, capable: false, playing: false, at: const Duration(seconds: 4)),
@@ -153,15 +153,15 @@ void main() {
     );
   });
 
-  test('16. a hide that starts with backgrounding never enters standby', () {
-    final g = MovaAutoPauseGate(standbyCfg);
+  test('16. a hide that starts with backgrounding never enters keepAlive', () {
+    final g = MovaAutoPauseGate(keepAliveCfg);
     expect(sb(g, MovaHideReason.background, true), MovaGuardAction.pause);
     expect(sb(g, MovaHideReason.background, false, playing: false), MovaGuardAction.resume);
   });
 
   test('17. backgrounding while held downgrades to a pause, and showing then goes back to the edge', () {
-    final g = MovaAutoPauseGate(standbyCfg);
-    expect(sb(g, MovaHideReason.tickerOff, true), MovaGuardAction.standby);
+    final g = MovaAutoPauseGate(keepAliveCfg);
+    expect(sb(g, MovaHideReason.tickerOff, true), MovaGuardAction.keepAlive);
     expect(sb(g, MovaHideReason.background, true, playing: false), MovaGuardAction.pause);
     expect(sb(g, MovaHideReason.background, false, playing: false), MovaGuardAction.none);
     expect(g.hidden, isTrue);
@@ -172,44 +172,44 @@ void main() {
   });
 
   test('18. exempt (pip / mini) neither holds nor wakes', () {
-    final g = MovaAutoPauseGate(standbyCfg);
+    final g = MovaAutoPauseGate(keepAliveCfg);
     expect(sb(g, off, true, exempt: true), MovaGuardAction.none);
     expect(sb(g, off, false, exempt: true, playing: false), MovaGuardAction.none);
   });
 
-  test('19. resumeOnShow:false still leaves standby, by pausing', () {
-    final g = MovaAutoPauseGate(const MovaAutoPauseConfig(hiddenMode: MovaHiddenMode.standby, resumeOnShow: false));
-    expect(sb(g, off, true), MovaGuardAction.standby);
+  test('19. resumeOnShow:false still leaves keepAlive, by pausing', () {
+    final g = MovaAutoPauseGate(const MovaAutoPauseConfig(hiddenMode: MovaHiddenMode.keepAlive, resumeOnShow: false));
+    expect(sb(g, off, true), MovaGuardAction.keepAlive);
     expect(sb(g, off, false, playing: false), MovaGuardAction.pause);
   });
 
   test('20. hiddenMode defaults to pause and takes part in == and hashCode', () {
     expect(const MovaAutoPauseConfig().hiddenMode, MovaHiddenMode.pause);
-    expect(standbyCfg, isNot(const MovaAutoPauseConfig()));
-    expect(standbyCfg.hashCode, isNot(const MovaAutoPauseConfig().hashCode));
-    expect(standbyCfg, const MovaAutoPauseConfig(hiddenMode: MovaHiddenMode.standby));
+    expect(keepAliveCfg, isNot(const MovaAutoPauseConfig()));
+    expect(keepAliveCfg.hashCode, isNot(const MovaAutoPauseConfig().hashCode));
+    expect(keepAliveCfg, const MovaAutoPauseConfig(hiddenMode: MovaHiddenMode.keepAlive));
   });
 
   test('21. a play intent appearing mid-hide: pause mode (or an engine that cannot hold) still pauses', () {
     final g = MovaAutoPauseGate(const MovaAutoPauseConfig());
     sb(g, off, true, playing: false);
-    expect(g.observe(playing: true, exempt: false, live: true, standbyCapable: true), MovaGuardAction.pause);
+    expect(g.observe(playing: true, exempt: false, live: true, keepAliveCapable: true), MovaGuardAction.pause);
     expect(sb(g, off, false, playing: false, at: const Duration(seconds: 4)), MovaGuardAction.reloadEdge);
 
-    final h = MovaAutoPauseGate(standbyCfg);
+    final h = MovaAutoPauseGate(keepAliveCfg);
     sb(h, off, true, playing: false);
     expect(h.observe(playing: true, exempt: false, live: true), MovaGuardAction.pause);
     expect(sb(h, off, false, playing: false), MovaGuardAction.resume);
   });
 
-  test('22. a play intent appearing mid-hide in standby mode holds it, unless the app is backgrounded', () {
-    final g = MovaAutoPauseGate(standbyCfg);
+  test('22. a play intent appearing mid-hide in keepAlive mode holds it, unless the app is backgrounded', () {
+    final g = MovaAutoPauseGate(keepAliveCfg);
     sb(g, off, true, playing: false);
-    expect(g.observe(playing: true, exempt: false, live: true, standbyCapable: true), MovaGuardAction.standby);
+    expect(g.observe(playing: true, exempt: false, live: true, keepAliveCapable: true), MovaGuardAction.keepAlive);
     expect(sb(g, off, false, playing: false), MovaGuardAction.wake);
 
-    final h = MovaAutoPauseGate(standbyCfg);
+    final h = MovaAutoPauseGate(keepAliveCfg);
     sb(h, MovaHideReason.background, true, playing: false);
-    expect(h.observe(playing: true, exempt: false, live: true, standbyCapable: true), MovaGuardAction.pause);
+    expect(h.observe(playing: true, exempt: false, live: true, keepAliveCapable: true), MovaGuardAction.pause);
   });
 }

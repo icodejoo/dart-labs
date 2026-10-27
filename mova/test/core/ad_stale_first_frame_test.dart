@@ -2,7 +2,7 @@ import 'dart:async';
 
 import 'package:fake_async/fake_async.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:mova/src/core/ad/ad_controller.dart';
+import 'package:mova/src/core/ad/ads.dart';
 import 'package:mova/src/core/ad/fail.dart';
 import 'package:mova/src/core/events/events.dart';
 import 'package:mova/src/core/model/ad.dart';
@@ -56,13 +56,13 @@ class _GatedOpenApi extends FakeMovaApi {
   }
 }
 
-/// Swap double whose `swapTo` suspends until [gate] completes.
+/// Cutover double whose `cutoverTo` suspends until [gate] completes.
 ///
-/// `swapTo` 会挂起到 [gate] 完成的切换替身。
-class _GatedSwapCtl extends FakeSwapCtl {
-  /// Completer that releases the suspended `swapTo`.
+/// `cutoverTo` 会挂起到 [gate] 完成的切换替身。
+class _GatedCutoverCtl extends FakeCutoverCtl {
+  /// Completer that releases the suspended `cutoverTo`.
   ///
-  /// 放行被挂起的 `swapTo` 的 completer。
+  /// 放行被挂起的 `cutoverTo` 的 completer。
   final Completer<void> gate = Completer<void>();
 
   /// Runs right after the gate opens, to model the ad engine taking over.
@@ -71,8 +71,8 @@ class _GatedSwapCtl extends FakeSwapCtl {
   void Function()? onSettled;
 
   @override
-  Future<bool> swapTo(MovaSource source, {Duration at = Duration.zero, double? rate}) async {
-    calls.add('swapTo');
+  Future<bool> cutoverTo(MovaSource source, {Duration at = Duration.zero, double? rate}) async {
+    calls.add('cutoverTo');
     await gate.future;
     onSettled?.call();
     return commitResult;
@@ -110,25 +110,25 @@ MovaOpts _opts(List<MovaAdBreak> breaks, _RecordingFail policy, {bool waitPre = 
     );
 
 void main() {
-  group('stale first-frame signals while open()/swapTo() is in flight', () {
-    test('swap path: a stale rendered tick before swapTo settles does not leave the load timer orphaned', () {
+  group('stale first-frame signals while open()/cutoverTo() is in flight', () {
+    test('cutover path: a stale rendered tick before cutoverTo settles does not leave the load timer orphaned', () {
       fakeAsync((async) {
         final policy = _RecordingFail();
         final api = FakeMovaApi(options: _opts([_pre1, _preOpen], policy, waitPre: true));
-        final swap = _GatedSwapCtl()..commitResult = true;
-        final c = MovaAdController(api, swap: swap);
+        final cutover = _GatedCutoverCtl()..commitResult = true;
+        final c = MovaAds(api, cutover: cutover);
         c.load(_content);
         _flush(async);
-        // pre1 went through prepare/commit; end it so pre2 chains via swapTo.
+        // pre1 went through prepare/commit; end it so pre2 chains via cutoverTo.
         api.push(api.state.copyWith(rendered: true));
         api.pushEvent(const MovaDone());
         _flush(async);
-        expect(swap.calls, contains('swapTo'));
+        expect(cutover.calls, contains('cutoverTo'));
         // Old engine still on screen: its rendered tick must be discarded.
         api.pushProgress(const MovaProg(position: Duration(seconds: 3)));
         _flush(async);
-        swap.onSettled = () => api.push(api.state.copyWith(rendered: false));
-        swap.gate.complete();
+        cutover.onSettled = () => api.push(api.state.copyWith(rendered: false));
+        cutover.gate.complete();
         _flush(async);
         // The ad's own first frame lands shortly after.
         async.elapse(const Duration(seconds: 1));
@@ -145,7 +145,7 @@ void main() {
       fakeAsync((async) {
         final policy = _RecordingFail();
         final api = _GatedOpenApi(options: _opts([_preOpen], policy));
-        final c = MovaAdController(api);
+        final c = MovaAds(api);
         c.load(_content);
         _flush(async);
         // 内容引擎的残留：open 尚未落定，rendered 为 true 的 tick 先到。
@@ -168,7 +168,7 @@ void main() {
       fakeAsync((async) {
         final policy = _RecordingFail();
         final api = _GatedOpenApi(options: _opts([_pre2], policy))..renderedAfterOpen = true;
-        final c = MovaAdController(api);
+        final c = MovaAds(api);
         c.load(_content);
         _flush(async);
         api.gate.complete();

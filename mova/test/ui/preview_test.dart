@@ -25,13 +25,13 @@ final Uint8List _png = Uint8List.fromList(<int>[
 ]);
 
 /// A [FakeMovaApi] whose [preview] instance can be replaced, mimicking what
-/// `MovaSwapEngine` does on a committed swap.
+/// `MovaCutoverEngine` does on a committed cutover.
 ///
-/// 可替换 [preview] 实例的 [FakeMovaApi]，模拟 `MovaSwapEngine` 提交切换后的行为。
-class _SwappingApi extends FakeMovaApi {
-  /// The live preview double; replaced by [swapPreview].
+/// 可替换 [preview] 实例的 [FakeMovaApi]，模拟 `MovaCutoverEngine` 提交切换后的行为。
+class _CutoverpingApi extends FakeMovaApi {
+  /// The live preview double; replaced by [cutoverPreview].
   ///
-  /// 当前生效的预览替身；由 [swapPreview] 替换。
+  /// 当前生效的预览替身；由 [cutoverPreview] 替换。
   FakePreviewApi _live = FakePreviewApi();
 
   @override
@@ -40,7 +40,7 @@ class _SwappingApi extends FakeMovaApi {
   /// Closes the old preview, installs a fresh one and bumps `renderEpoch`.
   ///
   /// 关闭旧预览、装上新预览并把 `renderEpoch` 加一。
-  Future<FakePreviewApi> swapPreview() async {
+  Future<FakePreviewApi> cutoverPreview() async {
     final old = _live;
     _live = FakePreviewApi();
     await old.dispose();
@@ -134,13 +134,13 @@ void main() {
   });
 
   testWidgets('re-subscribes to the new preview after a renderEpoch change', (t) async {
-    final swapping = _SwappingApi();
+    final swapping = _CutoverpingApi();
     addTearDown(swapping.dispose);
     await pumpComponent(t, swapping, MovaPreviewComponent());
     swapping.pushUi(const MovaUiState(dragging: true, previewAt: Duration(seconds: 10)));
     await t.pump();
     await t.pump();
-    final fresh = await swapping.swapPreview();
+    final fresh = await swapping.cutoverPreview();
     await t.pump();
     await t.pump();
     fresh.push(MovaThumb(at: const Duration(seconds: 10), bytes: _png));

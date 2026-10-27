@@ -168,11 +168,11 @@ void main() {
   });
 
   group('remapProportionally', () {
-    test('preserves relative position across a rotation (bounds swap)', () {
+    test('preserves relative position across a rotation (bounds cutover)', () {
       // Portrait 400x800, window snapped near the bottom-right corner.
       const portrait = MovaMiniRect(left: 0, top: 0, width: 400, height: 800);
       const r = MovaMiniRect(left: 280, top: 730, width: 120, height: 70);
-      // Rotate to landscape: bounds swap width/height.
+      // Rotate to landscape: bounds cutover width/height.
       const landscape = MovaMiniRect(left: 0, top: 0, width: 800, height: 400);
       final remapped = remapProportionally(r, oldBounds: portrait, newBounds: landscape);
       // Still ~"bottom-right": far right, far down — not stuck near the old

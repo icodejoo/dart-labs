@@ -138,7 +138,7 @@ class _RunnerPageState extends State<_RunnerPage> {
     }
     _log('C group (content smoothness during delay countdown): $cResult');
     _log('E group (duration-bounded ad reclaim timing): $eResult');
-    _log('F group (ads/swap disabled baseline regression): $fResult');
+    _log('F group (ads/cutover disabled baseline regression): $fResult');
     _log('=== DONE ===');
     if (mounted) setState(() => _done = true);
   }
@@ -150,7 +150,7 @@ class _RunnerPageState extends State<_RunnerPage> {
   /// Runs [n] independent samples of the mid-roll wait-for-ready gap: the
   /// real interval between [MovaAdEventType.pending] (the instant
   /// `dueMidRoll` fires and the controller decides to insert the mid-roll)
-  /// and [MovaAdEventType.started] (the instant the atomic swap has
+  /// and [MovaAdEventType.started] (the instant the atomic cutover has
   /// committed and the ad is actually on screen).
   ///
   /// Each sample opens a fresh engine so no state leaks between samples and
@@ -209,10 +209,10 @@ class _RunnerPageState extends State<_RunnerPage> {
           }
         },
       ),
-      swap: const MovaSwapConfig(enabled: true, trigger: MovaEagerWarm()),
+      cutover: const MovaCutoverConfig(enabled: true, trigger: MovaEagerWarm()),
     );
-    final engine = MovaSwapEngine(engineFactory: () => createMovaEngine(options: opts));
-    final controller = MovaAdController(engine, swap: engine);
+    final engine = MovaCutoverEngine(engineFactory: () => createMovaEngine(options: opts));
+    final controller = MovaAds(engine, cutover: engine);
     try {
       await controller.load(_content());
       await _waitForRealPlayback(engine);
@@ -287,10 +287,10 @@ class _RunnerPageState extends State<_RunnerPage> {
           }
         },
       ),
-      swap: const MovaSwapConfig(enabled: true, trigger: MovaEagerWarm()),
+      cutover: const MovaCutoverConfig(enabled: true, trigger: MovaEagerWarm()),
     );
-    final engine = MovaSwapEngine(engineFactory: () => createMovaEngine(options: opts));
-    final controller = MovaAdController(engine, swap: engine);
+    final engine = MovaCutoverEngine(engineFactory: () => createMovaEngine(options: opts));
+    final controller = MovaAds(engine, cutover: engine);
     StreamSubscription<MovaProg>? sampleSub;
     try {
       await controller.load(_content());
@@ -432,10 +432,10 @@ class _RunnerPageState extends State<_RunnerPage> {
           }
         },
       ),
-      swap: const MovaSwapConfig(enabled: true, trigger: MovaEagerWarm()),
+      cutover: const MovaCutoverConfig(enabled: true, trigger: MovaEagerWarm()),
     );
-    final engine = MovaSwapEngine(engineFactory: () => createMovaEngine(options: opts));
-    final controller = MovaAdController(engine, swap: engine);
+    final engine = MovaCutoverEngine(engineFactory: () => createMovaEngine(options: opts));
+    final controller = MovaAds(engine, cutover: engine);
     var lastPos = Duration.zero;
     final posSub = engine.progress.listen((p) => lastPos = p.position);
     try {
@@ -472,24 +472,24 @@ class _RunnerPageState extends State<_RunnerPage> {
   }
 
   // ---------------------------------------------------------------------
-  // Group F: ads/swap disabled — behaviour must be unchanged.
+  // Group F: ads/cutover disabled — behaviour must be unchanged.
   // ---------------------------------------------------------------------
 
   /// Builds a controller with [MovaAdConfig.enabled] and
-  /// [MovaSwapConfig.enabled] both false (breaks still configured, to prove
+  /// [MovaCutoverConfig.enabled] both false (breaks still configured, to prove
   /// they are genuinely ignored, not just empty), plays content for 8s, and
   /// asserts zero [MovaAdEvent]s fired, [MovaState.renderEpoch] never left 0
-  /// (the swap engine documented as a pure passthrough when disabled), and
+  /// (the cutover engine documented as a pure passthrough when disabled), and
   /// content position advanced steadily — the baseline regression this group
   /// asked for.
   ///
-  /// 构造一个 [MovaAdConfig.enabled] 与 [MovaSwapConfig.enabled] 均为
+  /// 构造一个 [MovaAdConfig.enabled] 与 [MovaCutoverConfig.enabled] 均为
   /// false 的控制器（排期仍然配置着，用以证明它确实被忽略、而非本就是空的），
   /// 播放正片 8 秒，断言零 [MovaAdEvent] 触发、[MovaState.renderEpoch] 从未
   /// 离开过 0（文档记载的关闭态下切换引擎为纯直通），以及正片位置稳定推进——
   /// 本组要求的基线回归。
   Future<String> _runGroupF() async {
-    _log('--- Group F: ads/swap disabled baseline regression ---');
+    _log('--- Group F: ads/cutover disabled baseline regression ---');
     final adEvents = <MovaAdEventType>[];
     final mid = MovaAdBreak(
       kind: MovaAdBreakKind.mid,
@@ -502,10 +502,10 @@ class _RunnerPageState extends State<_RunnerPage> {
         breaks: [mid],
         onAdEvent: (e) => adEvents.add(e.type),
       ),
-      swap: const MovaSwapConfig(enabled: false),
+      cutover: const MovaCutoverConfig(enabled: false),
     );
-    final engine = MovaSwapEngine(engineFactory: () => createMovaEngine(options: opts));
-    final controller = MovaAdController(engine, swap: engine);
+    final engine = MovaCutoverEngine(engineFactory: () => createMovaEngine(options: opts));
+    final controller = MovaAds(engine, cutover: engine);
     final epochs = <int>{};
     final sub = engine.states.listen((s) => epochs.add(s.renderEpoch));
     var lastPos = Duration.zero;

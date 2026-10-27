@@ -4,7 +4,7 @@ import 'package:mova/src/core/model/quality.dart';
 import 'package:mova/src/core/model/source.dart';
 import 'package:mova/src/core/report/report.dart';
 import 'package:mova/src/core/report/translator.dart';
-import 'package:mova/src/core/swap/ctl.dart';
+import 'package:mova/src/core/cutover/ctl.dart';
 
 void main() {
   final fixedNow = DateTime(2026, 1, 1);
@@ -117,8 +117,8 @@ void main() {
       expect(translateMovaEvent(const MovaReady(), now: now), isNull);
     });
 
-    test('MovaSwapChange is excluded (internal implementation detail)', () {
-      expect(translateMovaEvent(const MovaSwapChange(MovaSwapPhase.idle), now: now), isNull);
+    test('MovaCutoverChange is excluded (internal implementation detail)', () {
+      expect(translateMovaEvent(const MovaCutoverChange(MovaCutoverPhase.idle), now: now), isNull);
     });
 
     test('MovaTimeShiftChange is excluded (flaps while timeshifting)', () {

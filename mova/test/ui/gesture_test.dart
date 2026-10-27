@@ -42,7 +42,7 @@ void main() {
     await api.dispose();
   });
 
-  testWidgets('the side↔action mapping is configurable (swap left back to volume)', (tester) async {
+  testWidgets('the side↔action mapping is configurable (cutover left back to volume)', (tester) async {
     final api = FakeMovaApi(
       options: const MovaOpts(
         gesture: MovaGestureConfig(

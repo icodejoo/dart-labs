@@ -12,7 +12,7 @@ const _spikeSourceB = 'https://interactive-examples.mdn.mozilla.net/media/cc0-vi
 
 /// A measurement harness for the dual-engine preload question: how much
 /// memory does keeping a *second* [MovaEngine] warm (opened and parked on its
-/// first frame, ready to swap in) actually cost on top of the single-engine
+/// first frame, ready to cutover in) actually cost on top of the single-engine
 /// baseline the feed uses today?
 ///
 /// Not a demo and not shipped behaviour — it exists purely so

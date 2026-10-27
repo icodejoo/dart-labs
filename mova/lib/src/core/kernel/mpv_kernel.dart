@@ -6,7 +6,7 @@ import 'package:media_kit/media_kit.dart';
 import 'package:media_kit_video/media_kit_video.dart';
 
 import '../report/stats_probe.dart';
-import '../standby/standby.dart';
+import '../keep_alive/keep_alive.dart';
 import 'kernel.dart';
 import 'mpv_defaults.dart';
 import 'mpv_event_backend.dart';
@@ -14,7 +14,7 @@ import 'mpv_event_pump.dart';
 import 'mpv_keyvalue.dart';
 import 'player_mute.dart';
 import 'source_options_kernel.dart';
-import 'standby_kernel.dart';
+import 'keep_alive_kernel.dart';
 
 /// 弱客户端后端工厂函数定义。
 typedef MovaMpvEventBackendFactory = MovaMpvEventBackend Function(NativePlayer native, int handleAddress);
@@ -50,16 +50,16 @@ const String _kVidAuto = 'auto';
 /// engine-agnostic. It also implements [MovaStatsProbe] — the QoE layer's
 /// optional capability for libmpv's own statistics — since that
 /// implementation can only live here too. It also implements
-/// [MovaStandbyKernel] (hold a hidden stream with video/sound off).
+/// [MovaKeepAliveKernel] (hold a hidden stream with video/sound off).
 ///
 /// 基于 media_kit `Player` 实现的 [MovaKernel]。
 ///
 /// 这是核心层中唯一允许依赖 `package:media_kit` 的文件；`lib/src/core/` 下
 /// 其余所有文件都必须与具体引擎无关。它同时实现 [MovaStatsProbe]——QoE 层用来
 /// 拿 libmpv 自身统计量的可选能力——因为这个实现同样只能落在这里。同时实现
-/// [MovaStandbyKernel]（在隐藏时关画面/关声音维持流）。
+/// [MovaKeepAliveKernel]（在隐藏时关画面/关声音维持流）。
 class MovaMpvKernel
-    implements MovaKernel, MovaStatsProbe, MovaStandbyKernel, MovaPlayerMute, MovaSourceOptionsKernel {
+    implements MovaKernel, MovaStatsProbe, MovaKeepAliveKernel, MovaPlayerMute, MovaSourceOptionsKernel {
   /// Creates a media_kit-backed kernel.
   ///
   /// [player] lets the caller inject an existing `Player` (e.g. for testing
@@ -900,33 +900,33 @@ class MovaMpvKernel
   }
 
   // ---------------------------------------------------------------------
-  // MovaStandbyKernel — hold the stream with video/sound off. Only `mute`
+  // MovaKeepAliveKernel — hold the stream with video/sound off. Only `mute`
   // and `vid` are touched, saved first and restored verbatim; never
   // `volume` (a system-volume port may own it), `vo`/`wid` (media_kit's
   // Android widListener owns them) or the VideoController.
   //
-  // MovaStandbyKernel——关掉画面/声音维持流。只碰 `mute` 与 `vid`，先保存、再原样还原；
+  // MovaKeepAliveKernel——关掉画面/声音维持流。只碰 `mute` 与 `vid`，先保存、再原样还原；
   // 绝不碰 `volume`（可能归系统音量端口管）、`vo`/`wid`（归 media_kit 的 Android
   // widListener 管）以及 VideoController。
   // ---------------------------------------------------------------------
 
-  /// Upper bound for one standby property read/write.
+  /// Upper bound for one keepAlive property read/write.
   ///
   /// 单次待机属性读写的上限。
-  static const Duration _standbyOpTimeout = Duration(seconds: 2);
+  static const Duration _keepAliveOpTimeout = Duration(seconds: 2);
 
-  /// Values saved by [enterStandby]; null when not in standby.
+  /// Values saved by [enterKeepAlive]; null when not in keepAlive.
   ///
-  /// [enterStandby] 保存的原值；不在待机时为 null。
-  Map<String, String>? _standbySaved;
+  /// [enterKeepAlive] 保存的原值；不在待机时为 null。
+  Map<String, String>? _keepAliveSaved;
 
-  /// Original mute before warm-up; standby's saved mute follows this ownership.
+  /// Original mute before warm-up; keepAlive's saved mute follows this ownership.
   ///
   /// 预热前的原始静音；待机保存的静音随此所有权调整。
   String? _warmMuteSaved;
 
-  /// Applies player-local warm-up mute in the same queue as standby.
-  /// While both own mute, standby saves `yes`; releasing warm-up replaces that
+  /// Applies player-local warm-up mute in the same queue as keepAlive.
+  /// While both own mute, keepAlive saves `yes`; releasing warm-up replaces that
   /// saved value with the original, so either release order preserves the other.
   ///
   /// 在与待机相同的队列里应用播放器预热静音。
@@ -935,23 +935,23 @@ class MovaMpvKernel
   /// [on] acquires/releases mute; returns success / [on] 获取或释放静音；返回是否成功。
   /// Example / 示例：`await kernel.setWarmMute(true);`
   @override
-  Future<bool> setWarmMute(bool on) => _standbySerial(() async {
+  Future<bool> setWarmMute(bool on) => _keepAliveSerial(() async {
         final native = _player.platform;
         if (_disposed || native is! NativePlayer) return false;
         if (on == (_warmMuteSaved != null)) return true;
         try {
           if (on) {
-            final saved = _standbySaved?['mute'] ??
-                await native.getProperty('mute').timeout(_standbyOpTimeout);
-            await native.setProperty('mute', 'yes').timeout(_standbyOpTimeout);
+            final saved = _keepAliveSaved?['mute'] ??
+                await native.getProperty('mute').timeout(_keepAliveOpTimeout);
+            await native.setProperty('mute', 'yes').timeout(_keepAliveOpTimeout);
             _warmMuteSaved = saved;
-            if (_standbySaved != null) _standbySaved!['mute'] = 'yes';
+            if (_keepAliveSaved != null) _keepAliveSaved!['mute'] = 'yes';
           } else {
             final saved = _warmMuteSaved!;
-            if (_standbySaved != null) {
-              _standbySaved!['mute'] = saved;
+            if (_keepAliveSaved != null) {
+              _keepAliveSaved!['mute'] = saved;
             } else {
-              await native.setProperty('mute', saved).timeout(_standbyOpTimeout);
+              await native.setProperty('mute', saved).timeout(_keepAliveOpTimeout);
             }
             _warmMuteSaved = null;
           }
@@ -964,19 +964,19 @@ class MovaMpvKernel
   /// Serializes enter/exit so property writes never interleave.
   ///
   /// 串行化进入/退出，使属性写入永不交错。
-  Future<void> _standbyQueue = Future<void>.value();
+  Future<void> _keepAliveQueue = Future<void>.value();
 
-  /// Runs [step] after every earlier standby step has settled.
+  /// Runs [step] after every earlier keepAlive step has settled.
   ///
   /// 在之前所有待机步骤落定后执行 [step]。
-  Future<T> _standbySerial<T>(Future<T> Function() step) {
-    final next = _standbyQueue.then((_) => step());
-    _standbyQueue = next.then<void>((_) {}, onError: (Object _) {});
+  Future<T> _keepAliveSerial<T>(Future<T> Function() step) {
+    final next = _keepAliveQueue.then((_) => step());
+    _keepAliveQueue = next.then<void>((_) {}, onError: (Object _) {});
     return next;
   }
 
   @override
-  Future<MovaStandbyMedia> inspectStandby() async {
+  Future<MovaKeepAliveMedia> inspectKeepAlive() async {
     final format = await _readNativeProperty('file-format');
     try {
       final s = _player.state;
@@ -986,60 +986,60 @@ class MovaMpvKernel
         selectedAudio: s.track.audio.id,
         sampleRate: s.audioParams.sampleRate,
       );
-      return MovaStandbyMedia(audio: audio, format: format);
+      return MovaKeepAliveMedia(audio: audio, format: format);
     } on Object {
-      return MovaStandbyMedia(audio: MovaAudioPresence.unknown, format: format);
+      return MovaKeepAliveMedia(audio: MovaAudioPresence.unknown, format: format);
     }
   }
 
   @override
-  Future<bool> enterStandby(MovaStandbyMode mode) => _standbySerial(() async {
+  Future<bool> enterKeepAlive(MovaKeepAliveMode mode) => _keepAliveSerial(() async {
         if (_disposed) return false;
-        if (_standbySaved != null) return true; // 幂等
+        if (_keepAliveSaved != null) return true; // 幂等
         final native = _player.platform;
         if (native is! NativePlayer) return false;
         try {
-          final mute = await native.getProperty('mute').timeout(_standbyOpTimeout);
-          final vid = mode == MovaStandbyMode.muted
-              ? await native.getProperty('vid').timeout(_standbyOpTimeout)
+          final mute = await native.getProperty('mute').timeout(_keepAliveOpTimeout);
+          final vid = mode == MovaKeepAliveMode.muted
+              ? await native.getProperty('vid').timeout(_keepAliveOpTimeout)
               : null;
           final saved = <String, String>{'mute': mute};
           if (vid != null) saved['vid'] = vid;
-          _standbySaved = saved;
-          await native.setProperty('mute', 'yes').timeout(_standbyOpTimeout);
+          _keepAliveSaved = saved;
+          await native.setProperty('mute', 'yes').timeout(_keepAliveOpTimeout);
           if (vid != null && vid != 'no') {
-            await native.setProperty('vid', 'no').timeout(_standbyOpTimeout);
+            await native.setProperty('vid', 'no').timeout(_keepAliveOpTimeout);
           }
           return true;
         } on Object {
-          await _restoreStandby(native);
+          await _restoreKeepAlive(native);
           return false;
         }
       });
 
   @override
-  Future<bool> exitStandby() => _standbySerial(() async {
+  Future<bool> exitKeepAlive() => _keepAliveSerial(() async {
         final native = _player.platform;
         if (_disposed || native is! NativePlayer) {
-          _standbySaved = null;
+          _keepAliveSaved = null;
           return false;
         }
-        return _restoreStandby(native);
+        return _restoreKeepAlive(native);
       });
 
-  /// Writes back whatever [_standbySaved] holds, video first; best effort.
+  /// Writes back whatever [_keepAliveSaved] holds, video first; best effort.
   /// Returns whether `vid` went from `no` back to a real value.
   ///
-  /// 把 [_standbySaved] 里的值写回，先视频后声音；尽力而为。返回 `vid` 是否从 `no` 恢复成了实际值。
-  Future<bool> _restoreStandby(NativePlayer native) async {
-    final saved = _standbySaved;
-    _standbySaved = null;
+  /// 把 [_keepAliveSaved] 里的值写回，先视频后声音；尽力而为。返回 `vid` 是否从 `no` 恢复成了实际值。
+  Future<bool> _restoreKeepAlive(NativePlayer native) async {
+    final saved = _keepAliveSaved;
+    _keepAliveSaved = null;
     if (saved == null) return false;
     var restarted = false;
     final vid = saved['vid'];
     if (vid != null && vid != 'no') {
       try {
-        await native.setProperty('vid', vid).timeout(_standbyOpTimeout);
+        await native.setProperty('vid', vid).timeout(_keepAliveOpTimeout);
         restarted = true;
       } on Object {
         // 尽力而为：写不回去就让后续的 mute 继续还原。
@@ -1048,7 +1048,7 @@ class MovaMpvKernel
     final mute = saved['mute'];
     if (mute != null) {
       try {
-        await native.setProperty('mute', mute).timeout(_standbyOpTimeout);
+        await native.setProperty('mute', mute).timeout(_keepAliveOpTimeout);
       } on Object {
         // 尽力而为。
       }

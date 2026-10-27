@@ -150,9 +150,9 @@ void main() {
     },
   );
 
-  for (final swap in [false, true]) {
+  for (final cutover in [false, true]) {
     testWidgets(
-      '#5 delayed live resume checks ${swap ? "api replacement" : "hidden generation"}',
+      '#5 delayed live resume checks ${cutover ? "api replacement" : "hidden generation"}',
       (t) async {
         const config = MovaAutoPauseConfig(liveResumeGrace: Duration.zero);
         final api = _SlowEdge()
@@ -163,7 +163,7 @@ void main() {
         await t.pump(const Duration(seconds: 4));
         await t.pumpWidget(_guard(api, true, config: config));
         expect(api.calls, contains('backToLiveEdge'));
-        if (swap) {
+        if (cutover) {
           await t.pumpWidget(_guard(FakeMovaApi(), true));
         } else {
           await t.pumpWidget(_guard(api, false, config: config));

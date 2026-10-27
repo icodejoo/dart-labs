@@ -5,7 +5,7 @@ import 'report.dart';
 /// [event] isn't in the reportable whitelist.
 ///
 /// This is the single, centralized place that decides which [MovaEvent]
-/// variants are worth reporting — call sites in `MovaEngine`/`MovaSwapEngine`
+/// variants are worth reporting — call sites in `MovaEngine`/`MovaCutoverEngine`
 /// must never sprinkle ad-hoc `reporter.onReport(...)` calls of their own.
 ///
 /// Deliberately excluded (and why): [MovaBufferChange]/[MovaTimeShiftChange]
@@ -15,7 +15,7 @@ import 'report.dart';
 /// [MovaZoomChange]/[MovaRateChange]/[MovaLockChange]/[MovaOrientationChange]
 /// (fire once per pixel of a drag gesture), [MovaReady] (fires on every
 /// successful open right alongside [MovaSourceChange], redundant),
-/// [MovaSwapChange] (internal seamless-swap implementation detail),
+/// [MovaCutoverChange] (internal seamless-cutover implementation detail),
 /// [MovaPreviewBlock]/[MovaSttBlock] (internal refusal diagnostics, not
 /// analytics-worthy business events).
 ///
@@ -23,7 +23,7 @@ import 'report.dart';
 /// 返回 `null`。
 ///
 /// 这是唯一、集中判断哪些 [MovaEvent] 子类型值得上报的一处——`MovaEngine`/
-/// `MovaSwapEngine` 的调用方绝不应该自行散落插入零星的 `reporter.onReport(...)`
+/// `MovaCutoverEngine` 的调用方绝不应该自行散落插入零星的 `reporter.onReport(...)`
 /// 调用。
 ///
 /// 刻意排除（及理由）：[MovaBufferChange]/[MovaTimeShiftChange]（卡顿/时移期间
@@ -32,7 +32,7 @@ import 'report.dart';
 /// [MovaVolumeChange]/[MovaBrightChange]/[MovaZoomChange]/[MovaRateChange]/
 /// [MovaLockChange]/[MovaOrientationChange]（拖动手势每个像素都会触发一次）、
 /// [MovaReady]（与 [MovaSourceChange] 几乎同时触发，信息冗余）、
-/// [MovaSwapChange]（无缝切换的内部实现细节）、[MovaPreviewBlock]/
+/// [MovaCutoverChange]（无缝切换的内部实现细节）、[MovaPreviewBlock]/
 /// [MovaSttBlock]（内部拒绝诊断，非业务分析事件）。
 MovaReportEvent? translateMovaEvent(MovaEvent event, {DateTime Function() now = DateTime.now}) {
   switch (event) {

@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../core/api.dart';
-import '../../core/feed/feed_controller.dart';
+import '../../core/feed/feed.dart';
 import '../slots/component.dart';
 import '../slots/slot.dart';
 
@@ -38,7 +38,7 @@ class MovaDouyinGestureLayerComponent extends MovaComponent {
   /// The feed controller owning local like state.
   ///
   /// 持有本地点赞状态的 feed 控制器。
-  final MovaFeedController controller;
+  final MovaFeed controller;
 
   /// This page's feed index.
   ///
@@ -68,11 +68,11 @@ class MovaDouyinGestureLayerComponent extends MovaComponent {
 }
 
 /// Stateful gesture recognizer; owns only the transient heart-burst
-/// animation trigger, all persistent state lives in [MovaFeedController]/
+/// animation trigger, all persistent state lives in [MovaFeed]/
 /// [likeNotifier].
 ///
 /// 有状态手势识别器；只持有瞬时的心形动画触发计数，持久状态都在
-/// [MovaFeedController]/[likeNotifier] 里。
+/// [MovaFeed]/[likeNotifier] 里。
 class _DouyinGestureLayer extends StatefulWidget {
   /// Creates the internal douyin gesture widget.
   ///
@@ -92,7 +92,7 @@ class _DouyinGestureLayer extends StatefulWidget {
   /// The feed controller owning local like state.
   ///
   /// 持有本地点赞状态的 feed 控制器。
-  final MovaFeedController controller;
+  final MovaFeed controller;
 
   /// This page's feed index.
   ///

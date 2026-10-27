@@ -1,8 +1,8 @@
 import '../ad/fail.dart';
 import '../model/ad.dart';
-import '../swap/plan.dart';
-import '../swap/trigger.dart';
-import '../swap/warm.dart';
+import '../cutover/plan.dart';
+import '../cutover/trigger.dart';
+import '../cutover/warm.dart';
 
 /// Decides whether a given ad break should be warmed up and cut to only once
 /// it is actually ready to play.
@@ -118,14 +118,14 @@ enum MovaAdNotReady {
 /// Configuration for pre/mid/post-roll ads.
 ///
 /// Disabled and empty by default so enabling it is an explicit host decision.
-/// The controller (`MovaAdController`) is host-constructed and orchestrates the
+/// The controller (`MovaAds`) is host-constructed and orchestrates the
 /// content↔ad source swaps; this bundle only carries the schedule and the
 /// [onAdEvent] hook (the sole way click-through is surfaced — mova never
 /// opens a URL itself).
 ///
 /// 前/中/后贴片广告的配置。
 ///
-/// 默认关闭且列表为空，是否启用由宿主显式决定。控制器（`MovaAdController`）由宿主
+/// 默认关闭且列表为空，是否启用由宿主显式决定。控制器（`MovaAds`）由宿主
 /// 构造并编排正片↔广告的源切换；本配置只承载排期与 [onAdEvent] 钩子（点击跳转的
 /// 唯一暴露途径——mova 从不自行打开 URL）。
 class MovaAdConfig {
@@ -226,14 +226,14 @@ class MovaAdConfig {
   /// decides.
   ///
   /// This is the single place the three-layer override happens, so callers —
-  /// `MovaAdController` above all — never inspect [MovaAdBreakKind] themselves; a
+  /// `MovaAds` above all — never inspect [MovaAdBreakKind] themselves; a
   /// `kind == mid` branch anywhere else would make the host's override
   /// unreachable.
   ///
   /// 解析 [adBreak] 是否等待就绪：广告位自身的 [MovaAdBreak.waitForReady]
   /// 设了就以它为准，否则交由 [waitForAdReady] 裁决。
   ///
-  /// 三层覆盖只在这一处发生，因此调用方——尤其是 `MovaAdController`——绝不自行检查
+  /// 三层覆盖只在这一处发生，因此调用方——尤其是 `MovaAds`——绝不自行检查
   /// [MovaAdBreakKind]；别处出现 `kind == mid` 这类分支会让宿主的覆盖绕不过去。
   ///
   /// - [adBreak]: the break about to play / 即将播放的广告位

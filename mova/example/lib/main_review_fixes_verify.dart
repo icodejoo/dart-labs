@@ -77,9 +77,9 @@ class _Tr {
 /// 本次运行创建过的全部引擎。
 final List<_Tr> _trs = <_Tr>[];
 
-/// 验证用选项：swap 开启、readyTimeout 5s、立即预热，广告开启。
+/// 验证用选项：cutover 开启、readyTimeout 5s、立即预热，广告开启。
 MovaOpts _opts() => const MovaOpts(
-  swap: MovaSwapConfig(enabled: true, readyTimeout: Duration(seconds: 5), trigger: MovaEagerWarm()),
+  cutover: MovaCutoverConfig(enabled: true, readyTimeout: Duration(seconds: 5), trigger: MovaEagerWarm()),
   ads: MovaAdConfig(enabled: true),
 );
 
@@ -302,11 +302,11 @@ Future<int?> _head(String url) async {
 /// 发 10% 后挂住，模拟传输中途断网）或 wifi（公网源，须已断网）。
 Future<void> _v1(int run, String kind) async {
   final id = switch (kind) { 'hang' => 'V1a', 'stall' => 'V1c', _ => 'V1b' };
-  final proxy = MovaSwapEngine(engineFactory: _mk);
+  final proxy = MovaCutoverEngine(engineFactory: _mk);
   var pos = Duration.zero;
   final subs = <StreamSubscription<Object?>>[
     proxy.progress.listen((p) => pos = p.position),
-    proxy.swapPhases.listen((p) => _log(id, 'run$run phase=${p.name}')),
+    proxy.cutoverPhases.listen((p) => _log(id, 'run$run phase=${p.name}')),
     proxy.events.listen((e) {
       if (e is MovaErrorEvent) _log(id, 'run$run proxyErrorEvent ${e.error}');
     }),
@@ -333,8 +333,8 @@ Future<void> _v1(int run, String kind) async {
       .timeout(const Duration(seconds: 30), onTimeout: () => null);
   final elapsed = _now() - t0;
   _log(id, 'run$run commit -> $ok after ${elapsed}ms (null = 挂起超过 30s)');
-  final idleOk = await _until(() => proxy.swapPhase == MovaSwapPhase.idle, const Duration(seconds: 2));
-  final phase = proxy.swapPhase;
+  final idleOk = await _until(() => proxy.cutoverPhase == MovaCutoverPhase.idle, const Duration(seconds: 2));
+  final phase = proxy.cutoverPhase;
   _log(id, 'run$run phase back to ${phase.name} (waited ${_now() - t0 - elapsed}ms after commit returned)');
   // 回退续播：普通 open 正片，位置应持续推进。
   await proxy.open(_s('vod.mp4', 'fallback'));
@@ -360,7 +360,7 @@ Future<void> _v1(int run, String kind) async {
 // V2 预热 open 失败（#4）
 // ---------------------------------------------------------------------------
 
-/// V2：影子用坏地址，swapTo 应快速回退到 active.open，之后再 prepare 好源应正常。
+/// V2：影子用坏地址，cutoverTo 应快速回退到 active.open，之后再 prepare 好源应正常。
 Future<void> _v2(int run, String bad) async {
   const id = 'V2';
   final badUri = switch (bad) {
@@ -368,12 +368,12 @@ Future<void> _v2(int run, String bad) async {
     'refused' => 'http://127.0.0.1:1/x.mp4',
     _ => 'bad://x/y',
   };
-  final proxy = MovaSwapEngine(engineFactory: _mk);
+  final proxy = MovaCutoverEngine(engineFactory: _mk);
   var pos = Duration.zero;
   var errs = 0;
   final subs = <StreamSubscription<Object?>>[
     proxy.progress.listen((p) => pos = p.position),
-    proxy.swapPhases.listen((p) => _log(id, 'run$run($bad) phase=${p.name}')),
+    proxy.cutoverPhases.listen((p) => _log(id, 'run$run($bad) phase=${p.name}')),
     proxy.events.listen((e) {
       if (e is MovaErrorEvent) {
         errs++;
@@ -386,19 +386,19 @@ Future<void> _v2(int run, String bad) async {
   final epoch0 = proxy.state.renderEpoch;
   final t0 = _now();
   final ok = await proxy
-      .swapTo(MovaSource(badUri, title: 'bad'))
+      .cutoverTo(MovaSource(badUri, title: 'bad'))
       .then<bool?>((v) => v)
       .timeout(const Duration(seconds: 30), onTimeout: () => null);
   final t1 = _now();
-  _log(id, 'run$run($bad) swapTo(bad) -> $ok after ${t1 - t0}ms phase=${proxy.swapPhase.name} errorEvents=$errs');
+  _log(id, 'run$run($bad) cutoverTo(bad) -> $ok after ${t1 - t0}ms phase=${proxy.cutoverPhase.name} errorEvents=$errs');
   // 再 prepare 一个好源，应不再被 _shadow 残留忽略。
   final t2 = _now();
   var readyAt = 0;
-  final rs = proxy.swapPhases.listen((p) {
-    if (p == MovaSwapPhase.ready && readyAt == 0) readyAt = _now();
+  final rs = proxy.cutoverPhases.listen((p) {
+    if (p == MovaCutoverPhase.ready && readyAt == 0) readyAt = _now();
   });
   await proxy.prepare(_s('ad.mp4', 'B'), plan: const MovaWarmPlan());
-  final reached = await _until(() => proxy.swapPhase == MovaSwapPhase.ready, const Duration(seconds: 15));
+  final reached = await _until(() => proxy.cutoverPhase == MovaCutoverPhase.ready, const Duration(seconds: 15));
   final committed = reached ? await proxy.commit() : false;
   await rs.cancel();
   final epoch1 = proxy.state.renderEpoch;
@@ -406,24 +406,24 @@ Future<void> _v2(int run, String bad) async {
   final title = proxy.state.sourceTitle;
   _log(id, 'run$run($bad) prepare(good) ready=${reached ? '+${readyAt - t2}ms' : 'NO'} commit=$committed epoch $epoch0->$epoch1 title=$title');
   final pass = ok == false && t1 - t0 < 4000 && reached && committed && epoch1 == epoch0 + 1 && title == 'B';
-  _result(id, run, pass, 'bad=$bad swapTo=$ok in ${t1 - t0}ms; reprepare ready=$reached commit=$committed epoch+${epoch1 - epoch0} title=$title');
+  _result(id, run, pass, 'bad=$bad cutoverTo=$ok in ${t1 - t0}ms; reprepare ready=$reached commit=$committed epoch+${epoch1 - epoch0} title=$title');
   for (final s in subs) {
     await s.cancel();
   }
   await proxy.dispose();
 }
 
-/// V2b：影子的 open 真的抛异常（用 [_ThrowKernel] 精确触发），swapTo 应返回 false
+/// V2b：影子的 open 真的抛异常（用 [_ThrowKernel] 精确触发），cutoverTo 应返回 false
 /// 且不向调用方抛出，之后再 prepare 好源应正常。
 Future<void> _v2b(int run) async {
   const id = 'V2b';
   _throwBudget = 0;
-  final proxy = MovaSwapEngine(engineFactory: _mkThrow);
+  final proxy = MovaCutoverEngine(engineFactory: _mkThrow);
   var pos = Duration.zero;
   var errs = 0;
   final subs = <StreamSubscription<Object?>>[
     proxy.progress.listen((p) => pos = p.position),
-    proxy.swapPhases.listen((p) => _log(id, 'run$run phase=${p.name}')),
+    proxy.cutoverPhases.listen((p) => _log(id, 'run$run phase=${p.name}')),
     proxy.events.listen((e) {
       if (e is MovaErrorEvent) {
         errs++;
@@ -439,19 +439,19 @@ Future<void> _v2b(int run) async {
   bool? ok;
   Object? threw;
   try {
-    ok = await proxy.swapTo(MovaSource(_u('throwme.mp4'), title: 'bad')).timeout(const Duration(seconds: 30));
+    ok = await proxy.cutoverTo(MovaSource(_u('throwme.mp4'), title: 'bad')).timeout(const Duration(seconds: 30));
   } catch (e) {
     threw = e;
   }
   final t1 = _now();
   _throwBudget = 0;
-  _log(id, 'run$run swapTo(open throws) -> ok=$ok threw=${threw.runtimeType} after ${t1 - t0}ms phase=${proxy.swapPhase.name} errorEvents=$errs');
+  _log(id, 'run$run cutoverTo(open throws) -> ok=$ok threw=${threw.runtimeType} after ${t1 - t0}ms phase=${proxy.cutoverPhase.name} errorEvents=$errs');
   var reached = false;
   var committed = false;
   Object? threw2;
   try {
     await proxy.prepare(_s('ad.mp4', 'B'), plan: const MovaWarmPlan());
-    reached = await _until(() => proxy.swapPhase == MovaSwapPhase.ready, const Duration(seconds: 12));
+    reached = await _until(() => proxy.cutoverPhase == MovaCutoverPhase.ready, const Duration(seconds: 12));
     committed = reached && await proxy.commit();
   } catch (e) {
     threw2 = e;
@@ -459,9 +459,9 @@ Future<void> _v2b(int run) async {
   await _wait(1500);
   final epoch1 = proxy.state.renderEpoch;
   final title = proxy.state.sourceTitle;
-  _log(id, 'run$run reprepare reached=$reached commit=$committed threw=${threw2.runtimeType} epoch $epoch0->$epoch1 title=$title phase=${proxy.swapPhase.name}');
+  _log(id, 'run$run reprepare reached=$reached commit=$committed threw=${threw2.runtimeType} epoch $epoch0->$epoch1 title=$title phase=${proxy.cutoverPhase.name}');
   final pass = threw == null && ok == false && reached && committed && epoch1 == epoch0 + 1 && title == 'B';
-  _result(id, run, pass, 'swapTo=$ok threw=${threw.runtimeType} errorEvents=$errs reprepare ready=$reached commit=$committed epoch+${epoch1 - epoch0} title=$title');
+  _result(id, run, pass, 'cutoverTo=$ok threw=${threw.runtimeType} errorEvents=$errs reprepare ready=$reached commit=$committed epoch+${epoch1 - epoch0} title=$title');
   for (final s in subs) {
     await s.cancel();
   }
@@ -469,39 +469,39 @@ Future<void> _v2b(int run) async {
 }
 
 // ---------------------------------------------------------------------------
-// V3 同引擎 swapTo 不同源（#5）
+// V3 同引擎 cutoverTo 不同源（#5）
 // ---------------------------------------------------------------------------
 
-/// V3：prepare(B) 之后 swapTo(C)，最终应播放 C。
+/// V3：prepare(B) 之后 cutoverTo(C)，最终应播放 C。
 ///
 /// A、B 为 40s 的 vod，C 为 20s 的 ad，因此时长可独立区分 B 与 C。
-/// [waitReady] 为 false 时 swapTo 紧跟 prepare（B 仍在预热中）。
+/// [waitReady] 为 false 时 cutoverTo 紧跟 prepare（B 仍在预热中）。
 Future<void> _v3(int run, bool waitReady) async {
   const id = 'V3';
-  final proxy = MovaSwapEngine(engineFactory: _mk);
+  final proxy = MovaCutoverEngine(engineFactory: _mk);
   var pos = Duration.zero;
   final subs = <StreamSubscription<Object?>>[
     proxy.progress.listen((p) => pos = p.position),
-    proxy.swapPhases.listen((p) => _log(id, 'run$run phase=${p.name}')),
+    proxy.cutoverPhases.listen((p) => _log(id, 'run$run phase=${p.name}')),
   ];
   await proxy.open(_s('vod.mp4?x=A', 'A'));
   await _until(() => pos > Duration.zero, const Duration(seconds: 15));
   final epoch0 = proxy.state.renderEpoch;
   await proxy.prepare(_s('vod.mp4?x=B', 'B'));
-  if (waitReady) await _until(() => proxy.swapPhase == MovaSwapPhase.ready, const Duration(seconds: 15));
-  _log(id, 'run$run before swapTo(C): phase=${proxy.swapPhase.name} waitReady=$waitReady');
+  if (waitReady) await _until(() => proxy.cutoverPhase == MovaCutoverPhase.ready, const Duration(seconds: 15));
+  _log(id, 'run$run before cutoverTo(C): phase=${proxy.cutoverPhase.name} waitReady=$waitReady');
   final t0 = _now();
   final ok = await proxy
-      .swapTo(_s('ad.mp4?x=C', 'C'))
+      .cutoverTo(_s('ad.mp4?x=C', 'C'))
       .then<bool?>((v) => v)
       .timeout(const Duration(seconds: 30), onTimeout: () => null);
   final t1 = _now();
   await _until(() => proxy.state.sourceTitle == 'C' && proxy.state.duration > Duration.zero, const Duration(seconds: 10));
   await _wait(1500);
   final st = proxy.state;
-  _log(id, 'run$run swapTo(C) -> $ok after ${t1 - t0}ms; title=${st.sourceTitle} duration=${st.duration} epoch $epoch0->${st.renderEpoch}');
+  _log(id, 'run$run cutoverTo(C) -> $ok after ${t1 - t0}ms; title=${st.sourceTitle} duration=${st.duration} epoch $epoch0->${st.renderEpoch}');
   final durOk = (st.duration - const Duration(seconds: 20)).inMilliseconds.abs() < 2500;
-  _result(id, run, st.sourceTitle == 'C' && durOk, 'swapTo=$ok title=${st.sourceTitle} duration=${st.duration} epoch+${st.renderEpoch - epoch0} waitReady=$waitReady');
+  _result(id, run, st.sourceTitle == 'C' && durOk, 'cutoverTo=$ok title=${st.sourceTitle} duration=${st.duration} epoch+${st.renderEpoch - epoch0} waitReady=$waitReady');
   for (final s in subs) {
     await s.cancel();
   }
@@ -518,13 +518,13 @@ Future<void> _v4(int run, int delayMs) async {
   const id = 'V4';
   final before = _trs.length;
   final u0 = _uncaught;
-  final proxy = MovaSwapEngine(engineFactory: _mk);
+  final proxy = MovaCutoverEngine(engineFactory: _mk);
   var pos = Duration.zero;
   final sub = proxy.progress.listen((p) => pos = p.position);
   await proxy.open(_s('vod.mp4', 'A'));
   await _until(() => pos > Duration.zero, const Duration(seconds: 15));
   await proxy.prepare(_s('ad.mp4', 'B'), plan: const MovaWarmPlan());
-  final ready = await _until(() => proxy.swapPhase == MovaSwapPhase.ready, const Duration(seconds: 15));
+  final ready = await _until(() => proxy.cutoverPhase == MovaCutoverPhase.ready, const Duration(seconds: 15));
   final tC = _now();
   final f = proxy.commit().then<bool?>((v) => v).catchError((Object e) {
     _log(id, 'run$run commit threw $e');
@@ -557,7 +557,7 @@ Future<void> _v4(int run, int delayMs) async {
 Future<void> _v5(int run, String mode) async {
   const id = 'V5';
   final engine = _track(createMovaEngine(audioOnly: true, options: _opts()));
-  final ctrl = MovaAdController(engine);
+  final ctrl = MovaAds(engine);
   final opened = <String>[];
   final t0 = _now();
   final sub = engine.events.listen((e) {

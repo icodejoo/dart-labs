@@ -175,23 +175,23 @@ class _HostState extends State<_Host> {
 
   /// E8：无缝切换回归——影子引擎预热期间就要有画面管线，切换后新 active 能出画面。
   Future<void> _e8() async {
-    final swap = MovaSwapEngine(
-      engineFactory: () => createMovaEngine(options: const MovaOpts(swap: MovaSwapConfig(enabled: true))),
+    final cutover = MovaCutoverEngine(
+      engineFactory: () => createMovaEngine(options: const MovaOpts(cutover: MovaCutoverConfig(enabled: true))),
     );
-    setState(() => _engine = swap);
+    setState(() => _engine = cutover);
     await Future<void>.delayed(const Duration(milliseconds: 500));
-    unawaited(swap.open(MovaSource('http://127.0.0.1:8098/t5.mp4?t=${DateTime.now().microsecondsSinceEpoch}')));
+    unawaited(cutover.open(MovaSource('http://127.0.0.1:8098/t5.mp4?t=${DateTime.now().microsecondsSinceEpoch}')));
     await Future<void>.delayed(const Duration(seconds: 2));
-    final epochBefore = swap.state.renderEpoch;
+    final epochBefore = cutover.state.renderEpoch;
     final t0 = DateTime.now();
-    final ok = await swap.swapTo(MovaSource('$kUrl?t=${DateTime.now().microsecondsSinceEpoch}c'), at: const Duration(seconds: 3));
+    final ok = await cutover.cutoverTo(MovaSource('$kUrl?t=${DateTime.now().microsecondsSinceEpoch}c'), at: const Duration(seconds: 3));
     final ms = DateTime.now().difference(t0).inMilliseconds;
     await Future<void>.delayed(const Duration(seconds: 2));
-    _out('E8 swapOk=$ok swapMs=$ms epoch $epochBefore->${swap.state.renderEpoch} playing=${swap.state.playing} '
-        'size=${swap.state.width}x${swap.state.height}');
+    _out('E8 cutoverOk=$ok cutoverMs=$ms epoch $epochBefore->${cutover.state.renderEpoch} playing=${cutover.state.playing} '
+        'size=${cutover.state.width}x${cutover.state.height}');
     setState(() => _engine = null);
     await Future<void>.delayed(const Duration(milliseconds: 300));
-    final (dms, to) = await _timed(swap.dispose);
+    final (dms, to) = await _timed(cutover.dispose);
     _out('E8 disposeMs=$dms hung=$to');
   }
 

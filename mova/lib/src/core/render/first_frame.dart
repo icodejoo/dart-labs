@@ -74,10 +74,10 @@ class MovaFirstFrameGate {
   bool get awaitingGrace => _awaitingGrace;
 
   /// Arms a fresh attempt; [autoPlay] false enables the size fallback.
-  /// [resume] true arms a standby-resume attempt instead: only a native
+  /// [resume] true arms a keepAlive-resume attempt instead: only a native
   /// restart or a non-zero size lands it, immediately (no grace, regardless
   /// of [autoPlay]); buffering and position are ignored because playback kept
-  /// moving during standby.
+  /// moving during keepAlive.
   ///
   /// 武装一次新尝试；[autoPlay] 为 false 时启用尺寸兜底。[resume] 为 true 时改为武装一次
   /// 待机恢复尝试：只有原生 RESTART 或非零尺寸能让它落地，且立即落地（不进宽限、不看

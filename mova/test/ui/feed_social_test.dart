@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mova/src/core/feed/engine_pool.dart';
-import 'package:mova/src/core/feed/feed_controller.dart';
+import 'package:mova/src/core/feed/feed.dart';
 import 'package:mova/src/core/model/feed_item.dart';
 import 'package:mova/src/core/model/source.dart';
 import 'package:mova/src/ui/components/feed_social.dart';
@@ -18,7 +18,7 @@ void main() {
       initialLikeCount: 5,
       onLikeChanged: (liked, count) => likedSeen = liked,
     );
-    final controller = MovaFeedController(
+    final controller = MovaFeed(
       pool: MovaFeedEnginePool(engineFactory: () => api, size: 1),
       loader: (i) async => item,
     );

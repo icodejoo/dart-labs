@@ -5,7 +5,7 @@ import 'fake_kernel.dart';
 /// A fake kernel recording player-local warm-up mute.
 ///
 /// 记录播放器预热静音的假内核。
-class FakeWarmMuteKernel extends FakeStandbyKernel implements MovaPlayerMute {
+class FakeWarmMuteKernel extends FakeKeepAliveKernel implements MovaPlayerMute {
   /// Whether warm-up currently owns mute.
   ///
   /// 当前是否持有预热静音。

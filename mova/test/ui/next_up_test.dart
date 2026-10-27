@@ -2,7 +2,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mova/src/core/model/playlist.dart';
 import 'package:mova/src/core/model/source.dart';
 import 'package:mova/src/core/options/options.dart';
-import 'package:mova/src/core/playlist/playlist_controller.dart';
+import 'package:mova/src/core/playlist/playlist.dart';
 import 'package:mova/src/core/state/progress.dart';
 import 'package:mova/src/ui/components/next_up.dart';
 
@@ -21,13 +21,13 @@ void main() {
   /// Builds a fake API with the playlist enabled (or not) plus a controller.
   ///
   /// 构造一个启用（或不启用）播放列表的假 API 及其控制器。
-  (FakeMovaApi, MovaPlaylistController) build({bool enabled = true}) {
+  (FakeMovaApi, MovaPlaylist) build({bool enabled = true}) {
     final api = FakeMovaApi(
       options: MovaOpts(
         playlist: MovaPlaylistConfig(enabled: enabled, items: _items),
       ),
     );
-    return (api, MovaPlaylistController(api));
+    return (api, MovaPlaylist(api));
   }
 
   /// Sets the fake's duration, pushes a progress tick at [position], and pumps

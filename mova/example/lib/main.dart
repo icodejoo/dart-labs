@@ -303,7 +303,7 @@ class _PlayerPageState extends State<PlayerPage> {
             ),
           ),
           IconButton(
-            tooltip: '无缝广告演示（默认开启 MovaSwapEngine）',
+            tooltip: '无缝广告演示（默认开启 MovaCutoverEngine）',
             icon: const Icon(Icons.bolt_rounded),
             onPressed: () => Navigator.of(context).push(
               MaterialPageRoute(builder: (_) => const SeamlessAdDemoPage()),
@@ -496,11 +496,11 @@ final _playlistItems = [
     ),
 ];
 
-/// A page demoing sequential playlist playback: a [MovaPlaylistController] drives
+/// A page demoing sequential playlist playback: a [MovaPlaylist] drives
 /// auto-advance between three episodes, a [MovaNextUpComponent] fades in near each
 /// item's end, and manual prev/next buttons exercise the same navigation.
 ///
-/// 演示顺序播放列表：[MovaPlaylistController] 在三集间驱动自动续播，
+/// 演示顺序播放列表：[MovaPlaylist] 在三集间驱动自动续播，
 /// [MovaNextUpComponent] 在每项临近结束时淡入，手动上一集/下一集按钮演示同一套导航。
 class PlaylistDemoPage extends StatefulWidget {
   /// Creates the playlist demo page.
@@ -524,7 +524,7 @@ class _PlaylistDemoPageState extends State<PlaylistDemoPage> {
   /// Drives current-index tracking and prev/next/auto-advance navigation.
   ///
   /// 驱动当前下标跟踪与上一集/下一集/自动续播导航。
-  late MovaPlaylistController _controller;
+  late MovaPlaylist _controller;
 
   @override
   void initState() {
@@ -534,7 +534,7 @@ class _PlaylistDemoPageState extends State<PlaylistDemoPage> {
         playlist: MovaPlaylistConfig(enabled: true, items: _playlistItems),
       ),
     );
-    _controller = MovaPlaylistController(_engine);
+    _controller = MovaPlaylist(_engine);
     // The controller never opens the first item on its own — the host kicks
     // playback off.
     //
@@ -652,21 +652,21 @@ class SeamlessAdDemoPage extends StatefulWidget {
   State<SeamlessAdDemoPage> createState() => _SeamlessAdDemoPageState();
 }
 
-/// State for [SeamlessAdDemoPage]; owns the [MovaSwapEngine] and its ad
+/// State for [SeamlessAdDemoPage]; owns the [MovaCutoverEngine] and its ad
 /// controller for the lifetime of the page.
 ///
-/// [SeamlessAdDemoPage] 的状态；在页面生命周期内持有 [MovaSwapEngine] 与其
+/// [SeamlessAdDemoPage] 的状态；在页面生命周期内持有 [MovaCutoverEngine] 与其
 /// 广告控制器。
 class _SeamlessAdDemoPageState extends State<SeamlessAdDemoPage> {
-  /// The swap engine ads run on — always seamless on this page.
+  /// The cutover engine ads run on — always seamless on this page.
   ///
   /// 广告运行其上的切换引擎——本页始终无缝。
-  late final MovaSwapEngine _engine;
+  late final MovaCutoverEngine _engine;
 
-  /// Orchestrates the pre/mid/post-roll ads and drives [_engine]'s swap.
+  /// Orchestrates the pre/mid/post-roll ads and drives [_engine]'s cutover.
   ///
   /// 编排前/中/后贴片广告，并驱动 [_engine] 的切换。
-  late final MovaAdController _controller;
+  late final MovaAds _controller;
 
   /// The most recent ad lifecycle event, shown so the callback is visible.
   ///
@@ -683,10 +683,10 @@ class _SeamlessAdDemoPageState extends State<SeamlessAdDemoPage> {
       //
       // MovaEagerWarm：广告一开始播放就预热，而非只在最后一两秒——原因见
       // 上方类注释。
-      swap: const MovaSwapConfig(enabled: true, trigger: MovaEagerWarm()),
+      cutover: const MovaCutoverConfig(enabled: true, trigger: MovaEagerWarm()),
     );
-    _engine = MovaSwapEngine(engineFactory: () => createMovaEngine(options: opts));
-    _controller = MovaAdController(_engine, swap: _engine);
+    _engine = MovaCutoverEngine(engineFactory: () => createMovaEngine(options: opts));
+    _controller = MovaAds(_engine, cutover: _engine);
     _controller.load(_adContent);
   }
 
@@ -747,15 +747,15 @@ class _SeamlessAdDemoPageState extends State<SeamlessAdDemoPage> {
   }
 }
 
-/// A page demoing pre/mid-roll ads plus runtime insertion: a [MovaAdController]
+/// A page demoing pre/mid-roll ads plus runtime insertion: a [MovaAds]
 /// orchestrates the content↔ad source swaps, [MovaAdOverlayComponent] renders the
 /// badge/skip/countdown, a button inserts an ad at the current position via
-/// [MovaAdController.playAdNow], and click-through is surfaced through
+/// [MovaAds.playAdNow], and click-through is surfaced through
 /// [MovaAdConfig.onAdEvent] (no url_launcher — the host decides what to do).
 ///
-/// 演示前/中贴片广告与运行时插入：[MovaAdController] 编排正片↔广告的源切换，
+/// 演示前/中贴片广告与运行时插入：[MovaAds] 编排正片↔广告的源切换，
 /// [MovaAdOverlayComponent] 渲染角标/跳过/倒计时，一个按钮经
-/// [MovaAdController.playAdNow] 在当前位置插播广告，点击跳转经
+/// [MovaAds.playAdNow] 在当前位置插播广告，点击跳转经
 /// [MovaAdConfig.onAdEvent] 暴露（不引 url_launcher——由宿主决定如何处理）。
 class AdDemoPage extends StatefulWidget {
   /// Creates the ad demo page.
@@ -773,29 +773,29 @@ class AdDemoPage extends StatefulWidget {
 /// [AdDemoPage] 的状态；持有引擎、广告控制器，以及用于展示的最近一次广告事件。
 class _AdDemoPageState extends State<AdDemoPage> {
   /// The playback facade the ads run on — a plain [MovaEngine], or a
-  /// [MovaSwapEngine] wrapping one when [_seamless] is on.
+  /// [MovaCutoverEngine] wrapping one when [_seamless] is on.
   ///
   /// 广告运行其上的播放能力面——普通 [MovaEngine]，或 [_seamless] 开启时包裹
-  /// 它的 [MovaSwapEngine]。
+  /// 它的 [MovaCutoverEngine]。
   late MovaApi _engine;
 
   /// Orchestrates the pre/mid/post-roll and runtime-inserted ads.
   ///
   /// 编排前/中/后贴片与运行时插入的广告。
-  late MovaAdController _controller;
+  late MovaAds _controller;
 
   /// The most recent ad lifecycle event, shown so the callback is visible.
   ///
   /// 最近一次广告生命周期事件，展示出来以便看到回调。
   final ValueNotifier<String> _lastEvent = ValueNotifier<String>('—');
 
-  /// Whether the ad→content resume uses [MovaSwapEngine] (no black
+  /// Whether the ad→content resume uses [MovaCutoverEngine] (no black
   /// frame) instead of today's plain `open()` rebuild. Off by default,
-  /// matching [MovaSwapConfig.enabled]'s own default — this toggle is what
+  /// matching [MovaCutoverConfig.enabled]'s own default — this toggle is what
   /// on-device verification (Task 11) flips back and forth to compare.
   ///
-  /// 广告→正片续播是否走 [MovaSwapEngine]（无黑屏），而非今天的普通 `open()`
-  /// 重建。默认关闭，对齐 [MovaSwapConfig.enabled] 自身的默认值——这个开关就是
+  /// 广告→正片续播是否走 [MovaCutoverEngine]（无黑屏），而非今天的普通 `open()`
+  /// 重建。默认关闭，对齐 [MovaCutoverConfig.enabled] 自身的默认值——这个开关就是
   /// 真机验证（Task 11）用来来回切换对比的那个。
   bool _seamless = false;
 
@@ -811,16 +811,16 @@ class _AdDemoPageState extends State<AdDemoPage> {
   void _buildEngine() {
     MovaOpts optsFor() => MovaOpts(
           ads: MovaAdConfig(enabled: true, breaks: _adBreaks, onAdEvent: _onAdEvent),
-          swap: MovaSwapConfig(enabled: _seamless),
+          cutover: MovaCutoverConfig(enabled: _seamless),
         );
     if (_seamless) {
-      final swap = MovaSwapEngine(engineFactory: () => createMovaEngine(options: optsFor()));
-      _engine = swap;
-      _controller = MovaAdController(swap, swap: swap);
+      final cutover = MovaCutoverEngine(engineFactory: () => createMovaEngine(options: optsFor()));
+      _engine = cutover;
+      _controller = MovaAds(cutover, cutover: cutover);
     } else {
       final engine = createMovaEngine(options: optsFor());
       _engine = engine;
-      _controller = MovaAdController(engine);
+      _controller = MovaAds(engine);
     }
     _controller.load(_adContent);
   }
@@ -882,14 +882,14 @@ class _AdDemoPageState extends State<AdDemoPage> {
             child: Column(
               children: [
                 // Toggles between the plain open()-rebuild resume and the
-                // seamless MovaSwapEngine path, for on-device A/B comparison.
+                // seamless MovaCutoverEngine path, for on-device A/B comparison.
                 //
-                // 在普通 open() 重建续播与无缝 MovaSwapEngine 路径间切换，
+                // 在普通 open() 重建续播与无缝 MovaCutoverEngine 路径间切换，
                 // 供真机 A/B 对比。
                 SwitchListTile(
                   value: _seamless,
                   onChanged: _toggleSeamless,
-                  title: const Text('无缝切换（MovaSwapEngine）'),
+                  title: const Text('无缝切换（MovaCutoverEngine）'),
                   subtitle: const Text('开启后广告→正片续播不经过黑屏/loading'),
                 ),
                 // Insert an ad at the current content position on demand.
@@ -924,7 +924,7 @@ class _AdDemoPageState extends State<AdDemoPage> {
 /// A separate page from [AdDemoPage] on purpose: these four knobs interact, and
 /// the on-screen log below is what makes a device run evidential. The log is
 /// fed by **real** callbacks — [MovaAdConfig.onAdEvent] and the engine's own
-/// [MovaSwapChange] events — not by print statements, so a release build on a
+/// [MovaCutoverChange] events — not by print statements, so a release build on a
 /// phone with no logcat access still shows what actually happened and when.
 ///
 /// 0.5.0 的广告编排演示：`delay` 倒计时、定长 `duration`、按类型的就绪等待、
@@ -932,7 +932,7 @@ class _AdDemoPageState extends State<AdDemoPage> {
 ///
 /// 刻意与 [AdDemoPage] 分开建页：这四个旋钮彼此有交互，而下方的屏上日志正是让
 /// 真机验证"有据可查"的关键。日志由**真实**回调打点——[MovaAdConfig.onAdEvent]
-/// 与引擎自身的 [MovaSwapChange] 事件——而非 print，因此在拿不到 logcat 的手机
+/// 与引擎自身的 [MovaCutoverChange] 事件——而非 print，因此在拿不到 logcat 的手机
 /// release 包上也能看清到底发生了什么、何时发生。
 class AdOrchestrationDemoPage extends StatefulWidget {
   /// Creates the ad-orchestration demo page.
@@ -950,17 +950,17 @@ class AdOrchestrationDemoPage extends StatefulWidget {
 /// [AdOrchestrationDemoPage] 的状态；任一开关变化都重建引擎，因为广告排期在构造时
 /// 只读取一次。
 class _AdOrchestrationDemoPageState extends State<AdOrchestrationDemoPage> {
-  /// The swap engine every variant runs on; waiting for readiness needs one.
+  /// The cutover engine every variant runs on; waiting for readiness needs one.
   ///
   /// 所有变体都运行其上的切换引擎；等待就绪必须有它。
-  late MovaSwapEngine _engine;
+  late MovaCutoverEngine _engine;
 
   /// Orchestrates the demo's ad schedule.
   ///
   /// 编排本演示的广告排期。
-  late MovaAdController _controller;
+  late MovaAds _controller;
 
-  /// Subscription to the engine's own events, for the swap-phase log lines.
+  /// Subscription to the engine's own events, for the cutover-phase log lines.
   ///
   /// 对引擎自身事件的订阅，用于记录切换阶段日志行。
   StreamSubscription<MovaEvent>? _eventSub;
@@ -1053,12 +1053,12 @@ class _AdOrchestrationDemoPageState extends State<AdOrchestrationDemoPage> {
                 _note('ad ${e.type.name}${e.error == null ? '' : ' (${e.error})'}'),
             waitForAdReady: MovaAdWaitByKind(mid: _waitForMid),
           ),
-          swap: const MovaSwapConfig(enabled: true),
+          cutover: const MovaCutoverConfig(enabled: true),
         );
-    _engine = MovaSwapEngine(engineFactory: () => createMovaEngine(options: opts()));
-    _controller = MovaAdController(_engine, swap: _engine);
+    _engine = MovaCutoverEngine(engineFactory: () => createMovaEngine(options: opts()));
+    _controller = MovaAds(_engine, cutover: _engine);
     _eventSub = _engine.events.listen((e) {
-      if (e is MovaSwapChange) _note('swap ${e.phase.name}');
+      if (e is MovaCutoverChange) _note('cutover ${e.phase.name}');
     });
     _controller.load(_adContent);
   }

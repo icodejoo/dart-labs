@@ -84,7 +84,7 @@ class MovaQoeCollector {
 
   MovaStreamType _streamType = MovaStreamType.vod;
   bool _audioOnly = false;
-  bool _swapEnabled = false;
+  bool _cutoverEnabled = false;
   bool _fatalSeen = false;
   bool _completed = false;
   bool _sessionOpen = false;
@@ -135,19 +135,19 @@ class MovaQoeCollector {
   /// - [autoPlay]: whether playback starts immediately / 是否立即开始播放
   /// - [audioOnly]: whether this engine has no video pipeline / 该引擎是否无
   ///   视频管线
-  /// - [swapEnabled]: whether seamless engine-swapping is on / 是否启用了
+  /// - [cutoverEnabled]: whether seamless engine-swapping is on / 是否启用了
   ///   无缝引擎切换
   void onOpen(
     MovaSource source, {
     required bool autoPlay,
     bool audioOnly = false,
-    bool swapEnabled = false,
+    bool cutoverEnabled = false,
   }) {
     final at = _now();
     _sessionOpen = true;
     _streamType = source.type;
     _audioOnly = audioOnly;
-    _swapEnabled = swapEnabled;
+    _cutoverEnabled = cutoverEnabled;
     _fatalSeen = false;
     _completed = false;
     _stallIndex = 0;
@@ -235,7 +235,7 @@ class MovaQoeCollector {
       'uri': source.uri,
       'streamType': _streamType == MovaStreamType.live ? 'live' : 'vod',
       'audioOnly': _audioOnly,
-      'swapEnabled': _swapEnabled,
+      'swapEnabled': _cutoverEnabled,
       if (source.title != null) 'title': source.title,
     };
     final snapshot = await _probe?.sample();

@@ -38,7 +38,7 @@ const _demoSource = MovaSource(
 /// "第一步"完全对齐。
 // onTapContent 留空（默认无操作）：本 demo 刻意只允许显式点击关闭（✕）按钮
 // 收起小窗，避免真机验证时误触画面就把小窗“弄没了”。
-final _miniCtl = MovaMiniController();
+final _miniCtl = MovaMini();
 
 /// Append-only log of real events (`MovaMiniChange`/`MovaPipChange`/
 /// `MovaFullScreenChange`) so the demo works without logcat, per project

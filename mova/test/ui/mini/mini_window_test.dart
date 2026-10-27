@@ -3,7 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mova/src/core/api.dart';
 import 'package:mova/src/core/mini/placement.dart';
 import 'package:mova/src/core/options/options.dart';
-import 'package:mova/src/ui/mini/mini_ctl.dart';
+import 'package:mova/src/ui/mini/mini.dart';
 import 'package:mova/src/ui/mini/mini_window.dart';
 import 'package:mova/src/ui/player.dart';
 
@@ -16,7 +16,7 @@ import '../../support/fake_api.dart';
 /// `bounds`，而非依赖默认的测试画布尺寸。
 Future<void> pumpWindow(
   WidgetTester tester, {
-  required MovaMiniController ctl,
+  required MovaMini ctl,
   required FakeMovaApi api,
   MovaMiniConfig config = const MovaMiniConfig(enabled: true),
   Size size = const Size(400, 800),
@@ -36,11 +36,11 @@ Future<void> pumpWindow(
 }
 
 void main() {
-  late MovaMiniController ctl;
+  late MovaMini ctl;
   late FakeMovaApi api;
 
   setUp(() {
-    ctl = MovaMiniController();
+    ctl = MovaMini();
     api = FakeMovaApi(options: const MovaOpts());
   });
 

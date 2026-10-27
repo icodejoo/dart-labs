@@ -2,7 +2,7 @@ import 'dart:async';
 
 import 'package:fake_async/fake_async.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:mova/src/core/ad/ad_controller.dart';
+import 'package:mova/src/core/ad/ads.dart';
 import 'package:mova/src/core/ad/fail.dart';
 import 'package:mova/src/core/events/events.dart';
 import 'package:mova/src/core/model/ad.dart';
@@ -33,7 +33,7 @@ void _flush(FakeAsync async) => async.elapse(const Duration(milliseconds: 1));
 /// Builds api + controller around one pre-roll with a 8s load deadline.
 ///
 /// 围绕一条前贴片、8 秒加载期限构造 api + 控制器。
-(FakeMovaApi, MovaAdController, _RecordingFail) _build({bool fromFirstFrame = true}) {
+(FakeMovaApi, MovaAds, _RecordingFail) _build({bool fromFirstFrame = true}) {
   final policy = _RecordingFail();
   final api = FakeMovaApi(
     options: MovaOpts(
@@ -46,7 +46,7 @@ void _flush(FakeAsync async) => async.elapse(const Duration(milliseconds: 1));
       ),
     ),
   );
-  return (api, MovaAdController(api), policy);
+  return (api, MovaAds(api), policy);
 }
 
 void main() {
@@ -133,16 +133,16 @@ void main() {
     });
   });
 
-  group('ad rate handling on the swap path', () {
-    test('ad starts at 1x and content resumes at the user rate (swap-aware)', () {
+  group('ad rate handling on the cutover path', () {
+    test('ad starts at 1x and content resumes at the user rate (cutover-aware)', () {
       fakeAsync((async) {
         final api = FakeMovaApi(
           options: const MovaOpts(
             ads: MovaAdConfig(enabled: true, breaks: [_mid], waitForAdReady: MovaAdWaitByKind(mid: false)),
           ),
         );
-        final swap = FakeSwapCtl()..commitResult = true;
-        final c = MovaAdController(api, swap: swap);
+        final cutover = FakeCutoverCtl()..commitResult = true;
+        final c = MovaAds(api, cutover: cutover);
         c.load(_content);
         _flush(async);
         api.push(api.state.copyWith(rate: 2.0));
@@ -165,8 +165,8 @@ void main() {
             ads: MovaAdConfig(enabled: true, breaks: [_mid], waitForAdReady: MovaAdWaitByKind(mid: false)),
           ),
         );
-        final swap = _GatedCommitSwap();
-        final c = MovaAdController(api, swap: swap);
+        final cutover = _GatedCommitCutover();
+        final c = MovaAds(api, cutover: cutover);
         c.load(_content);
         _flush(async);
         api.push(api.state.copyWith(rate: 2.0));
@@ -177,11 +177,11 @@ void main() {
         api.push(api.state.copyWith(rate: 1.0));
         api.pushEvent(const MovaDone());
         _flush(async);
-        expect(swap.pending, isTrue);
+        expect(cutover.pending, isTrue);
         // 过渡期内活动引擎仍是广告，其 progress 不得覆盖已保存的 2x。
         api.pushProgress(const MovaProg(position: Duration(seconds: 4)));
         _flush(async);
-        swap.release(true);
+        cutover.release(true);
         _flush(async);
         expect(c.isShowingAd, isFalse);
         expect(api.lastRate, 2.0, reason: 'content resumes at the user rate');
@@ -195,8 +195,8 @@ void main() {
             ads: MovaAdConfig(enabled: true, breaks: [_mid], waitForAdReady: MovaAdWaitByKind(mid: false)),
           ),
         );
-        final swap = FakeSwapCtl()..commitResult = true;
-        final c = MovaAdController(api, swap: swap);
+        final cutover = FakeCutoverCtl()..commitResult = true;
+        final c = MovaAds(api, cutover: cutover);
         c.load(_content);
         _flush(async);
         // 正片 2x，推一个 tick 让 _contentRate = 2.0。
@@ -221,10 +221,10 @@ void main() {
   });
 }
 
-/// Swap fake whose `commit` blocks until [release] is called.
+/// Cutover fake whose `commit` blocks until [release] is called.
 ///
-/// `commit` 阻塞到调用 [release] 的 swap 替身。
-class _GatedCommitSwap extends FakeSwapCtl {
+/// `commit` 阻塞到调用 [release] 的 cutover 替身。
+class _GatedCommitCutover extends FakeCutoverCtl {
   /// Completer of the in-flight commit, or null when none is pending.
   ///
   /// 在途 commit 的 completer；没有挂起的则为 null。

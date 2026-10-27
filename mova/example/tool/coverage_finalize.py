@@ -16,7 +16,7 @@ put('C12 U8','PASS','batch22真实拖动吸左left12/top434.20；转屏PNG钳回
 put('N15','PASS','batch25 Feed连续帧1封面teal占92.12%，帧2首帧后0；video换源重盖占92.93%、恢复后0；audioOnly封面teal像素2079525常驻。batch28自定义posterFade=2s真实中间帧像素(500,600)：(0,150,136)→(0,99,90)→(0,37,34)→黑，证明渐隐，未用墙钟报精确时长。')
 put('N22','BLOCKED','除assert外均已实测：hooks异步保护、重映射横向volume/左竖seek、STT失败回滚重试、crop零写。batch28延迟VTT BEGIN=1793072460.8985/END=2463.3994，换源在2461.4741；晚到非空thumb=0、previewCurrent=null。release两种入口及profile尝试--enable-asserts均在Flutter SDK defaultTargetPlatform/_environmentCache常量求值失败，见assert-aot-*-build-failed.log；断言设备分支不能记PASS，未改SDK/库来绕过。')
 put('E1','FAIL','batch15-lifecycle.json真实序列：open清理Pause/Duration(0)/Size(0)→Play→SourceChange→Ready→Duration/Size→FirstFrame(restart)→…→Pause/Done。若按矩阵箭头Ready→Size→FirstFrame→Play严格判定则不符；Play表达请求意图、早于真实首帧，不等于播放器提前出画。生命周期F1仍无异常完成。')
-put('A17 F3','FAIL','原生FFI最终版：batch23-hls-native普通首切8183→8143ms(-40)，第二切target8823但RESTART=23ms并从头走；普通5切1通过4失败。batch24-hls-native-swap也1/5；paused第二切8263→23ms丢位置，之后目标已0附近的“通过”不算有效续播样本。ABR限速下调通过，不抵消重复手切缺陷。旧batch17/19/21的等待/瞬时读回判据作废，非库失败依据。')
+put('A17 F3','FAIL','原生FFI最终版：batch23-hls-native普通首切8183→8143ms(-40)，第二切target8823但RESTART=23ms并从头走；普通5切1通过4失败。batch24-hls-native-cutover也1/5；paused第二切8263→23ms丢位置，之后目标已0附近的“通过”不算有效续播样本。ABR限速下调通过，不抵消重复手切缺陷。旧batch17/19/21的等待/瞬时读回判据作废，非库失败依据。')
 
 notes=r'''
 ### 最小复现与FAIL分类
@@ -25,12 +25,12 @@ notes=r'''
 
 | 涉及编号 | 分类与最小复现 | 本轮证据 |
 |---|---|---|
-| A23 | 生命周期问题：`a=createMovaEngine(audioOnly:true)`，open后`await a.dispose(); await a.dispose();`；第二次抛`[Player] has been disposed`，普通/swap均复现。120轮首次创建/销毁完成，不能替代幂等要求。 | batch15-basic/basic-swap.json 的A23.doubleDispose=false；batch15-dispose120.json及round20..120.meminfo.txt |
+| A23 | 生命周期问题：`a=createMovaEngine(audioOnly:true)`，open后`await a.dispose(); await a.dispose();`；第二次抛`[Player] has been disposed`，普通/cutover均复现。120轮首次创建/销毁完成，不能替代幂等要求。 | batch15-basic/basic-cutover.json 的A23.doubleDispose=false；batch15-dispose120.json及round20..120.meminfo.txt |
 | F8/N19 | 续播问题：本地stall.mp4播放到约2.52–2.68s，有限重试`MovaRetryThenFailover`；卡顿恢复后首采样40ms并从头增长，1.5s内未回原位置，5次0通过。 | batch6-he-recovery-guard.log，HE V6；不要用旧默认无限直播重连脚本的超时冒充本缺陷 |
-| A17/F3 | 续播问题：打开18084/master.m3u8，原生位置>=8s，loadQualities，先360p再180p。首切恢复，第二次原生RESTART落23ms，从头播；普通和默认关闭的swap代理均复现，暂停态也丢位置。 | batch23-hls-native.json、batch24-hls-native-swap/paused.json，HLS_RESTART含原生path；三模式首个切档误差[-40,0,-40]ms，第二切均失败 |
+| A17/F3 | 续播问题：打开18084/master.m3u8，原生位置>=8s，loadQualities，先360p再180p。首切恢复，第二次原生RESTART落23ms，从头播；普通和默认关闭的cutover代理均复现，暂停态也丢位置。 | batch23-hls-native.json、batch24-hls-native-cutover/paused.json，HLS_RESTART含原生path；三模式首个切档误差[-40,0,-40]ms，第二切均失败 |
 | C16 | 原生TLS兼容问题：`tlsVerify:true,tlsCaFile:<ca.pem>`，打开https://127.0.0.1:18443/vod.mp4或low/index.m3u8；合法IP SAN证书被拒。改localhost:18447合法DNS证书能播放。未定位Dart/mpv/mbedtls具体责任层。 | batch15-tls40格35符合预期；batch17-tls-probe合法DNS 6/6通过、IP 6/6失败；CA/tls属性读回；openssl verify IP证书成功 |
-| A1 | 矩阵流契约差异：直接读events/states/progress/uiStates.isBroadcast为[true,false,true,false]；两个订阅仍都收到，dispose后八订阅全关闭。 | batch15-basic/basic-swap.json STREAM_FLAGS，不是已证实的订阅互相干扰 |
-| A2/E.MovaBufferChange/E.MovaSizeChange | 异步交付快照差异：订阅event时同时读`a.state`，连续更新时载荷与“接收这一刻”的最新state可不同。不能由此推断解码状态错误。 | event-audit.json；batch1-basic-swap BufferChange 7次中3次，batch15-abr SizeChange 7次中1次不符；原始ms/engine/state齐全 |
+| A1 | 矩阵流契约差异：直接读events/states/progress/uiStates.isBroadcast为[true,false,true,false]；两个订阅仍都收到，dispose后八订阅全关闭。 | batch15-basic/basic-cutover.json STREAM_FLAGS，不是已证实的订阅互相干扰 |
+| A2/E.MovaBufferChange/E.MovaSizeChange | 异步交付快照差异：订阅event时同时读`a.state`，连续更新时载荷与“接收这一刻”的最新state可不同。不能由此推断解码状态错误。 | event-audit.json；batch1-basic-cutover BufferChange 7次中3次，batch15-abr SizeChange 7次中1次不符；原始ms/engine/state齐全 |
 | A5/N12 | 矩阵同步/错误契约差异：已播放40s源时`f=a.open(other);`立刻读state仍为旧duration/rendered/title，随后异步清零；恢复关闭的404 `await open`为true且不抛，错误通过event/state报告。 | batch15-basic两实现OPEN_SYNC；batch20-edges BAD_OPEN_RESULT accepted=true/threw=false。与N8的true=接受语义一致 |
 | A8/A9/A12 | 越界输入契约差异：setVolume(-10/110)、setBrightness(-1/2)、setZoom(-1/0/100)的state保留输入。合法范围音量/亮度原生写回正常；maxZoom是手势上限，直接setZoom不使用该上限。 | batch15-basic及batch3-zoom JSON；音量0/50/100/30→系统0/10/20/6(max20)；batch20亮度原生0/.25/.75/1逐项一致 |
 | C3/U6 | 能力假设差异：真实播放时在视频上长按1800ms，rate仍1；当前GestureLayer没有长按倍速处理。双击实际是左右±10s seek，不是播放切换。 | batch18-longpress-during/after、doubletap-seek；batch22轴向改配通过 |
@@ -40,7 +40,7 @@ notes=r'''
 | U5 | 能力假设差异：SpeedButton点击循环倍速，未弹菜单；实际1x→1.25x。 | batch25-speed-button.json/png；CenterPlay/HUD子项通过 |
 | E1 | 顺序契约差异：实际Play意图事件早于Ready/FirstFrame，不符合矩阵示意箭头的严格顺序；不能将Play当首帧证据。 | batch15-lifecycle.json LIFECYCLE数组、逐条EVENT；naturalDone=1/errors=0，F1通过 |
 
-复跑入口（先启动本地源与adb reverse，设备亮屏解锁）：`python example/tool/coverage_suite_device.py api --name repro-launch`，再`python example/tool/coverage_device.py new --arg case=hls --name repro-hls --timeout 180`；双dispose用`basic`及`basic --arg swap=true`；V6用`coverage_suite_device.py he --only V6 --runs 5`。库代码不改。
+复跑入口（先启动本地源与adb reverse，设备亮屏解锁）：`python example/tool/coverage_suite_device.py api --name repro-launch`，再`python example/tool/coverage_device.py new --arg case=hls --name repro-hls --timeout 180`；双dispose用`basic`及`basic --arg cutover=true`；V6用`coverage_suite_device.py he --only V6 --runs 5`。库代码不改。
 
 ### BLOCKED所缺条件
 
@@ -56,7 +56,7 @@ notes=r'''
 - PiP退出state不复位的历史段落已过期：本轮展开及X均收到false/state复位；X会暂停，展开继续播。
 - 历史WarmPlan方向/广告短暂用户倍速窗口/pod第二条回落：本轮广告采样1x、内容恢复2x/1.5x、pod真换指，退役dispose不复位全局方向。每项3轮，未声称穷尽所有微任务时间窗口。
 - Android 404约120ms、拒连约79ms即nativeEndError，非Windows约5s；默认黑洞约5.28s先由mpv network-timeout结束，65s是Dart兜底派生值。
-- standby功能迁移/mediacodec-copy唤醒20/20通过，但S1跨GOP15/15仍靠grace约5s，不能将StandbyResume.elapsed当实际出画耗时；实际属性恢复约百余ms。该兜底受配置允许，最终F6/N20记PASS并保留信号/延迟观察。
+- keepAlive功能迁移/mediacodec-copy唤醒20/20通过，但S1跨GOP15/15仍靠grace约5s，不能将KeepAliveResume.elapsed当实际出画耗时；实际属性恢复约百余ms。该兜底受配置允许，最终F6/N20记PASS并保留信号/延迟观察。
 - S14 Android holding为黑屏、恢复正常，区别于Windows保留帧；S5只测20s，漂移137/681/410ms，均值409.3ms，不能据此宣称Windows 60s约2.5s漂移已修复。
 - 首帧证据使用native restart与实际事件。qoe:false零QoE、弱客户端0；完整卡顿释放后stallCount1/stallMs5468；120次首次销毁完成。上述均不以截止时间、UI标签、临近EOF seek推断性能。
 

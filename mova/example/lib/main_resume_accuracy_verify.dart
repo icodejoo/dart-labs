@@ -5,7 +5,7 @@ import 'package:mova/mova.dart';
 
 /// 0.4.0 无缝切换：中插续播点误差的**定向**真机验证。
 ///
-/// 与 `main_seamless_swap_verify.dart` 组2 的区别（后者测出 2210ms 偏差，怀疑
+/// 与 `main_seamless_cutover_verify.dart` 组2 的区别（后者测出 2210ms 偏差，怀疑
 /// 是探针自身的测量错误）：
 /// 1. 一次插播里有**两次** renderEpoch 跳变（正片→广告、广告→正片）。旧探针的
 ///    Completer 在第一次（正片→广告）就已完成，skip 之后 `await` 立刻返回，
@@ -60,10 +60,10 @@ class _PageState extends State<_Page> {
   Future<void> _run() async {
     final opts = MovaOpts(
       ads: const MovaAdConfig(enabled: true),
-      swap: const MovaSwapConfig(enabled: true, trigger: MovaEagerWarm()),
+      cutover: const MovaCutoverConfig(enabled: true, trigger: MovaEagerWarm()),
     );
-    final engine = MovaSwapEngine(engineFactory: () => createMovaEngine(options: opts));
-    final ctrl = MovaAdController(engine, swap: engine);
+    final engine = MovaCutoverEngine(engineFactory: () => createMovaEngine(options: opts));
+    final ctrl = MovaAds(engine, cutover: engine);
 
     Duration? latestPos;
     int epoch = engine.state.renderEpoch;
@@ -84,7 +84,7 @@ class _PageState extends State<_Page> {
       final c = awaitingBump;
       if (c != null && !c.isCompleted) c.complete();
     });
-    final phaseSub = engine.swapPhases.listen((p) => _mark('swapPhase=$p'));
+    final phaseSub = engine.cutoverPhases.listen((p) => _mark('cutoverPhase=$p'));
     final adSub = ctrl.changes.listen(
         (_) => _mark('adPhase: showingAd=${ctrl.isShowingAd} pending=${ctrl.isAdPending}'));
 
@@ -118,7 +118,7 @@ class _PageState extends State<_Page> {
       _mark('skip 后的 epoch 跳变 15s 内未发生（说明走了非无缝回落路径）');
     });
     final bumped = bumpAtMs.length >= 2;
-    final swapMs = bumped ? bumpAtMs[1] - skipAt : -1;
+    final cutoverMs = bumped ? bumpAtMs[1] - skipAt : -1;
 
     // 等新引擎报出第一个 progress（throttle 200ms，最多再等 2s）。
     final firstAfter = await _firstProgressAfter(engine, const Duration(seconds: 3));
@@ -132,7 +132,7 @@ class _PageState extends State<_Page> {
       final raw = firstAfter.inMilliseconds - target.inMilliseconds;
       final elapsed = readAt - skipAt;
       verdict = '结论：续播目标=${target.inMilliseconds}ms，切换后实测=${firstAfter.inMilliseconds}ms，'
-          '原始差=${raw}ms；切换耗时=${swapMs}ms，读数距 skip=${elapsed}ms（这段时间正片已在播，'
+          '原始差=${raw}ms；切换耗时=${cutoverMs}ms，读数距 skip=${elapsed}ms（这段时间正片已在播，'
           '故扣除后净误差≈${raw - elapsed}ms）。epoch 跳变次数=${bumpAtMs.length}';
     }
     _mark('=== $verdict ===');
@@ -147,7 +147,7 @@ class _PageState extends State<_Page> {
   }
 
   /// 等待引擎报出下一个 progress（切换后第一个）。
-  Future<Duration?> _firstProgressAfter(MovaSwapEngine engine, Duration limit) {
+  Future<Duration?> _firstProgressAfter(MovaCutoverEngine engine, Duration limit) {
     final c = Completer<Duration?>();
     late final StreamSubscription<MovaProg> sub;
     sub = engine.progress.listen((p) {
@@ -160,7 +160,7 @@ class _PageState extends State<_Page> {
     });
   }
 
-  Future<void> _waitPlaying(MovaSwapEngine engine) {
+  Future<void> _waitPlaying(MovaCutoverEngine engine) {
     final completer = Completer<void>();
     late final StreamSubscription<MovaProg> sub;
     sub = engine.progress.listen((p) {

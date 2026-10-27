@@ -50,13 +50,19 @@ enum MovaHiddenMode {
   /// 暂停，显示时续播（或回到边缘）。默认值。
   pause,
 
-  /// Keep it in standby (`MovaStandbyController.setStandby`): still playing with
+  /// Keep it in keepAlive (`MovaKeepAlive.setKeepAlive`): still playing with
   /// video and sound off, so it comes back without reconnecting. Live only —
   /// VOD and backgrounding still pause. Costs full network while hidden.
   ///
-  /// 让它待机（`MovaStandbyController.setStandby`）：仍在播放但关画面关声音，回来时无需重连。
+  /// 让它待机（`MovaKeepAlive.setKeepAlive`）：仍在播放但关画面关声音，回来时无需重连。
   /// 仅对直播生效——点播与进后台仍是暂停。隐藏期间照常满速下载。
-  standby,
+  keepAlive;
+
+  /// Old name of [keepAlive].
+  ///
+  /// [keepAlive] 的旧名。
+  @Deprecated('Use MovaHiddenMode.keepAlive')
+  static const MovaHiddenMode standby = keepAlive;
 }
 
 /// Which visibility changes pause a player, and how it resumes. A pure value
@@ -121,7 +127,7 @@ class MovaAutoPauseConfig {
   ///
   /// Example / 示例:
   /// ```dart
-  /// MovaView(source: src, autoPause: const MovaAutoPauseConfig(hiddenMode: MovaHiddenMode.standby))
+  /// MovaView(source: src, autoPause: const MovaAutoPauseConfig(hiddenMode: MovaHiddenMode.keepAlive))
   /// ```
   final MovaHiddenMode hiddenMode;
 
@@ -208,14 +214,14 @@ enum MovaGuardAction {
   /// `backToLiveEdge()`，之后若仍未在播再 `play()`。
   reloadEdge,
 
-  /// Enter standby (`setStandby(true)`).
+  /// Enter keepAlive (`setKeepAlive(true)`).
   ///
-  /// 进入待机（`setStandby(true)`）。
-  standby,
+  /// 进入待机（`setKeepAlive(true)`）。
+  keepAlive,
 
-  /// Leave standby (`setStandby(false)`).
+  /// Leave keepAlive (`setKeepAlive(false)`).
   ///
-  /// 退出待机（`setStandby(false)`）。
+  /// 退出待机（`setKeepAlive(false)`）。
   wake,
 }
 
@@ -229,7 +235,7 @@ enum _Owe {
   /// A resume (it paused the player).
   resume,
 
-  /// A wake (it put the player into standby).
+  /// A wake (it put the player into keepAlive).
   wake,
 }
 
@@ -266,7 +272,7 @@ class MovaAutoPauseGate {
   bool? _inactiveSnapshot;
 
   /// What this gate owes for the current hidden period: a resume when it
-  /// paused the player, a wake when it put the player into standby.
+  /// paused the player, a wake when it put the player into keepAlive.
   ///
   /// 本守卫在当前这段隐藏期里欠的那一步：暂停了播放器就欠一次恢复，让它待机了就欠一次唤醒。
   _Owe _owe = _Owe.none;
@@ -302,8 +308,8 @@ class MovaAutoPauseGate {
   void onResumed() => _inactiveSnapshot = null;
 
   /// Rechecks playback or exemption changes during an existing hidden period.
-  /// Returns a pause (or, in standby mode for a live stream the engine can
-  /// hold, a standby) action when [playing] and not [exempt].
+  /// Returns a pause (or, in keepAlive mode for a live stream the engine can
+  /// hold, a keepAlive) action when [playing] and not [exempt].
   /// Example: `gate.observe(playing: true, exempt: false)`.
   ///
   /// 隐藏期间重新检查播放或豁免变化；有播放意图且未豁免时返回暂停（待机模式下、直播且引擎
@@ -312,29 +318,29 @@ class MovaAutoPauseGate {
   /// - [playing]: playing intent right now / 此刻的播放意图
   /// - [exempt]: the picture lives on in PiP / the mini window / 画面在画中画/小窗里继续
   /// - [live]: whether the source is live / 是否直播源
-  /// - [standbyCapable]: the engine implements `MovaStandbyController` / 引擎实现了 `MovaStandbyController`
+  /// - [keepAliveCapable]: the engine implements `MovaKeepAlive` / 引擎实现了 `MovaKeepAlive`
   MovaGuardAction observe({
     required bool playing,
     required bool exempt,
     bool live = false,
-    bool standbyCapable = false,
+    bool keepAliveCapable = false,
   }) {
     if (!hidden || !playing || exempt) return MovaGuardAction.none;
-    return _hideAction(live, standbyCapable);
+    return _hideAction(live, keepAliveCapable);
   }
 
-  /// Picks how to hide a playing stream: standby when the mode, the stream and
+  /// Picks how to hide a playing stream: keepAlive when the mode, the stream and
   /// the engine allow it and the app is not backgrounded, otherwise a pause.
   ///
   /// 选择如何隐藏一条在播的流：模式、流和引擎都允许且应用没进后台时待机，否则暂停。
-  MovaGuardAction _hideAction(bool live, bool standbyCapable) {
-    final standby =
-        config.hiddenMode == MovaHiddenMode.standby &&
+  MovaGuardAction _hideAction(bool live, bool keepAliveCapable) {
+    final keepAlive =
+        config.hiddenMode == MovaHiddenMode.keepAlive &&
         live &&
-        standbyCapable &&
+        keepAliveCapable &&
         !_reasons.contains(MovaHideReason.background);
-    _owe = standby ? _Owe.wake : _Owe.resume;
-    return standby ? MovaGuardAction.standby : MovaGuardAction.pause;
+    _owe = keepAlive ? _Owe.wake : _Owe.resume;
+    return keepAlive ? MovaGuardAction.keepAlive : MovaGuardAction.pause;
   }
 
   /// Applies [next] while preserving the hidden cycle; returns the next action.
@@ -349,14 +355,14 @@ class MovaAutoPauseGate {
     required bool live,
     required bool exempt,
     required DateTime now,
-    bool standbyCapable = false,
+    bool keepAliveCapable = false,
   }) {
     final wasHidden = hidden;
     config = next;
     _reasons
       ..clear()
       ..addAll(_active.where(config.watches));
-    return _transition(wasHidden, playing, live, exempt, now, null, standbyCapable);
+    return _transition(wasHidden, playing, live, exempt, now, null, keepAliveCapable);
   }
 
   /// Sets one reason on/off and returns the action to take.
@@ -369,7 +375,7 @@ class MovaAutoPauseGate {
   /// - [live]: whether the source is live / 是否直播源
   /// - [exempt]: the picture lives on in system PiP / in-app mini window, never pause for it / 画面在系统画中画/小窗里继续，不因它暂停
   /// - [now]: the current time / 当前时间
-  /// - [standbyCapable]: the engine implements `MovaStandbyController` / 引擎实现了 `MovaStandbyController`
+  /// - [keepAliveCapable]: the engine implements `MovaKeepAlive` / 引擎实现了 `MovaKeepAlive`
   ///
   /// Returns what the caller should do; repeating the same call returns [MovaGuardAction.none].
   ///
@@ -381,7 +387,7 @@ class MovaAutoPauseGate {
     required bool live,
     required bool exempt,
     required DateTime now,
-    bool standbyCapable = false,
+    bool keepAliveCapable = false,
   }) {
     active ? _active.add(reason) : _active.remove(reason);
     if (!config.watches(reason)) return MovaGuardAction.none;
@@ -389,7 +395,7 @@ class MovaAutoPauseGate {
     final changed = active ? _reasons.add(reason) : _reasons.remove(reason);
     if (!changed) return MovaGuardAction.none;
 
-    return _transition(wasHidden, playing, live, exempt, now, reason, standbyCapable);
+    return _transition(wasHidden, playing, live, exempt, now, reason, keepAliveCapable);
   }
 
   /// Decides after the effective reason set changes.
@@ -402,7 +408,7 @@ class MovaAutoPauseGate {
     bool exempt,
     DateTime now,
     MovaHideReason? reason,
-    bool standbyCapable,
+    bool keepAliveCapable,
   ) {
     if (!wasHidden && hidden) {
       final snapshot = reason == MovaHideReason.background
@@ -411,12 +417,12 @@ class MovaAutoPauseGate {
       _inactiveSnapshot = null;
       final intent = snapshot ?? playing;
       _hiddenAt = now;
-      if (intent && !exempt) return _hideAction(live, standbyCapable);
+      if (intent && !exempt) return _hideAction(live, keepAliveCapable);
       _owe = _Owe.none;
       return MovaGuardAction.none;
     }
 
-    // The app goes to the background while the stream is held in standby: the
+    // The app goes to the background while the stream is held in keepAlive: the
     // system throttles network and CPU, so downgrade to a plain pause.
     //
     // 流在待机时应用进了后台：系统会限网限 CPU，降级为普通暂停。

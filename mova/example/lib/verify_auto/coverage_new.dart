@@ -21,7 +21,7 @@ Future<void> runNew(Map<String, String> args) async {
     case 'options': await options();
     case 'recovery': await recovery(args);
     case 'live': await live(args);
-    case 'hooks': await hooks(args['swap']=='true');
+    case 'hooks': await hooks(args['cutover']=='true');
     case 'feed': await feed();
     case 'preview': await preview(args);
     case 'qoe': await qoe(args);
@@ -31,7 +31,7 @@ Future<void> runNew(Map<String, String> args) async {
     case 'lazy': await lazy();
     case 'stt': await stt();
     case 'watchoff': await watchoff();
-    case 'swap': await swap();
+    case 'cutover': await cutover();
     case 'ads': await ads();
     case 'adResume': await adResume();
     case 'abr': await abr();
@@ -69,7 +69,7 @@ Future<void> adFailure() async {
     final broken=MovaAdBreak(kind:MovaAdBreakKind.pre,source:c.source('404.mp4'));
     final good=MovaAdBreak(kind:MovaAdBreakKind.pre,source:c.source('ad.mp4'),duration:const Duration(seconds:1));
     final opts=MovaOpts(ads:MovaAdConfig(enabled:true,breaks:[broken,good],failPolicy:policy,onAdEvent:(e){received.add(e);c.mark('AD_POLICY_EVENT',{'policy':'${policy.runtimeType}','type':e.type.name,'uri':e.adBreak.source.uri,'error':'${e.error}'});}));
-    final a=createMovaEngine(audioOnly:true,options:opts);c.observe(a);final ctl=MovaAdController(a);
+    final a=createMovaEngine(audioOnly:true,options:opts);c.observe(a);final ctl=MovaAds(a);
     await ctl.load(c.source());await c.until(()=>!ctl.isShowingAd && a.state.sourceTitle=='Coverage vod.mp4',seconds:30);
     c.mark('AD_POLICY_END',{'policy':'${policy.runtimeType}','events':received.map((e)=>e.type.name).toList(),'state':c.snapshot(a)});
     await ctl.dispose();await a.dispose();
@@ -80,7 +80,7 @@ Future<void> adFailure() async {
 Future<void> nextUp() async {
   c.widgetMode.value=false;
   final a=createMovaEngine(preciseFirstFrame:true,options:MovaOpts(playlist:MovaPlaylistConfig(enabled:true,nextUpLeadTime:const Duration(seconds:10),items:[MovaPlaylistItem(source:c.source('ad.mp4'),title:'EPISODE ONE'),MovaPlaylistItem(source:c.source(),title:'COVERAGE NEXT EPISODE')])));
-  final ctl=MovaPlaylistController(a);c.observe(a);c.screen.value=a;
+  final ctl=MovaPlaylist(a);c.observe(a);c.screen.value=a;
   c.skin.value=MovaDefaultSkin(patches:[MovaPatch.add(MovaSlot.overlay,MovaNextUpComponent(ctl))]);
   await c.settle(200);await ctl.jumpTo(0);await c.until(()=>a.state.rendered);await a.seek(const Duration(seconds:12));await a.pause();
   c.mark('NEXTUP_READY',{'index':ctl.currentIndex,'state':c.snapshot(a)});
@@ -91,7 +91,7 @@ Future<void> visualAd() async {
   c.widgetMode.value=false;
   final config=MovaAdConfig(enabled:true,breaks:[MovaAdBreak(kind:MovaAdBreakKind.pre,source:c.source('ad.mp4'),duration:const Duration(seconds:15),skippableAfter:const Duration(seconds:2),clickThroughUrl:'https://example.invalid/coverage')],onAdEvent:(e)=>c.mark('VISUAL_AD_EVENT',{'type':e.type.name,'uri':e.adBreak.source.uri}));
   final a=createMovaEngine(preciseFirstFrame:true,options:MovaOpts(ads:config));c.observe(a);c.screen.value=a;
-  final ctl=MovaAdController(a);c.skin.value=MovaDefaultSkin(patches:[MovaPatch.add(MovaSlot.overlay,MovaAdOverlayComponent(ctl))]);
+  final ctl=MovaAds(a);c.skin.value=MovaDefaultSkin(patches:[MovaPatch.add(MovaSlot.overlay,MovaAdOverlayComponent(ctl))]);
   await c.settle(200);await ctl.load(c.source());await c.until(()=>a.state.rendered);
   c.mark('VISUAL_AD_READY',c.snapshot(a));
 }
@@ -167,14 +167,14 @@ Future<void> abr() async {
 Future<void> adResume() async {
   for(var run=0;run<5;run++) {
     final players=<Player>[];
-    const opts=MovaOpts(ads:MovaAdConfig(enabled:true),swap:MovaSwapConfig(enabled:true,trigger:MovaEagerWarm()));
+    const opts=MovaOpts(ads:MovaAdConfig(enabled:true),cutover:MovaCutoverConfig(enabled:true,trigger:MovaEagerWarm()));
     MovaEngine factory(){
       final p=Player();players.add(p);
       final k=MovaMpvKernel(player:p,lazyVideo:true,observeNativeEvents:true,backendFactory:(n,address)=>createFfiMpvEventBackend(n,address,pollInDebug:false));
       return createMovaEngine(kernel:k,options:opts);
     }
-    final a=MovaSwapEngine(engineFactory:factory);c.observe(a);c.screen.value=a;await c.settle(300);
-    final ctl=MovaAdController(a,swap:a);
+    final a=MovaCutoverEngine(engineFactory:factory);c.observe(a);c.screen.value=a;await c.settle(300);
+    final ctl=MovaAds(a,cutover:a);
     int? last,target,actual,readLatency;
     var epoch=0;
     a.progress.listen((p)=>last=p.position.inMilliseconds);
@@ -189,7 +189,7 @@ Future<void> adResume() async {
     });
     await ctl.load(c.source());await c.until(()=>last!=null&&last!>=4000);
     await ctl.playAdNow(MovaAdBreak(kind:MovaAdBreakKind.mid,source:c.source('ad.mp4'),skippableAfter:Duration.zero));
-    await c.until(()=>a.state.renderEpoch==1);await c.until(()=>last!=null&&last!>=3000&&a.swapPhase==MovaSwapPhase.ready,seconds:25);
+    await c.until(()=>a.state.renderEpoch==1);await c.until(()=>last!=null&&last!>=3000&&a.cutoverPhase==MovaCutoverPhase.ready,seconds:25);
     ctl.skip();await c.until(()=>actual!=null,seconds:20);
     final error=actual!-target!;
     c.check('F4.adResume',error.abs()<100,'run=$run target=$target nativeAfter=$actual error=$error nativeReadLatency=$readLatency epoch=${a.state.renderEpoch}');
@@ -197,36 +197,36 @@ Future<void> adResume() async {
   }
 }
 
-/// Exercises the two-phase and eager swap APIs with native audio-only engines.
+/// Exercises the two-phase and eager cutover APIs with native audio-only engines.
 ///
 /// 用原生仅音频引擎验证两阶段和立即切换接口。
-Future<void> swap() async {
+Future<void> cutover() async {
   for(final enabled in [false,true]) {
     final made=<MovaEngine>[];
-    MovaEngine factory(){final e=createMovaEngine(audioOnly:true,options:MovaOpts(swap:MovaSwapConfig(enabled:enabled,readyTimeout:const Duration(seconds:2))));made.add(e);return e;}
-    final a=MovaSwapEngine(engineFactory:factory);c.observe(a);
+    MovaEngine factory(){final e=createMovaEngine(audioOnly:true,options:MovaOpts(cutover:MovaCutoverConfig(enabled:enabled,readyTimeout:const Duration(seconds:2))));made.add(e);return e;}
+    final a=MovaCutoverEngine(engineFactory:factory);c.observe(a);
     await a.open(c.source());await c.until(()=>a.state.rendered);
     if(!enabled){
       await a.prepare(c.source('ad.mp4'));final committed=await a.commit(waitForReady:true);
-      final swapped=await a.swapTo(c.source('ad.mp4'));
+      final swapped=await a.cutoverTo(c.source('ad.mp4'));
       c.check('C11.off',!committed&&!swapped&&made.length==1&&a.state.renderEpoch==0,'engines=${made.length} epoch=${a.state.renderEpoch}');
     }else{
       await a.prepare(c.source('ad.mp4'),at:const Duration(seconds:6),plan:const MovaWarmPlan(trigger:MovaEagerWarm(),pauseWhenReady:true,rate:1.5));
-      await c.until(()=>a.swapPhase==MovaSwapPhase.ready);
+      await c.until(()=>a.cutoverPhase==MovaCutoverPhase.ready);
       final ok=await a.commit(waitForReady:true);await c.until(()=>a.state.renderEpoch==1);
       await c.settle(200);c.check('A24.commit',ok&&a.state.rate==1.5,'epoch=${a.state.renderEpoch} rate=${a.state.rate} position=${c.latest.position.inMilliseconds}');
       c.check('A24.retired',!await made.first.open(c.source()),'retired engine rejects open');
       final before=made.length;
       await a.prepare(c.source(),cue:const MovaWarmCue(remaining:Duration(milliseconds:500),total:Duration(seconds:2)));
-      c.check('A24.short',made.length==before&&a.swapPhase==MovaSwapPhase.idle,'short warm declined engines=${made.length}');
+      c.check('A24.short',made.length==before&&a.cutoverPhase==MovaCutoverPhase.idle,'short warm declined engines=${made.length}');
       await a.prepare(c.source(),plan:const MovaWarmPlan(trigger:MovaEagerWarm()));
       final abandoned=made.last;await a.abandon();
-      c.check('A24.abandon',a.swapPhase==MovaSwapPhase.idle&&!await abandoned.open(c.source()),'shadow disposed');
+      c.check('A24.abandon',a.cutoverPhase==MovaCutoverPhase.idle&&!await abandoned.open(c.source()),'shadow disposed');
       await a.prepare(c.source('hang'),plan:const MovaWarmPlan(trigger:MovaEagerWarm()));
       final timed=await a.commit(waitForReady:true);
-      c.check('A24.timeout',!timed&&a.swapPhase==MovaSwapPhase.idle,'commit timeout returned=$timed');
-      final eager=await a.swapTo(c.source(),rate:1);
-      await c.settle(150);c.check('A24.swapTo',eager&&a.state.renderEpoch==2&&a.state.rate==1,'epoch=${a.state.renderEpoch} rate=${a.state.rate}');
+      c.check('A24.timeout',!timed&&a.cutoverPhase==MovaCutoverPhase.idle,'commit timeout returned=$timed');
+      final eager=await a.cutoverTo(c.source(),rate:1);
+      await c.settle(150);c.check('A24.cutoverTo',eager&&a.state.renderEpoch==2&&a.state.rate==1,'epoch=${a.state.renderEpoch} rate=${a.state.rate}');
     }
     await a.dispose();
   }
@@ -242,7 +242,7 @@ Future<void> ads() async {
   final config=MovaAdConfig(enabled:true,breaks:[pre,mid,post],onAdEvent:(e){received.add(e);c.mark('AD_EVENT',{'type':e.type.name,'kind':e.adBreak.kind.name,'title':e.adBreak.source.title,'error':'${e.error}','click':e.adBreak.clickThroughUrl});});
   c.check('C9.waits',!config.waitsFor(pre)&&config.waitsFor(mid)&&!config.waitsFor(post)&&!config.waitsFor(br(MovaAdBreakKind.mid,'OVERRIDE',wait:false)), 'pre=false mid=true post=false breakOverride=false');
   final a=createMovaEngine(audioOnly:true,options:MovaOpts(ads:config));c.observe(a);
-  final ctl=MovaAdController(a);await ctl.loadDeferred(()async=>c.source('ad.mp4'));
+  final ctl=MovaAds(a);await ctl.loadDeferred(()async=>c.source('ad.mp4'));
   await c.until(()=>received.any((e)=>e.type==MovaAdEventType.started&&e.adBreak.source.title=='PRE'));
   ctl.notifyClicked();ctl.skip();
   await c.until(()=>!ctl.isShowingAd&&c.latest.position.inMilliseconds>500);
@@ -356,7 +356,7 @@ Future<void> stallRelease() async {
 Future<void> feed() async {
   final made=<MovaApi>[];
   final pool=MovaFeedEnginePool(engineFactory:(){ final a=createMovaEngine(audioOnly:true); made.add(a); return a; });
-  final controller=MovaFeedController(pool:pool,loader:(i) async => i<0 || i>150 ? null : MovaFeedItem(source:c.source('vod.mp4?feed=$i')));
+  final controller=MovaFeed(pool:pool,loader:(i) async => i<0 || i>150 ? null : MovaFeedItem(source:c.source('vod.mp4?feed=$i')));
   await controller.ensure(0); await controller.activate(0);
   for(var i=1;i<=100;i++) {
     await controller.activate(i);
@@ -511,7 +511,7 @@ Future<void> hls(Map<String,String> args) async {
   late Player player;
   late MovaMpvKernel kernel;
   MovaEngine factory(){player=Player();kernel=MovaMpvKernel(player:player,observeNativeEvents:true,backendFactory:(n,address)=>createFfiMpvEventBackend(n,address,pollInDebug:false));return createMovaEngine(kernel:kernel,preciseFirstFrame:true);}
-  final MovaApi a=args['swap']=='true'?MovaSwapEngine(engineFactory:factory):factory(); c.observe(a); c.screen.value=a;
+  final MovaApi a=args['cutover']=='true'?MovaCutoverEngine(engineFactory:factory):factory(); c.observe(a); c.screen.value=a;
   await c.settle(400);
   final local=<MovaEvent>[]; a.events.listen(local.add);
   await a.open(MovaSource('http://127.0.0.1:18084/master.m3u8?t=${DateTime.now().microsecondsSinceEpoch}'));
@@ -673,11 +673,11 @@ class ProbeHook extends MovaHook {
 /// Exercises accepted/rejected opens and stale hook completions on real media.
 ///
 /// 在真实媒体上验证 open 返回及过期钩子结果。
-Future<void> hooks(bool swap) async {
+Future<void> hooks(bool cutover) async {
   final h = ProbeHook();
   final h2=ProbeHook();
   MovaEngine factory()=>createMovaEngine(audioOnly:true,interceptors:[h,h2],options:MovaOpts(playlist:MovaPlaylistConfig(items:[MovaPlaylistItem(source:c.source()),MovaPlaylistItem(source:c.source('ad.mp4'))])));
-  final MovaApi a=swap?MovaSwapEngine(engineFactory:factory):factory();c.observe(a);
+  final MovaApi a=cutover?MovaCutoverEngine(engineFactory:factory):factory();c.observe(a);
   h.reject=true;
   c.check('N8.reject',!await a.open(c.source()),'beforeOpen=false');
   h.reject=false;
@@ -689,7 +689,7 @@ Future<void> hooks(bool swap) async {
   h.seekGate=Completer<Duration?>(); final seek=a.seek(const Duration(seconds:10)); await c.settle();
   await a.open(c.source('ad.mp4'),autoPlay:false); h.seekGate!.complete(const Duration(seconds:10)); await seek;
   await c.settle(1000); c.mark('HOOK_SEEK_FINAL',c.snapshot(a)); h.seekGate=null;
-  final list=MovaPlaylistController(a); h.reject=true; await list.jumpTo(1);
+  final list=MovaPlaylist(a); h.reject=true; await list.jumpTo(1);
   c.mark('HOOK_PLAYLIST',{'index':list.currentIndex}); await list.dispose();
   c.check('N8.playlistRejected',list.currentIndex==0,'rejected jumpTo(1), index=${list.currentIndex}');h.reject=false;
   h.openGate=Completer<bool>();h.delayedOpens=0;

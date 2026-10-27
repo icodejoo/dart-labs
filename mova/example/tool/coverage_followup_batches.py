@@ -14,8 +14,8 @@ ROOT=HERE.parents[1]
 out=HERE/'coverage_evidence'
 
 jobs=[
-    ('batch8-standby-native','standby','S7,S8,S8B,S14',1,700),
-    ('batch9-standby-cpu-drift','standby','S4,S5,S5C',3,700),
+    ('batch8-keepAlive-native','keepAlive','S7,S8,S8B,S14',1,700),
+    ('batch9-keepAlive-cpu-drift','keepAlive','S4,S5,S5C',3,700),
     ('batch10-mute','mute','Q13A,Q13B,Q13C',5,700),
     ('batch11-review','review','all',3,850),
     ('batch12-pump','pump','',1,220),

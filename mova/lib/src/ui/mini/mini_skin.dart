@@ -27,10 +27,10 @@ import '../skins/skin.dart';
 class MovaMiniSkin implements MovaSkin {
   /// Called when the close (✕) button is tapped; `null` disables the button's
   /// effect (it still renders, but taps do nothing). `MovaMiniWindow` wires
-  /// this to `MovaMiniController.close` when the caller leaves it unset.
+  /// this to `MovaMini.close` when the caller leaves it unset.
   ///
   /// 关闭（✕）按钮被点击时调用；为 `null` 时按钮仍会渲染但点击无效果。
-  /// 调用方未设置时，`MovaMiniWindow` 会把它接到 `MovaMiniController.close`。
+  /// 调用方未设置时，`MovaMiniWindow` 会把它接到 `MovaMini.close`。
   final VoidCallback? onClose;
 
   /// Creates the mini-window chrome; [onClose] defaults to `null`.

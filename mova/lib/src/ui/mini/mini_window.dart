@@ -5,7 +5,7 @@ import '../../core/mini/placement.dart';
 import '../../core/options/mini_config.dart';
 import '../player.dart';
 import '../skins/skin.dart';
-import 'mini_ctl.dart';
+import 'mini.dart';
 import 'mini_skin.dart';
 
 /// The draggable mini window itself, holding a `MovaPlayer` on the borrowed
@@ -13,27 +13,27 @@ import 'mini_skin.dart';
 ///
 /// **Mount-agnostic by design**: it fills whatever box it is given and does
 /// its own positioning inside, so the very same widget works as an
-/// [OverlayEntry]'s child (in-page floating, via [MovaMiniController.showInPage])
+/// [OverlayEntry]'s child (in-page floating, via [MovaMini.showInPage])
 /// and as a `Positioned.fill` child of a host-level [Stack] (persistent
 /// floating, via `MovaMiniHost`). It must never assume which one it is in,
 /// and must never be a [Positioned] itself.
 ///
 /// Drag moves it (clamped every frame); release hands the rect to
 /// [MovaMiniConfig.effectivePlacement] and animates to the result. Tapping
-/// the picture invokes [MovaMiniController.onTapContent] (a no-op unless the host
-/// sets it); tapping the close affordance always calls [MovaMiniController.close].
+/// the picture invokes [MovaMini.onTapContent] (a no-op unless the host
+/// sets it); tapping the close affordance always calls [MovaMini.close].
 ///
 /// 可拖拽的小窗本体，内部用借来的 api 挂一个 `MovaPlayer`。
 ///
 /// **设计上与挂载方式无关**：它撑满外部给它的盒子，在盒子内部自行定位，因此同
 /// 一个 widget 既能当 [OverlayEntry] 的 child（页内悬浮，经
-/// [MovaMiniController.showInPage]），也能当宿主级 [Stack] 的 `Positioned.fill` child
+/// [MovaMini.showInPage]），也能当宿主级 [Stack] 的 `Positioned.fill` child
 /// （持久悬浮，经 `MovaMiniHost`）。它绝不许假设自己在哪一种里，也绝不许自己就
 /// 是 [Positioned]。
 ///
 /// 拖动即移动（每帧钳制）；松手把矩形交给 [MovaMiniConfig.effectivePlacement]
-/// 并动画到结果。点画面触发 [MovaMiniController.onTapContent]（宿主未设置时是空操作）；
-/// 点关闭按钮总是调 [MovaMiniController.close]。
+/// 并动画到结果。点画面触发 [MovaMini.onTapContent]（宿主未设置时是空操作）；
+/// 点关闭按钮总是调 [MovaMini.close]。
 class MovaMiniWindow extends StatefulWidget {
   /// Creates the mini window.
   ///
@@ -43,7 +43,7 @@ class MovaMiniWindow extends StatefulWidget {
   /// The route-independent holder this window reads/writes its rect through.
   ///
   /// 本窗口读写矩形所经的、独立于路由的持有者。
-  final MovaMiniController ctl;
+  final MovaMini ctl;
 
   /// The borrowed engine this window plays.
   ///
@@ -153,11 +153,11 @@ class _MovaMiniWindowState extends State<MovaMiniWindow> {
     );
   }
 
-  /// Wires `MovaMiniController.close` into the skin's close button when the caller
+  /// Wires `MovaMini.close` into the skin's close button when the caller
   /// left [MovaMiniSkin.onClose] unset — sparing callers from having to
   /// thread `ctl.close` through every custom skin injection.
   ///
-  /// 调用方未设置 [MovaMiniSkin.onClose] 时，把 `MovaMiniController.close` 接进皮肤
+  /// 调用方未设置 [MovaMiniSkin.onClose] 时，把 `MovaMini.close` 接进皮肤
   /// 的关闭按钮——省得调用方每次注入自定义皮肤都要手动串一遍 `ctl.close`。
   MovaSkin _effectiveSkin() {
     final skin = widget.ctl.skin;

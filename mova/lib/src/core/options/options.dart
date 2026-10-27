@@ -9,10 +9,10 @@ export 'playlist_config.dart';
 export 'preview_config.dart';
 export 'recovery_config.dart';
 export 'report_config.dart';
-export 'standby_config.dart';
+export 'keep_alive_config.dart';
 export 'stt_config.dart';
 export 'strings.dart';
-export 'swap_config.dart';
+export 'cutover_config.dart';
 export 'theme.dart';
 export 'timeouts.dart';
 
@@ -27,10 +27,10 @@ import 'playlist_config.dart';
 import 'preview_config.dart';
 import 'recovery_config.dart';
 import 'report_config.dart';
-import 'standby_config.dart';
+import 'keep_alive_config.dart';
 import 'stt_config.dart';
 import 'strings.dart';
-import 'swap_config.dart';
+import 'cutover_config.dart';
 import 'theme.dart';
 
 /// Top-level, immutable configuration bundle for a mova player.
@@ -104,7 +104,7 @@ class MovaOpts {
   /// Seamless engine-swapping configuration.
   ///
   /// 无缝引擎切换配置。
-  final MovaSwapConfig swap;
+  final MovaCutoverConfig cutover;
 
   /// In-app mini window configuration.
   ///
@@ -121,11 +121,23 @@ class MovaOpts {
   /// 起播/卡顿超时与恢复；默认关闭。
   final MovaRecoveryConfig recovery;
 
-  /// Standby tuning (hidden-picture hold); only takes effect once something
-  /// calls `MovaStandbyController.setStandby`.
+  /// KeepAlive tuning (hidden-picture hold); only takes effect once something
+  /// calls `MovaKeepAlive.setKeepAlive`.
   ///
-  /// 待机调参（画面被隐藏时的保持）；只有当有人调用 `MovaStandbyController.setStandby` 时才生效。
-  final MovaStandbyConfig standby;
+  /// 待机调参（画面被隐藏时的保持）；只有当有人调用 `MovaKeepAlive.setKeepAlive` 时才生效。
+  final MovaKeepAliveConfig keepAlive;
+
+  /// Old name of [keepAlive].
+  ///
+  /// [keepAlive] 的旧名。
+  @Deprecated('Use keepAlive')
+  MovaKeepAliveConfig get standby => keepAlive;
+
+  /// Old name of [cutover].
+  ///
+  /// [cutover] 的旧名。
+  @Deprecated('Use cutover')
+  MovaCutoverConfig get swap => cutover;
 
   /// Creates an options bundle; every section defaults to its own defaults.
   ///
@@ -142,11 +154,11 @@ class MovaOpts {
     this.ads = const MovaAdConfig(),
     this.strings = const MovaStrs(),
     this.theme = const MovaTheme(),
-    this.swap = const MovaSwapConfig(),
+    this.cutover = const MovaCutoverConfig(),
     this.mini = const MovaMiniConfig(),
     this.report = const MovaReportConfig(),
     this.recovery = const MovaRecoveryConfig(),
-    this.standby = const MovaStandbyConfig(),
+    this.keepAlive = const MovaKeepAliveConfig(),
   });
 
   /// Returns a copy with the given sections replaced; omitted sections keep
@@ -165,11 +177,11 @@ class MovaOpts {
   /// - [ads]: replacement ad config / 替换用的广告配置
   /// - [strings]: replacement strings / 替换用的文案
   /// - [theme]: replacement theme / 替换用的主题
-  /// - [swap]: replacement swap config / 替换用的切换配置
+  /// - [cutover]: replacement cutover config / 替换用的切换配置
   /// - [mini]: replacement mini-window config / 替换用的小窗配置
   /// - [report]: replacement telemetry config / 替换用的埋点配置
   /// - [recovery]: replacement recovery config / 替换用的恢复配置
-  /// - [standby]: replacement standby config / 替换用的待机配置
+  /// - [keepAlive]: replacement keepAlive config / 替换用的待机配置
   ///
   /// Returns the new [MovaOpts] instance / 返回新的 [MovaOpts] 实例。
   MovaOpts copyWith({
@@ -184,11 +196,11 @@ class MovaOpts {
     MovaAdConfig? ads,
     MovaStrs? strings,
     MovaTheme? theme,
-    MovaSwapConfig? swap,
+    MovaCutoverConfig? cutover,
     MovaMiniConfig? mini,
     MovaReportConfig? report,
     MovaRecoveryConfig? recovery,
-    MovaStandbyConfig? standby,
+    MovaKeepAliveConfig? keepAlive,
   }) {
     return MovaOpts(
       preview: preview ?? this.preview,
@@ -202,11 +214,11 @@ class MovaOpts {
       ads: ads ?? this.ads,
       strings: strings ?? this.strings,
       theme: theme ?? this.theme,
-      swap: swap ?? this.swap,
+      cutover: cutover ?? this.cutover,
       mini: mini ?? this.mini,
       report: report ?? this.report,
       recovery: recovery ?? this.recovery,
-      standby: standby ?? this.standby,
+      keepAlive: keepAlive ?? this.keepAlive,
     );
   }
 
@@ -226,13 +238,13 @@ class MovaOpts {
           ads == other.ads &&
           strings == other.strings &&
           theme == other.theme &&
-          swap == other.swap &&
+          cutover == other.cutover &&
           mini == other.mini &&
           report == other.report &&
           recovery == other.recovery &&
-          standby == other.standby;
+          keepAlive == other.keepAlive;
 
   @override
   int get hashCode => Object.hash(preview, live, gesture, abr, controls, danmaku,
-      stt, playlist, ads, strings, Object.hash(theme, swap, mini, report, recovery, standby));
+      stt, playlist, ads, strings, Object.hash(theme, cutover, mini, report, recovery, keepAlive));
 }

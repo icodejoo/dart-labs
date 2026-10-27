@@ -2,7 +2,7 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mova/src/core/feed/engine_pool.dart';
-import 'package:mova/src/core/feed/feed_controller.dart';
+import 'package:mova/src/core/feed/feed.dart';
 import 'package:mova/src/core/model/feed_item.dart';
 import 'package:mova/src/core/model/source.dart';
 import 'package:mova/src/ui/scope/scope.dart';
@@ -24,8 +24,8 @@ import '../support/fake_api.dart';
 /// Returns the ready-to-use controller.
 ///
 /// 返回可直接使用的控制器。
-Future<MovaFeedController> _controllerWith(FakeMovaApi api, MovaFeedItem item) async {
-  final controller = MovaFeedController(
+Future<MovaFeed> _controllerWith(FakeMovaApi api, MovaFeedItem item) async {
+  final controller = MovaFeed(
     pool: MovaFeedEnginePool(engineFactory: () => api, size: 1),
     loader: (i) async => item,
   );
@@ -131,7 +131,7 @@ void main() {
   test('components expose no top bar and no drag-based gesture component', () {
     final api = FakeMovaApi();
     final item = MovaFeedItem(source: const MovaSource('https://h/0.mp4'));
-    final controller = MovaFeedController(
+    final controller = MovaFeed(
       pool: MovaFeedEnginePool(engineFactory: () => api, size: 1),
       loader: (i) async => item,
     );

@@ -3,7 +3,7 @@ import json,subprocess,sys
 from pathlib import Path
 from coverage_record import journal,update
 h=Path(__file__).resolve().parent
-for mode,args in [('normal',[]),('swap',['--arg','swap=true']),('paused',['--arg','paused=true'])]:
+for mode,args in [('normal',[]),('cutover',['--arg','cutover=true']),('paused',['--arg','paused=true'])]:
     name='batch21-hls-'+mode
     subprocess.run([sys.executable,str(h/'coverage_suite_device.py'),'api','--name',name+'-launch','--timeout','60'],cwd=h.parents[1],check=True)
     subprocess.run([sys.executable,str(h/'coverage_device.py'),'new','--arg','case=hls','--name',name,'--timeout','180',*args],cwd=h.parents[1],check=True)

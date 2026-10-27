@@ -1,15 +1,15 @@
 import 'package:fake_async/fake_async.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mova/mova.dart' as barrel;
-import 'package:mova/src/core/ad/ad_controller.dart';
+import 'package:mova/src/core/ad/ads.dart';
 import 'package:mova/src/core/ad/fail.dart';
 import 'package:mova/src/core/model/ad.dart';
 import 'package:mova/src/core/model/source.dart';
 import 'package:mova/src/core/options/options.dart';
 import 'package:mova/src/core/state/progress.dart';
-import 'package:mova/src/core/swap/plan.dart';
-import 'package:mova/src/core/swap/trigger.dart';
-import 'package:mova/src/core/swap/warm.dart';
+import 'package:mova/src/core/cutover/plan.dart';
+import 'package:mova/src/core/cutover/trigger.dart';
+import 'package:mova/src/core/cutover/warm.dart';
 
 import '../support/fake_api.dart';
 
@@ -24,9 +24,9 @@ const _mid = MovaAdBreak(
 /// Builds a fake api + controller over [breaks] with [ads] as the ad section.
 ///
 /// 用 [ads] 作为广告配置节、基于 [breaks] 构造假 api + 控制器。
-(FakeMovaApi, MovaAdController) build(MovaAdConfig ads, {FakeSwapCtl? swap}) {
+(FakeMovaApi, MovaAds) build(MovaAdConfig ads, {FakeCutoverCtl? cutover}) {
   final api = FakeMovaApi(options: MovaOpts(ads: ads));
-  return (api, MovaAdController(api, swap: swap));
+  return (api, MovaAds(api, cutover: cutover));
 }
 
 /// Lets the controller's async chains settle inside a [fakeAsync] zone.
@@ -104,7 +104,7 @@ void main() {
       expect(const MovaAdConfig(failPolicy: MovaAdAbandonPod()).effectiveFailPolicy,
           isA<MovaAdAbandonPod>());
 
-      // And the injected policy is really the one MovaAdController consults.
+      // And the injected policy is really the one MovaAds consults.
       fakeAsync((async) {
         final policy = _RecordingFail();
         final (api, c) = build(MovaAdConfig(
@@ -178,18 +178,18 @@ void main() {
 
     test('the controller really uses the resolved plan for the content→ad direction', () {
       fakeAsync((async) {
-        final swap = FakeSwapCtl();
+        final cutover = FakeCutoverCtl();
         final (api, c) = build(
           const MovaAdConfig(enabled: true, breaks: [_mid]),
-          swap: swap,
+          cutover: cutover,
         );
         c.load(_content);
         flush(async);
         api.pushProgress(const MovaProg(position: Duration(seconds: 31)));
         flush(async);
-        expect(swap.calls, contains('prepare'));
-        expect(swap.lastPlan!.pauseWhenReady, isTrue);
-        expect(swap.lastPlan!.trigger, isA<MovaEagerWarm>());
+        expect(cutover.calls, contains('prepare'));
+        expect(cutover.lastPlan!.pauseWhenReady, isTrue);
+        expect(cutover.lastPlan!.trigger, isA<MovaEagerWarm>());
       });
     });
   });

@@ -59,9 +59,9 @@ def finish_record(name,item):
 
 
 unlocked()
-for swap in [False,True]:
-    tag='batch16-swap' if swap else 'batch16-engine'
-    call(tag+'-start',swap=str(swap).lower(),style='custom',shot=True)
+for cutover in [False,True]:
+    tag='batch16-cutover' if cutover else 'batch16-engine'
+    call(tag+'-start',cutover=str(cutover).lower(),style='custom',shot=True)
     call(tag+'-pause','pause')
     for fit in ['contain','cover','fill']:
         st=call(tag+'-fit-'+fit,'fit',value=fit,shot=True)
@@ -121,16 +121,16 @@ for audio in [False,True]:
     call(tag+'-playing',shot=True)
     call(tag+'-dispose','dispose')
 
-# Default standby deadline and explicit pause, using actual state transitions.
+# Default keepAlive deadline and explicit pause, using actual state transitions.
 call('batch16-live-start',url='http://127.0.0.1:18080/live.flv?gop=50&audio=1',live='true',shot=True)
-time.sleep(3);st=call('batch16-standby-on','standby',value='true',shot=True)
+time.sleep(3);st=call('batch16-keepAlive-on','keepAlive',value='true',shot=True)
 end=time.monotonic()+38
-while st['standby']=='holding' and time.monotonic()<end:
-    time.sleep(.5);st=call('batch16-standby-wait')
-check('C15.maxDuration',st['standby']=='fallback',st)
-call('batch16-standby-off','standby',value='false');time.sleep(3)
-call('batch16-standby-on2','standby',value='true');st=call('batch16-standby-pause','pause',shot=True)
-check('A25.pause',st['standby']=='off' and not st['intent'],st)
+while st['keepAlive']=='holding' and time.monotonic()<end:
+    time.sleep(.5);st=call('batch16-keepAlive-wait')
+check('C15.maxDuration',st['keepAlive']=='fallback',st)
+call('batch16-keepAlive-off','keepAlive',value='false');time.sleep(3)
+call('batch16-keepAlive-on2','keepAlive',value='true');st=call('batch16-keepAlive-pause','pause',shot=True)
+check('A25.pause',st['keepAlive']=='off' and not st['intent'],st)
 call('batch16-live-dispose','dispose')
 
 # MovaView owns creation, reuse, options changes, null source and disposal.

@@ -6,8 +6,8 @@ import '../options/preview_config.dart';
 import '../options/stt_config.dart';
 import '../recovery/fail.dart';
 import '../render/first_frame.dart';
-import '../standby/standby.dart';
-import '../swap/ctl.dart';
+import '../keep_alive/keep_alive.dart';
+import '../cutover/ctl.dart';
 
 /// Base type of everything broadcast on [MovaApi.events].
 ///
@@ -443,19 +443,19 @@ class MovaSttBlock extends MovaEvent {
   const MovaSttBlock(this.reason);
 }
 
-/// A seamless engine swap transitioned to a new phase.
+/// A seamless engine cutover transitioned to a new phase.
 ///
 /// 无缝引擎切换迁移到了新的阶段。
-class MovaSwapChange extends MovaEvent {
+class MovaCutoverChange extends MovaEvent {
   /// The phase now in effect.
   ///
   /// 当前生效的阶段。
-  final MovaSwapPhase phase;
+  final MovaCutoverPhase phase;
 
   /// Creates the event with [phase].
   ///
   /// 用 [phase] 创建事件。
-  const MovaSwapChange(this.phase);
+  const MovaCutoverChange(this.phase);
 }
 
 /// A playback error occurred.
@@ -550,42 +550,42 @@ class MovaFailover extends MovaEvent {
   const MovaFailover({required this.from, required this.to, required this.uri});
 }
 
-/// The standby phase changed.
+/// The keepAlive phase changed.
 ///
 /// 待机阶段发生变化。
 ///
 /// Example / 示例:
 /// ```dart
 /// api.events.listen((e) {
-///   if (e is MovaStandbyChange && e.phase == MovaStandbyPhase.fallback) {
-///     log('standby fell back to pause: ${e.reason.name}');
+///   if (e is MovaKeepAliveChange && e.phase == MovaKeepAlivePhase.fallback) {
+///     log('keepAlive fell back to pause: ${e.reason.name}');
 ///   }
 /// });
 /// ```
-class MovaStandbyChange extends MovaEvent {
+class MovaKeepAliveChange extends MovaEvent {
   /// Creates the event.
   ///
   /// 创建事件。
-  const MovaStandbyChange({required this.phase, required this.reason, this.mode});
+  const MovaKeepAliveChange({required this.phase, required this.reason, this.mode});
 
   /// The new phase.
   ///
   /// 新阶段。
-  final MovaStandbyPhase phase;
+  final MovaKeepAlivePhase phase;
 
   /// Why it changed.
   ///
   /// 变化原因。
-  final MovaStandbyReason reason;
+  final MovaKeepAliveReason reason;
 
-  /// The hold mode: set when entering [MovaStandbyPhase.holding], and on the
+  /// The hold mode: set when entering [MovaKeepAlivePhase.holding], and on the
   /// `resuming` that follows it; null otherwise.
   ///
   /// 待机组合：进入 holding 时、以及紧随其后的 resuming 时有值；其余为 null。
-  final MovaStandbyMode? mode;
+  final MovaKeepAliveMode? mode;
 }
 
-/// Standby ended and playback is presenting again: how long it took from the
+/// KeepAlive ended and playback is presenting again: how long it took from the
 /// wake-up call to the first fresh frame.
 ///
 /// 待机结束、重新出画面：从唤醒调用到第一帧新画面花了多久。
@@ -593,20 +593,20 @@ class MovaStandbyChange extends MovaEvent {
 /// Example / 示例:
 /// ```dart
 /// api.events.listen((e) {
-///   if (e is MovaStandbyResume) {
+///   if (e is MovaKeepAliveResume) {
 ///     log('back in ${e.elapsed.inMilliseconds}ms via ${e.signal?.name ?? 'none'}');
 ///   }
 /// });
 /// ```
-class MovaStandbyResume extends MovaEvent {
+class MovaKeepAliveResume extends MovaEvent {
   /// Creates the event.
   ///
   /// 创建事件。
-  const MovaStandbyResume({required this.elapsed, this.signal, this.from});
+  const MovaKeepAliveResume({required this.elapsed, this.signal, this.from});
 
-  /// From `setStandby(false)` to the landing.
+  /// From `setKeepAlive(false)` to the landing.
   ///
-  /// 从 `setStandby(false)` 到落地的耗时。
+  /// 从 `setKeepAlive(false)` 到落地的耗时。
   final Duration elapsed;
 
   /// What landed it: `restart`/`size` (precise), `buffering`/`progress`
@@ -618,8 +618,8 @@ class MovaStandbyResume extends MovaEvent {
   /// （解码从未停过）。
   final MovaFirstFrameSignal? signal;
 
-  /// The hold mode woken from; null when woken from a [MovaStandbyPhase.fallback] pause.
+  /// The hold mode woken from; null when woken from a [MovaKeepAlivePhase.fallback] pause.
   ///
   /// 从哪种待机组合醒来；从 fallback 暂停醒来时为 null。
-  final MovaStandbyMode? from;
+  final MovaKeepAliveMode? from;
 }

@@ -314,13 +314,13 @@ class _HeAutoPageState extends State<HeAutoPage> with WidgetsBindingObserver {
     await Future<void>.delayed(const Duration(milliseconds: 800));
     final evMark = _ev!.mark;
     final stMark = _st!.mark;
-    final swapAt = _clock.elapsed;
+    final cutoverAt = _clock.elapsed;
     setState(() => _cfg = _cfg!.withSource(_live));
     final reset = await _st!.wait<MovaState>(from: stMark, where: (s) => !s.rendered, timeout: const Duration(seconds: 5));
     final ff = await _firstFrame(from: evMark);
     await Future<void>.delayed(const Duration(milliseconds: 500));
     final count = _ev!.all<MovaFirstFrame>(from: evMark).length;
-    final resetMs = reset == null ? null : msBetween(swapAt, reset.at);
+    final resetMs = reset == null ? null : msBetween(cutoverAt, reset.at);
     _log('V3 renderedFalseAfter=${resetMs}ms newFirstFrame=${ff?.event.sinceOpen.inMilliseconds}ms signal=${ff?.event.signal.name} firstFrameEvents=$count renderedNow=${_api!.state.rendered}');
     if (resetMs != null) _samples.add('V3.renderedFalseDelayMs', resetMs);
     if (ff != null) _samples.add('V3.sinceOpenMs', ff.event.sinceOpen.inMilliseconds);
@@ -582,7 +582,7 @@ class _HeAutoPageState extends State<HeAutoPage> with WidgetsBindingObserver {
 
   MovaProg? get _lastProg => _pg!.log.lastOrNull?.event;
 
-  /// V12: default parameters: only the first-frame event is new, no recovery/standby events, `open()` failures still throw.
+  /// V12: default parameters: only the first-frame event is new, no recovery/keepAlive events, `open()` failures still throw.
   Future<void> _v12(int run) async {
     await _start(_Cfg(source: _vod, precise: false));
     if (await _firstFrame() == null) return _verdict('V12', false, 'never rendered');
@@ -601,10 +601,10 @@ class _HeAutoPageState extends State<HeAutoPage> with WidgetsBindingObserver {
       threw = true;
     }
     final names = _ev!.log.map((s) => s.event.runtimeType.toString()).toList();
-    final foreign = names.where((n) => const {'MovaPlayFailure', 'MovaRecovered', 'MovaFailover', 'MovaStandbyChange', 'MovaStandbyResume'}.contains(n)).toList();
+    final foreign = names.where((n) => const {'MovaPlayFailure', 'MovaRecovered', 'MovaFailover', 'MovaKeepAliveChange', 'MovaKeepAliveResume'}.contains(n)).toList();
     _log('V12 events=${names.join(',')}');
-    _log('V12 badOpenThrew=$threw errorEvents=${names.where((n) => n == 'MovaErrorEvent').length} state.standby=${api.state.standby.name}');
-    _verdict('V12', foreign.isEmpty && api.state.standby == MovaStandbyPhase.off, 'foreignEvents=$foreign');
+    _log('V12 badOpenThrew=$threw errorEvents=${names.where((n) => n == 'MovaErrorEvent').length} state.keepAlivePhase=${api.state.keepAlivePhase.name}');
+    _verdict('V12', foreign.isEmpty && api.state.keepAlivePhase == MovaKeepAlivePhase.off, 'foreignEvents=$foreign');
   }
 
   // ---- driver --------------------------------------------------------------------------------
