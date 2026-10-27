@@ -1,0 +1,6 @@
+// Include the existing Activity's integration plugin in the isolated debug APK.
+gradle.beforeProject { project ->
+    project.pluginManager.withPlugin('com.android.application') {
+        project.dependencies.add('debugImplementation', project.project(':integration_test'))
+    }
+}

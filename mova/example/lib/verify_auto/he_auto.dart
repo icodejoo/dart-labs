@@ -432,12 +432,27 @@ class _HeAutoPageState extends State<HeAutoPage> with WidgetsBindingObserver {
     final near = jumped != null && msBetween(afterFf!.at, jumped.at) <= 1500 ? jumped : null;
     final posAfter = jumped?.event.position.inMilliseconds ?? window.lastOrNull?.event.position.inMilliseconds;
     final posDiff = posBefore == null || posAfter == null ? null : (posAfter - posBefore).abs();
-    final lag = msBetween(buf.at, pf.at) - kStallTimeoutS * 1000;
+    // Earlier buffering bursts may recover before the actual timeout. Measure
+    // the continuous true interval ending at this failure, not the first burst.
+    // 先前的缓冲可能已恢复；期限只与本次失败前连续为 true 的区间对账。
+    final bufferEdges = _ev!.all<MovaBufferChange>(from: m)
+        .where((p) => p.at <= pf.at).toList();
+    Duration? continuousBufferAt;
+    for (final edge in bufferEdges) {
+      if (edge.event.buffering) {
+        continuousBufferAt ??= edge.at;
+      } else {
+        continuousBufferAt = null;
+      }
+    }
+    final bufferStart = continuousBufferAt ?? buf.at;
+    final lag = msBetween(bufferStart, pf.at) - kStallTimeoutS * 1000;
+    _log('V6 bufferEdges=[${bufferEdges.map((p) => '${msBetween(buf.at, p.at)}ms:${p.event.buffering}').join(' ')}] continuousBufferToFailure=${msBetween(bufferStart, pf.at)}ms active=${continuousBufferAt != null}');
     _samples.add('V6.failureMinusBufferingMinusTimeoutMs', lag);
     if (posDiff != null) _samples.add('V6.resumePositionDiffMs', posDiff);
     final seq = window.where((p) => window.indexOf(p) % 4 == 0).take(10).map((p) => '+${msBetween(afterFf!.at, p.at)}ms:${p.event.position.inMilliseconds}').join(' ');
     _log('V6 kind=${pf.event.fail.kind.name} bufferingTrueToFailure=${msBetween(buf.at, pf.at)}ms (stallTimeout=${kStallTimeoutS * 1000}ms, offset=${lag}ms) posBefore=${posBefore}ms posAfterRetry=${posAfter}ms diff=${posDiff}ms recovered=${_ev!.all<MovaRecovered>().length} samplesAfterRetryFirstFrame=[$seq]');
-    _verdict('V6', pf.event.fail.kind == MovaPlayFailKind.stallTimeout && lag.abs() < 500 && near != null, 'offset=${lag}ms posDiff=${posDiff}ms');
+    _verdict('V6', pf.event.fail.kind == MovaPlayFailKind.stallTimeout && continuousBufferAt != null && lag.abs() < 500 && near != null, 'offset=${lag}ms posDiff=${posDiff}ms');
   }
 
   /// V7: failover (bad primary + good alternate) and give-up (both bad).
@@ -525,6 +540,27 @@ class _HeAutoPageState extends State<HeAutoPage> with WidgetsBindingObserver {
       ok = ok && pause2 != null && play2 != null;
     }
     _verdict(id, ok, 'route=$route ticker=$ticker guard=$guard');
+  }
+
+  /// Verifies mini exemption against the real auto-pause wrapper.
+  ///
+  /// 在真实自动暂停守卫下核验小窗豁免，避免用未挂守卫的播放替代。
+  Future<void> _v11m(int run) async {
+    await _start(_Cfg(source: _live, guard: true));
+    if (await _firstFrame() == null) return _verdict('V11M', false, 'never rendered');
+    await _api!.setMini(true);
+    final mark = _ev!.mark;
+    final before = _lastProg?.position;
+    setState(() => _tickerOn = false);
+    await Future<void>.delayed(const Duration(milliseconds: 1500));
+    final after = _lastProg?.position;
+    final pauses = _ev!.all<MovaPause>(from: mark).length;
+    final advance = before == null || after == null ? -1 : (after - before).inMilliseconds;
+    final ok = pauses == 0 && _api!.state.mini && _api!.state.playing && _api!.state.playbackIntent && advance > 500;
+    _log('V11M mini=${_api!.state.mini} playing=${_api!.state.playing} intent=${_api!.state.playbackIntent} hiddenTicker=true pauseEvents=$pauses progressAdvance=${advance}ms');
+    setState(() => _tickerOn = true);
+    await _api!.setMini(false);
+    _verdict('V11M', ok, 'pauseEvents=$pauses advance=${advance}ms');
   }
 
   Future<void> _v10(int run) => _v10Parts('V10', route: true, ticker: true);
@@ -626,6 +662,7 @@ class _HeAutoPageState extends State<HeAutoPage> with WidgetsBindingObserver {
       _Scenario('V10', 'route + TickerMode pause', _v10),
       _Scenario('V9', 'background / foreground (Android, marker-driven)', _v9, optIn: true),
       _Scenario('V11', 'system PiP is not paused (Android)', _v11, optIn: true),
+      _Scenario('V11M', 'mini exempts real auto-pause under hidden TickerMode', _v11m, optIn: true),
       _Scenario('V10A', 'route cover only (guard on)', _v10a, optIn: true),
       _Scenario('V10B', 'TickerMode only (guard on)', _v10b, optIn: true),
       _Scenario('V10C', 'route cover only (guard off)', _v10c, optIn: true),

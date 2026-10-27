@@ -71,7 +71,11 @@ def main():
                 raise TimeoutError("runner command did not finish")
             time.sleep(0.5)
             response = request("/")
-            for row in response['records']:
+            # Only act on markers emitted by this command. Earlier commands'
+            # subtitle shots and memory rounds must not be recaptured here.
+            # 只消费本条命令的标记，避免把历史字幕/内存采样错拍到本次文件名下。
+            command_start = max((i for i, r in enumerate(response['records']) if r.get('kind') == 'BEGIN'), default=0)
+            for row in response['records'][command_start:]:
                 if row.get('kind')=='MEM_SAMPLE' and row['round'] not in sampled:
                     sampled.add(row['round'])
                     (HERE/'coverage_evidence'/f"{a.name or a.group}.round{row['round']}.meminfo.txt").write_text(adb('shell','dumpsys','meminfo','com.icodejoo.mova.mova_example.coverage'),encoding='utf-8')

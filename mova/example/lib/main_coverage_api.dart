@@ -115,6 +115,9 @@ Map<String, Object?> snapshot(MovaApi a) => {
   'fullscreen': a.state.fullscreen, 'orientation': a.state.orientation.name, 'pip': a.state.pip,
   'mini': a.state.mini, 'rendered': a.state.rendered, 'epoch': a.state.renderEpoch,
   'sourceIndex': a.state.sourceIndex, 'keepAlive': a.state.keepAlivePhase.name,
+  'quality': a.state.currentQuality?.label,
+  'qualities': a.state.qualities.map((q) => '${q.label}:${q.uri}').toList(),
+  'error': a.state.error == null ? null : '${a.state.error}',
   'type':a.state.type.name,'title':a.state.sourceTitle,
   'pipSupported':a.state.pipSupported,'controls':a.uiState.controlsVisible,'hud':a.uiState.hud.name,
   'previewCurrent':a.preview.current?.at.inMilliseconds,
@@ -308,6 +311,11 @@ class _CoverageHomeState extends State<CoverageHome> {
       case 'pause': await a.pause();
       case 'play': await a.play();
       case 'open': await a.open(args['url']==null?source(args['path']??'vod.mp4'):MovaSource(args['url']!,type:args['live']=='true'?MovaStreamType.live:MovaStreamType.vod));
+      case 'openSync':
+        mark('VIDEO_OPEN_BEFORE', snapshot(a));
+        final pendingOpen = a.open(source(args['path'] ?? 'ad.mp4'));
+        mark('VIDEO_OPEN_SYNC', snapshot(a));
+        mark('VIDEO_OPEN_ACCEPTED', {'accepted': await pendingOpen});
       case 'seek': await a.seek(Duration(milliseconds:int.parse(args['value']!)));
       case 'rate': await a.setRate(double.parse(args['value']!));
       case 'backEdge': await a.backToLiveEdge();

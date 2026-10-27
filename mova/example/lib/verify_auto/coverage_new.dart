@@ -55,7 +55,7 @@ Future<void> edges() async {
   await c.settle(300);c.mark('SEEK_LOADING',c.snapshot(a));
   await a.seekBy(const Duration(seconds:2));await c.settle(300);c.mark('SEEK_BY',c.snapshot(a));
   await a.seek(const Duration(hours:1));await c.settle(300);c.mark('SEEK_BEYOND',c.snapshot(a));
-  for(final v in [0.0,.25,.75,1.0]) {await a.setBrightness(v);c.mark('BRIGHTNESS_NATIVE',{'input':v,'state':a.state.brightness,'native':await ScreenBrightness().application});}
+  for(final v in [-1.0,0.0,.25,.75,1.0,2.0]) {await a.setBrightness(v);c.mark('BRIGHTNESS_NATIVE',{'input':v,'state':a.state.brightness,'native':await ScreenBrightness().application});}
   var threw=false;bool? accepted;
   try{accepted=await a.open(c.source('404.mp4'));}catch(e){threw=true;c.mark('BAD_OPEN_THROW',{'error':'$e'});}
   await c.settle(500);c.mark('BAD_OPEN_RESULT',{'threw':threw,'accepted':accepted,'error':'${a.state.error}'});
@@ -301,7 +301,7 @@ Future<void> tls() async {
         final local=<MovaEvent>[];
         final a=createMovaEngine(audioOnly:true,tlsVerify:verify,tlsCaFile:ca.path);
         c.observe(a);a.events.listen(local.add);
-        try{await a.open(MovaSource('https://127.0.0.1:${18443+i}/low/index.m3u8?t=$run'));}
+        try{await a.open(MovaSource('https://127.0.0.1:${18443+i}/low/index.m3u8?t=${DateTime.now().microsecondsSinceEpoch}&run=$run'));}
         catch(e){c.mark('TLS_OPEN_THROW',{'error':'$e'});}
         await c.until(()=>a.state.rendered || local.whereType<MovaErrorEvent>().isNotEmpty,seconds:18);
         final success=a.state.rendered;
@@ -326,7 +326,7 @@ Future<void> tlsProbe() async {
         final a=createMovaEngine(kernel:k);c.observe(a);final local=<MovaEvent>[];a.events.listen(local.add);
         p.stream.log.listen((line){if(line.level=='error'||line.text.toLowerCase().contains('certificate')){c.mark('TLS_NATIVE_LOG',{'prefix':line.prefix,'text':line.text});}});
         final n=p.platform as NativePlayer;
-        try{await a.open(MovaSource('https://$endpoint/$path?t=$run'));}catch(e){c.mark('TLS_THROW',{'error':'$e'});}
+        try{await a.open(MovaSource('https://$endpoint/$path?t=${DateTime.now().microsecondsSinceEpoch}&run=$run'));}catch(e){c.mark('TLS_THROW',{'error':'$e'});}
         await c.until(()=>a.state.rendered||local.whereType<MovaErrorEvent>().isNotEmpty,seconds:15);
         c.mark('TLS_READBACK',{'endpoint':endpoint,'path':path,'verify':await n.getProperty('tls-verify'),'ca':await n.getProperty('tls-ca-file'),'caBytes':bytes.length});
         c.check('C16.probe',a.state.rendered,'run=$run endpoint=$endpoint path=$path errors=${local.whereType<MovaErrorEvent>().map((e)=>'${e.error}').toList()}');
