@@ -521,6 +521,52 @@ class MovaEngine implements MovaApi, MovaKeepAlive, MovaPlayerMute, MovaHandoffR
   /// seek 不会执行——但这与内核原本的行为一致（无时长的源本就无法 seek）。
   Duration? _parkedSeek;
 
+  /// Whether the variant loaded by the latest [switchQuality] has landed (first
+  /// frame / native restart). While false, the resume seek must stay parked even
+  /// if the duration is already known — mpv drops a seek issued before playback
+  /// has initialised.
+  ///
+  /// 最近一次 [switchQuality] 加载的档位是否已落地（首帧/原生 restart）。为 false
+  /// 时，即使时长已知也必须继续寄存续播 seek——播放初始化前下发的 seek 会被 mpv 丢弃。
+  bool _variantLanded = true;
+
+  /// Verifies that a replayed resume seek really landed (see [_armResumeVerify]).
+  ///
+  /// 校验补发的续播 seek 是否真正落地（见 [_armResumeVerify]）。
+  Timer? _resumeVerifyTimer;
+
+  /// Whether ABR is muted while a variant switch's resume chain is in flight.
+  /// The buffering that the reload and its resume seeks cause is the switch's
+  /// own cost, not a network stall, so it must not count toward a downshift.
+  ///
+  /// 换档续播链进行期间是否屏蔽 ABR。重载和续播 seek 引起的缓冲是换档自身的
+  /// 代价，不是网络卡顿，不能计入降档。
+  bool _abrHold = false;
+
+  /// Safety cap for [_abrHold], in case the resume chain never reports its end.
+  ///
+  /// [_abrHold] 的兜底计时，防止续播链迟迟不收尾。
+  Timer? _abrHoldTimer;
+
+  /// Longest time ABR stays muted after a variant switch.
+  ///
+  /// 换档后 ABR 最长被屏蔽的时间。
+  static const Duration _abrHoldCap = Duration(seconds: 10);
+
+  /// How long to wait for the position to reach a replayed resume seek's target
+  /// before sending it again. mpv can silently drop a seek that lands while an
+  /// HLS variant is still initialising (real-device: restart stays at ~0 ms).
+  ///
+  /// 补发的续播 seek 要等多久位置才到达目标，否则再发一次。mpv 会静默丢弃落在
+  /// HLS 档位初始化期间的 seek（真机：restart 停在约 0 ms）。
+  @visibleForTesting
+  Duration debugResumeVerifyDelay = const Duration(milliseconds: 1500);
+
+  /// Maximum number of seek attempts per resume (the first one included).
+  ///
+  /// 每次续播最多的 seek 尝试次数（含第一次）。
+  static const int _resumeVerifyMax = 3;
+
   /// Whether the parked seek in [_parkedSeek] should emit [MovaSeeked] once
   /// replayed — carries the `notify` flag [_seekOrPark] was called with
   /// across the park, so [switchQuality]'s "must not emit seek events"
@@ -913,6 +959,26 @@ class MovaEngine implements MovaApi, MovaKeepAlive, MovaPlayerMute, MovaHandoffR
     }
   }
 
+  /// Mutes ABR until the switch's resume chain ends (or [_abrHoldCap] elapses).
+  ///
+  /// 屏蔽 ABR，直到换档续播链结束（或超过 [_abrHoldCap]）。
+  void _holdAbr() {
+    _abrHold = true;
+    _abrHoldTimer?.cancel();
+    _abrHoldTimer = Timer(_abrHoldCap, _releaseAbrHold);
+  }
+
+  /// Ends the ABR mute and drops the stalls counted around the switch.
+  ///
+  /// 结束 ABR 屏蔽，并清掉换档前后累计的卡顿记忆。
+  void _releaseAbrHold() {
+    _abrHoldTimer?.cancel();
+    _abrHoldTimer = null;
+    if (!_abrHold) return;
+    _abrHold = false;
+    _abrPolicy.reset();
+  }
+
   /// Starts holding the parked resume seek until the next landing (or timeout).
   ///
   /// 开始扣住寄存的续播 seek，直到下一次落地（或超时）。
@@ -940,6 +1006,7 @@ class MovaEngine implements MovaApi, MovaKeepAlive, MovaPlayerMute, MovaHandoffR
   void _onAttemptLanded(MovaFirstFrameSignal signal) {
     _graceTimer?.cancel();
     _graceTimer = null;
+    _variantLanded = true;
     _releaseParkHold();
     if (state.keepAlivePhase == MovaKeepAlivePhase.resuming) _finishResume(signal);
     // A landing that arrives for an attempt already declared failed (the retry
@@ -1884,15 +1951,19 @@ class MovaEngine implements MovaApi, MovaKeepAlive, MovaPlayerMute, MovaHandoffR
   /// - [to]: already-clamped target position / 已 clamp 的目标位置
   /// - [notify]: whether to emit [MovaSeek]/[MovaSeeked] / 是否发 seek 事件
   /// - [ready]: presentation already landed / 呈现已落地
+  /// - [forcePark]: park even when the duration is known / 时长已知也强制寄存
   Future<void> _seekOrPark(
     Duration to, {
     bool notify = false,
     bool ready = false,
+    bool forcePark = false,
   }) async {
+    _resumeVerifyTimer?.cancel();
+    _resumeVerifyTimer = null;
     final park =
         !ready &&
         state.type == MovaStreamType.vod &&
-        state.duration <= Duration.zero;
+        (state.duration <= Duration.zero || forcePark);
     if (park) {
       _parkedSeek = to;
       _parkedNotify = notify;
@@ -1916,6 +1987,9 @@ class MovaEngine implements MovaApi, MovaKeepAlive, MovaPlayerMute, MovaHandoffR
   /// "寄存还是直发"判据是确定的。由 [open]（换源）与 [switchQuality]
   /// （同一部片换档）共用。
   void _forgetMediaProgress() {
+    _releaseAbrHold();
+    _resumeVerifyTimer?.cancel();
+    _resumeVerifyTimer = null;
     _parkHoldTimer?.cancel();
     _parkHoldTimer = null;
     _holdParkForLanding = false;
@@ -1953,7 +2027,55 @@ class MovaEngine implements MovaApi, MovaKeepAlive, MovaPlayerMute, MovaHandoffR
     // 与 [open] 同样的销毁竞态：上面的 await 期间 dispose() 可能已经跑过。
     if (_events.isClosed) return;
     if (notify) _emitEvent(MovaSeeked(clamped));
+    _armResumeVerify(clamped, 1);
   }
+
+  /// Re-sends a replayed resume seek when, [debugResumeVerifyDelay] later, the
+  /// last reported position is still well short of [target], up to
+  /// [_resumeVerifyMax] attempts. Judged on [_lastPosition] rather than on
+  /// [_pendingSeekTarget]: mpv reports the seek target as `time-pos` while the
+  /// seek is pending, which settles [_pendingSeekTarget] even when the seek is
+  /// later discarded (real-device: restart ends up at ~0 ms). Any newer seek
+  /// cancels the chain (see [_seekOrPark]); buffering counts as an attempt
+  /// without re-sending.
+  ///
+  /// 补发的续播 seek 在 [debugResumeVerifyDelay] 之后，若最近上报的位置仍远低于
+  /// [target]，则再发一次，最多 [_resumeVerifyMax] 次。依据 [_lastPosition]
+  /// 判断，而不是 [_pendingSeekTarget]：seek 挂起期间 mpv 会把目标值当作
+  /// `time-pos` 上报，即使该 seek 随后被丢弃也会让 [_pendingSeekTarget] 提前
+  /// 结算（真机：restart 最终停在约 0 ms）。更新的 seek 会终止这条链（见
+  /// [_seekOrPark]）；处于缓冲中只计一次尝试、不重发。
+  ///
+  /// - [target]: the resume position / 续播位置
+  /// - [attempt]: attempts made so far / 已尝试次数
+  void _armResumeVerify(Duration target, int attempt) {
+    _resumeVerifyTimer?.cancel();
+    if (attempt >= _resumeVerifyMax) {
+      // The last re-sent seek's buffering still lands after this point, so the
+      // ABR mute ends one verify interval later.
+      //
+      // 最后一次补发 seek 引起的缓冲还会在此之后到达，ABR 屏蔽再延后一个校验间隔。
+      _resumeVerifyTimer = Timer(debugResumeVerifyDelay, _releaseAbrHold);
+      return;
+    }
+    _resumeVerifyTimer = Timer(debugResumeVerifyDelay, () {
+      _resumeVerifyTimer = null;
+      if (_disposed || _events.isClosed) return;
+      if (state.type != MovaStreamType.vod ||
+          _lastPosition + _seekSettleTolerance >= target) {
+        _releaseAbrHold();
+        return;
+      }
+      if (state.buffering) return _armResumeVerify(target, attempt + 1);
+      _pendingSeekTarget = target;
+      unawaited(() async {
+        await _kernel.seek(target);
+        if (_disposed || _events.isClosed) return;
+        _armResumeVerify(target, attempt + 1);
+      }());
+    });
+  }
+
 
   /// Performs a time-shift seek by reopening the stream at a host-built URL.
   ///
@@ -2195,6 +2317,7 @@ class MovaEngine implements MovaApi, MovaKeepAlive, MovaPlayerMute, MovaHandoffR
     // qualities/sourceTitle、不发 MovaSourceChange——这是同一部片的另一个码率，
     // 不是换了一部新片。
     _forgetMediaProgress();
+    _variantLanded = false;
     // Drop the stall tally: the buffering burst a variant reload causes is
     // the reload's own cost, not evidence the network can't sustain the
     // current variant — without this a manual switch can trigger a
@@ -2212,10 +2335,14 @@ class MovaEngine implements MovaApi, MovaKeepAlive, MovaPlayerMute, MovaHandoffR
     // 信号时已把计数归零，这里只是额外清掉上升沿记忆，不会吞掉本该发生的降档。
     // 真机实测数据（STG AL00，mux x36xhzz）见 CLAUDE.md 的无缝切换真机验证一节。
     _abrPolicy.reset();
+    _holdAbr();
     _reportedDuration = Duration.zero;
     _state.emit(state.copyWith(duration: Duration.zero, currentQuality: q));
     _armAttempt(autoPlay: _loadPlays);
-    if (!await _loadKernel(playUri, play: _loadPlays)) return;
+    if (!await _loadKernel(playUri, play: _loadPlays)) {
+      _releaseAbrHold();
+      return;
+    }
     // Announce the new variant as soon as the load command is issued: the
     // resume seek may be parked until the duration arrives, and delaying the
     // event until then would leave the UI showing the old label for seconds.
@@ -2224,8 +2351,20 @@ class MovaEngine implements MovaApi, MovaKeepAlive, MovaPlayerMute, MovaHandoffR
     // 事件拖到那时才发会让 UI 上的档位标签滞后好几秒。
     _emitEvent(MovaQualityChange(q));
     if (!live && pos > Duration.zero) {
-      await _seekOrPark(pos);
-      if (_parkedSeek != null) _holdParkUntilLanding();
+      // The duration can already be known by now (reported while the load
+      // command was in flight); parking only on "no duration" would then send
+      // the seek before the variant lands and mpv would silently drop it.
+      //
+      // 此刻时长可能已经知道（加载命令执行期间就上报了）；只按"没有时长"寄存的话，
+      // seek 会在档位落地前下发，被 mpv 静默丢弃。
+      await _seekOrPark(pos, forcePark: !_variantLanded);
+      if (_parkedSeek != null) {
+        _holdParkUntilLanding();
+      } else {
+        _armResumeVerify(pos, 1);
+      }
+    } else {
+      _releaseAbrHold();
     }
   }
 
@@ -2507,6 +2646,10 @@ class MovaEngine implements MovaApi, MovaKeepAlive, MovaPlayerMute, MovaHandoffR
       unawaited(_orientation.reset().catchError((Object _) {}));
     }
     _disposed = true;
+    _abrHoldTimer?.cancel();
+    _abrHoldTimer = null;
+    _resumeVerifyTimer?.cancel();
+    _resumeVerifyTimer = null;
     _parkHoldTimer?.cancel();
     _parkHoldTimer = null;
     _graceTimer?.cancel();
@@ -2600,6 +2743,7 @@ class MovaEngine implements MovaApi, MovaKeepAlive, MovaPlayerMute, MovaHandoffR
   /// 自动模式/已是最低档的无操作降档）才发出 [MovaAbrDownShift]。
   void _handleAbrBuffering(bool buffering) {
     if (state.keepAlivePhase == MovaKeepAlivePhase.holding) return;
+    if (_abrHold) return;
     final shouldDownshift = _abrPolicy.onBuffering(buffering);
     if (!shouldDownshift || !options.abr.enabled) return;
     if (_abrDownshiftInFlight) return;

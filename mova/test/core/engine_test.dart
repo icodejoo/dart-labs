@@ -227,6 +227,68 @@ void main() {
     );
   });
 
+  test('switchQuality keeps the resume seek parked when the duration arrives '
+      'during the load, until the variant lands', () async {
+    const high = MovaQuality(label: '1080p', uri: 'https://host/1080.m3u8', height: 1080);
+    const low = MovaQuality(label: '480p', uri: 'https://host/480.m3u8', height: 480);
+    await e.open(const MovaSource('https://host/master.m3u8'));
+    k.emitDuration(const Duration(minutes: 5));
+    k.emitPosition(const Duration(seconds: 42));
+    await Future<void>.delayed(Duration.zero);
+    e.debugSetQualities(const [high, low], current: high);
+
+    // The new variant reports its duration while the load command is still in
+    // flight, i.e. before switchQuality gets to issue the resume seek.
+    //
+    // 新档位的时长在加载命令尚未返回时就上报，早于 switchQuality 下发续播 seek。
+    k.openGate = Completer<void>();
+    k.calls.clear();
+    final pending = e.switchQuality(low);
+    await Future<void>.delayed(Duration.zero);
+    k.emitDuration(const Duration(minutes: 5));
+    await Future<void>.delayed(Duration.zero);
+    k.openGate!.complete();
+    await pending;
+    k.openGate = null;
+
+    expect(k.calls, isNot(contains('seek')), reason: 'seek before landing is dropped by mpv');
+    k.emitBuffering(true);
+    k.emitBuffering(false);
+    await Future<void>.delayed(Duration.zero);
+    expect(k.lastSeek, const Duration(seconds: 42));
+  });
+
+  test('a resume seek that never reaches its target is re-sent, then stops once settled', () async {
+    const high = MovaQuality(label: '1080p', uri: 'https://host/1080.m3u8', height: 1080);
+    const low = MovaQuality(label: '480p', uri: 'https://host/480.m3u8', height: 480);
+    await e.open(const MovaSource('https://host/master.m3u8'));
+    k.emitDuration(const Duration(minutes: 5));
+    k.emitPosition(const Duration(seconds: 42));
+    await Future<void>.delayed(Duration.zero);
+    e.debugSetQualities(const [high, low], current: high);
+    e.debugResumeVerifyDelay = const Duration(milliseconds: 60);
+
+    k.calls.clear();
+    await e.switchQuality(low);
+    k.emitDuration(const Duration(minutes: 5));
+    k.emitBuffering(true);
+    k.emitBuffering(false); // the variant lands → first resume seek
+    await Future<void>.delayed(const Duration(milliseconds: 10));
+    expect(k.calls.where((c) => c == 'seek').length, 1);
+
+    // mpv echoes the target as time-pos while the seek is pending (settling the
+    // pending target), then drops it: the position falls back to ~0 → re-sent.
+    k.emitPosition(const Duration(seconds: 42));
+    k.emitPosition(const Duration(milliseconds: 100));
+    await Future<void>.delayed(const Duration(milliseconds: 70));
+    expect(k.calls.where((c) => c == 'seek').length, 2);
+
+    // The position finally reaches the target → no further attempts.
+    k.emitPosition(const Duration(seconds: 42));
+    await Future<void>.delayed(const Duration(milliseconds: 150));
+    expect(k.calls.where((c) => c == 'seek').length, 2);
+  });
+
   test('switchQuality announces the new variant without waiting for the parked '
       'resume seek', () async {
     const high = MovaQuality(
@@ -311,6 +373,47 @@ void main() {
     }
     expect(events.whereType<MovaAbrDownShift>().length, 1);
     expect(e.state.currentQuality, low);
+
+    await sub.cancel();
+  });
+
+  test('switchQuality mutes ABR while the resume seek is parked, so the '
+      'reload\'s own buffering cannot trigger a downshift', () async {
+    const high = MovaQuality(
+      label: '1080p',
+      uri: 'https://host/1080.m3u8',
+      height: 1080,
+    );
+    const mid = MovaQuality(
+      label: '720p',
+      uri: 'https://host/720.m3u8',
+      height: 720,
+    );
+    const low = MovaQuality(
+      label: '480p',
+      uri: 'https://host/480.m3u8',
+      height: 480,
+    );
+    await e.open(const MovaSource('https://host/master.m3u8'));
+    k.emitDuration(const Duration(minutes: 5));
+    k.emitPosition(const Duration(seconds: 42));
+    await Future<void>.delayed(Duration.zero);
+    e.debugSetQualities(const [high, mid, low], current: high);
+
+    final events = <MovaEvent>[];
+    final sub = e.events.listen(events.add);
+
+    // 换档后续播 seek 被寄存、续播链进行中：连续 3 次缓冲上升沿（刚好是默认阈值）
+    // 全是重载/续播自己造成的，不能触发降档。
+    await e.switchQuality(mid);
+    for (var i = 0; i < 3; i++) {
+      k.emitBuffering(true);
+      k.emitBuffering(false);
+      await Future<void>.delayed(Duration.zero);
+    }
+    await Future<void>.delayed(Duration.zero);
+    expect(events.whereType<MovaAbrDownShift>(), isEmpty);
+    expect(e.state.currentQuality, mid);
 
     await sub.cancel();
   });
