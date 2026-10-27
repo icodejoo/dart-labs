@@ -1,3 +1,9 @@
+## Unreleased
+
+* **Fix：换档（`switchQuality`/ABR 降档）续播位置丢失**。HLS 手动连续切档时，续播 seek 在新档位报告时长的瞬间就下发，而此刻 mpv 尚未完成播放初始化，seek 被静默丢弃，播放从头开始（Android 真机本地 HLS 5 次切档仅 1 次续播成功）。现在寄存的续播 seek 等新档位落地（首帧/原生 RESTART）后再补发；4s 内始终没落地则兜底照旧补发，落地早于时长则等时长到达再发。Android 真机（STG-AL00）普通/swap 代理/暂停态各 5 次共 15/15 落点误差 0ms。新增 3 项回归并调整 1 条旧测试。
+* **Fix：`setVolume`/`setBrightness` 越界值**。入口先钳到 0–100 / 0–1，state、事件与端口看到同一个值（此前 state 写入越界值，系统音量被端口钳制、亮度被平台插件以 `RangeError` 拒绝后吞掉，HUD 与设备实际对不上）。新增 2 项回归。
+* **Docs/验证页**：HE V6 验证脚本修正续播窗口锚点（旧写法恒匹配会话最初首帧，曾把"V6 续播失败"误判为库缺陷）；Android 真机 V6 复测 5/5 通过，续播误差 0–40ms。覆盖测试结果见 `doc/plans/2026-10-27-device-coverage-results.md`。
+
 ## 0.4.0
 
 * **新增：统一超时配置 `MovaTimeouts`**（`MovaRecoveryConfig.timeouts`，随 `package:mova/mova.dart` 导出）。字段 `network`（→mpv `network-timeout`，整秒）、`whepHandshake`/`whepFirstFrame`/`whepMedia`（→`handshake_timeout`/`first_frame_timeout`/`media_timeout`，微秒，仅 `whep…`），每次 open 前经现有源选项机制下发 mpv；默认全 `null`（不动 mpv 默认值）；`MovaSource.mpvOptions`/`demuxerOptions`/`whepMediaTimeout` 的显式设置优先。`MovaSource.mpvOptionsFor` 新增可选参数 `timeouts`；新增公开常量 `kMovaWatchdogMargin`（5s）等。

@@ -205,6 +205,60 @@ void main() {
     });
   });
 
+  /// Opens a VOD, plays to 42s, then switches variant; returns the kernel.
+  ///
+  /// 打开点播并播到 42s，再换档；返回内核。
+  FakeKernel switchedRig(FakeAsync async, _Rig Function(FakeKernel) make) {
+    final k = FakeKernel();
+    final r = make(k);
+    r.open(async);
+    k.emitDuration(const Duration(minutes: 5));
+    k.emitPosition(const Duration(seconds: 42));
+    async.flushMicrotasks();
+    r.engine.switchQuality(const MovaQuality(label: '720p', uri: 'https://h/720.m3u8'));
+    async.flushMicrotasks();
+    return k;
+  }
+
+  test('switchQuality: the resume seek waits for landing, not for the duration', () {
+    fakeAsync((async) {
+      final k = switchedRig(async, _Rig.new);
+      k.emitDuration(const Duration(minutes: 5));
+      async.flushMicrotasks();
+      expect(k.lastSeek, isNull);
+      k.emitBuffering(true);
+      k.emitBuffering(false);
+      async.flushMicrotasks();
+      expect(k.lastSeek, const Duration(seconds: 42));
+    });
+  });
+
+  test('switchQuality: landing before the duration still replays once the duration arrives', () {
+    fakeAsync((async) {
+      final k = switchedRig(async, _Rig.new);
+      k.emitBuffering(true);
+      k.emitBuffering(false);
+      async.flushMicrotasks();
+      expect(k.lastSeek, isNull, reason: 'nothing to clamp into yet');
+      k.emitDuration(const Duration(minutes: 5));
+      async.flushMicrotasks();
+      expect(k.lastSeek, const Duration(seconds: 42));
+    });
+  });
+
+  test('switchQuality: with no landing the seek is replayed after the 4s fallback', () {
+    fakeAsync((async) {
+      final k = switchedRig(async, _Rig.new);
+      k.emitDuration(const Duration(minutes: 5));
+      async.flushMicrotasks();
+      expect(k.lastSeek, isNull);
+      async.elapse(const Duration(seconds: 3));
+      expect(k.lastSeek, isNull);
+      async.elapse(const Duration(seconds: 2));
+      expect(k.lastSeek, const Duration(seconds: 42));
+    });
+  });
+
   test('dispose() during the grace window leaves no grace timer and emits nothing', () {
     fakeAsync((async) {
       final k = FakeStatsKernel()..nativeRestartAvailable = true;

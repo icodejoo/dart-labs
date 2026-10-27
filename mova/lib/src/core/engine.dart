@@ -210,6 +210,24 @@ class MovaEngine implements MovaApi, MovaStandbyController, MovaPlayerMute, Mova
   /// 宽限计时器：原生信号在工作时兜底信号先到，等待 RESTART。
   Timer? _graceTimer;
 
+  /// True while a variant switch holds its parked resume seek back until the
+  /// new variant lands: the duration is reported before mpv has finished
+  /// initialising playback, and a seek in that window is silently dropped.
+  ///
+  /// 换档后是否把寄存的续播 seek 扣住、等新档位落地才补发：时长先于 mpv 完成
+  /// 播放初始化上报，这个窗口内的 seek 会被静默丢弃。
+  bool _holdParkForLanding = false;
+
+  /// Fallback that releases [_holdParkForLanding] if no landing ever comes.
+  ///
+  /// 兜底计时器：始终等不到落地时释放 [_holdParkForLanding]。
+  Timer? _parkHoldTimer;
+
+  /// Longest a variant switch waits for landing before replaying the seek anyway.
+  ///
+  /// 换档最长等待落地多久，超时后照旧补发 seek。
+  static const Duration _parkHoldTimeout = Duration(seconds: 4);
+
   /// When the current source's `open()` call began, for [MovaFirstFrame.sinceOpen].
   ///
   /// 当前源的 `open()` 调用开始时刻，用于 [MovaFirstFrame.sinceOpen]。
@@ -672,7 +690,7 @@ class MovaEngine implements MovaApi, MovaStandbyController, MovaPlayerMute, Mova
       _state.emit(state.copyWith(duration: v));
       _emitEvent(MovaDurationChange(v));
       _recomputeLiveSeekable();
-      unawaited(_applyParkedSeek(v));
+      if (!_holdParkForLanding) unawaited(_applyParkedSeek(v));
     });
     _sizeSub = _kernel.size.listen((v) {
       _state.emit(state.copyWith(width: v.width, height: v.height));
@@ -895,12 +913,34 @@ class MovaEngine implements MovaApi, MovaStandbyController, MovaPlayerMute, Mova
     }
   }
 
+  /// Starts holding the parked resume seek until the next landing (or timeout).
+  ///
+  /// 开始扣住寄存的续播 seek，直到下一次落地（或超时）。
+  void _holdParkUntilLanding() {
+    _parkHoldTimer?.cancel();
+    _holdParkForLanding = true;
+    _parkHoldTimer = Timer(_parkHoldTimeout, _releaseParkHold);
+  }
+
+  /// Ends the hold and replays the parked seek if the duration is already known.
+  ///
+  /// 结束扣留；时长已知则立即补发寄存的 seek。
+  void _releaseParkHold() {
+    _parkHoldTimer?.cancel();
+    _parkHoldTimer = null;
+    if (!_holdParkForLanding) return;
+    _holdParkForLanding = false;
+    if (_disposed || _events.isClosed) return;
+    unawaited(_applyParkedSeek(state.duration));
+  }
+
   /// Marks the source as rendered (once per `open()`) and announces it.
   ///
   /// 把当前源标记为已呈现（每次 `open()` 一次）并对外宣布。
   void _onAttemptLanded(MovaFirstFrameSignal signal) {
     _graceTimer?.cancel();
     _graceTimer = null;
+    _releaseParkHold();
     if (state.standby == MovaStandbyPhase.resuming) _finishResume(signal);
     // A landing that arrives for an attempt already declared failed (the retry
     // is pending) must not reset the failure counters.
@@ -1876,6 +1916,9 @@ class MovaEngine implements MovaApi, MovaStandbyController, MovaPlayerMute, Mova
   /// "寄存还是直发"判据是确定的。由 [open]（换源）与 [switchQuality]
   /// （同一部片换档）共用。
   void _forgetMediaProgress() {
+    _parkHoldTimer?.cancel();
+    _parkHoldTimer = null;
+    _holdParkForLanding = false;
     _pendingSeekTarget = null;
     _parkedSeek = null;
     _parkedNotify = false;
@@ -1983,6 +2026,9 @@ class MovaEngine implements MovaApi, MovaStandbyController, MovaPlayerMute, Mova
 
   @override
   Future<void> setVolume(double v) async {
+    // Clamp to 0–100 first so state, event and the port all see the same value.
+    // 先钳到 0–100，让 state、事件与端口看到同一个值。
+    v = v.clamp(0.0, 100.0).toDouble();
     // Route to the volume port when wired (system media volume / host callback),
     // otherwise to the player's own volume via the kernel. Either way the
     // percentage is mirrored into state.volume for the HUD.
@@ -2001,6 +2047,10 @@ class MovaEngine implements MovaApi, MovaStandbyController, MovaPlayerMute, Mova
 
   @override
   Future<void> setBrightness(double v) async {
+    // Clamp to 0–1: the platform plugin rejects out-of-range values, which would
+    // leave the real brightness unchanged while state claimed otherwise.
+    // 钳到 0–1：平台插件会拒绝越界值，真实亮度不变而 state 却已改变。
+    v = v.clamp(0.0, 1.0).toDouble();
     await _brightness.set(v);
     _state.emit(state.copyWith(brightness: v));
     _emitEvent(MovaBrightChange(v));
@@ -2171,7 +2221,10 @@ class MovaEngine implements MovaApi, MovaStandbyController, MovaPlayerMute, Mova
     // 加载命令一下发就宣布新档位：续播 seek 可能要寄存到时长到达才生效，把
     // 事件拖到那时才发会让 UI 上的档位标签滞后好几秒。
     _emitEvent(MovaQualityChange(q));
-    if (!live && pos > Duration.zero) await _seekOrPark(pos);
+    if (!live && pos > Duration.zero) {
+      await _seekOrPark(pos);
+      if (_parkedSeek != null) _holdParkUntilLanding();
+    }
   }
 
   /// Steps down one variant (used by the ABR monitor). No-op in auto mode,
@@ -2447,6 +2500,8 @@ class MovaEngine implements MovaApi, MovaStandbyController, MovaPlayerMute, Mova
       unawaited(_orientation.reset().catchError((Object _) {}));
     }
     _disposed = true;
+    _parkHoldTimer?.cancel();
+    _parkHoldTimer = null;
     _graceTimer?.cancel();
     _graceTimer = null;
     _recoverTimer?.cancel();

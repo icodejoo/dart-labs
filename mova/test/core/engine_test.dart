@@ -207,10 +207,18 @@ void main() {
       reason: 'resume seek must park, not reach the kernel',
     );
     expect(e.state.duration, Duration.zero);
-    // The new variant reports its duration → the resume position is replayed.
+    // The duration alone is not enough: mpv has not finished initialising
+    // playback yet and would drop the seek, so it stays parked.
     //
-    // 新档位报告时长 → 续播位置被补发。
+    // 仅有时长还不够：mpv 尚未完成播放初始化，此刻 seek 会被丢弃，因此继续寄存。
     k.emitDuration(const Duration(minutes: 5));
+    await Future<void>.delayed(Duration.zero);
+    expect(k.lastSeek, isNull, reason: 'duration alone must not release the seek');
+    // The new variant lands → the resume position is replayed.
+    //
+    // 新档位落地 → 续播位置被补发。
+    k.emitBuffering(true);
+    k.emitBuffering(false);
     await Future<void>.delayed(Duration.zero);
     expect(
       k.lastSeek,
@@ -1420,6 +1428,33 @@ void main() {
     expect(e.state.volume, 30);
   });
 
+  test('setVolume clamps out-of-range values to 0–100 in state and event', () async {
+    final events = <MovaEvent>[];
+    final sub = e.events.listen(events.add);
+    await e.setVolume(110);
+    expect(e.state.volume, 100);
+    await e.setVolume(-10);
+    expect(e.state.volume, 0);
+    await Future<void>.delayed(Duration.zero);
+    expect(events.whereType<MovaVolumeChange>().map((x) => x.value), [100, 0]);
+    await sub.cancel();
+  });
+
+  test('setBrightness clamps out-of-range values to 0–1 in port, state and event', () async {
+    final port = _RecordingBrightPort();
+    final e2 = MovaEngine(kernel: FakeKernel(), brightness: port);
+    final events = <MovaEvent>[];
+    final sub = e2.events.listen(events.add);
+    await e2.setBrightness(2);
+    await e2.setBrightness(-1);
+    await Future<void>.delayed(Duration.zero);
+    expect(port.sets, [1.0, 0.0]);
+    expect(e2.state.brightness, 0.0);
+    expect(events.whereType<MovaBrightChange>().map((x) => x.value), [1.0, 0.0]);
+    await sub.cancel();
+    await e2.dispose();
+  });
+
   test(
     'setVolume routes to the volume port, not the kernel, when wired',
     () async {
@@ -1889,4 +1924,22 @@ class _FakeHttpFetch implements MovaHttpFetch {
 
   @override
   Future<void> close() async {}
+}
+
+/// Records brightness writes for assertions.
+///
+/// 记录亮度写入，供断言使用。
+class _RecordingBrightPort implements MovaBrightPort {
+  /// Values written through [set], in order.
+  ///
+  /// 经 [set] 写入的值，按顺序。
+  final List<double> sets = [];
+
+  @override
+  Future<double> get() async => 1.0;
+
+  @override
+  Future<void> set(double value) async {
+    sets.add(value);
+  }
 }
