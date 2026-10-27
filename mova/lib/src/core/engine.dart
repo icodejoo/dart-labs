@@ -2061,8 +2061,17 @@ class MovaEngine implements MovaApi, MovaKeepAlive, MovaPlayerMute, MovaHandoffR
     _resumeVerifyTimer = Timer(debugResumeVerifyDelay, () {
       _resumeVerifyTimer = null;
       if (_disposed || _events.isClosed) return;
+      // [_pendingSeekTarget] still armed means no echo near the target ever
+      // arrived: a discarded seek leaves the kernel echoing the old position,
+      // which the position listener suppresses, so [_lastPosition] is just the
+      // target we wrote ourselves and proves nothing.
+      //
+      // [_pendingSeekTarget] 仍布防，说明始终没等到接近目标的回声：seek 被丢弃时
+      // 内核回声的是旧位置，会被位置监听抑制，此时 [_lastPosition] 只是我们自己
+      // 写进去的目标值，不能证明已落地。
       if (state.type != MovaStreamType.vod ||
-          _lastPosition + _seekSettleTolerance >= target) {
+          (_pendingSeekTarget == null &&
+              _lastPosition + _seekSettleTolerance >= target)) {
         _releaseAbrHold();
         return;
       }

@@ -289,6 +289,33 @@ void main() {
     expect(k.calls.where((c) => c == 'seek').length, 2);
   });
 
+  test('a resume seek whose target echo never arrives is still re-sent '
+      '(suppressed stale echoes must not count as landed)', () async {
+    const high = MovaQuality(label: '1080p', uri: 'https://host/1080.m3u8', height: 1080);
+    const low = MovaQuality(label: '480p', uri: 'https://host/480.m3u8', height: 480);
+    await e.open(const MovaSource('https://host/master.m3u8'));
+    k.emitDuration(const Duration(minutes: 5));
+    k.emitPosition(const Duration(seconds: 42));
+    await Future<void>.delayed(Duration.zero);
+    e.debugSetQualities(const [high, low], current: high);
+    e.debugResumeVerifyDelay = const Duration(milliseconds: 60);
+
+    k.calls.clear();
+    await e.switchQuality(low);
+    k.emitDuration(const Duration(minutes: 5));
+    k.emitBuffering(true);
+    k.emitBuffering(false); // 档位落地 → 首发续播 seek
+    await Future<void>.delayed(const Duration(milliseconds: 10));
+    expect(k.calls.where((c) => c == 'seek').length, 1);
+
+    // seek 被 mpv 丢弃且目标值从未回声：只有起点附近的旧位置，会被位置监听抑制，
+    // _lastPosition 仍是我们自己写入的目标。校验链仍须重发。
+    k.emitPosition(const Duration(milliseconds: 23));
+    k.emitPosition(const Duration(milliseconds: 63));
+    await Future<void>.delayed(const Duration(milliseconds: 70));
+    expect(k.calls.where((c) => c == 'seek').length, 2);
+  });
+
   test('switchQuality announces the new variant without waiting for the parked '
       'resume seek', () async {
     const high = MovaQuality(
