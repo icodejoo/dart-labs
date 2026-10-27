@@ -1,0 +1,1052 @@
+{
+  "schema_version": 1,
+  "matrix": "doc/plans/2026-10-27-device-coverage-test-matrix.md",
+  "ids": [
+    "A1",
+    "A2",
+    "A3",
+    "A4",
+    "A5",
+    "A6",
+    "A7",
+    "A8",
+    "A9",
+    "A10",
+    "A11",
+    "A12",
+    "A13",
+    "A14",
+    "A15",
+    "A16",
+    "A17",
+    "A18",
+    "A19",
+    "A20",
+    "A21",
+    "A22",
+    "A23",
+    "A24",
+    "A25",
+    "A26",
+    "A27",
+    "A28",
+    "A29",
+    "A30",
+    "A31",
+    "A32",
+    "A33",
+    "C1",
+    "C2",
+    "C3",
+    "C4",
+    "C5",
+    "C6",
+    "C7",
+    "C8",
+    "C9",
+    "C10",
+    "C11",
+    "C12",
+    "C13",
+    "C14",
+    "C15",
+    "C16",
+    "C17",
+    "E.MovaReady",
+    "E.MovaSourceChange",
+    "E.MovaPlay",
+    "E.MovaPause",
+    "E.MovaDone",
+    "E.MovaSeek",
+    "E.MovaSeeked",
+    "E.MovaBufferChange",
+    "E.MovaDurationChange",
+    "E.MovaFirstFrame",
+    "E.MovaSizeChange",
+    "E.MovaVolumeChange",
+    "E.MovaBrightChange",
+    "E.MovaRateChange",
+    "E.MovaQualityListChange",
+    "E.MovaQualityChange",
+    "E.MovaAbrDownShift",
+    "E.MovaFitChange",
+    "E.MovaZoomChange",
+    "E.MovaLockChange",
+    "E.MovaFullScreenChange",
+    "E.MovaOrientationChange",
+    "E.MovaPipChange",
+    "E.MovaMiniChange",
+    "E.MovaTimeShiftChange",
+    "E.MovaLiveEdgeReach",
+    "E.MovaPreviewBlock",
+    "E.MovaSttBlock",
+    "E.MovaSwapChange",
+    "E.MovaErrorEvent",
+    "E.MovaPlayFailure",
+    "E.MovaRecovered",
+    "E.MovaFailover",
+    "E.MovaStandbyChange",
+    "E.MovaStandbyResume",
+    "E1",
+    "E2",
+    "U1",
+    "U2",
+    "U3",
+    "U4",
+    "U5",
+    "U6",
+    "U7",
+    "U8",
+    "U9",
+    "F1",
+    "F2",
+    "F3",
+    "F4",
+    "F5",
+    "F6",
+    "F7",
+    "F8",
+    "F9",
+    "F10",
+    "F11",
+    "F12",
+    "F13",
+    "F14",
+    "F15",
+    "F16",
+    "N1",
+    "N2",
+    "N3",
+    "N4",
+    "N5",
+    "N6",
+    "N7",
+    "N8",
+    "N9",
+    "N10",
+    "N11",
+    "N12",
+    "N13",
+    "N14",
+    "N15",
+    "N16",
+    "N17",
+    "N18",
+    "N19",
+    "N20",
+    "N21",
+    "N22",
+    "N23"
+  ],
+  "ports": [
+    18080,
+    18081,
+    18082,
+    18083,
+    18084,
+    18443,
+    18444,
+    18445,
+    18446,
+    18447
+  ],
+  "services": [
+    {
+      "id": "sources",
+      "argv": [
+        "{python}",
+        "{tool}/verify_sources/start_sources.py",
+        "--workdir",
+        "{evidence}/{prefix}sources"
+      ],
+      "ports": [
+        18080,
+        18081
+      ]
+    },
+    {
+      "id": "media",
+      "argv": [
+        "{python}",
+        "{tool}/coverage_media.py"
+      ],
+      "ports": [
+        18084
+      ]
+    },
+    {
+      "id": "tls",
+      "argv": [
+        "{python}",
+        "{tool}/coverage_tls.py"
+      ],
+      "ports": [
+        18443,
+        18444,
+        18445,
+        18446,
+        18447
+      ]
+    }
+  ],
+  "batches": [
+    {
+      "id": "api-launch",
+      "description": "执行 api-launch 现有验证器",
+      "why": "核验真实事件/状态及原生读回，沿用上一轮自动检查点并保留原始证据。",
+      "argv": [
+        "{python}",
+        "{tool}/coverage_suite_device.py",
+        "api",
+        "--name",
+        "{prefix}api-launch",
+        "--timeout",
+        "60"
+      ],
+      "timeout": 180,
+      "dependencies": [
+        "services",
+        "build"
+      ],
+      "covers": [],
+      "evidence_prefix": "{prefix}api-launch",
+      "screen_on": true,
+      "fast": true
+    },
+    {
+      "id": "api",
+      "description": "运行普通/代理 API、hooks、恢复、预览、QoE 等批量子项",
+      "why": "核验真实事件/状态及原生读回，沿用上一轮自动检查点并保留原始证据。",
+      "argv": [
+        "{python}",
+        "{tool}/rerun_batch.py",
+        "coverage_api_batches.py"
+      ],
+      "timeout": 7200,
+      "dependencies": [
+        "services",
+        "build",
+        "api-launch"
+      ],
+      "covers": [
+        "A1",
+        "A2",
+        "A3",
+        "A4",
+        "A5",
+        "A6",
+        "A7",
+        "A8",
+        "A9",
+        "A10",
+        "A19",
+        "A21",
+        "A22",
+        "A23",
+        "A24",
+        "A27",
+        "A28",
+        "A29",
+        "A30",
+        "A32",
+        "A33",
+        "C1",
+        "C4",
+        "C9",
+        "C11",
+        "C13",
+        "C14",
+        "C17",
+        "E1",
+        "E2",
+        "F1",
+        "F4",
+        "F7",
+        "F9",
+        "F10",
+        "F13",
+        "N1",
+        "N2",
+        "N3",
+        "N4",
+        "N5",
+        "N6",
+        "N7",
+        "N8",
+        "N10",
+        "N12",
+        "N13",
+        "N19",
+        "N21",
+        "N23",
+        "E.MovaReady",
+        "E.MovaSourceChange",
+        "E.MovaPlay",
+        "E.MovaPause",
+        "E.MovaDone",
+        "E.MovaSeek",
+        "E.MovaSeeked",
+        "E.MovaBufferChange",
+        "E.MovaDurationChange",
+        "E.MovaVolumeChange",
+        "E.MovaBrightChange",
+        "E.MovaRateChange",
+        "E.MovaPreviewBlock",
+        "E.MovaSttBlock",
+        "E.MovaErrorEvent"
+      ],
+      "evidence_prefix": "{prefix}rerun-batch15-",
+      "screen_on": true,
+      "fast": true
+    },
+    {
+      "id": "followups",
+      "description": "复核 QoE 结束、HLS 播放/暂停切档、TLS 探针",
+      "why": "核验真实事件/状态及原生读回，沿用上一轮自动检查点并保留原始证据。",
+      "argv": [
+        "{python}",
+        "{tool}/rerun_batch.py",
+        "coverage_final_batches.py"
+      ],
+      "timeout": 7200,
+      "dependencies": [
+        "services",
+        "build",
+        "api-launch"
+      ],
+      "covers": [
+        "A17",
+        "C16",
+        "C13",
+        "F3",
+        "F7",
+        "N23"
+      ],
+      "evidence_prefix": "{prefix}rerun-batch17-",
+      "screen_on": true,
+      "fast": false
+    },
+    {
+      "id": "hls-native",
+      "description": "重启进程后测三模式 HLS 原生续播落点",
+      "why": "核验真实事件/状态及原生读回，沿用上一轮自动检查点并保留原始证据。",
+      "argv": [
+        "{python}",
+        "{tool}/rerun_batch.py",
+        "coverage_hls_final.py"
+      ],
+      "timeout": 7200,
+      "dependencies": [
+        "services",
+        "build",
+        "api-launch"
+      ],
+      "covers": [
+        "A17",
+        "F3",
+        "E.MovaQualityListChange",
+        "E.MovaQualityChange"
+      ],
+      "evidence_prefix": "{prefix}rerun-batch21-",
+      "screen_on": true,
+      "fast": false
+    },
+    {
+      "id": "he-firstframe",
+      "description": "三轮 HE 首帧与懒加载验证",
+      "why": "核验真实事件/状态及原生读回，沿用上一轮自动检查点并保留原始证据。",
+      "argv": [
+        "{python}",
+        "{tool}/coverage_suite_device.py",
+        "he",
+        "--only",
+        "V1,V2,V3,V4",
+        "--runs",
+        "3",
+        "--timeout",
+        "900",
+        "--name",
+        "{prefix}he-firstframe"
+      ],
+      "timeout": 1020,
+      "dependencies": [
+        "services",
+        "build"
+      ],
+      "covers": [
+        "N12",
+        "N13",
+        "E.MovaFirstFrame"
+      ],
+      "evidence_prefix": "{prefix}he-firstframe",
+      "screen_on": true,
+      "fast": false
+    },
+    {
+      "id": "he-recovery",
+      "description": "三轮 HE 恢复、前后台、路由与 PiP 验证",
+      "why": "核验真实事件/状态及原生读回，沿用上一轮自动检查点并保留原始证据。",
+      "argv": [
+        "{python}",
+        "{tool}/coverage_suite_device.py",
+        "he",
+        "--only",
+        "V5,V6,V7,V8,V9,V10,V11",
+        "--runs",
+        "3",
+        "--timeout",
+        "1200",
+        "--name",
+        "{prefix}he-recovery"
+      ],
+      "timeout": 1320,
+      "dependencies": [
+        "services",
+        "build"
+      ],
+      "covers": [
+        "C14",
+        "U9",
+        "F8",
+        "N19",
+        "E.MovaPlayFailure",
+        "E.MovaRecovered"
+      ],
+      "evidence_prefix": "{prefix}he-recovery",
+      "screen_on": true,
+      "fast": false
+    },
+    {
+      "id": "keepalive-core",
+      "description": "三轮 keepAlive 状态迁移与隐藏恢复",
+      "why": "核验真实事件/状态及原生读回，沿用上一轮自动检查点并保留原始证据。",
+      "argv": [
+        "{python}",
+        "{tool}/coverage_suite_device.py",
+        "keepAlive",
+        "--only",
+        "S1,S2,S3,S6,S13,S17",
+        "--runs",
+        "3",
+        "--timeout",
+        "1200",
+        "--name",
+        "{prefix}keepalive-core"
+      ],
+      "timeout": 1320,
+      "dependencies": [
+        "services",
+        "build"
+      ],
+      "covers": [
+        "A25",
+        "C15",
+        "F6",
+        "N20",
+        "E.MovaStandbyChange",
+        "E.MovaStandbyResume"
+      ],
+      "evidence_prefix": "{prefix}keepalive-core",
+      "screen_on": true,
+      "fast": false
+    },
+    {
+      "id": "existing-pages",
+      "description": "串行硬解待机、CPU漂移、静音、广告换指、原生事件泵、字幕",
+      "why": "核验真实事件/状态及原生读回，沿用上一轮自动检查点并保留原始证据。",
+      "argv": [
+        "{python}",
+        "{tool}/rerun_batch.py",
+        "coverage_followup_batches.py"
+      ],
+      "timeout": 7200,
+      "dependencies": [
+        "services",
+        "build"
+      ],
+      "covers": [
+        "A24",
+        "A25",
+        "C11",
+        "C15",
+        "F4",
+        "F6",
+        "F11",
+        "F12",
+        "F14",
+        "F16",
+        "N10",
+        "N11",
+        "N13",
+        "N20",
+        "E.MovaSwapChange"
+      ],
+      "evidence_prefix": "{prefix}rerun-batch",
+      "screen_on": true,
+      "fast": false
+    },
+    {
+      "id": "widgets",
+      "description": "普通/代理可视 API、组件、View 与原生读回",
+      "why": "核验真实事件/状态及原生读回，沿用上一轮自动检查点并保留原始证据。",
+      "argv": [
+        "{python}",
+        "{tool}/rerun_batch.py",
+        "coverage_widgets_ui.py"
+      ],
+      "timeout": 7200,
+      "dependencies": [
+        "services",
+        "build",
+        "api-launch"
+      ],
+      "covers": [
+        "A3",
+        "A9",
+        "A11",
+        "A13",
+        "A14",
+        "A15",
+        "A16",
+        "A21",
+        "A26",
+        "C5",
+        "C10",
+        "C12",
+        "U1",
+        "U2",
+        "U8",
+        "U9",
+        "F9",
+        "N14",
+        "N16",
+        "N17",
+        "N21",
+        "E.MovaSizeChange",
+        "E.MovaFitChange",
+        "E.MovaLockChange",
+        "E.MovaFullScreenChange",
+        "E.MovaOrientationChange",
+        "E.MovaMiniChange"
+      ],
+      "evidence_prefix": "{prefix}rerun-batch16-",
+      "screen_on": true,
+      "fast": false
+    },
+    {
+      "id": "ui",
+      "description": "逐个可视 API 操作并截图",
+      "why": "核验真实事件/状态及原生读回，沿用上一轮自动检查点并保留原始证据。",
+      "argv": [
+        "{python}",
+        "{tool}/rerun_batch.py",
+        "coverage_ui.py"
+      ],
+      "timeout": 7200,
+      "dependencies": [
+        "services",
+        "build",
+        "api-launch"
+      ],
+      "covers": [
+        "A11",
+        "A12",
+        "A14",
+        "A16",
+        "E.MovaZoomChange"
+      ],
+      "evidence_prefix": "{prefix}rerun-batch3-",
+      "screen_on": true,
+      "fast": false
+    },
+    {
+      "id": "gesture-pip",
+      "description": "真实手势与 PiP 进入/展开",
+      "why": "核验真实事件/状态及原生读回，沿用上一轮自动检查点并保留原始证据。",
+      "argv": [
+        "{python}",
+        "{tool}/rerun_batch.py",
+        "coverage_ui_final.py"
+      ],
+      "timeout": 7200,
+      "dependencies": [
+        "services",
+        "build",
+        "api-launch"
+      ],
+      "covers": [
+        "A18",
+        "C3",
+        "C5",
+        "U6",
+        "F5",
+        "F16",
+        "N9",
+        "E.MovaPipChange"
+      ],
+      "evidence_prefix": "{prefix}rerun-batch18-",
+      "screen_on": true,
+      "fast": false
+    },
+    {
+      "id": "interactive",
+      "description": "真实重映射、Feed、小窗拖动、NextUp",
+      "why": "核验真实事件/状态及原生读回，沿用上一轮自动检查点并保留原始证据。",
+      "argv": [
+        "{python}",
+        "{tool}/rerun_batch.py",
+        "coverage_interactive.py"
+      ],
+      "timeout": 7200,
+      "dependencies": [
+        "services",
+        "build",
+        "api-launch"
+      ],
+      "covers": [
+        "A26",
+        "A29",
+        "C3",
+        "C8",
+        "C12",
+        "U6",
+        "U8",
+        "U9"
+      ],
+      "evidence_prefix": "{prefix}rerun-batch22-",
+      "screen_on": true,
+      "fast": false
+    },
+    {
+      "id": "final-api",
+      "description": "执行 final-api 现有验证器",
+      "why": "核验真实事件/状态及原生读回，沿用上一轮自动检查点并保留原始证据。",
+      "argv": [
+        "{python}",
+        "{tool}/coverage_suite_device.py",
+        "api",
+        "--name",
+        "{prefix}final-api",
+        "--timeout",
+        "60"
+      ],
+      "timeout": 180,
+      "dependencies": [
+        "services",
+        "build"
+      ],
+      "covers": [],
+      "evidence_prefix": "{prefix}final-api",
+      "screen_on": true,
+      "fast": true
+    },
+    {
+      "id": "final-tls",
+      "description": "执行 final-tls 现有验证器",
+      "why": "核验真实事件/状态及原生读回，沿用上一轮自动检查点并保留原始证据。",
+      "argv": [
+        "{python}",
+        "{tool}/coverage_device.py",
+        "new",
+        "--arg",
+        "case=tls",
+        "--name",
+        "{prefix}final-tls",
+        "--timeout",
+        "180"
+      ],
+      "timeout": 300,
+      "dependencies": [
+        "services",
+        "build",
+        "api-launch"
+      ],
+      "covers": [
+        "C16"
+      ],
+      "evidence_prefix": "{prefix}final-tls",
+      "screen_on": true,
+      "fast": false
+    },
+    {
+      "id": "final-tls-probe",
+      "description": "执行 final-tls-probe 现有验证器",
+      "why": "核验真实事件/状态及原生读回，沿用上一轮自动检查点并保留原始证据。",
+      "argv": [
+        "{python}",
+        "{tool}/coverage_device.py",
+        "new",
+        "--arg",
+        "case=tlsProbe",
+        "--name",
+        "{prefix}final-tls-probe",
+        "--timeout",
+        "180"
+      ],
+      "timeout": 300,
+      "dependencies": [
+        "services",
+        "build",
+        "api-launch"
+      ],
+      "covers": [
+        "C16"
+      ],
+      "evidence_prefix": "{prefix}final-tls-probe",
+      "screen_on": true,
+      "fast": false
+    },
+    {
+      "id": "final-hls",
+      "description": "执行 final-hls 现有验证器",
+      "why": "核验真实事件/状态及原生读回，沿用上一轮自动检查点并保留原始证据。",
+      "argv": [
+        "{python}",
+        "{tool}/coverage_device.py",
+        "new",
+        "--arg",
+        "case=hls",
+        "--arg",
+        "cutover=true",
+        "--name",
+        "{prefix}final-hls",
+        "--timeout",
+        "180"
+      ],
+      "timeout": 300,
+      "dependencies": [
+        "services",
+        "build",
+        "api-launch"
+      ],
+      "covers": [
+        "A17",
+        "F3"
+      ],
+      "evidence_prefix": "{prefix}final-hls",
+      "screen_on": true,
+      "fast": true
+    },
+    {
+      "id": "final-abr",
+      "description": "执行 final-abr 现有验证器",
+      "why": "核验真实事件/状态及原生读回，沿用上一轮自动检查点并保留原始证据。",
+      "argv": [
+        "{python}",
+        "{tool}/coverage_device.py",
+        "new",
+        "--arg",
+        "case=abr",
+        "--name",
+        "{prefix}final-abr",
+        "--timeout",
+        "180"
+      ],
+      "timeout": 300,
+      "dependencies": [
+        "services",
+        "build",
+        "api-launch"
+      ],
+      "covers": [
+        "C4",
+        "E.MovaAbrDownShift"
+      ],
+      "evidence_prefix": "{prefix}final-abr",
+      "screen_on": true,
+      "fast": false
+    },
+    {
+      "id": "extras",
+      "description": "播放列表、边界、失败策略、预览、四格式字幕",
+      "why": "核验真实事件/状态及原生读回，沿用上一轮自动检查点并保留原始证据。",
+      "argv": [
+        "{python}",
+        "{tool}/rerun_extra.py"
+      ],
+      "timeout": 7200,
+      "dependencies": [
+        "services",
+        "build",
+        "api-launch"
+      ],
+      "covers": [
+        "A5",
+        "A7",
+        "A9",
+        "A28",
+        "A30",
+        "C1",
+        "C8",
+        "C14",
+        "F8",
+        "F10",
+        "F11",
+        "N6",
+        "N8",
+        "N19",
+        "E.MovaFailover"
+      ],
+      "evidence_prefix": "{prefix}rerun-extra-",
+      "screen_on": true,
+      "fast": false
+    },
+    {
+      "id": "live-inputs",
+      "description": "三轮本地 DVR 后退与回直播边缘",
+      "why": "核验真实事件/状态及原生读回，沿用上一轮自动检查点并保留原始证据。",
+      "argv": [
+        "{python}",
+        "{tool}/rerun_live_inputs.py"
+      ],
+      "timeout": 7200,
+      "dependencies": [
+        "services",
+        "build",
+        "api-launch"
+      ],
+      "covers": [
+        "A20",
+        "F2",
+        "E.MovaTimeShiftChange",
+        "E.MovaLiveEdgeReach"
+      ],
+      "evidence_prefix": "{prefix}rerun-live-",
+      "screen_on": true,
+      "fast": false
+    },
+    {
+      "id": "native-inputs",
+      "description": "普通/代理 open 同步探针及系统媒体音量读回",
+      "why": "核验真实事件/状态及原生读回，沿用上一轮自动检查点并保留原始证据。",
+      "argv": [
+        "{python}",
+        "{tool}/rerun_native_inputs.py"
+      ],
+      "timeout": 7200,
+      "dependencies": [
+        "services",
+        "build",
+        "api-launch"
+      ],
+      "covers": [
+        "A5",
+        "A8",
+        "N12"
+      ],
+      "evidence_prefix": "{prefix}rerun-native-",
+      "screen_on": true,
+      "fast": false
+    },
+    {
+      "id": "he-v6-final",
+      "description": "执行 he-v6-final 现有验证器",
+      "why": "核验真实事件/状态及原生读回，沿用上一轮自动检查点并保留原始证据。",
+      "argv": [
+        "{python}",
+        "{tool}/coverage_suite_device.py",
+        "he",
+        "--only",
+        "V6",
+        "--runs",
+        "5",
+        "--timeout",
+        "300",
+        "--name",
+        "{prefix}he-v6-final"
+      ],
+      "timeout": 420,
+      "dependencies": [
+        "services",
+        "build"
+      ],
+      "covers": [
+        "F8",
+        "N19"
+      ],
+      "evidence_prefix": "{prefix}he-v6-final",
+      "screen_on": true,
+      "fast": false
+    },
+    {
+      "id": "manual-ready",
+      "description": "重新启动 API 页面供安全视觉与触摸批次使用",
+      "why": "HE V6 切到了独立验证页；必须恢复 API 服务再注入后续操作。",
+      "argv": [
+        "{python}",
+        "{tool}/coverage_suite_device.py",
+        "api",
+        "--name",
+        "{prefix}manual-ready",
+        "--timeout",
+        "60"
+      ],
+      "timeout": 180,
+      "dependencies": [
+        "services",
+        "build"
+      ],
+      "covers": [],
+      "evidence_prefix": "{prefix}manual-ready",
+      "screen_on": true,
+      "fast": false
+    },
+    {
+      "id": "safe-visual",
+      "description": "带前台守卫的视觉与语义按钮复核",
+      "why": "核验真实事件/状态及原生读回，沿用上一轮自动检查点并保留原始证据。",
+      "argv": [
+        "{python}",
+        "{tool}/rerun_visual_safe.py",
+        "visual"
+      ],
+      "timeout": 7200,
+      "dependencies": [
+        "services",
+        "build",
+        "api-launch",
+        "manual-ready"
+      ],
+      "covers": [
+        "C5",
+        "C6",
+        "C8",
+        "C10",
+        "U1",
+        "U2",
+        "U3",
+        "U5",
+        "U7",
+        "N15",
+        "N16"
+      ],
+      "evidence_prefix": "{prefix}rerun-safe-visual-",
+      "screen_on": true,
+      "fast": false
+    },
+    {
+      "id": "safe-transition",
+      "description": "带前台守卫的慢 VTT 与封面转场",
+      "why": "核验真实事件/状态及原生读回，沿用上一轮自动检查点并保留原始证据。",
+      "argv": [
+        "{python}",
+        "{tool}/rerun_visual_safe.py",
+        "transition"
+      ],
+      "timeout": 7200,
+      "dependencies": [
+        "services",
+        "build",
+        "api-launch",
+        "manual-ready"
+      ],
+      "covers": [
+        "A30",
+        "C1",
+        "N15"
+      ],
+      "evidence_prefix": "{prefix}rerun-safe-transition-",
+      "screen_on": true,
+      "fast": false
+    },
+    {
+      "id": "touch-mini",
+      "description": "安全小窗甩动与关闭回调",
+      "why": "核验真实事件/状态及原生读回，沿用上一轮自动检查点并保留原始证据。",
+      "argv": [
+        "{python}",
+        "{tool}/rerun_manual_inputs.py",
+        "mini"
+      ],
+      "timeout": 7200,
+      "dependencies": [
+        "services",
+        "build",
+        "api-launch",
+        "manual-ready"
+      ],
+      "covers": [
+        "A26",
+        "C12",
+        "U8"
+      ],
+      "evidence_prefix": "{prefix}rerun-manual-mini-",
+      "screen_on": true,
+      "fast": false
+    },
+    {
+      "id": "touch-preview",
+      "description": "按住拖动直至真实预览缩略图到达",
+      "why": "核验真实事件/状态及原生读回，沿用上一轮自动检查点并保留原始证据。",
+      "argv": [
+        "{python}",
+        "{tool}/rerun_manual_inputs.py",
+        "preview"
+      ],
+      "timeout": 7200,
+      "dependencies": [
+        "services",
+        "build",
+        "api-launch",
+        "manual-ready"
+      ],
+      "covers": [
+        "A21",
+        "U4"
+      ],
+      "evidence_prefix": "{prefix}rerun-manual-preview-",
+      "screen_on": true,
+      "fast": false
+    }
+  ],
+  "manual": [
+    {
+      "id": "A31",
+      "reason": "缺真实 STT 模型/识别引擎和下载服务；失败回滚仅为子项。"
+    },
+    {
+      "id": "C7",
+      "reason": "同 A31，缺真实识别及导出完整证据。"
+    },
+    {
+      "id": "C2",
+      "reason": "缺按 behind 返回历史媒体的服务，滑动 HLS 不等于历史回看。"
+    },
+    {
+      "id": "F15",
+      "reason": "缺可控 WHEP 服务；端口可达不证明播放。"
+    },
+    {
+      "id": "N18",
+      "reason": "完整 mini/guard-off 联动需专用包和复核，主包不足。"
+    },
+    {
+      "id": "N22",
+      "reason": "需专用 debug VM 构建及断言 marker；不能复用旧 APK。"
+    }
+  ],
+  "judgement": {
+    "source": "rerun_finalize.py / coverage_record.update / existing checkpoints",
+    "policy": "仅本轮 update 显式编号结论可入账；旧 finalize 人工硬编码不可重放。无完整自动口径则 BLOCKED。",
+    "v2_scope": "采用 L 宿主日志；S/P/G 扩展不计入 v1 135，需独立验证器。",
+    "automatic_full_ids": [
+      "A4",
+      "A22"
+    ],
+    "blocked_reason": "其余完整编号判定依赖人工终审；原始子项 CHECK/VERDICT 留档，不能当作完整编号通过。"
+  },
+  "build": {
+    "argv": [
+      "{python}",
+      "{tool}/coverage_build.py",
+      "lib/main_coverage_suite.dart"
+    ],
+    "timeout": 1800,
+    "repack_argv": [
+      "{python}",
+      "{tool}/coverage_repack.py"
+    ],
+    "signing": "Android SDK build-tools zipalign / apksigner + ~/.android/debug.keystore",
+    "install": "adb install -r; pull installed APK; sha256 + lastUpdateTime"
+  }
+}
