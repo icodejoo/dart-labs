@@ -290,7 +290,7 @@ class MovaLiveReconnect implements MovaRecoveryPolicy {
   /// - [maxAttempts]: attempt budget of the last address, `null` = unlimited / 最后地址的尝试预算，`null` 为不限
   const MovaLiveReconnect({
     this.initialDelay = const Duration(seconds: 1),
-    this.maxDelay = const Duration(seconds: 30),
+    this.maxDelay = const Duration(seconds: 15),
     this.factor = 2,
     this.retriesPerAddress = 1,
     this.maxAttempts,

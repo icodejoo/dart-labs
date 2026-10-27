@@ -23,7 +23,7 @@ class _Rig {
       : engine = MovaEngine(
           kernel: kernel,
           options: MovaOpts(
-            recovery: MovaRecoveryConfig(enabled: enabled, policy: const MovaFailoverOnly()),
+            recovery: MovaRecoveryConfig(startTimeout: Duration(seconds: 10), stallTimeout: Duration(seconds: 10), enabled: enabled, policy: const MovaFailoverOnly()),
             controls: const MovaCtrlsConfig(autoHide: false),
             live: live,
           ),

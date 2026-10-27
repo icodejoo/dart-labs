@@ -1,3 +1,11 @@
+## 0.4.0
+
+* **新增：统一超时配置 `MovaTimeouts`**（`MovaRecoveryConfig.timeouts`，随 `package:mova/mova.dart` 导出）。字段 `network`（→mpv `network-timeout`，整秒）、`whepHandshake`/`whepFirstFrame`/`whepMedia`（→`handshake_timeout`/`first_frame_timeout`/`media_timeout`，微秒，仅 `whep…`），每次 open 前经现有源选项机制下发 mpv；默认全 `null`（不动 mpv 默认值）；`MovaSource.mpvOptions`/`demuxerOptions`/`whepMediaTimeout` 的显式设置优先。`MovaSource.mpvOptionsFor` 新增可选参数 `timeouts`；新增公开常量 `kMovaWatchdogMargin`（5s）等。
+* **行为变化：Dart 看门狗降级为兜底，期限改为从 mpv 窗口派生**（只在 `recovery.enabled` 时可见）。重连以 mpv 的 `END_FILE(error)`/错误事件为主路径；`startTimeout`/`stallTimeout` 默认值由固定 10s 改为 `null`（派生 = mpv 最长窗口 + 5s）：未配置 `timeouts` 时非 WHEP 起播/卡顿均为 65s，WHEP 起播 85s、卡顿 10s；显式设置仍以用户值为准。**未配置时黑洞主机的判失败会比之前（10s）慢很多**，建议同时设置 `timeouts.network`。
+* **行为变化（API）：** `MovaRecoveryConfig.startTimeout`/`stallTimeout` 类型改为 `Duration?`；原 `stallTimeout: null`（关闭卡顿看门狗）改用新字段 `stallWatchdog: false`，`null` 现在表示“派生”；`copyWith(clearStallTimeout: true)` 现在是“重置为派生”。新增 `startTimeoutFor(uri)`/`stallTimeoutFor(uri)`。
+* **行为变化：`MovaLiveReconnect.maxDelay` 默认 30s 改为 15s**（退避序列 1、2、4、8、15、15…）。
+* **Docs：** README 恢复一节补“重连分工”（直播不开 `reconnect_streamed`、点播保留 mpv 默认重连、mpv 主路径/Dart 兜底）与 `MovaTimeouts` 用法。
+
 ## 0.3.2
 
 * **Fix：恢复层真机复测的两处问题**。

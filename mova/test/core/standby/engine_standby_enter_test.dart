@@ -179,7 +179,7 @@ void main() {
   test('13. a recovery retry waiting in its delay is cancelled and reported as fallback(failed)', () {
     fakeAsync((async) {
       final k = FakeStandbyKernel()..openError = StateError('boom');
-      final r = StandbyRig(async, k, recovery: const MovaRecoveryConfig(enabled: true))..playLive(autoPlay: true);
+      final r = StandbyRig(async, k, recovery: const MovaRecoveryConfig(startTimeout: Duration(seconds: 10), stallTimeout: Duration(seconds: 10), enabled: true))..playLive(autoPlay: true);
       expect(k.openedUris, hasLength(1));
       expect(r.standby(true), MovaStandbyPhase.fallback);
       expect(r.changes.single.reason, MovaStandbyReason.failed);

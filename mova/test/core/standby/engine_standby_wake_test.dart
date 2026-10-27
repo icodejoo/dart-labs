@@ -175,7 +175,7 @@ void main() {
   test('10. after a wake the stall watch runs, not the start deadline', () {
     fakeAsync((async) {
       final k = FakeStandbyKernel();
-      final r = StandbyRig(async, k, recovery: const MovaRecoveryConfig(enabled: true))..playLive();
+      final r = StandbyRig(async, k, recovery: const MovaRecoveryConfig(startTimeout: Duration(seconds: 10), stallTimeout: Duration(seconds: 10), enabled: true))..playLive();
       r.land();
       r.standby(true);
       k.emitBuffering(true);

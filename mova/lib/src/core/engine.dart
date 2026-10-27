@@ -604,8 +604,8 @@ class MovaEngine implements MovaApi, MovaStandbyController, MovaPlayerMute, Mova
     if (rec.enabled) {
       rec.assertValid();
       _watchdog = MovaPlayWatchdog(
-        startTimeout: rec.startTimeout,
-        stallTimeout: rec.stallTimeout,
+        startTimeout: rec.startTimeoutFor(''),
+        stallTimeout: rec.stallTimeoutFor(''),
         onTimeout: (kind, waited) => _onPlayFail(kind, waited: waited),
       );
     }
@@ -815,7 +815,9 @@ class MovaEngine implements MovaApi, MovaStandbyController, MovaPlayerMute, Mova
     try {
       final kernel = _kernel;
       if (kernel is MovaSourceOptionsKernel) {
-        (kernel as MovaSourceOptionsKernel).stageSourceOptions(_source?.mpvOptionsFor(uri) ?? const {});
+        (kernel as MovaSourceOptionsKernel).stageSourceOptions(
+          (_source ?? MovaSource(uri)).mpvOptionsFor(uri, timeouts: options.recovery.timeouts),
+        );
       }
       await _kernel.open(uri, play: play);
     } catch (e) {
@@ -841,7 +843,12 @@ class MovaEngine implements MovaApi, MovaStandbyController, MovaPlayerMute, Mova
       if (!current()) return false;
     }
     if (_kernelOpening == 0 && state.standby != MovaStandbyPhase.holding) {
-      _watchdog?.armStart(playing: _playIntent);
+      _watchdog?.armStart(
+        playing: _playIntent,
+        startTimeout: options.recovery.startTimeoutFor(uri),
+        stallTimeout: options.recovery.stallTimeoutFor(uri),
+        overrideStall: true,
+      );
     }
     // A paused load's size signal may arrive before open returns. Re-feed
     // known dimensions defensively; real-device confirmation is Task 16.

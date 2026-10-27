@@ -2,6 +2,13 @@ import 'dart:async';
 
 import 'fail.dart';
 
+/// Fallback watchdog: arms start-up and stall deadlines for one engine. mpv's own
+/// error events (END_FILE error) are the primary failure path; this only covers
+/// hangs mpv never reports.
+///
+/// 兜底看门狗：为一个引擎武装起播与卡顿期限。mpv 自己的错误事件（END_FILE error）是主路径，
+/// 这里只覆盖 mpv 不报错的卡死。
+///
 /// Arms start-up and stall deadlines for one engine. Owns its timers; the
 /// engine feeds it playback observations and receives timeouts.
 ///
@@ -41,6 +48,16 @@ class MovaPlayWatchdog {
   /// 正在计的起播或卡顿期限（若有）。
   Timer? _timer;
 
+  /// Start deadline of the watched attempt.
+  ///
+  /// 被监视尝试的起播期限。
+  late Duration _attemptStart = startTimeout;
+
+  /// Stall deadline of the watched attempt; `null` = off.
+  ///
+  /// 被监视尝试的卡顿期限；`null` 表示关闭。
+  late Duration? _attemptStall = stallTimeout;
+
   /// Whether an attempt is currently being watched.
   ///
   /// 当前是否正在监视一次尝试。
@@ -66,7 +83,12 @@ class MovaPlayWatchdog {
   /// 新的一次尝试；起播期限只在播放意图为真时计时。
   ///
   /// - [playing]: whether playback is intended right now / 当前是否有播放意图
-  void armStart({required bool playing}) {
+  /// - [startTimeout]: start deadline for this attempt only; defaults to the constructor's / 仅本次尝试的起播期限，缺省用构造时的
+  /// - [stallTimeout]: stall deadline for this attempt (`null` = off), used only with [overrideStall] / 仅本次尝试的卡顿期限（`null` 关闭），仅 [overrideStall] 为真时生效
+  /// - [overrideStall]: whether [stallTimeout] replaces the constructor's / 是否用 [stallTimeout] 替换构造时的
+  void armStart({required bool playing, Duration? startTimeout, Duration? stallTimeout, bool overrideStall = false}) {
+    _attemptStart = startTimeout ?? this.startTimeout;
+    _attemptStall = overrideStall ? stallTimeout : this.stallTimeout;
     _cancel();
     _armed = true;
     _landed = false;
@@ -131,10 +153,10 @@ class MovaPlayWatchdog {
     _cancel();
     if (!_armed || !_playing) return;
     if (!_landed) {
-      _timer = Timer(startTimeout, () => _fire(MovaPlayFailKind.startTimeout, startTimeout));
+      _timer = Timer(_attemptStart, () => _fire(MovaPlayFailKind.startTimeout, _attemptStart));
       return;
     }
-    final stall = stallTimeout;
+    final stall = _attemptStall;
     if (stall != null && _buffering) {
       _timer = Timer(stall, () => _fire(MovaPlayFailKind.stallTimeout, stall));
     }

@@ -14,6 +14,7 @@ export 'stt_config.dart';
 export 'strings.dart';
 export 'swap_config.dart';
 export 'theme.dart';
+export 'timeouts.dart';
 
 import 'abr_config.dart';
 import 'ad_config.dart';

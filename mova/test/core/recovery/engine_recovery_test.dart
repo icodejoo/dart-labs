@@ -29,7 +29,7 @@ class _ThrowingPolicy implements MovaRecoveryPolicy {
 class _Rig {
   _Rig(
     this.kernel, {
-    MovaRecoveryConfig recovery = const MovaRecoveryConfig(enabled: true),
+    MovaRecoveryConfig recovery = const MovaRecoveryConfig(startTimeout: Duration(seconds: 10), stallTimeout: Duration(seconds: 10), enabled: true),
   }) : engine = MovaEngine(
          kernel: kernel,
          options: MovaOpts(
@@ -79,7 +79,7 @@ void main() {
     () {
       fakeAsync((async) {
         final k = FakeStatsKernel()..openError = StateError('boom');
-        final r = _Rig(k, recovery: const MovaRecoveryConfig());
+        final r = _Rig(k, recovery: const MovaRecoveryConfig(startTimeout: Duration(seconds: 10), stallTimeout: Duration(seconds: 10), ));
         Object? thrown;
         r.engine
             .open(const MovaSource('https://h/a.m3u8'))
@@ -96,7 +96,7 @@ void main() {
 
         final ok = _Rig(
           FakeStatsKernel(),
-          recovery: const MovaRecoveryConfig(),
+          recovery: const MovaRecoveryConfig(startTimeout: Duration(seconds: 10), stallTimeout: Duration(seconds: 10), ),
         );
         ok.open(async);
         expect(
@@ -270,7 +270,7 @@ void main() {
         final k2 = FakeKernel();
         final quiet = _Rig(
           k2,
-          recovery: const MovaRecoveryConfig(
+          recovery: const MovaRecoveryConfig(startTimeout: Duration(seconds: 10), stallTimeout: Duration(seconds: 10), 
             enabled: true,
             liveEndIsFailure: false,
           ),
@@ -358,7 +358,7 @@ void main() {
         final k = FakeKernel();
         final r = _Rig(
           k,
-          recovery: MovaRecoveryConfig(
+          recovery: MovaRecoveryConfig(startTimeout: Duration(seconds: 10), stallTimeout: Duration(seconds: 10), 
             enabled: true,
             policy: _ThrowingPolicy(),
           ),

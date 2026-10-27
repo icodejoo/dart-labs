@@ -99,7 +99,7 @@ void main() {
           home: MovaView(
             source: const MovaSource('https://h/live.flv', type: MovaStreamType.live),
             poster: p,
-            options: _noAutoHide.copyWith(recovery: const MovaRecoveryConfig(enabled: true)),
+            options: _noAutoHide.copyWith(recovery: const MovaRecoveryConfig(startTimeout: Duration(seconds: 10), stallTimeout: Duration(seconds: 10), enabled: true)),
           ),
         );
     await t.pumpWidget(view(poster));

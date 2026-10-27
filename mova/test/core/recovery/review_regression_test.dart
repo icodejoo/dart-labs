@@ -49,7 +49,7 @@ MovaEngine _engine(
   fetcher: fetcher,
   options: MovaOpts(
     controls: const MovaCtrlsConfig(autoHide: false),
-    recovery: MovaRecoveryConfig(enabled: true, policy: policy),
+    recovery: MovaRecoveryConfig(startTimeout: Duration(seconds: 10), stallTimeout: Duration(seconds: 10), enabled: true, policy: policy),
   ),
 );
 

@@ -15,7 +15,7 @@ import '../../support/fake_kernel.dart';
 ///
 /// 引擎 + FakeStatsKernel，关掉控制条自动隐藏，使挂起计时器只来自恢复层。
 class _Rig {
-  _Rig({MovaRecoveryConfig recovery = const MovaRecoveryConfig(enabled: true)})
+  _Rig({MovaRecoveryConfig recovery = const MovaRecoveryConfig(startTimeout: Duration(seconds: 10), stallTimeout: Duration(seconds: 10), enabled: true)})
     : kernel = FakeStatsKernel() {
     engine = MovaEngine(
       kernel: kernel,
@@ -76,7 +76,7 @@ void main() {
   group('2. 放弃后缓冲标志归零', () {
     test('giveUp 后 state.buffering 为 false，并补发一次 MovaBufferChange(false)', () {
       fakeAsync((async) {
-        final r = _Rig(recovery: const MovaRecoveryConfig(enabled: true, policy: MovaFailoverOnly()));
+        final r = _Rig(recovery: const MovaRecoveryConfig(startTimeout: Duration(seconds: 10), stallTimeout: Duration(seconds: 10), enabled: true, policy: MovaFailoverOnly()));
         r.open(async);
         r.kernel.emitBuffering(true);
         async.flushMicrotasks();
@@ -91,7 +91,7 @@ void main() {
 
     test('放弃时本来就不在缓冲：不多发 MovaBufferChange', () {
       fakeAsync((async) {
-        final r = _Rig(recovery: const MovaRecoveryConfig(enabled: true, policy: MovaFailoverOnly()));
+        final r = _Rig(recovery: const MovaRecoveryConfig(startTimeout: Duration(seconds: 10), stallTimeout: Duration(seconds: 10), enabled: true, policy: MovaFailoverOnly()));
         r.open(async);
         async.elapse(tenSeconds);
         expect(r.engine.state.error, isA<MovaGiveUpError>());
@@ -101,7 +101,7 @@ void main() {
   });
 
   group('3. 确定性失败不必等满 startTimeout', () {
-    const patient = MovaRecoveryConfig(
+    const patient = MovaRecoveryConfig(startTimeout: Duration(seconds: 10), stallTimeout: Duration(seconds: 10), 
       enabled: true,
       policy: MovaRetryThenFailover(maxRetries: 5),
     );

@@ -161,7 +161,7 @@ void main() {
         options: const MovaOpts(
           live: MovaLiveConfig(seekMode: MovaLiveSeekMode.dvr, backToLive: MovaBackToLive.reopen),
         ),
-        recovery: const MovaRecoveryConfig(enabled: true),
+        recovery: const MovaRecoveryConfig(startTimeout: Duration(seconds: 10), stallTimeout: Duration(seconds: 10), enabled: true),
       );
       r.playLive();
       k.emitDuration(const Duration(seconds: 300));
@@ -257,7 +257,7 @@ void main() {
   test('12. a native error while holding degrades quietly and the wake reopens at once', () {
     fakeAsync((async) {
       final k = FakeStandbyStatsKernel();
-      final r = StandbyRig(async, k, recovery: const MovaRecoveryConfig(enabled: true));
+      final r = StandbyRig(async, k, recovery: const MovaRecoveryConfig(startTimeout: Duration(seconds: 10), stallTimeout: Duration(seconds: 10), enabled: true));
       _hold(r);
       k.calls.clear();
       k.emitEndFile(MovaEndFileReason.error);
@@ -275,7 +275,7 @@ void main() {
   test('13. a native error during a fallback is remembered, so even a quick wake reopens', () {
     fakeAsync((async) {
       final k = FakeStandbyStatsKernel()..media = _unknown;
-      final r = StandbyRig(async, k, recovery: const MovaRecoveryConfig(enabled: true))..playLive();
+      final r = StandbyRig(async, k, recovery: const MovaRecoveryConfig(startTimeout: Duration(seconds: 10), stallTimeout: Duration(seconds: 10), enabled: true))..playLive();
       r.land();
       r.standby(true);
       final opens = k.openedUris.length;

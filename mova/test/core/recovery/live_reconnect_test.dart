@@ -36,15 +36,15 @@ void main() {
   group('MovaLiveReconnect 策略', () {
     const p = MovaLiveReconnect();
 
-    test('单地址：指数退避 1s,2s,4s... 封顶 30s，永不放弃', () {
+    test('单地址：指数退避 1s,2s,4s... 封顶 15s，永不放弃', () {
       final delays = [for (var a = 1; a <= 8; a++) p.onFailure(_fail(attempt: a)).delay.inSeconds];
-      expect(delays, [1, 2, 4, 8, 16, 30, 30, 30]);
+      expect(delays, [1, 2, 4, 8, 15, 15, 15, 15]);
       for (var a = 1; a <= 8; a++) {
         expect(p.onFailure(_fail(attempt: a)).action, MovaRecoveryAction.retry);
       }
       final huge = p.onFailure(_fail(attempt: 100000));
       expect(huge.action, MovaRecoveryAction.retry);
-      expect(huge.delay, const Duration(seconds: 30));
+      expect(huge.delay, const Duration(seconds: 15));
     });
 
     test('多地址：每个非末地址先重试 retriesPerAddress 次再切换，末地址持续重试', () {
@@ -95,7 +95,7 @@ void main() {
     test('直播走 MovaLiveReconnect', () {
       final d = p.onFailure(_fail(attempt: 5));
       expect(d.action, MovaRecoveryAction.retry);
-      expect(d.delay, const Duration(seconds: 16));
+      expect(d.delay, const Duration(seconds: 15));
     });
   });
 
@@ -124,7 +124,7 @@ void main() {
         final engine = MovaEngine(
           kernel: k,
           options: const MovaOpts(
-            recovery: MovaRecoveryConfig(enabled: true),
+            recovery: MovaRecoveryConfig(startTimeout: Duration(seconds: 10), stallTimeout: Duration(seconds: 10), enabled: true),
             controls: MovaCtrlsConfig(autoHide: false),
           ),
         );
@@ -157,7 +157,7 @@ void main() {
         final engine = MovaEngine(
           kernel: k,
           options: const MovaOpts(
-            recovery: MovaRecoveryConfig(enabled: true, liveReconnect: false),
+            recovery: MovaRecoveryConfig(startTimeout: Duration(seconds: 10), stallTimeout: Duration(seconds: 10), enabled: true, liveReconnect: false),
             controls: MovaCtrlsConfig(autoHide: false),
           ),
         );
@@ -174,7 +174,7 @@ void main() {
         final engine = MovaEngine(
           kernel: k,
           options: const MovaOpts(
-            recovery: MovaRecoveryConfig(enabled: true),
+            recovery: MovaRecoveryConfig(startTimeout: Duration(seconds: 10), stallTimeout: Duration(seconds: 10), enabled: true),
             controls: MovaCtrlsConfig(autoHide: false),
           ),
         );

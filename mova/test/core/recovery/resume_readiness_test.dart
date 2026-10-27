@@ -52,7 +52,7 @@ MovaEngine _engine(_LoadingKernel k, {bool failover = false}) => MovaEngine(
   kernel: k,
   options: MovaOpts(
     controls: const MovaCtrlsConfig(autoHide: false),
-    recovery: MovaRecoveryConfig(
+    recovery: MovaRecoveryConfig(startTimeout: Duration(seconds: 10), stallTimeout: Duration(seconds: 10), 
       enabled: true,
       policy: failover
           ? const MovaFailoverOnly()

@@ -52,7 +52,7 @@ void main() {
           kernel: FakeKernel(),
           options: MovaOpts(
             controls: const MovaCtrlsConfig(autoHide: false),
-            recovery: MovaRecoveryConfig(enabled: true, policy: policy),
+            recovery: MovaRecoveryConfig(startTimeout: Duration(seconds: 10), stallTimeout: Duration(seconds: 10), enabled: true, policy: policy),
           ),
         );
         engine.open(const MovaSource('https://h/a.m3u8'));

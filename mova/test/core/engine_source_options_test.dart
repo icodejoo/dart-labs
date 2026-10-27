@@ -45,6 +45,23 @@ void main() {
     expect(k.staged.single, {'cache': 'no', 'demuxer-lavf-o': 'media_timeout=3000000'});
   });
 
+  test('统一超时配置：open 前透传给 mpv，源级显式设置优先', () async {
+    final k = _OptionsKernel();
+    final e = MovaEngine(
+      kernel: k,
+      options: const MovaOpts(
+        recovery: MovaRecoveryConfig(
+          timeouts: MovaTimeouts(network: Duration(seconds: 12), whepHandshake: Duration(seconds: 5)),
+        ),
+      ),
+    );
+    addTearDown(e.dispose);
+    await e.open(const MovaSource(whep, type: MovaStreamType.live, mpvOptions: {'network-timeout': '30'}));
+    expect(k.staged.single, {'network-timeout': '30', 'demuxer-lavf-o': 'handshake_timeout=5000000'});
+    await e.open(const MovaSource('https://h/b.mp4'));
+    expect(k.staged.last, {'network-timeout': '12'});
+  });
+
   test('换源：下一个源没有选项时暂存空表（内核据此还原，不泄漏）', () async {
     final k = _OptionsKernel();
     final e = MovaEngine(kernel: k);
@@ -62,7 +79,7 @@ void main() {
       final e = MovaEngine(
         kernel: k,
         options: const MovaOpts(
-          recovery: MovaRecoveryConfig(enabled: true, policy: MovaFailoverOnly()),
+          recovery: MovaRecoveryConfig(startTimeout: Duration(seconds: 10), stallTimeout: Duration(seconds: 10), enabled: true, policy: MovaFailoverOnly()),
           controls: MovaCtrlsConfig(autoHide: false),
         ),
       );
@@ -89,7 +106,7 @@ void main() {
       final e = MovaEngine(
         kernel: k,
         options: const MovaOpts(
-          recovery: MovaRecoveryConfig(enabled: true),
+          recovery: MovaRecoveryConfig(startTimeout: Duration(seconds: 10), stallTimeout: Duration(seconds: 10), enabled: true),
           controls: MovaCtrlsConfig(autoHide: false),
         ),
       );

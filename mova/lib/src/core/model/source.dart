@@ -1,5 +1,7 @@
 import 'dart:convert';
 
+import '../options/timeouts.dart';
+
 /// Stream type of a media source: on-demand (VOD) vs live.
 ///
 /// 媒体源的流类型：点播（VOD）与直播（Live）。
@@ -118,23 +120,27 @@ class MovaSource {
   /// 内容时为空。
   ///
   /// - [address]: the address about to load / 即将加载的地址
+  /// - [timeouts]: unified timeout defaults; options this source sets itself win / 统一超时默认值；本源自己设置的同名选项优先
   ///
   /// Example / 示例:
   /// ```dart
   /// const MovaSource('whep+http://h/x', whepMediaTimeout: Duration(seconds: 3))
   ///     .mpvOptionsFor('whep+http://h/x'); // {'demuxer-lavf-o': 'media_timeout=3000000'}
   /// ```
-  Map<String, String> mpvOptionsFor(String address) {
-    final out = Map<String, String>.of(mpvOptions);
+  Map<String, String> mpvOptionsFor(String address, {MovaTimeouts? timeouts}) {
+    final out = <String, String>{...?timeouts?.mpvOptionsFor(address), ...mpvOptions};
     final lavf = Map<String, String>.of(demuxerOptions);
     final whepTimeout = whepMediaTimeout;
     if (whepTimeout != null && address.toLowerCase().startsWith('whep')) {
       lavf.putIfAbsent('media_timeout', () => whepTimeout.inMicroseconds.toString());
     }
+    final own = out[_kDemuxerLavfOption] ?? '';
+    timeouts?.demuxerOptionsFor(address).forEach((k, v) {
+      if (!own.contains('$k=')) lavf.putIfAbsent(k, () => v);
+    });
     if (lavf.isNotEmpty) {
       final built = lavf.entries.map((e) => '${e.key}=${_lavfValue(e.value)}').join(',');
-      final own = out[_kDemuxerLavfOption];
-      out[_kDemuxerLavfOption] = own == null || own.isEmpty ? built : '$own,$built';
+      out[_kDemuxerLavfOption] = own.isEmpty ? built : '$own,$built';
     }
     return out;
   }
