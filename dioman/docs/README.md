@@ -6,8 +6,16 @@
 
 - [当前状态](status.md) — 测试体系进度、闸门现状、待拍板的产品问题、P2 补测清单。active。
 
+## 决策
+
+- [0001 洋葱管线重构的决策](decisions/0001-pipeline-redesign.md) — 以 Dio 为引擎的洋葱管线、固定阶段、归一化进内核、错误模型、取消与 key 内核化、mock 回到 source，及推翻的旧约定。active。
+
 ## 设计
 
+- [洋葱管线核心架构](design/pipeline-architecture.md) — 内核模块、数据流、阶段排序、上下文与取消原语、归一化响应与落定、插件接口、客户端 API、性能设计。active。
+- [洋葱管线插件规格](design/pipeline-plugin-spec.md) — 12 个内置插件与内核服务的选项、行为、内核依赖，行为变化汇总 C1–C12。active。
+- [洋葱管线测试方案](design/pipeline-test-plan.md) — 六层、不变量 I1–I7、powerset、覆盖率与总账闸门、性能门槛、验收矩阵、旧用例迁移。active。
+- [洋葱管线实施计划](design/pipeline-implementation-plan.md) — B0–B7 分批、完成标准、Codex 派发约束、终审关卡与风险。active。
 - [测试体系方案](design/test-matrix-plan.md) — 三档 + 总账矩阵 + 五道闸门 + 分阶段计划。active。
 - [架构](design/architecture.md) — 执行模型、插件职责、安装顺序、extra 键表（测试会核对键表）。active。
 
