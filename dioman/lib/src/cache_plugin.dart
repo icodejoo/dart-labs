@@ -130,6 +130,7 @@ class DiomanCacheOptions {
     this.clone,
     this.maxEntries,
     this.shouldCache,
+    this.shouldStore,
     this.now,
     this.cachePolicy,
   });
@@ -163,6 +164,16 @@ class DiomanCacheOptions {
   ///
   /// 仅本次请求覆盖插件的`shouldCache`判定函数。
   final bool Function(RequestOptions)? shouldCache;
+
+  /// Overrides the plugin's `shouldStore` decision for this request only. It
+  /// has the highest priority — above the plugin's own `shouldStore` and the
+  /// judge auto-wired from [DiomanNormalize] — but still only applies to HTTP
+  /// 2xx responses.
+  ///
+  /// 仅本次请求覆盖插件的`shouldStore`判定函数。优先级最高——高于插件自身的
+  /// `shouldStore`以及从[DiomanNormalize]自动接线得到的判定——但仍只对HTTP 2xx
+  /// 响应生效。
+  final bool Function(Response<dynamic> response)? shouldStore;
 
   /// Overrides the plugin's `now` clock for this request only.
   ///
@@ -211,8 +222,10 @@ class DiomanCache extends DiomanPlugin {
     this.maxEntries = 500,
     this.enabled = true,
     bool Function(RequestOptions)? shouldCache,
+    bool Function(Response<dynamic> response)? shouldStore,
     DateTime Function() now = DateTime.now,
   })  : _shouldCache = shouldCache ?? _defaultShouldCache,
+        _shouldStore = shouldStore,
         _now = now;
 
   /// Backing store for [DiomanCachePolicy.persist]/[DiomanCachePolicy.both].
@@ -264,6 +277,29 @@ class DiomanCache extends DiomanPlugin {
   /// 判断某请求是否要缓存，默认只缓存GET。可通过
   /// [DiomanCacheOptions.shouldCache]按请求覆盖。
   final bool Function(RequestOptions) _shouldCache;
+
+  /// Extra filter on top of the HTTP 2xx check: a response is written only when
+  /// it is 2xx AND this returns true. `null` (default) defers to the judge
+  /// [Dioman.install] auto-wires from a [DiomanNormalize] on the same [Dio]
+  /// (an envelope the normalizer would reject as a business failure is not
+  /// stored), and without one every 2xx response is stored. Priority:
+  /// [DiomanCacheOptions.shouldStore] > this > the auto-wired judge > default.
+  /// It sees the raw response, before normalization.
+  ///
+  /// 在HTTP 2xx检查之上的附加过滤：只有2xx且本函数返回true才写入。`null`（默认）
+  /// 沿用[Dioman.install]从同一[Dio]上[DiomanNormalize]自动接线的判定（会被
+  /// normalize判为业务失败的信封不入缓存）；没装normalize则所有2xx都写入。
+  /// 优先级：[DiomanCacheOptions.shouldStore] > 本参数 > 自动接线 > 默认。
+  /// 它看到的是规范化之前的原始响应。
+  ///
+  /// ```dart
+  /// DiomanCache(persist: p, shouldStore: (r) => (r.data as Map)['code'] == 0);
+  /// ```
+  final bool Function(Response<dynamic> response)? _shouldStore;
+
+  /// 安装接线得到的写入判定（来自 [DiomanNormalize]），由
+  /// [diomanCacheWireStoreJudge] 设置/撤销；不属公共 API。
+  bool Function(Response<dynamic> response)? _wiredShouldStore;
 
   /// Clock used for TTL expiry checks (injectable for deterministic tests).
   /// Overridable per request via [DiomanCacheOptions.now].
@@ -393,7 +429,8 @@ class DiomanCache extends DiomanPlugin {
       if (key != null &&
           opts.extra[_kGeneration] == _generation &&
           (response.statusCode ?? 0) >= 200 &&
-          (response.statusCode ?? 0) < 300) {
+          (response.statusCode ?? 0) < 300 &&
+          _storeAllowed(opts, response)) {
         final ttl = opts.extra[_kCacheTtl] as int? ?? expires;
         final override = opts.extra[name];
         final o = override is DiomanCacheOptions ? override : null;
@@ -419,6 +456,14 @@ class DiomanCache extends DiomanPlugin {
         handler.reject(_exception(opts, error, stackTrace), true);
       }
     }
+  }
+
+  /// 在 2xx 通过后，按"请求级 > 插件级 > 接线 > 默认"取写入判定并执行。
+  bool _storeAllowed(RequestOptions opts, Response<dynamic> response) {
+    final override = opts.extra[name];
+    final o = override is DiomanCacheOptions ? override : null;
+    final judge = o?.shouldStore ?? _shouldStore ?? _wiredShouldStore;
+    return judge == null || judge(response);
   }
 
   /// 将异常转换为保留原始原因和堆栈的请求错误。
@@ -560,3 +605,11 @@ class DiomanCache extends DiomanPlugin {
     _store.clear();
   }
 }
+
+/// 给 [cache] 设置（或用 `null` 撤销）安装接线得到的写入判定。
+///
+/// 库内可见：`lib/dioman.dart` 用 `hide` 不导出，不属公共 API；
+/// 只有 [Dioman] 的统一接线会调用。
+void diomanCacheWireStoreJudge(
+        DiomanCache cache, bool Function(Response<dynamic> response)? judge) =>
+    cache._wiredShouldStore = judge;

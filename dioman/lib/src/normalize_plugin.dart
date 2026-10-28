@@ -222,9 +222,11 @@ class DiomanNormalize extends DiomanPlugin {
         },
       );
 
+  /// 业务码是否算成功：优先用 [$isSuccess]，缺省为 `code == 0`。
   bool _isSuccess(dynamic code, bool Function(dynamic)? $isSuccess) =>
       $isSuccess != null ? $isSuccess(code) : code == 0;
 
+  /// 判断 [response] 是否该走拆包逻辑（enabled / shouldNormalize / 信封形状）。
   bool _shouldNormalize(
     RequestOptions options,
     Response<dynamic> response,
@@ -251,8 +253,16 @@ class DiomanNormalize extends DiomanPlugin {
         (data.containsKey($dataKey) || data.containsKey($messageKey));
   }
 
-  @override
-  void onResponse(Response<dynamic> response, ResponseInterceptorHandler handler) {
+  /// 把插件级配置与请求级 [DiomanNormalizeOptions] 合并，判定 [response] 是否
+  /// 会被拆包；会则返回合并后的键名与成功判定，不会则返回 `null`（原样透传）。
+  ///
+  /// [onResponse] 与 [_isBusinessFailure] 共用它，保证"拒不拒绝"只有一份逻辑。
+  ({
+    String dataKey,
+    String codeKey,
+    String messageKey,
+    bool Function(dynamic)? isSuccess,
+  })? _resolveEnvelope(Response<dynamic> response) {
     final options = response.requestOptions;
     final override = options.extra[name];
     final o = override is DiomanNormalizeOptions ? override : null;
@@ -261,7 +271,6 @@ class DiomanNormalize extends DiomanPlugin {
     final $dataKey = o?.dataKey ?? dataKey;
     final $codeKey = o?.codeKey ?? codeKey;
     final $messageKey = o?.messageKey ?? messageKey;
-    final $isSuccess = o?.isSuccess ?? isSuccess;
     final $shouldNormalize = o?.shouldNormalize ?? shouldNormalize;
 
     if (!_shouldNormalize(
@@ -273,15 +282,38 @@ class DiomanNormalize extends DiomanPlugin {
       $messageKey,
       $shouldNormalize,
     )) {
-      return handler.next(response);
+      return null;
     }
+    return (
+      dataKey: $dataKey,
+      codeKey: $codeKey,
+      messageKey: $messageKey,
+      isSuccess: o?.isSuccess ?? isSuccess,
+    );
+  }
+
+  /// [response] 经本插件处理后是否会被判为业务失败（即 [onResponse] 会 reject）。
+  ///
+  /// 与 [onResponse] 完全同源；未拆包（关闭、非信封、`shouldNormalize` 为 false）
+  /// 一律返回 false。仅供 [Dioman] 把判定接给 [DiomanCache]，不属公共 API。
+  bool _isBusinessFailure(Response<dynamic> response) {
+    final env = _resolveEnvelope(response);
+    if (env == null) return false;
+    final code = (response.data as Map)[env.codeKey];
+    return !_isSuccess(code, env.isSuccess);
+  }
+
+  @override
+  void onResponse(Response<dynamic> response, ResponseInterceptorHandler handler) {
+    final env = _resolveEnvelope(response);
+    if (env == null) return handler.next(response);
 
     final envelope = response.data as Map;
-    final code = envelope[$codeKey];
-    final message = '${envelope[$messageKey] ?? ''}';
-    final data = envelope[$dataKey];
+    final code = envelope[env.codeKey];
+    final message = '${envelope[env.messageKey] ?? ''}';
+    final data = envelope[env.dataKey];
 
-    if (_isSuccess(code, $isSuccess)) {
+    if (_isSuccess(code, env.isSuccess)) {
       // Replace data with the inner payload.
       response.data = data;
       return handler.next(response);
@@ -300,3 +332,10 @@ class DiomanNormalize extends DiomanPlugin {
     );
   }
 }
+
+/// 取 [normalize] 的"业务失败"判定，供 [Dioman] 接给 [DiomanCache]。
+///
+/// 库内可见：`lib/dioman.dart` 用 `hide` 不导出，不属公共 API。
+bool Function(Response<dynamic>) diomanNormalizeFailureProbe(
+        DiomanNormalize normalize) =>
+    normalize._isBusinessFailure;

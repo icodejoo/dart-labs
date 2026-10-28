@@ -11,6 +11,39 @@ import '../support/test_server.dart';
 
 /// 注册本文件的边界层用例。
 void main() {
+  test(
+      '[DiomanKey.onRequest] nested unencodable values preserve the original map string fallback',
+      () async {
+    const mapField = 'map';
+    final server = await TestServer.start((req) => respondJson(req, {}, 200));
+    addTearDown(server.close);
+    final dio = Dio(BaseOptions(baseUrl: server.baseUrl));
+    addTearDown(dio.close);
+    dio.interceptors.add(const DiomanKey());
+    final keys = <String>[];
+    dio.interceptors.add(InterceptorsWrapper(onRequest: (options, handler) {
+      keys.add(options.extra[kKey] as String);
+      // 请求键已计算；替换传输体以免 Dio 自身的 JSON 编码拒绝测试对象。
+      options.data = {};
+      handler.next(options);
+    }));
+    for (final value in [
+      Unencodable(),
+      <int, String>{2: tkB2, 1: tkA2}
+    ]) {
+      final data = {
+        tkV: [
+          {tkB2: value, tkA2: 1},
+        ],
+        tkA2: 2,
+      };
+      final fallback = data.toString();
+      await dio.post<void>(tkX, data: data);
+      final fields = jsonDecode(keys.last) as List<dynamic>;
+      expect((fields[2] as Map<String, dynamic>)[mapField], fallback);
+    }
+  });
+
   group(tkDiomanKey, () {
     test(
         '[DiomanKey.onRequest] _encode falls back to toString() when a value cannot be '

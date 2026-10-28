@@ -351,4 +351,151 @@ void main() {
       expect(handle.plugin<DiomanLog>(), isNotNull);
     });
   });
+
+  group('动态插拔后的 retry ↔ breaker 重新接线', () {
+    /// 记录 isOpen 被咨询次数的熔断器；阈值调高，保证不会真的熔断。
+    final spyFactory = _SpyBreaker.new;
+
+    /// 装 retry（不装 breaker），适配器恒回 500，返回装配结果。
+    ({Dio dio, DiomanHandle handle}) build() {
+      final adapter =
+          RecordingAdapter((o, n) async => jsonBody({tkCode: 500}, 500));
+      final dio = fakeDio(adapter);
+      final handle = Dioman.install(dio,
+          retry:
+              DiomanRetry(max: 2, delay: (_, __, ___, ____) => Duration.zero));
+      return (dio: dio, handle: handle);
+    }
+
+    /// 发一个注定失败的请求（重试耗尽后抛错，吞掉）。
+    Future<void> fail(Dio dio) async {
+      try {
+        await dio.get<dynamic>(tkX);
+      } on DioException {
+        // 500 重试耗尽，属预期。
+      }
+    }
+
+    test(
+        '[DiomanHandle.insertAfter][DiomanRetry.breaker] install 后再 insert breaker：retry 会咨询它',
+        () async {
+      final b = build();
+      final spy = spyFactory();
+      b.handle.insertAfter(b.handle.plugin<DiomanRetry>()!, spy);
+      await fail(b.dio);
+      expect(spy.isOpenCalls, greaterThan(0));
+    });
+
+    test(
+        '[DiomanHandle.remove][DiomanRetry.breaker] remove breaker：retry 不再咨询已移除的实例',
+        () async {
+      final adapter =
+          RecordingAdapter((o, n) async => jsonBody({tkCode: 500}, 500));
+      final dio = fakeDio(adapter);
+      final spy = spyFactory();
+      final handle = Dioman.install(dio,
+          retry:
+              DiomanRetry(max: 2, delay: (_, __, ___, ____) => Duration.zero),
+          breaker: spy);
+      await fail(dio);
+      final before = spy.isOpenCalls;
+      expect(before, greaterThan(0), reason: '安装时已接线');
+
+      expect(handle.remove<DiomanBreaker>(), same(spy));
+      await fail(dio);
+      expect(spy.isOpenCalls, before, reason: '移除后 retry 不应再申请凭据');
+    });
+
+    test(
+        '[DiomanHandle.prepend][DiomanHandle.append][DiomanRetry.breaker] 移除后再 append 新 breaker：接到新实例而不是旧的',
+        () async {
+      final b = build();
+      final first = spyFactory();
+      b.handle.insertAfter(b.handle.plugin<DiomanRetry>()!, first);
+      b.handle.remove<DiomanBreaker>();
+      final second = spyFactory();
+      b.handle.append(second);
+      await fail(b.dio);
+      expect(second.isOpenCalls, greaterThan(0));
+      expect(first.isOpenCalls, 0);
+    });
+
+    test(
+        '[DiomanHandle.remove][DiomanRetry.breaker] 被移除的 retry 也被解除接线（不再持有 breaker）',
+        () async {
+      final adapter =
+          RecordingAdapter((o, n) async => jsonBody({tkCode: 500}, 500));
+      final dio = fakeDio(adapter);
+      final spy = spyFactory();
+      final retry =
+          DiomanRetry(max: 2, delay: (_, __, ___, ____) => Duration.zero);
+      final handle = Dioman.install(dio, retry: retry, breaker: spy);
+      handle.remove<DiomanRetry>();
+      // 摘下的 retry 原样放回一个没有 breaker 的链上，不应还咨询旧 breaker。
+      dio.interceptors.add(retry);
+      await fail(dio);
+      expect(spy.isOpenCalls, 0);
+    });
+
+    test(
+        '[DiomanHandle.dispose][DiomanRetry.breaker] dispose 解除 retry 对 breaker 的引用',
+        () async {
+      final adapter =
+          RecordingAdapter((o, n) async => jsonBody({tkCode: 500}, 500));
+      final dio = fakeDio(adapter);
+      final spy = spyFactory();
+      final retry =
+          DiomanRetry(max: 2, delay: (_, __, ___, ____) => Duration.zero);
+      Dioman.install(dio, retry: retry, breaker: spy).dispose();
+      dio.interceptors.add(retry);
+      await fail(dio);
+      expect(spy.isOpenCalls, 0);
+    });
+
+    test(
+        '[DiomanRetry.breaker][Dioman.install][DiomanHandle.remove] 手动接的外部 breaker：install、插拔无关插件都不清掉它',
+        () async {
+      final adapter =
+          RecordingAdapter((o, n) async => jsonBody({tkCode: 500}, 500));
+      final dio = fakeDio(adapter);
+      final external = spyFactory();
+      final retry =
+          DiomanRetry(max: 2, delay: (_, __, ___, ____) => Duration.zero)
+            ..breaker = external;
+      final handle = Dioman.install(dio, retry: retry);
+      expect(retry.breaker, same(external), reason: '链上没有 breaker 时不应置空');
+      handle.append(DiomanLog(enabled: false));
+      handle.remove<DiomanLog>();
+      expect(retry.breaker, same(external), reason: '插拔无关插件不影响外部 breaker');
+      await fail(dio);
+      expect(external.isOpenCalls, greaterThan(0));
+    });
+
+    test('[DiomanRetry.share] 兼容 setter 是无效果的空操作：insert/remove 不需要也不依赖它',
+        () async {
+      final b = build();
+      final retry = b.handle.plugin<DiomanRetry>()!;
+      // ignore: deprecated_member_use_from_same_package
+      retry.share = DiomanShare();
+      b.handle.insertAfter(retry, _SpyBreaker());
+      expect(() => b.handle.remove<DiomanBreaker>(), returnsNormally);
+      await fail(b.dio);
+    });
+  });
+}
+
+/// 统计 [isOpen] 被咨询次数的熔断器。
+class _SpyBreaker extends DiomanBreaker {
+  /// 创建间谍熔断器，阈值足够高以免真的熔断。
+  _SpyBreaker() : super(failureThreshold: 1000);
+
+  /// [isOpen] 被调用的次数。
+  int isOpenCalls = 0;
+
+  /// 记录调用后沿用原判定。
+  @override
+  bool isOpen(RequestOptions config) {
+    isOpenCalls++;
+    return super.isOpen(config);
+  }
 }

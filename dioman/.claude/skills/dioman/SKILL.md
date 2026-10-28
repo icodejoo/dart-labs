@@ -184,7 +184,8 @@ the wire, whether or not `normalize` is even installed.
   entirely (a real, previously-shipped bug — a cache hit returned the raw envelope even with
   `normalize` installed, while a live response correctly got unwrapped). One side effect: it also
   means a cached entry now gets a chance at `DiomanRetry` recovery too (see the Gotcha below).
-  Stores only **2xx** `response.data`, RAW (not normalize-unwrapped — `normalize` runs LAST, after
+  Stores only **2xx** `response.data` that also passes `shouldStore` (per-request > plugin > the
+  normalize judge wired at install > none), RAW (not normalize-unwrapped — `normalize` runs LAST, after
   this plugin; see the order note above). `CacheClone` (`none`/`shallow`/`deep`) is applied **on
   read**, not write — the store holds the live `response.data` reference, so a `none` reader mutating
   the result corrupts the cache. Default `shouldCache` = GET only. Bounded by `maxEntries` (default
@@ -472,12 +473,17 @@ design avoids. There are no collisions — preserve that when adding a plugin.
 - Adding a plugin: extend `DiomanPlugin`, give a unique `name`, read/write only your own `extra` keys,
   implement `dispose()` if you hold instance state, and slot it into the order by its request/
   response/error roles (document why in the README order table).
-- **`Dioman.install` auto-wires `share`/`cancel`/`breaker` setters.** After `addAll`-ing the ordered
-  plugin list, `install` does `if (share != null) { retry?.share = share; auth?.share = share; }`,
-  the same for `cancel`, and `if (breaker != null) retry?.breaker = breaker;` — so callers going
-  through `install` never need to touch the setters by hand. Hand-wiring (`retry.share = share`,
-  `retry.breaker = breaker`) is only needed when adding plugins to `dio.interceptors` directly
-  instead of through `install`.
+- **Cross-plugin wiring lives in one place: `_wireChain` / `_unwire` in `lib/src/dioman.dart`.**
+  `installPlugins` and every `DiomanHandle` insert/prepend/append/remove/dispose call them, so the
+  wiring always matches the current chain:
+  - retry ↔ breaker: a breaker on the chain is assigned to `retry.breaker`; when there is none,
+    `retry.breaker` is left alone (a hand-wired external breaker survives). `_unwire` clears only
+    references to the plugin being removed.
+  - cache ↔ normalize: with a normalize on the chain, cache gets normalize's own "would reject"
+    judge (shared code, `_resolveEnvelope`) so HTTP 200 business failures are not stored; removed
+    when normalize leaves. A user `shouldStore` (plugin or per request) always wins.
+  - `retry.share` / `retry.cancel` setters are deprecated no-ops — nothing to wire.
+  Adding a new cross-plugin link: put it in `_wireChain`, undo it in `_unwire`, never in a constructor.
 
 ## Verify workflow
 

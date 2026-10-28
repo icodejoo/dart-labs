@@ -66,6 +66,12 @@ class DiomanKeyOptions {
 /// 为每个请求生成唯一key，存入`options.extra[kKey]`。cache和share插件
 /// 依赖这个key。
 ///
+/// Key priority: per-request builder, non-empty per-request key, plugin builder,
+/// then fast/deep computation. [namespace] scopes every source.
+///
+/// 键来源优先级：请求级builder、请求级非空key、插件级builder、fast/deep计算。
+/// [namespace]对所有来源统一应用作用域。
+///
 /// Two modes:
 /// - **fast** (`fastMode: true`): `METHOD:origin/path` — cheapest, good for most cases.
 /// - **deep** (default): `[METHOD:origin/path, query, body]` — serialises query params and
@@ -174,8 +180,11 @@ class DiomanKey extends DiomanPlugin {
 
     try {
       final $namespace = namespace?.call();
-      final $builder = o?.builder ?? builder;
-      if (o?.key != null && o!.key!.isNotEmpty) {
+      final $requestBuilder = o?.builder;
+      final $builder = builder;
+      if ($requestBuilder != null) {
+        options.extra[kKey] = _scopedKey($requestBuilder(options), $namespace);
+      } else if (o?.key != null && o!.key!.isNotEmpty) {
         options.extra[kKey] = _scopedKey(o.key!, $namespace);
       } else if ($builder != null) {
         options.extra[kKey] = _scopedKey($builder(options), $namespace);
@@ -241,16 +250,25 @@ class DiomanKey extends DiomanPlugin {
     ]);
   }
 
-  /// 对字段排序后编码，无法序列化时保留字符串表示。
+  /// 递归排序Map字段并保留List顺序后编码，无法序列化时保留原Map的字符串表示。
   static String _encode(Map v) {
     try {
-      // Sort keys for deterministic output.
-      final sorted = Map.fromEntries(
-        (v.entries.toList()..sort((a, b) => a.key.compareTo(b.key))),
-      );
-      return jsonEncode(sorted);
+      return jsonEncode(_normalize(v));
     } catch (_) {
       return v.toString();
     }
+  }
+
+  /// 返回递归规范化的副本：Map键按字符串比较排序，List保序，其他值原样保留。
+  static Object? _normalize(Object? v) {
+    if (v is Map) {
+      final entries = v.entries.toList()
+        ..sort((a, b) => '${a.key}'.compareTo('${b.key}'));
+      return Map.fromEntries(
+        entries.map((e) => MapEntry(e.key, _normalize(e.value))),
+      );
+    }
+    if (v is List) return v.map(_normalize).toList();
+    return v;
   }
 }

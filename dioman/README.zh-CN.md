@@ -272,7 +272,9 @@ final timeout = DiomanTimeout(
 
 `DiomanKey({bool fastMode = false, List<String> ignores = const [], bool enabled = true, String Function(RequestOptions)? builder, String? Function()? namespace})`——写入 `extra[kKey]`（固定的跨插件协议 key，值为 `'dioman:key'`）。`fastMode` → `METHOD:origin/path`；默认（`fastMode: false`，deep）还会拼入排序后的 query 与 body——`ignores` 同时从两者中排除指定名字。可用 `extra['dioman:qid'] = const DiomanKeyOptions(key: '...')` 单请求覆盖（或 `enabled: false` 跳过）。
 
-deep key 合并 URL 内 query 与 `queryParameters` 后规范化，包含 origin，并分字段编码 query/body；非结构化 body 保留对象身份。
+键来源优先级：请求级 `builder` > 请求级非空 `key` > 插件级 `builder` > fast/deep 计算。
+
+deep key 合并 URL 内 query 与 `queryParameters` 后规范化，包含 origin，并分字段编码 query/body，各层 Map 键都排序（List 保持顺序）；非结构化 body 保留对象身份。
 
 同一个 Dio 复用到不同账号时，可通过 `namespace` 隔离缓存与去重。每个启用的请求生成键时调用一次；非空返回值作为独立 JSON 字段与原键字段一起编码，快速模式、指定 key 和自定义 builder 也适用。未设置、返回 `null` 或空串时，键与旧版本完全一致；回调抛异常时以 `DioException` 拒绝请求。
 
@@ -294,7 +296,7 @@ currentAccountId = 'account-b';
 
 ### DiomanCache
 
-`DiomanCache({required DiomanCachePersist persist, DiomanCachePolicy cachePolicy = DiomanCachePolicy.none, int expires = 60000, DiomanClonePolicy clone = DiomanClonePolicy.shallow, int maxEntries = 500, bool enabled = true, bool Function(RequestOptions)? shouldCache, DateTime Function() now = DateTime.now})`——**毫秒**级 TTL 缓存，以 `extra[kKey]` 为键（需 `DiomanKey`）。默认只缓存 `GET`。超过 `maxEntries`（`0` 关闭上限）按 LRU 淘汰（只作用于内存层）。`DiomanClonePolicy` 控制命中数据的可变安全性：`shallow`（默认，命中方改顶层字段不会污染缓存）、`deep`（嵌套修改也安全）、`none`（只读零拷贝）。`now` 可注入时钟做确定性 TTL 测试。管理接口：`await remove(key)`、`await clear()`（两者都不管 `cachePolicy` 是什么，永远同时操作内存层和 `persist`）。没有 `removeWhere`/`size`——`DiomanCachePersist` 没有枚举 key 的能力，纯 `persist` 策略下的条目永远无法被批量操作正确覆盖到；需要批量清理就自己在业务层维护 key 列表，逐个调 `remove`。
+`DiomanCache({required DiomanCachePersist persist, DiomanCachePolicy cachePolicy = DiomanCachePolicy.none, int expires = 60000, DiomanClonePolicy clone = DiomanClonePolicy.shallow, int maxEntries = 500, bool enabled = true, bool Function(RequestOptions)? shouldCache, bool Function(Response<dynamic>)? shouldStore, DateTime Function() now = DateTime.now})`——**毫秒**级 TTL 缓存，以 `extra[kKey]` 为键（需 `DiomanKey`）。默认只缓存 `GET`。超过 `maxEntries`（`0` 关闭上限）按 LRU 淘汰（只作用于内存层）。`DiomanClonePolicy` 控制命中数据的可变安全性：`shallow`（默认，命中方改顶层字段不会污染缓存）、`deep`（嵌套修改也安全）、`none`（只读零拷贝）。`now` 可注入时钟做确定性 TTL 测试。管理接口：`await remove(key)`、`await clear()`（两者都不管 `cachePolicy` 是什么，永远同时操作内存层和 `persist`）。没有 `removeWhere`/`size`——`DiomanCachePersist` 没有枚举 key 的能力，纯 `persist` 策略下的条目永远无法被批量操作正确覆盖到；需要批量清理就自己在业务层维护 key 列表，逐个调 `remove`。`shouldStore(response)` 决定哪些响应写入：只有 HTTP 2xx 且它返回 true 才存（可用 `DiomanCacheOptions.shouldStore` 按请求覆盖）。不设时，若同一 Dio 装了 `DiomanNormalize`，缓存会自动跳过 normalize 判为业务失败的信封。
 
 `persist` **必传**——没有内置的空实现，必须自己实现 `DiomanCachePersist`（`read`/`write`/`remove`/`erase`，接口形状参照 `get_storage` 包的容器 API——`read` 可以同步也可以异步（`FutureOr`），`write`/`remove`/`erase` 永远异步），接入文件、sqlite、Hive、`get_storage` 或其他任意存储，哪怕你只打算用 `DiomanCachePolicy.memo`。
 

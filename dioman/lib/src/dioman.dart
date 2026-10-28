@@ -128,20 +128,7 @@ abstract final class Dioman {
     for (final p in sorted) {
       _bindHost(p, dio);
     }
-    // Let DiomanRetry consult the breaker before each re-issue, so an
-    // in-progress retry loop stops the instant the breaker trips.
-    //
-    // 让DiomanRetry在每次重发前查询熔断器，正在进行的重试循环会在熔断器触发的
-    // 那一刻立即停止。
-    DiomanRetry? retry;
-    DiomanBreaker? breaker;
-    for (final p in sorted) {
-      if (p is DiomanRetry) retry = p;
-      if (p is DiomanBreaker) breaker = p;
-    }
-    if (breaker != null) {
-      retry?.breaker = breaker;
-    }
+    _wireChain(sorted);
 
     return DiomanHandle._(dio, sorted);
   }
@@ -168,6 +155,51 @@ abstract final class Dioman {
   /// ```
   static void validate(List<DiomanPlugin> ordered) =>
       validatePluginOrder(ordered);
+}
+
+/// 按 [plugins] 当前内容重算插件间接线；安装与每次插拔后都调用。
+///
+/// - retry ↔ breaker：有 [DiomanBreaker] 就接给 [DiomanRetry]（重试循环在熔断
+///   触发时立即停止）；没有时不动，保留用户手动接的外部实例。移除时的清理
+///   交给 [_unwire]。
+/// - cache ↔ normalize：有 [DiomanNormalize] 就把"normalize 会判为业务失败"的
+///   取反接给 [DiomanCache] 的写入判定（HTTP 200 + 业务失败不入缓存），没有就
+///   撤销（这是内部接线字段，不影响用户的 shouldStore）。
+void _wireChain(Iterable<DiomanPlugin> plugins) {
+  DiomanRetry? retry;
+  DiomanBreaker? breaker;
+  DiomanCache? cache;
+  DiomanNormalize? normalize;
+  for (final p in plugins) {
+    if (p is DiomanRetry) retry = p;
+    if (p is DiomanBreaker) breaker = p;
+    if (p is DiomanCache) cache = p;
+    if (p is DiomanNormalize) normalize = p;
+  }
+  if (breaker != null) retry?.breaker = breaker;
+  if (cache != null) {
+    final failed =
+        normalize == null ? null : diomanNormalizeFailureProbe(normalize);
+    diomanCacheWireStoreJudge(
+        cache, failed == null ? null : (response) => !failed(response));
+  }
+}
+
+/// 撤销被摘除的 [removed] 与 [remaining] 之间由本库建立的接线。
+///
+/// 只清指向 [removed] 本身的引用：移除 breaker 时，只把还指着它的 retry 置空；
+/// 移除 retry 时，只在它接的是同一链上的 breaker 时置空；移除 cache 时撤掉
+/// normalize 接线。用户手动接的外部 breaker 不受影响。
+void _unwire(DiomanPlugin removed, Iterable<DiomanPlugin> remaining) {
+  if (removed is DiomanBreaker) {
+    for (final p in remaining) {
+      if (p is DiomanRetry && identical(p.breaker, removed)) p.breaker = null;
+    }
+  }
+  if (removed is DiomanRetry && remaining.contains(removed.breaker)) {
+    removed.breaker = null;
+  }
+  if (removed is DiomanCache) diomanCacheWireStoreJudge(removed, null);
 }
 
 /// 把宿主 [dio] 绑定给会重放请求的插件（share/auth/retry）；其它插件忽略。
@@ -211,6 +243,8 @@ class DiomanHandle {
     _dio.interceptors.remove(p);
     _plugins.remove(p);
     _bindHost(p, null);
+    _unwire(p, _plugins);
+    _wireChain(_plugins);
     p.dispose();
     return p;
   }
@@ -229,6 +263,7 @@ class DiomanHandle {
     _plugins.insert(_plugins.indexOf(anchor), p);
     _dio.interceptors.insert(_dio.interceptors.indexOf(anchor), p);
     _bindHost(p, _dio);
+    _wireChain(_plugins);
   }
 
   /// Inserts [p] immediately after [anchor] — the counterpart to
@@ -240,6 +275,7 @@ class DiomanHandle {
     _plugins.insert(_plugins.indexOf(anchor) + 1, p);
     _dio.interceptors.insert(_dio.interceptors.indexOf(anchor) + 1, p);
     _bindHost(p, _dio);
+    _wireChain(_plugins);
   }
 
   /// Inserts [p] at the very front of the chain — before every plugin and
@@ -250,6 +286,7 @@ class DiomanHandle {
     _plugins.insert(0, p);
     _dio.interceptors.insert(0, p);
     _bindHost(p, _dio);
+    _wireChain(_plugins);
   }
 
   /// Inserts [p] at the very end of the chain. [p] becomes managed by this
@@ -259,6 +296,7 @@ class DiomanHandle {
     _plugins.add(p);
     _dio.interceptors.add(p);
     _bindHost(p, _dio);
+    _wireChain(_plugins);
   }
 
   /// 校验把 [p] 插到 [index] 后的链是否合法（不修改状态）。
@@ -292,6 +330,7 @@ class DiomanHandle {
     _dio.interceptors.removeWhere((i) => _plugins.contains(i));
     for (final p in _plugins) {
       _bindHost(p, null);
+      _unwire(p, _plugins);
       p.dispose();
     }
   }

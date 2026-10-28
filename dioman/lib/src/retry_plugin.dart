@@ -303,8 +303,10 @@ class DiomanRetry extends DiomanPlugin {
   /// breaker's state.
   ///
   /// [Dioman.install] wires this automatically when both a `breaker:` and a
-  /// `retry:` plugin are passed to it — set it by hand only when wiring the
-  /// chain yourself instead of going through `install`.
+  /// `retry:` plugin are passed to it, and [DiomanHandle] re-wires it on every
+  /// insert / remove (a removed breaker is cleared, a newly inserted one is
+  /// picked up) — set it by hand only when wiring the chain yourself instead
+  /// of going through `install`.
   ///
   /// 同一个[Dio]上安装的[DiomanBreaker]实例（如果有）。[DiomanBreaker]和
   /// [DiomanRetry]搭配使用时设置它——本插件在每次重发前检查
@@ -312,11 +314,16 @@ class DiomanRetry extends DiomanPlugin {
   /// 请求触发的那一刻立即停止，而不是继续往刚挂掉的服务器上堆重试。不设置时，
   /// 无论熔断器状态如何，重试都会跑到耗尽为止。
   ///
-  /// [Dioman.install]同时收到`breaker:`和`retry:`时会自动完成这层接线——只有
-  /// 自己手动拼接拦截器链（不走`install`）时才需要手动设置。
-  DiomanBreaker? _breaker;
-
-  set breaker(DiomanBreaker? value) => _breaker = value;
+  /// [Dioman.install]同时收到`breaker:`和`retry:`时会自动完成这层接线，
+  /// [DiomanHandle]每次插拔后也会重接（移除的熔断器会被清掉，新插入的会被接上）；
+  /// 没有熔断器时不会清掉你手动接的外部实例。只有自己手动拼接拦截器链（不走
+  /// `install`）时才需要手动设置。
+  ///
+  /// ```dart
+  /// final handle = Dioman.install(dio, retry: retry, breaker: breaker);
+  /// assert(identical(retry.breaker, breaker));
+  /// ```
+  DiomanBreaker? breaker;
 
   /// Called right before each retry attempt is actually issued, with the
   /// 1-based attempt number. Purely observational — e.g. wire it to your own
@@ -675,18 +682,18 @@ class DiomanRetry extends DiomanPlugin {
       final $max = _resolveMax(config);
       final token = config.cancelToken;
       var current = response;
-      _breaker?.recordResponse(current);
+      breaker?.recordResponse(current);
       for (var attempt = 1; attempt <= $max; attempt++) {
         // Breaker tripped (by this or other requests) → stop piling retries on a
         // downed server; propagate the last outcome instead.
-        if (_breaker?.isOpen(config) == true) break;
+        if (breaker?.isOpen(config) == true) break;
         final wait = _resolveWait(config, attempt, $max, current, null);
         await cancellableDelay(wait, token);
         if (token?.isCancelled == true) return _failCanceled(config, handler);
-        if (_breaker?.isOpen(config) == true) break;
+        if (breaker?.isOpen(config) == true) break;
         // 先确认 body 可重放再领熔断凭据，否则 break 后凭据被最终错误再记一次。
         if (!prepareForReplay(config)) break; // body 无法重放
-        _breaker?.admit(config);
+        breaker?.admit(config);
         onRetry?.call(attempt);
         try {
           current = await _reissue(config);
@@ -700,7 +707,7 @@ class DiomanRetry extends DiomanPlugin {
           break;
         }
         if (!_shouldRetry(config, null, current)) break;
-        _breaker?.recordResponse(current);
+        breaker?.recordResponse(current);
       }
       // 恢复成功与否都用 next 往后走：后续的 normalize、breaker 等照常处理，
       // 与首次成功语义一致。
@@ -753,11 +760,11 @@ class DiomanRetry extends DiomanPlugin {
       final $max = _resolveMax(config);
       final token = config.cancelToken;
       var lastError = err;
-      _breaker?.recordError(lastError);
+      breaker?.recordError(lastError);
       for (var attempt = 1; attempt <= $max; attempt++) {
         // Breaker tripped (by this or other requests) → stop piling retries on a
         // downed server; propagate the last error instead.
-        if (_breaker?.isOpen(config) == true) break;
+        if (breaker?.isOpen(config) == true) break;
         final wait =
             _resolveWait(config, attempt, $max, lastError.response, lastError);
         await cancellableDelay(wait, token);
@@ -765,10 +772,10 @@ class DiomanRetry extends DiomanPlugin {
           lastError = token!.cancelError ?? lastError;
           break;
         }
-        if (_breaker?.isOpen(config) == true) break;
+        if (breaker?.isOpen(config) == true) break;
         // 先确认 body 可重放再领熔断凭据，否则 break 后凭据被最终错误再记一次。
         if (!prepareForReplay(config)) break; // body 无法重放
-        _breaker?.admit(config);
+        breaker?.admit(config);
         onRetry?.call(attempt);
         Response<dynamic> retried;
         try {
@@ -777,7 +784,7 @@ class DiomanRetry extends DiomanPlugin {
           lastError = e is DioException
               ? e
               : DioException(requestOptions: config, error: e);
-          _breaker?.recordError(lastError);
+          breaker?.recordError(lastError);
           if (!_shouldRetry(config, lastError, lastError.response)) break;
           continue;
         }

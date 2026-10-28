@@ -11,6 +11,138 @@ import '../support/test_server.dart';
 
 /// 注册本文件的规则层用例。
 void main() {
+  test(
+      '[DiomanKeyOptions.builder][DiomanKeyOptions.key][DiomanKey.builder][DiomanKey.namespace] key sources follow precedence with namespace',
+      () async {
+    const requestBuilt = 'request-built';
+    const explicitKey = 'explicit-key';
+    const pluginBuilt = 'plugin-built';
+    final server = await TestServer.start((req) => respondJson(req, {}, 200));
+    addTearDown(server.close);
+    for (final fastMode in [false, true]) {
+      for (final scope in [null, tkEmpty, accountA]) {
+        for (final sources in [
+          (true, true, true),
+          (true, true, false),
+          (true, false, true),
+          (true, false, false),
+          (false, true, true),
+          (false, true, false),
+          (false, false, true),
+          (false, false, false),
+        ]) {
+          var namespaceCalls = 0;
+          var requestCalls = 0;
+          var pluginCalls = 0;
+          final dio = Dio(BaseOptions(baseUrl: server.baseUrl));
+          addTearDown(dio.close);
+          dio.interceptors.add(DiomanKey(
+            fastMode: fastMode,
+            namespace: () {
+              namespaceCalls++;
+              return scope;
+            },
+            builder: sources.$3
+                ? (_) {
+                    pluginCalls++;
+                    return pluginBuilt;
+                  }
+                : null,
+          ));
+          final response = await dio.get<void>(tkX,
+              options: Options(extra: {
+                DiomanKey.pluginName: DiomanKeyOptions(
+                  key: sources.$2 ? explicitKey : tkEmpty,
+                  builder: sources.$1
+                      ? (_) {
+                          requestCalls++;
+                          return requestBuilt;
+                        }
+                      : null,
+                ),
+              }));
+          final computed = 'GET:${server.baseUrl}$tkX';
+          final base = sources.$1
+              ? requestBuilt
+              : sources.$2
+                  ? explicitKey
+                  : sources.$3
+                      ? pluginBuilt
+                      : computed;
+          final scoped = scope != null && scope.isNotEmpty;
+          final expected = !sources.$1 &&
+                  !sources.$2 &&
+                  !sources.$3 &&
+                  !fastMode
+              ? jsonEncode([computed, emptyQueryKey, null, if (scoped) scope])
+              : scoped
+                  ? jsonEncode([base, scope])
+                  : base;
+          expect(response.requestOptions.extra[kKey], expected,
+              reason: 'sources=$sources, fastMode=$fastMode, scope=$scope');
+          expect(namespaceCalls, 1);
+          expect(requestCalls, sources.$1 ? 1 : 0);
+          expect(pluginCalls, !sources.$1 && !sources.$2 && sources.$3 ? 1 : 0);
+        }
+      }
+    }
+  });
+
+  test(
+      '[DiomanKey.onRequest] deep keys recursively sort maps and preserve list order',
+      () async {
+    final server = await TestServer.start((req) => respondJson(req, {}, 200));
+    addTearDown(server.close);
+    final dio = Dio(BaseOptions(baseUrl: server.baseUrl));
+    addTearDown(dio.close);
+    dio.interceptors.add(const DiomanKey());
+    final forward = {tkA2: 1, tkB2: 2};
+    final reversed = {tkB2: 2, tkA2: 1};
+    for (final wrapInList in [false, true]) {
+      final keys = <String>[];
+      for (final nested in [forward, reversed]) {
+        final data = {
+          tkX2: {
+            tkV: wrapInList ? [nested, null] : nested,
+          },
+        };
+        final before = jsonEncode(data);
+        final response = await dio.post<void>(tkX, data: data);
+        keys.add(response.requestOptions.extra[kKey] as String);
+        expect(jsonEncode(data), before,
+            reason: 'key generation must not mutate input');
+      }
+      expect(keys[0], keys[1]);
+    }
+    final first = await dio.post<void>(tkX, data: {
+      tkV: [1, 2]
+    });
+    final second = await dio.post<void>(tkX, data: {
+      tkV: [2, 1]
+    });
+    expect(first.requestOptions.extra[kKey],
+        isNot(second.requestOptions.extra[kKey]));
+  });
+
+  test('[DiomanKey.ignores] ignores remain limited to top-level fields',
+      () async {
+    final server = await TestServer.start((req) => respondJson(req, {}, 200));
+    addTearDown(server.close);
+    final dio = Dio(BaseOptions(baseUrl: server.baseUrl));
+    addTearDown(dio.close);
+    dio.interceptors.add(const DiomanKey(ignores: [tkA2]));
+    final keys = <String>[];
+    for (final values in [(1, 1), (2, 1), (2, 2)]) {
+      final response = await dio.post<void>(tkX, data: {
+        tkA2: values.$1,
+        tkV: {tkA2: values.$2},
+      });
+      keys.add(response.requestOptions.extra[kKey] as String);
+    }
+    expect(keys[0], keys[1]);
+    expect(keys[1], isNot(keys[2]));
+  });
+
   group(tkDiomanKey, () {
     test(
         '[DiomanKeyOptions.key] a String body is folded into the deep key as-is',
