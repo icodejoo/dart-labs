@@ -9,6 +9,7 @@ import subprocess
 import time
 import urllib.request
 import urllib.parse
+from shot_guard import PACKAGE, guarded_screencap
 
 SERIAL = "7NQBB23606003715"
 HERE = Path(__file__).resolve().parent
@@ -17,6 +18,14 @@ HERE = Path(__file__).resolve().parent
 def adb(*args, binary=False):
     """Run only against the explicitly authorized device / 仅操作指定真机。"""
     return subprocess.check_output(["adb", "-s", SERIAL, *args], text=not binary)
+
+
+def shot(path, package=PACKAGE):
+    """Guarded screenshot: only when the foreground is `package`; returns True when written.
+
+    经隐私守卫的截图：前台不是被测包（或在画中画、解析不到）就跳过并打印 SHOT skipped；返回是否落盘。
+    """
+    return guarded_screencap(adb, package, path)
 
 
 def unlocked():
@@ -38,7 +47,7 @@ def capture(name):
     """Save screenshots, OS states and the app journal / 保存画面、系统状态和应用日志。"""
     out = HERE / "coverage_evidence"
     out.mkdir(exist_ok=True)
-    (out / f"{name}.png").write_bytes(adb("exec-out", "screencap", "-p", binary=True))
+    shot(out / f"{name}.png")
     for category in ["window", "audio", "activity", "meminfo"]:
         args = ["shell", "dumpsys", category]
         if category == "meminfo":
@@ -81,7 +90,7 @@ def main():
                     (HERE/'coverage_evidence'/f"{a.name or a.group}.round{row['round']}.meminfo.txt").write_text(adb('shell','dumpsys','meminfo','com.icodejoo.mova.mova_example.coverage'),encoding='utf-8')
                 if row.get('kind')=='SUBTITLE_SHOT' and row['ms'] not in sampled:
                     sampled.add(row['ms'])
-                    (HERE/'coverage_evidence'/f"{a.name or a.group}.{row['format']}.png").write_bytes(adb('exec-out','screencap','-p',binary=True))
+                    shot(HERE/'coverage_evidence'/f"{a.name or a.group}.{row['format']}.png")
         print("status", response["status"], flush=True)
     capture(a.name or a.group)
     if a.group=='new' and 'case=preview' in a.arg:

@@ -48,6 +48,17 @@ class GapDriver(matrix.Driver):
             self.note('RET', json.dumps({'exception': str(error)}))
             raise
 
+    def poll(self, since):
+        """/poll 在 App 主线程短暂卡顿时会超时；重试几次，连续失败才算真故障（每次失败都有 RET 日志）。"""
+        last = None
+        for _ in range(4):
+            try:
+                return self.http('/poll', since=since)
+            except OSError as error:
+                last = error
+                time.sleep(1)
+        raise last
+
     def mark(self, name):
         return self.http('/mark', name=name)
 
@@ -56,12 +67,10 @@ class GapDriver(matrix.Driver):
         name = re.sub(r'[^A-Za-z0-9_.-]', '_', case + '-' + label)
         for suffix, command in [('window.txt', ('shell', 'dumpsys', 'window')),
                                 ('audio.txt', ('shell', 'dumpsys', 'audio')),
-                                ('audioflinger.txt', ('shell', 'dumpsys', 'media.audio_flinger')),
-                                ('png', ('exec-out', 'screencap', '-p'))]:
-            path = self.out / (name + '.' + suffix)
-            path.write_bytes(self.adb(*command, binary=True))
-            if suffix == 'png':
-                self.note('SHOT', str(path), case)
+                                ('audioflinger.txt', ('shell', 'dumpsys', 'media.audio_flinger'))]:
+            (self.out / (name + '.' + suffix)).write_bytes(self.adb(*command, binary=True))
+        # 截图统一走基类守卫：前台不是被测包（或在画中画）就跳过并记 SHOT skipped。
+        self.safe_screenshot(self.out / (name + '.png'), case)
 
     def wait(self, predicate, seconds=60):
         end = time.monotonic() + seconds
@@ -80,7 +89,7 @@ class GapDriver(matrix.Driver):
         self.adb('reverse', 'tcp:18085', 'tcp:18085')
         self.mappings.append(('reverse', 18085))
         self.adb('shell', 'am', 'force-stop', matrix.PACKAGE)
-        self.adb('shell', 'am', 'start', '-n', matrix.PACKAGE + '/com.icodejoo.mova.mova_example.MainActivity')
+        self.adb('shell', 'am', 'start', '-n', matrix.MAIN_ACTIVITY)
         self.wait(lambda: self.http()['phase'] == 'idle')
         pid = self.adb('shell', 'pidof', matrix.PACKAGE).strip()
         if not pid or not pid.isdigit():
@@ -150,7 +159,7 @@ class GapDriver(matrix.Driver):
                 self.wait(lambda: 'focus-sampled' in self.http()['marks'])
             finally:
                 self.adb('shell', 'am', 'force-stop', component.split('/')[0])
-            self.adb('shell', 'am', 'start', '-n', matrix.PACKAGE + '/com.icodejoo.mova.mova_example.MainActivity')
+            self.adb('shell', 'am', 'start', '-n', matrix.MAIN_ACTIVITY)
             self.mark('focus-restored')
         elif mode == 'network':
             # Save the effective settings and always restore in finally.
@@ -194,7 +203,7 @@ class GapDriver(matrix.Driver):
         product_rows = []
         all_rows = []
         while time.monotonic() < deadline:
-            data = self.http('/poll', since=seen)
+            data = self.poll(seen)
             fresh = data['rows']
             all_rows.extend(fresh)
             data['rows'] = all_rows
@@ -216,6 +225,10 @@ class GapDriver(matrix.Driver):
                     self.capture(case, name)
                     shots.add(name)
                     self.mark(('before-shot-' if name.startswith('before-hold-') else 'shot-') + name.rsplit('-', 1)[1])
+                if kind == 'STEP' and isinstance(payload, dict) and payload.get('restoreForeground') is not None:
+                    # 设备端进过系统画中画：宿主 am start 拉回并确认前台，再回 mark 放行下一个用例。
+                    ok = self.restore_foreground(case)
+                    self.mark(('foreground-ok-' if ok else 'foreground-failed-') + str(payload['restoreForeground']))
                 if kind == 'STEP' and isinstance(payload, dict) and payload.get('hostAction') and not acted:
                     acted = True
                     self.system_action(payload['hostAction'])

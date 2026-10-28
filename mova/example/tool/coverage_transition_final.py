@@ -1,7 +1,7 @@
 """Observe a delayed old thumbnail across a source change and a 2s fade."""
 import json,time,urllib.parse
 from pathlib import Path
-from coverage_device import request,adb,capture
+from coverage_device import request,adb,capture,shot
 from coverage_record import update
 out=Path(__file__).resolve().parent/'coverage_evidence'
 def call(name,action='snapshot',**args):
@@ -11,7 +11,7 @@ def call(name,action='snapshot',**args):
     (out/('batch28-'+name+'.json')).write_text(json.dumps(d,ensure_ascii=False,indent=2),encoding='utf-8')
     print(name,d['status'],flush=True)
     return d
-def frame(name):(out/('batch28-'+name+'.png')).write_bytes(adb('exec-out','screencap','-p',binary=True))
+def frame(name):shot(out/('batch28-'+name+'.png'))
 call('slow-start',preview='true',slowPreview='true');call('slow-pause','pause');call('slow-controls','controls',value='sticky')
 adb('shell','input','motionevent','DOWN','300','2307');adb('shell','input','motionevent','MOVE','400','2307');time.sleep(.7)
 issued=time.time();call('source-change','open',path='ad.mp4');time.sleep(3.2)

@@ -844,7 +844,12 @@ Future<void> buttonsCase(SkinRun r) async {
     final o = a.state.orientation;
     start = gap.events.length;
     final ok = await tapIcon(Icons.screen_rotation_rounded, 'orientation button');
-    if (ok) await gap.until(() => a.state.orientation != o);
+    // 产品先写 state、再 await 真转屏、最后才发事件：必须等事件出现再数，否则必然为 0。
+    if (ok) {
+      await gap.until(
+        () => a.state.orientation != o && evCount<MovaOrientationChange>(start) >= 1,
+      );
+    }
     gap.verdict(
       ok && a.state.orientation == o.toggled && evCount<MovaOrientationChange>(start) == 1,
       'orientation button applies orientation.toggled with one MovaOrientationChange',
