@@ -1,5 +1,5 @@
 // ignore_for_file: avoid_relative_lib_imports
-// accept/lib 是仓库内执行器源码，按目标目录使用相对导入。
+// test/accept/lib 是仓库内执行器源码，按目标目录使用相对导入。
 import 'dart:convert';
 import 'dart:io';
 import '../lib/common.dart';
@@ -32,15 +32,15 @@ const failureResolutions = {
   ],
   'offline.flap-recovers': [
     tkEmpty3,
-    'accept/lib/runner.dart：flap 的宿主探测预算缩短为 500ms，在离线窗口内采样'
+    'test/accept/lib/runner.dart：flap 的宿主探测预算缩短为 500ms，在离线窗口内采样'
   ],
   'retry.401-goes-refresh-first': [
     tkEmpty3,
-    'accept/bin/cli.dart：移除逐项重编码完整历史报告，避免阻塞事件循环使新令牌过期'
+    'test/accept/bin/cli.dart：移除逐项重编码完整历史报告，避免阻塞事件循环使新令牌过期'
   ],
   'share.end-last-wins': [
     tkEmpty3,
-    'accept/bin/cli.dart：改为增量 NDJSON，避免阻塞使后续调用错过首发在途窗口'
+    'test/accept/bin/cli.dart：改为增量 NDJSON，避免阻塞使后续调用错过首发在途窗口'
   ],
   'timeout.connect-blackhole': [
     tkEmpty2,
@@ -110,7 +110,7 @@ void main(List<String> args) {
   ];
   final triage = [
     for (final failed
-        in (readJson('accept/results/all-resume.json')[tkResults] as List? ??
+        in (readJson('test/accept/results/all-resume.json')[tkResults] as List? ??
                 [])
             .map(obj)
             .where((r) => r[tkStatus] == tkFailed))
@@ -186,8 +186,8 @@ void main(List<String> args) {
     'skipped_unlisted_combinations': plan.length - declaredCombinations,
     'skipped_declared_combinations':
         counts[tkSkipped]! - (plan.length - declaredCombinations),
-    'verification': readJson('accept/results/verification.json'),
-    'proxy_cleanup': readJson('accept/results/proxy-cleanup.json'),
+    'verification': readJson('test/accept/results/verification.json'),
+    'proxy_cleanup': readJson('test/accept/results/proxy-cleanup.json'),
     'prior_failure_recheck': {
       'previous_failed': previousFailures.length,
       tkCounts: {

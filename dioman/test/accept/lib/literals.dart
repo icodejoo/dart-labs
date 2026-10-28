@@ -855,7 +855,7 @@ const tkAcceptResultsApiEvidenceJson = "coverage/accept/api-evidence.json";
 const tkHits = "hits";
 
 /// 共享字面量：tkAcceptApiInventoryJson。
-const tkAcceptApiInventoryJson = "accept/lib/api-inventory.json";
+const tkAcceptApiInventoryJson = "test/accept/lib/api-inventory.json";
 
 /// 共享字面量：tkDeclared。
 const tkDeclared = "declared";
@@ -1035,7 +1035,7 @@ const tkEmpty5 = "成功";
 
 /// 共享字面量：tkAcceptResultsPluginMatrixPlanJson。
 const tkAcceptResultsPluginMatrixPlanJson =
-    "accept/lib/plugin_matrix_plan.json";
+    "test/accept/lib/plugin_matrix_plan.json";
 
 /// 共享字面量：tkPresets。
 const tkPresets = "/presets";

@@ -36,8 +36,8 @@ class LiteralVisitor extends RecursiveAstVisitor<void> {
 /// 为运行器及探针的重复字符串生成语义常量，可在生成 inventory 后重复运行。
 void main() {
   final files = [
-    ...Directory('accept/lib').listSync(recursive: true),
-    ...Directory('accept/bin').listSync(recursive: true),
+    ...Directory('test/accept/lib').listSync(recursive: true),
+    ...Directory('test/accept/bin').listSync(recursive: true),
     ...Directory('test').listSync(recursive: true),
   ]
       .whereType<File>()
@@ -46,7 +46,7 @@ void main() {
           !f.path.endsWith('hoist_literals.dart') &&
           !f.path.endsWith('literals.dart'))
       .toList();
-  final constants = File('accept/lib/literals.dart');
+  final constants = File('test/accept/lib/literals.dart');
   final existing = constants.existsSync() ? constants.readAsStringSync() : '';
   final existingNames = <String, String>{};
   for (final declaration in parseString(content: existing)
@@ -103,11 +103,11 @@ void main() {
     }
     if (changed) {
       final importPath =
-          entry.key.path.replaceAll('\\', '/').startsWith('accept/lib/')
+          entry.key.path.replaceAll('\\', '/').startsWith('test/accept/lib/')
               ? 'literals.dart'
-              : entry.key.path.replaceAll('\\', '/').startsWith('accept/bin/')
+              : entry.key.path.replaceAll('\\', '/').startsWith('test/accept/bin/')
                   ? '../lib/literals.dart'
-                  : '../../accept/lib/literals.dart';
+                  : '../accept/lib/literals.dart';
       if (!RegExp(r'^part of ', multiLine: true).hasMatch(source) &&
           !source.contains("import '$importPath';")) {
         final directive = "import '$importPath';\n";

@@ -1,5 +1,5 @@
 // ignore_for_file: avoid_relative_lib_imports
-import '../../accept/lib/literals.dart';
+import '../accept/lib/literals.dart';
 // Real dart:io HttpServer harness for dioman's integration tests — replaces
 // the hand-rolled FakeAdapter so requests go over a real TCP loopback
 // connection, get real DNS/connect/cancel semantics, and let plugins that

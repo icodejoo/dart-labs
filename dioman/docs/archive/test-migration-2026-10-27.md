@@ -6,7 +6,7 @@ summary: 迁移前 334 条用例逐条对应到六层新位置的记录，含基
 ---
 # dioman 测试迁移映射
 
-规则见 axp 的 [test-layers.md](../../../codejoo/apps/axp/docs/guides/test-layers.md) §4；分层与命名见 [README.md](README.md)。本次只搬、改标题、拆目录，没有改动任何断言语句（保真范围见下）。
+规则见 axp 的 [test-layers.md](../../../../codejoo/apps/axp/docs/guides/test-layers.md) §4；分层与命名见 [测试分层](../guides/test-layers.md)。本次只搬、改标题、拆目录，没有改动任何断言语句（保真范围见下）。
 
 ## 基线与核对公式
 
@@ -68,7 +68,7 @@ summary: 迁移前 334 条用例逐条对应到六层新位置的记录，含基
 
 ## 保真说明
 
-- 用例代码体取自上一个执行者重构后的版本：测试辅助（6 份同义 token 实现等）已合并到 `test/support/fixtures.dart`，重复字符串已提取为 `accept/lib/literals.dart` 常量（`tk*`）。本次**没有逐行回溯原文**核对这些重构。
+- 用例代码体取自上一个执行者重构后的版本：测试辅助（6 份同义 token 实现等）已合并到 `test/support/fixtures.dart`，重复字符串已提取为 `test/accept/lib/literals.dart` 常量（`tk*`）。本次**没有逐行回溯原文**核对这些重构。
 - 用来兜底的证据：334 条旧用例名与 333 条新用例名**一一对应**（脚本按"去掉 `[API id]` 前缀后名字相等"匹配，旧侧 0 个未匹配、新侧 0 个多余）；默认运行 330 全过；lcov 行覆盖与基线同为 1788/1793。
 - 补回的 5 条用例是从 `coverage/reorganization/original-test/` 原文移植的，只把本地 helper 换成 fixtures 里的同名夹具、把已登记的重复字符串换成常量。
 

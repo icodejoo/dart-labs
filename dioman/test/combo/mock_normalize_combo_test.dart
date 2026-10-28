@@ -5,7 +5,7 @@ import 'dart:convert';
 import 'package:dio/dio.dart';
 import 'package:dioman/dioman.dart';
 import 'package:test/test.dart';
-import '../../accept/lib/literals.dart';
+import '../accept/lib/literals.dart';
 import '../support/test_server.dart';
 
 /// 注册本文件的组合层用例。

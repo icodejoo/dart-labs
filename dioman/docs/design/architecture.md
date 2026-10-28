@@ -1,3 +1,9 @@
+---
+title: Dioman 架构文档
+status: active
+updated: 2026-10-28
+summary: 执行模型、插件职责、安装顺序约束与 extra 键表（键表由 DiomanExtraKeys.toMarkdown() 同步）。
+---
 # Dioman 架构文档
 
 ## 项目概述
@@ -443,6 +449,6 @@ debug 下直接断言。自定义插件可用 `DiomanExtraKeys.register` 登记�
 
 ## 参考
 
-- [README.md](./README.md)
-- [源代码](./lib)
+- [README.md](../../README.md)
+- [源代码](../../lib)
 - Dio: https://pub.dev/packages/dio

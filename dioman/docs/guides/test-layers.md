@@ -1,13 +1,13 @@
 ---
 title: dioman 测试六层分类指南
 status: active
-updated: 2026-10-27
-summary: dioman 测试按单元/规则/边界/组合/集成六层归档的判定规则、Dart 目录命名、标题约定、运行方式。照搬 axp 的分层规范，只做 Dart 适配。
+updated: 2026-10-28
+summary: dioman 测试六层归档规则、三档可信度标注、总账矩阵与闸门的日常用法、Dart 目录命名、标题约定、运行方式。
 ---
 
 # dioman 测试分层指南
 
-分层规则照搬 axp：[`apps/axp/docs/guides/test-layers.md`](../../../codejoo/apps/axp/docs/guides/test-layers.md)（判定顺序、去重规则、映射记录字段都以它为准）。这里只写 Dart 上不一样的地方和 dioman 自己的落地细节。
+分层规则照搬 axp：[`apps/axp/docs/guides/test-layers.md`](../../../../codejoo/apps/axp/docs/guides/test-layers.md)（判定顺序、去重规则、映射记录字段都以它为准）。这里只写 Dart 上不一样的地方和 dioman 自己的落地细节。
 
 一句话：**一个行为只在最低的、能证明它的那一层测一次；按"测什么"分层，不按"从哪轮修复来"命名。**
 
@@ -20,11 +20,45 @@ summary: dioman 测试按单元/规则/边界/组合/集成六层归档的判定
 | 边界 `boundary` | **单个插件**的极端输入、并发时序、取消时机、容量溢出、异常回调 | 同规则层 | `test/boundary/` |
 | 组合 `combo` | **两个及以上插件**的语义交互，含全栈冒烟和 powerset 扫描 | 同规则层，装多个插件 | `test/combo/` |
 | 集成 `integration` | 装配（install 顺序、动态插拔）、源码/文档一致性、连真实服务 47080/47090 的白盒入口 | 真实 Dio、仓库文件、真实服务 | `test/integration/` |
-| 验收 `acceptance` | 黑盒：testkit 场景 × 网络 × 风格，真实服务 + netem | api-ws-demo、netem | `accept/` + testkit 场景（不在 `test/` 下） |
+| 验收 `acceptance` | 黑盒：testkit 场景 × 网络 × 风格，真实服务 + netem | api-ws-demo、netem | `test/accept/`（执行器，无 `_test.dart`，`dart test` 不会跑它）+ testkit 场景 |
 
-`test/support/` 只放夹具，不放用例；`accept/` 与 testkit 本次没动。
+`test/support/` 只放夹具，不放用例。
 
 判定顺序（命中即停）：只用一个对象就能证明 → unit；单插件正常行为 → rule；单插件极端/时序 → boundary；多插件 → combo；装配/真实环境 → integration；必须真服务才成立 → acceptance。拿不准放 rule。
+
+## 三档与总账（和六层正交）
+
+六层回答"放哪"，三档回答"这条绿灯能不能信"。完整方案见 [测试体系方案](../design/test-matrix-plan.md)。
+
+| 档 | 判定 | 要做的 |
+|---|---|---|
+| ① 纯单测 | 把替身全换掉，结论仍成立 | 只写单测 |
+| ② 单测 + 真实核对 | 结论依赖替身对真实传输/服务的假设 | 单测穷举分支；矩阵行写上依赖的假设 H（[假设清单](../../test/ASSUMPTIONS.md)），挂一个真实代表用例 |
+| ③ 只能真实 | 没有可模拟的逻辑 | 只在 `test/accept/` 跑 |
+
+`TestTokens`、`FakeCachePersist`、`isOnline` 这类**契约替身**模拟的是使用者注入的实现，按 ① 处理。
+
+**加一条用例时**：标题用 `[API id]` 开头，总账就能自动反查到它，不用改 `matrix.json`。
+
+**加一个公开 API 或选项时**：
+
+```powershell
+dart run test/accept/bin/inventory.dart          # 刷新台账
+dart run test/accept/bin/matrix.dart sync        # 为新 API 生成草稿行（tier 为空）
+# 编辑 test/accept/lib/matrix.json：填 capability / tier / assumptions / real
+dart test test/integration/matrix_integration_test.dart   # 静态闸门：G0/G2/G3/G5
+```
+
+**跑完一轮真实验收后**：
+
+```powershell
+dart run test/accept/bin/matrix.dart evidence coverage/accept/normal-http.json coverage/accept/plugin-matrix-final.json
+dart run test/accept/bin/matrix.dart results     # 回填每行结论
+dart test --coverage-path=coverage/local.info
+dart run test/accept/bin/matrix.dart gates --lcov=coverage/local.info --report=docs/reports/<日期>-matrix-gaps.md
+```
+
+闸门报"已修复但仍在基线"时，运行 `gates --lcov=… --update-baseline` 把它从基线删掉；基线只减不增。
 
 ## 目录与命名（Dart 差异）
 
@@ -46,7 +80,7 @@ test/
 
 ## 用例标题
 
-标题以 `[API id]` 开头，id 取自 [`accept/lib/api-inventory.json`](../accept/lib/api-inventory.json)（691 项公开 API 台账）：
+标题以 `[API id]` 开头，id 取自 [`test/accept/lib/api-inventory.json`](../../test/accept/lib/api-inventory.json)（691 项公开 API 台账）：
 
 ```dart
 test('[DiomanRetry.respectRetryAfter] Retry-After 数字、日期……', () async { ... });
@@ -55,7 +89,7 @@ test('[DiomanRetry.respectRetryAfter] Retry-After 数字、日期……', () asy
 - 一条用例涉及多个 API 就写多个：`[DiomanCache.maxEntries][DiomanCache.clone]`。
 - 组合层用 `×`：`[DiomanAuth.onRefresh × DiomanRetry.max]`。
 - unit 层没有台账 id 时写 `[模块.函数]`，如 `[cancellableDelay]`、`[ReplayClient.finishRecovered]`。
-- 现有标题里的 id 是**按正文自动推荐 + 人工覆盖**出来的，粒度和准确度没有逐条审计；后续补台账缺口时顺手校正。映射里标"无台账 id"的用例见 [MIGRATION.md](MIGRATION.md)。
+- 现有标题里的 id 是**按正文自动推荐 + 人工覆盖**出来的，粒度和准确度没有逐条审计；后续补台账缺口时顺手校正。映射里标"无台账 id"的用例见 [迁移映射](../archive/test-migration-2026-10-27.md)。
 
 ## 怎么跑
 
@@ -76,15 +110,15 @@ dart test -t real --configuration=dart_test.real.yaml
 覆盖率：
 
 ```powershell
-dart test --coverage=coverage/local
-dart pub global run coverage:format_coverage --lcov --in=coverage/local --out=coverage/local.info --packages=.dart_tool/package_config.json --report-on=lib
+dart test --coverage-path=coverage/local.info     # test 包内置，直接出 lcov，不需要全局 coverage 包
+dart run test/accept/bin/matrix.dart gates --lcov=coverage/local.info   # 顺带跑 G1
 ```
 
 ## 去重要点（摘自 §3）
 
-同层 + 同 API id + 同输入 + 同期望 = 重复，删后者；同 id 不同输入是变体，保留。`DiomanRetry.share` 兼容 setter 接线和自动接线是两种输入，所以不算重复。跨层重复保留最低层。`drop` 必须在 [MIGRATION.md](MIGRATION.md) 里指向保留者的新位置。
+同层 + 同 API id + 同输入 + 同期望 = 重复，删后者；同 id 不同输入是变体，保留。`DiomanRetry.share` 兼容 setter 接线和自动接线是两种输入，所以不算重复。跨层重复保留最低层。`drop` 必须在 [迁移映射](../archive/test-migration-2026-10-27.md) 里指向保留者的新位置。
 
 ## 相关
 
-- 旧→新映射、基线与核对公式：[MIGRATION.md](MIGRATION.md)
-- 验收执行器手册：[`accept/docs/README.md`](../accept/docs/README.md)
+- 旧→新映射、基线与核对公式：[迁移映射](../archive/test-migration-2026-10-27.md)
+- 验收执行器手册：[验收执行器手册](accept-runner.md)

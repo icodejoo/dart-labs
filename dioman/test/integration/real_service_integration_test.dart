@@ -6,10 +6,10 @@ library;
 import 'dart:convert';
 import 'dart:io';
 import 'package:test/test.dart';
-import '../../accept/bin/cli.dart' as cli;
-import '../../accept/lib/literals.dart';
-import '../../accept/lib/powerset.dart';
-import '../../accept/lib/probes.dart';
+import '../accept/bin/cli.dart' as cli;
+import '../accept/lib/literals.dart';
+import '../accept/lib/powerset.dart';
+import '../accept/lib/probes.dart';
 
 /// 注册本文件的集成层用例。
 void main() {

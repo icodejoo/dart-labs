@@ -226,7 +226,7 @@ DiomanExtraKeys.assertNoSharedState(dio.interceptors);      // 仅 debug 生效�
 DiomanExtraKeys.register(myKey);                            // 自定义插件登记自己的键
 ```
 
-现有键名和运行时行为都不变。完整键表在 `ARCHITECTURE.md`（由 `DiomanExtraKeys.toMarkdown()`
+现有键名和运行时行为都不变。完整键表在 `docs/design/architecture.md`（由 `DiomanExtraKeys.toMarkdown()`
 生成，有测试保证同步）。
 
 ## 插件详解

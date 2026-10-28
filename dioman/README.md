@@ -262,7 +262,7 @@ DiomanExtraKeys.assertNoSharedState(dio.interceptors);      // debug-only assert
 DiomanExtraKeys.register(myKey);                            // custom plugins register theirs
 ```
 
-Existing key names and runtime behavior are unchanged. The full table is in `ARCHITECTURE.md`
+Existing key names and runtime behavior are unchanged. The full table is in `docs/design/architecture.md`
 (generated from `DiomanExtraKeys.toMarkdown()`, kept in sync by a test).
 
 ## Plugins

@@ -115,7 +115,7 @@ void main() {
 
   group('首发取消后 follower 重新入链接手（#2 #3 #4）', () {
     test(
-        '[DiomanShare.onRequest × DiomanAuth.onRefresh] 接手请求遇 401：auth 刷新并重放成功，首发仍拿到取消',
+        '[DiomanShare.onRequest × DiomanAuth.new(onRefresh)] 接手请求遇 401：auth 刷新并重放成功，首发仍拿到取消',
         () async {
       var refreshed = 0;
       final env = await setup((r, n) async {

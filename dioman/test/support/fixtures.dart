@@ -1,10 +1,10 @@
 // ignore_for_file: avoid_relative_lib_imports
-// accept/lib 提供中立字段常量。
-// accept/lib 是仓库内执行器源码，按目标目录使用相对导入。
+// test/accept/lib 提供中立字段常量。
+// test/accept/lib 是仓库内执行器源码，按目标目录使用相对导入。
 /// 本地测试共享夹具，不连接外部测试服务。
 library;
 
-import '../../accept/lib/literals.dart';
+import '../accept/lib/literals.dart';
 import 'package:test/test.dart';
 import 'dart:async';
 import 'dart:convert';

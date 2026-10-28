@@ -4,7 +4,7 @@ import 'dart:convert';
 import 'dart:io';
 import 'package:dio/dio.dart';
 import 'package:test/test.dart';
-import '../../accept/lib/literals.dart';
+import '../accept/lib/literals.dart';
 import '../support/fixtures.dart';
 import '../support/test_server.dart';
 

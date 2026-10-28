@@ -71,7 +71,7 @@ void main() {
 
   group('认证恢复期间取消（#1）', () {
     test(
-        '[DiomanRetry.max × DiomanAuth.onRefresh × DiomanShare.policy] 错误阶段：首发在重试等刷新时被取消，follower 不拿到 401',
+        '[DiomanRetry.max × DiomanAuth.new(onRefresh) × DiomanShare.policy] 错误阶段：首发在重试等刷新时被取消，follower 不拿到 401',
         () async {
       final r =
           await followerAfterLeaderCancelledInRecovery(500, {'e': 'boom'});
@@ -79,7 +79,7 @@ void main() {
     });
 
     test(
-        '[DiomanRetry.shouldRetry × DiomanAuth.onRefresh × DiomanShare.policy] 响应阶段：业务失败重试等刷新时被取消，follower 不拿到原业务失败',
+        '[DiomanRetry.shouldRetry × DiomanAuth.new(onRefresh) × DiomanShare.policy] 响应阶段：业务失败重试等刷新时被取消，follower 不拿到原业务失败',
         () async {
       final r = await followerAfterLeaderCancelledInRecovery(200, {'code': 1},
           shouldRetry: retryBusinessFailure);

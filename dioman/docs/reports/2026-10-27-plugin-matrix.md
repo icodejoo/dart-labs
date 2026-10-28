@@ -1,12 +1,18 @@
+---
+title: 17 插件五方法真实矩阵（2026-10-27）
+status: active
+updated: 2026-10-28
+summary: 单体/全量/边界/配对/规则五种方法在真实服务上的格子数与结论。
+---
 # 17 插件五方法矩阵（中文复核）
 
-2026-10-27 测试整理：当前生成清单为 77 场景 / 156 格，真实执行 156 通过、0 失败。两组等价零值边界合并后比原清单少 4 格；按旧→新 id 逐项对比，无缺失、无状态变化。新证据见 `../../coverage/accept/plugin-matrix-final.json`，迁移说明见 [test/README.md](../../test/README.md)。
+2026-10-27 测试整理：当前生成清单为 77 场景 / 156 格，真实执行 156 通过、0 失败。两组等价零值边界合并后比原清单少 4 格；按旧→新 id 逐项对比，无缺失、无状态变化。新证据见 `coverage/accept/plugin-matrix-final.json`（本地产物，不入库），迁移说明见 [测试分层](../guides/test-layers.md)。
 
 以下统计、run id 和证据链接保留整理前历史轮次（79 场景 / 160 格）；场景列中的已合并 id 已映射到当前保留 id，不代表这些历史轮次重新运行。
 
 状态：**部分完成，整项验收未完成**。本轮已定义方法场景 79 个、真实格子 160 个，最终全部通过；不把未实现的选项或历史缺声明项统计为通过/不适用。
 
-运行：`dart run accept/bin/build_plugin_matrix.dart` → testkit `gen-index`/`validate --check-index` → `dart run accept/bin/run_plugin_matrix.dart`。复用47080/47090，每格唯一 X-Test-Run、独立代理；真实日志、事件、服务端统计、规则断言在 `../results/plugin-matrix-final.json`，逐条日志在同名 `.ndjson`。
+运行：`dart run test/accept/bin/build_plugin_matrix.dart` → testkit `gen-index`/`validate --check-index` → `dart run test/accept/bin/run_plugin_matrix.dart`。复用47080/47090，每格唯一 X-Test-Run、独立代理；真实日志、事件、服务端统计、规则断言在 `../results/plugin-matrix-final.json`，逐条日志在同名 `.ndjson`。
 
 格子计数为“已定义 / 已执行 / 不适用”，仅表示当前已实现清单，不代表穷尽所有公开选项。配对的关闭状态也属于对应插件的一格；规则复用全量流程6个 run id，不额外虚构HTTP请求。
 
@@ -36,7 +42,7 @@
 - 全量：17插件同开，normal/weak/flap×http/business=6格。登录、访问、过期刷新、500恢复、缓存命中、share并发、取消、loading成对、notify一次均有断言；flap先经历offline拒绝再等待恢复。
 - 边界：28场景×2=56格。目前只有retry、cache、loading、timeout、breaker的部分参数；小连接预算1ms仅验证实际能建立本地TCP，不把服务端处理延迟误称连接超时。
 - 配对：32×17二元正交数组，32行×两风格=64格。每对00/01/10/11均由独立单测枚举校验，覆盖136×4=544种二元状态；真实回显核对payload、服务命中与资源释放。全关行是必要基线。
-- 规则：`accept/lib/plugin_rules.dart`逐条验证排序边反转应报misordered、重复名应报duplicateName、extra唯一/归属/前缀、正常安装无状态键冲突；每个实际请求还检查pending/loading/inflight。缺依赖/环/动态插入见`test/unit/plugin_order_test.dart`，但没有将所有源码不变量逐条列成完整真实矩阵。
+- 规则：`test/accept/lib/plugin_rules.dart`逐条验证排序边反转应报misordered、重复名应报duplicateName、extra唯一/归属/前缀、正常安装无状态键冲突；每个实际请求还检查pending/loading/inflight。缺依赖/环/动态插入见`test/unit/plugin_order_test.dart`，但没有将所有源码不变量逐条列成完整真实矩阵。
 
 先搜索了现有依赖与测试，没有引入pairwise库；最小构造依据[ NIST covering arrays](https://math.nist.gov/coveringarrays/coveringarray.html)。旧136精确双开集合在N≥4时可组合出现每对00/01/10/11，但旧报告只运行http，而且是基础成功流；因此不能代替本轮双风格配对证据。
 
@@ -64,7 +70,7 @@
 
 历史3547跳过 = 3477纯缺声明 + 56缺声明且注入禁用状态 + 14已声明注入禁用状态；历史缺声明维度是3533。5个注入场景现已对全部7网络写expect.skip，共70格有明确停机约束理由，其中56格补齐了原来缺失的声明。其余3477格仍待设计预期并真实执行，不能称为合法不适用。另拆两个安全子场景8格真实通过，不称替代原429/503测试。完整逐项清单见`../results/skip-review.json`。
 本轮库级lcov：1788/1793，99.7211%；逐行缺口见下节。历史基线1683/1793；key删除两个计数行、share修复新增两个计数行，分母恰好相同但行集合已经变化。原110行逐项处置见`COVERAGE-review.md`；兜底分支的Dio源码契约摘录见`../results/coverage-invariants.json`。
-七文件diff逐项自审见`REVIEW-library.md`，diff保存`../results/review-library.diff`。本轮确认并修复share重放准备异常只结束首发、悬挂跟随者的缺陷；修复前回归明确失败，修复后真实http/business各通过一次，证据见`../results/share-prepare-real.json`。另修正README和breaker类注释的计数说明。公开API探针本轮重新执行691/691，仍不是参数值/路径穷举。
+七文件diff逐项自审见[源码复核](2026-10-27-library-review.md)，diff保存`../results/review-library.diff`。本轮确认并修复share重放准备异常只结束首发、悬挂跟随者的缺陷；修复前回归明确失败，修复后真实http/business各通过一次，证据见`../results/share-prepare-real.json`。另修正README和breaker类注释的计数说明。公开API探针本轮重新执行691/691，仍不是参数值/路径穷举。
 
 ## 本轮未覆盖行（不冒充已覆盖）
 

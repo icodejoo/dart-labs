@@ -18,7 +18,7 @@ and a `dispose()` hook — `lib/src/dioman_plugin.dart`), PLUS the documented co
 Entry `lib/dioman.dart` re-exports all 16 ordered plugins (envs → … → normalize below). Each plugin lives in its own `lib/src/*.dart`.
 
 Acceptance = **`dart analyze` clean** + `dart test` (layered under `test/unit|rule|boundary|combo|
-integration/`, see `test/README.md`; anything that sends requests runs against a REAL `dart:io HttpServer` via `test/support/
+integration/`, see `docs/guides/test-layers.md`; anything that sends requests runs against a REAL `dart:io HttpServer` via `test/support/
 test_server.dart` — `TestServer.start(handler)` + `respondJson(req, data, status)` — never a
 fake/mock `HttpClientAdapter` and never a hardcoded address like `127.0.0.1:1` for an
 "unreachable" endpoint; this matters because it lets throwaway-Dio re-issues (auth replay,

@@ -1,7 +1,7 @@
 // ignore_for_file: avoid_relative_lib_imports
 // 单元层：pairwise
 import 'package:test/test.dart';
-import '../../accept/lib/pairwise.dart';
+import '../accept/lib/pairwise.dart';
 
 /// 注册本文件的单元层用例。
 void main() {

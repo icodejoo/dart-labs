@@ -1,5 +1,5 @@
 // ignore_for_file: avoid_relative_lib_imports
-// accept/lib 是仓库内执行器源码，按目标目录使用相对导入。
+// test/accept/lib 是仓库内执行器源码，按目标目录使用相对导入。
 import '../lib/literals.dart';
 import 'dart:convert';
 import 'dart:io';

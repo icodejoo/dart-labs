@@ -4,7 +4,7 @@ import 'dart:io';
 import 'package:dio/dio.dart';
 import 'package:dioman/dioman.dart';
 import 'package:test/test.dart';
-import '../../accept/lib/literals.dart';
+import '../accept/lib/literals.dart';
 import '../support/fake_cache_persist.dart';
 import '../support/fixtures.dart';
 
@@ -110,11 +110,11 @@ void main() {
   });
 
   test(
-      '[DiomanExtraKeys.toMarkdown] ARCHITECTURE.md 中的键表与 DiomanExtraKeys.toMarkdown() 同步',
+      '[DiomanExtraKeys.toMarkdown] docs/design/architecture.md 中的键表与 DiomanExtraKeys.toMarkdown() 同步',
       () {
     // Windows 下 autocrlf 会把文档检出成 CRLF，统一成 LF 再比对。
     final doc =
-        File('ARCHITECTURE.md').readAsStringSync().replaceAll('\r\n', tkEmpty9);
+        File('docs/design/architecture.md').readAsStringSync().replaceAll('\r\n', tkEmpty9);
     const start = '<!-- dioman:extra-keys:start -->';
     const end = '<!-- dioman:extra-keys:end -->';
     final s = doc.indexOf(start);

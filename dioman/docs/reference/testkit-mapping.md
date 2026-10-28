@@ -1,7 +1,13 @@
+---
+title: testkit 能力字段到 dioman 参数的映射
+status: active
+updated: 2026-10-28
+summary: testkit schema 的插件与请求级字段分别映射到 dioman 哪个参数或宿主职责。
+---
 # dioman 能力映射
 
 支持 CONTRACT §7 的全部 17 个能力，adapter 为 io；未知能力输出 `skipped: missing <cap>`。
-“已映射”表示执行器有明确实现；不代表该项验收已经通过。运行证据见 ../results/*.json。
+“已映射”表示执行器有明确实现；不代表该项验收已经通过。运行证据见 `test/accept/results/*.json`（本地，不入库）。
 未登记字段、非法类型、非法枚举值必须失败；不以忽略配置代替实现。
 
 | schema pluginOptions 字段 | 状态 | dioman 参数或明确的宿主职责 |

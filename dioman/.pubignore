@@ -1,0 +1,18 @@
+# 存在 .pubignore 时 pub 不再读 .gitignore，下面先抄一份 .gitignore
+.dart_tool/
+.packages
+.pub-cache/
+.pub/
+build/
+pubspec.lock
+*.iml
+.idea/
+coverage/
+# accept 运行产物（日志与结果 JSON，可随时重跑生成）
+test/accept/*.log
+test/accept/results/
+
+# 开发辅助，不随包发布
+CLAUDE.md
+.claude/
+.codegraph/

@@ -1,5 +1,5 @@
 // ignore_for_file: avoid_relative_lib_imports
-// accept/lib 是仓库内执行器源码，按目标目录使用相对导入。
+// test/accept/lib 是仓库内执行器源码，按目标目录使用相对导入。
 // ignore_for_file: depend_on_referenced_packages
 import '../lib/literals.dart';
 import 'dart:convert';
@@ -124,5 +124,5 @@ void main() {
         .writeln("    };\n    e.mark(snapshot.keys,'property read');\n  }");
   }
   generated.writeln('}');
-  File('accept/lib/probes_fields.dart').writeAsStringSync(generated.toString());
+  File('test/accept/lib/probes_fields.dart').writeAsStringSync(generated.toString());
 }

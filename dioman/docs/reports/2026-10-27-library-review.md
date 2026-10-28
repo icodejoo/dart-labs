@@ -1,3 +1,9 @@
+---
+title: 七文件 diff 源码自审（2026-10-27）
+status: active
+updated: 2026-10-28
+summary: 上一轮库改动逐文件核对结论与对应回归用例。
+---
 # 上轮七文件 diff 自审（2026-10-27）
 
 本轮逐个读取了七个文件相对当前 HEAD 的限定路径 `git diff`；保留原改动，没有 commit、stash 或整仓库回退。
@@ -14,7 +20,7 @@
 | `retry_plugin.dart` | `_reissue` 恢复 auth；失败尝试逐次交给 breaker，重试前领取新 admission，等待后再查 open。终态不重复记账。原 README“只算最终失败”与此冲突，本轮已修正文档。格式化和月份字典展开不改变行为。 | `test/combo/cross_test.dart、test/unit/auth_test.dart、test/unit/share_test.dart、test/unit/notify_test.dart`：3次失败达到阈值而不是重试6次；`test/unit/（各插件回归）及 test/combo/cross_test.dart`：Retry-After数字/日期/非法值、jitter、响应阶段取消；真实全开重试流程 |
 | `share_plugin.dart` | start 策略登记 followers；首发取消后通过已有 ReplayClient 将传输交给存活跟随者；entry.promoting 阻止重复接手。新属性位于 entry 对象内，不引入 extra 键。BOM 与换行调整不改变行为。 | `test/combo/cross_test.dart、test/unit/auth_test.dart、test/unit/share_test.dart、test/unit/notify_test.dart`：首发取消后跟随者成功；`test/unit/（各插件回归）及 test/combo/cross_test.dart`：最后接手者也取消后新请求成功、显式settle、race/end胜出交付 |
 
-真实顺序规则由 `accept/lib/plugin_rules.dart` 实现：对安装集合执行 `Dioman.validate`，将实际图的每条边反转后要求 misordered；重复名要求 duplicateName；extra 注册表检查唯一性/归属/前缀，正常安装不得有状态键冲突。
+真实顺序规则由 `test/accept/lib/plugin_rules.dart` 实现：对安装集合执行 `Dioman.validate`，将实际图的每条边反转后要求 misordered；重复名要求 duplicateName；extra 注册表检查唯一性/归属/前缀，正常安装不得有状态键冲突。
 缺依赖、环、自指、动态插入/删除的专项断言仍在 `test/unit/plugin_order_test.dart`；这些是库级测试，不伪称独立服务端请求。
 
 本轮另外核实 `key_plugin.dart` 私有 `_encode` 只有两处调用：过滤后的 body Map 与 query Map。将参数由 Object 收窄为 Map，删除无法到达的非 Map 编码分支；不可序列化 Map 的字符串回退仍保留并有新增回归。

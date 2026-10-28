@@ -3,7 +3,7 @@
 import 'package:dio/dio.dart';
 import 'package:dioman/dioman.dart';
 import 'package:test/test.dart';
-import '../../accept/lib/literals.dart';
+import '../accept/lib/literals.dart';
 
 /// 注册本文件的规则层用例。
 void main() {

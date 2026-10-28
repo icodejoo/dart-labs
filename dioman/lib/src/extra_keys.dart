@@ -284,7 +284,7 @@ abstract final class DiomanExtraKeys {
     }());
   }
 
-  /// 把内置键渲染成 Markdown 表格，用于同步 ARCHITECTURE.md。
+  /// 把内置键渲染成 Markdown 表格，用于同步 docs/design/architecture.md。
   ///
   /// 返回：带表头的 Markdown 表格（不含自定义登记键）。
   static String toMarkdown() {
