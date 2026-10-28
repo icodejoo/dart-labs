@@ -1,0 +1,2 @@
+a2319230f2fa1dc04db0885fe611fe05f7f190b4211b7ea0cff95d8e2f6525a2 *hello_ohos-debug-unsigned.hap
+d1b8d065318c36ff856a94ddbef11931dfc11143d3b8dab87c8fb5566aa689fc *hello_ohos-release-unsigned.hap
