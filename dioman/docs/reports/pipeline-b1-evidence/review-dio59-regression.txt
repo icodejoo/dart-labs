@@ -1,0 +1,10 @@
+WITHOUT FIX: exit=254
+lib/src/pipeline/response.dart:263:35: Error: Member not found: 'transformTimeout'.
+            case DioExceptionType.transformTimeout:
+
+                                  ^^^^^^^^^^^^^^^^
+
+RESTORED: exit=0
+Dio 5.9.0 pipeline compile/run: PASS
+
+source SHA256 restored=053d584806337bfcf59a860317067ac65865f689a61b8dbedaeaff3d54081f47

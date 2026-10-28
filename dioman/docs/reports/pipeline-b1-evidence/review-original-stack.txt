@@ -1,0 +1,37 @@
+00:00 +0: loading test/rule/transport_rule_test.dart
+00:00 +0: [Dioman.send] Dio 拦截器 reject 的 bug 保留原始对象和原始栈
+00:00 +0 -1: [Dioman.send] Dio 拦截器 reject 的 bug 保留原始对象和原始栈 [E]
+  Expected: 'sentinel-original-interceptor-stack'
+    Actual: '#0      DioMixin.fetch (package:dio/src/dio_mixin.dart:598:7)\n'
+              '<asynchronous suspension>\n'
+              '#1      diomanTransport (package:dioman/src/pipeline/transport.dart:31:17)\n'
+              '<asynchronous suspension>\n'
+              '#2      Dioman._dispatch (package:dioman/src/pipeline/client.dart:279:20)\n'
+              '<asynchronous suspension>\n'
+              '#3      Dioman.send (package:dioman/src/pipeline/client.dart:205:9)\n'
+              '<asynchronous suspension>\n'
+              '#4      main.<anonymous closure> (file:///E:/workspaces/dart-labs-pipeline/dioman/test/rule/transport_rule_test.dart:22:7)\n'
+              '<asynchronous suspension>\n'
+              '#5      Declarer.test.<anonymous closure>.<anonymous closure> (package:test_api/src/backend/declarer.dart:253:15)\n'
+              '<asynchronous suspension>\n'
+              '#6      Declarer.test.<anonymous closure> (package:test_api/src/backend/declarer.dart:250:11)\n'
+              '<asynchronous suspension>\n'
+              '#7      Invoker._waitForOutstandingCallbacks.<anonymous closure> (package:test_api/src/backend/invoker.dart:318:9)\n'
+              '<asynchronous suspension>\n'
+              ''
+     Which: is different.
+            Expected: sentinel-o ...
+              Actual: #0      Di ...
+                      ^
+             Differ at offset 0
+  
+  package:matcher                          expect
+  test\rule\transport_rule_test.dart 26:7  main.<fn>
+  
+00:00 +0 -1: Some tests failed.
+
+Failing tests:
+  test/rule/transport_rule_test.dart: [Dioman.send] Dio 拦截器 reject 的 bug 保留原始对象和原始栈
+
+Consider enabling the flag chain-stack-traces to receive more detailed exceptions.
+For example, 'dart test --chain-stack-traces'.

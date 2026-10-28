@@ -210,6 +210,14 @@ class Dioman<R extends DiomanResponse<dynamic>> {
 - `extend()` 克隆 Dio 的 BaseOptions，默认继承插件列表并各自重新 `setup`，状态不共享。
 - `dispose()`：先 `cancelAll()`，再按注册的逆序调用各插件实例的 `dispose`（尽力执行完，最后抛出第一个异常）；之后拒绝新的请求和 `use`。
 
+## 8.1 B1 终审裁决（2026-10-29）
+
+- **链内返回类型为 `DiomanResponse<dynamic>`**，不是使用者的子类 `R`：使用者工厂自身抛错时，内核只能用内置工厂造基础的 internal 结果；如果强转成 `R`，会在运行时抛 TypeError，打破"`next()` 不出错"。`R` 约束的是客户端正常工厂 `create` 的产出；插件要用扩展字段时用 `is` 判断。
+- **`ctx.wait` 的错误传递**：被等待的 future 自身出错时，`wait` 把错误交给调用方，不转成 internal；取消与超时返回 `null`，用 `ctx.cancelled()` 区分。
+- **请求体保留引用**：`data` 是 Dio 的不透明载荷，只有 `markReplayable()` 时才复制（Map/List/FormData）；headers、query、extra 是不可修改的顶层集合。
+- **`send<T>` 的数据可空**：失败时 `data` 为 `null`，原始值在 `raw` 里；结果本身已是 `DiomanResponse<T>` 时保留原实例及扩展字段。
+- **待修（B2 落地）**：插件经 `ctx.fail` 造 internal 却不带 `error`/`errorStack` 时，落定处的 `!` 会抛 TypeError 盖掉问题。落定改为：没有 error 抛 `StateError`，没有 stack 用 `StackTrace.current`。
+
 ## 9. 性能设计
 
 | # | 做法 |

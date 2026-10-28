@@ -253,6 +253,15 @@ def classify(text, file='', ledger=False):
         doubt = ' '.join(uncertain)
     if ledger and action == 'keep' and re.search(r'\.(onRequest|onResponse|onError)\b', text):
         change('C1', '旧拦截器入口改为 setup/handle；通过新客户端验证同一行为，结果读取 R。')
+    # B0 终审裁决：C13 删除的能力不得继续以 change/存疑保留。
+    removed = ('Options.now', 'CacheOptions.maxEntries', 'CachePolicy.none', 'SharePolicy.none')
+    if any(token in text for token in removed) or ('cachePolicy' in text and 'none' in text):
+        drop('C13', 'B0 终审裁决删除请求级时钟/none 策略/无效容量占位；替代为客户端 clock、请求级 false、插件级容量。')
+        codes = ['C13']
+        doubt = ''
+    elif doubt:
+        doubt = ''
+        reason += ' 已由插件规格 §8.1 终审裁决确认；其余旧行为保留，按新选项或管理 API 重写。'
     return action, sorted(set(codes), key=lambda c: int(c[1:])), reason, doubt
 
 
@@ -374,14 +383,16 @@ def render(data):
         total, keep, change, drop, doubt = counts(data[kind])
         lines += [f'| {kind}/合计 | {total} | {keep} | {change} | {drop} | {doubt} |', '',
                   f'`{kind}: 旧总数 {total} = keep {keep} + change {change} + drop {drop}`', '']
-    lines += ['## 存疑行（逐项交终审）', '', '| 来源 / 身份 | 旧位置或能力 | 暂定 | 理由 |', '|---|---|---|---|']
+    lines += ['## 终审裁决（2026-10-29）', '',
+              '54 条存疑按 [插件规格 §8.1](../../design/pipeline-plugin-spec.md) 裁决。请求级 `now` 覆盖、`cachePolicy.none`、`DiomanCacheOptions.maxEntries`、`DiomanSharePolicy.none` 相关行改为 drop（C13），其余维持 change；由 B1 工具生成并核对公式。所有原存疑标记已解除。', '',
+              '## 存疑行（逐项交终审）', '', '| 来源 / 身份 | 旧位置或能力 | 暂定 | 理由 |', '|---|---|---|---|']
     for kind in ('tests', 'matrix'):
         for row in data[kind]:
             if row['doubt']:
                 old = row.get('file', '') + ' :: ' + row.get('title', row.get('capability', ''))
                 lines.append('| ' + ' | '.join(map(escape, [kind + '/' + row['key'], old, row['action'], row['doubt']])) + ' |')
     lines += ['', '## 可复算', '', '```powershell', 'python tool/pipeline_migration.py generate', 'python tool/pipeline_migration.py verify', '```', '',
-              'verify 同时核对事件身份全集、matrix id 全集、唯一性、互斥分类、change 的 C1–C12、drop 理由、新位置与 Markdown 行数，输出见报告。', '']
+              'verify 同时核对事件身份全集、matrix id 全集、唯一性、互斥分类、change 的 C1–C13、drop 理由、新位置与 Markdown 行数，输出见报告。', '']
     (DEST / 'README.md').write_text('\n'.join(lines), encoding='utf-8')
 
 
@@ -402,14 +413,14 @@ def verify():
             assert row['location'].startswith('test/' + row['layer'] + '/')
             assert row['new_api'] and row['reason']
             if row['action'] == 'change':
-                assert row['codes'] and all(re.fullmatch(r'C(?:[1-9]|1[0-2])', c) for c in row['codes'])
+                assert row['codes'] and all(re.fullmatch(r'C(?:[1-9]|1[0-3])', c) for c in row['codes'])
             markdown = (DEST / (row['layer'] + '.md')).read_text(encoding='utf-8')
             assert sum(line.startswith('| ' + escape(row['key']) + ' |')
                        for line in markdown.splitlines()) == 1
         total, keep, change, drop, doubt = counts(rows)
         assert total == keep + change + drop
         print(f'{kind}: {total} = {keep} keep + {change} change + {drop} drop; doubtful={doubt}; PASS')
-    print('runtime identities / matrix ids / unique keys / C1-C12 / locations / Markdown rows: PASS')
+    print('runtime identities / matrix ids / unique keys / C1-C13 / locations / Markdown rows: PASS')
 
 
 if __name__ == '__main__':

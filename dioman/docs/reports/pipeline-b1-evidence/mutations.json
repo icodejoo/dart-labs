@@ -1,0 +1,72 @@
+[
+  {
+    "mutation": "wait-cleanup",
+    "test": "test/unit/context_test.dart",
+    "title": "正常值、异常、超时",
+    "killed": true,
+    "restored_sha256": "3d4a348a4e396673b21c5e5d6aff52e9d1ea7ea7230dc11bc9a691f373afb959"
+  },
+  {
+    "mutation": "already-cancelled",
+    "test": "test/unit/context_test.dart",
+    "title": "已取消立即返回",
+    "killed": true,
+    "restored_sha256": "3d4a348a4e396673b21c5e5d6aff52e9d1ea7ea7230dc11bc9a691f373afb959"
+  },
+  {
+    "mutation": "layer-boundary",
+    "test": "test/unit/pipeline_test.dart",
+    "title": "中间件异常转 internal",
+    "killed": true,
+    "restored_sha256": "35e119bf5c020c55c61b0b5338003cb0accfc868e6375bebee2124d4e77809b4"
+  },
+  {
+    "mutation": "settlement",
+    "test": "test/rule/client_rule_test.dart",
+    "title": "九格落定",
+    "killed": true,
+    "restored_sha256": "2486f07648bf9d344e51418f0da463c656abbb28775739bf9f1da8b5a2d8727c"
+  },
+  {
+    "mutation": "patch-headers",
+    "test": "test/unit/request_options_test.dart",
+    "title": "合并、大小写删除",
+    "killed": true,
+    "restored_sha256": "3768ef503fea420ff8510c5de6447ca8ba0843a862a68d227e31a5f8a5c0a4b2"
+  },
+  {
+    "mutation": "factory-classification",
+    "test": "test/unit/response_test.dart",
+    "title": "终审识别",
+    "killed": true,
+    "restored_sha256": "053d584806337bfcf59a860317067ac65865f689a61b8dbedaeaff3d54081f47"
+  },
+  {
+    "mutation": "pending-unregister",
+    "test": "test/boundary/client_boundary_test.dart",
+    "title": "登记后 compose",
+    "killed": true,
+    "restored_sha256": "2486f07648bf9d344e51418f0da463c656abbb28775739bf9f1da8b5a2d8727c"
+  },
+  {
+    "mutation": "replay-clone-I7",
+    "test": "test/rule/transport_rule_test.dart",
+    "title": "I7 嵌套请求体",
+    "killed": true,
+    "restored_sha256": "2aaf50db56dac0b71d8c69e44c5526d13a0179e695894e0a8b368caef8471c42"
+  },
+  {
+    "mutation": "review-original-stack",
+    "test": "test/rule/transport_rule_test.dart",
+    "title": "reject 的 bug 保留原始对象",
+    "killed": true,
+    "restored_sha256": "053d584806337bfcf59a860317067ac65865f689a61b8dbedaeaff3d54081f47"
+  },
+  {
+    "mutation": "internal-over-cancel",
+    "test": "test/boundary/client_boundary_test.dart",
+    "title": "同时取消不掩盖",
+    "killed": true,
+    "restored_sha256": "2486f07648bf9d344e51418f0da463c656abbb28775739bf9f1da8b5a2d8727c"
+  }
+]

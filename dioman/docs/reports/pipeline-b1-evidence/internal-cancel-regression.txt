@@ -1,0 +1,10 @@
+00:00 +0: loading test/boundary/client_boundary_test.dart
+00:00 +0: [Dioman.send] 同时取消不掩盖中间件程序异常和原始栈
+00:00 +1: [Dioman.cancelAll] 逻辑计数、重复取消、用户取消联动及 pending 清理
+00:00 +2: [Dioman.pending] 登记后 compose/上下文构造抛错仍注销并解除用户订阅
+00:00 +3: [Dioman.use] 重名和保留前缀先拒绝 setup，安装失败原链不变
+00:00 +4: [Dioman.inspect] 内置按名定位和在途保留链快照
+00:00 +5: [Dioman.extend] 重新 setup，配置深拷贝和实例状态隔离
+00:00 +6: [Dioman.dispose] 先取消，再逆序尽力释放，抛首错且拒绝后续请求
+00:00 +7: [Dioman.new] 无效 debug、构造前重名验证和失败 setup 释放已安装实例
+00:00 +8: All tests passed!

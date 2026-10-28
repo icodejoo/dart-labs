@@ -1,0 +1,17 @@
+00:00 +0: loading test/unit/request_options_test.dart
+00:00 +0: [RequestPatch] 合并、大小写删除、null 替换与完整有效配置保留
+00:00 +0 -1: [RequestPatch] 合并、大小写删除、null 替换与完整有效配置保留 [E]
+  Expected: {'x-a': 4, 'Null': null}
+    Actual: {'X-B': 2, 'x-a': 4, 'Null': null}
+     Which: has different length and has extra map key 'X-B'
+  
+  package:matcher                           expect
+  test\unit\request_options_test.dart 45:5  main.<fn>
+  
+00:00 +0 -1: Some tests failed.
+
+Failing tests:
+  test/unit/request_options_test.dart: [RequestPatch] 合并、大小写删除、null 替换与完整有效配置保留
+
+Consider enabling the flag chain-stack-traces to receive more detailed exceptions.
+For example, 'dart test --chain-stack-traces'.
