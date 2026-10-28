@@ -3,7 +3,6 @@ import 'dioman_plugin.dart';
 import 'request_claims.dart';
 import 'auth_plugin.dart';
 import 'cache_plugin.dart';
-import 'mock_plugin.dart';
 import 'retry_plugin.dart';
 import 'share_plugin.dart';
 import 'plugin_order.dart';
@@ -67,13 +66,12 @@ class DiomanCancel extends DiomanPlugin {
   @override
   String get name => pluginName;
 
-  /// 顺序声明：cancel在cache/share/mock之后（命中时不遗留括号），在auth/retry之前（401或重试前清理已完成）。
+  /// 顺序声明：cancel在cache/share之后（命中时不遗留括号），在auth/retry之前（401或重试前清理已完成）。
   @override
   DiomanPluginOrder get ordering => const DiomanPluginOrder(
         after: {
           DiomanCache.pluginName,
           DiomanShare.pluginName,
-          DiomanMock.pluginName,
         },
         before: {DiomanAuth.pluginName, DiomanRetry.pluginName},
       );

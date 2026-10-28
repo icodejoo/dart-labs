@@ -47,21 +47,22 @@ void main() {
       expect(adapter.calls, 2);
     });
     test(
-        '[DiomanAuth.share × DiomanShare.enabled] share + auth：mock 在 auth 之前短路也能结算 follower，且不残留 entry',
-        () async {
+        '[DiomanAuth.share × DiomanShare.enabled] share → auth + DiomanMockAdapter：adapter 在传输层，并发请求被 share 合并成一次 mock 命中，'
+        'follower 不悬挂，真实网络不碰，也不残留 share entry', () async {
       final gate = Completer<void>();
-      final mock = DiomanMock(enabled: true)
-        ..add(tkGETM, (o) async {
+      var mockHits = 0;
+      final real = RecordingAdapter((o, n) async => jsonBody({tkReal: 1}, 200));
+      final dio = fakeDio(real);
+      dio.httpClientAdapter = DiomanMockAdapter(inner: real, routes: {
+        tkGETM: (o) async {
+          mockHits++;
           await gate.future;
           return jsonBody({tkV: 1}, 200);
-        });
-      final adapter =
-          RecordingAdapter((o, n) async => jsonBody({tkReal: 1}, 200));
-      final dio = fakeDio(adapter);
+        }
+      });
       Dioman.install(dio,
           key: const DiomanKey(),
           share: DiomanShare(),
-          mock: mock,
           auth: testAuth(TestTokens(tkT0)));
 
       final a = dio.get<dynamic>(tkM);
@@ -74,9 +75,11 @@ void main() {
         {tkV: 1},
         {tkV: 1}
       ]);
-      expect(adapter.calls, 0, reason: 'mock 命中，真实网络一次都没发');
+      expect(mockHits, 1, reason: 'adapter 在 share 之下：两个并发请求合并成一次 mock 命中');
+      expect(real.calls, 0, reason: 'mock 命中，真实网络一次都没发');
       final c = await dio.get<dynamic>(tkM).timeout(timeout);
       expect(c.data, {tkV: 1});
+      expect(mockHits, 2, reason: '之前的 entry 已清，新请求是全新一次命中');
     });
     test(
         '[DiomanAuth.share × DiomanSharePolicy.retry] share + auth + retry：业务失败由 retry 恢复后，follower 拿到最终成功，'

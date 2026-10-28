@@ -17,6 +17,7 @@
   "G4:DiomanTimeouts.connect#effective:no-result",
   "G4:DiomanTimeouts.send#effective:no-real",
   "G4:DiomanTimeouts.send#effective:no-result",
+  "G4:INV-11:fail",
   "G4:INV-18:no-real",
   "G4:INV-18:no-result"
 ]

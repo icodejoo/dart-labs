@@ -41,7 +41,12 @@ List<String> verifyPluginRules(ScenarioClient client) {
   final names = <String>{};
   for (final key in DiomanExtraKeys.all) {
     if (!names.add(key.key)) throw StateError('extra 重复：${key.key}');
-    if (key.kind == DiomanExtraKeyKind.config && key.key != key.owner) {
+    // 传输层 adapter 不是插件，配置键的 owner 登记为类名，键由它自己的常量提供。
+    final adapterKey = key.owner == DiomanExtraKeys.mockAdapterOwner;
+    if (key.kind == DiomanExtraKeyKind.config &&
+        (adapterKey
+            ? key.key != DiomanMockAdapter.extraKey
+            : key.key != key.owner)) {
       throw StateError('extra 配置键所有权错误：${key.key}');
     }
     if (key.kind == DiomanExtraKeyKind.state &&

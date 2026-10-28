@@ -22,7 +22,7 @@ export 'src/normalize_plugin.dart' hide diomanNormalizeFailureProbe;
 export 'src/cache_plugin.dart' hide diomanCacheWireStoreJudge;
 export 'src/offline_plugin.dart';
 export 'src/share_plugin.dart';
-export 'src/mock_plugin.dart';
+export 'src/mock_adapter.dart';
 export 'src/cancel_plugin.dart';
 export 'src/loading_plugin.dart';
 export 'src/auth_plugin.dart';

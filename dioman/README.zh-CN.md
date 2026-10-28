@@ -34,7 +34,7 @@
 | `DiomanCache` | 带 TTL 的响应缓存，支持 `none`/`shallow`/`deep` 克隆策略。 |
 | `DiomanOffline` | 断网时请求入队，联网恢复后重放。 |
 | `DiomanShare` | 同 key 并发请求去重（`start`/`end`/`race`/`retry`）。 |
-| `DiomanMock` | 基于路由的 mock（内联处理器或 mock 服务器），失败自动回落真实 API。 |
+| `DiomanMockAdapter` | 传输层 mock（仅开发/测试）：内联路由或 mock 服务器，失败自动回落真实 API。包装 `dio.httpClientAdapter`，不是插件，没有安装顺序。 |
 | `DiomanCancel` | 给每个请求注入 `CancelToken`；`cancelAll()` 一键中断在途请求。 |
 | `DiomanLoading` | 在途请求计数 → 单一 `onChanged(bool)`，驱动全局 loading。 |
 | `DiomanAuth` | 注入 token + 单窗口 401/403 刷新重放（5 种失败动作）。 |
@@ -72,7 +72,6 @@ final handle = Dioman.install(
   key: const DiomanKey(),                 // 缓存/去重的 key
   cache: DiomanCache(persist: yourCachePersist),                   // TTL 缓存（GET）
   share: DiomanShare(),                   // 并发去重
-  mock: DiomanMock(),                     // 默认 enabled: false——仅开发用
   cancel: DiomanCancel(),
   loading: DiomanLoading(onChanged: (busy) => showSpinner(busy)),
   auth: DiomanAuth(
@@ -105,11 +104,11 @@ await dio.get('/x', options: Options(extra: {
   'dioman:cache':     const DiomanCacheOptions(expires: 5000, clone: DiomanClonePolicy.shallow),
   'dioman:offline':   const DiomanOfflineOptions(enabled: false),                      // 断网时本次不入队
   'dioman:share':     const DiomanShareOptions(policy: SharePolicy.race),            // 或 `enabled: false` 关闭
-  'dioman:mock':      const DiomanMockOptions(mockUrl: 'http://localhost:9999'),      // 或 `enabled: false` 跳过
+  'dioman:mock':      const DiomanMockOptions(mockUrl: 'http://localhost:9999'),      // 由 DiomanMockAdapter 读取；或 `enabled: false` 跳过
   'dioman:loading':   const DiomanLoadingOptions(enabled: false),                     // 不计入指示器
   'dioman:retry':     DiomanRetryOptions(max: 1, shouldRetry: (err, r) => false),      // 或 `enabled: false`
   'dioman:breaker':   const DiomanBreakerOptions(enabled: false),                      // 本次跳过熔断器
-  'dioman:filter':    const DiomanFilterOptions(ignoreKeys: ['page']),                // 或 `enabled: false` 跳过
+  'dioman:filter':    const DiomanFilterOptions(ignoreKeys: ['page']),                // 由 DiomanMockAdapter 读取；或 `enabled: false` 跳过
   'dioman:repath':    const DiomanRepathOptions(enabled: false),                      // 跳过 `{id}` 替换
   'dioman:timeout':   const DiomanTimeoutOptions(enabled: false),                     // 本次保留原有超时
   'dioman:normalize': const DiomanNormalizeOptions(enabled: false),                   // 保留信封不拆包
@@ -124,7 +123,7 @@ await dio.get('/x', options: Options(extra: {
 ## 推荐顺序
 
 ```
-envs → timeout → repath → filter → key → cache → offline → share → mock → cancel → loading → auth → retry → breaker → log → normalize
+envs → timeout → repath → filter → key → cache → offline → share → cancel → loading → auth → retry → breaker → log → normalize
 ```
 
 | # | 插件 | 请求阶段职责 | 响应/错误阶段职责 |
@@ -137,8 +136,7 @@ envs → timeout → repath → filter → key → cache → offline → share �
 | 6 | `cache` | 命中即返回 | 存原始数据 |
 | 7 | `offline` | 断网时入队 | （恢复后重放） |
 | 8 | `share` | 并发去重 | 唤醒等待者 |
-| 9 | `mock` | 开发覆盖 / 回落 | — |
-| 10 | `cancel` | 注入 `CancelToken` | 释放 token |
+| 9 | `cancel` | 注入 `CancelToken` | 释放 token |
 | 11 | `loading` | 计数 +1 | 计数 -1（括号） |
 | 12 | `auth` | 注入 token / 等刷新 | 401 → 刷新 + 重放 |
 | 13 | `retry` | — | 重试网络/业务失败 |
@@ -151,7 +149,7 @@ envs → timeout → repath → filter → key → cache → offline → share �
 - `key` 在 `cache` 与 `share` 之前——它们读 `extra[kKey]`。
 - `cache` 在 `offline` 之前——断网读命中缓存会在入队前短路（读优先用 stale 缓存）。
 - `offline` 在 `share`/`cancel`/`loading` 之前——挂起（入队）的请求绝不能建过 share entry 或开过 cancel/loading 括号，否则等待期间会泄漏。
-- `cache`/`share`/`mock` 在 `cancel` 与 `loading` 之前——避免命中直接短路时，loading 或 cancel 的括号开了却等不到关闭。
+- `cache`/`share` 在 `cancel` 与 `loading` 之前——避免命中直接短路时，loading 或 cancel 的括号开了却等不到关闭。
 - `cancel` 与 `loading` 在 `auth` 与 `retry` 之前——这样 401 或重试把错误 resolve 掉之前，括号的清理已经跑完。
 - `breaker` 在 `retry` 之后——这样它只统计每个请求的*最终*结果（被重试救回的算成功，只有重试耗尽的才算失败），不会被重试已吸收的偶发抖动误触发。
 - `normalize` 排最后，在所有插件（包括 `log`）之后——它可选、跟业务相关，其它每个插件都应该看到响应在线路上原本的样子。
@@ -339,9 +337,29 @@ dio.interceptors.add(offline); // 在 DiomanCache 之后、DiomanShare 之前
 | `retry` | 共享 promise 且内部重试，调用方看不到重试过程。 |
 | `none` | 关闭。 |
 
-### DiomanMock
+### DiomanMockAdapter
 
-`DiomanMock({bool enabled = false, String? mockUrl, MockFallbackDecider? fallbackWhen, Map<String, MockHandler>? routes})`——`fallbackWhen` 默认 `defaultFallback`（404 或网络错误，用户主动取消除外）；`routes` 默认为空。用 `METHOD:path` 匹配内联处理器，否则转发到 `mockUrl`；遇 404/网络错误则**回落到真实 API**。用 `add('GET:/pet', ...)`、`remove`、`reset` 管理路由。
+mock 在传输层：`DiomanMockAdapter` 直接包装 `dio.httpClientAdapter`，不经过 `Dioman.install`。它不是插件，没有安装顺序可排错。**只在开发/测试 flavor 中安装**；纯 Dart 库无法替应用判断 release。
+
+```dart
+// Development/test flavor bootstrap only:
+dio.httpClientAdapter = DiomanMockAdapter(
+  inner: dio.httpClientAdapter,
+  routes: {
+    'GET:/pets': (_) async => ResponseBody.fromString('[]', 200,
+      headers: {Headers.contentTypeHeader: ['application/json']}),
+  },
+  // mockUrl: 'http://localhost:4523', // optional fallback mock server
+);
+```
+
+构造参数：必传 `inner`；`routes = const {}`、`mockUrl`、`fallbackWhen = defaultFallback`、`enabled = true`。按 `METHOD:uri.path` 匹配内联路由，未命中时转发至 `mockUrl`（保留路径和查询串），否则透传真实接口。内联结果不回落；转发的 404 响应或非取消传输异常默认回落。adapter 返回原始响应，由 Dio 统一解码与校验状态：`fallbackWhen(response:)` 的 `data` 为 `ResponseBody`，HTTP 500 默认交给 Dio，可自定义回落条件。转发需要回落时，请求体在内存缓冲后分别重放。
+
+按请求覆盖用 `extra[DiomanMockAdapter.extraKey]`（即 `'dioman:mock'`）：传 `DiomanMockOptions` 可覆盖 enabled/routes/mockUrl/fallbackWhen（routes 合并、同键以请求级为准）；传 `false` 或 `DiomanMockOptions(enabled: false)` 则本次关闭 mock。
+
+与插件链的关系：adapter 在所有插件**之下**，贴着传输层。所以 `share` 会在请求到达它之前就把相同的并发请求合并（只发一次 mock 探测，而不是 N 次）；`auth`/`retry` 重放会再次经过它（mock 的 500 也按 retry 配置重试，每次重放都重新探测 mock）；`cache` 命中或 `offline` 排队时请求根本到不了 adapter，真实回落的响应则像普通真实响应一样被缓存。
+
+内联与不回落的转发响应带 `DiomanMockAdapter.markerHeader`（`x-dioman-mock: 1`）。`DiomanCache` 发现该头即禁止写入，先于 `shouldStore` 且不能放开；真实回落响应不添加标记，照常缓存。同 key 先 mock 再关闭 mock 不会读到被 mock 污染的缓存；已有真实缓存仍可命中。
 
 ### DiomanCancel
 
@@ -388,7 +406,7 @@ dio.interceptors.add(offline); // 在 DiomanCache 之后、DiomanShare 之前
 | `dioman:cache` | cache | `DiomanCacheOptions` | `enabled: false` 跳过；`expires`/`clone` 单次配置。 |
 | `dioman:offline` | offline | `DiomanOfflineOptions` | `enabled: false` 跳过（断网也直接放行）；`shouldQueue`/`maxQueueSize`/`maxWait` 单次配置。 |
 | `dioman:share` | share | `DiomanShareOptions` | `enabled: false` 关闭；`policy` 覆盖。 |
-| `dioman:mock` | mock | `DiomanMockOptions` | `enabled: false` 跳过；`mockUrl` 覆盖目标。 |
+| `dioman:mock` | `DiomanMockAdapter`（非插件） | `DiomanMockOptions` \| `false` | `false` / `enabled: false` 跳过；`mockUrl` 覆盖目标。键常量：`DiomanMockAdapter.extraKey`。 |
 | `dioman:loading` | loading | `DiomanLoadingOptions` | `enabled: false` → 不计入指示器。 |
 | `dioman:log` | log | `DiomanLogOptions` | `enabled: false` → 本次不记日志。 |
 | `dioman:retry` | retry | `int` \| `false` \| `DiomanRetryOptions` | `int`只覆盖`max`；`false`禁用（最高优先级否决）；对象形式覆盖任意字段（`max`/`methods`/`shouldRetry`/`statusCodes`/`delay`/`jitter`/`delayMax`/`respectRetryAfter`/`afterStatusCodes`/`retryAfterMax`/`enabled`）。 |

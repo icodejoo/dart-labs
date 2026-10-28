@@ -4,6 +4,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'package:dio/dio.dart';
+import 'package:dio/io.dart';
 import 'package:dioman/dioman.dart';
 import 'client.dart';
 import 'common.dart';
@@ -176,14 +177,17 @@ Future<ApiEvidence> runApiProbes() async {
             interval: ms(1),
             enabled: true),
         [tkPolicy, tkRetries, tkInterval, tkEnabled]);
+    // mock 是传输层 adapter：包住宿主 adapter，在 install 之前装上（默认关闭）。
     final mock = e.constructed(
-        tkDiomanMock,
-        DiomanMock(
+        'DiomanMockAdapter',
+        DiomanMockAdapter(
+            inner: dio.httpClientAdapter,
             enabled: false,
             mockUrl: '$base/t/mock',
             fallbackWhen: defaultFallback,
             routes: {}),
-        [tkEnabled, tkMockUrl, tkFallbackWhen, tkRoutes]);
+        ['inner', tkEnabled, tkMockUrl, tkFallbackWhen, tkRoutes]);
+    dio.httpClientAdapter = mock;
     final cancel =
         e.constructed(tkDiomanCancel, DiomanCancel(enabled: true), [tkEnabled]);
     final loading = e.constructed(
@@ -350,7 +354,6 @@ Future<ApiEvidence> runApiProbes() async {
         cache: cache,
         offline: offline,
         share: share,
-        mock: mock,
         cancel: cancel,
         loading: loading,
         auth: auth,
@@ -370,7 +373,6 @@ Future<ApiEvidence> runApiProbes() async {
       tkDiomanCache: cache,
       tkDiomanOffline: offline,
       tkDiomanShare: share,
-      tkDiomanMock: mock,
       tkDiomanCancel: cancel,
       tkDiomanLoading: loading,
       tkDiomanAuth: auth,
@@ -466,7 +468,7 @@ Future<ApiEvidence> runApiProbes() async {
               retries: 1,
               interval: ms(1)),
           [tkEnabled, tkPolicy, tkRetries, tkInterval]),
-      DiomanMock.pluginName: e.constructed(
+      DiomanMockAdapter.extraKey: e.constructed(
           tkDiomanMockOptions,
           DiomanMockOptions(
               enabled: false,
@@ -745,13 +747,24 @@ Future<ApiEvidence> runApiProbes() async {
       'DiomanCachePersist.remove',
       'DiomanCachePersist.erase'
     ], tkManagement);
-    mock.add(tkGETUnused, (o) async => ResponseBody.fromString(tkEmpty, 200));
-    mock.remove(tkGETUnused);
-    mock.reset();
+    // 独立 adapter 直接走一遍内联路由与关闭：不碰宿主 dio 的传输层。
+    final inline = DiomanMockAdapter(
+        inner: IOHttpClientAdapter(),
+        routes: {
+          tkGETUnused: (o) async => ResponseBody.fromString(tkEmpty, 200)
+        });
+    final inlineBody =
+        await inline.fetch(RequestOptions(path: '/unused'), null, null);
+    e.check(
+        inlineBody.headers[DiomanMockAdapter.markerHeader]?.first == '1',
+        'mock 命中缺少标记头');
+    await inlineBody.stream.drain<void>();
+    inline.close(force: true);
+    e.read('DiomanMockAdapter.extraKey', DiomanMockAdapter.extraKey);
+    e.read('DiomanMockAdapter.markerHeader', DiomanMockAdapter.markerHeader);
     e.mark([
-      'DiomanMock.add',
-      'DiomanMock.remove',
-      'DiomanMock.reset',
+      'DiomanMockAdapter.fetch',
+      'DiomanMockAdapter.close',
       'MockHandler',
       'MockFallbackDecider',
       'defaultFallback'

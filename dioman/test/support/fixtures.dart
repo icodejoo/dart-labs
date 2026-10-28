@@ -246,18 +246,18 @@ class AsyncOnlyCachePersist implements DiomanCachePersist {
 }
 
 const pluginNames = [
-  tkEnvs, tkRepath, tkFilter, tkKey, tkCache, tkShare, tkMock, //
+  tkEnvs, tkRepath, tkFilter, tkKey, tkCache, tkShare, //
   tkCancel, tkLoading, tkAuth, tkRetry, tkLog, tkNormalize, //
   tkTimeout, tkOffline, tkBreaker,
 ];
 
-/// Number of core plugins (bits 0-12) — the paced exception sweep's universe.
-const coreCount = 13;
+/// Number of core plugins (bits 0-11) — the paced exception sweep's universe.
+const coreCount = 12;
 
-/// Highest mask value for the baseline sweep (all 16 plugins).
+/// Highest mask value for the baseline sweep (all 15 plugins).
 final allMax = (1 << pluginNames.length) - 1;
 
-/// Highest mask value for the paced sweep (core 13 only; bits 13-15 stay 0).
+/// Highest mask value for the paced sweep (core 12 only; bits 12-14 stay 0).
 final coreMax = (1 << coreCount) - 1;
 
 /// hasBit 的测试辅助入口。
@@ -270,20 +270,20 @@ bool hasKey(int mask) => hasBit(mask, 3);
 bool hasCache(int mask) => hasBit(mask, 4);
 
 /// hasAuth 的测试辅助入口。
-bool hasAuth(int mask) => hasBit(mask, 9);
+bool hasAuth(int mask) => hasBit(mask, 8);
 
 /// hasRetry 的测试辅助入口。
-bool hasRetry(int mask) => hasBit(mask, 10);
+bool hasRetry(int mask) => hasBit(mask, 9);
 
 /// hasNormalize 的测试辅助入口。
-bool hasNormalize(int mask) => hasBit(mask, 12);
+bool hasNormalize(int mask) => hasBit(mask, 11);
 
 /// installSubset 的测试辅助入口。
 /// Installs the subset of the plugins selected by [mask]'s bits (bit i
 /// ↔ [_names][i]) — [Dioman.install] slots them into the canonical order
 /// regardless of which bits are set. `retry`/`auth` are configured to
 /// recover in exactly 1 extra attempt so the exception-path phases below
-/// stay deterministic and fast. The three appended plugins (bits 13-15) are
+/// stay deterministic and fast. The three appended plugins (bits 12-14) are
 /// configured as pure pass-throughs on the plain-success path: `timeout`
 /// only rewrites config, `offline` reports `isOnline: true` so nothing is
 /// queued, and `breaker` never trips because every request in the baseline
@@ -295,7 +295,7 @@ DiomanHandle installSubset(Dio dio, int mask, TestTokens tm) {
     dio,
     envs: has(0) ? DiomanEnvs(const []) : null,
     timeout:
-        has(13) ? DiomanTimeout(probe: () => NetworkQuality.excellent) : null,
+        has(12) ? DiomanTimeout(probe: () => NetworkQuality.excellent) : null,
     repath: has(1) ? DiomanRepath() : null,
     filter: has(2) ? const DiomanFilter() : null,
     key: has(3) ? const DiomanKey() : null,
@@ -305,29 +305,28 @@ DiomanHandle installSubset(Dio dio, int mask, TestTokens tm) {
             cachePolicy: DiomanCachePolicy.memo,
           )
         : null,
-    offline: has(14)
+    offline: has(13)
         ? DiomanOffline(
             isOnline: () => true,
             onConnectivityChanged: const Stream<bool>.empty(),
           )
         : null,
     share: has(5) ? DiomanShare(policy: DiomanSharePolicy.start) : null,
-    mock: has(6) ? DiomanMock(enabled: false) : null,
-    cancel: has(7) ? DiomanCancel() : null,
-    loading: has(8) ? DiomanLoading(onChanged: (_) {}) : null,
-    auth: has(9)
+    cancel: has(6) ? DiomanCancel() : null,
+    loading: has(7) ? DiomanLoading(onChanged: (_) {}) : null,
+    auth: has(8)
         ? DiomanAuth(
             tokenManager: tm,
             onRefresh: (_, __) async => tm.set(tkT1),
             onAccessExpired: (_, __) async {},
           )
         : null,
-    retry: has(10)
+    retry: has(9)
         ? DiomanRetry(max: 1, delay: (_, __, ___, ____) => Duration.zero)
         : null,
-    breaker: has(15) ? DiomanBreaker() : null,
-    log: has(11) ? DiomanLog(writer: (m, {error}) {}) : null,
-    normalize: has(12) ? const DiomanNormalize() : null,
+    breaker: has(14) ? DiomanBreaker() : null,
+    log: has(10) ? DiomanLog(writer: (m, {error}) {}) : null,
+    normalize: has(11) ? const DiomanNormalize() : null,
   );
 }
 
@@ -639,7 +638,7 @@ String requestKey(RequestOptions options) {
   return options.extra[kKey] as String;
 }
 
-/// 改动前 [Dioman.install] 的固定顺序（逐字照抄，作为回归基线）。
+/// [Dioman.install] 的固定顺序（逐字照抄，作为回归基线）。
 const canonicalOrder = <String>[
   tkDiomanEnvs2,
   'dioman:timeout',
@@ -649,7 +648,6 @@ const canonicalOrder = <String>[
   tkDiomanCache2,
   tkDiomanOffline2,
   tkDiomanShare2,
-  tkDiomanMock2,
   tkDiomanCancel2,
   tkDiomanLoading2,
   tkDiomanAuth2,
@@ -679,7 +677,7 @@ class OrderTokens implements DiomanTokenManager {
 }
 
 /// allBuiltins 的测试辅助入口。
-/// 按 [canonicalOrder] 顺序构造全部 16 个内置插件。
+/// 按 [canonicalOrder] 顺序构造全部 15 个内置插件。
 List<DiomanPlugin> allBuiltins() => [
       DiomanEnvs(const []),
       DiomanTimeout(probe: () => NetworkQuality.excellent),
@@ -692,7 +690,6 @@ List<DiomanPlugin> allBuiltins() => [
         onConnectivityChanged: const Stream<bool>.empty(),
       ),
       DiomanShare(),
-      DiomanMock(enabled: false),
       DiomanCancel(),
       DiomanLoading(onChanged: (_) {}),
       DiomanAuth(

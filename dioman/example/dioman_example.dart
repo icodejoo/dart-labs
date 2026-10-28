@@ -60,7 +60,7 @@ class InMemoryCachePersist implements DiomanCachePersist {
 // order below:
 //
 //   1. A short-circuit — `handler.resolve()` from onRequest (cache hit / share
-//      wait / mock hit) — SKIPS every following response interceptor.
+//      wait) — SKIPS every following response interceptor.
 //   2. The onError chain always runs forward through EVERY interceptor, and the
 //      first one to `resolve()` (auth-401-replay, retry) stops the rest.
 //
@@ -72,7 +72,7 @@ class InMemoryCachePersist implements DiomanCachePersist {
 //                                                    live responses differ)
 //   • normalize ─ before auth                      (auth assumes business errors
 //                                                    are already exceptions)
-//   • cache/share/mock ─ before cancel & loading   (so a short-circuit doesn't
+//   • cache/share ─ before cancel & loading        (so a short-circuit doesn't
 //                                                    leak a token / counter)
 //   • cancel & loading ─ before auth & retry       (on a 401 or a network retry,
 //                                                    auth/retry RESOLVE the error
@@ -89,12 +89,14 @@ class InMemoryCachePersist implements DiomanCachePersist {
 //  5  normalize           —                        unwrap envelope / reject biz-err
 //  6  cache               serve from cache         store unwrapped payload
 //  7  share               dedup concurrent         settle waiters
-//  8  mock                dev override / fallback   —
-//  9  cancel              inject CancelToken        release token
-//  10 loading             count++                  count-- (bracket)
-//  11 auth                inject token / wait       401 → refresh + replay
-//  12 retry               —                        retry network failures
-//  13 log                 log request              log response / error
+//  8  cancel              inject CancelToken        release token
+//  9  loading             count++                  count-- (bracket)
+//  10 auth                inject token / wait       401 → refresh + replay
+//  11 retry               —                        retry network failures
+//  12 log                 log request              log response / error
+//
+// Mocking is NOT a plugin: [DiomanMockAdapter] wraps `dio.httpClientAdapter`
+// (transport level, below the whole chain), so it has no slot in this order.
 //
 // Known trade-off: business-level retry (DiomanRetry.shouldRetry, which
 // inspects the envelope `code`) is unavailable here because normalize (#5) has
@@ -126,6 +128,13 @@ Dio createHttp({
     ),
   );
 
+  // Dev-only mock at the transport layer (see the note above): wrap the host
+  // adapter, no ordering constraints. Install it only in dev/test flavors.
+  if (enableMock) {
+    dio.httpClientAdapter =
+        DiomanMockAdapter(inner: dio.httpClientAdapter, mockUrl: mockUrl);
+  }
+
   // 1. envs — resolved once at install time; passing `dio` applies the matching
   //    rule to dio.options right here in the constructor.
   final envs = DiomanEnvs(dio: dio, [
@@ -149,9 +158,8 @@ Dio createHttp({
     const DiomanNormalize(), //                                           (5)
     DiomanCache(persist: InMemoryCachePersist()), //                       (6)
     DiomanShare(), //                                                     (7)
-    DiomanMock(enabled: enableMock, mockUrl: mockUrl), //                 (8)
     // ── lifecycle brackets (must precede auth & retry) ────────────────────
-    DiomanCancel(), //                                                    (9)
+    DiomanCancel(), //                                                    (8)
     DiomanLoading(onChanged: onLoading ?? (l) => print('[http] loading=$l')),
     // ── auth & retry (may resolve the error chain) ────────────────────────
     DiomanAuth(
@@ -171,10 +179,10 @@ Dio createHttp({
         );
       },
       onAccessExpired: (_, __) async => onSessionExpired?.call(),
-    ), //                                                                 (11)
-    DiomanRetry(max: retryMax), //                                      (12)
+    ), //                                                                 (10)
+    DiomanRetry(max: retryMax), //                                      (11)
     // ── observability (last: sees the fully-processed request) ────────────
-    const DiomanLog(logHeaders: true), //                               (13)
+    const DiomanLog(logHeaders: true), //                               (12)
   ]);
 
   return dio;

@@ -20,7 +20,6 @@ void main() {
     expect(cancel.ordering.after, {
       DiomanCache.pluginName,
       DiomanShare.pluginName,
-      DiomanMock.pluginName
     });
     expect(cancel.ordering.before,
         {DiomanAuth.pluginName, DiomanRetry.pluginName});

@@ -96,9 +96,11 @@ class DiomanRetryOptions {
   /// `response`如何传入）见[DiomanRetry.shouldRetry]。
   final DiomanShouldRetry? shouldRetry;
 
-  /// Overrides the plugin's default status-code table for this request only.
+  /// Overrides the plugin's default status-code table for this request only
+  /// (the plugin default is `[408,429,500,502,503,504]`, not every 5xx).
   ///
-  /// 仅本次请求覆盖插件默认的状态码表。
+  /// 仅本次请求覆盖插件默认的状态码表（插件默认是`[408,429,500,502,503,504]`，
+  /// 不是所有5xx）。
   final List<int>? statusCodes;
 
   /// Overrides the plugin's default back-off `delay` for this request only.
@@ -135,9 +137,13 @@ class DiomanRetryOptions {
   final Duration? retryAfterMax;
 }
 
+// 默认允许重试的幂等方法（不含 POST/PATCH）。
 const _defaultMethods = ['GET', 'PUT', 'HEAD', 'DELETE', 'OPTIONS', 'TRACE'];
+// 默认可重试的状态码：408/429 加 500/502/503/504，不是整段 5xx（不含 501/505）。
 const _defaultStatusCodes = [408, 429, 500, 502, 503, 504];
+// 默认信任 Retry-After 头的状态码。
 const _defaultAfterStatusCodes = [413, 429, 503];
+// 默认的固定退避时长。
 const _defaultDelay = Duration(milliseconds: 3000);
 // Sentinel "uncapped" value — Duration has no infinite constant.
 const _uncapped = Duration(days: 36500);
@@ -183,7 +189,7 @@ final _random = Random();
 /// [Dioman.install] via [dio]; a bare `Dio()` otherwise) — same pattern as
 /// [DiomanAuth]'s post-failure replay and [DiomanShare]'s own `policy=retry`
 /// re-issues. It never re-enters this chain, so it never re-triggers cache
-/// writes, share dedup, mock, cancel/loading brackets, auth injection, or
+/// writes, share dedup, cancel/loading brackets, auth injection, or
 /// logging for the retry attempt itself. Consequences to know:
 /// - [shouldRetry] always sees the RAW response body — [DiomanNormalize]
 ///   (if used at all) belongs LAST in the chain, after this plugin (see its
@@ -199,11 +205,15 @@ final _random = Random();
 ///   request in onRequest and hands off only when the request's true final
 ///   outcome is known, so shared callers never see a pre-retry result and
 ///   `cancelAll()` covers the whole logical request, including back-off waits.
+/// - It only recovers requests its own onRequest let through. A result that an
+///   upstream plugin short-circuited (a [DiomanCache] hit, a [DiomanShare]
+///   follower, ...) never reached this plugin's onRequest, so it is passed on as-is —
+///   not retried, not rewritten.
 ///
 /// 重新发起走一个不带拦截器、借用宿主客户端`httpClientAdapter`/`transformer`的
 /// `Dio`（由[Dioman.install]通过[dio]绑定；未绑定则是裸`Dio()`）——跟[DiomanAuth]
 /// 的失败后重放、[DiomanShare]自己的`policy=retry`重新发起是同一套做法。它永远
-/// 不会重新进入本拦截器链，所以重试本身不会重新触发缓存写入、share去重、mock、
+/// 不会重新进入本拦截器链，所以重试本身不会重新触发缓存写入、share去重、
 /// cancel/loading括号、鉴权注入或日志。需要知道的几点：
 /// - [shouldRetry]看到的永远是**原始**响应体——[DiomanNormalize]（如果用的话）
 ///   应当装在链条**最后**、本插件之后（见它自己的类文档），所以它不会先于
@@ -216,6 +226,9 @@ final _random = Random();
 /// - 对[DiomanShare]/[DiomanCancel]，本插件在onRequest里把自己登记到请求上，
 ///   只在请求的真正最终结果确定后才交接，因此共享调用方不会看到重试前的结果，
 ///   `cancelAll()`覆盖整个逻辑请求，包括退避等待期间。
+/// - 只恢复自己onRequest放行过的请求。上游短路的结果（[DiomanCache]命中、
+///   [DiomanShare]跟随者等）没有经过本插件的onRequest，原样往后交，不重试也不
+///   改写。
 ///
 /// While waiting out a `delay`, the wait races [RequestOptions.cancelToken]'s
 /// `whenCancel` — cancelling mid-wait stops it immediately instead of idling
@@ -633,19 +646,26 @@ class DiomanRetry extends DiomanPlugin {
   /// 责任登记到请求上：下游的 share 因此等到最终结果才结算，cancel 因此在整个
   /// 逻辑请求（含退避等待）期间持续追踪 token。每条出口都会注销，见
   /// [_handleResponse]/[_handleError]。
+  ///
+  /// 这个认领同时是"本插件放行过该请求"的凭据：只有持有认领的请求，本插件才会在
+  /// 响应/错误阶段恢复它，见 [_notAdmitted]。
   @override
   void onRequest(RequestOptions options, RequestInterceptorHandler handler) {
     if (_mayRetry(options)) claimRequest(options, this);
     handler.next(options);
   }
 
-  /// 请求是否已进入结算登记簿（share 参与）而本插件没有认领。说明 onRequest 被
-  /// 上游短路（如 mock），share 已按"无认领"当场结算，此时再恢复会让 leader 与
-  /// follower 结果不一致。没有登记簿（无 share）时保持原行为，仍可恢复。
-  bool _unclaimedUnderShare(RequestOptions config) {
-    final claims = claimsOf(config);
-    return claims != null && !claims.has(this);
-  }
+  /// 该请求是否不是本插件放行的：本请求的认领登记簿里没有本插件。
+  ///
+  /// 本插件只在自己的 onRequest 里认领（[_mayRetry] 为真时），交出最终结果前
+  /// 一直持有。没有认领说明请求在本插件之前就被短路了（cache 命中、
+  /// share 跟随者等），或者按配置本就不会被重试。这类结果不是本插件放行出去的，
+  /// 原样往后交，不重试、不改写。
+  ///
+  /// 注意要认"有没有本插件"而不是"有没有登记簿"：无 share 的链上短路请求根本
+  /// 没有登记簿，只判登记簿会漏掉它们。
+  bool _notAdmitted(RequestOptions config) =>
+      claimsOf(config)?.has(this) != true;
 
   /// 该请求按配置是否可能被本插件重试。
   bool _mayRetry(RequestOptions config) =>
@@ -671,7 +691,7 @@ class DiomanRetry extends DiomanPlugin {
     final config = response.requestOptions;
     try {
       if (isJoined(config) ||
-          _unclaimedUnderShare(config) ||
+          _notAdmitted(config) ||
           !_shouldRetry(config, null, response)) {
         return ReplayClient.handOffResponse(config, this, response, handler);
       }
@@ -747,7 +767,7 @@ class DiomanRetry extends DiomanPlugin {
     final config = err.requestOptions;
     try {
       if (isJoined(config) ||
-          _unclaimedUnderShare(config) ||
+          _notAdmitted(config) ||
           config.extra.remove(_kCallbackFailed) == true ||
           !_shouldRetry(config, err, err.response)) {
         return _replay.handOffError(this, config, err, handler);

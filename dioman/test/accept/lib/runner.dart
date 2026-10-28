@@ -8,6 +8,22 @@ import 'client.dart';
 import 'common.dart';
 import 'plugin_rules.dart';
 
+/// 判定为"与 dioman 设计不适用"的场景及原因（原因必须以 `不适用：` 开头，
+/// 汇总时据此不计入结论）。
+///
+/// dioman 的 mock 是传输层 adapter（[DiomanMockAdapter]），位于 cache / share
+/// 之下：
+/// - 回落的真实数据可被缓存，第二次直接命中缓存，不再探测 mock；
+/// - 相同的并发请求先在 share 层合并，只发一次 mock 探测。
+/// 这两个场景按"mock 在 cache/share 之上"的次数断言，与该设计必然不同。
+const designDifferenceScenarios = <String, String>{
+  'combo.cache-mock-fallback-cached-once':
+      '不适用：dioman 的 mock 位于传输层，回落的真实数据会被缓存，第二次命中缓存，不再探测 mock',
+  'combo.mock-share-fallback-single-flight':
+      '不适用：dioman 的 mock 位于传输层，相同的并发请求先在 share 层合并，只发一次 mock 探测，'
+          '场景按总命中次数控制 404 会错位',
+};
+
 /// 封装 ScenarioRun 测试夹具。
 /// 一轮场景的解释器、观测与生命周期。
 class ScenarioRun {
@@ -44,6 +60,9 @@ class ScenarioRun {
 
   /// 所有在途取消令牌。
   final active = <CancelToken>{};
+
+  /// 每次原生批量取消实际命中的令牌数。
+  final cancelAllCounts = <int>[];
 
   /// 后台步骤。
   final fired = <Future<void>>[];
@@ -185,9 +204,8 @@ class ScenarioRun {
     final options = obj(spec[tkOptions]);
     final extra = c.extras(options, id);
     if (stopped || serviceBlocked) return;
-    final token = CancelToken();
+    var token = CancelToken();
     active.add(token);
-    c.handle.plugin<DiomanCancel>()?.track(token);
     final requestStyle = c.style;
     final rec = <String, dynamic>{tkId: id, tkStyle: requestStyle};
     final before = obj(obj(expectation[tkResults])[id]).containsKey(tkFromCache)
@@ -199,6 +217,21 @@ class ScenarioRun {
     final pluginTotal = obj(c.plugins[tkTimeout])[tkTotalMs];
     final total =
         pluginTotal == null ? null : options[tkTimeoutMs] ?? pluginTotal;
+    // 无外部取消时钟、探测或共享跟随者时，由插件注入并登记 token。
+    final nativeCancel = c.plugins.containsKey(tkCancel) &&
+        !c.plugins.containsKey(tkOffline) &&
+        !c.plugins.containsKey(tkShare) &&
+        total == null &&
+        spec[tkCancelAfterMs] == null;
+    if (nativeCancel) {
+      extra[tkAcceptOnToken] = (CancelToken registered) {
+        active.remove(token);
+        token = registered;
+        active.add(token);
+      };
+    } else {
+      c.handle.plugin<DiomanCancel>()?.track(token);
+    }
     if (total != null) {
       budgetTimer = Timer(ms(total as num), () {
         budgetExpired = true;
@@ -215,7 +248,7 @@ class ScenarioRun {
       final r = await c.dio.request<dynamic>(spec[tkPath] as String,
           queryParameters: obj(spec[tkQuery]),
           data: spec['body'],
-          cancelToken: token,
+          cancelToken: nativeCancel ? null : token,
           options: Options(
               method: spec[tkMethod] as String? ?? tkGET,
               headers: {...c.headers, ...obj(spec['headers'])},
@@ -246,7 +279,7 @@ class ScenarioRun {
       cancelTimer?.cancel();
       budgetTimer?.cancel();
       active.remove(token);
-      c.handle.plugin<DiomanCancel>()?.untrack(token);
+      if (!nativeCancel) c.handle.plugin<DiomanCancel>()?.untrack(token);
       records[id] = rec;
       order.add(id);
     }
@@ -308,9 +341,9 @@ class ScenarioRun {
           tkUsername: obj(v)[tkUser] ?? c.tokens.user,
           tkScope: obj(v)[tkScope] ?? 'all'
         });
-      case 'cancel_all':
+      case tkCancelAll:
         await pause(obj(v)['after_ms'] as num? ?? 0);
-        cancelAll(c.dio);
+        cancelAllCounts.add(c.handle.plugin<DiomanCancel>()?.cancelAll() ?? 0);
       case 'clear_cache':
         await c.handle.plugin<DiomanCache>()?.clear();
       case tkNetwork:
@@ -399,6 +432,7 @@ class ScenarioRun {
   /// eventSnapshot 的测试实现。
   /// 保留事件次数与完整序列。
   Map<String, dynamic> eventSnapshot() => {
+        tkCancelAll: cancelAllCounts,
         tkLoading: client!.loadingEvents,
         tkNotify: client!.notices.length,
         'messages': client!.notices,
@@ -446,7 +480,13 @@ class ScenarioRun {
         (scenario[tkRequires] as List).where((x) => !capabilities.contains(x));
     final excluded = !(scenario[tkNetworks] as List).contains(network) ||
         !(scenario[tkStyles] as List? ?? [tkHttp, tkBusiness]).contains(style);
-    if (missing.isNotEmpty || expectation[tkSkip] != null || excluded) {
+    // 未声明的格子仍按"未声明"记，只有声明过的格子才标设计差异。
+    final designDifference =
+        excluded ? null : designDifferenceScenarios['${scenario[tkId]}'];
+    if (missing.isNotEmpty ||
+        expectation[tkSkip] != null ||
+        designDifference != null ||
+        excluded) {
       server.close(force: true);
       netem.close(force: true);
       return {
@@ -457,7 +497,9 @@ class ScenarioRun {
               ? 'skipped: missing ${missing.first}'
               // 主动注入的 429/503 不再跳过：ServiceGuardAdapter 按注入标记放行，
               // 真实限流/熔断仍整轮停止（2026-10-28 决定）。
-              : expectation[tkSkip] ?? '场景未声明此网络或风格；不推断未定义的正确预期'
+              : expectation[tkSkip] ??
+                  designDifference ??
+                  '场景未声明此网络或风格；不推断未定义的正确预期'
         ]
       };
     }

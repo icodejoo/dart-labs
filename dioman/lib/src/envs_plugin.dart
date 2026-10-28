@@ -42,8 +42,15 @@ class EnvRule {
 ///
 /// 规则按顺序求值；**第一条命中**的规则生效，其余忽略。若都不匹配，插件不做任何事。
 ///
+/// Nothing is applied until [apply] runs. Either pass `dio:` to the
+/// constructor (it applies right away), or call [apply] yourself — neither
+/// `Dioman.install` nor `DiomanHandle` calls it for you.
+///
+/// 在[apply]执行之前不会套用任何配置。要么构造时传`dio:`（立即套用），要么自己调
+/// [apply]——`Dioman.install`和`DiomanHandle`都不会替你调用。
+///
 /// ```dart
-/// dio.interceptors.add(DiomanEnvs([
+/// final rules = [
 ///   EnvRule(
 ///     rule: () => const bool.fromEnvironment('dart.vm.product') == false,
 ///     config: BaseOptions(baseUrl: 'https://dev-api.example.com'),
@@ -52,7 +59,12 @@ class EnvRule {
 ///     rule: () => true, // fallback
 ///     config: BaseOptions(baseUrl: 'https://api.example.com'),
 ///   ),
-/// ]));
+/// ];
+/// // 方式一：构造时传 dio，立即套用
+/// final envs = DiomanEnvs(rules, dio: dio);
+/// // 方式二：先构造，稍后手动套用
+/// // final envs = DiomanEnvs(rules)..apply(dio);
+/// dio.interceptors.add(envs);
 /// ```
 class DiomanEnvs extends DiomanPlugin {
   /// Pass [dio] to apply the matching rule immediately at construction
@@ -92,10 +104,28 @@ class DiomanEnvs extends DiomanPlugin {
     handler.next(options);
   }
 
-  /// Called by the plugin manager after the interceptor is added.
-  /// Public so the manager (or the user) can trigger it explicitly.
+  /// Applies the **first matching** rule's [BaseOptions] to [dio]`.options`
+  /// (only non-null / non-default fields are written; `responseType` only when
+  /// it is not [ResponseType.json]). A no-op when the plugin is disabled or no
+  /// rule matches. Called automatically only by the constructor when `dio:` is
+  /// passed — [Dioman.install] and [DiomanHandle] do NOT call it, so with an
+  /// omitted `dio:` you must call it yourself. It is not tied to the
+  /// interceptor chain, so it may run before or after adding the plugin.
   ///
-  /// 由插件管理器在拦截器添加后调用。公开是为了让管理器（或用户）也能主动触发。
+  /// - [dio]: the instance whose `options` receive the matched rule's config.
+  ///
+  /// ```dart
+  /// final envs = DiomanEnvs(rules);
+  /// envs.apply(dio); // 手动套用一次
+  /// ```
+  ///
+  /// 套用**第一条命中**规则的[BaseOptions]到[dio]`.options`（只写入非空/非默认
+  /// 字段；`responseType`仅在不是[ResponseType.json]时才写）。插件被禁用或没有
+  /// 规则命中时什么也不做。只有构造时传了`dio:`才会自动调用；[Dioman.install]和
+  /// [DiomanHandle]都**不会**调用它，省略`dio:`时须自己调。它与拦截器链无关，
+  /// 加入插件之前或之后调用都可以。
+  ///
+  /// - [dio]：接收命中规则配置的实例。
   void apply(Dio dio) {
     if (!config.enabled) return;
     for (final r in rules) {

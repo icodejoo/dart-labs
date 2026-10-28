@@ -20,10 +20,10 @@ summary: testkit schema 的插件与请求级字段分别映射到 dioman 哪个
 | cache.methods（场景扩展字段） | 已映射 | shouldCache 方法白名单，默认 GET |
 | retry.max | 已映射 | max |
 | retry.delay_ms | 已映射 | delay 回调返回 Duration |
-| retry.statuses | 已映射 | shouldRetry 使用逻辑状态，默认 500/502/503/504；429 场景显式配置 |
+| retry.statuses | 已映射 | DiomanRetry/DiomanRetryOptions.statusCodes，默认 500/502/503/504；shouldRetry 仅判定 HTTP 成功响应中的非零业务码，其余返回 null，交回原生状态码及网络/超时分类 |
 | retry.methods | 已映射 | methods，默认 GET/PUT/HEAD/DELETE/OPTIONS |
 | retry.respect_retry_after | 已映射 | respectRetryAfter；afterStatusCodes 加入 200 以支持 business 风格 |
-| share.policy | 已映射 | DiomanSharePolicy.start/end/race；未知值显式报错 |
+| share.policy | 已映射 | 按名称解析 DiomanSharePolicy；中立 schema 定义 start/end/race，请求级另有 none。原生 retry 已可由枚举解析，但中立契约没有 retry 策略及 retries/interval 定义，本轮不扩展契约 |
 | loading.delay_ms | 已映射 | delay |
 | loading.delay_close_ms | 已映射 | delayClose，结束后等待 delayClose + 40ms 再读取事件 |
 | notify {} | 已映射 | DiomanNotify.notify/stringify；silent 与主动取消不通知，错误消息为空时提供默认文本 |
@@ -34,8 +34,10 @@ summary: testkit schema 的插件与请求级字段分别映射到 dioman 哪个
 | timeout.total_ms | 已映射 | **执行器宿主策略**：逻辑请求硬预算 Timer + CancelToken，进入插件错误链前还原 receiveTimeout；不是 DiomanTimeout 原生总预算 |
 | breaker.threshold | 已映射 | failureThreshold，按每次真实尝试计数 |
 | breaker.open_ms | 已映射 | resetDuration |
+| breaker 失败分类 | 已映射 | HTTP、网络及超时交给内置 shouldTrip 回落；回调仅补充 HTTP 成功响应中的非零业务码（429/5xx 计失败） |
 | offline.probe | 已映射 | **执行器宿主职责**：真实 /t/ping 探测提供 isOnline 与 onConnectivityChanged；maxWait=0 将离线队列转成快速失败 |
-| mock.fallback_on_404 | 已映射 | fallbackWhen；基址固定为起始 baseURL/t/mock，仅明确 404 才回退 |
+| mock {} | 已映射 | **传输层 DiomanMockAdapter**，不是插件：执行器在 `Dioman.install` 之前用它包住宿主 adapter，不进插件列表与顺序规则 |
+| mock.fallback_on_404 | 已映射 | DiomanMockAdapter.fallbackWhen；基址固定为起始 baseURL/t/mock，仅明确 404 响应才回退（传输异常不回退） |
 | repath/filter/cancel/envs/log {} | 已映射 | 对应原生插件；envs 无规则，log 原文采集；filter 只装配，不触发过滤（见请求级 `filter`） |
 | 其余字段 | 显式报错 | 构造客户端前检查 pluginFields，绝不静默忽略 |
 
@@ -46,19 +48,20 @@ summary: testkit schema 的插件与请求级字段分别映射到 dioman 哪个
 | auth | 已映射 | DiomanAuthOptions.enabled |
 | cache true/false/{ttl_ms,key} | 已映射 | DiomanCacheOptions.enabled/expires；key 经 DiomanKeyOptions.key |
 | retry | 已映射 | DiomanRetryOptions；对象仅允许 max/delay_ms/statuses/methods/respect_retry_after，支持数值与 false |
-| share | 已映射 | DiomanShareOptions.enabled/policy；none 与 false 关闭 |
+| share | 已映射 | false → enabled=false；none → enabled=true、DiomanSharePolicy.none，进入原生独立请求分支；两者在中立语义下均不共享 |
 | loading | 已映射 | DiomanLoadingOptions.enabled |
 | silent | 已映射 | 宿主 stringify 读取 accept:silent |
 | timeout_ms | 已映射 | Dio receiveTimeout（每次尝试）；存在 total_ms 时同时覆盖逻辑总预算 |
 | key true/deep/simple/字符串 | 已映射 | enabled/fastMode/key；true 与 deep 包含 query/body；simple 仅 method/origin/path |
-| mock | 已映射 | DiomanMockOptions.enabled |
+| mock | 已映射 | `extra[DiomanMockAdapter.extraKey]` = DiomanMockOptions.enabled |
 | normalize | 已映射 | DiomanNormalizeOptions.enabled，同时控制信封转换 |
 | breaker | 已映射 | DiomanBreakerOptions.enabled |
 | filter | 已映射 | testkit D19（2026-10-28）：仅 `true` 时 DiomanFilterOptions.enabled=true；缺省与 false 显式关闭（DiomanFilter 装上默认开启，与中立语义相反）；非布尔报错。中立语义还要求剔除 NaN，DiomanFilter 默认不剔除，场景未覆盖 |
-| cancel_after_ms | 已映射 | 外部 CancelToken；用原生 track/untrack 纳入 cancelAll |
+| cancel_after_ms | 已映射 | 定时取消、总预算、离线探测及 share 场景用外部 CancelToken，并通过原生 track/untrack 纳入 cancelAll；其余安装 cancel 的请求不传外部 token，由插件 onRequest 注入和登记，宿主仅接收 token 维护在途观测 |
 | 未登记字段或对象嵌套字段 | 显式报错 | 该场景失败并附字段名 |
 
 完整实现 16 个 step：request、parallel、sequence、fire、repeat、wait、login、set_token、logout、revoke、expire_local、cancel_all、clear_cache、network、server_reset、style。
+cancel_all 直接调用已安装的 DiomanCancel.cancelAll；报告 events.cancel_all 保留每次实际取消数量，用于确认登记与取消真正生效。
 login/logout/revoke/server_reset/expire_local 走服务器旁路；刷新经过被测网络但不经过插件链。
 expire_local 只更换 access，保留原 refresh；previous 在值真实变化时更新。fire 在场景结束前统一等待。
 flap 的宿主连通性采样采用 500ms 预算，在 1500ms 离线窗口内完成；避免 Windows TCP 重试跨过恢复时刻而误判初始在线。
@@ -80,6 +83,16 @@ flap 的宿主连通性采样采用 500ms 预算，在 1500ms 离线窗口内完
 status:<n> 根据**该请求**的响应风格匹配 http:n 或 business:n，支持预期 error 数组与 any。
 应用期望 JSON 时，HTML 网关页在转换器中抛 FormatException；裸 JSON、空响应与 text 按场景要求透传。
 业务信封转换是显式应用协议适配，不宣称库默认能识别所有服务端信封。
+
+mock 的两个**设计差异**（执行器在 runner 里按“不适用”跳过，原因以 `不适用：` 开头，汇总不计入结论）：
+
+- `combo.cache-mock-fallback-cached-once`：dioman 的 mock 在传输层、位于 cache 之下，回落的真实数据会被缓存，第二次命中缓存，不再探测 mock；场景按“mock 在 cache 之上、每次先探测 mock”断言次数。
+- `combo.mock-share-fallback-single-flight`：adapter 在 share 之下，相同的并发请求先在 share 层合并，只发一次 mock 探测；场景用总命中次数控制 404，合并后错位。
+
+本轮保留两项宿主适配边界：
+
+- normalize：D14 明确要求提前将业务失败转换为错误，让 auth/retry/cache 组合看到同一种失败。DiomanNormalize 安装在链尾；auth.onResponse 不处理业务 401/403，share 的内部 retry 也依赖传输层抛错。直接移除转换器判定会牵连鉴权刷新及共享重试等组合，因此本轮不改，不能将现有 PASS 宣称为 normalize 原生拒绝分支覆盖。建议后续先为这些组合分别接入业务失败判定，再收窄转换器；仅无前置失败消费者的场景可优先交给 normalize，需单独验证。
+- offline：CONTRACT §7 只声明能力及 offline 错误，schema 仅定义 probe，没有 maxWait、排队恢复、flush 时序的中立语义；现有场景要求无网快速失败。保留 maxWait=0，不能据此声称覆盖离线恢复重放。应先扩展中立契约与场景，再映射等待时间和恢复事件，不能擅用原生无限等待替换快速失败。
 
 | 客户端事件 | 原始来源 |
 |---|---|

@@ -345,7 +345,7 @@ class DiomanShare extends DiomanPlugin {
     } else {
       // callFollowingResponseInterceptor: true — a follower resolving here
       // (onRequest side) must still run onResponse of everything installed
-      // after share (mock, cancel, loading, auth, retry, log, normalize),
+      // after share (cancel, loading, auth, retry, log, normalize),
       // same as the leader's own response does, so e.g. DiomanNormalize
       // still unwraps the envelope for the follower too.
       _markJoined(options);

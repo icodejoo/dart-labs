@@ -1653,8 +1653,8 @@
     "result": {
       "status": "PASS",
       "source": "test/accept/evidence/2026-10-28-summary.json",
-      "passed": 2,
-      "total": 2
+      "passed": 4,
+      "total": 4
     },
     "blocked": null,
     "note": "源码：lib/src/cache_plugin.dart:488。"
@@ -2019,8 +2019,8 @@
     "result": {
       "status": "PASS",
       "source": "test/accept/evidence/2026-10-28-summary.json",
-      "passed": 2,
-      "total": 2
+      "passed": 4,
+      "total": 4
     },
     "blocked": null,
     "note": "源码：lib/src/cache_plugin.dart:146。"
@@ -2266,8 +2266,8 @@
     "result": {
       "status": "PASS",
       "source": "test/accept/evidence/2026-10-28-summary.json",
-      "passed": 10,
-      "total": 10
+      "passed": 12,
+      "total": 12
     },
     "blocked": null,
     "note": "源码：lib/src/cancel_plugin.dart:189。 本行只判集合、调用 cancel 与返回数；底层请求是否及时结束和资源释放另拆 H1/H1b。真实 cancel_all 对 caller token 是否追踪需终审，见 INV-11。"
@@ -2700,8 +2700,8 @@
     "result": {
       "status": "PASS",
       "source": "test/accept/evidence/2026-10-28-summary.json",
-      "passed": 70,
-      "total": 70
+      "passed": 76,
+      "total": 76
     },
     "blocked": null,
     "note": "计划有 32 个 pair id，双响应风格共 64 格；目录 plugins 字段是开关全集，不表示每一格启用全部插件。仅代表真实传输核对，非全部选项断言。",
@@ -2759,13 +2759,13 @@
       "H8"
     ],
     "result": {
-      "status": "PASS",
+      "status": "FAIL",
       "source": "test/accept/evidence/2026-10-28-summary.json",
-      "passed": 34,
+      "passed": 33,
       "total": 34
     },
     "blocked": null,
-    "note": "覆盖目录全部单体 id（不局限本批插件），非全选项覆盖。真实 runner.dart:218 自带 CancelToken；cancel 插件不自动 track 自带 token，cancel_all 场景可能取消数为零。须终审核对结果，不能把调用或目录存在当 PASS。",
+    "note": "2026-10-28 plugins.single-auth@business 失败：外部 testkit 的 auth.json 有未提交改动，把该格预期改成 ok:true；dioman 实际行为（business:500 → DiomanException code 500）与改动前一致，重跑 3 次相同。等 testkit 那边定稿后再判是改预期还是改执行器映射（执行器在装 auth 时也启用 EnvelopeTransformer）",
     "unit": [
       "test/combo/powerset_combo_test.dart"
     ]
@@ -2773,7 +2773,7 @@
   {
     "id": "INV-12",
     "plugin": "combo",
-    "capability": "缓存共享模拟短路仍交后续响应处理",
+    "capability": "缓存与共享的短路结果仍交后续响应处理",
     "tier": 1,
     "apis": [],
     "real": [
@@ -2781,12 +2781,17 @@
       "combo.cache-mock-no-key-collision"
     ],
     "assumptions": [],
-    "result": null,
+    "result": {
+      "status": "PASS",
+      "source": "test/accept/evidence/2026-10-28-summary.json",
+      "passed": 2,
+      "total": 2
+    },
     "blocked": null,
     "note": "lib/src/cache_plugin.dart:onRequest 的 resolve(...,true)，share/mock 同类路径；test/combo/ 下 cache/normalize、mock/loading 等组合；短路跳过后续 onRequest，不能因此生成多余括号。",
     "unit": [
       "test/combo/cache_share_combo_test.dart",
-      "test/combo/mock_normalize_combo_test.dart"
+      "test/combo/mock_adapter_combo_test.dart"
     ]
   },
   {
@@ -3369,6 +3374,19 @@
     "result": null,
     "blocked": null,
     "note": "源码：lib/src/extra_keys.dart:200。"
+  },
+  {
+    "id": "DiomanExtraKeys.mockAdapterOwner",
+    "plugin": "extra",
+    "capability": "登记 dioman:mock 配置键归属于 DiomanMockAdapter",
+    "tier": 1,
+    "apis": [
+      "DiomanExtraKeys.mockAdapterOwner"
+    ],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null
   },
   {
     "id": "DiomanExtraKeys.ofKind",
@@ -4815,8 +4833,8 @@
     "result": {
       "status": "PASS",
       "source": "test/accept/evidence/2026-10-28-summary.json",
-      "passed": 18,
-      "total": 18
+      "passed": 19,
+      "total": 19
     },
     "blocked": null
   },
@@ -5241,12 +5259,12 @@
     "blocked": null
   },
   {
-    "id": "DiomanMock.add",
+    "id": "DiomanMockAdapter.close",
     "plugin": "mock",
-    "capability": "注册 METHOD:path 内联处理器，同键覆盖",
+    "capability": "关闭时把 force 透传给被包住的真实 adapter",
     "tier": 1,
     "apis": [
-      "DiomanMock.add"
+      "DiomanMockAdapter.close"
     ],
     "real": [],
     "assumptions": [],
@@ -5254,12 +5272,12 @@
     "blocked": null
   },
   {
-    "id": "DiomanMock.dispose",
+    "id": "DiomanMockAdapter.extraKey",
     "plugin": "mock",
-    "capability": "关闭复用的转发 Dio，并清空引用",
+    "capability": "请求级覆盖的 extra 键，值为 DiomanMockOptions 或 false",
     "tier": 1,
     "apis": [
-      "DiomanMock.dispose"
+      "DiomanMockAdapter.extraKey"
     ],
     "real": [],
     "assumptions": [],
@@ -5267,134 +5285,42 @@
     "blocked": null
   },
   {
-    "id": "DiomanMock.enabled",
+    "id": "DiomanMockAdapter.fetch",
     "plugin": "mock",
-    "capability": "总开关，默认 false；单请求可覆盖",
+    "capability": "命中路由返回 mock、转发 mockUrl 并按判定回落，未命中透传",
     "tier": 1,
     "apis": [
-      "DiomanMock.enabled",
-      "DiomanMock.new(enabled)"
+      "DiomanMockAdapter.fetch"
     ],
     "real": [
-      "mock.routes-to-mock-server",
-      "mock.per-request-off-goes-real"
-    ],
-    "assumptions": [],
-    "result": {
-      "status": "PASS",
-      "source": "test/accept/evidence/2026-10-28-summary.json",
-      "passed": 14,
-      "total": 14
-    },
-    "blocked": null
-  },
-  {
-    "id": "DiomanMock.fallbackWhen",
-    "plugin": "mock",
-    "capability": "判断 mock 命中是否回落真实接口，默认见 defaultFallback",
-    "tier": 1,
-    "apis": [
-      "DiomanMock.fallbackWhen",
-      "DiomanMock.new(fallbackWhen)"
-    ],
-    "real": [
-      "mock.fallback-to-real-on-404",
       "combo.cache-mock-fallback-cached-once",
       "combo.loading-mock-fallback-single-pair",
       "combo.mock-share-fallback-single-flight",
-      "mock.single-fallback-disabled"
-    ],
-    "assumptions": [],
-    "result": {
-      "status": "PASS",
-      "source": "test/accept/evidence/2026-10-28-summary.json",
-      "passed": 1,
-      "total": 1
-    },
-    "blocked": null,
-    "note": "真实执行器传入自定义 fallbackWhen（只认 404），defaultFallback 本身真实侧未执行。"
-  },
-  {
-    "id": "DiomanMock.mockUrl",
-    "plugin": "mock",
-    "capability": "未命中内联路由时，改写 URL 转发到 mock 服务",
-    "tier": 1,
-    "apis": [
-      "DiomanMock.mockUrl",
-      "DiomanMock.new(mockUrl)"
-    ],
-    "real": [
-      "mock.routes-to-mock-server",
-      "mock.query-and-body-forwarded",
-      "mock.mixed-parallel",
-      "mock.mock-then-retry-untouched"
-    ],
-    "assumptions": [],
-    "result": {
-      "status": "PASS",
-      "source": "test/accept/evidence/2026-10-28-summary.json",
-      "passed": 16,
-      "total": 16
-    },
-    "blocked": null,
-    "note": "mock 服务是使用者自己的服务，单测里的本地 TestServer 只是它的契约替身；转发用独立裸 Dio，不经宿主 adapter；任何非取消错误都回落，与具体错误类型无关。"
-  },
-  {
-    "id": "DiomanMock.name",
-    "plugin": "mock",
-    "capability": "插件名固定为 dioman:mock",
-    "tier": 1,
-    "apis": [
-      "DiomanMock.name"
-    ],
-    "real": [],
-    "assumptions": [],
-    "result": null,
-    "blocked": null
-  },
-  {
-    "id": "DiomanMock.new(routes)",
-    "plugin": "mock",
-    "capability": "构造时预置内联路由表",
-    "tier": 1,
-    "apis": [
-      "DiomanMock.new(routes)"
-    ],
-    "real": [],
-    "assumptions": [],
-    "result": null,
-    "blocked": null
-  },
-  {
-    "id": "DiomanMock.onRequest",
-    "plugin": "mock",
-    "capability": "先匹配内联路由，再转发 mockUrl，需回落则放行原请求",
-    "tier": 1,
-    "apis": [
-      "DiomanMock.onRequest"
-    ],
-    "real": [
-      "mock.routes-to-mock-server",
       "mock.fallback-to-real-on-404",
+      "mock.mixed-parallel",
       "mock.mock-then-retry-untouched",
+      "mock.per-request-off-goes-real",
+      "mock.query-and-body-forwarded",
+      "mock.routes-to-mock-server",
+      "mock.single-fallback-disabled",
       "plugins.single-mock"
     ],
     "assumptions": [],
     "result": {
       "status": "PASS",
       "source": "test/accept/evidence/2026-10-28-summary.json",
-      "passed": 15,
-      "total": 15
+      "passed": 25,
+      "total": 25
     },
     "blocked": null
   },
   {
-    "id": "DiomanMock.pluginName",
+    "id": "DiomanMockAdapter.markerHeader",
     "plugin": "mock",
-    "capability": "静态常量 dioman:mock，同时是 extra 键",
+    "capability": "mock 响应带标记头，cache 据此一律不写入",
     "tier": 1,
     "apis": [
-      "DiomanMock.pluginName"
+      "DiomanMockAdapter.markerHeader"
     ],
     "real": [],
     "assumptions": [],
@@ -5402,12 +5328,12 @@
     "blocked": null
   },
   {
-    "id": "DiomanMock.remove",
+    "id": "DiomanMockAdapter.new(enabled)",
     "plugin": "mock",
-    "capability": "移除指定 METHOD:path 的内联处理器",
+    "capability": "插件级总开关，关闭时所有请求直接透传",
     "tier": 1,
     "apis": [
-      "DiomanMock.remove"
+      "DiomanMockAdapter.new(enabled)"
     ],
     "real": [],
     "assumptions": [],
@@ -5415,12 +5341,51 @@
     "blocked": null
   },
   {
-    "id": "DiomanMock.reset",
+    "id": "DiomanMockAdapter.new(fallbackWhen)",
     "plugin": "mock",
-    "capability": "清空全部内联处理器",
+    "capability": "判定转发结果是否回落真实接口，默认 defaultFallback",
     "tier": 1,
     "apis": [
-      "DiomanMock.reset"
+      "DiomanMockAdapter.new(fallbackWhen)"
+    ],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null
+  },
+  {
+    "id": "DiomanMockAdapter.new(inner)",
+    "plugin": "mock",
+    "capability": "被包住的真实传输层，未命中与回落都交给它",
+    "tier": 1,
+    "apis": [
+      "DiomanMockAdapter.new(inner)"
+    ],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null
+  },
+  {
+    "id": "DiomanMockAdapter.new(mockUrl)",
+    "plugin": "mock",
+    "capability": "把请求改写到 mock 服务地址后经 inner 发出",
+    "tier": 1,
+    "apis": [
+      "DiomanMockAdapter.new(mockUrl)"
+    ],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null
+  },
+  {
+    "id": "DiomanMockAdapter.new(routes)",
+    "plugin": "mock",
+    "capability": "按 METHOD:path 匹配的内联 mock 处理器",
+    "tier": 1,
+    "apis": [
+      "DiomanMockAdapter.new(routes)"
     ],
     "real": [],
     "assumptions": [],
@@ -7321,8 +7286,8 @@
     "result": {
       "status": "PASS",
       "source": "test/accept/evidence/2026-10-28-summary.json",
-      "passed": 32,
-      "total": 32
+      "passed": 34,
+      "total": 34
     },
     "blocked": null,
     "note": "取消时机与连接释放是 H1/H1b（share.all-cancelled-aborts-server 断言服务端被掐断）；网络失败分发的假设是 H3。policy=retry 分支真实侧没覆盖，见 DiomanSharePolicy.retry。"
@@ -7358,8 +7323,8 @@
     "result": {
       "status": "PASS",
       "source": "test/accept/evidence/2026-10-28-summary.json",
-      "passed": 44,
-      "total": 44
+      "passed": 46,
+      "total": 46
     },
     "blocked": null
   },
@@ -7518,8 +7483,8 @@
     "result": {
       "status": "PASS",
       "source": "test/accept/evidence/2026-10-28-summary.json",
-      "passed": 6,
-      "total": 6
+      "passed": 8,
+      "total": 8
     },
     "blocked": null
   },
@@ -7595,8 +7560,8 @@
     "result": {
       "status": "PASS",
       "source": "test/accept/evidence/2026-10-28-summary.json",
-      "passed": 4,
-      "total": 4
+      "passed": 6,
+      "total": 6
     },
     "blocked": null
   },

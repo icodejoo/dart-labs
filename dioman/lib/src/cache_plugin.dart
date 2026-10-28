@@ -1,6 +1,7 @@
 // ignore_for_file: prefer_initializing_formals
 import 'dart:async';
 import 'package:dio/dio.dart';
+import 'mock_adapter.dart';
 import 'key_plugin.dart';
 import 'dioman_plugin.dart';
 import 'offline_plugin.dart';
@@ -168,11 +169,12 @@ class DiomanCacheOptions {
   /// Overrides the plugin's `shouldStore` decision for this request only. It
   /// has the highest priority — above the plugin's own `shouldStore` and the
   /// judge auto-wired from [DiomanNormalize] — but still only applies to HTTP
-  /// 2xx responses.
+  /// 2xx responses without [DiomanMockAdapter.markerHeader]. The mock marker
+  /// always vetoes writes before this callback is consulted.
   ///
   /// 仅本次请求覆盖插件的`shouldStore`判定函数。优先级最高——高于插件自身的
   /// `shouldStore`以及从[DiomanNormalize]自动接线得到的判定——但仍只对HTTP 2xx
-  /// 响应生效。
+  /// 响应生效。带 [DiomanMockAdapter.markerHeader] 的响应一律不写入，且不调用此回调。
   final bool Function(Response<dynamic> response)? shouldStore;
 
   /// Overrides the plugin's `now` clock for this request only.
@@ -284,13 +286,15 @@ class DiomanCache extends DiomanPlugin {
   /// (an envelope the normalizer would reject as a business failure is not
   /// stored), and without one every 2xx response is stored. Priority:
   /// [DiomanCacheOptions.shouldStore] > this > the auto-wired judge > default.
-  /// It sees the raw response, before normalization.
+  /// It sees the raw response, before normalization. Responses carrying
+  /// [DiomanMockAdapter.markerHeader] are always excluded before any judge runs.
   ///
   /// 在HTTP 2xx检查之上的附加过滤：只有2xx且本函数返回true才写入。`null`（默认）
   /// 沿用[Dioman.install]从同一[Dio]上[DiomanNormalize]自动接线的判定（会被
   /// normalize判为业务失败的信封不入缓存）；没装normalize则所有2xx都写入。
   /// 优先级：[DiomanCacheOptions.shouldStore] > 本参数 > 自动接线 > 默认。
-  /// 它看到的是规范化之前的原始响应。
+  /// 它看到的是规范化之前的原始响应。带 [DiomanMockAdapter.markerHeader] 的响应
+  /// 在调用任何判定函数前已被排除，不能由用户回调放开。
   ///
   /// ```dart
   /// DiomanCache(persist: p, shouldStore: (r) => (r.data as Map)['code'] == 0);
@@ -458,8 +462,13 @@ class DiomanCache extends DiomanPlugin {
     }
   }
 
-  /// 在 2xx 通过后，按"请求级 > 插件级 > 接线 > 默认"取写入判定并执行。
+  /// 在 2xx 通过后先排除 mock，再按"请求级 > 插件级 > 接线 > 默认"判定。
   bool _storeAllowed(RequestOptions opts, Response<dynamic> response) {
+    // Built-in veto: user shouldStore callbacks cannot admit mock data.
+    if (response.headers.map.keys
+        .any((key) => key.toLowerCase() == DiomanMockAdapter.markerHeader)) {
+      return false;
+    }
     final override = opts.extra[name];
     final o = override is DiomanCacheOptions ? override : null;
     final judge = o?.shouldStore ?? _shouldStore ?? _wiredShouldStore;

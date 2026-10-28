@@ -233,7 +233,8 @@ String classify(Object error, {String? authTag, bool budgetExpired = false}) {
 class ScenarioClient {
   /// 构造独立测试实例。
   /// 按中立配置创建 io 客户端。
-  ScenarioClient(this.config, this.run, String base, this.style)
+  ScenarioClient(this.config, this.run, String base, this.style,
+      {HttpClientAdapter? transport})
       : dio = ioClient(base,
             budget: obj(config[tkClient])['base_timeout_ms'] as int? ??
                 defaultBudget) {
@@ -261,6 +262,18 @@ class ScenarioClient {
     final breaker = obj(p[tkBreaker]);
     dio.transformer = EnvelopeTransformer(
         p.containsKey(tkNormalize) || p.containsKey(tkAuth));
+    // [transport] 用于让多个客户端共享同一条真实连接池；mock 要包在它外面。
+    if (transport != null) dio.httpClientAdapter = transport;
+    // 中立语义里的 mock 能力由传输层 adapter 实现：在 install 之前包住宿主
+    // adapter，不参与插件顺序。回落沿用 fallback_on_404 的映射。
+    if (p.containsKey(tkMock)) {
+      dio.httpClientAdapter = DiomanMockAdapter(
+          inner: dio.httpClientAdapter,
+          mockUrl: '$base/t/mock',
+          fallbackWhen: ({response, error}) =>
+              obj(p[tkMock])[tkFallbackOn404] != false &&
+              (response ?? error?.response)?.statusCode == 404);
+    }
     // 总预算取消在进入插件错误链前还原为超时，避免熔断器把它当用户取消。
     dio.interceptors.add(InterceptorsWrapper(onError: (error, handler) {
       if (error.requestOptions.extra[tkAcceptBudgetExpired] == true) {
@@ -285,7 +298,12 @@ class ScenarioClient {
           : null,
       repath: p.containsKey(tkRepath) ? DiomanRepath() : null,
       filter: p.containsKey(tkFilter) ? const DiomanFilter() : null,
-      key: p.containsKey(tkKey)
+      // 中立语义里请求级显式 key（options.key / cache.key）不依赖装配 key 插件；
+      // dioman 的 share/cache 要靠 DiomanKey 写入 extra[kKey]，所以装了 share 或
+      // cache 就同时装一个默认关闭的 DiomanKey，只由请求级选项开启。
+      key: p.containsKey(tkKey) ||
+              p.containsKey(tkShare) ||
+              p.containsKey(tkCache)
           ? DiomanKey(
               enabled: false,
               namespace: key[tkScope] == tkUser ? () => tokens.user : null)
@@ -308,14 +326,6 @@ class ScenarioClient {
           : null,
       share: p.containsKey(tkShare)
           ? DiomanShare(policy: policy(obj(p[tkShare])[tkPolicy]))
-          : null,
-      mock: p.containsKey(tkMock)
-          ? DiomanMock(
-              enabled: true,
-              mockUrl: '$base/t/mock',
-              fallbackWhen: ({response, error}) =>
-                  obj(p[tkMock])[tkFallbackOn404] != false &&
-                  (response ?? error?.response)?.statusCode == 404)
           : null,
       cancel: p.containsKey(tkCancel) ? DiomanCancel() : null,
       loading: p.containsKey(tkLoading)
@@ -377,6 +387,7 @@ class ScenarioClient {
                   List<String>.from(retry[tkMethods] as List? ?? retryMethods),
               delay: (_, __, ___, ____) => ms(retry[tkDelayMs] as num? ?? 0),
               shouldRetry: (e, r) => shouldRetry(e, r, retry),
+              statusCodes: retryStatusCodes(retry),
               respectRetryAfter: retry[tkRespectRetryAfter] as bool? ?? true,
               afterStatusCodes: [200, 413, 429, 503])
           : null,
@@ -384,9 +395,7 @@ class ScenarioClient {
           ? DiomanBreaker(
               failureThreshold: breaker[tkThreshold] as int? ?? 3,
               resetDuration: ms(breaker[tkOpenMs] as num? ?? 1000),
-              shouldTrip: (r, e) =>
-                  logical(r ?? e?.response) >= 500 ||
-                  (r == null && e?.response == null))
+              shouldTrip: shouldTrip)
           : null,
       log: p.containsKey(tkLog)
           ? DiomanLog(writer: (message, {error}) => logs.add(message))
@@ -408,6 +417,15 @@ class ScenarioClient {
                           : tkEmpty)
       ],
     );
+    // 在插件登记后接收原生 token，宿主只维护中断及在途观测。
+    dio.interceptors.add(InterceptorsWrapper(onRequest: (options, handler) {
+      final onToken = options.extra[tkAcceptOnToken];
+      final token = options.cancelToken;
+      if (onToken is void Function(CancelToken) && token != null) {
+        onToken(token);
+      }
+      handler.next(options);
+    }));
   }
 
   /// 场景原始配置。
@@ -469,15 +487,29 @@ class ScenarioClient {
           orElse: () => throw StateError('share.policy 未映射: $value'));
 
   /// shouldRetry 的测试实现。
-  /// 重试只允许中立状态和网络、超时错误。
-  bool shouldRetry(DioException? e, Response<dynamic>? response,
+  /// 仅补充非零业务码；HTTP 状态及错误类型交回插件原生判定。
+  bool? shouldRetry(DioException? e, Response<dynamic>? response,
       Map<String, dynamic> options) {
     final r = response ?? e?.response;
-    if (r != null) {
-      return (options[tkStatuses] as List? ?? retryStatuses)
-          .contains(logical(r));
+    final code = obj(r?.data)[tkCode];
+    if (r != null && (r.statusCode ?? 0) < 400 && code is int && code != 0) {
+      return retryStatusCodes(options).contains(code);
     }
-    return e != null && [tkNetwork, tkTimeout].contains(classify(e));
+    return null;
+  }
+
+  /// 将中立重试状态白名单传给插件，保留契约默认值。
+  static List<int> retryStatusCodes(Map<String, dynamic> options) =>
+      List<int>.from(options[tkStatuses] as List? ?? retryStatuses);
+
+  /// 仅补充业务信封失败；HTTP 状态及网络错误交回插件内置分类。
+  static bool? shouldTrip(Response<dynamic>? response, DioException? error) {
+    final r = response ?? error?.response;
+    final code = obj(r?.data)[tkCode];
+    if (r != null && (r.statusCode ?? 0) < 400 && code is int && code != 0) {
+      return code >= 500 || code == 429;
+    }
+    return null;
   }
 
   /// extras 的测试实现。
@@ -524,7 +556,7 @@ class ScenarioClient {
       DiomanCache.pluginName: DiomanCacheOptions(
           enabled: o[tkCache] != false, expires: c[tkTtlMs] as int?),
       DiomanShare.pluginName: DiomanShareOptions(
-          enabled: o[tkShare] != false && o[tkShare] != tkNone,
+          enabled: o[tkShare] != false,
           policy: o[tkShare] is String ? policy(o[tkShare]) : null),
       DiomanLoading.pluginName:
           DiomanLoadingOptions(enabled: o[tkLoading] as bool?),
@@ -540,8 +572,9 @@ class ScenarioClient {
               ? null
               : (_, __, ___, ____) => ms(r[tkDelayMs] as num),
           shouldRetry: (e, response) => shouldRetry(e, response, r),
+          statusCodes: retryStatusCodes(r),
           respectRetryAfter: r[tkRespectRetryAfter] as bool?),
-      DiomanMock.pluginName: DiomanMockOptions(enabled: o[tkMock] as bool?),
+      DiomanMockAdapter.extraKey: DiomanMockOptions(enabled: o[tkMock] as bool?),
       DiomanNormalize.pluginName:
           DiomanNormalizeOptions(enabled: o[tkNormalize] as bool?),
       DiomanBreaker.pluginName:

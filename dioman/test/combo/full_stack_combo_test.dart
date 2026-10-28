@@ -110,7 +110,6 @@ void main() {
           cachePolicy: DiomanCachePolicy.memo,
         ),
         share: DiomanShare(policy: DiomanSharePolicy.start),
-        mock: DiomanMock(enabled: false),
         cancel: DiomanCancel(),
         loading: DiomanLoading(onChanged: states.add),
         auth: DiomanAuth(

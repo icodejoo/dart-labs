@@ -8,7 +8,7 @@ import '../support/fixtures.dart';
 /// 注册本文件的单元层用例。
 void main() {
   group('默认 install 顺序不变', () {
-    test('[Dioman.sort] 内置插件任意子集按规范顺序排序都是恒等（2^16 个子集）', () {
+    test('[Dioman.sort] 内置插件任意子集按规范顺序排序都是恒等（2^15 个子集）', () {
       final all = allBuiltins();
       for (var mask = 0; mask < (1 << all.length); mask++) {
         final subset = [
@@ -34,7 +34,7 @@ void main() {
       for (final n in [tkDiomanShare2, tkDiomanCancel2, tkDiomanLoading2]) {
         expect(at(tkDiomanOffline2), lessThan(at(n)));
       }
-      for (final n in [tkDiomanCache2, tkDiomanShare2, tkDiomanMock2]) {
+      for (final n in [tkDiomanCache2, tkDiomanShare2]) {
         expect(at(n), lessThan(at(tkDiomanCancel2)));
         expect(at(n), lessThan(at(tkDiomanLoading2)));
       }

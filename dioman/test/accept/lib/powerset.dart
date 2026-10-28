@@ -61,8 +61,7 @@ Future<void> runRealPowerset() async {
       };
       final client = ScenarioClient({
         tkClient: {tkPlugins: plugins}
-      }, subsetRun, transport.options.baseUrl, tkHttp);
-      client.dio.httpClientAdapter = adapter;
+      }, subsetRun, transport.options.baseUrl, tkHttp, transport: adapter);
       try {
         final response = await client.dio.get<dynamic>(tkTEcho,
             queryParameters: {

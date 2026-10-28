@@ -420,11 +420,11 @@ class DiomanBreaker extends DiomanPlugin {
 
   // Internal bookkeeping key: marks a request this plugin's onRequest actually
   // admitted, so onResponse/onError only record an outcome for requests that
-  // went through onRequest here (a cache/mock short-circuit runs our
+  // went through onRequest here (a cache short-circuit runs our
   // onResponse without ever running our onRequest — it must not be recorded).
   //
   // 内部记账key：标记本插件onRequest真正放行的请求，让onResponse/onError只对
-  // 经过本插件onRequest的请求记录结果（cache/mock短路会在没跑过本插件
+  // 经过本插件onRequest的请求记录结果（cache短路会在没跑过本插件
   // onRequest的情况下触发本插件onResponse——那种不能记录）。
   static const _kAdmitted = '$pluginName:key';
 
@@ -774,7 +774,7 @@ class DiomanBreaker extends DiomanPlugin {
   void recordResponse(Response<dynamic> response) {
     final config = response.requestOptions;
     final key = _takeAdmission(config);
-    // No key ⇒ our onRequest never admitted this request (cache/mock hit, or
+    // No key ⇒ our onRequest never admitted this request (cache hit, or
     // disabled) ⇒ nothing to record.
     if (key != null) {
       if (_isFailure(config, response, null)) {

@@ -9,7 +9,6 @@ import 'filter_plugin.dart';
 import 'key_plugin.dart';
 import 'loading_plugin.dart';
 import 'log_plugin.dart';
-import 'mock_plugin.dart';
 import 'offline_plugin.dart';
 import 'repath_plugin.dart';
 import 'retry_plugin.dart';
@@ -113,7 +112,7 @@ class DiomanException implements Exception {
 ///
 /// If you do use it, install it LAST — after `log`, at the very end of the
 /// chain (this is also where [Dioman.install] places it when you pass
-/// `normalize:`). That way every OTHER plugin (cache, share, mock,
+/// `normalize:`). That way every OTHER plugin (cache, share,
 /// DiomanRetry's `shouldRetry`, DiomanLog's dump, ...) sees the
 /// response exactly as it came off the wire, not already unwrapped —
 /// consistent regardless of which of them happen to be installed.
@@ -126,7 +125,7 @@ class DiomanException implements Exception {
 ///
 /// 如果要用，装在最后——排在`log`后面，整条链的最末尾（这也是
 /// [Dioman.install]传入`normalize:`时放置的位置）。这样其它所有插件
-/// （cache、share、mock、DiomanRetry的`shouldRetry`、DiomanLog的
+/// （cache、share、DiomanRetry的`shouldRetry`、DiomanLog的
 /// dump……）看到的都是响应在线路上原本的样子，不是已经被解包过的——不管
 /// 装了哪些插件，行为都一致。
 ///
@@ -212,7 +211,6 @@ class DiomanNormalize extends DiomanPlugin {
           DiomanCache.pluginName,
           DiomanOffline.pluginName,
           DiomanShare.pluginName,
-          DiomanMock.pluginName,
           DiomanCancel.pluginName,
           DiomanLoading.pluginName,
           DiomanAuth.pluginName,

@@ -223,7 +223,7 @@ Future<void> main() async {
   print('');
 
   // ── 8. DiomanRetryOptions(shouldRetry: ...): forces a retry on a 404, which
-  //       the plugin default (5xx-only) would never retry ───────────────────
+  //       the plugin default (408/429/500/502/503/504) would never retry ──────
   print('[8] DiomanRetryOptions(shouldRetry: ...)');
   final beforeRetry = net.count;
   try {

@@ -159,6 +159,7 @@ void main() {
     expect(pluginForFile('lib/src/dioman.dart'), 'install');
     expect(pluginForFile('lib/src/plugin_order.dart'), 'install');
     expect(pluginForFile('lib/src/extra_keys.dart'), 'extra');
+    expect(pluginForFile('lib/src/mock_adapter.dart'), 'mock');
     expect(pluginForFile('lib/src/unknown.dart'), _core);
     expect(pluginForFile(null), _core);
   });
@@ -258,6 +259,27 @@ void main() {
     }, symbols: {});
     expect(gaps, isEmpty);
   });
+  test('[matrix.computeGaps] 真实结论为 FAIL 的行一律报 G4，① 档行也不例外', () {
+    final gaps = computeGaps(
+        inventory: [],
+        rows: [
+          MatrixRow(
+              id: 'INV-x', tier: 2, real: ['s'], result: {_status: 'FAIL'}),
+          MatrixRow(
+              id: 'INV-y', tier: 1, real: ['s'], result: {_status: 'FAIL'}),
+          MatrixRow(
+              id: 'INV-z', tier: 2, real: ['s'], result: {_status: 'PASS'}),
+        ],
+        titles: {
+          'INV-x': {'test/a_test.dart'},
+          'INV-y': {'test/a_test.dart'},
+          'INV-z': {'test/a_test.dart'}
+        },
+        symbols: {},
+        full: true,
+        realIds: {'s'});
+    expect(gaps, {'G4:INV-x:fail', 'G4:INV-y:fail'});
+  });
   test('[matrix.ratchet] 指定前缀的 added 与 fixed', () {
     final result = ratchet({_g0New, 'G5:ignored'}, {_g0Old, 'G1:ignored'},
         required: {'G0:'});
@@ -350,6 +372,24 @@ void main() {
       }
     });
     expect(summary['apiHits'], [_a, _b]);
+  });
+  test('[matrix.summarizeEvidence] 原因以"不适用："开头的跳过记为不适用', () {
+    final summary = summarizeEvidence([
+      {
+        _resultsKey: [
+          {
+            _scenario: _caseX,
+            _network: _normal,
+            _style: _http,
+            _status: '跳过',
+            'reasons': ['不适用：dioman 的 mock 位于传输层']
+          },
+        ]
+      },
+    ]);
+    expect(summary['cases'], {
+      _caseX: {'normal@http': notApplicable}
+    });
   });
   test('[matrix.rowResult] 失败优先、有通过即 PASS、全跳过 BLOCKED，按格计数', () {
     MatrixRow row(List<String> real) => MatrixRow(id: _a, real: real);

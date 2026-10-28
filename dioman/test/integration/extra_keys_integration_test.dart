@@ -36,7 +36,8 @@ void main() {
           reason: '源码中有键没登记到 DiomanExtraKeys');
       expect(registered.difference(found), isEmpty, reason: '注册表里有键在源码中已不存在');
     });
-    test('[DiomanExtraKeys.ofKind][DiomanExtraKeyKind.config] 配置键对应真实存在的插件名',
+    test(
+        '[DiomanExtraKeys.ofKind][DiomanExtraKeyKind.config] 配置键对应真实存在的插件名；非插件 owner 只有 DiomanMockAdapter',
         () {
       final names = <String>{};
       final pluginNameDecl = RegExp(tkStaticConstPluginName);
@@ -45,7 +46,15 @@ void main() {
         if (m != null) names.add(m.group(1)!);
       }
       for (final k in DiomanExtraKeys.ofKind(DiomanExtraKeyKind.config)) {
-        expect(names, contains(k.key));
+        if (k.owner == DiomanExtraKeys.mockAdapterOwner) {
+          // 传输层 adapter 不是插件，键由它自己的常量提供。
+          expect(k.key, DiomanMockAdapter.extraKey);
+          expect(names, isNot(contains(k.key)),
+              reason: 'mock 不再是插件：源码里不该再有同名 pluginName');
+        } else {
+          expect(names, contains(k.key));
+          expect(k.owner, k.key);
+        }
       }
     });
   });

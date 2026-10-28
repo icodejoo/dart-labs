@@ -10,7 +10,6 @@ import 'envs_plugin.dart';
 import 'extra_keys.dart';
 import 'loading_plugin.dart';
 import 'log_plugin.dart';
-import 'mock_plugin.dart';
 import 'normalize_plugin.dart';
 import 'offline_plugin.dart';
 import 'plugin_order.dart';
@@ -48,6 +47,10 @@ abstract final class Dioman {
   /// [plugins] 可额外混入自定义插件：它们排在内置插件之后参与稳定拓扑排序，
   /// 靠各自的 [DiomanPlugin.ordering] 声明想要的位置（无声明则留在末尾）；
   /// 重复名/环/缺失依赖抛 [DiomanPluginOrderException]。
+  ///
+  /// Mocking is not a plugin: wrap `dio.httpClientAdapter` with
+  /// [DiomanMockAdapter] instead. mock 不是插件，请改用传输层的 [DiomanMockAdapter]
+  /// 包装 `dio.httpClientAdapter`。
   static DiomanHandle install(
     Dio dio, {
     DiomanEnvs? envs,
@@ -58,7 +61,6 @@ abstract final class Dioman {
     DiomanCache? cache,
     DiomanOffline? offline,
     DiomanShare? share,
-    DiomanMock? mock,
     DiomanCancel? cancel,
     DiomanLoading? loading,
     DiomanAuth? auth,
@@ -68,7 +70,7 @@ abstract final class Dioman {
     DiomanNormalize? normalize,
     List<DiomanPlugin> plugins = const [],
   }) {
-    // envs → timeout → repath → filter → key → cache → offline → share → mock →
+    // envs → timeout → repath → filter → key → cache → offline → share →
     // cancel → loading → auth → retry → breaker → log → normalize
     //
     // DiomanNormalize is last on purpose (see its own class doc): it's an
@@ -85,7 +87,6 @@ abstract final class Dioman {
       cache,
       offline,
       share,
-      mock,
       cancel,
       loading,
       auth,

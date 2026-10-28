@@ -26,7 +26,6 @@ void main() {
         containsAll([
           DiomanCache.pluginName,
           DiomanShare.pluginName,
-          DiomanMock.pluginName
         ]));
     expect(plugin.ordering.before,
         containsAll([DiomanAuth.pluginName, DiomanRetry.pluginName]));

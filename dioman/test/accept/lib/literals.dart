@@ -1539,3 +1539,9 @@ const tkWinner = "winner";
 
 /// 共享字面量：tkXTestId。
 const tkXTestId = "X-Test-Id";
+
+/// 宿主接收插件实际使用的取消令牌的内部回调键。
+const tkAcceptOnToken = 'accept:onToken';
+
+/// 原生批量取消数量的报告字段及步骤名。
+const tkCancelAll = 'cancel_all';

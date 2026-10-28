@@ -4,7 +4,6 @@ import 'package:dio/dio.dart';
 import 'dioman_plugin.dart';
 import 'auth_plugin.dart';
 import 'cache_plugin.dart';
-import 'mock_plugin.dart';
 import 'retry_plugin.dart';
 import 'share_plugin.dart';
 import 'plugin_order.dart';
@@ -190,13 +189,12 @@ class DiomanLoading extends DiomanPlugin {
   @override
   String get name => pluginName;
 
-  /// 顺序声明：loading在cache/share/mock之后（命中时不遗留括号），在auth/retry之前（401或重试前清理已完成）。
+  /// 顺序声明：loading在cache/share之后（命中时不遗留括号），在auth/retry之前（401或重试前清理已完成）。
   @override
   DiomanPluginOrder get ordering => const DiomanPluginOrder(
         after: {
           DiomanCache.pluginName,
           DiomanShare.pluginName,
-          DiomanMock.pluginName,
         },
         before: {DiomanAuth.pluginName, DiomanRetry.pluginName},
       );
@@ -250,14 +248,14 @@ class DiomanLoading extends DiomanPlugin {
   }
 
   // Only decrement for a request this plugin actually incremented for. An
-  // earlier interceptor's onRequest can short-circuit (cache/share/mock hit)
+  // earlier interceptor's onRequest can short-circuit (cache/share hit)
   // before this plugin's onRequest ever runs — if that resolve is later
   // propagated with `callFollowingResponseInterceptor: true`, this onResponse
   // still fires and, without this guard, would decrement a counter it never
   // incremented (stealing a slot from an unrelated in-flight request).
   //
   // 只对本插件真正加过计数的请求做减计数。更早的拦截器可能在onRequest阶段就
-  // 短路了（cache/share/mock命中），本插件的onRequest根本没跑到；若那次
+  // 短路了（cache/share命中），本插件的onRequest根本没跑到；若那次
   // resolve带着`callFollowingResponseInterceptor: true`传播，这里的onResponse
   // 仍会触发——没有这个判断就会去减一个自己从未加过的计数（顶掉了另一个真实
   // 在途请求的名额）。

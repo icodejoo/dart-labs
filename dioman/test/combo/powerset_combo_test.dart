@@ -11,7 +11,7 @@ import '../support/test_server.dart';
 /// 注册本文件的组合层用例。
 void main() {
   test(
-    '[Dioman.install] every non-empty subset of the 16 plugins (65535 combinations) returns '
+    '[Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns '
     'the expected value on a plain success',
     () async {
       String? lastAuthHeader;
@@ -72,7 +72,7 @@ void main() {
   );
 
   test(
-    '[Dioman.install] every non-empty subset of the 13 plugins (8191 combinations) recovers '
+    '[Dioman.install] every non-empty subset of the 12 plugins (4095 combinations) recovers '
     'correctly from a 500, a cache-populating round trip, and a 401 '
     'refresh+replay — paced to stay under the local ephemeral-port budget '
     '(see the file doc; this sweep takes several minutes)',
@@ -106,7 +106,7 @@ void main() {
       addTearDown(() => dio.close(force: true));
 
       final failures = <String, Object>{};
-      // Core 13 only — bits 13-15 stay 0, so timeout/offline/breaker are never
+      // Core 12 only — bits 12-14 stay 0, so timeout/offline/breaker are never
       // installed here (see the file header for why they're excluded).
       final total = coreMax;
 

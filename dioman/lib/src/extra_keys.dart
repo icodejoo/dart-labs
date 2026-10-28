@@ -1,6 +1,7 @@
 import 'package:dio/dio.dart';
 
 import 'dioman_plugin.dart';
+import 'mock_adapter.dart';
 
 /// `RequestOptions.extra` 里一个键的类别。
 enum DiomanExtraKeyKind {
@@ -32,7 +33,7 @@ class DiomanExtraKey {
   /// 创建一条登记记录。
   ///
   /// - [key]：`extra` 中的键字符串。
-  /// - [owner]：所属插件的 [DiomanPlugin.name]。
+  /// - [owner]：所属插件的 [DiomanPlugin.name]（传输层组件用类名）。
   /// - [kind]：键的类别。
   /// - [valueType]：值的类型说明（给人看的字符串，如 `int`、`DiomanCacheOptions`）。
   /// - [description]：一句话用途说明。
@@ -58,7 +59,8 @@ class DiomanExtraKey {
   /// `extra` 中的键字符串。
   final String key;
 
-  /// 所属插件的 [DiomanPlugin.name]。
+  /// 所属插件的 [DiomanPlugin.name]；不是插件的传输层组件用其类名，见
+  /// [DiomanExtraKeys.mockAdapterOwner]。
   final String owner;
 
   /// 键的类别。
@@ -104,7 +106,11 @@ class DiomanSharedStateKey {
 /// final dup = DiomanExtraKeys.findSharedState(dio.interceptors);
 /// ```
 abstract final class DiomanExtraKeys {
-  /// 内置插件的全部 `extra` 键（不含自定义登记）。
+  /// [DiomanMockAdapter] 登记键时用的 owner：它是传输层 adapter 而非插件，没有
+  /// [DiomanPlugin.name]，所以用类名。
+  static const mockAdapterOwner = 'DiomanMockAdapter';
+
+  /// 内置插件（及 [DiomanMockAdapter]）的全部 `extra` 键（不含自定义登记）。
   static const List<DiomanExtraKey> builtIn = [
     // ── 公开配置键：extra[插件名] = DiomanXxxOptions ──
     DiomanExtraKey.config('dioman:auth', 'DiomanAuthOptions', '单请求认证覆盖'),
@@ -114,7 +120,14 @@ abstract final class DiomanExtraKeys {
     DiomanExtraKey.config('dioman:qid', 'DiomanKeyOptions', '单请求键生成覆盖'),
     DiomanExtraKey.config('dioman:loading', 'DiomanLoadingOptions', '单请求加载态覆盖'),
     DiomanExtraKey.config('dioman:log', 'DiomanLogOptions', '单请求日志覆盖'),
-    DiomanExtraKey.config('dioman:mock', 'DiomanMockOptions', '单请求 Mock 覆盖'),
+    // 传输层 adapter 不是插件，owner 登记为类名；值也可以是 false（跳过 mock）。
+    DiomanExtraKey(
+      key: DiomanMockAdapter.extraKey,
+      owner: mockAdapterOwner,
+      kind: DiomanExtraKeyKind.config,
+      valueType: 'DiomanMockOptions',
+      description: '单请求 Mock 覆盖（传输层 adapter）',
+    ),
     DiomanExtraKey.config(
         'dioman:normalize', 'DiomanNormalizeOptions', '单请求规范化覆盖'),
     DiomanExtraKey.config(

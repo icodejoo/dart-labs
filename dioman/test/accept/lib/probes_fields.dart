@@ -36,6 +36,7 @@ void generatedInspect(ApiEvidence e, Map<String,Object> values) {
     };
     e.mark(snapshot.keys,'property read');
   }
+  e.read('DiomanExtraKeys.mockAdapterOwner', DiomanExtraKeys.mockAdapterOwner);
   e.read('DiomanExtraKeys.builtIn', DiomanExtraKeys.builtIn);
   e.read('DiomanExtraKeys.all', DiomanExtraKeys.all);
   e.read('DiomanPluginOrder.none', DiomanPluginOrder.none);
@@ -304,17 +305,8 @@ void generatedInspect(ApiEvidence e, Map<String,Object> values) {
     };
     e.mark(snapshot.keys,'property read');
   }
-  e.read('DiomanMock.pluginName', DiomanMock.pluginName);
-  if (values['DiomanMock'] is DiomanMock) {
-    final v = values['DiomanMock'] as DiomanMock;
-    final snapshot = <String,Object?>{
-      'DiomanMock.enabled':v.enabled,
-      'DiomanMock.mockUrl':v.mockUrl,
-      'DiomanMock.fallbackWhen':v.fallbackWhen,
-      'DiomanMock.name':v.name,
-    };
-    e.mark(snapshot.keys,'property read');
-  }
+  e.read('DiomanMockAdapter.extraKey', DiomanMockAdapter.extraKey);
+  e.read('DiomanMockAdapter.markerHeader', DiomanMockAdapter.markerHeader);
   if (values['DiomanCancelOptions'] is DiomanCancelOptions) {
     final v = values['DiomanCancelOptions'] as DiomanCancelOptions;
     final snapshot = <String,Object?>{

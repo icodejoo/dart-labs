@@ -53,24 +53,16 @@ void main() {
 // pass through the full chain — DiomanCache still writes its 200
 // response, business failure or not, exactly as before.
 //
-// FIXED (cache_plugin.dart): a cache hit's resolve now passes
-// callFollowingResponseInterceptor: true, so it still runs onResponse of
-// everything installed after cache — including DiomanRetry. That means
-// a DIFFERENT, later caller who hits the poisoned entry no longer just
-// gets the stale failure back silently: DiomanRetry's own onResponse
-// (if the caller configured shouldRetry, as here) sees it, judges
-// it a business failure, and retries it via its own bare-Dio re-issue —
-// same recovery a live request would get. The poisoned entry itself is
-// still never evicted/overwritten (retry's re-issue doesn't write back
-// to cache, same as the original attempt's own retry above), so every
-// future caller repeats this recovery dance rather than getting a fast
-// cache hit — but every caller now ends up with the CORRECT data instead
-// of the stale failure.
+// A LATER caller hitting that entry gets it back as-is: the cache hit
+// short-circuits before DiomanRetry.onRequest, so retry never admitted the
+// request and does not recover or rewrite it (it only recovers requests its
+// own onRequest let through). The stale failure is therefore the cache
+// layer's responsibility (e.g. `shouldStore`, or DiomanNormalize wired by
+// Dioman.install, which keeps business failures out of the cache).
     test(
-        "[DiomanCache.cachePolicy × DiomanRetry.delay] FIXED: a cache hit landing on the entry the ORIGINAL failed attempt "
-        "poisoned still gets a chance to recover via DiomanRetry — a "
-        'DIFFERENT, later caller for the same key ends up with the correct '
-        'data, not the stale failure', () async {
+        "[DiomanCache.cachePolicy × DiomanRetry.delay] a cache hit is NOT rewritten by DiomanRetry — a later caller "
+        "hitting the entry the ORIGINAL failed attempt poisoned gets it back as-is "
+        '(retry only recovers requests its own onRequest admitted)', () async {
       var attempts = 0;
       final server = await TestServer.start((req) async {
         attempts++;
@@ -94,10 +86,12 @@ void main() {
         cachePolicy: DiomanCachePolicy.memo,
       );
       installStateful(dio, cache: cache);
+      var retries = 0;
       dio.interceptors.add(DiomanRetry(
         max: 1,
         delay: (_, __, ___, ____) => Duration.zero,
         shouldRetry: (err, response) => (response?.data as Map)[tkCode] != 0,
+        onRetry: (_) => retries++,
       ));
 
       final r = await dio.get<Map<String, dynamic>>(tkData2);
@@ -106,17 +100,17 @@ void main() {
               "retried, successful result — the retry's own re-issue "
               'reached the network directly, never consulting the cache');
       expect(attempts, 2);
+      expect(retries, 1);
 
       final later = await dio.get<Map<String, dynamic>>(tkData2);
-      expect(later.data![tkCode], 0,
-          reason: 'FIXED: the cache hit ran onResponse of DiomanRetry too, '
-              "which caught the poisoned entry's business failure and "
-              "recovered it via its own re-issue — this caller gets the "
-              'correct data instead of the stale failure');
-      expect(attempts, 3,
-          reason: 'the cache hit itself made no network call, but '
-              "DiomanRetry's recovery re-issue for it did — one more real "
-              'attempt than before');
+      expect(later.data![tkCode], 1,
+          reason: 'the cache hit short-circuits before DiomanRetry.onRequest, '
+              'so retry never admitted it: the poisoned failure comes back '
+              'as-is instead of being recovered');
+      expect(attempts, 2,
+          reason: 'no network call at all — neither the cache hit nor a '
+              'retry re-issue');
+      expect(retries, 1, reason: 'onRetry is not called for a cache hit');
     });
   });
 }

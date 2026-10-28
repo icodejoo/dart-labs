@@ -8,7 +8,7 @@ summary: 执行模型、插件职责、安装顺序约束与 extra 键表（键�
 
 ## 项目概述
 
-**dioman** 是一个纯 Dart、仅依赖 dio 的拦截器插件库，提供组合式、自包含的 Dio 拦截器插件系统。包括认证、缓存、重试、去重、Mock、规范化等插件，并提供正确的安装顺序指导，使开发者可以灵活组合使用。
+**dioman** 是一个纯 Dart、仅依赖 dio 的拦截器插件库，提供组合式、自包含的 Dio 拦截器插件系统。包括认证、缓存、重试、去重、规范化等插件（另有传输层的 Mock adapter），并提供正确的安装顺序指导，使开发者可以灵活组合使用。
 
 ## 核心架构
 
@@ -24,15 +24,14 @@ summary: 执行模型、插件职责、安装顺序约束与 extra 键表（键�
     ├─ Cache Plugin (缓存)
     ├─ Retry Plugin (重试)
     ├─ Dedup Plugin (去重)
-    ├─ Mock Plugin (Mock)
     └─ Normalize Plugin (规范化)
     ↓
 [请求拦截]
     ├─ 修改请求头/体
-    ├─ 检查缓存
-    └─ 拦截 Mock 请求
+    └─ 检查缓存
     ↓
 [Dio HTTP 客户端]
+    ├─ DiomanMockAdapter (可选，传输层 mock)
     └─ 发送网络请求
     ↓
 [响应处理]
@@ -103,17 +102,28 @@ dio.interceptors.add(
 - 共享响应结果
 - 减少网络开销
 
-### 5. **Mock 插件**
+### 5. **Mock adapter（传输层）**
 ```dart
-final mock = DiomanMock(enabled: true);
-mock.add('GET:/api/users', (options) async => ResponseBody.fromString(
-  '[]', 200,
-  headers: {Headers.contentTypeHeader: ['application/json']},
-));
-dio.interceptors.add(mock);
+// 只在开发/测试 flavor 的启动代码中安装。
+dio.httpClientAdapter = DiomanMockAdapter(
+  inner: dio.httpClientAdapter,
+  routes: {'GET:/api/users': (_) async => ResponseBody.fromString(
+    '[]', 200, headers: {Headers.contentTypeHeader: ['application/json']},
+  )},
+);
 ```
-- 按 METHOD:path 匹配内联处理器，或转发至 mockUrl。
-- 处理器和解码阶段的普通异常转换为 DioException，保证请求完成。
+- adapter 在传输层，不是 DiomanPlugin，不在链上，没有顺序约束；纯 Dart 不判断 release。
+- METHOD:uri.path 内联匹配；未命中时通过 inner 转发 mockUrl 或透传；按请求复用
+  DiomanMockOptions（routes 合并），另支持 false 关闭；转发/回落使用独立的缓冲 body 流。
+- 内联不回落；转发响应交给 fallbackWhen(response:)（data 是原始 ResponseBody），传输异常交给
+  fallbackWhen(error:)；默认 404 响应或非取消传输异常回落，500 交给 Dio 校验与 retry。
+- 内联与未回落的转发加 x-dioman-mock: 1（DiomanMockAdapter.markerHeader）；cache 在 shouldStore
+  前一律否决带标记响应的写入，用户不能放开。真实回落照常缓存，同 key 先 mock 后关闭会请求真实服务。
+- retry/auth 重放借用宿主 adapter，重新命中 mock；share 可合并并发 mock。上游真实缓存命中和
+  offline 排队仍然生效，可能先于 adapter 结束/挂起请求。
+- 单请求覆盖键是 `DiomanMockAdapter.extraKey`（`'dioman:mock'`），值为 `DiomanMockOptions` 或 `false`。
+  它不是插件，键注册表里的 owner 登记为类名 `DiomanMockAdapter`。
+- 旧的拦截器版 `DiomanMock` 与 `Dioman.install(mock:)` 已移除（见 CHANGELOG 的 Breaking 条目）。
 
 ### 6. **规范化插件 (Normalize)**
 ```dart
@@ -137,7 +147,7 @@ lib/
     ├── key_plugin.dart         # 请求键
     ├── cache_plugin.dart       # 缓存及持久化接口
     ├── offline_plugin.dart     # 离线排队
-    ├── mock_plugin.dart        # Mock
+    ├── mock_adapter.dart       # Mock（传输层 adapter，不是插件）
     ├── breaker_plugin.dart     # 熔断
     ├── loading_plugin.dart     # 显示周期计数
     ├── repath_plugin.dart      # 路径替换
@@ -167,13 +177,10 @@ dio.interceptors.add(DiomanCache(...));
 // 3. Dedup (去重检查)
 dio.interceptors.add(DedupInterceptor(...));
 
-// 4. Mock (开发测试)
-dio.interceptors.add(MockInterceptor(...));
-
-// 5. Retry (最后，重试整个请求链)
+// 4. Retry (最后，重试整个请求链)
 dio.interceptors.add(RetryInterceptor(...));
 
-// 6. Normalize (响应处理)
+// 5. Normalize (响应处理)
 dio.interceptors.add(DiomanNormalize(...));
 ```
 
@@ -197,12 +204,8 @@ dio.interceptors.add(DiomanNormalize(...));
     ├─ 检查是否有相同请求在处理
     └─ 相同请求等待首个完成，共享结果
     ↓
-[Mock 拦截]
-    ├─ 检查是否在 Mock 列表
-    ├─ 匹配则返回 Mock 数据
-    └─ Mock Hit → 返回给应用
-    ↓
 [Dio 网络请求]
+    ├─ DiomanMockAdapter（若安装）：命中 Mock 路由则返回 Mock 数据，否则透传
     ├─ 发送真实网络请求
     └─ 等待响应
     ↓
@@ -282,19 +285,17 @@ final future3 = dio.get('/api/users');  // 第三个请求
   ↓
 [3] Dedup 拦截器 - 去重检查
   ↓
-[4] Mock 拦截器 - Mock 检查
+[4] Dio 核心 - 发送网络（可选 DiomanMockAdapter 在此层）
   ↓
-[5] Dio 核心 - 发送网络
+[5] Retry 拦截器 - 重试处理（响应侧）
   ↓
-[6] Retry 拦截器 - 重试处理（响应侧）
-  ↓
-[7] Normalize 拦截器 - 响应规范化
+[6] Normalize 拦截器 - 响应规范化
   ↓
 应用
 
 关键点：
 - Auth 最先：其他插件可能需要 Token
-- Cache/Dedup/Mock 中间：在网络请求前检查
+- Cache/Dedup 中间：在网络请求前检查；Mock 在传输层，不占拦截器位置
 - Retry 靠后：包装整个请求链
 - Normalize 最后：最后处理响应格式
 ```
@@ -310,14 +311,14 @@ final future3 = dio.get('/api/users');  // 第三个请求
   `before` / `after` / `requires` 三个名字集合。非抽象默认值，现有自定义插件无需改动。
 - **约束语义**：`before`/`after` 只在对方也被安装时生效，指向未安装插件的名字被忽略（即"可选依赖"）；
   `requires` 只要求对方存在，不隐含顺序。一对插件的约束在任意一侧声明一次即可。
-- **内置插件只声明 README 里的硬约束**（key 在 cache/share 之前、repath/filter 在 key 之前、cache 在
-  offline 之前、offline 在 share/cancel/loading 之前、cache/share/mock 在 cancel/loading 之前、
+- **内置插件只声明 README 里的硬约束**（key 在 cache/share 之前、repath/filter 在 key 之前、
+  cache 在 offline 之前、offline 在 share/cancel/loading 之前、cache/share 在 cancel/loading 之前、
   cancel/loading 在 auth/retry 之前、breaker 在 retry 之后、normalize 在其余内置插件之后）。声明分散在
   key/cache/offline/cancel/loading/breaker/normalize 里，`share`/`auth`/`retry` 不需要任何改动。
   软性的"规范位置"仍由 `Dioman.install` 的输入顺序表达。
 - **排序**：深度优先、按输入顺序处理，放置一个插件前先放好它尚未放置的前驱。无约束的插件保持输入
   顺序，被需要的前驱提前到刚好满足约束的位置，结果确定。`install` 的输入就是规范顺序，且内置约束与之
-  一致，所以结果恒等于旧顺序（`test/unit/plugin_order_test.dart` 对 2^16 个子集断言）。
+  一致，所以结果恒等于旧顺序（`test/unit/plugin_order_test.dart` 对 2^15 个子集断言）。
 - **校验**（`DiomanPluginOrderException`，带 `issue` 和涉及的插件名）：重复名、缺失必需依赖、环
   （列出环上的名字）、`misordered`（给定顺序违反约束）。`install`/`installPlugins` 在修改 `dio` 之前
   抛出；`insertBefore/insertAfter/prepend/append` 在修改前校验，失败时 handle 与 dio 保持原状；
@@ -363,7 +364,7 @@ debug 下直接断言。自定义插件可用 `DiomanExtraKeys.register` 登记�
 | `dioman:qid` | `dioman:qid` | 公开配置 | `DiomanKeyOptions` | 单请求键生成覆盖 |
 | `dioman:loading` | `dioman:loading` | 公开配置 | `DiomanLoadingOptions` | 单请求加载态覆盖 |
 | `dioman:log` | `dioman:log` | 公开配置 | `DiomanLogOptions` | 单请求日志覆盖 |
-| `dioman:mock` | `dioman:mock` | 公开配置 | `DiomanMockOptions` | 单请求 Mock 覆盖 |
+| `dioman:mock` | `DiomanMockAdapter` | 公开配置 | `DiomanMockOptions` | 单请求 Mock 覆盖（传输层 adapter） |
 | `dioman:normalize` | `dioman:normalize` | 公开配置 | `DiomanNormalizeOptions` | 单请求规范化覆盖 |
 | `dioman:offline` | `dioman:offline` | 公开配置 | `DiomanOfflineOptions` | 单请求离线排队覆盖 |
 | `dioman:repath` | `dioman:repath` | 公开配置 | `DiomanRepathOptions` | 单请求路径替换覆盖 |
@@ -403,7 +404,7 @@ debug 下直接断言。自定义插件可用 `DiomanExtraKeys.register` 登记�
   `DiomanRetry`（可能重试的请求）在 `onRequest` 里把自己登记到 `extra['dioman:claims']`，
   交出最终结果时注销；全部注销才算"结果最终确定"。`DiomanShare` 据此推迟结算——没有认领者当场
   结算，有则等登记簿清空；`DiomanCancel` 据此在整个逻辑请求（退避、刷新等待、重放）期间持续追踪
-  token。公开请求、mock 短路的请求不会被认领，share 当场结算，不会悬挂。
+  token。公开请求不会被认领，share 当场结算，不会悬挂。
 - **独立结果**：共享结算时存一份快照（`data` 引用不深拷贝）；follower / 落败者各拿一份绑定自己
   `RequestOptions` 的 `Response`/`DioException`，并被标记为 joined，不会再自行重试/刷新重放。
 - **重放传输层**（`lib/src/replay_support.dart`）：`share`/`auth`/`retry` 通过 `dio` 属性

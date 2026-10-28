@@ -262,12 +262,13 @@ Set<String> internalSymbols(List<Directory> directories) => symbolsFromSources({
                 file.readAsStringSync(),
     });
 
-/// 非插件源文件到分组的固定映射：安装/排序归 install，extra 键注册表归 extra。
+/// 非插件源文件到分组的固定映射：安装/排序归 install，extra 键注册表归 extra，传输层 mock 归 mock。
 const _fileGroups = {
   'dioman.dart': 'install',
   'dioman_plugin.dart': 'install',
   'plugin_order.dart': 'install',
   'extra_keys.dart': 'extra',
+  'mock_adapter.dart': 'mock',
 };
 
 /// 按台账里的源文件推导分组，未知文件返回 core。
@@ -390,10 +391,12 @@ Set<String> computeGaps({
     if (row.tier == 2 || row.tier == 3) {
       if (row.real.isEmpty) gaps.add('G4:${row.id}:no-real');
       if (row.result == null) gaps.add('G4:${row.id}:no-result');
-      if (row.result?['status'] == 'BLOCKED' &&
-          (row.blocked?.trim().isEmpty ?? true)) {
-        gaps.add('G4:${row.id}:blocked-no-reason');
-      }
+    }
+    // 只要挂了真实结论就要守住：FAIL 必须被看见；BLOCKED 必须写明原因。
+    if (row.result?['status'] == 'FAIL') gaps.add('G4:${row.id}:fail');
+    if (row.result?['status'] == 'BLOCKED' &&
+        (row.blocked?.trim().isEmpty ?? true)) {
+      gaps.add('G4:${row.id}:blocked-no-reason');
     }
     for (final h in row.assumptions.where(falsified.contains)) {
       gaps.add('G4:${row.id}:falsified-$h');
@@ -489,8 +492,10 @@ Map<String, dynamic> summarizeEvidence(List<Map<String, dynamic>> reports,
       final item = (raw as Map).cast<String, dynamic>();
       final id = item['scenario'] as String?;
       if (id == null) continue;
+      // 场景没声明这个网络/风格，或执行器判定与 dioman 设计不适用（原因以
+      // "不适用："开头），都不计入结论。
       final undeclared = (item['reasons'] as List? ?? const [])
-          .any((r) => '$r'.contains('未声明'));
+          .any((r) => '$r'.contains('未声明') || '$r'.startsWith('不适用：'));
       (cases[id] ??= {})['${item['network']}@${item['style']}'] =
           undeclared ? notApplicable : item['status'] as String? ?? _empty;
     }

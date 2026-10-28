@@ -160,7 +160,9 @@ void main() {
   });
 
   group('默认 install 顺序不变', () {
-    test('[Dioman.install][DiomanHandle.plugins] 全部 16 个插件的安装顺序与改动前逐一相同', () {
+    test(
+        '[Dioman.install][DiomanHandle.plugins] 全部 15 个插件的安装顺序与规范顺序逐一相同',
+        () {
       final dio = Dio();
       final handle = Dioman.install(
         dio,
@@ -175,7 +177,6 @@ void main() {
           onConnectivityChanged: const Stream<bool>.empty(),
         ),
         share: DiomanShare(),
-        mock: DiomanMock(enabled: false),
         cancel: DiomanCancel(),
         loading: DiomanLoading(onChanged: (_) {}),
         auth: DiomanAuth(
@@ -475,7 +476,6 @@ void main() {
         () async {
       final b = build();
       final retry = b.handle.plugin<DiomanRetry>()!;
-      // ignore: deprecated_member_use_from_same_package
       retry.share = DiomanShare();
       b.handle.insertAfter(retry, _SpyBreaker());
       expect(() => b.handle.remove<DiomanBreaker>(), returnsNormally);

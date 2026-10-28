@@ -94,11 +94,16 @@ DiomanAuthFailureAction defaultAuthFailure(
         : DiomanAuthFailureAction.deny;
   }
 
-  // Compare the raw token actually used (stashed by DiomanAuth at injection
-  // time) rather than the formatted header — buildHeader may wrap it (e.g.
-  // 'Bearer $t'), which would never equal the raw store token. Fall back to
-  // the header lookup for requests injected via a custom `ready` callback,
-  // where the raw token isn't stashed.
+  // Compare the raw token actually used (stashed by DiomanAuth in
+  // `extra[tokenUsed]` at injection time, whether injected via `ready` or
+  // `buildHeader`) rather than the formatted header — buildHeader may wrap it
+  // (e.g. 'Bearer $t'), which would never equal the raw store token. The stash
+  // is cleared when the request leaves the auth error/response path, so fall
+  // back to the header lookup only when no stash is present (e.g. a call made
+  // without going through DiomanAuth's onRequest); with a custom `ready` the
+  // header may not carry the token at all, which then counts as "no token".
+  // 比较实际使用的原始令牌（注入时无论走`ready`还是`buildHeader`，都会暂存到
+  // `extra[tokenUsed]`），不比较格式化后的头；仅在没有暂存时才回退读请求头。
   final tokenUsed =
       response.requestOptions.extra[DiomanAuth._kTokenUsed] as String?;
   final carried =
@@ -380,8 +385,9 @@ class DiomanAuth extends DiomanPlugin {
   set share(DiomanShare? value) {}
 
   Future<bool>? _refreshing; // shared window; bool = success
-  /// 同一失效会话只通知一次；获得新令牌后重新允许通知。
-  bool _expiredNotified = false;
+  /// 最近一次已判过期的会话标识（该会话请求出发时携带的 token）；同一会话只清理、
+  /// 通知一次，新会话（token 不同）过期后会再次通知。
+  String? _expiredSession;
 
   /// 所有过期请求共享的稳定错误消息，便于调用方识别。
   static const _expiredMessage = '[auth] session expired';
@@ -518,12 +524,11 @@ class DiomanAuth extends DiomanPlugin {
     // the first triggers the refresh, the rest await the same future, then
     // every one injects the refreshed token. Opt-in — with no [_expiresAt]
     // callback this branch never runs and behaviour is purely reactive.
-    _expiredNotified = false;
     if (_isExpiring(token, o)) {
       final ok = await _startRefresh(_synthProactive(options));
       if (!ok) {
         options.extra[_kDenied] = true;
-        await _expire(_synthProactive(options), o);
+        await _expire(_synthProactive(options), o, sessionToken: token);
         return handler.reject(
           DioException(
             requestOptions: options,
@@ -677,10 +682,8 @@ class DiomanAuth extends DiomanPlugin {
     final bag = opts.extra;
 
     if (bag[_kRefreshed] == true) {
-      // Already replayed once — give up. 用 token generation 校验，别让旧请求
-      // 清掉别人刚刷新出来的新会话。
-      return _expireAndFail(response, o, bag,
-          staleToken: bag[_kTokenUsed] as String?);
+      // Already replayed once — give up.
+      return _expireAndFail(response, o, bag);
     }
 
     final action = decision ??
@@ -735,14 +738,14 @@ class DiomanAuth extends DiomanPlugin {
       defaultAuthFailure(_tokenManager, response, o?.headerKey ?? _headerKey);
 
   /// 结束会话并清标记，返回给调用方的过期错误；[reported] 为空时用 [response]。
+  /// 会话标识取请求最近一次出发时携带的 token（[_kTokenUsed]）。
   Future<DioException> _expireAndFail(
     Response<dynamic> response,
     DiomanAuthOptions? o,
     Map<dynamic, dynamic> bag, {
-    String? staleToken,
     Response<dynamic>? reported,
   }) async {
-    await _expire(response, o, staleToken: staleToken);
+    await _expire(response, o, sessionToken: bag[_kTokenUsed] as String?);
     _clearFlags(bag);
     return _expiredError(reported ?? response);
   }
@@ -758,8 +761,7 @@ class DiomanAuth extends DiomanPlugin {
     if (replayed.response != null) return replayed.response;
     final failed = replayed.error?.response;
     if (_isReplayAuthFailure(failed, o)) {
-      return _expireAndFail(response, o, bag,
-          staleToken: bag[_kTokenUsed] as String?, reported: failed);
+      return _expireAndFail(response, o, bag, reported: failed);
     }
     _clearFlags(bag);
     return replayed.error;
@@ -782,10 +784,17 @@ class DiomanAuth extends DiomanPlugin {
     }
   }
 
+  /// 开启（或加入）共享刷新窗口，返回刷新是否成功。
+  ///
+  /// 必须用 `Future(() => ...)` 把 onRefresh 的调用推到下一个事件循环：若
+  /// onRefresh 是非 async 函数且同步抛错，原先的 async 闭包会在 `??=` 赋值之前
+  /// 就把 catch/finally 跑完，`_refreshing = null` 先于赋值执行，随后 `??=`
+  /// 把一个已完成的 future 永久留在窗口里，之后所有受保护请求都等到 false。
+  /// 强制异步后，闭包内第一个 await 必然让出，赋值总是先于 finally。
   Future<bool> _startRefresh(Response<dynamic> resp) {
     return _refreshing ??= (() async {
       try {
-        await _onRefresh(_tokenManager, resp);
+        await Future<void>(() => _onRefresh(_tokenManager, resp));
         return true;
       } catch (_) {
         return false;
@@ -795,22 +804,26 @@ class DiomanAuth extends DiomanPlugin {
     })();
   }
 
-  /// 会话过期：清空 token 并调用过期回调。传入 [staleToken]（失败请求实际用的
-  /// token）时先校验 generation——store 里已是别人刷新出的新 token，就不清，
-  /// 避免旧请求的失败清掉新会话。
+  /// 会话过期：清空 token 并调用过期回调。
+  ///
+  /// 会话标识 = 失败请求出发时实际携带的 token（[sessionToken]，缺省取 store 当前值，
+  /// store 也为空时记为空串）：
+  /// - store 当前 token 非空且不等于会话标识：别人已刷新出新会话（或使用者已重新登录），
+  ///   旧请求的失败与新会话无关，不清也不通知；
+  /// - 会话标识已是 [_expiredSession] 且 store 已清空：同一会话已处理过，不重复通知
+  ///   （store 里重新出现同名 token 视为新会话，仍会处理）；
+  /// - 否则清 token、记下会话、通知一次。
   Future<void> _expire(
     Response<dynamic> resp,
     DiomanAuthOptions? o, {
-    String? staleToken,
+    String? sessionToken,
   }) async {
-    if (staleToken != null) {
-      final current = _tokenManager.accessToken;
-      if (current != null && current.isNotEmpty && current != staleToken) {
-        return;
-      }
-    }
-    if (_expiredNotified && _tokenManager.accessToken == null) return;
-    _expiredNotified = true;
+    final current = _tokenManager.accessToken;
+    final hasCurrent = current != null && current.isNotEmpty;
+    final session = sessionToken ?? (hasCurrent ? current : '');
+    if (hasCurrent && current != session) return;
+    if (!hasCurrent && session == _expiredSession) return;
+    _expiredSession = session;
     _tokenManager.clear();
     final $onExpired = o?.onAccessExpired ?? _onExpired;
     await _safe(() => $onExpired(_tokenManager, resp));

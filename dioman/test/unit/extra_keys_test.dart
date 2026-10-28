@@ -76,7 +76,10 @@ void main() {
       expect(keys.toSet().length, keys.length, reason: '注册表出现重复键');
       for (final k in DiomanExtraKeys.all) {
         expect(k.key, startsWith(tkDioman2));
-        expect(k.owner, startsWith(tkDioman2));
+        // 传输层 adapter 不是插件，owner 登记为类名。
+        if (k.owner != DiomanExtraKeys.mockAdapterOwner) {
+          expect(k.owner, startsWith(tkDioman2));
+        }
         expect(k.valueType, isNotEmpty, reason: k.key);
         expect(k.description, isNotEmpty, reason: k.key);
       }
@@ -87,7 +90,11 @@ void main() {
       final config = DiomanExtraKeys.ofKind(DiomanExtraKeyKind.config);
       expect(config, isNotEmpty);
       for (final k in config) {
-        expect(k.key, k.owner, reason: '配置键就是插件名');
+        if (k.owner == DiomanExtraKeys.mockAdapterOwner) {
+          expect(k.key, DiomanMockAdapter.extraKey);
+        } else {
+          expect(k.key, k.owner, reason: '配置键就是插件名');
+        }
         expect(k.valueType, endsWith('Options'));
       }
       expect(DiomanExtraKeys.lookup(DiomanCache.pluginName)!.valueType,

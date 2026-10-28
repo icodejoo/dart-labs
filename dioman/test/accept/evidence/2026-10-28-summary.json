@@ -8,10 +8,19 @@
     "test/accept/results/guard-retry.429-retried.json",
     "test/accept/results/guard-retry.503-retry-after.json",
     "test/accept/results/guard-retry.respects-retry-after-over-delay.json",
-    "coverage/accept/plugin-matrix-final.json",
     "coverage/accept/normal-http.json",
     "coverage/accept/retry-inject.json",
-    "coverage/accept/filter-d19.json"
+    "coverage/accept/filter-d19.json",
+    "coverage/accept/exec-retry.json",
+    "coverage/accept/exec-breaker.json",
+    "coverage/accept/exec-normalize.json",
+    "coverage/accept/exec-share.json",
+    "coverage/accept/exec-offline.json",
+    "coverage/accept/exec-cancel.json",
+    "coverage/accept/keyfix-share.json",
+    "coverage/accept/keyfix-cache.json",
+    "coverage/accept/mock-removed.json",
+    "coverage/accept/plugin-matrix-final.json"
   ],
   "cases": {
     "auth.anon-and-private-mix": {
@@ -1889,6 +1898,14 @@
       "weak@business": "不适用",
       "weak@http": "不适用"
     },
+    "cache.single-clear-cache": {
+      "normal@business": "通过",
+      "normal@http": "通过"
+    },
+    "cache.single-explicit-key-expires": {
+      "normal@business": "通过",
+      "normal@http": "通过"
+    },
     "cache.timeout-not-cached": {
       "blackhole@business": "不适用",
       "blackhole@http": "不适用",
@@ -2241,6 +2258,18 @@
       "weak@business": "通过",
       "weak@http": "通过"
     },
+    "combo.cache-envs-hit-and-ttl": {
+      "normal@business": "通过",
+      "normal@http": "通过"
+    },
+    "combo.cache-mock-fallback-cached-once": {
+      "normal@business": "不适用",
+      "normal@http": "不适用"
+    },
+    "combo.cache-mock-no-key-collision": {
+      "normal@business": "通过",
+      "normal@http": "通过"
+    },
     "combo.cache-share-retry": {
       "blackhole@business": "不适用",
       "blackhole@http": "不适用",
@@ -2273,6 +2302,10 @@
       "weak@business": "不适用",
       "weak@http": "不适用"
     },
+    "combo.cancel-logger-cleanup": {
+      "normal@business": "通过",
+      "normal@http": "通过"
+    },
     "combo.cancel-share-follower": {
       "blackhole@business": "不适用",
       "blackhole@http": "不适用",
@@ -2288,6 +2321,10 @@
       "offline@http": "不适用",
       "weak@business": "不适用",
       "weak@http": "不适用"
+    },
+    "combo.envs-mock-routing": {
+      "normal@business": "通过",
+      "normal@http": "通过"
     },
     "combo.envs-retry-recovers-and-exhausts": {
       "normal@business": "通过",
@@ -2349,6 +2386,10 @@
       "weak@business": "不适用",
       "weak@http": "不适用"
     },
+    "combo.loading-mock-fallback-single-pair": {
+      "normal@business": "不适用",
+      "normal@http": "通过"
+    },
     "combo.logger-retry-recovers-and-exhausts": {
       "normal@business": "通过",
       "normal@http": "通过"
@@ -2368,6 +2409,10 @@
       "offline@http": "不适用",
       "weak@business": "通过",
       "weak@http": "通过"
+    },
+    "combo.mock-share-fallback-single-flight": {
+      "normal@business": "不适用",
+      "normal@http": "不适用"
     },
     "combo.normalize-business-retry-notify-cache": {
       "blackhole@business": "不适用",
@@ -3476,6 +3521,10 @@
       "weak@business": "通过",
       "weak@http": "通过"
     },
+    "mock.single-fallback-disabled": {
+      "normal@business": "不适用",
+      "normal@http": "通过"
+    },
     "network.blackhole-cancel-all": {
       "blackhole@business": "通过",
       "blackhole@http": "通过",
@@ -4384,7 +4433,7 @@
       "normal@http": "通过"
     },
     "plugins.single-auth": {
-      "normal@business": "通过",
+      "normal@business": "失败",
       "normal@http": "通过"
     },
     "plugins.single-breaker": {
@@ -5387,6 +5436,18 @@
       "weak@business": "不适用",
       "weak@http": "不适用"
     },
+    "share.single-all-timeout-aborts-server": {
+      "normal@business": "通过",
+      "normal@http": "通过"
+    },
+    "share.single-req-policy-race": {
+      "normal@business": "通过",
+      "normal@http": "通过"
+    },
+    "share.single-start-explicit-key": {
+      "normal@business": "通过",
+      "normal@http": "通过"
+    },
     "share.start-32": {
       "blackhole@business": "不适用",
       "blackhole@http": "不适用",
@@ -5804,6 +5865,7 @@
     "DiomanCacheOptions.new(shouldCache)",
     "DiomanCacheOptions.now",
     "DiomanCacheOptions.shouldCache",
+    "DiomanCacheOptions.shouldStore",
     "DiomanCachePersist",
     "DiomanCachePersist.erase",
     "DiomanCachePersist.read",
@@ -5893,6 +5955,7 @@
     "DiomanExtraKeys.builtIn",
     "DiomanExtraKeys.findSharedState",
     "DiomanExtraKeys.lookup",
+    "DiomanExtraKeys.mockAdapterOwner",
     "DiomanExtraKeys.ofKind",
     "DiomanExtraKeys.ofOwner",
     "DiomanExtraKeys.register",
@@ -6031,22 +6094,17 @@
     "DiomanLogOptions.new(maxBodyLength)",
     "DiomanLogOptions.new(writer)",
     "DiomanLogOptions.writer",
-    "DiomanMock",
-    "DiomanMock.add",
-    "DiomanMock.dispose",
-    "DiomanMock.enabled",
-    "DiomanMock.fallbackWhen",
-    "DiomanMock.mockUrl",
-    "DiomanMock.name",
-    "DiomanMock.new",
-    "DiomanMock.new(enabled)",
-    "DiomanMock.new(fallbackWhen)",
-    "DiomanMock.new(mockUrl)",
-    "DiomanMock.new(routes)",
-    "DiomanMock.onRequest",
-    "DiomanMock.pluginName",
-    "DiomanMock.remove",
-    "DiomanMock.reset",
+    "DiomanMockAdapter",
+    "DiomanMockAdapter.close",
+    "DiomanMockAdapter.extraKey",
+    "DiomanMockAdapter.fetch",
+    "DiomanMockAdapter.markerHeader",
+    "DiomanMockAdapter.new",
+    "DiomanMockAdapter.new(enabled)",
+    "DiomanMockAdapter.new(fallbackWhen)",
+    "DiomanMockAdapter.new(inner)",
+    "DiomanMockAdapter.new(mockUrl)",
+    "DiomanMockAdapter.new(routes)",
     "DiomanMockOptions",
     "DiomanMockOptions.enabled",
     "DiomanMockOptions.fallbackWhen",

@@ -34,7 +34,7 @@ Every plugin extends `DiomanPlugin` (a named `Interceptor` with a `dispose()` ho
 | `DiomanCache` | TTL response cache with `none`/`shallow`/`deep` clone strategies. |
 | `DiomanOffline` | Queue requests while offline; replay them when connectivity returns. |
 | `DiomanShare` | Deduplicate concurrent same-key requests (`start`/`end`/`race`/`retry`). |
-| `DiomanMock` | Route-based mock (inline handlers or a mock server) with real-API fallback. |
+| `DiomanMockAdapter` | Transport-level mock (dev/test only): inline routes or a mock server, with real-API fallback. Wraps `dio.httpClientAdapter`; not a plugin, so it has no slot in the install order. |
 | `DiomanCancel` | Inject a `CancelToken` into every request; `cancelAll()` aborts in-flight. |
 | `DiomanLoading` | In-flight request counter → a single `onChanged(bool)` for a global spinner. |
 | `DiomanAuth` | Token injection + single-window 401/403 refresh & replay (5 failure actions). |
@@ -73,7 +73,6 @@ final handle = Dioman.install(
   key: const DiomanKey(),                 // key for cache/share
   cache: DiomanCache(persist: yourCachePersist),                   // TTL cache (GET)
   share: DiomanShare(),                   // dedup concurrent
-  mock: DiomanMock(),                     // enabled: false by default — dev only
   cancel: DiomanCancel(),
   loading: DiomanLoading(onChanged: (busy) => showSpinner(busy)),
   auth: DiomanAuth(
@@ -109,7 +108,7 @@ await dio.get('/x', options: Options(extra: {
   'dioman:cache':     const DiomanCacheOptions(expires: 5000, clone: DiomanClonePolicy.shallow),
   'dioman:offline':   const DiomanOfflineOptions(enabled: false),                      // don't queue this call when offline
   'dioman:share':     const DiomanShareOptions(policy: SharePolicy.race),            // or `enabled: false` to opt out
-  'dioman:mock':      const DiomanMockOptions(mockUrl: 'http://localhost:9999'),     // or `enabled: false` to skip
+  'dioman:mock':      const DiomanMockOptions(mockUrl: 'http://localhost:9999'),     // read by DiomanMockAdapter; or `enabled: false` to skip
   'dioman:loading':   const DiomanLoadingOptions(enabled: false),                    // don't count toward the indicator
   'dioman:retry':     DiomanRetryOptions(max: 1, shouldRetry: (err, r) => false),     // or `enabled: false`
   'dioman:breaker':   const DiomanBreakerOptions(enabled: false),                     // skip the circuit breaker for this call
@@ -136,7 +135,7 @@ DiomanCacheOptions(expires: 5000)` leaves `enabled` and `clone` exactly as const
 ## Recommended order
 
 ```
-envs → timeout → repath → filter → key → cache → offline → share → mock → cancel → loading → auth → retry → breaker → log → normalize
+envs → timeout → repath → filter → key → cache → offline → share → cancel → loading → auth → retry → breaker → log → normalize
 ```
 
 | # | plugin | request role | response / error role |
@@ -149,14 +148,13 @@ envs → timeout → repath → filter → key → cache → offline → share �
 | 6 | `cache` | serve from cache | store raw payload |
 | 7 | `offline` | queue while offline | (replay on reconnect) |
 | 8 | `share` | dedup concurrent | settle waiters |
-| 9 | `mock` | dev override / fallback | — |
-| 10 | `cancel` | inject `CancelToken` | release token |
-| 11 | `loading` | count++ | count-- (bracket) |
-| 12 | `auth` | inject token / wait for refresh | 401 → refresh + replay |
-| 13 | `retry` | — | retry network/business failures |
-| 14 | `breaker` | fail fast when circuit open | count outcome, trip / recover |
-| 15 | `log` | log request | log response / error |
-| 16 | `normalize` *(optional)* | — | unwrap envelope / reject biz-error |
+| 9 | `cancel` | inject `CancelToken` | release token |
+| 10 | `loading` | count++ | count-- (bracket) |
+| 11 | `auth` | inject token / wait for refresh | 401 → refresh + replay |
+| 12 | `retry` | — | retry network/business failures |
+| 13 | `breaker` | fail fast when circuit open | count outcome, trip / recover |
+| 14 | `log` | log request | log response / error |
+| 15 | `normalize` *(optional)* | — | unwrap envelope / reject biz-error |
 
 Constraints if you're wiring plugins onto `dio.interceptors` by hand instead of through
 `Dioman.install` (which already gets this right for you):
@@ -166,7 +164,7 @@ Constraints if you're wiring plugins onto `dio.interceptors` by hand instead of 
   queued (stale-cache-over-queue for reads).
 - `offline` before `share`/`cancel`/`loading` — a parked (queued) request must not have created a
   share entry or opened a cancel/loading bracket, or those would leak while it waits.
-- `cache`/`share`/`mock` before `cancel` & `loading` — so a cache/share/mock hit doesn't leave
+- `cache`/`share` before `cancel` & `loading` — so a cache/share hit doesn't leave
   a loading spinner or cancel-token bracket stuck open.
 - `cancel` & `loading` before `auth` & `retry` — so their cleanup has already run by the time a
   401 or a retry resolves the error.
@@ -378,9 +376,29 @@ reference is shared, not deep-copied). Settlement is deferred while `DiomanAuth`
 hold the request, so waiters see the true final outcome (after refresh/retry), never a pre-recovery
 result.
 
-### DiomanMock
+### DiomanMockAdapter
 
-`DiomanMock({bool enabled = false, String? mockUrl, MockFallbackDecider? fallbackWhen, Map<String, MockHandler>? routes})` — `fallbackWhen` defaults to `defaultFallback` (404 or network error, excluding user cancel); `routes` defaults to empty. Matches `METHOD:path` against inline handlers, else redirects to `mockUrl`; on a 404/network error it **falls back to the real API**. Register handlers with `add('GET:/pet', ...)`, `remove`, `reset`.
+Mocking is transport-level: `DiomanMockAdapter` wraps `dio.httpClientAdapter` directly, outside `Dioman.install`. It is not a plugin, so there is no install order to get wrong. **Install only in development/test flavors**; this pure Dart library cannot detect release mode.
+
+```dart
+// Development/test flavor bootstrap only:
+dio.httpClientAdapter = DiomanMockAdapter(
+  inner: dio.httpClientAdapter,
+  routes: {
+    'GET:/pets': (_) async => ResponseBody.fromString('[]', 200,
+      headers: {Headers.contentTypeHeader: ['application/json']}),
+  },
+  // mockUrl: 'http://localhost:4523', // optional fallback mock server
+);
+```
+
+Constructor: required `inner`; `routes = const {}`, optional `mockUrl`, `fallbackWhen = defaultFallback`, `enabled = true`. Inline routes match `METHOD:uri.path`; unmatched requests forward to `mockUrl` (preserving path and query), or pass through to the real API. Inline results never fall back. Forwarded 404 responses and non-cancel transport errors fall back by default. Dio decodes and validates the raw adapter response: `fallbackWhen(response:)` receives `ResponseBody` as `data`; HTTP 500 reaches Dio unless your decider requests fallback. Forwarding buffers request bodies in memory so fallback can replay them completely.
+
+Override per request with `extra[DiomanMockAdapter.extraKey]` (`'dioman:mock'`): a `DiomanMockOptions` overrides enabled/routes/mockUrl/fallbackWhen (routes merge, per-request keys win), and `false` or `DiomanMockOptions(enabled: false)` disables mocking for that call.
+
+Relation to the plugin chain: the adapter sits **below** every plugin, at the transport. So `share` merges concurrent identical requests *before* they reach it (one mock probe, not N); `auth`/`retry` replays pass through it again (a mocked 500 follows the retry settings, and each replay re-probes the mock); a `cache` hit or an `offline` queue answers before the adapter is ever asked, and a real fallback response is cached like any real response.
+
+Inline and non-fallback forwarded responses carry `DiomanMockAdapter.markerHeader` (`x-dioman-mock: 1`). `DiomanCache` always vetoes writes carrying this header before consulting `shouldStore`; user callbacks cannot override it. Real fallback responses receive no added marker and cache normally. Turning mock off for the same key cannot read mock-polluted cache data; existing real cache entries can still be served.
 
 ### DiomanCancel
 
@@ -428,7 +446,7 @@ usage example:
 | `dioman:cache` | cache | `DiomanCacheOptions` | `enabled: false` skip; `expires`/`clone` per-call. |
 | `dioman:offline` | offline | `DiomanOfflineOptions` | `enabled: false` skip (pass through even offline); `shouldQueue`/`maxQueueSize`/`maxWait` per-call. |
 | `dioman:share` | share | `DiomanShareOptions` | `enabled: false` opt out; `policy` overrides. |
-| `dioman:mock` | mock | `DiomanMockOptions` | `enabled: false` skip; `mockUrl` overrides target. |
+| `dioman:mock` | `DiomanMockAdapter` (not a plugin) | `DiomanMockOptions` \| `false` | `false` / `enabled: false` skip; `mockUrl` overrides target. Key constant: `DiomanMockAdapter.extraKey`. |
 | `dioman:loading` | loading | `DiomanLoadingOptions` | `enabled: false` → don't count toward the indicator. |
 | `dioman:log` | log | `DiomanLogOptions` | `enabled: false` → don't log this call. |
 | `dioman:retry` | retry | `int` \| `false` \| `DiomanRetryOptions` | `int` overrides `max` only; `false` disables (highest-priority veto); the options object overrides any field (`max`/`methods`/`shouldRetry`/`statusCodes`/`delay`/`jitter`/`delayMax`/`respectRetryAfter`/`afterStatusCodes`/`retryAfterMax`/`enabled`). |
