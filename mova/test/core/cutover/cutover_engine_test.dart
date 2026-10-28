@@ -4,9 +4,11 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mova/src/core/api.dart';
 import 'package:mova/src/core/events/events.dart';
 import 'package:mova/src/core/model/fit.dart';
+import 'package:mova/src/core/model/orientation.dart';
 import 'package:mova/src/core/model/quality.dart';
 import 'package:mova/src/core/model/source.dart';
 import 'package:mova/src/core/options/options.dart';
+import 'package:mova/src/core/report/report.dart';
 import 'package:mova/src/core/state/progress.dart';
 import 'package:mova/src/core/state/state.dart';
 import 'package:mova/src/core/state/ui_state.dart';
@@ -154,6 +156,18 @@ void main() {
       expect(made.first.lastSeek, const Duration(seconds: 3));
     });
 
+    test('disabled: preparing a hand-off emits no MovaCutoverChange at all', () async {
+      final changes = <MovaEvent>[];
+      final sub = api.events.where((e) => e is MovaCutoverChange).listen(changes.add);
+      await api.prepare(
+        const MovaSource('https://host/content.mp4'),
+        cue: const MovaWarmCue(remaining: Duration(seconds: 1), total: Duration(seconds: 10)),
+      );
+      await settle();
+      expect(changes, isEmpty);
+      await sub.cancel();
+    });
+
     test('cutoverPhases does not push initially, and cutoverPhase starts idle', () async {
       final phases = <MovaCutoverPhase>[];
       final sub = api.cutoverPhases.listen(phases.add);
@@ -272,6 +286,41 @@ void main() {
       expect(api.cutoverPhase, MovaCutoverPhase.ready);
       expect(phases, [MovaCutoverPhase.warming, MovaCutoverPhase.ready]);
       await sub.cancel();
+    });
+
+    test('the events stream carries MovaCutoverChange for warming, ready and the return to idle', () async {
+      final seen = <MovaCutoverPhase>[];
+      final sub = api.events.where((e) => e is MovaCutoverChange).listen((e) => seen.add((e as MovaCutoverChange).phase));
+      await api.prepare(
+        const MovaSource('https://host/content.mp4'),
+        at: const Duration(seconds: 5),
+        cue: const MovaWarmCue(remaining: Duration(seconds: 1), total: Duration(seconds: 10)),
+      );
+      await settle();
+      await warmToReady(made[1], at: const Duration(seconds: 5));
+      expect(await api.commit(), isTrue);
+      await settle();
+      expect(seen, [MovaCutoverPhase.warming, MovaCutoverPhase.ready, MovaCutoverPhase.idle]);
+      await sub.cancel();
+    });
+
+    test('MovaCutoverChange on events always matches cutoverPhases one for one', () async {
+      final phases = <MovaCutoverPhase>[];
+      final changes = <MovaCutoverPhase>[];
+      final s1 = api.cutoverPhases.listen(phases.add);
+      final s2 = api.events.where((e) => e is MovaCutoverChange).listen((e) => changes.add((e as MovaCutoverChange).phase));
+      await api.prepare(
+        const MovaSource('https://host/content.mp4'),
+        at: const Duration(seconds: 5),
+        cue: const MovaWarmCue(remaining: Duration(seconds: 1), total: Duration(seconds: 10)),
+      );
+      await settle();
+      await warmToReady(made[1], at: const Duration(seconds: 5));
+      await api.commit();
+      await settle();
+      expect(changes, phases);
+      await s1.cancel();
+      await s2.cancel();
     });
 
     test('commit() success: active becomes the shadow; old gets pause+dispose; new gets play', () async {
@@ -546,6 +595,62 @@ void main() {
       await api.dispose();
       await settle();
       expect(shadow.calls, contains('dispose'));
+    });
+  });
+
+  group('MovaCutoverEngine — verbs after dispose are no-ops', () {
+    late List<FakeMovaApi> made;
+    late MovaCutoverEngine api;
+    const opts = MovaOpts(cutover: MovaCutoverConfig(enabled: true));
+
+    setUp(() {
+      made = <FakeMovaApi>[];
+      api = MovaCutoverEngine(engineFactory: () {
+        final f = FakeMovaApi(options: opts);
+        made.add(f);
+        return f;
+      });
+    });
+
+    test('no verb reaches the released engine and none throws', () async {
+      await api.dispose();
+      final before = made.first.calls.length;
+      await api.open(const MovaSource('https://host/a.mp4'));
+      await api.play();
+      await api.pause();
+      await api.playOrPause();
+      await api.seek(const Duration(seconds: 5));
+      await api.seekBy(const Duration(seconds: 5));
+      await api.setVolume(10);
+      await api.setBrightness(0.5);
+      await api.setRate(2);
+      await api.setFit(MovaFit.cover);
+      await api.setZoom(2);
+      await api.setLocked(true);
+      await api.setFullscreen(true);
+      await api.setMini(true);
+      await api.setOrientation(MovaOrientation.landscape);
+      await api.loadQualities();
+      await api.switchQuality(const MovaQuality(label: 'x', uri: 'https://host/x.m3u8'));
+      await api.enterPip();
+      await api.reload();
+      await api.backToLiveEdge();
+      await api.setKeepAlive(true);
+      api
+        ..showControls()
+        ..hideControls()
+        ..showHud(MovaHud.volume)
+        ..setDragging(true)
+        ..report(MovaReportName.play);
+      expect(made.first.calls.sublist(before), isEmpty);
+    });
+
+    test('prepare, cutoverTo and commit after dispose build no shadow engine', () async {
+      await api.dispose();
+      await api.prepare(const MovaSource('https://host/b.mp4'));
+      expect(await api.cutoverTo(const MovaSource('https://host/c.mp4')), isFalse);
+      expect(await api.commit(waitForReady: true), isFalse);
+      expect(made, hasLength(1));
     });
   });
 

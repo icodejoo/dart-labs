@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:mova/src/core/options/options.dart';
 import 'package:mova/src/core/state/state.dart';
 import 'package:mova/src/core/state/ui_state.dart';
 import 'package:mova/src/ui/components/hud_layer.dart';
@@ -76,4 +77,51 @@ void main() {
     expect(find.byType(Icon), findsNothing);
     await api.dispose();
   });
+
+  testWidgets('zoom HUD shows the scale to one decimal with the configured suffix', (t) async {
+    final api = FakeMovaApi();
+    api.push(const MovaState(zoom: 2.25));
+    api.pushUi(const MovaUiState(hud: MovaHud.zoom));
+    await pumpComponent(t, api, MovaHudLayerComponent());
+    await t.pump();
+    expect(find.text('2.3${api.options.strings.zoomSuffix}'), findsOneWidget);
+    await api.dispose();
+  });
+
+  testWidgets('zoom HUD follows a replaced zoomSuffix', (t) async {
+    final api = FakeMovaApi(options: const MovaOpts(strings: MovaStrs(zoomSuffix: ' times')));
+    api.push(const MovaState(zoom: 1.5));
+    api.pushUi(const MovaUiState(hud: MovaHud.zoom));
+    await pumpComponent(t, api, MovaHudLayerComponent());
+    await t.pump();
+    expect(find.text('1.5 times'), findsOneWidget);
+    await api.dispose();
+  });
+
+  testWidgets('zoom HUD is absent while a different HUD kind is active', (t) async {
+    final api = FakeMovaApi();
+    api.push(const MovaState(zoom: 2, volume: 10));
+    api.pushUi(const MovaUiState(hud: MovaHud.volume));
+    await pumpComponent(t, api, MovaHudLayerComponent());
+    await t.pump();
+    expect(find.textContaining(api.options.strings.zoomSuffix), findsNothing);
+    expect(find.text('10%'), findsOneWidget);
+    await api.dispose();
+  });
+
+  // MovaHud.fit / MovaHud.quality exist as enum values but no HUD leaf renders
+  // them: pin the current "renders nothing" behavior.
+  // MovaHud.fit / MovaHud.quality 虽是枚举值，但没有对应的 HUD 叶子组件；固定现行"什么都不渲染"的行为。
+  for (final kind in [MovaHud.fit, MovaHud.quality]) {
+    testWidgets('${kind.name} HUD currently renders nothing', (t) async {
+      final api = FakeMovaApi();
+      api.push(const MovaState(zoom: 2, volume: 10, brightness: 0.5));
+      api.pushUi(MovaUiState(hud: kind, hudText: 'x'));
+      await pumpComponent(t, api, MovaHudLayerComponent());
+      await t.pump();
+      expect(find.byType(Icon), findsNothing);
+      expect(find.byType(Text), findsNothing);
+      await api.dispose();
+    });
+  }
 }

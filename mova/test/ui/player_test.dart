@@ -4,7 +4,9 @@ import 'package:mova/src/core/state/progress.dart';
 import 'package:mova/src/core/state/state.dart';
 import 'package:mova/src/ui/player.dart';
 import 'package:mova/src/ui/scope/scope.dart';
+import 'package:mova/src/ui/skins/bilibili_skin.dart';
 import 'package:mova/src/ui/skins/default_skin.dart';
+import 'package:mova/src/ui/skins/minimal_skin.dart';
 
 import '../support/fake_api.dart';
 
@@ -236,4 +238,57 @@ void main() {
       await api.dispose();
     },
   );
+
+  group('S14: switching the skin under a live MovaPlayer', () {
+    testWidgets('keeps the same api untouched: no open/play/seek/reload and no new calls at all', (t) async {
+      final api = FakeMovaApi();
+      await t.pumpWidget(MaterialApp(home: MovaPlayer(api: api, skin: const MovaDefaultSkin())));
+      await t.pump();
+      final callsBefore = List<String>.of(api.calls);
+      await t.pumpWidget(MaterialApp(home: MovaPlayer(api: api, skin: MovaBilibiliSkin())));
+      await t.pump();
+      await t.pumpWidget(MaterialApp(home: MovaPlayer(api: api, skin: const MovaMinimalSkin())));
+      await t.pump();
+      expect(api.calls, callsBefore);
+      expect(api.calls, isNot(contains('open')));
+      await api.dispose();
+    });
+
+    testWidgets('keeps the render surface: same handle key, no remount of the video', (t) async {
+      final api = FakeMovaApi();
+      await t.pumpWidget(MaterialApp(home: MovaPlayer(api: api, skin: const MovaDefaultSkin())));
+      await t.pump();
+      final before = _surfaceKey(t);
+      await t.pumpWidget(MaterialApp(home: MovaPlayer(api: api, skin: const MovaMinimalSkin())));
+      await t.pump();
+      expect(_surfaceKey(t), before);
+      await api.dispose();
+    });
+
+    testWidgets('really swaps the chrome: the default skin has the fullscreen button, minimal does not', (t) async {
+      final api = FakeMovaApi();
+      await t.pumpWidget(MaterialApp(home: MovaPlayer(api: api, skin: const MovaDefaultSkin())));
+      await t.pump();
+      expect(find.byIcon(Icons.fullscreen_rounded), findsOneWidget);
+      await t.pumpWidget(MaterialApp(home: MovaPlayer(api: api, skin: const MovaMinimalSkin())));
+      await t.pump();
+      expect(find.byIcon(Icons.fullscreen_rounded), findsNothing);
+      await t.pumpWidget(MaterialApp(home: MovaPlayer(api: api, skin: const MovaDefaultSkin())));
+      await t.pump();
+      expect(find.byIcon(Icons.fullscreen_rounded), findsOneWidget);
+      await api.dispose();
+    });
+
+    testWidgets('does not emit duplicate events: the api event stream stays quiet', (t) async {
+      final api = FakeMovaApi();
+      final seen = <Object>[];
+      api.events.listen(seen.add); // closed by api.dispose(); awaiting a cancel would hang in fakeAsync
+      await t.pumpWidget(MaterialApp(home: MovaPlayer(api: api, skin: const MovaDefaultSkin())));
+      await t.pump();
+      await t.pumpWidget(MaterialApp(home: MovaPlayer(api: api, skin: MovaBilibiliSkin())));
+      await t.pump();
+      expect(seen, isEmpty);
+      await api.dispose();
+    });
+  });
 }

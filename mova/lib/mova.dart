@@ -24,6 +24,7 @@ export 'src/core/model/fit.dart';
 export 'src/core/model/orientation.dart';
 export 'src/core/model/playlist.dart';
 export 'src/core/model/quality.dart';
+export 'src/core/model/rate.dart';
 export 'src/core/model/source.dart';
 export 'src/core/options/options.dart';
 export 'src/core/platform/ports.dart';

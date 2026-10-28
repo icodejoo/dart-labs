@@ -176,11 +176,14 @@ abstract class MovaApi {
 
   /// Sets playback rate.
   ///
-  /// [r] is the playback speed multiplier, e.g. `1.0` for normal speed.
+  /// [r] is the playback speed multiplier, e.g. `1.0` for normal speed. It is
+  /// clamped to [kMovaMinRate]..[kMovaMaxRate] (NaN becomes 1.0), and the
+  /// clamped value is what the kernel, state and event all see.
   ///
   /// 设置播放倍速。
   ///
-  /// [r] 为播放速度倍数，例如 `1.0` 表示正常速度。
+  /// [r] 为播放速度倍数，例如 `1.0` 表示正常速度。会被钳到
+  /// [kMovaMinRate]..[kMovaMaxRate]（NaN 当 1.0），内核、state、事件看到的都是钳后的值。
   Future<void> setRate(double r);
 
   /// Sets the video fill/fit mode.

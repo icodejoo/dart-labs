@@ -16,6 +16,7 @@ import 'live/timeshift.dart';
 import 'model/fit.dart';
 import 'model/orientation.dart';
 import 'model/quality.dart';
+import 'model/rate.dart';
 import 'model/source.dart';
 import 'options/options.dart';
 import 'platform/ports.dart';
@@ -535,6 +536,14 @@ class MovaEngine implements MovaApi, MovaKeepAlive, MovaPlayerMute, MovaHandoffR
   /// 校验补发的续播 seek 是否真正落地（见 [_armResumeVerify]）。
   Timer? _resumeVerifyTimer;
 
+  /// Generation of the seek verify chain: bumped by every seek and every media
+  /// reset, so an in-flight re-send that wakes up late can tell it was
+  /// superseded and must not re-arm the chain.
+  ///
+  /// seek 校验链的世代号：每次 seek 与每次素材重置都会推进，使晚醒的在途重发
+  /// 能察觉自己已被取代，不再重新布防校验链。
+  int _seekChain = 0;
+
   /// Whether ABR is muted while a variant switch's resume chain is in flight.
   /// The buffering that the reload and its resume seeks cause is the switch's
   /// own cost, not a network stall, so it must not count toward a downshift.
@@ -787,6 +796,7 @@ class MovaEngine implements MovaApi, MovaKeepAlive, MovaPlayerMute, MovaHandoffR
         reporter: reporterPort,
         config: options.report,
         probe: probe is MovaStatsProbe ? probe as MovaStatsProbe : null,
+        onReporterError: _onReporterFailure,
       );
     }
     // Probe pip support once. The UI hides the pip button until this answers,
@@ -1237,6 +1247,10 @@ class MovaEngine implements MovaApi, MovaKeepAlive, MovaPlayerMute, MovaHandoffR
 
   @override
   Future<bool> open(MovaSource source, {bool autoPlay = true}) async {
+    // Disposed: silent no-op.
+    //
+    // 已销毁：静默空操作。
+    if (_disposed) return false;
     // Claim this call's generation before the first await: if another open()
     // call is made while this one is suspended below, that later call bumps
     // _openGen again and this call notices it has been superseded the moment
@@ -1515,6 +1529,7 @@ class MovaEngine implements MovaApi, MovaKeepAlive, MovaPlayerMute, MovaHandoffR
   /// recovery 已耗尽：经 state、事件流与拦截链暴露 [MovaGiveUpError]，并暂停内核，
   /// 避免失效的直播源在后台一直重连。
   void _giveUp(MovaPlayFail fail) {
+    if (_disposed) return;
     final err = MovaGiveUpError(fail);
     // Nothing is loading any more: a buffering flag left over from the dead
     // attempt would keep the spinner up forever.
@@ -1530,6 +1545,10 @@ class MovaEngine implements MovaApi, MovaKeepAlive, MovaPlayerMute, MovaHandoffR
 
   @override
   Future<MovaKeepAlivePhase> setKeepAlive(bool on) {
+    // Disposed: silent no-op.
+    //
+    // 已销毁：静默空操作。
+    if (_disposed) return Future<MovaKeepAlivePhase>.value(state.keepAlivePhase);
     // Recorded synchronously so a play()/open() queued behind this call sees it.
     //
     // 同步记下，使排在本调用之后的 play()/open() 能看到。
@@ -1575,6 +1594,7 @@ class MovaEngine implements MovaApi, MovaKeepAlive, MovaPlayerMute, MovaHandoffR
         _cancelResume();
         if (viaPlay && current == MovaKeepAlivePhase.fallback) return current;
         if (!viaPlay) await _kernel.pause();
+        if (_disposed) return MovaKeepAlivePhase.off;
         _setKeepAlivePhase(MovaKeepAlivePhase.fallback, entry.reason);
         return state.keepAlivePhase;
       case MovaKeepAliveEntryKind.hold:
@@ -1584,6 +1604,7 @@ class MovaEngine implements MovaApi, MovaKeepAlive, MovaPlayerMute, MovaHandoffR
         if (_disposed) return MovaKeepAlivePhase.off;
         if (!ok) {
           if (!viaPlay) await _kernel.pause();
+          if (_disposed) return MovaKeepAlivePhase.off;
           _setKeepAlivePhase(MovaKeepAlivePhase.fallback, MovaKeepAliveReason.unsupported);
           return state.keepAlivePhase;
         }
@@ -1619,7 +1640,9 @@ class MovaEngine implements MovaApi, MovaKeepAlive, MovaPlayerMute, MovaHandoffR
     _keepAliveTimer?.cancel();
     _keepAliveTimer = null;
     await _kernel.pause();
+    if (_disposed) return;
     await _keepAliveKernel?.exitKeepAlive();
+    if (_disposed) return;
     _keepAliveMode = null;
     _setKeepAlivePhase(MovaKeepAlivePhase.fallback, reason);
   }
@@ -1640,6 +1663,7 @@ class MovaEngine implements MovaApi, MovaKeepAlive, MovaPlayerMute, MovaHandoffR
   ///
   /// - [reason]: why keepAlive ended / 待机为何结束
   Future<void> _dropKeepAlive(MovaKeepAliveReason reason) async {
+    if (_disposed) return;
     final phase = state.keepAlivePhase;
     if (phase == MovaKeepAlivePhase.off) return;
     _keepAliveTimer?.cancel();
@@ -1658,6 +1682,7 @@ class MovaEngine implements MovaApi, MovaKeepAlive, MovaPlayerMute, MovaHandoffR
   /// 待机请求存在或已在待机时的 `pause()`：先停，再还原属性，不漏声。
   Future<void> _pauseOutOfKeepAlive() async {
     await _kernel.pause();
+    if (_disposed) return;
     await _enqueueKeepAlive(() => _dropKeepAlive(MovaKeepAliveReason.paused));
   }
 
@@ -1672,6 +1697,7 @@ class MovaEngine implements MovaApi, MovaKeepAlive, MovaPlayerMute, MovaHandoffR
       _keepAliveTimer?.cancel();
       _keepAliveTimer = null;
       _cancelResume();
+      if (_disposed) return false;
       if (state.keepAlivePhase == MovaKeepAlivePhase.holding) {
         await _keepAliveKernel?.exitKeepAlive();
       }
@@ -1694,7 +1720,7 @@ class MovaEngine implements MovaApi, MovaKeepAlive, MovaPlayerMute, MovaHandoffR
     unawaited(
       _enqueueKeepAlive(() async {
         final p = await _enterKeepAlive(viaPlay: true);
-        if (p == MovaKeepAlivePhase.holding) await _kernel.play();
+        if (p == MovaKeepAlivePhase.holding && !_disposed) await _kernel.play();
       }),
     );
   }
@@ -1704,6 +1730,7 @@ class MovaEngine implements MovaApi, MovaKeepAlive, MovaPlayerMute, MovaHandoffR
   ///
   /// 从待机唤醒：撤销待机，或续播/重连 fallback 暂停——由 [decideKeepAliveWake] 决定。
   Future<MovaKeepAlivePhase> _leaveKeepAlive() async {
+    if (_disposed) return MovaKeepAlivePhase.off;
     final phase = state.keepAlivePhase;
     final since = _keepAliveSince;
     final wake = decideKeepAliveWake(
@@ -1826,6 +1853,10 @@ class MovaEngine implements MovaApi, MovaKeepAlive, MovaPlayerMute, MovaHandoffR
 
   @override
   Future<void> play() async {
+    // Disposed: silent no-op.
+    //
+    // 已销毁：静默空操作。
+    if (_disposed) return;
     // An async host hook can outlive a pause() or a source change; re-check
     // after it returns so a late play never overrides either.
     //
@@ -1846,6 +1877,7 @@ class MovaEngine implements MovaApi, MovaKeepAlive, MovaPlayerMute, MovaHandoffR
     if (keepAlivePhase == MovaKeepAlivePhase.holding) return;
     if (_keepAliveRequested && keepAlivePhase != MovaKeepAlivePhase.resuming) {
       final p = await _enqueueKeepAlive(() => _enterKeepAlive(viaPlay: true));
+      if (_disposed) return;
       if (p == MovaKeepAlivePhase.holding) {
         await _kernel.play();
         return;
@@ -1864,12 +1896,17 @@ class MovaEngine implements MovaApi, MovaKeepAlive, MovaPlayerMute, MovaHandoffR
     // 播放"的可见效果。直播没有可回退的"播放完"位置，因此只对点播生效。
     if (state.completed && state.type == MovaStreamType.vod) {
       await _kernel.seek(Duration.zero);
+      if (_disposed) return;
     }
     await _kernel.play();
   }
 
   @override
   Future<void> pause() {
+    // Disposed: silent no-op.
+    //
+    // 已销毁：静默空操作。
+    if (_disposed) return Future<void>.value();
     _pauseSeq++;
     _state.emit(state.copyWith(playbackIntent: false));
     _watchdog?.onPlaying(false);
@@ -1890,12 +1927,18 @@ class MovaEngine implements MovaApi, MovaKeepAlive, MovaPlayerMute, MovaHandoffR
   Future<void> seek(Duration to) async {
     final gate = state.type == MovaStreamType.vod || state.liveSeekable;
     if (!gate) return;
+    if (_disposed) return;
     final gen = _openGen;
-    final t = await _chain.beforeSeek(to);
+    final hooked = await _chain.beforeSeek(to);
     // A source change while an async hook was pending makes the jump stale.
     //
     // 异步钩子挂起期间换了源，这次跳转就过期了。
-    if (t == null || _disposed || gen != _openGen) return;
+    if (hooked == null || _disposed || gen != _openGen) return;
+    // Floor at zero up front: with the duration still unknown the upper clamp
+    // below is skipped, and a negative target would otherwise be parked as is.
+    //
+    // 先把下界钳到 0：时长未知时下面的上界钳制会被跳过，负目标否则会被原样寄存。
+    final t = hooked < Duration.zero ? Duration.zero : hooked;
     // For a seekable live stream the meaningful upper bound is the DVR
     // window, not `duration` — with an explicit dvrWindow/windowResolver the
     // kernel may report no duration at all.
@@ -1958,8 +2001,10 @@ class MovaEngine implements MovaApi, MovaKeepAlive, MovaPlayerMute, MovaHandoffR
     bool ready = false,
     bool forcePark = false,
   }) async {
+    if (_disposed) return;
     _resumeVerifyTimer?.cancel();
     _resumeVerifyTimer = null;
+    final chain = ++_seekChain;
     final park =
         !ready &&
         state.type == MovaStreamType.vod &&
@@ -1976,6 +2021,15 @@ class MovaEngine implements MovaApi, MovaKeepAlive, MovaPlayerMute, MovaHandoffR
     if (park) return;
     await _kernel.seek(to);
     if (notify) _emitEvent(MovaSeeked(to));
+    // A VOD seek the kernel silently discards would leave [_pendingSeekTarget]
+    // armed and mute the progress for good, so every one runs the verify chain;
+    // a newer seek (or a media reset) during the await above supersedes it.
+    //
+    // 被内核静默丢弃的点播 seek 会让 [_pendingSeekTarget] 一直布防、进度永久静音，
+    // 因此每次都走校验链；上面 await 期间若来了更新的 seek（或素材重置）则本链作废。
+    if (!_disposed && chain == _seekChain && state.type == MovaStreamType.vod) {
+      _armResumeVerify(to, 1);
+    }
   }
 
   /// Forgets everything the *previous* media reported, so the park-or-seek
@@ -1988,6 +2042,7 @@ class MovaEngine implements MovaApi, MovaKeepAlive, MovaPlayerMute, MovaHandoffR
   /// （同一部片换档）共用。
   void _forgetMediaProgress() {
     _releaseAbrHold();
+    _seekChain++;
     _resumeVerifyTimer?.cancel();
     _resumeVerifyTimer = null;
     _parkHoldTimer?.cancel();
@@ -2012,11 +2067,17 @@ class MovaEngine implements MovaApi, MovaKeepAlive, MovaPlayerMute, MovaHandoffR
   /// - [duration]: the just-reported media duration / 刚上报的媒体时长
   Future<void> _applyParkedSeek(Duration duration) async {
     final parked = _parkedSeek;
-    if (parked == null || duration <= Duration.zero) return;
+    if (_disposed || parked == null || duration <= Duration.zero) return;
     _parkedSeek = null;
     final notify = _parkedNotify;
     _parkedNotify = false;
-    final clamped = parked > duration ? duration : parked;
+    final chain = ++_seekChain;
+    // Floor at zero as well, so the replay is clamped on both sides.
+    //
+    // 同时钳下界，补发时上下两侧都已钳制。
+    final clamped = parked < Duration.zero
+        ? Duration.zero
+        : (parked > duration ? duration : parked);
     _pendingSeekTarget = clamped;
     _lastPosition = clamped;
     _progressRaw.add(MovaProg(position: clamped, buffer: _lastBuffer));
@@ -2025,9 +2086,12 @@ class MovaEngine implements MovaApi, MovaKeepAlive, MovaPlayerMute, MovaHandoffR
     // above was in flight.
     //
     // 与 [open] 同样的销毁竞态：上面的 await 期间 dispose() 可能已经跑过。
-    if (_events.isClosed) return;
+    if (_disposed || _events.isClosed) return;
     if (notify) _emitEvent(MovaSeeked(clamped));
-    _armResumeVerify(clamped, 1);
+    // A newer seek during the await owns the chain now.
+    //
+    // await 期间若来了更新的 seek，校验链归它所有。
+    if (chain == _seekChain) _armResumeVerify(clamped, 1);
   }
 
   /// Re-sends a replayed resume seek when, [debugResumeVerifyDelay] later, the
@@ -2052,12 +2116,21 @@ class MovaEngine implements MovaApi, MovaKeepAlive, MovaPlayerMute, MovaHandoffR
     _resumeVerifyTimer?.cancel();
     if (attempt >= _resumeVerifyMax) {
       // The last re-sent seek's buffering still lands after this point, so the
-      // ABR mute ends one verify interval later.
+      // ABR mute ends one verify interval later. Giving up also disarms the
+      // echo suppression: the kernel keeps discarding the seek, so the real
+      // position is the only truth left and progress follows it again.
       //
       // 最后一次补发 seek 引起的缓冲还会在此之后到达，ABR 屏蔽再延后一个校验间隔。
-      _resumeVerifyTimer = Timer(debugResumeVerifyDelay, _releaseAbrHold);
+      // 放弃的同时解除回声抑制：内核一直在丢这次 seek，只剩真实位置可信，进度重新跟随它。
+      _resumeVerifyTimer = Timer(debugResumeVerifyDelay, () {
+        _resumeVerifyTimer = null;
+        if (_disposed || _events.isClosed) return;
+        _pendingSeekTarget = null;
+        _releaseAbrHold();
+      });
       return;
     }
+    final chain = _seekChain;
     _resumeVerifyTimer = Timer(debugResumeVerifyDelay, () {
       _resumeVerifyTimer = null;
       if (_disposed || _events.isClosed) return;
@@ -2079,7 +2152,7 @@ class MovaEngine implements MovaApi, MovaKeepAlive, MovaPlayerMute, MovaHandoffR
       _pendingSeekTarget = target;
       unawaited(() async {
         await _kernel.seek(target);
-        if (_disposed || _events.isClosed) return;
+        if (_disposed || _events.isClosed || chain != _seekChain) return;
         _armResumeVerify(target, attempt + 1);
       }());
     });
@@ -2149,6 +2222,10 @@ class MovaEngine implements MovaApi, MovaKeepAlive, MovaPlayerMute, MovaHandoffR
   /// Example / 示例：`await engine.setWarmMute(true);`
   @override
   Future<bool> setWarmMute(bool on) {
+    // Disposed: silent no-op.
+    //
+    // 已销毁：静默空操作。
+    if (_disposed) return Future<bool>.value(false);
     final k = _kernel;
     return k is MovaPlayerMute
         ? (k as MovaPlayerMute).setWarmMute(on)
@@ -2157,6 +2234,10 @@ class MovaEngine implements MovaApi, MovaKeepAlive, MovaPlayerMute, MovaHandoffR
 
   @override
   Future<void> setVolume(double v) async {
+    // Disposed: silent no-op.
+    //
+    // 已销毁：静默空操作。
+    if (_disposed) return;
     // Clamp to 0–100 first so state, event and the port all see the same value.
     // 先钳到 0–100，让 state、事件与端口看到同一个值。
     v = v.clamp(0.0, 100.0).toDouble();
@@ -2172,36 +2253,58 @@ class MovaEngine implements MovaApi, MovaKeepAlive, MovaPlayerMute, MovaHandoffR
     } else {
       await _kernel.setVolume(v);
     }
+    if (_disposed) return;
     _state.emit(state.copyWith(volume: v));
     _emitEvent(MovaVolumeChange(v));
   }
 
   @override
   Future<void> setBrightness(double v) async {
+    // Disposed: silent no-op.
+    //
+    // 已销毁：静默空操作。
+    if (_disposed) return;
     // Clamp to 0–1: the platform plugin rejects out-of-range values, which would
     // leave the real brightness unchanged while state claimed otherwise.
     // 钳到 0–1：平台插件会拒绝越界值，真实亮度不变而 state 却已改变。
     v = v.clamp(0.0, 1.0).toDouble();
     await _brightness.set(v);
+    if (_disposed) return;
     _state.emit(state.copyWith(brightness: v));
     _emitEvent(MovaBrightChange(v));
   }
 
   @override
   Future<void> setRate(double r) async {
+    // Disposed: silent no-op.
+    //
+    // 已销毁：静默空操作。
+    if (_disposed) return;
+    // Clamp first so kernel, state and event all see the same value.
+    // 先钳制，让内核、state、事件看到同一个值。
+    r = movaClampRate(r);
     await _kernel.setRate(r);
+    if (_disposed) return;
     _state.emit(state.copyWith(rate: r));
     _emitEvent(MovaRateChange(r));
   }
 
   @override
   Future<void> setFit(MovaFit f) async {
+    // Disposed: silent no-op.
+    //
+    // 已销毁：静默空操作。
+    if (_disposed) return;
     _state.emit(state.copyWith(fit: f));
     _emitEvent(MovaFitChange(f));
   }
 
   @override
   Future<void> setZoom(double z) async {
+    // Disposed: silent no-op.
+    //
+    // 已销毁：静默空操作。
+    if (_disposed) return;
     // 下限与手势层一致（1.0 = 不缩放），避免 0/负值/NaN 让画面塌缩；上限不在此处限制。
     final v = z.isNaN || z < 1.0 ? 1.0 : z;
     _state.emit(state.copyWith(zoom: v));
@@ -2210,30 +2313,49 @@ class MovaEngine implements MovaApi, MovaKeepAlive, MovaPlayerMute, MovaHandoffR
 
   @override
   Future<void> setLocked(bool v) async {
+    // Disposed: silent no-op.
+    //
+    // 已销毁：静默空操作。
+    if (_disposed) return;
     _state.emit(state.copyWith(locked: v));
     _emitEvent(MovaLockChange(v));
   }
 
   @override
   Future<void> setFullscreen(bool v) async {
+    // Disposed: silent no-op.
+    //
+    // 已销毁：静默空操作。
+    if (_disposed) return;
     _state.emit(state.copyWith(fullscreen: v));
     await _applyOrientation();
+    if (_disposed) return;
     _emitEvent(MovaFullScreenChange(v));
   }
 
   @override
   Future<void> setMini(bool v) async {
+    // Disposed: silent no-op.
+    //
+    // 已销毁：静默空操作。
+    if (_disposed) return;
     if (state.mini == v) return; // 幂等，避免无谓事件
     if (v && state.keepAlivePhase != MovaKeepAlivePhase.off) await setKeepAlive(false);
     if (v && state.fullscreen) await setFullscreen(false);
+    if (_disposed) return;
     _state.emit(state.copyWith(mini: v));
     _emitEvent(MovaMiniChange(v));
   }
 
   @override
   Future<void> setOrientation(MovaOrientation o) async {
+    // Disposed: silent no-op.
+    //
+    // 已销毁：静默空操作。
+    if (_disposed) return;
     _state.emit(state.copyWith(orientation: o));
     await _applyOrientation();
+    if (_disposed) return;
     _emitEvent(MovaOrientationChange(o));
   }
 
@@ -2255,6 +2377,10 @@ class MovaEngine implements MovaApi, MovaKeepAlive, MovaPlayerMute, MovaHandoffR
 
   @override
   Future<void> loadQualities() async {
+    // Disposed: silent no-op.
+    //
+    // 已销毁：静默空操作。
+    if (_disposed) return;
     final s = _source;
     final base = _activeUri;
     final session = _sessionGen;
@@ -2305,6 +2431,10 @@ class MovaEngine implements MovaApi, MovaKeepAlive, MovaPlayerMute, MovaHandoffR
   /// doc/plans/2026-09-16-seamless-swap.md Task 8。
   @override
   Future<void> switchQuality(MovaQuality q) async {
+    // Disposed: silent no-op.
+    //
+    // 已销毁：静默空操作。
+    if (_disposed) return;
     final playUri = q.isAuto ? _activeUri : q.uri;
     if (playUri.isEmpty) return;
     final pos = _lastPosition;
@@ -2366,12 +2496,13 @@ class MovaEngine implements MovaApi, MovaKeepAlive, MovaPlayerMute, MovaHandoffR
       //
       // 此刻时长可能已经知道（加载命令执行期间就上报了）；只按"没有时长"寄存的话，
       // seek 会在档位落地前下发，被 mpv 静默丢弃。
+      // A seek that goes straight to the kernel arms the verify chain inside
+      // [_seekOrPark]; a parked one is verified once [_applyParkedSeek] replays it.
+      //
+      // 直接下发给内核的 seek 由 [_seekOrPark] 自己布防校验链；被寄存的那次则在
+      // [_applyParkedSeek] 补发后校验。
       await _seekOrPark(pos, forcePark: !_variantLanded);
-      if (_parkedSeek != null) {
-        _holdParkUntilLanding();
-      } else {
-        _armResumeVerify(pos, 1);
-      }
+      if (_parkedSeek != null) _holdParkUntilLanding();
     } else {
       _releaseAbrHold();
     }
@@ -2392,6 +2523,10 @@ class MovaEngine implements MovaApi, MovaKeepAlive, MovaPlayerMute, MovaHandoffR
 
   @override
   Future<bool> enterPip() async {
+    // Disposed: silent no-op.
+    //
+    // 已销毁：静默空操作。
+    if (_disposed) return false;
     // Mirrors setMini's fullscreen guard: system PiP and the in-app mini
     // window must never be active at the same time, or their surfaces
     // overlap.
@@ -2400,7 +2535,9 @@ class MovaEngine implements MovaApi, MovaKeepAlive, MovaPlayerMute, MovaHandoffR
     // 渲染面会叠在一起。
     if (state.keepAlivePhase != MovaKeepAlivePhase.off) await setKeepAlive(false);
     if (state.mini) await setMini(false);
+    if (_disposed) return false;
     final ok = await _pip.enter(width: state.width, height: state.height);
+    if (_disposed) return false;
     _state.emit(state.copyWith(pip: ok));
     _emitEvent(MovaPipChange(ok));
     return ok;
@@ -2408,14 +2545,23 @@ class MovaEngine implements MovaApi, MovaKeepAlive, MovaPlayerMute, MovaHandoffR
 
   @override
   Future<void> reload() async {
+    // Disposed: silent no-op.
+    //
+    // 已销毁：静默空操作。
+    if (_disposed) return;
     final s = _source;
     if (s != null) await open(s, autoPlay: _playIntent);
   }
 
   @override
   Future<void> backToLiveEdge() async {
+    // Disposed: silent no-op.
+    //
+    // 已销毁：静默空操作。
+    if (_disposed) return;
     if (state.type != MovaStreamType.live) return;
     await _backToLiveEdge();
+    if (_disposed) return;
     _state.emit(state.copyWith(clearTimeshift: true));
     _emitEvent(const MovaLiveEdgeReach());
   }
@@ -2502,6 +2648,10 @@ class MovaEngine implements MovaApi, MovaKeepAlive, MovaPlayerMute, MovaHandoffR
 
   @override
   void showControls({bool sticky = false}) {
+    // Disposed: silent no-op.
+    //
+    // 已销毁：静默空操作。
+    if (_disposed) return;
     _autoHideTimer?.cancel();
     _autoHideTimer = null;
     _ui.emit(uiState.copyWith(controlsVisible: true));
@@ -2512,6 +2662,10 @@ class MovaEngine implements MovaApi, MovaKeepAlive, MovaPlayerMute, MovaHandoffR
 
   @override
   void hideControls() {
+    // Disposed: silent no-op.
+    //
+    // 已销毁：静默空操作。
+    if (_disposed) return;
     _autoHideTimer?.cancel();
     _autoHideTimer = null;
     _ui.emit(uiState.copyWith(controlsVisible: false));
@@ -2519,6 +2673,10 @@ class MovaEngine implements MovaApi, MovaKeepAlive, MovaPlayerMute, MovaHandoffR
 
   @override
   void showHud(MovaHud hud, {String? text}) {
+    // Disposed: silent no-op.
+    //
+    // 已销毁：静默空操作。
+    if (_disposed) return;
     _hudTimer?.cancel();
     _ui.emit(
       uiState.copyWith(hud: hud, hudText: text, clearHudText: text == null),
@@ -2530,6 +2688,10 @@ class MovaEngine implements MovaApi, MovaKeepAlive, MovaPlayerMute, MovaHandoffR
 
   @override
   void setDragging(bool v, {Duration? previewAt}) {
+    // Disposed: silent no-op.
+    //
+    // 已销毁：静默空操作。
+    if (_disposed) return;
     if (v) {
       _ui.emit(uiState.copyWith(dragging: true, previewAt: previewAt));
     } else {
@@ -2598,18 +2760,37 @@ class MovaEngine implements MovaApi, MovaKeepAlive, MovaPlayerMute, MovaHandoffR
 
   @override
   void report(MovaReportName name, {Map<String, dynamic>? params}) {
+    // Disposed: silent no-op.
+    //
+    // 已销毁：静默空操作。
+    if (_disposed) return;
     final reporterPort = _reporter;
     if (reporterPort == null) return;
-    reporterPort.onReport(
-      MovaReportEvent(
-        kind: MovaReportKind.action,
-        name: name,
-        params: params ?? const {},
-        priority: MovaReportPriority.batched,
-        at: DateTime.now(),
-      ),
-    );
+    try {
+      reporterPort.onReport(
+        MovaReportEvent(
+          kind: MovaReportKind.action,
+          name: name,
+          params: params ?? const {},
+          priority: MovaReportPriority.batched,
+          at: DateTime.now(),
+        ),
+      );
+    } catch (e, st) {
+      _onReporterFailure(e, st);
+    }
   }
+
+  /// A host reporter callback threw: tell the hooks' `onError` (already
+  /// isolated per hook) and carry on. Deliberately not a [MovaErrorEvent] or
+  /// `state.error`: those would reach the reporter again and flip the UI into
+  /// an error overlay over a host-side bug.
+  ///
+  /// 宿主上报回调抛了异常：通知钩子的 `onError`（每个钩子已各自隔离）后继续。
+  /// 刻意不走 [MovaErrorEvent] / `state.error`：那会再次流回 reporter，还会让 UI
+  /// 为宿主侧的缺陷弹出错误遮罩。
+  void _onReporterFailure(Object error, StackTrace stack) =>
+      _chain.onError(error, stack);
 
   /// Whether a hand-off retired this engine (its view state lives on elsewhere).
   ///

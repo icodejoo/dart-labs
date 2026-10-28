@@ -37,13 +37,21 @@ class MovaQoeCollector {
   ///
   /// 订阅 [events]（[config].qoe 开启时还订阅 [probe] 的流），把标准化后的
   /// 上报事件转发给 [reporter]。
+  ///
+  /// [onReporterError] receives whatever [reporter] throws; the collector
+  /// swallows it so a buggy host callback never breaks the event pipeline.
+  ///
+  /// [onReporterError] 接收 [reporter] 抛出的异常；collector 自己吞掉，宿主回调的
+  /// 缺陷不会打断事件管线。
   MovaQoeCollector({
     required Stream<MovaEvent> events,
     required MovaReporter reporter,
     required MovaReportConfig config,
     MovaStatsProbe? probe,
     DateTime Function() now = DateTime.now,
+    void Function(Object error, StackTrace stack)? onReporterError,
   })  : _reporter = reporter, // ignore: prefer_initializing_formals
+        _onReporterError = onReporterError, // ignore: prefer_initializing_formals
         _config = config, // ignore: prefer_initializing_formals
         _probe = probe,
         _now = now { // ignore: prefer_initializing_formals
@@ -62,6 +70,7 @@ class MovaQoeCollector {
   }
 
   final MovaReporter _reporter;
+  final void Function(Object error, StackTrace stack)? _onReporterError;
   final MovaReportConfig _config;
   final MovaStatsProbe? _probe;
   final DateTime Function() _now;
@@ -681,7 +690,18 @@ class MovaQoeCollector {
     );
   }
 
-  void _emit(MovaReportEvent event) => _reporter.onReport(event);
+  /// Delivers [event] to the host reporter; a throwing callback is isolated and
+  /// handed to [_onReporterError] so later events still get through.
+  ///
+  /// 把 [event] 交给宿主 reporter；回调抛异常时隔离并交给 [_onReporterError]，
+  /// 不影响后续事件。
+  void _emit(MovaReportEvent event) {
+    try {
+      _reporter.onReport(event);
+    } catch (e, st) {
+      _onReporterError?.call(e, st);
+    }
+  }
 
   /// Cancels every subscription this collector owns.
   ///

@@ -275,13 +275,14 @@ class MovaCutoverEngine implements MovaApi, MovaCutover, MovaKeepAlive {
   MovaSttApi get stt => _active.stt;
 
   @override
-  Future<bool> open(MovaSource source, {bool autoPlay = true}) => _active.open(source, autoPlay: autoPlay);
+  Future<bool> open(MovaSource source, {bool autoPlay = true}) =>
+      _disposed ? Future<bool>.value(false) : _active.open(source, autoPlay: autoPlay);
 
   @override
-  Future<void> play() => _active.play();
+  Future<void> play() => _disposed ? Future<void>.value() : _active.play();
 
   @override
-  Future<void> pause() => _active.pause();
+  Future<void> pause() => _disposed ? Future<void>.value() : _active.pause();
 
   /// The host's latest keepAlive wish, re-applied to whichever engine becomes
   /// active.
@@ -291,6 +292,10 @@ class MovaCutoverEngine implements MovaApi, MovaCutover, MovaKeepAlive {
 
   @override
   Future<MovaKeepAlivePhase> setKeepAlive(bool on) async {
+    // Disposed: no-op, and the wish is no longer recorded.
+    //
+    // 已销毁：空操作，也不再记录意愿。
+    if (_disposed) return MovaKeepAlivePhase.off;
     _keepAliveWanted = on;
     final a = _active;
     if (a is MovaKeepAlive) {
@@ -308,70 +313,81 @@ class MovaCutoverEngine implements MovaApi, MovaCutover, MovaKeepAlive {
   }
 
   @override
-  Future<void> playOrPause() => _active.playOrPause();
+  Future<void> playOrPause() => _disposed ? Future<void>.value() : _active.playOrPause();
 
   @override
-  Future<void> seek(Duration to) => _active.seek(to);
+  Future<void> seek(Duration to) => _disposed ? Future<void>.value() : _active.seek(to);
 
   @override
-  Future<void> seekBy(Duration delta) => _active.seekBy(delta);
+  Future<void> seekBy(Duration delta) => _disposed ? Future<void>.value() : _active.seekBy(delta);
 
   @override
-  Future<void> setVolume(double v) => _active.setVolume(v);
+  Future<void> setVolume(double v) => _disposed ? Future<void>.value() : _active.setVolume(v);
 
   @override
-  Future<void> setBrightness(double v) => _active.setBrightness(v);
+  Future<void> setBrightness(double v) => _disposed ? Future<void>.value() : _active.setBrightness(v);
 
   @override
-  Future<void> setRate(double r) => _active.setRate(r);
+  Future<void> setRate(double r) => _disposed ? Future<void>.value() : _active.setRate(r);
 
   @override
-  Future<void> setFit(MovaFit f) => _active.setFit(f);
+  Future<void> setFit(MovaFit f) => _disposed ? Future<void>.value() : _active.setFit(f);
 
   @override
-  Future<void> setZoom(double z) => _active.setZoom(z);
+  Future<void> setZoom(double z) => _disposed ? Future<void>.value() : _active.setZoom(z);
 
   @override
-  Future<void> setLocked(bool v) => _active.setLocked(v);
+  Future<void> setLocked(bool v) => _disposed ? Future<void>.value() : _active.setLocked(v);
 
   @override
-  Future<void> setFullscreen(bool v) => _active.setFullscreen(v);
+  Future<void> setFullscreen(bool v) => _disposed ? Future<void>.value() : _active.setFullscreen(v);
 
   @override
-  Future<void> setMini(bool v) => _active.setMini(v);
+  Future<void> setMini(bool v) => _disposed ? Future<void>.value() : _active.setMini(v);
 
   @override
-  Future<void> setOrientation(MovaOrientation o) => _active.setOrientation(o);
+  Future<void> setOrientation(MovaOrientation o) =>
+      _disposed ? Future<void>.value() : _active.setOrientation(o);
 
   @override
-  Future<void> loadQualities() => _active.loadQualities();
+  Future<void> loadQualities() => _disposed ? Future<void>.value() : _active.loadQualities();
 
   @override
-  Future<void> switchQuality(MovaQuality q) => _active.switchQuality(q);
+  Future<void> switchQuality(MovaQuality q) => _disposed ? Future<void>.value() : _active.switchQuality(q);
 
   @override
-  Future<bool> enterPip() => _active.enterPip();
+  Future<bool> enterPip() => _disposed ? Future<bool>.value(false) : _active.enterPip();
 
   @override
-  Future<void> reload() => _active.reload();
+  Future<void> reload() => _disposed ? Future<void>.value() : _active.reload();
 
   @override
-  Future<void> backToLiveEdge() => _active.backToLiveEdge();
+  Future<void> backToLiveEdge() => _disposed ? Future<void>.value() : _active.backToLiveEdge();
 
   @override
-  void showControls({bool sticky = false}) => _active.showControls(sticky: sticky);
+  void showControls({bool sticky = false}) {
+    if (!_disposed) _active.showControls(sticky: sticky);
+  }
 
   @override
-  void hideControls() => _active.hideControls();
+  void hideControls() {
+    if (!_disposed) _active.hideControls();
+  }
 
   @override
-  void showHud(MovaHud hud, {String? text}) => _active.showHud(hud, text: text);
+  void showHud(MovaHud hud, {String? text}) {
+    if (!_disposed) _active.showHud(hud, text: text);
+  }
 
   @override
-  void setDragging(bool v, {Duration? previewAt}) => _active.setDragging(v, previewAt: previewAt);
+  void setDragging(bool v, {Duration? previewAt}) {
+    if (!_disposed) _active.setDragging(v, previewAt: previewAt);
+  }
 
   @override
-  void report(MovaReportName name, {Map<String, dynamic>? params}) => _active.report(name, params: params);
+  void report(MovaReportName name, {Map<String, dynamic>? params}) {
+    if (!_disposed) _active.report(name, params: params);
+  }
 
   @override
   Future<void> dispose() async {
@@ -434,7 +450,10 @@ class MovaCutoverEngine implements MovaApi, MovaCutover, MovaKeepAlive {
     required MovaWarmCue cue,
     required MovaWarmPlan plan,
   }) async {
-    if (!cutoverEnabled) return;
+    // A disposed proxy must not build a shadow engine nobody would release.
+    //
+    // 已销毁的代理不能再造一个没人释放的影子引擎。
+    if (_disposed || !cutoverEnabled) return;
     final trigger = plan.trigger ?? _config.effectiveTrigger;
     if (!trigger.shouldWarm(cue)) return;
     if (_shadow != null) {
@@ -829,6 +848,7 @@ class MovaCutoverEngine implements MovaApi, MovaCutover, MovaKeepAlive {
 
   @override
   Future<bool> cutoverTo(MovaSource source, {Duration at = Duration.zero, double? rate}) async {
+    if (_disposed) return false;
     if (!cutoverEnabled) {
       await _active.open(source);
       // Same guard as _startWarm: a seek issued right after open() before
@@ -851,6 +871,7 @@ class MovaCutoverEngine implements MovaApi, MovaCutover, MovaKeepAlive {
     );
     final ok = _shadow != null && await commit(waitForReady: true);
     if (!ok) {
+      if (_disposed) return false;
       await _active.open(source);
       if (source.type != MovaStreamType.live && at > Duration.zero) {
         await _active.seek(at);

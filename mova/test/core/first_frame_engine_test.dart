@@ -31,6 +31,58 @@ class _Rig {
 }
 
 void main() {
+  test('E1: one VOD session reports Play, SourceChange, Ready, DurationChange, SizeChange, FirstFrame, Done in that order', () {
+    fakeAsync((async) {
+      final k = FakeStatsKernel()..nativeRestartAvailable = true;
+      final engine = MovaEngine(kernel: k);
+      final seen = <Type>[];
+      const wanted = {
+        MovaPlay,
+        MovaSourceChange,
+        MovaReady,
+        MovaDurationChange,
+        MovaSizeChange,
+        MovaFirstFrame,
+        MovaDone,
+      };
+      engine.events.listen((e) {
+        if (wanted.contains(e.runtimeType)) seen.add(e.runtimeType);
+      });
+      // A real kernel flips `playing` inside open(), before the load command
+      // returns — hold open() on the gate to put Play ahead of Ready.
+      //
+      // 真实内核在 open() 内、加载命令返回之前就会翻转 `playing`——用闸门把 open()
+      // 挂住，让 Play 排到 Ready 前面。
+      k.openGate = Completer<void>();
+      engine.open(const MovaSource('https://h/a.mp4'));
+      async.flushMicrotasks();
+      k.emitPlaying(true);
+      async.flushMicrotasks();
+      k.openGate!.complete();
+      async.flushMicrotasks();
+      k.openGate = null;
+      k.emitDuration(const Duration(minutes: 1));
+      async.flushMicrotasks();
+      k.emitSize(1280, 720);
+      async.flushMicrotasks();
+      k.emitRestart();
+      async.flushMicrotasks();
+      k.emitCompleted(true);
+      async.flushMicrotasks();
+      expect(seen, [
+        MovaPlay,
+        MovaSourceChange,
+        MovaReady,
+        MovaDurationChange,
+        MovaSizeChange,
+        MovaFirstFrame,
+        MovaDone,
+      ]);
+      unawaited(engine.dispose());
+      async.flushMicrotasks();
+    });
+  });
+
   test('open() zeroes rendered and the previous source frame size', () {
     fakeAsync((async) {
       final k = FakeKernel();

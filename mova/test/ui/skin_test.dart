@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mova/src/core/api.dart';
+import 'package:mova/src/core/state/state.dart';
 import 'package:mova/src/ui/scope/scope.dart';
 import 'package:mova/src/ui/skins/default_skin.dart';
 import 'package:mova/src/ui/slots/component.dart';
@@ -197,5 +198,78 @@ void main() {
     expect(find.byType(Slider), findsOneWidget);
     expect(find.byType(GestureDetector), findsWidgets);
     await api.dispose();
+  });
+
+  group('MovaDefaultSkin while locked (A13 / S7)', () {
+    /// Pumps the default skin over a black video, with [api] in scope.
+    ///
+    /// 在黑色视频之上挂载默认皮肤，并让 [api] 处于作用域内。
+    Future<void> pumpSkin(WidgetTester t, FakeMovaApi api) async {
+      const skin = MovaDefaultSkin();
+      await t.pumpWidget(MaterialApp(
+        home: MovaScope(
+          api: api,
+          child: Builder(builder: (c) {
+            final bundle = buildSlots(c, api, skin.components());
+            return skin.assemble(c, bundle, const ColoredBox(color: Color(0xFF000000)));
+          }),
+        ),
+      ));
+      await t.pump();
+    }
+
+    testWidgets('unlocked: the chrome is on screen and the toggle offers to lock', (t) async {
+      final api = FakeMovaApi();
+      await pumpSkin(t, api);
+      expect(find.byIcon(Icons.fullscreen_rounded), findsOneWidget);
+      expect(find.byIcon(Icons.lock_open_rounded), findsOneWidget);
+      await t.tap(find.byIcon(Icons.lock_open_rounded));
+      await t.pump();
+      expect(api.lastLocked, isTrue);
+      await api.dispose();
+    });
+
+    testWidgets('locked: top/centre/bottom chrome is gone but the toggle stays to unlock', (t) async {
+      final api = FakeMovaApi();
+      await pumpSkin(t, api);
+      api.push(const MovaState(locked: true));
+      await t.pump();
+      await t.pump();
+      expect(find.byIcon(Icons.fullscreen_rounded), findsNothing);
+      expect(find.byIcon(Icons.play_arrow_rounded), findsNothing);
+      expect(find.byIcon(Icons.pause_rounded), findsNothing);
+      expect(find.byIcon(Icons.lock_rounded), findsOneWidget);
+      await t.tap(find.byIcon(Icons.lock_rounded));
+      await t.pump();
+      expect(api.lastLocked, isFalse);
+      await api.dispose();
+    });
+
+    testWidgets('locked: gestures send nothing to the api', (t) async {
+      final api = FakeMovaApi();
+      await pumpSkin(t, api);
+      api.push(const MovaState(locked: true));
+      await t.pump();
+      await t.pump();
+      api.calls.clear();
+      await t.dragFrom(const Offset(200, 300), const Offset(0, -150));
+      await t.dragFrom(const Offset(400, 300), const Offset(240, 0));
+      await t.tapAt(const Offset(400, 300));
+      await t.pumpAndSettle();
+      expect(api.calls, isEmpty);
+      await api.dispose();
+    });
+
+    testWidgets('unlocking brings the chrome back', (t) async {
+      final api = FakeMovaApi();
+      await pumpSkin(t, api);
+      api.push(const MovaState(locked: true));
+      await t.pump();
+      api.push(const MovaState(locked: false));
+      await t.pump();
+      await t.pump();
+      expect(find.byIcon(Icons.fullscreen_rounded), findsOneWidget);
+      await api.dispose();
+    });
   });
 }

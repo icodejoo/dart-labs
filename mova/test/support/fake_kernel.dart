@@ -81,11 +81,78 @@ class FakeKernel implements MovaKernel {
   /// 在该假对象上被调用的方法名有序列表，例如 `['open', 'play', 'seek']`。
   final List<String> calls = <String>[];
 
+  /// Whether [dispose] has run on this fake.
+  ///
+  /// 该假对象的 [dispose] 是否已执行。
+  bool isDisposed = false;
+
+  /// Every call this fake received after [dispose], in order; a correct engine
+  /// leaves it empty.
+  ///
+  /// 该假对象在 [dispose] 之后收到的每次调用，按顺序；行为正确的引擎应让它保持为空。
+  final List<String> callsAfterDispose = <String>[];
+
+  /// When true, a call after [dispose] throws `AssertionError('has been disposed')`
+  /// like a real media_kit `Player` does; off by default (the call is still
+  /// recorded in [callsAfterDispose]).
+  ///
+  /// 为 true 时，[dispose] 之后的调用会像真实 media_kit `Player` 那样抛
+  /// `AssertionError('has been disposed')`；默认关闭（调用仍会记入 [callsAfterDispose]）。
+  bool throwWhenDisposed = false;
+
+  /// Records [name] into [calls], and into [callsAfterDispose] (throwing when
+  /// [throwWhenDisposed]) if the fake was already disposed.
+  ///
+  /// 把 [name] 记入 [calls]；若假对象已销毁，同时记入 [callsAfterDispose]
+  /// （[throwWhenDisposed] 时抛出）。
+  void recordCall(String name) {
+    calls.add(name);
+    if (!isDisposed) return;
+    callsAfterDispose.add(name);
+    if (throwWhenDisposed) throw AssertionError('[Player] has been disposed');
+  }
+
   /// The position argument of the most recent [seek] call, or `null` if
   /// [seek] has never been called.
   ///
   /// 最近一次 [seek] 调用的位置参数；若从未调用过 [seek] 则为 `null`。
   Duration? lastSeek;
+
+  /// The rate argument of the most recent [setRate] call, or `null` if
+  /// [setRate] has never been called.
+  ///
+  /// 最近一次 [setRate] 调用的倍速参数；若从未调用过则为 `null`。
+  double? lastRate;
+
+  /// When true, [seek] answers by itself like mpv does: it echoes the target
+  /// position, or [staleEcho] for each seek still counted by [dropNextSeeks].
+  /// Off by default, so existing tests keep driving positions by hand.
+  ///
+  /// 为 true 时 [seek] 像 mpv 一样自行回声：回声目标位置；[dropNextSeeks] 尚未
+  /// 用完的那几次 seek 则回声 [staleEcho]。默认关闭，既有测试仍手动推位置。
+  bool echoSeeks = false;
+
+  /// How many of the next seeks mpv "discards" (needs [echoSeeks]); each is
+  /// recorded in [droppedSeeks] and echoes [staleEcho] instead of the target.
+  ///
+  /// 接下来有几次 seek 被 mpv"丢弃"（需开启 [echoSeeks]）；每次记入
+  /// [droppedSeeks]，回声 [staleEcho] 而不是目标位置。
+  int dropNextSeeks = 0;
+
+  /// The stale position a discarded seek echoes (the ~23 ms seen on device).
+  ///
+  /// 被丢弃的 seek 回声的旧位置（真机上见到的约 23 ms）。
+  Duration staleEcho = const Duration(milliseconds: 23);
+
+  /// Targets of the seeks the fake discarded, in order.
+  ///
+  /// 假内核丢弃掉的 seek 目标，按顺序。
+  final List<Duration> droppedSeeks = <Duration>[];
+
+  /// Targets of the seeks the fake accepted while [echoSeeks] was on, in order.
+  ///
+  /// 开启 [echoSeeks] 期间假内核接受的 seek 目标，按顺序。
+  final List<Duration> honoredSeeks = <Duration>[];
 
   /// The URI argument of the most recent [open] call, or `null` if [open]
   /// has never been called.
@@ -124,7 +191,7 @@ class FakeKernel implements MovaKernel {
 
   @override
   Future<void> open(String uri, {bool play = true}) async {
-    calls.add('open');
+    recordCall('open');
     lastUri = uri;
     lastPlay = play;
     openedUris.add(uri);
@@ -136,39 +203,58 @@ class FakeKernel implements MovaKernel {
 
   @override
   Future<void> play() async {
-    calls.add('play');
+    recordCall('play');
   }
 
   @override
   Future<void> pause() async {
-    calls.add('pause');
+    recordCall('pause');
   }
 
   @override
   Future<void> seek(Duration position) async {
-    calls.add('seek');
+    recordCall('seek');
     lastSeek = position;
+    if (!echoSeeks) return;
+    // Real mpv: an accepted seek echoes the target as `time-pos`; a discarded
+    // one (HLS variant reload, RESTART near 23 ms) only echoes the old spot.
+    //
+    // 真实 mpv：被接受的 seek 会把目标值当 `time-pos` 回声；被丢弃的只会回声旧位置
+    // （HLS 档位重载、RESTART 后约 23 ms 处）。
+    final dropped = dropNextSeeks > 0;
+    if (dropped) {
+      dropNextSeeks--;
+      droppedSeeks.add(position);
+    } else {
+      honoredSeeks.add(position);
+    }
+    final echo = dropped ? staleEcho : position;
+    scheduleMicrotask(() {
+      if (!_position.isClosed) _position.add(echo);
+    });
   }
 
   @override
   Future<void> setVolume(double volume) async {
-    calls.add('setVolume');
+    recordCall('setVolume');
   }
 
   @override
   Future<void> setRate(double rate) async {
-    calls.add('setRate');
+    recordCall('setRate');
+    lastRate = rate;
   }
 
   @override
   Future<Uint8List?> screenshot() async {
-    calls.add('screenshot');
+    recordCall('screenshot');
     return _audioOnly ? null : fakeShot;
   }
 
   @override
   Future<void> dispose() async {
     calls.add('dispose');
+    isDisposed = true;
     await _playing.close();
     await _buffering.close();
     await _completed.close();
@@ -414,26 +500,77 @@ mixin KeepAliveKernelStub on FakeKernel implements MovaKeepAliveKernel {
   /// 当前持有的待机组合；没有则为 null。
   MovaKeepAliveMode? heldMode;
 
+  /// What the kernel pushes by itself after a muted hold wakes. The default,
+  /// [FakeWakeSignal.none], is what Android and Windows really do: `vid` flips
+  /// back and video decodes again, yet neither a size change nor a native
+  /// RESTART follows (H42), so the resume gate can only end on its timeout.
+  ///
+  /// 静音待机唤醒后内核自己会推什么。默认 [FakeWakeSignal.none] 就是 Android 与
+  /// Windows 的真实行为：`vid` 切回、视频重新解码，但既没有尺寸变化也没有原生
+  /// RESTART（H42），恢复闸门只能靠超时收尾。
+  FakeWakeSignal wakeSignal = FakeWakeSignal.none;
+
+  /// The size pushed when [wakeSignal] is [FakeWakeSignal.size].
+  ///
+  /// [wakeSignal] 为 [FakeWakeSignal.size] 时推送的尺寸。
+  (int, int) wakeSize = (1280, 720);
+
   @override
   Future<MovaKeepAliveMedia> inspectKeepAlive() async {
-    calls.add('inspectKeepAlive');
+    recordCall('inspectKeepAlive');
     return media;
   }
 
   @override
   Future<bool> enterKeepAlive(MovaKeepAliveMode mode) async {
-    calls.add('enterKeepAlive:${mode.name}');
+    recordCall('enterKeepAlive:${mode.name}');
     if (enterResult) heldMode = mode;
     return enterResult;
   }
 
   @override
   Future<bool> exitKeepAlive() async {
-    calls.add('exitKeepAlive');
+    recordCall('exitKeepAlive');
     final was = heldMode;
     heldMode = null;
-    return was == MovaKeepAliveMode.muted && exitRestartsVideo;
+    final restarted = was == MovaKeepAliveMode.muted && exitRestartsVideo;
+    if (restarted) _pushWakeSignal();
+    return restarted;
   }
+
+  void _pushWakeSignal() {
+    final signal = wakeSignal;
+    if (signal == FakeWakeSignal.none) return;
+    scheduleMicrotask(() {
+      if (signal == FakeWakeSignal.size) {
+        if (!_size.isClosed) emitSize(wakeSize.$1, wakeSize.$2);
+      } else {
+        final Object self = this;
+        if (self is FakeStatsKernel && !self.restartsController.isClosed) self.emitRestart();
+      }
+    });
+  }
+}
+
+/// The signal a [KeepAliveKernelStub] pushes by itself right after a muted hold
+/// wakes.
+///
+/// [KeepAliveKernelStub] 在静音待机唤醒后自行推送的信号。
+enum FakeWakeSignal {
+  /// Nothing at all (the real Android / Windows behavior).
+  ///
+  /// 什么都不推（Android / Windows 的真实行为）。
+  none,
+
+  /// A fresh `size` report (what a reopen — S13 — produces).
+  ///
+  /// 一次新的 `size` 上报（重开路径 S13 会产生的信号）。
+  size,
+
+  /// A native RESTART (needs a [FakeStatsKernel]).
+  ///
+  /// 一次原生 RESTART（需要 [FakeStatsKernel]）。
+  restart,
 }
 
 /// A [FakeKernel] that also has the keepAlive capability.

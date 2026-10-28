@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mova/src/core/model/fit.dart';
 import 'package:mova/src/core/model/orientation.dart';
+import 'package:mova/src/core/model/quality.dart';
 import 'package:mova/src/core/model/source.dart';
 import 'package:mova/src/core/options/options.dart';
 import 'package:mova/src/core/state/state.dart';
@@ -123,5 +124,89 @@ void main() {
     expect(find.text('B'), findsOneWidget);
     expect(find.text('A'), findsNothing);
     await api.dispose();
+  });
+
+  group('fullscreen button', () {
+    testWidgets('enters fullscreen from the windowed state', (t) async {
+      final api = FakeMovaApi();
+      await pumpComponent(t, api, MovaTopBarComponent());
+      expect(find.byIcon(Icons.fullscreen_rounded), findsOneWidget);
+      expect(find.byIcon(Icons.fullscreen_exit_rounded), findsNothing);
+      await t.tap(find.byIcon(Icons.fullscreen_rounded));
+      await t.pump();
+      expect(api.calls, contains('setFullscreen'));
+      expect(api.lastFullscreen, isTrue);
+      await api.dispose();
+    });
+
+    testWidgets('shows the exit glyph when fullscreen and leaves on tap', (t) async {
+      final api = FakeMovaApi();
+      api.push(const MovaState(fullscreen: true));
+      await pumpComponent(t, api, MovaTopBarComponent());
+      expect(find.byIcon(Icons.fullscreen_exit_rounded), findsOneWidget);
+      await t.tap(find.byIcon(Icons.fullscreen_exit_rounded));
+      await t.pump();
+      expect(api.lastFullscreen, isFalse);
+      await api.dispose();
+    });
+  });
+
+  group('quality button', () {
+    const auto = MovaQuality(label: '自动', uri: '', isAuto: true);
+    const hd = MovaQuality(label: '1080p', uri: 'https://host/1080.m3u8', height: 1080);
+    const sd = MovaQuality(label: '480p', uri: 'https://host/480.m3u8', height: 480);
+
+    testWidgets('shows the current label as caption once variants exist', (t) async {
+      final api = FakeMovaApi();
+      api.push(const MovaState(qualities: [auto, hd, sd], currentQuality: hd));
+      await pumpComponent(t, api, MovaTopBarComponent());
+      expect(find.byIcon(Icons.high_quality_rounded), findsOneWidget);
+      expect(find.text('1080p'), findsOneWidget);
+      await api.dispose();
+    });
+
+    testWidgets('opens a sheet with every variant and checkmarks only the active one', (t) async {
+      final api = FakeMovaApi();
+      api.push(const MovaState(qualities: [auto, hd, sd], currentQuality: hd));
+      await pumpComponent(t, api, MovaTopBarComponent());
+      await t.tap(find.byIcon(Icons.high_quality_rounded));
+      await t.pumpAndSettle();
+      expect(find.widgetWithText(ListTile, '自动'), findsOneWidget);
+      expect(find.widgetWithText(ListTile, '1080p'), findsOneWidget);
+      expect(find.widgetWithText(ListTile, '480p'), findsOneWidget);
+      expect(find.byIcon(Icons.check_rounded), findsOneWidget);
+      expect(
+        find.descendant(of: find.widgetWithText(ListTile, '1080p'), matching: find.byIcon(Icons.check_rounded)),
+        findsOneWidget,
+      );
+      await api.dispose();
+    });
+
+    testWidgets('picking an item dismisses the sheet then calls switchQuality with that variant', (t) async {
+      final api = FakeMovaApi();
+      api.push(const MovaState(qualities: [auto, hd, sd], currentQuality: hd));
+      await pumpComponent(t, api, MovaTopBarComponent());
+      await t.tap(find.byIcon(Icons.high_quality_rounded));
+      await t.pumpAndSettle();
+      await t.tap(find.widgetWithText(ListTile, '480p'));
+      await t.pumpAndSettle();
+      expect(api.calls, contains('switchQuality'));
+      expect(api.lastQuality, sd);
+      expect(find.byType(ListTile), findsNothing, reason: 'the sheet is gone');
+      await api.dispose();
+    });
+
+    testWidgets('the auto entry is the checked one when it is current', (t) async {
+      final api = FakeMovaApi();
+      api.push(const MovaState(qualities: [auto, hd], currentQuality: auto));
+      await pumpComponent(t, api, MovaTopBarComponent());
+      await t.tap(find.byIcon(Icons.high_quality_rounded));
+      await t.pumpAndSettle();
+      expect(
+        find.descendant(of: find.widgetWithText(ListTile, '自动'), matching: find.byIcon(Icons.check_rounded)),
+        findsOneWidget,
+      );
+      await api.dispose();
+    });
   });
 }

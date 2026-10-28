@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mova/src/core/engine.dart';
+import 'package:mova/src/core/interceptor/interceptor.dart';
 import 'package:mova/src/core/model/source.dart';
 import 'package:mova/src/core/report/report.dart';
 
@@ -76,4 +77,83 @@ void main() {
       expect(() => e.report(MovaReportName.play), returnsNormally);
     });
   });
+
+  group('host reporter that throws', () {
+    test('collector path: playback keeps flowing, later reports still arrive, hooks are told', () async {
+      final k = FakeKernel();
+      final hook = _ErrorSpyHook();
+      final received = <MovaReportEvent>[];
+      var calls = 0;
+      final e = MovaEngine(
+        kernel: k,
+        interceptors: [hook],
+        reporter: MovaCallbackReporter((ev) {
+          calls++;
+          // Only the first delivery blows up; the rest must still get through.
+          // 只有第一次投递抛异常，其余必须照常送达。
+          if (calls == 1) throw StateError('host reporter bug');
+          received.add(ev);
+        }),
+      );
+      k.emitPlaying(true);
+      await Future<void>.delayed(Duration.zero);
+      k.emitPlaying(false);
+      await Future<void>.delayed(Duration.zero);
+      // Engine state flowed regardless of the throwing reporter.
+      // 无论上报回调是否抛异常，引擎状态照常流转。
+      expect(e.state.playing, isFalse);
+      expect(received.map((r) => r.name), contains(MovaReportName.pause));
+      expect(hook.errors.whereType<StateError>(), hasLength(1));
+      await e.dispose();
+    });
+
+    test('report() path: a throwing reporter neither throws nor blocks the next report', () async {
+      final hook = _ErrorSpyHook();
+      final received = <MovaReportEvent>[];
+      var calls = 0;
+      final e = MovaEngine(
+        kernel: FakeKernel(),
+        interceptors: [hook],
+        reporter: MovaCallbackReporter((ev) {
+          if (calls++ == 0) throw StateError('boom');
+          received.add(ev);
+        }),
+      );
+      expect(() => e.report(MovaReportName.play), returnsNormally);
+      e.report(MovaReportName.pause);
+      expect(received.single.name, MovaReportName.pause);
+      expect(hook.errors.whereType<StateError>(), hasLength(1));
+      await e.dispose();
+    });
+
+    test('a reporter that always throws never loops or breaks playback', () async {
+      final k = FakeKernel();
+      final hook = _ErrorSpyHook();
+      final e = MovaEngine(
+        kernel: k,
+        interceptors: [hook],
+        reporter: MovaCallbackReporter((_) => throw StateError('always')),
+      );
+      k.emitPlaying(true);
+      k.emitCompleted(true);
+      await Future<void>.delayed(Duration.zero);
+      expect(e.state.playing, isTrue);
+      expect(e.state.completed, isTrue);
+      expect(hook.errors, isNotEmpty);
+      await e.dispose();
+    });
+  });
+}
+
+/// A hook that records every error it is told about.
+///
+/// 记录所有收到的错误的钩子。
+class _ErrorSpyHook extends MovaHook {
+  /// Errors received through `onError`, in order.
+  ///
+  /// 经 `onError` 收到的错误，按顺序。
+  final List<Object> errors = <Object>[];
+
+  @override
+  void onError(Object error, StackTrace stack) => errors.add(error);
 }

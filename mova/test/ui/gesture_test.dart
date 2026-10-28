@@ -188,4 +188,102 @@ void main() {
     expect(blocked.calls, isNot(contains('seek')));
     await blocked.dispose();
   });
+
+  group('pinch zoom', () {
+    /// Spreads two fingers apart around the layer's centre in small steps, from
+    /// [start] px apart to [start] + 2 * [spread] px. Small steps matter: the
+    /// recognizer measures the scale from the moment it accepts the gesture.
+    ///
+    /// 在手势层中心附近分小步把两指张开，间距从 [start] px 张到 [start] + 2 * [spread] px。
+    /// 小步很重要：识别器是从接受手势那一刻起量缩放比例的。
+    Future<void> pinchOut(WidgetTester t, {double start = 20, double spread = 300}) async {
+      final c = t.getCenter(find.byType(GestureDetector));
+      final a = await t.startGesture(c - Offset(start / 2, 0), pointer: 1);
+      final b = await t.startGesture(c + Offset(start / 2, 0), pointer: 2);
+      const steps = 30;
+      for (var i = 0; i < steps; i++) {
+        await a.moveBy(Offset(-spread / steps, 0));
+        await b.moveBy(Offset(spread / steps, 0));
+        await t.pump();
+      }
+      await a.up();
+      await b.up();
+      await t.pumpAndSettle();
+    }
+
+    testWidgets('spreading past maxZoom is clamped to maxZoom', (t) async {
+      final api = FakeMovaApi();
+      await pumpComponent(t, api, MovaGestureLayerComponent());
+      await pinchOut(t); // 20px -> 620px, far beyond the default 3.0 cap
+      expect(api.calls, contains('setZoom'));
+      expect(api.lastZoom, api.options.gesture.maxZoom);
+      await api.dispose();
+    });
+
+    testWidgets('a custom maxZoom is the ceiling', (t) async {
+      final api = FakeMovaApi(
+        options: const MovaOpts(gesture: MovaGestureConfig(maxZoom: 2.0)),
+      );
+      await pumpComponent(t, api, MovaGestureLayerComponent());
+      await pinchOut(t);
+      expect(api.lastZoom, 2.0);
+      await api.dispose();
+    });
+
+    testWidgets('a modest spread scales from the current zoom and never goes below 1.0', (t) async {
+      final api = FakeMovaApi();
+      api.push(const MovaState(zoom: 1.0));
+      await pumpComponent(t, api, MovaGestureLayerComponent());
+      // 100px apart pinching in to 60px: scale < 1 from a 1.0 baseline.
+      // 间距 100px 捏到 60px：从 1.0 基准出发缩小。
+      final c = t.getCenter(find.byType(GestureDetector));
+      final a = await t.startGesture(c - const Offset(50, 0), pointer: 1);
+      final b = await t.startGesture(c + const Offset(50, 0), pointer: 2);
+      await a.moveBy(const Offset(20, 0));
+      await b.moveBy(const Offset(-20, 0));
+      await t.pump();
+      await a.up();
+      await b.up();
+      await t.pumpAndSettle();
+      expect(api.calls, contains('setZoom'));
+      expect(api.lastZoom, 1.0);
+      await api.dispose();
+    });
+
+    testWidgets('pinchZoom: false ignores a two-finger spread', (t) async {
+      final api = FakeMovaApi(
+        options: const MovaOpts(gesture: MovaGestureConfig(pinchZoom: false)),
+      );
+      await pumpComponent(t, api, MovaGestureLayerComponent());
+      await pinchOut(t);
+      expect(api.calls, isNot(contains('setZoom')));
+      await api.dispose();
+    });
+  });
+
+  group('single tap', () {
+    testWidgets('hides the controls when they are showing', (t) async {
+      final api = FakeMovaApi();
+      api.pushUi(const MovaUiState(controlsVisible: true));
+      await pumpComponent(t, api, MovaGestureLayerComponent());
+      await t.tapAt(t.getCenter(find.byType(GestureDetector)));
+      // A lone tap resolves only after the double-tap window closes.
+      // 单击要等双击窗口关闭后才会判定。
+      await t.pump(const Duration(milliseconds: 400));
+      expect(api.calls, contains('hideControls'));
+      expect(api.calls, isNot(contains('showControls')));
+      await api.dispose();
+    });
+
+    testWidgets('shows the controls when they are hidden', (t) async {
+      final api = FakeMovaApi();
+      api.pushUi(const MovaUiState(controlsVisible: false));
+      await pumpComponent(t, api, MovaGestureLayerComponent());
+      await t.tapAt(t.getCenter(find.byType(GestureDetector)));
+      await t.pump(const Duration(milliseconds: 400));
+      expect(api.calls, contains('showControls'));
+      expect(api.calls, isNot(contains('hideControls')));
+      await api.dispose();
+    });
+  });
 }
