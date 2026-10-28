@@ -17,6 +17,25 @@ import time
 from datetime import datetime
 
 HERE = Path(__file__).resolve().parent
+# coverage_media.py 只生成 sprite/HLS；以下夹具由历史轮次手工放入，需从原目录带入隔离目录。
+# Fixtures that coverage_media.py does not generate; seeded from the shared tool dir.
+SEED_MEDIA = ('truncated.mp4', 'vod.mp4', 'test_subtitle.srt', 'test_subtitle.ass', 'test_subtitle.vtt')
+
+
+def seed_media(evidence, prefix):
+    """Copy missing static fixtures into the isolated media dir / 把缺失的静态夹具补进隔离媒体目录。
+
+    Returns the list of seeded names; absent sources are skipped (the test then fails on its own).
+    """
+    target = Path(evidence) / (prefix + 'coverage_media')
+    target.mkdir(parents=True, exist_ok=True)
+    seeded = []
+    for name in SEED_MEDIA:
+        source = HERE / 'coverage_media' / name
+        if source.is_file() and not (target / name).exists():
+            shutil.copy2(source, target / name)
+            seeded.append(name)
+    return seeded
 
 
 def transform(source, filename, evidence, prefix):
@@ -56,6 +75,7 @@ def install(evidence, prefix, case):
     给后代 Python/adb 命令加日志，并隔离旧脚本输出。
     """
     evidence = Path(evidence).resolve()
+    seed_media(evidence, prefix)
     original_compile = builtins.compile
     original_get_code = importlib.machinery.SourceFileLoader.get_code
     original_join = Path.__truediv__

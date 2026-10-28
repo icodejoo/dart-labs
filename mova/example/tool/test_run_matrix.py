@@ -150,6 +150,23 @@ class MatrixTests(unittest.TestCase):
         for text in ('','isKeyguardShowing=true mScreenOnFully=true','mScreenOnFully=true','isKeyguardShowing=false mScreenOnFully=false'):
             self.assertFalse(matrix.is_unlocked(text))
 
+    def test_media_fixtures_are_seeded(self):
+        """Isolated media dir gets truncated/vod/subtitle fixtures / 隔离媒体目录补入静态夹具。"""
+        with tempfile.TemporaryDirectory() as tmp:
+            seeded=matrix_compat.seed_media(tmp,'matrix-unit-')
+            target=Path(tmp)/'matrix-unit-coverage_media'
+            for name in seeded:
+                self.assertTrue((target/name).is_file())
+            self.assertEqual(matrix_compat.seed_media(tmp,'matrix-unit-'),[])  # 幂等
+            if (matrix.TOOL/'coverage_media/truncated.mp4').is_file():
+                self.assertIn('truncated.mp4',seeded)
+
+    def test_gap_screen_runs_last_and_locks(self):
+        """The screen-locking batch must be last / 锁屏批次必须排在最后。"""
+        last=self.manifest['batches'][-1]
+        self.assertEqual(last['id'],'gap-screen')
+        self.assertTrue(last.get('locks_screen'))
+
     def test_compat_paths_are_isolated(self):
         """Transform path constants without changing logic / 只改路径而不改判定。"""
         out=matrix.TOOL/'coverage_evidence/matrix-unit'

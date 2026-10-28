@@ -1254,36 +1254,6 @@
       "result_path": "{tool}/coverage_evidence/matrix-{run_id}-gap-network/gap-result.json"
     },
     {
-      "id": "gap-screen",
-      "description": "睡眠/锁屏/唤醒原生音频时间线，安全锁需人工解锁",
-      "why": "补验收矩阵 §4.2 / §5.2 真机缺口；独立验证页和 L 日志，未运行不得认定通过。",
-      "argv": [
-        "{python}",
-        "{tool}/coverage_gap.py",
-        "screen",
-        "--run-id",
-        "{run_id}",
-        "--timeout",
-        "540"
-      ],
-      "timeout": 600,
-      "dependencies": [
-        "services",
-        "build",
-        "gap-prepare"
-      ],
-      "covers": [],
-      "covers_ext": [
-        "G2.3",
-        "H60"
-      ],
-      "evidence_prefix": "{prefix}gap-screen-",
-      "screen_on": true,
-      "fast": false,
-      "native_driver": true,
-      "result_path": "{tool}/coverage_evidence/matrix-{run_id}-gap-screen/gap-result.json"
-    },
-    {
       "id": "gap-build-variants",
       "description": "manual ABI/混淆/R8 构建命令与原生产物判据",
       "why": "补验收矩阵 §4.2 / §5.2 真机缺口；独立验证页和 L 日志，未运行不得认定通过。",
@@ -1513,6 +1483,37 @@
       "evidence_prefix": "{prefix}perf-windows",
       "screen_on": true,
       "fast": false
+    },
+    {
+      "id": "gap-screen",
+      "description": "睡眠/锁屏/唤醒原生音频时间线，安全锁需人工解锁",
+      "why": "补验收矩阵 §4.2 / §5.2 真机缺口；独立验证页和 L 日志，未运行不得认定通过。",
+      "argv": [
+        "{python}",
+        "{tool}/coverage_gap.py",
+        "screen",
+        "--run-id",
+        "{run_id}",
+        "--timeout",
+        "540"
+      ],
+      "timeout": 600,
+      "dependencies": [
+        "services",
+        "build",
+        "gap-prepare"
+      ],
+      "covers": [],
+      "covers_ext": [
+        "G2.3",
+        "H60"
+      ],
+      "evidence_prefix": "{prefix}gap-screen-",
+      "screen_on": true,
+      "fast": false,
+      "native_driver": true,
+      "result_path": "{tool}/coverage_evidence/matrix-{run_id}-gap-screen/gap-result.json",
+      "locks_screen": true
     }
   ],
   "manual": [

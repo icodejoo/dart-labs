@@ -260,6 +260,14 @@ def render_summary(run_id, rows, comparison, results, baseline):
     return '\n'.join(lines)
 
 
+class DeviceLocked(RuntimeError):
+    """Device is locked/off and needs its owner / 设备锁屏或熄屏，需机主处理。"""
+
+
+# 锁屏后等待机主解锁的秒数；默认 0 表示立即停止。Seconds to wait for the owner to unlock; 0 = stop at once.
+UNLOCK_WAIT = int(os.environ.get('MOVA_MATRIX_UNLOCK_WAIT', '0'))
+
+
 def is_unlocked(window):
     """Require explicit positive native screen markers / 必须有明确原生解锁亮屏标记。"""
     return ('isKeyguardShowing=false' in window and 'isKeyguardShowing=true' not in window
@@ -367,12 +375,22 @@ class Driver:
             args = ('shell', 'cmd', 'media_session', 'volume') + tuple(args[3:])
         return self.command(['adb', '-s', self.serial, *args], binary=binary)
 
-    def screen(self):
-        """Stop immediately on lock; never attempt unlock / 锁屏立即停止，不解锁。"""
-        window = self.adb('shell','dumpsys','window')
-        if not is_unlocked(window):
-            raise RuntimeError('设备必须已解锁且亮屏：要求 isKeyguardShowing=false、mScreenOnFully=true；不会尝试解锁。')
-        return window
+    def screen(self, wait=None):
+        """Require unlocked+awake; wake a dark screen but never unlock / 要求已解锁亮屏；只唤醒熄屏，绝不解锁。
+
+        Waits up to ``wait`` (default MOVA_MATRIX_UNLOCK_WAIT) seconds for the owner, then raises DeviceLocked.
+        """
+        deadline = time.monotonic() + (UNLOCK_WAIT if wait is None else wait)
+        while True:
+            window = self.adb('shell','dumpsys','window')
+            if is_unlocked(window):
+                return window
+            if 'mScreenOnFully=true' not in window:
+                self.adb('shell','input','keyevent','KEYCODE_WAKEUP')
+            if time.monotonic() >= deadline:
+                raise DeviceLocked('设备必须已解锁且亮屏：要求 isKeyguardShowing=false、mScreenOnFully=true；不会尝试解锁。')
+            self.note('WAIT','设备锁屏/熄屏，等待机主解锁（每 5s 复查）')
+            time.sleep(5)
 
     def foreground(self):
         """Read foreground state; returns (allowed, reason) / 读前台状态，返回(是否允许截图, 原因)。
@@ -708,7 +726,16 @@ def main(argv=None):
             if bad_dependencies:
                 driver.results[job['id']]=dict(kind='BLOCKED',driver=str(driver.log),error=f'依赖失败 {bad_dependencies}')
                 continue
-            if not driver.batch(job) and args.fail_fast:
+            try:
+                if not driver.batch(job) and args.fail_fast:
+                    break
+            except DeviceLocked as error:
+                # 锁屏不是验证器故障：已跑批次的结果保留，其余批次记 BLOCKED，便于用新 run-id --from 续跑。
+                driver.note('ERROR',f'kind=BLOCKED {error}')
+                rest=selected[selected.index(job)+(1 if job['id'] in driver.results else 0):]
+                for left in rest:
+                    driver.results[left['id']]=dict(kind='BLOCKED',driver=str(driver.log),
+                        error='设备锁屏，未执行；解锁后用新 run-id 并 --from '+left['id']+' 续跑')
                 break
     except (Exception,KeyboardInterrupt) as error:
         driver.note('ERROR',f'kind=HARNESS {error}')
