@@ -31,8 +31,9 @@ P0–P3 完成，P2 只剩真实侧：G0/G1/G2/G3/G5 清零，基线是 G4 的 1
 ## 剩余待办
 
 **真实侧**
-- G4 的 10 行 ② 档缺真实用例：multipart 401 重放、keep-alive 重放（H4）、breaker 网络分类与半开探测取消、cancel 插件 dispose 在途、retry 网络错误类型、share retry 策略、connect/send 超时生效、INV-18 连接复用。多数要 testkit 新增场景。
+- G4 剩 4 行 ② 档缺真实用例：breaker 半开探测在途取消、multipart 401 重放、share retry 策略、connect 超时生效。需要的场景与原因已写成 testkit 提议 `E:\workspaces\api-ws-demo\testkit\proposals\2026-10-28-dioman-gaps.md`（其他执行器也依赖 testkit，所以放在那边），待拍板。另外 6 行已补上：breaker 网络分类、retry 按错误类型回落挂上现成场景（执行器改为交回内置判定后才真正测到）；dispose 取消在途（H1b）、send 超时（H5）、keep-alive 复用（H4，2 行）用本地真实回环核对（矩阵里写作 `local:<测试文件>`）。
 - INV-11 FAIL：`plugins.single-auth@business`。外部 testkit `auth.json` 有未提交改动，把预期改成 ok:true；dioman 行为与改动前一致。等那边定稿，再判是改预期还是改执行器（执行器在装 auth 时也启用 EnvelopeTransformer）。
+- 下面三条也已写进同一份 testkit 提议（"其他"一节）。
 - 外部 testkit 的 `retry.429-retried`、`retry.503-retry-after`、`retry.respects-retry-after-over-delay` 等在场景 JSON 里显式 skip，需要那边去掉；CONTRACT §7 缺 mock/cache/share 组合语义。两段说明已交给用户转给 testkit 的会话。
 - 两个 testkit 场景对 dioman 标为"不适用"（mock 在传输层的设计差异）：`combo.cache-mock-fallback-cached-once`、`combo.mock-share-fallback-single-flight`。
 

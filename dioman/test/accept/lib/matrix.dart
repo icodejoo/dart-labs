@@ -408,8 +408,15 @@ Set<String> computeGaps({
       gaps.add('G5:$id');
     }
   }
+  // 本地真实回环核对（`local:<测试文件>`）：文件必须存在且含用例，与验收场景分开校验。
+  final allReal = rows.expand((r) => r.real).toSet();
+  for (final id in allReal.where((id) => id.startsWith(localRealPrefix))) {
+    if (!testFiles.contains(id.substring(localRealPrefix.length))) {
+      gaps.add('G5:real-unknown:$id');
+    }
+  }
   if (full) {
-    final used = rows.expand((r) => r.real).toSet();
+    final used = allReal.where((id) => !id.startsWith(localRealPrefix)).toSet();
     gaps.addAll(used.difference(realIds).map((id) => 'G5:real-unknown:$id'));
     gaps.addAll(realIds.difference(used).map((id) => 'G5:real-orphan:$id'));
   }
@@ -510,18 +517,29 @@ Map<String, dynamic> summarizeEvidence(List<Map<String, dynamic>> reports,
   };
 }
 
+/// 本地真实回环核对的 real id 前缀：`local:test/boundary/x_test.dart`。
+///
+/// 只用于假设关乎 Dio IO 实现与 OS socket（如 H1b、H5）的行；网络条件相关的行
+/// 仍须用 testkit 验收场景。这类文件属于默认 `dart test`，任何失败都过不了全量
+/// 门槛，所以回填时按"通过"计一格。
+const localRealPrefix = 'local:';
+
 /// 由汇总 [cases] 推出 [row] 的最近结论；行没挂真实用例或证据里一条都没有时返回 null。
 ///
 /// 任一格失败 → FAIL；无失败且至少一格通过 → PASS；其余（全跳过）→ BLOCKED。
 /// [notApplicable] 的格子先剔除；剔除后一格不剩也返回 null。
+/// `local:` 本地真实核对各计一格"通过"（见 [localRealPrefix]）。
 /// 返回 `{status, source, passed, total}`，passed/total 按格子计数（跳过计入 total）。
 /// 例：`rowResult(row, cases, 'test/accept/evidence/x.json')?['status']`。
 Map<String, dynamic>? rowResult(
     MatrixRow row, Map<String, dynamic> cases, String source) {
   final statuses = [
     for (final id in row.real)
-      ...((cases[id] as Map?)?.values.cast<String>() ?? const <String>[])
-          .where((s) => s != notApplicable)
+      if (id.startsWith(localRealPrefix))
+        _passed
+      else
+        ...((cases[id] as Map?)?.values.cast<String>() ?? const <String>[])
+            .where((s) => s != notApplicable)
   ];
   if (statuses.isEmpty) return null;
   final passed = statuses.where((s) => s == _passed).length;

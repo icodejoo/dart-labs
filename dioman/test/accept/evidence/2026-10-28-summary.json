@@ -20,7 +20,10 @@
     "coverage/accept/keyfix-share.json",
     "coverage/accept/keyfix-cache.json",
     "coverage/accept/mock-removed.json",
-    "coverage/accept/plugin-matrix-final.json"
+    "coverage/accept/plugin-matrix-final.json",
+    "coverage/accept/g4-breaker.network-errors-trip.json",
+    "coverage/accept/g4-breaker.timeouts-count.json",
+    "coverage/accept/g4-retry.network-error-retried.json"
   ],
   "cases": {
     "auth.anon-and-private-mix": {

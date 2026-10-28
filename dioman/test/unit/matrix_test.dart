@@ -280,6 +280,37 @@ void main() {
         realIds: {'s'});
     expect(gaps, {'G4:INV-x:fail', 'G4:INV-y:fail'});
   });
+  test('[matrix.computeGaps][matrix.rowResult] local: 本地真实核对：文件须存在且含用例，回填计一格通过',
+      () {
+    MatrixRow row(List<String> real) =>
+        MatrixRow(id: 'INV-l', tier: 2, real: real, result: {_status: 'PASS'});
+    final ok = computeGaps(
+        inventory: [],
+        rows: [
+          row(['local:test/a_test.dart'])
+        ],
+        titles: {
+          'INV-l': {'test/a_test.dart'}
+        },
+        symbols: {},
+        full: true,
+        realIds: {});
+    expect(ok, isEmpty);
+    final bad = computeGaps(inventory: [], rows: [
+      row(['local:test/missing_test.dart'])
+    ], titles: {
+      'INV-l': {'test/a_test.dart'}
+    }, symbols: {});
+    expect(bad, {'G5:real-unknown:local:test/missing_test.dart'});
+    expect(
+        rowResult(
+            row(['local:test/a_test.dart', 'ok']),
+            {
+              'ok': {'n@h': '跳过'}
+            },
+            _src),
+        {'status': 'PASS', 'source': _src, 'passed': 1, 'total': 2});
+  });
   test('[matrix.ratchet] 指定前缀的 added 与 fixed', () {
     final result = ratchet({_g0New, 'G5:ignored'}, {_g0Old, 'G1:ignored'},
         required: {'G0:'});

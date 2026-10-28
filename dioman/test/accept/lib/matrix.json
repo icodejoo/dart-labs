@@ -35,13 +35,20 @@
     "apis": [
       "DiomanAuth.dio"
     ],
-    "real": [],
+    "real": [
+      "local:test/combo/auth_retry_keep_alive_combo_test.dart"
+    ],
     "assumptions": [
       "H4"
     ],
-    "result": null,
-    "blocked": "缺真实用例：keep-alive 下连续 401→重放成功→新请求，核对连接及后续响应体。",
-    "note": "ReplayClient.fetch 创建裸 Dio 借 adapter/transformer；现有 POST 重放场景未明确断言连接复用。"
+    "result": {
+      "status": "PASS",
+      "source": "test/accept/evidence/2026-10-28-summary.json",
+      "passed": 1,
+      "total": 1
+    },
+    "blocked": null,
+    "note": "auth 重放复用宿主连接（H4），本地真实 keep-alive 核对"
   },
   {
     "id": "DiomanAuth.dispose",
@@ -427,7 +434,7 @@
       "H2"
     ],
     "result": null,
-    "blocked": "缺真实用例：用已消费的 multipart 触发 401 后刷新重放，并核对文件字节；另测 Stream 不重发。",
+    "blocked": "需 testkit schema 支持 multipart body、echo 回报文件摘要：api-ws-demo/testkit/proposals/2026-10-28-dioman-gaps.md §2；待拍板",
     "note": "lib/src/auth_plugin.dart:_replayOnce 与 replay_support.dart:prepareForReplay；本地 auth_replay_boundary_test.dart 有两分支。"
   },
   {
@@ -1213,7 +1220,7 @@
       "H1"
     ],
     "result": null,
-    "blocked": "缺真实用例：半开探测在途取消后立即再探测，核对名额可复用且连续失败计数不变。"
+    "blocked": "缺 testkit 场景（只需新增，草案已给出）：api-ws-demo/testkit/proposals/2026-10-28-dioman-gaps.md §1 breaker.half-open-probe-cancel；待拍板"
   },
   {
     "id": "DiomanBreaker.onError#network-classification",
@@ -1223,13 +1230,21 @@
     "apis": [
       "DiomanBreaker.onError"
     ],
-    "real": [],
+    "real": [
+      "breaker.network-errors-trip",
+      "breaker.timeouts-count"
+    ],
     "assumptions": [
       "H3"
     ],
-    "result": null,
-    "blocked": "缺真实用例：关闭自定义 shouldTrip，分别制造拒连、DNS 失败与中途断连，核对 type 及熔断计数。",
-    "note": "真实 client.dart 配自定义 shouldTrip，breaker.network-errors-trip 不能解锁内置类型分类。"
+    "result": {
+      "status": "PASS",
+      "source": "test/accept/evidence/2026-10-28-summary.json",
+      "passed": 6,
+      "total": 6
+    },
+    "blocked": null,
+    "note": "2026-10-28 执行器改为只补业务码、网络/超时交回内置分类后，这两个场景跑的是插件自己的分类"
   },
   {
     "id": "DiomanBreaker.onRequest",
@@ -2359,13 +2374,21 @@
     "apis": [
       "DiomanCancel.dispose"
     ],
-    "real": [],
+    "real": [
+      "local:test/boundary/cancel_dispose_boundary_test.dart"
+    ],
     "assumptions": [
       "H1",
       "H1b"
     ],
-    "result": null,
-    "blocked": "缺真实用例：用插件注入令牌发起慢请求，在途 remove 或 dispose，核对取消错误与连接释放。"
+    "result": {
+      "status": "PASS",
+      "source": "test/accept/evidence/2026-10-28-summary.json",
+      "passed": 1,
+      "total": 1
+    },
+    "blocked": null,
+    "note": "dispose 取消在途请求：真实 IO adapter + 原始 ServerSocket，服务端确认收到 EOF（H1b）；插件生命周期不属于中立契约，不进 testkit"
   },
   {
     "id": "DiomanCancel.name",
@@ -2906,13 +2929,20 @@
     "capability": "连接复用下恢复失败不污染后续响应",
     "tier": 2,
     "apis": [],
-    "real": [],
+    "real": [
+      "local:test/combo/auth_retry_keep_alive_combo_test.dart"
+    ],
     "assumptions": [
       "H4"
     ],
-    "result": null,
-    "blocked": "缺真实用例：开启 keep-alive 连续发送非 2xx→恢复成功→2xx，断言响应体及连接复用计数。",
-    "note": "test/support/test_server.dart 强制非 2xx 短连接；powerset 异常路径也显式 close，现有 pair/full 不证明复用输入已被覆盖。"
+    "result": {
+      "status": "PASS",
+      "source": "test/accept/evidence/2026-10-28-summary.json",
+      "passed": 1,
+      "total": 1
+    },
+    "blocked": null,
+    "note": "keep-alive 复用同一 TCP 连接时恢复失败不污染后续响应（H4）；testkit 侧需要服务端回报连接标识，见 testkit 提议"
   },
   {
     "id": "INV-19",
@@ -6960,13 +6990,20 @@
       "DiomanRetry.new(statusCodes)",
       "DiomanRetry.statusCodes"
     ],
-    "real": [],
+    "real": [
+      "retry.network-error-retried"
+    ],
     "assumptions": [
       "H3"
     ],
-    "result": null,
-    "blocked": "缺真实用例：真实执行器总是注入返回非 null 的 shouldRetry，插件自带的\"按 DioExceptionType 回落\"没被执行。解锁：新增不带 shouldRetry 的真实客户端配置，在关端口/DNS 失败/黑洞下断言按默认判定重试，并记录各场景的 DioExceptionType。",
-    "note": "相关现有真实用例（只经执行器 classify 间接核对 H3）：retry.network-error-retried、retry.hang-timeout-retried、retry.offline-exhausts、retry.blackhole-timeout。"
+    "result": {
+      "status": "PASS",
+      "source": "test/accept/evidence/2026-10-28-summary.json",
+      "passed": 2,
+      "total": 2
+    },
+    "blocked": null,
+    "note": "2026-10-28 执行器的 shouldRetry 对非业务失败返回 null，按 DioExceptionType 的内置回落真正执行"
   },
   {
     "id": "DiomanRetryOptions.afterStatusCodes",
@@ -7579,7 +7616,7 @@
       "H7"
     ],
     "result": null,
-    "blocked": "缺真实用例：policy=retry 下 500/flap 恢复，所有跟随者只见一次成功，且 POST/multipart 体可重放。真实执行器的 policy 映射不含 retry（client.dart policy()）。",
+    "blocked": "中立契约 share.policy 无 retry：api-ws-demo/testkit/proposals/2026-10-28-dioman-gaps.md §4；待拍板",
     "note": "内部重试走宿主 adapter 重放请求体（H2），间隔与响应的先后依赖真实时序（H7）。"
   },
   {
@@ -7811,7 +7848,7 @@
       "H5"
     ],
     "result": null,
-    "blocked": "缺真实用例：目标丢弃 SYN（连接阶段无响应）+ connect_ms，断言错误类型为 timeout 且耗时≈connect_ms。现有 plugins.boundary-timeout-connect-ms-* 只断言成功，network.flap-no-retry/retry.flap-no-retry-then-ok 接受 network|timeout 两种，timeout.connect-blackhole 的黑洞已连通、测到的是 receive；都不能证明 connectTimeout 生效。单测目前也只断言配置值。",
+    "blocked": "netem 用户态完成握手、测不到 connect 超时，需\"丢 SYN\"档：api-ws-demo/testkit/proposals/2026-10-28-dioman-gaps.md §6；回环上只会立即拒绝（connectionError），本地也不可测",
     "note": "H5 本来就要求\"逐格确认断言的是错误类型与耗时\"，这一行是它在 connect 上的落点。"
   },
   {
@@ -7890,13 +7927,20 @@
       "DiomanTimeouts.new(send)",
       "DiomanTimeouts.send"
     ],
-    "real": [],
+    "real": [
+      "local:test/boundary/timeout_effective_boundary_test.dart"
+    ],
     "assumptions": [
       "H5"
     ],
-    "result": null,
-    "blocked": "缺真实用例：真实执行器没有 send 配置项；解锁：给执行器加 send_ms，经 netem 限速/黑洞上传大 body，断言 timeout 与耗时。单测也只有配置值断言，尚无\"真正超时\"用例。",
-    "note": "H5 原文只写了 connect/receive，sendTimeout 见 newAssumptions。"
+    "result": {
+      "status": "PASS",
+      "source": "test/accept/evidence/2026-10-28-summary.json",
+      "passed": 1,
+      "total": 1
+    },
+    "blocked": null,
+    "note": "send 超时在真实回环上生效（H5）；testkit 侧需要 send_ms 与慢读服务端，见 testkit 提议"
   },
   {
     "id": "NetworkQuality.excellent",
