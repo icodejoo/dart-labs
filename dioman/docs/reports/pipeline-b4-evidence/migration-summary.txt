@@ -1,0 +1,2 @@
+{'boundary.md': 26, 'combo.md': 93, 'integration.md': 1, 'rule.md': 138, 'unit.md': 9}
+267 keep/change rows individually mapped; B3 39/39 closed

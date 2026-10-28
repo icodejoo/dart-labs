@@ -9,6 +9,9 @@ import 'response.dart';
 /// debug 日志回调；关闭 debug 时不会调用。
 typedef DiomanLogger = void Function(String message);
 
+/// 生命周期收尾的取消结果覆盖；离线销毁须保留 disposed 原因。
+final cancellationFailure = StateKey<DiomanFailure>('cancellation outcome');
+
 /// 逻辑请求状态键；使用非 const 实例保证按身份隔离。
 final class StateKey<T> {
   /// 创建键，例如 `final attempt = StateKey<int>('attempt')`。
@@ -43,9 +46,13 @@ class DiomanCancelLink {
 /// 一个逻辑请求的共享状态和取消订阅登记。
 class DiomanContextState {
   /// 创建状态并监听内核令牌；测试也可独立构造上下文。
-  DiomanContextState(this.token) {
+  DiomanContextState(this.token, {void Function()? onDispose})
+      : _onDispose = onDispose {
     _link = DiomanCancelLink(token, (_) => _notify());
   }
+
+  /// 最后一个传输释放时通知客户端摘除取消登记。
+  final void Function()? _onDispose;
 
   /// 内核逻辑取消令牌。
   final CancelToken token;
@@ -65,6 +72,21 @@ class DiomanContextState {
   /// 是否需要克隆发送体。
   bool replayable = false;
 
+  /// 脱离首发调用方但仍在执行的共享传输数。
+  int _retained = 0;
+
+  /// 逻辑调用方是否已完成。
+  bool _released = false;
+
+  /// 保持共享传输使用的状态；每次调用必须对应一次 release。
+  void retain() => _retained++;
+
+  /// 共享传输完成后释放；最后一个持有者负责最终清理。
+  void release() {
+    _retained--;
+    if (_released && _retained == 0) dispose();
+  }
+
   /// 通知副本，允许回调在执行中退订。
   void _notify() {
     for (final entry in listeners.entries.toList()) {
@@ -80,11 +102,14 @@ class DiomanContextState {
 
   /// 释放桥并结束剩余等待。
   void dispose() {
+    _released = true;
+    if (_retained > 0) return;
     _link.dispose();
     for (final listener in listeners.keys.toList()) {
       listener();
     }
     listeners.clear();
+    _onDispose?.call();
   }
 }
 
@@ -160,8 +185,10 @@ class DiomanContext<R extends DiomanResponse<dynamic>> {
   void markReplayable() => state.replayable = true;
 
   /// 已取消则造 cancel 结果，否则返回 null；每次 await 后应调用。
-  DiomanResponse<dynamic>? cancelled() =>
-      isCancelled ? fail(const DiomanFailure(kind: DiomanKind.cancel)) : null;
+  DiomanResponse<dynamic>? cancelled() => isCancelled
+      ? fail(get(cancellationFailure) ??
+          const DiomanFailure(kind: DiomanKind.cancel))
+      : null;
 
   /// 派生请求视图，保留所有逻辑服务与共享状态。
   DiomanContext<R> derive(RequestPatch patch) => DiomanContext(

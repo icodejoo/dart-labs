@@ -1,0 +1,16 @@
+00:00 +0: loading test/combo/source_combo_test.dart
+00:00 +0: [DiomanSharePolicy.start × DiomanOffline.maxWait] 首发离场仍等恢复，最后离场清离线等待与 I3
+00:00 +0 -1: [DiomanSharePolicy.start × DiomanOffline.maxWait] 首发离场仍等恢复，最后离场清离线等待与 I3 [E]
+  Expected: <1>
+    Actual: <0>
+  
+  package:matcher                          expect
+  test\combo\source_combo_test.dart 134:5  main.<fn>
+  
+00:00 +0 -1: Some tests failed.
+
+Failing tests:
+  test/combo/source_combo_test.dart: [DiomanSharePolicy.start × DiomanOffline.maxWait] 首发离场仍等恢复，最后离场清离线等待与 I3
+
+Consider enabling the flag chain-stack-traces to receive more detailed exceptions.
+For example, 'dart test --chain-stack-traces'.

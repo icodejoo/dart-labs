@@ -1,0 +1,17 @@
+00:00 +0: loading test/boundary/source_review_boundary_test.dart
+00:00 +0: [DiomanCachePersist.read] 自审：显式缓存失败重读仍保留 kind status code reason
+00:00 +0 -1: [DiomanCachePersist.read] 自审：显式缓存失败重读仍保留 kind status code reason [E]
+  Expected: [false, DiomanKind:DiomanKind.http, 503, 503, null, null, '', 'unavailable']
+    Actual: [true, DiomanKind:DiomanKind.ok, 200, 200, null, null, '', 'unavailable']
+     Which: at location [0] is <true> instead of <false>
+  
+  package:matcher                                      expect
+  test\boundary\source_review_boundary_test.dart 41:7  main.<fn>
+  
+00:00 +0 -1: Some tests failed.
+
+Failing tests:
+  test/boundary/source_review_boundary_test.dart: [DiomanCachePersist.read] 自审：显式缓存失败重读仍保留 kind status code reason
+
+Consider enabling the flag chain-stack-traces to receive more detailed exceptions.
+For example, 'dart test --chain-stack-traces'.

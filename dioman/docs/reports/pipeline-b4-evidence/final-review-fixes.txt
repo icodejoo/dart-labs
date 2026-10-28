@@ -1,0 +1,8 @@
+00:00 +0: loading test/boundary/b4_final_review_boundary_test.dart
+00:00 +0: [DiomanShare.option] 连接五秒接收三十秒的跟随者在传输十秒完成时成功
+00:00 +1: [DiomanShare.option] 连接接收或有请求体的发送阶段为无限时则整体不限时
+00:00 +2: [DiomanShare.option] 请求体非空时累计发送超时且无请求体时忽略发送阶段
+00:00 +3: [DiomanOffline.shouldQueue] 在线直接放行且不调用排队判定回调
+00:00 +4: [DiomanShare.policy × Dioman.cancelAll] 胜出后仍在途的落败传输可被取消或销毁
+00:00 +5: [DiomanCache.clone] 显式缓存失败时深拷贝隔离来源首返回和后续命中数据
+00:00 +6: All tests passed!

@@ -1,0 +1,41 @@
+00:00 +0: loading test/combo/b4_auth_migration_combo_test.dart
+00:00 +0: test/combo/b4_auth_migration_combo_test.dart: [DiomanAuth.onRefresh × DiomanCache.option] 刷新后缓存只保存最终成功并供后续调用命中
+00:00 +1: test/combo/b4_retry_migration_combo_test.dart: [DiomanRetry.max × DiomanShare.option] 业务失败外层重试后缓存只保存成功响应
+00:00 +2: test/combo/b4_retry_migration_combo_test.dart: [DiomanRetry.max × DiomanShare.option] 业务失败外层重试后缓存只保存成功响应
+00:00 +3: test/combo/b4_auth_migration_combo_test.dart: [DiomanAuth.onRefresh × DiomanShare.option] 传输失败后刷新期间首发取消不影响跟随者
+00:00 +4: test/combo/b4_retry_migration_combo_test.dart: [DiomanRetry.max × DiomanShare.option] 共享重试成功后再次调用命中缓存且不重复发送
+00:00 +5: test/combo/b4_auth_migration_combo_test.dart: [DiomanAuth.onRefresh × DiomanShare.option] 业务失败后刷新期间首发取消不影响跟随者
+00:00 +6: test/combo/b4_retry_migration_combo_test.dart: [DiomanAuth.onRefresh × DiomanShare.option] 刷新前取消首发后跟随者仍完成刷新
+00:00 +7: test/combo/b4_auth_migration_combo_test.dart: [DiomanAuth.onRefresh × DiomanShare.option] 刷新后传输失败仍重试并携带新凭据
+00:00 +8: test/combo/b4_retry_migration_combo_test.dart: [DiomanRetry.max × DiomanShare.option] 失败响应前取消首发后跟随者仍外层重试成功
+00:00 +9: test/combo/b4_auth_migration_combo_test.dart: [DiomanAuth.onRefresh × DiomanShare.option] 就绪回调异常使所有共享调用保留原错误落定
+00:00 +10: test/combo/b4_retry_migration_combo_test.dart: [DiomanRetry.max × DiomanShare.option] 鉴权与缓存共享组合在外层重试后正确结算
+00:00 +11: test/combo/b4_retry_migration_combo_test.dart: [DiomanRetry.max × DiomanShare.option] 鉴权与缓存共享组合在外层重试后正确结算
+00:00 +12: test/combo/b4_retry_migration_combo_test.dart: [DiomanRetry.max × DiomanShare.option] 鉴权与缓存共享组合在外层重试后正确结算
+00:00 +13: test/combo/b4_auth_migration_combo_test.dart: [DiomanAuth.onRefresh × DiomanShare.option] 主动刷新时钟异常使所有共享调用保留原错误落定
+00:00 +14: test/combo/b4_retry_migration_combo_test.dart: [DiomanMock.routes × DiomanRetry.max] 模拟探测回落在每次外层重试重新执行
+00:00 +15: test/combo/b4_retry_migration_combo_test.dart: [DiomanMock.routes × DiomanRetry.max] 模拟探测回落在每次外层重试重新执行
+00:00 +16: test/combo/b4_auth_migration_combo_test.dart: [DiomanAuth.onRefresh × DiomanShare.option] 单调用刷新重放后共享活动表与逻辑状态归零
+00:00 +17: test/combo/b4_retry_migration_combo_test.dart: [DiomanMock.routes × DiomanRetry.max] 内联模拟传输失败由外层重试恢复成功
+00:00 +18: test/combo/b4_auth_migration_combo_test.dart: [DiomanAuth.onRefresh × DiomanShare.option] 失败回调异常使竞速调用保留原错误落定
+00:00 +19: test/combo/b4_auth_migration_combo_test.dart: [DiomanAuth.onRefresh × DiomanShare.option] 失败回调异常使竞速调用保留原错误落定
+00:00 +20: test/combo/b4_retry_migration_combo_test.dart: [DiomanMock.routes × DiomanRetry.max] 共享下模拟探测回落仍逐次重试执行
+00:00 +21: test/combo/b4_retry_migration_combo_test.dart: [DiomanMock.routes × DiomanRetry.max] 共享下模拟探测回落仍逐次重试执行
+00:00 +22: test/combo/b4_auth_migration_combo_test.dart: [DiomanAuth.onRefresh × DiomanShare.option] 内联模拟在共享之前为每个逻辑调用执行
+00:00 +23: test/combo/b4_auth_migration_combo_test.dart: [DiomanAuth.onRefresh × DiomanShare.option] 内联模拟在共享之前为每个逻辑调用执行
+00:00 +24: test/combo/b4_retry_migration_combo_test.dart: [DiomanMock.routes × DiomanRetry.max] 共享下内联模拟业务失败仍由自定义判定恢复
+00:00 +25: test/combo/b4_auth_migration_combo_test.dart: [DiomanAuth.onRefresh × DiomanShare.option] 内部重试与鉴权组合保持逻辑状态完整
+00:00 +26: test/combo/b4_retry_migration_combo_test.dart: [DiomanRetry.max × DiomanShare.option] 外层重试中最新成功覆盖较早成功并统一结果
+00:00 +27: test/combo/b4_auth_migration_combo_test.dart: [DiomanAuth.onRefresh × DiomanShare.option] 重装共享插件后刷新重放仍正确结算
+00:00 +28: test/combo/b4_auth_migration_combo_test.dart: [DiomanAuth.onRefresh × DiomanShare.option] 重装共享插件后刷新重放仍正确结算
+00:00 +29: test/combo/b4_retry_migration_combo_test.dart: [DiomanRetry.max × DiomanShare.option] 竞速重试通知异常被隔离且各调用均正确落定
+00:00 +30: test/combo/b4_retry_migration_combo_test.dart: [DiomanRetry.max × DiomanShare.option] 竞速重试通知异常被隔离且各调用均正确落定
+00:00 +31: test/combo/b4_auth_migration_combo_test.dart: [DiomanAuth.onRefresh × DiomanShare.option] 最新成功覆盖旧鉴权失败且不提前刷新
+00:00 +32: test/combo/b4_retry_migration_combo_test.dart: [DiomanRetry.max × DiomanShare.option] 最新策略重试判定异常保留原错误并清理
+00:00 +33: test/combo/b4_retry_migration_combo_test.dart: [DiomanRetry.max × DiomanShare.option] 竞速策略重试判定异常保留原错误并清理
+00:00 +34: test/combo/b4_retry_migration_combo_test.dart: [DiomanRetry.max × DiomanShare.option] 新调用加入外层重试当前尝试且不增加传输
+00:00 +35: test/combo/b4_retry_migration_combo_test.dart: [DiomanRetry.max × DiomanShare.option] 内部重试策略的外层通知按逻辑调用触发
+00:00 +36: test/combo/b4_retry_migration_combo_test.dart: [DiomanRetry.max × DiomanShare.option] 内部重试耗尽后外层重试仍重新进入共享表
+00:00 +37: test/combo/b4_retry_migration_combo_test.dart: [DiomanRetry.max × DiomanShare.option] 内部重试策略允许后到调用共享当前重放结果
+00:00 +38: test/combo/b4_retry_migration_combo_test.dart: [DiomanRetry.max × DiomanShare.option] 首发共享重试判定异常保留原错误并清理
+00:00 +39: All tests passed!

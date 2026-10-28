@@ -1,0 +1,18 @@
+00:00 +0: loading test/boundary/b4_final_review_boundary_test.dart
+00:00 +0: [DiomanOffline.shouldQueue] 在线直接放行且不调用排队判定回调
+00:00 +0 -1: [DiomanOffline.shouldQueue] 在线直接放行且不调用排队判定回调 [E]
+  Bad state: 判定
+  test\boundary\b4_final_review_boundary_test.dart 136:13  main.<fn>.<fn>
+  package:dioman/src/pipeline/plugins/offline.dart 172:26  _Offline.handle
+  package:dioman/src/pipeline/pipeline.dart 73:38          compileDiomanPipeline.<fn>
+  package:dioman/src/pipeline/client.dart 299:29           Dioman._dispatch
+  package:dioman/src/pipeline/client.dart 222:15           Dioman.send
+  test\boundary\b4_final_review_boundary_test.dart 139:23  main.<fn>
+  
+00:00 +0 -1: Some tests failed.
+
+Failing tests:
+  test/boundary/b4_final_review_boundary_test.dart: [DiomanOffline.shouldQueue] 在线直接放行且不调用排队判定回调
+
+Consider enabling the flag chain-stack-traces to receive more detailed exceptions.
+For example, 'dart test --chain-stack-traces'.

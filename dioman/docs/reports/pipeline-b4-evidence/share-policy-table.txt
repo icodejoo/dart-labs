@@ -1,0 +1,16 @@
+00:00 +0: loading test/boundary/source_boundary_test.dart
+00:00 +0: [DiomanShare.policy] 同 key 四策略互不读取，提前取消与迟到结果不污染新一轮
+00:00 +0 -1: [DiomanShare.policy] 同 key 四策略互不读取，提前取消与迟到结果不污染新一轮 [E]
+  Expected: <4>
+    Actual: <3>
+  
+  package:matcher                               expect
+  test\boundary\source_boundary_test.dart 96:5  main.<fn>
+  
+00:00 +0 -1: Some tests failed.
+
+Failing tests:
+  test/boundary/source_boundary_test.dart: [DiomanShare.policy] 同 key 四策略互不读取，提前取消与迟到结果不污染新一轮
+
+Consider enabling the flag chain-stack-traces to receive more detailed exceptions.
+For example, 'dart test --chain-stack-traces'.

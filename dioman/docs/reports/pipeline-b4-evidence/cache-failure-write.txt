@@ -1,0 +1,23 @@
+00:00 +0: loading test/rule/source_rule_test.dart
+00:00 +0: [DiomanCache.shouldStore] business 失败不存储且不经过用户 clone，GET HEAD 默认允许
+00:00 +0 -1: [DiomanCache.shouldStore] business 失败不存储且不经过用户 clone，GET HEAD 默认允许 [E]
+  Bad state: 不该克隆
+  test\rule\source_rule_test.dart 143:52                 main.<fn>.<fn>
+  package:dioman/src/pipeline/plugins/cache.dart 317:24  _Cache.clone
+  package:dioman/src/pipeline/plugins/cache.dart 402:30  _Cache.handle
+  ===== asynchronous gap ===========================
+  package:dioman/src/pipeline/pipeline.dart 73:16        compileDiomanPipeline.<fn>
+  ===== asynchronous gap ===========================
+  package:dioman/src/pipeline/client.dart 299:20         Dioman._dispatch
+  ===== asynchronous gap ===========================
+  package:dioman/src/pipeline/client.dart 222:9          Dioman.send
+  ===== asynchronous gap ===========================
+  test\rule\source_rule_test.dart 147:12                 main.<fn>
+  
+00:00 +0 -1: Some tests failed.
+
+Failing tests:
+  test/rule/source_rule_test.dart: [DiomanCache.shouldStore] business 失败不存储且不经过用户 clone，GET HEAD 默认允许
+
+Consider enabling the flag chain-stack-traces to receive more detailed exceptions.
+For example, 'dart test --chain-stack-traces'.

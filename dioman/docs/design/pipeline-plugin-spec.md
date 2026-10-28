@@ -146,6 +146,17 @@ B3 终审补充：
 | 旧 `DiomanBreakerOpenException` 的 `retryableAt`、`bucketKey` | 失败载体仍是 `kind: breaker, reason: 'open'`；两项信息改由 `DiomanBreakerApi.keyOf(request)` 与 `retryableAt(key)` 提供，只读，不触发状态迁移 |
 | 依赖 share/cache/mock 的 39 条组合迁移行 | B3 只验证自己这一侧的边界，真实组合由 B4 承接，B4 报告逐行关闭 |
 
+B4 终审补充：
+
+| 缺口 | 裁决 |
+|---|---|
+| share start 订阅者的"自己的超时"怎么由 Dio 三个阶段超时合成 | 上限 = connect + receive，请求带请求体时再加 send；参与计算的任一项为 null 或 ≤0 就不设上限（与 Dio 对 null/零的语义一致）。不取最小值：connect 5s、receive 30s 时，最小值会把正常的慢下载判成超时 |
+| cache 的时钟 | 插件级 `clock` 保留，只管 TTL，省略时用客户端时钟；请求级 `now` 仍删除 |
+| cache `remove(key)` 的失效范围 | 只作废该 key 的在途读写，`clear()` 才作废全部；旧版提升全局代次，属行为变化 |
+| 持久化条目格式 | 写入时增加 result 元信息（`shouldStore` 允许存失败结果时要保留分类），旧的两字段格式仍可读 |
+| offline 判定顺序 | 选项关闭 → 在线直接放行 → 再调用 `shouldQueue`，在线时不调用判定回调 |
+| 迁移承接用例 | 标题写 `[API id]` 加行为，不写迁移行号；行号对应只留在报告证据里 |
+
 ## 9. 行为变化汇总（写进 CHANGELOG 与迁移指南）
 
 | # | 变化 | 原因 |

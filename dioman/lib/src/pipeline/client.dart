@@ -83,6 +83,9 @@ class Dioman<R extends DiomanResponse<dynamic>> {
   /// 活跃逻辑请求。
   final _pending = <DiomanContextState>{};
 
+  /// 仍可取消的请求状态，包含逻辑调用已结束的共享传输。
+  final _cancellable = <DiomanContextState>{};
+
   /// 请求序号。
   int _sequence = 0;
 
@@ -163,10 +166,10 @@ class Dioman<R extends DiomanResponse<dynamic>> {
         );
       }));
 
-  /// 中止尚未取消的逻辑请求，返回本次中止数。
+  /// 中止尚未取消的请求状态（含保留的共享传输），返回本次中止数。
   int cancelAll([Object? reason]) {
     var count = 0;
-    for (final state in _pending.toList()) {
+    for (final state in _cancellable.toList()) {
       if (!state.token.isCancelled) {
         count++;
         state.cancel(reason);
@@ -266,7 +269,10 @@ class Dioman<R extends DiomanResponse<dynamic>> {
     _checkAlive();
     final run = _run;
     final site = _debug ? StackTrace.current : null;
-    final state = DiomanContextState(CancelToken());
+    late final DiomanContextState state;
+    state = DiomanContextState(CancelToken(),
+        onDispose: () => _cancellable.remove(state));
+    _cancellable.add(state);
     DiomanCancelLink? userLink;
     _pending.add(state);
     try {

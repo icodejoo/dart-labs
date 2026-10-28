@@ -191,6 +191,24 @@ class DiomanResponseFactory<R extends DiomanResponse<dynamic>> {
           DiomanResponse<dynamic> result, StackTrace callSite) =>
       _finish(result.copy<dynamic>(callSite: callSite));
 
+  /// 用 [data] 派生 [result] 并经扩展工厂；例如缓存克隆保持业务元信息。
+  DiomanResponse<dynamic> derive(
+          DiomanResponse<dynamic> result, Object? data) =>
+      _finish(DiomanResponse<dynamic>(
+          ok: result.ok,
+          kind: result.kind,
+          status: result.status,
+          httpStatus: result.httpStatus,
+          code: result.code,
+          message: result.message,
+          data: data,
+          reason: result.reason,
+          request: result.request,
+          raw: result.raw,
+          error: result.error,
+          errorStack: result.errorStack,
+          callSite: result.callSite));
+
   /// 直接构造不依赖用户回调的 internal。
   static DiomanResponse<dynamic> _internal(
           DiomanRequest request, Object error, StackTrace stack) =>
