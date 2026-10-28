@@ -1,0 +1,37 @@
+# mova libmpv 产物版本信息（产物目录/文件名固定，版本只记在这里；2026-10-28 建立）
+# 升级二进制后请同步更新本文件，sha256 以 `sha256sum` 现算为准。
+
+版本栈: ffmpeg n9.0.2 + mpv v0.41.0（client API 2.5）+ WHEP/WebRTC（DTLS-SRTP）
+构建来源: GitHub Actions 工作流 .github/workflows/build-mova-libmpv.yml 构建后注入仓库
+          （配方在子工程 mova-libmpv：patches/ffmpeg-whep、patches/mpv-v041、
+          patches/android-v041、flavors-mova-slim-n9.sh）
+具体构建 run id / 源码 commit: Windows dll 为 GitHub run 40646649443（mova-libmpv 提交 dd17453，含 VP8）；其余产物未知（文档中未记录）
+Windows 产物最近一次 CI 注入提交: 4ca5d1d（2026-10-28，带 VP8 软解）；Android 各 ABI libmpv.so 最近一次注入提交: 2026-10-26（arm64-v8a 32d85be、armeabi-v7a de01391、x86 6f8ed00、x86_64 80096f4）
+Windows TLS: Schannel
+
+特性清单（据 mova-libmpv 文档与 flavor 注释，未逐项重新验证）:
+- 裁剪 demuxer/decoder；libass 全套字幕栈保留；avfilter 已去掉
+- WHEP demuxer + DTLS 协议；无 VP9 软解（仅 vp9_mediacodec 硬解）
+- H.264 ffmpeg 软解已在 flavor 中删除（Android 走 MediaCodec）
+- VP8：Windows dll 含 ffmpeg VP8 软解 + parser（Windows 实测通过）；Android 仓库内 libmpv.so 仍是不含 VP8 的旧版，
+  CI 新产物的 vp8_mediacodec 在 STG-AL00 上打开 VP8 会卡死，未入库（见 flavors-mova-slim-n9.sh 注释）
+- 编译器级瘦身（-Os / gc-sections / 跨库 LTO 等）
+
+二进制 sha256 / 字节数（水合后现算，2026-10-28）:
+
+windows-x64/libmpv-2.dll   601c7eb2c02aa9f55df7ed90ac2a31a71e861fc198488ca38d2b1bbe2275d67a  10997248
+windows-x64/libmpv.dll.a   55afd1318822bfc3c0799b443eca8bfecb06311ed7d13c12e4973f4891d900df  43674
+windows-x64/libmpv-2.def   00bda7c256549cc873276cc8c41b6666e9587f6211cf6f2198693a89d328b8db  1123
+
+packages/media_kit_libs_android_video_slim/android/src/main/jniLibs/
+arm64-v8a/libmpv.so                      798cde9e27e3761dd5f8f065693e4669b5499d5807618f81a74e0d3a88dc230b  6357872
+armeabi-v7a/libmpv.so                    0d15e0d7bde6adba1a927fcfc2d4501bf56bc1c7f0bbaeed54829408187b95a6  5706804
+x86/libmpv.so                            0b47c9a052781c9ca7a16dd615c161f5ad27dacf691084419da1b6aa2210d000  6289404
+x86_64/libmpv.so                         ee03f1ebe46e82576b6657ad57b962eeae83027a20ce60d62cb70ce700d50644  7830968
+arm64-v8a/libmediakitandroidhelper.so    ab55b1d34665dba8fa7a451e82c466ee71b9698e7da6c9a3cb68a7c0ee7610d4  386696
+armeabi-v7a/libmediakitandroidhelper.so  506d0bc7775fe9888be6b6e889d8556ca0574dba65813866e2158cbf52a8c8b1  286812
+x86/libmediakitandroidhelper.so          c5c846516df0ddf41434e4bdd6bb324b0b77b9668a45caff5cb78a4b54355bba  350252
+x86_64/libmediakitandroidhelper.so       6ca2d827a892b8ddd60df64fab81456ad6fd05180dd6c4a0974549858025abc9  367528
+（helper 为上游 media_kit 官方 release jar 原样提取，非 mova-libmpv 构建）
+
+iOS/macOS: 包内 Mpv.xcframework 未验证，不在此登记。

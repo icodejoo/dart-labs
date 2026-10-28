@@ -4,7 +4,7 @@ R=Path(__file__).resolve().parents[2];O=R/'example/tool/coverage_evidence'
 h=lambda b:hashlib.sha256(b).hexdigest()
 with zipfile.ZipFile(O/'rerun6-device-pulled.apk') as z:
  aot=z.read('lib/arm64-v8a/libapp.so');native=[]
- for p in (R/'packages/media_kit_libs_android_video_slim_v041/android/src/main/jniLibs/arm64-v8a').glob('*.so'):
+ for p in (R/'packages/media_kit_libs_android_video_slim/android/src/main/jniLibs/arm64-v8a').glob('*.so'):
   pointer=p.read_bytes();expected=re.search(rb'oid sha256:(\w+)',pointer)
   actual=h(z.read('lib/arm64-v8a/'+p.name));assert actual==(expected[1].decode() if expected else h(pointer))
   native.append({'entry':p.name,'sha256':actual})

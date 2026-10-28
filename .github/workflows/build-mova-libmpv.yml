@@ -1,14 +1,14 @@
-name: Build mova libmpv WHEP
+name: Build mova libmpv
 
 # WHEP 版 libmpv（ffmpeg n9.0.2 + whep demuxer + DTLS-SRTP，mpv v0.41.0）。
 # 本 workflow 是 main 的正式 libmpv 构建（全平台以 n9 为主，n6 产物已从仓库移除）。
 # 旧 n6 配方 build-mova-libmpv.yml 已删除（全平台以 n9 为准）。
 # 二进制不在本地入库，由本 workflow 编译后注入（沿用 "fetch+reset 重试 / 先 git lfs push / 再 push" 模式）：
 #   - Android 四 ABI（arm64-v8a / armeabi-v7a / x86_64 / x86，矩阵构建）
-#       -> mova/packages/media_kit_libs_android_video_slim_v041/android/src/main/jniLibs/<abi>/
+#       -> mova/packages/media_kit_libs_android_video_slim/android/src/main/jniLibs/<abi>/
 #       libmpv.so（CI 编译）；libmediakitandroidhelper.so 是上游原样提取、已随包入库（同目录，不由 CI 改动）
-#   - Windows x64   -> mova/libmpv/windows-x86_64-whep/{libmpv-2.dll,libmpv-2.def,libmpv.dll.a}
-#       （目录名保持 -whep 不变，Windows 插件的 CMakeLists 直接引用）
+#   - Windows x64   -> mova/libmpv/windows-x64/{libmpv-2.dll,libmpv-2.def,libmpv.dll.a}
+#       （2026-10-28 起产物目录/文件名固定，版本信息见 mova/libmpv/VERSION；artifact 名统一 libmpv-<平台>-<架构>）
 #   - Linux         -> 只上传 artifact，不注入
 # 以上路径均被 .gitattributes 的 LFS 规则覆盖（mova/packages/**/*.so、mova/libmpv/**）。
 #
@@ -38,7 +38,7 @@ on:
       - 'mova-libmpv/patches/apple-n9/**'
       - 'mova-libmpv/tools/apple/**'
       - 'mova-libmpv/tools/whep-flavor/ci-platform'
-      - '.github/workflows/build-mova-libmpv-whep.yml'
+      - '.github/workflows/build-mova-libmpv.yml'
   workflow_dispatch:
     inputs:
       platform:
@@ -70,16 +70,16 @@ permissions:
 
 # 同一分支同时只跑一个，避免两次触发的注入互相覆盖。
 concurrency:
-  group: build-mova-libmpv-whep-${{ github.ref }}
+  group: build-mova-libmpv-${{ github.ref }}
   cancel-in-progress: true
 
 env:
   NDK_VERSION: 25.2.9519653
   NDK_ZIP_NAME: android-ndk-r25c-linux.zip
   # 注入目标（Android）：其下按 ABI 分目录（arm64-v8a / armeabi-v7a / x86_64 / x86）
-  ANDROID_PKG_JNI_ROOT: mova/packages/media_kit_libs_android_video_slim_v041/android/src/main/jniLibs
+  ANDROID_PKG_JNI_ROOT: mova/packages/media_kit_libs_android_video_slim/android/src/main/jniLibs
   # 注入目标（Windows）
-  WIN_WHEP_DIR: mova/libmpv/windows-x86_64-whep
+  WIN_LIBMPV_DIR: mova/libmpv/windows-x64
   # Apple：上游构建仓库钉死到最近一次绿 run 实际用到的 commit（2026-09-14，原先没钉 ref，上游一动就可能无故变红）
   DARWIN_BUILD_REF: aadae8ce295dd15a222839c361c4c984ce9befb2
   # 注入目标（Apple）：直接替换 slim 包里的 xcframework
@@ -238,7 +238,8 @@ jobs:
             echo "- size: $BYTES bytes ($(numfmt --to=iec-i --suffix=B "$BYTES"))"
             echo "- sha256: \`$SHA\`"
           } >> "$GITHUB_STEP_SUMMARY"
-          cp "$STRIPPED" "$GITHUB_WORKSPACE/libmpv-${{ matrix.abi }}-whep.so"
+          mkdir -p "$GITHUB_WORKSPACE/stage-android"
+          cp "$STRIPPED" "$GITHUB_WORKSPACE/stage-android/libmpv.so"
           # helper 已随 v041 包入库（LFS），这里只确认 checkout 拿到的是真 ELF，注入时不再拷贝
           head -c 4 "$ANDROID_PKG_JNI_ROOT/${{ matrix.abi }}/libmediakitandroidhelper.so" | grep -q ELF || { echo "::error::helper .so is missing or an LFS pointer, not a real ELF"; exit 1; }
 
@@ -246,15 +247,15 @@ jobs:
         if: ${{ failure() }}
         uses: actions/upload-artifact@v4
         with:
-          name: mova-libmpv-android-${{ matrix.abi }}-whep-e2e-log
+          name: libmpv-android-${{ matrix.abi }}-e2e-log
           path: ${{ runner.temp }}/e2e.log
           retention-days: 7
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: mova-libmpv-android-${{ matrix.abi }}-whep
-          path: libmpv-${{ matrix.abi }}-whep.so
+          name: libmpv-android-${{ matrix.abi }}
+          path: stage-android/libmpv.so
           retention-days: 30
 
       - name: Commit built artifact to packages/ (current branch only)
@@ -272,7 +273,7 @@ jobs:
             git fetch origin "$BRANCH"
             git reset --hard "origin/$BRANCH"
             mkdir -p "$ANDROID_PKG_JNI"
-            cp "$GITHUB_WORKSPACE/libmpv-$ABI-whep.so" "$ANDROID_PKG_JNI/libmpv.so"
+            cp "$GITHUB_WORKSPACE/stage-android/libmpv.so" "$ANDROID_PKG_JNI/libmpv.so"
             # helper 已在包内（reset --hard 后仍在），不再拷贝，只注入 libmpv.so
             git add -f "$ANDROID_PKG_JNI/libmpv.so"
             if git diff --cached --quiet; then
@@ -367,7 +368,7 @@ jobs:
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: mova-libmpv-windows-x86_64-whep
+          name: libmpv-windows-x64
           path: |
             _stage/libmpv-2.dll
             _stage/libmpv-2.def
@@ -391,13 +392,13 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          # 产物目录 mova/libmpv/windows-x86_64-whep/（名字不改），由 media_kit_libs_windows_video_slim 的 CMakeLists 引用。
+          # 产物目录 mova/libmpv/windows-x64/（固定名），由 media_kit_libs_windows_video_slim 的 CMakeLists 引用。
           for i in 1 2 3 4 5; do
             git fetch origin "$BRANCH"
             git reset --hard "origin/$BRANCH"
-            mkdir -p "$WIN_WHEP_DIR"
-            cp "$WS/_stage/libmpv-2.dll" "$WS/_stage/libmpv-2.def" "$WS/_stage/libmpv.dll.a" "$WIN_WHEP_DIR/"
-            git add -f "$WIN_WHEP_DIR"
+            mkdir -p "$WIN_LIBMPV_DIR"
+            cp "$WS/_stage/libmpv-2.dll" "$WS/_stage/libmpv-2.def" "$WS/_stage/libmpv.dll.a" "$WIN_LIBMPV_DIR/"
+            git add -f "$WIN_LIBMPV_DIR"
             if git diff --cached --quiet; then
               echo "No content change, skip commit"
               exit 0
@@ -446,16 +447,17 @@ jobs:
           nm -D --defined-only "$SO" | grep -qw mpv_create_weak_client
           BYTES=$(stat -c%s "$SO")
           echo "libmpv.so: $BYTES bytes, sha256=$(sha256sum "$SO" | cut -d' ' -f1)" | tee -a "$GITHUB_STEP_SUMMARY"
-          cp "$SO" "$GITHUB_WORKSPACE/libmpv-linux-x86_64-whep.so"
-          cp "$RUNNER_TEMP/whep-linux/out/ffconf.log" "$GITHUB_WORKSPACE/ffconf-linux-whep.log" || true
+          mkdir -p "$GITHUB_WORKSPACE/stage-linux"
+          cp "$SO" "$GITHUB_WORKSPACE/stage-linux/libmpv.so"
+          cp "$RUNNER_TEMP/whep-linux/out/ffconf.log" "$GITHUB_WORKSPACE/stage-linux/ffconf.log" || true
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: mova-libmpv-linux-x86_64-whep
+          name: libmpv-linux-x64
           path: |
-            libmpv-linux-x86_64-whep.so
-            ffconf-linux-whep.log
+            stage-linux/libmpv.so
+            stage-linux/ffconf.log
           retention-days: 14
 
   # Apple（iOS 真机 / iOS 模拟器 / macOS arm64 / macOS x86_64）：Nix + 上游 libmpv-darwin-build 叠两份补丁。
@@ -562,7 +564,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: mova-libmpv-${{ matrix.target }}-whep
+          name: libmpv-${{ matrix.target }}
           path: |
             out/${{ matrix.target }}/
             out/logs/
@@ -601,7 +603,7 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           path: art
-          pattern: mova-libmpv-*-whep
+          pattern: libmpv-*
           merge-multiple: false
 
       - name: Download slices (reuse run ${{ inputs.apple_reuse_run }})
@@ -609,7 +611,7 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           path: art
-          pattern: mova-libmpv-*-whep
+          pattern: libmpv-*
           merge-multiple: false
           run-id: ${{ inputs.apple_reuse_run }}
           github-token: ${{ secrets.GITHUB_TOKEN }}
@@ -637,7 +639,7 @@ jobs:
       - name: Upload xcframeworks
         uses: actions/upload-artifact@v4
         with:
-          name: mova-libmpv-apple-whep-xcframeworks
+          name: libmpv-apple-xcframeworks
           path: mova-libmpv-apple-xcframeworks.tar.gz
           retention-days: 30
 

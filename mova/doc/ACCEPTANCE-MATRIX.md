@@ -553,7 +553,7 @@
 | 编号 | 能力 / 子点 | 单测位置（判据） | 真机用例 | 依赖假设 | 最近结论 | 缺口 |
 |---|---|---|---|---|---|---|
 | PF1-③ | 点播硬解 H.264 1080p | `example/tool/test_perf_judge.py` | `coverage_perf.py` → `main_coverage_perf.dart` / `coverage_perf.dart`：vod-hw，10 分钟 | 真实硬解可用；读回 hwdec-current | 未跑 | 用例已写；待真实基线与上机；批次待合入 |
-| PF2-③ | 点播软解 hwdec=no 对照 | `example/tool/test_perf_judge.py` | `coverage_perf.py` → `main_coverage_perf.dart` / `coverage_perf.dart`：vod-sw，10 分钟 | 同源同设备 | 未跑 | 用例已写；待真实基线与上机；批次待合入 |
+| PF2-③ | 点播软解 hwdec=no 对照 | `example/tool/test_perf_judge.py` | `coverage_perf.py` → `main_coverage_perf.dart` / `coverage_perf.dart`：vod-sw，10 分钟 | 同源同设备 | 未跑 | 用例已写；待真实基线与上机；批次待合入。注（2026-10-28）：对当前自建 libmpv，`hwdec=no` 读回为 no 但仍走 MediaCodec（H.264 软解已在 flavor 中删除，见 mova-libmpv/flavors-mova-slim-n9.sh 注释），PF2 不是真软解对照，别当软解基线 |
 | PF3-③ | 直播稳态资源 | `example/tool/test_perf_judge.py` | `coverage_perf.py` → `main_coverage_perf.dart` / `coverage_perf.dart`：live，10 分钟 | 滑动 HLS 或已验证在线直播 | 未跑 | 用例已写；待真实基线与上机；批次待合入 |
 | PF4-③ | cutover 预热双引擎并存 | `example/tool/test_perf_judge.py` | `coverage_perf.py` → `main_coverage_perf.dart` / `coverage_perf.dart`：cutover，10 分钟 | 真实 MovaPlayer；两个 native 实例 | 未跑 | 用例已写；待真实基线与上机；批次待合入 |
 | PF5-③ | feed 引擎池连续滑动 | `example/tool/test_perf_judge.py` | `coverage_perf.py` → `main_coverage_perf.dart` / `coverage_perf.dart`：feed，10 分钟、5 秒切页 | 三引擎池；全部挂真实画面 | 未跑 | 用例已写；待真实基线与上机；批次待合入 |

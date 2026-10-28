@@ -8,7 +8,7 @@
 ## 1. 结论速览
 
 - 入库 **100** 项，全部在 2026-10-28 当天**两轮（不同时刻）**实测都符合预期：点播可播 59、反例被明确拒绝 14、直播可播 27（HLS 直播 14、网络电台 13）。
-- 测试对象是仓库里的 `libmpv/windows-x86_64-whep/libmpv-2.dll`（sha256 `09f672b0…bc74`，10,879,488 字节，mpv v0.41 / API 2.5，ffmpeg n9.0.2，Windows Schannel TLS），不是完整版 ffmpeg。
+- 测试对象是仓库里的 `libmpv/windows-x64/libmpv-2.dll`（sha256 `09f672b0…bc74`，10,879,488 字节，mpv v0.41 / API 2.5，ffmpeg n9.0.2，Windows Schannel TLS），不是完整版 ffmpeg。
 - **Android 版没测**（约束：不碰手机）。两个平台的 flavor 有差异，见第 2 节，Windows 上通过不代表 Android 上通过。
 - 缺口（没找到可用公开源）：线上 RTMP/RTMPS 直播、HTTP-FLV 直播、第二个低延迟 HLS 来源、4K 点播、120fps 点播、Ogg Vorbis 电台。原因见第 6 节。
 - 几个值得 mova 侧关注的实测发现放在第 5 节（无 Range 服务器上 moov 在尾的 MP4 播不了、不支持的视频编码会静默变成只出声、Schannel 间歇握手失败等）。
@@ -66,8 +66,8 @@ python -I example/tool/online_sources_probe.py --ffprobe-only        # 没有 dl
 python -I example/tool/online_sources_probe.py --out result.json --label r2
 ```
 
-仓库里的 `libmpv-2.dll` 是 **Git LFS 指针**，没拉过的话脚本会提示并降级为只用 ffprobe。想用真实 dll：
-`git lfs fetch --include="mova/libmpv/windows-x86_64-whep/libmpv-2.dll"`，再把 `.git/lfs/objects/09/f6/09f672…` 复制成 `libmpv-2.dll`，用 `--dll` 指过去（不要覆盖工作区里的指针文件）。
+仓库里的 `libmpv-2.dll` 是 Git LFS 文件，没水合时是指针，脚本会提示并降级为只用 ffprobe。先跑 `python tool/libmpv_hydrate.py` 水合；或手工：
+`git lfs fetch --include="mova/libmpv/windows-x64/libmpv-2.dll"`，再把 `.git/lfs/objects/09/f6/09f672…` 复制成 `libmpv-2.dll`，用 `--dll` 指过去（不要覆盖工作区里的指针文件）。
 
 ## 4. 源清单
 

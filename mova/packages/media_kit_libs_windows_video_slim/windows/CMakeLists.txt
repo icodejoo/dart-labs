@@ -57,7 +57,7 @@ endfunction()
 # for backward compatibility).
 # ------------------------------------------------------------------------------
 
-# 只读 n9 WHEP 版（mova/libmpv/windows-x86_64-whep）；不再读包内 DLL，n6 旧目录已移除。
+# 只读 n9 版（mova/libmpv/windows-x64，固定目录名，版本见 libmpv/VERSION）；不再读包内 DLL，n6 旧目录已移除。
 # 候选根目录：宿主 app 的 windows/ 相对（example 用法，插件目录是符号链接，不能按包路径推），
 # 以及本包相对（包路径为真实路径时）。
 set(MOVA_LIBMPV_ROOTS
@@ -65,7 +65,7 @@ set(MOVA_LIBMPV_ROOTS
   "${CMAKE_CURRENT_SOURCE_DIR}/../../../libmpv"
 )
 set(CUSTOM_LIBMPV_DIR "")
-foreach(_sub windows-x86_64-whep)
+foreach(_sub windows-x64)
   foreach(_root ${MOVA_LIBMPV_ROOTS})
     get_filename_component(_cand "${_root}/${_sub}" ABSOLUTE)
     if(NOT CUSTOM_LIBMPV_DIR AND EXISTS "${_cand}/libmpv-2.dll" AND EXISTS "${_cand}/libmpv.dll.a")
@@ -74,9 +74,20 @@ foreach(_sub windows-x86_64-whep)
   endforeach()
 endforeach()
 if(NOT CUSTOM_LIBMPV_DIR)
-  message(FATAL_ERROR "mova slim libmpv not found (need libmpv-2.dll + libmpv.dll.a in windows-x86_64-whep under ${MOVA_LIBMPV_ROOTS}).")
+  message(FATAL_ERROR "mova slim libmpv not found (need libmpv-2.dll + libmpv.dll.a in windows-x64 under ${MOVA_LIBMPV_ROOTS}).")
 endif()
 set(CUSTOM_LIBMPV_DLL "${CUSTOM_LIBMPV_DIR}/libmpv-2.dll")
+
+# 守卫：dll / 导入库若仍是 Git LFS 指针（过小或内容以指针头开头），直接报错，
+# 避免把指针当成 dll 拷进产物。判定逻辑与 tool/libmpv_hydrate.py 保持一致。
+foreach(_bin "${CUSTOM_LIBMPV_DIR}/libmpv-2.dll" "${CUSTOM_LIBMPV_DIR}/libmpv.dll.a")
+  file(SIZE "${_bin}" _bin_size)
+  file(READ "${_bin}" _bin_head LIMIT 40)
+  string(FIND "${_bin_head}" "version https://git-lfs" _ptr_pos)
+  if(_bin_size LESS 1024 OR _ptr_pos EQUAL 0)
+    message(FATAL_ERROR "${_bin} is a Git LFS pointer, not a real binary. Run: python tool/libmpv_hydrate.py (in the mova directory) first.")
+  endif()
+endforeach()
 
 message(STATUS "[mova slim] Using ${CUSTOM_LIBMPV_DLL}")
 
@@ -89,7 +100,7 @@ message(STATUS "[mova slim] Using ${CUSTOM_LIBMPV_DLL}")
 # media_kit_libs_windows_video downloads a 7z that already contains all
 # three (dll + .dll.a + headers) into that exact path. We don't have an
 # equivalent archive, so assemble the same directory shape ourselves from:
-#   - libmpv/windows-x86_64-whep/libmpv.dll.a — import lib shipped next to the
+#   - libmpv/windows-x64/libmpv.dll.a — import lib shipped next to the
 #     DLL by the WHEP build, so its export table always matches.
 #   - mpv-headers/*.h — mpv v0.41.0's public libmpv/*.h (client API 2.5), the
 #     same version the shipped DLL is built from (keep in sync on mpv bumps).

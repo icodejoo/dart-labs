@@ -390,7 +390,7 @@ fork 包当成已验证可用，上线前必须在 Mac 上补跑 `pod install`+�
 [doc/plans/2026-09-25-libmpv-pub-package.md](doc/plans/2026-09-25-libmpv-pub-package.md)
 「Darwin（iOS/macOS）同名替换设计」一节的"已知未验证项"清单。2026-09-28 落地方案是
 "同名整包替换 + `dependency_overrides`"（拓扑 B）——**Android 已完成**：新建
-`packages/media_kit_libs_android_video_slim_v041`（同名 fork `media_kit_libs_android_video`，旧 n6 包 `media_kit_libs_android_video_slim` 已于 2026-10-26 移除，
+`packages/media_kit_libs_android_video_slim`（同名 fork `media_kit_libs_android_video`；**2026-10-28 起产物名固定**：目录 `packages/media_kit_libs_android_video_slim/`、`libmpv/windows-x64/{libmpv-2.dll,libmpv.dll.a,libmpv-2.def}`、CI `.github/workflows/build-mova-libmpv.yml`、artifact `libmpv-<平台>-<架构>`，版本信息写在 `libmpv/VERSION`，LFS 水合与指针检查用 `python tool/libmpv_hydrate.py`；旧 n6 同名包已于 2026-10-26 移除，
 含 mova-libmpv 自建四架构 `libmpv.so` + 从官方 release jar 逐字节提取的
 `libmediakitandroidhelper.so`，2026-09-28 更新），`example/pubspec.yaml` 用
 `dependency_overrides` 把 `media_kit_libs_android_video` 整体指向这个 fork 包，官方包
@@ -448,7 +448,7 @@ harfbuzz/fribidi 是其硬依赖；且同一条 libass 管线还能承接翻译/
 **libmpv 瘦身产物接入 mova 实际构建——Android/Windows 已完成，iOS 未接线**：
 - **Android**：接入方式已从"Gradle `syncMovaLibmpv` task 做 jniLibs 拷贝"升级为
   **fork 包整体替换**（`build.gradle.kts` 里原来的 `syncMovaLibmpv` task 已不存在）：
-  `packages/media_kit_libs_android_video_slim_v041/`（n9，内置四架构 `libmpv.so` +
+  `packages/media_kit_libs_android_video_slim/`（n9，内置四架构 `libmpv.so` +
   `libmediakitandroidhelper.so`，2026-09-28 更新），`example/pubspec.yaml` 用
   `dependency_overrides` 把 `media_kit_libs_android_video` 整体指向这个 fork 包，官方
   包完全退出依赖图。已验证 APK 内 `.so` sha256 与 `libmpv/<abi>/` 逐字节一致。**此条
@@ -456,7 +456,7 @@ harfbuzz/fribidi 是其硬依赖；且同一条 libass 管线还能承接翻译/
 - **Windows（2026-09-24 确认，随「真机播放验证」一起落地）**：`example/pubspec.yaml`
   用 `dependency_overrides` 把 `media_kit_libs_windows_video` 指到本地 fork 包
   `packages/media_kit_libs_windows_video_slim`。该 fork 的 `windows/CMakeLists.txt`
-  跳过官方 7z 下载，直接指向 `libmpv/windows-x86_64-whep/libmpv-2.dll`（n9，mova-libmpv CI
+  跳过官方 7z 下载，直接指向 `libmpv/windows-x64/libmpv-2.dll`（n9，mova-libmpv CI
   产出的自研瘦身版），并从 `windows-devlib/libmpv.dll.a`（用 `gendef`+`dlltool` 针对
   该 dll 导出表手工生成，dll 换版本要重新生成）+ `mpv-headers/*.h` 拼出
   `media_kit_video` 链接期需要的目录结构。真机验证（`flutter run -d windows` 画面+

@@ -6,8 +6,8 @@
 >
 > | 平台 | 构建 | 产物位置 |
 > |---|---|---|
-> | Android 4 ABI | `build-mova-libmpv-whep.yml` 的 `android-whep`（上游 libmpv-android-video-build + `patches/android-v041`） | `mova/packages/media_kit_libs_android_video_slim_v041/.../jniLibs/<abi>/libmpv.so` |
-> | Windows x64 | `windows-whep`（MSYS2，`tools/whep-flavor/build-windows.sh`） | `mova/libmpv/windows-x86_64-whep/` |
+> | Android 4 ABI | `build-mova-libmpv.yml` 的 `android-whep`（上游 libmpv-android-video-build + `patches/android-v041`） | `mova/packages/media_kit_libs_android_video_slim/.../jniLibs/<abi>/libmpv.so` |
+> | Windows x64 | `windows-whep`（MSYS2，`tools/whep-flavor/build-windows.sh`） | `mova/libmpv/windows-x64/` |
 > | Linux | `linux-whep`（只出 artifact） | 不入库 |
 > | **iOS 真机 / iOS 模拟器 / macOS arm64+x86_64** | `apple-whep` 矩阵 + `apple-package`（Nix，上游 `media-kit/libmpv-darwin-build` 钉 SHA `aadae8c`，叠 `libmpv-darwin-build-mova-slim.patch` 与 `libmpv-darwin-build-whep.patch`） | `mova/packages/media_kit_libs_{ios,macos}_video_slim/{ios,macos}/Frameworks/Mpv.xcframework/`（直接替换，LFS） |
 >

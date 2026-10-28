@@ -32,6 +32,25 @@ rootProject.allprojects {
 
 apply plugin: 'com.android.library'
 
+// 守卫：jniLibs 下的 libmpv.so 若仍是 Git LFS 指针（过小或以指针头开头）就让构建失败，
+// 避免把指针当成 so 打进 APK。判定逻辑与 tool/libmpv_hydrate.py 保持一致。
+def jniLibsDir = file("${projectDir}/src/main/jniLibs")
+if (jniLibsDir.exists()) {
+    jniLibsDir.eachDir { abiDir ->
+        def so = new File(abiDir, 'libmpv.so')
+        if (so.exists()) {
+            def buf = new byte[40]
+            def n = 0
+            so.withInputStream { n = it.read(buf) }
+            def head = new String(buf, 0, Math.max(n, 0), 'ISO-8859-1')
+            if (so.length() < 1024 || head.startsWith('version https://git-lfs')) {
+                throw new GradleException("${so} is a Git LFS pointer, not a real binary. " +
+                    "Run: python tool/libmpv_hydrate.py (in the mova directory) first.")
+            }
+        }
+    }
+}
+
 android {
     // Conditional for compatibility with AGP <4.2.
     if (project.android.hasProperty("namespace")) {

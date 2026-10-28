@@ -9,7 +9,7 @@ import zipfile
 
 ROOT = Path(__file__).resolve().parents[2]
 OUT = ROOT / 'example/tool/coverage_evidence'
-native = ROOT / 'packages/media_kit_libs_android_video_slim_v041/android/src/main/jniLibs'
+native = ROOT / 'packages/media_kit_libs_android_video_slim/android/src/main/jniLibs'
 replacement = {}
 with zipfile.ZipFile(OUT / 'installed-before.apk') as installed:
     for pointer in native.rglob('*.so'):

@@ -14,7 +14,7 @@
     至少再推进 10 秒（且未收到 END_FILE）才算通过。
   - expect=reject：必须在限时内收到 END_FILE(error)，且从未推进满 3 秒；不报错也不推进
     （挂起）算失败。
-默认 dll 取仓库内 libmpv/windows-x86_64-whep/libmpv-2.dll；该文件是 Git LFS 指针时，
+默认 dll 取仓库内 libmpv/windows-x64/libmpv-2.dll；该文件是 Git LFS 指针时，
 先 `git lfs fetch --include=...` 取对象，再用 --dll 指向复制出来的真实文件。
 """
 import argparse
@@ -29,7 +29,7 @@ import time
 # ---- 常量 ----
 HERE = os.path.dirname(os.path.abspath(__file__))
 DEFAULT_JSON = os.path.join(HERE, 'online_sources.json')
-DEFAULT_DLL = os.path.normpath(os.path.join(HERE, '..', '..', 'libmpv', 'windows-x86_64-whep', 'libmpv-2.dll'))
+DEFAULT_DLL = os.path.normpath(os.path.join(HERE, '..', '..', 'libmpv', 'windows-x64', 'libmpv-2.dll'))
 # 与 lib/src/core/kernel/mpv_defaults.dart 的 movaProtocolWhitelist() 保持一致
 MOVA_WHITELIST = ['udp', 'rtp', 'tcp', 'tls', 'data', 'file', 'http', 'https', 'crypto', 'dtls']
 # 与 media_kit 1.2.6 注入的 demuxer-lavf-o 前缀保持一致
