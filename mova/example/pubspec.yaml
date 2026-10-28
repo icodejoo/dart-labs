@@ -30,9 +30,12 @@ dependencies:
   cupertino_icons: ^1.0.8
   media_kit: ^1.2.0
   media_kit_video: ^2.0.1
-  sherpa_onnx: ^1.12.34
-  mova_stt:
-    path: ../../mova_stt
+  # sherpa_onnx / mova_stt 已屏蔽（2026-10-28）：STT 尚未正式接入，将来也不随包；
+  # 它们会让 APK 多出约 77MB 的 onnxruntime/sherpa 原生库。恢复 STT spike 时：
+  # 取消下面两行注释，并把 lib/spike_stt_engine.dart.disabled 改回 .dart、在 main.dart 重新挂入口。
+  # sherpa_onnx: ^1.12.34
+  # mova_stt:
+  #   path: ../../mova_stt
   file_picker: ^11.0.3
 
   # One-off, example-only: used by lib/perf_probe_just_audio.dart to compare
@@ -68,7 +71,7 @@ dev_dependencies:
   flutter_lints: ^6.0.0
 
 # Windows-only real-device verification of mova-libmpv's own CI-built
-# libmpv-2.dll (libmpv/windows-x86_64-whep/, n9), swapped in for media_kit's upstream
+# libmpv-2.dll (libmpv/windows-x64/, n9), swapped in for media_kit's upstream
 # prebuilt one. See mova/packages/media_kit_libs_windows_video_slim.
 # 2026-09-24 根因已查明并修复：此前用 gcc 16.2.0 编译该 slim dll 时踩到
 # 编译器 miscompilation bug，导致 mpv_create() 内部悬空指针、必现 Access
@@ -82,13 +85,13 @@ dev_dependencies:
 # (mova-libmpv doesn't build that helper). Same package name as upstream, so
 # this is the sole provider in the dependency graph — no pickFirst needed.
 # 全部以 n9 为主（ffmpeg n9.0.2 + mpv v0.41.0 + WHEP）：Android 指向 v041 包，
-# Windows 指向 libmpv/windows-x86_64-whep；旧 n6 包与产物已移除，不再保留回退。
-# See mova/packages/media_kit_libs_android_video_slim_v041.
+# Windows 指向 libmpv/windows-x64；旧 n6 包与产物已移除，不再保留回退。
+# See mova/packages/media_kit_libs_android_video_slim.
 dependency_overrides:
   media_kit_libs_windows_video:
     path: ../packages/media_kit_libs_windows_video_slim
   media_kit_libs_android_video:
-    path: ../packages/media_kit_libs_android_video_slim_v041
+    path: ../packages/media_kit_libs_android_video_slim
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec

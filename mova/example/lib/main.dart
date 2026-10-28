@@ -6,7 +6,6 @@ import 'package:mova/mova.dart';
 import 'spike_audio_extract.dart';
 import 'spike_dual_engine.dart';
 import 'spike_native_tracks.dart';
-import 'spike_stt_engine.dart';
 
 /// Example entry: init mova core, then run the demo app.
 ///
@@ -335,13 +334,6 @@ class _PlayerPageState extends State<PlayerPage> {
             icon: const Icon(Icons.high_quality_rounded),
             onPressed: () => Navigator.of(context).push(
               MaterialPageRoute(builder: (_) => const NativeTracksSpikePage()),
-            ),
-          ),
-          IconButton(
-            tooltip: 'STT 引擎 spike（ZipformerSttEngine 隔离验证）',
-            icon: const Icon(Icons.record_voice_over_rounded),
-            onPressed: () => Navigator.of(context).push(
-              MaterialPageRoute(builder: (_) => const SttEngineSpikePage()),
             ),
           ),
           IconButton(
