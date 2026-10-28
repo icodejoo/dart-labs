@@ -30,6 +30,8 @@
 ## 归档
 
 - [测试迁移映射 2026-10-27](archive/test-migration-2026-10-27.md) — 旧 13 文件 → 六层逐条对应。archived。
+- [testkit 中的 dioman 覆盖分析 2026-10-27](archive/2026-10-27-testkit-coverage-dioman.md) — 原在 testkit 的手工静态分析，数据见同名 [.json](archive/2026-10-27-testkit-coverage-dioman.json)；已被总账取代。archived。
+- [testkit 手册里的 dioman 复核笔记 2026-10-27](archive/2026-10-27-testkit-agents-dioman-notes.md) — 原在 testkit AGENTS.md 末尾的两节。archived。
 
 ## 测试资产速查
 
