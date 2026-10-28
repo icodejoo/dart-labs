@@ -1,0 +1,4 @@
+# 默认运行本地测试，真实服务测试使用独立配置解除排除。
+exclude_tags: real
+tags:
+  real:

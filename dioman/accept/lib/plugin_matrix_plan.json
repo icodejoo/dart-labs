@@ -1,0 +1,2002 @@
+[
+  {
+    "scenario": "plugins.single-auth",
+    "method": "单体",
+    "plugins": [
+      "auth"
+    ],
+    "networks": [
+      "normal"
+    ],
+    "purpose": "auth 单独启用：成功、500、主动取消；不代表全部公开选项已覆盖。"
+  },
+  {
+    "scenario": "plugins.single-breaker",
+    "method": "单体",
+    "plugins": [
+      "breaker"
+    ],
+    "networks": [
+      "normal"
+    ],
+    "purpose": "breaker 单独启用：成功、500、主动取消；不代表全部公开选项已覆盖。"
+  },
+  {
+    "scenario": "plugins.single-cache",
+    "method": "单体",
+    "plugins": [
+      "cache"
+    ],
+    "networks": [
+      "normal"
+    ],
+    "purpose": "cache 单独启用：成功、500、主动取消；不代表全部公开选项已覆盖。"
+  },
+  {
+    "scenario": "plugins.single-cancel",
+    "method": "单体",
+    "plugins": [
+      "cancel"
+    ],
+    "networks": [
+      "normal"
+    ],
+    "purpose": "cancel 单独启用：成功、500、主动取消；不代表全部公开选项已覆盖。"
+  },
+  {
+    "scenario": "plugins.single-envs",
+    "method": "单体",
+    "plugins": [
+      "envs"
+    ],
+    "networks": [
+      "normal"
+    ],
+    "purpose": "envs 单独启用：成功、500、主动取消；不代表全部公开选项已覆盖。"
+  },
+  {
+    "scenario": "plugins.single-filter",
+    "method": "单体",
+    "plugins": [
+      "filter"
+    ],
+    "networks": [
+      "normal"
+    ],
+    "purpose": "filter 单独启用：成功、500、主动取消；不代表全部公开选项已覆盖。"
+  },
+  {
+    "scenario": "plugins.single-key",
+    "method": "单体",
+    "plugins": [
+      "key"
+    ],
+    "networks": [
+      "normal"
+    ],
+    "purpose": "key 单独启用：成功、500、主动取消；不代表全部公开选项已覆盖。"
+  },
+  {
+    "scenario": "plugins.single-loading",
+    "method": "单体",
+    "plugins": [
+      "loading"
+    ],
+    "networks": [
+      "normal"
+    ],
+    "purpose": "loading 单独启用：成功、500、主动取消；不代表全部公开选项已覆盖。"
+  },
+  {
+    "scenario": "plugins.single-log",
+    "method": "单体",
+    "plugins": [
+      "log"
+    ],
+    "networks": [
+      "normal"
+    ],
+    "purpose": "log 单独启用：成功、500、主动取消；不代表全部公开选项已覆盖。"
+  },
+  {
+    "scenario": "plugins.single-mock",
+    "method": "单体",
+    "plugins": [
+      "mock"
+    ],
+    "networks": [
+      "normal"
+    ],
+    "purpose": "mock 单独启用：成功、500、主动取消；不代表全部公开选项已覆盖。"
+  },
+  {
+    "scenario": "plugins.single-normalize",
+    "method": "单体",
+    "plugins": [
+      "normalize"
+    ],
+    "networks": [
+      "normal"
+    ],
+    "purpose": "normalize 单独启用：成功、500、主动取消；不代表全部公开选项已覆盖。"
+  },
+  {
+    "scenario": "plugins.single-notify",
+    "method": "单体",
+    "plugins": [
+      "notify"
+    ],
+    "networks": [
+      "normal"
+    ],
+    "purpose": "notify 单独启用：成功、500、主动取消；不代表全部公开选项已覆盖。"
+  },
+  {
+    "scenario": "plugins.single-offline",
+    "method": "单体",
+    "plugins": [
+      "offline"
+    ],
+    "networks": [
+      "normal"
+    ],
+    "purpose": "offline 单独启用：成功、500、主动取消；不代表全部公开选项已覆盖。"
+  },
+  {
+    "scenario": "plugins.single-repath",
+    "method": "单体",
+    "plugins": [
+      "repath"
+    ],
+    "networks": [
+      "normal"
+    ],
+    "purpose": "repath 单独启用：成功、500、主动取消；不代表全部公开选项已覆盖。"
+  },
+  {
+    "scenario": "plugins.single-retry",
+    "method": "单体",
+    "plugins": [
+      "retry"
+    ],
+    "networks": [
+      "normal"
+    ],
+    "purpose": "retry 单独启用：成功、500、主动取消；不代表全部公开选项已覆盖。"
+  },
+  {
+    "scenario": "plugins.single-share",
+    "method": "单体",
+    "plugins": [
+      "share"
+    ],
+    "networks": [
+      "normal"
+    ],
+    "purpose": "share 单独启用：成功、500、主动取消；不代表全部公开选项已覆盖。"
+  },
+  {
+    "scenario": "plugins.single-timeout",
+    "method": "单体",
+    "plugins": [
+      "timeout"
+    ],
+    "networks": [
+      "normal"
+    ],
+    "purpose": "timeout 单独启用：成功、500、主动取消；不代表全部公开选项已覆盖。"
+  },
+  {
+    "scenario": "plugins.pair-0",
+    "method": "配对",
+    "plugins": [
+      "auth",
+      "breaker",
+      "cache",
+      "cancel",
+      "envs",
+      "filter",
+      "key",
+      "loading",
+      "log",
+      "mock",
+      "normalize",
+      "notify",
+      "offline",
+      "repath",
+      "retry",
+      "share",
+      "timeout"
+    ],
+    "networks": [
+      "normal"
+    ],
+    "purpose": "二元正交数组第 0 行；17 个开关（含全部关闭基线）。",
+    "switches": {
+      "auth": false,
+      "breaker": false,
+      "cache": false,
+      "cancel": false,
+      "envs": false,
+      "filter": false,
+      "key": false,
+      "loading": false,
+      "log": false,
+      "mock": false,
+      "normalize": false,
+      "notify": false,
+      "offline": false,
+      "repath": false,
+      "retry": false,
+      "share": false,
+      "timeout": false
+    }
+  },
+  {
+    "scenario": "plugins.pair-1",
+    "method": "配对",
+    "plugins": [
+      "auth",
+      "breaker",
+      "cache",
+      "cancel",
+      "envs",
+      "filter",
+      "key",
+      "loading",
+      "log",
+      "mock",
+      "normalize",
+      "notify",
+      "offline",
+      "repath",
+      "retry",
+      "share",
+      "timeout"
+    ],
+    "networks": [
+      "normal"
+    ],
+    "purpose": "二元正交数组第 1 行；17 个开关（含全部关闭基线）。",
+    "switches": {
+      "auth": true,
+      "breaker": false,
+      "cache": true,
+      "cancel": false,
+      "envs": true,
+      "filter": false,
+      "key": true,
+      "loading": false,
+      "log": true,
+      "mock": false,
+      "normalize": true,
+      "notify": false,
+      "offline": true,
+      "repath": false,
+      "retry": true,
+      "share": false,
+      "timeout": true
+    }
+  },
+  {
+    "scenario": "plugins.pair-2",
+    "method": "配对",
+    "plugins": [
+      "auth",
+      "breaker",
+      "cache",
+      "cancel",
+      "envs",
+      "filter",
+      "key",
+      "loading",
+      "log",
+      "mock",
+      "normalize",
+      "notify",
+      "offline",
+      "repath",
+      "retry",
+      "share",
+      "timeout"
+    ],
+    "networks": [
+      "normal"
+    ],
+    "purpose": "二元正交数组第 2 行；17 个开关（含全部关闭基线）。",
+    "switches": {
+      "auth": false,
+      "breaker": true,
+      "cache": true,
+      "cancel": false,
+      "envs": false,
+      "filter": true,
+      "key": true,
+      "loading": false,
+      "log": false,
+      "mock": true,
+      "normalize": true,
+      "notify": false,
+      "offline": false,
+      "repath": true,
+      "retry": true,
+      "share": false,
+      "timeout": false
+    }
+  },
+  {
+    "scenario": "plugins.pair-3",
+    "method": "配对",
+    "plugins": [
+      "auth",
+      "breaker",
+      "cache",
+      "cancel",
+      "envs",
+      "filter",
+      "key",
+      "loading",
+      "log",
+      "mock",
+      "normalize",
+      "notify",
+      "offline",
+      "repath",
+      "retry",
+      "share",
+      "timeout"
+    ],
+    "networks": [
+      "normal"
+    ],
+    "purpose": "二元正交数组第 3 行；17 个开关（含全部关闭基线）。",
+    "switches": {
+      "auth": true,
+      "breaker": true,
+      "cache": false,
+      "cancel": false,
+      "envs": true,
+      "filter": true,
+      "key": false,
+      "loading": false,
+      "log": true,
+      "mock": true,
+      "normalize": false,
+      "notify": false,
+      "offline": true,
+      "repath": true,
+      "retry": false,
+      "share": false,
+      "timeout": true
+    }
+  },
+  {
+    "scenario": "plugins.pair-4",
+    "method": "配对",
+    "plugins": [
+      "auth",
+      "breaker",
+      "cache",
+      "cancel",
+      "envs",
+      "filter",
+      "key",
+      "loading",
+      "log",
+      "mock",
+      "normalize",
+      "notify",
+      "offline",
+      "repath",
+      "retry",
+      "share",
+      "timeout"
+    ],
+    "networks": [
+      "normal"
+    ],
+    "purpose": "二元正交数组第 4 行；17 个开关（含全部关闭基线）。",
+    "switches": {
+      "auth": false,
+      "breaker": false,
+      "cache": false,
+      "cancel": true,
+      "envs": true,
+      "filter": true,
+      "key": true,
+      "loading": false,
+      "log": false,
+      "mock": false,
+      "normalize": false,
+      "notify": true,
+      "offline": true,
+      "repath": true,
+      "retry": true,
+      "share": false,
+      "timeout": false
+    }
+  },
+  {
+    "scenario": "plugins.pair-5",
+    "method": "配对",
+    "plugins": [
+      "auth",
+      "breaker",
+      "cache",
+      "cancel",
+      "envs",
+      "filter",
+      "key",
+      "loading",
+      "log",
+      "mock",
+      "normalize",
+      "notify",
+      "offline",
+      "repath",
+      "retry",
+      "share",
+      "timeout"
+    ],
+    "networks": [
+      "normal"
+    ],
+    "purpose": "二元正交数组第 5 行；17 个开关（含全部关闭基线）。",
+    "switches": {
+      "auth": true,
+      "breaker": false,
+      "cache": true,
+      "cancel": true,
+      "envs": false,
+      "filter": true,
+      "key": false,
+      "loading": false,
+      "log": true,
+      "mock": false,
+      "normalize": true,
+      "notify": true,
+      "offline": false,
+      "repath": true,
+      "retry": false,
+      "share": false,
+      "timeout": true
+    }
+  },
+  {
+    "scenario": "plugins.pair-6",
+    "method": "配对",
+    "plugins": [
+      "auth",
+      "breaker",
+      "cache",
+      "cancel",
+      "envs",
+      "filter",
+      "key",
+      "loading",
+      "log",
+      "mock",
+      "normalize",
+      "notify",
+      "offline",
+      "repath",
+      "retry",
+      "share",
+      "timeout"
+    ],
+    "networks": [
+      "normal"
+    ],
+    "purpose": "二元正交数组第 6 行；17 个开关（含全部关闭基线）。",
+    "switches": {
+      "auth": false,
+      "breaker": true,
+      "cache": true,
+      "cancel": true,
+      "envs": true,
+      "filter": false,
+      "key": false,
+      "loading": false,
+      "log": false,
+      "mock": true,
+      "normalize": true,
+      "notify": true,
+      "offline": true,
+      "repath": false,
+      "retry": false,
+      "share": false,
+      "timeout": false
+    }
+  },
+  {
+    "scenario": "plugins.pair-7",
+    "method": "配对",
+    "plugins": [
+      "auth",
+      "breaker",
+      "cache",
+      "cancel",
+      "envs",
+      "filter",
+      "key",
+      "loading",
+      "log",
+      "mock",
+      "normalize",
+      "notify",
+      "offline",
+      "repath",
+      "retry",
+      "share",
+      "timeout"
+    ],
+    "networks": [
+      "normal"
+    ],
+    "purpose": "二元正交数组第 7 行；17 个开关（含全部关闭基线）。",
+    "switches": {
+      "auth": true,
+      "breaker": true,
+      "cache": false,
+      "cancel": true,
+      "envs": false,
+      "filter": false,
+      "key": true,
+      "loading": false,
+      "log": true,
+      "mock": true,
+      "normalize": false,
+      "notify": true,
+      "offline": false,
+      "repath": false,
+      "retry": true,
+      "share": false,
+      "timeout": true
+    }
+  },
+  {
+    "scenario": "plugins.pair-8",
+    "method": "配对",
+    "plugins": [
+      "auth",
+      "breaker",
+      "cache",
+      "cancel",
+      "envs",
+      "filter",
+      "key",
+      "loading",
+      "log",
+      "mock",
+      "normalize",
+      "notify",
+      "offline",
+      "repath",
+      "retry",
+      "share",
+      "timeout"
+    ],
+    "networks": [
+      "normal"
+    ],
+    "purpose": "二元正交数组第 8 行；17 个开关（含全部关闭基线）。",
+    "switches": {
+      "auth": false,
+      "breaker": false,
+      "cache": false,
+      "cancel": false,
+      "envs": false,
+      "filter": false,
+      "key": false,
+      "loading": true,
+      "log": true,
+      "mock": true,
+      "normalize": true,
+      "notify": true,
+      "offline": true,
+      "repath": true,
+      "retry": true,
+      "share": false,
+      "timeout": false
+    }
+  },
+  {
+    "scenario": "plugins.pair-9",
+    "method": "配对",
+    "plugins": [
+      "auth",
+      "breaker",
+      "cache",
+      "cancel",
+      "envs",
+      "filter",
+      "key",
+      "loading",
+      "log",
+      "mock",
+      "normalize",
+      "notify",
+      "offline",
+      "repath",
+      "retry",
+      "share",
+      "timeout"
+    ],
+    "networks": [
+      "normal"
+    ],
+    "purpose": "二元正交数组第 9 行；17 个开关（含全部关闭基线）。",
+    "switches": {
+      "auth": true,
+      "breaker": false,
+      "cache": true,
+      "cancel": false,
+      "envs": true,
+      "filter": false,
+      "key": true,
+      "loading": true,
+      "log": false,
+      "mock": true,
+      "normalize": false,
+      "notify": true,
+      "offline": false,
+      "repath": true,
+      "retry": false,
+      "share": false,
+      "timeout": true
+    }
+  },
+  {
+    "scenario": "plugins.pair-10",
+    "method": "配对",
+    "plugins": [
+      "auth",
+      "breaker",
+      "cache",
+      "cancel",
+      "envs",
+      "filter",
+      "key",
+      "loading",
+      "log",
+      "mock",
+      "normalize",
+      "notify",
+      "offline",
+      "repath",
+      "retry",
+      "share",
+      "timeout"
+    ],
+    "networks": [
+      "normal"
+    ],
+    "purpose": "二元正交数组第 10 行；17 个开关（含全部关闭基线）。",
+    "switches": {
+      "auth": false,
+      "breaker": true,
+      "cache": true,
+      "cancel": false,
+      "envs": false,
+      "filter": true,
+      "key": true,
+      "loading": true,
+      "log": true,
+      "mock": false,
+      "normalize": false,
+      "notify": true,
+      "offline": true,
+      "repath": false,
+      "retry": false,
+      "share": false,
+      "timeout": false
+    }
+  },
+  {
+    "scenario": "plugins.pair-11",
+    "method": "配对",
+    "plugins": [
+      "auth",
+      "breaker",
+      "cache",
+      "cancel",
+      "envs",
+      "filter",
+      "key",
+      "loading",
+      "log",
+      "mock",
+      "normalize",
+      "notify",
+      "offline",
+      "repath",
+      "retry",
+      "share",
+      "timeout"
+    ],
+    "networks": [
+      "normal"
+    ],
+    "purpose": "二元正交数组第 11 行；17 个开关（含全部关闭基线）。",
+    "switches": {
+      "auth": true,
+      "breaker": true,
+      "cache": false,
+      "cancel": false,
+      "envs": true,
+      "filter": true,
+      "key": false,
+      "loading": true,
+      "log": false,
+      "mock": false,
+      "normalize": true,
+      "notify": true,
+      "offline": false,
+      "repath": false,
+      "retry": true,
+      "share": false,
+      "timeout": true
+    }
+  },
+  {
+    "scenario": "plugins.pair-12",
+    "method": "配对",
+    "plugins": [
+      "auth",
+      "breaker",
+      "cache",
+      "cancel",
+      "envs",
+      "filter",
+      "key",
+      "loading",
+      "log",
+      "mock",
+      "normalize",
+      "notify",
+      "offline",
+      "repath",
+      "retry",
+      "share",
+      "timeout"
+    ],
+    "networks": [
+      "normal"
+    ],
+    "purpose": "二元正交数组第 12 行；17 个开关（含全部关闭基线）。",
+    "switches": {
+      "auth": false,
+      "breaker": false,
+      "cache": false,
+      "cancel": true,
+      "envs": true,
+      "filter": true,
+      "key": true,
+      "loading": true,
+      "log": true,
+      "mock": true,
+      "normalize": true,
+      "notify": false,
+      "offline": false,
+      "repath": false,
+      "retry": false,
+      "share": false,
+      "timeout": false
+    }
+  },
+  {
+    "scenario": "plugins.pair-13",
+    "method": "配对",
+    "plugins": [
+      "auth",
+      "breaker",
+      "cache",
+      "cancel",
+      "envs",
+      "filter",
+      "key",
+      "loading",
+      "log",
+      "mock",
+      "normalize",
+      "notify",
+      "offline",
+      "repath",
+      "retry",
+      "share",
+      "timeout"
+    ],
+    "networks": [
+      "normal"
+    ],
+    "purpose": "二元正交数组第 13 行；17 个开关（含全部关闭基线）。",
+    "switches": {
+      "auth": true,
+      "breaker": false,
+      "cache": true,
+      "cancel": true,
+      "envs": false,
+      "filter": true,
+      "key": false,
+      "loading": true,
+      "log": false,
+      "mock": true,
+      "normalize": false,
+      "notify": false,
+      "offline": true,
+      "repath": false,
+      "retry": true,
+      "share": false,
+      "timeout": true
+    }
+  },
+  {
+    "scenario": "plugins.pair-14",
+    "method": "配对",
+    "plugins": [
+      "auth",
+      "breaker",
+      "cache",
+      "cancel",
+      "envs",
+      "filter",
+      "key",
+      "loading",
+      "log",
+      "mock",
+      "normalize",
+      "notify",
+      "offline",
+      "repath",
+      "retry",
+      "share",
+      "timeout"
+    ],
+    "networks": [
+      "normal"
+    ],
+    "purpose": "二元正交数组第 14 行；17 个开关（含全部关闭基线）。",
+    "switches": {
+      "auth": false,
+      "breaker": true,
+      "cache": true,
+      "cancel": true,
+      "envs": true,
+      "filter": false,
+      "key": false,
+      "loading": true,
+      "log": true,
+      "mock": false,
+      "normalize": false,
+      "notify": false,
+      "offline": false,
+      "repath": true,
+      "retry": true,
+      "share": false,
+      "timeout": false
+    }
+  },
+  {
+    "scenario": "plugins.pair-15",
+    "method": "配对",
+    "plugins": [
+      "auth",
+      "breaker",
+      "cache",
+      "cancel",
+      "envs",
+      "filter",
+      "key",
+      "loading",
+      "log",
+      "mock",
+      "normalize",
+      "notify",
+      "offline",
+      "repath",
+      "retry",
+      "share",
+      "timeout"
+    ],
+    "networks": [
+      "normal"
+    ],
+    "purpose": "二元正交数组第 15 行；17 个开关（含全部关闭基线）。",
+    "switches": {
+      "auth": true,
+      "breaker": true,
+      "cache": false,
+      "cancel": true,
+      "envs": false,
+      "filter": false,
+      "key": true,
+      "loading": true,
+      "log": false,
+      "mock": false,
+      "normalize": true,
+      "notify": false,
+      "offline": true,
+      "repath": true,
+      "retry": false,
+      "share": false,
+      "timeout": true
+    }
+  },
+  {
+    "scenario": "plugins.pair-16",
+    "method": "配对",
+    "plugins": [
+      "auth",
+      "breaker",
+      "cache",
+      "cancel",
+      "envs",
+      "filter",
+      "key",
+      "loading",
+      "log",
+      "mock",
+      "normalize",
+      "notify",
+      "offline",
+      "repath",
+      "retry",
+      "share",
+      "timeout"
+    ],
+    "networks": [
+      "normal"
+    ],
+    "purpose": "二元正交数组第 16 行；17 个开关（含全部关闭基线）。",
+    "switches": {
+      "auth": false,
+      "breaker": false,
+      "cache": false,
+      "cancel": false,
+      "envs": false,
+      "filter": false,
+      "key": false,
+      "loading": false,
+      "log": false,
+      "mock": false,
+      "normalize": false,
+      "notify": false,
+      "offline": false,
+      "repath": false,
+      "retry": false,
+      "share": true,
+      "timeout": true
+    }
+  },
+  {
+    "scenario": "plugins.pair-17",
+    "method": "配对",
+    "plugins": [
+      "auth",
+      "breaker",
+      "cache",
+      "cancel",
+      "envs",
+      "filter",
+      "key",
+      "loading",
+      "log",
+      "mock",
+      "normalize",
+      "notify",
+      "offline",
+      "repath",
+      "retry",
+      "share",
+      "timeout"
+    ],
+    "networks": [
+      "normal"
+    ],
+    "purpose": "二元正交数组第 17 行；17 个开关（含全部关闭基线）。",
+    "switches": {
+      "auth": true,
+      "breaker": false,
+      "cache": true,
+      "cancel": false,
+      "envs": true,
+      "filter": false,
+      "key": true,
+      "loading": false,
+      "log": true,
+      "mock": false,
+      "normalize": true,
+      "notify": false,
+      "offline": true,
+      "repath": false,
+      "retry": true,
+      "share": true,
+      "timeout": false
+    }
+  },
+  {
+    "scenario": "plugins.pair-18",
+    "method": "配对",
+    "plugins": [
+      "auth",
+      "breaker",
+      "cache",
+      "cancel",
+      "envs",
+      "filter",
+      "key",
+      "loading",
+      "log",
+      "mock",
+      "normalize",
+      "notify",
+      "offline",
+      "repath",
+      "retry",
+      "share",
+      "timeout"
+    ],
+    "networks": [
+      "normal"
+    ],
+    "purpose": "二元正交数组第 18 行；17 个开关（含全部关闭基线）。",
+    "switches": {
+      "auth": false,
+      "breaker": true,
+      "cache": true,
+      "cancel": false,
+      "envs": false,
+      "filter": true,
+      "key": true,
+      "loading": false,
+      "log": false,
+      "mock": true,
+      "normalize": true,
+      "notify": false,
+      "offline": false,
+      "repath": true,
+      "retry": true,
+      "share": true,
+      "timeout": true
+    }
+  },
+  {
+    "scenario": "plugins.pair-19",
+    "method": "配对",
+    "plugins": [
+      "auth",
+      "breaker",
+      "cache",
+      "cancel",
+      "envs",
+      "filter",
+      "key",
+      "loading",
+      "log",
+      "mock",
+      "normalize",
+      "notify",
+      "offline",
+      "repath",
+      "retry",
+      "share",
+      "timeout"
+    ],
+    "networks": [
+      "normal"
+    ],
+    "purpose": "二元正交数组第 19 行；17 个开关（含全部关闭基线）。",
+    "switches": {
+      "auth": true,
+      "breaker": true,
+      "cache": false,
+      "cancel": false,
+      "envs": true,
+      "filter": true,
+      "key": false,
+      "loading": false,
+      "log": true,
+      "mock": true,
+      "normalize": false,
+      "notify": false,
+      "offline": true,
+      "repath": true,
+      "retry": false,
+      "share": true,
+      "timeout": false
+    }
+  },
+  {
+    "scenario": "plugins.pair-20",
+    "method": "配对",
+    "plugins": [
+      "auth",
+      "breaker",
+      "cache",
+      "cancel",
+      "envs",
+      "filter",
+      "key",
+      "loading",
+      "log",
+      "mock",
+      "normalize",
+      "notify",
+      "offline",
+      "repath",
+      "retry",
+      "share",
+      "timeout"
+    ],
+    "networks": [
+      "normal"
+    ],
+    "purpose": "二元正交数组第 20 行；17 个开关（含全部关闭基线）。",
+    "switches": {
+      "auth": false,
+      "breaker": false,
+      "cache": false,
+      "cancel": true,
+      "envs": true,
+      "filter": true,
+      "key": true,
+      "loading": false,
+      "log": false,
+      "mock": false,
+      "normalize": false,
+      "notify": true,
+      "offline": true,
+      "repath": true,
+      "retry": true,
+      "share": true,
+      "timeout": true
+    }
+  },
+  {
+    "scenario": "plugins.pair-21",
+    "method": "配对",
+    "plugins": [
+      "auth",
+      "breaker",
+      "cache",
+      "cancel",
+      "envs",
+      "filter",
+      "key",
+      "loading",
+      "log",
+      "mock",
+      "normalize",
+      "notify",
+      "offline",
+      "repath",
+      "retry",
+      "share",
+      "timeout"
+    ],
+    "networks": [
+      "normal"
+    ],
+    "purpose": "二元正交数组第 21 行；17 个开关（含全部关闭基线）。",
+    "switches": {
+      "auth": true,
+      "breaker": false,
+      "cache": true,
+      "cancel": true,
+      "envs": false,
+      "filter": true,
+      "key": false,
+      "loading": false,
+      "log": true,
+      "mock": false,
+      "normalize": true,
+      "notify": true,
+      "offline": false,
+      "repath": true,
+      "retry": false,
+      "share": true,
+      "timeout": false
+    }
+  },
+  {
+    "scenario": "plugins.pair-22",
+    "method": "配对",
+    "plugins": [
+      "auth",
+      "breaker",
+      "cache",
+      "cancel",
+      "envs",
+      "filter",
+      "key",
+      "loading",
+      "log",
+      "mock",
+      "normalize",
+      "notify",
+      "offline",
+      "repath",
+      "retry",
+      "share",
+      "timeout"
+    ],
+    "networks": [
+      "normal"
+    ],
+    "purpose": "二元正交数组第 22 行；17 个开关（含全部关闭基线）。",
+    "switches": {
+      "auth": false,
+      "breaker": true,
+      "cache": true,
+      "cancel": true,
+      "envs": true,
+      "filter": false,
+      "key": false,
+      "loading": false,
+      "log": false,
+      "mock": true,
+      "normalize": true,
+      "notify": true,
+      "offline": true,
+      "repath": false,
+      "retry": false,
+      "share": true,
+      "timeout": true
+    }
+  },
+  {
+    "scenario": "plugins.pair-23",
+    "method": "配对",
+    "plugins": [
+      "auth",
+      "breaker",
+      "cache",
+      "cancel",
+      "envs",
+      "filter",
+      "key",
+      "loading",
+      "log",
+      "mock",
+      "normalize",
+      "notify",
+      "offline",
+      "repath",
+      "retry",
+      "share",
+      "timeout"
+    ],
+    "networks": [
+      "normal"
+    ],
+    "purpose": "二元正交数组第 23 行；17 个开关（含全部关闭基线）。",
+    "switches": {
+      "auth": true,
+      "breaker": true,
+      "cache": false,
+      "cancel": true,
+      "envs": false,
+      "filter": false,
+      "key": true,
+      "loading": false,
+      "log": true,
+      "mock": true,
+      "normalize": false,
+      "notify": true,
+      "offline": false,
+      "repath": false,
+      "retry": true,
+      "share": true,
+      "timeout": false
+    }
+  },
+  {
+    "scenario": "plugins.pair-24",
+    "method": "配对",
+    "plugins": [
+      "auth",
+      "breaker",
+      "cache",
+      "cancel",
+      "envs",
+      "filter",
+      "key",
+      "loading",
+      "log",
+      "mock",
+      "normalize",
+      "notify",
+      "offline",
+      "repath",
+      "retry",
+      "share",
+      "timeout"
+    ],
+    "networks": [
+      "normal"
+    ],
+    "purpose": "二元正交数组第 24 行；17 个开关（含全部关闭基线）。",
+    "switches": {
+      "auth": false,
+      "breaker": false,
+      "cache": false,
+      "cancel": false,
+      "envs": false,
+      "filter": false,
+      "key": false,
+      "loading": true,
+      "log": true,
+      "mock": true,
+      "normalize": true,
+      "notify": true,
+      "offline": true,
+      "repath": true,
+      "retry": true,
+      "share": true,
+      "timeout": true
+    }
+  },
+  {
+    "scenario": "plugins.pair-25",
+    "method": "配对",
+    "plugins": [
+      "auth",
+      "breaker",
+      "cache",
+      "cancel",
+      "envs",
+      "filter",
+      "key",
+      "loading",
+      "log",
+      "mock",
+      "normalize",
+      "notify",
+      "offline",
+      "repath",
+      "retry",
+      "share",
+      "timeout"
+    ],
+    "networks": [
+      "normal"
+    ],
+    "purpose": "二元正交数组第 25 行；17 个开关（含全部关闭基线）。",
+    "switches": {
+      "auth": true,
+      "breaker": false,
+      "cache": true,
+      "cancel": false,
+      "envs": true,
+      "filter": false,
+      "key": true,
+      "loading": true,
+      "log": false,
+      "mock": true,
+      "normalize": false,
+      "notify": true,
+      "offline": false,
+      "repath": true,
+      "retry": false,
+      "share": true,
+      "timeout": false
+    }
+  },
+  {
+    "scenario": "plugins.pair-26",
+    "method": "配对",
+    "plugins": [
+      "auth",
+      "breaker",
+      "cache",
+      "cancel",
+      "envs",
+      "filter",
+      "key",
+      "loading",
+      "log",
+      "mock",
+      "normalize",
+      "notify",
+      "offline",
+      "repath",
+      "retry",
+      "share",
+      "timeout"
+    ],
+    "networks": [
+      "normal"
+    ],
+    "purpose": "二元正交数组第 26 行；17 个开关（含全部关闭基线）。",
+    "switches": {
+      "auth": false,
+      "breaker": true,
+      "cache": true,
+      "cancel": false,
+      "envs": false,
+      "filter": true,
+      "key": true,
+      "loading": true,
+      "log": true,
+      "mock": false,
+      "normalize": false,
+      "notify": true,
+      "offline": true,
+      "repath": false,
+      "retry": false,
+      "share": true,
+      "timeout": true
+    }
+  },
+  {
+    "scenario": "plugins.pair-27",
+    "method": "配对",
+    "plugins": [
+      "auth",
+      "breaker",
+      "cache",
+      "cancel",
+      "envs",
+      "filter",
+      "key",
+      "loading",
+      "log",
+      "mock",
+      "normalize",
+      "notify",
+      "offline",
+      "repath",
+      "retry",
+      "share",
+      "timeout"
+    ],
+    "networks": [
+      "normal"
+    ],
+    "purpose": "二元正交数组第 27 行；17 个开关（含全部关闭基线）。",
+    "switches": {
+      "auth": true,
+      "breaker": true,
+      "cache": false,
+      "cancel": false,
+      "envs": true,
+      "filter": true,
+      "key": false,
+      "loading": true,
+      "log": false,
+      "mock": false,
+      "normalize": true,
+      "notify": true,
+      "offline": false,
+      "repath": false,
+      "retry": true,
+      "share": true,
+      "timeout": false
+    }
+  },
+  {
+    "scenario": "plugins.pair-28",
+    "method": "配对",
+    "plugins": [
+      "auth",
+      "breaker",
+      "cache",
+      "cancel",
+      "envs",
+      "filter",
+      "key",
+      "loading",
+      "log",
+      "mock",
+      "normalize",
+      "notify",
+      "offline",
+      "repath",
+      "retry",
+      "share",
+      "timeout"
+    ],
+    "networks": [
+      "normal"
+    ],
+    "purpose": "二元正交数组第 28 行；17 个开关（含全部关闭基线）。",
+    "switches": {
+      "auth": false,
+      "breaker": false,
+      "cache": false,
+      "cancel": true,
+      "envs": true,
+      "filter": true,
+      "key": true,
+      "loading": true,
+      "log": true,
+      "mock": true,
+      "normalize": true,
+      "notify": false,
+      "offline": false,
+      "repath": false,
+      "retry": false,
+      "share": true,
+      "timeout": true
+    }
+  },
+  {
+    "scenario": "plugins.pair-29",
+    "method": "配对",
+    "plugins": [
+      "auth",
+      "breaker",
+      "cache",
+      "cancel",
+      "envs",
+      "filter",
+      "key",
+      "loading",
+      "log",
+      "mock",
+      "normalize",
+      "notify",
+      "offline",
+      "repath",
+      "retry",
+      "share",
+      "timeout"
+    ],
+    "networks": [
+      "normal"
+    ],
+    "purpose": "二元正交数组第 29 行；17 个开关（含全部关闭基线）。",
+    "switches": {
+      "auth": true,
+      "breaker": false,
+      "cache": true,
+      "cancel": true,
+      "envs": false,
+      "filter": true,
+      "key": false,
+      "loading": true,
+      "log": false,
+      "mock": true,
+      "normalize": false,
+      "notify": false,
+      "offline": true,
+      "repath": false,
+      "retry": true,
+      "share": true,
+      "timeout": false
+    }
+  },
+  {
+    "scenario": "plugins.pair-30",
+    "method": "配对",
+    "plugins": [
+      "auth",
+      "breaker",
+      "cache",
+      "cancel",
+      "envs",
+      "filter",
+      "key",
+      "loading",
+      "log",
+      "mock",
+      "normalize",
+      "notify",
+      "offline",
+      "repath",
+      "retry",
+      "share",
+      "timeout"
+    ],
+    "networks": [
+      "normal"
+    ],
+    "purpose": "二元正交数组第 30 行；17 个开关（含全部关闭基线）。",
+    "switches": {
+      "auth": false,
+      "breaker": true,
+      "cache": true,
+      "cancel": true,
+      "envs": true,
+      "filter": false,
+      "key": false,
+      "loading": true,
+      "log": true,
+      "mock": false,
+      "normalize": false,
+      "notify": false,
+      "offline": false,
+      "repath": true,
+      "retry": true,
+      "share": true,
+      "timeout": true
+    }
+  },
+  {
+    "scenario": "plugins.pair-31",
+    "method": "配对",
+    "plugins": [
+      "auth",
+      "breaker",
+      "cache",
+      "cancel",
+      "envs",
+      "filter",
+      "key",
+      "loading",
+      "log",
+      "mock",
+      "normalize",
+      "notify",
+      "offline",
+      "repath",
+      "retry",
+      "share",
+      "timeout"
+    ],
+    "networks": [
+      "normal"
+    ],
+    "purpose": "二元正交数组第 31 行；17 个开关（含全部关闭基线）。",
+    "switches": {
+      "auth": true,
+      "breaker": true,
+      "cache": false,
+      "cancel": true,
+      "envs": false,
+      "filter": false,
+      "key": true,
+      "loading": true,
+      "log": false,
+      "mock": false,
+      "normalize": true,
+      "notify": false,
+      "offline": true,
+      "repath": true,
+      "retry": false,
+      "share": true,
+      "timeout": false
+    }
+  },
+  {
+    "scenario": "plugins.boundary-retry-max-0",
+    "method": "边界",
+    "plugins": [
+      "retry"
+    ],
+    "networks": [
+      "normal"
+    ],
+    "purpose": "retry.max = 0"
+  },
+  {
+    "scenario": "plugins.boundary-retry-max-1",
+    "method": "边界",
+    "plugins": [
+      "retry"
+    ],
+    "networks": [
+      "normal"
+    ],
+    "purpose": "retry.max = 1"
+  },
+  {
+    "scenario": "plugins.boundary-retry-max-2",
+    "method": "边界",
+    "plugins": [
+      "retry"
+    ],
+    "networks": [
+      "normal"
+    ],
+    "purpose": "retry.max = 5"
+  },
+  {
+    "scenario": "plugins.boundary-retry-delay-ms-1",
+    "method": "边界",
+    "plugins": [
+      "retry"
+    ],
+    "networks": [
+      "normal"
+    ],
+    "purpose": "retry.delay_ms = 1"
+  },
+  {
+    "scenario": "plugins.boundary-retry-methods-0",
+    "method": "边界",
+    "plugins": [
+      "retry"
+    ],
+    "networks": [
+      "normal"
+    ],
+    "purpose": "retry.methods = []"
+  },
+  {
+    "scenario": "plugins.boundary-retry-methods-1",
+    "method": "边界",
+    "plugins": [
+      "retry"
+    ],
+    "networks": [
+      "normal"
+    ],
+    "purpose": "retry.methods = [GET]"
+  },
+  {
+    "scenario": "plugins.boundary-cache-ttl-ms-0",
+    "method": "边界",
+    "plugins": [
+      "cache"
+    ],
+    "networks": [
+      "normal"
+    ],
+    "purpose": "cache.ttl_ms = 0"
+  },
+  {
+    "scenario": "plugins.boundary-cache-ttl-ms-1",
+    "method": "边界",
+    "plugins": [
+      "cache"
+    ],
+    "networks": [
+      "normal"
+    ],
+    "purpose": "cache.ttl_ms = 1"
+  },
+  {
+    "scenario": "plugins.boundary-cache-ttl-ms-2",
+    "method": "边界",
+    "plugins": [
+      "cache"
+    ],
+    "networks": [
+      "normal"
+    ],
+    "purpose": "cache.ttl_ms = 2147483647"
+  },
+  {
+    "scenario": "plugins.boundary-cache-max-0",
+    "method": "边界",
+    "plugins": [
+      "cache"
+    ],
+    "networks": [
+      "normal"
+    ],
+    "purpose": "cache.max = 0"
+  },
+  {
+    "scenario": "plugins.boundary-cache-max-1",
+    "method": "边界",
+    "plugins": [
+      "cache"
+    ],
+    "networks": [
+      "normal"
+    ],
+    "purpose": "cache.max = 1"
+  },
+  {
+    "scenario": "plugins.boundary-cache-max-2",
+    "method": "边界",
+    "plugins": [
+      "cache"
+    ],
+    "networks": [
+      "normal"
+    ],
+    "purpose": "cache.max = 64"
+  },
+  {
+    "scenario": "plugins.boundary-cache-methods-0",
+    "method": "边界",
+    "plugins": [
+      "cache"
+    ],
+    "networks": [
+      "normal"
+    ],
+    "purpose": "cache.methods = []"
+  },
+  {
+    "scenario": "plugins.boundary-cache-methods-1",
+    "method": "边界",
+    "plugins": [
+      "cache"
+    ],
+    "networks": [
+      "normal"
+    ],
+    "purpose": "cache.methods = [GET]"
+  },
+  {
+    "scenario": "plugins.boundary-loading-delay-ms-0",
+    "method": "边界",
+    "plugins": [
+      "loading"
+    ],
+    "networks": [
+      "normal"
+    ],
+    "purpose": "loading.delay_ms = 0"
+  },
+  {
+    "scenario": "plugins.boundary-loading-delay-ms-1",
+    "method": "边界",
+    "plugins": [
+      "loading"
+    ],
+    "networks": [
+      "normal"
+    ],
+    "purpose": "loading.delay_ms = 1"
+  },
+  {
+    "scenario": "plugins.boundary-loading-delay-close-ms-1",
+    "method": "边界",
+    "plugins": [
+      "loading"
+    ],
+    "networks": [
+      "normal"
+    ],
+    "purpose": "loading.delay_close_ms = 1"
+  },
+  {
+    "scenario": "plugins.boundary-timeout-connect-ms-0",
+    "method": "边界",
+    "plugins": [
+      "timeout"
+    ],
+    "networks": [
+      "normal"
+    ],
+    "purpose": "timeout.connect_ms = 1"
+  },
+  {
+    "scenario": "plugins.boundary-timeout-connect-ms-1",
+    "method": "边界",
+    "plugins": [
+      "timeout"
+    ],
+    "networks": [
+      "normal"
+    ],
+    "purpose": "timeout.connect_ms = 2147483647"
+  },
+  {
+    "scenario": "plugins.boundary-timeout-receive-ms-0",
+    "method": "边界",
+    "plugins": [
+      "timeout"
+    ],
+    "networks": [
+      "normal"
+    ],
+    "purpose": "timeout.receive_ms = 1"
+  },
+  {
+    "scenario": "plugins.boundary-timeout-receive-ms-1",
+    "method": "边界",
+    "plugins": [
+      "timeout"
+    ],
+    "networks": [
+      "normal"
+    ],
+    "purpose": "timeout.receive_ms = 2147483647"
+  },
+  {
+    "scenario": "plugins.boundary-breaker-threshold-0",
+    "method": "边界",
+    "plugins": [
+      "breaker"
+    ],
+    "networks": [
+      "normal"
+    ],
+    "purpose": "breaker.threshold = 1"
+  },
+  {
+    "scenario": "plugins.boundary-breaker-threshold-1",
+    "method": "边界",
+    "plugins": [
+      "breaker"
+    ],
+    "networks": [
+      "normal"
+    ],
+    "purpose": "breaker.threshold = 64"
+  },
+  {
+    "scenario": "plugins.boundary-breaker-open-ms-0",
+    "method": "边界",
+    "plugins": [
+      "breaker"
+    ],
+    "networks": [
+      "normal"
+    ],
+    "purpose": "breaker.open_ms = 0"
+  },
+  {
+    "scenario": "plugins.boundary-breaker-open-ms-1",
+    "method": "边界",
+    "plugins": [
+      "breaker"
+    ],
+    "networks": [
+      "normal"
+    ],
+    "purpose": "breaker.open_ms = 1"
+  },
+  {
+    "scenario": "plugins.boundary-breaker-open-ms-2",
+    "method": "边界",
+    "plugins": [
+      "breaker"
+    ],
+    "networks": [
+      "normal"
+    ],
+    "purpose": "breaker.open_ms = 2147483647"
+  },
+  {
+    "scenario": "plugins.full-workflow",
+    "method": "全量",
+    "plugins": [
+      "auth",
+      "breaker",
+      "cache",
+      "cancel",
+      "envs",
+      "filter",
+      "key",
+      "loading",
+      "log",
+      "mock",
+      "normalize",
+      "notify",
+      "offline",
+      "repath",
+      "retry",
+      "share",
+      "timeout"
+    ],
+    "networks": [
+      "normal",
+      "weak"
+    ],
+    "purpose": "17 插件全开：登录→访问→刷新→重试→缓存→共享→取消→通知。"
+  },
+  {
+    "scenario": "plugins.full-flap-workflow",
+    "method": "全量",
+    "plugins": [
+      "auth",
+      "breaker",
+      "cache",
+      "cancel",
+      "envs",
+      "filter",
+      "key",
+      "loading",
+      "log",
+      "mock",
+      "normalize",
+      "notify",
+      "offline",
+      "repath",
+      "retry",
+      "share",
+      "timeout"
+    ],
+    "networks": [
+      "flap"
+    ],
+    "purpose": "17 插件全开：flap 离线失败后恢复，再执行完整业务流。"
+  }
+]

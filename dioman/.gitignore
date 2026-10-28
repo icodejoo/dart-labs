@@ -7,3 +7,6 @@ pubspec.lock
 *.iml
 .idea/
 coverage/
+# accept 运行产物（日志与结果 JSON，可随时重跑生成）
+accept/*.log
+accept/results/
