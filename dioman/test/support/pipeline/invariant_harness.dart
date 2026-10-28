@@ -5,7 +5,7 @@ import 'fake_clock.dart';
 import 'fake_network.dart';
 import 'helpers.dart';
 
-/// 启用 I1/I2/I3/I4/I6/I7；I5 留待认证批次接入。
+/// 启用 I1–I7，刷新按调用方声明的轮次统计。
 class InvariantHarness {
   /// 绑定网络和时钟。
   InvariantHarness(this.network, this.clock);
@@ -33,6 +33,16 @@ class InvariantHarness {
 
   /// I5 每轮刷新次数。
   final refreshRounds = <int, int>{};
+
+  /// 声明即将开始的刷新轮，零调用也会被 I5 拒绝。
+  void beginRefreshRound(int round) => refreshRounds[round] = 0;
+
+  /// 包装真实 onRefresh；同一轮多次刷新会被 I5 拒绝。
+  DiomanAuthRefresh refreshInRound(int round, DiomanAuthRefresh refresh) =>
+      (tokens, result) {
+        refreshRounds.update(round, (n) => n + 1);
+        return refresh(tokens, result);
+      };
 
   /// 各层保存的上下文，用于请求结束后追踪取消订阅。
   final contexts = <DiomanContext<Result>>[];

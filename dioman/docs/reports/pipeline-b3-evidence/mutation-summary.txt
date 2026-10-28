@@ -1,0 +1,19 @@
+final-auth-ready-exhausted: test failed; source restored; PASS
+final-breaker-retryable-at: test failed; source restored; PASS
+migration-auth-force-protection: test failed; source restored; PASS
+retry-replayable: test failed; source restored; PASS
+auth-replayable: test failed; source restored; PASS
+auth-recheck-credentials: test failed; source restored; PASS
+auth-ready-snapshot: test failed; source restored; PASS
+auth-cancel-after-failure: test failed; source restored; PASS
+breaker-cancel-failure: test failed; source restored; PASS
+retry-logical-status: test failed; source restored; PASS
+retry-max-boundary: test failed; source restored; PASS
+retry-method-veto: test failed; source restored; PASS
+auth-stale-session: test failed; source restored; PASS
+auth-expiry-dedup: test failed; source restored; PASS
+breaker-generation: test failed; source restored; PASS
+review-ready-wait: test failed; source restored; PASS
+review-failure-wait: test failed; source restored; PASS
+review-notice-wait: test failed; source restored; PASS
+18 mutations killed; all source hashes independently verified against final bytes; PASS

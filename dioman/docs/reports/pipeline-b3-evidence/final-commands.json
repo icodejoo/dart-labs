@@ -1,0 +1,93 @@
+[
+  {
+    "command": [
+      "dart",
+      "analyze"
+    ],
+    "exit_code": 0,
+    "evidence": "analyze.txt"
+  },
+  {
+    "command": [
+      "dart",
+      "test",
+      "--reporter",
+      "expanded"
+    ],
+    "exit_code": 0,
+    "evidence": "tests.txt"
+  },
+  {
+    "command": [
+      "dart",
+      "test",
+      "test_legacy",
+      "--concurrency=1",
+      "--reporter",
+      "expanded"
+    ],
+    "exit_code": 0,
+    "evidence": "legacy-tests.txt"
+  },
+  {
+    "command": [
+      "dart",
+      "test",
+      "--coverage-path=coverage/b3.info",
+      "--branch-coverage",
+      "--reporter",
+      "expanded"
+    ],
+    "exit_code": 0,
+    "evidence": "coverage-tests.txt"
+  },
+  {
+    "command": [
+      "python",
+      "tool/pipeline_b1_coverage.py",
+      "--b3",
+      "--b2",
+      "coverage/b3.info"
+    ],
+    "exit_code": 0,
+    "evidence": "coverage.txt"
+  },
+  {
+    "command": [
+      "python",
+      "tool/pipeline_b3_mutations.py"
+    ],
+    "exit_code": 0,
+    "evidence": "mutation-summary.txt"
+  },
+  {
+    "command": [
+      "python",
+      "tool/pipeline_b3_migration.py"
+    ],
+    "exit_code": 0,
+    "evidence": "migration-summary.txt"
+  },
+  {
+    "command": [
+      "codex",
+      "review",
+      "--uncommitted"
+    ],
+    "exit_code": 0,
+    "evidence": "codex-review-final.txt"
+  },
+  {
+    "command": [
+      "dart",
+      "test",
+      "test/boundary/auth_boundary_test.dart",
+      "test/boundary/breaker_boundary_test.dart",
+      "test/rule/breaker_rule_test.dart",
+      "--reporter",
+      "expanded"
+    ],
+    "exit_code": 0,
+    "evidence": "final-regressions.txt"
+  }
+]

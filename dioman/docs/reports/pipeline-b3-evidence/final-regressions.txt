@@ -1,0 +1,22 @@
+00:00 +0: loading test/boundary/auth_boundary_test.dart
+00:00 +0: test/boundary/auth_boundary_test.dart: [DiomanAuth.ready] ready 期间换 token 重做并记录实际注入值，最多三次
+00:00 +1: test/boundary/auth_boundary_test.dart: [DiomanAuth.ready] ready 期间换 token 重做并记录实际注入值，最多三次
+00:00 +2: test/boundary/auth_boundary_test.dart: [DiomanAuth.ready] ready 期间换 token 重做并记录实际注入值，最多三次
+00:00 +3: test/boundary/auth_boundary_test.dart: [DiomanAuth.ready] ready 期间换 token 重做并记录实际注入值，最多三次
+00:00 +4: test/boundary/auth_boundary_test.dart: [DiomanAuth.ready] ready 期间换 token 重做并记录实际注入值，最多三次
+00:00 +5: test/rule/breaker_rule_test.dart: [DiomanBreakerApi.keyOf] 默认键与请求覆盖只计算桶键，不建桶不改状态
+00:00 +6: test/rule/breaker_rule_test.dart: [DiomanBreakerApi.keyOf] 默认键与请求覆盖只计算桶键，不建桶不改状态
+00:00 +7: test/rule/breaker_rule_test.dart: [DiomanBreakerApi.keyOf] 默认键与请求覆盖只计算桶键，不建桶不改状态
+00:00 +8: test/boundary/auth_boundary_test.dart: [DiomanContext.cancelled] ready 与 onFailure 异步返回后重查取消，不通知不进入内层
+00:00 +9: test/boundary/auth_boundary_test.dart: [DiomanContext.cancelled] ready 与 onFailure 异步返回后重查取消，不通知不进入内层
+00:00 +10: test/rule/breaker_rule_test.dart: [DiomanBreakerApi] 连续失败、冷却、半开成功关闭与失败重开，HTTP business 一致
+00:00 +11: test/rule/breaker_rule_test.dart: [DiomanBreakerApi] 连续失败、冷却、半开成功关闭与失败重开，HTTP business 一致
+00:00 +12: test/rule/breaker_rule_test.dart: [DiomanBreakerApi] 连续失败、冷却、半开成功关闭与失败重开，HTTP business 一致
+00:00 +13: test/rule/breaker_rule_test.dart: [DiomanBreakerApi] 连续失败、冷却、半开成功关闭与失败重开，HTTP business 一致
+00:00 +14: test/rule/breaker_rule_test.dart: [DiomanBreakerApi] 连续失败、冷却、半开成功关闭与失败重开，HTTP business 一致
+00:00 +15: test/rule/breaker_rule_test.dart: [DiomanBreakerApi] 连续失败、冷却、半开成功关闭与失败重开，HTTP business 一致
+00:00 +16: test/boundary/auth_boundary_test.dart: [DiomanAuth.onAccessExpired] 通知同步异步抛错隔离，判定和 ready 异常原样抛出
+00:00 +17: test/rule/breaker_rule_test.dart: [DiomanBreaker.shouldTrip] 默认类别与逻辑状态、自定义 true false null
+00:00 +18: test/rule/breaker_rule_test.dart: [DiomanBreaker.option] 四种写法、继承覆盖、非法类型、默认常量与安装关闭
+00:00 +19: test/rule/breaker_rule_test.dart: [DiomanBreaker.onStateChange] 通知异常隔离，判定与 keyBuilder 异常原样落定
+00:00 +20: All tests passed!

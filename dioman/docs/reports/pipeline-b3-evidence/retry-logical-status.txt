@@ -1,0 +1,16 @@
+00:00 +0: loading test/rule/retry_rule_test.dart
+00:00 +0: [DiomanRetry.statusCodes] HTTP 与 business 逻辑状态全表和最后结果
+00:00 +0 -1: [DiomanRetry.statusCodes] HTTP 与 business 逻辑状态全表和最后结果 [E]
+  Expected: <3>
+    Actual: <1>
+  
+  package:matcher                      expect
+  test\rule\retry_rule_test.dart 24:9  main.<fn>
+  
+00:00 +0 -1: Some tests failed.
+
+Failing tests:
+  test/rule/retry_rule_test.dart: [DiomanRetry.statusCodes] HTTP 与 business 逻辑状态全表和最后结果
+
+Consider enabling the flag chain-stack-traces to receive more detailed exceptions.
+For example, 'dart test --chain-stack-traces'.

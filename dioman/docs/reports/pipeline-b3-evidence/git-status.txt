@@ -1,0 +1,28 @@
+ M docs/design/pipeline-plugin-spec.md
+ M lib/pipeline.dart
+ M lib/src/pipeline/options.dart
+ M lib/src/pipeline/plugins/notify.dart
+ M lib/src/pipeline/plugins/repath.dart
+ M test/support/pipeline/invariant_harness.dart
+ M tool/pipeline_b1_coverage.py
+?? docs/reports/2026-10-29-pipeline-b3.md
+?? docs/reports/pipeline-b3-evidence/
+?? lib/src/pipeline/plugins/auth.dart
+?? lib/src/pipeline/plugins/breaker.dart
+?? lib/src/pipeline/plugins/retry.dart
+?? lib/src/pipeline/token_manager.dart
+?? test/boundary/auth_boundary_test.dart
+?? test/boundary/b3_await_boundary_test.dart
+?? test/boundary/b3_options_boundary_test.dart
+?? test/boundary/breaker_boundary_test.dart
+?? test/boundary/retry_boundary_test.dart
+?? test/boundary/retry_options_boundary_test.dart
+?? test/combo/b3_combo_test.dart
+?? test/combo/b3_outer_combo_test.dart
+?? test/integration/b3_transport_integration_test.dart
+?? test/rule/auth_rule_test.dart
+?? test/rule/breaker_rule_test.dart
+?? test/rule/retry_rule_test.dart
+?? test/support/pipeline/b3_helpers.dart
+?? tool/pipeline_b3_migration.py
+?? tool/pipeline_b3_mutations.py

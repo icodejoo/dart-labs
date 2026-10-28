@@ -70,6 +70,12 @@ class _Repath<R extends DiomanResponse<dynamic>>
   /// 预合并配置。
   final DiomanRepathOptions base;
 
+  /// 协议与主机前缀。
+  static final _origin = RegExp(r'^[a-zA-Z][a-zA-Z0-9+.-]*://[^/?#]*');
+
+  /// 路径之后的查询或片段。
+  static final _suffix = RegExp(r'[?#]');
+
   /// 生成路径与来源字段的补丁，不修改原请求。
   @override
   Future<DiomanResponse<dynamic>> handle(
@@ -83,12 +89,9 @@ class _Repath<R extends DiomanResponse<dynamic>>
             removeKey: b.removeKey ?? a.removeKey));
     if (o == null || o.enabled == false) return next();
     final original = ctx.request.path;
-    final origin = RegExp(r'^[a-zA-Z][a-zA-Z0-9+.-]*://[^/?#]*')
-            .firstMatch(original)
-            ?.end ??
-        0;
+    final origin = _origin.firstMatch(original)?.end ?? 0;
     final rest = original.substring(origin);
-    final suffixAt = rest.indexOf(RegExp(r'[?#]'));
+    final suffixAt = rest.indexOf(_suffix);
     final path = suffixAt < 0 ? rest : rest.substring(0, suffixAt);
     final suffix = rest.substring(path.length);
     final query = ctx.request.query;

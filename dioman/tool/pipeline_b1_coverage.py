@@ -4,6 +4,9 @@ import sys
 
 ROOT = Path(__file__).resolve().parents[1]
 FILES = ('client', 'pipeline', 'context', 'request', 'response', 'transport')
+if '--b3' in sys.argv:
+    FILES += ('plugins/retry', 'plugins/breaker', 'plugins/auth', 'options')
+    sys.argv.remove('--b3')
 if '--b2' in sys.argv:
     FILES += ('config', 'plugins/loading', 'plugins/notify', 'plugins/repath',
               'plugins/filter', 'plugins/timeout', 'plugins/envs')
@@ -39,6 +42,10 @@ def inspect(path):
         lf, lh, brf, brh = found[name]
         print(name + '.dart', lf, lh, brf, brh)
         assert lf > 0 and brf > 0 and lf == lh and brf == brh, name
+    if 'plugins/auth' in FILES:
+        interface = ROOT / 'lib/src/pipeline/token_manager.dart'
+        assert interface.is_file() and 'abstract interface class DiomanTokenManager' in interface.read_text(encoding='utf-8')
+        print('token_manager.dart 0 0 0 0 (abstract interface: no executable lines/branches; source verified)')
     print(f'{len(FILES)} files present; nonzero counters; lines=100%; branches=100%; PASS')
 
 

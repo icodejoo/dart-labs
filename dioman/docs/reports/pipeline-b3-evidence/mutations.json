@@ -1,0 +1,128 @@
+[
+  {
+    "mutation": "final-auth-ready-exhausted",
+    "test": "test/boundary/auth_boundary_test.dart",
+    "title": "三次都不稳定以最后快照发出",
+    "killed": true,
+    "restored_sha256": "20d063275c2fc574e1648bef3cfa6e6135c62d541f34d2be33bd36e1f0a9d4cc"
+  },
+  {
+    "mutation": "final-breaker-retryable-at",
+    "test": "test/boundary/breaker_boundary_test.dart",
+    "title": "保存开启时请求冷却",
+    "killed": true,
+    "restored_sha256": "49cefd2bf7ae90b800ed22757af0913150e040402eafefa5145a423487df881c"
+  },
+  {
+    "mutation": "migration-auth-force-protection",
+    "test": "test/boundary/b3_options_boundary_test.dart",
+    "title": "true 强制保护优先",
+    "killed": true,
+    "restored_sha256": "20d063275c2fc574e1648bef3cfa6e6135c62d541f34d2be33bd36e1f0a9d4cc"
+  },
+  {
+    "mutation": "retry-replayable",
+    "test": "test/combo/b3_combo_test.dart",
+    "title": "Transformer 原地修改",
+    "killed": true,
+    "restored_sha256": "475a4588148748ee5872478cd764024570f7db5a75d7ad5e6be85e17c654402e"
+  },
+  {
+    "mutation": "auth-replayable",
+    "test": "test/combo/b3_combo_test.dart",
+    "title": "Transformer 原地修改",
+    "killed": true,
+    "restored_sha256": "20d063275c2fc574e1648bef3cfa6e6135c62d541f34d2be33bd36e1f0a9d4cc"
+  },
+  {
+    "mutation": "auth-recheck-credentials",
+    "test": "test/boundary/auth_boundary_test.dart",
+    "title": "刷新成功后登出",
+    "killed": true,
+    "restored_sha256": "20d063275c2fc574e1648bef3cfa6e6135c62d541f34d2be33bd36e1f0a9d4cc"
+  },
+  {
+    "mutation": "auth-ready-snapshot",
+    "test": "test/boundary/auth_boundary_test.dart",
+    "title": "ready 期间换 token",
+    "killed": true,
+    "restored_sha256": "20d063275c2fc574e1648bef3cfa6e6135c62d541f34d2be33bd36e1f0a9d4cc"
+  },
+  {
+    "mutation": "auth-cancel-after-failure",
+    "test": "test/boundary/auth_boundary_test.dart",
+    "title": "ready 与 onFailure 异步返回后",
+    "killed": true,
+    "restored_sha256": "20d063275c2fc574e1648bef3cfa6e6135c62d541f34d2be33bd36e1f0a9d4cc"
+  },
+  {
+    "mutation": "breaker-cancel-failure",
+    "test": "test/boundary/breaker_boundary_test.dart",
+    "title": "cancel 只归还名额",
+    "killed": true,
+    "restored_sha256": "49cefd2bf7ae90b800ed22757af0913150e040402eafefa5145a423487df881c"
+  },
+  {
+    "mutation": "retry-logical-status",
+    "test": "test/rule/retry_rule_test.dart",
+    "title": "HTTP 与 business 逻辑状态全表",
+    "killed": true,
+    "restored_sha256": "475a4588148748ee5872478cd764024570f7db5a75d7ad5e6be85e17c654402e"
+  },
+  {
+    "mutation": "retry-max-boundary",
+    "test": "test/rule/retry_rule_test.dart",
+    "title": "HTTP 与 business 逻辑状态全表",
+    "killed": true,
+    "restored_sha256": "475a4588148748ee5872478cd764024570f7db5a75d7ad5e6be85e17c654402e"
+  },
+  {
+    "mutation": "retry-method-veto",
+    "test": "test/rule/retry_rule_test.dart",
+    "title": "成功也交判定",
+    "killed": true,
+    "restored_sha256": "475a4588148748ee5872478cd764024570f7db5a75d7ad5e6be85e17c654402e"
+  },
+  {
+    "mutation": "auth-stale-session",
+    "test": "test/boundary/auth_boundary_test.dart",
+    "title": "旧请求的 expired",
+    "killed": true,
+    "restored_sha256": "20d063275c2fc574e1648bef3cfa6e6135c62d541f34d2be33bd36e1f0a9d4cc"
+  },
+  {
+    "mutation": "auth-expiry-dedup",
+    "test": "test/boundary/b3_await_boundary_test.dart",
+    "title": "同会话多个在途",
+    "killed": true,
+    "restored_sha256": "20d063275c2fc574e1648bef3cfa6e6135c62d541f34d2be33bd36e1f0a9d4cc"
+  },
+  {
+    "mutation": "breaker-generation",
+    "test": "test/boundary/breaker_boundary_test.dart",
+    "title": "真实取消探测释放槽位",
+    "killed": true,
+    "restored_sha256": "49cefd2bf7ae90b800ed22757af0913150e040402eafefa5145a423487df881c"
+  },
+  {
+    "mutation": "review-ready-wait",
+    "test": "test/boundary/b3_await_boundary_test.dart",
+    "title": "取消未完成的 ready",
+    "killed": true,
+    "restored_sha256": "20d063275c2fc574e1648bef3cfa6e6135c62d541f34d2be33bd36e1f0a9d4cc"
+  },
+  {
+    "mutation": "review-failure-wait",
+    "test": "test/boundary/b3_await_boundary_test.dart",
+    "title": "取消未完成的 ready",
+    "killed": true,
+    "restored_sha256": "20d063275c2fc574e1648bef3cfa6e6135c62d541f34d2be33bd36e1f0a9d4cc"
+  },
+  {
+    "mutation": "review-notice-wait",
+    "test": "test/boundary/b3_await_boundary_test.dart",
+    "title": "取消未完成的 ready",
+    "killed": true,
+    "restored_sha256": "20d063275c2fc574e1648bef3cfa6e6135c62d541f34d2be33bd36e1f0a9d4cc"
+  }
+]

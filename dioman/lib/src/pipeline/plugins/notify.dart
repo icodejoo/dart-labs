@@ -68,7 +68,7 @@ class _Notify<R extends DiomanResponse<dynamic>>
     final on = resolveOption<bool>(
         ctx.request.call.options[DiomanNotify.option],
         base: true,
-        merge: identical);
+        merge: replaceOption);
     final r = await next();
     final cancelled = ctx.cancelled();
     if (on == null) return r;

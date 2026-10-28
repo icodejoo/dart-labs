@@ -1,0 +1,2 @@
+逐行定位: {'boundary.md': 43, 'combo.md': 57, 'integration.md': 9, 'rule.md': 172, 'unit.md': 6}
+总行数: 287 本批边界均有承接用例；其中 B4 真实装配待续: 39

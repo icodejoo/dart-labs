@@ -1,0 +1,3 @@
+18 mutations: every restored SHA256 independently matches final source bytes
+No changes to old lib outside lib/src/pipeline, test_legacy, pubspec or lock during this revision; existing lib/pipeline.dart working-tree export preserved.
+No tool/__pycache__; no commit/push/branch switch.

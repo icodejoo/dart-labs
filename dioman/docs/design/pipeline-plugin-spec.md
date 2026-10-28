@@ -137,6 +137,15 @@ B2 终审补充：
 | timeout 的真实连接计时 | 单测注入 `connectionTimeout` 只证明归类正确；真实计时归 B7，按 testkit D22 结论 connect 档仍不可黑盒验证，G4 留作唯一缺口 |
 | 旧套件首轮并发跑出两处 RangeError（loading_share/end、retry_share/race） | 不归因 B2：B2 没碰旧源码与 `test_legacy/`，串行复验 580 全绿；旧套件在 B5 删除，不再投入 |
 
+B3 终审补充：
+
+| 缺口 | 裁决 |
+|---|---|
+| auth 的 `ready` 连续 3 次期间 token 都在变 | 不抛错（token 轮换是正常竞态，不是使用者 bug）。与 axp 一致，以最后一次为准：注入最后一次 ready 的补丁，状态键记最后一次调用前的快照；之后若 401，默认判定发现注入值与当前值不同，走 replay 自行纠正 |
+| breaker 清桶 | `DiomanBreakerApi` 额外保留 `reset()`（旧版能力）；清表不取消已放行的传输，旧窗口的结算不写进新桶 |
+| 旧 `DiomanBreakerOpenException` 的 `retryableAt`、`bucketKey` | 失败载体仍是 `kind: breaker, reason: 'open'`；两项信息改由 `DiomanBreakerApi.keyOf(request)` 与 `retryableAt(key)` 提供，只读，不触发状态迁移 |
+| 依赖 share/cache/mock 的 39 条组合迁移行 | B3 只验证自己这一侧的边界，真实组合由 B4 承接，B4 报告逐行关闭 |
+
 ## 9. 行为变化汇总（写进 CHANGELOG 与迁移指南）
 
 | # | 变化 | 原因 |

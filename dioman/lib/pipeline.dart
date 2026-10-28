@@ -18,3 +18,7 @@ export 'src/pipeline/plugins/repath.dart';
 export 'src/pipeline/plugins/filter.dart';
 export 'src/pipeline/plugins/timeout.dart';
 export 'src/pipeline/plugins/envs.dart';
+export 'src/pipeline/plugins/retry.dart';
+export 'src/pipeline/plugins/breaker.dart';
+export 'src/pipeline/plugins/auth.dart';
+export 'src/pipeline/token_manager.dart';

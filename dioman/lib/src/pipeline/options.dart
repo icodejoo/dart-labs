@@ -1,5 +1,9 @@
 import 'package:dio/dio.dart';
 
+/// 以请求覆盖值 [override] 替换 [base]，适合没有字段合并的标量选项。
+/// 例如 `resolveOption<int>(2, base: 1, merge: replaceOption)` 返回 2。
+T replaceOption<T>(T base, T override) => override;
+
 /// 插件请求级选项键；按对象身份隔离，建议使用静态 final 实例。
 class DiomanOptionKey<T> {
   /// [description] 仅供调试，例如 `DiomanOptionKey<int>('retry')`。
