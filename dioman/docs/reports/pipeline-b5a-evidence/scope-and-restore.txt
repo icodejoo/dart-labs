@@ -1,0 +1,5 @@
+All 27 pipeline sources match HEAD (LF-normalized).
+All seven mutation hashes match current exact source bytes.
+Protected lib/test_legacy/pubspec/lock diff: empty.
+tool/__pycache__: absent.
+No deleted tracked files: True

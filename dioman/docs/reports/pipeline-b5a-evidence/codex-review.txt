@@ -1,0 +1,2076 @@
+OpenAI Codex v0.163.0
+--------
+workdir: E:\workspaces\dart-labs-pipeline\dioman
+model: gpt-6.1-sol
+provider: openai
+approval: never
+sandbox: danger-full-access
+reasoning effort: none
+reasoning summaries: none
+session id: 01a18414-59ea-7543-b066-49a29a1a766b
+--------
+user
+current changes
+exec
+"C:\\Users\\jelon\\AppData\\Local\\Microsoft\\WindowsApps\\Microsoft.PowerShell_8wekyb3d8bbwe\\pwsh.exe" -Command 'git status --short; git diff --stat; Get-ChildItem -Force -Name AGENTS*; Get-Location' in E:\workspaces\dart-labs-pipeline\dioman
+ succeeded in 685ms:
+ M docs/design/pipeline-implementation-plan.md
+?? docs/reports/2026-10-29-pipeline-b5a.md
+?? docs/reports/pipeline-b5a-evidence/
+?? test/combo/powerset_combo_test.dart
+?? test/combo/prepare_pairs_combo_test.dart
+?? test/support/pipeline/b5_powerset.dart
+?? tool/pipeline_b5a_coverage.py
+?? tool/pipeline_b5a_mutations.py
+warning: in the working copy of 'dioman/docs/design/pipeline-implementation-plan.md', LF will be replaced by CRLF the next time Git touches it
+ dioman/docs/design/pipeline-implementation-plan.md | 1 +
+ 1 file changed, 1 insertion(+)
+
+Path
+----
+E:\workspaces\dart-labs-pipeline\dioman
+
+
+exec
+"C:\\Users\\jelon\\AppData\\Local\\Microsoft\\WindowsApps\\Microsoft.PowerShell_8wekyb3d8bbwe\\pwsh.exe" -Command "Get-ChildItem -Path .. -Filter AGENTS* -Force; Get-ChildItem -Path E:\\workspaces -Filter AGENTS* -Force; git rev-parse --show-toplevel; git diff; Get-ChildItem docs,test,tool -Recurse -File -Include AGENTS.md,AGENTS.override.md; Get-Content test/support/pipeline/b5_powerset.dart; Get-Content test/combo/powerset_combo_test.dart" in E:\workspaces\dart-labs-pipeline\dioman
+ succeeded in 929ms:
+E:/workspaces/dart-labs-pipeline
+warning: in the working copy of 'dioman/docs/design/pipeline-implementation-plan.md', LF will be replaced by CRLF the next time Git touches it
+diff --git a/dioman/docs/design/pipeline-implementation-plan.md b/dioman/docs/design/pipeline-implementation-plan.md
+index 8582767..e46dbbd 100644
+--- a/dioman/docs/design/pipeline-implementation-plan.md
++++ b/dioman/docs/design/pipeline-implementation-plan.md
+@@ -24,6 +24,7 @@ summary: B0–B7 分批、每批的完成标准、Codex 派发约束、终审关
+ | B7 验收 | 执行器改用新 API；testkit 侧补 `raw-business-code` 能力名与 axp 反馈的两处（`basic.status-matrix` blackhole 档缺超时、`cancel_after_ms` 未声明 `cancel`）；新服务端实例全量跑；证据回填总账 | 测试方案 §7 的通过标准；G4 只剩 connect 超时；验收报告 |
+ 
+ - 批次线性推进，不并行：B2–B4 共用 `test/support/` 夹具和组合用例。
++- **B5 拆成两次派发**（B4 终审后定）：B5a 做 powerset、成对组合补齐与 `lib/src/pipeline/` 逐文件覆盖，不删任何文件；B5b 做删除与切换。删除旧源码会让执行器、example、key 对照测试、旧版 bench 失去编译对象，所以 **执行器改用新 API 从 B7 提前到 B5b**；key 对照测试先导出旧版结果作固定基准；旧版 bench 改从旧提交的临时 worktree 运行，供 B6 交错对比。B7 只剩 testkit 侧补能力与全量验收。
+ - 每批报告放 `docs/reports/2026-10-29-pipeline-b<n>.md`，结构：TL;DR → 文件清单 → 验收（逐条命令与输出摘要、覆盖率逐文件计数）→ 本批 API id → 迁移清单对账 → 规格不清与保守取舍（需终审确认的单列）→ 终审修复（问题、修法、回归用例；撤掉修复后回归用例会失败）。
+ 
+ ## 2. 每批工作方式
+import 'dart:async';
+import 'package:dioman/pipeline.dart';
+import 'package:dio/dio.dart';
+import 'package:test/test.dart';
+import 'b3_helpers.dart';
+import 'fake_clock.dart';
+import 'fake_network.dart';
+import 'helpers.dart';
+import 'invariant_harness.dart';
+
+/// loading 插件在组合表中的名称。
+const loadingName = 'loading';
+
+/// notify 插件在组合表中的名称。
+const notifyName = 'notify';
+
+/// retry 插件在组合表中的名称。
+const retryName = 'retry';
+
+/// breaker 插件在组合表中的名称。
+const breakerName = 'breaker';
+
+/// auth 插件在组合表中的名称。
+const authName = 'auth';
+
+/// mock 插件在组合表中的名称。
+const mockName = 'mock';
+
+/// share 插件在组合表中的名称。
+const shareName = 'share';
+
+/// cache 插件在组合表中的名称。
+const cacheName = 'cache';
+
+/// offline 插件在组合表中的名称。
+const offlineName = 'offline';
+
+/// repath 插件在组合表中的名称。
+const repathName = 'repath';
+
+/// filter 插件在组合表中的名称。
+const filterName = 'filter';
+
+/// timeout 插件在组合表中的名称。
+const timeoutName = 'timeout';
+
+/// envs 插件在组合表中的名称。
+const envsName = 'envs';
+
+/// 九个独立安装的交互插件，无真实安装依赖。
+const interactionNames = [
+  loadingName,
+  notifyName,
+  retryName,
+  breakerName,
+  authName,
+  mockName,
+  shareName,
+  cacheName,
+  offlineName
+];
+
+/// 全集掩码及子集规模。
+const subsetCount = 512;
+
+/// 流程共用地址与网络时间。
+const flowPath = '/powerset';
+const mockUrl = 'https://mock.test';
+const tick = Duration(milliseconds: 10);
+const flowGet = 'GET';
+const flowCode = 'code';
+const flowData = 'data';
+const flowItems = 'items';
+const flowN = 'n';
+const flowKey = 'same';
+
+/// 位掩码枚举；合成依赖表也走同一实现。
+List<int> subsets(int size, [Map<int, Set<int>> needs = const {}]) => [
+      for (var mask = 0; mask < 1 << size; mask++)
+        if (needs.entries.every((e) =>
+            mask & (1 << e.key) == 0 ||
+            e.value.every((i) => mask & (1 << i) != 0)))
+          mask
+    ];
+
+/// 流程和无插件时逐调用的类别；类别断言只在独立 baseline 中使用。
+enum PowerFlow {
+  success([DiomanKind.ok, DiomanKind.ok]),
+  http([DiomanKind.http]),
+  flaky([DiomanKind.http]),
+  auth([DiomanKind.biz, DiomanKind.biz, DiomanKind.biz]),
+  network([DiomanKind.network]),
+  concurrent([DiomanKind.ok, DiomanKind.ok]),
+  cancelAll([DiomanKind.cancel, DiomanKind.cancel]),
+  cancelLeader([DiomanKind.cancel, DiomanKind.ok]),
+  recovery([DiomanKind.ok, DiomanKind.ok]);
+
+  const PowerFlow(this.baseline);
+  final List<DiomanKind> baseline;
+}
+
+/// 每条用例独占网络、时钟、凭证、流、插件和调用记录。
+class PowerFixture {
+  PowerFixture(this.mask, this.flow) {
+    net = FakeNetwork(onSend: (send) {
+      final request = send.options;
+      final probe = request.path.startsWith(mockUrl);
+      final hit = ++realHits;
+      final status = probe
+          ? 404
+          : flow == PowerFlow.http || flow == PowerFlow.flaky && hit <= 2
+              ? 500
+              : 200;
+      if (probe) realHits--;
+      final gate = Completer<void>();
+      clock.createTimer(tick, gate.complete);
+      net.routes['${request.method}:${request.path}'] = [
+        FakeReply(
+          status: status,
+          body: {
+            flowCode: flow == PowerFlow.auth &&
+                    request.headers[b3Header] != 'Bearer $b3Fresh'
+                ? 401
+                : 0,
+            flowData: null
+          },
+          error: !probe && flow == PowerFlow.network
+              ? DioException(
+                  requestOptions: request,
+                  type: DioExceptionType.connectionError)
+              : null,
+          gate: gate.future,
+        )
+      ];
+    });
+    h = InvariantHarness(net, clock);
+    api = testClient(
+        network: net, clock: clock, plugins: [...h.probes(), ...plugins()]);
+    api.dio.transformer = B3Transformer();
+  }
+
+  final int mask;
+  final PowerFlow flow;
+  final clock = FakeClock();
+  final tokens = TestTokens();
+  final connectivity = StreamController<bool>.broadcast(sync: true);
+  late final FakeNetwork net;
+  late final InvariantHarness h;
+  late final Dioman<Result> api;
+  final requests = <Future<Result>>[];
+
+  /// 调用方刚离开时的订阅快照，避免最终 dispose 清表掩盖首发泄漏。
+  final leavingSubscriptions = <int>[];
+  bool online = true;
+  int realHits = 0;
+
+  /// 查询本次安装表。
+  bool has(String name) => mask & (1 << interactionNames.indexOf(name)) != 0;
+
+  /// 创建本次独占的插件对象。
+  List<DiomanPlugin<Result>> plugins() {
+    final factories = <String, DiomanPlugin<Result> Function()>{
+      loadingName: () => h.loadingPlugin(delayClose: tick),
+      notifyName: () => h.notifyPlugin(),
+      retryName: () =>
+          DiomanRetry<Result>(max: 2, delay: (_, __, ___) => Duration.zero),
+      breakerName: () => DiomanBreaker<Result>(failureThreshold: 2),
+      authName: () => b3Auth(tokens,
+          refresh: h.refreshInRound(0, (tm, r) async {
+            final gate = Completer<void>();
+            clock.createTimer(tick, gate.complete);
+            await gate.future;
+            tm.setTokens(accessToken: b3Fresh);
+          })),
+      mockName: () => DiomanMock<Result>(mockUrl: mockUrl),
+      shareName: () => DiomanShare<Result>(),
+      cacheName: () => DiomanCache<Result>(),
+      offlineName: () => DiomanOffline<Result>(
+          isOnline: () => online, onConnectivityChanged: connectivity.stream),
+    };
+    return [
+      for (final name in interactionNames)
+        if (has(name)) factories[name]!()
+    ];
+  }
+
+  /// 登记嵌套载荷与逻辑请求标记；同 key 请求不靠标记参与构键。
+  void launch({String key = flowKey, CancelToken? token}) {
+    final id = requests.length + 1;
+    requests.add(h.track(
+        id,
+        api
+            .send<dynamic>(flowGet, flowPath,
+                data: {
+                  flowItems: [
+                    {flowN: 0}
+                  ]
+                },
+                call: DiomanCall(key: key, cancelToken: token, headers: {
+                  invariantRequestHeader: id
+                }, options: {
+                  DiomanShare.option: true,
+                  DiomanCache.option: true,
+                }))
+            .whenComplete(() {
+          leavingSubscriptions.add(h.contexts
+              .singleWhere((ctx) => ctx.id == id)
+              .cancellationSubscriptions);
+        })));
+  }
+
+  /// 让网络到达阻塞点，只推进微任务和事件队列。
+  Future<void> turn() async {
+    await b3Turn();
+    await b3Turn();
+  }
+
+  /// 有上限地驱动假时间；超出预算明确失败而不是永久挂起。
+  Future<void> drain() async {
+    var done = false;
+    final pending = Future.wait(requests);
+    pending.then<void>((_) => done = true,
+        onError: (Object e, StackTrace s) => done = true);
+    for (var i = 0; i < 100 && !done; i++) {
+      await turn();
+      clock.elapse(tick);
+    }
+    expect(done, isTrue, reason: '假时钟流程必须有界落定');
+    await pending;
+    for (var i = 0; i < 4; i++) {
+      await turn();
+      clock.elapse(tick);
+    }
+  }
+
+  /// 九条流程只发请求、改变连接状态、取消和推进假时钟。
+  Future<void> run() async {
+    switch (flow) {
+      case PowerFlow.success:
+        launch();
+        await drain();
+        launch();
+      case PowerFlow.auth:
+        if (has(authName)) h.beginRefreshRound(0);
+        launch();
+        launch();
+        launch(key: 'other');
+      case PowerFlow.concurrent:
+        launch();
+        launch();
+      case PowerFlow.cancelAll:
+        launch();
+        launch();
+        await turn();
+        api.cancelAll();
+      case PowerFlow.cancelLeader:
+        final token = CancelToken();
+        launch(token: token);
+        launch();
+        await turn();
+        token.cancel();
+      case PowerFlow.recovery:
+        online = false;
+        launch();
+        launch();
+        await turn();
+        clock.elapse(Duration.zero);
+        online = true;
+        connectivity.add(true);
+      case PowerFlow.http:
+      case PowerFlow.flaky:
+      case PowerFlow.network:
+        launch();
+    }
+    await drain();
+  }
+
+  /// 正常收尾即检查内部诊断，再清缓存与销毁，最后再检查一次。
+  Future<void> check() async {
+    h.assertAll(api);
+    expect(leavingSubscriptions, everyElement(0), reason: 'I3 离开当时已摘监听');
+    final cache = api.plugin<DiomanCacheApi>();
+    final share = api.plugin<DiomanShareApi>();
+    expect(share?.activeEntries ?? 0, 0);
+    expect(cache?.pendingWrites ?? 0, 0);
+    await cache?.clear();
+    expect(cache?.entryCount ?? 0, 0);
+    expect(cache?.pendingWrites ?? 0, 0);
+    api.dispose();
+    expect(share?.activeEntries ?? 0, 0);
+    expect(cache?.entryCount ?? 0, 0);
+    expect(cache?.pendingWrites ?? 0, 0);
+  }
+
+  /// 失败时也释放流和客户端。
+  Future<void> dispose() async {
+    api.dispose();
+    await connectivity.close();
+  }
+}
+import 'package:test/test.dart';
+import '../support/pipeline/b5_powerset.dart';
+
+/// 位掩码、脚本 baseline 和真正的 512 × 9 不变量组合。
+void main() {
+  final masks = subsets(interactionNames.length);
+  const title = '[DiomanPlugin powerset]';
+  test('$title 子集唯一且含空集与全集', () {
+    expect(masks.toSet().length, masks.length);
+    expect(masks, containsAll([0, subsetCount - 1]));
+  });
+  test('$title 恰好九个交互插件与 512 子集', () {
+    expect(interactionNames.length, 9);
+    expect(masks.length, subsetCount);
+  });
+  test('$title 依赖缺失的子集不生成', () {
+    expect(
+        subsets(2, {
+          1: {0}
+        }),
+        [0, 1, 3]);
+  });
+  for (final flow in PowerFlow.values) {
+    test('$title baseline ${flow.name}', () async {
+      final f = PowerFixture(0, flow);
+      try {
+        await f.run();
+        expect(
+            (await Future.wait(f.requests)).map((r) => r.kind), flow.baseline);
+        await f.check();
+      } finally {
+        await f.dispose();
+      }
+    });
+  }
+  for (final mask in masks) {
+    for (final flow in PowerFlow.values) {
+      test('$title mask=$mask ${flow.name}', () async {
+        final f = PowerFixture(mask, flow);
+        try {
+          await f.run();
+          await f.check();
+        } finally {
+          await f.dispose();
+        }
+      });
+    }
+  }
+}
+
+exec
+"C:\\Users\\jelon\\AppData\\Local\\Microsoft\\WindowsApps\\Microsoft.PowerShell_8wekyb3d8bbwe\\pwsh.exe" -Command 'Get-Content test/combo/prepare_pairs_combo_test.dart; Get-Content tool/pipeline_b5a_coverage.py; Get-Content tool/pipeline_b5a_mutations.py' in E:\workspaces\dart-labs-pipeline\dioman
+ succeeded in 1196ms:
+import 'dart:async';
+import 'package:dioman/pipeline.dart';
+import 'package:dio/dio.dart';
+import 'package:test/test.dart';
+import '../support/pipeline/b3_helpers.dart';
+import '../support/pipeline/b5_powerset.dart';
+import '../support/pipeline/fake_clock.dart';
+import '../support/pipeline/fake_network.dart';
+import '../support/pipeline/helpers.dart';
+
+/// 只做请求整形的四项；envs 只在 setup 合并配置。
+const prepareNames = [repathName, filterName, timeoutName, envsName];
+const pairPath = '/pairs/{id}';
+const shapedPath = '/pairs/7';
+const pairId = 'id';
+const pairEmpty = 'empty';
+const pairKeep = 'keep';
+const pairEnv = 'x-pair-env';
+const pairUrl = 'https://pairs.test';
+const pairTimeout = Duration(seconds: 7);
+
+/// 四个整形项与其它插件共 42 对，全部检查真实 adapter 收到的配置。
+void main() {
+  final names = [...interactionNames, ...prepareNames];
+  for (var i = 0; i < names.length; i++) {
+    for (var j = i + 1; j < names.length; j++) {
+      final pair = [names[i], names[j]];
+      if (!pair.any(prepareNames.contains)) continue;
+      test('[DiomanPlugin pairs] ${pair.join('+')} 补丁穿透发送', () async {
+        final clock = FakeClock();
+        final stream = StreamController<bool>.broadcast(sync: true);
+        final net = FakeNetwork();
+        final events = <bool>[];
+        final factories = <String, DiomanPlugin<Result> Function()>{
+          loadingName: () => DiomanLoading(onChanged: events.add),
+          notifyName: () => DiomanNotify(notify: (_, __) {}),
+          retryName: () =>
+              DiomanRetry(max: 2, delay: (_, __, ___) => Duration.zero),
+          breakerName: () => DiomanBreaker(),
+          authName: () => b3Auth(TestTokens()),
+          mockName: () => DiomanMock(mockUrl: mockUrl),
+          shareName: () => DiomanShare(),
+          cacheName: () => DiomanCache(),
+          offlineName: () => DiomanOffline(
+              isOnline: () => true, onConnectivityChanged: stream.stream),
+          repathName: () => DiomanRepath(),
+          filterName: () => DiomanFilter(),
+          timeoutName: () =>
+              DiomanTimeout(probe: () => NetworkQuality.good, timeouts: {
+                NetworkQuality.good: DiomanTimeouts(
+                    connect: pairTimeout,
+                    send: pairTimeout,
+                    receive: pairTimeout)
+              }),
+          envsName: () => DiomanEnvs([
+                EnvRule(
+                    rule: () => true,
+                    config:
+                        BaseOptions(baseUrl: pairUrl, headers: {pairEnv: 1}))
+              ]),
+        };
+        final path = pair.contains(repathName) ? shapedPath : pairPath;
+        final probePath = '$mockUrl${Uri(path: path).path}';
+        net.routes['$flowGet:$probePath'] = [FakeReply(status: 404)];
+        final api = testClient(
+            network: net,
+            clock: clock,
+            plugins: [for (final name in pair.reversed) factories[name]!()]);
+        try {
+          final response = await api.send<dynamic>(flowGet, pairPath,
+              query: {pairId: 7, pairEmpty: null},
+              data: {pairEmpty: null, pairKeep: 1},
+              call: DiomanCall(options: {
+                DiomanShare.option: true,
+                DiomanCache.option: true,
+              }));
+          expect(response.ok, isTrue);
+          expect(net.sends.length, pair.contains(mockName) ? 2 : 1);
+          for (final send in net.sends) {
+            final probe = send.options.path.startsWith(mockUrl);
+            expect(send.options.path, probe ? probePath : path);
+            expect(send.options.queryParameters, {
+              if (!pair.contains(repathName)) pairId: 7,
+              if (!pair.contains(filterName)) pairEmpty: null,
+            });
+            expect(send.body, {
+              if (!pair.contains(filterName)) pairEmpty: null,
+              pairKeep: 1,
+            });
+            // start 共享传输按 B4 契约清除 Dio 超时，订阅者保留自己的超时。
+            final timeout = pair.contains(shareName)
+                ? Duration.zero
+                : pair.contains(timeoutName)
+                    ? pairTimeout
+                    : null;
+            expect(send.options.connectTimeout, timeout);
+            expect(send.options.sendTimeout, timeout);
+            expect(send.options.receiveTimeout, timeout);
+            if (pair.contains(envsName)) {
+              expect(send.options.headers[pairEnv], 1);
+              expect(send.options.uri.host,
+                  probe ? Uri.parse(mockUrl).host : Uri.parse(pairUrl).host);
+            }
+          }
+          expect(api.pending, 0);
+          expect(clock.pendingTimers, 0);
+        } finally {
+          api.dispose();
+          await stream.close();
+        }
+      });
+    }
+  }
+}
+"""按磁盘上的全部 pipeline 源文件复算 LCOV，不沿用分批白名单。"""
+from pathlib import Path
+import json
+import sys
+
+ROOT = Path(__file__).resolve().parents[1]
+DEST = ROOT / 'docs/reports/pipeline-b5a-evidence'
+SOURCE = ROOT / 'lib/src/pipeline'
+
+
+def inspect(path):
+    """拒绝缺文件、重复 SF 和未覆盖计数；纯声明单独列明，不宣称空分母百分比。"""
+    files = {p.relative_to(SOURCE).as_posix(): p for p in SOURCE.rglob('*.dart')}
+    declarations = {
+        'token_manager.dart': 'abstract interface class DiomanTokenManager',
+        'cache_store.dart': 'abstract interface class DiomanCachePersist',
+        'stages.dart': 'const diomanBuiltinStages',
+    }
+    found = {}
+    for block in path.read_text(encoding='utf-8').split('end_of_record'):
+        lines = block.splitlines()
+        source = next((s[3:].replace('\\', '/') for s in lines if s.startswith('SF:')), '')
+        marker = '/lib/src/pipeline/'
+        if marker not in source:
+            continue
+        name = source.split(marker)[1]
+        assert name in files and name not in found, name
+        rows = [s[3:].split(',') for s in lines if s.startswith('DA:')]
+        branches = [s[5:].split(',') for s in lines if s.startswith('BRDA:')]
+        counts = [len(rows), sum(int(r[1]) > 0 for r in rows),
+                  len(branches), sum(r[3] != '-' and int(r[3]) > 0 for r in branches)]
+        found[name] = counts
+        missed = [r for r in rows if int(r[1]) == 0]
+        missed += [r for r in branches if r[3] == '-' or int(r[3]) == 0]
+        assert not missed, (name, missed)
+        for key, count in zip(('LF', 'LH', 'BRF', 'BRH'), counts):
+            summary = [int(s.split(':')[1]) for s in lines if s.startswith(key + ':')]
+            assert not summary or summary == [count], (name, key)
+    assert set(files) - set(found) <= set(declarations), set(files) - set(found)
+    for name, marker in declarations.items():
+        source = files[name].read_text(encoding='utf-8')
+        assert marker in source
+        # 与磁盘全部源文件一一对照；声明文件不得偷偷产生未计数的方法体。
+        code = '\n'.join(s for s in source.splitlines() if not s.lstrip().startswith('///'))
+        assert '=>' not in code and 'return ' not in code, name
+        found.setdefault(name, [0, 0, 0, 0])
+    assert set(found) == set(files)
+    print('file LF LH BRF BRH')
+    for name, counts in sorted(found.items()):
+        assert name in declarations or counts[0] > 0, name
+        print(name, *counts)
+    (DEST / 'coverage.json').write_text(json.dumps(found, indent=2) + '\n', encoding='utf-8')
+    print(f'{len(files)} source files accounted for; all executable lines/branches 100%; PASS')
+    print('cache_store/token_manager: abstract contracts; stages: enums/const tables; no executable denominator')
+
+
+if __name__ == '__main__':
+    inspect(ROOT / (sys.argv[1] if len(sys.argv) > 1 else
+                   'docs/reports/pipeline-b5a-evidence/coverage.info'))
+"""只跑 powerset 的七项变异，按 JSON testDone 事件统计实际失败条数。"""
+import hashlib
+import json
+from pathlib import Path
+import shutil
+import subprocess
+import time
+
+ROOT = Path(__file__).resolve().parents[1]
+DEST = ROOT / 'docs/reports/pipeline-b5a-evidence'
+TEST = 'test/combo/powerset_combo_test.dart'
+CASES = [
+    ('leave-listener', 'context', 'state.listeners.remove(cancel);', ''),
+    ('loading-close', 'plugins/loading', 'fn(visible);', 'if (visible) fn(visible);'),
+    ('notify-double', 'plugins/notify',
+     'if (text.isNotEmpty) config.notify(text, result);',
+     'if (text.isNotEmpty) { config.notify(text, result); config.notify(text, result); }'),
+    ('auth-singleflight', 'plugins/auth',
+     'return _refreshing ??= (() async {', 'return (() async {'),
+    ('retry-replayable', 'plugins/retry', 'ctx.markReplayable();', ''),
+    ('cache-barrier', 'plugins/cache',
+     'if (--barrier.pending == 0) barriers.remove(key);', 'barrier.pending--;'),
+    ('mock-replayable', 'plugins/mock', 'ctx.markReplayable();', ''),
+]
+
+
+def run():
+    """逐项原字节恢复，不把编译、加载错误或超时当成击中。"""
+    results = []
+    for name, module, old, new in CASES:
+        path = ROOT / f'lib/src/pipeline/{module}.dart'
+        original = path.read_bytes()
+        digest = hashlib.sha256(original).hexdigest()
+        source = original.decode('utf-8').replace('\r\n', '\n')
+        assert source.count(old) == 1, (name, source.count(old))
+        start = time.perf_counter()
+        try:
+            path.write_text(source.replace(old, new), encoding='utf-8')
+            proc = subprocess.run([shutil.which('dart'), 'test', TEST,
+                                   '--reporter', 'json', '--timeout', '10s'],
+                                  cwd=ROOT, capture_output=True, text=True,
+                                  encoding='utf-8', errors='replace', timeout=120)
+            output = proc.stdout + proc.stderr
+            (DEST / f'mutation-{name}.jsonl').write_text(output, encoding='utf-8')
+            events = [json.loads(s) for s in proc.stdout.splitlines() if s.startswith('{')]
+            failures = [e for e in events if e.get('type') == 'testDone'
+                        and e.get('result') in ('failure', 'error')]
+            tests = {e['test']['id']: e['test']['name'] for e in events if e.get('type') == 'testStart'}
+            powerset = [e for e in failures if ' mask=' in tests[e['testID']]]
+            assert proc.returncode != 0 and powerset, name
+            assert not any(s in output for s in ('Failed to load', 'Compilation failed',
+                                                  'Test timed out')), name
+        finally:
+            path.write_bytes(original)
+        restored = hashlib.sha256(path.read_bytes()).hexdigest()
+        assert restored == digest, name
+        results.append(dict(mutation=name, source=str(path.relative_to(ROOT)),
+                            test=TEST, failures=len(failures), powerset_failures=len(powerset),
+                            baseline_failures=len(failures)-len(powerset),
+                            seconds=round(time.perf_counter()-start, 3),
+                            before_sha256=digest, restored_sha256=restored))
+        (DEST / 'mutations.json').write_text(json.dumps(results, ensure_ascii=False,
+                                                      indent=2)+'\n', encoding='utf-8')
+        print(f'{name}: powerset failures={len(powerset)}; source restored; PASS', flush=True)
+
+
+if __name__ == '__main__':
+    run()
+
+exec
+"C:\\Users\\jelon\\AppData\\Local\\Microsoft\\WindowsApps\\Microsoft.PowerShell_8wekyb3d8bbwe\\pwsh.exe" -Command 'Get-Content docs/reports/2026-10-29-pipeline-b5a.md; Get-ChildItem docs/reports/pipeline-b5a-evidence | Select-Object Name,Length; Get-Content test/support/pipeline/invariant_harness.dart; Get-Content test/support/pipeline/fake_network.dart; Get-Command dart -ErrorAction SilentlyContinue' in E:\workspaces\dart-labs-pipeline\dioman
+ succeeded in 797ms:
+---
+title: dioman 洋葱管线 B5a powerset、成对组合与全库覆盖率
+status: review
+updated: 2026-10-29
+summary: 九插件 512 子集乘九流程、独立 baseline、78 对组合清单、27 文件全覆盖与七项 powerset 变异证据
+---
+
+## TL;DR
+
+- 本批只补 B5a 测试与证据；没有删除旧文件、切换入口、转派、commit/push/切分支。保留会话开始前已有的 `docs/design/pipeline-implementation-plan.md` 修改。
+- powerset 为 **512 × 9 = 4,608** 条不变量测试，另有九条 baseline 和三条元测试，共 **4,620** 条。最终独立运行器计时 4 秒，包含启动开销的墙钟 **7.3630882 秒**，低于两分钟。
+- 实际源码是 **13 个插件 = 12 个中间件 + setup-only envs**，因此全对表为 78 对：九个交互插件的 36 对由 powerset 覆盖，新增请求整形用例覆盖其余 42 对。按只数中间件的口径则为 66 对；另外 12 对属于 envs。
+- 磁盘全部 **27 文件**逐一对账，24 个可执行文件行/分支均 100%；其余三项纯声明明确列出无分母。未加忽略注释、未新增依赖、未修改库实现。
+- 七项变异只跑 powerset，全部产生运行期断言失败；每项 finally 恢复原字节，前后 SHA256 一致。
+
+## 文件清单
+
+| 文件 | 内容 |
+|---|---|
+| `test/combo/powerset_combo_test.dart` | 512 子集 × 九流程、九 baseline、三元测试 |
+| `test/support/pipeline/b5_powerset.dart` | 工厂表、独占夹具、假时间驱动、离开时订阅快照、cache/share 内部诊断 |
+| `test/combo/prepare_pairs_combo_test.dart` | repath/filter/timeout/envs 与其它插件共 42 对，实际发送配置断言 |
+| `tool/pipeline_b5a_coverage.py` | 从磁盘枚举全部新库文件、复算 DA/BRDA、拒绝漏计文件 |
+| `tool/pipeline_b5a_mutations.py` | 七项 powerset-only 变异，JSON 事件统计失败条数、逐项恢复哈希 |
+| `docs/reports/2026-10-29-pipeline-b5a.md` | 本报告 |
+| `docs/reports/pipeline-b5a-evidence/` | 原始命令输出、LCOV、计数、完整组合表、变异 JSON 事件与哈希、审查与范围核对 |
+
+## powerset 与 baseline
+
+九个交互插件按 `interactionNames` 与工厂表生成，每次运行重新创建插件配置、实例、网络、时钟、凭证及广播流。九者均可独立安装，不存在必须先安装其它插件的真实依赖；枚举支持依赖约束，合成表要求第二项依赖第一项，证实掩码 2 不生成。元测试另验证子集互异、包含空/全集、恰好 512。
+
+| 流程 | 不装插件时逐请求 kind |
+|---|---|
+| 成功并再请求一次 | ok, ok |
+| HTTP 500 | http |
+| 500 两次后成功 | http |
+| business 401：三个并发、两个同 key | biz, biz, biz |
+| 网络错误 | network |
+| 并发同 key | ok, ok |
+| 中途 cancelAll | cancel, cancel |
+| 首发取消，跟随者继续 | cancel, ok |
+| 离线后恢复 | ok, ok |
+
+baseline 单独核对类别；powerset 正文仅发请求、取消、改变连接状态与推进假时钟，统一收尾调用 `InvariantHarness.assertAll()` 检查 I1–I7。不在 powerset 中按插件组合硬编码返回类别。breaker 阈值 2 会在连续失败时打开，因此 flaky 流程在装 breaker 时可能被熔断，这不改变该层只检查不变量的职责。
+
+mock 探测固定 404 后回落，不消费真实接口失败序号；auth 的 onRefresh 经 refreshInRound 包装，开始轮次先登记零，以便零次或多次刷新均失败。刷新也用假时钟阻塞，保证并发窗口可见。retry max=2、delay=0；请求使用 GET 携带嵌套 Map/List，B3Transformer 原地修改内层 n，以线上编码快照检查 I7，且 retry/mock 各有独立变异证据。
+
+I3 除最终 pending/取消订阅/计时器归零，还保存每个调用方刚离开时的订阅数，抓住最终 state.dispose 清表前的首发监听泄漏。cache 的 pendingWrites/entryCount 与 share 的 activeEntries 读取实际内部诊断；请求收尾后先检查屏障/活动表，cache.clear 后与 api.dispose 后再检查为空。
+
+假传输只使用每次 10ms 的 FakeClock gate；没有真实网络或定时 sleep。事件轮用于排空 Dio 的异步转换与 auth 的强制异步入口，有限 100 轮排空预算防止挂起。
+
+## 成对组合补齐
+
+整形用例故意反向安装两插件，按最终线上配置检查固定阶段顺序：repath 消费 id、filter 清空值、timeout 写三项超时、envs 修改 baseUrl/头。mock 的 probe 和回落都检查；共享底层三超时为零是 B4 已裁决的行为。首轮三条 mock 整形夹具误把未编码花括号作为探测路由，修正为 URI 编码路径；原始失败输出保留在 initial-pairs.txt，没有修改 mock 实现。
+
+以下逐对给出实际生成的用例，完整副本见 [pairs.md](pipeline-b5a-evidence/pairs.md)。
+
+| 插件对 | 覆盖用例 | 范围 / 无时序交互理由 |
+|---|---|---|
+| loading + notify | `powerset_combo_test.dart` — `[DiomanPlugin powerset] mask=3` × 全部九流程 | 存在时序交互；独立二元子集及所有包含该对的更大子集均检查 I1–I7 |
+| loading + retry | `powerset_combo_test.dart` — `[DiomanPlugin powerset] mask=5` × 全部九流程 | 存在时序交互；独立二元子集及所有包含该对的更大子集均检查 I1–I7 |
+| loading + breaker | `powerset_combo_test.dart` — `[DiomanPlugin powerset] mask=9` × 全部九流程 | 存在时序交互；独立二元子集及所有包含该对的更大子集均检查 I1–I7 |
+| loading + auth | `powerset_combo_test.dart` — `[DiomanPlugin powerset] mask=17` × 全部九流程 | 存在时序交互；独立二元子集及所有包含该对的更大子集均检查 I1–I7 |
+| loading + mock | `powerset_combo_test.dart` — `[DiomanPlugin powerset] mask=33` × 全部九流程 | 存在时序交互；独立二元子集及所有包含该对的更大子集均检查 I1–I7 |
+| loading + share | `powerset_combo_test.dart` — `[DiomanPlugin powerset] mask=65` × 全部九流程 | 存在时序交互；独立二元子集及所有包含该对的更大子集均检查 I1–I7 |
+| loading + cache | `powerset_combo_test.dart` — `[DiomanPlugin powerset] mask=129` × 全部九流程 | 存在时序交互；独立二元子集及所有包含该对的更大子集均检查 I1–I7 |
+| loading + offline | `powerset_combo_test.dart` — `[DiomanPlugin powerset] mask=257` × 全部九流程 | 存在时序交互；独立二元子集及所有包含该对的更大子集均检查 I1–I7 |
+| loading + repath | `prepare_pairs_combo_test.dart` — `[DiomanPlugin pairs] loading+repath 补丁穿透发送` | 无额外时序策略；核对 path/query/body/三超时及 envs 配置实际到达 adapter |
+| loading + filter | `prepare_pairs_combo_test.dart` — `[DiomanPlugin pairs] loading+filter 补丁穿透发送` | 无额外时序策略；核对 path/query/body/三超时及 envs 配置实际到达 adapter |
+| loading + timeout | `prepare_pairs_combo_test.dart` — `[DiomanPlugin pairs] loading+timeout 补丁穿透发送` | 无额外时序策略；核对 path/query/body/三超时及 envs 配置实际到达 adapter |
+| loading + envs | `prepare_pairs_combo_test.dart` — `[DiomanPlugin pairs] loading+envs 补丁穿透发送` | 无额外时序策略；核对 path/query/body/三超时及 envs 配置实际到达 adapter |
+| notify + retry | `powerset_combo_test.dart` — `[DiomanPlugin powerset] mask=6` × 全部九流程 | 存在时序交互；独立二元子集及所有包含该对的更大子集均检查 I1–I7 |
+| notify + breaker | `powerset_combo_test.dart` — `[DiomanPlugin powerset] mask=10` × 全部九流程 | 存在时序交互；独立二元子集及所有包含该对的更大子集均检查 I1–I7 |
+| notify + auth | `powerset_combo_test.dart` — `[DiomanPlugin powerset] mask=18` × 全部九流程 | 存在时序交互；独立二元子集及所有包含该对的更大子集均检查 I1–I7 |
+| notify + mock | `powerset_combo_test.dart` — `[DiomanPlugin powerset] mask=34` × 全部九流程 | 存在时序交互；独立二元子集及所有包含该对的更大子集均检查 I1–I7 |
+| notify + share | `powerset_combo_test.dart` — `[DiomanPlugin powerset] mask=66` × 全部九流程 | 存在时序交互；独立二元子集及所有包含该对的更大子集均检查 I1–I7 |
+| notify + cache | `powerset_combo_test.dart` — `[DiomanPlugin powerset] mask=130` × 全部九流程 | 存在时序交互；独立二元子集及所有包含该对的更大子集均检查 I1–I7 |
+| notify + offline | `powerset_combo_test.dart` — `[DiomanPlugin powerset] mask=258` × 全部九流程 | 存在时序交互；独立二元子集及所有包含该对的更大子集均检查 I1–I7 |
+| notify + repath | `prepare_pairs_combo_test.dart` — `[DiomanPlugin pairs] notify+repath 补丁穿透发送` | 无额外时序策略；核对 path/query/body/三超时及 envs 配置实际到达 adapter |
+| notify + filter | `prepare_pairs_combo_test.dart` — `[DiomanPlugin pairs] notify+filter 补丁穿透发送` | 无额外时序策略；核对 path/query/body/三超时及 envs 配置实际到达 adapter |
+| notify + timeout | `prepare_pairs_combo_test.dart` — `[DiomanPlugin pairs] notify+timeout 补丁穿透发送` | 无额外时序策略；核对 path/query/body/三超时及 envs 配置实际到达 adapter |
+| notify + envs | `prepare_pairs_combo_test.dart` — `[DiomanPlugin pairs] notify+envs 补丁穿透发送` | 无额外时序策略；核对 path/query/body/三超时及 envs 配置实际到达 adapter |
+| retry + breaker | `powerset_combo_test.dart` — `[DiomanPlugin powerset] mask=12` × 全部九流程 | 存在时序交互；独立二元子集及所有包含该对的更大子集均检查 I1–I7 |
+| retry + auth | `powerset_combo_test.dart` — `[DiomanPlugin powerset] mask=20` × 全部九流程 | 存在时序交互；独立二元子集及所有包含该对的更大子集均检查 I1–I7 |
+| retry + mock | `powerset_combo_test.dart` — `[DiomanPlugin powerset] mask=36` × 全部九流程 | 存在时序交互；独立二元子集及所有包含该对的更大子集均检查 I1–I7 |
+| retry + share | `powerset_combo_test.dart` — `[DiomanPlugin powerset] mask=68` × 全部九流程 | 存在时序交互；独立二元子集及所有包含该对的更大子集均检查 I1–I7 |
+| retry + cache | `powerset_combo_test.dart` — `[DiomanPlugin powerset] mask=132` × 全部九流程 | 存在时序交互；独立二元子集及所有包含该对的更大子集均检查 I1–I7 |
+| retry + offline | `powerset_combo_test.dart` — `[DiomanPlugin powerset] mask=260` × 全部九流程 | 存在时序交互；独立二元子集及所有包含该对的更大子集均检查 I1–I7 |
+| retry + repath | `prepare_pairs_combo_test.dart` — `[DiomanPlugin pairs] retry+repath 补丁穿透发送` | 无额外时序策略；核对 path/query/body/三超时及 envs 配置实际到达 adapter |
+| retry + filter | `prepare_pairs_combo_test.dart` — `[DiomanPlugin pairs] retry+filter 补丁穿透发送` | 无额外时序策略；核对 path/query/body/三超时及 envs 配置实际到达 adapter |
+| retry + timeout | `prepare_pairs_combo_test.dart` — `[DiomanPlugin pairs] retry+timeout 补丁穿透发送` | 无额外时序策略；核对 path/query/body/三超时及 envs 配置实际到达 adapter |
+| retry + envs | `prepare_pairs_combo_test.dart` — `[DiomanPlugin pairs] retry+envs 补丁穿透发送` | 无额外时序策略；核对 path/query/body/三超时及 envs 配置实际到达 adapter |
+| breaker + auth | `powerset_combo_test.dart` — `[DiomanPlugin powerset] mask=24` × 全部九流程 | 存在时序交互；独立二元子集及所有包含该对的更大子集均检查 I1–I7 |
+| breaker + mock | `powerset_combo_test.dart` — `[DiomanPlugin powerset] mask=40` × 全部九流程 | 存在时序交互；独立二元子集及所有包含该对的更大子集均检查 I1–I7 |
+| breaker + share | `powerset_combo_test.dart` — `[DiomanPlugin powerset] mask=72` × 全部九流程 | 存在时序交互；独立二元子集及所有包含该对的更大子集均检查 I1–I7 |
+| breaker + cache | `powerset_combo_test.dart` — `[DiomanPlugin powerset] mask=136` × 全部九流程 | 存在时序交互；独立二元子集及所有包含该对的更大子集均检查 I1–I7 |
+| breaker + offline | `powerset_combo_test.dart` — `[DiomanPlugin powerset] mask=264` × 全部九流程 | 存在时序交互；独立二元子集及所有包含该对的更大子集均检查 I1–I7 |
+| breaker + repath | `prepare_pairs_combo_test.dart` — `[DiomanPlugin pairs] breaker+repath 补丁穿透发送` | 无额外时序策略；核对 path/query/body/三超时及 envs 配置实际到达 adapter |
+| breaker + filter | `prepare_pairs_combo_test.dart` — `[DiomanPlugin pairs] breaker+filter 补丁穿透发送` | 无额外时序策略；核对 path/query/body/三超时及 envs 配置实际到达 adapter |
+| breaker + timeout | `prepare_pairs_combo_test.dart` — `[DiomanPlugin pairs] breaker+timeout 补丁穿透发送` | 无额外时序策略；核对 path/query/body/三超时及 envs 配置实际到达 adapter |
+| breaker + envs | `prepare_pairs_combo_test.dart` — `[DiomanPlugin pairs] breaker+envs 补丁穿透发送` | 无额外时序策略；核对 path/query/body/三超时及 envs 配置实际到达 adapter |
+| auth + mock | `powerset_combo_test.dart` — `[DiomanPlugin powerset] mask=48` × 全部九流程 | 存在时序交互；独立二元子集及所有包含该对的更大子集均检查 I1–I7 |
+| auth + share | `powerset_combo_test.dart` — `[DiomanPlugin powerset] mask=80` × 全部九流程 | 存在时序交互；独立二元子集及所有包含该对的更大子集均检查 I1–I7 |
+| auth + cache | `powerset_combo_test.dart` — `[DiomanPlugin powerset] mask=144` × 全部九流程 | 存在时序交互；独立二元子集及所有包含该对的更大子集均检查 I1–I7 |
+| auth + offline | `powerset_combo_test.dart` — `[DiomanPlugin powerset] mask=272` × 全部九流程 | 存在时序交互；独立二元子集及所有包含该对的更大子集均检查 I1–I7 |
+| auth + repath | `prepare_pairs_combo_test.dart` — `[DiomanPlugin pairs] auth+repath 补丁穿透发送` | 无额外时序策略；核对 path/query/body/三超时及 envs 配置实际到达 adapter |
+| auth + filter | `prepare_pairs_combo_test.dart` — `[DiomanPlugin pairs] auth+filter 补丁穿透发送` | 无额外时序策略；核对 path/query/body/三超时及 envs 配置实际到达 adapter |
+| auth + timeout | `prepare_pairs_combo_test.dart` — `[DiomanPlugin pairs] auth+timeout 补丁穿透发送` | 无额外时序策略；核对 path/query/body/三超时及 envs 配置实际到达 adapter |
+| auth + envs | `prepare_pairs_combo_test.dart` — `[DiomanPlugin pairs] auth+envs 补丁穿透发送` | 无额外时序策略；核对 path/query/body/三超时及 envs 配置实际到达 adapter |
+| mock + share | `powerset_combo_test.dart` — `[DiomanPlugin powerset] mask=96` × 全部九流程 | 存在时序交互；独立二元子集及所有包含该对的更大子集均检查 I1–I7 |
+| mock + cache | `powerset_combo_test.dart` — `[DiomanPlugin powerset] mask=160` × 全部九流程 | 存在时序交互；独立二元子集及所有包含该对的更大子集均检查 I1–I7 |
+| mock + offline | `powerset_combo_test.dart` — `[DiomanPlugin powerset] mask=288` × 全部九流程 | 存在时序交互；独立二元子集及所有包含该对的更大子集均检查 I1–I7 |
+| mock + repath | `prepare_pairs_combo_test.dart` — `[DiomanPlugin pairs] mock+repath 补丁穿透发送` | 无额外时序策略；核对 path/query/body/三超时及 envs 配置实际到达 adapter |
+| mock + filter | `prepare_pairs_combo_test.dart` — `[DiomanPlugin pairs] mock+filter 补丁穿透发送` | 无额外时序策略；核对 path/query/body/三超时及 envs 配置实际到达 adapter |
+| mock + timeout | `prepare_pairs_combo_test.dart` — `[DiomanPlugin pairs] mock+timeout 补丁穿透发送` | 无额外时序策略；核对 path/query/body/三超时及 envs 配置实际到达 adapter |
+| mock + envs | `prepare_pairs_combo_test.dart` — `[DiomanPlugin pairs] mock+envs 补丁穿透发送` | 无额外时序策略；核对 path/query/body/三超时及 envs 配置实际到达 adapter |
+| share + cache | `powerset_combo_test.dart` — `[DiomanPlugin powerset] mask=192` × 全部九流程 | 存在时序交互；独立二元子集及所有包含该对的更大子集均检查 I1–I7 |
+| share + offline | `powerset_combo_test.dart` — `[DiomanPlugin powerset] mask=320` × 全部九流程 | 存在时序交互；独立二元子集及所有包含该对的更大子集均检查 I1–I7 |
+| share + repath | `prepare_pairs_combo_test.dart` — `[DiomanPlugin pairs] share+repath 补丁穿透发送` | 无额外时序策略；核对 path/query/body/三超时及 envs 配置实际到达 adapter |
+| share + filter | `prepare_pairs_combo_test.dart` — `[DiomanPlugin pairs] share+filter 补丁穿透发送` | 无额外时序策略；核对 path/query/body/三超时及 envs 配置实际到达 adapter |
+| share + timeout | `prepare_pairs_combo_test.dart` — `[DiomanPlugin pairs] share+timeout 补丁穿透发送` | 遵从 B4：共享底层三超时清零；本用例核对底层值，订阅者独立超时另由 B4 回归覆盖 |
+| share + envs | `prepare_pairs_combo_test.dart` — `[DiomanPlugin pairs] share+envs 补丁穿透发送` | 无额外时序策略；核对 path/query/body/三超时及 envs 配置实际到达 adapter |
+| cache + offline | `powerset_combo_test.dart` — `[DiomanPlugin powerset] mask=384` × 全部九流程 | 存在时序交互；独立二元子集及所有包含该对的更大子集均检查 I1–I7 |
+| cache + repath | `prepare_pairs_combo_test.dart` — `[DiomanPlugin pairs] cache+repath 补丁穿透发送` | 无额外时序策略；核对 path/query/body/三超时及 envs 配置实际到达 adapter |
+| cache + filter | `prepare_pairs_combo_test.dart` — `[DiomanPlugin pairs] cache+filter 补丁穿透发送` | 无额外时序策略；核对 path/query/body/三超时及 envs 配置实际到达 adapter |
+| cache + timeout | `prepare_pairs_combo_test.dart` — `[DiomanPlugin pairs] cache+timeout 补丁穿透发送` | 无额外时序策略；核对 path/query/body/三超时及 envs 配置实际到达 adapter |
+| cache + envs | `prepare_pairs_combo_test.dart` — `[DiomanPlugin pairs] cache+envs 补丁穿透发送` | 无额外时序策略；核对 path/query/body/三超时及 envs 配置实际到达 adapter |
+| offline + repath | `prepare_pairs_combo_test.dart` — `[DiomanPlugin pairs] offline+repath 补丁穿透发送` | 无额外时序策略；核对 path/query/body/三超时及 envs 配置实际到达 adapter |
+| offline + filter | `prepare_pairs_combo_test.dart` — `[DiomanPlugin pairs] offline+filter 补丁穿透发送` | 无额外时序策略；核对 path/query/body/三超时及 envs 配置实际到达 adapter |
+| offline + timeout | `prepare_pairs_combo_test.dart` — `[DiomanPlugin pairs] offline+timeout 补丁穿透发送` | 无额外时序策略；核对 path/query/body/三超时及 envs 配置实际到达 adapter |
+| offline + envs | `prepare_pairs_combo_test.dart` — `[DiomanPlugin pairs] offline+envs 补丁穿透发送` | 无额外时序策略；核对 path/query/body/三超时及 envs 配置实际到达 adapter |
+| repath + filter | `prepare_pairs_combo_test.dart` — `[DiomanPlugin pairs] repath+filter 补丁穿透发送` | 无额外时序策略；核对 path/query/body/三超时及 envs 配置实际到达 adapter |
+| repath + timeout | `prepare_pairs_combo_test.dart` — `[DiomanPlugin pairs] repath+timeout 补丁穿透发送` | 无额外时序策略；核对 path/query/body/三超时及 envs 配置实际到达 adapter |
+| repath + envs | `prepare_pairs_combo_test.dart` — `[DiomanPlugin pairs] repath+envs 补丁穿透发送` | 无额外时序策略；核对 path/query/body/三超时及 envs 配置实际到达 adapter |
+| filter + timeout | `prepare_pairs_combo_test.dart` — `[DiomanPlugin pairs] filter+timeout 补丁穿透发送` | 无额外时序策略；核对 path/query/body/三超时及 envs 配置实际到达 adapter |
+| filter + envs | `prepare_pairs_combo_test.dart` — `[DiomanPlugin pairs] filter+envs 补丁穿透发送` | 无额外时序策略；核对 path/query/body/三超时及 envs 配置实际到达 adapter |
+| timeout + envs | `prepare_pairs_combo_test.dart` — `[DiomanPlugin pairs] timeout+envs 补丁穿透发送` | 无额外时序策略；核对 path/query/body/三超时及 envs 配置实际到达 adapter |
+
+## 验收与覆盖率
+
+覆盖率以 `dart test --coverage-path=docs/reports/pipeline-b5a-evidence/coverage.info --branch-coverage --reporter expanded` 生成；`python tool/pipeline_b5a_coverage.py` 从磁盘 rglob 全部源文件，拒绝重复 SF、缺文件、未命中 DA/BRDA，复算计数并与可用汇总核对。所有前批目标仍为 100%，本批同时确认 key/clock/plugin 等此前未列入分批门槛的文件也是 100%。
+
+| 文件（相对 lib/src/pipeline/） | LF | LH | BRF | BRH |
+|---|---:|---:|---:|---:|
+| cache_store.dart | 0 | 0 | 0 | 0 |
+| client.dart | 129 | 129 | 65 | 65 |
+| clock.dart | 5 | 5 | 3 | 3 |
+| config.dart | 36 | 36 | 22 | 22 |
+| context.dart | 78 | 78 | 44 | 44 |
+| key.dart | 54 | 54 | 27 | 27 |
+| options.dart | 10 | 10 | 8 | 8 |
+| pipeline.dart | 32 | 32 | 22 | 22 |
+| plugin.dart | 5 | 5 | 5 | 5 |
+| plugins/auth.dart | 122 | 122 | 59 | 59 |
+| plugins/breaker.dart | 112 | 112 | 48 | 48 |
+| plugins/cache.dart | 145 | 145 | 63 | 63 |
+| plugins/envs.dart | 11 | 11 | 8 | 8 |
+| plugins/filter.dart | 39 | 39 | 19 | 19 |
+| plugins/loading.dart | 58 | 58 | 32 | 32 |
+| plugins/mock.dart | 44 | 44 | 19 | 19 |
+| plugins/notify.dart | 19 | 19 | 12 | 12 |
+| plugins/offline.dart | 63 | 63 | 28 | 28 |
+| plugins/repath.dart | 50 | 50 | 23 | 23 |
+| plugins/retry.dart | 94 | 94 | 39 | 39 |
+| plugins/share.dart | 101 | 101 | 49 | 49 |
+| plugins/timeout.dart | 22 | 22 | 13 | 13 |
+| request.dart | 50 | 50 | 25 | 25 |
+| response.dart | 110 | 110 | 28 | 28 |
+| stages.dart | 0 | 0 | 0 | 0 |
+| token_manager.dart | 0 | 0 | 0 | 0 |
+| transport.dart | 18 | 18 | 11 | 11 |
+
+`cache_store.dart`、`token_manager.dart` 是纯抽象接口；`stages.dart` 只有枚举与 const 表，无可执行行/分支，运行器不生成 SF。三者逐一检查源文件存在与声明；0/0 不宣传成有执行分母的 100%。其余每文件均有非零计数。原始 [LCOV](pipeline-b5a-evidence/coverage.info)、[逐文件计数](pipeline-b5a-evidence/coverage.txt)、[JSON](pipeline-b5a-evidence/coverage.json)。
+
+最终命令输出待全部验收与审查完成后填入。
+
+## 变异价值证据
+
+命令：`python tool/pipeline_b5a_mutations.py`。七项每次只改新库一处，唯一测试目标是 powerset 文件。按 JSON 的 testDone 失败事件统计，单列 4,608 条组合测试与九 baseline 的失败数；不把同一用例多个断言或 error 事件重复计为多个失败测试。拒绝编译/加载失败与超时作为击中。
+
+| 变异 | powerset 失败条数 | baseline 额外失败 | SHA256 恢复 |
+|---|---:|---:|---|
+| leave-listener | 256 | 0 | 一致 |
+| loading-close | 2304 | 0 | 一致 |
+| notify-double | 832 | 0 | 一致 |
+| auth-singleflight | 256 | 0 | 一致 |
+| retry-replayable | 192 | 0 | 一致 |
+| cache-barrier | 2176 | 0 | 一致 |
+| mock-replayable | 512 | 0 | 一致 |
+
+leave-listener 删除 ctx.wait 离开时摘监听；loading-close 丢 false 通知；notify-double 对同一逻辑请求通知两次；auth-singleflight 取消刷新合并；retry-replayable 与 mock-replayable 分别撤掉 markReplayable；cache-barrier 不回收 finally 屏障。逐项修改前/恢复后 SHA256、退出与计数见 [mutations.json](pipeline-b5a-evidence/mutations.json)，完整事件在同目录 `mutation-*.jsonl`；[摘要](pipeline-b5a-evidence/mutation-summary.txt)。
+
+## 终审修复
+
+当前未发现新库真实缺陷，没有修改任何库文件；本批修正均限测试夹具。若自审发现成立问题，会在此补入回归与撤修证据。
+
+## codex review 发现与处理
+
+待运行并等待 `codex review --uncommitted` 最终结果。
+
+## 共存与范围
+
+未修改旧 lib、test_legacy、入口、pubspec/lock；不删除旧文件，B5b 才处理删除与切换。实际 SDK Dart 3.13.0，声明仍为 ^3.5.0，没有使用高于约束的语言特性，没有声称实测 Dart 3.5。axp 仅作只读参考。无 tool/__pycache__。
+
+最终 git 状态与最近提交待验收完成后记录。
+
+Name                              Length
+----                              ------
+analyze.txt                           49
+codex-review.txt                       0
+coverage-tests.txt                     0
+coverage.info                      57316
+coverage.json                       1757
+coverage.txt                         975
+initial-coverage-tests.txt        512248
+initial-pairs.txt                   4026
+initial-powerset.txt              253680
+legacy-tests.txt                  124444
+mutation-auth-singleflight.jsonl 1877132
+mutation-cache-barrier.jsonl     2426044
+mutation-leave-listener.jsonl    1877372
+mutation-loading-close.jsonl     2708650
+mutation-mock-replayable.jsonl   2095164
+mutation-notify-double.jsonl     2110844
+mutation-retry-replayable.jsonl  1893951
+mutation-summary.txt                 439
+mutations.json                      3099
+pairs.md                           16072
+powerset.txt                      253714
+subscription-powerset.txt         253680
+tests.txt                         541786
+import 'dart:convert';
+import 'package:dioman/pipeline.dart';
+import 'package:test/test.dart';
+import 'fake_clock.dart';
+import 'fake_network.dart';
+import 'helpers.dart';
+
+/// 启用 I1–I7，刷新按调用方声明的轮次统计。
+class InvariantHarness {
+  /// 绑定网络和时钟。
+  InvariantHarness(this.network, this.clock);
+
+  /// 网络发送证据。
+  final FakeNetwork network;
+
+  /// 时间资源证据。
+  final FakeClock clock;
+
+  /// 外层进入次数。
+  final entries = <int, int>{};
+
+  /// 外层离开次数。
+  final exits = <int, int>{};
+
+  /// 调用方落定次数。
+  final settlements = <int, int>{};
+
+  /// I2 回调配对序列。
+  final loading = <Object, List<bool>>{};
+
+  /// I4 每请求通知次数。
+  final notifications = <int, int>{};
+
+  /// I5 每轮刷新次数。
+  final refreshRounds = <int, int>{};
+
+  /// 声明即将开始的刷新轮，零调用也会被 I5 拒绝。
+  void beginRefreshRound(int round) => refreshRounds[round] = 0;
+
+  /// 包装真实 onRefresh；同一轮多次刷新会被 I5 拒绝。
+  DiomanAuthRefresh refreshInRound(int round, DiomanAuthRefresh refresh) =>
+      (tokens, result) {
+        refreshRounds.update(round, (n) => n + 1);
+        return refresh(tokens, result);
+      };
+
+  /// 各层保存的上下文，用于请求结束后追踪取消订阅。
+  final contexts = <DiomanContext<Result>>[];
+
+  /// 创建按回调身份记录 I2 的真实 loading 插件。
+  DiomanLoading<Result> loadingPlugin(
+      {Duration delay = Duration.zero, Duration delayClose = Duration.zero}) {
+    final identity = Object();
+    return DiomanLoading<Result>(
+        onChanged: (visible) {
+          loading.putIfAbsent(identity, () => []).add(visible);
+        },
+        delay: delay,
+        delayClose: delayClose);
+  }
+
+  /// stringify 以 ctx.id 标记，notify 按逻辑请求而非响应身份记录 I4。
+  DiomanNotify<Result> notifyPlugin() => DiomanNotify<Result>(
+      stringify: (r, ctx) =>
+          r.ok || r.kind == DiomanKind.cancel || ctx.request.silent
+              ? ''
+              : '${ctx.id}',
+      notify: (message, r) {
+        notifications.update(int.parse(message), (n) => n + 1,
+            ifAbsent: () => 1);
+      });
+
+  /// 生成最外层及每阶段 pre/post 的直通探针。
+  List<DiomanPlugin<Result>> probes() => [
+        TestPlugin('invariant',
+            stage: DiomanStage.outer,
+            enforce: DiomanEnforce.pre, handler: (ctx, next) async {
+          entries.update(ctx.id, (n) => n + 1, ifAbsent: () => 1);
+          contexts.add(ctx);
+          final r = await next();
+          exits.update(ctx.id, (n) => n + 1, ifAbsent: () => 1);
+          return r;
+        }),
+        for (final stage in DiomanStage.values)
+          for (final enforce in DiomanEnforce.values)
+            TestPlugin('probe:${stage.name}:${enforce.name}',
+                stage: stage, enforce: enforce, handler: (ctx, next) async {
+              final r = await next();
+              expect(r.kind, isNot(DiomanKind.internal),
+                  reason: 'I6 next 不抛且受控流程无 internal');
+              return r;
+            }),
+      ];
+
+  /// 登记一个逻辑调用及其最终一次落定。
+  Future<T> track<T>(int id, Future<T> pending) => pending.whenComplete(() {
+        settlements.update(id, (n) => n + 1, ifAbsent: () => 1);
+      });
+
+  /// 统一断言不变量；测试夹具自身的坏证据也必须被拒绝。
+  void assertAll(Dioman<Result> api) {
+    expect(entries, isNotEmpty, reason: 'I1 不允许空跑');
+    expect(entries.keys.toSet(), exits.keys.toSet());
+    expect(entries.keys.toSet(), settlements.keys.toSet());
+    for (final id in entries.keys) {
+      expect([entries[id], exits[id], settlements[id]], [1, 1, 1]);
+    }
+    expect(api.pending, 0, reason: 'I3');
+    expect(api.cancellationSubscriptions, 0);
+    expect(contexts.every((c) => c.cancellationSubscriptions == 0), isTrue);
+    expect(clock.pendingTimers, 0);
+    final bodies = <Object?, String>{};
+    for (final send in network.sends) {
+      if (send.invariant == null) continue;
+      final body = jsonEncode(send.body);
+      expect(body, bodies.putIfAbsent(send.invariant, () => body),
+          reason: 'I7');
+    }
+    for (final sequence in loading.values) {
+      expect(sequence.length.isEven, isTrue);
+      for (var i = 0; i < sequence.length; i++) {
+        expect(sequence[i], i.isEven);
+      }
+    }
+    expect(notifications.values.every((n) => n <= 1), isTrue);
+    expect(refreshRounds.values.every((n) => n == 1), isTrue);
+  }
+}
+import 'constants.dart';
+import 'dart:async';
+import 'dart:convert';
+import 'dart:typed_data';
+import 'package:dio/dio.dart';
+
+/// 不变量请求标记头。
+const invariantRequestHeader = 'x-invariant-request';
+
+/// 一次可脚本化的网络回复。
+class FakeReply {
+  /// 创建响应，可用 gate 阻塞，也可抛出 error。
+  const FakeReply(
+      {this.status = 200,
+      this.body = const {pipelineTestCode: 0, pipelineTestData: pipelineTestOk},
+      this.error,
+      this.gate});
+
+  /// HTTP 状态。
+  final int status;
+
+  /// 原始 JSON 载荷。
+  final Object? body;
+
+  /// 指定失败异常。
+  final Object? error;
+
+  /// 人工控制响应时机。
+  final Future<void>? gate;
+}
+
+/// 捕获发送时快照，避免 Transformer 后续原地修改记录。
+class FakeSend {
+  /// 捕获实际有效配置与线上请求体。
+  FakeSend(this.options, this.body, this.invariant);
+
+  /// 实际 Dio 请求配置。
+  final RequestOptions options;
+
+  /// 发送时解码后的请求体。
+  final Object? body;
+
+  /// 逻辑请求标记。
+  final Object? invariant;
+}
+
+/// 按方法路径路由、序列和第 n 次失败的假 adapter。
+class FakeNetwork implements HttpClientAdapter {
+  /// 创建空路由 adapter，缺省返回成功信封。
+  FakeNetwork({this.onSend});
+
+  /// 发送已记录时通知测试，避免猜测微任务次数。
+  final void Function(FakeSend send)? onSend;
+
+  /// 路由表，例如 GET:/pets。
+  final routes = <String, List<FakeReply>>{};
+
+  /// 每个路由的已发送次数。
+  final counts = <String, int>{};
+
+  /// 第 n 次发送覆盖脚本。
+  final failOn = <int, Object>{};
+
+  /// 所有实际发送。
+  final sends = <FakeSend>[];
+
+  /// 是否已关闭。
+  bool closed = false;
+
+  /// 执行假网络发送，读取 Dio 已转换的线上请求体。
+  @override
+  Future<ResponseBody> fetch(RequestOptions options,
+      Stream<Uint8List>? requestStream, Future<void>? cancelFuture) async {
+    final bytes = requestStream == null
+        ? <int>[]
+        : await requestStream.expand((b) => b).toList();
+    Object? body;
+    if (bytes.isNotEmpty) {
+      final text = utf8.decode(bytes, allowMalformed: true);
+      try {
+        body = jsonDecode(text);
+      } catch (_) {
+        body = text;
+      }
+    }
+    sends.add(FakeSend(options, body, options.headers[invariantRequestHeader]));
+    final sendIndex = sends.length;
+    onSend?.call(sends.last);
+    final route = '${options.method}:${options.path}';
+    final index = counts.update(route, (n) => n + 1, ifAbsent: () => 1) - 1;
+    final replies = routes[route] ?? const [FakeReply()];
+    final reply = replies[index < replies.length ? index : replies.length - 1];
+    if (reply.gate != null) await reply.gate;
+    final error = failOn[sendIndex] ?? reply.error;
+    if (error != null) throw error;
+    return ResponseBody.fromString(jsonEncode(reply.body), reply.status,
+        headers: {
+          Headers.contentTypeHeader: [Headers.jsonContentType]
+        });
+  }
+
+  /// 记录 adapter 被关闭。
+  @override
+  void close({bool force = false}) => closed = true;
+}
+dart.bat                               1
+
+
+exec
+"C:\\Users\\jelon\\AppData\\Local\\Microsoft\\WindowsApps\\Microsoft.PowerShell_8wekyb3d8bbwe\\pwsh.exe" -Command 'dart test test/combo/powerset_combo_test.dart test/combo/prepare_pairs_combo_test.dart --reporter compact > $env:TEMP'"\\dioman-review-tests.txt 2>&1; Get-Content "'$env:TEMP'"\\dioman-review-tests.txt -Tail 4; Get-ChildItem E:\\ -Force -Filter AGENTS*; Get-ChildItem E:\\workspaces\\dart-labs-pipeline -Force -Filter AGENTS*; Get-Content lib/src/pipeline/plugins/cache.dart; Get-Content lib/src/pipeline/plugins/share.dart" in E:\workspaces\dart-labs-pipeline\dioman
+ succeeded in 7574ms:
+00:05 +4661: test/combo/powerset_combo_test.dart: [DiomanPlugin powerset] mask=511 cancelLeader                                                                                                        
+00:05 +4661: test/combo/powerset_combo_test.dart: [DiomanPlugin powerset] mask=511 recovery                                                                                                            
+00:05 +4662: test/combo/powerset_combo_test.dart: [DiomanPlugin powerset] mask=511 recovery                                                                                                            
+00:05 +4662: All tests passed!                                                                                                                                                                         
+import 'package:dio/dio.dart';
+import '../cache_store.dart';
+import '../client.dart';
+import '../clock.dart';
+import '../context.dart';
+import '../options.dart';
+import '../plugin.dart';
+import '../request.dart';
+import '../response.dart';
+import '../stages.dart';
+import 'mock.dart';
+
+/// 响应数据的克隆策略；也可直接提供自定义函数。
+enum DiomanClonePolicy {
+  /// 返回只读引用。
+  none,
+
+  /// 复制顶层 Map/List。
+  shallow,
+
+  /// 递归复制 Map/List。
+  deep,
+}
+
+/// 缓存存储层；关闭缓存使用请求级 false。
+enum DiomanCachePolicy {
+  /// 仅内存。
+  memo,
+
+  /// 仅持久化。
+  persist,
+
+  /// 两层，持久化命中后提升到内存。
+  both,
+}
+
+/// 请求级缓存覆盖；null 字段沿用插件级值。
+class DiomanCacheOptions {
+  /// 例如 `DiomanCacheOptions(expires: Duration(seconds: 10))`。
+  const DiomanCacheOptions(
+      {this.enabled,
+      this.expires,
+      this.clone,
+      this.shouldCache,
+      this.shouldStore,
+      this.cachePolicy});
+
+  /// 本次开关。
+  final bool? enabled;
+
+  /// 有效期，非正数表示立即过期。
+  final Duration? expires;
+
+  /// DiomanClonePolicy 或 Object? Function(Object?)。
+  final Object? clone;
+
+  /// 请求缓存判定；抛错按 bug 处理。
+  final bool Function(DiomanRequest)? shouldCache;
+
+  /// 结果写入判定；默认 r.ok，抛错按 bug 处理。
+  final bool Function(DiomanResponse<dynamic>)? shouldStore;
+
+  /// 存储层覆盖。
+  final DiomanCachePolicy? cachePolicy;
+}
+
+/// 缓存管理能力；通过 `api.plugin<DiomanCacheApi>()` 获取。
+abstract interface class DiomanCacheApi {
+  /// 删除 [key] 并作废该键在途写入；等待持久化删除完成。
+  Future<void> remove(String key);
+
+  /// 清空缓存并立即作废所有在途写入；返回持久化清理完成信号。
+  Future<void> clear();
+
+  /// 在途屏障数，只读诊断；所有请求结束后为零。
+  int get pendingWrites;
+
+  /// 内存物理条目数，包含尚未惰性过期的条目。
+  int get entryCount;
+}
+
+/// 按请求开启的缓存；命中不触网，业务失败默认不存储。
+class DiomanCache<R extends DiomanResponse<dynamic>> extends DiomanPlugin<R> {
+  /// 默认 memo、一分钟、浅克隆、GET/HEAD；例如选项 `{DiomanCache.option: true}`。
+  const DiomanCache(
+      {this.persist,
+      this.maxEntries = 500,
+      this.cachePolicy = DiomanCachePolicy.memo,
+      this.expires = const Duration(minutes: 1),
+      this.clone = DiomanClonePolicy.shallow,
+      this.clock,
+      this.shouldCache,
+      this.shouldStore,
+      this.enabled = true});
+
+  /// 内存 LRU 上限，非正数不限；请求级不支持覆盖。
+  final int maxEntries;
+
+  /// 可选持久化存储；persist/both 策略要求提供。
+  final DiomanCachePersist? persist;
+
+  /// 默认存储层。
+  final DiomanCachePolicy cachePolicy;
+
+  /// 默认有效期。
+  final Duration expires;
+
+  /// 默认克隆策略或自定义函数。
+  final Object clone;
+
+  /// 默认请求判定，缺省 GET/HEAD。
+  final bool Function(DiomanRequest)? shouldCache;
+
+  /// 默认写入判定，缺省 r.ok。
+  final bool Function(DiomanResponse<dynamic>)? shouldStore;
+
+  /// 可选 TTL 时钟；默认客户端 DiomanClock，请求级不支持覆盖。
+  final DiomanClock? clock;
+
+  /// 安装期开关。
+  @override
+  final bool enabled;
+
+  /// 稳定名称。
+  static const pluginName = 'dioman:cache';
+
+  /// 请求级 bool、Duration 或配置键。
+  static final option = DiomanOptionKey<DiomanCacheOptions>(pluginName);
+
+  /// 名称。
+  @override
+  String get name => pluginName;
+
+  /// 结果来源阶段。
+  @override
+  DiomanStage get stage => DiomanStage.source;
+
+  /// 状态按客户端隔离，时钟统一使用客户端时钟。
+  @override
+  DiomanPluginInstance<R> setup(Dioman<R> client) => _Cache<R>(
+      persist,
+      maxEntries,
+      clock ?? client.clock,
+      DiomanCacheOptions(
+          cachePolicy: cachePolicy,
+          expires: expires,
+          clone: clone,
+          shouldCache: shouldCache,
+          shouldStore: shouldStore));
+}
+
+/// 内存缓存条目。
+class _Entry {
+  /// 保存响应及绝对到期时刻。
+  _Entry(this.response, this.expiresAt);
+
+  /// 来源响应。
+  final DiomanResponse<dynamic> response;
+
+  /// epoch 毫秒。
+  final int expiresAt;
+}
+
+/// 在途期间的已写入顺序屏障。
+class _Barrier {
+  /// 当前在途数量。
+  int pending = 0;
+
+  /// 已发布的最大序号。
+  int latest = 0;
+}
+
+/// 每客户端内存和串行持久化通道。
+class _Cache<R extends DiomanResponse<dynamic>> extends DiomanPluginInstance<R>
+    implements DiomanCacheApi {
+  /// 保存存储与配置。
+  _Cache(this.persist, this.maxEntries, this.clock, this.base);
+
+  /// TTL 时钟。
+  final DiomanClock clock;
+
+  /// 内存容量。
+  final int maxEntries;
+
+  /// 外部持久化后端。
+  final DiomanCachePersist? persist;
+
+  /// 基础选项。
+  final DiomanCacheOptions base;
+
+  /// 内存条目。
+  final entries = <String, _Entry>{};
+
+  /// 只在在途期间存在的屏障。
+  final barriers = <String, _Barrier>{};
+
+  /// 单调请求序号。
+  int sequence = 0;
+
+  /// 最近 clear 的失效下界。
+  int floor = 0;
+
+  /// 所有落盘变更串行，clear 不会被旧 write 越过。
+  Future<void> tail = Future<void>.value();
+
+  /// 数据字段名，兼容旧存储。
+  static const dataField = 'data';
+
+  /// 到期字段名。
+  static const expiresField = 'expiresAt';
+
+  /// 新格式保存归一化元信息，旧格式仍按原始 HTTP 200 读取。
+  static const resultField = 'result';
+
+  /// 结果类别字段。
+  static const kindField = 'kind';
+
+  /// 逻辑状态字段。
+  static const statusField = 'status';
+
+  /// 原始 HTTP 状态字段。
+  static const httpField = 'httpStatus';
+
+  /// 业务码字段。
+  static const codeField = 'code';
+
+  /// 消息字段。
+  static const messageField = 'message';
+
+  /// 细分原因字段。
+  static const reasonField = 'reason';
+
+  /// 从新格式恢复归一化结果，老格式继续交给工厂识别信封。
+  DiomanResponse<dynamic> restore(DiomanContext<R> ctx, Map saved) {
+    final meta = saved[resultField];
+    if (meta is! Map) {
+      return ctx.factory.normalize(ctx.request,
+          raw: Response<dynamic>(
+              requestOptions: ctx.request.toRequestOptions(),
+              statusCode: 200,
+              data: saved[dataField]));
+    }
+    final kind = DiomanKind.values.byName(meta[kindField] as String);
+    final init = DiomanResponse<dynamic>(
+        ok: kind == DiomanKind.ok,
+        kind: kind,
+        status: meta[statusField] as int,
+        httpStatus: meta[httpField] as int,
+        code: meta[codeField],
+        message: meta[messageField] as String,
+        reason: meta[reasonField] as String?,
+        data: meta[dataField],
+        request: ctx.request);
+    return ctx.factory.derive(init, init.data);
+  }
+
+  /// 在途屏障诊断。
+  @override
+  int get pendingWrites => barriers.length;
+
+  /// 内存条目诊断。
+  @override
+  int get entryCount => entries.length;
+
+  /// 写入并按最近使用顺序淘汰，屏障不随淘汰删除。
+  void put(String key, _Entry entry) {
+    entries.remove(key);
+    entries[key] = entry;
+    if (maxEntries > 0) {
+      while (entries.length > maxEntries) {
+        entries.remove(entries.keys.first);
+      }
+    }
+  }
+
+  /// 入队持久化变更；异常交给调用方，同时保持通道可继续使用。
+  Future<void> enqueue(Future<void> Function() action) {
+    final pending = tail.then((_) => action());
+    tail = pending.then((_) {}, onError: (Object _, StackTrace __) {});
+    return pending;
+  }
+
+  /// 删除也抬高本键屏障，阻止旧响应复活。
+  @override
+  Future<void> remove(String key) {
+    entries.remove(key);
+    barriers[key]?.latest = ++sequence;
+    return persist == null
+        ? Future<void>.value()
+        : enqueue(() => persist!.remove(key));
+  }
+
+  /// 同步失效，随后串行清理后端。
+  @override
+  Future<void> clear() {
+    floor = sequence;
+    entries.clear();
+    return persist == null
+        ? Future<void>.value()
+        : enqueue(() => persist!.erase());
+  }
+
+  /// 递归复制 Map/List；其余载荷按引用保留。
+  Object? deep(Object? data) {
+    if (data is Map) return data.map((k, v) => MapEntry(k, deep(v)));
+    if (data is List) return data.map(deep).toList();
+    return data;
+  }
+
+  /// 数据副本经扩展工厂创建，保留所有响应元信息。
+  DiomanResponse<dynamic> clone(
+      DiomanContext<R> ctx, DiomanResponse<dynamic> r, Object strategy) {
+    if (strategy == DiomanClonePolicy.none) return r;
+    final data = r.data;
+    Object? copied;
+    if (strategy is Object? Function(Object?)) {
+      copied = strategy(data);
+    } else if (strategy == DiomanClonePolicy.deep) {
+      copied = deep(data);
+    } else if (strategy == DiomanClonePolicy.shallow) {
+      copied = data is Map
+          ? Map.of(data)
+          : data is List
+              ? List.of(data)
+              : data;
+    } else {
+      throw ArgumentError.value(strategy, 'clone');
+    }
+    return ctx.factory.derive(r, copied);
+  }
+
+  /// 查缓存、登记屏障、只写入仍新鲜的结果，并在 finally 回收。
+  @override
+  Future<DiomanResponse<dynamic>> handle(
+      DiomanContext<R> ctx, DiomanNext<R> next) async {
+    final o = resolveOption<DiomanCacheOptions>(
+        ctx.request.call.options[DiomanCache.option],
+        base: base,
+        optIn: true,
+        shorthand: (v) => v is Duration ? DiomanCacheOptions(expires: v) : null,
+        merge: (a, b) => DiomanCacheOptions(
+            enabled: b.enabled,
+            expires: b.expires ?? a.expires,
+            clone: b.clone ?? a.clone,
+            shouldCache: b.shouldCache ?? a.shouldCache,
+            shouldStore: b.shouldStore ?? a.shouldStore,
+            cachePolicy: b.cachePolicy ?? a.cachePolicy));
+    if (o == null || o.enabled == false || ctx.get(sourceProbe) == true) {
+      return next();
+    }
+    if (!(o.shouldCache?.call(ctx.request) ??
+        sourceSafeMethods.contains(ctx.request.method))) {
+      return next();
+    }
+    final key = ctx.key();
+    if (key == null) return next();
+    final memo = o.cachePolicy != DiomanCachePolicy.persist;
+    final disk = o.cachePolicy != DiomanCachePolicy.memo;
+    if (disk && persist == null) throw StateError('persist/both 策略需要 persist');
+    final barrier = barriers.putIfAbsent(key, _Barrier.new);
+    barrier.pending++;
+    final ticket = ++sequence;
+    bool valid() => ticket > floor && ticket > barrier.latest;
+    try {
+      var hit = memo ? entries[key] : null;
+      if (hit != null && hit.expiresAt <= clock.now().millisecondsSinceEpoch) {
+        entries.remove(key);
+        hit = null;
+      }
+      if (hit == null && disk) {
+        await ctx.wait(tail);
+        final cancel = ctx.cancelled();
+        if (cancel != null) return cancel;
+        final saved = await ctx.wait(Future.sync(() => persist!.read(key)));
+        final cancelled = ctx.cancelled();
+        if (cancelled != null) return cancelled;
+        if (saved is Map && saved[expiresField] is int) {
+          final expiry = saved[expiresField] as int;
+          if (expiry > clock.now().millisecondsSinceEpoch && valid()) {
+            hit = _Entry(restore(ctx, saved), expiry);
+            if (memo) put(key, hit);
+          } else {
+            await ctx.wait(enqueue(() async {
+              if (valid()) await persist!.remove(key);
+            }));
+            final cancel = ctx.cancelled();
+            if (cancel != null) return cancel;
+          }
+        }
+      }
+      if (hit != null) {
+        if (memo) put(key, hit);
+        return clone(ctx, hit.response, o.clone!);
+      }
+      final r = await next();
+      final cancel = ctx.cancelled();
+      if (cancel != null) return cancel;
+      var stored = false;
+      if (valid() && (o.shouldStore?.call(r) ?? r.ok)) {
+        stored = true;
+        barrier.latest = ticket;
+        final entry = _Entry(clone(ctx, r, o.clone!),
+            clock.now().add(o.expires!).millisecondsSinceEpoch);
+        if (memo) put(key, entry);
+        if (disk) {
+          await ctx.wait(enqueue(() => persist!.write(key, {
+                dataField: r.raw?.data ?? r.data,
+                expiresField: entry.expiresAt,
+                resultField: {
+                  kindField: r.kind.name,
+                  statusField: r.status,
+                  httpField: r.httpStatus,
+                  codeField: r.code,
+                  messageField: r.message,
+                  reasonField: r.reason,
+                  dataField: entry.response.data
+                }
+              })));
+          final cancel = ctx.cancelled();
+          if (cancel != null) return cancel;
+        }
+      }
+      return r.ok || stored ? clone(ctx, r, o.clone!) : r;
+    } finally {
+      if (--barrier.pending == 0) barriers.remove(key);
+    }
+  }
+
+  /// 作废在途写入并清空自有内存，外部持久化后端不归插件销毁。
+  @override
+  void dispose() {
+    floor = sequence;
+    entries.clear();
+  }
+}
+import 'dart:async';
+import 'package:dio/dio.dart';
+import '../client.dart';
+import '../context.dart';
+import '../options.dart';
+import '../plugin.dart';
+import '../request.dart';
+import '../response.dart';
+import '../stages.dart';
+import 'mock.dart';
+
+/// 同 key 并发结果归属策略；关闭使用请求级 false。
+enum DiomanSharePolicy {
+  /// 首发共享一次传输。
+  start,
+
+  /// 最新发起的结果胜出。
+  end,
+
+  /// 首个成功胜出，全部失败取最后一个。
+  race,
+
+  /// 首发在内部重试，共享最终结果。
+  retry,
+}
+
+/// 共享活动表诊断；例如 `api.plugin<DiomanShareApi>()!.activeEntries`。
+abstract interface class DiomanShareApi {
+  /// 四种策略当前活动轮次总数，结束或销毁后为零。
+  int get activeEntries;
+}
+
+/// 请求级共享配置；null 字段沿用插件配置。
+class DiomanShareOptions {
+  /// 例如 `DiomanShareOptions(policy: DiomanSharePolicy.race)`。
+  const DiomanShareOptions(
+      {this.enabled, this.policy, this.retries, this.interval, this.methods});
+
+  /// 本次开关。
+  final bool? enabled;
+
+  /// 归属策略。
+  final DiomanSharePolicy? policy;
+
+  /// 内部重试次数。
+  final int? retries;
+
+  /// 内部重试间隔。
+  final Duration? interval;
+
+  /// 允许共享的方法。
+  final Set<String>? methods;
+}
+
+/// 请求级开启的共享插件；跟随者得到同一个只读结果。
+class DiomanShare<R extends DiomanResponse<dynamic>> extends DiomanPlugin<R> {
+  /// 默认 start、GET/HEAD；例如调用选项 `{DiomanShare.option: true}`。
+  const DiomanShare(
+      {this.policy = DiomanSharePolicy.start,
+      this.retries = 3,
+      this.interval = Duration.zero,
+      this.methods = sourceSafeMethods,
+      this.enabled = true});
+
+  /// 默认策略。
+  final DiomanSharePolicy policy;
+
+  /// retry 策略的额外次数。
+  final int retries;
+
+  /// retry 策略的等待间隔。
+  final Duration interval;
+
+  /// 方法硬白名单。
+  final Set<String> methods;
+
+  /// 安装期开关。
+  @override
+  final bool enabled;
+
+  /// 稳定名称。
+  static const pluginName = 'dioman:share';
+
+  /// 请求级 bool、策略枚举或配置键。
+  static final option = DiomanOptionKey<DiomanShareOptions>(pluginName);
+
+  /// 名称。
+  @override
+  String get name => pluginName;
+
+  /// 结果来源阶段。
+  @override
+  DiomanStage get stage => DiomanStage.source;
+
+  /// 每客户端独立建表。
+  @override
+  DiomanPluginInstance<R> setup(Dioman<R> client) =>
+      _Share<R>(DiomanShareOptions(
+          policy: policy,
+          retries: retries,
+          interval: interval,
+          methods: Set.of(methods)));
+}
+
+/// 一轮共享，不含逻辑请求的结算登记。
+class _Shared {
+  /// 保留与客户端工厂一致的销毁结果。
+  _Shared(this.cancelled);
+
+  /// 销毁时发布给尚在等待的订阅者。
+  final DiomanResponse<dynamic> cancelled;
+
+  /// 共享结果。
+  final result = Completer<DiomanResponse<dynamic>>();
+
+  /// 首发或 retry 的独立传输令牌。
+  final token = CancelToken();
+
+  /// 共享传输使用独立令牌并关闭 Dio 阶段超时，由订阅者各自限时。
+  RequestPatch get transportPatch => RequestPatch(
+      cancelToken: token,
+      connectTimeout: Duration.zero,
+      receiveTimeout: Duration.zero,
+      sendTimeout: Duration.zero);
+
+  /// 订阅者数。
+  int subscribers = 0;
+
+  /// 发起序号。
+  int sequence = 0;
+
+  /// 未结束的传输数。
+  int pending = 0;
+}
+
+/// 每客户端按策略隔离的活动表。
+class _Share<R extends DiomanResponse<dynamic>> extends DiomanPluginInstance<R>
+    implements DiomanShareApi {
+  /// 保存配置。
+  _Share(this.base);
+
+  /// 预合并配置。
+  final DiomanShareOptions base;
+
+  /// 每种策略一张表。
+  final tables = {
+    for (final p in DiomanSharePolicy.values) p: <String, _Shared>{}
+  };
+
+  /// 活动轮次总数。
+  @override
+  int get activeEntries =>
+      tables.values.fold(0, (n, table) => n + table.length);
+
+  /// 仅移除仍属于本轮的条目。
+  void detach(Map<String, _Shared> table, String key, _Shared entry) {
+    if (identical(table[key], entry)) table.remove(key);
+  }
+
+  /// 结果发布前先摘表，外层 retry 可立即重新入表。
+  void finish(Map<String, _Shared> table, String key, _Shared entry,
+      DiomanResponse<dynamic> r) {
+    if (entry.result.isCompleted) return;
+    detach(table, key, entry);
+    entry.result.complete(r);
+  }
+
+  /// 订阅者整体上限为连接与接收之和；有请求体时再加发送阶段。
+  /// 任一参与阶段为 null 或非正数时不限时，不模拟 Dio 的阶段进度。
+  Duration? timeout(DiomanRequest request) {
+    var total = Duration.zero;
+    for (final stage in [
+      request.connectTimeout,
+      request.receiveTimeout,
+      if (request.data != null) request.sendTimeout
+    ]) {
+      if (stage == null || stage <= Duration.zero) return null;
+      total += stage;
+    }
+    return total;
+  }
+
+  /// 首发传输脱离首发调用方，最后一个订阅者离开才取消。
+  Future<void> run(
+      DiomanContext<R> ctx,
+      DiomanNext<R> next,
+      DiomanShareOptions o,
+      Map<String, _Shared> table,
+      String key,
+      _Shared entry) async {
+    final shared = ctx.derive(entry.transportPatch);
+    ctx.state.retain();
+    try {
+      var r = await next(entry.transportPatch);
+      if (o.policy == DiomanSharePolicy.retry) {
+        for (var i = 0;
+            i < o.retries! &&
+                !r.ok &&
+                r.kind != DiomanKind.internal &&
+                !shared.isCancelled;
+            i++) {
+          if (o.interval! > Duration.zero) {
+            await shared.wait(Completer<void>().future, timeout: o.interval);
+          }
+          if (shared.isCancelled) break;
+          r = await next(entry.transportPatch);
+        }
+      }
+      finish(table, key, entry, r);
+    } catch (error, stack) {
+      finish(
+          table,
+          key,
+          entry,
+          ctx.fail(DiomanFailure(
+              kind: DiomanKind.internal, error: error, errorStack: stack)));
+    } finally {
+      ctx.state.release();
+    }
+  }
+
+  /// end/race 的底层请求各自独立，订阅者离开不会取消其它传输。
+  Future<void> compete(
+      DiomanContext<R> ctx,
+      DiomanNext<R> next,
+      DiomanShareOptions o,
+      Map<String, _Shared> table,
+      String key,
+      _Shared entry) async {
+    final sequence = ++entry.sequence;
+    entry.pending++;
+    ctx.state.retain();
+    try {
+      final r = await next();
+      entry.pending--;
+      if (o.policy == DiomanSharePolicy.end
+          ? sequence == entry.sequence
+          : r.ok || entry.pending == 0) {
+        finish(table, key, entry, r);
+      }
+    } finally {
+      ctx.state.release();
+    }
+  }
+
+  /// 解析 optIn 后订阅；wait 自行清理取消监听和计时器。
+  @override
+  Future<DiomanResponse<dynamic>> handle(
+      DiomanContext<R> ctx, DiomanNext<R> next) async {
+    final o = resolveOption<DiomanShareOptions>(
+        ctx.request.call.options[DiomanShare.option],
+        base: base,
+        optIn: true,
+        shorthand: (v) =>
+            v is DiomanSharePolicy ? DiomanShareOptions(policy: v) : null,
+        merge: (a, b) => DiomanShareOptions(
+            enabled: b.enabled,
+            policy: b.policy ?? a.policy,
+            retries: b.retries ?? a.retries,
+            interval: b.interval ?? a.interval,
+            methods: b.methods ?? a.methods));
+    if (o == null ||
+        o.enabled == false ||
+        ctx.get(sourceProbe) == true ||
+        !o.methods!.contains(ctx.request.method)) {
+      return next();
+    }
+    final cancel = ctx.cancelled();
+    if (cancel != null) return cancel;
+    final key = ctx.key();
+    if (key == null) return next();
+    final table = tables[o.policy]!;
+    final existing = table[key];
+    final entry = existing ??
+        (table[key] =
+            _Shared(ctx.fail(const DiomanFailure(kind: DiomanKind.cancel))));
+    final shared = o.policy == DiomanSharePolicy.start ||
+        o.policy == DiomanSharePolicy.retry;
+    entry.subscribers++;
+    if (shared) {
+      if (existing == null) {
+        if (o.policy == DiomanSharePolicy.retry) ctx.markReplayable();
+        unawaited(run(ctx, next, o, table, key, entry));
+      }
+    } else {
+      unawaited(compete(ctx, next, o, table, key, entry));
+    }
+    try {
+      final r =
+          await ctx.wait(entry.result.future, timeout: timeout(ctx.request));
+      return ctx.cancelled() ??
+          r ??
+          ctx.fail(const DiomanFailure(kind: DiomanKind.timeout));
+    } finally {
+      if (--entry.subscribers == 0) {
+        detach(table, key, entry);
+        if (shared && !entry.result.isCompleted) entry.token.cancel();
+      }
+    }
+  }
+
+  /// 清空所有策略表并取消共享底层传输。
+  @override
+  void dispose() {
+    for (final table in tables.values) {
+      for (final entry in table.values) {
+        entry.token.cancel();
+        if (!entry.result.isCompleted) entry.result.complete(entry.cancelled);
+      }
+      table.clear();
+    }
+  }
+}
+
+exec
+"C:\\Users\\jelon\\AppData\\Local\\Microsoft\\WindowsApps\\Microsoft.PowerShell_8wekyb3d8bbwe\\pwsh.exe" -Command "@'
+import importlib.util,tempfile,pathlib,contextlib,io
+s=importlib.util.spec_from_file_location('coverage_check','tool/pipeline_b5a_coverage.py'); m=importlib.util.module_from_spec(s); s.loader.exec_module(m)
+with tempfile.TemporaryDirectory() as d:
+ p=pathlib.Path(d)/'line-only.info'
+ p.write_text('\\n'.join(x for x in pathlib.Path('docs/reports/pipeline-b5a-evidence/coverage.info').read_text().splitlines() if not x.startswith(('BRDA:','BRF:','BRH:'))))
+ m.DEST=pathlib.Path(d)
+ out=io.StringIO()
+ with contextlib.redirect_stdout(out):m.inspect(p)
+ print('\\n'.join(out.getvalue().splitlines()[-2:]))
+'@ | python -; "'$n=0; Get-Content tool/pipeline_b5a_coverage.py | ForEach-Object { $n++; '"'{0,3}: {1}' -f "'$n,$_ }; git status --short' in E:\workspaces\dart-labs-pipeline\dioman
+ succeeded in 721ms:
+27 source files accounted for; all executable lines/branches 100%; PASS
+cache_store/token_manager: abstract contracts; stages: enums/const tables; no executable denominator
+  1: """按磁盘上的全部 pipeline 源文件复算 LCOV，不沿用分批白名单。"""
+  2: from pathlib import Path
+  3: import json
+  4: import sys
+  5: 
+  6: ROOT = Path(__file__).resolve().parents[1]
+  7: DEST = ROOT / 'docs/reports/pipeline-b5a-evidence'
+  8: SOURCE = ROOT / 'lib/src/pipeline'
+  9: 
+ 10: 
+ 11: def inspect(path):
+ 12:     """拒绝缺文件、重复 SF 和未覆盖计数；纯声明单独列明，不宣称空分母百分比。"""
+ 13:     files = {p.relative_to(SOURCE).as_posix(): p for p in SOURCE.rglob('*.dart')}
+ 14:     declarations = {
+ 15:         'token_manager.dart': 'abstract interface class DiomanTokenManager',
+ 16:         'cache_store.dart': 'abstract interface class DiomanCachePersist',
+ 17:         'stages.dart': 'const diomanBuiltinStages',
+ 18:     }
+ 19:     found = {}
+ 20:     for block in path.read_text(encoding='utf-8').split('end_of_record'):
+ 21:         lines = block.splitlines()
+ 22:         source = next((s[3:].replace('\\', '/') for s in lines if s.startswith('SF:')), '')
+ 23:         marker = '/lib/src/pipeline/'
+ 24:         if marker not in source:
+ 25:             continue
+ 26:         name = source.split(marker)[1]
+ 27:         assert name in files and name not in found, name
+ 28:         rows = [s[3:].split(',') for s in lines if s.startswith('DA:')]
+ 29:         branches = [s[5:].split(',') for s in lines if s.startswith('BRDA:')]
+ 30:         counts = [len(rows), sum(int(r[1]) > 0 for r in rows),
+ 31:                   len(branches), sum(r[3] != '-' and int(r[3]) > 0 for r in branches)]
+ 32:         found[name] = counts
+ 33:         missed = [r for r in rows if int(r[1]) == 0]
+ 34:         missed += [r for r in branches if r[3] == '-' or int(r[3]) == 0]
+ 35:         assert not missed, (name, missed)
+ 36:         for key, count in zip(('LF', 'LH', 'BRF', 'BRH'), counts):
+ 37:             summary = [int(s.split(':')[1]) for s in lines if s.startswith(key + ':')]
+ 38:             assert not summary or summary == [count], (name, key)
+ 39:     assert set(files) - set(found) <= set(declarations), set(files) - set(found)
+ 40:     for name, marker in declarations.items():
+ 41:         source = files[name].read_text(encoding='utf-8')
+ 42:         assert marker in source
+ 43:         # 与磁盘全部源文件一一对照；声明文件不得偷偷产生未计数的方法体。
+ 44:         code = '\n'.join(s for s in source.splitlines() if not s.lstrip().startswith('///'))
+ 45:         assert '=>' not in code and 'return ' not in code, name
+ 46:         found.setdefault(name, [0, 0, 0, 0])
+ 47:     assert set(found) == set(files)
+ 48:     print('file LF LH BRF BRH')
+ 49:     for name, counts in sorted(found.items()):
+ 50:         assert name in declarations or counts[0] > 0, name
+ 51:         print(name, *counts)
+ 52:     (DEST / 'coverage.json').write_text(json.dumps(found, indent=2) + '\n', encoding='utf-8')
+ 53:     print(f'{len(files)} source files accounted for; all executable lines/branches 100%; PASS')
+ 54:     print('cache_store/token_manager: abstract contracts; stages: enums/const tables; no executable denominator')
+ 55: 
+ 56: 
+ 57: if __name__ == '__main__':
+ 58:     inspect(ROOT / (sys.argv[1] if len(sys.argv) > 1 else
+ 59:                    'docs/reports/pipeline-b5a-evidence/coverage.info'))
+ M docs/design/pipeline-implementation-plan.md
+?? docs/reports/2026-10-29-pipeline-b5a.md
+?? docs/reports/pipeline-b5a-evidence/
+?? test/combo/powerset_combo_test.dart
+?? test/combo/prepare_pairs_combo_test.dart
+?? test/support/pipeline/b5_powerset.dart
+?? tool/__pycache__/
+?? tool/pipeline_b5a_coverage.py
+?? tool/pipeline_b5a_mutations.py
+
+exec
+"C:\\Users\\jelon\\AppData\\Local\\Microsoft\\WindowsApps\\Microsoft.PowerShell_8wekyb3d8bbwe\\pwsh.exe" -Command 'Get-ChildItem -LiteralPath tool/__pycache__; Remove-Item -LiteralPath tool/__pycache__/pipeline_b5a_coverage.cpython-313.pyc -ErrorAction SilentlyContinue; if ((Get-ChildItem -LiteralPath tool/__pycache__).Count -eq 0) { Remove-Item -LiteralPath tool/__pycache__ }; Get-Content docs/reports/pipeline-b5a-evidence/coverage.info -TotalCount 10; Get-Content test/support/pipeline/fake_clock.dart' in E:\workspaces\dart-labs-pipeline\dioman
+ succeeded in 575ms:
+
+    目录:E:\workspaces\dart-labs-pipeline\dioman\tool\__pycache__
+
+Mode                 LastWriteTime         Length Name
+----                 -------------         ------ ----
+-a---          2026/10/29     3:55           6155 pipeline_b5a_coverage.cpython-314.pyc
+SF:E:\workspaces\dart-labs-pipeline\dioman\lib\src\pipeline\clock.dart
+DA:18,47
+DA:21,2
+DA:22,2
+DA:25,2
+DA:27,2
+LF:5
+LH:5
+BRDA:18,0,0,47
+BRDA:21,0,0,2
+import 'dart:async';
+import 'package:dioman/pipeline.dart';
+
+/// 可确定推进的时钟，不使用真实睡眠。
+class FakeClock implements DiomanClock {
+  /// 创建起点为 Unix epoch 的时钟。
+  FakeClock();
+
+  /// 当前虚拟时间。
+  DateTime _now = DateTime.fromMillisecondsSinceEpoch(0);
+
+  /// 所有尚未触发的计时器。
+  final _timers = <_FakeTimer>[];
+
+  /// 未清理计时器数。
+  int get pendingTimers => _timers.where((t) => t.isActive).length;
+
+  /// 返回虚拟时间。
+  @override
+  DateTime now() => _now;
+
+  /// 登记单次计时器。
+  @override
+  Timer createTimer(Duration duration, void Function() callback) {
+    final timer = _FakeTimer(_now.add(duration), callback);
+    _timers.add(timer);
+    return timer;
+  }
+
+  /// 推进 [duration]，依到期顺序执行回调，回调可创建新计时器。
+  void elapse(Duration duration) {
+    final end = _now.add(duration);
+    while (true) {
+      final due = _timers
+          .where((t) => t.isActive && !t.deadline.isAfter(end))
+          .toList()
+        ..sort((a, b) => a.deadline.compareTo(b.deadline));
+      if (due.isEmpty) break;
+      final timer = due.first;
+      _now = timer.deadline;
+      timer.fire();
+    }
+    _timers.removeWhere((t) => !t.isActive);
+    _now = end;
+  }
+}
+
+/// 单次虚拟计时器。
+class _FakeTimer implements Timer {
+  /// 保存截止时间及回调。
+  _FakeTimer(this.deadline, this.callback);
+
+  /// 截止时间。
+  final DateTime deadline;
+
+  /// 用户回调。
+  final void Function() callback;
+
+  /// 是否仍登记。
+  bool _active = true;
+
+  /// 触发次数。
+  int _tick = 0;
+
+  /// 当前活动状态。
+  @override
+  bool get isActive => _active;
+
+  /// 已触发次数。
+  @override
+  int get tick => _tick;
+
+  /// 取消后不再触发。
+  @override
+  void cancel() => _active = false;
+
+  /// 触发一次并关闭。
+  void fire() {
+    _active = false;
+    _tick++;
+    callback();
+  }
+}
+
+
+exec
+"C:\\Users\\jelon\\AppData\\Local\\Microsoft\\WindowsApps\\Microsoft.PowerShell_8wekyb3d8bbwe\\pwsh.exe" -Command "Remove-Item -LiteralPath E:\\workspaces\\dart-labs-pipeline\\dioman\\tool\\__pycache__\\pipeline_b5a_coverage.cpython-314.pyc; Remove-Item -LiteralPath E:\\workspaces\\dart-labs-pipeline\\dioman\\tool\\__pycache__" in E:\workspaces\dart-labs-pipeline\dioman
+ succeeded in 554ms:
+codex
+All 4,662 new tests passed locally. However, the new coverage verifier can certify branch coverage without any branch measurements, weakening the acceptance check it implements.
+
+Review comment:
+
+- [P2] Reject coverage reports that lack branch instrumentation — E:\workspaces\dart-labs-pipeline\dioman\tool\pipeline_b5a_coverage.py:29-35
+  When LCOV is generated without `--branch-coverage`, `branches` is empty and the optional summary checks also pass, so this verifier incorrectly announces 100% branch coverage. Removing BRDA/BRF/BRH records from the supplied evidence reproduces a PASS for all 27 files. Require evidence of branch instrumentation before certifying branch coverage, rather than treating an absent denominator as complete coverage.
+All 4,662 new tests passed locally. However, the new coverage verifier can certify branch coverage without any branch measurements, weakening the acceptance check it implements.
+
+Review comment:
+
+- [P2] Reject coverage reports that lack branch instrumentation — E:\workspaces\dart-labs-pipeline\dioman\tool\pipeline_b5a_coverage.py:29-35
+  When LCOV is generated without `--branch-coverage`, `branches` is empty and the optional summary checks also pass, so this verifier incorrectly announces 100% branch coverage. Removing BRDA/BRF/BRH records from the supplied evidence reproduces a PASS for all 27 files. Require evidence of branch instrumentation before certifying branch coverage, rather than treating an absent denominator as complete coverage.
+exit: 0

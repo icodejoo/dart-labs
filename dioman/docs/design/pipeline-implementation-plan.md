@@ -24,6 +24,7 @@ summary: B0–B7 分批、每批的完成标准、Codex 派发约束、终审关
 | B7 验收 | 执行器改用新 API；testkit 侧补 `raw-business-code` 能力名与 axp 反馈的两处（`basic.status-matrix` blackhole 档缺超时、`cancel_after_ms` 未声明 `cancel`）；新服务端实例全量跑；证据回填总账 | 测试方案 §7 的通过标准；G4 只剩 connect 超时；验收报告 |
 
 - 批次线性推进，不并行：B2–B4 共用 `test/support/` 夹具和组合用例。
+- **B5 拆成两次派发**（B4 终审后定）：B5a 做 powerset、成对组合补齐与 `lib/src/pipeline/` 逐文件覆盖，不删任何文件；B5b 做删除与切换。删除旧源码会让执行器、example、key 对照测试、旧版 bench 失去编译对象，所以 **执行器改用新 API 从 B7 提前到 B5b**；key 对照测试先导出旧版结果作固定基准；旧版 bench 改从旧提交的临时 worktree 运行，供 B6 交错对比。B7 只剩 testkit 侧补能力与全量验收。
 - 每批报告放 `docs/reports/2026-10-29-pipeline-b<n>.md`，结构：TL;DR → 文件清单 → 验收（逐条命令与输出摘要、覆盖率逐文件计数）→ 本批 API id → 迁移清单对账 → 规格不清与保守取舍（需终审确认的单列）→ 终审修复（问题、修法、回归用例；撤掉修复后回归用例会失败）。
 
 ## 2. 每批工作方式

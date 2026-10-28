@@ -1,0 +1,3 @@
+Analyzing dioman...
+No issues found!
+exit: 0

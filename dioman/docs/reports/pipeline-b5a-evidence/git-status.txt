@@ -1,0 +1,8 @@
+ M docs/design/pipeline-implementation-plan.md
+?? docs/reports/2026-10-29-pipeline-b5a.md
+?? docs/reports/pipeline-b5a-evidence/
+?? test/combo/powerset_combo_test.dart
+?? test/combo/prepare_pairs_combo_test.dart
+?? test/support/pipeline/b5_powerset.dart
+?? tool/pipeline_b5a_coverage.py
+?? tool/pipeline_b5a_mutations.py
