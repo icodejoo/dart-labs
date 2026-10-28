@@ -17,9 +17,8 @@ Dio interceptor plugins**, each extending `DiomanPlugin` (a named `Interceptor` 
 and a `dispose()` hook — `lib/src/dioman_plugin.dart`), PLUS the documented correct install order.
 Entry `lib/dioman.dart` re-exports all 16 ordered plugins (envs → … → normalize below). Each plugin lives in its own `lib/src/*.dart`.
 
-Acceptance = **`dart analyze` clean** + `dart test` (`test/dioman_test.dart`, `test/
-dioman_combinations_test.dart`, `test/dioman_coverage_test.dart`, `test/
-dioman_powerset_test.dart` — all four against a REAL `dart:io HttpServer` via `test/support/
+Acceptance = **`dart analyze` clean** + `dart test` (layered under `test/unit|rule|boundary|combo|
+integration/`, see `test/README.md`; anything that sends requests runs against a REAL `dart:io HttpServer` via `test/support/
 test_server.dart` — `TestServer.start(handler)` + `respondJson(req, data, status)` — never a
 fake/mock `HttpClientAdapter` and never a hardcoded address like `127.0.0.1:1` for an
 "unreachable" endpoint; this matters because it lets throwaway-Dio re-issues (auth replay,
@@ -137,6 +136,15 @@ the wire, whether or not `normalize` is even installed.
   lone leader (no follower ever attached) or an already-settled end/race completer erroring doesn't
   raise an unhandled zone error. Gotcha: `dispose()` clears `_active` WITHOUT completing pending
   completers → waiters hang.
+  **Leader-cancel takeover (`start` policy)**: each follower registers `{options, handler}` on the
+  entry. When the leader is canceled and a follower with a non-cancelled token is alive, `_offer`
+  calls `_promoteFollower`: it clears that follower's `dioman:share:joined` mark, `_adopt`s it onto
+  the entry and `handler.next(options)`s it, so it re-enters the WHOLE downstream chain with its own
+  options (cancel injects its token, auth/retry recover 401/500, its own FormData is unconsumed).
+  Its final result settles the entry through the claims registry; if it is canceled too, the next
+  live follower is promoted, and with none left the entry settles as canceled and is detached. The
+  promoted follower's `completer.future.then` callback must skip (`promoted` flag) — a handler can
+  complete once. There is NO bare-transport takeover any more; don't reintroduce one.
   **Deferred settlement for DiomanRetry/DiomanAuth** (`_pendingSettlers` int field,
   `registerDownstreamSettler()`, `settle(key, {response, error})`, `hasMultipleDownstreamSettlers`):
   because this plugin sits BEFORE retry/auth in the chain, its own onResponse/onError would
@@ -258,7 +266,10 @@ the wire, whether or not `normalize` is even installed.
   bare-Dio re-issue would otherwise lose for those two specifically; `DiomanAuth`'s token injection and
   `DiomanNormalize`'s unwrapping are NOT recoverable this way (no equivalent param) — a retried
   response carries whatever auth header the ORIGINAL attempt had, and is never normalized, by
-  design (see the class doc's full trade-off list). Optional `onRetry: (attempt) {}` callback is a
+  design (see the class doc's full trade-off list). If the request is canceled while auth recovery (`claims.recoverAuth`) is waiting on a refresh,
+  `_reissue` throws the token's cancel error rather than rethrowing the original 401 (and the
+  response path routes it to `_failCanceled`), so share sees a cancel and can promote a follower.
+  Optional `onRetry: (attempt) {}` callback is a
   lightweight substitute for the logging the re-issue no longer passes through `DiomanLog` for.
 - **DiomanBreaker** (`breaker_plugin.dart`, `name: 'dioman:breaker'`). Circuit breaker, one `_Bucket`
   per `METHOD:path` key (override via `keyBuilder`; default reuses `DiomanKey`'s fast-key scheme,
@@ -266,7 +277,10 @@ the wire, whether or not `normalize` is even installed.
   halfOpen`: `failureThreshold` (default 10) CONSECUTIVE failures trip closed→open (any success
   resets the count); open rejects fast in `onRequest` (no network) until `resetDuration` (default
   30s) elapses, then admits up to `halfOpenMaxCalls` (default 3) probes — ONE probe success →
-  closed, ONE probe failure → open (cooldown restarts). **Installed AFTER retry**, so it only ever
+  closed, ONE probe failure → open (cooldown restarts). **Installed AFTER retry** (with `DiomanRetry.breaker` wired by `install`, retry records each real
+  attempt and takes a fresh admission only AFTER `prepareForReplay` succeeds — taking it first would
+  let a non-replayable body (Stream) break out holding an unused admission that the final error
+  then records a second time), so it only ever
   records each top-level request's FINAL outcome (retry re-issues via its own bare Dio never reach
   it → each request counted exactly once). `onRequest` marks the admitted request via
   `extra['dioman:breaker:key']`; `onResponse`/`onError` only record an outcome when that mark is
@@ -286,6 +300,10 @@ the wire, whether or not `normalize` is even installed.
   bool?` overrides (exact bool wins, null → default). `DiomanRetry.breaker` SETTER (wired by
   `Dioman.install` when both passed) lets retry call `breaker.isOpen(config)` — a PURE read, no
   mutation — before each re-issue to stop an in-progress retry loop the instant the breaker trips.
+  Per-attempt accounting goes through the public handler-free API: `admit(options)` takes a fresh
+  admission ticket before a re-issue, `recordResponse`/`recordError` consume it (no ticket ⇒ no-op,
+  so the final outcome reaching the chain's `onResponse`/`onError` is never counted twice). The
+  interceptor methods are thin wrappers over these; never fake a handler to call them.
   `dispose()`/`reset()` clear all buckets; no timers, no parked handlers.
 - **DiomanKey** (`key_plugin.dart`, `name: 'dioman:qid'`, `const` ctor). Exports
   `const kRequestKey = 'dioman:key'` — fixed, cross-plugin protocol key (key writes, cache/share
@@ -466,9 +484,9 @@ design avoids. There are no collisions — preserve that when adding a plugin.
 ```bash
 cd D:/workspaces/dart-labs/dioman
 dart analyze          # acceptance gate — must be "No issues found!"
-# Fast loop while iterating — everything except the paced power-set sweep:
-dart test test/dioman_test.dart test/dioman_combinations_test.dart test/dioman_coverage_test.dart
-# Full acceptance gate before calling something done — includes dioman_powerset_test.dart's
+# Fast loop while iterating — every layer except combo (which holds the paced power-set sweep):
+dart test test/unit test/rule test/boundary test/integration
+# Full acceptance gate before calling something done — includes combo/powerset_combo_test.dart's
 # paced exception-path sweep, which is deliberately slow (~8 min) to stay under the local
 # ephemeral-port budget (see that file's own doc). Must be "All tests passed!".
 dart test

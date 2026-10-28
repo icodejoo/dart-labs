@@ -311,7 +311,7 @@ final future3 = dio.get('/api/users');  // 第三个请求
   软性的"规范位置"仍由 `Dioman.install` 的输入顺序表达。
 - **排序**：深度优先、按输入顺序处理，放置一个插件前先放好它尚未放置的前驱。无约束的插件保持输入
   顺序，被需要的前驱提前到刚好满足约束的位置，结果确定。`install` 的输入就是规范顺序，且内置约束与之
-  一致，所以结果恒等于旧顺序（`test/plugin_order_test.dart` 对 2^16 个子集断言）。
+  一致，所以结果恒等于旧顺序（`test/unit/plugin_order_test.dart` 对 2^16 个子集断言）。
 - **校验**（`DiomanPluginOrderException`，带 `issue` 和涉及的插件名）：重复名、缺失必需依赖、环
   （列出环上的名字）、`misordered`（给定顺序违反约束）。`install`/`installPlugins` 在修改 `dio` 之前
   抛出；`insertBefore/insertAfter/prepend/append` 在修改前校验，失败时 handle 与 dio 保持原状；
@@ -343,7 +343,7 @@ final future3 = dio.get('/api/users');  // 第三个请求
 debug 下直接断言。自定义插件可用 `DiomanExtraKeys.register` 登记自己的键（重复登记抛 `StateError`）。
 
 **取舍**：不改任何现有键名与读写代码（私有常量留在各插件里，运行时行为零改动），注册表是一份 const
-清单；"源码里的键常量与注册表一致"由 `test/extra_keys_test.dart` 扫描 `lib/src` 守护，新增键忘记登记
+清单；"源码里的键常量与注册表一致"由 `test/integration/extra_keys_integration_test.dart` 扫描 `lib/src` 守护，新增键忘记登记
 会失败；下表由 `DiomanExtraKeys.toMarkdown()` 生成，测试保证它与注册表同步。没有做"插件改读注册表
 常量"的大重构（收益小、动到 share/auth/retry 内部）。目前没有键被改名，因此暂不提供旧键别名。
 
@@ -367,6 +367,7 @@ debug 下直接断言。自定义插件可用 `DiomanExtraKeys.register` 登记�
 | `dioman:key` | `dioman:qid` | 跨插件协议 | `String` | key 写入的请求键，cache/share 读取 |
 | `dioman:claims` | `dioman:share` | 跨插件协议 | `RequestClaims` | 认领登记簿：auth/retry 认领，share/cancel 据此推迟结算 |
 | `dioman:share:joined` | `dioman:share` | 跨插件协议 | `bool` | 标记跟随者/落败者，auth/retry 见到后不再自行恢复 |
+| `dioman:notify:sent` | `dioman:notify` | 内部状态 | `bool` | 同一逻辑请求已发送通知 |
 | `dioman:auth:decision` | `dioman:auth` | 内部状态 | `bool` | 本次请求是否受保护的缓存判定 |
 | `dioman:auth:protected` | `dioman:auth` | 内部状态 | `bool` | 请求已按受保护处理 |
 | `dioman:auth:refreshed` | `dioman:auth` | 内部状态 | `bool` | 本次请求已刷新过令牌，防止重复刷新 |
@@ -419,6 +420,18 @@ debug 下直接断言。自定义插件可用 `DiomanExtraKeys.register` 登记�
 - **取消优先于等待**：auth 的刷新等待（请求入口与 401 重放两处）与请求的 `CancelToken`
   竞争，取消时立刻完成 handler、注销认领，共享的刷新本身继续运行。请求入口的任何回调异常
   （`isProtected`/`expiresAt`/`now`/`buildHeader`）都转成 `DioException` 走错误链。
+- **首发取消后 follower 重新入链接手**（`start` 策略）：follower 登记时保存自己的
+  `RequestOptions` 和请求阶段 handler。首发被取消且还有 `cancelToken` 未取消的 follower 时，
+  share 选第一个，清掉它的 joined 标记、重新挂上 entry，再 `handler.next` 让它带着自己的
+  options 走完下游整条链（cancel 注入 token、auth 刷新/重放、retry 重试都照常生效；`FormData`/
+  `Stream` 是它自己未消费的 body）。它的最终结果经认领登记簿回到 share 结算 entry，其余
+  follower 仍从 completer 取结果；它也被取消则递归接手下一个，没有存活 follower 时以取消结算
+  并摘除 entry。首发自己的调用方仍拿到取消结果。不再用裸传输替 follower 发请求。
+- **认证恢复期间取消**：retry 重试遇 401 交给 auth 恢复，等待期间请求被取消、auth 返回 null 时，
+  retry 抛取消错误（响应阶段走 `_failCanceled`），不把原 401/业务失败当最终结果，因此 share 才
+  能识别取消并触发 follower 接手。
+- **retry 与 breaker 记账**：retry 每次重放前先确认 body 可重放（`prepareForReplay`），成功后才
+  领熔断凭据；body 不可重放（如 `Stream`）时直接结束，最终错误不会带着新领的凭据再被记一次。
 - **已知限制**：恢复结果是直接调用下游拦截器的 `onResponse`，若下游装有
   `QueuedInterceptor`，会绕过它自己的串行队列；复用同一个 `CancelToken` 发起大量请求时，
   每次退避/刷新等待都会挂一个取消监听，直到 token 被取消或回收才释放。

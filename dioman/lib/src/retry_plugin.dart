@@ -464,7 +464,9 @@ class DiomanRetry extends DiomanPlugin {
       _overrideObject(config)?.shouldRetry ?? shouldRetry;
 
   List<int> _resolveStatusCodes(RequestOptions config) =>
-      _overrideObject(config)?.statusCodes ?? statusCodes ?? _defaultStatusCodes;
+      _overrideObject(config)?.statusCodes ??
+      statusCodes ??
+      _defaultStatusCodes;
 
   List<int> _resolveAfterStatusCodes(RequestOptions config) =>
       _overrideObject(config)?.afterStatusCodes ??
@@ -472,7 +474,9 @@ class DiomanRetry extends DiomanPlugin {
       _defaultAfterStatusCodes;
 
   DiomanRetryDelay _resolveDelay(RequestOptions config) =>
-      _overrideObject(config)?.delay ?? delay ?? ((_, __, ___, ____) => _defaultDelay);
+      _overrideObject(config)?.delay ??
+      delay ??
+      ((_, __, ___, ____) => _defaultDelay);
 
   Object? _resolveJitter(RequestOptions config) =>
       _overrideObject(config)?.jitter ?? jitter;
@@ -539,8 +543,18 @@ class DiomanRetry extends DiomanPlugin {
   static final _httpDate =
       RegExp(r'^\w{3}, (\d{2}) (\w{3}) (\d{4}) (\d{2}):(\d{2}):(\d{2}) GMT$');
   static const _months = {
-    'Jan': 1, 'Feb': 2, 'Mar': 3, 'Apr': 4, 'May': 5, 'Jun': 6,
-    'Jul': 7, 'Aug': 8, 'Sep': 9, 'Oct': 10, 'Nov': 11, 'Dec': 12,
+    'Jan': 1,
+    'Feb': 2,
+    'Mar': 3,
+    'Apr': 4,
+    'May': 5,
+    'Jun': 6,
+    'Jul': 7,
+    'Aug': 8,
+    'Sep': 9,
+    'Oct': 10,
+    'Nov': 11,
+    'Dec': 12,
   };
 
   /// Parses an RFC 1123 HTTP-date (e.g. `Wed, 21 Oct 2026 07:28:00 GMT`) —
@@ -661,6 +675,7 @@ class DiomanRetry extends DiomanPlugin {
       final $max = _resolveMax(config);
       final token = config.cancelToken;
       var current = response;
+      _breaker?.recordResponse(current);
       for (var attempt = 1; attempt <= $max; attempt++) {
         // Breaker tripped (by this or other requests) → stop piling retries on a
         // downed server; propagate the last outcome instead.
@@ -668,11 +683,16 @@ class DiomanRetry extends DiomanPlugin {
         final wait = _resolveWait(config, attempt, $max, current, null);
         await cancellableDelay(wait, token);
         if (token?.isCancelled == true) return _failCanceled(config, handler);
+        if (_breaker?.isOpen(config) == true) break;
+        // 先确认 body 可重放再领熔断凭据，否则 break 后凭据被最终错误再记一次。
         if (!prepareForReplay(config)) break; // body 无法重放
+        _breaker?.admit(config);
         onRetry?.call(attempt);
         try {
           current = await _reissue(config);
         } catch (_) {
+          // 认证恢复等待期间被取消：以取消结束，不交出原业务失败。
+          if (token?.isCancelled == true) return _failCanceled(config, handler);
           // The re-issue failed outright (network/HTTP level) rather than
           // landing another business failure — give up, propagate the
           // original business failure rather than a transport error the
@@ -680,6 +700,7 @@ class DiomanRetry extends DiomanPlugin {
           break;
         }
         if (!_shouldRetry(config, null, current)) break;
+        _breaker?.recordResponse(current);
       }
       // 恢复成功与否都用 next 往后走：后续的 normalize、breaker 等照常处理，
       // 与首次成功语义一致。
@@ -698,9 +719,7 @@ class DiomanRetry extends DiomanPlugin {
   /// 响应阶段发现请求已被取消：以取消异常结束，而不是返回重试前的业务失败。
   void _failCanceled(
       RequestOptions config, ResponseInterceptorHandler handler) {
-    final err = config.cancelToken!.cancelError ??
-        DioException.requestCancelled(
-            requestOptions: config, reason: 'cancelled');
+    final err = _cancelErrorOf(config);
     releaseClaim(config, this, error: err);
     handler.reject(err, true);
   }
@@ -734,6 +753,7 @@ class DiomanRetry extends DiomanPlugin {
       final $max = _resolveMax(config);
       final token = config.cancelToken;
       var lastError = err;
+      _breaker?.recordError(lastError);
       for (var attempt = 1; attempt <= $max; attempt++) {
         // Breaker tripped (by this or other requests) → stop piling retries on a
         // downed server; propagate the last error instead.
@@ -745,7 +765,10 @@ class DiomanRetry extends DiomanPlugin {
           lastError = token!.cancelError ?? lastError;
           break;
         }
+        if (_breaker?.isOpen(config) == true) break;
+        // 先确认 body 可重放再领熔断凭据，否则 break 后凭据被最终错误再记一次。
         if (!prepareForReplay(config)) break; // body 无法重放
+        _breaker?.admit(config);
         onRetry?.call(attempt);
         Response<dynamic> retried;
         try {
@@ -754,6 +777,7 @@ class DiomanRetry extends DiomanPlugin {
           lastError = e is DioException
               ? e
               : DioException(requestOptions: config, error: e);
+          _breaker?.recordError(lastError);
           if (!_shouldRetry(config, lastError, lastError.response)) break;
           continue;
         }
@@ -772,8 +796,24 @@ class DiomanRetry extends DiomanPlugin {
   /// Issues the retry through the replay client (host transport when bound).
   ///
   /// 通过重放客户端发起重试（已绑定宿主时用宿主的传输层）。
-  Future<Response<dynamic>> _reissue(RequestOptions config) =>
-      _replay.fetch(config);
+  Future<Response<dynamic>> _reissue(RequestOptions config) async {
+    try {
+      return await _replay.fetch(config);
+    } on DioException catch (error) {
+      final recovered = await claimsOf(config)?.recoverAuth?.call(error);
+      if (recovered is Response<dynamic>) return recovered;
+      if (recovered is DioException) throw recovered;
+      // 等待认证刷新期间请求被取消：抛取消错误，而不是把原 401 当最终结果。
+      if (config.cancelToken?.isCancelled == true) throw _cancelErrorOf(config);
+      rethrow;
+    }
+  }
+
+  /// [config] 已取消时交出的取消错误。
+  static DioException _cancelErrorOf(RequestOptions config) =>
+      config.cancelToken?.cancelError ??
+      DioException.requestCancelled(
+          requestOptions: config, reason: 'cancelled');
 
   @override
   void dispose() {

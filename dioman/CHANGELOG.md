@@ -1,3 +1,12 @@
+## Unreleased
+
+- Feature: `DiomanBreaker.admit` / `recordResponse` / `recordError` — handler-free per-attempt accounting. `DiomanRetry` now reports every failed transport attempt to the wired breaker and takes a fresh admission before each re-issue (only after the body is confirmed replayable), so an open circuit stops the retry loop and a final outcome is never counted twice.
+- Fix `DiomanShare` `policy: start`: when the leader is cancelled, the first live follower re-enters the chain with its own options (its own body, cancel token registration, auth and retry) instead of a bare transport re-issue; the shared result settles as cancelled only after every caller is gone.
+- Fix retry under auth recovery: a request cancelled while waiting for a token refresh now ends as cancelled instead of surfacing the stale 401; a 401 after a retried 500 goes back through auth's shared refresh window.
+- Fix `DiomanAuth`: an expired session fails every affected request with a stable `[auth] session expired` error (original response kept) and notifies `onAccessExpired` once per session; a replay rejected by a custom `onFailure` route also expires the session.
+- Fix `DiomanNotify`: declares `before: normalize` and notifies at most once per logical request (new state key `dioman:notify:sent`).
+- Fix replayed recoveries: a recovered response is also offered to `DiomanCache` installed before the replaying plugin, so the cache stores the original envelope.
+
 ## 0.7.2
 
 - Feature: add optional `DiomanKey(namespace: () => currentAccountId)` to isolate cache and in-flight share keys by account, including explicit/custom keys. Non-empty namespaces are encoded as separate fields; unset/null/empty namespaces preserve existing keys. Callback failures reject with `DioException`.

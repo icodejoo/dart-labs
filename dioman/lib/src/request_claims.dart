@@ -15,6 +15,8 @@ const kJoinedKey = 'dioman:share:joined';
 /// 共享 entry）和 [whenDrained] 登记的回调（cancel 用来结束 token 追踪）。
 /// 责任跟着请求走，不依赖插件级计数，插件移除/重绑后不会留下悬空登记。
 class RequestClaims {
+  /// 重试遇到认证失败时交回原 auth，复用同一刷新窗口且不重复执行下游。
+  Future<Object?> Function(DioException error)? recoverAuth;
   final _owners = <Object>{};
   final _drained = <void Function()>[];
   bool _finished = false;

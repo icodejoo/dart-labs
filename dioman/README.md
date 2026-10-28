@@ -170,8 +170,9 @@ Constraints if you're wiring plugins onto `dio.interceptors` by hand instead of 
   a loading spinner or cancel-token bracket stuck open.
 - `cancel` & `loading` before `auth` & `retry` — so their cleanup has already run by the time a
   401 or a retry resolves the error.
-- `breaker` after `retry` — so it counts only each request's *final* outcome (a retry-recovered
-  request is a success, only a retry-exhausted one is a failure), not transient blips retry absorbs.
+- `breaker` after `retry` — `Dioman.install` connects the two so each failed transport attempt
+  counts toward the breaker threshold, and an open circuit stops further retries. Admission
+  tickets prevent the final error from being counted twice; a recovered success closes the bucket.
 - `normalize` last, after everything (including `log`) — it's optional and business-specific;
   every other plugin should see the response exactly as it came off the wire.
 

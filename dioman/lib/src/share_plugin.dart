@@ -1,4 +1,4 @@
-﻿import 'dart:async';
+import 'dart:async';
 import 'package:dio/dio.dart';
 import 'key_plugin.dart';
 import 'dioman_plugin.dart';
@@ -40,6 +40,21 @@ enum DiomanSharePolicy {
   none,
 }
 
+/// start 策略下登记等待的 follower：保存它的 options 和请求阶段 handler，
+/// 首发取消时可让它带着自己的 options 重新走下游整条链。
+class _Follower {
+  _Follower(this.options, this.handler);
+
+  /// follower 自己的请求选项（未经下游插件处理，body 未消费）。
+  final RequestOptions options;
+
+  /// follower 停在 share 处的请求阶段 handler。
+  final RequestInterceptorHandler handler;
+
+  /// 是否已被提升为新首发；提升后不再由共享结果的回调完成 [handler]。
+  bool promoted = false;
+}
+
 class _Entry {
   _Entry(this.key, this._detach) : completer = Completer<Response<dynamic>>() {
     // A lone leader (no followers ever attached) or an already-settled
@@ -74,6 +89,9 @@ class _Entry {
   ///
   /// [DiomanSharePolicy.race]用的在途请求计数器。
   int inFlight = 0;
+
+  /// start 策略仍等待结果的 follower，用于首发取消后让其中一个重新入链接手。
+  final followers = <_Follower>[];
 
   /// 是否已结算。
   bool get isSettled => completer.isCompleted;
@@ -331,9 +349,20 @@ class DiomanShare extends DiomanPlugin {
       // same as the leader's own response does, so e.g. DiomanNormalize
       // still unwraps the envelope for the follower too.
       _markJoined(options);
+      final follower = _Follower(options, handler);
+      existing.followers.add(follower);
+      // 被提升为新首发后 handler 由下游链路完成，这里不能再完成一次。
       existing.completer.future.then(
-        (r) => handler.resolve(copyResponse(r, options), true),
-        onError: (Object e) => handler.reject(copyError(e, options), true),
+        (r) {
+          if (!follower.promoted) {
+            handler.resolve(copyResponse(r, options), true);
+          }
+        },
+        onError: (Object e) {
+          if (!follower.promoted) {
+            handler.reject(copyError(e, options), true);
+          }
+        },
       );
     }
   }
@@ -479,9 +508,12 @@ class DiomanShare extends DiomanPlugin {
       _finishOrDefer(entry, opts, error: finalErr);
       handler.next(finalErr);
     } catch (e, s) {
-      // 兜底：保证 handler 完成，不让请求悬挂。
+      // 重放准备或下游异常也要结算共享结果，避免只结束首发而悬挂跟随者。
       if (!handler.isCompleted) {
-        handler.next(DioException(requestOptions: opts, error: e, stackTrace: s));
+        final failure =
+            DioException(requestOptions: opts, error: e, stackTrace: s);
+        _finishOrDefer(entry, opts, error: failure);
+        handler.next(failure);
       }
     }
   }
@@ -528,6 +560,11 @@ class DiomanShare extends DiomanPlugin {
     Response<dynamic>? response,
     DioException? error,
   ) {
+    if (error?.type == DioExceptionType.cancel &&
+        _policyOf(opts) == DiomanSharePolicy.start &&
+        _promoteFollower(entry)) {
+      return null;
+    }
     switch (_policyOf(opts)) {
       case DiomanSharePolicy.end:
         if (opts.extra[_kSeq] != entry.seq) return _yieldToWinner(entry, opts);
@@ -544,6 +581,23 @@ class DiomanShare extends DiomanPlugin {
       entry.completeError(error);
     }
     return null;
+  }
+
+  /// 首发取消后，选第一个 cancelToken 未取消的 follower 成为新首发：清掉它的
+  /// joined 标记、重新挂上 [entry]，再 `next` 让它带着自己的 options 走完下游整条
+  /// 链（cancel/auth/retry 照常生效）。它的最终结果经登记簿回到 [_offer] 结算；
+  /// 若它也被取消则递归接手下一个。返回 false 表示没有存活的 follower。
+  bool _promoteFollower(_Entry entry) {
+    final live = entry.followers
+        .where((f) => f.options.cancelToken?.isCancelled != true)
+        .firstOrNull;
+    if (live == null) return false;
+    entry.followers.remove(live);
+    live.promoted = true;
+    live.options.extra.remove(kJoinedKey);
+    _adopt(live.options, entry);
+    live.handler.next(live.options);
+    return true;
   }
 
   /// 被取消的 [opts] 若在仲裁中已落败（end 被取代、race 已有胜者或仍有其它在途

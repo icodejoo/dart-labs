@@ -1,5 +1,7 @@
 import 'package:dio/dio.dart';
 import './dioman_plugin.dart';
+import 'normalize_plugin.dart';
+import 'plugin_order.dart';
 
 /// 保留的兼容类型，不提供请求配置。
 @Deprecated('No per-request options; configure DiomanNotify directly.')
@@ -11,6 +13,9 @@ class DiomanNotify<T> extends DiomanPlugin {
   ///
   /// 插件名 / extra键，无需实例即可访问。
   static const pluginName = 'dioman:notify';
+
+  /// 同一逻辑请求已发送通知的状态键。
+  static const _kSent = '$pluginName:sent';
 
   /// 创建插件实例。
   DiomanNotify({
@@ -28,6 +33,19 @@ class DiomanNotify<T> extends DiomanPlugin {
   /// 插件的公开协议名称。
   @override
   String get name => pluginName;
+
+  /// 通知需要读取解包前的业务信封。
+  @override
+  DiomanPluginOrder get ordering => const DiomanPluginOrder(
+        before: {DiomanNormalize.pluginName},
+      );
+
+  /// 新一次分发清理上次通知状态。
+  @override
+  void onRequest(RequestOptions options, RequestInterceptorHandler handler) {
+    options.extra.remove(_kSent);
+    handler.next(options);
+  }
 
   /// 处理响应并完成当前响应出口。
   @override
@@ -49,6 +67,7 @@ class DiomanNotify<T> extends DiomanPlugin {
 
   /// 把响应信息转换为通知文本。
   void _convert(Response? r, String? message, RequestOptions options) {
+    if (options.extra[_kSent] == true) return;
     final $message = stringify(
       r?.data as T?,
       message ?? r?.statusMessage ?? '',
@@ -57,6 +76,7 @@ class DiomanNotify<T> extends DiomanPlugin {
     );
 
     if ($message.isNotEmpty) {
+      options.extra[_kSent] = true;
       notify($message);
     }
   }

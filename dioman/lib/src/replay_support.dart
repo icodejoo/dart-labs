@@ -2,6 +2,7 @@
 import 'dart:async';
 import 'package:dio/dio.dart';
 import 'request_claims.dart';
+import 'cache_plugin.dart';
 
 /// dio 的 InterceptorState 类型名（该枚举未导出，只能按名字识别）。
 const _kStateResolve = 'resolve';
@@ -65,14 +66,18 @@ class ReplayClient {
     if (index < 0) return response;
 
     var current = response;
-    for (final stage in all.sublist(index + 1)) {
+    for (final stage in [
+      ...all.take(index).whereType<DiomanCache>(),
+      ...all.sublist(index + 1),
+    ]) {
       final handler = ResponseInterceptorHandler();
       try {
         // dynamic 调用：拿回 async 实现返回的 Future，捕获其异步异常。
         final Object? result =
             (stage as dynamic).onResponse(current, handler) as Object?;
         if (result is Future) {
-          unawaited(result.then<void>((_) {}, onError: (Object e, StackTrace s) {
+          unawaited(
+              result.then<void>((_) {}, onError: (Object e, StackTrace s) {
             if (!handler.isCompleted) {
               handler.reject(_asDio(e, current.requestOptions, s), true);
             }
@@ -90,8 +95,8 @@ class ReplayClient {
         // reject 时 future 以 InterceptorState 报错：data 是 DioException，
         // type 区分终止（reject）与继续（rejectCallFollowing）。
         final dynamic data = (e is DioException) ? e : (e as dynamic).data;
-        final callFollowing = e is DioException ||
-            _stateName(e) == _kStateRejectCallFollowing;
+        final callFollowing =
+            e is DioException || _stateName(e) == _kStateRejectCallFollowing;
         throw DownstreamReject(
           data is DioException
               ? data

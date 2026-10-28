@@ -93,7 +93,7 @@ class DiomanSharedStateKey {
 /// 实例共享同名状态键的问题。
 ///
 /// 内置键是 `const` 清单，运行时行为与既有键名完全不变；源码里的键常量与本表的
-/// 一致性由 `test/extra_keys_test.dart` 守护（新增键忘记登记会失败）。
+/// 一致性由 `test/integration/extra_keys_integration_test.dart` 守护（新增键忘记登记会失败）。
 ///
 /// ```dart
 /// // 查询
@@ -148,6 +148,8 @@ abstract final class DiomanExtraKeys {
     ),
 
     // ── 内部状态键 ──
+    DiomanExtraKey.state(
+        'dioman:notify:sent', 'dioman:notify', 'bool', '同一逻辑请求已发送通知'),
     DiomanExtraKey.state(
         'dioman:auth:decision', 'dioman:auth', 'bool', '本次请求是否受保护的缓存判定'),
     DiomanExtraKey.state(

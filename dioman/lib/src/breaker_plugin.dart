@@ -219,23 +219,23 @@ class _Bucket {
 /// ## Ordering — install AFTER [DiomanRetry]
 ///
 /// This plugin belongs right after [DiomanRetry] in the canonical chain (`...
-/// auth → retry → breaker → log → normalize`). That placement means it counts
-/// only the *final* outcome of each top-level request — a request [DiomanRetry]
-/// recovers reaches this plugin's [onResponse] as a success and resets the
-/// bucket, while only a request that exhausts its retries reaches [onError] as
-/// a failure. So the breaker trips on genuinely-failed requests, not on
-/// transient blips retry already absorbed. [DiomanRetry]'s own re-issues go
-/// through a throwaway interceptor-less `Dio` and never reach this plugin, so
-/// each top-level request is counted exactly once.
+/// auth → retry → breaker → log → normalize`). When connected by [Dioman.install],
+/// [DiomanRetry] reports every failed transport attempt to this plugin and
+/// acquires a fresh admission ticket before re-issuing a request. An open
+/// circuit stops the retry loop. A recovered response reaches [onResponse]
+/// as a success and resets the bucket; admission tickets ensure that a final
+/// error is not counted twice. The retry transport itself has no interceptors,
+/// so this per-attempt accounting is performed explicitly by [DiomanRetry].
+/// Without that connection, this plugin observes only the host chain's outcomes.
 ///
 /// ## 顺序——装在[DiomanRetry]之后
 ///
 /// 本插件在canonical链条里紧跟[DiomanRetry]（`... auth → retry → breaker →
-/// log → normalize`）。这个位置意味着它只统计每个顶层请求的*最终*结果——被
-/// [DiomanRetry]救回来的请求以成功身份到达本插件的[onResponse]并重置桶，只有
-/// 重试耗尽的请求才以失败身份到达[onError]。所以熔断器只对真正失败的请求敏感，
-/// 不会被重试已经吸收掉的偶发抖动误触发。[DiomanRetry]自己的重发走的是不带
-/// 拦截器的裸`Dio`、永不到达本插件，因此每个顶层请求恰好只计一次。
+/// log → normalize`）。由[Dioman.install]接线后，[DiomanRetry]显式报告每次
+/// 传输失败，并在每次重发前领取新的入场凭据；熔断一旦打开就停止继续重试。
+/// 恢复成功的响应仍经[onResponse]清零失败计数；凭据消费确保最终错误不重复记账。
+/// 重发本身走没有拦截器的传输层，所以逐次记账由[DiomanRetry]显式调用完成。
+/// 若没有连接[DiomanRetry.breaker]，本插件只观察宿主拦截链实际交出的结果。
 ///
 /// ## Interaction with [DiomanRetry] (storm cutoff)
 ///
@@ -625,7 +625,32 @@ class DiomanBreaker extends DiomanPlugin {
   /// 处理请求并完成当前请求出口。
   @override
   void onRequest(RequestOptions options, RequestInterceptorHandler handler) {
-    if (!_enabledFor(options)) return handler.next(options);
+    final denied = _admitOrDeny(options);
+    if (denied != null) {
+      return _reject(options, handler, denied.key, denied.bucket);
+    }
+    handler.next(options);
+  }
+
+  /// Asks the circuit to admit one more transport attempt of [options], without
+  /// going through the interceptor chain. Used by [DiomanRetry] before each
+  /// re-issue; the outcome must then be reported via [recordResponse] or
+  /// [recordError] so the admission is returned.
+  ///
+  /// 不经拦截链，为 [options] 的又一次传输尝试申请放行。供 [DiomanRetry] 在每次
+  /// 重发前调用；之后须用 [recordResponse] 或 [recordError] 报告结果以归还凭据。
+  ///
+  /// - [options]：要放行的请求。
+  /// - 返回：放行（或本请求未启用熔断）为 true；熔断打开或半开探测已满为 false。
+  ///
+  /// ```dart
+  /// if (!breaker.admit(options)) return; // 熔断中，不再重发
+  /// ```
+  bool admit(RequestOptions options) => _admitOrDeny(options) == null;
+
+  /// 放行时登记凭据并返回 null；拒绝时返回拒绝所需的桶键与桶。
+  ({String key, _Bucket bucket})? _admitOrDeny(RequestOptions options) {
+    if (!_enabledFor(options)) return null;
 
     final key = _keyFor(options);
     final now = _now();
@@ -648,10 +673,10 @@ class DiomanBreaker extends DiomanPlugin {
 
     switch (b.state) {
       case DiomanBreakerState.open:
-        return _reject(options, handler, key, b);
+        return (key: key, bucket: b);
       case DiomanBreakerState.halfOpen:
         if (b.halfOpenInFlight >= _resolveHalfOpenMax(options)) {
-          return _reject(options, handler, key, b);
+          return (key: key, bucket: b);
         }
         b.halfOpenInFlight++;
       case DiomanBreakerState.closed:
@@ -667,7 +692,7 @@ class DiomanBreaker extends DiomanPlugin {
       generation: b.generation,
       probe: b.state == DiomanBreakerState.halfOpen
     );
-    handler.next(options);
+    return null;
   }
 
   /// Rejects [options] fast with a [DiomanBreakerOpenException]. Uses
@@ -729,6 +754,24 @@ class DiomanBreaker extends DiomanPlugin {
   @override
   void onResponse(
       Response<dynamic> response, ResponseInterceptorHandler handler) {
+    recordResponse(response);
+    handler.next(response);
+  }
+
+  /// Records [response] as the outcome of its admitted attempt (a business
+  /// failure per `isFailure` counts as a failure, anything else as a success).
+  /// No-op when the request holds no admission, so a final outcome already
+  /// recorded is never counted twice.
+  ///
+  /// 把 [response] 记为其已放行尝试的结果（按 `isFailure` 判为业务失败则计失败，
+  /// 否则计成功）。请求没有凭据时什么也不做，已记过账的最终结果不会重复计数。
+  ///
+  /// - [response]：一次传输尝试拿到的响应。
+  ///
+  /// ```dart
+  /// breaker.recordResponse(await transport.fetch(options));
+  /// ```
+  void recordResponse(Response<dynamic> response) {
     final config = response.requestOptions;
     final key = _takeAdmission(config);
     // No key ⇒ our onRequest never admitted this request (cache/mock hit, or
@@ -740,14 +783,34 @@ class DiomanBreaker extends DiomanPlugin {
         _recordSuccess(key, config);
       }
     }
-    handler.next(response);
   }
 
   /// 处理失败并完成当前错误出口。
   @override
   void onError(DioException err, ErrorInterceptorHandler handler) {
+    recordError(err);
+    handler.next(err);
+  }
+
+  /// Records [err] as the outcome of its admitted attempt. The breaker's own
+  /// fast-fail rejection is ignored, and a cancellation only returns the
+  /// admission without counting either way. No-op without an admission.
+  ///
+  /// 把 [err] 记为其已放行尝试的结果。本插件自己的快速拒绝不计；取消只归还凭据、
+  /// 不计成败。请求没有凭据时什么也不做。
+  ///
+  /// - [err]：一次传输尝试的失败。
+  ///
+  /// ```dart
+  /// try {
+  ///   await transport.fetch(options);
+  /// } on DioException catch (e) {
+  ///   breaker.recordError(e);
+  /// }
+  /// ```
+  void recordError(DioException err) {
     // Our own fast-fail rejection is not a dependency failure — never count it.
-    if (err.error is DiomanBreakerOpenException) return handler.next(err);
+    if (err.error is DiomanBreakerOpenException) return;
     // A user cancellation says nothing about the dependency's health — it is
     // neither a success nor a failure. Recording it (as either) would corrupt
     // the consecutive-failure count: counting it as success would reset a
@@ -759,7 +822,7 @@ class DiomanBreaker extends DiomanPlugin {
     // 于是一串取消就能掩盖真正在失败的依赖。直接跳过。
     if (err.type == DioExceptionType.cancel) {
       _takeAdmission(err.requestOptions);
-      return handler.next(err);
+      return;
     }
     final config = err.requestOptions;
     final key = _takeAdmission(config);
@@ -770,7 +833,6 @@ class DiomanBreaker extends DiomanPlugin {
         _recordSuccess(key, config);
       }
     }
-    handler.next(err);
   }
 
   /// Resets every bucket to [DiomanBreakerState.closed] and forgets all state.

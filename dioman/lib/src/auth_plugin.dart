@@ -1,4 +1,4 @@
-﻿// ignore_for_file: prefer_initializing_formals
+// ignore_for_file: prefer_initializing_formals
 import 'dart:async';
 import 'package:dio/dio.dart';
 import 'cancel_plugin.dart';
@@ -380,6 +380,11 @@ class DiomanAuth extends DiomanPlugin {
   set share(DiomanShare? value) {}
 
   Future<bool>? _refreshing; // shared window; bool = success
+  /// 同一失效会话只通知一次；获得新令牌后重新允许通知。
+  bool _expiredNotified = false;
+
+  /// 所有过期请求共享的稳定错误消息，便于调用方识别。
+  static const _expiredMessage = '[auth] session expired';
   // 共享刷新窗口；bool表示是否成功
 
   // 重放用的传输层：绑定宿主 Dio 后借用其 adapter/transformer（自定义代理、证书、
@@ -444,7 +449,8 @@ class DiomanAuth extends DiomanPlugin {
       }
     } catch (e, s) {
       if (handler.isCompleted) return;
-      final err = DioException(requestOptions: options, error: e, stackTrace: s);
+      final err =
+          DioException(requestOptions: options, error: e, stackTrace: s);
       // 标记已拒绝：随后本插件的 onError 看到它就注销认领（含 share 结算）。
       options.extra[_kDenied] = true;
       handler.reject(err, true);
@@ -512,6 +518,7 @@ class DiomanAuth extends DiomanPlugin {
     // the first triggers the refresh, the rest await the same future, then
     // every one injects the refreshed token. Opt-in — with no [_expiresAt]
     // callback this branch never runs and behaviour is purely reactive.
+    _expiredNotified = false;
     if (_isExpiring(token, o)) {
       final ok = await _startRefresh(_synthProactive(options));
       if (!ok) {
@@ -530,6 +537,16 @@ class DiomanAuth extends DiomanPlugin {
     }
 
     await _injectToken(options, token, o);
+    // 原始 500 已经过 auth 错误出口时会清掉临时标记；重试后到来的 401
+    // 仍须比较原始裸令牌，不能拿 Bearer 头与裸令牌比较而误判为已刷新。
+    final carriedToken = token;
+    claimsOf(options)?.recoverAuth = (error) async {
+      if (error.response == null) return null;
+      options.extra.putIfAbsent(_kTokenUsed, () => carriedToken);
+      final action = _decideFailure(error.response!, o);
+      if (action == DiomanAuthFailureAction.others) return null;
+      return _handleFailure(error.response!, options, o, decision: action);
+    };
     handler.next(options);
   }
 
@@ -639,8 +656,11 @@ class DiomanAuth extends DiomanPlugin {
       _replay.handOffError(this, opts, failure, handler);
     } catch (e, s) {
       _clearFlags(bag);
-      final failure = DioException(requestOptions: opts, error: e, stackTrace: s);
-      if (!handler.isCompleted) _replay.handOffError(this, opts, failure, handler);
+      final failure =
+          DioException(requestOptions: opts, error: e, stackTrace: s);
+      if (!handler.isCompleted) {
+        _replay.handOffError(this, opts, failure, handler);
+      }
     }
   }
 
@@ -651,35 +671,26 @@ class DiomanAuth extends DiomanPlugin {
   Future<Object?> _handleFailure(
     Response<dynamic> response,
     RequestOptions opts,
-    DiomanAuthOptions? o,
-  ) async {
+    DiomanAuthOptions? o, {
+    DiomanAuthFailureAction? decision,
+  }) async {
     final bag = opts.extra;
 
     if (bag[_kRefreshed] == true) {
       // Already replayed once — give up. 用 token generation 校验，别让旧请求
       // 清掉别人刚刷新出来的新会话。
-      await _expire(response, o, staleToken: bag[_kTokenUsed] as String?);
-      _clearFlags(bag);
-      return null;
+      return _expireAndFail(response, o, bag,
+          staleToken: bag[_kTokenUsed] as String?);
     }
 
-    final $onFailure = o?.onFailure ?? _onFailure;
-    final $headerKey = o?.headerKey ?? _headerKey;
-    final action = await _safe(
-          () async =>
-              $onFailure?.call(_tokenManager, response) ??
-              defaultAuthFailure(_tokenManager, response, $headerKey),
-        ) ??
+    final action = decision ??
+        await _safe(() async => _decideFailure(response, o)) ??
         DiomanAuthFailureAction.others;
 
     switch (action) {
       case DiomanAuthFailureAction.refresh:
         final ok = await _startRefresh(response);
-        if (!ok) {
-          await _expire(response, o);
-          _clearFlags(bag);
-          return null;
-        }
+        if (!ok) return _expireAndFail(response, o, bag);
         // 等刷新期间请求已被取消：不再重放（调用方早已拿到取消结果）。
         if (opts.cancelToken?.isCancelled == true) return null;
         bag[_kRefreshed] = true;
@@ -689,15 +700,7 @@ class DiomanAuth extends DiomanPlugin {
         if (fresh != null && fresh.isNotEmpty) {
           await _injectToken(opts, fresh, o);
         }
-        final replayed = await _replayOnce(opts);
-        if (replayed.response != null) return replayed.response;
-        // 重放失败：只有明确的认证失败（401）才说明会话真的失效；500、断网等
-        // 暂时性故障不能清掉刚刷新出来的有效 token。
-        if (replayed.error?.response?.statusCode == 401) {
-          await _expire(response, o, staleToken: bag[_kTokenUsed] as String?);
-        }
-        _clearFlags(bag);
-        return replayed.error;
+        return _settleReplay(await _replayOnce(opts), response, o, bag);
 
       case DiomanAuthFailureAction.replay:
         bag[_kRefreshed] = true;
@@ -707,10 +710,7 @@ class DiomanAuth extends DiomanPlugin {
         if (current != null && current.isNotEmpty) {
           await _injectToken(opts, current, o);
         }
-        final replayed = await _replayOnce(opts);
-        if (replayed.response != null) return replayed.response;
-        _clearFlags(bag);
-        return replayed.error;
+        return _settleReplay(await _replayOnce(opts), response, o, bag);
 
       case DiomanAuthFailureAction.deny:
         final $onDenied = o?.onAccessDenied ?? _onDenied;
@@ -720,14 +720,49 @@ class DiomanAuth extends DiomanPlugin {
         return null;
 
       case DiomanAuthFailureAction.expired:
-        await _expire(response, o);
-        _clearFlags(bag);
-        return null;
+        return _expireAndFail(response, o, bag);
 
       case DiomanAuthFailureAction.others:
         _clearFlags(bag);
         return null;
     }
+  }
+
+  /// 按请求级或插件级 onFailure 判定失败动作，未配置时用默认规则。
+  DiomanAuthFailureAction _decideFailure(
+          Response<dynamic> response, DiomanAuthOptions? o) =>
+      (o?.onFailure ?? _onFailure)?.call(_tokenManager, response) ??
+      defaultAuthFailure(_tokenManager, response, o?.headerKey ?? _headerKey);
+
+  /// 结束会话并清标记，返回给调用方的过期错误；[reported] 为空时用 [response]。
+  Future<DioException> _expireAndFail(
+    Response<dynamic> response,
+    DiomanAuthOptions? o,
+    Map<dynamic, dynamic> bag, {
+    String? staleToken,
+    Response<dynamic>? reported,
+  }) async {
+    await _expire(response, o, staleToken: staleToken);
+    _clearFlags(bag);
+    return _expiredError(reported ?? response);
+  }
+
+  /// 收尾一次重放：成功给响应；仍是认证失败就结束会话；500、断网等暂时性
+  /// 故障不能清掉刚刷新出来的有效 token，原样交出重放错误。
+  Future<Object?> _settleReplay(
+    ({Response<dynamic>? response, DioException? error}) replayed,
+    Response<dynamic> response,
+    DiomanAuthOptions? o,
+    Map<dynamic, dynamic> bag,
+  ) async {
+    if (replayed.response != null) return replayed.response;
+    final failed = replayed.error?.response;
+    if (_isReplayAuthFailure(failed, o)) {
+      return _expireAndFail(response, o, bag,
+          staleToken: bag[_kTokenUsed] as String?, reported: failed);
+    }
+    _clearFlags(bag);
+    return replayed.error;
   }
 
   /// 通过重放客户端重放 [opts]，从不抛异常：成功给 response，失败给 error；
@@ -774,9 +809,29 @@ class DiomanAuth extends DiomanPlugin {
         return;
       }
     }
+    if (_expiredNotified && _tokenManager.accessToken == null) return;
+    _expiredNotified = true;
     _tokenManager.clear();
     final $onExpired = o?.onAccessExpired ?? _onExpired;
     await _safe(() => $onExpired(_tokenManager, resp));
+  }
+
+  /// 保留原响应，给每个过期请求提供稳定的失败标识。
+  DioException _expiredError(Response<dynamic> response) => DioException(
+        requestOptions: response.requestOptions,
+        response: response,
+        type: DioExceptionType.badResponse,
+        message: _expiredMessage,
+      );
+
+  /// HTTP 或自定义业务路由确认重放仍是认证失败时结束会话。
+  bool _isReplayAuthFailure(Response<dynamic>? response, DiomanAuthOptions? o) {
+    if (response == null) return false;
+    if (response.statusCode == 401) return true;
+    final action = (o?.onFailure ?? _onFailure)?.call(_tokenManager, response);
+    return action == DiomanAuthFailureAction.refresh ||
+        action == DiomanAuthFailureAction.replay ||
+        action == DiomanAuthFailureAction.expired;
   }
 
   // ── Helpers ───────────────────────────────────────────────────────────────

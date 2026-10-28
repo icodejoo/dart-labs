@@ -242,16 +242,13 @@ class DiomanKey extends DiomanPlugin {
   }
 
   /// 对字段排序后编码，无法序列化时保留字符串表示。
-  static String _encode(Object v) {
+  static String _encode(Map v) {
     try {
       // Sort keys for deterministic output.
-      if (v is Map) {
-        final sorted = Map.fromEntries(
-          (v.entries.toList()..sort((a, b) => a.key.compareTo(b.key))),
-        );
-        return jsonEncode(sorted);
-      }
-      return jsonEncode(v);
+      final sorted = Map.fromEntries(
+        (v.entries.toList()..sort((a, b) => a.key.compareTo(b.key))),
+      );
+      return jsonEncode(sorted);
     } catch (_) {
       return v.toString();
     }
