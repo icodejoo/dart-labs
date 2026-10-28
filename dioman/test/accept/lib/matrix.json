@@ -1,0 +1,7867 @@
+[
+  {
+    "id": "DiomanAuth.cancel",
+    "plugin": "auth",
+    "capability": "兼容取消接线的 setter，不执行操作",
+    "tier": 1,
+    "apis": [
+      "DiomanAuth.cancel"
+    ],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null,
+    "note": "源码：lib/src/auth_plugin.dart:362。"
+  },
+  {
+    "id": "DiomanAuth.dio",
+    "plugin": "auth",
+    "capability": "绑定或解绑重放所借用的宿主传输层",
+    "tier": 1,
+    "apis": [
+      "DiomanAuth.dio"
+    ],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null,
+    "note": "源码：lib/src/auth_plugin.dart:395。"
+  },
+  {
+    "id": "DiomanAuth.dio#transport-reuse",
+    "plugin": "auth",
+    "capability": "重放借用宿主连接且不关闭宿主适配器",
+    "tier": 2,
+    "apis": [
+      "DiomanAuth.dio"
+    ],
+    "real": [],
+    "assumptions": [
+      "H4"
+    ],
+    "result": null,
+    "blocked": "缺真实用例：keep-alive 下连续 401→重放成功→新请求，核对连接及后续响应体。",
+    "note": "ReplayClient.fetch 创建裸 Dio 借 adapter/transformer；现有 POST 重放场景未明确断言连接复用。"
+  },
+  {
+    "id": "DiomanAuth.dispose",
+    "plugin": "auth",
+    "capability": "清空刷新窗口引用并释放兜底重放客户端",
+    "tier": 1,
+    "apis": [
+      "DiomanAuth.dispose"
+    ],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null,
+    "note": "源码：lib/src/auth_plugin.dart:891。 只清刷新 Future 引用，未取消使用者正在执行的刷新回调。"
+  },
+  {
+    "id": "DiomanAuth.enabled",
+    "plugin": "auth",
+    "capability": "默认启用，关闭后全部请求原样放行",
+    "tier": 1,
+    "apis": [
+      "DiomanAuth.enabled",
+      "DiomanAuth.new(enabled)"
+    ],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null,
+    "note": "源码：lib/src/auth_plugin.dart:360。"
+  },
+  {
+    "id": "DiomanAuth.name",
+    "plugin": "auth",
+    "capability": "返回固定插件名 dioman:auth",
+    "tier": 1,
+    "apis": [
+      "DiomanAuth.name"
+    ],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null,
+    "note": "源码：lib/src/auth_plugin.dart:422。"
+  },
+  {
+    "id": "DiomanAuth.new(buildHeader)",
+    "plugin": "auth",
+    "capability": "默认生成 Bearer 头，支持自定义格式",
+    "tier": 1,
+    "apis": [
+      "DiomanAuth.new(buildHeader)"
+    ],
+    "real": [
+      "auth.expired-refresh-replay"
+    ],
+    "assumptions": [],
+    "result": {
+      "status": "PASS",
+      "source": "test/accept/evidence/2026-10-27-summary.json",
+      "passed": 10,
+      "total": 10
+    },
+    "blocked": null,
+    "note": "源码：lib/src/auth_plugin.dart:253。"
+  },
+  {
+    "id": "DiomanAuth.new(expiresAt)",
+    "plugin": "auth",
+    "capability": "可选解析令牌到期时间，缺省不主动刷新",
+    "tier": 1,
+    "apis": [
+      "DiomanAuth.new(expiresAt)"
+    ],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null,
+    "note": "源码：lib/src/auth_plugin.dart:249。 真实 client.dart 未配置 expiresAt，natural-expiry 场景不能证明主动刷新；注入时钟与解析回调属于使用者契约，定为 1。"
+  },
+  {
+    "id": "DiomanAuth.new(headerKey)",
+    "plugin": "auth",
+    "capability": "默认把令牌写入 Authorization 头",
+    "tier": 1,
+    "apis": [
+      "DiomanAuth.new(headerKey)"
+    ],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null,
+    "note": "源码：lib/src/auth_plugin.dart:252。"
+  },
+  {
+    "id": "DiomanAuth.new(isProtected)",
+    "plugin": "auth",
+    "capability": "按回调决定保护范围，缺省保护所有请求",
+    "tier": 1,
+    "apis": [
+      "DiomanAuth.new(isProtected)"
+    ],
+    "real": [
+      "auth.anon-and-private-mix",
+      "auth.public-401-no-refresh",
+      "auth.public-ignores-expired-token"
+    ],
+    "assumptions": [],
+    "result": {
+      "status": "PASS",
+      "source": "test/accept/evidence/2026-10-27-summary.json",
+      "passed": 14,
+      "total": 14
+    },
+    "blocked": null,
+    "note": "源码：lib/src/auth_plugin.dart:248。"
+  },
+  {
+    "id": "DiomanAuth.new(now)",
+    "plugin": "auth",
+    "capability": "注入主动到期判断时钟，默认当前时间",
+    "tier": 1,
+    "apis": [
+      "DiomanAuth.new(now)"
+    ],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null,
+    "note": "源码：lib/src/auth_plugin.dart:251。"
+  },
+  {
+    "id": "DiomanAuth.new(onAccessDenied)",
+    "plugin": "auth",
+    "capability": "拒绝回调可省略，缺省回退过期回调",
+    "tier": 1,
+    "apis": [
+      "DiomanAuth.new(onAccessDenied)"
+    ],
+    "real": [
+      "auth.logout-then-private-fails",
+      "auth.deny-403"
+    ],
+    "assumptions": [],
+    "result": {
+      "status": "PASS",
+      "source": "test/accept/evidence/2026-10-27-summary.json",
+      "passed": 14,
+      "total": 14
+    },
+    "blocked": null,
+    "note": "源码：lib/src/auth_plugin.dart:239。"
+  },
+  {
+    "id": "DiomanAuth.new(onAccessExpired)",
+    "plugin": "auth",
+    "capability": "失效通知先清令牌并去重，也可作拒绝兜底",
+    "tier": 1,
+    "apis": [
+      "DiomanAuth.new(onAccessExpired)"
+    ],
+    "real": [
+      "auth.refresh-expired-session",
+      "auth.refresh-expired-concurrent",
+      "auth.refresh-fail-times"
+    ],
+    "assumptions": [],
+    "result": {
+      "status": "PASS",
+      "source": "test/accept/evidence/2026-10-27-summary.json",
+      "passed": 6,
+      "total": 6
+    },
+    "blocked": null,
+    "note": "源码：lib/src/auth_plugin.dart:236。"
+  },
+  {
+    "id": "DiomanAuth.new(onFailure)",
+    "plugin": "auth",
+    "capability": "失败动作可自定义，缺省按令牌与状态路由",
+    "tier": 1,
+    "apis": [
+      "DiomanAuth.new(onFailure)"
+    ],
+    "real": [
+      "auth.code-only-401-recovers",
+      "auth.style-switch-refresh",
+      "auth.deny-403"
+    ],
+    "assumptions": [],
+    "result": {
+      "status": "PASS",
+      "source": "test/accept/evidence/2026-10-27-summary.json",
+      "passed": 16,
+      "total": 16
+    },
+    "blocked": null,
+    "note": "源码：lib/src/auth_plugin.dart:242。"
+  },
+  {
+    "id": "DiomanAuth.new(onRefresh)",
+    "plugin": "auth",
+    "capability": "并发刷新共用一个回调 Future 窗口",
+    "tier": 1,
+    "apis": [
+      "DiomanAuth.new(onRefresh)"
+    ],
+    "real": [
+      "auth.concurrent-401-single-refresh-8",
+      "auth.concurrent-401-single-refresh-32",
+      "auth.concurrent-two-waves",
+      "auth.requests-during-refresh-queue"
+    ],
+    "assumptions": [],
+    "result": {
+      "status": "PASS",
+      "source": "test/accept/evidence/2026-10-27-summary.json",
+      "passed": 18,
+      "total": 18
+    },
+    "blocked": null,
+    "note": "源码：lib/src/auth_plugin.dart:233。"
+  },
+  {
+    "id": "DiomanAuth.new(ready)",
+    "plugin": "auth",
+    "capability": "自定义注入优先于头名和格式，异常被吞掉",
+    "tier": 1,
+    "apis": [
+      "DiomanAuth.new(ready)"
+    ],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null,
+    "note": "源码：lib/src/auth_plugin.dart:245。 _safe 吞掉 ready 异常后仍暂存裸令牌；与 buildHeader 抛错进入错误链不同。"
+  },
+  {
+    "id": "DiomanAuth.new(refreshLeeway)",
+    "plugin": "auth",
+    "capability": "主动刷新提前量默认零，到期边界含等号",
+    "tier": 1,
+    "apis": [
+      "DiomanAuth.new(refreshLeeway)"
+    ],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null,
+    "note": "源码：lib/src/auth_plugin.dart:250。"
+  },
+  {
+    "id": "DiomanAuth.new(tokenManager)",
+    "plugin": "auth",
+    "capability": "固定令牌管理契约，不支持单请求替换",
+    "tier": 1,
+    "apis": [
+      "DiomanAuth.new(tokenManager)"
+    ],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null,
+    "note": "源码：lib/src/auth_plugin.dart:232。"
+  },
+  {
+    "id": "DiomanAuth.onError",
+    "plugin": "auth",
+    "capability": "按失败动作刷新或重放，并交出结算认领",
+    "tier": 1,
+    "apis": [
+      "DiomanAuth.onError"
+    ],
+    "real": [
+      "auth.expired-refresh-replay",
+      "auth.natural-expiry-refresh",
+      "auth.two-rounds-refresh-chain",
+      "auth.concurrent-401-single-refresh-8",
+      "auth.concurrent-401-single-refresh-32",
+      "auth.concurrent-two-waves",
+      "auth.refresh-expired-session",
+      "auth.refresh-expired-concurrent",
+      "auth.refresh-fail-times",
+      "auth.relogin-after-expired",
+      "auth.revoke-kicked",
+      "auth.code-only-401-refresh-once-then-expired",
+      "auth.code-only-401-recovers",
+      "auth.code-only-401-no-refresh-token",
+      "auth.code-only-401-concurrent",
+      "auth.deny-403",
+      "auth.public-401-no-refresh",
+      "auth.post-replay-body-intact",
+      "auth.requests-during-refresh-queue",
+      "auth.slow-refresh-cancel",
+      "auth.slow-refresh-cancel-all",
+      "auth.logout-inflight",
+      "auth.offline-refresh-keeps-session",
+      "auth.no-refresh-user-expired",
+      "auth.token-none-refresh-ok",
+      "auth.token-none-refresh-none",
+      "auth.token-none-refresh-bad",
+      "auth.token-empty-refresh-ok",
+      "auth.token-empty-refresh-none",
+      "auth.token-empty-refresh-bad",
+      "auth.token-garbage-refresh-ok",
+      "auth.token-garbage-refresh-none",
+      "auth.token-garbage-refresh-bad",
+      "auth.token-bad-signature-refresh-ok",
+      "auth.token-bad-signature-refresh-none",
+      "auth.token-bad-signature-refresh-bad",
+      "auth.token-tampered-payload-refresh-ok",
+      "auth.token-tampered-payload-refresh-none",
+      "auth.token-tampered-payload-refresh-bad",
+      "auth.token-wrong-scheme-refresh-ok",
+      "auth.token-wrong-scheme-refresh-none",
+      "auth.token-wrong-scheme-refresh-bad",
+      "auth.token-garbage-concurrent-refresh-ok",
+      "auth.token-garbage-concurrent-refresh-bad",
+      "auth.token-garbage-concurrent-no-refresh",
+      "auth.token-no-refresh-user-garbage",
+      "auth.token-previous-after-logout",
+      "auth.token-previous-after-revoke",
+      "auth.token-strict-previous-access",
+      "auth.token-previous-refresh-reuse",
+      "auth.strict-rotation-refresh-replay",
+      "auth.strict-rotation-concurrent",
+      "auth.strict-rotation-two-rounds",
+      "auth.garbage-then-relogin",
+      "auth.network-failure-keeps-session",
+      "auth.revoke-all-expired",
+      "auth.revoke-default-scope-is-all",
+      "auth.revoke-all-concurrent",
+      "auth.revoke-all-then-relogin",
+      "auth.revoke-all-previous-tokens",
+      "auth.style-switch-refresh",
+      "auth.style-switch-concurrent",
+      "auth.style-switch-expired",
+      "retry.401-goes-refresh-first"
+    ],
+    "assumptions": [],
+    "result": {
+      "status": "PASS",
+      "source": "test/accept/evidence/2026-10-27-summary.json",
+      "passed": 222,
+      "total": 222
+    },
+    "blocked": null,
+    "note": "源码：lib/src/auth_plugin.dart:616。 本行仅记失败动作与认领决策；请求体重放及取消时序另拆。真实端使用自定义 onFailure，不等于全部默认分支已核对。 auth.refresh-fail-times/offline-refresh-keeps-session 的会话保留愿景须对照 _startRefresh：刷新回调抛错统一返回 false，_expire 会清令牌；不能直接据目录预期判定通过。"
+  },
+  {
+    "id": "DiomanAuth.onError#body-replay",
+    "plugin": "auth",
+    "capability": "认证恢复重放保留已发送请求的结构化请求体",
+    "tier": 2,
+    "apis": [
+      "DiomanAuth.onError"
+    ],
+    "real": [
+      "auth.post-replay-body-intact"
+    ],
+    "assumptions": [
+      "H2"
+    ],
+    "result": {
+      "status": "PASS",
+      "source": "test/accept/evidence/2026-10-27-summary.json",
+      "passed": 10,
+      "total": 10
+    },
+    "blocked": null,
+    "note": "原行保留动作路由；此行核对真实适配器消费请求体后的重放。JSON 成功不代表 multipart 已核对。"
+  },
+  {
+    "id": "DiomanAuth.onError#multipart-replay",
+    "plugin": "auth",
+    "capability": "认证重放克隆 FormData，流请求体不自动重放",
+    "tier": 2,
+    "apis": [
+      "DiomanAuth.onError"
+    ],
+    "real": [],
+    "assumptions": [
+      "H2"
+    ],
+    "result": null,
+    "blocked": "缺真实用例：用已消费的 multipart 触发 401 后刷新重放，并核对文件字节；另测 Stream 不重发。",
+    "note": "lib/src/auth_plugin.dart:_replayOnce 与 replay_support.dart:prepareForReplay；本地 auth_replay_boundary_test.dart 有两分支。"
+  },
+  {
+    "id": "DiomanAuth.onRequest",
+    "plugin": "auth",
+    "capability": "判定保护范围，等待刷新并注入令牌",
+    "tier": 1,
+    "apis": [
+      "DiomanAuth.onRequest"
+    ],
+    "real": [
+      "auth.anon-and-private-mix",
+      "auth.logout-then-private-fails",
+      "auth.relogin-other-user",
+      "auth.expired-refresh-replay",
+      "auth.natural-expiry-refresh",
+      "auth.two-rounds-refresh-chain",
+      "auth.concurrent-401-single-refresh-8",
+      "auth.concurrent-401-single-refresh-32",
+      "auth.concurrent-two-waves",
+      "auth.refresh-expired-session",
+      "auth.refresh-expired-concurrent",
+      "auth.refresh-fail-times",
+      "auth.relogin-after-expired",
+      "auth.revoke-kicked",
+      "auth.code-only-401-refresh-once-then-expired",
+      "auth.code-only-401-recovers",
+      "auth.code-only-401-no-refresh-token",
+      "auth.code-only-401-concurrent",
+      "auth.deny-403",
+      "auth.public-401-no-refresh",
+      "auth.public-ignores-expired-token",
+      "auth.post-replay-body-intact",
+      "auth.requests-during-refresh-queue",
+      "auth.slow-refresh-cancel",
+      "auth.slow-refresh-cancel-all",
+      "auth.logout-inflight",
+      "auth.offline-refresh-keeps-session",
+      "auth.no-refresh-user-expired",
+      "auth.token-none-refresh-ok",
+      "auth.token-none-refresh-none",
+      "auth.token-none-refresh-bad",
+      "auth.token-empty-refresh-ok",
+      "auth.token-empty-refresh-none",
+      "auth.token-empty-refresh-bad",
+      "auth.token-garbage-refresh-ok",
+      "auth.token-garbage-refresh-none",
+      "auth.token-garbage-refresh-bad",
+      "auth.token-bad-signature-refresh-ok",
+      "auth.token-bad-signature-refresh-none",
+      "auth.token-bad-signature-refresh-bad",
+      "auth.token-tampered-payload-refresh-ok",
+      "auth.token-tampered-payload-refresh-none",
+      "auth.token-tampered-payload-refresh-bad",
+      "auth.token-wrong-scheme-refresh-ok",
+      "auth.token-wrong-scheme-refresh-none",
+      "auth.token-wrong-scheme-refresh-bad",
+      "auth.token-garbage-concurrent-refresh-ok",
+      "auth.token-garbage-concurrent-refresh-bad",
+      "auth.token-garbage-concurrent-no-refresh",
+      "auth.token-none-concurrent",
+      "auth.token-no-refresh-user-garbage",
+      "auth.token-no-refresh-user-none",
+      "auth.token-previous-after-logout",
+      "auth.token-previous-after-revoke",
+      "auth.token-strict-previous-access",
+      "auth.token-nonstrict-previous-access",
+      "auth.token-previous-refresh-reuse",
+      "auth.strict-rotation-refresh-replay",
+      "auth.strict-rotation-concurrent",
+      "auth.strict-rotation-two-rounds",
+      "auth.garbage-then-relogin",
+      "auth.network-failure-keeps-session",
+      "auth.revoke-all-expired",
+      "auth.revoke-default-scope-is-all",
+      "auth.revoke-all-concurrent",
+      "auth.revoke-all-then-relogin",
+      "auth.revoke-all-previous-tokens",
+      "auth.style-switch-refresh",
+      "auth.style-switch-concurrent",
+      "auth.style-switch-expired"
+    ],
+    "assumptions": [],
+    "result": {
+      "status": "PASS",
+      "source": "test/accept/evidence/2026-10-27-summary.json",
+      "passed": 246,
+      "total": 246
+    },
+    "blocked": null,
+    "note": "源码：lib/src/auth_plugin.dart:427。 这里只记可注入的契约及管线分支，已消费 body 的重放和真实取消另见同 API 拆行。"
+  },
+  {
+    "id": "DiomanAuth.onRequest#cancel-refresh",
+    "plugin": "auth",
+    "capability": "刷新等待期间取消及时结束当前调用",
+    "tier": 2,
+    "apis": [
+      "DiomanAuth.onRequest"
+    ],
+    "real": [
+      "auth.slow-refresh-cancel",
+      "auth.slow-refresh-cancel-all"
+    ],
+    "assumptions": [
+      "H1"
+    ],
+    "result": {
+      "status": "PASS",
+      "source": "test/accept/evidence/2026-10-27-summary.json",
+      "passed": 4,
+      "total": 4
+    },
+    "blocked": null,
+    "note": "仅取消等待者，共享刷新回调继续；真实 cancel_all 追踪缺口另见 INV-11。"
+  },
+  {
+    "id": "DiomanAuth.onResponse",
+    "plugin": "auth",
+    "capability": "受保护请求清临时标记并交出结算认领",
+    "tier": 1,
+    "apis": [
+      "DiomanAuth.onResponse"
+    ],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null,
+    "note": "源码：lib/src/auth_plugin.dart:600。 _clearFlags 不删 decision；重放成功路径刻意保留标记，见 INV-05。"
+  },
+  {
+    "id": "DiomanAuth.pluginName",
+    "plugin": "auth",
+    "capability": "公开插件名固定为 dioman:auth",
+    "tier": 1,
+    "apis": [
+      "DiomanAuth.pluginName"
+    ],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null,
+    "note": "源码：lib/src/auth_plugin.dart:412。"
+  },
+  {
+    "id": "DiomanAuth.share",
+    "plugin": "auth",
+    "capability": "兼容共享接线的 setter，不执行操作",
+    "tier": 1,
+    "apis": [
+      "DiomanAuth.share"
+    ],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null,
+    "note": "源码：lib/src/auth_plugin.dart:372。"
+  },
+  {
+    "id": "DiomanAuthFailureAction.deny",
+    "plugin": "auth",
+    "capability": "调用拒绝或过期回调，不清令牌并传原错",
+    "tier": 1,
+    "apis": [
+      "DiomanAuthFailureAction.deny"
+    ],
+    "real": [
+      "auth.deny-403"
+    ],
+    "assumptions": [],
+    "result": {
+      "status": "PASS",
+      "source": "test/accept/evidence/2026-10-27-summary.json",
+      "passed": 10,
+      "total": 10
+    },
+    "blocked": null,
+    "note": "源码：lib/src/auth_plugin.dart:54。"
+  },
+  {
+    "id": "DiomanAuthFailureAction.expired",
+    "plugin": "auth",
+    "capability": "清空当前会话并以稳定过期错误结束",
+    "tier": 1,
+    "apis": [
+      "DiomanAuthFailureAction.expired"
+    ],
+    "real": [
+      "auth.refresh-expired-session",
+      "auth.no-refresh-user-expired"
+    ],
+    "assumptions": [],
+    "result": {
+      "status": "PASS",
+      "source": "test/accept/evidence/2026-10-27-summary.json",
+      "passed": 4,
+      "total": 4
+    },
+    "blocked": null,
+    "note": "源码：lib/src/auth_plugin.dart:59。"
+  },
+  {
+    "id": "DiomanAuthFailureAction.others",
+    "plugin": "auth",
+    "capability": "不做认证恢复，清临时标记后传原错",
+    "tier": 1,
+    "apis": [
+      "DiomanAuthFailureAction.others"
+    ],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null,
+    "note": "源码：lib/src/auth_plugin.dart:64。"
+  },
+  {
+    "id": "DiomanAuthFailureAction.refresh",
+    "plugin": "auth",
+    "capability": "共用刷新窗口，换新令牌后至多重放一次",
+    "tier": 1,
+    "apis": [
+      "DiomanAuthFailureAction.refresh"
+    ],
+    "real": [
+      "auth.expired-refresh-replay",
+      "auth.strict-rotation-refresh-replay"
+    ],
+    "assumptions": [],
+    "result": {
+      "status": "PASS",
+      "source": "test/accept/evidence/2026-10-27-summary.json",
+      "passed": 20,
+      "total": 20
+    },
+    "blocked": null,
+    "note": "源码：lib/src/auth_plugin.dart:43。"
+  },
+  {
+    "id": "DiomanAuthFailureAction.replay",
+    "plugin": "auth",
+    "capability": "不刷新，以当前令牌至多重放一次",
+    "tier": 1,
+    "apis": [
+      "DiomanAuthFailureAction.replay"
+    ],
+    "real": [
+      "auth.strict-rotation-concurrent"
+    ],
+    "assumptions": [],
+    "result": {
+      "status": "PASS",
+      "source": "test/accept/evidence/2026-10-27-summary.json",
+      "passed": 4,
+      "total": 4
+    },
+    "blocked": null,
+    "note": "源码：lib/src/auth_plugin.dart:48。"
+  },
+  {
+    "id": "DiomanAuthOptions.buildHeader",
+    "plugin": "auth",
+    "capability": "单请求覆盖令牌头格式，空值继承",
+    "tier": 1,
+    "apis": [
+      "DiomanAuthOptions.buildHeader",
+      "DiomanAuthOptions.new(buildHeader)"
+    ],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null,
+    "note": "源码：lib/src/auth_plugin.dart:204。"
+  },
+  {
+    "id": "DiomanAuthOptions.enabled",
+    "plugin": "auth",
+    "capability": "单请求明确保护开关优先于保护回调",
+    "tier": 1,
+    "apis": [
+      "DiomanAuthOptions.enabled",
+      "DiomanAuthOptions.new(enabled)"
+    ],
+    "real": [
+      "auth.public-401-no-refresh"
+    ],
+    "assumptions": [],
+    "result": {
+      "status": "PASS",
+      "source": "test/accept/evidence/2026-10-27-summary.json",
+      "passed": 2,
+      "total": 2
+    },
+    "blocked": null,
+    "note": "源码：lib/src/auth_plugin.dart:149。"
+  },
+  {
+    "id": "DiomanAuthOptions.expiresAt",
+    "plugin": "auth",
+    "capability": "单请求覆盖到期解析，空值继承",
+    "tier": 1,
+    "apis": [
+      "DiomanAuthOptions.expiresAt",
+      "DiomanAuthOptions.new(expiresAt)"
+    ],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null,
+    "note": "源码：lib/src/auth_plugin.dart:184。"
+  },
+  {
+    "id": "DiomanAuthOptions.headerKey",
+    "plugin": "auth",
+    "capability": "单请求覆盖认证头字段名，空值继承",
+    "tier": 1,
+    "apis": [
+      "DiomanAuthOptions.headerKey",
+      "DiomanAuthOptions.new(headerKey)"
+    ],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null,
+    "note": "源码：lib/src/auth_plugin.dart:199。"
+  },
+  {
+    "id": "DiomanAuthOptions.isProtected",
+    "plugin": "auth",
+    "capability": "保护开关未指定时使用请求级保护回调",
+    "tier": 1,
+    "apis": [
+      "DiomanAuthOptions.isProtected",
+      "DiomanAuthOptions.new(isProtected)"
+    ],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null,
+    "note": "源码：lib/src/auth_plugin.dart:179。"
+  },
+  {
+    "id": "DiomanAuthOptions.now",
+    "plugin": "auth",
+    "capability": "单请求覆盖主动到期判断时钟",
+    "tier": 1,
+    "apis": [
+      "DiomanAuthOptions.new(now)",
+      "DiomanAuthOptions.now"
+    ],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null,
+    "note": "源码：lib/src/auth_plugin.dart:194。"
+  },
+  {
+    "id": "DiomanAuthOptions.onAccessDenied",
+    "plugin": "auth",
+    "capability": "单请求覆盖拒绝回调，空值继承",
+    "tier": 1,
+    "apis": [
+      "DiomanAuthOptions.new(onAccessDenied)",
+      "DiomanAuthOptions.onAccessDenied"
+    ],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null,
+    "note": "源码：lib/src/auth_plugin.dart:155。"
+  },
+  {
+    "id": "DiomanAuthOptions.onAccessExpired",
+    "plugin": "auth",
+    "capability": "单请求覆盖过期回调，空值继承",
+    "tier": 1,
+    "apis": [
+      "DiomanAuthOptions.new(onAccessExpired)",
+      "DiomanAuthOptions.onAccessExpired"
+    ],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null,
+    "note": "源码：lib/src/auth_plugin.dart:161。"
+  },
+  {
+    "id": "DiomanAuthOptions.onFailure",
+    "plugin": "auth",
+    "capability": "单请求覆盖失败动作路由，空值继承",
+    "tier": 1,
+    "apis": [
+      "DiomanAuthOptions.new(onFailure)",
+      "DiomanAuthOptions.onFailure"
+    ],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null,
+    "note": "源码：lib/src/auth_plugin.dart:167。"
+  },
+  {
+    "id": "DiomanAuthOptions.ready",
+    "plugin": "auth",
+    "capability": "单请求覆盖注入回调并优先于头配置",
+    "tier": 1,
+    "apis": [
+      "DiomanAuthOptions.new(ready)",
+      "DiomanAuthOptions.ready"
+    ],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null,
+    "note": "源码：lib/src/auth_plugin.dart:173。"
+  },
+  {
+    "id": "DiomanAuthOptions.refreshLeeway",
+    "plugin": "auth",
+    "capability": "单请求覆盖提前刷新时长，空值继承",
+    "tier": 1,
+    "apis": [
+      "DiomanAuthOptions.new(refreshLeeway)",
+      "DiomanAuthOptions.refreshLeeway"
+    ],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null,
+    "note": "源码：lib/src/auth_plugin.dart:189。"
+  },
+  {
+    "id": "DiomanTokenManager.accessToken",
+    "plugin": "auth",
+    "capability": "提供当前访问令牌，空值表示无令牌",
+    "tier": 1,
+    "apis": [
+      "DiomanTokenManager.accessToken"
+    ],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null,
+    "note": "源码：lib/src/auth_plugin.dart:16。"
+  },
+  {
+    "id": "DiomanTokenManager.canRefresh",
+    "plugin": "auth",
+    "capability": "暴露可刷新契约，默认认证路由不读取",
+    "tier": 1,
+    "apis": [
+      "DiomanTokenManager.canRefresh"
+    ],
+    "real": [
+      "auth.no-refresh-user-expired"
+    ],
+    "assumptions": [],
+    "result": {
+      "status": "PASS",
+      "source": "test/accept/evidence/2026-10-27-summary.json",
+      "passed": 2,
+      "total": 2
+    },
+    "blocked": null,
+    "note": "源码：lib/src/auth_plugin.dart:26。 默认路由不检查它；真实执行器自定义 onFailure 才读取。"
+  },
+  {
+    "id": "DiomanTokenManager.clear",
+    "plugin": "auth",
+    "capability": "会话过期时调用使用者实现清空令牌",
+    "tier": 1,
+    "apis": [
+      "DiomanTokenManager.clear"
+    ],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null,
+    "note": "源码：lib/src/auth_plugin.dart:31。"
+  },
+  {
+    "id": "DiomanTokenManager.refreshToken",
+    "plugin": "auth",
+    "capability": "提供刷新令牌契约，插件自身不直接读取",
+    "tier": 1,
+    "apis": [
+      "DiomanTokenManager.refreshToken"
+    ],
+    "real": [
+      "auth.expired-refresh-replay"
+    ],
+    "assumptions": [],
+    "result": {
+      "status": "PASS",
+      "source": "test/accept/evidence/2026-10-27-summary.json",
+      "passed": 10,
+      "total": 10
+    },
+    "blocked": null,
+    "note": "源码：lib/src/auth_plugin.dart:21。"
+  },
+  {
+    "id": "defaultAuthFailure",
+    "plugin": "auth",
+    "capability": "按状态与实际裸令牌和当前令牌比较路由",
+    "tier": 1,
+    "apis": [
+      "defaultAuthFailure"
+    ],
+    "real": [
+      "auth.expired-refresh-replay",
+      "auth.strict-rotation-concurrent",
+      "auth.token-garbage-refresh-ok"
+    ],
+    "assumptions": [],
+    "result": {
+      "status": "PASS",
+      "source": "test/accept/evidence/2026-10-27-summary.json",
+      "passed": 24,
+      "total": 24
+    },
+    "blocked": null,
+    "note": "源码：lib/src/auth_plugin.dart:72。"
+  },
+  {
+    "id": "DiomanBreaker.bucketCount",
+    "plugin": "breaker",
+    "capability": "返回当前保留的桶数，不主动触发回收",
+    "tier": 1,
+    "apis": [
+      "DiomanBreaker.bucketCount"
+    ],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null,
+    "note": "源码：lib/src/breaker_plugin.dart:355。"
+  },
+  {
+    "id": "DiomanBreaker.defaultIdleTtl",
+    "plugin": "breaker",
+    "capability": "默认桶空闲回收时长为一小时",
+    "tier": 1,
+    "apis": [
+      "DiomanBreaker.defaultIdleTtl"
+    ],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null,
+    "note": "源码：lib/src/breaker_plugin.dart:338。"
+  },
+  {
+    "id": "DiomanBreaker.defaultMaxBuckets",
+    "plugin": "breaker",
+    "capability": "默认桶数量软上限为一千",
+    "tier": 1,
+    "apis": [
+      "DiomanBreaker.defaultMaxBuckets"
+    ],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null,
+    "note": "源码：lib/src/breaker_plugin.dart:341。"
+  },
+  {
+    "id": "DiomanBreaker.dispose",
+    "plugin": "breaker",
+    "capability": "清空全部熔断桶",
+    "tier": 1,
+    "apis": [
+      "DiomanBreaker.dispose"
+    ],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null,
+    "note": "源码：lib/src/breaker_plugin.dart:781。"
+  },
+  {
+    "id": "DiomanBreaker.enabled",
+    "plugin": "breaker",
+    "capability": "默认启用，禁用后不拒绝也不记账",
+    "tier": 1,
+    "apis": [
+      "DiomanBreaker.enabled",
+      "DiomanBreaker.new(enabled)"
+    ],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null,
+    "note": "源码：lib/src/breaker_plugin.dart:408。"
+  },
+  {
+    "id": "DiomanBreaker.failureThreshold",
+    "plugin": "breaker",
+    "capability": "连续失败阈值默认十，不做钳制",
+    "tier": 1,
+    "apis": [
+      "DiomanBreaker.failureThreshold",
+      "DiomanBreaker.new(failureThreshold)"
+    ],
+    "real": [
+      "breaker.open-after-threshold",
+      "breaker.parallel-trip",
+      "plugins.boundary-breaker-threshold-0",
+      "plugins.boundary-breaker-threshold-1"
+    ],
+    "assumptions": [],
+    "result": {
+      "status": "PASS",
+      "source": "test/accept/evidence/2026-10-27-summary.json",
+      "passed": 10,
+      "total": 10
+    },
+    "blocked": null,
+    "note": "源码：lib/src/breaker_plugin.dart:363。"
+  },
+  {
+    "id": "DiomanBreaker.halfOpenMaxCalls",
+    "plugin": "breaker",
+    "capability": "半开并发探测上限默认三，不做钳制",
+    "tier": 1,
+    "apis": [
+      "DiomanBreaker.halfOpenMaxCalls",
+      "DiomanBreaker.new(halfOpenMaxCalls)"
+    ],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null,
+    "note": "源码：lib/src/breaker_plugin.dart:377。"
+  },
+  {
+    "id": "DiomanBreaker.idleTtl",
+    "plugin": "breaker",
+    "capability": "新建桶时惰性回收超龄可丢弃桶",
+    "tier": 1,
+    "apis": [
+      "DiomanBreaker.idleTtl",
+      "DiomanBreaker.new(idleTtl)"
+    ],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null,
+    "note": "源码：lib/src/breaker_plugin.dart:344。"
+  },
+  {
+    "id": "DiomanBreaker.isOpen",
+    "plugin": "breaker",
+    "capability": "只读判断当前是否会拒绝，不改变桶状态",
+    "tier": 1,
+    "apis": [
+      "DiomanBreaker.isOpen"
+    ],
+    "real": [
+      "breaker.retry-halts-on-trip"
+    ],
+    "assumptions": [],
+    "result": {
+      "status": "PASS",
+      "source": "test/accept/evidence/2026-10-27-summary.json",
+      "passed": 2,
+      "total": 2
+    },
+    "blocked": null,
+    "note": "源码：lib/src/breaker_plugin.dart:555。"
+  },
+  {
+    "id": "DiomanBreaker.keyBuilder",
+    "plugin": "breaker",
+    "capability": "默认按 METHOD:path 分桶，可自定义",
+    "tier": 1,
+    "apis": [
+      "DiomanBreaker.keyBuilder",
+      "DiomanBreaker.new(keyBuilder)"
+    ],
+    "real": [
+      "breaker.bucket-isolation"
+    ],
+    "assumptions": [],
+    "result": {
+      "status": "PASS",
+      "source": "test/accept/evidence/2026-10-27-summary.json",
+      "passed": 2,
+      "total": 2
+    },
+    "blocked": null,
+    "note": "源码：lib/src/breaker_plugin.dart:392。 bucket-isolation 执行默认 METHOD:path 分桶，不证明自定义 builder 回调已有真实覆盖。"
+  },
+  {
+    "id": "DiomanBreaker.maxBuckets",
+    "plugin": "breaker",
+    "capability": "默认千桶软上限，仅淘汰可丢弃桶",
+    "tier": 1,
+    "apis": [
+      "DiomanBreaker.maxBuckets",
+      "DiomanBreaker.new(maxBuckets)"
+    ],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null,
+    "note": "源码：lib/src/breaker_plugin.dart:347。"
+  },
+  {
+    "id": "DiomanBreaker.name",
+    "plugin": "breaker",
+    "capability": "返回固定插件名 dioman:breaker",
+    "tier": 1,
+    "apis": [
+      "DiomanBreaker.name"
+    ],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null,
+    "note": "源码：lib/src/breaker_plugin.dart:431。"
+  },
+  {
+    "id": "DiomanBreaker.new(clock)",
+    "plugin": "breaker",
+    "capability": "注入熔断时钟，默认当前时间",
+    "tier": 1,
+    "apis": [
+      "DiomanBreaker.new(clock)"
+    ],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null,
+    "note": "源码：lib/src/breaker_plugin.dart:334。"
+  },
+  {
+    "id": "DiomanBreaker.onError",
+    "plugin": "breaker",
+    "capability": "消费放行凭据，取消不计成败，其余分类记账",
+    "tier": 1,
+    "apis": [
+      "DiomanBreaker.onError"
+    ],
+    "real": [
+      "breaker.open-after-threshold",
+      "breaker.network-errors-trip",
+      "breaker.timeouts-count"
+    ],
+    "assumptions": [],
+    "result": {
+      "status": "PASS",
+      "source": "test/accept/evidence/2026-10-27-summary.json",
+      "passed": 10,
+      "total": 10
+    },
+    "blocked": null,
+    "note": "源码：lib/src/breaker_plugin.dart:746。"
+  },
+  {
+    "id": "DiomanBreaker.onError#cancel-probe",
+    "plugin": "breaker",
+    "capability": "真实取消半开探测归还槽位且不计成败",
+    "tier": 2,
+    "apis": [
+      "DiomanBreaker.onError"
+    ],
+    "real": [],
+    "assumptions": [
+      "H1"
+    ],
+    "result": null,
+    "blocked": "缺真实用例：半开探测在途取消后立即再探测，核对名额可复用且连续失败计数不变。"
+  },
+  {
+    "id": "DiomanBreaker.onError#network-classification",
+    "plugin": "breaker",
+    "capability": "内置分类把连接和三类超时错误记为失败",
+    "tier": 2,
+    "apis": [
+      "DiomanBreaker.onError"
+    ],
+    "real": [],
+    "assumptions": [
+      "H3"
+    ],
+    "result": null,
+    "blocked": "缺真实用例：关闭自定义 shouldTrip，分别制造拒连、DNS 失败与中途断连，核对 type 及熔断计数。",
+    "note": "真实 client.dart 配自定义 shouldTrip，breaker.network-errors-trip 不能解锁内置类型分类。"
+  },
+  {
+    "id": "DiomanBreaker.onRequest",
+    "plugin": "breaker",
+    "capability": "按桶状态与冷却放行，超探测预算立即拒绝",
+    "tier": 1,
+    "apis": [
+      "DiomanBreaker.onRequest"
+    ],
+    "real": [
+      "breaker.open-after-threshold",
+      "breaker.half-open-recovers",
+      "breaker.half-open-fail-reopens",
+      "breaker.success-resets-count",
+      "breaker.bucket-isolation",
+      "breaker.per-request-skip",
+      "breaker.timeouts-count",
+      "breaker.4xx-not-counted",
+      "breaker.network-errors-trip",
+      "breaker.retry-halts-on-trip",
+      "breaker.parallel-trip",
+      "breaker.open-fast-fail"
+    ],
+    "assumptions": [],
+    "result": {
+      "status": "PASS",
+      "source": "test/accept/evidence/2026-10-27-summary.json",
+      "passed": 30,
+      "total": 30
+    },
+    "blocked": null,
+    "note": "源码：lib/src/breaker_plugin.dart:625。"
+  },
+  {
+    "id": "DiomanBreaker.onResponse",
+    "plugin": "breaker",
+    "capability": "只统计有当前窗口凭据的响应并归还名额",
+    "tier": 1,
+    "apis": [
+      "DiomanBreaker.onResponse"
+    ],
+    "real": [
+      "breaker.success-resets-count",
+      "breaker.half-open-recovers"
+    ],
+    "assumptions": [],
+    "result": {
+      "status": "PASS",
+      "source": "test/accept/evidence/2026-10-27-summary.json",
+      "passed": 4,
+      "total": 4
+    },
+    "blocked": null,
+    "note": "源码：lib/src/breaker_plugin.dart:728。"
+  },
+  {
+    "id": "DiomanBreaker.onStateChange",
+    "plugin": "breaker",
+    "capability": "状态改变后通知观察者，不隔离回调异常",
+    "tier": 1,
+    "apis": [
+      "DiomanBreaker.new(onStateChange)",
+      "DiomanBreaker.onStateChange"
+    ],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null,
+    "note": "源码：lib/src/breaker_plugin.dart:402。"
+  },
+  {
+    "id": "DiomanBreaker.ordering",
+    "plugin": "breaker",
+    "capability": "声明必须在已安装的 retry 之后",
+    "tier": 1,
+    "apis": [
+      "DiomanBreaker.ordering"
+    ],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null,
+    "note": "源码：lib/src/breaker_plugin.dart:435。"
+  },
+  {
+    "id": "DiomanBreaker.pluginName",
+    "plugin": "breaker",
+    "capability": "公开插件名固定为 dioman:breaker",
+    "tier": 1,
+    "apis": [
+      "DiomanBreaker.pluginName"
+    ],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null,
+    "note": "源码：lib/src/breaker_plugin.dart:419。"
+  },
+  {
+    "id": "DiomanBreaker.reset",
+    "plugin": "breaker",
+    "capability": "清空所有桶，旧凭据不再改变新桶",
+    "tier": 1,
+    "apis": [
+      "DiomanBreaker.reset"
+    ],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null,
+    "note": "源码：lib/src/breaker_plugin.dart:776。"
+  },
+  {
+    "id": "DiomanBreaker.resetDuration",
+    "plugin": "breaker",
+    "capability": "熔断冷却默认三十秒，不做钳制",
+    "tier": 1,
+    "apis": [
+      "DiomanBreaker.new(resetDuration)",
+      "DiomanBreaker.resetDuration"
+    ],
+    "real": [
+      "breaker.half-open-recovers",
+      "breaker.half-open-fail-reopens",
+      "plugins.boundary-breaker-open-ms-0",
+      "plugins.boundary-breaker-open-ms-1",
+      "plugins.boundary-breaker-open-ms-2"
+    ],
+    "assumptions": [],
+    "result": {
+      "status": "PASS",
+      "source": "test/accept/evidence/2026-10-27-summary.json",
+      "passed": 10,
+      "total": 10
+    },
+    "blocked": null,
+    "note": "源码：lib/src/breaker_plugin.dart:370。"
+  },
+  {
+    "id": "DiomanBreaker.shouldTrip",
+    "plugin": "breaker",
+    "capability": "回调返回空时按状态码或错误类型判失败",
+    "tier": 1,
+    "apis": [
+      "DiomanBreaker.new(shouldTrip)",
+      "DiomanBreaker.shouldTrip"
+    ],
+    "real": [
+      "breaker.network-errors-trip",
+      "breaker.timeouts-count",
+      "breaker.4xx-not-counted"
+    ],
+    "assumptions": [],
+    "result": {
+      "status": "PASS",
+      "source": "test/accept/evidence/2026-10-27-summary.json",
+      "passed": 8,
+      "total": 8
+    },
+    "blocked": null,
+    "note": "源码：lib/src/breaker_plugin.dart:385。 真实 client.dart:390 附近 always 提供自定义 shouldTrip；这些 real 只执行回调路径。默认错误分类另拆。"
+  },
+  {
+    "id": "DiomanBreaker.stateOf",
+    "plugin": "breaker",
+    "capability": "只读查询状态，未知桶返回 closed",
+    "tier": 1,
+    "apis": [
+      "DiomanBreaker.stateOf"
+    ],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null,
+    "note": "源码：lib/src/breaker_plugin.dart:592。"
+  },
+  {
+    "id": "DiomanBreakerOpenException.bucketKey",
+    "plugin": "breaker",
+    "capability": "保存触发快速拒绝的桶键",
+    "tier": 1,
+    "apis": [
+      "DiomanBreakerOpenException.bucketKey",
+      "DiomanBreakerOpenException.new(bucketKey)"
+    ],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null,
+    "note": "源码：lib/src/breaker_plugin.dart:80。"
+  },
+  {
+    "id": "DiomanBreakerOpenException.retryableAt",
+    "plugin": "breaker",
+    "capability": "保存冷却结束时间，可为空",
+    "tier": 1,
+    "apis": [
+      "DiomanBreakerOpenException.new(retryableAt)",
+      "DiomanBreakerOpenException.retryableAt"
+    ],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null,
+    "note": "源码：lib/src/breaker_plugin.dart:85。"
+  },
+  {
+    "id": "DiomanBreakerOpenException.toString",
+    "plugin": "breaker",
+    "capability": "输出桶键和可探测时间",
+    "tier": 1,
+    "apis": [
+      "DiomanBreakerOpenException.toString"
+    ],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null,
+    "note": "源码：lib/src/breaker_plugin.dart:87。"
+  },
+  {
+    "id": "DiomanBreakerOptions.enabled",
+    "plugin": "breaker",
+    "capability": "单请求覆盖启用状态，空值继承",
+    "tier": 1,
+    "apis": [
+      "DiomanBreakerOptions.enabled",
+      "DiomanBreakerOptions.new(enabled)"
+    ],
+    "real": [
+      "breaker.per-request-skip"
+    ],
+    "assumptions": [],
+    "result": {
+      "status": "PASS",
+      "source": "test/accept/evidence/2026-10-27-summary.json",
+      "passed": 2,
+      "total": 2
+    },
+    "blocked": null,
+    "note": "源码：lib/src/breaker_plugin.dart:117。"
+  },
+  {
+    "id": "DiomanBreakerOptions.failureThreshold",
+    "plugin": "breaker",
+    "capability": "单请求覆盖连续失败阈值，不做钳制",
+    "tier": 1,
+    "apis": [
+      "DiomanBreakerOptions.failureThreshold",
+      "DiomanBreakerOptions.new(failureThreshold)"
+    ],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null,
+    "note": "源码：lib/src/breaker_plugin.dart:122。"
+  },
+  {
+    "id": "DiomanBreakerOptions.halfOpenMaxCalls",
+    "plugin": "breaker",
+    "capability": "单请求覆盖半开并发上限，不做钳制",
+    "tier": 1,
+    "apis": [
+      "DiomanBreakerOptions.halfOpenMaxCalls",
+      "DiomanBreakerOptions.new(halfOpenMaxCalls)"
+    ],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null,
+    "note": "源码：lib/src/breaker_plugin.dart:132。"
+  },
+  {
+    "id": "DiomanBreakerOptions.keyBuilder",
+    "plugin": "breaker",
+    "capability": "单请求覆盖分桶函数，空值继承",
+    "tier": 1,
+    "apis": [
+      "DiomanBreakerOptions.keyBuilder",
+      "DiomanBreakerOptions.new(keyBuilder)"
+    ],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null,
+    "note": "源码：lib/src/breaker_plugin.dart:143。"
+  },
+  {
+    "id": "DiomanBreakerOptions.resetDuration",
+    "plugin": "breaker",
+    "capability": "单请求覆盖冷却时长，不做钳制",
+    "tier": 1,
+    "apis": [
+      "DiomanBreakerOptions.new(resetDuration)",
+      "DiomanBreakerOptions.resetDuration"
+    ],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null,
+    "note": "源码：lib/src/breaker_plugin.dart:127。"
+  },
+  {
+    "id": "DiomanBreakerOptions.shouldTrip",
+    "plugin": "breaker",
+    "capability": "单请求覆盖失败判定，回调空结果走默认",
+    "tier": 1,
+    "apis": [
+      "DiomanBreakerOptions.new(shouldTrip)",
+      "DiomanBreakerOptions.shouldTrip"
+    ],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null,
+    "note": "源码：lib/src/breaker_plugin.dart:138。"
+  },
+  {
+    "id": "DiomanBreakerState.closed",
+    "plugin": "breaker",
+    "capability": "正常放行，连续失败达到阈值后打开",
+    "tier": 1,
+    "apis": [
+      "DiomanBreakerState.closed"
+    ],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null,
+    "note": "源码：lib/src/breaker_plugin.dart:10。"
+  },
+  {
+    "id": "DiomanBreakerState.halfOpen",
+    "plugin": "breaker",
+    "capability": "限定探测并发，成功关闭、失败重新打开",
+    "tier": 1,
+    "apis": [
+      "DiomanBreakerState.halfOpen"
+    ],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null,
+    "note": "源码：lib/src/breaker_plugin.dart:22。"
+  },
+  {
+    "id": "DiomanBreakerState.open",
+    "plugin": "breaker",
+    "capability": "冷却前立即拒绝，冷却后由请求触发半开",
+    "tier": 1,
+    "apis": [
+      "DiomanBreakerState.open"
+    ],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null,
+    "note": "源码：lib/src/breaker_plugin.dart:15。"
+  },
+  {
+    "id": "DiomanCache.cachePolicy",
+    "plugin": "cache",
+    "capability": "默认 none，可按请求选择内存或持久层",
+    "tier": 1,
+    "apis": [
+      "DiomanCache.cachePolicy",
+      "DiomanCache.new(cachePolicy)"
+    ],
+    "real": [
+      "cache.hit-no-server"
+    ],
+    "assumptions": [],
+    "result": {
+      "status": "PASS",
+      "source": "test/accept/evidence/2026-10-27-summary.json",
+      "passed": 10,
+      "total": 10
+    },
+    "blocked": null,
+    "note": "源码：lib/src/cache_plugin.dart:230。"
+  },
+  {
+    "id": "DiomanCache.clear",
+    "plugin": "cache",
+    "capability": "提升代次并清内存，串行等待持久层清空",
+    "tier": 1,
+    "apis": [
+      "DiomanCache.clear"
+    ],
+    "real": [
+      "cache.clear"
+    ],
+    "assumptions": [],
+    "result": {
+      "status": "PASS",
+      "source": "test/accept/evidence/2026-10-27-summary.json",
+      "passed": 2,
+      "total": 2
+    },
+    "blocked": null,
+    "note": "源码：lib/src/cache_plugin.dart:488。"
+  },
+  {
+    "id": "DiomanCache.clone",
+    "plugin": "cache",
+    "capability": "默认浅复制，读写均按策略复制负载",
+    "tier": 1,
+    "apis": [
+      "DiomanCache.clone",
+      "DiomanCache.new(clone)"
+    ],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null,
+    "note": "源码：lib/src/cache_plugin.dart:251。 读写都克隆；SKILL.md 中仅在读取克隆的描述过时，以源码为准。"
+  },
+  {
+    "id": "DiomanCache.dispose",
+    "plugin": "cache",
+    "capability": "提升代次并清内存，不清持久层",
+    "tier": 1,
+    "apis": [
+      "DiomanCache.dispose"
+    ],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null,
+    "note": "源码：lib/src/cache_plugin.dart:556。"
+  },
+  {
+    "id": "DiomanCache.enabled",
+    "plugin": "cache",
+    "capability": "默认启用，可被单请求开关覆盖",
+    "tier": 1,
+    "apis": [
+      "DiomanCache.enabled",
+      "DiomanCache.new(enabled)"
+    ],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null,
+    "note": "源码：lib/src/cache_plugin.dart:236。"
+  },
+  {
+    "id": "DiomanCache.expires",
+    "plugin": "cache",
+    "capability": "默认有效期六万毫秒，不钳制零或负数",
+    "tier": 1,
+    "apis": [
+      "DiomanCache.expires",
+      "DiomanCache.new(expires)"
+    ],
+    "real": [
+      "cache.ttl-expiry",
+      "plugins.boundary-cache-ttl-ms-0",
+      "plugins.boundary-cache-ttl-ms-1",
+      "plugins.boundary-cache-ttl-ms-2"
+    ],
+    "assumptions": [],
+    "result": {
+      "status": "PASS",
+      "source": "test/accept/evidence/2026-10-27-summary.json",
+      "passed": 10,
+      "total": 10
+    },
+    "blocked": null,
+    "note": "源码：lib/src/cache_plugin.dart:241。"
+  },
+  {
+    "id": "DiomanCache.maxEntries",
+    "plugin": "cache",
+    "capability": "内存默认五百项，非正数不设上限",
+    "tier": 1,
+    "apis": [
+      "DiomanCache.maxEntries",
+      "DiomanCache.new(maxEntries)"
+    ],
+    "real": [
+      "cache.max-entries-evicts",
+      "plugins.boundary-cache-max-0",
+      "plugins.boundary-cache-max-1",
+      "plugins.boundary-cache-max-2"
+    ],
+    "assumptions": [],
+    "result": {
+      "status": "PASS",
+      "source": "test/accept/evidence/2026-10-27-summary.json",
+      "passed": 8,
+      "total": 8
+    },
+    "blocked": null,
+    "note": "源码：lib/src/cache_plugin.dart:259。"
+  },
+  {
+    "id": "DiomanCache.name",
+    "plugin": "cache",
+    "capability": "返回固定插件名 dioman:cache",
+    "tier": 1,
+    "apis": [
+      "DiomanCache.name"
+    ],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null,
+    "note": "源码：lib/src/cache_plugin.dart:313。"
+  },
+  {
+    "id": "DiomanCache.new(now)",
+    "plugin": "cache",
+    "capability": "注入缓存到期时钟，默认当前时间",
+    "tier": 1,
+    "apis": [
+      "DiomanCache.new(now)"
+    ],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null,
+    "note": "源码：lib/src/cache_plugin.dart:214。"
+  },
+  {
+    "id": "DiomanCache.new(shouldCache)",
+    "plugin": "cache",
+    "capability": "默认仅 GET 可缓存，可注入请求判定",
+    "tier": 1,
+    "apis": [
+      "DiomanCache.new(shouldCache)"
+    ],
+    "real": [
+      "cache.post-not-cached-by-default",
+      "plugins.boundary-cache-methods-0",
+      "plugins.boundary-cache-methods-1"
+    ],
+    "assumptions": [],
+    "result": {
+      "status": "PASS",
+      "source": "test/accept/evidence/2026-10-27-summary.json",
+      "passed": 6,
+      "total": 6
+    },
+    "blocked": null,
+    "note": "源码：lib/src/cache_plugin.dart:213。 真实执行器显式传入按 methods 判定的契约回调，POST 场景不证明插件未传回调时的默认分支。"
+  },
+  {
+    "id": "DiomanCache.onRequest",
+    "plugin": "cache",
+    "capability": "按策略读缓存，缺键放行，命中响应继续下游",
+    "tier": 1,
+    "apis": [
+      "DiomanCache.onRequest"
+    ],
+    "real": [
+      "cache.hit-no-server",
+      "cache.ttl-expiry",
+      "cache.http-error-not-cached",
+      "cache.business-failure-not-cached",
+      "cache.failure-then-success-cached",
+      "cache.diff-query-no-mixup",
+      "cache.diff-body-no-mixup",
+      "cache.post-not-cached-by-default",
+      "cache.clear",
+      "cache.per-request-disable",
+      "cache.per-request-ttl",
+      "cache.custom-key-shared",
+      "cache.user-scope-no-leak",
+      "cache.user-scope-same-user-hits",
+      "cache.offline-serves-cache",
+      "cache.offline-miss-then-recover",
+      "cache.cancel-not-cached",
+      "cache.large-response",
+      "cache.max-entries-evicts",
+      "cache.timeout-not-cached",
+      "cache.concurrent-no-share-all-miss"
+    ],
+    "assumptions": [],
+    "result": {
+      "status": "PASS",
+      "source": "test/accept/evidence/2026-10-27-summary.json",
+      "passed": 56,
+      "total": 56
+    },
+    "blocked": null,
+    "note": "源码：lib/src/cache_plugin.dart:323。"
+  },
+  {
+    "id": "DiomanCache.onResponse",
+    "plugin": "cache",
+    "capability": "仅对同代次标记请求缓存原始 2xx 负载",
+    "tier": 1,
+    "apis": [
+      "DiomanCache.onResponse"
+    ],
+    "real": [
+      "cache.http-error-not-cached",
+      "cache.business-failure-not-cached",
+      "cache.failure-then-success-cached",
+      "cache.large-response",
+      "combo.auth-cache-refresh",
+      "combo.cache-share-retry"
+    ],
+    "assumptions": [],
+    "result": {
+      "status": "PASS",
+      "source": "test/accept/evidence/2026-10-27-summary.json",
+      "passed": 16,
+      "total": 16
+    },
+    "blocked": null,
+    "note": "源码：lib/src/cache_plugin.dart:386。 只判断 HTTP 2xx，不判断业务 code；business-failure-not-cached 的愿景与现行行为有冲突，挂接表示会执行，不能据此判 PASS。"
+  },
+  {
+    "id": "DiomanCache.onResponse#canceled-response",
+    "plugin": "cache",
+    "capability": "真实取消响应不走成功写缓存路径",
+    "tier": 2,
+    "apis": [
+      "DiomanCache.onResponse"
+    ],
+    "real": [
+      "cache.cancel-not-cached"
+    ],
+    "assumptions": [
+      "H1"
+    ],
+    "result": {
+      "status": "PASS",
+      "source": "test/accept/evidence/2026-10-27-summary.json",
+      "passed": 2,
+      "total": 2
+    },
+    "blocked": null
+  },
+  {
+    "id": "DiomanCache.ordering",
+    "plugin": "cache",
+    "capability": "声明必须在已安装的 offline 之前",
+    "tier": 1,
+    "apis": [
+      "DiomanCache.ordering"
+    ],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null,
+    "note": "源码：lib/src/cache_plugin.dart:317。"
+  },
+  {
+    "id": "DiomanCache.persist",
+    "plugin": "cache",
+    "capability": "使用者必须提供持久层契约实现",
+    "tier": 1,
+    "apis": [
+      "DiomanCache.new(persist)",
+      "DiomanCache.persist"
+    ],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null,
+    "note": "源码：lib/src/cache_plugin.dart:223。 FakeCachePersist/MemoryPersist 模拟使用者契约，定为 1；真实矩阵只启用 memo，未证明持久层分支。"
+  },
+  {
+    "id": "DiomanCache.pluginName",
+    "plugin": "cache",
+    "capability": "公开插件名固定为 dioman:cache",
+    "tier": 1,
+    "apis": [
+      "DiomanCache.pluginName"
+    ],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null,
+    "note": "源码：lib/src/cache_plugin.dart:287。"
+  },
+  {
+    "id": "DiomanCache.remove",
+    "plugin": "cache",
+    "capability": "删指定键并提升全局代次，等待持久层删除",
+    "tier": 1,
+    "apis": [
+      "DiomanCache.remove"
+    ],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null,
+    "note": "源码：lib/src/cache_plugin.dart:478。"
+  },
+  {
+    "id": "DiomanCacheOptions.cachePolicy",
+    "plugin": "cache",
+    "capability": "单请求覆盖存储策略，空值继承",
+    "tier": 1,
+    "apis": [
+      "DiomanCacheOptions.cachePolicy",
+      "DiomanCacheOptions.new(cachePolicy)"
+    ],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null,
+    "note": "源码：lib/src/cache_plugin.dart:175。"
+  },
+  {
+    "id": "DiomanCacheOptions.clone",
+    "plugin": "cache",
+    "capability": "单请求覆盖负载克隆策略，空值继承",
+    "tier": 1,
+    "apis": [
+      "DiomanCacheOptions.clone",
+      "DiomanCacheOptions.new(clone)"
+    ],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null,
+    "note": "源码：lib/src/cache_plugin.dart:151。"
+  },
+  {
+    "id": "DiomanCacheOptions.enabled",
+    "plugin": "cache",
+    "capability": "单请求覆盖缓存开关，空值继承",
+    "tier": 1,
+    "apis": [
+      "DiomanCacheOptions.enabled",
+      "DiomanCacheOptions.new(enabled)"
+    ],
+    "real": [
+      "cache.per-request-disable"
+    ],
+    "assumptions": [],
+    "result": {
+      "status": "PASS",
+      "source": "test/accept/evidence/2026-10-27-summary.json",
+      "passed": 2,
+      "total": 2
+    },
+    "blocked": null,
+    "note": "源码：lib/src/cache_plugin.dart:141。"
+  },
+  {
+    "id": "DiomanCacheOptions.expires",
+    "plugin": "cache",
+    "capability": "单请求覆盖毫秒有效期，不做钳制",
+    "tier": 1,
+    "apis": [
+      "DiomanCacheOptions.expires",
+      "DiomanCacheOptions.new(expires)"
+    ],
+    "real": [
+      "cache.per-request-ttl"
+    ],
+    "assumptions": [],
+    "result": {
+      "status": "PASS",
+      "source": "test/accept/evidence/2026-10-27-summary.json",
+      "passed": 2,
+      "total": 2
+    },
+    "blocked": null,
+    "note": "源码：lib/src/cache_plugin.dart:146。"
+  },
+  {
+    "id": "DiomanCacheOptions.maxEntries",
+    "plugin": "cache",
+    "capability": "弃用占位字段，单请求设置不被读取",
+    "tier": 1,
+    "apis": [
+      "DiomanCacheOptions.maxEntries",
+      "DiomanCacheOptions.new(maxEntries)"
+    ],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null,
+    "note": "源码：lib/src/cache_plugin.dart:160。 结构对称的弃用字段，不影响全局淘汰上限。"
+  },
+  {
+    "id": "DiomanCacheOptions.now",
+    "plugin": "cache",
+    "capability": "单请求覆盖到期时钟，空值继承",
+    "tier": 1,
+    "apis": [
+      "DiomanCacheOptions.new(now)",
+      "DiomanCacheOptions.now"
+    ],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null,
+    "note": "源码：lib/src/cache_plugin.dart:170。"
+  },
+  {
+    "id": "DiomanCacheOptions.shouldCache",
+    "plugin": "cache",
+    "capability": "单请求覆盖可缓存请求判定，空值继承",
+    "tier": 1,
+    "apis": [
+      "DiomanCacheOptions.new(shouldCache)",
+      "DiomanCacheOptions.shouldCache"
+    ],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null,
+    "note": "源码：lib/src/cache_plugin.dart:165。"
+  },
+  {
+    "id": "DiomanCachePersist.erase",
+    "plugin": "cache",
+    "capability": "串行等待使用者清空存储，失败返回调用方",
+    "tier": 1,
+    "apis": [
+      "DiomanCachePersist.erase"
+    ],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null,
+    "note": "源码：lib/src/cache_plugin.dart:116。"
+  },
+  {
+    "id": "DiomanCachePersist.read",
+    "plugin": "cache",
+    "capability": "允许同步或异步读，按 data 与 expiresAt 还原",
+    "tier": 1,
+    "apis": [
+      "DiomanCachePersist.read"
+    ],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null,
+    "note": "源码：lib/src/cache_plugin.dart:96。"
+  },
+  {
+    "id": "DiomanCachePersist.remove",
+    "plugin": "cache",
+    "capability": "串行等待使用者删除键，失败返回调用方",
+    "tier": 1,
+    "apis": [
+      "DiomanCachePersist.remove"
+    ],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null,
+    "note": "源码：lib/src/cache_plugin.dart:111。"
+  },
+  {
+    "id": "DiomanCachePersist.write",
+    "plugin": "cache",
+    "capability": "串行等待写入负载与到期时间，失败返回调用方",
+    "tier": 1,
+    "apis": [
+      "DiomanCachePersist.write"
+    ],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null,
+    "note": "源码：lib/src/cache_plugin.dart:103。"
+  },
+  {
+    "id": "DiomanCachePolicy.both",
+    "plugin": "cache",
+    "capability": "同时写两层，内存未命中查持久层并回填",
+    "tier": 1,
+    "apis": [
+      "DiomanCachePolicy.both"
+    ],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null,
+    "note": "源码：lib/src/cache_plugin.dart:49。"
+  },
+  {
+    "id": "DiomanCachePolicy.memo",
+    "plugin": "cache",
+    "capability": "只使用内存缓存，不读取或写入持久层",
+    "tier": 1,
+    "apis": [
+      "DiomanCachePolicy.memo"
+    ],
+    "real": [
+      "cache.hit-no-server"
+    ],
+    "assumptions": [],
+    "result": {
+      "status": "PASS",
+      "source": "test/accept/evidence/2026-10-27-summary.json",
+      "passed": 10,
+      "total": 10
+    },
+    "blocked": null,
+    "note": "源码：lib/src/cache_plugin.dart:39。"
+  },
+  {
+    "id": "DiomanCachePolicy.none",
+    "plugin": "cache",
+    "capability": "跳过缓存读取和写入",
+    "tier": 1,
+    "apis": [
+      "DiomanCachePolicy.none"
+    ],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null,
+    "note": "源码：lib/src/cache_plugin.dart:34。"
+  },
+  {
+    "id": "DiomanCachePolicy.persist",
+    "plugin": "cache",
+    "capability": "只使用持久层缓存",
+    "tier": 1,
+    "apis": [
+      "DiomanCachePolicy.persist"
+    ],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null,
+    "note": "源码：lib/src/cache_plugin.dart:44。"
+  },
+  {
+    "id": "DiomanClonePolicy.deep",
+    "plugin": "cache",
+    "capability": "递归复制 Map 和 List，其他对象保持引用",
+    "tier": 1,
+    "apis": [
+      "DiomanClonePolicy.deep"
+    ],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null,
+    "note": "源码：lib/src/cache_plugin.dart:24。"
+  },
+  {
+    "id": "DiomanClonePolicy.none",
+    "plugin": "cache",
+    "capability": "不复制负载，保留同一引用",
+    "tier": 1,
+    "apis": [
+      "DiomanClonePolicy.none"
+    ],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null,
+    "note": "源码：lib/src/cache_plugin.dart:13。"
+  },
+  {
+    "id": "DiomanClonePolicy.shallow",
+    "plugin": "cache",
+    "capability": "只复制顶层 Map 或 List，嵌套保持引用",
+    "tier": 1,
+    "apis": [
+      "DiomanClonePolicy.shallow"
+    ],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null,
+    "note": "源码：lib/src/cache_plugin.dart:19。"
+  },
+  {
+    "id": "DiomanCancel.cancelAll",
+    "plugin": "cancel",
+    "capability": "取消登记的全部令牌并清表，返回登记数",
+    "tier": 1,
+    "apis": [
+      "DiomanCancel.cancelAll"
+    ],
+    "real": [
+      "cancel.all",
+      "cancel.double-cancel",
+      "cancel.all-with-nothing-inflight",
+      "cancel.all-then-new-works",
+      "cancel.parallel-32"
+    ],
+    "assumptions": [],
+    "result": {
+      "status": "PASS",
+      "source": "test/accept/evidence/2026-10-27-summary.json",
+      "passed": 10,
+      "total": 10
+    },
+    "blocked": null,
+    "note": "源码：lib/src/cancel_plugin.dart:189。 本行只判集合、调用 cancel 与返回数；底层请求是否及时结束和资源释放另拆 H1/H1b。真实 cancel_all 对 caller token 是否追踪需终审，见 INV-11。"
+  },
+  {
+    "id": "DiomanCancel.cancelAll#completion",
+    "plugin": "cancel",
+    "capability": "已追踪请求取消后及时以取消错误落定",
+    "tier": 2,
+    "apis": [
+      "DiomanCancel.cancelAll"
+    ],
+    "real": [
+      "cancel.all",
+      "cancel.parallel-32",
+      "cancel.blackhole-cancel-before-timeout",
+      "network.blackhole-cancel-all"
+    ],
+    "assumptions": [
+      "H1"
+    ],
+    "result": {
+      "status": "PASS",
+      "source": "test/accept/evidence/2026-10-27-summary.json",
+      "passed": 8,
+      "total": 8
+    },
+    "blocked": null,
+    "note": "执行器请求自带 token，插件未自动追踪；目录用例会调用 API，但能否通过待终审，不宣称已核对。"
+  },
+  {
+    "id": "DiomanCancel.cancelAll#transport-release",
+    "plugin": "cancel",
+    "capability": "批量取消在途传输并释放连接资源",
+    "tier": 2,
+    "apis": [
+      "DiomanCancel.cancelAll"
+    ],
+    "real": [
+      "cancel.all",
+      "share.all-cancelled-aborts-server",
+      "combo.cancel-all-share"
+    ],
+    "assumptions": [
+      "H1b"
+    ],
+    "result": {
+      "status": "PASS",
+      "source": "test/accept/evidence/2026-10-27-summary.json",
+      "passed": 6,
+      "total": 6
+    },
+    "blocked": null,
+    "note": "这些 real 有服务端 aborted 目标，但执行器自带 token 的调用及 cancel_all 是否真正取消需核对；服务端仍可能已处理部分逻辑。"
+  },
+  {
+    "id": "DiomanCancel.config",
+    "plugin": "cancel",
+    "capability": "保存构造期启用选项，无单请求覆盖",
+    "tier": 1,
+    "apis": [
+      "DiomanCancel.config"
+    ],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null,
+    "note": "源码：lib/src/cancel_plugin.dart:59。"
+  },
+  {
+    "id": "DiomanCancel.dispose",
+    "plugin": "cancel",
+    "capability": "以 plugin ejected 原因取消已登记令牌",
+    "tier": 1,
+    "apis": [
+      "DiomanCancel.dispose"
+    ],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null,
+    "note": "源码：lib/src/cancel_plugin.dart:202。"
+  },
+  {
+    "id": "DiomanCancel.dispose#inflight",
+    "plugin": "cancel",
+    "capability": "移除取消插件时取消它仍追踪的在途请求",
+    "tier": 2,
+    "apis": [
+      "DiomanCancel.dispose"
+    ],
+    "real": [],
+    "assumptions": [
+      "H1",
+      "H1b"
+    ],
+    "result": null,
+    "blocked": "缺真实用例：用插件注入令牌发起慢请求，在途 remove 或 dispose，核对取消错误与连接释放。"
+  },
+  {
+    "id": "DiomanCancel.name",
+    "plugin": "cancel",
+    "capability": "返回固定插件名 dioman:cancel",
+    "tier": 1,
+    "apis": [
+      "DiomanCancel.name"
+    ],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null,
+    "note": "源码：lib/src/cancel_plugin.dart:67。"
+  },
+  {
+    "id": "DiomanCancel.new(enabled)",
+    "plugin": "cancel",
+    "capability": "默认启用，关闭后不注入或登记令牌",
+    "tier": 1,
+    "apis": [
+      "DiomanCancel.new(enabled)"
+    ],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null,
+    "note": "源码：lib/src/cancel_plugin.dart:47。"
+  },
+  {
+    "id": "DiomanCancel.onError",
+    "plugin": "cancel",
+    "capability": "出错时按认领和落败等待延迟注销令牌",
+    "tier": 1,
+    "apis": [
+      "DiomanCancel.onError"
+    ],
+    "real": [
+      "cancel.single",
+      "combo.retry-cancel-loading-notify",
+      "loading.cancel-closes",
+      "network.blackhole-cancel-all",
+      "notify.cancel-not-notified",
+      "offline.cancel-while-probing",
+      "retry.cancel-during-wait",
+      "retry.cancel-all-during-wait"
+    ],
+    "assumptions": [],
+    "result": {
+      "status": "PASS",
+      "source": "test/accept/evidence/2026-10-27-summary.json",
+      "passed": 24,
+      "total": 24
+    },
+    "blocked": null,
+    "note": "源码：lib/src/cancel_plugin.dart:136。"
+  },
+  {
+    "id": "DiomanCancel.onError#caller-cancel",
+    "plugin": "cancel",
+    "capability": "调用方令牌取消后释放取消链路记账",
+    "tier": 2,
+    "apis": [
+      "DiomanCancel.onError"
+    ],
+    "real": [
+      "cancel.single",
+      "cancel.slow-body",
+      "cancel.before-reach-server"
+    ],
+    "assumptions": [
+      "H1",
+      "H1b"
+    ],
+    "result": {
+      "status": "PASS",
+      "source": "test/accept/evidence/2026-10-27-summary.json",
+      "passed": 14,
+      "total": 14
+    },
+    "blocked": null,
+    "note": "自带 token 不自动进入插件集合，但取消错误经过 onError；真实 runner 直接提供 token，必须与插件注入及 cancelAll 分开核对。"
+  },
+  {
+    "id": "DiomanCancel.onRequest",
+    "plugin": "cancel",
+    "capability": "无令牌则注入，自带令牌不自动登记",
+    "tier": 1,
+    "apis": [
+      "DiomanCancel.onRequest"
+    ],
+    "real": [
+      "cancel.single",
+      "cancel.hang-is-canceled-not-timeout",
+      "cancel.all",
+      "cancel.all-then-new-works",
+      "cancel.one-of-many",
+      "cancel.after-complete-noop",
+      "cancel.all-with-nothing-inflight",
+      "cancel.double-cancel",
+      "cancel.slow-body",
+      "cancel.before-reach-server",
+      "cancel.parallel-32",
+      "cancel.blackhole-cancel-before-timeout"
+    ],
+    "assumptions": [],
+    "result": {
+      "status": "PASS",
+      "source": "test/accept/evidence/2026-10-27-summary.json",
+      "passed": 34,
+      "total": 34
+    },
+    "blocked": null,
+    "note": "源码：lib/src/cancel_plugin.dart:81。 自带令牌不自动追踪；仅由本插件注入且未取消的旧令牌再次入链时会重新登记。真实 runner 普遍传调用方 token，不能用其取消场景证明插件注入分支。"
+  },
+  {
+    "id": "DiomanCancel.onResponse",
+    "plugin": "cancel",
+    "capability": "响应时按认领和落败等待延迟注销令牌",
+    "tier": 1,
+    "apis": [
+      "DiomanCancel.onResponse"
+    ],
+    "real": [
+      "cancel.after-complete-noop"
+    ],
+    "assumptions": [],
+    "result": {
+      "status": "PASS",
+      "source": "test/accept/evidence/2026-10-27-summary.json",
+      "passed": 4,
+      "total": 4
+    },
+    "blocked": null,
+    "note": "源码：lib/src/cancel_plugin.dart:130。"
+  },
+  {
+    "id": "DiomanCancel.ordering",
+    "plugin": "cancel",
+    "capability": "在缓存共享模拟之后，在认证重试之前",
+    "tier": 1,
+    "apis": [
+      "DiomanCancel.ordering"
+    ],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null,
+    "note": "源码：lib/src/cancel_plugin.dart:70。"
+  },
+  {
+    "id": "DiomanCancel.pluginName",
+    "plugin": "cancel",
+    "capability": "公开插件名固定为 dioman:cancel",
+    "tier": 1,
+    "apis": [
+      "DiomanCancel.pluginName"
+    ],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null,
+    "note": "源码：lib/src/cancel_plugin.dart:64。"
+  },
+  {
+    "id": "DiomanCancel.track",
+    "plugin": "cancel",
+    "capability": "启用时手工登记令牌，集合自动去重",
+    "tier": 1,
+    "apis": [
+      "DiomanCancel.track"
+    ],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null,
+    "note": "源码：lib/src/cancel_plugin.dart:167。"
+  },
+  {
+    "id": "DiomanCancel.untrack",
+    "plugin": "cancel",
+    "capability": "移除指定令牌，不取消它",
+    "tier": 1,
+    "apis": [
+      "DiomanCancel.untrack"
+    ],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null,
+    "note": "源码：lib/src/cancel_plugin.dart:181。"
+  },
+  {
+    "id": "DiomanCancelOptions.enabled",
+    "plugin": "cancel",
+    "capability": "默认启用，仅控制构造期注入与登记",
+    "tier": 1,
+    "apis": [
+      "DiomanCancelOptions.enabled",
+      "DiomanCancelOptions.new(enabled)"
+    ],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null,
+    "note": "源码：lib/src/cancel_plugin.dart:24。"
+  },
+  {
+    "id": "cancelAll",
+    "plugin": "cancel",
+    "capability": "调用 Dio 上首个取消插件，未安装则返回零",
+    "tier": 1,
+    "apis": [
+      "cancelAll"
+    ],
+    "real": [
+      "cancel.all",
+      "retry.cancel-all-during-wait",
+      "auth.slow-refresh-cancel-all"
+    ],
+    "assumptions": [],
+    "result": {
+      "status": "PASS",
+      "source": "test/accept/evidence/2026-10-27-summary.json",
+      "passed": 6,
+      "total": 6
+    },
+    "blocked": null,
+    "note": "源码：lib/src/cancel_plugin.dart:208。"
+  },
+  {
+    "id": "INV-05",
+    "plugin": "combo",
+    "capability": "结束时释放活动记账，部分 extra 标记保留",
+    "tier": 1,
+    "apis": [],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null,
+    "note": "不能写成全部状态键删除：breaker 消费凭据；loading 删除 bracketed/delayClose；cancel 注销集合但保留 extra token 供重入；cache 四个标记不删除；auth 常规出口删四标记但保留 decision，重放成功保留防重复标记；share 删除活动 entry 登记，RequestOptions 仍可能留协议引用。lib/src/{auth,cache,cancel,breaker,loading,share}_plugin.dart。",
+    "unit": [
+      "test/boundary/share_boundary_test.dart",
+      "test/combo/auth_cancel_combo_test.dart"
+    ]
+  },
+  {
+    "id": "INV-07",
+    "plugin": "combo",
+    "capability": "本地十六插件全部非空组合保持成功结果",
+    "tier": 1,
+    "apis": [],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null,
+    "note": "tier 1 按方案明确要求；test/combo/powerset_combo_test.dart 首条用例，65535 组合，核对响应形状与认证头；不含 notify，不能称十七插件全组合。",
+    "unit": [
+      "test/combo/powerset_combo_test.dart"
+    ]
+  },
+  {
+    "id": "INV-08",
+    "plugin": "combo",
+    "capability": "本地十三插件组合恢复重试缓存和认证失败",
+    "tier": 1,
+    "apis": [],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null,
+    "note": "tier 1 按方案；test/combo/powerset_combo_test.dart 第二条用例，8191 组合，按是否含 retry/cache/auth 检查 500 恢复、缓存命中、401 刷新重放；不含 timeout/offline/breaker/notify。真实连接行为另列 INV-09/10/18。",
+    "unit": [
+      "test/combo/powerset_combo_test.dart"
+    ]
+  },
+  {
+    "id": "INV-09",
+    "plugin": "combo",
+    "capability": "真实配对组合完成请求并保持插件协作",
+    "tier": 2,
+    "apis": [],
+    "real": [
+      "plugins.pair-0",
+      "plugins.pair-1",
+      "plugins.pair-2",
+      "plugins.pair-3",
+      "plugins.pair-4",
+      "plugins.pair-5",
+      "plugins.pair-6",
+      "plugins.pair-7",
+      "plugins.pair-8",
+      "plugins.pair-9",
+      "plugins.pair-10",
+      "plugins.pair-11",
+      "plugins.pair-12",
+      "plugins.pair-13",
+      "plugins.pair-14",
+      "plugins.pair-15",
+      "plugins.pair-16",
+      "plugins.pair-17",
+      "plugins.pair-18",
+      "plugins.pair-19",
+      "plugins.pair-20",
+      "plugins.pair-21",
+      "plugins.pair-22",
+      "plugins.pair-23",
+      "plugins.pair-24",
+      "plugins.pair-25",
+      "plugins.pair-26",
+      "plugins.pair-27",
+      "plugins.pair-28",
+      "plugins.pair-29",
+      "plugins.pair-30",
+      "plugins.pair-31"
+    ],
+    "assumptions": [
+      "H1",
+      "H2",
+      "H3",
+      "H7",
+      "H8"
+    ],
+    "result": {
+      "status": "PASS",
+      "source": "test/accept/evidence/2026-10-27-summary.json",
+      "passed": 64,
+      "total": 64
+    },
+    "blocked": null,
+    "note": "计划有 32 个 pair id，双响应风格共 64 格；目录 plugins 字段是开关全集，不表示每一格启用全部插件。仅代表真实传输核对，非全部选项断言。",
+    "unit": [
+      "test/combo/powerset_combo_test.dart"
+    ]
+  },
+  {
+    "id": "INV-10",
+    "plugin": "combo",
+    "capability": "十七插件全量业务流在真实网络下完成",
+    "tier": 3,
+    "apis": [],
+    "real": [
+      "plugins.full-workflow",
+      "plugins.full-flap-workflow"
+    ],
+    "assumptions": [],
+    "result": {
+      "status": "PASS",
+      "source": "test/accept/evidence/2026-10-27-summary.json",
+      "passed": 6,
+      "total": 6
+    },
+    "blocked": null,
+    "note": "全量冒烟，含 flap 恢复。与局部可模拟逻辑分列；tier 3 不作纯单测证明。"
+  },
+  {
+    "id": "INV-11",
+    "plugin": "combo",
+    "capability": "单体安装分别执行成功错误和主动取消路径",
+    "tier": 2,
+    "apis": [],
+    "real": [
+      "plugins.single-auth",
+      "plugins.single-breaker",
+      "plugins.single-cache",
+      "plugins.single-cancel",
+      "plugins.single-envs",
+      "plugins.single-filter",
+      "plugins.single-key",
+      "plugins.single-loading",
+      "plugins.single-log",
+      "plugins.single-mock",
+      "plugins.single-normalize",
+      "plugins.single-notify",
+      "plugins.single-offline",
+      "plugins.single-repath",
+      "plugins.single-retry",
+      "plugins.single-share",
+      "plugins.single-timeout"
+    ],
+    "assumptions": [
+      "H1",
+      "H8"
+    ],
+    "result": {
+      "status": "PASS",
+      "source": "test/accept/evidence/2026-10-27-summary.json",
+      "passed": 34,
+      "total": 34
+    },
+    "blocked": null,
+    "note": "覆盖目录全部单体 id（不局限本批插件），非全选项覆盖。真实 runner.dart:218 自带 CancelToken；cancel 插件不自动 track 自带 token，cancel_all 场景可能取消数为零。须终审核对结果，不能把调用或目录存在当 PASS。",
+    "unit": [
+      "test/combo/powerset_combo_test.dart"
+    ]
+  },
+  {
+    "id": "INV-12",
+    "plugin": "combo",
+    "capability": "缓存共享模拟短路仍交后续响应处理",
+    "tier": 1,
+    "apis": [],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null,
+    "note": "lib/src/cache_plugin.dart:onRequest 的 resolve(...,true)，share/mock 同类路径；test/combo/ 下 cache/normalize、mock/loading 等组合；短路跳过后续 onRequest，不能因此生成多余括号。",
+    "unit": [
+      "test/combo/cache_share_combo_test.dart",
+      "test/combo/mock_normalize_combo_test.dart"
+    ]
+  },
+  {
+    "id": "INV-13",
+    "plugin": "combo",
+    "capability": "恢复结果经下游处理且不重复规范化",
+    "tier": 1,
+    "apis": [],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null,
+    "note": "lib/src/replay_support.dart:runDownstream/finishRecovered：先调用宿主中恢复者之前的 DiomanCache，再调用恢复者之后的响应拦截器；普通 reject 终止，reject(true)/抛错走后续错误链；先交认领再处理下游，share 用处理前快照。QueuedInterceptor 的串行队列会被绕过。",
+    "unit": [
+      "test/combo/normalize_retry_combo_test.dart",
+      "test/combo/auth_normalize_combo_test.dart"
+    ]
+  },
+  {
+    "id": "INV-14",
+    "plugin": "combo",
+    "capability": "认证重试持有认领直到逻辑请求最终交付",
+    "tier": 1,
+    "apis": [],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null,
+    "note": "lib/src/request_claims.dart；share 依据认领延后结算，cancel 延后注销；公开/短路请求未认领时当场结算；end/race 落败者等待胜出结果，joined 请求不得再次自行恢复。",
+    "unit": [
+      "test/unit/request_claims_test.dart",
+      "test/combo/auth_retry_combo_test.dart"
+    ]
+  },
+  {
+    "id": "INV-15",
+    "plugin": "combo",
+    "capability": "首发取消后存活跟随者携自身请求入下游",
+    "tier": 2,
+    "apis": [],
+    "real": [
+      "share.leader-cancel-followers-survive",
+      "share.follower-cancel-isolated",
+      "combo.cancel-share-follower"
+    ],
+    "assumptions": [
+      "H1",
+      "H2"
+    ],
+    "result": {
+      "status": "PASS",
+      "source": "test/accept/evidence/2026-10-27-summary.json",
+      "passed": 6,
+      "total": 6
+    },
+    "blocked": null,
+    "note": "lib/src/share_plugin.dart:_promoteFollower；此处核对真实传输下接手与取消隔离；纯登记/选择规则见 INV-14。真实目录没有接手 FormData 的完整字节断言，H2 的 multipart 缺口仍保留在认证拆行及其他批次。",
+    "unit": [
+      "test/combo/cancel_share_takeover_combo_test.dart"
+    ]
+  },
+  {
+    "id": "INV-16",
+    "plugin": "combo",
+    "capability": "缓存保存规范化前负载且只按 HTTP 状态写入",
+    "tier": 1,
+    "apis": [],
+    "real": [
+      "combo.normalize-business-retry-notify-cache",
+      "cache.business-failure-not-cached"
+    ],
+    "assumptions": [],
+    "result": {
+      "status": "PASS",
+      "source": "test/accept/evidence/2026-10-27-summary.json",
+      "passed": 4,
+      "total": 4
+    },
+    "blocked": null,
+    "note": "lib/src/cache_plugin.dart:onResponse 只看 2xx；normalize 排末尾，不能阻止已发生的缓存写入。真实场景期望业务失败不缓存与源码冲突，终审应核对结果而非替源码写愿景。",
+    "unit": [
+      "test/combo/auth_cache_combo_test.dart",
+      "test/combo/full_stack_combo_test.dart"
+    ]
+  },
+  {
+    "id": "INV-17",
+    "plugin": "combo",
+    "capability": "重放请求绕过原请求链并使用原传输配置",
+    "tier": 1,
+    "apis": [],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null,
+    "note": "lib/src/replay_support.dart:fetch；auth/retry/share 借宿主 adapter/transformer，未绑定用兜底裸 Dio；FormData 克隆、Stream 拒绝重放；状态机是 tier 1，传输消费及连接复用另拆 H2/H4。",
+    "unit": [
+      "test/unit/replay_support_test.dart"
+    ]
+  },
+  {
+    "id": "INV-18",
+    "plugin": "combo",
+    "capability": "连接复用下恢复失败不污染后续响应",
+    "tier": 2,
+    "apis": [],
+    "real": [],
+    "assumptions": [
+      "H4"
+    ],
+    "result": null,
+    "blocked": "缺真实用例：开启 keep-alive 连续发送非 2xx→恢复成功→2xx，断言响应体及连接复用计数。",
+    "note": "test/support/test_server.dart 强制非 2xx 短连接；powerset 异常路径也显式 close，现有 pair/full 不证明复用输入已被覆盖。"
+  },
+  {
+    "id": "INV-19",
+    "plugin": "combo",
+    "capability": "真实组合在响应与计时交错下完成并释放记账",
+    "tier": 2,
+    "apis": [],
+    "real": [
+      "combo.cache-share-retry",
+      "combo.share-failure-not-cached",
+      "combo.auth-retry-loading-notify-recovers",
+      "combo.auth-retry-loading-notify-fails",
+      "combo.auth-concurrent-loading-notify",
+      "combo.auth-expired-loading-notify",
+      "combo.auth-cache-refresh",
+      "combo.cancel-share-follower",
+      "combo.cancel-all-share",
+      "combo.retry-cancel-loading-notify",
+      "combo.share-retry-loading-notify",
+      "combo.share-fail-notify",
+      "combo.loading-cache-hit-delay",
+      "combo.normalize-business-retry-notify-cache",
+      "combo.lossy-everything",
+      "combo.flap-share-cache-loading",
+      "combo.offline-share-notify",
+      "combo.full-stack-happy",
+      "combo.all-seventeen-plugins"
+    ],
+    "assumptions": [
+      "H1",
+      "H2",
+      "H7",
+      "H8"
+    ],
+    "result": {
+      "status": "PASS",
+      "source": "test/accept/evidence/2026-10-27-summary.json",
+      "passed": 60,
+      "total": 60
+    },
+    "blocked": null,
+    "note": "只作为实际组合管线协作的代表核对，不替代具体选项覆盖；部分包含本批外插件，由后续批次为其局部能力补映射。含 all-seventeen 验证额外 notify 插入。与 INV-10 的全量/网络整链冒烟区分。",
+    "unit": [
+      "test/combo/retry_share_recovery_combo_test.dart",
+      "test/combo/loading_share_combo_test.dart"
+    ]
+  },
+  {
+    "id": "INV-20",
+    "plugin": "combo",
+    "capability": "缓存命中在离线判定前返回且不产生加载括号",
+    "tier": 1,
+    "apis": [],
+    "real": [
+      "offline.cache-hit-still-served",
+      "combo.loading-cache-hit-delay",
+      "cache.offline-serves-cache"
+    ],
+    "assumptions": [],
+    "result": {
+      "status": "PASS",
+      "source": "test/accept/evidence/2026-10-27-summary.json",
+      "passed": 6,
+      "total": 6
+    },
+    "blocked": null,
+    "note": "cache 在 offline/loading 前，命中 resolve(...,true)；此行只记短路与括号决策，真实计时顺序由 INV-19/H7 承担。"
+  },
+  {
+    "id": "INV-21",
+    "plugin": "combo",
+    "capability": "重试熔断凭据只在请求体可重放后申请",
+    "tier": 1,
+    "apis": [],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null,
+    "note": "lib/src/retry_plugin.dart 重放前 prepareForReplay，再 breaker.admit，结果 recordResponse/recordError 消费一次凭据；不可重放流结束时不额外计数。SKILL.md 中 breaker 只记最终结果的旧说明不够准确，当前也记录获准重试尝试。 参见 test/combo/breaker_retry_combo_test.dart 与边界请求体用例；此处只声明准备与记账顺序，不证明真实流可重放。",
+    "unit": [
+      "test/combo/breaker_retry_combo_test.dart"
+    ]
+  },
+  {
+    "id": "DiomanEnvs.apply",
+    "plugin": "envs",
+    "capability": "首个匹配规则合并支持字段，不匹配不改配置",
+    "tier": 1,
+    "apis": [
+      "DiomanEnvs.apply"
+    ],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null,
+    "note": "源码：lib/src/envs_plugin.dart:95。 只覆盖非空 baseUrl、三个非空 timeout、非空 headers 及非 json responseType；规则回调异常不隔离；真实执行器只构造空规则列表。"
+  },
+  {
+    "id": "DiomanEnvs.config",
+    "plugin": "envs",
+    "capability": "保存构造期启用选项",
+    "tier": 1,
+    "apis": [
+      "DiomanEnvs.config"
+    ],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null,
+    "note": "源码：lib/src/envs_plugin.dart:77。"
+  },
+  {
+    "id": "DiomanEnvs.name",
+    "plugin": "envs",
+    "capability": "返回固定插件名 dioman:envs",
+    "tier": 1,
+    "apis": [
+      "DiomanEnvs.name"
+    ],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null,
+    "note": "源码：lib/src/envs_plugin.dart:84。"
+  },
+  {
+    "id": "DiomanEnvs.new(dio)",
+    "plugin": "envs",
+    "capability": "传宿主则构造时立即应用规则",
+    "tier": 1,
+    "apis": [
+      "DiomanEnvs.new(dio)"
+    ],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null,
+    "note": "源码：lib/src/envs_plugin.dart:64。"
+  },
+  {
+    "id": "DiomanEnvs.new(enabled)",
+    "plugin": "envs",
+    "capability": "默认启用，禁用后 apply 不修改配置",
+    "tier": 1,
+    "apis": [
+      "DiomanEnvs.new(enabled)"
+    ],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null,
+    "note": "源码：lib/src/envs_plugin.dart:64。"
+  },
+  {
+    "id": "DiomanEnvs.onRequest",
+    "plugin": "envs",
+    "capability": "请求阶段只放行，不重新计算环境规则",
+    "tier": 1,
+    "apis": [
+      "DiomanEnvs.onRequest"
+    ],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null,
+    "note": "源码：lib/src/envs_plugin.dart:87。"
+  },
+  {
+    "id": "DiomanEnvs.pluginName",
+    "plugin": "envs",
+    "capability": "公开插件名固定为 dioman:envs",
+    "tier": 1,
+    "apis": [
+      "DiomanEnvs.pluginName"
+    ],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null,
+    "note": "源码：lib/src/envs_plugin.dart:82。"
+  },
+  {
+    "id": "DiomanEnvs.rules",
+    "plugin": "envs",
+    "capability": "保存按输入顺序求值的规则列表",
+    "tier": 1,
+    "apis": [
+      "DiomanEnvs.new(rules)",
+      "DiomanEnvs.rules"
+    ],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null,
+    "note": "源码：lib/src/envs_plugin.dart:72。"
+  },
+  {
+    "id": "DiomanEnvsOptions.enabled",
+    "plugin": "envs",
+    "capability": "默认启用，关闭后环境应用为空操作",
+    "tier": 1,
+    "apis": [
+      "DiomanEnvsOptions.enabled",
+      "DiomanEnvsOptions.new(enabled)"
+    ],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null,
+    "note": "源码：lib/src/envs_plugin.dart:14。"
+  },
+  {
+    "id": "EnvRule.config",
+    "plugin": "envs",
+    "capability": "提供受支持配置，空地址和默认 json 不覆盖",
+    "tier": 1,
+    "apis": [
+      "EnvRule.config",
+      "EnvRule.new(config)"
+    ],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null,
+    "note": "源码：lib/src/envs_plugin.dart:32。"
+  },
+  {
+    "id": "EnvRule.rule",
+    "plugin": "envs",
+    "capability": "按顺序调用使用者判定，首个真值胜出",
+    "tier": 1,
+    "apis": [
+      "EnvRule.new(rule)",
+      "EnvRule.rule"
+    ],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null,
+    "note": "源码：lib/src/envs_plugin.dart:26。"
+  },
+  {
+    "id": "DiomanExtraKey.config(name)",
+    "plugin": "extra",
+    "capability": "配置键简写，键与归属都取插件名",
+    "tier": 1,
+    "apis": [
+      "DiomanExtraKey.config(name)"
+    ],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null,
+    "note": "源码：lib/src/extra_keys.dart:48。"
+  },
+  {
+    "id": "DiomanExtraKey.description",
+    "plugin": "extra",
+    "capability": "保存键用途的说明文本",
+    "tier": 1,
+    "apis": [
+      "DiomanExtraKey.config(description)",
+      "DiomanExtraKey.description",
+      "DiomanExtraKey.new(description)",
+      "DiomanExtraKey.state(description)"
+    ],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null,
+    "note": "源码：lib/src/extra_keys.dart:71。"
+  },
+  {
+    "id": "DiomanExtraKey.key",
+    "plugin": "extra",
+    "capability": "保存 extra 键字符串",
+    "tier": 1,
+    "apis": [
+      "DiomanExtraKey.key",
+      "DiomanExtraKey.new(key)",
+      "DiomanExtraKey.state(key)"
+    ],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null,
+    "note": "源码：lib/src/extra_keys.dart:59。"
+  },
+  {
+    "id": "DiomanExtraKey.kind",
+    "plugin": "extra",
+    "capability": "保存配置、协议或状态类别",
+    "tier": 1,
+    "apis": [
+      "DiomanExtraKey.kind",
+      "DiomanExtraKey.new(kind)"
+    ],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null,
+    "note": "源码：lib/src/extra_keys.dart:65。"
+  },
+  {
+    "id": "DiomanExtraKey.owner",
+    "plugin": "extra",
+    "capability": "保存键归属插件名，不做运行期校验",
+    "tier": 1,
+    "apis": [
+      "DiomanExtraKey.new(owner)",
+      "DiomanExtraKey.owner",
+      "DiomanExtraKey.state(owner)"
+    ],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null,
+    "note": "源码：lib/src/extra_keys.dart:62。"
+  },
+  {
+    "id": "DiomanExtraKey.toString",
+    "plugin": "extra",
+    "capability": "输出键、归属和类别名",
+    "tier": 1,
+    "apis": [
+      "DiomanExtraKey.toString"
+    ],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null,
+    "note": "源码：lib/src/extra_keys.dart:73。"
+  },
+  {
+    "id": "DiomanExtraKey.valueType",
+    "plugin": "extra",
+    "capability": "保存值类型说明字符串，不作类型检查",
+    "tier": 1,
+    "apis": [
+      "DiomanExtraKey.config(valueType)",
+      "DiomanExtraKey.new(valueType)",
+      "DiomanExtraKey.state(valueType)",
+      "DiomanExtraKey.valueType"
+    ],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null,
+    "note": "源码：lib/src/extra_keys.dart:68。"
+  },
+  {
+    "id": "DiomanExtraKeyKind.config",
+    "plugin": "extra",
+    "capability": "表示调用方可写的公开选项键",
+    "tier": 1,
+    "apis": [
+      "DiomanExtraKeyKind.config"
+    ],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null,
+    "note": "源码：lib/src/extra_keys.dart:7。"
+  },
+  {
+    "id": "DiomanExtraKeyKind.protocol",
+    "plugin": "extra",
+    "capability": "表示插件间使用的协议键",
+    "tier": 1,
+    "apis": [
+      "DiomanExtraKeyKind.protocol"
+    ],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null,
+    "note": "源码：lib/src/extra_keys.dart:10。"
+  },
+  {
+    "id": "DiomanExtraKeyKind.state",
+    "plugin": "extra",
+    "capability": "表示单插件在请求上的记账键",
+    "tier": 1,
+    "apis": [
+      "DiomanExtraKeyKind.state"
+    ],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null,
+    "note": "源码：lib/src/extra_keys.dart:13。"
+  },
+  {
+    "id": "DiomanExtraKeys.all",
+    "plugin": "extra",
+    "capability": "返回内置与自定义登记项的只读快照",
+    "tier": 1,
+    "apis": [
+      "DiomanExtraKeys.all"
+    ],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null,
+    "note": "源码：lib/src/extra_keys.dart:196。"
+  },
+  {
+    "id": "DiomanExtraKeys.assertNoSharedState",
+    "plugin": "extra",
+    "capability": "仅 assert 开启时拒绝重复实例共享状态键",
+    "tier": 1,
+    "apis": [
+      "DiomanExtraKeys.assertNoSharedState"
+    ],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null,
+    "note": "源码：lib/src/extra_keys.dart:270。"
+  },
+  {
+    "id": "DiomanExtraKeys.builtIn",
+    "plugin": "extra",
+    "capability": "集中列出内置配置、协议及状态键",
+    "tier": 1,
+    "apis": [
+      "DiomanExtraKeys.builtIn"
+    ],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null,
+    "note": "源码：lib/src/extra_keys.dart:108。"
+  },
+  {
+    "id": "DiomanExtraKeys.findSharedState",
+    "plugin": "extra",
+    "capability": "按插件名计数，仅报告已登记状态键冲突",
+    "tier": 1,
+    "apis": [
+      "DiomanExtraKeys.findSharedState"
+    ],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null,
+    "note": "源码：lib/src/extra_keys.dart:244。"
+  },
+  {
+    "id": "DiomanExtraKeys.lookup",
+    "plugin": "extra",
+    "capability": "按键查首个登记项，未登记返回空",
+    "tier": 1,
+    "apis": [
+      "DiomanExtraKeys.lookup"
+    ],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null,
+    "note": "源码：lib/src/extra_keys.dart:200。"
+  },
+  {
+    "id": "DiomanExtraKeys.ofKind",
+    "plugin": "extra",
+    "capability": "按类别筛选登记项",
+    "tier": 1,
+    "apis": [
+      "DiomanExtraKeys.ofKind"
+    ],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null,
+    "note": "源码：lib/src/extra_keys.dart:208。"
+  },
+  {
+    "id": "DiomanExtraKeys.ofOwner",
+    "plugin": "extra",
+    "capability": "按归属插件名筛选登记项",
+    "tier": 1,
+    "apis": [
+      "DiomanExtraKeys.ofOwner"
+    ],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null,
+    "note": "源码：lib/src/extra_keys.dart:214。"
+  },
+  {
+    "id": "DiomanExtraKeys.register",
+    "plugin": "extra",
+    "capability": "拒绝重复键，否则追加自定义登记",
+    "tier": 1,
+    "apis": [
+      "DiomanExtraKeys.register"
+    ],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null,
+    "note": "源码：lib/src/extra_keys.dart:220。"
+  },
+  {
+    "id": "DiomanExtraKeys.toMarkdown",
+    "plugin": "extra",
+    "capability": "仅把内置键生成含中文类别的 Markdown 表",
+    "tier": 1,
+    "apis": [
+      "DiomanExtraKeys.toMarkdown"
+    ],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null,
+    "note": "源码：lib/src/extra_keys.dart:287。"
+  },
+  {
+    "id": "DiomanExtraKeys.unregister",
+    "plugin": "extra",
+    "capability": "只删除自定义键，返回是否实际移除",
+    "tier": 1,
+    "apis": [
+      "DiomanExtraKeys.unregister"
+    ],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null,
+    "note": "源码：lib/src/extra_keys.dart:235。"
+  },
+  {
+    "id": "DiomanSharedStateKey.count",
+    "plugin": "extra",
+    "capability": "保存共享同一状态键的插件实例数",
+    "tier": 1,
+    "apis": [
+      "DiomanSharedStateKey.count",
+      "DiomanSharedStateKey.new(count)"
+    ],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null,
+    "note": "源码：lib/src/extra_keys.dart:86。"
+  },
+  {
+    "id": "DiomanSharedStateKey.key",
+    "plugin": "extra",
+    "capability": "保存被共享的登记项",
+    "tier": 1,
+    "apis": [
+      "DiomanSharedStateKey.key",
+      "DiomanSharedStateKey.new(key)"
+    ],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null,
+    "note": "源码：lib/src/extra_keys.dart:83。"
+  },
+  {
+    "id": "DiomanSharedStateKey.toString",
+    "plugin": "extra",
+    "capability": "输出键名与实例数",
+    "tier": 1,
+    "apis": [
+      "DiomanSharedStateKey.toString"
+    ],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null,
+    "note": "源码：lib/src/extra_keys.dart:88。"
+  },
+  {
+    "id": "DiomanFilter.enabled",
+    "plugin": "filter",
+    "capability": "默认启用，可由单请求开关覆盖",
+    "tier": 1,
+    "apis": [
+      "DiomanFilter.enabled",
+      "DiomanFilter.new(enabled)"
+    ],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null,
+    "note": "源码：lib/src/filter_plugin.dart:87。"
+  },
+  {
+    "id": "DiomanFilter.ignoreKeys",
+    "plugin": "filter",
+    "capability": "默认空列表，指定字段始终保留",
+    "tier": 1,
+    "apis": [
+      "DiomanFilter.ignoreKeys",
+      "DiomanFilter.new(ignoreKeys)"
+    ],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null,
+    "note": "源码：lib/src/filter_plugin.dart:77。"
+  },
+  {
+    "id": "DiomanFilter.ignoreValues",
+    "plugin": "filter",
+    "capability": "默认空列表，指定值始终保留",
+    "tier": 1,
+    "apis": [
+      "DiomanFilter.ignoreValues",
+      "DiomanFilter.new(ignoreValues)"
+    ],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null,
+    "note": "源码：lib/src/filter_plugin.dart:82。"
+  },
+  {
+    "id": "DiomanFilter.name",
+    "plugin": "filter",
+    "capability": "返回固定插件名 dioman:filter",
+    "tier": 1,
+    "apis": [
+      "DiomanFilter.name"
+    ],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null,
+    "note": "源码：lib/src/filter_plugin.dart:94。"
+  },
+  {
+    "id": "DiomanFilter.onRequest",
+    "plugin": "filter",
+    "capability": "过滤 query 并复制 Map body 后过滤顶层字段",
+    "tier": 1,
+    "apis": [
+      "DiomanFilter.onRequest"
+    ],
+    "real": [
+      "filter.keeps-zero-false",
+      "key.filter-before-key"
+    ],
+    "assumptions": [],
+    "result": {
+      "status": "PASS",
+      "source": "test/accept/evidence/2026-10-27-summary.json",
+      "passed": 6,
+      "total": 6
+    },
+    "blocked": null,
+    "note": "源码：lib/src/filter_plugin.dart:105。"
+  },
+  {
+    "id": "DiomanFilter.pluginName",
+    "plugin": "filter",
+    "capability": "公开插件名固定为 dioman:filter",
+    "tier": 1,
+    "apis": [
+      "DiomanFilter.pluginName"
+    ],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null,
+    "note": "源码：lib/src/filter_plugin.dart:92。"
+  },
+  {
+    "id": "DiomanFilter.predicate",
+    "plugin": "filter",
+    "capability": "默认删空值或空白串，回调真值表示删除",
+    "tier": 1,
+    "apis": [
+      "DiomanFilter.new(predicate)",
+      "DiomanFilter.predicate"
+    ],
+    "real": [
+      "filter.keeps-zero-false"
+    ],
+    "assumptions": [],
+    "result": {
+      "status": "PASS",
+      "source": "test/accept/evidence/2026-10-27-summary.json",
+      "passed": 4,
+      "total": 4
+    },
+    "blocked": null,
+    "note": "源码：lib/src/filter_plugin.dart:72。"
+  },
+  {
+    "id": "DiomanFilterOptions.enabled",
+    "plugin": "filter",
+    "capability": "单请求覆盖过滤开关，空值继承",
+    "tier": 1,
+    "apis": [
+      "DiomanFilterOptions.enabled",
+      "DiomanFilterOptions.new(enabled)"
+    ],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null,
+    "note": "源码：lib/src/filter_plugin.dart:16。"
+  },
+  {
+    "id": "DiomanFilterOptions.ignoreKeys",
+    "plugin": "filter",
+    "capability": "单请求豁免键与全局豁免键取并集",
+    "tier": 1,
+    "apis": [
+      "DiomanFilterOptions.ignoreKeys",
+      "DiomanFilterOptions.new(ignoreKeys)"
+    ],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null,
+    "note": "源码：lib/src/filter_plugin.dart:22。"
+  },
+  {
+    "id": "DiomanFilterOptions.ignoreValues",
+    "plugin": "filter",
+    "capability": "单请求豁免值与全局豁免值取并集",
+    "tier": 1,
+    "apis": [
+      "DiomanFilterOptions.ignoreValues",
+      "DiomanFilterOptions.new(ignoreValues)"
+    ],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null,
+    "note": "源码：lib/src/filter_plugin.dart:28。"
+  },
+  {
+    "id": "DiomanFilterOptions.predicate",
+    "plugin": "filter",
+    "capability": "单请求替换过滤判定，空值继承",
+    "tier": 1,
+    "apis": [
+      "DiomanFilterOptions.new(predicate)",
+      "DiomanFilterOptions.predicate"
+    ],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null,
+    "note": "源码：lib/src/filter_plugin.dart:33。"
+  },
+  {
+    "id": "Dioman.install",
+    "plugin": "install",
+    "capability": "按规范候选序排序安装并返回管理句柄",
+    "tier": 1,
+    "apis": [
+      "Dioman.install"
+    ],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null,
+    "note": "源码：lib/src/dioman.dart:45。"
+  },
+  {
+    "id": "Dioman.installPlugins",
+    "plugin": "install",
+    "capability": "先排序后安装，绑定宿主并接线重试熔断",
+    "tier": 1,
+    "apis": [
+      "Dioman.installPlugins"
+    ],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null,
+    "note": "源码：lib/src/dioman.dart:104。 重复名与顺序校验只针对本次输入，不包含宿主已有拦截器；动态插拔也只校验本句柄插件。"
+  },
+  {
+    "id": "Dioman.sort",
+    "plugin": "install",
+    "capability": "返回稳定拓扑顺序，重复名依赖缺失或环报错",
+    "tier": 1,
+    "apis": [
+      "Dioman.sort"
+    ],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null,
+    "note": "源码：lib/src/dioman.dart:149。"
+  },
+  {
+    "id": "Dioman.validate",
+    "plugin": "install",
+    "capability": "校验重复名依赖环及给定链的顺序违规",
+    "tier": 1,
+    "apis": [
+      "Dioman.validate"
+    ],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null,
+    "note": "源码：lib/src/dioman.dart:163。"
+  },
+  {
+    "id": "DiomanHandle.append",
+    "plugin": "install",
+    "capability": "校验后追加插件并绑定宿主",
+    "tier": 1,
+    "apis": [
+      "DiomanHandle.append"
+    ],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null,
+    "note": "源码：lib/src/dioman.dart:255。"
+  },
+  {
+    "id": "DiomanHandle.diagnoseSharedStateKeys",
+    "plugin": "install",
+    "capability": "诊断宿主链含绕过句柄安装的共享状态键",
+    "tier": 1,
+    "apis": [
+      "DiomanHandle.diagnoseSharedStateKeys"
+    ],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null,
+    "note": "源码：lib/src/dioman.dart:269。"
+  },
+  {
+    "id": "DiomanHandle.dispose",
+    "plugin": "install",
+    "capability": "移除所管插件并逐一解绑及调用释放",
+    "tier": 1,
+    "apis": [
+      "DiomanHandle.dispose"
+    ],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null,
+    "note": "源码：lib/src/dioman.dart:288。 现行实现不清空 _plugins，重复调用会再次执行各插件 dispose；不可将文档的幂等理解为释放钩子只执行一次。"
+  },
+  {
+    "id": "DiomanHandle.insertAfter",
+    "plugin": "install",
+    "capability": "校验后插到锚点之后，缺锚点报参数错误",
+    "tier": 1,
+    "apis": [
+      "DiomanHandle.insertAfter"
+    ],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null,
+    "note": "源码：lib/src/dioman.dart:234。"
+  },
+  {
+    "id": "DiomanHandle.insertBefore",
+    "plugin": "install",
+    "capability": "校验后插到锚点之前，缺锚点报参数错误",
+    "tier": 1,
+    "apis": [
+      "DiomanHandle.insertBefore"
+    ],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null,
+    "note": "源码：lib/src/dioman.dart:218。"
+  },
+  {
+    "id": "DiomanHandle.plugin",
+    "plugin": "install",
+    "capability": "按类型返回所管的首个插件，缺失为空",
+    "tier": 1,
+    "apis": [
+      "DiomanHandle.plugin"
+    ],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null,
+    "note": "源码：lib/src/dioman.dart:195。"
+  },
+  {
+    "id": "DiomanHandle.plugins",
+    "plugin": "install",
+    "capability": "返回安装顺序的只读列表快照",
+    "tier": 1,
+    "apis": [
+      "DiomanHandle.plugins"
+    ],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null,
+    "note": "源码：lib/src/dioman.dart:192。"
+  },
+  {
+    "id": "DiomanHandle.prepend",
+    "plugin": "install",
+    "capability": "校验后插到宿主链最前并绑定宿主",
+    "tier": 1,
+    "apis": [
+      "DiomanHandle.prepend"
+    ],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null,
+    "note": "源码：lib/src/dioman.dart:245。"
+  },
+  {
+    "id": "DiomanHandle.remove",
+    "plugin": "install",
+    "capability": "按类型移除首个插件，校验依赖并解绑释放",
+    "tier": 1,
+    "apis": [
+      "DiomanHandle.remove"
+    ],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null,
+    "note": "源码：lib/src/dioman.dart:203。"
+  },
+  {
+    "id": "DiomanPlugin.dispose",
+    "plugin": "install",
+    "capability": "默认释放钩子为空操作",
+    "tier": 1,
+    "apis": [
+      "DiomanPlugin.dispose"
+    ],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null,
+    "note": "源码：lib/src/dioman_plugin.dart:24。"
+  },
+  {
+    "id": "DiomanPlugin.name",
+    "plugin": "install",
+    "capability": "子类提供插件唯一名称",
+    "tier": 1,
+    "apis": [
+      "DiomanPlugin.name"
+    ],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null,
+    "note": "源码：lib/src/dioman_plugin.dart:15。"
+  },
+  {
+    "id": "DiomanPlugin.ordering",
+    "plugin": "install",
+    "capability": "默认无约束，子类可声明顺序及依赖",
+    "tier": 1,
+    "apis": [
+      "DiomanPlugin.ordering"
+    ],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null,
+    "note": "源码：lib/src/dioman_plugin.dart:18。"
+  },
+  {
+    "id": "DiomanPluginOrder.after",
+    "plugin": "install",
+    "capability": "要求排在已安装的指定插件之后",
+    "tier": 1,
+    "apis": [
+      "DiomanPluginOrder.after",
+      "DiomanPluginOrder.new(after)"
+    ],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null,
+    "note": "源码：lib/src/plugin_order.dart:42。"
+  },
+  {
+    "id": "DiomanPluginOrder.before",
+    "plugin": "install",
+    "capability": "要求排在已安装的指定插件之前",
+    "tier": 1,
+    "apis": [
+      "DiomanPluginOrder.before",
+      "DiomanPluginOrder.new(before)"
+    ],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null,
+    "note": "源码：lib/src/plugin_order.dart:39。"
+  },
+  {
+    "id": "DiomanPluginOrder.none",
+    "plugin": "install",
+    "capability": "三个集合均为空的常量顺序声明",
+    "tier": 1,
+    "apis": [
+      "DiomanPluginOrder.none"
+    ],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null,
+    "note": "源码：lib/src/plugin_order.dart:36。"
+  },
+  {
+    "id": "DiomanPluginOrder.requires",
+    "plugin": "install",
+    "capability": "只要求指定名字存在，不隐含顺序",
+    "tier": 1,
+    "apis": [
+      "DiomanPluginOrder.new(requires)",
+      "DiomanPluginOrder.requires"
+    ],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null,
+    "note": "源码：lib/src/plugin_order.dart:45。"
+  },
+  {
+    "id": "DiomanPluginOrderException.issue",
+    "plugin": "install",
+    "capability": "保存重复名、缺依赖、环或顺序问题类别",
+    "tier": 1,
+    "apis": [
+      "DiomanPluginOrderException.issue",
+      "DiomanPluginOrderException.new(issue)"
+    ],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null,
+    "note": "源码：lib/src/plugin_order.dart:75。"
+  },
+  {
+    "id": "DiomanPluginOrderException.message",
+    "plugin": "install",
+    "capability": "保存可读的顺序问题说明",
+    "tier": 1,
+    "apis": [
+      "DiomanPluginOrderException.message",
+      "DiomanPluginOrderException.new(message)"
+    ],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null,
+    "note": "源码：lib/src/plugin_order.dart:81。"
+  },
+  {
+    "id": "DiomanPluginOrderException.plugins",
+    "plugin": "install",
+    "capability": "保存与问题类别对应的涉事插件名列表",
+    "tier": 1,
+    "apis": [
+      "DiomanPluginOrderException.new(plugins)",
+      "DiomanPluginOrderException.plugins"
+    ],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null,
+    "note": "源码：lib/src/plugin_order.dart:78。"
+  },
+  {
+    "id": "DiomanPluginOrderException.toString",
+    "plugin": "install",
+    "capability": "输出异常类别名及问题说明",
+    "tier": 1,
+    "apis": [
+      "DiomanPluginOrderException.toString"
+    ],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null,
+    "note": "源码：lib/src/plugin_order.dart:83。"
+  },
+  {
+    "id": "DiomanPluginOrderIssue.cycle",
+    "plugin": "install",
+    "capability": "约束含环或自指时报告环上的名字",
+    "tier": 1,
+    "apis": [
+      "DiomanPluginOrderIssue.cycle"
+    ],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null,
+    "note": "源码：lib/src/plugin_order.dart:53。"
+  },
+  {
+    "id": "DiomanPluginOrderIssue.duplicateName",
+    "plugin": "install",
+    "capability": "输入同名插件时报告重复名字",
+    "tier": 1,
+    "apis": [
+      "DiomanPluginOrderIssue.duplicateName"
+    ],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null,
+    "note": "源码：lib/src/plugin_order.dart:50。"
+  },
+  {
+    "id": "DiomanPluginOrderIssue.misordered",
+    "plugin": "install",
+    "capability": "实际顺序违规时报告应在前后的两个名字",
+    "tier": 1,
+    "apis": [
+      "DiomanPluginOrderIssue.misordered"
+    ],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null,
+    "note": "源码：lib/src/plugin_order.dart:59。"
+  },
+  {
+    "id": "DiomanPluginOrderIssue.missingDependency",
+    "plugin": "install",
+    "capability": "缺少必需插件时报告依赖方及缺失名",
+    "tier": 1,
+    "apis": [
+      "DiomanPluginOrderIssue.missingDependency"
+    ],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null,
+    "note": "源码：lib/src/plugin_order.dart:56。"
+  },
+  {
+    "id": "INV-01",
+    "plugin": "install",
+    "capability": "排序满足已安装插件间约束并保持确定顺序",
+    "tier": 1,
+    "apis": [],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null,
+    "note": "lib/src/plugin_order.dart:sortPlugins；test/unit/plugin_order_test.dart 穷举 2^16 子集。key 在 repath/filter 后、cache/share 前；cache 在 offline 前；offline 在 share/cancel/loading 前；cache/share/mock 在 cancel/loading 前；cancel/loading 在 auth/retry 前；breaker 在 retry 后；normalize 在其余内置插件后。before/after 对缺席插件忽略，requires 只约束存在。",
+    "unit": [
+      "test/unit/plugin_order_test.dart"
+    ]
+  },
+  {
+    "id": "INV-02",
+    "plugin": "install",
+    "capability": "重复名缺依赖环及乱序均给出具体诊断",
+    "tier": 1,
+    "apis": [],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null,
+    "note": "Dioman.sort/validate 分别检查 duplicateName、missingDependency、cycle；validate 额外检查 misordered。异常携带涉事名字；test/unit/plugin_order_test.dart。",
+    "unit": [
+      "test/unit/plugin_order_test.dart"
+    ]
+  },
+  {
+    "id": "INV-03",
+    "plugin": "install",
+    "capability": "动态插入先校验，移除先检查必需依赖",
+    "tier": 1,
+    "apis": [],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null,
+    "note": "lib/src/dioman.dart:DiomanHandle；失败前不改列表，插入绑定宿主，移除解绑并释放；缺锚点 ArgumentError。只检查本句柄范围；新增 retry/breaker 不重新接线，两者原有引用也未在 remove 时重新配对。",
+    "unit": [
+      "test/unit/plugin_order_test.dart",
+      "test/integration/install_integration_test.dart"
+    ]
+  },
+  {
+    "id": "INV-04",
+    "plugin": "install",
+    "capability": "内置 extra 键唯一且状态键有归属前缀",
+    "tier": 1,
+    "apis": [],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null,
+    "note": "extra_keys.dart 与 test/unit/extra_keys_test.dart、test/integration/extra_keys_integration_test.dart：配置键等于 owner，状态键以 owner: 开头；协议键允许跨名归属；源码键及文档表同步。register 只强制唯一，不对自定义归属或前缀作校验。",
+    "unit": [
+      "test/unit/extra_keys_test.dart",
+      "test/integration/extra_keys_integration_test.dart"
+    ]
+  },
+  {
+    "id": "INV-06",
+    "plugin": "install",
+    "capability": "重复实例只对已登记状态键报告共享冲突",
+    "tier": 1,
+    "apis": [],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null,
+    "note": "DiomanExtraKeys.findSharedState 按名字计数；handle 诊断整个宿主链，含绕过 handle 手装者；无状态键的重复实例不报告；assertNoSharedState 只在开启 assert 时执行。",
+    "unit": [
+      "test/integration/extra_keys_integration_test.dart"
+    ]
+  },
+  {
+    "id": "INV-22",
+    "plugin": "install",
+    "capability": "句柄释放解绑所管插件并保留插件列表",
+    "tier": 1,
+    "apis": [],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null,
+    "note": "lib/src/dioman.dart:dispose 既未清 _plugins，也未设置 disposed；重复调用会再次触发 dispose，不能断言释放钩子只执行一次；宿主 adapter 不在此关闭。",
+    "unit": [
+      "test/integration/install_integration_test.dart"
+    ]
+  },
+  {
+    "id": "INV-23",
+    "plugin": "install",
+    "capability": "无插件干预时请求按方法/状态码/编码原样往返",
+    "tier": 3,
+    "apis": [],
+    "real": [
+      "basic.all-methods",
+      "basic.business-code-without-normalize",
+      "basic.custom-header",
+      "basic.custom-key-param",
+      "basic.delay-respected",
+      "basic.get-ok",
+      "basic.head-request",
+      "basic.http-404",
+      "basic.large-sequence",
+      "basic.parallel-independent",
+      "basic.post-json-body",
+      "basic.public-path",
+      "basic.query-echo",
+      "basic.safe-status-matrix",
+      "basic.sequential-hits",
+      "basic.server-reset",
+      "basic.status-201-empty-data",
+      "basic.status-matrix",
+      "basic.unicode-body"
+    ],
+    "assumptions": [],
+    "result": {
+      "status": "PASS",
+      "source": "test/accept/evidence/2026-10-27-summary.json",
+      "passed": 93,
+      "total": 107
+    },
+    "blocked": null,
+    "note": "环境与执行器基线；失败先查环境再查插件"
+  },
+  {
+    "id": "INV-24",
+    "plugin": "install",
+    "capability": "真实传输故障按 Dio 错误类型冒泡，插件不吞错不重发",
+    "tier": 2,
+    "apis": [],
+    "real": [
+      "faults.bad-json",
+      "faults.close-network",
+      "faults.close-parallel",
+      "faults.empty-body",
+      "faults.half-body",
+      "faults.hang-parallel-timeouts",
+      "faults.hang-timeout",
+      "faults.html-502",
+      "faults.large-size",
+      "faults.non2xx-business-safe",
+      "faults.post-close-no-double-send",
+      "faults.recovery-after-bad",
+      "faults.slow-body-succeeds",
+      "faults.status-with-business",
+      "network.blackhole-parallel-timeouts",
+      "network.blackhole-timeout",
+      "network.dns-failure",
+      "network.offline-all-methods",
+      "network.weak-parallel"
+    ],
+    "assumptions": [
+      "H3",
+      "H8"
+    ],
+    "result": {
+      "status": "PASS",
+      "source": "test/accept/evidence/2026-10-27-summary.json",
+      "passed": 53,
+      "total": 67
+    },
+    "blocked": null,
+    "unit": [
+      "test/rule/breaker_rule_test.dart",
+      "test/boundary/share_boundary_test.dart"
+    ]
+  },
+  {
+    "id": "INV-25",
+    "plugin": "install",
+    "capability": "高并发与乱序结算下每个请求独立结算不串号",
+    "tier": 2,
+    "apis": [],
+    "real": [
+      "conc.barrier-32-peak",
+      "conc.barrier-64-desc-order",
+      "conc.barrier-64-shuffle",
+      "conc.barrier-all-fail",
+      "conc.barrier-asc",
+      "conc.barrier-desc",
+      "conc.barrier-given",
+      "conc.barrier-mixed-with-other",
+      "conc.barrier-partial-fail",
+      "conc.barrier-partial-wait",
+      "conc.barrier-reuse",
+      "conc.barrier-shuffle",
+      "conc.fast-slow-settle-order",
+      "conc.fire-then-settle",
+      "conc.no-share-peak-inflight",
+      "conc.parallel-failure-isolated"
+    ],
+    "assumptions": [
+      "H7",
+      "H8"
+    ],
+    "result": {
+      "status": "PASS",
+      "source": "test/accept/evidence/2026-10-27-summary.json",
+      "passed": 56,
+      "total": 56
+    },
+    "blocked": null,
+    "unit": [
+      "test/boundary/auth_concurrent_boundary_test.dart",
+      "test/boundary/share_boundary_test.dart"
+    ]
+  },
+  {
+    "id": "INV-26",
+    "plugin": "install",
+    "capability": "请求级超时与总预算在真实慢响应下生效",
+    "tier": 2,
+    "apis": [],
+    "real": [
+      "timeout.parallel-all-timeout",
+      "timeout.recovers-after-timeout",
+      "timeout.request-override-longer",
+      "timeout.request-override-shorter",
+      "timeout.total-hang",
+      "timeout.within-budget"
+    ],
+    "assumptions": [
+      "H5"
+    ],
+    "result": {
+      "status": "PASS",
+      "source": "test/accept/evidence/2026-10-27-summary.json",
+      "passed": 12,
+      "total": 12
+    },
+    "blocked": null,
+    "unit": [
+      "test/rule/timeout_rule_test.dart"
+    ],
+    "note": "timeout_ms/total_ms 由执行器宿主策略实现，核对的是 H5 的 Dio 侧前提"
+  },
+  {
+    "id": "DiomanKey.builder",
+    "plugin": "key",
+    "capability": "显式非空 key 未指定时使用自定义构键器",
+    "tier": 1,
+    "apis": [
+      "DiomanKey.builder",
+      "DiomanKey.new(builder)"
+    ],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null,
+    "note": "源码：lib/src/key_plugin.dart:132。"
+  },
+  {
+    "id": "DiomanKey.enabled",
+    "plugin": "key",
+    "capability": "默认启用，禁用不写入也不删除已有键",
+    "tier": 1,
+    "apis": [
+      "DiomanKey.enabled",
+      "DiomanKey.new(enabled)"
+    ],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null,
+    "note": "源码：lib/src/key_plugin.dart:124。"
+  },
+  {
+    "id": "DiomanKey.fastMode",
+    "plugin": "key",
+    "capability": "默认深模式，快速模式只编码方法来源路径",
+    "tier": 1,
+    "apis": [
+      "DiomanKey.fastMode",
+      "DiomanKey.new(fastMode)"
+    ],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null,
+    "note": "源码：lib/src/key_plugin.dart:113。"
+  },
+  {
+    "id": "DiomanKey.ignores",
+    "plugin": "key",
+    "capability": "默认空列表，排除 query 与 body 顶层字段",
+    "tier": 1,
+    "apis": [
+      "DiomanKey.ignores",
+      "DiomanKey.new(ignores)"
+    ],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null,
+    "note": "源码：lib/src/key_plugin.dart:119。"
+  },
+  {
+    "id": "DiomanKey.name",
+    "plugin": "key",
+    "capability": "返回配置名 dioman:qid",
+    "tier": 1,
+    "apis": [
+      "DiomanKey.name"
+    ],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null,
+    "note": "源码：lib/src/key_plugin.dart:154。"
+  },
+  {
+    "id": "DiomanKey.namespace",
+    "plugin": "key",
+    "capability": "每次启用请求调用一次，非空账号独立编码",
+    "tier": 1,
+    "apis": [
+      "DiomanKey.namespace",
+      "DiomanKey.new(namespace)"
+    ],
+    "real": [
+      "cache.user-scope-no-leak",
+      "cache.user-scope-same-user-hits"
+    ],
+    "assumptions": [],
+    "result": {
+      "status": "PASS",
+      "source": "test/accept/evidence/2026-10-27-summary.json",
+      "passed": 6,
+      "total": 6
+    },
+    "blocked": null,
+    "note": "源码：lib/src/key_plugin.dart:147。"
+  },
+  {
+    "id": "DiomanKey.onRequest",
+    "plugin": "key",
+    "capability": "优先显式键再 builder 再计算，异常转请求错",
+    "tier": 1,
+    "apis": [
+      "DiomanKey.onRequest"
+    ],
+    "real": [
+      "cache.diff-query-no-mixup",
+      "cache.diff-body-no-mixup",
+      "cache.custom-key-shared",
+      "key.share-diff-query-not-merged",
+      "key.query-order-insensitive",
+      "key.body-diff-not-merged",
+      "key.method-diff-not-merged",
+      "key.explicit-string-merges",
+      "key.filter-before-key",
+      "key.share-without-key-not-merged",
+      "repath.key-after-repath",
+      "repath.key-cache-no-mixup",
+      "share.start-single-flight",
+      "share.start-32",
+      "share.different-keys-independent",
+      "share.no-cache-after-settle",
+      "share.no-key-no-share",
+      "share.per-request-disable",
+      "share.leader-failure-all-fail",
+      "share.network-failure-all-fail",
+      "share.follower-cancel-isolated",
+      "share.leader-cancel-followers-survive",
+      "share.all-cancelled-aborts-server",
+      "share.end-last-wins",
+      "share.race-first-success",
+      "share.race-first-fails-second-wins",
+      "share.none-policy",
+      "share.reuse-after-failure",
+      "network.offline-share-loading",
+      "network.recovery-state-clean",
+      "offline.cache-hit-still-served"
+    ],
+    "assumptions": [],
+    "result": {
+      "status": "PASS",
+      "source": "test/accept/evidence/2026-10-27-summary.json",
+      "passed": 86,
+      "total": 86
+    },
+    "blocked": null,
+    "note": "源码：lib/src/key_plugin.dart:165。 源码实际显式非空 key 优先于 builder，与 Options.builder 注释冲突；深模式只排序顶层 Map 键，无法 JSON 编码回退 toString。"
+  },
+  {
+    "id": "DiomanKey.ordering",
+    "plugin": "key",
+    "capability": "在路径过滤之后，在缓存共享之前",
+    "tier": 1,
+    "apis": [
+      "DiomanKey.ordering"
+    ],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null,
+    "note": "源码：lib/src/key_plugin.dart:158。"
+  },
+  {
+    "id": "DiomanKey.pluginName",
+    "plugin": "key",
+    "capability": "公开配置名固定为 dioman:qid",
+    "tier": 1,
+    "apis": [
+      "DiomanKey.pluginName"
+    ],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null,
+    "note": "源码：lib/src/key_plugin.dart:152。"
+  },
+  {
+    "id": "DiomanKeyOptions.builder",
+    "plugin": "key",
+    "capability": "单请求替换构键器，优先级低于显式非空键",
+    "tier": 1,
+    "apis": [
+      "DiomanKeyOptions.builder",
+      "DiomanKeyOptions.new(builder)"
+    ],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null,
+    "note": "源码：lib/src/key_plugin.dart:60。"
+  },
+  {
+    "id": "DiomanKeyOptions.enabled",
+    "plugin": "key",
+    "capability": "单请求覆盖构键开关，空值继承",
+    "tier": 1,
+    "apis": [
+      "DiomanKeyOptions.enabled",
+      "DiomanKeyOptions.new(enabled)"
+    ],
+    "real": [
+      "key.share-without-key-not-merged",
+      "share.no-key-no-share"
+    ],
+    "assumptions": [],
+    "result": {
+      "status": "PASS",
+      "source": "test/accept/evidence/2026-10-27-summary.json",
+      "passed": 4,
+      "total": 4
+    },
+    "blocked": null,
+    "note": "源码：lib/src/key_plugin.dart:37。"
+  },
+  {
+    "id": "DiomanKeyOptions.fastMode",
+    "plugin": "key",
+    "capability": "单请求覆盖快速或深模式，空值继承",
+    "tier": 1,
+    "apis": [
+      "DiomanKeyOptions.fastMode",
+      "DiomanKeyOptions.new(fastMode)"
+    ],
+    "real": [
+      "key.body-diff-not-merged",
+      "key.query-order-insensitive"
+    ],
+    "assumptions": [],
+    "result": {
+      "status": "PASS",
+      "source": "test/accept/evidence/2026-10-27-summary.json",
+      "passed": 4,
+      "total": 4
+    },
+    "blocked": null,
+    "note": "源码：lib/src/key_plugin.dart:47。 深模式分支由 body/query 场景执行；不能以它们证明 fastMode=true 分支已覆盖。"
+  },
+  {
+    "id": "DiomanKeyOptions.ignores",
+    "plugin": "key",
+    "capability": "单请求忽略字段与全局配置取并集",
+    "tier": 1,
+    "apis": [
+      "DiomanKeyOptions.ignores",
+      "DiomanKeyOptions.new(ignores)"
+    ],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null,
+    "note": "源码：lib/src/key_plugin.dart:54。"
+  },
+  {
+    "id": "DiomanKeyOptions.key",
+    "plugin": "key",
+    "capability": "非空显式键优先于 builder，仍应用账号作用域",
+    "tier": 1,
+    "apis": [
+      "DiomanKeyOptions.key",
+      "DiomanKeyOptions.new(key)"
+    ],
+    "real": [
+      "key.explicit-string-merges",
+      "cache.custom-key-shared"
+    ],
+    "assumptions": [],
+    "result": {
+      "status": "PASS",
+      "source": "test/accept/evidence/2026-10-27-summary.json",
+      "passed": 4,
+      "total": 4
+    },
+    "blocked": null,
+    "note": "源码：lib/src/key_plugin.dart:42。"
+  },
+  {
+    "id": "kKey",
+    "plugin": "key",
+    "capability": "跨插件请求键槽固定为 dioman:key",
+    "tier": 1,
+    "apis": [
+      "kKey"
+    ],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null,
+    "note": "源码：lib/src/key_plugin.dart:18。"
+  },
+  {
+    "id": "DiomanLoading.activeCount",
+    "plugin": "loading",
+    "capability": "当前在途请求数；opt-out 的请求不计入",
+    "tier": 1,
+    "apis": [
+      "DiomanLoading.activeCount"
+    ],
+    "real": [
+      "loading.concurrent-single-pair",
+      "loading.big-parallel-20",
+      "loading.mixed-silent-and-normal"
+    ],
+    "assumptions": [],
+    "result": {
+      "status": "PASS",
+      "source": "test/accept/evidence/2026-10-27-summary.json",
+      "passed": 14,
+      "total": 14
+    },
+    "blocked": null
+  },
+  {
+    "id": "DiomanLoading.delay",
+    "plugin": "loading",
+    "capability": "0→1 后等 delay 才通知显示；期间归零则从不显示",
+    "tier": 2,
+    "apis": [
+      "DiomanLoading.delay",
+      "DiomanLoading.new(delay)"
+    ],
+    "real": [
+      "loading.delay-fast-never-shows",
+      "loading.delay-slow-shows",
+      "plugins.boundary-loading-delay-ms-0",
+      "plugins.boundary-loading-delay-ms-1"
+    ],
+    "assumptions": [
+      "H7"
+    ],
+    "result": {
+      "status": "PASS",
+      "source": "test/accept/evidence/2026-10-27-summary.json",
+      "passed": 16,
+      "total": 16
+    },
+    "blocked": null,
+    "note": "定时器与响应到达的先后是核心；假适配器立即返回，需真实延迟下核对（H7）。默认 Duration.zero 即时通知。"
+  },
+  {
+    "id": "DiomanLoading.delayClose",
+    "plugin": "loading",
+    "capability": "1→0 后等 delayClose 才通知隐藏；期间新请求顶回则取消",
+    "tier": 2,
+    "apis": [
+      "DiomanLoading.delayClose",
+      "DiomanLoading.new(delayClose)"
+    ],
+    "real": [
+      "loading.delay-close-merges",
+      "plugins.boundary-loading-delay-close-ms-1"
+    ],
+    "assumptions": [
+      "H7"
+    ],
+    "result": {
+      "status": "PASS",
+      "source": "test/accept/evidence/2026-10-27-summary.json",
+      "passed": 6,
+      "total": 6
+    },
+    "blocked": null,
+    "note": "同 delay：隐藏定时器与下一请求到达的先后依赖真实时序（H7）。"
+  },
+  {
+    "id": "DiomanLoading.dispose",
+    "plugin": "loading",
+    "capability": "释放：取消定时器、计数清零，已显示则补发 false",
+    "tier": 1,
+    "apis": [
+      "DiomanLoading.dispose"
+    ],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null
+  },
+  {
+    "id": "DiomanLoading.enabled",
+    "plugin": "loading",
+    "capability": "总开关，false 时请求原样放行且不计数",
+    "tier": 1,
+    "apis": [
+      "DiomanLoading.enabled",
+      "DiomanLoading.new(enabled)"
+    ],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null
+  },
+  {
+    "id": "DiomanLoading.name",
+    "plugin": "loading",
+    "capability": "插件名固定为 dioman:loading",
+    "tier": 1,
+    "apis": [
+      "DiomanLoading.name"
+    ],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null
+  },
+  {
+    "id": "DiomanLoading.new(onChanged)",
+    "plugin": "loading",
+    "capability": "必填回调，显示周期开始/结束时收到 true/false",
+    "tier": 1,
+    "apis": [
+      "DiomanLoading.new(onChanged)"
+    ],
+    "real": [
+      "loading.single-pair",
+      "loading.sequential-pairs",
+      "loading.concurrent-single-pair"
+    ],
+    "assumptions": [],
+    "result": {
+      "status": "PASS",
+      "source": "test/accept/evidence/2026-10-27-summary.json",
+      "passed": 22,
+      "total": 22
+    },
+    "blocked": null
+  },
+  {
+    "id": "DiomanLoading.onError",
+    "plugin": "loading",
+    "capability": "失败/取消/超时出口递减计数，归零时关闭 loading",
+    "tier": 1,
+    "apis": [
+      "DiomanLoading.onError"
+    ],
+    "real": [
+      "loading.failure-closes",
+      "loading.timeout-closes",
+      "loading.cancel-closes",
+      "loading.retry-exhausted-closes",
+      "loading.parallel-partial-fail",
+      "loading.network-switch-pairs",
+      "network.offline-immediate",
+      "network.switch-offline-online",
+      "plugins.single-loading"
+    ],
+    "assumptions": [],
+    "result": {
+      "status": "PASS",
+      "source": "test/accept/evidence/2026-10-27-summary.json",
+      "passed": 22,
+      "total": 22
+    },
+    "blocked": null,
+    "note": "取消时 onError 是否被触发依赖 Dio 的取消语义，已由 H1 源码核对。"
+  },
+  {
+    "id": "DiomanLoading.onRequest",
+    "plugin": "loading",
+    "capability": "未 opt-out 的请求计数加一，0→1 触发显示（可延迟）",
+    "tier": 1,
+    "apis": [
+      "DiomanLoading.onRequest"
+    ],
+    "real": [
+      "loading.single-pair",
+      "loading.concurrent-single-pair",
+      "loading.big-parallel-20",
+      "loading.sequential-pairs",
+      "plugins.single-loading"
+    ],
+    "assumptions": [],
+    "result": {
+      "status": "PASS",
+      "source": "test/accept/evidence/2026-10-27-summary.json",
+      "passed": 26,
+      "total": 26
+    },
+    "blocked": null
+  },
+  {
+    "id": "DiomanLoading.onResponse",
+    "plugin": "loading",
+    "capability": "成功出口递减计数；没加过计数的请求不递减",
+    "tier": 1,
+    "apis": [
+      "DiomanLoading.onResponse"
+    ],
+    "real": [
+      "loading.single-pair",
+      "loading.sequential-pairs",
+      "loading.delay-slow-shows",
+      "plugins.single-loading"
+    ],
+    "assumptions": [],
+    "result": {
+      "status": "PASS",
+      "source": "test/accept/evidence/2026-10-27-summary.json",
+      "passed": 18,
+      "total": 18
+    },
+    "blocked": null
+  },
+  {
+    "id": "DiomanLoading.ordering",
+    "plugin": "loading",
+    "capability": "排在 cache/share/mock 之后、auth/retry 之前",
+    "tier": 1,
+    "apis": [
+      "DiomanLoading.ordering"
+    ],
+    "real": [
+      "loading.retry-no-flicker",
+      "loading.flap-recovers-single-pair",
+      "combo.loading-cache-hit-delay",
+      "network.offline-share-loading"
+    ],
+    "assumptions": [],
+    "result": {
+      "status": "PASS",
+      "source": "test/accept/evidence/2026-10-27-summary.json",
+      "passed": 16,
+      "total": 16
+    },
+    "blocked": null
+  },
+  {
+    "id": "DiomanLoading.pluginName",
+    "plugin": "loading",
+    "capability": "静态常量 dioman:loading，同时是 extra 键",
+    "tier": 1,
+    "apis": [
+      "DiomanLoading.pluginName"
+    ],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null
+  },
+  {
+    "id": "DiomanLoadingOptions.delay",
+    "plugin": "loading",
+    "capability": "单请求覆盖 delay，仅触发 0→1 边缘的请求生效",
+    "tier": 1,
+    "apis": [
+      "DiomanLoadingOptions.delay",
+      "DiomanLoadingOptions.new(delay)"
+    ],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null,
+    "note": "只测取值解析（o?.delay ?? delay）；时序语义归 DiomanLoading.delay 行（tier 2）。真实执行器不传请求级 delay。"
+  },
+  {
+    "id": "DiomanLoadingOptions.delayClose",
+    "plugin": "loading",
+    "capability": "单请求覆盖 delayClose，仅触发 1→0 边缘的请求生效",
+    "tier": 1,
+    "apis": [
+      "DiomanLoadingOptions.delayClose",
+      "DiomanLoadingOptions.new(delayClose)"
+    ],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null,
+    "note": "同 Options.delay：只测取值解析，时序语义归 DiomanLoading.delayClose 行。"
+  },
+  {
+    "id": "DiomanLoadingOptions.enabled",
+    "plugin": "loading",
+    "capability": "false 时本请求不计数不回调；null 沿用插件",
+    "tier": 1,
+    "apis": [
+      "DiomanLoadingOptions.enabled",
+      "DiomanLoadingOptions.new(enabled)"
+    ],
+    "real": [
+      "loading.per-request-off",
+      "loading.mixed-silent-and-normal"
+    ],
+    "assumptions": [],
+    "result": {
+      "status": "PASS",
+      "source": "test/accept/evidence/2026-10-27-summary.json",
+      "passed": 6,
+      "total": 6
+    },
+    "blocked": null
+  },
+  {
+    "id": "DiomanLoadingOptions.onChanged",
+    "plugin": "loading",
+    "capability": "单请求回调：开启周期时选定，同周期内用它关闭",
+    "tier": 1,
+    "apis": [
+      "DiomanLoadingOptions.new(onChanged)",
+      "DiomanLoadingOptions.onChanged"
+    ],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null
+  },
+  {
+    "id": "DiomanLog.enabled",
+    "plugin": "log",
+    "capability": "总开关，false 时永不记录",
+    "tier": 1,
+    "apis": [
+      "DiomanLog.enabled",
+      "DiomanLog.new(enabled)"
+    ],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null
+  },
+  {
+    "id": "DiomanLog.logBody",
+    "plugin": "log",
+    "capability": "是否输出请求/响应/错误体，默认 true",
+    "tier": 1,
+    "apis": [
+      "DiomanLog.logBody",
+      "DiomanLog.new(logBody)"
+    ],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null
+  },
+  {
+    "id": "DiomanLog.logError",
+    "plugin": "log",
+    "capability": "是否记录错误行（状态码或错误类型），默认 true",
+    "tier": 1,
+    "apis": [
+      "DiomanLog.logError",
+      "DiomanLog.new(logError)"
+    ],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null
+  },
+  {
+    "id": "DiomanLog.logHeaders",
+    "plugin": "log",
+    "capability": "是否输出请求/响应头，默认 false",
+    "tier": 1,
+    "apis": [
+      "DiomanLog.logHeaders",
+      "DiomanLog.new(logHeaders)"
+    ],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null
+  },
+  {
+    "id": "DiomanLog.logRequest",
+    "plugin": "log",
+    "capability": "是否记录发出的请求，默认 true",
+    "tier": 1,
+    "apis": [
+      "DiomanLog.logRequest",
+      "DiomanLog.new(logRequest)"
+    ],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null
+  },
+  {
+    "id": "DiomanLog.logResponse",
+    "plugin": "log",
+    "capability": "是否记录成功响应，默认 true",
+    "tier": 1,
+    "apis": [
+      "DiomanLog.logResponse",
+      "DiomanLog.new(logResponse)"
+    ],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null
+  },
+  {
+    "id": "DiomanLog.maxBodyLength",
+    "plugin": "log",
+    "capability": "body 超长则截断并附剩余字数，-1 不限，默认 1000",
+    "tier": 1,
+    "apis": [
+      "DiomanLog.maxBodyLength",
+      "DiomanLog.new(maxBodyLength)"
+    ],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null
+  },
+  {
+    "id": "DiomanLog.name",
+    "plugin": "log",
+    "capability": "插件名固定为 dioman:log",
+    "tier": 1,
+    "apis": [
+      "DiomanLog.name"
+    ],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null
+  },
+  {
+    "id": "DiomanLog.onError",
+    "plugin": "log",
+    "capability": "按需记录错误行与错误体后放行",
+    "tier": 1,
+    "apis": [
+      "DiomanLog.onError"
+    ],
+    "real": [
+      "plugins.single-log"
+    ],
+    "assumptions": [],
+    "result": {
+      "status": "PASS",
+      "source": "test/accept/evidence/2026-10-27-summary.json",
+      "passed": 2,
+      "total": 2
+    },
+    "blocked": null
+  },
+  {
+    "id": "DiomanLog.onRequest",
+    "plugin": "log",
+    "capability": "按需记录 方法+URL（可含头与 body）后放行",
+    "tier": 1,
+    "apis": [
+      "DiomanLog.onRequest"
+    ],
+    "real": [
+      "plugins.single-log"
+    ],
+    "assumptions": [],
+    "result": {
+      "status": "PASS",
+      "source": "test/accept/evidence/2026-10-27-summary.json",
+      "passed": 2,
+      "total": 2
+    },
+    "blocked": null
+  },
+  {
+    "id": "DiomanLog.onResponse",
+    "plugin": "log",
+    "capability": "按需记录 状态+方法+URL（可含头与 body）后放行",
+    "tier": 1,
+    "apis": [
+      "DiomanLog.onResponse"
+    ],
+    "real": [
+      "plugins.single-log"
+    ],
+    "assumptions": [],
+    "result": {
+      "status": "PASS",
+      "source": "test/accept/evidence/2026-10-27-summary.json",
+      "passed": 2,
+      "total": 2
+    },
+    "blocked": null
+  },
+  {
+    "id": "DiomanLog.pluginName",
+    "plugin": "log",
+    "capability": "静态常量 dioman:log，同时是 extra 键",
+    "tier": 1,
+    "apis": [
+      "DiomanLog.pluginName"
+    ],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null
+  },
+  {
+    "id": "DiomanLog.writer",
+    "plugin": "log",
+    "capability": "自定义输出函数，缺省用 print",
+    "tier": 1,
+    "apis": [
+      "DiomanLog.new(writer)",
+      "DiomanLog.writer"
+    ],
+    "real": [
+      "plugins.single-log",
+      "network.flap-no-retry"
+    ],
+    "assumptions": [],
+    "result": {
+      "status": "PASS",
+      "source": "test/accept/evidence/2026-10-27-summary.json",
+      "passed": 4,
+      "total": 4
+    },
+    "blocked": null
+  },
+  {
+    "id": "DiomanLogOptions.enabled",
+    "plugin": "log",
+    "capability": "单请求覆盖 enabled；null 沿用插件值",
+    "tier": 1,
+    "apis": [
+      "DiomanLogOptions.enabled",
+      "DiomanLogOptions.new(enabled)"
+    ],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null
+  },
+  {
+    "id": "DiomanLogOptions.logBody",
+    "plugin": "log",
+    "capability": "单请求覆盖 logBody；null 沿用插件值",
+    "tier": 1,
+    "apis": [
+      "DiomanLogOptions.logBody",
+      "DiomanLogOptions.new(logBody)"
+    ],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null
+  },
+  {
+    "id": "DiomanLogOptions.logError",
+    "plugin": "log",
+    "capability": "单请求覆盖 logError；null 沿用插件值",
+    "tier": 1,
+    "apis": [
+      "DiomanLogOptions.logError",
+      "DiomanLogOptions.new(logError)"
+    ],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null
+  },
+  {
+    "id": "DiomanLogOptions.logHeaders",
+    "plugin": "log",
+    "capability": "单请求覆盖 logHeaders；null 沿用插件值",
+    "tier": 1,
+    "apis": [
+      "DiomanLogOptions.logHeaders",
+      "DiomanLogOptions.new(logHeaders)"
+    ],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null
+  },
+  {
+    "id": "DiomanLogOptions.logRequest",
+    "plugin": "log",
+    "capability": "单请求覆盖 logRequest；null 沿用插件值",
+    "tier": 1,
+    "apis": [
+      "DiomanLogOptions.logRequest",
+      "DiomanLogOptions.new(logRequest)"
+    ],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null
+  },
+  {
+    "id": "DiomanLogOptions.logResponse",
+    "plugin": "log",
+    "capability": "单请求覆盖 logResponse；null 沿用插件值",
+    "tier": 1,
+    "apis": [
+      "DiomanLogOptions.logResponse",
+      "DiomanLogOptions.new(logResponse)"
+    ],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null
+  },
+  {
+    "id": "DiomanLogOptions.maxBodyLength",
+    "plugin": "log",
+    "capability": "单请求覆盖 maxBodyLength；null 沿用插件值",
+    "tier": 1,
+    "apis": [
+      "DiomanLogOptions.maxBodyLength",
+      "DiomanLogOptions.new(maxBodyLength)"
+    ],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null
+  },
+  {
+    "id": "DiomanLogOptions.writer",
+    "plugin": "log",
+    "capability": "单请求覆盖 writer；null 沿用插件值",
+    "tier": 1,
+    "apis": [
+      "DiomanLogOptions.new(writer)",
+      "DiomanLogOptions.writer"
+    ],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null
+  },
+  {
+    "id": "DiomanMock.add",
+    "plugin": "mock",
+    "capability": "注册 METHOD:path 内联处理器，同键覆盖",
+    "tier": 1,
+    "apis": [
+      "DiomanMock.add"
+    ],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null
+  },
+  {
+    "id": "DiomanMock.dispose",
+    "plugin": "mock",
+    "capability": "关闭复用的转发 Dio，并清空引用",
+    "tier": 1,
+    "apis": [
+      "DiomanMock.dispose"
+    ],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null
+  },
+  {
+    "id": "DiomanMock.enabled",
+    "plugin": "mock",
+    "capability": "总开关，默认 false；单请求可覆盖",
+    "tier": 1,
+    "apis": [
+      "DiomanMock.enabled",
+      "DiomanMock.new(enabled)"
+    ],
+    "real": [
+      "mock.routes-to-mock-server",
+      "mock.per-request-off-goes-real"
+    ],
+    "assumptions": [],
+    "result": {
+      "status": "PASS",
+      "source": "test/accept/evidence/2026-10-27-summary.json",
+      "passed": 14,
+      "total": 14
+    },
+    "blocked": null
+  },
+  {
+    "id": "DiomanMock.fallbackWhen",
+    "plugin": "mock",
+    "capability": "判断 mock 命中是否回落真实接口，默认见 defaultFallback",
+    "tier": 1,
+    "apis": [
+      "DiomanMock.fallbackWhen",
+      "DiomanMock.new(fallbackWhen)"
+    ],
+    "real": [
+      "mock.fallback-to-real-on-404"
+    ],
+    "assumptions": [],
+    "result": {
+      "status": "PASS",
+      "source": "test/accept/evidence/2026-10-27-summary.json",
+      "passed": 1,
+      "total": 1
+    },
+    "blocked": null,
+    "note": "真实执行器传入自定义 fallbackWhen（只认 404），defaultFallback 本身真实侧未执行。"
+  },
+  {
+    "id": "DiomanMock.mockUrl",
+    "plugin": "mock",
+    "capability": "未命中内联路由时，改写 URL 转发到 mock 服务",
+    "tier": 1,
+    "apis": [
+      "DiomanMock.mockUrl",
+      "DiomanMock.new(mockUrl)"
+    ],
+    "real": [
+      "mock.routes-to-mock-server",
+      "mock.query-and-body-forwarded",
+      "mock.mixed-parallel",
+      "mock.mock-then-retry-untouched"
+    ],
+    "assumptions": [],
+    "result": {
+      "status": "PASS",
+      "source": "test/accept/evidence/2026-10-27-summary.json",
+      "passed": 16,
+      "total": 16
+    },
+    "blocked": null,
+    "note": "mock 服务是使用者自己的服务，单测里的本地 TestServer 只是它的契约替身；转发用独立裸 Dio，不经宿主 adapter；任何非取消错误都回落，与具体错误类型无关。"
+  },
+  {
+    "id": "DiomanMock.name",
+    "plugin": "mock",
+    "capability": "插件名固定为 dioman:mock",
+    "tier": 1,
+    "apis": [
+      "DiomanMock.name"
+    ],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null
+  },
+  {
+    "id": "DiomanMock.new(routes)",
+    "plugin": "mock",
+    "capability": "构造时预置内联路由表",
+    "tier": 1,
+    "apis": [
+      "DiomanMock.new(routes)"
+    ],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null
+  },
+  {
+    "id": "DiomanMock.onRequest",
+    "plugin": "mock",
+    "capability": "先匹配内联路由，再转发 mockUrl，需回落则放行原请求",
+    "tier": 1,
+    "apis": [
+      "DiomanMock.onRequest"
+    ],
+    "real": [
+      "mock.routes-to-mock-server",
+      "mock.fallback-to-real-on-404",
+      "mock.mock-then-retry-untouched",
+      "plugins.single-mock"
+    ],
+    "assumptions": [],
+    "result": {
+      "status": "PASS",
+      "source": "test/accept/evidence/2026-10-27-summary.json",
+      "passed": 15,
+      "total": 15
+    },
+    "blocked": null
+  },
+  {
+    "id": "DiomanMock.pluginName",
+    "plugin": "mock",
+    "capability": "静态常量 dioman:mock，同时是 extra 键",
+    "tier": 1,
+    "apis": [
+      "DiomanMock.pluginName"
+    ],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null
+  },
+  {
+    "id": "DiomanMock.remove",
+    "plugin": "mock",
+    "capability": "移除指定 METHOD:path 的内联处理器",
+    "tier": 1,
+    "apis": [
+      "DiomanMock.remove"
+    ],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null
+  },
+  {
+    "id": "DiomanMock.reset",
+    "plugin": "mock",
+    "capability": "清空全部内联处理器",
+    "tier": 1,
+    "apis": [
+      "DiomanMock.reset"
+    ],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null
+  },
+  {
+    "id": "DiomanMockOptions.enabled",
+    "plugin": "mock",
+    "capability": "false 时本请求跳过 mock；null 沿用插件",
+    "tier": 1,
+    "apis": [
+      "DiomanMockOptions.enabled",
+      "DiomanMockOptions.new(enabled)"
+    ],
+    "real": [
+      "mock.per-request-off-goes-real",
+      "mock.mixed-parallel"
+    ],
+    "assumptions": [],
+    "result": {
+      "status": "PASS",
+      "source": "test/accept/evidence/2026-10-27-summary.json",
+      "passed": 6,
+      "total": 6
+    },
+    "blocked": null
+  },
+  {
+    "id": "DiomanMockOptions.fallbackWhen",
+    "plugin": "mock",
+    "capability": "单请求覆盖回落判定；null 沿用插件",
+    "tier": 1,
+    "apis": [
+      "DiomanMockOptions.fallbackWhen",
+      "DiomanMockOptions.new(fallbackWhen)"
+    ],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null
+  },
+  {
+    "id": "DiomanMockOptions.mockUrl",
+    "plugin": "mock",
+    "capability": "单请求覆盖 mock 服务地址；null 沿用插件",
+    "tier": 1,
+    "apis": [
+      "DiomanMockOptions.mockUrl",
+      "DiomanMockOptions.new(mockUrl)"
+    ],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null
+  },
+  {
+    "id": "DiomanMockOptions.routes",
+    "plugin": "mock",
+    "capability": "单请求叠加内联路由，同键以此为准",
+    "tier": 1,
+    "apis": [
+      "DiomanMockOptions.new(routes)",
+      "DiomanMockOptions.routes"
+    ],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null
+  },
+  {
+    "id": "defaultFallback",
+    "plugin": "mock",
+    "capability": "404 响应或非取消的网络层错误时回落",
+    "tier": 1,
+    "apis": [
+      "defaultFallback"
+    ],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null,
+    "note": "纯函数。注意真实执行器用自己的 fallbackWhen 覆盖了它。"
+  },
+  {
+    "id": "DiomanException.code",
+    "plugin": "normalize",
+    "capability": "信封里的业务码，由 normalize 非成功时抛出",
+    "tier": 1,
+    "apis": [
+      "DiomanException.code",
+      "DiomanException.new(code)"
+    ],
+    "real": [
+      "normalize.business-fail",
+      "normalize.business-negative-code",
+      "normalize.business-multi-codes"
+    ],
+    "assumptions": [],
+    "result": {
+      "status": "PASS",
+      "source": "test/accept/evidence/2026-10-27-summary.json",
+      "passed": 8,
+      "total": 8
+    },
+    "blocked": null,
+    "note": "真实侧的 DiomanException 实际由执行器的 EnvelopeTransformer 构造（client.dart），不是 DiomanNormalize.onResponse 抛的。"
+  },
+  {
+    "id": "DiomanException.data",
+    "plugin": "normalize",
+    "capability": "信封里的原始 data，可为空",
+    "tier": 1,
+    "apis": [
+      "DiomanException.data",
+      "DiomanException.new(data)"
+    ],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null
+  },
+  {
+    "id": "DiomanException.message",
+    "plugin": "normalize",
+    "capability": "信封里的提示文本",
+    "tier": 1,
+    "apis": [
+      "DiomanException.message",
+      "DiomanException.new(message)"
+    ],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null
+  },
+  {
+    "id": "DiomanException.toString",
+    "plugin": "normalize",
+    "capability": "输出 DiomanException(code, message) 文本",
+    "tier": 1,
+    "apis": [
+      "DiomanException.toString"
+    ],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null
+  },
+  {
+    "id": "DiomanNormalize.codeKey",
+    "plugin": "normalize",
+    "capability": "信封状态码键，默认 code",
+    "tier": 1,
+    "apis": [
+      "DiomanNormalize.codeKey",
+      "DiomanNormalize.new(codeKey)"
+    ],
+    "real": [
+      "normalize.envelope-unwrap"
+    ],
+    "assumptions": [],
+    "result": {
+      "status": "PASS",
+      "source": "test/accept/evidence/2026-10-27-summary.json",
+      "passed": 8,
+      "total": 8
+    },
+    "blocked": null
+  },
+  {
+    "id": "DiomanNormalize.dataKey",
+    "plugin": "normalize",
+    "capability": "信封内容键，默认 data",
+    "tier": 1,
+    "apis": [
+      "DiomanNormalize.dataKey",
+      "DiomanNormalize.new(dataKey)"
+    ],
+    "real": [
+      "normalize.envelope-unwrap"
+    ],
+    "assumptions": [],
+    "result": {
+      "status": "PASS",
+      "source": "test/accept/evidence/2026-10-27-summary.json",
+      "passed": 8,
+      "total": 8
+    },
+    "blocked": null
+  },
+  {
+    "id": "DiomanNormalize.enabled",
+    "plugin": "normalize",
+    "capability": "总开关，false 时信封原样不拆",
+    "tier": 1,
+    "apis": [
+      "DiomanNormalize.enabled",
+      "DiomanNormalize.new(enabled)"
+    ],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null
+  },
+  {
+    "id": "DiomanNormalize.isSuccess",
+    "plugin": "normalize",
+    "capability": "判定业务成功的函数，默认 code == 0",
+    "tier": 1,
+    "apis": [
+      "DiomanNormalize.isSuccess",
+      "DiomanNormalize.new(isSuccess)"
+    ],
+    "real": [
+      "normalize.envelope-unwrap"
+    ],
+    "assumptions": [],
+    "result": {
+      "status": "PASS",
+      "source": "test/accept/evidence/2026-10-27-summary.json",
+      "passed": 8,
+      "total": 8
+    },
+    "blocked": null,
+    "note": "真实侧只走到成功分支；失败分支由执行器 transformer 抢先拒绝。"
+  },
+  {
+    "id": "DiomanNormalize.messageKey",
+    "plugin": "normalize",
+    "capability": "信封提示键，默认 message",
+    "tier": 1,
+    "apis": [
+      "DiomanNormalize.messageKey",
+      "DiomanNormalize.new(messageKey)"
+    ],
+    "real": [
+      "normalize.envelope-unwrap"
+    ],
+    "assumptions": [],
+    "result": {
+      "status": "PASS",
+      "source": "test/accept/evidence/2026-10-27-summary.json",
+      "passed": 8,
+      "total": 8
+    },
+    "blocked": null
+  },
+  {
+    "id": "DiomanNormalize.name",
+    "plugin": "normalize",
+    "capability": "插件名固定为 dioman:normalize",
+    "tier": 1,
+    "apis": [
+      "DiomanNormalize.name"
+    ],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null
+  },
+  {
+    "id": "DiomanNormalize.onResponse",
+    "plugin": "normalize",
+    "capability": "成功信封换成内层 data；非成功码以 DiomanException 拒绝",
+    "tier": 1,
+    "apis": [
+      "DiomanNormalize.onResponse"
+    ],
+    "real": [
+      "normalize.envelope-unwrap",
+      "normalize.no-envelope-passthrough",
+      "normalize.per-request-off",
+      "plugins.single-normalize",
+      "normalize.http-error-wins",
+      "normalize.style-switch"
+    ],
+    "assumptions": [],
+    "result": {
+      "status": "PASS",
+      "source": "test/accept/evidence/2026-10-27-summary.json",
+      "passed": 19,
+      "total": 19
+    },
+    "blocked": null,
+    "note": "真实执行器在 transformer 层就把业务失败抛成 DioException（见 client.dart EnvelopeTransformer），DiomanNormalize 的拒绝分支在真实侧很可能没被执行；real 只挂了成功/透传路径。"
+  },
+  {
+    "id": "DiomanNormalize.ordering",
+    "plugin": "normalize",
+    "capability": "排在所有内置插件之后（链末），其余插件看到原始响应",
+    "tier": 1,
+    "apis": [
+      "DiomanNormalize.ordering"
+    ],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null
+  },
+  {
+    "id": "DiomanNormalize.pluginName",
+    "plugin": "normalize",
+    "capability": "静态常量 dioman:normalize，同时是 extra 键",
+    "tier": 1,
+    "apis": [
+      "DiomanNormalize.pluginName"
+    ],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null
+  },
+  {
+    "id": "DiomanNormalize.shouldNormalize",
+    "plugin": "normalize",
+    "capability": "是否拆包的判定，默认 Map 且含 code 及 data/message",
+    "tier": 1,
+    "apis": [
+      "DiomanNormalize.new(shouldNormalize)",
+      "DiomanNormalize.shouldNormalize"
+    ],
+    "real": [
+      "normalize.no-envelope-passthrough",
+      "faults.no-envelope",
+      "faults.html-gateway-page"
+    ],
+    "assumptions": [],
+    "result": {
+      "status": "PASS",
+      "source": "test/accept/evidence/2026-10-27-summary.json",
+      "passed": 12,
+      "total": 12
+    },
+    "blocked": null
+  },
+  {
+    "id": "DiomanNormalizeOptions.codeKey",
+    "plugin": "normalize",
+    "capability": "单请求覆盖 codeKey；null 沿用插件值",
+    "tier": 1,
+    "apis": [
+      "DiomanNormalizeOptions.codeKey",
+      "DiomanNormalizeOptions.new(codeKey)"
+    ],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null
+  },
+  {
+    "id": "DiomanNormalizeOptions.dataKey",
+    "plugin": "normalize",
+    "capability": "单请求覆盖 dataKey；null 沿用插件值",
+    "tier": 1,
+    "apis": [
+      "DiomanNormalizeOptions.dataKey",
+      "DiomanNormalizeOptions.new(dataKey)"
+    ],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null
+  },
+  {
+    "id": "DiomanNormalizeOptions.enabled",
+    "plugin": "normalize",
+    "capability": "false 时本请求不拆信封；null 沿用插件",
+    "tier": 1,
+    "apis": [
+      "DiomanNormalizeOptions.enabled",
+      "DiomanNormalizeOptions.new(enabled)"
+    ],
+    "real": [
+      "normalize.per-request-off"
+    ],
+    "assumptions": [],
+    "result": {
+      "status": "PASS",
+      "source": "test/accept/evidence/2026-10-27-summary.json",
+      "passed": 2,
+      "total": 2
+    },
+    "blocked": null
+  },
+  {
+    "id": "DiomanNormalizeOptions.isSuccess",
+    "plugin": "normalize",
+    "capability": "单请求覆盖成功判定；null 沿用插件值",
+    "tier": 1,
+    "apis": [
+      "DiomanNormalizeOptions.isSuccess",
+      "DiomanNormalizeOptions.new(isSuccess)"
+    ],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null
+  },
+  {
+    "id": "DiomanNormalizeOptions.messageKey",
+    "plugin": "normalize",
+    "capability": "单请求覆盖 messageKey；null 沿用插件值",
+    "tier": 1,
+    "apis": [
+      "DiomanNormalizeOptions.messageKey",
+      "DiomanNormalizeOptions.new(messageKey)"
+    ],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null
+  },
+  {
+    "id": "DiomanNormalizeOptions.shouldNormalize",
+    "plugin": "normalize",
+    "capability": "单请求覆盖拆包判定；null 沿用插件值",
+    "tier": 1,
+    "apis": [
+      "DiomanNormalizeOptions.new(shouldNormalize)",
+      "DiomanNormalizeOptions.shouldNormalize"
+    ],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null
+  },
+  {
+    "id": "DiomanNotify.name",
+    "plugin": "notify",
+    "capability": "插件名固定为 dioman:notify",
+    "tier": 1,
+    "apis": [
+      "DiomanNotify.name"
+    ],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null
+  },
+  {
+    "id": "DiomanNotify.notify",
+    "plugin": "notify",
+    "capability": "接收通知文本的回调，文本非空才被调用",
+    "tier": 1,
+    "apis": [
+      "DiomanNotify.new(notify)",
+      "DiomanNotify.notify"
+    ],
+    "real": [
+      "notify.http-error-once",
+      "notify.business-error-once"
+    ],
+    "assumptions": [],
+    "result": {
+      "status": "PASS",
+      "source": "test/accept/evidence/2026-10-27-summary.json",
+      "passed": 12,
+      "total": 12
+    },
+    "blocked": null
+  },
+  {
+    "id": "DiomanNotify.onError",
+    "plugin": "notify",
+    "capability": "失败时调 stringify 取文本并通知，同请求只通知一次",
+    "tier": 1,
+    "apis": [
+      "DiomanNotify.onError"
+    ],
+    "real": [
+      "notify.http-error-once",
+      "notify.retry-exhausted-once",
+      "notify.parallel-failures-each",
+      "notify.timeout-once",
+      "notify.parse-error-once",
+      "notify.cancel-not-notified",
+      "plugins.single-notify"
+    ],
+    "assumptions": [],
+    "result": {
+      "status": "PASS",
+      "source": "test/accept/evidence/2026-10-27-summary.json",
+      "passed": 22,
+      "total": 22
+    },
+    "blocked": null
+  },
+  {
+    "id": "DiomanNotify.onRequest",
+    "plugin": "notify",
+    "capability": "每次分发前清除上一轮的已通知标记",
+    "tier": 1,
+    "apis": [
+      "DiomanNotify.onRequest"
+    ],
+    "real": [
+      "notify.retry-exhausted-once",
+      "notify.retry-recovered-silent"
+    ],
+    "assumptions": [],
+    "result": {
+      "status": "PASS",
+      "source": "test/accept/evidence/2026-10-27-summary.json",
+      "passed": 8,
+      "total": 8
+    },
+    "blocked": null
+  },
+  {
+    "id": "DiomanNotify.onResponse",
+    "plugin": "notify",
+    "capability": "响应也经 stringify，文本非空才通知且去重",
+    "tier": 1,
+    "apis": [
+      "DiomanNotify.onResponse"
+    ],
+    "real": [
+      "notify.success-no-notify",
+      "notify.retry-recovered-silent",
+      "plugins.single-notify"
+    ],
+    "assumptions": [],
+    "result": {
+      "status": "PASS",
+      "source": "test/accept/evidence/2026-10-27-summary.json",
+      "passed": 12,
+      "total": 12
+    },
+    "blocked": null
+  },
+  {
+    "id": "DiomanNotify.ordering",
+    "plugin": "notify",
+    "capability": "排在 normalize 之前，读到拆包前的信封",
+    "tier": 1,
+    "apis": [
+      "DiomanNotify.ordering"
+    ],
+    "real": [
+      "normalize.business-notify-retry-combo"
+    ],
+    "assumptions": [],
+    "result": {
+      "status": "PASS",
+      "source": "test/accept/evidence/2026-10-27-summary.json",
+      "passed": 2,
+      "total": 2
+    },
+    "blocked": null
+  },
+  {
+    "id": "DiomanNotify.pluginName",
+    "plugin": "notify",
+    "capability": "静态常量 dioman:notify，同时是 extra 键",
+    "tier": 1,
+    "apis": [
+      "DiomanNotify.pluginName"
+    ],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null
+  },
+  {
+    "id": "DiomanNotify.stringify",
+    "plugin": "notify",
+    "capability": "把 data/消息/状态码转成通知文本，空串即不通知",
+    "tier": 1,
+    "apis": [
+      "DiomanNotify.new(stringify)",
+      "DiomanNotify.stringify"
+    ],
+    "real": [
+      "notify.silent",
+      "notify.success-no-notify",
+      "notify.cancel-not-notified"
+    ],
+    "assumptions": [],
+    "result": {
+      "status": "PASS",
+      "source": "test/accept/evidence/2026-10-27-summary.json",
+      "passed": 10,
+      "total": 10
+    },
+    "blocked": null
+  },
+  {
+    "id": "DiomanOffline.dispose",
+    "plugin": "offline",
+    "capability": "释放：退订连通性流，排队请求以 disposed 拒绝",
+    "tier": 1,
+    "apis": [
+      "DiomanOffline.dispose"
+    ],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null
+  },
+  {
+    "id": "DiomanOffline.enabled",
+    "plugin": "offline",
+    "capability": "总开关，false 时无论在线与否都放行",
+    "tier": 1,
+    "apis": [
+      "DiomanOffline.enabled",
+      "DiomanOffline.new(enabled)"
+    ],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null
+  },
+  {
+    "id": "DiomanOffline.flush",
+    "plugin": "offline",
+    "capability": "重放全部排队请求；已取消的以取消错误结束",
+    "tier": 1,
+    "apis": [
+      "DiomanOffline.flush"
+    ],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null
+  },
+  {
+    "id": "DiomanOffline.maxQueueSize",
+    "plugin": "offline",
+    "capability": "队列上限，满则挤出最早的；0 表示不限，默认 50",
+    "tier": 1,
+    "apis": [
+      "DiomanOffline.maxQueueSize",
+      "DiomanOffline.new(maxQueueSize)"
+    ],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null
+  },
+  {
+    "id": "DiomanOffline.maxWait",
+    "plugin": "offline",
+    "capability": "排队等待上限，到时以 timeout 拒绝；null 不限",
+    "tier": 1,
+    "apis": [
+      "DiomanOffline.maxWait",
+      "DiomanOffline.new(maxWait)"
+    ],
+    "real": [
+      "offline.probe-fails-fast",
+      "offline.parallel-all-offline"
+    ],
+    "assumptions": [],
+    "result": {
+      "status": "PASS",
+      "source": "test/accept/evidence/2026-10-27-summary.json",
+      "passed": 8,
+      "total": 8
+    },
+    "blocked": null,
+    "note": "真实执行器固定 maxWait=Duration.zero：离线请求一入队就以 timeout 拒绝，排队后被 flush 重放的路径真实侧没走到。"
+  },
+  {
+    "id": "DiomanOffline.name",
+    "plugin": "offline",
+    "capability": "插件名固定为 dioman:offline",
+    "tier": 1,
+    "apis": [
+      "DiomanOffline.name"
+    ],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null
+  },
+  {
+    "id": "DiomanOffline.new(isOnline)",
+    "plugin": "offline",
+    "capability": "每请求查一次在线状态，离线才入队",
+    "tier": 1,
+    "apis": [
+      "DiomanOffline.new(isOnline)"
+    ],
+    "real": [
+      "offline.probe-fails-fast",
+      "offline.online-passes",
+      "offline.recovers-after-online"
+    ],
+    "assumptions": [],
+    "result": {
+      "status": "PASS",
+      "source": "test/accept/evidence/2026-10-27-summary.json",
+      "passed": 12,
+      "total": 12
+    },
+    "blocked": null,
+    "note": "isOnline 是使用者注入的回调（契约替身）；真实执行器用探测请求的结果喂它。"
+  },
+  {
+    "id": "DiomanOffline.new(onConnectivityChanged)",
+    "plugin": "offline",
+    "capability": "连通性流收到 true 时自动 flush 队列",
+    "tier": 1,
+    "apis": [
+      "DiomanOffline.new(onConnectivityChanged)"
+    ],
+    "real": [
+      "offline.recovers-after-online",
+      "offline.flap-recovers"
+    ],
+    "assumptions": [],
+    "result": {
+      "status": "PASS",
+      "source": "test/accept/evidence/2026-10-27-summary.json",
+      "passed": 4,
+      "total": 4
+    },
+    "blocked": null,
+    "note": "流由使用者提供（契约替身）。"
+  },
+  {
+    "id": "DiomanOffline.new(shouldQueue)",
+    "plugin": "offline",
+    "capability": "决定离线请求是否入队，null 则全部入队",
+    "tier": 1,
+    "apis": [
+      "DiomanOffline.new(shouldQueue)"
+    ],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null
+  },
+  {
+    "id": "DiomanOffline.onRequest",
+    "plugin": "offline",
+    "capability": "在线放行；离线则入队挂起（挤出最早/定时拒绝）",
+    "tier": 1,
+    "apis": [
+      "DiomanOffline.onRequest"
+    ],
+    "real": [
+      "offline.probe-fails-fast",
+      "offline.online-passes",
+      "offline.recovers-after-online",
+      "offline.flap-recovers",
+      "offline.parallel-all-offline",
+      "offline.then-online-no-stale-state",
+      "combo.offline-share-notify",
+      "plugins.single-offline"
+    ],
+    "assumptions": [],
+    "result": {
+      "status": "PASS",
+      "source": "test/accept/evidence/2026-10-27-summary.json",
+      "passed": 24,
+      "total": 24
+    },
+    "blocked": null
+  },
+  {
+    "id": "DiomanOffline.ordering",
+    "plugin": "offline",
+    "capability": "排在 share/cancel/loading 之前，挂起时不遗留括号",
+    "tier": 1,
+    "apis": [
+      "DiomanOffline.ordering"
+    ],
+    "real": [
+      "offline.cache-hit-still-served",
+      "network.offline-share-loading"
+    ],
+    "assumptions": [],
+    "result": {
+      "status": "PASS",
+      "source": "test/accept/evidence/2026-10-27-summary.json",
+      "passed": 6,
+      "total": 6
+    },
+    "blocked": null
+  },
+  {
+    "id": "DiomanOffline.pending",
+    "plugin": "offline",
+    "capability": "当前挂起的请求数，只读",
+    "tier": 1,
+    "apis": [
+      "DiomanOffline.pending"
+    ],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null
+  },
+  {
+    "id": "DiomanOffline.pluginName",
+    "plugin": "offline",
+    "capability": "静态常量 dioman:offline，同时是 extra 键",
+    "tier": 1,
+    "apis": [
+      "DiomanOffline.pluginName"
+    ],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null
+  },
+  {
+    "id": "DiomanOfflineException.reason",
+    "plugin": "offline",
+    "capability": "携带被拒绝原因：queueFull/timeout/disposed",
+    "tier": 1,
+    "apis": [
+      "DiomanOfflineException.new(reason)",
+      "DiomanOfflineException.reason"
+    ],
+    "real": [
+      "offline.probe-fails-fast",
+      "offline.parallel-all-offline"
+    ],
+    "assumptions": [],
+    "result": {
+      "status": "PASS",
+      "source": "test/accept/evidence/2026-10-27-summary.json",
+      "passed": 8,
+      "total": 8
+    },
+    "blocked": null
+  },
+  {
+    "id": "DiomanOfflineException.toString",
+    "plugin": "offline",
+    "capability": "输出 DiomanOfflineException(原因名)",
+    "tier": 1,
+    "apis": [
+      "DiomanOfflineException.toString"
+    ],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null
+  },
+  {
+    "id": "DiomanOfflineOptions.enabled",
+    "plugin": "offline",
+    "capability": "false 时本请求即使离线也直接放行",
+    "tier": 1,
+    "apis": [
+      "DiomanOfflineOptions.enabled",
+      "DiomanOfflineOptions.new(enabled)"
+    ],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null
+  },
+  {
+    "id": "DiomanOfflineOptions.maxQueueSize",
+    "plugin": "offline",
+    "capability": "单请求覆盖队列上限，入队时求值",
+    "tier": 1,
+    "apis": [
+      "DiomanOfflineOptions.maxQueueSize",
+      "DiomanOfflineOptions.new(maxQueueSize)"
+    ],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null
+  },
+  {
+    "id": "DiomanOfflineOptions.maxWait",
+    "plugin": "offline",
+    "capability": "单请求覆盖排队等待上限",
+    "tier": 1,
+    "apis": [
+      "DiomanOfflineOptions.maxWait",
+      "DiomanOfflineOptions.new(maxWait)"
+    ],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null
+  },
+  {
+    "id": "DiomanOfflineOptions.shouldQueue",
+    "plugin": "offline",
+    "capability": "单请求覆盖入队判定",
+    "tier": 1,
+    "apis": [
+      "DiomanOfflineOptions.new(shouldQueue)",
+      "DiomanOfflineOptions.shouldQueue"
+    ],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null
+  },
+  {
+    "id": "DiomanOfflineReason.disposed",
+    "plugin": "offline",
+    "capability": "插件释放时请求仍在排队",
+    "tier": 1,
+    "apis": [
+      "DiomanOfflineReason.disposed"
+    ],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null
+  },
+  {
+    "id": "DiomanOfflineReason.queueFull",
+    "plugin": "offline",
+    "capability": "队列满，最早的请求被挤出",
+    "tier": 1,
+    "apis": [
+      "DiomanOfflineReason.queueFull"
+    ],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null
+  },
+  {
+    "id": "DiomanOfflineReason.timeout",
+    "plugin": "offline",
+    "capability": "排队超过 maxWait 仍未恢复在线",
+    "tier": 1,
+    "apis": [
+      "DiomanOfflineReason.timeout"
+    ],
+    "real": [
+      "offline.probe-fails-fast",
+      "offline.parallel-all-offline"
+    ],
+    "assumptions": [],
+    "result": {
+      "status": "PASS",
+      "source": "test/accept/evidence/2026-10-27-summary.json",
+      "passed": 8,
+      "total": 8
+    },
+    "blocked": null
+  },
+  {
+    "id": "DiomanRepath.enabled",
+    "plugin": "repath",
+    "capability": "总开关，false 时路径原样不动",
+    "tier": 1,
+    "apis": [
+      "DiomanRepath.enabled",
+      "DiomanRepath.new(enabled)"
+    ],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null
+  },
+  {
+    "id": "DiomanRepath.name",
+    "plugin": "repath",
+    "capability": "插件名固定为 dioman:repath",
+    "tier": 1,
+    "apis": [
+      "DiomanRepath.name"
+    ],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null
+  },
+  {
+    "id": "DiomanRepath.onRequest",
+    "plugin": "repath",
+    "capability": "用 query/body 同名值替换路径变量，值已 URL 编码",
+    "tier": 1,
+    "apis": [
+      "DiomanRepath.onRequest"
+    ],
+    "real": [
+      "repath.basic",
+      "repath.multi-vars",
+      "repath.from-body",
+      "repath.zero-value",
+      "repath.same-var-twice",
+      "repath.key-after-repath",
+      "repath.key-cache-no-mixup",
+      "plugins.single-repath"
+    ],
+    "assumptions": [],
+    "result": {
+      "status": "PASS",
+      "source": "test/accept/evidence/2026-10-27-summary.json",
+      "passed": 20,
+      "total": 20
+    },
+    "blocked": null
+  },
+  {
+    "id": "DiomanRepath.pattern",
+    "plugin": "repath",
+    "capability": "变量匹配正则，默认支持 {x}、[x]、:x 三种",
+    "tier": 1,
+    "apis": [
+      "DiomanRepath.new(pattern)",
+      "DiomanRepath.pattern"
+    ],
+    "real": [
+      "repath.basic",
+      "repath.multi-vars"
+    ],
+    "assumptions": [],
+    "result": {
+      "status": "PASS",
+      "source": "test/accept/evidence/2026-10-27-summary.json",
+      "passed": 6,
+      "total": 6
+    },
+    "blocked": null
+  },
+  {
+    "id": "DiomanRepath.pluginName",
+    "plugin": "repath",
+    "capability": "静态常量 dioman:repath，同时是 extra 键",
+    "tier": 1,
+    "apis": [
+      "DiomanRepath.pluginName"
+    ],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null
+  },
+  {
+    "id": "DiomanRepath.removeKey",
+    "plugin": "repath",
+    "capability": "替换后从 query/body 删除已用键，默认 true",
+    "tier": 1,
+    "apis": [
+      "DiomanRepath.new(removeKey)",
+      "DiomanRepath.removeKey"
+    ],
+    "real": [
+      "repath.basic",
+      "repath.from-body"
+    ],
+    "assumptions": [],
+    "result": {
+      "status": "PASS",
+      "source": "test/accept/evidence/2026-10-27-summary.json",
+      "passed": 6,
+      "total": 6
+    },
+    "blocked": null
+  },
+  {
+    "id": "DiomanRepathOptions.enabled",
+    "plugin": "repath",
+    "capability": "false 时本请求跳过替换；null 沿用插件",
+    "tier": 1,
+    "apis": [
+      "DiomanRepathOptions.enabled",
+      "DiomanRepathOptions.new(enabled)"
+    ],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null
+  },
+  {
+    "id": "DiomanRepathOptions.pattern",
+    "plugin": "repath",
+    "capability": "单请求覆盖匹配正则；null 沿用插件值",
+    "tier": 1,
+    "apis": [
+      "DiomanRepathOptions.new(pattern)",
+      "DiomanRepathOptions.pattern"
+    ],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null
+  },
+  {
+    "id": "DiomanRepathOptions.removeKey",
+    "plugin": "repath",
+    "capability": "单请求覆盖是否删除已用键",
+    "tier": 1,
+    "apis": [
+      "DiomanRepathOptions.new(removeKey)",
+      "DiomanRepathOptions.removeKey"
+    ],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null
+  },
+  {
+    "id": "DiomanRetry.afterStatusCodes",
+    "plugin": "retry",
+    "capability": "只在这些状态码上信 Retry-After，默认 413/429/503",
+    "tier": 1,
+    "apis": [
+      "DiomanRetry.afterStatusCodes",
+      "DiomanRetry.new(afterStatusCodes)"
+    ],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null,
+    "note": "真实执行器配了 [200,413,429,503]，但命中 Retry-After 的真实场景全被跳过（H6），本行靠单测。"
+  },
+  {
+    "id": "DiomanRetry.breaker",
+    "plugin": "retry",
+    "capability": "每次重发前查熔断器，已断开则停止继续重试",
+    "tier": 1,
+    "apis": [
+      "DiomanRetry.breaker"
+    ],
+    "real": [
+      "breaker.retry-halts-on-trip"
+    ],
+    "assumptions": [],
+    "result": {
+      "status": "PASS",
+      "source": "test/accept/evidence/2026-10-27-summary.json",
+      "passed": 2,
+      "total": 2
+    },
+    "blocked": null
+  },
+  {
+    "id": "DiomanRetry.cancel",
+    "plugin": "retry",
+    "capability": "已弃用的 no-op setter，无任何效果",
+    "tier": 1,
+    "apis": [
+      "DiomanRetry.cancel"
+    ],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null
+  },
+  {
+    "id": "DiomanRetry.delay",
+    "plugin": "retry",
+    "capability": "重试间等待时长函数，默认固定 3000ms",
+    "tier": 1,
+    "apis": [
+      "DiomanRetry.delay",
+      "DiomanRetry.new(delay)"
+    ],
+    "real": [
+      "retry.delay-respected",
+      "plugins.boundary-retry-delay-ms-1",
+      "retry.500-then-ok"
+    ],
+    "assumptions": [],
+    "result": {
+      "status": "PASS",
+      "source": "test/accept/evidence/2026-10-27-summary.json",
+      "passed": 10,
+      "total": 10
+    },
+    "blocked": null
+  },
+  {
+    "id": "DiomanRetry.delayMax",
+    "plugin": "retry",
+    "capability": "封顶 delay（含抖动后），默认不封顶；不管 Retry-After",
+    "tier": 1,
+    "apis": [
+      "DiomanRetry.delayMax",
+      "DiomanRetry.new(delayMax)"
+    ],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null
+  },
+  {
+    "id": "DiomanRetry.dio",
+    "plugin": "retry",
+    "capability": "绑定宿主 Dio，重发借用其 adapter/transformer",
+    "tier": 1,
+    "apis": [
+      "DiomanRetry.dio"
+    ],
+    "real": [
+      "retry.500-then-ok",
+      "retry.lossy-converges"
+    ],
+    "assumptions": [],
+    "result": {
+      "status": "PASS",
+      "source": "test/accept/evidence/2026-10-27-summary.json",
+      "passed": 10,
+      "total": 10
+    },
+    "blocked": null
+  },
+  {
+    "id": "DiomanRetry.dispose",
+    "plugin": "retry",
+    "capability": "释放重放用的传输层",
+    "tier": 1,
+    "apis": [
+      "DiomanRetry.dispose"
+    ],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null
+  },
+  {
+    "id": "DiomanRetry.enabled",
+    "plugin": "retry",
+    "capability": "总开关，false 时永不重试",
+    "tier": 1,
+    "apis": [
+      "DiomanRetry.enabled",
+      "DiomanRetry.new(enabled)"
+    ],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null
+  },
+  {
+    "id": "DiomanRetry.jitter",
+    "plugin": "retry",
+    "capability": "true 则在 [0,delay) 随机抖动，或传函数自算",
+    "tier": 1,
+    "apis": [
+      "DiomanRetry.jitter",
+      "DiomanRetry.new(jitter)"
+    ],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null
+  },
+  {
+    "id": "DiomanRetry.max",
+    "plugin": "retry",
+    "capability": "默认最大重试次数，0 即不重试",
+    "tier": 1,
+    "apis": [
+      "DiomanRetry.max",
+      "DiomanRetry.new(max)"
+    ],
+    "real": [
+      "retry.500-then-ok",
+      "retry.exhausted",
+      "retry.disabled-by-default",
+      "retry.fail-every-no-retry",
+      "retry.fail-on-noncontiguous-no-retry",
+      "plugins.boundary-retry-max-0",
+      "plugins.boundary-retry-max-1",
+      "plugins.boundary-retry-max-2"
+    ],
+    "assumptions": [],
+    "result": {
+      "status": "PASS",
+      "source": "test/accept/evidence/2026-10-27-summary.json",
+      "passed": 22,
+      "total": 22
+    },
+    "blocked": null
+  },
+  {
+    "id": "DiomanRetry.methods",
+    "plugin": "retry",
+    "capability": "可重试方法白名单（硬否决），默认幂等动词",
+    "tier": 1,
+    "apis": [
+      "DiomanRetry.methods",
+      "DiomanRetry.new(methods)"
+    ],
+    "real": [
+      "retry.post-default-no-retry",
+      "retry.post-opt-in-body-intact",
+      "retry.put-delete-retried",
+      "plugins.boundary-retry-methods-0",
+      "plugins.boundary-retry-methods-1"
+    ],
+    "assumptions": [],
+    "result": {
+      "status": "PASS",
+      "source": "test/accept/evidence/2026-10-27-summary.json",
+      "passed": 16,
+      "total": 16
+    },
+    "blocked": null
+  },
+  {
+    "id": "DiomanRetry.name",
+    "plugin": "retry",
+    "capability": "插件名固定为 dioman:retry",
+    "tier": 1,
+    "apis": [
+      "DiomanRetry.name"
+    ],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null
+  },
+  {
+    "id": "DiomanRetry.onError",
+    "plugin": "retry",
+    "capability": "错误阶段按判定重试：退避等待可取消，重放请求体后交接",
+    "tier": 2,
+    "apis": [
+      "DiomanRetry.onError"
+    ],
+    "real": [
+      "retry.500-then-ok",
+      "retry.exhausted",
+      "retry.4xx-no-retry",
+      "retry.post-opt-in-body-intact",
+      "retry.network-error-retried",
+      "retry.post-network-no-retry",
+      "retry.hang-timeout-retried",
+      "retry.offline-exhausts",
+      "retry.blackhole-timeout",
+      "retry.flap-recovers",
+      "retry.lossy-converges",
+      "retry.cancel-during-wait",
+      "retry.cancel-all-during-wait",
+      "retry.parallel-independent",
+      "retry.401-goes-refresh-first",
+      "network.flap-retry-recovers",
+      "network.lossy-parallel-retry",
+      "network.flap-parallel-retry",
+      "retry.fail-every-all-recover",
+      "retry.fail-on-noncontiguous-retried",
+      "retry.fail-on-union-fail-times",
+      "retry.fail-on-gap-exhausts",
+      "retry.attempt-is-new-connection-friendly",
+      "retry.style-switch",
+      "plugins.single-retry"
+    ],
+    "assumptions": [
+      "H1",
+      "H2",
+      "H3"
+    ],
+    "result": {
+      "status": "PASS",
+      "source": "test/accept/evidence/2026-10-27-summary.json",
+      "passed": 79,
+      "total": 79
+    },
+    "blocked": null,
+    "note": "判定依赖真实错误类型与请求体重放。注意：真实执行器总是注入 shouldRetry（返回非 null），插件自带的 statusCodes/异常类型回落真实侧没执行，H3 只能经执行器 classify 间接核对。"
+  },
+  {
+    "id": "DiomanRetry.onRequest",
+    "plugin": "retry",
+    "capability": "可能被重试的请求在此登记结算认领，供 share/cancel 使用",
+    "tier": 1,
+    "apis": [
+      "DiomanRetry.onRequest"
+    ],
+    "real": [
+      "retry.cancel-during-wait",
+      "retry.cancel-all-during-wait",
+      "combo.share-retry-loading-notify",
+      "plugins.single-retry"
+    ],
+    "assumptions": [],
+    "result": {
+      "status": "PASS",
+      "source": "test/accept/evidence/2026-10-27-summary.json",
+      "passed": 12,
+      "total": 12
+    },
+    "blocked": null
+  },
+  {
+    "id": "DiomanRetry.onResponse",
+    "plugin": "retry",
+    "capability": "2xx 业务失败按 shouldRetry 重试，重放请求体、可被取消",
+    "tier": 2,
+    "apis": [
+      "DiomanRetry.onResponse"
+    ],
+    "real": [
+      "retry.business-code-not-retried",
+      "normalize.business-notify-retry-combo"
+    ],
+    "assumptions": [
+      "H1",
+      "H2"
+    ],
+    "result": {
+      "status": "PASS",
+      "source": "test/accept/evidence/2026-10-27-summary.json",
+      "passed": 4,
+      "total": 4
+    },
+    "blocked": null,
+    "note": "真实侧只覆盖\"业务码判不重试\"；缺\"业务失败被重试并恢复（含 POST 体重放）\"的真实场景，需终审决定是否补。"
+  },
+  {
+    "id": "DiomanRetry.onRetry",
+    "plugin": "retry",
+    "capability": "每次真正重发前回调，参数为从 1 起的次数",
+    "tier": 1,
+    "apis": [
+      "DiomanRetry.new(onRetry)",
+      "DiomanRetry.onRetry"
+    ],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null
+  },
+  {
+    "id": "DiomanRetry.pluginName",
+    "plugin": "retry",
+    "capability": "静态常量 dioman:retry，同时是 extra 键",
+    "tier": 1,
+    "apis": [
+      "DiomanRetry.pluginName"
+    ],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null
+  },
+  {
+    "id": "DiomanRetry.respectRetryAfter",
+    "plugin": "retry",
+    "capability": "是否尊重 Retry-After，默认 true",
+    "tier": 1,
+    "apis": [
+      "DiomanRetry.new(respectRetryAfter)",
+      "DiomanRetry.respectRetryAfter"
+    ],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null,
+    "note": "开关与解析的纯逻辑；真实服务头部见 DiomanRetry.respectRetryAfter#real-header。"
+  },
+  {
+    "id": "DiomanRetry.respectRetryAfter#real-header",
+    "plugin": "retry",
+    "capability": "真实 429/503 带 Retry-After（秒/日期）时按头等待",
+    "tier": 2,
+    "apis": [
+      "DiomanRetry.new(respectRetryAfter)",
+      "DiomanRetry.respectRetryAfter"
+    ],
+    "real": [
+      "retry.503-retry-after",
+      "retry.respects-retry-after-over-delay"
+    ],
+    "assumptions": [
+      "H6"
+    ],
+    "result": {
+      "status": "BLOCKED",
+      "source": "test/accept/evidence/2026-10-27-summary.json",
+      "passed": 0,
+      "total": 28
+    },
+    "blocked": "真实侧被执行器跳过：retry.503-retry-after、retry.respects-retry-after-over-delay 全部 14 格\"跳过\"（本轮约定遇 429/503 即停，主动注入 429/503 的场景一律跳过，见 ASSUMPTIONS H6）。解锁：为注入 503+Retry-After 的场景开白名单，用 X-Test-Inject 头与真实 503 区分，并补 HTTP 日期形式与时钟偏差用例。",
+    "note": "H6 当前无真实证据；HTTP 日期形式依赖本机与服务端时钟，需单独核对。"
+  },
+  {
+    "id": "DiomanRetry.retryAfterMax",
+    "plugin": "retry",
+    "capability": "封顶 Retry-After 换算出的等待，默认不封顶",
+    "tier": 1,
+    "apis": [
+      "DiomanRetry.new(retryAfterMax)",
+      "DiomanRetry.retryAfterMax"
+    ],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null
+  },
+  {
+    "id": "DiomanRetry.share",
+    "plugin": "retry",
+    "capability": "已弃用的 no-op setter，无任何效果",
+    "tier": 1,
+    "apis": [
+      "DiomanRetry.share"
+    ],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null
+  },
+  {
+    "id": "DiomanRetry.shouldRetry",
+    "plugin": "retry",
+    "capability": "自定义判定：明确 true/false 采用，null 退回状态码表",
+    "tier": 1,
+    "apis": [
+      "DiomanRetry.new(shouldRetry)",
+      "DiomanRetry.shouldRetry"
+    ],
+    "real": [
+      "retry.4xx-no-retry",
+      "retry.business-code-not-retried",
+      "retry.parse-error-not-retried",
+      "retry.network-error-retried"
+    ],
+    "assumptions": [],
+    "result": {
+      "status": "PASS",
+      "source": "test/accept/evidence/2026-10-27-summary.json",
+      "passed": 10,
+      "total": 10
+    },
+    "blocked": null,
+    "note": "使用者传入的回调（契约替身）；真实执行器的回调始终返回非 null。"
+  },
+  {
+    "id": "DiomanRetry.statusCodes",
+    "plugin": "retry",
+    "capability": "未给出明确判定时可重试的状态码表，默认 408/429/5xx",
+    "tier": 1,
+    "apis": [
+      "DiomanRetry.new(statusCodes)",
+      "DiomanRetry.statusCodes"
+    ],
+    "real": [
+      "retry.429-retried"
+    ],
+    "assumptions": [],
+    "result": {
+      "status": "BLOCKED",
+      "source": "test/accept/evidence/2026-10-27-summary.json",
+      "passed": 0,
+      "total": 14
+    },
+    "blocked": "真实侧被执行器跳过：retry.429-retried 主动注入 429，执行器策略为遇 429/503 一律跳过。解锁同 H6：给注入场景开白名单（如 X-Test-Inject 头）",
+    "note": "真实执行器的 statuses 走的是自定义 shouldRetry，不经本表，所以不挂 real；429 场景（retry.429-retried）真实侧也被跳过。"
+  },
+  {
+    "id": "DiomanRetry.statusCodes#network-type",
+    "plugin": "retry",
+    "capability": "无 HTTP 状态的纯网络失败按异常类型（超时/连接错误）判重试",
+    "tier": 2,
+    "apis": [
+      "DiomanRetry.new(statusCodes)",
+      "DiomanRetry.statusCodes"
+    ],
+    "real": [],
+    "assumptions": [
+      "H3"
+    ],
+    "result": null,
+    "blocked": "缺真实用例：真实执行器总是注入返回非 null 的 shouldRetry，插件自带的\"按 DioExceptionType 回落\"没被执行。解锁：新增不带 shouldRetry 的真实客户端配置，在关端口/DNS 失败/黑洞下断言按默认判定重试，并记录各场景的 DioExceptionType。",
+    "note": "相关现有真实用例（只经执行器 classify 间接核对 H3）：retry.network-error-retried、retry.hang-timeout-retried、retry.offline-exhausts、retry.blackhole-timeout。"
+  },
+  {
+    "id": "DiomanRetryOptions.afterStatusCodes",
+    "plugin": "retry",
+    "capability": "单请求覆盖信任 Retry-After 的状态码",
+    "tier": 1,
+    "apis": [
+      "DiomanRetryOptions.afterStatusCodes",
+      "DiomanRetryOptions.new(afterStatusCodes)"
+    ],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null
+  },
+  {
+    "id": "DiomanRetryOptions.delay",
+    "plugin": "retry",
+    "capability": "单请求覆盖退避函数",
+    "tier": 1,
+    "apis": [
+      "DiomanRetryOptions.delay",
+      "DiomanRetryOptions.new(delay)"
+    ],
+    "real": [
+      "retry.delay-respected"
+    ],
+    "assumptions": [],
+    "result": {
+      "status": "PASS",
+      "source": "test/accept/evidence/2026-10-27-summary.json",
+      "passed": 2,
+      "total": 2
+    },
+    "blocked": null
+  },
+  {
+    "id": "DiomanRetryOptions.delayMax",
+    "plugin": "retry",
+    "capability": "单请求覆盖 delay 封顶",
+    "tier": 1,
+    "apis": [
+      "DiomanRetryOptions.delayMax",
+      "DiomanRetryOptions.new(delayMax)"
+    ],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null
+  },
+  {
+    "id": "DiomanRetryOptions.enabled",
+    "plugin": "retry",
+    "capability": "false 时本请求不重试；null 沿用插件",
+    "tier": 1,
+    "apis": [
+      "DiomanRetryOptions.enabled",
+      "DiomanRetryOptions.new(enabled)"
+    ],
+    "real": [
+      "retry.per-request-disable"
+    ],
+    "assumptions": [],
+    "result": {
+      "status": "PASS",
+      "source": "test/accept/evidence/2026-10-27-summary.json",
+      "passed": 2,
+      "total": 2
+    },
+    "blocked": null
+  },
+  {
+    "id": "DiomanRetryOptions.jitter",
+    "plugin": "retry",
+    "capability": "单请求覆盖抖动策略",
+    "tier": 1,
+    "apis": [
+      "DiomanRetryOptions.jitter",
+      "DiomanRetryOptions.new(jitter)"
+    ],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null
+  },
+  {
+    "id": "DiomanRetryOptions.max",
+    "plugin": "retry",
+    "capability": "单请求覆盖最大重试次数",
+    "tier": 1,
+    "apis": [
+      "DiomanRetryOptions.max",
+      "DiomanRetryOptions.new(max)"
+    ],
+    "real": [
+      "retry.per-request-max"
+    ],
+    "assumptions": [],
+    "result": {
+      "status": "PASS",
+      "source": "test/accept/evidence/2026-10-27-summary.json",
+      "passed": 2,
+      "total": 2
+    },
+    "blocked": null
+  },
+  {
+    "id": "DiomanRetryOptions.methods",
+    "plugin": "retry",
+    "capability": "单请求覆盖方法白名单",
+    "tier": 1,
+    "apis": [
+      "DiomanRetryOptions.methods",
+      "DiomanRetryOptions.new(methods)"
+    ],
+    "real": [
+      "retry.post-opt-in-body-intact"
+    ],
+    "assumptions": [],
+    "result": {
+      "status": "PASS",
+      "source": "test/accept/evidence/2026-10-27-summary.json",
+      "passed": 6,
+      "total": 6
+    },
+    "blocked": null
+  },
+  {
+    "id": "DiomanRetryOptions.respectRetryAfter",
+    "plugin": "retry",
+    "capability": "单请求覆盖是否尊重 Retry-After",
+    "tier": 1,
+    "apis": [
+      "DiomanRetryOptions.new(respectRetryAfter)",
+      "DiomanRetryOptions.respectRetryAfter"
+    ],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null
+  },
+  {
+    "id": "DiomanRetryOptions.retryAfterMax",
+    "plugin": "retry",
+    "capability": "单请求覆盖 Retry-After 封顶",
+    "tier": 1,
+    "apis": [
+      "DiomanRetryOptions.new(retryAfterMax)",
+      "DiomanRetryOptions.retryAfterMax"
+    ],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null
+  },
+  {
+    "id": "DiomanRetryOptions.shouldRetry",
+    "plugin": "retry",
+    "capability": "单请求覆盖重试判定",
+    "tier": 1,
+    "apis": [
+      "DiomanRetryOptions.new(shouldRetry)",
+      "DiomanRetryOptions.shouldRetry"
+    ],
+    "real": [
+      "retry.custom-status-list"
+    ],
+    "assumptions": [],
+    "result": {
+      "status": "PASS",
+      "source": "test/accept/evidence/2026-10-27-summary.json",
+      "passed": 2,
+      "total": 2
+    },
+    "blocked": null
+  },
+  {
+    "id": "DiomanRetryOptions.statusCodes",
+    "plugin": "retry",
+    "capability": "单请求覆盖可重试状态码表",
+    "tier": 1,
+    "apis": [
+      "DiomanRetryOptions.new(statusCodes)",
+      "DiomanRetryOptions.statusCodes"
+    ],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null
+  },
+  {
+    "id": "DiomanShare.dio",
+    "plugin": "share",
+    "capability": "绑定宿主 Dio，policy=retry 的内部重发借用其 adapter",
+    "tier": 1,
+    "apis": [
+      "DiomanShare.dio"
+    ],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null
+  },
+  {
+    "id": "DiomanShare.dispose",
+    "plugin": "share",
+    "capability": "释放：未结算的共享条目以错误结算，避免跟随者悬挂",
+    "tier": 1,
+    "apis": [
+      "DiomanShare.dispose"
+    ],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null
+  },
+  {
+    "id": "DiomanShare.enabled",
+    "plugin": "share",
+    "capability": "总开关，false 时所有请求各自独立通过",
+    "tier": 1,
+    "apis": [
+      "DiomanShare.enabled",
+      "DiomanShare.new(enabled)"
+    ],
+    "real": [
+      "share.per-request-disable",
+      "share.none-policy"
+    ],
+    "assumptions": [],
+    "result": {
+      "status": "PASS",
+      "source": "test/accept/evidence/2026-10-27-summary.json",
+      "passed": 4,
+      "total": 4
+    },
+    "blocked": null
+  },
+  {
+    "id": "DiomanShare.hasMultipleDownstreamSettlers",
+    "plugin": "share",
+    "capability": "已弃用兼容 getter，不影响结算行为",
+    "tier": 1,
+    "apis": [
+      "DiomanShare.hasMultipleDownstreamSettlers"
+    ],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null
+  },
+  {
+    "id": "DiomanShare.interval",
+    "plugin": "share",
+    "capability": "policy=retry 每次内部重试前的等待，默认 0",
+    "tier": 1,
+    "apis": [
+      "DiomanShare.interval",
+      "DiomanShare.new(interval)"
+    ],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null
+  },
+  {
+    "id": "DiomanShare.name",
+    "plugin": "share",
+    "capability": "插件名固定为 dioman:share",
+    "tier": 1,
+    "apis": [
+      "DiomanShare.name"
+    ],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null
+  },
+  {
+    "id": "DiomanShare.onError",
+    "plugin": "share",
+    "capability": "失败分发给同 key 各方；取消落败者脱离；retry 策略内部重试",
+    "tier": 2,
+    "apis": [
+      "DiomanShare.onError"
+    ],
+    "real": [
+      "share.leader-failure-all-fail",
+      "share.network-failure-all-fail",
+      "share.race-first-fails-second-wins",
+      "share.reuse-after-failure",
+      "share.follower-cancel-isolated",
+      "share.leader-cancel-followers-survive",
+      "share.all-cancelled-aborts-server",
+      "network.recovery-state-clean",
+      "network.offline-share-loading",
+      "combo.cancel-share-follower",
+      "combo.cancel-all-share",
+      "combo.share-fail-notify"
+    ],
+    "assumptions": [
+      "H1",
+      "H1b",
+      "H3"
+    ],
+    "result": {
+      "status": "PASS",
+      "source": "test/accept/evidence/2026-10-27-summary.json",
+      "passed": 32,
+      "total": 32
+    },
+    "blocked": null,
+    "note": "取消时机与连接释放是 H1/H1b（share.all-cancelled-aborts-server 断言服务端被掐断）；网络失败分发的假设是 H3。policy=retry 分支真实侧没覆盖，见 DiomanSharePolicy.retry。"
+  },
+  {
+    "id": "DiomanShare.onRequest",
+    "plugin": "share",
+    "capability": "按 key 登记首发/跟随者；无 key 或关闭则直接放行",
+    "tier": 1,
+    "apis": [
+      "DiomanShare.onRequest"
+    ],
+    "real": [
+      "share.start-single-flight",
+      "share.start-32",
+      "share.different-keys-independent",
+      "share.no-cache-after-settle",
+      "share.no-key-no-share",
+      "share.leader-failure-all-fail",
+      "share.per-request-disable",
+      "plugins.single-share",
+      "key.share-diff-query-not-merged",
+      "key.query-order-insensitive",
+      "key.body-diff-not-merged",
+      "key.method-diff-not-merged",
+      "key.explicit-string-merges",
+      "key.filter-before-key",
+      "key.share-without-key-not-merged"
+    ],
+    "assumptions": [],
+    "result": {
+      "status": "PASS",
+      "source": "test/accept/evidence/2026-10-27-summary.json",
+      "passed": 44,
+      "total": 44
+    },
+    "blocked": null
+  },
+  {
+    "id": "DiomanShare.onResponse",
+    "plugin": "share",
+    "capability": "成功结算共享条目，跟随者与落败者各拿独立副本",
+    "tier": 1,
+    "apis": [
+      "DiomanShare.onResponse"
+    ],
+    "real": [
+      "share.start-single-flight",
+      "share.start-32",
+      "share.end-last-wins",
+      "share.race-first-success",
+      "share.no-cache-after-settle"
+    ],
+    "assumptions": [],
+    "result": {
+      "status": "PASS",
+      "source": "test/accept/evidence/2026-10-27-summary.json",
+      "passed": 20,
+      "total": 20
+    },
+    "blocked": null
+  },
+  {
+    "id": "DiomanShare.pluginName",
+    "plugin": "share",
+    "capability": "静态常量 dioman:share，同时是 extra 键",
+    "tier": 1,
+    "apis": [
+      "DiomanShare.pluginName"
+    ],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null
+  },
+  {
+    "id": "DiomanShare.policy",
+    "plugin": "share",
+    "capability": "默认共享策略，缺省 start",
+    "tier": 1,
+    "apis": [
+      "DiomanShare.new(policy)",
+      "DiomanShare.policy"
+    ],
+    "real": [
+      "share.start-single-flight",
+      "share.end-last-wins",
+      "share.race-first-success"
+    ],
+    "assumptions": [],
+    "result": {
+      "status": "PASS",
+      "source": "test/accept/evidence/2026-10-27-summary.json",
+      "passed": 14,
+      "total": 14
+    },
+    "blocked": null
+  },
+  {
+    "id": "DiomanShare.registerDownstreamSettler",
+    "plugin": "share",
+    "capability": "已弃用兼容方法，仅计数，无任何效果",
+    "tier": 1,
+    "apis": [
+      "DiomanShare.registerDownstreamSettler"
+    ],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null
+  },
+  {
+    "id": "DiomanShare.retries",
+    "plugin": "share",
+    "capability": "policy=retry 的内部重试次数，默认 3",
+    "tier": 1,
+    "apis": [
+      "DiomanShare.new(retries)",
+      "DiomanShare.retries"
+    ],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null
+  },
+  {
+    "id": "DiomanShare.settle",
+    "plugin": "share",
+    "capability": "按 key 显式结算共享条目并摘除，无条目时无操作",
+    "tier": 1,
+    "apis": [
+      "DiomanShare.settle"
+    ],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null
+  },
+  {
+    "id": "DiomanShareOptions.enabled",
+    "plugin": "share",
+    "capability": "false 时本请求不参与共享（等价 none）",
+    "tier": 1,
+    "apis": [
+      "DiomanShareOptions.enabled",
+      "DiomanShareOptions.new(enabled)"
+    ],
+    "real": [
+      "share.per-request-disable",
+      "share.none-policy"
+    ],
+    "assumptions": [],
+    "result": {
+      "status": "PASS",
+      "source": "test/accept/evidence/2026-10-27-summary.json",
+      "passed": 4,
+      "total": 4
+    },
+    "blocked": null
+  },
+  {
+    "id": "DiomanShareOptions.interval",
+    "plugin": "share",
+    "capability": "单请求覆盖重试间隔，仅 leader 建条目时生效",
+    "tier": 1,
+    "apis": [
+      "DiomanShareOptions.interval",
+      "DiomanShareOptions.new(interval)"
+    ],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null
+  },
+  {
+    "id": "DiomanShareOptions.policy",
+    "plugin": "share",
+    "capability": "单请求覆盖策略；null 沿用插件",
+    "tier": 1,
+    "apis": [
+      "DiomanShareOptions.new(policy)",
+      "DiomanShareOptions.policy"
+    ],
+    "real": [
+      "share.end-last-wins",
+      "share.race-first-success",
+      "share.race-first-fails-second-wins"
+    ],
+    "assumptions": [],
+    "result": {
+      "status": "PASS",
+      "source": "test/accept/evidence/2026-10-27-summary.json",
+      "passed": 6,
+      "total": 6
+    },
+    "blocked": null
+  },
+  {
+    "id": "DiomanShareOptions.retries",
+    "plugin": "share",
+    "capability": "单请求覆盖重试次数，仅 leader 建条目时生效",
+    "tier": 1,
+    "apis": [
+      "DiomanShareOptions.new(retries)",
+      "DiomanShareOptions.retries"
+    ],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null
+  },
+  {
+    "id": "DiomanSharePolicy.end",
+    "plugin": "share",
+    "capability": "后到者顶替前者，所有人拿最后一个请求的结果",
+    "tier": 1,
+    "apis": [
+      "DiomanSharePolicy.end"
+    ],
+    "real": [
+      "share.end-last-wins"
+    ],
+    "assumptions": [],
+    "result": {
+      "status": "PASS",
+      "source": "test/accept/evidence/2026-10-27-summary.json",
+      "passed": 2,
+      "total": 2
+    },
+    "blocked": null
+  },
+  {
+    "id": "DiomanSharePolicy.none",
+    "plugin": "share",
+    "capability": "不共享，请求各自独立发出",
+    "tier": 1,
+    "apis": [
+      "DiomanSharePolicy.none"
+    ],
+    "real": [
+      "share.none-policy"
+    ],
+    "assumptions": [],
+    "result": {
+      "status": "PASS",
+      "source": "test/accept/evidence/2026-10-27-summary.json",
+      "passed": 2,
+      "total": 2
+    },
+    "blocked": null,
+    "note": "真实执行器把 none 映射成 enabled:false，走的是关闭分支，不是 switch 里的 none 分支。"
+  },
+  {
+    "id": "DiomanSharePolicy.race",
+    "plugin": "share",
+    "capability": "各自发出，第一个成功者分发给所有人，全败传最后错误",
+    "tier": 1,
+    "apis": [
+      "DiomanSharePolicy.race"
+    ],
+    "real": [
+      "share.race-first-success",
+      "share.race-first-fails-second-wins"
+    ],
+    "assumptions": [],
+    "result": {
+      "status": "PASS",
+      "source": "test/accept/evidence/2026-10-27-summary.json",
+      "passed": 4,
+      "total": 4
+    },
+    "blocked": null
+  },
+  {
+    "id": "DiomanSharePolicy.retry",
+    "plugin": "share",
+    "capability": "共享同一 promise，失败时内部重试，调用方看不到过程",
+    "tier": 2,
+    "apis": [
+      "DiomanSharePolicy.retry"
+    ],
+    "real": [],
+    "assumptions": [
+      "H2",
+      "H7"
+    ],
+    "result": null,
+    "blocked": "缺真实用例：policy=retry 下 500/flap 恢复，所有跟随者只见一次成功，且 POST/multipart 体可重放。真实执行器的 policy 映射不含 retry（client.dart policy()）。",
+    "note": "内部重试走宿主 adapter 重放请求体（H2），间隔与响应的先后依赖真实时序（H7）。"
+  },
+  {
+    "id": "DiomanSharePolicy.start",
+    "plugin": "share",
+    "capability": "首发真正发出，其余等待其结果，HTTP 只发一次",
+    "tier": 1,
+    "apis": [
+      "DiomanSharePolicy.start"
+    ],
+    "real": [
+      "share.start-single-flight",
+      "share.start-32",
+      "share.different-keys-independent",
+      "share.no-cache-after-settle",
+      "share.no-key-no-share",
+      "share.leader-failure-all-fail"
+    ],
+    "assumptions": [],
+    "result": {
+      "status": "PASS",
+      "source": "test/accept/evidence/2026-10-27-summary.json",
+      "passed": 26,
+      "total": 26
+    },
+    "blocked": null
+  },
+  {
+    "id": "DiomanTimeout.enabled",
+    "plugin": "timeout",
+    "capability": "总开关，false 时请求保留自带超时",
+    "tier": 1,
+    "apis": [
+      "DiomanTimeout.enabled",
+      "DiomanTimeout.new(enabled)"
+    ],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null
+  },
+  {
+    "id": "DiomanTimeout.name",
+    "plugin": "timeout",
+    "capability": "插件名固定为 dioman:timeout",
+    "tier": 1,
+    "apis": [
+      "DiomanTimeout.name"
+    ],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null
+  },
+  {
+    "id": "DiomanTimeout.new(probe)",
+    "plugin": "timeout",
+    "capability": "probe 每请求调一次，返回当前网络质量档位",
+    "tier": 1,
+    "apis": [
+      "DiomanTimeout.new(probe)"
+    ],
+    "real": [
+      "timeout.receive-slow-body",
+      "timeout.receive-ok-fast-chunks",
+      "timeout.connect-blackhole",
+      "timeout.weak-generous-budget",
+      "plugins.single-timeout",
+      "timeout.total-over-slow-chunks",
+      "timeout.total-slow-chunks-small",
+      "timeout.total-budget-slow-body-ok",
+      "network.flap-no-retry",
+      "retry.flap-no-retry-then-ok"
+    ],
+    "assumptions": [],
+    "result": {
+      "status": "PASS",
+      "source": "test/accept/evidence/2026-10-27-summary.json",
+      "passed": 22,
+      "total": 22
+    },
+    "blocked": null,
+    "note": "probe 是使用者回调（契约替身）；真实执行器的 probe 恒返回 excellent。"
+  },
+  {
+    "id": "DiomanTimeout.onRequest",
+    "plugin": "timeout",
+    "capability": "按档位把非空 connect/receive/send 写进请求，缺档不动",
+    "tier": 1,
+    "apis": [
+      "DiomanTimeout.onRequest"
+    ],
+    "real": [
+      "timeout.receive-slow-body",
+      "timeout.receive-ok-fast-chunks",
+      "timeout.connect-blackhole",
+      "timeout.weak-generous-budget",
+      "plugins.single-timeout",
+      "timeout.total-over-slow-chunks",
+      "timeout.total-slow-chunks-small",
+      "timeout.total-budget-slow-body-ok",
+      "network.flap-no-retry",
+      "retry.flap-no-retry-then-ok",
+      "plugins.boundary-timeout-connect-ms-0",
+      "plugins.boundary-timeout-connect-ms-1",
+      "plugins.boundary-timeout-receive-ms-0",
+      "plugins.boundary-timeout-receive-ms-1"
+    ],
+    "assumptions": [],
+    "result": {
+      "status": "PASS",
+      "source": "test/accept/evidence/2026-10-27-summary.json",
+      "passed": 30,
+      "total": 30
+    },
+    "blocked": null,
+    "note": "只证明配置被改写；超时是否被 Dio 真正执行见 DiomanTimeouts.*#effective。真实执行器的 total_ms/timeout_ms 是执行器自己的计时器，不经本插件。"
+  },
+  {
+    "id": "DiomanTimeout.pluginName",
+    "plugin": "timeout",
+    "capability": "静态常量 dioman:timeout，同时是 extra 键",
+    "tier": 1,
+    "apis": [
+      "DiomanTimeout.pluginName"
+    ],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null
+  },
+  {
+    "id": "DiomanTimeout.timeouts",
+    "plugin": "timeout",
+    "capability": "档位到超时的映射，默认每档只设 connect（10/15/30/10 秒）",
+    "tier": 1,
+    "apis": [
+      "DiomanTimeout.new(timeouts)",
+      "DiomanTimeout.timeouts"
+    ],
+    "real": [
+      "timeout.receive-slow-body",
+      "timeout.receive-ok-fast-chunks",
+      "timeout.connect-blackhole",
+      "timeout.weak-generous-budget",
+      "plugins.single-timeout",
+      "timeout.total-over-slow-chunks",
+      "timeout.total-slow-chunks-small",
+      "timeout.total-budget-slow-body-ok",
+      "network.flap-no-retry",
+      "retry.flap-no-retry-then-ok",
+      "plugins.boundary-timeout-connect-ms-0",
+      "plugins.boundary-timeout-connect-ms-1",
+      "plugins.boundary-timeout-receive-ms-0",
+      "plugins.boundary-timeout-receive-ms-1"
+    ],
+    "assumptions": [],
+    "result": {
+      "status": "PASS",
+      "source": "test/accept/evidence/2026-10-27-summary.json",
+      "passed": 30,
+      "total": 30
+    },
+    "blocked": null
+  },
+  {
+    "id": "DiomanTimeoutOptions.enabled",
+    "plugin": "timeout",
+    "capability": "false 时本请求保留自带超时；null 沿用插件",
+    "tier": 1,
+    "apis": [
+      "DiomanTimeoutOptions.enabled",
+      "DiomanTimeoutOptions.new(enabled)"
+    ],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null
+  },
+  {
+    "id": "DiomanTimeoutOptions.timeouts",
+    "plugin": "timeout",
+    "capability": "单请求按档合并覆盖插件映射",
+    "tier": 1,
+    "apis": [
+      "DiomanTimeoutOptions.new(timeouts)",
+      "DiomanTimeoutOptions.timeouts"
+    ],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null
+  },
+  {
+    "id": "DiomanTimeouts.connect",
+    "plugin": "timeout",
+    "capability": "非空时覆盖 connectTimeout，空则保持不动",
+    "tier": 1,
+    "apis": [
+      "DiomanTimeouts.connect",
+      "DiomanTimeouts.new(connect)"
+    ],
+    "real": [
+      "plugins.boundary-timeout-connect-ms-0",
+      "plugins.boundary-timeout-connect-ms-1",
+      "timeout.weak-generous-budget"
+    ],
+    "assumptions": [],
+    "result": {
+      "status": "PASS",
+      "source": "test/accept/evidence/2026-10-27-summary.json",
+      "passed": 8,
+      "total": 8
+    },
+    "blocked": null,
+    "note": "只验配置写入；真实连接超时见 DiomanTimeouts.connect#effective。"
+  },
+  {
+    "id": "DiomanTimeouts.connect#effective",
+    "plugin": "timeout",
+    "capability": "被改写的 connectTimeout 真正生效：连不上时按时报连接超时",
+    "tier": 2,
+    "apis": [
+      "DiomanTimeouts.connect",
+      "DiomanTimeouts.new(connect)"
+    ],
+    "real": [],
+    "assumptions": [
+      "H5"
+    ],
+    "result": null,
+    "blocked": "缺真实用例：目标丢弃 SYN（连接阶段无响应）+ connect_ms，断言错误类型为 timeout 且耗时≈connect_ms。现有 plugins.boundary-timeout-connect-ms-* 只断言成功，network.flap-no-retry/retry.flap-no-retry-then-ok 接受 network|timeout 两种，timeout.connect-blackhole 的黑洞已连通、测到的是 receive；都不能证明 connectTimeout 生效。单测目前也只断言配置值。",
+    "note": "H5 本来就要求\"逐格确认断言的是错误类型与耗时\"，这一行是它在 connect 上的落点。"
+  },
+  {
+    "id": "DiomanTimeouts.receive",
+    "plugin": "timeout",
+    "capability": "非空时覆盖 receiveTimeout，空则保持不动",
+    "tier": 1,
+    "apis": [
+      "DiomanTimeouts.new(receive)",
+      "DiomanTimeouts.receive"
+    ],
+    "real": [
+      "plugins.boundary-timeout-receive-ms-0",
+      "plugins.boundary-timeout-receive-ms-1",
+      "timeout.receive-slow-body"
+    ],
+    "assumptions": [],
+    "result": {
+      "status": "PASS",
+      "source": "test/accept/evidence/2026-10-27-summary.json",
+      "passed": 6,
+      "total": 6
+    },
+    "blocked": null,
+    "note": "只验配置写入；真正超时见 DiomanTimeouts.receive#effective。"
+  },
+  {
+    "id": "DiomanTimeouts.receive#effective",
+    "plugin": "timeout",
+    "capability": "被改写的 receiveTimeout 真正生效：响应停顿超时报接收超时",
+    "tier": 2,
+    "apis": [
+      "DiomanTimeouts.new(receive)",
+      "DiomanTimeouts.receive"
+    ],
+    "real": [
+      "plugins.boundary-timeout-receive-ms-0",
+      "timeout.receive-slow-body",
+      "timeout.connect-blackhole",
+      "timeout.receive-ok-fast-chunks",
+      "timeout.receive-gap-vs-chunk-bytes"
+    ],
+    "assumptions": [
+      "H5"
+    ],
+    "result": {
+      "status": "PASS",
+      "source": "test/accept/evidence/2026-10-27-summary.json",
+      "passed": 10,
+      "total": 10
+    },
+    "blocked": null,
+    "note": "单测 rule/timeout_rule_test 用本地 TestServer 断言了 receiveTimeout；真实侧 boundary receive_ms=1 断言 error=timeout，connect-blackhole 断言耗时 700-3500ms。按 H5 要求还应逐格复核每个样本的耗时，不只看 PASS。"
+  },
+  {
+    "id": "DiomanTimeouts.send",
+    "plugin": "timeout",
+    "capability": "非空时覆盖 sendTimeout，空则保持不动",
+    "tier": 1,
+    "apis": [
+      "DiomanTimeouts.new(send)",
+      "DiomanTimeouts.send"
+    ],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null,
+    "note": "真实执行器没有 send 配置项（client.dart 只映射 connect/receive）；真正超时见 DiomanTimeouts.send#effective。"
+  },
+  {
+    "id": "DiomanTimeouts.send#effective",
+    "plugin": "timeout",
+    "capability": "被改写的 sendTimeout 真正生效：请求体发送停滞超时报发送超时",
+    "tier": 2,
+    "apis": [
+      "DiomanTimeouts.new(send)",
+      "DiomanTimeouts.send"
+    ],
+    "real": [],
+    "assumptions": [
+      "H5"
+    ],
+    "result": null,
+    "blocked": "缺真实用例：真实执行器没有 send 配置项；解锁：给执行器加 send_ms，经 netem 限速/黑洞上传大 body，断言 timeout 与耗时。单测也只有配置值断言，尚无\"真正超时\"用例。",
+    "note": "H5 原文只写了 connect/receive，sendTimeout 见 newAssumptions。"
+  },
+  {
+    "id": "NetworkQuality.excellent",
+    "plugin": "timeout",
+    "capability": "强连接档，默认 connect 10 秒",
+    "tier": 1,
+    "apis": [
+      "NetworkQuality.excellent"
+    ],
+    "real": [
+      "timeout.receive-slow-body",
+      "plugins.single-timeout"
+    ],
+    "assumptions": [],
+    "result": {
+      "status": "PASS",
+      "source": "test/accept/evidence/2026-10-27-summary.json",
+      "passed": 4,
+      "total": 4
+    },
+    "blocked": null,
+    "note": "真实执行器的 probe 恒返回 excellent，其余档位真实侧没用到。"
+  },
+  {
+    "id": "NetworkQuality.good",
+    "plugin": "timeout",
+    "capability": "较好连接档，默认 connect 15 秒",
+    "tier": 1,
+    "apis": [
+      "NetworkQuality.good"
+    ],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null
+  },
+  {
+    "id": "NetworkQuality.none",
+    "plugin": "timeout",
+    "capability": "无连接档，只当普通一档，默认 connect 10 秒",
+    "tier": 1,
+    "apis": [
+      "NetworkQuality.none"
+    ],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null
+  },
+  {
+    "id": "NetworkQuality.poor",
+    "plugin": "timeout",
+    "capability": "弱连接档，默认 connect 30 秒",
+    "tier": 1,
+    "apis": [
+      "NetworkQuality.poor"
+    ],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null
+  }
+]

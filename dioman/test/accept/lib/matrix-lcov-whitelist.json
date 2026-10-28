@@ -1,0 +1,22 @@
+[
+  {
+    "file": "lib/src/auth_plugin.dart",
+    "text": "error: DioException(requestOptions: opts, error: e, stackTrace: s),",
+    "reason": "非 DioException 异常兜底：当前 ReplayClient.fetch 返回 Dio.fetch，Dio 将传输/转换异常包装为 DioException；标准传输路径不能进入该转换。保留防御分支，未删除。"
+  },
+  {
+    "file": "lib/src/share_plugin.dart",
+    "text": ": DioException(requestOptions: opts, error: lastError);",
+    "reason": "非 DioException 异常兜底：当前 ReplayClient.fetch 返回 Dio.fetch，Dio 将传输/转换异常包装为 DioException；标准传输路径不能进入该转换。保留防御分支，未删除。"
+  },
+  {
+    "file": "lib/src/retry_plugin.dart",
+    "text": "DioException.requestCancelled(",
+    "reason": "取消错误兜底：唯一调用点先确认 token.isCancelled == true；Dio CancelToken 的该状态由非空 cancelError 定义，故 ?? 右支在此调用链不可达。"
+  },
+  {
+    "file": "lib/src/replay_support.dart",
+    "text": ": _asDio(data ?? e, current.requestOptions, StackTrace.current),",
+    "reason": "非 DioException 的 handler 错误 data 兜底：Dio 的 ResponseInterceptorHandler.reject 参数类型为 DioException；同步/异步抛出已在此前转换。标准 handler 契约下不可达。"
+  }
+]
