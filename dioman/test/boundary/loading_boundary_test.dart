@@ -10,7 +10,7 @@ import '../support/fixtures.dart';
 /// 注册本文件的边界层用例。
 void main() {
   test(
-      '[DiomanLoading.delayClose][DiomanLoading.new(onChanged)] loading callback stays paired across delayed hide and disposal',
+      '[DiomanLoading.dispose][DiomanLoading.delayClose][DiomanLoading.new(onChanged)] loading callback stays paired across delayed hide and disposal',
       () async {
     final states = <bool>[];
     final own = <bool>[];
@@ -24,10 +24,24 @@ void main() {
       ..extra[DiomanLoading.pluginName] =
           DiomanLoadingOptions(onChanged: own.add);
     loading.onRequest(second, RecordingRequestHandler());
+    expect(loading.activeCount, 1);
     loading.dispose();
+    expect(loading.activeCount, 0);
     loading.dispose();
     expect(states, [true, false]);
     expect(own, isEmpty);
+  });
+
+  test('[DiomanLoading.dispose] 释放取消尚未触发的显示定时器', () async {
+    final states = <bool>[];
+    const delay = Duration(milliseconds: 20);
+    final loading = DiomanLoading(onChanged: states.add, delay: delay);
+    loading.onRequest(cacheOptions(), RecordingRequestHandler());
+    expect(loading.activeCount, 1);
+    loading.dispose();
+    expect(loading.activeCount, 0);
+    await Future<void>.delayed(delay * 2);
+    expect(states, isEmpty);
   });
 
   test(

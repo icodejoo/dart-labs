@@ -80,7 +80,7 @@ void main() {
       expect(r.statusCode, 200);
     });
     test(
-        '[DiomanTimeout.onRequest][DiomanTimeout.timeouts] only non-null fields are written; others keep BaseOptions',
+        '[DiomanTimeout.onRequest][DiomanTimeout.timeouts][DiomanTimeouts.connect][DiomanTimeouts.new(connect)] only non-null fields are written; others keep BaseOptions',
         () async {
       final server = await TestServer.start((req) async {
         await respondJson(req, {tkOk: true}, 200);
@@ -114,7 +114,7 @@ void main() {
               'receive was null in the tier → left at the BaseOptions value');
     });
     test(
-        '[DiomanTimeout.enabled][DiomanTimeout.timeouts] per-request enabled:false keeps the carried timeouts',
+        '[DiomanTimeout.enabled][DiomanTimeout.timeouts][DiomanTimeoutOptions.enabled][DiomanTimeoutOptions.new(enabled)] per-request enabled:false keeps the carried timeouts',
         () async {
       final server = await TestServer.start((req) async {
         await respondJson(req, {tkOk: true}, 200);

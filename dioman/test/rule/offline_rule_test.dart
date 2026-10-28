@@ -13,7 +13,7 @@ import '../support/test_server.dart';
 void main() {
   group(tkDiomanOffline, () {
     test(
-        '[DiomanOffline.new(isOnline)][DiomanOffline.new(onConnectivityChanged)] offline request is queued (no network), then replayed on reconnect',
+        '[DiomanOffline.onRequest][DiomanOffline.new(isOnline)][DiomanOffline.new(onConnectivityChanged)] offline request is queued (no network), then replayed on reconnect',
         () async {
       var hits = 0;
       final server = await TestServer.start((req) async {
@@ -108,7 +108,7 @@ void main() {
   });
 
   test(
-      '[DiomanOffline.enabled][DiomanOffline.new(isOnline)] offline 单请求禁用绕过离线队列',
+      '[DiomanOfflineOptions.enabled][DiomanOffline.enabled][DiomanOffline.new(isOnline)] offline 单请求禁用绕过离线队列',
       () async {
     final plugin = DiomanOffline(
         isOnline: () => false,
@@ -133,7 +133,7 @@ void main() {
             isA<DiomanOfflineException>()
                 .having((x) => x.reason, tkReason, reason));
     test(
-        '[DiomanOffline.maxWait][DiomanOfflineOptions.maxWait] maxWait rejects a queued request that waits too long',
+        '[DiomanOfflineReason.timeout][DiomanOffline.maxWait][DiomanOfflineOptions.maxWait] maxWait rejects a queued request that waits too long',
         () async {
       final server = await TestServer.start((req) async {
         await respondJson(req, {tkOk: true}, 200);

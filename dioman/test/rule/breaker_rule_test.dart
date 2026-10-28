@@ -81,7 +81,7 @@ void main() {
 
   group(tkDiomanBreaker, () {
     test(
-        '[DiomanBreaker.failureThreshold][DiomanBreaker.resetDuration] trips after N consecutive failures, then fails fast (no network)',
+        '[DiomanBreakerOpenException.bucketKey][DiomanBreaker.failureThreshold][DiomanBreaker.resetDuration] trips after N consecutive failures, then fails fast (no network)',
         () async {
       var hits = 0;
       final server = await TestServer.start((req) async {

@@ -226,7 +226,7 @@ void main() {
   });
 
   test(
-      '[DiomanBreaker.failureThreshold][DiomanBreaker.halfOpenMaxCalls] stale breaker probe cannot close or consume a new window',
+      '[DiomanBreaker.onResponse][DiomanBreaker.failureThreshold][DiomanBreaker.halfOpenMaxCalls] stale breaker probe cannot close or consume a new window',
       () {
     final breaker = DiomanBreaker(
         failureThreshold: 1, resetDuration: Duration.zero, halfOpenMaxCalls: 2);
@@ -261,7 +261,7 @@ void main() {
   });
 
   test(
-      '[DiomanBreakerState.open][DiomanBreaker.failureThreshold] breaker cancellation returns half-open slot',
+      '[DiomanBreaker.onError][DiomanBreakerState.open][DiomanBreaker.failureThreshold] breaker cancellation returns half-open slot',
       () {
     final breaker = DiomanBreaker(
         failureThreshold: 1, resetDuration: Duration.zero, halfOpenMaxCalls: 1);

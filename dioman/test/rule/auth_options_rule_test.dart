@@ -170,8 +170,18 @@ void main() {
 
   group(tkNewlyWiredOptionsFieldsFullConstructorOptionsParity, () {
     test(
-        '[DiomanAuth.new(buildHeader)][DiomanAuth.new(headerKey)] DiomanAuthOptions.headerKey/buildHeader override the plugin '
+        '[DiomanAuthOptions.buildHeader][DiomanAuthOptions.headerKey][DiomanAuth.new(buildHeader)][DiomanAuth.new(headerKey)] DiomanAuthOptions.headerKey/buildHeader override the plugin '
         'defaults for a single call', () async {
+      const customKey = 'X-Custom-Auth';
+      const token = 'tok';
+      const formattedToken = 'Token $token';
+      const defaults = DiomanAuthOptions();
+      final override = DiomanAuthOptions(
+          headerKey: customKey, buildHeader: (t) => 'Token $t');
+      expect(defaults.headerKey, isNull);
+      expect(defaults.buildHeader, isNull);
+      expect(override.headerKey, customKey);
+      expect(override.buildHeader!(token), formattedToken);
       String? customAuth;
       var hasAuthorization = false;
       final server = await TestServer.start((req) async {
@@ -182,7 +192,7 @@ void main() {
       addTearDown(server.close);
       final dio = Dio(BaseOptions(baseUrl: server.baseUrl));
       dio.interceptors.add(DiomanAuth(
-        tokenManager: TestTokens('tok'),
+        tokenManager: TestTokens(token),
         onRefresh: (_, __) async {},
         onAccessExpired: (_, __) async {},
       ));
@@ -190,14 +200,11 @@ void main() {
       await dio.get<void>(
         tkX,
         options: Options(extra: {
-          tkDiomanAuth2: DiomanAuthOptions(
-            headerKey: 'X-Custom-Auth',
-            buildHeader: (t) => 'Token $t',
-          ),
+          tkDiomanAuth2: override,
         }),
       );
 
-      expect(customAuth, 'Token tok',
+      expect(customAuth, formattedToken,
           reason: 'per-request headerKey/buildHeader must be honoured');
       expect(hasAuthorization, isFalse,
           reason: 'the default header key must not also be set');

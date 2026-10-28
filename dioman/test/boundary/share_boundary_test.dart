@@ -91,7 +91,7 @@ void main() {
       'DiomanShare: none policy, own-failure settlement, dispose, '
       'hasMultipleDownstreamSettlers', () {
     test(
-        '[DiomanShare.policy][DiomanShareOptions.policy] dispose() completes a pending follower with an error instead of '
+        '[DiomanShare.policy][DiomanShareOptions.policy][DiomanShare.dispose] dispose() completes a pending follower with an error instead of '
         'leaving it hanging (documented previously as NOT doing this — '
         'confirmed fixed)', () async {
       final started = Completer<void>();

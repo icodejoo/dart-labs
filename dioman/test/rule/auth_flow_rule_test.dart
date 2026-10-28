@@ -14,7 +14,7 @@ void main() {
   const timeout = Duration(seconds: 3);
 
   group(tk9, () {
-    test('[DiomanAuth.onRequest] auth 的重放走宿主的 adapter 和 transformer', () async {
+    test('[DiomanAuth.dio][DiomanAuth.onRequest] auth 的重放走宿主的 adapter 和 transformer', () async {
       final transformer = CountingTransformer();
       final adapter = RecordingAdapter(
           (o, n) async => n == 1 ? jsonBody({}, 401) : jsonBody({tkV: n}, 200));
@@ -46,7 +46,7 @@ void main() {
       expect(tm.accessToken, tkT1);
       expect(expired, 0);
     });
-    test('[DiomanAuth.onRequest] 重放仍是 401：明确的认证失败，清会话并触发过期', () async {
+    test('[DiomanTokenManager.clear][DiomanAuth.onRequest] 重放仍是 401：明确的认证失败，清会话并触发过期', () async {
       final adapter = RecordingAdapter((o, n) async => jsonBody({}, 401));
       final dio = fakeDio(adapter);
       final tm = TestTokens(tkT0);
@@ -163,7 +163,7 @@ void main() {
 // stops 401ing after the refresh, so we can assert on the full
 // refresh → replay → success path, not just which action was chosen.
     test(
-        '[DiomanAuthFailureAction.refresh][DiomanAuthFailureAction.replay] a 401, successful refresh, and replay deliver the replayed '
+        '[DiomanAuth.onError][DiomanAuthFailureAction.refresh][DiomanAuthFailureAction.replay] a 401, successful refresh, and replay deliver the replayed '
         'response to the original caller', () async {
       final tm = TestTokens(tkOld);
       var refreshCalls = 0;

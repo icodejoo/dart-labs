@@ -21,7 +21,7 @@ void main() {
             isA<DiomanOfflineException>()
                 .having((x) => x.reason, tkReason, reason));
     test(
-        '[DiomanOffline.pending][DiomanOffline.new(isOnline)] dispose rejects every pending request (no perma-hang)',
+        '[DiomanOfflineReason.disposed][DiomanOfflineException.reason][DiomanOffline.pending][DiomanOffline.new(isOnline)] dispose rejects every pending request (no perma-hang)',
         () async {
       final server = await TestServer.start((req) async {
         await respondJson(req, {tkOk: true}, 200);

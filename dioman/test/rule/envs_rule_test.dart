@@ -9,7 +9,7 @@ import '../accept/lib/literals.dart';
 void main() {
   group(tkDiomanEnvs, () {
     test(
-        '[EnvRule.rule] the first matching rule wins and its BaseOptions fields are '
+        '[DiomanEnvs.new(dio)][EnvRule.rule] the first matching rule wins and its BaseOptions fields are '
         'shallow-merged into dio.options; a later, also-matching rule is '
         'never even evaluated', () {
       final dio = Dio();
@@ -53,7 +53,7 @@ void main() {
       expect(dio.options.baseUrl, tkHttpsDefaultExampleCom);
     });
     test(
-        '[EnvRule.rule] a rule that only sets responseType to something other than the '
+        '[EnvRule.config][EnvRule.rule] a rule that only sets responseType to something other than the '
         'json default applies it; one that never touches responseType '
         "never resets a caller's own bytes/stream setting back to json", () {
       final dio1 = Dio();
@@ -75,7 +75,7 @@ void main() {
               "BaseOptions default of json");
     });
     test(
-        '[EnvRule.rule][DiomanEnvs.apply] a constructor-level disabled DiomanEnvs makes apply() a permanent '
+        '[DiomanEnvs.new(enabled)][EnvRule.rule][DiomanEnvs.apply] a constructor-level disabled DiomanEnvs makes apply() a permanent '
         'no-op even with a matching rule', () {
       final dio = Dio(BaseOptions(baseUrl: tkHttpsDefaultExampleCom));
       final envs = DiomanEnvs(
@@ -85,7 +85,8 @@ void main() {
       envs.apply(dio);
       expect(dio.options.baseUrl, tkHttpsDefaultExampleCom);
     });
-    test('[DiomanEnvs.name] name identifies the plugin', () {
+    test('[DiomanEnvs.pluginName][DiomanEnvs.name] name identifies the plugin',
+        () {
       expect(DiomanEnvs(const []).name, tkDiomanEnvs2);
     });
   });

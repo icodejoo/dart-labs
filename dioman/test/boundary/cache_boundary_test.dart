@@ -44,7 +44,7 @@ void main() {
   });
 
   test(
-      '[DiomanCachePersist.write][DiomanCache.cachePolicy] cache write failure rejects response once and management failures await',
+      '[DiomanCachePersist.remove][DiomanCachePersist.erase][DiomanCachePersist.write][DiomanCache.cachePolicy] cache write failure rejects response once and management failures await',
       () async {
     final persist = ControlledPersist();
     final cache =
@@ -209,6 +209,51 @@ void main() {
     expect(response.data, {
       1: [2]
     });
+    cache.dispose();
+  });
+
+  test('[DiomanCache.dispose] 清内存并使旧响应和旧读取失效，不删除持久层', () async {
+    final persist = ControlledPersist();
+    final cache =
+        DiomanCache(persist: persist, cachePolicy: DiomanCachePolicy.both);
+    final first = cacheOptions();
+    cache.onRequest(first, RecordingRequestHandler());
+    await pumpEvents();
+    final response = Response<dynamic>(
+        requestOptions: first, statusCode: 200, data: cacheKey);
+    cache.onResponse(response, RecordingResponseHandler());
+    await pumpEvents();
+    final snapshot = Map<String, dynamic>.of(persist.store);
+    cache.dispose();
+    expect(persist.store, snapshot);
+    final memo = cacheOptions()
+      ..extra[cache.name] =
+          const DiomanCacheOptions(cachePolicy: DiomanCachePolicy.memo);
+    final missed = RecordingRequestHandler();
+    cache.onRequest(memo, missed);
+    await pumpEvents();
+    expect(missed.response, isNull, reason: '内存已清空');
+    cache.onResponse(response, RecordingResponseHandler());
+    await pumpEvents();
+    expect(persist.store, snapshot, reason: '释放前的响应不能回填');
+    final hydrated = RecordingRequestHandler();
+    cache.onRequest(cacheOptions(), hydrated);
+    await pumpEvents();
+    expect(hydrated.response?.data, cacheKey, reason: '持久层仍可读取');
+    cache.dispose();
+    persist.readGate = Completer<dynamic>();
+    final pending = RecordingRequestHandler();
+    cache.onRequest(cacheOptions(), pending);
+    await pumpEvents();
+    cache.dispose();
+    persist.readGate!.complete(snapshot[cacheKey]);
+    await pumpEvents();
+    expect(pending.calls, 1);
+    expect(pending.response, isNull, reason: '释放前开始的持久读取不能命中或回填');
+    final after = RecordingRequestHandler();
+    cache.onRequest(memo, after);
+    await pumpEvents();
+    expect(after.response, isNull);
     cache.dispose();
   });
 }

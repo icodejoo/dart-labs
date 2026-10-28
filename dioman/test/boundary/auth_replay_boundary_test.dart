@@ -16,7 +16,7 @@ void main() {
   const timeout = Duration(seconds: 3);
 
   group(tk9, () {
-    test('[DiomanAuth.onRequest] FormData 请求体在 auth 刷新后也能重放', () async {
+    test('[DiomanAuth.onError][DiomanAuth.onRequest] FormData 请求体在 auth 刷新后也能重放', () async {
       final adapter = RecordingAdapter(
           (o, n) async => n == 1 ? jsonBody({}, 401) : jsonBody({tkV: n}, 200));
       final dio = fakeDio(adapter);
@@ -28,7 +28,7 @@ void main() {
       expect(r.data, {tkV: 2});
       expect(adapter.seen.last.headers[tkAuthorization], tkBearerT1);
     });
-    test('[DiomanAuth.onRequest] Stream 请求体 401：auth 刷新后也不重放，且不清会话', () async {
+    test('[DiomanAuth.onError][DiomanAuth.onRequest] Stream 请求体 401：auth 刷新后也不重放，且不清会话', () async {
       final adapter = RecordingAdapter((o, n) async => jsonBody({}, 401));
       final dio = fakeDio(adapter);
       final tm = TestTokens(tkT0);
@@ -74,7 +74,7 @@ void main() {
 
   group('DiomanAuth: defaultAuthFailure classification', () {
     test(
-        '[DiomanAuthFailureAction.refresh][DiomanAuthFailureAction.replay] falls back to reading the header directly when no raw token was '
+        '[defaultAuthFailure][DiomanAuthFailureAction.refresh][DiomanAuthFailureAction.replay] falls back to reading the header directly when no raw token was '
         'stashed (e.g. a custom `ready` callback bypassed the stash), and '
         'still correctly classifies refresh vs replay', () {
       final tm = TestTokens(tkT0);

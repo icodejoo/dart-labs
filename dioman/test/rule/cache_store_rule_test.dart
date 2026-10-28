@@ -41,7 +41,7 @@ void main() {
       expect(calls, 5, reason: 'clear() wiped everything');
     });
     test(
-        '[DiomanCache.cachePolicy][DiomanCache.expires] an expired entry is evicted on the next request for that key, '
+        '[DiomanCache.new(now)][DiomanCache.cachePolicy][DiomanCache.expires] an expired entry is evicted on the next request for that key, '
         'not served stale', () async {
       var calls = 0;
       final server = await TestServer.start((req) async {

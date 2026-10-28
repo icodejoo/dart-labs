@@ -87,7 +87,8 @@ void main() {
   });
 
   group('报错', () {
-    test('[Dioman.sort][DiomanPluginOrderIssue.duplicateName] 重复名：异常包含重复的插件名',
+    test(
+        '[DiomanPluginOrderException.issue][DiomanPluginOrderException.plugins][Dioman.sort][DiomanPluginOrderIssue.duplicateName] 重复名：异常包含重复的插件名',
         () {
       expect(
         () => Dioman.sort(
@@ -99,7 +100,9 @@ void main() {
                 (e) => e.toString(), tkMessage, contains(tkDup))),
       );
     });
-    test('[Dioman.sort][DiomanPluginOrderIssue.cycle] 环：异常列出环上的插件名，不含环外插件', () {
+    test(
+        '[DiomanPluginOrderException.toString][Dioman.sort][DiomanPluginOrderIssue.cycle] 环：异常列出环上的插件名，不含环外插件',
+        () {
       final ps = [
         OrderedPlugin(tkA2, before: {tkB2}),
         OrderedPlugin(tkB2, before: {tkC}),

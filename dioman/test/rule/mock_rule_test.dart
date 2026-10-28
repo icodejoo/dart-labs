@@ -12,7 +12,7 @@ import '../support/test_server.dart';
 void main() {
   group('DiomanMock: mockUrl redirect path', () {
     test(
-        '[DiomanMock.onRequest] defaultFallback: 404 or a non-cancel network error triggers '
+        '[defaultFallback][DiomanMock.onRequest] defaultFallback: 404 or a non-cancel network error triggers '
         'fallback; a cancel or any other status does not', () {
       final opts = RequestOptions(path: tkX);
       expect(

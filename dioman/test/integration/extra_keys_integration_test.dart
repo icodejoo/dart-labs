@@ -52,7 +52,7 @@ void main() {
 
   group('重复实例共享状态键的诊断', () {
     test(
-        '[DiomanExtraKeys.findSharedState][DiomanSharedStateKey.count] 同一 Dio 上装两个 DiomanCache：报告它的状态键，数量为 2',
+        '[DiomanSharedStateKey.key][DiomanExtraKeys.findSharedState][DiomanSharedStateKey.count] 同一 Dio 上装两个 DiomanCache：报告它的状态键，数量为 2',
         () {
       final dio = Dio();
       dio.interceptors
@@ -113,8 +113,9 @@ void main() {
       '[DiomanExtraKeys.toMarkdown] docs/design/architecture.md 中的键表与 DiomanExtraKeys.toMarkdown() 同步',
       () {
     // Windows 下 autocrlf 会把文档检出成 CRLF，统一成 LF 再比对。
-    final doc =
-        File('docs/design/architecture.md').readAsStringSync().replaceAll('\r\n', tkEmpty9);
+    final doc = File('docs/design/architecture.md')
+        .readAsStringSync()
+        .replaceAll('\r\n', tkEmpty9);
     const start = '<!-- dioman:extra-keys:start -->';
     const end = '<!-- dioman:extra-keys:end -->';
     final s = doc.indexOf(start);

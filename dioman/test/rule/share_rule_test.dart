@@ -115,7 +115,7 @@ void main() {
       expect(calls, 2, reason: 'no key ⇒ share never dedupes');
     });
     test(
-        '[DiomanShare.policy][DiomanShare.onError] policy: none passes every request through independently — never '
+        '[DiomanShare.policy][DiomanShare.onError][DiomanSharePolicy.none] policy: none passes every request through independently — never '
         'shared, and errors reach onError with no entry attached', () async {
       var calls = 0;
       final server = await TestServer.start((req) async {
@@ -147,7 +147,7 @@ void main() {
       );
     });
     test(
-        '[DiomanShare.registerDownstreamSettler] registerDownstreamSettler(): a single registration is not '
+        '[DiomanShare.registerDownstreamSettler][DiomanShare.hasMultipleDownstreamSettlers] registerDownstreamSettler(): a single registration is not '
         '"multiple"; a second one is', () {
       final share = DiomanShare();
       expect(share.hasMultipleDownstreamSettlers, isFalse);

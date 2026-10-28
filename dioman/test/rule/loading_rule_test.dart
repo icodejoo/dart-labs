@@ -37,7 +37,7 @@ void main() {
 
   group('DiomanLoadingOptions.onChanged (edge-triggered, not additive)', () {
     test(
-        '[DiomanLoading.new(onChanged)][DiomanLoadingOptions.onChanged] a solo request with its own onChanged fires it at the 0→1→0 edge '
+        '[DiomanLoading.onResponse][DiomanLoading.new(onChanged)][DiomanLoadingOptions.onChanged] a solo request with its own onChanged fires it at the 0→1→0 edge '
         'instead of the plugin default, and still participates in the '
         'shared counter', () async {
       final server = await TestServer.start((req) => respondJson(req, {}, 200));
@@ -68,7 +68,7 @@ void main() {
               'shared counter like any other request');
     });
     test(
-        "[DiomanLoading.new(onChanged)][DiomanLoadingOptions.onChanged] a request's own onChanged does not fire if it doesn't land on the "
+        "[DiomanLoading.activeCount][DiomanLoading.new(onChanged)][DiomanLoadingOptions.onChanged] a request's own onChanged does not fire if it doesn't land on the "
         'batch edge (another request is already keeping the counter above '
         'zero) — counting is still accurate either way', () async {
       final completers = <String, Completer<void>>{
