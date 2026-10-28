@@ -1,0 +1,26 @@
+diff --git a/video/decode/vd_lavc.c b/video/decode/vd_lavc.c
+index 399e1d5..9d4996b 100644
+--- a/video/decode/vd_lavc.c
++++ b/video/decode/vd_lavc.c
+@@ -695,9 +695,11 @@ static void reinit(struct mp_filter *vd)
+     bool use_hwdec = ctx->use_hwdec;
+     init_avctx(vd);
+     if (!ctx->avctx && use_hwdec) {
++        // 落到软解（use_hwdec 为 false）仍打不开时必须停下：
++        // 部分构建里软解与 hwdec 是同一个解码器，会永远失败
+         do {
+             force_fallback(vd);
+-        } while (!ctx->avctx);
++        } while (!ctx->avctx && ctx->use_hwdec);
+     }
+ }
+ 
+@@ -1301,7 +1303,7 @@ static int receive_frame(struct mp_filter *vd, struct mp_frame *out_frame)
+          */
+         do {
+             force_fallback(vd);
+-        } while (!ctx->avctx);
++        } while (!ctx->avctx && ctx->use_hwdec); // 同上，软解也失败则停止
+ 
+         ctx->requeue_packets = pkts;
+         ctx->num_requeue_packets = num_pkts;

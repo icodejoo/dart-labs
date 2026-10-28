@@ -4,7 +4,7 @@
 # 作用：
 #   1) git apply buildscripts-v041.patch（加 libplacebo、改 mpv.sh/freetype.sh）
 #   2) 用 flavors-mova-slim-n9.sh 覆盖 scripts/ffmpeg.sh（取代默认的 flavors-mova-slim.sh）
-#   3) 把 patches/mpv-v041/0001/0002/0006/0007（0006 修 libmpv 每帧泄漏 GLsync，0007 在 ANGLE 上关计时器 query）放进 buildscripts/patches/mpv/（取代上游的 javavm 补丁）
+#   3) 把 patches/mpv-v041/0001/0002/0006/0007/0008（0006 修 libmpv 每帧泄漏 GLsync，0007 在 ANGLE 上关计时器 query，0008 修软解与 hwdec 同为一个解码器时回退死循环）放进 buildscripts/patches/mpv/（取代上游的 javavm 补丁）
 #   4) 把 depinfo.sh 的 v_ffmpeg 改 9.0.2、旧 mpv 提交哈希（depinfo.sh/download-deps.sh）改 v0.41.0
 #      （幂等；CI 的 Override 步骤若再 sed 同样的值也不冲突）
 #   5) libvpx/x264 仅 ENCODERS_GPL 才用，非 GPL 构建不需要：把 download-deps.sh 里这两个 clone 改成
@@ -18,7 +18,7 @@ cp "$MOVA/flavors-mova-slim-n9.sh" "$ROOT/buildscripts/scripts/ffmpeg.sh"
 # n6 专用的 ffmpeg 补丁（dash/hls）在 n9 上打不上；上游 javavm 补丁换成 v0.41 版
 rm -rf "$ROOT/buildscripts/patches/ffmpeg" "$ROOT/buildscripts/patches/mpv/mpv_lavc_set_java_vm.patch"
 mkdir -p "$ROOT/buildscripts/patches/mpv"
-cp "$MOVA/patches/mpv-v041/0001-vo-drop-gpu-next.patch" "$MOVA/patches/mpv-v041/0002-client-lavc-set-java-vm.patch" "$MOVA/patches/mpv-v041/0006-opengl-context-require-swap-buffers-for-fencesync.patch" "$MOVA/patches/mpv-v041/0007-opengl-common-no-timer-query-on-angle.patch" "$ROOT/buildscripts/patches/mpv/"
+cp "$MOVA/patches/mpv-v041/0001-vo-drop-gpu-next.patch" "$MOVA/patches/mpv-v041/0002-client-lavc-set-java-vm.patch" "$MOVA/patches/mpv-v041/0006-opengl-context-require-swap-buffers-for-fencesync.patch" "$MOVA/patches/mpv-v041/0007-opengl-common-no-timer-query-on-angle.patch" "$MOVA/patches/mpv-v041/0008-vd-lavc-stop-fallback-when-software-fails.patch" "$ROOT/buildscripts/patches/mpv/"
 
 BS="$ROOT/buildscripts"
 sed -i -E 's/^v_ffmpeg=.*/v_ffmpeg=9.0.2/' "$BS/include/depinfo.sh"

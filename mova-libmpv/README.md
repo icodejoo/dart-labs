@@ -172,7 +172,7 @@ VP8/MJPEG 相关符号确认消失。**真机验证进展**：H.264/HEVC/VP9 硬
 | VP9 | ✅ `vp9_mediacodec` | ❌ | 仅硬解——2016+/Android 7.0+ SoC 基本覆盖，取舍：不支持硬解的设备/内容直接播放失败 |
 | AV1 | ✅ `av1_mediacodec` | ✅ `libdav1d` | 双通道保留——硬解优先，入门/中低端 SoC（如骁龙 bengal 档）常年缺 AV1 硬解，真机实测直接播放失败，故加回软解兜底（2026-08-06 改判，见上方决策说明） |
 | PNG | ✅（编解码器层，非 mediacodec） | ✅ `png` | 封面图/截图用途保留 |
-| VP8 | ✅ `vp8_mediacodec`（系统可能软解） | ❌ | n9 Android 仅 MediaCodec + parser，无 ffmpeg 软解兜底；Windows/Linux 原生软解，Apple 本轮不加 |
+| VP8 | ✅ `vp8_mediacodec`（仅硬件） | ❌ | n9 Android 仅 MediaCodec + parser，无 ffmpeg 软解兜底；**注意**：ffmpeg 的 JNI 枚举会过滤软件解码器，所以没有硬件 VP8 的设备（如骁龙 662 的 STG-AL00，只有 `c2.android.vp8.decoder`）上默认打不开，需 `vd-lavc-o=ndk_codec=1` 才走系统软解；此前该情形会触发 mpv 回退死循环，已由 `patches/mpv-v041/0008` 修为干净失败。Windows/Linux 原生软解，Apple 本轮不加 |
 | MJPEG | ❌ | ❌ | 完全砍掉——PNG 已覆盖封面图/截图场景 |
 | 其它（MPEG-2/4 Part2、WMV、RealVideo 等） | ❌ | ❌ | 未在"现代主流点播+直播"范围内，未启用 |
 
