@@ -12,10 +12,25 @@ import 'package:analyzer/dart/ast/ast.dart';
 void main() {
   final rows = <Map<String, dynamic>>[];
   final exports = File('lib/dioman.dart').readAsStringSync();
-  final files = RegExp("export '([^']+)'")
-      .allMatches(exports)
-      .map((m) => File('lib/${m[1]}'));
-  for (final file in files) {
+  final exportPattern = RegExp(r"export '([^']+)'([^;]*);");
+  // barrel 的 show/hide 决定哪些顶层名字是公共 API：show 只收列出的，hide 排除列出的。
+  final shown = <String, Set<String>?>{}, hidden = <String, Set<String>>{};
+
+  /// 取 [clause] 里 [keyword] 后面的名字列表。
+  Set<String>? names(String clause, String keyword) {
+    final m = RegExp(r'\b' + keyword + r'\b([^;]*?)(?:\b(?:show|hide)\b|$)')
+        .firstMatch(clause);
+    return m == null
+        ? null
+        : ({for (final n in m[1]!.split(',')) n.trim()}..remove(''));
+  }
+
+  for (final m in exportPattern.allMatches(exports)) {
+    final path = 'lib/${m[1]}';
+    shown[path] = names(m[2]!, 'show');
+    hidden[path] = names(m[2]!, 'hide') ?? {};
+  }
+  for (final file in shown.keys.map(File.new)) {
     final parsed =
         parseString(content: file.readAsStringSync(), path: file.absolute.path);
 
@@ -24,6 +39,10 @@ void main() {
     void add(String owner, String name, String kind, AstNode node,
         {bool isStatic = false}) {
       if (name.startsWith(tkUnderscore)) return;
+      // 顶层名字和类成员都按所属顶层声明判断是否导出。
+      final top = owner.isEmpty ? name : owner;
+      if (hidden[file.path]!.contains(top)) return;
+      if (shown[file.path] != null && !shown[file.path]!.contains(top)) return;
       rows.add({
         tkApi: owner.isEmpty ? name : '$owner.$name',
         tkKind: kind,
@@ -124,5 +143,6 @@ void main() {
         .writeln("    };\n    e.mark(snapshot.keys,'property read');\n  }");
   }
   generated.writeln('}');
-  File('test/accept/lib/probes_fields.dart').writeAsStringSync(generated.toString());
+  File('test/accept/lib/probes_fields.dart')
+      .writeAsStringSync(generated.toString());
 }

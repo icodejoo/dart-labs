@@ -6,14 +6,14 @@ summary: 测试体系落地进度（P0–P3）、闸门现状、待拍板的产�
 ---
 ## TL;DR
 
-P0 搭账、P1 定档已完成：总账 439 行全部定档，G0/G2/G5 清零。剩余 G3 204（行无单测）、G4 20（② 行缺真实用例）是 P2 补测清单。另有 4 条源码已核实的产品问题待拍板。
+P0 搭账、P1 定档已完成，定档时发现的 4 条产品问题已修复。总账 443 行全部定档，G0/G1/G2 清零。剩余 G3 199（行无单测）、G4 20（② 行缺真实用例）、G5 28（外部 testkit 新增场景未归行）是 P2 清单。
 
 ## 进度
 
 | 阶段 | 状态 | 结果 |
 |---|---|---|
 | P0 搭账 | 完成 | `test/accept/lib/matrix.dart` + `test/accept/bin/matrix.dart`（sync/gates/evidence/results）；默认运行带静态闸门 `test/integration/matrix_integration_test.dart` |
-| P1 定档 | 完成 | 439 行：① 407、② 31、③ 1（含 26 条 INV 不变量行）；假设 H1–H8 见 `test/ASSUMPTIONS.md`；结论回填 140 行，② ③ 行 PASS 20、BLOCKED 2 |
+| P1 定档 | 完成 | 443 行：① 411、② 30、③ 2（含 26 条 INV 不变量行）；假设 H1–H8 见 `test/ASSUMPTIONS.md`；结论回填 140 行，② ③ 行 PASS 20、BLOCKED 2 |
 | P2 补测 | 未开始 | 见下方清单 |
 | P3 收口 | 部分完成 | 文档归入 docs/、accept 并入 test/accept/、证据汇总入库 `test/accept/evidence/`；剩 `docs/guides/test-layers.md` 补三档/总账章节 |
 
@@ -21,18 +21,20 @@ P0 搭账、P1 定档已完成：总账 439 行全部定档，G0/G2/G5 清零。
 
 | G0 未定档 | G2 API | G3 无单测 | G4 真实侧 | G5 反查 |
 |---:|---:|---:|---:|---:|
-| 0 | 0 | 204 | 20 | 0 |
+| 0 | 0 | 199 | 20 | 28 |
 
-## 待拍板：源码已核实的产品问题
+## 已修复：定档时发现的产品问题（2026-10-28，见 CHANGELOG Unreleased）
 
-定档时发现，均已对照源码确认，未改代码。
+1. **动态插拔不重新接线 retry↔breaker** → 接线集中到 `_wireChain`/`_unwire`（`lib/src/dioman.dart`），安装与每次插拔都重算；移除只清指向被移除实例的引用，手动接的外部 breaker 保留。`DiomanRetry.breaker` 改为可读字段。
+2. **DiomanKey 显式 key 优先于 builder** → 按注释改为 请求级 builder > 请求级 key > 插件级 builder > 计算。
+3. **深模式 key 只排序顶层键** → 递归排序 Map、List 保序。含嵌套 Map 的请求 key 会变，已持久化缓存会失效一次。
+4. **DiomanCache 缓存 HTTP 200 业务失败** → 新增 `shouldStore`（插件级 + 请求级）；同一 Dio 装了 normalize 时自动接入 normalize 自己的拒绝判定（与其 onResponse 共用 `_resolveEnvelope`）。
 
-1. **动态插拔不重新接线 retry↔breaker**（INV-03）。`Dioman.installPlugins` 才接线（`lib/src/dioman.dart:131-143`），`DiomanHandle.insertBefore/insertAfter/remove` 都不重连：后插入的 breaker 不生效；remove 掉 breaker 后 retry 仍持有被移除的实例并继续向它申请凭据。→ 倾向修。
-2. **DiomanKey 显式 key 优先于 builder**（`lib/src/key_plugin.dart:178-181`），与 `DiomanKeyOptions.builder` 注释"优先级高于 key"相反。→ 改代码还是改注释，需要定。
-3. **深模式 key 只排序顶层键**（`_encode`，`lib/src/key_plugin.dart`）：嵌套 Map 字段顺序不同会生成不同 key，相同请求可能缓存/去重不命中。→ 倾向修。
-4. **DiomanCache 按 HTTP 2xx 写入，不看业务码**（`lib/src/cache_plugin.dart:394-396`）。这是 SKILL 文档写明的设计（存原始信封，命中后再经 normalize），HTTP 200 + 业务失败也会入缓存，后续命中都直接复现失败、不再打到服务端。真实用例 `cache.business-failure-not-cached` 预期不缓存，它通过是因为执行器的 transformer 先把失败转成了异常。→ 设计取舍，需要定。
+顺带修了台账工具：`test/accept/bin/inventory.dart` 现在按 barrel 的 `show`/`hide` 取公共 API（之前 `hide` 掉的内部胶水函数会被误收）。
 
 ## P2 清单
+
+**外部 testkit 新增 28 个场景未归行**（G5 real-orphan）：2026-10-28 发现 `api-ws-demo/testkit/scenarios` 新增了 `*.single-*`、`combo.cache-mock-*` 等场景，基线已显式放行一次（`--allow-grow`），需逐个挂到矩阵行。
 
 **真实执行器缺口**：真实侧没跑到插件自身的分支，PASS 不代表插件被验证。
 
@@ -46,7 +48,7 @@ P0 搭账、P1 定档已完成：总账 439 行全部定档，G0/G2/G5 清零。
 
 **缺真实用例的 ② 行**（G4，10 行）：multipart 401 重放、keep-alive 重放（H4）、breaker 网络分类与半开探测取消、cancel 插件 dispose 在途、retry 网络错误类型、share retry 策略、connect/send 超时生效、INV-18 连接复用。
 
-**缺本地单测**（G3，204 行）：多为构造参数、getter、Options 字段没有任何标题引用。先区分"有测但标题 id 没写"（补 id）与"真没测"（补用例）。INV-18（连接复用）、INV-20（缓存命中先于离线判定）本地完全没有单测。
+**缺本地单测**（G3，199 行）：多为构造参数、getter、Options 字段没有任何标题引用。先区分"有测但标题 id 没写"（补 id）与"真没测"（补用例）。INV-18（连接复用）、INV-20（缓存命中先于离线判定）本地完全没有单测。
 
 ## 已知问题
 

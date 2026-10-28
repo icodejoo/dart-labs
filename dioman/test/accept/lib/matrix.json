@@ -951,6 +951,19 @@
     "note": "源码：lib/src/auth_plugin.dart:72。"
   },
   {
+    "id": "DiomanBreaker.admit",
+    "plugin": "breaker",
+    "capability": "重发前申请半开凭据，供 retry 等不经 handler 的调用方计数",
+    "tier": 1,
+    "apis": [
+      "DiomanBreaker.admit"
+    ],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null
+  },
+  {
     "id": "DiomanBreaker.bucketCount",
     "plugin": "breaker",
     "capability": "返回当前保留的桶数，不主动触发回收",
@@ -1312,6 +1325,32 @@
     "result": null,
     "blocked": null,
     "note": "源码：lib/src/breaker_plugin.dart:419。"
+  },
+  {
+    "id": "DiomanBreaker.recordError",
+    "plugin": "breaker",
+    "capability": "记录一次失败尝试，按 shouldTrip 计入熔断阈值",
+    "tier": 1,
+    "apis": [
+      "DiomanBreaker.recordError"
+    ],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null
+  },
+  {
+    "id": "DiomanBreaker.recordResponse",
+    "plugin": "breaker",
+    "capability": "记录一次响应尝试，成功关闭桶、失败按规则计数",
+    "tier": 1,
+    "apis": [
+      "DiomanBreaker.recordResponse"
+    ],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null
   },
   {
     "id": "DiomanBreaker.reset",
@@ -2026,6 +2065,21 @@
     "result": null,
     "blocked": null,
     "note": "源码：lib/src/cache_plugin.dart:165。"
+  },
+  {
+    "id": "DiomanCacheOptions.shouldStore",
+    "plugin": "cache",
+    "capability": "仅 2xx 且 shouldStore 通过才写入；请求级>插件级>接线>默认",
+    "tier": 1,
+    "apis": [
+      "DiomanCache.new(shouldStore)",
+      "DiomanCacheOptions.new(shouldStore)",
+      "DiomanCacheOptions.shouldStore"
+    ],
+    "real": [],
+    "assumptions": [],
+    "result": null,
+    "blocked": null
   },
   {
     "id": "DiomanCachePersist.erase",
@@ -2781,7 +2835,7 @@
   {
     "id": "INV-16",
     "plugin": "combo",
-    "capability": "缓存保存规范化前负载且只按 HTTP 状态写入",
+    "capability": "缓存存规范化前负载，装 normalize 时跳过业务失败",
     "tier": 1,
     "apis": [],
     "real": [
@@ -2799,7 +2853,8 @@
     "note": "lib/src/cache_plugin.dart:onResponse 只看 2xx；normalize 排末尾，不能阻止已发生的缓存写入。真实场景期望业务失败不缓存与源码冲突，终审应核对结果而非替源码写愿景。",
     "unit": [
       "test/combo/auth_cache_combo_test.dart",
-      "test/combo/full_stack_combo_test.dart"
+      "test/combo/full_stack_combo_test.dart",
+      "test/combo/cache_normalize_combo_test.dart"
     ]
   },
   {
@@ -4014,7 +4069,7 @@
   {
     "id": "INV-03",
     "plugin": "install",
-    "capability": "动态插入先校验，移除先检查必需依赖",
+    "capability": "动态插入先校验、移除查依赖，插拔后重算 retry/cache 接线",
     "tier": 1,
     "apis": [],
     "real": [],
@@ -4225,7 +4280,7 @@
   {
     "id": "DiomanKey.builder",
     "plugin": "key",
-    "capability": "显式非空 key 未指定时使用自定义构键器",
+    "capability": "请求级 builder 与 key 都没给时，用插件级构键器",
     "tier": 1,
     "apis": [
       "DiomanKey.builder",
@@ -4322,7 +4377,7 @@
   {
     "id": "DiomanKey.onRequest",
     "plugin": "key",
-    "capability": "优先显式键再 builder 再计算，异常转请求错",
+    "capability": "按请求builder>请求key>插件builder>计算生成键，深模式递归排序",
     "tier": 1,
     "apis": [
       "DiomanKey.onRequest"
@@ -6438,7 +6493,7 @@
   {
     "id": "DiomanRetry.breaker",
     "plugin": "retry",
-    "capability": "每次重发前查熔断器，已断开则停止继续重试",
+    "capability": "每次重发前查熔断器；插拔后随链重接，不清手动外部实例",
     "tier": 1,
     "apis": [
       "DiomanRetry.breaker"

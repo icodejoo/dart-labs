@@ -12,9 +12,9 @@ G1 已检查 lcov。
 | G0 | 0 |
 | G1 | 0 |
 | G2 | 0 |
-| G3 | 204 |
+| G3 | 199 |
 | G4 | 20 |
-| G5 | 0 |
+| G5 | 28 |
 
 ## 按插件汇总
 
@@ -33,7 +33,7 @@ G1 已检查 lcov。
 | loading | 0 | 9 | 0 |
 | log | 0 | 19 | 0 |
 | mock | 0 | 7 | 0 |
-| normalize | 0 | 10 | 0 |
+| normalize | 0 | 5 | 0 |
 | notify | 0 | 7 | 0 |
 | offline | 0 | 10 | 0 |
 | repath | 0 | 2 | 0 |
@@ -62,7 +62,7 @@ G1 已检查 lcov。
 </details>
 
 <details>
-<summary>G3（204）</summary>
+<summary>G3（199）</summary>
 
 - `G3:Dioman.installPlugins`
 - `G3:DiomanAuth.dio`
@@ -178,15 +178,10 @@ G1 已检查 lcov。
 - `G3:DiomanMock.name`
 - `G3:DiomanMock.pluginName`
 - `G3:DiomanMockOptions.mockUrl`
-- `G3:DiomanNormalize.enabled`
-- `G3:DiomanNormalize.isSuccess`
 - `G3:DiomanNormalize.messageKey`
 - `G3:DiomanNormalize.name`
 - `G3:DiomanNormalize.pluginName`
-- `G3:DiomanNormalizeOptions.codeKey`
 - `G3:DiomanNormalizeOptions.dataKey`
-- `G3:DiomanNormalizeOptions.enabled`
-- `G3:DiomanNormalizeOptions.isSuccess`
 - `G3:DiomanNormalizeOptions.messageKey`
 - `G3:DiomanNotify.name`
 - `G3:DiomanNotify.notify`
@@ -298,8 +293,36 @@ G1 已检查 lcov。
 </details>
 
 <details>
-<summary>G5（0）</summary>
+<summary>G5（28）</summary>
 
+- `G5:real-orphan:auth.refresh-window-blocked-expired`
+- `G5:real-orphan:cache.single-clear-cache`
+- `G5:real-orphan:cache.single-explicit-key-expires`
+- `G5:real-orphan:combo.auth-envs-refresh-replay`
+- `G5:real-orphan:combo.auth-logger-refresh-deny-revoked`
+- `G5:real-orphan:combo.cache-envs-hit-and-ttl`
+- `G5:real-orphan:combo.cache-mock-fallback-cached-once`
+- `G5:real-orphan:combo.cache-mock-no-key-collision`
+- `G5:real-orphan:combo.cancel-logger-cleanup`
+- `G5:real-orphan:combo.envs-mock-routing`
+- `G5:real-orphan:combo.envs-retry-recovers-and-exhausts`
+- `G5:real-orphan:combo.filter-repath-path-var-first`
+- `G5:real-orphan:combo.filter-retry-recovers-and-exhausts`
+- `G5:real-orphan:combo.loading-mock-fallback-single-pair`
+- `G5:real-orphan:combo.logger-retry-recovers-and-exhausts`
+- `G5:real-orphan:combo.mock-share-fallback-single-flight`
+- `G5:real-orphan:combo.repath-retry-path-stable`
+- `G5:real-orphan:mock.single-fallback-disabled`
+- `G5:real-orphan:notify.single-silent-and-stringify`
+- `G5:real-orphan:retry.single-plugin-methods`
+- `G5:real-orphan:retry.single-req-max-delay`
+- `G5:real-orphan:retry.single-req-methods`
+- `G5:real-orphan:retry.single-req-retry-after-override`
+- `G5:real-orphan:retry.single-retry-after-honored`
+- `G5:real-orphan:retry.single-retry-after-ignored`
+- `G5:real-orphan:share.single-all-timeout-aborts-server`
+- `G5:real-orphan:share.single-req-policy-race`
+- `G5:real-orphan:share.single-start-explicit-key`
 
 </details>
 

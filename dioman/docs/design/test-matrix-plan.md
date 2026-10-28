@@ -105,7 +105,7 @@ dioman 的替身分两类，处理方式不同：
 - 闸门逻辑在 `test/accept/lib/matrix.dart`，命令行入口 `dart run test/accept/bin/matrix.dart`：`sync` 补齐矩阵草稿，`gates` 跑 G1–G5 出缺口报告，`evidence` 生成入库证据汇总，`results` 按汇总回填每行结论。原 `audit.dart` 管 testkit 结果汇总，不混用。
 - 静态闸门（G2、G3、G5 单测侧）写成 `test/integration/matrix_integration_test.dart`，默认运行即拦截。
 - 需要产物的闸门（G1 要 lcov，G4、G5 真实侧要验收证据）只在 `gates` 命令里查。
-- **基线棘轮**：已知缺口记在 `test/accept/lib/matrix-baseline.json`。闸门只拦基线之外的新缺口；基线里的缺口修好了却没删，也报错。基线只减不增（扩大须显式 `--allow-grow`，仅 P1 定档拆行时用过一次），P2 结束时清空。
+- **基线棘轮**：已知缺口记在 `test/accept/lib/matrix-baseline.json`。闸门只拦基线之外的新缺口；基线里的缺口修好了却没删，也报错。基线只减不增（扩大须显式 `--allow-grow`：P1 定档拆行、外部 testkit 新增场景各用过一次），P2 结束时清空。
 - G1 白名单按"文件 + 源码行文本 + 理由"记录，不记行号，代码挪动不失效。
 
 ## 6. 全量组合测试的定位
