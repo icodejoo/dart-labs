@@ -59,6 +59,22 @@ void main() {
     expect(isInjectedResponse([0xff, 0xfe]), isFalse, reason: '非法 UTF-8 不抛错');
   });
 
+  test('[checkServiceStatus] 已解析数据带注入标记（含 business 风格的 HTTP 200 业务码）时放行，真实的仍停止',
+      () {
+    final injected = jsonDecode(_injectedBody);
+    expect(isInjectedData(injected), isTrue);
+    expect(isInjectedData(jsonDecode(_genuineBody)), isFalse);
+    expect(isInjectedData('text'), isFalse);
+    checkServiceStatus(429, data: injected);
+    checkServiceStatus(503, data: injected);
+    expect(serviceBlocked, isFalse);
+    expect(() => checkServiceStatus(503, data: jsonDecode(_genuineBody)),
+        throwsStateError);
+    expect(serviceBlocked, isTrue);
+    serviceBlocked = false;
+    expect(() => checkServiceStatus(429), throwsStateError);
+  });
+
   test('[ServiceGuardAdapter.fetch] 注入的 429/503 放行且响应体原样保留，不标记停止', () async {
     expect(await _fetch(503, _injectedBody), _injectedBody);
     expect(await _fetch(429, _injectedBody), _injectedBody);

@@ -6,7 +6,7 @@ summary: 测试体系落地进度（P0–P3）、闸门现状、本轮修复与�
 ---
 ## TL;DR
 
-P0–P3 完成，P2 只剩真实侧：G0/G1/G2/G3/G5 清零，基线是 G4 的 10 行 ② 档缺真实用例，外加 INV-11 一格因外部 testkit 改预期而失败。本轮另修了 auth 刷新窗口卡死、retry 恢复上游短路结果两个库 bug，把拦截器版 `DiomanMock` 换成传输层的 `DiomanMockAdapter`（Breaking）。
+P0–P3 全部完成。闸门 G0/G1/G2/G3/G5 清零，G4 只剩 connect 超时一行（testkit D22 判定黑盒不可测，本地回环也测不到）。总账里没有 FAIL 或 BLOCKED 的行。testkit 已按 dioman 的提议补齐场景与契约（D20–D23），dioman 执行器支持了新能力，并在新服务端实例上实跑通过。
 
 ## 进度
 
@@ -14,7 +14,7 @@ P0–P3 完成，P2 只剩真实侧：G0/G1/G2/G3/G5 清零，基线是 G4 的 1
 |---|---|---|
 | P0 搭账 | 完成 | `test/accept/lib/matrix.dart` + `test/accept/bin/matrix.dart`（sync/gates/evidence/results）；默认运行带静态闸门 `test/integration/matrix_integration_test.dart` |
 | P1 定档 | 完成 | 约 440 行全部定档（含 26 条 INV 不变量行）；假设 H1–H8 见 `test/ASSUMPTIONS.md` |
-| P2 补测 | 单测完成，真实侧剩 G4 | G3 199→0；执行器 6 处缺口修 4 处（retry/breaker 交回内置判定、share none、cancel.all 走插件），normalize/offline 有约束保留；H5 receive/send 本地真实核对；H6 经 413 注入部分核对 |
+| P2 补测 | 完成（剩 connect 超时，不可测） | G3 199→0；G4 真实侧 10 行补到只剩 1 行；执行器修 4 处缺口、对齐 D21；H1b/H4/H5 本地真实回环核对，H2/H4/H6（秒数）经 testkit 新场景真实核对 |
 | P3 收口 | 完成 | 文档归入 docs/、accept 并入 test/accept/、证据汇总入库 `test/accept/evidence/` |
 
 闸门：`dart run test/accept/bin/matrix.dart gates --lcov=coverage/local.info`（lcov 用 `dart test --coverage-path=coverage/local.info` 生成）。G4 现在也拦结论为 FAIL 的行。
@@ -30,12 +30,10 @@ P0–P3 完成，P2 只剩真实侧：G0/G1/G2/G3/G5 清零，基线是 G4 的 1
 
 ## 剩余待办
 
-**真实侧**
-- G4 剩 4 行 ② 档缺真实用例：breaker 半开探测在途取消、multipart 401 重放、share retry 策略、connect 超时生效。需要的场景与原因已写成 testkit 提议 `E:\workspaces\api-ws-demo\testkit\proposals\2026-10-28-dioman-gaps.md`（其他执行器也依赖 testkit，所以放在那边），待拍板。另外 6 行已补上：breaker 网络分类、retry 按错误类型回落挂上现成场景（执行器改为交回内置判定后才真正测到）；dispose 取消在途（H1b）、send 超时（H5）、keep-alive 复用（H4，2 行）用本地真实回环核对（矩阵里写作 `local:<测试文件>`）。
-- INV-11 FAIL：`plugins.single-auth@business`。外部 testkit `auth.json` 有未提交改动，把预期改成 ok:true；dioman 行为与改动前一致。等那边定稿，再判是改预期还是改执行器（执行器在装 auth 时也启用 EnvelopeTransformer）。
-- 下面三条也已写进同一份 testkit 提议（"其他"一节）。
-- 外部 testkit 的 `retry.429-retried`、`retry.503-retry-after`、`retry.respects-retry-after-over-delay` 等在场景 JSON 里显式 skip，需要那边去掉；CONTRACT §7 缺 mock/cache/share 组合语义。两段说明已交给用户转给 testkit 的会话。
-- 两个 testkit 场景对 dioman 标为"不适用"（mock 在传输层的设计差异）：`combo.cache-mock-fallback-cached-once`、`combo.mock-share-fallback-single-flight`。
+- **connect 超时生效**（`DiomanTimeouts.connect#effective`）：testkit D22 判定 netem 在用户态无法阻止内核完成握手，黑盒测不到；本地回环上只会立即拒绝。保持阻塞，只有受控网络环境才能核对。
+- **Retry-After 的 HTTP 日期格式**：testkit 服务端目前只能输出整数秒（testkit CONTRACT §3），本地单测覆盖了日期解析，真实侧未核对。
+- **testkit 新能力需要新服务端二进制**：47080/47090 上跑的若是旧版，新场景要用新实例跑（`TESTKIT_SERVER`/`TESTKIT_NETEM`，步骤见 `docs/guides/accept-runner.md`）。
+- dioman 不具备 `mock-in-chain` 能力（mock 在传输层），`combo.cache-mock-fallback-cached-once`、`combo.mock-share-fallback-single-flight` 按缺能力跳过。
 
 **执行器保留的映射**（有约束，未改）：normalize 的 EnvelopeTransformer 受 testkit D14 约束；offline 的 `maxWait=0` 是因为契约里没有排队语义。详见 `docs/reference/testkit-mapping.md`。
 

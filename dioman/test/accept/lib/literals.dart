@@ -1545,3 +1545,15 @@ const tkAcceptOnToken = 'accept:onToken';
 
 /// 原生批量取消数量的报告字段及步骤名。
 const tkCancelAll = 'cancel_all';
+
+/// 超时插件的发送阶段字段（timeout.send_ms）。
+const tkSendMs = 'send_ms';
+
+/// 请求体 multipart 键与结果项 same_as 断言键。
+const tkMultipart = 'multipart';
+
+/// 结果项 same_as 断言键。
+const tkSameAs = 'same_as';
+
+/// 请求体字段名。
+const tkBody = 'body';

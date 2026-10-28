@@ -51,7 +51,7 @@
 | 闸门、证据汇总、结论回填 | `dart run test/accept/bin/matrix.dart gates / evidence / results`；静态闸门 `test/integration/matrix_integration_test.dart` |
 | 入库的真实验收证据汇总 | `test/accept/evidence/` |
 | 假设清单（H 编号） | `test/ASSUMPTIONS.md` |
-| 给 testkit 的提议（外部仓库，待拍板） | `E:\workspaces\api-ws-demo\testkit\proposals\2026-10-28-dioman-gaps.md` |
+| 给 testkit 的提议（外部仓库，已落地为 testkit D20–D23，顶部有各节去向） | `E:\workspaces\api-ws-demo\testkit\proposals\2026-10-28-dioman-gaps.md` |
 | 历史验收日志 / 结果（本地，不入库） | `test/accept/*.log`、`test/accept/results/` |
 | 覆盖率与新验收证据（本地产物） | `coverage/` |
 
