@@ -170,7 +170,7 @@ mpv：`b3` + `javavm-v041.patch`；meson 在 Linux 骨架上改 `-Degl-android=e
 | `libdav1d` | ✓/✓/✓/✓ | 存在（外部库解码器） | S 全开 | A：骁龙 bengal 档 AV1 硬解 "Could not open codec."，软解兜底成功（R，README L105）；+671KB（Android arm64 实测） | 去掉的代价见 §6；Linux x86_64 实测 −1,601,632B（本文 NODAV1D，`-Dbitdepths=8,16` 且 x86 asm） |
 | `av1_mediacodec` / `h264_mediacodec` / `hevc_mediacodec` / `vp9_mediacodec` | A 专有 | 全部存在 | A 全开 | R（H.264/HEVC/VP9 真机硬解；AV1 硬解此设备失败走软解） | 需 `--enable-mediacodec --enable-jni` |
 | `png` | ✓ | 存在 | 全开 + encoder `png` | 封面图/截图（README L644 "截图功能靠 png 编码器"） | 截图功能依赖 encoder png；`--strict-decode` 类设置会让 screenshot 命令失效 |
-| `mjpeg`/`vp8`/其它 | ✗ | 存在 | 不开 | README L177：MJPEG +68KB 不加回；VP8 无硬解封装、被 VP9/AV1 取代 | 已知不支持，不要加 |
+| `mjpeg`/`vp8`/其它 | ✗ | 存在 | 历史配置 | MJPEG 仍不加；VP8 原判断有误，n9 有 MediaCodec 封装 | VP8 结论已由 `../plans/2026-10-28-restore-vp8.md` 取代 |
 
 **音频解码器**
 

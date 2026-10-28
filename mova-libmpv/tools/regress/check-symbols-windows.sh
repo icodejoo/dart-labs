@@ -34,6 +34,14 @@ strs="$(strs_file "$DLL")"
 if grep -axq libdav1d "$strs"; then ok "libdav1d 解码器名存在（字符串代理）"; else bad "libdav1d 解码器名缺失"; fi
 # Windows 产物内嵌了 ffmpeg configure 串：可直接核对许可、协议、解码器白名单
 if grep -aq -- '--disable-gpl --disable-nonfree' "$strs"; then ok "configure 串含 --disable-gpl --disable-nonfree"; else bad "configure 串缺 --disable-gpl/--disable-nonfree"; fi
+# VP8 software decoder + parser must both be enabled / VP8 软解与 parser 白名单。
+for component in decoder parser; do
+  if grep -a -- "--enable-${component}=" "$strs" | grep -qE -- "--enable-${component}='?([^' ]*,)?vp8([, ']|$)"; then
+    ok "configure $component 白名单含 vp8"
+  else
+    bad "configure $component 白名单缺 vp8"
+  fi
+done
 conf="$(grep -a -- '--enable-protocol=' "$strs" | head -1 | grep -ao -- "--enable-protocol='[^']*'")"
 for p in $REQUIRED_PROTOS; do
   if echo "$conf" | grep -qE "[=',]$p[',]"; then ok "configure 协议白名单含 $p"; else bad "configure 协议白名单缺 $p"; fi

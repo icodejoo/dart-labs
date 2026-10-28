@@ -172,7 +172,7 @@ VP8/MJPEG 相关符号确认消失。**真机验证进展**：H.264/HEVC/VP9 硬
 | VP9 | ✅ `vp9_mediacodec` | ❌ | 仅硬解——2016+/Android 7.0+ SoC 基本覆盖，取舍：不支持硬解的设备/内容直接播放失败 |
 | AV1 | ✅ `av1_mediacodec` | ✅ `libdav1d` | 双通道保留——硬解优先，入门/中低端 SoC（如骁龙 bengal 档）常年缺 AV1 硬解，真机实测直接播放失败，故加回软解兜底（2026-08-06 改判，见上方决策说明） |
 | PNG | ✅（编解码器层，非 mediacodec） | ✅ `png` | 封面图/截图用途保留 |
-| VP8 | ❌ | ❌ | 完全砍掉——遗留格式，无 mediacodec 硬解封装，已被 VP9/AV1 取代 |
+| VP8 | ✅ `vp8_mediacodec`（系统可能软解） | ❌ | n9 Android 仅 MediaCodec + parser，无 ffmpeg 软解兜底；Windows/Linux 原生软解，Apple 本轮不加 |
 | MJPEG | ❌ | ❌ | 完全砍掉——PNG 已覆盖封面图/截图场景 |
 | 其它（MPEG-2/4 Part2、WMV、RealVideo 等） | ❌ | ❌ | 未在"现代主流点播+直播"范围内，未启用 |
 
@@ -284,8 +284,8 @@ git apply /path/to/mova-libmpv/libmpv-android-video-build.patch
 
 ⚠️ **这是独立的宿主机验证脚本，不是实际出货配置**——下面这份格式列表是它自己的默认值，
 用来在宿主机上快速验证"这套解码器/demuxer/协议组合能不能编译成立"（见下文"出真正的
-Android 产物"一节的用法）。**mova 实际接入的产物走的是 [`flavors-mova-slim.sh`](flavors-mova-slim.sh)**，
-格式范围不完全一样——VP8/MJPEG 在那份里被砍掉了，AV1 是硬解+软解双通道（不是这里写的
+Android 产物"一节的用法）。**mova 当前 n9 产物走的是 [`flavors-mova-slim-n9.sh`](flavors-mova-slim-n9.sh)**，
+格式范围不完全一样——MJPEG 在那份里被砍掉了；VP8 在 n9 Android 已恢复为仅 MediaCodec，AV1 是硬解+软解双通道（不是这里写的
 纯 `libdav1d`）。真实产物的格式表见上方"支持的视频编码格式（解码）"一节，不要看这份就
 以为是最终产物的格式范围。
 
@@ -674,8 +674,10 @@ jniLibs 合并时如果两份 `libmpv.so` 都在会直接报 merge 冲突。接�
 - **AV1**：`av1_mediacodec` 硬解 + `libdav1d` 软解都留（+671KB，2026-08-06 真机翻车后
   改判加回，实测数据见上方"AV1 软解/MJPEG 的实测取舍数据"一节）。软解只能用
   libdav1d——ffmpeg 自带的 av1 解码器体积更大且在 arm64 上慢一个量级，不要用
-- **VP8 已去掉**：老旧格式，早被 VP9/AV1 取代，且没有 mediacodec 硬解包装器，去掉几乎不
-  影响现代点播/直播场景
+- **VP8 已加回（n9，2026-10-28）**：Android 仅 `vp8_mediacodec` + parser，系统可走平台
+  libvpx 软解；Windows/Linux 加回 ffmpeg 原生 VP8 软解 + parser。WHEP 通过补丁 0015 协商
+  H264 > VP8；未编 VP8 解码器的 Apple 平台保持原 offer。实现与验证见
+  `doc/plans/2026-10-28-restore-vp8.md`「落地记录」。
 - **VP9 只留硬解**（`vp9_mediacodec`，软解已去掉）：VP9 硬解在 2016 年后的 Android 机型上
   已接近普及（CDD 长期要求项），但**没有软解兜底**——模拟器、极老设备、冷门 profile 会
   直接播放失败而不是降级软解。这跟 H.264/HEVC 不一样：H.264 是 CDD 强制硬解、HEVC 反而

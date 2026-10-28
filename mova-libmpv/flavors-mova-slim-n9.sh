@@ -1,7 +1,8 @@
 #!/bin/bash -e
-# [n9 变体] 给 ffmpeg n9.0.2 用（WHEP flavor），与 flavors-mova-slim.sh 只差两处：
+# [n9 变体] 给 ffmpeg n9.0.2 用（WHEP flavor），基于 flavors-mova-slim.sh，主要差异：
 #   1) 去掉 --disable-postproc（n9 已移除 postproc，传了 configure 报 Unknown option）
 #   2) 加 --disable-iamf（n9 新增的 IAMF 组件，用不到）
+#   3) VP8 restored / 加回 VP8 MediaCodec + parser，不加 ffmpeg 软解。
 # 默认 flavor（n6.0.1）不要用这个文件。
 # mova ffmpeg slim flavor — derived from tools/ffmpeg-slim/configure-ffmpeg-slim.sh's
 # component lists, adapted to this repo's static-link-into-libmpv build shape
@@ -31,7 +32,8 @@ cpu=armv7-a
 cpuflags=
 [[ "$ndk_triple" == "arm"* ]] && cpuflags="$cpuflags -mfpu=neon -mcpu=cortex-a8"
 
-# VP8 dropped entirely (legacy, no mediacodec wrapper, superseded by VP9/AV1).
+# VP8 restored 2026-10-28: system MediaCodec + parser only; no ffmpeg SW decoder.
+# 系统 MediaCodec 可走平台 libvpx 软解（c2.android.vp8.decoder），不重复内嵌软解。
 # VP9 software decode dropped — vp9_mediacodec (hw) only. Devices/content that
 # can't use the hw path (no VP9 hwdec, emulators, exotic profiles) will fail
 # to play VP9 outright rather than falling back to software; accepted tradeoff
@@ -62,14 +64,14 @@ DECODERS_VIDEO="hevc,libdav1d,png"
 # needed.
 DECODERS_AUDIO="aac,aac_latm,mp3float,opus,flac,vorbis,pcm_s16le,pcm_s16be,pcm_s24le,pcm_s32le,pcm_f32le,pcm_u8"
 DECODERS_SUB="ass,ssa,subrip,text,webvtt,movtext"
-DECODERS_MEDIACODEC="h264_mediacodec,hevc_mediacodec,vp9_mediacodec,av1_mediacodec"
+DECODERS_MEDIACODEC="h264_mediacodec,hevc_mediacodec,vp8_mediacodec,vp9_mediacodec,av1_mediacodec"
 DECODERS="$DECODERS_VIDEO,$DECODERS_AUDIO,$DECODERS_SUB,$DECODERS_MEDIACODEC"
 
 ENCODERS="png"
-# h264/hevc/vp9/av1 parsers kept even without (or without needing) their
+# h264/hevc/vp8/vp9/av1 parsers kept even without (or without needing) their
 # software decoders — mpv/ffmpeg still needs them to find frame boundaries
 # before handing frames to the *_mediacodec hw decoders.
-PARSERS="h264,hevc,vp9,av1,png,aac,aac_latm,flac,opus,vorbis,mpegaudio"
+PARSERS="h264,hevc,vp8,vp9,av1,png,aac,aac_latm,flac,opus,vorbis,mpegaudio"
 DEMUXERS="mov,matroska,webm_dash_manifest,mpegts,hls,flv,live_flv,data,mp3,flac,ogg,wav,aac,ass,srt,webvtt"
 PROTOCOLS="file,fd,pipe,data,http,https,tcp,tls,crypto,rtmp,rtmps,rtmpt,rtmpts,ffrtmpcrypt,ffrtmphttp,udp,rtp"
 BSFS="null,extract_extradata,h264_mp4toannexb,hevc_mp4toannexb,aac_adtstoasc,vp9_superframe,vp9_superframe_split,av1_frame_split,av1_frame_merge,mov2textsub,dump_extradata,setts"

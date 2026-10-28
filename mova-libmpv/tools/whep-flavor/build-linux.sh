@@ -91,9 +91,9 @@ build_ffmpeg() {
     --disable-vaapi --disable-vdpau --disable-vulkan \
     --enable-avutil --enable-avcodec --enable-avfilter --enable-avformat \
     --enable-swscale --enable-swresample \
-    --enable-decoder=h264,hevc,vp9,libdav1d,png,aac,aac_latm,mp3,mp3float,opus,ac3,eac3,flac,vorbis,pcm_s16le,pcm_s16be,pcm_s24le,pcm_s32le,pcm_f32le,pcm_u8,ass,ssa,subrip,text,webvtt,movtext \
+    --enable-decoder=h264,hevc,vp9,vp8,libdav1d,png,aac,aac_latm,mp3,mp3float,opus,ac3,eac3,flac,vorbis,pcm_s16le,pcm_s16be,pcm_s24le,pcm_s32le,pcm_f32le,pcm_u8,ass,ssa,subrip,text,webvtt,movtext \
     --enable-encoder=png \
-    --enable-parser=h264,hevc,vp9,av1,png,aac,aac_latm,ac3,flac,opus,vorbis,mpegaudio \
+    --enable-parser=h264,hevc,vp9,vp8,av1,png,aac,aac_latm,ac3,flac,opus,vorbis,mpegaudio \
     --enable-demuxer="$demuxers" \
     --enable-protocol="$protos" \
     --enable-bsf=null,extract_extradata,h264_mp4toannexb,hevc_mp4toannexb,aac_adtstoasc,vp9_superframe,vp9_superframe_split,av1_frame_split,av1_frame_merge,mov2textsub,dump_extradata,setts \

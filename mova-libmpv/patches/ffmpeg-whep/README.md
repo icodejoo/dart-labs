@@ -20,7 +20,9 @@
 | 0013 | `0013-avformat-whep-wait-for-a-decodable-key-frame-in-read.patch` | 只改 `whep.c`：`read_header` 里阻塞等到首个带 SPS/PPS 的 IDR（自带或缓存后补在 IDR 前），按 SPS 回填视频流宽高再返回；等待受新选项 `first_frame_timeout`（默认 10s）约束，超时 `open` 失败（`ETIMEDOUT`）交给上层重试；等待期间不按 `media_timeout` 判死。根因与证据见下「open 阶段拿不到视频尺寸（0013）」 |
 | 0014 | `0014-avformat-whep-conceal-lost-Opus-packets-so-the-audio.patch` | 只改 `whep.c`：音频丢包用占位包补齐 pts 缺口（首个缺口重复上一包，其余用只有 TOC 的空帧，≤1s），并在 verbose 下每 5s 打印各路 RTP 统计。根因与证据见下「直播周期性卡顿（0014）」 |
 
-补丁须按文件名顺序依次 apply（0001 到 0014，已在干净 n9.0.2 上逐个 `git apply --check` 并 apply 通过）。0006 为安全修复；0007/0008/0009 只改各 TLS 后端；0010、0011、0012、0013、0014 只改 `whep.c`。
+| 0015 | `0015-avformat-whep-add-VP8-negotiation-and-RFC7741-depacketize.patch` | `WHEP_HAVE_VP8` 守卫 VP8 offer/选择/建流/去封装；固定 H264 > VP8；RFC 7741 扩展字段与跨包组帧，关键帧回填宽高，丢包后等关键帧；未编 VP8 时 offer 逐字节不变 |
+
+补丁须按文件名顺序依次 apply（0001 到 0015，基线为干净 n9.0.2；本轮验证见计划「落地记录」）。0006 为安全修复；0007/0008/0009 只改各 TLS 后端；0010、0011、0012、0013、0014 只改 `whep.c`。
 
 编号说明：0003 依赖 0002 的 `ff_http_get_link_headers`，所以 http 补丁排在 whep.c 前面。
 
@@ -259,3 +261,29 @@ mock 的错误场景路径：`/nf`(404) `/unauth`(401) `/nofp` `/badfp` `/sha1` 
 - **修复**：`whep_rx_deliver` 发现音频新包 pts 比"上一包 pts + 时长"靠后，就补占位包（最多 1s，更长按发送端停顿处理）：第一个缺口重复上一包（单帧时），其余用 1 字节 TOC 的空帧（RFC 6716 的 DTX/丢帧表示；ffmpeg 原生 opus 解码器实测所有 config 下都输出静音且无报错）。没有真正的 PLC，音质上是"重复一帧 + 静音"。`verbose` 下新增每 5s 一行 `RTP audio|video stats: packets/lost/late/plc/jitter`，关闭时的汇总行多一个 `plc=`。
 - 验证（WSL，经 `LOSS_PT=<音频 PT>` 只丢音频包 5% 的代理，20s）：`lost=64 plc=64`，ffprobe 解码出的音频帧 pts 步长 999/999 都是 960、1000 帧各 960 采样、解码零报错。
 
+
+## VP8（0015，2026-10-28）
+
+当前媒体为 H.264 / VP8 / Opus；历史章节中的 H.264/Opus 是 0005 当时的范围。
+仅 `CONFIG_VP8_DECODER || CONFIG_VP8_MEDIACODEC_DECODER` 时广告并接受 VP8，H264 始终优先。
+Android n9 走系统 MediaCodec，Windows/Linux 走 ffmpeg VP8 软解；Apple 配方本轮不变。
+VP8 解析 RFC 7741 的 I/L/T/K 与 7/15 位 PictureID，去掉描述符后输出完整原始帧。
+起播与不可恢复丢包后等待有效关键帧，marker 缺失的帧丢弃，宽高来自关键帧头。
+与原计划的两处修正：PartID 按 RFC 的低四位解析（含合法分区 8），时间戳变化不能证明前帧完整。
+PLI/NACK/重排复用原路径；**RTX 仍未还原**，协商 RTX 时不发 NACK，只靠 PLI 等关键帧。
+关键帧等待取决于发送端；没有丢包时中途分辨率变化仍不更新 `codecpar`，simulcast 未验证。
+
+离线回归（不需要新测试依赖，直接编译真实 `whep.c`）：
+
+```bash
+FF_SOURCE=/path/to/patched-ffmpeg tools/whep-flavor/whep_vp8_regress.sh /path/to/ffmpeg-build
+```
+
+覆盖跨包分片、I/L/T/K、分区起点、截断描述符、关键帧/非关键帧、丢起始/尾包、序号缺口、
+丢包后等待关键帧、重复起点与非法关键帧；还检查 SDP 的 H264 优先顺序和无 VP8 的拒绝行为。
+
+浏览器端到端入口 `tools/whep-flavor/whep_browser_e2e.py` 仅用 Python 标准库与已安装的 Windows
+Chrome fake-device，可从 Windows 或 WSL 启动，`--ffprobe` 指 WSL 中的被测程序、`--out` 指本地证据目录。
+默认测试 VP8/H264 各 10 秒、至少 200 个解码帧；保存原始和候选重排后的 answer，优先 WSL 网关候选。
+本轮 Windows→WSL 的媒体 ICE 未通，改前 H264、改后 H264/VP8 都超时；不能据此认定媒体端到端通过，
+需在 UDP 可达的环境重跑。详细记录见加回 VP8 计划「落地记录」。

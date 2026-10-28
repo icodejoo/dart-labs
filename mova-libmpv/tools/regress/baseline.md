@@ -1,5 +1,7 @@
 # 回归基线（T0.1，n6.0.1 现状，2026-10-02 实测）
 
+> 2026-10-28 注：§1–4 是 n6 历史记录，不能作为现行 n9 HEAD 的体积基线；本轮 VP8 本地对照见 §5。
+
 > 纯测量，未改任何产物/CI/业务代码。测量对象是工作区 `mova/libmpv/` 下的真实文件
 > （`git lfs ls-files` 标 `*`，即 LFS 内容已落地，不是指针）。测量时仓库 HEAD `7927f45`。
 > 字节数用 `stat -c%s` 实测；"来源 commit"是该目录最后一次改动产物的 commit（`git log -1 -- <dir>`）。
@@ -60,3 +62,28 @@
 - Android 每个 ABI 导出符号数：arm64 451、armv7 441、x86_64/x86 各 292；其中 `dav1d_*` 均为 19 个（与 README 定稿记录 19 一致）
 - Windows 导出符号 108；Linux dynsym 54（均含 10 个公开 API）；Linux NEEDED 15 个（动态依赖系统库，非自包含）
 - Windows 导入 DLL 18 个，无 MinGW 运行时
+
+## 5. VP8 回加后（2026-10-28，本地 n9.0.2 对照）
+
+现行出货基线为 n9 HEAD 的 CI 产物，§1–4 的 n6 数字仅留作历史。
+本轮没有下载/修改 mova 的 LFS 产物、没有跑 CI；以下是 Linux flavor 相同配置的 ffmpeg 库与 ffprobe，
+不能当作新 libmpv 或 Android/Windows 产物验收。正式构建 warning 改前/改后均 26，新增 0。
+Android 新断言为五个 MediaCodec 名（含 VP8），仍要求 `libavcodec/vp8.c` 不在产物；Windows 要求
+configure 的 decoder/parser 两个白名单均含 VP8。历史字符串代理限制仍适用。
+
+| Linux 产物 | 改前原始字节 | 改后原始字节 | 原始差值 | 改前 gzip -9 | 改后 gzip -9 | gzip 差值 |
+|---|---:|---:|---:|---:|---:|---:|
+| `libavcodec.nodebug.a` | 7,040,216 | 7,223,962 | +183,746 | 1,744,127 | 1,798,384 | +54,257 |
+| `libavformat.nodebug.a` | 1,671,014 | 1,673,694 | +2,680 | 521,364 | 522,196 | +832 |
+| `whep.nodebug.o` | 62,176 | 64,856 | +2,680 | 23,281 | 24,211 | +930 |
+| stripped `ffprobe` | 4,966,856 | 5,081,544 | +114,688 | 1,850,554 | 1,896,851 | +46,297 |
+| 带调试信息 `libavcodec.a` | 36,724,416 | 37,905,570 | +1,181,154 | 8,844,735 | 9,119,010 | +274,275 |
+| 带调试信息 `libavformat.a` | 9,745,518 | 9,751,406 | +5,888 | 2,953,688 | 2,956,049 | +2,361 |
+
+命令统一 `gzip -9 -c <file> | wc -c`，nodebug 为 `strip --strip-debug` 副本。
+`whep.o` text +1,206 B、data +40 B；离线 RTP、编译守卫、无 VP8 offer 字节一致性全部通过。
+VP8 WebM 250 帧零错误；H264 改前/改后同为 250 帧零错误。浏览器媒体 e2e 在 ICE 超时，尚未通过。
+SHA-256 与原始日志在 `.vp8-validation/{sizes.log,sizes-extra-final.log,tests.log,warnings.log}`，
+完整报告见 `doc/plans/2026-10-28-restore-vp8.md`「落地记录」所述交付报告。
+
+补充：真实 whep.c 的 VP8 构造 RTP 测试以 ASan/UBSan 插桩运行退出 0，无越界/未定义行为/泄漏报告。

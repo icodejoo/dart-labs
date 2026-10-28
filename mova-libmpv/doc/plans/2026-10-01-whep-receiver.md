@@ -80,7 +80,7 @@
 
 ### 0.2 范围
 
-做：WHEP 拉流（H.264 + Opus 起步；VP8/VP9/AV1 视服务器协商另议，见"不做"）、NACK 重传、PLI、RR、
+做：WHEP 拉流（H.264 + Opus 起步；VP8 范围已由 `2026-10-28-restore-vp8.md` 取代，VP9/AV1 仍另议）、NACK 重传、PLI、RR、
 Linux/Windows/Android 三平台，并通过 demuxer 的 AVOption 与 mpv 现有选项**开放低延迟相关可调参数**（只开放，不替业务定默认策略）。
 
 不做：见 §10。
@@ -635,7 +635,7 @@ mova-libmpv 只做 libmpv 编译与瘦身，下列事项属 mova 业务层，**�
 - 不为 iOS/macOS 在本期引入 DTLS 后端；不在 iOS 上为此换掉 securetransport。
 - 不做 WHIP 推流产品化（`whip.c` 只作代码参考，不启用 `whip` muxer 进出货 flavor；测试台推流用 ffmpeg 完整版/服务器自带源）。
 - 不做 TURN/trickle ICE/ICE restart、TWCC/REMB 拥塞控制、simulcast/SVC、数据通道、多路 bundle 之外的拓扑。
-- 不做 VP8/VP9/AV1 的 WebRTC 协商（现有 flavor 已砍 VP8；VP9 仅硬解、AV1 另议）；本期 H.264 + Opus。
+- 原定不做 VP8/VP9/AV1 的 WebRTC 协商；**VP8 已由 `2026-10-28-restore-vp8.md` 取代并恢复**，VP9/AV1 仍不在本轮范围。
 - 不向上游 ffmpeg 提交补丁；不修改 `whip.c`。
 - 不把"WHEP 不可用"伪装成成功：服务器协商失败时报明确错误（`AVERROR`+日志），不静默降级到其他协议。
 - 不使用墙钟 + sleep 做真机判据；不在锁屏/熄屏时做 Android 渲染相关测量。

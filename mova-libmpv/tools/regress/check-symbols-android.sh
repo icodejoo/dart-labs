@@ -41,14 +41,14 @@ check_abi() {
   check_public_api "$syms"
 
   strs="$(strs_file "$so")"
-  # 四个 *_mediacodec 解码器：strip 后不在 dynsym，只能用解码器名字符串代理（CI 里这项也只是 warning）
-  for d in h264 hevc vp9 av1; do
+  # 五个 *_mediacodec 解码器：strip 后不在 dynsym，只能用解码器名字符串代理（CI 里这项也只是 warning）
+  for d in h264 hevc vp8 vp9 av1; do
     if grep -axq "${d}_mediacodec" "$strs"; then ok "${d}_mediacodec 解码器名存在（字符串代理）"; else bad "${d}_mediacodec 解码器名缺失"; fi
   done
   if grep -axq libdav1d "$strs"; then ok "libdav1d 解码器名存在（需 --enable-libdav1d 与 --enable-decoder=libdav1d 同时开）"; else bad "libdav1d 解码器名缺失"; fi
-  # VP8/MJPEG 解码器已裁：dynsym 里本来就没有，改用 ffmpeg 源文件路径断言串代理（字符串代理，非符号级证据）
+  # VP8 软解未编入（只有 mediacodec），MJPEG 仍裁掉：dynsym 里本来就没有，改用 ffmpeg 源文件路径断言串代理（字符串代理，非符号级证据）
   for f in vp8.c mjpegdec.c; do
-    if grep -aq "libavcodec/$f" "$strs"; then bad "libavcodec/$f 仍在产物里（VP8/MJPEG 解码器未裁干净）"; else ok "libavcodec/$f 不在产物里（VP8/MJPEG 已裁，字符串代理）"; fi
+    if grep -aq "libavcodec/$f" "$strs"; then bad "libavcodec/$f 仍在产物里（VP8/MJPEG 软解码器未裁干净）"; else ok "libavcodec/$f 不在产物里（VP8/MJPEG 软解已裁，字符串代理）"; fi
   done
   check_protocols_strs "$strs" https tls rtmps tcp http
   check_license "$strs" "${FFCONF_LOG:-}"
