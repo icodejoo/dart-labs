@@ -2,29 +2,11 @@
 title: dioman testkit 验收执行器手册
 status: active
 updated: 2026-10-28
-summary: 怎么连 47080/47090（或新端口实例）跑 testkit 场景、插件矩阵和维护工具。
+summary: 怎么连 47080/47090 跑 testkit 场景、插件矩阵和维护工具。
 ---
 # dioman testkit 执行器
 
-复用已启动的 `http://127.0.0.1:47080` 与 `http://127.0.0.1:47090`。不管理服务进程，每个轮次使用独立 `X-Test-Run`；只清理自己创建且记录了 id 的代理。遇不带注入标记的真实 429/503 或服务不可达停止；testkit 主动注入的 429/503（响应体 `reason: injected`）由 `ServiceGuardAdapter` 放行，按真实预期执行（D20）。
-
-## 新能力需要新服务端二进制
-
-testkit 新增的场景（multipart、keep-alive、share-retry、timeout-send，以及 `meta.conn`、`read_delay_ms`、multipart 回显等服务端能力）只有新构建的 api-ws-demo 才有。长期占用 47080/47090 的旧实例不含这些能力，场景会因 `meta.conn` 缺失、回显无 `multipart` 等原因失败。做法：另起一对新端口的实例，用 `TESTKIT_SERVER` / `TESTKIT_NETEM` 指过去，不要停掉旧实例：
-
-```powershell
-# 在 api-ws-demo 里构建（旧实例占着 target/release 下的 exe 时，用 --target-dir 指到别处）
-cargo build --release --target-dir <另一个目录>
-$env:TEST_MODE = 1; $env:PORT = 47081; <目录>/release/api-ws-demo        # 业务服务
-<目录>/release/netem --control 127.0.0.1:47091                           # 代理控制
-curl http://127.0.0.1:47081/t/ping                                       # 应返回 {"code":0}
-
-$env:TESTKIT_SERVER = 'http://127.0.0.1:47081'
-$env:TESTKIT_NETEM  = 'http://127.0.0.1:47091'
-dart run test/accept/bin/cli.dart --filter=auth.expired-multipart-replay --networks=normal --styles=http,business --jobs=1 --report=coverage/accept/tk-new.json
-```
-
-跑完关掉自己起的两个进程。
+复用已启动的 `http://127.0.0.1:47080` 与 `http://127.0.0.1:47090`。不管理服务进程，每个轮次使用独立 `X-Test-Run`；只清理自己创建且记录了 id 的代理。遇 429/503 或服务不可达停止，主动注入 429/503 的既有场景继续明确跳过。
 
 ## 目录与运行
 
@@ -48,7 +30,7 @@ dart run test/accept/bin/run_plugin_matrix.dart
 
 当前 test 包的 `exclude_tags` 优先于 `-t`，所以默认配置排除 real，真实测试必须用独立配置解除排除；单独 `dart test -t real` 无法选择到被默认排除的用例。真实测试不再需要 DIOMAN_ACCEPT / DIOMAN_ACCEPT_POWERSET；DIOMAN_ACCEPT_ARGS 可覆盖场景矩阵参数。默认真实测试执行 154 个确定性组合、公开 API 探针和 normal×http 全场景；其余网络/风格使用 CLI 显式指定，不将未执行项算作通过。
 
-CLI 参数：`--filter=场景id子串`（逗号分隔多个，命中任一即选中）、`--networks=normal,weak`、`--styles=http,business`、`--testkit=绝对目录`、`--report=报告路径`、`--jobs=1..4`。完整 JSON 在结束时生成，逐项 NDJSON 在运行中追加。TESTKIT_SERVER / TESTKIT_NETEM 可覆盖完整服务地址，上游从业务地址派生。
+CLI 参数：`--filter=场景id子串`、`--networks=normal,weak`、`--styles=http,business`、`--testkit=绝对目录`、`--report=报告路径`、`--jobs=1..4`。完整 JSON 在结束时生成，逐项 NDJSON 在运行中追加。TESTKIT_SERVER / TESTKIT_NETEM 可覆盖完整服务地址，上游从业务地址派生。
 
 ## 维护入口
 

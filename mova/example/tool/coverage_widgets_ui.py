@@ -8,7 +8,6 @@ import subprocess
 import time
 import urllib.parse
 from coverage_device import adb, request, capture, unlocked
-from shot_guard import PACKAGE, read_foreground
 from coverage_record import update
 
 HERE=Path(__file__).resolve().parent
@@ -48,35 +47,14 @@ def gesture(name,coords,duration=500):
 
 
 def record(name):
-    """录屏前核对前台：不是被测包（或在画中画、解析不到）就不录，返回 None。"""
-    allowed,reason=read_foreground(adb,PACKAGE)
-    if not allowed:
-        print('SHOT skipped: '+reason+' record='+name,flush=True)
-        return None
     remote='/sdcard/'+name+'.mp4'
     proc=subprocess.Popen(['adb','-s','7NQBB23606003715','shell','screenrecord','--time-limit','5',remote],stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL)
     return proc,remote
 
 
 def finish_record(name,item):
-    """录制期间每秒核对前台；前台变过就删掉设备上的视频、不拉回。"""
-    if item is None:
-        return
     proc,remote=item
-    deadline=time.time()+15
-    tainted=None
-    while proc.poll() is None and time.time()<deadline:
-        allowed,reason=read_foreground(adb,PACKAGE)
-        if not allowed:
-            tainted=reason
-        time.sleep(1)
-    proc.wait(timeout=max(1,deadline-time.time()))
-    allowed,reason=read_foreground(adb,PACKAGE)
-    tainted=tainted or (None if allowed else reason)
-    if tainted:
-        adb('shell','rm','-f',remote)
-        print('SHOT skipped: '+tainted+' (changed while recording; discarded) record='+name,flush=True)
-        return
+    proc.wait(timeout=15)
     (OUT/(name+'.pull.txt')).write_text(adb('pull',remote,str(OUT/(name+'.mp4'))),encoding='utf-8')
 
 

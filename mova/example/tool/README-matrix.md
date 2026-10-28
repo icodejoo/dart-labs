@@ -122,8 +122,6 @@ ABI/混淆/R8 是 manual 批次（命令与判据也可独立打印，不访问�
 python -B example/tool/coverage_gap.py build-variants --run-id variants01
 ```
 
-**注意**：直接 `flutter build apk` 会打出 132 字节的 Git LFS 指针 `libmpv.so`，App 启动即报错；构建前先确认 `libmpv.so` 是真实文件，或改用 `coverage_build.py`。
-
 在 `example/` 执行 `flutter build apk --release --target lib/main_coverage_gap.dart
 --obfuscate --split-debug-info=tool/coverage_evidence/gap-symbols` 保留 Dart 符号；
 随后在 `example/android/` 使用新增的 `coverage_gap_variants.init.gradle`，

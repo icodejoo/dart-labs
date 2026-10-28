@@ -1,7 +1,5 @@
 ## Unreleased
 
-* **Fix：硬解失败后成功回落软解不再误报播放错误**。精确过滤 mpv 的 `Could not open codec.` 尝试日志，保留解码器耗尽与格式识别失败的终结错误，默认关闭 recovery 时仍能报出真失败。
-
 * **Breaking（命名）：去掉 `*Controller` 后缀，standby 改名 keepAlive，swap 改名 cutover**（纯改名，行为不变；测试 1508 → 1510，新增 2 项兼容层回归）。
   * 类：`MovaAdController`→`MovaAds`、`MovaFeedController`→`MovaFeed`、`MovaPlaylistController`→`MovaPlaylist`、`MovaMiniController`→`MovaMini`、`MovaSwapController`→`MovaCutover`、`MovaStandbyController`→`MovaKeepAlive`。
   * `Swap*`→`Cutover*`（`MovaSwapEngine`/`Config`/`Change`/`Phase` 等），`Standby*`→`KeepAlive*`（`MovaStandbyConfig`/`Phase`/`Mode`/`Reason`/`Change`/`Resume`、`MovaSilentStandby` 等）。

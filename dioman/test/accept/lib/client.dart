@@ -139,16 +139,11 @@ class Tokens implements DiomanTokenManager {
 /// 业务信封在传输边界转成错误，使 auth/retry/cache 看到同一种失败。
 class EnvelopeTransformer extends FusedTransformer {
   /// 构造独立测试实例。
-  /// 装了 normalize 且请求未关闭时，所有业务失败都转成错误；
-  /// 只装 auth（[authOnly]）时，只把业务 401/403 转成错误交给 auth 识别。
-  EnvelopeTransformer(this.enabled, {this.authOnly = false});
+  /// 只有安装 normalize 且请求未关闭时启用业务判定。
+  EnvelopeTransformer(this.enabled);
 
-  /// 全局业务判定开关（安装了 normalize）。
+  /// 全局业务判定开关。
   final bool enabled;
-
-  /// 没有 normalize 但装了 auth：契约里 auth 只负责识别 401/403，
-  /// 其余业务码保持为成功响应（testkit D21）。
-  final bool authOnly;
 
   /// transformResponse 的测试实现。
   /// 保留原始状态、响应头及响应体。
@@ -157,9 +152,9 @@ class EnvelopeTransformer extends FusedTransformer {
       RequestOptions options, ResponseBody body) async {
     final data = await super.transformResponse(options, body);
     try {
-      checkServiceStatus(body.statusCode, data: data);
+      checkServiceStatus(body.statusCode);
       if (obj(data)[tkCode] is int) {
-        checkServiceStatus(obj(data)[tkCode] as int, data: data);
+        checkServiceStatus(obj(data)[tkCode] as int);
       }
     } catch (error) {
       throw DioException(
@@ -174,15 +169,11 @@ class EnvelopeTransformer extends FusedTransformer {
           requestOptions: options, error: const FormatException('网关返回 HTML'));
     }
     final override = options.extra[DiomanNormalize.pluginName];
-    final code = obj(data)[tkCode];
-    final authCode = authOnly && (code == 401 || code == 403);
-    if ((enabled &&
-                !(override is DiomanNormalizeOptions &&
-                    override.enabled == false) ||
-            authCode) &&
+    if (enabled &&
+        !(override is DiomanNormalizeOptions && override.enabled == false) &&
         body.statusCode < 400 &&
-        code is int &&
-        code != 0) {
+        obj(data)[tkCode] is int &&
+        obj(data)[tkCode] != 0) {
       throw DioException(
           requestOptions: options,
           type: DioExceptionType.badResponse,
@@ -269,9 +260,8 @@ class ScenarioClient {
     final cache = obj(p[tkCache]);
     final loading = obj(p[tkLoading]);
     final breaker = obj(p[tkBreaker]);
-    // 装了 normalize：所有业务失败信封都转成错误；只装 auth：仅业务 401/403。
-    dio.transformer = EnvelopeTransformer(p.containsKey(tkNormalize),
-        authOnly: p.containsKey(tkAuth));
+    dio.transformer = EnvelopeTransformer(
+        p.containsKey(tkNormalize) || p.containsKey(tkAuth));
     // [transport] 用于让多个客户端共享同一条真实连接池；mock 要包在它外面。
     if (transport != null) dio.httpClientAdapter = transport;
     // 中立语义里的 mock 能力由传输层 adapter 实现：在 install 之前包住宿主
@@ -301,9 +291,6 @@ class ScenarioClient {
                   connect: timeout[tkConnectMs] == null
                       ? null
                       : ms(timeout[tkConnectMs] as num),
-                  send: timeout[tkSendMs] == null
-                      ? null
-                      : ms(timeout[tkSendMs] as num),
                   receive: timeout[tkReceiveMs] == null
                       ? null
                       : ms(timeout[tkReceiveMs] as num))
@@ -587,8 +574,7 @@ class ScenarioClient {
           shouldRetry: (e, response) => shouldRetry(e, response, r),
           statusCodes: retryStatusCodes(r),
           respectRetryAfter: r[tkRespectRetryAfter] as bool?),
-      DiomanMockAdapter.extraKey:
-          DiomanMockOptions(enabled: o[tkMock] as bool?),
+      DiomanMockAdapter.extraKey: DiomanMockOptions(enabled: o[tkMock] as bool?),
       DiomanNormalize.pluginName:
           DiomanNormalizeOptions(enabled: o[tkNormalize] as bool?),
       DiomanBreaker.pluginName:

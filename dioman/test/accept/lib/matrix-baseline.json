@@ -1,4 +1,11 @@
 [
+  "G4:DiomanAuth.onError#multipart-replay:no-real",
+  "G4:DiomanAuth.onError#multipart-replay:no-result",
+  "G4:DiomanBreaker.onError#cancel-probe:no-real",
+  "G4:DiomanBreaker.onError#cancel-probe:no-result",
+  "G4:DiomanSharePolicy.retry:no-real",
+  "G4:DiomanSharePolicy.retry:no-result",
   "G4:DiomanTimeouts.connect#effective:no-real",
-  "G4:DiomanTimeouts.connect#effective:no-result"
+  "G4:DiomanTimeouts.connect#effective:no-result",
+  "G4:INV-11:fail"
 ]

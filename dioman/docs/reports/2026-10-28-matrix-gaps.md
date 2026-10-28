@@ -13,7 +13,7 @@ G1 已检查 lcov。
 | G1 | 0 |
 | G2 | 0 |
 | G3 | 0 |
-| G4 | 2 |
+| G4 | 9 |
 | G5 | 0 |
 
 ## 按插件汇总
@@ -48,10 +48,17 @@ G1 已检查 lcov。
 </details>
 
 <details>
-<summary>G4（2）</summary>
+<summary>G4（9）</summary>
 
+- `G4:DiomanAuth.onError#multipart-replay:no-real`
+- `G4:DiomanAuth.onError#multipart-replay:no-result`
+- `G4:DiomanBreaker.onError#cancel-probe:no-real`
+- `G4:DiomanBreaker.onError#cancel-probe:no-result`
+- `G4:DiomanSharePolicy.retry:no-real`
+- `G4:DiomanSharePolicy.retry:no-result`
 - `G4:DiomanTimeouts.connect#effective:no-real`
 - `G4:DiomanTimeouts.connect#effective:no-result`
+- `G4:INV-11:fail`
 
 </details>
 

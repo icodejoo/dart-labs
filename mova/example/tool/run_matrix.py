@@ -21,12 +21,7 @@ TOOL = Path(__file__).resolve().parent
 ROOT = TOOL.parents[1]
 MANIFEST = TOOL / 'matrix_manifest.json'
 BASELINE = TOOL / 'coverage_evidence/rerun-final-ledger.json'
-# 截图守卫的判定逻辑已抽到 shot_guard；这里原名再导出，保持 run_matrix.shot_allowed 等可用。
-# The screenshot guard lives in shot_guard; names are re-exported so run_matrix.shot_allowed etc. keep working.
-from shot_guard import (PACKAGE, RESUMED_RE, FOCUS_RE, FOCUS_PKG_RE, FOCUS_LABEL_RE, PINNED_RE,  # noqa: F401
-                        foreground_apps, is_pinned, shot_allowed, read_foreground, guarded_screencap)
-
-MAIN_ACTIVITY = PACKAGE + '/com.icodejoo.mova.mova_example.MainActivity'
+PACKAGE = 'com.icodejoo.mova.mova_example.coverage'
 STATUSES = {'PASS', 'FAIL', 'BLOCKED'}
 
 
@@ -359,12 +354,7 @@ class Driver:
             raise
 
     def adb(self, *args, binary=False):
-        """Address only the selected device / 只操作指定设备。
-
-        部分设备（STG-AL00）没有 `media` 命令，音量读写改走 `cmd media_session volume`（输出格式相同）。
-        """
-        if args[:3] == ('shell', 'media', 'volume'):
-            args = ('shell', 'cmd', 'media_session', 'volume') + tuple(args[3:])
+        """Address only the selected device / 只操作指定设备。"""
         return self.command(['adb', '-s', self.serial, *args], binary=binary)
 
     def screen(self):
@@ -373,45 +363,6 @@ class Driver:
         if not is_unlocked(window):
             raise RuntimeError('设备必须已解锁且亮屏：要求 isKeyguardShowing=false、mScreenOnFully=true；不会尝试解锁。')
         return window
-
-    def foreground(self):
-        """Read foreground state; returns (allowed, reason) / 读前台状态，返回(是否允许截图, 原因)。
-
-        Read failures count as unknown, which refuses / 读取失败按未知处理，即拒绝。
-        """
-        return read_foreground(self.adb, PACKAGE)
-
-    def safe_screenshot(self, path, case='driver'):
-        """The single screencap entry point: check foreground before and after.
-
-        所有宿主截图的唯一入口：截前、截后各核对一次前台，任何一次不是被测包就丢弃。
-        Returns True only when the PNG was written / 仅在 PNG 落盘时返回 True。
-        """
-        return guarded_screencap(self.adb, PACKAGE, path, lambda detail: self.note('SHOT', detail, case))
-
-    def restore_foreground(self, case='driver', seconds=15):
-        """Bring the app under test back (leaves PiP) and confirm; True when confirmed.
-
-        用 am start 把被测 Activity 拉回前台（同时退出画中画），确认前台已是被测包才返回 True。
-        """
-        self.note('STEP', 'restore foreground: am start ' + MAIN_ACTIVITY, case)
-        try:
-            self.adb('shell','am','start','-n',MAIN_ACTIVITY)
-        except Exception as error:
-            self.note('ERROR', f'kind=HARNESS am start failed: {error}', case)
-            return False
-        end = time.monotonic() + seconds
-        reason = 'foreground=unknown'
-        while True:
-            allowed, reason = self.foreground()
-            if allowed:
-                self.note('STEP', 'foreground restored: ' + reason, case)
-                return True
-            if time.monotonic() >= end:
-                break
-            time.sleep(.5)
-        self.note('ERROR', f'kind=HARNESS foreground not restored: {reason}', case)
-        return False
 
     def preflight(self):
         """Check resources before changing any device setting / 改设备设置前检查资源。"""
@@ -522,16 +473,12 @@ class Driver:
     def capture_failure(self, case):
         """Best-effort failure snapshot without hiding errors / 尽力留现场且记录取证错误。"""
         for suffix,cmd in [('window.txt',('shell','dumpsys','window')),('audio.txt',('shell','dumpsys','audio')),
-                           ('logcat.txt',('logcat','-d','-v','threadtime'))]:
+                           ('logcat.txt',('logcat','-d','-v','threadtime')),('png',('exec-out','screencap','-p'))]:
             try:
                 payload = self.adb(*cmd,binary=True)
                 (self.out/(self.prefix+case+'.failure.'+suffix)).write_bytes(payload)
             except Exception as error:
                 self.note('ERROR',f'kind=HARNESS 取证失败 {error}',case)
-        try:
-            self.safe_screenshot(self.out/(self.prefix+case+'.failure.png'),case)
-        except Exception as error:
-            self.note('ERROR',f'kind=HARNESS 取证失败 {error}',case)
         try:
             import urllib.request
             with urllib.request.urlopen('http://127.0.0.1:18083/',timeout=3) as response:

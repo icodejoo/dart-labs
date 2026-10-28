@@ -99,7 +99,7 @@ void main() {
           },
           'normal@business': {
             tkResults: {
-              tkError: name == tkNormalize
+              tkError: name == tkNormalize || name == tkAuth
                   ? {tkOk: false, tkError: tkStatus500}
                   : {tkOk: true},
             }

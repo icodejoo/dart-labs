@@ -63,11 +63,7 @@ Future<void> main(List<String> args) async {
     final scenarios = jsonDecode(await file.readAsString()) as List;
     for (final raw in scenarios) {
       final s = obj(raw);
-      // --filter 可用逗号分隔多个子串，命中任意一个即选中。
-      if (opts[tkFilter] != null &&
-          !opts[tkFilter]!
-              .split(tkComma)
-              .any((part) => '${s[tkId]}'.contains(part))) {
+      if (opts[tkFilter] != null && !'${s[tkId]}'.contains(opts[tkFilter]!)) {
         continue;
       }
       for (final n in matrixNetworks) {

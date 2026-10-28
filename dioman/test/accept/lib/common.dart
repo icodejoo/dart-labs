@@ -74,21 +74,10 @@ bool isInjectedResponse(List<int> body) =>
     RegExp(r'"reason"\s*:\s*"injected(?: failure)?"')
         .hasMatch(utf8.decode(body, allowMalformed: true));
 
-/// 已解析的响应数据是否带 testkit 的注入标记（`data.reason` 以 `injected` 开头）。
-///
-/// business 风格下注入的 429/503 以 HTTP 200 加业务码返回，到不了传输层的字节
-/// 检查；拦截器和转换器拿到的是解析后的 [data]，用它判定。
-bool isInjectedData(dynamic data) {
-  final reason = obj(obj(data)[tkData])['reason'];
-  return reason is String && reason.startsWith('injected');
-}
-
 /// checkServiceStatus 的测试辅助入口。
 /// 标记服务端要求停止的响应，不把它交给自动重试。
-///
-/// [data] 为已解析的响应数据；带注入标记的 429/503 是 testkit 主动注入的，直接放行。
-void checkServiceStatus(int? status, {dynamic data}) {
-  if (guardedStatuses.contains(status) && !isInjectedData(data)) {
+void checkServiceStatus(int? status) {
+  if (guardedStatuses.contains(status)) {
     serviceBlocked = true;
     throw StateError('服务返回 $status，按用户要求停止验收，未重启服务');
   }
@@ -165,7 +154,7 @@ const retryStatuses = [500, 502, 503, 504];
 /// 契约默认幂等方法。
 const retryMethods = [tkGET, 'PUT', 'HEAD', tkDELETE, 'OPTIONS'];
 
-/// 插件级能力：与插件一一对应，插件矩阵与幂集按它们生成组合。
+/// 支持的能力。
 const capabilities = {
   tkAuth,
   tkCache,
@@ -186,19 +175,6 @@ const capabilities = {
   tkLog
 };
 
-/// 细分能力：声明某个具体行为，不对应独立插件，不参与插件矩阵与幂集。
-///
-/// dioman 的 mock 在传输层（DiomanMockAdapter），没有 `mock-in-chain`，不声明。
-const subCapabilities = {
-  tkMultipart,
-  'keep-alive',
-  'share-retry',
-  'timeout-send',
-};
-
-/// 执行器声明的全部能力；场景 requires 里不在其中的按"缺能力"跳过。
-const supportedCapabilities = {...capabilities, ...subCapabilities};
-
 /// 中立插件允许字段，未知字段必须报错。
 const pluginFields = <String, Set<String>>{
   tkAuth: {tkUrlPattern, tkRefresh, tkRefreshQuery},
@@ -207,7 +183,7 @@ const pluginFields = <String, Set<String>>{
   tkShare: {tkPolicy},
   tkLoading: {tkDelayMs, tkDelayCloseMs},
   tkKey: {tkScope},
-  tkTimeout: {tkConnectMs, tkSendMs, tkReceiveMs, tkTotalMs},
+  tkTimeout: {tkConnectMs, tkReceiveMs, tkTotalMs},
   tkBreaker: {tkThreshold, tkOpenMs},
   tkOffline: {tkProbe},
   tkMock: {tkFallbackOn404},
@@ -219,127 +195,6 @@ const pluginFields = <String, Set<String>>{
   tkEnvs: {},
   tkLog: {},
 };
-
-/// 按 CONTRACT §7 的 32 位线性同余算法生成 [size] 个字节。
-///
-/// `state = state * 1664525 + 1013904223 mod 2^32`，每步输出高 8 位；
-/// 与其他语言逐字节一致，不依赖任何库。
-///
-/// - [seed] 起始状态，无符号 32 位（0..4294967295）。
-/// - [size] 字节数，非负。
-///
-/// 返回长度为 [size] 的字节数组。
-///
-/// ```dart
-/// seedBytes(1, 4); // 3c 5e 81 b4
-/// ```
-Uint8List seedBytes(int seed, int size) {
-  if (seed < 0 || seed > 0xFFFFFFFF) {
-    throw RangeError.range(seed, 0, 0xFFFFFFFF);
-  }
-  final out = Uint8List(size);
-  var state = seed;
-  for (var i = 0; i < size; i++) {
-    state = (state * 1664525 + 1013904223) & 0xFFFFFFFF;
-    out[i] = state >> 24;
-  }
-  return out;
-}
-
-/// 场景请求体是否为 multipart（只含单个键 `multipart` 的对象）。
-bool isMultipartBody(dynamic body) =>
-    body is Map && body.length == 1 && body.containsKey(tkMultipart);
-
-/// 把场景里的 multipart 描述构造成 dio 的 [FormData]。
-///
-/// 先按对象顺序写 `fields`，再按数组顺序写 `files`；文件内容由 `seed`/`size`
-/// 经 [seedBytes] 生成，`Content-Type` 固定 `application/octet-stream`。
-/// 文件用 [MultipartFile.fromBytes]，可被 FormData 克隆，供重放与内部重试重建。
-///
-/// - [spec] 即 `request.body.multipart`：`{fields?, files?}`。
-///
-/// 返回新的 [FormData]。
-FormData buildMultipart(Map<String, dynamic> spec) {
-  final form = FormData();
-  for (final e in obj(spec['fields']).entries) {
-    form.fields.add(MapEntry(e.key, '${e.value}'));
-  }
-  for (final raw in spec['files'] as List? ?? const []) {
-    final f = obj(raw);
-    form.files.add(MapEntry(
-        f['name'] as String,
-        MultipartFile.fromBytes(seedBytes(f['seed'] as int, f['size'] as int),
-            filename: f['filename'] as String,
-            contentType: DioMediaType('application', 'octet-stream'))));
-  }
-  return form;
-}
-
-/// 把场景 `request.body` 转成发给 dio 的请求体：multipart 构造 [FormData]，其余原样。
-dynamic requestBody(dynamic body) => isMultipartBody(body)
-    ? buildMultipart(obj((body as Map)[tkMultipart]))
-    : body;
-
-/// 服务端 `read_delay_ms` 控制参数的字段名。
-const readDelayKey = 'read_delay_ms';
-
-/// 递归找出场景里最大的 `read_delay_ms`（毫秒），没有则返回 0。
-///
-/// 服务端在读请求体前停顿期间不轮询 body，客户端提前超时关闭连接后，处理器仍会
-/// 在途到停顿结束；收尾等待 inflight 归零时要把这段时间算进去。
-///
-/// - [node] 场景 JSON 的任意节点（Map / List / 标量）。
-int maxReadDelayMs(dynamic node) {
-  var best = 0;
-  if (node is Map) {
-    for (final e in node.entries) {
-      final v = e.value;
-      final here = e.key == readDelayKey && v is num ? v.toInt() : 0;
-      final deeper = maxReadDelayMs(v);
-      best = [best, here, deeper].reduce((a, b) => a > b ? a : b);
-    }
-  } else if (node is List) {
-    for (final x in node) {
-      final deeper = maxReadDelayMs(x);
-      if (deeper > best) best = deeper;
-    }
-  }
-  return best;
-}
-
-/// 按点分路径（如 `meta.conn`）从 [data] 取值，路径不存在返回 null。
-dynamic dottedField(dynamic data, String path) {
-  dynamic cur = data;
-  for (final part in path.split('.')) {
-    if (cur is! Map || !cur.containsKey(part)) return null;
-    cur = cur[part];
-  }
-  return cur;
-}
-
-/// 判定结果项的 `same_as` 断言：两个请求都成功，且 data 的同一字段相等。
-///
-/// - [id] 当前结果项 id。
-/// - [records] 全部请求事实，按 id 索引。
-/// - [spec] 即 `same_as: {id, field}`。
-///
-/// 通过返回 null，否则返回失败原因。
-String? checkSameAs(
-    String id, Map<String, dynamic> records, Map<String, dynamic> spec) {
-  final otherId = '${spec[tkId]}';
-  final field = '${spec['field']}';
-  final mine = obj(records[id]);
-  final other = obj(records[otherId]);
-  if (other.isEmpty) return '$id: same_as 引用的 $otherId 缺少请求结果';
-  if (mine[tkOk] != true || other[tkOk] != true) {
-    return '$id: same_as 要求双方都成功（ok=true），实际 $id=${mine[tkOk]}、$otherId=${other[tkOk]}';
-  }
-  final a = dottedField(mine[tkData], field);
-  final b = dottedField(other[tkData], field);
-  if (a == null || b == null) return '$id: same_as 字段 $field 缺失（$a / $b）';
-  if (a != b) return '$id: same_as $field 不等，$id=$a、$otherId=$b';
-  return null;
-}
 
 /// obj 的测试辅助入口。
 /// 统一 JSON 对象转换。
@@ -368,7 +223,7 @@ Dio ioClient(String base, {int budget = defaultBudget}) {
   }));
   d.interceptors.add(InterceptorsWrapper(onResponse: (response, handler) {
     try {
-      checkServiceStatus(logical(response), data: response.data);
+      checkServiceStatus(logical(response));
       handler.next(response);
     } catch (error) {
       handler.reject(DioException(
@@ -379,7 +234,7 @@ Dio ioClient(String base, {int budget = defaultBudget}) {
     }
   }, onError: (error, handler) {
     try {
-      checkServiceStatus(logical(error.response), data: error.response?.data);
+      checkServiceStatus(logical(error.response));
       handler.next(error);
     } catch (cause) {
       handler.next(DioException(

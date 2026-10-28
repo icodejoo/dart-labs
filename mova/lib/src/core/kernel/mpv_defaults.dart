@@ -37,34 +37,23 @@ const String kDtlsProtocol = 'dtls';
 /// ```
 List<String> movaProtocolWhitelist() => const [...kMediaKitDefaultProtocols, kDtlsProtocol];
 
-/// Whether an mpv error line is a non-terminal diagnostic that must not
+/// Whether an mpv error line is a harmless "can't seek" notice that must not
 /// surface as a playback error. mpv itself issues a refresh seek on some
 /// internal transitions (e.g. video chain re-init once the render surface
 /// attaches); on a non-seekable live stream (WHEP, raw TS) it refuses with
 /// these two lines and playback carries on unaffected.
-/// A codec-open attempt can also fail before another decoder succeeds.
-/// mpv 0.41 reports exhausted decoders separately as "Failed to initialize
-/// a decoder for codec ..."; keep that terminal error, even without END_FILE.
 ///
-/// 判断一条 mpv 错误日志是否只是非终结诊断、不应作为播放错误上报。
+/// 判断一条 mpv 错误日志是否只是无害的"无法 seek"提示、不应作为播放错误上报。
 /// mpv 自己会在某些内部切换时（如渲染面挂上后重建视频链）发一次刷新 seek；
 /// 对不可 seek 的直播流（WHEP、裸 TS）它会打这两行拒绝信息，播放不受影响。
-/// 某次 codec 打开失败后仍可能换解码器成功；mpv 0.41 在所有解码器耗尽时
-/// 另报 "Failed to initialize a decoder for codec ..."，保留该终结错误，
-/// 因此不依赖 END_FILE 订阅也能报出真正的解码失败。
 ///
 /// - [text]: the mpv log text / mpv 日志文本
 ///
 /// Returns `true` when it should be dropped / 返回 `true` 表示应丢弃。
 bool isBenignMpvError(String text) {
   final t = text.trim();
-  return t.startsWith(_cannotSeek) || t.startsWith(_forceSeekable) || t == _codecOpenAttemptFailed;
+  return t.startsWith(_cannotSeek) || t.startsWith(_forceSeekable);
 }
-
-/// Failure of one decoder attempt, before mpv exhausts its alternatives.
-///
-/// 单次解码器尝试失败，此时 mpv 尚未耗尽备选解码器。
-const String _codecOpenAttemptFailed = 'Could not open codec.';
 
 /// Prefix of mpv's refusal line. / mpv 拒绝 seek 的首行前缀。
 const String _cannotSeek = 'Cannot seek in this stream';
