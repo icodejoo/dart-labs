@@ -157,28 +157,21 @@ import Flutter widget 与直接依赖 `MovaApi` 的地方。
 
 ## 清晰度 / ABR
 
-- **HLS/DASH（自适应源）走引擎原生 track 机制**（2026-08-04 迁移，见
-  [doc/plans/2026-08-04-quality-native-tracks-spike.md](plans/2026-08-04-quality-native-tracks-spike.md)）：
-  `MovaKernel.videoTracks`（`core/kernel/kernel.dart`）流出 mpv 解析出的变体
-  （已过滤掉 mpv 的 `id:'no'`"关闭视频"条目），`loadQualities()` 等它首次非空
-  推送后用纯函数 `qualitiesFromVideoTracks`（`core/model/quality.dart`）按高度
-  去重、排序、补"自动"档；`switchQuality(q)` 对带 `trackId` 的档位调
-  `MovaKernel.setVideoTrack`——同会话切换，不重开源。**真机实测：比重开快，但
-  不是真正无缝**（点击瞬间暂停，约 1 秒后 loading，随后恢复），预期要按"更快"
-  而非"零卡顿"来对外描述。
-- `parseHlsMasterPlaylist(content, base)` 已删（无生产调用点，公开 API 破坏性删除，
-  见计划文档 T7）——`loadQualities()` 不再自己拉取/解析 m3u8。
-- **非自适应多源（如按清晰度分开的独立 mp4 文件）走旧的重开路径**：
-  `MovaQuality` 带 `uri`（非空）而非 `trackId` 时，`switchQuality(q)` 走
-  `_kernel.open(q.uri)` + 点播下 seek 回位——这条路径目前没有生产者接入
-  （`MovaSource` 还没有多源字段），是预留分支。
-- `switchQuality(q)`：保留播放态，点播下保位续播（两条路径都遵守）。
+- **清晰度切换 = 按档位 URL 重开内核**，不走 media_kit 同会话切轨（`MovaKernel` 没有
+  `videoTracks`/`setVideoTrack`）。`loadQualities()` 只对 URL 含 `.m3u8` 的源生效：
+  引擎自己拉取 master 并用 `parseHlsMasterPlaylist(content, base:)` 解析，成功后发
+  `MovaQualityListChange`，并把列表首项（自动档）设为当前档、发 `MovaQualityChange`；
+  非 m3u8、拉取失败或会话已过期都会清空列表。
+- `switchQuality(q)`：目标 URL 是 `q.uri`（自动档用当前 `_activeUri`），经 `_loadKernel`
+  重开；先忘掉旧素材进度并把 `duration` 归零、清 ABR 计数并屏蔽 ABR（`_abrHold`），
+  重开命令下发后发 `MovaQualityChange`（不发 `MovaSourceChange`）。保留播放态；点播且
+  已有进度时，续播位置经 `_seekOrPark` 寄存到新档位落地后再下发（带校验与最多 3 次
+  重发），直播不续播 seek。
 - ABR 策略是 `MovaAbrConfig.policy`（类型 `MovaAbrPolicy`，位于
   `core/options/abr_config.dart`，不是 DESIGN 文档原设想的
   `core/model/abr.dart`）；省略时默认 `MovaBufferAbr(threshold: stallThreshold)`。
   自动档不降档（交给 libmpv 原生 ABR）；`downshiftQuality()` 现在按
-  `trackId ?? uri` 定位当前档在 `state.qualities` 里的下标，对两条切档路径
-  都适用。
+  `uri` 定位当前档在 `state.qualities` 里的下标。
 
 ## 直播时移（阶段 C）
 
