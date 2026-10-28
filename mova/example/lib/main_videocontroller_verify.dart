@@ -1,5 +1,6 @@
 // ignore_for_file: avoid_print, implementation_imports
 import 'dart:async';
+import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:media_kit/media_kit.dart';
@@ -20,8 +21,8 @@ void main() {
   runApp(const MaterialApp(home: _Host()));
 }
 
-/// 实验编号。
-const String kExp = String.fromEnvironment('EXP', defaultValue: 'E1');
+/// 实验编号：编译期 EXP 优先，其次环境变量 MOVA_EXP（桌面免重编）。
+final String kExp = const String.fromEnvironment('EXP').isNotEmpty ? const String.fromEnvironment('EXP') : (Platform.environment['MOVA_EXP'] ?? 'E1');
 
 /// 轮数。
 const int kN = 5;
@@ -36,7 +37,11 @@ const String kUrl = 'http://127.0.0.1:8098/t30.mp4';
 const int kSettleMs = int.fromEnvironment('SETTLE', defaultValue: 250);
 
 /// 输出一行。
-void _out(String m) => print(m);
+void _out(String m) {
+  print(m);
+  final f = Platform.environment['MOVA_LOG'];
+  if (f != null && f.isNotEmpty) File(f).writeAsStringSync('$m\n', mode: FileMode.append, flush: true);
+}
 
 /// 带超时地跑一步，返回（耗时 ms，是否超时）。
 Future<(int, bool)> _timed(Future<void> Function() f) async {
@@ -335,6 +340,7 @@ class _HostState extends State<_Host> {
         await _e12();
     }
     _out('ALL_DONE $kExp');
+    if (Platform.environment['MOVA_EXIT'] == '1') exit(0);
   }
 
   @override
