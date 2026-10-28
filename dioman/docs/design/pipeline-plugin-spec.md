@@ -113,6 +113,22 @@ summary: 12 个内置插件和内核服务在 next() 模型下的选项、默认
 
 保留 `DiomanTokenManager` 接口（`accessToken`、`refreshToken`、`setTokens`、`clear` 等），删除 `canRefresh`：是否已判过期的状态收进 auth 的实例内部。
 
+## 8.1 B0 终审裁决（2026-10-29，补规格缺口）
+
+B0 迁移清单标出 54 条存疑，归为下列规格缺口，按"现有功能能保留就保留"裁决：
+
+| 缺口 | 裁决 |
+|---|---|
+| 请求级时钟覆盖（`DiomanAuthOptions.now`、`DiomanCacheOptions.now`） | 删除；时钟统一由客户端 `DiomanClock` 注入。auth 的 `expiresAt`、`refreshLeeway` 请求级覆盖保留 |
+| key 细粒度选项 | 客户端 `DiomanKeyOptions(fastMode, ignores, builder, namespace)` 全部保留；请求级 `call.key` 接受 `String`、`false` 或 `DiomanKeyOptions`（ignores 与客户端取并集）；优先级：请求级 builder > 请求级 key > 客户端 builder > 计算 |
+| 插件状态与管理 API | 保留，经 `api.plugin<…Api>()` 取得：`DiomanBreakerApi`（`stateOf`、`isOpen`、`bucketCount`）、`DiomanLoadingApi`（`activeCount`）、`DiomanOfflineApi`（`pending`、`flush`）、`DiomanCacheApi`（`remove`、`clear`）；默认值常量（如 `DiomanBreaker.defaultIdleTtl`、`defaultMaxBuckets`）放在插件类上。offline 在 dispose 时让排队请求以 `kind: offline, reason: disposed` 结束 |
+| `onRetry` 抛错 | 归通知类：隔离并记日志，不影响请求结果 |
+| 信封识别 | 沿用旧规则：Map 含 `code`，且含 `data` 或 `message` 之一即为信封；工厂另提供 `isEnvelope(Map)` 钩子；请求级 `call.envelope: false` 表示本次按非信封处理（替代旧的 `shouldNormalize`） |
+| offline 队列满 | 沿用旧语义：挤出最早的请求（`reason: queueFull`）；`maxQueueSize` 为 0 表示不限，默认 50；`shouldQueue` 返回 false 的请求直接放行 |
+| cache `cachePolicy.none`、`DiomanCacheOptions.maxEntries` 占位字段 | 删除：cache 已按请求开启，`none` 多余，默认策略改为 memo；占位字段本来不被读取 |
+| `DiomanSharePolicy.none` | 删除：关闭共享用请求级 `false` |
+| loading 请求级回调的触发、envs 合并 | 按新规格：按回调身份分开计数；envs 合并时克隆容器 |
+
 ## 9. 行为变化汇总（写进 CHANGELOG 与迁移指南）
 
 | # | 变化 | 原因 |
@@ -128,4 +144,5 @@ summary: 12 个内置插件和内核服务在 next() 模型下的选项、默认
 | C9 | filter 默认谓词新增剔除 NaN | testkit 中立语义 |
 | C10 | loading 从逻辑请求一开始就显示，包括等待 token 刷新的时间 | 洋葱最外层的自然结果 |
 | C11 | `DiomanTokenManager.canRefresh` 删除 | §8 |
-| C12 | 判定类回调抛错按 bug 原样抛出（0.7 部分被吞掉） | 核心架构 §7 |
+| C12 | 判定类回调抛错按 bug 原样抛出（0.7 部分被吞掉）；`onRetry` 归通知类，抛错不再变成请求失败 | 核心架构 §7、§8.1 |
+| C13 | 删除请求级时钟覆盖、cache `cachePolicy.none` 与 `maxEntries` 占位字段、`DiomanSharePolicy.none`；cache 默认策略改为 memo | §8.1 |

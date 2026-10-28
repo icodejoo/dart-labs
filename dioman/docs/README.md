@@ -26,10 +26,12 @@
 
 ## 参考
 
+- [洋葱管线旧行为迁移总表](reference/pipeline-migration/README.md) — B0 运行时用例与总账逐条 keep/change/drop，分层新位置及存疑项。active。
 - [testkit 字段映射](reference/testkit-mapping.md) — testkit schema 字段 → dioman 参数或宿主职责。active。
 
 ## 报告
 
+- [洋葱管线 B0 基线 2026-10-29](reports/2026-10-29-pipeline-b0.md) — 六场景 JIT 三轮原始数据、旧测试归档与迁移公式核对。active。
 - [总账缺口报告 2026-10-28](reports/2026-10-28-matrix-gaps.md) — G1–G5 当前缺口与按插件分布，P2 补测基线（由 `gates --report` 生成）。active。
 - [插件五方法真实矩阵 2026-10-27](reports/2026-10-27-plugin-matrix.md) — 156 格结论，"待补"项将由总账接管。active。
 - [行覆盖逐行复核 2026-10-27](reports/2026-10-27-coverage-review.md) — 1788/1793，剩余 5 行兜底理由。active。

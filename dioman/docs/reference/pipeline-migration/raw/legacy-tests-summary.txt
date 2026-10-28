@@ -1,0 +1,8 @@
+Command: dart test test_legacy --reporter json
+Exit code: 0
+Visible tests: 580 passed; 0 skipped; 0 failed
+Hidden loading events: 106 (excluded)
+Elapsed: 275.698 seconds
+{"test": {"id": 1071, "name": "[Dioman.install] every non-empty subset of the 12 plugins (4095 combinations) recovers correctly from a 500, a cache-populating round trip, and a 401 refresh+replay — paced to stay under the local ephemeral-port budget (see the file doc; this sweep takes several minutes)", "suiteID": 395, "groupIDs": [427], "metadata": {"skip": false, "skipReason": null}, "line": 74, "column": 3, "url": "file:///E:/workspaces/dart-labs-pipeline/dioman/test_legacy/combo/powerset_combo_test.dart"}, "type": "testStart", "time": 30200}
+{"testID": 1071, "result": "success", "skipped": false, "hidden": false, "type": "testDone", "time": 275691}
+{"success": true, "type": "done", "time": 275698}
