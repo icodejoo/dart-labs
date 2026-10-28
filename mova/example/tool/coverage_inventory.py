@@ -3,10 +3,16 @@
 从矩阵生成逐编号台账，未执行项不伪造通过。
 """
 from pathlib import Path
+import subprocess
 import re
 
 ROOT = Path(__file__).resolve().parents[2]
-matrix = (ROOT / 'doc/plans/2026-10-27-device-coverage-test-matrix.md').read_text(encoding='utf-8')
+# Historical append-only inventory. It describes the 2026-10-27 run, not the
+# current acceptance matrix. Never parse the replacement pointer page.
+matrix = subprocess.run(
+    ['git', '-C', str(ROOT), 'show',
+     'dbf95f6:mova/doc/plans/2026-10-27-device-coverage-test-matrix.md'],
+    check=True, capture_output=True, encoding='utf-8').stdout
 result = ROOT / 'doc/plans/2026-10-27-device-coverage-results.md'
 sections = {}
 for prefix in ['A', 'C', 'U', 'F']:

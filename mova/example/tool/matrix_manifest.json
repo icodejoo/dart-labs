@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "matrix": "doc/plans/2026-10-27-device-coverage-test-matrix.md",
+  "matrix": "doc/ACCEPTANCE-MATRIX.md",
   "ids": [
     "A1",
     "A2",
@@ -997,6 +997,398 @@
       "evidence_prefix": "{prefix}rerun-manual-preview-",
       "screen_on": true,
       "fast": false
+    },
+    {
+      "id": "gap-prepare",
+      "description": "生成长 GOP/HLS/裁剪格式夹具，构建独立 gap release 包",
+      "why": "补验收矩阵 §4.2 / §5.2 真机缺口；独立验证页和 L 日志，未运行不得认定通过。",
+      "argv": [
+        "{python}",
+        "{tool}/coverage_gap.py",
+        "prepare",
+        "--run-id",
+        "{run_id}",
+        "--timeout",
+        "9940"
+      ],
+      "timeout": 10000,
+      "dependencies": [
+        "services",
+        "build"
+      ],
+      "covers": [],
+      "covers_ext": [],
+      "evidence_prefix": "{prefix}gap-prepare-",
+      "screen_on": true,
+      "fast": false,
+      "native_driver": true,
+      "result_path": "{tool}/coverage_evidence/matrix-{run_id}-gap-prepare/gap-result.json"
+    },
+    {
+      "id": "gap-assumptions",
+      "description": "默认/精确换档、HLS seek、旧错误、ABR、偏差回声、坏源行为",
+      "why": "补验收矩阵 §4.2 / §5.2 真机缺口；独立验证页和 L 日志，未运行不得认定通过。",
+      "argv": [
+        "{python}",
+        "{tool}/coverage_gap.py",
+        "assumptions",
+        "--run-id",
+        "{run_id}",
+        "--timeout",
+        "3540"
+      ],
+      "timeout": 3600,
+      "dependencies": [
+        "services",
+        "build",
+        "gap-prepare"
+      ],
+      "covers": [],
+      "covers_ext": [
+        "F3",
+        "A17",
+        "A7",
+        "F4",
+        "A5",
+        "H28",
+        "H20",
+        "H50",
+        "H7",
+        "H14",
+        "H26",
+        "H17",
+        "H33"
+      ],
+      "evidence_prefix": "{prefix}gap-assumptions-",
+      "screen_on": true,
+      "fast": false,
+      "native_driver": true,
+      "result_path": "{tool}/coverage_evidence/matrix-{run_id}-gap-assumptions/gap-result.json"
+    },
+    {
+      "id": "gap-lifecycle",
+      "description": "Mini→PiP、重复 dispose、keepAlive 原生唤醒和截图对照",
+      "why": "补验收矩阵 §4.2 / §5.2 真机缺口；独立验证页和 L 日志，未运行不得认定通过。",
+      "argv": [
+        "{python}",
+        "{tool}/coverage_gap.py",
+        "lifecycle",
+        "--run-id",
+        "{run_id}",
+        "--timeout",
+        "1140"
+      ],
+      "timeout": 1200,
+      "dependencies": [
+        "services",
+        "build",
+        "gap-prepare"
+      ],
+      "covers": [],
+      "covers_ext": [
+        "A15",
+        "A18",
+        "F5",
+        "A23",
+        "A25",
+        "F6",
+        "N20",
+        "H56",
+        "H37",
+        "H42",
+        "H43"
+      ],
+      "evidence_prefix": "{prefix}gap-lifecycle-",
+      "screen_on": true,
+      "fast": false,
+      "native_driver": true,
+      "result_path": "{tool}/coverage_evidence/matrix-{run_id}-gap-lifecycle/gap-result.json"
+    },
+    {
+      "id": "gap-local",
+      "description": "file/asset/沙盒来源，content provider 前提单列",
+      "why": "补验收矩阵 §4.2 / §5.2 真机缺口；独立验证页和 L 日志，未运行不得认定通过。",
+      "argv": [
+        "{python}",
+        "{tool}/coverage_gap.py",
+        "local",
+        "--run-id",
+        "{run_id}",
+        "--timeout",
+        "540"
+      ],
+      "timeout": 600,
+      "dependencies": [
+        "services",
+        "build",
+        "gap-prepare"
+      ],
+      "covers": [],
+      "covers_ext": [
+        "G3.1"
+      ],
+      "evidence_prefix": "{prefix}gap-local-",
+      "screen_on": true,
+      "fast": false,
+      "native_driver": true,
+      "result_path": "{tool}/coverage_evidence/matrix-{run_id}-gap-local/gap-result.json"
+    },
+    {
+      "id": "gap-formats",
+      "description": "保留与排除格式明确解码/错误，无挂起",
+      "why": "补验收矩阵 §4.2 / §5.2 真机缺口；独立验证页和 L 日志，未运行不得认定通过。",
+      "argv": [
+        "{python}",
+        "{tool}/coverage_gap.py",
+        "formats",
+        "--run-id",
+        "{run_id}",
+        "--timeout",
+        "2340"
+      ],
+      "timeout": 2400,
+      "dependencies": [
+        "services",
+        "build",
+        "gap-prepare"
+      ],
+      "covers": [],
+      "covers_ext": [
+        "G3.2",
+        "C17",
+        "H31",
+        "H39",
+        "H63"
+      ],
+      "evidence_prefix": "{prefix}gap-formats-",
+      "screen_on": true,
+      "fast": false,
+      "native_driver": true,
+      "result_path": "{tool}/coverage_evidence/matrix-{run_id}-gap-formats/gap-result.json"
+    },
+    {
+      "id": "gap-random",
+      "description": "固定种子交叉随机操作及状态和存活不变量",
+      "why": "补验收矩阵 §4.2 / §5.2 真机缺口；独立验证页和 L 日志，未运行不得认定通过。",
+      "argv": [
+        "{python}",
+        "{tool}/coverage_gap.py",
+        "random",
+        "--run-id",
+        "{run_id}",
+        "--timeout",
+        "2340"
+      ],
+      "timeout": 2400,
+      "dependencies": [
+        "services",
+        "build",
+        "gap-prepare"
+      ],
+      "covers": [],
+      "covers_ext": [
+        "G4.1"
+      ],
+      "evidence_prefix": "{prefix}gap-random-",
+      "screen_on": true,
+      "fast": false,
+      "native_driver": true,
+      "result_path": "{tool}/coverage_evidence/matrix-{run_id}-gap-random/gap-result.json"
+    },
+    {
+      "id": "gap-focus",
+      "description": "独立播放器抢焦点；需 MOVA_GAP_FOCUS_COMPONENT",
+      "why": "补验收矩阵 §4.2 / §5.2 真机缺口；独立验证页和 L 日志，未运行不得认定通过。",
+      "argv": [
+        "{python}",
+        "{tool}/coverage_gap.py",
+        "focus",
+        "--run-id",
+        "{run_id}",
+        "--timeout",
+        "540"
+      ],
+      "timeout": 600,
+      "dependencies": [
+        "services",
+        "build",
+        "gap-prepare"
+      ],
+      "covers": [],
+      "covers_ext": [
+        "G2.1"
+      ],
+      "evidence_prefix": "{prefix}gap-focus-",
+      "screen_on": true,
+      "fast": false,
+      "native_driver": true,
+      "result_path": "{tool}/coverage_evidence/matrix-{run_id}-gap-focus/gap-result.json"
+    },
+    {
+      "id": "gap-network",
+      "description": "Wi-Fi/蜂窝/飞行模式；需构建注入 GAP_NETWORK_URL",
+      "why": "补验收矩阵 §4.2 / §5.2 真机缺口；独立验证页和 L 日志，未运行不得认定通过。",
+      "argv": [
+        "{python}",
+        "{tool}/coverage_gap.py",
+        "network",
+        "--run-id",
+        "{run_id}",
+        "--timeout",
+        "540"
+      ],
+      "timeout": 600,
+      "dependencies": [
+        "services",
+        "build",
+        "gap-prepare"
+      ],
+      "covers": [],
+      "covers_ext": [
+        "G2.2"
+      ],
+      "evidence_prefix": "{prefix}gap-network-",
+      "screen_on": true,
+      "fast": false,
+      "native_driver": true,
+      "result_path": "{tool}/coverage_evidence/matrix-{run_id}-gap-network/gap-result.json"
+    },
+    {
+      "id": "gap-screen",
+      "description": "睡眠/锁屏/唤醒原生音频时间线，安全锁需人工解锁",
+      "why": "补验收矩阵 §4.2 / §5.2 真机缺口；独立验证页和 L 日志，未运行不得认定通过。",
+      "argv": [
+        "{python}",
+        "{tool}/coverage_gap.py",
+        "screen",
+        "--run-id",
+        "{run_id}",
+        "--timeout",
+        "540"
+      ],
+      "timeout": 600,
+      "dependencies": [
+        "services",
+        "build",
+        "gap-prepare"
+      ],
+      "covers": [],
+      "covers_ext": [
+        "G2.3",
+        "H60"
+      ],
+      "evidence_prefix": "{prefix}gap-screen-",
+      "screen_on": true,
+      "fast": false,
+      "native_driver": true,
+      "result_path": "{tool}/coverage_evidence/matrix-{run_id}-gap-screen/gap-result.json"
+    },
+    {
+      "id": "gap-build-variants",
+      "description": "manual ABI/混淆/R8 构建命令与原生产物判据",
+      "why": "补验收矩阵 §4.2 / §5.2 真机缺口；独立验证页和 L 日志，未运行不得认定通过。",
+      "argv": [
+        "{python}",
+        "{tool}/coverage_gap.py",
+        "build-variants",
+        "--run-id",
+        "{run_id}",
+        "--timeout",
+        "60"
+      ],
+      "timeout": 120,
+      "dependencies": [
+        "services",
+        "build"
+      ],
+      "covers": [],
+      "covers_ext": [
+        "G1.1",
+        "G1.2"
+      ],
+      "evidence_prefix": "{prefix}gap-build-variants-",
+      "screen_on": true,
+      "fast": false,
+      "native_driver": true,
+      "result_path": "{tool}/coverage_evidence/matrix-{run_id}-gap-build-variants/gap-result.json"
+    },
+    {
+      "id": "gap-focus-gsm",
+      "description": "条件：仅模拟器 adb emu gsm call 焦点中断",
+      "why": "补验收矩阵 §4.2 / §5.2 真机缺口；独立验证页和 L 日志，未运行不得认定通过。",
+      "argv": [
+        "{python}",
+        "{tool}/coverage_gap.py",
+        "focus-gsm",
+        "--run-id",
+        "{run_id}",
+        "--timeout",
+        "540"
+      ],
+      "timeout": 600,
+      "dependencies": [
+        "services",
+        "build",
+        "gap-prepare"
+      ],
+      "covers": [],
+      "covers_ext": [
+        "G2.1"
+      ],
+      "evidence_prefix": "{prefix}gap-focus-gsm-",
+      "screen_on": true,
+      "fast": false,
+      "native_driver": true,
+      "result_path": "{tool}/coverage_evidence/matrix-{run_id}-gap-focus-gsm/gap-result.json"
+    },
+    {
+      "id": "gap-skin",
+      "description": "S 皮肤专项：五套皮肤的组件树对账、按钮点击、锁定屏蔽、补丁、主题文案注入、运行中换皮肤；视觉项出截图记 manual",
+      "why": "补验收矩阵 §3.3 S 皮肤专项（整项 PASS 此前为 0）；应用内合成指针事件 + 原生属性读回，独立验证页和 L 日志，未运行不得认定通过。",
+      "argv": [
+        "{python}",
+        "{tool}/coverage_gap.py",
+        "skin",
+        "--run-id",
+        "{run_id}",
+        "--timeout",
+        "2640"
+      ],
+      "timeout": 2700,
+      "dependencies": [
+        "services",
+        "build",
+        "gap-prepare"
+      ],
+      "covers": [],
+      "covers_ext": [
+        "S1",
+        "S2",
+        "S4",
+        "S7",
+        "S9",
+        "S10",
+        "S12",
+        "S13",
+        "S14",
+        "U2",
+        "U6",
+        "U7",
+        "A10",
+        "A11",
+        "A13",
+        "A14",
+        "A16",
+        "A17",
+        "A19",
+        "C10",
+        "N16"
+      ],
+      "evidence_prefix": "{prefix}gap-skin-",
+      "screen_on": true,
+      "fast": false,
+      "native_driver": true,
+      "result_path": "{tool}/coverage_evidence/matrix-{run_id}-gap-skin/gap-result.json"
     }
   ],
   "manual": [

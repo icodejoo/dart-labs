@@ -31,6 +31,55 @@ class MatrixTests(unittest.TestCase):
         self.assertEqual(matrix.validate_manifest(self.manifest),[])
         self.assertEqual(len(self.manifest['ids']),135)
 
+    def test_extended_ids_do_not_change_legacy_coverage(self):
+        """§10/H extensions validate independently of the canonical 135 IDs."""
+        batch = self.manifest['batches'][-1]
+        batch['covers_ext'] = ['G1.1', 'G2.3', 'S16', 'P21', 'A35', 'H1', 'H78']
+        self.assertEqual(matrix.validate_manifest(self.manifest), [])
+        batch['covers_ext'].append('H79')
+        self.assertTrue(any('未知扩展' in e for e in matrix.validate_manifest(self.manifest)))
+        batch['covers_ext'] = ['G99.9']
+        self.assertTrue(any('未知扩展' in e for e in matrix.validate_manifest(self.manifest)))
+        batch['covers_ext'] = 'H28'
+        self.assertTrue(any('covers_ext' in e for e in matrix.validate_manifest(self.manifest)))
+
+    def test_gap_completion_distinguishes_product_and_harness(self):
+        result=dict(run_id='unit',group='random',completed=True,harness=[],
+                    verdicts=[dict(case='gap:G4.1.seed',status='FAIL')])
+        self.assertEqual(matrix.gap_result_kind(result,'unit','random',1),'OK')
+        result['verdicts'][0]['status']='BLOCKED'
+        self.assertEqual(matrix.gap_result_kind(result,'unit','random',1),'OK')
+        result['completed']=False
+        self.assertEqual(matrix.gap_result_kind(result,'unit','random',1),'BLOCKED')
+        result['harness']=['uncaught exception']
+        self.assertEqual(matrix.gap_result_kind(result,'unit','random',1),'HARNESS')
+        self.assertEqual(matrix.gap_result_kind(result,'unit','random',2),'HARNESS')
+        with self.assertRaises(ValueError):matrix.gap_result_kind(result,'old','random',0)
+        result['verdicts'][0]['status']='INVALID'
+        with self.assertRaises(ValueError):matrix.gap_result_kind(result,'unit','random',0)
+
+    def test_skin_batch_wired_to_driver_group(self):
+        """gap-skin covers the S-ids it runs and targets a group the driver accepts."""
+        batch=next(b for b in self.manifest['batches'] if b['id']=='gap-skin')
+        self.assertTrue({'S1','S7','S9','S12','S13','S14'}<=set(batch['covers_ext']))
+        self.assertFalse(batch['fast'])
+        self.assertTrue(batch['screen_on'] and batch['native_driver'])
+        source=ast.parse((matrix.TOOL/'coverage_gap.py').read_text(encoding='utf-8'))
+        choices=[a.value for n in ast.walk(source) if isinstance(n,ast.Call)
+                 and isinstance(n.func,ast.Attribute) and n.func.attr=='add_argument'
+                 and n.args and isinstance(n.args[0],ast.Constant) and n.args[0].value=='group'
+                 for kw in n.keywords if kw.arg=='choices' for a in kw.value.elts]
+        self.assertIn(batch['argv'][2],choices)
+        flags={a.value for n in ast.walk(source) if isinstance(n,ast.Call)
+               and isinstance(n.func,ast.Attribute) and n.func.attr=='add_argument'
+               for a in n.args if isinstance(a,ast.Constant) and str(a.value).startswith('--')}
+        self.assertIn('--skins',flags)
+
+    def test_native_driver_requires_owned_metadata(self):
+        batch=next(b for b in self.manifest['batches'] if b.get('native_driver'))
+        del batch['result_path']
+        self.assertTrue(any('native_driver' in e for e in matrix.validate_manifest(self.manifest)))
+
     def test_missing_coverage(self):
         """Reject uncovered and unknown IDs / 拒绝遗漏和未知编号。"""
         for b in self.manifest['batches']:

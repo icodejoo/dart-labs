@@ -41,6 +41,14 @@ def expand(argv, run_id, tool=TOOL):
                      run_id=run_id, prefix=f'matrix-{run_id}-') for v in argv]
 
 
+def extended_matrix_ids(text):
+    """Read §10's stable IDs, plus explicit hypotheses from §4 (not ranges)."""
+    index = text.split('## 10.', 1)[1]
+    ids = set(re.findall(r'^\| (?:v2:|new:)?([A-Z][\w.]*) \|', index, re.M))
+    ids.update(re.findall(r'\bH(?:[1-9]|[1-7]\d|78)\b', text))
+    return ids
+
+
 def validate_manifest(manifest, root=ROOT):
     """Validate coverage, dependencies, paths and Python syntax offline.
 
@@ -48,8 +56,10 @@ def validate_manifest(manifest, root=ROOT):
     """
     errors = []
     ids = manifest.get('ids', [])
+    extended = set()
     try:
         canonical = matrix_ids((root / manifest['matrix']).read_text(encoding='utf-8'))
+        extended = extended_matrix_ids((root / manifest['matrix']).read_text(encoding='utf-8'))
         if len(canonical) != 135 or set(ids) != set(canonical):
             errors.append('矩阵编号与清单不一致，必须恰好 135 个')
     except (OSError, KeyError, IndexError) as error:
@@ -67,6 +77,20 @@ def validate_manifest(manifest, root=ROOT):
             errors.append(f'{ident}: 依赖不存在或顺序错误')
         seen.add(ident)
         covered.update(batch.get('covers', []))
+        extra = batch.get('covers_ext', [])
+        if not isinstance(extra, list) or not all(isinstance(i, str) for i in extra):
+            errors.append(f'{ident}: covers_ext 必须为编号数组')
+        elif set(extra) - extended:
+            errors.append(f'{ident}: 未知扩展编号={sorted(set(extra)-extended)}')
+        if batch.get('native_driver'):
+            try:
+                path=Path(expand([batch['result_path']], 'check', tool)[0])
+                if not path.is_relative_to(tool) or path.suffix!='.json':
+                    raise ValueError('result_path 必须在 tool 内并以 .json 结尾')
+                if not isinstance(batch.get('argv'),list) or batch['argv'][1]!='{tool}/coverage_gap.py':
+                    raise ValueError('native_driver 仅用于独立 gap 驱动')
+            except (KeyError,ValueError,IndexError) as e:
+                errors.append(f'{ident}: 非法 native_driver 元数据: {e}')
         for key in ('description', 'why', 'evidence_prefix', 'screen_on', 'fast'):
             if key not in batch:
                 errors.append(f'{ident}: 缺少 {key}')
@@ -137,6 +161,21 @@ def select_batches(manifest, only=None, start=None, fast=False):
     return [b for b in batches if b['id'] in wanted]
 
 
+def gap_result_kind(result, run_id, group, code):
+    """Keep product FAIL/BLOCKED separate from process/harness failure."""
+    if result.get('run_id')!=run_id or result.get('group')!=group:
+        raise ValueError('gap result identity mismatch')
+    if not isinstance(result.get('completed'),bool) or not isinstance(result.get('harness'),list):
+        raise ValueError('gap completion schema mismatch')
+    if not isinstance(result.get('verdicts'),list) or any(
+        not isinstance(v,dict) or v.get('status') not in STATUSES or
+        not str(v.get('case','')).startswith('gap:') for v in result['verdicts']):
+        raise ValueError('gap verdict schema mismatch')
+    if code not in (0,1) or result['harness']:
+        return 'HARNESS'
+    return 'OK' if result['completed'] else 'BLOCKED'
+
+
 def read_ledger(data):
     """Normalize existing finalizer ledgers / 兼容已有终审台账格式。"""
     rows = data['rows'] if isinstance(data, dict) else data
@@ -204,7 +243,15 @@ def render_summary(run_id, rows, comparison, results, baseline):
     for row in rows:
         detail = (row['evidence'] + ' ' + ' '.join(row['pointers'])).replace('|','/').replace('\n',' ')
         lines.append(f'| {row["id"]} | {row["status"]} | {detail} | `{row["reproduction"]}` |')
-    lines += ['', '范围：v1 135 编号；v2 L 的宿主命令日志已接入。S/P/G 扩展、设备端验证页 L 全量日志需后续专门验证器。', '']
+    gap_results = [(name,r['gap_result']) for name,r in results.items() if 'gap_result' in r]
+    if gap_results:
+        lines += ['', 'Gap 扩展子项（不改变上方 v1 135 编号台账；完整证据见独立 gap.json）：', '',
+                  '| 批次 | case | 结论 | 原因 |', '|---|---|---|---|']
+        for name,result in gap_results:
+            for verdict in result.get('verdicts',[]):
+                detail=str(verdict.get('reason') or verdict.get('difference') or '').replace('|','/').replace('\n',' ')
+                lines.append(f'| {name} | {verdict["case"]} | {verdict["status"]} | {detail} |')
+    lines += ['', '范围：v1 135 编号；gap 扩展按子项独立呈现，不能推定完整编号通过。', '']
     return '\n'.join(lines)
 
 
@@ -451,7 +498,12 @@ class Driver:
         wall_start=time.time()
         error=''
         with path.open('w',encoding='utf-8') as stream:
-            child=subprocess.Popen(self.wrapped(expand(job['argv'],self.args.run_id),case),cwd=ROOT,env=self.env,
+            command = expand(job['argv'],self.args.run_id)
+            # New structured drivers own their namespace and L logging. The
+            # historical AST adapter would rewrite their shared fixture paths.
+            if not job.get('native_driver', False):
+                command = self.wrapped(command,case)
+            child=subprocess.Popen(command,cwd=ROOT,env=self.env,
                                    stdout=stream,stderr=subprocess.STDOUT,
                                    creationflags=subprocess.CREATE_NO_WINDOW if os.name=='nt' else 0)
             try:
@@ -465,7 +517,17 @@ class Driver:
         runmeta=self.out/(self.prefix+case+'.run.json')
         incomplete=runmeta.exists() and not json.loads(runmeta.read_text(encoding='utf-8')).get('completed')
         kind='HARNESS' if code or markers or incomplete else 'OK'
+        gap_result = None
+        if job.get('native_driver'):
+            try:
+                result_path=Path(expand([job['result_path']],self.args.run_id)[0])
+                gap_result=json.loads(result_path.read_text(encoding='utf-8'))
+                kind=gap_result_kind(gap_result,self.args.run_id,case.removeprefix('gap-'),code)
+            except (OSError,ValueError,KeyError) as e:
+                kind='HARNESS';error=f'gap completion metadata: {e}'
         self.results[case]=dict(kind=kind,exit=code,seconds=time.monotonic()-start,driver=str(path),error=error or ('子命令失败/缺完成标记' if kind=='HARNESS' else ''))
+        if gap_result is not None:
+            self.results[case]['gap_result']=gap_result
         observations=subcheck_observations(self.out,wall_start)
         self.results[case]['subcheck_failures']=observations
         self.note('END',f'exit={code} seconds={time.monotonic()-start:.3f} kind={kind}',case)
@@ -473,6 +535,8 @@ class Driver:
             self.capture_failure(case)
         # Full-ID product verdicts are independent of the verifier exit code.
         product_failure=any(v['status']=='FAIL' for v in existing_verdicts(self.out,self.prefix).values())
+        if gap_result is not None:
+            product_failure |= any(v.get('status')=='FAIL' for v in gap_result.get('verdicts',[]))
         if product_failure:
             self.note('VERDICT','FAIL 完整编号 CHECK 失败，详见本轮 JSON',case)
             self.capture_failure(case)
@@ -557,7 +621,8 @@ def main(argv=None):
         return 0
     if args.list:
         for job in selected:
-            print(f'{job["id"]} fast={job["fast"]} timeout={job["timeout"]} covers={",".join(job["covers"])}')
+            print(f'{job["id"]} fast={job["fast"]} timeout={job["timeout"]} covers={",".join(job["covers"])}' +
+                  (f' covers_ext={",".join(job["covers_ext"])}' if job.get('covers_ext') else ''))
         for row in manifest['manual']:
             print(f'manual {row["id"]}: {row["reason"]}')
         return 0
@@ -572,7 +637,8 @@ def main(argv=None):
             print(subprocess.list2cmdline(preview(cmd,'build' if 'coverage_build.py' in cmd[1] else 'repack')))
         print('随后 zipalign、apksigner、adb install、拉回 APK sha256 / lastUpdateTime 核验')
         for job in manifest['services']+selected:
-            print(job['id']+': '+subprocess.list2cmdline(preview(expand(job['argv'],args.run_id),job['id'])))
+            command=expand(job['argv'],args.run_id)
+            print(job['id']+': '+subprocess.list2cmdline(command if job.get('native_driver') else preview(command,job['id'])))
         print('finally：force-stop、恢复媒体音量/USB 常亮、移除自有映射、终止自有服务树；生成 MD/JSON')
         return 0
     baseline=json.loads(args.baseline.read_text(encoding='utf-8'))

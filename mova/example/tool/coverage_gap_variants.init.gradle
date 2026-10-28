@@ -1,0 +1,14 @@
+// Explicit opt-in G1.1/G1.2 variants. Never use coverage.init.gradle here:
+// it forces arm64 and would conceal ABI packaging failures.
+gradle.beforeProject { project ->
+    project.pluginManager.withPlugin('com.android.application') {
+        project.androidComponents.finalizeDsl { android ->
+            android.defaultConfig.applicationId = 'com.icodejoo.mova.mova_example.gapvariant'
+            android.defaultConfig.ndk.abiFilters.clear()
+            def requested = project.findProperty('gap-abis') ?: 'arm64-v8a'
+            requested.split(',').each { android.defaultConfig.ndk.abiFilters.add(it) }
+            android.buildTypes.getByName('release').minifyEnabled = true
+            android.buildTypes.getByName('release').shrinkResources = true
+        }
+    }
+}
