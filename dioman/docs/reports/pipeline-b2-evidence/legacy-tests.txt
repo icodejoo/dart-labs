@@ -1,0 +1,690 @@
+00:00 +0: loading test_legacy\boundary\auth_concurrent_boundary_test.dart
+00:00 +0: test_legacy\boundary\auth_concurrent_boundary_test.dart: [DiomanAuth.new(onAccessExpired)][DiomanAuth.new(onRefresh)] 刷新后仍为 401 的所有并发请求均返回稳定过期标识
+00:00 +1: test_legacy\boundary\auth_concurrent_boundary_test.dart: [DiomanAuth.new(onAccessExpired)][DiomanAuth.new(onRefresh)] 同会话并发过期仅通知一次，重新登录后允许再次通知
+00:00 +2: test_legacy\boundary\auth_concurrent_boundary_test.dart: DiomanAuth: additional realistic branches [DiomanAuthFailureAction.refresh][DiomanAuth.new(expiresAt)] a second request arriving while a FIRST request's proactive refresh is already in flight awaits the SAME refresh, and is rejected the same way when it fails
+00:00 +3: test_legacy\boundary\auth_concurrent_boundary_test.dart: DiomanAuth [DiomanAuthFailureAction.expired][DiomanAuthFailureAction.refresh] proactive refresh: N concurrent requests with an expired token trigger exactly ONE refresh and all go out with the fresh token (zero doomed 401s), collapsing on the shared refresh window
+00:00 +4: test_legacy\boundary\auth_concurrent_boundary_test.dart: DiomanAuth [DiomanAuthFailureAction.refresh][DiomanAuthFailureAction.replay] concurrent, out-of-order 401s trigger the refresh EXACTLY ONCE (single shared window); late 401s replay instead of re-refreshing
+00:00 +5: test_legacy\boundary\auth_concurrent_boundary_test.dart: DiomanAuth [DiomanAuthFailureAction.refresh][DiomanAuth.new(onAccessExpired)] a 401s and refreshes; b 401s only AFTER the refresh window closed → b replays with the new token, does NOT trigger a second refresh
+00:00 +6: loading test_legacy\boundary\auth_replay_boundary_test.dart
+00:00 +6: test_legacy\boundary\auth_replay_boundary_test.dart: 重放复用宿主传输层、处理请求体（#9） [DiomanAuth.onError][DiomanAuth.onRequest] FormData 请求体在 auth 刷新后也能重放
+00:00 +7: test_legacy\boundary\auth_replay_boundary_test.dart: 重放复用宿主传输层、处理请求体（#9） [DiomanAuth.onError][DiomanAuth.onRequest] Stream 请求体 401：auth 刷新后也不重放，且不清会话
+00:00 +8: test_legacy\boundary\auth_replay_boundary_test.dart: 刷新成功后的重放失败（#11） [DiomanAuth.onRequest] 清会话前校验 token generation：别人已刷新出新 token 就不清
+00:00 +9: test_legacy\boundary\auth_replay_boundary_test.dart: DiomanAuth: defaultAuthFailure classification [defaultAuthFailure][DiomanAuthFailureAction.refresh][DiomanAuthFailureAction.replay] falls back to reading the header directly when no raw token was stashed (e.g. a custom `ready` callback bypassed the stash), and still correctly classifies refresh vs replay
+00:00 +10: test_legacy\boundary\auth_replay_boundary_test.dart: DiomanAuth: additional realistic branches [DiomanAuth.new(onAccessExpired)][DiomanAuth.new(onRefresh)] a network-level error with no HTTP response at all is cleared and passed through, not misclassified
+00:01 +11: test_legacy\boundary\auth_replay_boundary_test.dart: DiomanAuth: additional realistic branches [DiomanAuthFailureAction.refresh][DiomanAuthFailureAction.replay] re-dispatching the SAME RequestOptions after a SUCCESSFUL refresh+replay, if it fails again, hits the "already replayed once" guard and gives up immediately rather than refreshing again
+00:01 +12: test_legacy\boundary\auth_replay_boundary_test.dart: [DiomanAuth.new(buildHeader)][DiomanAuth.new(onAccessExpired)] auth 重放注入回调抛异常时释放认领且保留原因
+00:01 +13: loading test_legacy\boundary\auth_session_boundary_test.dart
+00:01 +13: test_legacy\boundary\auth_session_boundary_test.dart: onRefresh 同步抛错不卡死刷新窗口 [DiomanAuth.new(onRefresh)] 非 async 的 onRefresh 第一次同步抛错：该请求失败，之后再触发刷新会再次调用并恢复
+00:01 +14: test_legacy\boundary\auth_session_boundary_test.dart: onRefresh 同步抛错不卡死刷新窗口 [DiomanAuth.new(onRefresh)] 同步抛错期间并发的多个请求都失败，onRefresh 只调用一次，之后能恢复
+00:01 +15: test_legacy\boundary\auth_session_boundary_test.dart: onAccessExpired 会话标识 [DiomanAuth.new(onAccessExpired)] 并发 N 个请求同时 401 且刷新失败，onAccessExpired 只调用一次
+00:01 +16: test_legacy\boundary\auth_session_boundary_test.dart: onAccessExpired 会话标识 [DiomanAuth.new(onAccessExpired)] 过期后使用者重新登录，旧会话迟到的 401 不会清掉新 token，也不会再通知
+00:01 +17: test_legacy\boundary\auth_session_boundary_test.dart: onAccessExpired 会话标识 [DiomanAuth.new(onAccessExpired)] 刷新进行中使用者重新登录，随后刷新失败：不清新 token，不通知
+00:01 +18: test_legacy\boundary\auth_session_boundary_test.dart: onAccessExpired 会话标识 [DiomanAuth.new(onAccessExpired)] 新会话之后再过期会再次通知一次（含重新登录拿到同名 token）
+00:02 +19: loading test_legacy\boundary\auth_transport_boundary_test.dart
+00:02 +19: test_legacy\boundary\auth_transport_boundary_test.dart: [DiomanAuth.onError] multipart=false 请求体在服务器消费后完整重放
+00:02 +20: test_legacy\boundary\auth_transport_boundary_test.dart: [DiomanAuth.onError] multipart=true 请求体在服务器消费后完整重放
+00:02 +21: test_legacy\boundary\auth_transport_boundary_test.dart: [DiomanAuth.dio][DiomanAuth.dispose] 重放借用宿主转换器，解绑和释放后走兜底且宿主仍可请求
+00:03 +22: test_legacy\boundary\auth_transport_boundary_test.dart: [DiomanAuth.dispose] 释放时清刷新窗口引用，后续请求能启动新的刷新
+00:03 +23: loading test_legacy\boundary\breaker_boundary_test.dart
+00:03 +23: test_legacy\boundary\breaker_boundary_test.dart: DiomanBreaker bucket GC [DiomanBreaker.idleTtl] 未超过 idleTtl 的桶保留
+00:03 +24: test_legacy\boundary\breaker_boundary_test.dart: DiomanBreaker bucket GC [DiomanBreakerState.open] open 桶不被回收，即使空闲很久
+00:03 +25: test_legacy\boundary\breaker_boundary_test.dart: DiomanBreaker bucket GC [DiomanBreakerState.halfOpen] halfOpen 桶（含在途探测）不被回收
+00:03 +26: test_legacy\boundary\breaker_boundary_test.dart: DiomanBreaker bucket GC [DiomanBreakerState.closed] closed 但有在途请求的桶不被回收
+00:03 +27: test_legacy\boundary\breaker_boundary_test.dart: DiomanBreaker bucket GC [DiomanBreakerState.closed][DiomanBreaker.failureThreshold] closed 但连续失败计数非 0 的桶不被回收
+00:03 +28: test_legacy\boundary\breaker_boundary_test.dart: DiomanBreaker bucket GC [DiomanBreaker.maxBuckets] maxBuckets 达到但无安全桶可淘汰时允许暂时超出，不丢熔断状态
+00:03 +29: test_legacy\boundary\breaker_boundary_test.dart: DiomanBreaker bucket GC [DiomanBreakerState.closed][DiomanBreaker.failureThreshold] 回收后同键请求从 closed 重新开始
+00:03 +30: test_legacy\boundary\breaker_boundary_test.dart: DiomanBreaker bucket GC [DiomanBreaker.onRequest] 回收不影响半开 generation：旧窗口在途结果不改新窗口
+00:03 +31: test_legacy\boundary\breaker_boundary_test.dart: DiomanBreaker [DiomanBreaker.reset][DiomanBreaker.failureThreshold] a cancelled request does not reset the failure count
+00:03 +32: test_legacy\boundary\breaker_boundary_test.dart: [DiomanBreaker.onResponse][DiomanBreaker.failureThreshold][DiomanBreaker.halfOpenMaxCalls] stale breaker probe cannot close or consume a new window
+00:03 +33: test_legacy\boundary\breaker_boundary_test.dart: [DiomanBreaker.onError][DiomanBreakerState.open][DiomanBreaker.failureThreshold] breaker cancellation returns half-open slot
+00:03 +34: loading test_legacy\boundary\breaker_callbacks_boundary_test.dart
+00:04 +34: test_legacy\boundary\breaker_callbacks_boundary_test.dart: [DiomanBreaker.onError] 在途半开探测取消后归还槽位且不触发状态迁移
+00:04 +35: test_legacy\boundary\breaker_callbacks_boundary_test.dart: [DiomanBreaker.onError] 内置分类将 DioExceptionType.connectionError 计为失败且同一凭据只消费一次
+00:04 +36: test_legacy\boundary\breaker_callbacks_boundary_test.dart: [DiomanBreaker.onError] 内置分类将 DioExceptionType.connectionTimeout 计为失败且同一凭据只消费一次
+00:04 +37: test_legacy\boundary\breaker_callbacks_boundary_test.dart: [DiomanBreaker.onError] 内置分类将 DioExceptionType.sendTimeout 计为失败且同一凭据只消费一次
+00:04 +38: test_legacy\boundary\breaker_callbacks_boundary_test.dart: [DiomanBreaker.onError] 内置分类将 DioExceptionType.receiveTimeout 计为失败且同一凭据只消费一次
+00:04 +39: test_legacy\boundary\breaker_callbacks_boundary_test.dart: [DiomanBreaker.onStateChange] 迁移后通知观察者，异常原样抛出且已改变状态
+00:04 +40: loading test_legacy\boundary\cache_boundary_test.dart
+00:04 +40: test_legacy\boundary\cache_boundary_test.dart: [DiomanCache.clear][DiomanCache.remove] remove invalidates pending reads and clear invalidates old responses
+00:04 +41: test_legacy\boundary\cache_boundary_test.dart: [DiomanCachePersist.remove][DiomanCachePersist.erase][DiomanCachePersist.write][DiomanCache.cachePolicy] cache write failure rejects response once and management failures await
+00:04 +42: test_legacy\boundary\cache_boundary_test.dart: [DiomanCache.clear][DiomanCachePersist.write] clear waits for pending write and erases afterwards
+00:04 +43: test_legacy\boundary\cache_boundary_test.dart: [DiomanCachePersist.read][DiomanCache.cachePolicy] cache read failure rejects once
+00:04 +44: test_legacy\boundary\cache_boundary_test.dart: [DiomanCache.cachePolicy][DiomanCache.maxEntries] cache persistent hydration respects memory capacity
+00:04 +45: test_legacy\boundary\cache_boundary_test.dart: [DiomanCache.clear][DiomanCachePersist.read] clear prevents old read from repopulating memory
+00:04 +46: test_legacy\boundary\cache_boundary_test.dart: [DiomanCachePersist.read][DiomanCache.cachePolicy] slow read of an expired entry cannot delete a fresher same-key entry
+00:04 +47: test_legacy\boundary\cache_boundary_test.dart: [DiomanCache.cachePolicy][DiomanCache.clone] cache 深拷贝保留非字符串 Map 键且隔离嵌套修改
+00:04 +48: test_legacy\boundary\cache_boundary_test.dart: [DiomanCache.dispose] 清内存并使旧响应和旧读取失效，不删除持久层
+00:05 +49: loading test_legacy\boundary\cancel_boundary_test.dart
+00:05 +49: test_legacy\boundary\cancel_boundary_test.dart: DiomanCancel: re-entry with an already-injected token [DiomanCancel.cancelAll] re-dispatching the SAME RequestOptions object a second time — still carrying the CancelToken this plugin injected on the first, already-completed pass — re-registers that token for cancelAll
+00:05 +50: loading test_legacy\boundary\cancel_dispose_boundary_test.dart
+00:05 +50: test_legacy\boundary\cancel_dispose_boundary_test.dart: [DiomanCancel.dispose][DiomanCancel.dispose#inflight] 移除插件以 plugin ejected 取消仍追踪的在途请求，服务端看到连接中止
+00:05 +51: loading test_legacy\boundary\filter_boundary_test.dart
+00:06 +51: test_legacy\boundary\filter_boundary_test.dart: [DiomanFilter.onRequest] filter copies immutable body
+00:06 +52: loading test_legacy\boundary\key_boundary_test.dart
+00:06 +52: test_legacy\boundary\key_boundary_test.dart: [DiomanKey.onRequest] nested unencodable values preserve the original map string fallback
+00:06 +53: test_legacy\boundary\key_boundary_test.dart: DiomanKey [DiomanKey.onRequest] _encode falls back to toString() when a value cannot be JSON-encoded (e.g. a custom, non-serializable object)
+00:06 +54: test_legacy\boundary\key_boundary_test.dart: DiomanKey non-serialisable body [DiomanKey.onRequest] two requests with distinct non-map bodies get distinct keys (never falsely deduped/cached as one)
+00:06 +55: test_legacy\boundary\key_boundary_test.dart: [DiomanKeyOptions.key] key preserves opaque body identity and merges embedded queries
+00:06 +56: test_legacy\boundary\key_boundary_test.dart: [DiomanKeyOptions.key] key 遇到不可 JSON 序列化字段时仍生成稳定键
+00:06 +57: test_legacy\boundary\key_boundary_test.dart: key namespace [DiomanKey.builder][DiomanKey.fastMode] absent null and empty namespaces preserve exact legacy keys
+00:06 +58: test_legacy\boundary\key_boundary_test.dart: key namespace [DiomanKey.namespace] namespace failures reject once and reach Dio without hanging
+00:06 +59: loading test_legacy\boundary\loading_boundary_test.dart
+00:06 +59: test_legacy\boundary\loading_boundary_test.dart: [DiomanLoading.dispose][DiomanLoading.delayClose][DiomanLoading.new(onChanged)] loading callback stays paired across delayed hide and disposal
+00:07 +60: test_legacy\boundary\loading_boundary_test.dart: [DiomanLoading.dispose] 释放取消尚未触发的显示定时器
+00:07 +61: test_legacy\boundary\loading_boundary_test.dart: [DiomanLoading.new(onChanged)][DiomanLoadingOptions.onChanged] loading closes using callback that opened display cycle
+00:07 +62: test_legacy\boundary\loading_boundary_test.dart: [DiomanLoading.delay][DiomanLoading.new(onChanged)] loading 在显示前结束时不通知
+00:07 +63: loading test_legacy\boundary\log_boundary_test.dart
+00:07 +63: test_legacy\boundary\log_boundary_test.dart: [DiomanLog.writer][DiomanLogOptions.writer] log 无响应的传输错误仍包含错误类型
+00:07 +64: loading test_legacy\boundary\normalize_boundary_test.dart
+00:07 +64: test_legacy\boundary\normalize_boundary_test.dart: DiomanNormalize detection [DiomanException.code][DiomanException.data] a plain payload that merely carries a `code` field (no data/message) is NOT mistaken for an envelope and rejected
+00:07 +65: loading test_legacy\boundary\offline_boundary_test.dart
+00:08 +65: test_legacy\boundary\offline_boundary_test.dart: DiomanOffline [DiomanOfflineReason.disposed][DiomanOfflineException.reason][DiomanOffline.pending][DiomanOffline.new(isOnline)] dispose rejects every pending request (no perma-hang)
+00:08 +66: test_legacy\boundary\offline_boundary_test.dart: [DiomanOffline.flush][DiomanOffline.new(isOnline)] offline flush checks cancellation before cancellation listener runs
+00:08 +67: test_legacy\boundary\offline_boundary_test.dart: [DiomanOffline.maxWait][DiomanOffline.new(isOnline)] offline cancellation immediately removes queued request
+00:08 +68: test_legacy\boundary\offline_boundary_test.dart: DiomanOffline [DiomanOfflineReason.queueFull][DiomanOffline.maxQueueSize] queue full evicts the oldest with a queueFull rejection
+00:08 +69: loading test_legacy\boundary\offline_options_boundary_test.dart
+00:08 +69: test_legacy\boundary\offline_options_boundary_test.dart: [DiomanOffline.name][DiomanOffline.pluginName][DiomanOffline.ordering] 名称、配置键及挂起顺序
+00:08 +70: test_legacy\boundary\offline_options_boundary_test.dart: [DiomanOfflineOptions.maxQueueSize] 空值继承而单请求上限在入队时生效
+00:08 +71: test_legacy\boundary\offline_options_boundary_test.dart: [DiomanOffline.dispose] 释放拒绝排队请求并退订连通性流
+00:08 +72: loading test_legacy\boundary\repath_boundary_test.dart
+00:09 +72: test_legacy\boundary\repath_boundary_test.dart: DiomanRepath [DiomanRepath.onRequest] a placeholder with no match in either query or data is left as-is in the path
+00:09 +73: test_legacy\boundary\repath_boundary_test.dart: [DiomanRepath.onRequest] repath snapshots repeated placeholders and encodes segments
+00:09 +74: test_legacy\boundary\repath_boundary_test.dart: [DiomanRepath.pattern][DiomanRepathOptions.pattern] repath 自定义模式的可选捕获组均为空时保留匹配
+00:09 +75: loading test_legacy\boundary\retry_backoff_boundary_test.dart
+00:09 +75: test_legacy\boundary\retry_backoff_boundary_test.dart: [DiomanRetry.onError] 退避等待期间取消：等待被打断，立刻以取消错误交接并注销认领，不触发重放
+00:09 +76: test_legacy\boundary\retry_backoff_boundary_test.dart: [DiomanRetry.onError] 取消类错误永不重试：直接原样交接，退避回调与重放都不触发
+00:09 +77: loading test_legacy\boundary\retry_boundary_test.dart
+00:09 +77: test_legacy\boundary\retry_boundary_test.dart: 重放复用宿主传输层、处理请求体（#9） [DiomanRetry.methods][DiomanRetryOptions.methods] FormData 请求体重试时被克隆，可重复发送
+00:09 +78: test_legacy\boundary\retry_boundary_test.dart: 重放复用宿主传输层、处理请求体（#9） [DiomanRetry.methods][DiomanRetryOptions.methods] Stream 请求体无法重放：retry 不自动重试，原错误照常抛出
+00:09 +79: test_legacy\boundary\retry_boundary_test.dart: retry 回调异常（#13） [DiomanRetry.shouldRetry][DiomanRetryOptions.shouldRetry] 响应阶段 shouldRetry 抛异常：转成 DioException，handler 只完成一次
+00:09 +80: test_legacy\boundary\retry_boundary_test.dart: retry 回调异常（#13） [DiomanRetry.onRetry] onRetry 抛异常：转成 DioException
+00:09 +81: test_legacy\boundary\retry_boundary_test.dart: [DiomanRetry.delay][DiomanRetry.max] retry 响应阶段等待中取消会交付取消错误并注销认领
+00:09 +82: loading test_legacy\boundary\share_boundary_test.dart
+00:10 +82: test_legacy\boundary\share_boundary_test.dart: [DiomanShare.onRequest] share 首发取消后由存活跟随者接手
+00:10 +83: test_legacy\boundary\share_boundary_test.dart: end / race 全部失败（#5） [DiomanShare.policy][DiomanShareOptions.policy] policy=end：所有请求都失败时每个调用方都拿到 DioException，不抛 NoSuchMethodError，registry 归零
+00:11 +84: test_legacy\boundary\share_boundary_test.dart: end / race 全部失败（#5） [DiomanShare.policy][DiomanShareOptions.policy] policy=race：所有请求都失败时每个调用方都拿到 DioException，不抛 NoSuchMethodError，registry 归零
+00:11 +85: test_legacy\boundary\share_boundary_test.dart: DiomanShare: none policy, own-failure settlement, dispose, hasMultipleDownstreamSettlers [DiomanShare.policy][DiomanShareOptions.policy][DiomanShare.dispose] dispose() completes a pending follower with an error instead of leaving it hanging (documented previously as NOT doing this — confirmed fixed)
+00:11 +86: test_legacy\boundary\share_boundary_test.dart: DiomanShare [DiomanShare.policy][DiomanShare.retries] policy=retry: a solo request is settled with the error (no hang) once retries are exhausted, and the entry is cleared so a later request with the same key hits the network again
+00:11 +87: test_legacy\boundary\share_boundary_test.dart: [DiomanShare.policy][DiomanShare.retries] share 重放准备抛异常时首发与跟随者都结算
+00:11 +88: test_legacy\boundary\share_boundary_test.dart: [DiomanShare.onRequest] share 显式结算响应与无参数摘除都允许下一轮重新发起
+00:11 +89: test_legacy\boundary\share_boundary_test.dart: [DiomanSharePolicy.race][DiomanShare.policy] share race 已胜出时认领预检返回胜出结果
+00:11 +90: test_legacy\boundary\share_boundary_test.dart: [DiomanShare.onRequest] share 认领登记被外部移除后仍能交付原始响应
+00:11 +91: test_legacy\boundary\share_boundary_test.dart: [DiomanSharePolicy.retry][DiomanShare.policy] share retry 在进入重放前已取消时停止并交付取消错误
+00:11 +92: test_legacy\boundary\share_boundary_test.dart: [DiomanShare.onRequest] share 接手的最后一个跟随者也取消后允许新请求
+00:11 +93: loading test_legacy\boundary\timeout_boundary_test.dart
+00:11 +93: test_legacy\boundary\timeout_boundary_test.dart: DiomanTimeout [DiomanTimeout.onRequest][DiomanTimeout.timeouts] a tier absent from the map is a no-op for that request
+00:11 +94: loading test_legacy\boundary\timeout_effective_boundary_test.dart
+00:12 +94: test_legacy\boundary\timeout_effective_boundary_test.dart: timeout 真正生效（真实回环 HTTP） [DiomanTimeouts.receive#effective] 响应头之后 body 停顿 → receiveTimeout，耗时贴近改写值
+00:12 +95: test_legacy\boundary\timeout_effective_boundary_test.dart: timeout 真正生效（真实回环 HTTP） [DiomanTimeouts.receive#effective] 服务端一直不回响应头 → receiveTimeout，耗时贴近改写值
+00:13 +96: test_legacy\boundary\timeout_effective_boundary_test.dart: timeout 真正生效（真实回环 HTTP） [DiomanTimeouts.receive#effective] 对照：每块间隔都小于超时 → 成功（即便总时长超过超时值）
+00:14 +97: test_legacy\boundary\timeout_effective_boundary_test.dart: timeout 真正生效（真实回环 HTTP） [DiomanTimeouts.send#effective] 服务端不读请求体、body 塞满缓冲 → sendTimeout，耗时贴近改写值
+00:15 +98: test_legacy\boundary\timeout_effective_boundary_test.dart: timeout 真正生效（真实回环 HTTP） [DiomanTimeouts.send#effective] 对照：服务端正常读完小请求体 → 成功
+00:15 +99: test_legacy\boundary\timeout_effective_boundary_test.dart: timeout 真正生效（真实回环 HTTP） [DiomanTimeouts.receive#effective][DiomanTimeoutOptions.timeouts] 请求级收紧插件级：生效的是请求级的 150ms，而不是插件级的 10s
+00:15 +100: test_legacy\boundary\timeout_effective_boundary_test.dart: timeout 真正生效（真实回环 HTTP） [DiomanTimeouts.receive#effective][DiomanTimeoutOptions.timeouts] 请求级放宽插件级：插件级 150ms 本会超时，请求级 1200ms 让它成功
+00:17 +101: loading test_legacy\combo\auth_cache_combo_test.dart
+00:17 +101: test_legacy\combo\auth_cache_combo_test.dart: [DiomanAuth.new(buildHeader) × DiomanCache.cachePolicy] auth 恢复成功的原始信封写回上游缓存
+00:17 +102: test_legacy\combo\auth_cache_combo_test.dart: pairwise: cache + auth [DiomanAuth.new(onAccessExpired) × DiomanCache.cachePolicy] a cache hit bypasses DiomanAuth entirely — a protected endpoint cached response is served even after the caller's token is cleared
+00:17 +103: loading test_legacy\combo\auth_cancel_combo_test.dart
+00:18 +103: test_legacy\combo\auth_cancel_combo_test.dart: cancelAll 覆盖整个逻辑请求（#10） [DiomanAuth.cancel × DiomanCancel.cancelAll] auth 刷新等待期间 cancelAll 能取消
+00:18 +104: test_legacy\combo\auth_cancel_combo_test.dart: 取消时释放刷新等待中的认领（review2 #4） [DiomanAuth.cancel × DiomanCancel.onError] 请求入口等共享刷新时被取消：立刻结束并注销 token 登记
+00:18 +105: test_legacy\combo\auth_cancel_combo_test.dart: pairwise: cancel + auth [DiomanAuth.cancel × DiomanCancel.cancelAll] FIX: passing the same DiomanCancel instance to DiomanAuth lets cancelAll abort a request currently being replayed
+00:18 +106: test_legacy\combo\auth_cancel_combo_test.dart: DiomanAuth [DiomanAuth.cancel × DiomanCancel.onRequest] a denied request (no token) still releases the loading/cancel brackets installed before auth
+00:18 +107: test_legacy\combo\auth_cancel_combo_test.dart: pairwise: cancel + auth [DiomanAuth.onRequest × DiomanCancel.cancelAll] without any manual wiring, cancelAll still aborts a request DiomanAuth is currently replaying — DiomanAuth holds the request, so DiomanCancel keeps tracking its token for the whole logical request
+00:18 +108: loading test_legacy\combo\auth_loading_combo_test.dart
+00:18 +108: test_legacy\combo\auth_loading_combo_test.dart: pairwise: loading + auth [DiomanAuth.new(onAccessExpired) × DiomanLoading.new(onChanged)] a 401 that DiomanAuth successfully refreshes+replays only settles the loading counter ONCE, at the point the replayed response finally lands — no premature 0-edge from the initial 401
+00:18 +109: loading test_legacy\combo\auth_normalize_combo_test.dart
+00:19 +109: test_legacy\combo\auth_normalize_combo_test.dart: 恢复成功后的结果要经过后续处理（#8） [DiomanAuth.onRequest × DiomanNormalize.onResponse] auth 刷新重放成功：结果被 normalize 解包
+00:19 +110: test_legacy\combo\auth_normalize_combo_test.dart: 恢复成功后的结果要经过后续处理（#8） [DiomanAuth.onRequest × DiomanNormalize.onResponse] auth 重放成功但落到业务失败：normalize 照常把它转成错误
+00:19 +111: loading test_legacy\combo\auth_retry_cancel_combo_test.dart
+00:19 +111: test_legacy\combo\auth_retry_cancel_combo_test.dart: 认证恢复期间取消（#1） [DiomanRetry.max × DiomanAuth.new(onRefresh) × DiomanShare.policy] 错误阶段：首发在重试等刷新时被取消，follower 不拿到 401
+00:19 +112: test_legacy\combo\auth_retry_cancel_combo_test.dart: 认证恢复期间取消（#1） [DiomanRetry.shouldRetry × DiomanAuth.new(onRefresh) × DiomanShare.policy] 响应阶段：业务失败重试等刷新时被取消，follower 不拿到原业务失败
+00:19 +113: loading test_legacy\combo\auth_retry_combo_test.dart
+00:20 +113: test_legacy\combo\auth_retry_combo_test.dart: [DiomanAuth.new(onAccessExpired) × DiomanRetry.delay] 重试遇到 401 交回原 auth 刷新，恢复数据只归一化一次
+00:20 +114: test_legacy\combo\auth_retry_combo_test.dart: 3-way: share + retry + auth [DiomanAuthFailureAction.refresh × DiomanRetry.delay] the retry re-issue carries the SAME auth header the original attempt had — auth's own token refresh never gets a chance to run again for it, but the combo still works correctly end to end
+00:20 +115: test_legacy\combo\auth_retry_combo_test.dart: [DiomanAuth.new(onAccessExpired) × DiomanRetry.delay] retry 的 auth 桥接回调抛非 Dio 异常时保留原因并完成请求
+00:20 +116: loading test_legacy\combo\auth_retry_keep_alive_combo_test.dart
+00:20 +116: test_legacy\combo\auth_retry_keep_alive_combo_test.dart: [INV-18] keep-alive 下 auth 和 retry 恢复失败不污染后续响应
+00:21 +117: loading test_legacy\combo\auth_share_combo_test.dart
+00:21 +117: test_legacy\combo\auth_share_combo_test.dart: share 结算责任按请求登记（#3 #4 #7） [DiomanAuth.share × DiomanShare.enabled] share + auth：公开（不受保护）请求不会让 follower 悬挂
+00:21 +118: test_legacy\combo\auth_share_combo_test.dart: share 结算责任按请求登记（#3 #4 #7） [DiomanAuth.share × DiomanShare.enabled] share → auth + DiomanMockAdapter：adapter 在传输层，并发请求被 share 合并成一次 mock 命中，follower 不悬挂，真实网络不碰，也不残留 share entry
+00:21 +119: test_legacy\combo\auth_share_combo_test.dart: share 结算责任按请求登记（#3 #4 #7） [DiomanAuth.share × DiomanSharePolicy.retry] share + auth + retry：业务失败由 retry 恢复后，follower 拿到最终成功，不是 auth 提前结算的业务失败
+00:21 +120: test_legacy\combo\auth_share_combo_test.dart: share 结算责任按请求登记（#3 #4 #7） [DiomanAuth.share × DiomanSharePolicy.retry] share 先于 auth/retry 被移除重装：新 share 照常结算
+00:21 +121: test_legacy\combo\auth_share_combo_test.dart: auth 请求入口回调抛异常（review2 #5） [DiomanAuth.share × DiomanShare.onError] expiresAt 抛异常：转成 DioException，不悬挂，认领与 share 条目都释放
+00:21 +122: test_legacy\combo\auth_share_combo_test.dart: auth 请求入口回调抛异常（review2 #5） [DiomanAuth.share × DiomanShare.onError] now 抛异常：转成 DioException，不悬挂，认领与 share 条目都释放
+00:21 +123: test_legacy\combo\auth_share_combo_test.dart: auth 请求入口回调抛异常（review2 #5） [DiomanAuth.share × DiomanShare.onError] buildHeader 抛异常：转成 DioException，不悬挂，认领与 share 条目都释放
+00:21 +124: test_legacy\combo\auth_share_combo_test.dart: auth 请求入口回调抛异常（review2 #5） [DiomanAuth.share × DiomanShare.onError] isProtected 抛异常：转成 DioException，不悬挂，认领与 share 条目都释放
+00:21 +125: test_legacy\combo\auth_share_combo_test.dart: 错误阶段落败者的收尾（review2 #2） [DiomanAuth.cancel × DiomanShare.policy] policy=end + auth：被取代的 A 失败后，auth 认领注销，token 登记清空
+00:21 +126: test_legacy\combo\auth_share_combo_test.dart: 取消时释放刷新等待中的认领（review2 #4） [DiomanAuth.cancel × DiomanShare.onError] leader 在 auth 刷新等待时被取消：认领释放，follower 接手后仍受 cancelAll 控制，token 登记清空
+00:21 +127: test_legacy\combo\auth_share_combo_test.dart: share end/race 窄组合（已知限制 #1 #2 #3） [DiomanAuth.cancel × DiomanSharePolicy.race] race + auth：A 的 auth 回调抛异常、B 随后成功，A 仍取 B 的结果
+00:22 +128: test_legacy\combo\auth_share_combo_test.dart: pairwise: share + auth [DiomanAuth.share × DiomanShare.policy] a solo caller correctly gets its own refreshed+replayed result through DiomanShare+DiomanAuth together
+00:22 +129: test_legacy\combo\auth_share_combo_test.dart: pairwise: share + auth [DiomanAuth.new(now) × DiomanShare.policy] FIX: a concurrent follower now receives the REFRESHED+replayed result, not the leader's pre-refresh 401
+00:22 +130: loading test_legacy\combo\breaker_retry_combo_test.dart
+00:22 +130: test_legacy\combo\breaker_retry_combo_test.dart: [DiomanBreaker.failureThreshold × DiomanRetry.breaker] 重试的每次失败计入熔断，不重复记最终失败
+00:22 +131: test_legacy\combo\breaker_retry_combo_test.dart: [DiomanBreaker.failureThreshold × DiomanRetry.max] Stream body 不可重放：一次真实 500 只记一次，阈值 2 不熔断
+00:22 +132: test_legacy\combo\breaker_retry_combo_test.dart: DiomanBreaker [DiomanBreakerState.open × DiomanRetry.breaker] with DiomanRetry: an open breaker stops the retry storm
+00:23 +133: loading test_legacy\combo\cache_cancel_combo_test.dart
+00:23 +133: test_legacy\combo\cache_cancel_combo_test.dart: pairwise: cache + cancel [DiomanCache.cachePolicy × DiomanCancel.onRequest] a cache hit never allocates a CancelToken via DiomanCancel
+00:23 +134: test_legacy\combo\cache_cancel_combo_test.dart: 3-way: cache + cancel + loading [DiomanCachePolicy.both × DiomanCancel.onRequest] a cache hit skips cancel AND loading together, while a real network call is tracked by both
+00:23 +135: loading test_legacy\combo\cache_key_combo_test.dart
+00:23 +135: test_legacy\combo\cache_key_combo_test.dart: DiomanKey [DiomanCache.cachePolicy × DiomanKeyOptions.key] a constructor-level disabled DiomanKey never writes a key, so DiomanCache installed after it never caches
+00:24 +136: test_legacy\combo\cache_key_combo_test.dart: DiomanKey [DiomanClonePolicy.deep × DiomanKeyOptions.key] deep mode folds sorted queryParameters and a Map body into the key, so two requests differing only in body get different cache entries
+00:24 +137: test_legacy\combo\cache_key_combo_test.dart: key namespace [DiomanCache.cachePolicy × DiomanKey.namespace] same account hits cache and account switches retain isolated entries
+00:24 +138: loading test_legacy\combo\cache_loading_combo_test.dart
+00:24 +138: test_legacy\combo\cache_loading_combo_test.dart: pairwise: cache + loading [DiomanCache.cachePolicy × DiomanLoading.new(onChanged)] a cache hit never increments the loading counter
+00:24 +139: test_legacy\combo\cache_loading_combo_test.dart: [DiomanCache.cachePolicy × DiomanLoading.onRequest] persistence errors reach Dio caller and release loading bracket
+00:24 +140: loading test_legacy\combo\cache_normalize_combo_test.dart
+00:24 +140: test_legacy\combo\cache_normalize_combo_test.dart: 装了 normalize：HTTP 200 + 业务失败不入缓存 [DiomanCache.new(shouldStore) × DiomanNormalize.isSuccess] 业务失败：两次都打到服务端
+00:24 +141: test_legacy\combo\cache_normalize_combo_test.dart: 装了 normalize：HTTP 200 + 业务失败不入缓存 [DiomanCache.new(shouldStore) × DiomanNormalize.isSuccess] 业务成功：入缓存，命中后仍经 normalize 拆包
+00:24 +142: test_legacy\combo\cache_normalize_combo_test.dart: 装了 normalize：HTTP 200 + 业务失败不入缓存 [DiomanCache.new(shouldStore) × DiomanNormalizeOptions.isSuccess] 请求级 isSuccess 把失败码判成功：照常缓存
+00:24 +143: test_legacy\combo\cache_normalize_combo_test.dart: 装了 normalize：HTTP 200 + 业务失败不入缓存 [DiomanCache.new(shouldStore) × DiomanNormalize.isSuccess] 插件级 isSuccess 同样决定是否入缓存
+00:25 +144: test_legacy\combo\cache_normalize_combo_test.dart: 装了 normalize：HTTP 200 + 业务失败不入缓存 [DiomanCache.new(shouldStore) × DiomanNormalizeOptions.codeKey] 请求级 codeKey 指向成功字段：照常缓存
+00:25 +145: test_legacy\combo\cache_normalize_combo_test.dart: 装了 normalize：HTTP 200 + 业务失败不入缓存 [DiomanCache.new(shouldStore) × DiomanNormalizeOptions.enabled] normalize 请求级关闭：业务失败照常缓存
+00:25 +146: test_legacy\combo\cache_normalize_combo_test.dart: 装了 normalize：HTTP 200 + 业务失败不入缓存 [DiomanCache.new(shouldStore) × DiomanNormalize.enabled] normalize 插件级关闭：业务失败照常缓存
+00:25 +147: test_legacy\combo\cache_normalize_combo_test.dart: 装了 normalize：HTTP 200 + 业务失败不入缓存 [DiomanCache.new(shouldStore) × DiomanNormalize.shouldNormalize] shouldNormalize 返回 false：照常缓存
+00:25 +148: test_legacy\combo\cache_normalize_combo_test.dart: 装了 normalize：HTTP 200 + 业务失败不入缓存 [DiomanCache.new(shouldStore) × DiomanNormalizeOptions.shouldNormalize] 请求级 shouldNormalize 返回 false：照常缓存
+00:25 +149: test_legacy\combo\cache_normalize_combo_test.dart: 装了 normalize：HTTP 200 + 业务失败不入缓存 [DiomanCache.new(shouldStore) × DiomanNormalize.codeKey] 非信封 Map（只有 code）透传：照常缓存
+00:25 +150: test_legacy\combo\cache_normalize_combo_test.dart: 装了 normalize：HTTP 200 + 业务失败不入缓存 [DiomanCache.new(shouldStore) × DiomanNormalize.shouldNormalize] 非 Map 响应透传：照常缓存
+00:25 +151: test_legacy\combo\cache_normalize_combo_test.dart: shouldStore 优先级 [DiomanCache.new(shouldStore)] 插件级显式 shouldStore 覆盖自动接线：业务失败也按用户意愿缓存
+00:25 +152: test_legacy\combo\cache_normalize_combo_test.dart: shouldStore 优先级 [DiomanCache.new(shouldStore)] 插件级 shouldStore 返回 false：业务成功也不缓存
+00:25 +153: test_legacy\combo\cache_normalize_combo_test.dart: shouldStore 优先级 [DiomanCacheOptions.shouldStore] 请求级覆盖插件级（false → true）
+00:25 +154: test_legacy\combo\cache_normalize_combo_test.dart: shouldStore 优先级 [DiomanCacheOptions.shouldStore] 请求级覆盖插件级（true → false）
+00:25 +155: test_legacy\combo\cache_normalize_combo_test.dart: shouldStore 优先级 [DiomanCacheOptions.shouldStore] 请求级覆盖自动接线：业务失败按请求级判定缓存
+00:25 +156: test_legacy\combo\cache_normalize_combo_test.dart: shouldStore 优先级 [DiomanCache.new(shouldStore)] 2xx 检查先于 shouldStore：非 2xx 响应即便 shouldStore 返回 true 也不缓存
+00:25 +157: test_legacy\combo\cache_normalize_combo_test.dart: shouldStore 优先级 [DiomanCache.new(shouldStore)] shouldStore 拿到的是规范化之前的原始响应
+00:25 +158: test_legacy\combo\cache_normalize_combo_test.dart: 没装 normalize / 动态插拔 [DiomanCache.new(shouldStore)] 没装 normalize：2xx 即存（行为不变）
+00:25 +159: test_legacy\combo\cache_normalize_combo_test.dart: 没装 normalize / 动态插拔 [DiomanHandle.append][DiomanHandle.remove] 动态 append / remove normalize 后接线跟着变
+00:25 +160: test_legacy\combo\cache_normalize_combo_test.dart: 没装 normalize / 动态插拔 [DiomanHandle.insertAfter] 动态 insert normalize 到 cache 之后即生效
+00:25 +161: test_legacy\combo\cache_normalize_combo_test.dart: 没装 normalize / 动态插拔 [DiomanHandle.dispose] dispose 撤销接线：cache 不再持有 normalize 的判定
+00:25 +162: loading test_legacy\combo\cache_offline_combo_test.dart
+00:25 +162: test_legacy\combo\cache_offline_combo_test.dart: [INV-20] 缓存命中在离线判定前返回且不产生加载括号
+00:25 +163: loading test_legacy\combo\cache_retry_combo_test.dart
+00:25 +163: test_legacy\combo\cache_retry_combo_test.dart: pairwise: cache + retry [DiomanCache.onResponse × DiomanRetry.onResponse] a retried response is NOT cached — the retry re-issue never reaches DiomanCache.onResponse
+00:26 +164: test_legacy\combo\cache_retry_combo_test.dart: pairwise: cache + retry [DiomanCache.cachePolicy × DiomanRetry.delay] a cache hit is NOT rewritten by DiomanRetry — a later caller hitting the entry the ORIGINAL failed attempt poisoned gets it back as-is (retry only recovers requests its own onRequest admitted)
+00:26 +165: loading test_legacy\combo\cache_share_combo_test.dart
+00:26 +165: test_legacy\combo\cache_share_combo_test.dart: pairwise: cache + share [DiomanCache.onRequest × DiomanShare.onRequest] a cache hit resolves before DiomanShare.onRequest ever runs — no dedup needed once the answer is already known
+00:26 +166: test_legacy\combo\cache_share_combo_test.dart: pairwise: cache + share [DiomanCache.cachePolicy × DiomanShare.policy] two concurrent callers before anything is cached still dedupe via share, and the single real response gets cached for a third, later caller
+00:27 +167: loading test_legacy\combo\cancel_loading_combo_test.dart
+00:27 +167: test_legacy\combo\cancel_loading_combo_test.dart: pairwise: cancel + loading [DiomanCancel.onRequest × DiomanLoading.new(onChanged)] FIXED: cancelling a request correctly settles the loading counter back to 0 — DiomanLoading._decrement can now find its own `_kBracketed` flag on the cancellation RequestOptions
+00:27 +168: loading test_legacy\combo\cancel_retry_combo_test.dart
+00:27 +168: test_legacy\combo\cancel_retry_combo_test.dart: cancelAll 覆盖整个逻辑请求（#10） [DiomanCancel.cancelAll × DiomanRetry.cancel] retry 退避等待期间 cancelAll 能取消，且立刻结束等待
+00:27 +169: test_legacy\combo\cancel_retry_combo_test.dart: DiomanCancel + DiomanRetry [DiomanCancel.cancelAll × DiomanRetry.cancel] a token this plugin injected stays trackable by cancelAll() while DiomanRetry's re-issue (a throwaway, interceptor-less Dio) is in flight — because DiomanRetry was given a `cancel` reference, not because the re-issue reaches this plugin's own onRequest (it never does)
+00:27 +170: loading test_legacy\combo\cancel_share_combo_test.dart
+00:27 +170: test_legacy\combo\cancel_share_combo_test.dart: cancelAll 覆盖整个逻辑请求（#10） [DiomanCancel.onError × DiomanShare.policy] share policy=retry 的内部重试等待期间可被取消
+00:28 +171: test_legacy\combo\cancel_share_combo_test.dart: 取消类错误不等待胜出结果（取消悬挂） [DiomanCancel.onError × DiomanShare.policy] policy=end：只取消落败者 A、B 永不完成，A 以 cancel 结束并释放登记
+00:28 +172: test_legacy\combo\cancel_share_combo_test.dart: 取消类错误不等待胜出结果（取消悬挂） [DiomanCancel.onError × DiomanShare.policy] policy=end + auth：只取消落败者 A、B 永不完成，A 以 cancel 结束并释放登记
+00:28 +173: test_legacy\combo\cancel_share_combo_test.dart: 取消类错误不等待胜出结果（取消悬挂） [DiomanCancel.onError × DiomanShare.policy] policy=race：只取消落败者 A、B 永不完成，A 以 cancel 结束并释放登记
+00:28 +174: test_legacy\combo\cancel_share_combo_test.dart: 取消类错误不等待胜出结果（取消悬挂） [DiomanCancel.onError × DiomanShare.policy] policy=race + auth：只取消落败者 A、B 永不完成，A 以 cancel 结束并释放登记
+00:28 +175: test_legacy\combo\cancel_share_combo_test.dart: share end/race 窄组合（已知限制 #1 #2 #3） [DiomanCancel.cancelAll × DiomanSharePolicy.race] race：A 重试耗尽后等 B，B 永不完成；cancelAll 仍能取消等待中的 A
+00:28 +176: test_legacy\combo\cancel_share_combo_test.dart: pairwise: share + cancel [DiomanCancel.onRequest × DiomanShare.policy] FIXED: cancelling a DiomanShare leader no longer deadlocks that key — a completely new, later caller for the same key correctly reaches the network instead of hanging on a dead entry
+00:28 +177: loading test_legacy\combo\cancel_share_takeover_combo_test.dart
+00:29 +177: test_legacy\combo\cancel_share_takeover_combo_test.dart: 首发取消后 follower 重新入链接手（#2 #3 #4） [DiomanShare.onRequest × DiomanAuth.new(onRefresh)] 接手请求遇 401：auth 刷新并重放成功，首发仍拿到取消
+00:29 +178: test_legacy\combo\cancel_share_takeover_combo_test.dart: 首发取消后 follower 重新入链接手（#2 #3 #4） [DiomanShare.onRequest × DiomanRetry.max] 接手请求遇可重试 500：retry 重试成功
+00:29 +179: test_legacy\combo\cancel_share_takeover_combo_test.dart: 首发取消后 follower 重新入链接手（#2 #3 #4） [DiomanShare.onRequest × DiomanCancel.cancelAll] 首发与 follower 都不带 token：接手请求受 cancelAll 控制，不残留在途传输
+00:29 +180: test_legacy\combo\cancel_share_takeover_combo_test.dart: 首发取消后 follower 重新入链接手（#2 #3 #4） [DiomanShare.onRequest × DiomanCancel.cancelAll] multipart FormData 共享：首发取消后 follower 用自己未消费的 FormData 成功
+00:29 +181: test_legacy\combo\cancel_share_takeover_combo_test.dart: 首发取消后 follower 重新入链接手（#2 #3 #4） [DiomanShare.onRequest × DiomanCancel.cancelAll] 全部调用方依次取消：逐个接手后 entry 结算，不悬挂，同 key 新请求重新开始
+00:29 +182: loading test_legacy\combo\full_stack_combo_test.dart
+00:30 +182: test_legacy\combo\full_stack_combo_test.dart: full stateful stack (all 6): cache+share+cancel+loading+auth+retry [Dioman.install] a network-level failure (500) still retries and eventually succeeds through the entire stack — cleanly, since DiomanRetry's bare-dio re-issue never touches cache/share/cancel/loading/auth/log along the way
+00:30 +183: test_legacy\combo\full_stack_combo_test.dart: full 13-plugin stack via Dioman.install [Dioman.install] a plain successful request round-trips through all 13 plugins without crashing, and DiomanNormalize correctly unwraps the envelope
+00:30 +184: loading test_legacy\combo\key_share_combo_test.dart
+00:30 +184: test_legacy\combo\key_share_combo_test.dart: key namespace [DiomanKey.namespace × DiomanShare.onRequest] account switch does not join another accounts in-flight share
+00:30 +185: loading test_legacy\combo\loading_retry_combo_test.dart
+00:30 +185: test_legacy\combo\loading_retry_combo_test.dart: pairwise: loading + retry [DiomanLoading.delay × DiomanRetry.delay] the loading counter stays steady at 1 across a retry — the re-issue never touches DiomanLoading, so there's no 0→1 flicker mid-retry
+00:31 +186: loading test_legacy\combo\loading_share_combo_test.dart
+00:31 +186: test_legacy\combo\loading_share_combo_test.dart: end / race 全部失败（#5） [DiomanLoading.new(onChanged) × DiomanShare.policy] policy=end：落败者的 loading 括号也被释放（计数归零）
+00:31 +187: test_legacy\combo\loading_share_combo_test.dart: 错误阶段落败者的收尾（review2 #2） [DiomanLoading.new(onChanged) × DiomanShare.policy] policy=end：A 失败、B 成功后 loading 归零、cancel 登记清空、认领注销
+00:31 +188: test_legacy\combo\loading_share_combo_test.dart: 错误阶段落败者的收尾（review2 #2） [DiomanLoading.new(onChanged) × DiomanShare.policy] policy=race：A 失败、B 成功后 loading 归零、cancel 登记清空、认领注销
+00:31 +189: test_legacy\combo\loading_share_combo_test.dart: pairwise: share + loading [DiomanLoading.onRequest × DiomanShare.onRequest] a follower is invisible to the loading counter — only the leader is counted, because a follower never reaches DiomanLoading.onRequest (share's else-branch never calls handler.next)
+00:31 +190: loading test_legacy\combo\mock_adapter_combo_test.dart
+00:32 +190: test_legacy\combo\mock_adapter_combo_test.dart: adapter × normalize / share [DiomanMockAdapter.new(routes) × DiomanNormalize.onResponse] mock 命中的信封照常被 normalize 解包，并发 follower 由 share 合并、不悬挂
+00:32 +191: test_legacy\combo\mock_adapter_combo_test.dart: adapter × normalize / share [DiomanMockAdapter.new(fallbackWhen) × DiomanShare] 并发请求在 share 层先合并，只发一次 mock 探测，回落后只打一次真实服务
+00:32 +192: test_legacy\combo\mock_adapter_combo_test.dart: adapter × offline [DiomanMockAdapter.new(routes) × DiomanOffline] adapter 在 offline 之下：离线时连内联 mock 请求也被排队，上线 flush 后才命中 mock
+00:32 +193: test_legacy\combo\mock_adapter_combo_test.dart: adapter × retry（key → retry） [DiomanMockAdapter.new(routes) × DiomanRetry.onError] key → retry：mock 的 500 照常被 retry 重试，每次重放都再次命中 mock，真实服务零次
+00:32 +194: test_legacy\combo\mock_adapter_combo_test.dart: adapter × retry（key → retry） [DiomanMockAdapter.new(routes) × DiomanRetry.shouldRetry] key → retry：mock 命中业务失败（HTTP 200 + 失败码），shouldRetry 判可重试就会重放并再次命中 mock
+00:32 +195: test_legacy\combo\mock_adapter_combo_test.dart: adapter × retry（key → retry） [DiomanMockAdapter.new(fallbackWhen) × DiomanRetry.onRetry] key → retry：mock 服务 404 回落真实接口，真实先回 500 再回 200，重放时再次先探测 mock 再回落，重试一次拿到 200
+00:32 +196: test_legacy\combo\mock_adapter_combo_test.dart: adapter × retry（key → share → retry） [DiomanMockAdapter.new(routes) × DiomanRetry.onError] key → share → retry：mock 的 500 照常被 retry 重试，每次重放都再次命中 mock，真实服务零次
+00:32 +197: test_legacy\combo\mock_adapter_combo_test.dart: adapter × retry（key → share → retry） [DiomanMockAdapter.new(routes) × DiomanRetry.shouldRetry] key → share → retry：mock 命中业务失败（HTTP 200 + 失败码），shouldRetry 判可重试就会重放并再次命中 mock
+00:32 +198: test_legacy\combo\mock_adapter_combo_test.dart: adapter × retry（key → share → retry） [DiomanMockAdapter.new(fallbackWhen) × DiomanRetry.onRetry] key → share → retry：mock 服务 404 回落真实接口，真实先回 500 再回 200，重放时再次先探测 mock 再回落，重试一次拿到 200
+00:32 +199: loading test_legacy\combo\normalize_notify_combo_test.dart
+00:33 +199: test_legacy\combo\normalize_notify_combo_test.dart: [DiomanNotify.ordering × DiomanNormalize.ordering] notify 始终排在 normalize 前，读取解包前的业务错误
+00:33 +200: loading test_legacy\combo\normalize_retry_combo_test.dart
+00:33 +200: test_legacy\combo\normalize_retry_combo_test.dart: 恢复成功后的结果要经过后续处理（#8） [DiomanNormalize.onResponse × DiomanRetry.onRequest] retry 错误阶段重试成功：结果被 normalize 解包
+00:33 +201: test_legacy\combo\normalize_retry_combo_test.dart: 恢复成功后的结果要经过后续处理（#8） [DiomanNormalize.onResponse × DiomanRetry.shouldRetry] retry 业务失败恢复：结果被 normalize 解包
+00:33 +202: loading test_legacy\combo\normalize_share_combo_test.dart
+00:33 +202: test_legacy\combo\normalize_share_combo_test.dart: follower 拿到独立的 Response（#6） [DiomanNormalize.onResponse × DiomanShare.onRequest] Response 不同实例、绑定各自的 RequestOptions，嵌套信封只解一层
+00:33 +203: test_legacy\combo\normalize_share_combo_test.dart: 恢复成功后的结果要经过后续处理（#8） [DiomanNormalize.onResponse × DiomanShare.policy] share policy=retry 内部重试成功：结果被 normalize 解包，loading 计数归零
+00:34 +204: test_legacy\combo\normalize_share_combo_test.dart: 错误恢复成功后 follower 只处理一次（review2 #1） [DiomanNormalize.onResponse × DiomanShare.policy] share + retry + normalize：leader 恢复后 follower 只解一层信封
+00:34 +205: test_legacy\combo\normalize_share_combo_test.dart: 错误恢复成功后 follower 只处理一次（review2 #1） [DiomanNormalize.onResponse × DiomanShare.policy] share + auth + normalize：leader 恢复后 follower 只解一层信封
+00:34 +206: test_legacy\combo\normalize_share_combo_test.dart: 错误恢复成功后 follower 只处理一次（review2 #1） [DiomanNormalize.onResponse × DiomanShare.policy] share + share-retry + normalize：leader 恢复后 follower 只解一层信封
+00:34 +207: loading test_legacy\combo\powerset_combo_test.dart
+00:34 +207: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 15 plugins (32767 combinations) returns the expected value on a plain success
+01:14 +208: test_legacy\combo\powerset_combo_test.dart: [Dioman.install] every non-empty subset of the 12 plugins (4095 combinations) recovers correctly from a 500, a cache-populating round trip, and a 401 refresh+replay — paced to stay under the local ephemeral-port budget (see the file doc; this sweep takes several minutes)
+05:27 +209: loading test_legacy\combo\retry_share_arbitration_combo_test.dart
+05:27 +209: test_legacy\combo\retry_share_arbitration_combo_test.dart: end / race 的最终仲裁（review2 #3） [DiomanRetry.cancel × DiomanSharePolicy.race] race + retry：A 重试后仍失败而 B 尚未完成时，A 不抛错，等 B 的成功结果
+05:27 +210: test_legacy\combo\retry_share_arbitration_combo_test.dart: end / race 的最终仲裁（review2 #3） [DiomanRetry.cancel × DiomanSharePolicy.end] end + retry：A 恢复期间被 B 取代，A 返回 B 的结果而不是自己的恢复结果
+05:27 +211: test_legacy\combo\retry_share_arbitration_combo_test.dart: share end/race 窄组合（已知限制 #1 #2 #3） [DiomanRetry.shouldRetry × DiomanShare.policy] policy=end：A 的 shouldRetry 抛异常、B 随后成功，A 仍取 B 的结果
+05:27 +212: test_legacy\combo\retry_share_arbitration_combo_test.dart: share end/race 窄组合（已知限制 #1 #2 #3） [DiomanRetry.shouldRetry × DiomanShare.policy] policy=race：A 的 shouldRetry 抛异常、B 随后成功，A 仍取 B 的结果
+05:28 +213: test_legacy\combo\retry_share_arbitration_combo_test.dart: share end/race 窄组合（已知限制 #1 #2 #3） [DiomanRetry.onRetry × DiomanSharePolicy.race] race：A 的 onRetry 抛异常、B 随后失败，A 收到 B 的失败而不是回调异常，且无未处理异步错误
+05:28 +214: loading test_legacy\combo\retry_share_recovery_combo_test.dart
+05:28 +214: test_legacy\combo\retry_share_recovery_combo_test.dart: share 结算责任按请求登记（#3 #4 #7） [DiomanRetry.share × DiomanSharePolicy.retry] 移除 retry 后 share 不再等它结算，不悬挂；旧 setter 重复调用无副作用
+05:28 +215: test_legacy\combo\retry_share_recovery_combo_test.dart: follower 拿到独立的 Response（#6） [DiomanRetry.max × DiomanShare.onRequest] follower 不会对 leader 已耗尽的重试再重试一轮
+05:28 +216: test_legacy\combo\retry_share_recovery_combo_test.dart: retry 回调异常（#13） [DiomanRetry.share × DiomanShare.onError] 错误阶段 shouldRetry 抛异常：转成 DioException，且 share 的 follower 不悬挂
+05:28 +217: test_legacy\combo\retry_share_recovery_combo_test.dart: 下游 reject 的传播标志（review2 #6） [DiomanRetry.cancel × DiomanShare.onError] retry 恢复后下游 reject(callFollowing=false)：直接终止，后续错误拦截器不再执行
+05:28 +218: test_legacy\combo\retry_share_recovery_combo_test.dart: 下游 reject 的传播标志（review2 #6） [DiomanRetry.cancel × DiomanShare.onError] retry 恢复后下游 reject(callFollowing=true)：后续错误拦截器继续执行
+05:28 +219: test_legacy\combo\retry_share_recovery_combo_test.dart: 下游 reject 的传播标志（review2 #6） [DiomanRetry.cancel × DiomanShare.onError] auth 恢复后下游 reject(callFollowing=false)：直接终止，后续错误拦截器不再执行
+05:28 +220: test_legacy\combo\retry_share_recovery_combo_test.dart: 下游 reject 的传播标志（review2 #6） [DiomanRetry.cancel × DiomanShare.onError] auth 恢复后下游 reject(callFollowing=true)：后续错误拦截器继续执行
+05:28 +221: test_legacy\combo\retry_share_recovery_combo_test.dart: pairwise: share + retry [DiomanRetry.delay × DiomanSharePolicy.retry] FIX: a concurrent follower now receives the RETRIED result, not the leader's pre-retry failure
+05:28 +222: test_legacy\combo\retry_share_recovery_combo_test.dart: DiomanShare + DiomanRetry [DiomanRetry.delay × DiomanSharePolicy.retry] a NEW caller arriving while the retry is in flight dedupes against it — the shared entry stays open until the retry settles, without any manual wiring
+05:28 +223: test_legacy\combo\retry_share_recovery_combo_test.dart: pairwise: share + retry [DiomanRetry.share × DiomanShare.policy] FIX: a THIRD caller arriving while the retry is still in flight still dedupes against it (no 3rd network call) — the reentry-skip marker doesn't disturb DiomanShare's normal dedup for genuinely new callers
+05:28 +224: loading test_legacy\integration\extra_keys_integration_test.dart
+05:28 +224: test_legacy\integration\extra_keys_integration_test.dart: 与源码一致（防止新增键忘记登记） [DiomanExtraKeys.all][DiomanExtraKeys.builtIn] 源码里每个 dioman: 键常量都在注册表中，注册表的非配置键都能在源码找到
+05:28 +225: test_legacy\integration\extra_keys_integration_test.dart: 与源码一致（防止新增键忘记登记） [DiomanExtraKeys.ofKind][DiomanExtraKeyKind.config] 配置键对应真实存在的插件名；非插件 owner 只有 DiomanMockAdapter
+05:28 +226: test_legacy\integration\extra_keys_integration_test.dart: 重复实例共享状态键的诊断 [DiomanSharedStateKey.key][DiomanExtraKeys.findSharedState][DiomanSharedStateKey.count] 同一 Dio 上装两个 DiomanCache：报告它的状态键，数量为 2
+05:28 +227: test_legacy\integration\extra_keys_integration_test.dart: 重复实例共享状态键的诊断 [DiomanExtraKeys.findSharedState][Dioman.install] 正常 install 没有冲突；无状态键的重复插件（log）不算冲突
+05:28 +228: test_legacy\integration\extra_keys_integration_test.dart: 重复实例共享状态键的诊断 [DiomanHandle.diagnoseSharedStateKeys] handle.diagnoseSharedStateKeys 能发现绕过 handle 手动重复添加的实例
+05:28 +229: test_legacy\integration\extra_keys_integration_test.dart: 重复实例共享状态键的诊断 [DiomanExtraKeys.assertNoSharedState] assertNoSharedState：debug 下重复实例抛 AssertionError，无冲突不抛
+05:28 +230: test_legacy\integration\extra_keys_integration_test.dart: [DiomanExtraKeys.toMarkdown] docs/design/architecture.md 中的键表与 DiomanExtraKeys.toMarkdown() 同步
+05:28 +231: loading test_legacy\integration\install_integration_test.dart
+05:29 +231: test_legacy\integration\install_integration_test.dart: Dioman.install [Dioman.install][DiomanHandle.dispose] adds plugins in canonical order and the handle disposes them all
+05:29 +232: test_legacy\integration\install_integration_test.dart: Dioman.install [DiomanHandle.plugin][DiomanHandle.remove] remove<T>() ejects only the targeted plugin, runs its dispose, and is a no-op for a type that was never installed
+05:29 +233: test_legacy\integration\install_integration_test.dart: Dioman.install [DiomanHandle.append][DiomanHandle.insertAfter] insertBefore/insertAfter/prepend/append slot a custom plugin into both the handle and dio.interceptors, in the right position and execution order
+05:29 +234: test_legacy\integration\install_integration_test.dart: 默认 install 顺序不变 [Dioman.install][DiomanHandle.plugins] 全部 15 个插件的安装顺序与规范顺序逐一相同
+05:29 +235: test_legacy\integration\install_integration_test.dart: 默认 install 顺序不变 [Dioman.install][DiomanPlugin.ordering] install 的 plugins 参数：自定义插件按约束插入内置链
+05:29 +236: test_legacy\integration\install_integration_test.dart: 报错 [Dioman.install][DiomanPluginOrderIssue.cycle][DiomanPluginOrderIssue.duplicateName] install 遇到环/重复名同样抛错，且不修改 dio
+05:29 +237: test_legacy\integration\install_integration_test.dart: 动态插入后的校验 [DiomanHandle.insertBefore][DiomanHandle.insertAfter] 合法插入成功并按位置生效
+05:29 +238: test_legacy\integration\install_integration_test.dart: 动态插入后的校验 [DiomanHandle.insertBefore][DiomanHandle.insertAfter][DiomanHandle.prepend][DiomanHandle.append][DiomanPluginOrderIssue.duplicateName] 重复名：四个插入方法都抛错且保持原状
+05:29 +239: test_legacy\integration\install_integration_test.dart: 动态插入后的校验 [DiomanHandle.insertBefore][DiomanPluginOrderIssue.misordered] 位置违反约束：抛 misordered，handle 与 dio 均不变
+05:29 +240: test_legacy\integration\install_integration_test.dart: 动态插入后的校验 [DiomanHandle.insertBefore][DiomanPluginOrderIssue.missingDependency] 缺失必需依赖：插入被拒
+05:29 +241: test_legacy\integration\install_integration_test.dart: 动态插入后的校验 [DiomanHandle.insertBefore][DiomanHandle.insertAfter] anchor 不在 handle 上仍抛 ArgumentError（既有行为）
+05:29 +242: test_legacy\integration\install_integration_test.dart: 动态插入后的校验 [DiomanHandle.remove][DiomanPluginOrder.requires] remove：被其它插件 requires 的插件不能移除
+05:29 +243: test_legacy\integration\install_integration_test.dart: 动态插拔后的 retry ↔ breaker 重新接线 [DiomanHandle.insertAfter][DiomanRetry.breaker] install 后再 insert breaker：retry 会咨询它
+05:29 +244: test_legacy\integration\install_integration_test.dart: 动态插拔后的 retry ↔ breaker 重新接线 [DiomanHandle.remove][DiomanRetry.breaker] remove breaker：retry 不再咨询已移除的实例
+05:29 +245: test_legacy\integration\install_integration_test.dart: 动态插拔后的 retry ↔ breaker 重新接线 [DiomanHandle.prepend][DiomanHandle.append][DiomanRetry.breaker] 移除后再 append 新 breaker：接到新实例而不是旧的
+05:29 +246: test_legacy\integration\install_integration_test.dart: 动态插拔后的 retry ↔ breaker 重新接线 [DiomanHandle.remove][DiomanRetry.breaker] 被移除的 retry 也被解除接线（不再持有 breaker）
+05:29 +247: test_legacy\integration\install_integration_test.dart: 动态插拔后的 retry ↔ breaker 重新接线 [DiomanHandle.dispose][DiomanRetry.breaker] dispose 解除 retry 对 breaker 的引用
+05:29 +248: test_legacy\integration\install_integration_test.dart: 动态插拔后的 retry ↔ breaker 重新接线 [DiomanRetry.breaker][Dioman.install][DiomanHandle.remove] 手动接的外部 breaker：install、插拔无关插件都不清掉它
+05:29 +249: test_legacy\integration\install_integration_test.dart: 动态插拔后的 retry ↔ breaker 重新接线 [DiomanRetry.share] 兼容 setter 是无效果的空操作：insert/remove 不需要也不依赖它
+05:29 +250: loading test_legacy\integration\install_plugins_integration_test.dart
+05:29 +250: test_legacy\integration\install_plugins_integration_test.dart: [Dioman.installPlugins] 先排序安装再绑定宿主和重试熔断器
+05:29 +251: loading test_legacy\integration\matrix_integration_test.dart
+05:29 +251: test_legacy\integration\matrix_integration_test.dart: [matrix.repositoryGaps] 总账静态闸门棘轮
+05:30 +252: loading test_legacy\rule\auth_flow_rule_test.dart
+05:30 +252: test_legacy\rule\auth_flow_rule_test.dart: 重放复用宿主传输层、处理请求体（#9） [DiomanAuth.dio][DiomanAuth.onRequest] auth 的重放走宿主的 adapter 和 transformer
+05:30 +253: test_legacy\rule\auth_flow_rule_test.dart: 刷新成功后的重放失败（#11） [DiomanAuth.onRequest] 重放遇到 500：有效 token 保留、不触发过期，抛出 500 而不是旧 401
+05:30 +254: test_legacy\rule\auth_flow_rule_test.dart: 刷新成功后的重放失败（#11） [DiomanTokenManager.clear][DiomanAuth.onRequest] 重放仍是 401：明确的认证失败，清会话并触发过期
+05:30 +255: test_legacy\rule\auth_flow_rule_test.dart: DiomanAuth [DiomanAuthFailureAction.refresh][DiomanAuthFailureAction.replay] 401 with the default Bearer header triggers a refresh action, not replay/expire (regression: comparing the formatted header against the raw store token made the refresh branch unreachable)
+05:30 +256: test_legacy\rule\auth_flow_rule_test.dart: DiomanAuth [DiomanAuth.new(onRefresh)][DiomanAuth.new(expiresAt)] proactive refresh is opt-in: with no expiresAt callback the token is used as-is and onRefresh is never called
+05:30 +257: test_legacy\rule\auth_flow_rule_test.dart: DiomanAuth [DiomanAuthFailureAction.refresh][DiomanAuth.new(expiresAt)] proactive refresh failure clears the session and rejects before the request is ever sent
+05:30 +258: test_legacy\rule\auth_flow_rule_test.dart: DiomanAuth [DiomanAuth.onError][DiomanAuthFailureAction.refresh][DiomanAuthFailureAction.replay] a 401, successful refresh, and replay deliver the replayed response to the original caller
+05:30 +259: test_legacy\rule\auth_flow_rule_test.dart: [DiomanAuthFailureAction.replay][DiomanAuth.new(onAccessExpired)] auth replay 分支传播 500 而不清掉有效会话
+05:30 +260: test_legacy\rule\auth_flow_rule_test.dart: [DiomanAuthFailureAction.expired][DiomanAuthFailureAction.replay] auth replay 分支遇到 401 时仅认证失败结束会话
+05:30 +261: test_legacy\rule\auth_flow_rule_test.dart: [DiomanAuthFailureAction.expired][DiomanAuthFailureAction.replay] auth replay 分支遇到 500 时仅认证失败结束会话
+05:30 +262: loading test_legacy\rule\auth_options_rule_test.dart
+05:30 +262: test_legacy\rule\auth_options_rule_test.dart: DiomanAuth: defaultAuthFailure classification [DiomanAuthFailureAction.deny][DiomanAuthFailureAction.expired] with no token in the store: a 401 classifies as expired, a 403 as deny
+05:30 +263: test_legacy\rule\auth_options_rule_test.dart: DiomanAuth: defaultAuthFailure classification [DiomanAuth.new(ready)][DiomanAuthOptions.ready] a custom ready callback (instead of buildHeader) still reaches a successful replay end-to-end — no raw token is stashed for it, so classification falls back to the header-fallback path exercised above, either action of which still replays and recovers
+05:30 +264: test_legacy\rule\auth_options_rule_test.dart: DiomanAuth: additional realistic branches [DiomanAuth.new(onAccessDenied)][DiomanAuth.new(onAccessExpired)] a custom onAccessDenied callback is used (instead of falling back to onAccessExpired) when a protected request has no token
+05:30 +265: test_legacy\rule\auth_options_rule_test.dart: DiomanAuth: additional realistic branches [DiomanAuth.new(onFailure)][DiomanAuthOptions.onFailure] a custom onFailure callback can force the deny or expired action directly, regardless of the default classification
+05:30 +266: test_legacy\rule\auth_options_rule_test.dart: DiomanAuth: additional realistic branches [DiomanAuth.new(isProtected)][DiomanAuthOptions.isProtected] a custom isProtected callback decides per-request whether auth applies at all
+05:30 +267: test_legacy\rule\auth_options_rule_test.dart: Per-request Options overrides [DiomanAuth.enabled][DiomanAuthOptions.enabled] DiomanAuthOptions(enabled: false) marks a request unprotected
+05:30 +268: test_legacy\rule\auth_options_rule_test.dart: Newly wired Options fields (full constructor↔Options parity) [DiomanAuthOptions.buildHeader][DiomanAuthOptions.headerKey][DiomanAuth.new(buildHeader)][DiomanAuth.new(headerKey)] DiomanAuthOptions.headerKey/buildHeader override the plugin defaults for a single call
+05:30 +269: loading test_legacy\rule\auth_overrides_rule_test.dart
+05:30 +269: test_legacy\rule\auth_overrides_rule_test.dart: [DiomanAuth.name][DiomanAuth.pluginName] 固定名称用于安装后的插件查找
+05:30 +270: test_legacy\rule\auth_overrides_rule_test.dart: [DiomanAuth.new(tokenManager)][DiomanTokenManager.accessToken] 所有请求读取同一管理器的当前令牌，空值拒绝发送
+05:30 +271: test_legacy\rule\auth_overrides_rule_test.dart: [DiomanTokenManager.canRefresh][DiomanTokenManager.refreshToken] 默认路由不读取刷新能力或刷新令牌，仍调用刷新回调
+05:30 +272: test_legacy\rule\auth_overrides_rule_test.dart: [DiomanAuth.new(refreshLeeway)] 默认不提前刷新，到期等号触发刷新
+05:30 +273: test_legacy\rule\auth_overrides_rule_test.dart: [DiomanAuthOptions.expiresAt][DiomanAuthOptions.now][DiomanAuthOptions.refreshLeeway][DiomanAuth.new(refreshLeeway)] expiresAt 覆盖、空值继承与到期等号边界
+05:30 +274: test_legacy\rule\auth_overrides_rule_test.dart: [DiomanAuthOptions.expiresAt][DiomanAuthOptions.now][DiomanAuthOptions.refreshLeeway][DiomanAuth.new(refreshLeeway)] now 覆盖、空值继承与到期等号边界
+05:30 +275: test_legacy\rule\auth_overrides_rule_test.dart: [DiomanAuthOptions.expiresAt][DiomanAuthOptions.now][DiomanAuthOptions.refreshLeeway][DiomanAuth.new(refreshLeeway)] refreshLeeway 覆盖、空值继承与到期等号边界
+05:30 +276: test_legacy\rule\auth_overrides_rule_test.dart: [DiomanAuthOptions.expiresAt][DiomanAuthOptions.now][DiomanAuthOptions.refreshLeeway][DiomanAuth.new(refreshLeeway)] constructor 覆盖、空值继承与到期等号边界
+05:30 +277: test_legacy\rule\auth_overrides_rule_test.dart: [DiomanAuthOptions.onAccessDenied][DiomanAuthOptions.onAccessExpired] expired=false 回调单请求覆盖，空值继承
+05:30 +278: test_legacy\rule\auth_overrides_rule_test.dart: [DiomanAuthOptions.onAccessDenied][DiomanAuthOptions.onAccessExpired] expired=true 回调单请求覆盖，空值继承
+05:30 +279: test_legacy\rule\auth_overrides_rule_test.dart: [DiomanAuth.onResponse] 成功清临时标记并交出认领，保留业务 extra
+05:31 +280: test_legacy\rule\auth_overrides_rule_test.dart: [DiomanAuthFailureAction.others] 非认证错误原样传出、清临时标记且不调用恢复回调
+05:31 +281: loading test_legacy\rule\breaker_accounting_rule_test.dart
+05:31 +281: test_legacy\rule\breaker_accounting_rule_test.dart: [DiomanBreaker.admit][DiomanBreaker.recordError] 连续失败达到阈值后熔断，admit 随即拒绝
+05:31 +282: test_legacy\rule\breaker_accounting_rule_test.dart: [DiomanBreaker.recordResponse] 5xx 与 429 计失败，成功响应清零连续失败计数
+05:31 +283: test_legacy\rule\breaker_accounting_rule_test.dart: [DiomanBreaker.recordResponse][DiomanBreaker.recordError] 没有凭据的结果不记账，避免重复计数
+05:31 +284: test_legacy\rule\breaker_accounting_rule_test.dart: [DiomanBreaker.recordError] 取消只归还凭据、不计成败；熔断器自己的拒绝不计失败
+05:31 +285: loading test_legacy\rule\breaker_options_rule_test.dart
+05:31 +285: test_legacy\rule\breaker_options_rule_test.dart: [DiomanBreaker.name][DiomanBreaker.pluginName][DiomanBreaker.ordering] 固定名称与 retry 后置声明
+05:31 +286: test_legacy\rule\breaker_options_rule_test.dart: [DiomanBreaker.defaultIdleTtl][DiomanBreaker.bucketCount][DiomanBreaker.dispose] 默认一小时惰性回收，查询不回收，dispose 清全部桶
+05:31 +287: test_legacy\rule\breaker_options_rule_test.dart: [DiomanBreaker.defaultMaxBuckets] 默认一千桶软上限用于实际淘汰
+05:31 +288: test_legacy\rule\breaker_options_rule_test.dart: [DiomanBreaker.isOpen][DiomanBreaker.stateOf][DiomanBreaker.new(clock)] 未知桶只读、注入时钟冷却到点后仅查询不迁移
+05:31 +289: test_legacy\rule\breaker_options_rule_test.dart: [DiomanBreaker.keyBuilder][DiomanBreakerOptions.keyBuilder] 默认 METHOD:path，自定义分桶与空请求覆盖继承
+05:31 +290: test_legacy\rule\breaker_options_rule_test.dart: [DiomanBreakerOptions.failureThreshold][DiomanBreakerOptions.resetDuration][DiomanBreakerOptions.halfOpenMaxCalls] 覆盖值不钳制且空值继承插件配置
+05:31 +291: test_legacy\rule\breaker_options_rule_test.dart: [DiomanBreakerOpenException.retryableAt] 快速拒绝带冷却截止时间，手动构造可为空
+05:31 +292: loading test_legacy\rule\breaker_rule_test.dart
+05:31 +292: test_legacy\rule\breaker_rule_test.dart: DiomanBreaker bucket GC [DiomanBreaker.idleTtl][DiomanBreakerState.closed] 空闲超过 idleTtl 的 closed 桶在新桶创建时被回收
+05:31 +293: test_legacy\rule\breaker_rule_test.dart: DiomanBreaker bucket GC [DiomanBreaker.maxBuckets] 达到 maxBuckets 时淘汰最久未用的安全桶
+05:31 +294: test_legacy\rule\breaker_rule_test.dart: DiomanBreaker [DiomanBreakerOpenException.bucketKey][DiomanBreaker.failureThreshold][DiomanBreaker.resetDuration] trips after N consecutive failures, then fails fast (no network)
+05:31 +295: test_legacy\rule\breaker_rule_test.dart: DiomanBreaker [DiomanBreaker.failureThreshold][DiomanBreaker.resetDuration] a success resets the consecutive-failure count
+05:31 +296: test_legacy\rule\breaker_rule_test.dart: DiomanBreaker [DiomanBreakerState.closed][DiomanBreakerState.halfOpen] cooldown → halfOpen probe succeeds → closed
+05:31 +297: test_legacy\rule\breaker_rule_test.dart: DiomanBreaker [DiomanBreakerState.halfOpen][DiomanBreaker.failureThreshold] cooldown → halfOpen probe fails → re-opens
+05:32 +298: test_legacy\rule\breaker_rule_test.dart: DiomanBreaker [DiomanBreaker.shouldTrip][DiomanBreakerOptions.shouldTrip] custom shouldTrip counts a 200 business failure
+05:32 +299: test_legacy\rule\breaker_rule_test.dart: DiomanBreaker [DiomanBreaker.enabled][DiomanBreakerOptions.enabled] per-request enabled:false bypasses the open breaker
+05:32 +300: test_legacy\rule\breaker_rule_test.dart: [DiomanBreaker.failureThreshold][DiomanBreaker.halfOpenMaxCalls] breaker 半开达到并发预算时拒绝额外探测
+05:32 +301: test_legacy\rule\breaker_rule_test.dart: [DiomanBreaker.shouldTrip][DiomanBreakerOptions.shouldTrip] breaker 非依赖异常视作成功并可重置全部桶
+05:32 +302: loading test_legacy\rule\cache_clone_rule_test.dart
+05:32 +302: test_legacy\rule\cache_clone_rule_test.dart: DiomanCache management API [DiomanCachePolicy.both][DiomanClonePolicy.deep] DiomanClonePolicy.shallow returns a distinct top-level container for both Map and List payloads, without deep-copying nested objects
+05:32 +303: test_legacy\rule\cache_clone_rule_test.dart: DiomanCache management API [DiomanClonePolicy.deep][DiomanCache.cachePolicy] DiomanClonePolicy.deep recursively copies nested maps/lists, so mutating one hit never affects another
+05:32 +304: test_legacy\rule\cache_clone_rule_test.dart: DiomanCache LRU [DiomanCache.clone][DiomanClonePolicy.shallow] default clone (shallow) prevents a cache-hit reader from corrupting the stored entry by reassigning top-level fields
+05:32 +305: test_legacy\rule\cache_clone_rule_test.dart: [DiomanCache.clone][DiomanCacheOptions.clone] cache deep clone isolates first response
+05:32 +306: loading test_legacy\rule\cache_options_rule_test.dart
+05:32 +306: test_legacy\rule\cache_options_rule_test.dart: [DiomanCache.name][DiomanCache.pluginName][DiomanCache.ordering] 固定名称用于查找，声明在 offline 之前
+05:32 +307: test_legacy\rule\cache_options_rule_test.dart: [DiomanCacheOptions.expires][DiomanCacheOptions.now] 请求级 TTL=-1 不钳制，时钟同时用于写入和到期读取，空值继承
+05:32 +308: test_legacy\rule\cache_options_rule_test.dart: [DiomanCacheOptions.expires][DiomanCacheOptions.now] 请求级 TTL=0 不钳制，时钟同时用于写入和到期读取，空值继承
+05:32 +309: test_legacy\rule\cache_options_rule_test.dart: [DiomanCacheOptions.expires][DiomanCacheOptions.now] 请求级 TTL=1000 不钳制，时钟同时用于写入和到期读取，空值继承
+05:32 +310: test_legacy\rule\cache_options_rule_test.dart: [DiomanCachePersist.remove] 删除操作串行等待先前写入完成
+05:32 +311: loading test_legacy\rule\cache_policy_rule_test.dart
+05:32 +311: test_legacy\rule\cache_policy_rule_test.dart: DiomanCache cachePolicy [DiomanCachePolicy.none][DiomanClonePolicy.none] none (default): never caches at all, neither layer touched
+05:32 +312: test_legacy\rule\cache_policy_rule_test.dart: DiomanCache cachePolicy [DiomanCache.persist][DiomanCachePolicy.memo] memo: memory-only, persist untouched
+05:32 +313: test_legacy\rule\cache_policy_rule_test.dart: DiomanCache cachePolicy [DiomanCache.persist][DiomanCachePolicy.persist] persist: the in-memory store is never read or written — every hit/miss goes straight through persist
+05:32 +314: test_legacy\rule\cache_policy_rule_test.dart: DiomanCache cachePolicy [DiomanCache.persist][DiomanCachePolicy.both] both: a write syncs to memory AND persist; a fresh DiomanCache instance (simulating a restart) still hits because it rehydrates from persist and backfills its own memory store
+05:32 +315: test_legacy\rule\cache_policy_rule_test.dart: DiomanCache cachePolicy [DiomanCache.cachePolicy][DiomanCacheOptions.cachePolicy] cachePolicy is overridable per request via DiomanCacheOptions
+05:32 +316: test_legacy\rule\cache_policy_rule_test.dart: DiomanCache cachePolicy [DiomanCachePersist.read][DiomanCache.cachePolicy] DiomanCachePersist.read may be async (a real Future, not just a sync value) — DiomanCache awaits it before deciding hit/miss
+05:32 +317: test_legacy\rule\cache_policy_rule_test.dart: [DiomanCachePolicy.none][DiomanClonePolicy.none] none cache skips decisions and bookkeeping
+05:32 +318: loading test_legacy\rule\cache_store_rule_test.dart
+05:32 +318: test_legacy\rule\cache_store_rule_test.dart: DiomanCache management API [DiomanCache.clear][DiomanCache.remove] remove()/clear() operate on the live store
+05:33 +319: test_legacy\rule\cache_store_rule_test.dart: DiomanCache management API [DiomanCache.new(now)][DiomanCache.cachePolicy][DiomanCache.expires] an expired entry is evicted on the next request for that key, not served stale
+05:33 +320: test_legacy\rule\cache_store_rule_test.dart: DiomanCache [DiomanCache.maxEntries][DiomanCacheOptions.maxEntries] maxEntries bounds the store via LRU eviction instead of growing without limit
+05:33 +321: test_legacy\rule\cache_store_rule_test.dart: DiomanCache LRU [DiomanCachePersist.write][DiomanCache.cachePolicy] a cache HIT promotes the entry to most-recently-used, so eviction drops the genuinely least-recently-USED key (not merely oldest write)
+05:33 +322: test_legacy\rule\cache_store_rule_test.dart: Per-request Options overrides [DiomanCache.enabled][DiomanCacheOptions.enabled] DiomanCacheOptions(enabled: false) skips caching for that request
+05:33 +323: test_legacy\rule\cache_store_rule_test.dart: Constructor-level enabled flag [DiomanCache.cachePolicy][DiomanCache.enabled] DiomanCache(persist: FakeCachePersist(), cachePolicy: DiomanCachePolicy.memo, enabled: false) never caches, even across identical requests
+05:33 +324: test_legacy\rule\cache_store_rule_test.dart: enabled inherits from the constructor when not overridden [DiomanCache.enabled][DiomanCache.expires] a per-request DiomanCacheOptions that only sets expires does NOT re-enable a plugin constructed with enabled: false
+05:33 +325: test_legacy\rule\cache_store_rule_test.dart: Newly wired Options fields (full constructor↔Options parity) [DiomanCache.new(shouldCache)][DiomanCacheOptions.shouldCache] DiomanCacheOptions.shouldCache overrides the plugin default caching decision for a single call (allows POST to be cached)
+05:33 +326: loading test_legacy\rule\cancel_options_rule_test.dart
+05:33 +326: test_legacy\rule\cancel_options_rule_test.dart: [DiomanCancel.name][DiomanCancel.pluginName][DiomanCancel.ordering] 固定名称用于查找，声明前后顺序
+05:33 +327: test_legacy\rule\cancel_options_rule_test.dart: [DiomanCancel.config][DiomanCancel.new(enabled)][DiomanCancelOptions.enabled] enabled=true 控制构造期注入与登记，忽略请求覆盖
+05:33 +328: test_legacy\rule\cancel_options_rule_test.dart: [DiomanCancel.config][DiomanCancel.new(enabled)][DiomanCancelOptions.enabled] enabled=false 控制构造期注入与登记，忽略请求覆盖
+05:33 +329: test_legacy\rule\cancel_options_rule_test.dart: [cancelAll] 无插件返回零，多个取消插件只调用首个
+05:33 +330: test_legacy\rule\cancel_options_rule_test.dart: [DiomanCancel.onResponse] 无认领立即注销，有认领和落败等待则延迟至最终结果
+05:33 +331: loading test_legacy\rule\cancel_rule_test.dart
+05:33 +331: test_legacy\rule\cancel_rule_test.dart: cancelAll 覆盖整个逻辑请求（#10） [DiomanCancel.cancelAll] 逻辑请求正常结束后 token 注销，cancelAll 为 0
+05:33 +332: loading test_legacy\rule\envs_options_rule_test.dart
+05:33 +332: test_legacy\rule\envs_options_rule_test.dart: [DiomanEnvs.config][DiomanEnvsOptions.enabled] 保存启用配置并控制规则应用
+05:33 +333: test_legacy\rule\envs_options_rule_test.dart: [DiomanEnvs.rules] 保存规则列表并按输入顺序短路求值
+05:33 +334: test_legacy\rule\envs_options_rule_test.dart: [EnvRule.config] 空地址和默认 json 保留宿主配置
+05:33 +335: test_legacy\rule\envs_options_rule_test.dart: [DiomanEnvs.onRequest] 请求只放行且不重新求值规则
+05:33 +336: loading test_legacy\rule\envs_rule_test.dart
+05:33 +336: test_legacy\rule\envs_rule_test.dart: DiomanEnvs [DiomanEnvs.new(dio)][EnvRule.rule] the first matching rule wins and its BaseOptions fields are shallow-merged into dio.options; a later, also-matching rule is never even evaluated
+05:33 +337: test_legacy\rule\envs_rule_test.dart: DiomanEnvs [EnvRule.rule] no matching rule leaves dio.options completely untouched
+05:33 +338: test_legacy\rule\envs_rule_test.dart: DiomanEnvs [EnvRule.config][EnvRule.rule] a rule that only sets responseType to something other than the json default applies it; one that never touches responseType never resets a caller's own bytes/stream setting back to json
+05:33 +339: test_legacy\rule\envs_rule_test.dart: DiomanEnvs [DiomanEnvs.new(enabled)][EnvRule.rule][DiomanEnvs.apply] a constructor-level disabled DiomanEnvs makes apply() a permanent no-op even with a matching rule
+05:33 +340: test_legacy\rule\envs_rule_test.dart: DiomanEnvs [DiomanEnvs.pluginName][DiomanEnvs.name] name identifies the plugin
+05:33 +341: loading test_legacy\rule\filter_names_rule_test.dart
+05:33 +341: test_legacy\rule\filter_names_rule_test.dart: [DiomanFilter.name][DiomanFilter.pluginName] 插件名固定为 dioman:filter，同时是单请求覆盖的 extra 键
+05:34 +342: loading test_legacy\rule\filter_rule_test.dart
+05:34 +342: test_legacy\rule\filter_rule_test.dart: DiomanFilter [DiomanFilter.predicate][DiomanFilterOptions.predicate] the default predicate also drops empty/whitespace-only strings, and filters the data map the same way it filters queryParameters
+05:34 +343: test_legacy\rule\filter_rule_test.dart: Per-request Options overrides [DiomanFilter.ignoreKeys][DiomanFilterOptions.ignoreKeys] DiomanFilterOptions ignoreKeys override keeps a field the plugin default would otherwise strip
+05:34 +344: test_legacy\rule\filter_rule_test.dart: Constructor-level enabled flag [DiomanFilter.enabled][DiomanFilterOptions.enabled] DiomanFilter(enabled: false) leaves every request untouched
+05:34 +345: test_legacy\rule\filter_rule_test.dart: Options merge semantics (not override) [DiomanFilter.ignoreKeys][DiomanFilterOptions.ignoreKeys] DiomanFilterOptions.ignoreKeys UNIONS with the plugin default instead of replacing it
+05:34 +346: test_legacy\rule\filter_rule_test.dart: [DiomanFilter.ignoreValues][DiomanFilterOptions.ignoreValues] filter 单请求保留值与实例保留值合并
+05:34 +347: loading test_legacy\rule\key_options_rule_test.dart
+05:34 +347: test_legacy\rule\key_options_rule_test.dart: [DiomanKey.name][DiomanKey.pluginName][kKey] 名称和协议槽固定且配置键能禁用构键
+05:34 +348: test_legacy\rule\key_options_rule_test.dart: [DiomanKeyOptions.enabled][DiomanKeyOptions.fastMode] 空值继承而显式值覆盖构键模式
+05:34 +349: test_legacy\rule\key_options_rule_test.dart: [DiomanKeyOptions.ignores] 请求忽略项与全局取并集且空值继承
+05:34 +350: test_legacy\rule\key_options_rule_test.dart: [DiomanKey.ordering] 路径过滤先于构键且缓存共享后于构键
+05:34 +351: loading test_legacy\rule\key_rule_test.dart
+05:34 +351: test_legacy\rule\key_rule_test.dart: [DiomanKeyOptions.builder][DiomanKeyOptions.key][DiomanKey.builder][DiomanKey.namespace] key sources follow precedence with namespace
+05:35 +352: test_legacy\rule\key_rule_test.dart: [DiomanKey.onRequest] deep keys recursively sort maps and preserve list order
+05:35 +353: test_legacy\rule\key_rule_test.dart: [DiomanKey.ignores] ignores remain limited to top-level fields
+05:35 +354: test_legacy\rule\key_rule_test.dart: DiomanKey [DiomanKeyOptions.key] a String body is folded into the deep key as-is
+05:35 +355: test_legacy\rule\key_rule_test.dart: Per-request Options overrides [DiomanKeyOptions.key][DiomanKey.onRequest] DiomanKeyOptions(key: ...) overrides the computed key
+05:35 +356: test_legacy\rule\key_rule_test.dart: Options merge semantics (not override) [DiomanKey.ignores][DiomanKey.onRequest] DiomanKeyOptions.ignoreKeys UNIONS with the plugin default
+05:35 +357: test_legacy\rule\key_rule_test.dart: Newly wired Options fields (full constructor↔Options parity) [DiomanKey.builder][DiomanKeyOptions.builder] DiomanKeyOptions.builder overrides the computed key for a single call
+05:35 +358: test_legacy\rule\key_rule_test.dart: key namespace [DiomanKey.namespace][DiomanKeyOptions.key] isolates every key source and evaluates namespace once per key
+05:35 +359: test_legacy\rule\key_rule_test.dart: [DiomanKeyOptions.key] key includes origin, URL query and separate query/body fields
+05:35 +360: test_legacy\rule\key_rule_test.dart: key namespace [DiomanKey.namespace][DiomanKey.enabled] disabled requests do not evaluate namespace
+05:35 +361: loading test_legacy\rule\loading_options_rule_test.dart
+05:35 +361: test_legacy\rule\loading_options_rule_test.dart: [DiomanLoading.name][DiomanLoading.pluginName][DiomanLoading.ordering] 名称、配置键及安装约束
+05:35 +362: test_legacy\rule\loading_options_rule_test.dart: [DiomanLoading.onError][DiomanLoading.onResponse] 成功和失败仅释放自己开启的计数
+05:35 +363: test_legacy\rule\loading_options_rule_test.dart: [DiomanLoadingOptions.delay] 默认继承且仅零到一的请求决定显示延迟
+05:35 +364: test_legacy\rule\loading_options_rule_test.dart: [DiomanLoadingOptions.delayClose] 默认继承且仅一到零的请求决定关闭延迟
+05:35 +365: loading test_legacy\rule\loading_rule_test.dart
+05:35 +365: test_legacy\rule\loading_rule_test.dart: enabled inherits from the constructor when not overridden [DiomanLoading.enabled][DiomanLoadingOptions.enabled] a per-request DiomanLoadingOptions that omits enabled does NOT re-enable a plugin constructed with enabled: false
+05:35 +366: test_legacy\rule\loading_rule_test.dart: DiomanLoadingOptions.onChanged (edge-triggered, not additive) [DiomanLoading.onResponse][DiomanLoading.new(onChanged)][DiomanLoadingOptions.onChanged] a solo request with its own onChanged fires it at the 0→1→0 edge instead of the plugin default, and still participates in the shared counter
+05:35 +367: test_legacy\rule\loading_rule_test.dart: DiomanLoadingOptions.onChanged (edge-triggered, not additive) [DiomanLoading.activeCount][DiomanLoading.new(onChanged)][DiomanLoadingOptions.onChanged] a request's own onChanged does not fire if it doesn't land on the batch edge (another request is already keeping the counter above zero) — counting is still accurate either way
+05:36 +368: test_legacy\rule\loading_rule_test.dart: [DiomanLoading.delay][DiomanLoading.delayClose] loading 延时显示与延时关闭都执行且成对
+05:36 +369: loading test_legacy\rule\log_flags_rule_test.dart
+05:36 +369: test_legacy\rule\log_flags_rule_test.dart: DiomanLog 总开关 enabled [DiomanLog.enabled][DiomanLog.new(enabled)] 默认开启；false 时三类日志都不输出，请求结果不受影响
+05:36 +370: test_legacy\rule\log_flags_rule_test.dart: DiomanLog 总开关 enabled [DiomanLogOptions.enabled][DiomanLogOptions.new(enabled)] 单请求 false 只静音本次；true 可在插件关闭时点亮本次；null 沿用插件
+05:36 +371: test_legacy\rule\log_flags_rule_test.dart: DiomanLog 分类开关 logRequest/logResponse/logError [DiomanLog.logRequest][DiomanLog.new(logRequest)] 默认记录请求；false 时只丢请求行，响应与错误行仍在
+05:36 +372: test_legacy\rule\log_flags_rule_test.dart: DiomanLog 分类开关 logRequest/logResponse/logError [DiomanLogOptions.logRequest][DiomanLogOptions.new(logRequest)] 单请求能双向覆盖插件的 logRequest
+05:36 +373: test_legacy\rule\log_flags_rule_test.dart: DiomanLog 分类开关 logRequest/logResponse/logError [DiomanLog.logResponse][DiomanLog.new(logResponse)] 默认记录成功响应；false 时只丢响应行，请求与错误行仍在
+05:36 +374: test_legacy\rule\log_flags_rule_test.dart: DiomanLog 分类开关 logRequest/logResponse/logError [DiomanLogOptions.logResponse][DiomanLogOptions.new(logResponse)] 单请求能双向覆盖插件的 logResponse
+05:36 +375: test_legacy\rule\log_flags_rule_test.dart: DiomanLog 分类开关 logRequest/logResponse/logError [DiomanLog.logError][DiomanLog.new(logError)] 默认记录错误行；false 时错误行和错误体都不输出，异常照常抛出
+05:36 +376: test_legacy\rule\log_flags_rule_test.dart: DiomanLog 分类开关 logRequest/logResponse/logError [DiomanLogOptions.logError][DiomanLogOptions.new(logError)] 单请求能双向覆盖插件的 logError
+05:36 +377: test_legacy\rule\log_flags_rule_test.dart: DiomanLog 内容开关 logHeaders/logBody [DiomanLog.logHeaders][DiomanLog.new(logHeaders)] 默认不输出头；true 时请求与响应日志都带头
+05:36 +378: test_legacy\rule\log_flags_rule_test.dart: DiomanLog 内容开关 logHeaders/logBody [DiomanLogOptions.logHeaders][DiomanLogOptions.new(logHeaders)] 单请求能双向覆盖插件的 logHeaders
+05:36 +379: test_legacy\rule\log_flags_rule_test.dart: DiomanLog 内容开关 logHeaders/logBody [DiomanLog.logBody][DiomanLog.new(logBody)] 默认输出请求/响应/错误体；false 时都不输出
+05:36 +380: test_legacy\rule\log_flags_rule_test.dart: DiomanLog 内容开关 logHeaders/logBody [DiomanLogOptions.logBody][DiomanLogOptions.new(logBody)] 单请求能双向覆盖插件的 logBody
+05:36 +381: test_legacy\rule\log_flags_rule_test.dart: [DiomanLog.logBody] 请求体为 Uint8List 之类非 null 数据时按 toString 输出，null 体不输出 Body 行
+05:36 +382: loading test_legacy\rule\log_rule_test.dart
+05:36 +382: test_legacy\rule\log_rule_test.dart: DiomanLog [DiomanLog.writer][DiomanLogOptions.writer] logs request/response/error text through a custom writer, covering headers, body truncation, and the network-error (no response) label
+05:36 +383: test_legacy\rule\log_rule_test.dart: DiomanLog [DiomanLog.writer][DiomanLogOptions.writer] with no writer given, falls back to the default sink without throwing
+[dioman:log] → GET http://127.0.0.1:11948/data
+[dioman:log] ← 200 GET http://127.0.0.1:11948/data
+  Body: {v: 1}
+05:36 +384: test_legacy\rule\log_rule_test.dart: Newly wired Options fields (full constructor↔Options parity) [DiomanLog.writer][DiomanLogOptions.writer] DiomanLogOptions.writer overrides the plugin default sink for a single call
+05:36 +385: loading test_legacy\rule\log_stages_rule_test.dart
+05:36 +385: test_legacy\rule\log_stages_rule_test.dart: [DiomanLog.name][DiomanLog.pluginName] 插件名固定为 dioman:log，同时是 extra 键
+05:36 +386: test_legacy\rule\log_stages_rule_test.dart: 三个拦截阶段 [DiomanLog.onRequest] 记录 方法+URL，按 logHeaders/logBody 附带头与 body，并放行请求
+05:36 +387: test_legacy\rule\log_stages_rule_test.dart: 三个拦截阶段 [DiomanLog.onResponse] 记录 状态+方法+URL（可含头与 body），响应原样交给调用方
+05:36 +388: test_legacy\rule\log_stages_rule_test.dart: 三个拦截阶段 [DiomanLog.onError] 带状态码的错误：记录状态行与错误体后放行，异常照常抛出
+05:36 +389: test_legacy\rule\log_stages_rule_test.dart: 三个拦截阶段 [DiomanLog.onError] 没有响应的传输错误：用错误类型当标签，error 参数是底层 error，没有错误体行
+05:36 +390: test_legacy\rule\log_stages_rule_test.dart: maxBodyLength [DiomanLog.maxBodyLength][DiomanLog.new(maxBodyLength)] 默认 1000：超长 body 截断并附剩余字数；-1 不截断；自定义值按值截断
+05:36 +391: test_legacy\rule\log_stages_rule_test.dart: maxBodyLength [DiomanLogOptions.maxBodyLength][DiomanLogOptions.new(maxBodyLength)] 单请求覆盖截断长度，null 沿用插件值
+05:36 +392: test_legacy\rule\log_stages_rule_test.dart: maxBodyLength [DiomanLog.maxBodyLength] 截断同样作用于响应体和错误体
+05:36 +393: loading test_legacy\rule\mock_adapter_rule_test.dart
+05:36 +393: test_legacy\rule\mock_adapter_rule_test.dart: [DiomanMockAdapter.fetch] direct forwarding cancellation never falls back
+05:36 +394: test_legacy\rule\mock_adapter_rule_test.dart: [DiomanMockAdapter.new(routes)] inline errors never invoke fallback
+05:37 +395: test_legacy\rule\mock_adapter_rule_test.dart: [DiomanMockAdapter.markerHeader] immutable mixed-case headers are normalized
+05:37 +396: test_legacy\rule\mock_adapter_rule_test.dart: [DiomanMockAdapter.fetch] transport error fallback preserves POST body
+05:39 +397: test_legacy\rule\mock_adapter_rule_test.dart: [DiomanMockAdapter.fetch] body buffering can be interrupted before forwarding
+05:39 +398: test_legacy\rule\mock_adapter_rule_test.dart: [DiomanMockAdapter.new(routes)][DiomanMockAdapter.new(inner)][DiomanMockAdapter.fetch] inline match, resolved path and passthrough
+05:39 +399: test_legacy\rule\mock_adapter_rule_test.dart: [DiomanMockAdapter.new(mockUrl)] rewrites base path and query exactly once
+05:39 +400: test_legacy\rule\mock_adapter_rule_test.dart: [DiomanMockAdapter.new(fallbackWhen)] default 404 falls back, 500 stays mock
+05:39 +401: test_legacy\rule\mock_adapter_rule_test.dart: [DiomanMockAdapter.new(fallbackWhen)][DiomanMockOptions.fallbackWhen] custom response and error decisions
+05:43 +402: test_legacy\rule\mock_adapter_rule_test.dart: [DiomanMockAdapter.extraKey][DiomanMockAdapter.new(enabled)][DiomanMockOptions.enabled][DiomanMockOptions.routes] enabled, false, routes merge and URL override
+05:43 +403: test_legacy\rule\mock_adapter_rule_test.dart: [DiomanMockAdapter.fetch] POST body complete on forward and fallback
+05:43 +404: test_legacy\rule\mock_adapter_rule_test.dart: [DiomanMockAdapter.fetch] inline handler interrupted without completion
+05:43 +405: test_legacy\rule\mock_adapter_rule_test.dart: [DiomanMockAdapter.fetch] forwards cancellation to inner without fallback
+05:43 +406: test_legacy\rule\mock_adapter_rule_test.dart: [DiomanMockAdapter.close] delegates force to real IO adapter
+05:43 +407: test_legacy\rule\mock_adapter_rule_test.dart: [DiomanMockAdapter.fetch] DiomanCachePolicy.memo mock on then off uses real, fallback caches
+05:43 +408: test_legacy\rule\mock_adapter_rule_test.dart: [DiomanMockAdapter.fetch] DiomanCachePolicy.persist mock on then off uses real, fallback caches
+05:43 +409: test_legacy\rule\mock_adapter_rule_test.dart: [DiomanMockAdapter.fetch] DiomanCachePolicy.both mock on then off uses real, fallback caches
+05:43 +410: test_legacy\rule\mock_adapter_rule_test.dart: [DiomanMockAdapter.fetch] forwarded mock marker vetoes cache writes
+05:43 +411: test_legacy\rule\mock_adapter_rule_test.dart: [DiomanMockAdapter.fetch] mock 500 retries hit mock again
+05:43 +412: test_legacy\rule\mock_adapter_rule_test.dart: [DiomanMockAdapter.fetch] 401 refresh replay passes adapter again
+05:43 +413: test_legacy\rule\mock_adapter_rule_test.dart: [DiomanMockAdapter.fetch] concurrent identical mock requests merge
+05:43 +414: test_legacy\rule\mock_adapter_rule_test.dart: [defaultFallback] 404 或非取消错误回落；取消、其它状态码、全空都不回落
+05:43 +415: test_legacy\rule\mock_adapter_rule_test.dart: [DiomanMockAdapter.extraKey][DiomanMockOptions][DiomanExtraKeys.mockAdapterOwner] 键常量与默认值
+05:43 +416: test_legacy\rule\mock_adapter_rule_test.dart: [DiomanMockAdapter.new(mockUrl)][DiomanMockOptions.mockUrl] 默认转发地址被继承，单请求地址只覆盖那一次
+05:43 +417: test_legacy\rule\mock_adapter_rule_test.dart: [DiomanMockAdapter.new(routes)] 内联处理器抛普通异常：被 Dio 包成 DioException，不回落、只失败一次
+05:43 +418: test_legacy\rule\mock_adapter_rule_test.dart: [DiomanMockAdapter.close] 强制关闭会中止在途的 mock 转发
+05:43 +419: test_legacy\rule\mock_adapter_rule_test.dart: [DiomanMockAdapter.new(fallbackWhen)][DiomanMockAdapter.fetch] 转发时传输层抛普通异常：包装成 DioException 交给 fallbackWhen，回落后拿到真实响应
+05:43 +420: loading test_legacy\rule\normalize_options_rule_test.dart
+05:43 +420: test_legacy\rule\normalize_options_rule_test.dart: [DiomanNormalize.messageKey][DiomanNormalizeOptions.messageKey][DiomanNormalize.name][DiomanNormalize.pluginName] 消息键控制信封识别和错误文本
+05:43 +421: test_legacy\rule\normalize_options_rule_test.dart: [DiomanNormalizeOptions.dataKey] 空值继承插件字段而显式字段改变解包结果
+05:43 +422: loading test_legacy\rule\normalize_rule_test.dart
+05:43 +422: test_legacy\rule\normalize_rule_test.dart: DiomanNormalize [DiomanNormalize.shouldNormalize][DiomanNormalizeOptions.shouldNormalize] a custom shouldNormalize overrides the default envelope-detection heuristic
+05:44 +423: test_legacy\rule\normalize_rule_test.dart: DiomanNormalize detection [DiomanException.code][DiomanException.message] a real error envelope (code + message) is still rejected as an DiomanException
+05:44 +424: test_legacy\rule\normalize_rule_test.dart: DiomanNormalize detection [DiomanException.code][DiomanException.data] a real success envelope (code + data) is still unwrapped
+05:44 +425: test_legacy\rule\normalize_rule_test.dart: Newly wired Options fields (full constructor↔Options parity) [DiomanNormalize.codeKey][DiomanNormalize.dataKey] DiomanNormalizeOptions.dataKey/codeKey/messageKey override the plugin's envelope keys for a single call
+05:44 +426: loading test_legacy\rule\notify_rule_test.dart
+05:44 +426: test_legacy\rule\notify_rule_test.dart: [DiomanNotify.name][DiomanNotify.pluginName][DiomanNotify.notify][DiomanNotify.stringify] 回调保存且仅通知非空文本
+05:44 +427: test_legacy\rule\notify_rule_test.dart: [DiomanNotify.onResponse][DiomanNotify.onError][DiomanNotify.onRequest] 同请求成功错误只通知一次且新分发清除标记
+05:44 +428: loading test_legacy\rule\offline_rule_test.dart
+05:44 +428: test_legacy\rule\offline_rule_test.dart: DiomanOffline [DiomanOffline.onRequest][DiomanOffline.new(isOnline)][DiomanOffline.new(onConnectivityChanged)] offline request is queued (no network), then replayed on reconnect
+05:44 +429: test_legacy\rule\offline_rule_test.dart: DiomanOffline [DiomanOffline.new(isOnline)][DiomanOffline.new(onConnectivityChanged)] online request passes straight through (not queued)
+05:44 +430: test_legacy\rule\offline_rule_test.dart: DiomanOffline [DiomanOffline.new(shouldQueue)][DiomanOfflineOptions.shouldQueue] shouldQueue: only writes are queued, reads pass through
+05:44 +431: test_legacy\rule\offline_rule_test.dart: [DiomanOfflineOptions.enabled][DiomanOffline.enabled][DiomanOffline.new(isOnline)] offline 单请求禁用绕过离线队列
+05:44 +432: test_legacy\rule\offline_rule_test.dart: DiomanOffline [DiomanOfflineReason.timeout][DiomanOffline.maxWait][DiomanOfflineOptions.maxWait] maxWait rejects a queued request that waits too long
+05:44 +433: loading test_legacy\rule\repath_names_rule_test.dart
+05:44 +433: test_legacy\rule\repath_names_rule_test.dart: [DiomanRepath.name][DiomanRepath.pluginName] 插件名固定为 dioman:repath，同时是单请求覆盖的 extra 键
+05:44 +434: loading test_legacy\rule\repath_rule_test.dart
+05:45 +434: test_legacy\rule\repath_rule_test.dart: DiomanRepath [DiomanRepath.onRequest] {id}/:id placeholders are substituted from queryParameters, and removed from it by default
+05:45 +435: test_legacy\rule\repath_rule_test.dart: DiomanRepath [DiomanRepath.removeKey][DiomanRepathOptions.removeKey] falls back to the data map when a placeholder is not in queryParameters, and removeKey:false keeps the source key
+05:45 +436: test_legacy\rule\repath_rule_test.dart: DiomanRepath [DiomanRepath.removeKey][DiomanRepathOptions.removeKey] the default removeKey:true also removes a data-map substitution (not just a queryParameters one)
+05:45 +437: test_legacy\rule\repath_rule_test.dart: DiomanRepath [DiomanRepath.enabled][DiomanRepathOptions.enabled] a constructor-level disabled DiomanRepath never substitutes
+05:45 +438: test_legacy\rule\repath_rule_test.dart: DiomanRepath [DiomanRepath.removeKey][DiomanRepathOptions.removeKey] a per-request DiomanRepathOptions can disable substitution or override removeKey for a single call
+05:45 +439: loading test_legacy\rule\retry_after_rule_test.dart
+05:45 +439: test_legacy\rule\retry_after_rule_test.dart: Retry-After 的信任范围 afterStatusCodes [DiomanRetry.afterStatusCodes][DiomanRetry.new(afterStatusCodes)] 默认只在 413/429/503 上信 Retry-After；自定义列表替换默认
+05:45 +440: test_legacy\rule\retry_after_rule_test.dart: Retry-After 的信任范围 afterStatusCodes [DiomanRetryOptions.afterStatusCodes][DiomanRetryOptions.new(afterStatusCodes)] 单请求覆盖信任 Retry-After 的状态码
+05:45 +441: test_legacy\rule\retry_after_rule_test.dart: 是否尊重 Retry-After respectRetryAfter [DiomanRetry.respectRetryAfter][DiomanRetry.new(respectRetryAfter)] 默认 true：秒数与 HTTP 日期都按头等待；false 时头部被忽略
+05:45 +442: test_legacy\rule\retry_after_rule_test.dart: 是否尊重 Retry-After respectRetryAfter [DiomanRetry.respectRetryAfter] 头部等待按头部时长而不是 delay 回调；没有头部时仍走 delay
+05:45 +443: test_legacy\rule\retry_after_rule_test.dart: 是否尊重 Retry-After respectRetryAfter [DiomanRetryOptions.respectRetryAfter][DiomanRetryOptions.new(respectRetryAfter)] 单请求能双向覆盖是否尊重 Retry-After
+05:45 +444: test_legacy\rule\retry_after_rule_test.dart: 封顶 retryAfterMax / delayMax [DiomanRetry.retryAfterMax][DiomanRetry.new(retryAfterMax)] 封顶 Retry-After 换算出的等待；默认不封顶；不管 delay 回调的值
+05:46 +445: test_legacy\rule\retry_after_rule_test.dart: 封顶 retryAfterMax / delayMax [DiomanRetryOptions.retryAfterMax][DiomanRetryOptions.new(retryAfterMax)] 单请求覆盖 Retry-After 封顶
+05:46 +446: test_legacy\rule\retry_after_rule_test.dart: 封顶 retryAfterMax / delayMax [DiomanRetry.delayMax][DiomanRetry.new(delayMax)] 封顶 delay（含抖动之后）；默认不封顶；不管 Retry-After
+05:46 +447: test_legacy\rule\retry_after_rule_test.dart: 封顶 retryAfterMax / delayMax [DiomanRetryOptions.delayMax][DiomanRetryOptions.new(delayMax)] 单请求覆盖 delay 封顶
+05:47 +448: loading test_legacy\rule\retry_decision_rule_test.dart
+05:47 +448: test_legacy\rule\retry_decision_rule_test.dart: [DiomanRetry.name][DiomanRetry.pluginName] 插件名固定为 dioman:retry，同时是单请求覆盖的 extra 键
+05:47 +449: test_legacy\rule\retry_decision_rule_test.dart: 状态码表 statusCodes [DiomanRetry.statusCodes][DiomanRetry.new(statusCodes)] 没有自定义判定时按状态码表：默认 408/429/500/502/503/504 重试，其余状态直接抛出；自定义表替换默认
+05:47 +450: test_legacy\rule\retry_decision_rule_test.dart: 状态码表 statusCodes [DiomanRetry.statusCodes][DiomanRetry.new(statusCodes)] 没有 HTTP 状态的网络失败按异常类型判断：超时与连接错误重试，其余类型不重试（与状态码表无关）
+05:47 +451: test_legacy\rule\retry_decision_rule_test.dart: 状态码表 statusCodes [DiomanRetryOptions.statusCodes][DiomanRetryOptions.new(statusCodes)] 单请求覆盖可重试状态码表
+05:47 +452: test_legacy\rule\retry_decision_rule_test.dart: 次数与退避回调 [DiomanRetryOptions.max][DiomanRetryOptions.new(max)] 单请求覆盖最大重试次数，0 表示这次不重试
+05:47 +453: test_legacy\rule\retry_decision_rule_test.dart: 次数与退避回调 [DiomanRetryOptions.delay][DiomanRetryOptions.new(delay)] 单请求的退避函数取代插件的，并拿到 (当前次数, 最大次数, 响应, 错误)
+05:47 +454: test_legacy\rule\retry_decision_rule_test.dart: 错误阶段 onError [DiomanRetry.onError] 可重试的错误按退避重放，重试成功的响应当作最终结果交给调用方；耗尽后抛出最后一次错误
+05:47 +455: test_legacy\rule\retry_decision_rule_test.dart: 错误阶段 onError [DiomanRetry.onError] 重放时请求体原样重发（POST + JSON body，methods 放行 POST）
+05:47 +456: test_legacy\rule\retry_decision_rule_test.dart: 宿主绑定 dio 与释放 dispose [DiomanRetry.dio] 绑定宿主后重发借用宿主的 adapter 与 transformer；解绑后退回独立传输层
+05:47 +457: test_legacy\rule\retry_decision_rule_test.dart: 宿主绑定 dio 与释放 dispose [DiomanRetry.dispose] 释放后不再借用宿主传输层，重发改走独立传输层；重复释放安全
+05:47 +458: loading test_legacy\rule\retry_rule_test.dart
+05:47 +458: test_legacy\rule\retry_rule_test.dart: 重放复用宿主传输层、处理请求体（#9） [DiomanRetry.onRequest] retry 的重试走宿主的 adapter 和 transformer
+05:47 +459: test_legacy\rule\retry_rule_test.dart: DiomanRetry: business-failure loop exhaustion and error-path gates [DiomanRetry.delay][DiomanRetry.max] when every retry attempt still looks like a business failure, the retry loop exhausts and propagates the LAST attempt as-is
+05:47 +460: test_legacy\rule\retry_rule_test.dart: DiomanRetry: business-failure loop exhaustion and error-path gates [DiomanRetry.delay][DiomanRetry.enabled] a constructor-disabled DiomanRetry never intercepts a network error at all
+05:47 +461: test_legacy\rule\retry_rule_test.dart: DiomanRetry: business-failure loop exhaustion and error-path gates [DiomanRetry.shouldRetry][DiomanRetryOptions.shouldRetry] an error shouldRetry rejects (e.g. a plain 404) is passed straight through without retrying
+05:47 +462: test_legacy\rule\retry_rule_test.dart: DiomanRetry [DiomanRetry.enabled][DiomanRetryOptions.enabled] DiomanRetryOptions(enabled: false) is honoured on the business-retry (onResponse) path, not just the network-error path
+05:47 +463: test_legacy\rule\retry_rule_test.dart: Newly wired Options fields (full constructor↔Options parity) [DiomanRetry.shouldRetry][DiomanRetryOptions.shouldRetry] DiomanRetryOptions.shouldRetry overrides the plugin default network retry check for a single call
+05:47 +464: test_legacy\rule\retry_rule_test.dart: [DiomanRetry.jitter][DiomanRetryOptions.jitter] retry Retry-After 数字、日期、非法日期及 jitter 各自生效
+05:47 +465: loading test_legacy\rule\share_retry_rule_test.dart
+05:47 +465: test_legacy\rule\share_retry_rule_test.dart: [DiomanShare.name][DiomanShare.pluginName] 插件名固定为 dioman:share，同时是单请求覆盖的 extra 键
+05:48 +466: test_legacy\rule\share_retry_rule_test.dart: [DiomanShare.dio] 绑定宿主后 policy=retry 的内部重发借用宿主的 adapter 与 transformer
+05:48 +467: test_legacy\rule\share_retry_rule_test.dart: 重试间隔 interval [DiomanShare.interval][DiomanShare.new(interval)] policy=retry 每次内部重试前等待 interval，默认 0 即刻重试
+05:48 +468: test_legacy\rule\share_retry_rule_test.dart: 重试间隔 interval [DiomanShareOptions.interval][DiomanShareOptions.new(interval)] 单请求覆盖重试间隔；只有 leader 建条目时的覆盖生效，follower 的被忽略
+05:48 +469: test_legacy\rule\share_retry_rule_test.dart: 重试次数 retries [DiomanShareOptions.retries][DiomanShareOptions.new(retries)] 单请求覆盖重试次数；只有 leader 建条目时的覆盖生效
+05:48 +470: loading test_legacy\rule\share_rule_test.dart
+05:48 +470: test_legacy\rule\share_rule_test.dart: DiomanShare policy: end [DiomanShare.policy][DiomanShareOptions.policy] only the LATEST (highest-seq) response settles the shared promise — an earlier, superseded caller for the same key gets redirected to that result instead of its own
+05:48 +471: test_legacy\rule\share_rule_test.dart: DiomanShare policy: end [DiomanShare.policy][DiomanShareOptions.policy] a solo caller (no supersession) just settles with its own result
+05:48 +472: test_legacy\rule\share_rule_test.dart: DiomanShare policy: race [DiomanShare.policy][DiomanShareOptions.policy] the first attempt to SUCCEED wins for everyone, including a slower attempt that's still in flight
+05:48 +473: test_legacy\rule\share_rule_test.dart: DiomanShare: none policy, own-failure settlement, dispose, hasMultipleDownstreamSettlers [DiomanShare.policy][DiomanShareOptions.policy] without DiomanKey installed, share is a no-op — every call is independent
+05:48 +474: test_legacy\rule\share_rule_test.dart: DiomanShare: none policy, own-failure settlement, dispose, hasMultipleDownstreamSettlers [DiomanShare.policy][DiomanShare.onError][DiomanSharePolicy.none] policy: none passes every request through independently — never shared, and errors reach onError with no entry attached
+05:48 +475: test_legacy\rule\share_rule_test.dart: DiomanShare: none policy, own-failure settlement, dispose, hasMultipleDownstreamSettlers [DiomanShare.policy][DiomanShareOptions.policy] policy: end — a SOLO caller (matching seq, not superseded) whose own request fails settles the entry with that failure
+05:48 +476: test_legacy\rule\share_rule_test.dart: DiomanShare: none policy, own-failure settlement, dispose, hasMultipleDownstreamSettlers [DiomanShare.registerDownstreamSettler][DiomanShare.hasMultipleDownstreamSettlers] registerDownstreamSettler(): a single registration is not "multiple"; a second one is
+05:48 +477: test_legacy\rule\share_rule_test.dart: DiomanShare: none policy, own-failure settlement, dispose, hasMultipleDownstreamSettlers [DiomanShare.settle][DiomanShare.policy] settle() explicitly completes an entry with an error, and removes it so a later caller for the same key starts fresh
+05:48 +478: test_legacy\rule\share_rule_test.dart: DiomanShare [DiomanShare.policy][DiomanShare.retries] policy=retry: with retries available, a successful retry resolves through the internal throwaway Dio hitting the real test server (this success path could only be exercised offline via a failure before — see note above)
+05:48 +479: test_legacy\rule\share_rule_test.dart: DiomanShare [DiomanShare.policy][DiomanShareOptions.policy] policy=race: a caller whose own request failed still gets the winning sibling's successful result
+05:48 +480: test_legacy\rule\share_rule_test.dart: Per-request Options overrides [DiomanShare.enabled][DiomanShareOptions.enabled] DiomanShareOptions(enabled: false) bypasses dedup for that request
+05:49 +481: test_legacy\rule\share_rule_test.dart: [DiomanSharePolicy.end][DiomanShare.policy] share end 的旧成功在最新调用失败时收到同一个失败
+05:49 +482: test_legacy\rule\share_rule_test.dart: DiomanShare [DiomanShare.policy][DiomanSharePolicy.end] policy=end: every caller — including superseded ones — receives the LAST request's result
+05:49 +483: test_legacy\rule\share_rule_test.dart: DiomanShare policy: race [DiomanShare.policy][DiomanSharePolicy.race] only once every in-flight attempt has failed does the race settle as a failure for everyone
+05:49 +484: loading test_legacy\rule\share_settle_rule_test.dart
+05:49 +484: test_legacy\rule\share_settle_rule_test.dart: [DiomanSharePolicy.start] 首发真正发出，其余同 key 调用等它的结果，HTTP 只发一次；结算后新请求重新发起
+05:49 +485: test_legacy\rule\share_settle_rule_test.dart: [DiomanShare.onResponse] 成功时结算共享条目：首发与每个跟随者各拿独立的响应副本（头、extra、requestOptions 互不影响）
+05:49 +486: test_legacy\rule\share_settle_rule_test.dart: [DiomanShare.hasMultipleDownstreamSettlers][DiomanShare.registerDownstreamSettler] 已弃用的兼容计数不影响结算：登记多次后共享依旧只发一次、跟随者照常拿到结果
+05:49 +487: loading test_legacy\rule\timeout_rule_test.dart
+05:49 +487: test_legacy\rule\timeout_rule_test.dart: timeout 两级查找（simplify） [DiomanTimeout.timeouts][DiomanTimeout.new(probe)] 单请求覆盖只替换对应档位，其余档位回落到插件配置
+05:49 +488: test_legacy\rule\timeout_rule_test.dart: DiomanTimeout [DiomanTimeouts.receive][DiomanTimeout.timeouts] applies the matched tier: short receive times out, generous is ok
+05:50 +489: test_legacy\rule\timeout_rule_test.dart: DiomanTimeout [DiomanTimeout.onRequest][DiomanTimeout.timeouts][DiomanTimeouts.connect][DiomanTimeouts.new(connect)] only non-null fields are written; others keep BaseOptions
+05:50 +490: test_legacy\rule\timeout_rule_test.dart: DiomanTimeout [DiomanTimeout.enabled][DiomanTimeout.timeouts][DiomanTimeoutOptions.enabled][DiomanTimeoutOptions.new(enabled)] per-request enabled:false keeps the carried timeouts
+05:50 +491: test_legacy\rule\timeout_rule_test.dart: DiomanTimeout [DiomanTimeout.timeouts][DiomanTimeoutOptions.timeouts] per-request timeouts merge, overriding a single tier
+05:50 +492: loading test_legacy\rule\timeout_tiers_rule_test.dart
+05:50 +492: test_legacy\rule\timeout_tiers_rule_test.dart: [DiomanTimeout.name][DiomanTimeout.pluginName] 插件名固定为 dioman:timeout，同时是单请求覆盖的 extra 键
+05:50 +493: test_legacy\rule\timeout_tiers_rule_test.dart: [DiomanTimeoutOptions.enabled][DiomanTimeoutOptions.new(enabled)] null 沿用插件的开关；true 可在插件关闭时点亮本次；false 在插件开启时关掉本次
+05:50 +494: test_legacy\rule\timeout_tiers_rule_test.dart: [DiomanTimeouts.send][DiomanTimeouts.new(send)] send 非空时覆盖 sendTimeout，其余字段为空则保持 BaseOptions
+05:50 +495: test_legacy\rule\timeout_tiers_rule_test.dart: [NetworkQuality.excellent][NetworkQuality.good][NetworkQuality.poor][NetworkQuality.none] 默认档位表：excellent 10s、good 15s、poor 30s、none 10s（只改 connect）
+05:50 +496: loading test_legacy\unit\accept_executor_test.dart
+05:50 +496: test_legacy\unit\accept_executor_test.dart: seedBytes（CONTRACT §7 的 32 位线性同余） 与 CONTRACT 自检向量逐字节一致
+05:50 +497: test_legacy\unit\accept_executor_test.dart: seedBytes（CONTRACT §7 的 32 位线性同余） seed=42,size=1024 的首尾 16 字节固定（sha256 前缀由真实场景核对）
+05:50 +498: test_legacy\unit\accept_executor_test.dart: seedBytes（CONTRACT §7 的 32 位线性同余） size 为 0 返回空，越界 seed 报错
+05:50 +499: test_legacy\unit\accept_executor_test.dart: multipart 请求体 isMultipartBody 只认单键 multipart 的对象
+05:50 +500: test_legacy\unit\accept_executor_test.dart: multipart 请求体 requestBody：multipart 转 FormData，其余原样
+05:50 +501: test_legacy\unit\accept_executor_test.dart: multipart 请求体 先写 fields 再写 files，文件内容取自 seed
+05:50 +502: test_legacy\unit\accept_executor_test.dart: multipart 请求体 fields、files 都可省略；已写出的 FormData 可克隆重放且字节一致
+05:50 +503: test_legacy\unit\accept_executor_test.dart: same_as 断言 dottedField 按点分路径取值
+05:50 +504: test_legacy\unit\accept_executor_test.dart: same_as 断言 相等通过
+05:50 +505: test_legacy\unit\accept_executor_test.dart: same_as 断言 不等、缺请求、失败请求、缺字段都判失败
+05:50 +506: test_legacy\unit\accept_executor_test.dart: maxReadDelayMs 递归取场景里最大的 read_delay_ms，没有则 0
+05:50 +507: test_legacy\unit\accept_executor_test.dart: EnvelopeTransformer 装了 normalize：任何非零业务码都转成错误
+05:50 +508: test_legacy\unit\accept_executor_test.dart: EnvelopeTransformer 只装 auth：只有业务 401/403 转错误，其余业务码原样作为成功（D21）
+05:50 +509: test_legacy\unit\accept_executor_test.dart: EnvelopeTransformer 都没装：业务码一律原样
+05:50 +510: test_legacy\unit\accept_executor_test.dart: EnvelopeTransformer 成功信封（code=0）不受影响
+05:50 +511: test_legacy\unit\accept_executor_test.dart: 能力集合 插件级仍是 17 个，细分能力单独声明
+05:50 +512: test_legacy\unit\accept_executor_test.dart: 能力集合 不声明 mock-in-chain（mock 在传输层）
+05:50 +513: test_legacy\unit\accept_executor_test.dart: 能力集合 timeout 允许 send_ms 字段
+05:50 +514: loading test_legacy\unit\exception_test.dart
+05:51 +514: test_legacy\unit\exception_test.dart: DiomanNormalize [DiomanException.toString] DiomanException.toString() includes the code and message
+05:51 +515: test_legacy\unit\exception_test.dart: [DiomanExtraKey.toString][DiomanOfflineException.toString][DiomanBreakerOpenException.toString][DiomanCancel.track][DiomanCancel.untrack][DiomanCancel.cancelAll] 异常说明、extra 键说明与手动取消追踪
+05:51 +516: loading test_legacy\unit\extra_descriptors_test.dart
+05:51 +516: test_legacy\unit\extra_descriptors_test.dart: [DiomanExtraKey.config(name)][DiomanExtraKey.description][DiomanExtraKey.kind][DiomanExtraKey.owner][DiomanExtraKey.valueType] 描述字段保存并参与注册筛选和输出
+05:51 +517: test_legacy\unit\extra_descriptors_test.dart: [DiomanSharedStateKey.toString] 诊断文本包含键名与实例数
+05:51 +518: loading test_legacy\unit\extra_keys_test.dart
+05:51 +518: test_legacy\unit\extra_keys_test.dart: 注册表内容 [DiomanExtraKeys.lookup][DiomanExtraKeys.ofOwner] lookup / ofOwner
+05:51 +519: test_legacy\unit\extra_keys_test.dart: 自定义插件登记 [DiomanExtraKeys.register][DiomanExtraKeys.lookup] register 后可 lookup；重复登记或覆盖内置键抛 StateError
+05:51 +520: test_legacy\unit\extra_keys_test.dart: 自定义插件登记 [DiomanExtraKeys.unregister] unregister 只能移除自定义键，内置键返回 false 且保留
+05:51 +521: test_legacy\unit\extra_keys_test.dart: 自定义插件登记 [DiomanExtraKeys.register][DiomanExtraKeys.findSharedState] 自定义状态键也参与重复实例诊断
+05:51 +522: test_legacy\unit\extra_keys_test.dart: 注册表内容 [DiomanExtraKeys.all][DiomanExtraKey.key] 键全局唯一，且分类字段完整
+05:51 +523: test_legacy\unit\extra_keys_test.dart: 注册表内容 [DiomanExtraKeys.ofKind][DiomanExtraKeyKind.config] 公开配置键 = 插件名，值类型是对应的 DiomanXxxOptions
+05:51 +524: test_legacy\unit\extra_keys_test.dart: 注册表内容 [DiomanExtraKeys.ofKind][DiomanExtraKeyKind.protocol] 跨插件协议键与既有常量一致
+05:51 +525: test_legacy\unit\extra_keys_test.dart: 注册表内容 [DiomanExtraKeys.ofKind][DiomanExtraKeyKind.state] 内部状态键都以所属插件名为前缀
+05:51 +526: loading test_legacy\unit\matrix_test.dart
+05:51 +526: test_legacy\unit\matrix_test.dart: [matrix.parseTitleIds] 组合、多括号、空标题
+05:51 +527: test_legacy\unit\matrix_test.dart: [matrix.titleIdsFromSource] 引号、转义、换行及相邻字符串
+05:51 +528: test_legacy\unit\matrix_test.dart: [matrix.draftRows] 构造参数、命名构造和 setter 合并
+05:51 +529: test_legacy\unit\matrix_test.dart: [matrix.draftRows] 保留人工字段及未知 JSON 字段
+05:51 +530: test_legacy\unit\matrix_test.dart: [matrix.pluginForFile] 按源文件分组，install/extra 固定映射，未知归 core
+05:51 +531: test_legacy\unit\matrix_test.dart: [matrix.computeGaps] G0/G2/G3/G5 静态判定
+05:51 +532: test_legacy\unit\matrix_test.dart: [matrix.computeGaps] G4 与真实侧 G5
+05:51 +533: test_legacy\unit\matrix_test.dart: [matrix.falsifiedAssumptions] 只看状态列，支持 H1b 这类子编号
+05:51 +534: test_legacy\unit\matrix_test.dart: [matrix.computeGaps] 无 API 的行用 unit 字段指向单测文件，文件须含用例
+05:51 +535: test_legacy\unit\matrix_test.dart: [matrix.computeGaps] 标题里直接写行 id 也算单测引用
+05:51 +536: test_legacy\unit\matrix_test.dart: [matrix.computeGaps] 真实结论为 FAIL 的行一律报 G4，① 档行也不例外
+05:51 +537: test_legacy\unit\matrix_test.dart: [matrix.computeGaps][matrix.rowResult] local: 本地真实核对：文件须存在且含用例，回填计一格通过
+05:51 +538: test_legacy\unit\matrix_test.dart: [matrix.ratchet] 指定前缀的 added 与 fixed
+05:51 +539: test_legacy\unit\matrix_test.dart: [matrix.computeGaps] lcov 白名单按文本和文件匹配并聚合重复记录
+05:51 +540: test_legacy\unit\matrix_test.dart: [matrix.computeGaps] 白名单里已被测到的行报 stale，防止它将来再失守时被掩盖
+05:51 +541: test_legacy\unit\matrix_test.dart: [matrix.symbolsFromSources] 认可内部模块、函数与成员
+05:51 +542: test_legacy\unit\matrix_test.dart: [matrix.summarizeEvidence] 按场景与网络@风格汇总，后者覆盖前者
+05:51 +543: test_legacy\unit\matrix_test.dart: [matrix.summarizeEvidence] 原因以"不适用："开头的跳过记为不适用
+05:51 +544: test_legacy\unit\matrix_test.dart: [matrix.rowResult] 失败优先、有通过即 PASS、全跳过 BLOCKED，按格计数
+05:51 +545: loading test_legacy\unit\pairwise_test.dart
+05:51 +545: test_legacy\unit\pairwise_test.dart: [binaryPairs] 17 列的每一对均覆盖 00、01、10、11
+05:51 +546: test_legacy\unit\pairwise_test.dart: [binaryPairs] 最小列数与最大列数也满足强度二，越界显式报错
+05:51 +547: loading test_legacy\unit\plugin_contract_test.dart
+05:51 +547: test_legacy\unit\plugin_contract_test.dart: [DiomanPlugin.dispose][DiomanPlugin.name][DiomanPluginOrder.none] 默认释放为空操作且顺序声明无约束
+05:51 +548: test_legacy\unit\plugin_contract_test.dart: [DiomanPluginOrderException.message] 保存异常说明并用于字符串输出
+05:51 +549: loading test_legacy\unit\plugin_order_test.dart
+05:51 +549: test_legacy\unit\plugin_order_test.dart: 默认 install 顺序不变 [Dioman.sort] 内置插件任意子集按规范顺序排序都是恒等（2^15 个子集）
+05:52 +550: test_legacy\unit\plugin_order_test.dart: 默认 install 顺序不变 [Dioman.sort] 内置插件乱序输入，排序后满足 README 的全部硬约束
+05:52 +551: test_legacy\unit\plugin_order_test.dart: 稳定拓扑排序 [Dioman.sort] 无约束时保持输入顺序
+05:52 +552: test_legacy\unit\plugin_order_test.dart: 稳定拓扑排序 [Dioman.sort][DiomanPluginOrder.before][DiomanPluginOrder.after] 只调整被约束的插件，其余保持输入顺序（同输入多次结果一致）
+05:52 +553: test_legacy\unit\plugin_order_test.dart: 稳定拓扑排序 [Dioman.sort][DiomanPluginOrder.before][DiomanPluginOrder.after] before/after 指向未安装的插件被忽略（可选依赖）
+05:52 +554: test_legacy\unit\plugin_order_test.dart: 稳定拓扑排序 [Dioman.sort] sort 不修改入参、返回新列表
+05:52 +555: test_legacy\unit\plugin_order_test.dart: 报错 [DiomanPluginOrderException.issue][DiomanPluginOrderException.plugins][Dioman.sort][DiomanPluginOrderIssue.duplicateName] 重复名：异常包含重复的插件名
+05:52 +556: test_legacy\unit\plugin_order_test.dart: 报错 [DiomanPluginOrderException.toString][Dioman.sort][DiomanPluginOrderIssue.cycle] 环：异常列出环上的插件名，不含环外插件
+05:52 +557: test_legacy\unit\plugin_order_test.dart: 报错 [Dioman.sort][DiomanPluginOrderIssue.cycle] 自指约束算环
+05:52 +558: test_legacy\unit\plugin_order_test.dart: 报错 [Dioman.sort][DiomanPluginOrderIssue.missingDependency][DiomanPluginOrder.requires] 缺失必需依赖：异常含依赖方与缺失名
+05:52 +559: test_legacy\unit\plugin_order_test.dart: 报错 [Dioman.sort][DiomanPluginOrder.requires] 必需依赖存在时不报错（requires 只要求存在，不隐含顺序）
+05:52 +560: test_legacy\unit\plugin_order_test.dart: 报错 [Dioman.validate][DiomanPluginOrderIssue.misordered] validate：顺序违反约束时抛 misordered 并带两个插件名
+05:52 +561: loading test_legacy\unit\replay_support_test.dart
+05:52 +561: test_legacy\unit\replay_support_test.dart: cancelAll 覆盖整个逻辑请求（#10） [cancellableDelay] cancellableDelay：取消时立刻结束；时间到自然结束
+05:52 +562: test_legacy\unit\replay_support_test.dart: [prepareForReplay] finalized FormData 拒绝克隆时不重放
+05:52 +563: test_legacy\unit\replay_support_test.dart: [ReplayClient.handOffResponse][ReplayClient.handOffResponseError] replay 仲裁出口 0 交付胜出方失败
+05:52 +564: test_legacy\unit\replay_support_test.dart: [ReplayClient.handOffResponse][ReplayClient.handOffResponseError] replay 仲裁出口 1 交付胜出方失败
+05:52 +565: test_legacy\unit\replay_support_test.dart: [ReplayClient.handOffResponse][ReplayClient.handOffResponseError] replay 仲裁出口 2 交付胜出方失败
+05:52 +566: test_legacy\unit\replay_support_test.dart: [ReplayClient.handOffResponse][ReplayClient.handOffResponseError] replay 仲裁出口 0 交付胜出方成功
+05:52 +567: test_legacy\unit\replay_support_test.dart: [ReplayClient.handOffResponse][ReplayClient.handOffResponseError] replay 仲裁出口 1 交付胜出方成功
+05:52 +568: test_legacy\unit\replay_support_test.dart: [ReplayClient.handOffResponse][ReplayClient.handOffResponseError] replay 仲裁出口 2 交付胜出方成功
+05:52 +569: test_legacy\unit\replay_support_test.dart: [ReplayClient.handOffResponseError][ReplayClient.handOffError] replay 错误出口取消时不等仲裁
+05:52 +570: test_legacy\unit\replay_support_test.dart: [ReplayClient.handOffResponseError][ReplayClient.handOffError] replay 响应出口取消时不等仲裁
+05:52 +571: test_legacy\unit\replay_support_test.dart: [ReplayClient.finishRecovered] 恢复成功前发现胜出方失败时清理认领并传播胜出错误
+05:52 +572: test_legacy\unit\replay_support_test.dart: [ReplayClient.runDownstream] replay 下游同步异常保留继续错误语义
+05:52 +573: test_legacy\unit\replay_support_test.dart: [ReplayClient.runDownstream] replay 下游异步异常保留继续错误语义
+05:52 +574: loading test_legacy\unit\request_claims_test.dart
+05:52 +574: test_legacy\unit\request_claims_test.dart: [RequestClaims.whenDrained][claimRequest][releaseClaim] claims 已结束后回调立即执行，release 接口完成所有权
+05:52 +575: loading test_legacy\unit\service_guard_test.dart
+05:52 +575: test_legacy\unit\service_guard_test.dart: [isInjectedResponse] 识别 testkit 的注入标记，真实熔断与普通响应不算
+05:52 +576: test_legacy\unit\service_guard_test.dart: [checkServiceStatus] 已解析数据带注入标记（含 business 风格的 HTTP 200 业务码）时放行，真实的仍停止
+05:52 +577: test_legacy\unit\service_guard_test.dart: [ServiceGuardAdapter.fetch] 注入的 429/503 放行且响应体原样保留，不标记停止
+05:52 +578: test_legacy\unit\service_guard_test.dart: [ServiceGuardAdapter.fetch][checkServiceStatus] 真实 429/503 以取消错误中断并标记整轮停止
+05:53 +579: test_legacy\unit\service_guard_test.dart: [ServiceGuardAdapter.fetch] 其他状态码不读响应体，直接透传
+05:53 +580: All tests passed!

@@ -1,0 +1,65 @@
+[
+  {
+    "mutation": "review-url-authority",
+    "test": "test/boundary/stateless_prepare_boundary_test.dart",
+    "title": "无路径绝对 URL",
+    "killed": true,
+    "restored_sha256": "dd1d13cc0d6e7645eaf8dc74d3f4c4cff9dfa28c37bc71a25a49253eb92b7be7"
+  },
+  {
+    "mutation": "loading-count",
+    "test": "test/rule/stateless_outer_rule_test.dart",
+    "title": "同回调并发聚合",
+    "killed": true,
+    "restored_sha256": "d111dfa4388b696fa8e6dd69a247b14c6550108da7d60a64eb4a070aa1ec149d"
+  },
+  {
+    "mutation": "notify-final",
+    "test": "test/rule/stateless_outer_rule_test.dart",
+    "title": "默认忽略成功",
+    "killed": true,
+    "restored_sha256": "03feae4f965254ae023f55cc715b888f779de8714c85c3447e65ac2c27bf45bb"
+  },
+  {
+    "mutation": "repath-consume",
+    "test": "test/rule/stateless_prepare_rule_test.dart",
+    "title": "三语法",
+    "killed": true,
+    "restored_sha256": "dd1d13cc0d6e7645eaf8dc74d3f4c4cff9dfa28c37bc71a25a49253eb92b7be7"
+  },
+  {
+    "mutation": "filter-nan",
+    "test": "test/rule/stateless_prepare_rule_test.dart",
+    "title": "C9",
+    "killed": true,
+    "restored_sha256": "564f804c87577a90dac1243dabd0db521955dc2f7bf40bc9d9eeec93cfd8feb4"
+  },
+  {
+    "mutation": "timeout-patch",
+    "test": "test/rule/stateless_prepare_rule_test.dart",
+    "title": "按档并集",
+    "killed": true,
+    "restored_sha256": "01062a6868a2f7bba2169cb43e7727e62d8c69636f7162c59ee6254eb1ae6f4c"
+  },
+  {
+    "mutation": "envs-clone",
+    "test": "test/boundary/envs_boundary_test.dart",
+    "title": "写前深克隆",
+    "killed": true,
+    "restored_sha256": "2fb948db780c5577ede7b4bda8d5b79ba6f4560251d2f71df3ef3d2738755f1e"
+  },
+  {
+    "mutation": "internal-fallback",
+    "test": "test/boundary/internal_settlement_boundary_test.dart",
+    "title": "缺 error",
+    "killed": true,
+    "restored_sha256": "8657f4b799af193886c4b9f0987a65fc1c34a257d5589f277399e88181f9dc72"
+  },
+  {
+    "mutation": "extend-precedence",
+    "test": "test/combo/stateless_combo_test.dart",
+    "title": "先 setup 再显式覆盖",
+    "killed": true,
+    "restored_sha256": "8657f4b799af193886c4b9f0987a65fc1c34a257d5589f277399e88181f9dc72"
+  }
+]

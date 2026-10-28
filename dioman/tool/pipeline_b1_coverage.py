@@ -4,6 +4,10 @@ import sys
 
 ROOT = Path(__file__).resolve().parents[1]
 FILES = ('client', 'pipeline', 'context', 'request', 'response', 'transport')
+if '--b2' in sys.argv:
+    FILES += ('config', 'plugins/loading', 'plugins/notify', 'plugins/repath',
+              'plugins/filter', 'plugins/timeout', 'plugins/envs')
+    sys.argv.remove('--b2')
 
 
 def inspect(path):
@@ -14,7 +18,7 @@ def inspect(path):
         source = next((line[3:].replace('\\', '/') for line in lines if line.startswith('SF:')), '')
         if '/lib/src/pipeline/' not in source:
             continue
-        name = source.rsplit('/', 1)[-1].removesuffix('.dart')
+        name = source.split('/lib/src/pipeline/', 1)[1].removesuffix('.dart')
         if name not in FILES:
             continue
         assert name not in found, f'重复文件 {source}'
@@ -35,7 +39,7 @@ def inspect(path):
         lf, lh, brf, brh = found[name]
         print(name + '.dart', lf, lh, brf, brh)
         assert lf > 0 and brf > 0 and lf == lh and brf == brh, name
-    print('six files present; nonzero counters; lines=100%; branches=100%; PASS')
+    print(f'{len(FILES)} files present; nonzero counters; lines=100%; branches=100%; PASS')
 
 
 if __name__ == '__main__':

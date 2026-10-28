@@ -1,0 +1,22 @@
+ M lib/pipeline.dart
+ M lib/src/pipeline/client.dart
+ M lib/src/pipeline/pipeline.dart
+ M lib/src/pipeline/stages.dart
+ M test/support/pipeline/invariant_harness.dart
+ M tool/pipeline_b1_coverage.py
+?? docs/reports/2026-10-29-pipeline-b2.md
+?? docs/reports/pipeline-b2-evidence/
+?? lib/src/pipeline/config.dart
+?? lib/src/pipeline/plugins/
+?? test/boundary/envs_boundary_test.dart
+?? test/boundary/internal_settlement_boundary_test.dart
+?? test/boundary/stateless_outer_boundary_test.dart
+?? test/boundary/stateless_prepare_boundary_test.dart
+?? test/combo/
+?? test/integration/
+?? test/rule/envs_rule_test.dart
+?? test/rule/stateless_outer_rule_test.dart
+?? test/rule/stateless_prepare_rule_test.dart
+?? test/support/pipeline/b2_constants.dart
+?? tool/pipeline_b2_migration.py
+?? tool/pipeline_b2_mutations.py

@@ -1,0 +1,37 @@
+00:00 +0: loading test/boundary/internal_settlement_boundary_test.dart
+00:00 +0: [Dioman.send] internal 缺 error 时抛明确 StateError
+00:00 +0 -1: [Dioman.send] internal 缺 error 时抛明确 StateError [E]
+  Expected: throws <Instance of 'StateError'> with `message`: 'internal result without error'
+    Actual: <Instance of 'Future<DiomanResponse<Object?>>'>
+     Which: threw _TypeError:<Null check operator used on a null value>
+            stack package:dioman/src/pipeline/client.dart 287:47             Dioman._dispatch
+                  ===== asynchronous gap ===========================
+                  package:dioman/src/pipeline/client.dart 205:9              Dioman.send
+                  ===== asynchronous gap ===========================
+                  test\boundary\internal_settlement_boundary_test.dart 12:5  main.<fn>
+                  
+            which is not an instance of 'StateError'
+  
+  test\boundary\internal_settlement_boundary_test.dart 12:5  main.<fn>
+  
+00:00 +0 -1: [Dioman.send] internal 缺 stack 时保留原 error 并补当前栈
+00:00 +0 -2: [Dioman.send] internal 缺 stack 时保留原 error 并补当前栈 [E]
+  Expected: throws same instance as StateError:<Bad state: sentinel>
+    Actual: <Instance of 'Future<DiomanResponse<Object?>>'>
+     Which: threw _TypeError:<Null check operator used on a null value>
+            stack package:dioman/src/pipeline/client.dart 287:67             Dioman._dispatch
+                  ===== asynchronous gap ===========================
+                  package:dioman/src/pipeline/client.dart 205:9              Dioman.send
+                  ===== asynchronous gap ===========================
+                  test\boundary\internal_settlement_boundary_test.dart 23:5  main.<fn>
+  
+  test\boundary\internal_settlement_boundary_test.dart 23:5  main.<fn>
+  
+00:00 +0 -2: Some tests failed.
+
+Failing tests:
+  test/boundary/internal_settlement_boundary_test.dart: [Dioman.send] internal 缺 error 时抛明确 StateError
+  test/boundary/internal_settlement_boundary_test.dart: [Dioman.send] internal 缺 stack 时保留原 error 并补当前栈
+
+Consider enabling the flag chain-stack-traces to receive more detailed exceptions.
+For example, 'dart test --chain-stack-traces'.

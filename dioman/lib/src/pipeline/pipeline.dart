@@ -41,7 +41,7 @@ void validateDiomanPlugins(Iterable<DiomanPlugin> plugins) {
     if (!names.add(plugin.name)) {
       throw ArgumentError.value(plugin.name, _nameArgument, '插件重名');
     }
-    _position(plugin);
+    if (!diomanSetupPlugins.contains(plugin.name)) _position(plugin);
   }
 }
 

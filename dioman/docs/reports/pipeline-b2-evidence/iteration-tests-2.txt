@@ -1,0 +1,85 @@
+00:00 +0: loading test\boundary\client_boundary_test.dart
+00:00 +0: test\boundary\client_boundary_test.dart: [Dioman.send] 同时取消不掩盖中间件程序异常和原始栈
+00:00 +1: test\boundary\envs_boundary_test.dart: [EnvRule.rule] 抛错原样中断 setup，宿主没有写入
+00:00 +2: test\boundary\client_boundary_test.dart: [Dioman.cancelAll] 逻辑计数、重复取消、用户取消联动及 pending 清理
+00:00 +3: test\boundary\envs_boundary_test.dart: [DiomanEnvs.setup] 写前深克隆宿主和模板容器，多客户端互不污染
+00:00 +4: test\boundary\internal_settlement_boundary_test.dart: [Dioman.send] internal 缺 error 时抛明确 StateError
+00:00 +5: test\boundary\internal_settlement_boundary_test.dart: [Dioman.send] internal 缺 error 时抛明确 StateError
+00:00 +6: test\boundary\client_boundary_test.dart: [Dioman.use] 重名和保留前缀先拒绝 setup，安装失败原链不变
+00:00 +7: test\boundary\internal_settlement_boundary_test.dart: [Dioman.send] internal 缺 stack 时保留原 error 并补当前栈
+00:00 +8: test\boundary\client_boundary_test.dart: [Dioman.inspect] 内置按名定位和在途保留链快照
+00:00 +9: test\boundary\client_boundary_test.dart: [Dioman.extend] 重新 setup，配置深拷贝和实例状态隔离
+00:00 +10: test\boundary\stateless_outer_boundary_test.dart: [DiomanLoading.delay] 显示前结束、延迟到期和 0→1 决定窗口
+00:00 +11: test\boundary\stateless_outer_boundary_test.dart: [DiomanLoading.delay] 显示前结束、延迟到期和 0→1 决定窗口
+00:00 +12: test\boundary\stateless_outer_boundary_test.dart: [DiomanLoading.delay] 显示前结束、延迟到期和 0→1 决定窗口
+00:00 +13: test\boundary\stateless_prepare_boundary_test.dart: [DiomanRepath.pattern] URL 只处理路径，缺键、无捕获和空捕获保持原样
+00:00 +14: test\boundary\stateless_prepare_boundary_test.dart: [DiomanRepath.pattern] URL 只处理路径，缺键、无捕获和空捕获保持原样
+00:00 +15: test\boundary\stateless_prepare_boundary_test.dart: [DiomanRepath.pattern] URL 只处理路径，缺键、无捕获和空捕获保持原样
+00:00 +16: test\boundary\stateless_prepare_boundary_test.dart: [DiomanRepath.pattern] URL 只处理路径，缺键、无捕获和空捕获保持原样
+00:00 +17: test\boundary\stateless_prepare_boundary_test.dart: [DiomanRepath.pattern] URL 只处理路径，缺键、无捕获和空捕获保持原样
+00:00 +18: test\boundary\stateless_prepare_boundary_test.dart: [DiomanRepath.pattern] URL 只处理路径，缺键、无捕获和空捕获保持原样
+00:00 +19: test\combo\stateless_combo_test.dart: [DiomanLoading × DiomanNotify] 多次 next 仅一个 loading 周期与最终通知，I2/I4
+00:00 +20: test\combo\stateless_combo_test.dart: [DiomanLoading × DiomanNotify] 多次 next 仅一个 loading 周期与最终通知，I2/I4
+00:00 +21: test\combo\stateless_combo_test.dart: [DiomanLoading × DiomanNotify] 多次 next 仅一个 loading 周期与最终通知，I2/I4
+00:00 +22: test\combo\stateless_combo_test.dart: [DiomanLoading × DiomanNotify] 多次 next 仅一个 loading 周期与最终通知，I2/I4
+00:00 +23: test\boundary\stateless_prepare_boundary_test.dart: [DiomanFilter.predicate] 判定错误按原对象抛出，谓词每字段只执行一次
+00:00 +24: test\boundary\stateless_prepare_boundary_test.dart: [DiomanFilter.predicate] 判定错误按原对象抛出，谓词每字段只执行一次
+00:00 +25: test\rule\envs_rule_test.dart: [DiomanEnvs.setup] 首个命中、全部旧字段合并、请求期不求值、不进链
+00:00 +26: test\rule\envs_rule_test.dart: [DiomanEnvs.setup] 首个命中、全部旧字段合并、请求期不求值、不进链
+00:00 +27: test\rule\envs_rule_test.dart: [DiomanEnvs.setup] 首个命中、全部旧字段合并、请求期不求值、不进链
+00:00 +28: test\rule\envs_rule_test.dart: [DiomanEnvs.setup] 首个命中、全部旧字段合并、请求期不求值、不进链
+00:00 +29: test\rule\envs_rule_test.dart: [DiomanEnvs.setup] 首个命中、全部旧字段合并、请求期不求值、不进链
+00:00 +30: test\rule\envs_rule_test.dart: [DiomanEnvs.setup] 首个命中、全部旧字段合并、请求期不求值、不进链
+00:00 +31: test\rule\envs_rule_test.dart: [DiomanEnvs.setup] 首个命中、全部旧字段合并、请求期不求值、不进链
+00:00 +32: test\rule\envs_rule_test.dart: [DiomanEnvs.setup] 首个命中、全部旧字段合并、请求期不求值、不进链
+00:00 +33: test\rule\envs_rule_test.dart: [DiomanEnvs.setup] 首个命中、全部旧字段合并、请求期不求值、不进链
+00:00 +34: test\rule\envs_rule_test.dart: [DiomanEnvs.setup] 首个命中、全部旧字段合并、请求期不求值、不进链
+00:00 +35: test\rule\envs_rule_test.dart: [DiomanEnvs.setup] 首个命中、全部旧字段合并、请求期不求值、不进链
+00:00 +36: test\rule\envs_rule_test.dart: [DiomanEnvs.setup] 首个命中、全部旧字段合并、请求期不求值、不进链
+00:01 +37: test\rule\envs_rule_test.dart: [DiomanEnvs.setup] 首个命中、全部旧字段合并、请求期不求值、不进链
+00:01 +38: test\rule\envs_rule_test.dart: [DiomanEnvs.setup] 首个命中、全部旧字段合并、请求期不求值、不进链
+00:01 +39: test\rule\response_extension_rule_test.dart: [DiomanResponseFactory.create] send<T> 保留类型匹配的子类和扩展字段
+00:01 +40: test\rule\response_extension_rule_test.dart: [DiomanResponseFactory.create] send<T> 保留类型匹配的子类和扩展字段
+00:01 +41: test\rule\response_extension_rule_test.dart: [DiomanResponseFactory.create] send<T> 保留类型匹配的子类和扩展字段
+00:01 +42: test\rule\response_extension_rule_test.dart: [DiomanResponseFactory.create] send<T> 保留类型匹配的子类和扩展字段
+00:01 +43: test\rule\response_extension_rule_test.dart: [DiomanResponseFactory.create] send<T> 保留类型匹配的子类和扩展字段
+00:01 +44: test\rule\response_extension_rule_test.dart: [DiomanResponseFactory.create] send<T> 保留类型匹配的子类和扩展字段
+00:01 +45: test\rule\stateless_outer_rule_test.dart: [DiomanLoadingApi.activeCount] 同回调并发聚合，换回调独立计数，I2 成对
+00:01 +46: test\rule\stateless_prepare_rule_test.dart: [DiomanRepath] 三语法、query 优先、重复替换、编码和默认 query 消费
+00:01 +47: test\rule\stateless_prepare_rule_test.dart: [DiomanRepath] 三语法、query 优先、重复替换、编码和默认 query 消费
+00:01 +48: test\rule\transport_rule_test.dart: [Dioman.send] Dio 拦截器 reject 的 bug 保留原始对象和原始栈
+00:01 +49: test\rule\transport_rule_test.dart: [Dioman.send] Dio 拦截器 reject 的 bug 保留原始对象和原始栈
+00:01 +50: test\rule\stateless_prepare_rule_test.dart: [DiomanRepath.option] 开关、字段继承、自定义模式与保留来源
+00:01 +51: test\rule\stateless_outer_rule_test.dart: [DiomanNotify.option] true 开启、自定义 stringify 与空串关闭，I4 按 ctx.id 记录
+00:01 +52: test\rule\transport_rule_test.dart: [Dioman.cancelAll] 实际 Dio 发送中取消，迟到网络结果不会恢复请求
+00:01 +53: test\unit\context_test.dart: [DiomanContext.wait] 替换传输令牌隔离外层取消，逻辑状态仍共享
+00:01 +54: test\unit\context_test.dart: [DiomanContext.wait] 替换传输令牌隔离外层取消，逻辑状态仍共享
+00:01 +55: test\rule\transport_rule_test.dart: [DiomanContext.markReplayable] I7 嵌套请求体经原地修改 Transformer 后每次发送一致
+00:01 +56: test\rule\transport_rule_test.dart: [DiomanContext.markReplayable] I7 嵌套请求体经原地修改 Transformer 后每次发送一致
+00:01 +57: test\rule\transport_rule_test.dart: [DiomanContext.markReplayable] I7 嵌套请求体经原地修改 Transformer 后每次发送一致
+00:01 +58: test\rule\transport_rule_test.dart: [DiomanContext.markReplayable] I7 嵌套请求体经原地修改 Transformer 后每次发送一致
+00:01 +59: test\rule\transport_rule_test.dart: [DiomanContext.markReplayable] I7 嵌套请求体经原地修改 Transformer 后每次发送一致
+00:01 +60: test\rule\transport_rule_test.dart: [DiomanContext.markReplayable] I7 嵌套请求体经原地修改 Transformer 后每次发送一致
+00:01 +61: test\unit\fixtures_test.dart: [Dioman.send] FakeNetwork 路由、序列、第 n 次失败、gate 和记录
+00:01 +62: test\unit\fixtures_test.dart: [Dioman.send] FakeNetwork 路由、序列、第 n 次失败、gate 和记录
+00:01 +63: test\unit\fixtures_test.dart: [Dioman.send] FakeNetwork 路由、序列、第 n 次失败、gate 和记录
+00:01 +64: test\rule\transport_rule_test.dart: [diomanTransport] FormData 克隆、不可克隆 Stream 回退并告警、debug 日志异常隔离
+00:01 +65: test\rule\transport_rule_test.dart: [diomanTransport] FormData 克隆、不可克隆 Stream 回退并告警、debug 日志异常隔离
+00:01 +66: test\rule\transport_rule_test.dart: [diomanTransport] FormData 克隆、不可克隆 Stream 回退并告警、debug 日志异常隔离
+00:01 +67: test\unit\key_parity_test.dart: [DiomanKeyService.build] 固定种子 2400 组与旧 key 逐字节一致
+00:02 +68: test\unit\key_parity_test.dart: [DiomanKeyService.build] 固定种子 2400 组与旧 key 逐字节一致
+00:02 +69: test\unit\key_parity_test.dart: [DiomanKeyService.build] 固定种子 2400 组与旧 key 逐字节一致
+00:02 +70: test\unit\key_parity_test.dart: [DiomanKeyService.build] 固定种子 2400 组与旧 key 逐字节一致
+00:02 +71: test\unit\key_parity_test.dart: [DiomanKeyService.build] 固定种子 2400 组与旧 key 逐字节一致
+00:02 +72: test\unit\key_parity_test.dart: [DiomanKeyService.build] 固定种子 2400 组与旧 key 逐字节一致
+00:02 +73: test\unit\key_parity_test.dart: [DiomanKeyService.build] 固定种子 2400 组与旧 key 逐字节一致
+00:02 +74: test\unit\key_parity_test.dart: [DiomanKeyService.build] 固定种子 2400 组与旧 key 逐字节一致
+00:02 +75: test\unit\key_parity_test.dart: [DiomanKeyService.build] 固定种子 2400 组与旧 key 逐字节一致
+00:02 +76: test\unit\key_parity_test.dart: [DiomanKeyService.build] 固定种子 2400 组与旧 key 逐字节一致
+00:02 +77: test\unit\key_parity_test.dart: [DiomanKeyService.build] 固定种子 2400 组与旧 key 逐字节一致
+00:02 +78: test\unit\key_parity_test.dart: [DiomanKeyService.build] 固定种子 2400 组与旧 key 逐字节一致
+00:02 +79: test\unit\key_parity_test.dart: [DiomanKeyService.build] 固定种子 2400 组与旧 key 逐字节一致
+00:02 +80: test\unit\key_parity_test.dart: [DiomanKeyService.build] 固定种子 2400 组与旧 key 逐字节一致
+00:02 +81: test\unit\key_parity_test.dart: [DiomanKeyService.build] 固定种子 2400 组与旧 key 逐字节一致
+00:02 +82: test\unit\key_parity_test.dart: [DiomanKeyService.build] 开关、显式键、异常及不可序列化回退
+00:02 +83: All tests passed!

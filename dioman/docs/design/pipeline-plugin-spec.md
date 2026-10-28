@@ -129,6 +129,14 @@ B0 迁移清单标出 54 条存疑，归为下列规格缺口，按"现有功能
 | `DiomanSharePolicy.none` | 删除：关闭共享用请求级 `false` |
 | loading 请求级回调的触发、envs 合并 | 按新规格：按回调身份分开计数；envs 合并时克隆容器 |
 
+B2 终审补充：
+
+| 缺口 | 裁决 |
+|---|---|
+| `BaseOptions` 分不清"省略"与"显式写了默认值" | envs 与 `extend` 共用"非空、非默认字段覆盖"合并，三个 Map 容器深克隆后按顶层键合并。已继承的非默认值**不能**靠写默认值重置回去，此限制写进 `extend` 契约；确有需要再加显式重置 API，不预做 |
+| timeout 的真实连接计时 | 单测注入 `connectionTimeout` 只证明归类正确；真实计时归 B7，按 testkit D22 结论 connect 档仍不可黑盒验证，G4 留作唯一缺口 |
+| 旧套件首轮并发跑出两处 RangeError（loading_share/end、retry_share/race） | 不归因 B2：B2 没碰旧源码与 `test_legacy/`，串行复验 580 全绿；旧套件在 B5 删除，不再投入 |
+
 ## 9. 行为变化汇总（写进 CHANGELOG 与迁移指南）
 
 | # | 变化 | 原因 |

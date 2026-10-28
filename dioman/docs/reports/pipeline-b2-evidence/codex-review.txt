@@ -1,0 +1,3162 @@
+OpenAI Codex v0.163.0
+--------
+workdir: E:\workspaces\dart-labs-pipeline\dioman
+model: gpt-6.1-sol
+provider: openai
+approval: never
+sandbox: danger-full-access
+reasoning effort: none
+reasoning summaries: none
+session id: 01a183a5-6e83-7801-99ec-d3aa8dd4cf5c
+--------
+user
+current changes
+exec
+"C:\\Users\\jelon\\AppData\\Local\\Microsoft\\WindowsApps\\Microsoft.PowerShell_8wekyb3d8bbwe\\pwsh.exe" -Command 'git status --short; Get-ChildItem -Force -Name AGENTS*; git diff --stat; git diff --cached --stat' in E:\workspaces\dart-labs-pipeline\dioman
+ succeeded in 5658ms:
+ M lib/pipeline.dart
+ M lib/src/pipeline/client.dart
+ M lib/src/pipeline/pipeline.dart
+ M lib/src/pipeline/stages.dart
+ M test/support/pipeline/invariant_harness.dart
+ M tool/pipeline_b1_coverage.py
+?? docs/reports/pipeline-b2-evidence/
+?? lib/src/pipeline/config.dart
+?? lib/src/pipeline/plugins/
+?? migration-b2-read.tmp
+?? test/boundary/envs_boundary_test.dart
+?? test/boundary/internal_settlement_boundary_test.dart
+?? test/boundary/stateless_outer_boundary_test.dart
+?? test/boundary/stateless_prepare_boundary_test.dart
+?? test/combo/
+?? test/integration/
+?? test/rule/envs_rule_test.dart
+?? test/rule/stateless_outer_rule_test.dart
+?? test/rule/stateless_prepare_rule_test.dart
+warning: in the working copy of 'dioman/lib/src/pipeline/stages.dart', LF will be replaced by CRLF the next time Git touches it
+ dioman/lib/pipeline.dart                           |  6 +++++
+ dioman/lib/src/pipeline/client.dart                | 26 +++++++---------------
+ dioman/lib/src/pipeline/pipeline.dart              |  2 +-
+ dioman/lib/src/pipeline/stages.dart                |  3 +++
+ .../test/support/pipeline/invariant_harness.dart   | 25 ++++++++++++++++++++-
+ dioman/tool/pipeline_b1_coverage.py                |  8 +++++--
+ 6 files changed, 48 insertions(+), 22 deletions(-)
+
+exec
+"C:\\Users\\jelon\\AppData\\Local\\Microsoft\\WindowsApps\\Microsoft.PowerShell_8wekyb3d8bbwe\\pwsh.exe" -Command 'Get-ChildItem -Path .. -Force -Name AGENTS*; Get-ChildItem -Path ../.. -Force -Name AGENTS*; Get-ChildItem -Recurse -File -Include AGENTS.md,AGENTS.override.md | Select-Object -ExpandProperty FullName; git diff; Get-ChildItem lib/src/pipeline/plugins -Recurse -File | Select-Object FullName; Get-Content lib/src/pipeline/config.dart' in E:\workspaces\dart-labs-pipeline\dioman
+ succeeded in 1974ms:
+warning: in the working copy of 'dioman/lib/src/pipeline/stages.dart', LF will be replaced by CRLF the next time Git touches it
+diff --git a/dioman/lib/pipeline.dart b/dioman/lib/pipeline.dart
+index a188b6d..1640eb7 100644
+--- a/dioman/lib/pipeline.dart
++++ b/dioman/lib/pipeline.dart
+@@ -12,3 +12,9 @@ export 'src/pipeline/request.dart';
+ export 'src/pipeline/response.dart';
+ export 'src/pipeline/stages.dart';
+ export 'src/pipeline/transport.dart';
++export 'src/pipeline/plugins/loading.dart';
++export 'src/pipeline/plugins/notify.dart';
++export 'src/pipeline/plugins/repath.dart';
++export 'src/pipeline/plugins/filter.dart';
++export 'src/pipeline/plugins/timeout.dart';
++export 'src/pipeline/plugins/envs.dart';
+diff --git a/dioman/lib/src/pipeline/client.dart b/dioman/lib/src/pipeline/client.dart
+index 0465f1d..8c223bc 100644
+--- a/dioman/lib/src/pipeline/client.dart
++++ b/dioman/lib/src/pipeline/client.dart
+@@ -1,5 +1,6 @@
+ import 'package:dio/dio.dart';
+ import 'clock.dart';
++import 'config.dart';
+ import 'context.dart';
+ import 'key.dart';
+ import 'options.dart';
+@@ -165,18 +166,16 @@ class Dioman<R extends DiomanResponse<dynamic>> {
+   /// 克隆 BaseOptions 并重新 setup 插件，状态不共享；[plugins] 替换继承列表。
+   Dioman<R> extend({BaseOptions? options, List<DiomanPlugin<R>>? plugins}) {
+     _checkAlive();
+-    final base = (options ?? dio.options).copyWith();
+-    base.headers = _cloneMap(base.headers);
+-    base.queryParameters = _cloneMap(base.queryParameters);
+-    base.extra = _cloneMap(base.extra);
+-    return Dioman<R>(
+-        dio: Dio(base),
++    final child = Dioman<R>(
++        dio: Dio(cloneDiomanOptions(dio.options)),
+         plugins: plugins ?? _registrations.map((r) => r.plugin).toList(),
+         response: response,
+         key: key,
+         reject: reject,
+         debug: _debug ? _logger : false,
+         clock: clock);
++    if (options != null) mergeDiomanOptions(child.dio.options, options);
++    return child;
+   }
+ 
+   /// 先取消请求，再逆序释放全部实例；清理完毕后原栈抛出首个异常。
+@@ -284,7 +283,9 @@ class Dioman<R extends DiomanResponse<dynamic>> {
+         result = response.withCallSite(result, site);
+       }
+       if (result.kind == DiomanKind.internal) {
+-        Error.throwWithStackTrace(result.error!, result.errorStack!);
++        Error.throwWithStackTrace(
++            result.error ?? StateError('internal result without error'),
++            result.errorStack ?? StackTrace.current);
+       }
+       return result;
+     } finally {
+@@ -294,14 +295,3 @@ class Dioman<R extends DiomanResponse<dynamic>> {
+     }
+   }
+ }
+-
+-/// 深拷贝 BaseOptions 的 JSON 容器，避免 extend 修改父客户端。
+-Map<String, dynamic> _cloneMap(Map<String, dynamic> value) =>
+-    value.map((k, v) => MapEntry(k, _cloneValue(v)));
+-
+-/// 递归复制配置值，非集合保持身份。
+-Object? _cloneValue(Object? value) {
+-  if (value is Map) return value.map((k, v) => MapEntry(k, _cloneValue(v)));
+-  if (value is List) return value.map(_cloneValue).toList();
+-  return value;
+-}
+diff --git a/dioman/lib/src/pipeline/pipeline.dart b/dioman/lib/src/pipeline/pipeline.dart
+index 1d763b0..515fc99 100644
+--- a/dioman/lib/src/pipeline/pipeline.dart
++++ b/dioman/lib/src/pipeline/pipeline.dart
+@@ -41,7 +41,7 @@ void validateDiomanPlugins(Iterable<DiomanPlugin> plugins) {
+     if (!names.add(plugin.name)) {
+       throw ArgumentError.value(plugin.name, _nameArgument, '插件重名');
+     }
+-    _position(plugin);
++    if (!diomanSetupPlugins.contains(plugin.name)) _position(plugin);
+   }
+ }
+ 
+diff --git a/dioman/lib/src/pipeline/stages.dart b/dioman/lib/src/pipeline/stages.dart
+index 571d536..4c86e8a 100644
+--- a/dioman/lib/src/pipeline/stages.dart
++++ b/dioman/lib/src/pipeline/stages.dart
+@@ -4,6 +4,9 @@ enum DiomanStage { outer, prepare, attempt, credential, source }
+ /// 自定义插件在同阶段内置插件之前或之后运行。
+ enum DiomanEnforce { pre, post }
+ 
++/// 仅安装时运行的内置名称，不占用链内位置。
++const diomanSetupPlugins = ['dioman:envs'];
++
+ /// 内置名称的位置表；位置只由名称决定。
+ const diomanBuiltinStages = <DiomanStage, List<String>>{
+   DiomanStage.outer: ['dioman:loading', 'dioman:notify'],
+diff --git a/dioman/test/support/pipeline/invariant_harness.dart b/dioman/test/support/pipeline/invariant_harness.dart
+index 38f0558..1b1e1d2 100644
+--- a/dioman/test/support/pipeline/invariant_harness.dart
++++ b/dioman/test/support/pipeline/invariant_harness.dart
+@@ -5,7 +5,7 @@ import 'fake_clock.dart';
+ import 'fake_network.dart';
+ import 'helpers.dart';
+ 
+-/// B1 启用 I1/I3/I6/I7；其余接口供后续插件批次接入。
++/// 启用 I1/I2/I3/I4/I6/I7；I5 留待认证批次接入。
+ class InvariantHarness {
+   /// 绑定网络和时钟。
+   InvariantHarness(this.network, this.clock);
+@@ -37,6 +37,29 @@ class InvariantHarness {
+   /// 各层保存的上下文，用于请求结束后追踪取消订阅。
+   final contexts = <DiomanContext<Result>>[];
+ 
++  /// 创建按回调身份记录 I2 的真实 loading 插件。
++  DiomanLoading<Result> loadingPlugin(
++      {Duration delay = Duration.zero, Duration delayClose = Duration.zero}) {
++    final identity = Object();
++    return DiomanLoading<Result>(
++        onChanged: (visible) {
++          loading.putIfAbsent(identity, () => []).add(visible);
++        },
++        delay: delay,
++        delayClose: delayClose);
++  }
++
++  /// stringify 以 ctx.id 标记，notify 按逻辑请求而非响应身份记录 I4。
++  DiomanNotify<Result> notifyPlugin() => DiomanNotify<Result>(
++      stringify: (r, ctx) =>
++          r.ok || r.kind == DiomanKind.cancel || ctx.request.silent
++              ? ''
++              : '${ctx.id}',
++      notify: (message, r) {
++        notifications.update(int.parse(message), (n) => n + 1,
++            ifAbsent: () => 1);
++      });
++
+   /// 生成最外层及每阶段 pre/post 的直通探针。
+   List<DiomanPlugin<Result>> probes() => [
+         TestPlugin('invariant',
+diff --git a/dioman/tool/pipeline_b1_coverage.py b/dioman/tool/pipeline_b1_coverage.py
+index a347148..005961c 100644
+--- a/dioman/tool/pipeline_b1_coverage.py
++++ b/dioman/tool/pipeline_b1_coverage.py
+@@ -4,6 +4,10 @@ import sys
+ 
+ ROOT = Path(__file__).resolve().parents[1]
+ FILES = ('client', 'pipeline', 'context', 'request', 'response', 'transport')
++if '--b2' in sys.argv:
++    FILES += ('config', 'plugins/loading', 'plugins/notify', 'plugins/repath',
++              'plugins/filter', 'plugins/timeout', 'plugins/envs')
++    sys.argv.remove('--b2')
+ 
+ 
+ def inspect(path):
+@@ -14,7 +18,7 @@ def inspect(path):
+         source = next((line[3:].replace('\\', '/') for line in lines if line.startswith('SF:')), '')
+         if '/lib/src/pipeline/' not in source:
+             continue
+-        name = source.rsplit('/', 1)[-1].removesuffix('.dart')
++        name = source.split('/lib/src/pipeline/', 1)[1].removesuffix('.dart')
+         if name not in FILES:
+             continue
+         assert name not in found, f'重复文件 {source}'
+@@ -35,7 +39,7 @@ def inspect(path):
+         lf, lh, brf, brh = found[name]
+         print(name + '.dart', lf, lh, brf, brh)
+         assert lf > 0 and brf > 0 and lf == lh and brf == brh, name
+-    print('six files present; nonzero counters; lines=100%; branches=100%; PASS')
++    print(f'{len(FILES)} files present; nonzero counters; lines=100%; branches=100%; PASS')
+ 
+ 
+ if __name__ == '__main__':
+
+FullName
+--------
+E:\workspaces\dart-labs-pipeline\dioman\lib\src\pipeline\plugins\envs.dart
+E:\workspaces\dart-labs-pipeline\dioman\lib\src\pipeline\plugins\filter.dart
+E:\workspaces\dart-labs-pipeline\dioman\lib\src\pipeline\plugins\loading.dart
+E:\workspaces\dart-labs-pipeline\dioman\lib\src\pipeline\plugins\notify.dart
+E:\workspaces\dart-labs-pipeline\dioman\lib\src\pipeline\plugins\repath.dart
+E:\workspaces\dart-labs-pipeline\dioman\lib\src\pipeline\plugins\timeout.dart
+import 'package:dio/dio.dart';
+
+/// 递归复制配置容器；不透明对象保留身份。
+dynamic cloneDiomanConfig(dynamic value) {
+  if (value is Map) {
+    return value.map((k, v) => MapEntry(k, cloneDiomanConfig(v)));
+  }
+  if (value is List) return value.map(cloneDiomanConfig).toList();
+  return value;
+}
+
+/// 克隆配置及其三个可变容器，返回与源隔离的配置。
+BaseOptions cloneDiomanOptions(BaseOptions source) => source.copyWith(
+    headers: Map<String, dynamic>.from(cloneDiomanConfig(source.headers)),
+    queryParameters:
+        Map<String, dynamic>.from(cloneDiomanConfig(source.queryParameters)),
+    extra: Map<String, dynamic>.from(cloneDiomanConfig(source.extra)));
+
+/// 写入非空、非默认的配置；容器按顶层键合并并深拷贝。
+/// BaseOptions 无法区分显式默认值与省略，因此空地址和 json 保留宿主值。
+void mergeDiomanOptions(BaseOptions target, BaseOptions source) {
+  final c = cloneDiomanOptions(source);
+  final host = cloneDiomanOptions(target);
+  if (c.baseUrl.isNotEmpty) target.baseUrl = c.baseUrl;
+  if (c.connectTimeout != null) target.connectTimeout = c.connectTimeout;
+  if (c.receiveTimeout != null) target.receiveTimeout = c.receiveTimeout;
+  if (c.sendTimeout != null) target.sendTimeout = c.sendTimeout;
+  target.headers = {...host.headers, ...c.headers};
+  target.queryParameters = {...host.queryParameters, ...c.queryParameters};
+  target.extra = {...host.extra, ...c.extra};
+  if (c.responseType != ResponseType.json) target.responseType = c.responseType;
+}
+
+
+exec
+"C:\\Users\\jelon\\AppData\\Local\\Microsoft\\WindowsApps\\Microsoft.PowerShell_8wekyb3d8bbwe\\pwsh.exe" -Command 'Get-Content lib/src/pipeline/plugins/*.dart; Get-Content lib/src/pipeline/pipeline.dart; Get-Content lib/src/pipeline/client.dart' in E:\workspaces\dart-labs-pipeline\dioman
+ succeeded in 2078ms:
+import 'package:dio/dio.dart';
+import '../client.dart';
+import '../config.dart';
+import '../plugin.dart';
+import '../response.dart';
+
+/// 安装时求值的环境规则；首个命中者生效。
+class EnvRule {
+  /// [rule] 返回是否命中，[config] 提供配置模板，例如 `BaseOptions(baseUrl: '/api')`。
+  const EnvRule({required this.rule, required this.config});
+
+  /// 当前环境是否匹配；异常原样中断 setup。
+  final bool Function() rule;
+
+  /// 非默认字段和容器的配置模板，写入前深拷贝容器。
+  final BaseOptions config;
+}
+
+/// envs 安装期开关，没有请求级选项。
+class DiomanEnvsOptions {
+  /// [enabled] 为 false 时内核跳过 setup。
+  const DiomanEnvsOptions({this.enabled = true});
+
+  /// 是否应用环境规则。
+  final bool enabled;
+}
+
+/// 仅在 setup 合并首个命中的环境配置，不进入请求链。
+class DiomanEnvs<R extends DiomanResponse<dynamic>> extends DiomanPlugin<R> {
+  /// [rules] 按顺序短路匹配，例如 `DiomanEnvs([EnvRule(rule: () => true, config: BaseOptions())])`。
+  const DiomanEnvs(this.rules, {bool enabled = true})
+      : config = enabled
+            ? const DiomanEnvsOptions()
+            : const DiomanEnvsOptions(enabled: false);
+
+  /// 规则列表，仅 setup 时读取。
+  final List<EnvRule> rules;
+
+  /// 安装配置。
+  final DiomanEnvsOptions config;
+
+  /// 稳定插件名称。
+  static const pluginName = 'dioman:envs';
+
+  /// 返回稳定名称。
+  @override
+  String get name => pluginName;
+
+  /// 返回安装期开关。
+  @override
+  bool get enabled => config.enabled;
+
+  /// 克隆后合并配置；返回 null 表示不进入链，卸载不还原配置。
+  @override
+  DiomanPluginInstance<R>? setup(Dioman<R> client) {
+    for (final entry in rules) {
+      if (!entry.rule()) continue;
+      client.dio.options = cloneDiomanOptions(client.dio.options);
+      mergeDiomanOptions(client.dio.options, entry.config);
+      break;
+    }
+    return null;
+  }
+}
+import '../client.dart';
+import '../context.dart';
+import '../options.dart';
+import '../plugin.dart';
+import '../request.dart';
+import '../response.dart';
+import '../stages.dart';
+
+/// 返回 true 时剔除顶层字段；异常按 bug 原样落定。
+typedef DiomanFilterPredicate = bool Function(String key, dynamic value);
+
+/// 过滤的请求级覆盖，忽略集合与插件配置取并集。
+class DiomanFilterOptions {
+  /// [predicate] 替换谓词，空字段继承；例如 `DiomanFilterOptions(ignoreKeys: ['id'])`。
+  const DiomanFilterOptions(
+      {this.enabled, this.predicate, this.ignoreKeys, this.ignoreValues});
+
+  /// false 跳过过滤。
+  final bool? enabled;
+
+  /// 返回 true 时删除。
+  final DiomanFilterPredicate? predicate;
+
+  /// 直接保留的键。
+  final List<String>? ignoreKeys;
+
+  /// 直接保留的值，沿用 Dart 相等语义。
+  final List<Object?>? ignoreValues;
+}
+
+/// 装上即过滤 query 与 Map 请求体的顶层空字段。
+class DiomanFilter<R extends DiomanResponse<dynamic>> extends DiomanPlugin<R> {
+  /// 创建过滤器，例如 `DiomanFilter(ignoreKeys: ['nullable'])`；特殊载荷原样放行。
+  const DiomanFilter(
+      {this.predicate = defaultPredicate,
+      this.ignoreKeys = const [],
+      this.ignoreValues = const [],
+      this.enabled = true});
+
+  /// 字段删除规则。
+  final DiomanFilterPredicate predicate;
+
+  /// 保留键。
+  final List<String> ignoreKeys;
+
+  /// 保留值。
+  final List<Object?> ignoreValues;
+
+  /// 安装期开关。
+  @override
+  final bool enabled;
+
+  /// 稳定名称。
+  static const pluginName = 'dioman:filter';
+
+  /// 请求级 bool 或 DiomanFilterOptions 键。
+  static final option = DiomanOptionKey<DiomanFilterOptions>(pluginName);
+
+  /// 默认删除 null、NaN、空白字符串，保留零和 false。
+  static bool defaultPredicate(String key, dynamic value) =>
+      value == null ||
+      (value is num && value.isNaN) ||
+      (value is String && value.trim().isEmpty);
+
+  /// 返回稳定名称。
+  @override
+  String get name => pluginName;
+
+  /// 请求整形阶段。
+  @override
+  DiomanStage get stage => DiomanStage.prepare;
+
+  /// 复制豁免集合，避免外部修改基础配置。
+  @override
+  DiomanPluginInstance<R> setup(Dioman<R> client) =>
+      _Filter<R>(DiomanFilterOptions(
+          predicate: predicate,
+          ignoreKeys: List.of(ignoreKeys),
+          ignoreValues: List.of(ignoreValues)));
+}
+
+/// 每客户端的过滤配置。
+class _Filter<R extends DiomanResponse<dynamic>>
+    extends DiomanPluginInstance<R> {
+  /// 保存基础配置。
+  _Filter(this.base);
+
+  /// 预合并配置。
+  final DiomanFilterOptions base;
+
+  /// 判定一次并仅在删除字段时派生请求。
+  @override
+  Future<DiomanResponse<dynamic>> handle(
+      DiomanContext<R> ctx, DiomanNext<R> next) {
+    final o = resolveOption<DiomanFilterOptions>(
+        ctx.request.call.options[DiomanFilter.option],
+        base: base,
+        merge: (a, b) => DiomanFilterOptions(
+            enabled: b.enabled,
+            predicate: b.predicate ?? a.predicate,
+            ignoreKeys: [...a.ignoreKeys!, ...?b.ignoreKeys],
+            ignoreValues: [...a.ignoreValues!, ...?b.ignoreValues]));
+    if (o == null || o.enabled == false) return next();
+
+    /// 豁免项优先于用户谓词。
+    bool drop(dynamic k, dynamic v) =>
+        !o.ignoreKeys!.contains('$k') &&
+        !o.ignoreValues!.contains(v) &&
+        o.predicate!('$k', v);
+    final queryKeys = ctx.request.query.entries
+        .where((e) => drop(e.key, e.value))
+        .map((e) => e.key)
+        .toSet();
+    final data = ctx.request.data;
+    if (data is Map) {
+      final body = Map.of(data)..removeWhere(drop);
+      if (body.length != data.length) {
+        return next(RequestPatch(removeQuery: queryKeys, data: body));
+      }
+    }
+    if (queryKeys.isEmpty) return next();
+    return next(RequestPatch(removeQuery: queryKeys));
+  }
+}
+import 'dart:async';
+import '../client.dart';
+import '../clock.dart';
+import '../context.dart';
+import '../options.dart';
+import '../plugin.dart';
+import '../response.dart';
+import '../stages.dart';
+
+/// loading 请求级覆盖；null 字段继承插件配置。
+class DiomanLoadingOptions {
+  /// [onChanged] 按回调身份独立计数；[delay] 与 [delayClose] 控制边沿延迟。
+  const DiomanLoadingOptions(
+      {this.enabled, this.onChanged, this.delay, this.delayClose});
+
+  /// false 不计入本次 loading。
+  final bool? enabled;
+
+  /// 本次显示回调。
+  final void Function(bool visible)? onChanged;
+
+  /// 0→1 延迟显示。
+  final Duration? delay;
+
+  /// 1→0 延迟隐藏。
+  final Duration? delayClose;
+}
+
+/// 通过 `api.plugin<DiomanLoadingApi>()` 获取的管理接口。
+abstract class DiomanLoadingApi {
+  /// 当前参与 loading 的逻辑请求数，dispose 后为零。
+  int get activeCount;
+}
+
+/// 按回调身份管理逻辑请求显示周期，内层重发不重复计数。
+class DiomanLoading<R extends DiomanResponse<dynamic>> extends DiomanPlugin<R> {
+  /// [onChanged] 必填，例如 `DiomanLoading(onChanged: (visible) => print(visible))`。
+  /// 延迟默认为零；通知抛错会隔离并记日志。
+  const DiomanLoading(
+      {required this.onChanged,
+      this.delay = Duration.zero,
+      this.delayClose = Duration.zero,
+      this.enabled = true});
+
+  /// 显示回调。
+  final void Function(bool visible) onChanged;
+
+  /// 显示延迟。
+  final Duration delay;
+
+  /// 关闭延迟。
+  final Duration delayClose;
+
+  /// 安装期开关。
+  @override
+  final bool enabled;
+
+  /// 稳定名称。
+  static const pluginName = 'dioman:loading';
+
+  /// 请求级 bool 或 DiomanLoadingOptions 键。
+  static final option = DiomanOptionKey<DiomanLoadingOptions>(pluginName);
+
+  /// 返回稳定名称。
+  @override
+  String get name => pluginName;
+
+  /// 最外层逻辑请求阶段。
+  @override
+  DiomanStage get stage => DiomanStage.outer;
+
+  /// 建立独立计数器与时钟。
+  @override
+  DiomanPluginInstance<R> setup(Dioman<R> client) => _Loading<R>(
+      client.clock,
+      DiomanLoadingOptions(
+          onChanged: onChanged, delay: delay, delayClose: delayClose));
+}
+
+/// 一个回调的显示状态。
+class _Display {
+  /// 初始状态为未显示、无请求。
+  _Display(this.log);
+
+  /// 对应客户端的隔离日志器。
+  final DiomanLogger log;
+
+  /// 在途计数。
+  int count = 0;
+
+  /// 是否已发出 true。
+  bool shown = false;
+
+  /// 待触发的边沿定时器。
+  Timer? timer;
+}
+
+/// 每客户端的计数与管理 API。
+class _Loading<R extends DiomanResponse<dynamic>>
+    extends DiomanPluginInstance<R> implements DiomanLoadingApi {
+  /// 保存时钟和预合并配置。
+  _Loading(this.clock, this.base);
+
+  /// 时间服务。
+  final DiomanClock clock;
+
+  /// 基础配置。
+  final DiomanLoadingOptions base;
+
+  /// 回调身份独立状态。
+  final states = Map<void Function(bool), _Display>.identity();
+
+  /// 是否已销毁。
+  bool disposed = false;
+
+  /// 所有参与请求的数量，包含等待显示的请求。
+  @override
+  int get activeCount =>
+      states.values.fold(0, (sum, state) => sum + state.count);
+
+  /// 取消上一个边沿窗口。
+  void clear(_Display state) {
+    state.timer?.cancel();
+    state.timer = null;
+  }
+
+  /// 先更新状态，再通知；回调异常不能破坏配对。
+  void schedule(void Function(bool) fn, _Display state, bool visible,
+      Duration delay, DiomanLogger log) {
+    /// 发出当前显示边沿。
+    void fire() {
+      state.timer = null;
+      state.shown = visible;
+      if (!visible) states.remove(fn);
+      try {
+        fn(visible);
+      } catch (e, s) {
+        log('[${DiomanLoading.pluginName}] 通知回调失败: $e\n$s');
+      }
+    }
+
+    if (delay > Duration.zero) {
+      state.timer = clock.createTimer(delay, fire);
+    } else {
+      fire();
+    }
+  }
+
+  /// 逻辑请求计数严格配对，在 finally 中释放。
+  @override
+  Future<DiomanResponse<dynamic>> handle(
+      DiomanContext<R> ctx, DiomanNext<R> next) async {
+    final o = resolveOption<DiomanLoadingOptions>(
+        ctx.request.call.options[DiomanLoading.option],
+        base: base,
+        merge: (a, b) => DiomanLoadingOptions(
+            enabled: b.enabled,
+            onChanged: b.onChanged ?? a.onChanged,
+            delay: b.delay ?? a.delay,
+            delayClose: b.delayClose ?? a.delayClose));
+    if (disposed || o == null || o.enabled == false) return next();
+    final fn = o.onChanged!;
+    final state = states.putIfAbsent(fn, () => _Display(ctx.log));
+    if (++state.count == 1) {
+      clear(state);
+      if (!state.shown) schedule(fn, state, true, o.delay!, ctx.log);
+    }
+    try {
+      final result = await next();
+      final cancelled = ctx.cancelled();
+      return result.kind == DiomanKind.internal ? result : cancelled ?? result;
+    } finally {
+      if (--state.count == 0 && !disposed) {
+        clear(state);
+        if (state.shown) {
+          schedule(fn, state, false, o.delayClose!, ctx.log);
+        } else {
+          states.remove(fn);
+        }
+      }
+    }
+  }
+
+  /// 取消窗口并立即关闭已显示回调，在途请求不再通知。
+  @override
+  void dispose() {
+    disposed = true;
+    for (final entry in states.entries.toList()) {
+      clear(entry.value);
+      if (entry.value.shown) {
+        schedule(entry.key, entry.value, false, Duration.zero, entry.value.log);
+      }
+    }
+    states.clear();
+  }
+}
+import '../client.dart';
+import '../context.dart';
+import '../options.dart';
+import '../plugin.dart';
+import '../response.dart';
+import '../stages.dart';
+
+/// 每逻辑请求只读取最终结果并通知至多一次。
+/// 回调接收基础结果；读取扩展字段前应使用 is 检查子类。
+class DiomanNotify<R extends DiomanResponse<dynamic>> extends DiomanPlugin<R> {
+  /// [notify] 接收非空文本和最终结果；[stringify] 返回空串表示不通知。
+  /// 例如 `DiomanNotify(notify: (message, r) => print(message))`。
+  const DiomanNotify(
+      {required this.notify,
+      this.stringify = defaultStringify,
+      this.enabled = true});
+
+  /// 通知回调，异常隔离并记日志。
+  final void Function(String message, DiomanResponse<dynamic> result) notify;
+
+  /// 消息生成回调，与 notify 共享通知异常边界。
+  final String Function(DiomanResponse<dynamic> result, DiomanContext<R> ctx)
+      stringify;
+
+  /// 安装期开关。
+  @override
+  final bool enabled;
+
+  /// 稳定名称。
+  static const pluginName = 'dioman:notify';
+
+  /// 请求级只接受 bool；false 关闭。
+  static final option = DiomanOptionKey<bool>(pluginName);
+
+  /// 默认忽略成功、取消、静默请求，否则取消息或 kind/status。
+  static String defaultStringify(
+          DiomanResponse<dynamic> r, DiomanContext ctx) =>
+      r.ok || r.kind == DiomanKind.cancel || ctx.request.silent
+          ? ''
+          : (r.message.isEmpty ? '${r.kind.name} ${r.status}' : r.message);
+
+  /// 返回稳定名称。
+  @override
+  String get name => pluginName;
+
+  /// 最外层结果观察阶段。
+  @override
+  DiomanStage get stage => DiomanStage.outer;
+
+  /// 建立客户端实例。
+  @override
+  DiomanPluginInstance<R> setup(Dioman<R> client) => _Notify<R>(this);
+}
+
+/// 不持有跨请求状态的通知实例。
+class _Notify<R extends DiomanResponse<dynamic>>
+    extends DiomanPluginInstance<R> {
+  /// 保存配置。
+  _Notify(this.config);
+
+  /// 插件配置。
+  final DiomanNotify<R> config;
+
+  /// 等待最终结果后重查取消，通知异常不改变结果。
+  @override
+  Future<DiomanResponse<dynamic>> handle(
+      DiomanContext<R> ctx, DiomanNext<R> next) async {
+    final on = resolveOption<bool>(
+        ctx.request.call.options[DiomanNotify.option],
+        base: true,
+        merge: identical);
+    final r = await next();
+    final cancelled = ctx.cancelled();
+    if (on == null) return r;
+    // internal 优先，取消不掩盖程序错误。
+    final result = r.kind == DiomanKind.internal ? r : cancelled ?? r;
+    try {
+      final text = config.stringify(result, ctx);
+      if (text.isNotEmpty) config.notify(text, result);
+    } catch (e, s) {
+      ctx.log('[${DiomanNotify.pluginName}] 通知回调失败: $e\n$s');
+    }
+    return r;
+  }
+}
+import '../client.dart';
+import '../context.dart';
+import '../options.dart';
+import '../plugin.dart';
+import '../request.dart';
+import '../response.dart';
+import '../stages.dart';
+
+/// 路径替换的请求级覆盖；null 字段继承插件配置。
+class DiomanRepathOptions {
+  /// [pattern] 的第一个非空捕获组是键名；[removeKey] 控制消费字段删除。
+  const DiomanRepathOptions({this.enabled, this.pattern, this.removeKey});
+
+  /// false 跳过本次处理。
+  final bool? enabled;
+
+  /// 占位符正则。
+  final RegExp? pattern;
+
+  /// 是否移除被消费的字段。
+  final bool? removeKey;
+}
+
+/// 只替换 URL 路径中的变量，query 优先于 Map 请求体。
+class DiomanRepath<R extends DiomanResponse<dynamic>> extends DiomanPlugin<R> {
+  /// 创建插件，例如 `DiomanRepath(removeKey: false)`；值按路径段编码。
+  const DiomanRepath(
+      {this.pattern, this.removeKey = true, this.enabled = true});
+
+  /// 自定义捕获正则，省略时匹配三种内置语法。
+  final RegExp? pattern;
+
+  /// 替换后删除来源键。
+  final bool removeKey;
+
+  /// 安装期开关。
+  @override
+  final bool enabled;
+
+  /// 稳定名称。
+  static const pluginName = 'dioman:repath';
+
+  /// 请求选项键，接受 bool 或 DiomanRepathOptions。
+  static final option = DiomanOptionKey<DiomanRepathOptions>(pluginName);
+
+  /// 默认占位符模式。
+  static final defaultPattern = RegExp(r'\{([^}]+)\}|\[([^\]]+)]|:([^/?#\s]+)');
+
+  /// 返回稳定名称。
+  @override
+  String get name => pluginName;
+
+  /// 请求整形阶段。
+  @override
+  DiomanStage get stage => DiomanStage.prepare;
+
+  /// 预合并默认配置。
+  @override
+  DiomanPluginInstance<R> setup(Dioman<R> client) =>
+      _Repath<R>(DiomanRepathOptions(
+          pattern: pattern ?? defaultPattern, removeKey: removeKey));
+}
+
+/// 每客户端的已解析配置。
+class _Repath<R extends DiomanResponse<dynamic>>
+    extends DiomanPluginInstance<R> {
+  /// 保存基础配置。
+  _Repath(this.base);
+
+  /// 预合并配置。
+  final DiomanRepathOptions base;
+
+  /// 生成路径与来源字段的补丁，不修改原请求。
+  @override
+  Future<DiomanResponse<dynamic>> handle(
+      DiomanContext<R> ctx, DiomanNext<R> next) {
+    final o = resolveOption<DiomanRepathOptions>(
+        ctx.request.call.options[DiomanRepath.option],
+        base: base,
+        merge: (a, b) => DiomanRepathOptions(
+            enabled: b.enabled,
+            pattern: b.pattern ?? a.pattern,
+            removeKey: b.removeKey ?? a.removeKey));
+    if (o == null || o.enabled == false) return next();
+    final original = ctx.request.path;
+    final origin =
+        RegExp(r'^[a-zA-Z][a-zA-Z0-9+.-]*://[^/]*').firstMatch(original)?.end ??
+            0;
+    final rest = original.substring(origin);
+    final suffixAt = rest.indexOf(RegExp(r'[?#]'));
+    final path = suffixAt < 0 ? rest : rest.substring(0, suffixAt);
+    final suffix = rest.substring(path.length);
+    final query = ctx.request.query;
+    final data = ctx.request.data;
+    final usedQuery = <String>{};
+    final usedData = <String>{};
+    final replaced = path.replaceAllMapped(o.pattern!, (m) {
+      String? key;
+      for (var i = 1; i <= m.groupCount; i++) {
+        final group = m.group(i);
+        if (group != null && group.isNotEmpty) {
+          key = group;
+          break;
+        }
+      }
+      if (key == null) return m[0]!;
+      if (query.containsKey(key)) {
+        usedQuery.add(key);
+        return Uri.encodeComponent('${query[key]}');
+      }
+      if (data is Map && data.containsKey(key)) {
+        usedData.add(key);
+        return Uri.encodeComponent('${data[key]}');
+      }
+      return m[0]!;
+    });
+    if (replaced == path) return next();
+    final newPath = original.substring(0, origin) + replaced + suffix;
+    if (!o.removeKey!) return next(RequestPatch(path: newPath));
+    if (usedData.isEmpty) {
+      return next(RequestPatch(path: newPath, removeQuery: usedQuery));
+    }
+    final body = Map.of(data as Map)
+      ..removeWhere((k, _) => usedData.contains(k));
+    return next(
+        RequestPatch(path: newPath, removeQuery: usedQuery, data: body));
+  }
+}
+import '../client.dart';
+import '../context.dart';
+import '../options.dart';
+import '../plugin.dart';
+import '../request.dart';
+import '../response.dart';
+import '../stages.dart';
+
+/// 宿主上报的网络档位；插件不探测网络，也不负责离线排队。
+enum NetworkQuality {
+  /// 强连接。
+  excellent,
+
+  /// 普通移动网络。
+  good,
+
+  /// 弱连接。
+  poor,
+
+  /// 无连接，仍作为普通配置档位处理。
+  none,
+}
+
+/// 某档的超时；null 保留请求已有值。
+class DiomanTimeouts {
+  /// [connect]、[receive]、[send] 分别覆盖三个 Dio 超时，例如 `DiomanTimeouts(receive: Duration(seconds: 2))`。
+  const DiomanTimeouts({this.connect, this.receive, this.send});
+
+  /// 连接超时。
+  final Duration? connect;
+
+  /// 接收超时。
+  final Duration? receive;
+
+  /// 发送超时。
+  final Duration? send;
+}
+
+/// 请求级超时配置，按档位取并集，单档整体替换。
+class DiomanTimeoutOptions {
+  /// [enabled] 为 false 时保留原配置，[timeouts] 只覆盖列出的档位。
+  const DiomanTimeoutOptions({this.enabled, this.timeouts});
+
+  /// 本次开关。
+  final bool? enabled;
+
+  /// 本次覆盖的档位。
+  final Map<NetworkQuality, DiomanTimeouts>? timeouts;
+}
+
+/// 通过 next(patch) 写超时字段，实际计时交给 Dio。
+class DiomanTimeout<R extends DiomanResponse<dynamic>> extends DiomanPlugin<R> {
+  /// [probe] 每请求同步求值一次，例如 `DiomanTimeout(probe: () => NetworkQuality.good)`。
+  const DiomanTimeout(
+      {required this.probe,
+      this.timeouts = defaultTimeouts,
+      this.enabled = true});
+
+  /// 当前档位提供器，抛错按 bug 原样落定。
+  final NetworkQuality Function() probe;
+
+  /// 档位配置。
+  final Map<NetworkQuality, DiomanTimeouts> timeouts;
+
+  /// 安装期开关。
+  @override
+  final bool enabled;
+
+  /// 稳定名称。
+  static const pluginName = 'dioman:timeout';
+
+  /// 请求级 bool 或 DiomanTimeoutOptions 键。
+  static final option = DiomanOptionKey<DiomanTimeoutOptions>(pluginName);
+
+  /// excellent 与 none 的默认连接时长。
+  static const defaultConnect = Duration(seconds: 10);
+
+  /// 旧版默认值：仅写连接超时。
+  static const defaultTimeouts = {
+    NetworkQuality.excellent: DiomanTimeouts(connect: defaultConnect),
+    NetworkQuality.good: DiomanTimeouts(connect: Duration(seconds: 15)),
+    NetworkQuality.poor: DiomanTimeouts(connect: Duration(seconds: 30)),
+    NetworkQuality.none: DiomanTimeouts(connect: defaultConnect),
+  };
+
+  /// 返回稳定名称。
+  @override
+  String get name => pluginName;
+
+  /// 请求整形阶段。
+  @override
+  DiomanStage get stage => DiomanStage.prepare;
+
+  /// 复制配置映射，实例不共享可变状态。
+  @override
+  DiomanPluginInstance<R> setup(Dioman<R> client) =>
+      _Timeout<R>(probe, DiomanTimeoutOptions(timeouts: Map.of(timeouts)));
+}
+
+/// 每客户端的预合并配置。
+class _Timeout<R extends DiomanResponse<dynamic>>
+    extends DiomanPluginInstance<R> {
+  /// 保存配置与档位回调。
+  _Timeout(this.probe, this.base);
+
+  /// 档位回调。
+  final NetworkQuality Function() probe;
+
+  /// 基础配置。
+  final DiomanTimeoutOptions base;
+
+  /// 缺档直接放行；null 字段保持原值。
+  @override
+  Future<DiomanResponse<dynamic>> handle(
+      DiomanContext<R> ctx, DiomanNext<R> next) {
+    final o = resolveOption<DiomanTimeoutOptions>(
+        ctx.request.call.options[DiomanTimeout.option],
+        base: base,
+        merge: (a, b) => DiomanTimeoutOptions(
+            enabled: b.enabled, timeouts: {...a.timeouts!, ...?b.timeouts}));
+    if (o == null || o.enabled == false) return next();
+    final t = o.timeouts![probe()];
+    if (t == null) return next();
+    return next(RequestPatch(
+        connectTimeout: t.connect ?? ctx.request.connectTimeout,
+        receiveTimeout: t.receive ?? ctx.request.receiveTimeout,
+        sendTimeout: t.send ?? ctx.request.sendTimeout));
+  }
+}
+import 'context.dart';
+import 'plugin.dart';
+import 'response.dart';
+import 'stages.dart';
+
+/// 插件校验错误的参数名。
+const _nameArgument = 'name';
+
+/// 编译后的上下文执行器。
+typedef DiomanRunner<R extends DiomanResponse<dynamic>>
+    = Future<DiomanResponse<dynamic>> Function(DiomanContext<R> ctx);
+
+/// 已安装的配置及实例。
+class DiomanRegistration<R extends DiomanResponse<dynamic>> {
+  /// 保存配置与客户端实例。
+  const DiomanRegistration(this.plugin, this.instance);
+
+  /// 插件配置。
+  final DiomanPlugin<R> plugin;
+
+  /// setup 返回的独立状态。
+  final DiomanPluginInstance<R>? instance;
+}
+
+/// 按名称确定位置；自定义插件位于同阶段内置插件前后。
+(int, int) _position(DiomanPlugin plugin) {
+  for (final entry in diomanBuiltinStages.entries) {
+    final index = entry.value.indexOf(plugin.name);
+    if (index >= 0) return (entry.key.index, index);
+  }
+  if (plugin.name.startsWith('dioman:')) {
+    throw ArgumentError.value(plugin.name, _nameArgument, '保留前缀');
+  }
+  return (plugin.stage.index, plugin.enforce == DiomanEnforce.pre ? -1 : 100);
+}
+
+/// 在 setup 前验证重名和保留前缀，拒绝非法配置且不产生副作用。
+void validateDiomanPlugins(Iterable<DiomanPlugin> plugins) {
+  final names = <String>{};
+  for (final plugin in plugins) {
+    if (!names.add(plugin.name)) {
+      throw ArgumentError.value(plugin.name, _nameArgument, '插件重名');
+    }
+    if (!diomanSetupPlugins.contains(plugin.name)) _position(plugin);
+  }
+}
+
+/// 稳定排序已启用且有 handle 的插件；不修改输入。
+List<DiomanRegistration<R>>
+    sortDiomanPipeline<R extends DiomanResponse<dynamic>>(
+        List<DiomanRegistration<R>> registrations) {
+  final indexed =
+      registrations.indexed.where((e) => e.$2.instance != null).toList();
+  indexed.sort((a, b) {
+    final x = _position(a.$2.plugin);
+    final y = _position(b.$2.plugin);
+    final stage = x.$1.compareTo(y.$1);
+    if (stage != 0) return stage;
+    final order = x.$2.compareTo(y.$2);
+    return order == 0 ? a.$1.compareTo(b.$1) : order;
+  });
+  return indexed.map((e) => e.$2).toList();
+}
+
+/// 从内到外编译一次；每层含一个异常边界，无补丁复用上下文。
+DiomanRunner<R> compileDiomanPipeline<R extends DiomanResponse<dynamic>>(
+    List<DiomanRegistration<R>> layers, DiomanRunner<R> transport) {
+  var run = transport;
+  for (final layer in layers.reversed) {
+    final inner = run;
+    run = (ctx) async {
+      try {
+        return await layer.instance!.handle(ctx, ([patch]) async {
+          DiomanContext<R> target;
+          try {
+            target = patch == null ? ctx : ctx.derive(patch);
+          } catch (e, s) {
+            return ctx.fail(DiomanFailure(
+                kind: DiomanKind.internal, error: e, errorStack: s));
+          }
+          return inner(target);
+        });
+      } catch (e, s) {
+        return ctx.fail(
+            DiomanFailure(kind: DiomanKind.internal, error: e, errorStack: s));
+      }
+    };
+  }
+  return run;
+}
+import 'package:dio/dio.dart';
+import 'clock.dart';
+import 'config.dart';
+import 'context.dart';
+import 'key.dart';
+import 'options.dart';
+import 'pipeline.dart';
+import 'plugin.dart';
+import 'request.dart';
+import 'response.dart';
+import 'stages.dart';
+import 'transport.dart';
+
+/// 关闭 debug 时复用的空日志器。
+void _noLog(String _) {}
+
+/// 以 Dio 为引擎的洋葱管线客户端；旧入口与本库完全独立。
+class Dioman<R extends DiomanResponse<dynamic>> {
+  /// 创建客户端，例如 `Dioman(dio: Dio(), debug: true)`。
+  /// [response] 控制归一化，[reject] 只转换动词方法的可预期失败。
+  Dioman(
+      {required this.dio,
+      List<DiomanPlugin<R>> plugins = const [],
+      DiomanResponseFactory<R>? response,
+      this.key = const DiomanKeyOptions(),
+      this.reject,
+      Object? debug,
+      this.clock = const DiomanClock.system()})
+      : response = response ?? DiomanResponseFactory<R>(),
+        _debug = debug != null && debug != false,
+        _logger =
+            debug is DiomanLogger ? debug : (debug == true ? print : _noLog) {
+    if (debug != null && debug is! bool && debug is! DiomanLogger) {
+      throw ArgumentError.value(debug, 'debug');
+    }
+    validateDiomanPlugins(plugins);
+    try {
+      for (final plugin in plugins) {
+        _registrations.add(DiomanRegistration(
+            plugin, plugin.enabled ? plugin.setup(this) : null));
+      }
+      _compile();
+    } catch (_) {
+      for (final registration in _registrations.reversed) {
+        try {
+          registration.instance?.dispose();
+        } catch (_) {/* 保留安装时首次异常。 */}
+      }
+      rethrow;
+    }
+  }
+
+  /// 底层 Dio；用户拦截器在每次传输时运行。
+  final Dio dio;
+
+  /// 客户端的归一化服务。
+  final DiomanResponseFactory<R> response;
+
+  /// 客户端构键配置。
+  final DiomanKeyOptions key;
+
+  /// 可预期失败的最终异常转换器。
+  final Object Function(R)? reject;
+
+  /// 可注入时间服务。
+  final DiomanClock clock;
+
+  /// 是否记录调用点。
+  final bool _debug;
+
+  /// 用户日志器或默认输出。
+  final DiomanLogger _logger;
+
+  /// 注册顺序，供生命周期和 extend 使用。
+  final _registrations = <DiomanRegistration<R>>[];
+
+  /// 已排序的执行层快照。
+  List<DiomanRegistration<R>> _layers = [];
+
+  /// 编译后的链，在途请求捕获当前值。
+  late DiomanRunner<R> _run;
+
+  /// 活跃逻辑请求。
+  final _pending = <DiomanContextState>{};
+
+  /// 请求序号。
+  int _sequence = 0;
+
+  /// 生命周期状态。
+  bool _disposed = false;
+
+  /// 当前活跃逻辑请求数。
+  int get pending => _pending.length;
+
+  /// 活跃的内核取消等待订阅总数，供不变量检查。
+  int get cancellationSubscriptions =>
+      _pending.fold(0, (n, s) => n + s.listeners.length);
+
+  /// 隔离日志回调异常，避免 debug 改变请求结果。
+  void _log(String message) {
+    try {
+      _logger(message);
+    } catch (_) {/* 日志通知不影响请求。 */}
+  }
+
+  /// 拒绝销毁后的操作。
+  void _checkAlive() {
+    if (_disposed) throw StateError('客户端已销毁');
+  }
+
+  /// 在配置变动时编译链，不在请求期间排序。
+  void _compile() {
+    _layers = sortDiomanPipeline(_registrations);
+    _run = compileDiomanPipeline(_layers, (ctx) => diomanTransport(dio, ctx));
+  }
+
+  /// 添加插件；先校验再 setup，安装失败不修改当前链。
+  void use(DiomanPlugin<R> plugin) {
+    _checkAlive();
+    validateDiomanPlugins([..._registrations.map((r) => r.plugin), plugin]);
+    final instance = plugin.enabled ? plugin.setup(this) : null;
+    _registrations.add(DiomanRegistration(plugin, instance));
+    _compile();
+  }
+
+  /// 按 [name] 移除并释放插件；不存在返回 false，在途保留原链。
+  bool eject(String name) {
+    final index = _registrations.indexWhere((r) => r.plugin.name == name);
+    if (index < 0) return false;
+    final removed = _registrations.removeAt(index);
+    _compile();
+    removed.instance?.dispose();
+    return true;
+  }
+
+  /// 返回实现 [A] 的第一个实例，例如 `api.plugin<CacheApi>()`。
+  A? plugin<A>() {
+    for (final r in _registrations) {
+      if (r.instance is A) return r.instance as A;
+    }
+    return null;
+  }
+
+  /// 返回解析后的固定阶段和名称顺序，返回列表不可修改。
+  List<(DiomanStage, String)> inspect() => List.unmodifiable(_layers.map((r) {
+        final fixed = diomanBuiltinStages.entries
+            .where((e) => e.value.contains(r.plugin.name));
+        return (
+          fixed.isEmpty ? r.plugin.stage : fixed.single.key,
+          r.plugin.name
+        );
+      }));
+
+  /// 中止尚未取消的逻辑请求，返回本次中止数。
+  int cancelAll([Object? reason]) {
+    var count = 0;
+    for (final state in _pending.toList()) {
+      if (!state.token.isCancelled) {
+        count++;
+        state.cancel(reason);
+      }
+    }
+    return count;
+  }
+
+  /// 克隆 BaseOptions 并重新 setup 插件，状态不共享；[plugins] 替换继承列表。
+  Dioman<R> extend({BaseOptions? options, List<DiomanPlugin<R>>? plugins}) {
+    _checkAlive();
+    final child = Dioman<R>(
+        dio: Dio(cloneDiomanOptions(dio.options)),
+        plugins: plugins ?? _registrations.map((r) => r.plugin).toList(),
+        response: response,
+        key: key,
+        reject: reject,
+        debug: _debug ? _logger : false,
+        clock: clock);
+    if (options != null) mergeDiomanOptions(child.dio.options, options);
+    return child;
+  }
+
+  /// 先取消请求，再逆序释放全部实例；清理完毕后原栈抛出首个异常。
+  void dispose() {
+    if (_disposed) return;
+    _disposed = true;
+    cancelAll();
+    final errors = <(Object, StackTrace)>[];
+    for (final r in _registrations.reversed) {
+      try {
+        r.instance?.dispose();
+      } catch (e, s) {
+        errors.add((e, s));
+      }
+    }
+    if (errors.isNotEmpty) {
+      Error.throwWithStackTrace(errors.first.$1, errors.first.$2);
+    }
+  }
+
+  /// 执行请求并返回结果；可预期失败不抛，internal 原异常原栈抛出。
+  /// 例如 `await api.send<Object?>('GET', '/pets')`。
+  Future<DiomanResponse<T>> send<T>(String method, String path,
+      {Map<String, dynamic>? query, Object? data, DiomanCall? call}) async {
+    final result =
+        await _dispatch(method, path, query: query, data: data, call: call);
+    if (result is DiomanResponse<T>) return result;
+    return result.copy<T>();
+  }
+
+  /// 执行任意 [method] 并返回数据；可预期失败经 reject 后抛出。
+  Future<T> request<T>(String method, String path,
+      {Map<String, dynamic>? query, Object? data, DiomanCall? call}) async {
+    final result =
+        await _dispatch(method, path, query: query, data: data, call: call);
+    if (!result.ok) throw (reject?.call(result as R) ?? result);
+    return result.data as T;
+  }
+
+  /// 发送 GET 并返回数据；参数与 request 相同，例如 `api.get<Object?>('/pets')`。
+  Future<T> get<T>(String path,
+          {Map<String, dynamic>? query, Object? data, DiomanCall? call}) =>
+      request<T>('GET', path, query: query, data: data, call: call);
+
+  /// 发送 POST 并返回数据；参数与 request 相同，例如 `api.post<Object?>('/pets')`。
+  Future<T> post<T>(String path,
+          {Map<String, dynamic>? query, Object? data, DiomanCall? call}) =>
+      request<T>('POST', path, query: query, data: data, call: call);
+
+  /// 发送 PUT 并返回数据；参数与 request 相同，例如 `api.put<Object?>('/pets')`。
+  Future<T> put<T>(String path,
+          {Map<String, dynamic>? query, Object? data, DiomanCall? call}) =>
+      request<T>('PUT', path, query: query, data: data, call: call);
+
+  /// 发送 PATCH 并返回数据；参数与 request 相同，例如 `api.patch<Object?>('/pets')`。
+  Future<T> patch<T>(String path,
+          {Map<String, dynamic>? query, Object? data, DiomanCall? call}) =>
+      request<T>('PATCH', path, query: query, data: data, call: call);
+
+  /// 发送 DELETE 并返回数据；参数与 request 相同，例如 `api.delete<Object?>('/pets')`。
+  Future<T> delete<T>(String path,
+          {Map<String, dynamic>? query, Object? data, DiomanCall? call}) =>
+      request<T>('DELETE', path, query: query, data: data, call: call);
+
+  /// 发送 HEAD 并返回数据；参数与 request 相同，例如 `api.head<Object?>('/pets')`。
+  Future<T> head<T>(String path,
+          {Map<String, dynamic>? query, Object? data, DiomanCall? call}) =>
+      request<T>('HEAD', path, query: query, data: data, call: call);
+
+  /// 入口仅 compose 一次；登记后所有可能抛错的构造都在 finally 保护内。
+  Future<DiomanResponse<dynamic>> _dispatch(String method, String path,
+      {Map<String, dynamic>? query, Object? data, DiomanCall? call}) async {
+    _checkAlive();
+    final run = _run;
+    final site = _debug ? StackTrace.current : null;
+    final state = DiomanContextState(CancelToken());
+    DiomanCancelLink? userLink;
+    _pending.add(state);
+    try {
+      final c = call ?? const DiomanCall();
+      if (c.cancelToken != null) {
+        userLink = DiomanCancelLink(c.cancelToken!, state.cancel);
+      }
+      final options = Options(
+              method: method,
+              headers: c.headers,
+              sendTimeout: c.sendTimeout,
+              receiveTimeout: c.receiveTimeout)
+          .compose(dio.options, path, queryParameters: query, data: data);
+      if (c.connectTimeout != null) options.connectTimeout = c.connectTimeout;
+      final ctx = DiomanContext<R>(
+          id: ++_sequence,
+          client: this,
+          request: DiomanRequest(options, call: c),
+          state: state,
+          factory: response,
+          keyService: DiomanKeyService(key),
+          clock: clock,
+          log: _log);
+      var result = await run(ctx);
+      if (result.kind != DiomanKind.internal) {
+        result = ctx.cancelled() ?? result;
+      }
+      if (!result.ok && site != null && result.kind != DiomanKind.internal) {
+        result = response.withCallSite(result, site);
+      }
+      if (result.kind == DiomanKind.internal) {
+        Error.throwWithStackTrace(
+            result.error ?? StateError('internal result without error'),
+            result.errorStack ?? StackTrace.current);
+      }
+      return result;
+    } finally {
+      userLink?.dispose();
+      state.dispose();
+      _pending.remove(state);
+    }
+  }
+}
+
+exec
+"C:\\Users\\jelon\\AppData\\Local\\Microsoft\\WindowsApps\\Microsoft.PowerShell_8wekyb3d8bbwe\\pwsh.exe" -Command 'Get-ChildItem docs -Recurse -File | Select-Object -ExpandProperty FullName; Get-Content pubspec.yaml; Get-Content test/rule/envs_rule_test.dart; Get-Content test/boundary/envs_boundary_test.dart; Get-Content lib/src/pipeline/options.dart; Get-Command dart,flutter -ErrorAction SilentlyContinue | Select-Object Source' in E:\workspaces\dart-labs-pipeline\dioman
+ succeeded in 1530ms:
+E:\workspaces\dart-labs-pipeline\dioman\docs\README.md
+E:\workspaces\dart-labs-pipeline\dioman\docs\status.md
+E:\workspaces\dart-labs-pipeline\dioman\docs\archive\2026-10-27-testkit-agents-dioman-notes.md
+E:\workspaces\dart-labs-pipeline\dioman\docs\archive\2026-10-27-testkit-coverage-dioman.json
+E:\workspaces\dart-labs-pipeline\dioman\docs\archive\2026-10-27-testkit-coverage-dioman.md
+E:\workspaces\dart-labs-pipeline\dioman\docs\archive\test-migration-2026-10-27.md
+E:\workspaces\dart-labs-pipeline\dioman\docs\decisions\0001-pipeline-redesign.md
+E:\workspaces\dart-labs-pipeline\dioman\docs\design\architecture.md
+E:\workspaces\dart-labs-pipeline\dioman\docs\design\architecture.svg
+E:\workspaces\dart-labs-pipeline\dioman\docs\design\pipeline-architecture.md
+E:\workspaces\dart-labs-pipeline\dioman\docs\design\pipeline-implementation-plan.md
+E:\workspaces\dart-labs-pipeline\dioman\docs\design\pipeline-plugin-spec.md
+E:\workspaces\dart-labs-pipeline\dioman\docs\design\pipeline-test-plan.md
+E:\workspaces\dart-labs-pipeline\dioman\docs\design\test-matrix-plan.md
+E:\workspaces\dart-labs-pipeline\dioman\docs\guides\accept-runner.md
+E:\workspaces\dart-labs-pipeline\dioman\docs\guides\test-layers.md
+E:\workspaces\dart-labs-pipeline\dioman\docs\reference\testkit-mapping.md
+E:\workspaces\dart-labs-pipeline\dioman\docs\reference\pipeline-migration\boundary.md
+E:\workspaces\dart-labs-pipeline\dioman\docs\reference\pipeline-migration\combo.md
+E:\workspaces\dart-labs-pipeline\dioman\docs\reference\pipeline-migration\integration.md
+E:\workspaces\dart-labs-pipeline\dioman\docs\reference\pipeline-migration\manifest.json
+E:\workspaces\dart-labs-pipeline\dioman\docs\reference\pipeline-migration\README.md
+E:\workspaces\dart-labs-pipeline\dioman\docs\reference\pipeline-migration\rule.md
+E:\workspaces\dart-labs-pipeline\dioman\docs\reference\pipeline-migration\unit.md
+E:\workspaces\dart-labs-pipeline\dioman\docs\reference\pipeline-migration\raw\analyze.txt
+E:\workspaces\dart-labs-pipeline\dioman\docs\reference\pipeline-migration\raw\archive-files.txt
+E:\workspaces\dart-labs-pipeline\dioman\docs\reference\pipeline-migration\raw\default-tests.txt
+E:\workspaces\dart-labs-pipeline\dioman\docs\reference\pipeline-migration\raw\formulas.txt
+E:\workspaces\dart-labs-pipeline\dioman\docs\reference\pipeline-migration\raw\git-log.txt
+E:\workspaces\dart-labs-pipeline\dioman\docs\reference\pipeline-migration\raw\git-status.txt
+E:\workspaces\dart-labs-pipeline\dioman\docs\reference\pipeline-migration\raw\legacy-tests-summary.txt
+E:\workspaces\dart-labs-pipeline\dioman\docs\reference\pipeline-migration\raw\legacy-tests.ndjson
+E:\workspaces\dart-labs-pipeline\dioman\docs\reference\pipeline-migration\raw\legacy-tests.stderr.txt
+E:\workspaces\dart-labs-pipeline\dioman\docs\reports\2026-10-27-coverage-review.md
+E:\workspaces\dart-labs-pipeline\dioman\docs\reports\2026-10-27-library-review.md
+E:\workspaces\dart-labs-pipeline\dioman\docs\reports\2026-10-27-plugin-matrix.md
+E:\workspaces\dart-labs-pipeline\dioman\docs\reports\2026-10-28-matrix-gaps.md
+E:\workspaces\dart-labs-pipeline\dioman\docs\reports\2026-10-29-pipeline-b0.md
+E:\workspaces\dart-labs-pipeline\dioman\docs\reports\2026-10-29-pipeline-b1.md
+E:\workspaces\dart-labs-pipeline\dioman\docs\reports\pipeline-b1-evidence\already-cancelled.txt
+E:\workspaces\dart-labs-pipeline\dioman\docs\reports\pipeline-b1-evidence\analyze.txt
+E:\workspaces\dart-labs-pipeline\dioman\docs\reports\pipeline-b1-evidence\codex-review.txt
+E:\workspaces\dart-labs-pipeline\dioman\docs\reports\pipeline-b1-evidence\coverage-tests.txt
+E:\workspaces\dart-labs-pipeline\dioman\docs\reports\pipeline-b1-evidence\coverage.txt
+E:\workspaces\dart-labs-pipeline\dioman\docs\reports\pipeline-b1-evidence\dio59.txt
+E:\workspaces\dart-labs-pipeline\dioman\docs\reports\pipeline-b1-evidence\factory-classification.txt
+E:\workspaces\dart-labs-pipeline\dioman\docs\reports\pipeline-b1-evidence\git-log.txt
+E:\workspaces\dart-labs-pipeline\dioman\docs\reports\pipeline-b1-evidence\git-status.txt
+E:\workspaces\dart-labs-pipeline\dioman\docs\reports\pipeline-b1-evidence\initial-analyze.txt
+E:\workspaces\dart-labs-pipeline\dioman\docs\reports\pipeline-b1-evidence\initial-tests.txt
+E:\workspaces\dart-labs-pipeline\dioman\docs\reports\pipeline-b1-evidence\internal-cancel-regression.txt
+E:\workspaces\dart-labs-pipeline\dioman\docs\reports\pipeline-b1-evidence\internal-over-cancel.txt
+E:\workspaces\dart-labs-pipeline\dioman\docs\reports\pipeline-b1-evidence\iteration-coverage-tests.txt
+E:\workspaces\dart-labs-pipeline\dioman\docs\reports\pipeline-b1-evidence\layer-boundary.txt
+E:\workspaces\dart-labs-pipeline\dioman\docs\reports\pipeline-b1-evidence\legacy-tests.txt
+E:\workspaces\dart-labs-pipeline\dioman\docs\reports\pipeline-b1-evidence\migration.txt
+E:\workspaces\dart-labs-pipeline\dioman\docs\reports\pipeline-b1-evidence\mutation-summary.txt
+E:\workspaces\dart-labs-pipeline\dioman\docs\reports\pipeline-b1-evidence\mutations.json
+E:\workspaces\dart-labs-pipeline\dioman\docs\reports\pipeline-b1-evidence\patch-headers.txt
+E:\workspaces\dart-labs-pipeline\dioman\docs\reports\pipeline-b1-evidence\pending-unregister.txt
+E:\workspaces\dart-labs-pipeline\dioman\docs\reports\pipeline-b1-evidence\replay-clone-I7.txt
+E:\workspaces\dart-labs-pipeline\dioman\docs\reports\pipeline-b1-evidence\review-dio59-regression.txt
+E:\workspaces\dart-labs-pipeline\dioman\docs\reports\pipeline-b1-evidence\review-original-stack.txt
+E:\workspaces\dart-labs-pipeline\dioman\docs\reports\pipeline-b1-evidence\settlement.txt
+E:\workspaces\dart-labs-pipeline\dioman\docs\reports\pipeline-b1-evidence\tests.txt
+E:\workspaces\dart-labs-pipeline\dioman\docs\reports\pipeline-b1-evidence\wait-cleanup.txt
+E:\workspaces\dart-labs-pipeline\dioman\docs\reports\pipeline-b2-evidence\codex-review.txt
+E:\workspaces\dart-labs-pipeline\dioman\docs\reports\pipeline-b2-evidence\coverage-tests.txt
+E:\workspaces\dart-labs-pipeline\dioman\docs\reports\pipeline-b2-evidence\internal-reverse.txt
+E:\workspaces\dart-labs-pipeline\dioman\docs\reports\pipeline-b2-evidence\iteration-analyze.txt
+E:\workspaces\dart-labs-pipeline\dioman\docs\reports\pipeline-b2-evidence\iteration-tests-2.txt
+E:\workspaces\dart-labs-pipeline\dioman\docs\reports\pipeline-b2-evidence\iteration-tests.txt
+E:\workspaces\dart-labs-pipeline\dioman\docs\reports\pipeline-b2-evidence\legacy-tests.txt
+E:\workspaces\dart-labs-pipeline\dioman\docs\reports\pipeline-b2-evidence\migration-source.txt
+name: dioman
+description: "Composable, self-contained Dio interceptor plugins (auth, cache, retry, dedup, mock, normalize, ...) plus the correct install order to wire them together."
+version: 0.7.2
+repository: https://github.com/icodejoo/dart-labs/tree/main/dioman
+issue_tracker: https://github.com/icodejoo/dart-labs/issues
+
+environment:
+  sdk: ^3.5.0
+
+dependencies:
+  dio: ^5.0.0
+
+dev_dependencies:
+  lints: ^5.0.0
+  test: ^1.24.0
+import 'package:dioman/pipeline.dart';
+import 'package:dio/dio.dart';
+import 'package:test/test.dart';
+import '../support/pipeline/helpers.dart';
+
+/// 环境地址模板。
+const envUrl = 'https://env.example.test';
+
+/// 显式覆盖地址。
+const overrideUrl = 'https://override.example.test';
+
+/// 环境超时。
+const envTime = Duration(seconds: 3);
+
+/// 环境容器中的字段名。
+const envNested = 'nested';
+
+/// 核对安装期配置契约。
+void main() {
+  test('[DiomanEnvs.setup] 首个命中、全部旧字段合并、请求期不求值、不进链', () async {
+    final visits = <int>[];
+    final rules = [
+      for (var i = 0; i < 3; i++)
+        EnvRule(
+            rule: () {
+              visits.add(i);
+              return i > 0;
+            },
+            config: BaseOptions(
+                baseUrl: envUrl,
+                connectTimeout: envTime,
+                receiveTimeout: envTime,
+                sendTimeout: envTime,
+                headers: {'env': i},
+                queryParameters: {'env': i},
+                extra: {'env': i},
+                responseType: ResponseType.bytes))
+    ];
+    final plugin = DiomanEnvs<Result>(rules);
+    expect(plugin.rules, same(rules));
+    expect(plugin.config.enabled, isTrue);
+    final api = testClient(plugins: [plugin]);
+    final options = api.dio.options;
+    expect(visits, [0, 1]);
+    expect(options.baseUrl, envUrl);
+    expect(options.connectTimeout, envTime);
+    expect(options.receiveTimeout, envTime);
+    expect(options.sendTimeout, envTime);
+    expect(options.headers['env'], 1);
+    expect(options.queryParameters['env'], 1);
+    expect(options.extra['env'], 1);
+    expect(options.responseType, ResponseType.bytes);
+    expect(api.inspect(), isEmpty);
+    options.headers.remove('env');
+    await api.send<Object?>('GET', '/env');
+    await api.send<Object?>('GET', '/env');
+    expect(visits, [0, 1]);
+    expect(options.headers, isNot(contains('env')));
+    api.eject(DiomanEnvs.pluginName);
+    api.dispose();
+    expect(options.baseUrl, envUrl);
+  });
+
+  test('[EnvRule.config] 空地址、默认 json 保留宿主，未命中与禁用完全不修改', () {
+    for (final rules in <List<EnvRule>>[
+      [],
+      [EnvRule(rule: () => false, config: BaseOptions(baseUrl: envUrl))]
+    ]) {
+      final api = testClient();
+      final base = api.dio.options;
+      api.use(DiomanEnvs(rules));
+      expect(api.dio.options, same(base));
+    }
+    final api = testClient();
+    api.dio.options.responseType = ResponseType.stream;
+    final original = api.dio.options.baseUrl;
+    api.use(DiomanEnvs([EnvRule(rule: () => true, config: BaseOptions())]));
+    expect(api.dio.options.baseUrl, original);
+    expect(api.dio.options.responseType, ResponseType.stream);
+    expect(const DiomanEnvsOptions(enabled: false).enabled, isFalse);
+  });
+}
+import 'package:dioman/pipeline.dart';
+import 'package:dio/dio.dart';
+import 'package:test/test.dart';
+import '../support/pipeline/helpers.dart';
+import '../rule/envs_rule_test.dart' show envNested;
+
+/// 核对安装错误和配置容器的引用边界。
+void main() {
+  test('[EnvRule.rule] 抛错原样中断 setup，宿主没有写入', () {
+    final api = testClient();
+    final base = api.dio.options;
+    final error = StateError('rule sentinel');
+    expect(
+        () => api.use(DiomanEnvs([
+              EnvRule(
+                  rule: () => throw error,
+                  config: BaseOptions(headers: {'bad': 1}))
+            ])),
+        throwsA(same(error)));
+    expect(api.dio.options, same(base));
+    expect(api.inspect(), isEmpty);
+  });
+
+  test('[DiomanEnvs.setup] 写前深克隆宿主和模板容器，多客户端互不污染', () {
+    final template = BaseOptions(headers: {
+      envNested: {
+        'list': [1]
+      }
+    }, queryParameters: {
+      envNested: {
+        'list': [1]
+      }
+    }, extra: {
+      envNested: {
+        'list': [1]
+      }
+    });
+    final plugin =
+        DiomanEnvs<Result>([EnvRule(rule: () => true, config: template)]);
+    final first = testClient();
+    final host = first.dio.options;
+    host.extra['host'] = {
+      'list': [2]
+    };
+    first.use(plugin);
+    final second = testClient(plugins: [plugin]);
+    for (final containers in [
+      [first.dio.options.headers, second.dio.options.headers, template.headers],
+      [
+        first.dio.options.queryParameters,
+        second.dio.options.queryParameters,
+        template.queryParameters
+      ],
+      [first.dio.options.extra, second.dio.options.extra, template.extra]
+    ]) {
+      ((containers[0][envNested] as Map)['list'] as List).add(3);
+      expect(containers[1][envNested], {
+        'list': [1]
+      });
+      expect(containers[2][envNested], {
+        'list': [1]
+      });
+    }
+    ((first.dio.options.extra['host'] as Map)['list'] as List).add(3);
+    expect(host.extra['host'], {
+      'list': [2]
+    });
+  });
+}
+import 'package:dio/dio.dart';
+
+/// 插件请求级选项键；按对象身份隔离，建议使用静态 final 实例。
+class DiomanOptionKey<T> {
+  /// [description] 仅供调试，例如 `DiomanOptionKey<int>('retry')`。
+  DiomanOptionKey(this.description);
+
+  /// 调试说明。
+  final String description;
+}
+
+/// 解析统一选项；省略/true 复用 [base]，false 关闭；[optIn] 控制省略时关闭。
+/// [merge] 合并类型化覆盖，[shorthand] 返回简写解析值；未知类型抛 ArgumentError。
+/// 示例：`resolveOption<int>(true, base: 3, merge: (a, b) => b)`。
+T? resolveOption<T>(Object? value,
+    {required T base,
+    required T Function(T base, T override) merge,
+    T? Function(Object value)? shorthand,
+    bool optIn = false}) {
+  if (value == false || (value == null && optIn)) return null;
+  if (value == null || value == true) return base;
+  if (value is T) return merge(base, value as T);
+  final short = shorthand?.call(value);
+  if (short != null) return merge(base, short);
+  throw ArgumentError.value(value, 'value', '不支持的插件选项');
+}
+
+/// 一次逻辑调用的配置；省略字段沿用 Dio 或客户端配置。
+class DiomanCall {
+  /// 创建调用配置，例如 `DiomanCall(key: false, envelope: false)`。
+  const DiomanCall(
+      {this.headers,
+      this.connectTimeout,
+      this.sendTimeout,
+      this.receiveTimeout,
+      this.cancelToken,
+      this.key,
+      this.envelope,
+      this.silent = false,
+      this.options = const {}});
+
+  /// 按不区分大小写的键覆盖请求头。
+  final Map<String, dynamic>? headers;
+
+  /// 连接超时。
+  final Duration? connectTimeout;
+
+  /// 发送超时。
+  final Duration? sendTimeout;
+
+  /// 接收超时。
+  final Duration? receiveTimeout;
+
+  /// 用户取消令牌。
+  final CancelToken? cancelToken;
+
+  /// String、false 或 DiomanKeyOptions；null 为自动计算。
+  final Object? key;
+
+  /// false 禁用本次信封识别。
+  final bool? envelope;
+
+  /// 是否静默通知。
+  final bool silent;
+
+  /// 插件的类型化请求级选项。
+  final Map<DiomanOptionKey, Object?> options;
+}
+
+Source
+------
+E:\sdk\flutter\bin\dart.bat
+E:\sdk\flutter\bin\flutter.bat
+
+
+exec
+"C:\\Users\\jelon\\AppData\\Local\\Microsoft\\WindowsApps\\Microsoft.PowerShell_8wekyb3d8bbwe\\pwsh.exe" -Command "Get-Content docs/design/pipeline-plugin-spec.md | Select-String -Pattern 'envs|extend|repath|BaseOptions' -Context 5,18; Get-Content test/integration/*.dart; Get-Content test/boundary/stateless_prepare_boundary_test.dart" in E:\workspaces\dart-labs-pipeline\dioman
+ succeeded in 2551ms:
+
+  updated: 2026-10-29
+  summary: 12 个内置插件和内核服务在 next() 模型下的选项、默认值、行为、内核依赖，以及相对 0.7 的行为变化汇总
+  ---
+  ## TL;DR
+  
+> - 12 个内置插件：outer 阶段 loading、notify；prepare 阶段 repath、filter、timeout；attempt 阶段 retry、breaker；crede
+ntial 阶段 auth；source 阶段 mock、share、cache、offline。envs 只有 `setup`，不进链。
+  - key、cancel、normalize、log 降为内核能力（见[核心架构](pipeline-architecture.md)）。
+  - 现有功能全部保留，只改写法；行为变化集中列在 §9，CHANGELOG 和迁移指南按它写。
+  
+  ## 0. 插件约定
+  
+  1. 工厂即类：`DiomanRetry(…)` 等，`name` 为 `dioman:<名字>`。插件对象只放配置，可以是 const；状态建在 `setup` 返回的
+实例里。
+  2. **插件级 `enabled: false`**：内核在编译链时直接跳过，不调 `setup`，`inspect()` 不列出。
+  3. **请求级选项统一四种写法**，由 `resolveOption` 一个函数解析：省略、`true`（用插件级配置）、`false`（本次关闭）、插
+件自己的选项对象（字段为 null 的沿用插件级）。部分插件另有一种简写（retry 的整数 = `max`，cache 的 `Duration` = `expire
+s`，share 的策略枚举）。不认识的类型按 bug 抛 `ArgumentError`。插件级配置在 `setup` 时预合并；请求级 `true` 或省略时复
+用同一份。
+  4. **装上即生效**，只有改变数据新鲜度的 **cache、share 要在请求级开启**（optIn）。
+  5. **改请求只用 `next(patch)`**，不改 `ctx.request`。
+  6. 用户回调抛错：通知类隔离并输出错误日志；判定类按 bug 处理；`onRefresh` 抛错算刷新失败（见核心架构 §7）。
+  7. **每个 await 之后用 `ctx.cancelled()` 重查取消**；等待一律用 `ctx.wait`。
+  8. 会重发请求的插件（retry、auth、mock、share 的 retry 策略）在第一次 `next()` 之前调用 `ctx.markReplayable()`。
+  
+  ## 1. outer
+  
+  ### loading
+  - 选项：`onChanged(bool visible)` 必填；`delay`（0→1 之后延迟显示，期间回落就不显示）、`delayClose`（1→0 之后延迟隐藏
+，期间有新请求就不隐藏），默认都是 `Duration.zero`。请求级：`false`、`true`、`DiomanLoadingOptions`。
+  - 模型：`final r = await next(); 通知; return r;`。每个逻辑请求最多一次，天然只在最终失败时通知，刷新成功不通知。
+  - 内核依赖：outer 阶段、`request.silent`。
+  
+  ## 2. prepare
+  
+> ### repath
+> - 选项不变：`pattern`（默认匹配 `{id}`、`:id`、`[id]`）、`removeKey`（默认 true）。只处理路径部分，先找 query（含 Bas
+eOptions 的 queryParameters）再找 Map 形式的 data；值按路径段编码；同名占位符多次出现全部替换。算出新的 path/query/data
+ 后 `next(patch)`；没有变化直接 `next()`。
+  
+  ### filter
+  - 选项：`predicate(key, value)`，默认剔除 null、NaN、空白字符串，保留 0 与 false；`ignoreKeys`、`ignoreValues`。剥 qu
+ery 和 Map 形式的 data 的顶层字段；FormData、Stream 原样。没有可剔除的字段时不打补丁。
+  - 变化：**装上即生效**（0.7 也是），默认谓词新增剔除 NaN（testkit 中立语义，且 `jsonEncode(double.nan)` 会抛错）。
+  
+  ### timeout
+  - 选项不变：`timeouts`（按 `NetworkQuality` 档位的 connect/receive/send）、`probe`（返回当前网络档位）。请求级：`fals
+e`、`DiomanTimeoutOptions`。
+  - 模型：读出本次档位对应的超时，`next(patch)` 写入请求的超时字段。只改配置，真正计时由 Dio 执行（假设 H5，已在本地回
+环核对）。
+  
+  ## 3. attempt
+  
+  ### retry
+  - 选项沿用 0.7：`max`、`methods`（硬否决）、`statusCodes`（默认 408/429/500/502/503/504，读**逻辑状态** `r.status`）
+、`shouldRetry(R r, int attempt)`、`delay`、`jitter`、`delayMax`、`respectRetryAfter`（默认 true，命中 `afterStatusCode
+s` 默认 413/429/503 时按 `Retry-After` 的秒数或 HTTP 日期等待，上限 `retryAfterMax`，不叠 jitter、不受 delayMax 限制）
+、`onRetry(attempt)`。请求级：整数 = max、`false`、`true`、`DiomanRetryOptions`。
+  - 判定顺序：请求级关闭 → 方法不在白名单 → `kind` 属于 cancel、auth、internal、parse、breaker、offline 时不重试 → `sho
+uldRetry` 返回布尔就采用 → network、timeout 重试 → `statusCodes` 包含 `r.status` 时重试。
+  - 模型：`markReplayable()`；`var r = await next(); for (attempt = 1..max) { 判定; 等待 ctx.wait(delay); 取消则返回; r
+ = await next(); } return r;`。次数用完返回最后一次结果，由落定决定抛不抛。每次尝试都会穿过 breaker、auth 和 source 阶
+段。
+  - 删除：重放交接、认领判断（`_notAdmitted`）、`share`/`cancel` 兼容 setter、`breaker` 字段。
+  
+  ### breaker
+  ### offline
+  - 选项沿用 0.7：`isOnline()`、`onConnectivityChanged`、`shouldQueue(request)`、`maxQueueSize`、`maxWait`。请求级：`fa
+lse`、`DiomanOfflineOptions`。
+  - 模型：在线 → `next()`。离线：不排队或队列已满 → `ctx.fail(kind: offline, reason: …)`；排队 → `ctx.wait(恢复在线, ti
+meout: maxWait)`，恢复后 `next()`，超时返回 `kind: offline, reason: 'timeout'`，取消返回 cancel。位于 source 最内层，所
+以缓存命中在离线时照常返回。
+  - 删除：`DiomanOfflineException`（改为 `kind: offline`）。
+  
+> ## 6. envs
+  
+  只有 `setup`，不进链：按 `rules` 选第一个命中的配置写进 `client.dio.options`（写入前克隆，不与规则模板共享容器）。
+  
+  ## 7. 内核服务
+  
+  - **key**：算法沿用 0.7（深模式递归排序 Map、List 保序、`ignores`、`namespace`），由客户端级 `DiomanKeyOptions` 配置
+。请求级 `call.key`：省略为自动；字符串为显式 key；`false` 表示不参与 cache/share。在 prepare 阶段之后惰性求值。
+  - **取消**：`api.cancelAll(reason)` 返回本次中止的逻辑请求数；`api.pending`。
+  - **debug**：`Dioman(debug: true)` 使用默认日志器；记录调用点、插件告警（例如请求体无法克隆、mock 缺少 `mockUrl`）。
+  
+  ## 8. TokenManager
+  
+  保留 `DiomanTokenManager` 接口（`accessToken`、`refreshToken`、`setTokens`、`clear` 等），删除 `canRefresh`：是否已判
+过期的状态收进 auth 的实例内部。
+  
+  ## 8.1 B0 终审裁决（2026-10-29，补规格缺口）
+  
+  B0 迁移清单标出 54 条存疑，归为下列规格缺口，按"现有功能能保留就保留"裁决：
+  
+  | 缺口 | 裁决 |
+  | `onRetry` 抛错 | 归通知类：隔离并记日志，不影响请求结果 |
+  | 信封识别 | 沿用旧规则：Map 含 `code`，且含 `data` 或 `message` 之一即为信封；工厂另提供 `isEnvelope(Map)` 钩子；请
+求级 `call.envelope: false` 表示本次按非信封处理（替代旧的 `shouldNormalize`） |
+  | offline 队列满 | 沿用旧语义：挤出最早的请求（`reason: queueFull`）；`maxQueueSize` 为 0 表示不限，默认 50；`shouldQ
+ueue` 返回 false 的请求直接放行 |
+  | cache `cachePolicy.none`、`DiomanCacheOptions.maxEntries` 占位字段 | 删除：cache 已按请求开启，`none` 多余，默认策
+略改为 memo；占位字段本来不被读取 |
+  | `DiomanSharePolicy.none` | 删除：关闭共享用请求级 `false` |
+> | loading 请求级回调的触发、envs 合并 | 按新规格：按回调身份分开计数；envs 合并时克隆容器 |
+  
+  ## 9. 行为变化汇总（写进 CHANGELOG 与迁移指南）
+  
+  | # | 变化 | 原因 |
+  |---|---|---|
+  | C1 | 入口改为 `Dioman` 客户端，插件不再是 Dio 拦截器，裸调 `dio.get` 不经过插件 | D1 |
+  | C2 | 可预期的失败抛 `DiomanResponse`（不再是 `DioException`），bug 原样抛出 | D6 |
+  | C3 | `DiomanNormalize`、`DiomanKey`、`DiomanCancel`、`DiomanLog` 删除，能力进内核或改用 Dio 自带的 `LogInterceptor`
+ | D3、D7 |
+  | C4 | 顺序由固定阶段决定，`DiomanPluginOrder`、`Dioman.sort/validate`、`install` 删除 | D2 |
+  | C5 | 请求级选项改为类型化的键，`extra[...]` 协议删除 | D8 |
+  | C6 | `DiomanException`、`DiomanBreakerOpenException`、`DiomanOfflineException` 删除，改为 `kind` 与 `reason` | D5 |
+  | C7 | mock 回到 source 阶段，`DiomanMockAdapter` 删除 | D9 |
+  | C8 | retry、breaker、auth、cache 一律读逻辑状态，business 风格自动适用 | D3 |
+  | C9 | filter 默认谓词新增剔除 NaN | testkit 中立语义 |
+  | C10 | loading 从逻辑请求一开始就显示，包括等待 token 刷新的时间 | 洋葱最外层的自然结果 |
+  | C11 | `DiomanTokenManager.canRefresh` 删除 | §8 |
+  | C12 | 判定类回调抛错按 bug 原样抛出（0.7 部分被吞掉）；`onRetry` 归通知类，抛错不再变成请求失败 | 核心架构 §7、§8.1
+ |
+  | C13 | 删除请求级时钟覆盖、cache `cachePolicy.none` 与 `maxEntries` 占位字段、`DiomanSharePolicy.none`；cache 默认策
+略改为 memo | §8.1 |
+import 'dart:async';
+import 'dart:io';
+import 'dart:typed_data';
+import 'package:dioman/pipeline.dart';
+import 'package:dio/dio.dart';
+import 'package:test/test.dart';
+
+/// 请求短超时，明显小于服务端停顿。
+const _short = Duration(milliseconds: 150);
+
+/// 请求长超时，覆盖正常分块或延迟响应。
+const _long = Duration(milliseconds: 1200);
+
+/// 底层宽松超时。
+const _base = Duration(seconds: 10);
+
+/// 测试路径。
+const _path = '/timeout';
+
+/// 请求方法。
+const _get = 'GET';
+
+/// 服务端响应文本。
+const _payload = 'ok';
+
+/// 大上传的一块大小。
+const _chunkSize = 64 * 1024;
+
+/// 大上传块数，足够阻塞回环缓冲区。
+const _chunks = 1024;
+
+/// 一次真实回环请求的资源与结果。
+class _Loop {
+  /// 绑定 Dio 和服务器资源。
+  _Loop(this.server, this.release, this.api);
+
+  /// 真实监听套接字。
+  final HttpServer server;
+
+  /// 释放挂起处理器。
+  final Completer<void> release;
+
+  /// 新管线客户端。
+  final Dioman<DiomanResponse<dynamic>> api;
+
+  /// 创建服务器，错误只隔离客户端关闭导致的服务端写失败。
+  static Future<_Loop> start(String mode, DiomanTimeouts tier) async {
+    final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+    final release = Completer<void>();
+    server.listen((request) async {
+      try {
+        if (mode == 'headers') {
+          request.response.bufferOutput = false;
+          request.response.write(_payload);
+          await request.response.flush();
+          await release.future;
+        } else if (mode == 'stall') {
+          await release.future;
+        } else if (mode == 'chunks') {
+          request.response.bufferOutput = false;
+          for (var i = 0; i < 4; i++) {
+            request.response.write(_payload);
+            await request.response.flush();
+            await Future<void>.delayed(const Duration(milliseconds: 100));
+          }
+          await request.response.close();
+        } else {
+          if (mode == 'delay') {
+            await Future<void>.delayed(const Duration(milliseconds: 400));
+          } else {
+            await request.drain<void>();
+          }
+          request.response.write(_payload);
+          await request.response.close();
+        }
+      } on IOException {
+        // 超时后客户端关闭套接字属于预期。
+      }
+    });
+    final dio = Dio(BaseOptions(
+        baseUrl: 'http://127.0.0.1:${server.port}',
+        connectTimeout: _base,
+        receiveTimeout: _base,
+        sendTimeout: _base,
+        responseType: ResponseType.plain));
+    final api = Dioman(dio: dio, plugins: [
+      DiomanTimeout(
+          probe: () => NetworkQuality.poor,
+          timeouts: {NetworkQuality.poor: tier})
+    ]);
+    final loop = _Loop(server, release, api);
+    addTearDown(loop.close);
+    return loop;
+  }
+
+  /// 释放全部真实 IO。
+  Future<void> close() async {
+    release.complete();
+    api.dispose();
+    api.dio.close(force: true);
+    await server.close(force: true);
+  }
+}
+
+/// 断言超时分类和实际经过的时长，排除即时失败冒充超时。
+void _expectTimeout(
+    DiomanResponse<dynamic> r, Stopwatch watch, Duration timeout) {
+  expect(r.kind, DiomanKind.timeout);
+  expect(watch.elapsed,
+      greaterThanOrEqualTo(timeout - const Duration(milliseconds: 20)));
+  expect(watch.elapsed, lessThan(timeout + const Duration(seconds: 2)));
+}
+
+/// 通过新入口验证 Dio 实际执行补丁超时。
+void main() {
+  for (final mode in ['headers', 'stall']) {
+    test('[DiomanTimeouts.receive] $mode 停顿按插件值超时', () async {
+      final loop =
+          await _Loop.start(mode, const DiomanTimeouts(receive: _short));
+      final watch = Stopwatch()..start();
+      final r = await loop.api.send<Object?>(_get, _path);
+      _expectTimeout(r, watch, _short);
+      expect((r.error as DioException).type, DioExceptionType.receiveTimeout);
+    });
+  }
+  test('[DiomanTimeouts.receive] 分块间隔小于超时即成功，总时长可超过超时', () async {
+    const timeout = Duration(milliseconds: 250);
+    final loop =
+        await _Loop.start('chunks', const DiomanTimeouts(receive: timeout));
+    final watch = Stopwatch()..start();
+    final r = await loop.api.send<String>(_get, _path);
+    expect(r.data, _payload * 4);
+    expect(r.ok, isTrue);
+    expect(watch.elapsed, greaterThan(timeout));
+  });
+  test('[DiomanTimeoutOptions.timeouts] 请求级收紧接收时限实际生效', () async {
+    final loop =
+        await _Loop.start('headers', const DiomanTimeouts(receive: _base));
+    final watch = Stopwatch()..start();
+    final r = await loop.api.send<Object?>(_get, _path,
+        call: DiomanCall(options: {
+          DiomanTimeout.option: const DiomanTimeoutOptions(
+              timeouts: {NetworkQuality.poor: DiomanTimeouts(receive: _short)})
+        }));
+    _expectTimeout(r, watch, _short);
+  });
+  test('[DiomanTimeoutOptions.timeouts] 请求级放宽接收时限实际生效', () async {
+    final loop =
+        await _Loop.start('delay', const DiomanTimeouts(receive: _short));
+    final failed = await loop.api.send<Object?>(_get, _path);
+    expect(failed.kind, DiomanKind.timeout);
+    final r = await loop.api.send<String>(_get, _path,
+        call: DiomanCall(options: {
+          DiomanTimeout.option: const DiomanTimeoutOptions(
+              timeouts: {NetworkQuality.poor: DiomanTimeouts(receive: _long)})
+        }));
+    expect(r.ok, isTrue);
+    expect(r.data, _payload);
+  });
+  test('[DiomanTimeouts.send] 发送缓冲阻塞时真实超时', () async {
+    final loop = await _Loop.start('stall', const DiomanTimeouts(send: _short));
+    final chunk = Uint8List(_chunkSize);
+    final watch = Stopwatch()..start();
+    final r = await loop.api.send<Object?>('POST', _path,
+        data: Stream<List<int>>.fromIterable(
+            Iterable.generate(_chunks, (_) => chunk)),
+        call: const DiomanCall(
+            headers: {Headers.contentLengthHeader: _chunkSize * _chunks}));
+    _expectTimeout(r, watch, _short);
+    expect((r.error as DioException).type, DioExceptionType.sendTimeout);
+  });
+  test('[DiomanTimeouts.send] 正常读取小请求体时成功', () async {
+    final loop = await _Loop.start('read', const DiomanTimeouts(send: _short));
+    final r = await loop.api.send<String>('POST', _path, data: [1, 2, 3]);
+    expect(r.ok, isTrue);
+    expect(r.data, _payload);
+  });
+}
+import 'dart:async';
+import 'package:dioman/pipeline.dart';
+import 'package:dio/dio.dart';
+import 'package:test/test.dart';
+import '../support/pipeline/helpers.dart';
+import '../support/pipeline/fake_network.dart';
+import '../rule/stateless_prepare_rule_test.dart' show preparePlain;
+
+/// 验证准备阶段的边界、输入不变与错误身份。
+void main() {
+  test('[DiomanRepath.pattern] URL 只处理路径，缺键、无捕获和空捕获保持原样', () async {
+    final net = FakeNetwork();
+    final api = testClient(network: net, plugins: [const DiomanRepath()]);
+    const url = 'https://example.test:8888/{id}?literal={id}#:{id}';
+    await api.send<Object?>('GET', url, query: {'id': 1});
+    expect(net.sends.last.options.path,
+        'https://example.test:8888/1?literal={id}#:{id}');
+    for (final path in ['/missing/{id}', '/plain']) {
+      await api.send<Object?>('GET', path);
+      expect(net.sends.last.options.path, path);
+    }
+    for (final pattern in [
+      RegExp('plain'),
+      RegExp(r'(a)?(b)?plain'),
+      RegExp(r'()plain')
+    ]) {
+      await api.send<Object?>('GET', preparePlain,
+          call: DiomanCall(options: {
+            DiomanRepath.option: DiomanRepathOptions(pattern: pattern)
+          }));
+      expect(net.sends.last.options.path, preparePlain);
+    }
+    await api
+        .send<Object?>('GET', '/{id}', query: {'id': null}, data: {'id': 2});
+    expect(net.sends.last.options.path, '/null');
+    expect(net.sends.last.options.data, {'id': 2});
+  });
+
+  test('[DiomanFilter] FormData、Stream 和非 Map 原样；无剔除不打补丁', () async {
+    final net = FakeNetwork();
+    DiomanRequest? before;
+    DiomanRequest? after;
+    final api = testClient(network: net, plugins: [
+      TestPlugin('before',
+          stage: DiomanStage.prepare,
+          enforce: DiomanEnforce.pre, handler: (ctx, next) {
+        before = ctx.request;
+        return next();
+      }),
+      const DiomanFilter(),
+      TestPlugin('after', stage: DiomanStage.prepare, handler: (ctx, next) {
+        after = ctx.request;
+        return next();
+      })
+    ]);
+    for (final data in [
+      null,
+      'text',
+      const {'zero': 0},
+      FormData.fromMap({'x': ''}),
+      Stream<List<int>>.value([1, 2])
+    ]) {
+      await api.send<Object?>('POST', preparePlain, data: data);
+      expect(after, same(before));
+      expect(after!.data, same(data));
+    }
+    await api.send<Object?>('GET', preparePlain, query: {'x': null});
+    expect(after, isNot(same(before)));
+    expect(before!.query, {'x': null});
+  });
+
+  test('[DiomanFilter.predicate] 判定错误按原对象抛出，谓词每字段只执行一次', () async {
+    final error = StateError('predicate sentinel');
+    final api =
+        testClient(plugins: [DiomanFilter(predicate: (_, v) => throw error)]);
+    await expectLater(api.send<Object?>('GET', preparePlain, query: {'x': 1}),
+        throwsA(same(error)));
+    expect(api.pending, 0);
+    final visits = <String>[];
+    final counted = testClient(plugins: [
+      DiomanFilter(predicate: (k, v) {
+        visits.add(k);
+        return false;
+      })
+    ]);
+    await counted
+        .send<Object?>('POST', preparePlain, query: {'q': 1}, data: {'b': 2});
+    expect(visits, ['q', 'b']);
+  });
+
+  test('[DiomanTimeout.probe] 缺档无补丁，空档保留请求超时，probe 错误原样抛出', () async {
+    final net = FakeNetwork();
+    final api = testClient(network: net, plugins: [
+      DiomanTimeout(probe: () => NetworkQuality.none, timeouts: const {})
+    ]);
+    await api.send<Object?>('GET', preparePlain);
+    expect(net.sends.single.options.connectTimeout, isNull);
+    api.eject(DiomanTimeout.pluginName);
+    api.use(DiomanTimeout(
+        probe: () => NetworkQuality.none,
+        timeouts: const {NetworkQuality.none: DiomanTimeouts()}));
+    await api.send<Object?>('GET', preparePlain);
+    expect(net.sends.last.options.connectTimeout, isNull);
+    final error = StateError('probe sentinel');
+    final broken =
+        testClient(plugins: [DiomanTimeout(probe: () => throw error)]);
+    await expectLater(
+        broken.send<Object?>('GET', preparePlain), throwsA(same(error)));
+  });
+
+  test('[resolveOption] 每个插件拒绝未知请求选项类型', () async {
+    final keys = [
+      DiomanLoading.option,
+      DiomanNotify.option,
+      DiomanRepath.option,
+      DiomanFilter.option,
+      DiomanTimeout.option
+    ];
+    final api = testClient(plugins: [
+      DiomanLoading(onChanged: (_) {}),
+      DiomanNotify(notify: (_, r) {}),
+      const DiomanRepath(),
+      const DiomanFilter(),
+      DiomanTimeout(probe: () => NetworkQuality.good)
+    ]);
+    for (final key in keys) {
+      await expectLater(
+          api.send<Object?>('GET', preparePlain,
+              call: DiomanCall(options: {key: 123})),
+          throwsArgumentError);
+    }
+  });
+}
+
+
+exec
+"C:\\Users\\jelon\\AppData\\Local\\Microsoft\\WindowsApps\\Microsoft.PowerShell_8wekyb3d8bbwe\\pwsh.exe" -Command 'dart test' in E:\workspaces\dart-labs-pipeline\dioman
+exec
+"C:\\Users\\jelon\\AppData\\Local\\Microsoft\\WindowsApps\\Microsoft.PowerShell_8wekyb3d8bbwe\\pwsh.exe" -Command "Get-Content test/combo/*.dart | Select-String -Pattern 'extend|options|setup' -Context 6,20; Get-Content docs/design/pipeline-architecture.md | Select-String -Pattern 'extend' -Context 5,12; Get-Content .dart_tool/package_config.json | Select-String 'dio|rootUri' | Select-Object -First 15; Get-Item E:/AGENTS*,E:/workspaces/AGENTS*,C:/Users/jelon/.codex/AGENTS* -ErrorAction SilentlyContinue | Select-Object FullName" in E:\workspaces\dart-labs-pipeline\dioman
+ succeeded in 13039ms:
+00:00 +0: loading test\boundary\client_boundary_test.dart
+00:00 +0: test\boundary\client_boundary_test.dart: [Dioman.send] 同时取消不掩盖中间件程序异常和原始栈
+00:00 +1: test\boundary\envs_boundary_test.dart: [EnvRule.rule] 抛错原样中断 setup，宿主没有写入
+00:00 +2: test\boundary\envs_boundary_test.dart: [EnvRule.rule] 抛错原样中断 setup，宿主没有写入
+00:00 +3: test\boundary\client_boundary_test.dart: [Dioman.pending] 登记后 compose/上下文构造抛错仍注销并解除用户订阅
+00:00 +4: test\boundary\client_boundary_test.dart: [Dioman.pending] 登记后 compose/上下文构造抛错仍注销并解除用户订阅
+00:00 +5: test\boundary\internal_settlement_boundary_test.dart: [Dioman.send] internal 缺 error 时抛明确 StateError
+00:00 +6: test\boundary\internal_settlement_boundary_test.dart: [Dioman.send] internal 缺 error 时抛明确 StateError
+00:00 +7: test\boundary\internal_settlement_boundary_test.dart: [Dioman.send] internal 缺 error 时抛明确 StateError
+00:00 +8: test\boundary\internal_settlement_boundary_test.dart: [Dioman.send] internal 缺 error 时抛明确 StateError
+00:00 +9: test\boundary\stateless_outer_boundary_test.dart: [DiomanLoading.delay] 显示前结束、延迟到期和 0→1 决定窗口
+00:00 +10: test\boundary\stateless_outer_boundary_test.dart: [DiomanLoading.delay] 显示前结束、延迟到期和 0→1 决定窗口
+00:00 +11: test\boundary\stateless_outer_boundary_test.dart: [DiomanLoading.delay] 显示前结束、延迟到期和 0→1 决定窗口
+00:00 +12: test\boundary\stateless_outer_boundary_test.dart: [DiomanLoading.delay] 显示前结束、延迟到期和 0→1 决定窗口
+00:00 +13: test\boundary\stateless_prepare_boundary_test.dart: [DiomanRepath.pattern] URL 只处理路径，缺键、无捕获和空捕获保持原样
+00:00 +14: test\boundary\stateless_prepare_boundary_test.dart: [DiomanRepath.pattern] URL 只处理路径，缺键、无捕获和空捕获保持原样
+00:00 +15: test\boundary\stateless_prepare_boundary_test.dart: [DiomanRepath.pattern] URL 只处理路径，缺键、无捕获和空捕获保持原样
+00:00 +16: test\boundary\stateless_prepare_boundary_test.dart: [DiomanRepath.pattern] URL 只处理路径，缺键、无捕获和空捕获保持原样
+00:00 +17: test\boundary\stateless_prepare_boundary_test.dart: [DiomanRepath.pattern] URL 只处理路径，缺键、无捕获和空捕获保持原样
+00:00 +18: test\boundary\stateless_prepare_boundary_test.dart: [DiomanRepath.pattern] URL 只处理路径，缺键、无捕获和空捕获保持原样
+00:00 +19: test\combo\stateless_combo_test.dart: [DiomanLoading × DiomanNotify] 多次 next 仅一个 loading 周期与最终通知，I2/I4
+00:00 +20: test\combo\stateless_combo_test.dart: [DiomanLoading × DiomanNotify] 多次 next 仅一个 loading 周期与最终通知，I2/I4
+00:00 +21: test\integration\timeout_effective_integration_test.dart: [DiomanTimeouts.receive] headers 停顿按插件值超时
+00:00 +22: test\integration\timeout_effective_integration_test.dart: [DiomanTimeouts.receive] headers 停顿按插件值超时
+00:00 +23: test\integration\timeout_effective_integration_test.dart: [DiomanTimeouts.receive] headers 停顿按插件值超时
+00:00 +24: test\integration\timeout_effective_integration_test.dart: [DiomanTimeouts.receive] headers 停顿按插件值超时
+00:00 +25: test\integration\timeout_effective_integration_test.dart: [DiomanTimeouts.receive] headers 停顿按插件值超时
+00:00 +26: test\integration\timeout_effective_integration_test.dart: [DiomanTimeouts.receive] headers 停顿按插件值超时
+00:00 +27: test\integration\timeout_effective_integration_test.dart: [DiomanTimeouts.receive] headers 停顿按插件值超时
+00:00 +28: test\integration\timeout_effective_integration_test.dart: [DiomanTimeouts.receive] headers 停顿按插件值超时
+00:00 +29: test\integration\timeout_effective_integration_test.dart: [DiomanTimeouts.receive] headers 停顿按插件值超时
+00:00 +30: test\integration\timeout_effective_integration_test.dart: [DiomanTimeouts.receive] headers 停顿按插件值超时
+00:00 +31: test\integration\timeout_effective_integration_test.dart: [DiomanTimeouts.receive] headers 停顿按插件值超时
+00:00 +32: test\integration\timeout_effective_integration_test.dart: [DiomanTimeouts.receive] headers 停顿按插件值超时
+00:00 +33: test\integration\timeout_effective_integration_test.dart: [DiomanTimeouts.receive] headers 停顿按插件值超时
+00:00 +34: test\integration\timeout_effective_integration_test.dart: [DiomanTimeouts.receive] headers 停顿按插件值超时
+00:00 +35: test\integration\timeout_effective_integration_test.dart: [DiomanTimeouts.receive] headers 停顿按插件值超时
+00:00 +36: test\integration\timeout_effective_integration_test.dart: [DiomanTimeouts.receive] headers 停顿按插件值超时
+00:00 +37: test\integration\timeout_effective_integration_test.dart: [DiomanTimeouts.receive] headers 停顿按插件值超时
+00:00 +38: test\integration\timeout_effective_integration_test.dart: [DiomanTimeouts.receive] headers 停顿按插件值超时
+00:00 +39: test\integration\timeout_effective_integration_test.dart: [DiomanTimeouts.receive] headers 停顿按插件值超时
+00:00 +40: test\integration\timeout_effective_integration_test.dart: [DiomanTimeouts.receive] headers 停顿按插件值超时
+00:01 +41: test\integration\timeout_effective_integration_test.dart: [DiomanTimeouts.receive] headers 停顿按插件值超时
+00:01 +42: test\integration\timeout_effective_integration_test.dart: [DiomanTimeouts.receive] headers 停顿按插件值超时
+00:01 +43: test\integration\timeout_effective_integration_test.dart: [DiomanTimeouts.receive] headers 停顿按插件值超时
+00:01 +44: test\rule\client_rule_test.dart: [Dioman.request] 所有动词、一次合并、Dio 拦截器和 HTTP 全放行
+00:01 +45: test\rule\stateless_outer_rule_test.dart: [DiomanLoadingApi.activeCount] 同回调并发聚合，换回调独立计数，I2 成对
+00:01 +46: test\rule\stateless_outer_rule_test.dart: [DiomanLoadingApi.activeCount] 同回调并发聚合，换回调独立计数，I2 成对
+00:01 +47: test\integration\timeout_effective_integration_test.dart: [DiomanTimeouts.receive] stall 停顿按插件值超时
+00:01 +48: test\rule\stateless_prepare_rule_test.dart: [DiomanRepath] 三语法、query 优先、重复替换、编码和默认 query 消费
+00:01 +49: test\rule\stateless_prepare_rule_test.dart: [DiomanRepath] 三语法、query 优先、重复替换、编码和默认 query 消费
+00:01 +50: test\rule\stateless_prepare_rule_test.dart: [DiomanRepath] 三语法、query 优先、重复替换、编码和默认 query 消费
+00:01 +51: test\integration\timeout_effective_integration_test.dart: [DiomanTimeouts.receive] 分块间隔小于超时即成功，总时长可超过超时
+00:01 +52: test\integration\timeout_effective_integration_test.dart: [DiomanTimeouts.receive] 分块间隔小于超时即成功，总时长可超过超时
+00:01 +53: test\integration\timeout_effective_integration_test.dart: [DiomanTimeouts.receive] 分块间隔小于超时即成功，总时长可超过超时
+00:01 +54: test\integration\timeout_effective_integration_test.dart: [DiomanTimeouts.receive] 分块间隔小于超时即成功，总时长可超过超时
+00:01 +55: test\integration\timeout_effective_integration_test.dart: [DiomanTimeouts.receive] 分块间隔小于超时即成功，总时长可超过超时
+00:01 +56: test\integration\timeout_effective_integration_test.dart: [DiomanTimeouts.receive] 分块间隔小于超时即成功，总时长可超过超时
+00:01 +57: test\integration\timeout_effective_integration_test.dart: [DiomanTimeouts.receive] 分块间隔小于超时即成功，总时长可超过超时
+00:01 +58: test\integration\timeout_effective_integration_test.dart: [DiomanTimeouts.receive] 分块间隔小于超时即成功，总时长可超过超时
+00:01 +59: test\integration\timeout_effective_integration_test.dart: [DiomanTimeouts.receive] 分块间隔小于超时即成功，总时长可超过超时
+00:01 +60: test\integration\timeout_effective_integration_test.dart: [DiomanTimeouts.receive] 分块间隔小于超时即成功，总时长可超过超时
+00:01 +61: test\integration\timeout_effective_integration_test.dart: [DiomanTimeouts.receive] 分块间隔小于超时即成功，总时长可超过超时
+00:01 +62: test\integration\timeout_effective_integration_test.dart: [DiomanTimeouts.receive] 分块间隔小于超时即成功，总时长可超过超时
+00:01 +63: test\integration\timeout_effective_integration_test.dart: [DiomanTimeouts.receive] 分块间隔小于超时即成功，总时长可超过超时
+00:01 +64: test\integration\timeout_effective_integration_test.dart: [DiomanTimeouts.receive] 分块间隔小于超时即成功，总时长可超过超时
+00:01 +65: test\integration\timeout_effective_integration_test.dart: [DiomanTimeouts.receive] 分块间隔小于超时即成功，总时长可超过超时
+00:01 +66: test\unit\fixtures_test.dart: [Dioman.send] FakeNetwork 路由、序列、第 n 次失败、gate 和记录
+00:01 +67: test\unit\fixtures_test.dart: [Dioman.send] FakeNetwork 路由、序列、第 n 次失败、gate 和记录
+00:01 +68: test\unit\key_parity_test.dart: [DiomanKeyService.build] 固定种子 2400 组与旧 key 逐字节一致
+00:01 +69: test\unit\key_parity_test.dart: [DiomanKeyService.build] 固定种子 2400 组与旧 key 逐字节一致
+00:01 +70: test\unit\key_parity_test.dart: [DiomanKeyService.build] 固定种子 2400 组与旧 key 逐字节一致
+00:01 +71: test\unit\key_parity_test.dart: [DiomanKeyService.build] 固定种子 2400 组与旧 key 逐字节一致
+00:02 +72: test\unit\key_parity_test.dart: [DiomanKeyService.build] 固定种子 2400 组与旧 key 逐字节一致
+00:02 +73: test\unit\key_parity_test.dart: [DiomanKeyService.build] 固定种子 2400 组与旧 key 逐字节一致
+00:02 +74: test\unit\key_parity_test.dart: [DiomanKeyService.build] 固定种子 2400 组与旧 key 逐字节一致
+00:02 +75: test\unit\key_parity_test.dart: [DiomanKeyService.build] 固定种子 2400 组与旧 key 逐字节一致
+00:02 +76: test\unit\key_parity_test.dart: [DiomanKeyService.build] 固定种子 2400 组与旧 key 逐字节一致
+00:02 +77: test\unit\key_parity_test.dart: [DiomanKeyService.build] 固定种子 2400 组与旧 key 逐字节一致
+00:02 +78: test\unit\key_parity_test.dart: [DiomanKeyService.build] 固定种子 2400 组与旧 key 逐字节一致
+00:02 +79: test\unit\key_parity_test.dart: [DiomanKeyService.build] 固定种子 2400 组与旧 key 逐字节一致
+00:02 +80: test\unit\key_parity_test.dart: [DiomanKeyService.build] 固定种子 2400 组与旧 key 逐字节一致
+00:02 +81: test\unit\key_parity_test.dart: [DiomanKeyService.build] 固定种子 2400 组与旧 key 逐字节一致
+00:02 +82: test\unit\key_parity_test.dart: [DiomanKeyService.build] 固定种子 2400 组与旧 key 逐字节一致
+00:02 +83: test\unit\key_parity_test.dart: [DiomanKeyService.build] 固定种子 2400 组与旧 key 逐字节一致
+00:02 +84: test\unit\key_parity_test.dart: [DiomanKeyService.build] 固定种子 2400 组与旧 key 逐字节一致
+00:02 +85: test\unit\key_parity_test.dart: [DiomanKeyService.build] 固定种子 2400 组与旧 key 逐字节一致
+00:02 +86: test\integration\timeout_effective_integration_test.dart: [DiomanTimeoutOptions.timeouts] 请求级放宽接收时限实际生效
+00:02 +87: test\integration\timeout_effective_integration_test.dart: [DiomanTimeoutOptions.timeouts] 请求级放宽接收时限实际生效
+00:02 +88: test\integration\timeout_effective_integration_test.dart: [DiomanTimeouts.send] 发送缓冲阻塞时真实超时
+00:02 +89: test\integration\timeout_effective_integration_test.dart: [DiomanTimeouts.send] 正常读取小请求体时成功
+00:02 +90: All tests passed!
+
+ succeeded in 3180ms:
+
+        final plugins = <DiomanPlugin<Result>>[
+          if (pair.$3) DiomanTimeout(probe: () => NetworkQuality.poor),
+          if (pair.$2) const DiomanFilter(),
+          if (pair.$1) const DiomanRepath()
+        ];
+        final api = testClient(network: net, plugins: plugins);
+>       api.dio.options.queryParameters = {'id': '', 'nil': null};
+        await api
+            .send<Object?>('POST', '/{id}', data: const {'name': '', 'keep': 0});
+>       expect(net.sends.single.options.path, pair.$1 ? '/' : '/{id}');
+>       expect(net.sends.single.options.queryParameters,
+            pair.$2 ? isEmpty : {'nil': null});
+>       expect(net.sends.single.options.connectTimeout,
+            pair.$3 ? const Duration(seconds: 30) : isNull);
+        expect(net.sends.single.body,
+            pair.$2 ? {'keep': 0} : {'name': '', 'keep': 0});
+      });
+    }
+  
+>   test('[Dioman.extend × DiomanEnvs] 先 setup 再显式覆盖，父子与规则模板容器隔离', () {
+      final template =
+>         BaseOptions(baseUrl: envUrl, connectTimeout: envTime, headers: {
+        envNested: {
+          'list': [1]
+        },
+        'env': 1
+      }, queryParameters: {
+        envNested: [1]
+      }, extra: {
+        envNested: [1]
+      });
+      final events = <bool>[];
+      final parent = testClient(plugins: [
+        DiomanLoading(onChanged: events.add),
+        DiomanEnvs([EnvRule(rule: () => true, config: template)])
+      ]);
+>     parent.dio.options.baseUrl = overrideUrl;
+>     final overrides = BaseOptions(
+          baseUrl: overrideUrl,
+          connectTimeout: const Duration(seconds: 8),
+          headers: {
+            envNested: {
+              'list': [9]
+            }
+          },
+          queryParameters: {
+            envNested: [9]
+          },
+          extra: {
+            envNested: [9]
+          });
+>     final child = parent.extend(options: overrides);
+>     final inherited = parent.extend();
+>     expect(inherited.dio.options.baseUrl, envUrl);
+>     expect(child.dio.options.baseUrl, overrideUrl);
+>     expect(child.dio.options.connectTimeout, const Duration(seconds: 8));
+>     expect(child.dio.options.headers['env'], 1);
+      expect(child.plugin<DiomanLoadingApi>(),
+          isNot(same(parent.plugin<DiomanLoadingApi>())));
+>     (child.dio.options.headers[envNested]['list'] as List).add(10);
+>     (child.dio.options.queryParameters[envNested] as List).add(10);
+>     (child.dio.options.extra[envNested] as List).add(10);
+>     expect(parent.dio.options.headers[envNested], {
+        'list': [1]
+      });
+      expect(template.headers[envNested], {
+        'list': [1]
+      });
+      expect(overrides.headers[envNested], {
+        'list': [9]
+      });
+      expect(overrides.queryParameters[envNested], [9]);
+      expect(overrides.extra[envNested], [9]);
+>     expect(parent.dio.options.queryParameters[envNested], [1]);
+>     expect(parent.dio.options.extra[envNested], [1]);
+      parent.dispose();
+      child.dispose();
+      inherited.dispose();
+    });
+  }
+  
+  模块划分（`lib/src/`，旧文件在 B5 删除）：
+  
+  | 文件 | 职责 |
+  |---|---|
+> | `client.dart` | `Dioman`：动词方法、`request/send`、建逻辑请求上下文、登记在途、落定、`use/eject/inspect/cancelAll/
+pending/extend/dispose` |
+  | `pipeline.dart` | 插件排序（阶段 + 内置位置表）、链编译、`next(patch)`、每层的异常边界 |
+  | `stages.dart` | `DiomanStage` 枚举与内置插件位置表 |
+  | `context.dart` | `DiomanContext`：请求视图、取消、状态键、`key()`、`fail()`、`markReplayable()`、`wait()`、`cancell
+ed()` |
+  | `request.dart` | 不可变的 `DiomanRequest`、`RequestPatch`、与 `RequestOptions` 互转 |
+  | `transport.dart` | 按需克隆请求体、调用 `dio.fetch`（`validateStatus` 全部放行）、交给工厂判定 |
+  | `response.dart` | `DiomanKind`、`DiomanResponse`、`DiomanResponseFactory`、`Envelope` |
+  | `options.dart` | 请求级插件选项的统一解析（`resolveOption`） |
+  | `key.dart` | key 服务（由旧 `key_plugin.dart` 的算法迁来，行为不变） |
+  | `clock.dart` | `DiomanClock`：当前时间与计时器工厂，可注入 |
+  | `plugins/*.dart` | 12 个内置插件 |
+  | `token_manager.dart` | `DiomanTokenManager` 接口（去掉 `canRefresh`，见插件规格 auth） |
+  
+  
+  ## 4. 上下文与请求
+  
+  ```dart
+  /// 中间件拿到的上下文；逻辑请求级字段在各层共享，request 是本层视图。
+> abstract class DiomanContext<R extends DiomanResponse> {
+    int get id;                                   // 逻辑请求序号
+    Dioman<R> get client;
+    DiomanRequest get request;                    // 本层看到的请求，不可变
+    CancelToken get cancelToken;                  // 逻辑请求级：使用者 token ∪ cancelAll
+    bool get isCancelled;
+    DiomanLogger get log;                         // 受 debug 开关控制
+    String? key();                                // 惰性计算，按 request 缓存；不可哈希或 key:false 时为 null
+    T? get<T>(StateKey<T> key);                   // 逻辑请求级状态
+    void set<T>(StateKey<T> key, T value);
+    R fail(DiomanFailure init);                   // 凭空造结果，必须经工厂
+    void markReplayable();                        // 声明本请求可能被重发，传输层据此克隆请求体
+    Future<T?> wait<T>(Future<T> pending, {Duration? timeout});  // 取消原语一，见下
+  - **`reject`**：`Dioman(reject: (r) => …)` 在抛出前转换可预期的失败，用来适配需要特定异常类型的生态。默认原样抛出 `r`
+。
+  
+  ## 7. 插件接口
+  
+  ```dart
+> abstract class DiomanPlugin<R extends DiomanResponse> {
+    String get name;                              // 内置插件以 dioman: 开头
+    DiomanStage get stage => DiomanStage.attempt; // 自定义插件的默认阶段
+    DiomanEnforce get enforce => DiomanEnforce.post;
+    /// 每个客户端调用一次；状态建在返回的实例里。只有 setup、没有 handle 的插件不进链。
+    DiomanPluginInstance<R> setup(Dioman<R> client);
+  }
+> abstract class DiomanPluginInstance<R extends DiomanResponse> {
+    Future<R> handle(DiomanContext<R> ctx, DiomanNext<R> next);
+    void dispose() {}
+  }
+  ```
+  
+  约定：
+  - **状态必须建在 `setup` 返回的实例里**，不能放在插件对象上。插件对象只是配置（可以是 const），同一个插件对象可以装进
+多个客户端，各自一份状态。
+  - 插件暴露给使用者的操作（例如 cache 的 `clear`），通过 `api.plugin<DiomanCacheApi>()` 取得。
+  - 用户回调分两类：**通知类**（loading、notify、onAccessExpired、onAccessDenied、onStateChange、onConnectivityChanged
+）抛错会被隔离，并输出到 `debugPrint` 级别的错误日志；**判定类**（shouldRetry、delay、onFailure、isProtected、fallbackW
+hen、shouldCache、shouldTrip、keyBuilder）抛错按 bug 处理。`onRefresh` 例外：它抛错算刷新失败。
+  
+  ## 8. 客户端 API
+  
+  ```dart
+> class Dioman<R extends DiomanResponse<dynamic>> {
+    Dioman({required Dio dio, List<DiomanPlugin<R>> plugins = const [],
+            DiomanResponseFactory<R>? response, DiomanKeyOptions key = const DiomanKeyOptions(),
+            Object Function(R r)? reject, Object? debug /* bool | DiomanLogger */,
+            DiomanClock clock = const DiomanClock.system()});
+    Dio get dio;
+    Future<T> get<T>(String path, {Map<String, dynamic>? query, Object? data, DiomanCall? call});
+    // post / put / patch / delete / head 同形；request<T>(method, path, …)
+    Future<DiomanResponse<T>> send<T>(String method, String path, {…});
+    void use(DiomanPlugin<R> plugin);
+    bool eject(String name);
+    A? plugin<A>();                       // 取插件暴露的操作
+    List<(DiomanStage, String)> inspect();
+    int cancelAll([Object? reason]);
+    int get pending;
+>   Dioman<R> extend({BaseOptions? options, List<DiomanPlugin<R>>? plugins});
+    void dispose();
+  }
+  ```
+  
+  - `DiomanCall`：调用级配置，包含 headers、超时、使用者的 `cancelToken`、`key`、`silent`、以及各插件的请求级选项（以插
+件导出的选项键为键）。
+> - `extend()` 克隆 Dio 的 BaseOptions，默认继承插件列表并各自重新 `setup`，状态不共享。
+  - `dispose()`：先 `cancelAll()`，再按注册的逆序调用各插件实例的 `dispose`（尽力执行完，最后抛出第一个异常）；之后拒绝
+新的请求和 `use`。
+  
+  ## 8.1 B1 终审裁决（2026-10-29）
+  
+  - **链内返回类型为 `DiomanResponse<dynamic>`**，不是使用者的子类 `R`：使用者工厂自身抛错时，内核只能用内置工厂造基础
+的 internal 结果；如果强转成 `R`，会在运行时抛 TypeError，打破"`next()` 不出错"。`R` 约束的是客户端正常工厂 `create` 的
+产出；插件要用扩展字段时用 `is` 判断。
+  - **`ctx.wait` 的错误传递**：被等待的 future 自身出错时，`wait` 把错误交给调用方，不转成 internal；取消与超时返回 `nu
+ll`，用 `ctx.cancelled()` 区分。
+  - **请求体保留引用**：`data` 是 Dio 的不透明载荷，只有 `markReplayable()` 时才复制（Map/List/FormData）；headers、que
+ry、extra 是不可修改的顶层集合。
+  - **`send<T>` 的数据可空**：失败时 `data` 为 `null`，原始值在 `raw` 里；结果本身已是 `DiomanResponse<T>` 时保留原实例
+及扩展字段。
+  - **待修（B2 落地）**：插件经 `ctx.fail` 造 internal 却不带 `error`/`errorStack` 时，落定处的 `!` 会抛 TypeError 盖掉
+问题。落定改为：没有 error 抛 `StateError`，没有 stack 用 `StackTrace.current`。
+  
+  ## 9. 性能设计
+  
+      "rootUri": "file:///C:/Users/jelon/AppData/Local/Pub/Cache/hosted/pub.dev/_fe_analyzer_shared-110.0.0",
+      "rootUri": "file:///C:/Users/jelon/AppData/Local/Pub/Cache/hosted/pub.dev/analyzer-14.6.0",
+      "rootUri": "file:///C:/Users/jelon/AppData/Local/Pub/Cache/hosted/pub.dev/args-2.7.0",
+      "rootUri": "file:///C:/Users/jelon/AppData/Local/Pub/Cache/hosted/pub.dev/async-2.13.1",
+      "rootUri": "file:///C:/Users/jelon/AppData/Local/Pub/Cache/hosted/pub.dev/boolean_selector-2.1.2",
+      "rootUri": "file:///C:/Users/jelon/AppData/Local/Pub/Cache/hosted/pub.dev/cli_config-0.2.0",
+      "rootUri": "file:///C:/Users/jelon/AppData/Local/Pub/Cache/hosted/pub.dev/cli_util-0.6.0",
+      "rootUri": "file:///C:/Users/jelon/AppData/Local/Pub/Cache/hosted/pub.dev/collection-1.19.1",
+      "rootUri": "file:///C:/Users/jelon/AppData/Local/Pub/Cache/hosted/pub.dev/convert-3.1.2",
+      "rootUri": "file:///C:/Users/jelon/AppData/Local/Pub/Cache/hosted/pub.dev/coverage-1.16.0",
+      "rootUri": "file:///C:/Users/jelon/AppData/Local/Pub/Cache/hosted/pub.dev/crypto-3.0.8",
+      "name": "dio",
+      "rootUri": "file:///C:/Users/jelon/AppData/Local/Pub/Cache/hosted/pub.dev/dio-5.11.1",
+      "name": "dio_web_adapter",
+      "rootUri": "file:///C:/Users/jelon/AppData/Local/Pub/Cache/hosted/pub.dev/dio_web_adapter-2.2.2",
+
+
+exec
+"C:\\Users\\jelon\\AppData\\Local\\Microsoft\\WindowsApps\\Microsoft.PowerShell_8wekyb3d8bbwe\\pwsh.exe" -Command "Get-Content lib/src/pipeline/request.dart; Get-Content test/rule/stateless_prepare_rule_test.dart; Get-Content lib/envs_plugin.dart -ErrorAction SilentlyContinue; git ls-files '*AGENTS*'; Get-Content ../.codex/config.toml -ErrorAction SilentlyContinue" in E:\workspaces\dart-labs-pipeline\dioman
+ exited 1 in 2137ms:
+import 'dart:collection';
+import 'package:dio/dio.dart';
+import 'options.dart';
+
+/// 区分未提供和显式 null 的补丁哨兵。
+const _absent = Object();
+
+/// 有效 Dio 配置的不可变请求视图；入口合并一次后构造。
+class DiomanRequest {
+  /// 从 [options] 拷贝有效配置；[call] 保存调用选项，例如 `DiomanRequest(ro)`。
+  DiomanRequest(RequestOptions options, {DiomanCall call = const DiomanCall()})
+      : _options = options.copyWith(),
+        data = options.data,
+        headers = Map.unmodifiable(options.headers),
+        query = Map.unmodifiable(options.queryParameters),
+        extra = Map.unmodifiable(options.extra),
+        call = DiomanCall(
+            key: call.key,
+            envelope: call.envelope,
+            silent: call.silent,
+            options: Map.unmodifiable(call.options));
+
+  /// 完整有效配置的私有副本，永不交给 Dio 修改。
+  final RequestOptions _options;
+
+  /// 请求体引用；不透明载荷由传输按需克隆，插件通过补丁替换。
+  final Object? data;
+
+  /// 不可修改的请求头。
+  final Map<String, dynamic> headers;
+
+  /// 不可修改的查询参数。
+  final Map<String, dynamic> query;
+
+  /// 不可修改的用户扩展字段。
+  final Map<String, dynamic> extra;
+
+  /// 调用配置。
+  final DiomanCall call;
+
+  /// 有效路径。
+  String get path => _options.path;
+
+  /// 有效方法。
+  String get method => _options.method;
+
+  /// 有效基础地址。
+  String get baseUrl => _options.baseUrl;
+
+  /// 有效 URI。
+  Uri get uri => toRequestOptions().uri;
+
+  /// 连接超时。
+  Duration? get connectTimeout => _options.connectTimeout;
+
+  /// 发送超时。
+  Duration? get sendTimeout => _options.sendTimeout;
+
+  /// 接收超时。
+  Duration? get receiveTimeout => _options.receiveTimeout;
+
+  /// 当前传输令牌；未指定时内核使用逻辑请求令牌。
+  CancelToken? get cancelToken => _options.cancelToken;
+
+  /// 通知静默标记。
+  bool get silent => call.silent;
+
+  /// 返回可独立修改的有效 Dio 配置，例如 `dio.fetch(r.toRequestOptions())`。
+  RequestOptions toRequestOptions() => _options.copyWith(
+      headers: Map.from(headers),
+      queryParameters: Map.from(query),
+      extra: Map.from(extra))
+    ..data = data;
+
+  /// 合并 [patch] 并返回独立视图；不修改基准请求。
+  DiomanRequest patch(RequestPatch patch) {
+    final o = toRequestOptions();
+    final h = LinkedHashMap<String, dynamic>.from(o.headers);
+    for (final key in patch.removeHeaders) {
+      h.removeWhere((k, _) => k.toLowerCase() == key.toLowerCase());
+    }
+    for (final e in patch.headers.entries) {
+      h.removeWhere((k, _) => k.toLowerCase() == e.key.toLowerCase());
+      h[e.key] = e.value;
+    }
+    o.headers = h;
+    o.queryParameters.removeWhere((k, _) => patch.removeQuery.contains(k));
+    o.queryParameters.addAll(patch.query);
+    o.extra.addAll(patch.extra);
+    if (!identical(patch.data, _absent)) o.data = patch.data;
+    if (patch.path != null) o.path = patch.path!;
+    if (patch.method != null) o.method = patch.method!;
+    if (!identical(patch.connectTimeout, _absent)) {
+      o.connectTimeout = patch.connectTimeout as Duration?;
+    }
+    if (!identical(patch.sendTimeout, _absent)) {
+      o.sendTimeout = patch.sendTimeout as Duration?;
+    }
+    if (!identical(patch.receiveTimeout, _absent)) {
+      o.receiveTimeout = patch.receiveTimeout as Duration?;
+    }
+    if (!identical(patch.cancelToken, _absent)) {
+      o.cancelToken = patch.cancelToken as CancelToken?;
+    }
+    return DiomanRequest(o, call: call);
+  }
+}
+
+/// 内层请求的改动；集合按键合并，删除必须显式提供删除集合。
+class RequestPatch {
+  /// 创建补丁，例如 `RequestPatch(data: null, removeHeaders: {'Authorization'})`。
+  const RequestPatch(
+      {this.headers = const {},
+      this.query = const {},
+      this.extra = const {},
+      this.removeHeaders = const {},
+      this.removeQuery = const {},
+      this.data = _absent,
+      this.path,
+      this.method,
+      this.connectTimeout = _absent,
+      this.sendTimeout = _absent,
+      this.receiveTimeout = _absent,
+      this.cancelToken = _absent});
+
+  /// 合并的请求头。
+  final Map<String, dynamic> headers;
+
+  /// 合并的查询参数。
+  final Map<String, dynamic> query;
+
+  /// 合并的用户扩展。
+  final Map<String, dynamic> extra;
+
+  /// 不区分大小写的待删除请求头。
+  final Set<String> removeHeaders;
+
+  /// 待删除查询键。
+  final Set<String> removeQuery;
+
+  /// 整体替换的请求体，允许 null。
+  final Object? data;
+
+  /// 替换路径。
+  final String? path;
+
+  /// 替换方法。
+  final String? method;
+
+  /// 替换连接超时，允许 null。
+  final Object? connectTimeout;
+
+  /// 替换发送超时，允许 null。
+  final Object? sendTimeout;
+
+  /// 替换接收超时，允许 null。
+  final Object? receiveTimeout;
+
+  /// 替换传输取消令牌，允许 null。
+  final Object? cancelToken;
+}
+import 'package:dioman/pipeline.dart';
+import 'package:dio/dio.dart';
+import 'package:test/test.dart';
+import '../support/pipeline/helpers.dart';
+import '../support/pipeline/fake_network.dart';
+
+/// 共用带三种占位符的路径。
+const preparePath = '/{id}/:name/[id]';
+
+/// 共用请求路径。
+const preparePlain = '/plain';
+
+/// 基础超时。
+const prepareBase = Duration(seconds: 4);
+
+/// 覆盖超时。
+const prepareOverride = Duration(seconds: 7);
+
+/// 验证三个 prepare 插件的规则与请求覆盖。
+void main() {
+  test('[DiomanRepath] 三语法、query 优先、重复替换、编码和默认 query 消费', () async {
+    final net = FakeNetwork();
+    final api = testClient(network: net, plugins: [const DiomanRepath()]);
+    api.dio.options.queryParameters = {'id': 'a/b?#'};
+    final body = {'id': 'body', 'name': '中文 空格', 'keep': 0};
+    await api.send<Object?>('POST', preparePath, data: body);
+    final sent = net.sends.single.options;
+    final id = Uri.encodeComponent('a/b?#');
+    expect(sent.path, '/$id/${Uri.encodeComponent('中文 空格')}/$id');
+    expect(sent.queryParameters, isEmpty);
+    expect(sent.data, {'id': 'body', 'keep': 0});
+    expect(body, containsPair('name', '中文 空格'));
+    expect(api.dio.options.queryParameters, contains('id'));
+  });
+
+  test('[DiomanRepath.option] 开关、字段继承、自定义模式与保留来源', () async {
+    final net = FakeNetwork();
+    final plugin = DiomanRepath(pattern: RegExp(r'\$(\w+)'), removeKey: false);
+    final api = testClient(network: net, plugins: [plugin]);
+    for (final option in [null, true, const DiomanRepathOptions()]) {
+      await api.send<Object?>('GET', r'/$id',
+          query: {'id': 2},
+          call: DiomanCall(options: {DiomanRepath.option: option}));
+      expect(net.sends.last.options.path, '/2');
+      expect(net.sends.last.options.queryParameters, {'id': 2});
+    }
+    for (final option in [false, const DiomanRepathOptions(enabled: false)]) {
+      await api.send<Object?>('GET', r'/$id',
+          query: {'id': 2},
+          call: DiomanCall(options: {DiomanRepath.option: option}));
+      expect(net.sends.last.options.path, r'/$id');
+    }
+    await api.send<Object?>('GET', '/{id}',
+        query: {'id': 3},
+        call: DiomanCall(options: {
+          DiomanRepath.option: DiomanRepathOptions(
+              pattern: DiomanRepath.defaultPattern, removeKey: true)
+        }));
+    expect(net.sends.last.options.path, '/3');
+    expect(net.sends.last.options.queryParameters, isEmpty);
+  });
+
+  test('[DiomanFilter.defaultPredicate] C9 剔除空值与 NaN，保留零 false 和嵌套字段',
+      () async {
+    final net = FakeNetwork();
+    final api = testClient(network: net, plugins: [const DiomanFilter()]);
+    final fields = {
+      'nil': null,
+      'nan': double.nan,
+      'blank': ' \t',
+      'empty': '',
+      'zero': 0,
+      'false': false,
+      'nested': {'nil': null},
+      'list': <int>[]
+    };
+    api.dio.options.queryParameters = Map.of(fields);
+    await api.send<Object?>('POST', preparePlain,
+        data: Map.unmodifiable(fields));
+    final expected = {
+      'zero': 0,
+      'false': false,
+      'nested': {'nil': null},
+      'list': <int>[]
+    };
+    expect(net.sends.single.options.queryParameters, expected);
+    expect(net.sends.single.body, expected);
+    expect(fields.keys, containsAll(['nan', 'nil']));
+    expect(api.dio.options.queryParameters, contains('nil'));
+  });
+
+  test('[DiomanFilter.option] 豁免并集、谓词覆盖与空字段继承', () async {
+    final net = FakeNetwork();
+    final api = testClient(network: net, plugins: [
+      const DiomanFilter(ignoreKeys: ['a'], ignoreValues: [''])
+    ]);
+    final query = {'a': null, 'b': null, 'c': '', 'd': ' ', 'drop': 9};
+    await api.send<Object?>('POST', preparePlain,
+        query: query,
+        data: query,
+        call: DiomanCall(options: {
+          DiomanFilter.option: DiomanFilterOptions(
+              ignoreKeys: ['b'],
+              ignoreValues: [' '],
+              predicate: (k, v) => k == 'drop')
+        }));
+    final kept = Map.of(query)..remove('drop');
+    expect(net.sends.last.options.queryParameters, kept);
+    expect(net.sends.last.body, kept);
+    for (final option in [null, true, const DiomanFilterOptions()]) {
+      await api.send<Object?>('GET', preparePlain,
+          query: {'x': null},
+          call: DiomanCall(options: {DiomanFilter.option: option}));
+      expect(net.sends.last.options.queryParameters, isEmpty);
+    }
+    for (final option in [false, const DiomanFilterOptions(enabled: false)]) {
+      await api.send<Object?>('GET', preparePlain,
+          query: {'x': null},
+          call: DiomanCall(options: {DiomanFilter.option: option}));
+      expect(net.sends.last.options.queryParameters, {'x': null});
+    }
+  });
+
+  test('[DiomanTimeout.timeouts] 默认四档和 probe 每请求一次', () async {
+    final net = FakeNetwork();
+    var tier = NetworkQuality.excellent;
+    var probes = 0;
+    final api = testClient(network: net, plugins: [
+      DiomanTimeout(probe: () {
+        probes++;
+        return tier;
+      })
+    ]);
+    api.dio.options.receiveTimeout = prepareBase;
+    api.dio.options.sendTimeout = prepareBase;
+    for (final quality in NetworkQuality.values) {
+      tier = quality;
+      await api.send<Object?>('GET', preparePlain);
+      expect(net.sends.last.options.connectTimeout,
+          Duration(seconds: [10, 15, 30, 10][quality.index]));
+      expect(net.sends.last.options.receiveTimeout, prepareBase);
+      expect(net.sends.last.options.sendTimeout, prepareBase);
+    }
+    expect(probes, 4);
+  });
+
+  test('[DiomanTimeout.option] 按档并集、单档替换、非空覆盖和请求关闭', () async {
+    final net = FakeNetwork();
+    var tier = NetworkQuality.good;
+    final api = testClient(network: net, plugins: [
+      DiomanTimeout(probe: () => tier, timeouts: const {
+        NetworkQuality.good: DiomanTimeouts(connect: prepareBase),
+        NetworkQuality.poor: DiomanTimeouts(connect: prepareBase)
+      })
+    ]);
+    api.dio.options.connectTimeout = prepareBase;
+    final override = const DiomanTimeoutOptions(timeouts: {
+      NetworkQuality.poor:
+          DiomanTimeouts(receive: prepareOverride, send: prepareOverride)
+    });
+    await api.send<Object?>('GET', preparePlain,
+        call: DiomanCall(options: {DiomanTimeout.option: override}));
+    expect(net.sends.last.options.connectTimeout, prepareBase);
+    tier = NetworkQuality.poor;
+    await api.send<Object?>('GET', preparePlain,
+        call: DiomanCall(options: {DiomanTimeout.option: override}));
+    expect(net.sends.last.options.connectTimeout, prepareBase);
+    expect(net.sends.last.options.receiveTimeout, prepareOverride);
+    expect(net.sends.last.options.sendTimeout, prepareOverride);
+    for (final option in [false, const DiomanTimeoutOptions(enabled: false)]) {
+      await api.send<Object?>('GET', preparePlain,
+          call: DiomanCall(options: {DiomanTimeout.option: option}));
+      expect(net.sends.last.options.receiveTimeout, isNull);
+    }
+    for (final option in [true, const DiomanTimeoutOptions()]) {
+      await api.send<Object?>('GET', preparePlain,
+          call: DiomanCall(options: {DiomanTimeout.option: option}));
+      expect(net.sends.last.options.connectTimeout, prepareBase);
+    }
+  });
+
+  test('[DiomanPlugin.enabled] 六插件名称、固定位置、总开关与类型化键', () async {
+    final plugins = <DiomanPlugin<Result>>[
+      DiomanLoading(onChanged: (_) {}),
+      DiomanNotify(notify: (_, r) {}),
+      const DiomanRepath(),
+      const DiomanFilter(),
+      DiomanTimeout(probe: () => NetworkQuality.none),
+      const DiomanEnvs([])
+    ];
+    final names = ['loading', 'notify', 'repath', 'filter', 'timeout', 'envs'];
+    for (var i = 0; i < plugins.length; i++) {
+      expect(plugins[i].name, 'dioman:${names[i]}');
+      expect(plugins[i].enabled, isTrue);
+    }
+    expect(plugins.take(2).every((p) => p.stage == DiomanStage.outer), isTrue);
+    expect(plugins.skip(2).take(3).every((p) => p.stage == DiomanStage.prepare),
+        isTrue);
+    final api = testClient(plugins: plugins.reversed.toList());
+    expect(api.inspect().map((e) => e.$2), plugins.take(5).map((p) => p.name));
+    final off = testClient(plugins: [
+      DiomanLoading(onChanged: (_) => fail('off'), enabled: false),
+      DiomanNotify(notify: (_, r) => fail('off'), enabled: false),
+      const DiomanRepath(enabled: false),
+      const DiomanFilter(enabled: false),
+      DiomanTimeout(probe: () => throw StateError('off'), enabled: false),
+      DiomanEnvs(
+          [EnvRule(rule: () => throw StateError('off'), config: BaseOptions())],
+          enabled: false)
+    ]);
+    expect(off.inspect(), isEmpty);
+    expect(off.plugin<DiomanLoadingApi>(), isNull);
+    await off.send<Object?>('GET', preparePath, query: {'id': null});
+  });
+}
+
+exec
+"C:\\Users\\jelon\\AppData\\Local\\Microsoft\\WindowsApps\\Microsoft.PowerShell_8wekyb3d8bbwe\\pwsh.exe" -Command '$i=0; Get-Content lib/src/pipeline/client.dart | ForEach-Object { $i++; if($i -ge 165 -and $i -le 182){ '"'{0}: {1}' -f "'$i,$_ }}; $i=0; Get-Content lib/src/pipeline/config.dart | ForEach-Object { $i++; '"'{0}: {1}' -f "'$i,$_ }; git status --short' in E:\workspaces\dart-labs-pipeline\dioman
+ succeeded in 1667ms:
+165: 
+166:   /// 克隆 BaseOptions 并重新 setup 插件，状态不共享；[plugins] 替换继承列表。
+167:   Dioman<R> extend({BaseOptions? options, List<DiomanPlugin<R>>? plugins}) {
+168:     _checkAlive();
+169:     final child = Dioman<R>(
+170:         dio: Dio(cloneDiomanOptions(dio.options)),
+171:         plugins: plugins ?? _registrations.map((r) => r.plugin).toList(),
+172:         response: response,
+173:         key: key,
+174:         reject: reject,
+175:         debug: _debug ? _logger : false,
+176:         clock: clock);
+177:     if (options != null) mergeDiomanOptions(child.dio.options, options);
+178:     return child;
+179:   }
+180: 
+181:   /// 先取消请求，再逆序释放全部实例；清理完毕后原栈抛出首个异常。
+182:   void dispose() {
+1: import 'package:dio/dio.dart';
+2: 
+3: /// 用于区分非空字段的默认值，BaseOptions 不保留参数是否显式传入的信息。
+4: final _defaults = BaseOptions();
+5: 
+6: /// 递归复制配置容器；不透明对象保留身份。
+7: dynamic cloneDiomanConfig(dynamic value) {
+8:   if (value is Map) {
+9:     return value.map((k, v) => MapEntry(k, cloneDiomanConfig(v)));
+10:   }
+11:   if (value is List) return value.map(cloneDiomanConfig).toList();
+12:   return value;
+13: }
+14: 
+15: /// 克隆配置及其三个可变容器，返回与源隔离的配置。
+16: BaseOptions cloneDiomanOptions(BaseOptions source) => source.copyWith(
+17:     headers: Map<String, dynamic>.from(cloneDiomanConfig(source.headers)),
+18:     queryParameters:
+19:         Map<String, dynamic>.from(cloneDiomanConfig(source.queryParameters)),
+20:     extra: Map<String, dynamic>.from(cloneDiomanConfig(source.extra)));
+21: 
+22: /// 写入非空、非默认的配置；容器按顶层键合并并深拷贝。
+23: /// BaseOptions 无法区分显式默认值与省略，因此空地址和 json 保留宿主值。
+24: void mergeDiomanOptions(BaseOptions target, BaseOptions source) {
+25:   final c = cloneDiomanOptions(source);
+26:   final host = cloneDiomanOptions(target);
+27:   if (c.baseUrl.isNotEmpty) target.baseUrl = c.baseUrl;
+28:   if (c.connectTimeout != null) target.connectTimeout = c.connectTimeout;
+29:   if (c.receiveTimeout != null) target.receiveTimeout = c.receiveTimeout;
+30:   if (c.sendTimeout != null) target.sendTimeout = c.sendTimeout;
+31:   target.headers = {...host.headers, ...c.headers};
+32:   target.queryParameters = {...host.queryParameters, ...c.queryParameters};
+33:   target.extra = {...host.extra, ...c.extra};
+34:   if (c.responseType != ResponseType.json) target.responseType = c.responseType;
+35:   if (c.method != _defaults.method) target.method = c.method;
+36:   if (c.preserveHeaderCase != _defaults.preserveHeaderCase) {
+37:     target.preserveHeaderCase = c.preserveHeaderCase;
+38:   }
+39:   if (c.validateStatus != _defaults.validateStatus) {
+40:     target.validateStatus = c.validateStatus;
+41:   }
+42:   if (c.receiveDataWhenStatusError != _defaults.receiveDataWhenStatusError) {
+43:     target.receiveDataWhenStatusError = c.receiveDataWhenStatusError;
+44:   }
+45:   if (c.followRedirects != _defaults.followRedirects) {
+46:     target.followRedirects = c.followRedirects;
+47:   }
+48:   if (c.maxRedirects != _defaults.maxRedirects)
+49:     target.maxRedirects = c.maxRedirects;
+50:   if (c.persistentConnection != _defaults.persistentConnection) {
+51:     target.persistentConnection = c.persistentConnection;
+52:   }
+53:   if (c.requestEncoder != null) target.requestEncoder = c.requestEncoder;
+54:   if (c.responseDecoder != null) target.responseDecoder = c.responseDecoder;
+55:   if (c.listFormat != _defaults.listFormat) target.listFormat = c.listFormat;
+56: }
+ M lib/pipeline.dart
+ M lib/src/pipeline/client.dart
+ M lib/src/pipeline/pipeline.dart
+ M lib/src/pipeline/stages.dart
+ M test/support/pipeline/invariant_harness.dart
+ M tool/pipeline_b1_coverage.py
+?? docs/reports/pipeline-b2-evidence/
+?? lib/src/pipeline/config.dart
+?? lib/src/pipeline/plugins/
+?? migration-b2-read.tmp
+?? test/boundary/envs_boundary_test.dart
+?? test/boundary/internal_settlement_boundary_test.dart
+?? test/boundary/stateless_outer_boundary_test.dart
+?? test/boundary/stateless_prepare_boundary_test.dart
+?? test/combo/
+?? test/integration/
+?? test/rule/envs_rule_test.dart
+?? test/rule/stateless_outer_rule_test.dart
+?? test/rule/stateless_prepare_rule_test.dart
+
+exec
+"C:\\Users\\jelon\\AppData\\Local\\Microsoft\\WindowsApps\\Microsoft.PowerShell_8wekyb3d8bbwe\\pwsh.exe" -Command "Get-Content lib/src/pipeline/plugins/repath.dart; Get-Content lib/src/pipeline/plugins/loading.dart | Select-Object -Last 80; Get-ChildItem lib -Filter '*env*' -Recurse | Select-Object FullName; Get-Content C:/Users/jelon/AppData/Local/Pub/Cache/hosted/pub.dev/dio-5.11.1/lib/src/options.dart | Select-String 'BaseOptions\\(' -Context 0,65" in E:\workspaces\dart-labs-pipeline\dioman
+ succeeded in 1799ms:
+import '../client.dart';
+import '../context.dart';
+import '../options.dart';
+import '../plugin.dart';
+import '../request.dart';
+import '../response.dart';
+import '../stages.dart';
+
+/// 路径替换的请求级覆盖；null 字段继承插件配置。
+class DiomanRepathOptions {
+  /// [pattern] 的第一个非空捕获组是键名；[removeKey] 控制消费字段删除。
+  const DiomanRepathOptions({this.enabled, this.pattern, this.removeKey});
+
+  /// false 跳过本次处理。
+  final bool? enabled;
+
+  /// 占位符正则。
+  final RegExp? pattern;
+
+  /// 是否移除被消费的字段。
+  final bool? removeKey;
+}
+
+/// 只替换 URL 路径中的变量，query 优先于 Map 请求体。
+class DiomanRepath<R extends DiomanResponse<dynamic>> extends DiomanPlugin<R> {
+  /// 创建插件，例如 `DiomanRepath(removeKey: false)`；值按路径段编码。
+  const DiomanRepath(
+      {this.pattern, this.removeKey = true, this.enabled = true});
+
+  /// 自定义捕获正则，省略时匹配三种内置语法。
+  final RegExp? pattern;
+
+  /// 替换后删除来源键。
+  final bool removeKey;
+
+  /// 安装期开关。
+  @override
+  final bool enabled;
+
+  /// 稳定名称。
+  static const pluginName = 'dioman:repath';
+
+  /// 请求选项键，接受 bool 或 DiomanRepathOptions。
+  static final option = DiomanOptionKey<DiomanRepathOptions>(pluginName);
+
+  /// 默认占位符模式。
+  static final defaultPattern = RegExp(r'\{([^}]+)\}|\[([^\]]+)]|:([^/?#\s]+)');
+
+  /// 返回稳定名称。
+  @override
+  String get name => pluginName;
+
+  /// 请求整形阶段。
+  @override
+  DiomanStage get stage => DiomanStage.prepare;
+
+  /// 预合并默认配置。
+  @override
+  DiomanPluginInstance<R> setup(Dioman<R> client) =>
+      _Repath<R>(DiomanRepathOptions(
+          pattern: pattern ?? defaultPattern, removeKey: removeKey));
+}
+
+/// 每客户端的已解析配置。
+class _Repath<R extends DiomanResponse<dynamic>>
+    extends DiomanPluginInstance<R> {
+  /// 保存基础配置。
+  _Repath(this.base);
+
+  /// 预合并配置。
+  final DiomanRepathOptions base;
+
+  /// 生成路径与来源字段的补丁，不修改原请求。
+  @override
+  Future<DiomanResponse<dynamic>> handle(
+      DiomanContext<R> ctx, DiomanNext<R> next) {
+    final o = resolveOption<DiomanRepathOptions>(
+        ctx.request.call.options[DiomanRepath.option],
+        base: base,
+        merge: (a, b) => DiomanRepathOptions(
+            enabled: b.enabled,
+            pattern: b.pattern ?? a.pattern,
+            removeKey: b.removeKey ?? a.removeKey));
+    if (o == null || o.enabled == false) return next();
+    final original = ctx.request.path;
+    final origin =
+        RegExp(r'^[a-zA-Z][a-zA-Z0-9+.-]*://[^/]*').firstMatch(original)?.end ??
+            0;
+    final rest = original.substring(origin);
+    final suffixAt = rest.indexOf(RegExp(r'[?#]'));
+    final path = suffixAt < 0 ? rest : rest.substring(0, suffixAt);
+    final suffix = rest.substring(path.length);
+    final query = ctx.request.query;
+    final data = ctx.request.data;
+    final usedQuery = <String>{};
+    final usedData = <String>{};
+    final replaced = path.replaceAllMapped(o.pattern!, (m) {
+      String? key;
+      for (var i = 1; i <= m.groupCount; i++) {
+        final group = m.group(i);
+        if (group != null && group.isNotEmpty) {
+          key = group;
+          break;
+        }
+      }
+      if (key == null) return m[0]!;
+      if (query.containsKey(key)) {
+        usedQuery.add(key);
+        return Uri.encodeComponent('${query[key]}');
+      }
+      if (data is Map && data.containsKey(key)) {
+        usedData.add(key);
+        return Uri.encodeComponent('${data[key]}');
+      }
+      return m[0]!;
+    });
+    if (replaced == path) return next();
+    final newPath = original.substring(0, origin) + replaced + suffix;
+    if (!o.removeKey!) return next(RequestPatch(path: newPath));
+    if (usedData.isEmpty) {
+      return next(RequestPatch(path: newPath, removeQuery: usedQuery));
+    }
+    final body = Map.of(data as Map)
+      ..removeWhere((k, _) => usedData.contains(k));
+    return next(
+        RequestPatch(path: newPath, removeQuery: usedQuery, data: body));
+  }
+}
+  @override
+  int get activeCount =>
+      states.values.fold(0, (sum, state) => sum + state.count);
+
+  /// 取消上一个边沿窗口。
+  void clear(_Display state) {
+    state.timer?.cancel();
+    state.timer = null;
+  }
+
+  /// 先更新状态，再通知；回调异常不能破坏配对。
+  void schedule(void Function(bool) fn, _Display state, bool visible,
+      Duration delay, DiomanLogger log) {
+    /// 发出当前显示边沿。
+    void fire() {
+      state.timer = null;
+      state.shown = visible;
+      if (!visible) states.remove(fn);
+      try {
+        fn(visible);
+      } catch (e, s) {
+        log('[${DiomanLoading.pluginName}] 通知回调失败: $e\n$s');
+      }
+    }
+
+    if (delay > Duration.zero) {
+      state.timer = clock.createTimer(delay, fire);
+    } else {
+      fire();
+    }
+  }
+
+  /// 逻辑请求计数严格配对，在 finally 中释放。
+  @override
+  Future<DiomanResponse<dynamic>> handle(
+      DiomanContext<R> ctx, DiomanNext<R> next) async {
+    final o = resolveOption<DiomanLoadingOptions>(
+        ctx.request.call.options[DiomanLoading.option],
+        base: base,
+        merge: (a, b) => DiomanLoadingOptions(
+            enabled: b.enabled,
+            onChanged: b.onChanged ?? a.onChanged,
+            delay: b.delay ?? a.delay,
+            delayClose: b.delayClose ?? a.delayClose));
+    if (disposed || o == null || o.enabled == false) return next();
+    final fn = o.onChanged!;
+    final state = states.putIfAbsent(fn, () => _Display(ctx.log));
+    if (++state.count == 1) {
+      clear(state);
+      if (!state.shown) schedule(fn, state, true, o.delay!, ctx.log);
+    }
+    try {
+      final result = await next();
+      final cancelled = ctx.cancelled();
+      return result.kind == DiomanKind.internal ? result : cancelled ?? result;
+    } finally {
+      if (--state.count == 0 && !disposed) {
+        clear(state);
+        if (state.shown) {
+          schedule(fn, state, false, o.delayClose!, ctx.log);
+        } else {
+          states.remove(fn);
+        }
+      }
+    }
+  }
+
+  /// 取消窗口并立即关闭已显示回调，在途请求不再通知。
+  @override
+  void dispose() {
+    disposed = true;
+    for (final entry in states.entries.toList()) {
+      clear(entry.value);
+      if (entry.value.shown) {
+        schedule(entry.key, entry.value, false, Duration.zero, entry.value.log);
+      }
+    }
+    states.clear();
+  }
+}
+
+FullName
+--------
+E:\workspaces\dart-labs-pipeline\dioman\lib\src\envs_plugin.dart
+E:\workspaces\dart-labs-pipeline\dioman\lib\src\pipeline\plugins\envs.dart
+
+
+
+
+codex
+The repath plugin can modify query strings or fragments on valid absolute URLs without a path. All 90 existing tests passed, but they do not cover this case.
+
+Review comment:
+
+- [P2] Stop authority matching at query and fragment delimiters — E:\workspaces\dart-labs-pipeline\dioman\lib\src\pipeline\plugins\repath.dart:98-100
+  For an absolute URL without a path, such as `https://example.test?next=/{id}`, the authority regex consumes `?next=` and treats `/{id}` as the path. Supplying query parameter `id: 1` therefore rewrites the embedded query value and removes the parameter, despite the plugin's path-only contract. Exclude `?` and `#` from the authority match so query strings and fragments remain untouched.
+The repath plugin can modify query strings or fragments on valid absolute URLs without a path. All 90 existing tests passed, but they do not cover this case.
+
+Review comment:
+
+- [P2] Stop authority matching at query and fragment delimiters — E:\workspaces\dart-labs-pipeline\dioman\lib\src\pipeline\plugins\repath.dart:98-100
+  For an absolute URL without a path, such as `https://example.test?next=/{id}`, the authority regex consumes `?next=` and treats `/{id}` as the path. Supplying query parameter `id: 1` therefore rewrites the embedded query value and removes the parameter, despite the plugin's path-only contract. Exclude `?` and `#` from the authority match so query strings and fragments remain untouched.

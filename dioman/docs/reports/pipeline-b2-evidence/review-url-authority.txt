@@ -1,0 +1,21 @@
+00:00 +0: loading test/boundary/stateless_prepare_boundary_test.dart
+00:00 +0: [DiomanRepath.pattern] 无路径绝对 URL 的 query 与 fragment 不参与替换
+00:00 +0 -1: [DiomanRepath.pattern] 无路径绝对 URL 的 query 与 fragment 不参与替换 [E]
+  Expected: 'https://example.test?next=/{id}'
+    Actual: 'https://example.test?next=/1'
+     Which: is different.
+            Expected: ... est?next=/{id}
+              Actual: ... est?next=/1
+                                    ^
+             Differ at offset 27
+  
+  package:matcher                                          expect
+  test\boundary\stateless_prepare_boundary_test.dart 61:7  main.<fn>
+  
+00:00 +0 -1: Some tests failed.
+
+Failing tests:
+  test/boundary/stateless_prepare_boundary_test.dart: [DiomanRepath.pattern] 无路径绝对 URL 的 query 与 fragment 不参与替换
+
+Consider enabling the flag chain-stack-traces to receive more detailed exceptions.
+For example, 'dart test --chain-stack-traces'.

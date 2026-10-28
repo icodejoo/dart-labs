@@ -1,5 +1,6 @@
 import 'package:dio/dio.dart';
 import 'clock.dart';
+import 'config.dart';
 import 'context.dart';
 import 'key.dart';
 import 'options.dart';
@@ -102,6 +103,18 @@ class Dioman<R extends DiomanResponse<dynamic>> {
     } catch (_) {/* 日志通知不影响请求。 */}
   }
 
+  /// 记录插件通知故障；[message] 交给用户日志器或默认输出，日志器异常会隔离。
+  /// 例如插件捕获回调错误后调用 `client.logError('通知失败')`，不受 debug 开关抑制。
+  void logError(String message) {
+    if (_debug) {
+      _log(message);
+    } else {
+      try {
+        print(message);
+      } catch (_) {/* 输出通知不影响请求。 */}
+    }
+  }
+
   /// 拒绝销毁后的操作。
   void _checkAlive() {
     if (_disposed) throw StateError('客户端已销毁');
@@ -163,20 +176,21 @@ class Dioman<R extends DiomanResponse<dynamic>> {
   }
 
   /// 克隆 BaseOptions 并重新 setup 插件，状态不共享；[plugins] 替换继承列表。
+  /// [options] 在 setup 后合并非空、非默认字段，显式覆盖优先；容器按键合并。
+  /// BaseOptions 不记录省略信息，不能用默认值重置已有非默认值。
+  /// 例如 `api.extend(options: BaseOptions(baseUrl: 'https://child.example'))`。
   Dioman<R> extend({BaseOptions? options, List<DiomanPlugin<R>>? plugins}) {
     _checkAlive();
-    final base = (options ?? dio.options).copyWith();
-    base.headers = _cloneMap(base.headers);
-    base.queryParameters = _cloneMap(base.queryParameters);
-    base.extra = _cloneMap(base.extra);
-    return Dioman<R>(
-        dio: Dio(base),
+    final child = Dioman<R>(
+        dio: Dio(cloneDiomanOptions(dio.options)),
         plugins: plugins ?? _registrations.map((r) => r.plugin).toList(),
         response: response,
         key: key,
         reject: reject,
         debug: _debug ? _logger : false,
         clock: clock);
+    if (options != null) mergeDiomanOptions(child.dio.options, options);
+    return child;
   }
 
   /// 先取消请求，再逆序释放全部实例；清理完毕后原栈抛出首个异常。
@@ -284,7 +298,9 @@ class Dioman<R extends DiomanResponse<dynamic>> {
         result = response.withCallSite(result, site);
       }
       if (result.kind == DiomanKind.internal) {
-        Error.throwWithStackTrace(result.error!, result.errorStack!);
+        Error.throwWithStackTrace(
+            result.error ?? StateError('internal result without error'),
+            result.errorStack ?? StackTrace.current);
       }
       return result;
     } finally {
@@ -293,15 +309,4 @@ class Dioman<R extends DiomanResponse<dynamic>> {
       _pending.remove(state);
     }
   }
-}
-
-/// 深拷贝 BaseOptions 的 JSON 容器，避免 extend 修改父客户端。
-Map<String, dynamic> _cloneMap(Map<String, dynamic> value) =>
-    value.map((k, v) => MapEntry(k, _cloneValue(v)));
-
-/// 递归复制配置值，非集合保持身份。
-Object? _cloneValue(Object? value) {
-  if (value is Map) return value.map((k, v) => MapEntry(k, _cloneValue(v)));
-  if (value is List) return value.map(_cloneValue).toList();
-  return value;
 }

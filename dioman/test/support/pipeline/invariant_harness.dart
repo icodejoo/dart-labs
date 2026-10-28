@@ -5,7 +5,7 @@ import 'fake_clock.dart';
 import 'fake_network.dart';
 import 'helpers.dart';
 
-/// B1 启用 I1/I3/I6/I7；其余接口供后续插件批次接入。
+/// 启用 I1/I2/I3/I4/I6/I7；I5 留待认证批次接入。
 class InvariantHarness {
   /// 绑定网络和时钟。
   InvariantHarness(this.network, this.clock);
@@ -36,6 +36,29 @@ class InvariantHarness {
 
   /// 各层保存的上下文，用于请求结束后追踪取消订阅。
   final contexts = <DiomanContext<Result>>[];
+
+  /// 创建按回调身份记录 I2 的真实 loading 插件。
+  DiomanLoading<Result> loadingPlugin(
+      {Duration delay = Duration.zero, Duration delayClose = Duration.zero}) {
+    final identity = Object();
+    return DiomanLoading<Result>(
+        onChanged: (visible) {
+          loading.putIfAbsent(identity, () => []).add(visible);
+        },
+        delay: delay,
+        delayClose: delayClose);
+  }
+
+  /// stringify 以 ctx.id 标记，notify 按逻辑请求而非响应身份记录 I4。
+  DiomanNotify<Result> notifyPlugin() => DiomanNotify<Result>(
+      stringify: (r, ctx) =>
+          r.ok || r.kind == DiomanKind.cancel || ctx.request.silent
+              ? ''
+              : '${ctx.id}',
+      notify: (message, r) {
+        notifications.update(int.parse(message), (n) => n + 1,
+            ifAbsent: () => 1);
+      });
 
   /// 生成最外层及每阶段 pre/post 的直通探针。
   List<DiomanPlugin<Result>> probes() => [

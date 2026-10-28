@@ -1,0 +1,17 @@
+00:00 +0: loading test/rule/stateless_outer_rule_test.dart
+00:00 +0: [DiomanLoadingApi.activeCount] 同回调并发聚合，换回调独立计数，I2 成对
+00:00 +0 -1: [DiomanLoadingApi.activeCount] 同回调并发聚合，换回调独立计数，I2 成对 [E]
+  Expected: [true]
+    Actual: []
+     Which: at location [0] is [] which shorter than expected
+  
+  package:matcher                                expect
+  test\rule\stateless_outer_rule_test.dart 40:5  main.<fn>
+  
+00:00 +0 -1: Some tests failed.
+
+Failing tests:
+  test/rule/stateless_outer_rule_test.dart: [DiomanLoadingApi.activeCount] 同回调并发聚合，换回调独立计数，I2 成对
+
+Consider enabling the flag chain-stack-traces to receive more detailed exceptions.
+For example, 'dart test --chain-stack-traces'.
