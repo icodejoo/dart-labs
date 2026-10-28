@@ -376,8 +376,10 @@ Set<String> computeGaps({
     for (final file in unit.where((f) => !testFiles.contains(f))) {
       gaps.add('G5:row-unit:${row.id}:$file');
     }
+    // 单测可以用 API id 引用，也可以直接在标题里写行 id（如 `[INV-20]`）。
     if (row.tier != 3 &&
         !row.apis.any(titles.containsKey) &&
+        (titles[row.id]?.isEmpty ?? true) &&
         !unit.any(testFiles.contains)) {
       gaps.add('G3:${row.id}');
     }

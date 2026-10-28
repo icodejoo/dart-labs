@@ -494,10 +494,14 @@ class ScenarioClient {
       tkKey,
       tkMock,
       tkNormalize,
-      tkBreaker
+      tkBreaker,
+      tkFilter
     };
     for (final k in o.keys) {
       if (!allowed.contains(k)) throw StateError('请求选项 $k 未映射');
+    }
+    if (o.containsKey(tkFilter) && o[tkFilter] is! bool) {
+      throw StateError('请求选项 filter 必须是布尔值: ${o[tkFilter]}');
     }
     final key = o[tkKey];
     final c = obj(o[tkCache]);
@@ -542,6 +546,10 @@ class ScenarioClient {
           DiomanNormalizeOptions(enabled: o[tkNormalize] as bool?),
       DiomanBreaker.pluginName:
           DiomanBreakerOptions(enabled: o[tkBreaker] as bool?),
+      // testkit D19：只有请求级 filter: true 才过滤；DiomanFilter 装上默认开启，
+      // 所以缺省与 false 都要显式关掉，client.plugins.filter 只代表装配。
+      DiomanFilter.pluginName:
+          DiomanFilterOptions(enabled: o[tkFilter] == true),
     };
   }
 

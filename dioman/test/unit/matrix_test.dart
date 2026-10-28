@@ -2,7 +2,6 @@
 import 'package:test/test.dart';
 import '../accept/lib/matrix.dart';
 
-/// 本文件共用的字面量 'A'。
 /// 汇总测试用的报告字段与取值。
 const _resultsKey = 'results',
     _scenario = 'scenario',
@@ -16,6 +15,7 @@ const _resultsKey = 'results',
     _caseX = 'auth.x',
     _src = 'test/accept/evidence/x.json';
 
+/// 标题编号 A，用于组合标题的断言。
 const _a = 'A';
 
 /// 本文件共用的字面量 'B'。
@@ -249,6 +249,14 @@ void main() {
       'G5:row-unit:INV-bad:test/combo/missing_test.dart',
       'G5:$_xA'
     });
+  });
+  test('[matrix.computeGaps] 标题里直接写行 id 也算单测引用', () {
+    final gaps = computeGaps(inventory: [], rows: [
+      MatrixRow(id: 'INV-20', tier: 1)
+    ], titles: {
+      'INV-20': {'test/combo/x_test.dart'}
+    }, symbols: {});
+    expect(gaps, isEmpty);
   });
   test('[matrix.ratchet] 指定前缀的 added 与 fixed', () {
     final result = ratchet({_g0New, 'G5:ignored'}, {_g0Old, 'G1:ignored'},

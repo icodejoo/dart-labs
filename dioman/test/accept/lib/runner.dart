@@ -444,15 +444,9 @@ class ScenarioRun {
     };
     final missing =
         (scenario[tkRequires] as List).where((x) => !capabilities.contains(x));
-    final forbiddenInjection =
-        RegExp(r'"(?:status|fail_status|code|fail_code)"\s*:\s*(?:429|503)\b')
-            .hasMatch(jsonEncode(scenario[tkSteps]));
     final excluded = !(scenario[tkNetworks] as List).contains(network) ||
         !(scenario[tkStyles] as List? ?? [tkHttp, tkBusiness]).contains(style);
-    if (missing.isNotEmpty ||
-        expectation[tkSkip] != null ||
-        excluded ||
-        forbiddenInjection) {
+    if (missing.isNotEmpty || expectation[tkSkip] != null || excluded) {
       server.close(force: true);
       netem.close(force: true);
       return {
@@ -461,9 +455,9 @@ class ScenarioRun {
         tkReasons: [
           missing.isNotEmpty
               ? 'skipped: missing ${missing.first}'
-              : forbiddenInjection
-                  ? '本轮用户要求遇 429/503 即停，跳过主动注入这两类响应的场景'
-                  : expectation[tkSkip] ?? '场景未声明此网络或风格；不推断未定义的正确预期'
+              // 主动注入的 429/503 不再跳过：ServiceGuardAdapter 按注入标记放行，
+              // 真实限流/熔断仍整轮停止（2026-10-28 决定）。
+              : expectation[tkSkip] ?? '场景未声明此网络或风格；不推断未定义的正确预期'
         ]
       };
     }

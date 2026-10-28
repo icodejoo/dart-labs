@@ -100,7 +100,7 @@
     "assumptions": [],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-10-27-summary.json",
+      "source": "test/accept/evidence/2026-10-28-summary.json",
       "passed": 10,
       "total": 10
     },
@@ -151,7 +151,7 @@
     "assumptions": [],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-10-27-summary.json",
+      "source": "test/accept/evidence/2026-10-28-summary.json",
       "passed": 14,
       "total": 14
     },
@@ -187,7 +187,7 @@
     "assumptions": [],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-10-27-summary.json",
+      "source": "test/accept/evidence/2026-10-28-summary.json",
       "passed": 14,
       "total": 14
     },
@@ -205,12 +205,13 @@
     "real": [
       "auth.refresh-expired-session",
       "auth.refresh-expired-concurrent",
-      "auth.refresh-fail-times"
+      "auth.refresh-fail-times",
+      "auth.refresh-window-blocked-expired"
     ],
     "assumptions": [],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-10-27-summary.json",
+      "source": "test/accept/evidence/2026-10-28-summary.json",
       "passed": 6,
       "total": 6
     },
@@ -233,7 +234,7 @@
     "assumptions": [],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-10-27-summary.json",
+      "source": "test/accept/evidence/2026-10-28-summary.json",
       "passed": 16,
       "total": 16
     },
@@ -257,7 +258,7 @@
     "assumptions": [],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-10-27-summary.json",
+      "source": "test/accept/evidence/2026-10-28-summary.json",
       "passed": 18,
       "total": 18
     },
@@ -383,7 +384,7 @@
     "assumptions": [],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-10-27-summary.json",
+      "source": "test/accept/evidence/2026-10-28-summary.json",
       "passed": 222,
       "total": 222
     },
@@ -406,7 +407,7 @@
     ],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-10-27-summary.json",
+      "source": "test/accept/evidence/2026-10-28-summary.json",
       "passed": 10,
       "total": 10
     },
@@ -507,12 +508,13 @@
       "auth.revoke-all-previous-tokens",
       "auth.style-switch-refresh",
       "auth.style-switch-concurrent",
-      "auth.style-switch-expired"
+      "auth.style-switch-expired",
+      "auth.refresh-window-blocked-expired"
     ],
     "assumptions": [],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-10-27-summary.json",
+      "source": "test/accept/evidence/2026-10-28-summary.json",
       "passed": 246,
       "total": 246
     },
@@ -536,7 +538,7 @@
     ],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-10-27-summary.json",
+      "source": "test/accept/evidence/2026-10-28-summary.json",
       "passed": 4,
       "total": 4
     },
@@ -599,7 +601,7 @@
     "assumptions": [],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-10-27-summary.json",
+      "source": "test/accept/evidence/2026-10-28-summary.json",
       "passed": 10,
       "total": 10
     },
@@ -621,7 +623,7 @@
     "assumptions": [],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-10-27-summary.json",
+      "source": "test/accept/evidence/2026-10-28-summary.json",
       "passed": 4,
       "total": 4
     },
@@ -657,7 +659,7 @@
     "assumptions": [],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-10-27-summary.json",
+      "source": "test/accept/evidence/2026-10-28-summary.json",
       "passed": 20,
       "total": 20
     },
@@ -678,7 +680,7 @@
     "assumptions": [],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-10-27-summary.json",
+      "source": "test/accept/evidence/2026-10-28-summary.json",
       "passed": 4,
       "total": 4
     },
@@ -715,7 +717,7 @@
     "assumptions": [],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-10-27-summary.json",
+      "source": "test/accept/evidence/2026-10-28-summary.json",
       "passed": 2,
       "total": 2
     },
@@ -885,7 +887,7 @@
     "assumptions": [],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-10-27-summary.json",
+      "source": "test/accept/evidence/2026-10-28-summary.json",
       "passed": 2,
       "total": 2
     },
@@ -920,7 +922,7 @@
     "assumptions": [],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-10-27-summary.json",
+      "source": "test/accept/evidence/2026-10-28-summary.json",
       "passed": 10,
       "total": 10
     },
@@ -943,7 +945,7 @@
     "assumptions": [],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-10-27-summary.json",
+      "source": "test/accept/evidence/2026-10-28-summary.json",
       "passed": 24,
       "total": 24
     },
@@ -1052,7 +1054,7 @@
     "assumptions": [],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-10-27-summary.json",
+      "source": "test/accept/evidence/2026-10-28-summary.json",
       "passed": 10,
       "total": 10
     },
@@ -1103,7 +1105,7 @@
     "assumptions": [],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-10-27-summary.json",
+      "source": "test/accept/evidence/2026-10-28-summary.json",
       "passed": 2,
       "total": 2
     },
@@ -1125,7 +1127,7 @@
     "assumptions": [],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-10-27-summary.json",
+      "source": "test/accept/evidence/2026-10-28-summary.json",
       "passed": 2,
       "total": 2
     },
@@ -1191,7 +1193,7 @@
     "assumptions": [],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-10-27-summary.json",
+      "source": "test/accept/evidence/2026-10-28-summary.json",
       "passed": 10,
       "total": 10
     },
@@ -1254,7 +1256,7 @@
     "assumptions": [],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-10-27-summary.json",
+      "source": "test/accept/evidence/2026-10-28-summary.json",
       "passed": 30,
       "total": 30
     },
@@ -1276,7 +1278,7 @@
     "assumptions": [],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-10-27-summary.json",
+      "source": "test/accept/evidence/2026-10-28-summary.json",
       "passed": 4,
       "total": 4
     },
@@ -1385,7 +1387,7 @@
     "assumptions": [],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-10-27-summary.json",
+      "source": "test/accept/evidence/2026-10-28-summary.json",
       "passed": 10,
       "total": 10
     },
@@ -1409,7 +1411,7 @@
     "assumptions": [],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-10-27-summary.json",
+      "source": "test/accept/evidence/2026-10-28-summary.json",
       "passed": 8,
       "total": 8
     },
@@ -1489,7 +1491,7 @@
     "assumptions": [],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-10-27-summary.json",
+      "source": "test/accept/evidence/2026-10-28-summary.json",
       "passed": 2,
       "total": 2
     },
@@ -1628,7 +1630,7 @@
     "assumptions": [],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-10-27-summary.json",
+      "source": "test/accept/evidence/2026-10-28-summary.json",
       "passed": 10,
       "total": 10
     },
@@ -1644,12 +1646,13 @@
       "DiomanCache.clear"
     ],
     "real": [
-      "cache.clear"
+      "cache.clear",
+      "cache.single-clear-cache"
     ],
     "assumptions": [],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-10-27-summary.json",
+      "source": "test/accept/evidence/2026-10-28-summary.json",
       "passed": 2,
       "total": 2
     },
@@ -1718,7 +1721,7 @@
     "assumptions": [],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-10-27-summary.json",
+      "source": "test/accept/evidence/2026-10-28-summary.json",
       "passed": 10,
       "total": 10
     },
@@ -1743,7 +1746,7 @@
     "assumptions": [],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-10-27-summary.json",
+      "source": "test/accept/evidence/2026-10-28-summary.json",
       "passed": 8,
       "total": 8
     },
@@ -1794,7 +1797,7 @@
     "assumptions": [],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-10-27-summary.json",
+      "source": "test/accept/evidence/2026-10-28-summary.json",
       "passed": 6,
       "total": 6
     },
@@ -1835,7 +1838,7 @@
     "assumptions": [],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-10-27-summary.json",
+      "source": "test/accept/evidence/2026-10-28-summary.json",
       "passed": 56,
       "total": 56
     },
@@ -1861,7 +1864,7 @@
     "assumptions": [],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-10-27-summary.json",
+      "source": "test/accept/evidence/2026-10-28-summary.json",
       "passed": 16,
       "total": 16
     },
@@ -1884,7 +1887,7 @@
     ],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-10-27-summary.json",
+      "source": "test/accept/evidence/2026-10-28-summary.json",
       "passed": 2,
       "total": 2
     },
@@ -1992,7 +1995,7 @@
     "assumptions": [],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-10-27-summary.json",
+      "source": "test/accept/evidence/2026-10-28-summary.json",
       "passed": 2,
       "total": 2
     },
@@ -2009,12 +2012,13 @@
       "DiomanCacheOptions.new(expires)"
     ],
     "real": [
-      "cache.per-request-ttl"
+      "cache.per-request-ttl",
+      "cache.single-explicit-key-expires"
     ],
     "assumptions": [],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-10-27-summary.json",
+      "source": "test/accept/evidence/2026-10-28-summary.json",
       "passed": 2,
       "total": 2
     },
@@ -2165,7 +2169,7 @@
     "assumptions": [],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-10-27-summary.json",
+      "source": "test/accept/evidence/2026-10-28-summary.json",
       "passed": 10,
       "total": 10
     },
@@ -2255,12 +2259,13 @@
       "cancel.double-cancel",
       "cancel.all-with-nothing-inflight",
       "cancel.all-then-new-works",
-      "cancel.parallel-32"
+      "cancel.parallel-32",
+      "combo.cancel-logger-cleanup"
     ],
     "assumptions": [],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-10-27-summary.json",
+      "source": "test/accept/evidence/2026-10-28-summary.json",
       "passed": 10,
       "total": 10
     },
@@ -2286,7 +2291,7 @@
     ],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-10-27-summary.json",
+      "source": "test/accept/evidence/2026-10-28-summary.json",
       "passed": 8,
       "total": 8
     },
@@ -2311,7 +2316,7 @@
     ],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-10-27-summary.json",
+      "source": "test/accept/evidence/2026-10-28-summary.json",
       "passed": 6,
       "total": 6
     },
@@ -2411,7 +2416,7 @@
     "assumptions": [],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-10-27-summary.json",
+      "source": "test/accept/evidence/2026-10-28-summary.json",
       "passed": 24,
       "total": 24
     },
@@ -2437,7 +2442,7 @@
     ],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-10-27-summary.json",
+      "source": "test/accept/evidence/2026-10-28-summary.json",
       "passed": 14,
       "total": 14
     },
@@ -2469,7 +2474,7 @@
     "assumptions": [],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-10-27-summary.json",
+      "source": "test/accept/evidence/2026-10-28-summary.json",
       "passed": 34,
       "total": 34
     },
@@ -2490,7 +2495,7 @@
     "assumptions": [],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-10-27-summary.json",
+      "source": "test/accept/evidence/2026-10-28-summary.json",
       "passed": 4,
       "total": 4
     },
@@ -2584,7 +2589,7 @@
     "assumptions": [],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-10-27-summary.json",
+      "source": "test/accept/evidence/2026-10-28-summary.json",
       "passed": 6,
       "total": 6
     },
@@ -2675,7 +2680,15 @@
       "plugins.pair-28",
       "plugins.pair-29",
       "plugins.pair-30",
-      "plugins.pair-31"
+      "plugins.pair-31",
+      "combo.auth-envs-refresh-replay",
+      "combo.auth-logger-refresh-deny-revoked",
+      "combo.cache-envs-hit-and-ttl",
+      "combo.cancel-logger-cleanup",
+      "combo.envs-mock-routing",
+      "combo.envs-retry-recovers-and-exhausts",
+      "combo.filter-retry-recovers-and-exhausts",
+      "combo.logger-retry-recovers-and-exhausts"
     ],
     "assumptions": [
       "H1",
@@ -2686,9 +2699,9 @@
     ],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-10-27-summary.json",
-      "passed": 64,
-      "total": 64
+      "source": "test/accept/evidence/2026-10-28-summary.json",
+      "passed": 70,
+      "total": 70
     },
     "blocked": null,
     "note": "计划有 32 个 pair id，双响应风格共 64 格；目录 plugins 字段是开关全集，不表示每一格启用全部插件。仅代表真实传输核对，非全部选项断言。",
@@ -2709,7 +2722,7 @@
     "assumptions": [],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-10-27-summary.json",
+      "source": "test/accept/evidence/2026-10-28-summary.json",
       "passed": 6,
       "total": 6
     },
@@ -2747,7 +2760,7 @@
     ],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-10-27-summary.json",
+      "source": "test/accept/evidence/2026-10-28-summary.json",
       "passed": 34,
       "total": 34
     },
@@ -2763,7 +2776,10 @@
     "capability": "缓存共享模拟短路仍交后续响应处理",
     "tier": 1,
     "apis": [],
-    "real": [],
+    "real": [
+      "combo.cache-mock-fallback-cached-once",
+      "combo.cache-mock-no-key-collision"
+    ],
     "assumptions": [],
     "result": null,
     "blocked": null,
@@ -2822,7 +2838,7 @@
     ],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-10-27-summary.json",
+      "source": "test/accept/evidence/2026-10-28-summary.json",
       "passed": 6,
       "total": 6
     },
@@ -2845,7 +2861,7 @@
     "assumptions": [],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-10-27-summary.json",
+      "source": "test/accept/evidence/2026-10-28-summary.json",
       "passed": 4,
       "total": 4
     },
@@ -2863,9 +2879,16 @@
     "capability": "重放请求绕过原请求链并使用原传输配置",
     "tier": 1,
     "apis": [],
-    "real": [],
+    "real": [
+      "combo.repath-retry-path-stable"
+    ],
     "assumptions": [],
-    "result": null,
+    "result": {
+      "status": "PASS",
+      "source": "test/accept/evidence/2026-10-28-summary.json",
+      "passed": 2,
+      "total": 2
+    },
     "blocked": null,
     "note": "lib/src/replay_support.dart:fetch；auth/retry/share 借宿主 adapter/transformer，未绑定用兜底裸 Dio；FormData 克隆、Stream 拒绝重放；状态机是 tier 1，传输消费及连接复用另拆 H2/H4。",
     "unit": [
@@ -2921,7 +2944,7 @@
     ],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-10-27-summary.json",
+      "source": "test/accept/evidence/2026-10-28-summary.json",
       "passed": 60,
       "total": 60
     },
@@ -2946,7 +2969,7 @@
     "assumptions": [],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-10-27-summary.json",
+      "source": "test/accept/evidence/2026-10-28-summary.json",
       "passed": 6,
       "total": 6
     },
@@ -3470,9 +3493,16 @@
       "DiomanFilter.enabled",
       "DiomanFilter.new(enabled)"
     ],
-    "real": [],
+    "real": [
+      "filter.off-by-default-sends-as-is"
+    ],
     "assumptions": [],
-    "result": null,
+    "result": {
+      "status": "PASS",
+      "source": "test/accept/evidence/2026-10-28-summary.json",
+      "passed": 2,
+      "total": 2
+    },
     "blocked": null,
     "note": "源码：lib/src/filter_plugin.dart:87。"
   },
@@ -3500,9 +3530,17 @@
       "DiomanFilter.ignoreValues",
       "DiomanFilter.new(ignoreValues)"
     ],
-    "real": [],
+    "real": [
+      "filter.drops-blank-query-keeps-zero-false",
+      "filter.drops-empty-body-keeps-zero-false"
+    ],
     "assumptions": [],
-    "result": null,
+    "result": {
+      "status": "PASS",
+      "source": "test/accept/evidence/2026-10-28-summary.json",
+      "passed": 4,
+      "total": 4
+    },
     "blocked": null,
     "note": "源码：lib/src/filter_plugin.dart:82。"
   },
@@ -3530,14 +3568,17 @@
     ],
     "real": [
       "filter.keeps-zero-false",
-      "key.filter-before-key"
+      "key.filter-before-key",
+      "combo.filter-repath-path-var-first",
+      "filter.drops-blank-query-keeps-zero-false",
+      "filter.drops-empty-body-keeps-zero-false"
     ],
     "assumptions": [],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-10-27-summary.json",
-      "passed": 6,
-      "total": 6
+      "source": "test/accept/evidence/2026-10-28-summary.json",
+      "passed": 12,
+      "total": 12
     },
     "blocked": null,
     "note": "源码：lib/src/filter_plugin.dart:105。"
@@ -3571,7 +3612,7 @@
     "assumptions": [],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-10-27-summary.json",
+      "source": "test/accept/evidence/2026-10-28-summary.json",
       "passed": 4,
       "total": 4
     },
@@ -4158,7 +4199,7 @@
     "assumptions": [],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-10-27-summary.json",
+      "source": "test/accept/evidence/2026-10-28-summary.json",
       "passed": 93,
       "total": 107
     },
@@ -4198,7 +4239,7 @@
     ],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-10-27-summary.json",
+      "source": "test/accept/evidence/2026-10-28-summary.json",
       "passed": 53,
       "total": 67
     },
@@ -4238,7 +4279,7 @@
     ],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-10-27-summary.json",
+      "source": "test/accept/evidence/2026-10-28-summary.json",
       "passed": 56,
       "total": 56
     },
@@ -4267,7 +4308,7 @@
     ],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-10-27-summary.json",
+      "source": "test/accept/evidence/2026-10-28-summary.json",
       "passed": 12,
       "total": 12
     },
@@ -4367,7 +4408,7 @@
     "assumptions": [],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-10-27-summary.json",
+      "source": "test/accept/evidence/2026-10-28-summary.json",
       "passed": 6,
       "total": 6
     },
@@ -4418,7 +4459,7 @@
     "assumptions": [],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-10-27-summary.json",
+      "source": "test/accept/evidence/2026-10-28-summary.json",
       "passed": 86,
       "total": 86
     },
@@ -4484,7 +4525,7 @@
     "assumptions": [],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-10-27-summary.json",
+      "source": "test/accept/evidence/2026-10-28-summary.json",
       "passed": 4,
       "total": 4
     },
@@ -4507,7 +4548,7 @@
     "assumptions": [],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-10-27-summary.json",
+      "source": "test/accept/evidence/2026-10-28-summary.json",
       "passed": 4,
       "total": 4
     },
@@ -4545,7 +4586,7 @@
     "assumptions": [],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-10-27-summary.json",
+      "source": "test/accept/evidence/2026-10-28-summary.json",
       "passed": 4,
       "total": 4
     },
@@ -4582,7 +4623,7 @@
     "assumptions": [],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-10-27-summary.json",
+      "source": "test/accept/evidence/2026-10-28-summary.json",
       "passed": 14,
       "total": 14
     },
@@ -4608,7 +4649,7 @@
     ],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-10-27-summary.json",
+      "source": "test/accept/evidence/2026-10-28-summary.json",
       "passed": 16,
       "total": 16
     },
@@ -4633,7 +4674,7 @@
     ],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-10-27-summary.json",
+      "source": "test/accept/evidence/2026-10-28-summary.json",
       "passed": 6,
       "total": 6
     },
@@ -4696,7 +4737,7 @@
     "assumptions": [],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-10-27-summary.json",
+      "source": "test/accept/evidence/2026-10-28-summary.json",
       "passed": 22,
       "total": 22
     },
@@ -4724,7 +4765,7 @@
     "assumptions": [],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-10-27-summary.json",
+      "source": "test/accept/evidence/2026-10-28-summary.json",
       "passed": 22,
       "total": 22
     },
@@ -4749,7 +4790,7 @@
     "assumptions": [],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-10-27-summary.json",
+      "source": "test/accept/evidence/2026-10-28-summary.json",
       "passed": 26,
       "total": 26
     },
@@ -4767,12 +4808,13 @@
       "loading.single-pair",
       "loading.sequential-pairs",
       "loading.delay-slow-shows",
-      "plugins.single-loading"
+      "plugins.single-loading",
+      "combo.loading-mock-fallback-single-pair"
     ],
     "assumptions": [],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-10-27-summary.json",
+      "source": "test/accept/evidence/2026-10-28-summary.json",
       "passed": 18,
       "total": 18
     },
@@ -4795,7 +4837,7 @@
     "assumptions": [],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-10-27-summary.json",
+      "source": "test/accept/evidence/2026-10-28-summary.json",
       "passed": 16,
       "total": 16
     },
@@ -4860,7 +4902,7 @@
     "assumptions": [],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-10-27-summary.json",
+      "source": "test/accept/evidence/2026-10-28-summary.json",
       "passed": 6,
       "total": 6
     },
@@ -5005,7 +5047,7 @@
     "assumptions": [],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-10-27-summary.json",
+      "source": "test/accept/evidence/2026-10-28-summary.json",
       "passed": 2,
       "total": 2
     },
@@ -5025,7 +5067,7 @@
     "assumptions": [],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-10-27-summary.json",
+      "source": "test/accept/evidence/2026-10-28-summary.json",
       "passed": 2,
       "total": 2
     },
@@ -5045,7 +5087,7 @@
     "assumptions": [],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-10-27-summary.json",
+      "source": "test/accept/evidence/2026-10-28-summary.json",
       "passed": 2,
       "total": 2
     },
@@ -5080,7 +5122,7 @@
     "assumptions": [],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-10-27-summary.json",
+      "source": "test/accept/evidence/2026-10-28-summary.json",
       "passed": 4,
       "total": 4
     },
@@ -5240,7 +5282,7 @@
     "assumptions": [],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-10-27-summary.json",
+      "source": "test/accept/evidence/2026-10-28-summary.json",
       "passed": 14,
       "total": 14
     },
@@ -5256,12 +5298,16 @@
       "DiomanMock.new(fallbackWhen)"
     ],
     "real": [
-      "mock.fallback-to-real-on-404"
+      "mock.fallback-to-real-on-404",
+      "combo.cache-mock-fallback-cached-once",
+      "combo.loading-mock-fallback-single-pair",
+      "combo.mock-share-fallback-single-flight",
+      "mock.single-fallback-disabled"
     ],
     "assumptions": [],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-10-27-summary.json",
+      "source": "test/accept/evidence/2026-10-28-summary.json",
       "passed": 1,
       "total": 1
     },
@@ -5286,7 +5332,7 @@
     "assumptions": [],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-10-27-summary.json",
+      "source": "test/accept/evidence/2026-10-28-summary.json",
       "passed": 16,
       "total": 16
     },
@@ -5336,7 +5382,7 @@
     "assumptions": [],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-10-27-summary.json",
+      "source": "test/accept/evidence/2026-10-28-summary.json",
       "passed": 15,
       "total": 15
     },
@@ -5397,7 +5443,7 @@
     "assumptions": [],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-10-27-summary.json",
+      "source": "test/accept/evidence/2026-10-28-summary.json",
       "passed": 6,
       "total": 6
     },
@@ -5476,7 +5522,7 @@
     "assumptions": [],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-10-27-summary.json",
+      "source": "test/accept/evidence/2026-10-28-summary.json",
       "passed": 8,
       "total": 8
     },
@@ -5539,7 +5585,7 @@
     "assumptions": [],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-10-27-summary.json",
+      "source": "test/accept/evidence/2026-10-28-summary.json",
       "passed": 8,
       "total": 8
     },
@@ -5560,7 +5606,7 @@
     "assumptions": [],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-10-27-summary.json",
+      "source": "test/accept/evidence/2026-10-28-summary.json",
       "passed": 8,
       "total": 8
     },
@@ -5595,7 +5641,7 @@
     "assumptions": [],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-10-27-summary.json",
+      "source": "test/accept/evidence/2026-10-28-summary.json",
       "passed": 8,
       "total": 8
     },
@@ -5617,7 +5663,7 @@
     "assumptions": [],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-10-27-summary.json",
+      "source": "test/accept/evidence/2026-10-28-summary.json",
       "passed": 8,
       "total": 8
     },
@@ -5655,7 +5701,7 @@
     "assumptions": [],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-10-27-summary.json",
+      "source": "test/accept/evidence/2026-10-28-summary.json",
       "passed": 19,
       "total": 19
     },
@@ -5705,7 +5751,7 @@
     "assumptions": [],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-10-27-summary.json",
+      "source": "test/accept/evidence/2026-10-28-summary.json",
       "passed": 12,
       "total": 12
     },
@@ -5754,7 +5800,7 @@
     "assumptions": [],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-10-27-summary.json",
+      "source": "test/accept/evidence/2026-10-28-summary.json",
       "passed": 2,
       "total": 2
     },
@@ -5826,12 +5872,13 @@
     ],
     "real": [
       "notify.http-error-once",
-      "notify.business-error-once"
+      "notify.business-error-once",
+      "notify.single-silent-and-stringify"
     ],
     "assumptions": [],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-10-27-summary.json",
+      "source": "test/accept/evidence/2026-10-28-summary.json",
       "passed": 12,
       "total": 12
     },
@@ -5857,7 +5904,7 @@
     "assumptions": [],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-10-27-summary.json",
+      "source": "test/accept/evidence/2026-10-28-summary.json",
       "passed": 22,
       "total": 22
     },
@@ -5878,7 +5925,7 @@
     "assumptions": [],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-10-27-summary.json",
+      "source": "test/accept/evidence/2026-10-28-summary.json",
       "passed": 8,
       "total": 8
     },
@@ -5900,7 +5947,7 @@
     "assumptions": [],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-10-27-summary.json",
+      "source": "test/accept/evidence/2026-10-28-summary.json",
       "passed": 12,
       "total": 12
     },
@@ -5920,7 +5967,7 @@
     "assumptions": [],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-10-27-summary.json",
+      "source": "test/accept/evidence/2026-10-28-summary.json",
       "passed": 2,
       "total": 2
     },
@@ -5951,12 +5998,13 @@
     "real": [
       "notify.silent",
       "notify.success-no-notify",
-      "notify.cancel-not-notified"
+      "notify.cancel-not-notified",
+      "notify.single-silent-and-stringify"
     ],
     "assumptions": [],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-10-27-summary.json",
+      "source": "test/accept/evidence/2026-10-28-summary.json",
       "passed": 10,
       "total": 10
     },
@@ -6032,7 +6080,7 @@
     "assumptions": [],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-10-27-summary.json",
+      "source": "test/accept/evidence/2026-10-28-summary.json",
       "passed": 8,
       "total": 8
     },
@@ -6068,7 +6116,7 @@
     "assumptions": [],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-10-27-summary.json",
+      "source": "test/accept/evidence/2026-10-28-summary.json",
       "passed": 12,
       "total": 12
     },
@@ -6090,7 +6138,7 @@
     "assumptions": [],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-10-27-summary.json",
+      "source": "test/accept/evidence/2026-10-28-summary.json",
       "passed": 4,
       "total": 4
     },
@@ -6131,7 +6179,7 @@
     "assumptions": [],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-10-27-summary.json",
+      "source": "test/accept/evidence/2026-10-28-summary.json",
       "passed": 24,
       "total": 24
     },
@@ -6152,7 +6200,7 @@
     "assumptions": [],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-10-27-summary.json",
+      "source": "test/accept/evidence/2026-10-28-summary.json",
       "passed": 6,
       "total": 6
     },
@@ -6200,7 +6248,7 @@
     "assumptions": [],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-10-27-summary.json",
+      "source": "test/accept/evidence/2026-10-28-summary.json",
       "passed": 8,
       "total": 8
     },
@@ -6316,7 +6364,7 @@
     "assumptions": [],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-10-27-summary.json",
+      "source": "test/accept/evidence/2026-10-28-summary.json",
       "passed": 8,
       "total": 8
     },
@@ -6365,14 +6413,16 @@
       "repath.same-var-twice",
       "repath.key-after-repath",
       "repath.key-cache-no-mixup",
-      "plugins.single-repath"
+      "plugins.single-repath",
+      "combo.filter-repath-path-var-first",
+      "combo.repath-retry-path-stable"
     ],
     "assumptions": [],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-10-27-summary.json",
-      "passed": 20,
-      "total": 20
+      "source": "test/accept/evidence/2026-10-28-summary.json",
+      "passed": 24,
+      "total": 24
     },
     "blocked": null
   },
@@ -6392,7 +6442,7 @@
     "assumptions": [],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-10-27-summary.json",
+      "source": "test/accept/evidence/2026-10-28-summary.json",
       "passed": 6,
       "total": 6
     },
@@ -6427,7 +6477,7 @@
     "assumptions": [],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-10-27-summary.json",
+      "source": "test/accept/evidence/2026-10-28-summary.json",
       "passed": 6,
       "total": 6
     },
@@ -6504,7 +6554,7 @@
     "assumptions": [],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-10-27-summary.json",
+      "source": "test/accept/evidence/2026-10-28-summary.json",
       "passed": 2,
       "total": 2
     },
@@ -6540,7 +6590,7 @@
     "assumptions": [],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-10-27-summary.json",
+      "source": "test/accept/evidence/2026-10-28-summary.json",
       "passed": 10,
       "total": 10
     },
@@ -6575,7 +6625,7 @@
     "assumptions": [],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-10-27-summary.json",
+      "source": "test/accept/evidence/2026-10-28-summary.json",
       "passed": 10,
       "total": 10
     },
@@ -6644,7 +6694,7 @@
     "assumptions": [],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-10-27-summary.json",
+      "source": "test/accept/evidence/2026-10-28-summary.json",
       "passed": 22,
       "total": 22
     },
@@ -6664,14 +6714,15 @@
       "retry.post-opt-in-body-intact",
       "retry.put-delete-retried",
       "plugins.boundary-retry-methods-0",
-      "plugins.boundary-retry-methods-1"
+      "plugins.boundary-retry-methods-1",
+      "retry.single-plugin-methods"
     ],
     "assumptions": [],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-10-27-summary.json",
-      "passed": 16,
-      "total": 16
+      "source": "test/accept/evidence/2026-10-28-summary.json",
+      "passed": 17,
+      "total": 17
     },
     "blocked": null
   },
@@ -6730,7 +6781,7 @@
     ],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-10-27-summary.json",
+      "source": "test/accept/evidence/2026-10-28-summary.json",
       "passed": 79,
       "total": 79
     },
@@ -6754,7 +6805,7 @@
     "assumptions": [],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-10-27-summary.json",
+      "source": "test/accept/evidence/2026-10-28-summary.json",
       "passed": 12,
       "total": 12
     },
@@ -6778,7 +6829,7 @@
     ],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-10-27-summary.json",
+      "source": "test/accept/evidence/2026-10-28-summary.json",
       "passed": 4,
       "total": 4
     },
@@ -6821,9 +6872,17 @@
       "DiomanRetry.new(respectRetryAfter)",
       "DiomanRetry.respectRetryAfter"
     ],
-    "real": [],
+    "real": [
+      "retry.single-retry-after-honored",
+      "retry.single-retry-after-ignored"
+    ],
     "assumptions": [],
-    "result": null,
+    "result": {
+      "status": "PASS",
+      "source": "test/accept/evidence/2026-10-28-summary.json",
+      "passed": 2,
+      "total": 2
+    },
     "blocked": null,
     "note": "开关与解析的纯逻辑；真实服务头部见 DiomanRetry.respectRetryAfter#real-header。"
   },
@@ -6838,19 +6897,20 @@
     ],
     "real": [
       "retry.503-retry-after",
-      "retry.respects-retry-after-over-delay"
+      "retry.respects-retry-after-over-delay",
+      "retry.single-retry-after-honored"
     ],
     "assumptions": [
       "H6"
     ],
     "result": {
-      "status": "BLOCKED",
-      "source": "test/accept/evidence/2026-10-27-summary.json",
-      "passed": 0,
-      "total": 28
+      "status": "PASS",
+      "source": "test/accept/evidence/2026-10-28-summary.json",
+      "passed": 1,
+      "total": 29
     },
-    "blocked": "真实侧被执行器跳过：retry.503-retry-after、retry.respects-retry-after-over-delay 全部 14 格\"跳过\"（本轮约定遇 429/503 即停，主动注入 429/503 的场景一律跳过，见 ASSUMPTIONS H6）。解锁：为注入 503+Retry-After 的场景开白名单，用 X-Test-Inject 头与真实 503 区分，并补 HTTP 日期形式与时钟偏差用例。",
-    "note": "H6 当前无真实证据；HTTP 日期形式依赖本机与服务端时钟，需单独核对。"
+    "blocked": null,
+    "note": "413 注入路径已真实通过；429/503 + HTTP 日期格式仍被 testkit 场景 JSON 显式 skip（外部仓库）"
   },
   {
     "id": "DiomanRetry.retryAfterMax",
@@ -6897,7 +6957,7 @@
     "assumptions": [],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-10-27-summary.json",
+      "source": "test/accept/evidence/2026-10-28-summary.json",
       "passed": 10,
       "total": 10
     },
@@ -6907,7 +6967,7 @@
   {
     "id": "DiomanRetry.statusCodes",
     "plugin": "retry",
-    "capability": "未给出明确判定时可重试的状态码表，默认 408/429/5xx",
+    "capability": "未给出明确判定时可重试的状态码表，默认 408/429/500/502/503/504",
     "tier": 1,
     "apis": [
       "DiomanRetry.new(statusCodes)",
@@ -6919,11 +6979,11 @@
     "assumptions": [],
     "result": {
       "status": "BLOCKED",
-      "source": "test/accept/evidence/2026-10-27-summary.json",
+      "source": "test/accept/evidence/2026-10-28-summary.json",
       "passed": 0,
       "total": 14
     },
-    "blocked": "真实侧被执行器跳过：retry.429-retried 主动注入 429，执行器策略为遇 429/503 一律跳过。解锁同 H6：给注入场景开白名单（如 X-Test-Inject 头）",
+    "blocked": "retry.429-retried 被 testkit 场景 JSON 显式 skip（外部仓库 scenarios/retry.json）；执行器侧已放行注入的 429/503",
     "note": "真实执行器的 statuses 走的是自定义 shouldRetry，不经本表，所以不挂 real；429 场景（retry.429-retried）真实侧也被跳过。"
   },
   {
@@ -6967,14 +7027,15 @@
       "DiomanRetryOptions.new(delay)"
     ],
     "real": [
-      "retry.delay-respected"
+      "retry.delay-respected",
+      "retry.single-req-max-delay"
     ],
     "assumptions": [],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-10-27-summary.json",
-      "passed": 2,
-      "total": 2
+      "source": "test/accept/evidence/2026-10-28-summary.json",
+      "passed": 3,
+      "total": 3
     },
     "blocked": null
   },
@@ -7007,7 +7068,7 @@
     "assumptions": [],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-10-27-summary.json",
+      "source": "test/accept/evidence/2026-10-28-summary.json",
       "passed": 2,
       "total": 2
     },
@@ -7037,14 +7098,15 @@
       "DiomanRetryOptions.new(max)"
     ],
     "real": [
-      "retry.per-request-max"
+      "retry.per-request-max",
+      "retry.single-req-max-delay"
     ],
     "assumptions": [],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-10-27-summary.json",
-      "passed": 2,
-      "total": 2
+      "source": "test/accept/evidence/2026-10-28-summary.json",
+      "passed": 3,
+      "total": 3
     },
     "blocked": null
   },
@@ -7058,14 +7120,15 @@
       "DiomanRetryOptions.new(methods)"
     ],
     "real": [
-      "retry.post-opt-in-body-intact"
+      "retry.post-opt-in-body-intact",
+      "retry.single-req-methods"
     ],
     "assumptions": [],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-10-27-summary.json",
-      "passed": 6,
-      "total": 6
+      "source": "test/accept/evidence/2026-10-28-summary.json",
+      "passed": 7,
+      "total": 7
     },
     "blocked": null
   },
@@ -7078,9 +7141,16 @@
       "DiomanRetryOptions.new(respectRetryAfter)",
       "DiomanRetryOptions.respectRetryAfter"
     ],
-    "real": [],
+    "real": [
+      "retry.single-req-retry-after-override"
+    ],
     "assumptions": [],
-    "result": null,
+    "result": {
+      "status": "PASS",
+      "source": "test/accept/evidence/2026-10-28-summary.json",
+      "passed": 1,
+      "total": 1
+    },
     "blocked": null
   },
   {
@@ -7112,7 +7182,7 @@
     "assumptions": [],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-10-27-summary.json",
+      "source": "test/accept/evidence/2026-10-28-summary.json",
       "passed": 2,
       "total": 2
     },
@@ -7174,7 +7244,7 @@
     "assumptions": [],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-10-27-summary.json",
+      "source": "test/accept/evidence/2026-10-28-summary.json",
       "passed": 4,
       "total": 4
     },
@@ -7240,7 +7310,8 @@
       "network.offline-share-loading",
       "combo.cancel-share-follower",
       "combo.cancel-all-share",
-      "combo.share-fail-notify"
+      "combo.share-fail-notify",
+      "share.single-all-timeout-aborts-server"
     ],
     "assumptions": [
       "H1",
@@ -7249,7 +7320,7 @@
     ],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-10-27-summary.json",
+      "source": "test/accept/evidence/2026-10-28-summary.json",
       "passed": 32,
       "total": 32
     },
@@ -7279,12 +7350,14 @@
       "key.method-diff-not-merged",
       "key.explicit-string-merges",
       "key.filter-before-key",
-      "key.share-without-key-not-merged"
+      "key.share-without-key-not-merged",
+      "combo.mock-share-fallback-single-flight",
+      "share.single-start-explicit-key"
     ],
     "assumptions": [],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-10-27-summary.json",
+      "source": "test/accept/evidence/2026-10-28-summary.json",
       "passed": 44,
       "total": 44
     },
@@ -7308,7 +7381,7 @@
     "assumptions": [],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-10-27-summary.json",
+      "source": "test/accept/evidence/2026-10-28-summary.json",
       "passed": 20,
       "total": 20
     },
@@ -7344,7 +7417,7 @@
     "assumptions": [],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-10-27-summary.json",
+      "source": "test/accept/evidence/2026-10-28-summary.json",
       "passed": 14,
       "total": 14
     },
@@ -7406,7 +7479,7 @@
     "assumptions": [],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-10-27-summary.json",
+      "source": "test/accept/evidence/2026-10-28-summary.json",
       "passed": 4,
       "total": 4
     },
@@ -7438,12 +7511,13 @@
     "real": [
       "share.end-last-wins",
       "share.race-first-success",
-      "share.race-first-fails-second-wins"
+      "share.race-first-fails-second-wins",
+      "share.single-req-policy-race"
     ],
     "assumptions": [],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-10-27-summary.json",
+      "source": "test/accept/evidence/2026-10-28-summary.json",
       "passed": 6,
       "total": 6
     },
@@ -7477,7 +7551,7 @@
     "assumptions": [],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-10-27-summary.json",
+      "source": "test/accept/evidence/2026-10-28-summary.json",
       "passed": 2,
       "total": 2
     },
@@ -7497,7 +7571,7 @@
     "assumptions": [],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-10-27-summary.json",
+      "source": "test/accept/evidence/2026-10-28-summary.json",
       "passed": 2,
       "total": 2
     },
@@ -7514,12 +7588,13 @@
     ],
     "real": [
       "share.race-first-success",
-      "share.race-first-fails-second-wins"
+      "share.race-first-fails-second-wins",
+      "share.single-req-policy-race"
     ],
     "assumptions": [],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-10-27-summary.json",
+      "source": "test/accept/evidence/2026-10-28-summary.json",
       "passed": 4,
       "total": 4
     },
@@ -7561,7 +7636,7 @@
     "assumptions": [],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-10-27-summary.json",
+      "source": "test/accept/evidence/2026-10-28-summary.json",
       "passed": 26,
       "total": 26
     },
@@ -7617,7 +7692,7 @@
     "assumptions": [],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-10-27-summary.json",
+      "source": "test/accept/evidence/2026-10-28-summary.json",
       "passed": 22,
       "total": 22
     },
@@ -7651,7 +7726,7 @@
     "assumptions": [],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-10-27-summary.json",
+      "source": "test/accept/evidence/2026-10-28-summary.json",
       "passed": 30,
       "total": 30
     },
@@ -7699,7 +7774,7 @@
     "assumptions": [],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-10-27-summary.json",
+      "source": "test/accept/evidence/2026-10-28-summary.json",
       "passed": 30,
       "total": 30
     },
@@ -7750,7 +7825,7 @@
     "assumptions": [],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-10-27-summary.json",
+      "source": "test/accept/evidence/2026-10-28-summary.json",
       "passed": 8,
       "total": 8
     },
@@ -7791,7 +7866,7 @@
     "assumptions": [],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-10-27-summary.json",
+      "source": "test/accept/evidence/2026-10-28-summary.json",
       "passed": 6,
       "total": 6
     },
@@ -7819,7 +7894,7 @@
     ],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-10-27-summary.json",
+      "source": "test/accept/evidence/2026-10-28-summary.json",
       "passed": 10,
       "total": 10
     },
@@ -7873,7 +7948,7 @@
     "assumptions": [],
     "result": {
       "status": "PASS",
-      "source": "test/accept/evidence/2026-10-27-summary.json",
+      "source": "test/accept/evidence/2026-10-28-summary.json",
       "passed": 4,
       "total": 4
     },

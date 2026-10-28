@@ -36,7 +36,7 @@ summary: testkit schema 的插件与请求级字段分别映射到 dioman 哪个
 | breaker.open_ms | 已映射 | resetDuration |
 | offline.probe | 已映射 | **执行器宿主职责**：真实 /t/ping 探测提供 isOnline 与 onConnectivityChanged；maxWait=0 将离线队列转成快速失败 |
 | mock.fallback_on_404 | 已映射 | fallbackWhen；基址固定为起始 baseURL/t/mock，仅明确 404 才回退 |
-| repath/filter/cancel/envs/log {} | 已映射 | 对应原生插件；envs 无规则，log 原文采集 |
+| repath/filter/cancel/envs/log {} | 已映射 | 对应原生插件；envs 无规则，log 原文采集；filter 只装配，不触发过滤（见请求级 `filter`） |
 | 其余字段 | 显式报错 | 构造客户端前检查 pluginFields，绝不静默忽略 |
 
 请求级映射：
@@ -54,6 +54,7 @@ summary: testkit schema 的插件与请求级字段分别映射到 dioman 哪个
 | mock | 已映射 | DiomanMockOptions.enabled |
 | normalize | 已映射 | DiomanNormalizeOptions.enabled，同时控制信封转换 |
 | breaker | 已映射 | DiomanBreakerOptions.enabled |
+| filter | 已映射 | testkit D19（2026-10-28）：仅 `true` 时 DiomanFilterOptions.enabled=true；缺省与 false 显式关闭（DiomanFilter 装上默认开启，与中立语义相反）；非布尔报错。中立语义还要求剔除 NaN，DiomanFilter 默认不剔除，场景未覆盖 |
 | cancel_after_ms | 已映射 | 外部 CancelToken；用原生 track/untrack 纳入 cancelAll |
 | 未登记字段或对象嵌套字段 | 显式报错 | 该场景失败并附字段名 |
 

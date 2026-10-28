@@ -59,10 +59,25 @@ Future<void> deleteProbeProxy(
 /// 服务器限流或熔断时立即中断，禁止领取后续请求。
 bool serviceBlocked = false;
 
+/// 服务端用来要求停止的状态码：限流与熔断。
+const guardedStatuses = {429, 503};
+
+/// 响应体是否带 testkit 的注入标记（`"reason":"injected"` / `"injected failure"`）。
+///
+/// testkit 对场景脚本主动注入的失败会在 data 里写 `reason: injected`，真实的
+/// 限流/CPU 熔断不会带这个标记。[body] 为原始响应字节；返回是否为注入响应。
+///
+/// ```dart
+/// isInjectedResponse(utf8.encode('{"data":{"reason":"injected"}}')); // true
+/// ```
+bool isInjectedResponse(List<int> body) =>
+    RegExp(r'"reason"\s*:\s*"injected(?: failure)?"')
+        .hasMatch(utf8.decode(body, allowMalformed: true));
+
 /// checkServiceStatus 的测试辅助入口。
 /// 标记服务端要求停止的响应，不把它交给自动重试。
 void checkServiceStatus(int? status) {
-  if (status == 429 || status == 503) {
+  if (guardedStatuses.contains(status)) {
     serviceBlocked = true;
     throw StateError('服务返回 $status，按用户要求停止验收，未重启服务');
   }
@@ -84,14 +99,26 @@ class ServiceGuardAdapter implements HttpClientAdapter {
   Future<ResponseBody> fetch(RequestOptions options, Stream<Uint8List>? stream,
       Future<void>? cancelFuture) async {
     final response = await inner.fetch(options, stream, cancelFuture);
-    try {
-      checkServiceStatus(response.statusCode);
-    } catch (error) {
-      await response.stream.listen(null).cancel();
-      throw DioException(
-          requestOptions: options, type: DioExceptionType.cancel, error: error);
+    if (!guardedStatuses.contains(response.statusCode)) return response;
+    // 429/503 才读响应体：场景脚本主动注入的放行，真实限流/熔断照旧整轮停止。
+    final body = await response.stream
+        .fold<List<int>>(<int>[], (all, chunk) => all..addAll(chunk));
+    if (!isInjectedResponse(body)) {
+      try {
+        checkServiceStatus(response.statusCode);
+      } catch (error) {
+        throw DioException(
+            requestOptions: options,
+            type: DioExceptionType.cancel,
+            error: error);
+      }
     }
-    return response;
+    return ResponseBody(
+        Stream.value(Uint8List.fromList(body)), response.statusCode,
+        headers: response.headers,
+        statusMessage: response.statusMessage,
+        isRedirect: response.isRedirect,
+        redirects: response.redirects);
   }
 
   /// close 的测试实现。
