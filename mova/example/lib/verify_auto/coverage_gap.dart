@@ -58,6 +58,13 @@ class GapRunner {
   final events = <MovaEvent>[];
   final subscriptions = <StreamSubscription<dynamic>>[];
   final marks = <String>{};
+
+  /// 本用例是否进过系统画中画；为真时用例结束必须先把 App 拉回前台。
+  bool pipSeen = false;
+
+  /// 拉回前台失败后置位；此后所有用例记 BLOCKED，宿主也不再截图。
+  bool foregroundLost = false;
+  int _foregroundSeq = 0;
   MovaApi? api;
   NativePlayer? headlessNative;
   String? pendingEvidence;
@@ -163,6 +170,31 @@ class GapRunner {
     }
   }
 
+  /// 请宿主 `am start` 把本 App 拉回前台（退出画中画）并等确认；失败则置 [foregroundLost]。
+  Future<bool> restoreForeground(String why) async {
+    final seq = ++_foregroundSeq;
+    log('STEP', {'restoreForeground': seq, 'why': why});
+    var ok = false;
+    try {
+      await until(
+        () =>
+            marks.contains('foreground-ok-$seq') ||
+            marks.contains('foreground-failed-$seq'),
+        seconds: 40,
+      );
+      ok = marks.contains('foreground-ok-$seq');
+    } on TimeoutException {
+      ok = false;
+    }
+    if (ok) {
+      pipSeen = false;
+    } else {
+      foregroundLost = true;
+    }
+    log('STATE', {'edge': 'foreground', 'restored': ok, ...state()});
+    return ok;
+  }
+
   Future<void> evidence() async {
     final token = pendingEvidence;
     if (token == null) return;
@@ -183,8 +215,10 @@ class GapRunner {
     }
   }
 
-  MovaSource source(String path) => MovaSource(
+  /// 构造带防缓存时间戳的源；[live] 为 true 时按直播类型声明（待机 hold 只对直播生效）。
+  MovaSource source(String path, {bool live = false}) => MovaSource(
     '$origin/$path${path.contains('?') ? '&' : '?'}t=${DateTime.now().microsecondsSinceEpoch}',
+    type: live ? MovaStreamType.live : MovaStreamType.vod,
   );
   void observe(MovaApi a) {
     subscriptions.add(
@@ -197,6 +231,7 @@ class GapRunner {
     subscriptions.add(
       a.events.listen((e) {
         events.add(e);
+        if (e is MovaPipChange && e.value) pipSeen = true;
         log('EVENT', {
           'type': '${e.runtimeType}',
           'payload': payload(e),
@@ -345,6 +380,17 @@ class GapRunner {
     events.clear();
     lastApiError=null;
     log('BEGIN', {'matrixAndHypotheses': refs});
+    if (foregroundLost) {
+      // 前面的 PiP 没能拉回前台：不再跑任何用例，避免宿主截到别的 App。
+      verdict(
+        false,
+        'app is foreground before the case',
+        'foreground not restored after system PiP',
+        blocked: 'foreground lost after PiP; precondition unmet',
+      );
+      log('END', {'case': current});
+      return;
+    }
     try {
       await body();
     } on GapBlocked catch (e) {
@@ -369,6 +415,15 @@ class GapRunner {
         await dispose();
       } catch (e, s) {
         log('ERROR', {'kind': 'HARNESS', 'cleanup': '$e', 'stack': '$s'});
+      }
+      if (pipSeen) {
+        // 任何进过画中画的用例（含皮肤里的 PiP 按钮）结束都要拉回前台再进下一个。
+        try {
+          await restoreForeground('caseOf:$id');
+        } catch (e, s) {
+          foregroundLost = true;
+          log('ERROR', {'kind': 'HARNESS', 'foreground': '$e', 'stack': '$s'});
+        }
       }
       log('END', {'case': current});
     }
@@ -646,25 +701,53 @@ class GapRunner {
     if (!await call('enterPip', {}, a.enterPip)) {
       throw GapBlocked('system refused PiP');
     }
+    pipSeen = true;
     await until(() => a.state.pip && !a.state.mini);
-    verdict(!gapMini.isShowing(a), 'MiniHost removed when PiP active', state());
+    // 先取画中画期间的状态，拉回前台后再发 verdict，FAIL 现场截图才不会落在别的 App 上。
+    final removed = !gapMini.isShowing(a);
+    final inPip = state();
     await call('dispose.first', {}, a.dispose);
     await call('dispose.second', {}, a.dispose);
+    final restored = await restoreForeground('A15.miniPip');
+    verdict(removed, 'MiniHost removed when PiP active', inPip);
     verdict(true, 'second dispose returns without exception', state());
+    if (!restored) {
+      verdict(
+        false,
+        'app is foreground again after PiP',
+        'host could not bring the app back',
+        blocked: 'foreground not restored after PiP; later cases blocked',
+      );
+    }
   }
 
   Future<void> keepAlive() async {
     final a = await engine(precise: true);
-    await open(a, 'long.mp4');
+    // 待机 hold 只对 live 类型生效（VOD 一律 fallback(vod)，永远没有唤醒事件）：
+    // 这里把渐进式 mp4 声明成 live 来走 B 路径；live 不支持 seek，改为等进度走过基准点，
+    // 同时留足 audio-params 就绪时间（就绪前请求待机会回落为 mediaUnknown）。
+    final live = source('long.mp4', live: true);
+    await call('open', {'uri': live.uri, 'type': 'live'}, () => a.open(live));
+    await until(() async => await pos() > 3000);
     final samples = <Map<String, Object?>>[];
     for (var i = 0; i < count; i++) {
-      await seek(a, 12000);
-      await until(() async => (await pos() - 12000).abs() < 500);
+      final base = await pos();
+      await until(() async => await pos() > base + 1500);
       log('SHOT', {'name': 'before-hold-$i'});
       await until(() => marks.contains('before-shot-$i'));
-      await call('setKeepAlive', {
+      final entered = await call('setKeepAlive', {
         'on': true,
       }, () => (a as MovaKeepAlive).setKeepAlive(true));
+      if ('$entered' != '${MovaKeepAlivePhase.holding}') {
+        // 没进入 hold 就没有 B 唤醒可测：按前提不满足记 BLOCKED，并给出真实阶段与回落原因。
+        verdict(
+          false,
+          'setKeepAlive(true) enters holding on a live source',
+          {'iteration': i, 'phase': '$entered', 'keepAlivePhase': a.state.keepAlivePhase.name},
+          blocked: 'keepAlive fell back instead of holding; B wake path unexercised',
+        );
+        return;
+      }
       log('SHOT', {
         'name': 'keepalive-$i',
         'manual': 'black/frozen comparison',
@@ -746,11 +829,27 @@ class GapRunner {
     }
     if (supported) {
       await until(() async => await pos() > 1000);
-      verdict(true, 'retained format decodes', {
+      // 再留 1.2s：解码器打不开的 vd/ad 错误常在首帧之后才冒出来；
+      // 仅凭 time-pos 前进不能证明视频被解出（音频/时钟照走也会前进）。
+      await Future<void>.delayed(const Duration(milliseconds: 1200));
+      final errs = events
+          .where((e) => e is MovaErrorEvent || e is MovaPlayFailure)
+          .map((e) => '${e.runtimeType}: ${payload(e)}')
+          .toList();
+      verdict(errs.isEmpty, 'retained format decodes with no decoder error', {
         'file': path,
         'nativeMs': await pos(),
-        'video': await optionalNative('video-codec'),
-        'audio': await optionalNative('audio-codec'),
+        'errors': errs,
+        'video-format': await optionalNative('video-format'),
+        'audio-codec-name': await optionalNative('audio-codec-name'),
+        'video-params/w': await optionalNative('video-params/w'),
+        'decoder-frame-drop-count':
+            await optionalNative('decoder-frame-drop-count'),
+        // 视频是否真被解码并送显：有帧率、输出参数且丢帧不涨，才说明错误日志只是回落噪声。
+        'estimated-vf-fps': await optionalNative('estimated-vf-fps'),
+        'frame-drop-count': await optionalNative('frame-drop-count'),
+        'video-out-params/w': await optionalNative('video-out-params/w'),
+        'stateError': '${a.state.error}',
         'hwdec-current': await optionalNative('hwdec-current'),
         'file-format': await optionalNative('file-format'),
         'seekable': await optionalNative('seekable'),
@@ -771,9 +870,41 @@ class GapRunner {
     }
   }
 
+  /// 记录型：读回 libmpv 实际编入的解码器清单，用来核对瘦身裁剪面（与格式用例的错误互相印证）。
+  Future<void> decoders() async {
+    final a = await engine();
+    await open(a, 'long.mp4');
+    final raw = await optionalNative('decoder-list');
+    const wanted = [
+      'h264', 'hevc', 'av1', 'libdav1d', 'libaom-av1', 'vp8', 'vp9', 'libvpx',
+      'libvpx-vp9', 'mpeg4', 'wmv2', 'ac3', 'eac3', 'aac', 'mp3', 'flac',
+      'vorbis', 'opus',
+    ];
+    final present = <String, String>{};
+    var total = -1;
+    try {
+      final list = jsonDecode(raw) as List<Object?>;
+      total = list.length;
+      for (final item in list.whereType<Map<String, Object?>>()) {
+        final codec = '${item['codec']}', driver = '${item['driver']}';
+        if (wanted.contains(codec) || wanted.contains(driver)) {
+          present['$codec/$driver'] = '${item['description']}';
+        }
+      }
+    } catch (e) {
+      present['parseError'] = '$e (raw length ${raw.length})';
+    }
+    verdict(true, 'record compiled decoder list', {
+      'total': total,
+      'wantedPresent': present,
+    });
+  }
+
   Future<void> random(int seed, int actions) async {
     final rng = Random(seed);
     var a = await engine();
+    // 事件按引擎隔离：重建引擎后，上一个引擎遗留的 fullscreen/mini/rate 事件不能参与对账。
+    var base = events.length;
     await open(a, 'master.m3u8');
     for (var i = 0; i < actions; i++) {
       final action = rng.nextInt(9);
@@ -807,6 +938,7 @@ class GapRunner {
         case 7:
           await dispose();
           a = await engine();
+          base = events.length;
           await open(a, 'master.m3u8');
         case 8:
           await seek(a, 12000);
@@ -814,9 +946,9 @@ class GapRunner {
       }
       await WidgetsBinding.instance.endOfFrame;
       log('STATE', {'edge': 'after-action', ...state()});
-      final fs = events.whereType<MovaFullScreenChange>().lastOrNull;
-      final mini = events.whereType<MovaMiniChange>().lastOrNull;
-      final rate = events.whereType<MovaRateChange>().lastOrNull;
+      final fs = events.skip(base).whereType<MovaFullScreenChange>().lastOrNull;
+      final mini = events.skip(base).whereType<MovaMiniChange>().lastOrNull;
+      final rate = events.skip(base).whereType<MovaRateChange>().lastOrNull;
       verdict(
         a.state.sourceIndex >= 0 &&
             a.state.rate > 0 &&
@@ -973,7 +1105,6 @@ class GapRunner {
           }
         }
       } else if (group == 'lifecycle') {
-        await caseOf('A15.miniPip', ['A15', 'A18', 'A23', 'F5', 'H56', 'H37'], pip);
         await caseOf('H37.dispose', ['H37', 'A23'], () async {
           final a = await engine();
           await open(a, 'long.mp4');
@@ -982,6 +1113,9 @@ class GapRunner {
           verdict(true, 'second dispose succeeds', state());
         });
         await caseOf('H42.wake', ['H42', 'H43', 'A25', 'F6', 'N20'], keepAlive);
+        // 必须放最后：enterPip 会把 Activity 留在系统画中画里，后面的用例会在小窗里跑，
+        // 宿主截图也会抓到前台的别的 App（含第三方内容），H43 判图因此失效。
+        await caseOf('A15.miniPip', ['A15', 'A18', 'A23', 'F5', 'H56', 'H37'], pip);
       } else if (group == 'local') {
         for (final kind in ['file', 'asset', 'sandbox']) {
           await caseOf('G3.1.$kind', ['G3.1'], () => local(kind));
@@ -992,6 +1126,7 @@ class GapRunner {
           );
         });
       } else if (group == 'formats') {
+        await caseOf('G3.2.decoders', ['G3.2', 'H31'], decoders);
         await caseOf('G3.2.hevcSoftware', [
           'G3.2',
           'C17',

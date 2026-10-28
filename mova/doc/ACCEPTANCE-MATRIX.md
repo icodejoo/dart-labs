@@ -379,7 +379,7 @@
 | F7-② | 真机信号：首帧（restart 信号）、真卡顿、静默断流 EOF、`sample()` 属性可用性 | 同 F7-① | 批次 api,followups；coverage_new:qoe | H2, H3, H4, H6, H9, H31, H64, H69, H71, H72, H73, H74 | 真机 PASS（rerun.md:135）；单测 全 | — |
 | F8-② | 真实：旧文件迟到的 END_FILE、坏地址秒判、`open` 抛不抛、真卡顿期间 buffering、续播 seek | 同 F8-① | 批次 he-recovery,extras,he-v6-final；he_auto:_v6；he_auto:_v7；coverage_new:recovery | H7, H8, H20, H33, H34, H35 | 真机 PASS（rerun.md:196）；单测 全 | — |
 | F10-② | 真实抽帧与断网降级 | 同 F10-① | 批次 api,extras；coverage_new:preview | H75 | 真机 PASS（rerun.md:138）；单测 全 | — |
-| F13-② | 真实多引擎：dispose 竞态与 FFI destroy、三引擎并存事件互不串扰；dispose 期间帧间隔 <100ms | 同 F13-① | 批次 api；main_observe_event_verify2:_v6；main_observe_event_verify2:_v7 | H36, H38, H70 | 真机 PASS（rerun.md:141）；单测 部分 | — |
+| F13-② | 真实多引擎：dispose 竞态与 FFI destroy、三引擎并存事件互不串扰；dispose 期间帧间隔 <100ms | 同 F13-① | 批次 api；main_observe_event_verify2:_v6；main_observe_event_verify2:_v7 ；性能参见 PF4、PF5、PF9（并存/池化/掉帧；<100ms 仍需原专项） | H36, H38, H70 | 真机 PASS（rerun.md:141）；单测 部分 | — |
 | F14-② | 真机：release 下 RESTART/END_FILE 到达、RESTART 个数、destroy 与 media_kit 共存、END_FILE reason 枚举 | 同 F14-① | 批次 existing-pages；main_observe_event_verify2:_v9 | H5, H38, H68, H69, H72 | 真机 PASS（rerun.md:142）；单测 部分 | — |
 | F15-② | 真实：默认白名单放行 dtls、"Cannot seek" 来源 | 同 F15-① | manifest 无批次；main_whep_verify:_run；manual 登记 缺可控 WHEP 服务 端口可达不证明播放。 | H32, H67 | 真机 BLOCKED（rerun.md:197）：WHEP端点38889/test/whep拒连，相关端口探测不可用；缺publisher/信令/UDP38189及relay38190服务；单测 部分 | — |
 | F16-② | 真机复现与复核：PiP 展开/点 X 复位、广告方向与倍速恢复 | 同 F16-① | 批次 existing-pages,gesture-pip；main_review_fixes_verify2:_v10；main_review_fixes_verify:_v9 | H55 | 真机 PASS（rerun.md:144）；单测 部分 | — |
@@ -426,7 +426,7 @@
 | A12-③ | 缩放后手势平移与真实画面 | — | 批次 ui；main_coverage_api:video | — | 真机 PASS（retest.md:137，仅专项子项） | — |
 | A14-③ | 系统栏隐藏/恢复、刘海/安全区、退出后原生恢复 FULL_USER | — | 同 A14-② | — | 真机 PASS（rerun.md:46） | — |
 | A18-③ | 真实 PiP 窗口：`dumpsys activity` 见 `mIsInPictureInPictureMode=true`/pinned；展开与点 X 关闭后 `state.pip` 复位 | — | 同 A18-② | — | 真机 PASS（rerun.md:50） | — |
-| A23-③ | 120 轮创建销毁的 PSS 趋势（泄漏） | — | 同 A23-② | — | 真机 PASS（retest.md:136，仅专项子项） | — |
+| A23-③ | 120 轮创建销毁的 PSS 趋势（泄漏） | — | 同 A23-② ；性能参见 PF8（长场景泄漏斜率；不替代原 120 轮销毁专项） | — | 真机 PASS（retest.md:136，仅专项子项） | — |
 | A24-③ | 帧级无缝：广告↔正片切换无黑屏帧/撕裂（screencap 序列对齐 logcat 事件） | — | 同 A24-② | — | 真机 PASS（rerun.md:56） | — |
 | A26-③ | 拖拽跟手、吸边、甩动不误关（手感） | — | 批次 widgets,interactive,touch-mini；main_coverage_api:video | — | 真机 PASS（rerun.md:58） | — |
 | A29-③ | 真实视频滑动 100 次 + 20 次并发：原生池 3 引擎、回收完成 | — | 批次 api,interactive；coverage_new:feed{A29.dispose,A29.final} | — | 真机 PASS（rerun.md:61） | — |
@@ -456,9 +456,9 @@
 | 编号 | 能力 / 子点 | 单测位置（`test/` 下） | 真机用例 | 相关假设 | 最近结论 | 缺口 |
 |---|---|---|---|---|---|---|
 | F4-③ | 帧级无缝与续播误差 <100ms（screencap 序列） | — | 同 F4-② | — | 真机 PASS（rerun.md:132） | — |
-| F9-③ | 出声不出画；内存/CPU 对比（真机） | — | 批次 api,widgets；main_coverage_api:basic | — | 真机 PASS（rerun.md:137） | — |
+| F9-③ | 出声不出画；内存/CPU 对比（真机） | — | 批次 api,widgets；main_coverage_api:basic ；性能参见 PF11（audioOnly 对照） | — | 真机 PASS（rerun.md:137） | — |
 | F11-③ | 字幕：SRT/ASS/WebVTT 外挂 + mov_text 内封的 libass 合成渲染（libmpv 依赖，无单测面） | 相关（不承载结论）：`core/srt_test.dart` 仅 STT 产出的 SRT 序列化，非播放字幕渲染；`ui/subtitle_test.dart` 仅 STT 字幕叠层 | 批次 existing-pages,extras；coverage_new:subtitles{F11.$format} | — | 真机 PASS（rerun.md:139） | — |
-| F12-③ | 音频会话与耗电：待机/音频模式的 CPU、`dumpsys batterystats` | — | 批次 existing-pages；keep_alive_auto:_s4 | 参见 H46, H48, H74 | 真机 PASS（rerun.md:140） | — |
+| F12-③ | 音频会话与耗电：待机/音频模式的 CPU、`dumpsys batterystats` | — | 批次 existing-pages；keep_alive_auto:_s4 ；性能参见 PF11、PF8（资源趋势；耗电仍需原专项） | 参见 H46, H48, H74 | 真机 PASS（rerun.md:140） | — |
 | F15-③ | 播 15s `MovaErrorEvent` 0 次（需可达 WHEP 服务；端口可达不证明播放） | — | 同 F15-② | — | 真机 BLOCKED（rerun.md:197）：WHEP端点38889/test/whep拒连，相关端口探测不可用；缺publisher/信令/UDP38189及relay38190服务 | — |
 
 #### N 新增 API（2 行）
@@ -544,9 +544,25 @@
 | G3.5-③ | 真机同一 engine 先直播后点播再直播 | — | 缺 | — | 真机 未跑（无独立结论；相关旧用例不等于整项通过） | 真机缺 |
 | G3.6-③ | 超长/超大文件、损坏文件、截断文件：不挂死且有 `MovaPlayFailure` | — | 缺 | — | 真机 未跑（无独立结论；相关旧用例不等于整项通过） | 真机缺 |
 | G4.1-③ | 真实内核下的随机序列与快速连点 | — | 批次 gap-random；coverage_gap:G4.1.seed（固定种子 80 步） | — | 真机 未跑（用例已写，待上机；无独立结论；相关旧用例不等于整项通过） | 用例已写，待上机 |
-| G4.2-③ | 长时间浸泡：点播/直播 1–2h 的内存/发热/掉帧/句柄 | — | 缺 | — | 真机 未跑（无独立结论；相关旧用例不等于整项通过） | 真机缺 |
+| G4.2-③ | 长时间浸泡：点播/直播 1–2h 的内存/发热/掉帧/句柄 | — | 缺 ；性能参见 PF6、PF7、PF8、PF9（浸泡时长由用户有意缩短为 480 秒，1–2h 不在计划内） | — | 真机 未跑（无独立结论；相关旧用例不等于整项通过） | 真机缺 |
 | G4.3-③ | 真机热切换 `MovaOpts`/`MovaStrs`/`MovaTheme` | — | manifest 无批次；coverage_widgets:command(options) | — | 真机 未跑（无独立结论；相关旧用例不等于整项通过） | — |
 | G4.4-③ | 真机同屏两个 `MovaPlayer`、Feed 滑动 + 小窗 + 广告 cutover 叠加；多引擎事件互不串扰参见 H70 | — | 缺 | 参见 H70 | 真机 未跑（无独立结论；相关旧用例不等于整项通过） | 真机缺 |
+
+#### PF 性能（③ 档）
+
+| 编号 | 能力 / 子点 | 单测位置（判据） | 真机用例 | 依赖假设 | 最近结论 | 缺口 |
+|---|---|---|---|---|---|---|
+| PF1-③ | 点播硬解 H.264 1080p | `example/tool/test_perf_judge.py` | `coverage_perf.py` → `main_coverage_perf.dart` / `coverage_perf.dart`：vod-hw，10 分钟 | 真实硬解可用；读回 hwdec-current | 未跑 | 用例已写；待真实基线与上机；批次待合入 |
+| PF2-③ | 点播软解 hwdec=no 对照 | `example/tool/test_perf_judge.py` | `coverage_perf.py` → `main_coverage_perf.dart` / `coverage_perf.dart`：vod-sw，10 分钟 | 同源同设备 | 未跑 | 用例已写；待真实基线与上机；批次待合入 |
+| PF3-③ | 直播稳态资源 | `example/tool/test_perf_judge.py` | `coverage_perf.py` → `main_coverage_perf.dart` / `coverage_perf.dart`：live，10 分钟 | 滑动 HLS 或已验证在线直播 | 未跑 | 用例已写；待真实基线与上机；批次待合入 |
+| PF4-③ | cutover 预热双引擎并存 | `example/tool/test_perf_judge.py` | `coverage_perf.py` → `main_coverage_perf.dart` / `coverage_perf.dart`：cutover，10 分钟 | 真实 MovaPlayer；两个 native 实例 | 未跑 | 用例已写；待真实基线与上机；批次待合入 |
+| PF5-③ | feed 引擎池连续滑动 | `example/tool/test_perf_judge.py` | `coverage_perf.py` → `main_coverage_perf.dart` / `coverage_perf.dart`：feed，10 分钟、5 秒切页 | 三引擎池；全部挂真实画面 | 未跑 | 用例已写；待真实基线与上机；批次待合入 |
+| PF6-③ | 点播循环 60 分钟浸泡 | `example/tool/test_perf_judge.py` | `coverage_perf.py` → `main_coverage_perf.dart` / `coverage_perf.dart`：soak-vod，**480 秒（用户有意缩短，维持此值）**，斜率只是短窗口外推 | H.264 本地源 loop-file=inf | 2026-10-28 基线已录（`perf_baseline/7NQBB23606003715.json`，判据 BLOCKED(no-baseline)；PSS 均值 234,097 KiB、线程 35.8、fd 210，未见越界增长） | 用例已写；待真实基线与上机；批次待合入 |
+| PF7-③ | 直播 60 分钟浸泡 | `example/tool/test_perf_judge.py` | `coverage_perf.py` → `main_coverage_perf.dart` / `coverage_perf.dart`：soak-live，**480 秒（用户有意缩短，维持此值）** | 实时滑动 HLS；不覆盖跨天 | 2026-10-28 基线已录（PSS 均值 286,168 KiB、线程 35.9、fd 213） | 用例已写；待真实基线与上机；批次待合入 |
+| PF8-③ | 长场景泄漏最小二乘斜率 | `example/tool/test_perf_judge.py` | `coverage_perf.py` → `main_coverage_perf.dart` / `coverage_perf.dart`：所有场景 PSS/Native Heap/fd/线程趋势 | 去预热；R²≥0.7 且斜率和绝对增量均超阈值 | 未跑 | 用例已写；待真实基线与上机；批次待合入 |
+| PF9-③ | 视频掉帧与 Flutter jank | `example/tool/test_perf_judge.py` | `coverage_perf.py` → `main_coverage_perf.dart` / `coverage_perf.dart`：所有视频场景 mpv drop / gfxinfo | 掉帧率分母为 time-pos 增量×estimated-vf-fps；gfxinfo 每场 reset | 未跑 | 用例已写；待真实基线与上机；批次待合入 |
+| PF10-③ | Windows release CPU/RSS 补充 | `example/tool/test_perf_judge.py` | `coverage_perf.py` → `main_coverage_perf.dart` / `coverage_perf.dart`：同场景 --platform windows | Get-Process；同机基线；无 gfxinfo | 未跑 | 用例已写；待真实基线与上机；批次待合入 |
+| PF11-③ | 可选 audioOnly CPU/内存对照 | `example/tool/test_perf_judge.py` | `coverage_perf.py` → `main_coverage_perf.dart` / `coverage_perf.dart`：audio，**180 秒（预热 30 秒，用户有意缩短）**；与 PF1 报告对照 | createMovaEngine(audioOnly:true)；耗电未覆盖 | 未跑 | 用例已写；待真实基线与上机；批次待合入 |
 
 ## 4. 假设清单（第 ② 档的依赖：测试替身 vs 真实 mpv / Android）
 
@@ -1820,3 +1836,27 @@ v1 的 135 个编号全部有用例（其中 6 个在 manifest 里是 manual）�
 | new:F17 | ② | 保活出声/到期断流（未实现） |
 | new:P20 | ① | 顶层纯函数 |
 | new:P21 | ① | 公开成员级覆盖 |
+
+### PF 性能索引
+
+| 编号 | 档位 | 主题 |
+|---|---|---|
+| PF1 | ③ | 点播硬解 H.264 1080p |
+| PF2 | ③ | 点播软解 hwdec=no 对照 |
+| PF3 | ③ | 直播稳态资源 |
+| PF4 | ③ | cutover 预热双引擎并存 |
+| PF5 | ③ | feed 引擎池连续滑动 |
+| PF6 | ③ | 点播循环 60 分钟浸泡 |
+| PF7 | ③ | 直播 60 分钟浸泡 |
+| PF8 | ③ | 长场景泄漏最小二乘斜率 |
+| PF9 | ③ | 视频掉帧与 Flutter jank |
+| PF10 | ③ | Windows release CPU/RSS 补充 |
+| PF11 | ③ | 可选 audioOnly CPU/内存对照 |
+
+## 附：性能基线首录（2026-10-28，STG-AL00）
+
+- 8 个场景基线已写入 `example/tool/perf_baseline/7NQBB23606003715.json`；判据状态均为 BLOCKED(no-baseline)（首录不比较）。完整数字见会话报告 round2-results。
+- CPU p50 在点播/直播/cutover 约 91–97%（100%=1 核），audioOnly 约 8%，原因未查；
+- feed 线程数两次运行均呈增长（约每 10 分钟 +5~6），一次 FAIL(leak:threads)、一次 R² 差一点未过；窗口较短，结论仅供参考；
+- 3 路 1080p 同时硬解时 AVC 解码器报 `configureCodec -12`、主线程卡死，改 720p 才正常；
+- 构建性能入口必须用 `example/tool/coverage_build.py`（`flutter build apk` 会打出 LFS 指针 `libmpv.so`，App 启动即报错）。`coverage_gap.py` 里 G1.2 的混淆构建命令同样需要先确认 `libmpv.so` 不是指针。

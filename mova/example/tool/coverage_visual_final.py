@@ -1,7 +1,7 @@
 """Final targeted visual probes; retain rapid frames where transitions matter."""
 import json,re,subprocess,time,urllib.parse,xml.etree.ElementTree as ET
 from pathlib import Path
-from coverage_device import request,adb,capture,unlocked
+from coverage_device import request,adb,capture,unlocked,shot
 from coverage_record import update
 out=Path(__file__).resolve().parent/'coverage_evidence'
 def call(name,action='snapshot',group='video',shot=False,**args):
@@ -13,7 +13,7 @@ def call(name,action='snapshot',group='video',shot=False,**args):
     print(name,d['status'],flush=True)
     return d
 def frame(name):
-    (out/('batch25-'+name+'.png')).write_bytes(adb('exec-out','screencap','-p',binary=True))
+    shot(out/('batch25-'+name+'.png'))
 def frames(name,n):
     for i in range(n):frame(name+str(i));time.sleep(.05)
 def click_text(label):

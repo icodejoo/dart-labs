@@ -23,7 +23,10 @@
     "coverage/accept/plugin-matrix-final.json",
     "coverage/accept/g4-breaker.network-errors-trip.json",
     "coverage/accept/g4-breaker.timeouts-count.json",
-    "coverage/accept/g4-retry.network-error-retried.json"
+    "coverage/accept/g4-retry.network-error-retried.json",
+    "coverage/accept/tk-affected.json",
+    "coverage/accept/tk-plugins.json",
+    "coverage/accept/tk-new.json"
   ],
   "cases": {
     "auth.anon-and-private-mix": {
@@ -169,6 +172,22 @@
       "offline@http": "通过",
       "weak@business": "通过",
       "weak@http": "通过"
+    },
+    "auth.expired-multipart-replay": {
+      "blackhole@business": "不适用",
+      "blackhole@http": "不适用",
+      "dns@business": "不适用",
+      "dns@http": "不适用",
+      "flap@business": "不适用",
+      "flap@http": "不适用",
+      "lossy@business": "不适用",
+      "lossy@http": "不适用",
+      "normal@business": "通过",
+      "normal@http": "通过",
+      "offline@business": "不适用",
+      "offline@http": "不适用",
+      "weak@business": "不适用",
+      "weak@http": "不适用"
     },
     "auth.expired-refresh-replay": {
       "blackhole@business": "通过",
@@ -379,6 +398,22 @@
       "weak@http": "不适用"
     },
     "auth.refresh-fail-times": {
+      "blackhole@business": "不适用",
+      "blackhole@http": "不适用",
+      "dns@business": "不适用",
+      "dns@http": "不适用",
+      "flap@business": "不适用",
+      "flap@http": "不适用",
+      "lossy@business": "不适用",
+      "lossy@http": "不适用",
+      "normal@business": "通过",
+      "normal@http": "通过",
+      "offline@business": "不适用",
+      "offline@http": "不适用",
+      "weak@business": "不适用",
+      "weak@http": "不适用"
+    },
+    "auth.refresh-window-blocked-expired": {
       "blackhole@business": "不适用",
       "blackhole@http": "不适用",
       "dns@business": "不适用",
@@ -1274,6 +1309,22 @@
       "weak@business": "通过",
       "weak@http": "通过"
     },
+    "basic.keep-alive-recovery-isolated": {
+      "blackhole@business": "不适用",
+      "blackhole@http": "不适用",
+      "dns@business": "不适用",
+      "dns@http": "不适用",
+      "flap@business": "不适用",
+      "flap@http": "不适用",
+      "lossy@business": "不适用",
+      "lossy@http": "不适用",
+      "normal@business": "通过",
+      "normal@http": "通过",
+      "offline@business": "不适用",
+      "offline@http": "不适用",
+      "weak@business": "不适用",
+      "weak@http": "不适用"
+    },
     "basic.large-sequence": {
       "blackhole@business": "不适用",
       "blackhole@http": "不适用",
@@ -1355,7 +1406,20 @@
       "weak@http": "通过"
     },
     "basic.safe-status-matrix": {
-      "normal@http": "通过"
+      "blackhole@business": "不适用",
+      "blackhole@http": "不适用",
+      "dns@business": "不适用",
+      "dns@http": "不适用",
+      "flap@business": "不适用",
+      "flap@http": "不适用",
+      "lossy@business": "不适用",
+      "lossy@http": "不适用",
+      "normal@business": "通过",
+      "normal@http": "通过",
+      "offline@business": "不适用",
+      "offline@http": "不适用",
+      "weak@business": "通过",
+      "weak@http": "通过"
     },
     "basic.sequential-hits": {
       "blackhole@business": "不适用",
@@ -1406,20 +1470,20 @@
       "weak@http": "不适用"
     },
     "basic.status-matrix": {
-      "blackhole@business": "跳过",
-      "blackhole@http": "跳过",
-      "dns@business": "跳过",
-      "dns@http": "跳过",
+      "blackhole@business": "通过",
+      "blackhole@http": "通过",
+      "dns@business": "通过",
+      "dns@http": "通过",
       "flap@business": "跳过",
       "flap@http": "跳过",
       "lossy@business": "跳过",
       "lossy@http": "跳过",
-      "normal@business": "跳过",
-      "normal@http": "跳过",
-      "offline@business": "跳过",
-      "offline@http": "跳过",
-      "weak@business": "跳过",
-      "weak@http": "跳过"
+      "normal@business": "通过",
+      "normal@http": "通过",
+      "offline@business": "通过",
+      "offline@http": "通过",
+      "weak@business": "通过",
+      "weak@http": "通过"
     },
     "basic.unicode-body": {
       "blackhole@business": "不适用",
@@ -1470,6 +1534,22 @@
       "weak@http": "不适用"
     },
     "breaker.half-open-fail-reopens": {
+      "blackhole@business": "不适用",
+      "blackhole@http": "不适用",
+      "dns@business": "不适用",
+      "dns@http": "不适用",
+      "flap@business": "不适用",
+      "flap@http": "不适用",
+      "lossy@business": "不适用",
+      "lossy@http": "不适用",
+      "normal@business": "通过",
+      "normal@http": "通过",
+      "offline@business": "不适用",
+      "offline@http": "不适用",
+      "weak@business": "不适用",
+      "weak@http": "不适用"
+    },
+    "breaker.half-open-probe-cancel": {
       "blackhole@business": "不适用",
       "blackhole@http": "不适用",
       "dns@business": "不适用",
@@ -2266,12 +2346,36 @@
       "normal@http": "通过"
     },
     "combo.cache-mock-fallback-cached-once": {
-      "normal@business": "不适用",
-      "normal@http": "不适用"
+      "blackhole@business": "跳过",
+      "blackhole@http": "跳过",
+      "dns@business": "跳过",
+      "dns@http": "跳过",
+      "flap@business": "跳过",
+      "flap@http": "跳过",
+      "lossy@business": "跳过",
+      "lossy@http": "跳过",
+      "normal@business": "跳过",
+      "normal@http": "跳过",
+      "offline@business": "跳过",
+      "offline@http": "跳过",
+      "weak@business": "跳过",
+      "weak@http": "跳过"
     },
     "combo.cache-mock-no-key-collision": {
+      "blackhole@business": "不适用",
+      "blackhole@http": "不适用",
+      "dns@business": "不适用",
+      "dns@http": "不适用",
+      "flap@business": "不适用",
+      "flap@http": "不适用",
+      "lossy@business": "不适用",
+      "lossy@http": "不适用",
       "normal@business": "通过",
-      "normal@http": "通过"
+      "normal@http": "通过",
+      "offline@business": "不适用",
+      "offline@http": "不适用",
+      "weak@business": "不适用",
+      "weak@http": "不适用"
     },
     "combo.cache-share-retry": {
       "blackhole@business": "不适用",
@@ -2414,8 +2518,20 @@
       "weak@http": "通过"
     },
     "combo.mock-share-fallback-single-flight": {
-      "normal@business": "不适用",
-      "normal@http": "不适用"
+      "blackhole@business": "跳过",
+      "blackhole@http": "跳过",
+      "dns@business": "跳过",
+      "dns@http": "跳过",
+      "flap@business": "跳过",
+      "flap@http": "跳过",
+      "lossy@business": "跳过",
+      "lossy@http": "跳过",
+      "normal@business": "跳过",
+      "normal@http": "跳过",
+      "offline@business": "跳过",
+      "offline@http": "跳过",
+      "weak@business": "跳过",
+      "weak@http": "跳过"
     },
     "combo.normalize-business-retry-notify-cache": {
       "blackhole@business": "不适用",
@@ -2950,7 +3066,20 @@
       "weak@http": "通过"
     },
     "faults.non2xx-business-safe": {
-      "normal@http": "通过"
+      "blackhole@business": "不适用",
+      "blackhole@http": "不适用",
+      "dns@business": "不适用",
+      "dns@http": "不适用",
+      "flap@business": "不适用",
+      "flap@http": "不适用",
+      "lossy@business": "不适用",
+      "lossy@http": "不适用",
+      "normal@business": "通过",
+      "normal@http": "通过",
+      "offline@business": "不适用",
+      "offline@http": "不适用",
+      "weak@business": "通过",
+      "weak@http": "通过"
     },
     "faults.post-close-no-double-send": {
       "blackhole@business": "不适用",
@@ -3001,20 +3130,20 @@
       "weak@http": "通过"
     },
     "faults.status-with-business": {
-      "blackhole@business": "跳过",
-      "blackhole@http": "跳过",
-      "dns@business": "跳过",
-      "dns@http": "跳过",
+      "blackhole@business": "通过",
+      "blackhole@http": "通过",
+      "dns@business": "通过",
+      "dns@http": "通过",
       "flap@business": "跳过",
       "flap@http": "跳过",
       "lossy@business": "跳过",
       "lossy@http": "跳过",
-      "normal@business": "跳过",
-      "normal@http": "跳过",
-      "offline@business": "跳过",
-      "offline@http": "跳过",
-      "weak@business": "跳过",
-      "weak@http": "跳过"
+      "normal@business": "通过",
+      "normal@http": "通过",
+      "offline@business": "通过",
+      "offline@http": "通过",
+      "weak@business": "通过",
+      "weak@http": "通过"
     },
     "filter.drops-blank-query-keeps-zero-false": {
       "normal@business": "通过",
@@ -4299,6 +4428,7 @@
     "plugins.full-flap-workflow": {
       "flap@business": "通过",
       "flap@http": "通过",
+      "normal@business": "不适用",
       "normal@http": "不适用"
     },
     "plugins.full-workflow": {
@@ -4436,7 +4566,7 @@
       "normal@http": "通过"
     },
     "plugins.single-auth": {
-      "normal@business": "失败",
+      "normal@business": "通过",
       "normal@http": "通过"
     },
     "plugins.single-breaker": {
@@ -4632,20 +4762,20 @@
       "weak@http": "不适用"
     },
     "retry.429-retried": {
-      "blackhole@business": "跳过",
-      "blackhole@http": "跳过",
-      "dns@business": "跳过",
-      "dns@http": "跳过",
+      "blackhole@business": "通过",
+      "blackhole@http": "通过",
+      "dns@business": "通过",
+      "dns@http": "通过",
       "flap@business": "跳过",
       "flap@http": "跳过",
-      "lossy@business": "跳过",
-      "lossy@http": "跳过",
-      "normal@business": "跳过",
-      "normal@http": "跳过",
-      "offline@business": "跳过",
-      "offline@http": "跳过",
-      "weak@business": "跳过",
-      "weak@http": "跳过"
+      "lossy@business": "通过",
+      "lossy@http": "通过",
+      "normal@business": "通过",
+      "normal@http": "通过",
+      "offline@business": "通过",
+      "offline@http": "通过",
+      "weak@business": "通过",
+      "weak@http": "通过"
     },
     "retry.4xx-no-retry": {
       "blackhole@business": "不适用",
@@ -4680,20 +4810,20 @@
       "weak@http": "通过"
     },
     "retry.503-retry-after": {
-      "blackhole@business": "跳过",
-      "blackhole@http": "跳过",
-      "dns@business": "跳过",
-      "dns@http": "跳过",
+      "blackhole@business": "通过",
+      "blackhole@http": "通过",
+      "dns@business": "通过",
+      "dns@http": "通过",
       "flap@business": "跳过",
       "flap@http": "跳过",
-      "lossy@business": "跳过",
-      "lossy@http": "跳过",
-      "normal@business": "跳过",
-      "normal@http": "跳过",
-      "offline@business": "跳过",
-      "offline@http": "跳过",
-      "weak@business": "跳过",
-      "weak@http": "跳过"
+      "lossy@business": "通过",
+      "lossy@http": "通过",
+      "normal@business": "通过",
+      "normal@http": "通过",
+      "offline@business": "通过",
+      "offline@http": "通过",
+      "weak@business": "通过",
+      "weak@http": "通过"
     },
     "retry.attempt-is-new-connection-friendly": {
       "blackhole@business": "不适用",
@@ -5160,44 +5290,116 @@
       "weak@http": "不适用"
     },
     "retry.respects-retry-after-over-delay": {
-      "blackhole@business": "跳过",
-      "blackhole@http": "跳过",
-      "dns@business": "跳过",
-      "dns@http": "跳过",
+      "blackhole@business": "通过",
+      "blackhole@http": "通过",
+      "dns@business": "通过",
+      "dns@http": "通过",
       "flap@business": "跳过",
       "flap@http": "跳过",
       "lossy@business": "跳过",
       "lossy@http": "跳过",
-      "normal@business": "跳过",
-      "normal@http": "跳过",
-      "offline@business": "跳过",
-      "offline@http": "跳过",
-      "weak@business": "跳过",
-      "weak@http": "跳过"
+      "normal@business": "通过",
+      "normal@http": "通过",
+      "offline@business": "通过",
+      "offline@http": "通过",
+      "weak@business": "通过",
+      "weak@http": "通过"
     },
     "retry.single-plugin-methods": {
+      "blackhole@business": "不适用",
+      "blackhole@http": "不适用",
+      "dns@business": "不适用",
+      "dns@http": "不适用",
+      "flap@business": "不适用",
+      "flap@http": "不适用",
+      "lossy@business": "不适用",
+      "lossy@http": "不适用",
       "normal@business": "不适用",
-      "normal@http": "通过"
+      "normal@http": "通过",
+      "offline@business": "不适用",
+      "offline@http": "不适用",
+      "weak@business": "不适用",
+      "weak@http": "不适用"
     },
     "retry.single-req-max-delay": {
+      "blackhole@business": "不适用",
+      "blackhole@http": "不适用",
+      "dns@business": "不适用",
+      "dns@http": "不适用",
+      "flap@business": "不适用",
+      "flap@http": "不适用",
+      "lossy@business": "不适用",
+      "lossy@http": "不适用",
       "normal@business": "不适用",
-      "normal@http": "通过"
+      "normal@http": "通过",
+      "offline@business": "不适用",
+      "offline@http": "不适用",
+      "weak@business": "不适用",
+      "weak@http": "不适用"
     },
     "retry.single-req-methods": {
+      "blackhole@business": "不适用",
+      "blackhole@http": "不适用",
+      "dns@business": "不适用",
+      "dns@http": "不适用",
+      "flap@business": "不适用",
+      "flap@http": "不适用",
+      "lossy@business": "不适用",
+      "lossy@http": "不适用",
       "normal@business": "不适用",
-      "normal@http": "通过"
+      "normal@http": "通过",
+      "offline@business": "不适用",
+      "offline@http": "不适用",
+      "weak@business": "不适用",
+      "weak@http": "不适用"
     },
     "retry.single-req-retry-after-override": {
+      "blackhole@business": "不适用",
+      "blackhole@http": "不适用",
+      "dns@business": "不适用",
+      "dns@http": "不适用",
+      "flap@business": "不适用",
+      "flap@http": "不适用",
+      "lossy@business": "不适用",
+      "lossy@http": "不适用",
       "normal@business": "不适用",
-      "normal@http": "通过"
+      "normal@http": "通过",
+      "offline@business": "不适用",
+      "offline@http": "不适用",
+      "weak@business": "不适用",
+      "weak@http": "不适用"
     },
     "retry.single-retry-after-honored": {
+      "blackhole@business": "不适用",
+      "blackhole@http": "不适用",
+      "dns@business": "不适用",
+      "dns@http": "不适用",
+      "flap@business": "不适用",
+      "flap@http": "不适用",
+      "lossy@business": "不适用",
+      "lossy@http": "不适用",
       "normal@business": "不适用",
-      "normal@http": "通过"
+      "normal@http": "通过",
+      "offline@business": "不适用",
+      "offline@http": "不适用",
+      "weak@business": "不适用",
+      "weak@http": "不适用"
     },
     "retry.single-retry-after-ignored": {
+      "blackhole@business": "不适用",
+      "blackhole@http": "不适用",
+      "dns@business": "不适用",
+      "dns@http": "不适用",
+      "flap@business": "不适用",
+      "flap@http": "不适用",
+      "lossy@business": "不适用",
+      "lossy@http": "不适用",
       "normal@business": "不适用",
-      "normal@http": "通过"
+      "normal@http": "通过",
+      "offline@business": "不适用",
+      "offline@http": "不适用",
+      "weak@business": "不适用",
+      "weak@http": "不适用"
     },
     "retry.style-switch": {
       "blackhole@business": "不适用",
@@ -5423,6 +5625,22 @@
       "weak@business": "不适用",
       "weak@http": "不适用"
     },
+    "share.retry-recovers-single-result": {
+      "blackhole@business": "不适用",
+      "blackhole@http": "不适用",
+      "dns@business": "不适用",
+      "dns@http": "不适用",
+      "flap@business": "不适用",
+      "flap@http": "不适用",
+      "lossy@business": "不适用",
+      "lossy@http": "不适用",
+      "normal@business": "通过",
+      "normal@http": "通过",
+      "offline@business": "不适用",
+      "offline@http": "不适用",
+      "weak@business": "不适用",
+      "weak@http": "不适用"
+    },
     "share.reuse-after-failure": {
       "blackhole@business": "不适用",
       "blackhole@http": "不适用",
@@ -5440,16 +5658,52 @@
       "weak@http": "不适用"
     },
     "share.single-all-timeout-aborts-server": {
+      "blackhole@business": "不适用",
+      "blackhole@http": "不适用",
+      "dns@business": "不适用",
+      "dns@http": "不适用",
+      "flap@business": "不适用",
+      "flap@http": "不适用",
+      "lossy@business": "不适用",
+      "lossy@http": "不适用",
       "normal@business": "通过",
-      "normal@http": "通过"
+      "normal@http": "通过",
+      "offline@business": "不适用",
+      "offline@http": "不适用",
+      "weak@business": "不适用",
+      "weak@http": "不适用"
     },
     "share.single-req-policy-race": {
+      "blackhole@business": "不适用",
+      "blackhole@http": "不适用",
+      "dns@business": "不适用",
+      "dns@http": "不适用",
+      "flap@business": "不适用",
+      "flap@http": "不适用",
+      "lossy@business": "不适用",
+      "lossy@http": "不适用",
       "normal@business": "通过",
-      "normal@http": "通过"
+      "normal@http": "通过",
+      "offline@business": "不适用",
+      "offline@http": "不适用",
+      "weak@business": "不适用",
+      "weak@http": "不适用"
     },
     "share.single-start-explicit-key": {
+      "blackhole@business": "不适用",
+      "blackhole@http": "不适用",
+      "dns@business": "不适用",
+      "dns@http": "不适用",
+      "flap@business": "不适用",
+      "flap@http": "不适用",
+      "lossy@business": "不适用",
+      "lossy@http": "不适用",
       "normal@business": "通过",
-      "normal@http": "通过"
+      "normal@http": "通过",
+      "offline@business": "不适用",
+      "offline@http": "不适用",
+      "weak@business": "不适用",
+      "weak@http": "不适用"
     },
     "share.start-32": {
       "blackhole@business": "不适用",
@@ -5596,6 +5850,22 @@
       "weak@http": "不适用"
     },
     "timeout.request-override-shorter": {
+      "blackhole@business": "不适用",
+      "blackhole@http": "不适用",
+      "dns@business": "不适用",
+      "dns@http": "不适用",
+      "flap@business": "不适用",
+      "flap@http": "不适用",
+      "lossy@business": "不适用",
+      "lossy@http": "不适用",
+      "normal@business": "通过",
+      "normal@http": "通过",
+      "offline@business": "不适用",
+      "offline@http": "不适用",
+      "weak@business": "不适用",
+      "weak@http": "不适用"
+    },
+    "timeout.send-slow-reader": {
       "blackhole@business": "不适用",
       "blackhole@http": "不适用",
       "dns@business": "不适用",

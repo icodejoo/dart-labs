@@ -10,7 +10,7 @@ import subprocess
 import threading
 import time
 import urllib.request
-from coverage_device import adb, unlocked, capture
+from coverage_device import adb, unlocked, capture, shot
 
 PKG = 'com.icodejoo.mova.mova_example.coverage'
 HERE = Path(__file__).resolve().parent
@@ -82,7 +82,7 @@ def main():
                     adb('shell','am','start','-n',PKG+'/com.icodejoo.mova.mova_example.MainActivity')
                 if ' SHOT ' in line or ' MARK ' in line:
                     stamp = str(time.time_ns())
-                    (out/(name+'-'+stamp+'.png')).write_bytes(adb('exec-out','screencap','-p',binary=True))
+                    shot(out/(name+'-'+stamp+'.png'), PKG)
                     (out/(name+'-'+stamp+'.audio.txt')).write_text(adb('shell','dumpsys','audio'),encoding='utf-8')
                 if 'AUTORUN DONE' in line or 'Q13 DONE' in line or 'ALL DONE' in line or 'ALL_DONE' in line or ('RFV2|' in line and '|DONE|' in line):
                     finished.set()
@@ -113,7 +113,7 @@ def main():
         if category=='meminfo': cmd.append(PKG)
         if category=='batterystats': cmd.append(PKG)
         (out/(name+'.'+category+'.txt')).write_text(adb(*cmd),encoding='utf-8')
-    (out/(name+'.png')).write_bytes(adb('exec-out','screencap','-p',binary=True))
+    shot(out/(name+'.png'), PKG)
     (out/(name+'.run.json')).write_text(json.dumps({'selector':selector,'completed':finished.is_set(),'lines':len(lines),'pid':pid}),encoding='utf-8')
     stream.terminate()
     server.shutdown()

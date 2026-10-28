@@ -36,7 +36,8 @@
       "DiomanAuth.dio"
     ],
     "real": [
-      "local:test/combo/auth_retry_keep_alive_combo_test.dart"
+      "local:test/combo/auth_retry_keep_alive_combo_test.dart",
+      "basic.keep-alive-recovery-isolated"
     ],
     "assumptions": [
       "H4"
@@ -44,8 +45,8 @@
     "result": {
       "status": "PASS",
       "source": "test/accept/evidence/2026-10-28-summary.json",
-      "passed": 1,
-      "total": 1
+      "passed": 3,
+      "total": 3
     },
     "blocked": null,
     "note": "auth 重放复用宿主连接（H4），本地真实 keep-alive 核对"
@@ -219,8 +220,8 @@
     "result": {
       "status": "PASS",
       "source": "test/accept/evidence/2026-10-28-summary.json",
-      "passed": 6,
-      "total": 6
+      "passed": 8,
+      "total": 8
     },
     "blocked": null,
     "note": "源码：lib/src/auth_plugin.dart:236。"
@@ -429,12 +430,19 @@
     "apis": [
       "DiomanAuth.onError"
     ],
-    "real": [],
+    "real": [
+      "auth.expired-multipart-replay"
+    ],
     "assumptions": [
       "H2"
     ],
-    "result": null,
-    "blocked": "需 testkit schema 支持 multipart body、echo 回报文件摘要：api-ws-demo/testkit/proposals/2026-10-28-dioman-gaps.md §2；待拍板",
+    "result": {
+      "status": "PASS",
+      "source": "test/accept/evidence/2026-10-28-summary.json",
+      "passed": 2,
+      "total": 2
+    },
+    "blocked": null,
     "note": "lib/src/auth_plugin.dart:_replayOnce 与 replay_support.dart:prepareForReplay；本地 auth_replay_boundary_test.dart 有两分支。"
   },
   {
@@ -522,8 +530,8 @@
     "result": {
       "status": "PASS",
       "source": "test/accept/evidence/2026-10-28-summary.json",
-      "passed": 246,
-      "total": 246
+      "passed": 248,
+      "total": 248
     },
     "blocked": null,
     "note": "源码：lib/src/auth_plugin.dart:427。 这里只记可注入的契约及管线分支，已消费 body 的重放和真实取消另见同 API 拆行。"
@@ -1215,12 +1223,19 @@
     "apis": [
       "DiomanBreaker.onError"
     ],
-    "real": [],
+    "real": [
+      "breaker.half-open-probe-cancel"
+    ],
     "assumptions": [
       "H1"
     ],
-    "result": null,
-    "blocked": "缺 testkit 场景（只需新增，草案已给出）：api-ws-demo/testkit/proposals/2026-10-28-dioman-gaps.md §1 breaker.half-open-probe-cancel；待拍板"
+    "result": {
+      "status": "PASS",
+      "source": "test/accept/evidence/2026-10-28-summary.json",
+      "passed": 2,
+      "total": 2
+    },
+    "blocked": null
   },
   {
     "id": "DiomanBreaker.onError#network-classification",
@@ -2782,9 +2797,9 @@
       "H8"
     ],
     "result": {
-      "status": "FAIL",
+      "status": "PASS",
       "source": "test/accept/evidence/2026-10-28-summary.json",
-      "passed": 33,
+      "passed": 34,
       "total": 34
     },
     "blocked": null,
@@ -2808,7 +2823,7 @@
       "status": "PASS",
       "source": "test/accept/evidence/2026-10-28-summary.json",
       "passed": 2,
-      "total": 2
+      "total": 16
     },
     "blocked": null,
     "note": "lib/src/cache_plugin.dart:onRequest 的 resolve(...,true)，share/mock 同类路径；test/combo/ 下 cache/normalize、mock/loading 等组合；短路跳过后续 onRequest，不能因此生成多余括号。",
@@ -2930,7 +2945,8 @@
     "tier": 2,
     "apis": [],
     "real": [
-      "local:test/combo/auth_retry_keep_alive_combo_test.dart"
+      "local:test/combo/auth_retry_keep_alive_combo_test.dart",
+      "basic.keep-alive-recovery-isolated"
     ],
     "assumptions": [
       "H4"
@@ -2938,8 +2954,8 @@
     "result": {
       "status": "PASS",
       "source": "test/accept/evidence/2026-10-28-summary.json",
-      "passed": 1,
-      "total": 1
+      "passed": 3,
+      "total": 3
     },
     "blocked": null,
     "note": "keep-alive 复用同一 TCP 连接时恢复失败不污染后续响应（H4）；testkit 侧需要服务端回报连接标识，见 testkit 提议"
@@ -4248,8 +4264,8 @@
     "result": {
       "status": "PASS",
       "source": "test/accept/evidence/2026-10-28-summary.json",
-      "passed": 93,
-      "total": 107
+      "passed": 106,
+      "total": 110
     },
     "blocked": null,
     "note": "环境与执行器基线；失败先查环境再查插件"
@@ -4288,8 +4304,8 @@
     "result": {
       "status": "PASS",
       "source": "test/accept/evidence/2026-10-28-summary.json",
-      "passed": 53,
-      "total": 67
+      "passed": 66,
+      "total": 70
     },
     "blocked": null,
     "unit": [
@@ -5340,7 +5356,7 @@
       "status": "PASS",
       "source": "test/accept/evidence/2026-10-28-summary.json",
       "passed": 25,
-      "total": 25
+      "total": 53
     },
     "blocked": null
   },
@@ -6901,11 +6917,11 @@
     "result": {
       "status": "PASS",
       "source": "test/accept/evidence/2026-10-28-summary.json",
-      "passed": 1,
+      "passed": 23,
       "total": 29
     },
     "blocked": null,
-    "note": "413 注入路径已真实通过；429/503 + HTTP 日期格式仍被 testkit 场景 JSON 显式 skip（外部仓库）"
+    "note": "2026-10-28 testkit D20 去掉 429/503 注入场景的 skip，执行器按注入标记放行；HTTP 日期形式 Retry-After 服务端尚不能产生（见 testkit CONTRACT §3）"
   },
   {
     "id": "DiomanRetry.retryAfterMax",
@@ -6973,12 +6989,12 @@
     ],
     "assumptions": [],
     "result": {
-      "status": "BLOCKED",
+      "status": "PASS",
       "source": "test/accept/evidence/2026-10-28-summary.json",
-      "passed": 0,
+      "passed": 12,
       "total": 14
     },
-    "blocked": "retry.429-retried 被 testkit 场景 JSON 显式 skip（外部仓库 scenarios/retry.json）；执行器侧已放行注入的 429/503",
+    "blocked": null,
     "note": "真实执行器的 statuses 走的是自定义 shouldRetry，不经本表，所以不挂 real；429 场景（retry.429-retried）真实侧也被跳过。"
   },
   {
@@ -7361,7 +7377,7 @@
       "status": "PASS",
       "source": "test/accept/evidence/2026-10-28-summary.json",
       "passed": 46,
-      "total": 46
+      "total": 60
     },
     "blocked": null
   },
@@ -7610,13 +7626,20 @@
     "apis": [
       "DiomanSharePolicy.retry"
     ],
-    "real": [],
+    "real": [
+      "share.retry-recovers-single-result"
+    ],
     "assumptions": [
       "H2",
       "H7"
     ],
-    "result": null,
-    "blocked": "中立契约 share.policy 无 retry：api-ws-demo/testkit/proposals/2026-10-28-dioman-gaps.md §4；待拍板",
+    "result": {
+      "status": "PASS",
+      "source": "test/accept/evidence/2026-10-28-summary.json",
+      "passed": 2,
+      "total": 2
+    },
+    "blocked": null,
     "note": "内部重试走宿主 adapter 重放请求体（H2），间隔与响应的先后依赖真实时序（H7）。"
   },
   {
@@ -7848,7 +7871,7 @@
       "H5"
     ],
     "result": null,
-    "blocked": "netem 用户态完成握手、测不到 connect 超时，需\"丢 SYN\"档：api-ws-demo/testkit/proposals/2026-10-28-dioman-gaps.md §6；回环上只会立即拒绝（connectionError），本地也不可测",
+    "blocked": "testkit D22：netem 用户态无法阻止内核完成握手，黑盒测不到 connect 超时；回环上只会立即拒绝（connectionError），本地也不可测。保持阻塞",
     "note": "H5 本来就要求\"逐格确认断言的是错误类型与耗时\"，这一行是它在 connect 上的落点。"
   },
   {
@@ -7928,7 +7951,8 @@
       "DiomanTimeouts.send"
     ],
     "real": [
-      "local:test/boundary/timeout_effective_boundary_test.dart"
+      "local:test/boundary/timeout_effective_boundary_test.dart",
+      "timeout.send-slow-reader"
     ],
     "assumptions": [
       "H5"
@@ -7936,8 +7960,8 @@
     "result": {
       "status": "PASS",
       "source": "test/accept/evidence/2026-10-28-summary.json",
-      "passed": 1,
-      "total": 1
+      "passed": 3,
+      "total": 3
     },
     "blocked": null,
     "note": "send 超时在真实回环上生效（H5）；testkit 侧需要 send_ms 与慢读服务端，见 testkit 提议"
