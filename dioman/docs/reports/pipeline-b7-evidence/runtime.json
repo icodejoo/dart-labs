@@ -1,0 +1,36 @@
+{
+  "netemPort": 47190,
+  "closedAt": "2026-10-29T11:12:35.7763030+08:00",
+  "serverPort": 47180,
+  "closed": true,
+  "processes": [
+    {
+      "started": "2026-10-29T10:42:52.4220440+08:00",
+      "pid": 46760,
+      "path": "E:\\workspaces\\api-ws-demo\\target-b7\\release\\api-ws-demo.exe",
+      "sha256": "3EBED2F899055246FA52DDA0ACB23BA4AFA4B20AEE2C2554FB7A69765F892C0B"
+    },
+    {
+      "started": "2026-10-29T10:43:03.5355443+08:00",
+      "pid": 27832,
+      "path": "E:\\workspaces\\api-ws-demo\\target-b7\\release\\netem.exe",
+      "sha256": "AF9B36F9D61C4D01F61B3D7D284B173935A490F7320210B7E4F2DF61E5066BCA"
+    }
+  ],
+  "keyRecheck": {
+    "closedAt": "2026-10-29T11:20:48.9291588+08:00",
+    "closed": true,
+    "processes": [
+      {
+        "pid": 13780,
+        "path": "E:\\workspaces\\api-ws-demo\\target-b7\\release\\api-ws-demo.exe",
+        "started": "2026-10-29T11:18:24.4279465+08:00"
+      },
+      {
+        "pid": 39300,
+        "path": "E:\\workspaces\\api-ws-demo\\target-b7\\release\\netem.exe",
+        "started": "2026-10-29T11:18:34.7084887+08:00"
+      }
+    ]
+  }
+}

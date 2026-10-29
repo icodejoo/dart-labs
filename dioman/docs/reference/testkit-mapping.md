@@ -11,18 +11,22 @@ summary: 当前验收客户端的能力、结果与限制
 
 | 契约 | 当前映射 |
 |---|---|
-| 请求 | Dioman 动词方法，query 与 DiomanCall |
-| auth | DiomanAuth、DiomanTokenManager；回调接收归一化结果 |
+| 请求 | 场景使用 Dioman.send，query 与 DiomanCall；动词方法另有真实回环核对 |
+| auth | DiomanAuth、DiomanTokenManager；auth:true 映射强制保护选项；刷新回调缺凭证时直接失败 |
 | cache | DiomanCache；TTL 使用 Duration；执行器省略覆盖时显式开启，库默认仍 optIn |
 | share | DiomanShare；省略覆盖时执行器显式开启；none 中立值映射为 false |
 | retry | DiomanRetryOptions；仅注入状态重试，避免恢复非注入服务错误 |
 | mock | source 阶段 DiomanMock；探测与真实回落分开 |
 | normalize | DiomanResponseFactory；业务与 HTTP 共用逻辑状态 |
-| key/cancel/log | DiomanKeyOptions、DiomanCall.key、cancelAll、debug；无需插件 |
+| key/cancel/log | DiomanKeyOptions、DiomanCall.key、cancelAll、debug；无需插件；中立 key 开关安装后按请求显式启用 |
 | loading/notify | 最外层逻辑调用；silent 与取消按默认规则抑制通知 |
-| timeout | DiomanTimeout 与 Dio 三超时；不支持 total_ms，明确拒绝该字段 |
+| timeout | DiomanTimeout 与 Dio 三超时；不支持 total_ms，装配前按缺 timeout-total 跳过 |
+| offline | 旁路探测，原生 maxWait=Duration.zero，探测失败立即以 offline 结束 |
+| 可选能力 | 不声明 raw-business-code、timeout-total；缺能力在发请求前跳过 |
 | 失败 | DiomanResponse.kind、reason、status、httpStatus；程序错误原样抛出 |
 
 宿主映射与库默认行为有区别：testkit 的默认 cache/share 能力由执行器开启；filter 仍按中立契约显式开关。不要把执行器的注入判定、能力名和字段转换当成公开库 API。
 
 真实执行步骤见 [手册](../guides/accept-runner.md)。connect 超时、HTTP 日期 Retry-After 的真实环境限制保留在状态与历史证据，不扩大 PASS 范围。
+
+B7 从场景字段识别四种现行设计差异，并以“不适用：”报告：非 400–599 业务码的错误编号、注入坏 JSON/HTML 时强制 parse 预期、共享订阅者的单一请求预算、旧链路排除 offline 通知的计数。与首轮失败逐格对账 41+2 格，多跳 0、漏跳 0；这些差异仍需终审裁决，不修改设计结论。详见 [B7 报告](../reports/2026-10-29-pipeline-b7.md)。

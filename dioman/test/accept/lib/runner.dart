@@ -383,7 +383,8 @@ class ScenarioRun {
         tkRefresh: client!.refreshCount,
         tkExpired: client!.expiredCount,
         tkDenied: client!.deniedCount,
-        tkPendingAfter: active.length,
+        tkPendingAfter: client!.api.pending,
+        'active_cancel_tokens': active.length,
       };
 
   /// checkServer 的测试实现。
@@ -423,7 +424,11 @@ class ScenarioRun {
     final missing = missingCapabilities(scenario);
     final excluded = !(scenario[tkNetworks] as List).contains(network) ||
         !(scenario[tkStyles] as List? ?? [tkHttp, tkBusiness]).contains(style);
-    if (missing.isNotEmpty || expectation[tkSkip] != null || excluded) {
+    final inapplicable = designInapplicability(scenario, expectation);
+    if (missing.isNotEmpty ||
+        expectation[tkSkip] != null ||
+        excluded ||
+        inapplicable != null) {
       server.close(force: true);
       netem.close(force: true);
       return {
@@ -434,7 +439,7 @@ class ScenarioRun {
               ? 'skipped: missing ${missing.first}'
               // 主动注入的 429/503 不再跳过：ServiceGuardAdapter 按注入标记放行，
               // 真实限流/熔断仍整轮停止（2026-10-28 决定）。
-              : '不适用：${expectation[tkSkip] ?? '场景未声明此网络或风格；不推断未定义的正确预期'}'
+              : '不适用：${expectation[tkSkip] ?? (excluded ? '场景未声明此网络或风格；不推断未定义的正确预期' : inapplicable)}'
         ]
       };
     }

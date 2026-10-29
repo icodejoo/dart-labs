@@ -1,0 +1,349 @@
+{
+  "schemaCapabilities": [
+    "raw-business-code",
+    "timeout-total"
+  ],
+  "declaredScenarioCounts": {
+    "auth": 105,
+    "normalize": 114,
+    "cancel": 82,
+    "raw-business-code": 18,
+    "multipart": 2,
+    "log": 81,
+    "envs": 25,
+    "retry": 96,
+    "keep-alive": 1,
+    "breaker": 39,
+    "timeout": 44,
+    "cache": 66,
+    "key": 88,
+    "share": 62,
+    "loading": 57,
+    "notify": 44,
+    "mock": 33,
+    "repath": 30,
+    "filter": 28,
+    "offline": 29,
+    "mock-in-chain": 2,
+    "share-retry": 1,
+    "timeout-total": 11,
+    "timeout-send": 1
+  },
+  "scenarios": {
+    "raw-business-code": [
+      "plugins.single-auth",
+      "basic.business-code-without-normalize",
+      "plugins.single-envs",
+      "plugins.single-log",
+      "plugins.single-breaker",
+      "plugins.single-cache",
+      "plugins.single-cancel",
+      "plugins.single-loading",
+      "plugins.single-mock",
+      "normalize.per-request-off",
+      "plugins.single-notify",
+      "plugins.single-offline",
+      "plugins.single-filter",
+      "plugins.single-key",
+      "plugins.single-repath",
+      "plugins.single-retry",
+      "plugins.single-share",
+      "plugins.single-timeout"
+    ],
+    "timeout-total": [
+      "timeout.total-hang",
+      "timeout.total-over-slow-chunks",
+      "timeout.request-override-shorter",
+      "timeout.request-override-longer",
+      "timeout.within-budget",
+      "timeout.recovers-after-timeout",
+      "timeout.parallel-all-timeout",
+      "timeout.weak-generous-budget",
+      "timeout.total-slow-chunks-small",
+      "timeout.total-budget-slow-body-ok",
+      "timeout.receive-gap-vs-chunk-bytes"
+    ]
+  },
+  "requiresAdded": [
+    {
+      "scenario": "plugins.single-auth",
+      "added": [
+        "cancel",
+        "raw-business-code"
+      ]
+    },
+    {
+      "scenario": "basic.business-code-without-normalize",
+      "added": [
+        "raw-business-code"
+      ]
+    },
+    {
+      "scenario": "plugins.single-envs",
+      "added": [
+        "cancel",
+        "raw-business-code"
+      ]
+    },
+    {
+      "scenario": "plugins.single-log",
+      "added": [
+        "cancel",
+        "raw-business-code"
+      ]
+    },
+    {
+      "scenario": "plugins.single-breaker",
+      "added": [
+        "cancel",
+        "raw-business-code"
+      ]
+    },
+    {
+      "scenario": "breaker.half-open-probe-cancel",
+      "added": [
+        "cancel"
+      ]
+    },
+    {
+      "scenario": "plugins.single-cache",
+      "added": [
+        "cancel",
+        "raw-business-code"
+      ]
+    },
+    {
+      "scenario": "plugins.single-cancel",
+      "added": [
+        "raw-business-code"
+      ]
+    },
+    {
+      "scenario": "plugins.single-loading",
+      "added": [
+        "cancel",
+        "raw-business-code"
+      ]
+    },
+    {
+      "scenario": "plugins.single-mock",
+      "added": [
+        "cancel",
+        "raw-business-code"
+      ]
+    },
+    {
+      "scenario": "normalize.per-request-off",
+      "added": [
+        "raw-business-code"
+      ]
+    },
+    {
+      "scenario": "plugins.single-normalize",
+      "added": [
+        "cancel"
+      ]
+    },
+    {
+      "scenario": "plugins.single-notify",
+      "added": [
+        "cancel",
+        "raw-business-code"
+      ]
+    },
+    {
+      "scenario": "plugins.single-offline",
+      "added": [
+        "cancel",
+        "raw-business-code"
+      ]
+    },
+    {
+      "scenario": "plugins.single-filter",
+      "added": [
+        "cancel",
+        "raw-business-code"
+      ]
+    },
+    {
+      "scenario": "plugins.single-key",
+      "added": [
+        "cancel",
+        "raw-business-code"
+      ]
+    },
+    {
+      "scenario": "plugins.single-repath",
+      "added": [
+        "cancel",
+        "raw-business-code"
+      ]
+    },
+    {
+      "scenario": "plugins.single-retry",
+      "added": [
+        "cancel",
+        "raw-business-code"
+      ]
+    },
+    {
+      "scenario": "plugins.single-share",
+      "added": [
+        "cancel",
+        "raw-business-code"
+      ]
+    },
+    {
+      "scenario": "timeout.total-hang",
+      "added": [
+        "timeout-total"
+      ]
+    },
+    {
+      "scenario": "timeout.total-over-slow-chunks",
+      "added": [
+        "timeout-total"
+      ]
+    },
+    {
+      "scenario": "timeout.request-override-shorter",
+      "added": [
+        "timeout-total"
+      ]
+    },
+    {
+      "scenario": "timeout.request-override-longer",
+      "added": [
+        "timeout-total"
+      ]
+    },
+    {
+      "scenario": "timeout.within-budget",
+      "added": [
+        "timeout-total"
+      ]
+    },
+    {
+      "scenario": "timeout.recovers-after-timeout",
+      "added": [
+        "timeout-total"
+      ]
+    },
+    {
+      "scenario": "timeout.parallel-all-timeout",
+      "added": [
+        "timeout-total"
+      ]
+    },
+    {
+      "scenario": "timeout.weak-generous-budget",
+      "added": [
+        "timeout-total"
+      ]
+    },
+    {
+      "scenario": "timeout.total-slow-chunks-small",
+      "added": [
+        "timeout-total"
+      ]
+    },
+    {
+      "scenario": "timeout.total-budget-slow-body-ok",
+      "added": [
+        "timeout-total"
+      ]
+    },
+    {
+      "scenario": "timeout.receive-gap-vs-chunk-bytes",
+      "added": [
+        "timeout-total"
+      ]
+    },
+    {
+      "scenario": "plugins.single-timeout",
+      "added": [
+        "cancel",
+        "raw-business-code"
+      ]
+    }
+  ],
+  "newHttpSingles": 16,
+  "scenarioFiles": [
+    {
+      "path": "scenarios/auth.json",
+      "sha256": "568d13193ccba1553841aa5fd58cab6c9c36d9280c92350b9612039514d16025"
+    },
+    {
+      "path": "scenarios/basic.json",
+      "sha256": "5c76040cdee5281c844061c49d973846bb09195f7114f0e4f30325af3a0bac43"
+    },
+    {
+      "path": "scenarios/breaker.json",
+      "sha256": "cdf5c6e3101f4df7f0081c283ed5ef294f35f28a5ca0bd39d7bb3a4efe7d1948"
+    },
+    {
+      "path": "scenarios/cache.json",
+      "sha256": "7dcfd398b543de6f3e279999aeaf78b05c78f8e75c297734cc90cfc26c769752"
+    },
+    {
+      "path": "scenarios/cancel.json",
+      "sha256": "ebb06a97560803a0684b94fda38e717c9b0c36f68fc3422167fe4edee4e5a6f1"
+    },
+    {
+      "path": "scenarios/combos.json",
+      "sha256": "fb2291e92e23eec6402f41fcbbc56fc42320ae77b44c7b2a84d2b290bd96e37e"
+    },
+    {
+      "path": "scenarios/concurrency.json",
+      "sha256": "2c71a3749077b3ce23773435413568a6b5e085fbcabac65e45253a951f66a008"
+    },
+    {
+      "path": "scenarios/faults.json",
+      "sha256": "6c86d1a47f449ddf9260039ffa98636d449906f8532ab41d9747b7752c6d6cfd"
+    },
+    {
+      "path": "scenarios/filter.json",
+      "sha256": "f63236657e31ae230170bd5eb5ce0e4e7497cb1ad959addf80d6ae5772b46da2"
+    },
+    {
+      "path": "scenarios/loading.json",
+      "sha256": "b7b81eee34b8a8af954b91bb77d1854eb46085e44c61bc79615cbdc0f7a61588"
+    },
+    {
+      "path": "scenarios/mock.json",
+      "sha256": "4a58b095fcbe5ee896395c1d13e80903be9408446789422eb13b7166bff8dad1"
+    },
+    {
+      "path": "scenarios/network.json",
+      "sha256": "967233d7abf8299ac72d69d6be7efecfdef7b3b3f3821c3ec212a3c0506ebe5c"
+    },
+    {
+      "path": "scenarios/notify-normalize.json",
+      "sha256": "0875121d8b938a2891d90cffd9fe0bbda43661c7470bdeebe28703564c199b9c"
+    },
+    {
+      "path": "scenarios/offline.json",
+      "sha256": "cfb67142d2b8faefb127e356063ee590ebfdcd7fb17305cb8071639aadc08732"
+    },
+    {
+      "path": "scenarios/plugins.json",
+      "sha256": "e5fd71dd0446e991e5d396e1f963f13fa9ef01afc6d0c9be3d1fa1bd052e37b6"
+    },
+    {
+      "path": "scenarios/repath-key-filter.json",
+      "sha256": "c1b378fe6d7c746ffa85df1e906efef134939b5768fa82dc916d8024d946740d"
+    },
+    {
+      "path": "scenarios/retry.json",
+      "sha256": "c9d6113f0daab4e75800dbf66c04c3f3936d2e65136c556aa8e149c24e9ca4ad"
+    },
+    {
+      "path": "scenarios/share.json",
+      "sha256": "63a2b40ad29fbf314dbf82cb5af6500a828f94650a58eb7cafe846f18a48da00"
+    },
+    {
+      "path": "scenarios/timeout.json",
+      "sha256": "432e864dde02a80fa6deb39239c85f591016f1b4290a868509551b912ac065b4"
+    }
+  ]
+}

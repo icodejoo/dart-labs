@@ -40,6 +40,9 @@ const _assumptions = 'assumptions';
 /// 本文件共用的字面量 'result'。
 const _result = 'result';
 
+/// 明确登记的外部阻塞，不表示已执行或通过。
+const _blockedStatus = 'BLOCKED';
+
 /// 行的可选字段：没有 API 可反查时直接列单测文件（仅 INV-xx 等不变量行用）。
 const _unit = 'unit';
 
@@ -393,7 +396,7 @@ Set<String> computeGaps({
     }
     // 只要挂了真实结论就要守住：FAIL 必须被看见；BLOCKED 必须写明原因。
     if (row.result?['status'] == 'FAIL') gaps.add('G4:${row.id}:fail');
-    if (row.result?['status'] == 'BLOCKED' &&
+    if (row.result?['status'] == _blockedStatus &&
         (row.blocked?.trim().isEmpty ?? true)) {
       gaps.add('G4:${row.id}:blocked-no-reason');
     }
@@ -527,6 +530,7 @@ const localRealPrefix = 'local:';
 ///
 /// 任一格失败 → FAIL；无失败且至少一格通过 → PASS；其余（全跳过）→ BLOCKED。
 /// [notApplicable] 的格子先剔除；剔除后一格不剩也返回 null。
+/// 唯独明确登记外部阻塞且无 real 的②③行保留 BLOCKED、0/0，不伪造执行证据。
 /// `local:` 本地真实核对各计一格"通过"（见 [localRealPrefix]）。
 /// 返回 `{status, source, passed, total}`，passed/total 按格子计数（跳过计入 total）。
 /// 例：`rowResult(row, cases, 'test/accept/evidence/x.json')?['status']`。
@@ -540,13 +544,25 @@ Map<String, dynamic>? rowResult(
         ...((cases[id] as Map?)?.values.cast<String>() ?? const <String>[])
             .where((s) => s != notApplicable)
   ];
-  if (statuses.isEmpty) return null;
+  if (statuses.isEmpty) {
+    if (row.real.isNotEmpty ||
+        !const {2, 3}.contains(row.tier) ||
+        (row.blocked?.trim().isEmpty ?? true)) {
+      return null;
+    }
+    return {
+      'status': _blockedStatus,
+      'source': source,
+      'passed': 0,
+      'total': 0,
+    };
+  }
   final passed = statuses.where((s) => s == _passed).length;
   final status = statuses.contains(_failed)
       ? 'FAIL'
       : passed > 0
           ? 'PASS'
-          : 'BLOCKED';
+          : _blockedStatus;
   return {
     'status': status,
     'source': source,

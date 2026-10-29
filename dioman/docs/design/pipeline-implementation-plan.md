@@ -25,6 +25,17 @@ summary: B0–B7 分批、每批的完成标准、Codex 派发约束、终审关
 
 - 批次线性推进，不并行：B2–B4 共用 `test/support/` 夹具和组合用例。
 - **B5 拆成两次派发**（B4 终审后定）：B5a 做 powerset、成对组合补齐与 `lib/src/pipeline/` 逐文件覆盖，不删任何文件；B5b 做删除与切换。删除旧源码会让执行器、example、key 对照测试、旧版 bench 失去编译对象，所以 **执行器改用新 API 从 B7 提前到 B5b**；key 对照测试先导出旧版结果作固定基准；旧版 bench 改从旧提交的临时 worktree 运行，供 B6 交错对比。B7 只剩 testkit 侧补能力与全量验收。
+- **B8 对照 axp 终审补修**（axp 报告 `E:\workspaces\codejoo\apps\axp\docs\reports\2026-10-29-final-review.md` §2、§8；B7 交回后开工）：
+  1. share end/race 撤回：调用方自己取消（或自身超时）的结果不落定共享条目，end 回退到仍在途或最近完成的请求，race 回退到上一个非撤回结果（P1）。
+  2. key：非 Map/String 请求体不再用 `identityHashCode`；JSON List 按内容编码，字节体在大小上限内按内容哈希，超过或无法编码（含 `_encode` 的 `toString()` 回退）就不生成 key（P2）。
+  3. auth：新增 `refreshTimeout`（默认 30s，超时按刷新失败）；刷新失败时若 token 已被替换（重新登录），等待者按当前 token 继续，不返回 expired；README 写明 onRefresh 经同一客户端发请求必须本次关闭 auth，否则重入等待自己（P1）。
+  4. retry：`retryAfterMax` 默认 60s，服务端要求的等待超过上限就不再重试、直接返回本次结果；`null` 改为不封顶需显式传值（语义变化，写进 CHANGELOG；与 axp D1 一致，待用户确认）。
+  5. cache：内存命中返回前重查取消（P2）。
+  6. 一次性请求体（Stream 等无法克隆的）：内核提供可否重放的判断，retry、auth、mock 在重放前检查，不能重放就把原结果交给调用方（P2）。
+  7. notify：默认 stringify 不给 internal 弹提示（P3）。
+  8. 测试：新增不变量 I8 结果归属（一个调用方的取消或超时不改变其他调用方结果的类别）、I9 来源一致（回显的实际请求等于调用方发出的请求）；powerset 补一条带体重发流程（PUT + retry，请求级开 cache/share）；share 三策略 ×｛首发、跟随者、最新者、最后完成者｝×｛取消、超时｝撤回矩阵；每项一条回归。
+  9. testkit 场景（与 axp 协调后再加）：share end/race 参与者取消、超大 Retry-After。
+  10. B7 的 4 类"需终审裁决"：① 非 400–599 业务码（23 格）——场景要 `error: "business:<code>"`，执行器按 `kind == biz` 输出 `business:${r.code}` 即可，这是读库的结果字段，不算替库判业务码；② 坏 JSON（16 格）——库缺陷：解码抛出的 `FormatException` 应归 `parse`（现在落到 internal 被当程序错误抛出），同时核对 HTML 用例在 `expectJson` 下的口径；③ share 单一请求预算（2 格）——本质是整体超时，场景补 `requires: timeout-total`（testkit，按缺能力跳过）；④ offline 早期失败的通知计数（2 格）——维持 dioman 语义（notify 覆盖 offline 失败），"不适用"成立。①②③ 修完后重跑对应格并回填总账。
 - **B5b 终审留给 B7 的两件事**：① 执行器对 `total_ms`（整体预算）现在直接拒绝；testkit 侧要登记对应能力名，dioman 不具备时按 `skipped: missing <cap>` 跳过，不能报错，也不能由执行器补计时器。② B5b 把失去旧 API 挂点的 153 个真实场景暂挂在 `INV-REAL` 子行上；B7 回填证据时，能对应到新 API 行的改挂到 API 行，只有确实没有 API 的不变量才留在 INV 行。
 - 每批报告放 `docs/reports/2026-10-29-pipeline-b<n>.md`，结构：TL;DR → 文件清单 → 验收（逐条命令与输出摘要、覆盖率逐文件计数）→ 本批 API id → 迁移清单对账 → 规格不清与保守取舍（需终审确认的单列）→ 终审修复（问题、修法、回归用例；撤掉修复后回归用例会失败）。
 

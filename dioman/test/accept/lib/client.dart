@@ -220,6 +220,8 @@ class ScenarioClient {
                   .contains(request.method)),
         if (plugins.containsKey(tkOffline))
           DiomanOffline(
+              // 中立 probe 契约是探测失败即返回 offline，使用原生零等待预算。
+              maxWait: Duration.zero,
               isOnline: () => online,
               onConnectivityChanged: connectivity.stream),
         if (plugins.containsKey(tkShare))
@@ -242,6 +244,10 @@ class ScenarioClient {
               isProtected: (request) => request.uri.path
                   .startsWith(auth[tkUrlPattern] as String? ?? privatePath),
               onRefresh: (_, result) async {
+                // 刷新凭证由使用者回调管理；缺凭证时直接报告刷新失败，不发空请求。
+                if (tokens.refresh == null || tokens.refresh!.isEmpty) {
+                  throw StateError('没有刷新凭证');
+                }
                 refreshCount++;
                 final refreshApi = Dioman(dio: ioClient(dio.options.baseUrl));
                 try {
@@ -363,7 +369,9 @@ class ScenarioClient {
         throw StateError('retry.$key 未映射');
       }
     }
-    final key = cache[tkKey] ?? options[tkKey];
+    final key = cache[tkKey] ??
+        options[tkKey] ??
+        (plugins.containsKey(tkKey) ? false : null);
     return DiomanCall(
         headers: {...this.headers, ...?headers},
         cancelToken: token,
@@ -378,7 +386,9 @@ class ScenarioClient {
             ? null
             : ms(options[tkTimeoutMs] as num),
         options: {
-          DiomanAuth.option: options[tkAuth],
+          DiomanAuth.option: options[tkAuth] == true
+              ? const DiomanAuthOptions(enabled: true)
+              : options[tkAuth],
           DiomanCache.option: options[tkCache] == false
               ? false
               : options[tkCache] == null
@@ -387,9 +397,11 @@ class ScenarioClient {
                       expires: cache[tkTtlMs] == null
                           ? null
                           : ms(cache[tkTtlMs] as num)),
-          DiomanShare.option: options[tkShare] is String
-              ? DiomanShareOptions(policy: policy(options[tkShare]))
-              : options[tkShare] ?? true,
+          DiomanShare.option: options[tkShare] == tkNone
+              ? false
+              : options[tkShare] is String
+                  ? DiomanShareOptions(policy: policy(options[tkShare]))
+                  : options[tkShare] ?? true,
           DiomanLoading.option: options[tkLoading],
           DiomanRetry.option: options[tkRetry] == false
               ? false

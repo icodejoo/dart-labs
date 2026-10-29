@@ -9,6 +9,66 @@ import '../accept/lib/runner.dart';
 import '../support/fake_network.dart';
 import '../support/helpers.dart' show flush;
 
+/// B7 共用字面量。
+const _b7Steps = 'steps';
+
+/// B7 共用字面量。
+const _b7Request = 'request';
+
+/// B7 共用字面量。
+const _b7Query = 'query';
+
+/// B7 共用字面量。
+const _b7Fault = 'fault';
+
+/// B7 共用字面量。
+const _b7BadJson = 'bad_json';
+
+/// B7 共用字面量。
+const _b7Literal0 = 'id';
+
+/// B7 共用字面量。
+const _b7Literal1 = 'total-budget';
+
+/// B7 共用字面量。
+const _b7Literal2 = 'networks';
+
+/// B7 共用字面量。
+const _b7Literal3 = 'expect';
+
+/// B7 共用字面量。
+const _b7Literal4 = 'reasons';
+
+/// B7 共用字面量。
+const _b7Literal5 = 'business:503';
+
+/// B7 共用字面量。
+const _b7Literal6 = 'network';
+
+/// B7 共用字面量。
+const _b7Literal7 = 'parse';
+
+/// B7 共用字面量。
+const _b7Literal8 = 'offline';
+
+/// B7 共用字面量。
+const _b7Literal9 = 'auth';
+
+/// B7 共用字面量。
+const _b7Literal10 = 'key';
+
+/// B7 共用字面量。
+const _b7Literal11 = 'explicit';
+
+/// B7 共用字面量。
+const _b7Literal12 = 'results';
+
+/// B7 共用字面量。
+const _b7Literal13 = 'r';
+
+/// B7 共用字面量。
+const _b7Literal14 = 'error';
+
 /// 场景配置中缓存插件的名称。
 const _cache = 'cache';
 
@@ -197,28 +257,35 @@ void main() {
       }
     }
   });
-  test('[ScenarioClient] total_ms 没有库实现，显式拒绝配置，不能静默失效', () {
-    expect(
-        () => ScenarioClient({
-              _literalClient: {
-                _literalPlugins: {
-                  _literalTimeout: {'total_ms': 10}
-                }
-              }
-            }, 'budget', _literalHttpsGuardTest, _literalHttp),
-        throwsStateError);
+  test('[ScenarioRun.execute] total_ms 缺能力时跳过，不访问服务也不补计时器', () async {
+    for (final declared in [true, false]) {
+      final result = await ScenarioRun({
+        _b7Literal0: _b7Literal1,
+        _literalRequires: [if (declared) timeoutTotalCapability],
+        _b7Literal2: [_literalNormal],
+        _b7Literal3: <String, Object?>{},
+        _literalClient: {
+          _literalPlugins: {
+            _literalTimeout: {'total_ms': 10}
+          }
+        }
+      }, _literalNormal, _literalHttp, _b7Literal1)
+          .execute();
+      expect(result['status'], '跳过');
+      expect(result[_b7Literal4], ['skipped: missing $timeoutTotalCapability']);
+    }
   });
   test('[client.classify] 归类只读取 kind reason status，原始数据不参与判断', () {
     final request = DiomanRequest(RequestOptions(path: '/classification'));
     for (final entry in {
-      DiomanKind.biz: 'business:503',
+      DiomanKind.biz: _b7Literal5,
       DiomanKind.http: 'http:503',
       DiomanKind.cancel: 'canceled',
       DiomanKind.timeout: _literalTimeout,
-      DiomanKind.network: 'network',
-      DiomanKind.parse: 'parse',
+      DiomanKind.network: _b7Literal6,
+      DiomanKind.parse: _b7Literal7,
       DiomanKind.breaker: 'breaker_open',
-      DiomanKind.offline: 'offline',
+      DiomanKind.offline: _b7Literal8,
       DiomanKind.auth: _literalDenied,
     }.entries) {
       final response = DiomanResponse<Object?>(
@@ -243,18 +310,160 @@ void main() {
   test('[ScenarioRun.execute] 缺能力和未声明维度分别跳过，且不访问服务', () async {
     for (final missing in [true, false]) {
       final scenario = {
-        'id': _literalRunnerCheck,
+        _b7Literal0: _literalRunnerCheck,
         _literalRequires: missing ? [_literalRawBusinessCode] : [],
-        'networks': [_literalNormal],
+        _b7Literal2: [_literalNormal],
         'styles': [_literalHttp],
-        'expect': <String, Object?>{}
+        _b7Literal3: <String, Object?>{}
       };
       final run = ScenarioRun(scenario, missing ? _literalNormal : 'weak',
           _literalHttp, _literalRunnerCheck);
       final result = await run.execute();
-      final reasons = result['reasons'] as List;
+      final reasons = result[_b7Literal4] as List;
       expect(
           reasons.single, startsWith(missing ? 'skipped: missing ' : '不适用：'));
     }
+  });
+  test('[ScenarioClient] 无刷新凭证不调用端点，原生刷新失败仍通知过期', () async {
+    final network = FakeNetwork()
+      ..routes[_literalGETGuard] = [
+        const FakeReply(
+            status: 401, body: {_literalCode: 401, _literalData: null})
+      ];
+    final client = ScenarioClient({
+      _literalClient: {
+        _literalPlugins: {_b7Literal9: {}}
+      }
+    }, _literalGuard, _literalHttpsGuardTest, _literalHttp, transport: network);
+    client.tokens.replace('Bearer old', null);
+    try {
+      final result = await client.api.send<dynamic>(_literalGET, _literalGuard1,
+          call: client.call({_b7Literal9: true}));
+      expect(result.reason, 'expired',
+          reason:
+              '$result sends=${network.sends.map((s) => s.options.path).toList()}');
+      expect(client.refreshCount, 0);
+      expect(client.expiredCount, 1);
+      expect(network.sends, hasLength(1));
+    } finally {
+      await client.dispose();
+    }
+  });
+  test('[ScenarioClient] 中立 key 显式启用与 share none 映射成原生配置', () async {
+    final client = ScenarioClient({
+      _literalClient: {
+        _literalPlugins: {_b7Literal10: {}, _share: {}}
+      }
+    }, _literalGuard, _literalHttpsGuardTest, _literalHttp,
+        transport: FakeNetwork());
+    try {
+      expect(client.call({}).key, isFalse);
+      expect(client.call({_b7Literal10: true}).key, isNull);
+      expect(client.call({_b7Literal10: _b7Literal11}).key, _b7Literal11);
+      expect(
+          client.call({_share: 'none'}).options[DiomanShare.option], isFalse);
+    } finally {
+      await client.dispose();
+    }
+  });
+  test('[ScenarioClient] probe 失败使用原生零等待队列返回 offline', () async {
+    final network = FakeNetwork();
+    final client = ScenarioClient({
+      _literalClient: {
+        _literalPlugins: {_b7Literal8: {}}
+      }
+    }, _literalGuard, _literalHttpsGuardTest, _literalHttp, transport: network);
+    client.online = false;
+    try {
+      final result =
+          await client.api.send<dynamic>(_literalGET, _literalGuard1);
+      expect(result.kind, DiomanKind.offline);
+      expect(client.api.pending, 0);
+      expect(network.sends, isEmpty);
+    } finally {
+      await client.dispose();
+    }
+  });
+  test('[common.designInapplicability] 通用字段识别，允许替代错误时仍执行', () {
+    final scenario = {
+      _b7Steps: [
+        {
+          _b7Request: {
+            _b7Query: {_b7Fault: _b7BadJson}
+          }
+        }
+      ]
+    };
+    expect(
+        designInapplicability(scenario, {
+          _b7Literal12: {
+            _b7Literal13: {_b7Literal14: _b7Literal7}
+          }
+        }),
+        isNotNull);
+    expect(
+        designInapplicability(scenario, {
+          _b7Literal12: {
+            _b7Literal13: {
+              _b7Literal14: [_b7Literal7, _b7Literal6]
+            }
+          }
+        }),
+        isNull);
+    expect(
+        designInapplicability({}, {
+          _b7Literal12: {
+            _b7Literal13: {_b7Literal14: 'business:5001'}
+          }
+        }),
+        isNotNull);
+    expect(
+        designInapplicability({}, {
+          _b7Literal12: {
+            _b7Literal13: {_b7Literal14: _b7Literal5}
+          }
+        }),
+        isNull);
+  });
+  test('[common.scenarioSteps] 只识别真实控制字段，负载中同名键保持数据语义', () {
+    final payload = [
+      {
+        _b7Request: {
+          'body': {
+            _b7Request: {
+              _b7Query: {_b7Fault: _b7BadJson}
+            },
+            'cancel_all': {}
+          }
+        }
+      }
+    ];
+    expect(usesScenarioCancellation(payload), isFalse);
+    expect(
+        designInapplicability({
+          _b7Steps: payload
+        }, {
+          _b7Literal12: {
+            _b7Literal13: {_b7Literal14: _b7Literal7}
+          }
+        }),
+        isNull);
+    expect(
+        usesScenarioCancellation([
+          {
+            'sequence': [
+              {
+                'fire': {
+                  'repeat': {
+                    'step': {
+                      _b7Request: {'cancel_after_ms': 10}
+                    }
+                  }
+                }
+              }
+            ]
+          }
+        ]),
+        isTrue);
   });
 }

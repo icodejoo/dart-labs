@@ -6,6 +6,12 @@ import 'dart:io';
 import '../lib/common.dart';
 import '../lib/pairwise.dart';
 
+/// B7 共用字面量。
+const _b7Literal0 = 'normal@http';
+
+/// B7 共用字面量。
+const _b7Literal1 = 'normal@business';
+
 /// main 的测试辅助入口。
 /// 人读矩阵和中立场景共用的源清单，生成过程不连接服务。
 void main() {
@@ -23,7 +29,12 @@ void main() {
       tkId: scenarioId,
       tkTitle: purpose ?? id,
       tkWhy: purpose ?? '验证 $method 下插件组合的真实响应及资源释放。',
-      tkRequires: plugins.keys.toList(),
+      tkRequires: {
+        ...plugins.keys,
+        if (usesScenarioCancellation(steps)) tkCancel,
+        if (id.startsWith('single-') && !plugins.containsKey(tkNormalize))
+          rawBusinessCodeCapability,
+      }.toList(),
       tkNetworks: networks,
       tkClient: {tkPlugins: plugins},
       tkSteps: steps,
@@ -75,7 +86,7 @@ void main() {
         '单体',
         {name: <String, dynamic>{}},
         [
-          echo(tkOk),
+          echo(tkOk, options: {tkKey: name == tkKey}),
           echo(tkError,
               query: {tkStatus: 500, tkCode: 500},
               options: {tkKey: false, tkCache: false}),
@@ -88,16 +99,16 @@ void main() {
           tkNormal: {
             tkResults: {
               ...success(tkOk),
-              // normalize/auth 在 business 下将业务失败转换成异常；其余单开保留信封。
+              // 只有 normalize 转换一般业务失败；其余单开依赖业务码透传能力。
               tkCancel: {tkOk: false, tkError: tkCanceled},
             }
           },
-          'normal@http': {
+          _b7Literal0: {
             tkResults: {
               tkError: {tkOk: false, tkError: tkStatus500}
             }
           },
-          'normal@business': {
+          _b7Literal1: {
             tkResults: {
               tkError: name == tkNormalize
                   ? {tkOk: false, tkError: tkStatus500}
@@ -106,6 +117,27 @@ void main() {
           },
         },
         purpose: '$name 单独启用：成功、500、主动取消；不代表全部公开选项已覆盖。');
+    if (name != tkNormalize) {
+      final business = cases.last;
+      final http = <String, dynamic>{
+        ...business,
+        tkId: '${business[tkId]}-http',
+        tkStyles: [tkHttp],
+        tkRequires: (business[tkRequires] as List)
+            .where((cap) => cap != rawBusinessCodeCapability)
+            .toList(),
+        tkExpect: {...business[tkExpect] as Map}..remove(_b7Literal1),
+      };
+      business[tkStyles] = [tkBusiness];
+      (business[tkExpect] as Map).remove(_b7Literal0);
+      manifest.last[tkStyles] = [tkBusiness];
+      manifest.add({
+        ...manifest.last,
+        tkScenario: http[tkId],
+        tkStyles: [tkHttp]
+      });
+      cases.add(http);
+    }
   }
 
   final rows = binaryPairs(names.length);
@@ -118,7 +150,9 @@ void main() {
         'pair-$row',
         '配对',
         plugins,
-        [echo(tkPair)],
+        [
+          echo(tkPair, options: {tkKey: plugins.containsKey(tkKey)})
+        ],
         {
           tkNormal: {
             tkResults: success(tkPair),
@@ -225,7 +259,7 @@ void main() {
       tkRequest: {
         tkId: tkRefresh,
         tkPath: tkTPrivateMe,
-        tkOptions: {tkMock: false}
+        tkOptions: {tkMock: false, tkCache: false}
       }
     },
     echo(tkRetry, query: {tkKey: 'matrix-retry', tkFailTimes: 1}),
@@ -291,7 +325,7 @@ void main() {
           },
           tkClient: {
             tkRefresh: {tkEq: 1},
-            // offline 在 notify 前拒绝，请求没有进入通知链。
+            // 此中立预期排除 offline 早期失败；outer notify 的设计差异单独报告。
             tkNotify: {tkEq: 1},
             tkPendingAfter: {tkEq: 0}
           }

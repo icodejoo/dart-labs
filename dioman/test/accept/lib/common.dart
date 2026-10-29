@@ -6,6 +6,9 @@ import 'dart:typed_data';
 import 'package:dio/dio.dart';
 import 'package:dio/io.dart';
 
+/// B7 共用字面量。
+const _b7Literal0 = 'business:';
+
 /// 真实服务地址。
 final serverUrl =
     Platform.environment['TESTKIT_SERVER'] ?? 'http://127.0.0.1:47080';
@@ -200,12 +203,110 @@ const subCapabilities = {
 /// 执行器声明的全部能力；场景 requires 里不在其中的按"缺能力"跳过。
 const supportedCapabilities = {...capabilities, ...subCapabilities};
 
-/// 缺能力只按场景声明识别；raw-business-code 等未声明能力一律不执行。
-List<String> missingCapabilities(Map<String, dynamic> scenario) =>
-    (scenario[tkRequires] as List? ?? const [])
-        .cast<String>()
-        .where((capability) => !supportedCapabilities.contains(capability))
-        .toList();
+/// 始终归一化业务信封，且没有整体预算；两项均不声明为支持。
+const rawBusinessCodeCapability = 'raw-business-code';
+
+/// 整体预算独立于 Dio 的连接、发送、接收超时。
+const timeoutTotalCapability = 'timeout-total';
+
+/// 在客户端装配前识别缺能力；旧场景漏写 requires 时也不模拟整体预算。
+List<String> missingCapabilities(Map<String, dynamic> scenario) {
+  final required = {
+    ...(scenario[tkRequires] as List? ?? const []).cast<String>(),
+    if (obj(obj(obj(scenario[tkClient])[tkPlugins])[tkTimeout])[tkTotalMs] !=
+        null)
+      timeoutTotalCapability,
+  };
+  return required
+      .where((capability) => !supportedCapabilities.contains(capability))
+      .toList();
+}
+
+/// 共享默认策略。
+const _shareStart = 'start';
+
+/// 从场景字段判定设计语义不适用；不使用场景 id 清单。
+/// 原因只描述现行设计差异，不能替代终审对设计的裁决。
+String? designInapplicability(
+    Map<String, dynamic> scenario, Map<String, dynamic> expectation) {
+  for (final raw in obj(expectation[tkResults]).values) {
+    final error = obj(raw)[tkError];
+    final errors =
+        error is List ? error.cast<String>() : [if (error is String) error];
+    if (errors.isEmpty) continue;
+    if (errors.every((value) {
+      if (!value.startsWith(_b7Literal0)) return false;
+      final code = int.tryParse(value.substring(_b7Literal0.length));
+      return code != null && (code < 400 || code > 599);
+    })) {
+      return '现行逻辑 status 只映射 400–599，原始业务 code 不作为错误分类编号；需终审裁决';
+    }
+    if (errors.every((value) => value == 'parse') &&
+        _hasParseFault(scenario[tkSteps])) {
+      return '现行默认工厂不强制 JSON，Dio 解码异常归 internal；与场景 parse 预期冲突，需终审裁决';
+    }
+  }
+  final plugins = obj(obj(scenario[tkClient])[tkPlugins]);
+  final results = obj(expectation[tkResults]).values.map(obj).toList();
+  final notices = obj(obj(expectation[tkClient])[tkNotify])[tkEq];
+  if (plugins.containsKey(tkNotify) &&
+      plugins.containsKey(tkOffline) &&
+      notices is num &&
+      results.any((result) => result[tkError] == tkOffline) &&
+      notices <
+          results
+              .where((result) =>
+                  result[tkOk] == false && result[tkError] != tkCanceled)
+              .length) {
+    return 'outer notify 包含 offline 早期失败，场景按旧链路排除这次通知；需终审裁决';
+  }
+  final share = obj(plugins[tkShare]);
+  if (share.isNotEmpty &&
+      {_shareStart, tkRetry}.contains(share[tkPolicy] ?? _shareStart) &&
+      _hasSubscriptionBudget(scenario[tkSteps], expectation)) {
+    return '共享订阅者按连接与接收阶段预算之和等待，场景要求单一请求预算；需终审裁决';
+  }
+  return null;
+}
+
+/// 只遍历真正的场景控制结构，普通请求体不是 step。
+Iterable<Map<String, dynamic>> scenarioSteps(dynamic node) sync* {
+  if (node is List) {
+    for (final child in node) {
+      yield* scenarioSteps(child);
+    }
+  } else if (node is Map) {
+    final step = obj(node);
+    yield step;
+    for (final key in [tkParallel, 'sequence', 'fire']) {
+      if (step[key] != null) yield* scenarioSteps(step[key]);
+    }
+    final repeated = obj(step['repeat'])['step'];
+    if (repeated != null) yield* scenarioSteps(repeated);
+  }
+}
+
+/// 检查实际取消控制，不扫描任意 JSON 负载。
+bool usesScenarioCancellation(dynamic steps) =>
+    scenarioSteps(steps).any((step) =>
+        step.containsKey(tkCancelAll) ||
+        obj(step[tkRequest])[tkCancelAfterMs] != null);
+
+/// 识别要求请求级单一超时预算的共享订阅者断言。
+bool _hasSubscriptionBudget(dynamic steps, Map<String, dynamic> expectation) =>
+    scenarioSteps(steps).any((step) {
+      final request = obj(step[tkRequest]);
+      final options = obj(request[tkOptions]);
+      return options[tkTimeoutMs] != null &&
+          options[tkShare] != false &&
+          obj(obj(expectation[tkResults])[request[tkId]])[tkError] == tkTimeout;
+    });
+
+/// 场景是否明确注入 JSON 解码错误或 HTML 网关页。
+bool _hasParseFault(dynamic steps) => scenarioSteps(steps).any((step) {
+      final query = obj(obj(step[tkRequest])[tkQuery]);
+      return {'bad_json', 'html'}.contains(query['fault']);
+    });
 
 /// 中立插件允许字段，未知字段必须报错。
 const pluginFields = <String, Set<String>>{

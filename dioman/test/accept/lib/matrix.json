@@ -67,8 +67,13 @@
       "auth.expired-refresh-replay"
     ],
     "assumptions": [],
-    "result": null,
-    "blocked": "待 B7 真实验收：新 API 切换后重新核对，旧场景引用保留。",
+    "result": {
+      "status": "PASS",
+      "source": "test/accept/evidence/2026-10-29-summary.json",
+      "passed": 10,
+      "total": 10
+    },
+    "blocked": null,
     "note": "源码：lib/src/auth_plugin.dart:253。"
   },
   {
@@ -116,8 +121,13 @@
       "auth.public-ignores-expired-token"
     ],
     "assumptions": [],
-    "result": null,
-    "blocked": "待 B7 真实验收：新 API 切换后重新核对，旧场景引用保留。",
+    "result": {
+      "status": "PASS",
+      "source": "test/accept/evidence/2026-10-29-summary.json",
+      "passed": 14,
+      "total": 14
+    },
+    "blocked": null,
     "note": "源码：lib/src/auth_plugin.dart:248。"
   },
   {
@@ -134,8 +144,13 @@
       "auth.deny-403"
     ],
     "assumptions": [],
-    "result": null,
-    "blocked": "待 B7 真实验收：新 API 切换后重新核对，旧场景引用保留。",
+    "result": {
+      "status": "PASS",
+      "source": "test/accept/evidence/2026-10-29-summary.json",
+      "passed": 14,
+      "total": 14
+    },
+    "blocked": null,
     "note": "源码：lib/src/auth_plugin.dart:239。"
   },
   {
@@ -148,14 +163,46 @@
       "DiomanAuth.onAccessExpired"
     ],
     "real": [
-      "auth.refresh-expired-session",
+      "auth.code-only-401-no-refresh-token",
+      "auth.code-only-401-refresh-once-then-expired",
+      "auth.expired-multipart-replay",
       "auth.refresh-expired-concurrent",
+      "auth.refresh-expired-session",
       "auth.refresh-fail-times",
-      "auth.refresh-window-blocked-expired"
+      "auth.refresh-window-blocked-expired",
+      "auth.relogin-after-expired",
+      "auth.revoke-all-concurrent",
+      "auth.revoke-all-expired",
+      "auth.revoke-all-previous-tokens",
+      "auth.revoke-all-then-relogin",
+      "auth.revoke-default-scope-is-all",
+      "auth.revoke-kicked",
+      "auth.style-switch-expired",
+      "auth.token-bad-signature-refresh-bad",
+      "auth.token-bad-signature-refresh-none",
+      "auth.token-empty-refresh-bad",
+      "auth.token-empty-refresh-none",
+      "auth.token-garbage-concurrent-no-refresh",
+      "auth.token-garbage-concurrent-refresh-bad",
+      "auth.token-garbage-refresh-bad",
+      "auth.token-garbage-refresh-none",
+      "auth.token-no-refresh-user-garbage",
+      "auth.token-no-refresh-user-none",
+      "auth.token-none-refresh-bad",
+      "auth.token-none-refresh-none",
+      "auth.token-tampered-payload-refresh-bad",
+      "auth.token-tampered-payload-refresh-none",
+      "auth.token-wrong-scheme-refresh-bad",
+      "auth.token-wrong-scheme-refresh-none"
     ],
     "assumptions": [],
-    "result": null,
-    "blocked": "待 B7 真实验收：新 API 切换后重新核对，旧场景引用保留。",
+    "result": {
+      "status": "PASS",
+      "source": "test/accept/evidence/2026-10-29-summary.json",
+      "passed": 81,
+      "total": 81
+    },
+    "blocked": null,
     "note": "源码：lib/src/auth_plugin.dart:236。"
   },
   {
@@ -173,8 +220,13 @@
       "auth.deny-403"
     ],
     "assumptions": [],
-    "result": null,
-    "blocked": "待 B7 真实验收：新 API 切换后重新核对，旧场景引用保留。",
+    "result": {
+      "status": "PASS",
+      "source": "test/accept/evidence/2026-10-29-summary.json",
+      "passed": 16,
+      "total": 16
+    },
+    "blocked": null,
     "note": "源码：lib/src/auth_plugin.dart:242。"
   },
   {
@@ -187,14 +239,41 @@
       "DiomanAuth.onRefresh"
     ],
     "real": [
-      "auth.concurrent-401-single-refresh-8",
+      "auth.code-only-401-concurrent",
       "auth.concurrent-401-single-refresh-32",
+      "auth.concurrent-401-single-refresh-8",
       "auth.concurrent-two-waves",
-      "auth.requests-during-refresh-queue"
+      "auth.garbage-then-relogin",
+      "auth.natural-expiry-refresh",
+      "auth.network-failure-keeps-session",
+      "auth.offline-refresh-keeps-session",
+      "auth.relogin-other-user",
+      "auth.requests-during-refresh-queue",
+      "auth.strict-rotation-two-rounds",
+      "auth.style-switch-concurrent",
+      "auth.token-bad-signature-refresh-ok",
+      "auth.token-empty-refresh-ok",
+      "auth.token-garbage-concurrent-refresh-ok",
+      "auth.token-none-concurrent",
+      "auth.token-none-refresh-ok",
+      "auth.token-nonstrict-previous-access",
+      "auth.token-previous-after-logout",
+      "auth.token-previous-after-revoke",
+      "auth.token-previous-refresh-reuse",
+      "auth.token-strict-previous-access",
+      "auth.token-tampered-payload-refresh-ok",
+      "auth.token-wrong-scheme-refresh-ok",
+      "auth.two-rounds-refresh-chain",
+      "retry.401-goes-refresh-first"
     ],
     "assumptions": [],
-    "result": null,
-    "blocked": "待 B7 真实验收：新 API 切换后重新核对，旧场景引用保留。",
+    "result": {
+      "status": "PASS",
+      "source": "test/accept/evidence/2026-10-29-summary.json",
+      "passed": 85,
+      "total": 85
+    },
+    "blocked": null,
     "note": "源码：lib/src/auth_plugin.dart:233。"
   },
   {
@@ -320,8 +399,13 @@
       "auth.deny-403"
     ],
     "assumptions": [],
-    "result": null,
-    "blocked": "待 B7 真实验收：新 API 切换后重新核对，旧场景引用保留。",
+    "result": {
+      "status": "PASS",
+      "source": "test/accept/evidence/2026-10-29-summary.json",
+      "passed": 10,
+      "total": 10
+    },
+    "blocked": null,
     "note": "源码：lib/src/auth_plugin.dart:54。"
   },
   {
@@ -337,8 +421,13 @@
       "auth.no-refresh-user-expired"
     ],
     "assumptions": [],
-    "result": null,
-    "blocked": "待 B7 真实验收：新 API 切换后重新核对，旧场景引用保留。",
+    "result": {
+      "status": "PASS",
+      "source": "test/accept/evidence/2026-10-29-summary.json",
+      "passed": 4,
+      "total": 4
+    },
+    "blocked": null,
     "note": "源码：lib/src/auth_plugin.dart:59。"
   },
   {
@@ -368,8 +457,13 @@
       "auth.strict-rotation-refresh-replay"
     ],
     "assumptions": [],
-    "result": null,
-    "blocked": "待 B7 真实验收：新 API 切换后重新核对，旧场景引用保留。",
+    "result": {
+      "status": "PASS",
+      "source": "test/accept/evidence/2026-10-29-summary.json",
+      "passed": 20,
+      "total": 20
+    },
+    "blocked": null,
     "note": "源码：lib/src/auth_plugin.dart:43。"
   },
   {
@@ -384,8 +478,13 @@
       "auth.strict-rotation-concurrent"
     ],
     "assumptions": [],
-    "result": null,
-    "blocked": "待 B7 真实验收：新 API 切换后重新核对，旧场景引用保留。",
+    "result": {
+      "status": "PASS",
+      "source": "test/accept/evidence/2026-10-29-summary.json",
+      "passed": 4,
+      "total": 4
+    },
+    "blocked": null,
     "note": "源码：lib/src/auth_plugin.dart:48。"
   },
   {
@@ -416,8 +515,13 @@
       "auth.public-401-no-refresh"
     ],
     "assumptions": [],
-    "result": null,
-    "blocked": "待 B7 真实验收：新 API 切换后重新核对，旧场景引用保留。",
+    "result": {
+      "status": "PASS",
+      "source": "test/accept/evidence/2026-10-29-summary.json",
+      "passed": 2,
+      "total": 2
+    },
+    "blocked": null,
     "note": "源码：lib/src/auth_plugin.dart:149。"
   },
   {
@@ -580,893 +684,14 @@
       "auth.expired-refresh-replay"
     ],
     "assumptions": [],
-    "result": null,
-    "blocked": "待 B7 真实验收：新 API 切换后重新核对，旧场景引用保留。",
+    "result": {
+      "status": "PASS",
+      "source": "test/accept/evidence/2026-10-29-summary.json",
+      "passed": 10,
+      "total": 10
+    },
+    "blocked": null,
     "note": "源码：lib/src/auth_plugin.dart:21。"
-  },
-  {
-    "id": "INV-REAL-auth.code-only-401-concurrent",
-    "plugin": "auth",
-    "capability": "真实场景核对：auth.code-only-401-concurrent",
-    "tier": 2,
-    "apis": [],
-    "real": [
-      "auth.code-only-401-concurrent"
-    ],
-    "unit": [
-      "test/rule/auth_rule_test.dart",
-      "test/boundary/auth_boundary_test.dart"
-    ],
-    "assumptions": [],
-    "result": null,
-    "blocked": "待 B7 真实验收：场景引用从删除的旧 API 行迁入，按新 API 与能力声明重新运行。"
-  },
-  {
-    "id": "INV-REAL-auth.code-only-401-no-refresh-token",
-    "plugin": "auth",
-    "capability": "真实场景核对：auth.code-only-401-no-refresh-token",
-    "tier": 2,
-    "apis": [],
-    "real": [
-      "auth.code-only-401-no-refresh-token"
-    ],
-    "unit": [
-      "test/rule/auth_rule_test.dart",
-      "test/boundary/auth_boundary_test.dart"
-    ],
-    "assumptions": [],
-    "result": null,
-    "blocked": "待 B7 真实验收：场景引用从删除的旧 API 行迁入，按新 API 与能力声明重新运行。"
-  },
-  {
-    "id": "INV-REAL-auth.code-only-401-refresh-once-then-expired",
-    "plugin": "auth",
-    "capability": "真实场景核对：auth.code-only-401-refresh-once-then-expired",
-    "tier": 2,
-    "apis": [],
-    "real": [
-      "auth.code-only-401-refresh-once-then-expired"
-    ],
-    "unit": [
-      "test/rule/auth_rule_test.dart",
-      "test/boundary/auth_boundary_test.dart"
-    ],
-    "assumptions": [],
-    "result": null,
-    "blocked": "待 B7 真实验收：场景引用从删除的旧 API 行迁入，按新 API 与能力声明重新运行。"
-  },
-  {
-    "id": "INV-REAL-auth.expired-multipart-replay",
-    "plugin": "auth",
-    "capability": "真实场景核对：auth.expired-multipart-replay",
-    "tier": 2,
-    "apis": [],
-    "real": [
-      "auth.expired-multipart-replay"
-    ],
-    "unit": [
-      "test/rule/auth_rule_test.dart",
-      "test/boundary/auth_boundary_test.dart"
-    ],
-    "assumptions": [],
-    "result": null,
-    "blocked": "待 B7 真实验收：场景引用从删除的旧 API 行迁入，按新 API 与能力声明重新运行。"
-  },
-  {
-    "id": "INV-REAL-auth.garbage-then-relogin",
-    "plugin": "auth",
-    "capability": "真实场景核对：auth.garbage-then-relogin",
-    "tier": 2,
-    "apis": [],
-    "real": [
-      "auth.garbage-then-relogin"
-    ],
-    "unit": [
-      "test/rule/auth_rule_test.dart",
-      "test/boundary/auth_boundary_test.dart"
-    ],
-    "assumptions": [],
-    "result": null,
-    "blocked": "待 B7 真实验收：场景引用从删除的旧 API 行迁入，按新 API 与能力声明重新运行。"
-  },
-  {
-    "id": "INV-REAL-auth.logout-inflight",
-    "plugin": "auth",
-    "capability": "真实场景核对：auth.logout-inflight",
-    "tier": 2,
-    "apis": [],
-    "real": [
-      "auth.logout-inflight"
-    ],
-    "unit": [
-      "test/rule/auth_rule_test.dart",
-      "test/boundary/auth_boundary_test.dart"
-    ],
-    "assumptions": [],
-    "result": null,
-    "blocked": "待 B7 真实验收：场景引用从删除的旧 API 行迁入，按新 API 与能力声明重新运行。"
-  },
-  {
-    "id": "INV-REAL-auth.natural-expiry-refresh",
-    "plugin": "auth",
-    "capability": "真实场景核对：auth.natural-expiry-refresh",
-    "tier": 2,
-    "apis": [],
-    "real": [
-      "auth.natural-expiry-refresh"
-    ],
-    "unit": [
-      "test/rule/auth_rule_test.dart",
-      "test/boundary/auth_boundary_test.dart"
-    ],
-    "assumptions": [],
-    "result": null,
-    "blocked": "待 B7 真实验收：场景引用从删除的旧 API 行迁入，按新 API 与能力声明重新运行。"
-  },
-  {
-    "id": "INV-REAL-auth.network-failure-keeps-session",
-    "plugin": "auth",
-    "capability": "真实场景核对：auth.network-failure-keeps-session",
-    "tier": 2,
-    "apis": [],
-    "real": [
-      "auth.network-failure-keeps-session"
-    ],
-    "unit": [
-      "test/rule/auth_rule_test.dart",
-      "test/boundary/auth_boundary_test.dart"
-    ],
-    "assumptions": [],
-    "result": null,
-    "blocked": "待 B7 真实验收：场景引用从删除的旧 API 行迁入，按新 API 与能力声明重新运行。"
-  },
-  {
-    "id": "INV-REAL-auth.offline-refresh-keeps-session",
-    "plugin": "auth",
-    "capability": "真实场景核对：auth.offline-refresh-keeps-session",
-    "tier": 2,
-    "apis": [],
-    "real": [
-      "auth.offline-refresh-keeps-session"
-    ],
-    "unit": [
-      "test/rule/auth_rule_test.dart",
-      "test/boundary/auth_boundary_test.dart"
-    ],
-    "assumptions": [],
-    "result": null,
-    "blocked": "待 B7 真实验收：场景引用从删除的旧 API 行迁入，按新 API 与能力声明重新运行。"
-  },
-  {
-    "id": "INV-REAL-auth.post-replay-body-intact",
-    "plugin": "auth",
-    "capability": "真实场景核对：auth.post-replay-body-intact",
-    "tier": 2,
-    "apis": [],
-    "real": [
-      "auth.post-replay-body-intact"
-    ],
-    "unit": [
-      "test/rule/auth_rule_test.dart",
-      "test/boundary/auth_boundary_test.dart"
-    ],
-    "assumptions": [],
-    "result": null,
-    "blocked": "待 B7 真实验收：场景引用从删除的旧 API 行迁入，按新 API 与能力声明重新运行。"
-  },
-  {
-    "id": "INV-REAL-auth.relogin-after-expired",
-    "plugin": "auth",
-    "capability": "真实场景核对：auth.relogin-after-expired",
-    "tier": 2,
-    "apis": [],
-    "real": [
-      "auth.relogin-after-expired"
-    ],
-    "unit": [
-      "test/rule/auth_rule_test.dart",
-      "test/boundary/auth_boundary_test.dart"
-    ],
-    "assumptions": [],
-    "result": null,
-    "blocked": "待 B7 真实验收：场景引用从删除的旧 API 行迁入，按新 API 与能力声明重新运行。"
-  },
-  {
-    "id": "INV-REAL-auth.relogin-other-user",
-    "plugin": "auth",
-    "capability": "真实场景核对：auth.relogin-other-user",
-    "tier": 2,
-    "apis": [],
-    "real": [
-      "auth.relogin-other-user"
-    ],
-    "unit": [
-      "test/rule/auth_rule_test.dart",
-      "test/boundary/auth_boundary_test.dart"
-    ],
-    "assumptions": [],
-    "result": null,
-    "blocked": "待 B7 真实验收：场景引用从删除的旧 API 行迁入，按新 API 与能力声明重新运行。"
-  },
-  {
-    "id": "INV-REAL-auth.revoke-all-concurrent",
-    "plugin": "auth",
-    "capability": "真实场景核对：auth.revoke-all-concurrent",
-    "tier": 2,
-    "apis": [],
-    "real": [
-      "auth.revoke-all-concurrent"
-    ],
-    "unit": [
-      "test/rule/auth_rule_test.dart",
-      "test/boundary/auth_boundary_test.dart"
-    ],
-    "assumptions": [],
-    "result": null,
-    "blocked": "待 B7 真实验收：场景引用从删除的旧 API 行迁入，按新 API 与能力声明重新运行。"
-  },
-  {
-    "id": "INV-REAL-auth.revoke-all-expired",
-    "plugin": "auth",
-    "capability": "真实场景核对：auth.revoke-all-expired",
-    "tier": 2,
-    "apis": [],
-    "real": [
-      "auth.revoke-all-expired"
-    ],
-    "unit": [
-      "test/rule/auth_rule_test.dart",
-      "test/boundary/auth_boundary_test.dart"
-    ],
-    "assumptions": [],
-    "result": null,
-    "blocked": "待 B7 真实验收：场景引用从删除的旧 API 行迁入，按新 API 与能力声明重新运行。"
-  },
-  {
-    "id": "INV-REAL-auth.revoke-all-previous-tokens",
-    "plugin": "auth",
-    "capability": "真实场景核对：auth.revoke-all-previous-tokens",
-    "tier": 2,
-    "apis": [],
-    "real": [
-      "auth.revoke-all-previous-tokens"
-    ],
-    "unit": [
-      "test/rule/auth_rule_test.dart",
-      "test/boundary/auth_boundary_test.dart"
-    ],
-    "assumptions": [],
-    "result": null,
-    "blocked": "待 B7 真实验收：场景引用从删除的旧 API 行迁入，按新 API 与能力声明重新运行。"
-  },
-  {
-    "id": "INV-REAL-auth.revoke-all-then-relogin",
-    "plugin": "auth",
-    "capability": "真实场景核对：auth.revoke-all-then-relogin",
-    "tier": 2,
-    "apis": [],
-    "real": [
-      "auth.revoke-all-then-relogin"
-    ],
-    "unit": [
-      "test/rule/auth_rule_test.dart",
-      "test/boundary/auth_boundary_test.dart"
-    ],
-    "assumptions": [],
-    "result": null,
-    "blocked": "待 B7 真实验收：场景引用从删除的旧 API 行迁入，按新 API 与能力声明重新运行。"
-  },
-  {
-    "id": "INV-REAL-auth.revoke-default-scope-is-all",
-    "plugin": "auth",
-    "capability": "真实场景核对：auth.revoke-default-scope-is-all",
-    "tier": 2,
-    "apis": [],
-    "real": [
-      "auth.revoke-default-scope-is-all"
-    ],
-    "unit": [
-      "test/rule/auth_rule_test.dart",
-      "test/boundary/auth_boundary_test.dart"
-    ],
-    "assumptions": [],
-    "result": null,
-    "blocked": "待 B7 真实验收：场景引用从删除的旧 API 行迁入，按新 API 与能力声明重新运行。"
-  },
-  {
-    "id": "INV-REAL-auth.revoke-kicked",
-    "plugin": "auth",
-    "capability": "真实场景核对：auth.revoke-kicked",
-    "tier": 2,
-    "apis": [],
-    "real": [
-      "auth.revoke-kicked"
-    ],
-    "unit": [
-      "test/rule/auth_rule_test.dart",
-      "test/boundary/auth_boundary_test.dart"
-    ],
-    "assumptions": [],
-    "result": null,
-    "blocked": "待 B7 真实验收：场景引用从删除的旧 API 行迁入，按新 API 与能力声明重新运行。"
-  },
-  {
-    "id": "INV-REAL-auth.slow-refresh-cancel",
-    "plugin": "auth",
-    "capability": "真实场景核对：auth.slow-refresh-cancel",
-    "tier": 2,
-    "apis": [],
-    "real": [
-      "auth.slow-refresh-cancel"
-    ],
-    "unit": [
-      "test/rule/auth_rule_test.dart",
-      "test/boundary/auth_boundary_test.dart"
-    ],
-    "assumptions": [],
-    "result": null,
-    "blocked": "待 B7 真实验收：场景引用从删除的旧 API 行迁入，按新 API 与能力声明重新运行。"
-  },
-  {
-    "id": "INV-REAL-auth.slow-refresh-cancel-all",
-    "plugin": "auth",
-    "capability": "真实场景核对：auth.slow-refresh-cancel-all",
-    "tier": 2,
-    "apis": [],
-    "real": [
-      "auth.slow-refresh-cancel-all"
-    ],
-    "unit": [
-      "test/rule/auth_rule_test.dart",
-      "test/boundary/auth_boundary_test.dart"
-    ],
-    "assumptions": [],
-    "result": null,
-    "blocked": "待 B7 真实验收：场景引用从删除的旧 API 行迁入，按新 API 与能力声明重新运行。"
-  },
-  {
-    "id": "INV-REAL-auth.strict-rotation-two-rounds",
-    "plugin": "auth",
-    "capability": "真实场景核对：auth.strict-rotation-two-rounds",
-    "tier": 2,
-    "apis": [],
-    "real": [
-      "auth.strict-rotation-two-rounds"
-    ],
-    "unit": [
-      "test/rule/auth_rule_test.dart",
-      "test/boundary/auth_boundary_test.dart"
-    ],
-    "assumptions": [],
-    "result": null,
-    "blocked": "待 B7 真实验收：场景引用从删除的旧 API 行迁入，按新 API 与能力声明重新运行。"
-  },
-  {
-    "id": "INV-REAL-auth.style-switch-concurrent",
-    "plugin": "auth",
-    "capability": "真实场景核对：auth.style-switch-concurrent",
-    "tier": 2,
-    "apis": [],
-    "real": [
-      "auth.style-switch-concurrent"
-    ],
-    "unit": [
-      "test/rule/auth_rule_test.dart",
-      "test/boundary/auth_boundary_test.dart"
-    ],
-    "assumptions": [],
-    "result": null,
-    "blocked": "待 B7 真实验收：场景引用从删除的旧 API 行迁入，按新 API 与能力声明重新运行。"
-  },
-  {
-    "id": "INV-REAL-auth.style-switch-expired",
-    "plugin": "auth",
-    "capability": "真实场景核对：auth.style-switch-expired",
-    "tier": 2,
-    "apis": [],
-    "real": [
-      "auth.style-switch-expired"
-    ],
-    "unit": [
-      "test/rule/auth_rule_test.dart",
-      "test/boundary/auth_boundary_test.dart"
-    ],
-    "assumptions": [],
-    "result": null,
-    "blocked": "待 B7 真实验收：场景引用从删除的旧 API 行迁入，按新 API 与能力声明重新运行。"
-  },
-  {
-    "id": "INV-REAL-auth.token-bad-signature-refresh-bad",
-    "plugin": "auth",
-    "capability": "真实场景核对：auth.token-bad-signature-refresh-bad",
-    "tier": 2,
-    "apis": [],
-    "real": [
-      "auth.token-bad-signature-refresh-bad"
-    ],
-    "unit": [
-      "test/rule/auth_rule_test.dart",
-      "test/boundary/auth_boundary_test.dart"
-    ],
-    "assumptions": [],
-    "result": null,
-    "blocked": "待 B7 真实验收：场景引用从删除的旧 API 行迁入，按新 API 与能力声明重新运行。"
-  },
-  {
-    "id": "INV-REAL-auth.token-bad-signature-refresh-none",
-    "plugin": "auth",
-    "capability": "真实场景核对：auth.token-bad-signature-refresh-none",
-    "tier": 2,
-    "apis": [],
-    "real": [
-      "auth.token-bad-signature-refresh-none"
-    ],
-    "unit": [
-      "test/rule/auth_rule_test.dart",
-      "test/boundary/auth_boundary_test.dart"
-    ],
-    "assumptions": [],
-    "result": null,
-    "blocked": "待 B7 真实验收：场景引用从删除的旧 API 行迁入，按新 API 与能力声明重新运行。"
-  },
-  {
-    "id": "INV-REAL-auth.token-bad-signature-refresh-ok",
-    "plugin": "auth",
-    "capability": "真实场景核对：auth.token-bad-signature-refresh-ok",
-    "tier": 2,
-    "apis": [],
-    "real": [
-      "auth.token-bad-signature-refresh-ok"
-    ],
-    "unit": [
-      "test/rule/auth_rule_test.dart",
-      "test/boundary/auth_boundary_test.dart"
-    ],
-    "assumptions": [],
-    "result": null,
-    "blocked": "待 B7 真实验收：场景引用从删除的旧 API 行迁入，按新 API 与能力声明重新运行。"
-  },
-  {
-    "id": "INV-REAL-auth.token-empty-refresh-bad",
-    "plugin": "auth",
-    "capability": "真实场景核对：auth.token-empty-refresh-bad",
-    "tier": 2,
-    "apis": [],
-    "real": [
-      "auth.token-empty-refresh-bad"
-    ],
-    "unit": [
-      "test/rule/auth_rule_test.dart",
-      "test/boundary/auth_boundary_test.dart"
-    ],
-    "assumptions": [],
-    "result": null,
-    "blocked": "待 B7 真实验收：场景引用从删除的旧 API 行迁入，按新 API 与能力声明重新运行。"
-  },
-  {
-    "id": "INV-REAL-auth.token-empty-refresh-none",
-    "plugin": "auth",
-    "capability": "真实场景核对：auth.token-empty-refresh-none",
-    "tier": 2,
-    "apis": [],
-    "real": [
-      "auth.token-empty-refresh-none"
-    ],
-    "unit": [
-      "test/rule/auth_rule_test.dart",
-      "test/boundary/auth_boundary_test.dart"
-    ],
-    "assumptions": [],
-    "result": null,
-    "blocked": "待 B7 真实验收：场景引用从删除的旧 API 行迁入，按新 API 与能力声明重新运行。"
-  },
-  {
-    "id": "INV-REAL-auth.token-empty-refresh-ok",
-    "plugin": "auth",
-    "capability": "真实场景核对：auth.token-empty-refresh-ok",
-    "tier": 2,
-    "apis": [],
-    "real": [
-      "auth.token-empty-refresh-ok"
-    ],
-    "unit": [
-      "test/rule/auth_rule_test.dart",
-      "test/boundary/auth_boundary_test.dart"
-    ],
-    "assumptions": [],
-    "result": null,
-    "blocked": "待 B7 真实验收：场景引用从删除的旧 API 行迁入，按新 API 与能力声明重新运行。"
-  },
-  {
-    "id": "INV-REAL-auth.token-garbage-concurrent-no-refresh",
-    "plugin": "auth",
-    "capability": "真实场景核对：auth.token-garbage-concurrent-no-refresh",
-    "tier": 2,
-    "apis": [],
-    "real": [
-      "auth.token-garbage-concurrent-no-refresh"
-    ],
-    "unit": [
-      "test/rule/auth_rule_test.dart",
-      "test/boundary/auth_boundary_test.dart"
-    ],
-    "assumptions": [],
-    "result": null,
-    "blocked": "待 B7 真实验收：场景引用从删除的旧 API 行迁入，按新 API 与能力声明重新运行。"
-  },
-  {
-    "id": "INV-REAL-auth.token-garbage-concurrent-refresh-bad",
-    "plugin": "auth",
-    "capability": "真实场景核对：auth.token-garbage-concurrent-refresh-bad",
-    "tier": 2,
-    "apis": [],
-    "real": [
-      "auth.token-garbage-concurrent-refresh-bad"
-    ],
-    "unit": [
-      "test/rule/auth_rule_test.dart",
-      "test/boundary/auth_boundary_test.dart"
-    ],
-    "assumptions": [],
-    "result": null,
-    "blocked": "待 B7 真实验收：场景引用从删除的旧 API 行迁入，按新 API 与能力声明重新运行。"
-  },
-  {
-    "id": "INV-REAL-auth.token-garbage-concurrent-refresh-ok",
-    "plugin": "auth",
-    "capability": "真实场景核对：auth.token-garbage-concurrent-refresh-ok",
-    "tier": 2,
-    "apis": [],
-    "real": [
-      "auth.token-garbage-concurrent-refresh-ok"
-    ],
-    "unit": [
-      "test/rule/auth_rule_test.dart",
-      "test/boundary/auth_boundary_test.dart"
-    ],
-    "assumptions": [],
-    "result": null,
-    "blocked": "待 B7 真实验收：场景引用从删除的旧 API 行迁入，按新 API 与能力声明重新运行。"
-  },
-  {
-    "id": "INV-REAL-auth.token-garbage-refresh-bad",
-    "plugin": "auth",
-    "capability": "真实场景核对：auth.token-garbage-refresh-bad",
-    "tier": 2,
-    "apis": [],
-    "real": [
-      "auth.token-garbage-refresh-bad"
-    ],
-    "unit": [
-      "test/rule/auth_rule_test.dart",
-      "test/boundary/auth_boundary_test.dart"
-    ],
-    "assumptions": [],
-    "result": null,
-    "blocked": "待 B7 真实验收：场景引用从删除的旧 API 行迁入，按新 API 与能力声明重新运行。"
-  },
-  {
-    "id": "INV-REAL-auth.token-garbage-refresh-none",
-    "plugin": "auth",
-    "capability": "真实场景核对：auth.token-garbage-refresh-none",
-    "tier": 2,
-    "apis": [],
-    "real": [
-      "auth.token-garbage-refresh-none"
-    ],
-    "unit": [
-      "test/rule/auth_rule_test.dart",
-      "test/boundary/auth_boundary_test.dart"
-    ],
-    "assumptions": [],
-    "result": null,
-    "blocked": "待 B7 真实验收：场景引用从删除的旧 API 行迁入，按新 API 与能力声明重新运行。"
-  },
-  {
-    "id": "INV-REAL-auth.token-no-refresh-user-garbage",
-    "plugin": "auth",
-    "capability": "真实场景核对：auth.token-no-refresh-user-garbage",
-    "tier": 2,
-    "apis": [],
-    "real": [
-      "auth.token-no-refresh-user-garbage"
-    ],
-    "unit": [
-      "test/rule/auth_rule_test.dart",
-      "test/boundary/auth_boundary_test.dart"
-    ],
-    "assumptions": [],
-    "result": null,
-    "blocked": "待 B7 真实验收：场景引用从删除的旧 API 行迁入，按新 API 与能力声明重新运行。"
-  },
-  {
-    "id": "INV-REAL-auth.token-no-refresh-user-none",
-    "plugin": "auth",
-    "capability": "真实场景核对：auth.token-no-refresh-user-none",
-    "tier": 2,
-    "apis": [],
-    "real": [
-      "auth.token-no-refresh-user-none"
-    ],
-    "unit": [
-      "test/rule/auth_rule_test.dart",
-      "test/boundary/auth_boundary_test.dart"
-    ],
-    "assumptions": [],
-    "result": null,
-    "blocked": "待 B7 真实验收：场景引用从删除的旧 API 行迁入，按新 API 与能力声明重新运行。"
-  },
-  {
-    "id": "INV-REAL-auth.token-none-concurrent",
-    "plugin": "auth",
-    "capability": "真实场景核对：auth.token-none-concurrent",
-    "tier": 2,
-    "apis": [],
-    "real": [
-      "auth.token-none-concurrent"
-    ],
-    "unit": [
-      "test/rule/auth_rule_test.dart",
-      "test/boundary/auth_boundary_test.dart"
-    ],
-    "assumptions": [],
-    "result": null,
-    "blocked": "待 B7 真实验收：场景引用从删除的旧 API 行迁入，按新 API 与能力声明重新运行。"
-  },
-  {
-    "id": "INV-REAL-auth.token-none-refresh-bad",
-    "plugin": "auth",
-    "capability": "真实场景核对：auth.token-none-refresh-bad",
-    "tier": 2,
-    "apis": [],
-    "real": [
-      "auth.token-none-refresh-bad"
-    ],
-    "unit": [
-      "test/rule/auth_rule_test.dart",
-      "test/boundary/auth_boundary_test.dart"
-    ],
-    "assumptions": [],
-    "result": null,
-    "blocked": "待 B7 真实验收：场景引用从删除的旧 API 行迁入，按新 API 与能力声明重新运行。"
-  },
-  {
-    "id": "INV-REAL-auth.token-none-refresh-none",
-    "plugin": "auth",
-    "capability": "真实场景核对：auth.token-none-refresh-none",
-    "tier": 2,
-    "apis": [],
-    "real": [
-      "auth.token-none-refresh-none"
-    ],
-    "unit": [
-      "test/rule/auth_rule_test.dart",
-      "test/boundary/auth_boundary_test.dart"
-    ],
-    "assumptions": [],
-    "result": null,
-    "blocked": "待 B7 真实验收：场景引用从删除的旧 API 行迁入，按新 API 与能力声明重新运行。"
-  },
-  {
-    "id": "INV-REAL-auth.token-none-refresh-ok",
-    "plugin": "auth",
-    "capability": "真实场景核对：auth.token-none-refresh-ok",
-    "tier": 2,
-    "apis": [],
-    "real": [
-      "auth.token-none-refresh-ok"
-    ],
-    "unit": [
-      "test/rule/auth_rule_test.dart",
-      "test/boundary/auth_boundary_test.dart"
-    ],
-    "assumptions": [],
-    "result": null,
-    "blocked": "待 B7 真实验收：场景引用从删除的旧 API 行迁入，按新 API 与能力声明重新运行。"
-  },
-  {
-    "id": "INV-REAL-auth.token-nonstrict-previous-access",
-    "plugin": "auth",
-    "capability": "真实场景核对：auth.token-nonstrict-previous-access",
-    "tier": 2,
-    "apis": [],
-    "real": [
-      "auth.token-nonstrict-previous-access"
-    ],
-    "unit": [
-      "test/rule/auth_rule_test.dart",
-      "test/boundary/auth_boundary_test.dart"
-    ],
-    "assumptions": [],
-    "result": null,
-    "blocked": "待 B7 真实验收：场景引用从删除的旧 API 行迁入，按新 API 与能力声明重新运行。"
-  },
-  {
-    "id": "INV-REAL-auth.token-previous-after-logout",
-    "plugin": "auth",
-    "capability": "真实场景核对：auth.token-previous-after-logout",
-    "tier": 2,
-    "apis": [],
-    "real": [
-      "auth.token-previous-after-logout"
-    ],
-    "unit": [
-      "test/rule/auth_rule_test.dart",
-      "test/boundary/auth_boundary_test.dart"
-    ],
-    "assumptions": [],
-    "result": null,
-    "blocked": "待 B7 真实验收：场景引用从删除的旧 API 行迁入，按新 API 与能力声明重新运行。"
-  },
-  {
-    "id": "INV-REAL-auth.token-previous-after-revoke",
-    "plugin": "auth",
-    "capability": "真实场景核对：auth.token-previous-after-revoke",
-    "tier": 2,
-    "apis": [],
-    "real": [
-      "auth.token-previous-after-revoke"
-    ],
-    "unit": [
-      "test/rule/auth_rule_test.dart",
-      "test/boundary/auth_boundary_test.dart"
-    ],
-    "assumptions": [],
-    "result": null,
-    "blocked": "待 B7 真实验收：场景引用从删除的旧 API 行迁入，按新 API 与能力声明重新运行。"
-  },
-  {
-    "id": "INV-REAL-auth.token-previous-refresh-reuse",
-    "plugin": "auth",
-    "capability": "真实场景核对：auth.token-previous-refresh-reuse",
-    "tier": 2,
-    "apis": [],
-    "real": [
-      "auth.token-previous-refresh-reuse"
-    ],
-    "unit": [
-      "test/rule/auth_rule_test.dart",
-      "test/boundary/auth_boundary_test.dart"
-    ],
-    "assumptions": [],
-    "result": null,
-    "blocked": "待 B7 真实验收：场景引用从删除的旧 API 行迁入，按新 API 与能力声明重新运行。"
-  },
-  {
-    "id": "INV-REAL-auth.token-strict-previous-access",
-    "plugin": "auth",
-    "capability": "真实场景核对：auth.token-strict-previous-access",
-    "tier": 2,
-    "apis": [],
-    "real": [
-      "auth.token-strict-previous-access"
-    ],
-    "unit": [
-      "test/rule/auth_rule_test.dart",
-      "test/boundary/auth_boundary_test.dart"
-    ],
-    "assumptions": [],
-    "result": null,
-    "blocked": "待 B7 真实验收：场景引用从删除的旧 API 行迁入，按新 API 与能力声明重新运行。"
-  },
-  {
-    "id": "INV-REAL-auth.token-tampered-payload-refresh-bad",
-    "plugin": "auth",
-    "capability": "真实场景核对：auth.token-tampered-payload-refresh-bad",
-    "tier": 2,
-    "apis": [],
-    "real": [
-      "auth.token-tampered-payload-refresh-bad"
-    ],
-    "unit": [
-      "test/rule/auth_rule_test.dart",
-      "test/boundary/auth_boundary_test.dart"
-    ],
-    "assumptions": [],
-    "result": null,
-    "blocked": "待 B7 真实验收：场景引用从删除的旧 API 行迁入，按新 API 与能力声明重新运行。"
-  },
-  {
-    "id": "INV-REAL-auth.token-tampered-payload-refresh-none",
-    "plugin": "auth",
-    "capability": "真实场景核对：auth.token-tampered-payload-refresh-none",
-    "tier": 2,
-    "apis": [],
-    "real": [
-      "auth.token-tampered-payload-refresh-none"
-    ],
-    "unit": [
-      "test/rule/auth_rule_test.dart",
-      "test/boundary/auth_boundary_test.dart"
-    ],
-    "assumptions": [],
-    "result": null,
-    "blocked": "待 B7 真实验收：场景引用从删除的旧 API 行迁入，按新 API 与能力声明重新运行。"
-  },
-  {
-    "id": "INV-REAL-auth.token-tampered-payload-refresh-ok",
-    "plugin": "auth",
-    "capability": "真实场景核对：auth.token-tampered-payload-refresh-ok",
-    "tier": 2,
-    "apis": [],
-    "real": [
-      "auth.token-tampered-payload-refresh-ok"
-    ],
-    "unit": [
-      "test/rule/auth_rule_test.dart",
-      "test/boundary/auth_boundary_test.dart"
-    ],
-    "assumptions": [],
-    "result": null,
-    "blocked": "待 B7 真实验收：场景引用从删除的旧 API 行迁入，按新 API 与能力声明重新运行。"
-  },
-  {
-    "id": "INV-REAL-auth.token-wrong-scheme-refresh-bad",
-    "plugin": "auth",
-    "capability": "真实场景核对：auth.token-wrong-scheme-refresh-bad",
-    "tier": 2,
-    "apis": [],
-    "real": [
-      "auth.token-wrong-scheme-refresh-bad"
-    ],
-    "unit": [
-      "test/rule/auth_rule_test.dart",
-      "test/boundary/auth_boundary_test.dart"
-    ],
-    "assumptions": [],
-    "result": null,
-    "blocked": "待 B7 真实验收：场景引用从删除的旧 API 行迁入，按新 API 与能力声明重新运行。"
-  },
-  {
-    "id": "INV-REAL-auth.token-wrong-scheme-refresh-none",
-    "plugin": "auth",
-    "capability": "真实场景核对：auth.token-wrong-scheme-refresh-none",
-    "tier": 2,
-    "apis": [],
-    "real": [
-      "auth.token-wrong-scheme-refresh-none"
-    ],
-    "unit": [
-      "test/rule/auth_rule_test.dart",
-      "test/boundary/auth_boundary_test.dart"
-    ],
-    "assumptions": [],
-    "result": null,
-    "blocked": "待 B7 真实验收：场景引用从删除的旧 API 行迁入，按新 API 与能力声明重新运行。"
-  },
-  {
-    "id": "INV-REAL-auth.token-wrong-scheme-refresh-ok",
-    "plugin": "auth",
-    "capability": "真实场景核对：auth.token-wrong-scheme-refresh-ok",
-    "tier": 2,
-    "apis": [],
-    "real": [
-      "auth.token-wrong-scheme-refresh-ok"
-    ],
-    "unit": [
-      "test/rule/auth_rule_test.dart",
-      "test/boundary/auth_boundary_test.dart"
-    ],
-    "assumptions": [],
-    "result": null,
-    "blocked": "待 B7 真实验收：场景引用从删除的旧 API 行迁入，按新 API 与能力声明重新运行。"
-  },
-  {
-    "id": "INV-REAL-auth.two-rounds-refresh-chain",
-    "plugin": "auth",
-    "capability": "真实场景核对：auth.two-rounds-refresh-chain",
-    "tier": 2,
-    "apis": [],
-    "real": [
-      "auth.two-rounds-refresh-chain"
-    ],
-    "unit": [
-      "test/rule/auth_rule_test.dart",
-      "test/boundary/auth_boundary_test.dart"
-    ],
-    "assumptions": [],
-    "result": null,
-    "blocked": "待 B7 真实验收：场景引用从删除的旧 API 行迁入，按新 API 与能力声明重新运行。"
   },
   {
     "id": "defaultAuthFailure",
@@ -1482,8 +707,13 @@
       "auth.token-garbage-refresh-ok"
     ],
     "assumptions": [],
-    "result": null,
-    "blocked": "待 B7 真实验收：新 API 切换后重新核对，旧场景引用保留。",
+    "result": {
+      "status": "PASS",
+      "source": "test/accept/evidence/2026-10-29-summary.json",
+      "passed": 24,
+      "total": 24
+    },
+    "blocked": null,
     "note": "源码：lib/src/auth_plugin.dart:72。"
   },
   {
@@ -1579,13 +809,21 @@
     ],
     "real": [
       "breaker.open-after-threshold",
+      "breaker.open-fast-fail",
       "breaker.parallel-trip",
+      "breaker.retry-halts-on-trip",
+      "breaker.success-resets-count",
       "plugins.boundary-breaker-threshold-0",
       "plugins.boundary-breaker-threshold-1"
     ],
     "assumptions": [],
-    "result": null,
-    "blocked": "待 B7 真实验收：新 API 切换后重新核对，旧场景引用保留。",
+    "result": {
+      "status": "PASS",
+      "source": "test/accept/evidence/2026-10-29-summary.json",
+      "passed": 18,
+      "total": 18
+    },
+    "blocked": null,
     "note": "源码：lib/src/breaker_plugin.dart:363。"
   },
   {
@@ -1631,8 +869,13 @@
       "breaker.bucket-isolation"
     ],
     "assumptions": [],
-    "result": null,
-    "blocked": "待 B7 真实验收：新 API 切换后重新核对，旧场景引用保留。",
+    "result": {
+      "status": "PASS",
+      "source": "test/accept/evidence/2026-10-29-summary.json",
+      "passed": 2,
+      "total": 2
+    },
+    "blocked": null,
     "note": "源码：lib/src/breaker_plugin.dart:392。 bucket-isolation 执行默认 METHOD:path 分桶，不证明自定义 builder 回调已有真实覆盖。"
   },
   {
@@ -1738,8 +981,13 @@
       "plugins.boundary-breaker-open-ms-2"
     ],
     "assumptions": [],
-    "result": null,
-    "blocked": "待 B7 真实验收：新 API 切换后重新核对，旧场景引用保留。",
+    "result": {
+      "status": "PASS",
+      "source": "test/accept/evidence/2026-10-29-summary.json",
+      "passed": 10,
+      "total": 10
+    },
+    "blocked": null,
     "note": "源码：lib/src/breaker_plugin.dart:370。"
   },
   {
@@ -1770,8 +1018,13 @@
       "breaker.4xx-not-counted"
     ],
     "assumptions": [],
-    "result": null,
-    "blocked": "待 B7 真实验收：新 API 切换后重新核对，旧场景引用保留。",
+    "result": {
+      "status": "PASS",
+      "source": "test/accept/evidence/2026-10-29-summary.json",
+      "passed": 8,
+      "total": 8
+    },
+    "blocked": null,
     "note": "源码：lib/src/breaker_plugin.dart:385。 真实 client.dart:390 附近 always 提供自定义 shouldTrip；这些 real 只执行回调路径。默认错误分类另拆。"
   },
   {
@@ -1878,8 +1131,13 @@
       "breaker.per-request-skip"
     ],
     "assumptions": [],
-    "result": null,
-    "blocked": "待 B7 真实验收：新 API 切换后重新核对，旧场景引用保留。",
+    "result": {
+      "status": "PASS",
+      "source": "test/accept/evidence/2026-10-29-summary.json",
+      "passed": 2,
+      "total": 2
+    },
+    "blocked": null,
     "note": "源码：lib/src/breaker_plugin.dart:117。"
   },
   {
@@ -1979,9 +1237,16 @@
     "apis": [
       "DiomanBreakerState.halfOpen"
     ],
-    "real": [],
+    "real": [
+      "breaker.half-open-probe-cancel"
+    ],
     "assumptions": [],
-    "result": null,
+    "result": {
+      "status": "PASS",
+      "source": "test/accept/evidence/2026-10-29-summary.json",
+      "passed": 2,
+      "total": 2
+    },
     "blocked": null,
     "note": "源码：lib/src/breaker_plugin.dart:22。"
   },
@@ -1998,70 +1263,6 @@
     "result": null,
     "blocked": null,
     "note": "源码：lib/src/breaker_plugin.dart:15。"
-  },
-  {
-    "id": "INV-REAL-breaker.half-open-probe-cancel",
-    "plugin": "breaker",
-    "capability": "真实场景核对：breaker.half-open-probe-cancel",
-    "tier": 2,
-    "apis": [],
-    "real": [
-      "breaker.half-open-probe-cancel"
-    ],
-    "unit": [
-      "test/rule/breaker_rule_test.dart"
-    ],
-    "assumptions": [],
-    "result": null,
-    "blocked": "待 B7 真实验收：场景引用从删除的旧 API 行迁入，按新 API 与能力声明重新运行。"
-  },
-  {
-    "id": "INV-REAL-breaker.open-fast-fail",
-    "plugin": "breaker",
-    "capability": "真实场景核对：breaker.open-fast-fail",
-    "tier": 2,
-    "apis": [],
-    "real": [
-      "breaker.open-fast-fail"
-    ],
-    "unit": [
-      "test/rule/breaker_rule_test.dart"
-    ],
-    "assumptions": [],
-    "result": null,
-    "blocked": "待 B7 真实验收：场景引用从删除的旧 API 行迁入，按新 API 与能力声明重新运行。"
-  },
-  {
-    "id": "INV-REAL-breaker.retry-halts-on-trip",
-    "plugin": "breaker",
-    "capability": "真实场景核对：breaker.retry-halts-on-trip",
-    "tier": 2,
-    "apis": [],
-    "real": [
-      "breaker.retry-halts-on-trip"
-    ],
-    "unit": [
-      "test/rule/breaker_rule_test.dart"
-    ],
-    "assumptions": [],
-    "result": null,
-    "blocked": "待 B7 真实验收：场景引用从删除的旧 API 行迁入，按新 API 与能力声明重新运行。"
-  },
-  {
-    "id": "INV-REAL-breaker.success-resets-count",
-    "plugin": "breaker",
-    "capability": "真实场景核对：breaker.success-resets-count",
-    "tier": 2,
-    "apis": [],
-    "real": [
-      "breaker.success-resets-count"
-    ],
-    "unit": [
-      "test/rule/breaker_rule_test.dart"
-    ],
-    "assumptions": [],
-    "result": null,
-    "blocked": "待 B7 真实验收：场景引用从删除的旧 API 行迁入，按新 API 与能力声明重新运行。"
   },
   {
     "id": "DiomanCache.cachePolicy",
@@ -2137,8 +1338,13 @@
       "plugins.boundary-cache-ttl-ms-2"
     ],
     "assumptions": [],
-    "result": null,
-    "blocked": "待 B7 真实验收：新 API 切换后重新核对，旧场景引用保留。",
+    "result": {
+      "status": "PASS",
+      "source": "test/accept/evidence/2026-10-29-summary.json",
+      "passed": 10,
+      "total": 10
+    },
+    "blocked": null,
     "note": "源码：lib/src/cache_plugin.dart:241。"
   },
   {
@@ -2157,8 +1363,13 @@
       "plugins.boundary-cache-max-2"
     ],
     "assumptions": [],
-    "result": null,
-    "blocked": "待 B7 真实验收：新 API 切换后重新核对，旧场景引用保留。",
+    "result": {
+      "status": "PASS",
+      "source": "test/accept/evidence/2026-10-29-summary.json",
+      "passed": 8,
+      "total": 8
+    },
+    "blocked": null,
     "note": "源码：lib/src/cache_plugin.dart:259。"
   },
   {
@@ -2190,8 +1401,13 @@
       "plugins.boundary-cache-methods-1"
     ],
     "assumptions": [],
-    "result": null,
-    "blocked": "待 B7 真实验收：新 API 切换后重新核对，旧场景引用保留。",
+    "result": {
+      "status": "PASS",
+      "source": "test/accept/evidence/2026-10-29-summary.json",
+      "passed": 6,
+      "total": 6
+    },
+    "blocked": null,
     "note": "源码：lib/src/cache_plugin.dart:213。 真实执行器显式传入按 methods 判定的契约回调，POST 场景不证明插件未传回调时的默认分支。"
   },
   {
@@ -2270,9 +1486,17 @@
     "apis": [
       "DiomanCacheApi.clear"
     ],
-    "real": [],
+    "real": [
+      "cache.clear",
+      "cache.single-clear-cache"
+    ],
     "assumptions": [],
-    "result": null,
+    "result": {
+      "status": "PASS",
+      "source": "test/accept/evidence/2026-10-29-summary.json",
+      "passed": 4,
+      "total": 4
+    },
     "blocked": null
   },
   {
@@ -2331,8 +1555,13 @@
       "cache.per-request-disable"
     ],
     "assumptions": [],
-    "result": null,
-    "blocked": "待 B7 真实验收：新 API 切换后重新核对，旧场景引用保留。",
+    "result": {
+      "status": "PASS",
+      "source": "test/accept/evidence/2026-10-29-summary.json",
+      "passed": 2,
+      "total": 2
+    },
+    "blocked": null,
     "note": "源码：lib/src/cache_plugin.dart:141。"
   },
   {
@@ -2349,8 +1578,13 @@
       "cache.single-explicit-key-expires"
     ],
     "assumptions": [],
-    "result": null,
-    "blocked": "待 B7 真实验收：新 API 切换后重新核对，旧场景引用保留。",
+    "result": {
+      "status": "PASS",
+      "source": "test/accept/evidence/2026-10-29-summary.json",
+      "passed": 4,
+      "total": 4
+    },
+    "blocked": null,
     "note": "源码：lib/src/cache_plugin.dart:146。"
   },
   {
@@ -2379,9 +1613,19 @@
       "DiomanCacheOptions.new(shouldStore)",
       "DiomanCacheOptions.shouldStore"
     ],
-    "real": [],
+    "real": [
+      "cache.cancel-not-cached",
+      "cache.failure-then-success-cached",
+      "cache.http-error-not-cached",
+      "cache.timeout-not-cached"
+    ],
     "assumptions": [],
-    "result": null,
+    "result": {
+      "status": "PASS",
+      "source": "test/accept/evidence/2026-10-29-summary.json",
+      "passed": 8,
+      "total": 8
+    },
     "blocked": null
   },
   {
@@ -2463,11 +1707,19 @@
       "DiomanCachePolicy.memo"
     ],
     "real": [
-      "cache.hit-no-server"
+      "cache.concurrent-no-share-all-miss",
+      "cache.hit-no-server",
+      "cache.large-response",
+      "cache.offline-miss-then-recover"
     ],
     "assumptions": [],
-    "result": null,
-    "blocked": "待 B7 真实验收：新 API 切换后重新核对，旧场景引用保留。",
+    "result": {
+      "status": "PASS",
+      "source": "test/accept/evidence/2026-10-29-summary.json",
+      "passed": 16,
+      "total": 16
+    },
+    "blocked": null,
     "note": "源码：lib/src/cache_plugin.dart:39。"
   },
   {
@@ -2527,406 +1779,6 @@
     "note": "源码：lib/src/cache_plugin.dart:19。"
   },
   {
-    "id": "INV-REAL-cache.cancel-not-cached",
-    "plugin": "cache",
-    "capability": "真实场景核对：cache.cancel-not-cached",
-    "tier": 2,
-    "apis": [],
-    "real": [
-      "cache.cancel-not-cached"
-    ],
-    "unit": [
-      "test/rule/source_rule_test.dart"
-    ],
-    "assumptions": [],
-    "result": null,
-    "blocked": "待 B7 真实验收：场景引用从删除的旧 API 行迁入，按新 API 与能力声明重新运行。"
-  },
-  {
-    "id": "INV-REAL-cache.clear",
-    "plugin": "cache",
-    "capability": "真实场景核对：cache.clear",
-    "tier": 2,
-    "apis": [],
-    "real": [
-      "cache.clear"
-    ],
-    "unit": [
-      "test/rule/source_rule_test.dart"
-    ],
-    "assumptions": [],
-    "result": null,
-    "blocked": "待 B7 真实验收：场景引用从删除的旧 API 行迁入，按新 API 与能力声明重新运行。"
-  },
-  {
-    "id": "INV-REAL-cache.concurrent-no-share-all-miss",
-    "plugin": "cache",
-    "capability": "真实场景核对：cache.concurrent-no-share-all-miss",
-    "tier": 2,
-    "apis": [],
-    "real": [
-      "cache.concurrent-no-share-all-miss"
-    ],
-    "unit": [
-      "test/rule/source_rule_test.dart"
-    ],
-    "assumptions": [],
-    "result": null,
-    "blocked": "待 B7 真实验收：场景引用从删除的旧 API 行迁入，按新 API 与能力声明重新运行。"
-  },
-  {
-    "id": "INV-REAL-cache.diff-body-no-mixup",
-    "plugin": "cache",
-    "capability": "真实场景核对：cache.diff-body-no-mixup",
-    "tier": 2,
-    "apis": [],
-    "real": [
-      "cache.diff-body-no-mixup"
-    ],
-    "unit": [
-      "test/rule/source_rule_test.dart"
-    ],
-    "assumptions": [],
-    "result": null,
-    "blocked": "待 B7 真实验收：场景引用从删除的旧 API 行迁入，按新 API 与能力声明重新运行。"
-  },
-  {
-    "id": "INV-REAL-cache.diff-query-no-mixup",
-    "plugin": "cache",
-    "capability": "真实场景核对：cache.diff-query-no-mixup",
-    "tier": 2,
-    "apis": [],
-    "real": [
-      "cache.diff-query-no-mixup"
-    ],
-    "unit": [
-      "test/rule/source_rule_test.dart"
-    ],
-    "assumptions": [],
-    "result": null,
-    "blocked": "待 B7 真实验收：场景引用从删除的旧 API 行迁入，按新 API 与能力声明重新运行。"
-  },
-  {
-    "id": "INV-REAL-cache.failure-then-success-cached",
-    "plugin": "cache",
-    "capability": "真实场景核对：cache.failure-then-success-cached",
-    "tier": 2,
-    "apis": [],
-    "real": [
-      "cache.failure-then-success-cached"
-    ],
-    "unit": [
-      "test/rule/source_rule_test.dart"
-    ],
-    "assumptions": [],
-    "result": null,
-    "blocked": "待 B7 真实验收：场景引用从删除的旧 API 行迁入，按新 API 与能力声明重新运行。"
-  },
-  {
-    "id": "INV-REAL-cache.http-error-not-cached",
-    "plugin": "cache",
-    "capability": "真实场景核对：cache.http-error-not-cached",
-    "tier": 2,
-    "apis": [],
-    "real": [
-      "cache.http-error-not-cached"
-    ],
-    "unit": [
-      "test/rule/source_rule_test.dart"
-    ],
-    "assumptions": [],
-    "result": null,
-    "blocked": "待 B7 真实验收：场景引用从删除的旧 API 行迁入，按新 API 与能力声明重新运行。"
-  },
-  {
-    "id": "INV-REAL-cache.large-response",
-    "plugin": "cache",
-    "capability": "真实场景核对：cache.large-response",
-    "tier": 2,
-    "apis": [],
-    "real": [
-      "cache.large-response"
-    ],
-    "unit": [
-      "test/rule/source_rule_test.dart"
-    ],
-    "assumptions": [],
-    "result": null,
-    "blocked": "待 B7 真实验收：场景引用从删除的旧 API 行迁入，按新 API 与能力声明重新运行。"
-  },
-  {
-    "id": "INV-REAL-cache.offline-miss-then-recover",
-    "plugin": "cache",
-    "capability": "真实场景核对：cache.offline-miss-then-recover",
-    "tier": 2,
-    "apis": [],
-    "real": [
-      "cache.offline-miss-then-recover"
-    ],
-    "unit": [
-      "test/rule/source_rule_test.dart"
-    ],
-    "assumptions": [],
-    "result": null,
-    "blocked": "待 B7 真实验收：场景引用从删除的旧 API 行迁入，按新 API 与能力声明重新运行。"
-  },
-  {
-    "id": "INV-REAL-cache.single-clear-cache",
-    "plugin": "cache",
-    "capability": "真实场景核对：cache.single-clear-cache",
-    "tier": 2,
-    "apis": [],
-    "real": [
-      "cache.single-clear-cache"
-    ],
-    "unit": [
-      "test/rule/source_rule_test.dart"
-    ],
-    "assumptions": [],
-    "result": null,
-    "blocked": "待 B7 真实验收：场景引用从删除的旧 API 行迁入，按新 API 与能力声明重新运行。"
-  },
-  {
-    "id": "INV-REAL-cache.timeout-not-cached",
-    "plugin": "cache",
-    "capability": "真实场景核对：cache.timeout-not-cached",
-    "tier": 2,
-    "apis": [],
-    "real": [
-      "cache.timeout-not-cached"
-    ],
-    "unit": [
-      "test/rule/source_rule_test.dart"
-    ],
-    "assumptions": [],
-    "result": null,
-    "blocked": "待 B7 真实验收：场景引用从删除的旧 API 行迁入，按新 API 与能力声明重新运行。"
-  },
-  {
-    "id": "INV-REAL-cache.user-scope-no-leak",
-    "plugin": "cache",
-    "capability": "真实场景核对：cache.user-scope-no-leak",
-    "tier": 2,
-    "apis": [],
-    "real": [
-      "cache.user-scope-no-leak"
-    ],
-    "unit": [
-      "test/rule/source_rule_test.dart"
-    ],
-    "assumptions": [],
-    "result": null,
-    "blocked": "待 B7 真实验收：场景引用从删除的旧 API 行迁入，按新 API 与能力声明重新运行。"
-  },
-  {
-    "id": "INV-REAL-cache.user-scope-same-user-hits",
-    "plugin": "cache",
-    "capability": "真实场景核对：cache.user-scope-same-user-hits",
-    "tier": 2,
-    "apis": [],
-    "real": [
-      "cache.user-scope-same-user-hits"
-    ],
-    "unit": [
-      "test/rule/source_rule_test.dart"
-    ],
-    "assumptions": [],
-    "result": null,
-    "blocked": "待 B7 真实验收：场景引用从删除的旧 API 行迁入，按新 API 与能力声明重新运行。"
-  },
-  {
-    "id": "INV-REAL-cancel.after-complete-noop",
-    "plugin": "cancel",
-    "capability": "真实场景核对：cancel.after-complete-noop",
-    "tier": 2,
-    "apis": [],
-    "real": [
-      "cancel.after-complete-noop"
-    ],
-    "unit": [
-      "test/boundary/client_boundary_test.dart"
-    ],
-    "assumptions": [],
-    "result": null,
-    "blocked": "待 B7 真实验收：场景引用从删除的旧 API 行迁入，按新 API 与能力声明重新运行。"
-  },
-  {
-    "id": "INV-REAL-cancel.all",
-    "plugin": "cancel",
-    "capability": "真实场景核对：cancel.all",
-    "tier": 2,
-    "apis": [],
-    "real": [
-      "cancel.all"
-    ],
-    "unit": [
-      "test/boundary/client_boundary_test.dart"
-    ],
-    "assumptions": [],
-    "result": null,
-    "blocked": "待 B7 真实验收：场景引用从删除的旧 API 行迁入，按新 API 与能力声明重新运行。"
-  },
-  {
-    "id": "INV-REAL-cancel.all-then-new-works",
-    "plugin": "cancel",
-    "capability": "真实场景核对：cancel.all-then-new-works",
-    "tier": 2,
-    "apis": [],
-    "real": [
-      "cancel.all-then-new-works"
-    ],
-    "unit": [
-      "test/boundary/client_boundary_test.dart"
-    ],
-    "assumptions": [],
-    "result": null,
-    "blocked": "待 B7 真实验收：场景引用从删除的旧 API 行迁入，按新 API 与能力声明重新运行。"
-  },
-  {
-    "id": "INV-REAL-cancel.all-with-nothing-inflight",
-    "plugin": "cancel",
-    "capability": "真实场景核对：cancel.all-with-nothing-inflight",
-    "tier": 2,
-    "apis": [],
-    "real": [
-      "cancel.all-with-nothing-inflight"
-    ],
-    "unit": [
-      "test/boundary/client_boundary_test.dart"
-    ],
-    "assumptions": [],
-    "result": null,
-    "blocked": "待 B7 真实验收：场景引用从删除的旧 API 行迁入，按新 API 与能力声明重新运行。"
-  },
-  {
-    "id": "INV-REAL-cancel.before-reach-server",
-    "plugin": "cancel",
-    "capability": "真实场景核对：cancel.before-reach-server",
-    "tier": 2,
-    "apis": [],
-    "real": [
-      "cancel.before-reach-server"
-    ],
-    "unit": [
-      "test/boundary/client_boundary_test.dart"
-    ],
-    "assumptions": [],
-    "result": null,
-    "blocked": "待 B7 真实验收：场景引用从删除的旧 API 行迁入，按新 API 与能力声明重新运行。"
-  },
-  {
-    "id": "INV-REAL-cancel.blackhole-cancel-before-timeout",
-    "plugin": "cancel",
-    "capability": "真实场景核对：cancel.blackhole-cancel-before-timeout",
-    "tier": 2,
-    "apis": [],
-    "real": [
-      "cancel.blackhole-cancel-before-timeout"
-    ],
-    "unit": [
-      "test/boundary/client_boundary_test.dart"
-    ],
-    "assumptions": [],
-    "result": null,
-    "blocked": "待 B7 真实验收：场景引用从删除的旧 API 行迁入，按新 API 与能力声明重新运行。"
-  },
-  {
-    "id": "INV-REAL-cancel.double-cancel",
-    "plugin": "cancel",
-    "capability": "真实场景核对：cancel.double-cancel",
-    "tier": 2,
-    "apis": [],
-    "real": [
-      "cancel.double-cancel"
-    ],
-    "unit": [
-      "test/boundary/client_boundary_test.dart"
-    ],
-    "assumptions": [],
-    "result": null,
-    "blocked": "待 B7 真实验收：场景引用从删除的旧 API 行迁入，按新 API 与能力声明重新运行。"
-  },
-  {
-    "id": "INV-REAL-cancel.hang-is-canceled-not-timeout",
-    "plugin": "cancel",
-    "capability": "真实场景核对：cancel.hang-is-canceled-not-timeout",
-    "tier": 2,
-    "apis": [],
-    "real": [
-      "cancel.hang-is-canceled-not-timeout"
-    ],
-    "unit": [
-      "test/boundary/client_boundary_test.dart"
-    ],
-    "assumptions": [],
-    "result": null,
-    "blocked": "待 B7 真实验收：场景引用从删除的旧 API 行迁入，按新 API 与能力声明重新运行。"
-  },
-  {
-    "id": "INV-REAL-cancel.one-of-many",
-    "plugin": "cancel",
-    "capability": "真实场景核对：cancel.one-of-many",
-    "tier": 2,
-    "apis": [],
-    "real": [
-      "cancel.one-of-many"
-    ],
-    "unit": [
-      "test/boundary/client_boundary_test.dart"
-    ],
-    "assumptions": [],
-    "result": null,
-    "blocked": "待 B7 真实验收：场景引用从删除的旧 API 行迁入，按新 API 与能力声明重新运行。"
-  },
-  {
-    "id": "INV-REAL-cancel.parallel-32",
-    "plugin": "cancel",
-    "capability": "真实场景核对：cancel.parallel-32",
-    "tier": 2,
-    "apis": [],
-    "real": [
-      "cancel.parallel-32"
-    ],
-    "unit": [
-      "test/boundary/client_boundary_test.dart"
-    ],
-    "assumptions": [],
-    "result": null,
-    "blocked": "待 B7 真实验收：场景引用从删除的旧 API 行迁入，按新 API 与能力声明重新运行。"
-  },
-  {
-    "id": "INV-REAL-cancel.single",
-    "plugin": "cancel",
-    "capability": "真实场景核对：cancel.single",
-    "tier": 2,
-    "apis": [],
-    "real": [
-      "cancel.single"
-    ],
-    "unit": [
-      "test/boundary/client_boundary_test.dart"
-    ],
-    "assumptions": [],
-    "result": null,
-    "blocked": "待 B7 真实验收：场景引用从删除的旧 API 行迁入，按新 API 与能力声明重新运行。"
-  },
-  {
-    "id": "INV-REAL-cancel.slow-body",
-    "plugin": "cancel",
-    "capability": "真实场景核对：cancel.slow-body",
-    "tier": 2,
-    "apis": [],
-    "real": [
-      "cancel.slow-body"
-    ],
-    "unit": [
-      "test/boundary/client_boundary_test.dart"
-    ],
-    "assumptions": [],
-    "result": null,
-    "blocked": "待 B7 真实验收：场景引用从删除的旧 API 行迁入，按新 API 与能力声明重新运行。"
-  },
-  {
     "id": "Dioman.cancelAll",
     "plugin": "client",
     "capability": "Dioman.cancelAll：公开契约及配置解析",
@@ -2934,10 +1786,22 @@
     "apis": [
       "Dioman.cancelAll"
     ],
-    "real": [],
+    "real": [
+      "auth.slow-refresh-cancel-all",
+      "cancel.all",
+      "cancel.all-then-new-works",
+      "cancel.all-with-nothing-inflight",
+      "network.blackhole-cancel-all",
+      "retry.cancel-all-during-wait"
+    ],
     "assumptions": [],
-    "result": null,
-    "blocked": "待 B7 真实验收：新客户端动词、取消及传输落定核对。"
+    "result": {
+      "status": "PASS",
+      "source": "test/accept/evidence/2026-10-29-summary.json",
+      "passed": 12,
+      "total": 12
+    },
+    "blocked": null
   },
   {
     "id": "Dioman.clock",
@@ -2961,10 +1825,17 @@
     "apis": [
       "Dioman.delete"
     ],
-    "real": [],
+    "real": [
+      "local:test/integration/client_methods_real_integration_test.dart"
+    ],
     "assumptions": [],
-    "result": null,
-    "blocked": "待 B7 真实验收：新客户端动词、取消及传输落定核对。"
+    "result": {
+      "status": "PASS",
+      "source": "test/accept/evidence/2026-10-29-summary.json",
+      "passed": 1,
+      "total": 1
+    },
+    "blocked": null
   },
   {
     "id": "Dioman.dio",
@@ -3027,10 +1898,17 @@
     "apis": [
       "Dioman.get"
     ],
-    "real": [],
+    "real": [
+      "local:test/integration/client_methods_real_integration_test.dart"
+    ],
     "assumptions": [],
-    "result": null,
-    "blocked": "待 B7 真实验收：新客户端动词、取消及传输落定核对。"
+    "result": {
+      "status": "PASS",
+      "source": "test/accept/evidence/2026-10-29-summary.json",
+      "passed": 1,
+      "total": 1
+    },
+    "blocked": null
   },
   {
     "id": "Dioman.head",
@@ -3040,10 +1918,17 @@
     "apis": [
       "Dioman.head"
     ],
-    "real": [],
+    "real": [
+      "local:test/integration/client_methods_real_integration_test.dart"
+    ],
     "assumptions": [],
-    "result": null,
-    "blocked": "待 B7 真实验收：新客户端动词、取消及传输落定核对。"
+    "result": {
+      "status": "PASS",
+      "source": "test/accept/evidence/2026-10-29-summary.json",
+      "passed": 1,
+      "total": 1
+    },
+    "blocked": null
   },
   {
     "id": "Dioman.inspect",
@@ -3119,10 +2004,17 @@
     "apis": [
       "Dioman.patch"
     ],
-    "real": [],
+    "real": [
+      "local:test/integration/client_methods_real_integration_test.dart"
+    ],
     "assumptions": [],
-    "result": null,
-    "blocked": "待 B7 真实验收：新客户端动词、取消及传输落定核对。"
+    "result": {
+      "status": "PASS",
+      "source": "test/accept/evidence/2026-10-29-summary.json",
+      "passed": 1,
+      "total": 1
+    },
+    "blocked": null
   },
   {
     "id": "Dioman.pending",
@@ -3158,10 +2050,17 @@
     "apis": [
       "Dioman.post"
     ],
-    "real": [],
+    "real": [
+      "local:test/integration/client_methods_real_integration_test.dart"
+    ],
     "assumptions": [],
-    "result": null,
-    "blocked": "待 B7 真实验收：新客户端动词、取消及传输落定核对。"
+    "result": {
+      "status": "PASS",
+      "source": "test/accept/evidence/2026-10-29-summary.json",
+      "passed": 1,
+      "total": 1
+    },
+    "blocked": null
   },
   {
     "id": "Dioman.put",
@@ -3171,10 +2070,17 @@
     "apis": [
       "Dioman.put"
     ],
-    "real": [],
+    "real": [
+      "local:test/integration/client_methods_real_integration_test.dart"
+    ],
     "assumptions": [],
-    "result": null,
-    "blocked": "待 B7 真实验收：新客户端动词、取消及传输落定核对。"
+    "result": {
+      "status": "PASS",
+      "source": "test/accept/evidence/2026-10-29-summary.json",
+      "passed": 1,
+      "total": 1
+    },
+    "blocked": null
   },
   {
     "id": "Dioman.reject",
@@ -3198,10 +2104,17 @@
     "apis": [
       "Dioman.request"
     ],
-    "real": [],
+    "real": [
+      "local:test/integration/client_methods_real_integration_test.dart"
+    ],
     "assumptions": [],
-    "result": null,
-    "blocked": "待 B7 真实验收：新客户端动词、取消及传输落定核对。"
+    "result": {
+      "status": "PASS",
+      "source": "test/accept/evidence/2026-10-29-summary.json",
+      "passed": 1,
+      "total": 1
+    },
+    "blocked": null
   },
   {
     "id": "Dioman.response",
@@ -3225,10 +2138,19 @@
     "apis": [
       "Dioman.send"
     ],
-    "real": [],
+    "real": [
+      "network.offline-immediate",
+      "network.switch-offline-online",
+      "local:test/integration/client_methods_real_integration_test.dart"
+    ],
     "assumptions": [],
-    "result": null,
-    "blocked": "待 B7 真实验收：新客户端动词、取消及传输落定核对。"
+    "result": {
+      "status": "PASS",
+      "source": "test/accept/evidence/2026-10-29-summary.json",
+      "passed": 7,
+      "total": 7
+    },
+    "blocked": null
   },
   {
     "id": "Dioman.use",
@@ -3275,9 +2197,16 @@
     "capability": "请求结束 pending、计时器和取消订阅归零",
     "tier": 1,
     "apis": [],
-    "real": [],
+    "real": [
+      "network.recovery-state-clean"
+    ],
     "assumptions": [],
-    "result": null,
+    "result": {
+      "status": "PASS",
+      "source": "test/accept/evidence/2026-10-29-summary.json",
+      "passed": 2,
+      "total": 2
+    },
     "blocked": null,
     "note": "不能写成全部状态键删除：breaker 消费凭据；loading 删除 bracketed/delayClose；cancel 注销集合但保留 extra token 供重入；cache 四个标记不删除；auth 常规出口删四标记但保留 decision，重放成功保留防重复标记；share 删除活动 entry 登记，RequestOptions 仍可能留协议引用。lib/src/{auth,cache,cancel,breaker,loading,share}_plugin.dart。",
     "unit": [
@@ -3369,8 +2298,13 @@
       "H7",
       "H8"
     ],
-    "result": null,
-    "blocked": "待 B7 真实验收：新 API 切换后重新核对，旧场景引用保留。",
+    "result": {
+      "status": "PASS",
+      "source": "test/accept/evidence/2026-10-29-summary.json",
+      "passed": 80,
+      "total": 80
+    },
+    "blocked": null,
     "note": "计划有 32 个 pair id，双响应风格共 64 格；目录 plugins 字段是开关全集，不表示每一格启用全部插件。仅代表真实传输核对，非全部选项断言。",
     "unit": [
       "test/combo/powerset_combo_test.dart",
@@ -3388,8 +2322,13 @@
       "plugins.full-flap-workflow"
     ],
     "assumptions": [],
-    "result": null,
-    "blocked": "待 B7 真实验收：新 API 切换后重新核对，旧场景引用保留。",
+    "result": {
+      "status": "PASS",
+      "source": "test/accept/evidence/2026-10-29-summary.json",
+      "passed": 4,
+      "total": 4
+    },
+    "blocked": null,
     "note": "全量冒烟，含 flap 恢复。与局部可模拟逻辑分列；tier 3 不作纯单测证明。",
     "unit": [
       "test/combo/powerset_combo_test.dart"
@@ -3403,29 +2342,50 @@
     "apis": [],
     "real": [
       "plugins.single-auth",
+      "plugins.single-auth-http",
       "plugins.single-breaker",
+      "plugins.single-breaker-http",
       "plugins.single-cache",
+      "plugins.single-cache-http",
       "plugins.single-cancel",
+      "plugins.single-cancel-http",
       "plugins.single-envs",
+      "plugins.single-envs-http",
       "plugins.single-filter",
+      "plugins.single-filter-http",
       "plugins.single-key",
+      "plugins.single-key-http",
       "plugins.single-loading",
+      "plugins.single-loading-http",
       "plugins.single-log",
+      "plugins.single-log-http",
       "plugins.single-mock",
+      "plugins.single-mock-http",
       "plugins.single-normalize",
       "plugins.single-notify",
+      "plugins.single-notify-http",
       "plugins.single-offline",
+      "plugins.single-offline-http",
       "plugins.single-repath",
+      "plugins.single-repath-http",
       "plugins.single-retry",
+      "plugins.single-retry-http",
       "plugins.single-share",
-      "plugins.single-timeout"
+      "plugins.single-share-http",
+      "plugins.single-timeout",
+      "plugins.single-timeout-http"
     ],
     "assumptions": [
       "H1",
       "H8"
     ],
-    "result": null,
-    "blocked": "待 B7 真实验收：新 API 切换后重新核对，旧场景引用保留。",
+    "result": {
+      "status": "PASS",
+      "source": "test/accept/evidence/2026-10-29-summary.json",
+      "passed": 18,
+      "total": 242
+    },
+    "blocked": null,
     "note": "2026-10-28 plugins.single-auth@business 失败：外部 testkit 的 auth.json 有未提交改动，把该格预期改成 ok:true；dioman 实际行为（business:500 → DiomanException code 500）与改动前一致，重跑 3 次相同。等 testkit 那边定稿后再判是改预期还是改执行器映射（执行器在装 auth 时也启用 EnvelopeTransformer）",
     "unit": [
       "test/combo/powerset_combo_test.dart"
@@ -3442,8 +2402,13 @@
       "combo.cache-mock-no-key-collision"
     ],
     "assumptions": [],
-    "result": null,
-    "blocked": "待 B7 真实验收：新 API 切换后重新核对，旧场景引用保留。",
+    "result": {
+      "status": "PASS",
+      "source": "test/accept/evidence/2026-10-29-summary.json",
+      "passed": 3,
+      "total": 3
+    },
+    "blocked": null,
     "note": "lib/src/cache_plugin.dart:onRequest 的 resolve(...,true)，share/mock 同类路径；test/combo/ 下 cache/normalize、mock/loading 等组合；短路跳过后续 onRequest，不能因此生成多余括号。",
     "unit": [
       "test/combo/source_combo_test.dart"
@@ -3494,8 +2459,13 @@
       "H1",
       "H2"
     ],
-    "result": null,
-    "blocked": "待 B7 真实验收：新 API 切换后重新核对，旧场景引用保留。",
+    "result": {
+      "status": "PASS",
+      "source": "test/accept/evidence/2026-10-29-summary.json",
+      "passed": 6,
+      "total": 6
+    },
+    "blocked": null,
     "note": "lib/src/share_plugin.dart:_promoteFollower；此处核对真实传输下接手与取消隔离；纯登记/选择规则见 INV-14。真实目录没有接手 FormData 的完整字节断言，H2 的 multipart 缺口仍保留在认证拆行及其他批次。",
     "unit": [
       "test/integration/source_transport_integration_test.dart"
@@ -3513,7 +2483,7 @@
     ],
     "assumptions": [],
     "result": null,
-    "blocked": "待 B7 真实验收：新 API 切换后重新核对，旧场景引用保留。",
+    "blocked": null,
     "note": "lib/src/cache_plugin.dart:onResponse 只看 2xx；normalize 排末尾，不能阻止已发生的缓存写入。真实场景期望业务失败不缓存与源码冲突，终审应核对结果而非替源码写愿景。",
     "unit": [
       "test/rule/source_rule_test.dart"
@@ -3529,8 +2499,13 @@
       "combo.repath-retry-path-stable"
     ],
     "assumptions": [],
-    "result": null,
-    "blocked": "待 B7 真实验收：新 API 切换后重新核对，旧场景引用保留。",
+    "result": {
+      "status": "PASS",
+      "source": "test/accept/evidence/2026-10-29-summary.json",
+      "passed": 2,
+      "total": 2
+    },
+    "blocked": null,
     "note": "lib/src/replay_support.dart:fetch；auth/retry/share 借宿主 adapter/transformer，未绑定用兜底裸 Dio；FormData 克隆、Stream 拒绝重放；状态机是 tier 1，传输消费及连接复用另拆 H2/H4。",
     "unit": [
       "test/integration/b3_transport_integration_test.dart"
@@ -3548,8 +2523,13 @@
     "assumptions": [
       "H4"
     ],
-    "result": null,
-    "blocked": "待 B7 真实验收：新 API 切换后重新核对，旧场景引用保留。",
+    "result": {
+      "status": "PASS",
+      "source": "test/accept/evidence/2026-10-29-summary.json",
+      "passed": 2,
+      "total": 2
+    },
+    "blocked": null,
     "note": "keep-alive 复用同一 TCP 连接时恢复失败不污染后续响应（H4）；testkit 侧需要服务端回报连接标识，见 testkit 提议"
   },
   {
@@ -3559,25 +2539,26 @@
     "tier": 2,
     "apis": [],
     "real": [
-      "combo.cache-share-retry",
-      "combo.share-failure-not-cached",
-      "combo.auth-retry-loading-notify-recovers",
-      "combo.auth-retry-loading-notify-fails",
+      "combo.all-seventeen-plugins",
+      "combo.auth-cache-refresh",
       "combo.auth-concurrent-loading-notify",
       "combo.auth-expired-loading-notify",
-      "combo.auth-cache-refresh",
-      "combo.cancel-share-follower",
+      "combo.auth-retry-loading-notify-fails",
+      "combo.auth-retry-loading-notify-recovers",
+      "combo.cache-share-retry",
       "combo.cancel-all-share",
-      "combo.retry-cancel-loading-notify",
-      "combo.share-retry-loading-notify",
-      "combo.share-fail-notify",
-      "combo.loading-cache-hit-delay",
-      "combo.normalize-business-retry-notify-cache",
-      "combo.lossy-everything",
+      "combo.cancel-share-follower",
       "combo.flap-share-cache-loading",
-      "combo.offline-share-notify",
       "combo.full-stack-happy",
-      "combo.all-seventeen-plugins"
+      "combo.loading-cache-hit-delay",
+      "combo.lossy-everything",
+      "combo.normalize-business-retry-notify-cache",
+      "combo.offline-share-notify",
+      "combo.retry-cancel-loading-notify",
+      "combo.share-fail-notify",
+      "combo.share-failure-not-cached",
+      "combo.share-retry-loading-notify",
+      "network.offline-share-loading"
     ],
     "assumptions": [
       "H1",
@@ -3585,8 +2566,13 @@
       "H7",
       "H8"
     ],
-    "result": null,
-    "blocked": "待 B7 真实验收：新 API 切换后重新核对，旧场景引用保留。",
+    "result": {
+      "status": "PASS",
+      "source": "test/accept/evidence/2026-10-29-summary.json",
+      "passed": 62,
+      "total": 62
+    },
+    "blocked": null,
     "note": "只作为实际组合管线协作的代表核对，不替代具体选项覆盖；部分包含本批外插件，由后续批次为其局部能力补映射。含 all-seventeen 验证额外 notify 插入。与 INV-10 的全量/网络整链冒烟区分。",
     "unit": [
       "test/combo/source_combo_test.dart"
@@ -3604,8 +2590,13 @@
       "cache.offline-serves-cache"
     ],
     "assumptions": [],
-    "result": null,
-    "blocked": "待 B7 真实验收：新 API 切换后重新核对，旧场景引用保留。",
+    "result": {
+      "status": "PASS",
+      "source": "test/accept/evidence/2026-10-29-summary.json",
+      "passed": 6,
+      "total": 6
+    },
+    "blocked": null,
     "note": "cache 在 offline/loading 前，命中 resolve(...,true)；此行只记短路与括号决策，真实计时顺序由 INV-19/H7 承担。",
     "unit": [
       "test/combo/source_migration_combo_test.dart"
@@ -3625,57 +2616,6 @@
     "unit": [
       "test/boundary/share_replay_boundary_test.dart"
     ]
-  },
-  {
-    "id": "INV-REAL-combo.filter-repath-path-var-first",
-    "plugin": "combo",
-    "capability": "真实场景核对：combo.filter-repath-path-var-first",
-    "tier": 2,
-    "apis": [],
-    "real": [
-      "combo.filter-repath-path-var-first"
-    ],
-    "unit": [
-      "test/combo/source_combo_test.dart",
-      "test/combo/prepare_pairs_combo_test.dart"
-    ],
-    "assumptions": [],
-    "result": null,
-    "blocked": "待 B7 真实验收：场景引用从删除的旧 API 行迁入，按新 API 与能力声明重新运行。"
-  },
-  {
-    "id": "INV-REAL-combo.loading-mock-fallback-single-pair",
-    "plugin": "combo",
-    "capability": "真实场景核对：combo.loading-mock-fallback-single-pair",
-    "tier": 2,
-    "apis": [],
-    "real": [
-      "combo.loading-mock-fallback-single-pair"
-    ],
-    "unit": [
-      "test/combo/source_combo_test.dart",
-      "test/combo/prepare_pairs_combo_test.dart"
-    ],
-    "assumptions": [],
-    "result": null,
-    "blocked": "待 B7 真实验收：场景引用从删除的旧 API 行迁入，按新 API 与能力声明重新运行。"
-  },
-  {
-    "id": "INV-REAL-combo.mock-share-fallback-single-flight",
-    "plugin": "combo",
-    "capability": "真实场景核对：combo.mock-share-fallback-single-flight",
-    "tier": 2,
-    "apis": [],
-    "real": [
-      "combo.mock-share-fallback-single-flight"
-    ],
-    "unit": [
-      "test/combo/source_combo_test.dart",
-      "test/combo/prepare_pairs_combo_test.dart"
-    ],
-    "assumptions": [],
-    "result": null,
-    "blocked": "待 B7 真实验收：场景引用从删除的旧 API 行迁入，按新 API 与能力声明重新运行。"
   },
   {
     "id": "DiomanContext.cancelToken",
@@ -3860,9 +2800,16 @@
     "apis": [
       "DiomanContext.markReplayable"
     ],
-    "real": [],
+    "real": [
+      "auth.post-replay-body-intact"
+    ],
     "assumptions": [],
-    "result": null,
+    "result": {
+      "status": "PASS",
+      "source": "test/accept/evidence/2026-10-29-summary.json",
+      "passed": 10,
+      "total": 10
+    },
     "blocked": null
   },
   {
@@ -4113,43 +3060,11 @@
     "assumptions": [],
     "result": {
       "status": "PASS",
-      "source": "docs/reports/pipeline-b5b-evidence/example-regression.txt",
+      "source": "test/accept/evidence/2026-10-29-summary.json",
       "passed": 1,
       "total": 1
     },
     "blocked": null
-  },
-  {
-    "id": "INV-REAL-faults.html-gateway-page",
-    "plugin": "faults",
-    "capability": "真实场景核对：faults.html-gateway-page",
-    "tier": 2,
-    "apis": [],
-    "real": [
-      "faults.html-gateway-page"
-    ],
-    "unit": [
-      "test/unit/response_test.dart"
-    ],
-    "assumptions": [],
-    "result": null,
-    "blocked": "待 B7 真实验收：场景引用从删除的旧 API 行迁入，按新 API 与能力声明重新运行。"
-  },
-  {
-    "id": "INV-REAL-faults.no-envelope",
-    "plugin": "faults",
-    "capability": "真实场景核对：faults.no-envelope",
-    "tier": 2,
-    "apis": [],
-    "real": [
-      "faults.no-envelope"
-    ],
-    "unit": [
-      "test/unit/response_test.dart"
-    ],
-    "assumptions": [],
-    "result": null,
-    "blocked": "待 B7 真实验收：场景引用从删除的旧 API 行迁入，按新 API 与能力声明重新运行。"
   },
   {
     "id": "DiomanFilter.defaultPredicate",
@@ -4177,8 +3092,13 @@
       "filter.off-by-default-sends-as-is"
     ],
     "assumptions": [],
-    "result": null,
-    "blocked": "待 B7 真实验收：新 API 切换后重新核对，旧场景引用保留。",
+    "result": {
+      "status": "PASS",
+      "source": "test/accept/evidence/2026-10-29-summary.json",
+      "passed": 4,
+      "total": 4
+    },
+    "blocked": null,
     "note": "源码：lib/src/filter_plugin.dart:87。"
   },
   {
@@ -4210,8 +3130,13 @@
       "filter.drops-empty-body-keeps-zero-false"
     ],
     "assumptions": [],
-    "result": null,
-    "blocked": "待 B7 真实验收：新 API 切换后重新核对，旧场景引用保留。",
+    "result": {
+      "status": "PASS",
+      "source": "test/accept/evidence/2026-10-29-summary.json",
+      "passed": 8,
+      "total": 8
+    },
+    "blocked": null,
     "note": "源码：lib/src/filter_plugin.dart:82。"
   },
   {
@@ -4268,8 +3193,13 @@
       "filter.keeps-zero-false"
     ],
     "assumptions": [],
-    "result": null,
-    "blocked": "待 B7 真实验收：新 API 切换后重新核对，旧场景引用保留。",
+    "result": {
+      "status": "PASS",
+      "source": "test/accept/evidence/2026-10-29-summary.json",
+      "passed": 4,
+      "total": 4
+    },
+    "blocked": null,
     "note": "源码：lib/src/filter_plugin.dart:72。"
   },
   {
@@ -4378,9 +3308,16 @@
     "capability": "五阶段固定排序及 pre/post 稳定顺序",
     "tier": 1,
     "apis": [],
-    "real": [],
+    "real": [
+      "combo.filter-repath-path-var-first"
+    ],
     "assumptions": [],
-    "result": null,
+    "result": {
+      "status": "PASS",
+      "source": "test/accept/evidence/2026-10-29-summary.json",
+      "passed": 2,
+      "total": 2
+    },
     "blocked": null,
     "note": "lib/src/plugin_order.dart:sortPlugins；test/unit/plugin_order_test.dart 穷举 2^16 子集。key 在 repath/filter 后、cache/share 前；cache 在 offline 前；offline 在 share/cancel/loading 前；cache/share/mock 在 cancel/loading 前；cancel/loading 在 auth/retry 前；breaker 在 retry 后；normalize 在其余内置插件后。before/after 对缺席插件忽略，requires 只约束存在。",
     "unit": [
@@ -4460,8 +3397,13 @@
       "basic.unicode-body"
     ],
     "assumptions": [],
-    "result": null,
-    "blocked": "待 B7 真实验收：新 API 切换后重新核对，旧场景引用保留。",
+    "result": {
+      "status": "PASS",
+      "source": "test/accept/evidence/2026-10-29-summary.json",
+      "passed": 102,
+      "total": 116
+    },
+    "blocked": null,
     "note": "环境与执行器基线；失败先查环境再查插件",
     "unit": [
       "test/unit/response_test.dart"
@@ -4498,8 +3440,13 @@
       "H3",
       "H8"
     ],
-    "result": null,
-    "blocked": "待 B7 真实验收：新 API 切换后重新核对，旧场景引用保留。",
+    "result": {
+      "status": "PASS",
+      "source": "test/accept/evidence/2026-10-29-summary.json",
+      "passed": 54,
+      "total": 54
+    },
+    "blocked": null,
     "unit": [
       "test/boundary/retry_boundary_test.dart"
     ]
@@ -4532,8 +3479,13 @@
       "H7",
       "H8"
     ],
-    "result": null,
-    "blocked": "待 B7 真实验收：新 API 切换后重新核对，旧场景引用保留。",
+    "result": {
+      "status": "PASS",
+      "source": "test/accept/evidence/2026-10-29-summary.json",
+      "passed": 56,
+      "total": 56
+    },
+    "blocked": null,
     "unit": [
       "test/combo/powerset_combo_test.dart"
     ]
@@ -4550,13 +3502,19 @@
       "timeout.request-override-longer",
       "timeout.request-override-shorter",
       "timeout.total-hang",
-      "timeout.within-budget"
+      "timeout.within-budget",
+      "local:test/integration/timeout_effective_integration_test.dart"
     ],
     "assumptions": [
       "H5"
     ],
-    "result": null,
-    "blocked": "待 B7 真实验收：新 API 切换后重新核对，旧场景引用保留。",
+    "result": {
+      "status": "PASS",
+      "source": "test/accept/evidence/2026-10-29-summary.json",
+      "passed": 1,
+      "total": 85
+    },
+    "blocked": null,
     "unit": [
       "test/integration/timeout_effective_integration_test.dart"
     ],
@@ -4591,8 +3549,13 @@
       "key.query-order-insensitive"
     ],
     "assumptions": [],
-    "result": null,
-    "blocked": "待 B7 真实验收：新 API 切换后重新核对，旧场景引用保留。",
+    "result": {
+      "status": "PASS",
+      "source": "test/accept/evidence/2026-10-29-summary.json",
+      "passed": 4,
+      "total": 4
+    },
+    "blocked": null,
     "note": "源码：lib/src/key_plugin.dart:47。 深模式分支由 body/query 场景执行；不能以它们证明 fastMode=true 分支已覆盖。"
   },
   {
@@ -4624,8 +3587,13 @@
       "cache.custom-key-shared"
     ],
     "assumptions": [],
-    "result": null,
-    "blocked": "待 B7 真实验收：新 API 切换后重新核对，旧场景引用保留。",
+    "result": {
+      "status": "PASS",
+      "source": "test/accept/evidence/2026-10-29-summary.json",
+      "passed": 4,
+      "total": 4
+    },
+    "blocked": null,
     "note": "源码：lib/src/key_plugin.dart:42。"
   },
   {
@@ -4637,9 +3605,17 @@
       "DiomanKeyOptions.namespace",
       "DiomanKeyOptions.new(namespace)"
     ],
-    "real": [],
+    "real": [
+      "cache.user-scope-no-leak",
+      "cache.user-scope-same-user-hits"
+    ],
     "assumptions": [],
-    "result": null,
+    "result": {
+      "status": "PASS",
+      "source": "test/accept/evidence/2026-10-29-summary.json",
+      "passed": 6,
+      "total": 6
+    },
     "blocked": null
   },
   {
@@ -4650,9 +3626,22 @@
     "apis": [
       "DiomanKeyService.build"
     ],
-    "real": [],
+    "real": [
+      "cache.diff-body-no-mixup",
+      "cache.diff-query-no-mixup",
+      "key.filter-before-key",
+      "key.method-diff-not-merged",
+      "key.share-diff-query-not-merged",
+      "repath.key-after-repath",
+      "repath.key-cache-no-mixup"
+    ],
     "assumptions": [],
-    "result": null,
+    "result": {
+      "status": "PASS",
+      "source": "test/accept/evidence/2026-10-29-summary.json",
+      "passed": 18,
+      "total": 18
+    },
     "blocked": null
   },
   {
@@ -4668,70 +3657,6 @@
     "assumptions": [],
     "result": null,
     "blocked": null
-  },
-  {
-    "id": "INV-REAL-key.filter-before-key",
-    "plugin": "key",
-    "capability": "真实场景核对：key.filter-before-key",
-    "tier": 2,
-    "apis": [],
-    "real": [
-      "key.filter-before-key"
-    ],
-    "unit": [
-      "test/unit/key_parity_test.dart"
-    ],
-    "assumptions": [],
-    "result": null,
-    "blocked": "待 B7 真实验收：场景引用从删除的旧 API 行迁入，按新 API 与能力声明重新运行。"
-  },
-  {
-    "id": "INV-REAL-key.method-diff-not-merged",
-    "plugin": "key",
-    "capability": "真实场景核对：key.method-diff-not-merged",
-    "tier": 2,
-    "apis": [],
-    "real": [
-      "key.method-diff-not-merged"
-    ],
-    "unit": [
-      "test/unit/key_parity_test.dart"
-    ],
-    "assumptions": [],
-    "result": null,
-    "blocked": "待 B7 真实验收：场景引用从删除的旧 API 行迁入，按新 API 与能力声明重新运行。"
-  },
-  {
-    "id": "INV-REAL-key.share-diff-query-not-merged",
-    "plugin": "key",
-    "capability": "真实场景核对：key.share-diff-query-not-merged",
-    "tier": 2,
-    "apis": [],
-    "real": [
-      "key.share-diff-query-not-merged"
-    ],
-    "unit": [
-      "test/unit/key_parity_test.dart"
-    ],
-    "assumptions": [],
-    "result": null,
-    "blocked": "待 B7 真实验收：场景引用从删除的旧 API 行迁入，按新 API 与能力声明重新运行。"
-  },
-  {
-    "id": "INV-REAL-key.share-without-key-not-merged",
-    "plugin": "key",
-    "capability": "真实场景核对：key.share-without-key-not-merged",
-    "tier": 2,
-    "apis": [],
-    "real": [
-      "key.share-without-key-not-merged"
-    ],
-    "unit": [
-      "test/unit/key_parity_test.dart"
-    ],
-    "assumptions": [],
-    "result": null,
-    "blocked": "待 B7 真实验收：场景引用从删除的旧 API 行迁入，按新 API 与能力声明重新运行。"
   },
   {
     "id": "DiomanLoading.delay",
@@ -4751,8 +3676,13 @@
     "assumptions": [
       "H7"
     ],
-    "result": null,
-    "blocked": "待 B7 真实验收：新 API 切换后重新核对，旧场景引用保留。",
+    "result": {
+      "status": "PASS",
+      "source": "test/accept/evidence/2026-10-29-summary.json",
+      "passed": 16,
+      "total": 16
+    },
+    "blocked": null,
     "note": "定时器与响应到达的先后是核心；假适配器立即返回，需真实延迟下核对（H7）。默认 Duration.zero 即时通知。"
   },
   {
@@ -4771,8 +3701,13 @@
     "assumptions": [
       "H7"
     ],
-    "result": null,
-    "blocked": "待 B7 真实验收：新 API 切换后重新核对，旧场景引用保留。",
+    "result": {
+      "status": "PASS",
+      "source": "test/accept/evidence/2026-10-29-summary.json",
+      "passed": 6,
+      "total": 6
+    },
+    "blocked": null,
     "note": "同 delay：隐藏定时器与下一请求到达的先后依赖真实时序（H7）。"
   },
   {
@@ -4812,13 +3747,28 @@
       "DiomanLoading.onChanged"
     ],
     "real": [
-      "loading.single-pair",
+      "combo.loading-mock-fallback-single-pair",
+      "loading.big-parallel-20",
+      "loading.cancel-closes",
+      "loading.concurrent-single-pair",
+      "loading.failure-closes",
+      "loading.flap-recovers-single-pair",
+      "loading.network-switch-pairs",
+      "loading.parallel-partial-fail",
+      "loading.retry-exhausted-closes",
+      "loading.retry-no-flicker",
       "loading.sequential-pairs",
-      "loading.concurrent-single-pair"
+      "loading.single-pair",
+      "loading.timeout-closes"
     ],
     "assumptions": [],
-    "result": null,
-    "blocked": "待 B7 真实验收：新 API 切换后重新核对，旧场景引用保留。"
+    "result": {
+      "status": "PASS",
+      "source": "test/accept/evidence/2026-10-29-summary.json",
+      "passed": 49,
+      "total": 49
+    },
+    "blocked": null
   },
   {
     "id": "DiomanLoading.option",
@@ -4929,8 +3879,13 @@
       "loading.mixed-silent-and-normal"
     ],
     "assumptions": [],
-    "result": null,
-    "blocked": "待 B7 真实验收：新 API 切换后重新核对，旧场景引用保留。"
+    "result": {
+      "status": "PASS",
+      "source": "test/accept/evidence/2026-10-29-summary.json",
+      "passed": 6,
+      "total": 6
+    },
+    "blocked": null
   },
   {
     "id": "DiomanLoadingOptions.onChanged",
@@ -4945,150 +3900,6 @@
     "assumptions": [],
     "result": null,
     "blocked": null
-  },
-  {
-    "id": "INV-REAL-loading.big-parallel-20",
-    "plugin": "loading",
-    "capability": "真实场景核对：loading.big-parallel-20",
-    "tier": 2,
-    "apis": [],
-    "real": [
-      "loading.big-parallel-20"
-    ],
-    "unit": [
-      "test/rule/stateless_outer_rule_test.dart"
-    ],
-    "assumptions": [],
-    "result": null,
-    "blocked": "待 B7 真实验收：场景引用从删除的旧 API 行迁入，按新 API 与能力声明重新运行。"
-  },
-  {
-    "id": "INV-REAL-loading.cancel-closes",
-    "plugin": "loading",
-    "capability": "真实场景核对：loading.cancel-closes",
-    "tier": 2,
-    "apis": [],
-    "real": [
-      "loading.cancel-closes"
-    ],
-    "unit": [
-      "test/rule/stateless_outer_rule_test.dart"
-    ],
-    "assumptions": [],
-    "result": null,
-    "blocked": "待 B7 真实验收：场景引用从删除的旧 API 行迁入，按新 API 与能力声明重新运行。"
-  },
-  {
-    "id": "INV-REAL-loading.failure-closes",
-    "plugin": "loading",
-    "capability": "真实场景核对：loading.failure-closes",
-    "tier": 2,
-    "apis": [],
-    "real": [
-      "loading.failure-closes"
-    ],
-    "unit": [
-      "test/rule/stateless_outer_rule_test.dart"
-    ],
-    "assumptions": [],
-    "result": null,
-    "blocked": "待 B7 真实验收：场景引用从删除的旧 API 行迁入，按新 API 与能力声明重新运行。"
-  },
-  {
-    "id": "INV-REAL-loading.flap-recovers-single-pair",
-    "plugin": "loading",
-    "capability": "真实场景核对：loading.flap-recovers-single-pair",
-    "tier": 2,
-    "apis": [],
-    "real": [
-      "loading.flap-recovers-single-pair"
-    ],
-    "unit": [
-      "test/rule/stateless_outer_rule_test.dart"
-    ],
-    "assumptions": [],
-    "result": null,
-    "blocked": "待 B7 真实验收：场景引用从删除的旧 API 行迁入，按新 API 与能力声明重新运行。"
-  },
-  {
-    "id": "INV-REAL-loading.network-switch-pairs",
-    "plugin": "loading",
-    "capability": "真实场景核对：loading.network-switch-pairs",
-    "tier": 2,
-    "apis": [],
-    "real": [
-      "loading.network-switch-pairs"
-    ],
-    "unit": [
-      "test/rule/stateless_outer_rule_test.dart"
-    ],
-    "assumptions": [],
-    "result": null,
-    "blocked": "待 B7 真实验收：场景引用从删除的旧 API 行迁入，按新 API 与能力声明重新运行。"
-  },
-  {
-    "id": "INV-REAL-loading.parallel-partial-fail",
-    "plugin": "loading",
-    "capability": "真实场景核对：loading.parallel-partial-fail",
-    "tier": 2,
-    "apis": [],
-    "real": [
-      "loading.parallel-partial-fail"
-    ],
-    "unit": [
-      "test/rule/stateless_outer_rule_test.dart"
-    ],
-    "assumptions": [],
-    "result": null,
-    "blocked": "待 B7 真实验收：场景引用从删除的旧 API 行迁入，按新 API 与能力声明重新运行。"
-  },
-  {
-    "id": "INV-REAL-loading.retry-exhausted-closes",
-    "plugin": "loading",
-    "capability": "真实场景核对：loading.retry-exhausted-closes",
-    "tier": 2,
-    "apis": [],
-    "real": [
-      "loading.retry-exhausted-closes"
-    ],
-    "unit": [
-      "test/rule/stateless_outer_rule_test.dart"
-    ],
-    "assumptions": [],
-    "result": null,
-    "blocked": "待 B7 真实验收：场景引用从删除的旧 API 行迁入，按新 API 与能力声明重新运行。"
-  },
-  {
-    "id": "INV-REAL-loading.retry-no-flicker",
-    "plugin": "loading",
-    "capability": "真实场景核对：loading.retry-no-flicker",
-    "tier": 2,
-    "apis": [],
-    "real": [
-      "loading.retry-no-flicker"
-    ],
-    "unit": [
-      "test/rule/stateless_outer_rule_test.dart"
-    ],
-    "assumptions": [],
-    "result": null,
-    "blocked": "待 B7 真实验收：场景引用从删除的旧 API 行迁入，按新 API 与能力声明重新运行。"
-  },
-  {
-    "id": "INV-REAL-loading.timeout-closes",
-    "plugin": "loading",
-    "capability": "真实场景核对：loading.timeout-closes",
-    "tier": 2,
-    "apis": [],
-    "real": [
-      "loading.timeout-closes"
-    ],
-    "unit": [
-      "test/rule/stateless_outer_rule_test.dart"
-    ],
-    "assumptions": [],
-    "result": null,
-    "blocked": "待 B7 真实验收：场景引用从删除的旧 API 行迁入，按新 API 与能力声明重新运行。"
   },
   {
     "id": "DiomanMock.enabled",
@@ -5113,9 +3924,18 @@
       "DiomanMock.fallbackWhen",
       "DiomanMock.new(fallbackWhen)"
     ],
-    "real": [],
+    "real": [
+      "combo.mock-share-fallback-single-flight",
+      "mock.fallback-to-real-on-404",
+      "mock.single-fallback-disabled"
+    ],
     "assumptions": [],
-    "result": null,
+    "result": {
+      "status": "PASS",
+      "source": "test/accept/evidence/2026-10-29-summary.json",
+      "passed": 3,
+      "total": 3
+    },
     "blocked": null
   },
   {
@@ -5127,9 +3947,18 @@
       "DiomanMock.mockUrl",
       "DiomanMock.new(mockUrl)"
     ],
-    "real": [],
+    "real": [
+      "mock.mock-then-retry-untouched",
+      "mock.query-and-body-forwarded",
+      "mock.routes-to-mock-server"
+    ],
     "assumptions": [],
-    "result": null,
+    "result": {
+      "status": "PASS",
+      "source": "test/accept/evidence/2026-10-29-summary.json",
+      "passed": 14,
+      "total": 14
+    },
     "blocked": null
   },
   {
@@ -5225,8 +4054,13 @@
       "mock.mixed-parallel"
     ],
     "assumptions": [],
-    "result": null,
-    "blocked": "待 B7 真实验收：新 API 切换后重新核对，旧场景引用保留。"
+    "result": {
+      "status": "PASS",
+      "source": "test/accept/evidence/2026-10-29-summary.json",
+      "passed": 6,
+      "total": 6
+    },
+    "blocked": null
   },
   {
     "id": "DiomanMockOptions.fallbackWhen",
@@ -5269,342 +4103,6 @@
     "assumptions": [],
     "result": null,
     "blocked": null
-  },
-  {
-    "id": "INV-REAL-mock.fallback-to-real-on-404",
-    "plugin": "mock",
-    "capability": "真实场景核对：mock.fallback-to-real-on-404",
-    "tier": 2,
-    "apis": [],
-    "real": [
-      "mock.fallback-to-real-on-404"
-    ],
-    "unit": [
-      "test/rule/source_rule_test.dart"
-    ],
-    "assumptions": [],
-    "result": null,
-    "blocked": "待 B7 真实验收：场景引用从删除的旧 API 行迁入，按新 API 与能力声明重新运行。"
-  },
-  {
-    "id": "INV-REAL-mock.mock-then-retry-untouched",
-    "plugin": "mock",
-    "capability": "真实场景核对：mock.mock-then-retry-untouched",
-    "tier": 2,
-    "apis": [],
-    "real": [
-      "mock.mock-then-retry-untouched"
-    ],
-    "unit": [
-      "test/rule/source_rule_test.dart"
-    ],
-    "assumptions": [],
-    "result": null,
-    "blocked": "待 B7 真实验收：场景引用从删除的旧 API 行迁入，按新 API 与能力声明重新运行。"
-  },
-  {
-    "id": "INV-REAL-mock.query-and-body-forwarded",
-    "plugin": "mock",
-    "capability": "真实场景核对：mock.query-and-body-forwarded",
-    "tier": 2,
-    "apis": [],
-    "real": [
-      "mock.query-and-body-forwarded"
-    ],
-    "unit": [
-      "test/rule/source_rule_test.dart"
-    ],
-    "assumptions": [],
-    "result": null,
-    "blocked": "待 B7 真实验收：场景引用从删除的旧 API 行迁入，按新 API 与能力声明重新运行。"
-  },
-  {
-    "id": "INV-REAL-mock.routes-to-mock-server",
-    "plugin": "mock",
-    "capability": "真实场景核对：mock.routes-to-mock-server",
-    "tier": 2,
-    "apis": [],
-    "real": [
-      "mock.routes-to-mock-server"
-    ],
-    "unit": [
-      "test/rule/source_rule_test.dart"
-    ],
-    "assumptions": [],
-    "result": null,
-    "blocked": "待 B7 真实验收：场景引用从删除的旧 API 行迁入，按新 API 与能力声明重新运行。"
-  },
-  {
-    "id": "INV-REAL-mock.single-fallback-disabled",
-    "plugin": "mock",
-    "capability": "真实场景核对：mock.single-fallback-disabled",
-    "tier": 2,
-    "apis": [],
-    "real": [
-      "mock.single-fallback-disabled"
-    ],
-    "unit": [
-      "test/rule/source_rule_test.dart"
-    ],
-    "assumptions": [],
-    "result": null,
-    "blocked": "待 B7 真实验收：场景引用从删除的旧 API 行迁入，按新 API 与能力声明重新运行。"
-  },
-  {
-    "id": "INV-REAL-network.blackhole-cancel-all",
-    "plugin": "network",
-    "capability": "真实场景核对：network.blackhole-cancel-all",
-    "tier": 3,
-    "apis": [],
-    "real": [
-      "network.blackhole-cancel-all"
-    ],
-    "unit": [],
-    "assumptions": [],
-    "result": null,
-    "blocked": "待 B7 真实验收：场景引用从删除的旧 API 行迁入，按新 API 与能力声明重新运行。"
-  },
-  {
-    "id": "INV-REAL-network.flap-parallel-retry",
-    "plugin": "network",
-    "capability": "真实场景核对：network.flap-parallel-retry",
-    "tier": 3,
-    "apis": [],
-    "real": [
-      "network.flap-parallel-retry"
-    ],
-    "unit": [],
-    "assumptions": [],
-    "result": null,
-    "blocked": "待 B7 真实验收：场景引用从删除的旧 API 行迁入，按新 API 与能力声明重新运行。"
-  },
-  {
-    "id": "INV-REAL-network.flap-retry-recovers",
-    "plugin": "network",
-    "capability": "真实场景核对：network.flap-retry-recovers",
-    "tier": 3,
-    "apis": [],
-    "real": [
-      "network.flap-retry-recovers"
-    ],
-    "unit": [],
-    "assumptions": [],
-    "result": null,
-    "blocked": "待 B7 真实验收：场景引用从删除的旧 API 行迁入，按新 API 与能力声明重新运行。"
-  },
-  {
-    "id": "INV-REAL-network.lossy-parallel-retry",
-    "plugin": "network",
-    "capability": "真实场景核对：network.lossy-parallel-retry",
-    "tier": 3,
-    "apis": [],
-    "real": [
-      "network.lossy-parallel-retry"
-    ],
-    "unit": [],
-    "assumptions": [],
-    "result": null,
-    "blocked": "待 B7 真实验收：场景引用从删除的旧 API 行迁入，按新 API 与能力声明重新运行。"
-  },
-  {
-    "id": "INV-REAL-network.offline-immediate",
-    "plugin": "network",
-    "capability": "真实场景核对：network.offline-immediate",
-    "tier": 3,
-    "apis": [],
-    "real": [
-      "network.offline-immediate"
-    ],
-    "unit": [],
-    "assumptions": [],
-    "result": null,
-    "blocked": "待 B7 真实验收：场景引用从删除的旧 API 行迁入，按新 API 与能力声明重新运行。"
-  },
-  {
-    "id": "INV-REAL-network.offline-share-loading",
-    "plugin": "network",
-    "capability": "真实场景核对：network.offline-share-loading",
-    "tier": 3,
-    "apis": [],
-    "real": [
-      "network.offline-share-loading"
-    ],
-    "unit": [],
-    "assumptions": [],
-    "result": null,
-    "blocked": "待 B7 真实验收：场景引用从删除的旧 API 行迁入，按新 API 与能力声明重新运行。"
-  },
-  {
-    "id": "INV-REAL-network.recovery-state-clean",
-    "plugin": "network",
-    "capability": "真实场景核对：network.recovery-state-clean",
-    "tier": 3,
-    "apis": [],
-    "real": [
-      "network.recovery-state-clean"
-    ],
-    "unit": [],
-    "assumptions": [],
-    "result": null,
-    "blocked": "待 B7 真实验收：场景引用从删除的旧 API 行迁入，按新 API 与能力声明重新运行。"
-  },
-  {
-    "id": "INV-REAL-network.switch-offline-online",
-    "plugin": "network",
-    "capability": "真实场景核对：network.switch-offline-online",
-    "tier": 3,
-    "apis": [],
-    "real": [
-      "network.switch-offline-online"
-    ],
-    "unit": [],
-    "assumptions": [],
-    "result": null,
-    "blocked": "待 B7 真实验收：场景引用从删除的旧 API 行迁入，按新 API 与能力声明重新运行。"
-  },
-  {
-    "id": "INV-REAL-normalize.business-fail",
-    "plugin": "normalize",
-    "capability": "真实场景核对：normalize.business-fail",
-    "tier": 2,
-    "apis": [],
-    "real": [
-      "normalize.business-fail"
-    ],
-    "unit": [
-      "test/unit/response_test.dart"
-    ],
-    "assumptions": [],
-    "result": null,
-    "blocked": "待 B7 真实验收：场景引用从删除的旧 API 行迁入，按新 API 与能力声明重新运行。"
-  },
-  {
-    "id": "INV-REAL-normalize.business-multi-codes",
-    "plugin": "normalize",
-    "capability": "真实场景核对：normalize.business-multi-codes",
-    "tier": 2,
-    "apis": [],
-    "real": [
-      "normalize.business-multi-codes"
-    ],
-    "unit": [
-      "test/unit/response_test.dart"
-    ],
-    "assumptions": [],
-    "result": null,
-    "blocked": "待 B7 真实验收：场景引用从删除的旧 API 行迁入，按新 API 与能力声明重新运行。"
-  },
-  {
-    "id": "INV-REAL-normalize.business-negative-code",
-    "plugin": "normalize",
-    "capability": "真实场景核对：normalize.business-negative-code",
-    "tier": 2,
-    "apis": [],
-    "real": [
-      "normalize.business-negative-code"
-    ],
-    "unit": [
-      "test/unit/response_test.dart"
-    ],
-    "assumptions": [],
-    "result": null,
-    "blocked": "待 B7 真实验收：场景引用从删除的旧 API 行迁入，按新 API 与能力声明重新运行。"
-  },
-  {
-    "id": "INV-REAL-normalize.business-notify-retry-combo",
-    "plugin": "normalize",
-    "capability": "真实场景核对：normalize.business-notify-retry-combo",
-    "tier": 2,
-    "apis": [],
-    "real": [
-      "normalize.business-notify-retry-combo"
-    ],
-    "unit": [
-      "test/unit/response_test.dart"
-    ],
-    "assumptions": [],
-    "result": null,
-    "blocked": "待 B7 真实验收：场景引用从删除的旧 API 行迁入，按新 API 与能力声明重新运行。"
-  },
-  {
-    "id": "INV-REAL-normalize.envelope-unwrap",
-    "plugin": "normalize",
-    "capability": "真实场景核对：normalize.envelope-unwrap",
-    "tier": 2,
-    "apis": [],
-    "real": [
-      "normalize.envelope-unwrap"
-    ],
-    "unit": [
-      "test/unit/response_test.dart"
-    ],
-    "assumptions": [],
-    "result": null,
-    "blocked": "待 B7 真实验收：场景引用从删除的旧 API 行迁入，按新 API 与能力声明重新运行。"
-  },
-  {
-    "id": "INV-REAL-normalize.http-error-wins",
-    "plugin": "normalize",
-    "capability": "真实场景核对：normalize.http-error-wins",
-    "tier": 2,
-    "apis": [],
-    "real": [
-      "normalize.http-error-wins"
-    ],
-    "unit": [
-      "test/unit/response_test.dart"
-    ],
-    "assumptions": [],
-    "result": null,
-    "blocked": "待 B7 真实验收：场景引用从删除的旧 API 行迁入，按新 API 与能力声明重新运行。"
-  },
-  {
-    "id": "INV-REAL-normalize.no-envelope-passthrough",
-    "plugin": "normalize",
-    "capability": "真实场景核对：normalize.no-envelope-passthrough",
-    "tier": 2,
-    "apis": [],
-    "real": [
-      "normalize.no-envelope-passthrough"
-    ],
-    "unit": [
-      "test/unit/response_test.dart"
-    ],
-    "assumptions": [],
-    "result": null,
-    "blocked": "待 B7 真实验收：场景引用从删除的旧 API 行迁入，按新 API 与能力声明重新运行。"
-  },
-  {
-    "id": "INV-REAL-normalize.per-request-off",
-    "plugin": "normalize",
-    "capability": "真实场景核对：normalize.per-request-off",
-    "tier": 2,
-    "apis": [],
-    "real": [
-      "normalize.per-request-off"
-    ],
-    "unit": [
-      "test/unit/response_test.dart"
-    ],
-    "assumptions": [],
-    "result": null,
-    "blocked": "待 B7 真实验收：场景引用从删除的旧 API 行迁入，按新 API 与能力声明重新运行。"
-  },
-  {
-    "id": "INV-REAL-normalize.style-switch",
-    "plugin": "normalize",
-    "capability": "真实场景核对：normalize.style-switch",
-    "tier": 2,
-    "apis": [],
-    "real": [
-      "normalize.style-switch"
-    ],
-    "unit": [
-      "test/unit/response_test.dart"
-    ],
-    "assumptions": [],
-    "result": null,
-    "blocked": "待 B7 真实验收：场景引用从删除的旧 API 行迁入，按新 API 与能力声明重新运行。"
   },
   {
     "id": "DiomanNotify.defaultStringify",
@@ -5656,13 +4154,23 @@
       "DiomanNotify.notify"
     ],
     "real": [
-      "notify.http-error-once",
       "notify.business-error-once",
-      "notify.single-silent-and-stringify"
+      "notify.http-error-once",
+      "notify.parallel-failures-each",
+      "notify.parse-error-once",
+      "notify.retry-exhausted-once",
+      "notify.retry-recovered-silent",
+      "notify.single-silent-and-stringify",
+      "notify.timeout-once"
     ],
     "assumptions": [],
-    "result": null,
-    "blocked": "待 B7 真实验收：新 API 切换后重新核对，旧场景引用保留。"
+    "result": {
+      "status": "PASS",
+      "source": "test/accept/evidence/2026-10-29-summary.json",
+      "passed": 23,
+      "total": 23
+    },
+    "blocked": null
   },
   {
     "id": "DiomanNotify.option",
@@ -5732,88 +4240,13 @@
       "notify.single-silent-and-stringify"
     ],
     "assumptions": [],
-    "result": null,
-    "blocked": "待 B7 真实验收：新 API 切换后重新核对，旧场景引用保留。"
-  },
-  {
-    "id": "INV-REAL-notify.parallel-failures-each",
-    "plugin": "notify",
-    "capability": "真实场景核对：notify.parallel-failures-each",
-    "tier": 2,
-    "apis": [],
-    "real": [
-      "notify.parallel-failures-each"
-    ],
-    "unit": [
-      "test/rule/stateless_outer_rule_test.dart"
-    ],
-    "assumptions": [],
-    "result": null,
-    "blocked": "待 B7 真实验收：场景引用从删除的旧 API 行迁入，按新 API 与能力声明重新运行。"
-  },
-  {
-    "id": "INV-REAL-notify.parse-error-once",
-    "plugin": "notify",
-    "capability": "真实场景核对：notify.parse-error-once",
-    "tier": 2,
-    "apis": [],
-    "real": [
-      "notify.parse-error-once"
-    ],
-    "unit": [
-      "test/rule/stateless_outer_rule_test.dart"
-    ],
-    "assumptions": [],
-    "result": null,
-    "blocked": "待 B7 真实验收：场景引用从删除的旧 API 行迁入，按新 API 与能力声明重新运行。"
-  },
-  {
-    "id": "INV-REAL-notify.retry-exhausted-once",
-    "plugin": "notify",
-    "capability": "真实场景核对：notify.retry-exhausted-once",
-    "tier": 2,
-    "apis": [],
-    "real": [
-      "notify.retry-exhausted-once"
-    ],
-    "unit": [
-      "test/rule/stateless_outer_rule_test.dart"
-    ],
-    "assumptions": [],
-    "result": null,
-    "blocked": "待 B7 真实验收：场景引用从删除的旧 API 行迁入，按新 API 与能力声明重新运行。"
-  },
-  {
-    "id": "INV-REAL-notify.retry-recovered-silent",
-    "plugin": "notify",
-    "capability": "真实场景核对：notify.retry-recovered-silent",
-    "tier": 2,
-    "apis": [],
-    "real": [
-      "notify.retry-recovered-silent"
-    ],
-    "unit": [
-      "test/rule/stateless_outer_rule_test.dart"
-    ],
-    "assumptions": [],
-    "result": null,
-    "blocked": "待 B7 真实验收：场景引用从删除的旧 API 行迁入，按新 API 与能力声明重新运行。"
-  },
-  {
-    "id": "INV-REAL-notify.timeout-once",
-    "plugin": "notify",
-    "capability": "真实场景核对：notify.timeout-once",
-    "tier": 2,
-    "apis": [],
-    "real": [
-      "notify.timeout-once"
-    ],
-    "unit": [
-      "test/rule/stateless_outer_rule_test.dart"
-    ],
-    "assumptions": [],
-    "result": null,
-    "blocked": "待 B7 真实验收：场景引用从删除的旧 API 行迁入，按新 API 与能力声明重新运行。"
+    "result": {
+      "status": "PASS",
+      "source": "test/accept/evidence/2026-10-29-summary.json",
+      "passed": 11,
+      "total": 11
+    },
+    "blocked": null
   },
   {
     "id": "DiomanOffline.defaultMaxQueueSize",
@@ -5870,8 +4303,13 @@
       "offline.parallel-all-offline"
     ],
     "assumptions": [],
-    "result": null,
-    "blocked": "待 B7 真实验收：新 API 切换后重新核对，旧场景引用保留。",
+    "result": {
+      "status": "PASS",
+      "source": "test/accept/evidence/2026-10-29-summary.json",
+      "passed": 8,
+      "total": 8
+    },
+    "blocked": null,
     "note": "真实执行器固定 maxWait=Duration.zero：离线请求一入队就以 timeout 拒绝，排队后被 flush 重放的路径真实侧没走到。"
   },
   {
@@ -5902,8 +4340,13 @@
       "offline.recovers-after-online"
     ],
     "assumptions": [],
-    "result": null,
-    "blocked": "待 B7 真实验收：新 API 切换后重新核对，旧场景引用保留。",
+    "result": {
+      "status": "PASS",
+      "source": "test/accept/evidence/2026-10-29-summary.json",
+      "passed": 12,
+      "total": 12
+    },
+    "blocked": null,
     "note": "isOnline 是使用者注入的回调（契约替身）；真实执行器用探测请求的结果喂它。"
   },
   {
@@ -5916,12 +4359,18 @@
       "DiomanOffline.onConnectivityChanged"
     ],
     "real": [
+      "offline.flap-recovers",
       "offline.recovers-after-online",
-      "offline.flap-recovers"
+      "offline.then-online-no-stale-state"
     ],
     "assumptions": [],
-    "result": null,
-    "blocked": "待 B7 真实验收：新 API 切换后重新核对，旧场景引用保留。",
+    "result": {
+      "status": "PASS",
+      "source": "test/accept/evidence/2026-10-29-summary.json",
+      "passed": 6,
+      "total": 6
+    },
+    "blocked": null,
     "note": "流由使用者提供（契约替身）。"
   },
   {
@@ -6073,38 +4522,6 @@
     "blocked": null
   },
   {
-    "id": "INV-REAL-offline.cancel-while-probing",
-    "plugin": "offline",
-    "capability": "真实场景核对：offline.cancel-while-probing",
-    "tier": 2,
-    "apis": [],
-    "real": [
-      "offline.cancel-while-probing"
-    ],
-    "unit": [
-      "test/rule/source_rule_test.dart"
-    ],
-    "assumptions": [],
-    "result": null,
-    "blocked": "待 B7 真实验收：场景引用从删除的旧 API 行迁入，按新 API 与能力声明重新运行。"
-  },
-  {
-    "id": "INV-REAL-offline.then-online-no-stale-state",
-    "plugin": "offline",
-    "capability": "真实场景核对：offline.then-online-no-stale-state",
-    "tier": 2,
-    "apis": [],
-    "real": [
-      "offline.then-online-no-stale-state"
-    ],
-    "unit": [
-      "test/rule/source_rule_test.dart"
-    ],
-    "assumptions": [],
-    "result": null,
-    "blocked": "待 B7 真实验收：场景引用从删除的旧 API 行迁入，按新 API 与能力声明重新运行。"
-  },
-  {
     "id": "DiomanCall.cancelToken",
     "plugin": "options",
     "capability": "DiomanCall.cancelToken：公开契约及配置解析",
@@ -6113,9 +4530,28 @@
       "DiomanCall.cancelToken",
       "DiomanCall.new(cancelToken)"
     ],
-    "real": [],
+    "real": [
+      "auth.logout-inflight",
+      "auth.slow-refresh-cancel",
+      "cancel.after-complete-noop",
+      "cancel.before-reach-server",
+      "cancel.blackhole-cancel-before-timeout",
+      "cancel.double-cancel",
+      "cancel.hang-is-canceled-not-timeout",
+      "cancel.one-of-many",
+      "cancel.parallel-32",
+      "cancel.single",
+      "cancel.slow-body",
+      "offline.cancel-while-probing",
+      "retry.cancel-during-wait"
+    ],
     "assumptions": [],
-    "result": null,
+    "result": {
+      "status": "PASS",
+      "source": "test/accept/evidence/2026-10-29-summary.json",
+      "passed": 36,
+      "total": 36
+    },
     "blocked": null
   },
   {
@@ -6169,9 +4605,16 @@
       "DiomanCall.key",
       "DiomanCall.new(key)"
     ],
-    "real": [],
+    "real": [
+      "key.share-without-key-not-merged"
+    ],
     "assumptions": [],
-    "result": null,
+    "result": {
+      "status": "PASS",
+      "source": "test/accept/evidence/2026-10-29-summary.json",
+      "passed": 2,
+      "total": 2
+    },
     "blocked": null
   },
   {
@@ -6434,11 +4877,17 @@
     ],
     "real": [
       "repath.basic",
-      "repath.multi-vars"
+      "repath.multi-vars",
+      "repath.same-var-twice"
     ],
     "assumptions": [],
-    "result": null,
-    "blocked": "待 B7 真实验收：新 API 切换后重新核对，旧场景引用保留。"
+    "result": {
+      "status": "PASS",
+      "source": "test/accept/evidence/2026-10-29-summary.json",
+      "passed": 8,
+      "total": 8
+    },
+    "blocked": null
   },
   {
     "id": "DiomanRepath.pluginName",
@@ -6464,11 +4913,17 @@
     ],
     "real": [
       "repath.basic",
-      "repath.from-body"
+      "repath.from-body",
+      "repath.zero-value"
     ],
     "assumptions": [],
-    "result": null,
-    "blocked": "待 B7 真实验收：新 API 切换后重新核对，旧场景引用保留。"
+    "result": {
+      "status": "PASS",
+      "source": "test/accept/evidence/2026-10-29-summary.json",
+      "passed": 8,
+      "total": 8
+    },
+    "blocked": null
   },
   {
     "id": "DiomanRepath.setup",
@@ -6537,70 +4992,6 @@
     "assumptions": [],
     "result": null,
     "blocked": null
-  },
-  {
-    "id": "INV-REAL-repath.key-after-repath",
-    "plugin": "repath",
-    "capability": "真实场景核对：repath.key-after-repath",
-    "tier": 2,
-    "apis": [],
-    "real": [
-      "repath.key-after-repath"
-    ],
-    "unit": [
-      "test/rule/stateless_prepare_rule_test.dart"
-    ],
-    "assumptions": [],
-    "result": null,
-    "blocked": "待 B7 真实验收：场景引用从删除的旧 API 行迁入，按新 API 与能力声明重新运行。"
-  },
-  {
-    "id": "INV-REAL-repath.key-cache-no-mixup",
-    "plugin": "repath",
-    "capability": "真实场景核对：repath.key-cache-no-mixup",
-    "tier": 2,
-    "apis": [],
-    "real": [
-      "repath.key-cache-no-mixup"
-    ],
-    "unit": [
-      "test/rule/stateless_prepare_rule_test.dart"
-    ],
-    "assumptions": [],
-    "result": null,
-    "blocked": "待 B7 真实验收：场景引用从删除的旧 API 行迁入，按新 API 与能力声明重新运行。"
-  },
-  {
-    "id": "INV-REAL-repath.same-var-twice",
-    "plugin": "repath",
-    "capability": "真实场景核对：repath.same-var-twice",
-    "tier": 2,
-    "apis": [],
-    "real": [
-      "repath.same-var-twice"
-    ],
-    "unit": [
-      "test/rule/stateless_prepare_rule_test.dart"
-    ],
-    "assumptions": [],
-    "result": null,
-    "blocked": "待 B7 真实验收：场景引用从删除的旧 API 行迁入，按新 API 与能力声明重新运行。"
-  },
-  {
-    "id": "INV-REAL-repath.zero-value",
-    "plugin": "repath",
-    "capability": "真实场景核对：repath.zero-value",
-    "tier": 2,
-    "apis": [],
-    "real": [
-      "repath.zero-value"
-    ],
-    "unit": [
-      "test/rule/stateless_prepare_rule_test.dart"
-    ],
-    "assumptions": [],
-    "result": null,
-    "blocked": "待 B7 真实验收：场景引用从删除的旧 API 行迁入，按新 API 与能力声明重新运行。"
   },
   {
     "id": "DiomanRequest.baseUrl",
@@ -7283,9 +5674,21 @@
       "DiomanResponse.data",
       "DiomanResponse.new(data)"
     ],
-    "real": [],
+    "real": [
+      "faults.no-envelope",
+      "normalize.business-notify-retry-combo",
+      "normalize.envelope-unwrap",
+      "normalize.no-envelope-passthrough",
+      "normalize.per-request-off",
+      "normalize.style-switch"
+    ],
     "assumptions": [],
-    "result": null,
+    "result": {
+      "status": "PASS",
+      "source": "test/accept/evidence/2026-10-29-summary.json",
+      "passed": 17,
+      "total": 31
+    },
     "blocked": null
   },
   {
@@ -7339,7 +5742,9 @@
       "DiomanResponse.kind",
       "DiomanResponse.new(kind)"
     ],
-    "real": [],
+    "real": [
+      "faults.html-gateway-page"
+    ],
     "assumptions": [],
     "result": null,
     "blocked": null
@@ -7423,9 +5828,19 @@
       "DiomanResponse.new(status)",
       "DiomanResponse.status"
     ],
-    "real": [],
+    "real": [
+      "normalize.business-fail",
+      "normalize.business-multi-codes",
+      "normalize.business-negative-code",
+      "normalize.http-error-wins"
+    ],
     "assumptions": [],
-    "result": null,
+    "result": {
+      "status": "PASS",
+      "source": "test/accept/evidence/2026-10-29-summary.json",
+      "passed": 1,
+      "total": 1
+    },
     "blocked": null
   },
   {
@@ -7688,8 +6103,13 @@
       "retry.500-then-ok"
     ],
     "assumptions": [],
-    "result": null,
-    "blocked": "待 B7 真实验收：新 API 切换后重新核对，旧场景引用保留。"
+    "result": {
+      "status": "PASS",
+      "source": "test/accept/evidence/2026-10-29-summary.json",
+      "passed": 10,
+      "total": 10
+    },
+    "blocked": null
   },
   {
     "id": "DiomanRetry.delayMax",
@@ -7743,18 +6163,36 @@
       "DiomanRetry.new(max)"
     ],
     "real": [
-      "retry.500-then-ok",
-      "retry.exhausted",
-      "retry.disabled-by-default",
-      "retry.fail-every-no-retry",
-      "retry.fail-on-noncontiguous-no-retry",
+      "network.flap-parallel-retry",
+      "network.flap-retry-recovers",
+      "network.lossy-parallel-retry",
       "plugins.boundary-retry-max-0",
       "plugins.boundary-retry-max-1",
-      "plugins.boundary-retry-max-2"
+      "plugins.boundary-retry-max-2",
+      "retry.500-then-ok",
+      "retry.attempt-is-new-connection-friendly",
+      "retry.disabled-by-default",
+      "retry.exhausted",
+      "retry.fail-every-all-recover",
+      "retry.fail-every-no-retry",
+      "retry.fail-on-gap-exhausts",
+      "retry.fail-on-noncontiguous-no-retry",
+      "retry.fail-on-noncontiguous-retried",
+      "retry.fail-on-union-fail-times",
+      "retry.flap-recovers",
+      "retry.lossy-converges",
+      "retry.offline-exhausts",
+      "retry.parallel-independent",
+      "retry.style-switch"
     ],
     "assumptions": [],
-    "result": null,
-    "blocked": "待 B7 真实验收：新 API 切换后重新核对，旧场景引用保留。"
+    "result": {
+      "status": "PASS",
+      "source": "test/accept/evidence/2026-10-29-summary.json",
+      "passed": 65,
+      "total": 65
+    },
+    "blocked": null
   },
   {
     "id": "DiomanRetry.methods",
@@ -7774,8 +6212,13 @@
       "retry.single-plugin-methods"
     ],
     "assumptions": [],
-    "result": null,
-    "blocked": "待 B7 真实验收：新 API 切换后重新核对，旧场景引用保留。"
+    "result": {
+      "status": "PASS",
+      "source": "test/accept/evidence/2026-10-29-summary.json",
+      "passed": 17,
+      "total": 17
+    },
+    "blocked": null
   },
   {
     "id": "DiomanRetry.name",
@@ -7844,8 +6287,13 @@
       "retry.single-retry-after-ignored"
     ],
     "assumptions": [],
-    "result": null,
-    "blocked": "待 B7 真实验收：新 API 切换后重新核对，旧场景引用保留。",
+    "result": {
+      "status": "PASS",
+      "source": "test/accept/evidence/2026-10-29-summary.json",
+      "passed": 2,
+      "total": 2
+    },
+    "blocked": null,
     "note": "开关与解析的纯逻辑；真实服务头部见 DiomanRetry.respectRetryAfter#real-header。"
   },
   {
@@ -7865,8 +6313,13 @@
     "assumptions": [
       "H6"
     ],
-    "result": null,
-    "blocked": "待 B7 真实验收：新 API 切换后重新核对，旧场景引用保留。",
+    "result": {
+      "status": "PASS",
+      "source": "test/accept/evidence/2026-10-29-summary.json",
+      "passed": 23,
+      "total": 23
+    },
+    "blocked": null,
     "note": "2026-10-28 testkit D20 去掉 429/503 注入场景的 skip，执行器按注入标记放行；HTTP 日期形式 Retry-After 服务端尚不能产生（见 testkit CONTRACT §3）"
   },
   {
@@ -7907,13 +6360,21 @@
     ],
     "real": [
       "retry.4xx-no-retry",
+      "retry.blackhole-timeout",
       "retry.business-code-not-retried",
+      "retry.hang-timeout-retried",
+      "retry.network-error-retried",
       "retry.parse-error-not-retried",
-      "retry.network-error-retried"
+      "retry.post-network-no-retry"
     ],
     "assumptions": [],
-    "result": null,
-    "blocked": "待 B7 真实验收：新 API 切换后重新核对，旧场景引用保留。",
+    "result": {
+      "status": "PASS",
+      "source": "test/accept/evidence/2026-10-29-summary.json",
+      "passed": 12,
+      "total": 12
+    },
+    "blocked": null,
     "note": "使用者传入的回调（契约替身）；真实执行器的回调始终返回非 null。"
   },
   {
@@ -7942,8 +6403,13 @@
       "retry.429-retried"
     ],
     "assumptions": [],
-    "result": null,
-    "blocked": "待 B7 真实验收：新 API 切换后重新核对，旧场景引用保留。",
+    "result": {
+      "status": "PASS",
+      "source": "test/accept/evidence/2026-10-29-summary.json",
+      "passed": 12,
+      "total": 12
+    },
+    "blocked": null,
     "note": "真实执行器的 statuses 走的是自定义 shouldRetry，不经本表，所以不挂 real；429 场景（retry.429-retried）真实侧也被跳过。"
   },
   {
@@ -7961,8 +6427,13 @@
     "assumptions": [
       "H3"
     ],
-    "result": null,
-    "blocked": "待 B7 真实验收：新 API 切换后重新核对，旧场景引用保留。",
+    "result": {
+      "status": "PASS",
+      "source": "test/accept/evidence/2026-10-29-summary.json",
+      "passed": 2,
+      "total": 2
+    },
+    "blocked": null,
     "note": "2026-10-28 执行器的 shouldRetry 对非业务失败返回 null，按 DioExceptionType 的内置回落真正执行"
   },
   {
@@ -7993,8 +6464,13 @@
       "retry.single-req-max-delay"
     ],
     "assumptions": [],
-    "result": null,
-    "blocked": "待 B7 真实验收：新 API 切换后重新核对，旧场景引用保留。"
+    "result": {
+      "status": "PASS",
+      "source": "test/accept/evidence/2026-10-29-summary.json",
+      "passed": 3,
+      "total": 3
+    },
+    "blocked": null
   },
   {
     "id": "DiomanRetryOptions.delayMax",
@@ -8023,8 +6499,13 @@
       "retry.per-request-disable"
     ],
     "assumptions": [],
-    "result": null,
-    "blocked": "待 B7 真实验收：新 API 切换后重新核对，旧场景引用保留。"
+    "result": {
+      "status": "PASS",
+      "source": "test/accept/evidence/2026-10-29-summary.json",
+      "passed": 2,
+      "total": 2
+    },
+    "blocked": null
   },
   {
     "id": "DiomanRetryOptions.jitter",
@@ -8054,8 +6535,13 @@
       "retry.single-req-max-delay"
     ],
     "assumptions": [],
-    "result": null,
-    "blocked": "待 B7 真实验收：新 API 切换后重新核对，旧场景引用保留。"
+    "result": {
+      "status": "PASS",
+      "source": "test/accept/evidence/2026-10-29-summary.json",
+      "passed": 3,
+      "total": 3
+    },
+    "blocked": null
   },
   {
     "id": "DiomanRetryOptions.methods",
@@ -8071,8 +6557,13 @@
       "retry.single-req-methods"
     ],
     "assumptions": [],
-    "result": null,
-    "blocked": "待 B7 真实验收：新 API 切换后重新核对，旧场景引用保留。"
+    "result": {
+      "status": "PASS",
+      "source": "test/accept/evidence/2026-10-29-summary.json",
+      "passed": 7,
+      "total": 7
+    },
+    "blocked": null
   },
   {
     "id": "DiomanRetryOptions.onRetry",
@@ -8101,8 +6592,13 @@
       "retry.single-req-retry-after-override"
     ],
     "assumptions": [],
-    "result": null,
-    "blocked": "待 B7 真实验收：新 API 切换后重新核对，旧场景引用保留。"
+    "result": {
+      "status": "PASS",
+      "source": "test/accept/evidence/2026-10-29-summary.json",
+      "passed": 1,
+      "total": 1
+    },
+    "blocked": null
   },
   {
     "id": "DiomanRetryOptions.retryAfterMax",
@@ -8131,8 +6627,13 @@
       "retry.custom-status-list"
     ],
     "assumptions": [],
-    "result": null,
-    "blocked": "待 B7 真实验收：新 API 切换后重新核对，旧场景引用保留。"
+    "result": {
+      "status": "PASS",
+      "source": "test/accept/evidence/2026-10-29-summary.json",
+      "passed": 2,
+      "total": 2
+    },
+    "blocked": null
   },
   {
     "id": "DiomanRetryOptions.statusCodes",
@@ -8149,262 +6650,6 @@
     "blocked": null
   },
   {
-    "id": "INV-REAL-retry.401-goes-refresh-first",
-    "plugin": "retry",
-    "capability": "真实场景核对：retry.401-goes-refresh-first",
-    "tier": 2,
-    "apis": [],
-    "real": [
-      "retry.401-goes-refresh-first"
-    ],
-    "unit": [
-      "test/rule/retry_rule_test.dart"
-    ],
-    "assumptions": [],
-    "result": null,
-    "blocked": "待 B7 真实验收：场景引用从删除的旧 API 行迁入，按新 API 与能力声明重新运行。"
-  },
-  {
-    "id": "INV-REAL-retry.attempt-is-new-connection-friendly",
-    "plugin": "retry",
-    "capability": "真实场景核对：retry.attempt-is-new-connection-friendly",
-    "tier": 2,
-    "apis": [],
-    "real": [
-      "retry.attempt-is-new-connection-friendly"
-    ],
-    "unit": [
-      "test/rule/retry_rule_test.dart"
-    ],
-    "assumptions": [],
-    "result": null,
-    "blocked": "待 B7 真实验收：场景引用从删除的旧 API 行迁入，按新 API 与能力声明重新运行。"
-  },
-  {
-    "id": "INV-REAL-retry.blackhole-timeout",
-    "plugin": "retry",
-    "capability": "真实场景核对：retry.blackhole-timeout",
-    "tier": 2,
-    "apis": [],
-    "real": [
-      "retry.blackhole-timeout"
-    ],
-    "unit": [
-      "test/rule/retry_rule_test.dart"
-    ],
-    "assumptions": [],
-    "result": null,
-    "blocked": "待 B7 真实验收：场景引用从删除的旧 API 行迁入，按新 API 与能力声明重新运行。"
-  },
-  {
-    "id": "INV-REAL-retry.cancel-all-during-wait",
-    "plugin": "retry",
-    "capability": "真实场景核对：retry.cancel-all-during-wait",
-    "tier": 2,
-    "apis": [],
-    "real": [
-      "retry.cancel-all-during-wait"
-    ],
-    "unit": [
-      "test/rule/retry_rule_test.dart"
-    ],
-    "assumptions": [],
-    "result": null,
-    "blocked": "待 B7 真实验收：场景引用从删除的旧 API 行迁入，按新 API 与能力声明重新运行。"
-  },
-  {
-    "id": "INV-REAL-retry.cancel-during-wait",
-    "plugin": "retry",
-    "capability": "真实场景核对：retry.cancel-during-wait",
-    "tier": 2,
-    "apis": [],
-    "real": [
-      "retry.cancel-during-wait"
-    ],
-    "unit": [
-      "test/rule/retry_rule_test.dart"
-    ],
-    "assumptions": [],
-    "result": null,
-    "blocked": "待 B7 真实验收：场景引用从删除的旧 API 行迁入，按新 API 与能力声明重新运行。"
-  },
-  {
-    "id": "INV-REAL-retry.fail-every-all-recover",
-    "plugin": "retry",
-    "capability": "真实场景核对：retry.fail-every-all-recover",
-    "tier": 2,
-    "apis": [],
-    "real": [
-      "retry.fail-every-all-recover"
-    ],
-    "unit": [
-      "test/rule/retry_rule_test.dart"
-    ],
-    "assumptions": [],
-    "result": null,
-    "blocked": "待 B7 真实验收：场景引用从删除的旧 API 行迁入，按新 API 与能力声明重新运行。"
-  },
-  {
-    "id": "INV-REAL-retry.fail-on-gap-exhausts",
-    "plugin": "retry",
-    "capability": "真实场景核对：retry.fail-on-gap-exhausts",
-    "tier": 2,
-    "apis": [],
-    "real": [
-      "retry.fail-on-gap-exhausts"
-    ],
-    "unit": [
-      "test/rule/retry_rule_test.dart"
-    ],
-    "assumptions": [],
-    "result": null,
-    "blocked": "待 B7 真实验收：场景引用从删除的旧 API 行迁入，按新 API 与能力声明重新运行。"
-  },
-  {
-    "id": "INV-REAL-retry.fail-on-noncontiguous-retried",
-    "plugin": "retry",
-    "capability": "真实场景核对：retry.fail-on-noncontiguous-retried",
-    "tier": 2,
-    "apis": [],
-    "real": [
-      "retry.fail-on-noncontiguous-retried"
-    ],
-    "unit": [
-      "test/rule/retry_rule_test.dart"
-    ],
-    "assumptions": [],
-    "result": null,
-    "blocked": "待 B7 真实验收：场景引用从删除的旧 API 行迁入，按新 API 与能力声明重新运行。"
-  },
-  {
-    "id": "INV-REAL-retry.fail-on-union-fail-times",
-    "plugin": "retry",
-    "capability": "真实场景核对：retry.fail-on-union-fail-times",
-    "tier": 2,
-    "apis": [],
-    "real": [
-      "retry.fail-on-union-fail-times"
-    ],
-    "unit": [
-      "test/rule/retry_rule_test.dart"
-    ],
-    "assumptions": [],
-    "result": null,
-    "blocked": "待 B7 真实验收：场景引用从删除的旧 API 行迁入，按新 API 与能力声明重新运行。"
-  },
-  {
-    "id": "INV-REAL-retry.flap-recovers",
-    "plugin": "retry",
-    "capability": "真实场景核对：retry.flap-recovers",
-    "tier": 2,
-    "apis": [],
-    "real": [
-      "retry.flap-recovers"
-    ],
-    "unit": [
-      "test/rule/retry_rule_test.dart"
-    ],
-    "assumptions": [],
-    "result": null,
-    "blocked": "待 B7 真实验收：场景引用从删除的旧 API 行迁入，按新 API 与能力声明重新运行。"
-  },
-  {
-    "id": "INV-REAL-retry.hang-timeout-retried",
-    "plugin": "retry",
-    "capability": "真实场景核对：retry.hang-timeout-retried",
-    "tier": 2,
-    "apis": [],
-    "real": [
-      "retry.hang-timeout-retried"
-    ],
-    "unit": [
-      "test/rule/retry_rule_test.dart"
-    ],
-    "assumptions": [],
-    "result": null,
-    "blocked": "待 B7 真实验收：场景引用从删除的旧 API 行迁入，按新 API 与能力声明重新运行。"
-  },
-  {
-    "id": "INV-REAL-retry.lossy-converges",
-    "plugin": "retry",
-    "capability": "真实场景核对：retry.lossy-converges",
-    "tier": 2,
-    "apis": [],
-    "real": [
-      "retry.lossy-converges"
-    ],
-    "unit": [
-      "test/rule/retry_rule_test.dart"
-    ],
-    "assumptions": [],
-    "result": null,
-    "blocked": "待 B7 真实验收：场景引用从删除的旧 API 行迁入，按新 API 与能力声明重新运行。"
-  },
-  {
-    "id": "INV-REAL-retry.offline-exhausts",
-    "plugin": "retry",
-    "capability": "真实场景核对：retry.offline-exhausts",
-    "tier": 2,
-    "apis": [],
-    "real": [
-      "retry.offline-exhausts"
-    ],
-    "unit": [
-      "test/rule/retry_rule_test.dart"
-    ],
-    "assumptions": [],
-    "result": null,
-    "blocked": "待 B7 真实验收：场景引用从删除的旧 API 行迁入，按新 API 与能力声明重新运行。"
-  },
-  {
-    "id": "INV-REAL-retry.parallel-independent",
-    "plugin": "retry",
-    "capability": "真实场景核对：retry.parallel-independent",
-    "tier": 2,
-    "apis": [],
-    "real": [
-      "retry.parallel-independent"
-    ],
-    "unit": [
-      "test/rule/retry_rule_test.dart"
-    ],
-    "assumptions": [],
-    "result": null,
-    "blocked": "待 B7 真实验收：场景引用从删除的旧 API 行迁入，按新 API 与能力声明重新运行。"
-  },
-  {
-    "id": "INV-REAL-retry.post-network-no-retry",
-    "plugin": "retry",
-    "capability": "真实场景核对：retry.post-network-no-retry",
-    "tier": 2,
-    "apis": [],
-    "real": [
-      "retry.post-network-no-retry"
-    ],
-    "unit": [
-      "test/rule/retry_rule_test.dart"
-    ],
-    "assumptions": [],
-    "result": null,
-    "blocked": "待 B7 真实验收：场景引用从删除的旧 API 行迁入，按新 API 与能力声明重新运行。"
-  },
-  {
-    "id": "INV-REAL-retry.style-switch",
-    "plugin": "retry",
-    "capability": "真实场景核对：retry.style-switch",
-    "tier": 2,
-    "apis": [],
-    "real": [
-      "retry.style-switch"
-    ],
-    "unit": [
-      "test/rule/retry_rule_test.dart"
-    ],
-    "assumptions": [],
-    "result": null,
-    "blocked": "待 B7 真实验收：场景引用从删除的旧 API 行迁入，按新 API 与能力声明重新运行。"
-  },
-  {
     "id": "DiomanShare.enabled",
     "plugin": "share",
     "capability": "总开关，false 时所有请求各自独立通过",
@@ -8418,8 +6663,13 @@
       "share.none-policy"
     ],
     "assumptions": [],
-    "result": null,
-    "blocked": "待 B7 真实验收：新 API 切换后重新核对，旧场景引用保留。"
+    "result": {
+      "status": "PASS",
+      "source": "test/accept/evidence/2026-10-29-summary.json",
+      "passed": 4,
+      "total": 4
+    },
+    "blocked": null
   },
   {
     "id": "DiomanShare.interval",
@@ -8498,13 +6748,22 @@
       "DiomanShare.policy"
     ],
     "real": [
-      "share.start-single-flight",
+      "share.all-cancelled-aborts-server",
       "share.end-last-wins",
-      "share.race-first-success"
+      "share.network-failure-all-fail",
+      "share.race-first-success",
+      "share.reuse-after-failure",
+      "share.single-all-timeout-aborts-server",
+      "share.start-single-flight"
     ],
     "assumptions": [],
-    "result": null,
-    "blocked": "待 B7 真实验收：新 API 切换后重新核对，旧场景引用保留。"
+    "result": {
+      "status": "PASS",
+      "source": "test/accept/evidence/2026-10-29-summary.json",
+      "passed": 24,
+      "total": 24
+    },
+    "blocked": null
   },
   {
     "id": "DiomanShare.retries",
@@ -8560,8 +6819,13 @@
       "share.none-policy"
     ],
     "assumptions": [],
-    "result": null,
-    "blocked": "待 B7 真实验收：新 API 切换后重新核对，旧场景引用保留。"
+    "result": {
+      "status": "PASS",
+      "source": "test/accept/evidence/2026-10-29-summary.json",
+      "passed": 4,
+      "total": 4
+    },
+    "blocked": null
   },
   {
     "id": "DiomanShareOptions.interval",
@@ -8607,8 +6871,13 @@
       "share.single-req-policy-race"
     ],
     "assumptions": [],
-    "result": null,
-    "blocked": "待 B7 真实验收：新 API 切换后重新核对，旧场景引用保留。"
+    "result": {
+      "status": "PASS",
+      "source": "test/accept/evidence/2026-10-29-summary.json",
+      "passed": 8,
+      "total": 8
+    },
+    "blocked": null
   },
   {
     "id": "DiomanShareOptions.retries",
@@ -8636,8 +6905,13 @@
       "share.end-last-wins"
     ],
     "assumptions": [],
-    "result": null,
-    "blocked": "待 B7 真实验收：新 API 切换后重新核对，旧场景引用保留。"
+    "result": {
+      "status": "PASS",
+      "source": "test/accept/evidence/2026-10-29-summary.json",
+      "passed": 2,
+      "total": 2
+    },
+    "blocked": null
   },
   {
     "id": "DiomanSharePolicy.race",
@@ -8653,8 +6927,13 @@
       "share.single-req-policy-race"
     ],
     "assumptions": [],
-    "result": null,
-    "blocked": "待 B7 真实验收：新 API 切换后重新核对，旧场景引用保留。"
+    "result": {
+      "status": "PASS",
+      "source": "test/accept/evidence/2026-10-29-summary.json",
+      "passed": 6,
+      "total": 6
+    },
+    "blocked": null
   },
   {
     "id": "DiomanSharePolicy.retry",
@@ -8671,8 +6950,13 @@
       "H2",
       "H7"
     ],
-    "result": null,
-    "blocked": "待 B7 真实验收：新 API 切换后重新核对，旧场景引用保留。",
+    "result": {
+      "status": "PASS",
+      "source": "test/accept/evidence/2026-10-29-summary.json",
+      "passed": 2,
+      "total": 2
+    },
+    "blocked": null,
     "note": "内部重试走宿主 adapter 重放请求体（H2），间隔与响应的先后依赖真实时序（H7）。"
   },
   {
@@ -8684,96 +6968,22 @@
       "DiomanSharePolicy.start"
     ],
     "real": [
-      "share.start-single-flight",
-      "share.start-32",
       "share.different-keys-independent",
+      "share.leader-failure-all-fail",
       "share.no-cache-after-settle",
       "share.no-key-no-share",
-      "share.leader-failure-all-fail"
+      "share.single-start-explicit-key",
+      "share.start-32",
+      "share.start-single-flight"
     ],
     "assumptions": [],
-    "result": null,
-    "blocked": "待 B7 真实验收：新 API 切换后重新核对，旧场景引用保留。"
-  },
-  {
-    "id": "INV-REAL-share.all-cancelled-aborts-server",
-    "plugin": "share",
-    "capability": "真实场景核对：share.all-cancelled-aborts-server",
-    "tier": 2,
-    "apis": [],
-    "real": [
-      "share.all-cancelled-aborts-server"
-    ],
-    "unit": [
-      "test/rule/source_rule_test.dart"
-    ],
-    "assumptions": [],
-    "result": null,
-    "blocked": "待 B7 真实验收：场景引用从删除的旧 API 行迁入，按新 API 与能力声明重新运行。"
-  },
-  {
-    "id": "INV-REAL-share.network-failure-all-fail",
-    "plugin": "share",
-    "capability": "真实场景核对：share.network-failure-all-fail",
-    "tier": 2,
-    "apis": [],
-    "real": [
-      "share.network-failure-all-fail"
-    ],
-    "unit": [
-      "test/rule/source_rule_test.dart"
-    ],
-    "assumptions": [],
-    "result": null,
-    "blocked": "待 B7 真实验收：场景引用从删除的旧 API 行迁入，按新 API 与能力声明重新运行。"
-  },
-  {
-    "id": "INV-REAL-share.reuse-after-failure",
-    "plugin": "share",
-    "capability": "真实场景核对：share.reuse-after-failure",
-    "tier": 2,
-    "apis": [],
-    "real": [
-      "share.reuse-after-failure"
-    ],
-    "unit": [
-      "test/rule/source_rule_test.dart"
-    ],
-    "assumptions": [],
-    "result": null,
-    "blocked": "待 B7 真实验收：场景引用从删除的旧 API 行迁入，按新 API 与能力声明重新运行。"
-  },
-  {
-    "id": "INV-REAL-share.single-all-timeout-aborts-server",
-    "plugin": "share",
-    "capability": "真实场景核对：share.single-all-timeout-aborts-server",
-    "tier": 2,
-    "apis": [],
-    "real": [
-      "share.single-all-timeout-aborts-server"
-    ],
-    "unit": [
-      "test/rule/source_rule_test.dart"
-    ],
-    "assumptions": [],
-    "result": null,
-    "blocked": "待 B7 真实验收：场景引用从删除的旧 API 行迁入，按新 API 与能力声明重新运行。"
-  },
-  {
-    "id": "INV-REAL-share.single-start-explicit-key",
-    "plugin": "share",
-    "capability": "真实场景核对：share.single-start-explicit-key",
-    "tier": 2,
-    "apis": [],
-    "real": [
-      "share.single-start-explicit-key"
-    ],
-    "unit": [
-      "test/rule/source_rule_test.dart"
-    ],
-    "assumptions": [],
-    "result": null,
-    "blocked": "待 B7 真实验收：场景引用从删除的旧 API 行迁入，按新 API 与能力声明重新运行。"
+    "result": {
+      "status": "PASS",
+      "source": "test/accept/evidence/2026-10-29-summary.json",
+      "passed": 28,
+      "total": 28
+    },
+    "blocked": null
   },
   {
     "id": "DiomanEnforce.post",
@@ -8941,8 +7151,13 @@
       "retry.flap-no-retry-then-ok"
     ],
     "assumptions": [],
-    "result": null,
-    "blocked": "待 B7 真实验收：新 API 切换后重新核对，旧场景引用保留。",
+    "result": {
+      "status": "PASS",
+      "source": "test/accept/evidence/2026-10-29-summary.json",
+      "passed": 10,
+      "total": 80
+    },
+    "blocked": null,
     "note": "probe 是使用者回调（契约替身）；真实执行器的 probe 恒返回 excellent。"
   },
   {
@@ -9023,8 +7238,13 @@
       "plugins.boundary-timeout-receive-ms-1"
     ],
     "assumptions": [],
-    "result": null,
-    "blocked": "待 B7 真实验收：新 API 切换后重新核对，旧场景引用保留。"
+    "result": {
+      "status": "PASS",
+      "source": "test/accept/evidence/2026-10-29-summary.json",
+      "passed": 18,
+      "total": 88
+    },
+    "blocked": null
   },
   {
     "id": "DiomanTimeoutOptions.enabled",
@@ -9069,8 +7289,13 @@
       "timeout.weak-generous-budget"
     ],
     "assumptions": [],
-    "result": null,
-    "blocked": "待 B7 真实验收：新 API 切换后重新核对，旧场景引用保留。",
+    "result": {
+      "status": "PASS",
+      "source": "test/accept/evidence/2026-10-29-summary.json",
+      "passed": 4,
+      "total": 18
+    },
+    "blocked": null,
     "note": "只验配置写入；真实连接超时见 DiomanTimeouts.connect#effective。"
   },
   {
@@ -9086,8 +7311,13 @@
     "assumptions": [
       "H5"
     ],
-    "result": null,
-    "blocked": "待 B7 真实验收（connect 超时 BLOCKED）：testkit D22 netem 用户态不能阻止内核握手，回环只能立即拒绝。需要独立可控不可达端点。",
+    "result": {
+      "status": "BLOCKED",
+      "source": "test/accept/evidence/2026-10-29-summary.json",
+      "passed": 0,
+      "total": 0
+    },
+    "blocked": "BLOCKED：testkit D22 的用户态 netem 无法丢弃 SYN；blackhole 只能测握手后接收超时。解锁：提供独立、稳定可控的握手不完成端点，或经授权使用平台包过滤，再补真实 connect 场景。",
     "note": "H5 本来就要求\"逐格确认断言的是错误类型与耗时\"，这一行是它在 connect 上的落点。"
   },
   {
@@ -9105,8 +7335,13 @@
       "timeout.receive-slow-body"
     ],
     "assumptions": [],
-    "result": null,
-    "blocked": "待 B7 真实验收：新 API 切换后重新核对，旧场景引用保留。",
+    "result": {
+      "status": "PASS",
+      "source": "test/accept/evidence/2026-10-29-summary.json",
+      "passed": 6,
+      "total": 6
+    },
+    "blocked": null,
     "note": "只验配置写入；真正超时见 DiomanTimeouts.receive#effective。"
   },
   {
@@ -9128,8 +7363,13 @@
     "assumptions": [
       "H5"
     ],
-    "result": null,
-    "blocked": "待 B7 真实验收：新 API 切换后重新核对，旧场景引用保留。",
+    "result": {
+      "status": "PASS",
+      "source": "test/accept/evidence/2026-10-29-summary.json",
+      "passed": 8,
+      "total": 22
+    },
+    "blocked": null,
     "note": "单测 rule/timeout_rule_test 用本地 TestServer 断言了 receiveTimeout；真实侧 boundary receive_ms=1 断言 error=timeout，connect-blackhole 断言耗时 700-3500ms。按 H5 要求还应逐格复核每个样本的耗时，不只看 PASS。"
   },
   {
@@ -9163,8 +7403,13 @@
     "assumptions": [
       "H5"
     ],
-    "result": null,
-    "blocked": "待 B7 真实验收：新 API 切换后重新核对，旧场景引用保留。",
+    "result": {
+      "status": "PASS",
+      "source": "test/accept/evidence/2026-10-29-summary.json",
+      "passed": 3,
+      "total": 3
+    },
+    "blocked": null,
     "note": "send 超时在真实回环上生效（H5）；testkit 侧需要 send_ms 与慢读服务端，见 testkit 提议"
   },
   {
@@ -9180,8 +7425,13 @@
       "plugins.single-timeout"
     ],
     "assumptions": [],
-    "result": null,
-    "blocked": "待 B7 真实验收：新 API 切换后重新核对，旧场景引用保留。",
+    "result": {
+      "status": "PASS",
+      "source": "test/accept/evidence/2026-10-29-summary.json",
+      "passed": 2,
+      "total": 16
+    },
+    "blocked": null,
     "note": "真实执行器的 probe 恒返回 excellent，其余档位真实侧没用到。"
   },
   {
