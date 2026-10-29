@@ -97,7 +97,7 @@ example 已加直播/时移两个 demo（仅桌面冒烟，未做交互验证）
   `createMovaEngine()` 咨询，安装后平台端口全部空实现）。
 - 文档与验证页：README 五节、CHANGELOG、`doc/SPEC.md`「宿主易用性」、`example/lib/main_host_ergonomics_verify.dart`（加 `--dart-define=AUTORUN=true` 为脚本化模式，实现在 `example/lib/verify_auto/he_auto.dart`；2026-10-24 已在 Windows release 上跑过）。
 - **Task 16 状态（2026-10-24）**：**Windows 桌面可测的部分已跑完**（release，3 次/场景，数字见计划 Task 16 下「Windows 桌面实测（2026-10-24）」）；**Android 项仍未测**（V9 前后台续播、V11 PiP、各项的 Android 复测），交接清单见
-  [doc/plans/2026-10-24-android-real-device-handoff.md](doc/plans/2026-10-24-android-real-device-handoff.md)。**Windows 实测问题**：① VOD 卡顿重试后**从头播放**（V6）：2026-10-24 已修复代码，待 Windows/Android 复测；`open()` 返回仅代表提交加载，原路径在时长到达后就 seek，缺少就绪保证；现等当前有效尝试首帧落地再 seek，覆盖三类失败、同内容备选续播与直播不 seek；
+  [doc/plans/2026-10-24-android-real-device-handoff.md](doc/plans/2026-10-24-android-real-device-handoff.md)。**Windows 实测问题**：① VOD 卡顿重试后**从头播放**（V6）：2026-10-24 已修复代码，待 Windows/Android 复测；**2026-10-29 已复测：Windows 3/3 续播误差 0ms、Android full-02 pump 批 V6 PASS，旧“从头播放”按验证脚本缺陷处理（与 H35 判断一致）**；`open()` 返回仅代表提交加载，原路径在时长到达后就 seek，缺少就绪保证；现等当前有效尝试首帧落地再 seek，覆盖三类失败、同内容备选续播与直播不 seek；
   ② 盖一层不透明路由再弹出时 Windows 进程**原生崩溃**（V10，`flutter_windows.dll` `0xC0000005`，6/6 复现，与守卫无关，`TickerMode` 路径不崩）——**已定位并规避（2026-10-24）**：Flutter 3.47.0/3.47.1 引擎 bug（#190774，转场快照 + GPU 外部纹理 + Impeller，3.47.2 已修），mova 在 Windows 上用 `MovaSnapshotGuard` 让渲染面退出转场快照，release 实测 V10A 20/20、V10 10/10、探针 20–30 轮不崩，见计划 V10 小节。
   以下为原"需真机确认"清单，**带 ✔ 的是 Windows 已确认**（Android 仍须复测）：暂停态打开时 mpv 是否发 `PLAYBACK_RESTART`（影响 1.5s 宽限）✔Windows：发，3/3 `restart`、`END_FILE(error)` 对坏地址的真实时机 ✔Windows：404 约 40ms、拒连约 5.07s 才冒出 `nativeEndError`（`startTimeout` 设得更短会被超时先判掉）、
   Android 切后台的 `inactive→hidden` 序列与 libmpv 自暂停时序（守卫的意图快照）、`go_router` shell 分支下根 navigator 半透明路由的 `routeObservers` 路径、
@@ -119,7 +119,7 @@ example 已加直播/时移两个 demo（仅桌面冒烟，未做交互验证）
   S14 的 Android 一次、S4 电量与 `maxDuration` 校准、`allowHls` 默认值、`resumeTimeout` 校准、S17 的 push 路由/`StatefulShellRoute`/声音泄漏），交接清单见
   [doc/plans/2026-10-24-android-real-device-handoff.md](doc/plans/2026-10-24-android-real-device-handoff.md)。**Windows 实测暴露三个待决问题（未改库代码）**：
   ① B 唤醒（`vid` 切回）在 Windows+FLV 上 18/18 走 `grace`——不发 `PLAYBACK_RESTART` 也没有尺寸变化，`MovaKeepAliveResume.elapsed` 恒为 `resumeTimeout`（5000ms）而不是测量值，`state.keepAlivePhase` 在 `resuming` 停 5s；
-  真正出画面（属性轮询）0.45–3.7s、最大值 ≤ 一个 GOP；② 待机 60s 后位置在唤醒后向前跳约 2.4–3.0s（待机期间与无待机对照均无漂移）；③ 对无声流强制 B 会 EOF + recovery 重载（比"position 停止"更重，印证 D4）。
+  真正出画面（属性轮询）0.45–3.7s、最大值 ≤ 一个 GOP；② 待机 60s 后位置在唤醒后向前跳约 2.4–3.0s（待机期间与无待机对照均无漂移）；**2026-10-29 Windows 复测终值未复现（3 次漂移 −86…+43ms），但唤醒后第一个采样点瞬时偏 +1.5–1.7s、约 5s 后回落，原因未查，已降级为观察项**；③ 对无声流强制 B 会 EOF + recovery 重载（比"position 停止"更重，印证 D4）。
   以下为原"需真机确认"清单，**带 ✔ 的是 Windows 已确认**（Android 仍须复测）：`file-format` 的实际取值 ✔Windows：FLV 为 `flv`、HLS 为 `hls`、`vid=auto` 后是否发 `PLAYBACK_RESTART` ✔Windows+FLV：不发（18/18 `grace`；重开路径 S13 则是 `size` 落地）、
   待机期间画面是黑还是冻帧 ✔Windows：冻结最后一帧（Android 仍待测）、`audio-params` 就绪时机 ✔Windows：本源上首帧后约 2.1s，之前请求待机一律 `fallback(mediaUnknown)`、守卫端到端 ✔Windows（部分）：`TickerMode` 切走/切回与隐藏期间换源通过，push 路由曾被 HE V10 的崩溃阻断（已规避，keepAlive 的 push 路由场景可重测）；
   B 相对正常播放省约 81% CPU 但网络不省（直播 FLV 暂停也满速拉流）；`mute` 时音频会话的耗电仍待 Android。

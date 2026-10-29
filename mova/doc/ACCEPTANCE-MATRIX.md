@@ -1011,7 +1011,7 @@ v1 的 135 个编号全部有用例（其中 6 个在 manifest 里是 manual）�
 
 落点说明：验证页都放 `example/lib/verify_auto/` 或 `example/lib/main_coverage_*.dart`，**新建 case/页，不与其他 spike 混用**；`coverage_new.dart` 与 `main_coverage_api.dart` 当前有他人未提交修改，动之前先对齐；新批次要同步 `example/tool/matrix_manifest.json`（`run_matrix.py --check` 校验）。 上表 1–8 的真机用例实际落在新页 `example/lib/main_coverage_gap.dart` 与 `verify_auto/coverage_gap*.dart`（没有改 `coverage_new.dart`），见 §5.2.5。
 
-## 6. 待拍板记录（6 项均已决定，2026-10-28 / 10-29）
+## 6. 待拍板记录（8 项均已决定，2026-10-28 / 10-29）
 
 | # | 问题 | 现状与证据 | 选项 | 涉及文件 |
 |---|---|---|---|---|
@@ -1021,6 +1021,8 @@ v1 的 135 个编号全部有用例（其中 6 个在 manifest 里是 manual）�
 | 4 | **已决定**：G1.3b 的 Web 标 N/A | 用户拍板：库依赖 `dart:io`，只做 libmpv，Web 不在验收范围。README 是否写明另行处理。 | —（已选 (a)） | `lib/src/core/preview/platform_kind.dart`；G1.3b-③ |
 | 5 | **已决定 + 已落地（真机复验见 doc/plans/2026-10-29-q13-live-warm-fix-verification.md）**：直播影子预热的就绪判据不再要求追上正片位置（用户选 A） | full-01/full-02 的 Q13B/C 间歇失败根因：`MovaBufferWarm` 要求影子位置 ≥ 目标位置 −容差，而直播影子从直播边缘起播且从不 seek，位置从 0 开始，就绪时间≈起播延迟+正片已播位置；正片先播 7s 的变体 10/10 在约 8s 被 `readyTimeout` 放弃（`swapped=false`），默认 3s 只剩约 1–2s 裕量。修法：`MovaWarmSignal` 加 `live`（默认 false，自定义判据不受影响），`MovaBufferWarm` 对直播视为已到达、仍要求无卡顿 + 提前缓冲 ≥ lookahead + 连续 stableTicks；引擎构造信号时传 `live: _warmLive`。`warm_test.dart` +6、`cutover_engine_test.dart` +2（含非直播对照；去掉引擎传参的变异检查会让直播用例失败）。 | —（已选 A；B 放宽 readyTimeout、C 不改均未采用） | `lib/src/core/cutover/warm.dart`；`lib/src/core/cutover/cutover_engine.dart`；A24-①/②、Q13；`example/lib/main_q13_mute_verify.dart` |
 | 6 | **已决定**：V9 定性为“平台行为 + 守卫功能”，不是缺陷；判据改写 | 用户 2026-10-29 要求先定性。**守卫关**（`MovaView` 不开 `autoPause`）时进后台出现 1 次 `MovaPause`、回前台不续播（V9N 4/4，14s 后 `playing=false`、`playbackIntent` 仍为 true）是 Android 切后台 GPU Surface 回收后的**平台行为**（CLAUDE.md「App 内小窗」节已记，全屏同样），**非缺陷、非 mova 引入**；暂停不是 mova 守卫触发的（具体是 media_kit 还是 libmpv 自暂停，日志里区分不了）。**守卫开**时进后台 `MovaPause` ≤2s、回前台自动续播是守卫的功能（full-02 12/12，加 full-01 共 14/15）。full-01 那次 `advance=0ms` 为单样本，推断是回直播边缘的重载与固定 3s 测量窗口撞车 → 判据过紧（验证脚本缺陷），**不判产品缺陷**。**只有“守卫开却回前台不续播”才是缺陷**。判据改写：①守卫开：进后台 ≤2s 内有 `MovaPause`；回前台 ≤10s 内位置增量 >2s（取代固定 3s 两点差）；②守卫关：自暂停不判失败，回前台不要求续播；③不再写成“libmpv 自动暂停所以需手点播放”。he_auto 里 V9 判据的改写待落地。 | —（已选“平台行为 + 守卫功能”） | `lib/src/core/guard/auto_pause.dart`；`example/lib/verify_auto/he_auto.dart`（V9/V9N）；H61；doc/plans/2026-10-29-android-full02-q13-v9.md |
+| 7 | **已决定**：keepAlive S5“待机 60s 后位置前跳”降级为观察项 | 旧记 2.4–3.0s（2026-10-24 Windows）；2026-10-29 Windows release 复测 S5 3/3：终值漂移 −38/+43/−86ms，**终值未复现**。但 trace 里唤醒后第一个采样点 3/3 瞬时偏 +1552/+1654/+1686ms、约 5s 后回落，原因未查（可能与 B 唤醒走 `grace`、`resuming` 停 5s 有关，推断）。判据建议：以唤醒后稳定期的终值漂移为准，首个采样点瞬时偏差只记录不判定；**具体通过阈值待定**（本轮实测终值 −86…+43ms，不据此定阈值）。S1（B 唤醒恒走 grace、`elapsed` 恒为 `resumeTimeout`）仍是已知待决，未改。 | —（已选降级为观察项） | `example/lib/verify_auto/keep_alive_auto.dart`（S5/S5C）；`doc/plans/2026-10-29-windows-matrix-run.md`；H44 |
+| 8 | **已决定**：HE V6“Windows 从头播放”按验证脚本缺陷处理 | 2026-10-24 的“VOD 卡顿重试后从头播放”：2026-10-24 已修代码（等有效尝试首帧落地再 seek）；2026-10-29 Windows release 复测 3/3 续播误差 `posDiff=0ms`，Android full-02 pump 批 V6 PASS；旧现象的根因是验证脚本的锚点缺陷（与 H35 的判断一致），不再作为产品缺陷跟踪。 | —（已选 (a)） | `example/lib/verify_auto/he_auto.dart`（V6）；H35；`doc/plans/2026-10-29-windows-matrix-run.md` |
 
 ## 7. 矩阵修订记录（本次合并修掉的问题）
 
