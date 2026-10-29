@@ -597,6 +597,38 @@ class _HeAutoPageState extends State<HeAutoPage> with WidgetsBindingObserver {
     _verdict('V9', play != null && advance != null && advance > 2000, 'play=${play != null} advance=${advance}ms (needs no manual play tap)');
   }
 
+  /// V9N (Android; opt-in via `ONLY=V9N`): V9 with the guard OFF, to tell who pauses on going to the background.
+  /// The suite driver presses HOME on `WAIT_HOME` and re-launches the app ~5s later. Nothing is asserted: the
+  /// page samples state every 500ms for 16s and logs lifecycle, `MovaPause`/`MovaPlay` events and the sampled
+  /// `playing`/`playbackIntent`/position. With no guard, any `MovaPause` or position stall seen here can only
+  /// come from the kernel/platform (libmpv losing its surface), not from mova's guard.
+  ///
+  /// V9N（Android；`ONLY=V9N` 点名才跑）：关守卫的 V9，用来分辨进后台时是谁暂停的。套件驱动在 `WAIT_HOME` 时按 HOME，
+  /// 约 5 秒后重新拉起。不做断言：页面每 500ms 采样 16 秒，记录生命周期、`MovaPause`/`MovaPlay` 事件与采样到的
+  /// `playing`/`playbackIntent`/位置。没有守卫时，这里出现的任何 `MovaPause` 或位置停滞只可能来自内核/平台（libmpv 丢 surface）。
+  Future<void> _v9n(int run) async {
+    await _start(_Cfg(source: _live, guard: false));
+    if (await _firstFrame() == null) return _verdict('V9N', false, 'never rendered');
+    await Future<void>.delayed(const Duration(seconds: 1));
+    final m = _ev!.mark;
+    final lm = _lifeRec.mark;
+    _log('V9N WAIT_HOME guard=off, sampling 16s');
+    final samples = <String>[];
+    for (var i = 0; i < 32; i++) {
+      await Future<void>.delayed(const Duration(milliseconds: 500));
+      final st = _api!.state;
+      samples.add('${i * 500}ms pos=${_lastProg?.position.inMilliseconds} playing=${st.playing} intent=${st.playbackIntent} buffering=${st.buffering}');
+    }
+    for (final line in samples) {
+      _log('V9N SAMPLE $line');
+    }
+    final pauses = _ev!.all<MovaPause>(from: m).length;
+    final plays = _ev!.all<MovaPlay>(from: m).length;
+    final life = _lifeRec.all<AppLifecycleState>(from: lm).map((e) => e.event.name).join(',');
+    _log('V9N lifecycle=[$life] MovaPause=$pauses MovaPlay=$plays finalPlaying=${_api!.state.playing} finalIntent=${_api!.state.playbackIntent}');
+    _verdict('V9N', true, 'info only: guard=off pauseEvents=$pauses playEvents=$plays');
+  }
+
   /// V11 (Android; opt-in via `ONLY=V11`): entering system PiP must not trigger the guard's pause.
   /// Prints `V11 WAIT_RESTORE` after the check; bring the app back to full screen to continue.
   Future<void> _v11(int run) async {
@@ -661,6 +693,7 @@ class _HeAutoPageState extends State<HeAutoPage> with WidgetsBindingObserver {
       // V10 last: a native crash there (see the plan's Windows results) must not hide the other scenarios.
       _Scenario('V10', 'route + TickerMode pause', _v10),
       _Scenario('V9', 'background / foreground (Android, marker-driven)', _v9, optIn: true),
+      _Scenario('V9N', 'background / foreground with guard off (Android, info)', _v9n, optIn: true),
       _Scenario('V11', 'system PiP is not paused (Android)', _v11, optIn: true),
       _Scenario('V11M', 'mini exempts real auto-pause under hidden TickerMode', _v11m, optIn: true),
       _Scenario('V10A', 'route cover only (guard on)', _v10a, optIn: true),

@@ -75,6 +75,26 @@ class _Q13PageState extends State<_Q13Page> {
   /// Every media_kit player created so far, in creation order (k0, k1, ...).
   final List<Player> _players = <Player>[];
 
+  /// Latest position seen on the proxy's progress stream (used as the warm target estimate in DIAG).
+  ///
+  /// 代理进度流上最近一次位置（DIAG 里用作预热目标估计）。
+  Duration _lastPos = Duration.zero;
+
+  /// Bumped to stop the previous DIAG sampler.
+  ///
+  /// 递增即停止上一个 DIAG 采样器。
+  int _diagToken = 0;
+
+  /// Summary of the latest warm-up, filled by the DIAG sampler.
+  ///
+  /// 最近一次预热的摘要，由 DIAG 采样器填写。
+  String _diagSummary = 'none';
+
+  /// Content plays this long before the ad is inserted (ms); scenario ids with suffix S / L change it.
+  ///
+  /// 插广告前正片先播多久（毫秒）；场景编号后缀 S / L 会改它。
+  int _contentDelayMs = 3000;
+
   void _log(String msg) {
     final line = _out.line('${DateTime.now().toIso8601String().substring(11, 23)} ${_clock.elapsedMilliseconds.toString().padLeft(7)}ms $msg');
     if (mounted) setState(() => _lines.insert(0, line));
@@ -82,7 +102,7 @@ class _Q13PageState extends State<_Q13Page> {
 
   void _verdict(String id, bool ok, String note) {
     (ok ? _pass : _fail).update(id, (v) => v + 1, ifAbsent: () => 1);
-    _log('VERDICT $id ${ok ? 'PASS' : 'FAIL'} $note');
+    _log('VERDICT $id ${ok ? 'PASS' : 'FAIL'} $note | DIAGSUM contentDelay=${_contentDelayMs}ms $_diagSummary');
   }
 
   @override
@@ -120,7 +140,7 @@ class _Q13PageState extends State<_Q13Page> {
       },
     );
     _cutover = cutover;
-    _progSub = cutover.progress.listen((_) {});
+    _progSub = cutover.progress.listen((p) => _lastPos = p.position);
     _ads = MovaAds(cutover, cutover: cutover);
     if (mounted) setState(() {});
   }
@@ -137,6 +157,45 @@ class _Q13PageState extends State<_Q13Page> {
     ads?.dispose();
     await cutover?.dispose();
     await Future<void>.delayed(const Duration(milliseconds: 700));
+  }
+
+  /// DIAG sampler: every 300ms after the ad insert, logs the newest (shadow) player's native buffer readings,
+  /// the cutover phase and the `MovaBufferWarm` inputs derivable from them; records when the phase turns
+  /// `ready` and when the shadow disappears (ready timer abandon). Read-only, touches no engine state.
+  ///
+  /// DIAG 采样器：插广告后每 300ms 记录最新（影子）播放器的原生缓冲读数、cutover 阶段，以及据此可推的
+  /// `MovaBufferWarm` 输入；记录阶段何时变 `ready`、影子何时消失（就绪计时器放弃）。只读，不碰引擎状态。
+  Future<void> _diag(String tag, int token, int t0, Duration target) async {
+    int? tPos, tReady, tGone;
+    var last = '';
+    var shadowIdx = -1;
+    while (token == _diagToken && _cutover != null) {
+      if (_players.length - 1 != shadowIdx) {
+        shadowIdx = _players.length - 1;
+        tPos = tReady = tGone = null;
+        _log('DIAG $tag newest player is now k$shadowIdx +${_clock.elapsedMilliseconds - t0}ms');
+      }
+      final p = _players[shadowIdx];
+      final now = _clock.elapsedMilliseconds - t0;
+      final pos = await _prop(p, 'time-pos');
+      final cache = await _prop(p, 'demuxer-cache-time');
+      final pfc = await _prop(p, 'paused-for-cache');
+      final idle = await _prop(p, 'core-idle');
+      final phase = _cutover?.cutoverPhase.name ?? 'n/a';
+      if (pos == 'gone' && tGone == null) tGone = now;
+      final posS = double.tryParse(pos);
+      if (posS != null && posS > 0 && tPos == null) tPos = now;
+      if (phase == 'ready' && tReady == null) tReady = now;
+      final arrived = posS != null && posS * 1000 >= target.inMilliseconds - 800;
+      final cacheS = double.tryParse(cache);
+      final ahead = (cacheS != null && posS != null) ? (cacheS - posS) : null;
+      last = 'shadow k$shadowIdx t=${now}ms pos=$pos cache=$cache ahead=${ahead?.toStringAsFixed(2)} pfc=$pfc idle=$idle phase=$phase arrived=$arrived(target=${target.inMilliseconds}ms)';
+      _log('DIAG $tag $last');
+      _diagSummary = 'target=${target.inMilliseconds}ms firstPos=${tPos}ms ready=${tReady}ms gone=${tGone}ms';
+      if (tGone != null || now > 20000) break;
+      await Future<void>.delayed(const Duration(milliseconds: 300));
+    }
+    _log('DIAG-END $tag $_diagSummary last=[$last]');
   }
 
   /// Waits until the engine really plays (position moving, not buffering).
@@ -220,9 +279,16 @@ class _Q13PageState extends State<_Q13Page> {
       _log('$tag content never played');
       return false;
     }
-    await Future<void>.delayed(const Duration(seconds: 3));
+    await Future<void>.delayed(Duration(milliseconds: _contentDelayMs));
     final e0 = _cutover!.state.renderEpoch;
     final tPlay = _clock.elapsedMilliseconds;
+    final target = _lastPos;
+    final token = ++_diagToken;
+    final cutoverEvents = _cutover!.events.listen((e) {
+      if (e is MovaCutoverChange) _log('EVT $tag cutover phase=${e.phase.name} +${_clock.elapsedMilliseconds - tPlay}ms');
+    });
+    unawaited(Future<void>.delayed(const Duration(seconds: 25), cutoverEvents.cancel));
+    unawaited(_diag(tag, token, tPlay, target));
     await ads.playAdNow(_adBreak());
     _log('$tag playAdNow returned after ${_clock.elapsedMilliseconds - tPlay}ms epoch=${_cutover!.state.renderEpoch} showingAd=${ads.isShowingAd} players=${_players.length}');
     if (!await _waitEpoch(e0)) {
@@ -314,6 +380,23 @@ class _Q13PageState extends State<_Q13Page> {
       ('Q13C', 'keepAlive requested while warming, wake before commit', () => _scenarioKeepAlive(wakeBeforeCommit: true)),
     ];
     _log('AUTORUN start runs=$runs base=$kBase only=${only.isEmpty ? 'all' : only.join(',')} os=${Platform.operatingSystem} ${Platform.operatingSystemVersion}');
+    // Variants for the warm-up timing study: suffix S = content plays 500ms before the ad, L = 7000ms.
+    final variants = <String, (String, int)>{
+      'Q13AS': ('Q13A', 500), 'Q13BS': ('Q13B', 500), 'Q13CS': ('Q13C', 500),
+      'Q13AL': ('Q13A', 7000), 'Q13BL': ('Q13B', 7000), 'Q13CL': ('Q13C', 7000),
+    };
+    for (final v in only.where(variants.containsKey)) {
+      final (base, delay) = variants[v]!;
+      final src = scenarios.firstWhere((e) => e.$1 == base);
+      scenarios.add((v, '${src.$2} (content delay ${delay}ms)', () async {
+        _contentDelayMs = delay;
+        try {
+          await src.$3();
+        } finally {
+          _contentDelayMs = 3000;
+        }
+      }));
+    }
     for (final (id, title, run) in scenarios) {
       if (only.isNotEmpty && !only.contains(id)) continue;
       for (var i = 1; i <= runs; i++) {

@@ -1,0 +1,1881 @@
+{
+  "run_id": "full-02",
+  "rows": [
+    {
+      "id": "A1",
+      "status": "BLOCKED",
+      "evidence": "缺少完整编号自动判据；现有子项结果需复核，不能复用旧 finalize 硬编码结论。",
+      "batches": [
+        "api"
+      ],
+      "reproduction": "python example/tool/run_matrix.py --only api",
+      "pointers": [
+        "E:\\workspaces\\dart-labs\\mova\\example\\tool\\coverage_evidence\\matrix-full-02\\matrix-full-02-api.driver.log"
+      ]
+    },
+    {
+      "id": "A2",
+      "status": "BLOCKED",
+      "evidence": "缺少完整编号自动判据；现有子项结果需复核，不能复用旧 finalize 硬编码结论。",
+      "batches": [
+        "api"
+      ],
+      "reproduction": "python example/tool/run_matrix.py --only api",
+      "pointers": [
+        "E:\\workspaces\\dart-labs\\mova\\example\\tool\\coverage_evidence\\matrix-full-02\\matrix-full-02-api.driver.log"
+      ]
+    },
+    {
+      "id": "A3",
+      "status": "BLOCKED",
+      "evidence": "覆盖批次未全部成功执行（未选择/未执行/验证器错误），不得推断产品失败。",
+      "batches": [
+        "api",
+        "widgets"
+      ],
+      "reproduction": "python example/tool/run_matrix.py --only api,widgets",
+      "pointers": [
+        "E:\\workspaces\\dart-labs\\mova\\example\\tool\\coverage_evidence\\matrix-full-02\\matrix-full-02-api.driver.log"
+      ]
+    },
+    {
+      "id": "A4",
+      "status": "PASS",
+      "evidence": "复用 rerun_finalize 引用的两实现完整编号 CHECK：matrix-full-02-rerun-batch15-basic.json: {'ms': 6798, 'kind': 'CHECK', 'id': 'A4', 'pass': True, 'detail': 'supported=true'}; matrix-full-02-rerun-batch15-basic-cutover.json: {'ms': 17775, 'kind': 'CHECK', 'id': 'A4', 'pass': True, 'detail': 'supported=true'}",
+      "batches": [
+        "api"
+      ],
+      "reproduction": "python example/tool/run_matrix.py --only api",
+      "pointers": [
+        "E:\\workspaces\\dart-labs\\mova\\example\\tool\\coverage_evidence\\matrix-full-02\\matrix-full-02-api.driver.log"
+      ]
+    },
+    {
+      "id": "A5",
+      "status": "BLOCKED",
+      "evidence": "覆盖批次未全部成功执行（未选择/未执行/验证器错误），不得推断产品失败。",
+      "batches": [
+        "api",
+        "extras",
+        "native-inputs"
+      ],
+      "reproduction": "python example/tool/run_matrix.py --only api,extras,native-inputs",
+      "pointers": [
+        "E:\\workspaces\\dart-labs\\mova\\example\\tool\\coverage_evidence\\matrix-full-02\\matrix-full-02-api.driver.log"
+      ]
+    },
+    {
+      "id": "A6",
+      "status": "BLOCKED",
+      "evidence": "缺少完整编号自动判据；现有子项结果需复核，不能复用旧 finalize 硬编码结论。",
+      "batches": [
+        "api"
+      ],
+      "reproduction": "python example/tool/run_matrix.py --only api",
+      "pointers": [
+        "E:\\workspaces\\dart-labs\\mova\\example\\tool\\coverage_evidence\\matrix-full-02\\matrix-full-02-api.driver.log"
+      ]
+    },
+    {
+      "id": "A7",
+      "status": "BLOCKED",
+      "evidence": "覆盖批次未全部成功执行（未选择/未执行/验证器错误），不得推断产品失败。",
+      "batches": [
+        "api",
+        "extras"
+      ],
+      "reproduction": "python example/tool/run_matrix.py --only api,extras",
+      "pointers": [
+        "E:\\workspaces\\dart-labs\\mova\\example\\tool\\coverage_evidence\\matrix-full-02\\matrix-full-02-api.driver.log"
+      ]
+    },
+    {
+      "id": "A8",
+      "status": "BLOCKED",
+      "evidence": "覆盖批次未全部成功执行（未选择/未执行/验证器错误），不得推断产品失败。",
+      "batches": [
+        "api",
+        "native-inputs"
+      ],
+      "reproduction": "python example/tool/run_matrix.py --only api,native-inputs",
+      "pointers": [
+        "E:\\workspaces\\dart-labs\\mova\\example\\tool\\coverage_evidence\\matrix-full-02\\matrix-full-02-api.driver.log"
+      ]
+    },
+    {
+      "id": "A9",
+      "status": "BLOCKED",
+      "evidence": "覆盖批次未全部成功执行（未选择/未执行/验证器错误），不得推断产品失败。",
+      "batches": [
+        "api",
+        "widgets",
+        "extras"
+      ],
+      "reproduction": "python example/tool/run_matrix.py --only api,widgets,extras",
+      "pointers": [
+        "E:\\workspaces\\dart-labs\\mova\\example\\tool\\coverage_evidence\\matrix-full-02\\matrix-full-02-api.driver.log"
+      ]
+    },
+    {
+      "id": "A10",
+      "status": "BLOCKED",
+      "evidence": "缺少完整编号自动判据；现有子项结果需复核，不能复用旧 finalize 硬编码结论。",
+      "batches": [
+        "api"
+      ],
+      "reproduction": "python example/tool/run_matrix.py --only api",
+      "pointers": [
+        "E:\\workspaces\\dart-labs\\mova\\example\\tool\\coverage_evidence\\matrix-full-02\\matrix-full-02-api.driver.log"
+      ]
+    },
+    {
+      "id": "A11",
+      "status": "BLOCKED",
+      "evidence": "覆盖批次未全部成功执行（未选择/未执行/验证器错误），不得推断产品失败。",
+      "batches": [
+        "widgets",
+        "ui"
+      ],
+      "reproduction": "python example/tool/run_matrix.py --only widgets,ui",
+      "pointers": []
+    },
+    {
+      "id": "A12",
+      "status": "BLOCKED",
+      "evidence": "覆盖批次未全部成功执行（未选择/未执行/验证器错误），不得推断产品失败。",
+      "batches": [
+        "ui"
+      ],
+      "reproduction": "python example/tool/run_matrix.py --only ui",
+      "pointers": []
+    },
+    {
+      "id": "A13",
+      "status": "BLOCKED",
+      "evidence": "覆盖批次未全部成功执行（未选择/未执行/验证器错误），不得推断产品失败。",
+      "batches": [
+        "widgets"
+      ],
+      "reproduction": "python example/tool/run_matrix.py --only widgets",
+      "pointers": []
+    },
+    {
+      "id": "A14",
+      "status": "BLOCKED",
+      "evidence": "覆盖批次未全部成功执行（未选择/未执行/验证器错误），不得推断产品失败。",
+      "batches": [
+        "widgets",
+        "ui"
+      ],
+      "reproduction": "python example/tool/run_matrix.py --only widgets,ui",
+      "pointers": []
+    },
+    {
+      "id": "A15",
+      "status": "BLOCKED",
+      "evidence": "覆盖批次未全部成功执行（未选择/未执行/验证器错误），不得推断产品失败。",
+      "batches": [
+        "widgets"
+      ],
+      "reproduction": "python example/tool/run_matrix.py --only widgets",
+      "pointers": []
+    },
+    {
+      "id": "A16",
+      "status": "BLOCKED",
+      "evidence": "覆盖批次未全部成功执行（未选择/未执行/验证器错误），不得推断产品失败。",
+      "batches": [
+        "widgets",
+        "ui"
+      ],
+      "reproduction": "python example/tool/run_matrix.py --only widgets,ui",
+      "pointers": []
+    },
+    {
+      "id": "A17",
+      "status": "BLOCKED",
+      "evidence": "覆盖批次未全部成功执行（未选择/未执行/验证器错误），不得推断产品失败。",
+      "batches": [
+        "followups",
+        "hls-native",
+        "final-hls"
+      ],
+      "reproduction": "python example/tool/run_matrix.py --only followups,hls-native,final-hls",
+      "pointers": []
+    },
+    {
+      "id": "A18",
+      "status": "BLOCKED",
+      "evidence": "覆盖批次未全部成功执行（未选择/未执行/验证器错误），不得推断产品失败。",
+      "batches": [
+        "gesture-pip"
+      ],
+      "reproduction": "python example/tool/run_matrix.py --only gesture-pip",
+      "pointers": []
+    },
+    {
+      "id": "A19",
+      "status": "BLOCKED",
+      "evidence": "缺少完整编号自动判据；现有子项结果需复核，不能复用旧 finalize 硬编码结论。",
+      "batches": [
+        "api"
+      ],
+      "reproduction": "python example/tool/run_matrix.py --only api",
+      "pointers": [
+        "E:\\workspaces\\dart-labs\\mova\\example\\tool\\coverage_evidence\\matrix-full-02\\matrix-full-02-api.driver.log"
+      ]
+    },
+    {
+      "id": "A20",
+      "status": "BLOCKED",
+      "evidence": "覆盖批次未全部成功执行（未选择/未执行/验证器错误），不得推断产品失败。",
+      "batches": [
+        "live-inputs"
+      ],
+      "reproduction": "python example/tool/run_matrix.py --only live-inputs",
+      "pointers": []
+    },
+    {
+      "id": "A21",
+      "status": "BLOCKED",
+      "evidence": "覆盖批次未全部成功执行（未选择/未执行/验证器错误），不得推断产品失败。",
+      "batches": [
+        "api",
+        "widgets",
+        "touch-preview"
+      ],
+      "reproduction": "python example/tool/run_matrix.py --only api,widgets,touch-preview",
+      "pointers": [
+        "E:\\workspaces\\dart-labs\\mova\\example\\tool\\coverage_evidence\\matrix-full-02\\matrix-full-02-api.driver.log"
+      ]
+    },
+    {
+      "id": "A22",
+      "status": "PASS",
+      "evidence": "复用 rerun_finalize 引用的两实现完整编号 CHECK：matrix-full-02-rerun-batch15-basic.json: {'ms': 10577, 'kind': 'CHECK', 'id': 'A22', 'pass': True, 'detail': '[pause:{}, sourceChange:{uri: http://127.0.0.1:18080/vod.mp4?t=1793237805837999}, play:{}, pause:{}, play:{}, pause:{}, seek:{targetMs: 5000}, seeked:{positionMs: 5000}, seek:{targetMs: 10000}, seeked:{positionMs: 10000}, seek:{targetMs: 15000}, seeked:{positionMs: 15000}, seek:{targetMs: 5000}, seeked:{positionMs: 5000}, seek:{targetMs: 10000}, seeked:{positionMs: 10000}, seek:{targetMs: 8000}, seeked:{positionMs: 8000}, seek:{targetMs: 0}, seeked:{positionMs: 0}, coverage:{probe: 42}, play:{probe: 43}]'}; matrix-full-02-rerun-batch15-basic-cutover.json: {'ms': 21565, 'kind': 'CHECK', 'id': 'A22', 'pass': True, 'detail': '[pause:{}, sourceChange:{uri: http://127.0.0.1:18080/vod.mp4?t=1793237816806376}, play:{}, pause:{}, play:{}, pause:{}, seek:{targetMs: 5000}, seeked:{positionMs: 5000}, seek:{targetMs: 10000}, seeked:{positionMs: 10000}, seek:{targetMs: 15000}, seeked:{positionMs: 15000}, seek:{targetMs: 5000}, seeked:{positionMs: 5000}, seek:{targetMs: 10000}, seeked:{positionMs: 10000}, seek:{targetMs: 8000}, seeked:{positionMs: 8000}, seek:{targetMs: 0}, seeked:{positionMs: 0}, coverage:{probe: 42}, play:{probe: 43}]'}",
+      "batches": [
+        "api"
+      ],
+      "reproduction": "python example/tool/run_matrix.py --only api",
+      "pointers": [
+        "E:\\workspaces\\dart-labs\\mova\\example\\tool\\coverage_evidence\\matrix-full-02\\matrix-full-02-api.driver.log"
+      ]
+    },
+    {
+      "id": "A23",
+      "status": "BLOCKED",
+      "evidence": "缺少完整编号自动判据；现有子项结果需复核，不能复用旧 finalize 硬编码结论。",
+      "batches": [
+        "api"
+      ],
+      "reproduction": "python example/tool/run_matrix.py --only api",
+      "pointers": [
+        "E:\\workspaces\\dart-labs\\mova\\example\\tool\\coverage_evidence\\matrix-full-02\\matrix-full-02-api.driver.log"
+      ]
+    },
+    {
+      "id": "A24",
+      "status": "BLOCKED",
+      "evidence": "覆盖批次未全部成功执行（未选择/未执行/验证器错误），不得推断产品失败。",
+      "batches": [
+        "api",
+        "existing-pages"
+      ],
+      "reproduction": "python example/tool/run_matrix.py --only api,existing-pages",
+      "pointers": [
+        "E:\\workspaces\\dart-labs\\mova\\example\\tool\\coverage_evidence\\matrix-full-02\\matrix-full-02-api.driver.log",
+        "E:\\workspaces\\dart-labs\\mova\\example\\tool\\coverage_evidence\\matrix-full-02\\matrix-full-02-existing-pages.driver.log"
+      ]
+    },
+    {
+      "id": "A25",
+      "status": "BLOCKED",
+      "evidence": "覆盖批次未全部成功执行（未选择/未执行/验证器错误），不得推断产品失败。",
+      "batches": [
+        "keepalive-core",
+        "existing-pages"
+      ],
+      "reproduction": "python example/tool/run_matrix.py --only keepalive-core,existing-pages",
+      "pointers": [
+        "E:\\workspaces\\dart-labs\\mova\\example\\tool\\coverage_evidence\\matrix-full-02\\matrix-full-02-existing-pages.driver.log"
+      ]
+    },
+    {
+      "id": "A26",
+      "status": "BLOCKED",
+      "evidence": "覆盖批次未全部成功执行（未选择/未执行/验证器错误），不得推断产品失败。",
+      "batches": [
+        "widgets",
+        "interactive",
+        "touch-mini"
+      ],
+      "reproduction": "python example/tool/run_matrix.py --only widgets,interactive,touch-mini",
+      "pointers": []
+    },
+    {
+      "id": "A27",
+      "status": "BLOCKED",
+      "evidence": "缺少完整编号自动判据；现有子项结果需复核，不能复用旧 finalize 硬编码结论。",
+      "batches": [
+        "api"
+      ],
+      "reproduction": "python example/tool/run_matrix.py --only api",
+      "pointers": [
+        "E:\\workspaces\\dart-labs\\mova\\example\\tool\\coverage_evidence\\matrix-full-02\\matrix-full-02-api.driver.log"
+      ]
+    },
+    {
+      "id": "A28",
+      "status": "BLOCKED",
+      "evidence": "覆盖批次未全部成功执行（未选择/未执行/验证器错误），不得推断产品失败。",
+      "batches": [
+        "api",
+        "extras"
+      ],
+      "reproduction": "python example/tool/run_matrix.py --only api,extras",
+      "pointers": [
+        "E:\\workspaces\\dart-labs\\mova\\example\\tool\\coverage_evidence\\matrix-full-02\\matrix-full-02-api.driver.log"
+      ]
+    },
+    {
+      "id": "A29",
+      "status": "BLOCKED",
+      "evidence": "覆盖批次未全部成功执行（未选择/未执行/验证器错误），不得推断产品失败。",
+      "batches": [
+        "api",
+        "interactive"
+      ],
+      "reproduction": "python example/tool/run_matrix.py --only api,interactive",
+      "pointers": [
+        "E:\\workspaces\\dart-labs\\mova\\example\\tool\\coverage_evidence\\matrix-full-02\\matrix-full-02-api.driver.log"
+      ]
+    },
+    {
+      "id": "A30",
+      "status": "BLOCKED",
+      "evidence": "覆盖批次未全部成功执行（未选择/未执行/验证器错误），不得推断产品失败。",
+      "batches": [
+        "api",
+        "extras",
+        "safe-transition"
+      ],
+      "reproduction": "python example/tool/run_matrix.py --only api,extras,safe-transition",
+      "pointers": [
+        "E:\\workspaces\\dart-labs\\mova\\example\\tool\\coverage_evidence\\matrix-full-02\\matrix-full-02-api.driver.log"
+      ]
+    },
+    {
+      "id": "A31",
+      "status": "BLOCKED",
+      "evidence": "缺真实 STT 模型/识别引擎和下载服务；失败回滚仅为子项。",
+      "batches": [],
+      "reproduction": "manual",
+      "pointers": []
+    },
+    {
+      "id": "A32",
+      "status": "BLOCKED",
+      "evidence": "缺少完整编号自动判据；现有子项结果需复核，不能复用旧 finalize 硬编码结论。",
+      "batches": [
+        "api"
+      ],
+      "reproduction": "python example/tool/run_matrix.py --only api",
+      "pointers": [
+        "E:\\workspaces\\dart-labs\\mova\\example\\tool\\coverage_evidence\\matrix-full-02\\matrix-full-02-api.driver.log"
+      ]
+    },
+    {
+      "id": "A33",
+      "status": "BLOCKED",
+      "evidence": "缺少完整编号自动判据；现有子项结果需复核，不能复用旧 finalize 硬编码结论。",
+      "batches": [
+        "api"
+      ],
+      "reproduction": "python example/tool/run_matrix.py --only api",
+      "pointers": [
+        "E:\\workspaces\\dart-labs\\mova\\example\\tool\\coverage_evidence\\matrix-full-02\\matrix-full-02-api.driver.log"
+      ]
+    },
+    {
+      "id": "C1",
+      "status": "BLOCKED",
+      "evidence": "覆盖批次未全部成功执行（未选择/未执行/验证器错误），不得推断产品失败。",
+      "batches": [
+        "api",
+        "extras",
+        "safe-transition"
+      ],
+      "reproduction": "python example/tool/run_matrix.py --only api,extras,safe-transition",
+      "pointers": [
+        "E:\\workspaces\\dart-labs\\mova\\example\\tool\\coverage_evidence\\matrix-full-02\\matrix-full-02-api.driver.log"
+      ]
+    },
+    {
+      "id": "C2",
+      "status": "BLOCKED",
+      "evidence": "缺按 behind 返回历史媒体的服务，滑动 HLS 不等于历史回看。",
+      "batches": [],
+      "reproduction": "manual",
+      "pointers": []
+    },
+    {
+      "id": "C3",
+      "status": "BLOCKED",
+      "evidence": "覆盖批次未全部成功执行（未选择/未执行/验证器错误），不得推断产品失败。",
+      "batches": [
+        "gesture-pip",
+        "interactive"
+      ],
+      "reproduction": "python example/tool/run_matrix.py --only gesture-pip,interactive",
+      "pointers": []
+    },
+    {
+      "id": "C4",
+      "status": "BLOCKED",
+      "evidence": "覆盖批次未全部成功执行（未选择/未执行/验证器错误），不得推断产品失败。",
+      "batches": [
+        "api",
+        "final-abr"
+      ],
+      "reproduction": "python example/tool/run_matrix.py --only api,final-abr",
+      "pointers": [
+        "E:\\workspaces\\dart-labs\\mova\\example\\tool\\coverage_evidence\\matrix-full-02\\matrix-full-02-api.driver.log"
+      ]
+    },
+    {
+      "id": "C5",
+      "status": "BLOCKED",
+      "evidence": "覆盖批次未全部成功执行（未选择/未执行/验证器错误），不得推断产品失败。",
+      "batches": [
+        "widgets",
+        "gesture-pip",
+        "safe-visual"
+      ],
+      "reproduction": "python example/tool/run_matrix.py --only widgets,gesture-pip,safe-visual",
+      "pointers": []
+    },
+    {
+      "id": "C6",
+      "status": "BLOCKED",
+      "evidence": "覆盖批次未全部成功执行（未选择/未执行/验证器错误），不得推断产品失败。",
+      "batches": [
+        "safe-visual"
+      ],
+      "reproduction": "python example/tool/run_matrix.py --only safe-visual",
+      "pointers": []
+    },
+    {
+      "id": "C7",
+      "status": "BLOCKED",
+      "evidence": "同 A31，缺真实识别及导出完整证据。",
+      "batches": [],
+      "reproduction": "manual",
+      "pointers": []
+    },
+    {
+      "id": "C8",
+      "status": "BLOCKED",
+      "evidence": "覆盖批次未全部成功执行（未选择/未执行/验证器错误），不得推断产品失败。",
+      "batches": [
+        "interactive",
+        "extras",
+        "safe-visual"
+      ],
+      "reproduction": "python example/tool/run_matrix.py --only interactive,extras,safe-visual",
+      "pointers": []
+    },
+    {
+      "id": "C9",
+      "status": "BLOCKED",
+      "evidence": "缺少完整编号自动判据；现有子项结果需复核，不能复用旧 finalize 硬编码结论。",
+      "batches": [
+        "api"
+      ],
+      "reproduction": "python example/tool/run_matrix.py --only api",
+      "pointers": [
+        "E:\\workspaces\\dart-labs\\mova\\example\\tool\\coverage_evidence\\matrix-full-02\\matrix-full-02-api.driver.log"
+      ]
+    },
+    {
+      "id": "C10",
+      "status": "BLOCKED",
+      "evidence": "覆盖批次未全部成功执行（未选择/未执行/验证器错误），不得推断产品失败。",
+      "batches": [
+        "widgets",
+        "safe-visual"
+      ],
+      "reproduction": "python example/tool/run_matrix.py --only widgets,safe-visual",
+      "pointers": []
+    },
+    {
+      "id": "C11",
+      "status": "BLOCKED",
+      "evidence": "覆盖批次未全部成功执行（未选择/未执行/验证器错误），不得推断产品失败。",
+      "batches": [
+        "api",
+        "existing-pages"
+      ],
+      "reproduction": "python example/tool/run_matrix.py --only api,existing-pages",
+      "pointers": [
+        "E:\\workspaces\\dart-labs\\mova\\example\\tool\\coverage_evidence\\matrix-full-02\\matrix-full-02-api.driver.log",
+        "E:\\workspaces\\dart-labs\\mova\\example\\tool\\coverage_evidence\\matrix-full-02\\matrix-full-02-existing-pages.driver.log"
+      ]
+    },
+    {
+      "id": "C12",
+      "status": "BLOCKED",
+      "evidence": "覆盖批次未全部成功执行（未选择/未执行/验证器错误），不得推断产品失败。",
+      "batches": [
+        "widgets",
+        "interactive",
+        "touch-mini"
+      ],
+      "reproduction": "python example/tool/run_matrix.py --only widgets,interactive,touch-mini",
+      "pointers": []
+    },
+    {
+      "id": "C13",
+      "status": "BLOCKED",
+      "evidence": "覆盖批次未全部成功执行（未选择/未执行/验证器错误），不得推断产品失败。",
+      "batches": [
+        "api",
+        "followups"
+      ],
+      "reproduction": "python example/tool/run_matrix.py --only api,followups",
+      "pointers": [
+        "E:\\workspaces\\dart-labs\\mova\\example\\tool\\coverage_evidence\\matrix-full-02\\matrix-full-02-api.driver.log"
+      ]
+    },
+    {
+      "id": "C14",
+      "status": "BLOCKED",
+      "evidence": "覆盖批次未全部成功执行（未选择/未执行/验证器错误），不得推断产品失败。",
+      "batches": [
+        "api",
+        "he-recovery",
+        "extras"
+      ],
+      "reproduction": "python example/tool/run_matrix.py --only api,he-recovery,extras",
+      "pointers": [
+        "E:\\workspaces\\dart-labs\\mova\\example\\tool\\coverage_evidence\\matrix-full-02\\matrix-full-02-api.driver.log"
+      ]
+    },
+    {
+      "id": "C15",
+      "status": "BLOCKED",
+      "evidence": "覆盖批次未全部成功执行（未选择/未执行/验证器错误），不得推断产品失败。",
+      "batches": [
+        "keepalive-core",
+        "existing-pages"
+      ],
+      "reproduction": "python example/tool/run_matrix.py --only keepalive-core,existing-pages",
+      "pointers": [
+        "E:\\workspaces\\dart-labs\\mova\\example\\tool\\coverage_evidence\\matrix-full-02\\matrix-full-02-existing-pages.driver.log"
+      ]
+    },
+    {
+      "id": "C16",
+      "status": "BLOCKED",
+      "evidence": "覆盖批次未全部成功执行（未选择/未执行/验证器错误），不得推断产品失败。",
+      "batches": [
+        "followups",
+        "final-tls",
+        "final-tls-probe"
+      ],
+      "reproduction": "python example/tool/run_matrix.py --only followups,final-tls,final-tls-probe",
+      "pointers": []
+    },
+    {
+      "id": "C17",
+      "status": "BLOCKED",
+      "evidence": "缺少完整编号自动判据；现有子项结果需复核，不能复用旧 finalize 硬编码结论。",
+      "batches": [
+        "api"
+      ],
+      "reproduction": "python example/tool/run_matrix.py --only api",
+      "pointers": [
+        "E:\\workspaces\\dart-labs\\mova\\example\\tool\\coverage_evidence\\matrix-full-02\\matrix-full-02-api.driver.log"
+      ]
+    },
+    {
+      "id": "E.MovaReady",
+      "status": "BLOCKED",
+      "evidence": "缺少完整编号自动判据；现有子项结果需复核，不能复用旧 finalize 硬编码结论。",
+      "batches": [
+        "api"
+      ],
+      "reproduction": "python example/tool/run_matrix.py --only api",
+      "pointers": [
+        "E:\\workspaces\\dart-labs\\mova\\example\\tool\\coverage_evidence\\matrix-full-02\\matrix-full-02-api.driver.log"
+      ]
+    },
+    {
+      "id": "E.MovaSourceChange",
+      "status": "BLOCKED",
+      "evidence": "缺少完整编号自动判据；现有子项结果需复核，不能复用旧 finalize 硬编码结论。",
+      "batches": [
+        "api"
+      ],
+      "reproduction": "python example/tool/run_matrix.py --only api",
+      "pointers": [
+        "E:\\workspaces\\dart-labs\\mova\\example\\tool\\coverage_evidence\\matrix-full-02\\matrix-full-02-api.driver.log"
+      ]
+    },
+    {
+      "id": "E.MovaPlay",
+      "status": "BLOCKED",
+      "evidence": "缺少完整编号自动判据；现有子项结果需复核，不能复用旧 finalize 硬编码结论。",
+      "batches": [
+        "api"
+      ],
+      "reproduction": "python example/tool/run_matrix.py --only api",
+      "pointers": [
+        "E:\\workspaces\\dart-labs\\mova\\example\\tool\\coverage_evidence\\matrix-full-02\\matrix-full-02-api.driver.log"
+      ]
+    },
+    {
+      "id": "E.MovaPause",
+      "status": "BLOCKED",
+      "evidence": "缺少完整编号自动判据；现有子项结果需复核，不能复用旧 finalize 硬编码结论。",
+      "batches": [
+        "api"
+      ],
+      "reproduction": "python example/tool/run_matrix.py --only api",
+      "pointers": [
+        "E:\\workspaces\\dart-labs\\mova\\example\\tool\\coverage_evidence\\matrix-full-02\\matrix-full-02-api.driver.log"
+      ]
+    },
+    {
+      "id": "E.MovaDone",
+      "status": "BLOCKED",
+      "evidence": "缺少完整编号自动判据；现有子项结果需复核，不能复用旧 finalize 硬编码结论。",
+      "batches": [
+        "api"
+      ],
+      "reproduction": "python example/tool/run_matrix.py --only api",
+      "pointers": [
+        "E:\\workspaces\\dart-labs\\mova\\example\\tool\\coverage_evidence\\matrix-full-02\\matrix-full-02-api.driver.log"
+      ]
+    },
+    {
+      "id": "E.MovaSeek",
+      "status": "BLOCKED",
+      "evidence": "缺少完整编号自动判据；现有子项结果需复核，不能复用旧 finalize 硬编码结论。",
+      "batches": [
+        "api"
+      ],
+      "reproduction": "python example/tool/run_matrix.py --only api",
+      "pointers": [
+        "E:\\workspaces\\dart-labs\\mova\\example\\tool\\coverage_evidence\\matrix-full-02\\matrix-full-02-api.driver.log"
+      ]
+    },
+    {
+      "id": "E.MovaSeeked",
+      "status": "BLOCKED",
+      "evidence": "缺少完整编号自动判据；现有子项结果需复核，不能复用旧 finalize 硬编码结论。",
+      "batches": [
+        "api"
+      ],
+      "reproduction": "python example/tool/run_matrix.py --only api",
+      "pointers": [
+        "E:\\workspaces\\dart-labs\\mova\\example\\tool\\coverage_evidence\\matrix-full-02\\matrix-full-02-api.driver.log"
+      ]
+    },
+    {
+      "id": "E.MovaBufferChange",
+      "status": "BLOCKED",
+      "evidence": "缺少完整编号自动判据；现有子项结果需复核，不能复用旧 finalize 硬编码结论。",
+      "batches": [
+        "api"
+      ],
+      "reproduction": "python example/tool/run_matrix.py --only api",
+      "pointers": [
+        "E:\\workspaces\\dart-labs\\mova\\example\\tool\\coverage_evidence\\matrix-full-02\\matrix-full-02-api.driver.log"
+      ]
+    },
+    {
+      "id": "E.MovaDurationChange",
+      "status": "BLOCKED",
+      "evidence": "缺少完整编号自动判据；现有子项结果需复核，不能复用旧 finalize 硬编码结论。",
+      "batches": [
+        "api"
+      ],
+      "reproduction": "python example/tool/run_matrix.py --only api",
+      "pointers": [
+        "E:\\workspaces\\dart-labs\\mova\\example\\tool\\coverage_evidence\\matrix-full-02\\matrix-full-02-api.driver.log"
+      ]
+    },
+    {
+      "id": "E.MovaFirstFrame",
+      "status": "BLOCKED",
+      "evidence": "覆盖批次未全部成功执行（未选择/未执行/验证器错误），不得推断产品失败。",
+      "batches": [
+        "he-firstframe"
+      ],
+      "reproduction": "python example/tool/run_matrix.py --only he-firstframe",
+      "pointers": []
+    },
+    {
+      "id": "E.MovaSizeChange",
+      "status": "BLOCKED",
+      "evidence": "覆盖批次未全部成功执行（未选择/未执行/验证器错误），不得推断产品失败。",
+      "batches": [
+        "widgets"
+      ],
+      "reproduction": "python example/tool/run_matrix.py --only widgets",
+      "pointers": []
+    },
+    {
+      "id": "E.MovaVolumeChange",
+      "status": "BLOCKED",
+      "evidence": "缺少完整编号自动判据；现有子项结果需复核，不能复用旧 finalize 硬编码结论。",
+      "batches": [
+        "api"
+      ],
+      "reproduction": "python example/tool/run_matrix.py --only api",
+      "pointers": [
+        "E:\\workspaces\\dart-labs\\mova\\example\\tool\\coverage_evidence\\matrix-full-02\\matrix-full-02-api.driver.log"
+      ]
+    },
+    {
+      "id": "E.MovaBrightChange",
+      "status": "BLOCKED",
+      "evidence": "缺少完整编号自动判据；现有子项结果需复核，不能复用旧 finalize 硬编码结论。",
+      "batches": [
+        "api"
+      ],
+      "reproduction": "python example/tool/run_matrix.py --only api",
+      "pointers": [
+        "E:\\workspaces\\dart-labs\\mova\\example\\tool\\coverage_evidence\\matrix-full-02\\matrix-full-02-api.driver.log"
+      ]
+    },
+    {
+      "id": "E.MovaRateChange",
+      "status": "BLOCKED",
+      "evidence": "缺少完整编号自动判据；现有子项结果需复核，不能复用旧 finalize 硬编码结论。",
+      "batches": [
+        "api"
+      ],
+      "reproduction": "python example/tool/run_matrix.py --only api",
+      "pointers": [
+        "E:\\workspaces\\dart-labs\\mova\\example\\tool\\coverage_evidence\\matrix-full-02\\matrix-full-02-api.driver.log"
+      ]
+    },
+    {
+      "id": "E.MovaQualityListChange",
+      "status": "BLOCKED",
+      "evidence": "覆盖批次未全部成功执行（未选择/未执行/验证器错误），不得推断产品失败。",
+      "batches": [
+        "hls-native"
+      ],
+      "reproduction": "python example/tool/run_matrix.py --only hls-native",
+      "pointers": []
+    },
+    {
+      "id": "E.MovaQualityChange",
+      "status": "BLOCKED",
+      "evidence": "覆盖批次未全部成功执行（未选择/未执行/验证器错误），不得推断产品失败。",
+      "batches": [
+        "hls-native"
+      ],
+      "reproduction": "python example/tool/run_matrix.py --only hls-native",
+      "pointers": []
+    },
+    {
+      "id": "E.MovaAbrDownShift",
+      "status": "BLOCKED",
+      "evidence": "覆盖批次未全部成功执行（未选择/未执行/验证器错误），不得推断产品失败。",
+      "batches": [
+        "final-abr"
+      ],
+      "reproduction": "python example/tool/run_matrix.py --only final-abr",
+      "pointers": []
+    },
+    {
+      "id": "E.MovaFitChange",
+      "status": "BLOCKED",
+      "evidence": "覆盖批次未全部成功执行（未选择/未执行/验证器错误），不得推断产品失败。",
+      "batches": [
+        "widgets"
+      ],
+      "reproduction": "python example/tool/run_matrix.py --only widgets",
+      "pointers": []
+    },
+    {
+      "id": "E.MovaZoomChange",
+      "status": "BLOCKED",
+      "evidence": "覆盖批次未全部成功执行（未选择/未执行/验证器错误），不得推断产品失败。",
+      "batches": [
+        "ui"
+      ],
+      "reproduction": "python example/tool/run_matrix.py --only ui",
+      "pointers": []
+    },
+    {
+      "id": "E.MovaLockChange",
+      "status": "BLOCKED",
+      "evidence": "覆盖批次未全部成功执行（未选择/未执行/验证器错误），不得推断产品失败。",
+      "batches": [
+        "widgets"
+      ],
+      "reproduction": "python example/tool/run_matrix.py --only widgets",
+      "pointers": []
+    },
+    {
+      "id": "E.MovaFullScreenChange",
+      "status": "BLOCKED",
+      "evidence": "覆盖批次未全部成功执行（未选择/未执行/验证器错误），不得推断产品失败。",
+      "batches": [
+        "widgets"
+      ],
+      "reproduction": "python example/tool/run_matrix.py --only widgets",
+      "pointers": []
+    },
+    {
+      "id": "E.MovaOrientationChange",
+      "status": "BLOCKED",
+      "evidence": "覆盖批次未全部成功执行（未选择/未执行/验证器错误），不得推断产品失败。",
+      "batches": [
+        "widgets"
+      ],
+      "reproduction": "python example/tool/run_matrix.py --only widgets",
+      "pointers": []
+    },
+    {
+      "id": "E.MovaPipChange",
+      "status": "BLOCKED",
+      "evidence": "覆盖批次未全部成功执行（未选择/未执行/验证器错误），不得推断产品失败。",
+      "batches": [
+        "gesture-pip"
+      ],
+      "reproduction": "python example/tool/run_matrix.py --only gesture-pip",
+      "pointers": []
+    },
+    {
+      "id": "E.MovaMiniChange",
+      "status": "BLOCKED",
+      "evidence": "覆盖批次未全部成功执行（未选择/未执行/验证器错误），不得推断产品失败。",
+      "batches": [
+        "widgets"
+      ],
+      "reproduction": "python example/tool/run_matrix.py --only widgets",
+      "pointers": []
+    },
+    {
+      "id": "E.MovaTimeShiftChange",
+      "status": "BLOCKED",
+      "evidence": "覆盖批次未全部成功执行（未选择/未执行/验证器错误），不得推断产品失败。",
+      "batches": [
+        "live-inputs"
+      ],
+      "reproduction": "python example/tool/run_matrix.py --only live-inputs",
+      "pointers": []
+    },
+    {
+      "id": "E.MovaLiveEdgeReach",
+      "status": "BLOCKED",
+      "evidence": "覆盖批次未全部成功执行（未选择/未执行/验证器错误），不得推断产品失败。",
+      "batches": [
+        "live-inputs"
+      ],
+      "reproduction": "python example/tool/run_matrix.py --only live-inputs",
+      "pointers": []
+    },
+    {
+      "id": "E.MovaPreviewBlock",
+      "status": "BLOCKED",
+      "evidence": "缺少完整编号自动判据；现有子项结果需复核，不能复用旧 finalize 硬编码结论。",
+      "batches": [
+        "api"
+      ],
+      "reproduction": "python example/tool/run_matrix.py --only api",
+      "pointers": [
+        "E:\\workspaces\\dart-labs\\mova\\example\\tool\\coverage_evidence\\matrix-full-02\\matrix-full-02-api.driver.log"
+      ]
+    },
+    {
+      "id": "E.MovaSttBlock",
+      "status": "BLOCKED",
+      "evidence": "缺少完整编号自动判据；现有子项结果需复核，不能复用旧 finalize 硬编码结论。",
+      "batches": [
+        "api"
+      ],
+      "reproduction": "python example/tool/run_matrix.py --only api",
+      "pointers": [
+        "E:\\workspaces\\dart-labs\\mova\\example\\tool\\coverage_evidence\\matrix-full-02\\matrix-full-02-api.driver.log"
+      ]
+    },
+    {
+      "id": "E.MovaSwapChange",
+      "status": "BLOCKED",
+      "evidence": "覆盖批次未全部成功执行（未选择/未执行/验证器错误），不得推断产品失败。",
+      "batches": [
+        "existing-pages"
+      ],
+      "reproduction": "python example/tool/run_matrix.py --only existing-pages",
+      "pointers": [
+        "E:\\workspaces\\dart-labs\\mova\\example\\tool\\coverage_evidence\\matrix-full-02\\matrix-full-02-existing-pages.driver.log"
+      ]
+    },
+    {
+      "id": "E.MovaErrorEvent",
+      "status": "BLOCKED",
+      "evidence": "缺少完整编号自动判据；现有子项结果需复核，不能复用旧 finalize 硬编码结论。",
+      "batches": [
+        "api"
+      ],
+      "reproduction": "python example/tool/run_matrix.py --only api",
+      "pointers": [
+        "E:\\workspaces\\dart-labs\\mova\\example\\tool\\coverage_evidence\\matrix-full-02\\matrix-full-02-api.driver.log"
+      ]
+    },
+    {
+      "id": "E.MovaPlayFailure",
+      "status": "BLOCKED",
+      "evidence": "覆盖批次未全部成功执行（未选择/未执行/验证器错误），不得推断产品失败。",
+      "batches": [
+        "he-recovery"
+      ],
+      "reproduction": "python example/tool/run_matrix.py --only he-recovery",
+      "pointers": []
+    },
+    {
+      "id": "E.MovaRecovered",
+      "status": "BLOCKED",
+      "evidence": "覆盖批次未全部成功执行（未选择/未执行/验证器错误），不得推断产品失败。",
+      "batches": [
+        "he-recovery"
+      ],
+      "reproduction": "python example/tool/run_matrix.py --only he-recovery",
+      "pointers": []
+    },
+    {
+      "id": "E.MovaFailover",
+      "status": "BLOCKED",
+      "evidence": "覆盖批次未全部成功执行（未选择/未执行/验证器错误），不得推断产品失败。",
+      "batches": [
+        "extras"
+      ],
+      "reproduction": "python example/tool/run_matrix.py --only extras",
+      "pointers": []
+    },
+    {
+      "id": "E.MovaStandbyChange",
+      "status": "BLOCKED",
+      "evidence": "覆盖批次未全部成功执行（未选择/未执行/验证器错误），不得推断产品失败。",
+      "batches": [
+        "keepalive-core"
+      ],
+      "reproduction": "python example/tool/run_matrix.py --only keepalive-core",
+      "pointers": []
+    },
+    {
+      "id": "E.MovaStandbyResume",
+      "status": "BLOCKED",
+      "evidence": "覆盖批次未全部成功执行（未选择/未执行/验证器错误），不得推断产品失败。",
+      "batches": [
+        "keepalive-core"
+      ],
+      "reproduction": "python example/tool/run_matrix.py --only keepalive-core",
+      "pointers": []
+    },
+    {
+      "id": "E1",
+      "status": "BLOCKED",
+      "evidence": "缺少完整编号自动判据；现有子项结果需复核，不能复用旧 finalize 硬编码结论。",
+      "batches": [
+        "api"
+      ],
+      "reproduction": "python example/tool/run_matrix.py --only api",
+      "pointers": [
+        "E:\\workspaces\\dart-labs\\mova\\example\\tool\\coverage_evidence\\matrix-full-02\\matrix-full-02-api.driver.log"
+      ]
+    },
+    {
+      "id": "E2",
+      "status": "BLOCKED",
+      "evidence": "缺少完整编号自动判据；现有子项结果需复核，不能复用旧 finalize 硬编码结论。",
+      "batches": [
+        "api"
+      ],
+      "reproduction": "python example/tool/run_matrix.py --only api",
+      "pointers": [
+        "E:\\workspaces\\dart-labs\\mova\\example\\tool\\coverage_evidence\\matrix-full-02\\matrix-full-02-api.driver.log"
+      ]
+    },
+    {
+      "id": "U1",
+      "status": "BLOCKED",
+      "evidence": "覆盖批次未全部成功执行（未选择/未执行/验证器错误），不得推断产品失败。",
+      "batches": [
+        "widgets",
+        "safe-visual"
+      ],
+      "reproduction": "python example/tool/run_matrix.py --only widgets,safe-visual",
+      "pointers": []
+    },
+    {
+      "id": "U2",
+      "status": "BLOCKED",
+      "evidence": "覆盖批次未全部成功执行（未选择/未执行/验证器错误），不得推断产品失败。",
+      "batches": [
+        "widgets",
+        "safe-visual"
+      ],
+      "reproduction": "python example/tool/run_matrix.py --only widgets,safe-visual",
+      "pointers": []
+    },
+    {
+      "id": "U3",
+      "status": "BLOCKED",
+      "evidence": "覆盖批次未全部成功执行（未选择/未执行/验证器错误），不得推断产品失败。",
+      "batches": [
+        "safe-visual"
+      ],
+      "reproduction": "python example/tool/run_matrix.py --only safe-visual",
+      "pointers": []
+    },
+    {
+      "id": "U4",
+      "status": "BLOCKED",
+      "evidence": "覆盖批次未全部成功执行（未选择/未执行/验证器错误），不得推断产品失败。",
+      "batches": [
+        "touch-preview"
+      ],
+      "reproduction": "python example/tool/run_matrix.py --only touch-preview",
+      "pointers": []
+    },
+    {
+      "id": "U5",
+      "status": "BLOCKED",
+      "evidence": "覆盖批次未全部成功执行（未选择/未执行/验证器错误），不得推断产品失败。",
+      "batches": [
+        "safe-visual"
+      ],
+      "reproduction": "python example/tool/run_matrix.py --only safe-visual",
+      "pointers": []
+    },
+    {
+      "id": "U6",
+      "status": "BLOCKED",
+      "evidence": "覆盖批次未全部成功执行（未选择/未执行/验证器错误），不得推断产品失败。",
+      "batches": [
+        "gesture-pip",
+        "interactive"
+      ],
+      "reproduction": "python example/tool/run_matrix.py --only gesture-pip,interactive",
+      "pointers": []
+    },
+    {
+      "id": "U7",
+      "status": "BLOCKED",
+      "evidence": "覆盖批次未全部成功执行（未选择/未执行/验证器错误），不得推断产品失败。",
+      "batches": [
+        "safe-visual"
+      ],
+      "reproduction": "python example/tool/run_matrix.py --only safe-visual",
+      "pointers": []
+    },
+    {
+      "id": "U8",
+      "status": "BLOCKED",
+      "evidence": "覆盖批次未全部成功执行（未选择/未执行/验证器错误），不得推断产品失败。",
+      "batches": [
+        "widgets",
+        "interactive",
+        "touch-mini"
+      ],
+      "reproduction": "python example/tool/run_matrix.py --only widgets,interactive,touch-mini",
+      "pointers": []
+    },
+    {
+      "id": "U9",
+      "status": "BLOCKED",
+      "evidence": "覆盖批次未全部成功执行（未选择/未执行/验证器错误），不得推断产品失败。",
+      "batches": [
+        "he-recovery",
+        "widgets",
+        "interactive"
+      ],
+      "reproduction": "python example/tool/run_matrix.py --only he-recovery,widgets,interactive",
+      "pointers": []
+    },
+    {
+      "id": "F1",
+      "status": "BLOCKED",
+      "evidence": "缺少完整编号自动判据；现有子项结果需复核，不能复用旧 finalize 硬编码结论。",
+      "batches": [
+        "api"
+      ],
+      "reproduction": "python example/tool/run_matrix.py --only api",
+      "pointers": [
+        "E:\\workspaces\\dart-labs\\mova\\example\\tool\\coverage_evidence\\matrix-full-02\\matrix-full-02-api.driver.log"
+      ]
+    },
+    {
+      "id": "F2",
+      "status": "BLOCKED",
+      "evidence": "覆盖批次未全部成功执行（未选择/未执行/验证器错误），不得推断产品失败。",
+      "batches": [
+        "live-inputs"
+      ],
+      "reproduction": "python example/tool/run_matrix.py --only live-inputs",
+      "pointers": []
+    },
+    {
+      "id": "F3",
+      "status": "BLOCKED",
+      "evidence": "覆盖批次未全部成功执行（未选择/未执行/验证器错误），不得推断产品失败。",
+      "batches": [
+        "followups",
+        "hls-native",
+        "final-hls"
+      ],
+      "reproduction": "python example/tool/run_matrix.py --only followups,hls-native,final-hls",
+      "pointers": []
+    },
+    {
+      "id": "F4",
+      "status": "BLOCKED",
+      "evidence": "覆盖批次未全部成功执行（未选择/未执行/验证器错误），不得推断产品失败。",
+      "batches": [
+        "api",
+        "existing-pages"
+      ],
+      "reproduction": "python example/tool/run_matrix.py --only api,existing-pages",
+      "pointers": [
+        "E:\\workspaces\\dart-labs\\mova\\example\\tool\\coverage_evidence\\matrix-full-02\\matrix-full-02-api.driver.log",
+        "E:\\workspaces\\dart-labs\\mova\\example\\tool\\coverage_evidence\\matrix-full-02\\matrix-full-02-existing-pages.driver.log"
+      ]
+    },
+    {
+      "id": "F5",
+      "status": "BLOCKED",
+      "evidence": "覆盖批次未全部成功执行（未选择/未执行/验证器错误），不得推断产品失败。",
+      "batches": [
+        "gesture-pip"
+      ],
+      "reproduction": "python example/tool/run_matrix.py --only gesture-pip",
+      "pointers": []
+    },
+    {
+      "id": "F6",
+      "status": "BLOCKED",
+      "evidence": "覆盖批次未全部成功执行（未选择/未执行/验证器错误），不得推断产品失败。",
+      "batches": [
+        "keepalive-core",
+        "existing-pages"
+      ],
+      "reproduction": "python example/tool/run_matrix.py --only keepalive-core,existing-pages",
+      "pointers": [
+        "E:\\workspaces\\dart-labs\\mova\\example\\tool\\coverage_evidence\\matrix-full-02\\matrix-full-02-existing-pages.driver.log"
+      ]
+    },
+    {
+      "id": "F7",
+      "status": "BLOCKED",
+      "evidence": "覆盖批次未全部成功执行（未选择/未执行/验证器错误），不得推断产品失败。",
+      "batches": [
+        "api",
+        "followups"
+      ],
+      "reproduction": "python example/tool/run_matrix.py --only api,followups",
+      "pointers": [
+        "E:\\workspaces\\dart-labs\\mova\\example\\tool\\coverage_evidence\\matrix-full-02\\matrix-full-02-api.driver.log"
+      ]
+    },
+    {
+      "id": "F8",
+      "status": "BLOCKED",
+      "evidence": "覆盖批次未全部成功执行（未选择/未执行/验证器错误），不得推断产品失败。",
+      "batches": [
+        "he-recovery",
+        "extras",
+        "he-v6-final"
+      ],
+      "reproduction": "python example/tool/run_matrix.py --only he-recovery,extras,he-v6-final",
+      "pointers": []
+    },
+    {
+      "id": "F9",
+      "status": "BLOCKED",
+      "evidence": "覆盖批次未全部成功执行（未选择/未执行/验证器错误），不得推断产品失败。",
+      "batches": [
+        "api",
+        "widgets"
+      ],
+      "reproduction": "python example/tool/run_matrix.py --only api,widgets",
+      "pointers": [
+        "E:\\workspaces\\dart-labs\\mova\\example\\tool\\coverage_evidence\\matrix-full-02\\matrix-full-02-api.driver.log"
+      ]
+    },
+    {
+      "id": "F10",
+      "status": "BLOCKED",
+      "evidence": "覆盖批次未全部成功执行（未选择/未执行/验证器错误），不得推断产品失败。",
+      "batches": [
+        "api",
+        "extras"
+      ],
+      "reproduction": "python example/tool/run_matrix.py --only api,extras",
+      "pointers": [
+        "E:\\workspaces\\dart-labs\\mova\\example\\tool\\coverage_evidence\\matrix-full-02\\matrix-full-02-api.driver.log"
+      ]
+    },
+    {
+      "id": "F11",
+      "status": "BLOCKED",
+      "evidence": "覆盖批次未全部成功执行（未选择/未执行/验证器错误），不得推断产品失败。",
+      "batches": [
+        "existing-pages",
+        "extras"
+      ],
+      "reproduction": "python example/tool/run_matrix.py --only existing-pages,extras",
+      "pointers": [
+        "E:\\workspaces\\dart-labs\\mova\\example\\tool\\coverage_evidence\\matrix-full-02\\matrix-full-02-existing-pages.driver.log"
+      ]
+    },
+    {
+      "id": "F12",
+      "status": "BLOCKED",
+      "evidence": "覆盖批次未全部成功执行（未选择/未执行/验证器错误），不得推断产品失败。",
+      "batches": [
+        "existing-pages"
+      ],
+      "reproduction": "python example/tool/run_matrix.py --only existing-pages",
+      "pointers": [
+        "E:\\workspaces\\dart-labs\\mova\\example\\tool\\coverage_evidence\\matrix-full-02\\matrix-full-02-existing-pages.driver.log"
+      ]
+    },
+    {
+      "id": "F13",
+      "status": "BLOCKED",
+      "evidence": "缺少完整编号自动判据；现有子项结果需复核，不能复用旧 finalize 硬编码结论。",
+      "batches": [
+        "api"
+      ],
+      "reproduction": "python example/tool/run_matrix.py --only api",
+      "pointers": [
+        "E:\\workspaces\\dart-labs\\mova\\example\\tool\\coverage_evidence\\matrix-full-02\\matrix-full-02-api.driver.log"
+      ]
+    },
+    {
+      "id": "F14",
+      "status": "BLOCKED",
+      "evidence": "覆盖批次未全部成功执行（未选择/未执行/验证器错误），不得推断产品失败。",
+      "batches": [
+        "existing-pages"
+      ],
+      "reproduction": "python example/tool/run_matrix.py --only existing-pages",
+      "pointers": [
+        "E:\\workspaces\\dart-labs\\mova\\example\\tool\\coverage_evidence\\matrix-full-02\\matrix-full-02-existing-pages.driver.log"
+      ]
+    },
+    {
+      "id": "F15",
+      "status": "BLOCKED",
+      "evidence": "缺可控 WHEP 服务；端口可达不证明播放。",
+      "batches": [],
+      "reproduction": "manual",
+      "pointers": []
+    },
+    {
+      "id": "F16",
+      "status": "BLOCKED",
+      "evidence": "覆盖批次未全部成功执行（未选择/未执行/验证器错误），不得推断产品失败。",
+      "batches": [
+        "existing-pages",
+        "gesture-pip"
+      ],
+      "reproduction": "python example/tool/run_matrix.py --only existing-pages,gesture-pip",
+      "pointers": [
+        "E:\\workspaces\\dart-labs\\mova\\example\\tool\\coverage_evidence\\matrix-full-02\\matrix-full-02-existing-pages.driver.log"
+      ]
+    },
+    {
+      "id": "N1",
+      "status": "BLOCKED",
+      "evidence": "缺少完整编号自动判据；现有子项结果需复核，不能复用旧 finalize 硬编码结论。",
+      "batches": [
+        "api"
+      ],
+      "reproduction": "python example/tool/run_matrix.py --only api",
+      "pointers": [
+        "E:\\workspaces\\dart-labs\\mova\\example\\tool\\coverage_evidence\\matrix-full-02\\matrix-full-02-api.driver.log"
+      ]
+    },
+    {
+      "id": "N2",
+      "status": "BLOCKED",
+      "evidence": "缺少完整编号自动判据；现有子项结果需复核，不能复用旧 finalize 硬编码结论。",
+      "batches": [
+        "api"
+      ],
+      "reproduction": "python example/tool/run_matrix.py --only api",
+      "pointers": [
+        "E:\\workspaces\\dart-labs\\mova\\example\\tool\\coverage_evidence\\matrix-full-02\\matrix-full-02-api.driver.log"
+      ]
+    },
+    {
+      "id": "N3",
+      "status": "BLOCKED",
+      "evidence": "缺少完整编号自动判据；现有子项结果需复核，不能复用旧 finalize 硬编码结论。",
+      "batches": [
+        "api"
+      ],
+      "reproduction": "python example/tool/run_matrix.py --only api",
+      "pointers": [
+        "E:\\workspaces\\dart-labs\\mova\\example\\tool\\coverage_evidence\\matrix-full-02\\matrix-full-02-api.driver.log"
+      ]
+    },
+    {
+      "id": "N4",
+      "status": "BLOCKED",
+      "evidence": "缺少完整编号自动判据；现有子项结果需复核，不能复用旧 finalize 硬编码结论。",
+      "batches": [
+        "api"
+      ],
+      "reproduction": "python example/tool/run_matrix.py --only api",
+      "pointers": [
+        "E:\\workspaces\\dart-labs\\mova\\example\\tool\\coverage_evidence\\matrix-full-02\\matrix-full-02-api.driver.log"
+      ]
+    },
+    {
+      "id": "N5",
+      "status": "BLOCKED",
+      "evidence": "缺少完整编号自动判据；现有子项结果需复核，不能复用旧 finalize 硬编码结论。",
+      "batches": [
+        "api"
+      ],
+      "reproduction": "python example/tool/run_matrix.py --only api",
+      "pointers": [
+        "E:\\workspaces\\dart-labs\\mova\\example\\tool\\coverage_evidence\\matrix-full-02\\matrix-full-02-api.driver.log"
+      ]
+    },
+    {
+      "id": "N6",
+      "status": "BLOCKED",
+      "evidence": "覆盖批次未全部成功执行（未选择/未执行/验证器错误），不得推断产品失败。",
+      "batches": [
+        "api",
+        "extras"
+      ],
+      "reproduction": "python example/tool/run_matrix.py --only api,extras",
+      "pointers": [
+        "E:\\workspaces\\dart-labs\\mova\\example\\tool\\coverage_evidence\\matrix-full-02\\matrix-full-02-api.driver.log"
+      ]
+    },
+    {
+      "id": "N7",
+      "status": "BLOCKED",
+      "evidence": "缺少完整编号自动判据；现有子项结果需复核，不能复用旧 finalize 硬编码结论。",
+      "batches": [
+        "api"
+      ],
+      "reproduction": "python example/tool/run_matrix.py --only api",
+      "pointers": [
+        "E:\\workspaces\\dart-labs\\mova\\example\\tool\\coverage_evidence\\matrix-full-02\\matrix-full-02-api.driver.log"
+      ]
+    },
+    {
+      "id": "N8",
+      "status": "BLOCKED",
+      "evidence": "覆盖批次未全部成功执行（未选择/未执行/验证器错误），不得推断产品失败。",
+      "batches": [
+        "api",
+        "extras"
+      ],
+      "reproduction": "python example/tool/run_matrix.py --only api,extras",
+      "pointers": [
+        "E:\\workspaces\\dart-labs\\mova\\example\\tool\\coverage_evidence\\matrix-full-02\\matrix-full-02-api.driver.log"
+      ]
+    },
+    {
+      "id": "N9",
+      "status": "BLOCKED",
+      "evidence": "覆盖批次未全部成功执行（未选择/未执行/验证器错误），不得推断产品失败。",
+      "batches": [
+        "gesture-pip"
+      ],
+      "reproduction": "python example/tool/run_matrix.py --only gesture-pip",
+      "pointers": []
+    },
+    {
+      "id": "N10",
+      "status": "BLOCKED",
+      "evidence": "覆盖批次未全部成功执行（未选择/未执行/验证器错误），不得推断产品失败。",
+      "batches": [
+        "api",
+        "existing-pages"
+      ],
+      "reproduction": "python example/tool/run_matrix.py --only api,existing-pages",
+      "pointers": [
+        "E:\\workspaces\\dart-labs\\mova\\example\\tool\\coverage_evidence\\matrix-full-02\\matrix-full-02-api.driver.log",
+        "E:\\workspaces\\dart-labs\\mova\\example\\tool\\coverage_evidence\\matrix-full-02\\matrix-full-02-existing-pages.driver.log"
+      ]
+    },
+    {
+      "id": "N11",
+      "status": "BLOCKED",
+      "evidence": "覆盖批次未全部成功执行（未选择/未执行/验证器错误），不得推断产品失败。",
+      "batches": [
+        "existing-pages"
+      ],
+      "reproduction": "python example/tool/run_matrix.py --only existing-pages",
+      "pointers": [
+        "E:\\workspaces\\dart-labs\\mova\\example\\tool\\coverage_evidence\\matrix-full-02\\matrix-full-02-existing-pages.driver.log"
+      ]
+    },
+    {
+      "id": "N12",
+      "status": "BLOCKED",
+      "evidence": "覆盖批次未全部成功执行（未选择/未执行/验证器错误），不得推断产品失败。",
+      "batches": [
+        "api",
+        "he-firstframe",
+        "native-inputs"
+      ],
+      "reproduction": "python example/tool/run_matrix.py --only api,he-firstframe,native-inputs",
+      "pointers": [
+        "E:\\workspaces\\dart-labs\\mova\\example\\tool\\coverage_evidence\\matrix-full-02\\matrix-full-02-api.driver.log"
+      ]
+    },
+    {
+      "id": "N13",
+      "status": "BLOCKED",
+      "evidence": "覆盖批次未全部成功执行（未选择/未执行/验证器错误），不得推断产品失败。",
+      "batches": [
+        "api",
+        "he-firstframe",
+        "existing-pages"
+      ],
+      "reproduction": "python example/tool/run_matrix.py --only api,he-firstframe,existing-pages",
+      "pointers": [
+        "E:\\workspaces\\dart-labs\\mova\\example\\tool\\coverage_evidence\\matrix-full-02\\matrix-full-02-api.driver.log",
+        "E:\\workspaces\\dart-labs\\mova\\example\\tool\\coverage_evidence\\matrix-full-02\\matrix-full-02-existing-pages.driver.log"
+      ]
+    },
+    {
+      "id": "N14",
+      "status": "BLOCKED",
+      "evidence": "覆盖批次未全部成功执行（未选择/未执行/验证器错误），不得推断产品失败。",
+      "batches": [
+        "widgets"
+      ],
+      "reproduction": "python example/tool/run_matrix.py --only widgets",
+      "pointers": []
+    },
+    {
+      "id": "N15",
+      "status": "BLOCKED",
+      "evidence": "覆盖批次未全部成功执行（未选择/未执行/验证器错误），不得推断产品失败。",
+      "batches": [
+        "safe-visual",
+        "safe-transition"
+      ],
+      "reproduction": "python example/tool/run_matrix.py --only safe-visual,safe-transition",
+      "pointers": []
+    },
+    {
+      "id": "N16",
+      "status": "BLOCKED",
+      "evidence": "覆盖批次未全部成功执行（未选择/未执行/验证器错误），不得推断产品失败。",
+      "batches": [
+        "widgets",
+        "safe-visual"
+      ],
+      "reproduction": "python example/tool/run_matrix.py --only widgets,safe-visual",
+      "pointers": []
+    },
+    {
+      "id": "N17",
+      "status": "BLOCKED",
+      "evidence": "覆盖批次未全部成功执行（未选择/未执行/验证器错误），不得推断产品失败。",
+      "batches": [
+        "widgets"
+      ],
+      "reproduction": "python example/tool/run_matrix.py --only widgets",
+      "pointers": []
+    },
+    {
+      "id": "N18",
+      "status": "BLOCKED",
+      "evidence": "完整 mini/guard-off 联动需专用包和复核，主包不足。",
+      "batches": [],
+      "reproduction": "manual",
+      "pointers": []
+    },
+    {
+      "id": "N19",
+      "status": "BLOCKED",
+      "evidence": "覆盖批次未全部成功执行（未选择/未执行/验证器错误），不得推断产品失败。",
+      "batches": [
+        "api",
+        "he-recovery",
+        "extras",
+        "he-v6-final"
+      ],
+      "reproduction": "python example/tool/run_matrix.py --only api,he-recovery,extras,he-v6-final",
+      "pointers": [
+        "E:\\workspaces\\dart-labs\\mova\\example\\tool\\coverage_evidence\\matrix-full-02\\matrix-full-02-api.driver.log"
+      ]
+    },
+    {
+      "id": "N20",
+      "status": "BLOCKED",
+      "evidence": "覆盖批次未全部成功执行（未选择/未执行/验证器错误），不得推断产品失败。",
+      "batches": [
+        "keepalive-core",
+        "existing-pages"
+      ],
+      "reproduction": "python example/tool/run_matrix.py --only keepalive-core,existing-pages",
+      "pointers": [
+        "E:\\workspaces\\dart-labs\\mova\\example\\tool\\coverage_evidence\\matrix-full-02\\matrix-full-02-existing-pages.driver.log"
+      ]
+    },
+    {
+      "id": "N21",
+      "status": "BLOCKED",
+      "evidence": "覆盖批次未全部成功执行（未选择/未执行/验证器错误），不得推断产品失败。",
+      "batches": [
+        "api",
+        "widgets"
+      ],
+      "reproduction": "python example/tool/run_matrix.py --only api,widgets",
+      "pointers": [
+        "E:\\workspaces\\dart-labs\\mova\\example\\tool\\coverage_evidence\\matrix-full-02\\matrix-full-02-api.driver.log"
+      ]
+    },
+    {
+      "id": "N22",
+      "status": "BLOCKED",
+      "evidence": "需专用 debug VM 构建及断言 marker；不能复用旧 APK。",
+      "batches": [],
+      "reproduction": "manual",
+      "pointers": []
+    },
+    {
+      "id": "N23",
+      "status": "BLOCKED",
+      "evidence": "覆盖批次未全部成功执行（未选择/未执行/验证器错误），不得推断产品失败。",
+      "batches": [
+        "api",
+        "followups"
+      ],
+      "reproduction": "python example/tool/run_matrix.py --only api,followups",
+      "pointers": [
+        "E:\\workspaces\\dart-labs\\mova\\example\\tool\\coverage_evidence\\matrix-full-02\\matrix-full-02-api.driver.log"
+      ]
+    }
+  ],
+  "counts": {
+    "BLOCKED": 133,
+    "PASS": 2
+  },
+  "comparison": {
+    "新增失败": [],
+    "已修复": [],
+    "仍失败": [],
+    "仍阻塞": [
+      "A31",
+      "C2",
+      "C7",
+      "F15",
+      "N18"
+    ],
+    "新增阻塞": [
+      "A1",
+      "A2",
+      "A3",
+      "A5",
+      "A6",
+      "A7",
+      "A8",
+      "A9",
+      "A10",
+      "A11",
+      "A12",
+      "A13",
+      "A14",
+      "A15",
+      "A16",
+      "A17",
+      "A18",
+      "A19",
+      "A20",
+      "A21",
+      "A23",
+      "A24",
+      "A25",
+      "A26",
+      "A27",
+      "A28",
+      "A29",
+      "A30",
+      "A32",
+      "A33",
+      "C1",
+      "C3",
+      "C4",
+      "C5",
+      "C6",
+      "C8",
+      "C9",
+      "C10",
+      "C11",
+      "C12",
+      "C13",
+      "C14",
+      "C15",
+      "C16",
+      "C17",
+      "E.MovaReady",
+      "E.MovaSourceChange",
+      "E.MovaPlay",
+      "E.MovaPause",
+      "E.MovaDone",
+      "E.MovaSeek",
+      "E.MovaSeeked",
+      "E.MovaBufferChange",
+      "E.MovaDurationChange",
+      "E.MovaFirstFrame",
+      "E.MovaSizeChange",
+      "E.MovaVolumeChange",
+      "E.MovaBrightChange",
+      "E.MovaRateChange",
+      "E.MovaQualityListChange",
+      "E.MovaQualityChange",
+      "E.MovaAbrDownShift",
+      "E.MovaFitChange",
+      "E.MovaZoomChange",
+      "E.MovaLockChange",
+      "E.MovaFullScreenChange",
+      "E.MovaOrientationChange",
+      "E.MovaPipChange",
+      "E.MovaMiniChange",
+      "E.MovaTimeShiftChange",
+      "E.MovaLiveEdgeReach",
+      "E.MovaPreviewBlock",
+      "E.MovaSttBlock",
+      "E.MovaSwapChange",
+      "E.MovaErrorEvent",
+      "E.MovaPlayFailure",
+      "E.MovaRecovered",
+      "E.MovaFailover",
+      "E.MovaStandbyChange",
+      "E.MovaStandbyResume",
+      "E1",
+      "E2",
+      "U1",
+      "U2",
+      "U3",
+      "U4",
+      "U5",
+      "U6",
+      "U7",
+      "U8",
+      "U9",
+      "F1",
+      "F2",
+      "F3",
+      "F4",
+      "F5",
+      "F6",
+      "F7",
+      "F8",
+      "F9",
+      "F10",
+      "F11",
+      "F12",
+      "F13",
+      "F14",
+      "F16",
+      "N1",
+      "N2",
+      "N3",
+      "N4",
+      "N5",
+      "N6",
+      "N7",
+      "N8",
+      "N9",
+      "N10",
+      "N11",
+      "N12",
+      "N13",
+      "N14",
+      "N15",
+      "N16",
+      "N17",
+      "N19",
+      "N20",
+      "N21",
+      "N22",
+      "N23"
+    ],
+    "已解除阻塞": []
+  },
+  "batches": {
+    "api-launch": {
+      "kind": "OK",
+      "exit": 0,
+      "seconds": 6.031670100026531,
+      "driver": "E:\\workspaces\\dart-labs\\mova\\example\\tool\\coverage_evidence\\matrix-full-02\\matrix-full-02-api-launch.driver.log",
+      "error": "",
+      "subcheck_failures": []
+    },
+    "api": {
+      "kind": "OK",
+      "exit": 0,
+      "seconds": 543.51010829999,
+      "driver": "E:\\workspaces\\dart-labs\\mova\\example\\tool\\coverage_evidence\\matrix-full-02\\matrix-full-02-api.driver.log",
+      "error": "",
+      "subcheck_failures": [
+        {
+          "file": "E:\\workspaces\\dart-labs\\mova\\example\\tool\\coverage_evidence\\matrix-full-02\\matrix-full-02-rerun-batch15-basic-cutover.json",
+          "check": {
+            "ms": 15355,
+            "kind": "CHECK",
+            "id": "A1.broadcast",
+            "pass": false,
+            "detail": "all streams broadcast cutover=true"
+          }
+        },
+        {
+          "file": "E:\\workspaces\\dart-labs\\mova\\example\\tool\\coverage_evidence\\matrix-full-02\\matrix-full-02-rerun-batch15-basic.json",
+          "check": {
+            "ms": 4386,
+            "kind": "CHECK",
+            "id": "A1.broadcast",
+            "pass": false,
+            "detail": "all streams broadcast cutover=false"
+          }
+        },
+        {
+          "file": "E:\\workspaces\\dart-labs\\mova\\example\\tool\\coverage_evidence\\matrix-full-02\\matrix-full-02-rerun-batch15-tls.json",
+          "check": {
+            "ms": 532487,
+            "kind": "CHECK",
+            "id": "C16.matrix",
+            "pass": false,
+            "detail": "run=0 verify=true cert=0 rendered=false errors=[Failed to open https://127.0.0.1:18443/low/index.m3u8?t=1793238333781126&run=0.]"
+          }
+        },
+        {
+          "file": "E:\\workspaces\\dart-labs\\mova\\example\\tool\\coverage_evidence\\matrix-full-02\\matrix-full-02-rerun-batch15-tls.json",
+          "check": {
+            "ms": 534755,
+            "kind": "CHECK",
+            "id": "C16.matrix",
+            "pass": false,
+            "detail": "run=1 verify=true cert=0 rendered=false errors=[Failed to open https://127.0.0.1:18443/low/index.m3u8?t=1793238336096012&run=1.]"
+          }
+        },
+        {
+          "file": "E:\\workspaces\\dart-labs\\mova\\example\\tool\\coverage_evidence\\matrix-full-02\\matrix-full-02-rerun-batch15-tls.json",
+          "check": {
+            "ms": 537182,
+            "kind": "CHECK",
+            "id": "C16.matrix",
+            "pass": false,
+            "detail": "run=2 verify=true cert=0 rendered=false errors=[Failed to open https://127.0.0.1:18443/low/index.m3u8?t=1793238338520163&run=2.]"
+          }
+        },
+        {
+          "file": "E:\\workspaces\\dart-labs\\mova\\example\\tool\\coverage_evidence\\matrix-full-02\\matrix-full-02-rerun-batch15-tls.json",
+          "check": {
+            "ms": 539661,
+            "kind": "CHECK",
+            "id": "C16.matrix",
+            "pass": false,
+            "detail": "run=3 verify=true cert=0 rendered=false errors=[Failed to open https://127.0.0.1:18443/low/index.m3u8?t=1793238340995288&run=3.]"
+          }
+        },
+        {
+          "file": "E:\\workspaces\\dart-labs\\mova\\example\\tool\\coverage_evidence\\matrix-full-02\\matrix-full-02-rerun-batch15-tls.json",
+          "check": {
+            "ms": 542237,
+            "kind": "CHECK",
+            "id": "C16.matrix",
+            "pass": false,
+            "detail": "run=4 verify=true cert=0 rendered=false errors=[Failed to open https://127.0.0.1:18443/low/index.m3u8?t=1793238343575749&run=4.]"
+          }
+        }
+      ]
+    },
+    "existing-pages": {
+      "kind": "HARNESS",
+      "exit": 0,
+      "seconds": 1650.7000966999913,
+      "driver": "E:\\workspaces\\dart-labs\\mova\\example\\tool\\coverage_evidence\\matrix-full-02\\matrix-full-02-existing-pages.driver.log",
+      "error": "子命令失败/缺完成标记",
+      "subcheck_failures": [
+        {
+          "file": "E:\\workspaces\\dart-labs\\mova\\example\\tool\\coverage_evidence\\matrix-full-02\\matrix-full-02-rerun-batch10-mute.log",
+          "check": {
+            "kind": "LOG",
+            "line": "10-29 09:59:19.126 19618 19618 I flutter : [Q13] 09:59:19.126   77156ms VERDICT Q13A FAIL warming: active(k1).mute=no shadow(k2).mute=yes swapped=false committed(live k2).mute=gone"
+          }
+        },
+        {
+          "file": "E:\\workspaces\\dart-labs\\mova\\example\\tool\\coverage_evidence\\matrix-full-02\\matrix-full-02-rerun-batch11-review.log",
+          "check": {
+            "kind": "LOG",
+            "line": "10-29 10:03:10.425 19619 19619 I flutter : RFV2|1793239390425|RESULT|V10|run1|FAIL|preFsLandscapeImmersive=true cutoverTo=true successorFs=true landscapeAfterCutover=true immersiveAfterCutover=true restoredPortrait=false barsRestored=true"
+          }
+        },
+        {
+          "file": "E:\\workspaces\\dart-labs\\mova\\example\\tool\\coverage_evidence\\matrix-full-02\\matrix-full-02-rerun-batch11-review.log",
+          "check": {
+            "kind": "LOG",
+            "line": "10-29 10:03:23.290 19619 19619 I flutter : RFV2|1793239403290|RESULT|V10|run2|FAIL|preFsLandscapeImmersive=true cutoverTo=true successorFs=true landscapeAfterCutover=true immersiveAfterCutover=true restoredPortrait=false barsRestored=true"
+          }
+        },
+        {
+          "file": "E:\\workspaces\\dart-labs\\mova\\example\\tool\\coverage_evidence\\matrix-full-02\\matrix-full-02-rerun-batch11-review.log",
+          "check": {
+            "kind": "LOG",
+            "line": "10-29 10:03:36.233 19619 19619 I flutter : RFV2|1793239416233|RESULT|V10|run3|FAIL|preFsLandscapeImmersive=true cutoverTo=true successorFs=true landscapeAfterCutover=true immersiveAfterCutover=true restoredPortrait=false barsRestored=true"
+          }
+        },
+        {
+          "file": "E:\\workspaces\\dart-labs\\mova\\example\\tool\\coverage_evidence\\matrix-full-02\\matrix-full-02-rerun-batch11-review.log",
+          "check": {
+            "kind": "LOG",
+            "line": "10-29 10:03:49.461 19619 19619 I flutter : RFV2|1793239429461|RESULT|V10x|run1|FAIL|preFsLandscapeImmersive=true cutoverTo=true successorFs=true landscapeAfterCutover=true immersiveAfterCutover=true restoredPortrait=false barsRestored=true"
+          }
+        },
+        {
+          "file": "E:\\workspaces\\dart-labs\\mova\\example\\tool\\coverage_evidence\\matrix-full-02\\matrix-full-02-rerun-batch11-review.log",
+          "check": {
+            "kind": "LOG",
+            "line": "10-29 10:04:02.480 19619 19619 I flutter : RFV2|1793239442480|RESULT|V10x|run2|FAIL|preFsLandscapeImmersive=true cutoverTo=true successorFs=true landscapeAfterCutover=true immersiveAfterCutover=true restoredPortrait=false barsRestored=true"
+          }
+        },
+        {
+          "file": "E:\\workspaces\\dart-labs\\mova\\example\\tool\\coverage_evidence\\matrix-full-02\\matrix-full-02-rerun-batch11-review.log",
+          "check": {
+            "kind": "LOG",
+            "line": "10-29 10:04:34.727 19619 19619 I flutter : RFV2|1793239474727|RESULT|V11|run1|FAIL|preLandscape=true cutoverTo=true successorOrientation=landscape landscapeAfterCutover=true restoredPortrait=false"
+          }
+        },
+        {
+          "file": "E:\\workspaces\\dart-labs\\mova\\example\\tool\\coverage_evidence\\matrix-full-02\\matrix-full-02-rerun-batch11-review.log",
+          "check": {
+            "kind": "LOG",
+            "line": "10-29 10:04:47.598 19619 19619 I flutter : RFV2|1793239487598|RESULT|V11|run2|FAIL|preLandscape=true cutoverTo=true successorOrientation=landscape landscapeAfterCutover=true restoredPortrait=false"
+          }
+        },
+        {
+          "file": "E:\\workspaces\\dart-labs\\mova\\example\\tool\\coverage_evidence\\matrix-full-02\\matrix-full-02-rerun-batch11-review.log",
+          "check": {
+            "kind": "LOG",
+            "line": "10-29 10:05:00.533 19619 19619 I flutter : RFV2|1793239500533|RESULT|V11|run3|FAIL|preLandscape=true cutoverTo=true successorOrientation=landscape landscapeAfterCutover=true restoredPortrait=false"
+          }
+        }
+      ]
+    }
+  },
+  "baseline": "E:\\workspaces\\dart-labs\\mova\\example\\tool\\coverage_evidence\\rerun-final-ledger.json",
+  "evidence": "E:\\workspaces\\dart-labs\\mova\\example\\tool\\coverage_evidence\\matrix-full-02"
+}
