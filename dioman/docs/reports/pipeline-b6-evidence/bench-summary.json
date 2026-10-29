@@ -1,0 +1,242 @@
+{
+  "S1": {
+    "legacy": {
+      "median": {
+        "scenario": "S1",
+        "operations": 50961,
+        "requestsPerOperation": 1,
+        "elapsedSeconds": 2.0000047,
+        "opsPerSecond": 25480.440120965715,
+        "meanMicros": 38.83248562626322,
+        "p99Micros": 157.8,
+        "sends": 50961
+      },
+      "spreadPercent": 23.015769237482896,
+      "stable": false,
+      "ops": [
+        25480.440120965715,
+        27034.231009401457,
+        21976.232134281632
+      ]
+    },
+    "pipeline": {
+      "median": {
+        "scenario": "S1",
+        "operations": 48608,
+        "requestsPerOperation": 1,
+        "elapsedSeconds": 2.0000278,
+        "opsPerSecond": 24303.66217909571,
+        "meanMicros": 40.711107225148126,
+        "p99Micros": 178.9,
+        "sends": 48608
+      },
+      "spreadPercent": 34.80110656646096,
+      "stable": false,
+      "ops": [
+        24303.66217909571,
+        25099.929720196782,
+        18619.97305476255
+      ]
+    }
+  },
+  "S2": {
+    "legacy": {
+      "median": {
+        "scenario": "S2",
+        "operations": 50101,
+        "requestsPerOperation": 1,
+        "elapsedSeconds": 2.0000449,
+        "opsPerSecond": 25049.937628900232,
+        "meanMicros": 39.510993792539075,
+        "p99Micros": 171.5,
+        "sends": 50101
+      },
+      "spreadPercent": 17.944384620860255,
+      "stable": false,
+      "ops": [
+        25049.937628900232,
+        28434.92134935054,
+        24108.753834068837
+      ]
+    },
+    "pipeline": {
+      "median": {
+        "scenario": "S2",
+        "operations": 35412,
+        "requestsPerOperation": 1,
+        "elapsedSeconds": 2.0000353,
+        "opsPerSecond": 17705.68749461572,
+        "meanMicros": 55.90981305772055,
+        "p99Micros": 285.90000000000003,
+        "sends": 35412
+      },
+      "spreadPercent": 35.36824941405965,
+      "stable": false,
+      "ops": [
+        17705.68749461572,
+        22375.94965411328,
+        16529.68827695371
+      ]
+    }
+  },
+  "S3": {
+    "legacy": {
+      "median": {
+        "scenario": "S3",
+        "operations": 3708,
+        "requestsPerOperation": 1,
+        "elapsedSeconds": 2.0000229,
+        "opsPerSecond": 1853.9787719430612,
+        "meanMicros": 538.5908036677455,
+        "p99Micros": 2716.1000000000004,
+        "sends": 3708
+      },
+      "spreadPercent": 50.919188380111514,
+      "stable": false,
+      "ops": [
+        1364.4666387906816,
+        1853.9787719430612,
+        2059.2419769802846
+      ]
+    },
+    "pipeline": {
+      "median": {
+        "scenario": "S3",
+        "operations": 10379,
+        "requestsPerOperation": 1,
+        "elapsedSeconds": 2.0000136,
+        "opsPerSecond": 5189.464711639961,
+        "meanMicros": 191.746834955198,
+        "p99Micros": 808.3000000000001,
+        "sends": 10379
+      },
+      "spreadPercent": 44.48174052104441,
+      "stable": false,
+      "ops": [
+        3985.4143135922577,
+        5758.195967252929,
+        5189.464711639961
+      ]
+    }
+  },
+  "S4": {
+    "legacy": {
+      "median": {
+        "scenario": "S4",
+        "operations": 12552,
+        "requestsPerOperation": 1,
+        "elapsedSeconds": 2.000045,
+        "opsPerSecond": 6275.8587931771535,
+        "meanMicros": 158.85256532823456,
+        "p99Micros": 478.70000000000005,
+        "sends": 0
+      },
+      "spreadPercent": 73.13512046370447,
+      "stable": false,
+      "ops": [
+        3822.799111906669,
+        6275.8587931771535,
+        6618.6078474850365
+      ]
+    },
+    "pipeline": {
+      "median": {
+        "scenario": "S4",
+        "operations": 40485,
+        "requestsPerOperation": 1,
+        "elapsedSeconds": 2.0000829,
+        "opsPerSecond": 20241.660983152247,
+        "meanMicros": 49.135714462146474,
+        "p99Micros": 195.60000000000002,
+        "sends": 0
+      },
+      "spreadPercent": 33.93070176077766,
+      "stable": false,
+      "ops": [
+        19478.29060837596,
+        26087.41130280157,
+        20241.660983152247
+      ]
+    }
+  },
+  "S5": {
+    "legacy": {
+      "median": {
+        "scenario": "S5",
+        "operations": 373,
+        "requestsPerOperation": 100,
+        "elapsedSeconds": 2.0018028,
+        "opsPerSecond": 186.3320402988746,
+        "meanMicros": 5362.528954423593,
+        "p99Micros": 14830.300000000001,
+        "sends": 373
+      },
+      "spreadPercent": 33.70083015799705,
+      "stable": false,
+      "ops": [
+        146.45387350569726,
+        195.81004467566015,
+        186.3320402988746
+      ]
+    },
+    "pipeline": {
+      "median": {
+        "scenario": "S5",
+        "operations": 1538,
+        "requestsPerOperation": 100,
+        "elapsedSeconds": 2.000045,
+        "opsPerSecond": 768.9826978892975,
+        "meanMicros": 1299.7572821846554,
+        "p99Micros": 2999.8,
+        "sends": 1538
+      },
+      "spreadPercent": 35.983995810183835,
+      "stable": false,
+      "ops": [
+        624.6188263612131,
+        768.9826978892975,
+        849.3816386686515
+      ]
+    }
+  },
+  "S6": {
+    "legacy": {
+      "median": {
+        "scenario": "S6",
+        "operations": 38556,
+        "requestsPerOperation": 1,
+        "elapsedSeconds": 2.0000384,
+        "opsPerSecond": 19277.629869506505,
+        "meanMicros": 51.53284054362486,
+        "p99Micros": 156.10000000000002,
+        "sends": 38556
+      },
+      "spreadPercent": 26.744411087326526,
+      "stable": false,
+      "ops": [
+        15442.745621876371,
+        19277.629869506505,
+        19572.816994161105
+      ]
+    },
+    "pipeline": {
+      "median": {
+        "scenario": "S6",
+        "operations": 43433,
+        "requestsPerOperation": 1,
+        "elapsedSeconds": 2.0000188,
+        "opsPerSecond": 21716.29586681885,
+        "meanMicros": 45.757785554762506,
+        "p99Micros": 125.5,
+        "sends": 43433
+      },
+      "spreadPercent": 23.9213110788689,
+      "stable": false,
+      "ops": [
+        21716.29586681885,
+        22689.88314710179,
+        18309.912112421862
+      ]
+    }
+  }
+}

@@ -1,5 +1,6 @@
 // ignore_for_file: avoid_print
 
+import 'dart:async';
 import 'dart:convert';
 import 'dart:typed_data';
 
@@ -419,7 +420,7 @@ Future<void> _runNormalize(_Emit emit) async {
     emit('res.data (unwrapped): ${jsonEncode(res.data)}', _Kind.response);
   }
 
-  // ── failure: non-zero code → DiomanException
+  /// 业务失败由结果 kind 与逻辑状态表达。
   {
     final dio = Dio(BaseOptions(baseUrl: _literalHttpsApiDemoDev));
     dio.httpClientAdapter = mock;
@@ -730,6 +731,116 @@ Future<void> _runLog(_Emit emit) async {
   }
 }
 
+/// 仅演示配置写入，不将假传输的耗时当作真实网络超时证明。
+Future<void> _runTimeout(_Emit emit) async {
+  final dio = Dio(BaseOptions(baseUrl: _literalHttpsApiDemoDev));
+  dio.httpClientAdapter = _FakeServer()
+    ..add('GET:/policy', (request) async {
+      emit(
+          'connect=${request.connectTimeout}, receive=${request.receiveTimeout}',
+          _Kind.request);
+      return _json('{"value":1}');
+    });
+  final api = Dioman(dio: dio, plugins: [
+    DiomanTimeout(probe: () => NetworkQuality.good),
+  ]);
+  try {
+    await api.get<dynamic>('/policy',
+        call: DiomanCall(options: {
+          DiomanTimeout.option: const DiomanTimeoutOptions(timeouts: {
+            NetworkQuality.good: DiomanTimeouts(receive: Duration(seconds: 3)),
+          }),
+        }));
+  } finally {
+    api.dispose();
+    dio.close(force: true);
+  }
+}
+
+/// 熔断按尝试记账，打开后不再发传输。
+Future<void> _runBreaker(_Emit emit) async {
+  var sends = 0;
+  final dio = Dio(BaseOptions(baseUrl: _literalHttpsApiDemoDev));
+  dio.httpClientAdapter = _FakeServer()
+    ..add('GET:/policy', (_) async {
+      sends++;
+      return _json('{}', code: 500);
+    });
+  final api =
+      Dioman(dio: dio, plugins: [const DiomanBreaker(failureThreshold: 1)]);
+  try {
+    for (var i = 0; i < 2; i++) {
+      final result = await api.send<dynamic>('GET', '/policy');
+      emit('${result.kind.name}, reason=${result.reason}, sends=$sends',
+          _Kind.response);
+    }
+    emit(
+        'buckets=${api.plugin<DiomanBreakerApi>()?.bucketCount}', _Kind.system);
+  } finally {
+    api.dispose();
+    dio.close(force: true);
+  }
+}
+
+/// 连通事件恢复排队请求；销毁时关闭宿主持有的流。
+Future<void> _runOffline(_Emit emit) async {
+  var online = false;
+  final connectivity = StreamController<bool>.broadcast();
+  final dio = Dio(BaseOptions(baseUrl: _literalHttpsApiDemoDev));
+  dio.httpClientAdapter = _FakeServer()
+    ..add('GET:/policy', (_) async => _json('{"value":1}'));
+  final api = Dioman(dio: dio, plugins: [
+    DiomanLoading(
+        onChanged: (visible) => emit('loading=$visible', _Kind.system)),
+    DiomanOffline(
+        isOnline: () => online, onConnectivityChanged: connectivity.stream),
+  ]);
+  final timer = Timer(const Duration(milliseconds: 300), () {
+    online = true;
+    emit('online event: resume queue', _Kind.system);
+    connectivity.add(true);
+  });
+  try {
+    final result = await api.send<dynamic>('GET', '/policy',
+        call: DiomanCall(options: {
+          DiomanOffline.option:
+              const DiomanOfflineOptions(maxWait: Duration(seconds: 2)),
+        }));
+    emit(
+        '${result.kind.name}, pending=${api.plugin<DiomanOfflineApi>()?.pending}',
+        _Kind.response);
+  } finally {
+    timer.cancel();
+    api.dispose();
+    dio.close(force: true);
+    await connectivity.close();
+  }
+}
+
+/// 默认通知只接收最终失败；silent 抑制下一次通知。
+Future<void> _runNotify(_Emit emit) async {
+  var notices = 0;
+  final dio = Dio(BaseOptions(baseUrl: _literalHttpsApiDemoDev));
+  dio.httpClientAdapter = _FakeServer()
+    ..add('GET:/policy', (_) async => _json('{}', code: 500));
+  final api = Dioman(dio: dio, plugins: [
+    DiomanNotify(notify: (message, result) {
+      notices++;
+      emit('notice: $message (${result.kind.name})', _Kind.error);
+    }),
+  ]);
+  try {
+    await api.send<dynamic>('GET', '/policy');
+    await api.send<dynamic>('GET', '/policy',
+        call: const DiomanCall(silent: true));
+    emit(
+        '2 failed calls, $notices notice; second call is silent', _Kind.system);
+  } finally {
+    api.dispose();
+    dio.close(force: true);
+  }
+}
+
 // ── Scenario definitions ──────────────────────────────────────────────────────
 
 typedef _Runner = Future<void> Function(_Emit emit);
@@ -754,9 +865,39 @@ class _Scenario {
 
 final _scenarios = <_Scenario>[
   _Scenario(
+      icon: Icons.timer_outlined,
+      title: 'Timeout Configuration',
+      subtitle:
+          'Inspect request-level network-tier settings; no real timeout claim',
+      color: _blue,
+      tags: ['timeout'],
+      run: _runTimeout),
+  _Scenario(
+      icon: Icons.electrical_services,
+      title: 'Circuit Breaker',
+      subtitle: 'First 500 opens the circuit; second call returns kind=breaker',
+      color: _red,
+      tags: ['breaker'],
+      run: _runBreaker),
+  _Scenario(
+      icon: Icons.wifi_off,
+      title: 'Offline Queue',
+      subtitle: 'Wait for connectivity inside the loading bracket',
+      color: _yellow,
+      tags: ['offline', 'loading'],
+      run: _runOffline),
+  _Scenario(
+      icon: Icons.notifications_outlined,
+      title: 'Final Notification',
+      subtitle:
+          'One final failure notice; a silent call suppresses the next notice',
+      color: _orange,
+      tags: ['notify'],
+      run: _runNotify),
+  _Scenario(
     icon: Icons.tune_rounded,
     title: 'Env Config',
-    subtitle: 'Apply env-specific BaseOptions at install time — no HTTP needed',
+    subtitle: 'Apply env-specific BaseOptions during setup — no HTTP needed',
     color: _blue,
     tags: [_literalEnvs],
     run: _runEnvs,
@@ -764,7 +905,7 @@ final _scenarios = <_Scenario>[
   _Scenario(
     icon: Icons.edit_road_rounded,
     title: 'Path Rewrite',
-    subtitle: '{id} / :{id} templates replaced before the request is sent',
+    subtitle: 'Expand {id}, :id and [id] before sending',
     color: _cyan,
     tags: [_literalRepath, _literalMock],
     run: _runRepath,
@@ -772,14 +913,14 @@ final _scenarios = <_Scenario>[
   _Scenario(
     icon: Icons.filter_alt_rounded,
     title: 'Param Filter',
-    subtitle: 'null & empty-string query params stripped automatically',
+    subtitle: 'Remove null, NaN and blank strings; keep zero and false',
     color: _teal,
     tags: [_literalFilter, _literalMock],
     run: _runFilter,
   ),
   _Scenario(
     icon: Icons.vpn_key_rounded,
-    title: 'Request Key',
+    title: 'Request Key (kernel)',
     subtitle: 'Canonical key sorts params — swapped order = same cache hit',
     color: _subtle,
     tags: [_literalKey, _literalCache],
@@ -787,9 +928,9 @@ final _scenarios = <_Scenario>[
   ),
   _Scenario(
     icon: Icons.unarchive_rounded,
-    title: 'Normalize',
+    title: 'Result Model (kernel)',
     subtitle:
-        'Unwrap {code, data, message} envelope — throw DiomanException on non-zero code',
+        'Kernel result model: send returns DiomanResponse with kind and logical status',
     color: _orange,
     tags: [_literalNormalize, _literalMock],
     run: _runNormalize,
@@ -822,7 +963,7 @@ final _scenarios = <_Scenario>[
   ),
   _Scenario(
     icon: Icons.cancel_rounded,
-    title: 'Cancel',
+    title: 'Cancel (kernel)',
     subtitle:
         'cancelAll() aborts all in-flight requests — e.g. on page navigation',
     color: _red,
@@ -856,8 +997,8 @@ final _scenarios = <_Scenario>[
   ),
   _Scenario(
     icon: Icons.receipt_long_rounded,
-    title: 'Log Options',
-    subtitle: 'logBody · per-request enabled:false · custom writer to any sink',
+    title: 'Debug & Custom Plugin',
+    subtitle: 'Kernel debug logger and a custom outer-stage tracing plugin',
     color: _subtle,
     tags: [_literalLog],
     run: _runLog,
@@ -874,7 +1015,7 @@ class _App extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'dioman — interceptor playground',
+      title: 'dioman — onion pipeline playground',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
         brightness: Brightness.dark,
@@ -948,11 +1089,11 @@ class _HomePage extends StatelessWidget {
         Row(children: [
           _Chip(_literalDioman, _blue, bold: true, mono: true),
           const SizedBox(width: 10),
-          const Text('interceptor playground',
+          const Text('onion pipeline playground',
               style: TextStyle(color: _subtle, fontSize: 13)),
         ]),
         const SizedBox(height: 16),
-        const Text('Composable Dio interceptors',
+        const Text('Request policies powered by Dio',
             style: TextStyle(
                 color: _text, fontSize: 28, fontWeight: FontWeight.w800)),
         const SizedBox(height: 8),

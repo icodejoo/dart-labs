@@ -1,0 +1,292 @@
+{
+  "inventory": 744,
+  "checkedFiles": [
+    "README.md",
+    "README.zh-CN.md",
+    "CHANGELOG.md",
+    "docs/guides/migrating-to-pipeline.md",
+    "docs/design/architecture.md",
+    "docs/status.md",
+    "docs/guides/test-layers.md",
+    "docs/guides/accept-runner.md",
+    "docs/reference/testkit-mapping.md",
+    ".claude/skills/dioman/SKILL.md",
+    "benchmark/README.md"
+  ],
+  "currentNames": [
+    "Dioman",
+    "DiomanAuth",
+    "DiomanAuth.onRefresh",
+    "DiomanAuth.option",
+    "DiomanAuthFailureAction.others",
+    "DiomanAuthFailureAction.refresh",
+    "DiomanBreaker",
+    "DiomanBreaker.option",
+    "DiomanBreakerApi",
+    "DiomanCache",
+    "DiomanCache.clone",
+    "DiomanCache.maxEntries",
+    "DiomanCache.option",
+    "DiomanCacheApi",
+    "DiomanCall",
+    "DiomanCall.key",
+    "DiomanClock",
+    "DiomanContext",
+    "DiomanEnforce",
+    "DiomanEnforce.pre",
+    "DiomanEnvs",
+    "DiomanFilter",
+    "DiomanFilter.option",
+    "DiomanKeyOptions",
+    "DiomanKind.offline",
+    "DiomanLoading",
+    "DiomanLoading.option",
+    "DiomanLoadingApi",
+    "DiomanMock",
+    "DiomanMock.option",
+    "DiomanNext",
+    "DiomanNotify",
+    "DiomanNotify.option",
+    "DiomanOffline",
+    "DiomanOffline.option",
+    "DiomanOfflineApi",
+    "DiomanOfflineOptions",
+    "DiomanPlugin",
+    "DiomanPluginInstance",
+    "DiomanRepath",
+    "DiomanRepath.option",
+    "DiomanRepathOptions",
+    "DiomanRequest",
+    "DiomanResponse",
+    "DiomanResponse.kind",
+    "DiomanResponseFactory",
+    "DiomanRetry",
+    "DiomanRetry.max",
+    "DiomanRetry.option",
+    "DiomanRetry.respectRetryAfter",
+    "DiomanRetryOptions",
+    "DiomanShare",
+    "DiomanShare.option",
+    "DiomanSharePolicy.start",
+    "DiomanStage",
+    "DiomanStage.prepare",
+    "DiomanTimeout",
+    "DiomanTimeout.option",
+    "DiomanTimeoutOptions",
+    "DiomanTimeouts",
+    "DiomanTokenManager",
+    "EnvRule",
+    "Envelope",
+    "NetworkQuality.good",
+    "RequestPatch",
+    "StateKey"
+  ],
+  "currentNameCount": 66,
+  "unknownCurrent": [],
+  "historicalMentions": [
+    {
+      "file": "CHANGELOG.md",
+      "line": 7,
+      "api": "Dioman.install"
+    },
+    {
+      "file": "CHANGELOG.md",
+      "line": 222,
+      "api": "DiomanTokenManager.canRefresh"
+    }
+  ],
+  "renames": 31,
+  "renamesCovered": 25,
+  "renameRowsMissing": [],
+  "removals": 310,
+  "uniqueOld": 310,
+  "excludedUnreleased": [
+    "DiomanMockAdapter",
+    "DiomanMockAdapter.close",
+    "DiomanMockAdapter.extraKey",
+    "DiomanMockAdapter.fetch",
+    "DiomanMockAdapter.markerHeader",
+    "DiomanMockAdapter.new",
+    "DiomanMockAdapter.new(enabled)",
+    "DiomanMockAdapter.new(fallbackWhen)",
+    "DiomanMockAdapter.new(inner)",
+    "DiomanMockAdapter.new(mockUrl)",
+    "DiomanMockAdapter.new(routes)"
+  ],
+  "coveredOld": 299,
+  "missingOld": [],
+  "badRenameTargets": [],
+  "readmeStructureEqual": true,
+  "headingsEN": [
+    [
+      2,
+      "Purpose"
+    ],
+    [
+      2,
+      "Installation"
+    ],
+    [
+      2,
+      "Quick start"
+    ],
+    [
+      2,
+      "Results"
+    ],
+    [
+      2,
+      "Plugins"
+    ],
+    [
+      3,
+      "Loading"
+    ],
+    [
+      3,
+      "Notify"
+    ],
+    [
+      3,
+      "Repath"
+    ],
+    [
+      3,
+      "Filter"
+    ],
+    [
+      3,
+      "Timeout"
+    ],
+    [
+      3,
+      "Retry"
+    ],
+    [
+      3,
+      "Breaker"
+    ],
+    [
+      3,
+      "Auth"
+    ],
+    [
+      3,
+      "Mock"
+    ],
+    [
+      3,
+      "Share"
+    ],
+    [
+      3,
+      "Cache"
+    ],
+    [
+      3,
+      "Offline"
+    ],
+    [
+      2,
+      "Environment"
+    ],
+    [
+      2,
+      "Custom plugins"
+    ],
+    [
+      2,
+      "Testing"
+    ],
+    [
+      2,
+      "Migration"
+    ]
+  ],
+  "headingsZH": [
+    [
+      2,
+      "定位"
+    ],
+    [
+      2,
+      "安装"
+    ],
+    [
+      2,
+      "快速开始"
+    ],
+    [
+      2,
+      "结果模型"
+    ],
+    [
+      2,
+      "插件"
+    ],
+    [
+      3,
+      "Loading"
+    ],
+    [
+      3,
+      "Notify"
+    ],
+    [
+      3,
+      "Repath"
+    ],
+    [
+      3,
+      "Filter"
+    ],
+    [
+      3,
+      "Timeout"
+    ],
+    [
+      3,
+      "Retry"
+    ],
+    [
+      3,
+      "Breaker"
+    ],
+    [
+      3,
+      "Auth"
+    ],
+    [
+      3,
+      "Mock"
+    ],
+    [
+      3,
+      "Share"
+    ],
+    [
+      3,
+      "Cache"
+    ],
+    [
+      3,
+      "Offline"
+    ],
+    [
+      2,
+      "环境配置"
+    ],
+    [
+      2,
+      "自定义插件"
+    ],
+    [
+      2,
+      "测试建议"
+    ],
+    [
+      2,
+      "迁移"
+    ]
+  ]
+}

@@ -1,0 +1,32 @@
+ M .claude/skills/dioman/SKILL.md
+ M CHANGELOG.md
+ M README.md
+ M README.zh-CN.md
+ M benchmark/README.md
+ M docs/README.md
+ M docs/design/architecture.md
+ D docs/design/architecture.svg
+ M docs/guides/accept-runner.md
+ M docs/guides/test-layers.md
+ M docs/reference/testkit-mapping.md
+ M docs/status.md
+ M example/dioman_example.dart
+ M example/lib/main.dart
+ M example/real_run.dart
+ M pubspec.yaml
+ M tool/pipeline_b5a_coverage.py
+?? benchmark/pipeline_profile.dart
+?? docs/archive/architecture-before-pipeline.md
+?? docs/archive/testkit-mapping-before-pipeline.md
+?? docs/guides/migrating-to-pipeline.md
+?? docs/reports/2026-10-29-pipeline-b6.md
+?? docs/reports/pipeline-b6-evidence/
+?? test/integration/documentation_examples_integration_test.dart
+?? tool/pipeline_b6_audit.py
+?? tool/pipeline_b6_bench.py
+?? tool/pipeline_b6_bench_summary.py
+?? tool/pipeline_b6_profile.py
+cb0cd2f refactor(dioman)!: B5b 切换到洋葱管线，删除旧实现
+E:/workspaces/dart-labs          3715616 [main]
+E:/workspaces/dart-labs-pipeline cb0cd2f [jelon/dioman-pipeline]
+False

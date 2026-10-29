@@ -119,7 +119,8 @@ Future<void> main() async {
     const DiomanRetry(max: 1),
   ]);
   try {
-    dio.interceptors.add(net); // after log → counts true outbound
+    /// 统计真正发出的传输。
+    dio.interceptors.add(net);
 
     print('=== installed: ${api.inspect().map((p) => p.$2).join(' → ')} ===\n');
 

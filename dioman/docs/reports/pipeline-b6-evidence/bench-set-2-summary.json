@@ -1,0 +1,242 @@
+{
+  "S1": {
+    "legacy": {
+      "median": {
+        "scenario": "S1",
+        "operations": 37141,
+        "requestsPerOperation": 1,
+        "elapsedSeconds": 2.0000379,
+        "opsPerSecond": 18570.14809569359,
+        "meanMicros": 53.28328801055437,
+        "p99Micros": 282.7,
+        "sends": 37141
+      },
+      "spreadPercent": 25.969143871785903,
+      "stable": false,
+      "ops": [
+        19313.80470303069,
+        15332.17112492937,
+        18570.14809569359
+      ]
+    },
+    "pipeline": {
+      "median": {
+        "scenario": "S1",
+        "operations": 36851,
+        "requestsPerOperation": 1,
+        "elapsedSeconds": 2.0000235,
+        "opsPerSecond": 18425.28350291884,
+        "meanMicros": 53.709286043798,
+        "p99Micros": 309.90000000000003,
+        "sends": 36851
+      },
+      "spreadPercent": 59.39166487677985,
+      "stable": false,
+      "ops": [
+        18425.28350291884,
+        12922.825541855185,
+        20597.906780284728
+      ]
+    }
+  },
+  "S2": {
+    "legacy": {
+      "median": {
+        "scenario": "S2",
+        "operations": 44308,
+        "requestsPerOperation": 1,
+        "elapsedSeconds": 2.0000283,
+        "opsPerSecond": 22153.686525335666,
+        "meanMicros": 44.632960187776476,
+        "p99Micros": 213.20000000000002,
+        "sends": 44308
+      },
+      "spreadPercent": 27.14406374143108,
+      "stable": false,
+      "ops": [
+        22153.686525335666,
+        19915.07580888527,
+        25320.83668060341
+      ]
+    },
+    "pipeline": {
+      "median": {
+        "scenario": "S2",
+        "operations": 35257,
+        "requestsPerOperation": 1,
+        "elapsedSeconds": 2.0000606,
+        "opsPerSecond": 17627.96587263406,
+        "meanMicros": 56.20703690047367,
+        "p99Micros": 298.1,
+        "sends": 35257
+      },
+      "spreadPercent": 83.95202812468115,
+      "stable": false,
+      "ops": [
+        17627.96587263406,
+        12382.236877466354,
+        22777.375863301546
+      ]
+    }
+  },
+  "S3": {
+    "legacy": {
+      "median": {
+        "scenario": "S3",
+        "operations": 3936,
+        "requestsPerOperation": 1,
+        "elapsedSeconds": 2.0000554,
+        "opsPerSecond": 1967.9454879099849,
+        "meanMicros": 507.42400914634146,
+        "p99Micros": 1562.1000000000001,
+        "sends": 3936
+      },
+      "spreadPercent": 29.477319367013543,
+      "stable": false,
+      "ops": [
+        1637.5131673353512,
+        2120.2081533476917,
+        1967.9454879099849
+      ]
+    },
+    "pipeline": {
+      "median": {
+        "scenario": "S3",
+        "operations": 5833,
+        "requestsPerOperation": 1,
+        "elapsedSeconds": 2.0001234,
+        "opsPerSecond": 2916.3200630521096,
+        "meanMicros": 342.25072861306364,
+        "p99Micros": 2693.6000000000004,
+        "sends": 5833
+      },
+      "spreadPercent": 40.22350629555744,
+      "stable": false,
+      "ops": [
+        2916.3200630521096,
+        2293.7238356501875,
+        3216.3399870856424
+      ]
+    }
+  },
+  "S4": {
+    "legacy": {
+      "median": {
+        "scenario": "S4",
+        "operations": 10300,
+        "requestsPerOperation": 1,
+        "elapsedSeconds": 2.0002711,
+        "opsPerSecond": 5149.302012112258,
+        "meanMicros": 193.48523300970874,
+        "p99Micros": 687.5,
+        "sends": 0
+      },
+      "spreadPercent": 38.62696523409643,
+      "stable": false,
+      "ops": [
+        5149.302012112258,
+        4078.375405631358,
+        5653.728055680522
+      ]
+    },
+    "pipeline": {
+      "median": {
+        "scenario": "S4",
+        "operations": 25636,
+        "requestsPerOperation": 1,
+        "elapsedSeconds": 2.0000122,
+        "opsPerSecond": 12817.921810676955,
+        "meanMicros": 77.56075440786395,
+        "p99Micros": 337.3,
+        "sends": 0
+      },
+      "spreadPercent": 64.04391965729302,
+      "stable": false,
+      "ops": [
+        12817.921810676955,
+        12282.310852412873,
+        20148.384146791155
+      ]
+    }
+  },
+  "S5": {
+    "legacy": {
+      "median": {
+        "scenario": "S5",
+        "operations": 418,
+        "requestsPerOperation": 100,
+        "elapsedSeconds": 2.0012161,
+        "opsPerSecond": 208.87299477552673,
+        "meanMicros": 4784.554306220096,
+        "p99Micros": 8766.9,
+        "sends": 418
+      },
+      "spreadPercent": 57.0697050666805,
+      "stable": false,
+      "ops": [
+        133.696142093058,
+        208.87299477552673,
+        209.9961360710963
+      ]
+    },
+    "pipeline": {
+      "median": {
+        "scenario": "S5",
+        "operations": 1047,
+        "requestsPerOperation": 100,
+        "elapsedSeconds": 2.0002189,
+        "opsPerSecond": 523.4427091954785,
+        "meanMicros": 1908.7240687679086,
+        "p99Micros": 5770.8,
+        "sends": 1047
+      },
+      "spreadPercent": 30.379707304955673,
+      "stable": false,
+      "ops": [
+        647.0877357101957,
+        496.31016136327855,
+        523.4427091954785
+      ]
+    }
+  },
+  "S6": {
+    "legacy": {
+      "median": {
+        "scenario": "S6",
+        "operations": 29156,
+        "requestsPerOperation": 1,
+        "elapsedSeconds": 2.0000984,
+        "opsPerSecond": 14577.282797686354,
+        "meanMicros": 67.94065029496502,
+        "p99Micros": 285.5,
+        "sends": 29156
+      },
+      "spreadPercent": 14.976787316411698,
+      "stable": false,
+      "ops": [
+        14561.194942965945,
+        14577.282797686354,
+        16741.99414030205
+      ]
+    },
+    "pipeline": {
+      "median": {
+        "scenario": "S6",
+        "operations": 36699,
+        "requestsPerOperation": 1,
+        "elapsedSeconds": 2.0000571,
+        "opsPerSecond": 18348.976136731297,
+        "meanMicros": 54.1644649717976,
+        "p99Micros": 159.8,
+        "sends": 36699
+      },
+      "spreadPercent": 72.87334827658827,
+      "stable": false,
+      "ops": [
+        12392.452908678946,
+        21423.248276832746,
+        18348.976136731297
+      ]
+    }
+  }
+}

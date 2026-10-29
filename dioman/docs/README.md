@@ -13,11 +13,11 @@
 ## 设计
 
 - [洋葱管线核心架构](design/pipeline-architecture.md) — 内核模块、数据流、阶段排序、上下文与取消原语、归一化响应与落定、插件接口、客户端 API、性能设计。active。
-- [洋葱管线插件规格](design/pipeline-plugin-spec.md) — 12 个内置插件与内核服务的选项、行为、内核依赖，行为变化汇总 C1–C12。active。
+- [洋葱管线插件规格](design/pipeline-plugin-spec.md) — 12 个内置插件与内核服务的选项、行为、内核依赖，行为变化汇总 C1–C13。active。
 - [洋葱管线测试方案](design/pipeline-test-plan.md) — 六层、不变量 I1–I7、powerset、覆盖率与总账闸门、性能门槛、验收矩阵、旧用例迁移。active。
 - [洋葱管线实施计划](design/pipeline-implementation-plan.md) — B0–B7 分批、完成标准、Codex 派发约束、终审关卡与风险。active。
-- [测试体系方案](design/test-matrix-plan.md) — 三档 + 总账矩阵 + 五道闸门 + 分阶段计划。active。
-- [架构](design/architecture.md) — 执行模型、插件职责、安装顺序、extra 键表（测试会核对键表）。active。
+- [测试体系方案](design/test-matrix-plan.md) — 三档 + 总账矩阵 + 五道闸门（G0–G5、基线棘轮、定档规则）。active。
+- [架构](design/architecture.md) — 现行客户端、阶段、边界与贡献入口。active。
 
 ## 操作手册
 
@@ -56,7 +56,7 @@
 | 整形插件成对组合 | `test/combo/prepare_pairs_combo_test.dart` |
 | 唯一入口与旧 key 固定基准 | `lib/dioman.dart`、`test/support/key_baseline.json` |
 | 验收执行器源码 | `test/accept/bin/`（入口）、`test/accept/lib/`（实现） |
-| 公开 API 台账（785 项） | `test/accept/lib/api-inventory.json` |
+| 公开 API 台账（744 项） | `test/accept/lib/api-inventory.json` |
 | 真实 pairwise 执行计划 | `test/accept/lib/plugin_matrix_plan.json` |
 | 总账矩阵 / 缺口基线 / 行覆盖白名单 | `test/accept/lib/matrix.json`、`matrix-baseline.json`、`matrix-lcov-whitelist.json` |
 | 闸门、证据汇总、结论回填 | `dart run test/accept/bin/matrix.dart gates / evidence / results`；静态闸门 `test/integration/matrix_integration_test.dart` |
@@ -89,3 +89,11 @@
 - [reports/pipeline-b4-evidence/migration.md](reports/pipeline-b4-evidence/migration.md)
 - [reports/pipeline-b5a-evidence/pairs.md](reports/pipeline-b5a-evidence/pairs.md)
 - [测试总账矩阵缺口报告](reports/pipeline-b5b-evidence/gates.md)
+
+## B6 使用文档与归档
+
+- [guides/migrating-to-pipeline.md](guides/migrating-to-pipeline.md)
+- [reports/2026-10-29-pipeline-b6.md](reports/2026-10-29-pipeline-b6.md)
+- [archive/architecture-before-pipeline.md](archive/architecture-before-pipeline.md)
+- [archive/testkit-mapping-before-pipeline.md](archive/testkit-mapping-before-pipeline.md)
+- [B5b 最终闸门](reports/pipeline-b5b-evidence/final-review-gates.md)

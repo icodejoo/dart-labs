@@ -1,0 +1,27 @@
+{
+  "inventory": 744,
+  "currentNameCount": 66,
+  "unknownCurrent": [],
+  "renames": 31,
+  "renamesCovered": 25,
+  "renameRowsMissing": [],
+  "removals": 310,
+  "uniqueOld": 310,
+  "excludedUnreleased": [
+    "DiomanMockAdapter",
+    "DiomanMockAdapter.close",
+    "DiomanMockAdapter.extraKey",
+    "DiomanMockAdapter.fetch",
+    "DiomanMockAdapter.markerHeader",
+    "DiomanMockAdapter.new",
+    "DiomanMockAdapter.new(enabled)",
+    "DiomanMockAdapter.new(fallbackWhen)",
+    "DiomanMockAdapter.new(inner)",
+    "DiomanMockAdapter.new(mockUrl)",
+    "DiomanMockAdapter.new(routes)"
+  ],
+  "coveredOld": 299,
+  "missingOld": [],
+  "badRenameTargets": [],
+  "readmeStructureEqual": true
+}

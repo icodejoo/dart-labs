@@ -1,5 +1,5 @@
 name: dioman
-description: "Composable, self-contained Dio interceptor plugins (auth, cache, retry, dedup, mock, normalize, ...) plus the correct install order to wire them together."
+description: "A Dio-powered request wrapper with an onion pipeline, normalized results, and composable request policies for Dart and Flutter."
 version: 0.7.2
 repository: https://github.com/icodejoo/dart-labs/tree/main/dioman
 issue_tracker: https://github.com/icodejoo/dart-labs/issues

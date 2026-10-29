@@ -1,7 +1,7 @@
 """按磁盘上的全部 pipeline 源文件复算 LCOV，不沿用分批白名单。"""
 from pathlib import Path
 import json
-import sys
+import argparse
 
 ROOT = Path(__file__).resolve().parents[1]
 DEST = ROOT / 'docs/reports/pipeline-b5b-evidence'
@@ -58,5 +58,10 @@ def inspect(path):
 
 
 if __name__ == '__main__':
-    inspect(ROOT / (sys.argv[1] if len(sys.argv) > 1 else
-                   'docs/reports/pipeline-b5b-evidence/coverage.info'))
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('lcov', nargs='?', default='docs/reports/pipeline-b5b-evidence/coverage.info')
+    parser.add_argument('--out', type=Path, default=DEST)
+    args = parser.parse_args()
+    DEST = args.out
+    DEST.mkdir(parents=True, exist_ok=True)
+    inspect(ROOT / args.lcov)
