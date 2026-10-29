@@ -7,6 +7,7 @@ MovaWarmSignal _sig({
   Duration target = Duration.zero,
   bool buffering = false,
   Duration elapsed = Duration.zero,
+  bool live = false,
 }) =>
     MovaWarmSignal(
       position: position,
@@ -14,6 +15,7 @@ MovaWarmSignal _sig({
       target: target,
       buffering: buffering,
       elapsed: elapsed,
+      live: live,
     );
 
 void main() {
@@ -151,6 +153,76 @@ void main() {
       ));
       expect(v, MovaWarmVerdict.ready);
     });
+
+    test('live: a shadow far behind the on-screen position is still ready (it starts at the live edge)', () {
+      final p = MovaBufferWarm();
+      // 正片已播 7s，直播影子刚从边缘起播，位置只有 1s：非直播会一直 waiting
+      final s = _sig(
+        position: const Duration(seconds: 1),
+        buffer: const Duration(milliseconds: 2500),
+        target: const Duration(seconds: 7),
+        live: true,
+      );
+      expect(p.onSignal(s), MovaWarmVerdict.waiting); // 仍要连续 2 次
+      expect(p.onSignal(s), MovaWarmVerdict.ready);
+    });
+
+    test('non-live control: the same observation never becomes ready', () {
+      final p = MovaBufferWarm();
+      final s = _sig(
+        position: const Duration(seconds: 1),
+        buffer: const Duration(milliseconds: 2500),
+        target: const Duration(seconds: 7),
+      );
+      expect(p.onSignal(s), MovaWarmVerdict.waiting);
+      expect(p.onSignal(s), MovaWarmVerdict.waiting);
+    });
+
+    test('live: still needs the lookahead buffer', () {
+      final p = MovaBufferWarm(stableTicks: 1);
+      final v = p.onSignal(_sig(
+        position: const Duration(milliseconds: 500),
+        buffer: const Duration(milliseconds: 900), // 提前量 400ms < 1s
+        target: const Duration(seconds: 7),
+        live: true,
+      ));
+      expect(v, MovaWarmVerdict.waiting);
+    });
+
+    test('live: a stalled shadow is not ready', () {
+      final p = MovaBufferWarm(stableTicks: 1);
+      final v = p.onSignal(_sig(
+        position: const Duration(seconds: 1),
+        buffer: const Duration(seconds: 3),
+        target: const Duration(seconds: 7),
+        buffering: true,
+        live: true,
+      ));
+      expect(v, MovaWarmVerdict.waiting);
+    });
+
+    test('live: still gives up at the timeout', () {
+      final p = MovaBufferWarm();
+      final v = p.onSignal(_sig(
+        position: const Duration(seconds: 1),
+        buffer: const Duration(seconds: 3),
+        target: const Duration(seconds: 7),
+        elapsed: const Duration(seconds: 8),
+        live: true,
+      ));
+      expect(v, MovaWarmVerdict.giveUp);
+    });
+
+    test('live: MovaWarmSignal.live defaults to false', () {
+      const s = MovaWarmSignal(
+        position: Duration.zero,
+        buffer: Duration.zero,
+        target: Duration.zero,
+        buffering: false,
+        elapsed: Duration.zero,
+      );
+      expect(s.live, isFalse);
+    });
   });
 }
 
@@ -164,5 +236,6 @@ extension _WarmSignalCopy on MovaWarmSignal {
         target: target,
         buffering: buffering ?? this.buffering,
         elapsed: elapsed,
+        live: live,
       );
 }

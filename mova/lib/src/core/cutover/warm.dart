@@ -32,6 +32,18 @@ class MovaWarmSignal {
   /// 本次预热已进行的时长。
   final Duration elapsed;
 
+  /// Whether the shadow is warming a live source.
+  ///
+  /// A live shadow reconnects at the live edge and is never seeked, so its
+  /// playhead starts near zero no matter how long the on-screen engine has
+  /// played; [position] cannot be compared with [target] for such a source.
+  ///
+  /// 影子引擎预热的是否为直播源。
+  ///
+  /// 直播影子从直播边缘重新连接且从不 seek，无论在屏引擎已播多久，它的播放位置
+  /// 都从接近 0 开始；对这种源，[position] 与 [target] 没有可比性。
+  final bool live;
+
   /// Creates an observation.
   ///
   /// 创建一次观测。
@@ -39,12 +51,14 @@ class MovaWarmSignal {
   /// - [position], [buffer], [target]: positions in media time / 媒体时间轴上的位置
   /// - [buffering]: current stall flag / 当前是否卡顿
   /// - [elapsed]: time since warm-up started / 自预热开始的耗时
+  /// - [live]: whether the warmed source is live, default false / 预热的是否为直播源，默认 false
   const MovaWarmSignal({
     required this.position,
     required this.buffer,
     required this.target,
     required this.buffering,
     required this.elapsed,
+    this.live = false,
   });
 }
 
@@ -97,7 +111,9 @@ abstract class MovaWarmPolicy {
 
 /// Buffer-based readiness: ready once the shadow has reached the target
 /// position, is not stalled, and holds [lookahead] of buffered data — for
-/// [stableTicks] consecutive observations.
+/// [stableTicks] consecutive observations. A live shadow ([MovaWarmSignal.live])
+/// is never required to reach the target position: it starts at the live edge,
+/// so only the stall flag and the lookahead decide.
 ///
 /// The consecutive-tick requirement is what keeps a single lucky tick from
 /// committing a cutover that immediately re-buffers on screen; the lookahead is
@@ -105,7 +121,9 @@ abstract class MovaWarmPolicy {
 /// stalling at the moment the user is watching.
 ///
 /// 基于缓冲的就绪判据：影子引擎已到达目标位置、未在卡顿、且已缓冲
-/// [lookahead] 的数据——并连续满足 [stableTicks] 次观测。
+/// [lookahead] 的数据——并连续满足 [stableTicks] 次观测。直播影子
+/// （[MovaWarmSignal.live]）不要求到达目标位置：它从直播边缘起播，只看卡顿标志
+/// 与提前量。
 ///
 /// 要求连续多 tick，是为了避免某一次侥幸的观测把切换提交出去、切完立刻在
 /// 用户眼前重新缓冲；要求提前量，是为了让切换后的头几帧能连贯播下去，而不是
@@ -165,7 +183,8 @@ class MovaBufferWarm implements MovaWarmPolicy {
     if (_ready) return MovaWarmVerdict.ready;
     if (signal.elapsed >= timeout) return MovaWarmVerdict.giveUp;
 
-    final arrived = signal.position >= signal.target - tolerance;
+    // 直播影子从边缘起播，位置与正片位置无可比性，视为已到达
+    final arrived = signal.live || signal.position >= signal.target - tolerance;
     final buffered = signal.buffer - signal.position >= lookahead;
     final satisfied = arrived && buffered && !signal.buffering;
 

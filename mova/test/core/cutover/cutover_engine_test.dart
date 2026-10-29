@@ -288,6 +288,37 @@ void main() {
       await sub.cancel();
     });
 
+    test('a live shadow becomes ready without catching up to the on-screen position (Q13)', () async {
+      await api.prepare(
+        const MovaSource('https://host/live.m3u8', type: MovaStreamType.live),
+        at: const Duration(seconds: 7), // 正片已播 7s
+        cue: const MovaWarmCue(remaining: Duration(seconds: 1), total: Duration(seconds: 10)),
+      );
+      await settle();
+      // 直播影子刚从边缘起播：位置只有 1s、提前缓冲 1.5s，离正片位置还差 6s
+      const sig = MovaProg(position: Duration(seconds: 1), buffer: Duration(milliseconds: 2500));
+      (made[1]).pushProgress(sig);
+      await settle();
+      (made[1]).pushProgress(sig);
+      await settle();
+      expect(api.cutoverPhase, MovaCutoverPhase.ready);
+    });
+
+    test('a non-live shadow that has not reached the target is not ready (control for Q13)', () async {
+      await api.prepare(
+        const MovaSource('https://host/content.mp4'),
+        at: const Duration(seconds: 7),
+        cue: const MovaWarmCue(remaining: Duration(seconds: 1), total: Duration(seconds: 10)),
+      );
+      await settle();
+      const sig = MovaProg(position: Duration(seconds: 1), buffer: Duration(milliseconds: 2500));
+      (made[1]).pushProgress(sig);
+      await settle();
+      (made[1]).pushProgress(sig);
+      await settle();
+      expect(api.cutoverPhase, MovaCutoverPhase.warming);
+    });
+
     test('the events stream carries MovaCutoverChange for warming, ready and the return to idle', () async {
       final seen = <MovaCutoverPhase>[];
       final sub = api.events.where((e) => e is MovaCutoverChange).listen((e) => seen.add((e as MovaCutoverChange).phase));

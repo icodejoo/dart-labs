@@ -1,5 +1,7 @@
 ## Unreleased
 
+* **Fix：直播影子预热不再要求追上正片位置，正片播得越久越容易降级成非无缝切换的问题**。直播影子从直播边缘起播且从不 seek，位置从 0 开始，而 `MovaBufferWarm` 要求影子位置 ≥ 目标位置 − 容差，所以就绪时间≈起播延迟+正片已播位置；正片先播 7s 的变体 10/10 在 8s `readyTimeout` 处放弃预热（真机 STG-AL00 实测）。现在 `MovaWarmSignal` 新增 `live`（默认 false，自定义判据不受影响），`MovaBufferWarm` 对直播视为已到达，仍要求无卡顿 + 提前缓冲 ≥ `lookahead` + 连续 `stableTicks` 次；点播与未带 `live` 的信号行为不变。真机：正片先播 500ms/3s/7s/15s/30s 全部通过（B/C 各 5–10 次），影子就绪耗时稳定在约 3–4s、不再随正片位置增长，`readyTimeout` 仍是 8s；详见 doc/plans/2026-10-29-q13-live-warm-fix-verification.md。测试 1744 → 1752（`warm_test` +6、`cutover_engine_test` +2）。
+
 * **Fix：硬解失败后成功回落软解不再误报播放错误**。精确过滤 mpv 的 `Could not open codec.` 尝试日志，保留解码器耗尽与格式识别失败的终结错误，默认关闭 recovery 时仍能报出真失败。
 
 * **Breaking（命名）：去掉 `*Controller` 后缀，standby 改名 keepAlive，swap 改名 cutover**（纯改名，行为不变；测试 1508 → 1510，新增 2 项兼容层回归）。

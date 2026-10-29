@@ -95,6 +95,19 @@ class _Q13PageState extends State<_Q13Page> {
   /// 插广告前正片先播多久（毫秒）；场景编号后缀 S / L 会改它。
   int _contentDelayMs = 3000;
 
+  /// True: content is a VOD (local vod.mp4) instead of the live FLV; used by the Q13V regression scenario.
+  ///
+  /// 为真时正片用点播（本地 vod.mp4）而不是直播 FLV；Q13V 回归场景用。
+  bool _vod = false;
+
+  /// Epoch whose progress is tracked into [_trackPos] (Q13V: content position at the ad takeover).
+  ///
+  /// 被跟踪进度的 epoch，其位置写入 [_trackPos]（Q13V：广告接管时刻的正片位置）。
+  int _trackEpoch = -1;
+  Duration _trackPos = Duration.zero;
+  Duration? _resumePos;
+  int _resumeEpoch = -1;
+
   void _log(String msg) {
     final line = _out.line('${DateTime.now().toIso8601String().substring(11, 23)} ${_clock.elapsedMilliseconds.toString().padLeft(7)}ms $msg');
     if (mounted) setState(() => _lines.insert(0, line));
@@ -111,7 +124,9 @@ class _Q13PageState extends State<_Q13Page> {
     WidgetsBinding.instance.addPostFrameCallback((_) => unawaited(_runAll()));
   }
 
-  MovaSource _content() => MovaSource(_stamp('$kBase/live.flv?gop=50&audio=1&freq=440'), type: MovaStreamType.live, title: 'content');
+  MovaSource _content() => _vod
+      ? MovaSource(_stamp('$kBase/vod.mp4'), title: 'content')
+      : MovaSource(_stamp('$kBase/live.flv?gop=50&audio=1&freq=440'), type: MovaStreamType.live, title: 'content');
 
   MovaAdBreak _adBreak() => MovaAdBreak(
     kind: MovaAdBreakKind.mid,
@@ -140,7 +155,12 @@ class _Q13PageState extends State<_Q13Page> {
       },
     );
     _cutover = cutover;
-    _progSub = cutover.progress.listen((p) => _lastPos = p.position);
+    _progSub = cutover.progress.listen((p) {
+      _lastPos = p.position;
+      final ep = cutover.state.renderEpoch;
+      if (ep == _trackEpoch) _trackPos = p.position;
+      if (_resumeEpoch >= 0 && ep == _resumeEpoch && _resumePos == null) _resumePos = p.position;
+    });
     _ads = MovaAds(cutover, cutover: cutover);
     if (mounted) setState(() {});
   }
@@ -371,6 +391,45 @@ class _Q13PageState extends State<_Q13Page> {
     _verdict(id, ok, 'shadow.mute while warming=${warmed[shadow]} swapped=$swapped committed(live k$newest).mute=${committed[newest]}$extra');
   }
 
+  /// VOD regression: content VOD, ad inserted and skipped; the shadow (content) must still wait to reach the
+  /// target position, and the resume position error is logged (content position at ad takeover vs first
+  /// position after the commit).
+  ///
+  /// 点播回归：正片点播，插广告再跳过；影子仍须追到目标位置才就绪，并记录续播落点误差。
+  Future<void> _scenarioVod() async {
+    _vod = true;
+    try {
+      await _newRig();
+      final ads = _ads!;
+      _trackPos = Duration.zero;
+      _resumePos = null;
+      _resumeEpoch = -1;
+      _trackEpoch = 0;
+      final tStart = _clock.elapsedMilliseconds;
+      if (!await _enterAd('V')) return _verdict('Q13V', false, 'could not reach the warming state');
+      final epoch = _cutover!.state.renderEpoch;
+      final contentAtTakeover = _trackPos;
+      _trackEpoch = -1;
+      _resumeEpoch = epoch + 1;
+      _log('V skipping the ad now; content position at takeover=${contentAtTakeover.inMilliseconds}ms');
+      final tSkip = _clock.elapsedMilliseconds;
+      ads.skip();
+      final swapped = await _waitEpoch(epoch);
+      final tCommit = _clock.elapsedMilliseconds;
+      await Future<void>.delayed(const Duration(milliseconds: 2500));
+      final committed = await _snapshot('V-committed');
+      final newest = _players.length - 1;
+      final resume = _resumePos;
+      final err = resume == null ? null : resume.inMilliseconds - contentAtTakeover.inMilliseconds;
+      final ok = swapped && committed[newest] == 'no' && err != null && err.abs() < 500;
+      _verdict('Q13V', ok, 'swapped=$swapped contentAtTakeover=${contentAtTakeover.inMilliseconds}ms resumeFirstPos=${resume?.inMilliseconds}ms resumeErr=${err}ms skipToCommit=${tCommit - tSkip}ms sinceStart=${tCommit - tStart}ms committed(k$newest).mute=${committed[newest]}');
+    } finally {
+      _vod = false;
+      _trackEpoch = -1;
+      _resumeEpoch = -1;
+    }
+  }
+
   Future<void> _runAll() async {
     final only = parseOnly(autoOnlyRaw());
     final runs = autoRuns();
@@ -378,12 +437,15 @@ class _Q13PageState extends State<_Q13Page> {
       ('Q13A', 'plain warm and commit', _scenarioPlain),
       ('Q13B', 'keepAlive requested while warming, commit while holding, then wake', () => _scenarioKeepAlive(wakeBeforeCommit: false)),
       ('Q13C', 'keepAlive requested while warming, wake before commit', () => _scenarioKeepAlive(wakeBeforeCommit: true)),
+      ('Q13V', 'VOD content cutover regression (resume position error)', _scenarioVod),
     ];
     _log('AUTORUN start runs=$runs base=$kBase only=${only.isEmpty ? 'all' : only.join(',')} os=${Platform.operatingSystem} ${Platform.operatingSystemVersion}');
     // Variants for the warm-up timing study: suffix S = content plays 500ms before the ad, L = 7000ms.
     final variants = <String, (String, int)>{
       'Q13AS': ('Q13A', 500), 'Q13BS': ('Q13B', 500), 'Q13CS': ('Q13C', 500),
       'Q13AL': ('Q13A', 7000), 'Q13BL': ('Q13B', 7000), 'Q13CL': ('Q13C', 7000),
+      'Q13AX': ('Q13A', 15000), 'Q13BX': ('Q13B', 15000), 'Q13CX': ('Q13C', 15000),
+      'Q13AY': ('Q13A', 30000), 'Q13BY': ('Q13B', 30000), 'Q13CY': ('Q13C', 30000),
     };
     for (final v in only.where(variants.containsKey)) {
       final (base, delay) = variants[v]!;

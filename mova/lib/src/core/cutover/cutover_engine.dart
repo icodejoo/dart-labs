@@ -574,6 +574,7 @@ class MovaCutoverEngine implements MovaApi, MovaCutover, MovaKeepAlive {
       target: _warmAt,
       buffering: _shadowBuffering,
       elapsed: clock.elapsed,
+      live: _warmLive,
     ));
 
     switch (verdict) {
