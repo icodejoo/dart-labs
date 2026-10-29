@@ -1,0 +1,51 @@
+diff --git a/libavcodec/mediacodecdec.c b/libavcodec/mediacodecdec.c
+index bc176d8..17bef9f 100644
+--- a/libavcodec/mediacodecdec.c
++++ b/libavcodec/mediacodecdec.c
+@@ -59,6 +59,11 @@ typedef struct MediaCodecH264DecContext {
+     int use_ndk_codec;
+     // Ref. MediaFormat KEY_OPERATING_RATE
+     int operating_rate;
++
++    // VP8：系统解码器（libvpx）要求第一个包必须是关键帧，否则
++    // vpx_codec_decode 返回 UNSUP_BITSTREAM，整个 codec 进入不可恢复的错误状态。
++    // 为 1 时丢弃非关键帧，直到收到第一个关键帧。
++    int need_keyframe;
+ } MediaCodecH264DecContext;
+ 
+ static av_cold int mediacodec_decode_close(AVCodecContext *avctx)
+@@ -318,6 +323,8 @@ static av_cold int mediacodec_decode_init(AVCodecContext *avctx)
+     if (s->use_ndk_codec < 0)
+         s->use_ndk_codec = !av_jni_get_java_vm(avctx);
+ 
++    s->need_keyframe = avctx->codec_id == AV_CODEC_ID_VP8;
++
+     format = ff_AMediaFormat_new(s->use_ndk_codec);
+     if (!format) {
+         av_log(avctx, AV_LOG_ERROR, "Failed to create media format\n");
+@@ -564,6 +571,16 @@ static int mediacodec_receive_frame(AVCodecContext *avctx, AVFrame *frame)
+         } else if (ret < 0) {
+             return ret;
+         }
++
++        /* VP8：解码器（重）启动后，在第一个关键帧之前的包直接丢弃 */
++        if (s->need_keyframe) {
++            if (!(s->buffered_pkt.flags & AV_PKT_FLAG_KEY)) {
++                av_log(avctx, AV_LOG_DEBUG, "Dropping non-key VP8 packet before first key frame\n");
++                av_packet_unref(&s->buffered_pkt);
++                continue;
++            }
++            s->need_keyframe = 0;
++        }
+     }
+ 
+     return AVERROR(EAGAIN);
+@@ -573,6 +590,8 @@ static void mediacodec_decode_flush(AVCodecContext *avctx)
+ {
+     MediaCodecH264DecContext *s = avctx->priv_data;
+ 
++    s->need_keyframe = avctx->codec_id == AV_CODEC_ID_VP8;
++
+     av_packet_unref(&s->buffered_pkt);
+ 
+     ff_mediacodec_dec_flush(avctx, s->ctx);

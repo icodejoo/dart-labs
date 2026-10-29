@@ -287,3 +287,7 @@ Chrome fake-device，可从 Windows 或 WSL 启动，`--ffprobe` 指 WSL 中的�
 默认测试 VP8/H264 各 10 秒、至少 200 个解码帧；保存原始和候选重排后的 answer，优先 WSL 网关候选。
 本轮 Windows→WSL 的媒体 ICE 未通，改前 H264、改后 H264/VP8 都超时；不能据此认定媒体端到端通过，
 需在 UDP 可达的环境重跑。详细记录见加回 VP8 计划「落地记录」。
+
+## 0016（Android `vp8_mediacodec`）
+
+`0016-avcodec-mediacodecdec-vp8-drop-leading-non-key-packets.patch`：VP8 的系统解码器（libvpx）要求首个包必须是关键帧，否则 `vpx_codec_decode` 返回 `UNSUP_BITSTREAM`，整个 codec 进入不可恢复的错误状态（NDK dequeue 返回 `-10000`、`sf error -38`，mpv 回退后同一解码器仍反复失败而空转）。补丁在解码器初始化与 flush 之后丢弃非关键帧，直到第一个关键帧。**已在 STG-AL00（arm64）真机验证**：原样本卡死 7/12 → 0/12，libvpx 失败 2 次/轮 → 0。`ffmpeg-whep/0*.patch` 通配，会被 `apply-v041.sh`（WHEP=1）自动带上；非 WHEP 的 Android 构建没有拷贝 ffmpeg-whep，需另行接入。依赖：送入解码器的包带 `AV_PKT_FLAG_KEY`（mkv 路径已验证，WHEP 解包路径未验证）。

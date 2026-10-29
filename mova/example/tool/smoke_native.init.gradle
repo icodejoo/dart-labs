@@ -1,0 +1,11 @@
+// 冒烟专用：把 media_kit_libs_android_video 的 jniLibs 指回 slim 包自带的新版 so，覆盖 coverage.init.gradle 的旧副本。
+// 须排在 coverage.init.gradle 之后（-I 顺序），且 abiFilters 由 -PsmokeAbi 另行放开。
+gradle.beforeProject { project ->
+    if (project.name == 'media_kit_libs_android_video') {
+        project.pluginManager.withPlugin('com.android.library') {
+            project.android.sourceSets.main.jniLibs.setSrcDirs([
+                new File(project.findProperty('smokeJni') ?: project.rootProject.file('../../packages/media_kit_libs_android_video_slim/android/src/main/jniLibs').path)
+            ])
+        }
+    }
+}
