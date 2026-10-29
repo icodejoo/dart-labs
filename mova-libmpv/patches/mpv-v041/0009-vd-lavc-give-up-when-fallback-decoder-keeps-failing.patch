@@ -1,0 +1,81 @@
+diff --git a/video/decode/vd_lavc.c b/video/decode/vd_lavc.c
+index 399e1d5..663ff62 100644
+--- a/video/decode/vd_lavc.c
++++ b/video/decode/vd_lavc.c
+@@ -67,6 +67,9 @@ static int hwdec_opt_help(struct mp_log *log, const m_option_t *opt,
+ 
+ #define HWDEC_DELAY_QUEUE_COUNT 2
+ 
++// 软解就是刚失败的 hwdec 解码器时，连续这么多次解码错误后放弃
++#define MAX_SAME_DECODER_ERRORS 30
++
+ #define OPT_BASE_STRUCT struct vd_lavc_params
+ 
+ struct vd_lavc_params {
+@@ -237,6 +240,7 @@ typedef struct lavc_ctx {
+ 
+     bool hwdec_request_reinit;
+     int hwdec_fail_count;
++    int same_decoder_fail_count;
+ 
+     struct mp_image_pool *hwdec_swpool;
+ 
+@@ -918,6 +922,7 @@ static void uninit_avctx(struct mp_filter *vd)
+ 
+     ctx->hwdec_failed = false;
+     ctx->hwdec_fail_count = 0;
++    ctx->same_decoder_fail_count = 0;
+     ctx->max_delay_queue = 0;
+     ctx->hw_probing = false;
+     ctx->hwdec = (struct hwdec_info){0};
+@@ -1149,6 +1154,17 @@ static void prepare_decoding(struct mp_filter *vd)
+         reset_avctx(vd);
+ }
+ 
++// 当前解码器是否就是刚失败的那个 hwdec 解码器（落到“软解”后仍是同一个，例如 vp8_mediacodec）。
++static bool decoder_is_failed_hwdec(vd_ffmpeg_ctx *ctx)
++{
++    if (!ctx->decoder || !ctx->num_attempted_hwdecs)
++        return false;
++    bstr last = ctx->attempted_hwdecs[ctx->num_attempted_hwdecs - 1];
++    bstr name = bstr0(ctx->decoder);
++    return bstr_startswith(last, name) && last.len > name.len &&
++           last.start[name.len] == '-';
++}
++
+ static void handle_err(struct mp_filter *vd)
+ {
+     vd_ffmpeg_ctx *ctx = vd->priv;
+@@ -1161,6 +1177,15 @@ static void handle_err(struct mp_filter *vd)
+         ctx->hwdec_fail_count += 1;
+         if (ctx->hwdec_fail_count >= hwdec_opts->software_fallback)
+             ctx->hwdec_failed = true;
++    } else if (decoder_is_failed_hwdec(ctx) && !ctx->force_eof) {
++        // 软解与 hwdec 是同一个解码器时，回退不会换来任何新东西，
++        // 却会让 handle_err 不再计数而永远空转（Android vp8_mediacodec）。
++        // 连续失败到上限就走已有的强制 EOF 出口停止解码。
++        if (++ctx->same_decoder_fail_count >= MAX_SAME_DECODER_ERRORS) {
++            MP_ERR(vd, "Decoder %s keeps failing after fallback, giving up.\n",
++                   ctx->decoder);
++            ctx->force_eof = true;
++        }
+     }
+ }
+ 
+@@ -1175,7 +1200,7 @@ static int send_packet(struct mp_filter *vd, struct demux_packet *pkt)
+     if (ctx->hwdec_failed)
+         return AVERROR(EAGAIN);
+ 
+-    if (!ctx->avctx)
++    if (!ctx->avctx || ctx->force_eof)
+         return AVERROR_EOF;
+ 
+     prepare_decoding(vd);
+@@ -1265,6 +1290,7 @@ static int decode_frame(struct mp_filter *vd)
+     }
+ 
+     ctx->hwdec_fail_count = 0;
++    ctx->same_decoder_fail_count = 0;
+ 
+     mpi->pts = mp_pts_from_av(ctx->pic->pts, &ctx->codec_timebase);
+     mpi->dts = mp_pts_from_av(ctx->pic->pkt_dts, &ctx->codec_timebase);

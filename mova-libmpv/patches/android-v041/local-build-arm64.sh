@@ -30,7 +30,7 @@ BSF="null,extract_extradata,h264_mp4toannexb,hevc_mp4toannexb,aac_adtstoasc,vp9_
 make -j8 > $M/ffmake-$L.log 2>&1 && make install >> $M/ffmake-$L.log 2>&1
 grep -m1 FFMPEG_VERSION $P/include/libavutil/ffversion.h
 rm -rf $W/mpv; git clone -q /root/w/mpvt/src-v041 $W/mpv; cd $W/mpv; git checkout -q v0.41.0 2>/dev/null || true; git describe --tags 2>&1 | head -1; git status --short | head -3
-for p in $PATCHES/0001-*.patch $PATCHES/0002-*.patch $PATCHES/0006-*.patch $PATCHES/0007-*.patch $PATCHES/0008-*.patch; do git apply --check $p && git apply $p; echo applied $p; done
+for p in $PATCHES/0001-*.patch $PATCHES/0002-*.patch $PATCHES/0006-*.patch $PATCHES/0007-*.patch $PATCHES/0008-*.patch $PATCHES/0009-*.patch; do git apply --check $p && git apply $p; echo applied $p; done
 B=$M/b-$L; rm -rf $B
 export PKG_CONFIG_LIBDIR=$PLC/lib/pkgconfig:$P/lib/pkgconfig
 LT=; [ $L = 1 ] && LT=-Db_lto=true
